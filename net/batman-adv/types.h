@@ -48,7 +48,7 @@ typedef u16 batadv_dat_addr_t;
  * enum batadv_dhcp_recipient - dhcp destination
  */
 enum batadv_dhcp_recipient {
-	/** @BATADV_DHCP_NO: packet is not a dhcp message */
+	/** @BATADV_DHCP_NO: packet is yest a dhcp message */
 	BATADV_DHCP_NO = 0,
 
 	/** @BATADV_DHCP_TO_SERVER: dhcp message is directed to a server */
@@ -66,7 +66,7 @@ enum batadv_dhcp_recipient {
 
 /**
  * BATADV_TT_SYNC_MASK - bitmask of the flags that need to be kept in sync
- *  among the nodes. These flags are used to compute the global/local CRC
+ *  among the yesdes. These flags are used to compute the global/local CRC
  */
 #define BATADV_TT_SYNC_MASK	0x00F0
 
@@ -80,8 +80,8 @@ struct batadv_hard_iface_bat_iv {
 	/** @ogm_buff_len: length of the OGM packet buffer */
 	int ogm_buff_len;
 
-	/** @ogm_seqno: OGM sequence number - used to identify each OGM */
-	atomic_t ogm_seqno;
+	/** @ogm_seqyes: OGM sequence number - used to identify each OGM */
+	atomic_t ogm_seqyes;
 
 	/** @ogm_buff_mutex: lock protecting ogm_buff and ogm_buff_len */
 	struct mutex ogm_buff_mutex;
@@ -99,7 +99,7 @@ enum batadv_v_hard_iface_flags {
 
 	/**
 	 * @BATADV_WARNING_DEFAULT: tells whether we have warned the user that
-	 *  no throughput data is available for this interface and that default
+	 *  yes throughput data is available for this interface and that default
 	 *  values are assumed.
 	 */
 	BATADV_WARNING_DEFAULT	= BIT(1),
@@ -112,8 +112,8 @@ struct batadv_hard_iface_bat_v {
 	/** @elp_interval: time interval between two ELP transmissions */
 	atomic_t elp_interval;
 
-	/** @elp_seqno: current ELP sequence number */
-	atomic_t elp_seqno;
+	/** @elp_seqyes: current ELP sequence number */
+	atomic_t elp_seqyes;
 
 	/** @elp_skb: base skb containing the ELP message to send */
 	struct sk_buff *elp_skb;
@@ -164,10 +164,10 @@ enum batadv_hard_iface_wifi_flags {
 };
 
 /**
- * struct batadv_hard_iface - network device known to batman-adv
+ * struct batadv_hard_iface - network device kyeswn to batman-adv
  */
 struct batadv_hard_iface {
-	/** @list: list node for batadv_hardif_list */
+	/** @list: list yesde for batadv_hardif_list */
 	struct list_head list;
 
 	/** @if_status: status of the interface for batman-adv */
@@ -238,7 +238,7 @@ struct batadv_hard_iface {
 struct batadv_orig_ifinfo_bat_iv {
 	/**
 	 * @bcast_own: bitfield which counts the number of our OGMs this
-	 * orig_node rebroadcasted "back" to us  (relative to last_real_seqno)
+	 * orig_yesde rebroadcasted "back" to us  (relative to last_real_seqyes)
 	 */
 	DECLARE_BITMAP(bcast_own, BATADV_TQ_LOCAL_WINDOW_SIZE);
 
@@ -250,26 +250,26 @@ struct batadv_orig_ifinfo_bat_iv {
  * struct batadv_orig_ifinfo - originator info per outgoing interface
  */
 struct batadv_orig_ifinfo {
-	/** @list: list node for &batadv_orig_node.ifinfo_list */
-	struct hlist_node list;
+	/** @list: list yesde for &batadv_orig_yesde.ifinfo_list */
+	struct hlist_yesde list;
 
 	/** @if_outgoing: pointer to outgoing hard-interface */
 	struct batadv_hard_iface *if_outgoing;
 
 	/** @router: router that should be used to reach this originator */
-	struct batadv_neigh_node __rcu *router;
+	struct batadv_neigh_yesde __rcu *router;
 
-	/** @last_real_seqno: last and best known sequence number */
-	u32 last_real_seqno;
+	/** @last_real_seqyes: last and best kyeswn sequence number */
+	u32 last_real_seqyes;
 
 	/** @last_ttl: ttl of last received packet */
 	u8 last_ttl;
 
-	/** @last_seqno_forwarded: seqno of the OGM which was forwarded last */
-	u32 last_seqno_forwarded;
+	/** @last_seqyes_forwarded: seqyes of the OGM which was forwarded last */
+	u32 last_seqyes_forwarded;
 
-	/** @batman_seqno_reset: time when the batman seqno window was reset */
-	unsigned long batman_seqno_reset;
+	/** @batman_seqyes_reset: time when the batman seqyes window was reset */
+	unsigned long batman_seqyes_reset;
 
 	/** @bat_iv: B.A.T.M.A.N. IV private structure */
 	struct batadv_orig_ifinfo_bat_iv bat_iv;
@@ -294,8 +294,8 @@ struct batadv_frag_table_entry {
 	/** @timestamp: time (jiffie) of last received fragment */
 	unsigned long timestamp;
 
-	/** @seqno: sequence number of the fragments in the list */
-	u16 seqno;
+	/** @seqyes: sequence number of the fragments in the list */
+	u16 seqyes;
 
 	/** @size: accumulated size of packets in list */
 	u16 size;
@@ -308,14 +308,14 @@ struct batadv_frag_table_entry {
  * struct batadv_frag_list_entry - entry in a list of fragments
  */
 struct batadv_frag_list_entry {
-	/** @list: list node information */
-	struct hlist_node list;
+	/** @list: list yesde information */
+	struct hlist_yesde list;
 
 	/** @skb: fragment */
 	struct sk_buff *skb;
 
-	/** @no: fragment number in the set */
-	u8 no;
+	/** @yes: fragment number in the set */
+	u8 yes;
 };
 
 /**
@@ -330,17 +330,17 @@ struct batadv_vlan_tt {
 };
 
 /**
- * struct batadv_orig_node_vlan - VLAN specific data per orig_node
+ * struct batadv_orig_yesde_vlan - VLAN specific data per orig_yesde
  */
-struct batadv_orig_node_vlan {
+struct batadv_orig_yesde_vlan {
 	/** @vid: the VLAN identifier */
 	unsigned short vid;
 
 	/** @tt: VLAN specific TT attributes */
 	struct batadv_vlan_tt tt;
 
-	/** @list: list node for &batadv_orig_node.vlan_list */
-	struct hlist_node list;
+	/** @list: list yesde for &batadv_orig_yesde.vlan_list */
+	struct hlist_yesde list;
 
 	/**
 	 * @refcount: number of context where this object is currently in use
@@ -352,7 +352,7 @@ struct batadv_orig_node_vlan {
 };
 
 /**
- * struct batadv_orig_bat_iv - B.A.T.M.A.N. IV private orig_node members
+ * struct batadv_orig_bat_iv - B.A.T.M.A.N. IV private orig_yesde members
  */
 struct batadv_orig_bat_iv {
 	/**
@@ -365,9 +365,9 @@ struct batadv_orig_bat_iv {
 };
 
 /**
- * struct batadv_orig_node - structure for orig_list maintaining nodes of mesh
+ * struct batadv_orig_yesde - structure for orig_list maintaining yesdes of mesh
  */
-struct batadv_orig_node {
+struct batadv_orig_yesde {
 	/** @orig: originator ethernet address */
 	u8 orig[ETH_ALEN];
 
@@ -380,17 +380,17 @@ struct batadv_orig_node {
 	struct batadv_orig_ifinfo *last_bonding_candidate;
 
 #ifdef CONFIG_BATMAN_ADV_DAT
-	/** @dat_addr: address of the orig node in the distributed hash */
+	/** @dat_addr: address of the orig yesde in the distributed hash */
 	batadv_dat_addr_t dat_addr;
 #endif
 
-	/** @last_seen: time when last packet from this node was received */
+	/** @last_seen: time when last packet from this yesde was received */
 	unsigned long last_seen;
 
 	/**
-	 * @bcast_seqno_reset: time when the broadcast seqno window was reset
+	 * @bcast_seqyes_reset: time when the broadcast seqyes window was reset
 	 */
-	unsigned long bcast_seqno_reset;
+	unsigned long bcast_seqyes_reset;
 
 #ifdef CONFIG_BATMAN_ADV_MCAST
 	/**
@@ -398,39 +398,39 @@ struct batadv_orig_node {
 	 */
 	spinlock_t mcast_handler_lock;
 
-	/** @mcast_flags: multicast flags announced by the orig node */
+	/** @mcast_flags: multicast flags anyesunced by the orig yesde */
 	u8 mcast_flags;
 
 	/**
-	 * @mcast_want_all_unsnoopables_node: a list node for the
-	 *  mcast.want_all_unsnoopables list
+	 * @mcast_want_all_unsyesopables_yesde: a list yesde for the
+	 *  mcast.want_all_unsyesopables list
 	 */
-	struct hlist_node mcast_want_all_unsnoopables_node;
+	struct hlist_yesde mcast_want_all_unsyesopables_yesde;
 
 	/**
-	 * @mcast_want_all_ipv4_node: a list node for the mcast.want_all_ipv4
+	 * @mcast_want_all_ipv4_yesde: a list yesde for the mcast.want_all_ipv4
 	 *  list
 	 */
-	struct hlist_node mcast_want_all_ipv4_node;
+	struct hlist_yesde mcast_want_all_ipv4_yesde;
 	/**
-	 * @mcast_want_all_ipv6_node: a list node for the mcast.want_all_ipv6
+	 * @mcast_want_all_ipv6_yesde: a list yesde for the mcast.want_all_ipv6
 	 *  list
 	 */
-	struct hlist_node mcast_want_all_ipv6_node;
+	struct hlist_yesde mcast_want_all_ipv6_yesde;
 
 	/**
-	 * @mcast_want_all_rtr4_node: a list node for the mcast.want_all_rtr4
+	 * @mcast_want_all_rtr4_yesde: a list yesde for the mcast.want_all_rtr4
 	 *  list
 	 */
-	struct hlist_node mcast_want_all_rtr4_node;
+	struct hlist_yesde mcast_want_all_rtr4_yesde;
 	/**
-	 * @mcast_want_all_rtr6_node: a list node for the mcast.want_all_rtr6
+	 * @mcast_want_all_rtr6_yesde: a list yesde for the mcast.want_all_rtr6
 	 *  list
 	 */
-	struct hlist_node mcast_want_all_rtr6_node;
+	struct hlist_yesde mcast_want_all_rtr6_yesde;
 #endif
 
-	/** @capabilities: announced capabilities of this originator */
+	/** @capabilities: anyesunced capabilities of this originator */
 	unsigned long capabilities;
 
 	/**
@@ -442,12 +442,12 @@ struct batadv_orig_node {
 	/** @last_ttvn: last seen translation table version number */
 	atomic_t last_ttvn;
 
-	/** @tt_buff: last tt changeset this node received from the orig node */
+	/** @tt_buff: last tt changeset this yesde received from the orig yesde */
 	unsigned char *tt_buff;
 
 	/**
-	 * @tt_buff_len: length of the last tt changeset this node received
-	 *  from the orig node
+	 * @tt_buff_len: length of the last tt changeset this yesde received
+	 *  from the orig yesde
 	 */
 	s16 tt_buff_len;
 
@@ -458,27 +458,27 @@ struct batadv_orig_node {
 	 * @tt_lock: prevents from updating the table while reading it. Table
 	 *  update is made up by two operations (data structure update and
 	 *  metdata -CRC/TTVN-recalculation) and they have to be executed
-	 *  atomically in order to avoid another thread to read the
+	 *  atomically in order to avoid ayesther thread to read the
 	 *  table/metadata between those.
 	 */
 	spinlock_t tt_lock;
 
 	/**
 	 * @bcast_bits: bitfield containing the info which payload broadcast
-	 *  originated from this orig node this host already has seen (relative
-	 *  to last_bcast_seqno)
+	 *  originated from this orig yesde this host already has seen (relative
+	 *  to last_bcast_seqyes)
 	 */
 	DECLARE_BITMAP(bcast_bits, BATADV_TQ_LOCAL_WINDOW_SIZE);
 
 	/**
-	 * @last_bcast_seqno: last broadcast sequence number received by this
+	 * @last_bcast_seqyes: last broadcast sequence number received by this
 	 *  host
 	 */
-	u32 last_bcast_seqno;
+	u32 last_bcast_seqyes;
 
 	/**
 	 * @neigh_list: list of potential next hop neighbor towards this orig
-	 *  node
+	 *  yesde
 	 */
 	struct hlist_head neigh_list;
 
@@ -488,14 +488,14 @@ struct batadv_orig_node {
 	 */
 	spinlock_t neigh_list_lock;
 
-	/** @hash_entry: hlist node for &batadv_priv.orig_hash */
-	struct hlist_node hash_entry;
+	/** @hash_entry: hlist yesde for &batadv_priv.orig_hash */
+	struct hlist_yesde hash_entry;
 
-	/** @bat_priv: pointer to soft_iface this orig node belongs to */
+	/** @bat_priv: pointer to soft_iface this orig yesde belongs to */
 	struct batadv_priv *bat_priv;
 
-	/** @bcast_seqno_lock: lock protecting bcast_bits & last_bcast_seqno */
-	spinlock_t bcast_seqno_lock;
+	/** @bcast_seqyes_lock: lock protecting bcast_bits & last_bcast_seqyes */
+	spinlock_t bcast_seqyes_lock;
 
 	/** @refcount: number of contexts the object is used */
 	struct kref refcount;
@@ -504,10 +504,10 @@ struct batadv_orig_node {
 	struct rcu_head rcu;
 
 #ifdef CONFIG_BATMAN_ADV_NC
-	/** @in_coding_list: list of nodes this orig can hear */
+	/** @in_coding_list: list of yesdes this orig can hear */
 	struct list_head in_coding_list;
 
-	/** @out_coding_list: list of nodes that can hear this orig */
+	/** @out_coding_list: list of yesdes that can hear this orig */
 	struct list_head out_coding_list;
 
 	/** @in_coding_list_lock: protects in_coding_list */
@@ -521,7 +521,7 @@ struct batadv_orig_node {
 	struct batadv_frag_table_entry fragments[BATADV_FRAG_BUFFER_COUNT];
 
 	/**
-	 * @vlan_list: a list of orig_node_vlan structs, one per VLAN served by
+	 * @vlan_list: a list of orig_yesde_vlan structs, one per VLAN served by
 	 *  the originator represented by this object
 	 */
 	struct hlist_head vlan_list;
@@ -534,37 +534,37 @@ struct batadv_orig_node {
 };
 
 /**
- * enum batadv_orig_capabilities - orig node capabilities
+ * enum batadv_orig_capabilities - orig yesde capabilities
  */
 enum batadv_orig_capabilities {
 	/**
-	 * @BATADV_ORIG_CAPA_HAS_DAT: orig node has distributed arp table
+	 * @BATADV_ORIG_CAPA_HAS_DAT: orig yesde has distributed arp table
 	 *  enabled
 	 */
 	BATADV_ORIG_CAPA_HAS_DAT,
 
-	/** @BATADV_ORIG_CAPA_HAS_NC: orig node has network coding enabled */
+	/** @BATADV_ORIG_CAPA_HAS_NC: orig yesde has network coding enabled */
 	BATADV_ORIG_CAPA_HAS_NC,
 
-	/** @BATADV_ORIG_CAPA_HAS_TT: orig node has tt capability */
+	/** @BATADV_ORIG_CAPA_HAS_TT: orig yesde has tt capability */
 	BATADV_ORIG_CAPA_HAS_TT,
 
 	/**
-	 * @BATADV_ORIG_CAPA_HAS_MCAST: orig node has some multicast capability
-	 *  (= orig node announces a tvlv of type BATADV_TVLV_MCAST)
+	 * @BATADV_ORIG_CAPA_HAS_MCAST: orig yesde has some multicast capability
+	 *  (= orig yesde anyesunces a tvlv of type BATADV_TVLV_MCAST)
 	 */
 	BATADV_ORIG_CAPA_HAS_MCAST,
 };
 
 /**
- * struct batadv_gw_node - structure for orig nodes announcing gw capabilities
+ * struct batadv_gw_yesde - structure for orig yesdes anyesuncing gw capabilities
  */
-struct batadv_gw_node {
-	/** @list: list node for &batadv_priv_gw.list */
-	struct hlist_node list;
+struct batadv_gw_yesde {
+	/** @list: list yesde for &batadv_priv_gw.list */
+	struct hlist_yesde list;
 
-	/** @orig_node: pointer to corresponding orig node */
-	struct batadv_orig_node *orig_node;
+	/** @orig_yesde: pointer to corresponding orig yesde */
+	struct batadv_orig_yesde *orig_yesde;
 
 	/** @bandwidth_down: advertised uplink download bandwidth */
 	u32 bandwidth_down;
@@ -582,18 +582,18 @@ struct batadv_gw_node {
 DECLARE_EWMA(throughput, 10, 8)
 
 /**
- * struct batadv_hardif_neigh_node_bat_v - B.A.T.M.A.N. V private neighbor
+ * struct batadv_hardif_neigh_yesde_bat_v - B.A.T.M.A.N. V private neighbor
  *  information
  */
-struct batadv_hardif_neigh_node_bat_v {
+struct batadv_hardif_neigh_yesde_bat_v {
 	/** @throughput: ewma link throughput towards this neighbor */
 	struct ewma_throughput throughput;
 
 	/** @elp_interval: time interval between two ELP transmissions */
 	u32 elp_interval;
 
-	/** @elp_latest_seqno: latest and best known ELP sequence number */
-	u32 elp_latest_seqno;
+	/** @elp_latest_seqyes: latest and best kyeswn ELP sequence number */
+	u32 elp_latest_seqyes;
 
 	/**
 	 * @last_unicast_tx: when the last unicast packet has been sent to this
@@ -606,17 +606,17 @@ struct batadv_hardif_neigh_node_bat_v {
 };
 
 /**
- * struct batadv_hardif_neigh_node - unique neighbor per hard-interface
+ * struct batadv_hardif_neigh_yesde - unique neighbor per hard-interface
  */
-struct batadv_hardif_neigh_node {
-	/** @list: list node for &batadv_hard_iface.neigh_list */
-	struct hlist_node list;
+struct batadv_hardif_neigh_yesde {
+	/** @list: list yesde for &batadv_hard_iface.neigh_list */
+	struct hlist_yesde list;
 
 	/** @addr: the MAC address of the neighboring interface */
 	u8 addr[ETH_ALEN];
 
 	/**
-	 * @orig: the address of the originator this neighbor node belongs to
+	 * @orig: the address of the originator this neighbor yesde belongs to
 	 */
 	u8 orig[ETH_ALEN];
 
@@ -628,7 +628,7 @@ struct batadv_hardif_neigh_node {
 
 #ifdef CONFIG_BATMAN_ADV_BATMAN_V
 	/** @bat_v: B.A.T.M.A.N. V private data */
-	struct batadv_hardif_neigh_node_bat_v bat_v;
+	struct batadv_hardif_neigh_yesde_bat_v bat_v;
 #endif
 
 	/** @refcount: number of contexts the object is used */
@@ -639,14 +639,14 @@ struct batadv_hardif_neigh_node {
 };
 
 /**
- * struct batadv_neigh_node - structure for single hops neighbors
+ * struct batadv_neigh_yesde - structure for single hops neighbors
  */
-struct batadv_neigh_node {
-	/** @list: list node for &batadv_orig_node.neigh_list */
-	struct hlist_node list;
+struct batadv_neigh_yesde {
+	/** @list: list yesde for &batadv_orig_yesde.neigh_list */
+	struct hlist_yesde list;
 
-	/** @orig_node: pointer to corresponding orig_node */
-	struct batadv_orig_node *orig_node;
+	/** @orig_yesde: pointer to corresponding orig_yesde */
+	struct batadv_orig_yesde *orig_yesde;
 
 	/** @addr: the MAC address of the neighboring interface */
 	u8 addr[ETH_ALEN];
@@ -664,7 +664,7 @@ struct batadv_neigh_node {
 	unsigned long last_seen;
 
 	/** @hardif_neigh: hardif_neigh of this neighbor */
-	struct batadv_hardif_neigh_node *hardif_neigh;
+	struct batadv_hardif_neigh_yesde *hardif_neigh;
 
 	/** @refcount: number of contexts the object is used */
 	struct kref refcount;
@@ -678,7 +678,7 @@ struct batadv_neigh_node {
  *  interface for B.A.T.M.A.N. IV
  */
 struct batadv_neigh_ifinfo_bat_iv {
-	/** @tq_recv: ring buffer of received TQ values from this neigh node */
+	/** @tq_recv: ring buffer of received TQ values from this neigh yesde */
 	u8 tq_recv[BATADV_TQ_GLOBAL_WINDOW_SIZE];
 
 	/** @tq_index: ring buffer index */
@@ -691,7 +691,7 @@ struct batadv_neigh_ifinfo_bat_iv {
 
 	/**
 	 * @real_bits: bitfield containing the number of OGMs received from this
-	 *  neigh node (relative to orig_node->last_real_seqno)
+	 *  neigh yesde (relative to orig_yesde->last_real_seqyes)
 	 */
 	DECLARE_BITMAP(real_bits, BATADV_TQ_LOCAL_WINDOW_SIZE);
 
@@ -710,16 +710,16 @@ struct batadv_neigh_ifinfo_bat_v {
 	 */
 	u32 throughput;
 
-	/** @last_seqno: last sequence number known for this neighbor */
-	u32 last_seqno;
+	/** @last_seqyes: last sequence number kyeswn for this neighbor */
+	u32 last_seqyes;
 };
 
 /**
  * struct batadv_neigh_ifinfo - neighbor information per outgoing interface
  */
 struct batadv_neigh_ifinfo {
-	/** @list: list node for &batadv_neigh_node.ifinfo_list */
-	struct hlist_node list;
+	/** @list: list yesde for &batadv_neigh_yesde.ifinfo_list */
+	struct hlist_yesde list;
 
 	/** @if_outgoing: pointer to outgoing hard-interface */
 	struct batadv_hard_iface *if_outgoing;
@@ -732,7 +732,7 @@ struct batadv_neigh_ifinfo {
 	struct batadv_neigh_ifinfo_bat_v bat_v;
 #endif
 
-	/** @last_ttl: last received ttl from this neigh node */
+	/** @last_ttl: last received ttl from this neigh yesde */
 	u8 last_ttl;
 
 	/** @refcount: number of contexts the object is used */
@@ -748,7 +748,7 @@ struct batadv_neigh_ifinfo {
  * struct batadv_bcast_duplist_entry - structure for LAN broadcast suppression
  */
 struct batadv_bcast_duplist_entry {
-	/** @orig: mac address of orig node orginating the broadcast */
+	/** @orig: mac address of orig yesde orginating the broadcast */
 	u8 orig[ETH_ALEN];
 
 	/** @crc: crc32 checksum of broadcast payload */
@@ -1012,7 +1012,7 @@ struct batadv_priv_tt {
 	 * @commit_lock: prevents from executing a local TT commit while reading
 	 *  the local table. The local TT commit is made up by two operations
 	 *  (data structure update and metdata -CRC/TTVN- recalculation) and
-	 *  they have to be executed atomically in order to avoid another thread
+	 *  they have to be executed atomically in order to avoid ayesther thread
 	 *  to read the table/metadata between those.
 	 */
 	spinlock_t commit_lock;
@@ -1031,7 +1031,7 @@ struct batadv_priv_bla {
 	atomic_t num_requests;
 
 	/**
-	 * @claim_hash: hash table containing mesh nodes this host has claimed
+	 * @claim_hash: hash table containing mesh yesdes this host has claimed
 	 */
 	struct batadv_hashtable *claim_hash;
 
@@ -1075,7 +1075,7 @@ struct batadv_priv_bla {
 	/** @claim_dest: local claim data (e.g. claim group) */
 	struct batadv_bla_claim_dst claim_dest;
 
-	/** @work: work queue callback item for cleanups & bla announcements */
+	/** @work: work queue callback item for cleanups & bla anyesuncements */
 	struct delayed_work work;
 };
 #endif
@@ -1107,14 +1107,14 @@ struct batadv_priv_debug_log {
  * struct batadv_priv_gw - per mesh interface gateway data
  */
 struct batadv_priv_gw {
-	/** @gateway_list: list of available gateway nodes */
+	/** @gateway_list: list of available gateway yesdes */
 	struct hlist_head gateway_list;
 
 	/** @list_lock: lock protecting gateway_list, curr_gw, generation */
 	spinlock_t list_lock;
 
-	/** @curr_gw: pointer to currently selected gateway node */
-	struct batadv_gw_node __rcu *curr_gw;
+	/** @curr_gw: pointer to currently selected gateway yesde */
+	struct batadv_gw_yesde __rcu *curr_gw;
 
 	/** @generation: current (generation) sequence number */
 	unsigned int generation;
@@ -1168,7 +1168,7 @@ struct batadv_priv_tvlv {
  * struct batadv_priv_dat - per mesh interface DAT private data
  */
 struct batadv_priv_dat {
-	/** @addr: node DAT address */
+	/** @addr: yesde DAT address */
 	batadv_dat_addr_t addr;
 
 	/** @hash: hashtable representing the local ARP cache */
@@ -1219,37 +1219,37 @@ struct batadv_mcast_mla_flags {
  */
 struct batadv_priv_mcast {
 	/**
-	 * @mla_list: list of multicast addresses we are currently announcing
+	 * @mla_list: list of multicast addresses we are currently anyesuncing
 	 *  via TT
 	 */
 	struct hlist_head mla_list; /* see __batadv_mcast_mla_update() */
 
 	/**
-	 * @want_all_unsnoopables_list: a list of orig_nodes wanting all
-	 *  unsnoopable multicast traffic
+	 * @want_all_unsyesopables_list: a list of orig_yesdes wanting all
+	 *  unsyesopable multicast traffic
 	 */
-	struct hlist_head want_all_unsnoopables_list;
+	struct hlist_head want_all_unsyesopables_list;
 
 	/**
-	 * @want_all_ipv4_list: a list of orig_nodes wanting all IPv4 multicast
+	 * @want_all_ipv4_list: a list of orig_yesdes wanting all IPv4 multicast
 	 *  traffic
 	 */
 	struct hlist_head want_all_ipv4_list;
 
 	/**
-	 * @want_all_ipv6_list: a list of orig_nodes wanting all IPv6 multicast
+	 * @want_all_ipv6_list: a list of orig_yesdes wanting all IPv6 multicast
 	 *  traffic
 	 */
 	struct hlist_head want_all_ipv6_list;
 
 	/**
-	 * @want_all_rtr4_list: a list of orig_nodes wanting all routable IPv4
+	 * @want_all_rtr4_list: a list of orig_yesdes wanting all routable IPv4
 	 *  multicast traffic
 	 */
 	struct hlist_head want_all_rtr4_list;
 
 	/**
-	 * @want_all_rtr6_list: a list of orig_nodes wanting all routable IPv6
+	 * @want_all_rtr6_list: a list of orig_yesdes wanting all routable IPv6
 	 *  multicast traffic
 	 */
 	struct hlist_head want_all_rtr6_list;
@@ -1265,10 +1265,10 @@ struct batadv_priv_mcast {
 	spinlock_t mla_lock;
 
 	/**
-	 * @num_want_all_unsnoopables: number of nodes wanting unsnoopable IP
+	 * @num_want_all_unsyesopables: number of yesdes wanting unsyesopable IP
 	 *  traffic
 	 */
-	atomic_t num_want_all_unsnoopables;
+	atomic_t num_want_all_unsyesopables;
 
 	/** @num_want_all_ipv4: counter for items in want_all_ipv4_list */
 	atomic_t num_want_all_ipv4;
@@ -1284,7 +1284,7 @@ struct batadv_priv_mcast {
 
 	/**
 	 * @want_lists_lock: lock for protecting modifications to mcasts
-	 *  want_all_{unsnoopables,ipv4,ipv6}_list (traversals are rcu-locked)
+	 *  want_all_{unsyesopables,ipv4,ipv6}_list (traversals are rcu-locked)
 	 */
 	spinlock_t want_lists_lock;
 
@@ -1336,7 +1336,7 @@ struct batadv_priv_nc {
 
 	/**
 	 * @coding_hash: Hash table used to buffer skbs while waiting for
-	 *  another incoming skb to code it with. Skbs are added to the buffer
+	 *  ayesther incoming skb to code it with. Skbs are added to the buffer
 	 *  just before being forwarded in routing.c
 	 */
 	struct batadv_hashtable *coding_hash;
@@ -1354,17 +1354,17 @@ struct batadv_priv_nc {
  * struct batadv_tp_unacked - unacked packet meta-information
  *
  * This struct is supposed to represent a buffer unacked packet. However, since
- * the purpose of the TP meter is to count the traffic only, there is no need to
- * store the entire sk_buff, the starting offset and the length are enough
+ * the purpose of the TP meter is to count the traffic only, there is yes need to
+ * store the entire sk_buff, the starting offset and the length are eyesugh
  */
 struct batadv_tp_unacked {
-	/** @seqno: seqno of the unacked packet */
-	u32 seqno;
+	/** @seqyes: seqyes of the unacked packet */
+	u32 seqyes;
 
 	/** @len: length of the packet */
 	u16 len;
 
-	/** @list: list node for &batadv_tp_vars.unacked_list */
+	/** @list: list yesde for &batadv_tp_vars.unacked_list */
 	struct list_head list;
 };
 
@@ -1383,8 +1383,8 @@ enum batadv_tp_meter_role {
  * struct batadv_tp_vars - tp meter private variables per session
  */
 struct batadv_tp_vars {
-	/** @list: list node for &bat_priv.tp_list */
-	struct hlist_node list;
+	/** @list: list yesde for &bat_priv.tp_list */
+	struct hlist_yesde list;
 
 	/** @timer: timer for ack (receiver) and retry (sender) */
 	struct timer_list timer;
@@ -1401,7 +1401,7 @@ struct batadv_tp_vars {
 	/** @role: receiver/sender modi */
 	enum batadv_tp_meter_role role;
 
-	/** @sending: sending binary semaphore: 1 if sending, 0 is not */
+	/** @sending: sending binary semaphore: 1 if sending, 0 is yest */
 	atomic_t sending;
 
 	/** @reason: reason for a stopped session */
@@ -1439,7 +1439,7 @@ struct batadv_tp_vars {
 	/** @last_acked: last acked byte */
 	atomic_t last_acked;
 
-	/** @last_sent: last sent byte, not yet acked */
+	/** @last_sent: last sent byte, yest yet acked */
 	u32 last_sent;
 
 	/** @tot_sent: amount of data sent/ACKed so far */
@@ -1451,7 +1451,7 @@ struct batadv_tp_vars {
 	/** @fast_recovery: true if in Fast Recovery mode */
 	unsigned char fast_recovery:1;
 
-	/** @recover: last sent seqno when entering Fast Recovery */
+	/** @recover: last sent seqyes when entering Fast Recovery */
 	u32 recover;
 
 	/** @rto: sender timeout */
@@ -1515,8 +1515,8 @@ struct batadv_softif_vlan {
 	/** @tt: TT private attributes (VLAN specific) */
 	struct batadv_vlan_tt tt;
 
-	/** @list: list node for &bat_priv.softif_vlan_list */
-	struct hlist_node list;
+	/** @list: list yesde for &bat_priv.softif_vlan_list */
+	struct hlist_yesde list;
 
 	/**
 	 * @refcount: number of context where this object is currently in use
@@ -1537,8 +1537,8 @@ struct batadv_priv_bat_v {
 	/** @ogm_buff_len: length of the OGM packet buffer */
 	int ogm_buff_len;
 
-	/** @ogm_seqno: OGM sequence number - used to identify each OGM */
-	atomic_t ogm_seqno;
+	/** @ogm_seqyes: OGM sequence number - used to identify each OGM */
+	atomic_t ogm_seqyes;
 
 	/** @ogm_buff_mutex: lock protecting ogm_buff and ogm_buff_len */
 	struct mutex ogm_buff_mutex;
@@ -1588,10 +1588,10 @@ struct batadv_priv {
 	atomic_t packet_size_max;
 
 	/**
-	 * @frag_seqno: incremental counter to identify chains of egress
+	 * @frag_seqyes: incremental counter to identify chains of egress
 	 *  fragments
 	 */
-	atomic_t frag_seqno;
+	atomic_t frag_seqyes;
 
 #ifdef CONFIG_BATMAN_ADV_BLA
 	/**
@@ -1612,15 +1612,15 @@ struct batadv_priv {
 #ifdef CONFIG_BATMAN_ADV_MCAST
 	/**
 	 * @multicast_mode: Enable or disable multicast optimizations on this
-	 *  node's sender/originating side
+	 *  yesde's sender/originating side
 	 */
 	atomic_t multicast_mode;
 
 	/**
-	 * @multicast_fanout: Maximum number of packet copies to generate for a
+	 * @multicast_fayesut: Maximum number of packet copies to generate for a
 	 *  multicast-to-unicast conversion
 	 */
-	atomic_t multicast_fanout;
+	atomic_t multicast_fayesut;
 #endif
 
 	/** @orig_interval: OGM broadcast interval in milliseconds */
@@ -1649,8 +1649,8 @@ struct batadv_priv {
 	 */
 	u32 isolation_mark_mask;
 
-	/** @bcast_seqno: last sent broadcast packet sequence number */
-	atomic_t bcast_seqno;
+	/** @bcast_seqyes: last sent broadcast packet sequence number */
+	atomic_t bcast_seqyes;
 
 	/**
 	 * @bcast_queue_left: number of remaining buffered broadcast packet
@@ -1684,7 +1684,7 @@ struct batadv_priv {
 	/** @tp_num: number of currently active tp sessions */
 	struct batadv_hashtable *orig_hash;
 
-	/** @orig_hash: hash table containing mesh participants (orig nodes) */
+	/** @orig_hash: hash table containing mesh participants (orig yesdes) */
 	spinlock_t forw_bat_list_lock;
 
 	/** @forw_bat_list_lock: lock protecting forw_bat_list */
@@ -1696,7 +1696,7 @@ struct batadv_priv {
 	/** @tp_list_lock: spinlock protecting @tp_list */
 	atomic_t tp_num;
 
-	/** @orig_work: work queue callback item for orig node purging */
+	/** @orig_work: work queue callback item for orig yesde purging */
 	struct delayed_work orig_work;
 
 	/**
@@ -1791,7 +1791,7 @@ struct batadv_socket_client {
  * struct batadv_socket_packet - layer2 icmp packet for socket client
  */
 struct batadv_socket_packet {
-	/** @list: list node for &batadv_socket_client.queue_list */
+	/** @list: list yesde for &batadv_socket_client.queue_list */
 	struct list_head list;
 
 	/** @icmp_len: size of the layer2 icmp packet */
@@ -1808,7 +1808,7 @@ struct batadv_socket_packet {
  */
 struct batadv_bla_backbone_gw {
 	/**
-	 * @orig: originator address of backbone node (mac address of primary
+	 * @orig: originator address of backbone yesde (mac address of primary
 	 *  iface)
 	 */
 	u8 orig[ETH_ALEN];
@@ -1816,8 +1816,8 @@ struct batadv_bla_backbone_gw {
 	/** @vid: vlan id this gateway was detected on */
 	unsigned short vid;
 
-	/** @hash_entry: hlist node for &batadv_priv_bla.backbone_hash */
-	struct hlist_node hash_entry;
+	/** @hash_entry: hlist yesde for &batadv_priv_bla.backbone_hash */
+	struct hlist_yesde hash_entry;
 
 	/** @bat_priv: pointer to soft_iface this backbone gateway belongs to */
 	struct batadv_priv *bat_priv;
@@ -1827,14 +1827,14 @@ struct batadv_bla_backbone_gw {
 
 	/**
 	 * @wait_periods: grace time for bridge forward delays and bla group
-	 *  forming at bootup phase - no bcast traffic is formwared until it has
+	 *  forming at bootup phase - yes bcast traffic is formwared until it has
 	 *  elapsed
 	 */
 	atomic_t wait_periods;
 
 	/**
 	 * @request_sent: if this bool is set to true we are out of sync with
-	 *  this backbone gateway - no bcast traffic is formwared until the
+	 *  this backbone gateway - yes bcast traffic is formwared until the
 	 *  situation was resolved
 	 */
 	atomic_t request_sent;
@@ -1856,10 +1856,10 @@ struct batadv_bla_backbone_gw {
 };
 
 /**
- * struct batadv_bla_claim - claimed non-mesh client structure
+ * struct batadv_bla_claim - claimed yesn-mesh client structure
  */
 struct batadv_bla_claim {
-	/** @addr: mac address of claimed non-mesh client */
+	/** @addr: mac address of claimed yesn-mesh client */
 	u8 addr[ETH_ALEN];
 
 	/** @vid: vlan id this client was detected on */
@@ -1874,8 +1874,8 @@ struct batadv_bla_claim {
 	/** @lasttime: last time we heard of claim (locals only) */
 	unsigned long lasttime;
 
-	/** @hash_entry: hlist node for &batadv_priv_bla.claim_hash */
-	struct hlist_node hash_entry;
+	/** @hash_entry: hlist yesde for &batadv_priv_bla.claim_hash */
+	struct hlist_yesde hash_entry;
 
 	/** @refcount: number of contexts the object is used */
 	struct rcu_head rcu;
@@ -1889,17 +1889,17 @@ struct batadv_bla_claim {
  * struct batadv_tt_common_entry - tt local & tt global common data
  */
 struct batadv_tt_common_entry {
-	/** @addr: mac address of non-mesh client */
+	/** @addr: mac address of yesn-mesh client */
 	u8 addr[ETH_ALEN];
 
 	/** @vid: VLAN identifier */
 	unsigned short vid;
 
 	/**
-	 * @hash_entry: hlist node for &batadv_priv_tt.local_hash or for
+	 * @hash_entry: hlist yesde for &batadv_priv_tt.local_hash or for
 	 *  &batadv_priv_tt.global_hash
 	 */
-	struct hlist_node hash_entry;
+	struct hlist_yesde hash_entry;
 
 	/** @flags: various state handling flags (see batadv_tt_client_flags) */
 	u16 flags;
@@ -1935,7 +1935,7 @@ struct batadv_tt_global_entry {
 	/** @common: general translation table data */
 	struct batadv_tt_common_entry common;
 
-	/** @orig_list: list of orig nodes announcing this non-mesh client */
+	/** @orig_list: list of orig yesdes anyesuncing this yesn-mesh client */
 	struct hlist_head orig_list;
 
 	/** @orig_list_count: number of items in the orig_list */
@@ -1949,14 +1949,14 @@ struct batadv_tt_global_entry {
 };
 
 /**
- * struct batadv_tt_orig_list_entry - orig node announcing a non-mesh client
+ * struct batadv_tt_orig_list_entry - orig yesde anyesuncing a yesn-mesh client
  */
 struct batadv_tt_orig_list_entry {
-	/** @orig_node: pointer to orig node announcing this non-mesh client */
-	struct batadv_orig_node *orig_node;
+	/** @orig_yesde: pointer to orig yesde anyesuncing this yesn-mesh client */
+	struct batadv_orig_yesde *orig_yesde;
 
 	/**
-	 * @ttvn: translation table version number which added the non-mesh
+	 * @ttvn: translation table version number which added the yesn-mesh
 	 *  client
 	 */
 	u8 ttvn;
@@ -1964,8 +1964,8 @@ struct batadv_tt_orig_list_entry {
 	/** @flags: per orig entry TT sync flags */
 	u8 flags;
 
-	/** @list: list node for &batadv_tt_global_entry.orig_list */
-	struct hlist_node list;
+	/** @list: list yesde for &batadv_tt_global_entry.orig_list */
+	struct hlist_yesde list;
 
 	/** @refcount: number of contexts the object is used */
 	struct kref refcount;
@@ -1975,10 +1975,10 @@ struct batadv_tt_orig_list_entry {
 };
 
 /**
- * struct batadv_tt_change_node - structure for tt changes occurred
+ * struct batadv_tt_change_yesde - structure for tt changes occurred
  */
-struct batadv_tt_change_node {
-	/** @list: list node for &batadv_priv_tt.changes_list */
+struct batadv_tt_change_yesde {
+	/** @list: list yesde for &batadv_priv_tt.changes_list */
 	struct list_head list;
 
 	/** @change: holds the actual translation table diff data */
@@ -1986,9 +1986,9 @@ struct batadv_tt_change_node {
 };
 
 /**
- * struct batadv_tt_req_node - data to keep track of the tt requests in flight
+ * struct batadv_tt_req_yesde - data to keep track of the tt requests in flight
  */
-struct batadv_tt_req_node {
+struct batadv_tt_req_yesde {
 	/**
 	 * @addr: mac address address of the originator this request was sent to
 	 */
@@ -2000,14 +2000,14 @@ struct batadv_tt_req_node {
 	/** @refcount: number of contexts the object is used by */
 	struct kref refcount;
 
-	/** @list: list node for &batadv_priv_tt.req_list */
-	struct hlist_node list;
+	/** @list: list yesde for &batadv_priv_tt.req_list */
+	struct hlist_yesde list;
 };
 
 /**
- * struct batadv_tt_roam_node - roaming client data
+ * struct batadv_tt_roam_yesde - roaming client data
  */
-struct batadv_tt_roam_node {
+struct batadv_tt_roam_yesde {
 	/** @addr: mac address of the client in the roaming phase */
 	u8 addr[ETH_ALEN];
 
@@ -2018,22 +2018,22 @@ struct batadv_tt_roam_node {
 	atomic_t counter;
 
 	/**
-	 * @first_time: timestamp used for purging stale roaming node entries
+	 * @first_time: timestamp used for purging stale roaming yesde entries
 	 */
 	unsigned long first_time;
 
-	/** @list: list node for &batadv_priv_tt.roam_list */
+	/** @list: list yesde for &batadv_priv_tt.roam_list */
 	struct list_head list;
 };
 
 /**
- * struct batadv_nc_node - network coding node
+ * struct batadv_nc_yesde - network coding yesde
  */
-struct batadv_nc_node {
+struct batadv_nc_yesde {
 	/** @list: next and prev pointer for the list handling */
 	struct list_head list;
 
-	/** @addr: the node's mac address */
+	/** @addr: the yesde's mac address */
 	u8 addr[ETH_ALEN];
 
 	/** @refcount: number of contexts the object is used by */
@@ -2042,10 +2042,10 @@ struct batadv_nc_node {
 	/** @rcu: struct used for freeing in an RCU-safe manner */
 	struct rcu_head rcu;
 
-	/** @orig_node: pointer to corresponding orig node struct */
-	struct batadv_orig_node *orig_node;
+	/** @orig_yesde: pointer to corresponding orig yesde struct */
+	struct batadv_orig_yesde *orig_yesde;
 
-	/** @last_seen: timestamp of last ogm received from this node */
+	/** @last_seen: timestamp of last ogm received from this yesde */
 	unsigned long last_seen;
 };
 
@@ -2054,7 +2054,7 @@ struct batadv_nc_node {
  */
 struct batadv_nc_path {
 	/** @hash_entry: next and prev pointer for the list handling */
-	struct hlist_node hash_entry;
+	struct hlist_yesde hash_entry;
 
 	/** @rcu: struct used for freeing in an RCU-safe manner */
 	struct rcu_head rcu;
@@ -2095,8 +2095,8 @@ struct batadv_nc_packet {
 	 */
 	unsigned long timestamp;
 
-	/** @neigh_node: pointer to original next hop neighbor of skb */
-	struct batadv_neigh_node *neigh_node;
+	/** @neigh_yesde: pointer to original next hop neighbor of skb */
+	struct batadv_neigh_yesde *neigh_yesde;
 
 	/** @skb: skb which can be encoded or used for decoding */
 	struct sk_buff *skb;
@@ -2125,13 +2125,13 @@ struct batadv_skb_cb {
  */
 struct batadv_forw_packet {
 	/**
-	 * @list: list node for &batadv_priv.forw.bcast_list and
+	 * @list: list yesde for &batadv_priv.forw.bcast_list and
 	 *  &batadv_priv.forw.bat_list
 	 */
-	struct hlist_node list;
+	struct hlist_yesde list;
 
-	/** @cleanup_list: list node for purging functions */
-	struct hlist_node cleanup_list;
+	/** @cleanup_list: list yesde for purging functions */
+	struct hlist_yesde cleanup_list;
 
 	/** @send_time: execution time for delayed_work (packet sending) */
 	unsigned long send_time;
@@ -2186,7 +2186,7 @@ struct batadv_algo_iface_ops {
 	/** @enable: init routing info when hard-interface is enabled */
 	int (*enable)(struct batadv_hard_iface *hard_iface);
 
-	/** @enabled: notification when hard-interface was enabled (optional) */
+	/** @enabled: yestification when hard-interface was enabled (optional) */
 	void (*enabled)(struct batadv_hard_iface *hard_iface);
 
 	/** @disable: de-init routing info when hard-interface is disabled */
@@ -2207,15 +2207,15 @@ struct batadv_algo_iface_ops {
  */
 struct batadv_algo_neigh_ops {
 	/** @hardif_init: called on creation of single hop entry (optional) */
-	void (*hardif_init)(struct batadv_hardif_neigh_node *neigh);
+	void (*hardif_init)(struct batadv_hardif_neigh_yesde *neigh);
 
 	/**
 	 * @cmp: compare the metrics of two neighbors for their respective
 	 *  outgoing interfaces
 	 */
-	int (*cmp)(struct batadv_neigh_node *neigh1,
+	int (*cmp)(struct batadv_neigh_yesde *neigh1,
 		   struct batadv_hard_iface *if_outgoing1,
-		   struct batadv_neigh_node *neigh2,
+		   struct batadv_neigh_yesde *neigh2,
 		   struct batadv_hard_iface *if_outgoing2);
 
 	/**
@@ -2223,9 +2223,9 @@ struct batadv_algo_neigh_ops {
 	 *  than neigh2 for their respective outgoing interface from the metric
 	 *  prospective
 	 */
-	bool (*is_similar_or_better)(struct batadv_neigh_node *neigh1,
+	bool (*is_similar_or_better)(struct batadv_neigh_yesde *neigh1,
 				     struct batadv_hard_iface *if_outgoing1,
-				     struct batadv_neigh_node *neigh2,
+				     struct batadv_neigh_yesde *neigh2,
 				     struct batadv_hard_iface *if_outgoing2);
 
 #ifdef CONFIG_BATMAN_ADV_DEBUGFS
@@ -2273,10 +2273,10 @@ struct batadv_algo_gw_ops {
 	ssize_t (*show_sel_class)(struct batadv_priv *bat_priv, char *buff);
 
 	/**
-	 * @get_best_gw_node: select the best GW from the list of available
-	 *  nodes (optional)
+	 * @get_best_gw_yesde: select the best GW from the list of available
+	 *  yesdes (optional)
 	 */
-	struct batadv_gw_node *(*get_best_gw_node)
+	struct batadv_gw_yesde *(*get_best_gw_yesde)
 		(struct batadv_priv *bat_priv);
 
 	/**
@@ -2284,8 +2284,8 @@ struct batadv_algo_gw_ops {
 	 *  for the election as best GW (optional)
 	 */
 	bool (*is_eligible)(struct batadv_priv *bat_priv,
-			    struct batadv_orig_node *curr_gw_orig,
-			    struct batadv_orig_node *orig_node);
+			    struct batadv_orig_yesde *curr_gw_orig,
+			    struct batadv_orig_yesde *orig_yesde);
 
 #ifdef CONFIG_BATMAN_ADV_DEBUGFS
 	/** @print: print the gateway table (optional) */
@@ -2301,8 +2301,8 @@ struct batadv_algo_gw_ops {
  * struct batadv_algo_ops - mesh algorithm callbacks
  */
 struct batadv_algo_ops {
-	/** @list: list node for the batadv_algo_list */
-	struct hlist_node list;
+	/** @list: list yesde for the batadv_algo_list */
+	struct hlist_yesde list;
 
 	/** @name: name of the algorithm */
 	char *name;
@@ -2339,8 +2339,8 @@ struct batadv_dat_entry {
 	 */
 	unsigned long last_update;
 
-	/** @hash_entry: hlist node for &batadv_priv_dat.hash */
-	struct hlist_node hash_entry;
+	/** @hash_entry: hlist yesde for &batadv_priv_dat.hash */
+	struct hlist_yesde hash_entry;
 
 	/** @refcount: number of contexts the object is used */
 	struct kref refcount;
@@ -2353,8 +2353,8 @@ struct batadv_dat_entry {
  * struct batadv_hw_addr - a list entry for a MAC address
  */
 struct batadv_hw_addr {
-	/** @list: list node for the linking of entries */
-	struct hlist_node list;
+	/** @list: list yesde for the linking of entries */
+	struct hlist_yesde list;
 
 	/** @addr: the MAC address of this list entry */
 	unsigned char addr[ETH_ALEN];
@@ -2373,18 +2373,18 @@ struct batadv_dat_candidate {
 	int type;
 
 	/**
-	 * @orig_node: if type is BATADV_DAT_CANDIDATE_ORIG this field points to
-	 * the corresponding originator node structure
+	 * @orig_yesde: if type is BATADV_DAT_CANDIDATE_ORIG this field points to
+	 * the corresponding originator yesde structure
 	 */
-	struct batadv_orig_node *orig_node;
+	struct batadv_orig_yesde *orig_yesde;
 };
 
 /**
  * struct batadv_tvlv_container - container for tvlv appended to OGMs
  */
 struct batadv_tvlv_container {
-	/** @list: hlist node for &batadv_priv_tvlv.container_list */
-	struct hlist_node list;
+	/** @list: hlist yesde for &batadv_priv_tvlv.container_list */
+	struct hlist_yesde list;
 
 	/** @tvlv_hdr: tvlv header information needed to construct the tvlv */
 	struct batadv_tvlv_hdr tvlv_hdr;
@@ -2397,15 +2397,15 @@ struct batadv_tvlv_container {
  * struct batadv_tvlv_handler - handler for specific tvlv type and version
  */
 struct batadv_tvlv_handler {
-	/** @list: hlist node for &batadv_priv_tvlv.handler_list */
-	struct hlist_node list;
+	/** @list: hlist yesde for &batadv_priv_tvlv.handler_list */
+	struct hlist_yesde list;
 
 	/**
 	 * @ogm_handler: handler callback which is given the tvlv payload to
 	 *  process on incoming OGM packets
 	 */
 	void (*ogm_handler)(struct batadv_priv *bat_priv,
-			    struct batadv_orig_node *orig,
+			    struct batadv_orig_yesde *orig,
 			    u8 flags, void *tvlv_value, u16 tvlv_value_len);
 
 	/**
@@ -2438,7 +2438,7 @@ struct batadv_tvlv_handler {
 enum batadv_tvlv_handler_flags {
 	/**
 	 * @BATADV_TVLV_HANDLER_OGM_CIFNOTFND: tvlv ogm processing function
-	 *  will call this handler even if its type was not found (with no data)
+	 *  will call this handler even if its type was yest found (with yes data)
 	 */
 	BATADV_TVLV_HANDLER_OGM_CIFNOTFND = BIT(1),
 

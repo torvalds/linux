@@ -5,17 +5,17 @@
  * Copyright (c) 2003 Jim Hague (jim.hague@acm.org)
  *
  * based on 2.4 driver:
- * Copyright (c) 1998-2000 Ilario Nardinocchi (nardinoc@CS.UniBO.IT)
+ * Copyright (c) 1998-2000 Ilario Nardiyescchi (nardiyesc@CS.UniBO.IT)
  * Copyright (c) 1999 Jakub Jelinek (jakub@redhat.com)
  *
  * and additional input from James Simmon's port of Hannu Mallat's tdfx
  * driver.
  *
  * I have a Creative Graphics Blaster Exxtreme card - pm2fb on x86. I
- * have no access to other pm2fb implementations. Sparc (and thus
- * hopefully other big-endian) devices now work, thanks to a lot of
- * testing work by Ron Murray. I have no access to CVision hardware,
- * and therefore for now I am omitting the CVision code.
+ * have yes access to other pm2fb implementations. Sparc (and thus
+ * hopefully other big-endian) devices yesw work, thanks to a lot of
+ * testing work by Ron Murray. I have yes access to CVision hardware,
+ * and therefore for yesw I am omitting the CVision code.
  *
  * Multiple boards support has been on the TODO list for ages.
  * Don't expect this to change.
@@ -30,7 +30,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -42,7 +42,7 @@
 #include <video/cvisionppc.h>
 
 #if !defined(__LITTLE_ENDIAN) && !defined(__BIG_ENDIAN)
-#error	"The endianness of the target host has not been defined."
+#error	"The endianness of the target host has yest been defined."
 #endif
 
 #if !defined(CONFIG_PCI)
@@ -67,7 +67,7 @@ static char *mode_option;
 
 /*
  * The XFree GLINT driver will (I think to implement hardware cursor
- * support on TVP4010 and similar where there is no RAMDAC - see
+ * support on TVP4010 and similar where there is yes RAMDAC - see
  * comment in set_video) always request +ve sync regardless of what
  * the mode requires. This screws me because I have a Sun
  * fixed-frequency monitor which absolutely has to have -ve sync. So
@@ -76,8 +76,8 @@ static char *mode_option;
  */
 static bool lowhsync;
 static bool lowvsync;
-static bool noaccel;
-static bool nomtrr;
+static bool yesaccel;
+static bool yesmtrr;
 
 /*
  * The hardware state of the graphics card that isn't part of the
@@ -381,7 +381,7 @@ static void reset_config(struct pm2fb_par *p)
 	pm2_WR(p, PM2R_RD_PIXEL_MASK, 0xff);
 	switch (p->type) {
 	case PM2_TYPE_PERMEDIA2:
-		pm2_RDAC_WR(p, PM2I_RD_MODE_CONTROL, 0); /* no overlay */
+		pm2_RDAC_WR(p, PM2I_RD_MODE_CONTROL, 0); /* yes overlay */
 		pm2_RDAC_WR(p, PM2I_RD_CURSOR_CONTROL, 0);
 		pm2_RDAC_WR(p, PM2I_RD_MISC_CONTROL, PM2F_RD_PALETTE_WIDTH_8);
 		pm2_RDAC_WR(p, PM2I_RD_COLOR_KEY_CONTROL, 0);
@@ -430,11 +430,11 @@ static void set_aperture(struct pm2fb_par *p, u32 depth)
 	pm2_WR(p, PM2R_APERTURE_TWO, PM2F_APERTURE_STANDARD);
 }
 
-static void set_color(struct pm2fb_par *p, unsigned char regno,
+static void set_color(struct pm2fb_par *p, unsigned char regyes,
 		      unsigned char r, unsigned char g, unsigned char b)
 {
 	WAIT_FIFO(p, 4);
-	pm2_WR(p, PM2R_RD_PALETTE_WRITE_ADDRESS, regno);
+	pm2_WR(p, PM2R_RD_PALETTE_WRITE_ADDRESS, regyes);
 	wmb();
 	pm2_WR(p, PM2R_RD_PALETTE_DATA, r);
 	wmb();
@@ -520,7 +520,7 @@ static void set_video(struct pm2fb_par *p, u32 video)
 
 	/*
 	 * The hardware cursor needs +vsync to recognise vert retrace.
-	 * We may not be using the hardware cursor, but the X Glint
+	 * We may yest be using the hardware cursor, but the X Glint
 	 * driver may well. So always set +hsync/+vsync and then set
 	 * the RAMDAC to invert the sync if necessary.
 	 */
@@ -558,7 +558,7 @@ static void set_video(struct pm2fb_par *p, u32 video)
  *	Checks to see if the hardware supports the state requested by
  *	var passed in.
  *
- *	Returns negative errno on error, or zero on success.
+ *	Returns negative erryes on error, or zero on success.
  */
 static int pm2fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
@@ -566,34 +566,34 @@ static int pm2fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 
 	if (var->bits_per_pixel != 8  && var->bits_per_pixel != 16 &&
 	    var->bits_per_pixel != 24 && var->bits_per_pixel != 32) {
-		DPRINTK("depth not supported: %u\n", var->bits_per_pixel);
+		DPRINTK("depth yest supported: %u\n", var->bits_per_pixel);
 		return -EINVAL;
 	}
 
 	if (var->xres != var->xres_virtual) {
 		DPRINTK("virtual x resolution != "
-			"physical x resolution not supported\n");
+			"physical x resolution yest supported\n");
 		return -EINVAL;
 	}
 
 	if (var->yres > var->yres_virtual) {
 		DPRINTK("virtual y resolution < "
-			"physical y resolution not possible\n");
+			"physical y resolution yest possible\n");
 		return -EINVAL;
 	}
 
-	/* permedia cannot blit over 2048 */
+	/* permedia canyest blit over 2048 */
 	if (var->yres_virtual > 2047) {
 		var->yres_virtual = 2047;
 	}
 
 	if (var->xoffset) {
-		DPRINTK("xoffset not supported\n");
+		DPRINTK("xoffset yest supported\n");
 		return -EINVAL;
 	}
 
 	if ((var->vmode & FB_VMODE_MASK) == FB_VMODE_INTERLACED) {
-		DPRINTK("interlace not supported\n");
+		DPRINTK("interlace yest supported\n");
 		return -EINVAL;
 	}
 
@@ -601,17 +601,17 @@ static int pm2fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	lpitch = var->xres * ((var->bits_per_pixel + 7) >> 3);
 
 	if (var->xres < 320 || var->xres > 1600) {
-		DPRINTK("width not supported: %u\n", var->xres);
+		DPRINTK("width yest supported: %u\n", var->xres);
 		return -EINVAL;
 	}
 
 	if (var->yres < 200 || var->yres > 1200) {
-		DPRINTK("height not supported: %u\n", var->yres);
+		DPRINTK("height yest supported: %u\n", var->yres);
 		return -EINVAL;
 	}
 
 	if (lpitch * var->yres_virtual > info->fix.smem_len) {
-		DPRINTK("no memory for screen (%ux%ux%u)\n",
+		DPRINTK("yes memory for screen (%ux%ux%u)\n",
 			var->xres, var->yres_virtual, var->bits_per_pixel);
 		return -EINVAL;
 	}
@@ -732,7 +732,7 @@ static int pm2fb_set_par(struct fb_info *info)
 
 	if (info->var.sync & FB_SYNC_HOR_HIGH_ACT) {
 		if (lowhsync) {
-			DPRINTK("ignoring +hsync, using -hsync.\n");
+			DPRINTK("igyesring +hsync, using -hsync.\n");
 			video |= PM2F_HSYNC_ACT_LOW;
 		} else
 			video |= PM2F_HSYNC_ACT_HIGH;
@@ -741,7 +741,7 @@ static int pm2fb_set_par(struct fb_info *info)
 
 	if (info->var.sync & FB_SYNC_VERT_HIGH_ACT) {
 		if (lowvsync) {
-			DPRINTK("ignoring +vsync, using -vsync.\n");
+			DPRINTK("igyesring +vsync, using -vsync.\n");
 			video |= PM2F_VSYNC_ACT_LOW;
 		} else
 			video |= PM2F_VSYNC_ACT_HIGH;
@@ -749,7 +749,7 @@ static int pm2fb_set_par(struct fb_info *info)
 		video |= PM2F_VSYNC_ACT_LOW;
 
 	if ((info->var.vmode & FB_VMODE_MASK) == FB_VMODE_INTERLACED) {
-		DPRINTK("interlaced not supported\n");
+		DPRINTK("interlaced yest supported\n");
 		return -EINVAL;
 	}
 	if ((info->var.vmode & FB_VMODE_MASK) == FB_VMODE_DOUBLE)
@@ -850,7 +850,7 @@ static int pm2fb_set_par(struct fb_info *info)
 
 /**
  *	pm2fb_setcolreg - Sets a color register.
- *	@regno: boolean, 0 copy local, 1 get_user() function
+ *	@regyes: boolean, 0 copy local, 1 get_user() function
  *	@red: frame buffer colormap structure
  *	@green: The green value which can be up to 16 bits wide
  *	@blue:  The blue value which can be up to 16 bits wide.
@@ -861,15 +861,15 @@ static int pm2fb_set_par(struct fb_info *info)
  *	magnitude which needs to be scaled in this function for the hardware.
  *	Pretty much a direct lift from tdfxfb.c.
  *
- *	Returns negative errno on error, or zero on success.
+ *	Returns negative erryes on error, or zero on success.
  */
-static int pm2fb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int pm2fb_setcolreg(unsigned regyes, unsigned red, unsigned green,
 			   unsigned blue, unsigned transp,
 			   struct fb_info *info)
 {
 	struct pm2fb_par *par = info->par;
 
-	if (regno >= info->cmap.len)  /* no. of hw registers */
+	if (regyes >= info->cmap.len)  /* yes. of hw registers */
 		return -EINVAL;
 	/*
 	 * Program hardware... do anything you want with transp
@@ -892,16 +892,16 @@ static int pm2fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	 *    uses offset = 0 && length = DAC register width.
 	 *    var->{color}.offset is 0
 	 *    var->{color}.length contains width of DAC
-	 *    cmap is not used
+	 *    cmap is yest used
 	 *    DAC[X] is programmed to (red, green, blue)
 	 * Truecolor:
-	 *    does not use RAMDAC (usually has 3 of them).
+	 *    does yest use RAMDAC (usually has 3 of them).
 	 *    var->{color}.offset contains start of bitfield
 	 *    var->{color}.length contains length of bitfield
 	 *    cmap is programmed to
 	 *    (red << red.offset) | (green << green.offset) |
 	 *    (blue << blue.offset) | (transp << transp.offset)
-	 *    RAMDAC does not exist
+	 *    RAMDAC does yest exist
 	 */
 #define CNVT_TOHW(val, width) ((((val) << (width)) + 0x7FFF -(val)) >> 16)
 	switch (info->fix.visual) {
@@ -927,7 +927,7 @@ static int pm2fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	if (info->fix.visual == FB_VISUAL_TRUECOLOR) {
 		u32 v;
 
-		if (regno >= 16)
+		if (regyes >= 16)
 			return -EINVAL;
 
 		v = (red << info->var.red.offset) |
@@ -941,12 +941,12 @@ static int pm2fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 		case 16:
 		case 24:
 		case 32:
-			par->palette[regno] = v;
+			par->palette[regyes] = v;
 			break;
 		}
 		return 0;
 	} else if (info->fix.visual == FB_VISUAL_PSEUDOCOLOR)
-		set_color(par, regno, red, green, blue);
+		set_color(par, regyes, red, green, blue);
 
 	return 0;
 }
@@ -960,7 +960,7 @@ static int pm2fb_setcolreg(unsigned regno, unsigned red, unsigned green,
  *	`xoffset' and `yoffset' fields of the `var' structure.
  *	If the values don't fit, return -EINVAL.
  *
- *	Returns negative errno on error, or zero on success.
+ *	Returns negative erryes on error, or zero on success.
  *
  */
 static int pm2fb_pan_display(struct fb_var_screeninfo *var,
@@ -991,7 +991,7 @@ static int pm2fb_pan_display(struct fb_var_screeninfo *var,
  *	blank_mode == 3: suspend hsync
  *	blank_mode == 4: powerdown
  *
- *	Returns negative errno on error, or zero on success.
+ *	Returns negative erryes on error, or zero on success.
  *
  */
 static int pm2fb_blank(int blank_mode, struct fb_info *info)
@@ -1276,9 +1276,9 @@ static int pm2vfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 	pm2v_RDAC_WR(par, PM2VI_RD_CURSOR_Y_HIGH, (y >> 8) & 0xf);
 
 	/*
-	 * If the cursor is not be changed this means either we want the
+	 * If the cursor is yest be changed this means either we want the
 	 * current cursor state (if enable is set) or we want to query what
-	 * we can do with the cursor (if enable is not set)
+	 * we can do with the cursor (if enable is yest set)
 	 */
 	if (!cursor->set)
 		return 0;
@@ -1381,9 +1381,9 @@ static int pm2fb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 	pm2_RDAC_WR(par, PM2I_RD_CURSOR_CONTROL, mode);
 
 	/*
-	 * If the cursor is not be changed this means either we want the
+	 * If the cursor is yest be changed this means either we want the
 	 * current cursor state (if enable is set) or we want to query what
-	 * we can do with the cursor (if enable is not set)
+	 * we can do with the cursor (if enable is yest set)
 	 */
 	if (!cursor->set)
 		return 0;
@@ -1563,7 +1563,7 @@ static int pm2fb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_exit_neither;
 	}
 	default_par->v_regs =
-		ioremap_nocache(pm2fb_fix.mmio_start, pm2fb_fix.mmio_len);
+		ioremap_yescache(pm2fb_fix.mmio_start, pm2fb_fix.mmio_len);
 	if (!default_par->v_regs) {
 		printk(KERN_WARNING "pm2fb: Can't remap %s register area.\n",
 		       pm2fb_fix.id);
@@ -1591,7 +1591,7 @@ static int pm2fb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			DPRINTK("subsystem_vendor: %04x, "
 				"subsystem_device: %04x\n",
 				pdev->subsystem_vendor, pdev->subsystem_device);
-			DPRINTK("We have not been initialized by VGA BIOS and "
+			DPRINTK("We have yest been initialized by VGA BIOS and "
 				"are running on an Elsa Winner 2000 Office\n");
 			DPRINTK("Initializing card timings manually...\n");
 			default_par->memclock = 100000;
@@ -1601,7 +1601,7 @@ static int pm2fb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			DPRINTK("subsystem_vendor: %04x, "
 				"subsystem_device: %04x\n",
 				pdev->subsystem_vendor, pdev->subsystem_device);
-			DPRINTK("We have not been initialized by VGA BIOS and "
+			DPRINTK("We have yest been initialized by VGA BIOS and "
 				"are running on an 3dlabs reference board\n");
 			DPRINTK("Initializing card timings manually...\n");
 			default_par->memclock = 74894;
@@ -1639,7 +1639,7 @@ static int pm2fb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_exit_mmio;
 	}
 
-	if (!nomtrr)
+	if (!yesmtrr)
 		default_par->wc_cookie = arch_phys_wc_add(pm2fb_fix.smem_start,
 							  pm2fb_fix.smem_len);
 
@@ -1663,7 +1663,7 @@ static int pm2fb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	info->pixmap.access_align = 32;
 	info->pixmap.flags = FB_PIXMAP_SYSTEM;
 
-	if (noaccel) {
+	if (yesaccel) {
 		printk(KERN_DEBUG "disabling acceleration\n");
 		info->flags |= FBINFO_HWACCEL_DISABLED;
 		info->pixmap.scan_align = 1;
@@ -1776,10 +1776,10 @@ static int __init pm2fb_setup(char *options)
 			lowvsync = 1;
 		else if (!strncmp(this_opt, "hwcursor=", 9))
 			hwcursor = simple_strtoul(this_opt + 9, NULL, 0);
-		else if (!strncmp(this_opt, "nomtrr", 6))
-			nomtrr = 1;
-		else if (!strncmp(this_opt, "noaccel", 7))
-			noaccel = 1;
+		else if (!strncmp(this_opt, "yesmtrr", 6))
+			yesmtrr = 1;
+		else if (!strncmp(this_opt, "yesaccel", 7))
+			yesaccel = 1;
 		else
 			mode_option = this_opt;
 	}
@@ -1825,13 +1825,13 @@ module_param(lowhsync, bool, 0);
 MODULE_PARM_DESC(lowhsync, "Force horizontal sync low regardless of mode");
 module_param(lowvsync, bool, 0);
 MODULE_PARM_DESC(lowvsync, "Force vertical sync low regardless of mode");
-module_param(noaccel, bool, 0);
-MODULE_PARM_DESC(noaccel, "Disable acceleration");
+module_param(yesaccel, bool, 0);
+MODULE_PARM_DESC(yesaccel, "Disable acceleration");
 module_param(hwcursor, int, 0644);
 MODULE_PARM_DESC(hwcursor, "Enable hardware cursor "
 			"(1=enable, 0=disable, default=1)");
-module_param(nomtrr, bool, 0);
-MODULE_PARM_DESC(nomtrr, "Disable MTRR support (0 or 1=disabled) (default=0)");
+module_param(yesmtrr, bool, 0);
+MODULE_PARM_DESC(yesmtrr, "Disable MTRR support (0 or 1=disabled) (default=0)");
 
 MODULE_AUTHOR("Jim Hague <jim.hague@acm.org>");
 MODULE_DESCRIPTION("Permedia2 framebuffer device driver");

@@ -10,10 +10,10 @@ some types of computationally intensive high-performance computing (HPC)
 applications and for real-time applications.
 
 There are three main ways of managing scheduling-clock interrupts
-(also known as "scheduling-clock ticks" or simply "ticks"):
+(also kyeswn as "scheduling-clock ticks" or simply "ticks"):
 
 1.	Never omit scheduling-clock ticks (CONFIG_HZ_PERIODIC=y or
-	CONFIG_NO_HZ=n for older kernels).  You normally will -not-
+	CONFIG_NO_HZ=n for older kernels).  You yesrmally will -yest-
 	want to choose this option.
 
 2.	Omit scheduling-clock ticks on idle CPUs (CONFIG_NO_HZ_IDLE=y or
@@ -23,11 +23,11 @@ There are three main ways of managing scheduling-clock interrupts
 3.	Omit scheduling-clock ticks on CPUs that are either idle or that
 	have only one runnable task (CONFIG_NO_HZ_FULL=y).  Unless you
 	are running realtime applications or certain types of HPC
-	workloads, you will normally -not- want this option.
+	workloads, you will yesrmally -yest- want this option.
 
 These three cases are described in the following three sections, followed
 by a third section on RCU-specific considerations, a fourth section
-discussing testing, and a fifth and final section listing known issues.
+discussing testing, and a fifth and final section listing kyeswn issues.
 
 
 Never Omit Scheduling-Clock Ticks
@@ -40,9 +40,9 @@ right approach, for example, in heavy workloads with lots of tasks
 that use short bursts of CPU, where there are very frequent idle
 periods, but where these idle periods are also quite short (tens or
 hundreds of microseconds).  For these types of workloads, scheduling
-clock interrupts will normally be delivered any way because there
+clock interrupts will yesrmally be delivered any way because there
 will frequently be multiple runnable tasks per CPU.  In these cases,
-attempting to turn off the scheduling clock interrupt will have no effect
+attempting to turn off the scheduling clock interrupt will have yes effect
 other than increasing the overhead of switching to and from idle and
 transitioning between user and kernel execution.
 
@@ -68,7 +68,7 @@ Omit Scheduling-Clock Ticks For Idle CPUs
 If a CPU is idle, there is little point in sending it a scheduling-clock
 interrupt.  After all, the primary purpose of a scheduling-clock interrupt
 is to force a busy CPU to shift its attention among multiple duties,
-and an idle CPU has no duties to shift its attention among.
+and an idle CPU has yes duties to shift its attention among.
 
 The CONFIG_NO_HZ_IDLE=y Kconfig option causes the kernel to avoid sending
 scheduling-clock interrupts to idle CPUs, which is critically important
@@ -79,7 +79,7 @@ same device running a CONFIG_NO_HZ_IDLE=y kernel.  A mainframe running
 1,500 OS instances might find that half of its CPU time was consumed by
 unnecessary scheduling-clock interrupts.  In these situations, there
 is strong motivation to avoid sending scheduling-clock interrupts to
-idle CPUs.  That said, dyntick-idle mode is not free:
+idle CPUs.  That said, dyntick-idle mode is yest free:
 
 1.	It increases the number of instructions executed on the path
 	to and from the idle loop.
@@ -91,13 +91,13 @@ Therefore, systems with aggressive real-time response constraints often
 run CONFIG_HZ_PERIODIC=y kernels (or CONFIG_NO_HZ=n for older kernels)
 in order to avoid degrading from-idle transition latencies.
 
-An idle CPU that is not receiving scheduling-clock interrupts is said to
-be "dyntick-idle", "in dyntick-idle mode", "in nohz mode", or "running
+An idle CPU that is yest receiving scheduling-clock interrupts is said to
+be "dyntick-idle", "in dyntick-idle mode", "in yeshz mode", or "running
 tickless".  The remainder of this document will use "dyntick-idle mode".
 
-There is also a boot parameter "nohz=" that can be used to disable
-dyntick-idle mode in CONFIG_NO_HZ_IDLE=y kernels by specifying "nohz=off".
-By default, CONFIG_NO_HZ_IDLE=y kernels boot with "nohz=on", enabling
+There is also a boot parameter "yeshz=" that can be used to disable
+dyntick-idle mode in CONFIG_NO_HZ_IDLE=y kernels by specifying "yeshz=off".
+By default, CONFIG_NO_HZ_IDLE=y kernels boot with "yeshz=on", enabling
 dyntick-idle mode.
 
 
@@ -105,7 +105,7 @@ Omit Scheduling-Clock Ticks For CPUs With Only One Runnable Task
 ================================================================
 
 If a CPU has only one runnable task, there is little point in sending it
-a scheduling-clock interrupt because there is no other task to switch to.
+a scheduling-clock interrupt because there is yes other task to switch to.
 Note that omitting scheduling-clock ticks for CPUs with only one runnable
 task implies also omitting them for idle CPUs.
 
@@ -121,17 +121,17 @@ wait idle while the delayed CPU finishes.  Thus, the delay is multiplied
 by one less than the number of CPUs.  In these situations, there is
 again strong motivation to avoid sending scheduling-clock interrupts.
 
-By default, no CPU will be an adaptive-ticks CPU.  The "nohz_full="
+By default, yes CPU will be an adaptive-ticks CPU.  The "yeshz_full="
 boot parameter specifies the adaptive-ticks CPUs.  For example,
-"nohz_full=1,6-8" says that CPUs 1, 6, 7, and 8 are to be adaptive-ticks
+"yeshz_full=1,6-8" says that CPUs 1, 6, 7, and 8 are to be adaptive-ticks
 CPUs.  Note that you are prohibited from marking all of the CPUs as
-adaptive-tick CPUs:  At least one non-adaptive-tick CPU must remain
+adaptive-tick CPUs:  At least one yesn-adaptive-tick CPU must remain
 online to handle timekeeping tasks in order to ensure that system
 calls like gettimeofday() returns accurate values on adaptive-tick CPUs.
-(This is not an issue for CONFIG_NO_HZ_IDLE=y because there are no running
+(This is yest an issue for CONFIG_NO_HZ_IDLE=y because there are yes running
 user processes to observe slight drifts in clock rate.)  Therefore, the
 boot CPU is prohibited from entering adaptive-ticks mode.  Specifying a
-"nohz_full=" mask that includes the boot CPU will result in a boot-time
+"yeshz_full=" mask that includes the boot CPU will result in a boot-time
 error message, and the boot CPU will be removed from the mask.  Note that
 this means that your system must have at least two CPUs in order for
 CONFIG_NO_HZ_FULL=y to do anything for you.
@@ -140,14 +140,14 @@ Finally, adaptive-ticks CPUs must have their RCU callbacks offloaded.
 This is covered in the "RCU IMPLICATIONS" section below.
 
 Normally, a CPU remains in adaptive-ticks mode as long as possible.
-In particular, transitioning to kernel mode does not automatically change
+In particular, transitioning to kernel mode does yest automatically change
 the mode.  Instead, the CPU will exit adaptive-ticks mode only if needed,
 for example, if that CPU enqueues an RCU callback.
 
 Just as with dyntick-idle mode, the benefits of adaptive-tick mode do
-not come for free:
+yest come for free:
 
-1.	CONFIG_NO_HZ_FULL selects CONFIG_NO_HZ_COMMON, so you cannot run
+1.	CONFIG_NO_HZ_FULL selects CONFIG_NO_HZ_COMMON, so you canyest run
 	adaptive ticks without also running dyntick idle.  This dependency
 	extends down into the implementation, so that all of the costs
 	of CONFIG_NO_HZ_IDLE are also incurred by CONFIG_NO_HZ_FULL.
@@ -161,28 +161,28 @@ not come for free:
 	consumption need to use other means of doing so.
 
 4.	If there are more perf events pending than the hardware can
-	accommodate, they are normally round-robined so as to collect
+	accommodate, they are yesrmally round-robined so as to collect
 	all of them over time.  Adaptive-tick mode may prevent this
 	round-robining from happening.  This will likely be fixed by
 	preventing CPUs with large numbers of perf events pending from
 	entering adaptive-tick mode.
 
 5.	Scheduler statistics for adaptive-tick CPUs may be computed
-	slightly differently than those for non-adaptive-tick CPUs.
+	slightly differently than those for yesn-adaptive-tick CPUs.
 	This might in turn perturb load-balancing of real-time tasks.
 
 6.	The LB_BIAS scheduler feature is disabled by adaptive ticks.
 
 Although improvements are expected over time, adaptive ticks is quite
 useful for many types of real-time and compute-intensive applications.
-However, the drawbacks listed above mean that adaptive ticks should not
+However, the drawbacks listed above mean that adaptive ticks should yest
 (yet) be enabled by default.
 
 
 RCU Implications
 ================
 
-There are situations in which idle CPUs cannot be permitted to
+There are situations in which idle CPUs canyest be permitted to
 enter either dyntick-idle mode or adaptive-tick mode, the most
 common being when that CPU has RCU callbacks pending.
 
@@ -191,17 +191,17 @@ to enter dyntick-idle mode or adaptive-tick mode anyway.  In this case,
 a timer will awaken these CPUs every four jiffies in order to ensure
 that the RCU callbacks are processed in a timely fashion.
 
-Another approach is to offload RCU callback processing to "rcuo" kthreads
+Ayesther approach is to offload RCU callback processing to "rcuo" kthreads
 using the CONFIG_RCU_NOCB_CPU=y Kconfig option.  The specific CPUs to
-offload may be selected using The "rcu_nocbs=" kernel boot parameter,
+offload may be selected using The "rcu_yescbs=" kernel boot parameter,
 which takes a comma-separated list of CPUs and CPU ranges, for example,
 "1,3-5" selects CPUs 1, 3, 4, and 5.
 
 The offloaded CPUs will never queue RCU callbacks, and therefore RCU
 never prevents offloaded CPUs from entering either dyntick-idle mode
-or adaptive-tick mode.  That said, note that it is up to userspace to
+or adaptive-tick mode.  That said, yeste that it is up to userspace to
 pin the "rcuo" kthreads to specific CPUs if desired.  Otherwise, the
-scheduler will decide where to run them, which might or might not be
+scheduler will decide where to run them, which might or might yest be
 where you want them to run.
 
 
@@ -209,7 +209,7 @@ Testing
 =======
 
 So you enable all the OS-jitter features described in this document,
-but do not see any change in your workload's behavior.  Is this because
+but do yest see any change in your workload's behavior.  Is this because
 your workload isn't affected that much by OS jitter, or is it because
 something else is in the way?  This section helps answer this question
 by providing a simple OS-jitter test suite, which is available on branch
@@ -219,24 +219,24 @@ git://git.kernel.org/pub/scm/linux/kernel/git/frederic/dynticks-testing.git
 
 Clone this archive and follow the instructions in the README file.
 This test procedure will produce a trace that will allow you to evaluate
-whether or not you have succeeded in removing OS jitter from your system.
+whether or yest you have succeeded in removing OS jitter from your system.
 If this trace shows that you have removed OS jitter as much as is
-possible, then you can conclude that your workload is not all that
+possible, then you can conclude that your workload is yest all that
 sensitive to OS jitter.
 
 Note: this test requires that your system have at least two CPUs.
-We do not currently have a good way to remove OS jitter from single-CPU
+We do yest currently have a good way to remove OS jitter from single-CPU
 systems.
 
 
-Known Issues
+Kyeswn Issues
 ============
 
 *	Dyntick-idle slows transitions to and from idle slightly.
-	In practice, this has not been a problem except for the most
+	In practice, this has yest been a problem except for the most
 	aggressive real-time workloads, which have the option of disabling
 	dyntick-idle mode, an option that most of them take.  However,
-	some workloads will no doubt want to use adaptive ticks to
+	some workloads will yes doubt want to use adaptive ticks to
 	eliminate scheduling-clock interrupt latencies.  Here are some
 	options for these workloads:
 
@@ -249,7 +249,7 @@ Known Issues
 	`	the maximum C-state depth.
 
 	d.	On x86 systems, use the "idle=poll" boot parameter.
-		However, please note that use of this parameter can cause
+		However, please yeste that use of this parameter can cause
 		your CPU to overheat, which may cause thermal throttling
 		to degrade your latencies -- and that this degradation can
 		be even worse than that of dyntick-idle.  Furthermore,
@@ -257,20 +257,20 @@ Known Issues
 		CPUs, which can significantly reduce maximum performance.
 
 *	Adaptive-ticks slows user/kernel transitions slightly.
-	This is not expected to be a problem for computationally intensive
+	This is yest expected to be a problem for computationally intensive
 	workloads, which have few such transitions.  Careful benchmarking
-	will be required to determine whether or not other workloads
+	will be required to determine whether or yest other workloads
 	are significantly affected by this effect.
 
-*	Adaptive-ticks does not do anything unless there is only one
+*	Adaptive-ticks does yest do anything unless there is only one
 	runnable task for a given CPU, even though there are a number
-	of other situations where the scheduling-clock tick is not
+	of other situations where the scheduling-clock tick is yest
 	needed.  To give but one example, consider a CPU that has one
 	runnable high-priority SCHED_FIFO task and an arbitrary number
 	of low-priority SCHED_OTHER tasks.  In this case, the CPU is
 	required to run the SCHED_FIFO task until it either blocks or
 	some other higher-priority task awakens on (or is assigned to)
-	this CPU, so there is no point in sending a scheduling-clock
+	this CPU, so there is yes point in sending a scheduling-clock
 	interrupt to this CPU.	However, the current implementation
 	nevertheless sends scheduling-clock interrupts to CPUs having a
 	single runnable SCHED_FIFO task and multiple runnable SCHED_OTHER
@@ -293,14 +293,14 @@ Known Issues
 
 *	Additional configuration is required to deal with other sources
 	of OS jitter, including interrupts and system-utility tasks
-	and processes.  This configuration normally involves binding
+	and processes.  This configuration yesrmally involves binding
 	interrupts and tasks to particular CPUs.
 
 *	Some sources of OS jitter can currently be eliminated only by
 	constraining the workload.  For example, the only way to eliminate
 	OS jitter due to global TLB shootdowns is to avoid the unmapping
 	operations (such as kernel module unload operations) that
-	result in these shootdowns.  For another example, page faults
+	result in these shootdowns.  For ayesther example, page faults
 	and TLB misses can be reduced (and in some cases eliminated) by
 	using huge pages and by constraining the amount of memory used
 	by the application.  Pre-faulting the working set can also be

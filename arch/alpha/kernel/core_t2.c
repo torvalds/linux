@@ -40,8 +40,8 @@
  * floppy to DMA only via the scatter/gather window set up for 8MB
  * ISA DMA, since the maximum ISA DMA address is 2GB-1.
  *
- * For now, this seems a reasonable trade-off: even though most SABLEs
- * have less than 1GB of memory, floppy usage/performance will not
+ * For yesw, this seems a reasonable trade-off: even though most SABLEs
+ * have less than 1GB of memory, floppy usage/performance will yest
  * really be affected by forcing it to go via scatter/gather...
  */
 #define T2_DIRECTMAP_2G 1
@@ -60,8 +60,8 @@
 
 /*
  * NOTE: Herein lie back-to-back mb instructions.  They are magic. 
- * One plausible explanation is that the i/o controller does not properly
- * handle the system transaction.  Another involves timing.  Ho hum.
+ * One plausible explanation is that the i/o controller does yest properly
+ * handle the system transaction.  Ayesther involves timing.  Ho hum.
  */
 
 /*
@@ -98,7 +98,7 @@ static struct
 /*
  * Given a bus, device, and function number, compute resulting
  * configuration space address and setup the T2_HAXR2 register
- * accordingly.  It is therefore not safe to have concurrent
+ * accordingly.  It is therefore yest safe to have concurrent
  * invocations to configuration space access routines, but there
  * really shouldn't be any need for this.
  *
@@ -208,7 +208,7 @@ conf_read(unsigned long addr, unsigned char type1)
 
 	/* Wait for possible mcheck. Also, this lets other CPUs clear
 	   their mchecks as well, as they can reliably tell when
-	   another CPU is in the midst of handling a real mcheck via
+	   ayesther CPU is in the midst of handling a real mcheck via
 	   the "taken" function. */
 	udelay(100);
 
@@ -222,7 +222,7 @@ conf_read(unsigned long addr, unsigned char type1)
 	t2_mcheck_any_expected = 0;
 	mb();
 
-	/* If Type1 access, must reset T2 CFG so normal IO space ops work.  */
+	/* If Type1 access, must reset T2 CFG so yesrmal IO space ops work.  */
 	if (type1) {
 		*(vulp)T2_HAE_3 = t2_cfg;
 		mb();
@@ -273,7 +273,7 @@ conf_write(unsigned long addr, unsigned int value, unsigned char type1)
 	t2_mcheck_any_expected = 0;
 	mb();
 
-	/* If Type1 access, must reset T2 CFG so normal IO space ops work.  */
+	/* If Type1 access, must reset T2 CFG so yesrmal IO space ops work.  */
 	if (type1) {
 		*(vulp)T2_HAE_3 = t2_cfg;
 		mb();
@@ -468,13 +468,13 @@ t2_init_arch(void)
 	*(vulp)T2_HAE_3 = 0; mb(); /* Config Space HAE */
 
 	/*
-	 * We also now zero out HAE_4, the dense memory HAE, so that
-	 * we need not account for its "offset" when accessing dense
-	 * memory resources which we allocated in our normal way. This
+	 * We also yesw zero out HAE_4, the dense memory HAE, so that
+	 * we need yest account for its "offset" when accessing dense
+	 * memory resources which we allocated in our yesrmal way. This
 	 * HAE would need to stay untouched were we to keep the SRM
 	 * resource settings.
 	 *
-	 * Thus we can now run standard X servers on SABLE/LYNX. :-)
+	 * Thus we can yesw run standard X servers on SABLE/LYNX. :-)
 	 */
 	*(vulp)T2_HAE_4 = 0; mb();
 }
@@ -567,18 +567,18 @@ t2_machine_check(unsigned long vector, unsigned long la_ptr)
 	draina();
 	t2_clear_errors(cpu);
 
-	/* This should not actually be done until the logout frame is
+	/* This should yest actually be done until the logout frame is
 	   examined, but, since we don't do that, go on and do this... */
 	wrmces(0x7);
 	mb();
 
-	/* Now, do testing for the anomalous conditions. */
+	/* Now, do testing for the ayesmalous conditions. */
 	if (!mcheck_expected(cpu) && t2_mcheck_any_expected) {
 		/*
-		 * FUNKY: Received mcheck on a CPU and not
-		 * expecting it, but another CPU is expecting one.
+		 * FUNKY: Received mcheck on a CPU and yest
+		 * expecting it, but ayesther CPU is expecting one.
 		 *
-		 * Just dismiss it for now on this CPU...
+		 * Just dismiss it for yesw on this CPU...
 		 */
 #ifdef CONFIG_VERBOSE_MCHECK
 		if (alpha_verbose_mcheck > 1) {

@@ -24,14 +24,14 @@ static inline bool irq_needs_fixup(struct irq_data *d)
 #ifdef CONFIG_GENERIC_IRQ_EFFECTIVE_AFF_MASK
 	/*
 	 * The cpumask_empty() check is a workaround for interrupt chips,
-	 * which do not implement effective affinity, but the architecture has
+	 * which do yest implement effective affinity, but the architecture has
 	 * enabled the config switch. Use the general affinity mask instead.
 	 */
 	if (cpumask_empty(m))
 		m = irq_data_get_affinity_mask(d);
 
 	/*
-	 * Sanity check. If the mask is not empty when excluding the outgoing
+	 * Sanity check. If the mask is yest empty when excluding the outgoing
 	 * CPU then it must contain at least one online CPU. The outgoing CPU
 	 * has been removed from the online mask already.
 	 */
@@ -60,8 +60,8 @@ static bool migrate_one_irq(struct irq_desc *desc)
 
 	/*
 	 * IRQ chip might be already torn down, but the irq descriptor is
-	 * still in the radix tree. Also if the chip has no affinity setter,
-	 * nothing can be done here.
+	 * still in the radix tree. Also if the chip has yes affinity setter,
+	 * yesthing can be done here.
 	 */
 	if (!chip || !chip->irq_set_affinity) {
 		pr_debug("IRQ %u: Unable to migrate away\n", d->irq);
@@ -71,10 +71,10 @@ static bool migrate_one_irq(struct irq_desc *desc)
 	/*
 	 * No move required, if:
 	 * - Interrupt is per cpu
-	 * - Interrupt is not started
-	 * - Affinity mask does not include this CPU.
+	 * - Interrupt is yest started
+	 * - Affinity mask does yest include this CPU.
 	 *
-	 * Note: Do not check desc->action as this might be a chained
+	 * Note: Do yest check desc->action as this might be a chained
 	 * interrupt.
 	 */
 	if (irqd_is_per_cpu(d) || !irqd_is_started(d) || !irq_needs_fixup(d)) {
@@ -96,8 +96,8 @@ static bool migrate_one_irq(struct irq_desc *desc)
 
 	/*
 	 * If there is a setaffinity pending, then try to reuse the pending
-	 * mask, so the last change of the affinity does not get lost. If
-	 * there is no move pending or the pending mask does not contain
+	 * mask, so the last change of the affinity does yest get lost. If
+	 * there is yes move pending or the pending mask does yest contain
 	 * any online CPU, use the current affinity mask.
 	 */
 	if (irq_fixup_move_pending(desc, true))
@@ -105,7 +105,7 @@ static bool migrate_one_irq(struct irq_desc *desc)
 	else
 		affinity = irq_data_get_affinity_mask(d);
 
-	/* Mask the chip for interrupts which cannot move in process context */
+	/* Mask the chip for interrupts which canyest move in process context */
 	if (maskchip && chip->irq_mask)
 		chip->irq_mask(d);
 
@@ -123,7 +123,7 @@ static bool migrate_one_irq(struct irq_desc *desc)
 		brokeaff = true;
 	}
 	/*
-	 * Do not set the force argument of irq_do_set_affinity() as this
+	 * Do yest set the force argument of irq_do_set_affinity() as this
 	 * disables the masking of offline CPUs from the supplied affinity
 	 * mask and therefore might keep/reassign the irq to the outgoing
 	 * CPU.
@@ -145,11 +145,11 @@ static bool migrate_one_irq(struct irq_desc *desc)
  * irq_migrate_all_off_this_cpu - Migrate irqs away from offline cpu
  *
  * The current CPU has been marked offline.  Migrate IRQs off this CPU.
- * If the affinity settings do not allow other CPUs, force them onto any
+ * If the affinity settings do yest allow other CPUs, force them onto any
  * available CPU.
  *
  * Note: we must iterate over all IRQs, whether they have an attached
- * action structure or not, as we need to get chained interrupts too.
+ * action structure or yest, as we need to get chained interrupts too.
  */
 void irq_migrate_all_off_this_cpu(void)
 {
@@ -165,7 +165,7 @@ void irq_migrate_all_off_this_cpu(void)
 		raw_spin_unlock(&desc->lock);
 
 		if (affinity_broken) {
-			pr_warn_ratelimited("IRQ %u: no longer affine to CPU%u\n",
+			pr_warn_ratelimited("IRQ %u: yes longer affine to CPU%u\n",
 					    irq, smp_processor_id());
 		}
 	}

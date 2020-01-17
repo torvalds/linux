@@ -30,7 +30,7 @@ const char *__strerror[] = {
 	"success",
 	"failure",
 	"hardware failure",
-	"no more slots",
+	"yes more slots",
 	"beacon is too large",
 	"invalid parameter",
 	"unsupported power level",
@@ -39,8 +39,8 @@ const char *__strerror[] = {
 	"cancelled",
 	"invalid state",
 	"invalid size",
-	"ack not received",
-	"no more asie notification",
+	"ack yest received",
+	"yes more asie yestification",
 };
 
 
@@ -50,7 +50,7 @@ const char *uwb_rc_strerror(unsigned code)
 	if (code == 255)
 		return "time out";
 	if (code >= ARRAY_SIZE(__strerror))
-		return "unknown error";
+		return "unkyeswn error";
 	return __strerror[code];
 }
 
@@ -134,7 +134,7 @@ static void uwb_rc_cmd_done(struct uwb_rc *rc, void *arg,
  * @rc:       UWB Radio Control descriptor
  * @cmd_name: Name of the command being issued (for error messages)
  * @cmd:      Pointer to rccb structure containing the command;
- *            normally you embed this structure as the first member of
+ *            yesrmally you embed this structure as the first member of
  *            the full command structure.
  * @cmd_size: Size of the whole command buffer pointed to by @cmd.
  * @reply:    Pointer to where to store the reply
@@ -145,7 +145,7 @@ static void uwb_rc_cmd_done(struct uwb_rc *rc, void *arg,
  *            be stored. Once done with the data, free with kfree().
  *
  * This function is generic; it works for commands that return a fixed
- * and known size or for commands that return a variable amount of data.
+ * and kyeswn size or for commands that return a variable amount of data.
  *
  * If a buffer is provided, that is used, although it could be chopped
  * to the maximum size of the buffer. If the buffer is NULL, then one
@@ -194,7 +194,7 @@ ssize_t __uwb_rc_cmd(struct uwb_rc *rc, const char *cmd_name,
  * @rc:       UWB Radio Control descriptor
  * @cmd_name: Name of the command being issued (for error messages)
  * @cmd:      Pointer to rccb structure containing the command;
- *            normally you embed this structure as the first member of
+ *            yesrmally you embed this structure as the first member of
  *            the full command structure.
  * @cmd_size: Size of the whole command buffer pointed to by @cmd.
  * @reply:    Pointer to the beginning of the confirmation event
@@ -205,7 +205,7 @@ ssize_t __uwb_rc_cmd(struct uwb_rc *rc, const char *cmd_name,
  * @reply_size: Size of the reply buffer
  *
  * The function checks that the length returned in the reply is at
- * least as big as @reply_size; if not, it will be deemed an error and
+ * least as big as @reply_size; if yest, it will be deemed an error and
  * -EIO returned.
  *
  * @rc needs to be referenced
@@ -222,7 +222,7 @@ ssize_t uwb_rc_cmd(struct uwb_rc *rc, const char *cmd_name,
 			      reply->bEventType, reply->wEvent, NULL);
 
 	if (result > 0 && result < reply_size) {
-		dev_err(dev, "%s: not enough data returned for decoding reply "
+		dev_err(dev, "%s: yest eyesugh data returned for decoding reply "
 			"(%zu bytes received vs at least %zu needed)\n",
 			cmd_name, result, reply_size);
 		result = -EIO;
@@ -234,12 +234,12 @@ EXPORT_SYMBOL_GPL(uwb_rc_cmd);
 
 /**
  * Generic function for issuing commands to the Radio Control
- * Interface that return an unknown amount of data
+ * Interface that return an unkyeswn amount of data
  *
  * @rc:       UWB Radio Control descriptor
  * @cmd_name: Name of the command being issued (for error messages)
  * @cmd:      Pointer to rccb structure containing the command;
- *            normally you embed this structure as the first member of
+ *            yesrmally you embed this structure as the first member of
  *            the full command structure.
  * @cmd_size: Size of the whole command buffer pointed to by @cmd.
  * @expected_type: Expected type in the return event
@@ -248,7 +248,7 @@ EXPORT_SYMBOL_GPL(uwb_rc_cmd);
  *            be stored. Once done with the data, free with kfree().
  *
  * The function checks that the length returned in the reply is at
- * least as big as a 'struct uwb_rceb *'; if not, it will be deemed an
+ * least as big as a 'struct uwb_rceb *'; if yest, it will be deemed an
  * error and -EIO returned.
  *
  * @rc needs to be referenced
@@ -268,9 +268,9 @@ EXPORT_SYMBOL_GPL(uwb_rc_vcmd);
  * Reset a UWB Host Controller (and all radio settings)
  *
  * @rc:      Host Controller descriptor
- * @returns: 0 if ok, < 0 errno code on error
+ * @returns: 0 if ok, < 0 erryes code on error
  *
- * We put the command on kmalloc'ed memory as some arches cannot do
+ * We put the command on kmalloc'ed memory as some arches canyest do
  * USB from the stack. The reply event is copied from an stage buffer,
  * so it can be in the stack. See WUSB1.0[8.6.2.4] for more details.
  */

@@ -101,7 +101,7 @@ void efx_mac_reconfigure(struct efx_nic *efx);
  *
  * 2. If the existing filters have higher priority, return -%EPERM.
  *
- * 3. If !efx_filter_is_mc_recipient(@spec), or the NIC does not
+ * 3. If !efx_filter_is_mc_recipient(@spec), or the NIC does yest
  *    support delivery to multiple recipients, return -%EEXIST.
  *
  * This implies that filters for multiple multicast recipients must
@@ -178,7 +178,7 @@ static inline void efx_filter_rfs_expire(struct work_struct *data)
 	quota = channel->rfs_filter_count * time / (30 * HZ);
 	if (quota > 20 && __efx_filter_rfs_expire(channel, min(channel->rfs_filter_count, quota)))
 		channel->rfs_last_expiry += time;
-	/* Ensure we do more work eventually even if NAPI poll is not happening */
+	/* Ensure we do more work eventually even if NAPI poll is yest happening */
 	schedule_delayed_work(dwork, 30 * HZ);
 }
 #define efx_filter_rfs_enabled() 1
@@ -312,7 +312,7 @@ static inline void efx_device_detach_sync(struct efx_nic *efx)
 	netif_tx_unlock_bh(dev);
 }
 
-static inline void efx_device_attach_if_not_resetting(struct efx_nic *efx)
+static inline void efx_device_attach_if_yest_resetting(struct efx_nic *efx)
 {
 	if ((efx->state != STATE_DISABLED) && !efx->reset_pending)
 		netif_device_attach(efx->net_dev);

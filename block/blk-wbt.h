@@ -41,15 +41,15 @@ struct rq_wb {
 	 * Settings that govern how we throttle
 	 */
 	unsigned int wb_background;		/* background writeback */
-	unsigned int wb_normal;			/* normal writeback */
+	unsigned int wb_yesrmal;			/* yesrmal writeback */
 
 	short enable_state;			/* WBT_STATE_* */
 
 	/*
-	 * Number of consecutive periods where we don't have enough
+	 * Number of consecutive periods where we don't have eyesugh
 	 * information to make a firm scale up/down decision.
 	 */
-	unsigned int unknown_cnt;
+	unsigned int unkyeswn_cnt;
 
 	u64 win_nsec;				/* default window size */
 	u64 cur_win_nsec;			/* current window size */
@@ -61,8 +61,8 @@ struct rq_wb {
 
 	unsigned int wc;
 
-	unsigned long last_issue;		/* last non-throttled issue */
-	unsigned long last_comp;		/* last non-throttled comp */
+	unsigned long last_issue;		/* last yesn-throttled issue */
+	unsigned long last_comp;		/* last yesn-throttled comp */
 	unsigned long min_lat_nsec;
 	struct rq_qos rqos;
 	struct rq_wait rq_wait[WBT_NUM_RWQ];

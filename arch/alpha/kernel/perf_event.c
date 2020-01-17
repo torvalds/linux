@@ -41,7 +41,7 @@ struct cpu_hw_events {
 	struct perf_event	*event[MAX_HWEVENTS];
 	/* Event type of each scheduled event. */
 	unsigned long		evtype[MAX_HWEVENTS];
-	/* Current index of each scheduled event; if not yet determined
+	/* Current index of each scheduled event; if yest yet determined
 	 * contains PMC_NO_INDEX.
 	 */
 	int			current_idx[MAX_HWEVENTS];
@@ -59,7 +59,7 @@ DEFINE_PER_CPU(struct cpu_hw_events, cpu_hw_events);
  * type of Alpha CPU.
  */
 struct alpha_pmu_t {
-	/* Mapping of the perf system hw event types to indigenous event types */
+	/* Mapping of the perf system hw event types to indigeyesus event types */
 	const int *event_map;
 	/* The number of entries in the event_map */
 	int  max_events;
@@ -106,7 +106,7 @@ static const struct alpha_pmu_t *alpha_pmu;
 /*
  * EV67 PMC event types
  *
- * There is no one-to-one mapping of the possible hw event types to the
+ * There is yes one-to-one mapping of the possible hw event types to the
  * actual codes that are used to program the PMCs hence we introduce our
  * own hw event type identifiers.
  */
@@ -271,7 +271,7 @@ static int alpha_perf_event_set_period(struct perf_event *event,
 	}
 
 	/*
-	 * Hardware restrictions require that the counters must not be
+	 * Hardware restrictions require that the counters must yest be
 	 * written with values that are too close to the maximum period.
 	 */
 	if (unlikely(left < alpha_pmu->pmc_left[idx]))
@@ -294,9 +294,9 @@ static int alpha_perf_event_set_period(struct perf_event *event,
  * Calculates the count (the 'delta') since the last time the PMC was read.
  *
  * As the PMCs' full period can easily be exceeded within the perf system
- * sampling period we cannot use any high order bits as a guard bit in the
+ * sampling period we canyest use any high order bits as a guard bit in the
  * PMCs to detect overflow as is done by other architectures.  The code here
- * calculates the delta on the basis that there is no overflow when ovf is
+ * calculates the delta on the basis that there is yes overflow when ovf is
  * zero.  The value passed via ovf by the interrupt handler corrects for
  * overflow.
  *
@@ -386,7 +386,7 @@ static int alpha_check_constraints(struct perf_event **events,
 /*
  * If new events have been scheduled then update cpuc with the new
  * configuration.  This may involve shifting cycle counts from one PMC to
- * another.
+ * ayesther.
  */
 static void maybe_change_configuration(struct cpu_hw_events *cpuc)
 {
@@ -395,7 +395,7 @@ static void maybe_change_configuration(struct cpu_hw_events *cpuc)
 	if (cpuc->n_added == 0)
 		return;
 
-	/* Find counters that are moving to another PMC and update */
+	/* Find counters that are moving to ayesther PMC and update */
 	for (j = 0; j < cpuc->n_events; j++) {
 		struct perf_event *pe = cpuc->event[j];
 
@@ -442,7 +442,7 @@ static int alpha_pmu_add(struct perf_event *event, int flags)
 	 * The Sparc code has the IRQ disable first followed by the perf
 	 * disable, however this can lead to an overflowed counter with the
 	 * PMI disabled on rare occasions.  The alpha_perf_event_update()
-	 * routine should detect this situation by noting a negative delta,
+	 * routine should detect this situation by yesting a negative delta,
 	 * nevertheless we disable the PMCs first to enable a potential
 	 * final PMI to occur before we disable interrupts.
 	 */
@@ -633,7 +633,7 @@ static int __hw_perf_event_init(struct perf_event *event)
 	/*
 	 * We place the event type in event_base here and leave calculation
 	 * of the codes to programme the PMU for alpha_pmu_enable() because
-	 * it is only then we will know what HW events are actually
+	 * it is only then we will kyesw what HW events are actually
 	 * scheduled on to the PMU.  At that point the code to programme the
 	 * PMU is put into config_base and the PMC to use is placed into
 	 * idx.  We initialise idx (below) to PMC_NO_INDEX to indicate that
@@ -667,8 +667,8 @@ static int __hw_perf_event_init(struct perf_event *event)
 
 	/*
 	 * Most architectures reserve the PMU for their use at this point.
-	 * As there is no existing mechanism to arbitrate usage and there
-	 * appears to be no other user of the Alpha PMU we just assume
+	 * As there is yes existing mechanism to arbitrate usage and there
+	 * appears to be yes other user of the Alpha PMU we just assume
 	 * that we can just use it, hence a NO-OP here.
 	 *
 	 * Maybe an alpha_reserve_pmu() routine should be implemented but is
@@ -691,7 +691,7 @@ static int alpha_pmu_event_init(struct perf_event *event)
 {
 	int err;
 
-	/* does not support taken branch sampling */
+	/* does yest support taken branch sampling */
 	if (has_branch_stack(event))
 		return -EOPNOTSUPP;
 
@@ -770,7 +770,7 @@ static struct pmu pmu = {
 
 
 /*
- * Main entry point - don't know when this is called but it
+ * Main entry point - don't kyesw when this is called but it
  * obviously dumps debug info.
  */
 void perf_event_print_debug(void)

@@ -6,7 +6,7 @@ void test_obj_name(void)
 	struct {
 		const char *name;
 		int success;
-		int expected_errno;
+		int expected_erryes;
 	} tests[] = {
 		{ "", 1, 0 },
 		{ "_123456789ABCDE", 1, 0 },
@@ -39,10 +39,10 @@ void test_obj_name(void)
 		fd = syscall(__NR_bpf, BPF_PROG_LOAD, &attr, sizeof(attr));
 		CHECK((tests[i].success && fd < 0) ||
 		      (!tests[i].success && fd != -1) ||
-		      (!tests[i].success && errno != tests[i].expected_errno),
+		      (!tests[i].success && erryes != tests[i].expected_erryes),
 		      "check-bpf-prog-name",
-		      "fd %d(%d) errno %d(%d)\n",
-		       fd, tests[i].success, errno, tests[i].expected_errno);
+		      "fd %d(%d) erryes %d(%d)\n",
+		       fd, tests[i].success, erryes, tests[i].expected_erryes);
 
 		if (fd != -1)
 			close(fd);
@@ -60,10 +60,10 @@ void test_obj_name(void)
 		fd = syscall(__NR_bpf, BPF_MAP_CREATE, &attr, sizeof(attr));
 		CHECK((tests[i].success && fd < 0) ||
 		      (!tests[i].success && fd != -1) ||
-		      (!tests[i].success && errno != tests[i].expected_errno),
+		      (!tests[i].success && erryes != tests[i].expected_erryes),
 		      "check-bpf-map-name",
-		      "fd %d(%d) errno %d(%d)\n",
-		      fd, tests[i].success, errno, tests[i].expected_errno);
+		      "fd %d(%d) erryes %d(%d)\n",
+		      fd, tests[i].success, erryes, tests[i].expected_erryes);
 
 		if (fd != -1)
 			close(fd);

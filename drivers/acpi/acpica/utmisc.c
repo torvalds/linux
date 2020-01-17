@@ -50,7 +50,7 @@ u8 acpi_ut_is_pci_root_bridge(char *id)
  *
  * DESCRIPTION: Check ACPI Signature for a table that contains AML code.
  *              Currently, these are DSDT,SSDT,PSDT. All other table types are
- *              data tables that do not contain AML code.
+ *              data tables that do yest contain AML code.
  *
  ******************************************************************************/
 
@@ -163,7 +163,7 @@ acpi_ut_create_update_state_and_push(union acpi_operand_object *object,
 
 	ACPI_FUNCTION_ENTRY();
 
-	/* Ignore null objects; these are expected */
+	/* Igyesre null objects; these are expected */
 
 	if (!object) {
 		return (AE_OK);
@@ -225,7 +225,7 @@ acpi_ut_walk_package_tree(union acpi_operand_object *source_object,
 		 * Check for:
 		 * 1) An uninitialized package element. It is completely
 		 *    legal to declare a package and leave it uninitialized
-		 * 2) Not an internal object - can be a namespace node instead
+		 * 2) Not an internal object - can be a namespace yesde instead
 		 * 3) Any type other than a package. Packages are handled in else
 		 *    case below.
 		 */
@@ -253,7 +253,7 @@ acpi_ut_walk_package_tree(union acpi_operand_object *source_object,
 				acpi_ut_delete_generic_state(state);
 				state = acpi_ut_pop_generic_state(&state_list);
 
-				/* Finished when there are no more states */
+				/* Finished when there are yes more states */
 
 				if (!state) {
 					/*
@@ -306,7 +306,7 @@ acpi_ut_walk_package_tree(union acpi_operand_object *source_object,
 
 	/* We should never get here */
 
-	ACPI_ERROR((AE_INFO, "State list did not terminate correctly"));
+	ACPI_ERROR((AE_INFO, "State list did yest terminate correctly"));
 
 	return_ACPI_STATUS(AE_AML_INTERNAL);
 }
@@ -316,10 +316,10 @@ acpi_ut_walk_package_tree(union acpi_operand_object *source_object,
  *
  * FUNCTION:    acpi_ut_display_init_pathname
  *
- * PARAMETERS:  type                - Object type of the node
+ * PARAMETERS:  type                - Object type of the yesde
  *              obj_handle          - Handle whose pathname will be displayed
  *              path                - Additional path string to be appended.
- *                                      (NULL if no extra path)
+ *                                      (NULL if yes extra path)
  *
  * RETURN:      acpi_status
  *
@@ -329,7 +329,7 @@ acpi_ut_walk_package_tree(union acpi_operand_object *source_object,
 
 void
 acpi_ut_display_init_pathname(u8 type,
-			      struct acpi_namespace_node *obj_handle,
+			      struct acpi_namespace_yesde *obj_handle,
 			      const char *path)
 {
 	acpi_status status;
@@ -343,7 +343,7 @@ acpi_ut_display_init_pathname(u8 type,
 		return;
 	}
 
-	/* Get the full pathname to the node */
+	/* Get the full pathname to the yesde */
 
 	buffer.length = ACPI_ALLOCATE_LOCAL_BUFFER;
 	status = acpi_ns_handle_to_pathname(obj_handle, &buffer, TRUE);

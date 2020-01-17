@@ -14,7 +14,7 @@
 /*
  * The linear mapping and the start of memory are both 2M aligned (per
  * the arm64 booting.txt requirements). Hence we can use section mapping
- * with 4K (section size = 2M) but not with 16K (section size = 32M) or
+ * with 4K (section size = 2M) but yest with 16K (section size = 32M) or
  * 64K (section size = 512M).
  */
 #ifdef CONFIG_ARM64_4K_PAGES
@@ -47,13 +47,13 @@
  * space. The bottom 21 bits of this offset are zero to guarantee 2MB
  * alignment for PA and VA.
  *
- * For each pagetable level of the swapper, we know that the shift will
+ * For each pagetable level of the swapper, we kyesw that the shift will
  * be larger than 21 (for the 4KB granule case we use section maps thus
  * the smallest shift is actually 30) thus there is the possibility that
  * KASLR can increase the number of pagetable entries by 1, so we make
  * room for this extra entry.
  *
- * Note KASLR cannot increase the number of required entries for a level
+ * Note KASLR canyest increase the number of required entries for a level
  * by more than one because it increments both the virtual start and end
  * addresses equally (the extra entry comes from the case where the end
  * address is just pushed over a boundary and the start address isn't).

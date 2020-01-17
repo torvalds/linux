@@ -3,7 +3,7 @@
  * Driver for the LED found on the EBSA110 machine
  * Based on Versatile and RealView machine LED code
  *
- * Author: Bryan Wu <bryan.wu@canonical.com>
+ * Author: Bryan Wu <bryan.wu@cayesnical.com>
  */
 #include <linux/kernel.h>
 #include <linux/init.h>

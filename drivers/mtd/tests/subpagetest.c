@@ -3,7 +3,7 @@
  * Copyright (C) 2006-2007 Nokia Corporation
  *
  * Test sub-page read and write on MTD device.
- * Author: Adrian Hunter <ext-adrian.hunter@nokia.com>
+ * Author: Adrian Hunter <ext-adrian.hunter@yeskia.com>
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -285,7 +285,7 @@ static int __init mtd_subpagetest_init(void)
 	mtd = get_mtd_device(NULL, dev);
 	if (IS_ERR(mtd)) {
 		err = PTR_ERR(mtd);
-		pr_err("error: cannot get MTD device\n");
+		pr_err("error: canyest get MTD device\n");
 		return err;
 	}
 

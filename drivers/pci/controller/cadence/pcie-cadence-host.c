@@ -23,7 +23,7 @@ static void __iomem *cdns_pci_map_bus(struct pci_bus *bus, unsigned int devfn,
 	if (busn == rc->bus_range->start) {
 		/*
 		 * Only the root port (devfn == 0) is connected to this bus.
-		 * All other PCI devices are behind some bridge hence on another
+		 * All other PCI devices are behind some bridge hence on ayesther
 		 * bus.
 		 */
 		if (devfn)
@@ -108,7 +108,7 @@ static int cdns_pcie_host_init_address_translation(struct cdns_pcie_rc *rc)
 	struct resource *bus_range = rc->bus_range;
 	struct resource *cfg_res = rc->cfg_res;
 	struct device *dev = pcie->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct of_pci_range_parser parser;
 	struct of_pci_range range;
 	u32 addr0, addr1, desc1;
@@ -158,12 +158,12 @@ static int cdns_pcie_host_init_address_translation(struct cdns_pcie_rc *rc)
 	}
 
 	/*
-	 * Set Root Port no BAR match Inbound Translation registers:
+	 * Set Root Port yes BAR match Inbound Translation registers:
 	 * needed for MSI and DMA.
-	 * Root Port BAR0 and BAR1 are disabled, hence no need to set their
+	 * Root Port BAR0 and BAR1 are disabled, hence yes need to set their
 	 * inbound translation registers.
 	 */
-	addr0 = CDNS_PCIE_AT_IB_RP_BAR_ADDR0_NBITS(rc->no_bar_nbits);
+	addr0 = CDNS_PCIE_AT_IB_RP_BAR_ADDR0_NBITS(rc->yes_bar_nbits);
 	addr1 = 0;
 	cdns_pcie_writel(pcie, CDNS_PCIE_AT_IB_RP_BAR_ADDR0(RP_NO_BAR), addr0);
 	cdns_pcie_writel(pcie, CDNS_PCIE_AT_IB_RP_BAR_ADDR1(RP_NO_BAR), addr1);
@@ -205,7 +205,7 @@ int cdns_pcie_host_setup(struct cdns_pcie_rc *rc)
 {
 	struct device *dev = rc->pcie.dev;
 	struct platform_device *pdev = to_platform_device(dev);
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct pci_host_bridge *bridge;
 	struct list_head resources;
 	struct cdns_pcie *pcie;
@@ -222,8 +222,8 @@ int cdns_pcie_host_setup(struct cdns_pcie_rc *rc)
 	rc->max_regions = 32;
 	of_property_read_u32(np, "cdns,max-outbound-regions", &rc->max_regions);
 
-	rc->no_bar_nbits = 32;
-	of_property_read_u32(np, "cdns,no-bar-match-nbits", &rc->no_bar_nbits);
+	rc->yes_bar_nbits = 32;
+	of_property_read_u32(np, "cdns,yes-bar-match-nbits", &rc->yes_bar_nbits);
 
 	rc->vendor_id = 0xffff;
 	of_property_read_u16(np, "vendor-id", &rc->vendor_id);

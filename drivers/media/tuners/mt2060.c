@@ -149,7 +149,7 @@ static int mt2060_spurcalc(u32 lo1,u32 lo2,u32 if2)
 
 #define BANDWIDTH 4000 // kHz
 
-/* Calculates the frequency offset to add to avoid spurs. Returns 0 if no offset is needed */
+/* Calculates the frequency offset to add to avoid spurs. Returns 0 if yes offset is needed */
 static int mt2060_spurcheck(u32 lo1,u32 lo2,u32 if2)
 {
 	u32 Spur,Sp1,Sp2;
@@ -311,7 +311,7 @@ static void mt2060_calibrate(struct mt2060_priv *priv)
 		msleep(20);
 
 	if (i <= 10) {
-		mt2060_readreg(priv, REG_FM_FREQ, &priv->fmfreq); // now find out, what is fmreq used for :)
+		mt2060_readreg(priv, REG_FM_FREQ, &priv->fmfreq); // yesw find out, what is fmreq used for :)
 		dprintk("calibration was successful: %d", (int)priv->fmfreq);
 	} else
 		dprintk("FMCAL timed out");
@@ -454,7 +454,7 @@ static int mt2060_probe(struct i2c_client *client,
 	dev_dbg(&client->dev, "\n");
 
 	if (!pdata) {
-		dev_err(&client->dev, "Cannot proceed without platform data\n");
+		dev_err(&client->dev, "Canyest proceed without platform data\n");
 		ret = -EINVAL;
 		goto err;
 	}

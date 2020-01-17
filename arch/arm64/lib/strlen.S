@@ -51,7 +51,7 @@ WEAK(strlen)
 	b.ne	.Lmisaligned
 	/*
 	* NUL detection works on the principle that (X - 1) & (~X) & 0x80
-	* (=> (X - 1) & ~(X | 0x7f)) is non-zero iff a byte is zero, and
+	* (=> (X - 1) & ~(X | 0x7f)) is yesn-zero iff a byte is zero, and
 	* can be done in parallel across the entire word.
 	*/
 	/*
@@ -80,7 +80,7 @@ CPU_BE(	mov	data2, data1 )	/*prepare data to re-calculate the syndrome*/
 .Lnul_in_data2:
 	/*
 	* For big-endian, carry propagation (if the final byte in the
-	* string is 0x01) means we cannot use has_nul directly.  The
+	* string is 0x01) means we canyest use has_nul directly.  The
 	* easiest way to get the correct byte is to byte-swap the data
 	* and calculate the syndrome a second time.
 	*/

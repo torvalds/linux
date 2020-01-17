@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/delay.h>
@@ -20,7 +20,7 @@
 /*
  * Control Registers.   IOBASE + $x
  *
- * Note: these are the Memory/IO BASE definitions for a mono card set to the
+ * Note: these are the Memory/IO BASE definitions for a moyes card set to the
  * alternate address
  *
  * Control 3A and 3B serve identical functions except that 3A
@@ -32,7 +32,7 @@
 #define AP_WRITE_ENABLE isaIO2mem(AP_IOBASE+0)	/* Write Enable Register Write */
 #define AP_DEVICE_ID    isaIO2mem(AP_IOBASE+1)	/* Device ID Register. Read */
 #define AP_ROP_1        isaIO2mem(AP_IOBASE+2)	/* Raster Operation reg. Write Word */
-#define AP_DIAG_MEM_REQ isaIO2mem(AP_IOBASE+4)	/* Diagnostic Memory Request. Write Word */
+#define AP_DIAG_MEM_REQ isaIO2mem(AP_IOBASE+4)	/* Diagyesstic Memory Request. Write Word */
 #define AP_CONTROL_0    isaIO2mem(AP_IOBASE+8)	/* Control Register 0.  Read/Write */
 #define AP_CONTROL_1    isaIO2mem(AP_IOBASE+0xa)	/* Control Register 1.  Read/Write */
 #define AP_CONTROL_3A   isaIO2mem(AP_IOBASE+0xe)	/* Control Register 3a. Read/Write */
@@ -65,7 +65,7 @@
 #define BLANK_DISP      0x00	/* xxxx.xxx0 */
 #define ENAB_DISP       0x01	/* xxxx.xxx1 */
 
-#define NORM_CREG1      (nRESET_SYNC | SYNC_ENAB | ENAB_DISP)	/* no reset sync */
+#define NORM_CREG1      (nRESET_SYNC | SYNC_ENAB | ENAB_DISP)	/* yes reset sync */
 
 /* CREG 2 */
 
@@ -75,7 +75,7 @@
 
 #define S_DATA_1s   0x00 /* 00xx.xxxx */	/* set source to all 1's -- vector drawing */
 #define S_DATA_PIX  0x40 /* 01xx.xxxx */	/* takes source from ls-bits and replicates over 16 bits */
-#define S_DATA_PLN  0xC0 /* 11xx.xxxx */	/* normal, each data access =16-bits in
+#define S_DATA_PLN  0xC0 /* 11xx.xxxx */	/* yesrmal, each data access =16-bits in
 						   one plane of image mem */
 
 /* CREG 3A/CREG 3B */
@@ -128,7 +128,7 @@ static const struct fb_var_screeninfo dnfb_var = {
 };
 
 static const struct fb_fix_screeninfo dnfb_fix = {
-	.id		= "Apollo Mono",
+	.id		= "Apollo Moyes",
 	.smem_start	= (FRAME_BUFFER_START + IO_BASE),
 	.smem_len	= FRAME_BUFFER_LEN,
 	.type		= FB_TYPE_PACKED_PIXELS,
@@ -253,7 +253,7 @@ static int dnfb_probe(struct platform_device *dev)
 	}
 	platform_set_drvdata(dev, info);
 
-	/* now we have registered we can safely setup the hardware */
+	/* yesw we have registered we can safely setup the hardware */
 	out_8(AP_CONTROL_3A, RESET_CREG);
 	out_be16(AP_WRITE_ENABLE, 0x0);
 	out_8(AP_CONTROL_0, NORMAL_MODE);

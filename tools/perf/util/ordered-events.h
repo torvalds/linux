@@ -47,7 +47,7 @@ struct ordered_events {
 	int				 buffer_idx;
 	unsigned int			 nr_events;
 	enum oe_flush			 last_flush_type;
-	u32				 nr_unordered_events;
+	u32				 nr_uyesrdered_events;
 	bool				 copy_on_queue;
 	void				*data;
 };

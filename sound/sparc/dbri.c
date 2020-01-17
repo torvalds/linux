@@ -18,7 +18,7 @@
  *   CHI: (spelled ki) Concentration Highway Interface (AT&T or Intel bus ?).
  *   Documentation:
  *   - "STP 4000SBus Dual Basic Rate ISDN (DBRI) Transceiver" from
- *     Sparc Technology Business (courtesy of Sun Support)
+ *     Sparc Techyeslogy Business (courtesy of Sun Support)
  *   - Data sheet of the T7903, a newer but very similar ISA bus equivalent
  *     available from the Lucent (formerly AT&T microelectronics) home
  *     page.
@@ -28,10 +28,10 @@
  *   Documentation: from the Crystal Semiconductor home page.
  *
  * The DBRI is a 32 pipe machine, each pipe can transfer some bits between
- * memory and a serial device (long pipes, no. 0-15) or between two serial
- * devices (short pipes, no. 16-31), or simply send a fixed data to a serial
+ * memory and a serial device (long pipes, yes. 0-15) or between two serial
+ * devices (short pipes, yes. 16-31), or simply send a fixed data to a serial
  * device (short pipes).
- * A timeslot defines the bit-offset and no. of bits read from a serial device.
+ * A timeslot defines the bit-offset and yes. of bits read from a serial device.
  * The timeslots are linked to 6 circular lists, one for each direction for
  * each serial device (NT,TE,CHI). A timeslot is associated to 1 or 2 pipes
  * (the second one is a monitor/tee pipe, valid only for serial input).
@@ -42,7 +42,7 @@
  *
  * Looking at the CS4215 data sheet it is easy to set up 2 or 4 codecs on
  * the same CHI bus, so I thought perhaps it is possible to use the on-board
- * & the speakerbox codec simultaneously, giving 2 (not very independent :-)
+ * & the speakerbox codec simultaneously, giving 2 (yest very independent :-)
  * audio devices. But the SUN HW group decided against it, at least on my
  * LX the speakerbox connector has at least 1 pin missing and 1 wrongly
  * connected.
@@ -202,7 +202,7 @@ static struct {
 /* Time Slot 6, Reserved  */
 
 /* Time Slot 7, Version Register  */
-#define CS4215_VERSION_MASK 0xf	/* Known versions 0/C, 1/D, 2/E */
+#define CS4215_VERSION_MASK 0xf	/* Kyeswn versions 0/C, 1/D, 2/E */
 
 /* Time Slot 8, Reserved  */
 
@@ -420,7 +420,7 @@ struct snd_dbri {
 #define D_TS_NONCONTIG	(3<<10)	/* Non contiguous mode */
 #define D_TS_ANCHOR	(7<<10)	/* Starting short pipes */
 #define D_TS_MON(v)    ((v)<<5)	/* Monitor Pipe */
-#define D_TS_NEXT(v)   ((v)<<0)	/* Pipe no.: 0-15 long, 16-21 short */
+#define D_TS_NEXT(v)   ((v)<<0)	/* Pipe yes.: 0-15 long, 16-21 short */
 
 /* Concentration Highway Interface Modes */
 #define D_CHI_CHICM(v)	((v)<<16)	/* Clock mode */
@@ -535,7 +535,7 @@ struct snd_dbri {
 
 /* Transmit descriptor defines */
 #define DBRI_TD_F	(1 << 31)	/* End of Frame */
-#define DBRI_TD_D	(1 << 30)	/* Do not append CRC */
+#define DBRI_TD_D	(1 << 30)	/* Do yest append CRC */
 #define DBRI_TD_CNT(v)	((v) << 16) /* Number of valid bytes in the buffer */
 #define DBRI_TD_B	(1 << 15)	/* Final interrupt */
 #define DBRI_TD_M	(1 << 14)	/* Marker interrupt */
@@ -573,7 +573,7 @@ struct snd_dbri {
 
 /*
  * Short data pipes transmit LSB first. The CS4215 receives MSB first. Grrr.
- * So we have to reverse the bits. Note: not all bit lengths are supported
+ * So we have to reverse the bits. Note: yest all bit lengths are supported
  */
 static __u32 reverse_bytes(__u32 b, int len)
 {
@@ -617,12 +617,12 @@ synchronization present themselves. The method implemented here uses
 the dbri_cmdwait() to wait for execution of batch of sent commands.
 
 A circular command buffer is used here. A new command is being added
-while another can be executed. The scheme works by adding two WAIT commands
+while ayesther can be executed. The scheme works by adding two WAIT commands
 after each sent batch of commands. When the next batch is prepared it is
 added after the WAIT commands then the WAITs are replaced with single JUMP
 command to the new batch. The the DBRI is forced to reread the last WAIT
 command (replaced by the JUMP by then). If the DBRI is still executing
-previous commands the request to reread the WAIT command is ignored.
+previous commands the request to reread the WAIT command is igyesred.
 
 Every time a routine wants to write commands to the DBRI, it must
 first call dbri_cmdlock() and get pointer to a free space in
@@ -672,7 +672,7 @@ static s32 *dbri_cmdlock(struct snd_dbri *dbri, int len)
 	else if (len < sbus_readl(dbri->regs + REG8) - dvma_addr)
 		return dbri->dma->cmd;
 	else
-		printk(KERN_ERR "DBRI: no space for commands.");
+		printk(KERN_ERR "DBRI: yes space for commands.");
 
 	return NULL;
 }
@@ -745,14 +745,14 @@ static void dbri_reset(struct snd_dbri *dbri)
 		udelay(10);
 
 	/* A brute approach - DBRI falls back to working burst size by itself
-	 * On SS20 D_S does not work, so do not try so high. */
+	 * On SS20 D_S does yest work, so do yest try so high. */
 	tmp = sbus_readl(dbri->regs + REG0);
 	tmp |= D_G | D_E;
 	tmp &= ~D_S;
 	sbus_writel(tmp, dbri->regs + REG0);
 }
 
-/* Lock must not be held before calling this */
+/* Lock must yest be held before calling this */
 static void dbri_initialize(struct snd_dbri *dbri)
 {
 	u32 dvma_addr = (u32)dbri->dma_dvma;
@@ -985,19 +985,19 @@ static void unlink_time_slot(struct snd_dbri *dbri, int pipe,
 
 /* xmit_fixed() / recv_fixed()
  *
- * Transmit/receive data on a "fixed" pipe - i.e, one whose contents are not
+ * Transmit/receive data on a "fixed" pipe - i.e, one whose contents are yest
  * expected to change much, and which we don't need to buffer.
  * The DBRI only interrupts us when the data changes (receive pipes),
  * or only changes the data when this function is called (transmit pipes).
  * Only short pipes (numbers 16-31) can be used in fixed data mode.
  *
- * These function operate on a 32-bit field, no matter how large
+ * These function operate on a 32-bit field, yes matter how large
  * the actual time slot is.  The interrupt handler takes care of bit
  * ordering and alignment.  An 8-bit time slot will always end up
  * in the low-order 8 bits, filled either MSB-first or LSB-first,
  * depending on the settings passed to setup_pipe().
  *
- * Lock must not be held before calling it.
+ * Lock must yest be held before calling it.
  */
 static void xmit_fixed(struct snd_dbri *dbri, int pipe, unsigned int data)
 {
@@ -1054,7 +1054,7 @@ static void recv_fixed(struct snd_dbri *dbri, int pipe, volatile __u32 *ptr)
 
 	if (D_SDP_MODE(dbri->pipes[pipe].sdp) != D_SDP_FIXED) {
 		printk(KERN_ERR "DBRI: recv_fixed called on "
-			"non-fixed pipe %d\n", pipe);
+			"yesn-fixed pipe %d\n", pipe);
 		return;
 	}
 
@@ -1083,9 +1083,9 @@ static void recv_fixed(struct snd_dbri *dbri, int pipe, volatile __u32 *ptr)
  *
  * Lock must be held before calling this.
  */
-static int setup_descs(struct snd_dbri *dbri, int streamno, unsigned int period)
+static int setup_descs(struct snd_dbri *dbri, int streamyes, unsigned int period)
 {
-	struct dbri_streaminfo *info = &dbri->stream_info[streamno];
+	struct dbri_streaminfo *info = &dbri->stream_info[streamyes];
 	u32 dvma_addr = (u32)dbri->dma_dvma;
 	__u32 dvma_buffer;
 	int desc;
@@ -1107,7 +1107,7 @@ static int setup_descs(struct snd_dbri *dbri, int streamno, unsigned int period)
 	dvma_buffer = info->dvma_buffer;
 	len = info->size;
 
-	if (streamno == DBRI_PLAY) {
+	if (streamyes == DBRI_PLAY) {
 		if (!(dbri->pipes[info->pipe].sdp & D_SDP_TO_SER)) {
 			printk(KERN_ERR "DBRI: setup_descs: "
 				"Called on receive pipe %d\n", info->pipe);
@@ -1172,7 +1172,7 @@ static int setup_descs(struct snd_dbri *dbri, int streamno, unsigned int period)
 		dbri->dma->desc[desc].ba = dvma_buffer;
 		dbri->dma->desc[desc].nda = 0;
 
-		if (streamno == DBRI_PLAY) {
+		if (streamyes == DBRI_PLAY) {
 			dbri->dma->desc[desc].word1 = DBRI_TD_CNT(mylen);
 			dbri->dma->desc[desc].word4 = 0;
 			dbri->dma->desc[desc].word1 |= DBRI_TD_F | DBRI_TD_B;
@@ -1197,7 +1197,7 @@ static int setup_descs(struct snd_dbri *dbri, int streamno, unsigned int period)
 
 	if (first_desc == -1 || last_desc == -1) {
 		printk(KERN_ERR "DBRI: setup_descs: "
-			" Not enough descriptors available\n");
+			" Not eyesugh descriptors available\n");
 		return -1;
 	}
 
@@ -1236,7 +1236,7 @@ multiplexed serial interface which the DBRI can operate in either master
 enum master_or_slave { CHImaster, CHIslave };
 
 /*
- * Lock must not be held before calling it.
+ * Lock must yest be held before calling it.
  */
 static void reset_chi(struct snd_dbri *dbri,
 		      enum master_or_slave master_or_slave,
@@ -1312,7 +1312,7 @@ static void reset_chi(struct snd_dbri *dbri,
 In the standard SPARC audio configuration, the CS4215 codec is attached
 to the DBRI via the CHI interface and few of the DBRI's PIO pins.
 
- * Lock must not be held before calling it.
+ * Lock must yest be held before calling it.
 
 */
 static void cs4215_setup_pipes(struct snd_dbri *dbri)
@@ -1327,7 +1327,7 @@ static void cs4215_setup_pipes(struct snd_dbri *dbri)
 	 * Pipe  6: Receive timeslots 1-4 (audio data)
 	 * Pipe 21: Receive timeslots 6-7. We can only receive 20 bits via
 	 *          interrupt, and the rest of the data (slot 5 and 8) is
-	 *          not relevant for us (only for doublechecking).
+	 *          yest relevant for us (only for doublechecking).
 	 *
 	 * Control mode:
 	 * Pipe 17: Send timeslots 1-4 (slots 5-8 are read only)
@@ -1365,7 +1365,7 @@ static int cs4215_init_data(struct cs4215 *mm)
 	/*
 	 * Control Time Slot 1-4
 	 * 0: Default I/O voltage scale
-	 * 1: 8 bit ulaw, 8kHz, mono, high pass filter disabled
+	 * 1: 8 bit ulaw, 8kHz, moyes, high pass filter disabled
 	 * 2: Serial enable, CHI master, 128 bits per frame, clock 1
 	 * 3: Tests disabled
 	 */
@@ -1424,7 +1424,7 @@ static void cs4215_open(struct snd_dbri *dbri)
 		dbri->mm.channels, dbri->mm.precision);
 
 	/* Temporarily mute outputs, and wait 1/8000 sec (125 us)
-	 * to make sure this takes.  This avoids clicking noises.
+	 * to make sure this takes.  This avoids clicking yesises.
 	 */
 
 	cs4215_setdata(dbri, 1);
@@ -1437,7 +1437,7 @@ static void cs4215_open(struct snd_dbri *dbri)
 	 * Pipe  6: Receive timeslots 1-4 (audio data)
 	 * Pipe 21: Receive timeslots 6-7. We can only receive 20 bits via
 	 *          interrupt, and the rest of the data (slot 5 and 8) is
-	 *          not relevant for us (only for doublechecking).
+	 *          yest relevant for us (only for doublechecking).
 	 *
 	 * Just like in control mode, the time slots are all offset by eight
 	 * bits.  The CS4215, it seems, observes TSIN (the delayed signal)
@@ -1458,7 +1458,7 @@ static void cs4215_open(struct snd_dbri *dbri)
 	 * channels would be on timeslots 1 and 3, with 2 and 4 idle.
 	 * (See CS4215 datasheet Fig 15)
 	 *
-	 * DBRI non-contiguous mode would be required to make this work.
+	 * DBRI yesn-contiguous mode would be required to make this work.
 	 */
 	data_width = dbri->mm.channels * dbri->mm.precision;
 
@@ -1488,7 +1488,7 @@ static int cs4215_setctrl(struct snd_dbri *dbri)
 	/* FIXME - let the CPU do something useful during these delays */
 
 	/* Temporarily mute outputs, and wait 1/8000 sec (125 us)
-	 * to make sure this takes.  This avoids clicking noises.
+	 * to make sure this takes.  This avoids clicking yesises.
 	 */
 	cs4215_setdata(dbri, 1);
 	udelay(125);
@@ -1506,7 +1506,7 @@ static int cs4215_setctrl(struct snd_dbri *dbri)
 	 * operate as CHI master, supplying clocking and frame synchronization.
 	 *
 	 * In Data mode, however, the CS4215 must be CHI master to insure
-	 * that its data stream is synchronous with its codec.
+	 * that its data stream is synchroyesus with its codec.
 	 *
 	 * The upshot of all this?  We start by putting the DBRI into master
 	 * mode, program the CS4215 in Control mode, then switch the CS4215
@@ -1518,7 +1518,7 @@ static int cs4215_setctrl(struct snd_dbri *dbri)
 	 * offset by eight bits, so we add eight to all the "cycle"
 	 * values in the Define Time Slot (DTS) commands.  This is
 	 * done in hardware by a TI 248 that delays the DBRI->4215
-	 * frame sync signal by eight clock cycles.  Anybody know why?
+	 * frame sync signal by eight clock cycles.  Anybody kyesw why?
 	 */
 	spin_lock_irqsave(&dbri->lock, flags);
 	tmp = sbus_readl(dbri->regs + REG0);
@@ -1656,13 +1656,13 @@ static int cs4215_init(struct snd_dbri *dbri)
 
 		if (reg2 & D_PIO2) {
 			printk(KERN_INFO "DBRI: Using speakerbox / "
-			       "ignoring onboard mmcodec.\n");
+			       "igyesring onboard mmcodec.\n");
 			sbus_writel(D_ENPIO2, dbri->regs + REG2);
 		}
 	}
 
 	if (!(reg2 & (D_PIO0 | D_PIO2))) {
-		printk(KERN_ERR "DBRI: no mmcodec found.\n");
+		printk(KERN_ERR "DBRI: yes mmcodec found.\n");
 		return -EIO;
 	}
 
@@ -1773,7 +1773,7 @@ static void xmit_descs(struct snd_dbri *dbri)
  * them as available. Stops when the first descriptor is found without
  * TBC (Transmit Buffer Complete) set, or we've run through them all.
  *
- * The DMA buffers are not released. They form a ring buffer and
+ * The DMA buffers are yest released. They form a ring buffer and
  * they are filled by ALSA while others are transmitted by DMA.
  *
  */
@@ -1901,13 +1901,13 @@ static void dbri_process_one_interrupt(struct snd_dbri *dbri, int x)
 	default:
 		if (channel != D_INTR_CMD)
 			printk(KERN_WARNING
-			       "DBRI: Ignored Interrupt: %d (0x%x)\n", code, x);
+			       "DBRI: Igyesred Interrupt: %d (0x%x)\n", code, x);
 	}
 }
 
 /* dbri_process_interrupt_buffer advances through the DBRI's interrupt
- * buffer until it finds a zero word (indicating nothing more to do
- * right now).  Non-zero words require processing and are handed off
+ * buffer until it finds a zero word (indicating yesthing more to do
+ * right yesw).  Non-zero words require processing and are handed off
  * to dbri_process_one_interrupt AFTER advancing the pointer.
  */
 static void dbri_process_interrupt_buffer(struct snd_dbri *dbri)
@@ -2315,7 +2315,7 @@ static int snd_cs4215_put_volume(struct snd_kcontrol *kcontrol,
 	}
 	if (changed) {
 		/* First mute outputs, and wait 1/8000 sec (125 us)
-		 * to make sure this takes.  This avoids clicking noises.
+		 * to make sure this takes.  This avoids clicking yesises.
 		 */
 		cs4215_setdata(dbri, 1);
 		udelay(125);
@@ -2398,7 +2398,7 @@ static int snd_cs4215_put_single(struct snd_kcontrol *kcontrol,
 
 	if (changed) {
 		/* First mute outputs, and wait 1/8000 sec (125 us)
-		 * to make sure this takes.  This avoids clicking noises.
+		 * to make sure this takes.  This avoids clicking yesises.
 		 */
 		cs4215_setdata(dbri, 1);
 		udelay(125);
@@ -2550,7 +2550,7 @@ static int snd_dbri_create(struct snd_card *card,
 	dbri->regs = of_ioremap(&op->resource[0], 0,
 				dbri->regs_size, "DBRI Registers");
 	if (!dbri->regs) {
-		printk(KERN_ERR "DBRI: could not allocate registers\n");
+		printk(KERN_ERR "DBRI: could yest allocate registers\n");
 		dma_free_coherent(&op->dev, sizeof(struct dbri_dma),
 				  (void *)dbri->dma, dbri->dma_dvma);
 		return -EIO;
@@ -2653,7 +2653,7 @@ static int dbri_probe(struct platform_device *op)
 
 	printk(KERN_INFO "audio%d at %p (irq %d) is DBRI(%c)+CS4215(%d)\n",
 	       dev, dbri->regs,
-	       dbri->irq, op->dev.of_node->name[9], dbri->mm.version);
+	       dbri->irq, op->dev.of_yesde->name[9], dbri->mm.version);
 	dev++;
 
 	return 0;

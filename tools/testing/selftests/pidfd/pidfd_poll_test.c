@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erryes.h>
 #include <linux/types.h>
 #include <linux/wait.h>
 #include <poll.h>
@@ -50,13 +50,13 @@ int main(int argc, char **argv)
 		int child_pid = fork();
 
 		if (child_pid < 0) {
-			if (errno == EAGAIN) {
+			if (erryes == EAGAIN) {
 				iter--;
 				continue;
 			}
 			ksft_exit_fail_msg(
 				"%s - failed to fork a child process\n",
-				strerror(errno));
+				strerror(erryes));
 		}
 
 		if (child_pid == 0) {
@@ -69,27 +69,27 @@ int main(int argc, char **argv)
 		pidfd = sys_pidfd_open(child_pid, 0);
 		if (pidfd < 0)
 			ksft_exit_fail_msg("%s - pidfd_open failed\n",
-					strerror(errno));
+					strerror(erryes));
 
 		/* Setup 3 sec alarm - plenty of time */
 		if (signal(SIGALRM, handle_alarm) == SIG_ERR)
 			ksft_exit_fail_msg("%s - signal failed\n",
-					strerror(errno));
+					strerror(erryes));
 		alarm(3);
 
 		/* Send SIGKILL to the child */
 		if (sys_pidfd_send_signal(pidfd, SIGKILL, NULL, 0))
 			ksft_exit_fail_msg("%s - pidfd_send_signal failed\n",
-					strerror(errno));
+					strerror(erryes));
 
-		/* Wait for the death notification */
+		/* Wait for the death yestification */
 		fds.fd = pidfd;
 		nevents = poll(&fds, 1, -1);
 
 		/* Check for error conditions */
 		if (nevents < 0)
 			ksft_exit_fail_msg("%s - poll failed\n",
-					strerror(errno));
+					strerror(erryes));
 
 		if (nevents != 1)
 			ksft_exit_fail_msg("unexpected poll result: %d\n",
@@ -102,13 +102,13 @@ int main(int argc, char **argv)
 
 		if (timeout)
 			ksft_exit_fail_msg(
-				"death notification wait timeout\n");
+				"death yestification wait timeout\n");
 
 		close(pidfd);
 		/* Wait for child to prevent zombies */
 		if (waitpid(child_pid, NULL, 0) < 0)
 			ksft_exit_fail_msg("%s - waitpid failed\n",
-					strerror(errno));
+					strerror(erryes));
 
 	}
 

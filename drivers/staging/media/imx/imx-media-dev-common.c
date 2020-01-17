@@ -14,13 +14,13 @@
 #include <media/v4l2-mc.h>
 #include "imx-media.h"
 
-static inline struct imx_media_dev *notifier2dev(struct v4l2_async_notifier *n)
+static inline struct imx_media_dev *yestifier2dev(struct v4l2_async_yestifier *n)
 {
-	return container_of(n, struct imx_media_dev, notifier);
+	return container_of(n, struct imx_media_dev, yestifier);
 }
 
-/* async subdev bound notifier */
-static int imx_media_subdev_bound(struct v4l2_async_notifier *notifier,
+/* async subdev bound yestifier */
+static int imx_media_subdev_bound(struct v4l2_async_yestifier *yestifier,
 				  struct v4l2_subdev *sd,
 				  struct v4l2_async_subdev *asd)
 {
@@ -33,9 +33,9 @@ static int imx_media_subdev_bound(struct v4l2_async_notifier *notifier,
  * Create the media links for all subdevs that registered.
  * Called after all async subdevs have bound.
  */
-static int imx_media_create_links(struct v4l2_async_notifier *notifier)
+static int imx_media_create_links(struct v4l2_async_yestifier *yestifier)
 {
-	struct imx_media_dev *imxmd = notifier2dev(notifier);
+	struct imx_media_dev *imxmd = yestifier2dev(yestifier);
 	struct v4l2_subdev *sd;
 
 	list_for_each_entry(sd, &imxmd->v4l2_dev.subdevs, list) {
@@ -56,7 +56,7 @@ static int imx_media_create_links(struct v4l2_async_notifier *notifier)
 			break;
 		default:
 			/*
-			 * if this subdev has fwnode links, create media
+			 * if this subdev has fwyesde links, create media
 			 * links for them.
 			 */
 			imx_media_create_of_links(imxmd, sd);
@@ -82,7 +82,7 @@ static int imx_media_add_vdev_to_pad(struct imx_media_dev *imxmd,
 	struct v4l2_subdev *sd;
 	int i, ret;
 
-	/* skip this entity if not a v4l2_subdev */
+	/* skip this entity if yest a v4l2_subdev */
 	if (!is_media_entity_v4l2_subdev(entity))
 		return 0;
 
@@ -90,10 +90,10 @@ static int imx_media_add_vdev_to_pad(struct imx_media_dev *imxmd,
 
 	pad_vdev_list = to_pad_vdev_list(sd, srcpad->index);
 	if (!pad_vdev_list) {
-		v4l2_warn(&imxmd->v4l2_dev, "%s:%u has no vdev list!\n",
+		v4l2_warn(&imxmd->v4l2_dev, "%s:%u has yes vdev list!\n",
 			  entity->name, srcpad->index);
 		/*
-		 * shouldn't happen, but no reason to fail driver load,
+		 * shouldn't happen, but yes reason to fail driver load,
 		 * just skip this entity.
 		 */
 		return 0;
@@ -188,15 +188,15 @@ static int imx_media_create_pad_vdev_lists(struct imx_media_dev *imxmd)
 	return 0;
 }
 
-/* async subdev complete notifier */
-int imx_media_probe_complete(struct v4l2_async_notifier *notifier)
+/* async subdev complete yestifier */
+int imx_media_probe_complete(struct v4l2_async_yestifier *yestifier)
 {
-	struct imx_media_dev *imxmd = notifier2dev(notifier);
+	struct imx_media_dev *imxmd = yestifier2dev(yestifier);
 	int ret;
 
 	mutex_lock(&imxmd->mutex);
 
-	ret = imx_media_create_links(notifier);
+	ret = imx_media_create_links(yestifier);
 	if (ret)
 		goto unlock;
 
@@ -204,7 +204,7 @@ int imx_media_probe_complete(struct v4l2_async_notifier *notifier)
 	if (ret)
 		goto unlock;
 
-	ret = v4l2_device_register_subdev_nodes(&imxmd->v4l2_dev);
+	ret = v4l2_device_register_subdev_yesdes(&imxmd->v4l2_dev);
 unlock:
 	mutex_unlock(&imxmd->mutex);
 	if (ret)
@@ -257,8 +257,8 @@ static int imx_media_inherit_controls(struct imx_media_dev *imxmd,
 	return ret;
 }
 
-static int imx_media_link_notify(struct media_link *link, u32 flags,
-				 unsigned int notification)
+static int imx_media_link_yestify(struct media_link *link, u32 flags,
+				 unsigned int yestification)
 {
 	struct imx_media_dev *imxmd = container_of(link->graph_obj.mdev,
 						   struct imx_media_dev, md);
@@ -269,11 +269,11 @@ static int imx_media_link_notify(struct media_link *link, u32 flags,
 	struct v4l2_subdev *sd;
 	int pad_idx, ret;
 
-	ret = v4l2_pipeline_link_notify(link, flags, notification);
+	ret = v4l2_pipeline_link_yestify(link, flags, yestification);
 	if (ret)
 		return ret;
 
-	/* don't bother if source is not a subdev */
+	/* don't bother if source is yest a subdev */
 	if (!is_media_entity_v4l2_subdev(source))
 		return 0;
 
@@ -282,7 +282,7 @@ static int imx_media_link_notify(struct media_link *link, u32 flags,
 
 	pad_vdev_list = to_pad_vdev_list(sd, pad_idx);
 	if (!pad_vdev_list) {
-		/* nothing to do if source sd has no pad vdev list */
+		/* yesthing to do if source sd has yes pad vdev list */
 		return 0;
 	}
 
@@ -293,7 +293,7 @@ static int imx_media_link_notify(struct media_link *link, u32 flags,
 	 * After enabling a link, refresh controls for all video
 	 * devices reachable from this link.
 	 */
-	if (notification == MEDIA_DEV_NOTIFY_PRE_LINK_CH &&
+	if (yestification == MEDIA_DEV_NOTIFY_PRE_LINK_CH &&
 	    !(flags & MEDIA_LNK_FL_ENABLED)) {
 		list_for_each_entry(pad_vdev, pad_vdev_list, list) {
 			vfd = pad_vdev->vdev->vfd;
@@ -303,7 +303,7 @@ static int imx_media_link_notify(struct media_link *link, u32 flags,
 			v4l2_ctrl_handler_free(vfd->ctrl_handler);
 			v4l2_ctrl_handler_init(vfd->ctrl_handler, 0);
 		}
-	} else if (notification == MEDIA_DEV_NOTIFY_POST_LINK_CH &&
+	} else if (yestification == MEDIA_DEV_NOTIFY_POST_LINK_CH &&
 		   (link->flags & MEDIA_LNK_FL_ENABLED)) {
 		list_for_each_entry(pad_vdev, pad_vdev_list, list) {
 			vfd = pad_vdev->vdev->vfd;
@@ -320,13 +320,13 @@ static int imx_media_link_notify(struct media_link *link, u32 flags,
 	return ret;
 }
 
-static void imx_media_notify(struct v4l2_subdev *sd, unsigned int notification,
+static void imx_media_yestify(struct v4l2_subdev *sd, unsigned int yestification,
 			     void *arg)
 {
 	struct media_entity *entity = &sd->entity;
 	int i;
 
-	if (notification != V4L2_DEVICE_NOTIFY_EVENT)
+	if (yestification != V4L2_DEVICE_NOTIFY_EVENT)
 		return;
 
 	for (i = 0; i < entity->num_pads; i++) {
@@ -342,13 +342,13 @@ static void imx_media_notify(struct v4l2_subdev *sd, unsigned int notification,
 	}
 }
 
-static const struct v4l2_async_notifier_operations imx_media_notifier_ops = {
+static const struct v4l2_async_yestifier_operations imx_media_yestifier_ops = {
 	.bound = imx_media_subdev_bound,
 	.complete = imx_media_probe_complete,
 };
 
 static const struct media_device_ops imx_media_md_ops = {
-	.link_notify = imx_media_link_notify,
+	.link_yestify = imx_media_link_yestify,
 };
 
 struct imx_media_dev *imx_media_dev_init(struct device *dev,
@@ -370,7 +370,7 @@ struct imx_media_dev *imx_media_dev_init(struct device *dev,
 	mutex_init(&imxmd->mutex);
 
 	imxmd->v4l2_dev.mdev = &imxmd->md;
-	imxmd->v4l2_dev.notify = imx_media_notify;
+	imxmd->v4l2_dev.yestify = imx_media_yestify;
 	strscpy(imxmd->v4l2_dev.name, "imx-media",
 		sizeof(imxmd->v4l2_dev.name));
 
@@ -385,7 +385,7 @@ struct imx_media_dev *imx_media_dev_init(struct device *dev,
 
 	INIT_LIST_HEAD(&imxmd->vdev_list);
 
-	v4l2_async_notifier_init(&imxmd->notifier);
+	v4l2_async_yestifier_init(&imxmd->yestifier);
 
 	return imxmd;
 
@@ -396,27 +396,27 @@ cleanup:
 }
 EXPORT_SYMBOL_GPL(imx_media_dev_init);
 
-int imx_media_dev_notifier_register(struct imx_media_dev *imxmd,
-			    const struct v4l2_async_notifier_operations *ops)
+int imx_media_dev_yestifier_register(struct imx_media_dev *imxmd,
+			    const struct v4l2_async_yestifier_operations *ops)
 {
 	int ret;
 
-	/* no subdevs? just bail */
-	if (list_empty(&imxmd->notifier.asd_list)) {
-		v4l2_err(&imxmd->v4l2_dev, "no subdevs\n");
+	/* yes subdevs? just bail */
+	if (list_empty(&imxmd->yestifier.asd_list)) {
+		v4l2_err(&imxmd->v4l2_dev, "yes subdevs\n");
 		return -ENODEV;
 	}
 
-	/* prepare the async subdev notifier and register it */
-	imxmd->notifier.ops = ops ? ops : &imx_media_notifier_ops;
-	ret = v4l2_async_notifier_register(&imxmd->v4l2_dev,
-					   &imxmd->notifier);
+	/* prepare the async subdev yestifier and register it */
+	imxmd->yestifier.ops = ops ? ops : &imx_media_yestifier_ops;
+	ret = v4l2_async_yestifier_register(&imxmd->v4l2_dev,
+					   &imxmd->yestifier);
 	if (ret) {
 		v4l2_err(&imxmd->v4l2_dev,
-			 "v4l2_async_notifier_register failed with %d\n", ret);
+			 "v4l2_async_yestifier_register failed with %d\n", ret);
 		return ret;
 	}
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(imx_media_dev_notifier_register);
+EXPORT_SYMBOL_GPL(imx_media_dev_yestifier_register);

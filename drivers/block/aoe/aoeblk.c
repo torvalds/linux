@@ -29,7 +29,7 @@ static struct dentry *aoe_debugfs_dir;
 static int aoe_maxsectors;
 module_param(aoe_maxsectors, int, 0644);
 MODULE_PARM_DESC(aoe_maxsectors,
-	"When nonzero, set the maximum number of sectors per I/O request");
+	"When yesnzero, set the maximum number of sectors per I/O request");
 
 static ssize_t aoedisk_show_state(struct device *dev,
 				  struct device_attribute *attr, char *page)
@@ -41,8 +41,8 @@ static ssize_t aoedisk_show_state(struct device *dev,
 			"%s%s\n",
 			(d->flags & DEVFL_UP) ? "up" : "down",
 			(d->flags & DEVFL_KICKME) ? ",kickme" :
-			(d->nopen && !(d->flags & DEVFL_UP)) ? ",closewait" : "");
-	/* I'd rather see nopen exported so we can ditch closewait */
+			(d->yespen && !(d->flags & DEVFL_UP)) ? ",closewait" : "");
+	/* I'd rather see yespen exported so we can ditch closewait */
 }
 static ssize_t aoedisk_show_mac(struct device *dev,
 				struct device_attribute *attr, char *page)
@@ -52,7 +52,7 @@ static ssize_t aoedisk_show_mac(struct device *dev,
 	struct aoetgt *t = d->targets[0];
 
 	if (t == NULL)
-		return snprintf(page, PAGE_SIZE, "none\n");
+		return snprintf(page, PAGE_SIZE, "yesne\n");
 	return snprintf(page, PAGE_SIZE, "%pm\n", t->addr);
 }
 static ssize_t aoedisk_show_netif(struct device *dev,
@@ -85,7 +85,7 @@ static ssize_t aoedisk_show_netif(struct device *dev,
 	ne = nd;
 	nd = nds;
 	if (*nd == NULL)
-		return snprintf(page, PAGE_SIZE, "none\n");
+		return snprintf(page, PAGE_SIZE, "yesne\n");
 	for (p = page; nd < ne; nd++)
 		p += snprintf(p, PAGE_SIZE - (p-page), "%s%s",
 			p == page ? "" : ",", (*nd)->name);
@@ -110,7 +110,7 @@ static ssize_t aoedisk_show_payload(struct device *dev,
 	return snprintf(page, PAGE_SIZE, "%lu\n", d->maxbcnt);
 }
 
-static int aoedisk_debugfs_show(struct seq_file *s, void *ignored)
+static int aoedisk_debugfs_show(struct seq_file *s, void *igyesred)
 {
 	struct aoedev *d;
 	struct aoetgt **t, **te;
@@ -135,7 +135,7 @@ static int aoedisk_debugfs_show(struct seq_file *s, void *ignored)
 		seq_printf(s, "falloc: %ld\n", (*t)->falloc);
 		seq_printf(s, "ffree: %p\n",
 			list_empty(&(*t)->ffree) ? NULL : (*t)->ffree.next);
-		seq_printf(s, "%pm:%d:%d:%d\n", (*t)->addr, (*t)->nout,
+		seq_printf(s, "%pm:%d:%d:%d\n", (*t)->addr, (*t)->yesut,
 			(*t)->maxout, (*t)->nframes);
 		seq_printf(s, "\tssthresh:%d\n", (*t)->ssthresh);
 		seq_printf(s, "\ttaint:%d\n", (*t)->taint);
@@ -154,9 +154,9 @@ static int aoedisk_debugfs_show(struct seq_file *s, void *ignored)
 	return 0;
 }
 
-static int aoe_debugfs_open(struct inode *inode, struct file *file)
+static int aoe_debugfs_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, aoedisk_debugfs_show, inode->i_private);
+	return single_open(file, aoedisk_debugfs_show, iyesde->i_private);
 }
 
 static DEVICE_ATTR(state, 0444, aoedisk_show_state, NULL);
@@ -234,7 +234,7 @@ aoeblk_open(struct block_device *bdev, fmode_t mode)
 	mutex_lock(&aoeblk_mutex);
 	spin_lock_irqsave(&d->lock, flags);
 	if (d->flags & DEVFL_UP && !(d->flags & DEVFL_TKILL)) {
-		d->nopen++;
+		d->yespen++;
 		spin_unlock_irqrestore(&d->lock, flags);
 		mutex_unlock(&aoeblk_mutex);
 		return 0;
@@ -252,9 +252,9 @@ aoeblk_release(struct gendisk *disk, fmode_t mode)
 
 	spin_lock_irqsave(&d->lock, flags);
 
-	if (--d->nopen == 0) {
+	if (--d->yespen == 0) {
 		spin_unlock_irqrestore(&d->lock, flags);
-		aoecmd_cfg(d->aoemajor, d->aoeminor);
+		aoecmd_cfg(d->aoemajor, d->aoemiyesr);
 		return;
 	}
 	spin_unlock_irqrestore(&d->lock, flags);
@@ -268,8 +268,8 @@ static blk_status_t aoeblk_queue_rq(struct blk_mq_hw_ctx *hctx,
 	spin_lock_irq(&d->lock);
 
 	if ((d->flags & DEVFL_UP) == 0) {
-		pr_info_ratelimited("aoe: device %ld.%d is not up\n",
-			d->aoemajor, d->aoeminor);
+		pr_info_ratelimited("aoe: device %ld.%d is yest up\n",
+			d->aoemajor, d->aoemiyesr);
 		spin_unlock_irq(&d->lock);
 		blk_mq_start_request(bd->rq);
 		return BLK_STS_IOERR;
@@ -287,7 +287,7 @@ aoeblk_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	struct aoedev *d = bdev->bd_disk->private_data;
 
 	if ((d->flags & DEVFL_UP) == 0) {
-		printk(KERN_ERR "aoe: disk not up\n");
+		printk(KERN_ERR "aoe: disk yest up\n");
 		return -ENODEV;
 	}
 
@@ -307,7 +307,7 @@ aoeblk_ioctl(struct block_device *bdev, fmode_t mode, uint cmd, ulong arg)
 
 	d = bdev->bd_disk->private_data;
 	if ((d->flags & DEVFL_UP) == 0) {
-		pr_err("aoe: disk not up\n");
+		pr_err("aoe: disk yest up\n");
 		return -ENODEV;
 	}
 
@@ -318,9 +318,9 @@ aoeblk_ioctl(struct block_device *bdev, fmode_t mode, uint cmd, ulong arg)
 		return -EFAULT;
 	}
 
-	/* udev calls scsi_id, which uses SG_IO, resulting in noise */
+	/* udev calls scsi_id, which uses SG_IO, resulting in yesise */
 	if (cmd != SG_IO)
-		pr_info("aoe: unknown ioctl 0x%x\n", cmd);
+		pr_info("aoe: unkyeswn ioctl 0x%x\n", cmd);
 
 	return -ENOTTY;
 }
@@ -364,16 +364,16 @@ aoeblk_gdalloc(void *vp)
 
 	gd = alloc_disk(AOE_PARTITIONS);
 	if (gd == NULL) {
-		pr_err("aoe: cannot allocate disk structure for %ld.%d\n",
-			d->aoemajor, d->aoeminor);
+		pr_err("aoe: canyest allocate disk structure for %ld.%d\n",
+			d->aoemajor, d->aoemiyesr);
 		goto err;
 	}
 
 	mp = mempool_create(MIN_BUFS, mempool_alloc_slab, mempool_free_slab,
 		buf_pool_cache);
 	if (mp == NULL) {
-		printk(KERN_ERR "aoe: cannot allocate bufpool for %ld.%d\n",
-			d->aoemajor, d->aoeminor);
+		printk(KERN_ERR "aoe: canyest allocate bufpool for %ld.%d\n",
+			d->aoemajor, d->aoemiyesr);
 		goto err_disk;
 	}
 
@@ -382,19 +382,19 @@ aoeblk_gdalloc(void *vp)
 	set->cmd_size = sizeof(struct aoe_req);
 	set->nr_hw_queues = 1;
 	set->queue_depth = 128;
-	set->numa_node = NUMA_NO_NODE;
+	set->numa_yesde = NUMA_NO_NODE;
 	set->flags = BLK_MQ_F_SHOULD_MERGE;
 	err = blk_mq_alloc_tag_set(set);
 	if (err) {
-		pr_err("aoe: cannot allocate tag set for %ld.%d\n",
-			d->aoemajor, d->aoeminor);
+		pr_err("aoe: canyest allocate tag set for %ld.%d\n",
+			d->aoemajor, d->aoemiyesr);
 		goto err_mempool;
 	}
 
 	q = blk_mq_init_queue(set);
 	if (IS_ERR(q)) {
-		pr_err("aoe: cannot allocate block queue for %ld.%d\n",
-			d->aoemajor, d->aoeminor);
+		pr_err("aoe: canyest allocate block queue for %ld.%d\n",
+			d->aoemajor, d->aoemiyesr);
 		blk_mq_free_tag_set(set);
 		goto err_mempool;
 	}
@@ -415,12 +415,12 @@ aoeblk_gdalloc(void *vp)
 	if (aoe_maxsectors)
 		blk_queue_max_hw_sectors(q, aoe_maxsectors);
 	gd->major = AOE_MAJOR;
-	gd->first_minor = d->sysminor;
+	gd->first_miyesr = d->sysmiyesr;
 	gd->fops = &aoe_bdops;
 	gd->private_data = d;
 	set_capacity(gd, d->ssize);
 	snprintf(gd->disk_name, sizeof gd->disk_name, "etherd/e%ld.%d",
-		d->aoemajor, d->aoeminor);
+		d->aoemajor, d->aoemiyesr);
 
 	d->flags &= ~DEVFL_GDALLOC;
 	d->flags |= DEVFL_UP;

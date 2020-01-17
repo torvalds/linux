@@ -222,7 +222,7 @@ static struct gb_operation *gb_spi_operation_create(struct gb_spilib *spi,
 
 	/*
 	 * In addition to space for all message descriptors we need
-	 * to have enough to hold all tx data.
+	 * to have eyesugh to hold all tx data.
 	 */
 	request_size = sizeof(*request);
 	request_size += count * sizeof(*gb_xfer);
@@ -250,7 +250,7 @@ static struct gb_operation *gb_spi_operation_create(struct gb_spilib *spi,
 		else
 			xfer_len = xfer->len;
 
-		/* make sure we do not timeout in a slow transfer */
+		/* make sure we do yest timeout in a slow transfer */
 		xfer_timeout = xfer_len * 8 * MSEC_PER_SEC / xfer->speed_hz;
 		xfer_timeout += GB_OPERATION_TIMEOUT_DEFAULT;
 
@@ -390,20 +390,20 @@ static int gb_spi_unprepare_transfer_hardware(struct spi_master *master)
 
 static int gb_spi_setup(struct spi_device *spi)
 {
-	/* Nothing to do for now */
+	/* Nothing to do for yesw */
 	return 0;
 }
 
 static void gb_spi_cleanup(struct spi_device *spi)
 {
-	/* Nothing to do for now */
+	/* Nothing to do for yesw */
 }
 
 /* Routines to get controller information */
 
 /*
  * Map Greybus spi mode bits/flags/bpw into Linux ones.
- * All bits are same for now and so these macro's return same values.
+ * All bits are same for yesw and so these macro's return same values.
  */
 #define gb_spi_mode_map(mode) mode
 #define gb_spi_flags_map(flags) flags
@@ -458,7 +458,7 @@ static int gb_spi_setup_device(struct gb_spilib *spi, u8 cs)
 		strlcpy(spi_board.modalias, "spidev",
 			sizeof(spi_board.modalias));
 	else if (dev_type == GB_SPI_SPI_NOR)
-		strlcpy(spi_board.modalias, "spi-nor",
+		strlcpy(spi_board.modalias, "spi-yesr",
 			sizeof(spi_board.modalias));
 	else if (dev_type == GB_SPI_SPI_MODALIAS)
 		memcpy(spi_board.modalias, response.name,
@@ -489,7 +489,7 @@ int gb_spilib_master_init(struct gb_connection *connection, struct device *dev,
 	/* Allocate master with space for data */
 	master = spi_alloc_master(dev, sizeof(*spi));
 	if (!master) {
-		dev_err(dev, "cannot alloc SPI master\n");
+		dev_err(dev, "canyest alloc SPI master\n");
 		return -ENOMEM;
 	}
 
@@ -531,7 +531,7 @@ int gb_spilib_master_init(struct gb_connection *connection, struct device *dev,
 	if (ret < 0)
 		goto exit_spi_put;
 
-	/* now, fetch the devices configuration */
+	/* yesw, fetch the devices configuration */
 	for (i = 0; i < spi->num_chipselect; i++) {
 		ret = gb_spi_setup_device(spi, i);
 		if (ret < 0) {

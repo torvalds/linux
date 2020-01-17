@@ -6,7 +6,7 @@
  * Copyright (C) Joerg Reuter DL1BKE (jreuter@yaina.de)
  * Copyright (C) Hans-Joachim Hetscher DD8NE (dd8ne@bnv-bamberg.de)
  */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>
@@ -35,17 +35,17 @@ static int ax25_rx_fragment(ax25_cb *ax25, struct sk_buff *skb)
 {
 	struct sk_buff *skbn, *skbo;
 
-	if (ax25->fragno != 0) {
+	if (ax25->fragyes != 0) {
 		if (!(*skb->data & AX25_SEG_FIRST)) {
-			if ((ax25->fragno - 1) == (*skb->data & AX25_SEG_REM)) {
+			if ((ax25->fragyes - 1) == (*skb->data & AX25_SEG_REM)) {
 				/* Enqueue fragment */
-				ax25->fragno = *skb->data & AX25_SEG_REM;
-				skb_pull(skb, 1);	/* skip fragno */
+				ax25->fragyes = *skb->data & AX25_SEG_REM;
+				skb_pull(skb, 1);	/* skip fragyes */
 				ax25->fraglen += skb->len;
 				skb_queue_tail(&ax25->frag_queue, skb);
 
 				/* Last fragment received ? */
-				if (ax25->fragno == 0) {
+				if (ax25->fragyes == 0) {
 					skbn = alloc_skb(AX25_MAX_HEADER_LEN +
 							 ax25->fraglen,
 							 GFP_ATOMIC);
@@ -81,8 +81,8 @@ static int ax25_rx_fragment(ax25_cb *ax25, struct sk_buff *skb)
 		/* First fragment received */
 		if (*skb->data & AX25_SEG_FIRST) {
 			skb_queue_purge(&ax25->frag_queue);
-			ax25->fragno = *skb->data & AX25_SEG_REM;
-			skb_pull(skb, 1);		/* skip fragno */
+			ax25->fragyes = *skb->data & AX25_SEG_REM;
+			skb_pull(skb, 1);		/* skip fragyes */
 			ax25->fraglen = skb->len;
 			skb_queue_tail(&ax25->frag_queue, skb);
 			return 1;
@@ -288,8 +288,8 @@ static int ax25_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	/*
 	 *	Is connected mode supported on this device ?
-	 *	If not, should we DM the incoming frame (except DMs) or
-	 *	silently ignore them. For now we stay quiet.
+	 *	If yest, should we DM the incoming frame (except DMs) or
+	 *	silently igyesre them. For yesw we stay quiet.
 	 */
 	if (ax25_dev->values[AX25_VALUES_CONMODE] == 0)
 		goto free;
@@ -305,7 +305,7 @@ static int ax25_rcv(struct sk_buff *skb, struct net_device *dev,
 		 *	Process the frame. If it is queued up internally it
 		 *	returns one otherwise we free it immediately. This
 		 *	routine itself wakes the user context layers so we do
-		 *	no further work
+		 *	yes further work
 		 */
 		if (ax25_process_rx_frame(ax25, skb, type, dama) == 0)
 			kfree_skb(skb);
@@ -316,13 +316,13 @@ static int ax25_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	/* AX.25 state 0 (disconnected) */
 
-	/* a) received not a SABM(E) */
+	/* a) received yest a SABM(E) */
 
 	if ((*skb->data & ~AX25_PF) != AX25_SABM &&
 	    (*skb->data & ~AX25_PF) != AX25_SABME) {
 		/*
-		 *	Never reply to a DM. Also ignore any connects for
-		 *	addresses that are not our interfaces and not a socket.
+		 *	Never reply to a DM. Also igyesre any connects for
+		 *	addresses that are yest our interfaces and yest a socket.
 		 */
 		if ((*skb->data & ~AX25_PF) != AX25_DM && mine)
 			ax25_return_dm(dev, &src, &dest, &dp);

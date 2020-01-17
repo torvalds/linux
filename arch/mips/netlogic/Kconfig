@@ -8,7 +8,7 @@ config DT_XLP_EVP
 	select BUILTIN_DTB
 	help
 	  Add an FDT blob for XLP EVP boards into the kernel.
-	  This DTB will be used if the firmware does not pass in a DTB
+	  This DTB will be used if the firmware does yest pass in a DTB
 	  pointer to the kernel.  The corresponding DTS file is at
 	  arch/mips/netlogic/dts/xlp_evp.dts
 
@@ -18,7 +18,7 @@ config DT_XLP_SVP
 	select BUILTIN_DTB
 	help
 	  Add an FDT blob for XLP VP boards into the kernel.
-	  This DTB will be used if the firmware does not pass in a DTB
+	  This DTB will be used if the firmware does yest pass in a DTB
 	  pointer to the kernel.  The corresponding DTS file is at
 	  arch/mips/netlogic/dts/xlp_svp.dts
 
@@ -28,7 +28,7 @@ config DT_XLP_FVP
 	select BUILTIN_DTB
 	help
 	  Add an FDT blob for XLP FVP board into the kernel.
-	  This DTB will be used if the firmware does not pass in a DTB
+	  This DTB will be used if the firmware does yest pass in a DTB
 	  pointer to the kernel.  The corresponding DTS file is at
 	  arch/mips/netlogic/dts/xlp_fvp.dts
 
@@ -38,7 +38,7 @@ config DT_XLP_GVP
 	select BUILTIN_DTB
 	help
 	  Add an FDT blob for XLP GVP board into the kernel.
-	  This DTB will be used if the firmware does not pass in a DTB
+	  This DTB will be used if the firmware does yest pass in a DTB
 	  pointer to the kernel.  The corresponding DTS file is at
 	  arch/mips/netlogic/dts/xlp_gvp.dts
 
@@ -47,7 +47,7 @@ config DT_XLP_RVP
 	default y
 	help
 	  Add an FDT blob for XLP RVP board into the kernel.
-	  This DTB will be used if the firmware does not pass in a DTB
+	  This DTB will be used if the firmware does yest pass in a DTB
 	  pointer to the kernel.  The corresponding DTS file is at
 	  arch/mips/netlogic/dts/xlp_rvp.dts
 
@@ -63,7 +63,7 @@ choice
 	prompt "Number of XLPs on the board"
 	default NLM_MULTINODE_2
 	help
-	  In the multi-node case, specify the number of SoCs on the board.
+	  In the multi-yesde case, specify the number of SoCs on the board.
 
 config NLM_MULTINODE_2
 	bool "Dual-XLP board"

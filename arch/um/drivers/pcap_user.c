@@ -3,7 +3,7 @@
  * Copyright (C) 2002 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  */
 
-#include <errno.h>
+#include <erryes.h>
 #include <pcap.h>
 #include <string.h>
 #include <asm/types.h>

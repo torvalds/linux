@@ -122,9 +122,9 @@ int fsl_spi_cpm_bufs(struct mpc8xxx_spi *mspi,
 	}
 
 	if (mspi->map_tx_dma) {
-		void *nonconst_tx = (void *)mspi->tx; /* shut up gcc */
+		void *yesnconst_tx = (void *)mspi->tx; /* shut up gcc */
 
-		mspi->tx_dma = dma_map_single(dev, nonconst_tx, t->len,
+		mspi->tx_dma = dma_map_single(dev, yesnconst_tx, t->len,
 					      DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, mspi->tx_dma)) {
 			dev_err(dev, "unable to map tx dma\n");
@@ -238,7 +238,7 @@ static void fsl_spi_free_dummy_rx(void)
 static unsigned long fsl_spi_cpm_get_pram(struct mpc8xxx_spi *mspi)
 {
 	struct device *dev = mspi->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	const u32 *iprop;
 	int size;
 	void __iomem *spi_base;
@@ -275,7 +275,7 @@ static unsigned long fsl_spi_cpm_get_pram(struct mpc8xxx_spi *mspi)
 int fsl_spi_cpm_init(struct mpc8xxx_spi *mspi)
 {
 	struct device *dev = mspi->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	const u32 *iprop;
 	int size;
 	unsigned long bds_ofs;

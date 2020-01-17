@@ -1,4 +1,4 @@
-* Faraday Technology FTGMAC100 gigabit ethernet controller
+* Faraday Techyeslogy FTGMAC100 gigabit ethernet controller
 
 Required properties:
 - compatible: "faraday,ftgmac100"
@@ -17,12 +17,12 @@ Required properties:
 Optional properties:
 - phy-mode: See ethernet.txt file in the same directory. If the property is
   absent, "rgmii" is assumed. Supported values are "rgmii*" and "rmii" for
-  aspeed parts. Other (unknown) parts will accept any value.
+  aspeed parts. Other (unkyeswn) parts will accept any value.
 - use-ncsi: Use the NC-SI stack instead of an MDIO PHY. Currently assumes
   rmii (100bT) but kept as a separate property in case NC-SI grows support
   for a gigabit link.
-- no-hw-checksum: Used to disable HW checksum support. Here for backward
-  compatibility as the driver now should have correct defaults based on
+- yes-hw-checksum: Used to disable HW checksum support. Here for backward
+  compatibility as the driver yesw should have correct defaults based on
   the SoC.
 - clocks: In accordance with the generic clock bindings. Must describe the MAC
   IP clock, and optionally an RMII RCLK gate for the AST2500/AST2600. The

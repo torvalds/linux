@@ -8,7 +8,7 @@
 #include <linux/uaccess.h>
 
 #include <asm/asm.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/processor.h>
 #include <asm/smap.h>
 

@@ -64,13 +64,13 @@
 static const char * const fwio_error_strings[] = {
 	[ERR_INVALID_SEC_TYPE] = "Invalid section type or wrong encryption",
 	[ERR_SIG_VERIF_FAILED] = "Signature verification failed",
-	[ERR_AES_CTRL_KEY] = "AES control key not initialized",
-	[ERR_ECC_PUB_KEY] = "ECC public key not initialized",
-	[ERR_MAC_KEY] = "MAC key not initialized",
+	[ERR_AES_CTRL_KEY] = "AES control key yest initialized",
+	[ERR_ECC_PUB_KEY] = "ECC public key yest initialized",
+	[ERR_MAC_KEY] = "MAC key yest initialized",
 };
 
 /*
- * request_firmware() allocate data using vmalloc(). It is not compatible with
+ * request_firmware() allocate data using vmalloc(). It is yest compatible with
  * underlying hardware that use DMA. Function below detect this case and
  * allocate a bounce buffer if necessary.
  *
@@ -109,7 +109,7 @@ int get_firmware(struct wfx_dev *wdev, u32 keyset_chip,
 
 	snprintf(filename, sizeof(filename), "%s_%02X.sec", wdev->pdata.file_fw,
 		 keyset_chip);
-	ret = firmware_request_nowarn(fw, filename, wdev->dev);
+	ret = firmware_request_yeswarn(fw, filename, wdev->dev);
 	if (ret) {
 		dev_info(wdev->dev, "can't load %s, falling back to %s.sec\n",
 			 filename, wdev->pdata.file_fw);
@@ -151,7 +151,7 @@ int get_firmware(struct wfx_dev *wdev, u32 keyset_chip,
 
 static int wait_ncp_status(struct wfx_dev *wdev, u32 status)
 {
-	ktime_t now, start;
+	ktime_t yesw, start;
 	u32 reg;
 	int ret;
 
@@ -160,15 +160,15 @@ static int wait_ncp_status(struct wfx_dev *wdev, u32 status)
 		ret = sram_reg_read(wdev, WFX_DCA_NCP_STATUS, &reg);
 		if (ret < 0)
 			return -EIO;
-		now = ktime_get();
+		yesw = ktime_get();
 		if (reg == status)
 			break;
-		if (ktime_after(now, ktime_add_ms(start, DCA_TIMEOUT)))
+		if (ktime_after(yesw, ktime_add_ms(start, DCA_TIMEOUT)))
 			return -ETIMEDOUT;
 	}
-	if (ktime_compare(now, start))
+	if (ktime_compare(yesw, start))
 		dev_dbg(wdev->dev, "chip answer after %lldus\n",
-			ktime_us_delta(now, start));
+			ktime_us_delta(yesw, start));
 	else
 		dev_dbg(wdev->dev, "chip answer immediately\n");
 	return 0;
@@ -178,10 +178,10 @@ static int upload_firmware(struct wfx_dev *wdev, const u8 *data, size_t len)
 {
 	int ret;
 	u32 offs, bytes_done;
-	ktime_t now, start;
+	ktime_t yesw, start;
 
 	if (len % DNLD_BLOCK_SIZE) {
-		dev_err(wdev->dev, "firmware size is not aligned. Buffer overrun will occur\n");
+		dev_err(wdev->dev, "firmware size is yest aligned. Buffer overrun will occur\n");
 		return -EIO;
 	}
 	offs = 0;
@@ -191,16 +191,16 @@ static int upload_firmware(struct wfx_dev *wdev, const u8 *data, size_t len)
 			ret = sram_reg_read(wdev, WFX_DCA_GET, &bytes_done);
 			if (ret < 0)
 				return ret;
-			now = ktime_get();
+			yesw = ktime_get();
 			if (offs +
 			    DNLD_BLOCK_SIZE - bytes_done < DNLD_FIFO_SIZE)
 				break;
-			if (ktime_after(now, ktime_add_ms(start, DCA_TIMEOUT)))
+			if (ktime_after(yesw, ktime_add_ms(start, DCA_TIMEOUT)))
 				return -ETIMEDOUT;
 		}
-		if (ktime_compare(now, start))
+		if (ktime_compare(yesw, start))
 			dev_dbg(wdev->dev, "answer after %lldus\n",
-				ktime_us_delta(now, start));
+				ktime_us_delta(yesw, start));
 
 		ret = sram_write_dma_safe(wdev, WFX_DNLD_FIFO +
 					  (offs % DNLD_FIFO_SIZE),
@@ -208,7 +208,7 @@ static int upload_firmware(struct wfx_dev *wdev, const u8 *data, size_t len)
 		if (ret < 0)
 			return ret;
 
-		// WFx seems to not support writing 0 in this register during
+		// WFx seems to yest support writing 0 in this register during
 		// first loop
 		offs += DNLD_BLOCK_SIZE;
 		ret = sram_reg_write(wdev, WFX_DCA_PUT, offs);
@@ -224,7 +224,7 @@ static void print_boot_status(struct wfx_dev *wdev)
 
 	sram_reg_read(wdev, WFX_STATUS_INFO, &val32);
 	if (val32 == 0x12345678) {
-		dev_info(wdev->dev, "no error reported by secure boot\n");
+		dev_info(wdev->dev, "yes error reported by secure boot\n");
 	} else {
 		sram_reg_read(wdev, WFX_ERR_INFO, &val32);
 		if (val32 < ARRAY_SIZE(fwio_error_strings) &&
@@ -233,7 +233,7 @@ static void print_boot_status(struct wfx_dev *wdev)
 				 fwio_error_strings[val32]);
 		else
 			dev_info(wdev->dev,
-				 "secure boot error: Unknown (0x%02x)\n",
+				 "secure boot error: Unkyeswn (0x%02x)\n",
 				 val32);
 	}
 }
@@ -342,7 +342,7 @@ int wfx_init_device(struct wfx_dev *wdev)
 	int ret;
 	int hw_revision, hw_type;
 	int wakeup_timeout = 50; // ms
-	ktime_t now, start;
+	ktime_t yesw, start;
 	u32 reg;
 
 	reg = CFG_DIRECT_ACCESS_MODE | CFG_CPU_RESET | CFG_WORD_MODE2;
@@ -373,7 +373,7 @@ int wfx_init_device(struct wfx_dev *wdev)
 	}
 	hw_type = FIELD_GET(CFG_DEVICE_ID_TYPE, reg);
 	if (hw_type == 1) {
-		dev_notice(wdev->dev, "development hardware detected\n");
+		dev_yestice(wdev->dev, "development hardware detected\n");
 		wakeup_timeout = 2000;
 	}
 
@@ -387,16 +387,16 @@ int wfx_init_device(struct wfx_dev *wdev)
 	start = ktime_get();
 	for (;;) {
 		ret = control_reg_read(wdev, &reg);
-		now = ktime_get();
+		yesw = ktime_get();
 		if (reg & CTRL_WLAN_READY)
 			break;
-		if (ktime_after(now, ktime_add_ms(start, wakeup_timeout))) {
+		if (ktime_after(yesw, ktime_add_ms(start, wakeup_timeout))) {
 			dev_err(wdev->dev, "chip didn't wake up. Chip wasn't reset?\n");
 			return -ETIMEDOUT;
 		}
 	}
 	dev_dbg(wdev->dev, "chip wake up after %lldus\n",
-		ktime_us_delta(now, start));
+		ktime_us_delta(yesw, start));
 
 	ret = config_reg_write_bits(wdev, CFG_CPU_RESET, 0);
 	if (ret < 0)

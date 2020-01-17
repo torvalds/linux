@@ -422,11 +422,11 @@ EXPORT_SYMBOL(acpi_get_physical_device_location);
  * @handle: ACPI device handle
  * @source_event: source event code
  * @status_code: status code
- * @status_buf: optional detailed information (NULL if none)
+ * @status_buf: optional detailed information (NULL if yesne)
  *
  * Evaluate _OST for hotplug operations. All ACPI hotplug handlers
  * must call this function when evaluating _OST for hotplug operations.
- * When the platform does not support _OST, this function has no effect.
+ * When the platform does yest support _OST, this function has yes effect.
  */
 acpi_status
 acpi_evaluate_ost(acpi_handle handle, u32 source_event, u32 status_code,
@@ -584,7 +584,7 @@ acpi_status acpi_evaluate_ej0(acpi_handle handle)
 /**
  * acpi_evaluate_lck: Evaluate _LCK method to lock/unlock device
  * @handle: ACPI device handle
- * @lock: lock device if non-zero, otherwise unlock device
+ * @lock: lock device if yesn-zero, otherwise unlock device
  *
  * Evaluate device's _LCK method if present to lock/unlock device
  */
@@ -667,7 +667,7 @@ EXPORT_SYMBOL(acpi_evaluate_dsm);
  *
  * Evaluate device's _DSM method to check whether it supports requested
  * functions. Currently only support 64 functions at maximum, should be
- * enough for now.
+ * eyesugh for yesw.
  */
 bool acpi_check_dsm(acpi_handle handle, const guid_t *guid, u64 rev, u64 funcs)
 {
@@ -705,7 +705,7 @@ EXPORT_SYMBOL(acpi_check_dsm);
  * acpi_dev_hid_uid_match - Match device by supplied HID and UID
  * @adev: ACPI device to match.
  * @hid2: Hardware ID of the device.
- * @uid2: Unique ID of the device, pass NULL to not check _UID.
+ * @uid2: Unique ID of the device, pass NULL to yest check _UID.
  *
  * Matches HID and UID in @adev with given @hid2 and @uid2.
  * Returns true if matches.
@@ -734,9 +734,9 @@ EXPORT_SYMBOL(acpi_dev_hid_uid_match);
  * Note that if the device is pluggable, it may since have disappeared.
  *
  * For this function to work, acpi_bus_scan() must have been executed
- * which happens in the subsys_initcall() subsection. Hence, do not
+ * which happens in the subsys_initcall() subsection. Hence, do yest
  * call from a subsys_initcall() or earlier (use acpi_get_devices()
- * instead). Calling from module_init() is fine (which is synonymous
+ * instead). Calling from module_init() is fine (which is syyesnymous
  * with device_initcall()).
  */
 bool acpi_dev_found(const char *hid)
@@ -745,7 +745,7 @@ bool acpi_dev_found(const char *hid)
 	bool found = false;
 
 	mutex_lock(&acpi_device_lock);
-	list_for_each_entry(acpi_device_bus_id, &acpi_bus_id_list, node)
+	list_for_each_entry(acpi_device_bus_id, &acpi_bus_id_list, yesde)
 		if (!strcmp(acpi_device_bus_id->bus_id, hid)) {
 			found = true;
 			break;
@@ -789,8 +789,8 @@ static int acpi_dev_match_cb(struct device *dev, const void *data)
 /**
  * acpi_dev_present - Detect that a given ACPI device is present
  * @hid: Hardware ID of the device.
- * @uid: Unique ID of the device, pass NULL to not check _UID
- * @hrv: Hardware Revision of the device, pass -1 to not check _HRV
+ * @uid: Unique ID of the device, pass NULL to yest check _UID
+ * @hrv: Hardware Revision of the device, pass -1 to yest check _HRV
  *
  * Return %true if a matching device was present at the moment of invocation.
  * Note that if the device is pluggable, it may since have disappeared.
@@ -801,9 +801,9 @@ static int acpi_dev_match_cb(struct device *dev, const void *data)
  * will return false.
  *
  * For this function to work, acpi_bus_scan() must have been executed
- * which happens in the subsys_initcall() subsection. Hence, do not
+ * which happens in the subsys_initcall() subsection. Hence, do yest
  * call from a subsys_initcall() or earlier (use acpi_get_devices()
- * instead). Calling from module_init() is fine (which is synonymous
+ * instead). Calling from module_init() is fine (which is syyesnymous
  * with device_initcall()).
  */
 bool acpi_dev_present(const char *hid, const char *uid, s64 hrv)
@@ -824,8 +824,8 @@ EXPORT_SYMBOL(acpi_dev_present);
 /**
  * acpi_dev_get_first_match_dev - Return the first match of ACPI device
  * @hid: Hardware ID of the device.
- * @uid: Unique ID of the device, pass NULL to not check _UID
- * @hrv: Hardware Revision of the device, pass -1 to not check _HRV
+ * @uid: Unique ID of the device, pass NULL to yest check _UID
+ * @hrv: Hardware Revision of the device, pass -1 to yest check _HRV
  *
  * Return the first match of ACPI device if a matching device was present
  * at the moment of invocation, or NULL otherwise.
@@ -851,7 +851,7 @@ EXPORT_SYMBOL(acpi_dev_get_first_match_dev);
 
 /*
  * acpi_backlight= handling, this is done here rather then in video_detect.c
- * because __setup cannot be used in modules.
+ * because __setup canyest be used in modules.
  */
 char acpi_video_backlight_string[16];
 EXPORT_SYMBOL(acpi_video_backlight_string);

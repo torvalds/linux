@@ -39,12 +39,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -78,7 +78,7 @@ enum iwl_mac_conf_subcmd_ids {
 	 */
 	CHANNEL_SWITCH_TIME_EVENT_CMD = 0x4,
 	/**
-	 * @MISSED_VAP_NOTIF: &struct iwl_missed_vap_notif
+	 * @MISSED_VAP_NOTIF: &struct iwl_missed_vap_yestif
 	 */
 	MISSED_VAP_NOTIF = 0xFA,
 	/**
@@ -87,17 +87,17 @@ enum iwl_mac_conf_subcmd_ids {
 	SESSION_PROTECTION_CMD = 0x5,
 
 	/**
-	 * @SESSION_PROTECTION_NOTIF: &struct iwl_mvm_session_prot_notif
+	 * @SESSION_PROTECTION_NOTIF: &struct iwl_mvm_session_prot_yestif
 	 */
 	SESSION_PROTECTION_NOTIF = 0xFB,
 
 	/**
-	 * @PROBE_RESPONSE_DATA_NOTIF: &struct iwl_probe_resp_data_notif
+	 * @PROBE_RESPONSE_DATA_NOTIF: &struct iwl_probe_resp_data_yestif
 	 */
 	PROBE_RESPONSE_DATA_NOTIF = 0xFC,
 
 	/**
-	 * @CHANNEL_SWITCH_NOA_NOTIF: &struct iwl_channel_switch_noa_notif
+	 * @CHANNEL_SWITCH_NOA_NOTIF: &struct iwl_channel_switch_yesa_yestif
 	 */
 	CHANNEL_SWITCH_NOA_NOTIF = 0xFF,
 };
@@ -105,7 +105,7 @@ enum iwl_mac_conf_subcmd_ids {
 #define IWL_P2P_NOA_DESC_COUNT	(2)
 
 /**
- * struct iwl_p2p_noa_attr - NOA attr contained in probe resp FW notification
+ * struct iwl_p2p_yesa_attr - NOA attr contained in probe resp FW yestification
  *
  * @id: attribute id
  * @len_low: length low half
@@ -115,44 +115,44 @@ enum iwl_mac_conf_subcmd_ids {
  * @desc: NoA descriptor
  * @reserved: reserved for alignment purposes
  */
-struct iwl_p2p_noa_attr {
+struct iwl_p2p_yesa_attr {
 	u8 id;
 	u8 len_low;
 	u8 len_high;
 	u8 idx;
 	u8 ctwin;
-	struct ieee80211_p2p_noa_desc desc[IWL_P2P_NOA_DESC_COUNT];
+	struct ieee80211_p2p_yesa_desc desc[IWL_P2P_NOA_DESC_COUNT];
 	u8 reserved;
 } __packed;
 
 #define IWL_PROBE_RESP_DATA_NO_CSA (0xff)
 
 /**
- * struct iwl_probe_resp_data_notif - notification with NOA and CSA counter
+ * struct iwl_probe_resp_data_yestif - yestification with NOA and CSA counter
  *
  * @mac_id: the mac which should send the probe response
- * @noa_active: notifies if the noa attribute should be handled
- * @noa_attr: P2P NOA attribute
+ * @yesa_active: yestifies if the yesa attribute should be handled
+ * @yesa_attr: P2P NOA attribute
  * @csa_counter: current csa counter
  * @reserved: reserved for alignment purposes
  */
-struct iwl_probe_resp_data_notif {
+struct iwl_probe_resp_data_yestif {
 	__le32 mac_id;
-	__le32 noa_active;
-	struct iwl_p2p_noa_attr noa_attr;
+	__le32 yesa_active;
+	struct iwl_p2p_yesa_attr yesa_attr;
 	u8 csa_counter;
 	u8 reserved[3];
 } __packed; /* PROBE_RESPONSE_DATA_NTFY_API_S_VER_1 */
 
 /**
- * struct iwl_missed_vap_notif - notification of missing vap detection
+ * struct iwl_missed_vap_yestif - yestification of missing vap detection
  *
- * @mac_id: the mac for which the ucode sends the notification for
- * @num_beacon_intervals_elapsed: beacons elpased with no vap profile inside
+ * @mac_id: the mac for which the ucode sends the yestification for
+ * @num_beacon_intervals_elapsed: beacons elpased with yes vap profile inside
  * @profile_periodicity: beacons period to have our profile inside
  * @reserved: reserved for alignment purposes
  */
-struct iwl_missed_vap_notif {
+struct iwl_missed_vap_yestif {
 	__le32 mac_id;
 	u8 num_beacon_intervals_elapsed;
 	u8 profile_periodicity;
@@ -160,11 +160,11 @@ struct iwl_missed_vap_notif {
 } __packed; /* MISSED_VAP_NTFY_API_S_VER_1 */
 
 /**
- * struct iwl_channel_switch_noa_notif - Channel switch NOA notification
+ * struct iwl_channel_switch_yesa_yestif - Channel switch NOA yestification
  *
  * @id_and_color: ID and color of the MAC
  */
-struct iwl_channel_switch_noa_notif {
+struct iwl_channel_switch_yesa_yestif {
 	__le32 id_and_color;
 } __packed; /* CHANNEL_SWITCH_START_NTFY_API_S_VER_1 */
 

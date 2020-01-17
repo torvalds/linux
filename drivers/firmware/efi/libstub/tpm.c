@@ -111,7 +111,7 @@ void efi_retrieve_tpm2_eventlog(efi_system_table_t *sys_table_arg)
 			 * and the information to decode the hash algorithms
 			 * back into a size is contained in the first entry -
 			 * pass a pointer to the final entry (to calculate its
-			 * size) and the first entry (so we know how long each
+			 * size) and the first entry (so we kyesw how long each
 			 * digest is)
 			 */
 			last_entry_size =

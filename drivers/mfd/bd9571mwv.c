@@ -27,7 +27,7 @@ static const struct mfd_cell bd9571mwv_cells[] = {
 	{ .name = "bd9571mwv-gpio", },
 };
 
-static const struct regmap_range bd9571mwv_readable_yes_ranges[] = {
+static const struct regmap_range bd9571mwv_readable_no_ranges[] = {
 	regmap_reg_range(BD9571MWV_VENDOR_CODE, BD9571MWV_PRODUCT_REVISION),
 	regmap_reg_range(BD9571MWV_BKUP_MODE_CNT, BD9571MWV_BKUP_MODE_CNT),
 	regmap_reg_range(BD9571MWV_AVS_SET_MONI, BD9571MWV_AVS_DVFS_VID(3)),
@@ -40,11 +40,11 @@ static const struct regmap_range bd9571mwv_readable_yes_ranges[] = {
 };
 
 static const struct regmap_access_table bd9571mwv_readable_table = {
-	.yes_ranges	= bd9571mwv_readable_yes_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(bd9571mwv_readable_yes_ranges),
+	.no_ranges	= bd9571mwv_readable_no_ranges,
+	.n_no_ranges	= ARRAY_SIZE(bd9571mwv_readable_no_ranges),
 };
 
-static const struct regmap_range bd9571mwv_writable_yes_ranges[] = {
+static const struct regmap_range bd9571mwv_writable_no_ranges[] = {
 	regmap_reg_range(BD9571MWV_BKUP_MODE_CNT, BD9571MWV_BKUP_MODE_CNT),
 	regmap_reg_range(BD9571MWV_AVS_VD09_VID(0), BD9571MWV_AVS_VD09_VID(3)),
 	regmap_reg_range(BD9571MWV_DVFS_SETVID, BD9571MWV_DVFS_SETVID),
@@ -54,11 +54,11 @@ static const struct regmap_range bd9571mwv_writable_yes_ranges[] = {
 };
 
 static const struct regmap_access_table bd9571mwv_writable_table = {
-	.yes_ranges	= bd9571mwv_writable_yes_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(bd9571mwv_writable_yes_ranges),
+	.no_ranges	= bd9571mwv_writable_no_ranges,
+	.n_no_ranges	= ARRAY_SIZE(bd9571mwv_writable_no_ranges),
 };
 
-static const struct regmap_range bd9571mwv_volatile_yes_ranges[] = {
+static const struct regmap_range bd9571mwv_volatile_no_ranges[] = {
 	regmap_reg_range(BD9571MWV_DVFS_MONIVDAC, BD9571MWV_DVFS_MONIVDAC),
 	regmap_reg_range(BD9571MWV_GPIO_IN, BD9571MWV_GPIO_IN),
 	regmap_reg_range(BD9571MWV_GPIO_INT, BD9571MWV_GPIO_INT),
@@ -66,8 +66,8 @@ static const struct regmap_range bd9571mwv_volatile_yes_ranges[] = {
 };
 
 static const struct regmap_access_table bd9571mwv_volatile_table = {
-	.yes_ranges	= bd9571mwv_volatile_yes_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(bd9571mwv_volatile_yes_ranges),
+	.no_ranges	= bd9571mwv_volatile_no_ranges,
+	.n_no_ranges	= ARRAY_SIZE(bd9571mwv_volatile_no_ranges),
 };
 
 static const struct regmap_config bd9571mwv_regmap_config = {

@@ -34,9 +34,9 @@ static bool dev_name_ends_with(struct device *dev, const char *suffix)
 	return strcmp(name + (name_len - suffix_len), suffix) == 0;
 }
 
-static int switch_fwnode_match(struct device *dev, const void *fwnode)
+static int switch_fwyesde_match(struct device *dev, const void *fwyesde)
 {
-	return dev_fwnode(dev) == fwnode && dev_name_ends_with(dev, "-switch");
+	return dev_fwyesde(dev) == fwyesde && dev_name_ends_with(dev, "-switch");
 }
 
 static void *typec_switch_match(struct device_connection *con, int ep,
@@ -44,12 +44,12 @@ static void *typec_switch_match(struct device_connection *con, int ep,
 {
 	struct device *dev;
 
-	if (con->fwnode) {
-		if (con->id && !fwnode_property_present(con->fwnode, con->id))
+	if (con->fwyesde) {
+		if (con->id && !fwyesde_property_present(con->fwyesde, con->id))
 			return NULL;
 
-		dev = class_find_device(&typec_mux_class, NULL, con->fwnode,
-					switch_fwnode_match);
+		dev = class_find_device(&typec_mux_class, NULL, con->fwyesde,
+					switch_fwyesde_match);
 	} else {
 		dev = class_find_device(&typec_mux_class, NULL,
 					con->endpoint[ep], name_match);
@@ -63,9 +63,9 @@ static void *typec_switch_match(struct device_connection *con, int ep,
  * @dev: The caller device
  *
  * Finds a switch linked with @dev. Returns a reference to the switch on
- * success, NULL if no matching connection was found, or
+ * success, NULL if yes matching connection was found, or
  * ERR_PTR(-EPROBE_DEFER) when a connection was found but the switch
- * has not been enumerated yet.
+ * has yest been enumerated yet.
  */
 struct typec_switch *typec_switch_get(struct device *dev)
 {
@@ -133,7 +133,7 @@ typec_switch_register(struct device *parent,
 
 	device_initialize(&sw->dev);
 	sw->dev.parent = parent;
-	sw->dev.fwnode = desc->fwnode;
+	sw->dev.fwyesde = desc->fwyesde;
 	sw->dev.class = &typec_mux_class;
 	sw->dev.type = &typec_switch_dev_type;
 	sw->dev.driver_data = desc->drvdata;
@@ -177,9 +177,9 @@ EXPORT_SYMBOL_GPL(typec_switch_get_drvdata);
 
 /* ------------------------------------------------------------------------- */
 
-static int mux_fwnode_match(struct device *dev, const void *fwnode)
+static int mux_fwyesde_match(struct device *dev, const void *fwyesde)
 {
-	return dev_fwnode(dev) == fwnode && dev_name_ends_with(dev, "-mux");
+	return dev_fwyesde(dev) == fwyesde && dev_name_ends_with(dev, "-mux");
 }
 
 static void *typec_mux_match(struct device_connection *con, int ep, void *data)
@@ -191,7 +191,7 @@ static void *typec_mux_match(struct device_connection *con, int ep, void *data)
 	u16 *val;
 	int i;
 
-	if (!con->fwnode) {
+	if (!con->fwyesde) {
 		dev = class_find_device(&typec_mux_class, NULL,
 					con->endpoint[ep], name_match);
 
@@ -200,7 +200,7 @@ static void *typec_mux_match(struct device_connection *con, int ep, void *data)
 
 	/*
 	 * Check has the identifier already been "consumed". If it
-	 * has, no need to do any extra connection identification.
+	 * has, yes need to do any extra connection identification.
 	 */
 	match = !con->id;
 	if (match)
@@ -208,14 +208,14 @@ static void *typec_mux_match(struct device_connection *con, int ep, void *data)
 
 	/* Accessory Mode muxes */
 	if (!desc) {
-		match = fwnode_property_present(con->fwnode, "accessory");
+		match = fwyesde_property_present(con->fwyesde, "accessory");
 		if (match)
 			goto find_mux;
 		return NULL;
 	}
 
 	/* Alternate Mode muxes */
-	nval = fwnode_property_count_u16(con->fwnode, "svid");
+	nval = fwyesde_property_count_u16(con->fwyesde, "svid");
 	if (nval <= 0)
 		return NULL;
 
@@ -223,7 +223,7 @@ static void *typec_mux_match(struct device_connection *con, int ep, void *data)
 	if (!val)
 		return ERR_PTR(-ENOMEM);
 
-	nval = fwnode_property_read_u16_array(con->fwnode, "svid", val, nval);
+	nval = fwyesde_property_read_u16_array(con->fwyesde, "svid", val, nval);
 	if (nval < 0) {
 		kfree(val);
 		return ERR_PTR(nval);
@@ -240,8 +240,8 @@ static void *typec_mux_match(struct device_connection *con, int ep, void *data)
 	return NULL;
 
 find_mux:
-	dev = class_find_device(&typec_mux_class, NULL, con->fwnode,
-				mux_fwnode_match);
+	dev = class_find_device(&typec_mux_class, NULL, con->fwyesde,
+				mux_fwyesde_match);
 
 	return dev ? to_typec_switch(dev) : ERR_PTR(-EPROBE_DEFER);
 }
@@ -252,9 +252,9 @@ find_mux:
  * @desc: Alt Mode description
  *
  * Finds a mux linked to the caller. This function is primarily meant for the
- * Type-C drivers. Returns a reference to the mux on success, NULL if no
+ * Type-C drivers. Returns a reference to the mux on success, NULL if yes
  * matching connection was found, or ERR_PTR(-EPROBE_DEFER) when a connection
- * was found but the mux has not been enumerated yet.
+ * was found but the mux has yest been enumerated yet.
  */
 struct typec_mux *typec_mux_get(struct device *dev,
 				const struct typec_altmode_desc *desc)
@@ -322,7 +322,7 @@ typec_mux_register(struct device *parent, const struct typec_mux_desc *desc)
 
 	device_initialize(&mux->dev);
 	mux->dev.parent = parent;
-	mux->dev.fwnode = desc->fwnode;
+	mux->dev.fwyesde = desc->fwyesde;
 	mux->dev.class = &typec_mux_class;
 	mux->dev.type = &typec_mux_dev_type;
 	mux->dev.driver_data = desc->drvdata;

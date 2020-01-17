@@ -18,7 +18,7 @@
 #include <linux/platform_data/cros_ec_commands.h>
 #include <linux/platform_data/cros_ec_proto.h>
 #include <media/cec.h>
-#include <media/cec-notifier.h>
+#include <media/cec-yestifier.h>
 
 #define DRV_NAME	"cros-ec-cec"
 
@@ -26,16 +26,16 @@
  * struct cros_ec_cec - Driver data for EC CEC
  *
  * @cros_ec: Pointer to EC device
- * @notifier: Notifier info for responding to EC events
+ * @yestifier: Notifier info for responding to EC events
  * @adap: CEC adapter
- * @notify: CEC notifier pointer
+ * @yestify: CEC yestifier pointer
  * @rx_msg: storage for a received message
  */
 struct cros_ec_cec {
 	struct cros_ec_device *cros_ec;
-	struct notifier_block notifier;
+	struct yestifier_block yestifier;
 	struct cec_adapter *adap;
-	struct cec_notifier *notify;
+	struct cec_yestifier *yestify;
 	struct cec_msg rx_msg;
 };
 
@@ -67,14 +67,14 @@ static void handle_cec_event(struct cros_ec_cec *cros_ec_cec)
 					  CEC_TX_STATUS_NACK);
 }
 
-static int cros_ec_cec_event(struct notifier_block *nb,
+static int cros_ec_cec_event(struct yestifier_block *nb,
 			     unsigned long queued_during_suspend,
-			     void *_notify)
+			     void *_yestify)
 {
 	struct cros_ec_cec *cros_ec_cec;
 	struct cros_ec_device *cros_ec;
 
-	cros_ec_cec = container_of(nb, struct cros_ec_cec, notifier);
+	cros_ec_cec = container_of(nb, struct cros_ec_cec, yestifier);
 	cros_ec = cros_ec_cec->cros_ec;
 
 	if (cros_ec->event_data.event_type == EC_MKBP_EVENT_CEC_EVENT) {
@@ -230,7 +230,7 @@ static struct device *cros_ec_cec_find_hdmi_dev(struct device *dev,
 		    dmi_match(DMI_PRODUCT_NAME, m->product_name)) {
 			struct device *d;
 
-			/* Find the device, bail out if not yet registered */
+			/* Find the device, bail out if yest yet registered */
 			d = bus_find_device_by_name(&pci_bus_type, NULL,
 						    m->devname);
 			if (!d)
@@ -242,7 +242,7 @@ static struct device *cros_ec_cec_find_hdmi_dev(struct device *dev,
 	}
 
 	/* Hardware support must be added in the cec_dmi_match_table */
-	dev_warn(dev, "CEC notifier not configured for this hardware\n");
+	dev_warn(dev, "CEC yestifier yest configured for this hardware\n");
 
 	return ERR_PTR(-ENODEV);
 }
@@ -291,30 +291,30 @@ static int cros_ec_cec_probe(struct platform_device *pdev)
 	if (IS_ERR(cros_ec_cec->adap))
 		return PTR_ERR(cros_ec_cec->adap);
 
-	cros_ec_cec->notify = cec_notifier_cec_adap_register(hdmi_dev, conn,
+	cros_ec_cec->yestify = cec_yestifier_cec_adap_register(hdmi_dev, conn,
 							     cros_ec_cec->adap);
-	if (!cros_ec_cec->notify) {
+	if (!cros_ec_cec->yestify) {
 		ret = -ENOMEM;
 		goto out_probe_adapter;
 	}
 
 	/* Get CEC events from the EC. */
-	cros_ec_cec->notifier.notifier_call = cros_ec_cec_event;
-	ret = blocking_notifier_chain_register(&cros_ec->event_notifier,
-					       &cros_ec_cec->notifier);
+	cros_ec_cec->yestifier.yestifier_call = cros_ec_cec_event;
+	ret = blocking_yestifier_chain_register(&cros_ec->event_yestifier,
+					       &cros_ec_cec->yestifier);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to register notifier\n");
-		goto out_probe_notify;
+		dev_err(&pdev->dev, "failed to register yestifier\n");
+		goto out_probe_yestify;
 	}
 
 	ret = cec_register_adapter(cros_ec_cec->adap, &pdev->dev);
 	if (ret < 0)
-		goto out_probe_notify;
+		goto out_probe_yestify;
 
 	return 0;
 
-out_probe_notify:
-	cec_notifier_cec_adap_unregister(cros_ec_cec->notify,
+out_probe_yestify:
+	cec_yestifier_cec_adap_unregister(cros_ec_cec->yestify,
 					 cros_ec_cec->adap);
 out_probe_adapter:
 	cec_delete_adapter(cros_ec_cec->adap);
@@ -327,16 +327,16 @@ static int cros_ec_cec_remove(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	ret = blocking_notifier_chain_unregister(
-			&cros_ec_cec->cros_ec->event_notifier,
-			&cros_ec_cec->notifier);
+	ret = blocking_yestifier_chain_unregister(
+			&cros_ec_cec->cros_ec->event_yestifier,
+			&cros_ec_cec->yestifier);
 
 	if (ret) {
-		dev_err(dev, "failed to unregister notifier\n");
+		dev_err(dev, "failed to unregister yestifier\n");
 		return ret;
 	}
 
-	cec_notifier_cec_adap_unregister(cros_ec_cec->notify,
+	cec_yestifier_cec_adap_unregister(cros_ec_cec->yestify,
 					 cros_ec_cec->adap);
 	cec_unregister_adapter(cros_ec_cec->adap);
 

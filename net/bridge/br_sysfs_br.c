@@ -324,7 +324,7 @@ static ssize_t flush_store(struct device *d,
 }
 static DEVICE_ATTR_WO(flush);
 
-static ssize_t no_linklocal_learn_show(struct device *d,
+static ssize_t yes_linklocal_learn_show(struct device *d,
 				       struct device_attribute *attr,
 				       char *buf)
 {
@@ -332,18 +332,18 @@ static ssize_t no_linklocal_learn_show(struct device *d,
 	return sprintf(buf, "%d\n", br_boolopt_get(br, BR_BOOLOPT_NO_LL_LEARN));
 }
 
-static int set_no_linklocal_learn(struct net_bridge *br, unsigned long val)
+static int set_yes_linklocal_learn(struct net_bridge *br, unsigned long val)
 {
 	return br_boolopt_toggle(br, BR_BOOLOPT_NO_LL_LEARN, !!val, NULL);
 }
 
-static ssize_t no_linklocal_learn_store(struct device *d,
+static ssize_t yes_linklocal_learn_store(struct device *d,
 					struct device_attribute *attr,
 					const char *buf, size_t len)
 {
-	return store_bridge_parm(d, buf, len, set_no_linklocal_learn);
+	return store_bridge_parm(d, buf, len, set_yes_linklocal_learn);
 }
-static DEVICE_ATTR_RW(no_linklocal_learn);
+static DEVICE_ATTR_RW(yes_linklocal_learn);
 
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 static ssize_t multicast_router_show(struct device *d,
@@ -361,7 +361,7 @@ static ssize_t multicast_router_store(struct device *d,
 }
 static DEVICE_ATTR_RW(multicast_router);
 
-static ssize_t multicast_snooping_show(struct device *d,
+static ssize_t multicast_syesoping_show(struct device *d,
 				       struct device_attribute *attr,
 				       char *buf)
 {
@@ -369,13 +369,13 @@ static ssize_t multicast_snooping_show(struct device *d,
 	return sprintf(buf, "%d\n", br_opt_get(br, BROPT_MULTICAST_ENABLED));
 }
 
-static ssize_t multicast_snooping_store(struct device *d,
+static ssize_t multicast_syesoping_store(struct device *d,
 					struct device_attribute *attr,
 					const char *buf, size_t len)
 {
 	return store_bridge_parm(d, buf, len, br_multicast_toggle);
 }
-static DEVICE_ATTR_RW(multicast_snooping);
+static DEVICE_ATTR_RW(multicast_syesoping);
 
 static ssize_t multicast_query_use_ifaddr_show(struct device *d,
 					       struct device_attribute *attr,
@@ -864,10 +864,10 @@ static struct attribute *bridge_attrs[] = {
 	&dev_attr_gc_timer.attr,
 	&dev_attr_group_addr.attr,
 	&dev_attr_flush.attr,
-	&dev_attr_no_linklocal_learn.attr,
+	&dev_attr_yes_linklocal_learn.attr,
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 	&dev_attr_multicast_router.attr,
-	&dev_attr_multicast_snooping.attr,
+	&dev_attr_multicast_syesoping.attr,
 	&dev_attr_multicast_querier.attr,
 	&dev_attr_multicast_query_use_ifaddr.attr,
 	&dev_attr_hash_elasticity.attr,

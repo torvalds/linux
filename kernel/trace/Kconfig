@@ -54,7 +54,7 @@ config HAVE_FENTRY
 config HAVE_NOP_MCOUNT
 	bool
 	help
-	  Arch supports the gcc options -pg with -mrecord-mcount and -nop-mcount
+	  Arch supports the gcc options -pg with -mrecord-mcount and -yesp-mcount
 
 config HAVE_C_RECORDMCOUNT
 	bool
@@ -102,8 +102,8 @@ config PREEMPTIRQ_TRACEPOINTS
 
 # All tracer options should select GENERIC_TRACER. For those options that are
 # enabled by all tracers (context switch and event tracer) they select TRACING.
-# This allows those options to appear when no other tracer is selected. But the
-# options do not appear when something else selects it. We need the two options
+# This allows those options to appear when yes other tracer is selected. But the
+# options do yest appear when something else selects it. We need the two options
 # GENERIC_TRACER and TRACING to avoid circular dependencies to accomplish the
 # hiding of the automatic options.
 
@@ -156,7 +156,7 @@ config FUNCTION_TRACER
 	  sequence is then dynamically patched into a tracer call when
 	  tracing is enabled by the administrator. If it's runtime disabled
 	  (the bootup default), then the overhead of the instructions is very
-	  small and not measurable even in micro-benchmarks.
+	  small and yest measurable even in micro-benchmarks.
 
 config FUNCTION_GRAPH_TRACER
 	bool "Kernel Function Graph Tracer"
@@ -255,7 +255,7 @@ config HWLAT_TRACER
 	 depending on what the cpumask file is set to, which each thread
 	 spinning in a loop looking for interruptions caused by
 	 something other than the kernel. For example, if a
-	 System Management Interrupt (SMI) takes a noticeable amount of
+	 System Management Interrupt (SMI) takes a yesticeable amount of
 	 time, this tracer will detect it. This is useful for testing
 	 if a system is reliable for Real Time tasks.
 
@@ -267,15 +267,15 @@ config HWLAT_TRACER
 				     iteration
 
 	 A kernel thread is created that will spin with interrupts disabled
-	 for "width" microseconds in every "window" cycle. It will not spin
+	 for "width" microseconds in every "window" cycle. It will yest spin
 	 for "window - width" microseconds, where the system can
 	 continue to operate.
 
 	 The output will appear in the trace and trace_pipe files.
 
-	 When the tracer is not running, it has no affect on the system,
+	 When the tracer is yest running, it has yes affect on the system,
 	 but when it is running, it can cause the system to be
-	 periodically non responsive. Do not run this tracer on a
+	 periodically yesn responsive. Do yest run this tracer on a
 	 production system.
 
 	 To enable this tracer, echo in "hwlat" into the current_tracer
@@ -325,7 +325,7 @@ config TRACER_SNAPSHOT_PER_CPU_SWAP
 
 	  When this is enabled, this adds a little more overhead to the
 	  trace recording, as it needs to add some checks to synchronize
-	  recording with swaps. But this does not affect the performance
+	  recording with swaps. But this does yest affect the performance
 	  of the overall system. This is enabled by default when the preempt
 	  or irq latency tracers are enabled, as those need to swap as well
 	  and already adds the overhead (plus a lot more).
@@ -342,7 +342,7 @@ choice
 	 into the C conditionals to test which path a branch takes.
 
 	 The likely/unlikely profiler only looks at the conditions that
-	 are annotated with a likely or unlikely macro.
+	 are anyestated with a likely or unlikely macro.
 
 	 The "all branch" profiler will profile every if-statement in the
 	 kernel. This profiler will also enable the likely/unlikely
@@ -365,7 +365,7 @@ config PROFILE_ANNOTATED_BRANCHES
 	  This tracer profiles all likely and unlikely macros
 	  in the kernel. It will display the results in:
 
-	  /sys/kernel/debug/tracing/trace_stat/branch_annotated
+	  /sys/kernel/debug/tracing/trace_stat/branch_anyestated
 
 	  Note: this will add a significant overhead; only turn this
 	  on if you need to profile the system's use of these macros.
@@ -394,7 +394,7 @@ config TRACING_BRANCHES
 	  Selected by tracers that will trace the likely and unlikely
 	  conditions. This prevents the tracers themselves from being
 	  profiled. Profiling the tracing infrastructure can only happen
-	  when the likelys and unlikelys are not being traced.
+	  when the likelys and unlikelys are yest being traced.
 
 config BRANCH_TRACER
 	bool "Trace likely/unlikely instances"
@@ -403,7 +403,7 @@ config BRANCH_TRACER
 	help
 	  This traces the events of likely and unlikely condition
 	  calls in the kernel.  The difference between this and the
-	  "Trace likely/unlikely profiler" is that this is not a
+	  "Trace likely/unlikely profiler" is that this is yest a
 	  histogram of the callers, but actually places the calling
 	  events into a running trace buffer to see when and where the
 	  events happened, as well as their results.
@@ -423,7 +423,7 @@ config STACK_TRACER
 	  This tracer works by hooking into every function call that the
 	  kernel executes, and keeping a maximum stack depth value and
 	  stack-trace saved.  If this is configured with DYNAMIC_FTRACE
-	  then it will not have any overhead while the stack tracer
+	  then it will yest have any overhead while the stack tracer
 	  is disabled.
 
 	  To enable the stack tracer on bootup, pass in 'stacktrace'
@@ -479,7 +479,7 @@ config KPROBE_EVENTS
 	  If you want to use perf tools, this option is strongly recommended.
 
 config KPROBE_EVENTS_ON_NOTRACE
-	bool "Do NOT protect notrace function from kprobe events"
+	bool "Do NOT protect yestrace function from kprobe events"
 	depends on KPROBE_EVENTS
 	depends on KPROBES_ON_FTRACE
 	default n
@@ -543,16 +543,16 @@ config DYNAMIC_FTRACE
 	  compile time, a table is made of all the locations that ftrace
 	  can function trace, and this table is linked into the kernel
 	  image. When this is enabled, functions can be individually
-	  enabled, and the functions not enabled will not affect
+	  enabled, and the functions yest enabled will yest affect
 	  performance of the system.
 
 	  See the files in /sys/kernel/debug/tracing:
 	    available_filter_functions
 	    set_ftrace_filter
-	    set_ftrace_notrace
+	    set_ftrace_yestrace
 
 	  This way a CONFIG_FUNCTION_TRACER kernel is slightly larger, but
-	  otherwise has native performance as long as no tracing is active.
+	  otherwise has native performance as long as yes tracing is active.
 
 config DYNAMIC_FTRACE_WITH_REGS
 	def_bool y
@@ -612,7 +612,7 @@ config EVENT_TRACE_STARTUP_TEST
 	help
 	  This option performs a test on all trace events in the system.
 	  It basically just enables each event and runs some code that
-	  will trigger events (not necessarily the event it enables)
+	  will trigger events (yest necessarily the event it enables)
 	  This may take some time run as there are a lot of events.
 
 config EVENT_TRACE_TEST_SYSCALLS
@@ -638,7 +638,7 @@ config MMIOTRACE
 	  default and can be enabled at run-time.
 
 	  See Documentation/trace/mmiotrace.rst.
-	  If you are not helping to develop drivers, say N.
+	  If you are yest helping to develop drivers, say N.
 
 config TRACING_MAP
 	bool
@@ -647,7 +647,7 @@ config TRACING_MAP
 	  tracing_map is a special-purpose lock-free map for tracing,
 	  separated out as a stand-alone facility in order to allow it
 	  to be shared between multiple tracers.  It isn't meant to be
-	  generally used outside of that context, and is normally
+	  generally used outside of that context, and is yesrmally
 	  selected by tracers that use it.
 
 config HIST_TRIGGERS
@@ -688,7 +688,7 @@ config MMIOTRACE_TEST
 	  as it will write garbage to IO memory starting at a given address.
 	  However, it should be safe to use on e.g. unused portion of VRAM.
 
-	  Say N, unless you absolutely know what you are doing.
+	  Say N, unless you absolutely kyesw what you are doing.
 
 config TRACEPOINT_BENCHMARK
 	bool "Add tracepoint that benchmarks tracepoints"
@@ -703,7 +703,7 @@ config TRACEPOINT_BENCHMARK
 	 The string written to the tracepoint is a static string of 128 bytes
 	 to keep the time the same. The initial string is simply a write of
 	 "START". The second string records the cold cache time of the first
-	 write which is not added to the rest of the calculations.
+	 write which is yest added to the rest of the calculations.
 
 	 As it is a tight loop, it benchmarks as hot cache. That's fine because
 	 we care most about hot paths that are probably in cache already.
@@ -725,13 +725,13 @@ config RING_BUFFER_BENCHMARK
 	depends on RING_BUFFER
 	help
 	  This option creates a test to stress the ring buffer and benchmark it.
-	  It creates its own ring buffer such that it will not interfere with
+	  It creates its own ring buffer such that it will yest interfere with
 	  any other users of the ring buffer (such as ftrace). It then creates
 	  a producer and consumer that will run for 10 seconds and sleep for
 	  10 seconds. Each interval it will print out the number of events
 	  it recorded and give a rough estimate of how long each iteration took.
 
-	  It does not disable interrupts or raise its priority, so it may be
+	  It does yest disable interrupts or raise its priority, so it may be
 	  affected by processes that are running.
 
 	  If unsure, say N.
@@ -743,10 +743,10 @@ config RING_BUFFER_STARTUP_TEST
 	 Run a simple self test on the ring buffer on boot up. Late in the
 	 kernel boot sequence, the test will start that kicks off
 	 a thread per cpu. Each thread will write various size events
-	 into the ring buffer. Another thread is created to send IPIs
+	 into the ring buffer. Ayesther thread is created to send IPIs
 	 to each of the threads, where the IPI handler will also write
 	 to the ring buffer, to test/stress the nesting ability.
-	 If any anomalies are discovered, a warning will be displayed
+	 If any ayesmalies are discovered, a warning will be displayed
 	 and all ring buffers will be disabled.
 
 	 The test runs for 10 seconds. This will slow your boot time
@@ -780,14 +780,14 @@ config TRACE_EVAL_MAP_FILE
        help
 	The "print fmt" of the trace events will show the enum/sizeof names
 	instead of their values. This can cause problems for user space tools
-	that use this string to parse the raw data as user space does not know
+	that use this string to parse the raw data as user space does yest kyesw
 	how to convert the string to its value.
 
 	To fix this, there's a special macro in the kernel that can be used
 	to convert an enum/sizeof into its value. If this macro is used, then
 	the print fmt strings will be converted to their values.
 
-	If something does not get converted properly, this option can be
+	If something does yest get converted properly, this option can be
 	used to show what enums/sizeof the kernel tried to convert.
 
 	This option is for debugging the conversions. A file is created
@@ -796,7 +796,7 @@ config TRACE_EVAL_MAP_FILE
 	belong too.
 
 	Normally, the mapping of the strings to values will be freed after
-	boot up or module load. With this option, they will not be freed, as
+	boot up or module load. With this option, they will yest be freed, as
 	they are needed for the "eval_map" file. Enabling this option will
 	increase the memory footprint of the running kernel.
 

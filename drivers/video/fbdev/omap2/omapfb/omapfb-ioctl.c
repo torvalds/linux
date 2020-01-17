@@ -3,7 +3,7 @@
  * linux/drivers/video/omap2/omapfb-ioctl.c
  *
  * Copyright (C) 2008 Nokia Corporation
- * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
+ * Author: Tomi Valkeinen <tomi.valkeinen@yeskia.com>
  *
  * Some code and ideas taken from drivers/video/omap/ driver
  * by Imre Deak.
@@ -547,7 +547,7 @@ static int omapfb_get_ovl_colormode(struct omapfb2_device *fbdev,
 		return -ENOENT;
 
 	mode->bits_per_pixel = var.bits_per_pixel;
-	mode->nonstd = var.nonstd;
+	mode->yesnstd = var.yesnstd;
 	mode->red = var.red;
 	mode->green = var.green;
 	mode->blue = var.blue;
@@ -906,7 +906,7 @@ int omapfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
 	}
 
 	default:
-		dev_err(fbdev->dev, "Unknown ioctl 0x%x\n", cmd);
+		dev_err(fbdev->dev, "Unkyeswn ioctl 0x%x\n", cmd);
 		r = -EINVAL;
 	}
 

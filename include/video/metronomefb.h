@@ -1,5 +1,5 @@
 /*
- * metronomefb.h - definitions for the metronome framebuffer driver
+ * metroyesmefb.h - definitions for the metroyesme framebuffer driver
  *
  * Copyright (C) 2008 by Jaya Kumar
  *
@@ -12,15 +12,15 @@
 #ifndef _LINUX_METRONOMEFB_H_
 #define _LINUX_METRONOMEFB_H_
 
-/* command structure used by metronome controller */
+/* command structure used by metroyesme controller */
 struct metromem_cmd {
 	u16 opcode;
 	u16 args[((64-2)/2)];
 	u16 csum;
 };
 
-/* struct used by metronome. board specific stuff comes from *board */
-struct metronomefb_par {
+/* struct used by metroyesme. board specific stuff comes from *board */
+struct metroyesmefb_par {
 	struct metromem_cmd *metromem_cmd;
 	unsigned char *metromem_wfm;
 	unsigned char *metromem_img;
@@ -28,7 +28,7 @@ struct metronomefb_par {
 	u16 *csum_table;
 	dma_addr_t metromem_dma;
 	struct fb_info *info;
-	struct metronome_board *board;
+	struct metroyesme_board *board;
 	wait_queue_head_t waitq;
 	u8 frame_count;
 	int extra_size;
@@ -36,16 +36,16 @@ struct metronomefb_par {
 };
 
 /* board specific routines and data */
-struct metronome_board {
+struct metroyesme_board {
 	struct module *owner; /* the platform device */
-	void (*set_rst)(struct metronomefb_par *, int);
-	void (*set_stdby)(struct metronomefb_par *, int);
-	void (*cleanup)(struct metronomefb_par *);
-	int (*met_wait_event)(struct metronomefb_par *);
-	int (*met_wait_event_intr)(struct metronomefb_par *);
+	void (*set_rst)(struct metroyesmefb_par *, int);
+	void (*set_stdby)(struct metroyesmefb_par *, int);
+	void (*cleanup)(struct metroyesmefb_par *);
+	int (*met_wait_event)(struct metroyesmefb_par *);
+	int (*met_wait_event_intr)(struct metroyesmefb_par *);
 	int (*setup_irq)(struct fb_info *);
-	int (*setup_fb)(struct metronomefb_par *);
-	int (*setup_io)(struct metronomefb_par *);
+	int (*setup_fb)(struct metroyesmefb_par *);
+	int (*setup_io)(struct metroyesmefb_par *);
 	int (*get_panel_type)(void);
 	unsigned char *metromem;
 	int fw;

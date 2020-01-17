@@ -65,7 +65,7 @@ static const __initconst struct idt_data early_idts[] = {
 
 /*
  * The default IDT entries which are set up in trap_init() before
- * cpu_init() is invoked. Interrupt stacks cannot be used at that point and
+ * cpu_init() is invoked. Interrupt stacks canyest be used at that point and
  * the traps which use them are reinitialized with IST after cpu_init() has
  * set up TSS.
  */
@@ -74,10 +74,10 @@ static const __initconst struct idt_data def_idts[] = {
 	INTG(X86_TRAP_NMI,		nmi),
 	INTG(X86_TRAP_BR,		bounds),
 	INTG(X86_TRAP_UD,		invalid_op),
-	INTG(X86_TRAP_NM,		device_not_available),
+	INTG(X86_TRAP_NM,		device_yest_available),
 	INTG(X86_TRAP_OLD_MF,		coprocessor_segment_overrun),
 	INTG(X86_TRAP_TS,		invalid_TSS),
-	INTG(X86_TRAP_NP,		segment_not_present),
+	INTG(X86_TRAP_NP,		segment_yest_present),
 	INTG(X86_TRAP_SS,		stack_segment),
 	INTG(X86_TRAP_GP,		general_protection),
 	INTG(X86_TRAP_SPURIOUS,		spurious_interrupt_bug),
@@ -246,7 +246,7 @@ static void set_intr_gate(unsigned int n, const void *addr)
 /**
  * idt_setup_early_traps - Initialize the idt table with early traps
  *
- * On X8664 these traps do not use interrupt stacks as they can't work
+ * On X8664 these traps do yest use interrupt stacks as they can't work
  * before cpu_init() is invoked and sets up TSS. The IST variants are
  * installed after that.
  */
@@ -269,7 +269,7 @@ void __init idt_setup_traps(void)
 /**
  * idt_setup_early_pf - Initialize the idt table with early pagefault handler
  *
- * On X8664 this does not use interrupt stacks as they can't work before
+ * On X8664 this does yest use interrupt stacks as they can't work before
  * cpu_init() is invoked and sets up TSS. The IST variant is installed
  * after that.
  *
@@ -302,7 +302,7 @@ void __init idt_setup_debugidt_traps(void)
 #endif
 
 /**
- * idt_setup_apic_and_irq_gates - Setup APIC/SMP and normal interrupt gates
+ * idt_setup_apic_and_irq_gates - Setup APIC/SMP and yesrmal interrupt gates
  */
 void __init idt_setup_apic_and_irq_gates(void)
 {
@@ -336,7 +336,7 @@ void __init idt_setup_early_handler(void)
 		set_intr_gate(i, early_idt_handler_array[i]);
 #ifdef CONFIG_X86_32
 	for ( ; i < NR_VECTORS; i++)
-		set_intr_gate(i, early_ignore_irq);
+		set_intr_gate(i, early_igyesre_irq);
 #endif
 	load_idt(&idt_descr);
 }

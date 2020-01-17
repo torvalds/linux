@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -494,7 +494,7 @@ int radeon_wb_init(struct radeon_device *rdev)
 	/* disable event_write fences */
 	rdev->wb.use_event = false;
 	/* disabled via module param */
-	if (radeon_no_wb == 1) {
+	if (radeon_yes_wb == 1) {
 		rdev->wb.enabled = false;
 	} else {
 		if (rdev->flags & RADEON_IS_AGP) {
@@ -532,7 +532,7 @@ int radeon_wb_init(struct radeon_device *rdev)
  * as parameter (which is so far either PCI aperture address or
  * for IGP TOM base address).
  *
- * If there is not enough space to fit the unvisible VRAM in the 32bits
+ * If there is yest eyesugh space to fit the unvisible VRAM in the 32bits
  * address space then we limit the VRAM size to the aperture.
  *
  * If we are using AGP and if the AGP aperture doesn't allow us to have
@@ -547,15 +547,15 @@ int radeon_wb_init(struct radeon_device *rdev)
  * Note: We don't explicitly enforce VRAM start to be aligned on VRAM size,
  * this shouldn't be a problem as we are using the PCI aperture as a reference.
  * Otherwise this would be needed for rv280, all r3xx, and all r4xx, but
- * not IGP.
+ * yest IGP.
  *
  * Note: we use mc_vram_size as on some board we need to program the mc to
  * cover the whole aperture even if VRAM size is inferior to aperture size
  * Novell bug 204882 + along with lots of ubuntu ones
  *
  * Note: when limiting vram it's safe to overwritte real_vram_size because
- * we are not in case where real_vram_size is inferior to mc_vram_size (ie
- * note afected by bogus hw of Novell bug 204882 + along with lots of ubuntu
+ * we are yest in case where real_vram_size is inferior to mc_vram_size (ie
+ * yeste afected by bogus hw of Novell bug 204882 + along with lots of ubuntu
  * ones)
  *
  * Note: IGP TOM addr should be the same as the aperture addr, we don't
@@ -632,7 +632,7 @@ void radeon_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc)
  *
  * Check if the asic has been passed through to a VM (all asics).
  * Used at driver startup.
- * Returns true if virtual or false if not.
+ * Returns true if virtual or false if yest.
  */
 bool radeon_device_is_virtual(void)
 {
@@ -650,7 +650,7 @@ bool radeon_device_is_virtual(void)
  *
  * Check if the asic has been initialized (all asics).
  * Used at driver startup.
- * Returns true if initialized or false if not.
+ * Returns true if initialized or false if yest.
  */
 bool radeon_card_posted(struct radeon_device *rdev)
 {
@@ -745,9 +745,9 @@ void radeon_update_bandwidth_info(struct radeon_device *rdev)
  *
  * @rdev: radeon_device pointer
  *
- * Check if the asic is initialized and if not, attempt to initialize
+ * Check if the asic is initialized and if yest, attempt to initialize
  * it (all asics).
- * Returns true if initialized or false if not.
+ * Returns true if initialized or false if yest.
  */
 bool radeon_boot_test_post_card(struct radeon_device *rdev)
 {
@@ -755,14 +755,14 @@ bool radeon_boot_test_post_card(struct radeon_device *rdev)
 		return true;
 
 	if (rdev->bios) {
-		DRM_INFO("GPU not posted. posting now...\n");
+		DRM_INFO("GPU yest posted. posting yesw...\n");
 		if (rdev->is_atom_bios)
 			atom_asic_init(rdev->mode_info.atom_context);
 		else
 			radeon_combios_asic_init(rdev->ddev);
 		return true;
 	} else {
-		dev_err(rdev->dev, "Card not posted and no BIOS - ignoring\n");
+		dev_err(rdev->dev, "Card yest posted and yes BIOS - igyesring\n");
 		return false;
 	}
 }
@@ -1229,7 +1229,7 @@ static void radeon_switcheroo_set_state(struct pci_dev *pdev, enum vga_switchero
 
 	if (state == VGA_SWITCHEROO_ON) {
 		pr_info("radeon: switched on\n");
-		/* don't suspend or resume card normally */
+		/* don't suspend or resume card yesrmally */
 		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 
 		radeon_resume_kms(dev, true, true);
@@ -1252,7 +1252,7 @@ static void radeon_switcheroo_set_state(struct pci_dev *pdev, enum vga_switchero
  *
  * Callback for the switcheroo driver.  Check of the switcheroo
  * state can be changed.
- * Returns true if the state can be changed, false if not.
+ * Returns true if the state can be changed, false if yest.
  */
 static bool radeon_switcheroo_can_switch(struct pci_dev *pdev)
 {
@@ -1261,7 +1261,7 @@ static bool radeon_switcheroo_can_switch(struct pci_dev *pdev)
 	/*
 	 * FIXME: open_count is protected by drm_global_mutex but that would lead to
 	 * locking inversion with the driver load path. And the access here is
-	 * completely racy anyway. So don't bother with locking for now.
+	 * completely racy anyway. So don't bother with locking for yesw.
 	 */
 	return dev->open_count == 0;
 }
@@ -1432,7 +1432,7 @@ int radeon_device_init(struct radeon_device *rdev,
 
 	/* if we have > 1 VGA cards, then disable the radeon VGA resources */
 	/* this will fail for cards that aren't VGA class devices, just
-	 * ignore it */
+	 * igyesre it */
 	vga_client_register(rdev->pdev, rdev, NULL, radeon_vga_set_decode);
 
 	if (rdev->flags & RADEON_IS_PX)
@@ -1458,7 +1458,7 @@ int radeon_device_init(struct radeon_device *rdev,
 	}
 
 	if (rdev->flags & RADEON_IS_AGP && !rdev->accel_working) {
-		/* Acceleration not working on AGP card try again
+		/* Acceleration yest working on AGP card try again
 		 * with fallback to PCI or PCIE GART
 		 */
 		radeon_asic_reset(rdev);
@@ -1474,7 +1474,7 @@ int radeon_device_init(struct radeon_device *rdev,
 		DRM_ERROR("ib ring test failed (%d).\n", r);
 
 	/*
-	 * Turks/Thames GPU will freeze whole laptop if DPM is not restarted
+	 * Turks/Thames GPU will freeze whole laptop if DPM is yest restarted
 	 * after the CP ring have chew one packet at least. Hence here we stop
 	 * and restart DPM after the radeon_ib_ring_tests().
 	 */
@@ -1511,7 +1511,7 @@ int radeon_device_init(struct radeon_device *rdev,
 failed:
 	/* balance pm_runtime_get_sync() in radeon_driver_unload_kms() */
 	if (radeon_is_px(ddev))
-		pm_runtime_put_noidle(ddev->dev);
+		pm_runtime_put_yesidle(ddev->dev);
 	if (runtime)
 		vga_switcheroo_fini_domain_pm_ops(rdev->dev);
 	return r;

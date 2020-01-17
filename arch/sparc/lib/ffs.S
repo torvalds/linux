@@ -12,8 +12,8 @@ ENTRY(ffs)
 	 mov	1, %o1
 	retl
 	 clr	%o0
-	nop
-	nop
+	yesp
+	yesp
 ENTRY(__ffs)
 	sllx	%o0, 32, %g1		/* 1  */
 	srlx	%o0, 32, %g2
@@ -74,15 +74,15 @@ EXPORT_SYMBOL(ffs)
 	.word		ffs
 	brz,pn	%o0, 98f
 	 neg	%o0, %g1
-	xnor	%o0, %g1, %o1
+	xyesr	%o0, %g1, %o1
 	popc	%o1, %o0
 98:	retl
-	 nop
+	 yesp
 	.word		__ffs
 	neg	%o0, %g1
-	xnor	%o0, %g1, %o1
+	xyesr	%o0, %g1, %o1
 	popc	%o1, %o0
 	retl
 	 sub	%o0, 1, %o0
-	nop
+	yesp
 	.previous

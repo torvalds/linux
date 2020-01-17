@@ -35,26 +35,26 @@ ENTRY_CFI(relocate_new_kernel)
 0:	copy	%arg1, %rp
 	/* disable I and Q bit, so we are allowed to execute RFI */
 	rsm PSW_SM_I, %r0
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
 
 	rsm PSW_SM_Q, %r0
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
 
 	/*
 	 * After return-from-interrupt, we want to run without Code/Data
-	 * translation enabled just like on a normal boot.
+	 * translation enabled just like on a yesrmal boot.
 	 */
 
 	/* calculate new physical execution address */
@@ -72,26 +72,26 @@ ENTRY_CFI(relocate_new_kernel)
 #endif
 	/* lets go... */
 	rfi
-1:	nop
-	nop
+1:	yesp
+	yesp
 
 .Lloop:
 	LDREG,ma	REG_SZ(%arg0), %r3
-	/* If crash kernel, no copy needed */
+	/* If crash kernel, yes copy needed */
 	cmpib,COND(=),n 0,%r3,boot
 
 	bb,<,n		%r3, 31 - IND_DONE_BIT, boot
-	bb,>=,n		%r3, 31 - IND_INDIRECTION_BIT, .Lnotind
+	bb,>=,n		%r3, 31 - IND_INDIRECTION_BIT, .Lyestind
 	/* indirection, load and restart */
 	movb		%r3, %arg0, .Lloop
 	depi		0, 31, PAGE_SHIFT, %arg0
 
-.Lnotind:
-	bb,>=,n		%r3, 31 - IND_DESTINATION_BIT, .Lnotdest
+.Lyestind:
+	bb,>=,n		%r3, 31 - IND_DESTINATION_BIT, .Lyestdest
 	b		.Lloop
 	copy		%r3, %r20
 
-.Lnotdest:
+.Lyestdest:
 	bb,>=		%r3, 31 - IND_SOURCE_BIT, .Lloop
 	depi		0, 31, PAGE_SHIFT, %r3
 	copy		%r3, %r21

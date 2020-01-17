@@ -45,25 +45,25 @@ disable_probe() {
 }
 
 test_kprobes() {
-	# probe -> direct -> no direct > no probe
+	# probe -> direct -> yes direct > yes probe
 	enable_probe
 	start_direct
 	stop_direct
 	disable_probe
 
-	# probe -> direct -> no probe > no direct
+	# probe -> direct -> yes probe > yes direct
 	enable_probe
 	start_direct
 	disable_probe
 	stop_direct
 
-	# direct -> probe -> no probe > no direct
+	# direct -> probe -> yes probe > yes direct
 	start_direct
 	enable_probe
 	disable_probe
 	stop_direct
 
-	# direct -> probe -> no direct > no noprobe
+	# direct -> probe -> yes direct > yes yesprobe
 	start_direct
 	enable_probe
 	stop_direct
@@ -73,7 +73,7 @@ test_kprobes() {
 test_kprobes
 
 # Now do this with a second registered direct function
-echo "Running with another ftrace direct function"
+echo "Running with ayesther ftrace direct function"
 
 modprobe ftrace-direct-too
 

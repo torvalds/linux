@@ -17,7 +17,7 @@
 * for PC cards that contain an OHCI host controller. Typical PC cards
 * are the Orange Mobile 3G Option GlobeTrotter Fusion card.
 *
-* The U132 adapter will *NOT *work with PC cards that do not contain
+* The U132 adapter will *NOT *work with PC cards that do yest contain
 * an OHCI controller. A simple way to test whether a PC card has an
 * OHCI controller as an interface is to insert the PC card directly
 * into a laptop(or desktop) with a CardBus slot and if "lspci" shows
@@ -27,7 +27,7 @@
 *
 * Please inform the Author and Maintainer about any PC cards that
 * contain OHCI Host Controller and work when directly connected to
-* an embedded CardBus slot but do not work when they are connected
+* an embedded CardBus slot but do yest work when they are connected
 * via an ELAN U132 adapter.
 *
 */
@@ -39,7 +39,7 @@
 #include <linux/pci_ids.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/timer.h>
 #include <linux/list.h>
@@ -204,7 +204,7 @@ struct u132 {
 };
 
 /*
-* these cannot be inlines because we need the structure offset!!
+* these canyest be inlines because we need the structure offset!!
 * Does anyone have a better way?????
 */
 #define ftdi_read_pcimem(pdev, member, data) usb_ftdi_elan_read_pcimem(pdev, \
@@ -430,7 +430,7 @@ static int read_roothub_info(struct u132 *u132)
 	} else if ((revision & 0xFF) == 0x10) {
 	} else if ((revision & 0xFF) == 0x11) {
 	} else {
-		dev_err(&u132->platform_dev->dev, "device revision is not valid"
+		dev_err(&u132->platform_dev->dev, "device revision is yest valid"
 			" %08X\n", revision);
 		return -ENODEV;
 	}
@@ -574,7 +574,7 @@ static inline int edset_input(struct u132 *u132, struct u132_ring *ring,
 	struct u132_endp *endp, struct urb *urb, u8 address, u8 toggle_bits,
 	void (*callback) (void *endp, struct urb *urb, u8 *buf, int len,
 	int toggle_bits, int error_count, int condition_code, int repeat_number,
-	 int halted, int skipped, int actual, int non_null))
+	 int halted, int skipped, int actual, int yesn_null))
 {
 	return usb_ftdi_elan_edset_input(u132->platform_dev, ring->number, endp,
 		 urb, address, endp->usb_endp, toggle_bits, callback);
@@ -584,7 +584,7 @@ static inline int edset_setup(struct u132 *u132, struct u132_ring *ring,
 	struct u132_endp *endp, struct urb *urb, u8 address, u8 toggle_bits,
 	void (*callback) (void *endp, struct urb *urb, u8 *buf, int len,
 	int toggle_bits, int error_count, int condition_code, int repeat_number,
-	 int halted, int skipped, int actual, int non_null))
+	 int halted, int skipped, int actual, int yesn_null))
 {
 	return usb_ftdi_elan_edset_setup(u132->platform_dev, ring->number, endp,
 		 urb, address, endp->usb_endp, toggle_bits, callback);
@@ -594,7 +594,7 @@ static inline int edset_single(struct u132 *u132, struct u132_ring *ring,
 	struct u132_endp *endp, struct urb *urb, u8 address, u8 toggle_bits,
 	void (*callback) (void *endp, struct urb *urb, u8 *buf, int len,
 	int toggle_bits, int error_count, int condition_code, int repeat_number,
-	 int halted, int skipped, int actual, int non_null))
+	 int halted, int skipped, int actual, int yesn_null))
 {
 	return usb_ftdi_elan_edset_single(u132->platform_dev, ring->number,
 		endp, urb, address, endp->usb_endp, toggle_bits, callback);
@@ -604,7 +604,7 @@ static inline int edset_output(struct u132 *u132, struct u132_ring *ring,
 	struct u132_endp *endp, struct urb *urb, u8 address, u8 toggle_bits,
 	void (*callback) (void *endp, struct urb *urb, u8 *buf, int len,
 	int toggle_bits, int error_count, int condition_code, int repeat_number,
-	 int halted, int skipped, int actual, int non_null))
+	 int halted, int skipped, int actual, int yesn_null))
 {
 	return usb_ftdi_elan_edset_output(u132->platform_dev, ring->number,
 		endp, urb, address, endp->usb_endp, toggle_bits, callback);
@@ -612,12 +612,12 @@ static inline int edset_output(struct u132 *u132, struct u132_ring *ring,
 
 
 /*
-* must not LOCK sw_lock
+* must yest LOCK sw_lock
 *
 */
 static void u132_hcd_interrupt_recv(void *data, struct urb *urb, u8 *buf,
 	int len, int toggle_bits, int error_count, int condition_code,
-	int repeat_number, int halted, int skipped, int actual, int non_null)
+	int repeat_number, int halted, int skipped, int actual, int yesn_null)
 {
 	struct u132_endp *endp = data;
 	struct u132 *u132 = endp->u132;
@@ -717,7 +717,7 @@ static void u132_hcd_interrupt_recv(void *data, struct urb *urb, u8 *buf,
 
 static void u132_hcd_bulk_output_sent(void *data, struct urb *urb, u8 *buf,
 	int len, int toggle_bits, int error_count, int condition_code,
-	int repeat_number, int halted, int skipped, int actual, int non_null)
+	int repeat_number, int halted, int skipped, int actual, int yesn_null)
 {
 	struct u132_endp *endp = data;
 	struct u132 *u132 = endp->u132;
@@ -768,7 +768,7 @@ static void u132_hcd_bulk_output_sent(void *data, struct urb *urb, u8 *buf,
 
 static void u132_hcd_bulk_input_recv(void *data, struct urb *urb, u8 *buf,
 	int len, int toggle_bits, int error_count, int condition_code,
-	int repeat_number, int halted, int skipped, int actual, int non_null)
+	int repeat_number, int halted, int skipped, int actual, int yesn_null)
 {
 	struct u132_endp *endp = data;
 	struct u132 *u132 = endp->u132;
@@ -871,7 +871,7 @@ static void u132_hcd_bulk_input_recv(void *data, struct urb *urb, u8 *buf,
 
 static void u132_hcd_configure_empty_sent(void *data, struct urb *urb, u8 *buf,
 	int len, int toggle_bits, int error_count, int condition_code,
-	int repeat_number, int halted, int skipped, int actual, int non_null)
+	int repeat_number, int halted, int skipped, int actual, int yesn_null)
 {
 	struct u132_endp *endp = data;
 	struct u132 *u132 = endp->u132;
@@ -908,7 +908,7 @@ static void u132_hcd_configure_empty_sent(void *data, struct urb *urb, u8 *buf,
 
 static void u132_hcd_configure_input_recv(void *data, struct urb *urb, u8 *buf,
 	int len, int toggle_bits, int error_count, int condition_code,
-	int repeat_number, int halted, int skipped, int actual, int non_null)
+	int repeat_number, int halted, int skipped, int actual, int yesn_null)
 {
 	struct u132_endp *endp = data;
 	struct u132 *u132 = endp->u132;
@@ -980,7 +980,7 @@ static void u132_hcd_configure_input_recv(void *data, struct urb *urb, u8 *buf,
 
 static void u132_hcd_configure_empty_recv(void *data, struct urb *urb, u8 *buf,
 	int len, int toggle_bits, int error_count, int condition_code,
-	int repeat_number, int halted, int skipped, int actual, int non_null)
+	int repeat_number, int halted, int skipped, int actual, int yesn_null)
 {
 	struct u132_endp *endp = data;
 	struct u132 *u132 = endp->u132;
@@ -1017,7 +1017,7 @@ static void u132_hcd_configure_empty_recv(void *data, struct urb *urb, u8 *buf,
 
 static void u132_hcd_configure_setup_sent(void *data, struct urb *urb, u8 *buf,
 	int len, int toggle_bits, int error_count, int condition_code,
-	int repeat_number, int halted, int skipped, int actual, int non_null)
+	int repeat_number, int halted, int skipped, int actual, int yesn_null)
 {
 	struct u132_endp *endp = data;
 	struct u132 *u132 = endp->u132;
@@ -1075,7 +1075,7 @@ static void u132_hcd_configure_setup_sent(void *data, struct urb *urb, u8 *buf,
 
 static void u132_hcd_enumeration_empty_recv(void *data, struct urb *urb,
 	u8 *buf, int len, int toggle_bits, int error_count, int condition_code,
-	int repeat_number, int halted, int skipped, int actual, int non_null)
+	int repeat_number, int halted, int skipped, int actual, int yesn_null)
 {
 	struct u132_endp *endp = data;
 	struct u132 *u132 = endp->u132;
@@ -1116,7 +1116,7 @@ static void u132_hcd_enumeration_empty_recv(void *data, struct urb *urb,
 
 static void u132_hcd_enumeration_address_sent(void *data, struct urb *urb,
 	u8 *buf, int len, int toggle_bits, int error_count, int condition_code,
-	int repeat_number, int halted, int skipped, int actual, int non_null)
+	int repeat_number, int halted, int skipped, int actual, int yesn_null)
 {
 	struct u132_endp *endp = data;
 	struct u132 *u132 = endp->u132;
@@ -1159,7 +1159,7 @@ static void u132_hcd_enumeration_address_sent(void *data, struct urb *urb,
 
 static void u132_hcd_initial_empty_sent(void *data, struct urb *urb, u8 *buf,
 	int len, int toggle_bits, int error_count, int condition_code,
-	int repeat_number, int halted, int skipped, int actual, int non_null)
+	int repeat_number, int halted, int skipped, int actual, int yesn_null)
 {
 	struct u132_endp *endp = data;
 	struct u132 *u132 = endp->u132;
@@ -1196,7 +1196,7 @@ static void u132_hcd_initial_empty_sent(void *data, struct urb *urb, u8 *buf,
 
 static void u132_hcd_initial_input_recv(void *data, struct urb *urb, u8 *buf,
 	int len, int toggle_bits, int error_count, int condition_code,
-	int repeat_number, int halted, int skipped, int actual, int non_null)
+	int repeat_number, int halted, int skipped, int actual, int yesn_null)
 {
 	struct u132_endp *endp = data;
 	struct u132 *u132 = endp->u132;
@@ -1248,7 +1248,7 @@ static void u132_hcd_initial_input_recv(void *data, struct urb *urb, u8 *buf,
 
 static void u132_hcd_initial_setup_sent(void *data, struct urb *urb, u8 *buf,
 	int len, int toggle_bits, int error_count, int condition_code,
-	int repeat_number, int halted, int skipped, int actual, int non_null)
+	int repeat_number, int halted, int skipped, int actual, int yesn_null)
 {
 	struct u132_endp *endp = data;
 	struct u132 *u132 = endp->u132;
@@ -2292,7 +2292,7 @@ static int u132_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 						usb_endp, address, mem_flags);
 			}
 		} else if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) {
-			dev_err(&u132->platform_dev->dev, "the hardware does no"
+			dev_err(&u132->platform_dev->dev, "the hardware does yes"
 				"t support PIPE_ISOCHRONOUS\n");
 			return -EINVAL;
 		} else if (usb_pipetype(urb->pipe) == PIPE_BULK) {
@@ -2398,7 +2398,7 @@ static int dequeue_from_overflow_chain(struct u132 *u132,
 		} else
 			continue;
 	}
-	dev_err(&u132->platform_dev->dev, "urb=%p not found in endp[%d]=%p ring"
+	dev_err(&u132->platform_dev->dev, "urb=%p yest found in endp[%d]=%p ring"
 		"[%d] %c%c usb_endp=%d usb_addr=%d size=%d next=%04X last=%04X"
 		"\n", urb, endp->endp_number, endp, endp->ring->number,
 		endp->input ? 'I' : ' ', endp->output ? 'O' : ' ',
@@ -2420,7 +2420,7 @@ static int u132_endp_urb_dequeue(struct u132 *u132, struct u132_endp *endp,
 		return rc;
 	}
 	if (endp->queue_size == 0) {
-		dev_err(&u132->platform_dev->dev, "urb=%p not found in endp[%d]"
+		dev_err(&u132->platform_dev->dev, "urb=%p yest found in endp[%d]"
 			"=%p ring[%d] %c%c usb_endp=%d usb_addr=%d\n", urb,
 			endp->endp_number, endp, endp->ring->number,
 			endp->input ? 'I' : ' ', endp->output ? 'O' : ' ',
@@ -2482,7 +2482,7 @@ static int u132_endp_urb_dequeue(struct u132 *u132, struct u132_endp *endp,
 			usb_hcd_giveback_urb(hcd, urb, status);
 			return 0;
 		} else if (list_empty(&endp->urb_more)) {
-			dev_err(&u132->platform_dev->dev, "urb=%p not found in "
+			dev_err(&u132->platform_dev->dev, "urb=%p yest found in "
 				"endp[%d]=%p ring[%d] %c%c usb_endp=%d usb_addr"
 				"=%d size=%d next=%04X last=%04X\n", urb,
 				endp->endp_number, endp, endp->ring->number,
@@ -2636,13 +2636,13 @@ static int u132_roothub_portreset(struct u132 *u132, int port_index)
 {
 	int retval;
 	u32 fmnumber;
-	u16 now;
+	u16 yesw;
 	u16 reset_done;
 	retval = u132_read_pcimem(u132, fmnumber, &fmnumber);
 	if (retval)
 		return retval;
-	now = fmnumber;
-	reset_done = now + PORT_RESET_MSEC;
+	yesw = fmnumber;
+	reset_done = yesw + PORT_RESET_MSEC;
 	do {
 		u32 portstat;
 		do {
@@ -2654,7 +2654,7 @@ static int u132_roothub_portreset(struct u132 *u132, int port_index)
 				continue;
 			else
 				break;
-		} while (tick_before(now, reset_done));
+		} while (tick_before(yesw, reset_done));
 		if (RH_PS_PRS & portstat)
 			return -ENODEV;
 		if (RH_PS_CCS & portstat) {
@@ -2676,8 +2676,8 @@ static int u132_roothub_portreset(struct u132 *u132, int port_index)
 		retval = u132_read_pcimem(u132, fmnumber, &fmnumber);
 		if (retval)
 			return retval;
-		now = fmnumber;
-	} while (tick_before(now, reset_done));
+		yesw = fmnumber;
+	} while (tick_before(yesw, reset_done));
 	return 0;
 }
 
@@ -2958,9 +2958,9 @@ static const struct hc_driver u132_hc_driver = {
 
 /*
 * This function may be called by the USB core whilst the "usb_all_devices_rwsem"
-* is held for writing, thus this module must not call usb_remove_hcd()
-* synchronously - but instead should immediately stop activity to the
-* device and asynchronously call usb_remove_hcd()
+* is held for writing, thus this module must yest call usb_remove_hcd()
+* synchroyesusly - but instead should immediately stop activity to the
+* device and asynchroyesusly call usb_remove_hcd()
 */
 static int u132_remove(struct platform_device *pdev)
 {
@@ -3112,7 +3112,7 @@ static int u132_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_PM
 /*
- * for this device there's no useful distinction between the controller
+ * for this device there's yes useful distinction between the controller
  * and its root hub.
  */
 static int u132_suspend(struct platform_device *pdev, pm_message_t state)

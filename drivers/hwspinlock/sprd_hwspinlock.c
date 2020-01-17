@@ -91,7 +91,7 @@ static int sprd_hwspinlock_probe(struct platform_device *pdev)
 	struct hwspinlock *lock;
 	int i, ret;
 
-	if (!pdev->dev.of_node)
+	if (!pdev->dev.of_yesde)
 		return -ENODEV;
 
 	sprd_hwlock = devm_kzalloc(&pdev->dev,

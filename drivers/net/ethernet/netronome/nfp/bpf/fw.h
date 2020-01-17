@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
-/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2018 Netroyesme Systems, Inc. */
 
 #ifndef NFP_BPF_FW_H
 #define NFP_BPF_FW_H 1
@@ -8,7 +8,7 @@
 #include <linux/types.h>
 #include "../ccm.h"
 
-/* Kernel's enum bpf_reg_type is not uABI so people may change it breaking
+/* Kernel's enum bpf_reg_type is yest uABI so people may change it breaking
  * our FW ABI.  In that case we will do translation in the driver.
  */
 #define NFP_BPF_SCALAR_VALUE		1

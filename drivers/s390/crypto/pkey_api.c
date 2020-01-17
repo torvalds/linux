@@ -96,7 +96,7 @@ static int pkey_clr2protkey(u32 keytype,
 		fc = CPACF_PCKMO_ENC_AES_256_KEY;
 		break;
 	default:
-		DEBUG_ERR("%s unknown/unsupported keytype %d\n",
+		DEBUG_ERR("%s unkyeswn/unsupported keytype %d\n",
 			  __func__, keytype);
 		return -EINVAL;
 	}
@@ -107,7 +107,7 @@ static int pkey_clr2protkey(u32 keytype,
 	 * in the LPAR profile or may even change on the fly.
 	 */
 	if (!cpacf_test_func(&pckmo_functions, fc)) {
-		DEBUG_ERR("%s pckmo functions not available\n", __func__);
+		DEBUG_ERR("%s pckmo functions yest available\n", __func__);
 		return -ENODEV;
 	}
 
@@ -140,7 +140,7 @@ static int pkey_skey2pkey(const u8 *key, struct pkey_protkey *pkey)
 	 * addressed where the master key was changed after last fetch
 	 * of the mkvp into the cache. Try 3 times: First witout verify
 	 * then with verify and last round with verify and old master
-	 * key verification pattern match not ignored.
+	 * key verification pattern match yest igyesred.
 	 */
 	for (verify = 0; verify < 3; verify++) {
 		rc = cca_findcard(key, &cardnr, &domain, verify);
@@ -235,7 +235,7 @@ static int pkey_genprotkey(u32 keytype, struct pkey_protkey *protkey)
 		keysize = 32;
 		break;
 	default:
-		DEBUG_ERR("%s unknown/unsupported keytype %d\n", __func__,
+		DEBUG_ERR("%s unkyeswn/unsupported keytype %d\n", __func__,
 			  keytype);
 		return -EINVAL;
 	}
@@ -279,7 +279,7 @@ static int pkey_verifyprotkey(const struct pkey_protkey *protkey)
 		fc = CPACF_KMC_PAES_256;
 		break;
 	default:
-		DEBUG_ERR("%s unknown/unsupported keytype %d\n", __func__,
+		DEBUG_ERR("%s unkyeswn/unsupported keytype %d\n", __func__,
 			  protkey->type);
 		return -EINVAL;
 	}
@@ -292,7 +292,7 @@ static int pkey_verifyprotkey(const struct pkey_protkey *protkey)
 	k = cpacf_kmc(fc | CPACF_ENCRYPT, &param, null_msg, dest_buf,
 		      sizeof(null_msg));
 	if (k != sizeof(null_msg)) {
-		DEBUG_ERR("%s protected key is not valid\n", __func__);
+		DEBUG_ERR("%s protected key is yest valid\n", __func__);
 		return -EKEYREJECTED;
 	}
 
@@ -300,9 +300,9 @@ static int pkey_verifyprotkey(const struct pkey_protkey *protkey)
 }
 
 /*
- * Transform a non-CCA key token into a protected key
+ * Transform a yesn-CCA key token into a protected key
  */
-static int pkey_nonccatok2pkey(const u8 *key, u32 keylen,
+static int pkey_yesnccatok2pkey(const u8 *key, u32 keylen,
 			       struct pkey_protkey *protkey)
 {
 	struct keytoken_header *hdr = (struct keytoken_header *)key;
@@ -321,7 +321,7 @@ static int pkey_nonccatok2pkey(const u8 *key, u32 keylen,
 
 		return pkey_verifyprotkey(protkey);
 	default:
-		DEBUG_ERR("%s unknown/unsupported non-CCA token version %d\n",
+		DEBUG_ERR("%s unkyeswn/unsupported yesn-CCA token version %d\n",
 			  __func__, hdr->version);
 		return -EINVAL;
 	}
@@ -345,7 +345,7 @@ static int pkey_ccainttok2pkey(const u8 *key, u32 keylen,
 			return -EINVAL;
 		break;
 	default:
-		DEBUG_ERR("%s unknown/unsupported CCA internal token version %d\n",
+		DEBUG_ERR("%s unkyeswn/unsupported CCA internal token version %d\n",
 			  __func__, hdr->version);
 		return -EINVAL;
 	}
@@ -369,13 +369,13 @@ int pkey_keyblob2pkey(const u8 *key, u32 keylen,
 
 	switch (hdr->type) {
 	case TOKTYPE_NON_CCA:
-		rc = pkey_nonccatok2pkey(key, keylen, protkey);
+		rc = pkey_yesnccatok2pkey(key, keylen, protkey);
 		break;
 	case TOKTYPE_CCA_INTERNAL:
 		rc = pkey_ccainttok2pkey(key, keylen, protkey);
 		break;
 	default:
-		DEBUG_ERR("%s unknown/unsupported blob type %d\n",
+		DEBUG_ERR("%s unkyeswn/unsupported blob type %d\n",
 			  __func__, hdr->type);
 		return -EINVAL;
 	}
@@ -580,7 +580,7 @@ static int pkey_keyblob2pkey2(const struct pkey_apqn *apqns, size_t nr_apqns,
 
 	switch (hdr->type) {
 	case TOKTYPE_NON_CCA:
-		return pkey_nonccatok2pkey(key, keylen, pkey);
+		return pkey_yesnccatok2pkey(key, keylen, pkey);
 	case TOKTYPE_CCA_INTERNAL:
 		switch (hdr->version) {
 		case TOKVER_CCA_AES:
@@ -596,13 +596,13 @@ static int pkey_keyblob2pkey2(const struct pkey_apqn *apqns, size_t nr_apqns,
 				return -EINVAL;
 			break;
 		default:
-			DEBUG_ERR("%s unknown CCA internal token version %d\n",
+			DEBUG_ERR("%s unkyeswn CCA internal token version %d\n",
 				  __func__, hdr->version);
 			return -EINVAL;
 		}
 		break;
 	default:
-		DEBUG_ERR("%s unknown/unsupported blob type %d\n",
+		DEBUG_ERR("%s unkyeswn/unsupported blob type %d\n",
 			  __func__, hdr->type);
 		return -EINVAL;
 	}
@@ -1110,7 +1110,7 @@ static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,
 		break;
 	}
 	default:
-		/* unknown/unsupported ioctl cmd */
+		/* unkyeswn/unsupported ioctl cmd */
 		return -ENOTTY;
 	}
 
@@ -1123,7 +1123,7 @@ static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,
 
 /*
  * Sysfs attribute read function for all protected key binary attributes.
- * The implementation can not deal with partial reads, because a new random
+ * The implementation can yest deal with partial reads, because a new random
  * protected key blob is generated with each read. In case of partial reads
  * (i.e. off != 0 or count < key blob size) -EINVAL is returned.
  */
@@ -1243,7 +1243,7 @@ static struct attribute_group protkey_attr_group = {
 
 /*
  * Sysfs attribute read function for all secure key ccadata binary attributes.
- * The implementation can not deal with partial reads, because a new random
+ * The implementation can yest deal with partial reads, because a new random
  * protected key blob is generated with each read. In case of partial reads
  * (i.e. off != 0 or count < key blob size) -EINVAL is returned.
  */
@@ -1349,7 +1349,7 @@ static struct attribute_group ccadata_attr_group = {
 
 /*
  * Sysfs attribute read function for all secure key ccacipher binary attributes.
- * The implementation can not deal with partial reads, because a new random
+ * The implementation can yest deal with partial reads, because a new random
  * secure key blob is generated with each read. In case of partial reads
  * (i.e. off != 0 or count < key blob size) -EINVAL is returned.
  */
@@ -1466,14 +1466,14 @@ static const struct attribute_group *pkey_attr_groups[] = {
 
 static const struct file_operations pkey_fops = {
 	.owner		= THIS_MODULE,
-	.open		= nonseekable_open,
-	.llseek		= no_llseek,
+	.open		= yesnseekable_open,
+	.llseek		= yes_llseek,
 	.unlocked_ioctl = pkey_unlocked_ioctl,
 };
 
 static struct miscdevice pkey_dev = {
 	.name	= "pkey",
-	.minor	= MISC_DYNAMIC_MINOR,
+	.miyesr	= MISC_DYNAMIC_MINOR,
 	.mode	= 0666,
 	.fops	= &pkey_fops,
 	.groups = pkey_attr_groups,

@@ -15,7 +15,7 @@
 //
 // Based on cx88-dvb, saa7134-dvb and videobuf-dvb originally written by:
 //	(c) 2004, 2005 Chris Pascoe <c.pascoe@itee.uq.edu.au>
-//	(c) 2004 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
+//	(c) 2004 Gerd Kyesrr <kraxel@bytesex.org> [SuSE Labs]
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -108,20 +108,20 @@ struct em28xx_dvb {
 static inline void print_err_status(struct em28xx *dev,
 				    int packet, int status)
 {
-	char *errmsg = "Unknown";
+	char *errmsg = "Unkyeswn";
 
 	switch (status) {
 	case -ENOENT:
-		errmsg = "unlinked synchronously";
+		errmsg = "unlinked synchroyesusly";
 		break;
 	case -ECONNRESET:
-		errmsg = "unlinked asynchronously";
+		errmsg = "unlinked asynchroyesusly";
 		break;
 	case -ENOSR:
 		errmsg = "Buffer error (overrun)";
 		break;
 	case -EPIPE:
-		errmsg = "Stalled (device not responding)";
+		errmsg = "Stalled (device yest responding)";
 		break;
 	case -EOVERFLOW:
 		errmsg = "Babble (bad cable?)";
@@ -133,7 +133,7 @@ static inline void print_err_status(struct em28xx *dev,
 		errmsg = "CRC/Timeout (could be anything)";
 		break;
 	case -ETIME:
-		errmsg = "Device does not respond";
+		errmsg = "Device does yest respond";
 		break;
 	}
 	if (packet < 0) {
@@ -329,7 +329,7 @@ static struct lgdt3305_config em2874_lgdt3305_dev = {
 	.qam_if_khz         = 4000,
 };
 
-static struct lgdt3305_config em2874_lgdt3305_nogate_dev = {
+static struct lgdt3305_config em2874_lgdt3305_yesgate_dev = {
 	.i2c_addr           = 0x0e,
 	.demod_chip         = LGDT3305,
 	.spectral_inversion = 1,
@@ -347,7 +347,7 @@ static struct s921_config sharp_isdbt = {
 
 static struct zl10353_config em28xx_zl10353_with_xc3028 = {
 	.demod_address = (0x1e >> 1),
-	.no_tuner = 1,
+	.yes_tuner = 1,
 	.parallel_ts = 1,
 	.if2 = 45600,
 };
@@ -382,9 +382,9 @@ static struct tda18212_config kworld_ub435q_v3_config = {
 	.if_atsc_qam	= 3600,
 };
 
-static struct zl10353_config em28xx_zl10353_xc3028_no_i2c_gate = {
+static struct zl10353_config em28xx_zl10353_xc3028_yes_i2c_gate = {
 	.demod_address = (0x1e >> 1),
-	.no_tuner = 1,
+	.yes_tuner = 1,
 	.disable_i2c_gate_ctrl = 1,
 	.parallel_ts = 1,
 	.if2 = 45600,
@@ -403,7 +403,7 @@ static struct drxd_config em28xx_drxd = {
 static struct drxk_config terratec_h5_drxk = {
 	.adr = 0x29,
 	.single_master = 1,
-	.no_i2c_bridge = 1,
+	.yes_i2c_bridge = 1,
 	.microcode_name = "dvb-usb-terratec-h5-drxk.fw",
 	.qam_demod_parameter_count = 2,
 };
@@ -411,7 +411,7 @@ static struct drxk_config terratec_h5_drxk = {
 static struct drxk_config hauppauge_930c_drxk = {
 	.adr = 0x29,
 	.single_master = 1,
-	.no_i2c_bridge = 1,
+	.yes_i2c_bridge = 1,
 	.microcode_name = "dvb-usb-hauppauge-hvr930c-drxk.fw",
 	.chunk_size = 56,
 	.qam_demod_parameter_count = 2,
@@ -420,7 +420,7 @@ static struct drxk_config hauppauge_930c_drxk = {
 static struct drxk_config terratec_htc_stick_drxk = {
 	.adr = 0x29,
 	.single_master = 1,
-	.no_i2c_bridge = 1,
+	.yes_i2c_bridge = 1,
 	.microcode_name = "dvb-usb-terratec-htc-stick-drxk.fw",
 	.chunk_size = 54,
 	.qam_demod_parameter_count = 2,
@@ -433,7 +433,7 @@ static struct drxk_config terratec_htc_stick_drxk = {
 static struct drxk_config maxmedia_ub425_tc_drxk = {
 	.adr = 0x29,
 	.single_master = 1,
-	.no_i2c_bridge = 1,
+	.yes_i2c_bridge = 1,
 	.microcode_name = "dvb-demod-drxk-01.fw",
 	.chunk_size = 62,
 	.qam_demod_parameter_count = 2,
@@ -589,10 +589,10 @@ static void terratec_htc_stick_init(struct em28xx *dev)
 
 	/*
 	 * GPIO configuration:
-	 * 0xff: unknown (does not affect DVB-T).
+	 * 0xff: unkyeswn (does yest affect DVB-T).
 	 * 0xf6: DRX-K (demodulator).
-	 * 0xe6: unknown (does not affect DVB-T).
-	 * 0xb6: unknown (does not affect DVB-T).
+	 * 0xe6: unkyeswn (does yest affect DVB-T).
+	 * 0xb6: unkyeswn (does yest affect DVB-T).
 	 */
 	static const struct em28xx_reg_seq terratec_htc_stick_init[] = {
 		{EM2820_R08_GPIO_CTRL,		0xff,	0xff,	10},
@@ -608,7 +608,7 @@ static void terratec_htc_stick_init(struct em28xx *dev)
 	};
 
 	/*
-	 * Init the analog decoder (not yet supported), but
+	 * Init the analog decoder (yest yet supported), but
 	 * it's probably still a good idea.
 	 */
 	static const struct {
@@ -657,7 +657,7 @@ static void terratec_htc_usb_xs_init(struct em28xx *dev)
 	};
 
 	/*
-	 * Init the analog decoder (not yet supported), but
+	 * Init the analog decoder (yest yet supported), but
 	 * it's probably still a good idea.
 	 */
 	static const struct {
@@ -779,7 +779,7 @@ static int em28xx_mt352_terratec_xs_init(struct dvb_frontend *fe)
 	static u8 input_freq_cfg[] = { INPUT_FREQ_1, 0x31, 0xb8 };
 	static u8 rs_err_cfg[]     = { RS_ERR_PER_1, 0x00, 0x4d };
 	static u8 capt_range_cfg[] = { CAPT_RANGE, 0x32 };
-	static u8 trl_nom_cfg[]    = { TRL_NOMINAL_RATE_1, 0x64, 0x00 };
+	static u8 trl_yesm_cfg[]    = { TRL_NOMINAL_RATE_1, 0x64, 0x00 };
 	static u8 tps_given_cfg[]  = { TPS_GIVEN_1, 0x40, 0x80, 0x50 };
 	static u8 tuner_go[]       = { TUNER_GO, 0x01};
 
@@ -791,7 +791,7 @@ static int em28xx_mt352_terratec_xs_init(struct dvb_frontend *fe)
 	mt352_write(fe, input_freq_cfg, sizeof(input_freq_cfg));
 	mt352_write(fe, rs_err_cfg,     sizeof(rs_err_cfg));
 	mt352_write(fe, capt_range_cfg, sizeof(capt_range_cfg));
-	mt352_write(fe, trl_nom_cfg,    sizeof(trl_nom_cfg));
+	mt352_write(fe, trl_yesm_cfg,    sizeof(trl_yesm_cfg));
 	mt352_write(fe, tps_given_cfg,  sizeof(tps_given_cfg));
 	mt352_write(fe, tuner_go,       sizeof(tuner_go));
 	return 0;
@@ -861,7 +861,7 @@ static void px_bcud_init(struct em28xx *dev)
 
 static struct mt352_config terratec_xs_mt352_cfg = {
 	.demod_address = (0x1e >> 1),
-	.no_tuner = 1,
+	.yes_tuner = 1,
 	.if2 = 45600,
 	.demod_init = em28xx_mt352_terratec_xs_init,
 };
@@ -881,10 +881,10 @@ static struct tda18271_config em28xx_cxd2820r_tda18271_config = {
 	.gate = TDA18271_GATE_DIGITAL,
 };
 
-static struct zl10353_config em28xx_zl10353_no_i2c_gate_dev = {
+static struct zl10353_config em28xx_zl10353_yes_i2c_gate_dev = {
 	.demod_address = (0x1e >> 1),
 	.disable_i2c_gate_ctrl = 1,
-	.no_tuner = 1,
+	.yes_tuner = 1,
 	.parallel_ts = 1,
 };
 
@@ -938,7 +938,7 @@ static struct lgdt3306a_config hauppauge_01595_lgdt3306a_config = {
 
 /* ------------------------------------------------------------------ */
 
-static noinline_for_stack int em28xx_attach_xc3028(u8 addr, struct em28xx *dev)
+static yesinline_for_stack int em28xx_attach_xc3028(u8 addr, struct em28xx *dev)
 {
 	struct dvb_frontend *fe;
 	struct xc2028_config cfg;
@@ -954,7 +954,7 @@ static noinline_for_stack int em28xx_attach_xc3028(u8 addr, struct em28xx *dev)
 
 	if (!dev->dvb->fe[0]) {
 		dev_err(&dev->intf->dev,
-			"dvb frontend not attached. Can't attach xc3028\n");
+			"dvb frontend yest attached. Can't attach xc3028\n");
 		return -EINVAL;
 	}
 
@@ -987,7 +987,7 @@ static int em28xx_register_dvb(struct em28xx_dvb *dvb, struct module *module,
 				      device, adapter_nr);
 	if (result < 0) {
 		dev_warn(&dev->intf->dev,
-			 "dvb_register_adapter failed (errno = %d)\n",
+			 "dvb_register_adapter failed (erryes = %d)\n",
 			 result);
 		goto fail_adapter;
 	}
@@ -1006,7 +1006,7 @@ static int em28xx_register_dvb(struct em28xx_dvb *dvb, struct module *module,
 	result = dvb_register_frontend(&dvb->adapter, dvb->fe[0]);
 	if (result < 0) {
 		dev_warn(&dev->intf->dev,
-			 "dvb_register_frontend failed (errno = %d)\n",
+			 "dvb_register_frontend failed (erryes = %d)\n",
 			 result);
 		goto fail_frontend0;
 	}
@@ -1016,7 +1016,7 @@ static int em28xx_register_dvb(struct em28xx_dvb *dvb, struct module *module,
 		result = dvb_register_frontend(&dvb->adapter, dvb->fe[1]);
 		if (result < 0) {
 			dev_warn(&dev->intf->dev,
-				 "2nd dvb_register_frontend failed (errno = %d)\n",
+				 "2nd dvb_register_frontend failed (erryes = %d)\n",
 				 result);
 			goto fail_frontend1;
 		}
@@ -1035,7 +1035,7 @@ static int em28xx_register_dvb(struct em28xx_dvb *dvb, struct module *module,
 	result = dvb_dmx_init(&dvb->demux);
 	if (result < 0) {
 		dev_warn(&dev->intf->dev,
-			 "dvb_dmx_init failed (errno = %d)\n",
+			 "dvb_dmx_init failed (erryes = %d)\n",
 			 result);
 		goto fail_dmx;
 	}
@@ -1046,7 +1046,7 @@ static int em28xx_register_dvb(struct em28xx_dvb *dvb, struct module *module,
 	result = dvb_dmxdev_init(&dvb->dmxdev, &dvb->adapter);
 	if (result < 0) {
 		dev_warn(&dev->intf->dev,
-			 "dvb_dmxdev_init failed (errno = %d)\n",
+			 "dvb_dmxdev_init failed (erryes = %d)\n",
 			 result);
 		goto fail_dmxdev;
 	}
@@ -1055,7 +1055,7 @@ static int em28xx_register_dvb(struct em28xx_dvb *dvb, struct module *module,
 	result = dvb->demux.dmx.add_frontend(&dvb->demux.dmx, &dvb->fe_hw);
 	if (result < 0) {
 		dev_warn(&dev->intf->dev,
-			 "add_frontend failed (DMX_FRONTEND_0, errno = %d)\n",
+			 "add_frontend failed (DMX_FRONTEND_0, erryes = %d)\n",
 			 result);
 		goto fail_fe_hw;
 	}
@@ -1064,7 +1064,7 @@ static int em28xx_register_dvb(struct em28xx_dvb *dvb, struct module *module,
 	result = dvb->demux.dmx.add_frontend(&dvb->demux.dmx, &dvb->fe_mem);
 	if (result < 0) {
 		dev_warn(&dev->intf->dev,
-			 "add_frontend failed (DMX_MEMORY_FE, errno = %d)\n",
+			 "add_frontend failed (DMX_MEMORY_FE, erryes = %d)\n",
 			 result);
 		goto fail_fe_mem;
 	}
@@ -1072,7 +1072,7 @@ static int em28xx_register_dvb(struct em28xx_dvb *dvb, struct module *module,
 	result = dvb->demux.dmx.connect_frontend(&dvb->demux.dmx, &dvb->fe_hw);
 	if (result < 0) {
 		dev_warn(&dev->intf->dev,
-			 "connect_frontend failed (errno = %d)\n",
+			 "connect_frontend failed (erryes = %d)\n",
 			 result);
 		goto fail_fe_conn;
 	}
@@ -1416,7 +1416,7 @@ static int em28xx_dvb_init(struct em28xx *dev)
 	}
 
 	if (!dev->board.has_dvb) {
-		/* This device does not support the extension */
+		/* This device does yest support the extension */
 		return 0;
 	}
 
@@ -1494,7 +1494,7 @@ static int em28xx_dvb_init(struct em28xx *dev)
 	case EM2880_BOARD_EMPIRE_DUAL_TV:
 	case EM2882_BOARD_ZOLID_HYBRID_TV_STICK:
 		dvb->fe[0] = dvb_attach(zl10353_attach,
-					&em28xx_zl10353_xc3028_no_i2c_gate,
+					&em28xx_zl10353_xc3028_yes_i2c_gate,
 					&dev->i2c_adap[dev->def_i2c_bus]);
 		if (em28xx_attach_xc3028(0x61, dev) < 0) {
 			result = -EINVAL;
@@ -1511,7 +1511,7 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		 * If the chip id isn't for zl10353, try mt352.
 		 */
 		dvb->fe[0] = dvb_attach(zl10353_attach,
-					&em28xx_zl10353_xc3028_no_i2c_gate,
+					&em28xx_zl10353_xc3028_yes_i2c_gate,
 					&dev->i2c_adap[dev->def_i2c_bus]);
 		if (!dvb->fe[0])
 			dvb->fe[0] = dvb_attach(mt352_attach,
@@ -1525,7 +1525,7 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		break;
 	case EM2870_BOARD_TERRATEC_XS_MT2060:
 		dvb->fe[0] = dvb_attach(zl10353_attach,
-					&em28xx_zl10353_no_i2c_gate_dev,
+					&em28xx_zl10353_yes_i2c_gate_dev,
 					&dev->i2c_adap[dev->def_i2c_bus]);
 		if (dvb->fe[0]) {
 			dvb_attach(mt2060_attach, dvb->fe[0],
@@ -1535,7 +1535,7 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		break;
 	case EM2870_BOARD_KWORLD_355U:
 		dvb->fe[0] = dvb_attach(zl10353_attach,
-					&em28xx_zl10353_no_i2c_gate_dev,
+					&em28xx_zl10353_yes_i2c_gate_dev,
 					&dev->i2c_adap[dev->def_i2c_bus]);
 		if (dvb->fe[0])
 			dvb_attach(qt1010_attach, dvb->fe[0],
@@ -1821,7 +1821,7 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		struct i2c_adapter *adapter = &dev->i2c_adap[dev->def_i2c_bus];
 
 		dvb->fe[0] = dvb_attach(lgdt3305_attach,
-					&em2874_lgdt3305_nogate_dev,
+					&em2874_lgdt3305_yesgate_dev,
 					&dev->i2c_adap[dev->def_i2c_bus]);
 		if (!dvb->fe[0]) {
 			result = -EINVAL;
@@ -1946,7 +1946,7 @@ static int em28xx_dvb_fini(struct em28xx *dev)
 	}
 
 	if (!dev->board.has_dvb) {
-		/* This device does not support the extension */
+		/* This device does yest support the extension */
 		return 0;
 	}
 
@@ -1961,7 +1961,7 @@ static int em28xx_dvb_fini(struct em28xx *dev)
 
 	if (dev->disconnected) {
 		/*
-		 * We cannot tell the device to sleep
+		 * We canyest tell the device to sleep
 		 * once it has been unplugged.
 		 */
 		if (dvb->fe[0]) {

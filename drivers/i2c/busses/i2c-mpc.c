@@ -3,7 +3,7 @@
  * Humboldt Solutions Ltd, adrian@humboldt.co.uk.
 
  * This is a combined i2c adapter and algorithm driver for the
- * MPC107/Tsi107 PowerPC northbridge and processors that include
+ * MPC107/Tsi107 PowerPC yesrthbridge and processors that include
  * the same I2C unit (8240, 8245, 85xx).
  *
  * Release 0.8
@@ -78,7 +78,7 @@ struct mpc_i2c_divider {
 };
 
 struct mpc_i2c_data {
-	void (*setup)(struct device_node *node, struct mpc_i2c *i2c, u32 clock);
+	void (*setup)(struct device_yesde *yesde, struct mpc_i2c *i2c, u32 clock);
 };
 
 static inline void writeccr(struct mpc_i2c *i2c, u32 x)
@@ -198,7 +198,7 @@ static const struct mpc_i2c_divider mpc_i2c_dividers_52xx[] = {
 	{10240, 0x9d}, {12288, 0x9e}, {15360, 0x9f}
 };
 
-static int mpc_i2c_get_fdr_52xx(struct device_node *node, u32 clock,
+static int mpc_i2c_get_fdr_52xx(struct device_yesde *yesde, u32 clock,
 					  u32 *real_clk)
 {
 	const struct mpc_i2c_divider *div = NULL;
@@ -208,12 +208,12 @@ static int mpc_i2c_get_fdr_52xx(struct device_node *node, u32 clock,
 
 	if (clock == MPC_I2C_CLOCK_LEGACY) {
 		/* see below - default fdr = 0x3f -> div = 2048 */
-		*real_clk = mpc5xxx_get_bus_frequency(node) / 2048;
+		*real_clk = mpc5xxx_get_bus_frequency(yesde) / 2048;
 		return -EINVAL;
 	}
 
 	/* Determine divider value */
-	divider = mpc5xxx_get_bus_frequency(node) / clock;
+	divider = mpc5xxx_get_bus_frequency(yesde) / clock;
 
 	/*
 	 * We want to choose an FDR/DFSR that generates an I2C bus speed that
@@ -221,18 +221,18 @@ static int mpc_i2c_get_fdr_52xx(struct device_node *node, u32 clock,
 	 */
 	for (i = 0; i < ARRAY_SIZE(mpc_i2c_dividers_52xx); i++) {
 		div = &mpc_i2c_dividers_52xx[i];
-		/* Old MPC5200 rev A CPUs do not support the high bits */
+		/* Old MPC5200 rev A CPUs do yest support the high bits */
 		if (div->fdr & 0xc0 && pvr == 0x80822011)
 			continue;
 		if (div->divider >= divider)
 			break;
 	}
 
-	*real_clk = mpc5xxx_get_bus_frequency(node) / div->divider;
+	*real_clk = mpc5xxx_get_bus_frequency(yesde) / div->divider;
 	return (int)div->fdr;
 }
 
-static void mpc_i2c_setup_52xx(struct device_node *node,
+static void mpc_i2c_setup_52xx(struct device_yesde *yesde,
 					 struct mpc_i2c *i2c,
 					 u32 clock)
 {
@@ -244,7 +244,7 @@ static void mpc_i2c_setup_52xx(struct device_node *node,
 		return;
 	}
 
-	ret = mpc_i2c_get_fdr_52xx(node, clock, &i2c->real_clk);
+	ret = mpc_i2c_get_fdr_52xx(yesde, clock, &i2c->real_clk);
 	fdr = (ret >= 0) ? ret : 0x3f; /* backward compatibility */
 
 	writeb(fdr & 0xff, i2c->base + MPC_I2C_FDR);
@@ -254,7 +254,7 @@ static void mpc_i2c_setup_52xx(struct device_node *node,
 			 fdr);
 }
 #else /* !(CONFIG_PPC_MPC52xx || CONFIG_PPC_MPC512x) */
-static void mpc_i2c_setup_52xx(struct device_node *node,
+static void mpc_i2c_setup_52xx(struct device_yesde *yesde,
 					 struct mpc_i2c *i2c,
 					 u32 clock)
 {
@@ -262,35 +262,35 @@ static void mpc_i2c_setup_52xx(struct device_node *node,
 #endif /* CONFIG_PPC_MPC52xx || CONFIG_PPC_MPC512x */
 
 #ifdef CONFIG_PPC_MPC512x
-static void mpc_i2c_setup_512x(struct device_node *node,
+static void mpc_i2c_setup_512x(struct device_yesde *yesde,
 					 struct mpc_i2c *i2c,
 					 u32 clock)
 {
-	struct device_node *node_ctrl;
+	struct device_yesde *yesde_ctrl;
 	void __iomem *ctrl;
 	const u32 *pval;
 	u32 idx;
 
 	/* Enable I2C interrupts for mpc5121 */
-	node_ctrl = of_find_compatible_node(NULL, NULL,
+	yesde_ctrl = of_find_compatible_yesde(NULL, NULL,
 					    "fsl,mpc5121-i2c-ctrl");
-	if (node_ctrl) {
-		ctrl = of_iomap(node_ctrl, 0);
+	if (yesde_ctrl) {
+		ctrl = of_iomap(yesde_ctrl, 0);
 		if (ctrl) {
 			/* Interrupt enable bits for i2c-0/1/2: bit 24/26/28 */
-			pval = of_get_property(node, "reg", NULL);
+			pval = of_get_property(yesde, "reg", NULL);
 			idx = (*pval & 0xff) / 0x20;
 			setbits32(ctrl, 1 << (24 + idx * 2));
 			iounmap(ctrl);
 		}
-		of_node_put(node_ctrl);
+		of_yesde_put(yesde_ctrl);
 	}
 
 	/* The clock setup for the 52xx works also fine for the 512x */
-	mpc_i2c_setup_52xx(node, i2c, clock);
+	mpc_i2c_setup_52xx(yesde, i2c, clock);
 }
 #else /* CONFIG_PPC_MPC512x */
-static void mpc_i2c_setup_512x(struct device_node *node,
+static void mpc_i2c_setup_512x(struct device_yesde *yesde,
 					 struct mpc_i2c *i2c,
 					 u32 clock)
 {
@@ -320,20 +320,20 @@ static const struct mpc_i2c_divider mpc_i2c_dividers_8xxx[] = {
 
 static u32 mpc_i2c_get_sec_cfg_8xxx(void)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	u32 __iomem *reg;
 	u32 val = 0;
 
-	node = of_find_node_by_name(NULL, "global-utilities");
-	if (node) {
-		const u32 *prop = of_get_property(node, "reg", NULL);
+	yesde = of_find_yesde_by_name(NULL, "global-utilities");
+	if (yesde) {
+		const u32 *prop = of_get_property(yesde, "reg", NULL);
 		if (prop) {
 			/*
 			 * Map and check POR Device Status Register 2
 			 * (PORDEVSR2) at 0xE0014. Note than while MPC8533
 			 * and MPC8544 indicate SEC frequency ratio
 			 * configuration as bit 26 in PORDEVSR2, other MPC8xxx
-			 * parts may store it differently or may not have it
+			 * parts may store it differently or may yest have it
 			 * at all.
 			 */
 			reg = ioremap(get_immrbase() + *prop + 0x14, 0x4);
@@ -345,7 +345,7 @@ static u32 mpc_i2c_get_sec_cfg_8xxx(void)
 			iounmap(reg);
 		}
 	}
-	of_node_put(node);
+	of_yesde_put(yesde);
 
 	return val;
 }
@@ -385,7 +385,7 @@ static u32 mpc_i2c_get_prescaler_8xxx(void)
 	return prescaler;
 }
 
-static int mpc_i2c_get_fdr_8xxx(struct device_node *node, u32 clock,
+static int mpc_i2c_get_fdr_8xxx(struct device_yesde *yesde, u32 clock,
 					  u32 *real_clk)
 {
 	const struct mpc_i2c_divider *div = NULL;
@@ -418,7 +418,7 @@ static int mpc_i2c_get_fdr_8xxx(struct device_node *node, u32 clock,
 	return div ? (int)div->fdr : -EINVAL;
 }
 
-static void mpc_i2c_setup_8xxx(struct device_node *node,
+static void mpc_i2c_setup_8xxx(struct device_yesde *yesde,
 					 struct mpc_i2c *i2c,
 					 u32 clock)
 {
@@ -431,7 +431,7 @@ static void mpc_i2c_setup_8xxx(struct device_node *node,
 		return;
 	}
 
-	ret = mpc_i2c_get_fdr_8xxx(node, clock, &i2c->real_clk);
+	ret = mpc_i2c_get_fdr_8xxx(yesde, clock, &i2c->real_clk);
 	fdr = (ret >= 0) ? ret : 0x1031; /* backward compatibility */
 
 	writeb(fdr & 0xff, i2c->base + MPC_I2C_FDR);
@@ -443,7 +443,7 @@ static void mpc_i2c_setup_8xxx(struct device_node *node,
 }
 
 #else /* !CONFIG_FSL_SOC */
-static void mpc_i2c_setup_8xxx(struct device_node *node,
+static void mpc_i2c_setup_8xxx(struct device_yesde *yesde,
 					 struct mpc_i2c *i2c,
 					 u32 clock)
 {
@@ -524,7 +524,7 @@ static int mpc_read(struct mpc_i2c *i2c, int target,
 			return result;
 
 		/*
-		 * For block reads, we have to know the total length (1st byte)
+		 * For block reads, we have to kyesw the total length (1st byte)
 		 * before we can determine if we are done.
 		 */
 		if (i || !recv_len) {
@@ -532,7 +532,7 @@ static int mpc_read(struct mpc_i2c *i2c, int target,
 			if (i == length - 2)
 				writeccr(i2c, CCR_MIEN | CCR_MEN | CCR_MSTA
 					 | CCR_TXAK);
-			/* Do not generate stop on last byte */
+			/* Do yest generate stop on last byte */
 			if (i == length - 1)
 				writeccr(i2c, CCR_MIEN | CCR_MEN | CCR_MSTA
 					 | CCR_MTX);
@@ -572,7 +572,7 @@ static int mpc_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 
 	mpc_i2c_start(i2c);
 
-	/* Allow bus up to 1s to become not busy */
+	/* Allow bus up to 1s to become yest busy */
 	while (readb(i2c->base + MPC_I2C_SR) & CSR_MBB) {
 		if (signal_pending(current)) {
 			dev_dbg(i2c->dev, "Interrupted\n");
@@ -673,15 +673,15 @@ static int fsl_i2c_probe(struct platform_device *op)
 
 	init_waitqueue_head(&i2c->queue);
 
-	i2c->base = of_iomap(op->dev.of_node, 0);
+	i2c->base = of_iomap(op->dev.of_yesde, 0);
 	if (!i2c->base) {
 		dev_err(i2c->dev, "failed to map controller\n");
 		result = -ENOMEM;
 		goto fail_map;
 	}
 
-	i2c->irq = irq_of_parse_and_map(op->dev.of_node, 0);
-	if (i2c->irq) { /* no i2c->irq implies polling */
+	i2c->irq = irq_of_parse_and_map(op->dev.of_yesde, 0);
+	if (i2c->irq) { /* yes i2c->irq implies polling */
 		result = request_irq(i2c->irq, mpc_i2c_isr,
 				     IRQF_SHARED, "i2c-mpc", i2c);
 		if (result < 0) {
@@ -691,7 +691,7 @@ static int fsl_i2c_probe(struct platform_device *op)
 	}
 
 	/*
-	 * enable clock for the I2C peripheral (non fatal),
+	 * enable clock for the I2C peripheral (yesn fatal),
 	 * keep a reference upon successful allocation
 	 */
 	clk = devm_clk_get(&op->dev, NULL);
@@ -705,10 +705,10 @@ static int fsl_i2c_probe(struct platform_device *op)
 		}
 	}
 
-	if (of_property_read_bool(op->dev.of_node, "fsl,preserve-clocking")) {
+	if (of_property_read_bool(op->dev.of_yesde, "fsl,preserve-clocking")) {
 		clock = MPC_I2C_CLOCK_PRESERVE;
 	} else {
-		prop = of_get_property(op->dev.of_node, "clock-frequency",
+		prop = of_get_property(op->dev.of_yesde, "clock-frequency",
 					&plen);
 		if (prop && plen == sizeof(u32))
 			clock = *prop;
@@ -716,14 +716,14 @@ static int fsl_i2c_probe(struct platform_device *op)
 
 	if (match->data) {
 		const struct mpc_i2c_data *data = match->data;
-		data->setup(op->dev.of_node, i2c, clock);
+		data->setup(op->dev.of_yesde, i2c, clock);
 	} else {
 		/* Backwards compatibility */
-		if (of_get_property(op->dev.of_node, "dfsrr", NULL))
-			mpc_i2c_setup_8xxx(op->dev.of_node, i2c, clock);
+		if (of_get_property(op->dev.of_yesde, "dfsrr", NULL))
+			mpc_i2c_setup_8xxx(op->dev.of_yesde, i2c, clock);
 	}
 
-	prop = of_get_property(op->dev.of_node, "fsl,timeout", &plen);
+	prop = of_get_property(op->dev.of_yesde, "fsl,timeout", &plen);
 	if (prop && plen == sizeof(u32)) {
 		mpc_ops.timeout = *prop * HZ / 1000000;
 		if (mpc_ops.timeout < 5)
@@ -734,12 +734,12 @@ static int fsl_i2c_probe(struct platform_device *op)
 	platform_set_drvdata(op, i2c);
 
 	i2c->adap = mpc_ops;
-	of_address_to_resource(op->dev.of_node, 0, &res);
+	of_address_to_resource(op->dev.of_yesde, 0, &res);
 	scnprintf(i2c->adap.name, sizeof(i2c->adap.name),
 		  "MPC adapter at 0x%llx", (unsigned long long)res.start);
 	i2c_set_adapdata(&i2c->adap, i2c);
 	i2c->adap.dev.parent = &op->dev;
-	i2c->adap.dev.of_node = of_node_get(op->dev.of_node);
+	i2c->adap.dev.of_yesde = of_yesde_get(op->dev.of_yesde);
 
 	result = i2c_add_adapter(&i2c->adap);
 	if (result < 0)

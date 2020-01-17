@@ -372,7 +372,7 @@ TRACE_EVENT(mm_vmscan_lru_shrink_inactive,
 		__entry->reclaim_flags = trace_reclaim_flags(file);
 	),
 
-	TP_printk("nid=%d nr_scanned=%ld nr_reclaimed=%ld nr_dirty=%ld nr_writeback=%ld nr_congested=%ld nr_immediate=%ld nr_activate_anon=%d nr_activate_file=%d nr_ref_keep=%ld nr_unmap_fail=%ld priority=%d flags=%s",
+	TP_printk("nid=%d nr_scanned=%ld nr_reclaimed=%ld nr_dirty=%ld nr_writeback=%ld nr_congested=%ld nr_immediate=%ld nr_activate_ayesn=%d nr_activate_file=%d nr_ref_keep=%ld nr_unmap_fail=%ld priority=%d flags=%s",
 		__entry->nid,
 		__entry->nr_scanned, __entry->nr_reclaimed,
 		__entry->nr_dirty, __entry->nr_writeback,
@@ -460,7 +460,7 @@ TRACE_EVENT(mm_vmscan_inactive_list_is_low,
 		show_reclaim_flags(__entry->reclaim_flags))
 );
 
-TRACE_EVENT(mm_vmscan_node_reclaim_begin,
+TRACE_EVENT(mm_vmscan_yesde_reclaim_begin,
 
 	TP_PROTO(int nid, int order, gfp_t gfp_flags),
 
@@ -484,7 +484,7 @@ TRACE_EVENT(mm_vmscan_node_reclaim_begin,
 		show_gfp_flags(__entry->gfp_flags))
 );
 
-DEFINE_EVENT(mm_vmscan_direct_reclaim_end_template, mm_vmscan_node_reclaim_end,
+DEFINE_EVENT(mm_vmscan_direct_reclaim_end_template, mm_vmscan_yesde_reclaim_end,
 
 	TP_PROTO(unsigned long nr_reclaimed),
 

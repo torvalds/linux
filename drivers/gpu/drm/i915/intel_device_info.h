@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -36,7 +36,7 @@
 struct drm_printer;
 struct drm_i915_private;
 
-/* Keep in gen based order, and chronological order within a gen */
+/* Keep in gen based order, and chroyeslogical order within a gen */
 enum intel_platform {
 	INTEL_PLATFORM_UNINITIALIZED = 0,
 	/* gen2 */
@@ -125,7 +125,7 @@ enum intel_ppgtt_type {
 	func(has_rc6p); \
 	func(has_rps); \
 	func(has_runtime_pm); \
-	func(has_snoop); \
+	func(has_syesop); \
 	func(has_coherent_ggtt); \
 	func(unfenced_needs_alignment); \
 	func(hws_needs_physical);

@@ -41,7 +41,7 @@ Hugetlb and split page table lock
 =================================
 
 Hugetlb can support several page sizes. We use split lock only for PMD
-level, but not for PUD.
+level, but yest for PUD.
 
 Hugetlb-specific helpers:
 
@@ -54,7 +54,7 @@ Hugetlb-specific helpers:
 Support of split page table lock by an architecture
 ===================================================
 
-There's no need in special enabling of PTE split page table lock: everything
+There's yes need in special enabling of PTE split page table lock: everything
 required is done by pgtable_pte_page_ctor() and pgtable_pte_page_dtor(), which
 must be called on PTE table allocation / freeing.
 

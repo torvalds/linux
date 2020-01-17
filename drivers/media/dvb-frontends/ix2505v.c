@@ -263,7 +263,7 @@ struct dvb_frontend *ix2505v_attach(struct dvb_frontend *fe,
 	int ret;
 
 	if (NULL == config) {
-		deb_i2c("%s: no config ", __func__);
+		deb_i2c("%s: yes config ", __func__);
 		goto error;
 	}
 

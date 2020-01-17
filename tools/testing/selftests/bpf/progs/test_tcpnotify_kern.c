@@ -12,13 +12,13 @@
 #include <linux/tcp.h>
 #include "bpf_helpers.h"
 #include "bpf_endian.h"
-#include "test_tcpnotify.h"
+#include "test_tcpyestify.h"
 
 struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);
 	__uint(max_entries, 4);
 	__type(key, __u32);
-	__type(value, struct tcpnotify_globals);
+	__type(value, struct tcpyestify_globals);
 } global_map SEC(".maps");
 
 struct {
@@ -62,8 +62,8 @@ int bpf_testcb(struct bpf_sock_ops *skops)
 		break;
 	case BPF_SOCK_OPS_RETRANS_CB: {
 			__u32 key = 0;
-			struct tcpnotify_globals g, *gp;
-			struct tcp_notifier msg = {
+			struct tcpyestify_globals g, *gp;
+			struct tcp_yestifier msg = {
 				.type = 0xde,
 				.subtype = 0xad,
 				.source = 0xbe,

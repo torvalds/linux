@@ -2,7 +2,7 @@
  * This software may be used and distributed according to the terms of
  * the GNU General Public License (GPL), incorporated herein by reference.
  * Drivers based on or derived from this code fall under the GPL and must
- * retain the authorship, copyright and license notice.  This file is not
+ * retain the authorship, copyright and license yestice.  This file is yest
  * a complete program and may only be used when the entire operating
  * system is licensed under the GPL.
  * See the file COPYING in this distribution for more information.
@@ -27,7 +27,7 @@ static const char ethtool_driver_stats_keys[][ETH_GSTRING_LEN] = {
 	{"tx_frms"},
 	{"tx_errors"},
 	{"tx_bytes"},
-	{"txd_not_free"},
+	{"txd_yest_free"},
 	{"txd_out_of_desc"},
 	{"rx_frms"},
 	{"rx_errors"},
@@ -134,9 +134,9 @@ static void vxge_ethtool_gregs(struct net_device *dev,
 	struct vxgedev *vdev = netdev_priv(dev);
 	struct __vxge_hw_device *hldev = vdev->devh;
 
-	regs->len = sizeof(struct vxge_hw_vpath_reg) * vdev->no_of_vpath;
+	regs->len = sizeof(struct vxge_hw_vpath_reg) * vdev->yes_of_vpath;
 	regs->version = vdev->pdev->subsystem_device;
-	for (index = 0; index < vdev->no_of_vpath; index++) {
+	for (index = 0; index < vdev->yes_of_vpath; index++) {
 		for (offset = 0; offset < sizeof(struct vxge_hw_vpath_reg);
 				offset += 8) {
 			status = vxge_hw_mgmt_reg_read(hldev,
@@ -295,7 +295,7 @@ static void vxge_get_ethtool_stats(struct net_device *dev,
 			"%s : %d hw_stats_get error", __func__, __LINE__);
 	}
 
-	for (k = 0; k < vdev->no_of_vpath; k++) {
+	for (k = 0; k < vdev->yes_of_vpath; k++) {
 		struct vxge_hw_vpath_stats_hw_info *vpath_info;
 
 		vpath = &vdev->vpaths[k];
@@ -322,7 +322,7 @@ static void vxge_get_ethtool_stats(struct net_device *dev,
 		*ptr++ = vpath_info->tx_stats.tx_tcp;
 		*ptr++ = vpath_info->tx_stats.tx_rst_tcp;
 		*ptr++ = vpath_info->tx_stats.tx_udp;
-		*ptr++ = vpath_info->tx_stats.tx_unknown_protocol;
+		*ptr++ = vpath_info->tx_stats.tx_unkyeswn_protocol;
 		*ptr++ = vpath_info->tx_stats.tx_lost_ip;
 		*ptr++ = vpath_info->tx_stats.tx_parse_error;
 		*ptr++ = vpath_info->tx_stats.tx_tcp_offload;
@@ -385,7 +385,7 @@ static void vxge_get_ethtool_stats(struct net_device *dev,
 		*ptr++ = xmac_stats->aggr_stats[k].rx_bcast_frms;
 		*ptr++ = xmac_stats->aggr_stats[k].rx_discarded_frms;
 		*ptr++ = xmac_stats->aggr_stats[k].rx_errored_frms;
-		*ptr++ = xmac_stats->aggr_stats[k].rx_unknown_slow_proto_frms;
+		*ptr++ = xmac_stats->aggr_stats[k].rx_unkyeswn_slow_proto_frms;
 	}
 	*ptr++ = 0;
 	for (k = 0; k < vdev->max_config_port; k++) {
@@ -403,7 +403,7 @@ static void vxge_get_ethtool_stats(struct net_device *dev,
 		*ptr++ = xmac_stats->port_stats[k].tx_rst_tcp;
 		*ptr++ = xmac_stats->port_stats[k].tx_udp;
 		*ptr++ = xmac_stats->port_stats[k].tx_parse_error;
-		*ptr++ = xmac_stats->port_stats[k].tx_unknown_protocol;
+		*ptr++ = xmac_stats->port_stats[k].tx_unkyeswn_protocol;
 		*ptr++ = xmac_stats->port_stats[k].tx_pause_ctrl_frms;
 		*ptr++ = xmac_stats->port_stats[k].tx_marker_pdu_frms;
 		*ptr++ = xmac_stats->port_stats[k].tx_lacpdu_frms;
@@ -461,7 +461,7 @@ static void vxge_get_ethtool_stats(struct net_device *dev,
 		*ptr++ = xmac_stats->port_stats[k].rx_drop_udp;
 		*ptr++ = xmac_stats->port_stats[k].rx_marker_pdu_frms;
 		*ptr++ = xmac_stats->port_stats[k].rx_lacpdu_frms;
-		*ptr++ = xmac_stats->port_stats[k].rx_unknown_pdu_frms;
+		*ptr++ = xmac_stats->port_stats[k].rx_unkyeswn_pdu_frms;
 		*ptr++ = xmac_stats->port_stats[k].rx_marker_resp_pdu_frms;
 		*ptr++ = xmac_stats->port_stats[k].rx_fcs_discard;
 		*ptr++ = xmac_stats->port_stats[k].rx_illegal_pdu_frms;
@@ -486,7 +486,7 @@ static void vxge_get_ethtool_stats(struct net_device *dev,
 	}
 
 	*ptr++ = 0;
-	for (k = 0; k < vdev->no_of_vpath; k++) {
+	for (k = 0; k < vdev->yes_of_vpath; k++) {
 		struct vxge_hw_vpath_stats_sw_info *vpath_info;
 
 		vpath = &vdev->vpaths[k];
@@ -494,7 +494,7 @@ static void vxge_get_ethtool_stats(struct net_device *dev,
 		vpath_info = (struct vxge_hw_vpath_stats_sw_info *)
 				&sw_stats->vpath_info[j];
 		*ptr++ = vpath_info->soft_reset_cnt;
-		*ptr++ = vpath_info->error_stats.unknown_alarms;
+		*ptr++ = vpath_info->error_stats.unkyeswn_alarms;
 		*ptr++ = vpath_info->error_stats.network_sustained_fault;
 		*ptr++ = vpath_info->error_stats.network_sustained_ok;
 		*ptr++ = vpath_info->error_stats.kdfcctl_fifo0_overwrite;
@@ -530,7 +530,7 @@ static void vxge_get_ethtool_stats(struct net_device *dev,
 	}
 
 	*ptr++ = 0;
-	for (k = 0; k < vdev->no_of_vpath; k++) {
+	for (k = 0; k < vdev->yes_of_vpath; k++) {
 		struct vxge_hw_vpath_stats_hw_info *vpath_info;
 		vpath = &vdev->vpaths[k];
 		j = vpath->device_id;
@@ -575,11 +575,11 @@ static void vxge_get_ethtool_stats(struct net_device *dev,
 	*ptr++ = vdev->stats.link_up;
 	*ptr++ = vdev->stats.link_down;
 
-	for (k = 0; k < vdev->no_of_vpath; k++) {
+	for (k = 0; k < vdev->yes_of_vpath; k++) {
 		*ptr += vdev->vpaths[k].fifo.stats.tx_frms;
 		*(ptr + 1) += vdev->vpaths[k].fifo.stats.tx_errors;
 		*(ptr + 2) += vdev->vpaths[k].fifo.stats.tx_bytes;
-		*(ptr + 3) += vdev->vpaths[k].fifo.stats.txd_not_free;
+		*(ptr + 3) += vdev->vpaths[k].fifo.stats.txd_yest_free;
 		*(ptr + 4) += vdev->vpaths[k].fifo.stats.txd_out_of_desc;
 		*(ptr + 5) += vdev->vpaths[k].ring.stats.rx_frms;
 		*(ptr + 6) += vdev->vpaths[k].ring.stats.rx_errors;
@@ -607,7 +607,7 @@ static void vxge_ethtool_get_strings(struct net_device *dev, u32 stringset,
 	case ETH_SS_STATS:
 		vxge_add_string("VPATH STATISTICS%s\t\t\t",
 			&stat_size, data, "");
-		for (i = 0; i < vdev->no_of_vpath; i++) {
+		for (i = 0; i < vdev->yes_of_vpath; i++) {
 			vxge_add_string("tx_ttl_eth_frms_%d\t\t\t",
 					&stat_size, data, i);
 			vxge_add_string("tx_ttl_eth_octects_%d\t\t",
@@ -634,7 +634,7 @@ static void vxge_ethtool_get_strings(struct net_device *dev, u32 stringset,
 					&stat_size, data, i);
 			vxge_add_string("tx_udp_%d\t\t\t\t",
 					&stat_size, data, i);
-			vxge_add_string("tx_unknown_proto_%d\t\t\t",
+			vxge_add_string("tx_unkyeswn_proto_%d\t\t\t",
 					&stat_size, data, i);
 			vxge_add_string("tx_lost_ip_%d\t\t\t",
 					&stat_size, data, i);
@@ -759,7 +759,7 @@ static void vxge_ethtool_get_strings(struct net_device *dev, u32 stringset,
 				&stat_size, data, i);
 			vxge_add_string("rx_errored_frms_%d\t\t\t",
 				&stat_size, data, i);
-			vxge_add_string("rx_unknown_slow_proto_frms_%d\t",
+			vxge_add_string("rx_unkyeswn_slow_proto_frms_%d\t",
 				&stat_size, data, i);
 		}
 
@@ -794,7 +794,7 @@ static void vxge_ethtool_get_strings(struct net_device *dev, u32 stringset,
 				&stat_size, data, i);
 			vxge_add_string("tx_parse_error_%d\t\t\t",
 				&stat_size, data, i);
-			vxge_add_string("tx_unknown_protocol_%d\t\t",
+			vxge_add_string("tx_unkyeswn_protocol_%d\t\t",
 				&stat_size, data, i);
 			vxge_add_string("tx_pause_ctrl_frms_%d\t\t",
 				&stat_size, data, i);
@@ -910,7 +910,7 @@ static void vxge_ethtool_get_strings(struct net_device *dev, u32 stringset,
 				&stat_size, data, i);
 			vxge_add_string("rx_lacpdu_frms_%d\t\t\t",
 				&stat_size, data, i);
-			vxge_add_string("rx_unknown_pdu_frms_%d\t\t",
+			vxge_add_string("rx_unkyeswn_pdu_frms_%d\t\t",
 				&stat_size, data, i);
 			vxge_add_string("rx_marker_resp_pdu_frms_%d\t\t",
 				&stat_size, data, i);
@@ -958,10 +958,10 @@ static void vxge_ethtool_get_strings(struct net_device *dev, u32 stringset,
 
 		vxge_add_string("\n SOFTWARE STATISTICS%s\t\t\t",
 			&stat_size, data, "");
-		for (i = 0; i < vdev->no_of_vpath; i++) {
+		for (i = 0; i < vdev->yes_of_vpath; i++) {
 			vxge_add_string("soft_reset_cnt_%d\t\t\t",
 				&stat_size, data, i);
-			vxge_add_string("unknown_alarms_%d\t\t\t",
+			vxge_add_string("unkyeswn_alarms_%d\t\t\t",
 				&stat_size, data, i);
 			vxge_add_string("network_sustained_fault_%d\t\t",
 				&stat_size, data, i);
@@ -1025,7 +1025,7 @@ static void vxge_ethtool_get_strings(struct net_device *dev, u32 stringset,
 
 		vxge_add_string("\n HARDWARE STATISTICS%s\t\t\t",
 				&stat_size, data, "");
-		for (i = 0; i < vdev->no_of_vpath; i++) {
+		for (i = 0; i < vdev->yes_of_vpath; i++) {
 			vxge_add_string("ini_num_mwr_sent_%d\t\t\t",
 					&stat_size, data, i);
 			vxge_add_string("ini_num_mrd_sent_%d\t\t\t",
@@ -1091,7 +1091,7 @@ static int vxge_ethtool_get_regs_len(struct net_device *dev)
 {
 	struct vxgedev *vdev = netdev_priv(dev);
 
-	return sizeof(struct vxge_hw_vpath_reg) * vdev->no_of_vpath;
+	return sizeof(struct vxge_hw_vpath_reg) * vdev->yes_of_vpath;
 }
 
 static int vxge_ethtool_get_sset_count(struct net_device *dev, int sset)
@@ -1101,12 +1101,12 @@ static int vxge_ethtool_get_sset_count(struct net_device *dev, int sset)
 	switch (sset) {
 	case ETH_SS_STATS:
 		return VXGE_TITLE_LEN +
-			(vdev->no_of_vpath * VXGE_HW_VPATH_STATS_LEN) +
+			(vdev->yes_of_vpath * VXGE_HW_VPATH_STATS_LEN) +
 			(vdev->max_config_port * VXGE_HW_AGGR_STATS_LEN) +
 			(vdev->max_config_port * VXGE_HW_PORT_STATS_LEN) +
-			(vdev->no_of_vpath * VXGE_HW_VPATH_TX_STATS_LEN) +
-			(vdev->no_of_vpath * VXGE_HW_VPATH_RX_STATS_LEN) +
-			(vdev->no_of_vpath * VXGE_SW_STATS_LEN) +
+			(vdev->yes_of_vpath * VXGE_HW_VPATH_TX_STATS_LEN) +
+			(vdev->yes_of_vpath * VXGE_HW_VPATH_RX_STATS_LEN) +
+			(vdev->yes_of_vpath * VXGE_SW_STATS_LEN) +
 			DRIVER_STAT_LEN;
 	default:
 		return -EOPNOTSUPP;

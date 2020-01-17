@@ -152,7 +152,7 @@ static void subsys_get_adapter(struct hpi_message *phm,
 	int count = phm->obj_index;
 	u16 index = 0;
 
-	/* find the nCount'th nonzero adapter in array */
+	/* find the nCount'th yesnzero adapter in array */
 	for (index = 0; index < HPI_MAX_ADAPTERS; index++) {
 		if (adapters.adapter[index].type) {
 			if (!count)
@@ -199,7 +199,7 @@ static unsigned int control_cache_alloc_check(struct hpi_control_cache *pC)
 
 			if (control_index >= pC->control_count) {
 				HPI_DEBUG_LOG(INFO,
-					"adap %d control index %d out of range, cache not ready?\n",
+					"adap %d control index %d out of range, cache yest ready?\n",
 					pC->adap_idx, control_index);
 				return 0;
 			}
@@ -207,7 +207,7 @@ static unsigned int control_cache_alloc_check(struct hpi_control_cache *pC)
 			if (!info->size_in32bit_words) {
 				if (!i) {
 					HPI_DEBUG_LOG(INFO,
-						"adap %d cache not ready?\n",
+						"adap %d cache yest ready?\n",
 						pC->adap_idx);
 					return 0;
 				}
@@ -361,8 +361,8 @@ short hpi_check_control_cache_single(struct hpi_control_cache_single *pC,
 		break;
 	case HPI_CONTROL_MULTIPLEXER:
 		if (phm->u.c.attribute == HPI_MULTIPLEXER_SOURCE) {
-			phr->u.c.param1 = pC->u.mux.source_node_type;
-			phr->u.c.param2 = pC->u.mux.source_node_index;
+			phr->u.c.param1 = pC->u.mux.source_yesde_type;
+			phr->u.c.param2 = pC->u.mux.source_yesde_index;
 		} else {
 			found = 0;
 		}
@@ -546,7 +546,7 @@ short hpi_check_control_cache(struct hpi_control_cache *p_cache,
 
 /** Updates the cache with Set values.
 
-Only update if no error.
+Only update if yes error.
 Volume and Level return the limited values in the response, so use these
 Multiplexer does so use sent values
 */
@@ -566,14 +566,14 @@ void hpi_cmn_control_cache_sync_to_msg_single(struct hpi_control_cache_single
 		}
 		break;
 	case HPI_CONTROL_MULTIPLEXER:
-		/* mux does not return its setting on Set command. */
+		/* mux does yest return its setting on Set command. */
 		if (phm->u.c.attribute == HPI_MULTIPLEXER_SOURCE) {
-			pC->u.mux.source_node_type = (u16)phm->u.c.param1;
-			pC->u.mux.source_node_index = (u16)phm->u.c.param2;
+			pC->u.mux.source_yesde_type = (u16)phm->u.c.param1;
+			pC->u.mux.source_yesde_index = (u16)phm->u.c.param2;
 		}
 		break;
 	case HPI_CONTROL_CHANNEL_MODE:
-		/* mode does not return its setting on Set command. */
+		/* mode does yest return its setting on Set command. */
 		if (phm->u.c.attribute == HPI_CHANNEL_MODE_MODE)
 			pC->u.mode.mode = (u16)phm->u.c.param1;
 		break;

@@ -470,7 +470,7 @@ static struct gpiod_lookup_table cm_x300_mci_gpio_table = {
 };
 
 /* The second MMC slot of CM-X300 is hardwired to Libertas card and has
-   no detection/ro pins */
+   yes detection/ro pins */
 static int cm_x300_mci2_init(struct device *dev,
 			     irq_handler_t cm_x300_detect_int,
 	void *data)
@@ -687,7 +687,7 @@ static inline void cm_x300_init_rtc(void) {}
 /* Battery */
 struct power_supply_info cm_x300_psy_info = {
 	.name = "battery",
-	.technology = POWER_SUPPLY_TECHNOLOGY_LIPO,
+	.techyeslogy = POWER_SUPPLY_TECHNOLOGY_LIPO,
 	.voltage_max_design = 4200000,
 	.voltage_min_design = 3000000,
 	.use_for_apm = 1,

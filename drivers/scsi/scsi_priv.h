@@ -81,7 +81,7 @@ void scsi_eh_ready_devs(struct Scsi_Host *shost,
 			struct list_head *done_q);
 int scsi_eh_get_sense(struct list_head *work_q,
 		      struct list_head *done_q);
-int scsi_noretry_cmd(struct scsi_cmnd *scmd);
+int scsi_yesretry_cmd(struct scsi_cmnd *scmd);
 
 /* scsi_lib.c */
 extern void scsi_add_cmd_to_list(struct scsi_cmnd *cmd);

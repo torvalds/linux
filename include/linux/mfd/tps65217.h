@@ -250,7 +250,7 @@ struct tps65217_bl_pdata {
  */
 struct tps65217_board {
 	struct regulator_init_data *tps65217_init_data[TPS65217_NUM_REGULATOR];
-	struct device_node *of_node[TPS65217_NUM_REGULATOR];
+	struct device_yesde *of_yesde[TPS65217_NUM_REGULATOR];
 	struct tps65217_bl_pdata *bl_pdata;
 };
 

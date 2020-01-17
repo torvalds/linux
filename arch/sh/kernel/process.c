@@ -58,7 +58,7 @@ void arch_task_cache_init(void)
 		return;
 
 	task_xstate_cachep = kmem_cache_create("task_xstate", xstate_size,
-					       __alignof__(union thread_xstate),
+					       __aligyesf__(union thread_xstate),
 					       SLAB_PANIC, NULL);
 }
 

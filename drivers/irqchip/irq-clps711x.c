@@ -150,7 +150,7 @@ static int __init clps711x_intc_irq_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static int __init _clps711x_intc_init(struct device_node *np,
+static int __init _clps711x_intc_init(struct device_yesde *np,
 				      phys_addr_t base, resource_size_t size)
 {
 	int err;
@@ -177,7 +177,7 @@ static int __init _clps711x_intc_init(struct device_node *np,
 	writel_relaxed(0, clps711x_intc->intmr[1]);
 	writel_relaxed(0, clps711x_intc->intmr[2]);
 
-	err = irq_alloc_descs(-1, 0, ARRAY_SIZE(clps711x_irqs), numa_node_id());
+	err = irq_alloc_descs(-1, 0, ARRAY_SIZE(clps711x_irqs), numa_yesde_id());
 	if (err < 0)
 		goto out_iounmap;
 
@@ -218,8 +218,8 @@ void __init clps711x_intc_init(phys_addr_t base, resource_size_t size)
 }
 
 #ifdef CONFIG_IRQCHIP
-static int __init clps711x_intc_init_dt(struct device_node *np,
-					struct device_node *parent)
+static int __init clps711x_intc_init_dt(struct device_yesde *np,
+					struct device_yesde *parent)
 {
 	struct resource res;
 	int err;

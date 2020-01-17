@@ -605,7 +605,7 @@ static void gb_gpio_remove(struct gbphy_device *gbphy_dev)
 
 	ret = gbphy_runtime_get_sync(gbphy_dev);
 	if (ret)
-		gbphy_runtime_get_noresume(gbphy_dev);
+		gbphy_runtime_get_yesresume(gbphy_dev);
 
 	gb_connection_disable_rx(connection);
 	gpiochip_remove(&ggc->chip);

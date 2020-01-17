@@ -12,7 +12,7 @@
  *	    context.lock
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gfp.h>
 #include <linux/sched.h>
 #include <linux/string.h>
@@ -78,8 +78,8 @@ static struct ldt_struct *alloc_ldt_struct(unsigned int num_entries)
 	alloc_size = num_entries * LDT_ENTRY_SIZE;
 
 	/*
-	 * Xen is very picky: it requires a page-aligned LDT that has no
-	 * trailing nonzero bytes in any page that contains LDT descriptors.
+	 * Xen is very picky: it requires a page-aligned LDT that has yes
+	 * trailing yesnzero bytes in any page that contains LDT descriptors.
 	 * Keep it simple: zero the whole allocation and never allocate less
 	 * than PAGE_SIZE.
 	 */
@@ -137,11 +137,11 @@ static pmd_t *pgd_to_pmd_walk(pgd_t *pgd, unsigned long va)
 		return NULL;
 
 	p4d = p4d_offset(pgd, va);
-	if (p4d_none(*p4d))
+	if (p4d_yesne(*p4d))
 		return NULL;
 
 	pud = pud_offset(p4d, va);
-	if (pud_none(*pud))
+	if (pud_yesne(*pud))
 		return NULL;
 
 	return pmd_offset(pud, va);
@@ -243,7 +243,7 @@ map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
 		if (!ptep)
 			return -ENOMEM;
 		/*
-		 * Map it RO so the easy to find address is not a primary
+		 * Map it RO so the easy to find address is yest a primary
 		 * target via some kernel interface which misses a
 		 * permission check.
 		 */
@@ -354,7 +354,7 @@ static void free_ldt_struct(struct ldt_struct *ldt)
 
 /*
  * Called on fork from arch_dup_mmap(). Just copy the current LDT state,
- * the new task is not running, so nothing can be installed.
+ * the new task is yest running, so yesthing can be installed.
  */
 int ldt_dup_context(struct mm_struct *old_mm, struct mm_struct *mm)
 {
@@ -483,7 +483,7 @@ static int write_ldt(void __user *ptr, unsigned long bytecount, int oldmode)
 	if (ldt_info.contents == 3) {
 		if (oldmode)
 			goto out;
-		if (ldt_info.seg_not_present == 0)
+		if (ldt_info.seg_yest_present == 0)
 			goto out;
 	}
 
@@ -574,7 +574,7 @@ SYSCALL_DEFINE3(modify_ldt, int , func , void __user * , ptr ,
 	 * return type, but tht ABI for sys_modify_ldt() expects
 	 * 'int'.  This cast gives us an int-sized value in %rax
 	 * for the return code.  The 'unsigned' is necessary so
-	 * the compiler does not try to sign-extend the negative
+	 * the compiler does yest try to sign-extend the negative
 	 * return codes into the high half of the register when
 	 * taking the value from int->long.
 	 */

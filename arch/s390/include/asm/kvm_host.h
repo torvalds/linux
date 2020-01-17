@@ -314,7 +314,7 @@ struct kvm_vcpu_stat {
 	u64 halt_successful_poll;
 	u64 halt_attempted_poll;
 	u64 halt_poll_invalid;
-	u64 halt_no_poll_steal;
+	u64 halt_yes_poll_steal;
 	u64 halt_wakeup;
 	u64 instruction_lctl;
 	u64 instruction_lctlg;
@@ -388,15 +388,15 @@ struct kvm_vcpu_stat {
 	u64 instruction_sigp_restart;
 	u64 instruction_sigp_init_cpu_reset;
 	u64 instruction_sigp_cpu_reset;
-	u64 instruction_sigp_unknown;
-	u64 diagnose_10;
-	u64 diagnose_44;
-	u64 diagnose_9c;
-	u64 diagnose_9c_ignored;
-	u64 diagnose_258;
-	u64 diagnose_308;
-	u64 diagnose_500;
-	u64 diagnose_other;
+	u64 instruction_sigp_unkyeswn;
+	u64 diagyesse_10;
+	u64 diagyesse_44;
+	u64 diagyesse_9c;
+	u64 diagyesse_9c_igyesred;
+	u64 diagyesse_258;
+	u64 diagyesse_308;
+	u64 diagyesse_500;
+	u64 diagyesse_other;
 };
 
 #define PGM_OPERATION			0x01
@@ -491,7 +491,7 @@ enum irq_types {
 #define KVM_S390_MAX_VIRTIO_IRQS 87381
 
 /*
- * Repressible (non-floating) machine check interrupts
+ * Repressible (yesn-floating) machine check interrupts
  * subclass bits in MCIC
  */
 #define MCHK_EXTD_BIT 58
@@ -660,7 +660,7 @@ struct kvm_vcpu_arch {
 	bool cputm_enabled;
 	/*
 	 * The seqcount protects updates to cputm_start and sie_block.cputm,
-	 * this way we can have non-blocking reads with consistent values.
+	 * this way we can have yesn-blocking reads with consistent values.
 	 * Only the owning VCPU thread (vcpu->cpu) is allowed to change these
 	 * values and to start/stop/enable/disable cpu timer accounting.
 	 */
@@ -896,7 +896,7 @@ bool kvm_arch_can_inject_async_page_present(struct kvm_vcpu *vcpu);
 void kvm_arch_async_page_ready(struct kvm_vcpu *vcpu,
 			       struct kvm_async_pf *work);
 
-void kvm_arch_async_page_not_present(struct kvm_vcpu *vcpu,
+void kvm_arch_async_page_yest_present(struct kvm_vcpu *vcpu,
 				     struct kvm_async_pf *work);
 
 void kvm_arch_async_page_present(struct kvm_vcpu *vcpu,

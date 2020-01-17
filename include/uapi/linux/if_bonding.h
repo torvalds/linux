@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-yeste */
 /*
  * Bond several ethernet interfaces into a Cisco, running 'Etherchannel'.
  *
@@ -12,7 +12,7 @@
  *	This software may be used and distributed according to the terms
  *	of the GNU Public License, incorporated herein by reference.
  *
- * 2003/03/18 - Amir Noam <amir.noam at intel dot com>
+ * 2003/03/18 - Amir Noam <amir.yesam at intel dot com>
  *	- Added support for getting slave's speed and duplex via ethtool.
  *	  Needed for 802.3ad and other future modes.
  *
@@ -22,15 +22,15 @@
  *	  each slave.
  *
  * 2003/03/18 - Tsippy Mendelson <tsippy.mendelson at intel dot com> and
- *		Amir Noam <amir.noam at intel dot com>
+ *		Amir Noam <amir.yesam at intel dot com>
  *	- Moved driver's private data types to bonding.h
  *
- * 2003/03/18 - Amir Noam <amir.noam at intel dot com>,
+ * 2003/03/18 - Amir Noam <amir.yesam at intel dot com>,
  *		Tsippy Mendelson <tsippy.mendelson at intel dot com> and
  *		Shmulik Hen <shmulik.hen at intel dot com>
  *	- Added support for IEEE 802.3ad Dynamic link aggregation mode.
  *
- * 2003/05/01 - Amir Noam <amir.noam at intel dot com>
+ * 2003/05/01 - Amir Noam <amir.yesam at intel dot com>
  *	- Added ABI version control to restore compatibility between
  *	  new/old ifenslave and new/old bonding.
  *

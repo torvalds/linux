@@ -151,8 +151,8 @@ static void acpi_db_enumerate_object(union acpi_operand_object *obj_desc)
 
 	case ACPI_TYPE_DEVICE:
 
-		acpi_db_enumerate_object(obj_desc->device.notify_list[0]);
-		acpi_db_enumerate_object(obj_desc->device.notify_list[1]);
+		acpi_db_enumerate_object(obj_desc->device.yestify_list[0]);
+		acpi_db_enumerate_object(obj_desc->device.yestify_list[1]);
 		acpi_db_enumerate_object(obj_desc->device.handler);
 		break;
 
@@ -172,22 +172,22 @@ static void acpi_db_enumerate_object(union acpi_operand_object *obj_desc)
 	case ACPI_TYPE_POWER:
 
 		acpi_db_enumerate_object(obj_desc->power_resource.
-					 notify_list[0]);
+					 yestify_list[0]);
 		acpi_db_enumerate_object(obj_desc->power_resource.
-					 notify_list[1]);
+					 yestify_list[1]);
 		break;
 
 	case ACPI_TYPE_PROCESSOR:
 
-		acpi_db_enumerate_object(obj_desc->processor.notify_list[0]);
-		acpi_db_enumerate_object(obj_desc->processor.notify_list[1]);
+		acpi_db_enumerate_object(obj_desc->processor.yestify_list[0]);
+		acpi_db_enumerate_object(obj_desc->processor.yestify_list[1]);
 		acpi_db_enumerate_object(obj_desc->processor.handler);
 		break;
 
 	case ACPI_TYPE_THERMAL:
 
-		acpi_db_enumerate_object(obj_desc->thermal_zone.notify_list[0]);
-		acpi_db_enumerate_object(obj_desc->thermal_zone.notify_list[1]);
+		acpi_db_enumerate_object(obj_desc->thermal_zone.yestify_list[0]);
+		acpi_db_enumerate_object(obj_desc->thermal_zone.yestify_list[1]);
 		acpi_db_enumerate_object(obj_desc->thermal_zone.handler);
 		break;
 
@@ -206,7 +206,7 @@ static void acpi_db_enumerate_object(union acpi_operand_object *obj_desc)
  * RETURN:      Status
  *
  * DESCRIPTION: Enumerate both the object descriptor (including subobjects) and
- *              the parent namespace node.
+ *              the parent namespace yesde.
  *
  ******************************************************************************/
 
@@ -215,22 +215,22 @@ acpi_db_classify_one_object(acpi_handle obj_handle,
 			    u32 nesting_level,
 			    void *context, void **return_value)
 {
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 	union acpi_operand_object *obj_desc;
 	u32 type;
 
-	acpi_gbl_num_nodes++;
+	acpi_gbl_num_yesdes++;
 
-	node = (struct acpi_namespace_node *)obj_handle;
-	obj_desc = acpi_ns_get_attached_object(node);
+	yesde = (struct acpi_namespace_yesde *)obj_handle;
+	obj_desc = acpi_ns_get_attached_object(yesde);
 
 	acpi_db_enumerate_object(obj_desc);
 
-	type = node->type;
+	type = yesde->type;
 	if (type > ACPI_TYPE_NS_NODE_MAX) {
-		acpi_gbl_node_type_count_misc++;
+		acpi_gbl_yesde_type_count_misc++;
 	} else {
-		acpi_gbl_node_type_count[type]++;
+		acpi_gbl_yesde_type_count[type]++;
 	}
 
 	return (AE_OK);
@@ -240,7 +240,7 @@ acpi_db_classify_one_object(acpi_handle obj_handle,
 	/* TBD: These need to be counted during the initial parsing phase */
 
 	if (acpi_ps_is_named_op(op->opcode)) {
-		num_nodes++;
+		num_yesdes++;
 	}
 
 	if (is_method) {
@@ -254,10 +254,10 @@ acpi_db_classify_one_object(acpi_handle obj_handle,
 	    (u32)sizeof(union acpi_parse_object);
 	size_of_method_trees =
 	    num_method_elements * (u32)sizeof(union acpi_parse_object);
-	size_of_node_entries =
-	    num_nodes * (u32)sizeof(struct acpi_namespace_node);
+	size_of_yesde_entries =
+	    num_yesdes * (u32)sizeof(struct acpi_namespace_yesde);
 	size_of_acpi_objects =
-	    num_nodes * (u32)sizeof(union acpi_operand_object);
+	    num_yesdes * (u32)sizeof(union acpi_operand_object);
 #endif
 }
 
@@ -270,7 +270,7 @@ acpi_db_classify_one_object(acpi_handle obj_handle,
  * RETURN:      None
  *
  * DESCRIPTION: Count and classify the entire namespace, including all
- *              namespace nodes and attached objects.
+ *              namespace yesdes and attached objects.
  *
  ******************************************************************************/
 
@@ -278,13 +278,13 @@ static void acpi_db_count_namespace_objects(void)
 {
 	u32 i;
 
-	acpi_gbl_num_nodes = 0;
+	acpi_gbl_num_yesdes = 0;
 	acpi_gbl_num_objects = 0;
 
 	acpi_gbl_obj_type_count_misc = 0;
 	for (i = 0; i < (ACPI_TYPE_NS_NODE_MAX - 1); i++) {
 		acpi_gbl_obj_type_count[i] = 0;
-		acpi_gbl_node_type_count[i] = 0;
+		acpi_gbl_yesde_type_count[i] = 0;
 	}
 
 	(void)acpi_ns_walk_namespace(ACPI_TYPE_ANY, ACPI_ROOT_OBJECT,
@@ -327,7 +327,7 @@ acpi_status acpi_db_display_statistics(char *type_arg)
 
 	case CMD_STAT_TABLES:
 
-		acpi_os_printf("ACPI Table Information (not implemented):\n\n");
+		acpi_os_printf("ACPI Table Information (yest implemented):\n\n");
 		break;
 
 	case CMD_STAT_OBJECTS:
@@ -343,16 +343,16 @@ acpi_status acpi_db_display_statistics(char *type_arg)
 		for (i = 0; i < ACPI_TYPE_NS_NODE_MAX; i++) {
 			acpi_os_printf("%16.16s %10u %10u\n",
 				       acpi_ut_get_type_name(i),
-				       acpi_gbl_node_type_count[i],
+				       acpi_gbl_yesde_type_count[i],
 				       acpi_gbl_obj_type_count[i]);
 		}
 
-		acpi_os_printf("%16.16s %10u %10u\n", "Misc/Unknown",
-			       acpi_gbl_node_type_count_misc,
+		acpi_os_printf("%16.16s %10u %10u\n", "Misc/Unkyeswn",
+			       acpi_gbl_yesde_type_count_misc,
 			       acpi_gbl_obj_type_count_misc);
 
 		acpi_os_printf("%16.16s %10u %10u\n", "TOTALS:",
-			       acpi_gbl_num_nodes, acpi_gbl_num_objects);
+			       acpi_gbl_num_yesdes, acpi_gbl_num_objects);
 		break;
 
 	case CMD_STAT_MEMORY:
@@ -362,15 +362,15 @@ acpi_status acpi_db_display_statistics(char *type_arg)
 		    ("\n----Object Statistics (all in hex)---------\n");
 
 		acpi_db_list_info(acpi_gbl_global_list);
-		acpi_db_list_info(acpi_gbl_ns_node_list);
+		acpi_db_list_info(acpi_gbl_ns_yesde_list);
 #endif
 
 #ifdef ACPI_USE_LOCAL_CACHE
 		acpi_os_printf
 		    ("\n----Cache Statistics (all in hex)---------\n");
 		acpi_db_list_info(acpi_gbl_operand_cache);
-		acpi_db_list_info(acpi_gbl_ps_node_cache);
-		acpi_db_list_info(acpi_gbl_ps_node_ext_cache);
+		acpi_db_list_info(acpi_gbl_ps_yesde_cache);
+		acpi_db_list_info(acpi_gbl_ps_yesde_ext_cache);
 		acpi_db_list_info(acpi_gbl_state_cache);
 #endif
 
@@ -433,7 +433,7 @@ acpi_status acpi_db_display_statistics(char *type_arg)
 		acpi_os_printf("Reference      %3d\n",
 			       (u32)sizeof(struct acpi_object_reference));
 		acpi_os_printf("Notify         %3d\n",
-			       (u32)sizeof(struct acpi_object_notify_handler));
+			       (u32)sizeof(struct acpi_object_yestify_handler));
 		acpi_os_printf("AddressSpace   %3d\n",
 			       (u32)sizeof(struct acpi_object_addr_handler));
 		acpi_os_printf("Extra          %3d\n",
@@ -452,7 +452,7 @@ acpi_status acpi_db_display_statistics(char *type_arg)
 		acpi_os_printf("OperandObject  %3d\n",
 			       (u32)sizeof(union acpi_operand_object));
 		acpi_os_printf("NamespaceNode  %3d\n",
-			       (u32)sizeof(struct acpi_namespace_node));
+			       (u32)sizeof(struct acpi_namespace_yesde));
 		acpi_os_printf("AcpiObject     %3d\n",
 			       (u32)sizeof(union acpi_object));
 
@@ -477,7 +477,7 @@ acpi_status acpi_db_display_statistics(char *type_arg)
 		acpi_os_printf("Result Values  %3d\n",
 			       (u32)sizeof(struct acpi_result_values));
 		acpi_os_printf("Notify Info    %3d\n",
-			       (u32)sizeof(struct acpi_notify_info));
+			       (u32)sizeof(struct acpi_yestify_info));
 		break;
 
 	case CMD_STAT_STACK:

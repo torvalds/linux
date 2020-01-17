@@ -5,7 +5,7 @@
 #ifndef __ASM_DEBUG_MONITORS_H
 #define __ASM_DEBUG_MONITORS_H
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <asm/brk-imm.h>
 #include <asm/esr.h>
@@ -74,7 +74,7 @@ struct task_struct;
 #define DBG_HOOK_ERROR		1
 
 struct step_hook {
-	struct list_head node;
+	struct list_head yesde;
 	int (*fn)(struct pt_regs *regs, unsigned int esr);
 };
 
@@ -85,10 +85,10 @@ void register_kernel_step_hook(struct step_hook *hook);
 void unregister_kernel_step_hook(struct step_hook *hook);
 
 struct break_hook {
-	struct list_head node;
+	struct list_head yesde;
 	int (*fn)(struct pt_regs *regs, unsigned int esr);
 	u16 imm;
-	u16 mask; /* These bits are ignored when comparing with imm */
+	u16 mask; /* These bits are igyesred when comparing with imm */
 };
 
 void register_user_break_hook(struct break_hook *hook);

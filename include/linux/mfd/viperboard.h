@@ -2,7 +2,7 @@
 /*
  *  include/linux/mfd/viperboard.h
  *
- *  Nano River Technologies viperboard definitions
+ *  Nayes River Techyeslogies viperboard definitions
  *
  *  (C) 2012 by Lemonage GmbH
  *  Author: Lars Poeschel <poeschel@lemonage.de>
@@ -69,7 +69,7 @@ struct vprbrd_i2c_read_hdr {
 } __packed;
 
 struct vprbrd_i2c_status {
-	u8 unknown[11];
+	u8 unkyeswn[11];
 	u8 status;
 } __packed;
 
@@ -88,10 +88,10 @@ struct vprbrd_i2c_read_msg {
 struct vprbrd_i2c_addr_msg {
 	u8 cmd;
 	u8 addr;
-	u8 unknown1;
+	u8 unkyeswn1;
 	u16 len;
-	u8 unknown2;
-	u8 unknown3;
+	u8 unkyeswn2;
+	u8 unkyeswn3;
 } __packed;
 
 /* Structure to hold all device specific stuff */

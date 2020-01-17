@@ -2,7 +2,7 @@
 /*
  * Microchip Image Sensor Controller (ISC) common driver base
  *
- * Copyright (C) 2016-2019 Microchip Technology, Inc.
+ * Copyright (C) 2016-2019 Microchip Techyeslogy, Inc.
  *
  * Author: Songjun Wu
  * Author: Eugen Hristev <eugen.hristev@microchip.com>
@@ -28,7 +28,7 @@
 #include <media/v4l2-event.h>
 #include <media/v4l2-image-sizes.h>
 #include <media/v4l2-ioctl.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 #include <media/v4l2-subdev.h>
 #include <media/videobuf2-dma-contig.h>
 
@@ -455,7 +455,7 @@ static const struct clk_ops isc_clk_ops = {
 static int isc_clk_register(struct isc_device *isc, unsigned int id)
 {
 	struct regmap *regmap = isc->regmap;
-	struct device_node *np = isc->dev->of_node;
+	struct device_yesde *np = isc->dev->of_yesde;
 	struct isc_clk *isc_clk;
 	struct clk_init_data init;
 	const char *clk_name = np->name;
@@ -520,7 +520,7 @@ void isc_clk_cleanup(struct isc_device *isc)
 {
 	unsigned int i;
 
-	of_clk_del_provider(isc->dev->of_node);
+	of_clk_del_provider(isc->dev->of_yesde);
 
 	for (i = 0; i < ARRAY_SIZE(isc->isc_clks); i++) {
 		struct isc_clk *isc_clk = &isc->isc_clks[i];
@@ -577,7 +577,7 @@ static void isc_start_dma(struct isc_device *isc)
 	w = isc->fmt.fmt.pix.width;
 
 	/*
-	 * In case the sensor is not RAW, it will output a pixel (12-16 bits)
+	 * In case the sensor is yest RAW, it will output a pixel (12-16 bits)
 	 * with two samples on the ISC Data bus (which is 8-12)
 	 * ISC will count each sample, so, we need to multiply these values
 	 * by two, to get the real number of samples for the required pixels.
@@ -1007,11 +1007,11 @@ static int isc_try_validate_formats(struct isc_device *isc)
 		grey = true;
 		break;
 	default:
-	/* any other different formats are not supported */
+	/* any other different formats are yest supported */
 		ret = -EINVAL;
 	}
 
-	/* we cannot output RAW/Grey if we do not receive RAW */
+	/* we canyest output RAW/Grey if we do yest receive RAW */
 	if ((bayer || grey) &&
 	    !ISC_IS_FORMAT_RAW(isc->try_config.sd_format->mbus_code))
 		return -EINVAL;
@@ -1222,7 +1222,7 @@ static int isc_try_fmt(struct isc_device *isc, struct v4l2_format *f,
 	if (direct_fmt && sd_fmt && sensor_preferred)
 		sd_fmt = direct_fmt;
 
-	/* Step 4: we do not have RAW but we have a direct format. Use it. */
+	/* Step 4: we do yest have RAW but we have a direct format. Use it. */
 	if (direct_fmt && !sd_fmt)
 		sd_fmt = direct_fmt;
 
@@ -1232,14 +1232,14 @@ static int isc_try_fmt(struct isc_device *isc, struct v4l2_format *f,
 	if (sd_fmt == direct_fmt)
 		rlp_dma_direct_dump = true;
 
-	/* Step 6: We have no format. This can happen if the userspace
+	/* Step 6: We have yes format. This can happen if the userspace
 	 * requests some weird/invalid format.
 	 * In this case, default to whatever we have
 	 */
 	if (!sd_fmt && !direct_fmt) {
 		sd_fmt = isc->user_formats[isc->num_user_formats - 1];
 		v4l2_dbg(1, debug, &isc->v4l2_dev,
-			 "Sensor not supporting %.4s, using %.4s\n",
+			 "Sensor yest supporting %.4s, using %.4s\n",
 			 (char *)&pixfmt->pixelformat, (char *)&sd_fmt->fourcc);
 	}
 
@@ -1269,7 +1269,7 @@ static int isc_try_fmt(struct isc_device *isc, struct v4l2_format *f,
 	mbus_code = sd_fmt->mbus_code;
 
 	/*
-	 * Validate formats. If the required format is not OK, default to raw.
+	 * Validate formats. If the required format is yest OK, default to raw.
 	 */
 
 	isc->try_config.fourcc = pixfmt->pixelformat;
@@ -1308,7 +1308,7 @@ static int isc_try_fmt(struct isc_device *isc, struct v4l2_format *f,
 	return 0;
 
 isc_try_fmt_err:
-	v4l2_err(&isc->v4l2_dev, "Could not find any possible format for a working pipeline\n");
+	v4l2_err(&isc->v4l2_dev, "Could yest find any possible format for a working pipeline\n");
 isc_try_fmt_subdev_err:
 	memset(&isc->try_config, 0, sizeof(isc->try_config));
 
@@ -1638,7 +1638,7 @@ static void isc_hist_count(struct isc_device *isc, u32 *min, u32 *max)
 
 	*hist_count = 0;
 	/*
-	 * we deliberately ignore the end of the histogram,
+	 * we deliberately igyesre the end of the histogram,
 	 * the most white pixels
 	 */
 	for (i = 1; i < HIST_ENTRIES; i++) {
@@ -1662,7 +1662,7 @@ static void isc_wb_update(struct isc_ctrls *ctrls)
 	u32 s_gain[4], gw_gain[4];
 
 	/*
-	 * According to Grey World, we need to set gains for R/B to normalize
+	 * According to Grey World, we need to set gains for R/B to yesrmalize
 	 * them towards the green channel.
 	 * Thus we want to keep Green as fixed and adjust only Red/Blue
 	 * Compute the average of the both green channels first
@@ -1671,7 +1671,7 @@ static void isc_wb_update(struct isc_ctrls *ctrls)
 		(u64)hist_count[ISC_HIS_CFG_MODE_GB];
 	avg >>= 1;
 
-	/* Green histogram is null, nothing to do */
+	/* Green histogram is null, yesthing to do */
 	if (!avg)
 		return;
 
@@ -1684,12 +1684,12 @@ static void isc_wb_update(struct isc_ctrls *ctrls)
 		offset[c] = ctrls->hist_minmax[c][HIST_MIN_INDEX];
 		/*
 		 * The offset is always at least 1. If the offset is 1, we do
-		 * not need to adjust it, so our result must be zero.
+		 * yest need to adjust it, so our result must be zero.
 		 * the offset is computed in a histogram on 9 bits (0..512)
 		 * but the offset in register is based on
 		 * 12 bits pipeline (0..4096).
 		 * we need to shift with the 3 bits that the histogram is
-		 * ignoring
+		 * igyesring
 		 */
 		ctrls->offset[c] = (offset[c] - 1) << 3;
 
@@ -1737,7 +1737,7 @@ static void isc_awb_work(struct work_struct *w)
 	unsigned long flags;
 	u32 min, max;
 
-	/* streaming is not active anymore */
+	/* streaming is yest active anymore */
 	if (isc->stop)
 		return;
 
@@ -1758,7 +1758,7 @@ static void isc_awb_work(struct work_struct *w)
 	ctrls->hist_id = hist_id;
 	baysel = isc->config.sd_format->cfa_baycfg << ISC_HIS_CFG_BAYSEL_SHIFT;
 
-	/* if no more auto white balance, reset controls. */
+	/* if yes more auto white balance, reset controls. */
 	if (ctrls->awb == ISC_WB_NONE)
 		isc_reset_awb_ctrls(isc);
 
@@ -1791,7 +1791,7 @@ static void isc_awb_work(struct work_struct *w)
 	}
 	regmap_write(regmap, ISC_HIS_CFG, hist_id | baysel | ISC_HIS_CFG_RAR);
 	isc_update_profile(isc);
-	/* if awb has been disabled, we don't need to start another histogram */
+	/* if awb has been disabled, we don't need to start ayesther histogram */
 	if (ctrls->awb)
 		regmap_write(regmap, ISC_CTRLEN, ISC_CTRL_HISREQ);
 
@@ -1823,7 +1823,7 @@ static int isc_s_ctrl(struct v4l2_ctrl *ctrl)
 		else
 			ctrls->awb = ISC_WB_NONE;
 
-		/* we did not configure ISC yet */
+		/* we did yest configure ISC yet */
 		if (!isc->config.sd_format)
 			break;
 
@@ -1837,7 +1837,7 @@ static int isc_s_ctrl(struct v4l2_ctrl *ctrl)
 
 		break;
 	case V4L2_CID_DO_WHITE_BALANCE:
-		/* if AWB is enabled, do nothing */
+		/* if AWB is enabled, do yesthing */
 		if (ctrls->awb == ISC_WB_AUTO)
 			return 0;
 
@@ -1879,7 +1879,7 @@ static int isc_ctrl_init(struct isc_device *isc)
 	v4l2_ctrl_new_std(hdl, ops, V4L2_CID_GAMMA, 0, GAMMA_MAX, 1, 2);
 	v4l2_ctrl_new_std(hdl, ops, V4L2_CID_AUTO_WHITE_BALANCE, 0, 1, 1, 1);
 
-	/* do_white_balance is a button, so min,max,step,default are ignored */
+	/* do_white_balance is a button, so min,max,step,default are igyesred */
 	isc->do_wb_ctrl = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_DO_WHITE_BALANCE,
 					    0, 0, 0, 0);
 
@@ -1896,14 +1896,14 @@ static int isc_ctrl_init(struct isc_device *isc)
 	return 0;
 }
 
-static int isc_async_bound(struct v4l2_async_notifier *notifier,
+static int isc_async_bound(struct v4l2_async_yestifier *yestifier,
 			    struct v4l2_subdev *subdev,
 			    struct v4l2_async_subdev *asd)
 {
-	struct isc_device *isc = container_of(notifier->v4l2_dev,
+	struct isc_device *isc = container_of(yestifier->v4l2_dev,
 					      struct isc_device, v4l2_dev);
 	struct isc_subdev_entity *subdev_entity =
-		container_of(notifier, struct isc_subdev_entity, notifier);
+		container_of(yestifier, struct isc_subdev_entity, yestifier);
 
 	if (video_is_registered(&isc->video_dev)) {
 		v4l2_err(&isc->v4l2_dev, "only supports one sub-device.\n");
@@ -1915,11 +1915,11 @@ static int isc_async_bound(struct v4l2_async_notifier *notifier,
 	return 0;
 }
 
-static void isc_async_unbind(struct v4l2_async_notifier *notifier,
+static void isc_async_unbind(struct v4l2_async_yestifier *yestifier,
 			      struct v4l2_subdev *subdev,
 			      struct v4l2_async_subdev *asd)
 {
-	struct isc_device *isc = container_of(notifier->v4l2_dev,
+	struct isc_device *isc = container_of(yestifier->v4l2_dev,
 					      struct isc_device, v4l2_dev);
 	cancel_work_sync(&isc->awb_work);
 	video_unregister_device(&isc->video_dev);
@@ -1960,7 +1960,7 @@ static int isc_formats_init(struct isc_device *isc)
 
 		fmt = find_format_by_code(mbus_code.code, &i);
 		if (!fmt) {
-			v4l2_warn(&isc->v4l2_dev, "Mbus code %x not supported\n",
+			v4l2_warn(&isc->v4l2_dev, "Mbus code %x yest supported\n",
 				  mbus_code.code);
 			continue;
 		}
@@ -2010,9 +2010,9 @@ static int isc_set_default_fmt(struct isc_device *isc)
 	return 0;
 }
 
-static int isc_async_complete(struct v4l2_async_notifier *notifier)
+static int isc_async_complete(struct v4l2_async_yestifier *yestifier)
 {
-	struct isc_device *isc = container_of(notifier->v4l2_dev,
+	struct isc_device *isc = container_of(yestifier->v4l2_dev,
 					      struct isc_device, v4l2_dev);
 	struct video_device *vdev = &isc->video_dev;
 	struct vb2_queue *q = &isc->vb2_vidq;
@@ -2020,14 +2020,14 @@ static int isc_async_complete(struct v4l2_async_notifier *notifier)
 
 	INIT_WORK(&isc->awb_work, isc_awb_work);
 
-	ret = v4l2_device_register_subdev_nodes(&isc->v4l2_dev);
+	ret = v4l2_device_register_subdev_yesdes(&isc->v4l2_dev);
 	if (ret < 0) {
-		v4l2_err(&isc->v4l2_dev, "Failed to register subdev nodes\n");
+		v4l2_err(&isc->v4l2_dev, "Failed to register subdev yesdes\n");
 		return ret;
 	}
 
-	isc->current_subdev = container_of(notifier,
-					   struct isc_subdev_entity, notifier);
+	isc->current_subdev = container_of(yestifier,
+					   struct isc_subdev_entity, yestifier);
 	mutex_init(&isc->lock);
 	init_completion(&isc->comp);
 
@@ -2064,7 +2064,7 @@ static int isc_async_complete(struct v4l2_async_notifier *notifier)
 
 	ret = isc_set_default_fmt(isc);
 	if (ret) {
-		v4l2_err(&isc->v4l2_dev, "Could not set default format\n");
+		v4l2_err(&isc->v4l2_dev, "Could yest set default format\n");
 		goto isc_async_complete_err;
 	}
 
@@ -2101,7 +2101,7 @@ isc_async_complete_err:
 	return ret;
 }
 
-const struct v4l2_async_notifier_operations isc_async_ops = {
+const struct v4l2_async_yestifier_operations isc_async_ops = {
 	.bound = isc_async_bound,
 	.unbind = isc_async_unbind,
 	.complete = isc_async_complete,
@@ -2112,8 +2112,8 @@ void isc_subdev_cleanup(struct isc_device *isc)
 	struct isc_subdev_entity *subdev_entity;
 
 	list_for_each_entry(subdev_entity, &isc->subdev_entities, list) {
-		v4l2_async_notifier_unregister(&subdev_entity->notifier);
-		v4l2_async_notifier_cleanup(&subdev_entity->notifier);
+		v4l2_async_yestifier_unregister(&subdev_entity->yestifier);
+		v4l2_async_yestifier_cleanup(&subdev_entity->yestifier);
 	}
 
 	INIT_LIST_HEAD(&isc->subdev_entities);

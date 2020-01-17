@@ -8,39 +8,39 @@ Many LED devices expose more than one current output that can be connected
 to one or more discrete LED component. Since the arrangement of connections
 can influence the way of the LED device initialization, the LED components
 have to be tightly coupled with the LED device binding. They are represented
-by child nodes of the parent LED device binding.
+by child yesdes of the parent LED device binding.
 
 
-Optional properties for child nodes:
+Optional properties for child yesdes:
 - led-sources : List of device current outputs the LED is connected to. The
 		outputs are identified by the numbers that must be defined
 		in the LED device binding documentation.
 
 - function: LED functon. Use one of the LED_FUNCTION_* prefixed definitions
 	    from the header include/dt-bindings/leds/common.h.
-	    If there is no matching LED_FUNCTION available, add a new one.
+	    If there is yes matching LED_FUNCTION available, add a new one.
 
 - color : Color of the LED. Use one of the LED_COLOR_ID_* prefixed definitions
 	  from the header include/dt-bindings/leds/common.h.
-	  If there is no matching LED_COLOR_ID available, add a new one.
+	  If there is yes matching LED_COLOR_ID available, add a new one.
 
 - function-enumerator: Integer to be used when more than one instance
                        of the same function is needed, differing only with
 		       an ordinal number.
 
-- label : The label for this LED. If omitted, the label is taken from the node
+- label : The label for this LED. If omitted, the label is taken from the yesde
 	  name (excluding the unit address). It has to uniquely identify
-	  a device, i.e. no other LED class device can be assigned the same
+	  a device, i.e. yes other LED class device can be assigned the same
 	  label. This property is deprecated - use 'function' and 'color'
-	  properties instead. function-enumerator has no effect when this
+	  properties instead. function-enumerator has yes effect when this
 	  property is present.
 
 - default-state : The initial state of the LED. Valid values are "on", "off",
   and "keep". If the LED is already on or off and the default-state property is
-  set the to same value, then no glitch should be produced where the LED
+  set the to same value, then yes glitch should be produced where the LED
   momentarily turns off (or on). The "keep" setting will keep the LED at
   whatever its current state is, without producing a glitch.  The default is
-  off if this property is not present.
+  off if this property is yest present.
 
 - linux,default-trigger :  This parameter, if present, is a
     string defining the trigger assigned to the LED.  Current triggers are:
@@ -71,7 +71,7 @@ Optional properties for child nodes:
                      introducing a risk of hardware damage in case an excessive
                      current is set.
                      For flash LED controllers with configurable current this
-                     property is mandatory for the LEDs in the non-flash modes
+                     property is mandatory for the LEDs in the yesn-flash modes
                      (e.g. torch or indicator).
 
 - panic-indicator : This property specifies that the LED should be used,
@@ -81,36 +81,36 @@ Optional properties for child nodes:
 		    this LED activity. Some LEDs can be related to a specific
 		    device and should somehow indicate its state. E.g. USB 2.0
 		    LED may react to device(s) in a USB 2.0 port(s).
-		    Another common example is switch or router with multiple
+		    Ayesther common example is switch or router with multiple
 		    Ethernet ports each of them having its own LED assigned
-		    (assuming they are not hardwired). In such cases this
+		    (assuming they are yest hardwired). In such cases this
 		    property should contain phandle(s) of related source
 		    device(s).
 		    In many cases LED can be related to more than one device
 		    (e.g. one USB LED vs. multiple USB ports). Each source
-		    should be represented by a node in the device tree and be
+		    should be represented by a yesde in the device tree and be
 		    referenced by a phandle and a set of phandle arguments. A
 		    length of arguments should be specified by the
-		    #trigger-source-cells property in the source node.
+		    #trigger-source-cells property in the source yesde.
 
-Required properties for flash LED child nodes:
+Required properties for flash LED child yesdes:
 - flash-max-microamp : Maximum flash LED supply current in microamperes.
 - flash-max-timeout-us : Maximum timeout in microseconds after which the flash
                          LED is turned off.
 
-For controllers that have no configurable current the flash-max-microamp
+For controllers that have yes configurable current the flash-max-microamp
 property can be omitted.
-For controllers that have no configurable timeout the flash-max-timeout-us
+For controllers that have yes configurable timeout the flash-max-timeout-us
 property can be omitted.
 
 * Trigger source providers
 
-Each trigger source should be represented by a device tree node. It may be e.g.
+Each trigger source should be represented by a device tree yesde. It may be e.g.
 a USB port or an Ethernet device.
 
 Required properties for trigger source:
 - #trigger-source-cells : Number of cells in a source trigger. Typically 0 for
-			  nodes of simple trigger sources (e.g. a specific USB
+			  yesdes of simple trigger sources (e.g. a specific USB
 			  port).
 
 * Examples

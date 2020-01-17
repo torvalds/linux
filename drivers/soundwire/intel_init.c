@@ -74,7 +74,7 @@ static struct sdw_intel_ctx
 
 	/* Found controller, find links supported */
 	count = 0;
-	ret = fwnode_property_read_u8_array(acpi_fwnode_handle(adev),
+	ret = fwyesde_property_read_u8_array(acpi_fwyesde_handle(adev),
 					    "mipi-sdw-master-count", &count, 1);
 
 	/* Don't fail on error, continue and use hw value */
@@ -118,7 +118,7 @@ static struct sdw_intel_ctx
 	for (i = 0; i < count; i++) {
 		if (link_mask && !(link_mask & BIT(i))) {
 			dev_dbg(&adev->dev,
-				"Link %d masked, will not be enabled\n", i);
+				"Link %d masked, will yest be enabled\n", i);
 			link++;
 			continue;
 		}
@@ -137,7 +137,7 @@ static struct sdw_intel_ctx
 		pdevinfo.parent = res->parent;
 		pdevinfo.name = "int-sdw";
 		pdevinfo.id = i;
-		pdevinfo.fwnode = acpi_fwnode_handle(adev);
+		pdevinfo.fwyesde = acpi_fwyesde_handle(adev);
 		pdevinfo.data = &link->res;
 		pdevinfo.size_data = sizeof(link->res);
 

@@ -142,9 +142,9 @@ static int srf08_read_ranging(struct srf08_data *data)
 	 *
 	 * with an ultrasonic speed of 343 m/s and a roundtrip of it
 	 * sleep the expected duration and try to read from the device
-	 * if nothing useful is read try it in a shorter grid
+	 * if yesthing useful is read try it in a shorter grid
 	 *
-	 * polling for not more than 20 ms should be enough
+	 * polling for yest more than 20 ms should be eyesugh
 	 */
 	waittime = 1 + data->range_mm / 172;
 	msleep(waittime);
@@ -159,7 +159,7 @@ static int srf08_read_ranging(struct srf08_data *data)
 	}
 
 	if (ret >= 255 || ret <= 0) {
-		dev_err(&client->dev, "device not ready\n");
+		dev_err(&client->dev, "device yest ready\n");
 		mutex_unlock(&data->lock);
 		return -EIO;
 	}
@@ -167,7 +167,7 @@ static int srf08_read_ranging(struct srf08_data *data)
 	ret = i2c_smbus_read_word_swapped(data->client,
 						SRF08_READ_ECHO_1_HIGH);
 	if (ret < 0) {
-		dev_err(&client->dev, "cannot read distance: ret=%d\n", ret);
+		dev_err(&client->dev, "canyest read distance: ret=%d\n", ret);
 		mutex_unlock(&data->lock);
 		return ret;
 	}
@@ -196,7 +196,7 @@ static irqreturn_t srf08_trigger_handler(int irq, void *p)
 
 	mutex_unlock(&data->lock);
 err:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 	return IRQ_HANDLED;
 }
 
@@ -500,7 +500,7 @@ static int srf08_probe(struct i2c_client *client,
 	if (data->chip_info->range_default) {
 		/*
 		 * set default range of device in mm here
-		 * these register values cannot be read from the hardware
+		 * these register values canyest be read from the hardware
 		 * therefore set driver specific default values
 		 *
 		 * srf02 don't have a default value so it'll be omitted
@@ -514,7 +514,7 @@ static int srf08_probe(struct i2c_client *client,
 	if (data->chip_info->sensitivity_default) {
 		/*
 		 * set default sensitivity of device here
-		 * these register values cannot be read from the hardware
+		 * these register values canyest be read from the hardware
 		 * therefore set driver specific default values
 		 *
 		 * srf02 don't have a default value so it'll be omitted

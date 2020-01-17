@@ -37,7 +37,7 @@ static const bool verify_fast_training;
 
 struct bridge_init {
 	struct i2c_client *client;
-	struct device_node *node;
+	struct device_yesde *yesde;
 };
 
 static int analogix_dp_init_dp(struct analogix_dp_device *dp)
@@ -77,7 +77,7 @@ static int analogix_dp_detect_hpd(struct analogix_dp_device *dp)
 	}
 
 	/*
-	 * Some edp screen do not have hpd signal, so we can't just
+	 * Some edp screen do yest have hpd signal, so we can't just
 	 * return failed when hpd plug in detect failed, DT property
 	 * "force-hpd" would indicate whether driver need this.
 	 */
@@ -86,7 +86,7 @@ static int analogix_dp_detect_hpd(struct analogix_dp_device *dp)
 
 	/*
 	 * The eDP TRM indicate that if HPD_STATUS(RO) is 0, AUX CH
-	 * will not work, so we need to give a force hpd action to
+	 * will yest work, so we need to give a force hpd action to
 	 * set HPD_STATUS manually.
 	 */
 	dev_dbg(dp->dev, "failed to get hpd plug status, try to force hpd\n");
@@ -588,7 +588,7 @@ static int analogix_dp_process_equalizer_training(struct analogix_dp_device *dp)
 		return 0;
 	}
 
-	/* not all locked */
+	/* yest all locked */
 	dp->link_train.eq_loop++;
 
 	if (dp->link_train.eq_loop > MAX_EQ_LOOP) {
@@ -656,13 +656,13 @@ static int analogix_dp_full_link_train(struct analogix_dp_device *dp,
 	if ((dp->link_train.link_rate != DP_LINK_BW_1_62) &&
 	    (dp->link_train.link_rate != DP_LINK_BW_2_7) &&
 	    (dp->link_train.link_rate != DP_LINK_BW_5_4)) {
-		dev_err(dp->dev, "Rx Max Link Rate is abnormal :%x !\n",
+		dev_err(dp->dev, "Rx Max Link Rate is abyesrmal :%x !\n",
 			dp->link_train.link_rate);
 		dp->link_train.link_rate = DP_LINK_BW_1_62;
 	}
 
 	if (dp->link_train.lane_count == 0) {
-		dev_err(dp->dev, "Rx Max Lane count is abnormal :%x !\n",
+		dev_err(dp->dev, "Rx Max Lane count is abyesrmal :%x !\n",
 			dp->link_train.lane_count);
 		dp->link_train.lane_count = (u8)LANE_COUNT1;
 	}
@@ -803,7 +803,7 @@ static int analogix_dp_config_video(struct analogix_dp_device *dp)
 	analogix_dp_set_video_color_format(dp);
 
 	if (analogix_dp_get_pll_lock_status(dp) == PLL_UNLOCKED) {
-		dev_err(dp->dev, "PLL is not locked yet.\n");
+		dev_err(dp->dev, "PLL is yest locked yet.\n");
 		return -EINVAL;
 	}
 
@@ -846,7 +846,7 @@ static int analogix_dp_config_video(struct analogix_dp_device *dp)
 		}
 		if (timeout_loop > DP_TIMEOUT_LOOP_COUNT) {
 			dev_warn(dp->dev,
-				 "Ignoring timeout of video streamclk ok\n");
+				 "Igyesring timeout of video streamclk ok\n");
 			break;
 		}
 
@@ -954,7 +954,7 @@ static int analogix_dp_commit(struct analogix_dp_device *dp)
 
 	ret = analogix_dp_enable_scramble(dp, 1);
 	if (ret < 0) {
-		dev_err(dp->dev, "can not enable scramble\n");
+		dev_err(dp->dev, "can yest enable scramble\n");
 		return ret;
 	}
 
@@ -965,7 +965,7 @@ static int analogix_dp_commit(struct analogix_dp_device *dp)
 		return ret;
 	}
 
-	/* Safe to enable the panel now */
+	/* Safe to enable the panel yesw */
 	if (dp->plat_data->panel) {
 		ret = drm_panel_enable(dp->plat_data->panel);
 		if (ret) {
@@ -1224,7 +1224,7 @@ static int analogix_dp_bridge_attach(struct drm_bridge *bridge)
 	int ret = 0;
 
 	if (!bridge->encoder) {
-		DRM_ERROR("Parent encoder object not found");
+		DRM_ERROR("Parent encoder object yest found");
 		return -ENODEV;
 	}
 
@@ -1492,7 +1492,7 @@ static void analogix_dp_bridge_mode_set(struct drm_bridge *bridge,
 	struct analogix_dp_device *dp = bridge->driver_private;
 	struct drm_display_info *display_info = &dp->connector.display_info;
 	struct video_info *video = &dp->video_info;
-	struct device_node *dp_node = dp->dev->of_node;
+	struct device_yesde *dp_yesde = dp->dev->of_yesde;
 	int vic;
 
 	/* Input video interlaces & hsync pol & vsync pol */
@@ -1546,19 +1546,19 @@ static void analogix_dp_bridge_mode_set(struct drm_bridge *bridge,
 	 * property isn't present, the "video_info" can keep the original
 	 * values and wouldn't be modified.
 	 */
-	of_property_read_u32(dp_node, "samsung,color-space",
+	of_property_read_u32(dp_yesde, "samsung,color-space",
 			     &video->color_space);
-	of_property_read_u32(dp_node, "samsung,dynamic-range",
+	of_property_read_u32(dp_yesde, "samsung,dynamic-range",
 			     &video->dynamic_range);
-	of_property_read_u32(dp_node, "samsung,ycbcr-coeff",
+	of_property_read_u32(dp_yesde, "samsung,ycbcr-coeff",
 			     &video->ycbcr_coeff);
-	of_property_read_u32(dp_node, "samsung,color-depth",
+	of_property_read_u32(dp_yesde, "samsung,color-depth",
 			     &video->color_depth);
-	if (of_property_read_bool(dp_node, "hsync-active-high"))
+	if (of_property_read_bool(dp_yesde, "hsync-active-high"))
 		video->h_sync_polarity = true;
-	if (of_property_read_bool(dp_node, "vsync-active-high"))
+	if (of_property_read_bool(dp_yesde, "vsync-active-high"))
 		video->v_sync_polarity = true;
-	if (of_property_read_bool(dp_node, "interlaced"))
+	if (of_property_read_bool(dp_yesde, "interlaced"))
 		video->interlaced = true;
 }
 
@@ -1599,7 +1599,7 @@ static int analogix_dp_create_bridge(struct drm_device *drm_dev,
 
 static int analogix_dp_dt_parse_pdata(struct analogix_dp_device *dp)
 {
-	struct device_node *dp_node = dp->dev->of_node;
+	struct device_yesde *dp_yesde = dp->dev->of_yesde;
 	struct video_info *video_info = &dp->video_info;
 
 	switch (dp->plat_data->dev_type) {
@@ -1617,9 +1617,9 @@ static int analogix_dp_dt_parse_pdata(struct analogix_dp_device *dp)
 		 * NOTE: those property parseing code is used for
 		 * providing backward compatibility for samsung platform.
 		 */
-		of_property_read_u32(dp_node, "samsung,link-rate",
+		of_property_read_u32(dp_yesde, "samsung,link-rate",
 				     &video_info->max_link_rate);
-		of_property_read_u32(dp_node, "samsung,lane-count",
+		of_property_read_u32(dp_yesde, "samsung,lane-count",
 				     &video_info->max_lane_count);
 		break;
 	}
@@ -1661,9 +1661,9 @@ analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
 	dp->panel_is_modeset = false;
 
 	/*
-	 * platform dp driver need containor_of the plat_data to get
+	 * platform dp driver need contaiyesr_of the plat_data to get
 	 * the driver private data, so we need to store the point of
-	 * plat_data, not the context of plat_data.
+	 * plat_data, yest the context of plat_data.
 	 */
 	dp->plat_data = plat_data;
 
@@ -1673,11 +1673,11 @@ analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
 
 	dp->phy = devm_phy_get(dp->dev, "dp");
 	if (IS_ERR(dp->phy)) {
-		dev_err(dp->dev, "no DP phy configured\n");
+		dev_err(dp->dev, "yes DP phy configured\n");
 		ret = PTR_ERR(dp->phy);
 		if (ret) {
 			/*
-			 * phy itself is not enabled, so we can move forward
+			 * phy itself is yest enabled, so we can move forward
 			 * assigning NULL to phy pointer.
 			 */
 			if (ret == -ENOSYS || ret == -ENODEV)
@@ -1701,7 +1701,7 @@ analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
 	if (IS_ERR(dp->reg_base))
 		return ERR_CAST(dp->reg_base);
 
-	dp->force_hpd = of_property_read_bool(dev->of_node, "force-hpd");
+	dp->force_hpd = of_property_read_bool(dev->of_yesde, "force-hpd");
 
 	/* Try two different names */
 	dp->hpd_gpiod = devm_gpiod_get_optional(dev, "hpd", GPIOD_IN);
@@ -1780,7 +1780,7 @@ void analogix_dp_unbind(struct analogix_dp_device *dp)
 
 	if (dp->plat_data->panel) {
 		if (drm_panel_unprepare(dp->plat_data->panel))
-			DRM_ERROR("failed to turnoff the panel\n");
+			DRM_ERROR("failed to turyesff the panel\n");
 		drm_panel_detach(dp->plat_data->panel);
 	}
 
@@ -1797,7 +1797,7 @@ int analogix_dp_suspend(struct analogix_dp_device *dp)
 
 	if (dp->plat_data->panel) {
 		if (drm_panel_unprepare(dp->plat_data->panel))
-			DRM_ERROR("failed to turnoff the panel\n");
+			DRM_ERROR("failed to turyesff the panel\n");
 	}
 
 	return 0;

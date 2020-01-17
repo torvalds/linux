@@ -30,7 +30,7 @@
  *    endianness and host is aware of guest endianness and does all
  *    required endianness conversion.
  * 4. Data provided from user space to guest (in ADD_DEVICE and
- *    CONFIG_CHANGE ioctl's) is not interpreted by the driver and should be
+ *    CONFIG_CHANGE ioctl's) is yest interpreted by the driver and should be
  *    in guest endianness.
  */
 
@@ -41,9 +41,9 @@
  * @hotplug_work: Handle virtio device creation, deletion and configuration
  * @cookie: Cookie received upon requesting a virtio configuration interrupt
  * @h2c_config_db: The doorbell used by the peer to indicate a config change
- * @vdev_list: List of "active" virtio devices injected in the peer node
+ * @vdev_list: List of "active" virtio devices injected in the peer yesde
  * @vop_mutex: Synchronize access to the device page as well as serialize
- *             creation/deletion of virtio devices on the peer node
+ *             creation/deletion of virtio devices on the peer yesde
  * @dp: Peer device page information
  * @dbg: Debugfs entry
  * @dma_ch: The DMA channel used by this transport for data transfers.
@@ -76,7 +76,7 @@ struct vop_info {
  * @buf: Temporary kernel buffer used to copy in/out data
  * from/to the card via DMA.
  * @buf_da: dma address of buf.
- * @vdev: Back pointer to VOP virtio device for vringh_notify(..).
+ * @vdev: Back pointer to VOP virtio device for vringh_yestify(..).
  */
 struct vop_vringh {
 	struct mic_vring vring;
@@ -104,9 +104,9 @@ struct vop_vringh {
  * @in_bytes_dma - Debug stats for number of bytes copied from card to host
  * using DMA.
  * @tx_len_unaligned - Debug stats for number of bytes copied to the card where
- * the transfer length did not have the required DMA alignment.
+ * the transfer length did yest have the required DMA alignment.
  * @tx_dst_unaligned - Debug stats for number of bytes copied where the
- * destination address on the card did not have the required DMA alignment.
+ * destination address on the card did yest have the required DMA alignment.
  * @vvr - Store per VRING data structures.
  * @virtio_bh_work - Work struct used to schedule virtio bottom half handling.
  * @dd - Virtio device descriptor.

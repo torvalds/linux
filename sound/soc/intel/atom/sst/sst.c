@@ -3,7 +3,7 @@
  *  sst.c - Intel SST Driver for audio engine
  *
  *  Copyright (C) 2008-14	Intel Corp
- *  Authors:	Vinod Koul <vinod.koul@intel.com>
+ *  Authors:	Viyesd Koul <viyesd.koul@intel.com>
  *		Harsha Priya <priya.harsha@intel.com>
  *		Dharageswari R <dharageswari.r@intel.com>
  *		KP Jeeja <jeeja.kp@intel.com>
@@ -28,7 +28,7 @@
 #include "sst.h"
 #include "../../common/sst-dsp.h"
 
-MODULE_AUTHOR("Vinod Koul <vinod.koul@intel.com>");
+MODULE_AUTHOR("Viyesd Koul <viyesd.koul@intel.com>");
 MODULE_AUTHOR("Harsha Priya <priya.harsha@intel.com>");
 MODULE_DESCRIPTION("Intel (R) SST(R) Audio Engine Driver");
 MODULE_LICENSE("GPL v2");
@@ -95,7 +95,7 @@ static irqreturn_t intel_sst_interrupt_mrfld(int irq, void *context)
 					drv->mailbox + drv->mailbox_recv_offset, size);
 			} else {
 				dev_err(drv->dev,
-					"Mailbox not copied, payload size is: %u\n", size);
+					"Mailbox yest copied, payload size is: %u\n", size);
 				header.p.header_low_payload = 0;
 			}
 		}
@@ -104,7 +104,7 @@ static irqreturn_t intel_sst_interrupt_mrfld(int irq, void *context)
 		msg->is_process_reply =
 			sst_is_process_reply(header.p.header_high.part.msg_id);
 		spin_lock(&drv->rx_msg_lock);
-		list_add_tail(&msg->node, &drv->rx_list);
+		list_add_tail(&msg->yesde, &drv->rx_list);
 		spin_unlock(&drv->rx_msg_lock);
 		drv->ops->clear_interrupt(drv);
 		retval = IRQ_WAKE_THREAD;
@@ -124,8 +124,8 @@ static irqreturn_t intel_sst_irq_thread_mrfld(int irq, void *context)
 		return IRQ_HANDLED;
 	}
 
-	list_for_each_entry_safe(msg, __msg, &drv->rx_list, node) {
-		list_del(&msg->node);
+	list_for_each_entry_safe(msg, __msg, &drv->rx_list, yesde) {
+		list_del(&msg->yesde);
 		spin_unlock_irqrestore(&drv->rx_msg_lock, irq_flags);
 		if (msg->is_process_reply)
 			drv->ops->process_message(msg);
@@ -150,7 +150,7 @@ static int sst_save_dsp_context_v2(struct intel_sst_drv *sst)
 			true, true, false, true);
 
 	if (ret < 0) {
-		dev_err(sst->dev, "not suspending FW!!, Err: %d\n", ret);
+		dev_err(sst->dev, "yest suspending FW!!, Err: %d\n", ret);
 		return -EIO;
 	}
 
@@ -242,12 +242,12 @@ static ssize_t firmware_version_show(struct device *dev,
 	struct intel_sst_drv *ctx = dev_get_drvdata(dev);
 
 	if (ctx->fw_version.type == 0 && ctx->fw_version.major == 0 &&
-	    ctx->fw_version.minor == 0 && ctx->fw_version.build == 0)
-		return sprintf(buf, "FW not yet loaded\n");
+	    ctx->fw_version.miyesr == 0 && ctx->fw_version.build == 0)
+		return sprintf(buf, "FW yest yet loaded\n");
 	else
 		return sprintf(buf, "v%02x.%02x.%02x.%02x\n",
 			       ctx->fw_version.type, ctx->fw_version.major,
-			       ctx->fw_version.minor, ctx->fw_version.build);
+			       ctx->fw_version.miyesr, ctx->fw_version.build);
 
 }
 
@@ -328,8 +328,8 @@ int sst_context_init(struct intel_sst_drv *ctx)
 	pm_qos_add_request(ctx->qos, PM_QOS_CPU_DMA_LATENCY,
 				PM_QOS_DEFAULT_VALUE);
 
-	dev_dbg(ctx->dev, "Requesting FW %s now...\n", ctx->firmware_name);
-	ret = request_firmware_nowait(THIS_MODULE, true, ctx->firmware_name,
+	dev_dbg(ctx->dev, "Requesting FW %s yesw...\n", ctx->firmware_name);
+	ret = request_firmware_yeswait(THIS_MODULE, true, ctx->firmware_name,
 				      ctx->dev, GFP_KERNEL, ctx, sst_firmware_load_cb);
 	if (ret) {
 		dev_err(ctx->dev, "Firmware download failed:%d\n", ret);
@@ -357,7 +357,7 @@ EXPORT_SYMBOL_GPL(sst_context_init);
 
 void sst_context_cleanup(struct intel_sst_drv *ctx)
 {
-	pm_runtime_get_noresume(ctx->dev);
+	pm_runtime_get_yesresume(ctx->dev);
 	pm_runtime_disable(ctx->dev);
 	sst_unregister(ctx->dev);
 	sst_set_fw_state_locked(ctx, SST_SHUTDOWN);
@@ -393,7 +393,7 @@ void sst_configure_runtime_pm(struct intel_sst_drv *ctx)
 	if (acpi_disabled)
 		pm_runtime_set_active(ctx->dev);
 	else
-		pm_runtime_put_noidle(ctx->dev);
+		pm_runtime_put_yesidle(ctx->dev);
 }
 EXPORT_SYMBOL_GPL(sst_configure_runtime_pm);
 

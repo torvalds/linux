@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright (C) 2015 Imagination Technologies
+ * Copyright (C) 2015 Imagination Techyeslogies
  * Author: Alex Smith <alex.smith@imgtec.com>
  */
 
@@ -8,7 +8,7 @@
 
 #include <asm/isa-rev.h>
 
-#include <linux/elfnote.h>
+#include <linux/elfyeste.h>
 #include <linux/version.h>
 
 ELFNOTE_START(Linux, 0, "a")

@@ -26,13 +26,13 @@ Codec bias domain
       VREF, VMID (core codec and audio power)
 
       Usually controlled at codec probe/remove and suspend/resume, although
-      can be set at stream time if power is not needed for sidetone, etc.
+      can be set at stream time if power is yest needed for sidetone, etc.
 
 Platform/Machine domain
       physically connected inputs and outputs
 
       Is platform/machine and user action specific, is configured by the
-      machine driver and responds to asynchronous events e.g when HP
+      machine driver and responds to asynchroyesus events e.g when HP
       are inserted
 
 Path domain
@@ -115,9 +115,9 @@ Effect
 SRC
 	Sample Rate Converter within DSP or CODEC
 ASRC
-	Asynchronous Sample Rate Converter within DSP or CODEC
+	Asynchroyesus Sample Rate Converter within DSP or CODEC
 Encoder
-	Widget that encodes audio data from one format (usually PCM) to another
+	Widget that encodes audio data from one format (usually PCM) to ayesther
 	usually more compressed format.
 Decoder
 	Widget that decodes audio data from a compressed format to an
@@ -197,7 +197,7 @@ Machine domain Widgets
 
 Machine widgets are different from codec widgets in that they don't have a
 codec register bit associated with them. A machine widget is assigned to each
-machine audio component (non codec or DSP) that can be independently
+machine audio component (yesn codec or DSP) that can be independently
 powered. e.g.
 
 * Speaker Amp
@@ -221,7 +221,7 @@ when the Mic is inserted:-::
 Codec (BIAS) Domain
 -------------------
 
-The codec bias power domain has no widgets and is handled by the codecs DAPM
+The codec bias power domain has yes widgets and is handled by the codecs DAPM
 event handler. This handler is called when the codec powerstate is changed wrt
 to any stream event or by kernel PM events.
 
@@ -231,7 +231,7 @@ Virtual Widgets
 
 Sometimes widgets exist in the codec or machine audio map that don't have any
 corresponding soft power control. In this case it is necessary to create
-a virtual widget - a widget with no control bits e.g.
+a virtual widget - a widget with yes control bits e.g.
 ::
 
   SND_SOC_DAPM_MIXER("AC97 Mixer", SND_SOC_DAPM_NOPM, 0, 0, NULL, 0),
@@ -262,7 +262,7 @@ The WM8731 output mixer has 3 inputs (sources)
 3. Mic Sidetone Input
 
 Each input in this example has a kcontrol associated with it (defined in example
-above) and is connected to the output mixer via its kcontrol name. We can now
+above) and is connected to the output mixer via its kcontrol name. We can yesw
 connect the destination widget (wrt audio signal) with its source widgets.
 ::
 
@@ -277,7 +277,7 @@ So we have :-
 * Sink, Path, Source, or
 * ``Output Mixer`` is connected to the ``DAC`` via the ``HiFi Playback Switch``.
 
-When there is no path name connecting widgets (e.g. a direct connection) we
+When there is yes path name connecting widgets (e.g. a direct connection) we
 pass NULL for the path name.
 
 Interconnections are created with a call to:-

@@ -9,7 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/sched/signal.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/interrupt.h>
@@ -117,7 +117,7 @@ ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length,
 	struct mei_cl_cb *cb;
 	size_t r_length;
 	ssize_t rets;
-	bool nonblock = !!(mode & MEI_CL_IO_RX_NONBLOCK);
+	bool yesnblock = !!(mode & MEI_CL_IO_RX_NONBLOCK);
 
 	if (WARN_ON(!cl || !cl->dev))
 		return -ENODEV;
@@ -138,12 +138,12 @@ ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length,
 	if (rets && rets != -EBUSY)
 		goto out;
 
-	if (nonblock) {
+	if (yesnblock) {
 		rets = -EAGAIN;
 		goto out;
 	}
 
-	/* wait on event only if there is no other waiter */
+	/* wait on event only if there is yes other waiter */
 	/* synchronized under device mutex */
 	if (!waitqueue_active(&cl->rx_wait)) {
 
@@ -223,7 +223,7 @@ ssize_t mei_cldev_send(struct mei_cl_device *cldev, u8 *buf, size_t length)
 EXPORT_SYMBOL_GPL(mei_cldev_send);
 
 /**
- * mei_cldev_recv_nonblock - non block client receive (read)
+ * mei_cldev_recv_yesnblock - yesn block client receive (read)
  *
  * @cldev: me client device
  * @buf: buffer to receive
@@ -232,14 +232,14 @@ EXPORT_SYMBOL_GPL(mei_cldev_send);
  * Return: read size in bytes of < 0 on error
  *         -EAGAIN if function will block.
  */
-ssize_t mei_cldev_recv_nonblock(struct mei_cl_device *cldev, u8 *buf,
+ssize_t mei_cldev_recv_yesnblock(struct mei_cl_device *cldev, u8 *buf,
 				size_t length)
 {
 	struct mei_cl *cl = cldev->cl;
 
 	return __mei_cl_recv(cl, buf, length, MEI_CL_IO_RX_NONBLOCK, 0);
 }
-EXPORT_SYMBOL_GPL(mei_cldev_recv_nonblock);
+EXPORT_SYMBOL_GPL(mei_cldev_recv_yesnblock);
 
 /**
  * mei_cldev_recv - client receive (read)
@@ -281,41 +281,41 @@ static void mei_cl_bus_rx_work(struct work_struct *work)
 }
 
 /**
- * mei_cl_bus_notif_work - dispatch FW notif event for a bus device
+ * mei_cl_bus_yestif_work - dispatch FW yestif event for a bus device
  *
  * @work: work
  */
-static void mei_cl_bus_notif_work(struct work_struct *work)
+static void mei_cl_bus_yestif_work(struct work_struct *work)
 {
 	struct mei_cl_device *cldev;
 
-	cldev = container_of(work, struct mei_cl_device, notif_work);
+	cldev = container_of(work, struct mei_cl_device, yestif_work);
 
-	if (cldev->notif_cb)
-		cldev->notif_cb(cldev);
+	if (cldev->yestif_cb)
+		cldev->yestif_cb(cldev);
 }
 
 /**
- * mei_cl_bus_notify_event - schedule notify cb on bus client
+ * mei_cl_bus_yestify_event - schedule yestify cb on bus client
  *
  * @cl: host client
  *
  * Return: true if event was scheduled
- *         false if the client is not waiting for event
+ *         false if the client is yest waiting for event
  */
-bool mei_cl_bus_notify_event(struct mei_cl *cl)
+bool mei_cl_bus_yestify_event(struct mei_cl *cl)
 {
 	struct mei_cl_device *cldev = cl->cldev;
 
-	if (!cldev || !cldev->notif_cb)
+	if (!cldev || !cldev->yestif_cb)
 		return false;
 
-	if (!cl->notify_ev)
+	if (!cl->yestify_ev)
 		return false;
 
-	schedule_work(&cldev->notif_work);
+	schedule_work(&cldev->yestif_work);
 
-	cl->notify_ev = false;
+	cl->yestify_ev = false;
 
 	return true;
 }
@@ -326,7 +326,7 @@ bool mei_cl_bus_notify_event(struct mei_cl *cl)
  * @cl: host client
  *
  * Return: true if event was scheduled
- *         false if the client is not waiting for event
+ *         false if the client is yest waiting for event
  */
 bool mei_cl_bus_rx_event(struct mei_cl *cl)
 {
@@ -374,39 +374,39 @@ int mei_cldev_register_rx_cb(struct mei_cl_device *cldev, mei_cldev_cb_t rx_cb)
 EXPORT_SYMBOL_GPL(mei_cldev_register_rx_cb);
 
 /**
- * mei_cldev_register_notif_cb - register FW notification event callback
+ * mei_cldev_register_yestif_cb - register FW yestification event callback
  *
  * @cldev: me client devices
- * @notif_cb: callback function
+ * @yestif_cb: callback function
  *
  * Return: 0 on success
  *         -EALREADY if an callback is already registered
  *         <0 on other errors
  */
-int mei_cldev_register_notif_cb(struct mei_cl_device *cldev,
-				mei_cldev_cb_t notif_cb)
+int mei_cldev_register_yestif_cb(struct mei_cl_device *cldev,
+				mei_cldev_cb_t yestif_cb)
 {
 	struct mei_device *bus = cldev->bus;
 	int ret;
 
-	if (!notif_cb)
+	if (!yestif_cb)
 		return -EINVAL;
 
-	if (cldev->notif_cb)
+	if (cldev->yestif_cb)
 		return -EALREADY;
 
-	cldev->notif_cb = notif_cb;
-	INIT_WORK(&cldev->notif_work, mei_cl_bus_notif_work);
+	cldev->yestif_cb = yestif_cb;
+	INIT_WORK(&cldev->yestif_work, mei_cl_bus_yestif_work);
 
 	mutex_lock(&bus->device_lock);
-	ret = mei_cl_notify_request(cldev->cl, NULL, 1);
+	ret = mei_cl_yestify_request(cldev->cl, NULL, 1);
 	mutex_unlock(&bus->device_lock);
 	if (ret)
 		return ret;
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(mei_cldev_register_notif_cb);
+EXPORT_SYMBOL_GPL(mei_cldev_register_yestif_cb);
 
 /**
  * mei_cldev_get_drvdata - driver data getter
@@ -526,14 +526,14 @@ int mei_cldev_enable(struct mei_cl_device *cldev)
 	}
 
 	if (!mei_me_cl_is_active(cldev->me_cl)) {
-		dev_err(&cldev->dev, "me client is not active\n");
+		dev_err(&cldev->dev, "me client is yest active\n");
 		ret = -ENOTTY;
 		goto out;
 	}
 
 	ret = mei_cl_connect(cl, cldev->me_cl, NULL);
 	if (ret < 0)
-		dev_err(&cldev->dev, "cannot connect\n");
+		dev_err(&cldev->dev, "canyest connect\n");
 
 out:
 	mutex_unlock(&bus->device_lock);
@@ -555,9 +555,9 @@ static void mei_cldev_unregister_callbacks(struct mei_cl_device *cldev)
 		cldev->rx_cb = NULL;
 	}
 
-	if (cldev->notif_cb) {
-		cancel_work_sync(&cldev->notif_work);
-		cldev->notif_cb = NULL;
+	if (cldev->yestif_cb) {
+		cancel_work_sync(&cldev->yestif_work);
+		cldev->yestif_cb = NULL;
 	}
 }
 
@@ -594,7 +594,7 @@ int mei_cldev_disable(struct mei_cl_device *cldev)
 
 	err = mei_cl_disconnect(cl);
 	if (err < 0)
-		dev_err(bus->dev, "Could not disconnect from the ME client\n");
+		dev_err(bus->dev, "Could yest disconnect from the ME client\n");
 
 out:
 	/* Flush queues and remove any pending read */
@@ -612,7 +612,7 @@ EXPORT_SYMBOL_GPL(mei_cldev_disable);
  * @cldev: me client device
  * @cldrv: me client driver
  *
- * Return: id on success; NULL if no id is matching
+ * Return: id on success; NULL if yes id is matching
  */
 static const
 struct mei_cl_device_id *mei_cl_device_find(struct mei_cl_device *cldev,

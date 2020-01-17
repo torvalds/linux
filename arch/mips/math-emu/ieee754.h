@@ -7,7 +7,7 @@
  *  Modification to allow integration with Linux kernel
  *
  *  Kevin D. Kissell, kevink@mips.com and Carsten Langgard, carstenl@mips.com
- *  Copyright (C) 2000 MIPS Technologies, Inc. All rights reserved.
+ *  Copyright (C) 2000 MIPS Techyeslogies, Inc. All rights reserved.
  */
 #ifndef __ARCH_MIPS_MATH_EMU_IEEE754_H
 #define __ARCH_MIPS_MATH_EMU_IEEE754_H
@@ -140,7 +140,7 @@ enum {
  */
 struct _ieee754_csr {
 	__BITFIELD_FIELD(unsigned fcc:7,	/* condition[7:1] */
-	__BITFIELD_FIELD(unsigned nod:1,	/* set 1 for no denormals */
+	__BITFIELD_FIELD(unsigned yesd:1,	/* set 1 for yes deyesrmals */
 	__BITFIELD_FIELD(unsigned c:1,		/* condition[0] */
 	__BITFIELD_FIELD(unsigned pad0:3,
 	__BITFIELD_FIELD(unsigned abs2008:1,	/* IEEE 754-2008 ABS/NEG.fmt */
@@ -214,12 +214,12 @@ union ieee754dp ieee754dp_dump(char *s, union ieee754dp x);
 #define IEEE754_SPCVAL_NINFINITY	7	/* -inf */
 #define IEEE754_SPCVAL_INDEF_LEG	8	/* legacy quiet NaN */
 #define IEEE754_SPCVAL_INDEF_2008	9	/* IEEE 754-2008 quiet NaN */
-#define IEEE754_SPCVAL_PMAX		10	/* +max norm */
-#define IEEE754_SPCVAL_NMAX		11	/* -max norm */
-#define IEEE754_SPCVAL_PMIN		12	/* +min norm */
-#define IEEE754_SPCVAL_NMIN		13	/* -min norm */
-#define IEEE754_SPCVAL_PMIND		14	/* +min denorm */
-#define IEEE754_SPCVAL_NMIND		15	/* -min denorm */
+#define IEEE754_SPCVAL_PMAX		10	/* +max yesrm */
+#define IEEE754_SPCVAL_NMAX		11	/* -max yesrm */
+#define IEEE754_SPCVAL_PMIN		12	/* +min yesrm */
+#define IEEE754_SPCVAL_NMIN		13	/* -min yesrm */
+#define IEEE754_SPCVAL_PMIND		14	/* +min deyesrm */
+#define IEEE754_SPCVAL_NMIND		15	/* -min deyesrm */
 #define IEEE754_SPCVAL_P1E31		16	/* + 1.0e31 */
 #define IEEE754_SPCVAL_P1E63		17	/* + 1.0e63 */
 

@@ -129,7 +129,7 @@ static void gpio_vbus_work(struct work_struct *work)
 		if (gpio_is_valid(gpio))
 			gpio_set_value(gpio, !pdata->gpio_pullup_inverted);
 
-		atomic_notifier_call_chain(&gpio_vbus->phy.notifier,
+		atomic_yestifier_call_chain(&gpio_vbus->phy.yestifier,
 					   status, gpio_vbus->phy.otg->gadget);
 		usb_phy_set_event(&gpio_vbus->phy, USB_EVENT_ENUMERATED);
 	} else {
@@ -144,7 +144,7 @@ static void gpio_vbus_work(struct work_struct *work)
 		gpio_vbus->phy.otg->state = OTG_STATE_B_IDLE;
 		gpio_vbus->phy.last_event = status;
 
-		atomic_notifier_call_chain(&gpio_vbus->phy.notifier,
+		atomic_yestifier_call_chain(&gpio_vbus->phy.yestifier,
 					   status, gpio_vbus->phy.otg->gadget);
 		usb_phy_set_event(&gpio_vbus->phy, USB_EVENT_NONE);
 	}
@@ -160,7 +160,7 @@ static irqreturn_t gpio_vbus_irq(int irq, void *data)
 
 	dev_dbg(&pdev->dev, "VBUS %s (gadget: %s)\n",
 		is_vbus_powered(pdata) ? "supplied" : "inactive",
-		otg->gadget ? otg->gadget->name : "none");
+		otg->gadget ? otg->gadget->name : "yesne");
 
 	if (otg->gadget)
 		schedule_delayed_work(&gpio_vbus->work, msecs_to_jiffies(100));
@@ -210,7 +210,7 @@ static int gpio_vbus_set_peripheral(struct usb_otg *otg,
 	return 0;
 }
 
-/* effective for B devices, ignored for A-peripheral */
+/* effective for B devices, igyesred for A-peripheral */
 static int gpio_vbus_set_power(struct usb_phy *phy, unsigned mA)
 {
 	struct gpio_vbus_data *gpio_vbus;
@@ -222,7 +222,7 @@ static int gpio_vbus_set_power(struct usb_phy *phy, unsigned mA)
 	return 0;
 }
 
-/* for non-OTG B devices: set/clear transceiver suspend mode */
+/* for yesn-OTG B devices: set/clear transceiver suspend mode */
 static int gpio_vbus_set_suspend(struct usb_phy *phy, int suspend)
 {
 	struct gpio_vbus_data *gpio_vbus;
@@ -230,7 +230,7 @@ static int gpio_vbus_set_suspend(struct usb_phy *phy, int suspend)
 	gpio_vbus = container_of(phy, struct gpio_vbus_data, phy);
 
 	/* draw max 0 mA from vbus in suspend mode; or the previously
-	 * recorded amount of current if not suspended
+	 * recorded amount of current if yest suspended
 	 *
 	 * NOTE: high powered configs (mA > 100) may draw up to 2.5 mA
 	 * if they're wake-enabled ... we don't handle that yet.
@@ -292,7 +292,7 @@ static int gpio_vbus_probe(struct platform_device *pdev)
 
 	gpio_vbus->irq = irq;
 
-	/* if data line pullup is in use, initialize it to "not pulling up" */
+	/* if data line pullup is in use, initialize it to "yest pulling up" */
 	gpio = pdata->gpio_pullup;
 	if (gpio_is_valid(gpio)) {
 		err = devm_gpio_request(&pdev->dev, gpio, "udc_pullup");

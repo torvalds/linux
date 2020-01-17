@@ -12,7 +12,7 @@
 /*  */
 /* Define the debug levels */
 /*  */
-/* 1.	DBG_TRACE and DBG_LOUD are used for normal cases. */
+/* 1.	DBG_TRACE and DBG_LOUD are used for yesrmal cases. */
 /* So that, they can help SW engineer to develope or trace states changed */
 /* and also help HW enginner to trace every operation to and from HW, */
 /* e.g IO, Tx, Rx. */
@@ -34,7 +34,7 @@
 #define ODM_DBG_SERIOUS				2
 
 /*  */
-/* Abnormal, rare, or unexpeted cases. */
+/* Abyesrmal, rare, or unexpeted cases. */
 /* For example, */
 /* IRP/Packet/OID canceled, */
 /* device suprisely unremoved and so on. */
@@ -152,14 +152,14 @@
 		} \
 	} while (0)
 #else
-#define ODM_RT_TRACE(pDM_Odm, comp, level, fmt)		no_printk fmt
-#define ODM_RT_TRACE_F(pDM_Odm, comp, level, fmt)	no_printk fmt
-#define ODM_RT_ASSERT(pDM_Odm, expr, fmt)		no_printk fmt
+#define ODM_RT_TRACE(pDM_Odm, comp, level, fmt)		yes_printk fmt
+#define ODM_RT_TRACE_F(pDM_Odm, comp, level, fmt)	yes_printk fmt
+#define ODM_RT_ASSERT(pDM_Odm, expr, fmt)		yes_printk fmt
 #define ODM_dbg_enter()					do {} while (0)
 #define ODM_dbg_exit()					do {} while (0)
-#define ODM_dbg_trace(str)				no_printk("%s", str)
+#define ODM_dbg_trace(str)				yes_printk("%s", str)
 #define ODM_PRINT_ADDR(pDM_Odm, comp, level, title_str, ptr) \
-	no_printk("%s %p", title_str, ptr)
+	yes_printk("%s %p", title_str, ptr)
 #endif
 
 void ODM_InitDebugSetting(PDM_ODM_T pDM_Odm);

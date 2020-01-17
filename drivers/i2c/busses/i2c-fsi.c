@@ -14,7 +14,7 @@
 #include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fsi.h>
 #include <linux/i2c.h>
 #include <linux/jiffies.h>
@@ -313,7 +313,7 @@ static int fsi_i2c_read_fifo(struct fsi_i2c_port *port, struct i2c_msg *msg,
 			port->xfrd += read;
 			xfr_remaining -= read;
 		} else {
-			/* no more buffer but data in fifo, need to clear it */
+			/* yes more buffer but data in fifo, need to clear it */
 			rc = fsi_device_read(i2c->fsi, I2C_FSI_FIFO, &dummy,
 					     read);
 			if (rc)
@@ -408,7 +408,7 @@ static int fsi_i2c_reset_bus(struct fsi_i2c_master *i2c,
 	int rc;
 	u32 stat, dummy = 0;
 
-	/* force bus reset, ignore errors */
+	/* force bus reset, igyesre errors */
 	i2c_recover_bus(&port->adapter);
 
 	/* reset errors */
@@ -658,16 +658,16 @@ static const struct i2c_algorithm fsi_i2c_algorithm = {
 	.functionality = fsi_i2c_functionality,
 };
 
-static struct device_node *fsi_i2c_find_port_of_node(struct device_node *fsi,
+static struct device_yesde *fsi_i2c_find_port_of_yesde(struct device_yesde *fsi,
 						     int port)
 {
-	struct device_node *np;
-	u32 port_no;
+	struct device_yesde *np;
+	u32 port_yes;
 	int rc;
 
-	for_each_child_of_node(fsi, np) {
-		rc = of_property_read_u32(np, "reg", &port_no);
-		if (!rc && port_no == port)
+	for_each_child_of_yesde(fsi, np) {
+		rc = of_property_read_u32(np, "reg", &port_yes);
+		if (!rc && port_yes == port)
 			return np;
 	}
 
@@ -678,8 +678,8 @@ static int fsi_i2c_probe(struct device *dev)
 {
 	struct fsi_i2c_master *i2c;
 	struct fsi_i2c_port *port;
-	struct device_node *np;
-	u32 port_no, ports, stat;
+	struct device_yesde *np;
+	u32 port_yes, ports, stat;
 	int rc;
 
 	i2c = devm_kzalloc(dev, sizeof(*i2c), GFP_KERNEL);
@@ -701,29 +701,29 @@ static int fsi_i2c_probe(struct device *dev)
 	ports = FIELD_GET(I2C_STAT_MAX_PORT, stat) + 1;
 	dev_dbg(dev, "I2C master has %d ports\n", ports);
 
-	for (port_no = 0; port_no < ports; port_no++) {
-		np = fsi_i2c_find_port_of_node(dev->of_node, port_no);
+	for (port_yes = 0; port_yes < ports; port_yes++) {
+		np = fsi_i2c_find_port_of_yesde(dev->of_yesde, port_yes);
 		if (np && !of_device_is_available(np))
 			continue;
 
 		port = kzalloc(sizeof(*port), GFP_KERNEL);
 		if (!port) {
-			of_node_put(np);
+			of_yesde_put(np);
 			break;
 		}
 
 		port->master = i2c;
-		port->port = port_no;
+		port->port = port_yes;
 
 		port->adapter.owner = THIS_MODULE;
-		port->adapter.dev.of_node = np;
+		port->adapter.dev.of_yesde = np;
 		port->adapter.dev.parent = dev;
 		port->adapter.algo = &fsi_i2c_algorithm;
 		port->adapter.bus_recovery_info = &fsi_i2c_bus_recovery_info;
 		port->adapter.algo_data = port;
 
 		snprintf(port->adapter.name, sizeof(port->adapter.name),
-			 "i2c_bus-%u", port_no);
+			 "i2c_bus-%u", port_yes);
 
 		rc = i2c_add_adapter(&port->adapter);
 		if (rc < 0) {

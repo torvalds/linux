@@ -107,7 +107,7 @@
 #define SUN4I_FRONTEND_CH1_VERTCOEF_REG(i)	(0x700 + i * 4)
 
 struct clk;
-struct device_node;
+struct device_yesde;
 struct drm_plane;
 struct regmap;
 struct reset_control;
@@ -125,7 +125,7 @@ struct sun4i_frontend_data {
 struct sun4i_frontend {
 	struct list_head	list;
 	struct device		*dev;
-	struct device_node	*node;
+	struct device_yesde	*yesde;
 
 	struct clk		*bus_clk;
 	struct clk		*mod_clk;

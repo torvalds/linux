@@ -131,9 +131,9 @@ IVTV cards list
      - IVTV16 104d:813d
 
    * - 29
-     - Yuan MPG600GR, Kuroutoshikou CX23416GYC-STVLP (no GR)
+     - Yuan MPG600GR, Kuroutoshikou CX23416GYC-STVLP (yes GR)
      - IVTV16 104d:813d
 
    * - 30
-     - Yuan MPG600GR, Kuroutoshikou CX23416GYC-STVLP (no GR/YCS)
+     - Yuan MPG600GR, Kuroutoshikou CX23416GYC-STVLP (yes GR/YCS)
      - IVTV16 104d:813d

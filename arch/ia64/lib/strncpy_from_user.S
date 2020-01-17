@@ -8,7 +8,7 @@
  *	in1:	address of string to be copied
  *	in2:	length of buffer in bytes
  * Outputs:
- *	r8:	-EFAULT in case of fault or number of bytes copied if no fault
+ *	r8:	-EFAULT in case of fault or number of bytes copied if yes fault
  *
  * Copyright (C) 1998-2001 Hewlett-Packard Co
  * Copyright (C) 1998-2001 David Mosberger-Tang <davidm@hpl.hp.com>

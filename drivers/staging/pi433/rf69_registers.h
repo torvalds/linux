@@ -29,10 +29,10 @@
 #define  REG_PALEVEL			0x11
 #define  REG_PARAMP			0x12
 #define  REG_OCP			0x13
-#define  REG_AGCREF			0x14 /* not available on RF69 */
-#define  REG_AGCTHRESH1			0x15 /* not available on RF69 */
-#define  REG_AGCTHRESH2			0x16 /* not available on RF69 */
-#define  REG_AGCTHRESH3			0x17 /* not available on RF69 */
+#define  REG_AGCREF			0x14 /* yest available on RF69 */
+#define  REG_AGCTHRESH1			0x15 /* yest available on RF69 */
+#define  REG_AGCTHRESH2			0x16 /* yest available on RF69 */
+#define  REG_AGCTHRESH3			0x17 /* yest available on RF69 */
 #define  REG_LNA			0x18
 #define  REG_RXBW			0x19
 #define  REG_AFCBW			0x1A

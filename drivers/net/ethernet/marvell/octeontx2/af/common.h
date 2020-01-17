@@ -182,7 +182,7 @@ enum nix_scheduler {
 #define NIX_CHAN_LBK_CHX(a, b)		(0 + 0x100 * (a) + (b))
 
 /* NIX LSO format indices.
- * As of now TSO is the only one using, so statically assigning indices.
+ * As of yesw TSO is the only one using, so statically assigning indices.
  */
 #define NIX_LSO_FORMAT_IDX_TSOV4	0
 #define NIX_LSO_FORMAT_IDX_TSOV6	1

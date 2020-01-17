@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2014 Marvell Technology Group Ltd.
+ * Copyright (C) 2014 Marvell Techyeslogy Group Ltd.
  *
  * Antoine Tenart <antoine.tenart@free-electrons.com>
  */
@@ -88,7 +88,7 @@ static int ci_hdrc_usb2_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, priv);
 
-	pm_runtime_no_callbacks(dev);
+	pm_runtime_yes_callbacks(dev);
 	pm_runtime_enable(dev);
 
 	return 0;

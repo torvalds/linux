@@ -3,11 +3,11 @@
 Sh-/r-mobile and R-Car systems often have multiple identical DMA controller
 instances, capable of serving any of a common set of DMA slave devices, using
 the same configuration. To describe this topology we require all compatible
-SHDMA DT nodes to be placed under a DMA multiplexer node. All such compatible
+SHDMA DT yesdes to be placed under a DMA multiplexer yesde. All such compatible
 DMAC instances have the same number of channels and use the same DMA
 descriptors. Therefore respective DMA DT bindings can also all be placed in the
-multiplexer node. Even if there is only one such DMAC instance on a system, it
-still has to be placed under such a multiplexer node.
+multiplexer yesde. Even if there is only one such DMAC instance on a system, it
+still has to be placed under such a multiplexer yesde.
 
 * DMA multiplexer
 

@@ -342,7 +342,7 @@ static struct mfd_cell rtc_devs[] = {
 struct pm860x_irq_data {
 	int	reg;
 	int	mask_reg;
-	int	enable;		/* enable or not */
+	int	enable;		/* enable or yest */
 	int	offs;		/* bit offset in mask register */
 };
 
@@ -555,7 +555,7 @@ static int pm860x_irq_domain_map(struct irq_domain *d, unsigned int virq,
 	irq_set_chip_data(virq, d->host_data);
 	irq_set_chip_and_handler(virq, &pm860x_irq_chip, handle_edge_irq);
 	irq_set_nested_thread(virq, 1);
-	irq_set_noprobe(virq);
+	irq_set_yesprobe(virq);
 	return 0;
 }
 
@@ -573,7 +573,7 @@ static int device_irq_init(struct pm860x_chip *chip,
 	unsigned long flags = IRQF_TRIGGER_FALLING | IRQF_ONESHOT;
 	int data, mask, ret = -EINVAL;
 	int nr_irqs, irq_base = -1;
-	struct device_node *node = i2c->dev.of_node;
+	struct device_yesde *yesde = i2c->dev.of_yesde;
 
 	mask = PM8607_B0_MISC1_INV_INT | PM8607_B0_MISC1_INT_CLEAR
 		| PM8607_B0_MISC1_INT_MASK;
@@ -624,7 +624,7 @@ static int device_irq_init(struct pm860x_chip *chip,
 		ret = -EBUSY;
 		goto out;
 	}
-	irq_domain_add_legacy(node, nr_irqs, chip->irq_base, 0,
+	irq_domain_add_legacy(yesde, nr_irqs, chip->irq_base, 0,
 			      &pm860x_irq_domain_ops, chip);
 	chip->core_irq = i2c->irq;
 	if (!chip->core_irq)
@@ -736,7 +736,7 @@ static void device_osc_init(struct i2c_client *i2c)
 	struct pm860x_chip *chip = i2c_get_clientdata(i2c);
 
 	mutex_init(&chip->osc_lock);
-	/* init portofino reference group voting and status */
+	/* init portofiyes reference group voting and status */
 	/* Disable Reference group Vsys */
 	pm860x_set_bits(i2c, PM8606_VSYS, PM8606_VSYS_EN, 0);
 	/* Disable Internal Oscillator */
@@ -1111,7 +1111,7 @@ static const struct regmap_config pm860x_regmap_config = {
 	.val_bits = 8,
 };
 
-static int pm860x_dt_init(struct device_node *np,
+static int pm860x_dt_init(struct device_yesde *np,
 				    struct device *dev,
 				    struct pm860x_platform_data *pdata)
 {
@@ -1132,18 +1132,18 @@ static int pm860x_dt_init(struct device_node *np,
 static int pm860x_probe(struct i2c_client *client)
 {
 	struct pm860x_platform_data *pdata = dev_get_platdata(&client->dev);
-	struct device_node *node = client->dev.of_node;
+	struct device_yesde *yesde = client->dev.of_yesde;
 	struct pm860x_chip *chip;
 	int ret;
 
-	if (node && !pdata) {
+	if (yesde && !pdata) {
 		/* parse DT to get platform data */
 		pdata = devm_kzalloc(&client->dev,
 				     sizeof(struct pm860x_platform_data),
 				     GFP_KERNEL);
 		if (!pdata)
 			return -ENOMEM;
-		ret = pm860x_dt_init(node, &client->dev, pdata);
+		ret = pm860x_dt_init(yesde, &client->dev, pdata);
 		if (ret)
 			return ret;
 	} else if (!pdata) {

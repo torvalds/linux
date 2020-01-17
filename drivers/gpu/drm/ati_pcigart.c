@@ -18,7 +18,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -67,7 +67,7 @@ int drm_ati_pcigart_cleanup(struct drm_device *dev, struct drm_ati_pcigart_info 
 
 	/* we need to support large memory configurations */
 	if (!entry) {
-		DRM_ERROR("no scatter/gather memory!\n");
+		DRM_ERROR("yes scatter/gather memory!\n");
 		return 0;
 	}
 
@@ -109,12 +109,12 @@ int drm_ati_pcigart_init(struct drm_device *dev, struct drm_ati_pcigart_info *ga
 	int max_ati_pages, max_real_pages;
 
 	if (!entry) {
-		DRM_ERROR("no scatter/gather memory!\n");
+		DRM_ERROR("yes scatter/gather memory!\n");
 		goto done;
 	}
 
 	if (gart_info->gart_table_location == DRM_ATI_GART_MAIN) {
-		DRM_DEBUG("PCI: no table in VRAM: using normal RAM\n");
+		DRM_DEBUG("PCI: yes table in VRAM: using yesrmal RAM\n");
 
 		if (pci_set_dma_mask(dev->pdev, gart_info->table_mask)) {
 			DRM_ERROR("fail to set dma mask to 0x%Lx\n",
@@ -125,7 +125,7 @@ int drm_ati_pcigart_init(struct drm_device *dev, struct drm_ati_pcigart_info *ga
 
 		ret = drm_ati_alloc_pcigart_table(dev, gart_info);
 		if (ret) {
-			DRM_ERROR("cannot allocate PCI GART page!\n");
+			DRM_ERROR("canyest allocate PCI GART page!\n");
 			goto done;
 		}
 

@@ -13,7 +13,7 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/dma-mapping.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
@@ -83,13 +83,13 @@ struct ibmveth_stat {
 
 static struct ibmveth_stat ibmveth_stats[] = {
 	{ "replenish_task_cycles", IBMVETH_STAT_OFF(replenish_task_cycles) },
-	{ "replenish_no_mem", IBMVETH_STAT_OFF(replenish_no_mem) },
+	{ "replenish_yes_mem", IBMVETH_STAT_OFF(replenish_yes_mem) },
 	{ "replenish_add_buff_failure",
 			IBMVETH_STAT_OFF(replenish_add_buff_failure) },
 	{ "replenish_add_buff_success",
 			IBMVETH_STAT_OFF(replenish_add_buff_success) },
 	{ "rx_invalid_buffer", IBMVETH_STAT_OFF(rx_invalid_buffer) },
-	{ "rx_no_buffer", IBMVETH_STAT_OFF(rx_no_buffer) },
+	{ "rx_yes_buffer", IBMVETH_STAT_OFF(rx_yes_buffer) },
 	{ "tx_map_failed", IBMVETH_STAT_OFF(tx_map_failed) },
 	{ "tx_send_failed", IBMVETH_STAT_OFF(tx_send_failed) },
 	{ "fw_enabled_ipv4_csum", IBMVETH_STAT_OFF(fw_ipv4_csum_support) },
@@ -199,7 +199,7 @@ static inline void ibmveth_flush_buffer(void *addr, unsigned long length)
 		asm("dcbfl %0,%1" :: "b" (addr), "r" (offset));
 }
 
-/* replenish the buffers for a pool.  note that we don't need to
+/* replenish the buffers for a pool.  yeste that we don't need to
  * skb_reserve these since they are used for incoming...
  */
 static void ibmveth_replenish_buffer_pool(struct ibmveth_adapter *adapter,
@@ -224,7 +224,7 @@ static void ibmveth_replenish_buffer_pool(struct ibmveth_adapter *adapter,
 		if (!skb) {
 			netdev_dbg(adapter->netdev,
 				   "replenish: unable to allocate skb\n");
-			adapter->replenish_no_mem++;
+			adapter->replenish_yes_mem++;
 			break;
 		}
 
@@ -294,14 +294,14 @@ failure:
 
 /*
  * The final 8 bytes of the buffer list is a counter of frames dropped
- * because there was not a buffer in the buffer list capable of holding
+ * because there was yest a buffer in the buffer list capable of holding
  * the frame.
  */
-static void ibmveth_update_rx_no_buffer(struct ibmveth_adapter *adapter)
+static void ibmveth_update_rx_yes_buffer(struct ibmveth_adapter *adapter)
 {
 	__be64 *p = adapter->buffer_list_addr + 4096 - 8;
 
-	adapter->rx_no_buffer = be64_to_cpup(p);
+	adapter->rx_yes_buffer = be64_to_cpup(p);
 }
 
 /* replenish routine */
@@ -319,7 +319,7 @@ static void ibmveth_replenish_task(struct ibmveth_adapter *adapter)
 			ibmveth_replenish_buffer_pool(adapter, pool);
 	}
 
-	ibmveth_update_rx_no_buffer(adapter);
+	ibmveth_update_rx_yes_buffer(adapter);
 }
 
 /* empty and free ana buffer pool - also used to do cleanup in error paths */
@@ -683,7 +683,7 @@ static int ibmveth_close(struct net_device *netdev)
 
 	free_irq(netdev->irq, netdev);
 
-	ibmveth_update_rx_no_buffer(adapter);
+	ibmveth_update_rx_yes_buffer(adapter);
 
 	dma_unmap_single(dev, adapter->buffer_list_dma, 4096,
 			 DMA_BIDIRECTIONAL);
@@ -746,11 +746,11 @@ static netdev_features_t ibmveth_fix_features(struct net_device *dev,
 	netdev_features_t features)
 {
 	/*
-	 * Since the ibmveth firmware interface does not have the
+	 * Since the ibmveth firmware interface does yest have the
 	 * concept of separate tx/rx checksum offload enable, if rx
 	 * checksum is disabled we also have to disable tx checksum
-	 * offload. Once we disable rx checksum offload, we are no
-	 * longer allowed to send tx buffers that are not properly
+	 * offload. Once we disable rx checksum offload, we are yes
+	 * longer allowed to send tx buffers that are yest properly
 	 * checksummed.
 	 */
 
@@ -891,7 +891,7 @@ static int ibmveth_set_tso(struct net_device *dev, u32 data)
 			adapter->large_send = data;
 		}
 	} else {
-		/* Older firmware version of large send offload does not
+		/* Older firmware version of large send offload does yest
 		 * support tcp6/ipv6
 		 */
 		if (data == 1) {
@@ -1026,7 +1026,7 @@ static int ibmveth_is_packet_unsupported(struct sk_buff *skb,
 	}
 
 	if (!ether_addr_equal(ether_header->h_source, netdev->dev_addr)) {
-		netdev_dbg(netdev, "source packet MAC address does not match veth device's, dropping packet.\n");
+		netdev_dbg(netdev, "source packet MAC address does yest match veth device's, dropping packet.\n");
 		netdev->stats.tx_dropped++;
 		ret = -EOPNOTSUPP;
 	}
@@ -1103,7 +1103,7 @@ retry_bounce:
 	 * copy it into the static bounce buffer. This avoids the
 	 * cost of a TCE insert and remove.
 	 */
-	if (force_bounce || (!skb_is_nonlinear(skb) &&
+	if (force_bounce || (!skb_is_yesnlinear(skb) &&
 				(skb->len < tx_copybreak))) {
 		skb_copy_from_linear_data(skb, adapter->bounce_buffer,
 					  skb->len);
@@ -1234,7 +1234,7 @@ static void ibmveth_rx_mss_helper(struct sk_buff *skb, u16 mss, int lrg_pkt)
 	} else {
 		return;
 	}
-	/* if mss is not set through Large Packet bit/mss in rx buffer,
+	/* if mss is yest set through Large Packet bit/mss in rx buffer,
 	 * expect that the mss will be written to the tcp header checksum.
 	 */
 	tcph = (struct tcphdr *)(skb->data + offset);
@@ -1268,7 +1268,7 @@ static void ibmveth_rx_csum_helper(struct sk_buff *skb,
 	if (skb_proto == ETH_P_IP) {
 		iph = (struct iphdr *)skb->data;
 
-		/* If the IP checksum is not offloaded and if the packet
+		/* If the IP checksum is yest offloaded and if the packet
 		 *  is large send, the checksum must be rebuilt.
 		 */
 		if (iph->check == 0xffff) {
@@ -1285,13 +1285,13 @@ static void ibmveth_rx_csum_helper(struct sk_buff *skb,
 		iph_proto = iph6->nexthdr;
 	}
 
-	/* In OVS environment, when a flow is not cached, specifically for a
+	/* In OVS environment, when a flow is yest cached, specifically for a
 	 * new TCP connection, the first packet information is passed up
 	 * the user space for finding a flow. During this process, OVS computes
 	 * checksum on the first packet when CHECKSUM_PARTIAL flag is set.
 	 *
 	 * Given that we zeroed out TCP checksum field in transmit path
-	 * (refer ibmveth_start_xmit routine) as we set "no checksum bit",
+	 * (refer ibmveth_start_xmit routine) as we set "yes checksum bit",
 	 * OVS computed checksum will be incorrect w/o TCP pseudo checksum
 	 * in the packet. This leads to OVS dropping the packet and hence
 	 * TCP retransmissions are seen.
@@ -1691,7 +1691,7 @@ static int ibmveth_probe(struct vio_dev *dev, const struct vio_device_id *id)
 
 	ret = h_illan_attributes(adapter->vdev->unit_address, 0, 0, &ret_attr);
 
-	/* If running older firmware, TSO should not be enabled by default */
+	/* If running older firmware, TSO should yest be enabled by default */
 	if (ret == H_SUCCESS && (ret_attr & IBMVETH_ILLAN_LRG_SND_SUPPORT) &&
 	    !old_large_send) {
 		netdev->hw_features |= NETIF_F_TSO | NETIF_F_TSO6;
@@ -1827,7 +1827,7 @@ static ssize_t veth_pool_store(struct kobject *kobj, struct attribute *attr,
 			}
 
 			if (i == IBMVETH_NUM_BUFF_POOLS) {
-				netdev_err(netdev, "no active pool >= MTU\n");
+				netdev_err(netdev, "yes active pool >= MTU\n");
 				return -EPERM;
 			}
 

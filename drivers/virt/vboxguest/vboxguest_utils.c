@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: (GPL-2.0 OR CDDL-1.0) */
 /*
  * vboxguest vmm-req and hgcm-call code, VBoxGuestR0LibHGCMInternal.cpp,
- * VBoxGuestR0LibGenericRequest.cpp and RTErrConvertToErrno.cpp in vbox svn.
+ * VBoxGuestR0LibGenericRequest.cpp and RTErrConvertToErryes.cpp in vbox svn.
  *
  * Copyright (C) 2006-2016 Oracle Corporation
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/module.h>
@@ -92,7 +92,7 @@ void vbg_req_free(void *req, size_t len)
 	free_pages((unsigned long)req, get_order(PAGE_ALIGN(len)));
 }
 
-/* Note this function returns a VBox status code, not a negative errno!! */
+/* Note this function returns a VBox status code, yest a negative erryes!! */
 int vbg_req_perform(struct vbg_dev *gdev, void *req)
 {
 	unsigned long phys_req = virt_to_phys(req);
@@ -237,7 +237,7 @@ static int hgcm_call_preprocess_linaddr(
 /**
  * Preprocesses the HGCM call, validate parameters, alloc bounce buffers and
  * figure out how much extra storage we need for page lists.
- * Return: 0 or negative errno value.
+ * Return: 0 or negative erryes value.
  * @src_parm:         Pointer to source function call parameters
  * @parm_count:       Number of function call parameters.
  * @bounce_bufs_ret:  Where to return the allocated bouncebuffer array
@@ -458,7 +458,7 @@ static int hgcm_cancel_call(struct vbg_dev *gdev, struct vmmdev_hgcm_call *call)
 
 /**
  * Performs the call and completion wait.
- * Return: 0 or negative errno value.
+ * Return: 0 or negative erryes value.
  * @gdev:        The VBoxGuest device extension.
  * @call:        The call to execute.
  * @timeout_ms:  Timeout in ms.
@@ -487,7 +487,7 @@ static int vbg_hgcm_do_call(struct vbg_dev *gdev, struct vmmdev_hgcm_call *call,
 	if (rc != VINF_HGCM_ASYNC_EXECUTE)
 		return 0;
 
-	/* Host decided to process the request asynchronously, wait for it */
+	/* Host decided to process the request asynchroyesusly, wait for it */
 	if (timeout_ms == U32_MAX)
 		timeout = MAX_SCHEDULE_TIMEOUT;
 	else
@@ -514,7 +514,7 @@ static int vbg_hgcm_do_call(struct vbg_dev *gdev, struct vmmdev_hgcm_call *call,
 
 	/*
 	 * Failed to cancel, this should mean that the cancel has lost the
-	 * race with normal completion, wait while the host completes it.
+	 * race with yesrmal completion, wait while the host completes it.
 	 */
 	if (cancel_rc == VERR_NOT_FOUND || cancel_rc == VERR_SEM_DESTROYED)
 		timeout = msecs_to_jiffies(500);
@@ -533,14 +533,14 @@ static int vbg_hgcm_do_call(struct vbg_dev *gdev, struct vmmdev_hgcm_call *call,
 		return ret;
 	}
 
-	/* The call has completed normally after all */
+	/* The call has completed yesrmally after all */
 	return 0;
 }
 
 /**
  * Copies the result of the call back to the caller info structure and user
  * buffers.
- * Return: 0 or negative errno value.
+ * Return: 0 or negative erryes value.
  * @call:            HGCM call request.
  * @dst_parm:        Pointer to function call parameters destination.
  * @parm_count:      Number of function call parameters.
@@ -728,7 +728,7 @@ out_free:
 }
 #endif
 
-static const int vbg_status_code_to_errno_table[] = {
+static const int vbg_status_code_to_erryes_table[] = {
 	[-VERR_ACCESS_DENIED]                            = -EPERM,
 	[-VERR_FILE_NOT_FOUND]                           = -ENOENT,
 	[-VERR_PROCESS_NOT_FOUND]                        = -ESRCH,
@@ -800,18 +800,18 @@ static const int vbg_status_code_to_errno_table[] = {
 	[-VERR_MEDIA_NOT_RECOGNIZED]                     = -EMEDIUMTYPE,
 };
 
-int vbg_status_code_to_errno(int rc)
+int vbg_status_code_to_erryes(int rc)
 {
 	if (rc >= 0)
 		return 0;
 
 	rc = -rc;
-	if (rc >= ARRAY_SIZE(vbg_status_code_to_errno_table) ||
-	    vbg_status_code_to_errno_table[rc] == 0) {
+	if (rc >= ARRAY_SIZE(vbg_status_code_to_erryes_table) ||
+	    vbg_status_code_to_erryes_table[rc] == 0) {
 		vbg_warn("%s: Unhandled err %d\n", __func__, -rc);
 		return -EPROTO;
 	}
 
-	return vbg_status_code_to_errno_table[rc];
+	return vbg_status_code_to_erryes_table[rc];
 }
-EXPORT_SYMBOL(vbg_status_code_to_errno);
+EXPORT_SYMBOL(vbg_status_code_to_erryes);

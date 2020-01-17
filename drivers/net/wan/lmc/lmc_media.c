@@ -5,7 +5,7 @@
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/ptrace.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/in.h>
@@ -339,7 +339,7 @@ lmc_ds3_set_status (lmc_softc_t * const sc, lmc_ctl_t * ctl)
   if (ctl == NULL)
     {
       sc->lmc_media->set_cable_length (sc, sc->ictl.cable_length);
-      sc->lmc_media->set_scrambler (sc, sc->ictl.scrambler_onoff);
+      sc->lmc_media->set_scrambler (sc, sc->ictl.scrambler_oyesff);
       lmc_set_protocol (sc, NULL);
 
       return;
@@ -356,9 +356,9 @@ lmc_ds3_set_status (lmc_softc_t * const sc, lmc_ctl_t * ctl)
   /*
    * Check for change in scrambler setting (requires reset)
    */
-  if (ctl->scrambler_onoff && !sc->ictl.scrambler_onoff)
+  if (ctl->scrambler_oyesff && !sc->ictl.scrambler_oyesff)
     lmc_ds3_set_scram (sc, LMC_CTL_ON);
-  else if (!ctl->scrambler_onoff && sc->ictl.scrambler_onoff)
+  else if (!ctl->scrambler_oyesff && sc->ictl.scrambler_oyesff)
     lmc_ds3_set_scram (sc, LMC_CTL_OFF);
 
   lmc_set_protocol (sc, ctl);
@@ -397,7 +397,7 @@ lmc_ds3_init (lmc_softc_t * const sc)
 }
 
 /*
- * 1 == DS3 payload scrambled, 0 == not scrambled
+ * 1 == DS3 payload scrambled, 0 == yest scrambled
  */
 static void
 lmc_ds3_set_scram (lmc_softc_t * const sc, int ie)
@@ -405,12 +405,12 @@ lmc_ds3_set_scram (lmc_softc_t * const sc, int ie)
   if (ie == LMC_CTL_ON)
     {
       sc->lmc_miireg16 |= LMC_MII16_DS3_SCRAM;
-      sc->ictl.scrambler_onoff = LMC_CTL_ON;
+      sc->ictl.scrambler_oyesff = LMC_CTL_ON;
     }
   else
     {
       sc->lmc_miireg16 &= ~LMC_MII16_DS3_SCRAM;
-      sc->ictl.scrambler_onoff = LMC_CTL_OFF;
+      sc->ictl.scrambler_oyesff = LMC_CTL_OFF;
     }
   lmc_mii_writereg (sc, 0, 16, sc->lmc_miireg16);
 }
@@ -712,7 +712,7 @@ lmc_ssi_get_link_status (lmc_softc_t * const sc)
   if (sc->lmc_timing == LMC_CTL_CLOCK_SOURCE_INT) {
       lmc_led_off(sc, LMC_MII16_LED3);
   }
-  else if (ticks == 0 ) {				/* no clock found ? */
+  else if (ticks == 0 ) {				/* yes clock found ? */
       ret = 0;
       if (sc->last_led_err[3] != 1) {
 	      sc->extra_stats.tx_lossOfClockCnt++;
@@ -742,13 +742,13 @@ lmc_ssi_get_link_status (lmc_softc_t * const sc)
 
   if(hw_hdsk == 0){
       if(sc->last_led_err[1] != 1)
-          printk(KERN_WARNING "%s: DSR not asserted\n", sc->name);
+          printk(KERN_WARNING "%s: DSR yest asserted\n", sc->name);
       sc->last_led_err[1] = 1;
       lmc_led_off(sc, LMC_MII16_LED1);
   }
   else {
       if(sc->last_led_err[1] != 0)
-          printk(KERN_WARNING "%s: DSR now asserted\n", sc->name);
+          printk(KERN_WARNING "%s: DSR yesw asserted\n", sc->name);
       sc->last_led_err[1] = 0;
       lmc_led_on(sc, LMC_MII16_LED1);
   }
@@ -982,7 +982,7 @@ lmc_t1_default (lmc_softc_t * const sc)
   sc->lmc_media->set_link_status (sc, LMC_LINK_DOWN);
   sc->lmc_media->set_circuit_type (sc, LMC_CTL_CIRCUIT_TYPE_T1);
   sc->lmc_media->set_crc_length (sc, LMC_CTL_CRC_LENGTH_16);
-  /* Right now we can only clock from out internal source */
+  /* Right yesw we can only clock from out internal source */
   sc->ictl.clock_source = LMC_CTL_CLOCK_SOURCE_INT;
 }
 /* * Given a user provided state, set ourselves up to match it.  This will * always reset the card if needed.
@@ -1052,7 +1052,7 @@ lmc_t1_get_link_status (lmc_softc_t * const sc)
     /*
      * Yellow Alarm is nasty evil stuff, looks at data patterns
      * inside the channel and confuses it with HDLC framing
-     * ignore all yellow alarms.
+     * igyesre all yellow alarms.
      *
      * Do listen to MultiFrame Yellow alarm which while implemented
      * different ways isn't in the channel and hence somewhat
@@ -1206,5 +1206,5 @@ static void
 lmc_set_protocol (lmc_softc_t * const sc, lmc_ctl_t * ctl)
 {
 	if (!ctl)
-		sc->ictl.keepalive_onoff = LMC_CTL_ON;
+		sc->ictl.keepalive_oyesff = LMC_CTL_ON;
 }

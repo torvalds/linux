@@ -33,7 +33,7 @@
 
 /* "Be conservative in what you do,
     be liberal in what you accept from others."
-    If it's non-zero, we mark only out of window RST segments as INVALID. */
+    If it's yesn-zero, we mark only out of window RST segments as INVALID. */
 static int nf_ct_tcp_be_liberal __read_mostly = 0;
 
 /* If it is set to zero, we disable picking up already established
@@ -114,7 +114,7 @@ enum tcp_bit_set {
  * It is assumed that the destinations can't receive segments
  * we haven't seen.
  *
- * The checked segment is in window, but our windows are *not*
+ * The checked segment is in window, but our windows are *yest*
  * equivalent with the ones of the sender/receiver. We always
  * try to guess the state of the current sender.
  *
@@ -152,7 +152,7 @@ static const u8 tcp_conntracks[2][6][TCP_CONNTRACK_MAX] = {
  *	sES -> sIG	Error: SYNs in window outside the SYN_SENT state
  *			are errors. Receiver will reply with RST
  *			and close the connection.
- *			Or we are not in sync and hold a dead connection.
+ *			Or we are yest in sync and hold a dead connection.
  *	sFW -> sIG
  *	sCW -> sIG
  *	sLA -> sIG
@@ -162,7 +162,7 @@ static const u8 tcp_conntracks[2][6][TCP_CONNTRACK_MAX] = {
 /* 	     sNO, sSS, sSR, sES, sFW, sCW, sLA, sTW, sCL, sS2	*/
 /*synack*/ { sIV, sIV, sSR, sIV, sIV, sIV, sIV, sIV, sIV, sSR },
 /*
- *	sNO -> sIV	Too late and no reason to do anything
+ *	sNO -> sIV	Too late and yes reason to do anything
  *	sSS -> sIV	Client can't send SYN and then SYN/ACK
  *	sS2 -> sSR	SYN/ACK sent to SYN2 in simultaneous open
  *	sSR -> sSR	Late retransmitted SYN/ACK in simultaneous open
@@ -176,8 +176,8 @@ static const u8 tcp_conntracks[2][6][TCP_CONNTRACK_MAX] = {
 /* 	     sNO, sSS, sSR, sES, sFW, sCW, sLA, sTW, sCL, sS2	*/
 /*fin*/    { sIV, sIV, sFW, sFW, sLA, sLA, sLA, sTW, sCL, sIV },
 /*
- *	sNO -> sIV	Too late and no reason to do anything...
- *	sSS -> sIV	Client migth not send FIN in this state:
+ *	sNO -> sIV	Too late and yes reason to do anything...
+ *	sSS -> sIV	Client migth yest send FIN in this state:
  *			we enforce waiting for a SYN/ACK reply first.
  *	sS2 -> sIV
  *	sSR -> sFW	Close started.
@@ -206,7 +206,7 @@ static const u8 tcp_conntracks[2][6][TCP_CONNTRACK_MAX] = {
  */
 /* 	     sNO, sSS, sSR, sES, sFW, sCW, sLA, sTW, sCL, sS2	*/
 /*rst*/    { sIV, sCL, sCL, sCL, sCL, sCL, sCL, sCL, sCL, sCL },
-/*none*/   { sIV, sIV, sIV, sIV, sIV, sIV, sIV, sIV, sIV, sIV }
+/*yesne*/   { sIV, sIV, sIV, sIV, sIV, sIV, sIV, sIV, sIV, sIV }
 	},
 	{
 /* REPLY */
@@ -229,9 +229,9 @@ static const u8 tcp_conntracks[2][6][TCP_CONNTRACK_MAX] = {
 /*
  *	sSS -> sSR	Standard open.
  *	sS2 -> sSR	Simultaneous open
- *	sSR -> sIG	Retransmitted SYN/ACK, ignore it.
+ *	sSR -> sIG	Retransmitted SYN/ACK, igyesre it.
  *	sES -> sIG	Late retransmitted SYN/ACK?
- *	sFW -> sIG	Might be SYN/ACK answering ignored SYN
+ *	sFW -> sIG	Might be SYN/ACK answering igyesred SYN
  *	sCW -> sIG
  *	sLA -> sIG
  *	sTW -> sIG
@@ -240,7 +240,7 @@ static const u8 tcp_conntracks[2][6][TCP_CONNTRACK_MAX] = {
 /* 	     sNO, sSS, sSR, sES, sFW, sCW, sLA, sTW, sCL, sS2	*/
 /*fin*/    { sIV, sIV, sFW, sFW, sLA, sLA, sLA, sTW, sCL, sIV },
 /*
- *	sSS -> sIV	Server might not send FIN in this state.
+ *	sSS -> sIV	Server might yest send FIN in this state.
  *	sS2 -> sIV
  *	sSR -> sFW	Close started.
  *	sES -> sFW
@@ -265,7 +265,7 @@ static const u8 tcp_conntracks[2][6][TCP_CONNTRACK_MAX] = {
  */
 /* 	     sNO, sSS, sSR, sES, sFW, sCW, sLA, sTW, sCL, sS2	*/
 /*rst*/    { sIV, sCL, sCL, sCL, sCL, sCL, sCL, sCL, sCL, sCL },
-/*none*/   { sIV, sIV, sIV, sIV, sIV, sIV, sIV, sIV, sIV, sIV }
+/*yesne*/   { sIV, sIV, sIV, sIV, sIV, sIV, sIV, sIV, sIV, sIV }
 	}
 };
 
@@ -314,7 +314,7 @@ static unsigned int get_conntrack_index(const struct tcphdr *tcph)
    where sack is the highest right edge of sack block found in the packet
    or ack in the case of packet without SACK option.
 
-   The upper bound limit for a valid (s)ack is not ignored -
+   The upper bound limit for a valid (s)ack is yest igyesred -
    we doesn't have to deal with fragments.
 */
 
@@ -556,7 +556,7 @@ static bool tcp_in_window(const struct nf_conn *ct,
 		   && after(end, sender->td_end)) {
 		/*
 		 * RFC 793: "if a TCP is reinitialized ... then it need
-		 * not wait at all; it must only be sure to use sequence
+		 * yest wait at all; it must only be sure to use sequence
 		 * numbers larger than those recently used."
 		 */
 		sender->td_end =
@@ -568,7 +568,7 @@ static bool tcp_in_window(const struct nf_conn *ct,
 
 	if (!(tcph->ack)) {
 		/*
-		 * If there is no ACK, just pretend it was set and OK.
+		 * If there is yes ACK, just pretend it was set and OK.
 		 */
 		ack = sack = receiver->td_end;
 	} else if (((tcp_flag_word(tcph) & (TCP_FLAG_ACK|TCP_FLAG_RST)) ==
@@ -682,7 +682,7 @@ static bool tcp_in_window(const struct nf_conn *ct,
 			before(sack, receiver->td_end + 1) ?
 			after(sack, receiver->td_end - MAXACKWINDOW(sender) - 1) ? "BUG"
 			: "ACK is under the lower bound (possible overly delayed ACK)"
-			: "ACK is over the upper bound (ACKed data not seen yet)"
+			: "ACK is over the upper bound (ACKed data yest seen yet)"
 			: "SEQ is under the lower bound (already ACKed data retransmitted)"
 			: "SEQ is over the upper bound (over the window of the receiver)");
 		}
@@ -733,7 +733,7 @@ static bool tcp_error(const struct tcphdr *th,
 		return true;
 	}
 
-	/* Checksum invalid? Ignore.
+	/* Checksum invalid? Igyesre.
 	 * We skip checking packets on the outgoing path
 	 * because the checksum is assumed to be correct.
 	 */
@@ -755,7 +755,7 @@ static bool tcp_error(const struct tcphdr *th,
 	return false;
 }
 
-static noinline bool tcp_new(struct nf_conn *ct, const struct sk_buff *skb,
+static yesinline bool tcp_new(struct nf_conn *ct, const struct sk_buff *skb,
 			     unsigned int dataoff,
 			     const struct tcphdr *th)
 {
@@ -765,7 +765,7 @@ static noinline bool tcp_new(struct nf_conn *ct, const struct sk_buff *skb,
 	const struct ip_ct_tcp_state *sender = &ct->proto.tcp.seen[0];
 	const struct ip_ct_tcp_state *receiver = &ct->proto.tcp.seen[1];
 
-	/* Don't need lock here: this conntrack not in circulation yet */
+	/* Don't need lock here: this conntrack yest in circulation yet */
 	new_state = tcp_conntracks[0][get_conntrack_index(th)][TCP_CONNTRACK_NONE];
 
 	/* Invalid: delete conntrack */
@@ -876,7 +876,7 @@ int nf_conntrack_tcp_packet(struct nf_conn *ct,
 		 * (Maximum Segment Lifetime). However, it MAY accept
 		 * a new SYN from the remote TCP to reopen the connection
 		 * directly from TIME-WAIT state, if..."
-		 * We ignore the conditions because we are in the
+		 * We igyesre the conditions because we are in the
 		 * TIME-WAIT state anyway.
 		 *
 		 * Handle aborted connections: we and the server
@@ -902,9 +902,9 @@ int nf_conntrack_tcp_packet(struct nf_conn *ct,
 		}
 		/* Fall through */
 	case TCP_CONNTRACK_IGNORE:
-		/* Ignored packets:
+		/* Igyesred packets:
 		 *
-		 * Our connection entry may be out of sync, so ignore
+		 * Our connection entry may be out of sync, so igyesre
 		 * packets which may signal the real connection between
 		 * the client and the server.
 		 *
@@ -912,17 +912,17 @@ int nf_conntrack_tcp_packet(struct nf_conn *ct,
 		 * b) SYN/ACK in REPLY
 		 * c) ACK in reply direction after initial SYN in original.
 		 *
-		 * If the ignored packet is invalid, the receiver will send
+		 * If the igyesred packet is invalid, the receiver will send
 		 * a RST we'll catch below.
 		 */
 		if (index == TCP_SYNACK_SET
 		    && ct->proto.tcp.last_index == TCP_SYN_SET
 		    && ct->proto.tcp.last_dir != dir
 		    && ntohl(th->ack_seq) == ct->proto.tcp.last_end) {
-			/* b) This SYN/ACK acknowledges a SYN that we earlier
-			 * ignored as invalid. This means that the client and
+			/* b) This SYN/ACK ackyeswledges a SYN that we earlier
+			 * igyesred as invalid. This means that the client and
 			 * the server are both in sync, while the firewall is
-			 * not. We get in sync from the previously annotated
+			 * yest. We get in sync from the previously anyestated
 			 * values.
 			 */
 			old_state = TCP_CONNTRACK_SYN_SENT;
@@ -951,7 +951,7 @@ int nf_conntrack_tcp_packet(struct nf_conn *ct,
 		ct->proto.tcp.last_win = ntohs(th->window);
 
 		/* a) This is a SYN in ORIGINAL. The client and the server
-		 * may be in sync but we are not. In that case, we annotate
+		 * may be in sync but we are yest. In that case, we anyestate
 		 * the TCP options and let the packet go through. If it is a
 		 * valid SYN packet, the server will reply with a SYN/ACK, and
 		 * then we'll get in sync. Otherwise, the server potentially
@@ -981,7 +981,7 @@ int nf_conntrack_tcp_packet(struct nf_conn *ct,
 					IP_CT_EXP_CHALLENGE_ACK;
 		}
 		spin_unlock_bh(&ct->lock);
-		nf_ct_l4proto_log_invalid(skb, ct, "invalid packet ignored in "
+		nf_ct_l4proto_log_invalid(skb, ct, "invalid packet igyesred in "
 					  "state %s ", tcp_conntrack_names[old_state]);
 		return NF_ACCEPT;
 	case TCP_CONNTRACK_MAX:
@@ -1009,7 +1009,7 @@ int nf_conntrack_tcp_packet(struct nf_conn *ct,
 	case TCP_CONNTRACK_TIME_WAIT:
 		/* RFC5961 compliance cause stack to send "challenge-ACK"
 		 * e.g. in response to spurious SYNs.  Conntrack MUST
-		 * not believe this ACK is acking last FIN.
+		 * yest believe this ACK is acking last FIN.
 		 */
 		if (old_state == TCP_CONNTRACK_LAST_ACK &&
 		    index == TCP_ACK_SET &&
@@ -1019,12 +1019,12 @@ int nf_conntrack_tcp_packet(struct nf_conn *ct,
 			/* Detected RFC5961 challenge ACK */
 			ct->proto.tcp.last_flags &= ~IP_CT_EXP_CHALLENGE_ACK;
 			spin_unlock_bh(&ct->lock);
-			nf_ct_l4proto_log_invalid(skb, ct, "challenge-ack ignored");
+			nf_ct_l4proto_log_invalid(skb, ct, "challenge-ack igyesred");
 			return NF_ACCEPT; /* Don't change state */
 		}
 		break;
 	case TCP_CONNTRACK_SYN_SENT2:
-		/* tcp_conntracks table is not smart enough to handle
+		/* tcp_conntracks table is yest smart eyesugh to handle
 		 * simultaneous open.
 		 */
 		ct->proto.tcp.last_flags |= IP_CT_TCP_SIMULTANEOUS_OPEN;
@@ -1079,7 +1079,7 @@ int nf_conntrack_tcp_packet(struct nf_conn *ct,
 			 *
 			 * Delete our connection entry.
 			 * We skip window checking, because packet might ACK
-			 * segments we ignored. */
+			 * segments we igyesred. */
 			goto in_window;
 		}
 		break;
@@ -1094,7 +1094,7 @@ int nf_conntrack_tcp_packet(struct nf_conn *ct,
 		return -NF_ACCEPT;
 	}
      in_window:
-	/* From now on we have got in-window packets */
+	/* From yesw on we have got in-window packets */
 	ct->proto.tcp.last_index = index;
 	ct->proto.tcp.last_dir = dir;
 
@@ -1134,7 +1134,7 @@ int nf_conntrack_tcp_packet(struct nf_conn *ct,
 		nf_conntrack_event_cache(IPCT_PROTOINFO, ct);
 
 	if (!test_bit(IPS_SEEN_REPLY_BIT, &ct->status)) {
-		/* If only reply is a RST, we can consider ourselves not to
+		/* If only reply is a RST, we can consider ourselves yest to
 		   have an established connection: this is a fairly common
 		   problem case, so we can delete the conntrack
 		   immediately.  --RR */
@@ -1242,7 +1242,7 @@ static int nlattr_to_tcp(struct nlattr *cda[], struct nf_conn *ct)
 	struct nlattr *tb[CTA_PROTOINFO_TCP_MAX+1];
 	int err;
 
-	/* updates could not contain anything about the private
+	/* updates could yest contain anything about the private
 	 * protocol info, in that case skip the parsing */
 	if (!pattr)
 		return 0;

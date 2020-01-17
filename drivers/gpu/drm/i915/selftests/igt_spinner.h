@@ -21,7 +21,7 @@ struct igt_spinner {
 	struct drm_i915_gem_object *hws;
 	struct drm_i915_gem_object *obj;
 	u32 *batch;
-	void *seqno;
+	void *seqyes;
 };
 
 int igt_spinner_init(struct igt_spinner *spin, struct intel_gt *gt);

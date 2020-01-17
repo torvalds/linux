@@ -223,7 +223,7 @@ typedef enum _RT_CHANNEL_DOMAIN_5G
 	RT_CHANNEL_DOMAIN_5G_ETSI6 = 0x15,		/* Israel, Bahrain, Egypt, India, China, Malaysia */
 	RT_CHANNEL_DOMAIN_5G_ETSI7 = 0x16,		/* China */
 	RT_CHANNEL_DOMAIN_5G_ETSI8 = 0x17,		/* Jordan */
-	RT_CHANNEL_DOMAIN_5G_ETSI9 = 0x18,		/* Lebanon */
+	RT_CHANNEL_DOMAIN_5G_ETSI9 = 0x18,		/* Lebayesn */
 	RT_CHANNEL_DOMAIN_5G_ETSI10 = 0x19,		/* Qatar */
 	RT_CHANNEL_DOMAIN_5G_ETSI11 = 0x1A,		/* Russia */
 	RT_CHANNEL_DOMAIN_5G_NCC4 = 0x1B,		/* Taiwan, (w/o Weather radar) */
@@ -274,7 +274,7 @@ enum Associated_AP
 	ralinkAP	= 4,
 	realtekAP	= 5,
 	airgocapAP	= 6,
-	unknownAP	= 7,
+	unkyeswnAP	= 7,
 	maxAP,
 };
 
@@ -778,7 +778,7 @@ u8 tx_beacon_hdl(struct adapter *padapter, unsigned char *pbuf);
 u8 set_ch_hdl(struct adapter *padapter, u8 *pbuf);
 u8 set_chplan_hdl(struct adapter *padapter, unsigned char *pbuf);
 u8 led_blink_hdl(struct adapter *padapter, unsigned char *pbuf);
-u8 set_csa_hdl(struct adapter *padapter, unsigned char *pbuf);	/* Kurt: Handling DFS channel switch announcement ie. */
+u8 set_csa_hdl(struct adapter *padapter, unsigned char *pbuf);	/* Kurt: Handling DFS channel switch anyesuncement ie. */
 u8 tdls_hdl(struct adapter *padapter, unsigned char *pbuf);
 u8 run_in_thread_hdl(struct adapter *padapter, u8 *pbuf);
 

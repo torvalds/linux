@@ -21,8 +21,8 @@
 /* bits 0-7 are used for indicating driver type */
 #define AZX_DCAPS_NO_TCSEL	(1 << 8)	/* No Intel TCSEL bit */
 #define AZX_DCAPS_NO_MSI	(1 << 9)	/* No MSI support */
-#define AZX_DCAPS_SNOOP_MASK	(3 << 10)	/* snoop type mask */
-#define AZX_DCAPS_SNOOP_OFF	(1 << 12)	/* snoop default off */
+#define AZX_DCAPS_SNOOP_MASK	(3 << 10)	/* syesop type mask */
+#define AZX_DCAPS_SNOOP_OFF	(1 << 12)	/* syesop default off */
 #ifdef CONFIG_SND_HDA_I915
 #define AZX_DCAPS_I915_COMPONENT (1 << 13)	/* bind with i915 gfx */
 #else
@@ -35,7 +35,7 @@
 #define AZX_DCAPS_NO_64BIT	(1 << 18)	/* No 64bit address */
 #define AZX_DCAPS_SYNC_WRITE	(1 << 19)	/* sync each cmd write */
 #define AZX_DCAPS_OLD_SSYNC	(1 << 20)	/* Old SSYNC reg for ICH */
-#define AZX_DCAPS_NO_ALIGN_BUFSIZE (1 << 21)	/* no buffer size alignment */
+#define AZX_DCAPS_NO_ALIGN_BUFSIZE (1 << 21)	/* yes buffer size alignment */
 /* 22 unused */
 #define AZX_DCAPS_4K_BDLE_BOUNDARY (1 << 23)	/* BDLE in 4k boundary */
 /* 24 unused */
@@ -60,7 +60,7 @@ struct azx_dev {
 	/*
 	 * For VIA:
 	 *  A flag to ensure DMA position is 0
-	 *  when link position is not greater than FIFO size
+	 *  when link position is yest greater than FIFO size
 	 */
 	unsigned int insufficient:1;
 };
@@ -138,8 +138,8 @@ struct azx {
 	unsigned int single_cmd:1;
 	unsigned int msi:1;
 	unsigned int probing:1; /* codec probing phase */
-	unsigned int snoop:1;
-	unsigned int uc_buffer:1; /* non-cached pages for stream buffers */
+	unsigned int syesop:1;
+	unsigned int uc_buffer:1; /* yesn-cached pages for stream buffers */
 	unsigned int align_buffer_size:1;
 	unsigned int region_requested:1;
 	unsigned int disabled:1; /* disabled by vga_switcheroo */
@@ -155,9 +155,9 @@ struct azx {
 #define azx_bus(chip)	(&(chip)->bus.core)
 #define bus_to_azx(_bus)	container_of(_bus, struct azx, bus.core)
 
-static inline bool azx_snoop(struct azx *chip)
+static inline bool azx_syesop(struct azx *chip)
 {
-	return !IS_ENABLED(CONFIG_X86) || chip->snoop;
+	return !IS_ENABLED(CONFIG_X86) || chip->syesop;
 }
 
 /*

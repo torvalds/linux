@@ -1,14 +1,14 @@
 [
     {
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts the number of demand Data Read requests that miss L2 cache. Only not rejected loads are counted.",
+        "PublicDescription": "Counts the number of demand Data Read requests that miss L2 cache. Only yest rejected loads are counted.",
         "EventCode": "0x24",
         "Counter": "0,1,2,3",
         "UMask": "0x21",
         "PEBScounters": "0,1,2,3",
         "EventName": "L2_RQSTS.DEMAND_DATA_RD_MISS",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Demand Data Read miss L2, no rejects"
+        "BriefDescription": "Demand Data Read miss L2, yes rejects"
     },
     {
         "CollectPEBSRecord": "2",
@@ -100,7 +100,7 @@
     },
     {
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts the number of demand Data Read requests (including requests from L1D hardware prefetchers). These loads may hit or miss L2 cache. Only non rejected loads are counted.",
+        "PublicDescription": "Counts the number of demand Data Read requests (including requests from L1D hardware prefetchers). These loads may hit or miss L2 cache. Only yesn rejected loads are counted.",
         "EventCode": "0x24",
         "Counter": "0,1,2,3",
         "UMask": "0xe1",
@@ -144,7 +144,7 @@
     },
     {
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts number of L1D misses that are outstanding in each cycle, that is each cycle the number of Fill Buffers (FB) outstanding required by Demand Reads. FB either is held by demand loads, or it is held by non-demand loads and gets hit at least once by demand. The valid outstanding interval is defined until the FB deallocation by one of the following ways: from FB allocation, if FB is allocated by demand from the demand Hit FB, if it is allocated by hardware or software prefetch. Note: In the L1D, a Demand Read contains cacheable or noncacheable demand loads, including ones causing cache-line splits and reads due to page walks resulted from any request type.",
+        "PublicDescription": "Counts number of L1D misses that are outstanding in each cycle, that is each cycle the number of Fill Buffers (FB) outstanding required by Demand Reads. FB either is held by demand loads, or it is held by yesn-demand loads and gets hit at least once by demand. The valid outstanding interval is defined until the FB deallocation by one of the following ways: from FB allocation, if FB is allocated by demand from the demand Hit FB, if it is allocated by hardware or software prefetch. Note: In the L1D, a Demand Read contains cacheable or yesncacheable demand loads, including ones causing cache-line splits and reads due to page walks resulted from any request type.",
         "EventCode": "0x48",
         "Counter": "0,1,2,3",
         "UMask": "0x1",
@@ -270,7 +270,7 @@
     },
     {
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts the demand and prefetch data reads. All Core Data Reads include cacheable 'Demands' and L2 prefetchers (not L3 prefetchers). Counting also covers reads due to page walks resulted from any request type.",
+        "PublicDescription": "Counts the demand and prefetch data reads. All Core Data Reads include cacheable 'Demands' and L2 prefetchers (yest L3 prefetchers). Counting also covers reads due to page walks resulted from any request type.",
         "EventCode": "0xB0",
         "Counter": "0,1,2,3",
         "UMask": "0x8",
@@ -465,40 +465,40 @@
     {
         "PEBS": "1",
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts retired load instructions with at least one uop was load missed in L1 but hit FB (Fill Buffers) due to preceding miss to the same cache line with data not ready.",
+        "PublicDescription": "Counts retired load instructions with at least one uop was load missed in L1 but hit FB (Fill Buffers) due to preceding miss to the same cache line with data yest ready.",
         "EventCode": "0xd1",
         "Counter": "0,1,2,3",
         "UMask": "0x40",
         "PEBScounters": "0,1,2,3",
         "EventName": "MEM_LOAD_RETIRED.FB_HIT",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Number of completed demand load requests that missed the L1, but hit the FB(fill buffer), because a preceding miss to the same cacheline initiated the line to be brought into L1, but data is not yet ready in L1.",
+        "BriefDescription": "Number of completed demand load requests that missed the L1, but hit the FB(fill buffer), because a preceding miss to the same cacheline initiated the line to be brought into L1, but data is yest yet ready in L1.",
         "Data_LA": "1"
     },
     {
         "PEBS": "1",
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts the retired load instructions whose data sources were L3 hit and cross-core snoop missed in on-pkg core cache.",
+        "PublicDescription": "Counts the retired load instructions whose data sources were L3 hit and cross-core syesop missed in on-pkg core cache.",
         "EventCode": "0xd2",
         "Counter": "0,1,2,3",
         "UMask": "0x1",
         "PEBScounters": "0,1,2,3",
         "EventName": "MEM_LOAD_L3_HIT_RETIRED.XSNP_MISS",
         "SampleAfterValue": "20011",
-        "BriefDescription": "Retired load instructions whose data sources were L3 hit and cross-core snoop missed in on-pkg core cache.",
+        "BriefDescription": "Retired load instructions whose data sources were L3 hit and cross-core syesop missed in on-pkg core cache.",
         "Data_LA": "1"
     },
     {
         "PEBS": "1",
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts retired load instructions whose data sources were L3 and cross-core snoop hits in on-pkg core cache.",
+        "PublicDescription": "Counts retired load instructions whose data sources were L3 and cross-core syesop hits in on-pkg core cache.",
         "EventCode": "0xd2",
         "Counter": "0,1,2,3",
         "UMask": "0x2",
         "PEBScounters": "0,1,2,3",
         "EventName": "MEM_LOAD_L3_HIT_RETIRED.XSNP_HIT",
         "SampleAfterValue": "20011",
-        "BriefDescription": "Retired load instructions whose data sources were L3 and cross-core snoop hits in on-pkg core cache",
+        "BriefDescription": "Retired load instructions whose data sources were L3 and cross-core syesop hits in on-pkg core cache",
         "Data_LA": "1"
     },
     {
@@ -517,19 +517,19 @@
     {
         "PEBS": "1",
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts retired load instructions whose data sources were hits in L3 without snoops required.",
+        "PublicDescription": "Counts retired load instructions whose data sources were hits in L3 without syesops required.",
         "EventCode": "0xd2",
         "Counter": "0,1,2,3",
         "UMask": "0x8",
         "PEBScounters": "0,1,2,3",
         "EventName": "MEM_LOAD_L3_HIT_RETIRED.XSNP_NONE",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Retired load instructions whose data sources were hits in L3 without snoops required",
+        "BriefDescription": "Retired load instructions whose data sources were hits in L3 without syesops required",
         "Data_LA": "1"
     },
     {
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts the number of L2 cache lines filling the L2. Counting does not cover rejects.",
+        "PublicDescription": "Counts the number of L2 cache lines filling the L2. Counting does yest cover rejects.",
         "EventCode": "0xF1",
         "Counter": "0,1,2,3",
         "UMask": "0x1f",
@@ -540,13 +540,13 @@
     },
     {
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts the cycles for which the thread is active and the superQ cannot take any more entries.",
+        "PublicDescription": "Counts the cycles for which the thread is active and the superQ canyest take any more entries.",
         "EventCode": "0xF4",
         "Counter": "0,1,2,3",
         "UMask": "0x4",
         "PEBScounters": "0,1,2,3",
         "EventName": "SQ_MISC.SQ_FULL",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Cycles the thread is active and superQ cannot take any more entries."
+        "BriefDescription": "Cycles the thread is active and superQ canyest take any more entries."
     }
 ]

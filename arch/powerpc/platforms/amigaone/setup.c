@@ -29,7 +29,7 @@ void amigaone_show_cpuinfo(struct seq_file *m)
 	seq_printf(m, "vendor\t\t: Eyetech Ltd.\n");
 }
 
-static int __init amigaone_add_bridge(struct device_node *dev)
+static int __init amigaone_add_bridge(struct device_yesde *dev)
 {
 	const u32 *cfg_addr, *cfg_data;
 	int len;
@@ -52,8 +52,8 @@ static int __init amigaone_add_bridge(struct device_node *dev)
 	if (hose == NULL)
 		return -ENOMEM;
 
-	hose->first_busno = bus_range ? bus_range[0] : 0;
-	hose->last_busno = bus_range ? bus_range[1] : 0xff;
+	hose->first_busyes = bus_range ? bus_range[0] : 0;
+	hose->last_busyes = bus_range ? bus_range[1] : 0xff;
 
 	setup_indirect_pci(hose, cfg_addr[0], cfg_data[0], 0);
 
@@ -66,11 +66,11 @@ static int __init amigaone_add_bridge(struct device_node *dev)
 
 void __init amigaone_setup_arch(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	int phb = -ENODEV;
 
 	/* Lookup PCI host bridges. */
-	for_each_compatible_node(np, "pci", "mai-logic,articia-s")
+	for_each_compatible_yesde(np, "pci", "mai-logic,articia-s")
 		phb = amigaone_add_bridge(np);
 
 	BUG_ON(phb != 0);
@@ -81,26 +81,26 @@ void __init amigaone_setup_arch(void)
 
 void __init amigaone_init_IRQ(void)
 {
-	struct device_node *pic, *np = NULL;
+	struct device_yesde *pic, *np = NULL;
 	const unsigned long *prop = NULL;
 	unsigned long int_ack = 0;
 
 	/* Search for ISA interrupt controller. */
-	pic = of_find_compatible_node(NULL, "interrupt-controller",
+	pic = of_find_compatible_yesde(NULL, "interrupt-controller",
 	                              "pnpPNP,000");
 	BUG_ON(pic == NULL);
 
-	/* Look for interrupt acknowledge address in the PCI root node. */
-	np = of_find_compatible_node(NULL, "pci", "mai-logic,articia-s");
+	/* Look for interrupt ackyeswledge address in the PCI root yesde. */
+	np = of_find_compatible_yesde(NULL, "pci", "mai-logic,articia-s");
 	if (np) {
-		prop = of_get_property(np, "8259-interrupt-acknowledge", NULL);
+		prop = of_get_property(np, "8259-interrupt-ackyeswledge", NULL);
 		if (prop)
 			int_ack = prop[0];
-		of_node_put(np);
+		of_yesde_put(np);
 	}
 
 	if (int_ack == 0)
-		printk(KERN_WARNING "Cannot find PCI interrupt acknowledge"
+		printk(KERN_WARNING "Canyest find PCI interrupt ackyeswledge"
 		       " address, polling\n");
 
 	i8259_init(pic, int_ack);
@@ -119,7 +119,7 @@ static int __init request_isa_regions(void)
 }
 machine_device_initcall(amigaone, request_isa_regions);
 
-void __noreturn amigaone_restart(char *cmd)
+void __yesreturn amigaone_restart(char *cmd)
 {
 	local_irq_disable();
 

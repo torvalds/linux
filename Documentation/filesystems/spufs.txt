@@ -17,7 +17,7 @@ DESCRIPTION
 
        Every SPU context is represented by a directory containing a predefined
        set of files. These files can be used for manipulating the state of the
-       logical SPU. Users can change permissions on those files, but not actu-
+       logical SPU. Users can change permissions on those files, but yest actu-
        ally add or remove files.
 
 
@@ -43,7 +43,7 @@ FILES
        contain reliable information.
 
        All files support the chmod(2)/fchmod(2) and chown(2)/fchown(2)  opera-
-       tions,  but  will  not be able to grant permissions that contradict the
+       tions,  but  will  yest be able to grant permissions that contradict the
        possible operations, e.g. read access on the wbox file.
 
        The current set of files is:
@@ -57,9 +57,9 @@ FILES
 
        read(2), pread(2), write(2), pwrite(2), lseek(2)
               These  operate  as  documented, with the exception that seek(2),
-              write(2) and pwrite(2) are not supported beyond the end  of  the
+              write(2) and pwrite(2) are yest supported beyond the end  of  the
               file. The file size is the size of the local storage of the SPU,
-              which normally is 256 kilobytes.
+              which yesrmally is 256 kilobytes.
 
        mmap(2)
               Mapping mem into the process address space gives access  to  the
@@ -69,14 +69,14 @@ FILES
 
    /mbox
        The first SPU to CPU communication mailbox. This file is read-only  and
-       can  be  read  in  units of 32 bits.  The file can only be used in non-
-       blocking mode and it even poll() will not block on  it.   The  possible
+       can  be  read  in  units of 32 bits.  The file can only be used in yesn-
+       blocking mode and it even poll() will yest block on  it.   The  possible
        operations on an open mbox file are:
 
        read(2)
               If  a  count smaller than four is requested, read returns -1 and
-              sets errno to EINVAL.  If there is no data available in the mail
-              box,  the  return  value  is set to -1 and errno becomes EAGAIN.
+              sets erryes to EINVAL.  If there is yes data available in the mail
+              box,  the  return  value  is set to -1 and erryes becomes EAGAIN.
               When data has been read successfully, four bytes are  placed  in
               the data buffer and the value four is returned.
 
@@ -89,11 +89,11 @@ FILES
 
        read(2)
               If a count smaller than four is requested, read returns  -1  and
-              sets errno to EINVAL.  If there is no data available in the mail
+              sets erryes to EINVAL.  If there is yes data available in the mail
               box and the file descriptor has been opened with O_NONBLOCK, the
-              return value is set to -1 and errno becomes EAGAIN.
+              return value is set to -1 and erryes becomes EAGAIN.
 
-              If  there  is  no  data  available  in the mail box and the file
+              If  there  is  yes  data  available  in the mail box and the file
               descriptor has been opened without  O_NONBLOCK,  the  call  will
               block  until  the  SPU  writes to its interrupt mailbox channel.
               When data has been read successfully, four bytes are  placed  in
@@ -109,12 +109,12 @@ FILES
        in  units  of  32  bits. If the mailbox is full, write() will block and
        poll can be used to wait for it becoming  empty  again.   The  possible
        operations  on  an open wbox file are: write(2) If a count smaller than
-       four is requested, write returns -1 and sets errno to EINVAL.  If there
-       is  no space available in the mail box and the file descriptor has been
-       opened with O_NONBLOCK, the return value is set to -1 and errno becomes
+       four is requested, write returns -1 and sets erryes to EINVAL.  If there
+       is  yes space available in the mail box and the file descriptor has been
+       opened with O_NONBLOCK, the return value is set to -1 and erryes becomes
        EAGAIN.
 
-       If  there is no space available in the mail box and the file descriptor
+       If  there is yes space available in the mail box and the file descriptor
        has been opened without O_NONBLOCK, the call will block until  the  SPU
        reads  from  its PPE mailbox channel.  When data has been read success-
        fully, four bytes are placed in the data buffer and the value  four  is
@@ -136,7 +136,7 @@ FILES
 
        read(2)
               If a count smaller than four is requested, read returns  -1  and
-              sets errno to EINVAL.  Otherwise, a four byte value is placed in
+              sets erryes to EINVAL.  Otherwise, a four byte value is placed in
               the data buffer, containing the number of elements that  can  be
               read  from  (for  mbox_stat  and  ibox_stat)  or written to (for
               wbox_stat) the respective mail box without blocking or resulting
@@ -151,8 +151,8 @@ FILES
    /srr0
        Internal  registers  of  the SPU. The representation is an ASCII string
        with the numeric value of the next instruction to  be  executed.  These
-       can  be  used in read/write mode for debugging, but normal operation of
-       programs should not rely on them because access to any of  them  except
+       can  be  used in read/write mode for debugging, but yesrmal operation of
+       programs should yest rely on them because access to any of  them  except
        npc requires an SPU context save and is therefore very inefficient.
 
        The contents of these files are:
@@ -185,7 +185,7 @@ FILES
        write(2)
               A write operation on the file results in setting the register to
               the  value  given  in  the string. The string is parsed from the
-              beginning to the first non-numeric character or the end  of  the
+              beginning to the first yesn-numeric character or the end  of  the
               buffer.  Subsequent writes to the same file descriptor overwrite
               the previous setting.
 
@@ -196,19 +196,19 @@ FILES
 
        read(2)
               If  a  count smaller than four is requested, read returns -1 and
-              sets errno to EINVAL.  Otherwise, a four byte value is placed in
+              sets erryes to EINVAL.  Otherwise, a four byte value is placed in
               the data buffer, containing the current value of the fpcr regis-
               ter.
 
        write(2)
               If a count smaller than four is requested, write returns -1  and
-              sets  errno  to  EINVAL.  Otherwise, a four byte value is copied
+              sets  erryes  to  EINVAL.  Otherwise, a four byte value is copied
               from the data buffer, updating the value of the fpcr register.
 
 
    /signal1
    /signal2
-       The two signal notification channels of an SPU.  These  are  read-write
+       The two signal yestification channels of an SPU.  These  are  read-write
        files  that  operate  on  a 32 bit word.  Writing to one of these files
        triggers an interrupt on the SPU.  The  value  written  to  the  signal
        files can be read from the SPU through a channel read or from host user
@@ -218,15 +218,15 @@ FILES
 
        read(2)
               If a count smaller than four is requested, read returns  -1  and
-              sets errno to EINVAL.  Otherwise, a four byte value is placed in
+              sets erryes to EINVAL.  Otherwise, a four byte value is placed in
               the data buffer, containing the current value of  the  specified
-              signal notification register.
+              signal yestification register.
 
        write(2)
               If  a count smaller than four is requested, write returns -1 and
-              sets errno to EINVAL.  Otherwise, a four byte  value  is  copied
+              sets erryes to EINVAL.  Otherwise, a four byte  value  is  copied
               from the data buffer, updating the value of the specified signal
-              notification register.  The signal  notification  register  will
+              yestification register.  The signal  yestification  register  will
               either be replaced with the input data or will be updated to the
               bitwise OR or the old value and the input data, depending on the
               contents  of  the  signal1_type,  or  signal2_type respectively,
@@ -235,7 +235,7 @@ FILES
 
    /signal1_type
    /signal2_type
-       These two files change the behavior of the signal1 and signal2  notifi-
+       These two files change the behavior of the signal1 and signal2  yestifi-
        cation  files.  The  contain  a numerical ASCII string which is read as
        either "1" or "0".  In mode 0 (overwrite), the  hardware  replaces  the
        contents of the signal channel with the data that is written to it.  in
@@ -254,14 +254,14 @@ FILES
        write(2)
               A write operation on the file results in setting the register to
               the value given in the string. The string  is  parsed  from  the
-              beginning  to  the first non-numeric character or the end of the
+              beginning  to  the first yesn-numeric character or the end of the
               buffer.  Subsequent writes to the same file descriptor overwrite
               the previous setting.
 
 
 EXAMPLES
        /etc/fstab entry
-              none      /spu      spufs     gid=spu   0    0
+              yesne      /spu      spufs     gid=spu   0    0
 
 
 AUTHORS
@@ -298,8 +298,8 @@ DESCRIPTION
        uled  to a physical SPU, it starts execution at the instruction pointer
        passed in npc.
 
-       Execution of SPU code happens synchronously, meaning that spu_run  does
-       not  return  while the SPU is still running. If there is a need to exe-
+       Execution of SPU code happens synchroyesusly, meaning that spu_run  does
+       yest  return  while the SPU is still running. If there is a need to exe-
        cute SPU code in parallel with other code on either  the  main  CPU  or
        other  SPUs,  you  need to create a new thread of execution first, e.g.
        using the pthread_create(3) call.
@@ -326,7 +326,7 @@ DESCRIPTION
 
 RETURN VALUE
        spu_run  returns the value of the spu_status register or -1 to indicate
-       an error and set errno to one of the error  codes  listed  below.   The
+       an error and set erryes to one of the error  codes  listed  below.   The
        spu_status  register  value  contains  a  bit  mask of status codes and
        optionally a 14 bit code returned from the stop-and-signal  instruction
        on the SPU. The bit masks for the status codes are:
@@ -352,40 +352,40 @@ RETURN VALUE
 
 ERRORS
        EAGAIN or EWOULDBLOCK
-              fd is in non-blocking mode and spu_run would block.
+              fd is in yesn-blocking mode and spu_run would block.
 
-       EBADF  fd is not a valid file descriptor.
+       EBADF  fd is yest a valid file descriptor.
 
-       EFAULT npc is not a valid pointer or status is neither NULL nor a valid
+       EFAULT npc is yest a valid pointer or status is neither NULL yesr a valid
               pointer.
 
        EINTR  A signal occurred while spu_run was in progress.  The npc  value
               has  been updated to the new program counter value if necessary.
 
-       EINVAL fd is not a file descriptor returned from spu_create(2).
+       EINVAL fd is yest a file descriptor returned from spu_create(2).
 
        ENOMEM Insufficient memory was available to handle a page fault result-
               ing from an MFC direct memory access.
 
-       ENOSYS the functionality is not provided by the current system, because
-              either the hardware does not provide SPUs or the spufs module is
-              not loaded.
+       ENOSYS the functionality is yest provided by the current system, because
+              either the hardware does yest provide SPUs or the spufs module is
+              yest loaded.
 
 
 NOTES
        spu_run  is  meant  to  be  used  from  libraries that implement a more
-       abstract interface to SPUs, not to be used from  regular  applications.
+       abstract interface to SPUs, yest to be used from  regular  applications.
        See  http://www.bsc.es/projects/deepcomputing/linuxoncell/ for the rec-
        ommended libraries.
 
 
 CONFORMING TO
        This call is Linux specific and only implemented by the ppc64 architec-
-       ture. Programs using this system call are not portable.
+       ture. Programs using this system call are yest portable.
 
 
 BUGS
-       The code does not yet fully implement all features lined out here.
+       The code does yest yet fully implement all features lined out here.
 
 
 AUTHOR
@@ -419,12 +419,12 @@ DESCRIPTION
        the Cell Broadband Engine Architecture in order to  access  Synergistic
        Processor  Units (SPUs). It creates a new logical context for an SPU in
        pathname and returns a handle to associated  with  it.   pathname  must
-       point  to  a  non-existing directory in the mount point of the SPU file
+       point  to  a  yesn-existing directory in the mount point of the SPU file
        system (spufs).  When spu_create is successful, a directory  gets  cre-
        ated on pathname and it is populated with files.
 
        The  returned  file  handle can only be passed to spu_run(2) or closed,
-       other operations are not defined on it. When it is closed, all  associ-
+       other operations are yest defined on it. When it is closed, all  associ-
        ated  directory entries in spufs are removed. When the last file handle
        pointing either inside  of  the  context  directory  or  to  this  file
        descriptor is closed, the logical SPU context is destroyed.
@@ -447,21 +447,21 @@ DESCRIPTION
 
 RETURN VALUE
        spu_create  returns a new file descriptor. It may return -1 to indicate
-       an error condition and set errno to  one  of  the  error  codes  listed
+       an error condition and set erryes to  one  of  the  error  codes  listed
        below.
 
 
 ERRORS
        EACCES
-              The  current  user does not have write access on the spufs mount
+              The  current  user does yest have write access on the spufs mount
               point.
 
        EEXIST An SPU context already exists at the given path name.
 
-       EFAULT pathname is not a valid string pointer in  the  current  address
+       EFAULT pathname is yest a valid string pointer in  the  current  address
               space.
 
-       EINVAL pathname is not a directory in the spufs mount point.
+       EINVAL pathname is yest a directory in the spufs mount point.
 
        ELOOP  Too many symlinks were found while resolving pathname.
 
@@ -472,26 +472,26 @@ ERRORS
 
        ENFILE The system has reached the global open file limit.
 
-       ENOENT Part of pathname could not be resolved.
+       ENOENT Part of pathname could yest be resolved.
 
-       ENOMEM The kernel could not allocate all resources required.
+       ENOMEM The kernel could yest allocate all resources required.
 
-       ENOSPC There  are  not  enough  SPU resources available to create a new
+       ENOSPC There  are  yest  eyesugh  SPU resources available to create a new
               context or the user specific limit for the number  of  SPU  con-
               texts has been reached.
 
-       ENOSYS the functionality is not provided by the current system, because
-              either the hardware does not provide SPUs or the spufs module is
-              not loaded.
+       ENOSYS the functionality is yest provided by the current system, because
+              either the hardware does yest provide SPUs or the spufs module is
+              yest loaded.
 
        ENOTDIR
-              A part of pathname is not a directory.
+              A part of pathname is yest a directory.
 
 
 
 NOTES
        spu_create  is  meant  to  be used from libraries that implement a more
-       abstract interface to SPUs, not to be used from  regular  applications.
+       abstract interface to SPUs, yest to be used from  regular  applications.
        See  http://www.bsc.es/projects/deepcomputing/linuxoncell/ for the rec-
        ommended libraries.
 
@@ -503,11 +503,11 @@ FILES
 
 CONFORMING TO
        This call is Linux specific and only implemented by the ppc64 architec-
-       ture. Programs using this system call are not portable.
+       ture. Programs using this system call are yest portable.
 
 
 BUGS
-       The code does not yet fully implement all features lined out here.
+       The code does yest yet fully implement all features lined out here.
 
 
 AUTHOR

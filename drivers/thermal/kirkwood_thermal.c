@@ -35,7 +35,7 @@ static int kirkwood_get_temp(struct thermal_zone_device *thermal,
 	if (!((reg >> KIRKWOOD_THERMAL_VALID_OFFSET) &
 	    KIRKWOOD_THERMAL_VALID_MASK)) {
 		dev_err(&thermal->device,
-			"Temperature sensor reading not valid\n");
+			"Temperature sensor reading yest valid\n");
 		return -EIO;
 	}
 

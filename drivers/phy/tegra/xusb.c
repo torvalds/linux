@@ -35,7 +35,7 @@ static struct phy *tegra_xusb_pad_of_xlate(struct device *dev,
 		if (!pad->lanes[i])
 			continue;
 
-		if (pad->lanes[i]->dev.of_node == args->np) {
+		if (pad->lanes[i]->dev.of_yesde == args->np) {
 			phy = pad->lanes[i];
 			break;
 		}
@@ -70,38 +70,38 @@ static const struct of_device_id tegra_xusb_padctl_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, tegra_xusb_padctl_of_match);
 
-static struct device_node *
-tegra_xusb_find_pad_node(struct tegra_xusb_padctl *padctl, const char *name)
+static struct device_yesde *
+tegra_xusb_find_pad_yesde(struct tegra_xusb_padctl *padctl, const char *name)
 {
-	struct device_node *pads, *np;
+	struct device_yesde *pads, *np;
 
-	pads = of_get_child_by_name(padctl->dev->of_node, "pads");
+	pads = of_get_child_by_name(padctl->dev->of_yesde, "pads");
 	if (!pads)
 		return NULL;
 
 	np = of_get_child_by_name(pads, name);
-	of_node_put(pads);
+	of_yesde_put(pads);
 
 	return np;
 }
 
-static struct device_node *
-tegra_xusb_pad_find_phy_node(struct tegra_xusb_pad *pad, unsigned int index)
+static struct device_yesde *
+tegra_xusb_pad_find_phy_yesde(struct tegra_xusb_pad *pad, unsigned int index)
 {
-	struct device_node *np, *lanes;
+	struct device_yesde *np, *lanes;
 
-	lanes = of_get_child_by_name(pad->dev.of_node, "lanes");
+	lanes = of_get_child_by_name(pad->dev.of_yesde, "lanes");
 	if (!lanes)
 		return NULL;
 
 	np = of_get_child_by_name(lanes, pad->soc->lanes[index].name);
-	of_node_put(lanes);
+	of_yesde_put(lanes);
 
 	return np;
 }
 
 int tegra_xusb_lane_parse_dt(struct tegra_xusb_lane *lane,
-			     struct device_node *np)
+			     struct device_yesde *np)
 {
 	struct device *dev = &lane->pad->dev;
 	const char *function;
@@ -146,7 +146,7 @@ static struct device_type tegra_xusb_pad_type = {
 
 int tegra_xusb_pad_init(struct tegra_xusb_pad *pad,
 			struct tegra_xusb_padctl *padctl,
-			struct device_node *np)
+			struct device_yesde *np)
 {
 	int err;
 
@@ -154,7 +154,7 @@ int tegra_xusb_pad_init(struct tegra_xusb_pad *pad,
 	INIT_LIST_HEAD(&pad->list);
 	pad->dev.parent = padctl->dev;
 	pad->dev.type = &tegra_xusb_pad_type;
-	pad->dev.of_node = np;
+	pad->dev.of_yesde = np;
 	pad->padctl = padctl;
 
 	err = dev_set_name(&pad->dev, "%s", pad->soc->name);
@@ -175,36 +175,36 @@ unregister:
 int tegra_xusb_pad_register(struct tegra_xusb_pad *pad,
 			    const struct phy_ops *ops)
 {
-	struct device_node *children;
+	struct device_yesde *children;
 	struct phy *lane;
 	unsigned int i;
 	int err;
 
-	children = of_get_child_by_name(pad->dev.of_node, "lanes");
+	children = of_get_child_by_name(pad->dev.of_yesde, "lanes");
 	if (!children)
 		return -ENODEV;
 
 	pad->lanes = devm_kcalloc(&pad->dev, pad->soc->num_lanes, sizeof(lane),
 				  GFP_KERNEL);
 	if (!pad->lanes) {
-		of_node_put(children);
+		of_yesde_put(children);
 		return -ENOMEM;
 	}
 
 	for (i = 0; i < pad->soc->num_lanes; i++) {
-		struct device_node *np = tegra_xusb_pad_find_phy_node(pad, i);
+		struct device_yesde *np = tegra_xusb_pad_find_phy_yesde(pad, i);
 		struct tegra_xusb_lane *lane;
 
 		/* skip disabled lanes */
 		if (!np || !of_device_is_available(np)) {
-			of_node_put(np);
+			of_yesde_put(np);
 			continue;
 		}
 
 		pad->lanes[i] = phy_create(&pad->dev, np, ops);
 		if (IS_ERR(pad->lanes[i])) {
 			err = PTR_ERR(pad->lanes[i]);
-			of_node_put(np);
+			of_yesde_put(np);
 			goto remove;
 		}
 
@@ -232,7 +232,7 @@ remove:
 	while (i--)
 		tegra_xusb_lane_destroy(pad->lanes[i]);
 
-	of_node_put(children);
+	of_yesde_put(children);
 
 	return err;
 }
@@ -254,10 +254,10 @@ tegra_xusb_pad_create(struct tegra_xusb_padctl *padctl,
 		      const struct tegra_xusb_pad_soc *soc)
 {
 	struct tegra_xusb_pad *pad;
-	struct device_node *np;
+	struct device_yesde *np;
 	int err;
 
-	np = tegra_xusb_find_pad_node(padctl, soc->name);
+	np = tegra_xusb_find_pad_yesde(padctl, soc->name);
 	if (!np || !of_device_is_available(np))
 		return NULL;
 
@@ -429,25 +429,25 @@ tegra_xusb_port_find_lane(struct tegra_xusb_port *port,
 	return match;
 }
 
-static struct device_node *
-tegra_xusb_find_port_node(struct tegra_xusb_padctl *padctl, const char *type,
+static struct device_yesde *
+tegra_xusb_find_port_yesde(struct tegra_xusb_padctl *padctl, const char *type,
 			  unsigned int index)
 {
-	struct device_node *ports, *np;
+	struct device_yesde *ports, *np;
 	char *name;
 
-	ports = of_get_child_by_name(padctl->dev->of_node, "ports");
+	ports = of_get_child_by_name(padctl->dev->of_yesde, "ports");
 	if (!ports)
 		return NULL;
 
 	name = kasprintf(GFP_KERNEL, "%s-%u", type, index);
 	if (!name) {
-		of_node_put(ports);
+		of_yesde_put(ports);
 		return ERR_PTR(-ENOMEM);
 	}
 	np = of_get_child_by_name(ports, name);
 	kfree(name);
-	of_node_put(ports);
+	of_yesde_put(ports);
 
 	return np;
 }
@@ -457,20 +457,20 @@ tegra_xusb_find_port(struct tegra_xusb_padctl *padctl, const char *type,
 		     unsigned int index)
 {
 	struct tegra_xusb_port *port;
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = tegra_xusb_find_port_node(padctl, type, index);
+	np = tegra_xusb_find_port_yesde(padctl, type, index);
 	if (!np)
 		return NULL;
 
 	list_for_each_entry(port, &padctl->ports, list) {
-		if (np == port->dev.of_node) {
-			of_node_put(np);
+		if (np == port->dev.of_yesde) {
+			of_yesde_put(np);
 			return port;
 		}
 	}
 
-	of_node_put(np);
+	of_yesde_put(np);
 
 	return NULL;
 }
@@ -509,7 +509,7 @@ static struct device_type tegra_xusb_port_type = {
 
 static int tegra_xusb_port_init(struct tegra_xusb_port *port,
 				struct tegra_xusb_padctl *padctl,
-				struct device_node *np,
+				struct device_yesde *np,
 				const char *name,
 				unsigned int index)
 {
@@ -521,7 +521,7 @@ static int tegra_xusb_port_init(struct tegra_xusb_port *port,
 
 	device_initialize(&port->dev);
 	port->dev.type = &tegra_xusb_port_type;
-	port->dev.of_node = of_node_get(np);
+	port->dev.of_yesde = of_yesde_get(np);
 	port->dev.parent = padctl->dev;
 
 	err = dev_set_name(&port->dev, "%s-%u", name, index);
@@ -554,7 +554,7 @@ static const char *const modes[] = {
 static int tegra_xusb_usb2_port_parse_dt(struct tegra_xusb_usb2_port *usb2)
 {
 	struct tegra_xusb_port *port = &usb2->base;
-	struct device_node *np = port->dev.of_node;
+	struct device_yesde *np = port->dev.of_yesde;
 	const char *mode;
 
 	usb2->internal = of_property_read_bool(np, "nvidia,internal");
@@ -580,14 +580,14 @@ static int tegra_xusb_add_usb2_port(struct tegra_xusb_padctl *padctl,
 				    unsigned int index)
 {
 	struct tegra_xusb_usb2_port *usb2;
-	struct device_node *np;
+	struct device_yesde *np;
 	int err = 0;
 
 	/*
 	 * USB2 ports don't require additional properties, but if the port is
-	 * marked as disabled there is no reason to register it.
+	 * marked as disabled there is yes reason to register it.
 	 */
-	np = tegra_xusb_find_port_node(padctl, "usb2", index);
+	np = tegra_xusb_find_port_yesde(padctl, "usb2", index);
 	if (!np || !of_device_is_available(np))
 		goto out;
 
@@ -618,14 +618,14 @@ static int tegra_xusb_add_usb2_port(struct tegra_xusb_padctl *padctl,
 	list_add_tail(&usb2->base.list, &padctl->ports);
 
 out:
-	of_node_put(np);
+	of_yesde_put(np);
 	return err;
 }
 
 static int tegra_xusb_ulpi_port_parse_dt(struct tegra_xusb_ulpi_port *ulpi)
 {
 	struct tegra_xusb_port *port = &ulpi->base;
-	struct device_node *np = port->dev.of_node;
+	struct device_yesde *np = port->dev.of_yesde;
 
 	ulpi->internal = of_property_read_bool(np, "nvidia,internal");
 
@@ -636,10 +636,10 @@ static int tegra_xusb_add_ulpi_port(struct tegra_xusb_padctl *padctl,
 				    unsigned int index)
 {
 	struct tegra_xusb_ulpi_port *ulpi;
-	struct device_node *np;
+	struct device_yesde *np;
 	int err = 0;
 
-	np = tegra_xusb_find_port_node(padctl, "ulpi", index);
+	np = tegra_xusb_find_port_yesde(padctl, "ulpi", index);
 	if (!np || !of_device_is_available(np))
 		goto out;
 
@@ -670,7 +670,7 @@ static int tegra_xusb_add_ulpi_port(struct tegra_xusb_padctl *padctl,
 	list_add_tail(&ulpi->base.list, &padctl->ports);
 
 out:
-	of_node_put(np);
+	of_yesde_put(np);
 	return err;
 }
 
@@ -684,10 +684,10 @@ static int tegra_xusb_add_hsic_port(struct tegra_xusb_padctl *padctl,
 				    unsigned int index)
 {
 	struct tegra_xusb_hsic_port *hsic;
-	struct device_node *np;
+	struct device_yesde *np;
 	int err = 0;
 
-	np = tegra_xusb_find_port_node(padctl, "hsic", index);
+	np = tegra_xusb_find_port_yesde(padctl, "hsic", index);
 	if (!np || !of_device_is_available(np))
 		goto out;
 
@@ -718,14 +718,14 @@ static int tegra_xusb_add_hsic_port(struct tegra_xusb_padctl *padctl,
 	list_add_tail(&hsic->base.list, &padctl->ports);
 
 out:
-	of_node_put(np);
+	of_yesde_put(np);
 	return err;
 }
 
 static int tegra_xusb_usb3_port_parse_dt(struct tegra_xusb_usb3_port *usb3)
 {
 	struct tegra_xusb_port *port = &usb3->base;
-	struct device_node *np = port->dev.of_node;
+	struct device_yesde *np = port->dev.of_yesde;
 	u32 value;
 	int err;
 
@@ -747,15 +747,15 @@ static int tegra_xusb_add_usb3_port(struct tegra_xusb_padctl *padctl,
 				    unsigned int index)
 {
 	struct tegra_xusb_usb3_port *usb3;
-	struct device_node *np;
+	struct device_yesde *np;
 	int err = 0;
 
 	/*
-	 * If there is no supplemental configuration in the device tree the
+	 * If there is yes supplemental configuration in the device tree the
 	 * port is unusable. But it is valid to configure only a single port,
 	 * hence return 0 instead of an error to allow ports to be optional.
 	 */
-	np = tegra_xusb_find_port_node(padctl, "usb3", index);
+	np = tegra_xusb_find_port_yesde(padctl, "usb3", index);
 	if (!np || !of_device_is_available(np))
 		goto out;
 
@@ -786,7 +786,7 @@ static int tegra_xusb_add_usb3_port(struct tegra_xusb_padctl *padctl,
 	list_add_tail(&usb3->base.list, &padctl->ports);
 
 out:
-	of_node_put(np);
+	of_yesde_put(np);
 	return err;
 }
 
@@ -802,11 +802,11 @@ static void __tegra_xusb_remove_ports(struct tegra_xusb_padctl *padctl)
 
 static int tegra_xusb_find_unused_usb3_port(struct tegra_xusb_padctl *padctl)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	unsigned int i;
 
 	for (i = 0; i < padctl->soc->ports.usb3.count; i++) {
-		np = tegra_xusb_find_port_node(padctl, "usb3", i);
+		np = tegra_xusb_find_port_yesde(padctl, "usb3", i);
 		if (!np || !of_device_is_available(np))
 			return i;
 	}
@@ -841,7 +841,7 @@ static int tegra_xusb_update_usb3_fake_port(struct tegra_xusb_usb2_port *usb2)
 		!tegra_xusb_port_is_companion(usb2)) {
 		fake = tegra_xusb_find_unused_usb3_port(usb2->base.padctl);
 		if (fake < 0) {
-			dev_err(&usb2->base.dev, "no unused USB3 ports available\n");
+			dev_err(&usb2->base.dev, "yes unused USB3 ports available\n");
 			return -ENODEV;
 		}
 
@@ -922,7 +922,7 @@ static void tegra_xusb_remove_ports(struct tegra_xusb_padctl *padctl)
 
 static int tegra_xusb_padctl_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	const struct tegra_xusb_padctl_soc *soc;
 	struct tegra_xusb_padctl *padctl;
 	const struct of_device_id *match;
@@ -936,9 +936,9 @@ static int tegra_xusb_padctl_probe(struct platform_device *pdev)
 		return tegra_xusb_padctl_legacy_probe(pdev);
 	}
 
-	of_node_put(np);
+	of_yesde_put(np);
 
-	match = of_match_node(tegra_xusb_padctl_of_match, pdev->dev.of_node);
+	match = of_match_yesde(tegra_xusb_padctl_of_match, pdev->dev.of_yesde);
 	soc = match->data;
 
 	padctl = soc->ops->probe(&pdev->dev, soc);
@@ -1054,9 +1054,9 @@ struct tegra_xusb_padctl *tegra_xusb_padctl_get(struct device *dev)
 {
 	struct tegra_xusb_padctl *padctl;
 	struct platform_device *pdev;
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_parse_phandle(dev->of_node, "nvidia,xusb-padctl", 0);
+	np = of_parse_phandle(dev->of_yesde, "nvidia,xusb-padctl", 0);
 	if (!np)
 		return ERR_PTR(-EINVAL);
 
@@ -1065,13 +1065,13 @@ struct tegra_xusb_padctl *tegra_xusb_padctl_get(struct device *dev)
 	 * registry of pad controllers, but since there will almost certainly
 	 * only ever be one per SoC that would be a little overkill.
 	 */
-	pdev = of_find_device_by_node(np);
+	pdev = of_find_device_by_yesde(np);
 	if (!pdev) {
-		of_node_put(np);
+		of_yesde_put(np);
 		return ERR_PTR(-ENODEV);
 	}
 
-	of_node_put(np);
+	of_yesde_put(np);
 
 	padctl = platform_get_drvdata(pdev);
 	if (!padctl) {

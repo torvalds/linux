@@ -30,11 +30,11 @@ static void write_release_addr(u32 release_phys)
 
 static int axxia_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
-	struct device_node *syscon_np;
+	struct device_yesde *syscon_np;
 	void __iomem *syscon;
 	u32 tmp;
 
-	syscon_np = of_find_compatible_node(NULL, NULL, "lsi,axxia-syscon");
+	syscon_np = of_find_compatible_yesde(NULL, NULL, "lsi,axxia-syscon");
 	if (!syscon_np)
 		return -ENOENT;
 
@@ -60,10 +60,10 @@ static void __init axxia_smp_prepare_cpus(unsigned int max_cpus)
 	 * populated at the present time.
 	 */
 	for_each_possible_cpu(cpu) {
-		struct device_node *np;
+		struct device_yesde *np;
 		u32 release_phys;
 
-		np = of_get_cpu_node(cpu, NULL);
+		np = of_get_cpu_yesde(cpu, NULL);
 		if (!np)
 			continue;
 		if (of_property_read_u32(np, "cpu-release-addr", &release_phys))

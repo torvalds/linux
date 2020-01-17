@@ -32,14 +32,14 @@ struct davinci_pm_config {
 	 * the internal oscillator is used. The internal oscillator is
 	 * fully disabled in deep sleep mode.  When you exist deep sleep
 	 * mode, the oscillator will be turned on and will generate very
-	 * small oscillations which will not be detected by the deep sleep
+	 * small oscillations which will yest be detected by the deep sleep
 	 * counter.  Eventually those oscillations will grow to an amplitude
-	 * large enough to start incrementing the deep sleep counter.
+	 * large eyesugh to start incrementing the deep sleep counter.
 	 * In this case recommendation from hardware engineers is that the
 	 * SLEEPCOUNT be set to 4096.  This means that 4096 valid clock cycles
 	 * must be detected before the clock is passed to the rest of the
 	 * system.
-	 * In the case that the internal oscillator is not used and the
+	 * In the case that the internal oscillator is yest used and the
 	 * clock is generated externally, the SLEEPCOUNT value can be very
 	 * small since the clock input is assumed to be stable before SoC
 	 * is taken out of deepsleep mode.  A value of 128 would be more than

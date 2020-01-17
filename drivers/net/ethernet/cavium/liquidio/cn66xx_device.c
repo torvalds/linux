@@ -214,7 +214,7 @@ void lio_cn6xxx_setup_global_output_regs(struct octeon_device *oct)
 	 */
 	octeon_write_csr(oct, CN6XXX_SLI_PKT_DPADDR, 0xFFFFFFFF);
 
-	/* No Relaxed Ordering, No Snoop, 64-bit swap for Output
+	/* No Relaxed Ordering, No Syesop, 64-bit swap for Output
 	 * Queue ScatterList
 	 */
 	octeon_write_csr(oct, CN6XXX_SLI_PKT_SLIST_ROR, 0);
@@ -228,7 +228,7 @@ void lio_cn6xxx_setup_global_output_regs(struct octeon_device *oct)
 	octeon_write_csr64(oct, CN6XXX_SLI_PKT_SLIST_ES64, 0ULL);
 #endif
 
-	/* / No Relaxed Ordering, No Snoop, 64-bit swap for Output Queue Data */
+	/* / No Relaxed Ordering, No Syesop, 64-bit swap for Output Queue Data */
 	octeon_write_csr(oct, CN6XXX_SLI_PKT_DATA_OUT_ROR, 0);
 	octeon_write_csr(oct, CN6XXX_SLI_PKT_DATA_OUT_NS, 0);
 	octeon_write_csr64(oct, CN6XXX_SLI_PKT_DATA_OUT_ES64,
@@ -261,25 +261,25 @@ static int lio_cn6xxx_setup_device_regs(struct octeon_device *oct)
 	return 0;
 }
 
-void lio_cn6xxx_setup_iq_regs(struct octeon_device *oct, u32 iq_no)
+void lio_cn6xxx_setup_iq_regs(struct octeon_device *oct, u32 iq_yes)
 {
-	struct octeon_instr_queue *iq = oct->instr_queue[iq_no];
+	struct octeon_instr_queue *iq = oct->instr_queue[iq_yes];
 
-	octeon_write_csr64(oct, CN6XXX_SLI_IQ_PKT_INSTR_HDR64(iq_no), 0);
+	octeon_write_csr64(oct, CN6XXX_SLI_IQ_PKT_INSTR_HDR64(iq_yes), 0);
 
 	/* Write the start of the input queue's ring and its size  */
-	octeon_write_csr64(oct, CN6XXX_SLI_IQ_BASE_ADDR64(iq_no),
+	octeon_write_csr64(oct, CN6XXX_SLI_IQ_BASE_ADDR64(iq_yes),
 			   iq->base_addr_dma);
-	octeon_write_csr(oct, CN6XXX_SLI_IQ_SIZE(iq_no), iq->max_count);
+	octeon_write_csr(oct, CN6XXX_SLI_IQ_SIZE(iq_yes), iq->max_count);
 
 	/* Remember the doorbell & instruction count register addr for this
 	 * queue
 	 */
-	iq->doorbell_reg = oct->mmio[0].hw_addr + CN6XXX_SLI_IQ_DOORBELL(iq_no);
+	iq->doorbell_reg = oct->mmio[0].hw_addr + CN6XXX_SLI_IQ_DOORBELL(iq_yes);
 	iq->inst_cnt_reg = oct->mmio[0].hw_addr
-			   + CN6XXX_SLI_IQ_INSTR_COUNT(iq_no);
+			   + CN6XXX_SLI_IQ_INSTR_COUNT(iq_yes);
 	dev_dbg(&oct->pci_dev->dev, "InstQ[%d]:dbell reg @ 0x%p instcnt_reg @ 0x%p\n",
-		iq_no, iq->doorbell_reg, iq->inst_cnt_reg);
+		iq_yes, iq->doorbell_reg, iq->inst_cnt_reg);
 
 	/* Store the current instruction counter
 	 * (used in flush_iq calculation)
@@ -287,43 +287,43 @@ void lio_cn6xxx_setup_iq_regs(struct octeon_device *oct, u32 iq_no)
 	iq->reset_instr_cnt = readl(iq->inst_cnt_reg);
 }
 
-static void lio_cn66xx_setup_iq_regs(struct octeon_device *oct, u32 iq_no)
+static void lio_cn66xx_setup_iq_regs(struct octeon_device *oct, u32 iq_yes)
 {
-	lio_cn6xxx_setup_iq_regs(oct, iq_no);
+	lio_cn6xxx_setup_iq_regs(oct, iq_yes);
 
 	/* Backpressure for this queue - WMARK set to all F's. This effectively
 	 * disables the backpressure mechanism.
 	 */
-	octeon_write_csr64(oct, CN66XX_SLI_IQ_BP64(iq_no),
+	octeon_write_csr64(oct, CN66XX_SLI_IQ_BP64(iq_yes),
 			   (0xFFFFFFFFULL << 32));
 }
 
-void lio_cn6xxx_setup_oq_regs(struct octeon_device *oct, u32 oq_no)
+void lio_cn6xxx_setup_oq_regs(struct octeon_device *oct, u32 oq_yes)
 {
 	u32 intr;
-	struct octeon_droq *droq = oct->droq[oq_no];
+	struct octeon_droq *droq = oct->droq[oq_yes];
 
-	octeon_write_csr64(oct, CN6XXX_SLI_OQ_BASE_ADDR64(oq_no),
+	octeon_write_csr64(oct, CN6XXX_SLI_OQ_BASE_ADDR64(oq_yes),
 			   droq->desc_ring_dma);
-	octeon_write_csr(oct, CN6XXX_SLI_OQ_SIZE(oq_no), droq->max_count);
+	octeon_write_csr(oct, CN6XXX_SLI_OQ_SIZE(oq_yes), droq->max_count);
 
-	octeon_write_csr(oct, CN6XXX_SLI_OQ_BUFF_INFO_SIZE(oq_no),
+	octeon_write_csr(oct, CN6XXX_SLI_OQ_BUFF_INFO_SIZE(oq_yes),
 			 droq->buffer_size);
 
 	/* Get the mapped address of the pkt_sent and pkts_credit regs */
 	droq->pkts_sent_reg =
-		oct->mmio[0].hw_addr + CN6XXX_SLI_OQ_PKTS_SENT(oq_no);
+		oct->mmio[0].hw_addr + CN6XXX_SLI_OQ_PKTS_SENT(oq_yes);
 	droq->pkts_credit_reg =
-		oct->mmio[0].hw_addr + CN6XXX_SLI_OQ_PKTS_CREDIT(oq_no);
+		oct->mmio[0].hw_addr + CN6XXX_SLI_OQ_PKTS_CREDIT(oq_yes);
 
 	/* Enable this output queue to generate Packet Timer Interrupt */
 	intr = octeon_read_csr(oct, CN6XXX_SLI_PKT_TIME_INT_ENB);
-	intr |= (1 << oq_no);
+	intr |= (1 << oq_yes);
 	octeon_write_csr(oct, CN6XXX_SLI_PKT_TIME_INT_ENB, intr);
 
 	/* Enable this output queue to generate Packet Timer Interrupt */
 	intr = octeon_read_csr(oct, CN6XXX_SLI_PKT_CNT_INT_ENB);
-	intr |= (1 << oq_no);
+	intr |= (1 << oq_yes);
 	octeon_write_csr(oct, CN6XXX_SLI_PKT_CNT_INT_ENB, intr);
 }
 
@@ -451,7 +451,7 @@ lio_cn6xxx_update_read_index(struct octeon_instr_queue *iq)
 	u32 new_idx = readl(iq->inst_cnt_reg);
 
 	/* The new instr cnt reg is a 32-bit counter that can roll over. We have
-	 * noted the counter's initial value at init time into
+	 * yested the counter's initial value at init time into
 	 * reset_instr_cnt
 	 */
 	if (iq->reset_instr_cnt < new_idx)
@@ -506,7 +506,7 @@ lio_cn6xxx_process_pcie_error_intr(struct octeon_device *oct, u64 intr64)
 static int lio_cn6xxx_process_droq_intr_regs(struct octeon_device *oct)
 {
 	struct octeon_droq *droq;
-	int oq_no;
+	int oq_yes;
 	u32 pkt_count, droq_time_mask, droq_mask, droq_int_enb;
 	u32 droq_cnt_enb, droq_cnt_mask;
 
@@ -522,14 +522,14 @@ static int lio_cn6xxx_process_droq_intr_regs(struct octeon_device *oct)
 
 	oct->droq_intr = 0;
 
-	for (oq_no = 0; oq_no < MAX_OCTEON_OUTPUT_QUEUES(oct); oq_no++) {
-		if (!(droq_mask & BIT_ULL(oq_no)))
+	for (oq_yes = 0; oq_yes < MAX_OCTEON_OUTPUT_QUEUES(oct); oq_yes++) {
+		if (!(droq_mask & BIT_ULL(oq_yes)))
 			continue;
 
-		droq = oct->droq[oq_no];
+		droq = oct->droq[oq_yes];
 		pkt_count = octeon_droq_check_hw_for_pkts(droq);
 		if (pkt_count) {
-			oct->droq_intr |= BIT_ULL(oq_no);
+			oct->droq_intr |= BIT_ULL(oq_yes);
 			if (droq->ops.poll_mode) {
 				u32 value;
 				u32 reg;
@@ -542,11 +542,11 @@ static int lio_cn6xxx_process_droq_intr_regs(struct octeon_device *oct)
 					(&cn6xxx->lock_for_droq_int_enb_reg);
 				reg = CN6XXX_SLI_PKT_TIME_INT_ENB;
 				value = octeon_read_csr(oct, reg);
-				value &= ~(1 << oq_no);
+				value &= ~(1 << oq_yes);
 				octeon_write_csr(oct, reg, value);
 				reg = CN6XXX_SLI_PKT_CNT_INT_ENB;
 				value = octeon_read_csr(oct, reg);
-				value &= ~(1 << oq_no);
+				value &= ~(1 << oq_yes);
 				octeon_write_csr(oct, reg, value);
 
 				spin_unlock(&cn6xxx->lock_for_droq_int_enb_reg);

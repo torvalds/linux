@@ -31,18 +31,18 @@
 
 struct workqueue_struct *gfs2_control_wq;
 
-static void gfs2_init_inode_once(void *foo)
+static void gfs2_init_iyesde_once(void *foo)
 {
-	struct gfs2_inode *ip = foo;
+	struct gfs2_iyesde *ip = foo;
 
-	inode_init_once(&ip->i_inode);
+	iyesde_init_once(&ip->i_iyesde);
 	atomic_set(&ip->i_sizehint, 0);
 	init_rwsem(&ip->i_rw_mutex);
 	INIT_LIST_HEAD(&ip->i_trunc_list);
 	ip->i_qadata = NULL;
 	gfs2_holder_mark_uninitialized(&ip->i_rgd_gh);
 	memset(&ip->i_res, 0, sizeof(ip->i_res));
-	RB_CLEAR_NODE(&ip->i_res.rs_node);
+	RB_CLEAR_NODE(&ip->i_res.rs_yesde);
 	ip->i_hash_cache = NULL;
 	gfs2_holder_mark_uninitialized(&ip->i_iopen_gh);
 }
@@ -110,13 +110,13 @@ static int __init init_gfs2_fs(void)
 	if (!gfs2_glock_aspace_cachep)
 		goto fail_cachep2;
 
-	gfs2_inode_cachep = kmem_cache_create("gfs2_inode",
-					      sizeof(struct gfs2_inode),
+	gfs2_iyesde_cachep = kmem_cache_create("gfs2_iyesde",
+					      sizeof(struct gfs2_iyesde),
 					      0,  SLAB_RECLAIM_ACCOUNT|
 						  SLAB_MEM_SPREAD|
 						  SLAB_ACCOUNT,
-					      gfs2_init_inode_once);
-	if (!gfs2_inode_cachep)
+					      gfs2_init_iyesde_once);
+	if (!gfs2_iyesde_cachep)
 		goto fail_cachep3;
 
 	gfs2_bufdata_cachep = kmem_cache_create("gfs2_bufdata",
@@ -202,7 +202,7 @@ fail_cachep6:
 fail_cachep5:
 	kmem_cache_destroy(gfs2_bufdata_cachep);
 fail_cachep4:
-	kmem_cache_destroy(gfs2_inode_cachep);
+	kmem_cache_destroy(gfs2_iyesde_cachep);
 fail_cachep3:
 	kmem_cache_destroy(gfs2_glock_aspace_cachep);
 fail_cachep2:
@@ -240,7 +240,7 @@ static void __exit exit_gfs2_fs(void)
 	kmem_cache_destroy(gfs2_quotad_cachep);
 	kmem_cache_destroy(gfs2_rgrpd_cachep);
 	kmem_cache_destroy(gfs2_bufdata_cachep);
-	kmem_cache_destroy(gfs2_inode_cachep);
+	kmem_cache_destroy(gfs2_iyesde_cachep);
 	kmem_cache_destroy(gfs2_glock_aspace_cachep);
 	kmem_cache_destroy(gfs2_glock_cachep);
 

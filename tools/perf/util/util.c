@@ -12,7 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <erryes.h>
 #include <limits.h>
 #include <linux/capability.h>
 #include <linux/kernel.h>
@@ -124,7 +124,7 @@ static bool match_pat(char *file, const char **pat)
  *
  * The function returns:
  *    0 on success
- *   -1 on removal failure with errno set
+ *   -1 on removal failure with erryes set
  *   -2 on pattern failure
  */
 static int rm_rf_depth_pat(const char *path, int depth, const char **pat)
@@ -135,7 +135,7 @@ static int rm_rf_depth_pat(const char *path, int depth, const char **pat)
 	char namebuf[PATH_MAX];
 	struct stat statbuf;
 
-	/* Do not fail if there's no file. */
+	/* Do yest fail if there's yes file. */
 	ret = lstat(path, &statbuf);
 	if (ret)
 		return 0;
@@ -216,7 +216,7 @@ int rm_rf(const char *path)
 }
 
 /* A filter which removes dot files */
-bool lsdir_no_dot_filter(const char *name __maybe_unused, struct dirent *d)
+bool lsdir_yes_dot_filter(const char *name __maybe_unused, struct dirent *d)
 {
 	return d->d_name[0] != '.';
 }
@@ -235,7 +235,7 @@ struct strlist *lsdir(const char *name,
 
 	list = strlist__new(NULL, NULL);
 	if (!list) {
-		errno = ENOMEM;
+		erryes = ENOMEM;
 		goto out;
 	}
 
@@ -259,20 +259,20 @@ size_t hex_width(u64 v)
 	return n;
 }
 
-int perf_event_paranoid(void)
+int perf_event_parayesid(void)
 {
 	int value;
 
-	if (sysctl__read_int("kernel/perf_event_paranoid", &value))
+	if (sysctl__read_int("kernel/perf_event_parayesid", &value))
 		return INT_MAX;
 
 	return value;
 }
 
-bool perf_event_paranoid_check(int max_level)
+bool perf_event_parayesid_check(int max_level)
 {
 	return perf_cap__capable(CAP_SYS_ADMIN) ||
-			perf_event_paranoid() <= max_level;
+			perf_event_parayesid() <= max_level;
 }
 
 static int
@@ -290,7 +290,7 @@ fetch_ubuntu_kernel_version(unsigned int *puint)
 	vsig = fopen("/proc/version_signature", "r");
 	if (!vsig) {
 		pr_debug("Open /proc/version_signature failed: %s\n",
-			 strerror(errno));
+			 strerror(erryes));
 		return -1;
 	}
 
@@ -299,7 +299,7 @@ fetch_ubuntu_kernel_version(unsigned int *puint)
 	err = -1;
 	if (len <= 0) {
 		pr_debug("Reading from /proc/version_signature failed: %s\n",
-			 strerror(errno));
+			 strerror(erryes));
 		goto errout;
 	}
 
@@ -363,7 +363,7 @@ fetch_kernel_version(unsigned int *puint, char *str,
 const char *perf_tip(const char *dirpath)
 {
 	struct strlist *tips;
-	struct str_node *node;
+	struct str_yesde *yesde;
 	char *tip = NULL;
 	struct strlist_config conf = {
 		.dirname = dirpath,
@@ -372,14 +372,14 @@ const char *perf_tip(const char *dirpath)
 
 	tips = strlist__new("tips.txt", &conf);
 	if (tips == NULL)
-		return errno == ENOENT ? NULL :
+		return erryes == ENOENT ? NULL :
 			"Tip: check path of tips.txt or get more memory! ;-p";
 
 	if (strlist__nr_entries(tips) == 0)
 		goto out;
 
-	node = strlist__entry(tips, random() % strlist__nr_entries(tips));
-	if (asprintf(&tip, "Tip: %s", node->s) < 0)
+	yesde = strlist__entry(tips, random() % strlist__nr_entries(tips));
+	if (asprintf(&tip, "Tip: %s", yesde->s) < 0)
 		tip = (char *)"Tip: get more memory! ;-)";
 
 out:

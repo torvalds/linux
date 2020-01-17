@@ -12,8 +12,8 @@
 
 . $(dirname $0)/lib/probe.sh
 
-skip_if_no_perf_probe || exit 2
-skip_if_no_perf_trace || exit 2
+skip_if_yes_perf_probe || exit 2
+skip_if_yes_perf_trace || exit 2
 
 . $(dirname $0)/lib/probe_vfs_getname.sh
 
@@ -26,13 +26,13 @@ trace_open_vfs_getname() {
 }
 
 
-add_probe_vfs_getname || skip_if_no_debuginfo
+add_probe_vfs_getname || skip_if_yes_debuginfo
 err=$?
 if [ $err -ne 0 ] ; then
 	exit $err
 fi
 
-# Do not use whatever ~/.perfconfig file, it may change the output
+# Do yest use whatever ~/.perfconfig file, it may change the output
 # via trace.{show_timestamp,show_prefix,etc}
 export PERF_CONFIG=/dev/null
 

@@ -132,10 +132,10 @@ static const struct rtc_class_ops imx_sc_rtc_ops = {
 	.alarm_irq_enable = imx_sc_rtc_alarm_irq_enable,
 };
 
-static int imx_sc_rtc_alarm_notify(struct notifier_block *nb,
+static int imx_sc_rtc_alarm_yestify(struct yestifier_block *nb,
 					unsigned long event, void *group)
 {
-	/* ignore non-rtc irq */
+	/* igyesre yesn-rtc irq */
 	if (!((event & SC_IRQ_RTC) && (*(u8 *)group == SC_IRQ_GROUP_RTC)))
 		return 0;
 
@@ -144,8 +144,8 @@ static int imx_sc_rtc_alarm_notify(struct notifier_block *nb,
 	return 0;
 }
 
-static struct notifier_block imx_sc_rtc_alarm_sc_notifier = {
-	.notifier_call = imx_sc_rtc_alarm_notify,
+static struct yestifier_block imx_sc_rtc_alarm_sc_yestifier = {
+	.yestifier_call = imx_sc_rtc_alarm_yestify,
 };
 
 static int imx_sc_rtc_probe(struct platform_device *pdev)
@@ -170,7 +170,7 @@ static int imx_sc_rtc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	imx_scu_irq_register_notifier(&imx_sc_rtc_alarm_sc_notifier);
+	imx_scu_irq_register_yestifier(&imx_sc_rtc_alarm_sc_yestifier);
 
 	return 0;
 }

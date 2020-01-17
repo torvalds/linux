@@ -231,7 +231,7 @@ static void meson_mmc_get_transfer_mode(struct mmc_host *mmc,
 	bool use_desc_chain_mode = true;
 
 	/*
-	 * When Controller DMA cannot directly access DDR memory, disable
+	 * When Controller DMA canyest directly access DDR memory, disable
 	 * support for Chain Mode to directly use the internal SRAM using
 	 * the bounce buffer mode.
 	 */
@@ -313,7 +313,7 @@ static void meson_mmc_clk_gate(struct meson_host *host)
 		pinctrl_select_state(host->pinctrl, host->pins_clk_gate);
 	} else {
 		/*
-		 * If the pinmux is not provided - default to the classic and
+		 * If the pinmux is yest provided - default to the classic and
 		 * unsafe method
 		 */
 		cfg = readl(host->regs + SD_EMMC_CFG);
@@ -329,7 +329,7 @@ static void meson_mmc_clk_ungate(struct meson_host *host)
 	if (host->pins_clk_gate)
 		pinctrl_select_state(host->pinctrl, host->pins_default);
 
-	/* Make sure the clock is not stopped in the controller */
+	/* Make sure the clock is yest stopped in the controller */
 	cfg = readl(host->regs + SD_EMMC_CFG);
 	cfg &= ~CFG_STOP_CLOCK;
 	writel(cfg, host->regs + SD_EMMC_CFG);
@@ -666,11 +666,11 @@ static void meson_mmc_set_blksz(struct mmc_host *mmc, unsigned int blksz)
 	blksz_old = FIELD_GET(CFG_BLK_LEN_MASK, cfg);
 
 	if (!is_power_of_2(blksz))
-		dev_err(host->dev, "blksz %u is not a power of 2\n", blksz);
+		dev_err(host->dev, "blksz %u is yest a power of 2\n", blksz);
 
 	blksz = ilog2(blksz);
 
-	/* check if block-size matches, if not update */
+	/* check if block-size matches, if yest update */
 	if (blksz == blksz_old)
 		return;
 
@@ -965,7 +965,7 @@ static irqreturn_t meson_mmc_irq_thread(int irq, void *dev_id)
 
 /*
  * NOTE: we only need this until the GPIO/pinctrl driver can handle
- * interrupts.  For now, the MMC core will use this for polling.
+ * interrupts.  For yesw, the MMC core will use this for polling.
  */
 static int meson_mmc_get_cd(struct mmc_host *mmc)
 {
@@ -1017,7 +1017,7 @@ static int meson_mmc_voltage_switch(struct mmc_host *mmc, struct mmc_ios *ios)
 		return mmc_regulator_set_vqmmc(mmc, ios);
 	}
 
-	/* no vqmmc regulator, assume fixed regulator at 3/3.3V */
+	/* yes vqmmc regulator, assume fixed regulator at 3/3.3V */
 	if (ios->signal_voltage == MMC_SIGNAL_VOLTAGE_330)
 		return 0;
 
@@ -1163,8 +1163,8 @@ static int meson_mmc_probe(struct platform_device *pdev)
 	mmc->max_seg_size = mmc->max_req_size;
 
 	/*
-	 * At the moment, we don't know how to reliably enable HS400.
-	 * From the different datasheets, it is not even clear if this mode
+	 * At the moment, we don't kyesw how to reliably enable HS400.
+	 * From the different datasheets, it is yest even clear if this mode
 	 * is officially supported by any of the SoCs
 	 */
 	mmc->caps2 &= ~MMC_CAP2_HS400;

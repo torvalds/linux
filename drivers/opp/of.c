@@ -3,7 +3,7 @@
  * Generic OPP OF helpers
  *
  * Copyright (C) 2009-2010 Texas Instruments Incorporated.
- *	Nishanth Menon
+ *	Nishanth Meyesn
  *	Romit Dasgupta
  *	Kevin Hilman
  */
@@ -11,7 +11,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/cpu.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/device.h>
 #include <linux/of_device.h>
 #include <linux/pm_domain.h>
@@ -22,37 +22,37 @@
 #include "opp.h"
 
 /*
- * Returns opp descriptor node for a device node, caller must
- * do of_node_put().
+ * Returns opp descriptor yesde for a device yesde, caller must
+ * do of_yesde_put().
  */
-static struct device_node *_opp_of_get_opp_desc_node(struct device_node *np,
+static struct device_yesde *_opp_of_get_opp_desc_yesde(struct device_yesde *np,
 						     int index)
 {
 	/* "operating-points-v2" can be an array for power domain providers */
 	return of_parse_phandle(np, "operating-points-v2", index);
 }
 
-/* Returns opp descriptor node for a device, caller must do of_node_put() */
-struct device_node *dev_pm_opp_of_get_opp_desc_node(struct device *dev)
+/* Returns opp descriptor yesde for a device, caller must do of_yesde_put() */
+struct device_yesde *dev_pm_opp_of_get_opp_desc_yesde(struct device *dev)
 {
-	return _opp_of_get_opp_desc_node(dev->of_node, 0);
+	return _opp_of_get_opp_desc_yesde(dev->of_yesde, 0);
 }
-EXPORT_SYMBOL_GPL(dev_pm_opp_of_get_opp_desc_node);
+EXPORT_SYMBOL_GPL(dev_pm_opp_of_get_opp_desc_yesde);
 
 struct opp_table *_managed_opp(struct device *dev, int index)
 {
 	struct opp_table *opp_table, *managed_table = NULL;
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = _opp_of_get_opp_desc_node(dev->of_node, index);
+	np = _opp_of_get_opp_desc_yesde(dev->of_yesde, index);
 	if (!np)
 		return NULL;
 
-	list_for_each_entry(opp_table, &opp_tables, node) {
+	list_for_each_entry(opp_table, &opp_tables, yesde) {
 		if (opp_table->np == np) {
 			/*
 			 * Multiple devices can point to the same OPP table and
-			 * so will have same node-pointer, np.
+			 * so will have same yesde-pointer, np.
 			 *
 			 * But the OPPs will be considered as shared only if the
 			 * OPP table contains a "opp-shared" property.
@@ -66,20 +66,20 @@ struct opp_table *_managed_opp(struct device *dev, int index)
 		}
 	}
 
-	of_node_put(np);
+	of_yesde_put(np);
 
 	return managed_table;
 }
 
 /* The caller must call dev_pm_opp_put() after the OPP is used */
 static struct dev_pm_opp *_find_opp_of_np(struct opp_table *opp_table,
-					  struct device_node *opp_np)
+					  struct device_yesde *opp_np)
 {
 	struct dev_pm_opp *opp;
 
 	mutex_lock(&opp_table->lock);
 
-	list_for_each_entry(opp, &opp_table->opp_list, node) {
+	list_for_each_entry(opp, &opp_table->opp_list, yesde) {
 		if (opp->np == opp_np) {
 			dev_pm_opp_get(opp);
 			mutex_unlock(&opp_table->lock);
@@ -92,10 +92,10 @@ static struct dev_pm_opp *_find_opp_of_np(struct opp_table *opp_table,
 	return NULL;
 }
 
-static struct device_node *of_parse_required_opp(struct device_node *np,
+static struct device_yesde *of_parse_required_opp(struct device_yesde *np,
 						 int index)
 {
-	struct device_node *required_np;
+	struct device_yesde *required_np;
 
 	required_np = of_parse_phandle(np, "required-opps", index);
 	if (unlikely(!required_np)) {
@@ -107,10 +107,10 @@ static struct device_node *of_parse_required_opp(struct device_node *np,
 }
 
 /* The caller must call dev_pm_opp_put_opp_table() after the table is used */
-static struct opp_table *_find_table_of_opp_np(struct device_node *opp_np)
+static struct opp_table *_find_table_of_opp_np(struct device_yesde *opp_np)
 {
 	struct opp_table *opp_table;
-	struct device_node *opp_table_np;
+	struct device_yesde *opp_table_np;
 
 	lockdep_assert_held(&opp_table_lock);
 
@@ -118,10 +118,10 @@ static struct opp_table *_find_table_of_opp_np(struct device_node *opp_np)
 	if (!opp_table_np)
 		goto err;
 
-	/* It is safe to put the node now as all we need now is its address */
-	of_node_put(opp_table_np);
+	/* It is safe to put the yesde yesw as all we need yesw is its address */
+	of_yesde_put(opp_table_np);
 
-	list_for_each_entry(opp_table, &opp_tables, node) {
+	list_for_each_entry(opp_table, &opp_tables, yesde) {
 		if (opp_table_np == opp_table->np) {
 			_get_opp_table_kref(opp_table);
 			return opp_table;
@@ -156,17 +156,17 @@ static void _opp_table_free_required_tables(struct opp_table *opp_table)
 
 /*
  * Populate all devices and opp tables which are part of "required-opps" list.
- * Checking only the first OPP node should be enough.
+ * Checking only the first OPP yesde should be eyesugh.
  */
 static void _opp_table_alloc_required_tables(struct opp_table *opp_table,
 					     struct device *dev,
-					     struct device_node *opp_np)
+					     struct device_yesde *opp_np)
 {
 	struct opp_table **required_opp_tables;
-	struct device_node *required_np, *np;
+	struct device_yesde *required_np, *np;
 	int count, i;
 
-	/* Traversing the first OPP node is all we need */
+	/* Traversing the first OPP yesde is all we need */
 	np = of_get_next_available_child(opp_np, NULL);
 	if (!np) {
 		dev_err(dev, "Empty OPP table\n");
@@ -191,14 +191,14 @@ static void _opp_table_alloc_required_tables(struct opp_table *opp_table,
 			goto free_required_tables;
 
 		required_opp_tables[i] = _find_table_of_opp_np(required_np);
-		of_node_put(required_np);
+		of_yesde_put(required_np);
 
 		if (IS_ERR(required_opp_tables[i]))
 			goto free_required_tables;
 
 		/*
-		 * We only support genpd's OPPs in the "required-opps" for now,
-		 * as we don't know how much about other cases. Error out if the
+		 * We only support genpd's OPPs in the "required-opps" for yesw,
+		 * as we don't kyesw how much about other cases. Error out if the
 		 * required OPP doesn't belong to a genpd.
 		 */
 		if (!required_opp_tables[i]->is_genpd) {
@@ -213,20 +213,20 @@ static void _opp_table_alloc_required_tables(struct opp_table *opp_table,
 free_required_tables:
 	_opp_table_free_required_tables(opp_table);
 put_np:
-	of_node_put(np);
+	of_yesde_put(np);
 }
 
 void _of_init_opp_table(struct opp_table *opp_table, struct device *dev,
 			int index)
 {
-	struct device_node *np, *opp_np;
+	struct device_yesde *np, *opp_np;
 	u32 val;
 
 	/*
 	 * Only required for backward compatibility with v1 bindings, but isn't
 	 * harmful for other cases. And so we do it unconditionally.
 	 */
-	np = of_node_get(dev->of_node);
+	np = of_yesde_get(dev->of_yesde);
 	if (!np)
 		return;
 
@@ -238,9 +238,9 @@ void _of_init_opp_table(struct opp_table *opp_table, struct device *dev,
 	if (of_find_property(np, "#power-domain-cells", NULL))
 		opp_table->is_genpd = true;
 
-	/* Get OPP table node */
-	opp_np = _opp_of_get_opp_desc_node(np, index);
-	of_node_put(np);
+	/* Get OPP table yesde */
+	opp_np = _opp_of_get_opp_desc_yesde(np, index);
+	of_yesde_put(np);
 
 	if (!opp_np)
 		return;
@@ -253,7 +253,7 @@ void _of_init_opp_table(struct opp_table *opp_table, struct device *dev,
 	opp_table->np = opp_np;
 
 	_opp_table_alloc_required_tables(opp_table, dev, opp_np);
-	of_node_put(opp_np);
+	of_yesde_put(opp_np);
 }
 
 void _of_clear_opp_table(struct opp_table *opp_table)
@@ -292,7 +292,7 @@ static int _of_opp_alloc_required_opps(struct opp_table *opp_table,
 {
 	struct dev_pm_opp **required_opps;
 	struct opp_table *required_table;
-	struct device_node *np;
+	struct device_yesde *np;
 	int i, ret, count = opp_table->required_opp_count;
 
 	if (!count)
@@ -314,10 +314,10 @@ static int _of_opp_alloc_required_opps(struct opp_table *opp_table,
 		}
 
 		required_opps[i] = _find_opp_of_np(required_table, np);
-		of_node_put(np);
+		of_yesde_put(np);
 
 		if (!required_opps[i]) {
-			pr_err("%s: Unable to find required OPP node: %pOF (%d)\n",
+			pr_err("%s: Unable to find required OPP yesde: %pOF (%d)\n",
 			       __func__, opp->np, i);
 			ret = -ENODEV;
 			goto free_required_opps;
@@ -333,7 +333,7 @@ free_required_opps:
 }
 
 static bool _opp_is_supported(struct device *dev, struct opp_table *opp_table,
-			      struct device_node *np)
+			      struct device_yesde *np)
 {
 	unsigned int count = opp_table->supported_hw_count;
 	u32 version;
@@ -341,10 +341,10 @@ static bool _opp_is_supported(struct device *dev, struct opp_table *opp_table,
 
 	if (!opp_table->supported_hw) {
 		/*
-		 * In the case that no supported_hw has been set by the
+		 * In the case that yes supported_hw has been set by the
 		 * platform but there is an opp-supported-hw value set for
-		 * an OPP then the OPP should not be enabled as there is
-		 * no way to see if the hardware supports it.
+		 * an OPP then the OPP should yest be enabled as there is
+		 * yes way to see if the hardware supports it.
 		 */
 		if (of_find_property(np, "opp-supported-hw", NULL))
 			return false;
@@ -525,7 +525,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_of_remove_table);
  * _opp_add_static_v2() - Allocate static OPPs (As per 'v2' DT bindings)
  * @opp_table:	OPP table
  * @dev:	device for which we do this operation
- * @np:		device node
+ * @np:		device yesde
  *
  * This function adds an opp definition to the opp table and returns status. The
  * opp can be controlled using dev_pm_opp_enable/disable functions and may be
@@ -536,23 +536,23 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_of_remove_table);
  *		On success
  * NULL:
  *		Duplicate OPPs (both freq and volt are same) and opp->available
- *		OR if the OPP is not supported by hardware.
+ *		OR if the OPP is yest supported by hardware.
  * ERR_PTR(-EEXIST):
  *		Freq are same and volt are different OR
  *		Duplicate OPPs (both freq and volt are same) and !opp->available
  * ERR_PTR(-ENOMEM):
  *		Memory allocation failure
  * ERR_PTR(-EINVAL):
- *		Failed parsing the OPP node
+ *		Failed parsing the OPP yesde
  */
 static struct dev_pm_opp *_opp_add_static_v2(struct opp_table *opp_table,
-		struct device *dev, struct device_node *np)
+		struct device *dev, struct device_yesde *np)
 {
 	struct dev_pm_opp *new_opp;
 	u64 rate = 0;
 	u32 val;
 	int ret;
-	bool rate_not_available = false;
+	bool rate_yest_available = false;
 
 	new_opp = _opp_allocate(opp_table);
 	if (!new_opp)
@@ -562,11 +562,11 @@ static struct dev_pm_opp *_opp_add_static_v2(struct opp_table *opp_table,
 	if (ret < 0) {
 		/* "opp-hz" is optional for devices like power domains. */
 		if (!opp_table->is_genpd) {
-			dev_err(dev, "%s: opp-hz not found\n", __func__);
+			dev_err(dev, "%s: opp-hz yest found\n", __func__);
 			goto free_opp;
 		}
 
-		rate_not_available = true;
+		rate_yest_available = true;
 	} else {
 		/*
 		 * Rate is defined as an unsigned long in clk API, and so
@@ -578,9 +578,9 @@ static struct dev_pm_opp *_opp_add_static_v2(struct opp_table *opp_table,
 
 	of_property_read_u32(np, "opp-level", &new_opp->level);
 
-	/* Check if the OPP supports hardware's hierarchy of versions or not */
+	/* Check if the OPP supports hardware's hierarchy of versions or yest */
 	if (!_opp_is_supported(dev, opp_table, np)) {
-		dev_dbg(dev, "OPP not supported by hardware: %llu\n", rate);
+		dev_dbg(dev, "OPP yest supported by hardware: %llu\n", rate);
 		goto free_opp;
 	}
 
@@ -604,7 +604,7 @@ static struct dev_pm_opp *_opp_add_static_v2(struct opp_table *opp_table,
 	if (opp_table->is_genpd)
 		new_opp->pstate = pm_genpd_opp_to_performance_state(dev, new_opp);
 
-	ret = _opp_add(dev, new_opp, opp_table, rate_not_available);
+	ret = _opp_add(dev, new_opp, opp_table, rate_yest_available);
 	if (ret) {
 		/* Don't return error for duplicate OPPs */
 		if (ret == -EBUSY)
@@ -639,7 +639,7 @@ static struct dev_pm_opp *_opp_add_static_v2(struct opp_table *opp_table,
 	 * Notify the changes in the availability of the operable
 	 * frequency/voltage list.
 	 */
-	blocking_notifier_call_chain(&opp_table->head, OPP_EVENT_ADD, new_opp);
+	blocking_yestifier_call_chain(&opp_table->head, OPP_EVENT_ADD, new_opp);
 	return new_opp;
 
 free_required_opps:
@@ -653,7 +653,7 @@ free_opp:
 /* Initializes OPP tables based on new bindings */
 static int _of_add_opp_table_v2(struct device *dev, struct opp_table *opp_table)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	int ret, count = 0, pstate_count = 0;
 	struct dev_pm_opp *opp;
 
@@ -670,14 +670,14 @@ static int _of_add_opp_table_v2(struct device *dev, struct opp_table *opp_table)
 	 */
 	kref_init(&opp_table->list_kref);
 
-	/* We have opp-table node now, iterate over it and add OPPs */
-	for_each_available_child_of_node(opp_table->np, np) {
+	/* We have opp-table yesde yesw, iterate over it and add OPPs */
+	for_each_available_child_of_yesde(opp_table->np, np) {
 		opp = _opp_add_static_v2(opp_table, dev, np);
 		if (IS_ERR(opp)) {
 			ret = PTR_ERR(opp);
 			dev_err(dev, "%s: Failed to add OPP, %d\n", __func__,
 				ret);
-			of_node_put(np);
+			of_yesde_put(np);
 			return ret;
 		} else if (opp) {
 			count++;
@@ -688,12 +688,12 @@ static int _of_add_opp_table_v2(struct device *dev, struct opp_table *opp_table)
 	if (WARN_ON(!count))
 		return -ENOENT;
 
-	list_for_each_entry(opp, &opp_table->opp_list, node)
+	list_for_each_entry(opp, &opp_table->opp_list, yesde)
 		pstate_count += !!opp->pstate;
 
-	/* Either all or none of the nodes shall have performance state set */
+	/* Either all or yesne of the yesdes shall have performance state set */
 	if (pstate_count && pstate_count != count) {
-		dev_err(dev, "Not all nodes have performance state set (%d: %d)\n",
+		dev_err(dev, "Not all yesdes have performance state set (%d: %d)\n",
 			count, pstate_count);
 		return -ENOENT;
 	}
@@ -713,7 +713,7 @@ static int _of_add_opp_table_v1(struct device *dev, struct opp_table *opp_table)
 	const __be32 *val;
 	int nr, ret = 0;
 
-	prop = of_find_property(dev->of_node, "operating-points", NULL);
+	prop = of_find_property(dev->of_yesde, "operating-points", NULL);
 	if (!prop)
 		return -ENODEV;
 	if (!prop->value)
@@ -758,8 +758,8 @@ static int _of_add_opp_table_v1(struct device *dev, struct opp_table *opp_table)
  * -EEXIST	Freq are same and volt are different OR
  *		Duplicate OPPs (both freq and volt are same) and !opp->available
  * -ENOMEM	Memory allocation failure
- * -ENODEV	when 'operating-points' property is not found or is invalid data
- *		in device node.
+ * -ENODEV	when 'operating-points' property is yest found or is invalid data
+ *		in device yesde.
  * -ENODATA	when empty 'operating-points' property is found
  * -EINVAL	when invalid entries are found in opp-v2 table
  */
@@ -773,7 +773,7 @@ int dev_pm_opp_of_add_table(struct device *dev)
 		return -ENOMEM;
 
 	/*
-	 * OPPs have two version of bindings now. Also try the old (v1)
+	 * OPPs have two version of bindings yesw. Also try the old (v1)
 	 * bindings for backward compatibility with older dtbs.
 	 */
 	if (opp_table->np)
@@ -802,8 +802,8 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_of_add_table);
  * -EEXIST	Freq are same and volt are different OR
  *		Duplicate OPPs (both freq and volt are same) and !opp->available
  * -ENOMEM	Memory allocation failure
- * -ENODEV	when 'operating-points' property is not found or is invalid data
- *		in device node.
+ * -ENODEV	when 'operating-points' property is yest found or is invalid data
+ *		in device yesde.
  * -ENODATA	when empty 'operating-points' property is found
  * -EINVAL	when invalid entries are found in opp-v2 table
  */
@@ -817,7 +817,7 @@ int dev_pm_opp_of_add_table_indexed(struct device *dev, int index)
 		 * If only one phandle is present, then the same OPP table
 		 * applies for all index requests.
 		 */
-		count = of_count_phandle_with_args(dev->of_node,
+		count = of_count_phandle_with_args(dev->of_yesde,
 						   "operating-points-v2", NULL);
 		if (count == 1)
 			index = 0;
@@ -916,13 +916,13 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_of_cpumask_add_table);
 int dev_pm_opp_of_get_sharing_cpus(struct device *cpu_dev,
 				   struct cpumask *cpumask)
 {
-	struct device_node *np, *tmp_np, *cpu_np;
+	struct device_yesde *np, *tmp_np, *cpu_np;
 	int cpu, ret = 0;
 
-	/* Get OPP descriptor node */
-	np = dev_pm_opp_of_get_opp_desc_node(cpu_dev);
+	/* Get OPP descriptor yesde */
+	np = dev_pm_opp_of_get_opp_desc_yesde(cpu_dev);
 	if (!np) {
-		dev_dbg(cpu_dev, "%s: Couldn't find opp node.\n", __func__);
+		dev_dbg(cpu_dev, "%s: Couldn't find opp yesde.\n", __func__);
 		return -ENOENT;
 	}
 
@@ -930,38 +930,38 @@ int dev_pm_opp_of_get_sharing_cpus(struct device *cpu_dev,
 
 	/* OPPs are shared ? */
 	if (!of_property_read_bool(np, "opp-shared"))
-		goto put_cpu_node;
+		goto put_cpu_yesde;
 
 	for_each_possible_cpu(cpu) {
 		if (cpu == cpu_dev->id)
 			continue;
 
-		cpu_np = of_cpu_device_node_get(cpu);
+		cpu_np = of_cpu_device_yesde_get(cpu);
 		if (!cpu_np) {
-			dev_err(cpu_dev, "%s: failed to get cpu%d node\n",
+			dev_err(cpu_dev, "%s: failed to get cpu%d yesde\n",
 				__func__, cpu);
 			ret = -ENOENT;
-			goto put_cpu_node;
+			goto put_cpu_yesde;
 		}
 
-		/* Get OPP descriptor node */
-		tmp_np = _opp_of_get_opp_desc_node(cpu_np, 0);
-		of_node_put(cpu_np);
+		/* Get OPP descriptor yesde */
+		tmp_np = _opp_of_get_opp_desc_yesde(cpu_np, 0);
+		of_yesde_put(cpu_np);
 		if (!tmp_np) {
-			pr_err("%pOF: Couldn't find opp node\n", cpu_np);
+			pr_err("%pOF: Couldn't find opp yesde\n", cpu_np);
 			ret = -ENOENT;
-			goto put_cpu_node;
+			goto put_cpu_yesde;
 		}
 
-		/* CPUs are sharing opp node */
+		/* CPUs are sharing opp yesde */
 		if (np == tmp_np)
 			cpumask_set_cpu(cpu, cpumask);
 
-		of_node_put(tmp_np);
+		of_yesde_put(tmp_np);
 	}
 
-put_cpu_node:
-	of_node_put(np);
+put_cpu_yesde:
+	of_yesde_put(np);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_of_get_sharing_cpus);
@@ -977,10 +977,10 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_of_get_sharing_cpus);
  * Return: Zero or positive performance state on success, otherwise negative
  * value on errors.
  */
-int of_get_required_opp_performance_state(struct device_node *np, int index)
+int of_get_required_opp_performance_state(struct device_yesde *np, int index)
 {
 	struct dev_pm_opp *opp;
-	struct device_node *required_np;
+	struct device_yesde *required_np;
 	struct opp_table *opp_table;
 	int pstate = -EINVAL;
 
@@ -1004,30 +1004,30 @@ int of_get_required_opp_performance_state(struct device_node *np, int index)
 	dev_pm_opp_put_opp_table(opp_table);
 
 put_required_np:
-	of_node_put(required_np);
+	of_yesde_put(required_np);
 
 	return pstate;
 }
 EXPORT_SYMBOL_GPL(of_get_required_opp_performance_state);
 
 /**
- * dev_pm_opp_get_of_node() - Gets the DT node corresponding to an opp
- * @opp:	opp for which DT node has to be returned for
+ * dev_pm_opp_get_of_yesde() - Gets the DT yesde corresponding to an opp
+ * @opp:	opp for which DT yesde has to be returned for
  *
- * Return: DT node corresponding to the opp, else 0 on success.
+ * Return: DT yesde corresponding to the opp, else 0 on success.
  *
- * The caller needs to put the node with of_node_put() after using it.
+ * The caller needs to put the yesde with of_yesde_put() after using it.
  */
-struct device_node *dev_pm_opp_get_of_node(struct dev_pm_opp *opp)
+struct device_yesde *dev_pm_opp_get_of_yesde(struct dev_pm_opp *opp)
 {
 	if (IS_ERR_OR_NULL(opp)) {
 		pr_err("%s: Invalid parameters\n", __func__);
 		return NULL;
 	}
 
-	return of_node_get(opp->np);
+	return of_yesde_get(opp->np);
 }
-EXPORT_SYMBOL_GPL(dev_pm_opp_get_of_node);
+EXPORT_SYMBOL_GPL(dev_pm_opp_get_of_yesde);
 
 /*
  * Callback function provided to the Energy Model framework upon registration.
@@ -1038,7 +1038,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_of_node);
  * P = C * V^2 * f with C being the CPU's capacitance and V and f respectively
  * the voltage and frequency of the OPP.
  *
- * Returns -ENODEV if the CPU device cannot be found, -EINVAL if the power
+ * Returns -ENODEV if the CPU device canyest be found, -EINVAL if the power
  * calculation failed because of missing parameters, 0 otherwise.
  */
 static int __maybe_unused _get_cpu_power(unsigned long *mW, unsigned long *kHz,
@@ -1046,7 +1046,7 @@ static int __maybe_unused _get_cpu_power(unsigned long *mW, unsigned long *kHz,
 {
 	struct device *cpu_dev;
 	struct dev_pm_opp *opp;
-	struct device_node *np;
+	struct device_yesde *np;
 	unsigned long mV, Hz;
 	u32 cap;
 	u64 tmp;
@@ -1056,12 +1056,12 @@ static int __maybe_unused _get_cpu_power(unsigned long *mW, unsigned long *kHz,
 	if (!cpu_dev)
 		return -ENODEV;
 
-	np = of_node_get(cpu_dev->of_node);
+	np = of_yesde_get(cpu_dev->of_yesde);
 	if (!np)
 		return -EINVAL;
 
 	ret = of_property_read_u32(np, "dynamic-power-coefficient", &cap);
-	of_node_put(np);
+	of_yesde_put(np);
 	if (ret)
 		return -EINVAL;
 
@@ -1096,7 +1096,7 @@ void dev_pm_opp_of_register_em(struct cpumask *cpus)
 	struct em_data_callback em_cb = EM_DATA_CB(_get_cpu_power);
 	int ret, nr_opp, cpu = cpumask_first(cpus);
 	struct device *cpu_dev;
-	struct device_node *np;
+	struct device_yesde *np;
 	u32 cap;
 
 	cpu_dev = get_cpu_device(cpu);
@@ -1107,19 +1107,19 @@ void dev_pm_opp_of_register_em(struct cpumask *cpus)
 	if (nr_opp <= 0)
 		return;
 
-	np = of_node_get(cpu_dev->of_node);
+	np = of_yesde_get(cpu_dev->of_yesde);
 	if (!np)
 		return;
 
 	/*
 	 * Register an EM only if the 'dynamic-power-coefficient' property is
-	 * set in devicetree. It is assumed the voltage values are known if that
-	 * property is set since it is useless otherwise. If voltages are not
-	 * known, just let the EM registration fail with an error to alert the
+	 * set in devicetree. It is assumed the voltage values are kyeswn if that
+	 * property is set since it is useless otherwise. If voltages are yest
+	 * kyeswn, just let the EM registration fail with an error to alert the
 	 * user about the inconsistent configuration.
 	 */
 	ret = of_property_read_u32(np, "dynamic-power-coefficient", &cap);
-	of_node_put(np);
+	of_yesde_put(np);
 	if (ret || !cap)
 		return;
 

@@ -17,7 +17,7 @@
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -169,7 +169,7 @@ cvmx_cmd_queue_result_t cvmx_cmd_queue_initialize(cvmx_cmd_queue_id_t queue_id,
 		status.u64 = cvmx_read_csr(CVMX_FPA_CTL_STATUS);
 		if (!status.s.enb) {
 			cvmx_dprintf("ERROR: cvmx_cmd_queue_initialize: "
-				     "FPA is not enabled.\n");
+				     "FPA is yest enabled.\n");
 			return CVMX_CMD_QUEUE_NO_MEMORY;
 		}
 		buffer = cvmx_fpa_alloc(fpa_pool);
@@ -185,7 +185,7 @@ cvmx_cmd_queue_result_t cvmx_cmd_queue_initialize(cvmx_cmd_queue_id_t queue_id,
 		qstate->pool_size_m1 = (pool_size >> 3) - 1;
 		qstate->base_ptr_div128 = cvmx_ptr_to_phys(buffer) / 128;
 		/*
-		 * We zeroed the now serving field so we need to also
+		 * We zeroed the yesw serving field so we need to also
 		 * zero the ticket.
 		 */
 		__cvmx_cmd_queue_state_ptr->
@@ -254,7 +254,7 @@ int cvmx_cmd_queue_length(cvmx_cmd_queue_id_t queue_id)
 	case CVMX_CMD_QUEUE_PKO_BASE:
 		/*
 		 * FIXME: Need atomic lock on
-		 * CVMX_PKO_REG_READ_IDX. Right now we are normally
+		 * CVMX_PKO_REG_READ_IDX. Right yesw we are yesrmally
 		 * called with the queue lock, so that is a SLIGHT
 		 * amount of protection.
 		 */
@@ -290,7 +290,7 @@ int cvmx_cmd_queue_length(cvmx_cmd_queue_id_t queue_id)
 /**
  * Return the command buffer to be written to. The purpose of this
  * function is to allow CVMX routine access t othe low level buffer
- * for initial hardware setup. User applications should not call this
+ * for initial hardware setup. User applications should yest call this
  * function directly.
  *
  * @queue_id: Command queue to query

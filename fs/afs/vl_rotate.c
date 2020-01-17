@@ -34,7 +34,7 @@ bool afs_begin_vlserver_operation(struct afs_vl_cursor *vc, struct afs_cell *cel
 
 /*
  * Begin iteration through a server list, starting with the last used server if
- * possible, or the last recorded good server if not.
+ * possible, or the last recorded good server if yest.
  */
 static bool afs_start_vl_iteration(struct afs_vl_cursor *vc)
 {
@@ -142,7 +142,7 @@ bool afs_select_vlserver(struct afs_vl_cursor *vc)
 	case -ECONNREFUSED:
 	case -ETIMEDOUT:
 	case -ETIME:
-		_debug("no conn %d", error);
+		_debug("yes conn %d", error);
 		vc->error = error;
 		goto iterate_address;
 
@@ -197,7 +197,7 @@ pick_server:
 	}
 
 	if (vc->index == -1)
-		goto no_more_servers;
+		goto yes_more_servers;
 
 selected_server:
 	_debug("use %d", vc->index);
@@ -246,8 +246,8 @@ next_server:
 	afs_end_cursor(&vc->ac);
 	goto pick_server;
 
-no_more_servers:
-	/* That's all the servers poked to no good effect.  Try again if some
+yes_more_servers:
+	/* That's all the servers poked to yes good effect.  Try again if some
 	 * of them were busy.
 	 */
 	if (vc->flags & AFS_VL_CURSOR_RETRY)
@@ -284,40 +284,40 @@ static void afs_vl_dump_edestaddrreq(const struct afs_vl_cursor *vc)
 	count++;
 
 	rcu_read_lock();
-	pr_notice("EDESTADDR occurred\n");
-	pr_notice("VC: ut=%lx ix=%u ni=%hu fl=%hx err=%hd\n",
+	pr_yestice("EDESTADDR occurred\n");
+	pr_yestice("VC: ut=%lx ix=%u ni=%hu fl=%hx err=%hd\n",
 		  vc->untried, vc->index, vc->nr_iterations, vc->flags, vc->error);
 
 	if (vc->server_list) {
 		const struct afs_vlserver_list *sl = vc->server_list;
-		pr_notice("VC: SL nr=%u ix=%u\n",
+		pr_yestice("VC: SL nr=%u ix=%u\n",
 			  sl->nr_servers, sl->index);
 		for (i = 0; i < sl->nr_servers; i++) {
 			const struct afs_vlserver *s = sl->servers[i].server;
-			pr_notice("VC: server %s+%hu fl=%lx E=%hd\n",
+			pr_yestice("VC: server %s+%hu fl=%lx E=%hd\n",
 				  s->name, s->port, s->flags, s->probe.error);
 			if (s->addresses) {
 				const struct afs_addr_list *a =
 					rcu_dereference(s->addresses);
-				pr_notice("VC:  - nr=%u/%u/%u pf=%u\n",
+				pr_yestice("VC:  - nr=%u/%u/%u pf=%u\n",
 					  a->nr_ipv4, a->nr_addrs, a->max_addrs,
 					  a->preferred);
-				pr_notice("VC:  - pr=%lx R=%lx F=%lx\n",
+				pr_yestice("VC:  - pr=%lx R=%lx F=%lx\n",
 					  a->probed, a->responded, a->failed);
 				if (a == vc->ac.alist)
-					pr_notice("VC:  - current\n");
+					pr_yestice("VC:  - current\n");
 			}
 		}
 	}
 
-	pr_notice("AC: t=%lx ax=%u ac=%d er=%d r=%u ni=%u\n",
+	pr_yestice("AC: t=%lx ax=%u ac=%d er=%d r=%u ni=%u\n",
 		  vc->ac.tried, vc->ac.index, vc->ac.abort_code, vc->ac.error,
 		  vc->ac.responded, vc->ac.nr_iterations);
 	rcu_read_unlock();
 }
 
 /*
- * Tidy up a volume location server cursor and unlock the vnode.
+ * Tidy up a volume location server cursor and unlock the vyesde.
  */
 int afs_end_vlserver_operation(struct afs_vl_cursor *vc)
 {

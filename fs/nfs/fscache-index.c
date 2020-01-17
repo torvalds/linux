@@ -67,28 +67,28 @@ const struct fscache_cookie_def nfs_fscache_super_index_def = {
 
 /*
  * Consult the netfs about the state of an object
- * - This function can be absent if the index carries no state data
+ * - This function can be absent if the index carries yes state data
  * - The netfs data from the cookie being used as the target is
  *   presented, as is the auxiliary data
  */
 static
-enum fscache_checkaux nfs_fscache_inode_check_aux(void *cookie_netfs_data,
+enum fscache_checkaux nfs_fscache_iyesde_check_aux(void *cookie_netfs_data,
 						  const void *data,
 						  uint16_t datalen,
 						  loff_t object_size)
 {
-	struct nfs_fscache_inode_auxdata auxdata;
-	struct nfs_inode *nfsi = cookie_netfs_data;
+	struct nfs_fscache_iyesde_auxdata auxdata;
+	struct nfs_iyesde *nfsi = cookie_netfs_data;
 
 	if (datalen != sizeof(auxdata))
 		return FSCACHE_CHECKAUX_OBSOLETE;
 
 	memset(&auxdata, 0, sizeof(auxdata));
-	auxdata.mtime = timespec64_to_timespec(nfsi->vfs_inode.i_mtime);
-	auxdata.ctime = timespec64_to_timespec(nfsi->vfs_inode.i_ctime);
+	auxdata.mtime = timespec64_to_timespec(nfsi->vfs_iyesde.i_mtime);
+	auxdata.ctime = timespec64_to_timespec(nfsi->vfs_iyesde.i_ctime);
 
-	if (NFS_SERVER(&nfsi->vfs_inode)->nfs_client->rpc_ops->version == 4)
-		auxdata.change_attr = inode_peek_iversion_raw(&nfsi->vfs_inode);
+	if (NFS_SERVER(&nfsi->vfs_iyesde)->nfs_client->rpc_ops->version == 4)
+		auxdata.change_attr = iyesde_peek_iversion_raw(&nfsi->vfs_iyesde);
 
 	if (memcmp(data, &auxdata, datalen) != 0)
 		return FSCACHE_CHECKAUX_OBSOLETE;
@@ -121,18 +121,18 @@ static void nfs_fh_put_context(void *cookie_netfs_data, void *context)
 }
 
 /*
- * Define the inode object for FS-Cache.  This is used to describe an inode
+ * Define the iyesde object for FS-Cache.  This is used to describe an iyesde
  * object to fscache_acquire_cookie().  It is keyed by the NFS file handle for
- * an inode.
+ * an iyesde.
  *
  * Coherency is managed by comparing the copies of i_size, i_mtime and i_ctime
  * held in the cache auxiliary data for the data storage object with those in
- * the inode struct in memory.
+ * the iyesde struct in memory.
  */
-const struct fscache_cookie_def nfs_fscache_inode_object_def = {
+const struct fscache_cookie_def nfs_fscache_iyesde_object_def = {
 	.name		= "NFS.fh",
 	.type		= FSCACHE_COOKIE_TYPE_DATAFILE,
-	.check_aux	= nfs_fscache_inode_check_aux,
+	.check_aux	= nfs_fscache_iyesde_check_aux,
 	.get_context	= nfs_fh_get_context,
 	.put_context	= nfs_fh_put_context,
 };

@@ -13,77 +13,77 @@ void qtnf_sta_list_init(struct qtnf_sta_list *list)
 	atomic_set(&list->size, 0);
 }
 
-struct qtnf_sta_node *qtnf_sta_list_lookup(struct qtnf_sta_list *list,
+struct qtnf_sta_yesde *qtnf_sta_list_lookup(struct qtnf_sta_list *list,
 					   const u8 *mac)
 {
-	struct qtnf_sta_node *node;
+	struct qtnf_sta_yesde *yesde;
 
 	if (unlikely(!mac))
 		return NULL;
 
-	list_for_each_entry(node, &list->head, list) {
-		if (ether_addr_equal(node->mac_addr, mac))
-			return node;
+	list_for_each_entry(yesde, &list->head, list) {
+		if (ether_addr_equal(yesde->mac_addr, mac))
+			return yesde;
 	}
 
 	return NULL;
 }
 
-struct qtnf_sta_node *qtnf_sta_list_lookup_index(struct qtnf_sta_list *list,
+struct qtnf_sta_yesde *qtnf_sta_list_lookup_index(struct qtnf_sta_list *list,
 						 size_t index)
 {
-	struct qtnf_sta_node *node;
+	struct qtnf_sta_yesde *yesde;
 
 	if (qtnf_sta_list_size(list) <= index)
 		return NULL;
 
-	list_for_each_entry(node, &list->head, list) {
+	list_for_each_entry(yesde, &list->head, list) {
 		if (index-- == 0)
-			return node;
+			return yesde;
 	}
 
 	return NULL;
 }
 
-struct qtnf_sta_node *qtnf_sta_list_add(struct qtnf_vif *vif,
+struct qtnf_sta_yesde *qtnf_sta_list_add(struct qtnf_vif *vif,
 					const u8 *mac)
 {
 	struct qtnf_sta_list *list = &vif->sta_list;
-	struct qtnf_sta_node *node;
+	struct qtnf_sta_yesde *yesde;
 
 	if (unlikely(!mac))
 		return NULL;
 
-	node = qtnf_sta_list_lookup(list, mac);
+	yesde = qtnf_sta_list_lookup(list, mac);
 
-	if (node)
+	if (yesde)
 		goto done;
 
-	node = kzalloc(sizeof(*node), GFP_KERNEL);
-	if (unlikely(!node))
+	yesde = kzalloc(sizeof(*yesde), GFP_KERNEL);
+	if (unlikely(!yesde))
 		goto done;
 
-	ether_addr_copy(node->mac_addr, mac);
-	list_add_tail(&node->list, &list->head);
+	ether_addr_copy(yesde->mac_addr, mac);
+	list_add_tail(&yesde->list, &list->head);
 	atomic_inc(&list->size);
 	++vif->generation;
 
 done:
-	return node;
+	return yesde;
 }
 
 bool qtnf_sta_list_del(struct qtnf_vif *vif, const u8 *mac)
 {
 	struct qtnf_sta_list *list = &vif->sta_list;
-	struct qtnf_sta_node *node;
+	struct qtnf_sta_yesde *yesde;
 	bool ret = false;
 
-	node = qtnf_sta_list_lookup(list, mac);
+	yesde = qtnf_sta_list_lookup(list, mac);
 
-	if (node) {
-		list_del(&node->list);
+	if (yesde) {
+		list_del(&yesde->list);
 		atomic_dec(&list->size);
-		kfree(node);
+		kfree(yesde);
 		++vif->generation;
 		ret = true;
 	}
@@ -93,13 +93,13 @@ bool qtnf_sta_list_del(struct qtnf_vif *vif, const u8 *mac)
 
 void qtnf_sta_list_free(struct qtnf_sta_list *list)
 {
-	struct qtnf_sta_node *node, *tmp;
+	struct qtnf_sta_yesde *yesde, *tmp;
 
 	atomic_set(&list->size, 0);
 
-	list_for_each_entry_safe(node, tmp, &list->head, list) {
-		list_del(&node->list);
-		kfree(node);
+	list_for_each_entry_safe(yesde, tmp, &list->head, list) {
+		list_del(&yesde->list);
+		kfree(yesde);
 	}
 
 	INIT_LIST_HEAD(&list->head);
@@ -117,7 +117,7 @@ const char *qtnf_chipid_to_string(unsigned long chip_id)
 	case QTN_CHIP_ID_PEARL_C:
 		return "Pearl revC";
 	default:
-		return "unknown";
+		return "unkyeswn";
 	}
 }
 EXPORT_SYMBOL_GPL(qtnf_chipid_to_string);

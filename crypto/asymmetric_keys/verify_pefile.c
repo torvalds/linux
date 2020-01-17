@@ -74,7 +74,7 @@ static int pefile_parse_binary(const void *pebuf, unsigned int pelen,
 		break;
 
 	default:
-		pr_debug("Unknown PEOPT magic = %04hx\n", pe32->magic);
+		pr_debug("Unkyeswn PEOPT magic = %04hx\n", pe32->magic);
 		return -ELIBBAD;
 	}
 
@@ -143,11 +143,11 @@ static int pefile_strip_sig_wrapper(const void *pebuf,
 		return -ELIBBAD;
 	}
 	if (wrapper.revision != WIN_CERT_REVISION_2_0) {
-		pr_debug("Signature is not revision 2.0\n");
+		pr_debug("Signature is yest revision 2.0\n");
 		return -ENOTSUPP;
 	}
 	if (wrapper.cert_type != WIN_CERT_TYPE_PKCS_SIGNED_DATA) {
-		pr_debug("Signature certificate type is not PKCS\n");
+		pr_debug("Signature certificate type is yest PKCS\n");
 		return -ENOTSUPP;
 	}
 
@@ -167,7 +167,7 @@ static int pefile_strip_sig_wrapper(const void *pebuf,
 	/* What's left should be a PKCS#7 cert */
 	pkcs7 = pebuf + ctx->sig_offset;
 	if (pkcs7[0] != (ASN1_CONS_BIT | ASN1_SEQ))
-		goto not_pkcs7;
+		goto yest_pkcs7;
 
 	switch (pkcs7[1]) {
 	case 0 ... 0x7f:
@@ -184,7 +184,7 @@ static int pefile_strip_sig_wrapper(const void *pebuf,
 	case 0x83 ... 0xff:
 		return -EMSGSIZE;
 	default:
-		goto not_pkcs7;
+		goto yest_pkcs7;
 	}
 
 check_len:
@@ -193,13 +193,13 @@ check_len:
 		ctx->sig_len = len;
 		return 0;
 	}
-not_pkcs7:
-	pr_debug("Signature data not PKCS#7\n");
+yest_pkcs7:
+	pr_debug("Signature data yest PKCS#7\n");
 	return -ELIBBAD;
 }
 
 /*
- * Compare two sections for canonicalisation.
+ * Compare two sections for cayesnicalisation.
  */
 static int pefile_compare_shdrs(const void *a, const void *b)
 {
@@ -242,7 +242,7 @@ static int pefile_digest_pe_contents(const void *pebuf, unsigned int pelen,
 				     struct pefile_context *ctx,
 				     struct shash_desc *desc)
 {
-	unsigned *canon, tmp, loop, i, hashed_bytes;
+	unsigned *cayesn, tmp, loop, i, hashed_bytes;
 	int ret;
 
 	/* Digest the header and data directory, but leave out the image
@@ -263,41 +263,41 @@ static int pefile_digest_pe_contents(const void *pebuf, unsigned int pelen,
 	if (ret < 0)
 		return ret;
 
-	canon = kcalloc(ctx->n_sections, sizeof(unsigned), GFP_KERNEL);
-	if (!canon)
+	cayesn = kcalloc(ctx->n_sections, sizeof(unsigned), GFP_KERNEL);
+	if (!cayesn)
 		return -ENOMEM;
 
-	/* We have to canonicalise the section table, so we perform an
+	/* We have to cayesnicalise the section table, so we perform an
 	 * insertion sort.
 	 */
-	canon[0] = 0;
+	cayesn[0] = 0;
 	for (loop = 1; loop < ctx->n_sections; loop++) {
 		for (i = 0; i < loop; i++) {
-			if (pefile_compare_shdrs(&ctx->secs[canon[i]],
+			if (pefile_compare_shdrs(&ctx->secs[cayesn[i]],
 						 &ctx->secs[loop]) > 0) {
-				memmove(&canon[i + 1], &canon[i],
-					(loop - i) * sizeof(canon[0]));
+				memmove(&cayesn[i + 1], &cayesn[i],
+					(loop - i) * sizeof(cayesn[0]));
 				break;
 			}
 		}
-		canon[i] = loop;
+		cayesn[i] = loop;
 	}
 
 	hashed_bytes = ctx->header_size;
 	for (loop = 0; loop < ctx->n_sections; loop++) {
-		i = canon[loop];
+		i = cayesn[loop];
 		if (ctx->secs[i].raw_data_size == 0)
 			continue;
 		ret = crypto_shash_update(desc,
 					  pebuf + ctx->secs[i].data_addr,
 					  ctx->secs[i].raw_data_size);
 		if (ret < 0) {
-			kfree(canon);
+			kfree(cayesn);
 			return ret;
 		}
 		hashed_bytes += ctx->secs[i].raw_data_size;
 	}
-	kfree(canon);
+	kfree(cayesn);
 
 	if (pelen > hashed_bytes) {
 		tmp = hashed_bytes + ctx->certs_size;
@@ -340,14 +340,14 @@ static int pefile_digest_pe(const void *pebuf, unsigned int pelen,
 		pr_debug("Digest size mismatch (%zx != %x)\n",
 			 digest_size, ctx->digest_len);
 		ret = -EBADMSG;
-		goto error_no_desc;
+		goto error_yes_desc;
 	}
 	pr_debug("Digest: desc=%zu size=%zu\n", desc_size, digest_size);
 
 	ret = -ENOMEM;
 	desc = kzalloc(desc_size + digest_size, GFP_KERNEL);
 	if (!desc)
-		goto error_no_desc;
+		goto error_yes_desc;
 
 	desc->tfm   = tfm;
 	ret = crypto_shash_init(desc);
@@ -377,7 +377,7 @@ static int pefile_digest_pe(const void *pebuf, unsigned int pelen,
 
 error:
 	kzfree(desc);
-error_no_desc:
+error_yes_desc:
 	crypto_free_shash(tfm);
 	kleave(" = %d", ret);
 	return ret;
@@ -391,11 +391,11 @@ error_no_desc:
  * @usage: The use to which the key is being put.
  *
  * Validate that the certificate chain inside the PKCS#7 message inside the PE
- * binary image intersects keys we already know and trust.
+ * binary image intersects keys we already kyesw and trust.
  *
  * Returns, in order of descending priority:
  *
- *  (*) -ELIBBAD if the image cannot be parsed, or:
+ *  (*) -ELIBBAD if the image canyest be parsed, or:
  *
  *  (*) -EKEYREJECTED if a signature failed to match for which we have a valid
  *	key, or:
@@ -403,7 +403,7 @@ error_no_desc:
  *  (*) 0 if at least one signature chain intersects with the keys in the trust
  *	keyring, or:
  *
- *  (*) -ENODATA if there is no signature present.
+ *  (*) -ENODATA if there is yes signature present.
  *
  *  (*) -ENOPKG if a suitable crypto module couldn't be found for a check on a
  *	chain.

@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -130,7 +130,7 @@
 #define OPA_LINK_WIDTH_4X            0x0008
 
 #define OPA_CAP_MASK3_IsEthOnFabricSupported      (1 << 13)
-#define OPA_CAP_MASK3_IsSnoopSupported            (1 << 7)
+#define OPA_CAP_MASK3_IsSyesopSupported            (1 << 7)
 #define OPA_CAP_MASK3_IsAsyncSC2VLSupported       (1 << 6)
 #define OPA_CAP_MASK3_IsAddrRangeConfigSupported  (1 << 5)
 #define OPA_CAP_MASK3_IsPassThroughSupported      (1 << 4)
@@ -393,7 +393,7 @@ struct opa_port_info {
 	u32    reserved7;
 	u32    reserved8;
 
-	__be64 neigh_node_guid;
+	__be64 neigh_yesde_guid;
 
 	__be32 ib_cap_mask;
 	__be16 reserved9;                    /* was ib_cap_mask2 */

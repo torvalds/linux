@@ -99,7 +99,7 @@ struct bnxt_fw_header {
 				 */
 	u8 build;
 	u8 revision;
-	u8 minor_ver;
+	u8 miyesr_ver;
 	u8 major_ver;
 };
 

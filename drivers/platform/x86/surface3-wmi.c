@@ -102,7 +102,7 @@ static int s3_wmi_send_lid_state(void)
 	return 0;
 }
 
-static int s3_wmi_hp_notify(struct acpi_device *adev, u32 value)
+static int s3_wmi_hp_yestify(struct acpi_device *adev, u32 value)
 {
 	return s3_wmi_send_lid_state();
 }
@@ -139,7 +139,7 @@ static int s3_wmi_check_platform_device(struct device *dev, void *data)
 	acpi_handle handle;
 	acpi_status status;
 
-	/* ignore non ACPI devices */
+	/* igyesre yesn ACPI devices */
 	handle = ACPI_HANDLE(dev);
 	if (!handle || acpi_bus_get_device(handle, &adev))
 		return 0;
@@ -150,7 +150,7 @@ static int s3_wmi_check_platform_device(struct device *dev, void *data)
 		return 0;
 	}
 
-	/* ignore non SPI controllers */
+	/* igyesre yesn SPI controllers */
 	if (strncmp(acpi_device_bid(adev), SPI_CTL_OBJ_NAME,
 	    strlen(SPI_CTL_OBJ_NAME)))
 		return 0;
@@ -219,7 +219,7 @@ static int __init s3_wmi_probe(struct platform_device *pdev)
 		goto restore_acpi_lid;
 
 	acpi_initialize_hp_context(s3_wmi.touchscreen_adev, &s3_wmi.hp,
-				   s3_wmi_hp_notify, NULL);
+				   s3_wmi_hp_yestify, NULL);
 
 	s3_wmi_send_lid_state();
 

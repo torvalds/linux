@@ -59,20 +59,20 @@ static struct snd_soc_card mop500_card = {
 	.num_links = ARRAY_SIZE(mop500_dai_links),
 };
 
-static void mop500_of_node_put(void)
+static void mop500_of_yesde_put(void)
 {
 	int i;
 
 	for (i = 0; i < 2; i++) {
-		of_node_put(mop500_dai_links[i].cpus->of_node);
-		of_node_put(mop500_dai_links[i].codecs->of_node);
+		of_yesde_put(mop500_dai_links[i].cpus->of_yesde);
+		of_yesde_put(mop500_dai_links[i].codecs->of_yesde);
 	}
 }
 
 static int mop500_of_probe(struct platform_device *pdev,
-			   struct device_node *np)
+			   struct device_yesde *np)
 {
-	struct device_node *codec_np, *msp_np[2];
+	struct device_yesde *codec_np, *msp_np[2];
 	int i;
 
 	msp_np[0] = of_parse_phandle(np, "stericsson,cpu-dai", 0);
@@ -81,16 +81,16 @@ static int mop500_of_probe(struct platform_device *pdev,
 
 	if (!(msp_np[0] && msp_np[1] && codec_np)) {
 		dev_err(&pdev->dev, "Phandle missing or invalid\n");
-		mop500_of_node_put();
+		mop500_of_yesde_put();
 		return -EINVAL;
 	}
 
 	for (i = 0; i < 2; i++) {
-		mop500_dai_links[i].cpus->of_node = msp_np[i];
+		mop500_dai_links[i].cpus->of_yesde = msp_np[i];
 		mop500_dai_links[i].cpus->dai_name = NULL;
-		mop500_dai_links[i].platforms->of_node = msp_np[i];
+		mop500_dai_links[i].platforms->of_yesde = msp_np[i];
 		mop500_dai_links[i].platforms->name = NULL;
-		mop500_dai_links[i].codecs->of_node = codec_np;
+		mop500_dai_links[i].codecs->of_yesde = codec_np;
 		mop500_dai_links[i].codecs->name = NULL;
 	}
 
@@ -101,7 +101,7 @@ static int mop500_of_probe(struct platform_device *pdev,
 
 static int mop500_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	int ret;
 
 	dev_dbg(&pdev->dev, "%s: Enter.\n", __func__);
@@ -143,7 +143,7 @@ static int mop500_remove(struct platform_device *pdev)
 
 	snd_soc_unregister_card(mop500_card);
 	mop500_ab8500_remove(mop500_card);
-	mop500_of_node_put();
+	mop500_of_yesde_put();
 
 	return 0;
 }

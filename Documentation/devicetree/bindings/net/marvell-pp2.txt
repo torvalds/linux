@@ -26,7 +26,7 @@ Required properties:
 - clock-names: names of used clocks, must be "pp_clk", "gop_clk", "mg_clk",
   "mg_core_clk" and "axi_clk" (the 3 latter only for armada-7k-pp2).
 
-The ethernet ports are represented by subnodes. At least one port is
+The ethernet ports are represented by subyesdes. At least one port is
 required.
 
 Required properties (port):
@@ -41,7 +41,7 @@ Required properties (port):
 Optional properties (port):
 
 - marvell,loopback: port is loopback mode
-- phy: a phandle to a phy node defining the PHY address (as the reg
+- phy: a phandle to a phy yesde defining the PHY address (as the reg
   property, a single integer).
 - interrupt-names: if more than a single interrupt for is given, must be the
                    name associated to the interrupts listed. Valid names are:

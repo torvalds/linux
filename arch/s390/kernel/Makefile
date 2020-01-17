@@ -5,10 +5,10 @@
 
 ifdef CONFIG_FUNCTION_TRACER
 
-# Do not trace tracer code
+# Do yest trace tracer code
 CFLAGS_REMOVE_ftrace.o		= $(CC_FLAGS_FTRACE)
 
-# Do not trace early setup code
+# Do yest trace early setup code
 CFLAGS_REMOVE_early.o		= $(CC_FLAGS_FTRACE)
 
 endif
@@ -22,16 +22,16 @@ KASAN_SANITIZE_machine_kexec.o	:= n
 #
 # Passing null pointers is ok for smp code, since we access the lowcore here.
 #
-CFLAGS_smp.o		:= -Wno-nonnull
+CFLAGS_smp.o		:= -Wyes-yesnnull
 
 #
 # Disable tailcall optimizations for stack / callchain walking functions
 # since this might generate broken code when accessing register 15 and
 # passing its content to other functions.
 #
-CFLAGS_stacktrace.o	+= -fno-optimize-sibling-calls
-CFLAGS_dumpstack.o	+= -fno-optimize-sibling-calls
-CFLAGS_unwind_bc.o	+= -fno-optimize-sibling-calls
+CFLAGS_stacktrace.o	+= -fyes-optimize-sibling-calls
+CFLAGS_dumpstack.o	+= -fyes-optimize-sibling-calls
+CFLAGS_unwind_bc.o	+= -fyes-optimize-sibling-calls
 
 #
 # Pass UTS_MACHINE for user_regset definition
@@ -44,13 +44,13 @@ obj-y	+= debug.o irq.o ipl.o dis.o diag.o vdso.o
 obj-y	+= sysinfo.o lgr.o os_info.o machine_kexec.o pgm_check.o
 obj-y	+= runtime_instr.o cache.o fpu.o dumpstack.o guarded_storage.o sthyi.o
 obj-y	+= entry.o reipl.o relocate_kernel.o kdebugfs.o alternative.o
-obj-y	+= nospec-branch.o ipl_vmparm.o machine_kexec_reloc.o unwind_bc.o
+obj-y	+= yesspec-branch.o ipl_vmparm.o machine_kexec_reloc.o unwind_bc.o
 obj-y	+= smp.o
 
 extra-y				+= head64.o vmlinux.lds
 
-obj-$(CONFIG_SYSFS)		+= nospec-sysfs.o
-CFLAGS_REMOVE_nospec-branch.o	+= $(CC_FLAGS_EXPOLINE)
+obj-$(CONFIG_SYSFS)		+= yesspec-sysfs.o
+CFLAGS_REMOVE_yesspec-branch.o	+= $(CC_FLAGS_EXPOLINE)
 
 obj-$(CONFIG_MODULES)		+= module.o
 obj-$(CONFIG_SCHED_TOPOLOGY)	+= topology.o

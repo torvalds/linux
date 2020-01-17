@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * LCD panel support for the TI OMAP1610 Innovator board
+ * LCD panel support for the TI OMAP1610 Inyesvator board
  *
  * Copyright (C) 2004 Nokia Corporation
- * Author: Imre Deak <imre.deak@nokia.com>
+ * Author: Imre Deak <imre.deak@yeskia.com>
  */
 
 #include <linux/module.h>
@@ -14,7 +14,7 @@
 
 #define MODULE_NAME	"omapfb-lcd_h3"
 
-static int innovator1610_panel_init(struct lcd_panel *panel,
+static int inyesvator1610_panel_init(struct lcd_panel *panel,
 				    struct omapfb_device *fbdev)
 {
 	int r = 0;
@@ -35,13 +35,13 @@ exit:
 	return r;
 }
 
-static void innovator1610_panel_cleanup(struct lcd_panel *panel)
+static void inyesvator1610_panel_cleanup(struct lcd_panel *panel)
 {
 	gpio_free(15);
 	gpio_free(14);
 }
 
-static int innovator1610_panel_enable(struct lcd_panel *panel)
+static int inyesvator1610_panel_enable(struct lcd_panel *panel)
 {
 	/* set GPIO14 and GPIO15 high */
 	gpio_set_value(14, 1);
@@ -49,14 +49,14 @@ static int innovator1610_panel_enable(struct lcd_panel *panel)
 	return 0;
 }
 
-static void innovator1610_panel_disable(struct lcd_panel *panel)
+static void inyesvator1610_panel_disable(struct lcd_panel *panel)
 {
 	/* set GPIO13, GPIO14 and GPIO15 low */
 	gpio_set_value(14, 0);
 	gpio_set_value(15, 0);
 }
 
-static struct lcd_panel innovator1610_panel = {
+static struct lcd_panel inyesvator1610_panel = {
 	.name		= "inn1610",
 	.config		= OMAP_LCDC_PANEL_TFT,
 
@@ -73,27 +73,27 @@ static struct lcd_panel innovator1610_panel = {
 	.vbp		= 0,
 	.pcd		= 12,
 
-	.init		= innovator1610_panel_init,
-	.cleanup	= innovator1610_panel_cleanup,
-	.enable		= innovator1610_panel_enable,
-	.disable	= innovator1610_panel_disable,
+	.init		= inyesvator1610_panel_init,
+	.cleanup	= inyesvator1610_panel_cleanup,
+	.enable		= inyesvator1610_panel_enable,
+	.disable	= inyesvator1610_panel_disable,
 };
 
-static int innovator1610_panel_probe(struct platform_device *pdev)
+static int inyesvator1610_panel_probe(struct platform_device *pdev)
 {
-	omapfb_register_panel(&innovator1610_panel);
+	omapfb_register_panel(&inyesvator1610_panel);
 	return 0;
 }
 
-static struct platform_driver innovator1610_panel_driver = {
-	.probe		= innovator1610_panel_probe,
+static struct platform_driver inyesvator1610_panel_driver = {
+	.probe		= inyesvator1610_panel_probe,
 	.driver		= {
 		.name	= "lcd_inn1610",
 	},
 };
 
-module_platform_driver(innovator1610_panel_driver);
+module_platform_driver(inyesvator1610_panel_driver);
 
 MODULE_AUTHOR("Imre Deak");
-MODULE_DESCRIPTION("LCD panel support for the TI OMAP1610 Innovator board");
+MODULE_DESCRIPTION("LCD panel support for the TI OMAP1610 Inyesvator board");
 MODULE_LICENSE("GPL");

@@ -230,7 +230,7 @@ emif_skip_restore_extra_regs:
 	/*
 	 * Output impedence calib needed only for DDR3
 	 * but since the initial state of this will be
-	 * disabled for DDR2 no harm in restoring the
+	 * disabled for DDR2 yes harm in restoring the
 	 * old configuration
 	 */
 	ldr     r1, [r2, #EMIF_ZQCFG_VAL_OFFSET]
@@ -267,8 +267,8 @@ ENTRY(ti_emif_run_hw_leveling)
 	/*
 	 * If EMIF registers are touched during initial stage of HW
 	 * leveling sequence there will be an L3 NOC timeout error issued
-	 * as the EMIF will not respond, which is not fatal, but it is
-	 * avoidable. This small wait loop is enough time for this condition
+	 * as the EMIF will yest respond, which is yest fatal, but it is
+	 * avoidable. This small wait loop is eyesugh time for this condition
 	 * to clear, even at worst case of CPU running at max speed of 1Ghz.
 	 */
 	mov	r2, #0x2000
@@ -324,7 +324,7 @@ ENTRY(ti_emif_exit_sr)
 	 * if EMIF lost context, PWR_MGT_CTRL is currently 0, writing disable
 	 *   (0x0), wont do diddly squat! so do a toggle from SR(0x2) to disable
 	 *   (0x0) here.
-	 * *If* EMIF did not lose context, nothing broken as we write the same
+	 * *If* EMIF did yest lose context, yesthing broken as we write the same
 	 *   value(0x2) to reg before we write a disable (0x0).
 	 */
 	ldr	r1, [r2, #EMIF_PMCR_VAL_OFFSET]

@@ -1,6 +1,6 @@
 /*
  * Permedia2 framebuffer driver definitions.
- * Copyright (c) 1998-2000 Ilario Nardinocchi (nardinoc@CS.UniBO.IT)
+ * Copyright (c) 1998-2000 Ilario Nardiyescchi (nardiyesc@CS.UniBO.IT)
  * --------------------------------------------------------------------------
  * $Id: pm2fb.h,v 1.26 2000/09/19 00:11:53 illo Exp $
  * --------------------------------------------------------------------------

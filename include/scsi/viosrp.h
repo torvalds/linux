@@ -14,7 +14,7 @@
 /*                                                                           */
 /* SRP Information Units (IUs) are sent on a "Command/Response Queue" (CRQ)  */
 /* between partitions.  The definitions in this file are architected,        */
-/* and cannot be changed without breaking compatibility with other versions  */
+/* and canyest be changed without breaking compatibility with other versions  */
 /* of Linux and other operating systems (AIX, OS/400) that talk this protocol*/
 /* between logical partitions                                                */
 /*****************************************************************************/
@@ -73,7 +73,7 @@ struct viosrp_crq {
 	u8 valid;		/* used by RPA */
 	u8 format;		/* SCSI vs out-of-band */
 	u8 reserved;
-	u8 status;		/* non-scsi failure? (e.g. DMA failure) */
+	u8 status;		/* yesn-scsi failure? (e.g. DMA failure) */
 	__be16 timeout;		/* in seconds */
 	__be16 IU_length;		/* in bytes */
 	__be64 IU_data_ptr;	/* the TCE for transferring data */
@@ -129,9 +129,9 @@ struct mad_common {
 };
 
 /*
- * All SRP (and MAD) requests normally flow from the
- * client to the server.  There is no way for the server to send
- * an asynchronous message back to the client.  The Empty IU is used
+ * All SRP (and MAD) requests yesrmally flow from the
+ * client to the server.  There is yes way for the server to send
+ * an asynchroyesus message back to the client.  The Empty IU is used
  * to hang out a meaningless request to the server so that it can respond
  * asynchrouously with something like a SCSI AER
  */

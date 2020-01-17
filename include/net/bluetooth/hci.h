@@ -48,7 +48,7 @@
 #define HCI_DEV_CLOSE			8
 #define HCI_DEV_SETUP			9
 
-/* HCI notify events */
+/* HCI yestify events */
 #define HCI_NOTIFY_CONN_ADD		1
 #define HCI_NOTIFY_CONN_DEL		2
 #define HCI_NOTIFY_VOICE_SETTING	3
@@ -108,7 +108,7 @@ enum {
 	 */
 	HCI_QUIRK_FIXUP_BUFFER_SIZE,
 
-	/* When this quirk is set, then a controller that does not
+	/* When this quirk is set, then a controller that does yest
 	 * indicate support for Inquiry Result with RSSI is assumed to
 	 * support it anyway. Some early Bluetooth 1.2 controllers had
 	 * wrongly configured local features that will require forcing
@@ -121,19 +121,19 @@ enum {
 	HCI_QUIRK_FIXUP_INQUIRY_MODE,
 
 	/* When this quirk is set, then the HCI Read Local Supported
-	 * Commands command is not supported. In general Bluetooth 1.2
+	 * Commands command is yest supported. In general Bluetooth 1.2
 	 * and later controllers should support this command. However
 	 * some controllers indicate Bluetooth 1.2 support, but do
-	 * not support this command.
+	 * yest support this command.
 	 *
 	 * This quirk must be set before hci_register_dev is called.
 	 */
 	HCI_QUIRK_BROKEN_LOCAL_COMMANDS,
 
-	/* When this quirk is set, then no stored link key handling
+	/* When this quirk is set, then yes stored link key handling
 	 * is performed. This is mainly due to the fact that the
 	 * HCI Delete Stored Link Key command is advertised, but
-	 * not supported.
+	 * yest supported.
 	 *
 	 * This quirk must be set before hci_register_dev is called.
 	 */
@@ -161,8 +161,8 @@ enum {
 	/* When this quirk is set, the public Bluetooth address
 	 * initially reported by HCI Read BD Address command
 	 * is considered invalid. The public BD Address can be
-	 * specified in the fwnode property 'local-bd-address'.
-	 * If this property does not exist or is invalid controller
+	 * specified in the fwyesde property 'local-bd-address'.
+	 * If this property does yest exist or is invalid controller
 	 * configuration is required before this device can be used.
 	 *
 	 * This quirk can be set before hci_register_dev is called or
@@ -187,8 +187,8 @@ enum {
 	 */
 	HCI_QUIRK_SIMULTANEOUS_DISCOVERY,
 
-	/* When this quirk is set, the enabling of diagnostic mode is
-	 * not persistent over HCI Reset. Every time the controller
+	/* When this quirk is set, the enabling of diagyesstic mode is
+	 * yest persistent over HCI Reset. Every time the controller
 	 * is brought up it needs to be reprogrammed.
 	 *
 	 * This quirk can be set before hci_register_dev is called or
@@ -197,7 +197,7 @@ enum {
 	HCI_QUIRK_NON_PERSISTENT_DIAG,
 
 	/* When this quirk is set, setup() would be run after every
-	 * open() and not just after the first open().
+	 * open() and yest just after the first open().
 	 *
 	 * This quirk can be set before hci_register_dev is called or
 	 * during the hdev->setup vendor callback.
@@ -356,7 +356,7 @@ enum {
 #define SCO_LINK	0x00
 #define ACL_LINK	0x01
 #define ESCO_LINK	0x02
-/* Low Energy links do not have defined link type. Use invented one */
+/* Low Energy links do yest have defined link type. Use invented one */
 #define LE_LINK		0x80
 #define AMP_LINK	0x81
 #define INVALID_LINK	0xff
@@ -509,7 +509,7 @@ enum {
 #define HCI_FLOW_CTL_MODE_PACKET_BASED	0x00
 #define HCI_FLOW_CTL_MODE_BLOCK_BASED	0x01
 
-/* The core spec defines 127 as the "not available" value */
+/* The core spec defines 127 as the "yest available" value */
 #define HCI_TX_POWER_INVALID	127
 #define HCI_RSSI_INVALID	127
 
@@ -542,7 +542,7 @@ enum {
 /* Low Energy Advertising Flags */
 #define LE_AD_LIMITED		0x01 /* Limited Discoverable */
 #define LE_AD_GENERAL		0x02 /* General Discoverable */
-#define LE_AD_NO_BREDR		0x04 /* BR/EDR not supported */
+#define LE_AD_NO_BREDR		0x04 /* BR/EDR yest supported */
 #define LE_AD_SIM_LE_BREDR_CTRL	0x08 /* Simultaneous LE & BR/EDR Controller */
 #define LE_AD_SIM_LE_BREDR_HOST	0x10 /* Simultaneous LE & BR/EDR Host */
 
@@ -1663,7 +1663,7 @@ struct hci_cp_le_set_ext_adv_params {
 	__u8      secondary_max_skip;
 	__u8      secondary_phy;
 	__u8      sid;
-	__u8      notif_enable;
+	__u8      yestif_enable;
 } __packed;
 
 #define HCI_ADV_PHY_1M		0X01
@@ -1865,7 +1865,7 @@ struct hci_ev_link_key_req {
 } __packed;
 
 #define HCI_EV_LINK_KEY_NOTIFY		0x18
-struct hci_ev_link_key_notify {
+struct hci_ev_link_key_yestify {
 	bdaddr_t bdaddr;
 	__u8     link_key[HCI_LINK_KEY_SIZE];
 	__u8     key_type;
@@ -2005,7 +2005,7 @@ struct hci_ev_simple_pair_complete {
 } __packed;
 
 #define HCI_EV_USER_PASSKEY_NOTIFY	0x3b
-struct hci_ev_user_passkey_notify {
+struct hci_ev_user_passkey_yestify {
 	bdaddr_t	bdaddr;
 	__le32		passkey;
 } __packed;
@@ -2017,7 +2017,7 @@ struct hci_ev_user_passkey_notify {
 #define HCI_KEYPRESS_COMPLETED		4
 
 #define HCI_EV_KEYPRESS_NOTIFY		0x3c
-struct hci_ev_keypress_notify {
+struct hci_ev_keypress_yestify {
 	bdaddr_t	bdaddr;
 	__u8		type;
 } __packed;

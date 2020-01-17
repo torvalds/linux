@@ -66,7 +66,7 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 
 	codec_dai = snd_soc_card_get_codec_dai(card, SKL_NUVOTON_CODEC_DAI);
 	if (!codec_dai) {
-		dev_err(card->dev, "Codec dai not found\n");
+		dev_err(card->dev, "Codec dai yest found\n");
 		return -EIO;
 	}
 
@@ -102,7 +102,7 @@ static const struct snd_soc_dapm_widget skylake_widgets[] = {
 };
 
 static const struct snd_soc_dapm_route skylake_map[] = {
-	/* HP jack connectors - unknown if we have jack detection */
+	/* HP jack connectors - unkyeswn if we have jack detection */
 	{"Headphone Jack", NULL, "HPOL"},
 	{"Headphone Jack", NULL, "HPOR"},
 
@@ -193,7 +193,7 @@ static int skylake_nau8825_codec_init(struct snd_soc_pcm_runtime *rtd)
 
 	nau8825_enable_jack_detect(component, &skylake_headset);
 
-	snd_soc_dapm_ignore_suspend(&rtd->card->dapm, "SoC DMIC");
+	snd_soc_dapm_igyesre_suspend(&rtd->card->dapm, "SoC DMIC");
 
 	return ret;
 }
@@ -259,7 +259,7 @@ static int skylake_nau8825_fe_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_component *component = rtd->cpu_dai->component;
 
 	dapm = snd_soc_component_get_dapm(component);
-	snd_soc_dapm_ignore_suspend(dapm, "Reference Capture");
+	snd_soc_dapm_igyesre_suspend(dapm, "Reference Capture");
 
 	return 0;
 }
@@ -326,7 +326,7 @@ static int skylake_ssp_fixup(struct snd_soc_pcm_runtime *rtd,
 	channels->min = channels->max = 2;
 
 	/* set SSP0 to 24 bit */
-	snd_mask_none(fmt);
+	snd_mask_yesne(fmt);
 	snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S24_LE);
 	return 0;
 }
@@ -409,13 +409,13 @@ static const struct snd_pcm_hw_constraint_list constraints_16000 = {
 	.list  = rates_16000,
 };
 
-static const unsigned int ch_mono[] = {
+static const unsigned int ch_moyes[] = {
 	1,
 };
 
 static const struct snd_pcm_hw_constraint_list constraints_refcap = {
-	.count = ARRAY_SIZE(ch_mono),
-	.list  = ch_mono,
+	.count = ARRAY_SIZE(ch_moyes),
+	.list  = ch_moyes,
 };
 
 static int skylake_refcap_startup(struct snd_pcm_substream *substream)
@@ -497,7 +497,7 @@ static struct snd_soc_dai_link skylake_dais[] = {
 		.name = "Skl Audio Port",
 		.stream_name = "Audio",
 		.dynamic = 1,
-		.nonatomic = 1,
+		.yesnatomic = 1,
 		.init = skylake_nau8825_fe_init,
 		.trigger = {
 			SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_POST},
@@ -509,7 +509,7 @@ static struct snd_soc_dai_link skylake_dais[] = {
 		.name = "Skl Audio Capture Port",
 		.stream_name = "Audio Record",
 		.dynamic = 1,
-		.nonatomic = 1,
+		.yesnatomic = 1,
 		.trigger = {
 			SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_POST},
 		.dpcm_capture = 1,
@@ -521,7 +521,7 @@ static struct snd_soc_dai_link skylake_dais[] = {
 		.stream_name = "Wake on Voice",
 		.init = NULL,
 		.dpcm_capture = 1,
-		.nonatomic = 1,
+		.yesnatomic = 1,
 		.dynamic = 1,
 		.ops = &skylake_refcap_ops,
 		SND_SOC_DAILINK_REG(reference, dummy, platform),
@@ -531,7 +531,7 @@ static struct snd_soc_dai_link skylake_dais[] = {
 		.stream_name = "dmiccap",
 		.init = NULL,
 		.dpcm_capture = 1,
-		.nonatomic = 1,
+		.yesnatomic = 1,
 		.dynamic = 1,
 		.ops = &skylake_dmic_ops,
 		SND_SOC_DAILINK_REG(dmic, dummy, platform),
@@ -543,7 +543,7 @@ static struct snd_soc_dai_link skylake_dais[] = {
 		.init = NULL,
 		.trigger = {
 			SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_POST},
-		.nonatomic = 1,
+		.yesnatomic = 1,
 		.dynamic = 1,
 		SND_SOC_DAILINK_REG(hdmi1, dummy, platform),
 	},
@@ -554,7 +554,7 @@ static struct snd_soc_dai_link skylake_dais[] = {
 		.init = NULL,
 		.trigger = {
 			SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_POST},
-		.nonatomic = 1,
+		.yesnatomic = 1,
 		.dynamic = 1,
 		SND_SOC_DAILINK_REG(hdmi2, dummy, platform),
 	},
@@ -565,7 +565,7 @@ static struct snd_soc_dai_link skylake_dais[] = {
 			SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_POST},
 		.dpcm_playback = 1,
 		.init = NULL,
-		.nonatomic = 1,
+		.yesnatomic = 1,
 		.dynamic = 1,
 		SND_SOC_DAILINK_REG(hdmi3, dummy, platform),
 	},
@@ -575,12 +575,12 @@ static struct snd_soc_dai_link skylake_dais[] = {
 		/* SSP0 - Codec */
 		.name = "SSP0-Codec",
 		.id = 0,
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_DSP_A |
 			SND_SOC_DAIFMT_IB_NF |
 			SND_SOC_DAIFMT_CBS_CFS,
 		.init = skylake_ssm4567_codec_init,
-		.ignore_pmdown_time = 1,
+		.igyesre_pmdown_time = 1,
 		.be_hw_params_fixup = skylake_ssp_fixup,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
@@ -590,11 +590,11 @@ static struct snd_soc_dai_link skylake_dais[] = {
 		/* SSP1 - Codec */
 		.name = "SSP1-Codec",
 		.id = 1,
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		.init = skylake_nau8825_codec_init,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 			SND_SOC_DAIFMT_CBS_CFS,
-		.ignore_pmdown_time = 1,
+		.igyesre_pmdown_time = 1,
 		.be_hw_params_fixup = skylake_ssp_fixup,
 		.ops = &skylake_nau8825_ops,
 		.dpcm_playback = 1,
@@ -604,10 +604,10 @@ static struct snd_soc_dai_link skylake_dais[] = {
 	{
 		.name = "dmic01",
 		.id = 2,
-		.ignore_suspend = 1,
+		.igyesre_suspend = 1,
 		.be_hw_params_fixup = skylake_dmic_fixup,
 		.dpcm_capture = 1,
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		SND_SOC_DAILINK_REG(dmic01_pin, dmic_codec, platform),
 	},
 	{
@@ -615,7 +615,7 @@ static struct snd_soc_dai_link skylake_dais[] = {
 		.id = 3,
 		.dpcm_playback = 1,
 		.init = skylake_hdmi1_init,
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		SND_SOC_DAILINK_REG(idisp1_pin, idisp1_codec, platform),
 	},
 	{
@@ -623,7 +623,7 @@ static struct snd_soc_dai_link skylake_dais[] = {
 		.id = 4,
 		.init = skylake_hdmi2_init,
 		.dpcm_playback = 1,
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		SND_SOC_DAILINK_REG(idisp2_pin, idisp2_codec, platform),
 	},
 	{
@@ -631,7 +631,7 @@ static struct snd_soc_dai_link skylake_dais[] = {
 		.id = 5,
 		.init = skylake_hdmi3_init,
 		.dpcm_playback = 1,
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		SND_SOC_DAILINK_REG(idisp3_pin, idisp3_codec, platform),
 	},
 };

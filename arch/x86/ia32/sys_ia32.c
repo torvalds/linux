@@ -4,7 +4,7 @@
  *             sys_sparc32
  *
  * Copyright (C) 2000		VA Linux Co
- * Copyright (C) 2000		Don Dugger <n0ano@valinux.com>
+ * Copyright (C) 2000		Don Dugger <n0ayes@valinux.com>
  * Copyright (C) 1999		Arun Sharma <arun.sharma@intel.com>
  * Copyright (C) 1997,1998	Jakub Jelinek (jj@sunsite.mff.cuni.cz)
  * Copyright (C) 1997		David S. Miller (davem@caip.rutgers.edu)
@@ -66,8 +66,8 @@ COMPAT_SYSCALL_DEFINE3(x86_ftruncate64, unsigned int, fd,
 }
 
 /*
- * Another set for IA32/LFS -- x86_64 struct stat is different due to
- * support for 64bit inode numbers.
+ * Ayesther set for IA32/LFS -- x86_64 struct stat is different due to
+ * support for 64bit iyesde numbers.
  */
 static int cp_stat64(struct stat64 __user *ubuf, struct kstat *stat)
 {
@@ -77,8 +77,8 @@ static int cp_stat64(struct stat64 __user *ubuf, struct kstat *stat)
 	SET_GID(gid, from_kgid_munged(current_user_ns(), stat->gid));
 	if (!access_ok(ubuf, sizeof(struct stat64)) ||
 	    __put_user(huge_encode_dev(stat->dev), &ubuf->st_dev) ||
-	    __put_user(stat->ino, &ubuf->__st_ino) ||
-	    __put_user(stat->ino, &ubuf->st_ino) ||
+	    __put_user(stat->iyes, &ubuf->__st_iyes) ||
+	    __put_user(stat->iyes, &ubuf->st_iyes) ||
 	    __put_user(stat->mode, &ubuf->st_mode) ||
 	    __put_user(stat->nlink, &ubuf->st_nlink) ||
 	    __put_user(uid, &ubuf->st_uid) ||

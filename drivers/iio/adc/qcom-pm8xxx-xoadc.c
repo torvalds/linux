@@ -2,7 +2,7 @@
 /*
  * Qualcomm PM8xxx PMIC XOADC driver
  *
- * These ADCs are known as HK/XO (house keeping / chrystal oscillator)
+ * These ADCs are kyeswn as HK/XO (house keeping / chrystal oscillator)
  * "XO" in "XOADC" means Chrystal Oscillator. It's a bunch of
  * specific-purpose and general purpose ADC converters and channels.
  *
@@ -85,7 +85,7 @@
 #define ADC_AMUX_PREMUX_SHIFT			2
 #define ADC_AMUX_SEL_SHIFT			4
 
-/* We know very little about the bits in this register */
+/* We kyesw very little about the bits in this register */
 #define ADC_ARB_USRP_ANA_PARAM			0x199
 #define ADC_ARB_USRP_ANA_PARAM_DIS		0xFE
 #define ADC_ARB_USRP_ANA_PARAM_EN		0xFF
@@ -147,7 +147,7 @@
 #define AMUX_RSV0 0x0 /* XO_IN/XOADC_GND, special selection to read XO temp */
 #define AMUX_RSV1 0x1 /* PMIC_IN/XOADC_GND */
 #define AMUX_RSV2 0x2 /* PMIC_IN/BMS_CSP */
-#define AMUX_RSV3 0x3 /* not used */
+#define AMUX_RSV3 0x3 /* yest used */
 #define AMUX_RSV4 0x4 /* XOADC_GND/XOADC_GND */
 #define AMUX_RSV5 0x5 /* XOADC_VREF/XOADC_GND */
 #define XOADC_RSV_MAX 5 /* 3 bits 0..7, 3 and 6,7 are invalid */
@@ -187,7 +187,7 @@ struct xoadc_channel {
  * @name: name of this PMIC variant
  * @channels: the hardware channels and respective settings and defaults
  * @broken_ratiometric: if the PMIC has broken ratiometric scaling (this
- * is a known problem on PM8058)
+ * is a kyeswn problem on PM8058)
  * @prescaling: this variant uses AMUX bits 2 & 3 for prescaling (PM8058)
  * @second_level_mux: this variant uses AMUX bits 2 & 3 for a second level
  * mux
@@ -209,7 +209,7 @@ struct xoadc_variant {
  * on some PMICs some of the bits select various complex multiplex settings.
  * _type: IIO channel type
  * _prenum: prescaler numerator (dividend)
- * _preden: prescaler denominator (divisor)
+ * _preden: prescaler deyesminator (divisor)
  * _scale: scaling function type, this selects how the raw valued is mangled
  * to output the actual processed measurement
  * _amip: analog mux input parent when using ratiometric measurements
@@ -284,7 +284,7 @@ static const struct xoadc_channel pm8058_xoadc_channels[] = {
 	 * AMUX channels 5 thru 9 are referred to as MPP5 thru MPP9 in
 	 * some code and documentation. But they are really just 5
 	 * channels just like any other. They are connected to a switching
-	 * matrix where they can be routed to any of the MPPs, not just
+	 * matrix where they can be routed to any of the MPPs, yest just
 	 * 1-to-1 onto MPP5 thru 9, so naming them MPP5 thru MPP9 is
 	 * very confusing.
 	 */
@@ -299,7 +299,7 @@ static const struct xoadc_channel pm8058_xoadc_channels[] = {
 	XOADC_CHAN(125V, 0x00, 0x0d, IIO_VOLTAGE, 1, 1, SCALE_DEFAULT, AMUX_RSV1),
 	XOADC_CHAN(INTERNAL_2, 0x00, 0x0e, IIO_VOLTAGE, 1, 1, SCALE_DEFAULT, AMUX_RSV1),
 	XOADC_CHAN(MUXOFF, 0x00, 0x0f, IIO_TEMP, 1, 1, SCALE_XOTHERM, AMUX_RSV0),
-	/* There are also "unity" and divided by 3 channels (prescaler) but noone is using them */
+	/* There are also "unity" and divided by 3 channels (prescaler) but yesone is using them */
 	{ }, /* Sentinel */
 };
 
@@ -312,7 +312,7 @@ static const struct xoadc_channel pm8921_xoadc_channels[] = {
 	XOADC_CHAN(VCOIN, 0x00, 0x00, IIO_VOLTAGE, 1, 3, SCALE_DEFAULT, AMUX_RSV1),
 	XOADC_CHAN(VBAT, 0x00, 0x01, IIO_VOLTAGE, 1, 3, SCALE_DEFAULT, AMUX_RSV1),
 	XOADC_CHAN(DCIN, 0x00, 0x02, IIO_VOLTAGE, 1, 6, SCALE_DEFAULT, AMUX_RSV1),
-	/* channel "ICHG" is reserved and not used on PM8921 */
+	/* channel "ICHG" is reserved and yest used on PM8921 */
 	XOADC_CHAN(VPH_PWR, 0x00, 0x04, IIO_VOLTAGE, 1, 3, SCALE_DEFAULT, AMUX_RSV1),
 	XOADC_CHAN(IBAT, 0x00, 0x05, IIO_VOLTAGE, 1, 1, SCALE_DEFAULT, AMUX_RSV1),
 	/* CHAN 6 & 7 (MPP1 & MPP2) are reserved for MPP channels on PM8921 */
@@ -468,7 +468,7 @@ static int pm8xxx_read_channel_rsv(struct pm8xxx_xoadc *adc,
 		 * If we force ratiometric (currently only done when attempting
 		 * to do ratiometric calibration) this doesn't seem to work
 		 * very well and I suspect ratiometric conversion is simply
-		 * broken or not supported on the PM8058.
+		 * broken or yest supported on the PM8058.
 		 *
 		 * Maybe IO_SEL2 doesn't exist on PM8058 and bits 4 & 5 select
 		 * the mode alone.
@@ -582,8 +582,8 @@ static int pm8xxx_calibrate_device(struct pm8xxx_xoadc *adc)
 	const struct pm8xxx_chan_info *ch;
 	u16 read_1250v;
 	u16 read_0625v;
-	u16 read_nomux_rsv5;
-	u16 read_nomux_rsv4;
+	u16 read_yesmux_rsv5;
+	u16 read_yesmux_rsv4;
 	int ret;
 
 	adc->graph[VADC_CALIB_ABSOLUTE].dx = VADC_ABSOLUTE_RANGE_UV;
@@ -595,7 +595,7 @@ static int pm8xxx_calibrate_device(struct pm8xxx_xoadc *adc)
 		return -ENODEV;
 	ret = pm8xxx_read_channel(adc, ch, &read_1250v);
 	if (ret) {
-		dev_err(adc->dev, "could not read 1.25V reference channel\n");
+		dev_err(adc->dev, "could yest read 1.25V reference channel\n");
 		return -ENODEV;
 	}
 	ch = pm8xxx_get_channel(adc, PM8XXX_CHANNEL_INTERNAL);
@@ -603,7 +603,7 @@ static int pm8xxx_calibrate_device(struct pm8xxx_xoadc *adc)
 		return -ENODEV;
 	ret = pm8xxx_read_channel(adc, ch, &read_0625v);
 	if (ret) {
-		dev_err(adc->dev, "could not read 0.625V reference channel\n");
+		dev_err(adc->dev, "could yest read 0.625V reference channel\n");
 		return -ENODEV;
 	}
 	if (read_1250v == read_0625v) {
@@ -622,20 +622,20 @@ static int pm8xxx_calibrate_device(struct pm8xxx_xoadc *adc)
 	if (!ch)
 		return -ENODEV;
 	ret = pm8xxx_read_channel_rsv(adc, ch, AMUX_RSV5,
-				      &read_nomux_rsv5, true);
+				      &read_yesmux_rsv5, true);
 	if (ret) {
-		dev_err(adc->dev, "could not read MUXOFF reference channel\n");
+		dev_err(adc->dev, "could yest read MUXOFF reference channel\n");
 		return -ENODEV;
 	}
 	ret = pm8xxx_read_channel_rsv(adc, ch, AMUX_RSV4,
-				      &read_nomux_rsv4, true);
+				      &read_yesmux_rsv4, true);
 	if (ret) {
-		dev_err(adc->dev, "could not read MUXOFF reference channel\n");
+		dev_err(adc->dev, "could yest read MUXOFF reference channel\n");
 		return -ENODEV;
 	}
 	adc->graph[VADC_CALIB_RATIOMETRIC].dy =
-		read_nomux_rsv5 - read_nomux_rsv4;
-	adc->graph[VADC_CALIB_RATIOMETRIC].gnd = read_nomux_rsv4;
+		read_yesmux_rsv5 - read_yesmux_rsv4;
+	adc->graph[VADC_CALIB_RATIOMETRIC].gnd = read_yesmux_rsv4;
 
 	dev_info(adc->dev, "ratiometric calibration dx = %d, dy = %d units\n",
 		 VADC_RATIOMETRIC_RANGE,
@@ -657,7 +657,7 @@ static int pm8xxx_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_PROCESSED:
 		ch = pm8xxx_get_channel(adc, chan->address);
 		if (!ch) {
-			dev_err(adc->dev, "no such channel %lu\n",
+			dev_err(adc->dev, "yes such channel %lu\n",
 				chan->address);
 			return -EINVAL;
 		}
@@ -677,7 +677,7 @@ static int pm8xxx_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_RAW:
 		ch = pm8xxx_get_channel(adc, chan->address);
 		if (!ch) {
-			dev_err(adc->dev, "no such channel %lu\n",
+			dev_err(adc->dev, "yes such channel %lu\n",
 				chan->address);
 			return -EINVAL;
 		}
@@ -730,7 +730,7 @@ static const struct iio_info pm8xxx_xoadc_info = {
 };
 
 static int pm8xxx_xoadc_parse_channel(struct device *dev,
-				      struct device_node *np,
+				      struct device_yesde *np,
 				      const struct xoadc_channel *hw_channels,
 				      struct iio_chan_spec *iio_chan,
 				      struct pm8xxx_chan_info *ch)
@@ -763,9 +763,9 @@ static int pm8xxx_xoadc_parse_channel(struct device *dev,
 		hwchan++;
 		chid++;
 	}
-	/* The sentinel does not have a name assigned */
+	/* The sentinel does yest have a name assigned */
 	if (!hwchan->datasheet_name) {
-		dev_err(dev, "could not locate channel %02x/%02x\n",
+		dev_err(dev, "could yest locate channel %02x/%02x\n",
 			pre_scale_mux, amux_channel);
 		return -EINVAL;
 	}
@@ -820,16 +820,16 @@ static int pm8xxx_xoadc_parse_channel(struct device *dev,
 }
 
 static int pm8xxx_xoadc_parse_channels(struct pm8xxx_xoadc *adc,
-				       struct device_node *np)
+				       struct device_yesde *np)
 {
-	struct device_node *child;
+	struct device_yesde *child;
 	struct pm8xxx_chan_info *ch;
 	int ret;
 	int i;
 
 	adc->nchans = of_get_available_child_count(np);
 	if (!adc->nchans) {
-		dev_err(adc->dev, "no channel children\n");
+		dev_err(adc->dev, "yes channel children\n");
 		return -ENODEV;
 	}
 	dev_dbg(adc->dev, "found %d ADC channels\n", adc->nchans);
@@ -845,14 +845,14 @@ static int pm8xxx_xoadc_parse_channels(struct pm8xxx_xoadc *adc,
 		return -ENOMEM;
 
 	i = 0;
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_yesde(np, child) {
 		ch = &adc->chans[i];
 		ret = pm8xxx_xoadc_parse_channel(adc->dev, child,
 						 adc->variant->channels,
 						 &adc->iio_chans[i],
 						 ch);
 		if (ret) {
-			of_node_put(child);
+			of_yesde_put(child);
 			return ret;
 		}
 		i++;
@@ -883,7 +883,7 @@ static int pm8xxx_xoadc_probe(struct platform_device *pdev)
 	const struct xoadc_variant *variant;
 	struct pm8xxx_xoadc *adc;
 	struct iio_dev *indio_dev;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct regmap *map;
 	struct device *dev = &pdev->dev;
 	int ret;
@@ -934,7 +934,7 @@ static int pm8xxx_xoadc_probe(struct platform_device *pdev)
 	}
 
 	indio_dev->dev.parent = dev;
-	indio_dev->dev.of_node = np;
+	indio_dev->dev.of_yesde = np;
 	indio_dev->name = variant->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &pm8xxx_xoadc_info;

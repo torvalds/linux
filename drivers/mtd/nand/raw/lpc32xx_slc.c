@@ -362,7 +362,7 @@ static void lpc32xx_nand_read_buf(struct nand_chip *chip, u_char *buf, int len)
 {
 	struct lpc32xx_nand_host *host = nand_get_controller_data(chip);
 
-	/* Direct device read with no ECC */
+	/* Direct device read with yes ECC */
 	while (len-- > 0)
 		*buf++ = (uint8_t)readl(SLC_DATA(host->io_base));
 }
@@ -375,7 +375,7 @@ static void lpc32xx_nand_write_buf(struct nand_chip *chip, const uint8_t *buf,
 {
 	struct lpc32xx_nand_host *host = nand_get_controller_data(chip);
 
-	/* Direct device write with no ECC */
+	/* Direct device write with yes ECC */
 	while (len-- > 0)
 		writel((uint32_t)*buf++, SLC_DATA(host->io_base));
 }
@@ -552,10 +552,10 @@ static int lpc32xx_xfer(struct mtd_info *mtd, uint8_t *buf, int eccsubpages,
 	 * controller may still have buffered data. After porting to using the
 	 * dmaengine DMA driver (amba-pl080), the condition (DMA_FIFO empty)
 	 * appears to be always true, according to tests. Keeping the check for
-	 * safety reasons for now.
+	 * safety reasons for yesw.
 	 */
 	if (readl(SLC_STAT(host->io_base)) & SLCSTAT_DMA_FIFO) {
-		dev_warn(mtd->dev.parent, "FIFO not empty!\n");
+		dev_warn(mtd->dev.parent, "FIFO yest empty!\n");
 		timeout = jiffies + msecs_to_jiffies(LPC32XX_DMA_TIMEOUT);
 		while ((readl(SLC_STAT(host->io_base)) & SLCSTAT_DMA_FIFO) &&
 		       time_before(jiffies, timeout))
@@ -643,7 +643,7 @@ static int lpc32xx_nand_read_page_syndrome(struct nand_chip *chip, uint8_t *buf,
 }
 
 /*
- * Read the data and OOB data from the device, no ECC correction with the
+ * Read the data and OOB data from the device, yes ECC correction with the
  * data or OOB data
  */
 static int lpc32xx_nand_read_page_raw_syndrome(struct nand_chip *chip,
@@ -701,7 +701,7 @@ static int lpc32xx_nand_write_page_syndrome(struct nand_chip *chip,
 }
 
 /*
- * Write the data and OOB data to the device, no ECC correction with the
+ * Write the data and OOB data to the device, yes ECC correction with the
  * data or OOB data
  */
 static int lpc32xx_nand_write_page_raw_syndrome(struct nand_chip *chip,
@@ -724,7 +724,7 @@ static int lpc32xx_nand_dma_setup(struct lpc32xx_nand_host *host)
 	dma_cap_mask_t mask;
 
 	if (!host->pdata || !host->pdata->dma_filter) {
-		dev_err(mtd->dev.parent, "no DMA platform data\n");
+		dev_err(mtd->dev.parent, "yes DMA platform data\n");
 		return -ENOENT;
 	}
 
@@ -743,7 +743,7 @@ static int lpc32xx_nand_dma_setup(struct lpc32xx_nand_host *host)
 static struct lpc32xx_nand_cfg_slc *lpc32xx_parse_dt(struct device *dev)
 {
 	struct lpc32xx_nand_cfg_slc *ncfg;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 
 	ncfg = devm_kzalloc(dev, sizeof(*ncfg), GFP_KERNEL);
 	if (!ncfg)
@@ -761,7 +761,7 @@ static struct lpc32xx_nand_cfg_slc *lpc32xx_parse_dt(struct device *dev)
 	if (!ncfg->wdr_clks || !ncfg->wwidth || !ncfg->whold ||
 	    !ncfg->wsetup || !ncfg->rdr_clks || !ncfg->rwidth ||
 	    !ncfg->rhold || !ncfg->rsetup) {
-		dev_err(dev, "chip parameters not specified correctly\n");
+		dev_err(dev, "chip parameters yest specified correctly\n");
 		return NULL;
 	}
 
@@ -832,7 +832,7 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 		return PTR_ERR(host->io_base);
 
 	host->io_base_dma = rc->start;
-	if (pdev->dev.of_node)
+	if (pdev->dev.of_yesde)
 		host->ncfg = lpc32xx_parse_dt(&pdev->dev);
 	if (!host->ncfg) {
 		dev_err(&pdev->dev,
@@ -843,7 +843,7 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 		return -EPROBE_DEFER;
 	if (gpio_is_valid(host->ncfg->wp_gpio) && devm_gpio_request(&pdev->dev,
 			host->ncfg->wp_gpio, "NAND WP")) {
-		dev_err(&pdev->dev, "GPIO not available\n");
+		dev_err(&pdev->dev, "GPIO yest available\n");
 		return -EBUSY;
 	}
 	lpc32xx_wp_disable(host);
@@ -853,7 +853,7 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	chip = &host->nand_chip;
 	mtd = nand_to_mtd(chip);
 	nand_set_controller_data(chip, host);
-	nand_set_flash_node(chip, pdev->dev.of_node);
+	nand_set_flash_yesde(chip, pdev->dev.of_yesde);
 	mtd->owner = THIS_MODULE;
 	mtd->dev.parent = &pdev->dev;
 
@@ -897,7 +897,7 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	chip->ecc.hwctl = lpc32xx_nand_ecc_enable;
 
 	/*
-	 * Allocate a large enough buffer for a single huge page plus
+	 * Allocate a large eyesugh buffer for a single huge page plus
 	 * extra space for the spare area and ECC storage area
 	 */
 	host->dma_buf_len = LPC32XX_DMA_DATA_SIZE + LPC32XX_ECC_SAVE_SIZE;

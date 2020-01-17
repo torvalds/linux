@@ -178,13 +178,13 @@ static void snd_gf1_pcm_interrupt_wave(struct snd_gus_card * gus,
 	unsigned int end, step;
 
 	if (!pvoice->private_data) {
-		snd_printd("snd_gf1_pcm: unknown wave irq?\n");
+		snd_printd("snd_gf1_pcm: unkyeswn wave irq?\n");
 		snd_gf1_smart_stop_voice(gus, pvoice->number);
 		return;
 	}
 	pcmp = pvoice->private_data;
 	if (pcmp == NULL) {
-		snd_printd("snd_gf1_pcm: unknown wave irq?\n");
+		snd_printd("snd_gf1_pcm: unkyeswn wave irq?\n");
 		snd_gf1_smart_stop_voice(gus, pvoice->number);
 		return;
 	}		

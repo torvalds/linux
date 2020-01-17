@@ -251,7 +251,7 @@ static int imx_rproc_addr_init(struct imx_rproc *priv,
 {
 	const struct imx_rproc_dcfg *dcfg = priv->dcfg;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	int a, b = 0, err, nph;
 
 	/* remap required addresses */
@@ -282,11 +282,11 @@ static int imx_rproc_addr_init(struct imx_rproc *priv,
 
 	/* remap optional addresses */
 	for (a = 0; a < nph; a++) {
-		struct device_node *node;
+		struct device_yesde *yesde;
 		struct resource res;
 
-		node = of_parse_phandle(np, "memory-region", a);
-		err = of_address_to_resource(node, 0, &res);
+		yesde = of_parse_phandle(np, "memory-region", a);
+		err = of_address_to_resource(yesde, 0, &res);
 		if (err) {
 			dev_err(dev, "unable to resolve memory region\n");
 			return err;
@@ -312,7 +312,7 @@ static int imx_rproc_addr_init(struct imx_rproc *priv,
 static int imx_rproc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct imx_rproc *priv;
 	struct rproc *rproc;
 	struct regmap_config config = { .name = "imx-rproc" };

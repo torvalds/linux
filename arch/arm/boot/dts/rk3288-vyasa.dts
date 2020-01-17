@@ -121,7 +121,7 @@
 &emmc {
 	bus-width = <8>;
 	cap-mmc-highspeed;
-	non-removable;
+	yesn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_clk &emmc_cmd &emmc_pwr &emmc_bus8>;
 	vmmc-supply = <&vcc_io>;
@@ -458,13 +458,13 @@
 		};
 
 		usb2_pwr_en: usb2-pwr-en {
-			rockchip,pins = <8 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <8 RK_PB1 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 
 	usb_otg {
 		otg_vbus_drv: otg-vbus-drv {
-			rockchip,pins = <0 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB4 RK_FUNC_GPIO &pcfg_pull_yesne>;
 
 		};
 	};

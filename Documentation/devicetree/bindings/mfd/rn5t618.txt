@@ -18,8 +18,8 @@ Optional properties:
  - system-power-controller:
    See Documentation/devicetree/bindings/power/power-controller.txt
 
-Sub-nodes:
- - regulators: the node is required if the regulator functionality is
+Sub-yesdes:
+ - regulators: the yesde is required if the regulator functionality is
    needed. The valid regulator names are: DCDC1, DCDC2, DCDC3, DCDC4
    (RN5T567/RC5T619), LDO1, LDO2, LDO3, LDO4, LDO5, LDO6, LDO7, LDO8,
    LDO9, LDO10, LDORTC1 and LDORTC2.

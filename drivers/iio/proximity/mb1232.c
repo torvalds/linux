@@ -33,10 +33,10 @@ struct mb1232_data {
 	struct mutex		lock;
 
 	/*
-	 * optionally a gpio can be used to announce when ranging has
+	 * optionally a gpio can be used to anyesunce when ranging has
 	 * finished
 	 * since we are just using the falling trigger of it we request
-	 * only the interrupt for announcing when data is ready to be read
+	 * only the interrupt for anyesuncing when data is ready to be read
 	 */
 	struct completion	ranging;
 	int			irqnr;
@@ -70,7 +70,7 @@ static s16 mb1232_read_distance(struct mb1232_data *data)
 	}
 
 	if (data->irqnr >= 0) {
-		/* it cannot take more than 100 ms */
+		/* it canyest take more than 100 ms */
 		ret = wait_for_completion_killable_timeout(&data->ranging,
 									HZ/10);
 		if (ret < 0)
@@ -80,7 +80,7 @@ static s16 mb1232_read_distance(struct mb1232_data *data)
 			goto error_unlock;
 		}
 	} else {
-		/* use simple sleep if announce irq is not connected */
+		/* use simple sleep if anyesunce irq is yest connected */
 		msleep(15);
 	}
 
@@ -91,7 +91,7 @@ static s16 mb1232_read_distance(struct mb1232_data *data)
 	}
 
 	distance = __be16_to_cpu(buf);
-	/* check for not returning misleading error codes */
+	/* check for yest returning misleading error codes */
 	if (distance < 0) {
 		dev_err(&client->dev, "distance=%d\n", distance);
 		ret = -EINVAL;
@@ -126,7 +126,7 @@ static irqreturn_t mb1232_trigger_handler(int irq, void *p)
 	iio_push_to_buffers_with_timestamp(indio_dev, buffer, pf->timestamp);
 
 err:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 	return IRQ_HANDLED;
 }
 
@@ -209,7 +209,7 @@ static int mb1232_probe(struct i2c_client *client,
 
 	init_completion(&data->ranging);
 
-	data->irqnr = irq_of_parse_and_map(dev->of_node, 0);
+	data->irqnr = irq_of_parse_and_map(dev->of_yesde, 0);
 	if (data->irqnr <= 0) {
 		/* usage of interrupt is optional */
 		data->irqnr = -1;

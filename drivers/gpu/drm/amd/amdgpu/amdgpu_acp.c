@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -200,7 +200,7 @@ static int acp_hw_init(void *handle)
 		return -EINVAL;
 
 	r = amd_acp_hw_init(adev->acp.cgs_device,
-			    ip_block->version->major, ip_block->version->minor);
+			    ip_block->version->major, ip_block->version->miyesr);
 	/* -ENODEV means board uses AZ rather than ACP */
 	if (r == -ENODEV) {
 		amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_ACP, true);
@@ -419,7 +419,7 @@ static int acp_hw_fini(void *handle)
 	struct device *dev;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	/* return early if no ACP */
+	/* return early if yes ACP */
 	if (!adev->acp.acp_genpd) {
 		amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_ACP, false);
 		return 0;
@@ -557,7 +557,7 @@ const struct amdgpu_ip_block_version acp_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_ACP,
 	.major = 2,
-	.minor = 2,
+	.miyesr = 2,
 	.rev = 0,
 	.funcs = &acp_ip_funcs,
 };

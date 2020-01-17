@@ -15,8 +15,8 @@ Required Properties:
 - vdda-supply: Chip analog regulator.
 - vddd-supply: Chip digital core regulator.
 
-The device node shall contain one 'port' child node with a single 'endpoint'
-subnode for its digital output video port, in accordance with the video
+The device yesde shall contain one 'port' child yesde with a single 'endpoint'
+subyesde for its digital output video port, in accordance with the video
 interface bindings defined in
 Documentation/devicetree/bindings/media/video-interfaces.txt.
 

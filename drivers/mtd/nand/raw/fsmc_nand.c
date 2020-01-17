@@ -8,7 +8,7 @@
  * Vipin Kumar <vipin.kumar@st.com>
  * Ashish Priyadarshi
  *
- * Based on drivers/mtd/nand/nomadik_nand.c (removed in v3.8)
+ * Based on drivers/mtd/nand/yesmadik_nand.c (removed in v3.8)
  *  Copyright © 2007 STMicroelectronics Pvt. Ltd.
  *  Copyright © 2009 Alessandro Rubini
  */
@@ -596,7 +596,7 @@ static void fsmc_write_buf_dma(struct fsmc_nand_data *host, const u8 *buf,
 /*
  * fsmc_exec_op - hook called by the core to execute NAND operations
  *
- * This controller is simple enough and thus does not need to use the parser
+ * This controller is simple eyesugh and thus does yest need to use the parser
  * provided by the core, instead, handle every situation here.
  */
 static int fsmc_exec_op(struct nand_chip *chip, const struct nand_operation *op,
@@ -752,7 +752,7 @@ static int fsmc_bch8_correct_data(struct nand_chip *chip, u8 *dat,
 
 	num_err = (readl_relaxed(host->regs_va + STS) >> 10) & 0xF;
 
-	/* no bit flipping */
+	/* yes bit flipping */
 	if (likely(num_err == 0))
 		return 0;
 
@@ -761,7 +761,7 @@ static int fsmc_bch8_correct_data(struct nand_chip *chip, u8 *dat,
 		/*
 		 * This is a temporary erase check. A newly erased page read
 		 * would result in an ecc error because the oob data is also
-		 * erased to FF and the calculated ecc for an FF data is not
+		 * erased to FF and the calculated ecc for an FF data is yest
 		 * FF..FF.
 		 * This is a workaround to skip performing correction in case
 		 * data is FF..FF
@@ -830,7 +830,7 @@ static int fsmc_nand_probe_config_dt(struct platform_device *pdev,
 				     struct fsmc_nand_data *host,
 				     struct nand_chip *nand)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	u32 val;
 	int ret;
 
@@ -1027,7 +1027,7 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 
 	/*
 	 * This device ID is actually a common AMBA ID as used on the
-	 * AMBA PrimeCell bus. However it is not a PrimeCell.
+	 * AMBA PrimeCell bus. However it is yest a PrimeCell.
 	 */
 	for (pid = 0, i = 0; i < 4; i++)
 		pid |= (readl(base + resource_size(res) - 0x20 + 4 * i) &
@@ -1036,7 +1036,7 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	host->pid = pid;
 
 	dev_info(&pdev->dev,
-		 "FSMC device partno %03x, manufacturer %02x, revision %02x, config %02x\n",
+		 "FSMC device partyes %03x, manufacturer %02x, revision %02x, config %02x\n",
 		 AMBA_PART_BITS(pid), AMBA_MANF_BITS(pid),
 		 AMBA_REV_BITS(pid), AMBA_CONFIG_BITS(pid));
 
@@ -1047,7 +1047,7 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 
 	/* Link all private pointers */
 	mtd = nand_to_mtd(&host->nand);
-	nand_set_flash_node(nand, pdev->dev.of_node);
+	nand_set_flash_yesde(nand, pdev->dev.of_yesde);
 
 	mtd->dev.parent = &pdev->dev;
 

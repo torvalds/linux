@@ -124,7 +124,7 @@ int at91_twi_probe_slave(struct platform_device *pdev,
 	rc = devm_request_irq(&pdev->dev, dev->irq, atmel_twi_interrupt_slave,
 			      0, dev_name(dev->dev), dev);
 	if (rc) {
-		dev_err(dev->dev, "Cannot get irq %d: %d\n", dev->irq, rc);
+		dev_err(dev->dev, "Canyest get irq %d: %d\n", dev->irq, rc);
 		return rc;
 	}
 

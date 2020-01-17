@@ -155,7 +155,7 @@ static int __init ds1216_rtc_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->rtc))
 		return PTR_ERR(priv->rtc);
 
-	/* dummy read to get clock into a known state */
+	/* dummy read to get clock into a kyeswn state */
 	ds1216_read(priv->ioaddr, dummy);
 	return 0;
 }

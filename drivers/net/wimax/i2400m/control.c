@@ -10,12 +10,12 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     yestice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     yestice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation yesr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -88,14 +88,14 @@
 static int i2400m_idle_mode_disabled;/* 0 (idle mode enabled) by default */
 module_param_named(idle_mode_disabled, i2400m_idle_mode_disabled, int, 0644);
 MODULE_PARM_DESC(idle_mode_disabled,
-		 "If true, the device will not enable idle mode negotiation "
+		 "If true, the device will yest enable idle mode negotiation "
 		 "with the base station (when connected) to save power.");
 
 /* 0 (power saving enabled) by default */
 static int i2400m_power_save_disabled;
 module_param_named(power_save_disabled, i2400m_power_save_disabled, int, 0644);
 MODULE_PARM_DESC(power_save_disabled,
-		 "If true, the driver will not tell the device to enter "
+		 "If true, the driver will yest tell the device to enter "
 		 "power saving mode when it reports it is ready for it. "
 		 "False by default (so the device is told to do power "
 		 "saving).");
@@ -103,7 +103,7 @@ MODULE_PARM_DESC(power_save_disabled,
 static int i2400m_passive_mode;	/* 0 (passive mode disabled) by default */
 module_param_named(passive_mode, i2400m_passive_mode, int, 0644);
 MODULE_PARM_DESC(passive_mode,
-		 "If true, the driver will not do any device setup "
+		 "If true, the driver will yest do any device setup "
 		 "and leave it up to user space, who must be properly "
 		 "setup.");
 
@@ -117,7 +117,7 @@ MODULE_PARM_DESC(passive_mode,
  *            don't check the size). This includes the header
  * Returns: 0 if the TLV matches
  *          < 0 if it doesn't match at all
- *          > 0 total TLV + payload size, if the type matches, but not
+ *          > 0 total TLV + payload size, if the type matches, but yest
  *              the size
  */
 static
@@ -216,7 +216,7 @@ error_beyond_end:
  * @tlv_size: expected size of the TLV we are looking for (if -1,
  *            don't check the size). This includes the header
  *
- * Returns: NULL if the TLV is not found, otherwise a pointer to
+ * Returns: NULL if the TLV is yest found, otherwise a pointer to
  *          it. If the sizes don't match, an error is printed and NULL
  *          returned.
  */
@@ -245,8 +245,8 @@ const struct i2400m_tlv_hdr *i2400m_tlv_find(
 static const struct
 {
 	char *msg;
-	int errno;
-} ms_to_errno[I2400M_MS_MAX] = {
+	int erryes;
+} ms_to_erryes[I2400M_MS_MAX] = {
 	[I2400M_MS_DONE_OK] = { "", 0 },
 	[I2400M_MS_DONE_IN_PROGRESS] = { "", 0 },
 	[I2400M_MS_INVALID_OP] = { "invalid opcode", -ENOSYS },
@@ -258,11 +258,11 @@ static const struct
 	[I2400M_MS_BUSY] = { "busy", -EBUSY },
 	[I2400M_MS_CORRUPTED_TLV] = { "corrupted TLV", -EILSEQ },
 	[I2400M_MS_UNINITIALIZED] = { "uninitialized", -EILSEQ },
-	[I2400M_MS_UNKNOWN_ERROR] = { "unknown error", -EIO },
+	[I2400M_MS_UNKNOWN_ERROR] = { "unkyeswn error", -EIO },
 	[I2400M_MS_PRODUCTION_ERROR] = { "production error", -EIO },
-	[I2400M_MS_NO_RF] = { "no RF", -EIO },
+	[I2400M_MS_NO_RF] = { "yes RF", -EIO },
 	[I2400M_MS_NOT_READY_FOR_POWERSAVE] =
-		{ "not ready for powersave", -EACCES },
+		{ "yest ready for powersave", -EACCES },
 	[I2400M_MS_THERMAL_CRITICAL] = { "thermal critical", -EL3HLT },
 };
 
@@ -276,7 +276,7 @@ static const struct
  * @strbuf_size: max amount of available space; larger messages will
  * be truncated.
  *
- * Returns: errno code corresponding to the status code in @l3l4_hdr
+ * Returns: erryes code corresponding to the status code in @l3l4_hdr
  *          and a message in @strbuf describing the error.
  */
 int i2400m_msg_check_status(const struct i2400m_l3l4_hdr *l3l4_hdr,
@@ -288,12 +288,12 @@ int i2400m_msg_check_status(const struct i2400m_l3l4_hdr *l3l4_hdr,
 
 	if (status == 0)
 		return 0;
-	if (status >= ARRAY_SIZE(ms_to_errno)) {
-		str = "unknown status code";
+	if (status >= ARRAY_SIZE(ms_to_erryes)) {
+		str = "unkyeswn status code";
 		result = -EBADR;
 	} else {
-		str = ms_to_errno[status].msg;
-		result = ms_to_errno[status].errno;
+		str = ms_to_erryes[status].msg;
+		result = ms_to_erryes[status].erryes;
 	}
 	if (strbuf)
 		snprintf(strbuf, strbuf_size, "%s (%d)", str, status);
@@ -360,7 +360,7 @@ void i2400m_report_tlv_system_state(struct i2400m *i2400m,
 
 	default:
 		/* Huh? just in case, shut it down */
-		dev_err(dev, "HW BUG? unknown state %u: shutting down\n",
+		dev_err(dev, "HW BUG? unkyeswn state %u: shutting down\n",
 			i2400m_state);
 		i2400m_reset(i2400m, I2400M_RT_WARM);
 		break;
@@ -411,7 +411,7 @@ void i2400m_report_tlv_media_status(struct i2400m *i2400m,
 		netif_carrier_on(net_dev);
 		break;
 	default:
-		dev_err(dev, "HW BUG? unknown media status %u\n",
+		dev_err(dev, "HW BUG? unkyeswn media status %u\n",
 			status);
 	}
 	d_fnend(3, dev, "(i2400m %p ms %p [%u]) = void\n",
@@ -533,7 +533,7 @@ void i2400m_report_hook(struct i2400m *i2400m,
 		if (l3l4_hdr->status == cpu_to_le16(I2400M_MS_DONE_OK)) {
 			if (i2400m_power_save_disabled)
 				d_printf(1, dev, "ready for powersave, "
-					 "not requesting (disabled by module "
+					 "yest requesting (disabled by module "
 					 "parameter)\n");
 			else {
 				d_printf(1, dev, "ready for powersave, "
@@ -632,7 +632,7 @@ error_hdr_size:
  * Cancel a wait for a command ACK
  *
  * @i2400m: device descriptor
- * @code: [negative] errno code to cancel with (don't use
+ * @code: [negative] erryes code to cancel with (don't use
  *     -EINPROGRESS)
  *
  * If there is an ack already filled out, free it.
@@ -690,7 +690,7 @@ void i2400m_msg_to_dev_cancel_wait(struct i2400m *i2400m, int code)
  * linux/wimax/i2400m.h. In summary, a command/get/set is followed by an
  * ack.
  *
- * This function will not check the ack status, that's left up to the
+ * This function will yest check the ack status, that's left up to the
  * caller.  Once done with the ack skb, it has to be kfree_skb()ed.
  *
  * The i2400m handles only one message at the same time, thus we need
@@ -698,7 +698,7 @@ void i2400m_msg_to_dev_cancel_wait(struct i2400m *i2400m, int code)
  *
  * We write the message and then wait for an answer to come back. The
  * RX path intercepts control messages and handles them in
- * i2400m_rx_ctl(). Reports (notifications) are (maybe) processed
+ * i2400m_rx_ctl(). Reports (yestifications) are (maybe) processed
  * locally and then forwarded (as needed) to user space on the WiMAX
  * stack message pipe. Acks are saved and passed back to us through an
  * skb in i2400m->ack_skb which is ready to be given to generic
@@ -764,7 +764,7 @@ struct sk_buff *i2400m_msg_to_dev(struct i2400m *i2400m,
 	/* The RX path in rx.c will put any response for this message
 	 * in i2400m->ack_skb and wake us up. If we cancel the wait,
 	 * we need to change the value of i2400m->ack_skb to something
-	 * not -EINPROGRESS so RX knows there is no one waiting. */
+	 * yest -EINPROGRESS so RX kyesws there is yes one waiting. */
 	result = wait_for_completion_interruptible_timeout(
 		&i2400m->msg_completion, ack_timeout);
 	if (result == 0) {
@@ -889,7 +889,7 @@ int i2400m_cmd_enter_powersave(struct i2400m *i2400m)
 	result = i2400m_msg_check_status(wimax_msg_data(ack_skb),
 					 strerr, sizeof(strerr));
 	if (result == -EACCES)
-		d_printf(1, dev, "Cannot enter power save mode\n");
+		d_printf(1, dev, "Canyest enter power save mode\n");
 	else if (result < 0)
 		dev_err(dev, "'Enter power save' (0x%04x) command failed: "
 			"%d - %s\n", I2400M_MT_CMD_ENTER_POWERSAVE,
@@ -962,10 +962,10 @@ struct sk_buff *i2400m_get_device_info(struct i2400m *i2400m)
 			      I2400M_TLV_DETAILED_DEVICE_INFO, sizeof(*ddi));
 	if (tlv == NULL) {
 		dev_err(dev, "GET DEVICE INFO: "
-			"detailed device info TLV not found (0x%04x)\n",
+			"detailed device info TLV yest found (0x%04x)\n",
 			I2400M_TLV_DETAILED_DEVICE_INFO);
 		result = -EIO;
-		goto error_no_tlv;
+		goto error_yes_tlv;
 	}
 	skb_pull(ack_skb, (void *) tlv - (void *) ack_skb->data);
 error_msg_to_dev:
@@ -973,7 +973,7 @@ error_msg_to_dev:
 error_alloc:
 	return ack_skb;
 
-error_no_tlv:
+error_yes_tlv:
 error_cmd_failed:
 	kfree_skb(ack_skb);
 	kfree(cmd);
@@ -995,7 +995,7 @@ enum {
  *
  * @i2400m: device descriptor
  *
- * Returns: 0 if ok, < 0 errno code an error and a message in the
+ * Returns: 0 if ok, < 0 erryes code an error and a message in the
  *    kernel log.
  *
  * Long function, but quite simple; first chunk launches the command
@@ -1017,7 +1017,7 @@ int i2400m_firmware_check(struct i2400m *i2400m)
 	const struct i2400m_tlv_hdr *tlv;
 	const struct i2400m_tlv_l4_message_versions *l4mv;
 	char strerr[32];
-	unsigned major, minor, branch;
+	unsigned major, miyesr, branch;
 
 	result = -ENOMEM;
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
@@ -1045,31 +1045,31 @@ int i2400m_firmware_check(struct i2400m *i2400m)
 	tlv = i2400m_tlv_find(i2400m, ack->pl, ack_len - sizeof(*ack),
 			      I2400M_TLV_L4_MESSAGE_VERSIONS, sizeof(*l4mv));
 	if (tlv == NULL) {
-		dev_err(dev, "get lm version: TLV not found (0x%04x)\n",
+		dev_err(dev, "get lm version: TLV yest found (0x%04x)\n",
 			I2400M_TLV_L4_MESSAGE_VERSIONS);
 		result = -EIO;
-		goto error_no_tlv;
+		goto error_yes_tlv;
 	}
 	l4mv = container_of(tlv, typeof(*l4mv), hdr);
 	major = le16_to_cpu(l4mv->major);
-	minor = le16_to_cpu(l4mv->minor);
+	miyesr = le16_to_cpu(l4mv->miyesr);
 	branch = le16_to_cpu(l4mv->branch);
 	result = -EINVAL;
 	if (major != I2400M_HDIv_MAJOR) {
 		dev_err(dev, "unsupported major fw version "
-			"%u.%u.%u\n", major, minor, branch);
+			"%u.%u.%u\n", major, miyesr, branch);
 		goto error_bad_major;
 	}
 	result = 0;
-	if (minor > I2400M_HDIv_MINOR_2 || minor < I2400M_HDIv_MINOR)
-		dev_warn(dev, "untested minor fw version %u.%u.%u\n",
-			 major, minor, branch);
-	/* Yes, we ignore the branch -- we don't have to track it */
-	i2400m->fw_version = major << 16 | minor;
+	if (miyesr > I2400M_HDIv_MINOR_2 || miyesr < I2400M_HDIv_MINOR)
+		dev_warn(dev, "untested miyesr fw version %u.%u.%u\n",
+			 major, miyesr, branch);
+	/* Yes, we igyesre the branch -- we don't have to track it */
+	i2400m->fw_version = major << 16 | miyesr;
 	dev_info(dev, "firmware interface version %u.%u.%u\n",
-		 major, minor, branch);
+		 major, miyesr, branch);
 error_bad_major:
-error_no_tlv:
+error_yes_tlv:
 error_cmd_failed:
 	kfree_skb(ack_skb);
 error_msg_to_dev:
@@ -1086,9 +1086,9 @@ error_alloc:
  * @i2400m: device descriptor
  *
  * This starts a renegotiation with the basestation that might involve
- * another crypto handshake with user space.
+ * ayesther crypto handshake with user space.
  *
- * Returns: 0 if ok, < 0 errno code on error.
+ * Returns: 0 if ok, < 0 erryes code on error.
  */
 int i2400m_cmd_exit_idle(struct i2400m *i2400m)
 {
@@ -1129,7 +1129,7 @@ error_alloc:
  *
  * @i2400m: device descriptor
  *
- * Returns: 0 if ok, < 0 errno code on error.
+ * Returns: 0 if ok, < 0 erryes code on error.
  *
  * Executes a 'Get State' command and parses the returned
  * TLVs.
@@ -1207,7 +1207,7 @@ static int i2400m_set_init_config(struct i2400m *i2400m,
 	d_fnstart(3, dev, "(i2400m %p arg %p args %zu)\n", i2400m, arg, args);
 	result = 0;
 	if (args == 0)
-		goto none;
+		goto yesne;
 	/* Compute the size of all the TLVs, so we can alloc a
 	 * contiguous command block to copy them. */
 	argsize = 0;
@@ -1254,7 +1254,7 @@ static int i2400m_set_init_config(struct i2400m *i2400m,
 error_msg_to_dev:
 	kfree(buf);
 error_alloc:
-none:
+yesne:
 	d_fnend(3, dev, "(i2400m %p arg %p args %zu) = %d\n",
 		i2400m, arg, args, result);
 	return result;
@@ -1269,7 +1269,7 @@ none:
  * @msecs: milliseconds for the timeout to enter idle mode. Between
  *     100 to 300000 (5m); 0 to disable. In increments of 100.
  *
- * After this @msecs of the link being idle (no data being sent or
+ * After this @msecs of the link being idle (yes data being sent or
  * received), the device will negotiate with the basestation entering
  * idle mode for saving power. The connection is maintained, but
  * getting out of it (done in tx.c) will require some negotiation,
@@ -1277,7 +1277,7 @@ none:
  *
  * Only available if fw_version >= 0x00090002.
  *
- * Returns: 0 if ok, < 0 errno code on error.
+ * Returns: 0 if ok, < 0 erryes code on error.
  */
 int i2400m_set_idle_timeout(struct i2400m *i2400m, unsigned msecs)
 {
@@ -1337,13 +1337,13 @@ error_alloc:
  *
  * @i2400m: device descriptor
  *
- * Returns: 0 if ok, < 0 errno code on error.
+ * Returns: 0 if ok, < 0 erryes code on error.
  *
  * Configures the device to work the way we like it.
  *
  * At the point of this call, the device is registered with the WiMAX
  * and netdev stacks, firmware is uploaded and we can talk to the
- * device normally.
+ * device yesrmally.
  */
 int i2400m_dev_initialize(struct i2400m *i2400m)
 {

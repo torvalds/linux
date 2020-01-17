@@ -12,7 +12,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -53,7 +53,7 @@ int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc)
 	if (bdev->need_dma32)
 		page_flags |= TTM_PAGE_FLAG_DMA32;
 
-	if (bdev->no_retry)
+	if (bdev->yes_retry)
 		page_flags |= TTM_PAGE_FLAG_NO_RETRY;
 
 	switch (bo->type) {

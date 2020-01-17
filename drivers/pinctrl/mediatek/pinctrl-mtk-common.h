@@ -197,17 +197,17 @@ struct mtk_eint_offsets {
  *  these pins' pull setting are very different, they have separate pull
  *  up/down bit, R0 and R1 resistor bit, so they need special pull setting.
  *  If special setting is success, this should return 0, otherwise it should
- *  return non-zero value.
+ *  return yesn-zero value.
  * @spec_ies_smt_set: Some pins are irregular, their input enable and smt
  * control register are discontinuous, but they are mapping together. That
  * means when user set smt, input enable is set at the same time. So they
  * also need special control. If special control is success, this should
- * return 0, otherwise return non-zero value.
+ * return 0, otherwise return yesn-zero value.
  * @spec_pinmux_set: In some cases, there are two pinmux functions share
  * the same value in the same segment of pinmux control register. If user
  * want to use one of the two functions, they need an extra bit setting to
  * select the right one.
- * @spec_dir_set: In very few SoCs, direction control registers are not
+ * @spec_dir_set: In very few SoCs, direction control registers are yest
  * arranged continuously, they may be cut to parts. So they need special
  * dir setting.
 

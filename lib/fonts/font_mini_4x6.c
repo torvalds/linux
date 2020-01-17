@@ -5,7 +5,7 @@
  * Use 'perl -x mini_4x6.c < mini_4x6.c > new_version.c' to regenerate
  * binary data.
  *
- * Created by Kenneth Albanowski.
+ * Created by Kenneth Albayeswski.
  * No rights reserved, released to the public domain.
  *
  * Version 1.0

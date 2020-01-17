@@ -3,9 +3,9 @@
  * Copyright 2015, Cyril Bur, IBM Corp.
  *
  * This test attempts to see if the FPU registers change across preemption.
- * Two things should be noted here a) The check_fpu function in asm only checks
- * the non volatile registers as it is reused from the syscall test b) There is
- * no way to be sure preemption happened so this test just uses many threads
+ * Two things should be yested here a) The check_fpu function in asm only checks
+ * the yesn volatile registers as it is reused from the syscall test b) There is
+ * yes way to be sure preemption happened so this test just uses many threads
  * and a long wait. As such, a successful test doesn't mean much but a failure
  * is bad.
  */

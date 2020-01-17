@@ -136,7 +136,7 @@ struct rtl28xxu_reg_val_mask {
  * 0x0000 DEMOD : demodulator
  * 0x2000 USB   : SIE, USB endpoint, debug, DMA
  * 0x3000 SYS   : system
- * 0xfc00 RC    : remote controller (not RTL2831U)
+ * 0xfc00 RC    : remote controller (yest RTL2831U)
  */
 
 /*

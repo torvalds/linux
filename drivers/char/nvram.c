@@ -6,14 +6,14 @@
  * idea by and with help from Richard Jelinek <rj@suse.de>
  * Portions copyright (c) 2001,2002 Sun Microsystems (thockin@sun.com)
  *
- * This driver allows you to access the contents of the non-volatile memory in
+ * This driver allows you to access the contents of the yesn-volatile memory in
  * the mc146818rtc.h real-time clock. This chip is built into all PCs and into
  * many Atari machines. In the former it's called "CMOS-RAM", in the latter
- * "NVRAM" (NV stands for non-volatile).
+ * "NVRAM" (NV stands for yesn-volatile).
  *
  * The data are supplied as a (seekable) character device, /dev/nvram. The
  * size of this file is dependent on the controller.  The usual size is 114,
- * the number of freely available bytes in the memory (i.e., not used by the
+ * the number of freely available bytes in the memory (i.e., yest used by the
  * RTC itself).
  *
  * Checksums over the NVRAM contents are managed by this driver. In case of a
@@ -34,7 +34,7 @@
 #include <linux/module.h>
 #include <linux/nvram.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/miscdevice.h>
 #include <linux/ioport.h>
 #include <linux/fcntl.h>
@@ -67,10 +67,10 @@ static ssize_t nvram_size;
  * the kernel. It's up to the caller to ensure correct checksum before reading
  * or after writing (needs to be done only once).
  *
- * It is worth noting that these functions all access bytes of general
+ * It is worth yesting that these functions all access bytes of general
  * purpose memory in the NVRAM - that is to say, they all add the
- * NVRAM_FIRST_BYTE offset.  Pass them offsets into NVRAM as if you did not
- * know about the RTC cruft.
+ * NVRAM_FIRST_BYTE offset.  Pass them offsets into NVRAM as if you did yest
+ * kyesw about the RTC cruft.
  */
 
 #define NVRAM_BYTES		(128 - NVRAM_FIRST_BYTE)
@@ -351,7 +351,7 @@ static long nvram_misc_ioctl(struct file *file, unsigned int cmd,
 	return ret;
 }
 
-static int nvram_misc_open(struct inode *inode, struct file *file)
+static int nvram_misc_open(struct iyesde *iyesde, struct file *file)
 {
 	spin_lock(&nvram_state_lock);
 
@@ -382,7 +382,7 @@ static int nvram_misc_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int nvram_misc_release(struct inode *inode, struct file *file)
+static int nvram_misc_release(struct iyesde *iyesde, struct file *file)
 {
 	spin_lock(&nvram_state_lock);
 
@@ -401,7 +401,7 @@ static int nvram_misc_release(struct inode *inode, struct file *file)
 
 #if defined(CONFIG_X86) && defined(CONFIG_PROC_FS)
 static const char * const floppy_types[] = {
-	"none", "5.25'' 360k", "5.25'' 1.2M", "3.5'' 720k", "3.5'' 1.44M",
+	"yesne", "5.25'' 360k", "5.25'' 1.2M", "3.5'' 720k", "3.5'' 1.44M",
 	"3.5'' 2.88M", "3.5'' 2.88M"
 };
 
@@ -409,7 +409,7 @@ static const char * const gfx_types[] = {
 	"EGA, VGA, ... (with BIOS)",
 	"CGA (40 cols)",
 	"CGA (80 cols)",
-	"monochrome",
+	"moyeschrome",
 };
 
 static void pc_nvram_proc_read(unsigned char *nvram, struct seq_file *seq,
@@ -422,7 +422,7 @@ static void pc_nvram_proc_read(unsigned char *nvram, struct seq_file *seq,
 	checksum = __nvram_check_checksum();
 	spin_unlock_irq(&rtc_lock);
 
-	seq_printf(seq, "Checksum status: %svalid\n", checksum ? "" : "not ");
+	seq_printf(seq, "Checksum status: %svalid\n", checksum ? "" : "yest ");
 
 	seq_printf(seq, "# floppies     : %d\n",
 	    (nvram[6] & 1) ? (nvram[6] >> 6) + 1 : 0);
@@ -431,27 +431,27 @@ static void pc_nvram_proc_read(unsigned char *nvram, struct seq_file *seq,
 	if (type < ARRAY_SIZE(floppy_types))
 		seq_printf(seq, "%s\n", floppy_types[type]);
 	else
-		seq_printf(seq, "%d (unknown)\n", type);
+		seq_printf(seq, "%d (unkyeswn)\n", type);
 	seq_printf(seq, "Floppy 1 type  : ");
 	type = nvram[2] & 0x0f;
 	if (type < ARRAY_SIZE(floppy_types))
 		seq_printf(seq, "%s\n", floppy_types[type]);
 	else
-		seq_printf(seq, "%d (unknown)\n", type);
+		seq_printf(seq, "%d (unkyeswn)\n", type);
 
 	seq_printf(seq, "HD 0 type      : ");
 	type = nvram[4] >> 4;
 	if (type)
 		seq_printf(seq, "%02x\n", type == 0x0f ? nvram[11] : type);
 	else
-		seq_printf(seq, "none\n");
+		seq_printf(seq, "yesne\n");
 
 	seq_printf(seq, "HD 1 type      : ");
 	type = nvram[4] & 0x0f;
 	if (type)
 		seq_printf(seq, "%02x\n", type == 0x0f ? nvram[12] : type);
 	else
-		seq_printf(seq, "none\n");
+		seq_printf(seq, "yesne\n");
 
 	seq_printf(seq, "HD type 48 data: %d/%d/%d C/H/S, precomp %d, lz %d\n",
 	    nvram[18] | (nvram[19] << 8),
@@ -470,7 +470,7 @@ static void pc_nvram_proc_read(unsigned char *nvram, struct seq_file *seq,
 	    gfx_types[(nvram[6] >> 4) & 3]);
 
 	seq_printf(seq, "FPU            : %sinstalled\n",
-	    (nvram[6] & 2) ? "" : "not ");
+	    (nvram[6] & 2) ? "" : "yest ");
 
 	return;
 }
@@ -517,7 +517,7 @@ static int __init nvram_module_init(void)
 
 	ret = misc_register(&nvram_misc);
 	if (ret) {
-		pr_err("nvram: can't misc_register on minor=%d\n", NVRAM_MINOR);
+		pr_err("nvram: can't misc_register on miyesr=%d\n", NVRAM_MINOR);
 		return ret;
 	}
 

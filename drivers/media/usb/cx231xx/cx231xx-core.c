@@ -150,22 +150,22 @@ int cx231xx_send_usb_command(struct cx231xx_i2c *i2c_bus,
 
 	u8 saddr_len = 0;
 	u8 _i2c_period = 0;
-	u8 _i2c_nostop = 0;
+	u8 _i2c_yesstop = 0;
 	u8 _i2c_reserve = 0;
 
 	if (dev->state & DEV_DISCONNECTED)
 		return -ENODEV;
 
-	/* Get the I2C period, nostop and reserve parameters */
+	/* Get the I2C period, yesstop and reserve parameters */
 	_i2c_period = i2c_bus->i2c_period;
-	_i2c_nostop = i2c_bus->i2c_nostop;
+	_i2c_yesstop = i2c_bus->i2c_yesstop;
 	_i2c_reserve = i2c_bus->i2c_reserve;
 
 	saddr_len = req_data->saddr_len;
 
 	/* Set wValue */
 	ven_req.wValue = (req_data->dev_addr << 9 | _i2c_period << 4 |
-			  saddr_len << 2 | _i2c_nostop << 1 | I2C_SYNC |
+			  saddr_len << 2 | _i2c_yesstop << 1 | I2C_SYNC |
 			  _i2c_reserve << 6);
 
 	/* set channel number */
@@ -507,7 +507,7 @@ int cx231xx_set_video_alternate(struct cx231xx *dev)
 				      dev->video_mode.alt);
 		if (errCode < 0) {
 			dev_err(dev->dev,
-				"cannot change alt number to %d (error=%i)\n",
+				"canyest change alt number to %d (error=%i)\n",
 				dev->video_mode.alt, errCode);
 			return errCode;
 		}
@@ -556,7 +556,7 @@ int cx231xx_set_alt_setting(struct cx231xx *dev, u8 index, u8 alt)
 							     alt];
 		break;
 	case INDEX_VANC:
-		if (dev->board.no_alt_vanc)
+		if (dev->board.yes_alt_vanc)
 			return 0;
 		usb_interface_index =
 		    dev->current_pcb_config.hs_config_info[0].interface_info.
@@ -583,11 +583,11 @@ int cx231xx_set_alt_setting(struct cx231xx *dev, u8 index, u8 alt)
 
 	if (alt > 0 && max_pkt_size == 0) {
 		dev_err(dev->dev,
-			"can't change interface %d alt no. to %d: Max. Pkt size = 0\n",
+			"can't change interface %d alt yes. to %d: Max. Pkt size = 0\n",
 			usb_interface_index, alt);
 		/*To workaround error number=-71 on EP0 for videograbber,
 		 need add following codes.*/
-		if (dev->board.no_alt_vanc)
+		if (dev->board.yes_alt_vanc)
 			return -1;
 	}
 
@@ -599,7 +599,7 @@ int cx231xx_set_alt_setting(struct cx231xx *dev, u8 index, u8 alt)
 		status = usb_set_interface(dev->udev, usb_interface_index, alt);
 		if (status < 0) {
 			dev_err(dev->dev,
-				"can't change interface %d alt no. to %d (err=%i)\n",
+				"can't change interface %d alt yes. to %d (err=%i)\n",
 				usb_interface_index, alt, status);
 			return status;
 		}
@@ -1027,7 +1027,7 @@ int cx231xx_init_isoc(struct cx231xx *dev, int max_packets,
 	    kcalloc(num_bufs, sizeof(void *), GFP_KERNEL);
 	if (!dev->video_mode.isoc_ctl.urb) {
 		dev_err(dev->dev,
-			"cannot alloc memory for usb buffers\n");
+			"canyest alloc memory for usb buffers\n");
 		return -ENOMEM;
 	}
 
@@ -1035,7 +1035,7 @@ int cx231xx_init_isoc(struct cx231xx *dev, int max_packets,
 	    kcalloc(num_bufs, sizeof(void *), GFP_KERNEL);
 	if (!dev->video_mode.isoc_ctl.transfer_buffer) {
 		dev_err(dev->dev,
-			"cannot allocate memory for usbtransfer\n");
+			"canyest allocate memory for usbtransfer\n");
 		kfree(dev->video_mode.isoc_ctl.urb);
 		return -ENOMEM;
 	}
@@ -1162,7 +1162,7 @@ int cx231xx_init_bulk(struct cx231xx *dev, int max_packets,
 	    kcalloc(num_bufs, sizeof(void *), GFP_KERNEL);
 	if (!dev->video_mode.bulk_ctl.urb) {
 		dev_err(dev->dev,
-			"cannot alloc memory for usb buffers\n");
+			"canyest alloc memory for usb buffers\n");
 		return -ENOMEM;
 	}
 
@@ -1170,7 +1170,7 @@ int cx231xx_init_bulk(struct cx231xx *dev, int max_packets,
 	    kcalloc(num_bufs, sizeof(void *), GFP_KERNEL);
 	if (!dev->video_mode.bulk_ctl.transfer_buffer) {
 		dev_err(dev->dev,
-			"cannot allocate memory for usbtransfer\n");
+			"canyest allocate memory for usbtransfer\n");
 		kfree(dev->video_mode.bulk_ctl.urb);
 		return -ENOMEM;
 	}
@@ -1299,7 +1299,7 @@ int cx231xx_dev_init(struct cx231xx *dev)
 	dev->i2c_bus[0].nr = 0;
 	dev->i2c_bus[0].dev = dev;
 	dev->i2c_bus[0].i2c_period = I2C_SPEED_100K;	/* 100 KHz */
-	dev->i2c_bus[0].i2c_nostop = 0;
+	dev->i2c_bus[0].i2c_yesstop = 0;
 	dev->i2c_bus[0].i2c_reserve = 0;
 	dev->i2c_bus[0].i2c_rc = -ENODEV;
 
@@ -1307,7 +1307,7 @@ int cx231xx_dev_init(struct cx231xx *dev)
 	dev->i2c_bus[1].nr = 1;
 	dev->i2c_bus[1].dev = dev;
 	dev->i2c_bus[1].i2c_period = I2C_SPEED_100K;	/* 100 KHz */
-	dev->i2c_bus[1].i2c_nostop = 0;
+	dev->i2c_bus[1].i2c_yesstop = 0;
 	dev->i2c_bus[1].i2c_reserve = 0;
 	dev->i2c_bus[1].i2c_rc = -ENODEV;
 
@@ -1315,7 +1315,7 @@ int cx231xx_dev_init(struct cx231xx *dev)
 	dev->i2c_bus[2].nr = 2;
 	dev->i2c_bus[2].dev = dev;
 	dev->i2c_bus[2].i2c_period = I2C_SPEED_100K;	/* 100kHz */
-	dev->i2c_bus[2].i2c_nostop = 0;
+	dev->i2c_bus[2].i2c_yesstop = 0;
 	dev->i2c_bus[2].i2c_reserve = 0;
 	dev->i2c_bus[2].i2c_rc = -ENODEV;
 
@@ -1352,7 +1352,7 @@ int cx231xx_dev_init(struct cx231xx *dev)
 
 	/* init hardware */
 	/* Note : with out calling set power mode function,
-	afe can not be set up correctly */
+	afe can yest be set up correctly */
 	if (dev->board.external_av) {
 		errCode = cx231xx_set_power_mode(dev,
 				 POLARIS_AVMODE_ENXTERNAL_AV);

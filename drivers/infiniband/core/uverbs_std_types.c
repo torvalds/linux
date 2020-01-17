@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2017, Mellayesx Techyeslogies inc.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -85,10 +85,10 @@ static int uverbs_free_qp(struct ib_uobject *uobject,
 	int ret;
 
 	/*
-	 * If this is a user triggered destroy then do not allow destruction
+	 * If this is a user triggered destroy then do yest allow destruction
 	 * until the user cleans up all the mcast bindings. Unlike in other
 	 * places we forcibly clean up the mcast attachments for !DESTROY
-	 * because the mcast attaches are not ubojects and will not be
+	 * because the mcast attaches are yest ubojects and will yest be
 	 * destroyed by anything else during cleanup processing.
 	 */
 	if (why == RDMA_REMOVE_DESTROY) {

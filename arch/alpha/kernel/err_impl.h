@@ -14,13 +14,13 @@ union el_timestamp;
 struct el_subpacket;
 struct ev7_lf_subpackets;
 
-struct el_subpacket_annotation {
-	struct el_subpacket_annotation *next;
+struct el_subpacket_anyestation {
+	struct el_subpacket_anyestation *next;
 	u16 class;
 	u16 type;
 	u16 revision;
 	char *description;
-	char **annotation;
+	char **anyestation;
 };
 #define SUBPACKET_ANNOTATION(c, t, r, d, a) {NULL, (c), (t), (r), (d), (a)}
 
@@ -51,9 +51,9 @@ extern void mchk_dump_logout_frame(struct el_common *);
 extern void el_print_timestamp(union el_timestamp *);
 extern void el_process_subpackets(struct el_subpacket *, int);
 extern struct el_subpacket *el_process_subpacket(struct el_subpacket *);
-extern void el_annotate_subpacket(struct el_subpacket *);
+extern void el_anyestate_subpacket(struct el_subpacket *);
 extern void cdl_check_console_data_log(void);
-extern int cdl_register_subpacket_annotation(struct el_subpacket_annotation *);
+extern int cdl_register_subpacket_anyestation(struct el_subpacket_anyestation *);
 extern int cdl_register_subpacket_handler(struct el_subpacket_handler *);
 
 /*

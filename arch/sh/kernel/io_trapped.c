@@ -36,7 +36,7 @@ static int __init trapped_io_setup(char *__unused)
 	trapped_io_disable = 1;
 	return 1;
 }
-__setup("noiotrap", trapped_io_setup);
+__setup("yesiotrap", trapped_io_setup);
 
 int register_trapped_io(struct trapped_io *tiop)
 {
@@ -58,7 +58,7 @@ int register_trapped_io(struct trapped_io *tiop)
 		flags |= res->flags;
 	}
 
-	/* support IORESOURCE_IO _or_ MEM, not both */
+	/* support IORESOURCE_IO _or_ MEM, yest both */
 	if (hweight_long(flags) != 1)
 		goto bad;
 

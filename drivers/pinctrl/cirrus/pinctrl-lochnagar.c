@@ -9,7 +9,7 @@
  */
 
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gpio/driver.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -754,7 +754,7 @@ static const struct pinctrl_ops lochnagar_pin_group_ops = {
 	.get_groups_count = lochnagar_get_groups_count,
 	.get_group_name = lochnagar_get_group_name,
 	.get_group_pins = lochnagar_get_group_pins,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_all,
+	.dt_yesde_to_map = pinconf_generic_dt_yesde_to_map_all,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -1162,7 +1162,7 @@ static int lochnagar_pin_probe(struct platform_device *pdev)
 	priv->gpio_chip.parent = dev;
 	priv->gpio_chip.base = -1;
 #ifdef CONFIG_OF_GPIO
-	priv->gpio_chip.of_node = dev->of_node;
+	priv->gpio_chip.of_yesde = dev->of_yesde;
 #endif
 
 	switch (lochnagar->type) {
@@ -1187,7 +1187,7 @@ static int lochnagar_pin_probe(struct platform_device *pdev)
 		priv->gpio_chip.ngpio = LOCHNAGAR2_PIN_NUM_GPIOS;
 		break;
 	default:
-		dev_err(dev, "Unknown Lochnagar type: %d\n", lochnagar->type);
+		dev_err(dev, "Unkyeswn Lochnagar type: %d\n", lochnagar->type);
 		return -EINVAL;
 	}
 

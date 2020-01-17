@@ -7,7 +7,7 @@
 #include <linux/module.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/if_ether.h>
 #include <net/netlink.h>
 
@@ -28,7 +28,7 @@ MODULE_ALIAS("ip_set_hash:mac");
 
 /* Member elements */
 struct hash_mac4_elem {
-	/* Zero valued IP addresses cannot be stored */
+	/* Zero valued IP addresses canyest be stored */
 	union {
 		unsigned char ether[ETH_ALEN];
 		__be32 foo[2];
@@ -93,7 +93,7 @@ hash_mac4_kadt(struct ip_set *set, const struct sk_buff *skb,
 
 static int
 hash_mac4_uadt(struct ip_set *set, struct nlattr *tb[],
-	       enum ipset_adt adt, u32 *lineno, u32 flags, bool retried)
+	       enum ipset_adt adt, u32 *lineyes, u32 flags, bool retried)
 {
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_mac4_elem e = { { .foo[0] = 0, .foo[1] = 0 } };
@@ -101,7 +101,7 @@ hash_mac4_uadt(struct ip_set *set, struct nlattr *tb[],
 	int ret;
 
 	if (tb[IPSET_ATTR_LINENO])
-		*lineno = nla_get_u32(tb[IPSET_ATTR_LINENO]);
+		*lineyes = nla_get_u32(tb[IPSET_ATTR_LINENO]);
 
 	if (unlikely(!tb[IPSET_ATTR_ETHER] ||
 		     nla_len(tb[IPSET_ATTR_ETHER]) != ETH_ALEN))

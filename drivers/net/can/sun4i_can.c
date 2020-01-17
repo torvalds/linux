@@ -16,21 +16,21 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of Volkswagen nor the names of its contributors
+ * 3. Neither the name of Volkswagen yesr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
- * Alternatively, provided that this notice is retained in full, this
+ * Alternatively, provided that this yestice is retained in full, this
  * software may be distributed under the terms of the GNU General
  * Public License ("GPL") version 2, in which case the provisions of the
  * GPL apply INSTEAD OF those given above.
  *
  * The provided data structures and external interfaces from this code
- * are not restricted to be used by modules with a GPL compatible license.
+ * are yest restricted to be used by modules with a GPL compatible license.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -228,7 +228,7 @@ static void sun4i_can_write_cmdreg(struct sun4ican_priv *priv, u8 val)
 	spin_unlock_irqrestore(&priv->cmdreg_lock, flags);
 }
 
-static int set_normal_mode(struct net_device *dev)
+static int set_yesrmal_mode(struct net_device *dev)
 {
 	struct sun4ican_priv *priv = netdev_priv(dev);
 	int retry = SUN4I_MODE_MAX_RETRIES;
@@ -242,7 +242,7 @@ static int set_normal_mode(struct net_device *dev)
 
 	if (readl(priv->base + SUN4I_REG_MSEL_ADDR) & SUN4I_MSEL_RESET_MODE) {
 		netdev_err(dev,
-			   "setting controller into normal mode failed!\n");
+			   "setting controller into yesrmal mode failed!\n");
 		return -ETIMEDOUT;
 	}
 
@@ -299,7 +299,7 @@ static int sun4ican_get_berr_counter(const struct net_device *dev,
 
 	err = clk_prepare_enable(priv->clk);
 	if (err) {
-		netdev_err(dev, "could not enable clock\n");
+		netdev_err(dev, "could yest enable clock\n");
 		return err;
 	}
 
@@ -322,7 +322,7 @@ static int sun4i_can_start(struct net_device *dev)
 	/* we need to enter the reset mode */
 	err = set_reset_mode(dev);
 	if (err) {
-		netdev_err(dev, "could not enter reset mode\n");
+		netdev_err(dev, "could yest enter reset mode\n");
 		return err;
 	}
 
@@ -352,10 +352,10 @@ static int sun4i_can_start(struct net_device *dev)
 	if (err)
 		return err;
 
-	/* we are ready to enter the normal mode */
-	err = set_normal_mode(dev);
+	/* we are ready to enter the yesrmal mode */
+	err = set_yesrmal_mode(dev);
 	if (err) {
-		netdev_err(dev, "could not enter normal mode\n");
+		netdev_err(dev, "could yest enter yesrmal mode\n");
 		return err;
 	}
 
@@ -373,7 +373,7 @@ static int sun4i_can_stop(struct net_device *dev)
 	/* we need to enter reset mode */
 	err = set_reset_mode(dev);
 	if (err) {
-		netdev_err(dev, "could not enter reset mode\n");
+		netdev_err(dev, "could yest enter reset mode\n");
 		return err;
 	}
 
@@ -541,10 +541,10 @@ static int sun4i_can_err(struct net_device *dev, u8 isrc, u8 status)
 		stats->rx_errors++;
 
 		/* reset the CAN IP by entering reset mode
-		 * ignoring timeout error
+		 * igyesring timeout error
 		 */
 		set_reset_mode(dev);
-		set_normal_mode(dev);
+		set_yesrmal_mode(dev);
 
 		/* clear bit */
 		sun4i_can_write_cmdreg(priv, SUN4I_CMD_CLEAR_OR_FLAG);
@@ -664,7 +664,7 @@ static irqreturn_t sun4i_can_interrupt(int irq, void *dev_id)
 		    !(isrc & SUN4I_INT_DATA_OR)) {
 			/* receive interrupt - don't read if overrun occurred */
 			while (status & SUN4I_STA_RBUF_RDY) {
-				/* RX buffer is not empty */
+				/* RX buffer is yest empty */
 				sun4i_can_rx(dev);
 				status = readl(priv->base + SUN4I_REG_STA_ADDR);
 			}
@@ -706,13 +706,13 @@ static int sun4ican_open(struct net_device *dev)
 	/* turn on clocking for CAN peripheral block */
 	err = clk_prepare_enable(priv->clk);
 	if (err) {
-		netdev_err(dev, "could not enable CAN peripheral clock\n");
+		netdev_err(dev, "could yest enable CAN peripheral clock\n");
 		goto exit_clock;
 	}
 
 	err = sun4i_can_start(dev);
 	if (err) {
-		netdev_err(dev, "could not start CAN peripheral\n");
+		netdev_err(dev, "could yest start CAN peripheral\n");
 		goto exit_can_start;
 	}
 
@@ -770,7 +770,7 @@ static int sun4ican_remove(struct platform_device *pdev)
 
 static int sun4ican_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct clk *clk;
 	void __iomem *addr;
 	int err, irq;
@@ -799,7 +799,7 @@ static int sun4ican_probe(struct platform_device *pdev)
 	dev = alloc_candev(sizeof(struct sun4ican_priv), 1);
 	if (!dev) {
 		dev_err(&pdev->dev,
-			"could not allocate memory for CAN device\n");
+			"could yest allocate memory for CAN device\n");
 		err = -ENOMEM;
 		goto exit;
 	}

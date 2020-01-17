@@ -8,11 +8,11 @@
  *  Derived from "arch/i386/kernel/sys_i386.c"
  *
  *  This file contains various random system calls that
- *  have a non-standard calling sequence on the Linux/s390
+ *  have a yesn-standard calling sequence on the Linux/s390
  *  platform.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/fs.h>

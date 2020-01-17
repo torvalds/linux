@@ -96,7 +96,7 @@ static int imx_gpc_irq_set_wake(struct irq_data *d, unsigned int on)
 				  gpc_wake_irqs[idx] & ~mask;
 
 	/*
-	 * Do *not* call into the parent, as the GIC doesn't have any
+	 * Do *yest* call into the parent, as the GIC doesn't have any
 	 * wake-up facility...
 	 */
 	return 0;
@@ -175,7 +175,7 @@ static int imx_gpc_domain_translate(struct irq_domain *d,
 				    unsigned long *hwirq,
 				    unsigned int *type)
 {
-	if (is_of_node(fwspec->fwnode)) {
+	if (is_of_yesde(fwspec->fwyesde)) {
 		if (fwspec->param_count != 3)
 			return -EINVAL;
 
@@ -214,7 +214,7 @@ static int imx_gpc_domain_alloc(struct irq_domain *domain,
 					      &imx_gpc_chip, NULL);
 
 	parent_fwspec = *fwspec;
-	parent_fwspec.fwnode = domain->parent->fwnode;
+	parent_fwspec.fwyesde = domain->parent->fwyesde;
 	return irq_domain_alloc_irqs_parent(domain, irq, nr_irqs,
 					    &parent_fwspec);
 }
@@ -225,29 +225,29 @@ static const struct irq_domain_ops imx_gpc_domain_ops = {
 	.free		= irq_domain_free_irqs_common,
 };
 
-static int __init imx_gpc_init(struct device_node *node,
-			       struct device_node *parent)
+static int __init imx_gpc_init(struct device_yesde *yesde,
+			       struct device_yesde *parent)
 {
 	struct irq_domain *parent_domain, *domain;
 	int i;
 
 	if (!parent) {
-		pr_err("%pOF: no parent, giving up\n", node);
+		pr_err("%pOF: yes parent, giving up\n", yesde);
 		return -ENODEV;
 	}
 
 	parent_domain = irq_find_host(parent);
 	if (!parent_domain) {
-		pr_err("%pOF: unable to obtain parent domain\n", node);
+		pr_err("%pOF: unable to obtain parent domain\n", yesde);
 		return -ENXIO;
 	}
 
-	gpc_base = of_iomap(node, 0);
+	gpc_base = of_iomap(yesde, 0);
 	if (WARN_ON(!gpc_base))
 	        return -ENOMEM;
 
 	domain = irq_domain_add_hierarchy(parent_domain, 0, GPC_MAX_IRQS,
-					  node, &imx_gpc_domain_ops,
+					  yesde, &imx_gpc_domain_ops,
 					  NULL);
 	if (!domain) {
 		iounmap(gpc_base);
@@ -260,9 +260,9 @@ static int __init imx_gpc_init(struct device_node *node,
 
 	/*
 	 * Clear the OF_POPULATED flag set in of_irq_init so that
-	 * later the GPC power domain driver will not be skipped.
+	 * later the GPC power domain driver will yest be skipped.
 	 */
-	of_node_clear_flag(node, OF_POPULATED);
+	of_yesde_clear_flag(yesde, OF_POPULATED);
 
 	return 0;
 }
@@ -270,9 +270,9 @@ IRQCHIP_DECLARE(imx_gpc, "fsl,imx6q-gpc", imx_gpc_init);
 
 void __init imx_gpc_check_dt(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-gpc");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,imx6q-gpc");
 	if (WARN_ON(!np))
 		return;
 

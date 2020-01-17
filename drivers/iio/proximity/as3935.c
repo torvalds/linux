@@ -3,7 +3,7 @@
  * as3935.c - Support for AS3935 Franklin lightning sensor
  *
  * Copyright (C) 2014, 2017-2018
- * Author: Matt Ranostay <matt.ranostay@konsulko.com>
+ * Author: Matt Rayesstay <matt.rayesstay@konsulko.com>
  */
 
 #include <linux/module.h>
@@ -58,7 +58,7 @@ struct as3935_state {
 	struct mutex lock;
 	struct delayed_work work;
 
-	unsigned long noise_tripped;
+	unsigned long yesise_tripped;
 	u32 tune_cap;
 	u32 nflwdth_reg;
 	u8 buffer[16]; /* 8-bit data + 56-bit padding + 64-bit timestamp */
@@ -143,7 +143,7 @@ static ssize_t as3935_sensor_sensitivity_store(struct device *dev,
 	return len;
 }
 
-static ssize_t as3935_noise_level_tripped_show(struct device *dev,
+static ssize_t as3935_yesise_level_tripped_show(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
@@ -151,7 +151,7 @@ static ssize_t as3935_noise_level_tripped_show(struct device *dev,
 	int ret;
 
 	mutex_lock(&st->lock);
-	ret = sprintf(buf, "%d\n", !time_after(jiffies, st->noise_tripped + HZ));
+	ret = sprintf(buf, "%d\n", !time_after(jiffies, st->yesise_tripped + HZ));
 	mutex_unlock(&st->lock);
 
 	return ret;
@@ -160,12 +160,12 @@ static ssize_t as3935_noise_level_tripped_show(struct device *dev,
 static IIO_DEVICE_ATTR(sensor_sensitivity, S_IRUGO | S_IWUSR,
 	as3935_sensor_sensitivity_show, as3935_sensor_sensitivity_store, 0);
 
-static IIO_DEVICE_ATTR(noise_level_tripped, S_IRUGO,
-	as3935_noise_level_tripped_show, NULL, 0);
+static IIO_DEVICE_ATTR(yesise_level_tripped, S_IRUGO,
+	as3935_yesise_level_tripped_show, NULL, 0);
 
 static struct attribute *as3935_attributes[] = {
 	&iio_dev_attr_sensor_sensitivity.dev_attr.attr,
-	&iio_dev_attr_noise_level_tripped.dev_attr.attr,
+	&iio_dev_attr_yesise_level_tripped.dev_attr.attr,
 	NULL,
 };
 
@@ -231,7 +231,7 @@ static irqreturn_t as3935_trigger_handler(int irq, void *private)
 	iio_push_to_buffers_with_timestamp(indio_dev, &st->buffer,
 					   iio_get_time_ns(indio_dev));
 err_read:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -262,9 +262,9 @@ static void as3935_event_work(struct work_struct *work)
 	case AS3935_DISTURB_INT:
 	case AS3935_NOISE_INT:
 		mutex_lock(&st->lock);
-		st->noise_tripped = jiffies;
+		st->yesise_tripped = jiffies;
 		mutex_unlock(&st->lock);
-		dev_warn(&st->spi->dev, "noise level is too high\n");
+		dev_warn(&st->spi->dev, "yesise level is too high\n");
 		break;
 	}
 }
@@ -358,7 +358,7 @@ static int as3935_probe(struct spi_device *spi)
 	struct iio_dev *indio_dev;
 	struct iio_trigger *trig;
 	struct as3935_state *st;
-	struct device_node *np = spi->dev.of_node;
+	struct device_yesde *np = spi->dev.of_yesde;
 	int ret;
 
 	/* Be sure lightning event interrupt is specified */
@@ -382,7 +382,7 @@ static int as3935_probe(struct spi_device *spi)
 	if (ret) {
 		st->tune_cap = 0;
 		dev_warn(&spi->dev,
-			"no tuning-capacitor-pf set, defaulting to %d",
+			"yes tuning-capacitor-pf set, defaulting to %d",
 			st->tune_cap);
 	}
 
@@ -416,7 +416,7 @@ static int as3935_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	st->trig = trig;
-	st->noise_tripped = jiffies - HZ;
+	st->yesise_tripped = jiffies - HZ;
 	trig->dev.parent = indio_dev->dev.parent;
 	iio_trigger_set_drvdata(trig, indio_dev);
 	trig->ops = &iio_interrupt_trigger_ops;
@@ -432,7 +432,7 @@ static int as3935_probe(struct spi_device *spi)
 					      as3935_trigger_handler, NULL);
 
 	if (ret) {
-		dev_err(&spi->dev, "cannot setup iio trigger\n");
+		dev_err(&spi->dev, "canyest setup iio trigger\n");
 		return ret;
 	}
 
@@ -485,6 +485,6 @@ static struct spi_driver as3935_driver = {
 };
 module_spi_driver(as3935_driver);
 
-MODULE_AUTHOR("Matt Ranostay <matt.ranostay@konsulko.com>");
+MODULE_AUTHOR("Matt Rayesstay <matt.rayesstay@konsulko.com>");
 MODULE_DESCRIPTION("AS3935 lightning sensor");
 MODULE_LICENSE("GPL");

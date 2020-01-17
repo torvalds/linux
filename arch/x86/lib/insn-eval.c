@@ -61,7 +61,7 @@ static bool is_string_insn(struct insn *insn)
  * Returns:
  *
  * A constant identifying the segment register to use, among CS, SS, DS,
- * ES, FS, or GS. INAT_SEG_REG_DEFAULT is returned if no segment override
+ * ES, FS, or GS. INAT_SEG_REG_DEFAULT is returned if yes segment override
  * prefixes were found.
  *
  * -EINVAL in case of error.
@@ -120,7 +120,7 @@ static int get_seg_reg_override_idx(struct insn *insn)
  * @regoff:	Operand offset, in pt_regs, for which the check is performed
  *
  * For a particular register used in register-indirect addressing, determine if
- * segment override prefixes can be used. Specifically, no overrides are allowed
+ * segment override prefixes can be used. Specifically, yes overrides are allowed
  * for rDI if used with a string instruction.
  *
  * Returns:
@@ -163,9 +163,9 @@ static int resolve_default_seg(struct insn *insn, struct pt_regs *regs, int off)
 	 *
 	 *  + DS for all references involving r[ABCD]X, and rSI.
 	 *  + If used in a string instruction, ES for rDI. Otherwise, DS.
-	 *  + AX, CX and DX are not valid register operands in 16-bit address
+	 *  + AX, CX and DX are yest valid register operands in 16-bit address
 	 *    encodings but are valid for 32-bit and 64-bit encodings.
-	 *  + -EDOM is reserved to identify for cases in which no register
+	 *  + -EDOM is reserved to identify for cases in which yes register
 	 *    is used (i.e., displacement-only addressing). Use DS.
 	 *  + SS for rSP or rBP.
 	 *  + CS for rIP.
@@ -215,23 +215,23 @@ static int resolve_default_seg(struct insn *insn, struct pt_regs *regs, int off)
  * The segment register associated to an operand used in register-indirect
  * addressing depends on:
  *
- * a) Whether running in long mode (in such a case segments are ignored, except
+ * a) Whether running in long mode (in such a case segments are igyesred, except
  * if FS or GS are used).
  *
  * b) Whether segment override prefixes can be used. Certain instructions and
- *    registers do not allow override prefixes.
+ *    registers do yest allow override prefixes.
  *
  * c) Whether segment overrides prefixes are found in the instruction prefixes.
  *
- * d) If there are not segment override prefixes or they cannot be used, the
+ * d) If there are yest segment override prefixes or they canyest be used, the
  *    default segment register associated with the operand register is used.
  *
  * The function checks first if segment override prefixes can be used with the
  * operand indicated by @regoff. If allowed, obtain such overridden segment
- * register index. Lastly, if not prefixes were found or cannot be used, resolve
+ * register index. Lastly, if yest prefixes were found or canyest be used, resolve
  * the segment register index to use based on the defaults described in the
  * Intel documentation. In long mode, all segment register indexes will be
- * ignored, except if overrides were found for FS or GS. All these operations
+ * igyesred, except if overrides were found for FS or GS. All these operations
  * are done using helper functions.
  *
  * The operand register, @regoff, is represented as the offset from the base of
@@ -243,7 +243,7 @@ static int resolve_default_seg(struct insn *insn, struct pt_regs *regs, int off)
  * @insn at all as in this case CS is used in all cases. This case is checked
  * before proceeding further.
  *
- * Please note that this function does not return the value in the segment
+ * Please yeste that this function does yest return the value in the segment
  * register (i.e., the segment selector) but our defined index. The segment
  * selector needs to be obtained using get_segment_selector() and passing the
  * segment register index resolved by this function.
@@ -261,8 +261,8 @@ static int resolve_seg_reg(struct insn *insn, struct pt_regs *regs, int regoff)
 
 	/*
 	 * In the unlikely event of having to resolve the segment register
-	 * index for rIP, do it first. Segment override prefixes should not
-	 * be used. Hence, it is not necessary to inspect the instruction,
+	 * index for rIP, do it first. Segment override prefixes should yest
+	 * be used. Hence, it is yest necessary to inspect the instruction,
 	 * which may be invalid at this point.
 	 */
 	if (regoff == offsetof(struct pt_regs, ip)) {
@@ -286,7 +286,7 @@ static int resolve_seg_reg(struct insn *insn, struct pt_regs *regs, int regoff)
 		return resolve_default_seg(insn, regs, regoff);
 
 	/*
-	 * In long mode, segment override prefixes are ignored, except for
+	 * In long mode, segment override prefixes are igyesred, except for
 	 * overrides for FS and GS.
 	 */
 	if (user_64bit_mode(regs)) {
@@ -308,7 +308,7 @@ static int resolve_seg_reg(struct insn *insn, struct pt_regs *regs, int regoff)
  * kernel_vm86_regs as applicable. In CONFIG_X86_64, CS and SS are obtained
  * from pt_regs. DS, ES, FS and GS are obtained by reading the actual CPU
  * registers. This done for only for completeness as in CONFIG_X86_64 segment
- * registers are ignored.
+ * registers are igyesred.
  *
  * Returns:
  *
@@ -381,7 +381,7 @@ static short get_segment_selector(struct pt_regs *regs, int seg_reg_idx)
 		return (unsigned short)(regs->fs & 0xffff);
 	case INAT_SEG_REG_GS:
 		/*
-		 * GS may or may not be in regs as per CONFIG_X86_32_LAZY_GS.
+		 * GS may or may yest be in regs as per CONFIG_X86_32_LAZY_GS.
 		 * The macro below takes care of both cases.
 		 */
 		return get_user_gs(regs);
@@ -396,7 +396,7 @@ static short get_segment_selector(struct pt_regs *regs, int seg_reg_idx)
 static int get_reg_offset(struct insn *insn, struct pt_regs *regs,
 			  enum reg_type type)
 {
-	int regno = 0;
+	int regyes = 0;
 
 	static const int regoff[] = {
 		offsetof(struct pt_regs, ax),
@@ -428,23 +428,23 @@ static int get_reg_offset(struct insn *insn, struct pt_regs *regs,
 
 	switch (type) {
 	case REG_TYPE_RM:
-		regno = X86_MODRM_RM(insn->modrm.value);
+		regyes = X86_MODRM_RM(insn->modrm.value);
 
 		/*
 		 * ModRM.mod == 0 and ModRM.rm == 5 means a 32-bit displacement
 		 * follows the ModRM byte.
 		 */
-		if (!X86_MODRM_MOD(insn->modrm.value) && regno == 5)
+		if (!X86_MODRM_MOD(insn->modrm.value) && regyes == 5)
 			return -EDOM;
 
 		if (X86_REX_B(insn->rex_prefix.value))
-			regno += 8;
+			regyes += 8;
 		break;
 
 	case REG_TYPE_INDEX:
-		regno = X86_SIB_INDEX(insn->sib.value);
+		regyes = X86_SIB_INDEX(insn->sib.value);
 		if (X86_REX_X(insn->rex_prefix.value))
-			regno += 8;
+			regyes += 8;
 
 		/*
 		 * If ModRM.mod != 3 and SIB.index = 4 the scale*index
@@ -452,22 +452,22 @@ static int get_reg_offset(struct insn *insn, struct pt_regs *regs,
 		 * true only if REX.X is 0. In such a case, the SIB index
 		 * is used in the address computation.
 		 */
-		if (X86_MODRM_MOD(insn->modrm.value) != 3 && regno == 4)
+		if (X86_MODRM_MOD(insn->modrm.value) != 3 && regyes == 4)
 			return -EDOM;
 		break;
 
 	case REG_TYPE_BASE:
-		regno = X86_SIB_BASE(insn->sib.value);
+		regyes = X86_SIB_BASE(insn->sib.value);
 		/*
 		 * If ModRM.mod is 0 and SIB.base == 5, the base of the
 		 * register-indirect addressing is 0. In this case, a
 		 * 32-bit displacement follows the SIB byte.
 		 */
-		if (!X86_MODRM_MOD(insn->modrm.value) && regno == 5)
+		if (!X86_MODRM_MOD(insn->modrm.value) && regyes == 5)
 			return -EDOM;
 
 		if (X86_REX_B(insn->rex_prefix.value))
-			regno += 8;
+			regyes += 8;
 		break;
 
 	default:
@@ -475,11 +475,11 @@ static int get_reg_offset(struct insn *insn, struct pt_regs *regs,
 		return -EINVAL;
 	}
 
-	if (regno >= nr_registers) {
+	if (regyes >= nr_registers) {
 		WARN_ONCE(1, "decoded an instruction with an invalid register");
 		return -EINVAL;
 	}
-	return regoff[regno];
+	return regoff[regyes];
 }
 
 /**
@@ -492,7 +492,7 @@ static int get_reg_offset(struct insn *insn, struct pt_regs *regs,
  * Obtain the offset, in pt_regs, of the registers indicated by the ModRM byte
  * in @insn. This function is to be used with 16-bit address encodings. The
  * @offs1 and @offs2 will be written with the offset of the two registers
- * indicated by the instruction. In cases where any of the registers is not
+ * indicated by the instruction. In cases where any of the registers is yest
  * referenced by the instruction, the value will be set to -EDOM.
  *
  * Returns:
@@ -544,7 +544,7 @@ static int get_reg_offset_16(struct insn *insn, struct pt_regs *regs,
 
 	/*
 	 * If ModRM.mod is 0 and ModRM.rm is 110b, then we use displacement-
-	 * only addressing. This means that no registers are involved in
+	 * only addressing. This means that yes registers are involved in
 	 * computing the effective address. Thus, ensure that the first
 	 * register offset is invalild. The second register offset is already
 	 * invalid under the aforementioned conditions.
@@ -666,7 +666,7 @@ unsigned long insn_get_seg_base(struct pt_regs *regs, int seg_reg_idx)
 		return base;
 	}
 
-	/* In protected mode the segment selector cannot be null. */
+	/* In protected mode the segment selector canyest be null. */
 	if (!sel)
 		return -1L;
 
@@ -688,7 +688,7 @@ unsigned long insn_get_seg_base(struct pt_regs *regs, int seg_reg_idx)
  * Returns:
  *
  * In protected mode, the limit of the segment descriptor in bytes.
- * In long mode and virtual-8086 mode, segment limits are not enforced. Thus,
+ * In long mode and virtual-8086 mode, segment limits are yest enforced. Thus,
  * limit is returned as -1L to imply a limit-less segment.
  *
  * Zero is returned on error.
@@ -715,7 +715,7 @@ static unsigned long get_seg_limit(struct pt_regs *regs, int seg_reg_idx)
 	/*
 	 * If the granularity bit is set, the limit is given in multiples
 	 * of 4096. This also means that the 12 least significant bits are
-	 * not tested when checking the segment limits. In practice,
+	 * yest tested when checking the segment limits. In practice,
 	 * this means that the segment ends in (limit << 12) + 0xfff.
 	 */
 	limit = get_desc_limit(&desc);
@@ -798,7 +798,7 @@ int insn_get_code_seg_params(struct pt_regs *regs)
  * The register indicated by the r/m part of the ModRM byte. The
  * register is obtained as an offset from the base of pt_regs. In specific
  * cases, the returned value can be -EDOM to indicate that the particular value
- * of ModRM does not refer to a register and shall be ignored.
+ * of ModRM does yest refer to a register and shall be igyesred.
  */
 int insn_get_modrm_rm_off(struct insn *insn, struct pt_regs *regs)
 {
@@ -815,8 +815,8 @@ int insn_get_modrm_rm_off(struct insn *insn, struct pt_regs *regs)
  *
  * Obtain the base address and limit of the segment associated with the operand
  * @regoff and, if any or allowed, override prefixes in @insn. This function is
- * different from insn_get_seg_base() as the latter does not resolve the segment
- * associated with the instruction operand. If a limit is not needed (e.g.,
+ * different from insn_get_seg_base() as the latter does yest resolve the segment
+ * associated with the instruction operand. If a limit is yest needed (e.g.,
  * when running in long mode), @limit can be NULL.
  *
  * Returns:
@@ -891,7 +891,7 @@ static int get_eff_addr_reg(struct insn *insn, struct pt_regs *regs,
 	if (*regoff < 0)
 		return -EINVAL;
 
-	/* Ignore bytes that are outside the address size. */
+	/* Igyesre bytes that are outside the address size. */
 	if (insn->addr_bytes == 2)
 		*eff_addr = regs_get_register(regs, *regoff) & 0xffff;
 	else if (insn->addr_bytes == 4)
@@ -943,7 +943,7 @@ static int get_eff_addr_modrm(struct insn *insn, struct pt_regs *regs,
 	*regoff = get_reg_offset(insn, regs, REG_TYPE_RM);
 
 	/*
-	 * -EDOM means that we must ignore the address_offset. In such a case,
+	 * -EDOM means that we must igyesre the address_offset. In such a case,
 	 * in 64-bit mode the effective address relative to the rIP of the
 	 * following instruction.
 	 */
@@ -1014,7 +1014,7 @@ static int get_eff_addr_modrm_16(struct insn *insn, struct pt_regs *regs,
 
 	/*
 	 * Don't fail on invalid offset values. They might be invalid because
-	 * they cannot be used for this particular value of ModRM. Instead, use
+	 * they canyest be used for this particular value of ModRM. Instead, use
 	 * them in the computation only if they contain a valid value.
 	 */
 	if (addr_offset1 != -EDOM)
@@ -1087,7 +1087,7 @@ static int get_eff_addr_sib(struct insn *insn, struct pt_regs *regs,
 	/*
 	 * Negative values in the base and index offset means an error when
 	 * decoding the SIB byte. Except -EDOM, which means that the registers
-	 * should not be used in the address computation.
+	 * should yest be used in the address computation.
 	 */
 	if (*base_offset == -EDOM)
 		base = 0;
@@ -1170,7 +1170,7 @@ static void __user *get_addr_ref_16(struct insn *insn, struct pt_regs *regs)
 	/*
 	 * Before computing the linear address, make sure the effective address
 	 * is within the limits of the segment. In virtual-8086 mode, segment
-	 * limits are not enforced. In such a case, the segment limit is -1L to
+	 * limits are yest enforced. In such a case, the segment limit is -1L to
 	 * reflect this fact.
 	 */
 	if ((unsigned long)(eff_addr & 0xffff) > seg_limit)
@@ -1244,7 +1244,7 @@ static void __user *get_addr_ref_32(struct insn *insn, struct pt_regs *regs)
 	 * the effective address is within the limits of the segment.
 	 * 32-bit addresses can be used in long and virtual-8086 modes if an
 	 * address override prefix is used. In such cases, segment limits are
-	 * not enforced. When in virtual-8086 mode, the segment limit is -1L
+	 * yest enforced. When in virtual-8086 mode, the segment limit is -1L
 	 * to reflect this situation.
 	 *
 	 * After computed, the effective address is treated as an unsigned
@@ -1262,7 +1262,7 @@ static void __user *get_addr_ref_32(struct insn *insn, struct pt_regs *regs)
 
 	/*
 	 * Data type long could be 64 bits in size. Ensure that our 32-bit
-	 * effective address is not sign-extended when computing the linear
+	 * effective address is yest sign-extended when computing the linear
 	 * address.
 	 */
 	linear_addr = (unsigned long)(eff_addr & 0xffffffff) + seg_base;

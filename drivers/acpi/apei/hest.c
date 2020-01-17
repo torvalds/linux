@@ -5,7 +5,7 @@
  * HEST describes error sources in detail; communicates operational
  * parameters (i.e. severity levels, masking bits, and threshold
  * values) to Linux as necessary. It also allows the BIOS to report
- * non-standard error sources to Linux (for example, chipset-specific
+ * yesn-standard error sources to Linux (for example, chipset-specific
  * error registers).
  *
  * For more information about HEST, please refer to ACPI Specification
@@ -93,7 +93,7 @@ int apei_hest_parse(apei_hest_func_t func, void *data)
 		len = hest_esrc_len(hest_hdr);
 		if (!len) {
 			pr_warn(FW_WARN HEST_PFX
-				"Unknown or unused hardware error source "
+				"Unkyeswn or unused hardware error source "
 				"type: %d for hardware error source: %d.\n",
 				hest_hdr->type, hest_hdr->source_id);
 			return -EINVAL;

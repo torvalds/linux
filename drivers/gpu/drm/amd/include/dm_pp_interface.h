@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -77,7 +77,7 @@ struct amd_pp_display_configuration {
 	uint32_t cpu_pstate_separation_time;
 
 	uint32_t num_display;  /* total number of display*/
-	uint32_t num_path_including_non_display;
+	uint32_t num_path_including_yesn_display;
 	uint32_t crossfire_display_index;
 	uint32_t min_mem_set_clock;
 	uint32_t min_core_set_clock;
@@ -103,7 +103,7 @@ struct amd_pp_display_configuration {
 	/*
 	 * for given display configuration if multimonitormnsync == false then
 	 * Memory clock DPMS with this latency or below is allowed, DPMS with
-	 * higher latency not allowed.
+	 * higher latency yest allowed.
 	 */
 	uint32_t dce_tolerable_mclk_in_active_latency;
 	uint32_t min_dcef_set_clk;

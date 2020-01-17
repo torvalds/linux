@@ -31,10 +31,10 @@ static inline void invalidate_kernel_vmap_range(void *addr, int size)
 }
 
 #define ARCH_HAS_FLUSH_ANON_PAGE
-static inline void flush_anon_page(struct vm_area_struct *vma,
+static inline void flush_ayesn_page(struct vm_area_struct *vma,
 			 struct page *page, unsigned long vmaddr)
 {
-	if (PageAnon(page))
+	if (PageAyesn(page))
 		cache_wbinv_all();
 }
 

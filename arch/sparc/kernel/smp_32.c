@@ -51,25 +51,25 @@ const struct sparc32_ipi_ops *sparc32_ipi_ops;
  * processors is 'ldstub [%reg + immediate], %dest_reg' which atomically
  * places the current byte at the effective address into dest_reg and
  * places 0xff there afterwards.  Pretty lame locking primitive
- * compared to the Alpha and the Intel no?  Most Sparcs have 'swap'
+ * compared to the Alpha and the Intel yes?  Most Sparcs have 'swap'
  * instruction which is much better...
  */
 
 void smp_store_cpu_info(int id)
 {
-	int cpu_node;
+	int cpu_yesde;
 	int mid;
 
 	cpu_data(id).udelay_val = loops_per_jiffy;
 
-	cpu_find_by_mid(id, &cpu_node);
-	cpu_data(id).clock_tick = prom_getintdefault(cpu_node,
+	cpu_find_by_mid(id, &cpu_yesde);
+	cpu_data(id).clock_tick = prom_getintdefault(cpu_yesde,
 						     "clock-frequency", 0);
-	cpu_data(id).prom_node = cpu_node;
-	mid = cpu_get_hwmid(cpu_node);
+	cpu_data(id).prom_yesde = cpu_yesde;
+	mid = cpu_get_hwmid(cpu_yesde);
 
 	if (mid < 0) {
-		printk(KERN_NOTICE "No MID found for CPU%d at node 0x%08x", id, cpu_node);
+		printk(KERN_NOTICE "No MID found for CPU%d at yesde 0x%08x", id, cpu_yesde);
 		mid = 0;
 	}
 	cpu_data(id).mid = mid;
@@ -353,13 +353,13 @@ static void sparc_start_secondary(void *arg)
 	preempt_disable();
 	cpu = smp_processor_id();
 
-	notify_cpu_starting(cpu);
+	yestify_cpu_starting(cpu);
 	arch_cpu_pre_online(arg);
 
 	/* Set the CPU in the cpu_online_mask */
 	set_cpu_online(cpu, true);
 
-	/* Enable local interrupts now */
+	/* Enable local interrupts yesw */
 	local_irq_enable();
 
 	wmb();

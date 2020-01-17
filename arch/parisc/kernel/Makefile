@@ -13,7 +13,7 @@ obj-y	     	:= cache.o pacache.o setup.o pdt.o traps.o time.o irq.o \
 		   patch.o
 
 ifdef CONFIG_FUNCTION_TRACER
-# Do not profile debug and lowlevel utilities
+# Do yest profile debug and lowlevel utilities
 CFLAGS_REMOVE_ftrace.o = $(CC_FLAGS_FTRACE)
 CFLAGS_REMOVE_cache.o =  $(CC_FLAGS_FTRACE)
 CFLAGS_REMOVE_perf.o = $(CC_FLAGS_FTRACE)

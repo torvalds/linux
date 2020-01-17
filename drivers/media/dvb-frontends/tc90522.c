@@ -8,7 +8,7 @@
 /*
  * NOTICE:
  * This driver is incomplete and lacks init/config of the chips,
- * as the necessary info is not disclosed.
+ * as the necessary info is yest disclosed.
  * It assumes that users of this driver (such as a PCI bridge of
  * DTV receiver cards) properly init and configure the chip
  * via I2C *before* calling this driver's init() function.
@@ -224,12 +224,12 @@ static int tc90522s_get_frontend(struct dvb_frontend *fe,
 		/* low layer */
 		v = (val[2] & 0x07);
 		c->layer[1].fec = fec_conv_sat[v];
-		if (v == 0)  /* no low layer */
+		if (v == 0)  /* yes low layer */
 			c->layer[1].segment_count = 0;
 		else
 			c->layer[1].segment_count = val[4] & 0x3f; /* slots */
 		/*
-		 * actually, BPSK if v==1, but not defined in
+		 * actually, BPSK if v==1, but yest defined in
 		 * enum fe_modulation
 		 */
 		c->layer[1].modulation = QPSK;
@@ -595,7 +595,7 @@ static int tc90522_init(struct dvb_frontend *fe)
 	int ret;
 
 	/*
-	 * Because the init sequence is not public,
+	 * Because the init sequence is yest public,
 	 * the parent device/driver should have init'ed the device before.
 	 * just wake up the device here.
 	 */
@@ -619,7 +619,7 @@ static int tc90522_init(struct dvb_frontend *fe)
 		return ret;
 	}
 
-	/* prefer 'all-layers' to 'none' as a default */
+	/* prefer 'all-layers' to 'yesne' as a default */
 	if (fe->dtv_property_cache.isdbt_layer_enabled == 0)
 		fe->dtv_property_cache.isdbt_layer_enabled = 7;
 	return tc90522_set_if_agc(fe, true);

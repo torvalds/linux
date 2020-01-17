@@ -76,8 +76,8 @@ zram_load()
 	elif [ -b /dev/zram0 ]; then
 		echo "/dev/zram0 device file found: OK"
 	else
-		echo "ERROR: No zram.ko module or no /dev/zram0 device found"
-		echo "$TCID : CONFIG_ZRAM is not set"
+		echo "ERROR: No zram.ko module or yes /dev/zram0 device found"
+		echo "$TCID : CONFIG_ZRAM is yest set"
 		exit 1
 	fi
 }
@@ -198,7 +198,7 @@ zram_makefs()
 {
 	local i=0
 	for fs in $zram_filesystems; do
-		# if requested fs not supported default it to ext2
+		# if requested fs yest supported default it to ext2
 		which mkfs.$fs > /dev/null 2>&1 || fs=ext2
 
 		echo "make $fs filesystem on /dev/zram$i"

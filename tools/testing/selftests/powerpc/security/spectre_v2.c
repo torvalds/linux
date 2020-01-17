@@ -179,7 +179,7 @@ int spectre_v2_test(void)
 	case NOT_AFFECTED:
 	case COUNT_CACHE_FLUSH_SW:
 	case COUNT_CACHE_FLUSH_HW:
-		// These should all not affect userspace branch prediction
+		// These should all yest affect userspace branch prediction
 		if (miss_percent > 15) {
 			printf("Branch misses > 15%% unexpected in this configuration!\n");
 			printf("Possible mis-match between reported & actual mitigation\n");

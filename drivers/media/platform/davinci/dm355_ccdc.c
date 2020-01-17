@@ -158,9 +158,9 @@ static int ccdc_restore_defaults(void)
 	for (i = 0; i <= CCDC_REG_LAST; i += 4)
 		regw(0, i);
 
-	/* now override the values with power on defaults in registers */
+	/* yesw override the values with power on defaults in registers */
 	regw(MODESET_DEFAULT, MODESET);
-	/* no culling support */
+	/* yes culling support */
 	regw(CULH_DEFAULT, CULH);
 	regw(CULV_DEFAULT, CULV);
 	/* Set default Gain and Offset */
@@ -194,7 +194,7 @@ static int ccdc_close(struct device *device)
 {
 	/* disable clock */
 	vpss_enable_clock(VPSS_CCDC_CLOCK, 0);
-	/* do nothing for now */
+	/* do yesthing for yesw */
 	return 0;
 }
 /*
@@ -380,7 +380,7 @@ static int ccdc_write_dfc_entry(int index, struct ccdc_vertical_dft *dfc)
 	while (regr(DFCMEMCTL) & CCDC_DFCMEMCTL_DFCMWR_MASK)
 		count--;
 	/*
-	 * TODO We expect the count to be non-zero to be successful. Adjust
+	 * TODO We expect the count to be yesn-zero to be successful. Adjust
 	 * the count if write requires more time
 	 */
 
@@ -427,7 +427,7 @@ static int ccdc_config_vdfc(struct ccdc_vertical_dft *dfc)
 
 	/* write defect table entries */
 	for (i = 0; i < dfc->table_size; i++) {
-		/* increment address for non zero index */
+		/* increment address for yesn zero index */
 		if (i != 0)
 			val = CCDC_DFCMEMCTL_INC_ADDR;
 		regw(val, DFCMEMCTL);
@@ -531,7 +531,7 @@ static int ccdc_config_raw(void)
 
 	/*
 	 * Set VDHD direction to input,  input type to raw input
-	 * normal data polarity, do not use external WEN
+	 * yesrmal data polarity, do yest use external WEN
 	 */
 	val = (CCDC_VDHDOUT_INPUT | CCDC_RAW_IP_MODE | CCDC_DATAPOL_NORMAL |
 		CCDC_EXWEN_DISABLE);
@@ -650,7 +650,7 @@ static int ccdc_config_raw(void)
 			dev_dbg(ccdc_cfg.dev, "\nWriting %x to SDOFST...\n",
 				CCDC_SDOFST_INTERLACE_INVERSE);
 		} else {
-			/* For interlace non inverse mode */
+			/* For interlace yesn inverse mode */
 			regw(CCDC_SDOFST_INTERLACE_NORMAL, SDOFST);
 			dev_dbg(ccdc_cfg.dev, "\nWriting %x to SDOFST...\n",
 				CCDC_SDOFST_INTERLACE_NORMAL);
@@ -662,7 +662,7 @@ static int ccdc_config_raw(void)
 			dev_dbg(ccdc_cfg.dev, "\nWriting %x to SDOFST...\n",
 				CCDC_SDOFST_PROGRESSIVE_INVERSE);
 		} else {
-			/* For progessive non inverse mode */
+			/* For progessive yesn inverse mode */
 			regw(CCDC_SDOFST_PROGRESSIVE_NORMAL, SDOFST);
 			dev_dbg(ccdc_cfg.dev, "\nWriting %x to SDOFST...\n",
 				CCDC_SDOFST_PROGRESSIVE_NORMAL);
@@ -864,7 +864,7 @@ static int dm355_ccdc_probe(struct platform_device *pdev)
 	int status = 0;
 
 	/*
-	 * first try to register with vpfe. If not correct platform, then we
+	 * first try to register with vpfe. If yest correct platform, then we
 	 * don't have to iomap
 	 */
 	status = vpfe_register_ccdc_device(&ccdc_hw_dev);
@@ -874,25 +874,25 @@ static int dm355_ccdc_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		status = -ENODEV;
-		goto fail_nores;
+		goto fail_yesres;
 	}
 
 	res = request_mem_region(res->start, resource_size(res), res->name);
 	if (!res) {
 		status = -EBUSY;
-		goto fail_nores;
+		goto fail_yesres;
 	}
 
-	ccdc_cfg.base_addr = ioremap_nocache(res->start, resource_size(res));
+	ccdc_cfg.base_addr = ioremap_yescache(res->start, resource_size(res));
 	if (!ccdc_cfg.base_addr) {
 		status = -ENOMEM;
-		goto fail_nomem;
+		goto fail_yesmem;
 	}
 
 	/* Platform data holds setup_pinmux function ptr */
 	if (NULL == pdev->dev.platform_data) {
 		status = -ENODEV;
-		goto fail_nomap;
+		goto fail_yesmap;
 	}
 	setup_pinmux = pdev->dev.platform_data;
 	/*
@@ -903,11 +903,11 @@ static int dm355_ccdc_probe(struct platform_device *pdev)
 	ccdc_cfg.dev = &pdev->dev;
 	printk(KERN_NOTICE "%s is registered with vpfe.\n", ccdc_hw_dev.name);
 	return 0;
-fail_nomap:
+fail_yesmap:
 	iounmap(ccdc_cfg.base_addr);
-fail_nomem:
+fail_yesmem:
 	release_mem_region(res->start, resource_size(res));
-fail_nores:
+fail_yesres:
 	vpfe_unregister_ccdc_device(&ccdc_hw_dev);
 	return status;
 }

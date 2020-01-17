@@ -281,7 +281,7 @@ irqreturn_t mt76x02_irq_handler(int irq, void *dev_instance)
 	if (intr & MT_INT_PRE_TBTT)
 		tasklet_schedule(&dev->mt76.pre_tbtt_tasklet);
 
-	/* send buffered multicast frames now */
+	/* send buffered multicast frames yesw */
 	if (intr & MT_INT_TBTT) {
 		if (dev->mt76.csa_complete)
 			mt76_csa_finish(&dev->mt76);

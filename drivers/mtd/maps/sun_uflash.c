@@ -11,7 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/fs.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -48,7 +48,7 @@ struct map_info uflash_map_templ = {
 	.bankwidth =	UFLASH_BUSWIDTH,
 };
 
-int uflash_devinit(struct platform_device *op, struct device_node *dp)
+int uflash_devinit(struct platform_device *op, struct device_yesde *dp)
 {
 	struct uflash_dev *up;
 
@@ -64,7 +64,7 @@ int uflash_devinit(struct platform_device *op, struct device_node *dp)
 
 	up = kzalloc(sizeof(struct uflash_dev), GFP_KERNEL);
 	if (!up) {
-		printk(KERN_ERR PFX "Cannot allocate struct uflash_dev\n");
+		printk(KERN_ERR PFX "Canyest allocate struct uflash_dev\n");
 		return -ENOMEM;
 	}
 
@@ -110,7 +110,7 @@ int uflash_devinit(struct platform_device *op, struct device_node *dp)
 
 static int uflash_probe(struct platform_device *op)
 {
-	struct device_node *dp = op->dev.of_node;
+	struct device_yesde *dp = op->dev.of_yesde;
 
 	/* Flashprom must have the "user" property in order to
 	 * be used by this driver.

@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: MIT */
 /*
- * drm_panel_orientation_quirks.c -- Quirks for non-normal panel orientation
+ * drm_panel_orientation_quirks.c -- Quirks for yesn-yesrmal panel orientation
  *
  * Copyright (C) 2017 Hans de Goede <hdegoede@redhat.com>
  *
  * Note the quirks in this file are shared with fbdev/efifb and as such
- * must not depend on other drm code.
+ * must yest depend on other drm code.
  */
 
 #include <linux/dmi.h>
@@ -17,10 +17,10 @@
 
 /*
  * Some x86 clamshell design devices use portrait tablet screens and a display
- * engine which cannot rotate in hardware, so we need to rotate the fbcon to
+ * engine which canyest rotate in hardware, so we need to rotate the fbcon to
  * compensate. Unfortunately these (cheap) devices also typically have quite
  * generic DMI data, so we match on a combination of DMI data, screen resolution
- * and a list of known BIOS dates to avoid false positives.
+ * and a list of kyeswn BIOS dates to avoid false positives.
  */
 
 struct drm_dmi_panel_orientation_data {
@@ -136,7 +136,7 @@ static const struct dmi_system_id orientation_data[] = {
 		},
 		.driver_data = (void *)&lcd720x1280_rightside_up,
 	}, {	/*
-		 * GPD Pocket, note that the the DMI data is less generic then
+		 * GPD Pocket, yeste that the the DMI data is less generic then
 		 * it seems, devices with a board-vendor of "AMI Corporation"
 		 * are quite rare, as are devices which have both board- *and*
 		 * product-id set to "Default String"
@@ -156,7 +156,7 @@ static const struct dmi_system_id orientation_data[] = {
 		  DMI_EXACT_MATCH(DMI_BOARD_NAME, "Default string"),
 		},
 		.driver_data = (void *)&gpd_pocket2,
-	}, {	/* GPD Win (same note on DMI match as GPD Pocket) */
+	}, {	/* GPD Win (same yeste on DMI match as GPD Pocket) */
 		.matches = {
 		  DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "AMI Corporation"),
 		  DMI_EXACT_MATCH(DMI_BOARD_NAME, "Default string"),
@@ -181,7 +181,7 @@ static const struct dmi_system_id orientation_data[] = {
 		},
 		.driver_data = (void *)&itworks_tw891,
 	}, {	/*
-		 * Lenovo Ideapad Miix 310 laptop, only some production batches
+		 * Leyesvo Ideapad Miix 310 laptop, only some production batches
 		 * have a portrait screen, the resolution checks makes the quirk
 		 * apply only to those batches.
 		 */
@@ -191,18 +191,18 @@ static const struct dmi_system_id orientation_data[] = {
 		  DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "MIIX 310-10ICR"),
 		},
 		.driver_data = (void *)&lcd800x1280_rightside_up,
-	}, {	/* Lenovo Ideapad Miix 320 */
+	}, {	/* Leyesvo Ideapad Miix 320 */
 		.matches = {
 		  DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 		  DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "80XF"),
-		  DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "Lenovo MIIX 320-10ICR"),
+		  DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "Leyesvo MIIX 320-10ICR"),
 		},
 		.driver_data = (void *)&lcd800x1280_rightside_up,
-	}, {	/* Lenovo Ideapad D330 */
+	}, {	/* Leyesvo Ideapad D330 */
 		.matches = {
 		  DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 		  DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "81H3"),
-		  DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad D330-10IGM"),
+		  DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "Leyesvo ideapad D330-10IGM"),
 		},
 		.driver_data = (void *)&lcd1200x1920_rightside_up,
 	}, {	/* VIOS LTH17 */
@@ -221,7 +221,7 @@ static const struct dmi_system_id orientation_data[] = {
  * @height: height in pixels of the panel
  *
  * This function checks for platform specific (e.g. DMI based) quirks
- * providing info on panel_orientation for systems where this cannot be
+ * providing info on panel_orientation for systems where this canyest be
  * probed from the hard-/firm-ware. To avoid false-positive this function
  * takes the panel resolution as argument and checks that against the
  * resolution expected by the quirk-table entry.
@@ -232,7 +232,7 @@ static const struct dmi_system_id orientation_data[] = {
  *
  * Returns:
  * A DRM_MODE_PANEL_ORIENTATION_* value if there is a quirk for this system,
- * or DRM_MODE_PANEL_ORIENTATION_UNKNOWN if there is no quirk.
+ * or DRM_MODE_PANEL_ORIENTATION_UNKNOWN if there is yes quirk.
  */
 int drm_get_panel_orientation_quirk(int width, int height)
 {
@@ -268,7 +268,7 @@ EXPORT_SYMBOL(drm_get_panel_orientation_quirk);
 
 #else
 
-/* There are no quirks for non x86 devices yet */
+/* There are yes quirks for yesn x86 devices yet */
 int drm_get_panel_orientation_quirk(int width, int height)
 {
 	return DRM_MODE_PANEL_ORIENTATION_UNKNOWN;

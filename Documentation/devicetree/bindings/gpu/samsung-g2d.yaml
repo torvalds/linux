@@ -12,9 +12,9 @@ maintainers:
 properties:
   compatible:
     enum:
-      - samsung,s5pv210-g2d    # in S5PV210 & Exynos4210 SoC
-      - samsung,exynos4212-g2d # in Exynos4x12 SoCs
-      - samsung,exynos5250-g2d
+      - samsung,s5pv210-g2d    # in S5PV210 & Exyyess4210 SoC
+      - samsung,exyyess4212-g2d # in Exyyess4x12 SoCs
+      - samsung,exyyess5250-g2d
 
   reg:
     maxItems: 1
@@ -31,7 +31,7 @@ if:
   properties:
     compatible:
       contains:
-        const: samsung,exynos5250-g2d
+        const: samsung,exyyess5250-g2d
 
 then:
   properties:

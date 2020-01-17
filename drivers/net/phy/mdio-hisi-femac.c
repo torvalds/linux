@@ -2,7 +2,7 @@
 /*
  * Hisilicon Fast Ethernet MDIO Bus Driver
  *
- * Copyright (c) 2016 HiSilicon Technologies Co., Ltd.
+ * Copyright (c) 2016 HiSilicon Techyeslogies Co., Ltd.
  */
 
 #include <linux/clk.h>
@@ -71,7 +71,7 @@ static int hisi_femac_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 
 static int hisi_femac_mdio_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct mii_bus *bus;
 	struct hisi_femac_mdio_data *data;
 	int ret;

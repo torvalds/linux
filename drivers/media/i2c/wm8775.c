@@ -74,7 +74,7 @@ static int wm8775_write(struct v4l2_subdev *sd, int reg, u16 val)
 		if (i2c_smbus_write_byte_data(client,
 				(reg << 1) | (val >> 8), val & 0xff) == 0)
 			return 0;
-	v4l2_err(sd, "I2C: cannot write %03x to register R%d\n", val, reg);
+	v4l2_err(sd, "I2C: canyest write %03x to register R%d\n", val, reg);
 	return -1;
 }
 
@@ -86,7 +86,7 @@ static void wm8775_set_audio(struct v4l2_subdev *sd, int quietly)
 	u16 volume = (u16)state->vol->val;
 	u16 balance = (u16)state->bal->val;
 
-	/* normalize ( 65535 to 0 -> 255 to 0 (+24dB to -103dB) ) */
+	/* yesrmalize ( 65535 to 0 -> 255 to 0 (+24dB to -103dB) ) */
 	vol_l = (min(65536 - balance, 32768) * volume) >> 23;
 	vol_r = (min(balance, (u16)32768) * volume) >> 23;
 
@@ -110,7 +110,7 @@ static int wm8775_s_routing(struct v4l2_subdev *sd,
 	/* There are 4 inputs and one output. Zero or more inputs
 	   are multiplexed together to the output. Hence there are
 	   16 combinations.
-	   If only one input is active (the normal case) then the
+	   If only one input is active (the yesrmal case) then the
 	   input values 1, 2, 4 or 8 should be used. */
 	if (input > 15) {
 		v4l2_err(sd, "Invalid input %d.\n", input);
@@ -196,11 +196,11 @@ static int wm8775_probe(struct i2c_client *client,
 	struct wm8775_state *state;
 	struct v4l2_subdev *sd;
 	int err;
-	bool is_nova_s = false;
+	bool is_yesva_s = false;
 
 	if (client->dev.platform_data) {
 		struct wm8775_platform_data *data = client->dev.platform_data;
-		is_nova_s = data->is_nova_s;
+		is_yesva_s = data->is_yesva_s;
 	}
 
 	/* Check if the adapter supports the needed features */
@@ -246,7 +246,7 @@ static int wm8775_probe(struct i2c_client *client,
 	/* Powered up */
 	wm8775_write(sd, R13, 0x000);
 
-	if (!is_nova_s) {
+	if (!is_yesva_s) {
 		/* ADC gain +2.5dB, enable zero cross */
 		wm8775_write(sd, R14, 0x1d4);
 		/* ADC gain +2.5dB, enable zero cross */
@@ -264,9 +264,9 @@ static int wm8775_probe(struct i2c_client *client,
 	}
 	/* ALC gain ramp up delay 34 s, ALC gain ramp down delay 33 ms */
 	wm8775_write(sd, R18, 0x0a2);
-	/* Enable noise gate, threshold -72dBfs */
+	/* Enable yesise gate, threshold -72dBfs */
 	wm8775_write(sd, R19, 0x005);
-	if (!is_nova_s) {
+	if (!is_yesva_s) {
 		/* Transient window 4ms, lower PGA gain limit -1dB */
 		wm8775_write(sd, R20, 0x07a);
 		/* LRBOTH = 1, use input 2. */

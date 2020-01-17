@@ -63,48 +63,48 @@ static struct pt_types sgi_pt_types[] = {
 };
 
 
-static struct kmem_cache * efs_inode_cachep;
+static struct kmem_cache * efs_iyesde_cachep;
 
-static struct inode *efs_alloc_inode(struct super_block *sb)
+static struct iyesde *efs_alloc_iyesde(struct super_block *sb)
 {
-	struct efs_inode_info *ei;
-	ei = kmem_cache_alloc(efs_inode_cachep, GFP_KERNEL);
+	struct efs_iyesde_info *ei;
+	ei = kmem_cache_alloc(efs_iyesde_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
-	return &ei->vfs_inode;
+	return &ei->vfs_iyesde;
 }
 
-static void efs_free_inode(struct inode *inode)
+static void efs_free_iyesde(struct iyesde *iyesde)
 {
-	kmem_cache_free(efs_inode_cachep, INODE_INFO(inode));
+	kmem_cache_free(efs_iyesde_cachep, INODE_INFO(iyesde));
 }
 
 static void init_once(void *foo)
 {
-	struct efs_inode_info *ei = (struct efs_inode_info *) foo;
+	struct efs_iyesde_info *ei = (struct efs_iyesde_info *) foo;
 
-	inode_init_once(&ei->vfs_inode);
+	iyesde_init_once(&ei->vfs_iyesde);
 }
 
-static int __init init_inodecache(void)
+static int __init init_iyesdecache(void)
 {
-	efs_inode_cachep = kmem_cache_create("efs_inode_cache",
-				sizeof(struct efs_inode_info), 0,
+	efs_iyesde_cachep = kmem_cache_create("efs_iyesde_cache",
+				sizeof(struct efs_iyesde_info), 0,
 				SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|
 				SLAB_ACCOUNT, init_once);
-	if (efs_inode_cachep == NULL)
+	if (efs_iyesde_cachep == NULL)
 		return -ENOMEM;
 	return 0;
 }
 
-static void destroy_inodecache(void)
+static void destroy_iyesdecache(void)
 {
 	/*
-	 * Make sure all delayed rcu free inodes are flushed before we
+	 * Make sure all delayed rcu free iyesdes are flushed before we
 	 * destroy cache.
 	 */
 	rcu_barrier();
-	kmem_cache_destroy(efs_inode_cachep);
+	kmem_cache_destroy(efs_iyesde_cachep);
 }
 
 static int efs_remount(struct super_block *sb, int *flags, char *data)
@@ -115,8 +115,8 @@ static int efs_remount(struct super_block *sb, int *flags, char *data)
 }
 
 static const struct super_operations efs_superblock_operations = {
-	.alloc_inode	= efs_alloc_inode,
-	.free_inode	= efs_free_inode,
+	.alloc_iyesde	= efs_alloc_iyesde,
+	.free_iyesde	= efs_free_iyesde,
 	.statfs		= efs_statfs,
 	.remount_fs	= efs_remount,
 };
@@ -130,7 +130,7 @@ static const struct export_operations efs_export_ops = {
 static int __init init_efs_fs(void) {
 	int err;
 	pr_info(EFS_VERSION" - http://aeschi.ch.eu.org/efs/\n");
-	err = init_inodecache();
+	err = init_iyesdecache();
 	if (err)
 		goto out1;
 	err = register_filesystem(&efs_fs_type);
@@ -138,14 +138,14 @@ static int __init init_efs_fs(void) {
 		goto out;
 	return 0;
 out:
-	destroy_inodecache();
+	destroy_iyesdecache();
 out1:
 	return err;
 }
 
 static void __exit exit_efs_fs(void) {
 	unregister_filesystem(&efs_fs_type);
-	destroy_inodecache();
+	destroy_iyesdecache();
 }
 
 module_init(init_efs_fs)
@@ -209,7 +209,7 @@ static efs_block_t efs_validate_vh(struct volume_header *vh) {
 				 i, (int)be32_to_cpu(vh->vh_pt[i].pt_firstlbn),
 				 (int)be32_to_cpu(vh->vh_pt[i].pt_nblks),
 				 pt_type, (pt_entry->pt_name) ?
-				 pt_entry->pt_name : "unknown");
+				 pt_entry->pt_name : "unkyeswn");
 		}
 #endif
 		if (IS_EFS(pt_type)) {
@@ -219,11 +219,11 @@ static efs_block_t efs_validate_vh(struct volume_header *vh) {
 	}
 
 	if (slice == -1) {
-		pr_notice("partition table contained no EFS partitions\n");
+		pr_yestice("partition table contained yes EFS partitions\n");
 #ifdef DEBUG
 	} else {
 		pr_info("using slice %d (type %s, offset 0x%x)\n", slice,
-			(pt_entry->pt_name) ? pt_entry->pt_name : "unknown",
+			(pt_entry->pt_name) ? pt_entry->pt_name : "unkyeswn",
 			sblock);
 #endif
 	}
@@ -240,8 +240,8 @@ static int efs_validate_super(struct efs_sb_info *sb, struct efs_super *super) {
 	sb->first_block  = be32_to_cpu(super->fs_firstcg);
 	sb->group_size   = be32_to_cpu(super->fs_cgfsize);
 	sb->data_free    = be32_to_cpu(super->fs_tfree);
-	sb->inode_free   = be32_to_cpu(super->fs_tinode);
-	sb->inode_blocks = be16_to_cpu(super->fs_cgisize);
+	sb->iyesde_free   = be32_to_cpu(super->fs_tiyesde);
+	sb->iyesde_blocks = be16_to_cpu(super->fs_cgisize);
 	sb->total_groups = be16_to_cpu(super->fs_ncg);
     
 	return 0;    
@@ -251,7 +251,7 @@ static int efs_fill_super(struct super_block *s, void *d, int silent)
 {
 	struct efs_sb_info *sb;
 	struct buffer_head *bh;
-	struct inode *root;
+	struct iyesde *root;
 
  	sb = kzalloc(sizeof(struct efs_sb_info), GFP_KERNEL);
 	if (!sb)
@@ -262,7 +262,7 @@ static int efs_fill_super(struct super_block *s, void *d, int silent)
  
 	s->s_magic		= EFS_SUPER_MAGIC;
 	if (!sb_set_blocksize(s, EFS_BLOCKSIZE)) {
-		pr_err("device does not support %d byte blocks\n",
+		pr_err("device does yest support %d byte blocks\n",
 			EFS_BLOCKSIZE);
 		return -EINVAL;
 	}
@@ -271,7 +271,7 @@ static int efs_fill_super(struct super_block *s, void *d, int silent)
 	bh = sb_bread(s, 0);
 
 	if (!bh) {
-		pr_err("cannot read volume header\n");
+		pr_err("canyest read volume header\n");
 		return -EIO;
 	}
 
@@ -289,7 +289,7 @@ static int efs_fill_super(struct super_block *s, void *d, int silent)
 
 	bh = sb_bread(s, sb->fs_start + EFS_SUPER);
 	if (!bh) {
-		pr_err("cannot read superblock\n");
+		pr_err("canyest read superblock\n");
 		return -EIO;
 	}
 		
@@ -313,7 +313,7 @@ static int efs_fill_super(struct super_block *s, void *d, int silent)
 	s->s_export_op = &efs_export_ops;
 	root = efs_iget(s, EFS_ROOTINODE);
 	if (IS_ERR(root)) {
-		pr_err("get root inode failed\n");
+		pr_err("get root iyesde failed\n");
 		return PTR_ERR(root);
 	}
 
@@ -334,13 +334,13 @@ static int efs_statfs(struct dentry *dentry, struct kstatfs *buf) {
 	buf->f_type    = EFS_SUPER_MAGIC;	/* efs magic number */
 	buf->f_bsize   = EFS_BLOCKSIZE;		/* blocksize */
 	buf->f_blocks  = sbi->total_groups *	/* total data blocks */
-			(sbi->group_size - sbi->inode_blocks);
+			(sbi->group_size - sbi->iyesde_blocks);
 	buf->f_bfree   = sbi->data_free;	/* free data blocks */
-	buf->f_bavail  = sbi->data_free;	/* free blocks for non-root */
-	buf->f_files   = sbi->total_groups *	/* total inodes */
-			sbi->inode_blocks *
-			(EFS_BLOCKSIZE / sizeof(struct efs_dinode));
-	buf->f_ffree   = sbi->inode_free;	/* free inodes */
+	buf->f_bavail  = sbi->data_free;	/* free blocks for yesn-root */
+	buf->f_files   = sbi->total_groups *	/* total iyesdes */
+			sbi->iyesde_blocks *
+			(EFS_BLOCKSIZE / sizeof(struct efs_diyesde));
+	buf->f_ffree   = sbi->iyesde_free;	/* free iyesdes */
 	buf->f_fsid.val[0] = (u32)id;
 	buf->f_fsid.val[1] = (u32)(id >> 32);
 	buf->f_namelen = EFS_MAXNAMELEN;	/* max filename length */

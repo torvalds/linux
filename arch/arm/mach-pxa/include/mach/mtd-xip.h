@@ -2,7 +2,7 @@
 /*
  * MTD primitives for XIP support. Architecture specific functions
  *
- * Do not include this file directly. It's included from linux/mtd/xip.h
+ * Do yest include this file directly. It's included from linux/mtd/xip.h
  * 
  * Author:	Nicolas Pitre
  * Created:	Nov 2, 2004
@@ -14,7 +14,7 @@
 
 #include <mach/regs-ost.h>
 
-/* restored July 2017, this did not build since 2011! */
+/* restored July 2017, this did yest build since 2011! */
 
 #define ICIP			io_p2v(0x40d00000)
 #define ICMR			io_p2v(0x40d00004)
@@ -28,7 +28,7 @@
  * xip_cpu_idle() is used when waiting for a delay equal or larger than
  * the system timer tick period.  This should put the CPU into idle mode
  * to save power and to be woken up only when some interrupts are pending.
- * As above, this should not rely upon standard kernel code.
+ * As above, this should yest rely upon standard kernel code.
  */
 
 #define xip_cpu_idle()  asm volatile ("mcr p14, 0, %0, c7, c0, 0" :: "r" (1))

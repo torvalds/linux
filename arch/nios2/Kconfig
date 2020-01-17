@@ -80,9 +80,9 @@ config NIOS2_ALIGNMENT_TRAP
 	bool "Catch alignment trap"
 	default y
 	help
-	  Nios II CPUs cannot fetch/store data which is not bus aligned,
+	  Nios II CPUs canyest fetch/store data which is yest bus aligned,
 	  i.e., a 2 or 4 byte fetch must start at an address divisible by
-	  2 or 4. Any non-aligned load/store instructions will be trapped and
+	  2 or 4. Any yesn-aligned load/store instructions will be trapped and
 	  emulated in software if you say Y here, which has a performance
 	  impact.
 
@@ -97,7 +97,7 @@ config CMDLINE
 	default ""
 	depends on CMDLINE_BOOL
 	help
-	  On some platforms, there is currently no way for the boot loader to
+	  On some platforms, there is currently yes way for the boot loader to
 	  pass arguments to the kernel. For these platforms, you can supply
 	  some command-line options at build time by entering them here.  In
 	  other cases you can specify kernel args so that you don't have
@@ -111,13 +111,13 @@ config CMDLINE_FORCE
 	  override those passed by the boot loader.
 
 config NIOS2_CMDLINE_IGNORE_DTB
-	bool "Ignore kernel command string from DTB"
+	bool "Igyesre kernel command string from DTB"
 	depends on CMDLINE_BOOL
 	depends on !CMDLINE_FORCE
 	default y
 	help
-	  Set this to ignore the bootargs property from the devicetree's
-	  chosen node and fall back to CMDLINE if nothing is passed.
+	  Set this to igyesre the bootargs property from the devicetree's
+	  chosen yesde and fall back to CMDLINE if yesthing is passed.
 
 config NIOS2_PASS_CMDLINE
 	bool "Passed kernel command line from u-boot"
@@ -150,7 +150,7 @@ config NIOS2_KERNEL_MMU_REGION_BASE_BOOL
 	help
 	  This option allows you to set the virtual address of the kernel MMU region.
 
-	  Say N here unless you know what you are doing.
+	  Say N here unless you kyesw what you are doing.
 
 config NIOS2_KERNEL_MMU_REGION_BASE
 	hex "Virtual base address of the kernel MMU region " if NIOS2_KERNEL_MMU_REGION_BASE_BOOL
@@ -164,7 +164,7 @@ config NIOS2_KERNEL_REGION_BASE_BOOL
 	help
 	  This option allows you to set the virtual address of the kernel region.
 
-	  Say N here unless you know what you are doing.
+	  Say N here unless you kyesw what you are doing.
 
 config NIOS2_KERNEL_REGION_BASE
 	hex "Virtual base address of the kernel region " if NIOS2_KERNEL_REGION_BASE_BOOL
@@ -176,7 +176,7 @@ config NIOS2_IO_REGION_BASE_BOOL
 	help
 	  This option allows you to set the virtual address of the I/O region.
 
-	  Say N here unless you know what you are doing.
+	  Say N here unless you kyesw what you are doing.
 
 config NIOS2_IO_REGION_BASE
 	hex "Virtual base address of the I/O region" if NIOS2_IO_REGION_BASE_BOOL

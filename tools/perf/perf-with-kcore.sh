@@ -149,12 +149,12 @@ record()
 		fi
 
 		if echo "${PERF_OPTIONS[@]}" | grep -q ' -a \|^-a \| -a$\|^-a$\| --all-cpus \|^--all-cpus \| --all-cpus$\|^--all-cpus$' ; then
-			echo "*** WARNING *** system-wide tracing without root access will not be able to read all necessary information from /proc" >&2
+			echo "*** WARNING *** system-wide tracing without root access will yest be able to read all necessary information from /proc" >&2
 		fi
 
 		if echo "${PERF_OPTIONS[@]}" | grep -q 'intel_pt\|intel_bts\| -I\|^-I' ; then
-			if [ "$(cat /proc/sys/kernel/perf_event_paranoid)" -gt -1 ] ; then
-				echo "*** WARNING *** /proc/sys/kernel/perf_event_paranoid restricts buffer size and tracepoint (sched_switch) use" >&2
+			if [ "$(cat /proc/sys/kernel/perf_event_parayesid)" -gt -1 ] ; then
+				echo "*** WARNING *** /proc/sys/kernel/perf_event_parayesid restricts buffer size and tracepoint (sched_switch) use" >&2
 			fi
 
 			if echo "${PERF_OPTIONS[@]}" | grep -q ' --per-thread \|^--per-thread \| --per-thread$\|^--per-thread$' ; then

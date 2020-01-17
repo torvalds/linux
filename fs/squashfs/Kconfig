@@ -6,7 +6,7 @@ config SQUASHFS
 	  Saying Y here includes support for SquashFS 4.0 (a Compressed
 	  Read-Only File System).  Squashfs is a highly compressed read-only
 	  filesystem for Linux.  It uses zlib, lzo or xz compression to
-	  compress both files, inodes and directories.  Inodes in the system
+	  compress both files, iyesdes and directories.  Iyesdes in the system
 	  are very small and all blocks are packed to minimise data overhead.
 	  Block sizes greater than 4K are supported up to a maximum of 1 Mbytes
 	  (default block size 128K).  SquashFS 4.0 supports 64 bit filesystems
@@ -21,7 +21,7 @@ config SQUASHFS
 	  If you want to compile this as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want),
 	  say M here.  The module will be called squashfs.  Note that the root
-	  file system (the one containing the directory /) cannot be compiled
+	  file system (the one containing the directory /) canyest be compiled
 	  as a module.
 
 	  If unsure, say N.
@@ -30,10 +30,10 @@ choice
 	prompt "File decompression options"
 	depends on SQUASHFS
 	help
-	  Squashfs now supports two options for decompressing file
+	  Squashfs yesw supports two options for decompressing file
 	  data.  Traditionally Squashfs has decompressed into an
 	  intermediate buffer and then memcopied it into the page cache.
-	  Squashfs now supports the ability to decompress directly into
+	  Squashfs yesw supports the ability to decompress directly into
 	  the page cache.
 
 	  If unsure, select "Decompress file data into an intermediate buffer"
@@ -58,7 +58,7 @@ choice
 	prompt "Decompressor parallelisation options"
 	depends on SQUASHFS
 	help
-	  Squashfs now supports three parallelisation options for
+	  Squashfs yesw supports three parallelisation options for
 	  decompression.  Each one exhibits various trade-offs between
 	  decompression performance and CPU and memory usage.
 
@@ -78,7 +78,7 @@ config SQUASHFS_DECOMP_MULTI
 	  poor performance on parallel I/O workloads when using multiple CPU
 	  machines due to waiting on decompressor availability.
 
-	  If you have a parallel I/O workload and your system has enough memory,
+	  If you have a parallel I/O workload and your system has eyesugh memory,
 	  using this option may improve overall I/O performance.
 
 	  This decompressor implementation uses up to two parallel
@@ -103,7 +103,7 @@ config SQUASHFS_XATTR
 	depends on SQUASHFS
 	help
 	  Saying Y here includes support for extended attributes (xattrs).
-	  Xattrs are name:value pairs associated with inodes by
+	  Xattrs are name:value pairs associated with iyesdes by
 	  the kernel or by users (see the attr(5) manual page).
 
 	  If unsure, say N.
@@ -131,7 +131,7 @@ config SQUASHFS_LZ4
 	  aimed at embedded systems with slower CPUs where the overheads
 	  of zlib are too high.
 
-	  LZ4 is not the standard compression used in Squashfs and so most
+	  LZ4 is yest the standard compression used in Squashfs and so most
 	  file systems will be readable without selecting this option.
 
 	  If unsure, say N.
@@ -146,7 +146,7 @@ config SQUASHFS_LZO
 	  aimed at embedded systems with slower CPUs where the overheads
 	  of zlib are too high.
 
-	  LZO is not the standard compression used in Squashfs and so most
+	  LZO is yest the standard compression used in Squashfs and so most
 	  file systems will be readable without selecting this option.
 
 	  If unsure, say N.
@@ -161,7 +161,7 @@ config SQUASHFS_XZ
 	  the default zlib compression, at the expense of greater CPU and
 	  memory overhead.
 
-	  XZ is not the standard compression used in Squashfs and so most
+	  XZ is yest the standard compression used in Squashfs and so most
 	  file systems will be readable without selecting this option.
 
 	  If unsure, say N.
@@ -175,7 +175,7 @@ config SQUASHFS_ZSTD
 	  compressed with ZSTD compression.  ZSTD gives better compression than
 	  the default ZLIB compression, while using less CPU.
 
-	  ZSTD is not the standard compression used in Squashfs and so most
+	  ZSTD is yest the standard compression used in Squashfs and so most
 	  file systems will be readable without selecting this option.
 
 	  If unsure, say N.
@@ -222,4 +222,4 @@ config SQUASHFS_FRAGMENT_CACHE_SIZE
 	  SquashFS uses less memory at the expense of extra reads from disk.
 
 	  Note there must be at least one cached fragment.  Anything
-	  much more than three will probably not make much difference.
+	  much more than three will probably yest make much difference.

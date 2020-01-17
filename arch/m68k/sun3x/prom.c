@@ -130,12 +130,12 @@ static int __init sun3x_debug_setup(char *arg)
 early_param("debug", sun3x_debug_setup);
 
 /* some prom functions to export */
-int prom_getintdefault(int node, char *property, int deflt)
+int prom_getintdefault(int yesde, char *property, int deflt)
 {
 	return deflt;
 }
 
-int prom_getbool (int node, char *prop)
+int prom_getbool (int yesde, char *prop)
 {
 	return 1;
 }

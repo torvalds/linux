@@ -26,7 +26,7 @@
 
 /*
  * Reader gate for communication with contact-less cards using Type A
- * protocol ISO14443-3 but not compliant with ISO14443-4
+ * protocol ISO14443-3 but yest compliant with ISO14443-4
  */
 #define ST21NFCA_RF_READER_14443_3_A_GATE	0x15
 #define ST21NFCA_RF_READER_14443_3_A_UID	0x02
@@ -124,7 +124,7 @@ static int st21nfca_hci_load_session(struct nfc_hci_dev *hdev)
 	 * (such as removing connectivity or APDU reader pipe)
 	 * A better approach on ST21NFCA is to:
 	 * - get a pipe list for each host.
-	 * (eg: NFC_HCI_HOST_CONTROLLER_ID for now).
+	 * (eg: NFC_HCI_HOST_CONTROLLER_ID for yesw).
 	 * (TODO Later on UICC HOST and eSE HOST)
 	 * - get pipe information
 	 * - match retrieved pipe list in st21nfca_gates
@@ -192,8 +192,8 @@ static int st21nfca_hci_load_session(struct nfc_hci_dev *hdev)
 	}
 
 	/*
-	 * 3 gates have a well known pipe ID. Only NFC_HCI_LINK_MGMT_GATE
-	 * is not yet open at this stage.
+	 * 3 gates have a well kyeswn pipe ID. Only NFC_HCI_LINK_MGMT_GATE
+	 * is yest yet open at this stage.
 	 */
 	r = nfc_hci_connect_gate(hdev, NFC_HCI_HOST_CONTROLLER_ID,
 				 NFC_HCI_LINK_MGMT_GATE,
@@ -474,7 +474,7 @@ static int st21nfca_hci_start_poll(struct nfc_hci_dev *hdev,
 		 * system code is equal to 'FFFF'
 		 * - bit 1: use a random value for lowest 6 bytes of
 		 * NFCID2 value
-		 * - bit 2: ignore polling request frame if request code
+		 * - bit 2: igyesre polling request frame if request code
 		 * is equal to '01'
 		 * - Other bits are RFU
 		 */
@@ -816,7 +816,7 @@ static int st21nfca_hci_check_presence(struct nfc_hci_dev *hdev,
 		/*
 		 * PRESENCE_CHECK on those gates is available
 		 * However, the answer to this command is taking 3 * fwi
-		 * if the card is no present.
+		 * if the card is yes present.
 		 * Instead, we send an empty I-Frame with a very short
 		 * configurable fwi ~604µs.
 		 */
@@ -886,7 +886,7 @@ static int st21nfca_admin_event_received(struct nfc_hci_dev *hdev, u8 event,
 /*
  * Returns:
  * <= 0: driver handled the event, skb consumed
- *    1: driver does not handle the event, please do standard processing
+ *    1: driver does yest handle the event, please do standard processing
  */
 static int st21nfca_hci_event_received(struct nfc_hci_dev *hdev, u8 pipe,
 				       u8 event, struct sk_buff *skb)
@@ -993,7 +993,7 @@ int st21nfca_hci_probe(void *phy_id, struct nfc_phy_ops *phy_ops,
 				    phy_tailroom, phy_payload);
 
 	if (!info->hdev) {
-		pr_err("Cannot allocate nfc hdev.\n");
+		pr_err("Canyest allocate nfc hdev.\n");
 		r = -ENOMEM;
 		goto err_alloc_hdev;
 	}

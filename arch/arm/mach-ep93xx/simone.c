@@ -7,7 +7,7 @@
  *
  * Based on the 2.6.24.7 support:
  *   Copyright (C) 2009 Simplemachines
- *   MMC support by Peter Ivanov <ivanovp@gmail.com>, 2007
+ *   MMC support by Peter Ivayesv <ivayesvp@gmail.com>, 2007
  */
 
 #include <linux/kernel.h>

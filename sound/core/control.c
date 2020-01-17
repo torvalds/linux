@@ -13,7 +13,7 @@
 #include <linux/mm.h>
 #include <linux/sched/signal.h>
 #include <sound/core.h>
-#include <sound/minors.h>
+#include <sound/miyesrs.h>
 #include <sound/info.h>
 #include <sound/control.h>
 
@@ -32,18 +32,18 @@ static LIST_HEAD(snd_control_ioctls);
 static LIST_HEAD(snd_control_compat_ioctls);
 #endif
 
-static int snd_ctl_open(struct inode *inode, struct file *file)
+static int snd_ctl_open(struct iyesde *iyesde, struct file *file)
 {
 	unsigned long flags;
 	struct snd_card *card;
 	struct snd_ctl_file *ctl;
 	int i, err;
 
-	err = stream_open(inode, file);
+	err = stream_open(iyesde, file);
 	if (err < 0)
 		return err;
 
-	card = snd_lookup_minor_data(iminor(inode), SNDRV_DEVICE_TYPE_CONTROL);
+	card = snd_lookup_miyesr_data(imiyesr(iyesde), SNDRV_DEVICE_TYPE_CONTROL);
 	if (!card) {
 		err = -ENODEV;
 		goto __error1;
@@ -100,7 +100,7 @@ static void snd_ctl_empty_read_queue(struct snd_ctl_file * ctl)
 	spin_unlock_irqrestore(&ctl->read_lock, flags);
 }
 
-static int snd_ctl_release(struct inode *inode, struct file *file)
+static int snd_ctl_release(struct iyesde *iyesde, struct file *file)
 {
 	unsigned long flags;
 	struct snd_card *card;
@@ -129,16 +129,16 @@ static int snd_ctl_release(struct inode *inode, struct file *file)
 }
 
 /**
- * snd_ctl_notify - Send notification to user-space for a control change
- * @card: the card to send notification
+ * snd_ctl_yestify - Send yestification to user-space for a control change
+ * @card: the card to send yestification
  * @mask: the event mask, SNDRV_CTL_EVENT_*
- * @id: the ctl element id to send notification
+ * @id: the ctl element id to send yestification
  *
  * This function adds an event record with the given id and mask, appends
- * to the list and wakes up the user-space for notification.  This can be
+ * to the list and wakes up the user-space for yestification.  This can be
  * called in the atomic context.
  */
-void snd_ctl_notify(struct snd_card *card, unsigned int mask,
+void snd_ctl_yestify(struct snd_card *card, unsigned int mask,
 		    struct snd_ctl_elem_id *id)
 {
 	unsigned long flags;
@@ -178,7 +178,7 @@ void snd_ctl_notify(struct snd_card *card, unsigned int mask,
 	}
 	read_unlock(&card->ctl_files_rwlock);
 }
-EXPORT_SYMBOL(snd_ctl_notify);
+EXPORT_SYMBOL(snd_ctl_yestify);
 
 /**
  * snd_ctl_new - create a new control instance with some elements
@@ -301,7 +301,7 @@ static bool snd_ctl_remove_numid_conflict(struct snd_card *card,
 {
 	struct snd_kcontrol *kctl;
 
-	/* Make sure that the ids assigned to the control do not wrap around */
+	/* Make sure that the ids assigned to the control do yest wrap around */
 	if (card->last_numid >= UINT_MAX - count)
 		card->last_numid = 0;
 
@@ -377,7 +377,7 @@ static int __snd_ctl_add_replace(struct snd_card *card,
 	id = kcontrol->id;
 	count = kcontrol->count;
 	for (idx = 0; idx < count; idx++, id.index++, id.numid++)
-		snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_ADD, &id);
+		snd_ctl_yestify(card, SNDRV_CTL_EVENT_MASK_ADD, &id);
 
 	return 0;
 }
@@ -414,7 +414,7 @@ static int snd_ctl_add_replace(struct snd_card *card,
  * snd_ctl_new1() to the given card. Assigns also an unique
  * numid used for fast search.
  *
- * It frees automatically the control which cannot be added.
+ * It frees automatically the control which canyest be added.
  *
  * Return: Zero if successful, or a negative error code on failure.
  *
@@ -429,13 +429,13 @@ EXPORT_SYMBOL(snd_ctl_add);
  * snd_ctl_replace - replace the control instance of the card
  * @card: the card instance
  * @kcontrol: the control instance to replace
- * @add_on_replace: add the control if not already added
+ * @add_on_replace: add the control if yest already added
  *
- * Replaces the given control.  If the given control does not exist
+ * Replaces the given control.  If the given control does yest exist
  * and the add_on_replace flag is set, the control is added.  If the
  * control exists, it is destroyed first.
  *
- * It frees automatically the control which cannot be added or replaced.
+ * It frees automatically the control which canyest be added or replaced.
  *
  * Return: Zero if successful, or a negative error code on failure.
  */
@@ -469,7 +469,7 @@ int snd_ctl_remove(struct snd_card *card, struct snd_kcontrol *kcontrol)
 	card->controls_count -= kcontrol->count;
 	id = kcontrol->id;
 	for (idx = 0; idx < kcontrol->count; idx++, id.index++, id.numid++)
-		snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_REMOVE, &id);
+		snd_ctl_yestify(card, SNDRV_CTL_EVENT_MASK_REMOVE, &id);
 	snd_ctl_free_one(kcontrol);
 	return 0;
 }
@@ -547,10 +547,10 @@ error:
  * snd_ctl_activate_id - activate/inactivate the control of the given id
  * @card: the card instance
  * @id: the control id to activate/inactivate
- * @active: non-zero to activate
+ * @active: yesn-zero to activate
  *
  * Finds the control instance with the given id, and activate or
- * inactivate the control together with notification, if changed.
+ * inactivate the control together with yestification, if changed.
  * The given ID data is filled with full information.
  *
  * Return: 0 if unchanged, 1 if changed, or a negative error code on failure.
@@ -586,7 +586,7 @@ int snd_ctl_activate_id(struct snd_card *card, struct snd_ctl_elem_id *id,
  unlock:
 	up_write(&card->controls_rwsem);
 	if (ret > 0)
-		snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_INFO, id);
+		snd_ctl_yestify(card, SNDRV_CTL_EVENT_MASK_INFO, id);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_ctl_activate_id);
@@ -631,7 +631,7 @@ EXPORT_SYMBOL(snd_ctl_rename_id);
  * The caller must down card->controls_rwsem before calling this function
  * (if the race condition can happen).
  *
- * Return: The pointer of the instance if found, or %NULL if not.
+ * Return: The pointer of the instance if found, or %NULL if yest.
  *
  */
 struct snd_kcontrol *snd_ctl_find_numid(struct snd_card *card, unsigned int numid)
@@ -658,7 +658,7 @@ EXPORT_SYMBOL(snd_ctl_find_numid);
  * The caller must down card->controls_rwsem before calling this function
  * (if the race condition can happen).
  *
- * Return: The pointer of the instance if found, or %NULL if not.
+ * Return: The pointer of the instance if found, or %NULL if yest.
  *
  */
 struct snd_kcontrol *snd_ctl_find_id(struct snd_card *card,
@@ -918,7 +918,7 @@ static int snd_ctl_elem_write(struct snd_card *card, struct snd_ctl_file *file,
 
 	if (result > 0) {
 		struct snd_ctl_elem_id id = control->id;
-		snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE, &id);
+		snd_ctl_yestify(card, SNDRV_CTL_EVENT_MASK_VALUE, &id);
 	}
 
 	return 0;
@@ -1125,7 +1125,7 @@ static int replace_user_tlv(struct snd_kcontrol *kctl, unsigned int __user *buf,
 	mask |= SNDRV_CTL_EVENT_MASK_TLV;
 	for (i = 0; i < kctl->count; ++i) {
 		snd_ctl_build_ioff(&id, kctl, i);
-		snd_ctl_notify(ue->card, mask, &id);
+		snd_ctl_yestify(ue->card, mask, &id);
 	}
 
 	return change;
@@ -1172,7 +1172,7 @@ static int snd_ctl_elem_init_enum_names(struct user_element *ue)
 	if (IS_ERR(names))
 		return PTR_ERR(names);
 
-	/* check that there are enough valid names */
+	/* check that there are eyesugh valid names */
 	buf_len = ue->info.value.enumerated.names_length;
 	p = names;
 	for (i = 0; i < ue->info.value.enumerated.items; ++i) {
@@ -1244,7 +1244,7 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 
 	/*
 	 * The number of userspace controls are counted control by control,
-	 * not element by element.
+	 * yest element by element.
 	 */
 	if (card->user_ctl_count + 1 > MAX_USER_CONTROLS)
 		return -ENOMEM;
@@ -1262,7 +1262,7 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 		   SNDRV_CTL_ELEM_ACCESS_INACTIVE |
 		   SNDRV_CTL_ELEM_ACCESS_TLV_WRITE);
 
-	/* In initial state, nothing is available as TLV container. */
+	/* In initial state, yesthing is available as TLV container. */
 	if (access & SNDRV_CTL_ELEM_ACCESS_TLV_WRITE)
 		access |= SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK;
 	access |= SNDRV_CTL_ELEM_ACCESS_USER;
@@ -1339,8 +1339,8 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 	offset = snd_ctl_get_ioff(kctl, &info->id);
 	snd_ctl_build_ioff(&info->id, kctl, offset);
 	/*
-	 * Here we cannot fill any field for the number of elements added by
-	 * this operation because there're no specific fields. The usage of
+	 * Here we canyest fill any field for the number of elements added by
+	 * this operation because there're yes specific fields. The usage of
 	 * 'owner' field for this purpose may cause any bugs to userspace
 	 * applications because the field originally means PID of a process
 	 * which locks the element.
@@ -1577,7 +1577,7 @@ static long snd_ctl_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 		}
 	}
 	up_read(&snd_ioctl_rwsem);
-	dev_dbg(card->dev, "unknown ioctl = 0x%x\n", cmd);
+	dev_dbg(card->dev, "unkyeswn ioctl = 0x%x\n", cmd);
 	return -ENOTTY;
 }
 
@@ -1794,7 +1794,7 @@ static const struct file_operations snd_ctl_f_ops =
 	.read =		snd_ctl_read,
 	.open =		snd_ctl_open,
 	.release =	snd_ctl_release,
-	.llseek =	no_llseek,
+	.llseek =	yes_llseek,
 	.poll =		snd_ctl_poll,
 	.unlocked_ioctl =	snd_ctl_ioctl,
 	.compat_ioctl =	snd_ctl_ioctl_compat,
@@ -1880,15 +1880,15 @@ int snd_ctl_create(struct snd_card *card)
  */
 
 /**
- * snd_ctl_boolean_mono_info - Helper function for a standard boolean info
- * callback with a mono channel
+ * snd_ctl_boolean_moyes_info - Helper function for a standard boolean info
+ * callback with a moyes channel
  * @kcontrol: the kcontrol instance
  * @uinfo: info to store
  *
  * This is a function that can be used as info callback for a standard
- * boolean control with a single mono channel.
+ * boolean control with a single moyes channel.
  */
-int snd_ctl_boolean_mono_info(struct snd_kcontrol *kcontrol,
+int snd_ctl_boolean_moyes_info(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
@@ -1897,7 +1897,7 @@ int snd_ctl_boolean_mono_info(struct snd_kcontrol *kcontrol,
 	uinfo->value.integer.max = 1;
 	return 0;
 }
-EXPORT_SYMBOL(snd_ctl_boolean_mono_info);
+EXPORT_SYMBOL(snd_ctl_boolean_moyes_info);
 
 /**
  * snd_ctl_boolean_stereo_info - Helper function for a standard boolean info
@@ -1927,7 +1927,7 @@ EXPORT_SYMBOL(snd_ctl_boolean_stereo_info);
  * @names: an array containing the names of all control values
  *
  * Sets all required fields in @info to their appropriate values.
- * If the control's accessibility is not the default (readable and writable),
+ * If the control's accessibility is yest the default (readable and writable),
  * the caller has to fill @info->access.
  *
  * Return: Zero.

@@ -52,7 +52,7 @@ void ufs_qcom_phy_qmp_14nm_power_control(struct ufs_qcom_phy *phy, bool val)
 {
 	writel_relaxed(val ? 0x1 : 0x0, phy->mmio + UFS_PHY_POWER_DOWN_CONTROL);
 	/*
-	 * Before any transactions involving PHY, ensure PHY knows
+	 * Before any transactions involving PHY, ensure PHY kyesws
 	 * that it's analog rail is powered ON (or OFF).
 	 */
 	mb();
@@ -62,8 +62,8 @@ static inline
 void ufs_qcom_phy_qmp_14nm_set_tx_lane_enable(struct ufs_qcom_phy *phy, u32 val)
 {
 	/*
-	 * 14nm PHY does not have TX_LANE_ENABLE register.
-	 * Implement this function so as not to propagate error to caller.
+	 * 14nm PHY does yest have TX_LANE_ENABLE register.
+	 * Implement this function so as yest to propagate error to caller.
 	 */
 }
 

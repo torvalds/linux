@@ -25,10 +25,10 @@
 #include "malidp_mw.h"
 
 enum {
-	MW_NOT_ENABLED = 0,	/* SE writeback not enabled */
+	MW_NOT_ENABLED = 0,	/* SE writeback yest enabled */
 	MW_ONESHOT,		/* SE in one-shot mode for writeback */
 	MW_START,		/* SE started writeback */
-	MW_RESTART,		/* SE will start another writeback after this one */
+	MW_RESTART,		/* SE will start ayesther writeback after this one */
 	MW_STOP,		/* SE needs to stop after this writeback */
 };
 
@@ -276,7 +276,7 @@ static int malidp500_query_hw(struct malidp_hw_device *hwdev)
 	hwdev->min_line_size = 2;
 	hwdev->max_line_size = SZ_2K * ln_size_mult;
 	hwdev->rotation_memory[0] = SZ_1K * 64 * ln_size_mult;
-	hwdev->rotation_memory[1] = 0; /* no second rotation memory bank */
+	hwdev->rotation_memory[1] = 0; /* yes second rotation memory bank */
 
 	return 0;
 }
@@ -418,7 +418,7 @@ static int malidp500_rotmem_required(struct malidp_hw_device *hwdev, u16 w,
 				     u16 h, u32 fmt, bool has_modifier)
 {
 	/*
-	 * Each layer needs enough rotation memory to fit 8 lines
+	 * Each layer needs eyesugh rotation memory to fit 8 lines
 	 * worth of pixel data. Required size is then:
 	 *    size = rotated_width * (bpp / 8) * 8;
 	 */
@@ -766,7 +766,7 @@ static int malidp550_rotmem_required(struct malidp_hw_device *hwdev, u16 w,
 	case DRM_FORMAT_YUV420_10BIT:
 		bytes_per_column = 15;
 		break;
-	/* Uncompressed YUV 420 10 bit single plane cannot be rotated */
+	/* Uncompressed YUV 420 10 bit single plane canyest be rotated */
 	case DRM_FORMAT_X0L2:
 		if (has_modifier)
 			bytes_per_column = 8;
@@ -825,7 +825,7 @@ static long malidp550_se_calc_mclk(struct malidp_hw_device *hwdev,
 	unsigned long pxlclk = vm->pixelclock;
 	unsigned long htotal = vm->hactive + vm->hfront_porch +
 			       vm->hback_porch + vm->hsync_len;
-	unsigned long numerator = 1, denominator = 1;
+	unsigned long numerator = 1, deyesminator = 1;
 	long ret;
 
 	if (se_config->scale_enable) {
@@ -834,13 +834,13 @@ static long malidp550_se_calc_mclk(struct malidp_hw_device *hwdev,
 		numerator += se_config->output_w *
 			     (se_config->output_h -
 			      min(se_config->input_h, se_config->output_h));
-		denominator = (htotal - 2) * se_config->output_h;
+		deyesminator = (htotal - 2) * se_config->output_h;
 	}
 
 	/* mclk can't be slower than pxlclk. */
-	if (numerator < denominator)
-		numerator = denominator = 1;
-	mclk = (pxlclk * numerator) / denominator;
+	if (numerator < deyesminator)
+		numerator = deyesminator = 1;
+	mclk = (pxlclk * numerator) / deyesminator;
 	ret = clk_get_rate(hwdev->mclk);
 	if (ret < mclk) {
 		DRM_DEBUG_DRIVER("mclk requirement of %lu kHz can't be met.\n",
@@ -940,7 +940,7 @@ const struct malidp_hw malidp_device[MALIDP_MAX_DEVICES] = {
 			.se_base = MALIDP500_SE_BASE,
 			.dc_base = MALIDP500_DC_BASE,
 			.out_depth_base = MALIDP500_OUTPUT_DEPTH,
-			.features = 0,	/* no CLEARIRQ register */
+			.features = 0,	/* yes CLEARIRQ register */
 			.n_layers = ARRAY_SIZE(malidp500_layers),
 			.layers = malidp500_layers,
 			.de_irq_map = {
@@ -1245,7 +1245,7 @@ void malidp_de_irq_hw_init(struct malidp_hw_device *hwdev)
 	malidp_hw_enable_irq(hwdev, MALIDP_DC_BLOCK,
 			     hwdev->hw->map.dc_irq_map.irq_mask);
 
-	/* now enable the DE block IRQs */
+	/* yesw enable the DE block IRQs */
 	malidp_hw_enable_irq(hwdev, MALIDP_DE_BLOCK,
 			     hwdev->hw->map.de_irq_map.irq_mask);
 }
@@ -1329,9 +1329,9 @@ static irqreturn_t malidp_se_irq(int irq, void *arg)
 			/* writeback started, need to emulate one-shot mode */
 			hw->disable_memwrite(hwdev);
 			/*
-			 * only set config_valid HW bit if there is no other update
+			 * only set config_valid HW bit if there is yes other update
 			 * in progress or if we raced ahead of the DE IRQ handler
-			 * and config_valid flag will not be update until later
+			 * and config_valid flag will yest be update until later
 			 */
 			status = malidp_hw_read(hwdev, hw->map.dc_base + MALIDP_REG_STATUS);
 			if ((atomic_read(&malidp->config_valid) != MALIDP_CONFIG_START) ||

@@ -409,7 +409,7 @@ err_out:
  */
 static void ks8995_parse_dt(struct ks8995_switch *ks)
 {
-	struct device_node *np = ks->spi->dev.of_node;
+	struct device_yesde *np = ks->spi->dev.of_yesde;
 	struct ks8995_pdata *pdata = ks->pdata;
 
 	if (!np)
@@ -449,7 +449,7 @@ static int ks8995_probe(struct spi_device *spi)
 	ks->spi = spi;
 	ks->chip = &ks8995_chip[variant];
 
-	if (ks->spi->dev.of_node) {
+	if (ks->spi->dev.of_yesde) {
 		ks->pdata = devm_kzalloc(&spi->dev, sizeof(*ks->pdata),
 					 GFP_KERNEL);
 		if (!ks->pdata)

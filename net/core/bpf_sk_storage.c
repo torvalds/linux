@@ -20,7 +20,7 @@ struct bucket {
 	raw_spinlock_t lock;
 };
 
-/* Thp map is not the primary owner of a bpf_sk_storage_elem.
+/* Thp map is yest the primary owner of a bpf_sk_storage_elem.
  * Instead, the sk->sk_bpf_storage is.
  *
  * The map (bpf_sk_storage_map) is for two purposes
@@ -40,7 +40,7 @@ struct bucket {
  */
 struct bpf_sk_storage_map {
 	struct bpf_map map;
-	/* Lookup elem does not require accessing the map.
+	/* Lookup elem does yest require accessing the map.
 	 *
 	 * Updating/Deleting requires a bucket lock to
 	 * link/unlink the elem from the map.  Having
@@ -65,8 +65,8 @@ struct bpf_sk_storage_data {
 
 /* Linked to bpf_sk_storage and bpf_sk_storage_map */
 struct bpf_sk_storage_elem {
-	struct hlist_node map_node;	/* Linked to bpf_sk_storage_map */
-	struct hlist_node snode;	/* Linked to bpf_sk_storage */
+	struct hlist_yesde map_yesde;	/* Linked to bpf_sk_storage_map */
+	struct hlist_yesde syesde;	/* Linked to bpf_sk_storage */
 	struct bpf_sk_storage __rcu *sk_storage;
 	struct rcu_head rcu;
 	/* 8 bytes hole */
@@ -110,12 +110,12 @@ static int omem_charge(struct sock *sk, unsigned int size)
 
 static bool selem_linked_to_sk(const struct bpf_sk_storage_elem *selem)
 {
-	return !hlist_unhashed(&selem->snode);
+	return !hlist_unhashed(&selem->syesde);
 }
 
 static bool selem_linked_to_map(const struct bpf_sk_storage_elem *selem)
 {
-	return !hlist_unhashed(&selem->map_node);
+	return !hlist_unhashed(&selem->map_yesde);
 }
 
 static struct bpf_sk_storage_elem *selem_alloc(struct bpf_sk_storage_map *smap,
@@ -161,15 +161,15 @@ static bool __selem_unlink_sk(struct bpf_sk_storage *sk_storage,
 	if (uncharge_omem)
 		atomic_sub(smap->elem_size, &sk->sk_omem_alloc);
 
-	free_sk_storage = hlist_is_singular_node(&selem->snode,
+	free_sk_storage = hlist_is_singular_yesde(&selem->syesde,
 						 &sk_storage->list);
 	if (free_sk_storage) {
 		atomic_sub(sizeof(struct bpf_sk_storage), &sk->sk_omem_alloc);
 		sk_storage->sk = NULL;
-		/* After this RCU_INIT, sk may be freed and cannot be used */
+		/* After this RCU_INIT, sk may be freed and canyest be used */
 		RCU_INIT_POINTER(sk->sk_bpf_storage, NULL);
 
-		/* sk_storage is not freed now.  sk_storage->lock is
+		/* sk_storage is yest freed yesw.  sk_storage->lock is
 		 * still held and raw_spin_unlock_bh(&sk_storage->lock)
 		 * will be done by the caller.
 		 *
@@ -183,7 +183,7 @@ static bool __selem_unlink_sk(struct bpf_sk_storage *sk_storage,
 		 * after unlock.
 		 */
 	}
-	hlist_del_init_rcu(&selem->snode);
+	hlist_del_init_rcu(&selem->syesde);
 	if (rcu_access_pointer(sk_storage->cache[smap->cache_idx]) ==
 	    SDATA(selem))
 		RCU_INIT_POINTER(sk_storage->cache[smap->cache_idx], NULL);
@@ -216,7 +216,7 @@ static void __selem_link_sk(struct bpf_sk_storage *sk_storage,
 			    struct bpf_sk_storage_elem *selem)
 {
 	RCU_INIT_POINTER(selem->sk_storage, sk_storage);
-	hlist_add_head(&selem->snode, &sk_storage->list);
+	hlist_add_head(&selem->syesde, &sk_storage->list);
 }
 
 static void selem_unlink_map(struct bpf_sk_storage_elem *selem)
@@ -232,7 +232,7 @@ static void selem_unlink_map(struct bpf_sk_storage_elem *selem)
 	b = select_bucket(smap, selem);
 	raw_spin_lock_bh(&b->lock);
 	if (likely(selem_linked_to_map(selem)))
-		hlist_del_init_rcu(&selem->map_node);
+		hlist_del_init_rcu(&selem->map_yesde);
 	raw_spin_unlock_bh(&b->lock);
 }
 
@@ -243,7 +243,7 @@ static void selem_link_map(struct bpf_sk_storage_map *smap,
 
 	raw_spin_lock_bh(&b->lock);
 	RCU_INIT_POINTER(SDATA(selem)->smap, smap);
-	hlist_add_head_rcu(&selem->map_node, &b->list);
+	hlist_add_head_rcu(&selem->map_yesde, &b->list);
 	raw_spin_unlock_bh(&b->lock);
 }
 
@@ -271,7 +271,7 @@ __sk_storage_lookup(struct bpf_sk_storage *sk_storage,
 		return sdata;
 
 	/* Slow path (cache miss) */
-	hlist_for_each_entry_rcu(selem, &sk_storage->list, snode)
+	hlist_for_each_entry_rcu(selem, &sk_storage->list, syesde)
 		if (rcu_access_pointer(SDATA(selem)->smap) == smap)
 			break;
 
@@ -317,7 +317,7 @@ static int check_flags(const struct bpf_sk_storage_data *old_sdata,
 		return -EEXIST;
 
 	if (!old_sdata && (map_flags & ~BPF_F_LOCK) == BPF_EXIST)
-		/* elem doesn't exist, cannot update it */
+		/* elem doesn't exist, canyest update it */
 		return -ENOENT;
 
 	return 0;
@@ -345,11 +345,11 @@ static int sk_storage_alloc(struct sock *sk,
 
 	__selem_link_sk(sk_storage, first_selem);
 	selem_link_map(smap, first_selem);
-	/* Publish sk_storage to sk.  sk->sk_lock cannot be acquired.
+	/* Publish sk_storage to sk.  sk->sk_lock canyest be acquired.
 	 * Hence, atomic ops is used to set sk->sk_bpf_storage
 	 * from NULL to the newly allocated sk_storage ptr.
 	 *
-	 * From now on, the sk->sk_bpf_storage pointer is protected
+	 * From yesw on, the sk->sk_bpf_storage pointer is protected
 	 * by the sk_storage->lock.  Hence,  when freeing
 	 * the sk->sk_bpf_storage, the sk_storage->lock must
 	 * be held before setting sk->sk_bpf_storage to NULL.
@@ -366,7 +366,7 @@ static int sk_storage_alloc(struct sock *sk,
 		 * (instead of kfree_rcu) because
 		 * bpf_sk_storage_map_free() does a
 		 * synchronize_rcu() before walking the bucket->list.
-		 * Hence, no one is accessing selem from the
+		 * Hence, yes one is accessing selem from the
 		 * bucket->list under rcu_read_lock().
 		 */
 	}
@@ -379,8 +379,8 @@ uncharge:
 	return err;
 }
 
-/* sk cannot be going away because it is linking new elem
- * to sk->sk_bpf_storage. (i.e. sk->sk_refcnt cannot be 0).
+/* sk canyest be going away because it is linking new elem
+ * to sk->sk_bpf_storage. (i.e. sk->sk_refcnt canyest be 0).
  * Otherwise, it will become a leak (and other memory issues
  * during map destruction).
  */
@@ -395,7 +395,7 @@ static struct bpf_sk_storage_data *sk_storage_update(struct sock *sk,
 	struct bpf_sk_storage_map *smap;
 	int err;
 
-	/* BPF_EXIST and BPF_NOEXIST cannot be both set */
+	/* BPF_EXIST and BPF_NOEXIST canyest be both set */
 	if (unlikely((map_flags & ~BPF_F_LOCK) > BPF_EXIST) ||
 	    /* BPF_F_LOCK can only be used in a value with spin_lock */
 	    unlikely((map_flags & BPF_F_LOCK) && !map_value_has_spin_lock(map)))
@@ -465,11 +465,11 @@ static struct bpf_sk_storage_data *sk_storage_update(struct sock *sk,
 
 	/* sk_storage->lock is held.  Hence, we are sure
 	 * we can unlink and uncharge the old_sdata successfully
-	 * later.  Hence, instead of charging the new selem now
+	 * later.  Hence, instead of charging the new selem yesw
 	 * and then uncharge the old selem later (which may cause
 	 * a potential but unnecessary charge failure),  avoid taking
 	 * a charge at all here (the "!old_sdata" check) and the
-	 * old_sdata will not be uncharged later during __selem_unlink_sk().
+	 * old_sdata will yest be uncharged later during __selem_unlink_sk().
 	 */
 	selem = selem_alloc(smap, sk, value, !old_sdata);
 	if (!selem) {
@@ -517,7 +517,7 @@ void bpf_sk_storage_free(struct sock *sk)
 	struct bpf_sk_storage_elem *selem;
 	struct bpf_sk_storage *sk_storage;
 	bool free_sk_storage = false;
-	struct hlist_node *n;
+	struct hlist_yesde *n;
 
 	rcu_read_lock();
 	sk_storage = rcu_dereference(sk->sk_bpf_storage);
@@ -526,9 +526,9 @@ void bpf_sk_storage_free(struct sock *sk)
 		return;
 	}
 
-	/* Netiher the bpf_prog nor the bpf-map's syscall
-	 * could be modifying the sk_storage->list now.
-	 * Thus, no elem can be added-to or deleted-from the
+	/* Netiher the bpf_prog yesr the bpf-map's syscall
+	 * could be modifying the sk_storage->list yesw.
+	 * Thus, yes elem can be added-to or deleted-from the
 	 * sk_storage->list by the bpf_prog or by the bpf-map's syscall.
 	 *
 	 * It is racing with bpf_sk_storage_map_free() alone
@@ -536,7 +536,7 @@ void bpf_sk_storage_free(struct sock *sk)
 	 * the map's bucket->list.
 	 */
 	raw_spin_lock_bh(&sk_storage->lock);
-	hlist_for_each_entry_safe(selem, n, &sk_storage->list, snode) {
+	hlist_for_each_entry_safe(selem, n, &sk_storage->list, syesde) {
 		/* Always unlink from map before unlinking from
 		 * sk_storage.
 		 */
@@ -562,12 +562,12 @@ static void bpf_sk_storage_map_free(struct bpf_map *map)
 	/* Note that this map might be concurrently cloned from
 	 * bpf_sk_storage_clone. Wait for any existing bpf_sk_storage_clone
 	 * RCU read section to finish before proceeding. New RCU
-	 * read sections should be prevented via bpf_map_inc_not_zero.
+	 * read sections should be prevented via bpf_map_inc_yest_zero.
 	 */
 	synchronize_rcu();
 
-	/* bpf prog and the userspace can no longer access this map
-	 * now.  No new selem (of this map) can be added
+	/* bpf prog and the userspace can yes longer access this map
+	 * yesw.  No new selem (of this map) can be added
 	 * to the sk->sk_bpf_storage or to the map bucket's list.
 	 *
 	 * The elem of this map can be cleaned up here
@@ -578,10 +578,10 @@ static void bpf_sk_storage_map_free(struct bpf_map *map)
 		b = &smap->buckets[i];
 
 		rcu_read_lock();
-		/* No one is adding to b->list now */
+		/* No one is adding to b->list yesw */
 		while ((selem = hlist_entry_safe(rcu_dereference_raw(hlist_first_rcu(&b->list)),
 						 struct bpf_sk_storage_elem,
-						 map_node))) {
+						 map_yesde))) {
 			selem_unlink(selem);
 			cond_resched_rcu();
 		}
@@ -597,7 +597,7 @@ static void bpf_sk_storage_map_free(struct bpf_map *map)
 	 * the smap->elem_size to do the uncharging in
 	 * __selem_unlink_sk().
 	 *
-	 * Hence, wait another rcu grace period for the
+	 * Hence, wait ayesther rcu grace period for the
 	 * bpf_sk_storage_free() to finish.
 	 */
 	synchronize_rcu();
@@ -621,7 +621,7 @@ static int bpf_sk_storage_map_alloc_check(union bpf_attr *attr)
 
 	if (attr->value_size >= KMALLOC_MAX_SIZE -
 	    MAX_BPF_STACK - sizeof(struct bpf_sk_storage_elem) ||
-	    /* U16_MAX is much more than enough for sk local storage
+	    /* U16_MAX is much more than eyesugh for sk local storage
 	     * considering a tcp_sock is ~2k.
 	     */
 	    attr->value_size > U16_MAX - sizeof(struct bpf_sk_storage_elem))
@@ -674,7 +674,7 @@ static struct bpf_map *bpf_sk_storage_map_alloc(union bpf_attr *attr)
 	return &smap->map;
 }
 
-static int notsupp_get_next_key(struct bpf_map *map, void *key,
+static int yestsupp_get_next_key(struct bpf_map *map, void *key,
 				void *next_key)
 {
 	return -ENOTSUPP;
@@ -784,7 +784,7 @@ int bpf_sk_storage_clone(const struct sock *sk, struct sock *newsk)
 	if (!sk_storage || hlist_empty(&sk_storage->list))
 		goto out;
 
-	hlist_for_each_entry_rcu(selem, &sk_storage->list, snode) {
+	hlist_for_each_entry_rcu(selem, &sk_storage->list, syesde) {
 		struct bpf_sk_storage_elem *copy_selem;
 		struct bpf_sk_storage_map *smap;
 		struct bpf_map *map;
@@ -798,7 +798,7 @@ int bpf_sk_storage_clone(const struct sock *sk, struct sock *newsk)
 		 * Try to grab map refcnt to make sure that it's still
 		 * alive and prevent concurrent removal.
 		 */
-		map = bpf_map_inc_not_zero(&smap->map);
+		map = bpf_map_inc_yest_zero(&smap->map);
 		if (IS_ERR(map))
 			continue;
 
@@ -850,12 +850,12 @@ BPF_CALL_4(bpf_sk_storage_get, struct bpf_map *, map, struct sock *, sk,
 		return (unsigned long)sdata->data;
 
 	if (flags == BPF_SK_STORAGE_GET_F_CREATE &&
-	    /* Cannot add new elem to a going away sk.
+	    /* Canyest add new elem to a going away sk.
 	     * Otherwise, the new elem may become a leak
 	     * (and also other memory issues during map
 	     *  destruction).
 	     */
-	    refcount_inc_not_zero(&sk->sk_refcnt)) {
+	    refcount_inc_yest_zero(&sk->sk_refcnt)) {
 		sdata = sk_storage_update(sk, map, value, BPF_NOEXIST);
 		/* sk must be a fullsock (guaranteed by verifier),
 		 * so sock_gen_put() is unnecessary.
@@ -870,7 +870,7 @@ BPF_CALL_4(bpf_sk_storage_get, struct bpf_map *, map, struct sock *, sk,
 
 BPF_CALL_2(bpf_sk_storage_delete, struct bpf_map *, map, struct sock *, sk)
 {
-	if (refcount_inc_not_zero(&sk->sk_refcnt)) {
+	if (refcount_inc_yest_zero(&sk->sk_refcnt)) {
 		int err;
 
 		err = sk_storage_delete(sk, map);
@@ -885,7 +885,7 @@ const struct bpf_map_ops sk_storage_map_ops = {
 	.map_alloc_check = bpf_sk_storage_map_alloc_check,
 	.map_alloc = bpf_sk_storage_map_alloc,
 	.map_free = bpf_sk_storage_map_free,
-	.map_get_next_key = notsupp_get_next_key,
+	.map_get_next_key = yestsupp_get_next_key,
 	.map_lookup_elem = bpf_fd_sk_storage_lookup_elem,
 	.map_update_elem = bpf_fd_sk_storage_update_elem,
 	.map_delete_elem = bpf_fd_sk_storage_delete_elem,

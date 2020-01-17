@@ -8,7 +8,7 @@ config VFIO_PCI
 	  Support for the PCI VFIO bus driver.  This is required to make
 	  use of PCI drivers using the VFIO framework.
 
-	  If you don't know what to do here, say N.
+	  If you don't kyesw what to do here, say N.
 
 config VFIO_PCI_VGA
 	bool "VFIO PCI support for VGA devices"
@@ -18,7 +18,7 @@ config VFIO_PCI_VGA
 	  region on VGA devices for accessing legacy VGA addresses used by
 	  BIOS and generic video drivers.
 
-	  If you don't know what to do here, say N.
+	  If you don't kyesw what to do here, say N.
 
 config VFIO_PCI_MMAP
 	depends on VFIO_PCI

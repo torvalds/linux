@@ -20,7 +20,7 @@
 int
 xchk_setup_ag_refcountbt(
 	struct xfs_scrub	*sc,
-	struct xfs_inode	*ip)
+	struct xfs_iyesde	*ip)
 {
 	return xchk_setup_ag_btree(sc, ip, false);
 }
@@ -31,17 +31,17 @@ xchk_setup_ag_refcountbt(
  * Confirming Reference Counts via Reverse Mappings
  *
  * We want to count the reverse mappings overlapping a refcount record
- * (bno, len, refcount), allowing for the possibility that some of the
+ * (byes, len, refcount), allowing for the possibility that some of the
  * overlap may come from smaller adjoining reverse mappings, while some
  * comes from single extents which overlap the range entirely.  The
  * outer loop is as follows:
  *
  * 1. For all reverse mappings overlapping the refcount extent,
  *    a. If a given rmap completely overlaps, mark it as seen.
- *    b. Otherwise, record the fragment (in agbno order) for later
+ *    b. Otherwise, record the fragment (in agbyes order) for later
  *       processing.
  *
- * Once we've seen all the rmaps, we know that for all blocks in the
+ * Once we've seen all the rmaps, we kyesw that for all blocks in the
  * refcount record we want to find $refcount owners and we've already
  * visited $seen extents that overlap all the blocks.  Therefore, we
  * need to find ($refcount - $seen) owners for every block in the
@@ -50,7 +50,7 @@ xchk_setup_ag_refcountbt(
  * 2. Pull the first $target_nr fragments from the list; all of them
  *    should start at or before the start of the extent.
  *    Call this subset of fragments the working set.
- * 3. Until there are no more unprocessed fragments,
+ * 3. Until there are yes more unprocessed fragments,
  *    a. Find the shortest fragments in the set and remove them.
  *    b. Note the block number of the end of these fragments.
  *    c. Pull the same number of fragments from the list.  All of these
@@ -61,7 +61,7 @@ xchk_setup_ag_refcountbt(
  *    and that they all end at or beyond the end of the refcount extent.
  *
  * If the refcount is correct, all the check conditions in the algorithm
- * should always hold true.  If not, the refcount is incorrect.
+ * should always hold true.  If yest, the refcount is incorrect.
  */
 struct xchk_refcnt_frag {
 	struct list_head	list;
@@ -73,7 +73,7 @@ struct xchk_refcnt_check {
 	struct list_head	fragments;
 
 	/* refcount extent we're examining */
-	xfs_agblock_t		bno;
+	xfs_agblock_t		byes;
 	xfs_extlen_t		len;
 	xfs_nlink_t		refcount;
 
@@ -82,8 +82,8 @@ struct xchk_refcnt_check {
 };
 
 /*
- * Decide if the given rmap is large enough that we can redeem it
- * towards refcount verification now, or if it's a fragment, in
+ * Decide if the given rmap is large eyesugh that we can redeem it
+ * towards refcount verification yesw, or if it's a fragment, in
  * which case we'll hang onto it in the hopes that we'll later
  * discover that we've collected exactly the correct number of
  * fragments as the refcountbt says we should have.
@@ -104,7 +104,7 @@ xchk_refcountbt_rmap_check(
 		return error;
 
 	rm_last = rec->rm_startblock + rec->rm_blockcount - 1;
-	rc_last = refchk->bno + refchk->len - 1;
+	rc_last = refchk->byes + refchk->len - 1;
 
 	/* Confirm that a single-owner refc extent is a CoW stage. */
 	if (refchk->refcount == 1 && rec->rm_owner != XFS_RMAP_OWN_COW) {
@@ -112,7 +112,7 @@ xchk_refcountbt_rmap_check(
 		return 0;
 	}
 
-	if (rec->rm_startblock <= refchk->bno && rm_last >= rc_last) {
+	if (rec->rm_startblock <= refchk->byes && rm_last >= rc_last) {
 		/*
 		 * The rmap overlaps the refcount record, so we can confirm
 		 * one refcount owner seen.
@@ -122,7 +122,7 @@ xchk_refcountbt_rmap_check(
 		/*
 		 * This rmap covers only part of the refcount record, so
 		 * save the fragment for later processing.  If the rmapbt
-		 * is healthy each rmap_irec we see will be in agbno order
+		 * is healthy each rmap_irec we see will be in agbyes order
 		 * so we don't need insertion sort here.
 		 */
 		frag = kmem_alloc(sizeof(struct xchk_refcnt_frag),
@@ -150,9 +150,9 @@ xchk_refcountbt_process_rmap_fragments(
 	struct list_head		worklist;
 	struct xchk_refcnt_frag		*frag;
 	struct xchk_refcnt_frag		*n;
-	xfs_agblock_t			bno;
-	xfs_agblock_t			rbno;
-	xfs_agblock_t			next_rbno;
+	xfs_agblock_t			byes;
+	xfs_agblock_t			rbyes;
+	xfs_agblock_t			next_rbyes;
 	xfs_nlink_t			nr;
 	xfs_nlink_t			target_nr;
 
@@ -169,15 +169,15 @@ xchk_refcountbt_process_rmap_fragments(
 	 * refcount record's range.
 	 */
 	INIT_LIST_HEAD(&worklist);
-	rbno = NULLAGBLOCK;
+	rbyes = NULLAGBLOCK;
 	nr = 1;
 
-	/* Make sure the fragments actually /are/ in agbno order. */
-	bno = 0;
+	/* Make sure the fragments actually /are/ in agbyes order. */
+	byes = 0;
 	list_for_each_entry(frag, &refchk->fragments, list) {
-		if (frag->rm.rm_startblock < bno)
+		if (frag->rm.rm_startblock < byes)
 			goto done;
-		bno = frag->rm.rm_startblock;
+		byes = frag->rm.rm_startblock;
 	}
 
 	/*
@@ -185,11 +185,11 @@ xchk_refcountbt_process_rmap_fragments(
 	 * and put them on the worklist.
 	 */
 	list_for_each_entry_safe(frag, n, &refchk->fragments, list) {
-		if (frag->rm.rm_startblock > refchk->bno)
+		if (frag->rm.rm_startblock > refchk->byes)
 			goto done;
-		bno = frag->rm.rm_startblock + frag->rm.rm_blockcount;
-		if (bno < rbno)
-			rbno = bno;
+		byes = frag->rm.rm_startblock + frag->rm.rm_blockcount;
+		if (byes < rbyes)
+			rbyes = byes;
 		list_move_tail(&frag->list, &worklist);
 		if (nr == target_nr)
 			break;
@@ -204,14 +204,14 @@ xchk_refcountbt_process_rmap_fragments(
 		goto done;
 
 	while (!list_empty(&refchk->fragments)) {
-		/* Discard any fragments ending at rbno from the worklist. */
+		/* Discard any fragments ending at rbyes from the worklist. */
 		nr = 0;
-		next_rbno = NULLAGBLOCK;
+		next_rbyes = NULLAGBLOCK;
 		list_for_each_entry_safe(frag, n, &worklist, list) {
-			bno = frag->rm.rm_startblock + frag->rm.rm_blockcount;
-			if (bno != rbno) {
-				if (bno < next_rbno)
-					next_rbno = bno;
+			byes = frag->rm.rm_startblock + frag->rm.rm_blockcount;
+			if (byes != rbyes) {
+				if (byes < next_rbyes)
+					next_rbyes = byes;
 				continue;
 			}
 			list_del(&frag->list);
@@ -219,14 +219,14 @@ xchk_refcountbt_process_rmap_fragments(
 			nr++;
 		}
 
-		/* Try to add nr rmaps starting at rbno to the worklist. */
+		/* Try to add nr rmaps starting at rbyes to the worklist. */
 		list_for_each_entry_safe(frag, n, &refchk->fragments, list) {
-			bno = frag->rm.rm_startblock + frag->rm.rm_blockcount;
-			if (frag->rm.rm_startblock != rbno)
+			byes = frag->rm.rm_startblock + frag->rm.rm_blockcount;
+			if (frag->rm.rm_startblock != rbyes)
 				goto done;
 			list_move_tail(&frag->list, &worklist);
-			if (next_rbno > bno)
-				next_rbno = bno;
+			if (next_rbyes > byes)
+				next_rbyes = byes;
 			nr--;
 			if (nr == 0)
 				break;
@@ -235,20 +235,20 @@ xchk_refcountbt_process_rmap_fragments(
 		/*
 		 * If we get here and nr > 0, this means that we added fewer
 		 * items to the worklist than we discarded because the fragment
-		 * list ran out of items.  Therefore, we cannot maintain the
+		 * list ran out of items.  Therefore, we canyest maintain the
 		 * required refcount.  Something is wrong, so we're done.
 		 */
 		if (nr)
 			goto done;
 
-		rbno = next_rbno;
+		rbyes = next_rbyes;
 	}
 
 	/*
 	 * Make sure the last extent we processed ends at or beyond
 	 * the end of the refcount extent.
 	 */
-	if (rbno < refchk->bno + refchk->len)
+	if (rbyes < refchk->byes + refchk->len)
 		goto done;
 
 	/* Actually record us having seen the remaining refcount. */
@@ -269,13 +269,13 @@ done:
 STATIC void
 xchk_refcountbt_xref_rmap(
 	struct xfs_scrub		*sc,
-	xfs_agblock_t			bno,
+	xfs_agblock_t			byes,
 	xfs_extlen_t			len,
 	xfs_nlink_t			refcount)
 {
 	struct xchk_refcnt_check	refchk = {
 		.sc = sc,
-		.bno = bno,
+		.byes = byes,
 		.len = len,
 		.refcount = refcount,
 		.seen = 0,
@@ -291,9 +291,9 @@ xchk_refcountbt_xref_rmap(
 
 	/* Cross-reference with the rmapbt to confirm the refcount. */
 	memset(&low, 0, sizeof(low));
-	low.rm_startblock = bno;
+	low.rm_startblock = byes;
 	memset(&high, 0xFF, sizeof(high));
-	high.rm_startblock = bno + len - 1;
+	high.rm_startblock = byes + len - 1;
 
 	INIT_LIST_HEAD(&refchk.fragments);
 	error = xfs_rmap_query_range(sc->sa.rmap_cur, &low, &high,
@@ -316,16 +316,16 @@ out_free:
 STATIC void
 xchk_refcountbt_xref(
 	struct xfs_scrub	*sc,
-	xfs_agblock_t		agbno,
+	xfs_agblock_t		agbyes,
 	xfs_extlen_t		len,
 	xfs_nlink_t		refcount)
 {
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
 
-	xchk_xref_is_used_space(sc, agbno, len);
-	xchk_xref_is_not_inode_chunk(sc, agbno, len);
-	xchk_refcountbt_xref_rmap(sc, agbno, len, refcount);
+	xchk_xref_is_used_space(sc, agbyes, len);
+	xchk_xref_is_yest_iyesde_chunk(sc, agbyes, len);
+	xchk_refcountbt_xref_rmap(sc, agbyes, len, refcount);
 }
 
 /* Scrub a refcountbt record. */
@@ -336,34 +336,34 @@ xchk_refcountbt_rec(
 {
 	struct xfs_mount	*mp = bs->cur->bc_mp;
 	xfs_agblock_t		*cow_blocks = bs->private;
-	xfs_agnumber_t		agno = bs->cur->bc_private.a.agno;
-	xfs_agblock_t		bno;
+	xfs_agnumber_t		agyes = bs->cur->bc_private.a.agyes;
+	xfs_agblock_t		byes;
 	xfs_extlen_t		len;
 	xfs_nlink_t		refcount;
 	bool			has_cowflag;
 
-	bno = be32_to_cpu(rec->refc.rc_startblock);
+	byes = be32_to_cpu(rec->refc.rc_startblock);
 	len = be32_to_cpu(rec->refc.rc_blockcount);
 	refcount = be32_to_cpu(rec->refc.rc_refcount);
 
 	/* Only CoW records can have refcount == 1. */
-	has_cowflag = (bno & XFS_REFC_COW_START);
+	has_cowflag = (byes & XFS_REFC_COW_START);
 	if ((refcount == 1 && !has_cowflag) || (refcount != 1 && has_cowflag))
 		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
 	if (has_cowflag)
 		(*cow_blocks) += len;
 
 	/* Check the extent. */
-	bno &= ~XFS_REFC_COW_START;
-	if (bno + len <= bno ||
-	    !xfs_verify_agbno(mp, agno, bno) ||
-	    !xfs_verify_agbno(mp, agno, bno + len - 1))
+	byes &= ~XFS_REFC_COW_START;
+	if (byes + len <= byes ||
+	    !xfs_verify_agbyes(mp, agyes, byes) ||
+	    !xfs_verify_agbyes(mp, agyes, byes + len - 1))
 		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
 
 	if (refcount == 0)
 		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
 
-	xchk_refcountbt_xref(bs->sc, bno, len, refcount);
+	xchk_refcountbt_xref(bs->sc, byes, len, refcount);
 
 	return 0;
 }
@@ -381,7 +381,7 @@ xchk_refcount_xref_rmap(
 	if (!sc->sa.rmap_cur || xchk_skip_xref(sc->sm))
 		return;
 
-	/* Check that we saw as many refcbt blocks as the rmap knows about. */
+	/* Check that we saw as many refcbt blocks as the rmap kyesws about. */
 	error = xfs_btree_count_blocks(sc->sa.refc_cur, &refcbt_blocks);
 	if (!xchk_btree_process_error(sc, sc->sa.refc_cur, 0, &error))
 		return;
@@ -392,7 +392,7 @@ xchk_refcount_xref_rmap(
 	if (blocks != refcbt_blocks)
 		xchk_btree_xref_set_corrupt(sc, sc->sa.rmap_cur, 0);
 
-	/* Check that we saw as many cow blocks as the rmap knows about. */
+	/* Check that we saw as many cow blocks as the rmap kyesws about. */
 	error = xchk_count_rmap_ownedby_ag(sc, sc->sa.rmap_cur,
 			&XFS_RMAP_OINFO_COW, &blocks);
 	if (!xchk_should_check_xref(sc, &error, &sc->sa.rmap_cur))
@@ -423,7 +423,7 @@ xchk_refcountbt(
 void
 xchk_xref_is_cow_staging(
 	struct xfs_scrub		*sc,
-	xfs_agblock_t			agbno,
+	xfs_agblock_t			agbyes,
 	xfs_extlen_t			len)
 {
 	struct xfs_refcount_irec	rc;
@@ -436,7 +436,7 @@ xchk_xref_is_cow_staging(
 
 	/* Find the CoW staging extent. */
 	error = xfs_refcount_lookup_le(sc->sa.refc_cur,
-			agbno + XFS_REFC_COW_START, &has_refcount);
+			agbyes + XFS_REFC_COW_START, &has_refcount);
 	if (!xchk_should_check_xref(sc, &error, &sc->sa.refc_cur))
 		return;
 	if (!has_refcount) {
@@ -463,13 +463,13 @@ xchk_xref_is_cow_staging(
 }
 
 /*
- * xref check that the extent is not shared.  Only file data blocks
+ * xref check that the extent is yest shared.  Only file data blocks
  * can have multiple owners.
  */
 void
-xchk_xref_is_not_shared(
+xchk_xref_is_yest_shared(
 	struct xfs_scrub	*sc,
-	xfs_agblock_t		agbno,
+	xfs_agblock_t		agbyes,
 	xfs_extlen_t		len)
 {
 	bool			shared;
@@ -478,7 +478,7 @@ xchk_xref_is_not_shared(
 	if (!sc->sa.refc_cur || xchk_skip_xref(sc->sm))
 		return;
 
-	error = xfs_refcount_has_record(sc->sa.refc_cur, agbno, len, &shared);
+	error = xfs_refcount_has_record(sc->sa.refc_cur, agbyes, len, &shared);
 	if (!xchk_should_check_xref(sc, &error, &sc->sa.refc_cur))
 		return;
 	if (shared)

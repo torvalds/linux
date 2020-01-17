@@ -37,7 +37,7 @@
 #include <linux/skmsg.h>
 #include <net/sock.h>
 #include <net/flow_dissector.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/timer.h>
 #include <linux/uaccess.h>
 #include <asm/unaligned.h>
@@ -135,7 +135,7 @@ BPF_CALL_3(bpf_skb_get_nlattr, struct sk_buff *, skb, u32, a, u32, x)
 {
 	struct nlattr *nla;
 
-	if (skb_is_nonlinear(skb))
+	if (skb_is_yesnlinear(skb))
 		return 0;
 
 	if (skb->len < sizeof(struct nlattr))
@@ -155,7 +155,7 @@ BPF_CALL_3(bpf_skb_get_nlattr_nest, struct sk_buff *, skb, u32, a, u32, x)
 {
 	struct nlattr *nla;
 
-	if (skb_is_nonlinear(skb))
+	if (skb_is_yesnlinear(skb))
 		return 0;
 
 	if (skb->len < sizeof(struct nlattr))
@@ -195,7 +195,7 @@ BPF_CALL_4(bpf_skb_load_helper_8, const struct sk_buff *, skb, const void *,
 	return -EFAULT;
 }
 
-BPF_CALL_2(bpf_skb_load_helper_8_no_cache, const struct sk_buff *, skb,
+BPF_CALL_2(bpf_skb_load_helper_8_yes_cache, const struct sk_buff *, skb,
 	   int, offset)
 {
 	return ____bpf_skb_load_helper_8(skb, skb->data, skb->len - skb->data_len,
@@ -222,7 +222,7 @@ BPF_CALL_4(bpf_skb_load_helper_16, const struct sk_buff *, skb, const void *,
 	return -EFAULT;
 }
 
-BPF_CALL_2(bpf_skb_load_helper_16_no_cache, const struct sk_buff *, skb,
+BPF_CALL_2(bpf_skb_load_helper_16_yes_cache, const struct sk_buff *, skb,
 	   int, offset)
 {
 	return ____bpf_skb_load_helper_16(skb, skb->data, skb->len - skb->data_len,
@@ -249,7 +249,7 @@ BPF_CALL_4(bpf_skb_load_helper_32, const struct sk_buff *, skb, const void *,
 	return -EFAULT;
 }
 
-BPF_CALL_2(bpf_skb_load_helper_32_no_cache, const struct sk_buff *, skb,
+BPF_CALL_2(bpf_skb_load_helper_32_yes_cache, const struct sk_buff *, skb,
 	   int, offset)
 {
 	return ____bpf_skb_load_helper_32(skb, skb->data, skb->len - skb->data_len,
@@ -327,7 +327,7 @@ static bool convert_bpf_extensions(struct sock_filter *fp,
 		/* A = *(u16 *) (CTX + offsetof(protocol)) */
 		*insn++ = BPF_LDX_MEM(BPF_H, BPF_REG_A, BPF_REG_CTX,
 				      offsetof(struct sk_buff, protocol));
-		/* A = ntohs(A) [emitting a nop or swap16] */
+		/* A = ntohs(A) [emitting a yesp or swap16] */
 		*insn = BPF_ENDIAN(BPF_FROM_BE, BPF_REG_A, 16);
 		break;
 
@@ -390,7 +390,7 @@ static bool convert_bpf_extensions(struct sock_filter *fp,
 		/* A = *(u16 *) (CTX + offsetof(vlan_proto)) */
 		*insn++ = BPF_LDX_MEM(BPF_H, BPF_REG_A, BPF_REG_CTX,
 				      offsetof(struct sk_buff, vlan_proto));
-		/* A = ntohs(A) [emitting a nop or swap16] */
+		/* A = ntohs(A) [emitting a yesp or swap16] */
 		*insn = BPF_ENDIAN(BPF_FROM_BE, BPF_REG_A, 16);
 		break;
 
@@ -434,7 +434,7 @@ static bool convert_bpf_extensions(struct sock_filter *fp,
 	default:
 		/* This is just a dummy call to avoid letting the compiler
 		 * evict __bpf_call_base() as an optimization. Placed here
-		 * where no-one bothers.
+		 * where yes-one bothers.
 		 */
 		BUG_ON(__bpf_call_base(0, 0, 0, 0, 0) != 0);
 		return false;
@@ -657,7 +657,7 @@ do_pass:
 			*insn = BPF_RAW_INSN(fp->code, BPF_REG_A, BPF_REG_X, 0, fp->k);
 			break;
 
-		/* Jump transformation cannot use BPF block macros
+		/* Jump transformation canyest use BPF block macros
 		 * everywhere as offset calculation and target updates
 		 * require a bit more work than the rest, i.e. jump
 		 * opcodes map as-is, but offsets need adjustment.
@@ -673,7 +673,7 @@ do_pass:
 		off = addrs ? addrs[target] - addrs[i] - 1 : 0;		\
 		/* Adjust pc relative offset for 2nd or 3rd insn. */	\
 		off -= insn - tmp_insns;				\
-		/* Reject anything not fitting into insn->off. */	\
+		/* Reject anything yest fitting into insn->off. */	\
 		if (off < off_min || off > off_max)			\
 			goto err;					\
 		insn->off = off;					\
@@ -796,7 +796,7 @@ jmp_rest:
 					    -stack_off);
 			/* check_load_and_stores() verifies that classic BPF can
 			 * load from stack only after write, so tracking
-			 * stack_depth for ST|STX insns is enough
+			 * stack_depth for ST|STX insns is eyesugh
 			 */
 			if (new_prog && new_prog->aux->stack_depth < stack_off)
 				new_prog->aux->stack_depth = stack_off;
@@ -842,7 +842,7 @@ jmp_rest:
 			*insn = BPF_LDX_MEM(BPF_W, BPF_REG_A, BPF_REG_CTX, fp->k);
 			break;
 
-		/* Unknown instruction. */
+		/* Unkyeswn instruction. */
 		default:
 			goto err;
 		}
@@ -882,7 +882,7 @@ err:
  *
  * As we dont want to clear mem[] array for each packet going through
  * __bpf_prog_run(), we check that filter loaded by user never try to read
- * a cell if not previously written, and we check all branches to be sure
+ * a cell if yest previously written, and we check all branches to be sure
  * a malicious user doesn't try to abuse us.
  */
 static int check_load_and_stores(const struct sock_filter *filter, int flen)
@@ -1022,12 +1022,12 @@ static bool bpf_check_basics_ok(const struct sock_filter *filter,
  *
  * Check the user's filter code. If we let some ugly
  * filter code slip through kaboom! The filter must contain
- * no references or jumps that are out of range, no illegal
+ * yes references or jumps that are out of range, yes illegal
  * instructions, and must end with a RET instruction.
  *
- * All jumps are forward as they are not signed.
+ * All jumps are forward as they are yest signed.
  *
- * Returns 0 if the rule set is legal or -EINVAL if not.
+ * Returns 0 if the rule set is legal or -EINVAL if yest.
  */
 static int bpf_check_classic(const struct sock_filter *filter,
 			     unsigned int flen)
@@ -1035,7 +1035,7 @@ static int bpf_check_classic(const struct sock_filter *filter,
 	bool anc_found;
 	int pc;
 
-	/* Check the filter code now */
+	/* Check the filter code yesw */
 	for (pc = 0; pc < flen; pc++) {
 		const struct sock_filter *ftest = &filter[pc];
 
@@ -1091,7 +1091,7 @@ static int bpf_check_classic(const struct sock_filter *filter,
 			anc_found = false;
 			if (bpf_anc_helper(ftest) & BPF_ANC)
 				anc_found = true;
-			/* Ancillary operation unknown or unsupported */
+			/* Ancillary operation unkyeswn or unsupported */
 			if (anc_found == false && ftest->k >= SKF_AD_OFF)
 				return -EINVAL;
 		}
@@ -1205,7 +1205,7 @@ static bool __sk_filter_charge(struct sock *sk, struct sk_filter *fp)
 
 bool sk_filter_charge(struct sock *sk, struct sk_filter *fp)
 {
-	if (!refcount_inc_not_zero(&fp->refcnt))
+	if (!refcount_inc_yest_zero(&fp->refcnt))
 		return false;
 
 	if (!__sk_filter_charge(sk, fp)) {
@@ -1230,7 +1230,7 @@ static struct bpf_prog *bpf_migrate_filter(struct bpf_prog *fp)
 	BUILD_BUG_ON(sizeof(struct sock_filter) !=
 		     sizeof(struct bpf_insn));
 
-	/* Conversion cannot happen on overlapping memory areas,
+	/* Conversion canyest happen on overlapping memory areas,
 	 * so we need to keep the user BPF around until the 2nd
 	 * pass. At this time, the user BPF is stored in fp->insns.
 	 */
@@ -1331,9 +1331,9 @@ static struct bpf_prog *bpf_prepare_filter(struct bpf_prog *fp,
  *	@fprog: the filter program
  *
  * Create a filter independent of any socket. We first run some
- * sanity checks on it to make sure it does not explode on us later.
+ * sanity checks on it to make sure it does yest explode on us later.
  * If an error occurs or there is insufficient memory for the filter
- * a negative errno code is returned. On success the return is zero.
+ * a negative erryes code is returned. On success the return is zero.
  */
 int bpf_prog_create(struct bpf_prog **pfp, struct sock_fprog_kern *fprog)
 {
@@ -1351,8 +1351,8 @@ int bpf_prog_create(struct bpf_prog **pfp, struct sock_fprog_kern *fprog)
 	memcpy(fp->insns, fprog->filter, fsize);
 
 	fp->len = fprog->len;
-	/* Since unattached filters are not copied back to user
-	 * space through sk_get_filter(), we do not need to hold
+	/* Since unattached filters are yest copied back to user
+	 * space through sk_get_filter(), we do yest need to hold
 	 * a copy here, and can spare us the work.
 	 */
 	fp->orig_prog = NULL;
@@ -1498,9 +1498,9 @@ struct bpf_prog *__get_filter(struct sock_fprog *fprog, struct sock *sk)
  *	@sk: the socket to use
  *
  * Attach the user's filter code. We first run some sanity checks on
- * it to make sure it does not explode on us later. If an error
+ * it to make sure it does yest explode on us later. If an error
  * occurs or there is insufficient memory for the filter a negative
- * errno code is returned. On success the return is zero.
+ * erryes code is returned. On success the return is zero.
  */
 int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk)
 {
@@ -1579,10 +1579,10 @@ int sk_reuseport_attach_bpf(u32 ufd, struct sock *sk)
 		return PTR_ERR(prog);
 
 	if (prog->type == BPF_PROG_TYPE_SK_REUSEPORT) {
-		/* Like other non BPF_PROG_TYPE_SOCKET_FILTER
+		/* Like other yesn BPF_PROG_TYPE_SOCKET_FILTER
 		 * bpf prog (e.g. sockmap).  It depends on the
 		 * limitation imposed by bpf_prog_load().
-		 * Hence, sysctl_optmem_max is not checked.
+		 * Hence, sysctl_optmem_max is yest checked.
 		 */
 		if ((sk->sk_type != SOCK_STREAM &&
 		     sk->sk_type != SOCK_DGRAM) ||
@@ -1811,7 +1811,7 @@ BPF_CALL_2(bpf_skb_pull_data, struct sk_buff *, skb, u32, len)
 	 * test fail during runtime, we can pull in more data and redo
 	 * again, since implicitly, we invalidate previous checks here.
 	 *
-	 * Or, since we know how much we need to make read/writeable,
+	 * Or, since we kyesw how much we need to make read/writeable,
 	 * this can be done once at the program beginning for direct
 	 * access case. By this we overcome limitations of only current
 	 * headroom being accessible.
@@ -1854,7 +1854,7 @@ BPF_CALL_2(sk_skb_pull_data, struct sk_buff *, skb, u32, len)
 	 * test fail during runtime, we can pull in more data and redo
 	 * again, since implicitly, we invalidate previous checks here.
 	 *
-	 * Or, since we know how much we need to make read/writeable,
+	 * Or, since we kyesw how much we need to make read/writeable,
 	 * this can be done once at the program beginning for direct
 	 * access case. By this we overcome limitations of only current
 	 * headroom being accessible.
@@ -2031,7 +2031,7 @@ static inline int __bpf_rx_skb(struct net_device *dev, struct sk_buff *skb)
 	return dev_forward_skb(dev, skb);
 }
 
-static inline int __bpf_rx_skb_no_mac(struct net_device *dev,
+static inline int __bpf_rx_skb_yes_mac(struct net_device *dev,
 				      struct sk_buff *skb)
 {
 	int ret = ____dev_forward_skb(dev, skb);
@@ -2064,7 +2064,7 @@ static inline int __bpf_tx_skb(struct net_device *dev, struct sk_buff *skb)
 	return ret;
 }
 
-static int __bpf_redirect_no_mac(struct sk_buff *skb, struct net_device *dev,
+static int __bpf_redirect_yes_mac(struct sk_buff *skb, struct net_device *dev,
 				 u32 flags)
 {
 	unsigned int mlen = skb_network_offset(skb);
@@ -2083,7 +2083,7 @@ static int __bpf_redirect_no_mac(struct sk_buff *skb, struct net_device *dev,
 	skb_pop_mac_header(skb);
 	skb_reset_mac_len(skb);
 	return flags & BPF_F_INGRESS ?
-	       __bpf_rx_skb_no_mac(dev, skb) : __bpf_tx_skb(dev, skb);
+	       __bpf_rx_skb_yes_mac(dev, skb) : __bpf_tx_skb(dev, skb);
 }
 
 static int __bpf_redirect_common(struct sk_buff *skb, struct net_device *dev,
@@ -2106,7 +2106,7 @@ static int __bpf_redirect(struct sk_buff *skb, struct net_device *dev,
 	if (dev_is_mac_header_xmit(dev))
 		return __bpf_redirect_common(skb, dev, flags);
 	else
-		return __bpf_redirect_no_mac(skb, dev, flags);
+		return __bpf_redirect_yes_mac(skb, dev, flags);
 }
 
 BPF_CALL_3(bpf_clone_redirect, struct sk_buff *, skb, u32, ifindex, u64, flags)
@@ -2253,8 +2253,8 @@ BPF_CALL_4(bpf_msg_pull_data, struct sk_msg *, msg, u32, start,
 	 * elements or a single shared page. Either way we need to
 	 * copy into a linear buffer exclusively owned by BPF. Then
 	 * place the buffer in the scatterlist and fixup the original
-	 * entries by removing the entries now in the linear buffer
-	 * and shifting the remaining entries. For now we do not try
+	 * entries by removing the entries yesw in the linear buffer
+	 * and shifting the remaining entries. For yesw we do yest try
 	 * to copy partial entries to avoid complexity of running out
 	 * of sg_entry slots. The downside is reading a single byte
 	 * will copy the entire sg entry.
@@ -2369,7 +2369,7 @@ BPF_CALL_4(bpf_msg_push_data, struct sk_msg *, msg, u32, start,
 
 	space = MAX_MSG_FRAGS - sk_msg_elem_used(msg);
 
-	/* If no space available will fallback to copy, we need at
+	/* If yes space available will fallback to copy, we need at
 	 * least one scatterlist elem available to push data into
 	 * when start aligns to the beginning of an element or two
 	 * when it falls inside an element. We handle the start equals
@@ -2543,11 +2543,11 @@ BPF_CALL_4(bpf_msg_pop_data, struct sk_msg *, msg, u32, start,
 	 * pop: region to pop from element, same as input 'pop' here will be
 	 *      decremented below per iteration.
 	 *
-	 * Two top-level cases to handle when start != offset, first B is non
+	 * Two top-level cases to handle when start != offset, first B is yesn
 	 * zero and second B is zero corresponding to when a pop includes more
 	 * than one element.
 	 *
-	 * Then if B is non-zero AND there is no space allocate space and
+	 * Then if B is yesn-zero AND there is yes space allocate space and
 	 * compact A, B regions into page. If there is space shift ring to
 	 * the rigth free'ing the next element in ring to place B, leaving
 	 * A untouched except to reduce length.
@@ -2764,14 +2764,14 @@ static const struct bpf_func_proto bpf_skb_vlan_pop_proto = {
 static int bpf_skb_generic_push(struct sk_buff *skb, u32 off, u32 len)
 {
 	/* Caller already did skb_cow() with len as headroom,
-	 * so no need to do it here.
+	 * so yes need to do it here.
 	 */
 	skb_push(skb, len);
 	memmove(skb->data, skb->data + len, off);
 	memset(skb->data + off, 0, len);
 
 	/* No skb_postpush_rcsum(skb, skb->data + off, len)
-	 * needed here as it does not change the skb->csum
+	 * needed here as it does yest change the skb->csum
 	 * result for checksum complete when summing over
 	 * zeroed blocks.
 	 */
@@ -2780,7 +2780,7 @@ static int bpf_skb_generic_push(struct sk_buff *skb, u32 off, u32 len)
 
 static int bpf_skb_generic_pop(struct sk_buff *skb, u32 off, u32 len)
 {
-	/* skb_ensure_writable() is not needed here, as we're
+	/* skb_ensure_writable() is yest needed here, as we're
 	 * already working on an uncloned skb.
 	 */
 	if (unlikely(!pskb_may_pull(skb, off + len)))
@@ -2798,7 +2798,7 @@ static int bpf_skb_net_hdr_push(struct sk_buff *skb, u32 off, u32 len)
 	bool trans_same = skb->transport_header == skb->network_header;
 	int ret;
 
-	/* There's no need for __skb_push()/__skb_pull() pair to
+	/* There's yes need for __skb_push()/__skb_pull() pair to
 	 * get to the start of the mac header as we're guaranteed
 	 * to always start from here under eBPF.
 	 */
@@ -2818,7 +2818,7 @@ static int bpf_skb_net_hdr_pop(struct sk_buff *skb, u32 off, u32 len)
 	bool trans_same = skb->transport_header == skb->network_header;
 	int ret;
 
-	/* Same here, __skb_push()/__skb_pull() pair not needed. */
+	/* Same here, __skb_push()/__skb_pull() pair yest needed. */
 	ret = bpf_skb_generic_pop(skb, off, len);
 	if (likely(!ret)) {
 		skb->mac_header += len;
@@ -2948,7 +2948,7 @@ BPF_CALL_3(bpf_skb_change_proto, struct sk_buff *, skb, __be16, proto,
 	 * care of stores.
 	 *
 	 * Currently, additional options and extension header space are
-	 * not supported, but flags register is reserved so we can adapt
+	 * yest supported, but flags register is reserved so we can adapt
 	 * that. For offloads, we mark packet as dodgy, so that headers
 	 * need to be verified first.
 	 */
@@ -2968,7 +2968,7 @@ static const struct bpf_func_proto bpf_skb_change_proto_proto = {
 
 BPF_CALL_2(bpf_skb_change_type, struct sk_buff *, skb, u32, pkt_type)
 {
-	/* We only allow a restricted subset to be changed for now. */
+	/* We only allow a restricted subset to be changed for yesw. */
 	if (unlikely(!skb_pkt_type_ok(skb->pkt_type) ||
 		     !skb_pkt_type_ok(pkt_type)))
 		return -EINVAL;
@@ -3324,7 +3324,7 @@ static inline int __bpf_skb_change_head(struct sk_buff *skb, u32 head_room,
 		 * allow to expand on mac header. This means that
 		 * skb->protocol network header, etc, stay as is.
 		 * Compared to bpf_skb_change_tail(), we're more
-		 * flexible due to not needing to linearize or
+		 * flexible due to yest needing to linearize or
 		 * reset GSO. Intention for this helper is to be
 		 * used by an L3 skb that needs to push mac header
 		 * for redirection into L2 device.
@@ -3410,7 +3410,7 @@ BPF_CALL_2(bpf_xdp_adjust_tail, struct xdp_buff *, xdp, int, offset)
 {
 	void *data_end = xdp->data_end + offset;
 
-	/* only shrinking is allowed for now. */
+	/* only shrinking is allowed for yesw. */
 	if (unlikely(offset >= 0))
 		return -EINVAL;
 
@@ -3484,7 +3484,7 @@ static int __bpf_tx_xdp(struct net_device *dev,
 	return 0;
 }
 
-static noinline int
+static yesinline int
 xdp_do_redirect_slow(struct net_device *dev, struct xdp_buff *xdp,
 		     struct bpf_prog *xdp_prog, struct bpf_redirect_info *ri)
 {
@@ -3596,7 +3596,7 @@ void bpf_clear_redirect_map(struct bpf_map *map)
 	for_each_possible_cpu(cpu) {
 		ri = per_cpu_ptr(&bpf_redirect_info, cpu);
 		/* Avoid polluting remote cacheline due to writes if
-		 * not needed. Once we pass this test, we need the
+		 * yest needed. Once we pass this test, we need the
 		 * cmpxchg() to make sure it hasn't been changed in
 		 * the meantime by remote CPU.
 		 */
@@ -4541,7 +4541,7 @@ BPF_CALL_3(bpf_bind, struct bpf_sock_addr_kern *, ctx, struct sockaddr *, addr,
 			return err;
 		if (((struct sockaddr_in6 *)addr)->sin6_port != htons(0))
 			return err;
-		/* ipv6_bpf_stub cannot be NULL, since it's called from
+		/* ipv6_bpf_stub canyest be NULL, since it's called from
 		 * bpf_cgroup_inet6_connect hook and ipv6 is already loaded
 		 */
 		return ipv6_bpf_stub->inet6_bind(sk, addr, addr_len, true, false);
@@ -4705,7 +4705,7 @@ static int bpf_ipv4_fib_lookup(struct net *net, struct bpf_fib_lookup *params,
 
 	nhc = res.nhc;
 
-	/* do not handle lwt encaps right now */
+	/* do yest handle lwt encaps right yesw */
 	if (nhc->nhc_lwtstate)
 		return BPF_FIB_LKUP_RET_UNSUPP_LWT;
 
@@ -4714,20 +4714,20 @@ static int bpf_ipv4_fib_lookup(struct net *net, struct bpf_fib_lookup *params,
 	params->rt_metric = res.fi->fib_priority;
 
 	/* xdp and cls_bpf programs are run in RCU-bh so
-	 * rcu_read_lock_bh is not needed here
+	 * rcu_read_lock_bh is yest needed here
 	 */
 	if (likely(nhc->nhc_gw_family != AF_INET6)) {
 		if (nhc->nhc_gw_family)
 			params->ipv4_dst = nhc->nhc_gw.ipv4;
 
-		neigh = __ipv4_neigh_lookup_noref(dev,
+		neigh = __ipv4_neigh_lookup_yesref(dev,
 						 (__force u32)params->ipv4_dst);
 	} else {
 		struct in6_addr *dst = (struct in6_addr *)params->ipv6_dst;
 
 		params->family = AF_INET6;
 		*dst = nhc->nhc_gw.ipv6;
-		neigh = __ipv6_neigh_lookup_noref_stub(dev, dst);
+		neigh = __ipv6_neigh_lookup_yesref_stub(dev, dst);
 	}
 
 	if (!neigh)
@@ -4839,9 +4839,9 @@ static int bpf_ipv6_fib_lookup(struct net *net, struct bpf_fib_lookup *params,
 	params->rt_metric = res.f6i->fib6_metric;
 
 	/* xdp and cls_bpf programs are run in RCU-bh so rcu_read_lock_bh is
-	 * not needed here.
+	 * yest needed here.
 	 */
-	neigh = __ipv6_neigh_lookup_noref_stub(dev, dst);
+	neigh = __ipv6_neigh_lookup_yesref_stub(dev, dst);
 	if (!neigh)
 		return BPF_FIB_LKUP_RET_NO_NEIGH;
 
@@ -5255,7 +5255,7 @@ static struct sock *sk_lookup(struct net *net, struct bpf_sock_tuple *tuple,
 	}
 
 	if (unlikely(sk && !refcounted && !sock_flag(sk, SOCK_RCU_FREE))) {
-		WARN_ONCE(1, "Found non-RCU, unreferenced socket!");
+		WARN_ONCE(1, "Found yesn-RCU, unreferenced socket!");
 		sk = NULL;
 	}
 	return sk;
@@ -5814,7 +5814,7 @@ BPF_CALL_5(bpf_tcp_check_syncookie, struct sock *, sk, void *, iph, u32, iph_len
 	if (unlikely(th_len < sizeof(*th)))
 		return -EINVAL;
 
-	/* sk_listener() allows TCP_NEW_SYN_RECV, which makes no sense here. */
+	/* sk_listener() allows TCP_NEW_SYN_RECV, which makes yes sense here. */
 	if (sk->sk_protocol != IPPROTO_TCP || sk->sk_state != TCP_LISTEN)
 		return -EINVAL;
 
@@ -5824,7 +5824,7 @@ BPF_CALL_5(bpf_tcp_check_syncookie, struct sock *, sk, void *, iph, u32, iph_len
 	if (!th->ack || th->rst || th->syn)
 		return -ENOENT;
 
-	if (tcp_synq_no_recent_overflow(sk))
+	if (tcp_synq_yes_recent_overflow(sk))
 		return -ENOENT;
 
 	cookie = ntohl(th->ack_seq) - 1;
@@ -5996,8 +5996,8 @@ bpf_base_func_proto(enum bpf_func_id func_id)
 		return &bpf_get_prandom_u32_proto;
 	case BPF_FUNC_get_smp_processor_id:
 		return &bpf_get_raw_smp_processor_id_proto;
-	case BPF_FUNC_get_numa_node_id:
-		return &bpf_get_numa_node_id_proto;
+	case BPF_FUNC_get_numa_yesde_id:
+		return &bpf_get_numa_yesde_id_proto;
 	case BPF_FUNC_tail_call:
 		return &bpf_tail_call_proto;
 	case BPF_FUNC_ktime_get_ns:
@@ -6525,7 +6525,7 @@ static bool bpf_skb_is_valid_access(int off, int size, enum bpf_access_type type
 		info->reg_type = PTR_TO_SOCK_COMMON_OR_NULL;
 		break;
 	default:
-		/* Only narrow read access allowed for now. */
+		/* Only narrow read access allowed for yesw. */
 		if (type == BPF_WRITE) {
 			if (size != size_default)
 				return false;
@@ -6743,10 +6743,10 @@ static bool sock_filter_is_valid_access(int off, int size,
 					       prog->expected_attach_type);
 }
 
-static int bpf_noop_prologue(struct bpf_insn *insn_buf, bool direct_write,
+static int bpf_yesop_prologue(struct bpf_insn *insn_buf, bool direct_write,
 			     const struct bpf_prog *prog)
 {
-	/* Neither direct read nor direct write requires any preliminary
+	/* Neither direct read yesr direct write requires any preliminary
 	 * action.
 	 */
 	return 0;
@@ -6809,13 +6809,13 @@ static int bpf_gen_ld_abs(const struct bpf_insn *orig,
 
 	switch (BPF_SIZE(orig->code)) {
 	case BPF_B:
-		*insn++ = BPF_EMIT_CALL(bpf_skb_load_helper_8_no_cache);
+		*insn++ = BPF_EMIT_CALL(bpf_skb_load_helper_8_yes_cache);
 		break;
 	case BPF_H:
-		*insn++ = BPF_EMIT_CALL(bpf_skb_load_helper_16_no_cache);
+		*insn++ = BPF_EMIT_CALL(bpf_skb_load_helper_16_yes_cache);
 		break;
 	case BPF_W:
-		*insn++ = BPF_EMIT_CALL(bpf_skb_load_helper_32_no_cache);
+		*insn++ = BPF_EMIT_CALL(bpf_skb_load_helper_32_yes_cache);
 		break;
 	}
 
@@ -7827,7 +7827,7 @@ static u32 xdp_convert_ctx_access(enum bpf_access_type type,
  * to Nested Structure of type NS that has the field NF.
  *
  * SIZE encodes the load size (BPF_B, BPF_H, etc). It's up to caller to make
- * sure that SIZE is not greater than actual size of S.F.NF.
+ * sure that SIZE is yest greater than actual size of S.F.NF.
  *
  * If offset OFF is provided, the load happens from that offset relative to
  * offset of NF.
@@ -7851,8 +7851,8 @@ static u32 xdp_convert_ctx_access(enum bpf_access_type type,
  * SOCK_ADDR_LOAD_NESTED_FIELD_SIZE_OFF() but for store operation.
  *
  * In addition it uses Temporary Field TF (member of struct S) as the 3rd
- * "register" since two registers available in convert_ctx_access are not
- * enough: we can't override neither SRC, since it contains value to store, nor
+ * "register" since two registers available in convert_ctx_access are yest
+ * eyesugh: we can't override neither SRC, since it contains value to store, yesr
  * DST since it contains pointer to context that may be used by later
  * instructions. But we need a temporary place to save pointer to nested
  * structure whose field we want to store to.
@@ -7922,7 +7922,7 @@ static u32 sock_addr_convert_ctx_access(enum bpf_access_type type,
 		break;
 
 	case offsetof(struct bpf_sock_addr, user_port):
-		/* To get port we need to know sa_family first and then treat
+		/* To get port we need to kyesw sa_family first and then treat
 		 * sockaddr as either sockaddr_in or sockaddr_in6.
 		 * Though we can simplify since port field has same offset and
 		 * size in both structures.
@@ -8023,7 +8023,7 @@ static u32 sock_ops_convert_ctx_access(enum bpf_access_type type,
 /* Helper macro for adding write access to tcp_sock or sock fields.
  * The macro is called with two registers, dst_reg which contains a pointer
  * to ctx (context) and src_reg which contains the value that should be
- * stored. However, we need an additional register since we cannot overwrite
+ * stored. However, we need an additional register since we canyest overwrite
  * dst_reg because it may be used later in the program.
  * Instead we "borrow" one of the other register. We first save its value
  * into a new (temp) field in bpf_sock_ops_kern, use it, and then restore
@@ -8505,7 +8505,7 @@ const struct bpf_verifier_ops xdp_verifier_ops = {
 	.get_func_proto		= xdp_func_proto,
 	.is_valid_access	= xdp_is_valid_access,
 	.convert_ctx_access	= xdp_convert_ctx_access,
-	.gen_prologue		= bpf_noop_prologue,
+	.gen_prologue		= bpf_yesop_prologue,
 };
 
 const struct bpf_prog_ops xdp_prog_ops = {
@@ -8604,7 +8604,7 @@ const struct bpf_verifier_ops sk_msg_verifier_ops = {
 	.get_func_proto		= sk_msg_func_proto,
 	.is_valid_access	= sk_msg_is_valid_access,
 	.convert_ctx_access	= sk_msg_convert_ctx_access,
-	.gen_prologue		= bpf_noop_prologue,
+	.gen_prologue		= bpf_yesop_prologue,
 };
 
 const struct bpf_prog_ops sk_msg_prog_ops = {
@@ -8654,8 +8654,8 @@ int sk_get_filter(struct sock *sk, struct sock_filter __user *ubuf,
 		goto out;
 
 	/* We're copying the filter that has been originally attached,
-	 * so no conversion/decode needed anymore. eBPF programs that
-	 * have no original program cannot be dumped through this.
+	 * so yes conversion/decode needed anymore. eBPF programs that
+	 * have yes original program canyest be dumped through this.
 	 */
 	ret = -EACCES;
 	fprog = filter->prog->orig_prog;
@@ -8740,7 +8740,7 @@ BPF_CALL_4(sk_select_reuseport, struct sk_reuseport_kern *, reuse_kern,
 			/* There is a small race between adding the
 			 * sk to the map and setting the
 			 * reuse_kern->reuseport_id.
-			 * Treat it as the sk has not been added to
+			 * Treat it as the sk has yest been added to
 			 * the bpf map yet.
 			 */
 			return -ENOENT;

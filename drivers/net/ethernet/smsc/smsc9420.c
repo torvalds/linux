@@ -109,7 +109,7 @@ static int smsc9420_mii_read(struct mii_bus *bus, int phyaddr, int regidx)
 
 	spin_lock_irqsave(&pd->phy_lock, flags);
 
-	/*  confirm MII not busy */
+	/*  confirm MII yest busy */
 	if ((smsc9420_reg_read(pd, MII_ACCESS) & MII_ACCESS_MII_BUSY_)) {
 		netif_warn(pd, drv, pd->dev, "MII is busy???\n");
 		goto out;
@@ -147,7 +147,7 @@ static int smsc9420_mii_write(struct mii_bus *bus, int phyaddr, int regidx,
 
 	spin_lock_irqsave(&pd->phy_lock, flags);
 
-	/* confirm MII not busy */
+	/* confirm MII yest busy */
 	if ((smsc9420_reg_read(pd, MII_ACCESS) & MII_ACCESS_MII_BUSY_)) {
 		netif_warn(pd, drv, pd->dev, "MII is busy???\n");
 		goto out;
@@ -261,7 +261,7 @@ smsc9420_ethtool_getregs(struct net_device *dev, struct ethtool_regs *regs,
 	for (i = 0; i < 0x100; i += (sizeof(u32)))
 		data[j++] = smsc9420_reg_read(pd, i);
 
-	// cannot read phy registers if the net device is down
+	// canyest read phy registers if the net device is down
 	if (!phy_dev)
 		return;
 
@@ -587,7 +587,7 @@ static void smsc9420_stop_rx(struct smsc9420_pdata *pd)
 
 	if (!timeout)
 		netif_warn(pd, ifdown, pd->dev,
-			   "RX DMAC did not stop! timeout\n");
+			   "RX DMAC did yest stop! timeout\n");
 
 	/* ACK the Rx DMAC stop bit */
 	smsc9420_reg_write(pd, DMAC_STATUS, DMAC_STS_RXPS_);
@@ -677,7 +677,7 @@ static void smsc9420_dmac_soft_reset(struct smsc9420_pdata *pd)
 	smsc9420_reg_read(pd, BUS_MODE);
 	udelay(2);
 	if (smsc9420_reg_read(pd, BUS_MODE) & BUS_MODE_SWR_)
-		netif_warn(pd, drv, pd->dev, "Software reset not cleared\n");
+		netif_warn(pd, drv, pd->dev, "Software reset yest cleared\n");
 }
 
 static int smsc9420_stop(struct net_device *dev)
@@ -1069,7 +1069,7 @@ static void smsc9420_phy_update_flowcontrol(struct smsc9420_pdata *pd)
 }
 
 /* Update link mode if anything has changed.  Called periodically when the
- * PHY is in polling mode, even if nothing has changed. */
+ * PHY is in polling mode, even if yesthing has changed. */
 static void smsc9420_phy_adjust_link(struct net_device *dev)
 {
 	struct smsc9420_pdata *pd = netdev_priv(dev);
@@ -1096,7 +1096,7 @@ static void smsc9420_phy_adjust_link(struct net_device *dev)
 		if (carrier)
 			netif_dbg(pd, link, pd->dev, "carrier OK\n");
 		else
-			netif_dbg(pd, link, pd->dev, "no carrier\n");
+			netif_dbg(pd, link, pd->dev, "yes carrier\n");
 		pd->last_carrier = carrier;
 	}
 }
@@ -1111,7 +1111,7 @@ static int smsc9420_mii_probe(struct net_device *dev)
 	/* Device only supports internal PHY at address 1 */
 	phydev = mdiobus_get_phy(pd->mii_bus, 1);
 	if (!phydev) {
-		netdev_err(dev, "no PHY found at address 1\n");
+		netdev_err(dev, "yes PHY found at address 1\n");
 		return -ENODEV;
 	}
 
@@ -1119,7 +1119,7 @@ static int smsc9420_mii_probe(struct net_device *dev)
 			     smsc9420_phy_adjust_link, PHY_INTERFACE_MODE_MII);
 
 	if (IS_ERR(phydev)) {
-		netdev_err(dev, "Could not attach to PHY\n");
+		netdev_err(dev, "Could yest attach to PHY\n");
 		return PTR_ERR(phydev);
 	}
 
@@ -1231,7 +1231,7 @@ static int smsc9420_alloc_rx_ring(struct smsc9420_pdata *pd)
 	}
 	pd->rx_ring[RX_RING_SIZE - 1].length = (PKT_BUF_SZ | RDES1_RER_);
 
-	/* now allocate the entire ring of skbs */
+	/* yesw allocate the entire ring of skbs */
 	for (i = 0; i < RX_RING_SIZE; i++) {
 		if (smsc9420_alloc_rx_buffer(pd, i)) {
 			netif_warn(pd, ifup, pd->dev,
@@ -1275,14 +1275,14 @@ static int smsc9420_open(struct net_device *dev)
 
 	if (!is_valid_ether_addr(dev->dev_addr)) {
 		netif_warn(pd, ifup, pd->dev,
-			   "dev_addr is not a valid MAC address\n");
+			   "dev_addr is yest a valid MAC address\n");
 		result = -EADDRNOTAVAIL;
 		goto out_0;
 	}
 
 	netif_carrier_off(dev);
 
-	/* disable, mask and acknowledge all interrupts */
+	/* disable, mask and ackyeswledge all interrupts */
 	spin_lock_irqsave(&pd->int_lock, flags);
 	int_cfg = smsc9420_reg_read(pd, INT_CFG) & (~INT_CFG_IRQ_EN_);
 	smsc9420_reg_write(pd, INT_CFG, int_cfg);
@@ -1526,7 +1526,7 @@ smsc9420_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* First do the PCI initialisation */
 	result = pci_enable_device(pdev);
 	if (unlikely(result)) {
-		pr_err("Cannot enable smsc9420\n");
+		pr_err("Canyest enable smsc9420\n");
 		goto out_0;
 	}
 
@@ -1539,12 +1539,12 @@ smsc9420_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	if (!(pci_resource_flags(pdev, SMSC_BAR) & IORESOURCE_MEM)) {
-		netdev_err(dev, "Cannot find PCI device base address\n");
+		netdev_err(dev, "Canyest find PCI device base address\n");
 		goto out_free_netdev_2;
 	}
 
 	if ((pci_request_regions(pdev, DRV_NAME))) {
-		netdev_err(dev, "Cannot obtain PCI resources, aborting\n");
+		netdev_err(dev, "Canyest obtain PCI resources, aborting\n");
 		goto out_free_netdev_2;
 	}
 
@@ -1556,7 +1556,7 @@ smsc9420_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	virt_addr = ioremap(pci_resource_start(pdev, SMSC_BAR),
 		pci_resource_len(pdev, SMSC_BAR));
 	if (!virt_addr) {
-		netdev_err(dev, "Cannot map device registers, aborting\n");
+		netdev_err(dev, "Canyest map device registers, aborting\n");
 		goto out_free_regions_3;
 	}
 

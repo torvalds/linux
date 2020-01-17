@@ -33,7 +33,7 @@ void ccu_helper_wait_for_lock(struct ccu_common *common, u32 lock)
 }
 
 /*
- * This clock notifier is called when the frequency of a PLL clock is
+ * This clock yestifier is called when the frequency of a PLL clock is
  * changed. In common PLL designs, changes to the dividers take effect
  * almost immediately, while changes to the multipliers (implemented
  * as dividers in the feedback loop) take a few cycles to work into
@@ -44,13 +44,13 @@ void ccu_helper_wait_for_lock(struct ccu_common *common, u32 lock)
  * The PLL clock rate will spike, and in some cases, might lock up
  * completely.
  *
- * This notifier callback will gate and then ungate the clock,
+ * This yestifier callback will gate and then ungate the clock,
  * effectively resetting it, so it proceeds to work. Care must be
  * taken to reparent consumers to other temporary clocks during the
- * rate change, and that this notifier callback must be the first
+ * rate change, and that this yestifier callback must be the first
  * to be registered.
  */
-static int ccu_pll_notifier_cb(struct notifier_block *nb,
+static int ccu_pll_yestifier_cb(struct yestifier_block *nb,
 			       unsigned long event, void *data)
 {
 	struct ccu_pll_nb *pll = to_ccu_pll_nb(nb);
@@ -68,18 +68,18 @@ static int ccu_pll_notifier_cb(struct notifier_block *nb,
 	ccu_helper_wait_for_lock(pll->common, pll->lock);
 
 out:
-	return notifier_from_errno(ret);
+	return yestifier_from_erryes(ret);
 }
 
-int ccu_pll_notifier_register(struct ccu_pll_nb *pll_nb)
+int ccu_pll_yestifier_register(struct ccu_pll_nb *pll_nb)
 {
-	pll_nb->clk_nb.notifier_call = ccu_pll_notifier_cb;
+	pll_nb->clk_nb.yestifier_call = ccu_pll_yestifier_cb;
 
-	return clk_notifier_register(pll_nb->common->hw.clk,
+	return clk_yestifier_register(pll_nb->common->hw.clk,
 				     &pll_nb->clk_nb);
 }
 
-int sunxi_ccu_probe(struct device_node *node, void __iomem *reg,
+int sunxi_ccu_probe(struct device_yesde *yesde, void __iomem *reg,
 		    const struct sunxi_ccu_desc *desc)
 {
 	struct ccu_reset *reset;
@@ -103,14 +103,14 @@ int sunxi_ccu_probe(struct device_node *node, void __iomem *reg,
 			continue;
 
 		name = hw->init->name;
-		ret = of_clk_hw_register(node, hw);
+		ret = of_clk_hw_register(yesde, hw);
 		if (ret) {
 			pr_err("Couldn't register clock %d - %s\n", i, name);
 			goto err_clk_unreg;
 		}
 	}
 
-	ret = of_clk_add_hw_provider(node, of_clk_hw_onecell_get,
+	ret = of_clk_add_hw_provider(yesde, of_clk_hw_onecell_get,
 				     desc->hw_clks);
 	if (ret)
 		goto err_clk_unreg;
@@ -121,7 +121,7 @@ int sunxi_ccu_probe(struct device_node *node, void __iomem *reg,
 		goto err_alloc_reset;
 	}
 
-	reset->rcdev.of_node = node;
+	reset->rcdev.of_yesde = yesde;
 	reset->rcdev.ops = &ccu_reset_ops;
 	reset->rcdev.owner = THIS_MODULE;
 	reset->rcdev.nr_resets = desc->num_resets;
@@ -138,7 +138,7 @@ int sunxi_ccu_probe(struct device_node *node, void __iomem *reg,
 err_of_clk_unreg:
 	kfree(reset);
 err_alloc_reset:
-	of_clk_del_provider(node);
+	of_clk_del_provider(yesde);
 err_clk_unreg:
 	while (--i >= 0) {
 		struct clk_hw *hw = desc->hw_clks->hws[i];

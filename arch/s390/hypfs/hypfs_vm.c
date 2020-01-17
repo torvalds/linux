@@ -7,7 +7,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/vmalloc.h>
 #include <asm/diag.h>
@@ -71,7 +71,7 @@ static int diag2fc(int size, char* query, void *addr)
 	diag_stat_inc(DIAG_STAT_X2FC);
 	asm volatile(
 		"	diag    %0,%1,0x2fc\n"
-		"0:	nopr	%%r7\n"
+		"0:	yespr	%%r7\n"
 		EX_TABLE(0b,0b)
 		: "=d" (residual_cnt), "+d" (rc) : "0" (&parm_list) : "memory");
 
@@ -147,7 +147,7 @@ static int hypfs_vm_create_guest(struct dentry *systems_dir,
 	ATTRIBUTE(cpus_dir, "count", data->vcpus);
 	/*
 	 * Note: The "weight_min" attribute got the wrong name.
-	 * The value represents the number of non-stopped (operating)
+	 * The value represents the number of yesn-stopped (operating)
 	 * CPUS.
 	 */
 	ATTRIBUTE(cpus_dir, "weight_min", data->ocpus);

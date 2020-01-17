@@ -3,7 +3,7 @@
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
  * Author: Andrzej Hajda <a.hajda@samsung.com>
  *
- * Device Tree binding constants for Exynos5250 clock controller.
+ * Device Tree binding constants for Exyyess5250 clock controller.
  */
 
 #ifndef _DT_BINDINGS_CLOCK_EXYNOS_5250_H

@@ -34,7 +34,7 @@
 #include <linux/kernel.h>
 #include <linux/kernel_stat.h>
 #include <linux/mm.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/smp.h>
 #include <linux/spinlock.h>
 #include <linux/efi.h>
@@ -131,7 +131,7 @@ struct smp_boot_data smp_boot_data __initdata;
 
 unsigned long ap_wakeup_vector = -1; /* External Int use to wakeup APs */
 
-char __initdata no_int_routing;
+char __initdata yes_int_routing;
 
 unsigned char smp_int_redirect; /* are INT and IPI redirectable by the chipset? */
 
@@ -157,14 +157,14 @@ cmdl_force_cpei(char *str)
 __setup("force_cpei=", cmdl_force_cpei);
 
 static int __init
-nointroute (char *str)
+yesintroute (char *str)
 {
-	no_int_routing = 1;
-	printk ("no_int_routing on\n");
+	yes_int_routing = 1;
+	printk ("yes_int_routing on\n");
 	return 1;
 }
 
-__setup("nointroute", nointroute);
+__setup("yesintroute", yesintroute);
 
 static void fix_b0_for_bsp(void)
 {
@@ -242,7 +242,7 @@ get_delta (long *rt, long *master)
 
 /*
  * Synchronize ar.itc of the current (slave) CPU with the ar.itc of the MASTER CPU
- * (normally the time-keeper CPU).  We use a closed loop to eliminate the possibility of
+ * (yesrmally the time-keeper CPU).  We use a closed loop to eliminate the possibility of
  * unaccounted-for errors (such as getting a machine check in the middle of a calibration
  * step).  The basic idea is for the slave to ask the master what itc value it has and to
  * read its own itc before and after the master responds.  Each iteration gives us three
@@ -262,7 +262,7 @@ get_delta (long *rt, long *master)
  * The goal is to adjust the slave's ar.itc such that tm falls exactly half-way between t0
  * and t1.  If we achieve this, the clocks are synchronized provided the interconnect
  * between the slave and the master is symmetric.  Even if the interconnect were
- * asymmetric, we would still know that the synchronization error is smaller than the
+ * asymmetric, we would still kyesw that the synchronization error is smaller than the
  * roundtrip latency (t0 - t1).
  *
  * When the interconnect is quiet and symmetric, this lets us synchronize the itc to
@@ -343,7 +343,7 @@ ia64_sync_itc (unsigned int master)
 }
 
 /*
- * Ideally sets up per-cpu profiling hooks.  Doesn't do much now...
+ * Ideally sets up per-cpu profiling hooks.  Doesn't do much yesw...
  */
 static inline void smp_setup_percpu_timer(void)
 {
@@ -374,15 +374,15 @@ smp_callin (void)
 	fix_b0_for_bsp();
 
 	/*
-	 * numa_node_id() works after this.
+	 * numa_yesde_id() works after this.
 	 */
-	set_numa_node(cpu_to_node_map[cpuid]);
-	set_numa_mem(local_memory_node(cpu_to_node_map[cpuid]));
+	set_numa_yesde(cpu_to_yesde_map[cpuid]);
+	set_numa_mem(local_memory_yesde(cpu_to_yesde_map[cpuid]));
 
 	spin_lock(&vector_lock);
 	/* Setup the per cpu irq handling data structures */
 	__setup_vector_irq(cpuid);
-	notify_cpu_starting(cpuid);
+	yestify_cpu_starting(cpuid);
 	set_cpu_online(cpuid, true);
 	per_cpu(cpu_state, cpuid) = CPU_ONLINE;
 	spin_unlock(&vector_lock);
@@ -402,7 +402,7 @@ smp_callin (void)
 		 * Synchronize the ITC with the BP.  Need to do this after irqs are
 		 * enabled because ia64_sync_itc() calls smp_call_function_single(), which
 		 * calls spin_unlock_bh(), which calls spin_unlock_bh(), which calls
-		 * local_bh_enable(), which bugs out if irqs are not enabled...
+		 * local_bh_enable(), which bugs out if irqs are yest enabled...
 		 */
 		Dprintk("Going to syncup ITC with ITC Master.\n");
 		ia64_sync_itc(itc_master);
@@ -565,7 +565,7 @@ void smp_prepare_boot_cpu(void)
 {
 	set_cpu_online(smp_processor_id(), true);
 	cpumask_set_cpu(smp_processor_id(), &cpu_callin_map);
-	set_numa_node(cpu_to_node_map[smp_processor_id()]);
+	set_numa_yesde(cpu_to_yesde_map[smp_processor_id()]);
 	per_cpu(cpu_state, smp_processor_id()) = CPU_ONLINE;
 }
 
@@ -624,7 +624,7 @@ int migrate_platform_irqs(unsigned int cpu)
 			set_cpei_target_cpu(new_cpei_cpu);
 			data = irq_get_irq_data(ia64_cpe_irq);
 			/*
-			 * Switch for now, immediately, we need to do fake intr
+			 * Switch for yesw, immediately, we need to do fake intr
 			 * as other interrupts, but need to study CPEI behaviour with
 			 * polling before making changes.
 			 */
@@ -649,10 +649,10 @@ int __cpu_disable(void)
 	int cpu = smp_processor_id();
 
 	/*
-	 * dont permit boot processor for now
+	 * dont permit boot processor for yesw
 	 */
 	if (cpu == 0 && !bsp_remove_ok) {
-		printk ("Your platform does not support removal of BSP\n");
+		printk ("Your platform does yest support removal of BSP\n");
 		return (-EBUSY);
 	}
 
@@ -678,7 +678,7 @@ void __cpu_die(unsigned int cpu)
 		/* They ack this in play_dead by setting CPU_DEAD */
 		if (per_cpu(cpu_state, cpu) == CPU_DEAD)
 		{
-			printk ("CPU %d is now offline\n", cpu);
+			printk ("CPU %d is yesw offline\n", cpu);
 			return;
 		}
 		msleep(100);
@@ -734,7 +734,7 @@ __cpu_up(unsigned int cpu, struct task_struct *tidle)
 		return -EINVAL;
 
 	/*
-	 * Already booted cpu? not valid anymore since we dont
+	 * Already booted cpu? yest valid anymore since we dont
 	 * do idle loop tightspin anymore.
 	 */
 	if (cpumask_test_cpu(cpu, &cpu_callin_map))
@@ -829,9 +829,9 @@ void identify_siblings(struct cpuinfo_ia64 *c)
 }
 
 /*
- * returns non zero, if multi-threading is enabled
+ * returns yesn zero, if multi-threading is enabled
  * on at least one physical package. Due to hotplug cpu
- * and (maxcpus=), all threads may not necessarily be enabled
+ * and (maxcpus=), all threads may yest necessarily be enabled
  * even though the processor supports multi-threading.
  */
 int is_multithreading_enabled(void)

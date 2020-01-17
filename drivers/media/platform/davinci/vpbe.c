@@ -5,7 +5,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fs.h>
 #include <linux/string.h>
 #include <linux/wait.h>
@@ -209,8 +209,8 @@ static int vpbe_set_output(struct vpbe_device *vpbe_dev, int index)
 	 * by the application. If media controller is implemented later
 	 * there is will be an API added to setup_link between venc
 	 * and external encoder. So in that case below comparison always
-	 * match and encoder will not be switched. But if application
-	 * chose not to use media controller, then this provides current
+	 * match and encoder will yest be switched. But if application
+	 * chose yest to use media controller, then this provides current
 	 * way of switching encoder at the venc output.
 	 */
 	if (strcmp(curr_enc_info->module_name,
@@ -550,7 +550,7 @@ static int platform_device_get(struct device *dev, void *data)
  * devices and sets a current encoder sub device for display. v4l2 display
  * device driver is the master and frame buffer display device driver is
  * the slave. Frame buffer display driver checks the initialized during
- * probe and exit if not initialized. Returns status.
+ * probe and exit if yest initialized. Returns status.
  */
 static int vpbe_initialize(struct device *dev, struct vpbe_device *vpbe_dev)
 {
@@ -671,7 +671,7 @@ static int vpbe_initialize(struct device *dev, struct vpbe_device *vpbe_dev)
 				goto fail_kfree_encoders;
 			}
 		} else
-			v4l2_warn(&vpbe_dev->v4l2_dev, "non-i2c encoders currently not supported");
+			v4l2_warn(&vpbe_dev->v4l2_dev, "yesn-i2c encoders currently yest supported");
 	}
 	/* Add amplifier subdevice for dm365 */
 	if ((strcmp(vpbe_dev->cfg->module_name, "dm365-vpbe-display") == 0) &&
@@ -693,7 +693,7 @@ static int vpbe_initialize(struct device *dev, struct vpbe_device *vpbe_dev)
 					  amp_info->module_name);
 		} else {
 			    vpbe_dev->amp = NULL;
-			    v4l2_warn(&vpbe_dev->v4l2_dev, "non-i2c amplifiers currently not supported");
+			    v4l2_warn(&vpbe_dev->v4l2_dev, "yesn-i2c amplifiers currently yest supported");
 		}
 	} else {
 	    vpbe_dev->amp = NULL;
@@ -748,7 +748,7 @@ fail_mutex_unlock:
  *
  * vpbe_master and slave frame buffer devices calls this to de-initialize
  * the display controller. It is called when master and slave device
- * driver modules are removed and no longer requires the display controller.
+ * driver modules are removed and yes longer requires the display controller.
  */
 static void vpbe_deinitialize(struct device *dev, struct vpbe_device *vpbe_dev)
 {
@@ -794,7 +794,7 @@ static int vpbe_probe(struct platform_device *pdev)
 	if (!cfg->module_name[0] ||
 	    !cfg->osd.module_name[0] ||
 	    !cfg->venc.module_name[0]) {
-		v4l2_err(pdev->dev.driver, "vpbe display module names not defined\n");
+		v4l2_err(pdev->dev.driver, "vpbe display module names yest defined\n");
 		return -EINVAL;
 	}
 

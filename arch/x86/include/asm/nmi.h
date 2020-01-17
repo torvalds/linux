@@ -18,7 +18,7 @@ extern void release_evntsel_nmi(unsigned int);
 struct ctl_table;
 extern int proc_nmi_enabled(struct ctl_table *, int ,
 			void __user *, size_t *, loff_t *);
-extern int unknown_nmi_panic;
+extern int unkyeswn_nmi_panic;
 
 #endif /* CONFIG_X86_LOCAL_APIC */
 

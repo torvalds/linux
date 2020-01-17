@@ -124,7 +124,7 @@
 
 #define ADDR_4MB_MASK				GENMASK(22, 0)
 
-/* stop at end of transfer, no other reason */
+/* stop at end of transfer, yes other reason */
 #define TRANS_STATUS_BREAK_NONE		0
 /* stop at end of spi_message */
 #define TRANS_STATUS_BREAK_EOM			1
@@ -243,7 +243,7 @@ static int bcm_qspi_bspi_busy_poll(struct bcm_qspi *qspi)
 {
 	int i;
 
-	/* this should normally finish within 10us */
+	/* this should yesrmally finish within 10us */
 	for (i = 0; i < 1000; i++) {
 		if (!(bcm_qspi_read(qspi, BSPI, BSPI_BUSY_STATUS) & 1))
 			return 0;
@@ -358,7 +358,7 @@ static int bcm_qspi_bspi_set_flex_mode(struct bcm_qspi *qspi,
 	switch (width) {
 	case SPI_NBITS_SINGLE:
 		if (addrlen == BSPI_ADDRLEN_3BYTES)
-			/* default mode, does not need flex_cmd */
+			/* default mode, does yest need flex_cmd */
 			flex_mode = 0;
 		break;
 	case SPI_NBITS_DUAL:
@@ -763,7 +763,7 @@ static int write_to_hw(struct bcm_qspi *qspi, struct spi_device *spi)
 	}
 
 	if (!slot) {
-		dev_err(&qspi->pdev->dev, "%s: no data to send?", __func__);
+		dev_err(&qspi->pdev->dev, "%s: yes data to send?", __func__);
 		goto done;
 	}
 
@@ -926,7 +926,7 @@ static int bcm_qspi_mspi_exec_mem_op(struct spi_device *spi,
 	t[0].len = op->addr.nbytes + op->dummy.nbytes + 1;
 	t[0].bits_per_word = spi->bits_per_word;
 	t[0].tx_nbits = op->cmd.buswidth;
-	/* lets mspi know that this is not last transfer */
+	/* lets mspi kyesw that this is yest last transfer */
 	qspi->trans_pos.mspi_last_trans = false;
 	ret = bcm_qspi_transfer_one(master, spi, &t[0]);
 
@@ -976,7 +976,7 @@ static int bcm_qspi_exec_mem_op(struct spi_mem *mem,
 			mspi_read = true;
 	}
 
-	/* non-aligned and very short transfers are handled by MSPI */
+	/* yesn-aligned and very short transfers are handled by MSPI */
 	if (!IS_ALIGNED((uintptr_t)addr, 4) || !IS_ALIGNED((uintptr_t)buf, 4) ||
 	    len < 4)
 		mspi_read = true;
@@ -1209,10 +1209,10 @@ int bcm_qspi_probe(struct platform_device *pdev,
 	int num_irqs = ARRAY_SIZE(qspi_irq_tab);
 
 	/* We only support device-tree instantiation */
-	if (!dev->of_node)
+	if (!dev->of_yesde)
 		return -ENODEV;
 
-	if (!of_match_node(bcm_qspi_of_match, dev->of_node))
+	if (!of_match_yesde(bcm_qspi_of_match, dev->of_yesde))
 		return -ENODEV;
 
 	master = spi_alloc_master(dev, sizeof(struct bcm_qspi));
@@ -1234,13 +1234,13 @@ int bcm_qspi_probe(struct platform_device *pdev,
 	master->transfer_one = bcm_qspi_transfer_one;
 	master->mem_ops = &bcm_qspi_mem_ops;
 	master->cleanup = bcm_qspi_cleanup;
-	master->dev.of_node = dev->of_node;
+	master->dev.of_yesde = dev->of_yesde;
 	master->num_chipselect = NUM_CHIPSELECT;
 	master->use_gpio_descriptors = true;
 
-	qspi->big_endian = of_device_is_big_endian(dev->of_node);
+	qspi->big_endian = of_device_is_big_endian(dev->of_yesde);
 
-	if (!of_property_read_u32(dev->of_node, "num-cs", &val))
+	if (!of_property_read_u32(dev->of_yesde, "num-cs", &val))
 		master->num_chipselect = val;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "hif_mspi");
@@ -1305,7 +1305,7 @@ int bcm_qspi_probe(struct platform_device *pdev,
 					       name,
 					       &qspi->dev_ids[val]);
 			if (ret < 0) {
-				dev_err(&pdev->dev, "IRQ %s not found\n", name);
+				dev_err(&pdev->dev, "IRQ %s yest found\n", name);
 				goto qspi_probe_err;
 			}
 
@@ -1319,7 +1319,7 @@ int bcm_qspi_probe(struct platform_device *pdev,
 	}
 
 	if (!num_ints) {
-		dev_err(&pdev->dev, "no IRQs registered, cannot init driver\n");
+		dev_err(&pdev->dev, "yes IRQs registered, canyest init driver\n");
 		ret = -EINVAL;
 		goto qspi_probe_err;
 	}

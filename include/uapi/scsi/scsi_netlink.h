@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /*
  *  SCSI Transport Netlink Interface
  *    Used for the posting of outbound SCSI transport events
@@ -76,14 +76,14 @@ struct scsi_nl_hdr {
 struct scsi_nl_host_vendor_msg {
 	struct scsi_nl_hdr snlh;		/* must be 1st element ! */
 	__u64 vendor_id;
-	__u16 host_no;
+	__u16 host_yes;
 	__u16 vmsg_datalen;
 } __attribute__((aligned(sizeof(__u64))));
 
 
 /*
  * Vendor ID:
- *   If transports post vendor-unique events, they must pass a well-known
+ *   If transports post vendor-unique events, they must pass a well-kyeswn
  *   32-bit vendor identifier. This identifier consists of 8 bits indicating
  *   the "type" of identifier contained, and 24 bits of id data.
  *

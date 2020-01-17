@@ -71,7 +71,7 @@ static void toshsd_init(struct toshsd_host *host)
 }
 
 /* Set MMC clock / power.
- * Note: This controller uses a simple divider scheme therefore it cannot run
+ * Note: This controller uses a simple divider scheme therefore it canyest run
  * SD/MMC cards at full speed (24/20MHz). HCLK (=33MHz PCI clock?) is too high
  * and the next slowest is 16MHz (div=2).
  */
@@ -300,7 +300,7 @@ static irqreturn_t toshsd_irq(int irq, void *dev_id)
 	dev_dbg(&host->pdev->dev, "IRQ status:%x mask:%x\n",
 		int_status, int_mask);
 
-	/* nothing to do: it's not our IRQ */
+	/* yesthing to do: it's yest our IRQ */
 	if (!int_reg) {
 		ret = IRQ_NONE;
 		goto irq_end;
@@ -438,7 +438,7 @@ static void toshsd_start_cmd(struct toshsd_host *host, struct mmc_command *cmd)
 		break;
 
 	default:
-		dev_err(&host->pdev->dev, "Unknown response type %d\n",
+		dev_err(&host->pdev->dev, "Unkyeswn response type %d\n",
 			mmc_resp_type(cmd));
 		break;
 	}
@@ -463,7 +463,7 @@ static void toshsd_start_cmd(struct toshsd_host *host, struct mmc_command *cmd)
 		if (data->flags & MMC_DATA_READ)
 			c |= SD_CMD_TRANSFER_READ;
 
-		/* MMC_DATA_WRITE does not require a bit to be set */
+		/* MMC_DATA_WRITE does yest require a bit to be set */
 	}
 
 	/* Send the command */
@@ -498,7 +498,7 @@ static void toshsd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	struct toshsd_host *host = mmc_priv(mmc);
 	unsigned long flags;
 
-	/* abort if card not present */
+	/* abort if card yest present */
 	if (!(ioread16(host->ioaddr + SD_CARDSTATUS) & SD_CARD_PRESENT_0)) {
 		mrq->cmd->error = -ENOMEDIUM;
 		mmc_request_done(mmc, mrq);
@@ -656,7 +656,7 @@ static int toshsd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	base = pci_resource_start(pdev, 0);
 	dev_dbg(&pdev->dev, "MMIO %pa, IRQ %d\n", &base, pdev->irq);
 
-	pm_suspend_ignore_children(&pdev->dev, 1);
+	pm_suspend_igyesre_children(&pdev->dev, 1);
 
 	return 0;
 

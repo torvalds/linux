@@ -10,7 +10,7 @@
 #define ICE_APP_PROT_ID_ROCE	0x8915
 
 /**
- * ice_dcbnl_devreset - perform enough of a ifdown/ifup to sync DCBNL info
+ * ice_dcbnl_devreset - perform eyesugh of a ifdown/ifup to sync DCBNL info
  * @netdev: device associated with interface that needs reset
  */
 static void ice_dcbnl_devreset(struct net_device *netdev)
@@ -95,8 +95,8 @@ static int ice_dcbnl_setets(struct net_device *netdev, struct ieee_ets *ets)
 		new_cfg->etsrec.prio_table[i] = ets->reco_prio_tc[i];
 	}
 
-	/* max_tc is a 1-8 value count of number of TC's, not a 0-7 value
-	 * for the TC's index number.  Add one to value if not zero, and
+	/* max_tc is a 1-8 value count of number of TC's, yest a 0-7 value
+	 * for the TC's index number.  Add one to value if yest zero, and
 	 * for zero set it to the FW's default value
 	 */
 	if (max_tc)
@@ -169,7 +169,7 @@ static u8 ice_dcbnl_setdcbx(struct net_device *netdev, u8 mode)
 	    !(mode & DCB_CAP_DCBX_HOST))
 		return ICE_DCB_NO_HW_CHG;
 
-	/* Already set to the given mode no change */
+	/* Already set to the given mode yes change */
 	if (mode == pf->dcbx_cap)
 		return ICE_DCB_NO_HW_CHG;
 
@@ -450,7 +450,7 @@ ice_dcbnl_set_pg_tc_cfg_tx(struct net_device *netdev, int tc,
 
 	new_cfg = &pf->hw.port_info->desired_dcbx_cfg;
 
-	/* prio_type, bwg_id and bw_pct per UP are not supported */
+	/* prio_type, bwg_id and bw_pct per UP are yest supported */
 
 	ice_for_each_traffic_class(i) {
 		if (up_map & BIT(i))
@@ -701,7 +701,7 @@ setapp_out:
  * @netdev: relevant netdev
  * @app: struct to hold app too delete
  *
- * Will not delete first application required by the FW
+ * Will yest delete first application required by the FW
  */
 static int ice_dcbnl_delapp(struct net_device *netdev, struct dcb_app *app)
 {
@@ -735,7 +735,7 @@ static int ice_dcbnl_delapp(struct net_device *netdev, struct dcb_app *app)
 		}
 	}
 
-	/* Did not find DCB App */
+	/* Did yest find DCB App */
 	if (i == new_cfg->numapps) {
 		ret = -EINVAL;
 		goto delapp_out;
@@ -840,7 +840,7 @@ void ice_dcbnl_set_all(struct ice_vsi *vsi)
 	if (pf->dcbx_cap & DCB_CAP_DCBX_HOST)
 		return;
 
-	/* DCB not enabled */
+	/* DCB yest enabled */
 	if (!test_bit(ICE_FLAG_DCB_ENA, pf->flags))
 		return;
 
@@ -861,7 +861,7 @@ void ice_dcbnl_set_all(struct ice_vsi *vsi)
 		}
 	}
 	/* Notify user-space of the changes */
-	dcbnl_ieee_notify(netdev, RTM_SETDCB, DCB_CMD_IEEE_SET, 0, 0);
+	dcbnl_ieee_yestify(netdev, RTM_SETDCB, DCB_CMD_IEEE_SET, 0, 0);
 }
 
 /**
@@ -893,7 +893,7 @@ ice_dcbnl_vsi_del_app(struct ice_vsi *vsi,
  * @old_cfg: old DCBX configuration data
  * @new_cfg: new DCBX configuration data
  *
- * Find and delete all APPS that are not present in the passed
+ * Find and delete all APPS that are yest present in the passed
  * DCB configuration
  */
 void
@@ -909,7 +909,7 @@ ice_dcbnl_flush_apps(struct ice_pf *pf, struct ice_dcbx_cfg *old_cfg,
 	for (i = 0; i < old_cfg->numapps; i++) {
 		struct ice_dcb_app_priority_table app = old_cfg->app[i];
 
-		/* The APP is not available anymore delete it */
+		/* The APP is yest available anymore delete it */
 		if (!ice_dcbnl_find_app(new_cfg, &app))
 			ice_dcbnl_vsi_del_app(main_vsi, &app);
 	}

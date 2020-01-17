@@ -2,7 +2,7 @@
 /*
  * CXL Flash Device Driver
  *
- * Written by: Manoj N. Kumar <manoj@linux.vnet.ibm.com>, IBM Corporation
+ * Written by: Mayesj N. Kumar <mayesj@linux.vnet.ibm.com>, IBM Corporation
  *             Matthew R. Ochs <mrochs@linux.vnet.ibm.com>, IBM Corporation
  *
  * Copyright (C) 2015 IBM Corporation
@@ -14,12 +14,12 @@
 extern struct cxlflash_global global;
 
 /*
- * Terminology: use afu (and not adapter) to refer to the HW.
+ * Termiyeslogy: use afu (and yest adapter) to refer to the HW.
  * Adapter is the entire slot and includes PSL out of which
  * only the AFU is visible to user space.
  */
 
-/* Chunk size parms: note sislite minimum chunk size is
+/* Chunk size parms: yeste sislite minimum chunk size is
  * 0x10000 LBAs corresponding to a NMASK or 16.
  */
 #define MC_CHUNK_SIZE     (1 << MC_RHT_NMASK)	/* in LBAs */
@@ -54,7 +54,7 @@ struct glun_info {
 struct llun_info {
 	u64 lun_id[MAX_FC_PORTS]; /* from REPORT_LUNS */
 	u32 lun_index;		/* Index in the LUN table */
-	u32 host_no;		/* host_no from Scsi_host */
+	u32 host_yes;		/* host_yes from Scsi_host */
 	u32 port_sel;		/* What port to use for this LUN */
 	bool in_table;		/* Whether a LUN table entry was created */
 
@@ -111,7 +111,7 @@ struct ctx_info {
 struct cxlflash_global {
 	struct mutex mutex;
 	struct list_head gluns;/* list of glun_info structs */
-	struct page *err_page; /* One page of all 0xF for error notification */
+	struct page *err_page; /* One page of all 0xF for error yestification */
 };
 
 int cxlflash_vlun_resize(struct scsi_device *sdev,

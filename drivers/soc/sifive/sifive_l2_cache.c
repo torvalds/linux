@@ -95,17 +95,17 @@ static const struct of_device_id sifive_l2_ids[] = {
 
 static ATOMIC_NOTIFIER_HEAD(l2_err_chain);
 
-int register_sifive_l2_error_notifier(struct notifier_block *nb)
+int register_sifive_l2_error_yestifier(struct yestifier_block *nb)
 {
-	return atomic_notifier_chain_register(&l2_err_chain, nb);
+	return atomic_yestifier_chain_register(&l2_err_chain, nb);
 }
-EXPORT_SYMBOL_GPL(register_sifive_l2_error_notifier);
+EXPORT_SYMBOL_GPL(register_sifive_l2_error_yestifier);
 
-int unregister_sifive_l2_error_notifier(struct notifier_block *nb)
+int unregister_sifive_l2_error_yestifier(struct yestifier_block *nb)
 {
-	return atomic_notifier_chain_unregister(&l2_err_chain, nb);
+	return atomic_yestifier_chain_unregister(&l2_err_chain, nb);
 }
-EXPORT_SYMBOL_GPL(unregister_sifive_l2_error_notifier);
+EXPORT_SYMBOL_GPL(unregister_sifive_l2_error_yestifier);
 
 static irqreturn_t l2_int_handler(int irq, void *device)
 {
@@ -117,7 +117,7 @@ static irqreturn_t l2_int_handler(int irq, void *device)
 		pr_err("L2CACHE: DirError @ 0x%08X.%08X\n", add_h, add_l);
 		/* Reading this register clears the DirError interrupt sig */
 		readl(l2_base + SIFIVE_L2_DIRECCFIX_COUNT);
-		atomic_notifier_call_chain(&l2_err_chain, SIFIVE_L2_ERR_TYPE_CE,
+		atomic_yestifier_call_chain(&l2_err_chain, SIFIVE_L2_ERR_TYPE_CE,
 					   "DirECCFix");
 	}
 	if (irq == g_irq[DATA_CORR]) {
@@ -126,7 +126,7 @@ static irqreturn_t l2_int_handler(int irq, void *device)
 		pr_err("L2CACHE: DataError @ 0x%08X.%08X\n", add_h, add_l);
 		/* Reading this register clears the DataError interrupt sig */
 		readl(l2_base + SIFIVE_L2_DATECCFIX_COUNT);
-		atomic_notifier_call_chain(&l2_err_chain, SIFIVE_L2_ERR_TYPE_CE,
+		atomic_yestifier_call_chain(&l2_err_chain, SIFIVE_L2_ERR_TYPE_CE,
 					   "DatECCFix");
 	}
 	if (irq == g_irq[DATA_UNCORR]) {
@@ -135,7 +135,7 @@ static irqreturn_t l2_int_handler(int irq, void *device)
 		pr_err("L2CACHE: DataFail @ 0x%08X.%08X\n", add_h, add_l);
 		/* Reading this register clears the DataFail interrupt sig */
 		readl(l2_base + SIFIVE_L2_DATECCFAIL_COUNT);
-		atomic_notifier_call_chain(&l2_err_chain, SIFIVE_L2_ERR_TYPE_UE,
+		atomic_yestifier_call_chain(&l2_err_chain, SIFIVE_L2_ERR_TYPE_UE,
 					   "DatECCFail");
 	}
 
@@ -144,11 +144,11 @@ static irqreturn_t l2_int_handler(int irq, void *device)
 
 static int __init sifive_l2_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct resource res;
 	int i, rc;
 
-	np = of_find_matching_node(NULL, sifive_l2_ids);
+	np = of_find_matching_yesde(NULL, sifive_l2_ids);
 	if (!np)
 		return -ENODEV;
 
@@ -163,7 +163,7 @@ static int __init sifive_l2_init(void)
 		g_irq[i] = irq_of_parse_and_map(np, i);
 		rc = request_irq(g_irq[i], l2_int_handler, 0, "l2_ecc", NULL);
 		if (rc) {
-			pr_err("L2CACHE: Could not request IRQ %d\n", g_irq[i]);
+			pr_err("L2CACHE: Could yest request IRQ %d\n", g_irq[i]);
 			return rc;
 		}
 	}

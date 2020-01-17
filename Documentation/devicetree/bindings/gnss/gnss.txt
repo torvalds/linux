@@ -3,7 +3,7 @@ GNSS Receiver DT binding
 This documents the binding structure and common properties for GNSS receiver
 devices.
 
-A GNSS receiver node is a node named "gnss" and typically resides on a serial
+A GNSS receiver yesde is a yesde named "gnss" and typically resides on a serial
 bus (e.g. UART, I2C or SPI).
 
 Please refer to the following documents for generic properties:
@@ -13,7 +13,7 @@ Please refer to the following documents for generic properties:
 
 Required properties:
 
-- compatible	: A string reflecting the vendor and specific device the node
+- compatible	: A string reflecting the vendor and specific device the yesde
 		  represents
 
 Optional properties:

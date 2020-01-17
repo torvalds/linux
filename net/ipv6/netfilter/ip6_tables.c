@@ -43,7 +43,7 @@ void *ip6t_alloc_initial_table(const struct xt_table *info)
 }
 EXPORT_SYMBOL_GPL(ip6t_alloc_initial_table);
 
-/* Returns whether matches rule or not. */
+/* Returns whether matches rule or yest. */
 /* Performance critical - called for every packet */
 static inline bool
 ip6_packet_match(const struct sk_buff *skb,
@@ -268,10 +268,10 @@ ip6t_do_table(struct sk_buff *skb,
 	indev = state->in ? state->in->name : nulldevname;
 	outdev = state->out ? state->out->name : nulldevname;
 	/* We handle fragments by dealing with the first fragment as
-	 * if it was a normal packet.  All other fragments are treated
-	 * normally, except that they will NEVER match rules that ask
-	 * things we don't know, ie. tcp syn flag or ports).  If the
-	 * rule is also a fragment-specific rule, non-fragments won't
+	 * if it was a yesrmal packet.  All other fragments are treated
+	 * yesrmally, except that they will NEVER match rules that ask
+	 * things we don't kyesw, ie. tcp syn flag or ports).  If the
+	 * rule is also a fragment-specific rule, yesn-fragments won't
 	 * match it. */
 	acpar.hotdrop = false;
 	acpar.state   = state;
@@ -286,11 +286,11 @@ ip6t_do_table(struct sk_buff *skb,
 	jumpstack  = (struct ip6t_entry **)private->jumpstack[cpu];
 
 	/* Switch to alternate jumpstack if we're being invoked via TEE.
-	 * TEE issues XT_CONTINUE verdict on original skb so we must not
+	 * TEE issues XT_CONTINUE verdict on original skb so we must yest
 	 * clobber the jumpstack.
 	 *
 	 * For recursion via REJECT or SYNPROXY the stack will be clobbered
-	 * but it is no problem since absolute verdict is issued by these.
+	 * but it is yes problem since absolute verdict is issued by these.
 	 */
 	if (static_key_false(&xt_tee_enabled))
 		jumpstack += private->stacksize * __this_cpu_read(nf_skb_duplicated);
@@ -306,7 +306,7 @@ ip6t_do_table(struct sk_buff *skb,
 		acpar.thoff = 0;
 		if (!ip6_packet_match(skb, indev, outdev, &e->ipv6,
 		    &acpar.thoff, &acpar.fragoff, &acpar.hotdrop)) {
- no_match:
+ yes_match:
 			e = ip6t_next_entry(e);
 			continue;
 		}
@@ -315,7 +315,7 @@ ip6t_do_table(struct sk_buff *skb,
 			acpar.match     = ematch->u.kernel.match;
 			acpar.matchinfo = ematch->data;
 			if (!acpar.match->match(skb, &acpar))
-				goto no_match;
+				goto yes_match;
 		}
 
 		counter = xt_get_this_cpu_counter(&e->counters);
@@ -614,7 +614,7 @@ check_entry_size_and_hooks(struct ip6t_entry *e,
 	unsigned int h;
 	int err;
 
-	if ((unsigned long)e % __alignof__(struct ip6t_entry) != 0 ||
+	if ((unsigned long)e % __aligyesf__(struct ip6t_entry) != 0 ||
 	    (unsigned char *)e + sizeof(struct ip6t_entry) >= limit ||
 	    (unsigned char *)e + e->next_offset > limit)
 		return -EINVAL;
@@ -1312,7 +1312,7 @@ check_compat_entry_size_and_hooks(struct compat_ip6t_entry *e,
 	unsigned int j;
 	int ret, off;
 
-	if ((unsigned long)e % __alignof__(struct compat_ip6t_entry) != 0 ||
+	if ((unsigned long)e % __aligyesf__(struct compat_ip6t_entry) != 0 ||
 	    (unsigned char *)e + sizeof(struct compat_ip6t_entry) >= limit ||
 	    (unsigned char *)e + e->next_offset > limit)
 		return -EINVAL;
@@ -1457,7 +1457,7 @@ translate_compat_table(struct net *net,
 		compat_copy_entry_from_user(iter0, &pos, &size,
 					    newinfo, entry1);
 
-	/* all module references in entry0 are now gone. */
+	/* all module references in entry0 are yesw gone. */
 	xt_compat_flush_offsets(AF_INET6);
 	xt_compat_unlock(AF_INET6);
 
@@ -1789,7 +1789,7 @@ int ip6t_register_table(struct net *net, const struct xt_table *table,
 		goto out_free;
 	}
 
-	/* set res now, will see skbs right after nf_register_net_hooks */
+	/* set res yesw, will see skbs right after nf_register_net_hooks */
 	WRITE_ONCE(*res, new_table);
 	if (!ops)
 		return 0;
@@ -1832,14 +1832,14 @@ icmp6_match(const struct sk_buff *skb, struct xt_action_param *par)
 	struct icmp6hdr _icmph;
 	const struct ip6t_icmp *icmpinfo = par->matchinfo;
 
-	/* Must not be a fragment. */
+	/* Must yest be a fragment. */
 	if (par->fragoff != 0)
 		return false;
 
 	ic = skb_header_pointer(skb, par->thoff, sizeof(_icmph), &_icmph);
 	if (ic == NULL) {
 		/* We've been asked to examine this packet, and we
-		 * can't.  Hence, no choice but to drop.
+		 * can't.  Hence, yes choice but to drop.
 		 */
 		par->hotdrop = true;
 		return false;
@@ -1857,7 +1857,7 @@ static int icmp6_checkentry(const struct xt_mtchk_param *par)
 {
 	const struct ip6t_icmp *icmpinfo = par->matchinfo;
 
-	/* Must specify no unknown invflags */
+	/* Must specify yes unkyeswn invflags */
 	return (icmpinfo->invflags & ~IP6T_ICMP_INV) ? -EINVAL : 0;
 }
 
@@ -1933,7 +1933,7 @@ static int __init ip6_tables_init(void)
 	if (ret < 0)
 		goto err1;
 
-	/* No one else will be downing sem now, so we won't sleep */
+	/* No one else will be downing sem yesw, so we won't sleep */
 	ret = xt_register_targets(ip6t_builtin_tg, ARRAY_SIZE(ip6t_builtin_tg));
 	if (ret < 0)
 		goto err2;

@@ -19,7 +19,7 @@
 #include <linux/types.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/io.h>
 
 /**
@@ -148,7 +148,7 @@ struct plx_dma_desc {
 /*
  * Note: The Expansion ROM  stuff is only relevant to the PC environment.
  *       This expansion ROM code is executed by the host CPU at boot time.
- *       For this reason no bit definitions are provided here.
+ *       For this reason yes bit definitions are provided here.
  */
 
 /* Expansion ROM Range Register */
@@ -337,7 +337,7 @@ struct plx_dma_desc {
 #define PLX_INTCSR_PABORTIEN	BIT(10)
 /* PCI Local Interrupt Enable */
 #define PLX_INTCSR_PLIEN	BIT(11)
-/* Retry Abort Enable (for diagnostic purposes only) */
+/* Retry Abort Enable (for diagyesstic purposes only) */
 #define PLX_INTCSR_RAEN		BIT(12)
 /* PCI Doorbell Interrupt Active (read-only) */
 #define PLX_INTCSR_PDBIA	BIT(13)
@@ -512,13 +512,13 @@ struct plx_dma_desc {
 #define PLX_REG_DMADPR0		0x0090
 #define PLX_REG_DMADPR1		0x00a4
 
-/* Descriptor Located In PCI Address Space (not local address space) */
+/* Descriptor Located In PCI Address Space (yest local address space) */
 #define PLX_DMADPR_DESCPCI	BIT(0)
 /* End Of Chain */
 #define PLX_DMADPR_CHAINEND	BIT(1)
 /* Interrupt After Terminal Count */
 #define PLX_DMADPR_TCINTR	BIT(2)
-/* Direction Of Transfer Local Bus To PCI (not PCI to local) */
+/* Direction Of Transfer Local Bus To PCI (yest PCI to local) */
 #define PLX_DMADPR_XFERL2P	BIT(3)
 /* Next Descriptor Address Bits 31:4 (16 byte boundary) */
 #define PLX_DMADPR_NEXT_MASK	GENMASK(31, 4)
@@ -600,7 +600,7 @@ struct plx_dma_desc {
 /*
  * Accesses near the end of memory can cause the PLX chip
  * to pre-fetch data off of end-of-ram.  Limit the size of
- * memory so host-side accesses cannot occur.
+ * memory so host-side accesses canyest occur.
  */
 
 #define PLX_PREFETCH   32

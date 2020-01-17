@@ -69,7 +69,7 @@ SECTIONS
 	}
 
 	/DISCARD/ : {
-		*(.note*)
+		*(.yeste*)
 		*(.debug*)
 		*(.eh_frame*)
 	}

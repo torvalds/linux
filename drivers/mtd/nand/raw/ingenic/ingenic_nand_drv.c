@@ -2,7 +2,7 @@
 /*
  * Ingenic JZ47xx NAND driver
  *
- * Copyright (c) 2015 Imagination Technologies
+ * Copyright (c) 2015 Imagination Techyeslogies
  * Author: Alex Smith <alex.smith@imgtec.com>
  */
 
@@ -27,7 +27,7 @@
 
 #define DRV_NAME	"ingenic-nand"
 
-/* Command delay when there is no R/B pin. */
+/* Command delay when there is yes R/B pin. */
 #define RB_DELAY_US	100
 
 struct jz_soc_info {
@@ -246,7 +246,7 @@ static int ingenic_nand_attach_chip(struct nand_chip *chip)
 	switch (chip->ecc.mode) {
 	case NAND_ECC_HW:
 		if (!nfc->ecc) {
-			dev_err(nfc->dev, "HW ECC selected, but ECC controller not found\n");
+			dev_err(nfc->dev, "HW ECC selected, but ECC controller yest found\n");
 			return -ENODEV;
 		}
 
@@ -260,10 +260,10 @@ static int ingenic_nand_attach_chip(struct nand_chip *chip)
 			 chip->ecc.strength, chip->ecc.size, chip->ecc.bytes);
 		break;
 	case NAND_ECC_NONE:
-		dev_info(nfc->dev, "not using ECC\n");
+		dev_info(nfc->dev, "yest using ECC\n");
 		break;
 	default:
-		dev_err(nfc->dev, "ECC mode %d not supported\n",
+		dev_err(nfc->dev, "ECC mode %d yest supported\n",
 			chip->ecc.mode);
 		return -EINVAL;
 	}
@@ -304,7 +304,7 @@ static const struct nand_controller_ops ingenic_nand_controller_ops = {
 
 static int ingenic_nand_init_chip(struct platform_device *pdev,
 				  struct ingenic_nfc *nfc,
-				  struct device_node *np,
+				  struct device_yesde *np,
 				  unsigned int chipnr)
 {
 	struct device *dev = &pdev->dev;
@@ -367,7 +367,7 @@ static int ingenic_nand_init_chip(struct platform_device *pdev,
 	chip->legacy.cmd_ctrl = ingenic_nand_cmd_ctrl;
 	chip->ecc.mode = NAND_ECC_HW;
 	chip->controller = &nfc->controller;
-	nand_set_flash_node(chip, np);
+	nand_set_flash_yesde(chip, np);
 
 	chip->controller->ops = &ingenic_nand_controller_ops;
 	ret = nand_scan(chip, 1);
@@ -401,10 +401,10 @@ static int ingenic_nand_init_chips(struct ingenic_nfc *nfc,
 				   struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np;
+	struct device_yesde *np;
 	int i = 0;
 	int ret;
-	int num_chips = of_get_child_count(dev->of_node);
+	int num_chips = of_get_child_count(dev->of_yesde);
 
 	if (num_chips > nfc->num_banks) {
 		dev_err(dev, "found %d chips but only %d banks\n",
@@ -412,11 +412,11 @@ static int ingenic_nand_init_chips(struct ingenic_nfc *nfc,
 		return -EINVAL;
 	}
 
-	for_each_child_of_node(dev->of_node, np) {
+	for_each_child_of_yesde(dev->of_yesde, np) {
 		ret = ingenic_nand_init_chip(pdev, nfc, np, i);
 		if (ret) {
 			ingenic_nand_cleanup_chips(nfc);
-			of_node_put(np);
+			of_yesde_put(np);
 			return ret;
 		}
 
@@ -435,7 +435,7 @@ static int ingenic_nand_probe(struct platform_device *pdev)
 
 	num_banks = jz4780_nemc_num_banks(dev);
 	if (num_banks == 0) {
-		dev_err(dev, "no banks found\n");
+		dev_err(dev, "yes banks found\n");
 		return -ENODEV;
 	}
 
@@ -451,7 +451,7 @@ static int ingenic_nand_probe(struct platform_device *pdev)
 	 * Check for ECC HW before we call nand_scan_ident, to prevent us from
 	 * having to call it again if the ECC driver returns -EPROBE_DEFER.
 	 */
-	nfc->ecc = of_ingenic_ecc_get(dev->of_node);
+	nfc->ecc = of_ingenic_ecc_get(dev->of_yesde);
 	if (IS_ERR(nfc->ecc))
 		return PTR_ERR(nfc->ecc);
 

@@ -50,10 +50,10 @@ extern uint qedf_debug;
 #define QEDF_TRACK_TID		0x100000        /*
 						 * Track TID state. To be
 						 * enabled only at module load
-						 * and not run-time.
+						 * and yest run-time.
 						 */
 #define QEDF_TRACK_CMD_LIST    0x300000        /*
-						* Track active cmd list nodes,
+						* Track active cmd list yesdes,
 						* done with reference to TID,
 						* hence TRACK_TID also enabled.
 						*/
@@ -62,7 +62,7 @@ extern uint qedf_debug;
 
 /* Debug context structure */
 struct qedf_dbg_ctx {
-	unsigned int host_no;
+	unsigned int host_yes;
 	struct pci_dev *pdev;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *bdf_dentry;
@@ -74,7 +74,7 @@ struct qedf_dbg_ctx {
 #define QEDF_WARN(pdev, fmt, ...)	\
 		qedf_dbg_warn(pdev, __func__, __LINE__, fmt, ## __VA_ARGS__)
 #define QEDF_NOTICE(pdev, fmt, ...)	\
-		qedf_dbg_notice(pdev, __func__, __LINE__, fmt, ## __VA_ARGS__)
+		qedf_dbg_yestice(pdev, __func__, __LINE__, fmt, ## __VA_ARGS__)
 #define QEDF_INFO(pdev, level, fmt, ...)	\
 		qedf_dbg_info(pdev, __func__, __LINE__, level, fmt,	\
 			      ## __VA_ARGS__)
@@ -85,7 +85,7 @@ __printf(4, 5)
 void qedf_dbg_warn(struct qedf_dbg_ctx *qedf, const char *func, u32 line,
 			   const char *, ...);
 __printf(4, 5)
-void qedf_dbg_notice(struct qedf_dbg_ctx *qedf, const char *func,
+void qedf_dbg_yestice(struct qedf_dbg_ctx *qedf, const char *func,
 			    u32 line, const char *, ...);
 __printf(5, 6)
 void qedf_dbg_info(struct qedf_dbg_ctx *qedf, const char *func, u32 line,

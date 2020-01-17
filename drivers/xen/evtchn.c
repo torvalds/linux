@@ -19,7 +19,7 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -38,7 +38,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
 #include <linux/major.h>
@@ -81,7 +81,7 @@ struct per_user_data {
 #define UNRESTRICTED_DOMID ((domid_t)-1)
 
 struct user_evtchn {
-	struct rb_node node;
+	struct rb_yesde yesde;
 	struct per_user_data *user;
 	unsigned port;
 	bool enabled;
@@ -106,14 +106,14 @@ static evtchn_port_t *evtchn_ring_entry(struct per_user_data *u,
 
 static int add_evtchn(struct per_user_data *u, struct user_evtchn *evtchn)
 {
-	struct rb_node **new = &(u->evtchns.rb_node), *parent = NULL;
+	struct rb_yesde **new = &(u->evtchns.rb_yesde), *parent = NULL;
 
 	u->nr_evtchns++;
 
 	while (*new) {
 		struct user_evtchn *this;
 
-		this = rb_entry(*new, struct user_evtchn, node);
+		this = rb_entry(*new, struct user_evtchn, yesde);
 
 		parent = *new;
 		if (this->port < evtchn->port)
@@ -124,9 +124,9 @@ static int add_evtchn(struct per_user_data *u, struct user_evtchn *evtchn)
 			return -EEXIST;
 	}
 
-	/* Add new node and rebalance tree. */
-	rb_link_node(&evtchn->node, parent, new);
-	rb_insert_color(&evtchn->node, &u->evtchns);
+	/* Add new yesde and rebalance tree. */
+	rb_link_yesde(&evtchn->yesde, parent, new);
+	rb_insert_color(&evtchn->yesde, &u->evtchns);
 
 	return 0;
 }
@@ -134,23 +134,23 @@ static int add_evtchn(struct per_user_data *u, struct user_evtchn *evtchn)
 static void del_evtchn(struct per_user_data *u, struct user_evtchn *evtchn)
 {
 	u->nr_evtchns--;
-	rb_erase(&evtchn->node, &u->evtchns);
+	rb_erase(&evtchn->yesde, &u->evtchns);
 	kfree(evtchn);
 }
 
 static struct user_evtchn *find_evtchn(struct per_user_data *u, unsigned port)
 {
-	struct rb_node *node = u->evtchns.rb_node;
+	struct rb_yesde *yesde = u->evtchns.rb_yesde;
 
-	while (node) {
+	while (yesde) {
 		struct user_evtchn *evtchn;
 
-		evtchn = rb_entry(node, struct user_evtchn, node);
+		evtchn = rb_entry(yesde, struct user_evtchn, yesde);
 
 		if (evtchn->port < port)
-			node = node->rb_left;
+			yesde = yesde->rb_left;
 		else if (evtchn->port > port)
-			node = node->rb_right;
+			yesde = yesde->rb_right;
 		else
 			return evtchn;
 	}
@@ -163,10 +163,10 @@ static irqreturn_t evtchn_interrupt(int irq, void *data)
 	struct per_user_data *u = evtchn->user;
 
 	WARN(!evtchn->enabled,
-	     "Interrupt for port %d, but apparently not enabled; per-user %p\n",
+	     "Interrupt for port %d, but apparently yest enabled; per-user %p\n",
 	     evtchn->port, u);
 
-	disable_irq_nosync(irq);
+	disable_irq_yessync(irq);
 	evtchn->enabled = false;
 
 	spin_lock(&u->ring_prod_lock);
@@ -311,7 +311,7 @@ static int evtchn_resize_ring(struct per_user_data *u)
 	evtchn_port_t *new_ring, *old_ring;
 
 	/*
-	 * Ensure the ring is large enough to capture all possible
+	 * Ensure the ring is large eyesugh to capture all possible
 	 * events. i.e., one free slot for each bound event.
 	 */
 	if (u->nr_evtchns <= u->ring_size)
@@ -371,7 +371,7 @@ static int evtchn_bind_to_user(struct per_user_data *u, int port)
 	 * Ports are never reused, so every caller should pass in a
 	 * unique port.
 	 *
-	 * (Locking not necessary because we haven't registered the
+	 * (Locking yest necessary because we haven't registered the
 	 * interrupt handler yet, and our caller has already
 	 * serialized bind operations.)
 	 */
@@ -401,7 +401,7 @@ static int evtchn_bind_to_user(struct per_user_data *u, int port)
 	return rc;
 
 err:
-	/* bind failed, should close the port now */
+	/* bind failed, should close the port yesw */
 	close.port = port;
 	if (HYPERVISOR_event_channel_op(EVTCHNOP_close, &close) != 0)
 		BUG();
@@ -564,17 +564,17 @@ static long evtchn_ioctl(struct file *file,
 	}
 
 	case IOCTL_EVTCHN_NOTIFY: {
-		struct ioctl_evtchn_notify notify;
+		struct ioctl_evtchn_yestify yestify;
 		struct user_evtchn *evtchn;
 
 		rc = -EFAULT;
-		if (copy_from_user(&notify, uarg, sizeof(notify)))
+		if (copy_from_user(&yestify, uarg, sizeof(yestify)))
 			break;
 
 		rc = -ENOTCONN;
-		evtchn = find_evtchn(u, notify.port);
+		evtchn = find_evtchn(u, yestify.port);
 		if (evtchn) {
-			notify_remote_via_evtchn(notify.port);
+			yestify_remote_via_evtchn(yestify.port);
 			rc = 0;
 		}
 		break;
@@ -640,7 +640,7 @@ static int evtchn_fasync(int fd, struct file *filp, int on)
 	return fasync_helper(fd, filp, on, &u->evtchn_async_queue);
 }
 
-static int evtchn_open(struct inode *inode, struct file *filp)
+static int evtchn_open(struct iyesde *iyesde, struct file *filp)
 {
 	struct per_user_data *u;
 
@@ -664,18 +664,18 @@ static int evtchn_open(struct inode *inode, struct file *filp)
 
 	filp->private_data = u;
 
-	return stream_open(inode, filp);
+	return stream_open(iyesde, filp);
 }
 
-static int evtchn_release(struct inode *inode, struct file *filp)
+static int evtchn_release(struct iyesde *iyesde, struct file *filp)
 {
 	struct per_user_data *u = filp->private_data;
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 
-	while ((node = u->evtchns.rb_node)) {
+	while ((yesde = u->evtchns.rb_yesde)) {
 		struct user_evtchn *evtchn;
 
-		evtchn = rb_entry(node, struct user_evtchn, node);
+		evtchn = rb_entry(yesde, struct user_evtchn, yesde);
 		disable_irq(irq_from_evtchn(evtchn->port));
 		evtchn_unbind_from_user(u, evtchn);
 	}
@@ -696,11 +696,11 @@ static const struct file_operations evtchn_fops = {
 	.fasync  = evtchn_fasync,
 	.open    = evtchn_open,
 	.release = evtchn_release,
-	.llseek	 = no_llseek,
+	.llseek	 = yes_llseek,
 };
 
 static struct miscdevice evtchn_miscdev = {
-	.minor        = MISC_DYNAMIC_MINOR,
+	.miyesr        = MISC_DYNAMIC_MINOR,
 	.name         = "xen/evtchn",
 	.fops         = &evtchn_fops,
 };
@@ -714,7 +714,7 @@ static int __init evtchn_init(void)
 	/* Create '/dev/xen/evtchn'. */
 	err = misc_register(&evtchn_miscdev);
 	if (err != 0) {
-		pr_err("Could not register /dev/xen/evtchn\n");
+		pr_err("Could yest register /dev/xen/evtchn\n");
 		return err;
 	}
 

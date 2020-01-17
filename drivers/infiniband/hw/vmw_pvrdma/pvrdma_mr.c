@@ -21,11 +21,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -53,7 +53,7 @@
  * @pd: protection domain
  * @acc: access flags
  *
- * @return: ib_mr pointer on success, otherwise returns an errno.
+ * @return: ib_mr pointer on success, otherwise returns an erryes.
  */
 struct ib_mr *pvrdma_get_dma_mr(struct ib_pd *pd, int acc)
 {
@@ -85,7 +85,7 @@ struct ib_mr *pvrdma_get_dma_mr(struct ib_pd *pd, int acc)
 	ret = pvrdma_cmd_post(dev, &req, &rsp, PVRDMA_CMD_CREATE_MR_RESP);
 	if (ret < 0) {
 		dev_warn(&dev->pdev->dev,
-			 "could not get DMA mem region, error: %d\n", ret);
+			 "could yest get DMA mem region, error: %d\n", ret);
 		kfree(mr);
 		return ERR_PTR(ret);
 	}
@@ -106,7 +106,7 @@ struct ib_mr *pvrdma_get_dma_mr(struct ib_pd *pd, int acc)
  * @access_flags: access flags for memory region
  * @udata: user data
  *
- * @return: ib_mr pointer on success, otherwise returns an errno.
+ * @return: ib_mr pointer on success, otherwise returns an erryes.
  */
 struct ib_mr *pvrdma_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				 u64 virt_addr, int access_flags,
@@ -129,7 +129,7 @@ struct ib_mr *pvrdma_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	umem = ib_umem_get(udata, start, length, access_flags);
 	if (IS_ERR(umem)) {
 		dev_warn(&dev->pdev->dev,
-			 "could not get umem for mem region\n");
+			 "could yest get umem for mem region\n");
 		return ERR_CAST(umem);
 	}
 
@@ -154,7 +154,7 @@ struct ib_mr *pvrdma_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	ret = pvrdma_page_dir_init(dev, &mr->pdir, npages, false);
 	if (ret) {
 		dev_warn(&dev->pdev->dev,
-			 "could not allocate page directory\n");
+			 "could yest allocate page directory\n");
 		goto err_umem;
 	}
 
@@ -174,7 +174,7 @@ struct ib_mr *pvrdma_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	ret = pvrdma_cmd_post(dev, &req, &rsp, PVRDMA_CMD_CREATE_MR_RESP);
 	if (ret < 0) {
 		dev_warn(&dev->pdev->dev,
-			 "could not register mem region, error: %d\n", ret);
+			 "could yest register mem region, error: %d\n", ret);
 		goto err_pdir;
 	}
 
@@ -199,7 +199,7 @@ err_umem:
  * @mr_type: type of memory region
  * @max_num_sg: maximum number of pages
  *
- * @return: ib_mr pointer on success, otherwise returns an errno.
+ * @return: ib_mr pointer on success, otherwise returns an erryes.
  */
 struct ib_mr *pvrdma_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
 			      u32 max_num_sg, struct ib_udata *udata)
@@ -245,7 +245,7 @@ struct ib_mr *pvrdma_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
 	ret = pvrdma_cmd_post(dev, &req, &rsp, PVRDMA_CMD_CREATE_MR_RESP);
 	if (ret < 0) {
 		dev_warn(&dev->pdev->dev,
-			 "could not create FR mem region, error: %d\n", ret);
+			 "could yest create FR mem region, error: %d\n", ret);
 		goto freepdir;
 	}
 
@@ -287,7 +287,7 @@ int pvrdma_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 	ret = pvrdma_cmd_post(dev, &req, NULL, 0);
 	if (ret < 0)
 		dev_warn(&dev->pdev->dev,
-			 "could not deregister mem region, error: %d\n", ret);
+			 "could yest deregister mem region, error: %d\n", ret);
 
 	pvrdma_page_dir_cleanup(dev, &mr->pdir);
 	ib_umem_release(mr->umem);
@@ -320,7 +320,7 @@ int pvrdma_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
 
 	ret = ib_sg_to_pages(ibmr, sg, sg_nents, sg_offset, pvrdma_set_page);
 	if (ret < 0)
-		dev_warn(&dev->pdev->dev, "could not map sg to pages\n");
+		dev_warn(&dev->pdev->dev, "could yest map sg to pages\n");
 
 	return ret;
 }

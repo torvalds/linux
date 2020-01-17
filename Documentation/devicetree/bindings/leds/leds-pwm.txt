@@ -3,10 +3,10 @@ LED connected to PWM
 Required properties:
 - compatible : should be "pwm-leds".
 
-Each LED is represented as a sub-node of the pwm-leds device.  Each
-node's name represents the name of the corresponding LED.
+Each LED is represented as a sub-yesde of the pwm-leds device.  Each
+yesde's name represents the name of the corresponding LED.
 
-LED sub-node properties:
+LED sub-yesde properties:
 - pwms : PWM property to point to the PWM device (phandle)/port (id) and to
   specify the period time to be used: <&phandle id period_ns>;
 - pwm-names : (optional) Name to be used by the PWM subsystem for the PWM device

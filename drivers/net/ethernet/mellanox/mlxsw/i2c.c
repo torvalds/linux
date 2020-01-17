@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2016-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2016-2018 Mellayesx Techyeslogies. All rights reserved */
 
 #include <linux/err.h>
 #include <linux/i2c.h>
@@ -267,7 +267,7 @@ mlxsw_i2c_write_init_cmd(struct i2c_client *client,
 	/* Wait until go bit is cleared. */
 	err = mlxsw_i2c_wait_go_bit(client, mlxsw_i2c, &status);
 	if (err) {
-		dev_err(&client->dev, "HW semaphore is not released");
+		dev_err(&client->dev, "HW semaphore is yest released");
 		return err;
 	}
 
@@ -295,7 +295,7 @@ static int mlxsw_i2c_get_mbox(struct i2c_client *client,
 	mlxsw_i2c_set_slave_addr(addr_buf, MLXSW_I2C_CIR2_BASE);
 	err = i2c_transfer(client->adapter, mbox_cmd, 2);
 	if (err != 2) {
-		dev_err(&client->dev, "Could not obtain mail boxes\n");
+		dev_err(&client->dev, "Could yest obtain mail boxes\n");
 		if (!err)
 			return -EIO;
 		else
@@ -362,7 +362,7 @@ mlxsw_i2c_write(struct device *dev, size_t in_mbox_size, u8 *in_mbox, int num,
 	/* Prepare and write out Command Interface Register for transaction. */
 	err = mlxsw_i2c_write_cmd(client, mlxsw_i2c, 0);
 	if (err) {
-		dev_err(&client->dev, "Could not start transaction");
+		dev_err(&client->dev, "Could yest start transaction");
 		err = -EIO;
 		goto mlxsw_i2c_write_exit;
 	}
@@ -370,7 +370,7 @@ mlxsw_i2c_write(struct device *dev, size_t in_mbox_size, u8 *in_mbox, int num,
 	/* Wait until go bit is cleared. */
 	err = mlxsw_i2c_wait_go_bit(client, mlxsw_i2c, p_status);
 	if (err) {
-		dev_err(&client->dev, "HW semaphore is not released");
+		dev_err(&client->dev, "HW semaphore is yest released");
 		goto mlxsw_i2c_write_exit;
 	}
 
@@ -411,7 +411,7 @@ mlxsw_i2c_cmd(struct device *dev, u16 opcode, u32 in_mod, size_t in_mbox_size,
 			num++;
 
 		if (mutex_lock_interruptible(&mlxsw_i2c->cmd.lock) < 0) {
-			dev_err(&client->dev, "Could not acquire lock");
+			dev_err(&client->dev, "Could yest acquire lock");
 			return -EINVAL;
 		}
 
@@ -430,7 +430,7 @@ mlxsw_i2c_cmd(struct device *dev, u16 opcode, u32 in_mod, size_t in_mbox_size,
 		num = reg_size / mlxsw_i2c->block_size;
 
 		if (mutex_lock_interruptible(&mlxsw_i2c->cmd.lock) < 0) {
-			dev_err(&client->dev, "Could not acquire lock");
+			dev_err(&client->dev, "Could yest acquire lock");
 			return -EINVAL;
 		}
 
@@ -526,10 +526,10 @@ mlxsw_i2c_init(void *bus_priv, struct mlxsw_core *mlxsw_core,
 
 	mlxsw_i2c->bus_info.fw_rev.major =
 		mlxsw_cmd_mbox_query_fw_fw_rev_major_get(mbox);
-	mlxsw_i2c->bus_info.fw_rev.minor =
-		mlxsw_cmd_mbox_query_fw_fw_rev_minor_get(mbox);
-	mlxsw_i2c->bus_info.fw_rev.subminor =
-		mlxsw_cmd_mbox_query_fw_fw_rev_subminor_get(mbox);
+	mlxsw_i2c->bus_info.fw_rev.miyesr =
+		mlxsw_cmd_mbox_query_fw_fw_rev_miyesr_get(mbox);
+	mlxsw_i2c->bus_info.fw_rev.submiyesr =
+		mlxsw_cmd_mbox_query_fw_fw_rev_submiyesr_get(mbox);
 
 	err = mlxsw_core_resources_query(mlxsw_core, mbox, res);
 
@@ -600,14 +600,14 @@ static int mlxsw_i2c_probe(struct i2c_client *client,
 	/* Prepare and write out Command Interface Register for transaction */
 	err = mlxsw_i2c_write_cmd(client, mlxsw_i2c, 1);
 	if (err) {
-		dev_err(&client->dev, "Could not start transaction");
+		dev_err(&client->dev, "Could yest start transaction");
 		goto errout;
 	}
 
 	/* Wait until go bit is cleared. */
 	err = mlxsw_i2c_wait_go_bit(client, mlxsw_i2c, &status);
 	if (err) {
-		dev_err(&client->dev, "HW semaphore is not released");
+		dev_err(&client->dev, "HW semaphore is yest released");
 		goto errout;
 	}
 
@@ -678,6 +678,6 @@ void mlxsw_i2c_driver_unregister(struct i2c_driver *i2c_driver)
 }
 EXPORT_SYMBOL(mlxsw_i2c_driver_unregister);
 
-MODULE_AUTHOR("Vadim Pasternak <vadimp@mellanox.com>");
-MODULE_DESCRIPTION("Mellanox switch I2C interface driver");
+MODULE_AUTHOR("Vadim Pasternak <vadimp@mellayesx.com>");
+MODULE_DESCRIPTION("Mellayesx switch I2C interface driver");
 MODULE_LICENSE("Dual BSD/GPL");

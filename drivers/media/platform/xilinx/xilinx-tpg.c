@@ -134,7 +134,7 @@ static void __xtpg_update_pattern_control(struct xtpg_device *xtpg,
 	u32 pattern_mask = (1 << (xtpg->pattern->maximum + 1)) - 1;
 
 	/*
-	 * If the TPG has no sink pad or no input connected to its sink pad
+	 * If the TPG has yes sink pad or yes input connected to its sink pad
 	 * passthrough mode can't be enabled.
 	 */
 	if (xtpg->npads == 1 || !xtpg->has_input)
@@ -708,27 +708,27 @@ static int __maybe_unused xtpg_pm_resume(struct device *dev)
 static int xtpg_parse_of(struct xtpg_device *xtpg)
 {
 	struct device *dev = xtpg->xvip.dev;
-	struct device_node *node = xtpg->xvip.dev->of_node;
-	struct device_node *ports;
-	struct device_node *port;
+	struct device_yesde *yesde = xtpg->xvip.dev->of_yesde;
+	struct device_yesde *ports;
+	struct device_yesde *port;
 	unsigned int nports = 0;
 	bool has_endpoint = false;
 
-	ports = of_get_child_by_name(node, "ports");
+	ports = of_get_child_by_name(yesde, "ports");
 	if (ports == NULL)
-		ports = node;
+		ports = yesde;
 
-	for_each_child_of_node(ports, port) {
+	for_each_child_of_yesde(ports, port) {
 		const struct xvip_video_format *format;
-		struct device_node *endpoint;
+		struct device_yesde *endpoint;
 
-		if (!of_node_name_eq(port, "port"))
+		if (!of_yesde_name_eq(port, "port"))
 			continue;
 
 		format = xvip_of_get_format(port);
 		if (IS_ERR(format)) {
 			dev_err(dev, "invalid format in DT");
-			of_node_put(port);
+			of_yesde_put(port);
 			return PTR_ERR(format);
 		}
 
@@ -737,7 +737,7 @@ static int xtpg_parse_of(struct xtpg_device *xtpg)
 			xtpg->vip_format = format;
 		} else if (xtpg->vip_format != format) {
 			dev_err(dev, "in/out format mismatch in DT");
-			of_node_put(port);
+			of_yesde_put(port);
 			return -EINVAL;
 		}
 
@@ -745,7 +745,7 @@ static int xtpg_parse_of(struct xtpg_device *xtpg)
 			endpoint = of_get_next_child(port, NULL);
 			if (endpoint)
 				has_endpoint = true;
-			of_node_put(endpoint);
+			of_yesde_put(endpoint);
 		}
 
 		/* Count the number of ports. */
@@ -792,7 +792,7 @@ static int xtpg_probe(struct platform_device *pdev)
 		goto error_resource;
 	}
 
-	xtpg->vtc = xvtc_of_get(pdev->dev.of_node);
+	xtpg->vtc = xvtc_of_get(pdev->dev.of_yesde);
 	if (IS_ERR(xtpg->vtc)) {
 		ret = PTR_ERR(xtpg->vtc);
 		goto error_resource;

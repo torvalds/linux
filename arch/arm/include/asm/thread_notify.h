@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- *  arch/arm/include/asm/thread_notify.h
+ *  arch/arm/include/asm/thread_yestify.h
  *
  *  Copyright (C) 2006 Russell King.
  */
@@ -11,31 +11,31 @@
 
 #ifndef __ASSEMBLY__
 
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <asm/thread_info.h>
 
-static inline int thread_register_notifier(struct notifier_block *n)
+static inline int thread_register_yestifier(struct yestifier_block *n)
 {
-	extern struct atomic_notifier_head thread_notify_head;
-	return atomic_notifier_chain_register(&thread_notify_head, n);
+	extern struct atomic_yestifier_head thread_yestify_head;
+	return atomic_yestifier_chain_register(&thread_yestify_head, n);
 }
 
-static inline void thread_unregister_notifier(struct notifier_block *n)
+static inline void thread_unregister_yestifier(struct yestifier_block *n)
 {
-	extern struct atomic_notifier_head thread_notify_head;
-	atomic_notifier_chain_unregister(&thread_notify_head, n);
+	extern struct atomic_yestifier_head thread_yestify_head;
+	atomic_yestifier_chain_unregister(&thread_yestify_head, n);
 }
 
-static inline void thread_notify(unsigned long rc, struct thread_info *thread)
+static inline void thread_yestify(unsigned long rc, struct thread_info *thread)
 {
-	extern struct atomic_notifier_head thread_notify_head;
-	atomic_notifier_call_chain(&thread_notify_head, rc, thread);
+	extern struct atomic_yestifier_head thread_yestify_head;
+	atomic_yestifier_call_chain(&thread_yestify_head, rc, thread);
 }
 
 #endif
 
 /*
- * These are the reason codes for the thread notifier.
+ * These are the reason codes for the thread yestifier.
  */
 #define THREAD_NOTIFY_FLUSH	0
 #define THREAD_NOTIFY_EXIT	1

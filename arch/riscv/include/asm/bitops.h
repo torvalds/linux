@@ -91,7 +91,7 @@ static inline int test_and_clear_bit(int nr, volatile unsigned long *addr)
  * @nr: Bit to change
  * @addr: Address to count from
  *
- * This operation is atomic and cannot be reordered.
+ * This operation is atomic and canyest be reordered.
  * It also implies a memory barrier.
  */
 static inline int test_and_change_bit(int nr, volatile unsigned long *addr)
@@ -104,11 +104,11 @@ static inline int test_and_change_bit(int nr, volatile unsigned long *addr)
  * @nr: the bit to set
  * @addr: the address to start counting from
  *
- * Note: there are no guarantees that this function will not be reordered
- * on non x86 architectures, so if you are writing portable code,
- * make sure not to rely on its reordering guarantees.
+ * Note: there are yes guarantees that this function will yest be reordered
+ * on yesn x86 architectures, so if you are writing portable code,
+ * make sure yest to rely on its reordering guarantees.
  *
- * Note that @nr may be almost arbitrarily large; this function is not
+ * Note that @nr may be almost arbitrarily large; this function is yest
  * restricted to acting on a single-word quantity.
  */
 static inline void set_bit(int nr, volatile unsigned long *addr)
@@ -121,9 +121,9 @@ static inline void set_bit(int nr, volatile unsigned long *addr)
  * @nr: Bit to clear
  * @addr: Address to start counting from
  *
- * Note: there are no guarantees that this function will not be reordered
- * on non x86 architectures, so if you are writing portable code,
- * make sure not to rely on its reordering guarantees.
+ * Note: there are yes guarantees that this function will yest be reordered
+ * on yesn x86 architectures, so if you are writing portable code,
+ * make sure yest to rely on its reordering guarantees.
  */
 static inline void clear_bit(int nr, volatile unsigned long *addr)
 {
@@ -136,7 +136,7 @@ static inline void clear_bit(int nr, volatile unsigned long *addr)
  * @addr: Address to start counting from
  *
  * change_bit()  may be reordered on other architectures than x86.
- * Note that @nr may be almost arbitrarily large; this function is not
+ * Note that @nr may be almost arbitrarily large; this function is yest
  * restricted to acting on a single-word quantity.
  */
 static inline void change_bit(int nr, volatile unsigned long *addr)
@@ -176,14 +176,14 @@ static inline void clear_bit_unlock(
  * @nr: the bit to set
  * @addr: the address to start counting from
  *
- * This operation is like clear_bit_unlock, however it is not atomic.
+ * This operation is like clear_bit_unlock, however it is yest atomic.
  * It does provide release barrier semantics so it can be used to unlock
- * a bit lock, however it would only be used if no other CPU can modify
+ * a bit lock, however it would only be used if yes other CPU can modify
  * any bits in the memory until the lock is released (a good example is
  * if the bit lock itself protects access to the other bits in the word).
  *
- * On RISC-V systems there seems to be no benefit to taking advantage of the
- * non-atomic property here: it's a lot more instructions and we still have to
+ * On RISC-V systems there seems to be yes benefit to taking advantage of the
+ * yesn-atomic property here: it's a lot more instructions and we still have to
  * provide release semantics anyway.
  */
 static inline void __clear_bit_unlock(
@@ -198,7 +198,7 @@ static inline void __clear_bit_unlock(
 #undef __NOT
 #undef __AMO
 
-#include <asm-generic/bitops/non-atomic.h>
+#include <asm-generic/bitops/yesn-atomic.h>
 #include <asm-generic/bitops/le.h>
 #include <asm-generic/bitops/ext2-atomic.h>
 

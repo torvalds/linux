@@ -72,7 +72,7 @@ static void toshiba_nand_benand_init(struct nand_chip *chip)
 	/*
 	 * On BENAND, the entire OOB region can be used by the MTD user.
 	 * The calculated ECC bytes are stored into other isolated
-	 * area which is not accessible to users.
+	 * area which is yest accessible to users.
 	 * This is why chip->ecc.bytes = 0.
 	 */
 	chip->ecc.bytes = 0;
@@ -81,8 +81,8 @@ static void toshiba_nand_benand_init(struct nand_chip *chip)
 	chip->ecc.read_page = toshiba_nand_read_page_benand;
 	chip->ecc.read_subpage = toshiba_nand_read_subpage_benand;
 	chip->ecc.write_page = nand_write_page_raw;
-	chip->ecc.read_page_raw = nand_read_page_raw_notsupp;
-	chip->ecc.write_page_raw = nand_write_page_raw_notsupp;
+	chip->ecc.read_page_raw = nand_read_page_raw_yestsupp;
+	chip->ecc.write_page_raw = nand_write_page_raw_yestsupp;
 
 	chip->options |= NAND_SUBPAGE_READ;
 
@@ -99,7 +99,7 @@ static void toshiba_nand_decode_id(struct nand_chip *chip)
 	nand_decode_ext_id(chip);
 
 	/*
-	 * Toshiba 24nm raw SLC (i.e., not BENAND) have 32B OOB per
+	 * Toshiba 24nm raw SLC (i.e., yest BENAND) have 32B OOB per
 	 * 512B page. For Toshiba SLC, we decode the 5th/6th byte as
 	 * follows:
 	 * - ID byte 6, bits[2:0]: 100b -> 43nm, 101b -> 32nm,
@@ -133,7 +133,7 @@ static void toshiba_nand_decode_id(struct nand_chip *chip)
 			chip->base.eccreq.strength = 8;
 			break;
 		default:
-			WARN(1, "Could not get ECC info");
+			WARN(1, "Could yest get ECC info");
 			chip->base.eccreq.step_size = 0;
 			break;
 		}

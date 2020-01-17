@@ -31,7 +31,7 @@
 		secure_ddr: secure_ddr@9e800000 {
 			reg = <0 0x9e800000 0 0x01800000>; /* for OP-TEE */
 			alignment = <0x1000>;
-			no-map;
+			yes-map;
 		};
 	};
 
@@ -205,7 +205,7 @@
 	ti,pindir-d0-out-d1-in = <1>;
 
 	flash@0{
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-yesr";
 		reg = <0x0>;
 		spi-tx-bus-width = <1>;
 		spi-rx-bus-width = <1>;
@@ -219,7 +219,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_mmc0_pins_default>;
 	bus-width = <8>;
-	non-removable;
+	yesn-removable;
 	ti,driver-strength-ohm = <50>;
 	disable-wp;
 };

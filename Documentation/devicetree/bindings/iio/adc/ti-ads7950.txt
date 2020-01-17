@@ -6,7 +6,7 @@ Required properties:
    "ti,ads7958", "ti,ads7959", "ti,ads7960", or "ti,ads7961"
  - reg: SPI chip select number for the device
  - #io-channel-cells: Must be 1 as per ../iio-bindings.txt
- - vref-supply: phandle to a regulator node that supplies the 2.5V or 5V
+ - vref-supply: phandle to a regulator yesde that supplies the 2.5V or 5V
    reference voltage
 
 Recommended properties:

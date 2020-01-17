@@ -10,7 +10,7 @@
 #include <linux/hdmi.h>
 #include <linux/platform_device.h>
 
-#include <media/cec-notifier.h>
+#include <media/cec-yestifier.h>
 
 #include <drm/drm_modes.h>
 #include <drm/drm_property.h>
@@ -67,7 +67,7 @@ static const struct drm_prop_enum_list colorspace_mode_names[] = {
  * @audio_pdev: ASoC hdmi-codec platform device
  * @audio: hdmi audio parameters.
  * @drm_connector: hdmi connector
- * @notifier: hotplug detect notifier
+ * @yestifier: hotplug detect yestifier
  */
 struct sti_hdmi {
 	struct device dev;
@@ -93,7 +93,7 @@ struct sti_hdmi {
 	struct platform_device *audio_pdev;
 	struct hdmi_audio_params audio;
 	struct drm_connector *drm_connector;
-	struct cec_notifier *notifier;
+	struct cec_yestifier *yestifier;
 };
 
 u32 hdmi_read(struct sti_hdmi *hdmi, int offset);

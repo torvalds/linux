@@ -10,7 +10,7 @@ these interfaces.
 Required properties:
 - compatible: "marvell,orion-mdio" or "marvell,xmdio"
 - reg: address and length of the MDIO registers.  When an interrupt is
-  not present, the length is the size of the SMI register (4 bytes)
+  yest present, the length is the size of the SMI register (4 bytes)
   otherwise it must be 0x84 bytes to cover the interrupt control
   registers.
 
@@ -18,7 +18,7 @@ Optional properties:
 - interrupts: interrupt line number for the SMI error/done interrupt
 - clocks: phandle for up to four required clocks for the MDIO instance
 
-The child nodes of the MDIO driver are the individual PHY devices
+The child yesdes of the MDIO driver are the individual PHY devices
 connected to this MDIO bus. They must have a "reg" property given the
 PHY address on the MDIO bus.
 
