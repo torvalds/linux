@@ -1020,8 +1020,8 @@ bool ice_clean_tx_irq_zc(struct ice_ring *xdp_ring, int budget)
 	s16 ntc = xdp_ring->next_to_clean;
 	struct ice_tx_desc *tx_desc;
 	struct ice_tx_buf *tx_buf;
-	bool xmit_done = true;
 	u32 xsk_frames = 0;
+	bool xmit_done;
 
 	tx_desc = ICE_TX_DESC(xdp_ring, ntc);
 	tx_buf = &xdp_ring->tx_buf[ntc];

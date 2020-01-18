@@ -5086,36 +5086,17 @@ static void ice_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 	struct ice_ring *tx_ring = NULL;
 	struct ice_vsi *vsi = np->vsi;
 	struct ice_pf *pf = vsi->back;
-	int hung_queue = -1;
 	u32 i;
 
 	pf->tx_timeout_count++;
 
-	/* find the stopped queue the same way dev_watchdog() does */
-	for (i = 0; i < netdev->num_tx_queues; i++) {
-		unsigned long trans_start;
-		struct netdev_queue *q;
-
-		q = netdev_get_tx_queue(netdev, i);
-		trans_start = q->trans_start;
-		if (netif_xmit_stopped(q) &&
-		    time_after(jiffies,
-			       trans_start + netdev->watchdog_timeo)) {
-			hung_queue = i;
-			break;
-		}
-	}
-
-	if (i == netdev->num_tx_queues)
-		netdev_info(netdev, "tx_timeout: no netdev hung queue found\n");
-	else
-		/* now that we have an index, find the tx_ring struct */
-		for (i = 0; i < vsi->num_txq; i++)
-			if (vsi->tx_rings[i] && vsi->tx_rings[i]->desc)
-				if (hung_queue == vsi->tx_rings[i]->q_index) {
-					tx_ring = vsi->tx_rings[i];
-					break;
-				}
+	/* now that we have an index, find the tx_ring struct */
+	for (i = 0; i < vsi->num_txq; i++)
+		if (vsi->tx_rings[i] && vsi->tx_rings[i]->desc)
+			if (txqueue == vsi->tx_rings[i]->q_index) {
+				tx_ring = vsi->tx_rings[i];
+				break;
+			}
 
 	/* Reset recovery level if enough time has elapsed after last timeout.
 	 * Also ensure no new reset action happens before next timeout period.
@@ -5130,19 +5111,19 @@ static void ice_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 		struct ice_hw *hw = &pf->hw;
 		u32 head, val = 0;
 
-		head = (rd32(hw, QTX_COMM_HEAD(vsi->txq_map[hung_queue])) &
+		head = (rd32(hw, QTX_COMM_HEAD(vsi->txq_map[txqueue])) &
 			QTX_COMM_HEAD_HEAD_M) >> QTX_COMM_HEAD_HEAD_S;
 		/* Read interrupt register */
 		val = rd32(hw, GLINT_DYN_CTL(tx_ring->q_vector->reg_idx));
 
 		netdev_info(netdev, "tx_timeout: VSI_num: %d, Q %d, NTC: 0x%x, HW_HEAD: 0x%x, NTU: 0x%x, INT: 0x%x\n",
-			    vsi->vsi_num, hung_queue, tx_ring->next_to_clean,
+			    vsi->vsi_num, txqueue, tx_ring->next_to_clean,
 			    head, tx_ring->next_to_use, val);
 	}
 
 	pf->tx_timeout_last_recovery = jiffies;
-	netdev_info(netdev, "tx_timeout recovery level %d, hung_queue %d\n",
-		    pf->tx_timeout_recovery_level, hung_queue);
+	netdev_info(netdev, "tx_timeout recovery level %d, txqueue %d\n",
+		    pf->tx_timeout_recovery_level, txqueue);
 
 	switch (pf->tx_timeout_recovery_level) {
 	case 1:
