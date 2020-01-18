@@ -1,0 +1,10 @@
+. ${ROOT_DIR}/common/build.config.common
+. ${ROOT_DIR}/common/build.config.x86_64
+. ${ROOT_DIR}/common/build.config.gki
+
+DEFCONFIG=cf_x86_64_gki_defconfig
+PRE_DEFCONFIG_CMDS="cat ./common/arch/x86/configs/gki_defconfig ./common/cuttlefish.fragment > ./common/arch/x86/configs/${DEFCONFIG};"
+POST_DEFCONFIG_CMDS="rm ./common/arch/x86/configs/${DEFCONFIG}"
+
+# Not saving any kernel images. This build step is meant purely to generate the .kos.
+FILES=""
