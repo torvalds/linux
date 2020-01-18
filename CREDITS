@@ -3302,7 +3302,9 @@ S: France
 N: Aleksa Sarai
 E: cyphar@cyphar.com
 W: https://www.cyphar.com/
-D: `pids` cgroup subsystem
+D: /sys/fs/cgroup/pids
+D: openat2(2)
+S: Sydney, Australia
 
 N: Dipankar Sarma
 E: dipankar@in.ibm.com
