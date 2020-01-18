@@ -371,7 +371,7 @@ static int __init arch_parse_efi_cmdline(char *str)
 		return -EINVAL;
 	}
 
-	if (parse_option_str(str, "old_map"))
+	if (!efi_is_mixed() && parse_option_str(str, "old_map"))
 		set_bit(EFI_UV1_MEMMAP, &efi.flags);
 
 	return 0;
