@@ -604,151 +604,118 @@ struct io_op_def {
 };
 
 static const struct io_op_def io_op_defs[] = {
-	{
-		/* IORING_OP_NOP */
-	},
-	{
-		/* IORING_OP_READV */
+	[IORING_OP_NOP] = {},
+	[IORING_OP_READV] = {
 		.async_ctx		= 1,
 		.needs_mm		= 1,
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 	},
-	{
-		/* IORING_OP_WRITEV */
+	[IORING_OP_WRITEV] = {
 		.async_ctx		= 1,
 		.needs_mm		= 1,
 		.needs_file		= 1,
 		.hash_reg_file		= 1,
 		.unbound_nonreg_file	= 1,
 	},
-	{
-		/* IORING_OP_FSYNC */
+	[IORING_OP_FSYNC] = {
 		.needs_file		= 1,
 	},
-	{
-		/* IORING_OP_READ_FIXED */
+	[IORING_OP_READ_FIXED] = {
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 	},
-	{
-		/* IORING_OP_WRITE_FIXED */
+	[IORING_OP_WRITE_FIXED] = {
 		.needs_file		= 1,
 		.hash_reg_file		= 1,
 		.unbound_nonreg_file	= 1,
 	},
-	{
-		/* IORING_OP_POLL_ADD */
+	[IORING_OP_POLL_ADD] = {
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 	},
-	{
-		/* IORING_OP_POLL_REMOVE */
-	},
-	{
-		/* IORING_OP_SYNC_FILE_RANGE */
+	[IORING_OP_POLL_REMOVE] = {},
+	[IORING_OP_SYNC_FILE_RANGE] = {
 		.needs_file		= 1,
 	},
-	{
-		/* IORING_OP_SENDMSG */
+	[IORING_OP_SENDMSG] = {
 		.async_ctx		= 1,
 		.needs_mm		= 1,
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 	},
-	{
-		/* IORING_OP_RECVMSG */
+	[IORING_OP_RECVMSG] = {
 		.async_ctx		= 1,
 		.needs_mm		= 1,
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 	},
-	{
-		/* IORING_OP_TIMEOUT */
+	[IORING_OP_TIMEOUT] = {
 		.async_ctx		= 1,
 		.needs_mm		= 1,
 	},
-	{
-		/* IORING_OP_TIMEOUT_REMOVE */
-	},
-	{
-		/* IORING_OP_ACCEPT */
+	[IORING_OP_TIMEOUT_REMOVE] = {},
+	[IORING_OP_ACCEPT] = {
 		.needs_mm		= 1,
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 	},
-	{
-		/* IORING_OP_ASYNC_CANCEL */
-	},
-	{
-		/* IORING_OP_LINK_TIMEOUT */
+	[IORING_OP_ASYNC_CANCEL] = {},
+	[IORING_OP_LINK_TIMEOUT] = {
 		.async_ctx		= 1,
 		.needs_mm		= 1,
 	},
-	{
-		/* IORING_OP_CONNECT */
+	[IORING_OP_CONNECT] = {
 		.async_ctx		= 1,
 		.needs_mm		= 1,
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 	},
-	{
-		/* IORING_OP_FALLOCATE */
+	[IORING_OP_FALLOCATE] = {
 		.needs_file		= 1,
 	},
-	{
-		/* IORING_OP_OPENAT */
+	[IORING_OP_OPENAT] = {
 		.needs_file		= 1,
 		.fd_non_neg		= 1,
 	},
-	{
-		/* IORING_OP_CLOSE */
+	[IORING_OP_CLOSE] = {
 		.needs_file		= 1,
 	},
-	{
-		/* IORING_OP_FILES_UPDATE */
+	[IORING_OP_FILES_UPDATE] = {
 		.needs_mm		= 1,
 	},
-	{
-		/* IORING_OP_STATX */
+	[IORING_OP_STATX] = {
 		.needs_mm		= 1,
 		.needs_file		= 1,
 		.fd_non_neg		= 1,
 	},
-	{
-		/* IORING_OP_READ */
+	[IORING_OP_READ] = {
 		.needs_mm		= 1,
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 	},
-	{
-		/* IORING_OP_WRITE */
+	[IORING_OP_WRITE] = {
 		.needs_mm		= 1,
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 	},
-	{
-		/* IORING_OP_FADVISE */
+	[IORING_OP_FADVISE] = {
 		.needs_file		= 1,
 	},
-	{
-		/* IORING_OP_MADVISE */
+	[IORING_OP_MADVISE] = {
 		.needs_mm		= 1,
 	},
-	{
-		/* IORING_OP_SEND */
+	[IORING_OP_SEND] = {
 		.needs_mm		= 1,
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 	},
-	{
-		/* IORING_OP_RECV */
+	[IORING_OP_RECV] = {
 		.needs_mm		= 1,
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 	},
-	{
-		/* IORING_OP_OPENAT2 */
+	[IORING_OP_OPENAT2] = {
 		.needs_file		= 1,
 		.fd_non_neg		= 1,
 	},
