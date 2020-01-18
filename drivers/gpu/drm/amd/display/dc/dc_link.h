@@ -205,6 +205,7 @@ enum dc_detect_reason {
 bool dc_link_detect(struct dc_link *dc_link, enum dc_detect_reason reason);
 bool dc_link_get_hpd_state(struct dc_link *dc_link);
 enum dc_status dc_link_allocate_mst_payload(struct pipe_ctx *pipe_ctx);
+enum dc_status dc_link_reallocate_mst_payload(struct dc_link *link);
 
 /* Notify DC about DP RX Interrupt (aka Short Pulse Interrupt).
  * Return:
@@ -300,6 +301,9 @@ uint32_t dc_link_bandwidth_kbps(
 
 const struct dc_link_settings *dc_link_get_link_cap(
 		const struct dc_link *link);
+
+void dc_link_overwrite_extended_receiver_cap(
+		struct dc_link *link);
 
 bool dc_submit_i2c(
 		struct dc *dc,

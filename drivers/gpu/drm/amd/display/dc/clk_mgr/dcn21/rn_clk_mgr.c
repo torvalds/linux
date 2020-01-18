@@ -59,14 +59,16 @@ int rn_get_active_display_cnt_wa(
 		struct dc_state *context)
 {
 	int i, display_count;
-	bool hdmi_present = false;
+	bool tmds_present = false;
 
 	display_count = 0;
 	for (i = 0; i < context->stream_count; i++) {
 		const struct dc_stream_state *stream = context->streams[i];
 
-		if (stream->signal == SIGNAL_TYPE_HDMI_TYPE_A)
-			hdmi_present = true;
+		if (stream->signal == SIGNAL_TYPE_HDMI_TYPE_A ||
+				stream->signal == SIGNAL_TYPE_DVI_SINGLE_LINK ||
+				stream->signal == SIGNAL_TYPE_DVI_DUAL_LINK)
+			tmds_present = true;
 	}
 
 	for (i = 0; i < dc->link_count; i++) {
@@ -85,7 +87,7 @@ int rn_get_active_display_cnt_wa(
 	}
 
 	/* WA for hang on HDMI after display off back back on*/
-	if (display_count == 0 && hdmi_present)
+	if (display_count == 0 && tmds_present)
 		display_count = 1;
 
 	return display_count;

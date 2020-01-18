@@ -741,9 +741,17 @@ static int amdgpu_debugfs_gpu_recover(struct seq_file *m, void *data)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct amdgpu_device *adev = dev->dev_private;
+	int r;
+
+	r = pm_runtime_get_sync(dev->dev);
+	if (r < 0)
+		return 0;
 
 	seq_printf(m, "gpu recover\n");
 	amdgpu_device_gpu_recover(adev, NULL);
+
+	pm_runtime_mark_last_busy(dev->dev);
+	pm_runtime_put_autosuspend(dev->dev);
 
 	return 0;
 }

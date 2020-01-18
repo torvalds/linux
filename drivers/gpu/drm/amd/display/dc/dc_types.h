@@ -229,6 +229,7 @@ struct dc_panel_patch {
 	unsigned int extra_t12_ms;
 	unsigned int extra_delay_backlight_off;
 	unsigned int extra_t7_ms;
+	unsigned int manage_secondary_link;
 };
 
 struct dc_edid_caps {
@@ -728,7 +729,7 @@ struct psr_context {
 	/* The VSync rate in Hz used to calculate the
 	 * step size for smooth brightness feature
 	 */
-	unsigned int vsyncRateHz;
+	unsigned int vsync_rate_hz;
 	unsigned int skipPsrWaitForPllLock;
 	unsigned int numberOfControllers;
 	/* Unused, for future use. To indicate that first changed frame from

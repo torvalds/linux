@@ -445,25 +445,6 @@ enum dmub_status dmub_srv_cmd_queue(struct dmub_srv *dmub,
 enum dmub_status dmub_srv_cmd_execute(struct dmub_srv *dmub);
 
 /**
- * dmub_srv_cmd_submit() - submits a command to the DMUB immediately
- * @dmub: the dmub service
- * @cmd: the command to submit
- * @timeout_us: the maximum number of microseconds to wait
- *
- * Submits a command to the DMUB with an optional timeout.
- * If timeout_us is given then the service will attempt to
- * resubmit for the given number of microseconds.
- *
- * Return:
- *   DMUB_STATUS_OK - success
- *   DMUB_STATUS_TIMEOUT - wait for submit timed out
- *   DMUB_STATUS_INVALID - unspecified error
- */
-enum dmub_status dmub_srv_cmd_submit(struct dmub_srv *dmub,
-				     const struct dmub_cmd_header *cmd,
-				     uint32_t timeout_us);
-
-/**
  * dmub_srv_wait_for_auto_load() - Waits for firmware auto load to complete
  * @dmub: the dmub service
  * @timeout_us: the maximum number of microseconds to wait

@@ -1217,23 +1217,32 @@ static void configure_lttpr_mode(struct dc_link *link)
 	uint8_t repeater_cnt;
 	uint32_t aux_interval_address;
 	uint8_t repeater_id;
+	enum dc_status result = DC_ERROR_UNEXPECTED;
 	uint8_t repeater_mode = DP_PHY_REPEATER_MODE_TRANSPARENT;
 
 	DC_LOG_HW_LINK_TRAINING("%s\n Set LTTPR to Transparent Mode\n", __func__);
-	core_link_write_dpcd(link,
+	result = core_link_write_dpcd(link,
 			DP_PHY_REPEATER_MODE,
 			(uint8_t *)&repeater_mode,
 			sizeof(repeater_mode));
+
+	if (result == DC_OK) {
+		link->dpcd_caps.lttpr_caps.mode = repeater_mode;
+	}
 
 	if (!link->is_lttpr_mode_transparent) {
 
 		DC_LOG_HW_LINK_TRAINING("%s\n Set LTTPR to Non Transparent Mode\n", __func__);
 
 		repeater_mode = DP_PHY_REPEATER_MODE_NON_TRANSPARENT;
-		core_link_write_dpcd(link,
+		result = core_link_write_dpcd(link,
 				DP_PHY_REPEATER_MODE,
 				(uint8_t *)&repeater_mode,
 				sizeof(repeater_mode));
+
+		if (result == DC_OK) {
+			link->dpcd_caps.lttpr_caps.mode = repeater_mode;
+		}
 
 		repeater_cnt = convert_to_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
 		for (repeater_id = repeater_cnt; repeater_id > 0; repeater_id--) {
@@ -1882,6 +1891,16 @@ bool dp_verify_link_cap(
 	 */
 	/* disable PHY done possible by BIOS, will be done by driver itself */
 	dp_disable_link_phy(link, link->connector_signal);
+
+	/* Temporary Renoir-specific workaround for SWDEV-215184;
+	 * PHY will sometimes be in bad state on hotplugging display from certain USB-C dongle,
+	 * so add extra cycle of enabling and disabling the PHY before first link training.
+	 */
+	if (link->link_enc->features.flags.bits.DP_IS_USB_C &&
+			link->dc->debug.usbc_combo_phy_reset_wa) {
+		dp_enable_link_phy(link, link->connector_signal, dp_cs_id, cur);
+		dp_disable_link_phy(link, link->connector_signal);
+	}
 
 	dp_cs_id = get_clock_source_id(link);
 
@@ -2876,18 +2895,14 @@ bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd
 			return false;
 
 		previous_link_settings = link->cur_link_settings;
-		dp_disable_link_phy(link, pipe_ctx->stream->signal);
 
 		perform_link_training_with_retries(&previous_link_settings,
 			true, LINK_TRAINING_ATTEMPTS,
 			pipe_ctx,
 			pipe_ctx->stream->signal);
 
-		if (pipe_ctx && pipe_ctx->stream && pipe_ctx->stream->link == link &&
-				pipe_ctx->stream->dpms_off == false &&
-				pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
-			dc_link_allocate_mst_payload(pipe_ctx);
-		}
+		if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
+			dc_link_reallocate_mst_payload(link);
 
 		status = false;
 		if (out_link_loss)
@@ -3269,7 +3284,7 @@ static bool retrieve_link_cap(struct dc_link *link)
 			dpcd_data[DP_TRAINING_AUX_RD_INTERVAL];
 
 		link->dpcd_caps.ext_receiver_cap_field_present =
-				aux_rd_interval.bits.EXT_RECEIVER_CAP_FIELD_PRESENT == 1 ? true:false;
+				aux_rd_interval.bits.EXT_RECEIVER_CAP_FIELD_PRESENT == 1;
 
 		if (aux_rd_interval.bits.EXT_RECEIVER_CAP_FIELD_PRESENT == 1) {
 			uint8_t ext_cap_data[16];
@@ -3424,6 +3439,68 @@ static bool retrieve_link_cap(struct dc_link *link)
 
 	/* Connectivity log: detection */
 	CONN_DATA_DETECT(link, dpcd_data, sizeof(dpcd_data), "Rx Caps: ");
+
+	return true;
+}
+
+bool dp_overwrite_extended_receiver_cap(struct dc_link *link)
+{
+	uint8_t dpcd_data[16];
+	uint32_t read_dpcd_retry_cnt = 3;
+	enum dc_status status = DC_ERROR_UNEXPECTED;
+	union dp_downstream_port_present ds_port = { 0 };
+	union down_stream_port_count down_strm_port_count;
+	union edp_configuration_cap edp_config_cap;
+
+	int i;
+
+	for (i = 0; i < read_dpcd_retry_cnt; i++) {
+		status = core_link_read_dpcd(
+				link,
+				DP_DPCD_REV,
+				dpcd_data,
+				sizeof(dpcd_data));
+		if (status == DC_OK)
+			break;
+	}
+
+	link->dpcd_caps.dpcd_rev.raw =
+		dpcd_data[DP_DPCD_REV - DP_DPCD_REV];
+
+	if (dpcd_data[DP_MAX_LANE_COUNT - DP_DPCD_REV] == 0)
+		return false;
+
+	ds_port.byte = dpcd_data[DP_DOWNSTREAMPORT_PRESENT -
+			DP_DPCD_REV];
+
+	get_active_converter_info(ds_port.byte, link);
+
+	down_strm_port_count.raw = dpcd_data[DP_DOWN_STREAM_PORT_COUNT -
+			DP_DPCD_REV];
+
+	link->dpcd_caps.allow_invalid_MSA_timing_param =
+		down_strm_port_count.bits.IGNORE_MSA_TIMING_PARAM;
+
+	link->dpcd_caps.max_ln_count.raw = dpcd_data[
+		DP_MAX_LANE_COUNT - DP_DPCD_REV];
+
+	link->dpcd_caps.max_down_spread.raw = dpcd_data[
+		DP_MAX_DOWNSPREAD - DP_DPCD_REV];
+
+	link->reported_link_cap.lane_count =
+		link->dpcd_caps.max_ln_count.bits.MAX_LANE_COUNT;
+	link->reported_link_cap.link_rate = dpcd_data[
+		DP_MAX_LINK_RATE - DP_DPCD_REV];
+	link->reported_link_cap.link_spread =
+		link->dpcd_caps.max_down_spread.bits.MAX_DOWN_SPREAD ?
+		LINK_SPREAD_05_DOWNSPREAD_30KHZ : LINK_SPREAD_DISABLED;
+
+	edp_config_cap.raw = dpcd_data[
+		DP_EDP_CONFIGURATION_CAP - DP_DPCD_REV];
+	link->dpcd_caps.panel_mode_edp =
+		edp_config_cap.bits.ALT_SCRAMBLER_RESET;
+	link->dpcd_caps.dpcd_display_control_capable =
+		edp_config_cap.bits.DPCD_DISPLAY_CONTROL_CAPABLE;
 
 	return true;
 }
@@ -3603,6 +3680,7 @@ static void set_crtc_test_pattern(struct dc_link *link,
 			struct pipe_ctx *odm_pipe;
 			enum controller_dp_color_space controller_color_space;
 			int opp_cnt = 1;
+			uint8_t count = 0;
 
 			switch (test_pattern_color_space) {
 			case DP_TEST_PATTERN_COLOR_SPACE_RGB:
@@ -3646,6 +3724,12 @@ static void set_crtc_test_pattern(struct dc_link *link,
 				NULL,
 				width,
 				height);
+			/* wait for dpg to blank pixel data with test pattern */
+			for (count = 0; count < 1000; count++)
+				if (opp->funcs->dpg_is_blanked(opp))
+					break;
+				else
+					udelay(100);
 		}
 	}
 	break;

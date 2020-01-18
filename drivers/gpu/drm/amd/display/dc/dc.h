@@ -39,7 +39,7 @@
 #include "inc/hw/dmcu.h"
 #include "dml/display_mode_lib.h"
 
-#define DC_VER "3.2.64"
+#define DC_VER "3.2.68"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -157,11 +157,14 @@ struct dc_surface_dcc_cap {
 	bool const_color_support;
 };
 
-struct dc_static_screen_events {
-	bool force_trigger;
-	bool cursor_update;
-	bool surface_update;
-	bool overlay_update;
+struct dc_static_screen_params {
+	struct {
+		bool force_trigger;
+		bool cursor_update;
+		bool surface_update;
+		bool overlay_update;
+	} triggers;
+	unsigned int num_frames;
 };
 
 
@@ -420,6 +423,8 @@ struct dc_debug_options {
 	bool nv12_iflip_vm_wa;
 	bool disable_dram_clock_change_vactive_support;
 	bool validate_dml_output;
+	bool enable_dmcub_surface_flip;
+	bool usbc_combo_phy_reset_wa;
 };
 
 struct dc_debug_data {
@@ -910,6 +915,8 @@ void dc_resource_state_copy_construct_current(
 
 void dc_resource_state_destruct(struct dc_state *context);
 
+bool dc_resource_is_dsc_encoding_supported(const struct dc *dc);
+
 /*
  * TODO update to make it about validation sets
  * Set up streams and links associated to drive sinks
@@ -1067,6 +1074,7 @@ unsigned int dc_get_current_backlight_pwm(struct dc *dc);
 unsigned int dc_get_target_backlight_pwm(struct dc *dc);
 
 bool dc_is_dmcu_initialized(struct dc *dc);
+bool dc_is_hw_initialized(struct dc *dc);
 
 enum dc_status dc_set_clock(struct dc *dc, enum dc_clock_type clock_type, uint32_t clk_khz, uint32_t stepping);
 void dc_get_clock(struct dc *dc, enum dc_clock_type clock_type, struct dc_clock_config *clock_cfg);

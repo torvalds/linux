@@ -75,6 +75,9 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 		break;
 	case CHIP_ARCTURUS:
 		fw_name = FIRMWARE_ARCTURUS;
+		if ((adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) &&
+		    (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG))
+			adev->vcn.indirect_sram = true;
 		break;
 	case CHIP_RENOIR:
 		fw_name = FIRMWARE_RENOIR;
@@ -165,15 +168,15 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 			dev_err(adev->dev, "(%d) failed to allocate vcn bo\n", r);
 			return r;
 		}
-	}
 
-	if (adev->vcn.indirect_sram) {
-		r = amdgpu_bo_create_kernel(adev, 64 * 2 * 4, PAGE_SIZE,
-			    AMDGPU_GEM_DOMAIN_VRAM, &adev->vcn.dpg_sram_bo,
-			    &adev->vcn.dpg_sram_gpu_addr, &adev->vcn.dpg_sram_cpu_addr);
-		if (r) {
-			dev_err(adev->dev, "(%d) failed to allocate DPG bo\n", r);
-			return r;
+		if (adev->vcn.indirect_sram) {
+			r = amdgpu_bo_create_kernel(adev, 64 * 2 * 4, PAGE_SIZE,
+					AMDGPU_GEM_DOMAIN_VRAM, &adev->vcn.inst[i].dpg_sram_bo,
+					&adev->vcn.inst[i].dpg_sram_gpu_addr, &adev->vcn.inst[i].dpg_sram_cpu_addr);
+			if (r) {
+				dev_err(adev->dev, "VCN %d (%d) failed to allocate DPG bo\n", i, r);
+				return r;
+			}
 		}
 	}
 
@@ -186,15 +189,14 @@ int amdgpu_vcn_sw_fini(struct amdgpu_device *adev)
 
 	cancel_delayed_work_sync(&adev->vcn.idle_work);
 
-	if (adev->vcn.indirect_sram) {
-		amdgpu_bo_free_kernel(&adev->vcn.dpg_sram_bo,
-				      &adev->vcn.dpg_sram_gpu_addr,
-				      (void **)&adev->vcn.dpg_sram_cpu_addr);
-	}
-
 	for (j = 0; j < adev->vcn.num_vcn_inst; ++j) {
 		if (adev->vcn.harvest_config & (1 << j))
 			continue;
+		if (adev->vcn.indirect_sram) {
+			amdgpu_bo_free_kernel(&adev->vcn.inst[j].dpg_sram_bo,
+						  &adev->vcn.inst[j].dpg_sram_gpu_addr,
+						  (void **)&adev->vcn.inst[j].dpg_sram_cpu_addr);
+		}
 		kvfree(adev->vcn.inst[j].saved_bo);
 
 		amdgpu_bo_free_kernel(&adev->vcn.inst[j].vcpu_bo,
@@ -298,7 +300,7 @@ static void amdgpu_vcn_idle_work_handler(struct work_struct *work)
 			else
 				new_state.fw_based = VCN_DPG_STATE__UNPAUSE;
 
-			adev->vcn.pause_dpg_mode(adev, &new_state);
+			adev->vcn.pause_dpg_mode(adev, j, &new_state);
 		}
 
 		fence[j] += amdgpu_fence_count_emitted(&adev->vcn.inst[j].ring_dec);
@@ -341,7 +343,7 @@ void amdgpu_vcn_ring_begin_use(struct amdgpu_ring *ring)
 		if (ring->funcs->type == AMDGPU_RING_TYPE_VCN_ENC)
 			new_state.fw_based = VCN_DPG_STATE__PAUSE;
 
-		adev->vcn.pause_dpg_mode(adev, &new_state);
+		adev->vcn.pause_dpg_mode(adev, ring->me, &new_state);
 	}
 }
 

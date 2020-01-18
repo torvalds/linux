@@ -534,7 +534,7 @@ static int kbps_to_peak_pbn(int kbps)
 
 	peak_kbps *= 1006;
 	peak_kbps = div_u64(peak_kbps, 1000);
-	return (int) DIV_ROUND_UP(peak_kbps * 64, (54 * 8 * 1000));
+	return (int) DIV64_U64_ROUND_UP(peak_kbps * 64, (54 * 8 * 1000));
 }
 
 static void set_dsc_configs_from_fairness_vars(struct dsc_mst_fairness_params *params,

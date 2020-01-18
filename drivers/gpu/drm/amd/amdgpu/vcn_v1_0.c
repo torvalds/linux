@@ -39,10 +39,10 @@
 #include "ivsrcid/vcn/irqsrcs_vcn_1_0.h"
 #include "jpeg_v1_0.h"
 
-#define mmUVD_RBC_XX_IB_REG_CHECK				0x05ab
-#define mmUVD_RBC_XX_IB_REG_CHECK_BASE_IDX	1
-#define mmUVD_REG_XX_MASK							0x05ac
-#define mmUVD_REG_XX_MASK_BASE_IDX				1
+#define mmUVD_RBC_XX_IB_REG_CHECK_1_0		0x05ab
+#define mmUVD_RBC_XX_IB_REG_CHECK_1_0_BASE_IDX	1
+#define mmUVD_REG_XX_MASK_1_0			0x05ac
+#define mmUVD_REG_XX_MASK_1_0_BASE_IDX		1
 
 static int vcn_v1_0_stop(struct amdgpu_device *adev);
 static void vcn_v1_0_set_dec_ring_funcs(struct amdgpu_device *adev);
@@ -50,7 +50,7 @@ static void vcn_v1_0_set_enc_ring_funcs(struct amdgpu_device *adev);
 static void vcn_v1_0_set_irq_funcs(struct amdgpu_device *adev);
 static int vcn_v1_0_set_powergating_state(void *handle, enum amd_powergating_state state);
 static int vcn_v1_0_pause_dpg_mode(struct amdgpu_device *adev,
-				struct dpg_pause_state *new_state);
+				int inst_idx, struct dpg_pause_state *new_state);
 
 static void vcn_v1_0_idle_work_handler(struct work_struct *work);
 
@@ -835,9 +835,9 @@ static int vcn_v1_0_start_spg_mode(struct amdgpu_device *adev)
 
 	vcn_v1_0_mc_resume_spg_mode(adev);
 
-	WREG32_SOC15(UVD, 0, mmUVD_REG_XX_MASK, 0x10);
-	WREG32_SOC15(UVD, 0, mmUVD_RBC_XX_IB_REG_CHECK,
-		RREG32_SOC15(UVD, 0, mmUVD_RBC_XX_IB_REG_CHECK) | 0x3);
+	WREG32_SOC15(UVD, 0, mmUVD_REG_XX_MASK_1_0, 0x10);
+	WREG32_SOC15(UVD, 0, mmUVD_RBC_XX_IB_REG_CHECK_1_0,
+		RREG32_SOC15(UVD, 0, mmUVD_RBC_XX_IB_REG_CHECK_1_0) | 0x3);
 
 	/* enable VCPU clock */
 	WREG32_SOC15(UVD, 0, mmUVD_VCPU_CNTL, UVD_VCPU_CNTL__CLK_EN_MASK);
@@ -1199,7 +1199,7 @@ static int vcn_v1_0_stop(struct amdgpu_device *adev)
 }
 
 static int vcn_v1_0_pause_dpg_mode(struct amdgpu_device *adev,
-				struct dpg_pause_state *new_state)
+				int inst_idx, struct dpg_pause_state *new_state)
 {
 	int ret_code;
 	uint32_t reg_data = 0;
@@ -1786,7 +1786,7 @@ static void vcn_v1_0_idle_work_handler(struct work_struct *work)
 		else
 			new_state.jpeg = VCN_DPG_STATE__UNPAUSE;
 
-		adev->vcn.pause_dpg_mode(adev, &new_state);
+		adev->vcn.pause_dpg_mode(adev, 0, &new_state);
 	}
 
 	fences += amdgpu_fence_count_emitted(&adev->jpeg.inst->ring_dec);
@@ -1840,7 +1840,7 @@ void vcn_v1_0_ring_begin_use(struct amdgpu_ring *ring)
 		else if (ring->funcs->type == AMDGPU_RING_TYPE_VCN_JPEG)
 			new_state.jpeg = VCN_DPG_STATE__PAUSE;
 
-		adev->vcn.pause_dpg_mode(adev, &new_state);
+		adev->vcn.pause_dpg_mode(adev, 0, &new_state);
 	}
 }
 

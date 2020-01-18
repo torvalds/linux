@@ -686,9 +686,13 @@ enum dc_status dcn20_enable_stream_timing(
 	// DRR should set trigger event to monitor surface update event
 	if (stream->adjust.v_total_min != 0 && stream->adjust.v_total_max != 0)
 		event_triggers = 0x80;
+	/* Event triggers and num frames initialized for DRR, but can be
+	 * later updated for PSR use. Note DRR trigger events are generated
+	 * regardless of whether num frames met.
+	 */
 	if (pipe_ctx->stream_res.tg->funcs->set_static_screen_control)
 		pipe_ctx->stream_res.tg->funcs->set_static_screen_control(
-				pipe_ctx->stream_res.tg, event_triggers);
+				pipe_ctx->stream_res.tg, event_triggers, 2);
 
 	/* TODO program crtc source select for non-virtual signal*/
 	/* TODO program FMT */
@@ -940,6 +944,9 @@ void dcn20_blank_pixel_data(
 
 	int width = stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right;
 	int height = stream->timing.v_addressable + stream->timing.v_border_bottom + stream->timing.v_border_top;
+
+	if (stream->link->test_pattern_enabled)
+		return;
 
 	/* get opp dpg blank color */
 	color_space_to_black_color(dc, color_space, &black_color);
@@ -1638,9 +1645,9 @@ void dcn20_program_front_end_for_ctx(
 			struct hubp *hubp = pipe->plane_res.hubp;
 			int j = 0;
 
-			for (j = 0; j < TIMEOUT_FOR_PIPE_ENABLE_MS
+			for (j = 0; j < TIMEOUT_FOR_PIPE_ENABLE_MS*1000
 					&& hubp->funcs->hubp_is_flip_pending(hubp); j++)
-				msleep(1);
+				mdelay(1);
 		}
 	}
 

@@ -686,6 +686,7 @@ int amdgpu_ras_error_query(struct amdgpu_device *adev,
 {
 	struct ras_manager *obj = amdgpu_ras_find_obj(adev, &info->head);
 	struct ras_err_data err_data = {0, 0, 0, NULL};
+	int i;
 
 	if (!obj)
 		return -EINVAL;
@@ -699,6 +700,13 @@ int amdgpu_ras_error_query(struct amdgpu_device *adev,
 		 */
 		if (adev->umc.funcs->query_ras_error_address)
 			adev->umc.funcs->query_ras_error_address(adev, &err_data);
+		break;
+	case AMDGPU_RAS_BLOCK__SDMA:
+		if (adev->sdma.funcs->query_ras_error_count) {
+			for (i = 0; i < adev->sdma.num_instances; i++)
+				adev->sdma.funcs->query_ras_error_count(adev, i,
+									&err_data);
+		}
 		break;
 	case AMDGPU_RAS_BLOCK__GFX:
 		if (adev->gfx.funcs->query_ras_error_count)
@@ -1345,7 +1353,8 @@ static void amdgpu_ras_do_recovery(struct work_struct *work)
 	struct amdgpu_ras *ras =
 		container_of(work, struct amdgpu_ras, recovery_work);
 
-	amdgpu_device_gpu_recover(ras->adev, 0);
+	if (amdgpu_device_should_recover_gpu(ras->adev))
+		amdgpu_device_gpu_recover(ras->adev, 0);
 	atomic_set(&ras->in_recovery, 0);
 }
 

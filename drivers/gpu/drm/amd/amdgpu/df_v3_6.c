@@ -262,6 +262,32 @@ static ssize_t df_v3_6_get_df_cntr_avail(struct device *dev,
 /* device attr for available perfmon counters */
 static DEVICE_ATTR(df_cntr_avail, S_IRUGO, df_v3_6_get_df_cntr_avail, NULL);
 
+static void df_v3_6_query_hashes(struct amdgpu_device *adev)
+{
+	u32 tmp;
+
+	adev->df.hash_status.hash_64k = false;
+	adev->df.hash_status.hash_2m = false;
+	adev->df.hash_status.hash_1g = false;
+
+	if (adev->asic_type != CHIP_ARCTURUS)
+		return;
+
+	/* encoding for hash-enabled on Arcturus */
+	if (adev->df.funcs->get_fb_channel_number(adev) == 0xe) {
+		tmp = RREG32_SOC15(DF, 0, mmDF_CS_UMC_AON0_DfGlobalCtrl);
+		adev->df.hash_status.hash_64k = REG_GET_FIELD(tmp,
+						DF_CS_UMC_AON0_DfGlobalCtrl,
+						GlbHashIntlvCtl64K);
+		adev->df.hash_status.hash_2m = REG_GET_FIELD(tmp,
+						DF_CS_UMC_AON0_DfGlobalCtrl,
+						GlbHashIntlvCtl2M);
+		adev->df.hash_status.hash_1g = REG_GET_FIELD(tmp,
+						DF_CS_UMC_AON0_DfGlobalCtrl,
+						GlbHashIntlvCtl1G);
+	}
+}
+
 /* init perfmons */
 static void df_v3_6_sw_init(struct amdgpu_device *adev)
 {
@@ -273,6 +299,8 @@ static void df_v3_6_sw_init(struct amdgpu_device *adev)
 
 	for (i = 0; i < AMDGPU_MAX_DF_PERFMONS; i++)
 		adev->df_perfmon_config_assign_mask[i] = 0;
+
+	df_v3_6_query_hashes(adev);
 }
 
 static void df_v3_6_sw_fini(struct amdgpu_device *adev)
@@ -311,7 +339,7 @@ static u32 df_v3_6_get_hbm_channel_number(struct amdgpu_device *adev)
 {
 	int fb_channel_number;
 
-	fb_channel_number = adev->df_funcs->get_fb_channel_number(adev);
+	fb_channel_number = adev->df.funcs->get_fb_channel_number(adev);
 	if (fb_channel_number >= ARRAY_SIZE(df_v3_6_channel_number))
 		fb_channel_number = 0;
 
@@ -325,7 +353,7 @@ static void df_v3_6_update_medium_grain_clock_gating(struct amdgpu_device *adev,
 
 	if (adev->cg_flags & AMD_CG_SUPPORT_DF_MGCG) {
 		/* Put DF on broadcast mode */
-		adev->df_funcs->enable_broadcast_mode(adev, true);
+		adev->df.funcs->enable_broadcast_mode(adev, true);
 
 		if (enable) {
 			tmp = RREG32_SOC15(DF, 0,
@@ -344,7 +372,7 @@ static void df_v3_6_update_medium_grain_clock_gating(struct amdgpu_device *adev,
 		}
 
 		/* Exit broadcast mode */
-		adev->df_funcs->enable_broadcast_mode(adev, false);
+		adev->df.funcs->enable_broadcast_mode(adev, false);
 	}
 }
 

@@ -287,7 +287,6 @@ bool dc_stream_adjust_vmin_vmax(struct dc *dc,
 		struct pipe_ctx *pipe = &dc->current_state->res_ctx.pipe_ctx[i];
 
 		if (pipe->stream == stream && pipe->stream_res.tg) {
-			pipe->stream->adjust = *adjust;
 			dc->hwss.set_drr(&pipe,
 					1,
 					adjust->v_total_min,
@@ -511,10 +510,10 @@ bool dc_stream_program_csc_matrix(struct dc *dc, struct dc_stream_state *stream)
 	return ret;
 }
 
-void dc_stream_set_static_screen_events(struct dc *dc,
+void dc_stream_set_static_screen_params(struct dc *dc,
 		struct dc_stream_state **streams,
 		int num_streams,
-		const struct dc_static_screen_events *events)
+		const struct dc_static_screen_params *params)
 {
 	int i = 0;
 	int j = 0;
@@ -533,7 +532,7 @@ void dc_stream_set_static_screen_events(struct dc *dc,
 		}
 	}
 
-	dc->hwss.set_static_screen_control(pipes_affected, num_pipes_affected, events);
+	dc->hwss.set_static_screen_control(pipes_affected, num_pipes_affected, params);
 }
 
 static void dc_destruct(struct dc *dc)
@@ -1317,6 +1316,12 @@ bool dc_commit_state(struct dc *dc, struct dc_state *context)
 	result = dc_commit_state_no_check(dc, context);
 
 	return (result == DC_OK);
+}
+
+bool dc_is_hw_initialized(struct dc *dc)
+{
+	struct dc_bios *dcb = dc->ctx->dc_bios;
+	return dcb->funcs->is_accelerated_mode(dcb);
 }
 
 bool dc_post_update_surfaces_to_stream(struct dc *dc)

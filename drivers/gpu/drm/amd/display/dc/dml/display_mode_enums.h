@@ -85,7 +85,7 @@ enum dm_swizzle_mode {
 	dm_sw_var_s_x = 29,
 	dm_sw_var_d_x = 30,
 	dm_sw_64kb_r_x,
-	dm_sw_gfx7_2d_thin_lvp,
+	dm_sw_gfx7_2d_thin_l_vp,
 	dm_sw_gfx7_2d_thin_gl,
 };
 enum lb_depth {
@@ -117,6 +117,10 @@ enum mpc_combine_affinity {
 	dm_mpc_reduce_voltage,
 	dm_mpc_reduce_voltage_and_clocks,
 	dm_mpc_never
+};
+
+enum RequestType {
+	REQ_256Bytes, REQ_128BytesNonContiguous, REQ_128BytesContiguous, REQ_NA
 };
 
 enum self_refresh_affinity {
@@ -163,6 +167,18 @@ enum odm_combine_mode {
 	dm_odm_combine_mode_disabled,
 	dm_odm_combine_mode_2to1,
 	dm_odm_combine_mode_4to1,
+};
+
+enum odm_combine_policy {
+	dm_odm_combine_policy_dal,
+	dm_odm_combine_policy_none,
+	dm_odm_combine_policy_2to1,
+	dm_odm_combine_policy_4to1,
+};
+
+enum immediate_flip_requirement {
+	dm_immediate_flip_not_required,
+	dm_immediate_flip_required,
 };
 
 #endif

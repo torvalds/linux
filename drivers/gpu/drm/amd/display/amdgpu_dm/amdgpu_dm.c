@@ -906,13 +906,16 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 
 	init_data.dce_environment = DCE_ENV_PRODUCTION_DRV;
 
-	/*
-	 * TODO debug why this doesn't work on Raven
-	 */
-	if (adev->flags & AMD_IS_APU &&
-	    adev->asic_type >= CHIP_CARRIZO &&
-	    adev->asic_type < CHIP_RAVEN)
+	switch (adev->asic_type) {
+	case CHIP_CARRIZO:
+	case CHIP_STONEY:
+	case CHIP_RAVEN:
+	case CHIP_RENOIR:
 		init_data.flags.gpu_vm_support = true;
+		break;
+	default:
+		break;
+	}
 
 	if (amdgpu_dc_feature_mask & DC_FBC_MASK)
 		init_data.flags.fbc_support = true;
@@ -8390,17 +8393,37 @@ static bool amdgpu_dm_link_setup_psr(struct dc_stream_state *stream)
 bool amdgpu_dm_psr_enable(struct dc_stream_state *stream)
 {
 	struct dc_link *link = stream->link;
-	struct dc_static_screen_events triggers = {0};
+	unsigned int vsync_rate_hz = 0;
+	struct dc_static_screen_params params = {0};
+	/* Calculate number of static frames before generating interrupt to
+	 * enter PSR.
+	 */
+	unsigned int frame_time_microsec = 1000000 / vsync_rate_hz;
+	// Init fail safe of 2 frames static
+	unsigned int num_frames_static = 2;
 
 	DRM_DEBUG_DRIVER("Enabling psr...\n");
 
-	triggers.cursor_update = true;
-	triggers.overlay_update = true;
-	triggers.surface_update = true;
+	vsync_rate_hz = div64_u64(div64_u64((
+			stream->timing.pix_clk_100hz * 100),
+			stream->timing.v_total),
+			stream->timing.h_total);
 
-	dc_stream_set_static_screen_events(link->ctx->dc,
+	/* Round up
+	 * Calculate number of frames such that at least 30 ms of time has
+	 * passed.
+	 */
+	if (vsync_rate_hz != 0)
+		num_frames_static = (30000 / frame_time_microsec) + 1;
+
+	params.triggers.cursor_update = true;
+	params.triggers.overlay_update = true;
+	params.triggers.surface_update = true;
+	params.num_frames = num_frames_static;
+
+	dc_stream_set_static_screen_params(link->ctx->dc,
 					   &stream, 1,
-					   &triggers);
+					   &params);
 
 	return dc_link_set_psr_allow_active(link, true, false);
 }

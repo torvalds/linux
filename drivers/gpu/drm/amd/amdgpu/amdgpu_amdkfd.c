@@ -613,15 +613,9 @@ void amdgpu_amdkfd_set_compute_idle(struct kgd_dev *kgd, bool idle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
 
-	if (is_support_sw_smu(adev))
-		smu_switch_power_profile(&adev->smu,
-					 PP_SMC_POWER_PROFILE_COMPUTE,
-					 !idle);
-	else if (adev->powerplay.pp_funcs &&
-		 adev->powerplay.pp_funcs->switch_power_profile)
-		amdgpu_dpm_switch_power_profile(adev,
-						PP_SMC_POWER_PROFILE_COMPUTE,
-						!idle);
+	amdgpu_dpm_switch_power_profile(adev,
+					PP_SMC_POWER_PROFILE_COMPUTE,
+					!idle);
 }
 
 bool amdgpu_amdkfd_is_kfd_vmid(struct amdgpu_device *adev, u32 vmid)
@@ -632,6 +626,38 @@ bool amdgpu_amdkfd_is_kfd_vmid(struct amdgpu_device *adev, u32 vmid)
 	}
 
 	return false;
+}
+
+int amdgpu_amdkfd_flush_gpu_tlb_vmid(struct kgd_dev *kgd, uint16_t vmid)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
+
+	if (adev->family == AMDGPU_FAMILY_AI) {
+		int i;
+
+		for (i = 0; i < adev->num_vmhubs; i++)
+			amdgpu_gmc_flush_gpu_tlb(adev, vmid, i, 0);
+	} else {
+		amdgpu_gmc_flush_gpu_tlb(adev, vmid, AMDGPU_GFXHUB_0, 0);
+	}
+
+	return 0;
+}
+
+int amdgpu_amdkfd_flush_gpu_tlb_pasid(struct kgd_dev *kgd, uint16_t pasid)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
+	uint32_t flush_type = 0;
+	bool all_hub = false;
+
+	if (adev->gmc.xgmi.num_physical_nodes &&
+		adev->asic_type == CHIP_VEGA20)
+		flush_type = 2;
+
+	if (adev->family == AMDGPU_FAMILY_AI)
+		all_hub = true;
+
+	return amdgpu_gmc_flush_gpu_tlb_pasid(adev, pasid, flush_type, all_hub);
 }
 
 bool amdgpu_amdkfd_have_atomics_support(struct kgd_dev *kgd)

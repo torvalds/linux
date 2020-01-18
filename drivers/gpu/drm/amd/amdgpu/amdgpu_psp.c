@@ -529,6 +529,11 @@ static int psp_xgmi_unload(struct psp_context *psp)
 {
 	int ret;
 	struct psp_gfx_cmd_resp *cmd;
+	struct amdgpu_device *adev = psp->adev;
+
+	/* XGMI TA unload currently is not supported on Arcturus */
+	if (adev->asic_type == CHIP_ARCTURUS)
+		return 0;
 
 	/*
 	 * TODO: bypass the unloading in sriov for now

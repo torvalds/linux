@@ -83,6 +83,7 @@
 #include "dcn21_resource.h"
 #include "vm_helper.h"
 #include "dcn20/dcn20_vmid.h"
+#include "../dce/dmub_psr.h"
 
 #define SOC_BOUNDING_BOX_VALID false
 #define DC_LOGGER_INIT(logger)
@@ -465,15 +466,18 @@ static const struct dcn20_mpc_registers mpc_regs = {
 		MPC_OUT_MUX_REG_LIST_DCN2_0(0),
 		MPC_OUT_MUX_REG_LIST_DCN2_0(1),
 		MPC_OUT_MUX_REG_LIST_DCN2_0(2),
-		MPC_OUT_MUX_REG_LIST_DCN2_0(3)
+		MPC_OUT_MUX_REG_LIST_DCN2_0(3),
+		MPC_DBG_REG_LIST_DCN2_0()
 };
 
 static const struct dcn20_mpc_shift mpc_shift = {
-	MPC_COMMON_MASK_SH_LIST_DCN2_0(__SHIFT)
+	MPC_COMMON_MASK_SH_LIST_DCN2_0(__SHIFT),
+	MPC_DEBUG_REG_LIST_SH_DCN20
 };
 
 static const struct dcn20_mpc_mask mpc_mask = {
-	MPC_COMMON_MASK_SH_LIST_DCN2_0(_MASK)
+	MPC_COMMON_MASK_SH_LIST_DCN2_0(_MASK),
+	MPC_DEBUG_REG_LIST_MASK_DCN20
 };
 
 #define hubp_regs(id)\
@@ -608,6 +612,7 @@ static const struct dce110_aux_registers aux_engine_regs[] = {
 #define tf_regs(id)\
 [id] = {\
 	TF_REG_LIST_DCN20(id),\
+	TF_REG_LIST_DCN20_COMMON_APPEND(id),\
 }
 
 static const struct dcn2_dpp_registers tf_regs[] = {
@@ -618,11 +623,13 @@ static const struct dcn2_dpp_registers tf_regs[] = {
 };
 
 static const struct dcn2_dpp_shift tf_shift = {
-		TF_REG_LIST_SH_MASK_DCN20(__SHIFT)
+		TF_REG_LIST_SH_MASK_DCN20(__SHIFT),
+		TF_DEBUG_REG_LIST_SH_DCN20
 };
 
 static const struct dcn2_dpp_mask tf_mask = {
-		TF_REG_LIST_SH_MASK_DCN20(_MASK)
+		TF_REG_LIST_SH_MASK_DCN20(_MASK),
+		TF_DEBUG_REG_LIST_MASK_DCN20
 };
 
 #define stream_enc_regs(id)\
@@ -828,7 +835,8 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.scl_reset_length10 = true,
 		.sanity_checks = true,
 		.disable_48mhz_pwrdwn = false,
-		.nv12_iflip_vm_wa = true
+		.nv12_iflip_vm_wa = true,
+		.usbc_combo_phy_reset_wa = true
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
@@ -1341,6 +1349,10 @@ static void update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_param
 	}
 	dcn2_1_soc.clock_limits[i] = dcn2_1_soc.clock_limits[i - 1];
 	dcn2_1_soc.num_states = i;
+
+	// diags does not retrieve proper values from SMU, do not update DML instance for diags
+	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment) && !IS_DIAG_DC(dc->ctx->dce_environment))
+		dml_init_instance(&dc->dml, &dcn2_1_soc, &dcn2_1_ip, DML_PROJECT_DCN21);
 }
 
 /* Temporary Place holder until we can get them from fuse */
@@ -1739,6 +1751,10 @@ static bool dcn21_resource_construct(
 		BREAK_TO_DEBUGGER();
 		goto create_fail;
 	}
+
+	// Leave as NULL to not affect current dmcu psr programming sequence
+	// Will be uncommented when functionality is confirmed to be working
+	pool->base.psr = NULL;
 
 	pool->base.abm = dce_abm_create(ctx,
 			&abm_regs,

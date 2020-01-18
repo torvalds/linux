@@ -67,6 +67,26 @@ static inline uint32_t dmub_align(uint32_t val, uint32_t factor)
 	return (val + factor - 1) / factor * factor;
 }
 
+static void dmub_flush_buffer_mem(const struct dmub_fb *fb)
+{
+	const uint8_t *base = (const uint8_t *)fb->cpu_addr;
+	uint8_t buf[64];
+	uint32_t pos, end;
+
+	/**
+	 * Read 64-byte chunks since we don't want to store a
+	 * large temporary buffer for this purpose.
+	 */
+	end = fb->size / sizeof(buf) * sizeof(buf);
+
+	for (pos = 0; pos < end; pos += sizeof(buf))
+		dmub_memcpy(buf, base + pos, sizeof(buf));
+
+	/* Read anything leftover into the buffer. */
+	if (end < fb->size)
+		dmub_memcpy(buf, base + pos, fb->size - end);
+}
+
 static const struct dmub_fw_meta_info *
 dmub_get_fw_meta_info(const uint8_t *fw_bss_data, uint32_t fw_bss_data_size)
 {
@@ -329,6 +349,13 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 		cw1.region.base = DMUB_CW1_BASE;
 		cw1.region.top = cw1.region.base + stack_fb->size - 1;
 
+		/**
+		 * Read back all the instruction memory so we don't hang the
+		 * DMCUB when backdoor loading if the write from x86 hasn't been
+		 * flushed yet. This only occurs in backdoor loading.
+		 */
+		dmub_flush_buffer_mem(inst_fb);
+
 		if (params->load_inst_const && dmub->hw_funcs.backdoor_load)
 			dmub->hw_funcs.backdoor_load(dmub, &cw0, &cw1);
 	}
@@ -405,31 +432,15 @@ enum dmub_status dmub_srv_cmd_execute(struct dmub_srv *dmub)
 	if (!dmub->hw_init)
 		return DMUB_STATUS_INVALID;
 
+	/**
+	 * Read back all the queued commands to ensure that they've
+	 * been flushed to framebuffer memory. Otherwise DMCUB might
+	 * read back stale, fully invalid or partially invalid data.
+	 */
+	dmub_rb_flush_pending(&dmub->inbox1_rb);
+
 	dmub->hw_funcs.set_inbox1_wptr(dmub, dmub->inbox1_rb.wrpt);
 	return DMUB_STATUS_OK;
-}
-
-enum dmub_status dmub_srv_cmd_submit(struct dmub_srv *dmub,
-				     const struct dmub_cmd_header *cmd,
-				     uint32_t timeout_us)
-{
-	uint32_t i = 0;
-
-	if (!dmub->hw_init)
-		return DMUB_STATUS_INVALID;
-
-	for (i = 0; i <= timeout_us; ++i) {
-		dmub->inbox1_rb.rptr = dmub->hw_funcs.get_inbox1_rptr(dmub);
-		if (dmub_rb_push_front(&dmub->inbox1_rb, cmd)) {
-			dmub->hw_funcs.set_inbox1_wptr(dmub,
-						       dmub->inbox1_rb.wrpt);
-			return DMUB_STATUS_OK;
-		}
-
-		udelay(1);
-	}
-
-	return DMUB_STATUS_TIMEOUT;
 }
 
 enum dmub_status dmub_srv_wait_for_auto_load(struct dmub_srv *dmub,
