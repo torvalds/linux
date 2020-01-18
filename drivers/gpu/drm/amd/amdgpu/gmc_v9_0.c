@@ -602,10 +602,10 @@ static int gmc_v9_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 			if (all_hub) {
 				for (i = 0; i < adev->num_vmhubs; i++)
 					gmc_v9_0_flush_gpu_tlb(adev, vmid,
-							i, 0);
+							i, flush_type);
 			} else {
 				gmc_v9_0_flush_gpu_tlb(adev, vmid,
-						AMDGPU_GFXHUB_0, 0);
+						AMDGPU_GFXHUB_0, flush_type);
 			}
 			break;
 		}
