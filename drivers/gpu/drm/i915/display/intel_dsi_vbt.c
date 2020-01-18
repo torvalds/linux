@@ -394,8 +394,7 @@ static int i2c_adapter_lookup(struct acpi_resource *ares, void *data)
 	acpi_handle adapter_handle;
 	acpi_status status;
 
-	if (intel_dsi->i2c_bus_num >= 0 ||
-	    !i2c_acpi_get_i2c_resource(ares, &sb))
+	if (!i2c_acpi_get_i2c_resource(ares, &sb))
 		return 1;
 
 	if (lookup->slave_addr != sb->slave_address)
