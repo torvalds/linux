@@ -8563,13 +8563,6 @@ static void kvm_load_guest_fpu(struct kvm_vcpu *vcpu)
 {
 	fpregs_lock();
 
-	/*
-	 * Reloading userspace's FPU is handled by kvm_arch_vcpu_load(), both
-	 * for direct calls from userspace (via vcpu_load()) and if this task
-	 * is preempted (via kvm_sched_in()) between vcpu_load() and now.
-	 */
-	WARN_ON_ONCE(test_thread_flag(TIF_NEED_FPU_LOAD));
-
 	copy_fpregs_to_fpstate(vcpu->arch.user_fpu);
 	/* PKRU is separately restored in kvm_x86_ops->run.  */
 	__copy_kernel_to_fpregs(&vcpu->arch.guest_fpu->state,
