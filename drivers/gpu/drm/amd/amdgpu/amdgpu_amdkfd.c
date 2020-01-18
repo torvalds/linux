@@ -647,12 +647,8 @@ int amdgpu_amdkfd_flush_gpu_tlb_vmid(struct kgd_dev *kgd, uint16_t vmid)
 int amdgpu_amdkfd_flush_gpu_tlb_pasid(struct kgd_dev *kgd, uint16_t pasid)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
-	uint32_t flush_type = 0;
+	const uint32_t flush_type = 0;
 	bool all_hub = false;
-
-	if (adev->gmc.xgmi.num_physical_nodes &&
-		adev->asic_type == CHIP_VEGA20)
-		flush_type = 2;
 
 	if (adev->family == AMDGPU_FAMILY_AI)
 		all_hub = true;
