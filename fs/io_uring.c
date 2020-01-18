@@ -46,6 +46,7 @@
 #include <linux/compat.h>
 #include <linux/refcount.h>
 #include <linux/uio.h>
+#include <linux/bits.h>
 
 #include <linux/sched/signal.h>
 #include <linux/fs.h>
@@ -452,6 +453,65 @@ struct io_async_ctx {
 	};
 };
 
+enum {
+	REQ_F_FIXED_FILE_BIT	= IOSQE_FIXED_FILE_BIT,
+	REQ_F_IO_DRAIN_BIT	= IOSQE_IO_DRAIN_BIT,
+	REQ_F_LINK_BIT		= IOSQE_IO_LINK_BIT,
+	REQ_F_HARDLINK_BIT	= IOSQE_IO_HARDLINK_BIT,
+	REQ_F_FORCE_ASYNC_BIT	= IOSQE_ASYNC_BIT,
+
+	REQ_F_LINK_NEXT_BIT,
+	REQ_F_FAIL_LINK_BIT,
+	REQ_F_INFLIGHT_BIT,
+	REQ_F_CUR_POS_BIT,
+	REQ_F_NOWAIT_BIT,
+	REQ_F_IOPOLL_COMPLETED_BIT,
+	REQ_F_LINK_TIMEOUT_BIT,
+	REQ_F_TIMEOUT_BIT,
+	REQ_F_ISREG_BIT,
+	REQ_F_MUST_PUNT_BIT,
+	REQ_F_TIMEOUT_NOSEQ_BIT,
+	REQ_F_COMP_LOCKED_BIT,
+};
+
+enum {
+	/* ctx owns file */
+	REQ_F_FIXED_FILE	= BIT(REQ_F_FIXED_FILE_BIT),
+	/* drain existing IO first */
+	REQ_F_IO_DRAIN		= BIT(REQ_F_IO_DRAIN_BIT),
+	/* linked sqes */
+	REQ_F_LINK		= BIT(REQ_F_LINK_BIT),
+	/* doesn't sever on completion < 0 */
+	REQ_F_HARDLINK		= BIT(REQ_F_HARDLINK_BIT),
+	/* IOSQE_ASYNC */
+	REQ_F_FORCE_ASYNC	= BIT(REQ_F_FORCE_ASYNC_BIT),
+
+	/* already grabbed next link */
+	REQ_F_LINK_NEXT		= BIT(REQ_F_LINK_NEXT_BIT),
+	/* fail rest of links */
+	REQ_F_FAIL_LINK		= BIT(REQ_F_FAIL_LINK_BIT),
+	/* on inflight list */
+	REQ_F_INFLIGHT		= BIT(REQ_F_INFLIGHT_BIT),
+	/* read/write uses file position */
+	REQ_F_CUR_POS		= BIT(REQ_F_CUR_POS_BIT),
+	/* must not punt to workers */
+	REQ_F_NOWAIT		= BIT(REQ_F_NOWAIT_BIT),
+	/* polled IO has completed */
+	REQ_F_IOPOLL_COMPLETED	= BIT(REQ_F_IOPOLL_COMPLETED_BIT),
+	/* has linked timeout */
+	REQ_F_LINK_TIMEOUT	= BIT(REQ_F_LINK_TIMEOUT_BIT),
+	/* timeout request */
+	REQ_F_TIMEOUT		= BIT(REQ_F_TIMEOUT_BIT),
+	/* regular file */
+	REQ_F_ISREG		= BIT(REQ_F_ISREG_BIT),
+	/* must be punted even for NONBLOCK */
+	REQ_F_MUST_PUNT		= BIT(REQ_F_MUST_PUNT_BIT),
+	/* no timeout sequence */
+	REQ_F_TIMEOUT_NOSEQ	= BIT(REQ_F_TIMEOUT_NOSEQ_BIT),
+	/* completion under lock */
+	REQ_F_COMP_LOCKED	= BIT(REQ_F_COMP_LOCKED_BIT),
+};
+
 /*
  * NOTE! Each of the iocb union members has the file pointer
  * as the first entry in their struct definition. So you can
@@ -494,23 +554,6 @@ struct io_kiocb {
 	struct list_head	link_list;
 	unsigned int		flags;
 	refcount_t		refs;
-#define REQ_F_NOWAIT		1	/* must not punt to workers */
-#define REQ_F_IOPOLL_COMPLETED	2	/* polled IO has completed */
-#define REQ_F_FIXED_FILE	4	/* ctx owns file */
-#define REQ_F_LINK_NEXT		8	/* already grabbed next link */
-#define REQ_F_IO_DRAIN		16	/* drain existing IO first */
-#define REQ_F_LINK		64	/* linked sqes */
-#define REQ_F_LINK_TIMEOUT	128	/* has linked timeout */
-#define REQ_F_FAIL_LINK		256	/* fail rest of links */
-#define REQ_F_TIMEOUT		1024	/* timeout request */
-#define REQ_F_ISREG		2048	/* regular file */
-#define REQ_F_MUST_PUNT		4096	/* must be punted even for NONBLOCK */
-#define REQ_F_TIMEOUT_NOSEQ	8192	/* no timeout sequence */
-#define REQ_F_INFLIGHT		16384	/* on inflight list */
-#define REQ_F_COMP_LOCKED	32768	/* completion under lock */
-#define REQ_F_HARDLINK		65536	/* doesn't sever on completion < 0 */
-#define REQ_F_FORCE_ASYNC	131072	/* IOSQE_ASYNC */
-#define REQ_F_CUR_POS		262144	/* read/write uses file position */
 	u64			user_data;
 	u32			result;
 	u32			sequence;
@@ -4355,9 +4398,6 @@ static int io_req_set_file(struct io_submit_state *state, struct io_kiocb *req,
 	flags = READ_ONCE(sqe->flags);
 	fd = READ_ONCE(sqe->fd);
 
-	if (flags & IOSQE_IO_DRAIN)
-		req->flags |= REQ_F_IO_DRAIN;
-
 	if (!io_req_needs_file(req, fd))
 		return 0;
 
@@ -4593,8 +4633,9 @@ static bool io_submit_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 		ret = -EINVAL;
 		goto err_req;
 	}
-	if (sqe_flags & IOSQE_ASYNC)
-		req->flags |= REQ_F_FORCE_ASYNC;
+	/* same numerical values with corresponding REQ_F_*, safe to copy */
+	req->flags |= sqe_flags & (IOSQE_IO_DRAIN|IOSQE_IO_HARDLINK|
+					IOSQE_ASYNC);
 
 	ret = io_req_set_file(state, req, sqe);
 	if (unlikely(ret)) {
@@ -4618,10 +4659,6 @@ err_req:
 			head->flags |= REQ_F_IO_DRAIN;
 			ctx->drain_next = 1;
 		}
-
-		if (sqe_flags & IOSQE_IO_HARDLINK)
-			req->flags |= REQ_F_HARDLINK;
-
 		if (io_alloc_async_ctx(req)) {
 			ret = -EAGAIN;
 			goto err_req;
@@ -4648,9 +4685,6 @@ err_req:
 		}
 		if (sqe_flags & (IOSQE_IO_LINK|IOSQE_IO_HARDLINK)) {
 			req->flags |= REQ_F_LINK;
-			if (sqe_flags & IOSQE_IO_HARDLINK)
-				req->flags |= REQ_F_HARDLINK;
-
 			INIT_LIST_HEAD(&req->link_list);
 			ret = io_req_defer_prep(req, sqe);
 			if (ret)
