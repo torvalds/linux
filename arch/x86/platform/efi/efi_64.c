@@ -543,7 +543,7 @@ static DEFINE_SPINLOCK(efi_runtime_lock);
 	__s;								\
 })
 
-static efi_status_t __init
+static efi_status_t __init __no_sanitize_address
 efi_thunk_set_virtual_address_map(unsigned long memory_map_size,
 				  unsigned long descriptor_size,
 				  u32 descriptor_version,
@@ -882,10 +882,11 @@ void __init efi_thunk_runtime_setup(void)
 	efi.query_capsule_caps = efi_thunk_query_capsule_caps;
 }
 
-efi_status_t __init efi_set_virtual_address_map(unsigned long memory_map_size,
-						unsigned long descriptor_size,
-						u32 descriptor_version,
-						efi_memory_desc_t *virtual_map)
+efi_status_t __init __no_sanitize_address
+efi_set_virtual_address_map(unsigned long memory_map_size,
+			    unsigned long descriptor_size,
+			    u32 descriptor_version,
+			    efi_memory_desc_t *virtual_map)
 {
 	efi_status_t status;
 	unsigned long flags;
