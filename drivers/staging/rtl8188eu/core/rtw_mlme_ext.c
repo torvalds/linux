@@ -1865,6 +1865,7 @@ unsigned int send_beacon(struct adapter *padapter)
 	int issue = 0;
 	int poll = 0;
 	unsigned long start = jiffies;
+	u32 passing_time;
 
 	rtw_hal_set_hwreg(padapter, HW_VAR_BCN_VALID, NULL);
 	do {
@@ -1883,15 +1884,14 @@ unsigned int send_beacon(struct adapter *padapter)
 		DBG_88E("%s fail! %u ms\n", __func__,
 			jiffies_to_msecs(jiffies - start));
 		return _FAIL;
-	} else {
-		u32 passing_time = jiffies_to_msecs(jiffies - start);
-
-		if (passing_time > 100 || issue > 3)
-			DBG_88E("%s success, issue:%d, poll:%d, %u ms\n",
-				__func__, issue, poll,
-				jiffies_to_msecs(jiffies - start));
-		return _SUCCESS;
 	}
+	passing_time = jiffies_to_msecs(jiffies - start);
+
+	if (passing_time > 100 || issue > 3)
+		DBG_88E("%s success, issue:%d, poll:%d, %u ms\n",
+			__func__, issue, poll,
+			jiffies_to_msecs(jiffies - start));
+	return _SUCCESS;
 }
 
 /****************************************************************************
@@ -2864,10 +2864,9 @@ static unsigned int OnAuthClient(struct adapter *padapter,
 			set_link_timer(pmlmeext, REAUTH_TO);
 
 			return _SUCCESS;
-		} else {
-			/*  open system */
-			go2asoc = 1;
 		}
+		/*  open system */
+		go2asoc = 1;
 	} else if (seq == 4) {
 		if (pmlmeinfo->auth_algo == dot11AuthAlgrthm_Shared)
 			go2asoc = 1;
@@ -3453,14 +3452,13 @@ static unsigned int OnDeAuth(struct adapter *padapter,
 		}
 
 		return _SUCCESS;
-	} else
-#endif
-	{
-		DBG_88E_LEVEL(_drv_always_, "sta recv deauth reason code(%d) sta:%pM\n",
-			      reason, GetAddr3Ptr(pframe));
-
-		receive_disconnect(padapter, GetAddr3Ptr(pframe), reason);
 	}
+#endif
+	DBG_88E_LEVEL(_drv_always_, "sta recv deauth reason code(%d) sta:%pM\n",
+		      reason, GetAddr3Ptr(pframe));
+
+	receive_disconnect(padapter, GetAddr3Ptr(pframe), reason);
+
 	pmlmepriv->LinkDetectInfo.bBusyTraffic = false;
 	return _SUCCESS;
 }
@@ -3507,14 +3505,13 @@ static unsigned int OnDisassoc(struct adapter *padapter,
 		}
 
 		return _SUCCESS;
-	} else
-#endif
-	{
-		DBG_88E_LEVEL(_drv_always_, "ap recv disassoc reason code(%d) sta:%pM\n",
-			      reason, GetAddr3Ptr(pframe));
-
-		receive_disconnect(padapter, GetAddr3Ptr(pframe), reason);
 	}
+#endif
+	DBG_88E_LEVEL(_drv_always_, "ap recv disassoc reason code(%d) sta:%pM\n",
+		      reason, GetAddr3Ptr(pframe));
+
+	receive_disconnect(padapter, GetAddr3Ptr(pframe), reason);
+
 	pmlmepriv->LinkDetectInfo.bBusyTraffic = false;
 	return _SUCCESS;
 }
@@ -5277,10 +5274,10 @@ u8 set_stakey_hdl(struct adapter *padapter, u8 *pbuf)
 			write_cam(padapter, cam_id, ctrl, pparm->addr, pparm->key);
 
 			return H2C_SUCCESS_RSP;
-		} else {
-			DBG_88E("r871x_set_stakey_hdl(): sta has been free\n");
-			return H2C_REJECTED;
 		}
+
+		DBG_88E("r871x_set_stakey_hdl(): sta has been free\n");
+		return H2C_REJECTED;
 	}
 
 	/* below for sta mode */

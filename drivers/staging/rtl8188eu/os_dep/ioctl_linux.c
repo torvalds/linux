@@ -596,9 +596,8 @@ static int rtw_set_wpa_ie(struct adapter *padapter, char *pie, unsigned short ie
 					set_fwstate(&padapter->mlmepriv, WIFI_UNDER_WPS);
 					cnt += buf[cnt+1]+2;
 					break;
-				} else {
-					cnt += buf[cnt+1]+2; /* goto next */
 				}
+				cnt += buf[cnt+1]+2; /* goto next */
 			}
 		}
 	}
@@ -773,8 +772,7 @@ static int rtw_wx_set_pmkid(struct net_device *dev,
 		DBG_88E("[rtw_wx_set_pmkid] IW_PMKSA_ADD!\n");
 		if (!memcmp(strIssueBssid, strZeroMacAddress, ETH_ALEN))
 			return ret;
-		else
-			ret = true;
+		ret = true;
 		blInserted = false;
 
 		/* overwrite PMKID */

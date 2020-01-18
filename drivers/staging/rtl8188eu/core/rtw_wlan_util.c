@@ -1247,9 +1247,8 @@ unsigned char check_assoc_AP(u8 *pframe, uint len)
 				if (ralink_vendor_flag) {
 					DBG_88E("link to Tenda W311R AP\n");
 					return HT_IOT_PEER_TENDA;
-				} else {
-					DBG_88E("Capture EPIGRAM_OUI\n");
 				}
+				DBG_88E("Capture EPIGRAM_OUI\n");
 			} else {
 				break;
 			}
@@ -1266,10 +1265,9 @@ unsigned char check_assoc_AP(u8 *pframe, uint len)
 	} else if (ralink_vendor_flag && epigram_vendor_flag) {
 		DBG_88E("link to Tenda W311R AP\n");
 		return HT_IOT_PEER_TENDA;
-	} else {
-		DBG_88E("link to new AP\n");
-		return HT_IOT_PEER_UNKNOWN;
 	}
+	DBG_88E("link to new AP\n");
+	return HT_IOT_PEER_UNKNOWN;
 }
 
 void update_IOT_info(struct adapter *padapter)

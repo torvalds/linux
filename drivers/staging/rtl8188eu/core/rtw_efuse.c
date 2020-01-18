@@ -497,8 +497,8 @@ static bool hal_EfuseFixHeaderProcess(struct adapter *pAdapter, u8 efuseType, st
 
 			if (!PgWriteSuccess)
 				return false;
-			else
-				efuse_addr = Efuse_GetCurrentSize(pAdapter);
+
+			efuse_addr = Efuse_GetCurrentSize(pAdapter);
 		} else {
 			efuse_addr = efuse_addr + (pFixPkt->word_cnts * 2) + 1;
 		}
@@ -713,10 +713,9 @@ static bool hal_EfusePartialWriteCheck(struct adapter *pAdapter, u8 efuseType, u
 				if (ALL_WORDS_DISABLED(efuse_data)) {
 					ret = false;
 					break;
-				} else {
-					curPkt.offset = ((cur_header & 0xE0) >> 5) | ((efuse_data & 0xF0) >> 1);
-					curPkt.word_en = efuse_data & 0x0F;
 				}
+				curPkt.offset = ((cur_header & 0xE0) >> 5) | ((efuse_data & 0xF0) >> 1);
+				curPkt.word_en = efuse_data & 0x0F;
 			} else {
 				cur_header  =  efuse_data;
 				curPkt.offset = (cur_header >> 4) & 0x0F;
