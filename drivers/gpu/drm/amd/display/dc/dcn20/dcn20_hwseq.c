@@ -1562,12 +1562,6 @@ void dcn20_program_front_end_for_ctx(
 		}
 	}
 
-	/* Carry over GSL groups in case the context is changing. */
-	for (i = 0; i < dc->res_pool->pipe_count; i++)
-		if (context->res_ctx.pipe_ctx[i].stream == dc->current_state->res_ctx.pipe_ctx[i].stream)
-			context->res_ctx.pipe_ctx[i].stream_res.gsl_group =
-				dc->current_state->res_ctx.pipe_ctx[i].stream_res.gsl_group;
-
 	/* Set pipe update flags and lock pipes */
 	for (i = 0; i < dc->res_pool->pipe_count; i++)
 		dcn20_detect_pipe_changes(&dc->current_state->res_ctx.pipe_ctx[i],
