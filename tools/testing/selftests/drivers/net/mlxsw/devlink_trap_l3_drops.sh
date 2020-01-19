@@ -50,6 +50,8 @@ ALL_TESTS="
 	ipv6_mc_dip_reserved_scope_test
 	ipv6_mc_dip_interface_local_scope_test
 	blackhole_route_test
+	irif_disabled_test
+	erif_disabled_test
 "
 
 NUM_NETIFS=4
@@ -551,6 +553,116 @@ blackhole_route_test()
 {
 	__blackhole_route_test "4" "198.51.100.0/30" "ip" $h2_ipv4
 	__blackhole_route_test "6" "2001:db8:2::/120" "ipv6" $h2_ipv6 "icmpv6"
+}
+
+irif_disabled_test()
+{
+	local trap_name="irif_disabled"
+	local group_name="l3_drops"
+	local t0_packets t0_bytes
+	local t1_packets t1_bytes
+	local mz_pid
+
+	RET=0
+
+	ping_check $trap_name
+
+	devlink_trap_action_set $trap_name "trap"
+
+	# When RIF of a physical port ("Sub-port RIF") is destroyed, we first
+	# block the STP of the {Port, VLAN} so packets cannot get into the RIF.
+	# Using bridge enables us to see this trap because when bridge is
+	# destroyed, there is a small time window that packets can go into the
+	# RIF, while it is disabled.
+	ip link add dev br0 type bridge
+	ip link set dev $rp1 master br0
+	ip address flush dev $rp1
+	__addr_add_del br0 add 192.0.2.2/24
+	ip li set dev br0 up
+
+	t0_packets=$(devlink_trap_rx_packets_get $trap_name)
+	t0_bytes=$(devlink_trap_rx_bytes_get $trap_name)
+
+	# Generate packets to h2 through br0 RIF that will be removed later
+	$MZ $h1 -t udp "sp=54321,dp=12345" -c 0 -p 100 -a own -b $rp1mac \
+		-B $h2_ipv4 -q &
+	mz_pid=$!
+
+	# Wait before removing br0 RIF to allow packets to go into the bridge.
+	sleep 1
+
+	# Flushing address will dismantle the RIF
+	ip address flush dev br0
+
+	t1_packets=$(devlink_trap_rx_packets_get $trap_name)
+	t1_bytes=$(devlink_trap_rx_bytes_get $trap_name)
+
+	if [[ $t0_packets -eq $t1_packets && $t0_bytes -eq $t1_bytes ]]; then
+		check_err 1 "Trap stats idle when packets should be trapped"
+	fi
+
+	log_test "Ingress RIF disabled"
+
+	kill $mz_pid && wait $mz_pid &> /dev/null
+	ip link set dev $rp1 nomaster
+	__addr_add_del $rp1 add 192.0.2.2/24 2001:db8:1::2/64
+	ip link del dev br0 type bridge
+	devlink_trap_action_set $trap_name "drop"
+}
+
+erif_disabled_test()
+{
+	local trap_name="erif_disabled"
+	local group_name="l3_drops"
+	local t0_packets t0_bytes
+	local t1_packets t1_bytes
+	local mz_pid
+
+	RET=0
+
+	ping_check $trap_name
+
+	devlink_trap_action_set $trap_name "trap"
+	ip link add dev br0 type bridge
+	ip add flush dev $rp1
+	ip link set dev $rp1 master br0
+	__addr_add_del br0 add 192.0.2.2/24
+	ip link set dev br0 up
+
+	t0_packets=$(devlink_trap_rx_packets_get $trap_name)
+	t0_bytes=$(devlink_trap_rx_bytes_get $trap_name)
+
+	rp2mac=$(mac_get $rp2)
+
+	# Generate packets that should go out through br0 RIF that will be
+	# removed later
+	$MZ $h2 -t udp "sp=54321,dp=12345" -c 0 -p 100 -a own -b $rp2mac \
+		-B 192.0.2.1 -q &
+	mz_pid=$!
+
+	sleep 5
+	# In order to see this trap we need a route that points to disabled RIF.
+	# When ipv6 address is flushed, there is a delay and the routes are
+	# deleted before the RIF and we cannot get state that we have route
+	# to disabled RIF.
+	# Delete IPv6 address first and then check this trap with flushing IPv4.
+	ip -6 add flush dev br0
+	ip -4 add flush dev br0
+
+	t1_packets=$(devlink_trap_rx_packets_get $trap_name)
+	t1_bytes=$(devlink_trap_rx_bytes_get $trap_name)
+
+	if [[ $t0_packets -eq $t1_packets && $t0_bytes -eq $t1_bytes ]]; then
+		check_err 1 "Trap stats idle when packets should be trapped"
+	fi
+
+	log_test "Egress RIF disabled"
+
+	kill $mz_pid && wait $mz_pid &> /dev/null
+	ip link set dev $rp1 nomaster
+	__addr_add_del $rp1 add 192.0.2.2/24 2001:db8:1::2/64
+	ip link del dev br0 type bridge
+	devlink_trap_action_set $trap_name "drop"
 }
 
 trap cleanup EXIT
