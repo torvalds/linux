@@ -1819,7 +1819,7 @@ all_done: // pure jump
 	return NULL;
 }
 
-enum {WALK_FOLLOW = 1, WALK_MORE = 2, WALK_NOFOLLOW = 4};
+enum {WALK_TRAILING = 1, WALK_MORE = 2, WALK_NOFOLLOW = 4};
 
 /*
  * Do we need to follow links? We _really_ want to be able
@@ -1836,7 +1836,7 @@ static const char *step_into(struct nameidata *nd, int flags,
 	if (err < 0)
 		return ERR_PTR(err);
 	if (likely(!d_is_symlink(path.dentry)) ||
-	   !((flags & WALK_FOLLOW) || (nd->flags & LOOKUP_FOLLOW)) ||
+	   ((flags & WALK_TRAILING) && !(nd->flags & LOOKUP_FOLLOW)) ||
 	   (flags & WALK_NOFOLLOW)) {
 		/* not a symlink or should not follow */
 		path_to_nameidata(&path, nd);
@@ -2190,10 +2190,10 @@ OK:
 			if (!name)
 				return 0;
 			/* last component of nested symlink */
-			link = walk_component(nd, WALK_FOLLOW);
+			link = walk_component(nd, 0);
 		} else {
 			/* not the last component */
-			link = walk_component(nd, WALK_FOLLOW | WALK_MORE);
+			link = walk_component(nd, WALK_MORE);
 		}
 		if (unlikely(link)) {
 			if (IS_ERR(link))
@@ -2321,7 +2321,7 @@ static inline const char *lookup_last(struct nameidata *nd)
 		nd->flags |= LOOKUP_FOLLOW | LOOKUP_DIRECTORY;
 
 	nd->flags &= ~LOOKUP_PARENT;
-	link = walk_component(nd, 0);
+	link = walk_component(nd, WALK_TRAILING);
 	if (link) {
 		nd->flags |= LOOKUP_PARENT;
 		nd->stack[0].name = NULL;
@@ -3276,7 +3276,7 @@ static const char *do_last(struct nameidata *nd,
 finish_lookup:
 	if (nd->depth)
 		put_link(nd);
-	res = step_into(nd, 0, dentry, inode, seq);
+	res = step_into(nd, WALK_TRAILING, dentry, inode, seq);
 	if (unlikely(res)) {
 		nd->flags |= LOOKUP_PARENT;
 		nd->flags &= ~(LOOKUP_OPEN|LOOKUP_CREATE|LOOKUP_EXCL);
