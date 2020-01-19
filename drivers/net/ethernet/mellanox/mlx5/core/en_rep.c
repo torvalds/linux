@@ -41,6 +41,7 @@
 #include <net/ipv6_stubs.h>
 
 #include "eswitch.h"
+#include "eswitch_offloads_chains.h"
 #include "en.h"
 #include "en_rep.h"
 #include "en_tc.h"
@@ -1247,8 +1248,7 @@ static int mlx5e_rep_setup_tc_cb(enum tc_setup_type type, void *type_data,
 static int mlx5e_rep_setup_ft_cb(enum tc_setup_type type, void *type_data,
 				 void *cb_priv)
 {
-	struct flow_cls_offload *f = type_data;
-	struct flow_cls_offload cls_flower;
+	struct flow_cls_offload tmp, *f = type_data;
 	struct mlx5e_priv *priv = cb_priv;
 	struct mlx5_eswitch *esw;
 	unsigned long flags;
@@ -1261,16 +1261,30 @@ static int mlx5e_rep_setup_ft_cb(enum tc_setup_type type, void *type_data,
 
 	switch (type) {
 	case TC_SETUP_CLSFLOWER:
-		if (!mlx5_eswitch_prios_supported(esw) || f->common.chain_index)
+		memcpy(&tmp, f, sizeof(*f));
+
+		if (!mlx5_esw_chains_prios_supported(esw) ||
+		    tmp.common.chain_index)
 			return -EOPNOTSUPP;
 
 		/* Re-use tc offload path by moving the ft flow to the
 		 * reserved ft chain.
+		 *
+		 * FT offload can use prio range [0, INT_MAX], so we normalize
+		 * it to range [1, mlx5_esw_chains_get_prio_range(esw)]
+		 * as with tc, where prio 0 isn't supported.
+		 *
+		 * We only support chain 0 of FT offload.
 		 */
-		memcpy(&cls_flower, f, sizeof(*f));
-		cls_flower.common.chain_index = FDB_FT_CHAIN;
-		err = mlx5e_rep_setup_tc_cls_flower(priv, &cls_flower, flags);
-		memcpy(&f->stats, &cls_flower.stats, sizeof(f->stats));
+		if (tmp.common.prio >= mlx5_esw_chains_get_prio_range(esw))
+			return -EOPNOTSUPP;
+		if (tmp.common.chain_index != 0)
+			return -EOPNOTSUPP;
+
+		tmp.common.chain_index = mlx5_esw_chains_get_ft_chain(esw);
+		tmp.common.prio++;
+		err = mlx5e_rep_setup_tc_cls_flower(priv, &tmp, flags);
+		memcpy(&f->stats, &tmp.stats, sizeof(f->stats));
 		return err;
 	default:
 		return -EOPNOTSUPP;

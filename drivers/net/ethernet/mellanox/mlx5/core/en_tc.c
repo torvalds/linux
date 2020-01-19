@@ -51,6 +51,7 @@
 #include "en_rep.h"
 #include "en_tc.h"
 #include "eswitch.h"
+#include "eswitch_offloads_chains.h"
 #include "fs_core.h"
 #include "en/port.h"
 #include "en/tc_tun.h"
@@ -960,7 +961,8 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 
 	mutex_lock(&priv->fs.tc.t_lock);
 	if (IS_ERR_OR_NULL(priv->fs.tc.t)) {
-		int tc_grp_size, tc_tbl_size;
+		struct mlx5_flow_table_attr ft_attr = {};
+		int tc_grp_size, tc_tbl_size, tc_num_grps;
 		u32 max_flow_counter;
 
 		max_flow_counter = (MLX5_CAP_GEN(dev, max_flow_counter_31_16) << 16) |
@@ -970,13 +972,15 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 
 		tc_tbl_size = min_t(int, tc_grp_size * MLX5E_TC_TABLE_NUM_GROUPS,
 				    BIT(MLX5_CAP_FLOWTABLE_NIC_RX(dev, log_max_ft_size)));
+		tc_num_grps = MLX5E_TC_TABLE_NUM_GROUPS;
 
+		ft_attr.prio = MLX5E_TC_PRIO;
+		ft_attr.max_fte = tc_tbl_size;
+		ft_attr.level = MLX5E_TC_FT_LEVEL;
+		ft_attr.autogroup.max_num_groups = tc_num_grps;
 		priv->fs.tc.t =
 			mlx5_create_auto_grouped_flow_table(priv->fs.ns,
-							    MLX5E_TC_PRIO,
-							    tc_tbl_size,
-							    MLX5E_TC_TABLE_NUM_GROUPS,
-							    MLX5E_TC_FT_LEVEL, 0);
+							    &ft_attr);
 		if (IS_ERR(priv->fs.tc.t)) {
 			mutex_unlock(&priv->fs.tc.t_lock);
 			NL_SET_ERR_MSG_MOD(extack,
@@ -1080,7 +1084,7 @@ mlx5e_tc_offload_to_slow_path(struct mlx5_eswitch *esw,
 	memcpy(slow_attr, flow->esw_attr, sizeof(*slow_attr));
 	slow_attr->action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	slow_attr->split_count = 0;
-	slow_attr->dest_chain = FDB_TC_SLOW_PATH_CHAIN;
+	slow_attr->flags |= MLX5_ESW_ATTR_FLAG_SLOW_PATH;
 
 	rule = mlx5e_tc_offload_fdb_rules(esw, flow, spec, slow_attr);
 	if (!IS_ERR(rule))
@@ -1097,7 +1101,7 @@ mlx5e_tc_unoffload_from_slow_path(struct mlx5_eswitch *esw,
 	memcpy(slow_attr, flow->esw_attr, sizeof(*slow_attr));
 	slow_attr->action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	slow_attr->split_count = 0;
-	slow_attr->dest_chain = FDB_TC_SLOW_PATH_CHAIN;
+	slow_attr->flags |= MLX5_ESW_ATTR_FLAG_SLOW_PATH;
 	mlx5e_tc_unoffload_fdb_rules(esw, flow, slow_attr);
 	flow_flag_clear(flow, SLOW);
 }
@@ -1157,19 +1161,18 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 		      struct netlink_ext_ack *extack)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
-	u32 max_chain = mlx5_eswitch_get_chain_range(esw);
 	struct mlx5_esw_flow_attr *attr = flow->esw_attr;
 	struct mlx5e_tc_flow_parse_attr *parse_attr = attr->parse_attr;
-	u16 max_prio = mlx5_eswitch_get_prio_range(esw);
 	struct net_device *out_dev, *encap_dev = NULL;
 	struct mlx5_fc *counter = NULL;
 	struct mlx5e_rep_priv *rpriv;
 	struct mlx5e_priv *out_priv;
 	bool encap_valid = true;
+	u32 max_prio, max_chain;
 	int err = 0;
 	int out_index;
 
-	if (!mlx5_eswitch_prios_supported(esw) && attr->prio != 1) {
+	if (!mlx5_esw_chains_prios_supported(esw) && attr->prio != 1) {
 		NL_SET_ERR_MSG(extack, "E-switch priorities unsupported, upgrade FW");
 		return -EOPNOTSUPP;
 	}
@@ -1179,11 +1182,13 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	 * FDB_FT_CHAIN which is outside tc range.
 	 * See mlx5e_rep_setup_ft_cb().
 	 */
+	max_chain = mlx5_esw_chains_get_chain_range(esw);
 	if (!mlx5e_is_ft_flow(flow) && attr->chain > max_chain) {
 		NL_SET_ERR_MSG(extack, "Requested chain is out of supported range");
 		return -EOPNOTSUPP;
 	}
 
+	max_prio = mlx5_esw_chains_get_prio_range(esw);
 	if (attr->prio > max_prio) {
 		NL_SET_ERR_MSG(extack, "Requested priority is out of supported range");
 		return -EOPNOTSUPP;
@@ -3466,7 +3471,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 			break;
 		case FLOW_ACTION_GOTO: {
 			u32 dest_chain = act->chain_index;
-			u32 max_chain = mlx5_eswitch_get_chain_range(esw);
+			u32 max_chain = mlx5_esw_chains_get_chain_range(esw);
 
 			if (ft_flow) {
 				NL_SET_ERR_MSG_MOD(extack, "Goto action is not supported");
