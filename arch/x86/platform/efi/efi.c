@@ -65,12 +65,10 @@ static efi_config_table_type_t arch_tables[] __initdata = {
 };
 
 static const unsigned long * const efi_tables[] = {
-	&efi.mps,
 	&efi.acpi,
 	&efi.acpi20,
 	&efi.smbios,
 	&efi.smbios3,
-	&efi.hcdp,
 	&efi.uga,
 #ifdef CONFIG_X86_UV
 	&uv_systab_phys,

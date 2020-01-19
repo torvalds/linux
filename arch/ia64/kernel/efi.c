@@ -45,11 +45,15 @@
 
 #define EFI_DEBUG	0
 
+static unsigned long mps_phys = EFI_INVALID_TABLE_ADDR;
 static __initdata unsigned long palo_phys;
 
+unsigned long hcdp_phys = EFI_INVALID_TABLE_ADDR;
 unsigned long sal_systab_phys = EFI_INVALID_TABLE_ADDR;
 
 static __initdata efi_config_table_type_t arch_tables[] = {
+	{HCDP_TABLE_GUID, "HCDP", &hcdp_phys},
+	{MPS_TABLE_GUID, "MPS", &mps_phys},
 	{PROCESSOR_ABSTRACTION_LAYER_OVERWRITE_GUID, "PALO", &palo_phys},
 	{SAL_SYSTEM_TABLE_GUID, "SALsystab", &sal_systab_phys},
 	{NULL_GUID, NULL, 0},
@@ -1351,3 +1355,12 @@ vmcore_find_descriptor_size (unsigned long address)
 	return ret;
 }
 #endif
+
+char *efi_systab_show_arch(char *str)
+{
+	if (mps_phys != EFI_INVALID_TABLE_ADDR)
+		str += sprintf(str, "MPS=0x%lx\n", mps_phys);
+	if (hcdp_phys != EFI_INVALID_TABLE_ADDR)
+		str += sprintf(str, "HCDP=0x%lx\n", hcdp_phys);
+	return str;
+}

@@ -35,12 +35,10 @@
 #include <asm/early_ioremap.h>
 
 struct efi __read_mostly efi = {
-	.mps			= EFI_INVALID_TABLE_ADDR,
 	.acpi			= EFI_INVALID_TABLE_ADDR,
 	.acpi20			= EFI_INVALID_TABLE_ADDR,
 	.smbios			= EFI_INVALID_TABLE_ADDR,
 	.smbios3		= EFI_INVALID_TABLE_ADDR,
-	.hcdp			= EFI_INVALID_TABLE_ADDR,
 	.uga			= EFI_INVALID_TABLE_ADDR,
 	.fw_vendor		= EFI_INVALID_TABLE_ADDR,
 	.runtime		= EFI_INVALID_TABLE_ADDR,
@@ -121,8 +119,6 @@ static ssize_t systab_show(struct kobject *kobj,
 	if (!kobj || !buf)
 		return -EINVAL;
 
-	if (efi.mps != EFI_INVALID_TABLE_ADDR)
-		str += sprintf(str, "MPS=0x%lx\n", efi.mps);
 	if (efi.acpi20 != EFI_INVALID_TABLE_ADDR)
 		str += sprintf(str, "ACPI20=0x%lx\n", efi.acpi20);
 	if (efi.acpi != EFI_INVALID_TABLE_ADDR)
@@ -136,10 +132,14 @@ static ssize_t systab_show(struct kobject *kobj,
 		str += sprintf(str, "SMBIOS3=0x%lx\n", efi.smbios3);
 	if (efi.smbios != EFI_INVALID_TABLE_ADDR)
 		str += sprintf(str, "SMBIOS=0x%lx\n", efi.smbios);
-	if (efi.hcdp != EFI_INVALID_TABLE_ADDR)
-		str += sprintf(str, "HCDP=0x%lx\n", efi.hcdp);
 	if (efi.uga != EFI_INVALID_TABLE_ADDR)
 		str += sprintf(str, "UGA=0x%lx\n", efi.uga);
+
+	if (IS_ENABLED(CONFIG_IA64)) {
+		extern char *efi_systab_show_arch(char *str);
+
+		str = efi_systab_show_arch(str);
+	}
 
 	return str - buf;
 }
@@ -467,8 +467,6 @@ void __init efi_mem_reserve(phys_addr_t addr, u64 size)
 static __initdata efi_config_table_type_t common_tables[] = {
 	{ACPI_20_TABLE_GUID, "ACPI 2.0", &efi.acpi20},
 	{ACPI_TABLE_GUID, "ACPI", &efi.acpi},
-	{HCDP_TABLE_GUID, "HCDP", &efi.hcdp},
-	{MPS_TABLE_GUID, "MPS", &efi.mps},
 	{SMBIOS_TABLE_GUID, "SMBIOS", &efi.smbios},
 	{SMBIOS3_TABLE_GUID, "SMBIOS 3.0", &efi.smbios3},
 	{UGA_IO_PROTOCOL_GUID, "UGA", &efi.uga},
