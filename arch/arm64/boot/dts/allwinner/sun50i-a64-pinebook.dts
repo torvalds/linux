@@ -57,6 +57,15 @@
 		enable-active-high;
 	};
 
+	reg_vcc5v0: vcc5v0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&axp_gpio 0 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
 	wifi_pwrseq: wifi_pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&r_pio 0 2 GPIO_ACTIVE_LOW>; /* PL2 */
@@ -64,12 +73,7 @@
 
 	speaker_amp: audio-amplifier {
 		compatible = "simple-audio-amplifier";
-		/*
-		 * TODO This is actually a fixed regulator controlled by
-		 * the GPIO line on the PMIC. This should be corrected
-		 * once GPIO support is added for this PMIC.
-		 */
-		VCC-supply = <&reg_ldo_io0>;
+		VCC-supply = <&reg_vcc5v0>;
 		enable-gpios = <&pio 7 7 GPIO_ACTIVE_HIGH>; /* PH7 */
 		sound-name-prefix = "Speaker Amp";
 	};
@@ -316,13 +320,6 @@
 	regulator-name = "vdd-cpus";
 };
 
-&reg_ldo_io0 {
-	regulator-min-microvolt = <3300000>;
-	regulator-max-microvolt = <3300000>;
-	regulator-name = "vcc-usb";
-	status = "okay";
-};
-
 &reg_rtc_ldo {
 	regulator-name = "vcc-rtc";
 };
@@ -371,7 +368,7 @@
 };
 
 &usbphy {
-	usb0_vbus-supply = <&reg_ldo_io0>;
-	usb1_vbus-supply = <&reg_ldo_io0>;
+	usb0_vbus-supply = <&reg_vcc5v0>;
+	usb1_vbus-supply = <&reg_vcc5v0>;
 	status = "okay";
 };
