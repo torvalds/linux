@@ -682,7 +682,6 @@ struct dc_3dlut {
 	struct kref refcount;
 	struct tetrahedral_params lut_3d;
 	struct fixed31_32 hdr_multiplier;
-	bool initialized; /*remove after diag fix*/
 	union dc_3dlut_state state;
 	struct dc_context *ctx;
 };
