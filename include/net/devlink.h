@@ -593,6 +593,7 @@ enum devlink_trap_generic_id {
 	DEVLINK_TRAP_GENERIC_ID_IPV6_LPM_UNICAST_MISS,
 	DEVLINK_TRAP_GENERIC_ID_NON_ROUTABLE,
 	DEVLINK_TRAP_GENERIC_ID_DECAP_ERROR,
+	DEVLINK_TRAP_GENERIC_ID_OVERLAY_SMAC_MC,
 
 	/* Add new generic trap IDs above */
 	__DEVLINK_TRAP_GENERIC_ID_MAX,
@@ -666,6 +667,8 @@ enum devlink_trap_group_generic_id {
 	"non_routable_packet"
 #define DEVLINK_TRAP_GENERIC_NAME_DECAP_ERROR \
 	"decap_error"
+#define DEVLINK_TRAP_GENERIC_NAME_OVERLAY_SMAC_MC \
+	"overlay_smac_is_mc"
 
 #define DEVLINK_TRAP_GROUP_GENERIC_NAME_L2_DROPS \
 	"l2_drops"

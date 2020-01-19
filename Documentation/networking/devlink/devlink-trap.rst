@@ -234,6 +234,10 @@ be added to the following table:
      - Traps NVE and IPinIP packets that the device decided to drop because of
        failure during decapsulation (e.g., packet being too short, reserved
        bits set in VXLAN header)
+   * - ``overlay_smac_is_mc``
+     - ``drop``
+     - Traps NVE packets that the device decided to drop because their overlay
+       source MAC is multicast
 
 Driver-specific Packet Traps
 ============================

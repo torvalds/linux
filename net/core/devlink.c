@@ -7708,6 +7708,7 @@ static const struct devlink_trap devlink_trap_generic[] = {
 	DEVLINK_TRAP(IPV6_LPM_UNICAST_MISS, EXCEPTION),
 	DEVLINK_TRAP(NON_ROUTABLE, DROP),
 	DEVLINK_TRAP(DECAP_ERROR, EXCEPTION),
+	DEVLINK_TRAP(OVERLAY_SMAC_MC, DROP),
 };
 
 #define DEVLINK_TRAP_GROUP(_id)						      \
