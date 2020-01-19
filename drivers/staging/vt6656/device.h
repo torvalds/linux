@@ -213,6 +213,15 @@ struct vnt_rx_header {
 	u16 pay_load_len;
 } __packed;
 
+struct vnt_rx_tail {
+	__le64 tsf_time;
+	u8 sq;
+	u8 new_rsr;
+	u8 rssi;
+	u8 rsr;
+	u8 sq_3;
+} __packed;
+
 /* RCB (Receive Control Block) */
 struct vnt_rcb {
 	void *priv;

@@ -32,13 +32,10 @@ int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
 	struct ieee80211_rx_status *rx_status;
 	struct ieee80211_hdr *hdr;
 	struct vnt_rx_header *head;
+	struct vnt_rx_tail *tail;
 	__le16 fc;
-	u8 *rsr, *new_rsr, *rssi;
-	__le64 *tsf_time;
 	u32 frame_size;
 	int ii;
-	u8 *sq, *sq_3;
-	u8 *skb_data;
 	u16 rx_bitrate, pay_load_with_padding;
 	u8 rate_idx = 0;
 	long rx_dbm;
@@ -61,8 +58,6 @@ int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
 		dev_dbg(&priv->usb->dev, "------ WRONG Length 2\n");
 		return false;
 	}
-
-	skb_data = (u8 *)skb->data;
 
 	/* real Frame Size = USBframe_size -4WbkStatus - 4RxStatus */
 	/* -8TSF - 4RSR - 4SQ3 - ?Padding */
@@ -96,26 +91,14 @@ int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
 	pay_load_with_padding = ((head->pay_load_len / 4) +
 		((head->pay_load_len % 4) ? 1 : 0)) * 4;
 
-	tsf_time = (__le64 *)(skb_data + 8 + pay_load_with_padding);
+	tail = (struct vnt_rx_tail *)(skb->data +
+				      sizeof(*head) + pay_load_with_padding);
+	priv->tsf_time = le64_to_cpu(tail->tsf_time);
 
-	priv->tsf_time = le64_to_cpu(*tsf_time);
-
-	if (priv->bb_type == BB_TYPE_11G) {
-		sq_3 = skb_data + 8 + pay_load_with_padding + 12;
-		sq = sq_3;
-	} else {
-		sq = skb_data + 8 + pay_load_with_padding + 8;
-		sq_3 = sq;
-	}
-
-	new_rsr = skb_data + 8 + pay_load_with_padding + 9;
-	rssi = skb_data + 8 + pay_load_with_padding + 10;
-
-	rsr = skb_data + 8 + pay_load_with_padding + 11;
-	if (*rsr & (RSR_IVLDTYP | RSR_IVLDLEN))
+	if (tail->rsr & (RSR_IVLDTYP | RSR_IVLDLEN))
 		return false;
 
-	vnt_rf_rssi_to_dbm(priv, *rssi, &rx_dbm);
+	vnt_rf_rssi_to_dbm(priv, tail->rssi, &rx_dbm);
 
 	priv->bb_pre_ed_rssi = (u8)rx_dbm + 1;
 	priv->current_rssi = priv->bb_pre_ed_rssi;
@@ -129,7 +112,7 @@ int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
 	rx_status->flag = 0;
 	rx_status->freq = hw->conf.chandef.chan->center_freq;
 
-	if (!(*rsr & RSR_CRCOK))
+	if (!(tail->rsr & RSR_CRCOK))
 		rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
 
 	hdr = (struct ieee80211_hdr *)(skb->data);
@@ -142,7 +125,7 @@ int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
 			rx_status->flag |= RX_FLAG_DECRYPTED;
 
 			/* Drop packet */
-			if (!(*new_rsr & NEWRSR_DECRYPTOK)) {
+			if (!(tail->new_rsr & NEWRSR_DECRYPTOK)) {
 				dev_kfree_skb(skb);
 				return true;
 			}
