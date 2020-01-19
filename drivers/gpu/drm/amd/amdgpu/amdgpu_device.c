@@ -1166,6 +1166,16 @@ static int amdgpu_device_check_arguments(struct amdgpu_device *adev)
 		amdgpu_vm_fragment_size = -1;
 	}
 
+	if (amdgpu_sched_hw_submission < 2) {
+		dev_warn(adev->dev, "sched hw submission jobs (%d) must be at least 2\n",
+			 amdgpu_sched_hw_submission);
+		amdgpu_sched_hw_submission = 2;
+	} else if (!is_power_of_2(amdgpu_sched_hw_submission)) {
+		dev_warn(adev->dev, "sched hw submission jobs (%d) must be a power of 2\n",
+			 amdgpu_sched_hw_submission);
+		amdgpu_sched_hw_submission = roundup_pow_of_two(amdgpu_sched_hw_submission);
+	}
+
 	amdgpu_device_check_smu_prv_buffer_size(adev);
 
 	amdgpu_device_check_vm_size(adev);

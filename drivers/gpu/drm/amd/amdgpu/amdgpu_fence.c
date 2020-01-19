@@ -450,8 +450,7 @@ int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring,
 	if (!adev)
 		return -EINVAL;
 
-	/* Check that num_hw_submission is a power of two */
-	if ((num_hw_submission & (num_hw_submission - 1)) != 0)
+	if (!is_power_of_2(num_hw_submission))
 		return -EINVAL;
 
 	ring->fence_drv.cpu_addr = NULL;
