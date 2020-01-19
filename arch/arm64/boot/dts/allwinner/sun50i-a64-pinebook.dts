@@ -41,12 +41,6 @@
 
 	chosen {
 		stdout-path = "serial0:115200n8";
-
-		framebuffer-lcd {
-			panel-supply = <&reg_dc1sw>;
-			dvdd25-supply = <&reg_dldo2>;
-			dvdd12-supply = <&reg_fldo1>;
-		};
 	};
 
 	gpio_keys {
@@ -314,6 +308,12 @@
 
 &reg_rtc_ldo {
 	regulator-name = "vcc-rtc";
+};
+
+&simplefb_lcd {
+	panel-supply = <&reg_dc1sw>;
+	dvdd25-supply = <&reg_dldo2>;
+	dvdd12-supply = <&reg_fldo1>;
 };
 
 &simplefb_hdmi {
