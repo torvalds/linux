@@ -2081,7 +2081,11 @@ static int
 mvneta_run_xdp(struct mvneta_port *pp, struct mvneta_rx_queue *rxq,
 	       struct bpf_prog *prog, struct xdp_buff *xdp)
 {
-	u32 ret, act = bpf_prog_run_xdp(prog, xdp);
+	unsigned int len;
+	u32 ret, act;
+
+	len = xdp->data_end - xdp->data_hard_start - pp->rx_offset_correction;
+	act = bpf_prog_run_xdp(prog, xdp);
 
 	switch (act) {
 	case XDP_PASS:
@@ -2094,9 +2098,8 @@ mvneta_run_xdp(struct mvneta_port *pp, struct mvneta_rx_queue *rxq,
 		if (err) {
 			ret = MVNETA_XDP_DROPPED;
 			__page_pool_put_page(rxq->page_pool,
-					virt_to_head_page(xdp->data),
-					xdp->data_end - xdp->data_hard_start,
-					true);
+					     virt_to_head_page(xdp->data),
+					     len, true);
 		} else {
 			ret = MVNETA_XDP_REDIR;
 		}
@@ -2106,9 +2109,8 @@ mvneta_run_xdp(struct mvneta_port *pp, struct mvneta_rx_queue *rxq,
 		ret = mvneta_xdp_xmit_back(pp, xdp);
 		if (ret != MVNETA_XDP_TX)
 			__page_pool_put_page(rxq->page_pool,
-					virt_to_head_page(xdp->data),
-					xdp->data_end - xdp->data_hard_start,
-					true);
+					     virt_to_head_page(xdp->data),
+					     len, true);
 		break;
 	default:
 		bpf_warn_invalid_xdp_action(act);
@@ -2119,8 +2121,7 @@ mvneta_run_xdp(struct mvneta_port *pp, struct mvneta_rx_queue *rxq,
 	case XDP_DROP:
 		__page_pool_put_page(rxq->page_pool,
 				     virt_to_head_page(xdp->data),
-				     xdp->data_end - xdp->data_hard_start,
-				     true);
+				     len, true);
 		ret = MVNETA_XDP_DROPPED;
 		break;
 	}
