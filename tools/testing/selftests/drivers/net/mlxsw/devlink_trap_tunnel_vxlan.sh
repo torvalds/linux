@@ -36,6 +36,7 @@ lib_dir=$(dirname $0)/../../../net/forwarding
 
 ALL_TESTS="
 	decap_error_test
+	overlay_smac_is_mc_test
 "
 
 NUM_NETIFS=4
@@ -265,6 +266,59 @@ decap_error_test()
 	corrupted_packet_test "Decap error: Reserved bits in use" \
 		"reserved_bits_payload_get"
 	corrupted_packet_test "Decap error: No L2 header" "short_payload_get"
+}
+
+mc_smac_payload_get()
+{
+	dest_mac=$(mac_get $h1)
+	source_mac=01:02:03:04:05:06
+	p=$(:
+		)"08:"$(                      : VXLAN flags
+		)"00:00:00:"$(                : VXLAN reserved
+		)"00:03:e8:"$(                : VXLAN VNI : 1000
+		)"00:"$(                      : VXLAN reserved
+		)"$dest_mac:"$(               : ETH daddr
+		)"$source_mac:"$(             : ETH saddr
+		)"08:00:"$(                   : ETH type
+		)"45:"$(                      : IP version + IHL
+		)"00:"$(                      : IP TOS
+		)"00:14:"$(                   : IP total length
+		)"00:00:"$(                   : IP identification
+		)"20:00:"$(                   : IP flags + frag off
+		)"40:"$(                      : IP TTL
+		)"00:"$(                      : IP proto
+		)"00:00:"$(                   : IP header csum
+		)"c0:00:02:03:"$(             : IP saddr: 192.0.2.3
+		)"c0:00:02:01:"$(             : IP daddr: 192.0.2.1
+		)
+	echo $p
+}
+
+overlay_smac_is_mc_test()
+{
+	local trap_name="overlay_smac_is_mc"
+	local group_name="tunnel_drops"
+	local mz_pid
+
+	RET=0
+
+	# The matching will be checked on devlink_trap_drop_test()
+	# and the filter will be removed on devlink_trap_drop_cleanup()
+	tc filter add dev $swp1 egress protocol ip pref 1 handle 101 \
+		flower src_mac 01:02:03:04:05:06 action pass
+
+	rp1_mac=$(mac_get $rp1)
+	payload=$(mc_smac_payload_get)
+
+	ip vrf exec v$rp2 $MZ $rp2 -c 0 -d 1msec -b $rp1_mac \
+		-B 192.0.2.17 -t udp sp=12345,dp=$VXPORT,p=$payload -q &
+	mz_pid=$!
+
+	devlink_trap_drop_test $trap_name $group_name $swp1
+
+	log_test "Overlay source MAC is multicast"
+
+	devlink_trap_drop_cleanup $mz_pid $swp1 "ip"
 }
 
 trap cleanup EXIT
