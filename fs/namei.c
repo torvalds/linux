@@ -1723,8 +1723,10 @@ static inline int handle_dots(struct nameidata *nd, int type)
 	return 0;
 }
 
+enum {WALK_TRAILING = 1, WALK_MORE = 2, WALK_NOFOLLOW = 4};
+
 static const char *pick_link(struct nameidata *nd, struct path *link,
-		     struct inode *inode, unsigned seq)
+		     struct inode *inode, unsigned seq, int flags)
 {
 	struct saved *last;
 	const char *res;
@@ -1762,7 +1764,7 @@ static const char *pick_link(struct nameidata *nd, struct path *link,
 	clear_delayed_call(&last->done);
 	last->seq = seq;
 
-	if (!(nd->flags & LOOKUP_PARENT)) {
+	if (flags & WALK_TRAILING) {
 		error = may_follow_link(nd, inode);
 		if (unlikely(error))
 			return ERR_PTR(error);
@@ -1819,8 +1821,6 @@ all_done: // pure jump
 	return NULL;
 }
 
-enum {WALK_TRAILING = 1, WALK_MORE = 2, WALK_NOFOLLOW = 4};
-
 /*
  * Do we need to follow links? We _really_ want to be able
  * to do this check without having to look at inode->i_op,
@@ -1849,7 +1849,7 @@ static const char *step_into(struct nameidata *nd, int flags,
 		if (read_seqcount_retry(&path.dentry->d_seq, seq))
 			return ERR_PTR(-ECHILD);
 	}
-	return pick_link(nd, &path, inode, seq);
+	return pick_link(nd, &path, inode, seq, flags);
 }
 
 static const char *walk_component(struct nameidata *nd, int flags)
