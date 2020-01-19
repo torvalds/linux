@@ -1242,6 +1242,7 @@ void phy_ethtool_ksettings_get(struct phy_device *phydev,
 int phy_ethtool_ksettings_set(struct phy_device *phydev,
 			      const struct ethtool_link_ksettings *cmd);
 int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd);
+int phy_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
 void phy_request_interrupt(struct phy_device *phydev);
 void phy_free_interrupt(struct phy_device *phydev);
 void phy_print_status(struct phy_device *phydev);
