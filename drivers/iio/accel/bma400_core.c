@@ -752,7 +752,8 @@ static int bma400_write_raw(struct iio_dev *indio_dev,
 		mutex_unlock(&data->mutex);
 		return ret;
 	case IIO_CHAN_INFO_SCALE:
-		if (val != 0 || val2 > BMA400_SCALE_MAX)
+		if (val != 0 ||
+		    val2 < BMA400_SCALE_MIN || val2 > BMA400_SCALE_MAX)
 			return -EINVAL;
 
 		mutex_lock(&data->mutex);

@@ -12,9 +12,8 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/iio/iio.h>
+#include <linux/property.h>
 #include <linux/regulator/consumer.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <asm/unaligned.h>
 #include <linux/iio/common/st_sensors.h>
@@ -319,63 +318,49 @@ static int st_sensors_set_drdy_int_pin(struct iio_dev *indio_dev,
 	return 0;
 }
 
-#ifdef CONFIG_OF
-static struct st_sensors_platform_data *st_sensors_of_probe(struct device *dev,
+static struct st_sensors_platform_data *st_sensors_dev_probe(struct device *dev,
 		struct st_sensors_platform_data *defdata)
 {
 	struct st_sensors_platform_data *pdata;
-	struct device_node *np = dev->of_node;
 	u32 val;
 
-	if (!np)
+	if (!dev_fwnode(dev))
 		return NULL;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
-	if (!of_property_read_u32(np, "st,drdy-int-pin", &val) && (val <= 2))
+	if (!device_property_read_u32(dev, "st,drdy-int-pin", &val) && (val <= 2))
 		pdata->drdy_int_pin = (u8) val;
 	else
 		pdata->drdy_int_pin = defdata ? defdata->drdy_int_pin : 0;
 
-	pdata->open_drain = of_property_read_bool(np, "drive-open-drain");
+	pdata->open_drain = device_property_read_bool(dev, "drive-open-drain");
 
 	return pdata;
 }
 
 /**
- * st_sensors_of_name_probe() - device tree probe for ST sensor name
+ * st_sensors_dev_name_probe() - device probe for ST sensor name
  * @dev: driver model representation of the device.
- * @match: the OF match table for the device, containing compatible strings
- *	but also a .data field with the corresponding internal kernel name
- *	used by this sensor.
  * @name: device name buffer reference.
  * @len: device name buffer length.
  *
- * In effect this function matches a compatible string to an internal kernel
+ * In effect this function matches an ID to an internal kernel
  * name for a certain sensor device, so that the rest of the autodetection can
  * rely on that name from this point on. I2C/SPI devices will be renamed
  * to match the internal kernel convention.
  */
-void st_sensors_of_name_probe(struct device *dev,
-			      const struct of_device_id *match,
-			      char *name, int len)
+void st_sensors_dev_name_probe(struct device *dev, char *name, int len)
 {
-	const struct of_device_id *of_id;
+	const void *match;
 
-	of_id = of_match_device(match, dev);
-	if (!of_id || !of_id->data)
+	match = device_get_match_data(dev);
+	if (!match)
 		return;
 
-	/* The name from the OF match takes precedence if present */
-	strlcpy(name, of_id->data, len);
+	/* The name from the match takes precedence if present */
+	strlcpy(name, match, len);
 }
-EXPORT_SYMBOL(st_sensors_of_name_probe);
-#else
-static struct st_sensors_platform_data *st_sensors_of_probe(struct device *dev,
-		struct st_sensors_platform_data *defdata)
-{
-	return NULL;
-}
-#endif
+EXPORT_SYMBOL(st_sensors_dev_name_probe);
 
 int st_sensors_init_sensor(struct iio_dev *indio_dev,
 					struct st_sensors_platform_data *pdata)
@@ -385,7 +370,7 @@ int st_sensors_init_sensor(struct iio_dev *indio_dev,
 	int err = 0;
 
 	/* If OF/DT pdata exists, it will take precedence of anything else */
-	of_pdata = st_sensors_of_probe(indio_dev->dev.parent, pdata);
+	of_pdata = st_sensors_dev_probe(indio_dev->dev.parent, pdata);
 	if (of_pdata)
 		pdata = of_pdata;
 

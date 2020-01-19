@@ -76,6 +76,7 @@ enum st_lsm6dsx_hw_id {
 		.endianness = IIO_LE,					\
 	},								\
 	.event_spec = &st_lsm6dsx_event,				\
+	.ext_info = st_lsm6dsx_accel_ext_info,				\
 	.num_event_specs = 1,						\
 }
 
@@ -378,6 +379,7 @@ struct st_lsm6dsx_sensor {
  * @enable_event: enabled event bitmask.
  * @iio_devs: Pointers to acc/gyro iio_dev instances.
  * @settings: Pointer to the specific sensor settings in use.
+ * @orientation: sensor chip orientation relative to main hardware.
  */
 struct st_lsm6dsx_hw {
 	struct device *dev;
@@ -404,6 +406,8 @@ struct st_lsm6dsx_hw {
 	struct iio_dev *iio_devs[ST_LSM6DSX_ID_MAX];
 
 	const struct st_lsm6dsx_settings *settings;
+
+	struct iio_mount_matrix orientation;
 };
 
 static __maybe_unused const struct iio_event_spec st_lsm6dsx_event = {
@@ -476,5 +480,20 @@ st_lsm6dsx_write_locked(struct st_lsm6dsx_hw *hw, unsigned int addr,
 
 	return err;
 }
+
+static const inline struct iio_mount_matrix *
+st_lsm6dsx_get_mount_matrix(const struct iio_dev *iio_dev,
+			    const struct iio_chan_spec *chan)
+{
+	struct st_lsm6dsx_sensor *sensor = iio_priv(iio_dev);
+	struct st_lsm6dsx_hw *hw = sensor->hw;
+
+	return &hw->orientation;
+}
+
+static const struct iio_chan_spec_ext_info st_lsm6dsx_accel_ext_info[] = {
+	IIO_MOUNT_MATRIX(IIO_SHARED_BY_ALL, st_lsm6dsx_get_mount_matrix),
+	{ }
+};
 
 #endif /* ST_LSM6DSX_H */
