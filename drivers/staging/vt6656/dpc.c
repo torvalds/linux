@@ -30,10 +30,8 @@ int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
 	struct ieee80211_supported_band *sband;
 	struct sk_buff *skb;
 	struct ieee80211_rx_status *rx_status;
-	struct ieee80211_hdr *hdr;
 	struct vnt_rx_header *head;
 	struct vnt_rx_tail *tail;
-	__le16 fc;
 	u32 frame_size;
 	int ii;
 	u16 rx_bitrate, pay_load_with_padding;
@@ -115,22 +113,10 @@ int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
 	if (!(tail->rsr & RSR_CRCOK))
 		rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
 
-	hdr = (struct ieee80211_hdr *)(skb->data);
-	fc = hdr->frame_control;
-
 	rx_status->rate_idx = rate_idx;
 
-	if (ieee80211_has_protected(fc)) {
-		if (priv->local_id > REV_ID_VT3253_A1) {
-			rx_status->flag |= RX_FLAG_DECRYPTED;
-
-			/* Drop packet */
-			if (!(tail->new_rsr & NEWRSR_DECRYPTOK)) {
-				dev_kfree_skb(skb);
-				return true;
-			}
-		}
-	}
+	if (tail->new_rsr & NEWRSR_DECRYPTOK)
+		rx_status->flag |= RX_FLAG_DECRYPTED;
 
 	ieee80211_rx_irqsafe(priv->hw, skb);
 
