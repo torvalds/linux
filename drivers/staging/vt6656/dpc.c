@@ -31,15 +31,14 @@ int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
 	struct sk_buff *skb;
 	struct ieee80211_rx_status *rx_status;
 	struct ieee80211_hdr *hdr;
+	struct vnt_rx_header *head;
 	__le16 fc;
 	u8 *rsr, *new_rsr, *rssi;
 	__le64 *tsf_time;
 	u32 frame_size;
 	int ii;
 	u8 *sq, *sq_3;
-	u32 wbk_status;
 	u8 *skb_data;
-	u16 *pay_load_len;
 	u16 rx_bitrate, pay_load_with_padding;
 	u8 rate_idx = 0;
 	long rx_dbm;
@@ -48,8 +47,8 @@ int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
 	rx_status = IEEE80211_SKB_RXCB(skb);
 
 	/* [31:16]RcvByteCount ( not include 4-byte Status ) */
-	wbk_status = *((u32 *)(skb->data));
-	frame_size = wbk_status >> 16;
+	head = (struct vnt_rx_header *)skb->data;
+	frame_size = head->wbk_status >> 16;
 	frame_size += 4;
 
 	if (bytes_received != frame_size) {
@@ -70,19 +69,17 @@ int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
 
 	/* if SQ3 the range is 24~27, if no SQ3 the range is 20~23 */
 
-	pay_load_len = (u16 *)(skb_data + 6);
-
 	/*Fix hardware bug => PLCP_Length error */
-	if (((bytes_received - (*pay_load_len)) > 27) ||
-	    ((bytes_received - (*pay_load_len)) < 24) ||
-	    (bytes_received < (*pay_load_len))) {
+	if (((bytes_received - head->pay_load_len) > 27) ||
+	    ((bytes_received - head->pay_load_len) < 24) ||
+	    (bytes_received < head->pay_load_len)) {
 		dev_dbg(&priv->usb->dev, "Wrong PLCP Length %x\n",
-			*pay_load_len);
+			head->pay_load_len);
 		return false;
 	}
 
 	sband = hw->wiphy->bands[hw->conf.chandef.chan->band];
-	rx_bitrate = *(skb_data + 5) * 5; /* rx_rate * 5 */
+	rx_bitrate = head->rx_rate * 5; /* rx_rate * 5 */
 
 	for (ii = 0; ii < sband->n_bitrates; ii++) {
 		if (sband->bitrates[ii].bitrate == rx_bitrate) {
@@ -96,8 +93,8 @@ int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
 		return false;
 	}
 
-	pay_load_with_padding = ((*pay_load_len / 4) +
-		((*pay_load_len % 4) ? 1 : 0)) * 4;
+	pay_load_with_padding = ((head->pay_load_len / 4) +
+		((head->pay_load_len % 4) ? 1 : 0)) * 4;
 
 	tsf_time = (__le64 *)(skb_data + 8 + pay_load_with_padding);
 
@@ -118,15 +115,13 @@ int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
 	if (*rsr & (RSR_IVLDTYP | RSR_IVLDLEN))
 		return false;
 
-	frame_size = *pay_load_len;
-
 	vnt_rf_rssi_to_dbm(priv, *rssi, &rx_dbm);
 
 	priv->bb_pre_ed_rssi = (u8)rx_dbm + 1;
 	priv->current_rssi = priv->bb_pre_ed_rssi;
 
-	skb_pull(skb, 8);
-	skb_trim(skb, frame_size);
+	skb_pull(skb, sizeof(*head));
+	skb_trim(skb, head->pay_load_len);
 
 	rx_status->mactime = priv->tsf_time;
 	rx_status->band = hw->conf.chandef.chan->band;

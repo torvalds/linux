@@ -206,6 +206,13 @@ enum {
 	CONTEXT_BEACON_PACKET
 };
 
+struct vnt_rx_header {
+	u32 wbk_status;
+	u8 rx_sts;
+	u8 rx_rate;
+	u16 pay_load_len;
+} __packed;
+
 /* RCB (Receive Control Block) */
 struct vnt_rcb {
 	void *priv;
