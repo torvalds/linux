@@ -4401,12 +4401,6 @@ static int gfx_v10_0_sw_fini(void *handle)
 	return 0;
 }
 
-
-static void gfx_v10_0_tiling_mode_table_init(struct amdgpu_device *adev)
-{
-	/* TODO */
-}
-
 static void gfx_v10_0_select_se_sh(struct amdgpu_device *adev, u32 se_num,
 				   u32 sh_num, u32 instance)
 {
@@ -4655,8 +4649,6 @@ static void gfx_v10_0_constants_init(struct amdgpu_device *adev)
 	int i;
 
 	WREG32_FIELD15(GC, 0, GRBM_CNTL, READ_TIMEOUT, 0xff);
-
-	gfx_v10_0_tiling_mode_table_init(adev);
 
 	gfx_v10_0_setup_rb(adev);
 	gfx_v10_0_get_cu_info(adev, &adev->gfx.cu_info);
