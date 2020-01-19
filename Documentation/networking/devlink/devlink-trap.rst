@@ -229,6 +229,11 @@ be added to the following table:
        supposed to be routed. For example, IGMP queries can be flooded by the
        device in layer 2 and reach the router. Such packets should not be
        routed and instead dropped
+   * - ``decap_error``
+     - ``exception``
+     - Traps NVE and IPinIP packets that the device decided to drop because of
+       failure during decapsulation (e.g., packet being too short, reserved
+       bits set in VXLAN header)
 
 Driver-specific Packet Traps
 ============================
@@ -265,6 +270,9 @@ narrow. The description of these groups must be added to the following table:
    * - ``buffer_drops``
      - Contains packet traps for packets that were dropped by the device due to
        an enqueue decision
+   * - ``tunnel_drops``
+     - Contains packet traps for packets that were dropped by the device during
+       tunnel encapsulation / decapsulation
 
 Testing
 =======
