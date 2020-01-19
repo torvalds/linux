@@ -264,7 +264,6 @@ struct vnt_private {
 	struct usb_interface *intf;
 
 	u64 tsf_time;
-	u8 rx_rate;
 
 	u32 rx_buf_sz;
 	int mc_list_count;

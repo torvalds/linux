@@ -35,14 +35,13 @@ int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
 	u8 *rsr, *new_rsr, *rssi;
 	__le64 *tsf_time;
 	u32 frame_size;
-	int ii, r;
-	u8 *rx_rate, *sq, *sq_3;
+	int ii;
+	u8 *sq, *sq_3;
 	u32 wbk_status;
 	u8 *skb_data;
 	u16 *pay_load_len;
-	u16 pay_load_with_padding;
+	u16 rx_bitrate, pay_load_with_padding;
 	u8 rate_idx = 0;
-	u8 rate[MAX_RATE] = {2, 4, 11, 22, 12, 18, 24, 36, 48, 72, 96, 108};
 	long rx_dbm;
 
 	skb = ptr_rcb->skb;
@@ -66,8 +65,6 @@ int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
 
 	skb_data = (u8 *)skb->data;
 
-	rx_rate = skb_data + 5;
-
 	/* real Frame Size = USBframe_size -4WbkStatus - 4RxStatus */
 	/* -8TSF - 4RSR - 4SQ3 - ?Padding */
 
@@ -85,23 +82,17 @@ int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
 	}
 
 	sband = hw->wiphy->bands[hw->conf.chandef.chan->band];
-
-	for (r = RATE_1M; r < MAX_RATE; r++) {
-		if (*rx_rate == rate[r])
-			break;
-	}
-
-	priv->rx_rate = r;
+	rx_bitrate = *(skb_data + 5) * 5; /* rx_rate * 5 */
 
 	for (ii = 0; ii < sband->n_bitrates; ii++) {
-		if (sband->bitrates[ii].hw_value == r) {
+		if (sband->bitrates[ii].bitrate == rx_bitrate) {
 			rate_idx = ii;
 				break;
 		}
 	}
 
 	if (ii == sband->n_bitrates) {
-		dev_dbg(&priv->usb->dev, "Wrong RxRate %x\n", *rx_rate);
+		dev_dbg(&priv->usb->dev, "Wrong Rx Bit Rate %d\n", rx_bitrate);
 		return false;
 	}
 
