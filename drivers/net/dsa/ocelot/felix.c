@@ -172,11 +172,10 @@ static void felix_phylink_validate(struct dsa_switch *ds, int port,
 	phylink_set(mask, Autoneg);
 	phylink_set(mask, Pause);
 	phylink_set(mask, Asym_Pause);
-	if (state->interface != PHY_INTERFACE_MODE_2500BASEX) {
-		phylink_set(mask, 10baseT_Full);
-		phylink_set(mask, 100baseT_Full);
-		phylink_set(mask, 1000baseT_Full);
-	}
+	phylink_set(mask, 10baseT_Full);
+	phylink_set(mask, 100baseT_Full);
+	phylink_set(mask, 1000baseT_Full);
+
 	/* The internal ports that run at 2.5G are overclocked GMII */
 	if (state->interface == PHY_INTERFACE_MODE_GMII ||
 	    state->interface == PHY_INTERFACE_MODE_2500BASEX ||
@@ -222,8 +221,12 @@ static void felix_phylink_mac_config(struct dsa_switch *ds, int port,
 	 * specification in incoming pause frames.
 	 */
 	mac_fc_cfg = SYS_MAC_FC_CFG_FC_LINK_SPEED(state->speed);
-	if (state->pause & MLO_PAUSE_RX)
-		mac_fc_cfg |= SYS_MAC_FC_CFG_RX_FC_ENA;
+
+	/* handle Rx pause in all cases, with 2500base-X this is used for rate
+	 * adaptation.
+	 */
+	mac_fc_cfg |= SYS_MAC_FC_CFG_RX_FC_ENA;
+
 	if (state->pause & MLO_PAUSE_TX)
 		mac_fc_cfg |= SYS_MAC_FC_CFG_TX_FC_ENA |
 			      SYS_MAC_FC_CFG_PAUSE_VAL_CFG(0xffff) |
