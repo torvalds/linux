@@ -70,7 +70,6 @@ static const unsigned long * const efi_tables[] = {
 	&efi.acpi20,
 	&efi.smbios,
 	&efi.smbios3,
-	&efi.boot_info,
 	&efi.hcdp,
 	&efi.uga,
 #ifdef CONFIG_X86_UV
