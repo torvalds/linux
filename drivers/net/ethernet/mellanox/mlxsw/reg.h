@@ -5513,6 +5513,7 @@ enum mlxsw_reg_htgt_discard_trap_group {
 	MLXSW_REG_HTGT_DISCARD_TRAP_GROUP_BASE = MLXSW_REG_HTGT_TRAP_GROUP_MAX,
 	MLXSW_REG_HTGT_TRAP_GROUP_SP_L2_DISCARDS,
 	MLXSW_REG_HTGT_TRAP_GROUP_SP_L3_DISCARDS,
+	MLXSW_REG_HTGT_TRAP_GROUP_SP_TUNNEL_DISCARDS,
 };
 
 /* reg_htgt_trap_group
@@ -10140,6 +10141,92 @@ static inline void mlxsw_reg_tigcr_pack(char *payload, bool ttlc, u8 ttl_uc)
 	mlxsw_reg_tigcr_ttl_uc_set(payload, ttl_uc);
 }
 
+/* TIEEM - Tunneling IPinIP Encapsulation ECN Mapping Register
+ * -----------------------------------------------------------
+ * The TIEEM register maps ECN of the IP header at the ingress to the
+ * encapsulation to the ECN of the underlay network.
+ */
+#define MLXSW_REG_TIEEM_ID 0xA812
+#define MLXSW_REG_TIEEM_LEN 0x0C
+
+MLXSW_REG_DEFINE(tieem, MLXSW_REG_TIEEM_ID, MLXSW_REG_TIEEM_LEN);
+
+/* reg_tieem_overlay_ecn
+ * ECN of the IP header in the overlay network.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, tieem, overlay_ecn, 0x04, 24, 2);
+
+/* reg_tineem_underlay_ecn
+ * ECN of the IP header in the underlay network.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tieem, underlay_ecn, 0x04, 16, 2);
+
+static inline void mlxsw_reg_tieem_pack(char *payload, u8 overlay_ecn,
+					u8 underlay_ecn)
+{
+	MLXSW_REG_ZERO(tieem, payload);
+	mlxsw_reg_tieem_overlay_ecn_set(payload, overlay_ecn);
+	mlxsw_reg_tieem_underlay_ecn_set(payload, underlay_ecn);
+}
+
+/* TIDEM - Tunneling IPinIP Decapsulation ECN Mapping Register
+ * -----------------------------------------------------------
+ * The TIDEM register configures the actions that are done in the
+ * decapsulation.
+ */
+#define MLXSW_REG_TIDEM_ID 0xA813
+#define MLXSW_REG_TIDEM_LEN 0x0C
+
+MLXSW_REG_DEFINE(tidem, MLXSW_REG_TIDEM_ID, MLXSW_REG_TIDEM_LEN);
+
+/* reg_tidem_underlay_ecn
+ * ECN field of the IP header in the underlay network.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, tidem, underlay_ecn, 0x04, 24, 2);
+
+/* reg_tidem_overlay_ecn
+ * ECN field of the IP header in the overlay network.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, tidem, overlay_ecn, 0x04, 16, 2);
+
+/* reg_tidem_eip_ecn
+ * Egress IP ECN. ECN field of the IP header of the packet which goes out
+ * from the decapsulation.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tidem, eip_ecn, 0x04, 8, 2);
+
+/* reg_tidem_trap_en
+ * Trap enable:
+ * 0 - No trap due to decap ECN
+ * 1 - Trap enable with trap_id
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tidem, trap_en, 0x08, 28, 4);
+
+/* reg_tidem_trap_id
+ * Trap ID. Either DECAP_ECN0 or DECAP_ECN1.
+ * Reserved when trap_en is '0'.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tidem, trap_id, 0x08, 0, 9);
+
+static inline void mlxsw_reg_tidem_pack(char *payload, u8 underlay_ecn,
+					u8 overlay_ecn, u8 eip_ecn,
+					bool trap_en, u16 trap_id)
+{
+	MLXSW_REG_ZERO(tidem, payload);
+	mlxsw_reg_tidem_underlay_ecn_set(payload, underlay_ecn);
+	mlxsw_reg_tidem_overlay_ecn_set(payload, overlay_ecn);
+	mlxsw_reg_tidem_eip_ecn_set(payload, eip_ecn);
+	mlxsw_reg_tidem_trap_en_set(payload, trap_en);
+	mlxsw_reg_tidem_trap_id_set(payload, trap_id);
+}
+
 /* SBPR - Shared Buffer Pools Register
  * -----------------------------------
  * The SBPR configures and retrieves the shared buffer pools and configuration.
@@ -10684,6 +10771,8 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(tndem),
 	MLXSW_REG(tnpc),
 	MLXSW_REG(tigcr),
+	MLXSW_REG(tieem),
+	MLXSW_REG(tidem),
 	MLXSW_REG(sbpr),
 	MLXSW_REG(sbcm),
 	MLXSW_REG(sbpm),

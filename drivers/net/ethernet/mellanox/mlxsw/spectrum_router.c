@@ -7791,8 +7791,18 @@ mlxsw_sp_ipip_config_tigcr(struct mlxsw_sp *mlxsw_sp)
 
 static int mlxsw_sp_ipips_init(struct mlxsw_sp *mlxsw_sp)
 {
+	int err;
+
 	mlxsw_sp->router->ipip_ops_arr = mlxsw_sp_ipip_ops_arr;
 	INIT_LIST_HEAD(&mlxsw_sp->router->ipip_list);
+
+	err = mlxsw_sp_ipip_ecn_encap_init(mlxsw_sp);
+	if (err)
+		return err;
+	err = mlxsw_sp_ipip_ecn_decap_init(mlxsw_sp);
+	if (err)
+		return err;
+
 	return mlxsw_sp_ipip_config_tigcr(mlxsw_sp);
 }
 
