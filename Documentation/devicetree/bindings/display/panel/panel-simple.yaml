@@ -33,18 +33,213 @@ properties:
       - ampire,am-480272h3tmqw-t01h
         # Ampire AM-800480R3TMQW-A1H 7.0" WVGA TFT LCD panel
       - ampire,am800480r3tmqwa1h
+        # AU Optronics Corporation 8.0" WUXGA TFT LCD panel
+      - auo,b080uan01
+        # AU Optronics Corporation 10.1" WSVGA TFT LCD panel
+      - auo,b101aw03
+        # AU Optronics Corporation 10.1" WSVGA TFT LCD panel
+      - auo,b101ean01
+        # AU Optronics Corporation 10.1" WXGA TFT LCD panel
+      - auo,b101xtn01
         # AUO B116XAK01 eDP TFT LCD panel
       - auo,b116xa01
+        # AU Optronics Corporation 11.6" HD (1366x768) color TFT-LCD panel
+      - auo,b116xw03
+        # AU Optronics Corporation 13.3" FHD (1920x1080) color TFT-LCD panel
+      - auo,b133htn01
+        # AU Optronics Corporation 13.3" WXGA (1366x768) TFT LCD panel
+      - auo,b133xtn01
+        # AU Optronics Corporation 7.0" FHD (800 x 480) TFT LCD panel
+      - auo,g070vvn01
+        # AU Optronics Corporation 10.1" (1280x800) color TFT LCD panel
+      - auo,g101evn010
+        # AU Optronics Corporation 10.4" (800x600) color TFT LCD panel
+      - auo,g104sn02
+        # AU Optronics Corporation 13.3" FHD (1920x1080) TFT LCD panel
+      - auo,g133han01
+        # AU Optronics Corporation 18.5" FHD (1920x1080) TFT LCD panel
+      - auo,g185han01
+        # AU Optronics Corporation 31.5" FHD (1920x1080) TFT LCD panel
+      - auo,p320hvn03
+        # AU Optronics Corporation 21.5" FHD (1920x1080) color TFT LCD panel
+      - auo,t215hvn01
+        # Shanghai AVIC Optoelectronics 7" 1024x600 color TFT-LCD panel
+      - avic,tm070ddh03
+        # BOE HV070WSA-100 7.01" WSVGA TFT LCD panel
+      - boe,hv070wsa-100
+        # BOE OPTOELECTRONICS TECHNOLOGY 10.1" WXGA TFT LCD panel
+      - boe,nv101wxmn51
         # BOE NV140FHM-N49 14.0" FHD a-Si FT panel
       - boe,nv140fhmn49
+        # Boe Corporation 8.0" WUXGA TFT LCD panel
+      - boe,tv080wum-nl0
+        # CDTech(H.K.) Electronics Limited 4.3" 480x272 color TFT-LCD panel
+      - cdtech,s043wq26h-ct7
+        # CDTech(H.K.) Electronics Limited 7" 800x480 color TFT-LCD panel
+      - cdtech,s070wv95-ct16
+        # Chunghwa Picture Tubes Ltd. 7" WXGA TFT LCD panel
+      - chunghwa,claa070wp03xg
+        # Chunghwa Picture Tubes Ltd. 10.1" WXGA TFT LCD panel
+      - chunghwa,claa101wa01a
+        # Chunghwa Picture Tubes Ltd. 10.1" WXGA TFT LCD panel
+      - chunghwa,claa101wb03
+        # DataImage, Inc. 7" WVGA (800x480) TFT LCD panel with 24-bit parallel interface.
+      - dataimage,scf0700c48ggu18
+        # DLC Display Co. DLC1010GIG 10.1" WXGA TFT LCD Panel
+      - dlc,dlc1010gig
+        # Emerging Display Technology Corp. 3.5" QVGA TFT LCD panel
+      - edt,et035012dm6
+        # Emerging Display Technology Corp. 480x272 TFT Display
+      - edt,etm0430g0dh6
+        # Emerging Display Technology Corp. 5.7" VGA TFT LCD panel
+      - edt,et057090dhu
+        # Emerging Display Technology Corp. WVGA TFT Display with capacitive touch
+      - edt,etm070080dh6
+        # Emerging Display Technology Corp. WVGA TFT Display with capacitive touch
+      - edt,etm0700g0dh6
+        # Emerging Display Technology Corp. WVGA TFT Display with capacitive touch
+        # Same as ETM0700G0DH6 but with inverted pixel clock.
+      - edt,etm070080bdh6
+        # Emerging Display Technology Corp. WVGA TFT Display with capacitive touch
+        # Same display as the ETM0700G0BDH6, but with changed hardware for the
+        # backlight and the touch interface.
+      - edt,etm070080edh6
+        # Emerging Display Technology Corp. WVGA TFT Display with capacitive touch
+        # Same timings as the ETM0700G0DH6, but with resistive touch.
+      - edt,etm070080dh6
+        # Evervision Electronics Co. Ltd. VGG804821 5.0" WVGA TFT LCD Panel
+      - evervision,vgg804821
+        # Foxlink Group 5" WVGA TFT LCD panel
+      - foxlink,fl500wvr00-a0t
         # Frida FRD350H54004 3.5" QVGA TFT LCD panel
       - frida,frd350h54004
+        # FriendlyELEC HD702E 800x1280 LCD panel
+      - friendlyarm,hd702e
+        # GiantPlus GPG48273QS5 4.3" (480x272) WQVGA TFT LCD panel
+      - giantplus,gpg48273qs5
         # GiantPlus GPM940B0 3.0" QVGA TFT LCD panel
       - giantplus,gpm940b0
+        # HannStar Display Corp. HSD070PWW1 7.0" WXGA TFT LCD panel
+      - hannstar,hsd070pww1
+        # HannStar Display Corp. HSD100PXN1 10.1" XGA LVDS panel
+      - hannstar,hsd100pxn1
+        # Hitachi Ltd. Corporation 9" WVGA (800x480) TFT LCD panel
+      - hit,tx23d38vm0caa
+        # Innolux AT043TN24 4.3" WQVGA TFT LCD panel
+      - innolux,at043tn24
+        # Innolux AT070TN92 7.0" WQVGA TFT LCD panel
+      - innolux,at070tn92
+        # Innolux G070Y2-L01 7" WVGA (800x480) TFT LCD panel
+      - innolux,g070y2-l01
+        # Innolux Corporation 10.1" G101ICE-L01 WXGA (1280x800) LVDS panel
+      - innolux,g101ice-l01
+        # Innolux Corporation 12.1" WXGA (1280x800) TFT LCD panel
+      - innolux,g121i1-l01
+        # Innolux Corporation 12.1" G121X1-L03 XGA (1024x768) TFT LCD panel
+      - innolux,g121x1-l03
+        # Innolux Corporation 11.6" WXGA (1366x768) TFT LCD panel
+      - innolux,n116bge
+        # InnoLux 15.6" WXGA TFT LCD panel
+      - innolux,n156bge-l21
+        # Innolux Corporation 7.0" WSVGA (1024x600) TFT LCD panel
+      - innolux,zj070na-01p
+        # Kaohsiung Opto-Electronics Inc. 5.7" QVGA (320 x 240) TFT LCD panel
+      - koe,tx14d24vm1bpa
+        # Kaohsiung Opto-Electronics. TX31D200VM0BAA 12.3" HSXGA LVDS panel
+      - koe,tx31d200vm0baa
+        # Kyocera Corporation 12.1" XGA (1024x768) TFT LCD panel
+      - kyo,tcg121xglp
+        # LeMaker BL035-RGB-002 3.5" QVGA TFT LCD panel
+      - lemaker,bl035-rgb-002
+        # LG 7" (800x480 pixels) TFT LCD panel
+      - lg,lb070wv8
+        # LG LP079QX1-SP0V 7.9" (1536x2048 pixels) TFT LCD panel
+      - lg,lp079qx1-sp0v
+        # LG 9.7" (2048x1536 pixels) TFT LCD panel
+      - lg,lp097qx1-spa1
+        # LG 12.0" (1920x1280 pixels) TFT LCD panel
+      - lg,lp120up1
+        # LG 12.9" (2560x1700 pixels) TFT LCD panel
+      - lg,lp129qe
+        # Mitsubishi "AA070MC01 7.0" WVGA TFT LCD panel
+      - mitsubishi,aa070mc01-ca1
+        # NEC LCD Technologies, Ltd. 12.1" WXGA (1280x800) LVDS TFT LCD panel
+      - nec,nl12880bc20-05
+        # NEC LCD Technologies,Ltd. WQVGA TFT LCD panel
+      - nec,nl4827hc19-05b
+        # Netron-DY E231732 7.0" WSVGA TFT LCD panel
+      - netron-dy,e231732
+        # Newhaven Display International 480 x 272 TFT LCD panel
+      - newhaven,nhd-4.3-480272ef-atxl
+        # NLT Technologies, Ltd. 15.6" FHD (1920x1080) LVDS TFT LCD panel
+      - nlt,nl192108ac18-02d
+        # New Vision Display 7.0" 800 RGB x 480 TFT LCD panel
+      - nvd,9128
+        # OKAYA Electric America, Inc. RS800480T-7X0GP 7" WVGA LCD panel
+      - okaya,rs800480t-7x0gp
+        # Olimex 4.3" TFT LCD panel
+      - olimex,lcd-olinuxino-43-ts
+        # On Tat Industrial Company 7" DPI TFT panel.
+      - ontat,yx700wv03
+        # OrtusTech COM37H3M05DTC Blanview 3.7" VGA portrait TFT-LCD panel
+      - ortustech,com37h3m05dtc
+        # OrtusTech COM37H3M99DTC Blanview 3.7" VGA portrait TFT-LCD panel
+      - ortustech,com37h3m99dtc
+        # OrtusTech COM43H4M85ULC Blanview 3.7" TFT-LCD panel
+      - ortustech,com43h4m85ulc
+        # OSD Displays OSD070T1718-19TS 7" WVGA TFT LCD panel
+      - osddisplays,osd070t1718-19ts
+        # One Stop Displays OSD101T2045-53TS 10.1" 1920x1200 panel
+      - osddisplays,osd101t2045-53ts
+        # QiaoDian XianShi Corporation 4"3 TFT LCD panel
+      - qiaodian,qd43003c0-40
+        # Rocktech Display Ltd. RK070ER9427 800(RGB)x480 TFT LCD panel
+      - rocktech,rk070er9427
+        # Samsung 12.2" (2560x1600 pixels) TFT LCD panel
+      - samsung,lsn122dl01-c01
+        # Samsung Electronics 10.1" WSVGA TFT LCD panel
+      - samsung,ltn101nt05
+        # Samsung Electronics 14" WXGA (1366x768) TFT LCD panel
+      - samsung,ltn140at29-301
         # Satoz SAT050AT40H12R2 5.0" WVGA TFT LCD panel
       - satoz,sat050at40h12r2
+        # Sharp LQ035Q7DB03 3.5" QVGA TFT LCD panel
+      - sharp,lq035q7db03
+        # Sharp LQ070Y3DG3B 7.0" WVGA landscape TFT LCD panel
+      - sharp,lq070y3dg3b
+        # Sharp Display Corp. LQ101K1LY04 10.07" WXGA TFT LCD panel
+      - sharp,lq101k1ly04
+        # Sharp 12.3" (2400x1600 pixels) TFT LCD panel
+      - sharp,lq123p1jx31
         # Sharp LS020B1DD01D 2.0" HQVGA TFT LCD panel
       - sharp,ls020b1dd01d
+        # Shelly SCA07010-BFN-LNN 7.0" WVGA TFT LCD panel
+      - shelly,sca07010-bfn-lnn
+        # Starry 12.2" (1920x1200 pixels) TFT LCD panel
+      - starry,kr122ea0sra
+        # Tianma Micro-electronics TM070JDHG30 7.0" WXGA TFT LCD panel
+      - tianma,tm070jdhg30
+        # Tianma Micro-electronics TM070RVHG71 7.0" WXGA TFT LCD panel
+      - tianma,tm070rvhg71
+        # Toshiba 8.9" WXGA (1280x768) TFT LCD panel
+      - toshiba,lt089ac29000
+        # TPK U.S.A. LLC Fusion 7" 800 x 480 (WVGA) LCD panel with capacitive touch
+      - tpk,f07a-0102
+        # TPK U.S.A. LLC Fusion 10.1" 1024 x 600 (WSVGA) LCD panel with capacitive touch
+      - tpk,f10a-0102
+        # United Radiant Technology UMSH-8596MD-xT 7.0" WVGA TFT LCD panel
+        # Supported are LVDS versions (-11T, -19T) and parallel ones
+        # (-T, -1T, -7T, -20T).
+      - urt,umsh-8596md-t
+      - urt,umsh-8596md-1t
+      - urt,umsh-8596md-7t
+      - urt,umsh-8596md-11t
+      - urt,umsh-8596md-19t
+      - urt,umsh-8596md-20t
+        # VXT 800x480 color TFT LCD panel
+      - vxt,vl050-8048nt-c01
+        # Winstar Display Corporation 3.5" QVGA (320x240) TFT LCD panel
+      - winstar,wf35ltiacd
 
   backlight: true
   enable-gpios: true
