@@ -57,7 +57,12 @@
 static efi_system_table_t efi_systab __initdata;
 static u64 efi_systab_phys __initdata;
 
+static unsigned long prop_phys = EFI_INVALID_TABLE_ADDR;
+static unsigned long uga_phys = EFI_INVALID_TABLE_ADDR;
+
 static efi_config_table_type_t arch_tables[] __initdata = {
+	{EFI_PROPERTIES_TABLE_GUID, "PROP", &prop_phys},
+	{UGA_IO_PROTOCOL_GUID, "UGA", &uga_phys},
 #ifdef CONFIG_X86_UV
 	{UV_SYSTEM_TABLE_GUID, "UVsystab", &uv_systab_phys},
 #endif
@@ -69,7 +74,7 @@ static const unsigned long * const efi_tables[] = {
 	&efi.acpi20,
 	&efi.smbios,
 	&efi.smbios3,
-	&efi.uga,
+	&uga_phys,
 #ifdef CONFIG_X86_UV
 	&uv_systab_phys,
 #endif
@@ -77,7 +82,7 @@ static const unsigned long * const efi_tables[] = {
 	&efi.runtime,
 	&efi.config_table,
 	&efi.esrt,
-	&efi.properties_table,
+	&prop_phys,
 	&efi.mem_attr_table,
 #ifdef CONFIG_EFI_RCI2_TABLE
 	&rci2_table_phys,
@@ -488,6 +493,22 @@ void __init efi_init(void)
 	if (!efi_runtime_supported() || efi_runtime_disabled()) {
 		efi_memmap_unmap();
 		return;
+	}
+
+	/* Parse the EFI Properties table if it exists */
+	if (prop_phys != EFI_INVALID_TABLE_ADDR) {
+		efi_properties_table_t *tbl;
+
+		tbl = early_memremap_ro(prop_phys, sizeof(*tbl));
+		if (tbl == NULL) {
+			pr_err("Could not map Properties table!\n");
+		} else {
+			if (tbl->memory_protection_attribute &
+			    EFI_PROPERTIES_RUNTIME_MEMORY_PROTECTION_NON_EXECUTABLE_PE_DATA)
+				set_bit(EFI_NX_PE_DATA, &efi.flags);
+
+			early_memunmap(tbl, sizeof(*tbl));
+		}
 	}
 
 	set_bit(EFI_RUNTIME_SERVICES, &efi.flags);
@@ -992,4 +1013,11 @@ bool efi_is_table_address(unsigned long phys_addr)
 			return true;
 
 	return false;
+}
+
+char *efi_systab_show_arch(char *str)
+{
+	if (uga_phys != EFI_INVALID_TABLE_ADDR)
+		str += sprintf(str, "UGA=0x%lx\n", uga_phys);
+	return str;
 }
