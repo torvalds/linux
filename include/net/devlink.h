@@ -591,6 +591,7 @@ enum devlink_trap_generic_id {
 	DEVLINK_TRAP_GENERIC_ID_REJECT_ROUTE,
 	DEVLINK_TRAP_GENERIC_ID_IPV4_LPM_UNICAST_MISS,
 	DEVLINK_TRAP_GENERIC_ID_IPV6_LPM_UNICAST_MISS,
+	DEVLINK_TRAP_GENERIC_ID_NON_ROUTABLE,
 
 	/* Add new generic trap IDs above */
 	__DEVLINK_TRAP_GENERIC_ID_MAX,
@@ -659,6 +660,8 @@ enum devlink_trap_group_generic_id {
 	"ipv4_lpm_miss"
 #define DEVLINK_TRAP_GENERIC_NAME_IPV6_LPM_UNICAST_MISS \
 	"ipv6_lpm_miss"
+#define DEVLINK_TRAP_GENERIC_NAME_NON_ROUTABLE \
+	"non_routable_packet"
 
 #define DEVLINK_TRAP_GROUP_GENERIC_NAME_L2_DROPS \
 	"l2_drops"

@@ -223,6 +223,12 @@ be added to the following table:
    * - ``ipv6_lpm_miss``
      - ``exception``
      - Traps unicast IPv6 packets that did not match any route
+   * - ``non_routable_packet``
+     - ``drop``
+     - Traps packets that the device decided to drop because they are not
+       supposed to be routed. For example, IGMP queries can be flooded by the
+       device in layer 2 and reach the router. Such packets should not be
+       routed and instead dropped
 
 Driver-specific Packet Traps
 ============================
