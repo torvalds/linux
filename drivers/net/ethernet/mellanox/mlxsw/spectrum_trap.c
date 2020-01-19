@@ -333,8 +333,8 @@ mlxsw_sp_trap_group_policer_init(struct mlxsw_sp *mlxsw_sp,
 	u32 rate;
 
 	switch (group->id) {
-	case DEVLINK_TRAP_GROUP_GENERIC_ID_L3_DROPS:/* fall through */
-	case DEVLINK_TRAP_GROUP_GENERIC_ID_L2_DROPS:
+	case DEVLINK_TRAP_GROUP_GENERIC_ID_L2_DROPS: /* fall through */
+	case DEVLINK_TRAP_GROUP_GENERIC_ID_L3_DROPS:
 		policer_id = MLXSW_SP_DISCARD_POLICER_ID;
 		ir_units = MLXSW_REG_QPCR_IR_UNITS_M;
 		is_bytes = false;
