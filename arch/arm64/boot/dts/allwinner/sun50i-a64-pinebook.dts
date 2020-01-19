@@ -172,6 +172,14 @@
 	status = "okay";
 };
 
+/* The ANX6345 eDP-bridge is on r_i2c */
+&r_i2c {
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&r_i2c_pl89_pins>;
+	status = "okay";
+};
+
 &r_rsb {
 	status = "okay";
 
@@ -181,14 +189,6 @@
 		interrupt-parent = <&r_intc>;
 		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
 	};
-};
-
-/* The ANX6345 eDP-bridge is on r_i2c */
-&r_i2c {
-	clock-frequency = <100000>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&r_i2c_pl89_pins>;
-	status = "okay";
 };
 
 #include "axp803.dtsi"
