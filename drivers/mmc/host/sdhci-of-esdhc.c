@@ -748,7 +748,7 @@ static void esdhc_of_set_clock(struct sdhci_host *host, unsigned int clock)
 		esdhc_clock_enable(host, false);
 		esdhc_flush_async_fifo(host);
 	}
-	esdhc_clock_enable(host, false);
+	esdhc_clock_enable(host, true);
 }
 
 static void esdhc_pltfm_set_bus_width(struct sdhci_host *host, int width)
