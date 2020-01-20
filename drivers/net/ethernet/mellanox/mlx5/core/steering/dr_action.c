@@ -677,9 +677,12 @@ int mlx5dr_actions_build_ste_arr(struct mlx5dr_matcher *matcher,
 					goto out_invalid_arg;
 				}
 				if (action->dest_tbl.tbl->level <= matcher->tbl->level) {
+					mlx5_core_warn_once(dmn->mdev,
+							    "Connecting table to a lower/same level destination table\n");
 					mlx5dr_dbg(dmn,
-						   "Destination table level should be higher than source table\n");
-					goto out_invalid_arg;
+						   "Connecting table at level %d to a destination table at level %d\n",
+						   matcher->tbl->level,
+						   action->dest_tbl.tbl->level);
 				}
 				attr.final_icm_addr = rx_rule ?
 					action->dest_tbl.tbl->rx.s_anchor->chunk->icm_addr :
