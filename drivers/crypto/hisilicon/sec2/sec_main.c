@@ -672,15 +672,48 @@ static void sec_debugfs_exit(struct sec_dev *sec)
 	debugfs_remove_recursive(sec->qm.debug.debug_root);
 }
 
+static void sec_log_hw_error(struct hisi_qm *qm, u32 err_sts)
+{
+	const struct sec_hw_error *errs = sec_hw_errors;
+	struct device *dev = &qm->pdev->dev;
+	u32 err_val;
+
+	while (errs->msg) {
+		if (errs->int_msk & err_sts) {
+			dev_err(dev, "%s [error status=0x%x] found\n",
+				errs->msg, errs->int_msk);
+
+			if (SEC_CORE_INT_STATUS_M_ECC & errs->int_msk) {
+				err_val = readl(qm->io_base +
+						SEC_CORE_SRAM_ECC_ERR_INFO);
+				dev_err(dev, "multi ecc sram num=0x%x\n",
+					SEC_ECC_NUM(err_val));
+				dev_err(dev, "multi ecc sram addr=0x%x\n",
+					SEC_ECC_ADDR(err_val));
+			}
+		}
+		errs++;
+	}
+
+	writel(err_sts, qm->io_base + SEC_CORE_INT_SOURCE);
+}
+
+static u32 sec_get_hw_err_status(struct hisi_qm *qm)
+{
+	return readl(qm->io_base + SEC_CORE_INT_STATUS);
+}
+
 static const struct hisi_qm_err_ini sec_err_ini = {
-	.hw_err_enable	= sec_hw_error_enable,
-	.hw_err_disable	= sec_hw_error_disable,
-	.err_info	= {
-		.ce		= QM_BASE_CE,
-		.nfe		= QM_BASE_NFE | QM_ACC_DO_TASK_TIMEOUT |
-				  QM_ACC_WB_NOT_READY_TIMEOUT,
-		.fe		= 0,
-		.msi		= QM_DB_RANDOM_INVALID,
+	.hw_err_enable		= sec_hw_error_enable,
+	.hw_err_disable		= sec_hw_error_disable,
+	.get_dev_hw_err_status	= sec_get_hw_err_status,
+	.log_dev_hw_err		= sec_log_hw_error,
+	.err_info		= {
+		.ce			= QM_BASE_CE,
+		.nfe			= QM_BASE_NFE | QM_ACC_DO_TASK_TIMEOUT |
+					  QM_ACC_WB_NOT_READY_TIMEOUT,
+		.fe			= 0,
+		.msi			= QM_DB_RANDOM_INVALID,
 	}
 };
 
@@ -963,84 +996,8 @@ static void sec_remove(struct pci_dev *pdev)
 	sec_qm_uninit(qm);
 }
 
-static void sec_log_hw_error(struct sec_dev *sec, u32 err_sts)
-{
-	const struct sec_hw_error *errs = sec_hw_errors;
-	struct device *dev = &sec->qm.pdev->dev;
-	u32 err_val;
-
-	while (errs->msg) {
-		if (errs->int_msk & err_sts) {
-			dev_err(dev, "%s [error status=0x%x] found\n",
-				errs->msg, errs->int_msk);
-
-			if (SEC_CORE_INT_STATUS_M_ECC & err_sts) {
-				err_val = readl(sec->qm.io_base +
-						SEC_CORE_SRAM_ECC_ERR_INFO);
-				dev_err(dev, "multi ecc sram num=0x%x\n",
-					SEC_ECC_NUM(err_val));
-				dev_err(dev, "multi ecc sram addr=0x%x\n",
-					SEC_ECC_ADDR(err_val));
-			}
-		}
-		errs++;
-	}
-}
-
-static pci_ers_result_t sec_hw_error_handle(struct sec_dev *sec)
-{
-	u32 err_sts;
-
-	/* read err sts */
-	err_sts = readl(sec->qm.io_base + SEC_CORE_INT_STATUS);
-	if (err_sts) {
-		sec_log_hw_error(sec, err_sts);
-
-		/* clear error interrupts */
-		writel(err_sts, sec->qm.io_base + SEC_CORE_INT_SOURCE);
-
-		return PCI_ERS_RESULT_NEED_RESET;
-	}
-
-	return PCI_ERS_RESULT_RECOVERED;
-}
-
-static pci_ers_result_t sec_process_hw_error(struct pci_dev *pdev)
-{
-	struct sec_dev *sec = pci_get_drvdata(pdev);
-	pci_ers_result_t qm_ret, sec_ret;
-
-	if (!sec) {
-		pci_err(pdev, "Can't recover error during device init\n");
-		return PCI_ERS_RESULT_NONE;
-	}
-
-	/* log qm error */
-	qm_ret = hisi_qm_hw_error_handle(&sec->qm);
-
-	/* log sec error */
-	sec_ret = sec_hw_error_handle(sec);
-
-	return (qm_ret == PCI_ERS_RESULT_NEED_RESET ||
-		sec_ret == PCI_ERS_RESULT_NEED_RESET) ?
-		PCI_ERS_RESULT_NEED_RESET : PCI_ERS_RESULT_RECOVERED;
-}
-
-static pci_ers_result_t sec_error_detected(struct pci_dev *pdev,
-					   pci_channel_state_t state)
-{
-	if (pdev->is_virtfn)
-		return PCI_ERS_RESULT_NONE;
-
-	pci_info(pdev, "PCI error detected, state(=%d)!!\n", state);
-	if (state == pci_channel_io_perm_failure)
-		return PCI_ERS_RESULT_DISCONNECT;
-
-	return sec_process_hw_error(pdev);
-}
-
 static const struct pci_error_handlers sec_err_handler = {
-	.error_detected = sec_error_detected,
+	.error_detected = hisi_qm_dev_err_detected,
 };
 
 static struct pci_driver sec_pci_driver = {

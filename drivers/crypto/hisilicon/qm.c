@@ -1886,13 +1886,7 @@ static void qm_hw_error_uninit(struct hisi_qm *qm)
 	qm->ops->hw_error_uninit(qm);
 }
 
-/**
- * hisi_qm_hw_error_handle() - Handle qm non-fatal hardware errors.
- * @qm: The qm which has non-fatal hardware errors.
- *
- * Accelerators use this function to handle qm non-fatal hardware errors.
- */
-pci_ers_result_t hisi_qm_hw_error_handle(struct hisi_qm *qm)
+static pci_ers_result_t qm_hw_error_handle(struct hisi_qm *qm)
 {
 	if (!qm->ops->hw_error_handle) {
 		dev_err(&qm->pdev->dev, "QM doesn't support hw error report!\n");
@@ -1901,7 +1895,6 @@ pci_ers_result_t hisi_qm_hw_error_handle(struct hisi_qm *qm)
 
 	return qm->ops->hw_error_handle(qm);
 }
-EXPORT_SYMBOL_GPL(hisi_qm_hw_error_handle);
 
 /**
  * hisi_qm_get_hw_version() - Get hardware version of a qm.
@@ -1963,6 +1956,68 @@ void hisi_qm_dev_err_uninit(struct hisi_qm *qm)
 	qm->err_ini->hw_err_disable(qm);
 }
 EXPORT_SYMBOL_GPL(hisi_qm_dev_err_uninit);
+
+static pci_ers_result_t qm_dev_err_handle(struct hisi_qm *qm)
+{
+	u32 err_sts;
+
+	if (!qm->err_ini->get_dev_hw_err_status) {
+		dev_err(&qm->pdev->dev, "Device doesn't support get hw error status!\n");
+		return PCI_ERS_RESULT_NONE;
+	}
+
+	/* get device hardware error status */
+	err_sts = qm->err_ini->get_dev_hw_err_status(qm);
+	if (err_sts) {
+		if (!qm->err_ini->log_dev_hw_err) {
+			dev_err(&qm->pdev->dev, "Device doesn't support log hw error!\n");
+			return PCI_ERS_RESULT_NEED_RESET;
+		}
+
+		qm->err_ini->log_dev_hw_err(qm, err_sts);
+		return PCI_ERS_RESULT_NEED_RESET;
+	}
+
+	return PCI_ERS_RESULT_RECOVERED;
+}
+
+static pci_ers_result_t qm_process_dev_error(struct pci_dev *pdev)
+{
+	struct hisi_qm *qm = pci_get_drvdata(pdev);
+	pci_ers_result_t qm_ret, dev_ret;
+
+	/* log qm error */
+	qm_ret = qm_hw_error_handle(qm);
+
+	/* log device error */
+	dev_ret = qm_dev_err_handle(qm);
+
+	return (qm_ret == PCI_ERS_RESULT_NEED_RESET ||
+		dev_ret == PCI_ERS_RESULT_NEED_RESET) ?
+		PCI_ERS_RESULT_NEED_RESET : PCI_ERS_RESULT_RECOVERED;
+}
+
+/**
+ * hisi_qm_dev_err_detected() - Get device and qm error status then log it.
+ * @pdev: The PCI device which need report error.
+ * @state: The connectivity between CPU and device.
+ *
+ * We register this function into PCIe AER handlers, It will report device or
+ * qm hardware error status when error occur.
+ */
+pci_ers_result_t hisi_qm_dev_err_detected(struct pci_dev *pdev,
+					  pci_channel_state_t state)
+{
+	if (pdev->is_virtfn)
+		return PCI_ERS_RESULT_NONE;
+
+	pci_info(pdev, "PCI error detected, state(=%d)!!\n", state);
+	if (state == pci_channel_io_perm_failure)
+		return PCI_ERS_RESULT_DISCONNECT;
+
+	return qm_process_dev_error(pdev);
+}
+EXPORT_SYMBOL_GPL(hisi_qm_dev_err_detected);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Zhou Wang <wangzhou1@hisilicon.com>");

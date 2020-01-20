@@ -68,8 +68,8 @@
 #define HZIP_CORE_INT_RAS_NFE_ENB	0x301164
 #define HZIP_CORE_INT_RAS_FE_ENB        0x301168
 #define HZIP_CORE_INT_RAS_NFE_ENABLE	0x7FE
-#define SRAM_ECC_ERR_NUM_SHIFT		16
-#define SRAM_ECC_ERR_ADDR_SHIFT		24
+#define HZIP_SRAM_ECC_ERR_NUM_SHIFT	16
+#define HZIP_SRAM_ECC_ERR_ADDR_SHIFT	24
 #define HZIP_CORE_INT_MASK_ALL		GENMASK(10, 0)
 #define HZIP_COMP_CORE_NUM		2
 #define HZIP_DECOMP_CORE_NUM		6
@@ -647,14 +647,50 @@ static void hisi_zip_debugfs_exit(struct hisi_zip *hisi_zip)
 		hisi_zip_debug_regs_clear(hisi_zip);
 }
 
+static void hisi_zip_log_hw_error(struct hisi_qm *qm, u32 err_sts)
+{
+	const struct hisi_zip_hw_error *err = zip_hw_error;
+	struct device *dev = &qm->pdev->dev;
+	u32 err_val;
+
+	while (err->msg) {
+		if (err->int_msk & err_sts) {
+			dev_err(dev, "%s [error status=0x%x] found\n",
+				 err->msg, err->int_msk);
+
+			if (err->int_msk & HZIP_CORE_INT_STATUS_M_ECC) {
+				err_val = readl(qm->io_base +
+						HZIP_CORE_SRAM_ECC_ERR_INFO);
+				dev_err(dev, "hisi-zip multi ecc sram num=0x%x\n",
+					((err_val >>
+					HZIP_SRAM_ECC_ERR_NUM_SHIFT) & 0xFF));
+				dev_err(dev, "hisi-zip multi ecc sram addr=0x%x\n",
+					(err_val >>
+					HZIP_SRAM_ECC_ERR_ADDR_SHIFT));
+			}
+		}
+		err++;
+	}
+
+	writel(err_sts, qm->io_base + HZIP_CORE_INT_SOURCE);
+}
+
+static u32 hisi_zip_get_hw_err_status(struct hisi_qm *qm)
+{
+	return readl(qm->io_base + HZIP_CORE_INT_STATUS);
+}
+
 static const struct hisi_qm_err_ini hisi_zip_err_ini = {
-	.hw_err_enable	= hisi_zip_hw_error_enable,
-	.hw_err_disable	= hisi_zip_hw_error_disable,
-	.err_info	= {
-		.ce		= QM_BASE_CE,
-		.nfe		= QM_BASE_NFE | QM_ACC_WB_NOT_READY_TIMEOUT,
-		.fe		= 0,
-		.msi		= QM_DB_RANDOM_INVALID,
+	.hw_err_enable		= hisi_zip_hw_error_enable,
+	.hw_err_disable		= hisi_zip_hw_error_disable,
+	.get_dev_hw_err_status	= hisi_zip_get_hw_err_status,
+	.log_dev_hw_err		= hisi_zip_log_hw_error,
+	.err_info		= {
+		.ce			= QM_BASE_CE,
+		.nfe			= QM_BASE_NFE |
+					  QM_ACC_WB_NOT_READY_TIMEOUT,
+		.fe			= 0,
+		.msi			= QM_DB_RANDOM_INVALID,
 	}
 };
 
@@ -906,85 +942,8 @@ static void hisi_zip_remove(struct pci_dev *pdev)
 	hisi_zip_remove_from_list(hisi_zip);
 }
 
-static void hisi_zip_log_hw_error(struct hisi_zip *hisi_zip, u32 err_sts)
-{
-	const struct hisi_zip_hw_error *err = zip_hw_error;
-	struct device *dev = &hisi_zip->qm.pdev->dev;
-	u32 err_val;
-
-	while (err->msg) {
-		if (err->int_msk & err_sts) {
-			dev_warn(dev, "%s [error status=0x%x] found\n",
-				 err->msg, err->int_msk);
-
-			if (HZIP_CORE_INT_STATUS_M_ECC & err->int_msk) {
-				err_val = readl(hisi_zip->qm.io_base +
-						HZIP_CORE_SRAM_ECC_ERR_INFO);
-				dev_warn(dev, "hisi-zip multi ecc sram num=0x%x\n",
-					 ((err_val >> SRAM_ECC_ERR_NUM_SHIFT) &
-					  0xFF));
-				dev_warn(dev, "hisi-zip multi ecc sram addr=0x%x\n",
-					 (err_val >> SRAM_ECC_ERR_ADDR_SHIFT));
-			}
-		}
-		err++;
-	}
-}
-
-static pci_ers_result_t hisi_zip_hw_error_handle(struct hisi_zip *hisi_zip)
-{
-	u32 err_sts;
-
-	/* read err sts */
-	err_sts = readl(hisi_zip->qm.io_base + HZIP_CORE_INT_STATUS);
-
-	if (err_sts) {
-		hisi_zip_log_hw_error(hisi_zip, err_sts);
-		/* clear error interrupts */
-		writel(err_sts, hisi_zip->qm.io_base + HZIP_CORE_INT_SOURCE);
-
-		return PCI_ERS_RESULT_NEED_RESET;
-	}
-
-	return PCI_ERS_RESULT_RECOVERED;
-}
-
-static pci_ers_result_t hisi_zip_process_hw_error(struct pci_dev *pdev)
-{
-	struct hisi_zip *hisi_zip = pci_get_drvdata(pdev);
-	struct device *dev = &pdev->dev;
-	pci_ers_result_t qm_ret, zip_ret;
-
-	if (!hisi_zip) {
-		dev_err(dev,
-			"Can't recover ZIP-error occurred during device init\n");
-		return PCI_ERS_RESULT_NONE;
-	}
-
-	qm_ret = hisi_qm_hw_error_handle(&hisi_zip->qm);
-
-	zip_ret = hisi_zip_hw_error_handle(hisi_zip);
-
-	return (qm_ret == PCI_ERS_RESULT_NEED_RESET ||
-		zip_ret == PCI_ERS_RESULT_NEED_RESET) ?
-	       PCI_ERS_RESULT_NEED_RESET : PCI_ERS_RESULT_RECOVERED;
-}
-
-static pci_ers_result_t hisi_zip_error_detected(struct pci_dev *pdev,
-						pci_channel_state_t state)
-{
-	if (pdev->is_virtfn)
-		return PCI_ERS_RESULT_NONE;
-
-	dev_info(&pdev->dev, "PCI error detected, state(=%d)!!\n", state);
-	if (state == pci_channel_io_perm_failure)
-		return PCI_ERS_RESULT_DISCONNECT;
-
-	return hisi_zip_process_hw_error(pdev);
-}
-
 static const struct pci_error_handlers hisi_zip_err_handler = {
-	.error_detected	= hisi_zip_error_detected,
+	.error_detected	= hisi_qm_dev_err_detected,
 };
 
 static struct pci_driver hisi_zip_pci_driver = {
