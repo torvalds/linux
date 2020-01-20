@@ -420,6 +420,8 @@ static int __init efi_systab_init(u64 phys)
 		efi_systab.tables		= systab32->tables;
 	}
 
+	efi.runtime_version = hdr->revision;
+
 	efi_systab_report_header(hdr, efi_systab.fw_vendor);
 	early_memunmap(p, size);
 
@@ -870,15 +872,6 @@ static void __init kexec_enter_virtual_mode(void)
 	}
 
 	efi_sync_low_kernel_mappings();
-
-	/*
-	 * Now that EFI is in virtual mode, update the function
-	 * pointers in the runtime service table to the new virtual addresses.
-	 *
-	 * Call EFI services through wrapper functions.
-	 */
-	efi.runtime_version = efi_systab.hdr.revision;
-
 	efi_native_runtime_setup();
 #endif
 }
@@ -964,14 +957,6 @@ static void __init __efi_enter_virtual_mode(void)
 	}
 
 	efi_free_boot_services();
-
-	/*
-	 * Now that EFI is in virtual mode, update the function
-	 * pointers in the runtime service table to the new virtual addresses.
-	 *
-	 * Call EFI services through wrapper functions.
-	 */
-	efi.runtime_version = efi_systab.hdr.revision;
 
 	if (!efi_is_mixed())
 		efi_native_runtime_setup();
