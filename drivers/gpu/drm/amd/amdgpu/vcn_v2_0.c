@@ -1624,7 +1624,7 @@ static int vcn_v2_0_process_interrupt(struct amdgpu_device *adev,
 	return 0;
 }
 
-static int vcn_v2_0_dec_ring_test_ring(struct amdgpu_ring *ring)
+int vcn_v2_0_dec_ring_test_ring(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 	uint32_t tmp = 0;
