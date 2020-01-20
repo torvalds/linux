@@ -2299,9 +2299,9 @@ out:
 	return sts;
 }
 
-static void cq_tasklet_v3_hw(unsigned long val)
+static irqreturn_t  cq_thread_v3_hw(int irq_no, void *p)
 {
-	struct hisi_sas_cq *cq = (struct hisi_sas_cq *)val;
+	struct hisi_sas_cq *cq = p;
 	struct hisi_hba *hisi_hba = cq->hisi_hba;
 	struct hisi_sas_slot *slot;
 	struct hisi_sas_complete_v3_hdr *complete_queue;
@@ -2338,6 +2338,8 @@ static void cq_tasklet_v3_hw(unsigned long val)
 	/* update rd_point */
 	cq->rd_point = rd_point;
 	hisi_sas_write32(hisi_hba, COMPL_Q_0_RD_PTR + (0x14 * queue), rd_point);
+
+	return IRQ_HANDLED;
 }
 
 static irqreturn_t cq_interrupt_v3_hw(int irq_no, void *p)
@@ -2348,9 +2350,7 @@ static irqreturn_t cq_interrupt_v3_hw(int irq_no, void *p)
 
 	hisi_sas_write32(hisi_hba, OQ_INT_SRC, 1 << queue);
 
-	tasklet_schedule(&cq->tasklet);
-
-	return IRQ_HANDLED;
+	return IRQ_WAKE_THREAD;
 }
 
 static void setup_reply_map_v3_hw(struct hisi_hba *hisi_hba, int nvecs)
@@ -2441,15 +2441,17 @@ static int interrupt_init_v3_hw(struct hisi_hba *hisi_hba)
 		goto free_irq_vectors;
 	}
 
-	/* Init tasklets for cq only */
 	for (i = 0; i < hisi_hba->cq_nvecs; i++) {
 		struct hisi_sas_cq *cq = &hisi_hba->cq[i];
-		struct tasklet_struct *t = &cq->tasklet;
 		int nr = hisi_sas_intr_conv ? 16 : 16 + i;
-		unsigned long irqflags = hisi_sas_intr_conv ? IRQF_SHARED : 0;
+		unsigned long irqflags = hisi_sas_intr_conv ? IRQF_SHARED :
+							      IRQF_ONESHOT;
 
-		rc = devm_request_irq(dev, pci_irq_vector(pdev, nr),
-				      cq_interrupt_v3_hw, irqflags,
+		cq->irq_no = pci_irq_vector(pdev, nr);
+		rc = devm_request_threaded_irq(dev, cq->irq_no,
+				      cq_interrupt_v3_hw,
+				      cq_thread_v3_hw,
+				      irqflags,
 				      DRV_NAME " cq", cq);
 		if (rc) {
 			dev_err(dev, "could not request cq%d interrupt, rc=%d\n",
@@ -2457,8 +2459,6 @@ static int interrupt_init_v3_hw(struct hisi_hba *hisi_hba)
 			rc = -ENOENT;
 			goto free_irq_vectors;
 		}
-
-		tasklet_init(t, cq_tasklet_v3_hw, (unsigned long)cq);
 	}
 
 	return 0;
@@ -2534,7 +2534,6 @@ static int disable_host_v3_hw(struct hisi_hba *hisi_hba)
 
 	interrupt_disable_v3_hw(hisi_hba);
 	hisi_sas_write32(hisi_hba, DLVRY_QUEUE_ENABLE, 0x0);
-	hisi_sas_kill_tasklets(hisi_hba);
 
 	hisi_sas_stop_phys(hisi_hba);
 
@@ -2910,7 +2909,7 @@ static void debugfs_snapshot_prepare_v3_hw(struct hisi_hba *hisi_hba)
 
 	wait_cmds_complete_timeout_v3_hw(hisi_hba, 100, 5000);
 
-	hisi_sas_kill_tasklets(hisi_hba);
+	hisi_sas_sync_irqs(hisi_hba);
 }
 
 static void debugfs_snapshot_restore_v3_hw(struct hisi_hba *hisi_hba)
@@ -3312,7 +3311,6 @@ static void hisi_sas_v3_remove(struct pci_dev *pdev)
 	sas_remove_host(sha->core.shost);
 
 	hisi_sas_v3_destroy_irqs(pdev, hisi_hba);
-	hisi_sas_kill_tasklets(hisi_hba);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 	hisi_sas_free(hisi_hba);

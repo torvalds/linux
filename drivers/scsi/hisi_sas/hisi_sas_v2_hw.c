@@ -3111,9 +3111,9 @@ static irqreturn_t fatal_axi_int_v2_hw(int irq_no, void *p)
 	return IRQ_HANDLED;
 }
 
-static void cq_tasklet_v2_hw(unsigned long val)
+static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 {
-	struct hisi_sas_cq *cq = (struct hisi_sas_cq *)val;
+	struct hisi_sas_cq *cq = p;
 	struct hisi_hba *hisi_hba = cq->hisi_hba;
 	struct hisi_sas_slot *slot;
 	struct hisi_sas_itct *itct;
@@ -3181,6 +3181,8 @@ static void cq_tasklet_v2_hw(unsigned long val)
 	/* update rd_point */
 	cq->rd_point = rd_point;
 	hisi_sas_write32(hisi_hba, COMPL_Q_0_RD_PTR + (0x14 * queue), rd_point);
+
+	return IRQ_HANDLED;
 }
 
 static irqreturn_t cq_interrupt_v2_hw(int irq_no, void *p)
@@ -3191,9 +3193,7 @@ static irqreturn_t cq_interrupt_v2_hw(int irq_no, void *p)
 
 	hisi_sas_write32(hisi_hba, OQ_INT_SRC, 1 << queue);
 
-	tasklet_schedule(&cq->tasklet);
-
-	return IRQ_HANDLED;
+	return IRQ_WAKE_THREAD;
 }
 
 static irqreturn_t sata_int_v2_hw(int irq_no, void *p)
@@ -3360,18 +3360,18 @@ static int interrupt_init_v2_hw(struct hisi_hba *hisi_hba)
 
 	for (queue_no = 0; queue_no < hisi_hba->queue_count; queue_no++) {
 		struct hisi_sas_cq *cq = &hisi_hba->cq[queue_no];
-		struct tasklet_struct *t = &cq->tasklet;
 
-		irq = irq_map[queue_no + 96];
-		rc = devm_request_irq(dev, irq, cq_interrupt_v2_hw, 0,
-				      DRV_NAME " cq", cq);
+		cq->irq_no = irq_map[queue_no + 96];
+		rc = devm_request_threaded_irq(dev, cq->irq_no,
+					       cq_interrupt_v2_hw,
+					       cq_thread_v2_hw, IRQF_ONESHOT,
+					       DRV_NAME " cq", cq);
 		if (rc) {
 			dev_err(dev, "irq init: could not request cq interrupt %d, rc=%d\n",
 				irq, rc);
 			rc = -ENOENT;
 			goto err_out;
 		}
-		tasklet_init(t, cq_tasklet_v2_hw, (unsigned long)cq);
 	}
 
 	hisi_hba->cq_nvecs = hisi_hba->queue_count;
@@ -3432,7 +3432,6 @@ static int soft_reset_v2_hw(struct hisi_hba *hisi_hba)
 
 	interrupt_disable_v2_hw(hisi_hba);
 	hisi_sas_write32(hisi_hba, DLVRY_QUEUE_ENABLE, 0x0);
-	hisi_sas_kill_tasklets(hisi_hba);
 
 	hisi_sas_stop_phys(hisi_hba);
 
@@ -3606,11 +3605,6 @@ static int hisi_sas_v2_probe(struct platform_device *pdev)
 
 static int hisi_sas_v2_remove(struct platform_device *pdev)
 {
-	struct sas_ha_struct *sha = platform_get_drvdata(pdev);
-	struct hisi_hba *hisi_hba = sha->lldd_ha;
-
-	hisi_sas_kill_tasklets(hisi_hba);
-
 	return hisi_sas_remove(pdev);
 }
 
