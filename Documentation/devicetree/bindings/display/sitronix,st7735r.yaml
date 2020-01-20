@@ -39,11 +39,18 @@ properties:
     maxItems: 1
     description: Display data/command selection (D/CX)
 
+  backlight: true
+  reg: true
+  reset-gpios: true
+  rotation: true
+
 required:
   - compatible
   - reg
   - dc-gpios
   - reset-gpios
+
+additionalProperties: false
 
 examples:
   - |
