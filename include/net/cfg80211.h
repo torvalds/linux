@@ -637,6 +637,7 @@ struct cfg80211_chan_def {
  * @retry_long: retry count value
  * @retry_short: retry count value
  * @ampdu: Enable/Disable aggregation
+ * @rtscts: Enable/Disable RTS/CTS
  */
 struct cfg80211_tid_cfg {
 	bool config_override;
@@ -645,6 +646,7 @@ struct cfg80211_tid_cfg {
 	enum nl80211_tid_config noack;
 	u8 retry_long, retry_short;
 	enum nl80211_tid_config ampdu;
+	enum nl80211_tid_config rtscts;
 };
 
 /**
