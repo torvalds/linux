@@ -742,7 +742,6 @@ struct ilk_wm_values {
 	u32 wm_pipe[3];
 	u32 wm_lp[3];
 	u32 wm_lp_spr[3];
-	u32 wm_linetime[3];
 	bool enable_fbc_wm;
 	enum intel_ddb_partitioning partitioning;
 };

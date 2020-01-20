@@ -6944,6 +6944,16 @@ static void icl_pipe_mbus_enable(struct intel_crtc *crtc)
 	intel_de_write(dev_priv, PIPE_MBUS_DBOX_CTL(pipe), val);
 }
 
+static void hsw_set_linetime_wm(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+
+	intel_de_write(dev_priv, WM_LINETIME(crtc->pipe),
+		       HSW_LINETIME(crtc_state->linetime) |
+		       HSW_IPS_LINETIME(crtc_state->ips_linetime));
+}
+
 static void hsw_set_frame_start_delay(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
@@ -7024,6 +7034,8 @@ static void hsw_crtc_enable(struct intel_atomic_state *state,
 	/* update DSPCNTR to configure gamma/csc for pipe bottom color */
 	if (INTEL_GEN(dev_priv) < 9)
 		intel_disable_primary_plane(new_crtc_state);
+
+	hsw_set_linetime_wm(new_crtc_state);
 
 	if (INTEL_GEN(dev_priv) >= 11)
 		icl_set_pipe_chicken(crtc);
@@ -11064,6 +11076,7 @@ static bool hsw_get_pipe_config(struct intel_crtc *crtc,
 	enum intel_display_power_domain power_domain;
 	u64 power_domain_mask;
 	bool active;
+	u32 tmp;
 
 	pipe_config->master_transcoder = INVALID_TRANSCODER;
 
@@ -11130,8 +11143,7 @@ static bool hsw_get_pipe_config(struct intel_crtc *crtc,
 					      PIPE_CSC_MODE(crtc->pipe));
 
 	if (INTEL_GEN(dev_priv) >= 9) {
-		u32 tmp = intel_de_read(dev_priv,
-					SKL_BOTTOM_COLOR(crtc->pipe));
+		tmp = intel_de_read(dev_priv, SKL_BOTTOM_COLOR(crtc->pipe));
 
 		if (tmp & SKL_BOTTOM_COLOR_GAMMA_ENABLE)
 			pipe_config->gamma_enable = true;
@@ -11143,6 +11155,12 @@ static bool hsw_get_pipe_config(struct intel_crtc *crtc,
 	}
 
 	intel_color_get_config(pipe_config);
+
+	tmp = intel_de_read(dev_priv, WM_LINETIME(crtc->pipe));
+	pipe_config->linetime = REG_FIELD_GET(HSW_LINETIME_MASK, tmp);
+	if (IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
+		pipe_config->ips_linetime =
+			REG_FIELD_GET(HSW_IPS_LINETIME_MASK, tmp);
 
 	power_domain = POWER_DOMAIN_PIPE_PANEL_FITTER(crtc->pipe);
 	WARN_ON(power_domain_mask & BIT_ULL(power_domain));
@@ -12652,6 +12670,53 @@ static int icl_compute_port_sync_crtc_state(struct drm_connector *connector,
 	return 0;
 }
 
+static u16 hsw_linetime_wm(const struct intel_crtc_state *crtc_state)
+{
+	const struct drm_display_mode *adjusted_mode =
+		&crtc_state->hw.adjusted_mode;
+
+	if (!crtc_state->hw.enable)
+		return 0;
+
+	return DIV_ROUND_CLOSEST(adjusted_mode->crtc_htotal * 1000 * 8,
+				 adjusted_mode->crtc_clock);
+}
+
+static u16 hsw_ips_linetime_wm(const struct intel_crtc_state *crtc_state)
+{
+	const struct intel_atomic_state *state =
+		to_intel_atomic_state(crtc_state->uapi.state);
+	const struct drm_display_mode *adjusted_mode =
+		&crtc_state->hw.adjusted_mode;
+
+	if (!crtc_state->hw.enable)
+		return 0;
+
+	return DIV_ROUND_CLOSEST(adjusted_mode->crtc_htotal * 1000 * 8,
+				 state->cdclk.logical.cdclk);
+}
+
+static u16 skl_linetime_wm(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	const struct drm_display_mode *adjusted_mode =
+		&crtc_state->hw.adjusted_mode;
+	u16 linetime_wm;
+
+	if (!crtc_state->hw.enable)
+		return 0;
+
+	linetime_wm = DIV_ROUND_UP(adjusted_mode->crtc_htotal * 1000 * 8,
+				   crtc_state->pixel_rate);
+
+	/* Display WA #1135: BXT:ALL GLK:ALL */
+	if (IS_GEN9_LP(dev_priv) && dev_priv->ipc_enabled)
+		linetime_wm /= 2;
+
+	return linetime_wm;
+}
+
 static int intel_crtc_atomic_check(struct intel_atomic_state *state,
 				   struct intel_crtc *crtc)
 {
@@ -12724,6 +12789,14 @@ static int intel_crtc_atomic_check(struct intel_atomic_state *state,
 
 	if (HAS_IPS(dev_priv))
 		crtc_state->ips_enabled = hsw_compute_ips_config(crtc_state);
+
+	if (INTEL_GEN(dev_priv) >= 9) {
+		crtc_state->linetime = skl_linetime_wm(crtc_state);
+	} else if (IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv)) {
+		crtc_state->linetime = hsw_linetime_wm(crtc_state);
+		if (hsw_crtc_supports_ips(crtc))
+			crtc_state->ips_linetime = hsw_ips_linetime_wm(crtc_state);
+	}
 
 	return ret;
 }
@@ -13028,6 +13101,9 @@ static void intel_dump_pipe_config(const struct intel_crtc_state *pipe_config,
 		    pipe_config->port_clock,
 		    pipe_config->pipe_src_w, pipe_config->pipe_src_h,
 		    pipe_config->pixel_rate);
+
+	drm_dbg_kms(&dev_priv->drm, "linetime: %d, ips linetime: %d\n",
+		    pipe_config->linetime, pipe_config->ips_linetime);
 
 	if (INTEL_GEN(dev_priv) >= 9)
 		drm_dbg_kms(&dev_priv->drm,
@@ -13812,10 +13888,12 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 		PIPE_CONF_CHECK_BOOL(gamma_enable);
 		PIPE_CONF_CHECK_BOOL(csc_enable);
 
+		PIPE_CONF_CHECK_I(linetime);
+		PIPE_CONF_CHECK_I(ips_linetime);
+
 		bp_gamma = intel_color_get_gamma_bit_precision(pipe_config);
 		if (bp_gamma)
 			PIPE_CONF_CHECK_COLOR_LUT(gamma_mode, hw.gamma_lut, bp_gamma);
-
 	}
 
 	PIPE_CONF_CHECK_BOOL(double_wide);
@@ -14985,6 +15063,18 @@ static void intel_pipe_fastset(const struct intel_crtc_state *old_crtc_state,
 		else if (old_crtc_state->pch_pfit.enabled)
 			ilk_pfit_disable(old_crtc_state);
 	}
+
+	/*
+	 * The register is supposedly single buffered so perhaps
+	 * not 100% correct to do this here. But SKL+ calculate
+	 * this based on the adjust pixel rate so pfit changes do
+	 * affect it and so it must be updated for fastsets.
+	 * HSW/BDW only really need this here for fastboot, after
+	 * that the value should not change without a full modeset.
+	 */
+	if (INTEL_GEN(dev_priv) >= 9 ||
+	    IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
+		hsw_set_linetime_wm(new_crtc_state);
 
 	if (INTEL_GEN(dev_priv) >= 11)
 		icl_set_pipe_chicken(crtc);

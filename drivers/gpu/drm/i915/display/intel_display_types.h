@@ -663,8 +663,6 @@ struct intel_crtc_scaler_state {
 
 struct intel_pipe_wm {
 	struct intel_wm_level wm[5];
-	u16 linetime;
-	u16 ips_linetime;
 	bool fbc_wm_enabled;
 	bool pipe_enabled;
 	bool sprites_enabled;
@@ -680,7 +678,6 @@ struct skl_plane_wm {
 
 struct skl_pipe_wm {
 	struct skl_plane_wm planes[I915_MAX_PLANES];
-	u32 linetime;
 };
 
 enum vlv_wm_level {
@@ -1050,6 +1047,10 @@ struct intel_crtc_state {
 		u8 slice_count;
 		struct drm_dsc_config config;
 	} dsc;
+
+	/* HSW+ linetime watermarks */
+	u16 linetime;
+	u16 ips_linetime;
 
 	/* Forward Error correction State */
 	bool fec_enable;
