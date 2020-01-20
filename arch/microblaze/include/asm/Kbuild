@@ -31,6 +31,7 @@ generic-y += preempt.h
 generic-y += serial.h
 generic-y += shmparam.h
 generic-y += syscalls.h
+generic-y += tlb.h
 generic-y += topology.h
 generic-y += trace_clock.h
 generic-y += vga.h
