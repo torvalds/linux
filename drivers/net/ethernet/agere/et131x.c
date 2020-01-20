@@ -3651,15 +3651,6 @@ static int et131x_close(struct net_device *netdev)
 	return del_timer_sync(&adapter->error_timer);
 }
 
-static int et131x_ioctl(struct net_device *netdev, struct ifreq *reqbuf,
-			int cmd)
-{
-	if (!netdev->phydev)
-		return -EINVAL;
-
-	return phy_mii_ioctl(netdev->phydev, reqbuf, cmd);
-}
-
 /* et131x_set_packet_filter - Configures the Rx Packet filtering */
 static int et131x_set_packet_filter(struct et131x_adapter *adapter)
 {
@@ -3899,7 +3890,7 @@ static const struct net_device_ops et131x_netdev_ops = {
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_get_stats		= et131x_stats,
-	.ndo_do_ioctl		= et131x_ioctl,
+	.ndo_do_ioctl		= phy_do_ioctl,
 };
 
 static int et131x_pci_setup(struct pci_dev *pdev,
