@@ -1025,6 +1025,11 @@ struct drm_i915_private {
 		const struct intel_cdclk_vals *table;
 
 		int force_min_cdclk;
+
+		/* minimum acceptable cdclk for each pipe */
+		int min_cdclk[I915_MAX_PIPES];
+		/* minimum acceptable voltage level for each pipe */
+		u8 min_voltage_level[I915_MAX_PIPES];
 	} cdclk;
 
 	/**
@@ -1085,10 +1090,6 @@ struct drm_i915_private {
 	 * any crtc lock is sufficient, for writing must hold all of them.
 	 */
 	u8 active_pipes;
-	/* minimum acceptable cdclk for each pipe */
-	int min_cdclk[I915_MAX_PIPES];
-	/* minimum acceptable voltage level for each pipe */
-	u8 min_voltage_level[I915_MAX_PIPES];
 
 	int dpio_phy_iosf_port[I915_NUM_PHYS_VLV];
 

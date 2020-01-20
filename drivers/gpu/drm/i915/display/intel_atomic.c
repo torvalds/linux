@@ -35,6 +35,7 @@
 #include <drm/drm_plane_helper.h>
 
 #include "intel_atomic.h"
+#include "intel_cdclk.h"
 #include "intel_display_types.h"
 #include "intel_hdcp.h"
 #include "intel_psr.h"
@@ -499,15 +500,13 @@ intel_atomic_state_alloc(struct drm_device *dev)
 void intel_atomic_state_clear(struct drm_atomic_state *s)
 {
 	struct intel_atomic_state *state = to_intel_atomic_state(s);
+
 	drm_atomic_state_default_clear(&state->base);
+
 	state->dpll_set = state->modeset = false;
 	state->global_state_changed = false;
 	state->active_pipes = 0;
-	memset(&state->min_cdclk, 0, sizeof(state->min_cdclk));
-	memset(&state->min_voltage_level, 0, sizeof(state->min_voltage_level));
-	memset(&state->cdclk.logical, 0, sizeof(state->cdclk.logical));
-	memset(&state->cdclk.actual, 0, sizeof(state->cdclk.actual));
-	state->cdclk.pipe = INVALID_PIPE;
+	intel_cdclk_clear_state(state);
 }
 
 struct intel_crtc_state *

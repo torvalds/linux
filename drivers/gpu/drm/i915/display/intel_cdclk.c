@@ -1820,6 +1820,18 @@ static bool intel_cdclk_changed(const struct intel_cdclk_state *a,
 }
 
 /**
+ * intel_cdclk_clear_state - clear the cdclk state
+ * @state: atomic state
+ *
+ * Clear the cdclk state for ww_mutex backoff.
+ */
+void intel_cdclk_clear_state(struct intel_atomic_state *state)
+{
+	memset(&state->cdclk, 0, sizeof(state->cdclk));
+	state->cdclk.pipe = INVALID_PIPE;
+}
+
+/**
  * intel_cdclk_swap_state - make atomic CDCLK configuration effective
  * @state: atomic state
  *
@@ -1836,10 +1848,10 @@ void intel_cdclk_swap_state(struct intel_atomic_state *state)
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 
 	/* FIXME maybe swap() these too */
-	memcpy(dev_priv->min_cdclk, state->min_cdclk,
-	       sizeof(state->min_cdclk));
-	memcpy(dev_priv->min_voltage_level, state->min_voltage_level,
-	       sizeof(state->min_voltage_level));
+	memcpy(dev_priv->cdclk.min_cdclk, state->cdclk.min_cdclk,
+	       sizeof(state->cdclk.min_cdclk));
+	memcpy(dev_priv->cdclk.min_voltage_level, state->cdclk.min_voltage_level,
+	       sizeof(state->cdclk.min_voltage_level));
 
 	dev_priv->cdclk.force_min_cdclk = state->cdclk.force_min_cdclk;
 
@@ -2065,10 +2077,10 @@ static int intel_compute_min_cdclk(struct intel_atomic_state *state)
 		if (min_cdclk < 0)
 			return min_cdclk;
 
-		if (state->min_cdclk[i] == min_cdclk)
+		if (state->cdclk.min_cdclk[i] == min_cdclk)
 			continue;
 
-		state->min_cdclk[i] = min_cdclk;
+		state->cdclk.min_cdclk[i] = min_cdclk;
 
 		ret = intel_atomic_lock_global_state(state);
 		if (ret)
@@ -2077,7 +2089,7 @@ static int intel_compute_min_cdclk(struct intel_atomic_state *state)
 
 	min_cdclk = state->cdclk.force_min_cdclk;
 	for_each_pipe(dev_priv, pipe)
-		min_cdclk = max(state->min_cdclk[pipe], min_cdclk);
+		min_cdclk = max(state->cdclk.min_cdclk[pipe], min_cdclk);
 
 	return min_cdclk;
 }
@@ -2112,10 +2124,10 @@ static int bxt_compute_min_voltage_level(struct intel_atomic_state *state)
 		else
 			min_voltage_level = 0;
 
-		if (state->min_voltage_level[i] == min_voltage_level)
+		if (state->cdclk.min_voltage_level[i] == min_voltage_level)
 			continue;
 
-		state->min_voltage_level[i] = min_voltage_level;
+		state->cdclk.min_voltage_level[i] = min_voltage_level;
 
 		ret = intel_atomic_lock_global_state(state);
 		if (ret)
@@ -2124,7 +2136,7 @@ static int bxt_compute_min_voltage_level(struct intel_atomic_state *state)
 
 	min_voltage_level = 0;
 	for_each_pipe(dev_priv, pipe)
-		min_voltage_level = max(state->min_voltage_level[pipe],
+		min_voltage_level = max(state->cdclk.min_voltage_level[pipe],
 					min_voltage_level);
 
 	return min_voltage_level;
@@ -2358,10 +2370,10 @@ int intel_modeset_calc_cdclk(struct intel_atomic_state *state)
 	enum pipe pipe;
 	int ret;
 
-	memcpy(state->min_cdclk, dev_priv->min_cdclk,
-	       sizeof(state->min_cdclk));
-	memcpy(state->min_voltage_level, dev_priv->min_voltage_level,
-	       sizeof(state->min_voltage_level));
+	memcpy(state->cdclk.min_cdclk, dev_priv->cdclk.min_cdclk,
+	       sizeof(state->cdclk.min_cdclk));
+	memcpy(state->cdclk.min_voltage_level, dev_priv->cdclk.min_voltage_level,
+	       sizeof(state->cdclk.min_voltage_level));
 
 	/* keep the current setting */
 	if (!state->cdclk.force_min_cdclk_changed)

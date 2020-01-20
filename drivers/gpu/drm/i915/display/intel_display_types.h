@@ -478,6 +478,12 @@ struct intel_atomic_state {
 
 		int force_min_cdclk;
 		bool force_min_cdclk_changed;
+
+		/* minimum acceptable cdclk for each pipe */
+		int min_cdclk[I915_MAX_PIPES];
+		/* minimum acceptable voltage level for each pipe */
+		u8 min_voltage_level[I915_MAX_PIPES];
+
 		/* pipe to which cd2x update is synchronized */
 		enum pipe pipe;
 	} cdclk;
@@ -495,10 +501,6 @@ struct intel_atomic_state {
 	u8 active_pipe_changes;
 
 	u8 active_pipes;
-	/* minimum acceptable cdclk for each pipe */
-	int min_cdclk[I915_MAX_PIPES];
-	/* minimum acceptable voltage level for each pipe */
-	u8 min_voltage_level[I915_MAX_PIPES];
 
 	struct intel_shared_dpll_state shared_dpll[I915_NUM_PLLS];
 
