@@ -32,10 +32,10 @@
  * pools.
  */
 #define ESW_SIZE (16 * 1024 * 1024)
-const unsigned int ESW_POOLS[] = { 4 * 1024 * 1024,
-				   1 * 1024 * 1024,
-				   64 * 1024,
-				   4 * 1024, };
+static const unsigned int ESW_POOLS[] = { 4 * 1024 * 1024,
+					  1 * 1024 * 1024,
+					  64 * 1024,
+					  4 * 1024, };
 
 struct mlx5_esw_chains_priv {
 	struct rhashtable chains_ht;
