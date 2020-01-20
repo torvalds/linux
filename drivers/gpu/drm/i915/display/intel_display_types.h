@@ -462,31 +462,7 @@ struct intel_atomic_state {
 
 	intel_wakeref_t wakeref;
 
-	struct {
-		/*
-		 * Logical configuration of cdclk (used for all scaling,
-		 * watermark, etc. calculations and checks). This is
-		 * computed as if all enabled crtcs were active.
-		 */
-		struct intel_cdclk_config logical;
-
-		/*
-		 * Actual configuration of cdclk, can be different from the
-		 * logical configuration only when all crtc's are DPMS off.
-		 */
-		struct intel_cdclk_config actual;
-
-		int force_min_cdclk;
-		bool force_min_cdclk_changed;
-
-		/* minimum acceptable cdclk for each pipe */
-		int min_cdclk[I915_MAX_PIPES];
-		/* minimum acceptable voltage level for each pipe */
-		u8 min_voltage_level[I915_MAX_PIPES];
-
-		/* pipe to which cd2x update is synchronized */
-		enum pipe pipe;
-	} cdclk;
+	struct intel_cdclk_state cdclk_state;
 
 	bool dpll_set, modeset;
 
@@ -514,9 +490,7 @@ struct intel_atomic_state {
 
 	/*
 	 * active_pipes
-	 * min_cdclk[]
-	 * min_voltage_level[]
-	 * cdclk.*
+	 * cdclk_state
 	 */
 	bool global_state_changed;
 

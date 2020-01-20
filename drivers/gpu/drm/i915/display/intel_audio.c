@@ -824,8 +824,8 @@ static void glk_force_audio_cdclk(struct drm_i915_private *dev_priv,
 	state->acquire_ctx = &ctx;
 
 retry:
-	to_intel_atomic_state(state)->cdclk.force_min_cdclk_changed = true;
-	to_intel_atomic_state(state)->cdclk.force_min_cdclk =
+	to_intel_atomic_state(state)->cdclk_state.force_min_cdclk_changed = true;
+	to_intel_atomic_state(state)->cdclk_state.force_min_cdclk =
 		enable ? 2 * 96000 : 0;
 
 	/* Protects dev_priv->cdclk.force_min_cdclk */

@@ -159,6 +159,8 @@ bool intel_plane_calc_min_cdclk(struct intel_atomic_state *state,
 				struct intel_plane *plane)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	const struct intel_cdclk_state *cdclk_state =
+		&dev_priv->cdclk_state;
 	const struct intel_plane_state *plane_state =
 		intel_atomic_get_new_plane_state(state, plane);
 	struct intel_crtc *crtc = to_intel_crtc(plane_state->hw.crtc);
@@ -182,12 +184,12 @@ bool intel_plane_calc_min_cdclk(struct intel_atomic_state *state,
 	 * safe as long we hold at least one crtc mutex (which
 	 * must be true since we have crtc_state).
 	 */
-	if (crtc_state->min_cdclk[plane->id] > dev_priv->cdclk.logical.cdclk) {
+	if (crtc_state->min_cdclk[plane->id] > cdclk_state->logical.cdclk) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "[PLANE:%d:%s] min_cdclk (%d kHz) > logical cdclk (%d kHz)\n",
 			    plane->base.base.id, plane->base.name,
 			    crtc_state->min_cdclk[plane->id],
-			    dev_priv->cdclk.logical.cdclk);
+			    cdclk_state->logical.cdclk);
 		return true;
 	}
 

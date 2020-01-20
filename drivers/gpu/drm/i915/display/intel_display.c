@@ -7531,6 +7531,8 @@ static void intel_crtc_disable_noatomic(struct intel_crtc *crtc,
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_bw_state *bw_state =
 		to_intel_bw_state(dev_priv->bw_obj.state);
+	struct intel_cdclk_state *cdclk_state =
+		&dev_priv->cdclk_state;
 	struct intel_crtc_state *crtc_state =
 		to_intel_crtc_state(crtc->base.state);
 	enum intel_display_power_domain domain;
@@ -7599,8 +7601,8 @@ static void intel_crtc_disable_noatomic(struct intel_crtc *crtc,
 	crtc->enabled_power_domains = 0;
 
 	dev_priv->active_pipes &= ~BIT(pipe);
-	dev_priv->cdclk.min_cdclk[pipe] = 0;
-	dev_priv->cdclk.min_voltage_level[pipe] = 0;
+	cdclk_state->min_cdclk[pipe] = 0;
+	cdclk_state->min_voltage_level[pipe] = 0;
 
 	bw_state->data_rate[pipe] = 0;
 	bw_state->num_active_planes[pipe] = 0;
@@ -7845,6 +7847,8 @@ static bool hsw_compute_ips_config(struct intel_crtc_state *crtc_state)
 		to_i915(crtc_state->uapi.crtc->dev);
 	struct intel_atomic_state *intel_state =
 		to_intel_atomic_state(crtc_state->uapi.state);
+	const struct intel_cdclk_state *cdclk_state =
+		&intel_state->cdclk_state;
 
 	if (!hsw_crtc_state_ips_capable(crtc_state))
 		return false;
@@ -7864,7 +7868,7 @@ static bool hsw_compute_ips_config(struct intel_crtc_state *crtc_state)
 
 	/* pixel rate mustn't exceed 95% of cdclk with IPS on BDW */
 	if (IS_BROADWELL(dev_priv) &&
-	    crtc_state->pixel_rate > intel_state->cdclk.logical.cdclk * 95 / 100)
+	    crtc_state->pixel_rate > cdclk_state->logical.cdclk * 95 / 100)
 		return false;
 
 	return true;
@@ -12688,12 +12692,14 @@ static u16 hsw_ips_linetime_wm(const struct intel_crtc_state *crtc_state)
 		to_intel_atomic_state(crtc_state->uapi.state);
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->hw.adjusted_mode;
+	const struct intel_cdclk_state *cdclk_state =
+		&state->cdclk_state;
 
 	if (!crtc_state->hw.enable)
 		return 0;
 
 	return DIV_ROUND_CLOSEST(adjusted_mode->crtc_htotal * 1000 * 8,
-				 state->cdclk.logical.cdclk);
+				 cdclk_state->logical.cdclk);
 }
 
 static u16 skl_linetime_wm(const struct intel_crtc_state *crtc_state)
@@ -14941,7 +14947,7 @@ static int intel_atomic_check(struct drm_device *dev,
 	if (ret)
 		goto fail;
 
-	any_ms |= state->cdclk.force_min_cdclk_changed;
+	any_ms |= state->cdclk_state.force_min_cdclk_changed;
 
 	ret = intel_atomic_check_planes(state, &any_ms);
 	if (ret)
@@ -14952,7 +14958,7 @@ static int intel_atomic_check(struct drm_device *dev,
 		if (ret)
 			goto fail;
 	} else {
-		state->cdclk.logical = dev_priv->cdclk.logical;
+		state->cdclk_state.logical = dev_priv->cdclk_state.logical;
 	}
 
 	ret = intel_atomic_check_crtcs(state);
@@ -17569,9 +17575,12 @@ void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 
 void intel_modeset_init_hw(struct drm_i915_private *i915)
 {
+	struct intel_cdclk_state *cdclk_state =
+		&i915->cdclk_state;
+
 	intel_update_cdclk(i915);
 	intel_dump_cdclk_config(&i915->cdclk.hw, "Current CDCLK");
-	i915->cdclk.logical = i915->cdclk.actual = i915->cdclk.hw;
+	cdclk_state->logical = cdclk_state->actual = i915->cdclk.hw;
 }
 
 static int sanitize_watermarks_add_affected(struct drm_atomic_state *state)
@@ -18428,6 +18437,8 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 	for_each_intel_crtc(dev, crtc) {
 		struct intel_bw_state *bw_state =
 			to_intel_bw_state(dev_priv->bw_obj.state);
+		struct intel_cdclk_state *cdclk_state =
+			&dev_priv->cdclk_state;
 		struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
 		struct intel_plane *plane;
@@ -18497,8 +18508,8 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 				min_cdclk = 0;
 		}
 
-		dev_priv->cdclk.min_cdclk[crtc->pipe] = min_cdclk;
-		dev_priv->cdclk.min_voltage_level[crtc->pipe] =
+		cdclk_state->min_cdclk[crtc->pipe] = min_cdclk;
+		cdclk_state->min_voltage_level[crtc->pipe] =
 			crtc_state->min_voltage_level;
 
 		intel_bw_crtc_update(bw_state, crtc_state);

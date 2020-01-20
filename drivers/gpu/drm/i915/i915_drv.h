@@ -65,6 +65,7 @@
 #include "i915_utils.h"
 
 #include "display/intel_bios.h"
+#include "display/intel_cdclk.h"
 #include "display/intel_display.h"
 #include "display/intel_display_power.h"
 #include "display/intel_dpll_mgr.h"
@@ -887,6 +888,33 @@ struct i915_selftest_stash {
 	atomic_t counter;
 };
 
+struct intel_cdclk_state {
+	/*
+	 * Logical configuration of cdclk (used for all scaling,
+	 * watermark, etc. calculations and checks). This is
+	 * computed as if all enabled crtcs were active.
+	 */
+	struct intel_cdclk_config logical;
+
+	/*
+	 * Actual configuration of cdclk, can be different from the
+	 * logical configuration only when all crtc's are DPMS off.
+	 */
+	struct intel_cdclk_config actual;
+
+	/* minimum acceptable cdclk for each pipe */
+	int min_cdclk[I915_MAX_PIPES];
+	/* minimum acceptable voltage level for each pipe */
+	u8 min_voltage_level[I915_MAX_PIPES];
+
+	/* pipe to which cd2x update is synchronized */
+	enum pipe pipe;
+
+	/* forced minimum cdclk for glk+ audio w/a */
+	int force_min_cdclk;
+	bool force_min_cdclk_changed;
+};
+
 struct drm_i915_private {
 	struct drm_device drm;
 
@@ -1007,29 +1035,14 @@ struct drm_i915_private {
 	 * For reading holding any crtc lock is sufficient,
 	 * for writing must hold all of them.
 	 */
+	struct intel_cdclk_state cdclk_state;
+
 	struct {
-		/*
-		 * The current logical cdclk configuration.
-		 * See intel_atomic_state.cdclk.logical
-		 */
-		struct intel_cdclk_config logical;
-		/*
-		 * The current actual cdclk configuration.
-		 * See intel_atomic_state.cdclk.actual
-		 */
-		struct intel_cdclk_config actual;
 		/* The current hardware cdclk configuration */
 		struct intel_cdclk_config hw;
 
 		/* cdclk, divider, and ratio table from bspec */
 		const struct intel_cdclk_vals *table;
-
-		int force_min_cdclk;
-
-		/* minimum acceptable cdclk for each pipe */
-		int min_cdclk[I915_MAX_PIPES];
-		/* minimum acceptable voltage level for each pipe */
-		u8 min_voltage_level[I915_MAX_PIPES];
 	} cdclk;
 
 	/**
@@ -1086,8 +1099,8 @@ struct drm_i915_private {
 	struct mutex dpll_lock;
 
 	/*
-	 * For reading active_pipes, min_cdclk, min_voltage_level holding
-	 * any crtc lock is sufficient, for writing must hold all of them.
+	 * For reading active_pipes, cdclk_state holding any crtc
+	 * lock is sufficient, for writing must hold all of them.
 	 */
 	u8 active_pipes;
 
