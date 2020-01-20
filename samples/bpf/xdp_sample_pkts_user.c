@@ -10,7 +10,7 @@
 #include <sys/sysinfo.h>
 #include <sys/ioctl.h>
 #include <signal.h>
-#include <libbpf.h>
+#include <bpf/libbpf.h>
 #include <bpf/bpf.h>
 #include <sys/resource.h>
 #include <libgen.h>

@@ -4,7 +4,7 @@
  * XDP monitor tool, based on tracepoints
  */
 #include <uapi/linux/bpf.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 struct bpf_map_def SEC("maps") redirect_err_cnt = {
 	.type = BPF_MAP_TYPE_PERCPU_ARRAY,
