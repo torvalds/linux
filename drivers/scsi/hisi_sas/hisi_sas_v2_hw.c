@@ -773,7 +773,6 @@ slot_index_alloc_quirk_v2_hw(struct hisi_hba *hisi_hba,
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
 	int sata_idx = sas_dev->sata_idx;
 	int start, end;
-	unsigned long flags;
 
 	if (!sata_dev) {
 		/*
@@ -797,12 +796,12 @@ slot_index_alloc_quirk_v2_hw(struct hisi_hba *hisi_hba,
 		end = 64 * (sata_idx + 2);
 	}
 
-	spin_lock_irqsave(&hisi_hba->lock, flags);
+	spin_lock(&hisi_hba->lock);
 	while (1) {
 		start = find_next_zero_bit(bitmap,
 					hisi_hba->slot_index_count, start);
 		if (start >= end) {
-			spin_unlock_irqrestore(&hisi_hba->lock, flags);
+			spin_unlock(&hisi_hba->lock);
 			return -SAS_QUEUE_FULL;
 		}
 		/*
@@ -814,7 +813,7 @@ slot_index_alloc_quirk_v2_hw(struct hisi_hba *hisi_hba,
 	}
 
 	set_bit(start, bitmap);
-	spin_unlock_irqrestore(&hisi_hba->lock, flags);
+	spin_unlock(&hisi_hba->lock);
 	return start;
 }
 
@@ -843,9 +842,8 @@ hisi_sas_device *alloc_dev_quirk_v2_hw(struct domain_device *device)
 	struct hisi_sas_device *sas_dev = NULL;
 	int i, sata_dev = dev_is_sata(device);
 	int sata_idx = -1;
-	unsigned long flags;
 
-	spin_lock_irqsave(&hisi_hba->lock, flags);
+	spin_lock(&hisi_hba->lock);
 
 	if (sata_dev)
 		if (!sata_index_alloc_v2_hw(hisi_hba, &sata_idx))
@@ -876,7 +874,7 @@ hisi_sas_device *alloc_dev_quirk_v2_hw(struct domain_device *device)
 	}
 
 out:
-	spin_unlock_irqrestore(&hisi_hba->lock, flags);
+	spin_unlock(&hisi_hba->lock);
 
 	return sas_dev;
 }
