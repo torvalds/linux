@@ -2125,7 +2125,7 @@ hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	case HISI_SAS_INT_ABT_DEV:
 		for (i = 0; i < hisi_hba->cq_nvecs; i++) {
 			struct hisi_sas_cq *cq = &hisi_hba->cq[i];
-			const struct cpumask *mask = cq->pci_irq_mask;
+			const struct cpumask *mask = cq->irq_mask;
 
 			if (mask && !cpumask_intersects(cpu_online_mask, mask))
 				continue;

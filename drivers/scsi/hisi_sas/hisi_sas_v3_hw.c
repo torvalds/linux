@@ -2372,7 +2372,7 @@ static void setup_reply_map_v3_hw(struct hisi_hba *hisi_hba, int nvecs)
 					    BASE_VECTORS_V3_HW);
 		if (!mask)
 			goto fallback;
-		cq->pci_irq_mask = mask;
+		cq->irq_mask = mask;
 		for_each_cpu(cpu, mask)
 			hisi_hba->reply_map[cpu] = queue;
 	}
