@@ -112,7 +112,7 @@ extern char igc_driver_version[];
 #define IGC_RX_HDR_LEN			IGC_RXBUFFER_256
 
 /* Transmit and receive latency (for PTP timestamps) */
-/* FIXME: These values were estimated using the ones that i210 has as
+/* FIXME: These values were estimated using the ones that i225 has as
  * basis, they seem to provide good numbers with ptp4l/phc2sys, but we
  * need to confirm them.
  */
