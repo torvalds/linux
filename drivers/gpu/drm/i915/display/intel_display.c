@@ -18822,8 +18822,6 @@ void intel_modeset_driver_remove(struct drm_i915_private *i915)
 
 	intel_gmbus_teardown(i915);
 
-	intel_bw_cleanup(i915);
-
 	destroy_workqueue(i915->flip_wq);
 	destroy_workqueue(i915->modeset_wq);
 
