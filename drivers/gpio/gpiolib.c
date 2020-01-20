@@ -3051,7 +3051,6 @@ static int gpio_set_config(struct gpio_chip *gc, unsigned int offset,
 	unsigned arg;
 
 	switch (mode) {
-	case PIN_CONFIG_BIAS_DISABLE:
 	case PIN_CONFIG_BIAS_PULL_DOWN:
 	case PIN_CONFIG_BIAS_PULL_UP:
 		arg = 1;
