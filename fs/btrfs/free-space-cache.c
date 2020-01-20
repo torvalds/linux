@@ -1086,7 +1086,7 @@ static noinline_for_stack int write_pinned_extent_entries(
 	 * We shouldn't have switched the pinned extents yet so this is the
 	 * right one
 	 */
-	unpin = block_group->fs_info->pinned_extents;
+	unpin = &trans->transaction->pinned_extents;
 
 	start = block_group->start;
 

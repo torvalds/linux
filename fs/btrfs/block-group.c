@@ -460,7 +460,7 @@ u64 add_new_free_space(struct btrfs_block_group *block_group, u64 start, u64 end
 	int ret;
 
 	while (start < end) {
-		ret = find_first_extent_bit(info->pinned_extents, start,
+		ret = find_first_extent_bit(&info->excluded_extents, start,
 					    &extent_start, &extent_end,
 					    EXTENT_DIRTY | EXTENT_UPTODATE,
 					    NULL);
@@ -1248,30 +1248,42 @@ out:
 	return ret;
 }
 
-static bool clean_pinned_extents(struct btrfs_block_group *bg)
+static bool clean_pinned_extents(struct btrfs_trans_handle *trans,
+				 struct btrfs_block_group *bg)
 {
 	struct btrfs_fs_info *fs_info = bg->fs_info;
+	struct btrfs_transaction *prev_trans = NULL;
 	const u64 start = bg->start;
 	const u64 end = start + bg->length - 1;
 	int ret;
+
+	spin_lock(&fs_info->trans_lock);
+	if (trans->transaction->list.prev != &fs_info->trans_list) {
+		prev_trans = list_last_entry(&trans->transaction->list,
+					     struct btrfs_transaction, list);
+		refcount_inc(&prev_trans->use_count);
+	}
+	spin_unlock(&fs_info->trans_lock);
 
 	/*
 	 * Hold the unused_bg_unpin_mutex lock to avoid racing with
 	 * btrfs_finish_extent_commit(). If we are at transaction N, another
 	 * task might be running finish_extent_commit() for the previous
 	 * transaction N - 1, and have seen a range belonging to the block
-	 * group in freed_extents[] before we were able to clear the whole
-	 * block group range from freed_extents[]. This means that task can
-	 * lookup for the block group after we unpinned it from freed_extents
-	 * and removed it, leading to a BUG_ON() at unpin_extent_range().
+	 * group in pinned_extents before we were able to clear the whole block
+	 * group range from pinned_extents. This means that task can lookup for
+	 * the block group after we unpinned it from pinned_extents and removed
+	 * it, leading to a BUG_ON() at unpin_extent_range().
 	 */
 	mutex_lock(&fs_info->unused_bg_unpin_mutex);
-	ret = clear_extent_bits(&fs_info->freed_extents[0], start, end,
-				EXTENT_DIRTY);
-	if (ret)
-		goto err;
+	if (prev_trans) {
+		ret = clear_extent_bits(&prev_trans->pinned_extents, start, end,
+					EXTENT_DIRTY);
+		if (ret)
+			goto err;
+	}
 
-	ret = clear_extent_bits(&fs_info->freed_extents[1], start, end,
+	ret = clear_extent_bits(&trans->transaction->pinned_extents, start, end,
 				EXTENT_DIRTY);
 	if (ret)
 		goto err;
@@ -1380,7 +1392,7 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 		 * We could have pending pinned extents for this block group,
 		 * just delete them, we don't care about them anymore.
 		 */
-		if (!clean_pinned_extents(block_group))
+		if (!clean_pinned_extents(trans, block_group))
 			goto end_trans;
 
 		/*
@@ -2890,7 +2902,7 @@ int btrfs_update_block_group(struct btrfs_trans_handle *trans,
 					&cache->space_info->total_bytes_pinned,
 					num_bytes,
 					BTRFS_TOTAL_BYTES_PINNED_BATCH);
-			set_extent_dirty(info->pinned_extents,
+			set_extent_dirty(&trans->transaction->pinned_extents,
 					 bytenr, bytenr + num_bytes - 1,
 					 GFP_NOFS | __GFP_NOFAIL);
 		}

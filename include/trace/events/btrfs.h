@@ -81,8 +81,8 @@ TRACE_DEFINE_ENUM(COMMIT_TRANS);
 
 #define show_extent_io_tree_owner(owner)				       \
 	__print_symbolic(owner,						       \
-		{ IO_TREE_FS_INFO_FREED_EXTENTS0, "FREED_EXTENTS0" },	       \
-		{ IO_TREE_FS_INFO_FREED_EXTENTS1, "FREED_EXTENTS1" },	       \
+		{ IO_TREE_FS_PINNED_EXTENTS, 	  "PINNED_EXTENTS" },	       \
+		{ IO_TREE_FS_EXCLUDED_EXTENTS,	  "EXCLUDED_EXTENTS" },	       \
 		{ IO_TREE_INODE_IO,		  "INODE_IO" },		       \
 		{ IO_TREE_INODE_IO_FAILURE,	  "INODE_IO_FAILURE" },	       \
 		{ IO_TREE_RELOC_BLOCKS,		  "RELOC_BLOCKS" },	       \

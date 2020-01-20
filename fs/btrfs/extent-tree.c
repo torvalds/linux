@@ -64,10 +64,8 @@ int btrfs_add_excluded_extent(struct btrfs_fs_info *fs_info,
 			      u64 start, u64 num_bytes)
 {
 	u64 end = start + num_bytes - 1;
-	set_extent_bits(&fs_info->freed_extents[0],
-			start, end, EXTENT_UPTODATE);
-	set_extent_bits(&fs_info->freed_extents[1],
-			start, end, EXTENT_UPTODATE);
+	set_extent_bits(&fs_info->excluded_extents, start, end,
+			EXTENT_UPTODATE);
 	return 0;
 }
 
@@ -79,10 +77,8 @@ void btrfs_free_excluded_extents(struct btrfs_block_group *cache)
 	start = cache->start;
 	end = start + cache->length - 1;
 
-	clear_extent_bits(&fs_info->freed_extents[0],
-			  start, end, EXTENT_UPTODATE);
-	clear_extent_bits(&fs_info->freed_extents[1],
-			  start, end, EXTENT_UPTODATE);
+	clear_extent_bits(&fs_info->excluded_extents, start, end,
+			  EXTENT_UPTODATE);
 }
 
 static u64 generic_ref_to_space_flags(struct btrfs_ref *ref)
@@ -2605,7 +2601,7 @@ static int pin_down_extent(struct btrfs_trans_handle *trans,
 
 	percpu_counter_add_batch(&cache->space_info->total_bytes_pinned,
 		    num_bytes, BTRFS_TOTAL_BYTES_PINNED_BATCH);
-	set_extent_dirty(fs_info->pinned_extents, bytenr,
+	set_extent_dirty(&trans->transaction->pinned_extents, bytenr,
 			 bytenr + num_bytes - 1, GFP_NOFS | __GFP_NOFAIL);
 	return 0;
 }
@@ -2761,11 +2757,6 @@ void btrfs_prepare_extent_commit(struct btrfs_fs_info *fs_info)
 		}
 	}
 
-	if (fs_info->pinned_extents == &fs_info->freed_extents[0])
-		fs_info->pinned_extents = &fs_info->freed_extents[1];
-	else
-		fs_info->pinned_extents = &fs_info->freed_extents[0];
-
 	up_write(&fs_info->commit_root_sem);
 
 	btrfs_update_global_block_rsv(fs_info);
@@ -2906,10 +2897,7 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans)
 	u64 end;
 	int ret;
 
-	if (fs_info->pinned_extents == &fs_info->freed_extents[0])
-		unpin = &fs_info->freed_extents[1];
-	else
-		unpin = &fs_info->freed_extents[0];
+	unpin = &trans->transaction->pinned_extents;
 
 	while (!TRANS_ABORTED(trans)) {
 		struct extent_state *cached_state = NULL;
@@ -2921,12 +2909,9 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans)
 			mutex_unlock(&fs_info->unused_bg_unpin_mutex);
 			break;
 		}
-		if (test_bit(BTRFS_FS_LOG_RECOVERING, &fs_info->flags)) {
-			clear_extent_bits(&fs_info->freed_extents[0], start,
+		if (test_bit(BTRFS_FS_LOG_RECOVERING, &fs_info->flags))
+			clear_extent_bits(&fs_info->excluded_extents, start,
 					  end, EXTENT_UPTODATE);
-			clear_extent_bits(&fs_info->freed_extents[1], start,
-					  end, EXTENT_UPTODATE);
-		}
 
 		if (btrfs_test_opt(fs_info, DISCARD_SYNC))
 			ret = btrfs_discard_extent(fs_info, start,
