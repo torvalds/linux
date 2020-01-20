@@ -2792,6 +2792,9 @@ static void kfree_rcu_work(struct work_struct *work)
 		debug_rcu_head_unqueue_bulk(bhead->head_free_debug);
 
 		rcu_lock_acquire(&rcu_callback_map);
+		trace_rcu_invoke_kfree_bulk_callback(rcu_state.name,
+			bhead->nr_records, bhead->records);
+
 		kfree_bulk(bhead->nr_records, bhead->records);
 		rcu_lock_release(&rcu_callback_map);
 
