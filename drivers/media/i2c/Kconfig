@@ -591,6 +591,17 @@ config VIDEO_IMX214
 	  To compile this driver as a module, choose M here: the
 	  module will be called imx214.
 
+config VIDEO_IMX219
+	tristate "Sony IMX219 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the Sony
+	  IMX219 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx219.
+
 config VIDEO_IMX258
 	tristate "Sony IMX258 sensor support"
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
