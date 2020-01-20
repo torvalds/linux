@@ -64,6 +64,10 @@
 #define HZIP_CORE_INT_STATUS		0x3010AC
 #define HZIP_CORE_INT_STATUS_M_ECC	BIT(1)
 #define HZIP_CORE_SRAM_ECC_ERR_INFO	0x301148
+#define HZIP_CORE_INT_RAS_CE_ENB	0x301160
+#define HZIP_CORE_INT_RAS_NFE_ENB	0x301164
+#define HZIP_CORE_INT_RAS_FE_ENB        0x301168
+#define HZIP_CORE_INT_RAS_NFE_ENABLE	0x7FE
 #define SRAM_ECC_ERR_NUM_SHIFT		16
 #define SRAM_ECC_ERR_ADDR_SHIFT		24
 #define HZIP_CORE_INT_MASK_ALL		GENMASK(10, 0)
@@ -377,6 +381,12 @@ static void hisi_zip_hw_error_enable(struct hisi_qm *qm)
 
 	/* clear ZIP hw error source if having */
 	writel(HZIP_CORE_INT_MASK_ALL, qm->io_base + HZIP_CORE_INT_SOURCE);
+
+	/* configure error type */
+	writel(0x1, qm->io_base + HZIP_CORE_INT_RAS_CE_ENB);
+	writel(0x0, qm->io_base + HZIP_CORE_INT_RAS_FE_ENB);
+	writel(HZIP_CORE_INT_RAS_NFE_ENABLE,
+		qm->io_base + HZIP_CORE_INT_RAS_NFE_ENB);
 
 	/* enable ZIP hw error interrupts */
 	writel(0, qm->io_base + HZIP_CORE_INT_MASK_REG);
