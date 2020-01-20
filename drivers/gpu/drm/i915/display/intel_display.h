@@ -44,6 +44,7 @@ struct drm_modeset_acquire_ctx;
 struct drm_plane;
 struct drm_plane_state;
 struct i915_ggtt_view;
+struct intel_atomic_state;
 struct intel_crtc;
 struct intel_crtc_state;
 struct intel_digital_port;
@@ -469,6 +470,8 @@ enum phy_fia {
 			     ((connector) = to_intel_connector((__state)->base.connectors[__i].ptr), \
 			     (new_connector_state) = to_intel_digital_connector_state((__state)->base.connectors[__i].new_state), 1))
 
+u8 intel_calc_active_pipes(struct intel_atomic_state *state,
+			   u8 active_pipes);
 void intel_link_compute_m_n(u16 bpp, int nlanes,
 			    int pixel_clock, int link_clock,
 			    struct intel_link_m_n *m_n,

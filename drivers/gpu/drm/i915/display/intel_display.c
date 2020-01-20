@@ -14540,26 +14540,32 @@ static int hsw_mode_set_planes_workaround(struct intel_atomic_state *state)
 	return 0;
 }
 
+u8 intel_calc_active_pipes(struct intel_atomic_state *state,
+			   u8 active_pipes)
+{
+	const struct intel_crtc_state *crtc_state;
+	struct intel_crtc *crtc;
+	int i;
+
+	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
+		if (crtc_state->hw.active)
+			active_pipes |= BIT(crtc->pipe);
+		else
+			active_pipes &= ~BIT(crtc->pipe);
+	}
+
+	return active_pipes;
+}
+
 static int intel_modeset_checks(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	struct intel_crtc_state *old_crtc_state, *new_crtc_state;
-	struct intel_crtc *crtc;
-	int ret, i;
+	int ret;
 
 	state->modeset = true;
-	state->active_pipes = dev_priv->active_pipes;
+	state->active_pipes = intel_calc_active_pipes(state, dev_priv->active_pipes);
 
-	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
-					    new_crtc_state, i) {
-		if (new_crtc_state->hw.active)
-			state->active_pipes |= BIT(crtc->pipe);
-		else
-			state->active_pipes &= ~BIT(crtc->pipe);
-
-		if (old_crtc_state->hw.active != new_crtc_state->hw.active)
-			state->active_pipe_changes |= BIT(crtc->pipe);
-	}
+	state->active_pipe_changes = state->active_pipes ^ dev_priv->active_pipes;
 
 	if (state->active_pipe_changes) {
 		ret = _intel_atomic_lock_global_state(state);
