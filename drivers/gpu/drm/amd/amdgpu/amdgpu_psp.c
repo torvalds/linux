@@ -1683,6 +1683,15 @@ static int psp_np_fw_load(struct psp_context *psp)
 		if (fw_load_skip_check(psp, ucode))
 			continue;
 
+		if (psp->autoload_supported &&
+		    adev->asic_type == CHIP_SIENNA_CICHLID &&
+		    (ucode->ucode_id == AMDGPU_UCODE_ID_SDMA1 ||
+		     ucode->ucode_id == AMDGPU_UCODE_ID_SDMA2 ||
+		     ucode->ucode_id == AMDGPU_UCODE_ID_SDMA3))
+			/* PSP only receive one SDMA fw for sienna_cichlid,
+			 * as all four sdma fw are same */
+			continue;
+
 		psp_print_fw_hdr(psp, ucode);
 
 		ret = psp_execute_np_fw_load(psp, ucode);
