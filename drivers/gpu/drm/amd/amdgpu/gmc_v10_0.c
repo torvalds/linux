@@ -641,12 +641,7 @@ static int gmc_v10_0_late_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int r;
 
-	/*
-	 * Can't free the stolen VGA memory when it might be used for memory
-	 * training again.
-	 */
-	if (!adev->fw_vram_usage.mem_train_support)
-		amdgpu_bo_late_init(adev);
+	amdgpu_bo_late_init(adev);
 
 	r = amdgpu_gmc_allocate_vm_inv_eng(adev);
 	if (r)
@@ -830,19 +825,6 @@ static int gmc_v10_0_sw_init(void *handle)
 
 	adev->gmc.stolen_size = gmc_v10_0_get_vbios_fb_size(adev);
 
-	/*
-	 * In dual GPUs scenario, stolen_size is assigned to zero on the
-	 * secondary GPU, since there is no pre-OS console using that memory.
-	 * Then the bottom region of VRAM was allocated as GTT, unfortunately a
-	 * small region of bottom VRAM was encroached by UMC firmware during
-	 * GDDR6 BIST training, this cause page fault.
-	 * The page fault can be fixed by forcing stolen_size to 3MB, then the
-	 * bottom region of VRAM was allocated as stolen memory, GTT corruption
-	 * avoid.
-	 */
-	adev->gmc.stolen_size = max(adev->gmc.stolen_size,
-				    AMDGPU_STOLEN_BIST_TRAINING_DEFAULT_SIZE);
-
 	/* Memory manager */
 	r = amdgpu_bo_init(adev);
 	if (r)
@@ -882,13 +864,6 @@ static void gmc_v10_0_gart_fini(struct amdgpu_device *adev)
 static int gmc_v10_0_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	void *stolen_vga_buf;
-
-	/*
-	 * Free the stolen memory if it wasn't already freed in late_init
-	 * because of memory training.
-	 */
-	amdgpu_bo_free_kernel(&adev->stolen_vga_memory, NULL, &stolen_vga_buf);
 
 	amdgpu_vm_manager_fini(adev);
 	gmc_v10_0_gart_fini(adev);
