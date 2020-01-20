@@ -433,17 +433,27 @@ int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd)
 EXPORT_SYMBOL(phy_mii_ioctl);
 
 /**
- * phy_do_ioctl_running - generic ndo_do_ioctl implementation
+ * phy_do_ioctl - generic ndo_do_ioctl implementation
  * @dev: the net_device struct
  * @ifr: &struct ifreq for socket ioctl's
  * @cmd: ioctl cmd to execute
  */
-int phy_do_ioctl_running(struct net_device *dev, struct ifreq *ifr, int cmd)
+int phy_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
-	if (!netif_running(dev) || !dev->phydev)
+	if (!dev->phydev)
 		return -ENODEV;
 
 	return phy_mii_ioctl(dev->phydev, ifr, cmd);
+}
+EXPORT_SYMBOL(phy_do_ioctl);
+
+/* same as phy_do_ioctl, but ensures that net_device is running */
+int phy_do_ioctl_running(struct net_device *dev, struct ifreq *ifr, int cmd)
+{
+	if (!netif_running(dev))
+		return -ENODEV;
+
+	return phy_do_ioctl(dev, ifr, cmd);
 }
 EXPORT_SYMBOL(phy_do_ioctl_running);
 
