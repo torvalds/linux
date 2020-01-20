@@ -432,6 +432,21 @@ int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd)
 }
 EXPORT_SYMBOL(phy_mii_ioctl);
 
+/**
+ * phy_do_ioctl - generic ndo_do_ioctl implementation
+ * @dev: the net_device struct
+ * @ifr: &struct ifreq for socket ioctl's
+ * @cmd: ioctl cmd to execute
+ */
+int phy_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+{
+	if (!netif_running(dev) || !dev->phydev)
+		return -ENODEV;
+
+	return phy_mii_ioctl(dev->phydev, ifr, cmd);
+}
+EXPORT_SYMBOL(phy_do_ioctl);
+
 void phy_queue_state_machine(struct phy_device *phydev, unsigned long jiffies)
 {
 	mod_delayed_work(system_power_efficient_wq, &phydev->state_queue,
