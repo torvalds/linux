@@ -484,6 +484,7 @@ efi_map_pal_code (void)
 void __init
 efi_init (void)
 {
+	const efi_system_table_t *efi_systab;
 	void *efi_map_start, *efi_map_end;
 	u64 efi_desc_size;
 	char *cp;
@@ -516,17 +517,17 @@ efi_init (void)
 		printk(KERN_INFO "Ignoring memory above %lluMB\n",
 		       max_addr >> 20);
 
-	efi.systab = __va(ia64_boot_param->efi_systab);
+	efi_systab = __va(ia64_boot_param->efi_systab);
 
 	/*
 	 * Verify the EFI Table
 	 */
-	if (efi.systab == NULL)
+	if (efi_systab == NULL)
 		panic("Whoa! Can't find EFI system table.\n");
-	if (efi_systab_check_header(&efi.systab->hdr, 1))
+	if (efi_systab_check_header(&efi_systab->hdr, 1))
 		panic("Whoa! EFI system table signature incorrect\n");
 
-	efi_systab_report_header(&efi.systab->hdr, efi.systab->fw_vendor);
+	efi_systab_report_header(&efi_systab->hdr, efi_systab->fw_vendor);
 
 	palo_phys      = EFI_INVALID_TABLE_ADDR;
 
@@ -536,7 +537,7 @@ efi_init (void)
 	if (palo_phys != EFI_INVALID_TABLE_ADDR)
 		handle_palo(palo_phys);
 
-	runtime = __va(efi.systab->runtime);
+	runtime = __va(efi_systab->runtime);
 	efi.get_time = phys_get_time;
 	efi.set_time = phys_set_time;
 	efi.get_wakeup_time = phys_get_wakeup_time;
