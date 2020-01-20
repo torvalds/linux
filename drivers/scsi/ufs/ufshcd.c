@@ -246,7 +246,7 @@ static int ufshcd_reset_and_restore(struct ufs_hba *hba);
 static int ufshcd_eh_host_reset_handler(struct scsi_cmnd *cmd);
 static int ufshcd_clear_tm_cmd(struct ufs_hba *hba, int tag);
 static void ufshcd_hba_exit(struct ufs_hba *hba);
-static int ufshcd_probe_hba(struct ufs_hba *hba);
+static int ufshcd_probe_hba(struct ufs_hba *hba, bool async);
 static int __ufshcd_setup_clocks(struct ufs_hba *hba, bool on,
 				 bool skip_ref_clk);
 static int ufshcd_setup_clocks(struct ufs_hba *hba, bool on);
@@ -6310,7 +6310,7 @@ static int ufshcd_host_reset_and_restore(struct ufs_hba *hba)
 		goto out;
 
 	/* Establish the link again and restore the device */
-	err = ufshcd_probe_hba(hba);
+	err = ufshcd_probe_hba(hba, false);
 
 	if (!err && (hba->ufshcd_state != UFSHCD_STATE_OPERATIONAL))
 		err = -EIO;
@@ -6938,13 +6938,83 @@ out:
 	return err;
 }
 
+static int ufshcd_device_params_init(struct ufs_hba *hba)
+{
+	bool flag;
+	int ret;
+
+	/* Init check for device descriptor sizes */
+	ufshcd_init_desc_sizes(hba);
+
+	/* Check and apply UFS device quirks */
+	ret = ufs_get_device_desc(hba);
+	if (ret) {
+		dev_err(hba->dev, "%s: Failed getting device info. err = %d\n",
+			__func__, ret);
+		goto out;
+	}
+
+	ufs_fixup_device_setup(hba);
+
+	/* Clear any previous UFS device information */
+	memset(&hba->dev_info, 0, sizeof(hba->dev_info));
+	if (!ufshcd_query_flag_retry(hba, UPIU_QUERY_OPCODE_READ_FLAG,
+			QUERY_FLAG_IDN_PWR_ON_WPE, &flag))
+		hba->dev_info.f_power_on_wp_en = flag;
+
+out:
+	return ret;
+}
+
+/**
+ * ufshcd_add_lus - probe and add UFS logical units
+ * @hba: per-adapter instance
+ */
+static int ufshcd_add_lus(struct ufs_hba *hba)
+{
+	int ret;
+
+	if (!hba->is_init_prefetch)
+		ufshcd_init_icc_levels(hba);
+
+	/* Add required well known logical units to scsi mid layer */
+	ret = ufshcd_scsi_add_wlus(hba);
+	if (ret)
+		goto out;
+
+	/* Initialize devfreq after UFS device is detected */
+	if (ufshcd_is_clkscaling_supported(hba)) {
+		memcpy(&hba->clk_scaling.saved_pwr_info.info,
+			&hba->pwr_info,
+			sizeof(struct ufs_pa_layer_attr));
+		hba->clk_scaling.saved_pwr_info.is_valid = true;
+		if (!hba->devfreq) {
+			ret = ufshcd_devfreq_init(hba);
+			if (ret)
+				goto out;
+		}
+
+		hba->clk_scaling.is_allowed = true;
+	}
+
+	ufs_bsg_probe(hba);
+	scsi_scan_host(hba->host);
+	pm_runtime_put_sync(hba->dev);
+
+	if (!hba->is_init_prefetch)
+		hba->is_init_prefetch = true;
+out:
+	return ret;
+}
+
 /**
  * ufshcd_probe_hba - probe hba to detect device and initialize
  * @hba: per-adapter instance
+ * @async: asynchronous execution or not
  *
  * Execute link-startup and verify device initialization
  */
-static int ufshcd_probe_hba(struct ufs_hba *hba)
+static int ufshcd_probe_hba(struct ufs_hba *hba, bool async)
 {
 	int ret;
 	ktime_t start = ktime_get();
@@ -6963,25 +7033,26 @@ static int ufshcd_probe_hba(struct ufs_hba *hba)
 	/* UniPro link is active now */
 	ufshcd_set_link_active(hba);
 
+	/* Verify device initialization by sending NOP OUT UPIU */
 	ret = ufshcd_verify_dev_init(hba);
 	if (ret)
 		goto out;
 
+	/* Initiate UFS initialization, and waiting until completion */
 	ret = ufshcd_complete_dev_init(hba);
 	if (ret)
 		goto out;
 
-	/* Init check for device descriptor sizes */
-	ufshcd_init_desc_sizes(hba);
-
-	ret = ufs_get_device_desc(hba);
-	if (ret) {
-		dev_err(hba->dev, "%s: Failed getting device info. err = %d\n",
-			__func__, ret);
-		goto out;
+	/*
+	 * Initialize UFS device parameters used by driver, these
+	 * parameters are associated with UFS descriptors.
+	 */
+	if (async) {
+		ret = ufshcd_device_params_init(hba);
+		if (ret)
+			goto out;
 	}
 
-	ufs_fixup_device_setup(hba);
 	ufshcd_tune_unipro_params(hba);
 
 	/* UFS device is also active now */
@@ -7014,60 +7085,7 @@ static int ufshcd_probe_hba(struct ufs_hba *hba)
 	/* Enable Auto-Hibernate if configured */
 	ufshcd_auto_hibern8_enable(hba);
 
-	/*
-	 * If we are in error handling context or in power management callbacks
-	 * context, no need to scan the host
-	 */
-	if (!ufshcd_eh_in_progress(hba) && !hba->pm_op_in_progress) {
-		bool flag;
-
-		/* clear any previous UFS device information */
-		memset(&hba->dev_info, 0, sizeof(hba->dev_info));
-		if (!ufshcd_query_flag_retry(hba, UPIU_QUERY_OPCODE_READ_FLAG,
-				QUERY_FLAG_IDN_PWR_ON_WPE, &flag))
-			hba->dev_info.f_power_on_wp_en = flag;
-
-		if (!hba->is_init_prefetch)
-			ufshcd_init_icc_levels(hba);
-
-		/* Add required well known logical units to scsi mid layer */
-		ret = ufshcd_scsi_add_wlus(hba);
-		if (ret)
-			goto out;
-
-		/* Initialize devfreq after UFS device is detected */
-		if (ufshcd_is_clkscaling_supported(hba)) {
-			memcpy(&hba->clk_scaling.saved_pwr_info.info,
-				&hba->pwr_info,
-				sizeof(struct ufs_pa_layer_attr));
-			hba->clk_scaling.saved_pwr_info.is_valid = true;
-			if (!hba->devfreq) {
-				ret = ufshcd_devfreq_init(hba);
-				if (ret)
-					goto out;
-			}
-			hba->clk_scaling.is_allowed = true;
-		}
-
-		ufs_bsg_probe(hba);
-
-		scsi_scan_host(hba->host);
-		pm_runtime_put_sync(hba->dev);
-	}
-
-	if (!hba->is_init_prefetch)
-		hba->is_init_prefetch = true;
-
 out:
-	/*
-	 * If we failed to initialize the device or the device is not
-	 * present, turn off the power/clocks etc.
-	 */
-	if (ret && !ufshcd_eh_in_progress(hba) && !hba->pm_op_in_progress) {
-		pm_runtime_put_sync(hba->dev);
-		ufshcd_exit_clk_scaling(hba);
-		ufshcd_hba_exit(hba);
-	}
 
 	trace_ufshcd_init(dev_name(hba->dev), ret,
 		ktime_to_us(ktime_sub(ktime_get(), start)),
@@ -7083,8 +7101,25 @@ out:
 static void ufshcd_async_scan(void *data, async_cookie_t cookie)
 {
 	struct ufs_hba *hba = (struct ufs_hba *)data;
+	int ret;
 
-	ufshcd_probe_hba(hba);
+	/* Initialize hba, detect and initialize UFS device */
+	ret = ufshcd_probe_hba(hba, true);
+	if (ret)
+		goto out;
+
+	/* Probe and add UFS logical units  */
+	ret = ufshcd_add_lus(hba);
+out:
+	/*
+	 * If we failed to initialize the device or the device is not
+	 * present, turn off the power/clocks etc.
+	 */
+	if (ret) {
+		pm_runtime_put_sync(hba->dev);
+		ufshcd_exit_clk_scaling(hba);
+		ufshcd_hba_exit(hba);
+	}
 }
 
 static const struct attribute_group *ufshcd_driver_groups[] = {
