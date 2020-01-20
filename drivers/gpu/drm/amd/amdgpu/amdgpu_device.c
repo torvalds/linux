@@ -985,7 +985,7 @@ static void amdgpu_device_check_vm_size(struct amdgpu_device *adev)
 static void amdgpu_device_check_smu_prv_buffer_size(struct amdgpu_device *adev)
 {
 	struct sysinfo si;
-	bool is_os_64 = (sizeof(void *) == 8) ? true : false;
+	bool is_os_64 = (sizeof(void *) == 8);
 	uint64_t total_memory;
 	uint64_t dram_size_seven_GB = 0x1B8000000;
 	uint64_t dram_size_three_GB = 0xB8000000;
