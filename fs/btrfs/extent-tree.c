@@ -2633,6 +2633,8 @@ int btrfs_pin_extent_for_log_replay(struct btrfs_trans_handle *trans,
 	struct btrfs_block_group *cache;
 	int ret;
 
+	btrfs_add_excluded_extent(trans->fs_info, bytenr, num_bytes);
+
 	cache = btrfs_lookup_block_group(trans->fs_info, bytenr);
 	if (!cache)
 		return -EINVAL;
@@ -2918,6 +2920,12 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans)
 		if (ret) {
 			mutex_unlock(&fs_info->unused_bg_unpin_mutex);
 			break;
+		}
+		if (test_bit(BTRFS_FS_LOG_RECOVERING, &fs_info->flags)) {
+			clear_extent_bits(&fs_info->freed_extents[0], start,
+					  end, EXTENT_UPTODATE);
+			clear_extent_bits(&fs_info->freed_extents[1], start,
+					  end, EXTENT_UPTODATE);
 		}
 
 		if (btrfs_test_opt(fs_info, DISCARD_SYNC))
