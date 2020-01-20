@@ -1202,7 +1202,7 @@ filesystem-specific hash(es) needed for directory lookups.  This
 allows the filesystem to still, with a high degree of confidence, map
 the filename given in ->lookup() back to a particular directory entry
 that was previously listed by readdir().  See :c:type:`struct
-fscrypt_digested_name` in the source for more details.
+fscrypt_nokey_name` in the source for more details.
 
 Note that the precise way that filenames are presented to userspace
 without the key is subject to change in the future.  It is only meant
