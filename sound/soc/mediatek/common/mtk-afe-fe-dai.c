@@ -319,9 +319,9 @@ int mtk_dynamic_irq_release(struct mtk_base_afe *afe, int irq_id)
 }
 EXPORT_SYMBOL_GPL(mtk_dynamic_irq_release);
 
-int mtk_afe_dai_suspend(struct snd_soc_dai *dai)
+int mtk_afe_suspend(struct snd_soc_component *component)
 {
-	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
+	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
 	struct device *dev = afe->dev;
 	struct regmap *regmap = afe->regmap;
 	int i;
@@ -342,11 +342,11 @@ int mtk_afe_dai_suspend(struct snd_soc_dai *dai)
 	afe->runtime_suspend(dev);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(mtk_afe_dai_suspend);
+EXPORT_SYMBOL_GPL(mtk_afe_suspend);
 
-int mtk_afe_dai_resume(struct snd_soc_dai *dai)
+int mtk_afe_resume(struct snd_soc_component *component)
 {
-	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
+	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
 	struct device *dev = afe->dev;
 	struct regmap *regmap = afe->regmap;
 	int i = 0;
@@ -366,7 +366,7 @@ int mtk_afe_dai_resume(struct snd_soc_dai *dai)
 	afe->suspended = false;
 	return 0;
 }
-EXPORT_SYMBOL_GPL(mtk_afe_dai_resume);
+EXPORT_SYMBOL_GPL(mtk_afe_resume);
 
 int mtk_memif_set_enable(struct mtk_base_afe *afe, int id)
 {
