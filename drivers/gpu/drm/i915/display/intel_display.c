@@ -14541,14 +14541,8 @@ static int intel_modeset_checks(struct intel_atomic_state *state)
 	struct intel_crtc *crtc;
 	int ret, i;
 
-	/* keep the current setting */
-	if (!state->cdclk.force_min_cdclk_changed)
-		state->cdclk.force_min_cdclk = dev_priv->cdclk.force_min_cdclk;
-
 	state->modeset = true;
 	state->active_pipes = dev_priv->active_pipes;
-	state->cdclk.logical = dev_priv->cdclk.logical;
-	state->cdclk.actual = dev_priv->cdclk.actual;
 
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
@@ -15863,12 +15857,7 @@ static int intel_atomic_commit(struct drm_device *dev,
 	if (state->global_state_changed) {
 		assert_global_state_locked(dev_priv);
 
-		memcpy(dev_priv->min_cdclk, state->min_cdclk,
-		       sizeof(state->min_cdclk));
-		memcpy(dev_priv->min_voltage_level, state->min_voltage_level,
-		       sizeof(state->min_voltage_level));
 		dev_priv->active_pipes = state->active_pipes;
-		dev_priv->cdclk.force_min_cdclk = state->cdclk.force_min_cdclk;
 
 		intel_cdclk_swap_state(state);
 	}

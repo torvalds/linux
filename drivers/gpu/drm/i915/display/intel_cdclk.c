@@ -1835,6 +1835,14 @@ void intel_cdclk_swap_state(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 
+	/* FIXME maybe swap() these too */
+	memcpy(dev_priv->min_cdclk, state->min_cdclk,
+	       sizeof(state->min_cdclk));
+	memcpy(dev_priv->min_voltage_level, state->min_voltage_level,
+	       sizeof(state->min_voltage_level));
+
+	dev_priv->cdclk.force_min_cdclk = state->cdclk.force_min_cdclk;
+
 	swap(state->cdclk.logical, dev_priv->cdclk.logical);
 	swap(state->cdclk.actual, dev_priv->cdclk.actual);
 }
@@ -2050,9 +2058,6 @@ static int intel_compute_min_cdclk(struct intel_atomic_state *state)
 	int min_cdclk, i;
 	enum pipe pipe;
 
-	memcpy(state->min_cdclk, dev_priv->min_cdclk,
-	       sizeof(state->min_cdclk));
-
 	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
 		int ret;
 
@@ -2098,9 +2103,6 @@ static int bxt_compute_min_voltage_level(struct intel_atomic_state *state)
 	u8 min_voltage_level;
 	int i;
 	enum pipe pipe;
-
-	memcpy(state->min_voltage_level, dev_priv->min_voltage_level,
-	       sizeof(state->min_voltage_level));
 
 	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
 		int ret;
@@ -2355,6 +2357,18 @@ int intel_modeset_calc_cdclk(struct intel_atomic_state *state)
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	enum pipe pipe;
 	int ret;
+
+	memcpy(state->min_cdclk, dev_priv->min_cdclk,
+	       sizeof(state->min_cdclk));
+	memcpy(state->min_voltage_level, dev_priv->min_voltage_level,
+	       sizeof(state->min_voltage_level));
+
+	/* keep the current setting */
+	if (!state->cdclk.force_min_cdclk_changed)
+		state->cdclk.force_min_cdclk = dev_priv->cdclk.force_min_cdclk;
+
+	state->cdclk.logical = dev_priv->cdclk.logical;
+	state->cdclk.actual = dev_priv->cdclk.actual;
 
 	ret = dev_priv->display.modeset_calc_cdclk(state);
 	if (ret)
