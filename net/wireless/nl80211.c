@@ -336,6 +336,8 @@ nl80211_tid_config_attr_policy[NL80211_TID_CONFIG_ATTR_MAX + 1] = {
 	[NL80211_TID_CONFIG_ATTR_TIDS] = NLA_POLICY_RANGE(NLA_U16, 1, 0xff),
 	[NL80211_TID_CONFIG_ATTR_NOACK] =
 			NLA_POLICY_MAX(NLA_U8, NL80211_TID_CONFIG_DISABLE),
+	[NL80211_TID_CONFIG_ATTR_RETRY_SHORT] = NLA_POLICY_MIN(NLA_U8, 1),
+	[NL80211_TID_CONFIG_ATTR_RETRY_LONG] = NLA_POLICY_MIN(NLA_U8, 1),
 };
 
 const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
@@ -1983,6 +1985,14 @@ nl80211_put_tid_config_support(struct cfg80211_registered_device *rdev,
 	    nla_put_u64_64bit(msg, NL80211_TID_CONFIG_ATTR_PEER_SUPP,
 			      rdev->wiphy.tid_config_support.peer,
 			      NL80211_TID_CONFIG_ATTR_PAD))
+		goto fail;
+
+	/* for now we just use the same value ... makes more sense */
+	if (nla_put_u8(msg, NL80211_TID_CONFIG_ATTR_RETRY_SHORT,
+		       rdev->wiphy.tid_config_support.max_retry))
+		goto fail;
+	if (nla_put_u8(msg, NL80211_TID_CONFIG_ATTR_RETRY_LONG,
+		       rdev->wiphy.tid_config_support.max_retry))
 		goto fail;
 
 	nla_nest_end(msg, supp);
@@ -14017,6 +14027,24 @@ static int parse_tid_conf(struct cfg80211_registered_device *rdev,
 		tid_conf->mask |= BIT(NL80211_TID_CONFIG_ATTR_NOACK);
 		tid_conf->noack =
 			nla_get_u8(attrs[NL80211_TID_CONFIG_ATTR_NOACK]);
+	}
+
+	if (attrs[NL80211_TID_CONFIG_ATTR_RETRY_SHORT]) {
+		tid_conf->mask |= BIT(NL80211_TID_CONFIG_ATTR_RETRY_SHORT);
+		tid_conf->retry_short =
+			nla_get_u8(attrs[NL80211_TID_CONFIG_ATTR_RETRY_SHORT]);
+
+		if (tid_conf->retry_short > rdev->wiphy.max_data_retry_count)
+			return -EINVAL;
+	}
+
+	if (attrs[NL80211_TID_CONFIG_ATTR_RETRY_LONG]) {
+		tid_conf->mask |= BIT(NL80211_TID_CONFIG_ATTR_RETRY_LONG);
+		tid_conf->retry_long =
+			nla_get_u8(attrs[NL80211_TID_CONFIG_ATTR_RETRY_LONG]);
+
+		if (tid_conf->retry_long > rdev->wiphy.max_data_retry_count)
+			return -EINVAL;
 	}
 
 	if (peer)

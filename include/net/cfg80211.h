@@ -634,12 +634,15 @@ struct cfg80211_chan_def {
  * @mask: bitmap of attributes indicating which parameter changed,
  *	similar to &nl80211_tid_config_supp.
  * @noack: noack configuration value for the TID
+ * @retry_long: retry count value
+ * @retry_short: retry count value
  */
 struct cfg80211_tid_cfg {
 	bool config_override;
 	u8 tids;
 	u32 mask;
 	enum nl80211_tid_config noack;
+	u8 retry_long, retry_short;
 };
 
 /**
@@ -4644,6 +4647,8 @@ struct wiphy_iftype_akm_suites {
  *	supported by the driver for each vif
  * @tid_config_support.peer: bitmap of attributes (configurations)
  *	supported by the driver for each peer
+ * @tid_config_support.max_retry: maximum supported retry count for
+ *	long/short retry configuration
  */
 struct wiphy {
 	/* assign these fields before you register the wiphy */
@@ -4777,7 +4782,10 @@ struct wiphy {
 
 	struct {
 		u64 peer, vif;
+		u8 max_retry;
 	} tid_config_support;
+
+	u8 max_data_retry_count;
 
 	char priv[0] __aligned(NETDEV_ALIGN);
 };
