@@ -319,7 +319,7 @@ To use the feature, admin should set up backing device via::
 before disksize setting. It supports only partition at this moment.
 If admin wants to use incompressible page writeback, they could do via::
 
-	echo huge > /sys/block/zramX/write
+	echo huge > /sys/block/zramX/writeback
 
 To use idle page writeback, first, user need to declare zram pages
 as idle::
