@@ -28,15 +28,15 @@ static inline bool fscrypt_is_dot_dotdot(const struct qstr *str)
 }
 
 /**
- * fname_encrypt() - encrypt a filename
+ * fscrypt_fname_encrypt() - encrypt a filename
  *
  * The output buffer must be at least as large as the input buffer.
  * Any extra space is filled with NUL padding before encryption.
  *
  * Return: 0 on success, -errno on failure
  */
-int fname_encrypt(const struct inode *inode, const struct qstr *iname,
-		  u8 *out, unsigned int olen)
+int fscrypt_fname_encrypt(const struct inode *inode, const struct qstr *iname,
+			  u8 *out, unsigned int olen)
 {
 	struct skcipher_request *req = NULL;
 	DECLARE_CRYPTO_WAIT(wait);
@@ -343,8 +343,8 @@ int fscrypt_setup_filename(struct inode *dir, const struct qstr *iname,
 		if (!fname->crypto_buf.name)
 			return -ENOMEM;
 
-		ret = fname_encrypt(dir, iname, fname->crypto_buf.name,
-				    fname->crypto_buf.len);
+		ret = fscrypt_fname_encrypt(dir, iname, fname->crypto_buf.name,
+					    fname->crypto_buf.len);
 		if (ret)
 			goto errout;
 		fname->disk_name.name = fname->crypto_buf.name;
