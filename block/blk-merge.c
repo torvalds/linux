@@ -164,8 +164,13 @@ static inline unsigned get_max_segment_size(const struct request_queue *q,
 	unsigned long mask = queue_segment_boundary(q);
 
 	offset = mask & (page_to_phys(start_page) + offset);
-	return min_t(unsigned long, mask - offset + 1,
-		     queue_max_segment_size(q));
+
+	/*
+	 * overflow may be triggered in case of zero page physical address
+	 * on 32bit arch, use queue's max segment size when that happens.
+	 */
+	return min_not_zero(mask - offset + 1,
+			(unsigned long)queue_max_segment_size(q));
 }
 
 /**

@@ -517,6 +517,34 @@ static int update_backref_cache(struct btrfs_trans_handle *trans,
 	return 1;
 }
 
+static bool reloc_root_is_dead(struct btrfs_root *root)
+{
+	/*
+	 * Pair with set_bit/clear_bit in clean_dirty_subvols and
+	 * btrfs_update_reloc_root. We need to see the updated bit before
+	 * trying to access reloc_root
+	 */
+	smp_rmb();
+	if (test_bit(BTRFS_ROOT_DEAD_RELOC_TREE, &root->state))
+		return true;
+	return false;
+}
+
+/*
+ * Check if this subvolume tree has valid reloc tree.
+ *
+ * Reloc tree after swap is considered dead, thus not considered as valid.
+ * This is enough for most callers, as they don't distinguish dead reloc root
+ * from no reloc root.  But should_ignore_root() below is a special case.
+ */
+static bool have_reloc_root(struct btrfs_root *root)
+{
+	if (reloc_root_is_dead(root))
+		return false;
+	if (!root->reloc_root)
+		return false;
+	return true;
+}
 
 static int should_ignore_root(struct btrfs_root *root)
 {
@@ -524,6 +552,10 @@ static int should_ignore_root(struct btrfs_root *root)
 
 	if (!test_bit(BTRFS_ROOT_REF_COWS, &root->state))
 		return 0;
+
+	/* This root has been merged with its reloc tree, we can ignore it */
+	if (reloc_root_is_dead(root))
+		return 1;
 
 	reloc_root = root->reloc_root;
 	if (!reloc_root)
@@ -1439,7 +1471,7 @@ int btrfs_init_reloc_root(struct btrfs_trans_handle *trans,
 	 * The subvolume has reloc tree but the swap is finished, no need to
 	 * create/update the dead reloc tree
 	 */
-	if (test_bit(BTRFS_ROOT_DEAD_RELOC_TREE, &root->state))
+	if (reloc_root_is_dead(root))
 		return 0;
 
 	if (root->reloc_root) {
@@ -1478,8 +1510,7 @@ int btrfs_update_reloc_root(struct btrfs_trans_handle *trans,
 	struct btrfs_root_item *root_item;
 	int ret;
 
-	if (test_bit(BTRFS_ROOT_DEAD_RELOC_TREE, &root->state) ||
-	    !root->reloc_root)
+	if (!have_reloc_root(root))
 		goto out;
 
 	reloc_root = root->reloc_root;
@@ -1489,6 +1520,11 @@ int btrfs_update_reloc_root(struct btrfs_trans_handle *trans,
 	if (fs_info->reloc_ctl->merge_reloc_tree &&
 	    btrfs_root_refs(root_item) == 0) {
 		set_bit(BTRFS_ROOT_DEAD_RELOC_TREE, &root->state);
+		/*
+		 * Mark the tree as dead before we change reloc_root so
+		 * have_reloc_root will not touch it from now on.
+		 */
+		smp_wmb();
 		__del_reloc_root(reloc_root);
 	}
 
@@ -2201,6 +2237,11 @@ static int clean_dirty_subvols(struct reloc_control *rc)
 				if (ret2 < 0 && !ret)
 					ret = ret2;
 			}
+			/*
+			 * Need barrier to ensure clear_bit() only happens after
+			 * root->reloc_root = NULL. Pairs with have_reloc_root.
+			 */
+			smp_wmb();
 			clear_bit(BTRFS_ROOT_DEAD_RELOC_TREE, &root->state);
 			btrfs_put_fs_root(root);
 		} else {
@@ -4718,7 +4759,7 @@ void btrfs_reloc_pre_snapshot(struct btrfs_pending_snapshot *pending,
 	struct btrfs_root *root = pending->root;
 	struct reloc_control *rc = root->fs_info->reloc_ctl;
 
-	if (!root->reloc_root || !rc)
+	if (!rc || !have_reloc_root(root))
 		return;
 
 	if (!rc->merge_reloc_tree)
@@ -4752,7 +4793,7 @@ int btrfs_reloc_post_snapshot(struct btrfs_trans_handle *trans,
 	struct reloc_control *rc = root->fs_info->reloc_ctl;
 	int ret;
 
-	if (!root->reloc_root || !rc)
+	if (!rc || !have_reloc_root(root))
 		return 0;
 
 	rc = root->fs_info->reloc_ctl;

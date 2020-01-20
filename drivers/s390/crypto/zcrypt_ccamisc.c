@@ -1037,8 +1037,8 @@ static int _ip_cprb_helper(u16 cardnr, u16 domain,
 	prepparm = (struct iprepparm *) prepcblk->rpl_parmb;
 
 	/* do some plausibility checks on the key block */
-	if (prepparm->kb.len < 120 + 5 * sizeof(uint16_t) ||
-	    prepparm->kb.len > 136 + 5 * sizeof(uint16_t)) {
+	if (prepparm->kb.len < 120 + 3 * sizeof(uint16_t) ||
+	    prepparm->kb.len > 136 + 3 * sizeof(uint16_t)) {
 		DEBUG_ERR("%s reply with invalid or unknown key block\n",
 			  __func__);
 		rc = -EIO;
