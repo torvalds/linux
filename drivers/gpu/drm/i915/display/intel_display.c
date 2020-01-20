@@ -15600,10 +15600,7 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 	if (state->modeset) {
 		drm_atomic_helper_update_legacy_modeset_state(dev, &state->base);
 
-		intel_set_cdclk_pre_plane_update(dev_priv,
-						 &state->cdclk.actual,
-						 &dev_priv->cdclk.actual,
-						 state->cdclk.pipe);
+		intel_set_cdclk_pre_plane_update(state);
 
 		/*
 		 * SKL workaround: bspec recommends we disable the SAGV when we
@@ -15639,10 +15636,7 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 	if (state->modeset) {
 		intel_encoders_update_complete(state);
 
-		intel_set_cdclk_post_plane_update(dev_priv,
-						  &state->cdclk.actual,
-						  &dev_priv->cdclk.actual,
-						  state->cdclk.pipe);
+		intel_set_cdclk_post_plane_update(state);
 	}
 
 	/* FIXME: We should call drm_atomic_helper_commit_hw_done() here

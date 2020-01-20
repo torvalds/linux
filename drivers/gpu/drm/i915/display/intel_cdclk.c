@@ -1903,41 +1903,41 @@ static void intel_set_cdclk(struct drm_i915_private *dev_priv,
 }
 
 /**
- * intel_set_cdclk_pre_plane_update - Push the CDCLK configuration to the hardware
- * @dev_priv: i915 device
- * @old_state: old CDCLK configuration
- * @new_state: new CDCLK configuration
- * @pipe: pipe with which to synchronize the update
+ * intel_set_cdclk_pre_plane_update - Push the CDCLK state to the hardware
+ * @state: intel atomic state
  *
- * Program the hardware before updating the HW plane state based on the passed
- * in CDCLK configuration, if necessary.
+ * Program the hardware before updating the HW plane state based on the
+ * new CDCLK state, if necessary.
  */
 void
-intel_set_cdclk_pre_plane_update(struct drm_i915_private *dev_priv,
-				 const struct intel_cdclk_config *old_state,
-				 const struct intel_cdclk_config *new_state,
-				 enum pipe pipe)
+intel_set_cdclk_pre_plane_update(struct intel_atomic_state *state)
 {
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	/* called after intel_cdclk_swap_state()! */
+	const struct intel_cdclk_config *old_state = &state->cdclk.actual;
+	const struct intel_cdclk_config *new_state = &dev_priv->cdclk.actual;
+	enum pipe pipe = state->cdclk.pipe;
+
 	if (pipe == INVALID_PIPE || old_state->cdclk <= new_state->cdclk)
 		intel_set_cdclk(dev_priv, new_state, pipe);
 }
 
 /**
- * intel_set_cdclk_post_plane_update - Push the CDCLK configuration to the hardware
- * @dev_priv: i915 device
- * @old_state: old CDCLK configuration
- * @new_state: new CDCLK configuration
- * @pipe: pipe with which to synchronize the update
+ * intel_set_cdclk_post_plane_update - Push the CDCLK state to the hardware
+ * @state: intel atomic state
  *
- * Program the hardware after updating the HW plane state based on the passed
- * in CDCLK configuration, if necessary.
+ * Program the hardware before updating the HW plane state based on the
+ * new CDCLK state, if necessary.
  */
 void
-intel_set_cdclk_post_plane_update(struct drm_i915_private *dev_priv,
-				  const struct intel_cdclk_config *old_state,
-				  const struct intel_cdclk_config *new_state,
-				  enum pipe pipe)
+intel_set_cdclk_post_plane_update(struct intel_atomic_state *state)
 {
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	/* called after intel_cdclk_swap_state()! */
+	const struct intel_cdclk_config *old_state = &state->cdclk.actual;
+	const struct intel_cdclk_config *new_state = &dev_priv->cdclk.actual;
+	enum pipe pipe = state->cdclk.pipe;
+
 	if (pipe != INVALID_PIPE && old_state->cdclk > new_state->cdclk)
 		intel_set_cdclk(dev_priv, new_state, pipe);
 }
