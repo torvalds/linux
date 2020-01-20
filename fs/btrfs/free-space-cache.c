@@ -1067,6 +1067,7 @@ fail:
 }
 
 static noinline_for_stack int write_pinned_extent_entries(
+			    struct btrfs_trans_handle *trans,
 			    struct btrfs_block_group *block_group,
 			    struct btrfs_io_ctl *io_ctl,
 			    int *entries)
@@ -1317,7 +1318,7 @@ static int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 	 * If this changes while we are working we'll get added back to
 	 * the dirty list and redo it.  No locking needed
 	 */
-	ret = write_pinned_extent_entries(block_group, io_ctl, &entries);
+	ret = write_pinned_extent_entries(trans, block_group, io_ctl, &entries);
 	if (ret)
 		goto out_nospc_locked;
 
