@@ -18,6 +18,8 @@
 #include "compression.h"
 #include "qgroup.h"
 #include "inode-map.h"
+#include "block-group.h"
+#include "space-info.h"
 
 /* magic values for the inode_only field in btrfs_log_inode:
  *
@@ -2662,6 +2664,29 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 	}
 	btrfs_free_path(path);
 	return ret;
+}
+
+/*
+ * Correctly adjust the reserved bytes occupied by a log tree extent buffer
+ */
+static void unaccount_log_buffer(struct btrfs_fs_info *fs_info, u64 start)
+{
+	struct btrfs_block_group *cache;
+
+	cache = btrfs_lookup_block_group(fs_info, start);
+	if (!cache) {
+		btrfs_err(fs_info, "unable to find block group for %llu", start);
+		return;
+	}
+
+	spin_lock(&cache->space_info->lock);
+	spin_lock(&cache->lock);
+	cache->reserved -= fs_info->nodesize;
+	cache->space_info->bytes_reserved -= fs_info->nodesize;
+	spin_unlock(&cache->lock);
+	spin_unlock(&cache->space_info->lock);
+
+	btrfs_put_block_group(cache);
 }
 
 static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
