@@ -402,6 +402,27 @@ errout:
 }
 EXPORT_SYMBOL(fscrypt_setup_filename);
 
+/**
+ * fscrypt_fname_siphash() - calculate the SipHash of a filename
+ * @dir: the parent directory
+ * @name: the filename to calculate the SipHash of
+ *
+ * Given a plaintext filename @name and a directory @dir which uses SipHash as
+ * its dirhash method and has had its fscrypt key set up, this function
+ * calculates the SipHash of that name using the directory's secret dirhash key.
+ *
+ * Return: the SipHash of @name using the hash key of @dir
+ */
+u64 fscrypt_fname_siphash(const struct inode *dir, const struct qstr *name)
+{
+	const struct fscrypt_info *ci = dir->i_crypt_info;
+
+	WARN_ON(!ci->ci_dirhash_key_initialized);
+
+	return siphash(name->name, name->len, &ci->ci_dirhash_key);
+}
+EXPORT_SYMBOL_GPL(fscrypt_fname_siphash);
+
 /*
  * Validate dentries in encrypted directories to make sure we aren't potentially
  * caching stale dentries after a key has been added.

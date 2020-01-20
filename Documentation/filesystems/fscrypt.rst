@@ -302,6 +302,16 @@ For master keys used for v2 encryption policies, a unique 16-byte "key
 identifier" is also derived using the KDF.  This value is stored in
 the clear, since it is needed to reliably identify the key itself.
 
+Dirhash keys
+------------
+
+For directories that are indexed using a secret-keyed dirhash over the
+plaintext filenames, the KDF is also used to derive a 128-bit
+SipHash-2-4 key per directory in order to hash filenames.  This works
+just like deriving a per-file encryption key, except that a different
+KDF context is used.  Currently, only casefolded ("case-insensitive")
+encrypted directories use this style of hashing.
+
 Encryption modes and usage
 ==========================
 
