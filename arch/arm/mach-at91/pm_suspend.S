@@ -18,6 +18,7 @@
 pmc	.req	r0
 tmp1	.req	r4
 tmp2	.req	r5
+tmp3	.req	r6
 
 /*
  * Wait until master clock is ready (after switching master clock source)
@@ -331,6 +332,61 @@ ENDPROC(at91_backup_mode)
 
 .macro at91_plla_disable
 	/* Save PLLA setting and disable it */
+	ldr	tmp1, .pmc_version
+	cmp	tmp1, #AT91_PMC_V1
+	beq	1f
+
+#ifdef CONFIG_SOC_SAM9X60
+	/* Save PLLA settings. */
+	ldr	tmp2, [pmc, #AT91_PMC_PLL_UPDT]
+	bic	tmp2, tmp2, #AT91_PMC_PLL_UPDT_ID
+	str	tmp2, [pmc, #AT91_PMC_PLL_UPDT]
+
+	/* save div. */
+	mov	tmp1, #0
+	ldr	tmp2, [pmc, #AT91_PMC_PLL_CTRL0]
+	bic	tmp2, tmp2, #0xffffff00
+	orr	tmp1, tmp1, tmp2
+
+	/* save mul. */
+	ldr	tmp2, [pmc, #AT91_PMC_PLL_CTRL1]
+	bic	tmp2, tmp2, #0xffffff
+	orr	tmp1, tmp1, tmp2
+	str	tmp1, .saved_pllar
+
+	/* step 2. */
+	ldr	tmp1, [pmc, #AT91_PMC_PLL_UPDT]
+	bic	tmp1, tmp1, #AT91_PMC_PLL_UPDT_UPDATE
+	bic	tmp1, tmp1, #AT91_PMC_PLL_UPDT_ID
+	str	tmp1, [pmc, #AT91_PMC_PLL_UPDT]
+
+	/* step 3. */
+	ldr	tmp1, [pmc, #AT91_PMC_PLL_CTRL0]
+	bic	tmp1, tmp1, #AT91_PMC_PLL_CTRL0_ENPLLCK
+	orr	tmp1, tmp1, #AT91_PMC_PLL_CTRL0_ENPLL
+	str	tmp1, [pmc, #AT91_PMC_PLL_CTRL0]
+
+	/* step 4. */
+	ldr	tmp1, [pmc, #AT91_PMC_PLL_UPDT]
+	orr	tmp1, tmp1, #AT91_PMC_PLL_UPDT_UPDATE
+	bic	tmp1, tmp1, #AT91_PMC_PLL_UPDT_ID
+	str	tmp1, [pmc, #AT91_PMC_PLL_UPDT]
+
+	/* step 5. */
+	ldr	tmp1, [pmc, #AT91_PMC_PLL_CTRL0]
+	bic	tmp1, tmp1, #AT91_PMC_PLL_CTRL0_ENPLL
+	str	tmp1, [pmc, #AT91_PMC_PLL_CTRL0]
+
+	/* step 7. */
+	ldr	tmp1, [pmc, #AT91_PMC_PLL_UPDT]
+	orr	tmp1, tmp1, #AT91_PMC_PLL_UPDT_UPDATE
+	bic	tmp1, tmp1, #AT91_PMC_PLL_UPDT_ID
+	str	tmp1, [pmc, #AT91_PMC_PLL_UPDT]
+
+	b	2f
+#endif
+
+1:	/* Save PLLA setting and disable it */
 	ldr	tmp1, [pmc, #AT91_CKGR_PLLAR]
 	str	tmp1, .saved_pllar
 
@@ -338,17 +394,70 @@ ENDPROC(at91_backup_mode)
 	mov	tmp1, #AT91_PMC_PLLCOUNT
 	orr	tmp1, tmp1, #(1 << 29)		/* bit 29 always set */
 	str	tmp1, [pmc, #AT91_CKGR_PLLAR]
+2:
 .endm
 
 .macro at91_plla_enable
+	ldr	tmp2, .saved_pllar
+	ldr	tmp3, .pmc_version
+	cmp	tmp3, #AT91_PMC_V1
+	beq	4f
+
+#ifdef CONFIG_SOC_SAM9X60
+	/* step 1. */
+	ldr	tmp1, [pmc, #AT91_PMC_PLL_UPDT]
+	bic	tmp1, tmp1, #AT91_PMC_PLL_UPDT_ID
+	bic	tmp1, tmp1, #AT91_PMC_PLL_UPDT_UPDATE
+	str	tmp1, [pmc, #AT91_PMC_PLL_UPDT]
+
+	/* step 2. */
+	ldr	tmp1, =#AT91_PMC_PLL_ACR_DEFAULT_PLLA
+	str	tmp1, [pmc, #AT91_PMC_PLL_ACR]
+
+	/* step 3. */
+	ldr	tmp1, [pmc, #AT91_PMC_PLL_CTRL1]
+	mov	tmp3, tmp2
+	bic	tmp3, tmp3, #0xffffff
+	orr	tmp1, tmp1, tmp3
+	str	tmp1, [pmc, #AT91_PMC_PLL_CTRL1]
+
+	/* step 8. */
+	ldr	tmp1, [pmc, #AT91_PMC_PLL_UPDT]
+	bic	tmp1, tmp1, #AT91_PMC_PLL_UPDT_ID
+	orr	tmp1, tmp1, #AT91_PMC_PLL_UPDT_UPDATE
+	str	tmp1, [pmc, #AT91_PMC_PLL_UPDT]
+
+	/* step 9. */
+	ldr	tmp1, [pmc, #AT91_PMC_PLL_CTRL0]
+	orr	tmp1, tmp1, #AT91_PMC_PLL_CTRL0_ENLOCK
+	orr	tmp1, tmp1, #AT91_PMC_PLL_CTRL0_ENPLL
+	orr	tmp1, tmp1, #AT91_PMC_PLL_CTRL0_ENPLLCK
+	bic	tmp1, tmp1, #0xff
+	mov	tmp3, tmp2
+	bic	tmp3, tmp3, #0xffffff00
+	orr	tmp1, tmp1, tmp3
+	str	tmp1, [pmc, #AT91_PMC_PLL_CTRL0]
+
+	/* step 10. */
+	ldr	tmp1, [pmc, #AT91_PMC_PLL_UPDT]
+	orr	tmp1, tmp1, #AT91_PMC_PLL_UPDT_UPDATE
+	bic	tmp1, tmp1, #AT91_PMC_PLL_UPDT_ID
+	str	tmp1, [pmc, #AT91_PMC_PLL_UPDT]
+
+	/* step 11. */
+3:	ldr	tmp1, [pmc, #AT91_PMC_PLL_ISR0]
+	tst	tmp1, #0x1
+	beq	3b
+	b	2f
+#endif
+
 	/* Restore PLLA setting */
-	ldr	tmp1, .saved_pllar
-	str	tmp1, [pmc, #AT91_CKGR_PLLAR]
+4:	str	tmp2, [pmc, #AT91_CKGR_PLLAR]
 
 	/* Enable PLLA. */
-	tst	tmp1, #(AT91_PMC_MUL &  0xff0000)
+	tst	tmp2, #(AT91_PMC_MUL &  0xff0000)
 	bne	1f
-	tst	tmp1, #(AT91_PMC_MUL & ~0xff0000)
+	tst	tmp2, #(AT91_PMC_MUL & ~0xff0000)
 	beq	2f
 
 1:	ldr	tmp1, [pmc, #AT91_PMC_SR]
