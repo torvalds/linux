@@ -89,10 +89,6 @@ struct bd70528_data {
 #define BD70528_REG_GPIO3_OUT	0x52
 #define BD70528_REG_GPIO4_OUT	0x54
 
-/* clk control */
-
-#define BD70528_REG_CLK_OUT	0x2c
-
 /* RTC */
 
 #define BD70528_REG_RTC_COUNT_H		0x2d
@@ -308,8 +304,6 @@ enum {
 #define BD70528_GPIO_OUT_MASK 0x1
 
 #define BD70528_GPIO_IN_STATE_BASE 1
-
-#define BD70528_CLK_OUT_EN_MASK 0x1
 
 /* RTC masks to mask out reserved bits */
 
