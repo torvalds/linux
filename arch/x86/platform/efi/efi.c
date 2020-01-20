@@ -376,6 +376,7 @@ static int __init efi_systab_init(u64 phys)
 			 systab64->con_out		> U32_MAX ||
 			 systab64->stderr_handle	> U32_MAX ||
 			 systab64->stderr		> U32_MAX ||
+			 systab64->runtime		> U32_MAX ||
 			 systab64->boottime		> U32_MAX;
 
 		if (efi_setup) {
@@ -388,17 +389,14 @@ static int __init efi_systab_init(u64 phys)
 			}
 
 			efi_systab.fw_vendor	= (unsigned long)data->fw_vendor;
-			efi_systab.runtime	= (void *)(unsigned long)data->runtime;
 			efi_systab.tables	= (unsigned long)data->tables;
 
 			over4g |= data->fw_vendor	> U32_MAX ||
-				  data->runtime		> U32_MAX ||
 				  data->tables		> U32_MAX;
 
 			early_memunmap(data, sizeof(*data));
 		} else {
 			over4g |= systab64->fw_vendor	> U32_MAX ||
-				  systab64->runtime	> U32_MAX ||
 				  systab64->tables	> U32_MAX;
 		}
 	} else {

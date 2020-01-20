@@ -178,7 +178,6 @@ extern void __init efi_uv1_memmap_phys_epilog(pgd_t *save_pgd);
 
 struct efi_setup_data {
 	u64 fw_vendor;
-	u64 runtime;
 	u64 tables;
 	u64 smbios;
 	u64 reserved[8];
