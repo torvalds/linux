@@ -107,10 +107,37 @@ static const char *phy_names[PHY_COUNT] = {
 	"usb2-phy0", "usb2-phy1", "usb3-phy0",
 };
 
+static struct clk_bulk_data meson_g12a_clocks[] = {
+	{ .id = NULL },
+};
+
+static struct clk_bulk_data meson_a1_clocks[] = {
+	{ .id = "usb_ctrl" },
+	{ .id = "usb_bus" },
+	{ .id = "xtal_usb_ctrl" },
+};
+
+struct dwc3_meson_g12a_drvdata {
+	bool otg_switch_supported;
+	struct clk_bulk_data *clks;
+	int num_clks;
+};
+
+static struct dwc3_meson_g12a_drvdata g12a_drvdata = {
+	.otg_switch_supported = true,
+	.clks = meson_g12a_clocks,
+	.num_clks = ARRAY_SIZE(meson_g12a_clocks),
+};
+
+static struct dwc3_meson_g12a_drvdata a1_drvdata = {
+	.otg_switch_supported = false,
+	.clks = meson_a1_clocks,
+	.num_clks = ARRAY_SIZE(meson_a1_clocks),
+};
+
 struct dwc3_meson_g12a {
 	struct device		*dev;
 	struct regmap		*regmap;
-	struct clk		*clk;
 	struct reset_control	*reset;
 	struct phy		*phys[PHY_COUNT];
 	enum usb_dr_mode	otg_mode;
@@ -120,6 +147,7 @@ struct dwc3_meson_g12a {
 	struct regulator	*vbus;
 	struct usb_role_switch_desc switch_desc;
 	struct usb_role_switch	*role_switch;
+	const struct dwc3_meson_g12a_drvdata *drvdata;
 };
 
 static void dwc3_meson_g12a_usb2_set_mode(struct dwc3_meson_g12a *priv,
@@ -151,7 +179,7 @@ static int dwc3_meson_g12a_usb2_init(struct dwc3_meson_g12a *priv)
 				   U2P_R0_POWER_ON_RESET,
 				   U2P_R0_POWER_ON_RESET);
 
-		if (i == USB2_OTG_PHY) {
+		if (priv->drvdata->otg_switch_supported && i == USB2_OTG_PHY) {
 			regmap_update_bits(priv->regmap,
 				U2P_R0 + (U2P_REG_SIZE * i),
 				U2P_R0_ID_PULLUP | U2P_R0_DRV_VBUS,
@@ -295,7 +323,7 @@ static int dwc3_meson_g12a_otg_mode_set(struct dwc3_meson_g12a *priv,
 {
 	int ret;
 
-	if (!priv->phys[USB2_OTG_PHY])
+	if (!priv->drvdata->otg_switch_supported || !priv->phys[USB2_OTG_PHY])
 		return -EINVAL;
 
 	if (mode == PHY_MODE_USB_HOST)
@@ -380,73 +408,15 @@ static struct device *dwc3_meson_g12_find_child(struct device *dev,
 	return &pdev->dev;
 }
 
-static int dwc3_meson_g12a_probe(struct platform_device *pdev)
+static int dwc3_meson_g12a_otg_init(struct platform_device *pdev,
+				    struct dwc3_meson_g12a *priv)
 {
-	struct dwc3_meson_g12a	*priv;
-	struct device		*dev = &pdev->dev;
-	struct device_node	*np = dev->of_node;
-	void __iomem *base;
 	enum phy_mode otg_id;
-	int ret, i, irq;
+	int ret, irq;
+	struct device *dev = &pdev->dev;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
-
-	base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(base))
-		return PTR_ERR(base);
-
-	priv->regmap = devm_regmap_init_mmio(dev, base,
-					     &phy_meson_g12a_usb3_regmap_conf);
-	if (IS_ERR(priv->regmap))
-		return PTR_ERR(priv->regmap);
-
-	priv->vbus = devm_regulator_get_optional(dev, "vbus");
-	if (IS_ERR(priv->vbus)) {
-		if (PTR_ERR(priv->vbus) == -EPROBE_DEFER)
-			return PTR_ERR(priv->vbus);
-		priv->vbus = NULL;
-	}
-
-	priv->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(priv->clk))
-		return PTR_ERR(priv->clk);
-
-	ret = clk_prepare_enable(priv->clk);
-	if (ret)
-		return ret;
-
-	devm_add_action_or_reset(dev,
-				 (void(*)(void *))clk_disable_unprepare,
-				 priv->clk);
-
-	platform_set_drvdata(pdev, priv);
-	priv->dev = dev;
-
-	priv->reset = devm_reset_control_get(dev, NULL);
-	if (IS_ERR(priv->reset)) {
-		ret = PTR_ERR(priv->reset);
-		dev_err(dev, "failed to get device reset, err=%d\n", ret);
-		return ret;
-	}
-
-	ret = reset_control_reset(priv->reset);
-	if (ret)
-		return ret;
-
-	ret = dwc3_meson_g12a_get_phys(priv);
-	if (ret)
-		return ret;
-
-	if (priv->vbus) {
-		ret = regulator_enable(priv->vbus);
-		if (ret)
-			return ret;
-	}
-
-	/* Get dr_mode */
-	priv->otg_mode = usb_get_dr_mode(dev);
+	if (!priv->drvdata->otg_switch_supported)
+		return 0;
 
 	if (priv->otg_mode == USB_DR_MODE_OTG) {
 		/* Ack irq before registering */
@@ -459,28 +429,6 @@ static int dwc3_meson_g12a_probe(struct platform_device *pdev)
 						IRQF_ONESHOT, pdev->name, priv);
 		if (ret)
 			return ret;
-	}
-
-	dwc3_meson_g12a_usb_init(priv);
-
-	/* Init PHYs */
-	for (i = 0 ; i < PHY_COUNT ; ++i) {
-		ret = phy_init(priv->phys[i]);
-		if (ret)
-			return ret;
-	}
-
-	/* Set PHY Power */
-	for (i = 0 ; i < PHY_COUNT ; ++i) {
-		ret = phy_power_on(priv->phys[i]);
-		if (ret)
-			goto err_phys_exit;
-	}
-
-	ret = of_platform_populate(np, NULL, NULL, dev);
-	if (ret) {
-		clk_disable_unprepare(priv->clk);
-		goto err_phys_power;
 	}
 
 	/* Setup OTG mode corresponding to the ID pin */
@@ -504,6 +452,101 @@ static int dwc3_meson_g12a_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->role_switch))
 		dev_warn(dev, "Unable to register Role Switch\n");
 
+	return ret;
+}
+
+static int dwc3_meson_g12a_probe(struct platform_device *pdev)
+{
+	struct dwc3_meson_g12a	*priv;
+	struct device		*dev = &pdev->dev;
+	struct device_node	*np = dev->of_node;
+	void __iomem *base;
+	int ret, i;
+
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
+
+	priv->regmap = devm_regmap_init_mmio(dev, base,
+					     &phy_meson_g12a_usb3_regmap_conf);
+	if (IS_ERR(priv->regmap))
+		return PTR_ERR(priv->regmap);
+
+	priv->vbus = devm_regulator_get_optional(dev, "vbus");
+	if (IS_ERR(priv->vbus)) {
+		if (PTR_ERR(priv->vbus) == -EPROBE_DEFER)
+			return PTR_ERR(priv->vbus);
+		priv->vbus = NULL;
+	}
+
+	priv->drvdata = of_device_get_match_data(&pdev->dev);
+
+	ret = devm_clk_bulk_get(dev,
+				priv->drvdata->num_clks,
+				priv->drvdata->clks);
+	if (ret)
+		return ret;
+
+	ret = clk_bulk_prepare_enable(priv->drvdata->num_clks,
+				      priv->drvdata->clks);
+	if (ret)
+		return ret;
+
+	platform_set_drvdata(pdev, priv);
+	priv->dev = dev;
+
+	priv->reset = devm_reset_control_get(dev, NULL);
+	if (IS_ERR(priv->reset)) {
+		ret = PTR_ERR(priv->reset);
+		dev_err(dev, "failed to get device reset, err=%d\n", ret);
+		return ret;
+	}
+
+	ret = reset_control_reset(priv->reset);
+	if (ret)
+		goto err_disable_clks;
+
+	ret = dwc3_meson_g12a_get_phys(priv);
+	if (ret)
+		goto err_disable_clks;
+
+	if (priv->vbus) {
+		ret = regulator_enable(priv->vbus);
+		if (ret)
+			goto err_disable_clks;
+	}
+
+	/* Get dr_mode */
+	priv->otg_mode = usb_get_dr_mode(dev);
+
+	dwc3_meson_g12a_usb_init(priv);
+
+	/* Init PHYs */
+	for (i = 0 ; i < PHY_COUNT ; ++i) {
+		ret = phy_init(priv->phys[i]);
+		if (ret)
+			goto err_disable_clks;
+	}
+
+	/* Set PHY Power */
+	for (i = 0 ; i < PHY_COUNT ; ++i) {
+		ret = phy_power_on(priv->phys[i]);
+		if (ret)
+			goto err_phys_exit;
+	}
+
+	ret = of_platform_populate(np, NULL, NULL, dev);
+	if (ret)
+		goto err_phys_power;
+
+	ret = dwc3_meson_g12a_otg_init(pdev, priv);
+	if (ret)
+		goto err_phys_power;
+
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
@@ -518,6 +561,10 @@ err_phys_exit:
 	for (i = 0 ; i < PHY_COUNT ; ++i)
 		phy_exit(priv->phys[i]);
 
+err_disable_clks:
+	clk_bulk_disable_unprepare(priv->drvdata->num_clks,
+				   priv->drvdata->clks);
+
 	return ret;
 }
 
@@ -527,7 +574,8 @@ static int dwc3_meson_g12a_remove(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int i;
 
-	usb_role_switch_unregister(priv->role_switch);
+	if (priv->drvdata->otg_switch_supported)
+		usb_role_switch_unregister(priv->role_switch);
 
 	of_platform_depopulate(dev);
 
@@ -540,6 +588,9 @@ static int dwc3_meson_g12a_remove(struct platform_device *pdev)
 	pm_runtime_put_noidle(dev);
 	pm_runtime_set_suspended(dev);
 
+	clk_bulk_disable_unprepare(priv->drvdata->num_clks,
+				   priv->drvdata->clks);
+
 	return 0;
 }
 
@@ -547,7 +598,8 @@ static int __maybe_unused dwc3_meson_g12a_runtime_suspend(struct device *dev)
 {
 	struct dwc3_meson_g12a	*priv = dev_get_drvdata(dev);
 
-	clk_disable(priv->clk);
+	clk_bulk_disable_unprepare(priv->drvdata->num_clks,
+				   priv->drvdata->clks);
 
 	return 0;
 }
@@ -556,7 +608,8 @@ static int __maybe_unused dwc3_meson_g12a_runtime_resume(struct device *dev)
 {
 	struct dwc3_meson_g12a	*priv = dev_get_drvdata(dev);
 
-	return clk_enable(priv->clk);
+	return clk_bulk_prepare_enable(priv->drvdata->num_clks,
+				       priv->drvdata->clks);
 }
 
 static int __maybe_unused dwc3_meson_g12a_suspend(struct device *dev)
@@ -619,7 +672,14 @@ static const struct dev_pm_ops dwc3_meson_g12a_dev_pm_ops = {
 };
 
 static const struct of_device_id dwc3_meson_g12a_match[] = {
-	{ .compatible = "amlogic,meson-g12a-usb-ctrl" },
+	{
+		.compatible = "amlogic,meson-g12a-usb-ctrl",
+		.data = &g12a_drvdata,
+	},
+	{
+		.compatible = "amlogic,meson-a1-usb-ctrl",
+		.data = &a1_drvdata,
+	},
 	{ /* Sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, dwc3_meson_g12a_match);
