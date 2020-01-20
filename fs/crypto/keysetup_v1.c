@@ -9,7 +9,7 @@
  * This file implements compatibility functions for the original encryption
  * policy version ("v1"), including:
  *
- * - Deriving per-file keys using the AES-128-ECB based KDF
+ * - Deriving per-file encryption keys using the AES-128-ECB based KDF
  *   (rather than the new method of using HKDF-SHA512)
  *
  * - Retrieving fscrypt master keys from process-subscribed keyrings
@@ -283,7 +283,7 @@ static int setup_v1_file_key_derived(struct fscrypt_info *ci,
 	if (err)
 		goto out;
 
-	err = fscrypt_set_derived_key(ci, derived_key);
+	err = fscrypt_set_per_file_enc_key(ci, derived_key);
 out:
 	kzfree(derived_key);
 	return err;

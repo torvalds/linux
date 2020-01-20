@@ -234,8 +234,8 @@ HKDF is more flexible, is nonreversible, and evenly distributes
 entropy from the master key.  HKDF is also standardized and widely
 used by other software, whereas the AES-128-ECB based KDF is ad-hoc.
 
-Per-file keys
--------------
+Per-file encryption keys
+------------------------
 
 Since each master key can protect many files, it is necessary to
 "tweak" the encryption of each file so that the same plaintext in two
@@ -268,9 +268,9 @@ is greater than that of an AES-256-XTS key.
 Therefore, to improve performance and save memory, for Adiantum a
 "direct key" configuration is supported.  When the user has enabled
 this by setting FSCRYPT_POLICY_FLAG_DIRECT_KEY in the fscrypt policy,
-per-file keys are not used.  Instead, whenever any data (contents or
-filenames) is encrypted, the file's 16-byte nonce is included in the
-IV.  Moreover:
+per-file encryption keys are not used.  Instead, whenever any data
+(contents or filenames) is encrypted, the file's 16-byte nonce is
+included in the IV.  Moreover:
 
 - For v1 encryption policies, the encryption is done directly with the
   master key.  Because of this, users **must not** use the same master
@@ -335,11 +335,11 @@ used.
 Adiantum is a (primarily) stream cipher-based mode that is fast even
 on CPUs without dedicated crypto instructions.  It's also a true
 wide-block mode, unlike XTS.  It can also eliminate the need to derive
-per-file keys.  However, it depends on the security of two primitives,
-XChaCha12 and AES-256, rather than just one.  See the paper
-"Adiantum: length-preserving encryption for entry-level processors"
-(https://eprint.iacr.org/2018/720.pdf) for more details.  To use
-Adiantum, CONFIG_CRYPTO_ADIANTUM must be enabled.  Also, fast
+per-file encryption keys.  However, it depends on the security of two
+primitives, XChaCha12 and AES-256, rather than just one.  See the
+paper "Adiantum: length-preserving encryption for entry-level
+processors" (https://eprint.iacr.org/2018/720.pdf) for more details.
+To use Adiantum, CONFIG_CRYPTO_ADIANTUM must be enabled.  Also, fast
 implementations of ChaCha and NHPoly1305 should be enabled, e.g.
 CONFIG_CRYPTO_CHACHA20_NEON and CONFIG_CRYPTO_NHPOLY1305_NEON for ARM.
 
@@ -1149,8 +1149,8 @@ The context structs contain the same information as the corresponding
 policy structs (see `Setting an encryption policy`_), except that the
 context structs also contain a nonce.  The nonce is randomly generated
 by the kernel and is used as KDF input or as a tweak to cause
-different files to be encrypted differently; see `Per-file keys`_ and
-`DIRECT_KEY policies`_.
+different files to be encrypted differently; see `Per-file encryption
+keys`_ and `DIRECT_KEY policies`_.
 
 Data path changes
 -----------------
