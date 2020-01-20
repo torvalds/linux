@@ -317,18 +317,25 @@ static int ct_write(struct intel_guc_ct *ct,
 {
 	struct intel_guc_ct_buffer *ctb = &ct->ctbs[CTB_SEND];
 	struct guc_ct_buffer_desc *desc = ctb->desc;
-	u32 head = desc->head / 4;	/* in dwords */
-	u32 tail = desc->tail / 4;	/* in dwords */
-	u32 size = desc->size / 4;	/* in dwords */
-	u32 used;			/* in dwords */
+	u32 head = desc->head;
+	u32 tail = desc->tail;
+	u32 size = desc->size;
+	u32 used;
 	u32 header;
 	u32 *cmds = ctb->cmds;
 	unsigned int i;
 
-	GEM_BUG_ON(desc->size % 4);
-	GEM_BUG_ON(desc->head % 4);
-	GEM_BUG_ON(desc->tail % 4);
-	GEM_BUG_ON(tail >= size);
+	if (unlikely(desc->is_in_error))
+		return -EPIPE;
+
+	if (unlikely(!IS_ALIGNED(head | tail | size, 4) ||
+		     (tail | head) >= size))
+		goto corrupted;
+
+	/* later calculations will be done in dwords */
+	head /= 4;
+	tail /= 4;
+	size /= 4;
 
 	/*
 	 * tail == head condition indicates empty. GuC FW does not support
@@ -367,12 +374,17 @@ static int ct_write(struct intel_guc_ct *ct,
 		cmds[tail] = action[i];
 		tail = (tail + 1) % size;
 	}
+	GEM_BUG_ON(tail > size);
 
 	/* now update desc tail (back in bytes) */
 	desc->tail = tail * 4;
-	GEM_BUG_ON(desc->tail > desc->size);
-
 	return 0;
+
+corrupted:
+	CT_ERROR(ct, "Corrupted descriptor addr=%#x head=%u tail=%u size=%u\n",
+		 desc->addr, desc->head, desc->tail, desc->size);
+	desc->is_in_error = 1;
+	return -EPIPE;
 }
 
 /**
