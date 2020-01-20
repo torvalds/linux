@@ -140,6 +140,7 @@ struct mlxsw_sp_sb_vals;
 struct mlxsw_sp_port_type_speed_ops;
 struct mlxsw_sp_ptp_state;
 struct mlxsw_sp_ptp_ops;
+struct mlxsw_sp_span_ops;
 
 struct mlxsw_sp_port_mapping {
 	u8 module;
@@ -185,6 +186,7 @@ struct mlxsw_sp {
 	const struct mlxsw_sp_sb_vals *sb_vals;
 	const struct mlxsw_sp_port_type_speed_ops *port_type_speed_ops;
 	const struct mlxsw_sp_ptp_ops *ptp_ops;
+	const struct mlxsw_sp_span_ops *span_ops;
 	const struct mlxsw_listener *listeners;
 	size_t listeners_count;
 };
@@ -502,6 +504,7 @@ int mlxsw_sp_flow_counter_alloc(struct mlxsw_sp *mlxsw_sp,
 				unsigned int *p_counter_index);
 void mlxsw_sp_flow_counter_free(struct mlxsw_sp *mlxsw_sp,
 				unsigned int counter_index);
+u32 mlxsw_sp_span_buffsize_get(struct mlxsw_sp *mlxsw_sp, int mtu, u32 speed);
 bool mlxsw_sp_port_dev_check(const struct net_device *dev);
 struct mlxsw_sp *mlxsw_sp_lower_get(struct net_device *dev);
 struct mlxsw_sp_port *mlxsw_sp_port_dev_lower_find(struct net_device *dev);

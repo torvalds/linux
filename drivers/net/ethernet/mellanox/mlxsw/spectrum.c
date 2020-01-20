@@ -195,6 +195,10 @@ struct mlxsw_sp_ptp_ops {
 			  u64 *data, int data_index);
 };
 
+struct mlxsw_sp_span_ops {
+	u32 (*buffsize_get)(int mtu, u32 speed);
+};
+
 static int mlxsw_sp_component_query(struct mlxfw_dev *mlxfw_dev,
 				    u16 component_index, u32 *p_max_size,
 				    u8 *p_align_bits, u16 *p_max_write_size)
@@ -4914,6 +4918,33 @@ static const struct mlxsw_sp_ptp_ops mlxsw_sp2_ptp_ops = {
 	.get_stats	= mlxsw_sp2_get_stats,
 };
 
+static u32 mlxsw_sp1_span_buffsize_get(int mtu, u32 speed)
+{
+	return mtu * 5 / 2;
+}
+
+static const struct mlxsw_sp_span_ops mlxsw_sp1_span_ops = {
+	.buffsize_get = mlxsw_sp1_span_buffsize_get,
+};
+
+#define MLXSW_SP2_SPAN_EG_MIRROR_BUFFER_FACTOR 38
+
+static u32 mlxsw_sp2_span_buffsize_get(int mtu, u32 speed)
+{
+	return 3 * mtu + MLXSW_SP2_SPAN_EG_MIRROR_BUFFER_FACTOR * speed / 1000;
+}
+
+static const struct mlxsw_sp_span_ops mlxsw_sp2_span_ops = {
+	.buffsize_get = mlxsw_sp2_span_buffsize_get,
+};
+
+u32 mlxsw_sp_span_buffsize_get(struct mlxsw_sp *mlxsw_sp, int mtu, u32 speed)
+{
+	u32 buffsize = mlxsw_sp->span_ops->buffsize_get(speed, mtu);
+
+	return mlxsw_sp_bytes_cells(mlxsw_sp, buffsize) + 1;
+}
+
 static int mlxsw_sp_netdevice_event(struct notifier_block *unused,
 				    unsigned long event, void *ptr);
 
@@ -5135,6 +5166,7 @@ static int mlxsw_sp1_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_sp->sb_vals = &mlxsw_sp1_sb_vals;
 	mlxsw_sp->port_type_speed_ops = &mlxsw_sp1_port_type_speed_ops;
 	mlxsw_sp->ptp_ops = &mlxsw_sp1_ptp_ops;
+	mlxsw_sp->span_ops = &mlxsw_sp1_span_ops;
 	mlxsw_sp->listeners = mlxsw_sp1_listener;
 	mlxsw_sp->listeners_count = ARRAY_SIZE(mlxsw_sp1_listener);
 
@@ -5160,6 +5192,7 @@ static int mlxsw_sp2_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_sp->sb_vals = &mlxsw_sp2_sb_vals;
 	mlxsw_sp->port_type_speed_ops = &mlxsw_sp2_port_type_speed_ops;
 	mlxsw_sp->ptp_ops = &mlxsw_sp2_ptp_ops;
+	mlxsw_sp->span_ops = &mlxsw_sp2_span_ops;
 
 	return mlxsw_sp_init(mlxsw_core, mlxsw_bus_info, extack);
 }
@@ -5181,6 +5214,7 @@ static int mlxsw_sp3_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_sp->sb_vals = &mlxsw_sp2_sb_vals;
 	mlxsw_sp->port_type_speed_ops = &mlxsw_sp2_port_type_speed_ops;
 	mlxsw_sp->ptp_ops = &mlxsw_sp2_ptp_ops;
+	mlxsw_sp->span_ops = &mlxsw_sp2_span_ops;
 
 	return mlxsw_sp_init(mlxsw_core, mlxsw_bus_info, extack);
 }

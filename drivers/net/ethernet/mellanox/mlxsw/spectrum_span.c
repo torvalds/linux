@@ -748,20 +748,22 @@ static bool mlxsw_sp_span_is_egress_mirror(struct mlxsw_sp_port *port)
 	return false;
 }
 
-static int mlxsw_sp_span_mtu_to_buffsize(const struct mlxsw_sp *mlxsw_sp,
-					 int mtu)
-{
-	return mlxsw_sp_bytes_cells(mlxsw_sp, mtu * 5 / 2) + 1;
-}
-
 static int
 mlxsw_sp_span_port_buffsize_update(struct mlxsw_sp_port *mlxsw_sp_port, u16 mtu)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	char sbib_pl[MLXSW_REG_SBIB_LEN];
 	u32 buffsize;
+	u32 speed;
+	int err;
 
-	buffsize = mlxsw_sp_span_mtu_to_buffsize(mlxsw_sp, mtu);
+	err = mlxsw_sp_port_speed_get(mlxsw_sp_port, &speed);
+	if (err)
+		return err;
+	if (speed == SPEED_UNKNOWN)
+		speed = 0;
+
+	buffsize = mlxsw_sp_span_buffsize_get(mlxsw_sp, speed, mtu);
 	mlxsw_reg_sbib_pack(sbib_pl, mlxsw_sp_port->local_port, buffsize);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sbib), sbib_pl);
 }
