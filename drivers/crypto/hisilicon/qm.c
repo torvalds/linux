@@ -277,6 +277,7 @@ struct hisi_qm_hw_ops {
 	int (*debug_init)(struct hisi_qm *qm);
 	void (*hw_error_init)(struct hisi_qm *qm, u32 ce, u32 nfe, u32 fe,
 			      u32 msi);
+	void (*hw_error_uninit)(struct hisi_qm *qm);
 	pci_ers_result_t (*hw_error_handle)(struct hisi_qm *qm);
 };
 
@@ -1011,6 +1012,11 @@ static void qm_hw_error_init_v2(struct hisi_qm *qm, u32 ce, u32 nfe, u32 fe,
 	writel(irq_unmask, qm->io_base + QM_ABNORMAL_INT_MASK);
 }
 
+static void qm_hw_error_uninit_v2(struct hisi_qm *qm)
+{
+	writel(QM_ABNORMAL_INT_MASK_VALUE, qm->io_base + QM_ABNORMAL_INT_MASK);
+}
+
 static void qm_log_hw_error(struct hisi_qm *qm, u32 error_status)
 {
 	const struct hisi_qm_hw_error *err = qm_hw_error;
@@ -1082,6 +1088,7 @@ static const struct hisi_qm_hw_ops qm_hw_ops_v2 = {
 	.qm_db = qm_db_v2,
 	.get_irq_num = qm_get_irq_num_v2,
 	.hw_error_init = qm_hw_error_init_v2,
+	.hw_error_uninit = qm_hw_error_uninit_v2,
 	.hw_error_handle = qm_hw_error_handle_v2,
 };
 
@@ -1856,35 +1863,28 @@ void hisi_qm_debug_regs_clear(struct hisi_qm *qm)
 }
 EXPORT_SYMBOL_GPL(hisi_qm_debug_regs_clear);
 
-/**
- * hisi_qm_hw_error_init() - Configure qm hardware error report method.
- * @qm: The qm which we want to configure.
- * @ce: Bit mask of correctable error configure.
- * @nfe: Bit mask of non-fatal error configure.
- * @fe: Bit mask of fatal error configure.
- * @msi: Bit mask of error reported by message signal interrupt.
- *
- * Hardware errors of qm can be reported either by RAS interrupts which will
- * be handled by UEFI and then PCIe AER or by device MSI. User can configure
- * each error to use either of above two methods. For RAS interrupts, we can
- * configure an error as one of correctable error, non-fatal error or
- * fatal error.
- *
- * Bits indicating errors can be configured to ce, nfe, fe and msi to enable
- * related report methods. Error report will be masked if related error bit
- * does not configure.
- */
-void hisi_qm_hw_error_init(struct hisi_qm *qm, u32 ce, u32 nfe, u32 fe,
-			   u32 msi)
+static void qm_hw_error_init(struct hisi_qm *qm)
 {
+	const struct hisi_qm_err_info *err_info = &qm->err_ini->err_info;
+
 	if (!qm->ops->hw_error_init) {
 		dev_err(&qm->pdev->dev, "QM doesn't support hw error handling!\n");
 		return;
 	}
 
-	qm->ops->hw_error_init(qm, ce, nfe, fe, msi);
+	qm->ops->hw_error_init(qm, err_info->ce, err_info->nfe,
+			       err_info->fe, err_info->msi);
 }
-EXPORT_SYMBOL_GPL(hisi_qm_hw_error_init);
+
+static void qm_hw_error_uninit(struct hisi_qm *qm)
+{
+	if (!qm->ops->hw_error_uninit) {
+		dev_err(&qm->pdev->dev, "Unexpected QM hw error uninit!\n");
+		return;
+	}
+
+	qm->ops->hw_error_uninit(qm);
+}
 
 /**
  * hisi_qm_hw_error_handle() - Handle qm non-fatal hardware errors.
@@ -1921,6 +1921,48 @@ enum qm_hw_ver hisi_qm_get_hw_version(struct pci_dev *pdev)
 	}
 }
 EXPORT_SYMBOL_GPL(hisi_qm_get_hw_version);
+
+/**
+ * hisi_qm_dev_err_init() - Initialize device error configuration.
+ * @qm: The qm for which we want to do error initialization.
+ *
+ * Initialize QM and device error related configuration.
+ */
+void hisi_qm_dev_err_init(struct hisi_qm *qm)
+{
+	if (qm->fun_type == QM_HW_VF)
+		return;
+
+	qm_hw_error_init(qm);
+
+	if (!qm->err_ini->hw_err_enable) {
+		dev_err(&qm->pdev->dev, "Device doesn't support hw error init!\n");
+		return;
+	}
+	qm->err_ini->hw_err_enable(qm);
+}
+EXPORT_SYMBOL_GPL(hisi_qm_dev_err_init);
+
+/**
+ * hisi_qm_dev_err_uninit() - Uninitialize device error configuration.
+ * @qm: The qm for which we want to do error uninitialization.
+ *
+ * Uninitialize QM and device error related configuration.
+ */
+void hisi_qm_dev_err_uninit(struct hisi_qm *qm)
+{
+	if (qm->fun_type == QM_HW_VF)
+		return;
+
+	qm_hw_error_uninit(qm);
+
+	if (!qm->err_ini->hw_err_disable) {
+		dev_err(&qm->pdev->dev, "Unexpected device hw error uninit!\n");
+		return;
+	}
+	qm->err_ini->hw_err_disable(qm);
+}
+EXPORT_SYMBOL_GPL(hisi_qm_dev_err_uninit);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Zhou Wang <wangzhou1@hisilicon.com>");

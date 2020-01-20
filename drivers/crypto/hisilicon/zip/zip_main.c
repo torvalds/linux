@@ -60,13 +60,13 @@
 #define HZIP_CORE_DEBUG_DECOMP_5	0x309000
 
 #define HZIP_CORE_INT_SOURCE		0x3010A0
-#define HZIP_CORE_INT_MASK		0x3010A4
+#define HZIP_CORE_INT_MASK_REG		0x3010A4
 #define HZIP_CORE_INT_STATUS		0x3010AC
 #define HZIP_CORE_INT_STATUS_M_ECC	BIT(1)
 #define HZIP_CORE_SRAM_ECC_ERR_INFO	0x301148
 #define SRAM_ECC_ERR_NUM_SHIFT		16
 #define SRAM_ECC_ERR_ADDR_SHIFT		24
-#define HZIP_CORE_INT_DISABLE		0x000007FF
+#define HZIP_CORE_INT_MASK_ALL		GENMASK(10, 0)
 #define HZIP_COMP_CORE_NUM		2
 #define HZIP_DECOMP_CORE_NUM		6
 #define HZIP_CORE_NUM			(HZIP_COMP_CORE_NUM + \
@@ -366,27 +366,26 @@ static void hisi_zip_set_user_domain_and_cache(struct hisi_zip *hisi_zip)
 	       FIELD_PREP(CQC_CACHE_WB_THRD, 1), base + QM_CACHE_CTL);
 }
 
-static void hisi_zip_hw_error_set_state(struct hisi_zip *hisi_zip, bool state)
+static void hisi_zip_hw_error_enable(struct hisi_qm *qm)
 {
-	struct hisi_qm *qm = &hisi_zip->qm;
-
 	if (qm->ver == QM_HW_V1) {
-		writel(HZIP_CORE_INT_DISABLE, qm->io_base + HZIP_CORE_INT_MASK);
+		writel(HZIP_CORE_INT_MASK_ALL,
+		       qm->io_base + HZIP_CORE_INT_MASK_REG);
 		dev_info(&qm->pdev->dev, "Does not support hw error handle\n");
 		return;
 	}
 
-	if (state) {
-		/* clear ZIP hw error source if having */
-		writel(HZIP_CORE_INT_DISABLE, hisi_zip->qm.io_base +
-					      HZIP_CORE_INT_SOURCE);
-		/* enable ZIP hw error interrupts */
-		writel(0, hisi_zip->qm.io_base + HZIP_CORE_INT_MASK);
-	} else {
-		/* disable ZIP hw error interrupts */
-		writel(HZIP_CORE_INT_DISABLE,
-		       hisi_zip->qm.io_base + HZIP_CORE_INT_MASK);
-	}
+	/* clear ZIP hw error source if having */
+	writel(HZIP_CORE_INT_MASK_ALL, qm->io_base + HZIP_CORE_INT_SOURCE);
+
+	/* enable ZIP hw error interrupts */
+	writel(0, qm->io_base + HZIP_CORE_INT_MASK_REG);
+}
+
+static void hisi_zip_hw_error_disable(struct hisi_qm *qm)
+{
+	/* disable ZIP hw error interrupts */
+	writel(HZIP_CORE_INT_MASK_ALL, qm->io_base + HZIP_CORE_INT_MASK_REG);
 }
 
 static inline struct hisi_qm *file_to_qm(struct ctrl_debug_file *file)
@@ -638,13 +637,16 @@ static void hisi_zip_debugfs_exit(struct hisi_zip *hisi_zip)
 		hisi_zip_debug_regs_clear(hisi_zip);
 }
 
-static void hisi_zip_hw_error_init(struct hisi_zip *hisi_zip)
-{
-	hisi_qm_hw_error_init(&hisi_zip->qm, QM_BASE_CE,
-			      QM_BASE_NFE | QM_ACC_WB_NOT_READY_TIMEOUT, 0,
-			      QM_DB_RANDOM_INVALID);
-	hisi_zip_hw_error_set_state(hisi_zip, true);
-}
+static const struct hisi_qm_err_ini hisi_zip_err_ini = {
+	.hw_err_enable	= hisi_zip_hw_error_enable,
+	.hw_err_disable	= hisi_zip_hw_error_disable,
+	.err_info	= {
+		.ce		= QM_BASE_CE,
+		.nfe		= QM_BASE_NFE | QM_ACC_WB_NOT_READY_TIMEOUT,
+		.fe		= 0,
+		.msi		= QM_DB_RANDOM_INVALID,
+	}
+};
 
 static int hisi_zip_pf_probe_init(struct hisi_zip *hisi_zip)
 {
@@ -671,8 +673,10 @@ static int hisi_zip_pf_probe_init(struct hisi_zip *hisi_zip)
 		return -EINVAL;
 	}
 
+	qm->err_ini = &hisi_zip_err_ini;
+
 	hisi_zip_set_user_domain_and_cache(hisi_zip);
-	hisi_zip_hw_error_init(hisi_zip);
+	hisi_qm_dev_err_init(qm);
 	hisi_zip_debug_regs_clear(hisi_zip);
 
 	return 0;
@@ -887,9 +891,7 @@ static void hisi_zip_remove(struct pci_dev *pdev)
 	hisi_zip_debugfs_exit(hisi_zip);
 	hisi_qm_stop(qm);
 
-	if (qm->fun_type == QM_HW_PF)
-		hisi_zip_hw_error_set_state(hisi_zip, false);
-
+	hisi_qm_dev_err_uninit(qm);
 	hisi_qm_uninit(qm);
 	hisi_zip_remove_from_list(hisi_zip);
 }

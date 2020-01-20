@@ -384,9 +384,8 @@ static void sec_debug_regs_clear(struct hisi_qm *qm)
 	hisi_qm_debug_regs_clear(qm);
 }
 
-static void sec_hw_error_enable(struct sec_dev *sec)
+static void sec_hw_error_enable(struct hisi_qm *qm)
 {
-	struct hisi_qm *qm = &sec->qm;
 	u32 val;
 
 	if (qm->ver == QM_HW_V1) {
@@ -414,9 +413,8 @@ static void sec_hw_error_enable(struct sec_dev *sec)
 	writel(val, qm->io_base + SEC_CONTROL_REG);
 }
 
-static void sec_hw_error_disable(struct sec_dev *sec)
+static void sec_hw_error_disable(struct hisi_qm *qm)
 {
-	struct hisi_qm *qm = &sec->qm;
 	u32 val;
 
 	val = readl(qm->io_base + SEC_CONTROL_REG);
@@ -433,27 +431,6 @@ static void sec_hw_error_disable(struct sec_dev *sec)
 	val = val & SEC_AXI_SHUTDOWN_DISABLE;
 
 	writel(val, qm->io_base + SEC_CONTROL_REG);
-}
-
-static void sec_hw_error_init(struct sec_dev *sec)
-{
-	if (sec->qm.fun_type == QM_HW_VF)
-		return;
-
-	hisi_qm_hw_error_init(&sec->qm, QM_BASE_CE,
-			      QM_BASE_NFE | QM_ACC_DO_TASK_TIMEOUT
-			      | QM_ACC_WB_NOT_READY_TIMEOUT, 0,
-			      QM_DB_RANDOM_INVALID);
-	sec_hw_error_enable(sec);
-}
-
-static void sec_hw_error_uninit(struct sec_dev *sec)
-{
-	if (sec->qm.fun_type == QM_HW_VF)
-		return;
-
-	sec_hw_error_disable(sec);
-	writel(GENMASK(12, 0), sec->qm.io_base + SEC_QM_ABNORMAL_INT_MASK);
 }
 
 static u32 sec_current_qm_read(struct sec_debug_file *file)
@@ -695,6 +672,18 @@ static void sec_debugfs_exit(struct sec_dev *sec)
 	debugfs_remove_recursive(sec->qm.debug.debug_root);
 }
 
+static const struct hisi_qm_err_ini sec_err_ini = {
+	.hw_err_enable	= sec_hw_error_enable,
+	.hw_err_disable	= sec_hw_error_disable,
+	.err_info	= {
+		.ce		= QM_BASE_CE,
+		.nfe		= QM_BASE_NFE | QM_ACC_DO_TASK_TIMEOUT |
+				  QM_ACC_WB_NOT_READY_TIMEOUT,
+		.fe		= 0,
+		.msi		= QM_DB_RANDOM_INVALID,
+	}
+};
+
 static int sec_pf_probe_init(struct sec_dev *sec)
 {
 	struct hisi_qm *qm = &sec->qm;
@@ -713,11 +702,13 @@ static int sec_pf_probe_init(struct sec_dev *sec)
 		return -EINVAL;
 	}
 
+	qm->err_ini = &sec_err_ini;
+
 	ret = sec_set_user_domain_and_cache(sec);
 	if (ret)
 		return ret;
 
-	sec_hw_error_init(sec);
+	hisi_qm_dev_err_init(qm);
 	sec_debug_regs_clear(qm);
 
 	return 0;
@@ -777,9 +768,9 @@ static int sec_probe_init(struct hisi_qm *qm, struct sec_dev *sec)
 	return 0;
 }
 
-static void sec_probe_uninit(struct sec_dev *sec)
+static void sec_probe_uninit(struct hisi_qm *qm)
 {
-	sec_hw_error_uninit(sec);
+	hisi_qm_dev_err_uninit(qm);
 }
 
 static int sec_probe(struct pci_dev *pdev, const struct pci_device_id *id)
@@ -836,7 +827,7 @@ err_remove_from_list:
 	hisi_qm_stop(qm);
 
 err_probe_uninit:
-	sec_probe_uninit(sec);
+	sec_probe_uninit(qm);
 
 err_qm_uninit:
 	sec_qm_uninit(qm);
@@ -967,7 +958,7 @@ static void sec_remove(struct pci_dev *pdev)
 	if (qm->fun_type == QM_HW_PF)
 		sec_debug_regs_clear(qm);
 
-	sec_probe_uninit(sec);
+	sec_probe_uninit(qm);
 
 	sec_qm_uninit(qm);
 }

@@ -349,18 +349,14 @@ static void hpre_cnt_regs_clear(struct hisi_qm *qm)
 	hisi_qm_debug_regs_clear(qm);
 }
 
-static void hpre_hw_error_disable(struct hpre *hpre)
+static void hpre_hw_error_disable(struct hisi_qm *qm)
 {
-	struct hisi_qm *qm = &hpre->qm;
-
 	/* disable hpre hw error interrupts */
 	writel(HPRE_CORE_INT_DISABLE, qm->io_base + HPRE_INT_MASK);
 }
 
-static void hpre_hw_error_enable(struct hpre *hpre)
+static void hpre_hw_error_enable(struct hisi_qm *qm)
 {
-	struct hisi_qm *qm = &hpre->qm;
-
 	/* enable hpre hw error interrupts */
 	writel(HPRE_CORE_INT_ENABLE, qm->io_base + HPRE_INT_MASK);
 	writel(HPRE_HAC_RAS_CE_ENABLE, qm->io_base + HPRE_RAS_CE_ENB);
@@ -713,12 +709,16 @@ static int hpre_qm_pre_init(struct hisi_qm *qm, struct pci_dev *pdev)
 	return 0;
 }
 
-static void hpre_hw_err_init(struct hpre *hpre)
-{
-	hisi_qm_hw_error_init(&hpre->qm, QM_BASE_CE, QM_BASE_NFE,
-			      0, QM_DB_RANDOM_INVALID);
-	hpre_hw_error_enable(hpre);
-}
+static const struct hisi_qm_err_ini hpre_err_ini = {
+	.hw_err_enable	= hpre_hw_error_enable,
+	.hw_err_disable	= hpre_hw_error_disable,
+	.err_info	= {
+		.ce		= QM_BASE_CE,
+		.nfe		= QM_BASE_NFE | QM_ACC_DO_TASK_TIMEOUT,
+		.fe		= 0,
+		.msi		= QM_DB_RANDOM_INVALID,
+	}
+};
 
 static int hpre_pf_probe_init(struct hpre *hpre)
 {
@@ -731,7 +731,8 @@ static int hpre_pf_probe_init(struct hpre *hpre)
 	if (ret)
 		return ret;
 
-	hpre_hw_err_init(hpre);
+	qm->err_ini = &hpre_err_ini;
+	hisi_qm_dev_err_init(qm);
 
 	return 0;
 }
@@ -790,8 +791,7 @@ err_with_qm_start:
 	hisi_qm_stop(qm);
 
 err_with_err_init:
-	if (pdev->is_physfn)
-		hpre_hw_error_disable(hpre);
+	hisi_qm_dev_err_uninit(qm);
 
 err_with_qm_init:
 	hisi_qm_uninit(qm);
@@ -922,8 +922,7 @@ static void hpre_remove(struct pci_dev *pdev)
 
 	hpre_debugfs_exit(hpre);
 	hisi_qm_stop(qm);
-	if (qm->fun_type == QM_HW_PF)
-		hpre_hw_error_disable(hpre);
+	hisi_qm_dev_err_uninit(qm);
 	hisi_qm_uninit(qm);
 }
 
