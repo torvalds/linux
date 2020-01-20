@@ -2142,7 +2142,7 @@ static int vlv_modeset_calc_cdclk(struct intel_cdclk_state *cdclk_state)
 	cdclk_state->logical.voltage_level =
 		vlv_calc_voltage_level(dev_priv, cdclk);
 
-	if (!state->active_pipes) {
+	if (!cdclk_state->active_pipes) {
 		cdclk = vlv_calc_cdclk(dev_priv, cdclk_state->force_min_cdclk);
 
 		cdclk_state->actual.cdclk = cdclk;
@@ -2157,7 +2157,6 @@ static int vlv_modeset_calc_cdclk(struct intel_cdclk_state *cdclk_state)
 
 static int bdw_modeset_calc_cdclk(struct intel_cdclk_state *cdclk_state)
 {
-	struct intel_atomic_state *state = cdclk_state->base.state;
 	int min_cdclk, cdclk;
 
 	min_cdclk = intel_compute_min_cdclk(cdclk_state);
@@ -2174,7 +2173,7 @@ static int bdw_modeset_calc_cdclk(struct intel_cdclk_state *cdclk_state)
 	cdclk_state->logical.voltage_level =
 		bdw_calc_voltage_level(cdclk);
 
-	if (!state->active_pipes) {
+	if (!cdclk_state->active_pipes) {
 		cdclk = bdw_calc_cdclk(cdclk_state->force_min_cdclk);
 
 		cdclk_state->actual.cdclk = cdclk;
@@ -2226,7 +2225,6 @@ static int skl_dpll0_vco(struct intel_cdclk_state *cdclk_state)
 
 static int skl_modeset_calc_cdclk(struct intel_cdclk_state *cdclk_state)
 {
-	struct intel_atomic_state *state = cdclk_state->base.state;
 	int min_cdclk, cdclk, vco;
 
 	min_cdclk = intel_compute_min_cdclk(cdclk_state);
@@ -2246,7 +2244,7 @@ static int skl_modeset_calc_cdclk(struct intel_cdclk_state *cdclk_state)
 	cdclk_state->logical.voltage_level =
 		skl_calc_voltage_level(cdclk);
 
-	if (!state->active_pipes) {
+	if (!cdclk_state->active_pipes) {
 		cdclk = skl_calc_cdclk(cdclk_state->force_min_cdclk, vco);
 
 		cdclk_state->actual.vco = vco;
@@ -2283,7 +2281,7 @@ static int bxt_modeset_calc_cdclk(struct intel_cdclk_state *cdclk_state)
 		max_t(int, min_voltage_level,
 		      dev_priv->display.calc_voltage_level(cdclk));
 
-	if (!state->active_pipes) {
+	if (!cdclk_state->active_pipes) {
 		cdclk = bxt_calc_cdclk(dev_priv, cdclk_state->force_min_cdclk);
 		vco = bxt_calc_cdclk_pll_vco(dev_priv, cdclk);
 
@@ -2419,6 +2417,9 @@ int intel_modeset_calc_cdclk(struct intel_atomic_state *state)
 
 	old_cdclk_state = intel_atomic_get_old_cdclk_state(state);
 
+	new_cdclk_state->active_pipes =
+		intel_calc_active_pipes(state, old_cdclk_state->active_pipes);
+
 	ret = dev_priv->display.modeset_calc_cdclk(new_cdclk_state);
 	if (ret)
 		return ret;
@@ -2432,7 +2433,8 @@ int intel_modeset_calc_cdclk(struct intel_atomic_state *state)
 		ret = intel_atomic_serialize_global_state(&new_cdclk_state->base);
 		if (ret)
 			return ret;
-	} else if (intel_cdclk_changed(&old_cdclk_state->logical,
+	} else if (old_cdclk_state->active_pipes != new_cdclk_state->active_pipes ||
+		   intel_cdclk_changed(&old_cdclk_state->logical,
 				       &new_cdclk_state->logical)) {
 		ret = intel_atomic_lock_global_state(&new_cdclk_state->base);
 		if (ret)
@@ -2441,14 +2443,14 @@ int intel_modeset_calc_cdclk(struct intel_atomic_state *state)
 		return 0;
 	}
 
-	if (is_power_of_2(state->active_pipes) &&
+	if (is_power_of_2(new_cdclk_state->active_pipes) &&
 	    intel_cdclk_can_cd2x_update(dev_priv,
 					&old_cdclk_state->actual,
 					&new_cdclk_state->actual)) {
 		struct intel_crtc *crtc;
 		struct intel_crtc_state *crtc_state;
 
-		pipe = ilog2(state->active_pipes);
+		pipe = ilog2(new_cdclk_state->active_pipes);
 		crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
 
 		crtc_state = intel_atomic_get_crtc_state(&state->base, crtc);

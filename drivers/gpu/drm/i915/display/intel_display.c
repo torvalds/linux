@@ -7603,6 +7603,7 @@ static void intel_crtc_disable_noatomic(struct intel_crtc *crtc,
 	dev_priv->active_pipes &= ~BIT(pipe);
 	cdclk_state->min_cdclk[pipe] = 0;
 	cdclk_state->min_voltage_level[pipe] = 0;
+	cdclk_state->active_pipes &= ~BIT(pipe);
 
 	bw_state->data_rate[pipe] = 0;
 	bw_state->num_active_planes[pipe] = 0;
@@ -18367,9 +18368,8 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 	struct intel_encoder *encoder;
 	struct intel_connector *connector;
 	struct drm_connector_list_iter conn_iter;
+	u8 active_pipes = 0;
 	int i;
-
-	dev_priv->active_pipes = 0;
 
 	for_each_intel_crtc(dev, crtc) {
 		struct intel_crtc_state *crtc_state =
@@ -18386,13 +18386,15 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		crtc->active = crtc_state->hw.active;
 
 		if (crtc_state->hw.active)
-			dev_priv->active_pipes |= BIT(crtc->pipe);
+			active_pipes |= BIT(crtc->pipe);
 
 		drm_dbg_kms(&dev_priv->drm,
 			    "[CRTC:%d:%s] hw state readout: %s\n",
 			    crtc->base.base.id, crtc->base.name,
 			    enableddisabled(crtc_state->hw.active));
 	}
+
+	dev_priv->active_pipes = cdclk_state->active_pipes = active_pipes;
 
 	readout_plane_state(dev_priv);
 
