@@ -103,7 +103,7 @@ ENTRY(at91_pm_suspend_in_sram)
 	cmp	tmp1, #0
 	ldrne	tmp2, [tmp1, #0]
 	ldr	tmp1, [r0, #PM_DATA_SFRBU]
-	str	tmp1, .sfr
+	str	tmp1, .sfrbu
 	cmp	tmp1, #0
 	ldrne	tmp2, [tmp1, #0x10]
 
@@ -150,7 +150,7 @@ ENTRY(at91_backup_mode)
 	wait_mckrdy
 
 	/*BUMEN*/
-	ldr	r0, .sfr
+	ldr	r0, .sfrbu
 	mov	tmp1, #0x1
 	str	tmp1, [r0, #0x10]
 
@@ -536,7 +536,7 @@ ENDPROC(at91_sramc_self_refresh)
 	.word 0
 .shdwc:
 	.word 0
-.sfr:
+.sfrbu:
 	.word 0
 .memtype:
 	.word 0
