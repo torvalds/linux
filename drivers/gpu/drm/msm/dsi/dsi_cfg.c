@@ -153,6 +153,10 @@ static const char * const dsi_sdm845_bus_clk_names[] = {
 	"iface", "bus",
 };
 
+static const char * const dsi_sc7180_bus_clk_names[] = {
+	"iface", "bus",
+};
+
 static const struct msm_dsi_config sdm845_dsi_cfg = {
 	.io_offset = DSI_6G_REG_SHIFT,
 	.reg_cfg = {
@@ -167,7 +171,22 @@ static const struct msm_dsi_config sdm845_dsi_cfg = {
 	.num_dsi = 2,
 };
 
+static const struct msm_dsi_config sc7180_dsi_cfg = {
+	.io_offset = DSI_6G_REG_SHIFT,
+	.reg_cfg = {
+		.num = 1,
+		.regs = {
+			{"vdda", 21800, 4 },	/* 1.2 V */
+		},
+	},
+	.bus_clk_names = dsi_sc7180_bus_clk_names,
+	.num_bus_clks = ARRAY_SIZE(dsi_sc7180_bus_clk_names),
+	.io_start = { 0xae94000 },
+	.num_dsi = 1,
+};
+
 static const struct msm_dsi_host_cfg_ops msm_dsi_v2_host_ops = {
+	.link_clk_set_rate = dsi_link_clk_set_rate_v2,
 	.link_clk_enable = dsi_link_clk_enable_v2,
 	.link_clk_disable = dsi_link_clk_disable_v2,
 	.clk_init_ver = dsi_clk_init_v2,
@@ -179,6 +198,7 @@ static const struct msm_dsi_host_cfg_ops msm_dsi_v2_host_ops = {
 };
 
 static const struct msm_dsi_host_cfg_ops msm_dsi_6g_host_ops = {
+	.link_clk_set_rate = dsi_link_clk_set_rate_6g,
 	.link_clk_enable = dsi_link_clk_enable_6g,
 	.link_clk_disable = dsi_link_clk_disable_6g,
 	.clk_init_ver = NULL,
@@ -190,6 +210,7 @@ static const struct msm_dsi_host_cfg_ops msm_dsi_6g_host_ops = {
 };
 
 static const struct msm_dsi_host_cfg_ops msm_dsi_6g_v2_host_ops = {
+	.link_clk_set_rate = dsi_link_clk_set_rate_6g,
 	.link_clk_enable = dsi_link_clk_enable_6g,
 	.link_clk_disable = dsi_link_clk_disable_6g,
 	.clk_init_ver = dsi_clk_init_6g_v2,
@@ -223,6 +244,9 @@ static const struct msm_dsi_cfg_handler dsi_cfg_handlers[] = {
 		&msm8998_dsi_cfg, &msm_dsi_6g_v2_host_ops},
 	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MINOR_V2_2_1,
 		&sdm845_dsi_cfg, &msm_dsi_6g_v2_host_ops},
+	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MINOR_V2_4_1,
+		&sc7180_dsi_cfg, &msm_dsi_6g_v2_host_ops},
+
 };
 
 const struct msm_dsi_cfg_handler *msm_dsi_cfg_get(u32 major, u32 minor)
