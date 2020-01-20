@@ -2811,31 +2811,31 @@ static void ilk_compute_wm_level(const struct drm_i915_private *dev_priv,
 }
 
 static u32
-hsw_compute_linetime_wm(const struct intel_crtc_state *crtc_state)
+hsw_linetime_wm(const struct intel_crtc_state *crtc_state)
 {
-	const struct intel_atomic_state *intel_state =
-		to_intel_atomic_state(crtc_state->uapi.state);
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->hw.adjusted_mode;
-	u32 linetime, ips_linetime;
 
 	if (!crtc_state->hw.active)
 		return 0;
-	if (WARN_ON(adjusted_mode->crtc_clock == 0))
-		return 0;
-	if (WARN_ON(intel_state->cdclk.logical.cdclk == 0))
+
+	return DIV_ROUND_CLOSEST(adjusted_mode->crtc_htotal * 1000 * 8,
+				 adjusted_mode->crtc_clock);
+}
+
+static u32
+hsw_ips_linetime_wm(const struct intel_crtc_state *crtc_state)
+{
+	const struct intel_atomic_state *state =
+		to_intel_atomic_state(crtc_state->uapi.state);
+	const struct drm_display_mode *adjusted_mode =
+		&crtc_state->hw.adjusted_mode;
+
+	if (!crtc_state->hw.active)
 		return 0;
 
-	/* The WM are computed with base on how long it takes to fill a single
-	 * row at the given clock rate, multiplied by 8.
-	 * */
-	linetime = DIV_ROUND_CLOSEST(adjusted_mode->crtc_htotal * 1000 * 8,
-				     adjusted_mode->crtc_clock);
-	ips_linetime = DIV_ROUND_CLOSEST(adjusted_mode->crtc_htotal * 1000 * 8,
-					 intel_state->cdclk.logical.cdclk);
-
-	return PIPE_WM_LINETIME_IPS_LINETIME(ips_linetime) |
-	       PIPE_WM_LINETIME_TIME(linetime);
+	return DIV_ROUND_CLOSEST(adjusted_mode->crtc_htotal * 1000 * 8,
+				 state->cdclk.logical.cdclk);
 }
 
 static void intel_read_wm_latency(struct drm_i915_private *dev_priv,
@@ -3178,8 +3178,10 @@ static int ilk_compute_pipe_wm(struct intel_crtc_state *crtc_state)
 	ilk_compute_wm_level(dev_priv, intel_crtc, 0, crtc_state,
 			     pristate, sprstate, curstate, &pipe_wm->wm[0]);
 
-	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
-		pipe_wm->linetime = hsw_compute_linetime_wm(crtc_state);
+	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
+		pipe_wm->linetime = hsw_linetime_wm(crtc_state);
+		pipe_wm->ips_linetime = hsw_ips_linetime_wm(crtc_state);
+	}
 
 	if (!ilk_validate_pipe_wm(dev_priv, pipe_wm))
 		return -EINVAL;
@@ -3426,13 +3428,14 @@ static void ilk_compute_wm_results(struct drm_i915_private *dev_priv,
 	/* LP0 register values */
 	for_each_intel_crtc(&dev_priv->drm, intel_crtc) {
 		enum pipe pipe = intel_crtc->pipe;
-		const struct intel_wm_level *r =
-			&intel_crtc->wm.active.ilk.wm[0];
+		const struct intel_pipe_wm *pipe_wm = &intel_crtc->wm.active.ilk;
+		const struct intel_wm_level *r = &pipe_wm->wm[0];
 
 		if (drm_WARN_ON(&dev_priv->drm, !r->enable))
 			continue;
-
-		results->wm_linetime[pipe] = intel_crtc->wm.active.ilk.linetime;
+		results->wm_linetime[pipe] =
+			HSW_LINETIME(pipe_wm->linetime) |
+			HSW_IPS_LINETIME(pipe_wm->ips_linetime);
 
 		results->wm_pipe[pipe] =
 			(r->pri_val << WM0_PIPE_PLANE_SHIFT) |
@@ -3585,11 +3588,11 @@ static void ilk_write_wm_values(struct drm_i915_private *dev_priv,
 		I915_WRITE(WM0_PIPEC_IVB, results->wm_pipe[2]);
 
 	if (dirty & WM_DIRTY_LINETIME(PIPE_A))
-		I915_WRITE(PIPE_WM_LINETIME(PIPE_A), results->wm_linetime[0]);
+		I915_WRITE(WM_LINETIME(PIPE_A), results->wm_linetime[0]);
 	if (dirty & WM_DIRTY_LINETIME(PIPE_B))
-		I915_WRITE(PIPE_WM_LINETIME(PIPE_B), results->wm_linetime[1]);
+		I915_WRITE(WM_LINETIME(PIPE_B), results->wm_linetime[1]);
 	if (dirty & WM_DIRTY_LINETIME(PIPE_C))
-		I915_WRITE(PIPE_WM_LINETIME(PIPE_C), results->wm_linetime[2]);
+		I915_WRITE(WM_LINETIME(PIPE_C), results->wm_linetime[2]);
 
 	if (dirty & WM_DIRTY_DDB) {
 		if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
@@ -5571,7 +5574,7 @@ static void skl_atomic_update_crtc_wm(struct intel_atomic_state *state,
 	if ((state->wm_results.dirty_pipes & BIT(crtc->pipe)) == 0)
 		return;
 
-	I915_WRITE(PIPE_WM_LINETIME(pipe), pipe_wm->linetime);
+	I915_WRITE(WM_LINETIME(pipe), HSW_LINETIME(pipe_wm->linetime));
 }
 
 static void skl_initial_wm(struct intel_atomic_state *state,
@@ -5716,7 +5719,8 @@ void skl_pipe_wm_get_hw_state(struct intel_crtc *crtc,
 	if (!crtc->active)
 		return;
 
-	out->linetime = I915_READ(PIPE_WM_LINETIME(pipe));
+	val = I915_READ(WM_LINETIME(pipe));
+	out->linetime = REG_FIELD_GET(HSW_LINETIME_MASK, val);
 }
 
 void skl_wm_get_hw_state(struct drm_i915_private *dev_priv)
@@ -5758,7 +5762,7 @@ static void ilk_pipe_wm_get_hw_state(struct intel_crtc *crtc)
 
 	hw->wm_pipe[pipe] = I915_READ(wm0_pipe_reg[pipe]);
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
-		hw->wm_linetime[pipe] = I915_READ(PIPE_WM_LINETIME(pipe));
+		hw->wm_linetime[pipe] = I915_READ(WM_LINETIME(pipe));
 
 	memset(active, 0, sizeof(*active));
 
@@ -5777,7 +5781,10 @@ static void ilk_pipe_wm_get_hw_state(struct intel_crtc *crtc)
 		active->wm[0].pri_val = (tmp & WM0_PIPE_PLANE_MASK) >> WM0_PIPE_PLANE_SHIFT;
 		active->wm[0].spr_val = (tmp & WM0_PIPE_SPRITE_MASK) >> WM0_PIPE_SPRITE_SHIFT;
 		active->wm[0].cur_val = tmp & WM0_PIPE_CURSOR_MASK;
-		active->linetime = hw->wm_linetime[pipe];
+		active->linetime = REG_FIELD_GET(HSW_LINETIME_MASK,
+						 hw->wm_linetime[pipe]);
+		active->ips_linetime = REG_FIELD_GET(HSW_IPS_LINETIME_MASK,
+						     hw->wm_linetime[pipe]);
 	} else {
 		int level, max_level = ilk_wm_max_level(dev_priv);
 
