@@ -142,6 +142,7 @@ static struct attribute_group cpuidle_attr_group = {
 
 /**
  * cpuidle_add_interface - add CPU global sysfs attributes
+ * @dev: the target device
  */
 int cpuidle_add_interface(struct device *dev)
 {
@@ -153,6 +154,7 @@ int cpuidle_add_interface(struct device *dev)
 
 /**
  * cpuidle_remove_interface - remove CPU global sysfs attributes
+ * @dev: the target device
  */
 void cpuidle_remove_interface(struct device *dev)
 {
@@ -615,7 +617,7 @@ static struct kobj_type ktype_driver_cpuidle = {
 
 /**
  * cpuidle_add_driver_sysfs - adds the driver name sysfs attribute
- * @device: the target device
+ * @dev: the target device
  */
 static int cpuidle_add_driver_sysfs(struct cpuidle_device *dev)
 {
@@ -646,7 +648,7 @@ static int cpuidle_add_driver_sysfs(struct cpuidle_device *dev)
 
 /**
  * cpuidle_remove_driver_sysfs - removes the driver name sysfs attribute
- * @device: the target device
+ * @dev: the target device
  */
 static void cpuidle_remove_driver_sysfs(struct cpuidle_device *dev)
 {
