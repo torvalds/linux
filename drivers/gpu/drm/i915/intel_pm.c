@@ -5097,23 +5097,6 @@ static bool skl_plane_wm_equals(struct drm_i915_private *dev_priv,
 	return skl_wm_level_equals(&wm1->trans_wm, &wm2->trans_wm);
 }
 
-static bool skl_pipe_wm_equals(struct intel_crtc *crtc,
-			       const struct skl_pipe_wm *wm1,
-			       const struct skl_pipe_wm *wm2)
-{
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	enum plane_id plane_id;
-
-	for_each_plane_id_on_crtc(crtc, plane_id) {
-		if (!skl_plane_wm_equals(dev_priv,
-					 &wm1->planes[plane_id],
-					 &wm2->planes[plane_id]))
-			return false;
-	}
-
-	return true;
-}
-
 static inline bool skl_ddb_entries_overlap(const struct skl_ddb_entry *a,
 					   const struct skl_ddb_entry *b)
 {
@@ -5375,8 +5358,6 @@ skl_ddb_add_affected_pipes(struct intel_atomic_state *state)
 	 * to grab the lock on *all* CRTC's.
 	 */
 	if (state->active_pipe_changes || state->modeset) {
-		state->wm_results.dirty_pipes = INTEL_INFO(dev_priv)->pipe_mask;
-
 		ret = intel_add_all_pipes(state);
 		if (ret)
 			return ret;
@@ -5451,11 +5432,7 @@ skl_compute_wm(struct intel_atomic_state *state)
 	struct intel_crtc *crtc;
 	struct intel_crtc_state *new_crtc_state;
 	struct intel_crtc_state *old_crtc_state;
-	struct skl_ddb_values *results = &state->wm_results;
 	int ret, i;
-
-	/* Clear all dirty flags */
-	results->dirty_pipes = 0;
 
 	ret = skl_ddb_add_affected_pipes(state);
 	if (ret)
@@ -5464,8 +5441,7 @@ skl_compute_wm(struct intel_atomic_state *state)
 	/*
 	 * Calculate WM's for all pipes that are part of this transaction.
 	 * Note that skl_ddb_add_affected_pipes may have added more CRTC's that
-	 * weren't otherwise being modified (and set bits in dirty_pipes) if
-	 * pipe allocations had to change.
+	 * weren't otherwise being modified if pipe allocations had to change.
 	 */
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
@@ -5476,11 +5452,6 @@ skl_compute_wm(struct intel_atomic_state *state)
 		ret = skl_wm_add_affected_planes(state, crtc);
 		if (ret)
 			return ret;
-
-		if (!skl_pipe_wm_equals(crtc,
-					&old_crtc_state->wm.skl.optimal,
-					&new_crtc_state->wm.skl.optimal))
-			results->dirty_pipes |= BIT(crtc->pipe);
 	}
 
 	ret = skl_compute_ddb(state);
@@ -5618,7 +5589,6 @@ void skl_pipe_wm_get_hw_state(struct intel_crtc *crtc,
 
 void skl_wm_get_hw_state(struct drm_i915_private *dev_priv)
 {
-	struct skl_ddb_values *hw = &dev_priv->wm.skl_hw;
 	struct skl_ddb_allocation *ddb = &dev_priv->wm.skl_hw.ddb;
 	struct intel_crtc *crtc;
 	struct intel_crtc_state *crtc_state;
@@ -5628,9 +5598,6 @@ void skl_wm_get_hw_state(struct drm_i915_private *dev_priv)
 		crtc_state = to_intel_crtc_state(crtc->base.state);
 
 		skl_pipe_wm_get_hw_state(crtc, &crtc_state->wm.skl.optimal);
-
-		if (crtc->active)
-			hw->dirty_pipes |= BIT(crtc->pipe);
 	}
 
 	if (dev_priv->active_pipes) {
