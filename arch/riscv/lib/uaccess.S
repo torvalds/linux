@@ -1,4 +1,5 @@
 #include <linux/linkage.h>
+#include <asm-generic/export.h>
 #include <asm/asm.h>
 #include <asm/csr.h>
 
@@ -66,6 +67,8 @@ ENTRY(__asm_copy_from_user)
 	j 3b
 ENDPROC(__asm_copy_to_user)
 ENDPROC(__asm_copy_from_user)
+EXPORT_SYMBOL(__asm_copy_to_user)
+EXPORT_SYMBOL(__asm_copy_from_user)
 
 
 ENTRY(__clear_user)
@@ -108,6 +111,7 @@ ENTRY(__clear_user)
 	bltu a0, a3, 5b
 	j 3b
 ENDPROC(__clear_user)
+EXPORT_SYMBOL(__clear_user)
 
 	.section .fixup,"ax"
 	.balign 4

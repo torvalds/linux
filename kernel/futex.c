@@ -1178,6 +1178,7 @@ out_error:
 
 /**
  * wait_for_owner_exiting - Block until the owner has exited
+ * @ret: owner's current futex lock status
  * @exiting:	Pointer to the exiting task
  *
  * Caller must hold a refcount on @exiting.

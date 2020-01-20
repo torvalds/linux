@@ -133,7 +133,8 @@ tomoyo_path_matches_group(const struct tomoyo_path_info *pathname,
 {
 	struct tomoyo_path_group *member;
 
-	list_for_each_entry_rcu(member, &group->member_list, head.list) {
+	list_for_each_entry_rcu(member, &group->member_list, head.list,
+				srcu_read_lock_held(&tomoyo_ss)) {
 		if (member->head.is_deleted)
 			continue;
 		if (!tomoyo_path_matches_pattern(pathname, member->member_name))
@@ -161,7 +162,8 @@ bool tomoyo_number_matches_group(const unsigned long min,
 	struct tomoyo_number_group *member;
 	bool matched = false;
 
-	list_for_each_entry_rcu(member, &group->member_list, head.list) {
+	list_for_each_entry_rcu(member, &group->member_list, head.list,
+				srcu_read_lock_held(&tomoyo_ss)) {
 		if (member->head.is_deleted)
 			continue;
 		if (min > member->number.values[1] ||
@@ -191,7 +193,8 @@ bool tomoyo_address_matches_group(const bool is_ipv6, const __be32 *address,
 	bool matched = false;
 	const u8 size = is_ipv6 ? 16 : 4;
 
-	list_for_each_entry_rcu(member, &group->member_list, head.list) {
+	list_for_each_entry_rcu(member, &group->member_list, head.list,
+				srcu_read_lock_held(&tomoyo_ss)) {
 		if (member->head.is_deleted)
 			continue;
 		if (member->address.is_ipv6 != is_ipv6)

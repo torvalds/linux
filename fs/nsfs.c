@@ -3,6 +3,7 @@
 #include <linux/pseudo_fs.h>
 #include <linux/file.h>
 #include <linux/fs.h>
+#include <linux/proc_fs.h>
 #include <linux/proc_ns.h>
 #include <linux/magic.h>
 #include <linux/ktime.h>
@@ -10,6 +11,8 @@
 #include <linux/user_namespace.h>
 #include <linux/nsfs.h>
 #include <linux/uaccess.h>
+
+#include "internal.h"
 
 static struct vfsmount *nsfs_mnt;
 
