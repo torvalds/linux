@@ -10,6 +10,8 @@
 #include <asm/mmu_context.h>
 #include <linux/build_bug.h>
 
+extern unsigned long efi_fw_vendor, efi_config_table;
+
 /*
  * We map the EFI regions needed for runtime services non-contiguously,
  * with preserved alignment on virtual addresses starting from -4G down

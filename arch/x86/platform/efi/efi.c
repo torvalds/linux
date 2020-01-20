@@ -59,6 +59,9 @@ static u64 efi_systab_phys __initdata;
 
 static unsigned long prop_phys = EFI_INVALID_TABLE_ADDR;
 static unsigned long uga_phys = EFI_INVALID_TABLE_ADDR;
+static unsigned long efi_runtime, efi_nr_tables;
+
+unsigned long efi_fw_vendor, efi_config_table;
 
 static const efi_config_table_type_t arch_tables[] __initconst = {
 	{EFI_PROPERTIES_TABLE_GUID, "PROP", &prop_phys},
@@ -78,9 +81,9 @@ static const unsigned long * const efi_tables[] = {
 #ifdef CONFIG_X86_UV
 	&uv_systab_phys,
 #endif
-	&efi.fw_vendor,
-	&efi.runtime,
-	&efi.config_table,
+	&efi_fw_vendor,
+	&efi_runtime,
+	&efi_config_table,
 	&efi.esrt,
 	&prop_phys,
 	&efi_mem_attr_table,
@@ -434,7 +437,7 @@ static int __init efi_config_init(const efi_config_table_type_t *arch_tables)
 	void *config_tables;
 	int sz, ret;
 
-	if (efi.systab->nr_tables == 0)
+	if (efi_nr_tables == 0)
 		return 0;
 
 	if (efi_enabled(EFI_64BIT))
@@ -445,17 +448,16 @@ static int __init efi_config_init(const efi_config_table_type_t *arch_tables)
 	/*
 	 * Let's see what config tables the firmware passed to us.
 	 */
-	config_tables = early_memremap(efi.systab->tables,
-				       efi.systab->nr_tables * sz);
+	config_tables = early_memremap(efi_config_table, efi_nr_tables * sz);
 	if (config_tables == NULL) {
 		pr_err("Could not map Configuration table!\n");
 		return -ENOMEM;
 	}
 
-	ret = efi_config_parse_tables(config_tables, efi.systab->nr_tables,
+	ret = efi_config_parse_tables(config_tables, efi_nr_tables,
 				      arch_tables);
 
-	early_memunmap(config_tables, efi.systab->nr_tables * sz);
+	early_memunmap(config_tables, efi_nr_tables * sz);
 	return ret;
 }
 
@@ -474,11 +476,12 @@ void __init efi_init(void)
 	if (efi_systab_init(efi_systab_phys))
 		return;
 
-	efi.config_table = (unsigned long)efi.systab->tables;
-	efi.fw_vendor	 = (unsigned long)efi.systab->fw_vendor;
-	efi.runtime	 = (unsigned long)efi.systab->runtime;
+	efi_config_table = (unsigned long)efi.systab->tables;
+	efi_nr_tables    = efi.systab->nr_tables;
+	efi_fw_vendor    = (unsigned long)efi.systab->fw_vendor;
+	efi_runtime      = (unsigned long)efi.systab->runtime;
 
-	if (efi_reuse_config(efi.systab->tables, efi.systab->nr_tables))
+	if (efi_reuse_config(efi_config_table, efi_nr_tables))
 		return;
 
 	if (efi_config_init(arch_tables))
@@ -1022,4 +1025,37 @@ char *efi_systab_show_arch(char *str)
 	if (uga_phys != EFI_INVALID_TABLE_ADDR)
 		str += sprintf(str, "UGA=0x%lx\n", uga_phys);
 	return str;
+}
+
+#define EFI_FIELD(var) efi_ ## var
+
+#define EFI_ATTR_SHOW(name) \
+static ssize_t name##_show(struct kobject *kobj, \
+				struct kobj_attribute *attr, char *buf) \
+{ \
+	return sprintf(buf, "0x%lx\n", EFI_FIELD(name)); \
+}
+
+EFI_ATTR_SHOW(fw_vendor);
+EFI_ATTR_SHOW(runtime);
+EFI_ATTR_SHOW(config_table);
+
+struct kobj_attribute efi_attr_fw_vendor = __ATTR_RO(fw_vendor);
+struct kobj_attribute efi_attr_runtime = __ATTR_RO(runtime);
+struct kobj_attribute efi_attr_config_table = __ATTR_RO(config_table);
+
+umode_t efi_attr_is_visible(struct kobject *kobj, struct attribute *attr, int n)
+{
+	if (attr == &efi_attr_fw_vendor.attr) {
+		if (efi_enabled(EFI_PARAVIRT) ||
+				efi_fw_vendor == EFI_INVALID_TABLE_ADDR)
+			return 0;
+	} else if (attr == &efi_attr_runtime.attr) {
+		if (efi_runtime == EFI_INVALID_TABLE_ADDR)
+			return 0;
+	} else if (attr == &efi_attr_config_table.attr) {
+		if (efi_config_table == EFI_INVALID_TABLE_ADDR)
+			return 0;
+	}
+	return attr->mode;
 }

@@ -39,9 +39,6 @@ struct efi __read_mostly efi = {
 	.acpi20			= EFI_INVALID_TABLE_ADDR,
 	.smbios			= EFI_INVALID_TABLE_ADDR,
 	.smbios3		= EFI_INVALID_TABLE_ADDR,
-	.fw_vendor		= EFI_INVALID_TABLE_ADDR,
-	.runtime		= EFI_INVALID_TABLE_ADDR,
-	.config_table		= EFI_INVALID_TABLE_ADDR,
 	.esrt			= EFI_INVALID_TABLE_ADDR,
 	.tpm_log		= EFI_INVALID_TABLE_ADDR,
 	.tpm_final_log		= EFI_INVALID_TABLE_ADDR,
@@ -142,55 +139,30 @@ static ssize_t systab_show(struct kobject *kobj,
 
 static struct kobj_attribute efi_attr_systab = __ATTR_RO_MODE(systab, 0400);
 
-#define EFI_FIELD(var) efi.var
-
-#define EFI_ATTR_SHOW(name) \
-static ssize_t name##_show(struct kobject *kobj, \
-				struct kobj_attribute *attr, char *buf) \
-{ \
-	return sprintf(buf, "0x%lx\n", EFI_FIELD(name)); \
-}
-
-EFI_ATTR_SHOW(fw_vendor);
-EFI_ATTR_SHOW(runtime);
-EFI_ATTR_SHOW(config_table);
-
 static ssize_t fw_platform_size_show(struct kobject *kobj,
 				     struct kobj_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", efi_enabled(EFI_64BIT) ? 64 : 32);
 }
 
-static struct kobj_attribute efi_attr_fw_vendor = __ATTR_RO(fw_vendor);
-static struct kobj_attribute efi_attr_runtime = __ATTR_RO(runtime);
-static struct kobj_attribute efi_attr_config_table = __ATTR_RO(config_table);
+extern __weak struct kobj_attribute efi_attr_fw_vendor;
+extern __weak struct kobj_attribute efi_attr_runtime;
+extern __weak struct kobj_attribute efi_attr_config_table;
 static struct kobj_attribute efi_attr_fw_platform_size =
 	__ATTR_RO(fw_platform_size);
 
 static struct attribute *efi_subsys_attrs[] = {
 	&efi_attr_systab.attr,
+	&efi_attr_fw_platform_size.attr,
 	&efi_attr_fw_vendor.attr,
 	&efi_attr_runtime.attr,
 	&efi_attr_config_table.attr,
-	&efi_attr_fw_platform_size.attr,
 	NULL,
 };
 
-static umode_t efi_attr_is_visible(struct kobject *kobj,
-				   struct attribute *attr, int n)
+umode_t __weak efi_attr_is_visible(struct kobject *kobj, struct attribute *attr,
+				   int n)
 {
-	if (attr == &efi_attr_fw_vendor.attr) {
-		if (efi_enabled(EFI_PARAVIRT) ||
-				efi.fw_vendor == EFI_INVALID_TABLE_ADDR)
-			return 0;
-	} else if (attr == &efi_attr_runtime.attr) {
-		if (efi.runtime == EFI_INVALID_TABLE_ADDR)
-			return 0;
-	} else if (attr == &efi_attr_config_table.attr) {
-		if (efi.config_table == EFI_INVALID_TABLE_ADDR)
-			return 0;
-	}
-
 	return attr->mode;
 }
 
