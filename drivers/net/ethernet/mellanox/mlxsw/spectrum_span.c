@@ -778,6 +778,22 @@ int mlxsw_sp_span_port_mtu_update(struct mlxsw_sp_port *port, u16 mtu)
 	return 0;
 }
 
+void mlxsw_sp_span_speed_update_work(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct mlxsw_sp_port *mlxsw_sp_port;
+
+	mlxsw_sp_port = container_of(dwork, struct mlxsw_sp_port,
+				     span.speed_update_dw);
+
+	/* If port is egress mirrored, the shared buffer size should be
+	 * updated according to the speed value.
+	 */
+	if (mlxsw_sp_span_is_egress_mirror(mlxsw_sp_port))
+		mlxsw_sp_span_port_buffsize_update(mlxsw_sp_port,
+						   mlxsw_sp_port->dev->mtu);
+}
+
 static struct mlxsw_sp_span_inspected_port *
 mlxsw_sp_span_entry_bound_port_find(struct mlxsw_sp_span_entry *span_entry,
 				    enum mlxsw_sp_span_type type,
