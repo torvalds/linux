@@ -93,6 +93,8 @@ ENTRY(at91_pm_suspend_in_sram)
 	str	tmp1, .memtype
 	ldr	tmp1, [r0, #PM_DATA_MODE]
 	str	tmp1, .pm_mode
+	ldr	tmp1, [r0, #PM_DATA_PMC_MCKR_OFFSET]
+	str	tmp1, .mckr_offset
 	/* Both ldrne below are here to preload their address in the TLB */
 	ldr	tmp1, [r0, #PM_DATA_SHDWC]
 	str	tmp1, .shdwc
@@ -138,9 +140,10 @@ ENDPROC(at91_pm_suspend_in_sram)
 ENTRY(at91_backup_mode)
 	/* Switch the master clock source to slow clock. */
 	ldr	pmc, .pmc_base
-	ldr	tmp1, [pmc, #AT91_PMC_MCKR]
+	ldr	tmp2, .mckr_offset
+	ldr	tmp1, [pmc, tmp2]
 	bic	tmp1, tmp1, #AT91_PMC_CSS
-	str	tmp1, [pmc, #AT91_PMC_MCKR]
+	str	tmp1, [pmc, tmp2]
 
 	wait_mckrdy
 
@@ -218,6 +221,7 @@ ENDPROC(at91_backup_mode)
  */
 .macro at91_pm_ulp1_mode
 	ldr	pmc, .pmc_base
+	ldr	tmp2, .mckr_offset
 
 	/* Save RC oscillator state and check if it is enabled. */
 	ldr	tmp1, [pmc, #AT91_PMC_SR]
@@ -254,10 +258,10 @@ ENDPROC(at91_backup_mode)
 	str	tmp1, [pmc, #AT91_CKGR_MOR]
 
 	/* Switch the master clock source to main clock */
-	ldr	tmp1, [pmc, #AT91_PMC_MCKR]
+	ldr	tmp1, [pmc, tmp2]
 	bic	tmp1, tmp1, #AT91_PMC_CSS
 	orr	tmp1, tmp1, #AT91_PMC_CSS_MAIN
-	str	tmp1, [pmc, #AT91_PMC_MCKR]
+	str	tmp1, [pmc, tmp2]
 
 	wait_mckrdy
 
@@ -280,9 +284,9 @@ ENDPROC(at91_backup_mode)
 	wait_moscrdy
 
 	/* Switch the master clock source to slow clock */
-	ldr	tmp1, [pmc, #AT91_PMC_MCKR]
+	ldr	tmp1, [pmc, tmp2]
 	bic	tmp1, tmp1, #AT91_PMC_CSS
-	str	tmp1, [pmc, #AT91_PMC_MCKR]
+	str	tmp1, [pmc, tmp2]
 
 	wait_mckrdy
 
@@ -296,10 +300,10 @@ ENDPROC(at91_backup_mode)
 	wait_moscsels
 
 	/* Switch the master clock source to main clock */
-	ldr	tmp1, [pmc, #AT91_PMC_MCKR]
+	ldr	tmp1, [pmc, tmp2]
 	bic	tmp1, tmp1, #AT91_PMC_CSS
 	orr	tmp1, tmp1, #AT91_PMC_CSS_MAIN
-	str	tmp1, [pmc, #AT91_PMC_MCKR]
+	str	tmp1, [pmc, tmp2]
 
 	wait_mckrdy
 
@@ -325,16 +329,17 @@ ENDPROC(at91_backup_mode)
 
 ENTRY(at91_ulp_mode)
 	ldr	pmc, .pmc_base
+	ldr	tmp2, .mckr_offset
 
 	/* Save Master clock setting */
-	ldr	tmp1, [pmc, #AT91_PMC_MCKR]
+	ldr	tmp1, [pmc, tmp2]
 	str	tmp1, .saved_mckr
 
 	/*
 	 * Set the Master clock source to slow clock
 	 */
 	bic	tmp1, tmp1, #AT91_PMC_CSS
-	str	tmp1, [pmc, #AT91_PMC_MCKR]
+	str	tmp1, [pmc, tmp2]
 
 	wait_mckrdy
 
@@ -355,8 +360,9 @@ ulp_exit:
 	/*
 	 * Restore master clock setting
 	 */
-	ldr	tmp1, .saved_mckr
-	str	tmp1, [pmc, #AT91_PMC_MCKR]
+	ldr	tmp1, .mckr_offset
+	ldr	tmp2, .saved_mckr
+	str	tmp2, [pmc, tmp1]
 
 	wait_mckrdy
 
@@ -501,6 +507,8 @@ ENDPROC(at91_sramc_self_refresh)
 .memtype:
 	.word 0
 .pm_mode:
+	.word 0
+.mckr_offset:
 	.word 0
 .saved_mckr:
 	.word 0
