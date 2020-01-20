@@ -3930,7 +3930,7 @@ void hisi_sas_debugfs_init(struct hisi_hba *hisi_hba)
 
 	hisi_hba->debugfs_dir = debugfs_create_dir(dev_name(dev),
 						   hisi_sas_debugfs_dir);
-	debugfs_create_file("trigger_dump", 0600,
+	debugfs_create_file("trigger_dump", 0200,
 			    hisi_hba->debugfs_dir,
 			    hisi_hba,
 			    &hisi_sas_debugfs_trigger_dump_fops);
