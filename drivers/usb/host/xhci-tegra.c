@@ -1744,6 +1744,7 @@ MODULE_FIRMWARE("nvidia/tegra210/xusb.bin");
 
 static const char * const tegra186_supply_names[] = {
 };
+MODULE_FIRMWARE("nvidia/tegra186/xusb.bin");
 
 static const struct tegra_xusb_phy_type tegra186_phy_types[] = {
 	{ .name = "usb3", .num = 3, },
