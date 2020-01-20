@@ -2626,13 +2626,13 @@ int btrfs_pin_extent(struct btrfs_trans_handle *trans,
 /*
  * this function must be called within transaction
  */
-int btrfs_pin_extent_for_log_replay(struct btrfs_fs_info *fs_info,
+int btrfs_pin_extent_for_log_replay(struct btrfs_trans_handle *trans,
 				    u64 bytenr, u64 num_bytes)
 {
 	struct btrfs_block_group *cache;
 	int ret;
 
-	cache = btrfs_lookup_block_group(fs_info, bytenr);
+	cache = btrfs_lookup_block_group(trans->fs_info, bytenr);
 	if (!cache)
 		return -EINVAL;
 

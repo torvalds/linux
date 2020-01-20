@@ -313,7 +313,7 @@ static int process_one_buffer(struct btrfs_root *log,
 	}
 
 	if (wc->pin)
-		ret = btrfs_pin_extent_for_log_replay(fs_info, eb->start,
+		ret = btrfs_pin_extent_for_log_replay(wc->trans, eb->start,
 						      eb->len);
 
 	if (!ret && btrfs_buffer_uptodate(eb, gen, 0)) {
@@ -6189,7 +6189,7 @@ again:
 			 * each subsequent pass.
 			 */
 			if (ret == -ENOENT)
-				ret = btrfs_pin_extent_for_log_replay(fs_info,
+				ret = btrfs_pin_extent_for_log_replay(trans,
 							log->node->start,
 							log->node->len);
 			free_extent_buffer(log->node);
