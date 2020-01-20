@@ -222,8 +222,7 @@ EXPORT_SYMBOL(drm_sched_fault);
  *
  * Suspend the delayed work timeout for the scheduler. This is done by
  * modifying the delayed work timeout to an arbitrary large value,
- * MAX_SCHEDULE_TIMEOUT in this case. Note that this function can be
- * called from an IRQ context.
+ * MAX_SCHEDULE_TIMEOUT in this case.
  *
  * Returns the timeout remaining
  *
@@ -252,46 +251,41 @@ EXPORT_SYMBOL(drm_sched_suspend_timeout);
  * @sched: scheduler instance for which to resume the timeout
  * @remaining: remaining timeout
  *
- * Resume the delayed work timeout for the scheduler. Note that
- * this function can be called from an IRQ context.
+ * Resume the delayed work timeout for the scheduler.
  */
 void drm_sched_resume_timeout(struct drm_gpu_scheduler *sched,
 		unsigned long remaining)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&sched->job_list_lock, flags);
+	spin_lock(&sched->job_list_lock);
 
 	if (list_empty(&sched->ring_mirror_list))
 		cancel_delayed_work(&sched->work_tdr);
 	else
 		mod_delayed_work(system_wq, &sched->work_tdr, remaining);
 
-	spin_unlock_irqrestore(&sched->job_list_lock, flags);
+	spin_unlock(&sched->job_list_lock);
 }
 EXPORT_SYMBOL(drm_sched_resume_timeout);
 
 static void drm_sched_job_begin(struct drm_sched_job *s_job)
 {
 	struct drm_gpu_scheduler *sched = s_job->sched;
-	unsigned long flags;
 
-	spin_lock_irqsave(&sched->job_list_lock, flags);
+	spin_lock(&sched->job_list_lock);
 	list_add_tail(&s_job->node, &sched->ring_mirror_list);
 	drm_sched_start_timeout(sched);
-	spin_unlock_irqrestore(&sched->job_list_lock, flags);
+	spin_unlock(&sched->job_list_lock);
 }
 
 static void drm_sched_job_timedout(struct work_struct *work)
 {
 	struct drm_gpu_scheduler *sched;
 	struct drm_sched_job *job;
-	unsigned long flags;
 
 	sched = container_of(work, struct drm_gpu_scheduler, work_tdr.work);
 
 	/* Protects against concurrent deletion in drm_sched_get_cleanup_job */
-	spin_lock_irqsave(&sched->job_list_lock, flags);
+	spin_lock(&sched->job_list_lock);
 	job = list_first_entry_or_null(&sched->ring_mirror_list,
 				       struct drm_sched_job, node);
 
@@ -302,7 +296,7 @@ static void drm_sched_job_timedout(struct work_struct *work)
 		 * is parked at which point it's safe.
 		 */
 		list_del_init(&job->node);
-		spin_unlock_irqrestore(&sched->job_list_lock, flags);
+		spin_unlock(&sched->job_list_lock);
 
 		job->sched->ops->timedout_job(job);
 
@@ -315,12 +309,12 @@ static void drm_sched_job_timedout(struct work_struct *work)
 			sched->free_guilty = false;
 		}
 	} else {
-		spin_unlock_irqrestore(&sched->job_list_lock, flags);
+		spin_unlock(&sched->job_list_lock);
 	}
 
-	spin_lock_irqsave(&sched->job_list_lock, flags);
+	spin_lock(&sched->job_list_lock);
 	drm_sched_start_timeout(sched);
-	spin_unlock_irqrestore(&sched->job_list_lock, flags);
+	spin_unlock(&sched->job_list_lock);
 }
 
  /**
@@ -383,7 +377,6 @@ EXPORT_SYMBOL(drm_sched_increase_karma);
 void drm_sched_stop(struct drm_gpu_scheduler *sched, struct drm_sched_job *bad)
 {
 	struct drm_sched_job *s_job, *tmp;
-	unsigned long flags;
 
 	kthread_park(sched->thread);
 
@@ -417,9 +410,9 @@ void drm_sched_stop(struct drm_gpu_scheduler *sched, struct drm_sched_job *bad)
 			 * remove job from ring_mirror_list.
 			 * Locking here is for concurrent resume timeout
 			 */
-			spin_lock_irqsave(&sched->job_list_lock, flags);
+			spin_lock(&sched->job_list_lock);
 			list_del_init(&s_job->node);
-			spin_unlock_irqrestore(&sched->job_list_lock, flags);
+			spin_unlock(&sched->job_list_lock);
 
 			/*
 			 * Wait for job's HW fence callback to finish using s_job
@@ -462,7 +455,6 @@ EXPORT_SYMBOL(drm_sched_stop);
 void drm_sched_start(struct drm_gpu_scheduler *sched, bool full_recovery)
 {
 	struct drm_sched_job *s_job, *tmp;
-	unsigned long flags;
 	int r;
 
 	/*
@@ -491,9 +483,9 @@ void drm_sched_start(struct drm_gpu_scheduler *sched, bool full_recovery)
 	}
 
 	if (full_recovery) {
-		spin_lock_irqsave(&sched->job_list_lock, flags);
+		spin_lock(&sched->job_list_lock);
 		drm_sched_start_timeout(sched);
-		spin_unlock_irqrestore(&sched->job_list_lock, flags);
+		spin_unlock(&sched->job_list_lock);
 	}
 
 	kthread_unpark(sched->thread);
@@ -677,7 +669,6 @@ static struct drm_sched_job *
 drm_sched_get_cleanup_job(struct drm_gpu_scheduler *sched)
 {
 	struct drm_sched_job *job;
-	unsigned long flags;
 
 	/*
 	 * Don't destroy jobs while the timeout worker is running  OR thread
@@ -688,7 +679,7 @@ drm_sched_get_cleanup_job(struct drm_gpu_scheduler *sched)
 	    __kthread_should_park(sched->thread))
 		return NULL;
 
-	spin_lock_irqsave(&sched->job_list_lock, flags);
+	spin_lock(&sched->job_list_lock);
 
 	job = list_first_entry_or_null(&sched->ring_mirror_list,
 				       struct drm_sched_job, node);
@@ -702,7 +693,7 @@ drm_sched_get_cleanup_job(struct drm_gpu_scheduler *sched)
 		drm_sched_start_timeout(sched);
 	}
 
-	spin_unlock_irqrestore(&sched->job_list_lock, flags);
+	spin_unlock(&sched->job_list_lock);
 
 	return job;
 }
