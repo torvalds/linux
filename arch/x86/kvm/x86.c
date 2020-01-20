@@ -1228,6 +1228,7 @@ static const u32 emulated_msrs_all[] = {
 	MSR_MISC_FEATURES_ENABLES,
 	MSR_AMD64_VIRT_SPEC_CTRL,
 	MSR_IA32_POWER_CTL,
+	MSR_IA32_UCODE_REV,
 
 	/*
 	 * The following list leaves out MSRs whose values are determined
