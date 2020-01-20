@@ -12,6 +12,9 @@
 #ifndef AT91_PMC_H
 #define AT91_PMC_H
 
+#define AT91_PMC_V1		(1)			/* PMC version 1 */
+#define AT91_PMC_V2		(2)			/* PMC version 2 [SAM9X60] */
+
 #define	AT91_PMC_SCER		0x00			/* System Clock Enable Register */
 #define	AT91_PMC_SCDR		0x04			/* System Clock Disable Register */
 

@@ -34,6 +34,7 @@ struct at91_pm_data {
 	unsigned int standby_mode;
 	unsigned int suspend_mode;
 	unsigned int pmc_mckr_offset;
+	unsigned int pmc_version;
 };
 #endif
 

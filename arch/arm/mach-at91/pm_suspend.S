@@ -95,6 +95,8 @@ ENTRY(at91_pm_suspend_in_sram)
 	str	tmp1, .pm_mode
 	ldr	tmp1, [r0, #PM_DATA_PMC_MCKR_OFFSET]
 	str	tmp1, .mckr_offset
+	ldr	tmp1, [r0, #PM_DATA_PMC_VERSION]
+	str	tmp1, .pmc_version
 	/* Both ldrne below are here to preload their address in the TLB */
 	ldr	tmp1, [r0, #PM_DATA_SHDWC]
 	str	tmp1, .shdwc
@@ -541,6 +543,8 @@ ENDPROC(at91_sramc_self_refresh)
 .pm_mode:
 	.word 0
 .mckr_offset:
+	.word 0
+.pmc_version:
 	.word 0
 .saved_mckr:
 	.word 0
