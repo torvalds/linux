@@ -949,8 +949,7 @@ out:
 	return err;
 }
 
-static int ufs_qcom_apply_dev_quirks(struct ufs_hba *hba,
-				     struct ufs_dev_desc *card)
+static int ufs_qcom_apply_dev_quirks(struct ufs_hba *hba)
 {
 	int err = 0;
 

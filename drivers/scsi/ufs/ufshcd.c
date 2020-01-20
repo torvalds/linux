@@ -6586,16 +6586,13 @@ out:
 	return ret;
 }
 
-static int ufs_get_device_desc(struct ufs_hba *hba,
-			       struct ufs_dev_desc *dev_desc)
+static int ufs_get_device_desc(struct ufs_hba *hba)
 {
 	int err;
 	size_t buff_len;
 	u8 model_index;
 	u8 *desc_buf;
-
-	if (!dev_desc)
-		return -EINVAL;
+	struct ufs_dev_info *dev_info = &hba->dev_info;
 
 	buff_len = max_t(size_t, hba->desc_size.dev_desc,
 			 QUERY_DESC_MAX_SIZE + 1);
@@ -6616,12 +6613,12 @@ static int ufs_get_device_desc(struct ufs_hba *hba,
 	 * getting vendor (manufacturerID) and Bank Index in big endian
 	 * format
 	 */
-	dev_desc->wmanufacturerid = desc_buf[DEVICE_DESC_PARAM_MANF_ID] << 8 |
+	dev_info->wmanufacturerid = desc_buf[DEVICE_DESC_PARAM_MANF_ID] << 8 |
 				     desc_buf[DEVICE_DESC_PARAM_MANF_ID + 1];
 
 	model_index = desc_buf[DEVICE_DESC_PARAM_PRDCT_NAME];
 	err = ufshcd_read_string_desc(hba, model_index,
-				      &dev_desc->model, SD_ASCII_STD);
+				      &dev_info->model, SD_ASCII_STD);
 	if (err < 0) {
 		dev_err(hba->dev, "%s: Failed reading Product Name. err = %d\n",
 			__func__, err);
@@ -6639,23 +6636,25 @@ out:
 	return err;
 }
 
-static void ufs_put_device_desc(struct ufs_dev_desc *dev_desc)
+static void ufs_put_device_desc(struct ufs_hba *hba)
 {
-	kfree(dev_desc->model);
-	dev_desc->model = NULL;
+	struct ufs_dev_info *dev_info = &hba->dev_info;
+
+	kfree(dev_info->model);
+	dev_info->model = NULL;
 }
 
-static void ufs_fixup_device_setup(struct ufs_hba *hba,
-				   struct ufs_dev_desc *dev_desc)
+static void ufs_fixup_device_setup(struct ufs_hba *hba)
 {
 	struct ufs_dev_fix *f;
+	struct ufs_dev_info *dev_info = &hba->dev_info;
 
 	for (f = ufs_fixups; f->quirk; f++) {
-		if ((f->card.wmanufacturerid == dev_desc->wmanufacturerid ||
-		     f->card.wmanufacturerid == UFS_ANY_VENDOR) &&
-		     ((dev_desc->model &&
-		       STR_PRFX_EQUAL(f->card.model, dev_desc->model)) ||
-		      !strcmp(f->card.model, UFS_ANY_MODEL)))
+		if ((f->wmanufacturerid == dev_info->wmanufacturerid ||
+		     f->wmanufacturerid == UFS_ANY_VENDOR) &&
+		     ((dev_info->model &&
+		       STR_PRFX_EQUAL(f->model, dev_info->model)) ||
+		      !strcmp(f->model, UFS_ANY_MODEL)))
 			hba->dev_quirks |= f->quirk;
 	}
 }
@@ -6807,8 +6806,7 @@ out:
 	return ret;
 }
 
-static void ufshcd_tune_unipro_params(struct ufs_hba *hba,
-				      struct ufs_dev_desc *card)
+static void ufshcd_tune_unipro_params(struct ufs_hba *hba)
 {
 	if (ufshcd_is_unipro_pa_params_tuning_req(hba)) {
 		ufshcd_tune_pa_tactivate(hba);
@@ -6822,7 +6820,7 @@ static void ufshcd_tune_unipro_params(struct ufs_hba *hba,
 	if (hba->dev_quirks & UFS_DEVICE_QUIRK_HOST_PA_TACTIVATE)
 		ufshcd_quirk_tune_host_pa_tactivate(hba);
 
-	ufshcd_vops_apply_dev_quirks(hba, card);
+	ufshcd_vops_apply_dev_quirks(hba);
 }
 
 static void ufshcd_clear_dbg_ufs_stats(struct ufs_hba *hba)
@@ -6948,7 +6946,6 @@ out:
  */
 static int ufshcd_probe_hba(struct ufs_hba *hba)
 {
-	struct ufs_dev_desc card = {0};
 	int ret;
 	ktime_t start = ktime_get();
 
@@ -6977,16 +6974,15 @@ static int ufshcd_probe_hba(struct ufs_hba *hba)
 	/* Init check for device descriptor sizes */
 	ufshcd_init_desc_sizes(hba);
 
-	ret = ufs_get_device_desc(hba, &card);
+	ret = ufs_get_device_desc(hba);
 	if (ret) {
 		dev_err(hba->dev, "%s: Failed getting device info. err = %d\n",
 			__func__, ret);
 		goto out;
 	}
 
-	ufs_fixup_device_setup(hba, &card);
-	ufshcd_tune_unipro_params(hba, &card);
-	ufs_put_device_desc(&card);
+	ufs_fixup_device_setup(hba);
+	ufshcd_tune_unipro_params(hba);
 
 	/* UFS device is also active now */
 	ufshcd_set_ufs_dev_active(hba);
@@ -7547,6 +7543,7 @@ static void ufshcd_hba_exit(struct ufs_hba *hba)
 		ufshcd_setup_clocks(hba, false);
 		ufshcd_setup_hba_vreg(hba, false);
 		hba->is_powered = false;
+		ufs_put_device_desc(hba);
 	}
 }
 

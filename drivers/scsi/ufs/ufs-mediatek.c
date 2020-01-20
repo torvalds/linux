@@ -474,10 +474,11 @@ static void ufs_mtk_dbg_register_dump(struct ufs_hba *hba)
 	ufshcd_dump_regs(hba, REG_UFS_PROBE, 0x4, "Debug Probe ");
 }
 
-static int ufs_mtk_apply_dev_quirks(struct ufs_hba *hba,
-				    struct ufs_dev_desc *card)
+static int ufs_mtk_apply_dev_quirks(struct ufs_hba *hba)
 {
-	if (card->wmanufacturerid == UFS_VENDOR_SAMSUNG)
+	struct ufs_dev_info *dev_info = &hba->dev_info;
+
+	if (dev_info->wmanufacturerid == UFS_VENDOR_SAMSUNG)
 		ufshcd_dme_set(hba, UIC_ARG_MIB(PA_TACTIVATE), 6);
 
 	return 0;
