@@ -1248,6 +1248,43 @@ out:
 	return ret;
 }
 
+static bool clean_pinned_extents(struct btrfs_block_group *bg)
+{
+	struct btrfs_fs_info *fs_info = bg->fs_info;
+	const u64 start = bg->start;
+	const u64 end = start + bg->length - 1;
+	int ret;
+
+	/*
+	 * Hold the unused_bg_unpin_mutex lock to avoid racing with
+	 * btrfs_finish_extent_commit(). If we are at transaction N, another
+	 * task might be running finish_extent_commit() for the previous
+	 * transaction N - 1, and have seen a range belonging to the block
+	 * group in freed_extents[] before we were able to clear the whole
+	 * block group range from freed_extents[]. This means that task can
+	 * lookup for the block group after we unpinned it from freed_extents
+	 * and removed it, leading to a BUG_ON() at unpin_extent_range().
+	 */
+	mutex_lock(&fs_info->unused_bg_unpin_mutex);
+	ret = clear_extent_bits(&fs_info->freed_extents[0], start, end,
+				EXTENT_DIRTY);
+	if (ret)
+		goto err;
+
+	ret = clear_extent_bits(&fs_info->freed_extents[1], start, end,
+				EXTENT_DIRTY);
+	if (ret)
+		goto err;
+	mutex_unlock(&fs_info->unused_bg_unpin_mutex);
+
+	return true;
+
+err:
+	mutex_unlock(&fs_info->unused_bg_unpin_mutex);
+	btrfs_dec_block_group_ro(bg);
+	return false;
+}
+
 /*
  * Process the unused_bgs list and remove any that don't have any allocated
  * space inside of them.
@@ -1265,7 +1302,6 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 
 	spin_lock(&fs_info->unused_bgs_lock);
 	while (!list_empty(&fs_info->unused_bgs)) {
-		u64 start, end;
 		int trimming;
 
 		block_group = list_first_entry(&fs_info->unused_bgs,
@@ -1344,35 +1380,8 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 		 * We could have pending pinned extents for this block group,
 		 * just delete them, we don't care about them anymore.
 		 */
-		start = block_group->start;
-		end = start + block_group->length - 1;
-		/*
-		 * Hold the unused_bg_unpin_mutex lock to avoid racing with
-		 * btrfs_finish_extent_commit(). If we are at transaction N,
-		 * another task might be running finish_extent_commit() for the
-		 * previous transaction N - 1, and have seen a range belonging
-		 * to the block group in freed_extents[] before we were able to
-		 * clear the whole block group range from freed_extents[]. This
-		 * means that task can lookup for the block group after we
-		 * unpinned it from freed_extents[] and removed it, leading to
-		 * a BUG_ON() at btrfs_unpin_extent_range().
-		 */
-		mutex_lock(&fs_info->unused_bg_unpin_mutex);
-		ret = clear_extent_bits(&fs_info->freed_extents[0], start, end,
-				  EXTENT_DIRTY);
-		if (ret) {
-			mutex_unlock(&fs_info->unused_bg_unpin_mutex);
-			btrfs_dec_block_group_ro(block_group);
+		if (!clean_pinned_extents(block_group))
 			goto end_trans;
-		}
-		ret = clear_extent_bits(&fs_info->freed_extents[1], start, end,
-				  EXTENT_DIRTY);
-		if (ret) {
-			mutex_unlock(&fs_info->unused_bg_unpin_mutex);
-			btrfs_dec_block_group_ro(block_group);
-			goto end_trans;
-		}
-		mutex_unlock(&fs_info->unused_bg_unpin_mutex);
 
 		/*
 		 * At this point, the block_group is read only and should fail
