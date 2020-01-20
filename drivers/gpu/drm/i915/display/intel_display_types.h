@@ -464,17 +464,17 @@ struct intel_atomic_state {
 
 	struct {
 		/*
-		 * Logical state of cdclk (used for all scaling, watermark,
-		 * etc. calculations and checks). This is computed as if all
-		 * enabled crtcs were active.
+		 * Logical configuration of cdclk (used for all scaling,
+		 * watermark, etc. calculations and checks). This is
+		 * computed as if all enabled crtcs were active.
 		 */
-		struct intel_cdclk_state logical;
+		struct intel_cdclk_config logical;
 
 		/*
-		 * Actual state of cdclk, can be different from the logical
-		 * state only when all crtc's are DPMS off.
+		 * Actual configuration of cdclk, can be different from the
+		 * logical configuration only when all crtc's are DPMS off.
 		 */
-		struct intel_cdclk_state actual;
+		struct intel_cdclk_config actual;
 
 		int force_min_cdclk;
 		bool force_min_cdclk_changed;

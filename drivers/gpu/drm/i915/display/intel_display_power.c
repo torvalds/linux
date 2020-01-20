@@ -1050,7 +1050,7 @@ static void gen9_assert_dbuf_enabled(struct drm_i915_private *dev_priv)
 
 static void gen9_disable_dc_states(struct drm_i915_private *dev_priv)
 {
-	struct intel_cdclk_state cdclk_state = {};
+	struct intel_cdclk_config cdclk_config = {};
 
 	if (dev_priv->csr.target_dc_state == DC_STATE_EN_DC3CO) {
 		tgl_disable_dc3co(dev_priv);
@@ -1059,9 +1059,9 @@ static void gen9_disable_dc_states(struct drm_i915_private *dev_priv)
 
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 
-	dev_priv->display.get_cdclk(dev_priv, &cdclk_state);
+	dev_priv->display.get_cdclk(dev_priv, &cdclk_config);
 	/* Can't read out voltage_level so can't use intel_cdclk_changed() */
-	WARN_ON(intel_cdclk_needs_modeset(&dev_priv->cdclk.hw, &cdclk_state));
+	WARN_ON(intel_cdclk_needs_modeset(&dev_priv->cdclk.hw, &cdclk_config));
 
 	gen9_assert_dbuf_enabled(dev_priv);
 
@@ -4696,7 +4696,7 @@ static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
 
 	intel_update_cdclk(dev_priv);
-	intel_dump_cdclk_state(&dev_priv->cdclk.hw, "Current CDCLK");
+	intel_dump_cdclk_config(&dev_priv->cdclk.hw, "Current CDCLK");
 }
 
 /*

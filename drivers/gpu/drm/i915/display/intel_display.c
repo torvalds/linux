@@ -17576,7 +17576,7 @@ void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 void intel_modeset_init_hw(struct drm_i915_private *i915)
 {
 	intel_update_cdclk(i915);
-	intel_dump_cdclk_state(&i915->cdclk.hw, "Current CDCLK");
+	intel_dump_cdclk_config(&i915->cdclk.hw, "Current CDCLK");
 	i915->cdclk.logical = i915->cdclk.actual = i915->cdclk.hw;
 }
 

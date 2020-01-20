@@ -253,18 +253,18 @@ struct sdvo_device_mapping {
 struct intel_connector;
 struct intel_encoder;
 struct intel_atomic_state;
+struct intel_cdclk_config;
 struct intel_crtc_state;
 struct intel_initial_plane_config;
 struct intel_crtc;
 struct intel_limit;
 struct dpll;
-struct intel_cdclk_state;
 
 struct drm_i915_display_funcs {
 	void (*get_cdclk)(struct drm_i915_private *dev_priv,
-			  struct intel_cdclk_state *cdclk_state);
+			  struct intel_cdclk_config *cdclk_config);
 	void (*set_cdclk)(struct drm_i915_private *dev_priv,
-			  const struct intel_cdclk_state *cdclk_state,
+			  const struct intel_cdclk_config *cdclk_config,
 			  enum pipe pipe);
 	int (*get_fifo_size)(struct drm_i915_private *dev_priv,
 			     enum i9xx_plane_id i9xx_plane);
@@ -878,7 +878,7 @@ struct intel_wm_config {
 	bool sprites_scaled;
 };
 
-struct intel_cdclk_state {
+struct intel_cdclk_config {
 	unsigned int cdclk, vco, ref, bypass;
 	u8 voltage_level;
 };
@@ -1009,17 +1009,17 @@ struct drm_i915_private {
 	 */
 	struct {
 		/*
-		 * The current logical cdclk state.
+		 * The current logical cdclk configuration.
 		 * See intel_atomic_state.cdclk.logical
 		 */
-		struct intel_cdclk_state logical;
+		struct intel_cdclk_config logical;
 		/*
-		 * The current actual cdclk state.
+		 * The current actual cdclk configuration.
 		 * See intel_atomic_state.cdclk.actual
 		 */
-		struct intel_cdclk_state actual;
-		/* The current hardware cdclk state */
-		struct intel_cdclk_state hw;
+		struct intel_cdclk_config actual;
+		/* The current hardware cdclk configuration */
+		struct intel_cdclk_config hw;
 
 		/* cdclk, divider, and ratio table from bspec */
 		const struct intel_cdclk_vals *table;
