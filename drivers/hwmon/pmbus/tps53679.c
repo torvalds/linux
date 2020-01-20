@@ -6,6 +6,7 @@
  * Copyright (c) 2017 Vadim Pasternak <vadimp@mellanox.com>
  */
 
+#include <linux/bits.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
@@ -15,7 +16,7 @@
 #include "pmbus.h"
 
 enum chips {
-	tps53679, tps53688,
+	tps53679, tps53681, tps53688
 };
 
 #define TPS53679_PROT_VR12_5MV		0x01 /* VR12.0 mode, 5-mV DAC */
@@ -25,8 +26,14 @@ enum chips {
 #define TPS53679_PROT_VR13_5MV		0x07 /* VR13.0 mode, 5-mV DAC */
 #define TPS53679_PAGE_NUM		2
 
-static int tps53679_identify(struct i2c_client *client,
-			     struct pmbus_driver_info *info)
+#define TPS53681_DEVICE_ID		0x81
+
+#define TPS53681_PMBUS_REVISION		0x33
+
+#define TPS53681_MFR_SPECIFIC_20	0xe4	/* Number of phases, per page */
+
+static int tps53679_identify_mode(struct i2c_client *client,
+				  struct pmbus_driver_info *info)
 {
 	u8 vout_params;
 	int i, ret;
@@ -57,6 +64,99 @@ static int tps53679_identify(struct i2c_client *client,
 	return 0;
 }
 
+static int tps53679_identify_phases(struct i2c_client *client,
+				    struct pmbus_driver_info *info)
+{
+	int ret;
+
+	/* On TPS53681, only channel A provides per-phase output current */
+	ret = pmbus_read_byte_data(client, 0, TPS53681_MFR_SPECIFIC_20);
+	if (ret < 0)
+		return ret;
+	info->phases[0] = (ret & 0x07) + 1;
+
+	return 0;
+}
+
+static int tps53679_identify_chip(struct i2c_client *client,
+				  u8 revision, u16 id)
+{
+	u8 buf[I2C_SMBUS_BLOCK_MAX];
+	int ret;
+
+	ret = pmbus_read_byte_data(client, 0, PMBUS_REVISION);
+	if (ret < 0)
+		return ret;
+	if (ret != revision) {
+		dev_err(&client->dev, "Unexpected PMBus revision 0x%x\n", ret);
+		return -ENODEV;
+	}
+
+	ret = i2c_smbus_read_block_data(client, PMBUS_IC_DEVICE_ID, buf);
+	if (ret < 0)
+		return ret;
+	if (ret != 1 || buf[0] != id) {
+		dev_err(&client->dev, "Unexpected device ID 0x%x\n", buf[0]);
+		return -ENODEV;
+	}
+	return 0;
+}
+
+/*
+ * Common identification function for chips with multi-phase support.
+ * Since those chips have special configuration registers, we want to have
+ * some level of reassurance that we are really talking with the chip
+ * being probed. Check PMBus revision and chip ID.
+ */
+static int tps53679_identify_multiphase(struct i2c_client *client,
+					struct pmbus_driver_info *info,
+					int pmbus_rev, int device_id)
+{
+	int ret;
+
+	ret = tps53679_identify_chip(client, pmbus_rev, device_id);
+	if (ret < 0)
+		return ret;
+
+	ret = tps53679_identify_mode(client, info);
+	if (ret < 0)
+		return ret;
+
+	return tps53679_identify_phases(client, info);
+}
+
+static int tps53679_identify(struct i2c_client *client,
+			     struct pmbus_driver_info *info)
+{
+	return tps53679_identify_mode(client, info);
+}
+
+static int tps53681_identify(struct i2c_client *client,
+			     struct pmbus_driver_info *info)
+{
+	return tps53679_identify_multiphase(client, info,
+					    TPS53681_PMBUS_REVISION,
+					    TPS53681_DEVICE_ID);
+}
+
+static int tps53681_read_word_data(struct i2c_client *client, int page,
+				   int phase, int reg)
+{
+	/*
+	 * For reading the total output current (READ_IOUT) for all phases,
+	 * the chip datasheet is a bit vague. It says "PHASE must be set to
+	 * FFh to access all phases simultaneously. PHASE may also be set to
+	 * 80h readack (!) the total phase current".
+	 * Experiments show that the command does _not_ report the total
+	 * current for all phases if the phase is set to 0xff. Instead, it
+	 * appears to report the current of one of the phases. Override phase
+	 * parameter with 0x80 when reading the total output current on page 0.
+	 */
+	if (reg == PMBUS_READ_IOUT && page == 0 && phase == 0xff)
+		return pmbus_read_word_data(client, page, 0x80, reg);
+	return -ENODATA;
+}
+
 static struct pmbus_driver_info tps53679_info = {
 	.format[PSC_VOLTAGE_IN] = linear,
 	.format[PSC_VOLTAGE_OUT] = vid,
@@ -73,6 +173,12 @@ static struct pmbus_driver_info tps53679_info = {
 		PMBUS_HAVE_IOUT | PMBUS_HAVE_STATUS_IOUT |
 		PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP |
 		PMBUS_HAVE_POUT,
+	.pfunc[0] = PMBUS_HAVE_IOUT,
+	.pfunc[1] = PMBUS_HAVE_IOUT,
+	.pfunc[2] = PMBUS_HAVE_IOUT,
+	.pfunc[3] = PMBUS_HAVE_IOUT,
+	.pfunc[4] = PMBUS_HAVE_IOUT,
+	.pfunc[5] = PMBUS_HAVE_IOUT,
 };
 
 static int tps53679_probe(struct i2c_client *client,
@@ -97,6 +203,12 @@ static int tps53679_probe(struct i2c_client *client,
 		info->pages = TPS53679_PAGE_NUM;
 		info->identify = tps53679_identify;
 		break;
+	case tps53681:
+		info->pages = TPS53679_PAGE_NUM;
+		info->phases[0] = 6;
+		info->identify = tps53681_identify;
+		info->read_word_data = tps53681_read_word_data;
+		break;
 	default:
 		return -ENODEV;
 	}
@@ -106,6 +218,7 @@ static int tps53679_probe(struct i2c_client *client,
 
 static const struct i2c_device_id tps53679_id[] = {
 	{"tps53679", tps53679},
+	{"tps53681", tps53681},
 	{"tps53688", tps53688},
 	{}
 };
@@ -114,6 +227,7 @@ MODULE_DEVICE_TABLE(i2c, tps53679_id);
 
 static const struct of_device_id __maybe_unused tps53679_of_match[] = {
 	{.compatible = "ti,tps53679", .data = (void *)tps53679},
+	{.compatible = "ti,tps53681", .data = (void *)tps53681},
 	{.compatible = "ti,tps53688", .data = (void *)tps53688},
 	{}
 };
