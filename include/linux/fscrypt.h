@@ -263,6 +263,8 @@ extern int __fscrypt_prepare_rename(struct inode *old_dir,
 				    unsigned int flags);
 extern int __fscrypt_prepare_lookup(struct inode *dir, struct dentry *dentry,
 				    struct fscrypt_name *fname);
+extern int fscrypt_prepare_setflags(struct inode *inode,
+				    unsigned int oldflags, unsigned int flags);
 extern int __fscrypt_prepare_symlink(struct inode *dir, unsigned int len,
 				     unsigned int max_len,
 				     struct fscrypt_str *disk_link);
@@ -512,6 +514,13 @@ static inline int __fscrypt_prepare_lookup(struct inode *dir,
 					   struct fscrypt_name *fname)
 {
 	return -EOPNOTSUPP;
+}
+
+static inline int fscrypt_prepare_setflags(struct inode *inode,
+					   unsigned int oldflags,
+					   unsigned int flags)
+{
+	return 0;
 }
 
 static inline int __fscrypt_prepare_symlink(struct inode *dir,
