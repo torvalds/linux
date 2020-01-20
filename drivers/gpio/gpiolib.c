@@ -2006,7 +2006,7 @@ static int gpiochip_hierarchy_irq_domain_alloc(struct irq_domain *d,
 	if (ret)
 		return ret;
 
-	chip_info(gc, "allocate IRQ %d, hwirq %lu\n", irq,  hwirq);
+	chip_dbg(gc, "allocate IRQ %d, hwirq %lu\n", irq,  hwirq);
 
 	ret = girq->child_to_parent_hwirq(gc, hwirq, type,
 					  &parent_hwirq, &parent_type);
@@ -2014,7 +2014,7 @@ static int gpiochip_hierarchy_irq_domain_alloc(struct irq_domain *d,
 		chip_err(gc, "can't look up hwirq %lu\n", hwirq);
 		return ret;
 	}
-	chip_info(gc, "found parent hwirq %u\n", parent_hwirq);
+	chip_dbg(gc, "found parent hwirq %u\n", parent_hwirq);
 
 	/*
 	 * We set handle_bad_irq because the .set_type() should
@@ -2034,7 +2034,7 @@ static int gpiochip_hierarchy_irq_domain_alloc(struct irq_domain *d,
 	if (!parent_arg)
 		return -ENOMEM;
 
-	chip_info(gc, "alloc_irqs_parent for %d parent hwirq %d\n",
+	chip_dbg(gc, "alloc_irqs_parent for %d parent hwirq %d\n",
 		  irq, parent_hwirq);
 	irq_set_lockdep_class(irq, gc->irq.lock_key, gc->irq.request_key);
 	ret = irq_domain_alloc_irqs_parent(d, irq, 1, parent_arg);
