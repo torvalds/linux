@@ -8,6 +8,7 @@
 
 #include <linux/device.h>
 #include <linux/interrupt.h>
+#include <linux/io.h>
 #include <linux/pm_runtime.h>
 #include <linux/timecounter.h>
 #include <sound/core.h>
@@ -330,6 +331,7 @@ struct hdac_bus {
 	bool chip_init:1;		/* h/w initialized */
 
 	/* behavior flags */
+	bool aligned_mmio:1;		/* aligned MMIO access */
 	bool sync_write:1;		/* sync after verb write */
 	bool use_posbuf:1;		/* use position buffer */
 	bool snoop:1;			/* enable snooping */
@@ -405,34 +407,61 @@ void snd_hdac_bus_free_stream_pages(struct hdac_bus *bus);
 unsigned int snd_hdac_aligned_read(void __iomem *addr, unsigned int mask);
 void snd_hdac_aligned_write(unsigned int val, void __iomem *addr,
 			    unsigned int mask);
-#define snd_hdac_reg_writeb(v, addr)	snd_hdac_aligned_write(v, addr, 0xff)
-#define snd_hdac_reg_writew(v, addr)	snd_hdac_aligned_write(v, addr, 0xffff)
-#define snd_hdac_reg_readb(addr)	snd_hdac_aligned_read(addr, 0xff)
-#define snd_hdac_reg_readw(addr)	snd_hdac_aligned_read(addr, 0xffff)
-#else /* CONFIG_SND_HDA_ALIGNED_MMIO */
-#define snd_hdac_reg_writeb(val, addr)	writeb(val, addr)
-#define snd_hdac_reg_writew(val, addr)	writew(val, addr)
-#define snd_hdac_reg_readb(addr)	readb(addr)
-#define snd_hdac_reg_readw(addr)	readw(addr)
-#endif /* CONFIG_SND_HDA_ALIGNED_MMIO */
-#define snd_hdac_reg_writel(val, addr)	writel(val, addr)
-#define snd_hdac_reg_readl(addr)	readl(addr)
+#define snd_hdac_aligned_mmio(bus)	(bus)->aligned_mmio
+#else
+#define snd_hdac_aligned_mmio(bus)	false
+#define snd_hdac_aligned_read(addr, mask)	0
+#define snd_hdac_aligned_write(val, addr, mask) do {} while (0)
+#endif
+
+static inline void snd_hdac_reg_writeb(struct hdac_bus *bus, void __iomem *addr,
+				       u8 val)
+{
+	if (snd_hdac_aligned_mmio(bus))
+		snd_hdac_aligned_write(val, addr, 0xff);
+	else
+		writeb(val, addr);
+}
+
+static inline void snd_hdac_reg_writew(struct hdac_bus *bus, void __iomem *addr,
+				       u16 val)
+{
+	if (snd_hdac_aligned_mmio(bus))
+		snd_hdac_aligned_write(val, addr, 0xffff);
+	else
+		writew(val, addr);
+}
+
+static inline u8 snd_hdac_reg_readb(struct hdac_bus *bus, void __iomem *addr)
+{
+	return snd_hdac_aligned_mmio(bus) ?
+		snd_hdac_aligned_read(addr, 0xff) : readb(addr);
+}
+
+static inline u16 snd_hdac_reg_readw(struct hdac_bus *bus, void __iomem *addr)
+{
+	return snd_hdac_aligned_mmio(bus) ?
+		snd_hdac_aligned_read(addr, 0xffff) : readw(addr);
+}
+
+#define snd_hdac_reg_writel(bus, addr, val)	writel(val, addr)
+#define snd_hdac_reg_readl(bus, addr)	readl(addr)
 
 /*
  * macros for easy use
  */
 #define _snd_hdac_chip_writeb(chip, reg, value) \
-	snd_hdac_reg_writeb(value, (chip)->remap_addr + (reg))
+	snd_hdac_reg_writeb(chip, (chip)->remap_addr + (reg), value)
 #define _snd_hdac_chip_readb(chip, reg) \
-	snd_hdac_reg_readb((chip)->remap_addr + (reg))
+	snd_hdac_reg_readb(chip, (chip)->remap_addr + (reg))
 #define _snd_hdac_chip_writew(chip, reg, value) \
-	snd_hdac_reg_writew(value, (chip)->remap_addr + (reg))
+	snd_hdac_reg_writew(chip, (chip)->remap_addr + (reg), value)
 #define _snd_hdac_chip_readw(chip, reg) \
-	snd_hdac_reg_readw((chip)->remap_addr + (reg))
+	snd_hdac_reg_readw(chip, (chip)->remap_addr + (reg))
 #define _snd_hdac_chip_writel(chip, reg, value) \
-	snd_hdac_reg_writel(value, (chip)->remap_addr + (reg))
+	snd_hdac_reg_writel(chip, (chip)->remap_addr + (reg), value)
 #define _snd_hdac_chip_readl(chip, reg) \
-	snd_hdac_reg_readl((chip)->remap_addr + (reg))
+	snd_hdac_reg_readl(chip, (chip)->remap_addr + (reg))
 
 /* read/write a register, pass without AZX_REG_ prefix */
 #define snd_hdac_chip_writel(chip, reg, value) \
@@ -540,17 +569,17 @@ int snd_hdac_get_stream_stripe_ctl(struct hdac_bus *bus,
  */
 /* read/write a register, pass without AZX_REG_ prefix */
 #define snd_hdac_stream_writel(dev, reg, value) \
-	snd_hdac_reg_writel(value, (dev)->sd_addr + AZX_REG_ ## reg)
+	snd_hdac_reg_writel((dev)->bus, (dev)->sd_addr + AZX_REG_ ## reg, value)
 #define snd_hdac_stream_writew(dev, reg, value) \
-	snd_hdac_reg_writew(value, (dev)->sd_addr + AZX_REG_ ## reg)
+	snd_hdac_reg_writew((dev)->bus, (dev)->sd_addr + AZX_REG_ ## reg, value)
 #define snd_hdac_stream_writeb(dev, reg, value) \
-	snd_hdac_reg_writeb(value, (dev)->sd_addr + AZX_REG_ ## reg)
+	snd_hdac_reg_writeb((dev)->bus, (dev)->sd_addr + AZX_REG_ ## reg, value)
 #define snd_hdac_stream_readl(dev, reg) \
-	snd_hdac_reg_readl((dev)->sd_addr + AZX_REG_ ## reg)
+	snd_hdac_reg_readl((dev)->bus, (dev)->sd_addr + AZX_REG_ ## reg)
 #define snd_hdac_stream_readw(dev, reg) \
-	snd_hdac_reg_readw((dev)->sd_addr + AZX_REG_ ## reg)
+	snd_hdac_reg_readw((dev)->bus, (dev)->sd_addr + AZX_REG_ ## reg)
 #define snd_hdac_stream_readb(dev, reg) \
-	snd_hdac_reg_readb((dev)->sd_addr + AZX_REG_ ## reg)
+	snd_hdac_reg_readb((dev)->bus, (dev)->sd_addr + AZX_REG_ ## reg)
 
 /* update a register, pass without AZX_REG_ prefix */
 #define snd_hdac_stream_updatel(dev, reg, mask, val) \
