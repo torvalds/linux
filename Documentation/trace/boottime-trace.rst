@@ -13,7 +13,7 @@ Boot-time tracing allows users to trace boot-time process including
 device initialization with full features of ftrace including per-event
 filter and actions, histograms, kprobe-events and synthetic-events,
 and trace instances.
-Since kernel cmdline is not enough to control these complex features,
+Since kernel command line is not enough to control these complex features,
 this uses bootconfig file to describe tracing feature programming.
 
 Options in the Boot Config
@@ -21,7 +21,7 @@ Options in the Boot Config
 
 Here is the list of available options list for boot time tracing in
 boot config file [1]_. All options are under "ftrace." or "kernel."
-refix. See kernel parameters for the options which starts
+prefix. See kernel parameters for the options which starts
 with "kernel." prefix [2]_.
 
 .. [1] See :ref:`Documentation/admin-guide/bootconfig.rst <bootconfig>`
@@ -50,7 +50,7 @@ kernel.fgraph_filters = FILTER[, FILTER2...]
    Add fgraph tracing function filters.
 
 kernel.fgraph_notraces = FILTER[, FILTER2...]
-   Add fgraph non tracing function filters.
+   Add fgraph non-tracing function filters.
 
 
 Ftrace Per-instance Options
@@ -81,10 +81,10 @@ ftrace.[instance.INSTANCE.]tracer = TRACER
    Set TRACER to current tracer on boot. (e.g. function)
 
 ftrace.[instance.INSTANCE.]ftrace.filters
-   This will take an array of tracing function filter rules
+   This will take an array of tracing function filter rules.
 
 ftrace.[instance.INSTANCE.]ftrace.notraces
-   This will take an array of NON-tracing function filter rules
+   This will take an array of NON-tracing function filter rules.
 
 
 Ftrace Per-Event Options
@@ -93,7 +93,7 @@ Ftrace Per-Event Options
 These options are setting per-event options.
 
 ftrace.[instance.INSTANCE.]event.GROUP.EVENT.enable
-   Enables GROUP:EVENT tracing.
+   Enable GROUP:EVENT tracing.
 
 ftrace.[instance.INSTANCE.]event.GROUP.EVENT.filter = FILTER
    Set FILTER rule to the GROUP:EVENT.
@@ -145,10 +145,10 @@ below::
         }
   }
 
-Also, boottime tracing supports "instance" node, which allows us to run
+Also, boot-time tracing supports "instance" node, which allows us to run
 several tracers for different purpose at once. For example, one tracer
-is for tracing functions start with "user\_", and others tracing "kernel\_"
-functions, you can write boot config as below::
+is for tracing functions starting with "user\_", and others tracing
+"kernel\_" functions, you can write boot config as below::
 
   ftrace.instance {
         foo {
