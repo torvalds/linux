@@ -161,6 +161,12 @@ properties:
       - lg,lp120up1
         # LG 12.9" (2560x1700 pixels) TFT LCD panel
       - lg,lp129qe
+        # Logic Technologies LT161010-2NHC 7" WVGA TFT Cap Touch Module
+      - logictechno,lt161010-2nhc
+        # Logic Technologies LT161010-2NHR 7" WVGA TFT Resistive Touch Module
+      - logictechno,lt161010-2nhr
+        # Logic Technologies LT170410-2WHC 10.1" 1280x800 IPS TFT Cap Touch Mod.
+      - logictechno,lt170410-2whc
         # Mitsubishi "AA070MC01 7.0" WVGA TFT LCD panel
       - mitsubishi,aa070mc01-ca1
         # NEC LCD Technologies, Ltd. 12.1" WXGA (1280x800) LVDS TFT LCD panel
