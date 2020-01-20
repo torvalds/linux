@@ -107,12 +107,12 @@ err_free_tfm:
 	return ERR_PTR(err);
 }
 
-/* Given the per-file key, set up the file's crypto transform object */
-int fscrypt_set_derived_key(struct fscrypt_info *ci, const u8 *derived_key)
+/* Given a per-file encryption key, set up the file's crypto transform object */
+int fscrypt_set_per_file_enc_key(struct fscrypt_info *ci, const u8 *raw_key)
 {
 	struct crypto_skcipher *tfm;
 
-	tfm = fscrypt_allocate_skcipher(ci->ci_mode, derived_key, ci->ci_inode);
+	tfm = fscrypt_allocate_skcipher(ci->ci_mode, raw_key, ci->ci_inode);
 	if (IS_ERR(tfm))
 		return PTR_ERR(tfm);
 
@@ -121,10 +121,10 @@ int fscrypt_set_derived_key(struct fscrypt_info *ci, const u8 *derived_key)
 	return 0;
 }
 
-static int setup_per_mode_key(struct fscrypt_info *ci,
-			      struct fscrypt_master_key *mk,
-			      struct crypto_skcipher **tfms,
-			      u8 hkdf_context, bool include_fs_uuid)
+static int setup_per_mode_enc_key(struct fscrypt_info *ci,
+				  struct fscrypt_master_key *mk,
+				  struct crypto_skcipher **tfms,
+				  u8 hkdf_context, bool include_fs_uuid)
 {
 	const struct inode *inode = ci->ci_inode;
 	const struct super_block *sb = inode->i_sb;
@@ -196,15 +196,15 @@ static int fscrypt_setup_v2_file_key(struct fscrypt_info *ci,
 
 	if (ci->ci_policy.v2.flags & FSCRYPT_POLICY_FLAG_DIRECT_KEY) {
 		/*
-		 * DIRECT_KEY: instead of deriving per-file keys, the per-file
-		 * nonce will be included in all the IVs.  But unlike v1
-		 * policies, for v2 policies in this case we don't encrypt with
-		 * the master key directly but rather derive a per-mode key.
-		 * This ensures that the master key is consistently used only
-		 * for HKDF, avoiding key reuse issues.
+		 * DIRECT_KEY: instead of deriving per-file encryption keys, the
+		 * per-file nonce will be included in all the IVs.  But unlike
+		 * v1 policies, for v2 policies in this case we don't encrypt
+		 * with the master key directly but rather derive a per-mode
+		 * encryption key.  This ensures that the master key is
+		 * consistently used only for HKDF, avoiding key reuse issues.
 		 */
-		err = setup_per_mode_key(ci, mk, mk->mk_direct_tfms,
-					 HKDF_CONTEXT_DIRECT_KEY, false);
+		err = setup_per_mode_enc_key(ci, mk, mk->mk_direct_tfms,
+					     HKDF_CONTEXT_DIRECT_KEY, false);
 	} else if (ci->ci_policy.v2.flags &
 		   FSCRYPT_POLICY_FLAG_IV_INO_LBLK_64) {
 		/*
@@ -213,20 +213,21 @@ static int fscrypt_setup_v2_file_key(struct fscrypt_info *ci,
 		 * the IVs.  This format is optimized for use with inline
 		 * encryption hardware compliant with the UFS or eMMC standards.
 		 */
-		err = setup_per_mode_key(ci, mk, mk->mk_iv_ino_lblk_64_tfms,
-					 HKDF_CONTEXT_IV_INO_LBLK_64_KEY, true);
+		err = setup_per_mode_enc_key(ci, mk, mk->mk_iv_ino_lblk_64_tfms,
+					     HKDF_CONTEXT_IV_INO_LBLK_64_KEY,
+					     true);
 	} else {
 		u8 derived_key[FSCRYPT_MAX_KEY_SIZE];
 
 		err = fscrypt_hkdf_expand(&mk->mk_secret.hkdf,
-					  HKDF_CONTEXT_PER_FILE_KEY,
+					  HKDF_CONTEXT_PER_FILE_ENC_KEY,
 					  ci->ci_nonce,
 					  FS_KEY_DERIVATION_NONCE_SIZE,
 					  derived_key, ci->ci_mode->keysize);
 		if (err)
 			return err;
 
-		err = fscrypt_set_derived_key(ci, derived_key);
+		err = fscrypt_set_per_file_enc_key(ci, derived_key);
 		memzero_explicit(derived_key, ci->ci_mode->keysize);
 	}
 	if (err)

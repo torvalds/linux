@@ -269,7 +269,7 @@ extern int fscrypt_init_hkdf(struct fscrypt_hkdf *hkdf, const u8 *master_key,
  * output doesn't reveal another.
  */
 #define HKDF_CONTEXT_KEY_IDENTIFIER	1
-#define HKDF_CONTEXT_PER_FILE_KEY	2
+#define HKDF_CONTEXT_PER_FILE_ENC_KEY	2
 #define HKDF_CONTEXT_DIRECT_KEY		3
 #define HKDF_CONTEXT_IV_INO_LBLK_64_KEY	4
 #define HKDF_CONTEXT_DIRHASH_KEY	5
@@ -441,8 +441,8 @@ extern struct crypto_skcipher *
 fscrypt_allocate_skcipher(struct fscrypt_mode *mode, const u8 *raw_key,
 			  const struct inode *inode);
 
-extern int fscrypt_set_derived_key(struct fscrypt_info *ci,
-				   const u8 *derived_key);
+extern int fscrypt_set_per_file_enc_key(struct fscrypt_info *ci,
+					const u8 *raw_key);
 
 extern int fscrypt_derive_dirhash_key(struct fscrypt_info *ci,
 				      const struct fscrypt_master_key *mk);
