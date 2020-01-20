@@ -5218,10 +5218,12 @@ static int sched_idle_rq(struct rq *rq)
 			rq->nr_running);
 }
 
+#ifdef CONFIG_SMP
 static int sched_idle_cpu(int cpu)
 {
 	return sched_idle_rq(cpu_rq(cpu));
 }
+#endif
 
 /*
  * The enqueue_task method is called before nr_running is
