@@ -132,6 +132,11 @@ mt76_dma_sync_idx(struct mt76_dev *dev, struct mt76_queue *q)
 	writel(q->ndesc, &q->regs->ring_size);
 	q->head = readl(&q->regs->dma_idx);
 	q->tail = q->head;
+}
+
+static void
+mt76_dma_kick_queue(struct mt76_dev *dev, struct mt76_queue *q)
+{
 	writel(q->head, &q->regs->cpu_idx);
 }
 
@@ -193,8 +198,10 @@ mt76_dma_tx_cleanup(struct mt76_dev *dev, enum mt76_txq_id qid, bool flush)
 		dev->q_tx[__MT_TXQ_MAX + i].swq_queued -= n_swq_queued[4 + i];
 	}
 
-	if (flush)
+	if (flush) {
 		mt76_dma_sync_idx(dev, q);
+		mt76_dma_kick_queue(dev, q);
+	}
 
 	wake = wake && q->stopped &&
 	       qid < IEEE80211_NUM_ACS && q->queued < q->ndesc - 8;
@@ -255,12 +262,6 @@ mt76_dma_dequeue(struct mt76_dev *dev, struct mt76_queue *q, bool flush,
 	q->queued--;
 
 	return mt76_dma_get_buf(dev, q, idx, len, info, more);
-}
-
-static void
-mt76_dma_kick_queue(struct mt76_dev *dev, struct mt76_queue *q)
-{
-	writel(q->head, &q->regs->cpu_idx);
 }
 
 static int
