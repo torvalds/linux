@@ -558,16 +558,6 @@ int snd_soc_suspend(struct device *dev)
 	if (card->suspend_pre)
 		card->suspend_pre(card);
 
-	for_each_card_rtds(card, rtd) {
-		struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-
-		if (rtd->dai_link->ignore_suspend)
-			continue;
-
-		if (!cpu_dai->driver->bus_control)
-			snd_soc_dai_suspend(cpu_dai);
-	}
-
 	/* close any waiting streams */
 	snd_soc_flush_all_delayed_work(card);
 
@@ -639,16 +629,6 @@ int snd_soc_suspend(struct device *dev)
 		}
 	}
 
-	for_each_card_rtds(card, rtd) {
-		struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-
-		if (rtd->dai_link->ignore_suspend)
-			continue;
-
-		if (cpu_dai->driver->bus_control)
-			snd_soc_dai_suspend(cpu_dai);
-	}
-
 	if (card->suspend_post)
 		card->suspend_post(card);
 
@@ -682,17 +662,6 @@ static void soc_resume_deferred(struct work_struct *work)
 	if (card->resume_pre)
 		card->resume_pre(card);
 
-	/* resume control bus DAIs */
-	for_each_card_rtds(card, rtd) {
-		struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-
-		if (rtd->dai_link->ignore_suspend)
-			continue;
-
-		if (cpu_dai->driver->bus_control)
-			snd_soc_dai_resume(cpu_dai);
-	}
-
 	for_each_card_components(card, component) {
 		if (snd_soc_component_is_suspended(component))
 			snd_soc_component_resume(component);
@@ -724,16 +693,6 @@ static void soc_resume_deferred(struct work_struct *work)
 				snd_soc_dai_digital_mute(dai, 0,
 						SNDRV_PCM_STREAM_PLAYBACK);
 		}
-	}
-
-	for_each_card_rtds(card, rtd) {
-		struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-
-		if (rtd->dai_link->ignore_suspend)
-			continue;
-
-		if (!cpu_dai->driver->bus_control)
-			snd_soc_dai_resume(cpu_dai);
 	}
 
 	if (card->resume_post)

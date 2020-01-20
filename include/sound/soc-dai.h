@@ -286,8 +286,6 @@ struct snd_soc_dai_driver {
 	/* DAI driver callbacks */
 	int (*probe)(struct snd_soc_dai *dai);
 	int (*remove)(struct snd_soc_dai *dai);
-	int (*suspend)(struct snd_soc_dai *dai);
-	int (*resume)(struct snd_soc_dai *dai);
 	/* compress dai */
 	int (*compress_new)(struct snd_soc_pcm_runtime *rtd, int num);
 	/* Optional Callback used at pcm creation*/
