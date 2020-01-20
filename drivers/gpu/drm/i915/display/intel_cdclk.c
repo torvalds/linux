@@ -1783,7 +1783,7 @@ bool intel_cdclk_needs_modeset(const struct intel_cdclk_state *a,
 }
 
 /**
- * intel_cdclk_needs_cd2x_update - Determine if two CDCLK states require a cd2x divider update
+ * intel_cdclk_can_cd2x_update - Determine if two CDCLK states need a cd2x divider update
  * @dev_priv: Not a CDCLK state, it's the drm_i915_private!
  * @a: first CDCLK state
  * @b: second CDCLK state
@@ -1791,9 +1791,9 @@ bool intel_cdclk_needs_modeset(const struct intel_cdclk_state *a,
  * Returns:
  * True if the CDCLK states require just a cd2x divider update, false if not.
  */
-static bool intel_cdclk_needs_cd2x_update(struct drm_i915_private *dev_priv,
-					  const struct intel_cdclk_state *a,
-					  const struct intel_cdclk_state *b)
+static bool intel_cdclk_can_cd2x_update(struct drm_i915_private *dev_priv,
+					const struct intel_cdclk_state *a,
+					const struct intel_cdclk_state *b)
 {
 	/* Older hw doesn't have the capability */
 	if (INTEL_GEN(dev_priv) < 10 && !IS_GEN9_LP(dev_priv))
@@ -2410,9 +2410,9 @@ int intel_modeset_calc_cdclk(struct intel_atomic_state *state)
 	}
 
 	if (is_power_of_2(state->active_pipes) &&
-	    intel_cdclk_needs_cd2x_update(dev_priv,
-					  &dev_priv->cdclk.actual,
-					  &state->cdclk.actual)) {
+	    intel_cdclk_can_cd2x_update(dev_priv,
+					&dev_priv->cdclk.actual,
+					&state->cdclk.actual)) {
 		struct intel_crtc *crtc;
 		struct intel_crtc_state *crtc_state;
 
