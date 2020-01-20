@@ -11,19 +11,21 @@ Boot Configuration
 Overview
 ========
 
-The boot configuration is expanding current kernel cmdline to support
-additional key-value data when boot the kernel in an efficient way.
-This allows adoministrators to pass a structured-Key config file.
+The boot configuration expands the current kernel command line to support
+additional key-value data when booting the kernel in an efficient way.
+This allows administrators to pass a structured-Key config file.
 
 Config File Syntax
 ==================
 
 The boot config syntax is a simple structured key-value. Each key consists
-of dot-connected-words, and key and value are connected by "=". The value
+of dot-connected-words, and key and value are connected by ``=``. The value
 has to be terminated by semi-colon (``;``) or newline (``\n``).
 For array value, array entries are separated by comma (``,``). ::
 
 KEY[.WORD[...]] = VALUE[, VALUE2[...]][;]
+
+Unlike the kernel command line syntax, spaces are OK around the comma and ``=``.
 
 Each key word must contain only alphabets, numbers, dash (``-``) or underscore
 (``_``). And each value only contains printable characters or spaces except
@@ -35,7 +37,7 @@ quotes (``"VALUE"``) or single-quotes (``'VALUE'``) to quote it. Note that
 you can not escape these quotes.
 
 There can be a key which doesn't have value or has an empty value. Those keys
-are used for checking the key exists or not (like a boolean).
+are used for checking if the key exists or not (like a boolean).
 
 Key-Value Syntax
 ----------------
@@ -63,7 +65,7 @@ at boot time. So you can append similar trees or key-values.
 Comments
 --------
 
-The config syntax accepts shell-script style comments. The comments start
+The config syntax accepts shell-script style comments. The comments starting
 with hash ("#") until newline ("\n") will be ignored.
 
 ::
@@ -108,7 +110,7 @@ update the boot loader and the kernel image itself.
 
 To do this operation, Linux kernel provides "bootconfig" command under
 tools/bootconfig, which allows admin to apply or delete the config file
-to/from initrd image. You can build it by follwoing command::
+to/from initrd image. You can build it by the following command::
 
  # make -C tools/bootconfig
 
@@ -122,7 +124,7 @@ To remove the config from the image, you can use -d option as below::
  # tools/bootconfig/bootconfig -d /boot/initrd.img-X.Y.Z
 
 
-C onfig File Limitation
+Config File Limitation
 ======================
 
 Currently the maximum config size size is 32KB and the total key-words (not
@@ -145,10 +147,10 @@ User can query or loop on key-value pairs, also it is possible to find
 a root (prefix) key node and find key-values under that node.
 
 If you have a key string, you can query the value directly with the key
-using xbc_find_value(). If you want to know what keys exist in the SKC
-tree, you can use xbc_for_each_key_value() to iterate key-value pairs.
+using xbc_find_value(). If you want to know what keys exist in the boot
+config, you can use xbc_for_each_key_value() to iterate key-value pairs.
 Note that you need to use xbc_array_for_each_value() for accessing
-each arraies value, e.g.::
+each array's value, e.g.::
 
  vnode = NULL;
  xbc_find_value("key.word", &vnode);
@@ -157,8 +159,8 @@ each arraies value, e.g.::
       printk("%s ", value);
     }
 
-If you want to focus on keys which has a prefix string, you can use
-xbc_find_node() to find a node which prefix key words, and iterate
+If you want to focus on keys which have a prefix string, you can use
+xbc_find_node() to find a node by the prefix string, and iterate
 keys under the prefix node with xbc_node_for_each_key_value().
 
 But the most typical usage is to get the named value under prefix
@@ -174,8 +176,8 @@ or get the named array under prefix as below::
 This accesses a value of "key.prefix.option" and an array of
 "key.prefix.array-option".
 
-Locking is not needed, since after initialized, the config becomes readonly.
-All data and keys must be copied if you need to modify it.
+Locking is not needed, since after initialization, the config becomes
+read-only. All data and keys must be copied if you need to modify it.
 
 
 Functions and structures
