@@ -17333,17 +17333,6 @@ intel_user_framebuffer_create(struct drm_device *dev,
 	return fb;
 }
 
-static void intel_atomic_state_free(struct drm_atomic_state *state)
-{
-	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
-
-	drm_atomic_state_default_release(state);
-
-	i915_sw_fence_fini(&intel_state->commit_ready);
-
-	kfree(state);
-}
-
 static enum drm_mode_status
 intel_mode_valid(struct drm_device *dev,
 		 const struct drm_display_mode *mode)

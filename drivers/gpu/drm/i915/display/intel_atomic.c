@@ -497,6 +497,17 @@ intel_atomic_state_alloc(struct drm_device *dev)
 	return &state->base;
 }
 
+void intel_atomic_state_free(struct drm_atomic_state *_state)
+{
+	struct intel_atomic_state *state = to_intel_atomic_state(_state);
+
+	drm_atomic_state_default_release(&state->base);
+
+	i915_sw_fence_fini(&state->commit_ready);
+
+	kfree(state);
+}
+
 void intel_atomic_state_clear(struct drm_atomic_state *s)
 {
 	struct intel_atomic_state *state = to_intel_atomic_state(s);
