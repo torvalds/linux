@@ -441,6 +441,12 @@
 		VDDIO-supply = <&reg_1v8_p>;
 	};
 
+	proximity-sensor@60 {
+		compatible = "vishay,vcnl4040";
+		reg = <0x60>;
+		pinctrl-0 = <&pinctrl_prox>;
+	};
+
 	accel-gyro@6a {
 		compatible = "st,lsm9ds1-imu";
 		reg = <0x6a>;
@@ -540,6 +546,12 @@
 	pinctrl_pmic: pmicgrp {
 		fsl,pins = <
 			MX8MQ_IOMUXC_GPIO1_IO03_GPIO1_IO3	0x80  /* PMIC intr */
+		>;
+	};
+
+	pinctrl_prox: proxgrp {
+		fsl,pins = <
+			MX8MQ_IOMUXC_GPIO1_IO12_GPIO1_IO12	0x80  /* prox intr */
 		>;
 	};
 
