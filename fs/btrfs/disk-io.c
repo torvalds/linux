@@ -42,6 +42,7 @@
 #include "ref-verify.h"
 #include "block-group.h"
 #include "discard.h"
+#include "space-info.h"
 
 #define BTRFS_SUPER_FLAG_SUPP	(BTRFS_HEADER_FLAG_WRITTEN |\
 				 BTRFS_HEADER_FLAG_RELOC |\
@@ -4308,9 +4309,30 @@ static int btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
 		spin_unlock(&delayed_refs->lock);
 		mutex_unlock(&head->mutex);
 
-		if (pin_bytes)
-			btrfs_pin_extent(fs_info, head->bytenr,
-					 head->num_bytes, 1);
+		if (pin_bytes) {
+			struct btrfs_block_group *cache;
+
+			cache = btrfs_lookup_block_group(fs_info, head->bytenr);
+			BUG_ON(!cache);
+
+			spin_lock(&cache->space_info->lock);
+			spin_lock(&cache->lock);
+			cache->pinned += head->num_bytes;
+			btrfs_space_info_update_bytes_pinned(fs_info,
+				cache->space_info, head->num_bytes);
+			cache->reserved -= head->num_bytes;
+			cache->space_info->bytes_reserved -= head->num_bytes;
+			spin_unlock(&cache->lock);
+			spin_unlock(&cache->space_info->lock);
+			percpu_counter_add_batch(
+				&cache->space_info->total_bytes_pinned,
+				head->num_bytes, BTRFS_TOTAL_BYTES_PINNED_BATCH);
+
+			btrfs_put_block_group(cache);
+
+			btrfs_error_unpin_extent_range(fs_info, head->bytenr,
+				head->bytenr + head->num_bytes - 1);
+		}
 		btrfs_cleanup_ref_head_accounting(fs_info, delayed_refs, head);
 		btrfs_put_delayed_ref_head(head);
 		cond_resched();
