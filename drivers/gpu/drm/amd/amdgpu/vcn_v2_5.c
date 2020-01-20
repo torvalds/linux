@@ -891,8 +891,10 @@ static int vcn_v2_5_start(struct amdgpu_device *adev)
 	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
 		if (adev->vcn.harvest_config & (1 << i))
 			continue;
-		if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG)
-			return vcn_v2_5_start_dpg_mode(adev, i, adev->vcn.indirect_sram);
+		if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG) {
+			r = vcn_v2_5_start_dpg_mode(adev, i, adev->vcn.indirect_sram);
+			continue;
+		}
 
 		/* disable register anti-hang mechanism */
 		WREG32_P(SOC15_REG_OFFSET(UVD, i, mmUVD_POWER_STATUS), 0,
@@ -902,6 +904,9 @@ static int vcn_v2_5_start(struct amdgpu_device *adev)
 		tmp = RREG32_SOC15(UVD, i, mmUVD_STATUS) | UVD_STATUS__UVD_BUSY;
 		WREG32_SOC15(UVD, i, mmUVD_STATUS, tmp);
 	}
+
+	if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG)
+		return 0;
 
 	/*SW clock gating */
 	vcn_v2_5_disable_clock_gating(adev);
@@ -1294,10 +1299,9 @@ static int vcn_v2_5_stop(struct amdgpu_device *adev)
 	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
 		if (adev->vcn.harvest_config & (1 << i))
 			continue;
-
 		if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG) {
 			r = vcn_v2_5_stop_dpg_mode(adev, i);
-			goto power_off;
+			continue;
 		}
 
 		/* wait for vcn idle */
@@ -1349,7 +1353,6 @@ static int vcn_v2_5_stop(struct amdgpu_device *adev)
 			~UVD_POWER_STATUS__UVD_POWER_STATUS_MASK);
 	}
 
-power_off:
 	if (adev->pm.dpm_enabled)
 		amdgpu_dpm_enable_uvd(adev, false);
 
