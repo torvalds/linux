@@ -1851,19 +1851,7 @@ void intel_cdclk_swap_state(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 
-	/* FIXME maybe swap() these too */
-	memcpy(dev_priv->cdclk_state.min_cdclk,
-	       state->cdclk_state.min_cdclk,
-	       sizeof(state->cdclk_state.min_cdclk));
-	memcpy(dev_priv->cdclk_state.min_voltage_level,
-	       state->cdclk_state.min_voltage_level,
-	       sizeof(state->cdclk_state.min_voltage_level));
-
-	dev_priv->cdclk_state.force_min_cdclk =
-		state->cdclk_state.force_min_cdclk;
-
-	swap(state->cdclk_state.logical, dev_priv->cdclk_state.logical);
-	swap(state->cdclk_state.actual, dev_priv->cdclk_state.actual);
+	swap(state->cdclk_state, dev_priv->cdclk_state);
 }
 
 void intel_dump_cdclk_config(const struct intel_cdclk_config *cdclk_config,
@@ -1919,7 +1907,7 @@ intel_set_cdclk_pre_plane_update(struct intel_atomic_state *state)
 	/* called after intel_cdclk_swap_state()! */
 	const struct intel_cdclk_state *old_cdclk_state = &state->cdclk_state;
 	const struct intel_cdclk_state *new_cdclk_state = &dev_priv->cdclk_state;
-	enum pipe pipe = old_cdclk_state->pipe; /* not swapped */
+	enum pipe pipe = new_cdclk_state->pipe;
 
 	if (pipe == INVALID_PIPE ||
 	    old_cdclk_state->actual.cdclk <= new_cdclk_state->actual.cdclk)
@@ -1940,7 +1928,7 @@ intel_set_cdclk_post_plane_update(struct intel_atomic_state *state)
 	/* called after intel_cdclk_swap_state()! */
 	const struct intel_cdclk_state *old_cdclk_state = &state->cdclk_state;
 	const struct intel_cdclk_state *new_cdclk_state = &dev_priv->cdclk_state;
-	enum pipe pipe = old_cdclk_state->pipe; /* not swapped */
+	enum pipe pipe = new_cdclk_state->pipe;
 
 	if (pipe != INVALID_PIPE &&
 	    old_cdclk_state->actual.cdclk > new_cdclk_state->actual.cdclk)
