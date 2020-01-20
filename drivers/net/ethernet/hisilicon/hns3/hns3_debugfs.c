@@ -297,8 +297,8 @@ static ssize_t hns3_dbg_cmd_read(struct file *filp, char __user *buffer,
 	if (!buf)
 		return -ENOMEM;
 
-	len = snprintf(buf, HNS3_DBG_READ_LEN, "%s\n",
-		       "Please echo help to cmd to get help information");
+	len = scnprintf(buf, HNS3_DBG_READ_LEN, "%s\n",
+			"Please echo help to cmd to get help information");
 	uncopy_bytes = copy_to_user(buffer, buf, len);
 
 	kfree(buf);
