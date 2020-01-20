@@ -3145,17 +3145,6 @@ static inline int ufshcd_read_desc(struct ufs_hba *hba,
 	return ufshcd_read_desc_param(hba, desc_id, desc_index, 0, buf, size);
 }
 
-static inline int ufshcd_read_power_desc(struct ufs_hba *hba,
-					 u8 *buf,
-					 u32 size)
-{
-	return ufshcd_read_desc(hba, QUERY_DESC_IDN_POWER, 0, buf, size);
-}
-
-static int ufshcd_read_device_desc(struct ufs_hba *hba, u8 *buf, u32 size)
-{
-	return ufshcd_read_desc(hba, QUERY_DESC_IDN_DEVICE, 0, buf, size);
-}
 
 /**
  * struct uc_string_id - unicode string
@@ -6496,7 +6485,8 @@ static void ufshcd_init_icc_levels(struct ufs_hba *hba)
 	if (!desc_buf)
 		return;
 
-	ret = ufshcd_read_power_desc(hba, desc_buf, buff_len);
+	ret = ufshcd_read_desc(hba, QUERY_DESC_IDN_POWER, 0,
+			desc_buf, buff_len);
 	if (ret) {
 		dev_err(hba->dev,
 			"%s: Failed reading power descriptor.len = %d ret = %d",
@@ -6602,7 +6592,8 @@ static int ufs_get_device_desc(struct ufs_hba *hba)
 		goto out;
 	}
 
-	err = ufshcd_read_device_desc(hba, desc_buf, hba->desc_size.dev_desc);
+	err = ufshcd_read_desc(hba, QUERY_DESC_IDN_DEVICE, 0, desc_buf,
+			hba->desc_size.dev_desc);
 	if (err) {
 		dev_err(hba->dev, "%s: Failed reading Device Desc. err = %d\n",
 			__func__, err);
