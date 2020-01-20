@@ -82,6 +82,12 @@ properties:
           - const: atmel,sama5d2
           - const: atmel,sama5
 
+      - description: SAM9X60-EK board
+        items:
+          - const: microchip,sam9x60ek
+          - const: microchip,sam9x60
+          - const: atmel,at91sam9
+
       - description: Nattis v2 board with Natte v2 power board
         items:
           - const: axentia,nattis-2
