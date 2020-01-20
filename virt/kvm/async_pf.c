@@ -17,21 +17,6 @@
 #include "async_pf.h"
 #include <trace/events/kvm.h>
 
-static inline void kvm_async_page_present_sync(struct kvm_vcpu *vcpu,
-					       struct kvm_async_pf *work)
-{
-#ifdef CONFIG_KVM_ASYNC_PF_SYNC
-	kvm_arch_async_page_present(vcpu, work);
-#endif
-}
-static inline void kvm_async_page_present_async(struct kvm_vcpu *vcpu,
-						struct kvm_async_pf *work)
-{
-#ifndef CONFIG_KVM_ASYNC_PF_SYNC
-	kvm_arch_async_page_present(vcpu, work);
-#endif
-}
-
 static struct kmem_cache *async_pf_cache;
 
 int kvm_async_pf_init(void)
@@ -80,7 +65,8 @@ static void async_pf_execute(struct work_struct *work)
 	if (locked)
 		up_read(&mm->mmap_sem);
 
-	kvm_async_page_present_sync(vcpu, apf);
+	if (IS_ENABLED(CONFIG_KVM_ASYNC_PF_SYNC))
+		kvm_arch_async_page_present(vcpu, apf);
 
 	spin_lock(&vcpu->async_pf.lock);
 	list_add_tail(&apf->link, &vcpu->async_pf.done);
@@ -157,7 +143,8 @@ void kvm_check_async_pf_completion(struct kvm_vcpu *vcpu)
 		spin_unlock(&vcpu->async_pf.lock);
 
 		kvm_arch_async_page_ready(vcpu, work);
-		kvm_async_page_present_async(vcpu, work);
+		if (!IS_ENABLED(CONFIG_KVM_ASYNC_PF_SYNC))
+			kvm_arch_async_page_present(vcpu, work);
 
 		list_del(&work->queue);
 		vcpu->async_pf.queued--;
