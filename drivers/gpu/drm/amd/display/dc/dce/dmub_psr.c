@@ -29,17 +29,20 @@
 #include "../../dmub/inc/dmub_srv.h"
 #include "dmub_fw_state.h"
 #include "core_types.h"
-#include "ipp.h"
 
 #define MAX_PIPES 6
 
 /**
  * Get PSR state from firmware.
  */
-static void dmub_psr_get_state(uint32_t *psr_state)
+static void dmub_psr_get_state(struct dmub_psr *dmub, uint32_t *psr_state)
 {
-	// Not yet implemented
-	// Trigger GPINT interrupt from firmware
+	struct dmub_srv *srv = dmub->ctx->dmub_srv->dmub;
+
+	// Send gpint command and wait for ack
+	dmub_srv_send_gpint_command(srv, DMUB_GPINT__GET_PSR_STATE, 0, 30);
+
+	dmub_srv_get_gpint_response(srv, psr_state);
 }
 
 /**
@@ -100,7 +103,7 @@ static void dmub_psr_set_level(struct dmub_psr *dmub, uint16_t psr_level)
 	uint32_t psr_state = 0;
 	struct dc_context *dc = dmub->ctx;
 
-	dmub_psr_get_state(&psr_state);
+	dmub_psr_get_state(dmub, &psr_state);
 
 	if (psr_state == 0)
 		return;

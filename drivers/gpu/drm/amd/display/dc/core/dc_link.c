@@ -2451,7 +2451,7 @@ bool dc_link_get_psr_state(const struct dc_link *link, uint32_t *psr_state)
 	struct dmub_psr *psr = dc->res_pool->psr;
 
 	if (psr != NULL && link->psr_feature_enabled)
-		psr->funcs->psr_get_state(psr_state);
+		psr->funcs->psr_get_state(psr, psr_state);
 	else if (dmcu != NULL && link->psr_feature_enabled)
 		dmcu->funcs->get_psr_state(dmcu, psr_state);
 
