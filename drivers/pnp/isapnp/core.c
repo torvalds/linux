@@ -747,28 +747,6 @@ __skip:
 }
 
 /*
- *  Compute ISA PnP checksum for first eight bytes.
- */
-static unsigned char __init isapnp_checksum(unsigned char *data)
-{
-	int i, j;
-	unsigned char checksum = 0x6a, bit, b;
-
-	for (i = 0; i < 8; i++) {
-		b = data[i];
-		for (j = 0; j < 8; j++) {
-			bit = 0;
-			if (b & (1 << j))
-				bit = 1;
-			checksum =
-			    ((((checksum ^ (checksum >> 1)) & 0x01) ^ bit) << 7)
-			    | (checksum >> 1);
-		}
-	}
-	return checksum;
-}
-
-/*
  *  Build device list for all present ISA PnP devices.
  */
 static int __init isapnp_build_device_list(void)
