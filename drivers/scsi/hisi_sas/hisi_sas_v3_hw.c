@@ -2396,6 +2396,8 @@ static int interrupt_init_v3_hw(struct hisi_hba *hisi_hba)
 			.pre_vectors = BASE_VECTORS_V3_HW,
 		};
 
+		dev_info(dev, "Enable MSI auto-affinity\n");
+
 		min_msi = MIN_AFFINE_VECTORS_V3_HW;
 
 		hisi_hba->reply_map = devm_kcalloc(dev, nr_cpu_ids,
@@ -2447,6 +2449,9 @@ static int interrupt_init_v3_hw(struct hisi_hba *hisi_hba)
 		rc = -ENOENT;
 		goto free_irq_vectors;
 	}
+
+	if (hisi_sas_intr_conv)
+		dev_info(dev, "Enable interrupt converge\n");
 
 	for (i = 0; i < hisi_hba->cq_nvecs; i++) {
 		struct hisi_sas_cq *cq = &hisi_hba->cq[i];
