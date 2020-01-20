@@ -1019,41 +1019,38 @@ static void qm_hw_error_uninit_v2(struct hisi_qm *qm)
 
 static void qm_log_hw_error(struct hisi_qm *qm, u32 error_status)
 {
-	const struct hisi_qm_hw_error *err = qm_hw_error;
+	const struct hisi_qm_hw_error *err;
 	struct device *dev = &qm->pdev->dev;
 	u32 reg_val, type, vf_num;
+	int i;
 
-	while (err->msg) {
-		if (err->int_msk & error_status) {
-			dev_err(dev, "%s [error status=0x%x] found\n",
-				err->msg, err->int_msk);
+	for (i = 0; i < ARRAY_SIZE(qm_hw_error); i++) {
+		err = &qm_hw_error[i];
+		if (!(err->int_msk & error_status))
+			continue;
 
-			if (error_status & QM_DB_TIMEOUT) {
-				reg_val = readl(qm->io_base +
-						QM_ABNORMAL_INF01);
-				type = (reg_val & QM_DB_TIMEOUT_TYPE) >>
-				       QM_DB_TIMEOUT_TYPE_SHIFT;
-				vf_num = reg_val & QM_DB_TIMEOUT_VF;
-				dev_err(dev, "qm %s doorbell timeout in function %u\n",
-					qm_db_timeout[type], vf_num);
-			}
+		dev_err(dev, "%s [error status=0x%x] found\n",
+			err->msg, err->int_msk);
 
-			if (error_status & QM_OF_FIFO_OF) {
-				reg_val = readl(qm->io_base +
-						QM_ABNORMAL_INF00);
-				type = (reg_val & QM_FIFO_OVERFLOW_TYPE) >>
-				       QM_FIFO_OVERFLOW_TYPE_SHIFT;
-				vf_num = reg_val & QM_FIFO_OVERFLOW_VF;
+		if (err->int_msk & QM_DB_TIMEOUT) {
+			reg_val = readl(qm->io_base + QM_ABNORMAL_INF01);
+			type = (reg_val & QM_DB_TIMEOUT_TYPE) >>
+			       QM_DB_TIMEOUT_TYPE_SHIFT;
+			vf_num = reg_val & QM_DB_TIMEOUT_VF;
+			dev_err(dev, "qm %s doorbell timeout in function %u\n",
+				qm_db_timeout[type], vf_num);
+		} else if (err->int_msk & QM_OF_FIFO_OF) {
+			reg_val = readl(qm->io_base + QM_ABNORMAL_INF00);
+			type = (reg_val & QM_FIFO_OVERFLOW_TYPE) >>
+			       QM_FIFO_OVERFLOW_TYPE_SHIFT;
+			vf_num = reg_val & QM_FIFO_OVERFLOW_VF;
 
-				if (type < ARRAY_SIZE(qm_fifo_overflow))
-					dev_err(dev, "qm %s fifo overflow in function %u\n",
-						qm_fifo_overflow[type],
-						vf_num);
-				else
-					dev_err(dev, "unknown error type\n");
-			}
+			if (type < ARRAY_SIZE(qm_fifo_overflow))
+				dev_err(dev, "qm %s fifo overflow in function %u\n",
+					qm_fifo_overflow[type], vf_num);
+			else
+				dev_err(dev, "unknown error type\n");
 		}
-		err++;
 	}
 }
 
