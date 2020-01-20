@@ -712,8 +712,6 @@ static void soc_resume_deferred(struct work_struct *work)
 int snd_soc_resume(struct device *dev)
 {
 	struct snd_soc_card *card = dev_get_drvdata(dev);
-	bool bus_control = false;
-	struct snd_soc_pcm_runtime *rtd;
 	struct snd_soc_component *component;
 
 	/* If the card is not initialized yet there is nothing to do */
@@ -725,25 +723,9 @@ int snd_soc_resume(struct device *dev)
 		if (component->active)
 			pinctrl_pm_select_default_state(component->dev);
 
-	/*
-	 * DAIs that also act as the control bus master might have other drivers
-	 * hanging off them so need to resume immediately. Other drivers don't
-	 * have that problem and may take a substantial amount of time to resume
-	 * due to I/O costs and anti-pop so handle them out of line.
-	 */
-	for_each_card_rtds(card, rtd) {
-		struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-
-		bus_control |= cpu_dai->driver->bus_control;
-	}
-	if (bus_control) {
-		dev_dbg(dev, "ASoC: Resuming control bus master immediately\n");
-		soc_resume_deferred(&card->deferred_resume_work);
-	} else {
-		dev_dbg(dev, "ASoC: Scheduling resume work\n");
-		if (!schedule_work(&card->deferred_resume_work))
-			dev_err(dev, "ASoC: resume work item may be lost\n");
-	}
+	dev_dbg(dev, "ASoC: Scheduling resume work\n");
+	if (!schedule_work(&card->deferred_resume_work))
+		dev_err(dev, "ASoC: resume work item may be lost\n");
 
 	return 0;
 }
