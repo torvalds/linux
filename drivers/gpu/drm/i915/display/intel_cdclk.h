@@ -23,8 +23,8 @@ struct intel_cdclk_vals {
 };
 
 int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state);
-void intel_cdclk_init(struct drm_i915_private *i915);
-void intel_cdclk_uninit(struct drm_i915_private *i915);
+void intel_cdclk_init_hw(struct drm_i915_private *i915);
+void intel_cdclk_uninit_hw(struct drm_i915_private *i915);
 void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv);
 void intel_update_max_cdclk(struct drm_i915_private *dev_priv);
 void intel_update_cdclk(struct drm_i915_private *dev_priv);
