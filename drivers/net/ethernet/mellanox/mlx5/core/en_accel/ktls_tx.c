@@ -458,12 +458,18 @@ struct sk_buff *mlx5e_ktls_handle_tx_skb(struct net_device *netdev,
 		enum mlx5e_ktls_sync_retval ret =
 			mlx5e_ktls_tx_handle_ooo(priv_tx, sq, datalen, seq);
 
-		if (likely(ret == MLX5E_KTLS_SYNC_DONE))
+		switch (ret) {
+		case MLX5E_KTLS_SYNC_DONE:
 			*wqe = mlx5e_sq_fetch_wqe(sq, sizeof(**wqe), pi);
-		else if (ret == MLX5E_KTLS_SYNC_FAIL)
+			break;
+		case MLX5E_KTLS_SYNC_SKIP_NO_DATA:
+			if (likely(!skb->decrypted))
+				goto out;
+			WARN_ON_ONCE(1);
+			/* fall-through */
+		default: /* MLX5E_KTLS_SYNC_FAIL */
 			goto err_out;
-		else /* ret == MLX5E_KTLS_SYNC_SKIP_NO_DATA */
-			goto out;
+		}
 	}
 
 	priv_tx->expected_seq = seq + datalen;
