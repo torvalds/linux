@@ -187,7 +187,8 @@ int __fscrypt_encrypt_symlink(struct inode *inode, const char *target,
 	ciphertext_len = disk_link->len - sizeof(*sd);
 	sd->len = cpu_to_le16(ciphertext_len);
 
-	err = fname_encrypt(inode, &iname, sd->encrypted_path, ciphertext_len);
+	err = fscrypt_fname_encrypt(inode, &iname, sd->encrypted_path,
+				    ciphertext_len);
 	if (err)
 		goto err_free_sd;
 
