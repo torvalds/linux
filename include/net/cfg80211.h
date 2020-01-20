@@ -636,6 +636,7 @@ struct cfg80211_chan_def {
  * @noack: noack configuration value for the TID
  * @retry_long: retry count value
  * @retry_short: retry count value
+ * @ampdu: Enable/Disable aggregation
  */
 struct cfg80211_tid_cfg {
 	bool config_override;
@@ -643,6 +644,7 @@ struct cfg80211_tid_cfg {
 	u32 mask;
 	enum nl80211_tid_config noack;
 	u8 retry_long, retry_short;
+	enum nl80211_tid_config ampdu;
 };
 
 /**
