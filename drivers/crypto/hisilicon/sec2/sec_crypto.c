@@ -120,7 +120,7 @@ static void sec_req_cb(struct hisi_qp *qp, void *resp)
 		return;
 	}
 
-	__sync_add_and_fetch(&req->ctx->sec->debug.dfx.recv_cnt, 1);
+	atomic64_inc(&req->ctx->sec->debug.dfx.recv_cnt);
 
 	req->ctx->req_op->buf_unmap(req->ctx, req);
 
@@ -135,13 +135,13 @@ static int sec_bd_send(struct sec_ctx *ctx, struct sec_req *req)
 	mutex_lock(&qp_ctx->req_lock);
 	ret = hisi_qp_send(qp_ctx->qp, &req->sec_sqe);
 	mutex_unlock(&qp_ctx->req_lock);
-	__sync_add_and_fetch(&ctx->sec->debug.dfx.send_cnt, 1);
+	atomic64_inc(&ctx->sec->debug.dfx.send_cnt);
 
 	if (ret == -EBUSY)
 		return -ENOBUFS;
 
 	if (!ret) {
-		if (req->fake_busy)
+		if (atomic_read(&req->fake_busy))
 			ret = -EBUSY;
 		else
 			ret = -EINPROGRESS;
@@ -641,7 +641,7 @@ static void sec_skcipher_callback(struct sec_ctx *ctx, struct sec_req *req)
 	if (ctx->c_ctx.c_mode == SEC_CMODE_CBC && req->c_req.encrypt)
 		sec_update_iv(req);
 
-	if (__sync_bool_compare_and_swap(&req->fake_busy, 1, 0))
+	if (atomic_cmpxchg(&req->fake_busy, 1, 0) != 1)
 		sk_req->base.complete(&sk_req->base, -EINPROGRESS);
 
 	sk_req->base.complete(&sk_req->base, req->err_type);
@@ -672,9 +672,9 @@ static int sec_request_init(struct sec_ctx *ctx, struct sec_req *req)
 	}
 
 	if (ctx->fake_req_limit <= atomic_inc_return(&qp_ctx->pending_reqs))
-		req->fake_busy = 1;
+		atomic_set(&req->fake_busy, 1);
 	else
-		req->fake_busy = 0;
+		atomic_set(&req->fake_busy, 0);
 
 	ret = ctx->req_op->get_res(ctx, req);
 	if (ret) {

@@ -203,6 +203,7 @@ struct rpcrdma_rep {
 	struct xdr_stream	rr_stream;
 	struct llist_node	rr_node;
 	struct ib_recv_wr	rr_recv_wr;
+	struct list_head	rr_all;
 };
 
 /* To reduce the rate at which a transport invokes ib_post_recv
@@ -368,6 +369,7 @@ struct rpcrdma_buffer {
 
 	struct list_head	rb_allreqs;
 	struct list_head	rb_all_mrs;
+	struct list_head	rb_all_reps;
 
 	struct llist_head	rb_free_reps;
 
