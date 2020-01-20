@@ -631,6 +631,67 @@ int __init efi_config_init(efi_config_table_type_t *arch_tables)
 	return ret;
 }
 
+
+int __init efi_systab_check_header(const efi_table_hdr_t *systab_hdr,
+				   int min_major_version)
+{
+	if (systab_hdr->signature != EFI_SYSTEM_TABLE_SIGNATURE) {
+		pr_err("System table signature incorrect!\n");
+		return -EINVAL;
+	}
+
+	if ((systab_hdr->revision >> 16) < min_major_version)
+		pr_err("Warning: System table version %d.%02d, expected %d.00 or greater!\n",
+		       systab_hdr->revision >> 16,
+		       systab_hdr->revision & 0xffff,
+		       min_major_version);
+
+	return 0;
+}
+
+#ifndef CONFIG_IA64
+static const efi_char16_t *__init map_fw_vendor(unsigned long fw_vendor,
+						size_t size)
+{
+	const efi_char16_t *ret;
+
+	ret = early_memremap_ro(fw_vendor, size);
+	if (!ret)
+		pr_err("Could not map the firmware vendor!\n");
+	return ret;
+}
+
+static void __init unmap_fw_vendor(const void *fw_vendor, size_t size)
+{
+	early_memunmap((void *)fw_vendor, size);
+}
+#else
+#define map_fw_vendor(p, s)	__va(p)
+#define unmap_fw_vendor(v, s)
+#endif
+
+void __init efi_systab_report_header(const efi_table_hdr_t *systab_hdr,
+				     unsigned long fw_vendor)
+{
+	char vendor[100] = "unknown";
+	const efi_char16_t *c16;
+	size_t i;
+
+	c16 = map_fw_vendor(fw_vendor, sizeof(vendor) * sizeof(efi_char16_t));
+	if (c16) {
+		for (i = 0; i < sizeof(vendor) - 1 && c16[i]; ++i)
+			vendor[i] = c16[i];
+		vendor[i] = '\0';
+
+		unmap_fw_vendor(c16, sizeof(vendor) * sizeof(efi_char16_t));
+	}
+
+	pr_info("EFI v%u.%.02u by %s\n",
+		systab_hdr->revision >> 16,
+		systab_hdr->revision & 0xffff,
+		vendor);
+}
+
 #ifdef CONFIG_EFI_VARS_MODULE
 static int __init efi_load_efivars(void)
 {

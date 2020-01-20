@@ -85,11 +85,9 @@ static void __init init_screen_info(void)
 
 static int __init uefi_init(void)
 {
-	efi_char16_t *c16;
 	void *config_tables;
 	size_t table_size;
-	char vendor[100] = "unknown";
-	int i, retval;
+	int retval;
 
 	efi.systab = early_memremap_ro(efi_system_table,
 				       sizeof(efi_system_table_t));
@@ -102,34 +100,14 @@ static int __init uefi_init(void)
 	if (IS_ENABLED(CONFIG_64BIT))
 		set_bit(EFI_64BIT, &efi.flags);
 
-	/*
-	 * Verify the EFI Table
-	 */
-	if (efi.systab->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE) {
-		pr_err("System table signature incorrect\n");
-		retval = -EINVAL;
+	retval = efi_systab_check_header(&efi.systab->hdr, 2);
+	if (retval)
 		goto out;
-	}
-	if ((efi.systab->hdr.revision >> 16) < 2)
-		pr_warn("Warning: EFI system table version %d.%02d, expected 2.00 or greater\n",
-			efi.systab->hdr.revision >> 16,
-			efi.systab->hdr.revision & 0xffff);
 
 	efi.runtime_version = efi.systab->hdr.revision;
 
-	/* Show what we know for posterity */
-	c16 = early_memremap_ro(efi_to_phys(efi.systab->fw_vendor),
-				sizeof(vendor) * sizeof(efi_char16_t));
-	if (c16) {
-		for (i = 0; i < (int) sizeof(vendor) - 1 && *c16; ++i)
-			vendor[i] = c16[i];
-		vendor[i] = '\0';
-		early_memunmap(c16, sizeof(vendor) * sizeof(efi_char16_t));
-	}
-
-	pr_info("EFI v%u.%.02u by %s\n",
-		efi.systab->hdr.revision >> 16,
-		efi.systab->hdr.revision & 0xffff, vendor);
+	efi_systab_report_header(&efi.systab->hdr,
+				 efi_to_phys(efi.systab->fw_vendor));
 
 	table_size = sizeof(efi_config_table_64_t) * efi.systab->nr_tables;
 	config_tables = early_memremap_ro(efi_to_phys(efi.systab->tables),

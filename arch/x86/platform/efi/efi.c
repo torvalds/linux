@@ -336,13 +336,21 @@ static int __init efi_systab_init(u64 phys)
 {
 	int size = efi_enabled(EFI_64BIT) ? sizeof(efi_system_table_64_t)
 					  : sizeof(efi_system_table_32_t);
+	const efi_table_hdr_t *hdr;
 	bool over4g = false;
 	void *p;
+	int ret;
 
-	p = early_memremap_ro(phys, size);
+	hdr = p = early_memremap_ro(phys, size);
 	if (p == NULL) {
 		pr_err("Couldn't map the system table!\n");
 		return -ENOMEM;
+	}
+
+	ret = efi_systab_check_header(hdr, 1);
+	if (ret) {
+		early_memunmap(p, size);
+		return ret;
 	}
 
 	if (efi_enabled(EFI_64BIT)) {
@@ -411,6 +419,7 @@ static int __init efi_systab_init(u64 phys)
 		efi_systab.tables		= systab32->tables;
 	}
 
+	efi_systab_report_header(hdr, efi_systab.fw_vendor);
 	early_memunmap(p, size);
 
 	if (IS_ENABLED(CONFIG_X86_32) && over4g) {
@@ -419,28 +428,11 @@ static int __init efi_systab_init(u64 phys)
 	}
 
 	efi.systab = &efi_systab;
-
-	/*
-	 * Verify the EFI Table
-	 */
-	if (efi.systab->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE) {
-		pr_err("System table signature incorrect!\n");
-		return -EINVAL;
-	}
-	if ((efi.systab->hdr.revision >> 16) == 0)
-		pr_err("Warning: System table version %d.%02d, expected 1.00 or greater!\n",
-		       efi.systab->hdr.revision >> 16,
-		       efi.systab->hdr.revision & 0xffff);
-
 	return 0;
 }
 
 void __init efi_init(void)
 {
-	efi_char16_t *c16;
-	char vendor[100] = "unknown";
-	int i = 0;
-
 	if (IS_ENABLED(CONFIG_X86_32) &&
 	    (boot_params.efi_info.efi_systab_hi ||
 	     boot_params.efi_info.efi_memmap_hi)) {
@@ -457,24 +449,6 @@ void __init efi_init(void)
 	efi.config_table = (unsigned long)efi.systab->tables;
 	efi.fw_vendor	 = (unsigned long)efi.systab->fw_vendor;
 	efi.runtime	 = (unsigned long)efi.systab->runtime;
-
-	/*
-	 * Show what we know for posterity
-	 */
-	c16 = early_memremap_ro(efi.systab->fw_vendor,
-				sizeof(vendor) * sizeof(efi_char16_t));
-	if (c16) {
-		for (i = 0; i < sizeof(vendor) - 1 && c16[i]; ++i)
-			vendor[i] = c16[i];
-		vendor[i] = '\0';
-		early_memunmap(c16, sizeof(vendor) * sizeof(efi_char16_t));
-	} else {
-		pr_err("Could not map the firmware vendor!\n");
-	}
-
-	pr_info("EFI v%u.%.02u by %s\n",
-		efi.systab->hdr.revision >> 16,
-		efi.systab->hdr.revision & 0xffff, vendor);
 
 	if (efi_reuse_config(efi.systab->tables, efi.systab->nr_tables))
 		return;
