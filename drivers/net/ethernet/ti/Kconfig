@@ -63,6 +63,7 @@ config TI_CPSW_SWITCHDEV
 	tristate "TI CPSW Switch Support with switchdev"
 	depends on ARCH_DAVINCI || ARCH_OMAP2PLUS || COMPILE_TEST
 	depends on NET_SWITCHDEV
+	select PAGE_POOL
 	select TI_DAVINCI_MDIO
 	select MFD_SYSCON
 	select REGMAP

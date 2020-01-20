@@ -242,10 +242,12 @@ static struct clk_branch gfx3d_isense_clk = {
 
 static struct gdsc gpu_cx_gdsc = {
 	.gdscr = 0x1004,
+	.gds_hw_ctrl = 0x1008,
 	.pd = {
 		.name = "gpu_cx",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
 };
 
 static struct gdsc gpu_gx_gdsc = {

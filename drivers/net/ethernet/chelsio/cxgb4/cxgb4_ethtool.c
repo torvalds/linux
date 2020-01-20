@@ -807,8 +807,8 @@ static void get_pauseparam(struct net_device *dev,
 	struct port_info *p = netdev_priv(dev);
 
 	epause->autoneg = (p->link_cfg.requested_fc & PAUSE_AUTONEG) != 0;
-	epause->rx_pause = (p->link_cfg.fc & PAUSE_RX) != 0;
-	epause->tx_pause = (p->link_cfg.fc & PAUSE_TX) != 0;
+	epause->rx_pause = (p->link_cfg.advertised_fc & PAUSE_RX) != 0;
+	epause->tx_pause = (p->link_cfg.advertised_fc & PAUSE_TX) != 0;
 }
 
 static int set_pauseparam(struct net_device *dev,

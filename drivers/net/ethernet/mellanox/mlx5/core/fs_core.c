@@ -531,16 +531,9 @@ static void del_hw_fte(struct fs_node *node)
 	}
 }
 
-static void del_sw_fte_rcu(struct rcu_head *head)
-{
-	struct fs_fte *fte = container_of(head, struct fs_fte, rcu);
-	struct mlx5_flow_steering *steering = get_steering(&fte->node);
-
-	kmem_cache_free(steering->ftes_cache, fte);
-}
-
 static void del_sw_fte(struct fs_node *node)
 {
+	struct mlx5_flow_steering *steering = get_steering(node);
 	struct mlx5_flow_group *fg;
 	struct fs_fte *fte;
 	int err;
@@ -553,8 +546,7 @@ static void del_sw_fte(struct fs_node *node)
 				     rhash_fte);
 	WARN_ON(err);
 	ida_simple_remove(&fg->fte_allocator, fte->index - fg->start_index);
-
-	call_rcu(&fte->rcu, del_sw_fte_rcu);
+	kmem_cache_free(steering->ftes_cache, fte);
 }
 
 static void del_hw_flow_group(struct fs_node *node)
@@ -1633,67 +1625,35 @@ static u64 matched_fgs_get_version(struct list_head *match_head)
 }
 
 static struct fs_fte *
-lookup_fte_for_write_locked(struct mlx5_flow_group *g, const u32 *match_value)
+lookup_fte_locked(struct mlx5_flow_group *g,
+		  const u32 *match_value,
+		  bool take_write)
 {
 	struct fs_fte *fte_tmp;
 
-	nested_down_write_ref_node(&g->node, FS_LOCK_PARENT);
-
-	fte_tmp = rhashtable_lookup_fast(&g->ftes_hash, match_value, rhash_fte);
-	if (!fte_tmp || !tree_get_node(&fte_tmp->node)) {
-		fte_tmp = NULL;
-		goto out;
-	}
-
-	if (!fte_tmp->node.active) {
-		tree_put_node(&fte_tmp->node, false);
-		fte_tmp = NULL;
-		goto out;
-	}
-	nested_down_write_ref_node(&fte_tmp->node, FS_LOCK_CHILD);
-
-out:
-	up_write_ref_node(&g->node, false);
-	return fte_tmp;
-}
-
-static struct fs_fte *
-lookup_fte_for_read_locked(struct mlx5_flow_group *g, const u32 *match_value)
-{
-	struct fs_fte *fte_tmp;
-
-	if (!tree_get_node(&g->node))
-		return NULL;
-
-	rcu_read_lock();
-	fte_tmp = rhashtable_lookup(&g->ftes_hash, match_value, rhash_fte);
-	if (!fte_tmp || !tree_get_node(&fte_tmp->node)) {
-		rcu_read_unlock();
-		fte_tmp = NULL;
-		goto out;
-	}
-	rcu_read_unlock();
-
-	if (!fte_tmp->node.active) {
-		tree_put_node(&fte_tmp->node, false);
-		fte_tmp = NULL;
-		goto out;
-	}
-
-	nested_down_write_ref_node(&fte_tmp->node, FS_LOCK_CHILD);
-
-out:
-	tree_put_node(&g->node, false);
-	return fte_tmp;
-}
-
-static struct fs_fte *
-lookup_fte_locked(struct mlx5_flow_group *g, const u32 *match_value, bool write)
-{
-	if (write)
-		return lookup_fte_for_write_locked(g, match_value);
+	if (take_write)
+		nested_down_write_ref_node(&g->node, FS_LOCK_PARENT);
 	else
-		return lookup_fte_for_read_locked(g, match_value);
+		nested_down_read_ref_node(&g->node, FS_LOCK_PARENT);
+	fte_tmp = rhashtable_lookup_fast(&g->ftes_hash, match_value,
+					 rhash_fte);
+	if (!fte_tmp || !tree_get_node(&fte_tmp->node)) {
+		fte_tmp = NULL;
+		goto out;
+	}
+	if (!fte_tmp->node.active) {
+		tree_put_node(&fte_tmp->node, false);
+		fte_tmp = NULL;
+		goto out;
+	}
+
+	nested_down_write_ref_node(&fte_tmp->node, FS_LOCK_CHILD);
+out:
+	if (take_write)
+		up_write_ref_node(&g->node, false);
+	else
+		up_read_ref_node(&g->node);
+	return fte_tmp;
 }
 
 static struct mlx5_flow_handle *

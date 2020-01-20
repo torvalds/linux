@@ -592,6 +592,7 @@ static void wfx_do_unjoin(struct wfx_vif *wvif)
 	wfx_tx_flush(wvif->wdev);
 	hif_keep_alive_period(wvif, 0);
 	hif_reset(wvif, false);
+	wfx_tx_policy_init(wvif);
 	hif_set_output_power(wvif, wvif->wdev->output_power * 10);
 	wvif->dtim_period = 0;
 	hif_set_macaddr(wvif, wvif->vif->addr);
@@ -880,8 +881,10 @@ static int wfx_update_beaconing(struct wfx_vif *wvif)
 		if (wvif->state != WFX_STATE_AP ||
 		    wvif->beacon_int != conf->beacon_int) {
 			wfx_tx_lock_flush(wvif->wdev);
-			if (wvif->state != WFX_STATE_PASSIVE)
+			if (wvif->state != WFX_STATE_PASSIVE) {
 				hif_reset(wvif, false);
+				wfx_tx_policy_init(wvif);
+			}
 			wvif->state = WFX_STATE_PASSIVE;
 			wfx_start_ap(wvif);
 			wfx_tx_unlock(wvif->wdev);
@@ -1567,6 +1570,7 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	INIT_WORK(&wvif->set_cts_work, wfx_set_cts_work);
 	INIT_WORK(&wvif->unjoin_work, wfx_unjoin_work);
 
+	INIT_WORK(&wvif->tx_policy_upload_work, wfx_tx_policy_upload_work);
 	mutex_unlock(&wdev->conf_mutex);
 
 	hif_set_macaddr(wvif, vif->addr);

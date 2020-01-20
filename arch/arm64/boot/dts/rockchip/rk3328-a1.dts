@@ -49,7 +49,8 @@
 
 	ir-receiver {
 		compatible = "gpio-ir-receiver";
-		gpios = <&gpio2 RK_PA2 GPIO_ACTIVE_HIGH>;
+		gpios = <&gpio2 RK_PA2 GPIO_ACTIVE_LOW>;
+		linux,rc-map-name = "rc-beelink-gs1";
 	};
 };
 

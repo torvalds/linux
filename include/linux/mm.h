@@ -2621,6 +2621,9 @@ static inline int vm_fault_to_errno(vm_fault_t vm_fault, int foll_flags)
 typedef int (*pte_fn_t)(pte_t *pte, unsigned long addr, void *data);
 extern int apply_to_page_range(struct mm_struct *mm, unsigned long address,
 			       unsigned long size, pte_fn_t fn, void *data);
+extern int apply_to_existing_page_range(struct mm_struct *mm,
+				   unsigned long address, unsigned long size,
+				   pte_fn_t fn, void *data);
 
 #ifdef CONFIG_PAGE_POISONING
 extern bool page_poisoning_enabled(void);
@@ -2655,13 +2658,25 @@ static inline bool want_init_on_free(void)
 	       !page_poisoning_enabled();
 }
 
-#ifdef CONFIG_DEBUG_PAGEALLOC_ENABLE_DEFAULT
-DECLARE_STATIC_KEY_TRUE(_debug_pagealloc_enabled);
+#ifdef CONFIG_DEBUG_PAGEALLOC
+extern void init_debug_pagealloc(void);
 #else
-DECLARE_STATIC_KEY_FALSE(_debug_pagealloc_enabled);
+static inline void init_debug_pagealloc(void) {}
 #endif
+extern bool _debug_pagealloc_enabled_early;
+DECLARE_STATIC_KEY_FALSE(_debug_pagealloc_enabled);
 
 static inline bool debug_pagealloc_enabled(void)
+{
+	return IS_ENABLED(CONFIG_DEBUG_PAGEALLOC) &&
+		_debug_pagealloc_enabled_early;
+}
+
+/*
+ * For use in fast paths after init_debug_pagealloc() has run, or when a
+ * false negative result is not harmful when called too early.
+ */
+static inline bool debug_pagealloc_enabled_static(void)
 {
 	if (!IS_ENABLED(CONFIG_DEBUG_PAGEALLOC))
 		return false;

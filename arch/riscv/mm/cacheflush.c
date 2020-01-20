@@ -22,6 +22,7 @@ void flush_icache_all(void)
 	else
 		on_each_cpu(ipi_remote_fence_i, NULL, 1);
 }
+EXPORT_SYMBOL(flush_icache_all);
 
 /*
  * Performs an icache flush for the given MM context.  RISC-V has no direct

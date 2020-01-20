@@ -92,7 +92,6 @@ struct io_wqe {
 	struct io_wqe_acct acct[2];
 
 	struct hlist_nulls_head free_list;
-	struct hlist_nulls_head busy_list;
 	struct list_head all_list;
 
 	struct io_wq *wq;
@@ -327,7 +326,6 @@ static void __io_worker_busy(struct io_wqe *wqe, struct io_worker *worker,
 	if (worker->flags & IO_WORKER_F_FREE) {
 		worker->flags &= ~IO_WORKER_F_FREE;
 		hlist_nulls_del_init_rcu(&worker->nulls_node);
-		hlist_nulls_add_head_rcu(&worker->nulls_node, &wqe->busy_list);
 	}
 
 	/*
@@ -365,7 +363,6 @@ static bool __io_worker_idle(struct io_wqe *wqe, struct io_worker *worker)
 {
 	if (!(worker->flags & IO_WORKER_F_FREE)) {
 		worker->flags |= IO_WORKER_F_FREE;
-		hlist_nulls_del_init_rcu(&worker->nulls_node);
 		hlist_nulls_add_head_rcu(&worker->nulls_node, &wqe->free_list);
 	}
 
@@ -432,6 +429,8 @@ next:
 		if (signal_pending(current))
 			flush_signals(current);
 
+		cond_resched();
+
 		spin_lock_irq(&worker->lock);
 		worker->cur_work = work;
 		spin_unlock_irq(&worker->lock);
@@ -446,10 +445,14 @@ next:
 			task_unlock(current);
 		}
 		if ((work->flags & IO_WQ_WORK_NEEDS_USER) && !worker->mm &&
-		    wq->mm && mmget_not_zero(wq->mm)) {
-			use_mm(wq->mm);
-			set_fs(USER_DS);
-			worker->mm = wq->mm;
+		    wq->mm) {
+			if (mmget_not_zero(wq->mm)) {
+				use_mm(wq->mm);
+				set_fs(USER_DS);
+				worker->mm = wq->mm;
+			} else {
+				work->flags |= IO_WQ_WORK_CANCEL;
+			}
 		}
 		if (!worker->creds)
 			worker->creds = override_creds(wq->creds);
@@ -798,10 +801,6 @@ void io_wq_cancel_all(struct io_wq *wq)
 
 	set_bit(IO_WQ_BIT_CANCEL, &wq->state);
 
-	/*
-	 * Browse both lists, as there's a gap between handing work off
-	 * to a worker and the worker putting itself on the busy_list
-	 */
 	rcu_read_lock();
 	for_each_node(node) {
 		struct io_wqe *wqe = wq->wqes[node];
@@ -948,7 +947,7 @@ static enum io_wq_cancel io_wqe_cancel_work(struct io_wqe *wqe,
 	/*
 	 * Now check if a free (going busy) or busy worker has the work
 	 * currently running. If we find it there, we'll return CANCEL_RUNNING
-	 * as an indication that we attempte to signal cancellation. The
+	 * as an indication that we attempt to signal cancellation. The
 	 * completion will run normally in this case.
 	 */
 	rcu_read_lock();
@@ -1049,7 +1048,6 @@ struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data)
 		spin_lock_init(&wqe->lock);
 		INIT_WQ_LIST(&wqe->work_list);
 		INIT_HLIST_NULLS_HEAD(&wqe->free_list, 0);
-		INIT_HLIST_NULLS_HEAD(&wqe->busy_list, 1);
 		INIT_LIST_HEAD(&wqe->all_list);
 	}
 

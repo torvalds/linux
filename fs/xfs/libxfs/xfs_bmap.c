@@ -4561,7 +4561,7 @@ xfs_bmapi_convert_delalloc(
 	struct xfs_mount	*mp = ip->i_mount;
 	xfs_fileoff_t		offset_fsb = XFS_B_TO_FSBT(mp, offset);
 	struct xfs_bmalloca	bma = { NULL };
-	u16			flags = 0;
+	uint16_t		flags = 0;
 	struct xfs_trans	*tp;
 	int			error;
 
@@ -5972,8 +5972,7 @@ xfs_bmap_insert_extents(
 		goto del_cursor;
 	}
 
-	if (XFS_IS_CORRUPT(mp,
-			   stop_fsb >= got.br_startoff + got.br_blockcount)) {
+	if (XFS_IS_CORRUPT(mp, stop_fsb > got.br_startoff)) {
 		error = -EFSCORRUPTED;
 		goto del_cursor;
 	}
