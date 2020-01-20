@@ -35,7 +35,7 @@ typedef __u16 __sum16;
 
 #include "test_iptunnel_common.h"
 #include "bpf_util.h"
-#include "bpf_endian.h"
+#include <bpf/bpf_endian.h>
 #include "trace_helpers.h"
 #include "flow_dissector_load.h"
 

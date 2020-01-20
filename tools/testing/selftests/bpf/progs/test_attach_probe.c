@@ -3,7 +3,7 @@
 
 #include <linux/ptrace.h>
 #include <linux/bpf.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 int kprobe_res = 0;
 int kretprobe_res = 0;

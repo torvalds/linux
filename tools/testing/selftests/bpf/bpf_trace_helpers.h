@@ -2,7 +2,7 @@
 #ifndef __BPF_TRACE_HELPERS_H
 #define __BPF_TRACE_HELPERS_H
 
-#include <bpf_helpers.h>
+#include <bpf/bpf_helpers.h>
 
 #define ___bpf_concat(a, b) a ## b
 #define ___bpf_apply(fn, n) ___bpf_concat(fn, n)

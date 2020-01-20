@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 #include <linux/bpf.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 struct s {
 	int a;

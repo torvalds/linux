@@ -2,7 +2,7 @@
 /* Copyright (c) 2020 Facebook */
 #include <stddef.h>
 #include <linux/bpf.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 #ifndef MAX_STACK
 #define MAX_STACK (512 - 3 * 32 + 8)

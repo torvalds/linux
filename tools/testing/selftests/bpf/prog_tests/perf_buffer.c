@@ -4,7 +4,7 @@
 #include <sched.h>
 #include <sys/socket.h>
 #include <test_progs.h>
-#include "libbpf_internal.h"
+#include "bpf/libbpf_internal.h"
 
 static void on_sample(void *ctx, int cpu, void *data, __u32 size)
 {

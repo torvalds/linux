@@ -2,7 +2,7 @@
 #ifndef __TRACE_HELPER_H
 #define __TRACE_HELPER_H
 
-#include <libbpf.h>
+#include <bpf/libbpf.h>
 
 struct ksym {
 	long addr;
