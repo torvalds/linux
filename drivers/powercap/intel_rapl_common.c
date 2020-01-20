@@ -1295,6 +1295,9 @@ struct rapl_package *rapl_add_package(int cpu, struct rapl_if_priv *priv)
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 	int ret;
 
+	if (!rapl_defaults)
+		return ERR_PTR(-ENODEV);
+
 	rp = kzalloc(sizeof(struct rapl_package), GFP_KERNEL);
 	if (!rp)
 		return ERR_PTR(-ENOMEM);

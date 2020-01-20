@@ -2853,7 +2853,7 @@ static int onenand_otp_write_oob_nolock(struct mtd_info *mtd, loff_t to,
 
 		/* Exit OTP access mode */
 		this->command(mtd, ONENAND_CMD_RESET, 0, 0);
-		this->wait(mtd, FL_RESETING);
+		this->wait(mtd, FL_RESETTING);
 
 		status = this->read_word(this->base + ONENAND_REG_CTRL_STATUS);
 		status &= 0x60;
@@ -2924,7 +2924,7 @@ static int do_otp_read(struct mtd_info *mtd, loff_t from, size_t len,
 
 	/* Exit OTP access mode */
 	this->command(mtd, ONENAND_CMD_RESET, 0, 0);
-	this->wait(mtd, FL_RESETING);
+	this->wait(mtd, FL_RESETTING);
 
 	return ret;
 }
@@ -2968,7 +2968,7 @@ static int do_otp_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 	/* Exit OTP access mode */
 	this->command(mtd, ONENAND_CMD_RESET, 0, 0);
-	this->wait(mtd, FL_RESETING);
+	this->wait(mtd, FL_RESETTING);
 
 	return ret;
 }
@@ -3008,7 +3008,7 @@ static int do_otp_lock(struct mtd_info *mtd, loff_t from, size_t len,
 
 		/* Exit OTP access mode */
 		this->command(mtd, ONENAND_CMD_RESET, 0, 0);
-		this->wait(mtd, FL_RESETING);
+		this->wait(mtd, FL_RESETTING);
 	} else {
 		ops.mode = MTD_OPS_PLACE_OOB;
 		ops.ooblen = len;
@@ -3413,7 +3413,7 @@ static int flexonenand_get_boundary(struct mtd_info *mtd)
 		this->boundary[die] = bdry & FLEXONENAND_PI_MASK;
 
 		this->command(mtd, ONENAND_CMD_RESET, 0, 0);
-		this->wait(mtd, FL_RESETING);
+		this->wait(mtd, FL_RESETTING);
 
 		printk(KERN_INFO "Die %d boundary: %d%s\n", die,
 		       this->boundary[die], locked ? "(Locked)" : "(Unlocked)");
@@ -3635,7 +3635,7 @@ static int flexonenand_set_boundary(struct mtd_info *mtd, int die,
 	ret = this->wait(mtd, FL_WRITING);
 out:
 	this->write_word(ONENAND_CMD_RESET, this->base + ONENAND_REG_COMMAND);
-	this->wait(mtd, FL_RESETING);
+	this->wait(mtd, FL_RESETTING);
 	if (!ret)
 		/* Recalculate device size on boundary change*/
 		flexonenand_get_size(mtd);
@@ -3671,7 +3671,7 @@ static int onenand_chip_probe(struct mtd_info *mtd)
 	/* Reset OneNAND to read default register values */
 	this->write_word(ONENAND_CMD_RESET, this->base + ONENAND_BOOTRAM);
 	/* Wait reset */
-	this->wait(mtd, FL_RESETING);
+	this->wait(mtd, FL_RESETTING);
 
 	/* Restore system configuration 1 */
 	this->write_word(syscfg, this->base + ONENAND_REG_SYS_CFG1);

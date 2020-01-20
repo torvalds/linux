@@ -207,7 +207,7 @@ static int __init mmp_dt_init_timer(struct device_node *np)
 		ret = clk_prepare_enable(clk);
 		if (ret)
 			return ret;
-		rate = clk_get_rate(clk) / 2;
+		rate = clk_get_rate(clk);
 	} else if (cpu_is_pj4()) {
 		rate = 6500000;
 	} else {

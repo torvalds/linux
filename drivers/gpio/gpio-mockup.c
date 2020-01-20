@@ -156,7 +156,7 @@ static int gpio_mockup_apply_pull(struct gpio_mockup_chip *chip,
 	mutex_lock(&chip->lock);
 
 	if (test_bit(FLAG_REQUESTED, &desc->flags) &&
-		!test_bit(FLAG_IS_OUT, &desc->flags)) {
+	    !test_bit(FLAG_IS_OUT, &desc->flags)) {
 		curr = __gpio_mockup_get(chip, offset);
 		if (curr == value)
 			goto out;
@@ -165,7 +165,7 @@ static int gpio_mockup_apply_pull(struct gpio_mockup_chip *chip,
 		irq_type = irq_get_trigger_type(irq);
 
 		if ((value == 1 && (irq_type & IRQ_TYPE_EDGE_RISING)) ||
-			(value == 0 && (irq_type & IRQ_TYPE_EDGE_FALLING)))
+		    (value == 0 && (irq_type & IRQ_TYPE_EDGE_FALLING)))
 			irq_sim_fire(sim, offset);
 	}
 

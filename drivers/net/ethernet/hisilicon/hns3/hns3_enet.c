@@ -54,6 +54,8 @@ MODULE_PARM_DESC(debug, " Network interface message level setting");
 #define HNS3_INNER_VLAN_TAG	1
 #define HNS3_OUTER_VLAN_TAG	2
 
+#define HNS3_MIN_TX_LEN		33U
+
 /* hns3_pci_tbl - PCI Device ID Table
  *
  * Last entry must be all 0s
@@ -1404,6 +1406,10 @@ netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 	struct sk_buff *frag_skb;
 	int bd_num = 0;
 	int ret;
+
+	/* Hardware can only handle short frames above 32 bytes */
+	if (skb_put_padto(skb, HNS3_MIN_TX_LEN))
+		return NETDEV_TX_OK;
 
 	/* Prefetch the data used later */
 	prefetch(skb->data);

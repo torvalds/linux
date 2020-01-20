@@ -35,8 +35,8 @@ void cgroup_bpf_offline(struct cgroup *cgrp)
  */
 static void cgroup_bpf_release(struct work_struct *work)
 {
-	struct cgroup *cgrp = container_of(work, struct cgroup,
-					   bpf.release_work);
+	struct cgroup *p, *cgrp = container_of(work, struct cgroup,
+					       bpf.release_work);
 	enum bpf_cgroup_storage_type stype;
 	struct bpf_prog_array *old_array;
 	unsigned int type;
@@ -64,6 +64,9 @@ static void cgroup_bpf_release(struct work_struct *work)
 	}
 
 	mutex_unlock(&cgroup_mutex);
+
+	for (p = cgroup_parent(cgrp); p; p = cgroup_parent(p))
+		cgroup_bpf_put(p);
 
 	percpu_ref_exit(&cgrp->bpf.refcnt);
 	cgroup_put(cgrp);
@@ -199,12 +202,16 @@ int cgroup_bpf_inherit(struct cgroup *cgrp)
  */
 #define	NR ARRAY_SIZE(cgrp->bpf.effective)
 	struct bpf_prog_array *arrays[NR] = {};
+	struct cgroup *p;
 	int ret, i;
 
 	ret = percpu_ref_init(&cgrp->bpf.refcnt, cgroup_bpf_release_fn, 0,
 			      GFP_KERNEL);
 	if (ret)
 		return ret;
+
+	for (p = cgroup_parent(cgrp); p; p = cgroup_parent(p))
+		cgroup_bpf_get(p);
 
 	for (i = 0; i < NR; i++)
 		INIT_LIST_HEAD(&cgrp->bpf.progs[i]);
