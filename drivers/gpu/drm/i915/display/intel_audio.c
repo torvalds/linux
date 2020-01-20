@@ -829,7 +829,7 @@ retry:
 		enable ? 2 * 96000 : 0;
 
 	/* Protects dev_priv->cdclk.force_min_cdclk */
-	ret = intel_atomic_lock_global_state(to_intel_atomic_state(state));
+	ret = _intel_atomic_lock_global_state(to_intel_atomic_state(state));
 	if (!ret)
 		ret = drm_atomic_commit(state);
 

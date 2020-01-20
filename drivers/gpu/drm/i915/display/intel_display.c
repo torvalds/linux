@@ -14562,7 +14562,7 @@ static int intel_modeset_checks(struct intel_atomic_state *state)
 	}
 
 	if (state->active_pipe_changes) {
-		ret = intel_atomic_lock_global_state(state);
+		ret = _intel_atomic_lock_global_state(state);
 		if (ret)
 			return ret;
 	}
@@ -15842,6 +15842,8 @@ static int intel_atomic_commit(struct drm_device *dev,
 	ret = drm_atomic_helper_setup_commit(&state->base, nonblock);
 	if (!ret)
 		ret = drm_atomic_helper_swap_state(&state->base, true);
+	if (!ret)
+		intel_atomic_swap_global_state(state);
 
 	if (ret) {
 		i915_sw_fence_commit(&state->commit_ready);
@@ -17759,6 +17761,7 @@ static void intel_mode_config_init(struct drm_i915_private *i915)
 	struct drm_mode_config *mode_config = &i915->drm.mode_config;
 
 	drm_mode_config_init(&i915->drm);
+	INIT_LIST_HEAD(&i915->global_obj_list);
 
 	mode_config->min_width = 0;
 	mode_config->min_height = 0;
@@ -17800,6 +17803,12 @@ static void intel_mode_config_init(struct drm_i915_private *i915)
 	}
 }
 
+static void intel_mode_config_cleanup(struct drm_i915_private *i915)
+{
+	intel_atomic_global_obj_cleanup(i915);
+	drm_mode_config_cleanup(&i915->drm);
+}
+
 int intel_modeset_init(struct drm_i915_private *i915)
 {
 	struct drm_device *dev = &i915->drm;
@@ -17839,7 +17848,7 @@ int intel_modeset_init(struct drm_i915_private *i915)
 		for_each_pipe(i915, pipe) {
 			ret = intel_crtc_init(i915, pipe);
 			if (ret) {
-				drm_mode_config_cleanup(dev);
+				intel_mode_config_cleanup(i915);
 				return ret;
 			}
 		}
@@ -18807,7 +18816,7 @@ void intel_modeset_driver_remove(struct drm_i915_private *i915)
 
 	intel_hdcp_component_fini(i915);
 
-	drm_mode_config_cleanup(&i915->drm);
+	intel_mode_config_cleanup(i915);
 
 	intel_overlay_cleanup(i915);
 

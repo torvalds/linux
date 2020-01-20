@@ -47,6 +47,7 @@
 #include "intel_de.h"
 
 struct drm_printer;
+struct __intel_global_objs_state;
 
 /*
  * Display related stuff
@@ -461,6 +462,9 @@ struct intel_atomic_state {
 	struct drm_atomic_state base;
 
 	intel_wakeref_t wakeref;
+
+	struct __intel_global_objs_state *global_objs;
+	int num_global_objs;
 
 	struct intel_cdclk_state cdclk_state;
 
