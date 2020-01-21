@@ -1716,6 +1716,23 @@ static void mlx5e_cleanup_rep_rx(struct mlx5e_priv *priv)
 	mlx5e_close_drop_rq(&priv->drop_rq);
 }
 
+static int mlx5e_init_ul_rep_rx(struct mlx5e_priv *priv)
+{
+	int err = mlx5e_init_rep_rx(priv);
+
+	if (err)
+		return err;
+
+	mlx5e_create_q_counters(priv);
+	return 0;
+}
+
+static void mlx5e_cleanup_ul_rep_rx(struct mlx5e_priv *priv)
+{
+	mlx5e_destroy_q_counters(priv);
+	mlx5e_cleanup_rep_rx(priv);
+}
+
 static int mlx5e_init_uplink_rep_tx(struct mlx5e_rep_priv *rpriv)
 {
 	struct mlx5_rep_uplink_priv *uplink_priv;
@@ -1921,8 +1938,8 @@ static const struct mlx5e_profile mlx5e_rep_profile = {
 static const struct mlx5e_profile mlx5e_uplink_rep_profile = {
 	.init			= mlx5e_init_rep,
 	.cleanup		= mlx5e_cleanup_rep,
-	.init_rx		= mlx5e_init_rep_rx,
-	.cleanup_rx		= mlx5e_cleanup_rep_rx,
+	.init_rx		= mlx5e_init_ul_rep_rx,
+	.cleanup_rx		= mlx5e_cleanup_ul_rep_rx,
 	.init_tx		= mlx5e_init_rep_tx,
 	.cleanup_tx		= mlx5e_cleanup_rep_tx,
 	.enable		        = mlx5e_uplink_rep_enable,
