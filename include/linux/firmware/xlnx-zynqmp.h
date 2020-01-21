@@ -100,7 +100,8 @@ enum pm_ret_status {
 };
 
 enum pm_ioctl_id {
-	IOCTL_SET_SD_TAPDELAY = 7,
+	IOCTL_SD_DLL_RESET = 6,
+	IOCTL_SET_SD_TAPDELAY,
 	IOCTL_SET_PLL_FRAC_MODE,
 	IOCTL_GET_PLL_FRAC_MODE,
 	IOCTL_SET_PLL_FRAC_DATA,
@@ -269,6 +270,12 @@ enum pm_node_id {
 enum tap_delay_type {
 	PM_TAPDELAY_INPUT = 0,
 	PM_TAPDELAY_OUTPUT,
+};
+
+enum dll_reset_type {
+	PM_DLL_RESET_ASSERT,
+	PM_DLL_RESET_RELEASE,
+	PM_DLL_RESET_PULSE,
 };
 
 /**
