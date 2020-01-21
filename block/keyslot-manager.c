@@ -493,6 +493,34 @@ struct keyslot_manager *keyslot_manager_create_passthrough(
 EXPORT_SYMBOL_GPL(keyslot_manager_create_passthrough);
 
 /**
+ * keyslot_manager_intersect_modes() - restrict supported modes by child device
+ * @parent: The keyslot manager for parent device
+ * @child: The keyslot manager for child device, or NULL
+ *
+ * Clear any crypto mode support bits in @parent that aren't set in @child.
+ * If @child is NULL, then all parent bits are cleared.
+ *
+ * Only use this when setting up the keyslot manager for a layered device,
+ * before it's been exposed yet.
+ */
+void keyslot_manager_intersect_modes(struct keyslot_manager *parent,
+				     const struct keyslot_manager *child)
+{
+	if (child) {
+		unsigned int i;
+
+		for (i = 0; i < ARRAY_SIZE(child->crypto_mode_supported); i++) {
+			parent->crypto_mode_supported[i] &=
+				child->crypto_mode_supported[i];
+		}
+	} else {
+		memset(parent->crypto_mode_supported, 0,
+		       sizeof(parent->crypto_mode_supported));
+	}
+}
+EXPORT_SYMBOL_GPL(keyslot_manager_intersect_modes);
+
+/**
  * keyslot_manager_derive_raw_secret() - Derive software secret from wrapped key
  * @ksm: The keyslot manager
  * @wrapped_key: The wrapped key
