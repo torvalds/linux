@@ -291,7 +291,9 @@ static int stm32_cec_probe(struct platform_device *pdev)
 
 	cec->clk_cec = devm_clk_get(&pdev->dev, "cec");
 	if (IS_ERR(cec->clk_cec)) {
-		dev_err(&pdev->dev, "Cannot get cec clock\n");
+		if (PTR_ERR(cec->clk_cec) != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "Cannot get cec clock\n");
+
 		return PTR_ERR(cec->clk_cec);
 	}
 
