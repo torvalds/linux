@@ -2094,10 +2094,8 @@ static int hns3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int ret;
 
 	ae_dev = devm_kzalloc(&pdev->dev, sizeof(*ae_dev), GFP_KERNEL);
-	if (!ae_dev) {
-		ret = -ENOMEM;
-		return ret;
-	}
+	if (!ae_dev)
+		return -ENOMEM;
 
 	ae_dev->pdev = pdev;
 	ae_dev->flag = ent->driver_data;

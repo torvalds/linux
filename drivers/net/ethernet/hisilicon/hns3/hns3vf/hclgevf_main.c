@@ -2597,11 +2597,11 @@ static int hclgevf_query_vf_resource(struct hclgevf_dev *hdev)
 
 	if (hnae3_dev_roce_supported(hdev)) {
 		hdev->roce_base_msix_offset =
-		hnae3_get_field(__le16_to_cpu(req->msixcap_localid_ba_rocee),
+		hnae3_get_field(le16_to_cpu(req->msixcap_localid_ba_rocee),
 				HCLGEVF_MSIX_OFT_ROCEE_M,
 				HCLGEVF_MSIX_OFT_ROCEE_S);
 		hdev->num_roce_msix =
-		hnae3_get_field(__le16_to_cpu(req->vf_intr_vector_number),
+		hnae3_get_field(le16_to_cpu(req->vf_intr_vector_number),
 				HCLGEVF_VEC_NUM_M, HCLGEVF_VEC_NUM_S);
 
 		/* nic's msix numbers is always equals to the roce's. */
@@ -2614,7 +2614,7 @@ static int hclgevf_query_vf_resource(struct hclgevf_dev *hdev)
 				hdev->roce_base_msix_offset;
 	} else {
 		hdev->num_msi =
-		hnae3_get_field(__le16_to_cpu(req->vf_intr_vector_number),
+		hnae3_get_field(le16_to_cpu(req->vf_intr_vector_number),
 				HCLGEVF_VEC_NUM_M, HCLGEVF_VEC_NUM_S);
 
 		hdev->num_nic_msix = hdev->num_msi;
@@ -2711,16 +2711,12 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 	int ret;
 
 	ret = hclgevf_pci_init(hdev);
-	if (ret) {
-		dev_err(&pdev->dev, "PCI initialization failed\n");
+	if (ret)
 		return ret;
-	}
 
 	ret = hclgevf_cmd_queue_init(hdev);
-	if (ret) {
-		dev_err(&pdev->dev, "Cmd queue init failed: %d\n", ret);
+	if (ret)
 		goto err_cmd_queue_init;
-	}
 
 	ret = hclgevf_cmd_init(hdev);
 	if (ret)
@@ -2728,11 +2724,8 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 
 	/* Get vf resource */
 	ret = hclgevf_query_vf_resource(hdev);
-	if (ret) {
-		dev_err(&hdev->pdev->dev,
-			"Query vf status error, ret = %d.\n", ret);
+	if (ret)
 		goto err_cmd_init;
-	}
 
 	ret = hclgevf_init_msi(hdev);
 	if (ret) {
@@ -2745,11 +2738,8 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 	hdev->reset_type = HNAE3_NONE_RESET;
 
 	ret = hclgevf_misc_irq_init(hdev);
-	if (ret) {
-		dev_err(&pdev->dev, "failed(%d) to init Misc IRQ(vector0)\n",
-			ret);
+	if (ret)
 		goto err_misc_irq_init;
-	}
 
 	set_bit(HCLGEVF_STATE_IRQ_INITED, &hdev->state);
 
@@ -2766,10 +2756,8 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 	}
 
 	ret = hclgevf_set_handle_info(hdev);
-	if (ret) {
-		dev_err(&pdev->dev, "failed(%d) to set handle info\n", ret);
+	if (ret)
 		goto err_config;
-	}
 
 	ret = hclgevf_config_gro(hdev, true);
 	if (ret)
