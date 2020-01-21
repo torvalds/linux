@@ -514,6 +514,8 @@ void intel_dvo_init(struct drm_i915_private *dev_priv)
 
 		switch (dvo->type) {
 		case INTEL_DVO_CHIP_TMDS:
+			intel_connector->polled = DRM_CONNECTOR_POLL_CONNECT |
+				DRM_CONNECTOR_POLL_DISCONNECT;
 			drm_connector_init(&dev_priv->drm, connector,
 					   &intel_dvo_connector_funcs,
 					   DRM_MODE_CONNECTOR_DVII);
