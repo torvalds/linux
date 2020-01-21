@@ -56,7 +56,7 @@ struct at91_reset {
 	struct notifier_block nb;
 };
 
-static struct at91_reset reset;
+static struct at91_reset *reset;
 
 /*
 * unless the SDRAM is cleanly shutdown before we hit the
@@ -81,8 +81,8 @@ static int at91sam9260_restart(struct notifier_block *this, unsigned long mode,
 
 		"b	.\n\t"
 		:
-		: "r" (reset.ramc_base[0]),
-		  "r" (reset.rstc_base),
+		: "r" (reset->ramc_base[0]),
+		  "r" (reset->rstc_base),
 		  "r" (1),
 		  "r" cpu_to_le32(AT91_SDRAMC_LPCB_POWER_DOWN),
 		  "r" cpu_to_le32(AT91_RSTC_KEY | AT91_RSTC_PERRST | AT91_RSTC_PROCRST));
@@ -123,9 +123,9 @@ static int at91sam9g45_restart(struct notifier_block *this, unsigned long mode,
 
 		"	b	.\n\t"
 		:
-		: "r" (reset.ramc_base[0]),
-		  "r" (reset.ramc_base[1]),
-		  "r" (reset.rstc_base),
+		: "r" (reset->ramc_base[0]),
+		  "r" (reset->ramc_base[1]),
+		  "r" (reset->rstc_base),
 		  "r" (1),
 		  "r" cpu_to_le32(AT91_DDRSDRC_LPCB_POWER_DOWN),
 		  "r" cpu_to_le32(AT91_RSTC_KEY | AT91_RSTC_PERRST | AT91_RSTC_PROCRST)
@@ -138,7 +138,7 @@ static int sama5d3_restart(struct notifier_block *this, unsigned long mode,
 			   void *cmd)
 {
 	writel(cpu_to_le32(AT91_RSTC_KEY | AT91_RSTC_PERRST | AT91_RSTC_PROCRST),
-	       reset.rstc_base);
+	       reset->rstc_base);
 
 	return NOTIFY_DONE;
 }
@@ -147,7 +147,7 @@ static int samx7_restart(struct notifier_block *this, unsigned long mode,
 			 void *cmd)
 {
 	writel(cpu_to_le32(AT91_RSTC_KEY | AT91_RSTC_PROCRST),
-	       reset.rstc_base);
+	       reset->rstc_base);
 
 	return NOTIFY_DONE;
 }
@@ -155,7 +155,7 @@ static int samx7_restart(struct notifier_block *this, unsigned long mode,
 static void __init at91_reset_status(struct platform_device *pdev)
 {
 	const char *reason;
-	u32 reg = readl(reset.rstc_base + AT91_RSTC_SR);
+	u32 reg = readl(reset->rstc_base + AT91_RSTC_SR);
 
 	switch ((reg & AT91_RSTC_RSTTYP) >> 8) {
 	case RESET_TYPE_GENERAL:
@@ -212,8 +212,12 @@ static int __init at91_reset_probe(struct platform_device *pdev)
 	struct device_node *np;
 	int ret, idx = 0;
 
-	reset.rstc_base = of_iomap(pdev->dev.of_node, 0);
-	if (!reset.rstc_base) {
+	reset = devm_kzalloc(&pdev->dev, sizeof(*reset), GFP_KERNEL);
+	if (!reset)
+		return -ENOMEM;
+
+	reset->rstc_base = of_iomap(pdev->dev.of_node, 0);
+	if (!reset->rstc_base) {
 		dev_err(&pdev->dev, "Could not map reset controller address\n");
 		return -ENODEV;
 	}
@@ -221,8 +225,8 @@ static int __init at91_reset_probe(struct platform_device *pdev)
 	if (!of_device_is_compatible(pdev->dev.of_node, "atmel,sama5d3-rstc")) {
 		/* we need to shutdown the ddr controller, so get ramc base */
 		for_each_matching_node(np, at91_ramc_of_match) {
-			reset.ramc_base[idx] = of_iomap(np, 0);
-			if (!reset.ramc_base[idx]) {
+			reset->ramc_base[idx] = of_iomap(np, 0);
+			if (!reset->ramc_base[idx]) {
 				dev_err(&pdev->dev, "Could not map ram controller address\n");
 				of_node_put(np);
 				return -ENODEV;
@@ -232,22 +236,22 @@ static int __init at91_reset_probe(struct platform_device *pdev)
 	}
 
 	match = of_match_node(at91_reset_of_match, pdev->dev.of_node);
-	reset.nb.notifier_call = match->data;
-	reset.nb.priority = 192;
+	reset->nb.notifier_call = match->data;
+	reset->nb.priority = 192;
 
-	reset.sclk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(reset.sclk))
-		return PTR_ERR(reset.sclk);
+	reset->sclk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(reset->sclk))
+		return PTR_ERR(reset->sclk);
 
-	ret = clk_prepare_enable(reset.sclk);
+	ret = clk_prepare_enable(reset->sclk);
 	if (ret) {
 		dev_err(&pdev->dev, "Could not enable slow clock\n");
 		return ret;
 	}
 
-	ret = register_restart_handler(&reset.nb);
+	ret = register_restart_handler(&reset->nb);
 	if (ret) {
-		clk_disable_unprepare(reset.sclk);
+		clk_disable_unprepare(reset->sclk);
 		return ret;
 	}
 
@@ -258,8 +262,8 @@ static int __init at91_reset_probe(struct platform_device *pdev)
 
 static int __exit at91_reset_remove(struct platform_device *pdev)
 {
-	unregister_restart_handler(&reset.nb);
-	clk_disable_unprepare(reset.sclk);
+	unregister_restart_handler(&reset->nb);
+	clk_disable_unprepare(reset->sclk);
 
 	return 0;
 }
