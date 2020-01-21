@@ -87,24 +87,24 @@ static int amdgpu_ctx_init(struct amdgpu_device *adev,
 	memset(ctx, 0, sizeof(*ctx));
 	ctx->adev = adev;
 
-	ctx->fences = kcalloc(amdgpu_sched_jobs * num_entities,
-			      sizeof(struct dma_fence*), GFP_KERNEL);
-	if (!ctx->fences)
-		return -ENOMEM;
 
 	ctx->entities[0] = kcalloc(num_entities,
 				   sizeof(struct amdgpu_ctx_entity),
 				   GFP_KERNEL);
-	if (!ctx->entities[0]) {
-		r = -ENOMEM;
-		goto error_free_fences;
-	}
+	if (!ctx->entities[0])
+		return -ENOMEM;
+
 
 	for (i = 0; i < num_entities; ++i) {
 		struct amdgpu_ctx_entity *entity = &ctx->entities[0][i];
 
 		entity->sequence = 1;
-		entity->fences = &ctx->fences[amdgpu_sched_jobs * i];
+		entity->fences = kcalloc(amdgpu_sched_jobs,
+					 sizeof(struct dma_fence*), GFP_KERNEL);
+		if (!entity->fences) {
+			r = -ENOMEM;
+			goto error_cleanup_memory;
+		}
 	}
 	for (i = 1; i < AMDGPU_HW_IP_NUM; ++i)
 		ctx->entities[i] = ctx->entities[i - 1] +
@@ -181,11 +181,17 @@ static int amdgpu_ctx_init(struct amdgpu_device *adev,
 error_cleanup_entities:
 	for (i = 0; i < num_entities; ++i)
 		drm_sched_entity_destroy(&ctx->entities[0][i].entity);
-	kfree(ctx->entities[0]);
 
-error_free_fences:
-	kfree(ctx->fences);
-	ctx->fences = NULL;
+error_cleanup_memory:
+	for (i = 0; i < num_entities; ++i) {
+		struct amdgpu_ctx_entity *entity = &ctx->entities[0][i];
+
+		kfree(entity->fences);
+		entity->fences = NULL;
+	}
+
+	kfree(ctx->entities[0]);
+	ctx->entities[0] = NULL;
 	return r;
 }
 
@@ -199,12 +205,16 @@ static void amdgpu_ctx_fini(struct kref *ref)
 	if (!adev)
 		return;
 
-	for (i = 0; i < num_entities; ++i)
-		for (j = 0; j < amdgpu_sched_jobs; ++j)
-			dma_fence_put(ctx->entities[0][i].fences[j]);
-	kfree(ctx->fences);
-	kfree(ctx->entities[0]);
+	for (i = 0; i < num_entities; ++i) {
+		struct amdgpu_ctx_entity *entity = &ctx->entities[0][i];
 
+		for (j = 0; j < amdgpu_sched_jobs; ++j)
+			dma_fence_put(entity->fences[j]);
+
+		kfree(entity->fences);
+	}
+
+	kfree(ctx->entities[0]);
 	mutex_destroy(&ctx->lock);
 
 	kfree(ctx);
