@@ -1218,9 +1218,15 @@ int __i915_vma_unbind(struct i915_vma *vma)
 		 * before the unbind, other due to non-strict nature of those
 		 * indirect writes they may end up referencing the GGTT PTE
 		 * after the unbind.
+		 *
+		 * Note that we may be concurrently poking at the GGTT_WRITE
+		 * bit from set-domain, as we mark all GGTT vma associated
+		 * with an object. We know this is for another vma, as we
+		 * are currently unbinding this one -- so if this vma will be
+		 * reused, it will be refaulted and have its dirty bit set
+		 * before the next write.
 		 */
 		i915_vma_flush_writes(vma);
-		GEM_BUG_ON(i915_vma_has_ggtt_write(vma));
 
 		/* release the fence reg _after_ flushing */
 		ret = i915_vma_revoke_fence(vma);
@@ -1240,7 +1246,8 @@ int __i915_vma_unbind(struct i915_vma *vma)
 		trace_i915_vma_unbind(vma);
 		vma->ops->unbind_vma(vma);
 	}
-	atomic_and(~(I915_VMA_BIND_MASK | I915_VMA_ERROR), &vma->flags);
+	atomic_and(~(I915_VMA_BIND_MASK | I915_VMA_ERROR | I915_VMA_GGTT_WRITE),
+		   &vma->flags);
 
 	i915_vma_detach(vma);
 	vma_unbind_pages(vma);
