@@ -926,6 +926,79 @@ static int get_dma_id(struct dma_device *device)
 	return 0;
 }
 
+static int __dma_async_device_channel_register(struct dma_device *device,
+					       struct dma_chan *chan,
+					       int chan_id)
+{
+	int rc = 0;
+	int chancnt = device->chancnt;
+	atomic_t *idr_ref;
+	struct dma_chan *tchan;
+
+	tchan = list_first_entry_or_null(&device->channels,
+					 struct dma_chan, device_node);
+	if (tchan->dev) {
+		idr_ref = tchan->dev->idr_ref;
+	} else {
+		idr_ref = kmalloc(sizeof(*idr_ref), GFP_KERNEL);
+		if (!idr_ref)
+			return -ENOMEM;
+		atomic_set(idr_ref, 0);
+	}
+
+	chan->local = alloc_percpu(typeof(*chan->local));
+	if (!chan->local)
+		goto err_out;
+	chan->dev = kzalloc(sizeof(*chan->dev), GFP_KERNEL);
+	if (!chan->dev) {
+		free_percpu(chan->local);
+		chan->local = NULL;
+		goto err_out;
+	}
+
+	/*
+	 * When the chan_id is a negative value, we are dynamically adding
+	 * the channel. Otherwise we are static enumerating.
+	 */
+	chan->chan_id = chan_id < 0 ? chancnt : chan_id;
+	chan->dev->device.class = &dma_devclass;
+	chan->dev->device.parent = device->dev;
+	chan->dev->chan = chan;
+	chan->dev->idr_ref = idr_ref;
+	chan->dev->dev_id = device->dev_id;
+	atomic_inc(idr_ref);
+	dev_set_name(&chan->dev->device, "dma%dchan%d",
+		     device->dev_id, chan->chan_id);
+
+	rc = device_register(&chan->dev->device);
+	if (rc)
+		goto err_out;
+	chan->client_count = 0;
+	device->chancnt = chan->chan_id + 1;
+
+	return 0;
+
+ err_out:
+	free_percpu(chan->local);
+	kfree(chan->dev);
+	if (atomic_dec_return(idr_ref) == 0)
+		kfree(idr_ref);
+	return rc;
+}
+
+static void __dma_async_device_channel_unregister(struct dma_device *device,
+						  struct dma_chan *chan)
+{
+	WARN_ONCE(!device->device_release && chan->client_count,
+		  "%s called while %d clients hold a reference\n",
+		  __func__, chan->client_count);
+	mutex_lock(&dma_list_mutex);
+	chan->dev->chan = NULL;
+	mutex_unlock(&dma_list_mutex);
+	device_unregister(&chan->dev->device);
+	free_percpu(chan->local);
+}
+
 /**
  * dma_async_device_register - registers DMA devices found
  * @device: &dma_device
@@ -936,9 +1009,8 @@ static int get_dma_id(struct dma_device *device)
  */
 int dma_async_device_register(struct dma_device *device)
 {
-	int chancnt = 0, rc;
+	int rc, i = 0;
 	struct dma_chan* chan;
-	atomic_t *idr_ref;
 
 	if (!device)
 		return -ENODEV;
@@ -1038,58 +1110,22 @@ int dma_async_device_register(struct dma_device *device)
 	if (device_has_all_tx_types(device))
 		dma_cap_set(DMA_ASYNC_TX, device->cap_mask);
 
-	idr_ref = kmalloc(sizeof(*idr_ref), GFP_KERNEL);
-	if (!idr_ref)
-		return -ENOMEM;
 	rc = get_dma_id(device);
-	if (rc != 0) {
-		kfree(idr_ref);
+	if (rc != 0)
 		return rc;
-	}
-
-	atomic_set(idr_ref, 0);
 
 	/* represent channels in sysfs. Probably want devs too */
 	list_for_each_entry(chan, &device->channels, device_node) {
-		rc = -ENOMEM;
-		chan->local = alloc_percpu(typeof(*chan->local));
-		if (chan->local == NULL)
+		rc = __dma_async_device_channel_register(device, chan, i++);
+		if (rc < 0)
 			goto err_out;
-		chan->dev = kzalloc(sizeof(*chan->dev), GFP_KERNEL);
-		if (chan->dev == NULL) {
-			free_percpu(chan->local);
-			chan->local = NULL;
-			goto err_out;
-		}
-
-		chan->chan_id = chancnt++;
-		chan->dev->device.class = &dma_devclass;
-		chan->dev->device.parent = device->dev;
-		chan->dev->chan = chan;
-		chan->dev->idr_ref = idr_ref;
-		chan->dev->dev_id = device->dev_id;
-		atomic_inc(idr_ref);
-		dev_set_name(&chan->dev->device, "dma%dchan%d",
-			     device->dev_id, chan->chan_id);
-
-		rc = device_register(&chan->dev->device);
-		if (rc) {
-			free_percpu(chan->local);
-			chan->local = NULL;
-			kfree(chan->dev);
-			atomic_dec(idr_ref);
-			goto err_out;
-		}
-		chan->client_count = 0;
 	}
 
-	if (!chancnt) {
+	if (!device->chancnt) {
 		dev_err(device->dev, "%s: device has no channels!\n", __func__);
 		rc = -ENODEV;
 		goto err_out;
 	}
-
-	device->chancnt = chancnt;
 
 	mutex_lock(&dma_list_mutex);
 	/* take references on public channels */
@@ -1118,9 +1154,8 @@ int dma_async_device_register(struct dma_device *device)
 
 err_out:
 	/* if we never registered a channel just release the idr */
-	if (atomic_read(idr_ref) == 0) {
+	if (!device->chancnt) {
 		ida_free(&dma_ida, device->dev_id);
-		kfree(idr_ref);
 		return rc;
 	}
 
@@ -1148,16 +1183,8 @@ void dma_async_device_unregister(struct dma_device *device)
 {
 	struct dma_chan *chan;
 
-	list_for_each_entry(chan, &device->channels, device_node) {
-		WARN_ONCE(!device->device_release && chan->client_count,
-			  "%s called while %d clients hold a reference\n",
-			  __func__, chan->client_count);
-		mutex_lock(&dma_list_mutex);
-		chan->dev->chan = NULL;
-		mutex_unlock(&dma_list_mutex);
-		device_unregister(&chan->dev->device);
-		free_percpu(chan->local);
-	}
+	list_for_each_entry(chan, &device->channels, device_node)
+		__dma_async_device_channel_unregister(device, chan);
 
 	mutex_lock(&dma_list_mutex);
 	/*
