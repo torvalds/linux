@@ -986,6 +986,20 @@ static int __dma_async_device_channel_register(struct dma_device *device,
 	return rc;
 }
 
+int dma_async_device_channel_register(struct dma_device *device,
+				      struct dma_chan *chan)
+{
+	int rc;
+
+	rc = __dma_async_device_channel_register(device, chan, -1);
+	if (rc < 0)
+		return rc;
+
+	dma_channel_rebalance();
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dma_async_device_channel_register);
+
 static void __dma_async_device_channel_unregister(struct dma_device *device,
 						  struct dma_chan *chan)
 {
@@ -993,11 +1007,21 @@ static void __dma_async_device_channel_unregister(struct dma_device *device,
 		  "%s called while %d clients hold a reference\n",
 		  __func__, chan->client_count);
 	mutex_lock(&dma_list_mutex);
+	list_del(&chan->device_node);
+	device->chancnt--;
 	chan->dev->chan = NULL;
 	mutex_unlock(&dma_list_mutex);
 	device_unregister(&chan->dev->device);
 	free_percpu(chan->local);
 }
+
+void dma_async_device_channel_unregister(struct dma_device *device,
+					 struct dma_chan *chan)
+{
+	__dma_async_device_channel_unregister(device, chan);
+	dma_channel_rebalance();
+}
+EXPORT_SYMBOL_GPL(dma_async_device_channel_unregister);
 
 /**
  * dma_async_device_register - registers DMA devices found
@@ -1121,12 +1145,6 @@ int dma_async_device_register(struct dma_device *device)
 			goto err_out;
 	}
 
-	if (!device->chancnt) {
-		dev_err(device->dev, "%s: device has no channels!\n", __func__);
-		rc = -ENODEV;
-		goto err_out;
-	}
-
 	mutex_lock(&dma_list_mutex);
 	/* take references on public channels */
 	if (dmaengine_ref_count && !dma_has_cap(DMA_PRIVATE, device->cap_mask))
@@ -1181,9 +1199,9 @@ EXPORT_SYMBOL(dma_async_device_register);
  */
 void dma_async_device_unregister(struct dma_device *device)
 {
-	struct dma_chan *chan;
+	struct dma_chan *chan, *n;
 
-	list_for_each_entry(chan, &device->channels, device_node)
+	list_for_each_entry_safe(chan, n, &device->channels, device_node)
 		__dma_async_device_channel_unregister(device, chan);
 
 	mutex_lock(&dma_list_mutex);
