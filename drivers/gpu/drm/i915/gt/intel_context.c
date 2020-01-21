@@ -123,6 +123,10 @@ static int __context_pin_state(struct i915_vma *vma)
 	if (err)
 		return err;
 
+	err = i915_active_acquire(&vma->active);
+	if (err)
+		goto err_unpin;
+
 	/*
 	 * And mark it as a globally pinned object to let the shrinker know
 	 * it cannot reclaim the object until we release it.
@@ -131,12 +135,42 @@ static int __context_pin_state(struct i915_vma *vma)
 	vma->obj->mm.dirty = true;
 
 	return 0;
+
+err_unpin:
+	i915_vma_unpin(vma);
+	return err;
 }
 
 static void __context_unpin_state(struct i915_vma *vma)
 {
 	i915_vma_make_shrinkable(vma);
+	i915_active_release(&vma->active);
 	__i915_vma_unpin(vma);
+}
+
+static int __ring_active(struct intel_ring *ring)
+{
+	int err;
+
+	err = i915_active_acquire(&ring->vma->active);
+	if (err)
+		return err;
+
+	err = intel_ring_pin(ring);
+	if (err)
+		goto err_active;
+
+	return 0;
+
+err_active:
+	i915_active_release(&ring->vma->active);
+	return err;
+}
+
+static void __ring_retire(struct intel_ring *ring)
+{
+	intel_ring_unpin(ring);
+	i915_active_release(&ring->vma->active);
 }
 
 __i915_active_call
@@ -151,7 +185,7 @@ static void __intel_context_retire(struct i915_active *active)
 		__context_unpin_state(ce->state);
 
 	intel_timeline_unpin(ce->timeline);
-	intel_ring_unpin(ce->ring);
+	__ring_retire(ce->ring);
 
 	intel_context_put(ce);
 }
@@ -163,7 +197,7 @@ static int __intel_context_active(struct i915_active *active)
 
 	intel_context_get(ce);
 
-	err = intel_ring_pin(ce->ring);
+	err = __ring_active(ce->ring);
 	if (err)
 		goto err_put;
 
@@ -183,7 +217,7 @@ static int __intel_context_active(struct i915_active *active)
 err_timeline:
 	intel_timeline_unpin(ce->timeline);
 err_ring:
-	intel_ring_unpin(ce->ring);
+	__ring_retire(ce->ring);
 err_put:
 	intel_context_put(ce);
 	return err;

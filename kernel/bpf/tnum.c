@@ -44,14 +44,19 @@ struct tnum tnum_rshift(struct tnum a, u8 shift)
 	return TNUM(a.value >> shift, a.mask >> shift);
 }
 
-struct tnum tnum_arshift(struct tnum a, u8 min_shift)
+struct tnum tnum_arshift(struct tnum a, u8 min_shift, u8 insn_bitness)
 {
 	/* if a.value is negative, arithmetic shifting by minimum shift
 	 * will have larger negative offset compared to more shifting.
 	 * If a.value is nonnegative, arithmetic shifting by minimum shift
 	 * will have larger positive offset compare to more shifting.
 	 */
-	return TNUM((s64)a.value >> min_shift, (s64)a.mask >> min_shift);
+	if (insn_bitness == 32)
+		return TNUM((u32)(((s32)a.value) >> min_shift),
+			    (u32)(((s32)a.mask)  >> min_shift));
+	else
+		return TNUM((s64)a.value >> min_shift,
+			    (s64)a.mask  >> min_shift);
 }
 
 struct tnum tnum_add(struct tnum a, struct tnum b)

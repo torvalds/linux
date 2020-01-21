@@ -398,6 +398,9 @@ static int bnxt_vf_reps_create(struct bnxt *bp)
 	struct net_device *dev;
 	int rc, i;
 
+	if (!(bp->flags & BNXT_FLAG_DSN_VALID))
+		return -ENODEV;
+
 	bp->vf_reps = kcalloc(num_vfs, sizeof(vf_rep), GFP_KERNEL);
 	if (!bp->vf_reps)
 		return -ENOMEM;

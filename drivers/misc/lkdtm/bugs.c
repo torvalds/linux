@@ -278,7 +278,7 @@ void lkdtm_STACK_GUARD_PAGE_TRAILING(void)
 
 void lkdtm_UNSET_SMEP(void)
 {
-#ifdef CONFIG_X86_64
+#if IS_ENABLED(CONFIG_X86_64) && !IS_ENABLED(CONFIG_UML)
 #define MOV_CR4_DEPTH	64
 	void (*direct_write_cr4)(unsigned long val);
 	unsigned char *insn;
@@ -338,13 +338,13 @@ void lkdtm_UNSET_SMEP(void)
 		native_write_cr4(cr4);
 	}
 #else
-	pr_err("FAIL: this test is x86_64-only\n");
+	pr_err("XFAIL: this test is x86_64-only\n");
 #endif
 }
 
-#ifdef CONFIG_X86_32
 void lkdtm_DOUBLE_FAULT(void)
 {
+#ifdef CONFIG_X86_32
 	/*
 	 * Trigger #DF by setting the stack limit to zero.  This clobbers
 	 * a GDT TLS slot, which is okay because the current task will die
@@ -373,6 +373,8 @@ void lkdtm_DOUBLE_FAULT(void)
 	asm volatile ("movw %0, %%ss; addl $0, (%%esp)" ::
 		      "r" ((unsigned short)(GDT_ENTRY_TLS_MIN << 3)));
 
-	panic("tried to double fault but didn't die\n");
-}
+	pr_err("FAIL: tried to double fault but didn't die\n");
+#else
+	pr_err("XFAIL: this test is ia32-only\n");
 #endif
+}
