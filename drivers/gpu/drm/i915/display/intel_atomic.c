@@ -520,7 +520,6 @@ void intel_atomic_state_clear(struct drm_atomic_state *s)
 	state->dpll_set = state->modeset = false;
 	state->global_state_changed = false;
 	state->active_pipes = 0;
-	intel_cdclk_clear_state(state);
 }
 
 struct intel_crtc_state *

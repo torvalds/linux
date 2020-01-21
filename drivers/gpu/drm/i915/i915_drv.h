@@ -65,7 +65,6 @@
 #include "i915_utils.h"
 
 #include "display/intel_bios.h"
-#include "display/intel_cdclk.h"
 #include "display/intel_display.h"
 #include "display/intel_display_power.h"
 #include "display/intel_dpll_mgr.h"
@@ -256,7 +255,8 @@ struct intel_connector;
 struct intel_encoder;
 struct intel_atomic_state;
 struct intel_cdclk_config;
-struct intel_crtc_state;
+struct intel_cdclk_state;
+struct intel_cdclk_vals;
 struct intel_initial_plane_config;
 struct intel_crtc;
 struct intel_limit;
@@ -280,7 +280,7 @@ struct drm_i915_display_funcs {
 				    struct intel_crtc *crtc);
 	int (*compute_global_watermarks)(struct intel_atomic_state *state);
 	void (*update_wm)(struct intel_crtc *crtc);
-	int (*modeset_calc_cdclk)(struct intel_atomic_state *state);
+	int (*modeset_calc_cdclk)(struct intel_cdclk_state *state);
 	u8 (*calc_voltage_level)(int cdclk);
 	/* Returns the active state of the crtc, and if the crtc is active,
 	 * fills out the pipe-config with the hw state. */
@@ -889,33 +889,6 @@ struct i915_selftest_stash {
 	atomic_t counter;
 };
 
-struct intel_cdclk_state {
-	/*
-	 * Logical configuration of cdclk (used for all scaling,
-	 * watermark, etc. calculations and checks). This is
-	 * computed as if all enabled crtcs were active.
-	 */
-	struct intel_cdclk_config logical;
-
-	/*
-	 * Actual configuration of cdclk, can be different from the
-	 * logical configuration only when all crtc's are DPMS off.
-	 */
-	struct intel_cdclk_config actual;
-
-	/* minimum acceptable cdclk for each pipe */
-	int min_cdclk[I915_MAX_PIPES];
-	/* minimum acceptable voltage level for each pipe */
-	u8 min_voltage_level[I915_MAX_PIPES];
-
-	/* pipe to which cd2x update is synchronized */
-	enum pipe pipe;
-
-	/* forced minimum cdclk for glk+ audio w/a */
-	int force_min_cdclk;
-	bool force_min_cdclk_changed;
-};
-
 struct drm_i915_private {
 	struct drm_device drm;
 
@@ -1032,18 +1005,14 @@ struct drm_i915_private {
 	unsigned int fdi_pll_freq;
 	unsigned int czclk_freq;
 
-	/*
-	 * For reading holding any crtc lock is sufficient,
-	 * for writing must hold all of them.
-	 */
-	struct intel_cdclk_state cdclk_state;
-
 	struct {
 		/* The current hardware cdclk configuration */
 		struct intel_cdclk_config hw;
 
 		/* cdclk, divider, and ratio table from bspec */
 		const struct intel_cdclk_vals *table;
+
+		struct intel_global_obj obj;
 	} cdclk;
 
 	/**
@@ -1102,8 +1071,8 @@ struct drm_i915_private {
 	struct list_head global_obj_list;
 
 	/*
-	 * For reading active_pipes, cdclk_state holding any crtc
-	 * lock is sufficient, for writing must hold all of them.
+	 * For reading active_pipes holding any crtc lock is
+	 * sufficient, for writing must hold all of them.
 	 */
 	u8 active_pipes;
 

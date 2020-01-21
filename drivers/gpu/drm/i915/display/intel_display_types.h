@@ -466,8 +466,6 @@ struct intel_atomic_state {
 	struct __intel_global_objs_state *global_objs;
 	int num_global_objs;
 
-	struct intel_cdclk_state cdclk_state;
-
 	bool dpll_set, modeset;
 
 	/*
@@ -494,7 +492,6 @@ struct intel_atomic_state {
 
 	/*
 	 * active_pipes
-	 * cdclk_state
 	 */
 	bool global_state_changed;
 

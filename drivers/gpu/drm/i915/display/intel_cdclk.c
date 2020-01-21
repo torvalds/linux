@@ -1823,37 +1823,6 @@ static bool intel_cdclk_changed(const struct intel_cdclk_config *a,
 		a->voltage_level != b->voltage_level;
 }
 
-/**
- * intel_cdclk_clear_state - clear the cdclk state
- * @state: atomic state
- *
- * Clear the cdclk state for ww_mutex backoff.
- */
-void intel_cdclk_clear_state(struct intel_atomic_state *state)
-{
-	memset(&state->cdclk_state, 0, sizeof(state->cdclk_state));
-	state->cdclk_state.pipe = INVALID_PIPE;
-}
-
-/**
- * intel_cdclk_swap_state - make atomic CDCLK configuration effective
- * @state: atomic state
- *
- * This is the CDCLK version of drm_atomic_helper_swap_state() since the
- * helper does not handle driver-specific global state.
- *
- * Similarly to the atomic helpers this function does a complete swap,
- * i.e. it also puts the old state into @state. This is used by the commit
- * code to determine how CDCLK has changed (for instance did it increase or
- * decrease).
- */
-void intel_cdclk_swap_state(struct intel_atomic_state *state)
-{
-	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-
-	swap(state->cdclk_state, dev_priv->cdclk_state);
-}
-
 void intel_dump_cdclk_config(const struct intel_cdclk_config *cdclk_config,
 			     const char *context)
 {
@@ -1904,14 +1873,22 @@ void
 intel_set_cdclk_pre_plane_update(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	/* called after intel_cdclk_swap_state()! */
-	const struct intel_cdclk_state *old_cdclk_state = &state->cdclk_state;
-	const struct intel_cdclk_state *new_cdclk_state = &dev_priv->cdclk_state;
+	const struct intel_cdclk_state *old_cdclk_state =
+		intel_atomic_get_old_cdclk_state(state);
+	const struct intel_cdclk_state *new_cdclk_state =
+		intel_atomic_get_new_cdclk_state(state);
 	enum pipe pipe = new_cdclk_state->pipe;
 
+	if (!intel_cdclk_changed(&old_cdclk_state->actual,
+				 &new_cdclk_state->actual))
+		return;
+
 	if (pipe == INVALID_PIPE ||
-	    old_cdclk_state->actual.cdclk <= new_cdclk_state->actual.cdclk)
+	    old_cdclk_state->actual.cdclk <= new_cdclk_state->actual.cdclk) {
+		WARN_ON(!new_cdclk_state->base.changed);
+
 		intel_set_cdclk(dev_priv, &new_cdclk_state->actual, pipe);
+	}
 }
 
 /**
@@ -1925,14 +1902,22 @@ void
 intel_set_cdclk_post_plane_update(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	/* called after intel_cdclk_swap_state()! */
-	const struct intel_cdclk_state *old_cdclk_state = &state->cdclk_state;
-	const struct intel_cdclk_state *new_cdclk_state = &dev_priv->cdclk_state;
+	const struct intel_cdclk_state *old_cdclk_state =
+		intel_atomic_get_old_cdclk_state(state);
+	const struct intel_cdclk_state *new_cdclk_state =
+		intel_atomic_get_new_cdclk_state(state);
 	enum pipe pipe = new_cdclk_state->pipe;
 
+	if (!intel_cdclk_changed(&old_cdclk_state->actual,
+				 &new_cdclk_state->actual))
+		return;
+
 	if (pipe != INVALID_PIPE &&
-	    old_cdclk_state->actual.cdclk > new_cdclk_state->actual.cdclk)
+	    old_cdclk_state->actual.cdclk > new_cdclk_state->actual.cdclk) {
+		WARN_ON(!new_cdclk_state->base.changed);
+
 		intel_set_cdclk(dev_priv, &new_cdclk_state->actual, pipe);
+	}
 }
 
 static int intel_pixel_rate_to_cdclk(const struct intel_crtc_state *crtc_state)
@@ -2059,10 +2044,10 @@ int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state)
 	return min_cdclk;
 }
 
-static int intel_compute_min_cdclk(struct intel_atomic_state *state)
+static int intel_compute_min_cdclk(struct intel_cdclk_state *cdclk_state)
 {
+	struct intel_atomic_state *state = cdclk_state->base.state;
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	struct intel_cdclk_state *cdclk_state = &state->cdclk_state;
 	struct intel_crtc *crtc;
 	struct intel_crtc_state *crtc_state;
 	int min_cdclk, i;
@@ -2080,7 +2065,7 @@ static int intel_compute_min_cdclk(struct intel_atomic_state *state)
 
 		cdclk_state->min_cdclk[i] = min_cdclk;
 
-		ret = _intel_atomic_lock_global_state(state);
+		ret = intel_atomic_lock_global_state(&cdclk_state->base);
 		if (ret)
 			return ret;
 	}
@@ -2105,10 +2090,10 @@ static int intel_compute_min_cdclk(struct intel_atomic_state *state)
  * future platforms this code will need to be
  * adjusted.
  */
-static int bxt_compute_min_voltage_level(struct intel_atomic_state *state)
+static int bxt_compute_min_voltage_level(struct intel_cdclk_state *cdclk_state)
 {
+	struct intel_atomic_state *state = cdclk_state->base.state;
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	struct intel_cdclk_state *cdclk_state = &state->cdclk_state;
 	struct intel_crtc *crtc;
 	struct intel_crtc_state *crtc_state;
 	u8 min_voltage_level;
@@ -2128,7 +2113,7 @@ static int bxt_compute_min_voltage_level(struct intel_atomic_state *state)
 
 		cdclk_state->min_voltage_level[i] = min_voltage_level;
 
-		ret = _intel_atomic_lock_global_state(state);
+		ret = intel_atomic_lock_global_state(&cdclk_state->base);
 		if (ret)
 			return ret;
 	}
@@ -2141,13 +2126,13 @@ static int bxt_compute_min_voltage_level(struct intel_atomic_state *state)
 	return min_voltage_level;
 }
 
-static int vlv_modeset_calc_cdclk(struct intel_atomic_state *state)
+static int vlv_modeset_calc_cdclk(struct intel_cdclk_state *cdclk_state)
 {
+	struct intel_atomic_state *state = cdclk_state->base.state;
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	struct intel_cdclk_state *cdclk_state = &state->cdclk_state;
 	int min_cdclk, cdclk;
 
-	min_cdclk = intel_compute_min_cdclk(state);
+	min_cdclk = intel_compute_min_cdclk(cdclk_state);
 	if (min_cdclk < 0)
 		return min_cdclk;
 
@@ -2170,12 +2155,12 @@ static int vlv_modeset_calc_cdclk(struct intel_atomic_state *state)
 	return 0;
 }
 
-static int bdw_modeset_calc_cdclk(struct intel_atomic_state *state)
+static int bdw_modeset_calc_cdclk(struct intel_cdclk_state *cdclk_state)
 {
-	struct intel_cdclk_state *cdclk_state = &state->cdclk_state;
+	struct intel_atomic_state *state = cdclk_state->base.state;
 	int min_cdclk, cdclk;
 
-	min_cdclk = intel_compute_min_cdclk(state);
+	min_cdclk = intel_compute_min_cdclk(cdclk_state);
 	if (min_cdclk < 0)
 		return min_cdclk;
 
@@ -2202,10 +2187,10 @@ static int bdw_modeset_calc_cdclk(struct intel_atomic_state *state)
 	return 0;
 }
 
-static int skl_dpll0_vco(struct intel_atomic_state *state)
+static int skl_dpll0_vco(struct intel_cdclk_state *cdclk_state)
 {
+	struct intel_atomic_state *state = cdclk_state->base.state;
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	struct intel_cdclk_state *cdclk_state = &state->cdclk_state;
 	struct intel_crtc *crtc;
 	struct intel_crtc_state *crtc_state;
 	int vco, i;
@@ -2239,16 +2224,16 @@ static int skl_dpll0_vco(struct intel_atomic_state *state)
 	return vco;
 }
 
-static int skl_modeset_calc_cdclk(struct intel_atomic_state *state)
+static int skl_modeset_calc_cdclk(struct intel_cdclk_state *cdclk_state)
 {
-	struct intel_cdclk_state *cdclk_state = &state->cdclk_state;
+	struct intel_atomic_state *state = cdclk_state->base.state;
 	int min_cdclk, cdclk, vco;
 
-	min_cdclk = intel_compute_min_cdclk(state);
+	min_cdclk = intel_compute_min_cdclk(cdclk_state);
 	if (min_cdclk < 0)
 		return min_cdclk;
 
-	vco = skl_dpll0_vco(state);
+	vco = skl_dpll0_vco(cdclk_state);
 
 	/*
 	 * FIXME should also account for plane ratio
@@ -2275,17 +2260,17 @@ static int skl_modeset_calc_cdclk(struct intel_atomic_state *state)
 	return 0;
 }
 
-static int bxt_modeset_calc_cdclk(struct intel_atomic_state *state)
+static int bxt_modeset_calc_cdclk(struct intel_cdclk_state *cdclk_state)
 {
+	struct intel_atomic_state *state = cdclk_state->base.state;
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	struct intel_cdclk_state *cdclk_state = &state->cdclk_state;
 	int min_cdclk, min_voltage_level, cdclk, vco;
 
-	min_cdclk = intel_compute_min_cdclk(state);
+	min_cdclk = intel_compute_min_cdclk(cdclk_state);
 	if (min_cdclk < 0)
 		return min_cdclk;
 
-	min_voltage_level = bxt_compute_min_voltage_level(state);
+	min_voltage_level = bxt_compute_min_voltage_level(cdclk_state);
 	if (min_voltage_level < 0)
 		return min_voltage_level;
 
@@ -2352,7 +2337,7 @@ static int intel_modeset_all_pipes(struct intel_atomic_state *state)
 	return 0;
 }
 
-static int fixed_modeset_calc_cdclk(struct intel_atomic_state *state)
+static int fixed_modeset_calc_cdclk(struct intel_cdclk_state *cdclk_state)
 {
 	int min_cdclk;
 
@@ -2361,9 +2346,61 @@ static int fixed_modeset_calc_cdclk(struct intel_atomic_state *state)
 	 * check that the required minimum frequency doesn't exceed
 	 * the actual cdclk frequency.
 	 */
-	min_cdclk = intel_compute_min_cdclk(state);
+	min_cdclk = intel_compute_min_cdclk(cdclk_state);
 	if (min_cdclk < 0)
 		return min_cdclk;
+
+	return 0;
+}
+
+static struct intel_global_state *intel_cdclk_duplicate_state(struct intel_global_obj *obj)
+{
+	struct intel_cdclk_state *cdclk_state;
+
+	cdclk_state = kmemdup(obj->state, sizeof(*cdclk_state), GFP_KERNEL);
+	if (!cdclk_state)
+		return NULL;
+
+	cdclk_state->force_min_cdclk_changed = false;
+	cdclk_state->pipe = INVALID_PIPE;
+
+	return &cdclk_state->base;
+}
+
+static void intel_cdclk_destroy_state(struct intel_global_obj *obj,
+				      struct intel_global_state *state)
+{
+	kfree(state);
+}
+
+static const struct intel_global_state_funcs intel_cdclk_funcs = {
+	.atomic_duplicate_state = intel_cdclk_duplicate_state,
+	.atomic_destroy_state = intel_cdclk_destroy_state,
+};
+
+struct intel_cdclk_state *
+intel_atomic_get_cdclk_state(struct intel_atomic_state *state)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_global_state *cdclk_state;
+
+	cdclk_state = intel_atomic_get_global_obj_state(state, &dev_priv->cdclk.obj);
+	if (IS_ERR(cdclk_state))
+		return ERR_CAST(cdclk_state);
+
+	return to_intel_cdclk_state(cdclk_state);
+}
+
+int intel_cdclk_init(struct drm_i915_private *dev_priv)
+{
+	struct intel_cdclk_state *cdclk_state;
+
+	cdclk_state = kzalloc(sizeof(*cdclk_state), GFP_KERNEL);
+	if (!cdclk_state)
+		return -ENOMEM;
+
+	intel_atomic_global_obj_init(dev_priv, &dev_priv->cdclk.obj,
+				     &cdclk_state->base, &intel_cdclk_funcs);
 
 	return 0;
 }
@@ -2371,44 +2408,33 @@ static int fixed_modeset_calc_cdclk(struct intel_atomic_state *state)
 int intel_modeset_calc_cdclk(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	const struct intel_cdclk_state *old_cdclk_state = &dev_priv->cdclk_state;
-	struct intel_cdclk_state *new_cdclk_state = &state->cdclk_state;
+	const struct intel_cdclk_state *old_cdclk_state;
+	struct intel_cdclk_state *new_cdclk_state;
 	enum pipe pipe;
 	int ret;
 
-	memcpy(new_cdclk_state->min_cdclk, old_cdclk_state->min_cdclk,
-	       sizeof(new_cdclk_state->min_cdclk));
-	memcpy(new_cdclk_state->min_voltage_level, old_cdclk_state->min_voltage_level,
-	       sizeof(new_cdclk_state->min_voltage_level));
+	new_cdclk_state = intel_atomic_get_cdclk_state(state);
+	if (IS_ERR(new_cdclk_state))
+		return PTR_ERR(new_cdclk_state);
 
-	/* keep the current setting */
-	if (!new_cdclk_state->force_min_cdclk_changed)
-		new_cdclk_state->force_min_cdclk = old_cdclk_state->force_min_cdclk;
+	old_cdclk_state = intel_atomic_get_old_cdclk_state(state);
 
-	new_cdclk_state->logical = old_cdclk_state->logical;
-	new_cdclk_state->actual = old_cdclk_state->actual;
-
-	ret = dev_priv->display.modeset_calc_cdclk(state);
+	ret = dev_priv->display.modeset_calc_cdclk(new_cdclk_state);
 	if (ret)
 		return ret;
 
-	/*
-	 * Writes to dev_priv->cdclk.{actual,logical} must protected
-	 * by holding all the crtc mutexes even if we don't end up
-	 * touching the hardware
-	 */
 	if (intel_cdclk_changed(&old_cdclk_state->actual,
 				&new_cdclk_state->actual)) {
 		/*
 		 * Also serialize commits across all crtcs
 		 * if the actual hw needs to be poked.
 		 */
-		ret = _intel_atomic_serialize_global_state(state);
+		ret = intel_atomic_serialize_global_state(&new_cdclk_state->base);
 		if (ret)
 			return ret;
 	} else if (intel_cdclk_changed(&old_cdclk_state->logical,
 				       &new_cdclk_state->logical)) {
-		ret = _intel_atomic_lock_global_state(state);
+		ret = intel_atomic_lock_global_state(&new_cdclk_state->base);
 		if (ret)
 			return ret;
 	} else {

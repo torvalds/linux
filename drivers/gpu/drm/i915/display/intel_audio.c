@@ -30,6 +30,7 @@
 #include "i915_drv.h"
 #include "intel_atomic.h"
 #include "intel_audio.h"
+#include "intel_cdclk.h"
 #include "intel_display_types.h"
 #include "intel_lpe_audio.h"
 
@@ -809,6 +810,34 @@ void intel_init_audio_hooks(struct drm_i915_private *dev_priv)
 	}
 }
 
+static int glk_force_audio_cdclk_commit(struct intel_atomic_state *state,
+					bool enable)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_cdclk_state *cdclk_state;
+	struct intel_crtc *crtc;
+	int ret;
+
+	/* need to hold at least one crtc lock for the global state */
+	crtc = intel_get_crtc_for_pipe(dev_priv, PIPE_A);
+	ret = drm_modeset_lock(&crtc->base.mutex, state->base.acquire_ctx);
+	if (ret)
+		return ret;
+
+	cdclk_state = intel_atomic_get_cdclk_state(state);
+	if (IS_ERR(cdclk_state))
+		return PTR_ERR(cdclk_state);
+
+	cdclk_state->force_min_cdclk_changed = true;
+	cdclk_state->force_min_cdclk = enable ? 2 * 96000 : 0;
+
+	ret = intel_atomic_lock_global_state(&cdclk_state->base);
+	if (ret)
+		return ret;
+
+	return drm_atomic_commit(&state->base);
+}
+
 static void glk_force_audio_cdclk(struct drm_i915_private *dev_priv,
 				  bool enable)
 {
@@ -824,15 +853,7 @@ static void glk_force_audio_cdclk(struct drm_i915_private *dev_priv,
 	state->acquire_ctx = &ctx;
 
 retry:
-	to_intel_atomic_state(state)->cdclk_state.force_min_cdclk_changed = true;
-	to_intel_atomic_state(state)->cdclk_state.force_min_cdclk =
-		enable ? 2 * 96000 : 0;
-
-	/* Protects dev_priv->cdclk.force_min_cdclk */
-	ret = _intel_atomic_lock_global_state(to_intel_atomic_state(state));
-	if (!ret)
-		ret = drm_atomic_commit(state);
-
+	ret = glk_force_audio_cdclk_commit(to_intel_atomic_state(state), enable);
 	if (ret == -EDEADLK) {
 		drm_atomic_state_clear(state);
 		drm_modeset_backoff(&ctx);
