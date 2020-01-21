@@ -152,10 +152,11 @@ static int samx7_restart(struct notifier_block *this, unsigned long mode,
 	return NOTIFY_DONE;
 }
 
-static void __init at91_reset_status(struct platform_device *pdev)
+static void __init at91_reset_status(struct platform_device *pdev,
+				     void __iomem *base)
 {
 	const char *reason;
-	u32 reg = readl(reset->rstc_base + AT91_RSTC_SR);
+	u32 reg = readl(base + AT91_RSTC_SR);
 
 	switch ((reg & AT91_RSTC_RSTTYP) >> 8) {
 	case RESET_TYPE_GENERAL:
@@ -255,7 +256,7 @@ static int __init at91_reset_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	at91_reset_status(pdev);
+	at91_reset_status(pdev, reset->rstc_base);
 
 	return 0;
 }
