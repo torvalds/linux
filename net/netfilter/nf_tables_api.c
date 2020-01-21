@@ -3391,6 +3391,7 @@ static const struct nla_policy nft_set_policy[NFTA_SET_MAX + 1] = {
 
 static const struct nla_policy nft_set_desc_policy[NFTA_SET_DESC_MAX + 1] = {
 	[NFTA_SET_DESC_SIZE]		= { .type = NLA_U32 },
+	[NFTA_SET_DESC_CONCAT]		= { .type = NLA_NESTED },
 };
 
 static int nft_ctx_init_from_setattr(struct nft_ctx *ctx, struct net *net,
@@ -3557,6 +3558,33 @@ static __be64 nf_jiffies64_to_msecs(u64 input)
 	return cpu_to_be64(jiffies64_to_msecs(input));
 }
 
+static int nf_tables_fill_set_concat(struct sk_buff *skb,
+				     const struct nft_set *set)
+{
+	struct nlattr *concat, *field;
+	int i;
+
+	concat = nla_nest_start_noflag(skb, NFTA_SET_DESC_CONCAT);
+	if (!concat)
+		return -ENOMEM;
+
+	for (i = 0; i < set->field_count; i++) {
+		field = nla_nest_start_noflag(skb, NFTA_LIST_ELEM);
+		if (!field)
+			return -ENOMEM;
+
+		if (nla_put_be32(skb, NFTA_SET_FIELD_LEN,
+				 htonl(set->field_len[i])))
+			return -ENOMEM;
+
+		nla_nest_end(skb, field);
+	}
+
+	nla_nest_end(skb, concat);
+
+	return 0;
+}
+
 static int nf_tables_fill_set(struct sk_buff *skb, const struct nft_ctx *ctx,
 			      const struct nft_set *set, u16 event, u16 flags)
 {
@@ -3620,11 +3648,17 @@ static int nf_tables_fill_set(struct sk_buff *skb, const struct nft_ctx *ctx,
 		goto nla_put_failure;
 
 	desc = nla_nest_start_noflag(skb, NFTA_SET_DESC);
+
 	if (desc == NULL)
 		goto nla_put_failure;
 	if (set->size &&
 	    nla_put_be32(skb, NFTA_SET_DESC_SIZE, htonl(set->size)))
 		goto nla_put_failure;
+
+	if (set->field_count > 1 &&
+	    nf_tables_fill_set_concat(skb, set))
+		goto nla_put_failure;
+
 	nla_nest_end(skb, desc);
 
 	nlmsg_end(skb, nlh);
@@ -3797,6 +3831,53 @@ err:
 	return err;
 }
 
+static const struct nla_policy nft_concat_policy[NFTA_SET_FIELD_MAX + 1] = {
+	[NFTA_SET_FIELD_LEN]	= { .type = NLA_U32 },
+};
+
+static int nft_set_desc_concat_parse(const struct nlattr *attr,
+				     struct nft_set_desc *desc)
+{
+	struct nlattr *tb[NFTA_SET_FIELD_MAX + 1];
+	u32 len;
+	int err;
+
+	err = nla_parse_nested_deprecated(tb, NFTA_SET_FIELD_MAX, attr,
+					  nft_concat_policy, NULL);
+	if (err < 0)
+		return err;
+
+	if (!tb[NFTA_SET_FIELD_LEN])
+		return -EINVAL;
+
+	len = ntohl(nla_get_be32(tb[NFTA_SET_FIELD_LEN]));
+
+	if (len * BITS_PER_BYTE / 32 > NFT_REG32_COUNT)
+		return -E2BIG;
+
+	desc->field_len[desc->field_count++] = len;
+
+	return 0;
+}
+
+static int nft_set_desc_concat(struct nft_set_desc *desc,
+			       const struct nlattr *nla)
+{
+	struct nlattr *attr;
+	int rem, err;
+
+	nla_for_each_nested(attr, nla, rem) {
+		if (nla_type(attr) != NFTA_LIST_ELEM)
+			return -EINVAL;
+
+		err = nft_set_desc_concat_parse(attr, desc);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
+}
+
 static int nf_tables_set_desc_parse(struct nft_set_desc *desc,
 				    const struct nlattr *nla)
 {
@@ -3810,8 +3891,10 @@ static int nf_tables_set_desc_parse(struct nft_set_desc *desc,
 
 	if (da[NFTA_SET_DESC_SIZE] != NULL)
 		desc->size = ntohl(nla_get_be32(da[NFTA_SET_DESC_SIZE]));
+	if (da[NFTA_SET_DESC_CONCAT])
+		err = nft_set_desc_concat(desc, da[NFTA_SET_DESC_CONCAT]);
 
-	return 0;
+	return err;
 }
 
 static int nf_tables_newset(struct net *net, struct sock *nlsk,
@@ -3834,6 +3917,7 @@ static int nf_tables_newset(struct net *net, struct sock *nlsk,
 	unsigned char *udata;
 	u16 udlen;
 	int err;
+	int i;
 
 	if (nla[NFTA_SET_TABLE] == NULL ||
 	    nla[NFTA_SET_NAME] == NULL ||
@@ -4011,6 +4095,10 @@ static int nf_tables_newset(struct net *net, struct sock *nlsk,
 	set->timeout = timeout;
 	set->gc_int = gc_int;
 	set->handle = nf_tables_alloc_handle(table);
+
+	set->field_count = desc.field_count;
+	for (i = 0; i < desc.field_count; i++)
+		set->field_len[i] = desc.field_len[i];
 
 	err = ops->init(set, &desc, nla);
 	if (err < 0)
