@@ -49,10 +49,6 @@ enum reset_type {
 	RESET_TYPE_ULP2		= 8,
 };
 
-struct at91_reset_data {
-	u32 args;
-};
-
 struct at91_reset {
 	void __iomem *rstc_base;
 	void __iomem *ramc_base[2];
@@ -156,42 +152,29 @@ static const struct of_device_id at91_ramc_of_match[] = {
 	{ /* sentinel */ }
 };
 
-static const struct at91_reset_data at91sam9260_reset_data = {
-	.args = AT91_RSTC_KEY | AT91_RSTC_PERRST | AT91_RSTC_PROCRST,
-};
-
-static const struct at91_reset_data at91sam9g45_reset_data = {
-	.args = AT91_RSTC_KEY | AT91_RSTC_PERRST | AT91_RSTC_PROCRST,
-};
-
-static const struct at91_reset_data sama5d3_reset_data = {
-	.args = AT91_RSTC_KEY | AT91_RSTC_PERRST | AT91_RSTC_PROCRST,
-};
-
-static const struct at91_reset_data samx7_reset_data = {
-	.args = AT91_RSTC_KEY | AT91_RSTC_PROCRST,
-};
-
 static const struct of_device_id at91_reset_of_match[] = {
 	{
 		.compatible = "atmel,at91sam9260-rstc",
-		.data = &at91sam9260_reset_data
+		.data = (void *)(AT91_RSTC_KEY | AT91_RSTC_PERRST |
+				 AT91_RSTC_PROCRST),
 	},
 	{
 		.compatible = "atmel,at91sam9g45-rstc",
-		.data = &at91sam9g45_reset_data
+		.data = (void *)(AT91_RSTC_KEY | AT91_RSTC_PERRST |
+				 AT91_RSTC_PROCRST)
 	},
 	{
 		.compatible = "atmel,sama5d3-rstc",
-		.data = &sama5d3_reset_data
+		.data = (void *)(AT91_RSTC_KEY | AT91_RSTC_PERRST |
+				 AT91_RSTC_PROCRST)
 	},
 	{
 		.compatible = "atmel,samx7-rstc",
-		.data = &samx7_reset_data
+		.data = (void *)(AT91_RSTC_KEY | AT91_RSTC_PROCRST)
 	},
 	{
 		.compatible = "microchip,sam9x60-rstc",
-		.data = &samx7_reset_data
+		.data = (void *)(AT91_RSTC_KEY | AT91_RSTC_PROCRST)
 	},
 	{ /* sentinel */ }
 };
@@ -199,7 +182,6 @@ MODULE_DEVICE_TABLE(of, at91_reset_of_match);
 
 static int __init at91_reset_probe(struct platform_device *pdev)
 {
-	const struct at91_reset_data *reset_data;
 	const struct of_device_id *match;
 	struct at91_reset *reset;
 	struct device_node *np;
@@ -230,10 +212,9 @@ static int __init at91_reset_probe(struct platform_device *pdev)
 	}
 
 	match = of_match_node(at91_reset_of_match, pdev->dev.of_node);
-	reset_data = match->data;
 	reset->nb.notifier_call = at91_reset;
 	reset->nb.priority = 192;
-	reset->args = reset_data->args;
+	reset->args = (u32)match->data;
 
 	reset->sclk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(reset->sclk))
