@@ -530,31 +530,33 @@ typedef struct {
  */
 extern struct efi {
 	const efi_runtime_services_t	*runtime;		/* EFI runtime services table */
-	efi_system_table_t *systab;	/* EFI system table */
-	unsigned int runtime_version;	/* Runtime services version */
-	unsigned long acpi;		/* ACPI table  (IA64 ext 0.71) */
-	unsigned long acpi20;		/* ACPI table  (ACPI 2.0) */
-	unsigned long smbios;		/* SMBIOS table (32 bit entry point) */
-	unsigned long smbios3;		/* SMBIOS table (64 bit entry point) */
-	unsigned long esrt;		/* ESRT table */
-	unsigned long tpm_log;		/* TPM2 Event Log table */
-	unsigned long tpm_final_log;	/* TPM2 Final Events Log table */
-	efi_get_time_t *get_time;
-	efi_set_time_t *set_time;
-	efi_get_wakeup_time_t *get_wakeup_time;
-	efi_set_wakeup_time_t *set_wakeup_time;
-	efi_get_variable_t *get_variable;
-	efi_get_next_variable_t *get_next_variable;
-	efi_set_variable_t *set_variable;
-	efi_set_variable_t *set_variable_nonblocking;
-	efi_query_variable_info_t *query_variable_info;
-	efi_query_variable_info_t *query_variable_info_nonblocking;
-	efi_update_capsule_t *update_capsule;
-	efi_query_capsule_caps_t *query_capsule_caps;
-	efi_get_next_high_mono_count_t *get_next_high_mono_count;
-	efi_reset_system_t *reset_system;
-	struct efi_memory_map memmap;
-	unsigned long flags;
+	unsigned int			runtime_version;	/* Runtime services version */
+
+	unsigned long			acpi;			/* ACPI table  (IA64 ext 0.71) */
+	unsigned long			acpi20;			/* ACPI table  (ACPI 2.0) */
+	unsigned long			smbios;			/* SMBIOS table (32 bit entry point) */
+	unsigned long			smbios3;		/* SMBIOS table (64 bit entry point) */
+	unsigned long			esrt;			/* ESRT table */
+	unsigned long			tpm_log;		/* TPM2 Event Log table */
+	unsigned long			tpm_final_log;		/* TPM2 Final Events Log table */
+
+	efi_get_time_t			*get_time;
+	efi_set_time_t			*set_time;
+	efi_get_wakeup_time_t		*get_wakeup_time;
+	efi_set_wakeup_time_t		*set_wakeup_time;
+	efi_get_variable_t		*get_variable;
+	efi_get_next_variable_t		*get_next_variable;
+	efi_set_variable_t		*set_variable;
+	efi_set_variable_t		*set_variable_nonblocking;
+	efi_query_variable_info_t	*query_variable_info;
+	efi_query_variable_info_t	*query_variable_info_nonblocking;
+	efi_update_capsule_t		*update_capsule;
+	efi_query_capsule_caps_t	*query_capsule_caps;
+	efi_get_next_high_mono_count_t	*get_next_high_mono_count;
+	efi_reset_system_t		*reset_system;
+
+	struct efi_memory_map		memmap;
+	unsigned long			flags;
 } efi;
 
 extern struct mm_struct efi_mm;

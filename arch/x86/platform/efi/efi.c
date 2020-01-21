@@ -54,8 +54,6 @@
 #include <asm/x86_init.h>
 #include <asm/uv/uv.h>
 
-static efi_system_table_t efi_systab __initdata;
-
 static unsigned long efi_systab_phys __initdata;
 static unsigned long prop_phys = EFI_INVALID_TABLE_ADDR;
 static unsigned long uga_phys = EFI_INVALID_TABLE_ADDR;
@@ -359,28 +357,8 @@ static int __init efi_systab_init(unsigned long phys)
 	if (efi_enabled(EFI_64BIT)) {
 		const efi_system_table_64_t *systab64 = p;
 
-		efi_systab.hdr			= systab64->hdr;
-		efi_systab.fw_vendor		= systab64->fw_vendor;
-		efi_systab.fw_revision		= systab64->fw_revision;
-		efi_systab.con_in_handle	= systab64->con_in_handle;
-		efi_systab.con_in		= systab64->con_in;
-		efi_systab.con_out_handle	= systab64->con_out_handle;
-		efi_systab.con_out		= (void *)(unsigned long)systab64->con_out;
-		efi_systab.stderr_handle	= systab64->stderr_handle;
-		efi_systab.stderr		= systab64->stderr;
-		efi_systab.runtime		= (void *)(unsigned long)systab64->runtime;
-		efi_systab.boottime		= (void *)(unsigned long)systab64->boottime;
-		efi_systab.nr_tables		= systab64->nr_tables;
-		efi_systab.tables		= systab64->tables;
-
-		over4g = systab64->con_in_handle	> U32_MAX ||
-			 systab64->con_in		> U32_MAX ||
-			 systab64->con_out_handle	> U32_MAX ||
-			 systab64->con_out		> U32_MAX ||
-			 systab64->stderr_handle	> U32_MAX ||
-			 systab64->stderr		> U32_MAX ||
-			 systab64->runtime		> U32_MAX ||
-			 systab64->boottime		> U32_MAX;
+		efi_runtime	= systab64->runtime;
+		over4g		= systab64->runtime > U32_MAX;
 
 		if (efi_setup) {
 			struct efi_setup_data *data;
@@ -391,38 +369,33 @@ static int __init efi_systab_init(unsigned long phys)
 				return -ENOMEM;
 			}
 
-			efi_systab.fw_vendor	= (unsigned long)data->fw_vendor;
-			efi_systab.tables	= (unsigned long)data->tables;
+			efi_fw_vendor		= (unsigned long)data->fw_vendor;
+			efi_config_table	= (unsigned long)data->tables;
 
 			over4g |= data->fw_vendor	> U32_MAX ||
 				  data->tables		> U32_MAX;
 
 			early_memunmap(data, sizeof(*data));
 		} else {
+			efi_fw_vendor		= systab64->fw_vendor;
+			efi_config_table	= systab64->tables;
+
 			over4g |= systab64->fw_vendor	> U32_MAX ||
 				  systab64->tables	> U32_MAX;
 		}
+		efi_nr_tables = systab64->nr_tables;
 	} else {
 		const efi_system_table_32_t *systab32 = p;
 
-		efi_systab.hdr			= systab32->hdr;
-		efi_systab.fw_vendor		= systab32->fw_vendor;
-		efi_systab.fw_revision		= systab32->fw_revision;
-		efi_systab.con_in_handle	= systab32->con_in_handle;
-		efi_systab.con_in		= systab32->con_in;
-		efi_systab.con_out_handle	= systab32->con_out_handle;
-		efi_systab.con_out		= (void *)(unsigned long)systab32->con_out;
-		efi_systab.stderr_handle	= systab32->stderr_handle;
-		efi_systab.stderr		= systab32->stderr;
-		efi_systab.runtime		= (void *)(unsigned long)systab32->runtime;
-		efi_systab.boottime		= (void *)(unsigned long)systab32->boottime;
-		efi_systab.nr_tables		= systab32->nr_tables;
-		efi_systab.tables		= systab32->tables;
+		efi_fw_vendor		= systab32->fw_vendor;
+		efi_runtime		= systab32->runtime;
+		efi_config_table	= systab32->tables;
+		efi_nr_tables		= systab32->nr_tables;
 	}
 
 	efi.runtime_version = hdr->revision;
 
-	efi_systab_report_header(hdr, efi_systab.fw_vendor);
+	efi_systab_report_header(hdr, efi_fw_vendor);
 	early_memunmap(p, size);
 
 	if (IS_ENABLED(CONFIG_X86_32) && over4g) {
@@ -430,7 +403,6 @@ static int __init efi_systab_init(unsigned long phys)
 		return -EINVAL;
 	}
 
-	efi.systab = &efi_systab;
 	return 0;
 }
 
@@ -477,11 +449,6 @@ void __init efi_init(void)
 
 	if (efi_systab_init(efi_systab_phys))
 		return;
-
-	efi_config_table = (unsigned long)efi.systab->tables;
-	efi_nr_tables    = efi.systab->nr_tables;
-	efi_fw_vendor    = (unsigned long)efi.systab->fw_vendor;
-	efi_runtime      = (unsigned long)efi.systab->runtime;
 
 	if (efi_reuse_config(efi_config_table, efi_nr_tables))
 		return;
@@ -621,20 +588,6 @@ static void __init efi_merge_regions(void)
 			continue;
 		}
 		prev_md = md;
-	}
-}
-
-static void __init get_systab_virt_addr(efi_memory_desc_t *md)
-{
-	unsigned long size;
-	u64 end, systab;
-
-	size = md->num_pages << EFI_PAGE_SHIFT;
-	end = md->phys_addr + size;
-	systab = efi_systab_phys;
-	if (md->phys_addr <= systab && systab < end) {
-		systab += md->virt_addr - md->phys_addr;
-		efi.systab = (efi_system_table_t *)(unsigned long)systab;
 	}
 }
 
@@ -793,7 +746,6 @@ static void * __init efi_map_regions(int *count, int *pg_shift)
 			continue;
 
 		efi_map_region(md);
-		get_systab_virt_addr(md);
 
 		if (left < desc_size) {
 			new_memmap = realloc_pages(new_memmap, *pg_shift);
@@ -819,8 +771,6 @@ static void __init kexec_enter_virtual_mode(void)
 	efi_memory_desc_t *md;
 	unsigned int num_pages;
 
-	efi.systab = NULL;
-
 	/*
 	 * We don't do virtual mode, since we don't do runtime services, on
 	 * non-native EFI. With the UV1 memmap, we don't do runtime services in
@@ -843,10 +793,8 @@ static void __init kexec_enter_virtual_mode(void)
 	* Map efi regions which were passed via setup_data. The virt_addr is a
 	* fixed addr which was used in first kernel of a kexec boot.
 	*/
-	for_each_efi_memory_desc(md) {
+	for_each_efi_memory_desc(md)
 		efi_map_region_fixed(md); /* FIXME: add error handling */
-		get_systab_virt_addr(md);
-	}
 
 	/*
 	 * Unregister the early EFI memmap from efi_init() and install
@@ -860,8 +808,6 @@ static void __init kexec_enter_virtual_mode(void)
 		clear_bit(EFI_RUNTIME_SERVICES, &efi.flags);
 		return;
 	}
-
-	BUG_ON(!efi.systab);
 
 	num_pages = ALIGN(efi.memmap.nr_map * efi.memmap.desc_size, PAGE_SIZE);
 	num_pages >>= PAGE_SHIFT;
@@ -905,8 +851,6 @@ static void __init __efi_enter_virtual_mode(void)
 	efi_status_t status;
 	unsigned long pa;
 
-	efi.systab = NULL;
-
 	if (efi_alloc_page_tables()) {
 		pr_err("Failed to allocate EFI page tables\n");
 		goto err;
@@ -937,9 +881,6 @@ static void __init __efi_enter_virtual_mode(void)
 		pr_info("EFI runtime memory map:\n");
 		efi_print_memmap();
 	}
-
-	if (WARN_ON(!efi.systab))
-		goto err;
 
 	if (efi_setup_page_tables(pa, 1 << pg_shift))
 		goto err;
