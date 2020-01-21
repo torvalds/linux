@@ -34,6 +34,7 @@
 #include <asm/early_ioremap.h>
 
 struct efi __read_mostly efi = {
+	.runtime_supported_mask = EFI_RT_SUPPORTED_ALL,
 	.acpi			= EFI_INVALID_TABLE_ADDR,
 	.acpi20			= EFI_INVALID_TABLE_ADDR,
 	.smbios			= EFI_INVALID_TABLE_ADDR,
@@ -301,16 +302,22 @@ static int __init efisubsys_init(void)
 	if (!efi_enabled(EFI_BOOT))
 		return 0;
 
-	/*
-	 * Since we process only one efi_runtime_service() at a time, an
-	 * ordered workqueue (which creates only one execution context)
-	 * should suffice all our needs.
-	 */
-	efi_rts_wq = alloc_ordered_workqueue("efi_rts_wq", 0);
-	if (!efi_rts_wq) {
-		pr_err("Creating efi_rts_wq failed, EFI runtime services disabled.\n");
-		clear_bit(EFI_RUNTIME_SERVICES, &efi.flags);
-		return 0;
+	if (!efi_enabled(EFI_RUNTIME_SERVICES))
+		efi.runtime_supported_mask = 0;
+
+	if (efi.runtime_supported_mask) {
+		/*
+		 * Since we process only one efi_runtime_service() at a time, an
+		 * ordered workqueue (which creates only one execution context)
+		 * should suffice for all our needs.
+		 */
+		efi_rts_wq = alloc_ordered_workqueue("efi_rts_wq", 0);
+		if (!efi_rts_wq) {
+			pr_err("Creating efi_rts_wq failed, EFI runtime services disabled.\n");
+			clear_bit(EFI_RUNTIME_SERVICES, &efi.flags);
+			efi.runtime_supported_mask = 0;
+			return 0;
+		}
 	}
 
 	/* We register the efi directory at /sys/firmware/efi */

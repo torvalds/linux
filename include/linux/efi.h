@@ -523,6 +523,7 @@ typedef struct {
 extern struct efi {
 	const efi_runtime_services_t	*runtime;		/* EFI runtime services table */
 	unsigned int			runtime_version;	/* Runtime services version */
+	unsigned int			runtime_supported_mask;
 
 	unsigned long			acpi;			/* ACPI table  (IA64 ext 0.71) */
 	unsigned long			acpi20;			/* ACPI table  (ACPI 2.0) */
@@ -550,6 +551,26 @@ extern struct efi {
 	struct efi_memory_map		memmap;
 	unsigned long			flags;
 } efi;
+
+#define EFI_RT_SUPPORTED_GET_TIME 				0x0001
+#define EFI_RT_SUPPORTED_SET_TIME 				0x0002
+#define EFI_RT_SUPPORTED_GET_WAKEUP_TIME			0x0004
+#define EFI_RT_SUPPORTED_SET_WAKEUP_TIME			0x0008
+#define EFI_RT_SUPPORTED_GET_VARIABLE				0x0010
+#define EFI_RT_SUPPORTED_GET_NEXT_VARIABLE_NAME			0x0020
+#define EFI_RT_SUPPORTED_SET_VARIABLE				0x0040
+#define EFI_RT_SUPPORTED_SET_VIRTUAL_ADDRESS_MAP		0x0080
+#define EFI_RT_SUPPORTED_CONVERT_POINTER			0x0100
+#define EFI_RT_SUPPORTED_GET_NEXT_HIGH_MONOTONIC_COUNT		0x0200
+#define EFI_RT_SUPPORTED_RESET_SYSTEM				0x0400
+#define EFI_RT_SUPPORTED_UPDATE_CAPSULE				0x0800
+#define EFI_RT_SUPPORTED_QUERY_CAPSULE_CAPABILITIES		0x1000
+#define EFI_RT_SUPPORTED_QUERY_VARIABLE_INFO			0x2000
+
+#define EFI_RT_SUPPORTED_ALL					0x3fff
+
+#define EFI_RT_SUPPORTED_TIME_SERVICES				0x000f
+#define EFI_RT_SUPPORTED_VARIABLE_SERVICES			0x0070
 
 extern struct mm_struct efi_mm;
 
@@ -761,6 +782,11 @@ static inline bool __pure efi_soft_reserve_enabled(void)
 	return IS_ENABLED(CONFIG_EFI_SOFT_RESERVE)
 		&& __efi_soft_reserve_enabled();
 }
+
+static inline bool efi_rt_services_supported(unsigned int mask)
+{
+	return (efi.runtime_supported_mask & mask) == mask;
+}
 #else
 static inline bool efi_enabled(int feature)
 {
@@ -776,6 +802,11 @@ efi_capsule_pending(int *reset_type)
 }
 
 static inline bool efi_soft_reserve_enabled(void)
+{
+	return false;
+}
+
+static inline bool efi_rt_services_supported(unsigned int mask)
 {
 	return false;
 }
