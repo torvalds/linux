@@ -44,6 +44,7 @@
 #include <media/cec-notifier.h>
 
 #include "i915_drv.h"
+#include "intel_de.h"
 
 struct drm_printer;
 
