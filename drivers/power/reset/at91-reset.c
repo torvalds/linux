@@ -35,6 +35,7 @@
 
 #define AT91_RSTC_MR	0x08		/* Reset Controller Mode Register */
 #define AT91_RSTC_URSTEN	BIT(0)		/* User Reset Enable */
+#define AT91_RSTC_URSTASYNC	BIT(2)		/* User Reset Asynchronous Control */
 #define AT91_RSTC_URSTIEN	BIT(4)		/* User Reset Interrupt Enable */
 #define AT91_RSTC_ERSTL		GENMASK(11, 8)	/* External Reset Length */
 
@@ -227,6 +228,13 @@ static int __init at91_reset_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, reset);
+
+	if (of_device_is_compatible(pdev->dev.of_node, "microchip,sam9x60-rstc")) {
+		u32 val = readl(reset->rstc_base + AT91_RSTC_MR);
+
+		writel(AT91_RSTC_KEY | AT91_RSTC_URSTASYNC | val,
+		       reset->rstc_base + AT91_RSTC_MR);
+	}
 
 	ret = register_restart_handler(&reset->nb);
 	if (ret) {
