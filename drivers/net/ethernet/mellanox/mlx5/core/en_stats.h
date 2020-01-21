@@ -29,6 +29,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
 #ifndef __MLX5_EN_STATS_H__
 #define __MLX5_EN_STATS_H__
 
@@ -67,6 +68,28 @@ struct mlx5e_stats_grp {
 	int (*fill_stats)(struct mlx5e_priv *priv, u64 *data, int idx);
 	void (*update_stats)(struct mlx5e_priv *priv);
 };
+
+#define MLX5E_STATS_GRP_OP(grp, name) mlx5e_stats_grp_ ## grp ## _ ## name
+
+#define MLX5E_DECLARE_STATS_GRP_OP_NUM_STATS(grp) \
+	int MLX5E_STATS_GRP_OP(grp, num_stats)(struct mlx5e_priv *priv)
+
+#define MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(grp) \
+	void MLX5E_STATS_GRP_OP(grp, update_stats)(struct mlx5e_priv *priv)
+
+#define MLX5E_DECLARE_STATS_GRP_OP_FILL_STRS(grp) \
+	int MLX5E_STATS_GRP_OP(grp, fill_strings)(struct mlx5e_priv *priv, u8 *data, int idx)
+
+#define MLX5E_DECLARE_STATS_GRP_OP_FILL_STATS(grp) \
+	int MLX5E_STATS_GRP_OP(grp, fill_stats)(struct mlx5e_priv *priv, u64 *data, int idx)
+
+#define MLX5E_DEFINE_STATS_GRP(grp, mask) { \
+	.get_num_stats = MLX5E_STATS_GRP_OP(grp, num_stats), \
+	.fill_stats    = MLX5E_STATS_GRP_OP(grp, fill_stats), \
+	.fill_strings  = MLX5E_STATS_GRP_OP(grp, fill_strings), \
+	.update_stats  = MLX5E_STATS_GRP_OP(grp, update_stats), \
+	.update_stats_mask = mask, \
+}
 
 unsigned int mlx5e_stats_total_num(struct mlx5e_priv *priv);
 void mlx5e_stats_update(struct mlx5e_priv *priv);
@@ -345,6 +368,6 @@ struct mlx5e_stats {
 extern const struct mlx5e_stats_grp mlx5e_nic_stats_grps[];
 unsigned int mlx5e_nic_stats_grps_num(struct mlx5e_priv *priv);
 
-void mlx5e_grp_802_3_update_stats(struct mlx5e_priv *priv);
+MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(802_3);
 
 #endif /* __MLX5_EN_STATS_H__ */

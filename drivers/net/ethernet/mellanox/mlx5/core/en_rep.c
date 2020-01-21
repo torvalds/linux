@@ -162,7 +162,7 @@ static void mlx5e_uplink_rep_update_hw_counters(struct mlx5e_priv *priv)
 	struct mlx5e_pport_stats *pstats = &priv->stats.pport;
 	struct rtnl_link_stats64 *vport_stats;
 
-	mlx5e_grp_802_3_update_stats(priv);
+	MLX5E_STATS_GRP_OP(802_3, update_stats)(priv);
 
 	vport_stats = &priv->stats.vf_vport;
 
