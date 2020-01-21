@@ -4463,13 +4463,15 @@ static int io_sqe_files_update(struct io_ring_ctx *ctx, void __user *arg,
 		return -EINVAL;
 	if (copy_from_user(&up, arg, sizeof(up)))
 		return -EFAULT;
+	if (up.resv)
+		return -EINVAL;
 	if (check_add_overflow(up.offset, nr_args, &done))
 		return -EOVERFLOW;
 	if (done > ctx->nr_user_files)
 		return -EINVAL;
 
 	done = 0;
-	fds = (__s32 __user *) up.fds;
+	fds = u64_to_user_ptr(up.fds);
 	while (nr_args) {
 		struct fixed_file_table *table;
 		unsigned index;
