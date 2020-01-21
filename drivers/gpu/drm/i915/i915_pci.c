@@ -928,13 +928,6 @@ static bool force_probe(u16 device_id, const char *devices)
 	char *s, *p, *tok;
 	bool ret;
 
-	/* FIXME: transitional */
-	if (i915_modparams.alpha_support) {
-		DRM_INFO("i915.alpha_support is deprecated, use i915.force_probe=%04x instead\n",
-			 device_id);
-		return true;
-	}
-
 	if (!devices || !*devices)
 		return false;
 
