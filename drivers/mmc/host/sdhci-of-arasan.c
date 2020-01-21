@@ -358,6 +358,17 @@ static struct sdhci_arasan_of_data sdhci_arasan_data = {
 	.pdata = &sdhci_arasan_pdata,
 };
 
+static const struct sdhci_pltfm_data sdhci_arasan_zynqmp_pdata = {
+	.ops = &sdhci_arasan_ops,
+	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
+			SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN |
+			SDHCI_QUIRK2_STOP_WITH_TC,
+};
+
+static struct sdhci_arasan_of_data sdhci_arasan_zynqmp_data = {
+	.pdata = &sdhci_arasan_zynqmp_pdata,
+};
+
 static u32 sdhci_arasan_cqhci_irq(struct sdhci_host *host, u32 intmask)
 {
 	int cmd_error = 0;
@@ -553,7 +564,7 @@ static const struct of_device_id sdhci_arasan_of_match[] = {
 	},
 	{
 		.compatible = "xlnx,zynqmp-8.9a",
-		.data = &sdhci_arasan_data,
+		.data = &sdhci_arasan_zynqmp_data,
 	},
 	{ /* sentinel */ }
 };
