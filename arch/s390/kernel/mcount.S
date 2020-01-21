@@ -42,6 +42,9 @@ ENTRY(ftrace_caller)
 	.globl	ftrace_regs_caller
 	.set	ftrace_regs_caller,ftrace_caller
 	stg	%r14,(__SF_GPRS+8*8)(%r15)	# save traced function caller
+	lghi	%r14,0				# save condition code
+	ipm	%r14				# don't put any instructions
+	sllg	%r14,%r14,16			# clobbering CC before this point
 	lgr	%r1,%r15
 #if !(defined(CC_USING_HOTPATCH) || defined(CC_USING_NOP_MCOUNT))
 	aghi	%r0,MCOUNT_RETURN_FIXUP
@@ -54,6 +57,9 @@ ENTRY(ftrace_caller)
 	# allocate pt_regs and stack frame for ftrace_trace_function
 	aghi	%r15,-STACK_FRAME_SIZE
 	stg	%r1,(STACK_PTREGS_GPRS+15*8)(%r15)
+	stg	%r14,(STACK_PTREGS_PSW)(%r15)
+	lg	%r14,(__SF_GPRS+8*8)(%r1)	# restore original return address
+	stosm	(STACK_PTREGS_PSW)(%r15),0
 	aghi	%r1,-TRACED_FUNC_FRAME_SIZE
 	stg	%r1,__SF_BACKCHAIN(%r15)
 	stg	%r0,(STACK_PTREGS_PSW+8)(%r15)
