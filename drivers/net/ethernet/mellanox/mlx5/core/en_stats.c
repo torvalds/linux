@@ -43,46 +43,46 @@ static unsigned int stats_grps_num(struct mlx5e_priv *priv)
 
 unsigned int mlx5e_stats_total_num(struct mlx5e_priv *priv)
 {
-	const struct mlx5e_stats_grp *stats_grps = priv->profile->stats_grps;
+	mlx5e_stats_grp_t *stats_grps = priv->profile->stats_grps;
 	const unsigned int num_stats_grps = stats_grps_num(priv);
 	unsigned int total = 0;
 	int i;
 
 	for (i = 0; i < num_stats_grps; i++)
-		total += stats_grps[i].get_num_stats(priv);
+		total += stats_grps[i]->get_num_stats(priv);
 
 	return total;
 }
 
 void mlx5e_stats_update(struct mlx5e_priv *priv)
 {
-	const struct mlx5e_stats_grp *stats_grps = priv->profile->stats_grps;
+	mlx5e_stats_grp_t *stats_grps = priv->profile->stats_grps;
 	const unsigned int num_stats_grps = stats_grps_num(priv);
 	int i;
 
 	for (i = num_stats_grps - 1; i >= 0; i--)
-		if (stats_grps[i].update_stats)
-			stats_grps[i].update_stats(priv);
+		if (stats_grps[i]->update_stats)
+			stats_grps[i]->update_stats(priv);
 }
 
 void mlx5e_stats_fill(struct mlx5e_priv *priv, u64 *data, int idx)
 {
-	const struct mlx5e_stats_grp *stats_grps = priv->profile->stats_grps;
+	mlx5e_stats_grp_t *stats_grps = priv->profile->stats_grps;
 	const unsigned int num_stats_grps = stats_grps_num(priv);
 	int i;
 
 	for (i = 0; i < num_stats_grps; i++)
-		idx = stats_grps[i].fill_stats(priv, data, idx);
+		idx = stats_grps[i]->fill_stats(priv, data, idx);
 }
 
 void mlx5e_stats_fill_strings(struct mlx5e_priv *priv, u8 *data)
 {
-	const struct mlx5e_stats_grp *stats_grps = priv->profile->stats_grps;
+	mlx5e_stats_grp_t *stats_grps = priv->profile->stats_grps;
 	const unsigned int num_stats_grps = stats_grps_num(priv);
 	int i, idx = 0;
 
 	for (i = 0; i < num_stats_grps; i++)
-		idx = stats_grps[i].fill_strings(priv, data, idx);
+		idx = stats_grps[i]->fill_strings(priv, data, idx);
 }
 
 /* Concrete NIC Stats */
@@ -1700,24 +1700,41 @@ static MLX5E_DECLARE_STATS_GRP_OP_FILL_STATS(channels)
 
 static MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(channels) { return; }
 
+static MLX5E_DEFINE_STATS_GRP(sw, 0);
+static MLX5E_DEFINE_STATS_GRP(qcnt, MLX5E_NDO_UPDATE_STATS);
+static MLX5E_DEFINE_STATS_GRP(vnic_env, 0);
+static MLX5E_DEFINE_STATS_GRP(vport, MLX5E_NDO_UPDATE_STATS);
+static MLX5E_DEFINE_STATS_GRP(802_3, MLX5E_NDO_UPDATE_STATS);
+static MLX5E_DEFINE_STATS_GRP(2863, 0);
+static MLX5E_DEFINE_STATS_GRP(2819, 0);
+static MLX5E_DEFINE_STATS_GRP(phy, 0);
+static MLX5E_DEFINE_STATS_GRP(pcie, 0);
+static MLX5E_DEFINE_STATS_GRP(per_prio, 0);
+static MLX5E_DEFINE_STATS_GRP(pme, 0);
+static MLX5E_DEFINE_STATS_GRP(channels, 0);
+static MLX5E_DEFINE_STATS_GRP(per_port_buff_congest, 0);
+static MLX5E_DEFINE_STATS_GRP(eth_ext, 0);
+static MLX5E_DEFINE_STATS_GRP(ipsec, 0);
+static MLX5E_DEFINE_STATS_GRP(tls, 0);
+
 /* The stats groups order is opposite to the update_stats() order calls */
-const struct mlx5e_stats_grp mlx5e_nic_stats_grps[] = {
-	MLX5E_DEFINE_STATS_GRP(sw, 0),
-	MLX5E_DEFINE_STATS_GRP(qcnt, MLX5E_NDO_UPDATE_STATS),
-	MLX5E_DEFINE_STATS_GRP(vnic_env, 0),
-	MLX5E_DEFINE_STATS_GRP(vport, MLX5E_NDO_UPDATE_STATS),
-	MLX5E_DEFINE_STATS_GRP(802_3, MLX5E_NDO_UPDATE_STATS),
-	MLX5E_DEFINE_STATS_GRP(2863, 0),
-	MLX5E_DEFINE_STATS_GRP(2819, 0),
-	MLX5E_DEFINE_STATS_GRP(phy, 0),
-	MLX5E_DEFINE_STATS_GRP(eth_ext, 0),
-	MLX5E_DEFINE_STATS_GRP(pcie, 0),
-	MLX5E_DEFINE_STATS_GRP(per_prio, 0),
-	MLX5E_DEFINE_STATS_GRP(pme, 0),
-	MLX5E_DEFINE_STATS_GRP(ipsec, 0),
-	MLX5E_DEFINE_STATS_GRP(tls, 0),
-	MLX5E_DEFINE_STATS_GRP(channels, 0),
-	MLX5E_DEFINE_STATS_GRP(per_port_buff_congest, 0),
+mlx5e_stats_grp_t mlx5e_nic_stats_grps[] = {
+	&MLX5E_STATS_GRP(sw),
+	&MLX5E_STATS_GRP(qcnt),
+	&MLX5E_STATS_GRP(vnic_env),
+	&MLX5E_STATS_GRP(vport),
+	&MLX5E_STATS_GRP(802_3),
+	&MLX5E_STATS_GRP(2863),
+	&MLX5E_STATS_GRP(2819),
+	&MLX5E_STATS_GRP(phy),
+	&MLX5E_STATS_GRP(eth_ext),
+	&MLX5E_STATS_GRP(pcie),
+	&MLX5E_STATS_GRP(per_prio),
+	&MLX5E_STATS_GRP(pme),
+	&MLX5E_STATS_GRP(ipsec),
+	&MLX5E_STATS_GRP(tls),
+	&MLX5E_STATS_GRP(channels),
+	&MLX5E_STATS_GRP(per_port_buff_congest),
 };
 
 unsigned int mlx5e_nic_stats_grps_num(struct mlx5e_priv *priv)

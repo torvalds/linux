@@ -164,9 +164,9 @@ void mlx5e_update_ndo_stats(struct mlx5e_priv *priv)
 	int i;
 
 	for (i = mlx5e_nic_stats_grps_num(priv) - 1; i >= 0; i--)
-		if (mlx5e_nic_stats_grps[i].update_stats_mask &
+		if (mlx5e_nic_stats_grps[i]->update_stats_mask &
 		    MLX5E_NDO_UPDATE_STATS)
-			mlx5e_nic_stats_grps[i].update_stats(priv);
+			mlx5e_nic_stats_grps[i]->update_stats(priv);
 }
 
 static void mlx5e_update_stats_work(struct work_struct *work)

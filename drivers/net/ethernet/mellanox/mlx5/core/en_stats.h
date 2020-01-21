@@ -69,6 +69,8 @@ struct mlx5e_stats_grp {
 	void (*update_stats)(struct mlx5e_priv *priv);
 };
 
+typedef const struct mlx5e_stats_grp *const mlx5e_stats_grp_t;
+
 #define MLX5E_STATS_GRP_OP(grp, name) mlx5e_stats_grp_ ## grp ## _ ## name
 
 #define MLX5E_DECLARE_STATS_GRP_OP_NUM_STATS(grp) \
@@ -83,7 +85,13 @@ struct mlx5e_stats_grp {
 #define MLX5E_DECLARE_STATS_GRP_OP_FILL_STATS(grp) \
 	int MLX5E_STATS_GRP_OP(grp, fill_stats)(struct mlx5e_priv *priv, u64 *data, int idx)
 
-#define MLX5E_DEFINE_STATS_GRP(grp, mask) { \
+#define MLX5E_STATS_GRP(grp) mlx5e_stats_grp_ ## grp
+
+#define MLX5E_DECLARE_STATS_GRP(grp) \
+	const struct mlx5e_stats_grp MLX5E_STATS_GRP(grp)
+
+#define MLX5E_DEFINE_STATS_GRP(grp, mask) \
+MLX5E_DECLARE_STATS_GRP(grp) = { \
 	.get_num_stats = MLX5E_STATS_GRP_OP(grp, num_stats), \
 	.fill_stats    = MLX5E_STATS_GRP_OP(grp, fill_stats), \
 	.fill_strings  = MLX5E_STATS_GRP_OP(grp, fill_strings), \
@@ -365,7 +373,7 @@ struct mlx5e_stats {
 	struct mlx5e_pcie_stats pcie;
 };
 
-extern const struct mlx5e_stats_grp mlx5e_nic_stats_grps[];
+extern mlx5e_stats_grp_t mlx5e_nic_stats_grps[];
 unsigned int mlx5e_nic_stats_grps_num(struct mlx5e_priv *priv);
 
 MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(802_3);
