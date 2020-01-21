@@ -610,12 +610,6 @@ no_route:
 }
 EXPORT_SYMBOL_GPL(inet_csk_route_child_sock);
 
-#if IS_ENABLED(CONFIG_IPV6)
-#define AF_INET_FAMILY(fam) ((fam) == AF_INET)
-#else
-#define AF_INET_FAMILY(fam) true
-#endif
-
 /* Decide when to expire the request and when to resend SYN-ACK */
 static inline void syn_ack_recalc(struct request_sock *req, const int thresh,
 				  const int max_retries,
