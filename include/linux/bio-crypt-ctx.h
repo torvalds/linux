@@ -189,6 +189,38 @@ static inline bool bio_crypt_ctx_mergeable(struct bio *b_1,
 
 #endif /* CONFIG_BLK_INLINE_ENCRYPTION */
 
+#if IS_ENABLED(CONFIG_DM_DEFAULT_KEY)
+static inline void bio_set_skip_dm_default_key(struct bio *bio)
+{
+	bio->bi_skip_dm_default_key = true;
+}
+
+static inline bool bio_should_skip_dm_default_key(const struct bio *bio)
+{
+	return bio->bi_skip_dm_default_key;
+}
+
+static inline void bio_clone_skip_dm_default_key(struct bio *dst,
+						 const struct bio *src)
+{
+	dst->bi_skip_dm_default_key = src->bi_skip_dm_default_key;
+}
+#else /* CONFIG_DM_DEFAULT_KEY */
+static inline void bio_set_skip_dm_default_key(struct bio *bio)
+{
+}
+
+static inline bool bio_should_skip_dm_default_key(const struct bio *bio)
+{
+	return false;
+}
+
+static inline void bio_clone_skip_dm_default_key(struct bio *dst,
+						 const struct bio *src)
+{
+}
+#endif /* !CONFIG_DM_DEFAULT_KEY */
+
 #endif /* CONFIG_BLOCK */
 
 #endif /* __LINUX_BIO_CRYPT_CTX_H */
