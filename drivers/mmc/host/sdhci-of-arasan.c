@@ -757,6 +757,50 @@ static const struct clk_ops zynqmp_sampleclk_ops = {
 	.set_phase = sdhci_zynqmp_sampleclk_set_phase,
 };
 
+static void arasan_zynqmp_dll_reset(struct sdhci_host *host, u32 deviceid)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_arasan_data *sdhci_arasan = sdhci_pltfm_priv(pltfm_host);
+	struct sdhci_arasan_zynqmp_clk_data *zynqmp_clk_data =
+		sdhci_arasan->clk_data.clk_of_data;
+	const struct zynqmp_eemi_ops *eemi_ops = zynqmp_clk_data->eemi_ops;
+	u16 clk;
+
+	clk = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
+	clk &= ~(SDHCI_CLOCK_CARD_EN | SDHCI_CLOCK_INT_EN);
+	sdhci_writew(host, clk, SDHCI_CLOCK_CONTROL);
+
+	/* Issue DLL Reset */
+	eemi_ops->ioctl(deviceid, IOCTL_SD_DLL_RESET,
+			PM_DLL_RESET_PULSE, 0, NULL);
+
+	clk = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
+
+	sdhci_enable_clk(host, clk);
+}
+
+static int arasan_zynqmp_execute_tuning(struct mmc_host *mmc, u32 opcode)
+{
+	struct sdhci_host *host = mmc_priv(mmc);
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_arasan_data *sdhci_arasan = sdhci_pltfm_priv(pltfm_host);
+	struct clk_hw *hw = &sdhci_arasan->clk_data.sdcardclk_hw;
+	const char *clk_name = clk_hw_get_name(hw);
+	u32 device_id = !strcmp(clk_name, "clk_out_sd0") ? NODE_SD_0 :
+							   NODE_SD_1;
+	int err;
+
+	arasan_zynqmp_dll_reset(host, device_id);
+
+	err = sdhci_execute_tuning(mmc, opcode);
+	if (err)
+		return err;
+
+	arasan_zynqmp_dll_reset(host, device_id);
+
+	return 0;
+}
+
 /**
  * sdhci_arasan_update_clockmultiplier - Set corecfg_clockmultiplier
  *
@@ -1247,6 +1291,8 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 
 		zynqmp_clk_data->eemi_ops = eemi_ops;
 		sdhci_arasan->clk_data.clk_of_data = zynqmp_clk_data;
+		host->mmc_host_ops.execute_tuning =
+			arasan_zynqmp_execute_tuning;
 	}
 
 	arasan_dt_parse_clk_phases(&pdev->dev, &sdhci_arasan->clk_data);
