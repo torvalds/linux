@@ -105,32 +105,23 @@ static int at91sam9g45_restart(struct notifier_block *this, unsigned long mode,
 	struct at91_reset *reset = container_of(this, struct at91_reset, nb);
 
 	asm volatile(
-		/*
-		 * Test wether we have a second RAM controller to care
-		 * about.
-		 *
-		 * First, test that we can dereference the virtual address.
-		 */
-		"cmp	%1, #0\n\t"
-		"beq	1f\n\t"
-
-		/* Then, test that the RAM controller is enabled */
-		"ldr	r4, [%1]\n\t"
-		"cmp	r4, #0\n\t"
-
 		/* Align to cache lines */
 		".balign 32\n\t"
 
 		/* Disable SDRAM0 accesses */
-		"1:	str	%3, [%0, #" __stringify(AT91_DDRSDRC_RTR) "]\n\t"
+		"	tst	%0, #0\n\t"
+		"	beq	1f\n\t"
+		"	str	%3, [%0, #" __stringify(AT91_DDRSDRC_RTR) "]\n\t"
 		/* Power down SDRAM0 */
 		"	str	%4, [%0, %6]\n\t"
 		/* Disable SDRAM1 accesses */
+		"1:	tst	%1, #0\n\t"
+		"	beq	2f\n\t"
 		"	strne	%3, [%1, #" __stringify(AT91_DDRSDRC_RTR) "]\n\t"
 		/* Power down SDRAM1 */
 		"	strne	%4, [%1, %6]\n\t"
 		/* Reset CPU */
-		"	str	%5, [%2, #" __stringify(AT91_RSTC_CR) "]\n\t"
+		"2:	str	%5, [%2, #" __stringify(AT91_RSTC_CR) "]\n\t"
 
 		"	b	.\n\t"
 		:
