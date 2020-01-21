@@ -188,6 +188,7 @@ static int idxd_setup_internals(struct idxd_device *idxd)
 		mutex_init(&wq->wq_lock);
 		atomic_set(&wq->dq_count, 0);
 		init_waitqueue_head(&wq->submit_waitq);
+		wq->idxd_cdev.minor = -1;
 		rc = percpu_init_rwsem(&wq->submit_lock);
 		if (rc < 0) {
 			idxd_wqs_free_lock(idxd);
@@ -320,6 +321,8 @@ static int idxd_probe(struct idxd_device *idxd)
 		rc = -ENOMEM;
 		goto err_idr_fail;
 	}
+
+	idxd->major = idxd_cdev_get_major(idxd);
 
 	dev_dbg(dev, "IDXD device %d probed successfully\n", idxd->id);
 	return 0;
@@ -501,6 +504,10 @@ static int __init idxd_init_module(void)
 	if (err < 0)
 		goto err_idxd_driver_register;
 
+	err = idxd_cdev_register();
+	if (err)
+		goto err_cdev_register;
+
 	err = pci_register_driver(&idxd_pci_driver);
 	if (err)
 		goto err_pci_register;
@@ -508,6 +515,8 @@ static int __init idxd_init_module(void)
 	return 0;
 
 err_pci_register:
+	idxd_cdev_remove();
+err_cdev_register:
 	idxd_unregister_driver();
 err_idxd_driver_register:
 	idxd_unregister_bus_type();
@@ -518,6 +527,7 @@ module_init(idxd_init_module);
 static void __exit idxd_exit_module(void)
 {
 	pci_unregister_driver(&idxd_pci_driver);
+	idxd_cdev_remove();
 	idxd_unregister_bus_type();
 }
 module_exit(idxd_exit_module);

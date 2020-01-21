@@ -69,17 +69,19 @@ int idxd_submit_desc(struct idxd_wq *wq, struct idxd_desc *desc)
 {
 	struct idxd_device *idxd = wq->idxd;
 	int vec = desc->hw->int_handle;
+	void __iomem *portal;
 
 	if (idxd->state != IDXD_DEV_ENABLED)
 		return -EIO;
 
+	portal = wq->dportal + idxd_get_wq_portal_offset(IDXD_PORTAL_UNLIMITED);
 	/*
 	 * The wmb() flushes writes to coherent DMA data before possibly
 	 * triggering a DMA read. The wmb() is necessary even on UP because
 	 * the recipient is a device.
 	 */
 	wmb();
-	iosubmit_cmds512(wq->dportal, desc->hw, 1);
+	iosubmit_cmds512(portal, desc->hw, 1);
 
 	/*
 	 * Pending the descriptor to the lockless list for the irq_entry

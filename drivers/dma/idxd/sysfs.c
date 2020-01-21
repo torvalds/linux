@@ -13,6 +13,7 @@
 static char *idxd_wq_type_names[] = {
 	[IDXD_WQT_NONE]		= "none",
 	[IDXD_WQT_KERNEL]	= "kernel",
+	[IDXD_WQT_USER]		= "user",
 };
 
 static void idxd_conf_device_release(struct device *dev)
@@ -63,6 +64,11 @@ static inline bool is_idxd_wq_dmaengine(struct idxd_wq *wq)
 	return false;
 }
 
+static inline bool is_idxd_wq_cdev(struct idxd_wq *wq)
+{
+	return wq->type == IDXD_WQT_USER ? true : false;
+}
+
 static int idxd_config_bus_match(struct device *dev,
 				 struct device_driver *drv)
 {
@@ -108,6 +114,9 @@ static int idxd_config_bus_probe(struct device *dev)
 			dev_warn(dev, "Device not ready for config\n");
 			return -EBUSY;
 		}
+
+		if (!try_module_get(THIS_MODULE))
+			return -ENXIO;
 
 		spin_lock_irqsave(&idxd->dev_lock, flags);
 
@@ -216,6 +225,13 @@ static int idxd_config_bus_probe(struct device *dev)
 				mutex_unlock(&wq->wq_lock);
 				return rc;
 			}
+		} else if (is_idxd_wq_cdev(wq)) {
+			rc = idxd_wq_add_cdev(wq);
+			if (rc < 0) {
+				dev_dbg(dev, "Cdev creation failed\n");
+				mutex_unlock(&wq->wq_lock);
+				return rc;
+			}
 		}
 
 		mutex_unlock(&wq->wq_lock);
@@ -241,6 +257,8 @@ static void disable_wq(struct idxd_wq *wq)
 
 	if (is_idxd_wq_dmaengine(wq))
 		idxd_unregister_dma_channel(wq);
+	else if (is_idxd_wq_cdev(wq))
+		idxd_wq_del_cdev(wq);
 
 	if (idxd_wq_refcount(wq))
 		dev_warn(dev, "Clients has claim on wq %d: %d\n",
@@ -295,10 +313,12 @@ static int idxd_config_bus_remove(struct device *dev)
 		spin_lock_irqsave(&idxd->dev_lock, flags);
 		rc = idxd_device_disable(idxd);
 		spin_unlock_irqrestore(&idxd->dev_lock, flags);
+		module_put(THIS_MODULE);
 		if (rc < 0)
 			dev_warn(dev, "Device disable failed\n");
 		else
 			dev_info(dev, "Device %s disabled\n", dev_name(dev));
+
 	}
 
 	return 0;
@@ -309,7 +329,7 @@ static void idxd_config_bus_shutdown(struct device *dev)
 	dev_dbg(dev, "%s called\n", __func__);
 }
 
-static struct bus_type dsa_bus_type = {
+struct bus_type dsa_bus_type = {
 	.name = "dsa",
 	.match = idxd_config_bus_match,
 	.probe = idxd_config_bus_probe,
@@ -334,7 +354,7 @@ static struct idxd_device_driver *idxd_drvs[] = {
 	&dsa_drv
 };
 
-static struct bus_type *idxd_get_bus_type(struct idxd_device *idxd)
+struct bus_type *idxd_get_bus_type(struct idxd_device *idxd)
 {
 	return idxd_bus_types[idxd->type];
 }
@@ -956,6 +976,9 @@ static ssize_t wq_type_show(struct device *dev,
 	case IDXD_WQT_KERNEL:
 		return sprintf(buf, "%s\n",
 			       idxd_wq_type_names[IDXD_WQT_KERNEL]);
+	case IDXD_WQT_USER:
+		return sprintf(buf, "%s\n",
+			       idxd_wq_type_names[IDXD_WQT_USER]);
 	case IDXD_WQT_NONE:
 	default:
 		return sprintf(buf, "%s\n",
@@ -978,6 +1001,8 @@ static ssize_t wq_type_store(struct device *dev,
 	old_type = wq->type;
 	if (sysfs_streq(buf, idxd_wq_type_names[IDXD_WQT_KERNEL]))
 		wq->type = IDXD_WQT_KERNEL;
+	else if (sysfs_streq(buf, idxd_wq_type_names[IDXD_WQT_USER]))
+		wq->type = IDXD_WQT_USER;
 	else
 		wq->type = IDXD_WQT_NONE;
 
@@ -1020,6 +1045,17 @@ static ssize_t wq_name_store(struct device *dev,
 static struct device_attribute dev_attr_wq_name =
 		__ATTR(name, 0644, wq_name_show, wq_name_store);
 
+static ssize_t wq_cdev_minor_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	struct idxd_wq *wq = container_of(dev, struct idxd_wq, conf_dev);
+
+	return sprintf(buf, "%d\n", wq->idxd_cdev.minor);
+}
+
+static struct device_attribute dev_attr_wq_cdev_minor =
+		__ATTR(cdev_minor, 0444, wq_cdev_minor_show, NULL);
+
 static struct attribute *idxd_wq_attributes[] = {
 	&dev_attr_wq_clients.attr,
 	&dev_attr_wq_state.attr,
@@ -1029,6 +1065,7 @@ static struct attribute *idxd_wq_attributes[] = {
 	&dev_attr_wq_priority.attr,
 	&dev_attr_wq_type.attr,
 	&dev_attr_wq_name.attr,
+	&dev_attr_wq_cdev_minor.attr,
 	NULL,
 };
 
@@ -1242,6 +1279,16 @@ static ssize_t token_limit_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(token_limit);
 
+static ssize_t cdev_major_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	struct idxd_device *idxd =
+		container_of(dev, struct idxd_device, conf_dev);
+
+	return sprintf(buf, "%u\n", idxd->major);
+}
+static DEVICE_ATTR_RO(cdev_major);
+
 static struct attribute *idxd_device_attributes[] = {
 	&dev_attr_max_groups.attr,
 	&dev_attr_max_work_queues.attr,
@@ -1257,6 +1304,7 @@ static struct attribute *idxd_device_attributes[] = {
 	&dev_attr_errors.attr,
 	&dev_attr_max_tokens.attr,
 	&dev_attr_token_limit.attr,
+	&dev_attr_cdev_major.attr,
 	NULL,
 };
 

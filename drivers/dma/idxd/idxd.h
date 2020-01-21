@@ -7,6 +7,7 @@
 #include <linux/dmaengine.h>
 #include <linux/percpu-rwsem.h>
 #include <linux/wait.h>
+#include <linux/cdev.h>
 #include "registers.h"
 
 #define IDXD_DRIVER_VERSION	"1.00"
@@ -63,6 +64,14 @@ enum idxd_wq_flag {
 enum idxd_wq_type {
 	IDXD_WQT_NONE = 0,
 	IDXD_WQT_KERNEL,
+	IDXD_WQT_USER,
+};
+
+struct idxd_cdev {
+	struct cdev cdev;
+	struct device *dev;
+	int minor;
+	struct wait_queue_head err_queue;
 };
 
 #define IDXD_ALLOCATED_BATCH_SIZE	128U
@@ -82,6 +91,7 @@ enum idxd_complete_type {
 struct idxd_wq {
 	void __iomem *dportal;
 	struct device conf_dev;
+	struct idxd_cdev idxd_cdev;
 	struct idxd_device *idxd;
 	int id;
 	enum idxd_wq_type type;
@@ -145,6 +155,7 @@ struct idxd_device {
 	enum idxd_device_state state;
 	unsigned long flags;
 	int id;
+	int major;
 
 	struct pci_dev *pdev;
 	void __iomem *reg_base;
@@ -196,9 +207,27 @@ struct idxd_desc {
 #define confdev_to_idxd(dev) container_of(dev, struct idxd_device, conf_dev)
 #define confdev_to_wq(dev) container_of(dev, struct idxd_wq, conf_dev)
 
+extern struct bus_type dsa_bus_type;
+
 static inline bool wq_dedicated(struct idxd_wq *wq)
 {
 	return test_bit(WQ_FLAG_DEDICATED, &wq->flags);
+}
+
+enum idxd_portal_prot {
+	IDXD_PORTAL_UNLIMITED = 0,
+	IDXD_PORTAL_LIMITED,
+};
+
+static inline int idxd_get_wq_portal_offset(enum idxd_portal_prot prot)
+{
+	return prot * 0x1000;
+}
+
+static inline int idxd_get_wq_portal_full_offset(int wq_id,
+						 enum idxd_portal_prot prot)
+{
+	return ((wq_id * 4) << PAGE_SHIFT) + idxd_get_wq_portal_offset(prot);
 }
 
 static inline void idxd_set_type(struct idxd_device *idxd)
@@ -233,6 +262,7 @@ int idxd_setup_sysfs(struct idxd_device *idxd);
 void idxd_cleanup_sysfs(struct idxd_device *idxd);
 int idxd_register_driver(void);
 void idxd_unregister_driver(void);
+struct bus_type *idxd_get_bus_type(struct idxd_device *idxd);
 
 /* device interrupt control */
 irqreturn_t idxd_irq_handler(int vec, void *data);
@@ -275,5 +305,12 @@ void idxd_parse_completion_status(u8 status, enum dmaengine_tx_result *res);
 void idxd_dma_complete_txd(struct idxd_desc *desc,
 			   enum idxd_complete_type comp_type);
 dma_cookie_t idxd_dma_tx_submit(struct dma_async_tx_descriptor *tx);
+
+/* cdev */
+int idxd_cdev_register(void);
+void idxd_cdev_remove(void);
+int idxd_cdev_get_major(struct idxd_device *idxd);
+int idxd_wq_add_cdev(struct idxd_wq *wq);
+void idxd_wq_del_cdev(struct idxd_wq *wq);
 
 #endif

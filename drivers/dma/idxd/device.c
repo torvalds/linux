@@ -539,7 +539,7 @@ static int idxd_wq_config_write(struct idxd_wq *wq)
 	wq->wqcfg.wq_thresh = wq->threshold;
 
 	/* byte 8-11 */
-	wq->wqcfg.priv = 1; /* kernel, therefore priv */
+	wq->wqcfg.priv = !!(wq->type == IDXD_WQT_KERNEL);
 	wq->wqcfg.mode = 1;
 
 	wq->wqcfg.priority = wq->priority;

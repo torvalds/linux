@@ -89,6 +89,24 @@ irqreturn_t idxd_misc_thread(int vec, void *data)
 			idxd->sw_err.bits[i] = ioread64(idxd->reg_base +
 					IDXD_SWERR_OFFSET + i * sizeof(u64));
 		iowrite64(IDXD_SWERR_ACK, idxd->reg_base + IDXD_SWERR_OFFSET);
+
+		if (idxd->sw_err.valid && idxd->sw_err.wq_idx_valid) {
+			int id = idxd->sw_err.wq_idx;
+			struct idxd_wq *wq = &idxd->wqs[id];
+
+			if (wq->type == IDXD_WQT_USER)
+				wake_up_interruptible(&wq->idxd_cdev.err_queue);
+		} else {
+			int i;
+
+			for (i = 0; i < idxd->max_wqs; i++) {
+				struct idxd_wq *wq = &idxd->wqs[i];
+
+				if (wq->type == IDXD_WQT_USER)
+					wake_up_interruptible(&wq->idxd_cdev.err_queue);
+			}
+		}
+
 		spin_unlock_bh(&idxd->dev_lock);
 		val |= IDXD_INTC_ERR;
 
