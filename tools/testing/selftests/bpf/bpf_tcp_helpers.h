@@ -4,8 +4,8 @@
 
 #include <stdbool.h>
 #include <linux/types.h>
-#include <bpf_helpers.h>
-#include <bpf_core_read.h>
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_core_read.h>
 
 struct sock_common {
 	unsigned char	skc_state;

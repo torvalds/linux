@@ -19,8 +19,8 @@
 #include <netinet/ether.h>
 #include <unistd.h>
 #include <time.h>
-#include "bpf.h"
-#include "libbpf.h"
+#include <bpf/bpf.h>
+#include <bpf/libbpf.h>
 
 #define STATS_INTERVAL_S 2U
 #define MAX_PCKT_SIZE 600

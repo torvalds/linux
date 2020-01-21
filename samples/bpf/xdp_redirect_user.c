@@ -17,7 +17,7 @@
 
 #include "bpf_util.h"
 #include <bpf/bpf.h>
-#include "libbpf.h"
+#include <bpf/libbpf.h>
 
 static int ifindex_in;
 static int ifindex_out;

@@ -24,7 +24,7 @@
 #include <fcntl.h>
 #include <libgen.h>
 
-#include "libbpf.h"
+#include <bpf/libbpf.h>
 #include <bpf/bpf.h>
 
 static __u32 xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;

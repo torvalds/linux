@@ -12,8 +12,8 @@
 #include <linux/if_vlan.h>
 #include <linux/ip.h>
 
-#include "bpf_helpers.h"
-#include "bpf_endian.h"
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_endian.h>
 
 #include "xdping.h"
 

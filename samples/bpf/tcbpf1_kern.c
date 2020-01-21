@@ -7,7 +7,7 @@
 #include <uapi/linux/tcp.h>
 #include <uapi/linux/filter.h>
 #include <uapi/linux/pkt_cls.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 #include "bpf_legacy.h"
 
 /* compiler workaround */

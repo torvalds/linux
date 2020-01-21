@@ -12,8 +12,8 @@
 #include <linux/filter.h>
 #include <linux/limits.h>
 
-#include <bpf.h>
-#include <libbpf.h>
+#include <bpf/bpf.h>
+#include <bpf/libbpf.h>
 #include <zlib.h>
 
 #include "main.h"

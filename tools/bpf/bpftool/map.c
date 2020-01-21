@@ -15,9 +15,9 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include <bpf.h>
+#include <bpf/bpf.h>
+#include <bpf/btf.h>
 
-#include "btf.h"
 #include "json_writer.h"
 #include "main.h"
 

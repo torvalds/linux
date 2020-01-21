@@ -8,8 +8,8 @@
 #include <linux/bitops.h>
 #include <linux/btf.h>
 #include <linux/err.h>
+#include <bpf/btf.h>
 
-#include "btf.h"
 #include "json_writer.h"
 #include "main.h"
 

@@ -17,9 +17,9 @@
 #include <linux/err.h>
 #include <linux/sizes.h>
 
-#include <bpf.h>
-#include <btf.h>
-#include <libbpf.h>
+#include <bpf/bpf.h>
+#include <bpf/btf.h>
+#include <bpf/libbpf.h>
 
 #include "cfg.h"
 #include "main.h"

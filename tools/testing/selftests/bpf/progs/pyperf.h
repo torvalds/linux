@@ -6,7 +6,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <linux/bpf.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 #define FUNCTION_NAME_LEN 64
 #define FILE_NAME_LEN 128

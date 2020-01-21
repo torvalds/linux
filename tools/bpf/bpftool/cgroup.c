@@ -14,7 +14,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include <bpf.h>
+#include <bpf/bpf.h>
 
 #include "main.h"
 

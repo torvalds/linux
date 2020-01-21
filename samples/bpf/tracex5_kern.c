@@ -10,8 +10,8 @@
 #include <uapi/linux/seccomp.h>
 #include <uapi/linux/unistd.h>
 #include "syscall_nrs.h"
-#include "bpf_helpers.h"
-#include "bpf_tracing.h"
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_tracing.h>
 
 #define PROG(F) SEC("kprobe/"__stringify(F)) int bpf_func_##F
 
