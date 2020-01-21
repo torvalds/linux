@@ -3,12 +3,10 @@
 #ifndef _ASM_ARC_ATOMIC_SPLOCK_H
 #define _ASM_ARC_ATOMIC_SPLOCK_H
 
-#ifndef CONFIG_SMP
-
- /* violating atomic_xxx API locking protocol in UP for optimization sake */
-#define arch_atomic_set(v, i) WRITE_ONCE(((v)->counter), (i))
-
-#else
+/*
+ * Non hardware assisted Atomic-R-M-W
+ * Locking would change to irq-disabling only (UP) and spinlocks (SMP)
+ */
 
 static inline void arch_atomic_set(atomic_t *v, int i)
 {
@@ -29,13 +27,6 @@ static inline void arch_atomic_set(atomic_t *v, int i)
 }
 
 #define arch_atomic_set_release(v, i)	arch_atomic_set((v), (i))
-
-#endif
-
-/*
- * Non hardware assisted Atomic-R-M-W
- * Locking would change to irq-disabling only (UP) and spinlocks (SMP)
- */
 
 #define ATOMIC_OP(op, c_op, asm_op)					\
 static inline void arch_atomic_##op(int i, atomic_t *v)			\
