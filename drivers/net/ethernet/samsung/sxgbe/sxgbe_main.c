@@ -1939,9 +1939,7 @@ static int sxgbe_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	case SIOCGMIIPHY:
 	case SIOCGMIIREG:
 	case SIOCSMIIREG:
-		if (!dev->phydev)
-			return -EINVAL;
-		ret = phy_mii_ioctl(dev->phydev, rq, cmd);
+		ret = phy_do_ioctl(dev, rq, cmd);
 		break;
 	default:
 		break;

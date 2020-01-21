@@ -1740,12 +1740,6 @@ static int netsec_netdev_set_features(struct net_device *ndev,
 	return 0;
 }
 
-static int netsec_netdev_ioctl(struct net_device *ndev, struct ifreq *ifr,
-			       int cmd)
-{
-	return phy_mii_ioctl(ndev->phydev, ifr, cmd);
-}
-
 static int netsec_xdp_xmit(struct net_device *ndev, int n,
 			   struct xdp_frame **frames, u32 flags)
 {
@@ -1830,7 +1824,7 @@ static const struct net_device_ops netsec_netdev_ops = {
 	.ndo_set_features	= netsec_netdev_set_features,
 	.ndo_set_mac_address    = eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_do_ioctl		= netsec_netdev_ioctl,
+	.ndo_do_ioctl		= phy_do_ioctl,
 	.ndo_xdp_xmit		= netsec_xdp_xmit,
 	.ndo_bpf		= netsec_xdp,
 };
