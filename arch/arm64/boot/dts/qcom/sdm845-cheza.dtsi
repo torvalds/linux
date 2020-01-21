@@ -626,6 +626,10 @@ ap_ts_i2c: &i2c14 {
 	status = "okay";
 };
 
+&pm8998_pwrkey {
+	status = "disabled";
+};
+
 &qupv3_id_0 {
 	status = "okay";
 };
