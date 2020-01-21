@@ -2540,8 +2540,8 @@ void hns3_clean_tx_ring(struct hns3_enet_ring *ring)
 	rmb(); /* Make sure head is ready before touch any data */
 
 	if (unlikely(!is_valid_clean_head(ring, head))) {
-		netdev_err(netdev, "wrong head (%d, %d-%d)\n", head,
-			   ring->next_to_use, ring->next_to_clean);
+		hns3_rl_err(netdev, "wrong head (%d, %d-%d)\n", head,
+			    ring->next_to_use, ring->next_to_clean);
 
 		u64_stats_update_begin(&ring->syncp);
 		ring->stats.io_err_cnt++;
