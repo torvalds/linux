@@ -113,8 +113,8 @@ static int at91sam9g45_restart(struct notifier_block *this, unsigned long mode,
 		"beq	1f\n\t"
 
 		/* Then, test that the RAM controller is enabled */
-		"ldr	r0, [%1]\n\t"
-		"cmp	r0, #0\n\t"
+		"ldr	r4, [%1]\n\t"
+		"cmp	r4, #0\n\t"
 
 		/* Align to cache lines */
 		".balign 32\n\t"
@@ -138,7 +138,7 @@ static int at91sam9g45_restart(struct notifier_block *this, unsigned long mode,
 		  "r" (1),
 		  "r" cpu_to_le32(AT91_DDRSDRC_LPCB_POWER_DOWN),
 		  "r" (reset->args)
-		: "r0");
+		: "r4");
 
 	return NOTIFY_DONE;
 }
