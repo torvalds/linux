@@ -569,7 +569,7 @@ int blk_crypto_fallback_submit_bio(struct bio **bio_ptr)
 	struct bio_crypt_ctx *bc = bio->bi_crypt_context;
 	struct bio_fallback_crypt_ctx *f_ctx;
 
-	if (WARN_ON_ONCE(!tfms_inited[bc->bc_key->crypto_mode])) {
+	if (!tfms_inited[bc->bc_key->crypto_mode]) {
 		bio->bi_status = BLK_STS_IOERR;
 		return -EIO;
 	}
