@@ -378,4 +378,18 @@ unsigned int mlx5e_nic_stats_grps_num(struct mlx5e_priv *priv);
 
 MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(802_3);
 
+extern MLX5E_DECLARE_STATS_GRP(sw);
+extern MLX5E_DECLARE_STATS_GRP(qcnt);
+extern MLX5E_DECLARE_STATS_GRP(vnic_env);
+extern MLX5E_DECLARE_STATS_GRP(vport);
+extern MLX5E_DECLARE_STATS_GRP(802_3);
+extern MLX5E_DECLARE_STATS_GRP(2863);
+extern MLX5E_DECLARE_STATS_GRP(2819);
+extern MLX5E_DECLARE_STATS_GRP(phy);
+extern MLX5E_DECLARE_STATS_GRP(pcie);
+extern MLX5E_DECLARE_STATS_GRP(per_prio);
+extern MLX5E_DECLARE_STATS_GRP(pme);
+extern MLX5E_DECLARE_STATS_GRP(channels);
+extern MLX5E_DECLARE_STATS_GRP(per_port_buff_congest);
+
 #endif /* __MLX5_EN_STATS_H__ */
