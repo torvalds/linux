@@ -1486,10 +1486,10 @@ int gpiochip_add_data_with_key(struct gpio_chip *chip, void *data,
 		goto err_free_label;
 	}
 
-	spin_unlock_irqrestore(&gpio_lock, flags);
-
 	for (i = 0; i < chip->ngpio; i++)
 		gdev->descs[i].gdev = gdev;
+
+	spin_unlock_irqrestore(&gpio_lock, flags);
 
 #ifdef CONFIG_PINCTRL
 	INIT_LIST_HEAD(&gdev->pin_ranges);
