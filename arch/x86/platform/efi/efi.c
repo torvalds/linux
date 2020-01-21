@@ -55,8 +55,8 @@
 #include <asm/uv/uv.h>
 
 static efi_system_table_t efi_systab __initdata;
-static u64 efi_systab_phys __initdata;
 
+static unsigned long efi_systab_phys __initdata;
 static unsigned long prop_phys = EFI_INVALID_TABLE_ADDR;
 static unsigned long uga_phys = EFI_INVALID_TABLE_ADDR;
 static unsigned long efi_runtime, efi_nr_tables;
@@ -335,7 +335,7 @@ void __init efi_print_memmap(void)
 	}
 }
 
-static int __init efi_systab_init(u64 phys)
+static int __init efi_systab_init(unsigned long phys)
 {
 	int size = efi_enabled(EFI_64BIT) ? sizeof(efi_system_table_64_t)
 					  : sizeof(efi_system_table_32_t);
@@ -949,7 +949,8 @@ static void __init __efi_enter_virtual_mode(void)
 	status = efi_set_virtual_address_map(efi.memmap.desc_size * count,
 					     efi.memmap.desc_size,
 					     efi.memmap.desc_version,
-					     (efi_memory_desc_t *)pa);
+					     (efi_memory_desc_t *)pa,
+					     efi_systab_phys);
 	if (status != EFI_SUCCESS) {
 		pr_err("Unable to switch EFI into virtual mode (status=%lx)!\n",
 		       status);
@@ -982,6 +983,8 @@ void __init efi_enter_virtual_mode(void)
 {
 	if (efi_enabled(EFI_PARAVIRT))
 		return;
+
+	efi.runtime = (efi_runtime_services_t *)efi_runtime;
 
 	if (efi_setup)
 		kexec_enter_virtual_mode();

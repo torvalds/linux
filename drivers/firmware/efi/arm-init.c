@@ -104,6 +104,7 @@ static int __init uefi_init(void)
 	if (retval)
 		goto out;
 
+	efi.runtime = efi.systab->runtime;
 	efi.runtime_version = efi.systab->hdr.revision;
 
 	efi_systab_report_header(&efi.systab->hdr,

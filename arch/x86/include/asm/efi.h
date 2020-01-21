@@ -218,7 +218,8 @@ extern void efi_thunk_runtime_setup(void);
 efi_status_t efi_set_virtual_address_map(unsigned long memory_map_size,
 					 unsigned long descriptor_size,
 					 u32 descriptor_version,
-					 efi_memory_desc_t *virtual_map);
+					 efi_memory_desc_t *virtual_map,
+					 unsigned long systab_phys);
 
 /* arch specific definitions used by the stub code */
 
