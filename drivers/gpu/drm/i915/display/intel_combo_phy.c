@@ -191,19 +191,56 @@ static bool icl_combo_phy_enabled(struct drm_i915_private *dev_priv,
 			(I915_READ(ICL_PORT_COMP_DW0(phy)) & COMP_INIT);
 }
 
+static bool ehl_vbt_ddi_d_present(struct drm_i915_private *i915)
+{
+	bool ddi_a_present = intel_bios_is_port_present(i915, PORT_A);
+	bool ddi_d_present = intel_bios_is_port_present(i915, PORT_D);
+	bool dsi_present = intel_bios_is_dsi_present(i915, NULL);
+
+	/*
+	 * VBT's 'dvo port' field for child devices references the DDI, not
+	 * the PHY.  So if combo PHY A is wired up to drive an external
+	 * display, we should see a child device present on PORT_D and
+	 * nothing on PORT_A and no DSI.
+	 */
+	if (ddi_d_present && !ddi_a_present && !dsi_present)
+		return true;
+
+	/*
+	 * If we encounter a VBT that claims to have an external display on
+	 * DDI-D _and_ an internal display on DDI-A/DSI leave an error message
+	 * in the log and let the internal display win.
+	 */
+	if (ddi_d_present)
+		DRM_ERROR("VBT claims to have both internal and external displays on PHY A.  Configuring for internal.\n");
+
+	return false;
+}
+
 static bool icl_combo_phy_verify_state(struct drm_i915_private *dev_priv,
 				       enum phy phy)
 {
 	bool ret;
+	u32 expected_val = 0;
 
 	if (!icl_combo_phy_enabled(dev_priv, phy))
 		return false;
 
 	ret = cnl_verify_procmon_ref_values(dev_priv, phy);
 
-	if (phy == PHY_A)
+	if (phy == PHY_A) {
 		ret &= check_phy_reg(dev_priv, phy, ICL_PORT_COMP_DW8(phy),
 				     IREFGEN, IREFGEN);
+
+		if (IS_ELKHARTLAKE(dev_priv)) {
+			if (ehl_vbt_ddi_d_present(dev_priv))
+				expected_val = ICL_PHY_MISC_MUX_DDID;
+
+			ret &= check_phy_reg(dev_priv, phy, ICL_PHY_MISC(phy),
+					     ICL_PHY_MISC_MUX_DDID,
+					     expected_val);
+		}
+	}
 
 	ret &= check_phy_reg(dev_priv, phy, ICL_PORT_CL_DW5(phy),
 			     CL_POWER_DOWN_ENABLE, CL_POWER_DOWN_ENABLE);
@@ -263,32 +300,6 @@ void intel_combo_phy_power_up_lanes(struct drm_i915_private *dev_priv,
 	I915_WRITE(ICL_PORT_CL_DW10(phy), val);
 }
 
-static u32 ehl_combo_phy_a_mux(struct drm_i915_private *i915, u32 val)
-{
-	bool ddi_a_present = intel_bios_is_port_present(i915, PORT_A);
-	bool ddi_d_present = intel_bios_is_port_present(i915, PORT_D);
-	bool dsi_present = intel_bios_is_dsi_present(i915, NULL);
-
-	/*
-	 * VBT's 'dvo port' field for child devices references the DDI, not
-	 * the PHY.  So if combo PHY A is wired up to drive an external
-	 * display, we should see a child device present on PORT_D and
-	 * nothing on PORT_A and no DSI.
-	 */
-	if (ddi_d_present && !ddi_a_present && !dsi_present)
-		return val | ICL_PHY_MISC_MUX_DDID;
-
-	/*
-	 * If we encounter a VBT that claims to have an external display on
-	 * DDI-D _and_ an internal display on DDI-A/DSI leave an error message
-	 * in the log and let the internal display win.
-	 */
-	if (ddi_d_present)
-		DRM_ERROR("VBT claims to have both internal and external displays on PHY A.  Configuring for internal.\n");
-
-	return val & ~ICL_PHY_MISC_MUX_DDID;
-}
-
 static void icl_combo_phys_init(struct drm_i915_private *dev_priv)
 {
 	enum phy phy;
@@ -319,8 +330,13 @@ static void icl_combo_phys_init(struct drm_i915_private *dev_priv)
 		 * "internal" child devices.
 		 */
 		val = I915_READ(ICL_PHY_MISC(phy));
-		if (IS_ELKHARTLAKE(dev_priv) && phy == PHY_A)
-			val = ehl_combo_phy_a_mux(dev_priv, val);
+		if (IS_ELKHARTLAKE(dev_priv) && phy == PHY_A) {
+			val &= ~ICL_PHY_MISC_MUX_DDID;
+
+			if (ehl_vbt_ddi_d_present(dev_priv))
+				val |= ICL_PHY_MISC_MUX_DDID;
+		}
+
 		val &= ~ICL_PHY_MISC_DE_IO_COMP_PWR_DOWN;
 		I915_WRITE(ICL_PHY_MISC(phy), val);
 
