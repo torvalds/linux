@@ -979,7 +979,7 @@ static void pata_macio_invariants(struct pata_macio_priv *priv)
 	priv->aapl_bus_id =  bidp ? *bidp : 0;
 
 	/* Fixup missing Apple bus ID in case of media-bay */
-	if (priv->mediabay && bidp == 0)
+	if (priv->mediabay && !bidp)
 		priv->aapl_bus_id = 1;
 }
 
