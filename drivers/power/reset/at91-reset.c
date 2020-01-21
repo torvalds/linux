@@ -52,6 +52,7 @@ enum reset_type {
 struct at91_reset_data {
 	int (*notifier_call)(struct notifier_block *this, unsigned long mode,
 			     void *cmd);
+	u32 args;
 };
 
 struct at91_reset {
@@ -59,6 +60,7 @@ struct at91_reset {
 	void __iomem *ramc_base[2];
 	struct clk *sclk;
 	struct notifier_block nb;
+	u32 args;
 };
 
 /*
@@ -90,7 +92,7 @@ static int at91sam9260_restart(struct notifier_block *this, unsigned long mode,
 		  "r" (reset->rstc_base),
 		  "r" (1),
 		  "r" cpu_to_le32(AT91_SDRAMC_LPCB_POWER_DOWN),
-		  "r" cpu_to_le32(AT91_RSTC_KEY | AT91_RSTC_PERRST | AT91_RSTC_PROCRST));
+		  "r" (reset->args));
 
 	return NOTIFY_DONE;
 }
@@ -135,7 +137,7 @@ static int at91sam9g45_restart(struct notifier_block *this, unsigned long mode,
 		  "r" (reset->rstc_base),
 		  "r" (1),
 		  "r" cpu_to_le32(AT91_DDRSDRC_LPCB_POWER_DOWN),
-		  "r" cpu_to_le32(AT91_RSTC_KEY | AT91_RSTC_PERRST | AT91_RSTC_PROCRST)
+		  "r" (reset->args)
 		: "r0");
 
 	return NOTIFY_DONE;
@@ -146,19 +148,7 @@ static int sama5d3_restart(struct notifier_block *this, unsigned long mode,
 {
 	struct at91_reset *reset = container_of(this, struct at91_reset, nb);
 
-	writel(cpu_to_le32(AT91_RSTC_KEY | AT91_RSTC_PERRST | AT91_RSTC_PROCRST),
-	       reset->rstc_base);
-
-	return NOTIFY_DONE;
-}
-
-static int samx7_restart(struct notifier_block *this, unsigned long mode,
-			 void *cmd)
-{
-	struct at91_reset *reset = container_of(this, struct at91_reset, nb);
-
-	writel(cpu_to_le32(AT91_RSTC_KEY | AT91_RSTC_PROCRST),
-	       reset->rstc_base);
+	writel(reset->args, reset->rstc_base);
 
 	return NOTIFY_DONE;
 }
@@ -210,18 +200,22 @@ static const struct of_device_id at91_ramc_of_match[] = {
 
 static const struct at91_reset_data at91sam9260_reset_data = {
 	.notifier_call = at91sam9260_restart,
+	.args = AT91_RSTC_KEY | AT91_RSTC_PERRST | AT91_RSTC_PROCRST,
 };
 
 static const struct at91_reset_data at91sam9g45_reset_data = {
 	.notifier_call = at91sam9g45_restart,
+	.args = AT91_RSTC_KEY | AT91_RSTC_PERRST | AT91_RSTC_PROCRST,
 };
 
 static const struct at91_reset_data sama5d3_reset_data = {
 	.notifier_call = sama5d3_restart,
+	.args = AT91_RSTC_KEY | AT91_RSTC_PERRST | AT91_RSTC_PROCRST,
 };
 
 static const struct at91_reset_data samx7_reset_data = {
-	.notifier_call = samx7_restart,
+	.notifier_call = sama5d3_restart,
+	.args = AT91_RSTC_KEY | AT91_RSTC_PROCRST,
 };
 
 static const struct of_device_id at91_reset_of_match[] = {
@@ -284,6 +278,7 @@ static int __init at91_reset_probe(struct platform_device *pdev)
 	reset_data = match->data;
 	reset->nb.notifier_call = reset_data->notifier_call;
 	reset->nb.priority = 192;
+	reset->args = reset_data->args;
 
 	reset->sclk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(reset->sclk))
