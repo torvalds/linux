@@ -4716,7 +4716,7 @@ static int __init hns3_init_module(void)
 	pr_info("%s: %s\n", hns3_driver_name, hns3_copyright);
 
 	client.type = HNAE3_CLIENT_KNIC;
-	snprintf(client.name, HNAE3_CLIENT_NAME_LENGTH - 1, "%s",
+	snprintf(client.name, HNAE3_CLIENT_NAME_LENGTH, "%s",
 		 hns3_driver_name);
 
 	client.ops = &client_ops;
