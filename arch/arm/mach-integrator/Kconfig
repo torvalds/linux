@@ -12,7 +12,6 @@ menuconfig ARCH_INTEGRATOR
 	select POWER_RESET_VERSATILE
 	select POWER_SUPPLY
 	select SOC_INTEGRATOR_CM
-	select SPARSE_IRQ
 	select VERSATILE_FPGA_IRQ
 	help
 	  Support for ARM's Integrator platform.
