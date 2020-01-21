@@ -435,6 +435,8 @@ static const struct mlx5e_profile mlx5i_nic_profile = {
 	.rx_handlers.handle_rx_cqe_mpwqe = NULL, /* Not supported */
 	.max_tc		   = MLX5I_MAX_NUM_TC,
 	.rq_groups	   = MLX5E_NUM_RQ_GROUPS(REGULAR),
+	.stats_grps        = mlx5e_nic_stats_grps,
+	.stats_grps_num    = mlx5e_nic_stats_grps_num,
 };
 
 /* mlx5i netdev NDos */

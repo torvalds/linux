@@ -35,6 +35,58 @@
 #include "en_accel/ipsec.h"
 #include "en_accel/tls.h"
 
+static unsigned int stats_grps_num(struct mlx5e_priv *priv)
+{
+	return !priv->profile->stats_grps_num ? 0 :
+		priv->profile->stats_grps_num(priv);
+}
+
+unsigned int mlx5e_stats_total_num(struct mlx5e_priv *priv)
+{
+	const struct mlx5e_stats_grp *stats_grps = priv->profile->stats_grps;
+	const unsigned int num_stats_grps = stats_grps_num(priv);
+	unsigned int total = 0;
+	int i;
+
+	for (i = 0; i < num_stats_grps; i++)
+		total += stats_grps[i].get_num_stats(priv);
+
+	return total;
+}
+
+void mlx5e_stats_update(struct mlx5e_priv *priv)
+{
+	const struct mlx5e_stats_grp *stats_grps = priv->profile->stats_grps;
+	const unsigned int num_stats_grps = stats_grps_num(priv);
+	int i;
+
+	for (i = num_stats_grps - 1; i >= 0; i--)
+		if (stats_grps[i].update_stats)
+			stats_grps[i].update_stats(priv);
+}
+
+void mlx5e_stats_fill(struct mlx5e_priv *priv, u64 *data, int idx)
+{
+	const struct mlx5e_stats_grp *stats_grps = priv->profile->stats_grps;
+	const unsigned int num_stats_grps = stats_grps_num(priv);
+	int i;
+
+	for (i = 0; i < num_stats_grps; i++)
+		idx = stats_grps[i].fill_stats(priv, data, idx);
+}
+
+void mlx5e_stats_fill_strings(struct mlx5e_priv *priv, u8 *data)
+{
+	const struct mlx5e_stats_grp *stats_grps = priv->profile->stats_grps;
+	const unsigned int num_stats_grps = stats_grps_num(priv);
+	int i, idx = 0;
+
+	for (i = 0; i < num_stats_grps; i++)
+		idx = stats_grps[i].fill_strings(priv, data, idx);
+}
+
+/* Concrete NIC Stats */
+
 static const struct counter_desc sw_stats_desc[] = {
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_packets) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_bytes) },
@@ -1669,7 +1721,7 @@ static int mlx5e_grp_channels_fill_stats(struct mlx5e_priv *priv, u64 *data,
 }
 
 /* The stats groups order is opposite to the update_stats() order calls */
-const struct mlx5e_stats_grp mlx5e_stats_grps[] = {
+const struct mlx5e_stats_grp mlx5e_nic_stats_grps[] = {
 	{
 		.get_num_stats = mlx5e_grp_sw_get_num_stats,
 		.fill_strings = mlx5e_grp_sw_fill_strings,
@@ -1768,4 +1820,7 @@ const struct mlx5e_stats_grp mlx5e_stats_grps[] = {
 	},
 };
 
-const int mlx5e_num_stats_grps = ARRAY_SIZE(mlx5e_stats_grps);
+unsigned int mlx5e_nic_stats_grps_num(struct mlx5e_priv *priv)
+{
+	return ARRAY_SIZE(mlx5e_nic_stats_grps);
+}

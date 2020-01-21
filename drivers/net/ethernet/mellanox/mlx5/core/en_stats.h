@@ -55,6 +55,26 @@ struct counter_desc {
 	size_t		offset; /* Byte offset */
 };
 
+enum {
+	MLX5E_NDO_UPDATE_STATS = BIT(0x1),
+};
+
+struct mlx5e_priv;
+struct mlx5e_stats_grp {
+	u16 update_stats_mask;
+	int (*get_num_stats)(struct mlx5e_priv *priv);
+	int (*fill_strings)(struct mlx5e_priv *priv, u8 *data, int idx);
+	int (*fill_stats)(struct mlx5e_priv *priv, u64 *data, int idx);
+	void (*update_stats)(struct mlx5e_priv *priv);
+};
+
+unsigned int mlx5e_stats_total_num(struct mlx5e_priv *priv);
+void mlx5e_stats_update(struct mlx5e_priv *priv);
+void mlx5e_stats_fill(struct mlx5e_priv *priv, u64 *data, int idx);
+void mlx5e_stats_fill_strings(struct mlx5e_priv *priv, u8 *data);
+
+/* Concrete NIC Stats */
+
 struct mlx5e_sw_stats {
 	u64 rx_packets;
 	u64 rx_bytes;
@@ -322,21 +342,8 @@ struct mlx5e_stats {
 	struct mlx5e_pcie_stats pcie;
 };
 
-enum {
-	MLX5E_NDO_UPDATE_STATS = BIT(0x1),
-};
-
-struct mlx5e_priv;
-struct mlx5e_stats_grp {
-	u16 update_stats_mask;
-	int (*get_num_stats)(struct mlx5e_priv *priv);
-	int (*fill_strings)(struct mlx5e_priv *priv, u8 *data, int idx);
-	int (*fill_stats)(struct mlx5e_priv *priv, u64 *data, int idx);
-	void (*update_stats)(struct mlx5e_priv *priv);
-};
-
-extern const struct mlx5e_stats_grp mlx5e_stats_grps[];
-extern const int mlx5e_num_stats_grps;
+extern const struct mlx5e_stats_grp mlx5e_nic_stats_grps[];
+unsigned int mlx5e_nic_stats_grps_num(struct mlx5e_priv *priv);
 
 void mlx5e_grp_802_3_update_stats(struct mlx5e_priv *priv);
 
