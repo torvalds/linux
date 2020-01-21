@@ -56,8 +56,6 @@ struct at91_reset {
 	struct notifier_block nb;
 };
 
-static struct at91_reset *reset;
-
 /*
 * unless the SDRAM is cleanly shutdown before we hit the
 * reset register it can be left driving the data bus and
@@ -66,6 +64,8 @@ static struct at91_reset *reset;
 static int at91sam9260_restart(struct notifier_block *this, unsigned long mode,
 			       void *cmd)
 {
+	struct at91_reset *reset = container_of(this, struct at91_reset, nb);
+
 	asm volatile(
 		/* Align to cache lines */
 		".balign 32\n\t"
@@ -93,6 +93,8 @@ static int at91sam9260_restart(struct notifier_block *this, unsigned long mode,
 static int at91sam9g45_restart(struct notifier_block *this, unsigned long mode,
 			       void *cmd)
 {
+	struct at91_reset *reset = container_of(this, struct at91_reset, nb);
+
 	asm volatile(
 		/*
 		 * Test wether we have a second RAM controller to care
@@ -137,6 +139,8 @@ static int at91sam9g45_restart(struct notifier_block *this, unsigned long mode,
 static int sama5d3_restart(struct notifier_block *this, unsigned long mode,
 			   void *cmd)
 {
+	struct at91_reset *reset = container_of(this, struct at91_reset, nb);
+
 	writel(cpu_to_le32(AT91_RSTC_KEY | AT91_RSTC_PERRST | AT91_RSTC_PROCRST),
 	       reset->rstc_base);
 
@@ -146,6 +150,8 @@ static int sama5d3_restart(struct notifier_block *this, unsigned long mode,
 static int samx7_restart(struct notifier_block *this, unsigned long mode,
 			 void *cmd)
 {
+	struct at91_reset *reset = container_of(this, struct at91_reset, nb);
+
 	writel(cpu_to_le32(AT91_RSTC_KEY | AT91_RSTC_PROCRST),
 	       reset->rstc_base);
 
@@ -210,6 +216,7 @@ MODULE_DEVICE_TABLE(of, at91_reset_of_match);
 static int __init at91_reset_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
+	struct at91_reset *reset;
 	struct device_node *np;
 	int ret, idx = 0;
 
@@ -250,6 +257,8 @@ static int __init at91_reset_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	platform_set_drvdata(pdev, reset);
+
 	ret = register_restart_handler(&reset->nb);
 	if (ret) {
 		clk_disable_unprepare(reset->sclk);
@@ -263,6 +272,8 @@ static int __init at91_reset_probe(struct platform_device *pdev)
 
 static int __exit at91_reset_remove(struct platform_device *pdev)
 {
+	struct at91_reset *reset = platform_get_drvdata(pdev);
+
 	unregister_restart_handler(&reset->nb);
 	clk_disable_unprepare(reset->sclk);
 
