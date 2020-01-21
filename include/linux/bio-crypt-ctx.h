@@ -118,7 +118,7 @@ static inline bool bio_crypt_dun_is_contiguous(const struct bio_crypt_ctx *bc,
 	int i = 0;
 	unsigned int inc = bytes >> bc->bc_key->data_unit_size_bits;
 
-	while (inc && i < BLK_CRYPTO_DUN_ARRAY_SIZE) {
+	while (i < BLK_CRYPTO_DUN_ARRAY_SIZE) {
 		if (bc->bc_dun[i] + inc != next_dun[i])
 			return false;
 		inc = ((bc->bc_dun[i] + inc)  < inc);
