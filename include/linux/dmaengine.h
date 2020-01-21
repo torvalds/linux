@@ -1526,11 +1526,9 @@ struct dma_chan *dma_get_slave_channel(struct dma_chan *chan);
 struct dma_chan *dma_get_any_slave_channel(struct dma_device *device);
 #define dma_request_channel(mask, x, y) \
 	__dma_request_channel(&(mask), x, y, NULL)
-#define dma_request_slave_channel_compat(mask, x, y, dev, name) \
-	__dma_request_slave_channel_compat(&(mask), x, y, dev, name)
 
 static inline struct dma_chan
-*__dma_request_slave_channel_compat(const dma_cap_mask_t *mask,
+*dma_request_slave_channel_compat(const dma_cap_mask_t mask,
 				  dma_filter_fn fn, void *fn_param,
 				  struct device *dev, const char *name)
 {
@@ -1543,7 +1541,7 @@ static inline struct dma_chan
 	if (!fn || !fn_param)
 		return NULL;
 
-	return __dma_request_channel(mask, fn, fn_param, NULL);
+	return __dma_request_channel(&mask, fn, fn_param, NULL);
 }
 
 static inline char *
