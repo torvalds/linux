@@ -1264,17 +1264,6 @@ static void unaccount_huge_nx_page(struct kvm *kvm, struct kvm_mmu_page *sp)
 	list_del(&sp->lpage_disallowed_link);
 }
 
-static inline bool memslot_valid_for_gpte(struct kvm_memory_slot *slot,
-					  bool no_dirty_log)
-{
-	if (!slot || slot->flags & KVM_MEMSLOT_INVALID)
-		return false;
-	if (no_dirty_log && slot->dirty_bitmap)
-		return false;
-
-	return true;
-}
-
 static struct kvm_memory_slot *
 gfn_to_memslot_dirty_bitmap(struct kvm_vcpu *vcpu, gfn_t gfn,
 			    bool no_dirty_log)
@@ -1282,8 +1271,10 @@ gfn_to_memslot_dirty_bitmap(struct kvm_vcpu *vcpu, gfn_t gfn,
 	struct kvm_memory_slot *slot;
 
 	slot = kvm_vcpu_gfn_to_memslot(vcpu, gfn);
-	if (!memslot_valid_for_gpte(slot, no_dirty_log))
-		slot = NULL;
+	if (!slot || slot->flags & KVM_MEMSLOT_INVALID)
+		return NULL;
+	if (no_dirty_log && slot->dirty_bitmap)
+		return NULL;
 
 	return slot;
 }
