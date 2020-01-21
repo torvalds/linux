@@ -61,6 +61,7 @@ struct at91_reset {
 	struct clk *sclk;
 	struct notifier_block nb;
 	u32 args;
+	u32 ramc_lpr;
 };
 
 /*
@@ -81,7 +82,7 @@ static int at91sam9260_restart(struct notifier_block *this, unsigned long mode,
 		"str	%2, [%0, #" __stringify(AT91_SDRAMC_TR) "]\n\t"
 
 		/* Power down SDRAM */
-		"str	%3, [%0, #" __stringify(AT91_SDRAMC_LPR) "]\n\t"
+		"str	%3, [%0, %5]\n\t"
 
 		/* Reset CPU */
 		"str	%4, [%1, #" __stringify(AT91_RSTC_CR) "]\n\t"
@@ -92,7 +93,8 @@ static int at91sam9260_restart(struct notifier_block *this, unsigned long mode,
 		  "r" (reset->rstc_base),
 		  "r" (1),
 		  "r" cpu_to_le32(AT91_SDRAMC_LPCB_POWER_DOWN),
-		  "r" (reset->args));
+		  "r" (reset->args),
+		  "r" (reset->ramc_lpr));
 
 	return NOTIFY_DONE;
 }
@@ -122,11 +124,11 @@ static int at91sam9g45_restart(struct notifier_block *this, unsigned long mode,
 		/* Disable SDRAM0 accesses */
 		"1:	str	%3, [%0, #" __stringify(AT91_DDRSDRC_RTR) "]\n\t"
 		/* Power down SDRAM0 */
-		"	str	%4, [%0, #" __stringify(AT91_DDRSDRC_LPR) "]\n\t"
+		"	str	%4, [%0, %6]\n\t"
 		/* Disable SDRAM1 accesses */
 		"	strne	%3, [%1, #" __stringify(AT91_DDRSDRC_RTR) "]\n\t"
 		/* Power down SDRAM1 */
-		"	strne	%4, [%1, #" __stringify(AT91_DDRSDRC_LPR) "]\n\t"
+		"	strne	%4, [%1, %6]\n\t"
 		/* Reset CPU */
 		"	str	%5, [%2, #" __stringify(AT91_RSTC_CR) "]\n\t"
 
@@ -137,7 +139,8 @@ static int at91sam9g45_restart(struct notifier_block *this, unsigned long mode,
 		  "r" (reset->rstc_base),
 		  "r" (1),
 		  "r" cpu_to_le32(AT91_DDRSDRC_LPCB_POWER_DOWN),
-		  "r" (reset->args)
+		  "r" (reset->args),
+		  "r" (reset->ramc_lpr)
 		: "r4");
 
 	return NOTIFY_DONE;
@@ -193,8 +196,14 @@ static void __init at91_reset_status(struct platform_device *pdev,
 }
 
 static const struct of_device_id at91_ramc_of_match[] = {
-	{ .compatible = "atmel,at91sam9260-sdramc", },
-	{ .compatible = "atmel,at91sam9g45-ddramc", },
+	{
+		.compatible = "atmel,at91sam9260-sdramc",
+		.data = (void *)AT91_SDRAMC_LPR,
+	},
+	{
+		.compatible = "atmel,at91sam9g45-ddramc",
+		.data = (void *)AT91_DDRSDRC_LPR,
+	},
 	{ /* sentinel */ }
 };
 
@@ -263,7 +272,8 @@ static int __init at91_reset_probe(struct platform_device *pdev)
 
 	if (!of_device_is_compatible(pdev->dev.of_node, "atmel,sama5d3-rstc")) {
 		/* we need to shutdown the ddr controller, so get ramc base */
-		for_each_matching_node(np, at91_ramc_of_match) {
+		for_each_matching_node_and_match(np, at91_ramc_of_match, &match) {
+			reset->ramc_lpr = (u32)match->data;
 			reset->ramc_base[idx] = of_iomap(np, 0);
 			if (!reset->ramc_base[idx]) {
 				dev_err(&pdev->dev, "Could not map ram controller address\n");
