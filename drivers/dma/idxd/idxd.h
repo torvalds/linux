@@ -68,6 +68,11 @@ enum idxd_wq_type {
 #define WQ_NAME_SIZE   1024
 #define WQ_TYPE_SIZE   10
 
+enum idxd_op_type {
+	IDXD_OP_BLOCK = 0,
+	IDXD_OP_NONBLOCK = 1,
+};
+
 struct idxd_wq {
 	void __iomem *dportal;
 	struct device conf_dev;
@@ -245,5 +250,10 @@ int idxd_wq_enable(struct idxd_wq *wq);
 int idxd_wq_disable(struct idxd_wq *wq);
 int idxd_wq_map_portal(struct idxd_wq *wq);
 void idxd_wq_unmap_portal(struct idxd_wq *wq);
+
+/* submission */
+int idxd_submit_desc(struct idxd_wq *wq, struct idxd_desc *desc);
+struct idxd_desc *idxd_alloc_desc(struct idxd_wq *wq, enum idxd_op_type optype);
+void idxd_free_desc(struct idxd_wq *wq, struct idxd_desc *desc);
 
 #endif
