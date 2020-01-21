@@ -36,16 +36,6 @@
 #define BFITNOENT ((u32)~0)
 #define NO_BLOCK ((u64)~0)
 
-#if BITS_PER_LONG == 32
-#define LBITMASK   (0x55555555UL)
-#define LBITSKIP55 (0x55555555UL)
-#define LBITSKIP00 (0x00000000UL)
-#else
-#define LBITMASK   (0x5555555555555555UL)
-#define LBITSKIP55 (0x5555555555555555UL)
-#define LBITSKIP00 (0x0000000000000000UL)
-#endif
-
 /*
  * These routines are used by the resource group routines (rgrp.c)
  * to keep track of block allocation.  Each block is represented by two
