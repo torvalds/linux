@@ -630,7 +630,7 @@ static MLX5E_DECLARE_STATS_GRP_OP_FILL_STATS(802_3)
 #define MLX5_BASIC_PPCNT_SUPPORTED(mdev) \
 	(MLX5_CAP_GEN(mdev, pcam_reg) ? MLX5_CAP_PCAM_REG(mdev, ppcnt) : 1)
 
-MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(802_3)
+static MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(802_3)
 {
 	struct mlx5e_pport_stats *pstats = &priv->stats.pport;
 	struct mlx5_core_dev *mdev = priv->mdev;
@@ -1713,7 +1713,7 @@ MLX5E_DEFINE_STATS_GRP(per_prio, 0);
 MLX5E_DEFINE_STATS_GRP(pme, 0);
 MLX5E_DEFINE_STATS_GRP(channels, 0);
 MLX5E_DEFINE_STATS_GRP(per_port_buff_congest, 0);
-static MLX5E_DEFINE_STATS_GRP(eth_ext, 0);
+MLX5E_DEFINE_STATS_GRP(eth_ext, 0);
 static MLX5E_DEFINE_STATS_GRP(ipsec, 0);
 static MLX5E_DEFINE_STATS_GRP(tls, 0);
 

@@ -181,7 +181,7 @@ static MLX5E_DECLARE_STATS_GRP_OP_FILL_STATS(vport_rep)
 	return idx;
 }
 
-static void mlx5e_vf_rep_update_hw_counters(struct mlx5e_priv *priv)
+static MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(vport_rep)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
@@ -202,32 +202,6 @@ static void mlx5e_vf_rep_update_hw_counters(struct mlx5e_priv *priv)
 	vport_stats->rx_bytes   = vf_stats.tx_bytes;
 	vport_stats->tx_packets = vf_stats.rx_packets;
 	vport_stats->tx_bytes   = vf_stats.rx_bytes;
-}
-
-static void mlx5e_uplink_rep_update_hw_counters(struct mlx5e_priv *priv)
-{
-	struct mlx5e_pport_stats *pstats = &priv->stats.pport;
-	struct rtnl_link_stats64 *vport_stats;
-
-	MLX5E_STATS_GRP_OP(802_3, update_stats)(priv);
-
-	vport_stats = &priv->stats.vf_vport;
-
-	vport_stats->rx_packets = PPORT_802_3_GET(pstats, a_frames_received_ok);
-	vport_stats->rx_bytes   = PPORT_802_3_GET(pstats, a_octets_received_ok);
-	vport_stats->tx_packets = PPORT_802_3_GET(pstats, a_frames_transmitted_ok);
-	vport_stats->tx_bytes   = PPORT_802_3_GET(pstats, a_octets_transmitted_ok);
-}
-
-static MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(vport_rep)
-{
-	struct mlx5e_rep_priv *rpriv = priv->ppriv;
-	struct mlx5_eswitch_rep *rep = rpriv->rep;
-
-	if (rep->vport == MLX5_VPORT_UPLINK)
-		mlx5e_uplink_rep_update_hw_counters(priv);
-	else
-		mlx5e_vf_rep_update_hw_counters(priv);
 }
 
 static void mlx5e_rep_get_strings(struct net_device *dev,
@@ -1908,8 +1882,20 @@ static unsigned int mlx5e_rep_stats_grps_num(struct mlx5e_priv *priv)
 
 /* The stats groups order is opposite to the update_stats() order calls */
 static mlx5e_stats_grp_t mlx5e_ul_rep_stats_grps[] = {
-	&MLX5E_STATS_GRP(sw_rep),
-	&MLX5E_STATS_GRP(vport_rep),
+	&MLX5E_STATS_GRP(sw),
+	&MLX5E_STATS_GRP(qcnt),
+	&MLX5E_STATS_GRP(vnic_env),
+	&MLX5E_STATS_GRP(vport),
+	&MLX5E_STATS_GRP(802_3),
+	&MLX5E_STATS_GRP(2863),
+	&MLX5E_STATS_GRP(2819),
+	&MLX5E_STATS_GRP(phy),
+	&MLX5E_STATS_GRP(eth_ext),
+	&MLX5E_STATS_GRP(pcie),
+	&MLX5E_STATS_GRP(per_prio),
+	&MLX5E_STATS_GRP(pme),
+	&MLX5E_STATS_GRP(channels),
+	&MLX5E_STATS_GRP(per_port_buff_congest),
 };
 
 static unsigned int mlx5e_ul_rep_stats_grps_num(struct mlx5e_priv *priv)
