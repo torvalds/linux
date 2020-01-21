@@ -51,11 +51,11 @@ enum reset_type {
 
 struct at91_reset {
 	void __iomem *rstc_base;
+	void __iomem *ramc_base[2];
 };
 
 static struct at91_reset reset;
 
-static void __iomem *at91_ramc_base[2];
 static struct clk *sclk;
 
 /*
@@ -81,7 +81,7 @@ static int at91sam9260_restart(struct notifier_block *this, unsigned long mode,
 
 		"b	.\n\t"
 		:
-		: "r" (at91_ramc_base[0]),
+		: "r" (reset.ramc_base[0]),
 		  "r" (reset.rstc_base),
 		  "r" (1),
 		  "r" cpu_to_le32(AT91_SDRAMC_LPCB_POWER_DOWN),
@@ -123,8 +123,8 @@ static int at91sam9g45_restart(struct notifier_block *this, unsigned long mode,
 
 		"	b	.\n\t"
 		:
-		: "r" (at91_ramc_base[0]),
-		  "r" (at91_ramc_base[1]),
+		: "r" (reset.ramc_base[0]),
+		  "r" (reset.ramc_base[1]),
 		  "r" (reset.rstc_base),
 		  "r" (1),
 		  "r" cpu_to_le32(AT91_DDRSDRC_LPCB_POWER_DOWN),
@@ -225,8 +225,8 @@ static int __init at91_reset_probe(struct platform_device *pdev)
 	if (!of_device_is_compatible(pdev->dev.of_node, "atmel,sama5d3-rstc")) {
 		/* we need to shutdown the ddr controller, so get ramc base */
 		for_each_matching_node(np, at91_ramc_of_match) {
-			at91_ramc_base[idx] = of_iomap(np, 0);
-			if (!at91_ramc_base[idx]) {
+			reset.ramc_base[idx] = of_iomap(np, 0);
+			if (!reset.ramc_base[idx]) {
 				dev_err(&pdev->dev, "Could not map ram controller address\n");
 				of_node_put(np);
 				return -ENODEV;
