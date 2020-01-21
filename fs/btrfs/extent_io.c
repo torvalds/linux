@@ -3442,11 +3442,7 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 	ret = btrfs_writepage_cow_fixup(page, start, page_end);
 	if (ret) {
 		/* Fixup worker will requeue */
-		if (ret == -EBUSY)
-			wbc->pages_skipped++;
-		else
-			redirty_page_for_writepage(wbc, page);
-
+		redirty_page_for_writepage(wbc, page);
 		update_nr_written(wbc, nr_written);
 		unlock_page(page);
 		return 1;
