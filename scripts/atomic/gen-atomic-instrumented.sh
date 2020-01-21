@@ -20,7 +20,7 @@ gen_param_check()
 	# We don't write to constant parameters
 	[ ${type#c} != ${type} ] && rw="read"
 
-	printf "\t__atomic_check_${rw}(${name}, sizeof(*${name}));\n"
+	printf "\tinstrument_atomic_${rw}(${name}, sizeof(*${name}));\n"
 }
 
 #gen_param_check(arg...)
@@ -107,7 +107,7 @@ cat <<EOF
 #define ${xchg}(ptr, ...)						\\
 ({									\\
 	typeof(ptr) __ai_ptr = (ptr);					\\
-	__atomic_check_write(__ai_ptr, ${mult}sizeof(*__ai_ptr));		\\
+	instrument_atomic_write(__ai_ptr, ${mult}sizeof(*__ai_ptr));		\\
 	arch_${xchg}(__ai_ptr, __VA_ARGS__);				\\
 })
 EOF
@@ -148,20 +148,7 @@ cat << EOF
 
 #include <linux/build_bug.h>
 #include <linux/compiler.h>
-#include <linux/kasan-checks.h>
-#include <linux/kcsan-checks.h>
-
-static __always_inline void __atomic_check_read(const volatile void *v, size_t size)
-{
-	kasan_check_read(v, size);
-	kcsan_check_atomic_read(v, size);
-}
-
-static __always_inline void __atomic_check_write(const volatile void *v, size_t size)
-{
-	kasan_check_write(v, size);
-	kcsan_check_atomic_write(v, size);
-}
+#include <linux/instrumented.h>
 
 EOF
 
