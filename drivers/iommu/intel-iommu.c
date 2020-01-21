@@ -782,6 +782,8 @@ static struct intel_iommu *device_to_iommu(struct device *dev, u8 *bus, u8 *devf
 			return NULL;
 #endif
 
+		pdev = pci_real_dma_dev(pdev);
+
 		/* VFs aren't listed in scope tables; we need to look up
 		 * the PF instead to find the IOMMU. */
 		pf_pdev = pci_physfn(pdev);
@@ -2427,6 +2429,9 @@ static struct dmar_domain *find_domain(struct device *dev)
 	if (unlikely(dev->archdata.iommu == DEFER_DEVICE_DOMAIN_INFO ||
 		     dev->archdata.iommu == DUMMY_DEVICE_DOMAIN_INFO))
 		return NULL;
+
+	if (dev_is_pci(dev))
+		dev = &pci_real_dma_dev(to_pci_dev(dev))->dev;
 
 	/* No lock here, assumes no domain exit in normal case */
 	info = dev->archdata.iommu;
