@@ -244,6 +244,7 @@ static void idxd_read_caps(struct idxd_device *idxd)
 	dev_dbg(dev, "max groups: %u\n", idxd->max_groups);
 	idxd->max_tokens = idxd->hw.group_cap.total_tokens;
 	dev_dbg(dev, "max tokens: %u\n", idxd->max_tokens);
+	idxd->nr_tokens = idxd->max_tokens;
 
 	/* read engine capabilities */
 	idxd->hw.engine_cap.bits =
@@ -381,6 +382,14 @@ static int idxd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return -ENODEV;
 	}
 
+	rc = idxd_setup_sysfs(idxd);
+	if (rc) {
+		dev_err(dev, "IDXD sysfs setup failed\n");
+		return -ENODEV;
+	}
+
+	idxd->state = IDXD_DEV_CONF_READY;
+
 	dev_info(&pdev->dev, "Intel(R) Accelerator Device (v%x)\n",
 		 idxd->hw.version);
 
@@ -418,6 +427,7 @@ static void idxd_remove(struct pci_dev *pdev)
 	struct idxd_device *idxd = pci_get_drvdata(pdev);
 
 	dev_dbg(&pdev->dev, "%s called\n", __func__);
+	idxd_cleanup_sysfs(idxd);
 	idxd_shutdown(pdev);
 	idxd_wqs_free_lock(idxd);
 	mutex_lock(&idxd_idr_lock);
@@ -453,16 +463,31 @@ static int __init idxd_init_module(void)
 	for (i = 0; i < IDXD_TYPE_MAX; i++)
 		idr_init(&idxd_idrs[i]);
 
-	err = pci_register_driver(&idxd_pci_driver);
-	if (err)
+	err = idxd_register_bus_type();
+	if (err < 0)
 		return err;
 
+	err = idxd_register_driver();
+	if (err < 0)
+		goto err_idxd_driver_register;
+
+	err = pci_register_driver(&idxd_pci_driver);
+	if (err)
+		goto err_pci_register;
+
 	return 0;
+
+err_pci_register:
+	idxd_unregister_driver();
+err_idxd_driver_register:
+	idxd_unregister_bus_type();
+	return err;
 }
 module_init(idxd_init_module);
 
 static void __exit idxd_exit_module(void)
 {
 	pci_unregister_driver(&idxd_pci_driver);
+	idxd_unregister_bus_type();
 }
 module_exit(idxd_exit_module);

@@ -8,6 +8,7 @@
 
 #define IDXD_MMIO_BAR		0
 #define IDXD_WQ_BAR		2
+#define IDXD_PORTAL_SIZE	0x4000
 
 /* MMIO Device BAR0 Registers */
 #define IDXD_VER_OFFSET			0x00
@@ -223,7 +224,7 @@ enum idxd_cmdsts_err {
 };
 
 #define IDXD_SWERR_OFFSET		0xc0
-#define IDXD_SWERR_VALID			0x00000001
+#define IDXD_SWERR_VALID		0x00000001
 #define IDXD_SWERR_OVERFLOW		0x00000002
 #define IDXD_SWERR_ACK			(IDXD_SWERR_VALID | IDXD_SWERR_OVERFLOW)
 union sw_err_reg {

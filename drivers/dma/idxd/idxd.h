@@ -157,6 +157,7 @@ struct idxd_device {
 	int max_wqs;
 	int max_wq_size;
 	int token_limit;
+	int nr_tokens;		/* non-reserved tokens */
 
 	union sw_err_reg sw_err;
 
@@ -195,7 +196,28 @@ static inline void idxd_set_type(struct idxd_device *idxd)
 		idxd->type = IDXD_TYPE_UNKNOWN;
 }
 
+static inline void idxd_wq_get(struct idxd_wq *wq)
+{
+	wq->client_count++;
+}
+
+static inline void idxd_wq_put(struct idxd_wq *wq)
+{
+	wq->client_count--;
+}
+
+static inline int idxd_wq_refcount(struct idxd_wq *wq)
+{
+	return wq->client_count;
+};
+
 const char *idxd_get_dev_name(struct idxd_device *idxd);
+int idxd_register_bus_type(void);
+void idxd_unregister_bus_type(void);
+int idxd_setup_sysfs(struct idxd_device *idxd);
+void idxd_cleanup_sysfs(struct idxd_device *idxd);
+int idxd_register_driver(void);
+void idxd_unregister_driver(void);
 
 /* device interrupt control */
 irqreturn_t idxd_irq_handler(int vec, void *data);
@@ -221,5 +243,7 @@ int idxd_wq_alloc_resources(struct idxd_wq *wq);
 void idxd_wq_free_resources(struct idxd_wq *wq);
 int idxd_wq_enable(struct idxd_wq *wq);
 int idxd_wq_disable(struct idxd_wq *wq);
+int idxd_wq_map_portal(struct idxd_wq *wq);
+void idxd_wq_unmap_portal(struct idxd_wq *wq);
 
 #endif

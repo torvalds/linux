@@ -155,6 +155,9 @@ int idxd_wq_alloc_resources(struct idxd_wq *wq)
 	struct device *dev = &idxd->pdev->dev;
 	int rc, num_descs, i;
 
+	if (wq->type != IDXD_WQT_KERNEL)
+		return 0;
+
 	num_descs = wq->size +
 		idxd->hw.gen_cap.max_descs_per_engine * group->num_engines;
 	wq->num_descs = num_descs;
@@ -205,6 +208,9 @@ int idxd_wq_alloc_resources(struct idxd_wq *wq)
 void idxd_wq_free_resources(struct idxd_wq *wq)
 {
 	struct device *dev = &wq->idxd->pdev->dev;
+
+	if (wq->type != IDXD_WQT_KERNEL)
+		return;
 
 	free_hw_descs(wq);
 	free_descs(wq);
@@ -275,6 +281,31 @@ int idxd_wq_disable(struct idxd_wq *wq)
 	wq->state = IDXD_WQ_DISABLED;
 	dev_dbg(dev, "WQ %d disabled\n", wq->id);
 	return 0;
+}
+
+int idxd_wq_map_portal(struct idxd_wq *wq)
+{
+	struct idxd_device *idxd = wq->idxd;
+	struct pci_dev *pdev = idxd->pdev;
+	struct device *dev = &pdev->dev;
+	resource_size_t start;
+
+	start = pci_resource_start(pdev, IDXD_WQ_BAR);
+	start = start + wq->id * IDXD_PORTAL_SIZE;
+
+	wq->dportal = devm_ioremap(dev, start, IDXD_PORTAL_SIZE);
+	if (!wq->dportal)
+		return -ENOMEM;
+	dev_dbg(dev, "wq %d portal mapped at %p\n", wq->id, wq->dportal);
+
+	return 0;
+}
+
+void idxd_wq_unmap_portal(struct idxd_wq *wq)
+{
+	struct device *dev = &wq->idxd->pdev->dev;
+
+	devm_iounmap(dev, wq->dportal);
 }
 
 /* Device control bits */
