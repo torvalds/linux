@@ -1354,7 +1354,7 @@ static int __init ks_pcie_probe(struct platform_device *pdev)
 		ret = of_property_read_u32(np, "num-viewport", &num_viewport);
 		if (ret < 0) {
 			dev_err(dev, "unable to read *num-viewport* property\n");
-			return ret;
+			goto err_get_sync;
 		}
 
 		/*
