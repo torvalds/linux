@@ -1316,14 +1316,13 @@ static int hclgevf_set_vlan_filter(struct hnae3_handle *handle,
 	msg_data[0] = is_kill;
 	memcpy(&msg_data[1], &vlan_id, sizeof(vlan_id));
 	memcpy(&msg_data[3], &proto, sizeof(proto));
-	ret = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_SET_VLAN,
-				   HCLGE_MBX_VLAN_FILTER, msg_data,
-				   HCLGEVF_VLAN_MBX_MSG_LEN, true, NULL, 0);
-
 	/* when remove hw vlan filter failed, record the vlan id,
 	 * and try to remove it from hw later, to be consistence
 	 * with stack.
 	 */
+	ret = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_SET_VLAN,
+				   HCLGE_MBX_VLAN_FILTER, msg_data,
+				   HCLGEVF_VLAN_MBX_MSG_LEN, true, NULL, 0);
 	if (is_kill && ret)
 		set_bit(vlan_id, hdev->vlan_del_fail_bmap);
 
@@ -1862,6 +1861,7 @@ static void hclgevf_reset_service_task(struct hclgevf_dev *hdev)
 		hclgevf_reset_task_schedule(hdev);
 	}
 
+	hdev->reset_type = HNAE3_NONE_RESET;
 	clear_bit(HCLGEVF_STATE_RST_HANDLING, &hdev->state);
 	up(&hdev->reset_sem);
 }
@@ -2597,11 +2597,11 @@ static int hclgevf_query_vf_resource(struct hclgevf_dev *hdev)
 
 	if (hnae3_dev_roce_supported(hdev)) {
 		hdev->roce_base_msix_offset =
-		hnae3_get_field(__le16_to_cpu(req->msixcap_localid_ba_rocee),
+		hnae3_get_field(le16_to_cpu(req->msixcap_localid_ba_rocee),
 				HCLGEVF_MSIX_OFT_ROCEE_M,
 				HCLGEVF_MSIX_OFT_ROCEE_S);
 		hdev->num_roce_msix =
-		hnae3_get_field(__le16_to_cpu(req->vf_intr_vector_number),
+		hnae3_get_field(le16_to_cpu(req->vf_intr_vector_number),
 				HCLGEVF_VEC_NUM_M, HCLGEVF_VEC_NUM_S);
 
 		/* nic's msix numbers is always equals to the roce's. */
@@ -2614,7 +2614,7 @@ static int hclgevf_query_vf_resource(struct hclgevf_dev *hdev)
 				hdev->roce_base_msix_offset;
 	} else {
 		hdev->num_msi =
-		hnae3_get_field(__le16_to_cpu(req->vf_intr_vector_number),
+		hnae3_get_field(le16_to_cpu(req->vf_intr_vector_number),
 				HCLGEVF_VEC_NUM_M, HCLGEVF_VEC_NUM_S);
 
 		hdev->num_nic_msix = hdev->num_msi;
@@ -2711,16 +2711,12 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 	int ret;
 
 	ret = hclgevf_pci_init(hdev);
-	if (ret) {
-		dev_err(&pdev->dev, "PCI initialization failed\n");
+	if (ret)
 		return ret;
-	}
 
 	ret = hclgevf_cmd_queue_init(hdev);
-	if (ret) {
-		dev_err(&pdev->dev, "Cmd queue init failed: %d\n", ret);
+	if (ret)
 		goto err_cmd_queue_init;
-	}
 
 	ret = hclgevf_cmd_init(hdev);
 	if (ret)
@@ -2728,11 +2724,8 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 
 	/* Get vf resource */
 	ret = hclgevf_query_vf_resource(hdev);
-	if (ret) {
-		dev_err(&hdev->pdev->dev,
-			"Query vf status error, ret = %d.\n", ret);
+	if (ret)
 		goto err_cmd_init;
-	}
 
 	ret = hclgevf_init_msi(hdev);
 	if (ret) {
@@ -2742,13 +2735,11 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 
 	hclgevf_state_init(hdev);
 	hdev->reset_level = HNAE3_VF_FUNC_RESET;
+	hdev->reset_type = HNAE3_NONE_RESET;
 
 	ret = hclgevf_misc_irq_init(hdev);
-	if (ret) {
-		dev_err(&pdev->dev, "failed(%d) to init Misc IRQ(vector0)\n",
-			ret);
+	if (ret)
 		goto err_misc_irq_init;
-	}
 
 	set_bit(HCLGEVF_STATE_IRQ_INITED, &hdev->state);
 
@@ -2765,10 +2756,8 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 	}
 
 	ret = hclgevf_set_handle_info(hdev);
-	if (ret) {
-		dev_err(&pdev->dev, "failed(%d) to set handle info\n", ret);
+	if (ret)
 		goto err_config;
-	}
 
 	ret = hclgevf_config_gro(hdev, true);
 	if (ret)

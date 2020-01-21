@@ -73,8 +73,6 @@ static struct hclge_dbg_reg_type_info hclge_dbg_reg_info[] = {
 
 static int hclge_dbg_get_dfx_bd_num(struct hclge_dev *hdev, int offset)
 {
-#define HCLGE_GET_DFX_REG_TYPE_CNT	4
-
 	struct hclge_desc desc[HCLGE_GET_DFX_REG_TYPE_CNT];
 	int entries_per_desc;
 	int index;

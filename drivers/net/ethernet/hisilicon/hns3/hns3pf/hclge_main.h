@@ -139,6 +139,8 @@
 #define HCLGE_PHY_MDIX_STATUS_B		6
 #define HCLGE_PHY_SPEED_DUP_RESOLVE_B	11
 
+#define HCLGE_GET_DFX_REG_TYPE_CNT	4
+
 /* Factor used to calculate offset and bitmap of VF num */
 #define HCLGE_VF_NUM_PER_CMD           64
 
