@@ -413,27 +413,30 @@
 
 		lvds: lvds {
 			compatible = "rockchip,px30-lvds";
-			#address-cells = <1>;
-			#size-cells = <0>;
 			phys = <&dsi_dphy>;
 			phy-names = "dphy";
 			rockchip,grf = <&grf>;
 			rockchip,output = "lvds";
 			status = "disabled";
 
-			port@0 {
-				reg = <0>;
+			ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
 
-				lvds_vopb_in: endpoint@0 {
+				port@0 {
 					reg = <0>;
-					remote-endpoint = <&vopb_out_lvds>;
-				};
+					#address-cells = <1>;
+					#size-cells = <0>;
 
-				lvds_vopl_in: endpoint@1 {
-					reg = <1>;
-					remote-endpoint = <&vopl_out_lvds>;
+					lvds_vopb_in: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&vopb_out_lvds>;
+					};
+
+					lvds_vopl_in: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&vopl_out_lvds>;
+					};
 				};
 			};
 		};
