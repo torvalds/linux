@@ -1033,6 +1033,8 @@ void intel_crt_init(struct drm_i915_private *dev_priv)
 	    !dmi_check_system(intel_spurious_crt_detect)) {
 		crt->base.hpd_pin = HPD_CRT;
 		crt->base.hotplug = intel_encoder_hotplug;
+	} else {
+		intel_connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 	}
 
 	if (HAS_DDI(dev_priv)) {
@@ -1062,14 +1064,6 @@ void intel_crt_init(struct drm_i915_private *dev_priv)
 	intel_connector->get_hw_state = intel_connector_get_hw_state;
 
 	drm_connector_helper_add(connector, &intel_crt_connector_helper_funcs);
-
-	if (!I915_HAS_HOTPLUG(dev_priv))
-		intel_connector->polled = DRM_CONNECTOR_POLL_CONNECT;
-
-	/*
-	 * Configure the automatic hotplug detection stuff
-	 */
-	crt->force_hotplug_required = false;
 
 	/*
 	 * TODO: find a proper way to discover whether we need to set the the
