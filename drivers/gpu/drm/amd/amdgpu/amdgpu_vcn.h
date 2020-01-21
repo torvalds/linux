@@ -111,7 +111,7 @@
 
 #define RREG32_SOC15_DPG_MODE_2_0(inst_idx, offset, mask_en) 					\
 	({											\
-		WREG32_SOC15(VCN, inst, mmUVD_DPG_LMA_CTL, 					\
+		WREG32_SOC15(VCN, inst_idx, mmUVD_DPG_LMA_CTL, 					\
 			(0x0 << UVD_DPG_LMA_CTL__READ_WRITE__SHIFT |				\
 			mask_en << UVD_DPG_LMA_CTL__MASK_EN__SHIFT |				\
 			offset << UVD_DPG_LMA_CTL__READ_WRITE_ADDR__SHIFT));			\
