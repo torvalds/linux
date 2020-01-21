@@ -12,6 +12,8 @@
 #include <linux/sizes.h>
 #include <linux/bitmap.h>
 #include <linux/memblock.h>
+#include <linux/pagemap.h>
+#include <linux/swap.h>
 #include <asm/facility.h>
 #include <asm/sections.h>
 #include <asm/uv.h>
@@ -97,4 +99,229 @@ void adjust_to_uv_max(unsigned long *vmax)
 {
 	*vmax = min_t(unsigned long, *vmax, uv_info.max_sec_stor_addr);
 }
+
+/*
+ * Requests the Ultravisor to pin the page in the shared state. This will
+ * cause an intercept when the guest attempts to unshare the pinned page.
+ */
+static int uv_pin_shared(unsigned long paddr)
+{
+	struct uv_cb_cfs uvcb = {
+		.header.cmd = UVC_CMD_PIN_PAGE_SHARED,
+		.header.len = sizeof(uvcb),
+		.paddr = paddr,
+	};
+
+	if (uv_call(0, (u64)&uvcb))
+		return -EINVAL;
+	return 0;
+}
+
+/*
+ * Requests the Ultravisor to encrypt a guest page and make it
+ * accessible to the host for paging (export).
+ *
+ * @paddr: Absolute host address of page to be exported
+ */
+int uv_convert_from_secure(unsigned long paddr)
+{
+	struct uv_cb_cfs uvcb = {
+		.header.cmd = UVC_CMD_CONV_FROM_SEC_STOR,
+		.header.len = sizeof(uvcb),
+		.paddr = paddr
+	};
+
+	if (uv_call(0, (u64)&uvcb))
+		return -EINVAL;
+	return 0;
+}
+
+/*
+ * Calculate the expected ref_count for a page that would otherwise have no
+ * further pins. This was cribbed from similar functions in other places in
+ * the kernel, but with some slight modifications. We know that a secure
+ * page can not be a huge page for example.
+ */
+static int expected_page_refs(struct page *page)
+{
+	int res;
+
+	res = page_mapcount(page);
+	if (PageSwapCache(page)) {
+		res++;
+	} else if (page_mapping(page)) {
+		res++;
+		if (page_has_private(page))
+			res++;
+	}
+	return res;
+}
+
+static int make_secure_pte(pte_t *ptep, unsigned long addr,
+			   struct page *exp_page, struct uv_cb_header *uvcb)
+{
+	pte_t entry = READ_ONCE(*ptep);
+	struct page *page;
+	int expected, rc = 0;
+
+	if (!pte_present(entry))
+		return -ENXIO;
+	if (pte_val(entry) & _PAGE_INVALID)
+		return -ENXIO;
+
+	page = pte_page(entry);
+	if (page != exp_page)
+		return -ENXIO;
+	if (PageWriteback(page))
+		return -EAGAIN;
+	expected = expected_page_refs(page);
+	if (!page_ref_freeze(page, expected))
+		return -EBUSY;
+	set_bit(PG_arch_1, &page->flags);
+	rc = uv_call(0, (u64)uvcb);
+	page_ref_unfreeze(page, expected);
+	/* Return -ENXIO if the page was not mapped, -EINVAL otherwise */
+	if (rc)
+		rc = uvcb->rc == 0x10a ? -ENXIO : -EINVAL;
+	return rc;
+}
+
+/*
+ * Requests the Ultravisor to make a page accessible to a guest.
+ * If it's brought in the first time, it will be cleared. If
+ * it has been exported before, it will be decrypted and integrity
+ * checked.
+ */
+int gmap_make_secure(struct gmap *gmap, unsigned long gaddr, void *uvcb)
+{
+	struct vm_area_struct *vma;
+	bool local_drain = false;
+	spinlock_t *ptelock;
+	unsigned long uaddr;
+	struct page *page;
+	pte_t *ptep;
+	int rc;
+
+again:
+	rc = -EFAULT;
+	down_read(&gmap->mm->mmap_sem);
+
+	uaddr = __gmap_translate(gmap, gaddr);
+	if (IS_ERR_VALUE(uaddr))
+		goto out;
+	vma = find_vma(gmap->mm, uaddr);
+	if (!vma)
+		goto out;
+	/*
+	 * Secure pages cannot be huge and userspace should not combine both.
+	 * In case userspace does it anyway this will result in an -EFAULT for
+	 * the unpack. The guest is thus never reaching secure mode. If
+	 * userspace is playing dirty tricky with mapping huge pages later
+	 * on this will result in a segmentation fault.
+	 */
+	if (is_vm_hugetlb_page(vma))
+		goto out;
+
+	rc = -ENXIO;
+	page = follow_page(vma, uaddr, FOLL_WRITE);
+	if (IS_ERR_OR_NULL(page))
+		goto out;
+
+	lock_page(page);
+	ptep = get_locked_pte(gmap->mm, uaddr, &ptelock);
+	rc = make_secure_pte(ptep, uaddr, page, uvcb);
+	pte_unmap_unlock(ptep, ptelock);
+	unlock_page(page);
+out:
+	up_read(&gmap->mm->mmap_sem);
+
+	if (rc == -EAGAIN) {
+		wait_on_page_writeback(page);
+	} else if (rc == -EBUSY) {
+		/*
+		 * If we have tried a local drain and the page refcount
+		 * still does not match our expected safe value, try with a
+		 * system wide drain. This is needed if the pagevecs holding
+		 * the page are on a different CPU.
+		 */
+		if (local_drain) {
+			lru_add_drain_all();
+			/* We give up here, and let the caller try again */
+			return -EAGAIN;
+		}
+		/*
+		 * We are here if the page refcount does not match the
+		 * expected safe value. The main culprits are usually
+		 * pagevecs. With lru_add_drain() we drain the pagevecs
+		 * on the local CPU so that hopefully the refcount will
+		 * reach the expected safe value.
+		 */
+		lru_add_drain();
+		local_drain = true;
+		/* And now we try again immediately after draining */
+		goto again;
+	} else if (rc == -ENXIO) {
+		if (gmap_fault(gmap, gaddr, FAULT_FLAG_WRITE))
+			return -EFAULT;
+		return -EAGAIN;
+	}
+	return rc;
+}
+EXPORT_SYMBOL_GPL(gmap_make_secure);
+
+int gmap_convert_to_secure(struct gmap *gmap, unsigned long gaddr)
+{
+	struct uv_cb_cts uvcb = {
+		.header.cmd = UVC_CMD_CONV_TO_SEC_STOR,
+		.header.len = sizeof(uvcb),
+		.guest_handle = gmap->guest_handle,
+		.gaddr = gaddr,
+	};
+
+	return gmap_make_secure(gmap, gaddr, &uvcb);
+}
+EXPORT_SYMBOL_GPL(gmap_convert_to_secure);
+
+/*
+ * To be called with the page locked or with an extra reference! This will
+ * prevent gmap_make_secure from touching the page concurrently. Having 2
+ * parallel make_page_accessible is fine, as the UV calls will become a
+ * no-op if the page is already exported.
+ */
+int arch_make_page_accessible(struct page *page)
+{
+	int rc = 0;
+
+	/* Hugepage cannot be protected, so nothing to do */
+	if (PageHuge(page))
+		return 0;
+
+	/*
+	 * PG_arch_1 is used in 3 places:
+	 * 1. for kernel page tables during early boot
+	 * 2. for storage keys of huge pages and KVM
+	 * 3. As an indication that this page might be secure. This can
+	 *    overindicate, e.g. we set the bit before calling
+	 *    convert_to_secure.
+	 * As secure pages are never huge, all 3 variants can co-exists.
+	 */
+	if (!test_bit(PG_arch_1, &page->flags))
+		return 0;
+
+	rc = uv_pin_shared(page_to_phys(page));
+	if (!rc) {
+		clear_bit(PG_arch_1, &page->flags);
+		return 0;
+	}
+
+	rc = uv_convert_from_secure(page_to_phys(page));
+	if (!rc) {
+		clear_bit(PG_arch_1, &page->flags);
+		return 0;
+	}
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(arch_make_page_accessible);
+
 #endif
