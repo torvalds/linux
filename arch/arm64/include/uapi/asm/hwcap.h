@@ -65,5 +65,6 @@
 #define HWCAP2_SVESM4		(1 << 6)
 #define HWCAP2_FLAGM2		(1 << 7)
 #define HWCAP2_FRINT		(1 << 8)
+#define HWCAP2_RNG		(1 << 9)
 
 #endif /* _UAPI__ASM_HWCAP_H */

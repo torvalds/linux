@@ -204,6 +204,10 @@ HWCAP2_FRINT
 
     Functionality implied by ID_AA64ISAR1_EL1.FRINTTS == 0b0001.
 
+HWCAP2_RNG
+
+    Functionality implied by ID_AA64ISAR0_EL1.RNDR == 0b0001.
+
 
 4. Unused AT_HWCAP bits
 -----------------------

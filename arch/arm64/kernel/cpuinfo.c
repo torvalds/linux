@@ -84,6 +84,7 @@ static const char *const hwcap_str[] = {
 	"svesm4",
 	"flagm2",
 	"frint",
+	"rng",
 	NULL
 };
 
