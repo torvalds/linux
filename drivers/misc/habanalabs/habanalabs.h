@@ -1610,6 +1610,8 @@ int hl_pci_set_dma_mask(struct hl_device *hdev, u8 dma_mask);
 long hl_get_frequency(struct hl_device *hdev, u32 pll_index, bool curr);
 void hl_set_frequency(struct hl_device *hdev, u32 pll_index, u64 freq);
 long hl_get_temperature(struct hl_device *hdev, int sensor_index, u32 attr);
+int hl_set_temperature(struct hl_device *hdev,
+			int sensor_index, u32 attr, long value);
 long hl_get_voltage(struct hl_device *hdev, int sensor_index, u32 attr);
 long hl_get_current(struct hl_device *hdev, int sensor_index, u32 attr);
 long hl_get_fan_speed(struct hl_device *hdev, int sensor_index, u32 attr);

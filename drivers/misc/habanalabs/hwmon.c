@@ -125,6 +125,7 @@ static int hl_read(struct device *dev, enum hwmon_sensor_types type,
 		case hwmon_temp_crit:
 		case hwmon_temp_max_hyst:
 		case hwmon_temp_crit_hyst:
+		case hwmon_temp_offset:
 			break;
 		default:
 			return -EINVAL;
@@ -192,6 +193,15 @@ static int hl_write(struct device *dev, enum hwmon_sensor_types type,
 		return -ENODEV;
 
 	switch (type) {
+	case hwmon_temp:
+		switch (attr) {
+		case hwmon_temp_offset:
+			break;
+		default:
+			return -EINVAL;
+		}
+		hl_set_temperature(hdev, channel, attr, val);
+		break;
 	case hwmon_pwm:
 		switch (attr) {
 		case hwmon_pwm_input:
@@ -220,6 +230,8 @@ static umode_t hl_is_visible(const void *data, enum hwmon_sensor_types type,
 		case hwmon_temp_crit:
 		case hwmon_temp_crit_hyst:
 			return 0444;
+		case hwmon_temp_offset:
+			return 0644;
 		}
 		break;
 	case hwmon_in:
@@ -289,6 +301,31 @@ long hl_get_temperature(struct hl_device *hdev, int sensor_index, u32 attr)
 	}
 
 	return result;
+}
+
+int hl_set_temperature(struct hl_device *hdev,
+			int sensor_index, u32 attr, long value)
+{
+	struct armcp_packet pkt;
+	int rc;
+
+	memset(&pkt, 0, sizeof(pkt));
+
+	pkt.ctl = cpu_to_le32(ARMCP_PACKET_TEMPERATURE_SET <<
+				ARMCP_PKT_CTL_OPCODE_SHIFT);
+	pkt.sensor_index = __cpu_to_le16(sensor_index);
+	pkt.type = __cpu_to_le16(attr);
+	pkt.value = __cpu_to_le64(value);
+
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
+						SENSORS_PKT_TIMEOUT, NULL);
+
+	if (rc)
+		dev_err(hdev->dev,
+			"Failed to set temperature of sensor %d, error %d\n",
+			sensor_index, rc);
+
+	return rc;
 }
 
 long hl_get_voltage(struct hl_device *hdev, int sensor_index, u32 attr)
