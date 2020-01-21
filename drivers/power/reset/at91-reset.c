@@ -53,6 +53,7 @@ struct at91_reset {
 	void __iomem *rstc_base;
 	void __iomem *ramc_base[2];
 	struct clk *sclk;
+	struct notifier_block nb;
 };
 
 static struct at91_reset reset;
@@ -205,10 +206,6 @@ static const struct of_device_id at91_reset_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, at91_reset_of_match);
 
-static struct notifier_block at91_restart_nb = {
-	.priority = 192,
-};
-
 static int __init at91_reset_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
@@ -235,7 +232,8 @@ static int __init at91_reset_probe(struct platform_device *pdev)
 	}
 
 	match = of_match_node(at91_reset_of_match, pdev->dev.of_node);
-	at91_restart_nb.notifier_call = match->data;
+	reset.nb.notifier_call = match->data;
+	reset.nb.priority = 192;
 
 	reset.sclk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(reset.sclk))
@@ -247,7 +245,7 @@ static int __init at91_reset_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = register_restart_handler(&at91_restart_nb);
+	ret = register_restart_handler(&reset.nb);
 	if (ret) {
 		clk_disable_unprepare(reset.sclk);
 		return ret;
@@ -260,7 +258,7 @@ static int __init at91_reset_probe(struct platform_device *pdev)
 
 static int __exit at91_reset_remove(struct platform_device *pdev)
 {
-	unregister_restart_handler(&at91_restart_nb);
+	unregister_restart_handler(&reset.nb);
 	clk_disable_unprepare(reset.sclk);
 
 	return 0;
