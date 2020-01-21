@@ -55,6 +55,14 @@ static inline bool is_idxd_wq_dev(struct device *dev)
 	return dev ? dev->type == &idxd_wq_device_type : false;
 }
 
+static inline bool is_idxd_wq_dmaengine(struct idxd_wq *wq)
+{
+	if (wq->type == IDXD_WQT_KERNEL &&
+	    strcmp(wq->name, "dmaengine") == 0)
+		return true;
+	return false;
+}
+
 static int idxd_config_bus_match(struct device *dev,
 				 struct device_driver *drv)
 {
@@ -122,6 +130,12 @@ static int idxd_config_bus_probe(struct device *dev)
 		spin_unlock_irqrestore(&idxd->dev_lock, flags);
 		dev_info(dev, "Device %s enabled\n", dev_name(dev));
 
+		rc = idxd_register_dma_device(idxd);
+		if (rc < 0) {
+			spin_unlock_irqrestore(&idxd->dev_lock, flags);
+			dev_dbg(dev, "Failed to register dmaengine device\n");
+			return rc;
+		}
 		return 0;
 	} else if (is_idxd_wq_dev(dev)) {
 		struct idxd_wq *wq = confdev_to_wq(dev);
@@ -194,6 +208,16 @@ static int idxd_config_bus_probe(struct device *dev)
 		wq->client_count = 0;
 
 		dev_info(dev, "wq %s enabled\n", dev_name(&wq->conf_dev));
+
+		if (is_idxd_wq_dmaengine(wq)) {
+			rc = idxd_register_dma_channel(wq);
+			if (rc < 0) {
+				dev_dbg(dev, "DMA channel register failed\n");
+				mutex_unlock(&wq->wq_lock);
+				return rc;
+			}
+		}
+
 		mutex_unlock(&wq->wq_lock);
 		return 0;
 	}
@@ -214,6 +238,9 @@ static void disable_wq(struct idxd_wq *wq)
 		mutex_unlock(&wq->wq_lock);
 		return;
 	}
+
+	if (is_idxd_wq_dmaengine(wq))
+		idxd_unregister_dma_channel(wq);
 
 	if (idxd_wq_refcount(wq))
 		dev_warn(dev, "Clients has claim on wq %d: %d\n",
@@ -264,6 +291,7 @@ static int idxd_config_bus_remove(struct device *dev)
 			device_release_driver(&wq->conf_dev);
 		}
 
+		idxd_unregister_dma_device(idxd);
 		spin_lock_irqsave(&idxd->dev_lock, flags);
 		rc = idxd_device_disable(idxd);
 		spin_unlock_irqrestore(&idxd->dev_lock, flags);

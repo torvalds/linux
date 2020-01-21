@@ -5,7 +5,9 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/dmaengine.h>
 #include <uapi/linux/idxd.h>
+#include "../dmaengine.h"
 #include "idxd.h"
 #include "registers.h"
 
@@ -146,11 +148,96 @@ irqreturn_t idxd_misc_thread(int vec, void *data)
 	return IRQ_HANDLED;
 }
 
+static int irq_process_pending_llist(struct idxd_irq_entry *irq_entry,
+				     int *processed)
+{
+	struct idxd_desc *desc, *t;
+	struct llist_node *head;
+	int queued = 0;
+
+	head = llist_del_all(&irq_entry->pending_llist);
+	if (!head)
+		return 0;
+
+	llist_for_each_entry_safe(desc, t, head, llnode) {
+		if (desc->completion->status) {
+			idxd_dma_complete_txd(desc, IDXD_COMPLETE_NORMAL);
+			idxd_free_desc(desc->wq, desc);
+			(*processed)++;
+		} else {
+			list_add_tail(&desc->list, &irq_entry->work_list);
+			queued++;
+		}
+	}
+
+	return queued;
+}
+
+static int irq_process_work_list(struct idxd_irq_entry *irq_entry,
+				 int *processed)
+{
+	struct list_head *node, *next;
+	int queued = 0;
+
+	if (list_empty(&irq_entry->work_list))
+		return 0;
+
+	list_for_each_safe(node, next, &irq_entry->work_list) {
+		struct idxd_desc *desc =
+			container_of(node, struct idxd_desc, list);
+
+		if (desc->completion->status) {
+			list_del(&desc->list);
+			/* process and callback */
+			idxd_dma_complete_txd(desc, IDXD_COMPLETE_NORMAL);
+			idxd_free_desc(desc->wq, desc);
+			(*processed)++;
+		} else {
+			queued++;
+		}
+	}
+
+	return queued;
+}
+
 irqreturn_t idxd_wq_thread(int irq, void *data)
 {
 	struct idxd_irq_entry *irq_entry = data;
+	int rc, processed = 0, retry = 0;
+
+	/*
+	 * There are two lists we are processing. The pending_llist is where
+	 * submmiter adds all the submitted descriptor after sending it to
+	 * the workqueue. It's a lockless singly linked list. The work_list
+	 * is the common linux double linked list. We are in a scenario of
+	 * multiple producers and a single consumer. The producers are all
+	 * the kernel submitters of descriptors, and the consumer is the
+	 * kernel irq handler thread for the msix vector when using threaded
+	 * irq. To work with the restrictions of llist to remain lockless,
+	 * we are doing the following steps:
+	 * 1. Iterate through the work_list and process any completed
+	 *    descriptor. Delete the completed entries during iteration.
+	 * 2. llist_del_all() from the pending list.
+	 * 3. Iterate through the llist that was deleted from the pending list
+	 *    and process the completed entries.
+	 * 4. If the entry is still waiting on hardware, list_add_tail() to
+	 *    the work_list.
+	 * 5. Repeat until no more descriptors.
+	 */
+	do {
+		rc = irq_process_work_list(irq_entry, &processed);
+		if (rc != 0) {
+			retry++;
+			continue;
+		}
+
+		rc = irq_process_pending_llist(irq_entry, &processed);
+	} while (rc != 0 && retry != 10);
 
 	idxd_unmask_msix_vector(irq_entry->idxd, irq_entry->id);
+
+	if (processed == 0)
+		return IRQ_NONE;
 
 	return IRQ_HANDLED;
 }

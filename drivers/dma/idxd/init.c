@@ -15,6 +15,8 @@
 #include <linux/device.h>
 #include <linux/idr.h>
 #include <uapi/linux/idxd.h>
+#include <linux/dmaengine.h>
+#include "../dmaengine.h"
 #include "registers.h"
 #include "idxd.h"
 
@@ -396,6 +398,32 @@ static int idxd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	return 0;
 }
 
+static void idxd_flush_pending_llist(struct idxd_irq_entry *ie)
+{
+	struct idxd_desc *desc, *itr;
+	struct llist_node *head;
+
+	head = llist_del_all(&ie->pending_llist);
+	if (!head)
+		return;
+
+	llist_for_each_entry_safe(desc, itr, head, llnode) {
+		idxd_dma_complete_txd(desc, IDXD_COMPLETE_ABORT);
+		idxd_free_desc(desc->wq, desc);
+	}
+}
+
+static void idxd_flush_work_list(struct idxd_irq_entry *ie)
+{
+	struct idxd_desc *desc, *iter;
+
+	list_for_each_entry_safe(desc, iter, &ie->work_list, list) {
+		list_del(&desc->list);
+		idxd_dma_complete_txd(desc, IDXD_COMPLETE_ABORT);
+		idxd_free_desc(desc->wq, desc);
+	}
+}
+
 static void idxd_shutdown(struct pci_dev *pdev)
 {
 	struct idxd_device *idxd = pci_get_drvdata(pdev);
@@ -419,6 +447,8 @@ static void idxd_shutdown(struct pci_dev *pdev)
 		synchronize_irq(idxd->msix_entries[i].vector);
 		if (i == 0)
 			continue;
+		idxd_flush_pending_llist(irq_entry);
+		idxd_flush_work_list(irq_entry);
 	}
 }
 

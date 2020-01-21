@@ -5,7 +5,9 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/dmaengine.h>
 #include <uapi/linux/idxd.h>
+#include "../dmaengine.h"
 #include "idxd.h"
 #include "registers.h"
 
@@ -192,6 +194,9 @@ int idxd_wq_alloc_resources(struct idxd_wq *wq)
 			sizeof(struct dsa_completion_record) * i;
 		desc->id = i;
 		desc->wq = wq;
+
+		dma_async_tx_descriptor_init(&desc->txd, &wq->dma_chan);
+		desc->txd.tx_submit = idxd_dma_tx_submit;
 	}
 
 	return 0;

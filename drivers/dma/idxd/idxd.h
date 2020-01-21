@@ -4,6 +4,7 @@
 #define _IDXD_H_
 
 #include <linux/sbitmap.h>
+#include <linux/dmaengine.h>
 #include <linux/percpu-rwsem.h>
 #include <linux/wait.h>
 #include "registers.h"
@@ -73,6 +74,11 @@ enum idxd_op_type {
 	IDXD_OP_NONBLOCK = 1,
 };
 
+enum idxd_complete_type {
+	IDXD_COMPLETE_NORMAL = 0,
+	IDXD_COMPLETE_ABORT,
+};
+
 struct idxd_wq {
 	void __iomem *dportal;
 	struct device conf_dev;
@@ -97,6 +103,7 @@ struct idxd_wq {
 	int compls_size;
 	struct idxd_desc **descs;
 	struct sbitmap sbmap;
+	struct dma_chan dma_chan;
 	struct percpu_rw_semaphore submit_lock;
 	wait_queue_head_t submit_waitq;
 	char name[WQ_NAME_SIZE + 1];
@@ -169,6 +176,8 @@ struct idxd_device {
 	struct msix_entry *msix_entries;
 	int num_wq_irqs;
 	struct idxd_irq_entry *irq_entries;
+
+	struct dma_device dma_dev;
 };
 
 /* IDXD software descriptor */
@@ -177,6 +186,7 @@ struct idxd_desc {
 	dma_addr_t desc_dma;
 	struct dsa_completion_record *completion;
 	dma_addr_t compl_dma;
+	struct dma_async_tx_descriptor txd;
 	struct llist_node llnode;
 	struct list_head list;
 	int id;
@@ -255,5 +265,15 @@ void idxd_wq_unmap_portal(struct idxd_wq *wq);
 int idxd_submit_desc(struct idxd_wq *wq, struct idxd_desc *desc);
 struct idxd_desc *idxd_alloc_desc(struct idxd_wq *wq, enum idxd_op_type optype);
 void idxd_free_desc(struct idxd_wq *wq, struct idxd_desc *desc);
+
+/* dmaengine */
+int idxd_register_dma_device(struct idxd_device *idxd);
+void idxd_unregister_dma_device(struct idxd_device *idxd);
+int idxd_register_dma_channel(struct idxd_wq *wq);
+void idxd_unregister_dma_channel(struct idxd_wq *wq);
+void idxd_parse_completion_status(u8 status, enum dmaengine_tx_result *res);
+void idxd_dma_complete_txd(struct idxd_desc *desc,
+			   enum idxd_complete_type comp_type);
+dma_cookie_t idxd_dma_tx_submit(struct dma_async_tx_descriptor *tx);
 
 #endif

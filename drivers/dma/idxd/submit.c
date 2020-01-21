@@ -85,7 +85,9 @@ int idxd_submit_desc(struct idxd_wq *wq, struct idxd_desc *desc)
 	 * Pending the descriptor to the lockless list for the irq_entry
 	 * that we designated the descriptor to.
 	 */
-	llist_add(&desc->llnode, &idxd->irq_entries[vec].pending_llist);
+	if (desc->hw->flags & IDXD_OP_FLAG_RCI)
+		llist_add(&desc->llnode,
+			  &idxd->irq_entries[vec].pending_llist);
 
 	return 0;
 }
