@@ -44,6 +44,7 @@
 #define INTEL_DVO_CHIP_LVDS	1
 #define INTEL_DVO_CHIP_TMDS	2
 #define INTEL_DVO_CHIP_TVOUT	4
+#define INTEL_DVO_CHIP_LVDS_NO_FIXED	5
 
 #define SIL164_ADDR	0x38
 #define CH7xxx_ADDR	0x76
@@ -101,13 +102,13 @@ static const struct intel_dvo_device intel_dvo_devices[] = {
 		.dev_ops = &ch7017_ops,
 	},
 	{
-	        .type = INTEL_DVO_CHIP_TMDS,
+		.type = INTEL_DVO_CHIP_LVDS_NO_FIXED,
 		.name = "ns2501",
 		.dvo_reg = DVOB,
 		.dvo_srcdim_reg = DVOB_SRCDIM,
 		.slave_addr = NS2501_ADDR,
 		.dev_ops = &ns2501_ops,
-       }
+	},
 };
 
 struct intel_dvo {
@@ -507,17 +508,19 @@ void intel_dvo_init(struct drm_i915_private *dev_priv)
 		intel_encoder->port = port;
 		intel_encoder->pipe_mask = ~0;
 
-		switch (dvo->type) {
-		case INTEL_DVO_CHIP_TMDS:
+		if (dvo->type != INTEL_DVO_CHIP_LVDS)
 			intel_encoder->cloneable = (1 << INTEL_OUTPUT_ANALOG) |
 				(1 << INTEL_OUTPUT_DVO);
+
+		switch (dvo->type) {
+		case INTEL_DVO_CHIP_TMDS:
 			drm_connector_init(&dev_priv->drm, connector,
 					   &intel_dvo_connector_funcs,
 					   DRM_MODE_CONNECTOR_DVII);
 			encoder_type = DRM_MODE_ENCODER_TMDS;
 			break;
+		case INTEL_DVO_CHIP_LVDS_NO_FIXED:
 		case INTEL_DVO_CHIP_LVDS:
-			intel_encoder->cloneable = 0;
 			drm_connector_init(&dev_priv->drm, connector,
 					   &intel_dvo_connector_funcs,
 					   DRM_MODE_CONNECTOR_LVDS);
