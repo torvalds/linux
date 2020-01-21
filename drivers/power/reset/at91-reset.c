@@ -49,7 +49,13 @@ enum reset_type {
 	RESET_TYPE_ULP2		= 8,
 };
 
-static void __iomem *at91_ramc_base[2], *at91_rstc_base;
+struct at91_reset {
+	void __iomem *rstc_base;
+};
+
+static struct at91_reset reset;
+
+static void __iomem *at91_ramc_base[2];
 static struct clk *sclk;
 
 /*
@@ -76,7 +82,7 @@ static int at91sam9260_restart(struct notifier_block *this, unsigned long mode,
 		"b	.\n\t"
 		:
 		: "r" (at91_ramc_base[0]),
-		  "r" (at91_rstc_base),
+		  "r" (reset.rstc_base),
 		  "r" (1),
 		  "r" cpu_to_le32(AT91_SDRAMC_LPCB_POWER_DOWN),
 		  "r" cpu_to_le32(AT91_RSTC_KEY | AT91_RSTC_PERRST | AT91_RSTC_PROCRST));
@@ -119,7 +125,7 @@ static int at91sam9g45_restart(struct notifier_block *this, unsigned long mode,
 		:
 		: "r" (at91_ramc_base[0]),
 		  "r" (at91_ramc_base[1]),
-		  "r" (at91_rstc_base),
+		  "r" (reset.rstc_base),
 		  "r" (1),
 		  "r" cpu_to_le32(AT91_DDRSDRC_LPCB_POWER_DOWN),
 		  "r" cpu_to_le32(AT91_RSTC_KEY | AT91_RSTC_PERRST | AT91_RSTC_PROCRST)
@@ -131,8 +137,8 @@ static int at91sam9g45_restart(struct notifier_block *this, unsigned long mode,
 static int sama5d3_restart(struct notifier_block *this, unsigned long mode,
 			   void *cmd)
 {
-	writel(AT91_RSTC_KEY | AT91_RSTC_PERRST | AT91_RSTC_PROCRST,
-	       at91_rstc_base);
+	writel(cpu_to_le32(AT91_RSTC_KEY | AT91_RSTC_PERRST | AT91_RSTC_PROCRST),
+	       reset.rstc_base);
 
 	return NOTIFY_DONE;
 }
@@ -140,14 +146,16 @@ static int sama5d3_restart(struct notifier_block *this, unsigned long mode,
 static int samx7_restart(struct notifier_block *this, unsigned long mode,
 			 void *cmd)
 {
-	writel(AT91_RSTC_KEY | AT91_RSTC_PROCRST, at91_rstc_base);
+	writel(cpu_to_le32(AT91_RSTC_KEY | AT91_RSTC_PROCRST),
+	       reset.rstc_base);
+
 	return NOTIFY_DONE;
 }
 
 static void __init at91_reset_status(struct platform_device *pdev)
 {
 	const char *reason;
-	u32 reg = readl(at91_rstc_base + AT91_RSTC_SR);
+	u32 reg = readl(reset.rstc_base + AT91_RSTC_SR);
 
 	switch ((reg & AT91_RSTC_RSTTYP) >> 8) {
 	case RESET_TYPE_GENERAL:
@@ -208,8 +216,8 @@ static int __init at91_reset_probe(struct platform_device *pdev)
 	struct device_node *np;
 	int ret, idx = 0;
 
-	at91_rstc_base = of_iomap(pdev->dev.of_node, 0);
-	if (!at91_rstc_base) {
+	reset.rstc_base = of_iomap(pdev->dev.of_node, 0);
+	if (!reset.rstc_base) {
 		dev_err(&pdev->dev, "Could not map reset controller address\n");
 		return -ENODEV;
 	}
