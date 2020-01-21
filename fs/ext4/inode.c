@@ -3918,10 +3918,12 @@ static ssize_t ext4_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 	ssize_t ret;
 	int rw = iov_iter_rw(iter);
 
-#ifdef CONFIG_FS_ENCRYPTION
-	if (IS_ENCRYPTED(inode) && S_ISREG(inode->i_mode))
-		return 0;
-#endif
+	if (IS_ENABLED(CONFIG_FS_ENCRYPTION) && IS_ENCRYPTED(inode)) {
+		if (!fscrypt_inode_uses_inline_crypto(inode) ||
+		    !IS_ALIGNED(iocb->ki_pos | iov_iter_alignment(iter),
+				i_blocksize(inode)))
+			return 0;
+	}
 	if (fsverity_active(inode))
 		return 0;
 
