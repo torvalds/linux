@@ -52,11 +52,10 @@ enum reset_type {
 struct at91_reset {
 	void __iomem *rstc_base;
 	void __iomem *ramc_base[2];
+	struct clk *sclk;
 };
 
 static struct at91_reset reset;
-
-static struct clk *sclk;
 
 /*
 * unless the SDRAM is cleanly shutdown before we hit the
@@ -238,11 +237,11 @@ static int __init at91_reset_probe(struct platform_device *pdev)
 	match = of_match_node(at91_reset_of_match, pdev->dev.of_node);
 	at91_restart_nb.notifier_call = match->data;
 
-	sclk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(sclk))
-		return PTR_ERR(sclk);
+	reset.sclk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(reset.sclk))
+		return PTR_ERR(reset.sclk);
 
-	ret = clk_prepare_enable(sclk);
+	ret = clk_prepare_enable(reset.sclk);
 	if (ret) {
 		dev_err(&pdev->dev, "Could not enable slow clock\n");
 		return ret;
@@ -250,7 +249,7 @@ static int __init at91_reset_probe(struct platform_device *pdev)
 
 	ret = register_restart_handler(&at91_restart_nb);
 	if (ret) {
-		clk_disable_unprepare(sclk);
+		clk_disable_unprepare(reset.sclk);
 		return ret;
 	}
 
@@ -262,7 +261,7 @@ static int __init at91_reset_probe(struct platform_device *pdev)
 static int __exit at91_reset_remove(struct platform_device *pdev)
 {
 	unregister_restart_handler(&at91_restart_nb);
-	clk_disable_unprepare(sclk);
+	clk_disable_unprepare(reset.sclk);
 
 	return 0;
 }
