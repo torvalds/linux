@@ -1316,14 +1316,13 @@ static int hclgevf_set_vlan_filter(struct hnae3_handle *handle,
 	msg_data[0] = is_kill;
 	memcpy(&msg_data[1], &vlan_id, sizeof(vlan_id));
 	memcpy(&msg_data[3], &proto, sizeof(proto));
-	ret = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_SET_VLAN,
-				   HCLGE_MBX_VLAN_FILTER, msg_data,
-				   HCLGEVF_VLAN_MBX_MSG_LEN, true, NULL, 0);
-
 	/* when remove hw vlan filter failed, record the vlan id,
 	 * and try to remove it from hw later, to be consistence
 	 * with stack.
 	 */
+	ret = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_SET_VLAN,
+				   HCLGE_MBX_VLAN_FILTER, msg_data,
+				   HCLGEVF_VLAN_MBX_MSG_LEN, true, NULL, 0);
 	if (is_kill && ret)
 		set_bit(vlan_id, hdev->vlan_del_fail_bmap);
 
