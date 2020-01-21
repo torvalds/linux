@@ -328,6 +328,8 @@ static void f2fs_set_bio_crypt_ctx(struct bio *bio, const struct inode *inode,
 	 */
 	if (!fio || !fio->encrypted_page)
 		fscrypt_set_bio_crypt_ctx(bio, inode, first_idx, gfp_mask);
+	else if (fscrypt_inode_should_skip_dm_default_key(inode))
+		bio_set_skip_dm_default_key(bio);
 }
 
 static bool f2fs_crypt_mergeable_bio(struct bio *bio, const struct inode *inode,
@@ -339,7 +341,9 @@ static bool f2fs_crypt_mergeable_bio(struct bio *bio, const struct inode *inode,
 	 * read/write raw data without encryption.
 	 */
 	if (fio && fio->encrypted_page)
-		return !bio_has_crypt_ctx(bio);
+		return !bio_has_crypt_ctx(bio) &&
+			(bio_should_skip_dm_default_key(bio) ==
+			 fscrypt_inode_should_skip_dm_default_key(inode));
 
 	return fscrypt_mergeable_bio(bio, inode, next_idx);
 }
