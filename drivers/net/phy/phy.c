@@ -440,12 +440,22 @@ EXPORT_SYMBOL(phy_mii_ioctl);
  */
 int phy_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
-	if (!netif_running(dev) || !dev->phydev)
+	if (!dev->phydev)
 		return -ENODEV;
 
 	return phy_mii_ioctl(dev->phydev, ifr, cmd);
 }
 EXPORT_SYMBOL(phy_do_ioctl);
+
+/* same as phy_do_ioctl, but ensures that net_device is running */
+int phy_do_ioctl_running(struct net_device *dev, struct ifreq *ifr, int cmd)
+{
+	if (!netif_running(dev))
+		return -ENODEV;
+
+	return phy_do_ioctl(dev, ifr, cmd);
+}
+EXPORT_SYMBOL(phy_do_ioctl_running);
 
 void phy_queue_state_machine(struct phy_device *phydev, unsigned long jiffies)
 {
