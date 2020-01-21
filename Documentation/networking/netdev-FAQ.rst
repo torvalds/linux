@@ -34,8 +34,8 @@ the names, the ``net`` tree is for fixes to existing code already in the
 mainline tree from Linus, and ``net-next`` is where the new code goes
 for the future release.  You can find the trees here:
 
-- https://git.kernel.org/pub/scm/linux/kernel/git/davem/net.git
-- https://git.kernel.org/pub/scm/linux/kernel/git/davem/net-next.git
+- https://git.kernel.org/pub/scm/linux/kernel/git/netdev/net.git
+- https://git.kernel.org/pub/scm/linux/kernel/git/netdev/net-next.git
 
 Q: How often do changes from these trees make it to the mainline Linus tree?
 ----------------------------------------------------------------------------

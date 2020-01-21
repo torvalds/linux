@@ -163,7 +163,7 @@ static int get_cq_umem(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq,
 	u32 npages;
 	int ret;
 
-	*umem = ib_umem_get(udata, ucmd.buf_addr, buf->size,
+	*umem = ib_umem_get(&hr_dev->ib_dev, ucmd.buf_addr, buf->size,
 			    IB_ACCESS_LOCAL_WRITE);
 	if (IS_ERR(*umem))
 		return PTR_ERR(*umem);

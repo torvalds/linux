@@ -69,7 +69,7 @@ static inline size_t ib_umem_num_pages(struct ib_umem *umem)
 
 #ifdef CONFIG_INFINIBAND_USER_MEM
 
-struct ib_umem *ib_umem_get(struct ib_udata *udata, unsigned long addr,
+struct ib_umem *ib_umem_get(struct ib_device *device, unsigned long addr,
 			    size_t size, int access);
 void ib_umem_release(struct ib_umem *umem);
 int ib_umem_page_count(struct ib_umem *umem);
@@ -83,7 +83,7 @@ unsigned long ib_umem_find_best_pgsz(struct ib_umem *umem,
 
 #include <linux/err.h>
 
-static inline struct ib_umem *ib_umem_get(struct ib_udata *udata,
+static inline struct ib_umem *ib_umem_get(struct ib_device *device,
 					  unsigned long addr, size_t size,
 					  int access)
 {
