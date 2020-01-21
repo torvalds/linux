@@ -10204,10 +10204,8 @@ static int hclge_get_dfx_reg_bd_num(struct hclge_dev *hdev,
 				    int *bd_num_list,
 				    u32 type_num)
 {
-#define HCLGE_DFX_REG_BD_NUM	4
-
 	u32 entries_per_desc, desc_index, index, offset, i;
-	struct hclge_desc desc[HCLGE_DFX_REG_BD_NUM];
+	struct hclge_desc desc[HCLGE_GET_DFX_REG_TYPE_CNT];
 	int ret;
 
 	ret = hclge_query_bd_num_cmd_send(hdev, desc);
