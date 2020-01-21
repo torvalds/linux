@@ -56,14 +56,6 @@ struct kmem_cache *radix_tree_node_cachep;
 #define IDR_PRELOAD_SIZE	(IDR_MAX_PATH * 2 - 1)
 
 /*
- * The IDA is even shorter since it uses a bitmap at the last level.
- */
-#define IDA_INDEX_BITS		(8 * sizeof(int) - 1 - ilog2(IDA_BITMAP_BITS))
-#define IDA_MAX_PATH		(DIV_ROUND_UP(IDA_INDEX_BITS, \
-						RADIX_TREE_MAP_SHIFT))
-#define IDA_PRELOAD_SIZE	(IDA_MAX_PATH * 2 - 1)
-
-/*
  * Per-cpu pool of preloaded nodes
  */
 struct radix_tree_preload {
