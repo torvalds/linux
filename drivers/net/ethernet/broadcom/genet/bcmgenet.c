@@ -1225,18 +1225,6 @@ static void bcmgenet_power_up(struct bcmgenet_priv *priv,
 	}
 }
 
-/* ioctl handle special commands that are not present in ethtool. */
-static int bcmgenet_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
-{
-	if (!netif_running(dev))
-		return -EINVAL;
-
-	if (!dev->phydev)
-		return -ENODEV;
-
-	return phy_mii_ioctl(dev->phydev, rq, cmd);
-}
-
 static struct enet_cb *bcmgenet_get_txcb(struct bcmgenet_priv *priv,
 					 struct bcmgenet_tx_ring *ring)
 {
@@ -3222,7 +3210,7 @@ static const struct net_device_ops bcmgenet_netdev_ops = {
 	.ndo_tx_timeout		= bcmgenet_timeout,
 	.ndo_set_rx_mode	= bcmgenet_set_rx_mode,
 	.ndo_set_mac_address	= bcmgenet_set_mac_addr,
-	.ndo_do_ioctl		= bcmgenet_ioctl,
+	.ndo_do_ioctl		= phy_do_ioctl_running,
 	.ndo_set_features	= bcmgenet_set_features,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= bcmgenet_poll_controller,

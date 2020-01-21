@@ -289,18 +289,6 @@ static void emac_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 	schedule_work(&adpt->work_thread);
 }
 
-/* IOCTL support for the interface */
-static int emac_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
-{
-	if (!netif_running(netdev))
-		return -EINVAL;
-
-	if (!netdev->phydev)
-		return -ENODEV;
-
-	return phy_mii_ioctl(netdev->phydev, ifr, cmd);
-}
-
 /**
  * emac_update_hw_stats - read the EMAC stat registers
  *
@@ -387,7 +375,7 @@ static const struct net_device_ops emac_netdev_ops = {
 	.ndo_start_xmit		= emac_start_xmit,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_change_mtu		= emac_change_mtu,
-	.ndo_do_ioctl		= emac_ioctl,
+	.ndo_do_ioctl		= phy_do_ioctl_running,
 	.ndo_tx_timeout		= emac_tx_timeout,
 	.ndo_get_stats64	= emac_get_stats64,
 	.ndo_set_features       = emac_set_features,
