@@ -49,6 +49,11 @@ enum reset_type {
 	RESET_TYPE_ULP2		= 8,
 };
 
+struct at91_reset_data {
+	int (*notifier_call)(struct notifier_block *this, unsigned long mode,
+			     void *cmd);
+};
+
 struct at91_reset {
 	void __iomem *rstc_base;
 	void __iomem *ramc_base[2];
@@ -203,18 +208,50 @@ static const struct of_device_id at91_ramc_of_match[] = {
 	{ /* sentinel */ }
 };
 
+static const struct at91_reset_data at91sam9260_reset_data = {
+	.notifier_call = at91sam9260_restart,
+};
+
+static const struct at91_reset_data at91sam9g45_reset_data = {
+	.notifier_call = at91sam9g45_restart,
+};
+
+static const struct at91_reset_data sama5d3_reset_data = {
+	.notifier_call = sama5d3_restart,
+};
+
+static const struct at91_reset_data samx7_reset_data = {
+	.notifier_call = samx7_restart,
+};
+
 static const struct of_device_id at91_reset_of_match[] = {
-	{ .compatible = "atmel,at91sam9260-rstc", .data = at91sam9260_restart },
-	{ .compatible = "atmel,at91sam9g45-rstc", .data = at91sam9g45_restart },
-	{ .compatible = "atmel,sama5d3-rstc", .data = sama5d3_restart },
-	{ .compatible = "atmel,samx7-rstc", .data = samx7_restart },
-	{ .compatible = "microchip,sam9x60-rstc", .data = samx7_restart },
+	{
+		.compatible = "atmel,at91sam9260-rstc",
+		.data = &at91sam9260_reset_data
+	},
+	{
+		.compatible = "atmel,at91sam9g45-rstc",
+		.data = &at91sam9g45_reset_data
+	},
+	{
+		.compatible = "atmel,sama5d3-rstc",
+		.data = &sama5d3_reset_data
+	},
+	{
+		.compatible = "atmel,samx7-rstc",
+		.data = &samx7_reset_data
+	},
+	{
+		.compatible = "microchip,sam9x60-rstc",
+		.data = &samx7_reset_data
+	},
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, at91_reset_of_match);
 
 static int __init at91_reset_probe(struct platform_device *pdev)
 {
+	const struct at91_reset_data *reset_data;
 	const struct of_device_id *match;
 	struct at91_reset *reset;
 	struct device_node *np;
@@ -244,7 +281,8 @@ static int __init at91_reset_probe(struct platform_device *pdev)
 	}
 
 	match = of_match_node(at91_reset_of_match, pdev->dev.of_node);
-	reset->nb.notifier_call = match->data;
+	reset_data = match->data;
+	reset->nb.notifier_call = reset_data->notifier_call;
 	reset->nb.priority = 192;
 
 	reset->sclk = devm_clk_get(&pdev->dev, NULL);
