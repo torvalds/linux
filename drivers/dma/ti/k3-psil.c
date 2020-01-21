@@ -12,9 +12,6 @@
 
 #include "k3-psil-priv.h"
 
-extern struct psil_ep_map am654_ep_map;
-extern struct psil_ep_map j721e_ep_map;
-
 static DEFINE_MUTEX(ep_map_mutex);
 static struct psil_ep_map *soc_ep_map;
 

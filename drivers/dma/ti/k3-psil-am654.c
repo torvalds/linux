@@ -49,7 +49,7 @@
 	}
 
 /* PSI-L source thread IDs, used for RX (DMA_DEV_TO_MEM) */
-struct psil_ep am654_src_ep_map[] = {
+static struct psil_ep am654_src_ep_map[] = {
 	/* SA2UL */
 	PSIL_SA2UL(0x4000, 0),
 	PSIL_SA2UL(0x4001, 0),
@@ -124,7 +124,7 @@ struct psil_ep am654_src_ep_map[] = {
 };
 
 /* PSI-L destination thread IDs, used for TX (DMA_MEM_TO_DEV) */
-struct psil_ep am654_dst_ep_map[] = {
+static struct psil_ep am654_dst_ep_map[] = {
 	/* SA2UL */
 	PSIL_SA2UL(0xc000, 1),
 	PSIL_SA2UL(0xc001, 1),
