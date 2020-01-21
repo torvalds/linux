@@ -179,4 +179,7 @@ dmaengine_desc_callback_valid(struct dmaengine_desc_callback *cb)
 	return (cb->callback) ? true : false;
 }
 
+struct dma_chan *dma_get_slave_channel(struct dma_chan *chan);
+struct dma_chan *dma_get_any_slave_channel(struct dma_device *device);
+
 #endif
