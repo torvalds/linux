@@ -1415,6 +1415,7 @@ set_engines__load_balance(struct i915_user_extension __user *base, void *data)
 	struct i915_context_engines_load_balance __user *ext =
 		container_of_user(base, typeof(*ext), base);
 	const struct set_engines *set = data;
+	struct drm_i915_private *i915 = set->ctx->i915;
 	struct intel_engine_cs *stack[16];
 	struct intel_engine_cs **siblings;
 	struct intel_context *ce;
@@ -1422,24 +1423,25 @@ set_engines__load_balance(struct i915_user_extension __user *base, void *data)
 	unsigned int n;
 	int err;
 
-	if (!HAS_EXECLISTS(set->ctx->i915))
+	if (!HAS_EXECLISTS(i915))
 		return -ENODEV;
 
-	if (USES_GUC_SUBMISSION(set->ctx->i915))
+	if (USES_GUC_SUBMISSION(i915))
 		return -ENODEV; /* not implement yet */
 
 	if (get_user(idx, &ext->engine_index))
 		return -EFAULT;
 
 	if (idx >= set->engines->num_engines) {
-		DRM_DEBUG("Invalid placement value, %d >= %d\n",
-			  idx, set->engines->num_engines);
+		drm_dbg(&i915->drm, "Invalid placement value, %d >= %d\n",
+			idx, set->engines->num_engines);
 		return -EINVAL;
 	}
 
 	idx = array_index_nospec(idx, set->engines->num_engines);
 	if (set->engines->engines[idx]) {
-		DRM_DEBUG("Invalid placement[%d], already occupied\n", idx);
+		drm_dbg(&i915->drm,
+			"Invalid placement[%d], already occupied\n", idx);
 		return -EEXIST;
 	}
 
@@ -1471,12 +1473,13 @@ set_engines__load_balance(struct i915_user_extension __user *base, void *data)
 			goto out_siblings;
 		}
 
-		siblings[n] = intel_engine_lookup_user(set->ctx->i915,
+		siblings[n] = intel_engine_lookup_user(i915,
 						       ci.engine_class,
 						       ci.engine_instance);
 		if (!siblings[n]) {
-			DRM_DEBUG("Invalid sibling[%d]: { class:%d, inst:%d }\n",
-				  n, ci.engine_class, ci.engine_instance);
+			drm_dbg(&i915->drm,
+				"Invalid sibling[%d]: { class:%d, inst:%d }\n",
+				n, ci.engine_class, ci.engine_instance);
 			err = -EINVAL;
 			goto out_siblings;
 		}
@@ -1509,6 +1512,7 @@ set_engines__bond(struct i915_user_extension __user *base, void *data)
 	struct i915_context_engines_bond __user *ext =
 		container_of_user(base, typeof(*ext), base);
 	const struct set_engines *set = data;
+	struct drm_i915_private *i915 = set->ctx->i915;
 	struct i915_engine_class_instance ci;
 	struct intel_engine_cs *virtual;
 	struct intel_engine_cs *master;
@@ -1519,14 +1523,15 @@ set_engines__bond(struct i915_user_extension __user *base, void *data)
 		return -EFAULT;
 
 	if (idx >= set->engines->num_engines) {
-		DRM_DEBUG("Invalid index for virtual engine: %d >= %d\n",
-			  idx, set->engines->num_engines);
+		drm_dbg(&i915->drm,
+			"Invalid index for virtual engine: %d >= %d\n",
+			idx, set->engines->num_engines);
 		return -EINVAL;
 	}
 
 	idx = array_index_nospec(idx, set->engines->num_engines);
 	if (!set->engines->engines[idx]) {
-		DRM_DEBUG("Invalid engine at %d\n", idx);
+		drm_dbg(&i915->drm, "Invalid engine at %d\n", idx);
 		return -EINVAL;
 	}
 	virtual = set->engines->engines[idx]->engine;
@@ -1544,11 +1549,12 @@ set_engines__bond(struct i915_user_extension __user *base, void *data)
 	if (copy_from_user(&ci, &ext->master, sizeof(ci)))
 		return -EFAULT;
 
-	master = intel_engine_lookup_user(set->ctx->i915,
+	master = intel_engine_lookup_user(i915,
 					  ci.engine_class, ci.engine_instance);
 	if (!master) {
-		DRM_DEBUG("Unrecognised master engine: { class:%u, instance:%u }\n",
-			  ci.engine_class, ci.engine_instance);
+		drm_dbg(&i915->drm,
+			"Unrecognised master engine: { class:%u, instance:%u }\n",
+			ci.engine_class, ci.engine_instance);
 		return -EINVAL;
 	}
 
@@ -1561,12 +1567,13 @@ set_engines__bond(struct i915_user_extension __user *base, void *data)
 		if (copy_from_user(&ci, &ext->engines[n], sizeof(ci)))
 			return -EFAULT;
 
-		bond = intel_engine_lookup_user(set->ctx->i915,
+		bond = intel_engine_lookup_user(i915,
 						ci.engine_class,
 						ci.engine_instance);
 		if (!bond) {
-			DRM_DEBUG("Unrecognised engine[%d] for bonding: { class:%d, instance: %d }\n",
-				  n, ci.engine_class, ci.engine_instance);
+			drm_dbg(&i915->drm,
+				"Unrecognised engine[%d] for bonding: { class:%d, instance: %d }\n",
+				n, ci.engine_class, ci.engine_instance);
 			return -EINVAL;
 		}
 
