@@ -325,20 +325,20 @@ static const struct media_entity_operations vimc_cap_mops = {
 	.link_validate		= vimc_vdev_link_validate,
 };
 
-static void vimc_cap_release(struct video_device *vdev)
+void vimc_cap_release(struct vimc_ent_device *ved)
 {
 	struct vimc_cap_device *vcap =
-		container_of(vdev, struct vimc_cap_device, vdev);
+		container_of(ved, struct vimc_cap_device, ved);
 
 	media_entity_cleanup(vcap->ved.ent);
 	kfree(vcap);
 }
 
-void vimc_cap_rm(struct vimc_device *vimc, struct vimc_ent_device *ved)
+void vimc_cap_unregister(struct vimc_ent_device *ved)
 {
-	struct vimc_cap_device *vcap;
+	struct vimc_cap_device *vcap =
+		container_of(ved, struct vimc_cap_device, ved);
 
-	vcap = container_of(ved, struct vimc_cap_device, ved);
 	vb2_queue_release(&vcap->queue);
 	video_unregister_device(&vcap->vdev);
 }
@@ -449,7 +449,7 @@ struct vimc_ent_device *vimc_cap_add(struct vimc_device *vimc,
 	vdev = &vcap->vdev;
 	vdev->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
 	vdev->entity.ops = &vimc_cap_mops;
-	vdev->release = vimc_cap_release;
+	vdev->release = video_device_release_empty;
 	vdev->fops = &vimc_cap_fops;
 	vdev->ioctl_ops = &vimc_cap_ioctl_ops;
 	vdev->lock = &vcap->lock;
