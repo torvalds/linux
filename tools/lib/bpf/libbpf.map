@@ -228,7 +228,9 @@ LIBBPF_0.0.7 {
 		bpf_prog_attach_xattr;
 		bpf_program__attach;
 		bpf_program__name;
+		bpf_program__is_extension;
 		bpf_program__is_struct_ops;
+		bpf_program__set_extension;
 		bpf_program__set_struct_ops;
 		btf__align_of;
 		libbpf_find_kernel_btf;

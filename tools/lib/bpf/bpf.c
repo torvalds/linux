@@ -237,7 +237,8 @@ int bpf_load_program_xattr(const struct bpf_load_program_attr *load_attr,
 	attr.expected_attach_type = load_attr->expected_attach_type;
 	if (attr.prog_type == BPF_PROG_TYPE_STRUCT_OPS) {
 		attr.attach_btf_id = load_attr->attach_btf_id;
-	} else if (attr.prog_type == BPF_PROG_TYPE_TRACING) {
+	} else if (attr.prog_type == BPF_PROG_TYPE_TRACING ||
+		   attr.prog_type == BPF_PROG_TYPE_EXT) {
 		attr.attach_btf_id = load_attr->attach_btf_id;
 		attr.attach_prog_fd = load_attr->attach_prog_fd;
 	} else {

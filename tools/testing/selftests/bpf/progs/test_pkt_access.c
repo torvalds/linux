@@ -57,12 +57,18 @@ int get_skb_len(struct __sk_buff *skb)
 	return skb->len;
 }
 
+__attribute__ ((noinline))
+int get_constant(long val)
+{
+	return val - 122;
+}
+
 int get_skb_ifindex(int, struct __sk_buff *skb, int);
 
 __attribute__ ((noinline))
 int test_pkt_access_subprog3(int val, struct __sk_buff *skb)
 {
-	return get_skb_len(skb) * get_skb_ifindex(val, skb, 1);
+	return get_skb_len(skb) * get_skb_ifindex(val, skb, get_constant(123));
 }
 
 __attribute__ ((noinline))

@@ -5,6 +5,12 @@
 #include <linux/filter.h>
 #include <linux/ftrace.h>
 
+/* dummy _ops. The verifier will operate on target program's ops. */
+const struct bpf_verifier_ops bpf_extension_verifier_ops = {
+};
+const struct bpf_prog_ops bpf_extension_prog_ops = {
+};
+
 /* btf_vmlinux has ~22k attachable functions. 1k htab is enough. */
 #define TRAMPOLINE_HASH_BITS 10
 #define TRAMPOLINE_TABLE_SIZE (1 << TRAMPOLINE_HASH_BITS)
@@ -194,8 +200,10 @@ static enum bpf_tramp_prog_type bpf_attach_type_to_tramp(enum bpf_attach_type t)
 	switch (t) {
 	case BPF_TRACE_FENTRY:
 		return BPF_TRAMP_FENTRY;
-	default:
+	case BPF_TRACE_FEXIT:
 		return BPF_TRAMP_FEXIT;
+	default:
+		return BPF_TRAMP_REPLACE;
 	}
 }
 
@@ -204,12 +212,31 @@ int bpf_trampoline_link_prog(struct bpf_prog *prog)
 	enum bpf_tramp_prog_type kind;
 	struct bpf_trampoline *tr;
 	int err = 0;
+	int cnt;
 
 	tr = prog->aux->trampoline;
 	kind = bpf_attach_type_to_tramp(prog->expected_attach_type);
 	mutex_lock(&tr->mutex);
-	if (tr->progs_cnt[BPF_TRAMP_FENTRY] + tr->progs_cnt[BPF_TRAMP_FEXIT]
-	    >= BPF_MAX_TRAMP_PROGS) {
+	if (tr->extension_prog) {
+		/* cannot attach fentry/fexit if extension prog is attached.
+		 * cannot overwrite extension prog either.
+		 */
+		err = -EBUSY;
+		goto out;
+	}
+	cnt = tr->progs_cnt[BPF_TRAMP_FENTRY] + tr->progs_cnt[BPF_TRAMP_FEXIT];
+	if (kind == BPF_TRAMP_REPLACE) {
+		/* Cannot attach extension if fentry/fexit are in use. */
+		if (cnt) {
+			err = -EBUSY;
+			goto out;
+		}
+		tr->extension_prog = prog;
+		err = bpf_arch_text_poke(tr->func.addr, BPF_MOD_JUMP, NULL,
+					 prog->bpf_func);
+		goto out;
+	}
+	if (cnt >= BPF_MAX_TRAMP_PROGS) {
 		err = -E2BIG;
 		goto out;
 	}
@@ -240,9 +267,17 @@ int bpf_trampoline_unlink_prog(struct bpf_prog *prog)
 	tr = prog->aux->trampoline;
 	kind = bpf_attach_type_to_tramp(prog->expected_attach_type);
 	mutex_lock(&tr->mutex);
+	if (kind == BPF_TRAMP_REPLACE) {
+		WARN_ON_ONCE(!tr->extension_prog);
+		err = bpf_arch_text_poke(tr->func.addr, BPF_MOD_JUMP,
+					 tr->extension_prog->bpf_func, NULL);
+		tr->extension_prog = NULL;
+		goto out;
+	}
 	hlist_del(&prog->aux->tramp_hlist);
 	tr->progs_cnt[kind]--;
 	err = bpf_trampoline_update(prog->aux->trampoline);
+out:
 	mutex_unlock(&tr->mutex);
 	return err;
 }
