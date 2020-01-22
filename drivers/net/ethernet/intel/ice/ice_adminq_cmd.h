@@ -1661,6 +1661,13 @@ struct ice_aqc_get_pkg_info_resp {
 	struct ice_aqc_get_pkg_info pkg_info[1];
 };
 
+/* Lan Queue Overflow Event (direct, 0x1001) */
+struct ice_aqc_event_lan_overflow {
+	__le32 prtdcb_ruptq;
+	__le32 qtx_ctl;
+	u8 reserved[8];
+};
+
 /**
  * struct ice_aq_desc - Admin Queue (AQ) descriptor
  * @flags: ICE_AQ_FLAG_* flags
@@ -1730,6 +1737,7 @@ struct ice_aq_desc {
 		struct ice_aqc_alloc_free_res_cmd sw_res_ctrl;
 		struct ice_aqc_set_event_mask set_event_mask;
 		struct ice_aqc_get_link_status get_link_status;
+		struct ice_aqc_event_lan_overflow lan_overflow;
 	} params;
 };
 
@@ -1859,6 +1867,9 @@ enum ice_adminq_opc {
 	ice_aqc_opc_download_pkg			= 0x0C40,
 	ice_aqc_opc_update_pkg				= 0x0C42,
 	ice_aqc_opc_get_pkg_info_list			= 0x0C43,
+
+	/* Standalone Commands/Events */
+	ice_aqc_opc_event_lan_overflow			= 0x1001,
 
 	/* debug commands */
 	ice_aqc_opc_fw_logging				= 0xFF09,
