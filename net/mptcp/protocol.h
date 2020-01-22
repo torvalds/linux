@@ -179,6 +179,9 @@ extern const struct inet_connection_sock_af_ops ipv6_specific;
 #endif
 
 void mptcp_proto_init(void);
+#if IS_ENABLED(CONFIG_MPTCP_IPV6)
+int mptcp_proto_v6_init(void);
+#endif
 
 struct mptcp_read_arg {
 	struct msghdr *msg;

@@ -522,7 +522,7 @@ static void __mptcp_close_ssk(struct sock *sk, struct sock *ssk,
 	}
 }
 
-static int mptcp_init_sock(struct sock *sk)
+static int __mptcp_init_sock(struct sock *sk)
 {
 	struct mptcp_sock *msk = mptcp_sk(sk);
 
@@ -530,6 +530,14 @@ static int mptcp_init_sock(struct sock *sk)
 	__set_bit(MPTCP_SEND_SPACE, &msk->flags);
 
 	return 0;
+}
+
+static int mptcp_init_sock(struct sock *sk)
+{
+	if (!mptcp_is_enabled(sock_net(sk)))
+		return -ENOPROTOOPT;
+
+	return __mptcp_init_sock(sk);
 }
 
 static void mptcp_subflow_shutdown(struct sock *ssk, int how)
@@ -640,7 +648,7 @@ static struct sock *mptcp_accept(struct sock *sk, int flags, int *err,
 			return NULL;
 		}
 
-		mptcp_init_sock(new_mptcp_sock);
+		__mptcp_init_sock(new_mptcp_sock);
 
 		msk = mptcp_sk(new_mptcp_sock);
 		msk->remote_key = subflow->remote_key;
@@ -1078,7 +1086,7 @@ static struct inet_protosw mptcp_protosw = {
 	.flags		= INET_PROTOSW_ICSK,
 };
 
-void __init mptcp_init(void)
+void mptcp_proto_init(void)
 {
 	mptcp_prot.h.hashinfo = tcp_prot.h.hashinfo;
 	mptcp_stream_ops = inet_stream_ops;
@@ -1116,7 +1124,7 @@ static struct inet_protosw mptcp_v6_protosw = {
 	.flags		= INET_PROTOSW_ICSK,
 };
 
-int mptcpv6_init(void)
+int mptcp_proto_v6_init(void)
 {
 	int err;
 
