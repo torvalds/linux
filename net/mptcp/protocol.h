@@ -43,7 +43,7 @@
 #define MPTCP_VERSION_MASK	(0x0F)
 #define MPTCP_CAP_CHECKSUM_REQD	BIT(7)
 #define MPTCP_CAP_EXTENSIBILITY	BIT(6)
-#define MPTCP_CAP_HMAC_SHA1	BIT(0)
+#define MPTCP_CAP_HMAC_SHA256	BIT(0)
 #define MPTCP_CAP_FLAG_MASK	(0x3F)
 
 /* MPTCP DSS flags */
@@ -216,7 +216,7 @@ static inline void mptcp_crypto_key_gen_sha(u64 *key, u32 *token, u64 *idsn)
 }
 
 void mptcp_crypto_hmac_sha(u64 key1, u64 key2, u32 nonce1, u32 nonce2,
-			   u32 *hash_out);
+			   void *hash_out);
 
 static inline struct mptcp_ext *mptcp_get_ext(struct sk_buff *skb)
 {

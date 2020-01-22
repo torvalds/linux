@@ -9,6 +9,11 @@
 #include <net/mptcp.h>
 #include "protocol.h"
 
+static bool mptcp_cap_flag_sha256(u8 flags)
+{
+	return (flags & MPTCP_CAP_FLAG_MASK) == MPTCP_CAP_HMAC_SHA256;
+}
+
 void mptcp_parse_option(const unsigned char *ptr, int opsize,
 			struct tcp_options_received *opt_rx)
 {
@@ -29,7 +34,7 @@ void mptcp_parse_option(const unsigned char *ptr, int opsize,
 			break;
 
 		flags = *ptr++;
-		if (!((flags & MPTCP_CAP_FLAG_MASK) == MPTCP_CAP_HMAC_SHA1) ||
+		if (!mptcp_cap_flag_sha256(flags) ||
 		    (flags & MPTCP_CAP_EXTENSIBILITY))
 			break;
 
@@ -399,7 +404,7 @@ void mptcp_write_options(__be32 *ptr, struct mptcp_out_options *opts)
 		*ptr++ = htonl((TCPOPT_MPTCP << 24) | (len << 16) |
 			       (MPTCPOPT_MP_CAPABLE << 12) |
 			       (MPTCP_SUPPORTED_VERSION << 8) |
-			       MPTCP_CAP_HMAC_SHA1);
+			       MPTCP_CAP_HMAC_SHA256);
 		put_unaligned_be64(opts->sndr_key, ptr);
 		ptr += 2;
 		if (OPTION_MPTCP_MPC_ACK & opts->suboptions) {
