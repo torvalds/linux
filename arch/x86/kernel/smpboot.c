@@ -1821,6 +1821,24 @@ static bool turbo_disabled(void)
 	return (misc_en & MSR_IA32_MISC_ENABLE_TURBO_DISABLE);
 }
 
+static bool slv_set_max_freq_ratio(u64 *base_freq, u64 *turbo_freq)
+{
+	int err;
+
+	err = rdmsrl_safe(MSR_ATOM_CORE_RATIOS, base_freq);
+	if (err)
+		return false;
+
+	err = rdmsrl_safe(MSR_ATOM_CORE_TURBO_RATIOS, turbo_freq);
+	if (err)
+		return false;
+
+	*base_freq = (*base_freq >> 16) & 0x3F;     /* max P state */
+	*turbo_freq = *turbo_freq & 0x3F;           /* 1C turbo    */
+
+	return true;
+}
+
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
 
@@ -1938,15 +1956,12 @@ static bool core_set_max_freq_ratio(u64 *base_freq, u64 *turbo_freq)
 
 static bool intel_set_max_freq_ratio(void)
 {
-	/*
-	 * TODO: add support for:
-	 *
-	 * - Atom Silvermont
-	 */
-
 	u64 base_freq = 1, turbo_freq = 1;
 
 	if (turbo_disabled())
+		goto out;
+
+	if (slv_set_max_freq_ratio(&base_freq, &turbo_freq))
 		goto out;
 
 	if (x86_match_cpu(has_glm_turbo_ratio_limits) &&
