@@ -14,42 +14,74 @@
 #define DQCOUNT_INVALID	-1
 #define PIE_SCALE	8
 
-/* parameters used */
+/**
+ * struct pie_params - contains pie parameters
+ * @target:		target delay in pschedtime
+ * @tudpate:		interval at which drop probability is calculated
+ * @limit:		total number of packets that can be in the queue
+ * @alpha:		parameter to control drop probability
+ * @beta:		parameter to control drop probability
+ * @ecn:		is ECN marking of packets enabled
+ * @bytemode:		is drop probability scaled based on pkt size
+ * @dq_rate_estimator:	is Little's law used for qdelay calculation
+ */
 struct pie_params {
-	psched_time_t target;	/* user specified target delay in pschedtime */
-	u32 tupdate;		/* timer frequency (in jiffies) */
-	u32 limit;		/* number of packets that can be enqueued */
-	u32 alpha;		/* alpha and beta are between 0 and 32 */
-	u32 beta;		/* and are used for shift relative to 1 */
-	u8 ecn;			/* true if ecn is enabled */
-	u8 bytemode;		/* to scale drop early prob based on pkt size */
-	u8 dq_rate_estimator;	/* to calculate delay using Little's law */
+	psched_time_t target;
+	u32 tupdate;
+	u32 limit;
+	u32 alpha;
+	u32 beta;
+	u8 ecn;
+	u8 bytemode;
+	u8 dq_rate_estimator;
 };
 
-/* variables used */
+/**
+ * struct pie_vars - contains pie variables
+ * @qdelay:			current queue delay
+ * @qdelay_old:			queue delay in previous qdelay calculation
+ * @burst_time:			burst time allowance
+ * @dq_tstamp:			timestamp at which dq rate was last calculated
+ * @prob:			drop probability
+ * @accu_prob:			accumulated drop probability
+ * @dq_count:			number of bytes dequeued in a measurement cycle
+ * @avg_dq_rate:		calculated average dq rate
+ * @qlen_old:			queue length during previous qdelay calculation
+ * @accu_prob_overflows:	number of times accu_prob overflows
+ */
 struct pie_vars {
 	psched_time_t qdelay;
 	psched_time_t qdelay_old;
 	psched_time_t burst_time;
-	psched_time_t dq_tstamp;	/* drain rate */
-	u64 prob;		/* probability but scaled by u64 limit. */
-	u64 accu_prob;		/* accumulated drop probability */
-	u64 dq_count;		/* measured in bytes */
-	u32 avg_dq_rate;	/* bytes per pschedtime tick,scaled */
-	u32 qlen_old;		/* in bytes */
-	u8 accu_prob_overflows;	/* overflows of accu_prob */
+	psched_time_t dq_tstamp;
+	u64 prob;
+	u64 accu_prob;
+	u64 dq_count;
+	u32 avg_dq_rate;
+	u32 qlen_old;
+	u8 accu_prob_overflows;
 };
 
-/* statistics gathering */
+/**
+ * struct pie_stats - contains pie stats
+ * @packets_in:	total number of packets enqueued
+ * @dropped:	packets dropped due to pie action
+ * @overlimit:	packets dropped due to lack of space in queue
+ * @ecn_mark:	packets marked with ECN
+ * @maxq:	maximum queue size
+ */
 struct pie_stats {
-	u32 packets_in;		/* total number of packets enqueued */
-	u32 dropped;		/* packets dropped due to pie_action */
-	u32 overlimit;		/* dropped due to lack of space in queue */
-	u32 ecn_mark;		/* packets marked with ECN */
-	u32 maxq;		/* maximum queue size */
+	u32 packets_in;
+	u32 dropped;
+	u32 overlimit;
+	u32 ecn_mark;
+	u32 maxq;
 };
 
-/* private skb vars */
+/**
+ * struct pie_skb_cb - contains private skb vars
+ * @enqueue_time:	timestamp when the packet is enqueued
+ */
 struct pie_skb_cb {
 	psched_time_t enqueue_time;
 };
@@ -58,7 +90,7 @@ static inline void pie_params_init(struct pie_params *params)
 {
 	params->target = PSCHED_NS2TICKS(15 * NSEC_PER_MSEC);	/* 15 ms */
 	params->tupdate = usecs_to_jiffies(15 * USEC_PER_MSEC);	/* 15 ms */
-	params->limit = 1000;	/* default of 1000 packets */
+	params->limit = 1000;
 	params->alpha = 2;
 	params->beta = 20;
 	params->ecn = false;
@@ -68,8 +100,7 @@ static inline void pie_params_init(struct pie_params *params)
 
 static inline void pie_vars_init(struct pie_vars *vars)
 {
-	/* default of 150 ms in pschedtime */
-	vars->burst_time = PSCHED_NS2TICKS(150 * NSEC_PER_MSEC);
+	vars->burst_time = PSCHED_NS2TICKS(150 * NSEC_PER_MSEC); /* 150 ms */
 	vars->dq_tstamp = DTIME_INVALID;
 	vars->accu_prob = 0;
 	vars->dq_count = DQCOUNT_INVALID;
