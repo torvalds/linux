@@ -342,8 +342,6 @@ struct snd_soc_component *snd_soc_lookup_component(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(snd_soc_lookup_component);
 
-static const struct snd_soc_ops null_snd_soc_ops;
-
 struct snd_soc_pcm_runtime
 *snd_soc_get_pcm_runtime(struct snd_soc_card *card,
 			 struct snd_soc_dai_link *dai_link)
@@ -488,8 +486,6 @@ static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
 	 */
 	rtd->card = card;
 	rtd->dai_link = dai_link;
-	if (!rtd->dai_link->ops)
-		rtd->dai_link->ops = &null_snd_soc_ops;
 
 	/* see for_each_card_rtds */
 	list_add_tail(&rtd->list, &card->rtd_list);
