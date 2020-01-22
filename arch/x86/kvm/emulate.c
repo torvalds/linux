@@ -5683,11 +5683,9 @@ special_insn:
 		if (ctxt->d & Fastop) {
 			void (*fop)(struct fastop *) = (void *)ctxt->execute;
 			rc = fastop(ctxt, fop);
-			if (rc != X86EMUL_CONTINUE)
-				goto done;
-			goto writeback;
+		} else {
+			rc = ctxt->execute(ctxt);
 		}
-		rc = ctxt->execute(ctxt);
 		if (rc != X86EMUL_CONTINUE)
 			goto done;
 		goto writeback;
