@@ -590,6 +590,11 @@ struct drm_dp_mst_topology_mgr {
 	bool payload_id_table_cleared : 1;
 
 	/**
+	 * @is_waiting_for_dwn_reply: whether we're waiting for a down reply.
+	 */
+	bool is_waiting_for_dwn_reply : 1;
+
+	/**
 	 * @mst_primary: Pointer to the primary/first branch device.
 	 */
 	struct drm_dp_mst_branch *mst_primary;
@@ -617,11 +622,6 @@ struct drm_dp_mst_topology_mgr {
 	 * &drm_dp_sideband_msg_tx.state once they are queued
 	 */
 	struct mutex qlock;
-
-	/**
-	 * @is_waiting_for_dwn_reply: indicate whether is waiting for down reply
-	 */
-	bool is_waiting_for_dwn_reply;
 
 	/**
 	 * @tx_msg_downq: List of pending down replies.
