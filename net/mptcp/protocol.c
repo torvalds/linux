@@ -97,12 +97,93 @@ static struct sock *mptcp_subflow_get(const struct mptcp_sock *msk)
 	return NULL;
 }
 
+static bool mptcp_ext_cache_refill(struct mptcp_sock *msk)
+{
+	if (!msk->cached_ext)
+		msk->cached_ext = __skb_ext_alloc();
+
+	return !!msk->cached_ext;
+}
+
+static int mptcp_sendmsg_frag(struct sock *sk, struct sock *ssk,
+			      struct msghdr *msg, long *timeo)
+{
+	int mss_now = 0, size_goal = 0, ret = 0;
+	struct mptcp_sock *msk = mptcp_sk(sk);
+	struct mptcp_ext *mpext = NULL;
+	struct page_frag *pfrag;
+	struct sk_buff *skb;
+	size_t psize;
+
+	/* use the mptcp page cache so that we can easily move the data
+	 * from one substream to another, but do per subflow memory accounting
+	 */
+	pfrag = sk_page_frag(sk);
+	while (!sk_page_frag_refill(ssk, pfrag) ||
+	       !mptcp_ext_cache_refill(msk)) {
+		ret = sk_stream_wait_memory(ssk, timeo);
+		if (ret)
+			return ret;
+	}
+
+	/* compute copy limit */
+	mss_now = tcp_send_mss(ssk, &size_goal, msg->msg_flags);
+	psize = min_t(int, pfrag->size - pfrag->offset, size_goal);
+
+	pr_debug("left=%zu", msg_data_left(msg));
+	psize = copy_page_from_iter(pfrag->page, pfrag->offset,
+				    min_t(size_t, msg_data_left(msg), psize),
+				    &msg->msg_iter);
+	pr_debug("left=%zu", msg_data_left(msg));
+	if (!psize)
+		return -EINVAL;
+
+	/* Mark the end of the previous write so the beginning of the
+	 * next write (with its own mptcp skb extension data) is not
+	 * collapsed.
+	 */
+	skb = tcp_write_queue_tail(ssk);
+	if (skb)
+		TCP_SKB_CB(skb)->eor = 1;
+
+	ret = do_tcp_sendpages(ssk, pfrag->page, pfrag->offset, psize,
+			       msg->msg_flags | MSG_SENDPAGE_NOTLAST);
+	if (ret <= 0)
+		return ret;
+	if (unlikely(ret < psize))
+		iov_iter_revert(&msg->msg_iter, psize - ret);
+
+	skb = tcp_write_queue_tail(ssk);
+	mpext = __skb_ext_set(skb, SKB_EXT_MPTCP, msk->cached_ext);
+	msk->cached_ext = NULL;
+
+	memset(mpext, 0, sizeof(*mpext));
+	mpext->data_seq = msk->write_seq;
+	mpext->subflow_seq = mptcp_subflow_ctx(ssk)->rel_write_seq;
+	mpext->data_len = ret;
+	mpext->use_map = 1;
+	mpext->dsn64 = 1;
+
+	pr_debug("data_seq=%llu subflow_seq=%u data_len=%u dsn64=%d",
+		 mpext->data_seq, mpext->subflow_seq, mpext->data_len,
+		 mpext->dsn64);
+
+	pfrag->offset += ret;
+	msk->write_seq += ret;
+	mptcp_subflow_ctx(ssk)->rel_write_seq += ret;
+
+	tcp_push(ssk, msg->msg_flags, mss_now, tcp_sk(ssk)->nonagle, size_goal);
+	return ret;
+}
+
 static int mptcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 {
 	struct mptcp_sock *msk = mptcp_sk(sk);
 	struct socket *ssock;
+	size_t copied = 0;
 	struct sock *ssk;
-	int ret;
+	int ret = 0;
+	long timeo;
 
 	if (msg->msg_flags & ~(MSG_MORE | MSG_DONTWAIT | MSG_NOSIGNAL))
 		return -EOPNOTSUPP;
@@ -116,14 +197,29 @@ static int mptcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		return ret;
 	}
 
+	timeo = sock_sndtimeo(sk, msg->msg_flags & MSG_DONTWAIT);
+
 	ssk = mptcp_subflow_get(msk);
 	if (!ssk) {
 		release_sock(sk);
 		return -ENOTCONN;
 	}
 
-	ret = sock_sendmsg(ssk->sk_socket, msg);
+	pr_debug("conn_list->subflow=%p", ssk);
 
+	lock_sock(ssk);
+	while (msg_data_left(msg)) {
+		ret = mptcp_sendmsg_frag(sk, ssk, msg, &timeo);
+		if (ret < 0)
+			break;
+
+		copied += ret;
+	}
+
+	if (copied > 0)
+		ret = copied;
+
+	release_sock(ssk);
 	release_sock(sk);
 	return ret;
 }
@@ -235,6 +331,8 @@ static void mptcp_close(struct sock *sk, long timeout)
 		__mptcp_close_ssk(sk, ssk, subflow, timeout);
 	}
 
+	if (msk->cached_ext)
+		__skb_ext_put(msk->cached_ext);
 	release_sock(sk);
 	sk_common_release(sk);
 }
@@ -286,6 +384,7 @@ static struct sock *mptcp_accept(struct sock *sk, int flags, int *err,
 		struct mptcp_subflow_context *subflow;
 		struct sock *new_mptcp_sock;
 		struct sock *ssk = newsk;
+		u64 ack_seq;
 
 		subflow = mptcp_subflow_ctx(newsk);
 		lock_sock(sk);
@@ -310,6 +409,12 @@ static struct sock *mptcp_accept(struct sock *sk, int flags, int *err,
 		msk->subflow = NULL;
 
 		mptcp_token_update_accept(newsk, new_mptcp_sock);
+
+		mptcp_crypto_key_sha(msk->remote_key, NULL, &ack_seq);
+		msk->write_seq = subflow->idsn + 1;
+		ack_seq++;
+		msk->ack_seq = ack_seq;
+		subflow->rel_write_seq = 1;
 		newsk = new_mptcp_sock;
 		mptcp_copy_inaddrs(newsk, ssk);
 		list_add(&subflow->node, &msk->conn_list);
@@ -404,6 +509,7 @@ void mptcp_finish_connect(struct sock *ssk)
 	struct mptcp_subflow_context *subflow;
 	struct mptcp_sock *msk;
 	struct sock *sk;
+	u64 ack_seq;
 
 	subflow = mptcp_subflow_ctx(ssk);
 
@@ -413,12 +519,18 @@ void mptcp_finish_connect(struct sock *ssk)
 	sk = subflow->conn;
 	msk = mptcp_sk(sk);
 
+	mptcp_crypto_key_sha(subflow->remote_key, NULL, &ack_seq);
+	ack_seq++;
+	subflow->rel_write_seq = 1;
+
 	/* the socket is not connected yet, no msk/subflow ops can access/race
 	 * accessing the field below
 	 */
 	WRITE_ONCE(msk->remote_key, subflow->remote_key);
 	WRITE_ONCE(msk->local_key, subflow->local_key);
 	WRITE_ONCE(msk->token, subflow->token);
+	WRITE_ONCE(msk->write_seq, subflow->idsn + 1);
+	WRITE_ONCE(msk->ack_seq, ack_seq);
 }
 
 static void mptcp_sock_graft(struct sock *sk, struct socket *parent)
