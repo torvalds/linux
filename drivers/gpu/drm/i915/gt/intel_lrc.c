@@ -2393,10 +2393,15 @@ static void __execlists_hold(struct i915_request *rq)
 	} while (rq);
 }
 
-static void execlists_hold(struct intel_engine_cs *engine,
+static bool execlists_hold(struct intel_engine_cs *engine,
 			   struct i915_request *rq)
 {
 	spin_lock_irq(&engine->active.lock);
+
+	if (i915_request_completed(rq)) { /* too late! */
+		rq = NULL;
+		goto unlock;
+	}
 
 	/*
 	 * Transfer this request onto the hold queue to prevent it
@@ -2408,7 +2413,9 @@ static void execlists_hold(struct intel_engine_cs *engine,
 	GEM_BUG_ON(rq->engine != engine);
 	__execlists_hold(rq);
 
+unlock:
 	spin_unlock_irq(&engine->active.lock);
+	return rq;
 }
 
 static bool hold_request(const struct i915_request *rq)
@@ -2524,6 +2531,7 @@ static void execlists_capture_work(struct work_struct *work)
 
 	/* Return this request and all that depend upon it for signaling */
 	execlists_unhold(engine, cap->rq);
+	i915_request_put(cap->rq);
 
 	kfree(cap);
 }
@@ -2560,12 +2568,12 @@ err_cap:
 	return NULL;
 }
 
-static void execlists_capture(struct intel_engine_cs *engine)
+static bool execlists_capture(struct intel_engine_cs *engine)
 {
 	struct execlists_capture *cap;
 
 	if (!IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR))
-		return;
+		return true;
 
 	/*
 	 * We need to _quickly_ capture the engine state before we reset.
@@ -2574,13 +2582,17 @@ static void execlists_capture(struct intel_engine_cs *engine)
 	 */
 	cap = capture_regs(engine);
 	if (!cap)
-		return;
+		return true;
 
 	cap->rq = execlists_active(&engine->execlists);
 	GEM_BUG_ON(!cap->rq);
 
+	rcu_read_lock();
 	cap->rq = active_request(cap->rq->context->timeline, cap->rq);
-	GEM_BUG_ON(!cap->rq);
+	cap->rq = i915_request_get_rcu(cap->rq);
+	rcu_read_unlock();
+	if (!cap->rq)
+		goto err_free;
 
 	/*
 	 * Remove the request from the execlists queue, and take ownership
@@ -2602,10 +2614,19 @@ static void execlists_capture(struct intel_engine_cs *engine)
 	 * simply hold that request accountable for being non-preemptible
 	 * long enough to force the reset.
 	 */
-	execlists_hold(engine, cap->rq);
+	if (!execlists_hold(engine, cap->rq))
+		goto err_rq;
 
 	INIT_WORK(&cap->work, execlists_capture_work);
 	schedule_work(&cap->work);
+	return true;
+
+err_rq:
+	i915_request_put(cap->rq);
+err_free:
+	i915_gpu_coredump_put(cap->error);
+	kfree(cap);
+	return false;
 }
 
 static noinline void preempt_reset(struct intel_engine_cs *engine)
@@ -2627,8 +2648,10 @@ static noinline void preempt_reset(struct intel_engine_cs *engine)
 		     jiffies_to_msecs(jiffies - engine->execlists.preempt.expires));
 
 	ring_set_paused(engine, 1); /* Freeze the current request in place */
-	execlists_capture(engine);
-	intel_engine_reset(engine, "preemption time out");
+	if (execlists_capture(engine))
+		intel_engine_reset(engine, "preemption time out");
+	else
+		ring_set_paused(engine, 0);
 
 	tasklet_enable(&engine->execlists.tasklet);
 	clear_and_wake_up_bit(bit, lock);
