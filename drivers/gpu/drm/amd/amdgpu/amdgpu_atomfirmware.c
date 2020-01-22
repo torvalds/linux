@@ -325,6 +325,9 @@ bool amdgpu_atomfirmware_mem_ecc_supported(struct amdgpu_device *adev)
 
 union firmware_info {
 	struct atom_firmware_info_v3_1 v31;
+	struct atom_firmware_info_v3_2 v32;
+	struct atom_firmware_info_v3_3 v33;
+	struct atom_firmware_info_v3_4 v34;
 };
 
 /*
@@ -589,4 +592,39 @@ int amdgpu_atomfirmware_get_mem_train_info(struct amdgpu_device *adev)
 
 	adev->fw_vram_usage.mem_train_support = true;
 	return 0;
+}
+
+int amdgpu_atomfirmware_get_fw_reserved_fb_size(struct amdgpu_device *adev)
+{
+	struct atom_context *ctx = adev->mode_info.atom_context;
+	union firmware_info *firmware_info;
+	int index;
+	u16 data_offset, size;
+	u8 frev, crev;
+	int fw_reserved_fb_size;
+
+	index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
+			firmwareinfo);
+
+	if (!amdgpu_atom_parse_data_header(ctx, index, &size,
+				&frev, &crev, &data_offset))
+		/* fail to parse data_header */
+		return 0;
+
+	firmware_info = (union firmware_info *)(ctx->bios + data_offset);
+
+	if (frev !=3)
+		return -EINVAL;
+
+	switch (crev) {
+	case 4:
+		fw_reserved_fb_size =
+			(firmware_info->v34.fw_reserved_size_in_kb << 10);
+		break;
+	default:
+		fw_reserved_fb_size = 0;
+		break;
+	}
+
+	return fw_reserved_fb_size;
 }
