@@ -407,43 +407,15 @@ static void ice_trigger_vf_reset(struct ice_vf *vf, bool is_vflr, bool is_pfr)
 }
 
 /**
- * ice_vsi_set_pvid_fill_ctxt - Set VSI ctxt for add PVID
- * @ctxt: the VSI ctxt to fill
- * @vid: the VLAN ID to set as a PVID
- */
-static void ice_vsi_set_pvid_fill_ctxt(struct ice_vsi_ctx *ctxt, u16 vid)
-{
-	ctxt->info.vlan_flags = (ICE_AQ_VSI_VLAN_MODE_UNTAGGED |
-				 ICE_AQ_VSI_PVLAN_INSERT_PVID |
-				 ICE_AQ_VSI_VLAN_EMOD_STR);
-	ctxt->info.pvid = cpu_to_le16(vid);
-	ctxt->info.sw_flags2 |= ICE_AQ_VSI_SW_FLAG_RX_VLAN_PRUNE_ENA;
-	ctxt->info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_VLAN_VALID |
-						ICE_AQ_VSI_PROP_SW_VALID);
-}
-
-/**
- * ice_vsi_kill_pvid_fill_ctxt - Set VSI ctx for remove PVID
- * @ctxt: the VSI ctxt to fill
- */
-static void ice_vsi_kill_pvid_fill_ctxt(struct ice_vsi_ctx *ctxt)
-{
-	ctxt->info.vlan_flags = ICE_AQ_VSI_VLAN_EMOD_NOTHING;
-	ctxt->info.vlan_flags |= ICE_AQ_VSI_VLAN_MODE_ALL;
-	ctxt->info.sw_flags2 &= ~ICE_AQ_VSI_SW_FLAG_RX_VLAN_PRUNE_ENA;
-	ctxt->info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_VLAN_VALID |
-						ICE_AQ_VSI_PROP_SW_VALID);
-}
-
-/**
  * ice_vsi_manage_pvid - Enable or disable port VLAN for VSI
  * @vsi: the VSI to update
- * @vid: the VLAN ID to set as a PVID
+ * @pvid_info: VLAN ID and QoS used to set the PVID VSI context field
  * @enable: true for enable PVID false for disable
  */
-static int ice_vsi_manage_pvid(struct ice_vsi *vsi, u16 vid, bool enable)
+static int ice_vsi_manage_pvid(struct ice_vsi *vsi, u16 pvid_info, bool enable)
 {
 	struct ice_hw *hw = &vsi->back->hw;
+	struct ice_aqc_vsi_props *info;
 	struct ice_vsi_ctx *ctxt;
 	enum ice_status status;
 	int ret = 0;
@@ -453,20 +425,33 @@ static int ice_vsi_manage_pvid(struct ice_vsi *vsi, u16 vid, bool enable)
 		return -ENOMEM;
 
 	ctxt->info = vsi->info;
-	if (enable)
-		ice_vsi_set_pvid_fill_ctxt(ctxt, vid);
-	else
-		ice_vsi_kill_pvid_fill_ctxt(ctxt);
+	info = &ctxt->info;
+	if (enable) {
+		info->vlan_flags = ICE_AQ_VSI_VLAN_MODE_UNTAGGED |
+			ICE_AQ_VSI_PVLAN_INSERT_PVID |
+			ICE_AQ_VSI_VLAN_EMOD_STR;
+		info->sw_flags2 |= ICE_AQ_VSI_SW_FLAG_RX_VLAN_PRUNE_ENA;
+	} else {
+		info->vlan_flags = ICE_AQ_VSI_VLAN_EMOD_NOTHING |
+			ICE_AQ_VSI_VLAN_MODE_ALL;
+		info->sw_flags2 &= ~ICE_AQ_VSI_SW_FLAG_RX_VLAN_PRUNE_ENA;
+	}
+
+	info->pvid = cpu_to_le16(pvid_info);
+	info->valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_VLAN_VALID |
+					   ICE_AQ_VSI_PROP_SW_VALID);
 
 	status = ice_update_vsi(hw, vsi->idx, ctxt, NULL);
 	if (status) {
-		dev_info(ice_pf_to_dev(vsi->back), "update VSI for port VLAN failed, err %d aq_err %d\n",
+		dev_info(ice_hw_to_dev(hw), "update VSI for port VLAN failed, err %d aq_err %d\n",
 			 status, hw->adminq.sq_last_status);
 		ret = -EIO;
 		goto out;
 	}
 
-	vsi->info = ctxt->info;
+	vsi->info.vlan_flags = info->vlan_flags;
+	vsi->info.sw_flags2 = info->sw_flags2;
+	vsi->info.pvid = info->pvid;
 out:
 	kfree(ctxt);
 	return ret;
@@ -533,9 +518,9 @@ static int ice_alloc_vsi_res(struct ice_vf *vf)
 	vf->lan_vsi_num = vsi->vsi_num;
 
 	/* Check if port VLAN exist before, and restore it accordingly */
-	if (vf->port_vlan_id) {
-		ice_vsi_manage_pvid(vsi, vf->port_vlan_id, true);
-		ice_vsi_add_vlan(vsi, vf->port_vlan_id & ICE_VLAN_M);
+	if (vf->port_vlan_info) {
+		ice_vsi_manage_pvid(vsi, vf->port_vlan_info, true);
+		ice_vsi_add_vlan(vsi, vf->port_vlan_info & ICE_VLAN_M);
 	}
 
 	eth_broadcast_addr(broadcast);
@@ -985,13 +970,13 @@ ice_vf_set_vsi_promisc(struct ice_vf *vf, struct ice_vsi *vsi, u8 promisc_m,
 	if (vsi->num_vlan) {
 		status = ice_set_vlan_vsi_promisc(hw, vsi->idx, promisc_m,
 						  rm_promisc);
-	} else if (vf->port_vlan_id) {
+	} else if (vf->port_vlan_info) {
 		if (rm_promisc)
 			status = ice_clear_vsi_promisc(hw, vsi->idx, promisc_m,
-						       vf->port_vlan_id);
+						       vf->port_vlan_info);
 		else
 			status = ice_set_vsi_promisc(hw, vsi->idx, promisc_m,
-						     vf->port_vlan_id);
+						     vf->port_vlan_info);
 	} else {
 		if (rm_promisc)
 			status = ice_clear_vsi_promisc(hw, vsi->idx, promisc_m,
@@ -1231,7 +1216,7 @@ static bool ice_reset_vf(struct ice_vf *vf, bool is_vflr)
 	 */
 	if (test_bit(ICE_VF_STATE_UC_PROMISC, vf->vf_states) ||
 	    test_bit(ICE_VF_STATE_MC_PROMISC, vf->vf_states)) {
-		if (vf->port_vlan_id || vsi->num_vlan)
+		if (vf->port_vlan_info || vsi->num_vlan)
 			promisc_m = ICE_UCAST_VLAN_PROMISC_BITS;
 		else
 			promisc_m = ICE_UCAST_PROMISC_BITS;
@@ -2731,10 +2716,11 @@ ice_set_vf_port_vlan(struct net_device *netdev, int vf_id, u16 vlan_id, u8 qos,
 	if (vlan_id || qos) {
 		ret = ice_vsi_manage_pvid(vsi, vlanprio, true);
 		if (ret)
-			goto error_set_pvid;
+			goto error_manage_pvid;
 	} else {
-		ice_vsi_manage_pvid(vsi, 0, false);
-		vsi->info.pvid = 0;
+		ret = ice_vsi_manage_pvid(vsi, 0, false);
+		if (ret)
+			goto error_manage_pvid;
 	}
 
 	if (vlan_id) {
@@ -2744,15 +2730,15 @@ ice_set_vf_port_vlan(struct net_device *netdev, int vf_id, u16 vlan_id, u8 qos,
 		/* add new VLAN filter for each MAC */
 		ret = ice_vsi_add_vlan(vsi, vlan_id);
 		if (ret)
-			goto error_set_pvid;
+			goto error_manage_pvid;
 	}
 
 	/* The Port VLAN needs to be saved across resets the same as the
 	 * default LAN MAC address.
 	 */
-	vf->port_vlan_id = le16_to_cpu(vsi->info.pvid);
+	vf->port_vlan_info = le16_to_cpu(vsi->info.pvid);
 
-error_set_pvid:
+error_manage_pvid:
 	return ret;
 }
 

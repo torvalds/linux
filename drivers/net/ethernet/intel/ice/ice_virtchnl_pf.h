@@ -74,7 +74,7 @@ struct ice_vf {
 	struct virtchnl_ether_addr dflt_lan_addr;
 	DECLARE_BITMAP(txq_ena, ICE_MAX_BASE_QS_PER_VF);
 	DECLARE_BITMAP(rxq_ena, ICE_MAX_BASE_QS_PER_VF);
-	u16 port_vlan_id;
+	u16 port_vlan_info;		/* Port VLAN ID and QoS */
 	u8 pf_set_mac:1;		/* VF MAC address set by VMM admin */
 	u8 trusted:1;
 	u8 spoofchk:1;
