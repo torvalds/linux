@@ -7,6 +7,10 @@
 #ifndef __MPTCP_PROTOCOL_H
 #define __MPTCP_PROTOCOL_H
 
+#include <linux/random.h>
+#include <net/tcp.h>
+#include <net/inet_connection_sock.h>
+
 #define MPTCP_SUPPORTED_VERSION	0
 
 /* MPTCP option bits */
@@ -42,6 +46,7 @@ struct mptcp_sock {
 	struct inet_connection_sock sk;
 	u64		local_key;
 	u64		remote_key;
+	u32		token;
 	struct list_head conn_list;
 	struct socket	*subflow; /* outgoing connect/listener/!mp_capable */
 };
@@ -61,6 +66,8 @@ struct mptcp_subflow_request_sock {
 		backup : 1;
 	u64	local_key;
 	u64	remote_key;
+	u64	idsn;
+	u32	token;
 };
 
 static inline struct mptcp_subflow_request_sock *
@@ -74,6 +81,8 @@ struct mptcp_subflow_context {
 	struct	list_head node;/* conn_list of subflows */
 	u64	local_key;
 	u64	remote_key;
+	u64	idsn;
+	u32	token;
 	u32	request_mptcp : 1,  /* send MP_CAPABLE */
 		mp_capable : 1,	    /* remote is MPTCP capable */
 		fourth_ack : 1,	    /* send initial DSS */
@@ -111,5 +120,28 @@ void mptcp_get_options(const struct sk_buff *skb,
 		       struct tcp_options_received *opt_rx);
 
 void mptcp_finish_connect(struct sock *sk);
+
+int mptcp_token_new_request(struct request_sock *req);
+void mptcp_token_destroy_request(u32 token);
+int mptcp_token_new_connect(struct sock *sk);
+int mptcp_token_new_accept(u32 token);
+void mptcp_token_update_accept(struct sock *sk, struct sock *conn);
+void mptcp_token_destroy(u32 token);
+
+void mptcp_crypto_key_sha(u64 key, u32 *token, u64 *idsn);
+static inline void mptcp_crypto_key_gen_sha(u64 *key, u32 *token, u64 *idsn)
+{
+	/* we might consider a faster version that computes the key as a
+	 * hash of some information available in the MPTCP socket. Use
+	 * random data at the moment, as it's probably the safest option
+	 * in case multiple sockets are opened in different namespaces at
+	 * the same time.
+	 */
+	get_random_bytes(key, sizeof(u64));
+	mptcp_crypto_key_sha(*key, token, idsn);
+}
+
+void mptcp_crypto_hmac_sha(u64 key1, u64 key2, u32 nonce1, u32 nonce2,
+			   u32 *hash_out);
 
 #endif /* __MPTCP_PROTOCOL_H */
