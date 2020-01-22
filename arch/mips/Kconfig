@@ -111,7 +111,6 @@ config MIPS_GENERIC
 	select DMA_PERDEV_COHERENT
 	select HAVE_PCI
 	select IRQ_MIPS_CPU
-	select LIBFDT
 	select MIPS_AUTO_PFN_OFFSET
 	select MIPS_CPU_SCACHE
 	select MIPS_GIC
@@ -404,7 +403,6 @@ config MACH_INGENIC
 	select GENERIC_IRQ_CHIP
 	select BUILTIN_DTB if MIPS_NO_APPENDED_DTB
 	select USE_OF
-	select LIBFDT
 
 config LANTIQ
 	bool "Lantiq based platforms"
@@ -511,7 +509,6 @@ config MACH_PISTACHIO
 	select DMA_NONCOHERENT
 	select GPIOLIB
 	select IRQ_MIPS_CPU
-	select LIBFDT
 	select MFD_SYSCON
 	select MIPS_CPU_SCACHE
 	select MIPS_GIC
@@ -549,7 +546,6 @@ config MIPS_MALTA
 	select I8253
 	select I8259
 	select IRQ_MIPS_CPU
-	select LIBFDT
 	select MIPS_BONITO64
 	select MIPS_CPU_SCACHE
 	select MIPS_GIC
@@ -981,7 +977,6 @@ config CAVIUM_OCTEON_SOC
 	select ZONE_DMA32
 	select HOLES_IN_ZONE
 	select GPIOLIB
-	select LIBFDT
 	select USE_OF
 	select ARCH_SPARSEMEM_ENABLE
 	select SYS_SUPPORTS_SMP
