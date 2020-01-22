@@ -3230,7 +3230,7 @@ int trace_vbprintk(unsigned long ip, const char *fmt, va_list args)
 	len = vbin_printf((u32 *)tbuffer, TRACE_BUF_SIZE/sizeof(int), fmt, args);
 
 	if (len > TRACE_BUF_SIZE/sizeof(int) || len < 0)
-		goto out;
+		goto out_put;
 
 	local_save_flags(flags);
 	size = sizeof(*entry) + sizeof(u32) * len;
@@ -3252,6 +3252,7 @@ int trace_vbprintk(unsigned long ip, const char *fmt, va_list args)
 
 out:
 	ring_buffer_nest_end(buffer);
+out_put:
 	put_trace_buf();
 
 out_nobuffer:
