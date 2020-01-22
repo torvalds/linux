@@ -1188,7 +1188,6 @@ ice_adjust_itr_by_size_and_speed(struct ice_port_info *port_info,
 				    avg_pkt_size + 640);
 		break;
 	case ICE_AQ_LINK_SPEED_10GB:
-		/* fall through */
 	default:
 		itr += DIV_ROUND_UP(170 * (avg_pkt_size + 24),
 				    avg_pkt_size + 640);
