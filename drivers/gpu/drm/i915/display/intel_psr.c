@@ -600,6 +600,36 @@ static void tgl_disallow_dc3co_on_psr2_exit(struct drm_i915_private *dev_priv)
 	tgl_psr2_disable_dc3co(dev_priv);
 }
 
+static void
+tgl_dc3co_exitline_compute_config(struct intel_dp *intel_dp,
+				  struct intel_crtc_state *crtc_state)
+{
+	const u32 crtc_vdisplay = crtc_state->uapi.adjusted_mode.crtc_vdisplay;
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	u32 exit_scanlines;
+
+	if (!(dev_priv->csr.allowed_dc_mask & DC_STATE_EN_DC3CO))
+		return;
+
+	/* B.Specs:49196 DC3CO only works with pipeA and DDIA.*/
+	if (to_intel_crtc(crtc_state->uapi.crtc)->pipe != PIPE_A ||
+	    dig_port->base.port != PORT_A)
+		return;
+
+	/*
+	 * DC3CO Exit time 200us B.Spec 49196
+	 * PSR2 transcoder Early Exit scanlines = ROUNDUP(200 / line time) + 1
+	 */
+	exit_scanlines =
+		intel_usecs_to_scanlines(&crtc_state->uapi.adjusted_mode, 200) + 1;
+
+	if (WARN_ON(exit_scanlines > crtc_vdisplay))
+		return;
+
+	crtc_state->dc3co_exitline = crtc_vdisplay - exit_scanlines;
+}
+
 static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 				    struct intel_crtc_state *crtc_state)
 {
@@ -671,6 +701,7 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 		return false;
 	}
 
+	tgl_dc3co_exitline_compute_config(intel_dp, crtc_state);
 	return true;
 }
 
@@ -788,6 +819,20 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp,
 	I915_WRITE(EDP_PSR_DEBUG(dev_priv->psr.transcoder), mask);
 
 	psr_irq_control(dev_priv);
+
+	if (crtc_state->dc3co_exitline) {
+		u32 val;
+
+		/*
+		 * TODO: if future platforms supports DC3CO in more than one
+		 * transcoder, EXITLINE will need to be unset when disabling PSR
+		 */
+		val = I915_READ(EXITLINE(cpu_transcoder));
+		val &= ~EXITLINE_MASK;
+		val |= crtc_state->dc3co_exitline << EXITLINE_SHIFT;
+		val |= EXITLINE_ENABLE;
+		I915_WRITE(EXITLINE(cpu_transcoder), val);
+	}
 }
 
 static void intel_psr_enable_locked(struct drm_i915_private *dev_priv,
