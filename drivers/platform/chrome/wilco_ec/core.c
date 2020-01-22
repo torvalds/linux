@@ -94,7 +94,7 @@ static int wilco_ec_probe(struct platform_device *pdev)
 
 	ret = wilco_ec_add_sysfs(ec);
 	if (ret < 0) {
-		dev_err(dev, "Failed to create sysfs entries: %d", ret);
+		dev_err(dev, "Failed to create sysfs entries: %d\n", ret);
 		goto unregister_rtc;
 	}
 
