@@ -104,6 +104,7 @@ struct selinux_state {
 	bool checkreqprot;
 	bool initialized;
 	bool policycap[__POLICYDB_CAPABILITY_MAX];
+	bool android_netlink_route;
 	struct selinux_avc *avc;
 	struct selinux_ss *ss;
 };
@@ -174,6 +175,13 @@ static inline bool selinux_policycap_nnp_nosuid_transition(void)
 	struct selinux_state *state = &selinux_state;
 
 	return state->policycap[POLICYDB_CAPABILITY_NNP_NOSUID_TRANSITION];
+}
+
+static inline bool selinux_android_nlroute_getlink(void)
+{
+	struct selinux_state *state = &selinux_state;
+
+	return state->android_netlink_route;
 }
 
 int security_mls_enabled(struct selinux_state *state);
@@ -390,6 +398,7 @@ extern int selinux_nlmsg_lookup(u16 sclass, u16 nlmsg_type, u32 *perm);
 extern void avtab_cache_init(void);
 extern void ebitmap_cache_init(void);
 extern void hashtab_cache_init(void);
+extern void selinux_nlmsg_init(void);
 extern int security_sidtab_hash_stats(struct selinux_state *state, char *page);
 
 #endif /* _SELINUX_SECURITY_H_ */
