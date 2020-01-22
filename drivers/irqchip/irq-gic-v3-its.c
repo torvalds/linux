@@ -1170,13 +1170,14 @@ static void its_send_vclear(struct its_device *dev, u32 event_id)
  */
 static struct its_vlpi_map *get_vlpi_map(struct irq_data *d)
 {
-	struct its_device *its_dev = irq_data_get_irq_chip_data(d);
-	u32 event = its_get_event_id(d);
+	if (irqd_is_forwarded_to_vcpu(d)) {
+		struct its_device *its_dev = irq_data_get_irq_chip_data(d);
+		u32 event = its_get_event_id(d);
 
-	if (!irqd_is_forwarded_to_vcpu(d))
-		return NULL;
+		return dev_event_to_vlpi_map(its_dev, event);
+	}
 
-	return dev_event_to_vlpi_map(its_dev, event);
+	return NULL;
 }
 
 static void lpi_write_config(struct irq_data *d, u8 clr, u8 set)
