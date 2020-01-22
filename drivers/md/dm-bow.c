@@ -725,6 +725,7 @@ static int dm_bow_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	rb_insert_color(&br->node, &bc->ranges);
 
 	ti->discards_supported = true;
+	ti->may_passthrough_inline_crypto = true;
 
 	return 0;
 
