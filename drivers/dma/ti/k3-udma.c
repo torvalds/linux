@@ -2300,7 +2300,7 @@ udma_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	/* static TR for remote PDMA */
 	if (udma_configure_statictr(uc, d, dev_width, burst)) {
 		dev_err(uc->ud->dev,
-			"%s: StaticTR Z is limted to maximum 4095 (%u)\n",
+			"%s: StaticTR Z is limited to maximum 4095 (%u)\n",
 			__func__, d->static_tr.bstcnt);
 
 		udma_free_hwdesc(uc, d);
@@ -2483,7 +2483,7 @@ udma_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr, size_t buf_len,
 	/* static TR for remote PDMA */
 	if (udma_configure_statictr(uc, d, dev_width, burst)) {
 		dev_err(uc->ud->dev,
-			"%s: StaticTR Z is limted to maximum 4095 (%u)\n",
+			"%s: StaticTR Z is limited to maximum 4095 (%u)\n",
 			__func__, d->static_tr.bstcnt);
 
 		udma_free_hwdesc(uc, d);
