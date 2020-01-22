@@ -200,7 +200,7 @@ static irqreturn_t qmp_intr(int irq, void *data)
 {
 	struct qmp *qmp = data;
 
-	wake_up_interruptible_all(&qmp->event);
+	wake_up_all(&qmp->event);
 
 	return IRQ_HANDLED;
 }
