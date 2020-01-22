@@ -802,8 +802,10 @@ static void intel_psr_enable_locked(struct drm_i915_private *dev_priv,
 	dev_priv->psr.busy_frontbuffer_bits = 0;
 	dev_priv->psr.pipe = to_intel_crtc(crtc_state->uapi.crtc)->pipe;
 	dev_priv->psr.dc3co_enabled = !!crtc_state->dc3co_exitline;
-	dev_priv->psr.dc3co_exit_delay = intel_get_frame_time_us(crtc_state);
 	dev_priv->psr.transcoder = crtc_state->cpu_transcoder;
+	/* DC5/DC6 requires at least 6 idle frames */
+	val = usecs_to_jiffies(intel_get_frame_time_us(crtc_state) * 6);
+	dev_priv->psr.dc3co_exit_delay = val;
 
 	/*
 	 * If a PSR error happened and the driver is reloaded, the EDP_PSR_IIR
@@ -1277,8 +1279,6 @@ static void
 tgl_dc3co_flush(struct drm_i915_private *dev_priv,
 		unsigned int frontbuffer_bits, enum fb_op_origin origin)
 {
-	u32 delay;
-
 	mutex_lock(&dev_priv->psr.lock);
 
 	if (!dev_priv->psr.dc3co_enabled)
@@ -1296,10 +1296,8 @@ tgl_dc3co_flush(struct drm_i915_private *dev_priv,
 		goto unlock;
 
 	tgl_psr2_enable_dc3co(dev_priv);
-	/* DC5/DC6 required idle frames = 6 */
-	delay = 6 * dev_priv->psr.dc3co_exit_delay;
 	mod_delayed_work(system_wq, &dev_priv->psr.idle_work,
-			 usecs_to_jiffies(delay));
+			 dev_priv->psr.dc3co_exit_delay);
 
 unlock:
 	mutex_unlock(&dev_priv->psr.lock);
