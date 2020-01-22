@@ -3968,7 +3968,7 @@ static int ice_up_complete(struct ice_vsi *vsi)
 	 * Tx queue group list was configured and the context bits were
 	 * programmed using ice_vsi_cfg_txqs
 	 */
-	err = ice_vsi_start_rx_rings(vsi);
+	err = ice_vsi_start_all_rx_rings(vsi);
 	if (err)
 		return err;
 
@@ -4347,7 +4347,7 @@ int ice_down(struct ice_vsi *vsi)
 				   vsi->vsi_num, tx_err);
 	}
 
-	rx_err = ice_vsi_stop_rx_rings(vsi);
+	rx_err = ice_vsi_stop_all_rx_rings(vsi);
 	if (rx_err)
 		netdev_err(vsi->netdev, "Failed stop Rx rings, VSI %d error %d\n",
 			   vsi->vsi_num, rx_err);

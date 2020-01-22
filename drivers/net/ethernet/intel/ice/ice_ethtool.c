@@ -462,7 +462,7 @@ static int ice_lbtest_prepare_rings(struct ice_vsi *vsi)
 	if (status)
 		goto err_setup_rx_ring;
 
-	status = ice_vsi_start_rx_rings(vsi);
+	status = ice_vsi_start_all_rx_rings(vsi);
 	if (status)
 		goto err_start_rx_ring;
 
@@ -494,7 +494,7 @@ static int ice_lbtest_disable_rings(struct ice_vsi *vsi)
 		netdev_err(vsi->netdev, "Failed to stop Tx rings, VSI %d error %d\n",
 			   vsi->vsi_num, status);
 
-	status = ice_vsi_stop_rx_rings(vsi);
+	status = ice_vsi_stop_all_rx_rings(vsi);
 	if (status)
 		netdev_err(vsi->netdev, "Failed to stop Rx rings, VSI %d error %d\n",
 			   vsi->vsi_num, status);

@@ -183,7 +183,7 @@ static int ice_qp_dis(struct ice_vsi *vsi, u16 q_idx)
 		if (err)
 			return err;
 	}
-	err = ice_vsi_ctrl_rx_ring(vsi, false, q_idx);
+	err = ice_vsi_ctrl_one_rx_ring(vsi, false, q_idx, true);
 	if (err)
 		return err;
 
@@ -243,7 +243,7 @@ static int ice_qp_ena(struct ice_vsi *vsi, u16 q_idx)
 
 	ice_qvec_cfg_msix(vsi, q_vector);
 
-	err = ice_vsi_ctrl_rx_ring(vsi, true, q_idx);
+	err = ice_vsi_ctrl_one_rx_ring(vsi, true, q_idx, true);
 	if (err)
 		goto free_buf;
 

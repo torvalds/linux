@@ -26,16 +26,26 @@ const char *ice_vsi_type_str(enum ice_vsi_type type)
 }
 
 /**
- * ice_vsi_ctrl_rx_rings - Start or stop a VSI's Rx rings
+ * ice_vsi_ctrl_all_rx_rings - Start or stop a VSI's Rx rings
  * @vsi: the VSI being configured
  * @ena: start or stop the Rx rings
+ *
+ * First enable/disable all of the Rx rings, flush any remaining writes, and
+ * then verify that they have all been enabled/disabled successfully. This will
+ * let all of the register writes complete when enabling/disabling the Rx rings
+ * before waiting for the change in hardware to complete.
  */
-static int ice_vsi_ctrl_rx_rings(struct ice_vsi *vsi, bool ena)
+static int ice_vsi_ctrl_all_rx_rings(struct ice_vsi *vsi, bool ena)
 {
 	int i, ret = 0;
 
+	for (i = 0; i < vsi->num_rxq; i++)
+		ice_vsi_ctrl_one_rx_ring(vsi, ena, i, false);
+
+	ice_flush(&vsi->back->hw);
+
 	for (i = 0; i < vsi->num_rxq; i++) {
-		ret = ice_vsi_ctrl_rx_ring(vsi, ena, i);
+		ret = ice_vsi_wait_one_rx_ring(vsi, ena, i);
 		if (ret)
 			break;
 	}
@@ -1682,25 +1692,25 @@ out:
 }
 
 /**
- * ice_vsi_start_rx_rings - start VSI's Rx rings
- * @vsi: the VSI whose rings are to be started
+ * ice_vsi_start_all_rx_rings - start/enable all of a VSI's Rx rings
+ * @vsi: the VSI whose rings are to be enabled
  *
  * Returns 0 on success and a negative value on error
  */
-int ice_vsi_start_rx_rings(struct ice_vsi *vsi)
+int ice_vsi_start_all_rx_rings(struct ice_vsi *vsi)
 {
-	return ice_vsi_ctrl_rx_rings(vsi, true);
+	return ice_vsi_ctrl_all_rx_rings(vsi, true);
 }
 
 /**
- * ice_vsi_stop_rx_rings - stop VSI's Rx rings
- * @vsi: the VSI
+ * ice_vsi_stop_all_rx_rings - stop/disable all of a VSI's Rx rings
+ * @vsi: the VSI whose rings are to be disabled
  *
  * Returns 0 on success and a negative value on error
  */
-int ice_vsi_stop_rx_rings(struct ice_vsi *vsi)
+int ice_vsi_stop_all_rx_rings(struct ice_vsi *vsi)
 {
-	return ice_vsi_ctrl_rx_rings(vsi, false);
+	return ice_vsi_ctrl_all_rx_rings(vsi, false);
 }
 
 /**

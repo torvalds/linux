@@ -271,7 +271,7 @@ static void ice_dis_vf_qs(struct ice_vf *vf)
 	vsi = pf->vsi[vf->lan_vsi_idx];
 
 	ice_vsi_stop_lan_tx_rings(vsi, ICE_NO_RESET, vf->vf_id);
-	ice_vsi_stop_rx_rings(vsi);
+	ice_vsi_stop_all_rx_rings(vsi);
 	ice_set_vf_state_qs_dis(vf);
 }
 
@@ -2051,7 +2051,7 @@ static int ice_vc_ena_qs_msg(struct ice_vf *vf, u8 *msg)
 		if (test_bit(vf_q_id, vf->rxq_ena))
 			continue;
 
-		if (ice_vsi_ctrl_rx_ring(vsi, true, vf_q_id)) {
+		if (ice_vsi_ctrl_one_rx_ring(vsi, true, vf_q_id, true)) {
 			dev_err(ice_pf_to_dev(vsi->back), "Failed to enable Rx ring %d on VSI %d\n",
 				vf_q_id, vsi->vsi_num);
 			v_ret = VIRTCHNL_STATUS_ERR_PARAM;
@@ -2179,7 +2179,8 @@ static int ice_vc_dis_qs_msg(struct ice_vf *vf, u8 *msg)
 			if (!test_bit(vf_q_id, vf->rxq_ena))
 				continue;
 
-			if (ice_vsi_ctrl_rx_ring(vsi, false, vf_q_id)) {
+			if (ice_vsi_ctrl_one_rx_ring(vsi, false, vf_q_id,
+						     true)) {
 				dev_err(ice_pf_to_dev(vsi->back), "Failed to stop Rx ring %d on VSI %d\n",
 					vf_q_id, vsi->vsi_num);
 				v_ret = VIRTCHNL_STATUS_ERR_PARAM;
