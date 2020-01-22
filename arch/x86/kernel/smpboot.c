@@ -1841,24 +1841,52 @@ static const struct x86_cpu_id has_glm_turbo_ratio_limits[] = {
 	{}
 };
 
-static bool core_set_max_freq_ratio(void)
+static bool skx_set_max_freq_ratio(u64 *base_freq, u64 *turbo_freq, int size)
 {
-	u64 base_freq, turbo_freq;
+	u64 ratios, counts;
+	u32 group_size;
+	int err, i;
+
+	err = rdmsrl_safe(MSR_PLATFORM_INFO, base_freq);
+	if (err)
+		return false;
+
+	*base_freq = (*base_freq >> 8) & 0xFF;      /* max P state */
+
+	err = rdmsrl_safe(MSR_TURBO_RATIO_LIMIT, &ratios);
+	if (err)
+		return false;
+
+	err = rdmsrl_safe(MSR_TURBO_RATIO_LIMIT1, &counts);
+	if (err)
+		return false;
+
+	for (i = 0; i < 64; i += 8) {
+		group_size = (counts >> i) & 0xFF;
+		if (group_size >= size) {
+			*turbo_freq = (ratios >> i) & 0xFF;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+static bool core_set_max_freq_ratio(u64 *base_freq, u64 *turbo_freq)
+{
 	int err;
 
-	err = rdmsrl_safe(MSR_PLATFORM_INFO, &base_freq);
+	err = rdmsrl_safe(MSR_PLATFORM_INFO, base_freq);
 	if (err)
 		return false;
 
-	err = rdmsrl_safe(MSR_TURBO_RATIO_LIMIT, &turbo_freq);
+	err = rdmsrl_safe(MSR_TURBO_RATIO_LIMIT, turbo_freq);
 	if (err)
 		return false;
 
-	base_freq = (base_freq >> 8) & 0xFF;      /* max P state */
-	turbo_freq = (turbo_freq >> 24) & 0xFF;   /* 4C turbo    */
+	*base_freq = (*base_freq >> 8) & 0xFF;      /* max P state */
+	*turbo_freq = (*turbo_freq >> 24) & 0xFF;   /* 4C turbo    */
 
-	arch_max_freq_ratio = div_u64(turbo_freq * SCHED_CAPACITY_SCALE,
-					base_freq);
 	return true;
 }
 
@@ -1867,21 +1895,33 @@ static bool intel_set_max_freq_ratio(void)
 	/*
 	 * TODO: add support for:
 	 *
-	 * - Xeon Gold/Platinum
 	 * - Xeon Phi (KNM, KNL)
 	 * - Atom Goldmont
 	 * - Atom Silvermont
 	 */
 
-	if (x86_match_cpu(has_skx_turbo_ratio_limits) ||
-		x86_match_cpu(has_knl_turbo_ratio_limits) ||
+	u64 base_freq = 1, turbo_freq = 1;
+
+	if (x86_match_cpu(has_knl_turbo_ratio_limits) ||
 		x86_match_cpu(has_glm_turbo_ratio_limits))
 		return false;
 
-	if (turbo_disabled() || core_set_max_freq_ratio())
-		return true;
+	if (turbo_disabled())
+		goto out;
+
+	if (x86_match_cpu(has_skx_turbo_ratio_limits) &&
+	    skx_set_max_freq_ratio(&base_freq, &turbo_freq, 4))
+		goto out;
+
+	if (core_set_max_freq_ratio(&base_freq, &turbo_freq))
+		goto out;
 
 	return false;
+
+out:
+	arch_max_freq_ratio = div_u64(turbo_freq * SCHED_CAPACITY_SCALE,
+					base_freq);
+	return true;
 }
 
 static void init_counter_refs(void *arg)
