@@ -220,8 +220,14 @@ int vimc_streamer_s_stream(struct vimc_stream *stream,
 			return 0;
 
 		ret = kthread_stop(stream->kthread);
+		/*
+		 * kthread_stop returns -EINTR in cases when streamon was
+		 * immediately followed by streamoff, and the thread didn't had
+		 * a chance to run. Ignore errors to stop the stream in the
+		 * pipeline.
+		 */
 		if (ret)
-			return ret;
+			dev_dbg(ved->dev, "kthread_stop returned '%d'\n", ret);
 
 		stream->kthread = NULL;
 
