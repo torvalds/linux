@@ -3291,7 +3291,7 @@ static int set_appearance(struct sock *sk, struct hci_dev *hdev, void *data,
 			  u16 len)
 {
 	struct mgmt_cp_set_appearance *cp = data;
-	u16 apperance;
+	u16 appearance;
 	int err;
 
 	BT_DBG("");
@@ -3300,12 +3300,12 @@ static int set_appearance(struct sock *sk, struct hci_dev *hdev, void *data,
 		return mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_APPEARANCE,
 				       MGMT_STATUS_NOT_SUPPORTED);
 
-	apperance = le16_to_cpu(cp->appearance);
+	appearance = le16_to_cpu(cp->appearance);
 
 	hci_dev_lock(hdev);
 
-	if (hdev->appearance != apperance) {
-		hdev->appearance = apperance;
+	if (hdev->appearance != appearance) {
+		hdev->appearance = appearance;
 
 		if (hci_dev_test_flag(hdev, HCI_LE_ADV))
 			adv_expire(hdev, MGMT_ADV_FLAG_APPEARANCE);
