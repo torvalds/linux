@@ -67,7 +67,7 @@
 
 #define PLL_SCCG_LOCK_TIMEOUT		70
 
-struct clk_sccg_pll_setup {
+struct clk_sscg_pll_setup {
 	int divr1, divf1;
 	int divr2, divf2;
 	int divq;
@@ -83,22 +83,22 @@ struct clk_sccg_pll_setup {
 	int fout_error;
 };
 
-struct clk_sccg_pll {
+struct clk_sscg_pll {
 	struct clk_hw	hw;
 	const struct clk_ops  ops;
 
 	void __iomem *base;
 
-	struct clk_sccg_pll_setup setup;
+	struct clk_sscg_pll_setup setup;
 
 	u8 parent;
 	u8 bypass1;
 	u8 bypass2;
 };
 
-#define to_clk_sccg_pll(_hw) container_of(_hw, struct clk_sccg_pll, hw)
+#define to_clk_sscg_pll(_hw) container_of(_hw, struct clk_sscg_pll, hw)
 
-static int clk_sccg_pll_wait_lock(struct clk_sccg_pll *pll)
+static int clk_sscg_pll_wait_lock(struct clk_sscg_pll *pll)
 {
 	u32 val;
 
@@ -112,15 +112,15 @@ static int clk_sccg_pll_wait_lock(struct clk_sccg_pll *pll)
 	return 0;
 }
 
-static int clk_sccg_pll2_check_match(struct clk_sccg_pll_setup *setup,
-					struct clk_sccg_pll_setup *temp_setup)
+static int clk_sscg_pll2_check_match(struct clk_sscg_pll_setup *setup,
+					struct clk_sscg_pll_setup *temp_setup)
 {
 	int new_diff = temp_setup->fout - temp_setup->fout_request;
 	int diff = temp_setup->fout_error;
 
 	if (abs(diff) > abs(new_diff)) {
 		temp_setup->fout_error = new_diff;
-		memcpy(setup, temp_setup, sizeof(struct clk_sccg_pll_setup));
+		memcpy(setup, temp_setup, sizeof(struct clk_sscg_pll_setup));
 
 		if (temp_setup->fout_request == temp_setup->fout)
 			return 0;
@@ -128,8 +128,8 @@ static int clk_sccg_pll2_check_match(struct clk_sccg_pll_setup *setup,
 	return -1;
 }
 
-static int clk_sccg_divq_lookup(struct clk_sccg_pll_setup *setup,
-				struct clk_sccg_pll_setup *temp_setup)
+static int clk_sscg_divq_lookup(struct clk_sscg_pll_setup *setup,
+				struct clk_sscg_pll_setup *temp_setup)
 {
 	int ret = -EINVAL;
 
@@ -144,7 +144,7 @@ static int clk_sccg_divq_lookup(struct clk_sccg_pll_setup *setup,
 			temp_setup->fout = temp_setup->vco2;
 			do_div(temp_setup->fout, 2 * (temp_setup->divq + 1));
 
-			ret = clk_sccg_pll2_check_match(setup, temp_setup);
+			ret = clk_sscg_pll2_check_match(setup, temp_setup);
 			if (!ret) {
 				temp_setup->bypass = PLL_BYPASS1;
 				return ret;
@@ -155,14 +155,14 @@ static int clk_sccg_divq_lookup(struct clk_sccg_pll_setup *setup,
 	return ret;
 }
 
-static int clk_sccg_divf2_lookup(struct clk_sccg_pll_setup *setup,
-					struct clk_sccg_pll_setup *temp_setup)
+static int clk_sscg_divf2_lookup(struct clk_sscg_pll_setup *setup,
+					struct clk_sscg_pll_setup *temp_setup)
 {
 	int ret = -EINVAL;
 
 	for (temp_setup->divf2 = 0; temp_setup->divf2 <= PLL_DIVF2_MAX;
 	     temp_setup->divf2++) {
-		ret = clk_sccg_divq_lookup(setup, temp_setup);
+		ret = clk_sscg_divq_lookup(setup, temp_setup);
 		if (!ret)
 			return ret;
 	}
@@ -170,8 +170,8 @@ static int clk_sccg_divf2_lookup(struct clk_sccg_pll_setup *setup,
 	return ret;
 }
 
-static int clk_sccg_divr2_lookup(struct clk_sccg_pll_setup *setup,
-				struct clk_sccg_pll_setup *temp_setup)
+static int clk_sscg_divr2_lookup(struct clk_sscg_pll_setup *setup,
+				struct clk_sscg_pll_setup *temp_setup)
 {
 	int ret = -EINVAL;
 
@@ -181,7 +181,7 @@ static int clk_sccg_divr2_lookup(struct clk_sccg_pll_setup *setup,
 		do_div(temp_setup->ref_div2, temp_setup->divr2 + 1);
 		if (temp_setup->ref_div2 >= PLL_STAGE2_REF_MIN_FREQ &&
 		    temp_setup->ref_div2 <= PLL_STAGE2_REF_MAX_FREQ) {
-			ret = clk_sccg_divf2_lookup(setup, temp_setup);
+			ret = clk_sscg_divf2_lookup(setup, temp_setup);
 			if (!ret)
 				return ret;
 		}
@@ -190,8 +190,8 @@ static int clk_sccg_divr2_lookup(struct clk_sccg_pll_setup *setup,
 	return ret;
 }
 
-static int clk_sccg_pll2_find_setup(struct clk_sccg_pll_setup *setup,
-					struct clk_sccg_pll_setup *temp_setup,
+static int clk_sscg_pll2_find_setup(struct clk_sscg_pll_setup *setup,
+					struct clk_sscg_pll_setup *temp_setup,
 					uint64_t ref)
 {
 
@@ -202,12 +202,12 @@ static int clk_sccg_pll2_find_setup(struct clk_sccg_pll_setup *setup,
 
 	temp_setup->vco1 = ref;
 
-	ret = clk_sccg_divr2_lookup(setup, temp_setup);
+	ret = clk_sscg_divr2_lookup(setup, temp_setup);
 	return ret;
 }
 
-static int clk_sccg_divf1_lookup(struct clk_sccg_pll_setup *setup,
-				struct clk_sccg_pll_setup *temp_setup)
+static int clk_sscg_divf1_lookup(struct clk_sscg_pll_setup *setup,
+				struct clk_sscg_pll_setup *temp_setup)
 {
 	int ret = -EINVAL;
 
@@ -219,7 +219,7 @@ static int clk_sccg_divf1_lookup(struct clk_sccg_pll_setup *setup,
 		vco1 *= 2;
 		vco1 *= temp_setup->divf1 + 1;
 
-		ret = clk_sccg_pll2_find_setup(setup, temp_setup, vco1);
+		ret = clk_sscg_pll2_find_setup(setup, temp_setup, vco1);
 		if (!ret) {
 			temp_setup->bypass = PLL_BYPASS_NONE;
 			return ret;
@@ -229,8 +229,8 @@ static int clk_sccg_divf1_lookup(struct clk_sccg_pll_setup *setup,
 	return ret;
 }
 
-static int clk_sccg_divr1_lookup(struct clk_sccg_pll_setup *setup,
-				struct clk_sccg_pll_setup *temp_setup)
+static int clk_sscg_divr1_lookup(struct clk_sscg_pll_setup *setup,
+				struct clk_sscg_pll_setup *temp_setup)
 {
 	int ret = -EINVAL;
 
@@ -240,7 +240,7 @@ static int clk_sccg_divr1_lookup(struct clk_sccg_pll_setup *setup,
 		do_div(temp_setup->ref_div1, temp_setup->divr1 + 1);
 		if (temp_setup->ref_div1 >= PLL_STAGE1_REF_MIN_FREQ &&
 		    temp_setup->ref_div1 <= PLL_STAGE1_REF_MAX_FREQ) {
-			ret = clk_sccg_divf1_lookup(setup, temp_setup);
+			ret = clk_sscg_divf1_lookup(setup, temp_setup);
 			if (!ret)
 				return ret;
 		}
@@ -249,8 +249,8 @@ static int clk_sccg_divr1_lookup(struct clk_sccg_pll_setup *setup,
 	return ret;
 }
 
-static int clk_sccg_pll1_find_setup(struct clk_sccg_pll_setup *setup,
-					struct clk_sccg_pll_setup *temp_setup,
+static int clk_sscg_pll1_find_setup(struct clk_sscg_pll_setup *setup,
+					struct clk_sscg_pll_setup *temp_setup,
 					uint64_t ref)
 {
 
@@ -261,20 +261,20 @@ static int clk_sccg_pll1_find_setup(struct clk_sccg_pll_setup *setup,
 
 	temp_setup->ref = ref;
 
-	ret = clk_sccg_divr1_lookup(setup, temp_setup);
+	ret = clk_sscg_divr1_lookup(setup, temp_setup);
 
 	return ret;
 }
 
-static int clk_sccg_pll_find_setup(struct clk_sccg_pll_setup *setup,
+static int clk_sscg_pll_find_setup(struct clk_sscg_pll_setup *setup,
 					uint64_t prate,
 					uint64_t rate, int try_bypass)
 {
-	struct clk_sccg_pll_setup temp_setup;
+	struct clk_sscg_pll_setup temp_setup;
 	int ret = -EINVAL;
 
-	memset(&temp_setup, 0, sizeof(struct clk_sccg_pll_setup));
-	memset(setup, 0, sizeof(struct clk_sccg_pll_setup));
+	memset(&temp_setup, 0, sizeof(struct clk_sscg_pll_setup));
+	memset(setup, 0, sizeof(struct clk_sscg_pll_setup));
 
 	temp_setup.fout_error = PLL_OUT_MAX_FREQ;
 	temp_setup.fout_request = rate;
@@ -290,11 +290,11 @@ static int clk_sccg_pll_find_setup(struct clk_sccg_pll_setup *setup,
 		break;
 
 	case PLL_BYPASS1:
-		ret = clk_sccg_pll2_find_setup(setup, &temp_setup, prate);
+		ret = clk_sscg_pll2_find_setup(setup, &temp_setup, prate);
 		break;
 
 	case PLL_BYPASS_NONE:
-		ret = clk_sccg_pll1_find_setup(setup, &temp_setup, prate);
+		ret = clk_sscg_pll1_find_setup(setup, &temp_setup, prate);
 		break;
 	}
 
@@ -302,30 +302,30 @@ static int clk_sccg_pll_find_setup(struct clk_sccg_pll_setup *setup,
 }
 
 
-static int clk_sccg_pll_is_prepared(struct clk_hw *hw)
+static int clk_sscg_pll_is_prepared(struct clk_hw *hw)
 {
-	struct clk_sccg_pll *pll = to_clk_sccg_pll(hw);
+	struct clk_sscg_pll *pll = to_clk_sscg_pll(hw);
 
 	u32 val = readl_relaxed(pll->base + PLL_CFG0);
 
 	return (val & PLL_PD_MASK) ? 0 : 1;
 }
 
-static int clk_sccg_pll_prepare(struct clk_hw *hw)
+static int clk_sscg_pll_prepare(struct clk_hw *hw)
 {
-	struct clk_sccg_pll *pll = to_clk_sccg_pll(hw);
+	struct clk_sscg_pll *pll = to_clk_sscg_pll(hw);
 	u32 val;
 
 	val = readl_relaxed(pll->base + PLL_CFG0);
 	val &= ~PLL_PD_MASK;
 	writel_relaxed(val, pll->base + PLL_CFG0);
 
-	return clk_sccg_pll_wait_lock(pll);
+	return clk_sscg_pll_wait_lock(pll);
 }
 
-static void clk_sccg_pll_unprepare(struct clk_hw *hw)
+static void clk_sscg_pll_unprepare(struct clk_hw *hw)
 {
-	struct clk_sccg_pll *pll = to_clk_sccg_pll(hw);
+	struct clk_sscg_pll *pll = to_clk_sscg_pll(hw);
 	u32 val;
 
 	val = readl_relaxed(pll->base + PLL_CFG0);
@@ -333,10 +333,10 @@ static void clk_sccg_pll_unprepare(struct clk_hw *hw)
 	writel_relaxed(val, pll->base + PLL_CFG0);
 }
 
-static unsigned long clk_sccg_pll_recalc_rate(struct clk_hw *hw,
+static unsigned long clk_sscg_pll_recalc_rate(struct clk_hw *hw,
 					 unsigned long parent_rate)
 {
-	struct clk_sccg_pll *pll = to_clk_sccg_pll(hw);
+	struct clk_sscg_pll *pll = to_clk_sscg_pll(hw);
 	u32 val, divr1, divf1, divr2, divf2, divq;
 	u64 temp64;
 
@@ -364,11 +364,11 @@ static unsigned long clk_sccg_pll_recalc_rate(struct clk_hw *hw,
 	return temp64;
 }
 
-static int clk_sccg_pll_set_rate(struct clk_hw *hw, unsigned long rate,
+static int clk_sscg_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 			    unsigned long parent_rate)
 {
-	struct clk_sccg_pll *pll = to_clk_sccg_pll(hw);
-	struct clk_sccg_pll_setup *setup = &pll->setup;
+	struct clk_sscg_pll *pll = to_clk_sscg_pll(hw);
+	struct clk_sscg_pll_setup *setup = &pll->setup;
 	u32 val;
 
 	/* set bypass here too since the parent might be the same */
@@ -387,12 +387,12 @@ static int clk_sccg_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	val |= FIELD_PREP(PLL_DIVQ_MASK, setup->divq);
 	writel_relaxed(val, pll->base + PLL_CFG2);
 
-	return clk_sccg_pll_wait_lock(pll);
+	return clk_sscg_pll_wait_lock(pll);
 }
 
-static u8 clk_sccg_pll_get_parent(struct clk_hw *hw)
+static u8 clk_sscg_pll_get_parent(struct clk_hw *hw)
 {
-	struct clk_sccg_pll *pll = to_clk_sccg_pll(hw);
+	struct clk_sscg_pll *pll = to_clk_sscg_pll(hw);
 	u32 val;
 	u8 ret = pll->parent;
 
@@ -404,9 +404,9 @@ static u8 clk_sccg_pll_get_parent(struct clk_hw *hw)
 	return ret;
 }
 
-static int clk_sccg_pll_set_parent(struct clk_hw *hw, u8 index)
+static int clk_sscg_pll_set_parent(struct clk_hw *hw, u8 index)
 {
-	struct clk_sccg_pll *pll = to_clk_sccg_pll(hw);
+	struct clk_sscg_pll *pll = to_clk_sscg_pll(hw);
 	u32 val;
 
 	val = readl(pll->base + PLL_CFG0);
@@ -414,18 +414,18 @@ static int clk_sccg_pll_set_parent(struct clk_hw *hw, u8 index)
 	val |= FIELD_PREP(SSCG_PLL_BYPASS_MASK, pll->setup.bypass);
 	writel(val, pll->base + PLL_CFG0);
 
-	return clk_sccg_pll_wait_lock(pll);
+	return clk_sscg_pll_wait_lock(pll);
 }
 
-static int __clk_sccg_pll_determine_rate(struct clk_hw *hw,
+static int __clk_sscg_pll_determine_rate(struct clk_hw *hw,
 					struct clk_rate_request *req,
 					uint64_t min,
 					uint64_t max,
 					uint64_t rate,
 					int bypass)
 {
-	struct clk_sccg_pll *pll = to_clk_sccg_pll(hw);
-	struct clk_sccg_pll_setup *setup = &pll->setup;
+	struct clk_sscg_pll *pll = to_clk_sscg_pll(hw);
+	struct clk_sscg_pll_setup *setup = &pll->setup;
 	struct clk_hw *parent_hw = NULL;
 	int bypass_parent_index;
 	int ret = -EINVAL;
@@ -448,7 +448,7 @@ static int __clk_sccg_pll_determine_rate(struct clk_hw *hw,
 	parent_hw = clk_hw_get_parent_by_index(hw, bypass_parent_index);
 	ret = __clk_determine_rate(parent_hw, req);
 	if (!ret) {
-		ret = clk_sccg_pll_find_setup(setup, req->rate,
+		ret = clk_sscg_pll_find_setup(setup, req->rate,
 						rate, bypass);
 	}
 
@@ -459,11 +459,11 @@ static int __clk_sccg_pll_determine_rate(struct clk_hw *hw,
 	return ret;
 }
 
-static int clk_sccg_pll_determine_rate(struct clk_hw *hw,
+static int clk_sscg_pll_determine_rate(struct clk_hw *hw,
 				       struct clk_rate_request *req)
 {
-	struct clk_sccg_pll *pll = to_clk_sccg_pll(hw);
-	struct clk_sccg_pll_setup *setup = &pll->setup;
+	struct clk_sscg_pll *pll = to_clk_sscg_pll(hw);
+	struct clk_sscg_pll_setup *setup = &pll->setup;
 	uint64_t rate = req->rate;
 	uint64_t min = req->min_rate;
 	uint64_t max = req->max_rate;
@@ -472,18 +472,18 @@ static int clk_sccg_pll_determine_rate(struct clk_hw *hw,
 	if (rate < PLL_OUT_MIN_FREQ || rate > PLL_OUT_MAX_FREQ)
 		return ret;
 
-	ret = __clk_sccg_pll_determine_rate(hw, req, req->rate, req->rate,
+	ret = __clk_sscg_pll_determine_rate(hw, req, req->rate, req->rate,
 						rate, PLL_BYPASS2);
 	if (!ret)
 		return ret;
 
-	ret = __clk_sccg_pll_determine_rate(hw, req, PLL_STAGE1_REF_MIN_FREQ,
+	ret = __clk_sscg_pll_determine_rate(hw, req, PLL_STAGE1_REF_MIN_FREQ,
 						PLL_STAGE1_REF_MAX_FREQ, rate,
 						PLL_BYPASS1);
 	if (!ret)
 		return ret;
 
-	ret = __clk_sccg_pll_determine_rate(hw, req, PLL_REF_MIN_FREQ,
+	ret = __clk_sscg_pll_determine_rate(hw, req, PLL_REF_MIN_FREQ,
 						PLL_REF_MAX_FREQ, rate,
 						PLL_BYPASS_NONE);
 	if (!ret)
@@ -495,25 +495,25 @@ static int clk_sccg_pll_determine_rate(struct clk_hw *hw,
 	return ret;
 }
 
-static const struct clk_ops clk_sccg_pll_ops = {
-	.prepare	= clk_sccg_pll_prepare,
-	.unprepare	= clk_sccg_pll_unprepare,
-	.is_prepared	= clk_sccg_pll_is_prepared,
-	.recalc_rate	= clk_sccg_pll_recalc_rate,
-	.set_rate	= clk_sccg_pll_set_rate,
-	.set_parent	= clk_sccg_pll_set_parent,
-	.get_parent	= clk_sccg_pll_get_parent,
-	.determine_rate	= clk_sccg_pll_determine_rate,
+static const struct clk_ops clk_sscg_pll_ops = {
+	.prepare	= clk_sscg_pll_prepare,
+	.unprepare	= clk_sscg_pll_unprepare,
+	.is_prepared	= clk_sscg_pll_is_prepared,
+	.recalc_rate	= clk_sscg_pll_recalc_rate,
+	.set_rate	= clk_sscg_pll_set_rate,
+	.set_parent	= clk_sscg_pll_set_parent,
+	.get_parent	= clk_sscg_pll_get_parent,
+	.determine_rate	= clk_sscg_pll_determine_rate,
 };
 
-struct clk *imx_clk_sccg_pll(const char *name,
+struct clk_hw *imx_clk_hw_sscg_pll(const char *name,
 				const char * const *parent_names,
 				u8 num_parents,
 				u8 parent, u8 bypass1, u8 bypass2,
 				void __iomem *base,
 				unsigned long flags)
 {
-	struct clk_sccg_pll *pll;
+	struct clk_sscg_pll *pll;
 	struct clk_init_data init;
 	struct clk_hw *hw;
 	int ret;
@@ -528,7 +528,7 @@ struct clk *imx_clk_sccg_pll(const char *name,
 
 	pll->base = base;
 	init.name = name;
-	init.ops = &clk_sccg_pll_ops;
+	init.ops = &clk_sscg_pll_ops;
 
 	init.flags = flags;
 	init.parent_names = parent_names;
@@ -545,5 +545,5 @@ struct clk *imx_clk_sccg_pll(const char *name,
 		return ERR_PTR(ret);
 	}
 
-	return hw->clk;
+	return hw;
 }
