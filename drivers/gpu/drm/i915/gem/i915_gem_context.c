@@ -708,8 +708,8 @@ i915_gem_create_context(struct drm_i915_private *i915, unsigned int flags)
 
 		ppgtt = i915_ppgtt_create(&i915->gt);
 		if (IS_ERR(ppgtt)) {
-			DRM_DEBUG_DRIVER("PPGTT setup failed (%ld)\n",
-					 PTR_ERR(ppgtt));
+			drm_dbg(&i915->drm, "PPGTT setup failed (%ld)\n",
+				PTR_ERR(ppgtt));
 			context_close(ctx);
 			return ERR_CAST(ppgtt);
 		}
@@ -751,9 +751,9 @@ static void init_contexts(struct i915_gem_contexts *gc)
 void i915_gem_init__contexts(struct drm_i915_private *i915)
 {
 	init_contexts(&i915->gem.contexts);
-	DRM_DEBUG_DRIVER("%s context support initialized\n",
-			 DRIVER_CAPS(i915)->has_logical_contexts ?
-			 "logical" : "fake");
+	drm_dbg(&i915->drm, "%s context support initialized\n",
+		DRIVER_CAPS(i915)->has_logical_contexts ?
+		"logical" : "fake");
 }
 
 void i915_gem_driver_release__contexts(struct drm_i915_private *i915)
@@ -1595,6 +1595,7 @@ static int
 set_engines(struct i915_gem_context *ctx,
 	    const struct drm_i915_gem_context_param *args)
 {
+	struct drm_i915_private *i915 = ctx->i915;
 	struct i915_context_param_engines __user *user =
 		u64_to_user_ptr(args->value);
 	struct set_engines set = { .ctx = ctx };
@@ -1616,8 +1617,8 @@ set_engines(struct i915_gem_context *ctx,
 	BUILD_BUG_ON(!IS_ALIGNED(sizeof(*user), sizeof(*user->engines)));
 	if (args->size < sizeof(*user) ||
 	    !IS_ALIGNED(args->size, sizeof(*user->engines))) {
-		DRM_DEBUG("Invalid size for engine array: %d\n",
-			  args->size);
+		drm_dbg(&i915->drm, "Invalid size for engine array: %d\n",
+			args->size);
 		return -EINVAL;
 	}
 
@@ -1653,8 +1654,9 @@ set_engines(struct i915_gem_context *ctx,
 						  ci.engine_class,
 						  ci.engine_instance);
 		if (!engine) {
-			DRM_DEBUG("Invalid engine[%d]: { class:%d, instance:%d }\n",
-				  n, ci.engine_class, ci.engine_instance);
+			drm_dbg(&i915->drm,
+				"Invalid engine[%d]: { class:%d, instance:%d }\n",
+				n, ci.engine_class, ci.engine_instance);
 			__free_engines(set.engines, n);
 			return -ENOENT;
 		}
@@ -2168,8 +2170,9 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 
 	ext_data.fpriv = file->driver_priv;
 	if (client_is_banned(ext_data.fpriv)) {
-		DRM_DEBUG("client %s[%d] banned from creating ctx\n",
-			  current->comm, task_pid_nr(current));
+		drm_dbg(&i915->drm,
+			"client %s[%d] banned from creating ctx\n",
+			current->comm, task_pid_nr(current));
 		return -EIO;
 	}
 
@@ -2191,7 +2194,7 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 		goto err_ctx;
 
 	args->ctx_id = id;
-	DRM_DEBUG("HW context %d created\n", args->ctx_id);
+	drm_dbg(&i915->drm, "HW context %d created\n", args->ctx_id);
 
 	return 0;
 
