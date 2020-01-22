@@ -1,0 +1,97 @@
+// SPDX-License-Identifier: GPL-2.0
+/* Multipath TCP
+ *
+ * Copyright (c) 2017 - 2019, Intel Corporation.
+ */
+
+#include <linux/kernel.h>
+#include <net/tcp.h>
+#include <net/mptcp.h>
+#include "protocol.h"
+
+void mptcp_parse_option(const unsigned char *ptr, int opsize,
+			struct tcp_options_received *opt_rx)
+{
+	struct mptcp_options_received *mp_opt = &opt_rx->mptcp;
+	u8 subtype = *ptr >> 4;
+	u8 version;
+	u8 flags;
+
+	switch (subtype) {
+	case MPTCPOPT_MP_CAPABLE:
+		if (opsize != TCPOLEN_MPTCP_MPC_SYN &&
+		    opsize != TCPOLEN_MPTCP_MPC_ACK)
+			break;
+
+		version = *ptr++ & MPTCP_VERSION_MASK;
+		if (version != MPTCP_SUPPORTED_VERSION)
+			break;
+
+		flags = *ptr++;
+		if (!((flags & MPTCP_CAP_FLAG_MASK) == MPTCP_CAP_HMAC_SHA1) ||
+		    (flags & MPTCP_CAP_EXTENSIBILITY))
+			break;
+
+		/* RFC 6824, Section 3.1:
+		 * "For the Checksum Required bit (labeled "A"), if either
+		 * host requires the use of checksums, checksums MUST be used.
+		 * In other words, the only way for checksums not to be used
+		 * is if both hosts in their SYNs set A=0."
+		 *
+		 * Section 3.3.0:
+		 * "If a checksum is not present when its use has been
+		 * negotiated, the receiver MUST close the subflow with a RST as
+		 * it is considered broken."
+		 *
+		 * We don't implement DSS checksum - fall back to TCP.
+		 */
+		if (flags & MPTCP_CAP_CHECKSUM_REQD)
+			break;
+
+		mp_opt->mp_capable = 1;
+		mp_opt->sndr_key = get_unaligned_be64(ptr);
+		ptr += 8;
+
+		if (opsize == TCPOLEN_MPTCP_MPC_ACK) {
+			mp_opt->rcvr_key = get_unaligned_be64(ptr);
+			ptr += 8;
+			pr_debug("MP_CAPABLE sndr=%llu, rcvr=%llu",
+				 mp_opt->sndr_key, mp_opt->rcvr_key);
+		} else {
+			pr_debug("MP_CAPABLE sndr=%llu", mp_opt->sndr_key);
+		}
+		break;
+
+	case MPTCPOPT_DSS:
+		pr_debug("DSS");
+		mp_opt->dss = 1;
+		break;
+
+	default:
+		break;
+	}
+}
+
+void mptcp_write_options(__be32 *ptr, struct mptcp_out_options *opts)
+{
+	if ((OPTION_MPTCP_MPC_SYN |
+	     OPTION_MPTCP_MPC_ACK) & opts->suboptions) {
+		u8 len;
+
+		if (OPTION_MPTCP_MPC_SYN & opts->suboptions)
+			len = TCPOLEN_MPTCP_MPC_SYN;
+		else
+			len = TCPOLEN_MPTCP_MPC_ACK;
+
+		*ptr++ = htonl((TCPOPT_MPTCP << 24) | (len << 16) |
+			       (MPTCPOPT_MP_CAPABLE << 12) |
+			       (MPTCP_SUPPORTED_VERSION << 8) |
+			       MPTCP_CAP_HMAC_SHA1);
+		put_unaligned_be64(opts->sndr_key, ptr);
+		ptr += 2;
+		if (OPTION_MPTCP_MPC_ACK & opts->suboptions) {
+			put_unaligned_be64(opts->rcvr_key, ptr);
+			ptr += 2;
+		}
+	}
+}
