@@ -2868,9 +2868,9 @@ static int ice_vc_process_vlan_msg(struct ice_vf *vf, u8 *msg, bool add_v)
 				goto error_param;
 			}
 
-			vsi->num_vlan++;
-			/* Enable VLAN pruning when VLAN is added */
-			if (!vlan_promisc) {
+			/* Enable VLAN pruning when non-zero VLAN is added */
+			if (!vlan_promisc && vid &&
+			    !ice_vsi_is_vlan_pruning_ena(vsi)) {
 				status = ice_cfg_vlan_pruning(vsi, true, false);
 				if (status) {
 					v_ret = VIRTCHNL_STATUS_ERR_PARAM;
@@ -2878,7 +2878,7 @@ static int ice_vc_process_vlan_msg(struct ice_vf *vf, u8 *msg, bool add_v)
 						vid, status);
 					goto error_param;
 				}
-			} else {
+			} else if (vlan_promisc) {
 				/* Enable Ucast/Mcast VLAN promiscuous mode */
 				promisc_m = ICE_PROMISC_VLAN_TX |
 					    ICE_PROMISC_VLAN_RX;
@@ -2922,9 +2922,9 @@ static int ice_vc_process_vlan_msg(struct ice_vf *vf, u8 *msg, bool add_v)
 				goto error_param;
 			}
 
-			vsi->num_vlan--;
-			/* Disable VLAN pruning when the last VLAN is removed */
-			if (!vsi->num_vlan)
+			/* Disable VLAN pruning when only VLAN 0 is left */
+			if (vsi->num_vlan == 1 &&
+			    ice_vsi_is_vlan_pruning_ena(vsi))
 				ice_cfg_vlan_pruning(vsi, false, false);
 
 			/* Disable Unicast/Multicast VLAN promiscuous mode */

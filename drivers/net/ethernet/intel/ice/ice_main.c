@@ -2461,16 +2461,19 @@ ice_vlan_rx_add_vid(struct net_device *netdev, __always_unused __be16 proto,
 	if (vsi->info.pvid)
 		return -EINVAL;
 
-	/* Enable VLAN pruning when VLAN 0 is added */
-	if (unlikely(!vid)) {
+	/* VLAN 0 is added by default during load/reset */
+	if (!vid)
+		return 0;
+
+	/* Enable VLAN pruning when a VLAN other than 0 is added */
+	if (!ice_vsi_is_vlan_pruning_ena(vsi)) {
 		ret = ice_cfg_vlan_pruning(vsi, true, false);
 		if (ret)
 			return ret;
 	}
 
-	/* Add all VLAN IDs including 0 to the switch filter. VLAN ID 0 is
-	 * needed to continue allowing all untagged packets since VLAN prune
-	 * list is applied to all packets by the switch
+	/* Add a switch rule for this VLAN ID so its corresponding VLAN tagged
+	 * packets aren't pruned by the device's internal switch on Rx
 	 */
 	ret = ice_vsi_add_vlan(vsi, vid);
 	if (!ret) {
@@ -2500,6 +2503,10 @@ ice_vlan_rx_kill_vid(struct net_device *netdev, __always_unused __be16 proto,
 	if (vsi->info.pvid)
 		return -EINVAL;
 
+	/* don't allow removal of VLAN 0 */
+	if (!vid)
+		return 0;
+
 	/* Make sure ice_vsi_kill_vlan is successful before updating VLAN
 	 * information
 	 */
@@ -2507,8 +2514,8 @@ ice_vlan_rx_kill_vid(struct net_device *netdev, __always_unused __be16 proto,
 	if (ret)
 		return ret;
 
-	/* Disable VLAN pruning when VLAN 0 is removed */
-	if (unlikely(!vid))
+	/* Disable pruning when VLAN 0 is the only VLAN rule */
+	if (vsi->num_vlan == 1 && ice_vsi_is_vlan_pruning_ena(vsi))
 		ret = ice_cfg_vlan_pruning(vsi, false, false);
 
 	vsi->vlan_ena = false;

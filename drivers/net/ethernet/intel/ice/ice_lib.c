@@ -1348,7 +1348,9 @@ int ice_vsi_add_vlan(struct ice_vsi *vsi, u16 vid)
 	list_add(&tmp->list_entry, &tmp_add_list);
 
 	status = ice_add_vlan(&pf->hw, &tmp_add_list);
-	if (status) {
+	if (!status) {
+		vsi->num_vlan++;
+	} else {
 		err = -ENODEV;
 		dev_err(dev, "Failure Adding VLAN %d on VSI %i\n", vid,
 			vsi->vsi_num);
@@ -1390,10 +1392,12 @@ int ice_vsi_kill_vlan(struct ice_vsi *vsi, u16 vid)
 	list_add(&list->list_entry, &tmp_add_list);
 
 	status = ice_remove_vlan(&pf->hw, &tmp_add_list);
-	if (status == ICE_ERR_DOES_NOT_EXIST) {
+	if (!status) {
+		vsi->num_vlan--;
+	} else if (status == ICE_ERR_DOES_NOT_EXIST) {
 		dev_dbg(dev, "Failed to remove VLAN %d on VSI %i, it does not exist, status: %d\n",
 			vid, vsi->vsi_num, status);
-	} else if (status) {
+	} else {
 		dev_err(dev, "Error removing VLAN %d on vsi %i error: %d\n",
 			vid, vsi->vsi_num, status);
 		err = -EIO;
@@ -1756,6 +1760,26 @@ int ice_vsi_stop_xdp_tx_rings(struct ice_vsi *vsi)
 }
 
 /**
+ * ice_vsi_is_vlan_pruning_ena - check if VLAN pruning is enabled or not
+ * @vsi: VSI to check whether or not VLAN pruning is enabled.
+ *
+ * returns true if Rx VLAN pruning and Tx VLAN anti-spoof is enabled and false
+ * otherwise.
+ */
+bool ice_vsi_is_vlan_pruning_ena(struct ice_vsi *vsi)
+{
+	u8 rx_pruning = ICE_AQ_VSI_SW_FLAG_RX_VLAN_PRUNE_ENA;
+	u8 tx_pruning = ICE_AQ_VSI_SEC_TX_VLAN_PRUNE_ENA <<
+		ICE_AQ_VSI_SEC_TX_PRUNE_ENA_S;
+
+	if (!vsi)
+		return false;
+
+	return ((vsi->info.sw_flags2 & rx_pruning) &&
+		(vsi->info.sec_flags & tx_pruning));
+}
+
+/**
  * ice_cfg_vlan_pruning - enable or disable VLAN pruning on the VSI
  * @vsi: VSI to enable or disable VLAN pruning on
  * @ena: set to true to enable VLAN pruning and false to disable it
@@ -2025,6 +2049,17 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 		if (ret)
 			goto unroll_vector_base;
 
+		/* Always add VLAN ID 0 switch rule by default. This is needed
+		 * in order to allow all untagged and 0 tagged priority traffic
+		 * if Rx VLAN pruning is enabled. Also there are cases where we
+		 * don't get the call to add VLAN 0 via ice_vlan_rx_add_vid()
+		 * so this handles those cases (i.e. adding the PF to a bridge
+		 * without the 8021q module loaded).
+		 */
+		ret = ice_vsi_add_vlan(vsi, 0);
+		if (ret)
+			goto unroll_clear_rings;
+
 		ice_vsi_map_rings_to_vectors(vsi);
 
 		/* Do not exit if configuring RSS had an issue, at least
@@ -2104,6 +2139,8 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 
 	return vsi;
 
+unroll_clear_rings:
+	ice_vsi_clear_rings(vsi);
 unroll_vector_base:
 	/* reclaim SW interrupts back to the common pool */
 	ice_free_res(pf->irq_tracker, vsi->base_vector, vsi->idx);
