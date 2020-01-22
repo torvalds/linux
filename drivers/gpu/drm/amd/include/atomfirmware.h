@@ -562,6 +562,42 @@ struct atom_firmware_info_v3_3
   uint32_t reserved2[2];
 };
 
+struct atom_firmware_info_v3_4 {
+	struct atom_common_table_header table_header;
+	uint32_t firmware_revision;
+	uint32_t bootup_sclk_in10khz;
+	uint32_t bootup_mclk_in10khz;
+	uint32_t firmware_capability;             // enum atombios_firmware_capability
+	uint32_t main_call_parser_entry;          /* direct address of main parser call in VBIOS binary. */
+	uint32_t bios_scratch_reg_startaddr;      // 1st bios scratch register dword address
+	uint16_t bootup_vddc_mv;
+	uint16_t bootup_vddci_mv;
+	uint16_t bootup_mvddc_mv;
+	uint16_t bootup_vddgfx_mv;
+	uint8_t  mem_module_id;
+	uint8_t  coolingsolution_id;              /*0: Air cooling; 1: Liquid cooling ... */
+	uint8_t  reserved1[2];
+	uint32_t mc_baseaddr_high;
+	uint32_t mc_baseaddr_low;
+	uint8_t  board_i2c_feature_id;            // enum of atom_board_i2c_feature_id_def
+	uint8_t  board_i2c_feature_gpio_id;       // i2c id find in gpio_lut data table gpio_id
+	uint8_t  board_i2c_feature_slave_addr;
+	uint8_t  reserved3;
+	uint16_t bootup_mvddq_mv;
+	uint16_t bootup_mvpp_mv;
+	uint32_t zfbstartaddrin16mb;
+	uint32_t pplib_pptable_id;                // if pplib_pptable_id!=0, pplib get powerplay table inside driver instead of from VBIOS
+	uint32_t mvdd_ratio;                      // mvdd_raio = (real mvdd in power rail)*1000/(mvdd_output_from_svi2)
+	uint16_t hw_bootup_vddgfx_mv;             // hw default vddgfx voltage level decide by board strap
+	uint16_t hw_bootup_vddc_mv;               // hw default vddc voltage level decide by board strap
+	uint16_t hw_bootup_mvddc_mv;              // hw default mvddc voltage level decide by board strap
+	uint16_t hw_bootup_vddci_mv;              // hw default vddci voltage level decide by board strap
+	uint32_t maco_pwrlimit_mw;                // bomaco mode power limit in unit of m-watt
+	uint32_t usb_pwrlimit_mw;                 // power limit when USB is enable in unit of m-watt
+	uint32_t fw_reserved_size_in_kb;          // VBIOS reserved extra fw size in unit of kb.
+	uint32_t reserved[5];
+};
+
 /* 
   ***************************************************************************
     Data Table lcd_info  structure
