@@ -45,6 +45,15 @@ static void soc_rtd_shutdown(struct snd_soc_pcm_runtime *rtd,
 		rtd->dai_link->ops->shutdown(substream);
 }
 
+static int soc_rtd_prepare(struct snd_soc_pcm_runtime *rtd,
+			   struct snd_pcm_substream *substream)
+{
+	if (rtd->dai_link->ops &&
+	    rtd->dai_link->ops->prepare)
+		return rtd->dai_link->ops->prepare(substream);
+	return 0;
+}
+
 /**
  * snd_soc_runtime_activate() - Increment active count for PCM runtime components
  * @rtd: ASoC PCM runtime that is activated
@@ -716,13 +725,11 @@ static int soc_pcm_prepare(struct snd_pcm_substream *substream)
 
 	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
 
-	if (rtd->dai_link->ops->prepare) {
-		ret = rtd->dai_link->ops->prepare(substream);
-		if (ret < 0) {
-			dev_err(rtd->card->dev, "ASoC: machine prepare error:"
-				" %d\n", ret);
-			goto out;
-		}
+	ret = soc_rtd_prepare(rtd, substream);
+	if (ret < 0) {
+		dev_err(rtd->card->dev,
+			"ASoC: machine prepare error: %d\n", ret);
+		goto out;
 	}
 
 	for_each_rtd_components(rtd, i, component) {
