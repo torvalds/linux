@@ -124,4 +124,13 @@ static inline void pie_set_enqueue_time(struct sk_buff *skb)
 	get_pie_cb(skb)->enqueue_time = psched_get_time();
 }
 
+bool pie_drop_early(struct Qdisc *sch, struct pie_params *params,
+		    struct pie_vars *vars, u32 qlen, u32 packet_size);
+
+void pie_process_dequeue(struct sk_buff *skb, struct pie_params *params,
+			 struct pie_vars *vars, u32 qlen);
+
+void pie_calculate_probability(struct pie_params *params, struct pie_vars *vars,
+			       u32 qlen);
+
 #endif

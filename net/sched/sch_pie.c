@@ -30,64 +30,65 @@ struct pie_sched_data {
 	struct Qdisc *sch;
 };
 
-static bool drop_early(struct Qdisc *sch, u32 packet_size)
+bool pie_drop_early(struct Qdisc *sch, struct pie_params *params,
+		    struct pie_vars *vars, u32 qlen, u32 packet_size)
 {
-	struct pie_sched_data *q = qdisc_priv(sch);
 	u64 rnd;
-	u64 local_prob = q->vars.prob;
+	u64 local_prob = vars->prob;
 	u32 mtu = psched_mtu(qdisc_dev(sch));
 
 	/* If there is still burst allowance left skip random early drop */
-	if (q->vars.burst_time > 0)
+	if (vars->burst_time > 0)
 		return false;
 
 	/* If current delay is less than half of target, and
 	 * if drop prob is low already, disable early_drop
 	 */
-	if ((q->vars.qdelay < q->params.target / 2) &&
-	    (q->vars.prob < MAX_PROB / 5))
+	if ((vars->qdelay < params->target / 2) &&
+	    (vars->prob < MAX_PROB / 5))
 		return false;
 
-	/* If we have fewer than 2 mtu-sized packets, disable drop_early,
+	/* If we have fewer than 2 mtu-sized packets, disable pie_drop_early,
 	 * similar to min_th in RED
 	 */
-	if (sch->qstats.backlog < 2 * mtu)
+	if (qlen < 2 * mtu)
 		return false;
 
 	/* If bytemode is turned on, use packet size to compute new
 	 * probablity. Smaller packets will have lower drop prob in this case
 	 */
-	if (q->params.bytemode && packet_size <= mtu)
+	if (params->bytemode && packet_size <= mtu)
 		local_prob = (u64)packet_size * div_u64(local_prob, mtu);
 	else
-		local_prob = q->vars.prob;
+		local_prob = vars->prob;
 
 	if (local_prob == 0) {
-		q->vars.accu_prob = 0;
-		q->vars.accu_prob_overflows = 0;
+		vars->accu_prob = 0;
+		vars->accu_prob_overflows = 0;
 	}
 
-	if (local_prob > MAX_PROB - q->vars.accu_prob)
-		q->vars.accu_prob_overflows++;
+	if (local_prob > MAX_PROB - vars->accu_prob)
+		vars->accu_prob_overflows++;
 
-	q->vars.accu_prob += local_prob;
+	vars->accu_prob += local_prob;
 
-	if (q->vars.accu_prob_overflows == 0 &&
-	    q->vars.accu_prob < (MAX_PROB / 100) * 85)
+	if (vars->accu_prob_overflows == 0 &&
+	    vars->accu_prob < (MAX_PROB / 100) * 85)
 		return false;
-	if (q->vars.accu_prob_overflows == 8 &&
-	    q->vars.accu_prob >= MAX_PROB / 2)
+	if (vars->accu_prob_overflows == 8 &&
+	    vars->accu_prob >= MAX_PROB / 2)
 		return true;
 
 	prandom_bytes(&rnd, 8);
 	if (rnd < local_prob) {
-		q->vars.accu_prob = 0;
-		q->vars.accu_prob_overflows = 0;
+		vars->accu_prob = 0;
+		vars->accu_prob_overflows = 0;
 		return true;
 	}
 
 	return false;
 }
+EXPORT_SYMBOL_GPL(pie_drop_early);
 
 static int pie_qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 			     struct sk_buff **to_free)
@@ -100,7 +101,8 @@ static int pie_qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 		goto out;
 	}
 
-	if (!drop_early(sch, skb->len)) {
+	if (!pie_drop_early(sch, &q->params, &q->vars, sch->qstats.backlog,
+			    skb->len)) {
 		enqueue = true;
 	} else if (q->params.ecn && (q->vars.prob <= MAX_PROB / 10) &&
 		   INET_ECN_set_ce(skb)) {
@@ -212,26 +214,25 @@ static int pie_change(struct Qdisc *sch, struct nlattr *opt,
 	return 0;
 }
 
-static void pie_process_dequeue(struct Qdisc *sch, struct sk_buff *skb)
+void pie_process_dequeue(struct sk_buff *skb, struct pie_params *params,
+			 struct pie_vars *vars, u32 qlen)
 {
-	struct pie_sched_data *q = qdisc_priv(sch);
-	int qlen = sch->qstats.backlog;	/* current queue size in bytes */
 	psched_time_t now = psched_get_time();
 	u32 dtime = 0;
 
 	/* If dq_rate_estimator is disabled, calculate qdelay using the
 	 * packet timestamp.
 	 */
-	if (!q->params.dq_rate_estimator) {
-		q->vars.qdelay = now - pie_get_enqueue_time(skb);
+	if (!params->dq_rate_estimator) {
+		vars->qdelay = now - pie_get_enqueue_time(skb);
 
-		if (q->vars.dq_tstamp != DTIME_INVALID)
-			dtime = now - q->vars.dq_tstamp;
+		if (vars->dq_tstamp != DTIME_INVALID)
+			dtime = now - vars->dq_tstamp;
 
-		q->vars.dq_tstamp = now;
+		vars->dq_tstamp = now;
 
 		if (qlen == 0)
-			q->vars.qdelay = 0;
+			vars->qdelay = 0;
 
 		if (dtime == 0)
 			return;
@@ -243,9 +244,9 @@ static void pie_process_dequeue(struct Qdisc *sch, struct sk_buff *skb)
 	 * we have enough packets to calculate the drain rate. Save
 	 * current time as dq_tstamp and start measurement cycle.
 	 */
-	if (qlen >= QUEUE_THRESHOLD && q->vars.dq_count == DQCOUNT_INVALID) {
-		q->vars.dq_tstamp = psched_get_time();
-		q->vars.dq_count = 0;
+	if (qlen >= QUEUE_THRESHOLD && vars->dq_count == DQCOUNT_INVALID) {
+		vars->dq_tstamp = psched_get_time();
+		vars->dq_count = 0;
 	}
 
 	/* Calculate the average drain rate from this value. If queue length
@@ -257,25 +258,25 @@ static void pie_process_dequeue(struct Qdisc *sch, struct sk_buff *skb)
 	 * in bytes, time difference in psched_time, hence rate is in
 	 * bytes/psched_time.
 	 */
-	if (q->vars.dq_count != DQCOUNT_INVALID) {
-		q->vars.dq_count += skb->len;
+	if (vars->dq_count != DQCOUNT_INVALID) {
+		vars->dq_count += skb->len;
 
-		if (q->vars.dq_count >= QUEUE_THRESHOLD) {
-			u32 count = q->vars.dq_count << PIE_SCALE;
+		if (vars->dq_count >= QUEUE_THRESHOLD) {
+			u32 count = vars->dq_count << PIE_SCALE;
 
-			dtime = now - q->vars.dq_tstamp;
+			dtime = now - vars->dq_tstamp;
 
 			if (dtime == 0)
 				return;
 
 			count = count / dtime;
 
-			if (q->vars.avg_dq_rate == 0)
-				q->vars.avg_dq_rate = count;
+			if (vars->avg_dq_rate == 0)
+				vars->avg_dq_rate = count;
 			else
-				q->vars.avg_dq_rate =
-				    (q->vars.avg_dq_rate -
-				     (q->vars.avg_dq_rate >> 3)) + (count >> 3);
+				vars->avg_dq_rate =
+				    (vars->avg_dq_rate -
+				     (vars->avg_dq_rate >> 3)) + (count >> 3);
 
 			/* If the queue has receded below the threshold, we hold
 			 * on to the last drain rate calculated, else we reset
@@ -283,10 +284,10 @@ static void pie_process_dequeue(struct Qdisc *sch, struct sk_buff *skb)
 			 * packet is dequeued
 			 */
 			if (qlen < QUEUE_THRESHOLD) {
-				q->vars.dq_count = DQCOUNT_INVALID;
+				vars->dq_count = DQCOUNT_INVALID;
 			} else {
-				q->vars.dq_count = 0;
-				q->vars.dq_tstamp = psched_get_time();
+				vars->dq_count = 0;
+				vars->dq_tstamp = psched_get_time();
 			}
 
 			goto burst_allowance_reduction;
@@ -296,18 +297,18 @@ static void pie_process_dequeue(struct Qdisc *sch, struct sk_buff *skb)
 	return;
 
 burst_allowance_reduction:
-	if (q->vars.burst_time > 0) {
-		if (q->vars.burst_time > dtime)
-			q->vars.burst_time -= dtime;
+	if (vars->burst_time > 0) {
+		if (vars->burst_time > dtime)
+			vars->burst_time -= dtime;
 		else
-			q->vars.burst_time = 0;
+			vars->burst_time = 0;
 	}
 }
+EXPORT_SYMBOL_GPL(pie_process_dequeue);
 
-static void calculate_probability(struct Qdisc *sch)
+void pie_calculate_probability(struct pie_params *params, struct pie_vars *vars,
+			       u32 qlen)
 {
-	struct pie_sched_data *q = qdisc_priv(sch);
-	u32 qlen = sch->qstats.backlog;	/* queue size in bytes */
 	psched_time_t qdelay = 0;	/* in pschedtime */
 	psched_time_t qdelay_old = 0;	/* in pschedtime */
 	s64 delta = 0;		/* determines the change in probability */
@@ -316,17 +317,17 @@ static void calculate_probability(struct Qdisc *sch)
 	u32 power;
 	bool update_prob = true;
 
-	if (q->params.dq_rate_estimator) {
-		qdelay_old = q->vars.qdelay;
-		q->vars.qdelay_old = q->vars.qdelay;
+	if (params->dq_rate_estimator) {
+		qdelay_old = vars->qdelay;
+		vars->qdelay_old = vars->qdelay;
 
-		if (q->vars.avg_dq_rate > 0)
-			qdelay = (qlen << PIE_SCALE) / q->vars.avg_dq_rate;
+		if (vars->avg_dq_rate > 0)
+			qdelay = (qlen << PIE_SCALE) / vars->avg_dq_rate;
 		else
 			qdelay = 0;
 	} else {
-		qdelay = q->vars.qdelay;
-		qdelay_old = q->vars.qdelay_old;
+		qdelay = vars->qdelay;
+		qdelay_old = vars->qdelay_old;
 	}
 
 	/* If qdelay is zero and qlen is not, it means qlen is very small,
@@ -342,18 +343,18 @@ static void calculate_probability(struct Qdisc *sch)
 	 * probability. alpha/beta are updated locally below by scaling down
 	 * by 16 to come to 0-2 range.
 	 */
-	alpha = ((u64)q->params.alpha * (MAX_PROB / PSCHED_TICKS_PER_SEC)) >> 4;
-	beta = ((u64)q->params.beta * (MAX_PROB / PSCHED_TICKS_PER_SEC)) >> 4;
+	alpha = ((u64)params->alpha * (MAX_PROB / PSCHED_TICKS_PER_SEC)) >> 4;
+	beta = ((u64)params->beta * (MAX_PROB / PSCHED_TICKS_PER_SEC)) >> 4;
 
 	/* We scale alpha and beta differently depending on how heavy the
 	 * congestion is. Please see RFC 8033 for details.
 	 */
-	if (q->vars.prob < MAX_PROB / 10) {
+	if (vars->prob < MAX_PROB / 10) {
 		alpha >>= 1;
 		beta >>= 1;
 
 		power = 100;
-		while (q->vars.prob < div_u64(MAX_PROB, power) &&
+		while (vars->prob < div_u64(MAX_PROB, power) &&
 		       power <= 1000000) {
 			alpha >>= 2;
 			beta >>= 2;
@@ -362,14 +363,14 @@ static void calculate_probability(struct Qdisc *sch)
 	}
 
 	/* alpha and beta should be between 0 and 32, in multiples of 1/16 */
-	delta += alpha * (u64)(qdelay - q->params.target);
+	delta += alpha * (u64)(qdelay - params->target);
 	delta += beta * (u64)(qdelay - qdelay_old);
 
-	oldprob = q->vars.prob;
+	oldprob = vars->prob;
 
 	/* to ensure we increase probability in steps of no more than 2% */
 	if (delta > (s64)(MAX_PROB / (100 / 2)) &&
-	    q->vars.prob >= MAX_PROB / 10)
+	    vars->prob >= MAX_PROB / 10)
 		delta = (MAX_PROB / 100) * 2;
 
 	/* Non-linear drop:
@@ -380,12 +381,12 @@ static void calculate_probability(struct Qdisc *sch)
 	if (qdelay > (PSCHED_NS2TICKS(250 * NSEC_PER_MSEC)))
 		delta += MAX_PROB / (100 / 2);
 
-	q->vars.prob += delta;
+	vars->prob += delta;
 
 	if (delta > 0) {
 		/* prevent overflow */
-		if (q->vars.prob < oldprob) {
-			q->vars.prob = MAX_PROB;
+		if (vars->prob < oldprob) {
+			vars->prob = MAX_PROB;
 			/* Prevent normalization error. If probability is at
 			 * maximum value already, we normalize it here, and
 			 * skip the check to do a non-linear drop in the next
@@ -395,8 +396,8 @@ static void calculate_probability(struct Qdisc *sch)
 		}
 	} else {
 		/* prevent underflow */
-		if (q->vars.prob > oldprob)
-			q->vars.prob = 0;
+		if (vars->prob > oldprob)
+			vars->prob = 0;
 	}
 
 	/* Non-linear drop in probability: Reduce drop probability quickly if
@@ -405,10 +406,10 @@ static void calculate_probability(struct Qdisc *sch)
 
 	if (qdelay == 0 && qdelay_old == 0 && update_prob)
 		/* Reduce drop probability to 98.4% */
-		q->vars.prob -= q->vars.prob / 64u;
+		vars->prob -= vars->prob / 64;
 
-	q->vars.qdelay = qdelay;
-	q->vars.qlen_old = qlen;
+	vars->qdelay = qdelay;
+	vars->qlen_old = qlen;
 
 	/* We restart the measurement cycle if the following conditions are met
 	 * 1. If the delay has been low for 2 consecutive Tupdate periods
@@ -416,16 +417,17 @@ static void calculate_probability(struct Qdisc *sch)
 	 * 3. If average dq_rate_estimator is enabled, we have atleast one
 	 *    estimate for the avg_dq_rate ie., is a non-zero value
 	 */
-	if ((q->vars.qdelay < q->params.target / 2) &&
-	    (q->vars.qdelay_old < q->params.target / 2) &&
-	    q->vars.prob == 0 &&
-	    (!q->params.dq_rate_estimator || q->vars.avg_dq_rate > 0)) {
-		pie_vars_init(&q->vars);
+	if ((vars->qdelay < params->target / 2) &&
+	    (vars->qdelay_old < params->target / 2) &&
+	    vars->prob == 0 &&
+	    (!params->dq_rate_estimator || vars->avg_dq_rate > 0)) {
+		pie_vars_init(vars);
 	}
 
-	if (!q->params.dq_rate_estimator)
-		q->vars.qdelay_old = qdelay;
+	if (!params->dq_rate_estimator)
+		vars->qdelay_old = qdelay;
 }
+EXPORT_SYMBOL_GPL(pie_calculate_probability);
 
 static void pie_timer(struct timer_list *t)
 {
@@ -434,7 +436,7 @@ static void pie_timer(struct timer_list *t)
 	spinlock_t *root_lock = qdisc_lock(qdisc_root_sleeping(sch));
 
 	spin_lock(root_lock);
-	calculate_probability(sch);
+	pie_calculate_probability(&q->params, &q->vars, sch->qstats.backlog);
 
 	/* reset the timer to fire after 'tupdate'. tupdate is in jiffies. */
 	if (q->params.tupdate)
@@ -523,12 +525,13 @@ static int pie_dump_stats(struct Qdisc *sch, struct gnet_dump *d)
 
 static struct sk_buff *pie_qdisc_dequeue(struct Qdisc *sch)
 {
+	struct pie_sched_data *q = qdisc_priv(sch);
 	struct sk_buff *skb = qdisc_dequeue_head(sch);
 
 	if (!skb)
 		return NULL;
 
-	pie_process_dequeue(sch, skb);
+	pie_process_dequeue(skb, &q->params, &q->vars, sch->qstats.backlog);
 	return skb;
 }
 
