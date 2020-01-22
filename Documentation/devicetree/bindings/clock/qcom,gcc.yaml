@@ -235,7 +235,7 @@ examples:
                <0>,
                <0>;
       clock-names = "xo",
-                    "sleep",
+                    "sleep_clk",
                     "usb3_pipe",
                     "ufs_rx_symbol0",
                     "ufs_rx_symbol1",
