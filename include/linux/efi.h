@@ -539,7 +539,6 @@ extern struct efi {
 	unsigned long runtime;		/* runtime table */
 	unsigned long config_table;	/* config tables */
 	unsigned long esrt;		/* ESRT table */
-	unsigned long mem_attr_table;	/* memory attributes table */
 	unsigned long tpm_log;		/* TPM2 Event Log table */
 	unsigned long tpm_final_log;	/* TPM2 Final Events Log table */
 	unsigned long mem_reserve;	/* Linux EFI memreserve table */
@@ -640,6 +639,8 @@ extern void __init efi_fake_memmap(void);
 #else
 static inline void efi_fake_memmap(void) { }
 #endif
+
+extern unsigned long efi_mem_attr_table;
 
 /*
  * efi_memattr_perm_setter - arch specific callback function passed into
