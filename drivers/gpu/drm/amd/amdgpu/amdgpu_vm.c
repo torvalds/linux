@@ -1467,9 +1467,8 @@ static int amdgpu_vm_update_ptes(struct amdgpu_vm_update_params *params,
 			 * smaller than the address shift. Go to the next
 			 * child entry and try again.
 			 */
-			if (!amdgpu_vm_pt_descendant(adev, &cursor))
-				return -ENOENT;
-			continue;
+			if (amdgpu_vm_pt_descendant(adev, &cursor))
+				continue;
 		} else if (frag >= parent_shift) {
 			/* If the fragment size is even larger than the parent
 			 * shift we should go up one level and check it again.
@@ -1480,8 +1479,20 @@ static int amdgpu_vm_update_ptes(struct amdgpu_vm_update_params *params,
 		}
 
 		pt = cursor.entry->base.bo;
-		if (!pt)
-			return -ENOENT;
+		if (!pt) {
+			/* We need all PDs and PTs for mapping something, */
+			if (flags & AMDGPU_PTE_VALID)
+				return -ENOENT;
+
+			/* but unmapping something can happen at a higher
+			 * level.
+			 */
+			if (!amdgpu_vm_pt_ancestor(&cursor))
+				return -EINVAL;
+
+			pt = cursor.entry->base.bo;
+			shift = parent_shift;
+		}
 
 		/* Looks good so far, calculate parameters for the update */
 		incr = (uint64_t)AMDGPU_GPU_PAGE_SIZE << shift;
@@ -1495,6 +1506,10 @@ static int amdgpu_vm_update_ptes(struct amdgpu_vm_update_params *params,
 			uint64_t upd_end = min(entry_end, frag_end);
 			unsigned nptes = (upd_end - frag_start) >> shift;
 
+			/* This can happen when we set higher level PDs to
+			 * silent to stop fault floods.
+			 */
+			nptes = max(nptes, 1u);
 			amdgpu_vm_update_flags(params, pt, cursor.level,
 					       pe_start, dst, nptes, incr,
 					       flags | AMDGPU_PTE_FRAG(frag));
