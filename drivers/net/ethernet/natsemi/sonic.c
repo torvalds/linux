@@ -433,7 +433,6 @@ static int index_from_addr(struct sonic_local *lp, dma_addr_t addr,
 static void sonic_rx(struct net_device *dev)
 {
 	struct sonic_local *lp = netdev_priv(dev);
-	int status;
 	int entry = lp->cur_rx;
 	int prev_entry = lp->eol_rx;
 
@@ -444,9 +443,10 @@ static void sonic_rx(struct net_device *dev)
 		u16 bufadr_l;
 		u16 bufadr_h;
 		int pkt_len;
+		u16 status = sonic_rda_get(dev, entry, SONIC_RD_STATUS);
 
-		status = sonic_rda_get(dev, entry, SONIC_RD_STATUS);
-		if (status & SONIC_RCR_PRX) {
+		/* If the RD has LPKT set, the chip has finished with the RB */
+		if ((status & SONIC_RCR_PRX) && (status & SONIC_RCR_LPKT)) {
 			u32 addr = (sonic_rda_get(dev, entry,
 						  SONIC_RD_PKTPTR_H) << 16) |
 				   sonic_rda_get(dev, entry, SONIC_RD_PKTPTR_L);
@@ -494,10 +494,6 @@ static void sonic_rx(struct net_device *dev)
 			bufadr_h = (unsigned long)new_laddr >> 16;
 			sonic_rra_put(dev, i, SONIC_RR_BUFADR_L, bufadr_l);
 			sonic_rra_put(dev, i, SONIC_RR_BUFADR_H, bufadr_h);
-		} else {
-			/* This should only happen, if we enable accepting broken packets. */
-		}
-		if (status & SONIC_RCR_LPKT) {
 			/*
 			 * this was the last packet out of the current receive buffer
 			 * give the buffer back to the SONIC
@@ -510,12 +506,11 @@ static void sonic_rx(struct net_device *dev)
 					  __func__);
 				SONIC_WRITE(SONIC_ISR, SONIC_INT_RBE); /* clear the flag */
 			}
-		} else
-			printk(KERN_ERR "%s: rx desc without RCR_LPKT. Shouldn't happen !?\n",
-			     dev->name);
+		}
 		/*
 		 * give back the descriptor
 		 */
+		sonic_rda_put(dev, entry, SONIC_RD_STATUS, 0);
 		sonic_rda_put(dev, entry, SONIC_RD_IN_USE, 1);
 
 		prev_entry = entry;
