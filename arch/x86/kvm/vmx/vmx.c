@@ -3719,11 +3719,6 @@ void pt_update_intercept_for_msr(struct vcpu_vmx *vmx)
 	}
 }
 
-static bool vmx_get_enable_apicv(struct kvm *kvm)
-{
-	return enable_apicv;
-}
-
 static bool vmx_guest_apic_has_interrupt(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
@@ -7787,7 +7782,6 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 	.update_cr8_intercept = update_cr8_intercept,
 	.set_virtual_apic_mode = vmx_set_virtual_apic_mode,
 	.set_apic_access_page_addr = vmx_set_apic_access_page_addr,
-	.get_enable_apicv = vmx_get_enable_apicv,
 	.refresh_apicv_exec_ctrl = vmx_refresh_apicv_exec_ctrl,
 	.load_eoi_exitmap = vmx_load_eoi_exitmap,
 	.apicv_post_state_restore = vmx_apicv_post_state_restore,

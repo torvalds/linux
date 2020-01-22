@@ -5147,11 +5147,6 @@ static void svm_set_virtual_apic_mode(struct kvm_vcpu *vcpu)
 	return;
 }
 
-static bool svm_get_enable_apicv(struct kvm *kvm)
-{
-	return avic && irqchip_split(kvm);
-}
-
 static void svm_hwapic_irr_update(struct kvm_vcpu *vcpu, int max_irr)
 {
 }
@@ -7343,7 +7338,6 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.enable_irq_window = enable_irq_window,
 	.update_cr8_intercept = update_cr8_intercept,
 	.set_virtual_apic_mode = svm_set_virtual_apic_mode,
-	.get_enable_apicv = svm_get_enable_apicv,
 	.refresh_apicv_exec_ctrl = svm_refresh_apicv_exec_ctrl,
 	.load_eoi_exitmap = svm_load_eoi_exitmap,
 	.hwapic_irr_update = svm_hwapic_irr_update,
