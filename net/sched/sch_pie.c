@@ -23,8 +23,8 @@
 
 /* private data for the Qdisc */
 struct pie_sched_data {
-	struct pie_params params;
 	struct pie_vars vars;
+	struct pie_params params;
 	struct pie_stats stats;
 	struct timer_list adapt_timer;
 	struct Qdisc *sch;

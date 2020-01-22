@@ -28,13 +28,13 @@ struct pie_params {
 
 /* variables used */
 struct pie_vars {
-	u64 prob;		/* probability but scaled by u64 limit. */
-	psched_time_t burst_time;
 	psched_time_t qdelay;
 	psched_time_t qdelay_old;
-	u64 dq_count;		/* measured in bytes */
+	psched_time_t burst_time;
 	psched_time_t dq_tstamp;	/* drain rate */
+	u64 prob;		/* probability but scaled by u64 limit. */
 	u64 accu_prob;		/* accumulated drop probability */
+	u64 dq_count;		/* measured in bytes */
 	u32 avg_dq_rate;	/* bytes per pschedtime tick,scaled */
 	u32 qlen_old;		/* in bytes */
 	u8 accu_prob_overflows;	/* overflows of accu_prob */
@@ -45,8 +45,8 @@ struct pie_stats {
 	u32 packets_in;		/* total number of packets enqueued */
 	u32 dropped;		/* packets dropped due to pie_action */
 	u32 overlimit;		/* dropped due to lack of space in queue */
-	u32 maxq;		/* maximum queue size */
 	u32 ecn_mark;		/* packets marked with ECN */
+	u32 maxq;		/* maximum queue size */
 };
 
 /* private skb vars */
@@ -56,11 +56,11 @@ struct pie_skb_cb {
 
 static inline void pie_params_init(struct pie_params *params)
 {
-	params->alpha = 2;
-	params->beta = 20;
+	params->target = PSCHED_NS2TICKS(15 * NSEC_PER_MSEC);	/* 15 ms */
 	params->tupdate = usecs_to_jiffies(15 * USEC_PER_MSEC);	/* 15 ms */
 	params->limit = 1000;	/* default of 1000 packets */
-	params->target = PSCHED_NS2TICKS(15 * NSEC_PER_MSEC);	/* 15 ms */
+	params->alpha = 2;
+	params->beta = 20;
 	params->ecn = false;
 	params->bytemode = false;
 	params->dq_rate_estimator = false;
@@ -68,12 +68,12 @@ static inline void pie_params_init(struct pie_params *params)
 
 static inline void pie_vars_init(struct pie_vars *vars)
 {
-	vars->dq_count = DQCOUNT_INVALID;
-	vars->dq_tstamp = DTIME_INVALID;
-	vars->accu_prob = 0;
-	vars->avg_dq_rate = 0;
 	/* default of 150 ms in pschedtime */
 	vars->burst_time = PSCHED_NS2TICKS(150 * NSEC_PER_MSEC);
+	vars->dq_tstamp = DTIME_INVALID;
+	vars->accu_prob = 0;
+	vars->dq_count = DQCOUNT_INVALID;
+	vars->avg_dq_rate = 0;
 	vars->accu_prob_overflows = 0;
 }
 
