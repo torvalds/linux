@@ -435,6 +435,7 @@ static void sonic_rx(struct net_device *dev)
 	struct sonic_local *lp = netdev_priv(dev);
 	int status;
 	int entry = lp->cur_rx;
+	int prev_entry = lp->eol_rx;
 
 	while (sonic_rda_get(dev, entry, SONIC_RD_IN_USE) == 0) {
 		struct sk_buff *used_skb;
@@ -515,13 +516,21 @@ static void sonic_rx(struct net_device *dev)
 		/*
 		 * give back the descriptor
 		 */
-		sonic_rda_put(dev, entry, SONIC_RD_LINK,
-			sonic_rda_get(dev, entry, SONIC_RD_LINK) | SONIC_EOL);
 		sonic_rda_put(dev, entry, SONIC_RD_IN_USE, 1);
-		sonic_rda_put(dev, lp->eol_rx, SONIC_RD_LINK,
-			sonic_rda_get(dev, lp->eol_rx, SONIC_RD_LINK) & ~SONIC_EOL);
-		lp->eol_rx = entry;
-		lp->cur_rx = entry = (entry + 1) & SONIC_RDS_MASK;
+
+		prev_entry = entry;
+		entry = (entry + 1) & SONIC_RDS_MASK;
+	}
+
+	lp->cur_rx = entry;
+
+	if (prev_entry != lp->eol_rx) {
+		/* Advance the EOL flag to put descriptors back into service */
+		sonic_rda_put(dev, prev_entry, SONIC_RD_LINK, SONIC_EOL |
+			      sonic_rda_get(dev, prev_entry, SONIC_RD_LINK));
+		sonic_rda_put(dev, lp->eol_rx, SONIC_RD_LINK, ~SONIC_EOL &
+			      sonic_rda_get(dev, lp->eol_rx, SONIC_RD_LINK));
+		lp->eol_rx = prev_entry;
 	}
 	/*
 	 * If any worth-while packets have been received, netif_rx()
