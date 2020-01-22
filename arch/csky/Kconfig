@@ -231,6 +231,10 @@ config CPU_HAS_FPU
 	bool "CPU has FPU coprocessor"
 	depends on CPU_CK807 || CPU_CK810 || CPU_CK860
 
+config CPU_HAS_ICACHE_INS
+	bool "CPU has Icache invalidate instructions"
+	depends on CPU_HAS_CACHEV2
+
 config CPU_HAS_TEE
 	bool "CPU has Trusted Execution Environment"
 	depends on CPU_CK810
