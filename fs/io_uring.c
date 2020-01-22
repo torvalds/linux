@@ -4512,6 +4512,7 @@ again:
 	 */
 	if (ret == -EAGAIN && (!(req->flags & REQ_F_NOWAIT) ||
 	    (req->flags & REQ_F_MUST_PUNT))) {
+punt:
 		if (req->work.flags & IO_WQ_WORK_NEEDS_FILES) {
 			ret = io_grab_files(req);
 			if (ret)
@@ -4547,6 +4548,9 @@ done_req:
 	if (nxt) {
 		req = nxt;
 		nxt = NULL;
+
+		if (req->flags & REQ_F_FORCE_ASYNC)
+			goto punt;
 		goto again;
 	}
 }
