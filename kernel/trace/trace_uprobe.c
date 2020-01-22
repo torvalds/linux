@@ -34,12 +34,6 @@ struct uprobe_trace_entry_head {
 #define DATAOF_TRACE_ENTRY(entry, is_return)		\
 	((void*)(entry) + SIZEOF_TRACE_ENTRY(is_return))
 
-struct trace_uprobe_filter {
-	rwlock_t		rwlock;
-	int			nr_systemwide;
-	struct list_head	perf_events;
-};
-
 static int trace_uprobe_create(int argc, const char **argv);
 static int trace_uprobe_show(struct seq_file *m, struct dyn_event *ev);
 static int trace_uprobe_release(struct dyn_event *ev);
@@ -263,14 +257,6 @@ process_fetch_insn(struct fetch_insn *code, struct pt_regs *regs, void *dest,
 }
 NOKPROBE_SYMBOL(process_fetch_insn)
 
-static struct trace_uprobe_filter *
-trace_uprobe_get_filter(struct trace_uprobe *tu)
-{
-	struct trace_probe_event *event = tu->tp.event;
-
-	return (struct trace_uprobe_filter *)&event->data[0];
-}
-
 static inline void init_trace_uprobe_filter(struct trace_uprobe_filter *filter)
 {
 	rwlock_init(&filter->rwlock);
@@ -358,8 +344,7 @@ alloc_trace_uprobe(const char *group, const char *event, int nargs, bool is_ret)
 	if (!tu)
 		return ERR_PTR(-ENOMEM);
 
-	ret = trace_probe_init(&tu->tp, event, group,
-				sizeof(struct trace_uprobe_filter));
+	ret = trace_probe_init(&tu->tp, event, group, true);
 	if (ret < 0)
 		goto error;
 
@@ -367,7 +352,7 @@ alloc_trace_uprobe(const char *group, const char *event, int nargs, bool is_ret)
 	tu->consumer.handler = uprobe_dispatcher;
 	if (is_ret)
 		tu->consumer.ret_handler = uretprobe_dispatcher;
-	init_trace_uprobe_filter(trace_uprobe_get_filter(tu));
+	init_trace_uprobe_filter(tu->tp.event->filter);
 	return tu;
 
 error:
@@ -1076,7 +1061,7 @@ static void __probe_event_disable(struct trace_probe *tp)
 	struct trace_uprobe *tu;
 
 	tu = container_of(tp, struct trace_uprobe, tp);
-	WARN_ON(!uprobe_filter_is_empty(trace_uprobe_get_filter(tu)));
+	WARN_ON(!uprobe_filter_is_empty(tu->tp.event->filter));
 
 	list_for_each_entry(pos, trace_probe_probe_list(tp), list) {
 		tu = container_of(pos, struct trace_uprobe, tp);
@@ -1117,7 +1102,7 @@ static int probe_event_enable(struct trace_event_call *call,
 	}
 
 	tu = container_of(tp, struct trace_uprobe, tp);
-	WARN_ON(!uprobe_filter_is_empty(trace_uprobe_get_filter(tu)));
+	WARN_ON(!uprobe_filter_is_empty(tu->tp.event->filter));
 
 	if (enabled)
 		return 0;
@@ -1281,7 +1266,7 @@ static int uprobe_perf_close(struct trace_event_call *call,
 		return -ENODEV;
 
 	tu = container_of(tp, struct trace_uprobe, tp);
-	if (trace_uprobe_filter_remove(trace_uprobe_get_filter(tu), event))
+	if (trace_uprobe_filter_remove(tu->tp.event->filter, event))
 		return 0;
 
 	list_for_each_entry(pos, trace_probe_probe_list(tp), list) {
@@ -1306,7 +1291,7 @@ static int uprobe_perf_open(struct trace_event_call *call,
 		return -ENODEV;
 
 	tu = container_of(tp, struct trace_uprobe, tp);
-	if (trace_uprobe_filter_add(trace_uprobe_get_filter(tu), event))
+	if (trace_uprobe_filter_add(tu->tp.event->filter, event))
 		return 0;
 
 	list_for_each_entry(pos, trace_probe_probe_list(tp), list) {
@@ -1328,7 +1313,7 @@ static bool uprobe_perf_filter(struct uprobe_consumer *uc,
 	int ret;
 
 	tu = container_of(uc, struct trace_uprobe, consumer);
-	filter = trace_uprobe_get_filter(tu);
+	filter = tu->tp.event->filter;
 
 	read_lock(&filter->rwlock);
 	ret = __uprobe_perf_filter(filter, mm);
