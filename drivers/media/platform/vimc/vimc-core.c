@@ -252,16 +252,21 @@ static void vimc_unregister(struct vimc_device *vimc)
 	media_device_cleanup(&vimc->mdev);
 	v4l2_device_unregister(&vimc->v4l2_dev);
 	kfree(vimc->ent_devs);
+	kfree(vimc);
 }
 
 static int vimc_probe(struct platform_device *pdev)
 {
-	struct vimc_device *vimc = container_of(pdev, struct vimc_device, pdev);
+	struct vimc_device *vimc;
 	int ret;
 
 	dev_dbg(&pdev->dev, "probe");
 
-	memset(&vimc->mdev, 0, sizeof(vimc->mdev));
+	vimc = kzalloc(sizeof(*vimc), GFP_KERNEL);
+	if (!vimc)
+		return -ENOMEM;
+
+	vimc->pipe_cfg = &pipe_cfg;
 
 	/* Link the media device within the v4l2_device */
 	vimc->v4l2_dev.mdev = &vimc->mdev;
@@ -277,15 +282,17 @@ static int vimc_probe(struct platform_device *pdev)
 	ret = vimc_register_devices(vimc);
 	if (ret) {
 		media_device_cleanup(&vimc->mdev);
+		kfree(vimc);
 		return ret;
 	}
 
+	platform_set_drvdata(pdev, vimc);
 	return 0;
 }
 
 static int vimc_remove(struct platform_device *pdev)
 {
-	struct vimc_device *vimc = container_of(pdev, struct vimc_device, pdev);
+	struct vimc_device *vimc = platform_get_drvdata(pdev);
 
 	dev_dbg(&pdev->dev, "remove");
 
@@ -299,12 +306,9 @@ static void vimc_dev_release(struct device *dev)
 {
 }
 
-static struct vimc_device vimc_dev = {
-	.pipe_cfg = &pipe_cfg,
-	.pdev = {
-		.name = VIMC_PDEV_NAME,
-		.dev.release = vimc_dev_release,
-	}
+static struct platform_device vimc_pdev = {
+	.name = VIMC_PDEV_NAME,
+	.dev.release = vimc_dev_release,
 };
 
 static struct platform_driver vimc_pdrv = {
@@ -319,16 +323,16 @@ static int __init vimc_init(void)
 {
 	int ret;
 
-	ret = platform_device_register(&vimc_dev.pdev);
+	ret = platform_device_register(&vimc_pdev);
 	if (ret) {
-		dev_err(&vimc_dev.pdev.dev,
+		dev_err(&vimc_pdev.dev,
 			"platform device registration failed (err=%d)\n", ret);
 		return ret;
 	}
 
 	ret = platform_driver_register(&vimc_pdrv);
 	if (ret) {
-		dev_err(&vimc_dev.pdev.dev,
+		dev_err(&vimc_pdev.dev,
 			"platform driver registration failed (err=%d)\n", ret);
 		platform_driver_unregister(&vimc_pdrv);
 		return ret;
@@ -341,7 +345,7 @@ static void __exit vimc_exit(void)
 {
 	platform_driver_unregister(&vimc_pdrv);
 
-	platform_device_unregister(&vimc_dev.pdev);
+	platform_device_unregister(&vimc_pdev);
 }
 
 module_init(vimc_init);

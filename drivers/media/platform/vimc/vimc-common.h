@@ -106,14 +106,12 @@ struct vimc_ent_device {
 /**
  * struct vimc_device - main device for vimc driver
  *
- * @pdev	pointer to the platform device
  * @pipe_cfg	pointer to the vimc pipeline configuration structure
  * @ent_devs	array of vimc_ent_device pointers
  * @mdev	the associated media_device parent
  * @v4l2_dev	Internal v4l2 parent device
  */
 struct vimc_device {
-	struct platform_device pdev;
 	const struct vimc_pipeline_config *pipe_cfg;
 	struct vimc_ent_device **ent_devs;
 	struct media_device mdev;
