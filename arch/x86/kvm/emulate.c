@@ -311,7 +311,9 @@ static void invalidate_registers(struct x86_emulate_ctxt *ctxt)
 #define ON64(x)
 #endif
 
-static int fastop(struct x86_emulate_ctxt *ctxt, void (*fop)(struct fastop *));
+typedef void (*fastop_t)(struct fastop *);
+
+static int fastop(struct x86_emulate_ctxt *ctxt, fastop_t fop);
 
 #define __FOP_FUNC(name) \
 	".align " __stringify(FASTOP_SIZE) " \n\t" \
@@ -5502,7 +5504,7 @@ static void fetch_possible_mmx_operand(struct operand *op)
 		read_mmx_reg(&op->mm_val, op->addr.mm);
 }
 
-static int fastop(struct x86_emulate_ctxt *ctxt, void (*fop)(struct fastop *))
+static int fastop(struct x86_emulate_ctxt *ctxt, fastop_t fop)
 {
 	ulong flags = (ctxt->eflags & EFLAGS_MASK) | X86_EFLAGS_IF;
 
@@ -5680,12 +5682,10 @@ special_insn:
 		ctxt->eflags &= ~X86_EFLAGS_RF;
 
 	if (ctxt->execute) {
-		if (ctxt->d & Fastop) {
-			void (*fop)(struct fastop *) = (void *)ctxt->execute;
-			rc = fastop(ctxt, fop);
-		} else {
+		if (ctxt->d & Fastop)
+			rc = fastop(ctxt, (fastop_t)ctxt->execute);
+		else
 			rc = ctxt->execute(ctxt);
-		}
 		if (rc != X86EMUL_CONTINUE)
 			goto done;
 		goto writeback;
