@@ -1094,7 +1094,6 @@ void dcn20_pipe_control_lock(
 	bool lock)
 {
 	bool flip_immediate = false;
-	bool dig_update_required = false;
 
 	/* use TG master update lock to lock everything on the TG
 	 * therefore only top pipe need to lock
@@ -1132,19 +1131,6 @@ void dcn20_pipe_control_lock(
 		    (!flip_immediate && pipe->stream_res.gsl_group > 0))
 			dcn20_setup_gsl_group_as_lock(dc, pipe, flip_immediate);
 
-	if (pipe->stream && pipe->stream->update_flags.bits.dsc_changed)
-		dig_update_required = true;
-
-	/* Need double buffer lock mode in order to synchronize front end pipe
-	 * updates with dig updates.
-	 */
-	if (dig_update_required) {
-		if (lock) {
-			pipe->stream_res.tg->funcs->lock_doublebuffer_enable(
-					pipe->stream_res.tg);
-		}
-	}
-
 	if (pipe->plane_state != NULL && pipe->plane_state->triplebuffer_flips) {
 		if (lock)
 			pipe->stream_res.tg->funcs->triplebuffer_lock(pipe->stream_res.tg);
@@ -1155,19 +1141,6 @@ void dcn20_pipe_control_lock(
 			pipe->stream_res.tg->funcs->lock(pipe->stream_res.tg);
 		else
 			pipe->stream_res.tg->funcs->unlock(pipe->stream_res.tg);
-	}
-
-	if (dig_update_required) {
-		if (!lock) {
-			pipe->stream_res.tg->funcs->wait_for_state(pipe->stream_res.tg,
-					CRTC_STATE_VACTIVE);
-			pipe->stream_res.tg->funcs->wait_for_state(pipe->stream_res.tg,
-					CRTC_STATE_VBLANK);
-			pipe->stream_res.tg->funcs->wait_for_state(pipe->stream_res.tg,
-					CRTC_STATE_VACTIVE);
-			pipe->stream_res.tg->funcs->lock_doublebuffer_disable(
-					pipe->stream_res.tg);
-		}
 	}
 }
 
