@@ -211,6 +211,11 @@ static inline long arch_scale_freq_capacity(int cpu)
 extern void arch_scale_freq_tick(void);
 #define arch_scale_freq_tick arch_scale_freq_tick
 
+extern void arch_set_max_freq_ratio(bool turbo_disabled);
+#else
+static inline void arch_set_max_freq_ratio(bool turbo_disabled)
+{
+}
 #endif
 
 #endif /* _ASM_X86_TOPOLOGY_H */
