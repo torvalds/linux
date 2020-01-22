@@ -30,7 +30,7 @@
  */
 static struct socket *__mptcp_nmpc_socket(const struct mptcp_sock *msk)
 {
-	if (!msk->subflow || mptcp_subflow_ctx(msk->subflow->sk)->fourth_ack)
+	if (!msk->subflow || READ_ONCE(msk->can_ack))
 		return NULL;
 
 	return msk->subflow;
@@ -651,17 +651,20 @@ static struct sock *mptcp_accept(struct sock *sk, int flags, int *err,
 		__mptcp_init_sock(new_mptcp_sock);
 
 		msk = mptcp_sk(new_mptcp_sock);
-		msk->remote_key = subflow->remote_key;
 		msk->local_key = subflow->local_key;
 		msk->token = subflow->token;
 		msk->subflow = NULL;
 
 		mptcp_token_update_accept(newsk, new_mptcp_sock);
 
-		mptcp_crypto_key_sha(msk->remote_key, NULL, &ack_seq);
 		msk->write_seq = subflow->idsn + 1;
-		ack_seq++;
-		msk->ack_seq = ack_seq;
+		if (subflow->can_ack) {
+			msk->can_ack = true;
+			msk->remote_key = subflow->remote_key;
+			mptcp_crypto_key_sha(msk->remote_key, NULL, &ack_seq);
+			ack_seq++;
+			msk->ack_seq = ack_seq;
+		}
 		newsk = new_mptcp_sock;
 		mptcp_copy_inaddrs(newsk, ssk);
 		list_add(&subflow->node, &msk->conn_list);
@@ -678,8 +681,6 @@ static struct sock *mptcp_accept(struct sock *sk, int flags, int *err,
 		 * the receive path and process the pending ones
 		 */
 		lock_sock(ssk);
-		subflow->map_seq = ack_seq;
-		subflow->map_subflow_seq = 1;
 		subflow->rel_write_seq = 1;
 		subflow->tcp_sock = ssk;
 		subflow->conn = new_mptcp_sock;
@@ -795,6 +796,7 @@ void mptcp_finish_connect(struct sock *ssk)
 	WRITE_ONCE(msk->token, subflow->token);
 	WRITE_ONCE(msk->write_seq, subflow->idsn + 1);
 	WRITE_ONCE(msk->ack_seq, ack_seq);
+	WRITE_ONCE(msk->can_ack, 1);
 }
 
 static void mptcp_sock_graft(struct sock *sk, struct socket *parent)
