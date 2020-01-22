@@ -1655,6 +1655,18 @@ static void update_pvclock_gtod(struct timekeeper *tk)
 
 	write_seqcount_end(&vdata->seq);
 }
+
+static s64 get_kvmclock_base_ns(void)
+{
+	/* Count up from boot time, but with the frequency of the raw clock.  */
+	return ktime_to_ns(ktime_add(ktime_get_raw(), pvclock_gtod_data.offs_boot));
+}
+#else
+static s64 get_kvmclock_base_ns(void)
+{
+	/* Master clock not used, so we can just use CLOCK_BOOTTIME.  */
+	return ktime_get_boottime_ns();
+}
 #endif
 
 void kvm_set_pending_timer(struct kvm_vcpu *vcpu)
@@ -1668,7 +1680,7 @@ static void kvm_write_wall_clock(struct kvm *kvm, gpa_t wall_clock)
 	int version;
 	int r;
 	struct pvclock_wall_clock wc;
-	struct timespec64 boot;
+	u64 wall_nsec;
 
 	if (!wall_clock)
 		return;
@@ -1688,17 +1700,12 @@ static void kvm_write_wall_clock(struct kvm *kvm, gpa_t wall_clock)
 	/*
 	 * The guest calculates current wall clock time by adding
 	 * system time (updated by kvm_guest_time_update below) to the
-	 * wall clock specified here.  guest system time equals host
-	 * system time for us, thus we must fill in host boot time here.
+	 * wall clock specified here.  We do the reverse here.
 	 */
-	getboottime64(&boot);
+	wall_nsec = ktime_get_real_ns() - get_kvmclock_ns(kvm);
 
-	if (kvm->arch.kvmclock_offset) {
-		struct timespec64 ts = ns_to_timespec64(kvm->arch.kvmclock_offset);
-		boot = timespec64_sub(boot, ts);
-	}
-	wc.sec = (u32)boot.tv_sec; /* overflow in 2106 guest time */
-	wc.nsec = boot.tv_nsec;
+	wc.nsec = do_div(wall_nsec, 1000000000);
+	wc.sec = (u32)wall_nsec; /* overflow in 2106 guest time */
 	wc.version = version;
 
 	kvm_write_guest(kvm, wall_clock, &wc, sizeof(wc));
@@ -1946,7 +1953,7 @@ void kvm_write_tsc(struct kvm_vcpu *vcpu, struct msr_data *msr)
 
 	raw_spin_lock_irqsave(&kvm->arch.tsc_write_lock, flags);
 	offset = kvm_compute_tsc_offset(vcpu, data);
-	ns = ktime_get_boottime_ns();
+	ns = get_kvmclock_base_ns();
 	elapsed = ns - kvm->arch.last_tsc_nsec;
 
 	if (vcpu->arch.virtual_tsc_khz) {
@@ -2284,7 +2291,7 @@ u64 get_kvmclock_ns(struct kvm *kvm)
 	spin_lock(&ka->pvclock_gtod_sync_lock);
 	if (!ka->use_master_clock) {
 		spin_unlock(&ka->pvclock_gtod_sync_lock);
-		return ktime_get_boottime_ns() + ka->kvmclock_offset;
+		return get_kvmclock_base_ns() + ka->kvmclock_offset;
 	}
 
 	hv_clock.tsc_timestamp = ka->master_cycle_now;
@@ -2300,7 +2307,7 @@ u64 get_kvmclock_ns(struct kvm *kvm)
 				   &hv_clock.tsc_to_system_mul);
 		ret = __pvclock_read_cycles(&hv_clock, rdtsc());
 	} else
-		ret = ktime_get_boottime_ns() + ka->kvmclock_offset;
+		ret = get_kvmclock_base_ns() + ka->kvmclock_offset;
 
 	put_cpu();
 
@@ -2399,7 +2406,7 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 	}
 	if (!use_master_clock) {
 		host_tsc = rdtsc();
-		kernel_ns = ktime_get_boottime_ns();
+		kernel_ns = get_kvmclock_base_ns();
 	}
 
 	tsc_timestamp = kvm_read_l1_tsc(v, host_tsc);
@@ -2439,6 +2446,7 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 	vcpu->hv_clock.tsc_timestamp = tsc_timestamp;
 	vcpu->hv_clock.system_time = kernel_ns + v->kvm->arch.kvmclock_offset;
 	vcpu->last_guest_tsc = tsc_timestamp;
+	WARN_ON(vcpu->hv_clock.system_time < 0);
 
 	/* If the host uses TSC clocksource, then it is stable */
 	pvclock_flags = 0;
@@ -9677,7 +9685,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	mutex_init(&kvm->arch.apic_map_lock);
 	spin_lock_init(&kvm->arch.pvclock_gtod_sync_lock);
 
-	kvm->arch.kvmclock_offset = -ktime_get_boottime_ns();
+	kvm->arch.kvmclock_offset = -get_kvmclock_base_ns();
 	pvclock_update_vm_gtod_copy(kvm);
 
 	kvm->arch.guest_can_read_msr_platform_info = true;
