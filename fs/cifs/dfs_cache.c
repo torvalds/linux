@@ -661,7 +661,7 @@ static int __dfs_cache_find(const unsigned int xid, struct cifs_ses *ses,
 	 */
 	if (noreq) {
 		up_read(&htable_rw_lock);
-		return IS_ERR(ce) ? PTR_ERR(ce) : 0;
+		return PTR_ERR_OR_ZERO(ce);
 	}
 
 	if (!IS_ERR(ce)) {
