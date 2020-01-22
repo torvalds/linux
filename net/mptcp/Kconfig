@@ -1,0 +1,16 @@
+
+config MPTCP
+	bool "MPTCP: Multipath TCP"
+	depends on INET
+	select SKB_EXTENSIONS
+	help
+	  Multipath TCP (MPTCP) connections send and receive data over multiple
+	  subflows in order to utilize multiple network paths. Each subflow
+	  uses the TCP protocol, and TCP options carry header information for
+	  MPTCP.
+
+config MPTCP_IPV6
+	bool "MPTCP: IPv6 support for Multipath TCP"
+	depends on MPTCP
+	select IPV6
+	default y

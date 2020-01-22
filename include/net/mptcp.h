@@ -28,6 +28,8 @@ struct mptcp_ext {
 
 #ifdef CONFIG_MPTCP
 
+void mptcp_init(void);
+
 /* move the skb extension owership, with the assumption that 'to' is
  * newly allocated
  */
@@ -70,6 +72,10 @@ static inline bool mptcp_skb_can_collapse(const struct sk_buff *to,
 
 #else
 
+static inline void mptcp_init(void)
+{
+}
+
 static inline void mptcp_skb_ext_move(struct sk_buff *to,
 				      const struct sk_buff *from)
 {
@@ -82,4 +88,14 @@ static inline bool mptcp_skb_can_collapse(const struct sk_buff *to,
 }
 
 #endif /* CONFIG_MPTCP */
+
+#if IS_ENABLED(CONFIG_MPTCP_IPV6)
+int mptcpv6_init(void);
+#elif IS_ENABLED(CONFIG_IPV6)
+static inline int mptcpv6_init(void)
+{
+	return 0;
+}
+#endif
+
 #endif /* __NET_MPTCP_H */
