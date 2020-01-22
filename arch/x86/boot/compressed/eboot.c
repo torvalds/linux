@@ -32,7 +32,7 @@ __attribute_const__ bool efi_is_64bit(void)
 {
 	if (IS_ENABLED(CONFIG_EFI_MIXED))
 		return efi_is64;
-	return IS_ENABLED(CONFIG_X64_64);
+	return IS_ENABLED(CONFIG_X86_64);
 }
 
 static efi_status_t
