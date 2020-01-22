@@ -76,6 +76,8 @@ static struct usb_serial_driver ir_device = {
 	.description		= "IR Dongle",
 	.id_table		= ir_id_table,
 	.num_ports		= 1,
+	.num_bulk_in		= 1,
+	.num_bulk_out		= 1,
 	.set_termios		= ir_set_termios,
 	.attach			= ir_startup,
 	.write			= ir_write,
@@ -196,9 +198,6 @@ static int ir_startup(struct usb_serial *serial)
 {
 	struct usb_irda_cs_descriptor *irda_desc;
 	int rates;
-
-	if (serial->num_bulk_in < 1 || serial->num_bulk_out < 1)
-		return -ENODEV;
 
 	irda_desc = irda_usb_find_class_desc(serial, 0);
 	if (!irda_desc) {
