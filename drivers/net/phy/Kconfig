@@ -348,7 +348,8 @@ config DAVICOM_PHY
 config DP83822_PHY
 	tristate "Texas Instruments DP83822/825/826 PHYs"
 	---help---
-	  Supports the DP83822, DP83825I, DP83826C and DP83826NC PHYs.
+	  Supports the DP83822, DP83825I, DP83825CM, DP83825CS, DP83825S,
+	  DP83826C and DP83826NC PHYs.
 
 config DP83TC811_PHY
 	tristate "Texas Instruments DP83TC811 PHY"
