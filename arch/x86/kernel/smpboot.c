@@ -1795,6 +1795,10 @@ void native_play_dead(void)
  * which would ignore the entire turbo range (a conspicuous part, making
  * freq_curr/freq_max always maxed out).
  *
+ * An exception to the heuristic above is the Atom uarch, where we choose the
+ * highest turbo level for freq_max since Atom's are generally oriented towards
+ * power efficiency.
+ *
  * Setting freq_max to anything less than the 1C turbo ratio makes the ratio
  * freq_curr / freq_max to eventually grow >1, in which case we clip it to 1.
  */
@@ -1937,16 +1941,16 @@ static bool intel_set_max_freq_ratio(void)
 	/*
 	 * TODO: add support for:
 	 *
-	 * - Atom Goldmont
 	 * - Atom Silvermont
 	 */
 
 	u64 base_freq = 1, turbo_freq = 1;
 
-	if (x86_match_cpu(has_glm_turbo_ratio_limits))
-		return false;
-
 	if (turbo_disabled())
+		goto out;
+
+	if (x86_match_cpu(has_glm_turbo_ratio_limits) &&
+	    skx_set_max_freq_ratio(&base_freq, &turbo_freq, 1))
 		goto out;
 
 	if (knl_set_max_freq_ratio(&base_freq, &turbo_freq, 1))
