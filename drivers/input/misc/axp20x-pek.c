@@ -280,8 +280,7 @@ static int axp20x_pek_probe_input_device(struct axp20x_pek *axp20x_pek,
 		return error;
 	}
 
-	if (axp20x_pek->axp20x->variant == AXP288_ID)
-		device_init_wakeup(&pdev->dev, true);
+	device_init_wakeup(&pdev->dev, true);
 
 	return 0;
 }
