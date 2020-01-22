@@ -117,7 +117,6 @@ config MIPS_GENERIC
 	select MIPS_L1_CACHE_SHIFT_7
 	select NO_EXCEPT_FILL
 	select PCI_DRIVERS_GENERIC
-	select PINCTRL
 	select SMP_UP if SMP
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_MIPS32_R1
