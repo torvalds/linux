@@ -341,7 +341,6 @@ void btrfs_put_tree_mod_seq(struct btrfs_fs_info *fs_info,
 	struct rb_root *tm_root;
 	struct rb_node *node;
 	struct rb_node *next;
-	struct seq_list *cur_elem;
 	struct tree_mod_elem *tm;
 	u64 min_seq = (u64)-1;
 	u64 seq_putting = elem->seq;
@@ -353,18 +352,20 @@ void btrfs_put_tree_mod_seq(struct btrfs_fs_info *fs_info,
 	list_del(&elem->list);
 	elem->seq = 0;
 
-	list_for_each_entry(cur_elem, &fs_info->tree_mod_seq_list, list) {
-		if (cur_elem->seq < min_seq) {
-			if (seq_putting > cur_elem->seq) {
-				/*
-				 * blocker with lower sequence number exists, we
-				 * cannot remove anything from the log
-				 */
-				write_unlock(&fs_info->tree_mod_log_lock);
-				return;
-			}
-			min_seq = cur_elem->seq;
+	if (!list_empty(&fs_info->tree_mod_seq_list)) {
+		struct seq_list *first;
+
+		first = list_first_entry(&fs_info->tree_mod_seq_list,
+					 struct seq_list, list);
+		if (seq_putting > first->seq) {
+			/*
+			 * Blocker with lower sequence number exists, we
+			 * cannot remove anything from the log.
+			 */
+			write_unlock(&fs_info->tree_mod_log_lock);
+			return;
 		}
+		min_seq = first->seq;
 	}
 
 	/*
