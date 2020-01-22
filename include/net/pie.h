@@ -8,11 +8,11 @@
 #include <net/inet_ecn.h>
 #include <net/pkt_sched.h>
 
-#define QUEUE_THRESHOLD 16384
-#define DQCOUNT_INVALID -1
-#define DTIME_INVALID U64_MAX
-#define MAX_PROB U64_MAX
-#define PIE_SCALE 8
+#define MAX_PROB	U64_MAX
+#define DTIME_INVALID	U64_MAX
+#define QUEUE_THRESHOLD	16384
+#define DQCOUNT_INVALID	-1
+#define PIE_SCALE	8
 
 /* parameters used */
 struct pie_params {
