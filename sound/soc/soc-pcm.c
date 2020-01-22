@@ -64,6 +64,14 @@ static int soc_rtd_hw_params(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
+static void soc_rtd_hw_free(struct snd_soc_pcm_runtime *rtd,
+			    struct snd_pcm_substream *substream)
+{
+	if (rtd->dai_link->ops &&
+	    rtd->dai_link->ops->hw_free)
+		rtd->dai_link->ops->hw_free(substream);
+}
+
 /**
  * snd_soc_runtime_activate() - Increment active count for PCM runtime components
  * @rtd: ASoC PCM runtime that is activated
@@ -935,8 +943,7 @@ codec_err:
 		codec_dai->rate = 0;
 	}
 
-	if (rtd->dai_link->ops->hw_free)
-		rtd->dai_link->ops->hw_free(substream);
+	soc_rtd_hw_free(rtd, substream);
 
 	mutex_unlock(&rtd->card->pcm_mutex);
 	return ret;
@@ -979,8 +986,7 @@ static int soc_pcm_hw_free(struct snd_pcm_substream *substream)
 	}
 
 	/* free any machine hw params */
-	if (rtd->dai_link->ops->hw_free)
-		rtd->dai_link->ops->hw_free(substream);
+	soc_rtd_hw_free(rtd, substream);
 
 	/* free any component resources */
 	soc_pcm_components_hw_free(substream, NULL);
