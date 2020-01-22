@@ -52,8 +52,13 @@ gm20b_pmu_acr_bootstrap_falcon(struct nvkm_falcon *falcon,
 	ret = nvkm_falcon_cmdq_send(pmu->hpq, &cmd.cmd.hdr,
 				    gm20b_pmu_acr_bootstrap_falcon_cb,
 				    &pmu->subdev, msecs_to_jiffies(1000));
-	if (ret >= 0 && ret != cmd.falcon_id)
-		ret = -EIO;
+	if (ret >= 0) {
+		if (ret != cmd.falcon_id)
+			ret = -EIO;
+		else
+			ret = 0;
+	}
+
 	return ret;
 }
 

@@ -238,6 +238,7 @@ void gp100_gr_init_fecs_exceptions(struct gf100_gr *);
 void gp100_gr_init_shader_exceptions(struct gf100_gr *, int, int);
 void gp100_gr_zbc_clear_color(struct gf100_gr *, int);
 void gp100_gr_zbc_clear_depth(struct gf100_gr *, int);
+extern const struct gf100_gr_func_zbc gp100_gr_zbc;
 
 void gp102_gr_init_swdx_pes_mask(struct gf100_gr *);
 extern const struct gf100_gr_func_zbc gp102_gr_zbc;
