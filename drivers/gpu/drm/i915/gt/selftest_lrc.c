@@ -335,7 +335,6 @@ static int live_hold_reset(void *arg)
 
 		if (test_and_set_bit(I915_RESET_ENGINE + id,
 				     &gt->reset.flags)) {
-			spin_unlock_irq(&engine->active.lock);
 			intel_gt_set_wedged(gt);
 			err = -EBUSY;
 			goto out;
@@ -345,6 +344,7 @@ static int live_hold_reset(void *arg)
 		engine->execlists.tasklet.func(engine->execlists.tasklet.data);
 		GEM_BUG_ON(execlists_active(&engine->execlists) != rq);
 
+		i915_request_get(rq);
 		execlists_hold(engine, rq);
 		GEM_BUG_ON(!i915_request_on_hold(rq));
 
@@ -356,7 +356,6 @@ static int live_hold_reset(void *arg)
 				      &gt->reset.flags);
 
 		/* Check that we do not resubmit the held request */
-		i915_request_get(rq);
 		if (!i915_request_wait(rq, 0, HZ / 5)) {
 			pr_err("%s: on hold request completed!\n",
 			       engine->name);
