@@ -54,6 +54,16 @@ static int soc_rtd_prepare(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
+static int soc_rtd_hw_params(struct snd_soc_pcm_runtime *rtd,
+			     struct snd_pcm_substream *substream,
+			     struct snd_pcm_hw_params *params)
+{
+	if (rtd->dai_link->ops &&
+	    rtd->dai_link->ops->hw_params)
+		return rtd->dai_link->ops->hw_params(substream, params);
+	return 0;
+}
+
 /**
  * snd_soc_runtime_activate() - Increment active count for PCM runtime components
  * @rtd: ASoC PCM runtime that is activated
@@ -826,13 +836,11 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 	if (ret)
 		goto out;
 
-	if (rtd->dai_link->ops->hw_params) {
-		ret = rtd->dai_link->ops->hw_params(substream, params);
-		if (ret < 0) {
-			dev_err(rtd->card->dev, "ASoC: machine hw_params"
-				" failed: %d\n", ret);
-			goto out;
-		}
+	ret = soc_rtd_hw_params(rtd, substream, params);
+	if (ret < 0) {
+		dev_err(rtd->card->dev,
+			"ASoC: machine hw_params failed: %d\n", ret);
+		goto out;
 	}
 
 	for_each_rtd_codec_dai(rtd, i, codec_dai) {
