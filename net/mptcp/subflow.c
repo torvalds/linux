@@ -529,6 +529,9 @@ static void subflow_write_space(struct sock *sk)
 
 	sk_stream_write_space(sk);
 	if (parent && sk_stream_is_writeable(sk)) {
+		set_bit(MPTCP_SEND_SPACE, &mptcp_sk(parent)->flags);
+		smp_mb__after_atomic();
+		/* set SEND_SPACE before sk_stream_write_space clears NOSPACE */
 		sk_stream_write_space(parent);
 	}
 }

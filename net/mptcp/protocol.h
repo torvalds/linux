@@ -56,6 +56,7 @@
 
 /* MPTCP socket flags */
 #define MPTCP_DATA_READY	BIT(0)
+#define MPTCP_SEND_SPACE	BIT(1)
 
 /* MPTCP connection sock */
 struct mptcp_sock {
