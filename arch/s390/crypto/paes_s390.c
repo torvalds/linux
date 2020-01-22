@@ -33,7 +33,7 @@
  * is called. As paes can handle different kinds of key blobs
  * and padding is also possible, the limits need to be generous.
  */
-#define PAES_MIN_KEYSIZE 64
+#define PAES_MIN_KEYSIZE 16
 #define PAES_MAX_KEYSIZE 256
 
 static u8 *ctrblk;
@@ -54,19 +54,46 @@ struct key_blob {
 	unsigned int keylen;
 };
 
-static inline int _copy_key_to_kb(struct key_blob *kb,
-				  const u8 *key,
-				  unsigned int keylen)
+static inline int _key_to_kb(struct key_blob *kb,
+			     const u8 *key,
+			     unsigned int keylen)
 {
-	if (keylen <= sizeof(kb->keybuf))
+	struct clearkey_header {
+		u8  type;
+		u8  res0[3];
+		u8  version;
+		u8  res1[3];
+		u32 keytype;
+		u32 len;
+	} __packed * h;
+
+	switch (keylen) {
+	case 16:
+	case 24:
+	case 32:
+		/* clear key value, prepare pkey clear key token in keybuf */
+		memset(kb->keybuf, 0, sizeof(kb->keybuf));
+		h = (struct clearkey_header *) kb->keybuf;
+		h->version = 0x02; /* TOKVER_CLEAR_KEY */
+		h->keytype = (keylen - 8) >> 3;
+		h->len = keylen;
+		memcpy(kb->keybuf + sizeof(*h), key, keylen);
+		kb->keylen = sizeof(*h) + keylen;
 		kb->key = kb->keybuf;
-	else {
-		kb->key = kmalloc(keylen, GFP_KERNEL);
-		if (!kb->key)
-			return -ENOMEM;
+		break;
+	default:
+		/* other key material, let pkey handle this */
+		if (keylen <= sizeof(kb->keybuf))
+			kb->key = kb->keybuf;
+		else {
+			kb->key = kmalloc(keylen, GFP_KERNEL);
+			if (!kb->key)
+				return -ENOMEM;
+		}
+		memcpy(kb->key, key, keylen);
+		kb->keylen = keylen;
+		break;
 	}
-	memcpy(kb->key, key, keylen);
-	kb->keylen = keylen;
 
 	return 0;
 }
@@ -165,7 +192,7 @@ static int ecb_paes_set_key(struct crypto_skcipher *tfm, const u8 *in_key,
 	struct s390_paes_ctx *ctx = crypto_skcipher_ctx(tfm);
 
 	_free_kb_keybuf(&ctx->kb);
-	rc = _copy_key_to_kb(&ctx->kb, in_key, key_len);
+	rc = _key_to_kb(&ctx->kb, in_key, key_len);
 	if (rc)
 		return rc;
 
@@ -278,7 +305,7 @@ static int cbc_paes_set_key(struct crypto_skcipher *tfm, const u8 *in_key,
 	struct s390_paes_ctx *ctx = crypto_skcipher_ctx(tfm);
 
 	_free_kb_keybuf(&ctx->kb);
-	rc = _copy_key_to_kb(&ctx->kb, in_key, key_len);
+	rc = _key_to_kb(&ctx->kb, in_key, key_len);
 	if (rc)
 		return rc;
 
@@ -425,10 +452,10 @@ static int xts_paes_set_key(struct crypto_skcipher *tfm, const u8 *in_key,
 
 	_free_kb_keybuf(&ctx->kb[0]);
 	_free_kb_keybuf(&ctx->kb[1]);
-	rc = _copy_key_to_kb(&ctx->kb[0], in_key, key_len);
+	rc = _key_to_kb(&ctx->kb[0], in_key, key_len);
 	if (rc)
 		return rc;
-	rc = _copy_key_to_kb(&ctx->kb[1], in_key + key_len, key_len);
+	rc = _key_to_kb(&ctx->kb[1], in_key + key_len, key_len);
 	if (rc)
 		return rc;
 
@@ -574,7 +601,7 @@ static int ctr_paes_set_key(struct crypto_skcipher *tfm, const u8 *in_key,
 	struct s390_paes_ctx *ctx = crypto_skcipher_ctx(tfm);
 
 	_free_kb_keybuf(&ctx->kb);
-	rc = _copy_key_to_kb(&ctx->kb, in_key, key_len);
+	rc = _key_to_kb(&ctx->kb, in_key, key_len);
 	if (rc)
 		return rc;
 
@@ -695,12 +722,12 @@ static inline void __crypto_unregister_skcipher(struct skcipher_alg *alg)
 
 static void paes_s390_fini(void)
 {
-	if (ctrblk)
-		free_page((unsigned long) ctrblk);
 	__crypto_unregister_skcipher(&ctr_paes_alg);
 	__crypto_unregister_skcipher(&xts_paes_alg);
 	__crypto_unregister_skcipher(&cbc_paes_alg);
 	__crypto_unregister_skcipher(&ecb_paes_alg);
+	if (ctrblk)
+		free_page((unsigned long) ctrblk);
 }
 
 static int __init paes_s390_init(void)
@@ -738,14 +765,14 @@ static int __init paes_s390_init(void)
 	if (cpacf_test_func(&kmctr_functions, CPACF_KMCTR_PAES_128) ||
 	    cpacf_test_func(&kmctr_functions, CPACF_KMCTR_PAES_192) ||
 	    cpacf_test_func(&kmctr_functions, CPACF_KMCTR_PAES_256)) {
-		ret = crypto_register_skcipher(&ctr_paes_alg);
-		if (ret)
-			goto out_err;
 		ctrblk = (u8 *) __get_free_page(GFP_KERNEL);
 		if (!ctrblk) {
 			ret = -ENOMEM;
 			goto out_err;
 		}
+		ret = crypto_register_skcipher(&ctr_paes_alg);
+		if (ret)
+			goto out_err;
 	}
 
 	return 0;
