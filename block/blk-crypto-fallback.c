@@ -557,6 +557,7 @@ out:
 	mutex_unlock(&tfms_init_lock);
 	return err;
 }
+EXPORT_SYMBOL_GPL(blk_crypto_start_using_mode);
 
 int blk_crypto_fallback_evict_key(const struct blk_crypto_key *key)
 {
