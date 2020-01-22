@@ -3720,7 +3720,6 @@ static void set_crtc_test_pattern(struct dc_link *link,
 			struct pipe_ctx *odm_pipe;
 			enum controller_dp_color_space controller_color_space;
 			int opp_cnt = 1;
-			uint16_t count = 0;
 
 			switch (test_pattern_color_space) {
 			case DP_TEST_PATTERN_COLOR_SPACE_RGB:
@@ -3764,12 +3763,6 @@ static void set_crtc_test_pattern(struct dc_link *link,
 				NULL,
 				width,
 				height);
-			/* wait for dpg to blank pixel data with test pattern */
-			for (count = 0; count < 1000; count++) {
-				if (opp->funcs->dpg_is_blanked(opp))
-					break;
-				udelay(100);
-			}
 		}
 	}
 	break;
@@ -3987,6 +3980,11 @@ bool dc_link_dp_set_test_pattern(
 		default:
 			break;
 		}
+
+		if (pipe_ctx->stream_res.tg->funcs->lock_doublebuffer_enable)
+			pipe_ctx->stream_res.tg->funcs->lock_doublebuffer_enable(
+					pipe_ctx->stream_res.tg);
+		pipe_ctx->stream_res.tg->funcs->lock(pipe_ctx->stream_res.tg);
 		/* update MSA to requested color space */
 		pipe_ctx->stream_res.stream_enc->funcs->dp_set_stream_attribute(pipe_ctx->stream_res.stream_enc,
 				&pipe_ctx->stream->timing,
@@ -3994,9 +3992,27 @@ bool dc_link_dp_set_test_pattern(
 				pipe_ctx->stream->use_vsc_sdp_for_colorimetry,
 				link->dpcd_caps.dprx_feature.bits.SST_SPLIT_SDP_CAP);
 
+		if (pipe_ctx->stream->use_vsc_sdp_for_colorimetry) {
+			if (test_pattern == DP_TEST_PATTERN_COLOR_SQUARES_CEA)
+				pipe_ctx->stream->vsc_infopacket.sb[17] |= (1 << 7); // sb17 bit 7 Dynamic Range: 0 = VESA range, 1 = CTA range
+			else
+				pipe_ctx->stream->vsc_infopacket.sb[17] &= ~(1 << 7);
+			resource_build_info_frame(pipe_ctx);
+			link->dc->hwss.update_info_frame(pipe_ctx);
+		}
+
 		/* CRTC Patterns */
 		set_crtc_test_pattern(link, pipe_ctx, test_pattern, test_pattern_color_space);
-
+		pipe_ctx->stream_res.tg->funcs->unlock(pipe_ctx->stream_res.tg);
+		pipe_ctx->stream_res.tg->funcs->wait_for_state(pipe_ctx->stream_res.tg,
+				CRTC_STATE_VACTIVE);
+		pipe_ctx->stream_res.tg->funcs->wait_for_state(pipe_ctx->stream_res.tg,
+				CRTC_STATE_VBLANK);
+		pipe_ctx->stream_res.tg->funcs->wait_for_state(pipe_ctx->stream_res.tg,
+				CRTC_STATE_VACTIVE);
+		if (pipe_ctx->stream_res.tg->funcs->lock_doublebuffer_disable)
+			pipe_ctx->stream_res.tg->funcs->lock_doublebuffer_disable(
+					pipe_ctx->stream_res.tg);
 		/* Set Test Pattern state */
 		link->test_pattern_enabled = true;
 	}
