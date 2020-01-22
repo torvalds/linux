@@ -140,7 +140,7 @@ static inline char *cdns3_dbg_ring(struct cdns3_endpoint *priv_ep,
 		trb_per_sector = TRBS_PER_SEGMENT;
 
 	if (trb_per_sector > TRBS_PER_SEGMENT) {
-		sprintf(str + ret, "\t\tTo big transfer ring %d\n",
+		sprintf(str + ret, "\t\tTransfer ring %d too big\n",
 			trb_per_sector);
 		return str;
 	}
