@@ -72,5 +72,6 @@
 #define HWCAP2_I8MM		(1 << 13)
 #define HWCAP2_BF16		(1 << 14)
 #define HWCAP2_DGH		(1 << 15)
+#define HWCAP2_RNG		(1 << 16)
 
 #endif /* _UAPI__ASM_HWCAP_H */

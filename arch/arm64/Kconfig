@@ -1528,6 +1528,14 @@ config ARM64_E0PD
 
 	  This option enables E0PD for TTBR1 where available.
 
+config ARCH_RANDOM
+	bool "Enable support for random number generation"
+	default y
+	help
+	  Random number generation (part of the ARMv8.5 Extensions)
+	  provides a high bandwidth, cryptographically secure
+	  hardware random number generator.
+
 endmenu
 
 config ARM64_SVE

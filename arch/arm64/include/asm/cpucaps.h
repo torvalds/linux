@@ -57,7 +57,8 @@
 #define ARM64_WORKAROUND_1542419		47
 #define ARM64_WORKAROUND_SPECULATIVE_AT_NVHE	48
 #define ARM64_HAS_E0PD				49
+#define ARM64_HAS_RNG				50
 
-#define ARM64_NCAPS				50
+#define ARM64_NCAPS				51
 
 #endif /* __ASM_CPUCAPS_H */
