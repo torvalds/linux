@@ -10,8 +10,8 @@
 
 #define QUEUE_THRESHOLD 16384
 #define DQCOUNT_INVALID -1
-#define DTIME_INVALID 0xffffffffffffffff
-#define MAX_PROB 0xffffffffffffffff
+#define DTIME_INVALID U64_MAX
+#define MAX_PROB U64_MAX
 #define PIE_SCALE 8
 
 /* parameters used */
