@@ -8,7 +8,6 @@
 #include <asm-generic/sections.h>
 
 extern char __alt_instructions[], __alt_instructions_end[];
-extern char __exception_text_start[], __exception_text_end[];
 extern char __hibernate_exit_text_start[], __hibernate_exit_text_end[];
 extern char __hyp_idmap_text_start[], __hyp_idmap_text_end[];
 extern char __hyp_text_start[], __hyp_text_end[];
