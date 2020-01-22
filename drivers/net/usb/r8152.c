@@ -312,6 +312,7 @@
 /* PLA_PHY_PWR */
 #define TX_10M_IDLE_EN		0x0080
 #define PFM_PWM_SWITCH		0x0040
+#define TEST_IO_OFF		BIT(4)
 
 /* PLA_MAC_PWR_CTRL */
 #define D3_CLK_GATED_EN		0x00004000
@@ -5537,6 +5538,15 @@ static void r8153b_init(struct r8152 *tp)
 	ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_MAC_PWR_CTRL3);
 	ocp_data &= ~PLA_MCU_SPDWN_EN;
 	ocp_write_word(tp, MCU_TYPE_PLA, PLA_MAC_PWR_CTRL3, ocp_data);
+
+	if (tp->version == RTL_VER_09) {
+		/* Disable Test IO for 32QFN */
+		if (ocp_read_byte(tp, MCU_TYPE_PLA, 0xdc00) & BIT(5)) {
+			ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_PHY_PWR);
+			ocp_data |= TEST_IO_OFF;
+			ocp_write_word(tp, MCU_TYPE_PLA, PLA_PHY_PWR, ocp_data);
+		}
+	}
 
 	set_bit(GREEN_ETHERNET, &tp->flags);
 
