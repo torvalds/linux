@@ -453,6 +453,7 @@ struct dc_phy_addr_space_config {
 	} gart_config;
 
 	bool valid;
+	bool is_hvm_enabled;
 	uint64_t page_table_default_page_addr;
 };
 
