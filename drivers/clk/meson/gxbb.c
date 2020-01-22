@@ -2613,6 +2613,7 @@ static MESON_GATE(gxbb_assist_misc, HHI_GCLK_MPEG0, 23);
 static MESON_GATE(gxbb_emmc_a, HHI_GCLK_MPEG0, 24);
 static MESON_GATE(gxbb_emmc_b, HHI_GCLK_MPEG0, 25);
 static MESON_GATE(gxbb_emmc_c, HHI_GCLK_MPEG0, 26);
+static MESON_GATE(gxl_acodec, HHI_GCLK_MPEG0, 28);
 static MESON_GATE(gxbb_spi, HHI_GCLK_MPEG0, 30);
 
 static MESON_GATE(gxbb_i2s_spdif, HHI_GCLK_MPEG1, 2);
@@ -3100,6 +3101,7 @@ static struct clk_hw_onecell_data gxl_hw_onecell_data = {
 		[CLKID_HDMI_SEL]	    = &gxbb_hdmi_sel.hw,
 		[CLKID_HDMI_DIV]	    = &gxbb_hdmi_div.hw,
 		[CLKID_HDMI]		    = &gxbb_hdmi.hw,
+		[CLKID_ACODEC]		    = &gxl_acodec.hw,
 		[NR_CLKS]		    = NULL,
 	},
 	.num = NR_CLKS,
@@ -3491,6 +3493,7 @@ static struct clk_regmap *const gxl_clk_regmaps[] = {
 	&gxl_hdmi_pll_od,
 	&gxl_hdmi_pll_od2,
 	&gxl_hdmi_pll_dco,
+	&gxl_acodec,
 };
 
 static const struct meson_eeclkc_data gxbb_clkc_data = {
