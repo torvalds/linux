@@ -37,6 +37,14 @@ static int soc_rtd_startup(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
+static void soc_rtd_shutdown(struct snd_soc_pcm_runtime *rtd,
+			     struct snd_pcm_substream *substream)
+{
+	if (rtd->dai_link->ops &&
+	    rtd->dai_link->ops->shutdown)
+		rtd->dai_link->ops->shutdown(substream);
+}
+
 /**
  * snd_soc_runtime_activate() - Increment active count for PCM runtime components
  * @rtd: ASoC PCM runtime that is activated
@@ -602,8 +610,7 @@ dynamic:
 	return 0;
 
 config_err:
-	if (rtd->dai_link->ops->shutdown)
-		rtd->dai_link->ops->shutdown(substream);
+	soc_rtd_shutdown(rtd, substream);
 
 machine_err:
 	i = rtd->num_codecs;
@@ -674,8 +681,7 @@ static int soc_pcm_close(struct snd_pcm_substream *substream)
 	for_each_rtd_codec_dai(rtd, i, codec_dai)
 		snd_soc_dai_shutdown(codec_dai, substream);
 
-	if (rtd->dai_link->ops->shutdown)
-		rtd->dai_link->ops->shutdown(substream);
+	soc_rtd_shutdown(rtd, substream);
 
 	soc_pcm_components_close(substream, NULL);
 
