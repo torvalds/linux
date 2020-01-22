@@ -9594,8 +9594,13 @@ static int do_check_common(struct bpf_verifier_env *env, int subprog)
 
 	ret = do_check(env);
 out:
-	free_verifier_state(env->cur_state, true);
-	env->cur_state = NULL;
+	/* check for NULL is necessary, since cur_state can be freed inside
+	 * do_check() under memory pressure.
+	 */
+	if (env->cur_state) {
+		free_verifier_state(env->cur_state, true);
+		env->cur_state = NULL;
+	}
 	while (!pop_stack(env, NULL, NULL));
 	free_states(env);
 	if (ret)
