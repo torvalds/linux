@@ -206,10 +206,6 @@ struct cros_ec_dev {
 
 #define to_cros_ec_dev(dev)  container_of(dev, struct cros_ec_dev, class_dev)
 
-int cros_ec_suspend(struct cros_ec_device *ec_dev);
-
-int cros_ec_resume(struct cros_ec_device *ec_dev);
-
 int cros_ec_prepare_tx(struct cros_ec_device *ec_dev,
 		       struct cros_ec_command *msg);
 
@@ -222,10 +218,6 @@ int cros_ec_cmd_xfer(struct cros_ec_device *ec_dev,
 int cros_ec_cmd_xfer_status(struct cros_ec_device *ec_dev,
 			    struct cros_ec_command *msg);
 
-int cros_ec_register(struct cros_ec_device *ec_dev);
-
-int cros_ec_unregister(struct cros_ec_device *ec_dev);
-
 int cros_ec_query_all(struct cros_ec_device *ec_dev);
 
 int cros_ec_get_next_event(struct cros_ec_device *ec_dev,
@@ -237,8 +229,6 @@ u32 cros_ec_get_host_event(struct cros_ec_device *ec_dev);
 int cros_ec_check_features(struct cros_ec_dev *ec, int feature);
 
 int cros_ec_get_sensor_count(struct cros_ec_dev *ec);
-
-bool cros_ec_handle_event(struct cros_ec_device *ec_dev);
 
 /**
  * cros_ec_get_time_ns() - Return time in ns.

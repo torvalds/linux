@@ -14,6 +14,8 @@
 #include <linux/platform_data/cros_ec_proto.h>
 #include <linux/intel-ish-client-if.h>
 
+#include "cros_ec.h"
+
 /*
  * ISH TX/RX ring buffer pool size
  *
