@@ -5,7 +5,7 @@
  * s390 implementation of the AES Cipher Algorithm with protected keys.
  *
  * s390 Version:
- *   Copyright IBM Corp. 2017,2019
+ *   Copyright IBM Corp. 2017,2020
  *   Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>
  *		Harald Freudenberger <freude@de.ibm.com>
  */
@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/cpufeature.h>
 #include <linux/init.h>
+#include <linux/mutex.h>
 #include <linux/spinlock.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/xts.h>
@@ -36,7 +37,7 @@
 #define PAES_MAX_KEYSIZE 256
 
 static u8 *ctrblk;
-static DEFINE_SPINLOCK(ctrblk_lock);
+static DEFINE_MUTEX(ctrblk_lock);
 
 static cpacf_mask_t km_functions, kmc_functions, kmctr_functions;
 
@@ -82,16 +83,18 @@ static inline void _free_kb_keybuf(struct key_blob *kb)
 struct s390_paes_ctx {
 	struct key_blob kb;
 	struct pkey_protkey pk;
+	spinlock_t pk_lock;
 	unsigned long fc;
 };
 
 struct s390_pxts_ctx {
 	struct key_blob kb[2];
 	struct pkey_protkey pk[2];
+	spinlock_t pk_lock;
 	unsigned long fc;
 };
 
-static inline int __paes_convert_key(struct key_blob *kb,
+static inline int __paes_keyblob2pkey(struct key_blob *kb,
 				     struct pkey_protkey *pk)
 {
 	int i, ret;
@@ -106,11 +109,42 @@ static inline int __paes_convert_key(struct key_blob *kb,
 	return ret;
 }
 
-static int __paes_set_key(struct s390_paes_ctx *ctx)
+static inline int __paes_convert_key(struct s390_paes_ctx *ctx)
+{
+	struct pkey_protkey pkey;
+
+	if (__paes_keyblob2pkey(&ctx->kb, &pkey))
+		return -EINVAL;
+
+	spin_lock_bh(&ctx->pk_lock);
+	memcpy(&ctx->pk, &pkey, sizeof(pkey));
+	spin_unlock_bh(&ctx->pk_lock);
+
+	return 0;
+}
+
+static int ecb_paes_init(struct crypto_skcipher *tfm)
+{
+	struct s390_paes_ctx *ctx = crypto_skcipher_ctx(tfm);
+
+	ctx->kb.key = NULL;
+	spin_lock_init(&ctx->pk_lock);
+
+	return 0;
+}
+
+static void ecb_paes_exit(struct crypto_skcipher *tfm)
+{
+	struct s390_paes_ctx *ctx = crypto_skcipher_ctx(tfm);
+
+	_free_kb_keybuf(&ctx->kb);
+}
+
+static inline int __ecb_paes_set_key(struct s390_paes_ctx *ctx)
 {
 	unsigned long fc;
 
-	if (__paes_convert_key(&ctx->kb, &ctx->pk))
+	if (__paes_convert_key(ctx))
 		return -EINVAL;
 
 	/* Pick the correct function code based on the protected key type */
@@ -124,22 +158,6 @@ static int __paes_set_key(struct s390_paes_ctx *ctx)
 	return ctx->fc ? 0 : -EINVAL;
 }
 
-static int ecb_paes_init(struct crypto_skcipher *tfm)
-{
-	struct s390_paes_ctx *ctx = crypto_skcipher_ctx(tfm);
-
-	ctx->kb.key = NULL;
-
-	return 0;
-}
-
-static void ecb_paes_exit(struct crypto_skcipher *tfm)
-{
-	struct s390_paes_ctx *ctx = crypto_skcipher_ctx(tfm);
-
-	_free_kb_keybuf(&ctx->kb);
-}
-
 static int ecb_paes_set_key(struct crypto_skcipher *tfm, const u8 *in_key,
 			    unsigned int key_len)
 {
@@ -151,7 +169,7 @@ static int ecb_paes_set_key(struct crypto_skcipher *tfm, const u8 *in_key,
 	if (rc)
 		return rc;
 
-	return __paes_set_key(ctx);
+	return __ecb_paes_set_key(ctx);
 }
 
 static int ecb_paes_crypt(struct skcipher_request *req, unsigned long modifier)
@@ -161,18 +179,31 @@ static int ecb_paes_crypt(struct skcipher_request *req, unsigned long modifier)
 	struct skcipher_walk walk;
 	unsigned int nbytes, n, k;
 	int ret;
+	struct {
+		u8 key[MAXPROTKEYSIZE];
+	} param;
 
 	ret = skcipher_walk_virt(&walk, req, false);
+	if (ret)
+		return ret;
+
+	spin_lock_bh(&ctx->pk_lock);
+	memcpy(param.key, ctx->pk.protkey, MAXPROTKEYSIZE);
+	spin_unlock_bh(&ctx->pk_lock);
+
 	while ((nbytes = walk.nbytes) != 0) {
 		/* only use complete blocks */
 		n = nbytes & ~(AES_BLOCK_SIZE - 1);
-		k = cpacf_km(ctx->fc | modifier, ctx->pk.protkey,
+		k = cpacf_km(ctx->fc | modifier, &param,
 			     walk.dst.virt.addr, walk.src.virt.addr, n);
 		if (k)
 			ret = skcipher_walk_done(&walk, nbytes - k);
 		if (k < n) {
-			if (__paes_set_key(ctx) != 0)
+			if (__paes_convert_key(ctx))
 				return skcipher_walk_done(&walk, -EIO);
+			spin_lock_bh(&ctx->pk_lock);
+			memcpy(param.key, ctx->pk.protkey, MAXPROTKEYSIZE);
+			spin_unlock_bh(&ctx->pk_lock);
 		}
 	}
 	return ret;
@@ -210,6 +241,7 @@ static int cbc_paes_init(struct crypto_skcipher *tfm)
 	struct s390_paes_ctx *ctx = crypto_skcipher_ctx(tfm);
 
 	ctx->kb.key = NULL;
+	spin_lock_init(&ctx->pk_lock);
 
 	return 0;
 }
@@ -221,11 +253,11 @@ static void cbc_paes_exit(struct crypto_skcipher *tfm)
 	_free_kb_keybuf(&ctx->kb);
 }
 
-static int __cbc_paes_set_key(struct s390_paes_ctx *ctx)
+static inline int __cbc_paes_set_key(struct s390_paes_ctx *ctx)
 {
 	unsigned long fc;
 
-	if (__paes_convert_key(&ctx->kb, &ctx->pk))
+	if (__paes_convert_key(ctx))
 		return -EINVAL;
 
 	/* Pick the correct function code based on the protected key type */
@@ -268,8 +300,12 @@ static int cbc_paes_crypt(struct skcipher_request *req, unsigned long modifier)
 	ret = skcipher_walk_virt(&walk, req, false);
 	if (ret)
 		return ret;
+
 	memcpy(param.iv, walk.iv, AES_BLOCK_SIZE);
+	spin_lock_bh(&ctx->pk_lock);
 	memcpy(param.key, ctx->pk.protkey, MAXPROTKEYSIZE);
+	spin_unlock_bh(&ctx->pk_lock);
+
 	while ((nbytes = walk.nbytes) != 0) {
 		/* only use complete blocks */
 		n = nbytes & ~(AES_BLOCK_SIZE - 1);
@@ -280,9 +316,11 @@ static int cbc_paes_crypt(struct skcipher_request *req, unsigned long modifier)
 			ret = skcipher_walk_done(&walk, nbytes - k);
 		}
 		if (k < n) {
-			if (__cbc_paes_set_key(ctx) != 0)
+			if (__paes_convert_key(ctx))
 				return skcipher_walk_done(&walk, -EIO);
+			spin_lock_bh(&ctx->pk_lock);
 			memcpy(param.key, ctx->pk.protkey, MAXPROTKEYSIZE);
+			spin_unlock_bh(&ctx->pk_lock);
 		}
 	}
 	return ret;
@@ -322,6 +360,7 @@ static int xts_paes_init(struct crypto_skcipher *tfm)
 
 	ctx->kb[0].key = NULL;
 	ctx->kb[1].key = NULL;
+	spin_lock_init(&ctx->pk_lock);
 
 	return 0;
 }
@@ -334,12 +373,27 @@ static void xts_paes_exit(struct crypto_skcipher *tfm)
 	_free_kb_keybuf(&ctx->kb[1]);
 }
 
-static int __xts_paes_set_key(struct s390_pxts_ctx *ctx)
+static inline int __xts_paes_convert_key(struct s390_pxts_ctx *ctx)
+{
+	struct pkey_protkey pkey0, pkey1;
+
+	if (__paes_keyblob2pkey(&ctx->kb[0], &pkey0) ||
+	    __paes_keyblob2pkey(&ctx->kb[1], &pkey1))
+		return -EINVAL;
+
+	spin_lock_bh(&ctx->pk_lock);
+	memcpy(&ctx->pk[0], &pkey0, sizeof(pkey0));
+	memcpy(&ctx->pk[1], &pkey1, sizeof(pkey1));
+	spin_unlock_bh(&ctx->pk_lock);
+
+	return 0;
+}
+
+static inline int __xts_paes_set_key(struct s390_pxts_ctx *ctx)
 {
 	unsigned long fc;
 
-	if (__paes_convert_key(&ctx->kb[0], &ctx->pk[0]) ||
-	    __paes_convert_key(&ctx->kb[1], &ctx->pk[1]))
+	if (__xts_paes_convert_key(ctx))
 		return -EINVAL;
 
 	if (ctx->pk[0].type != ctx->pk[1].type)
@@ -416,15 +470,17 @@ static int xts_paes_crypt(struct skcipher_request *req, unsigned long modifier)
 	ret = skcipher_walk_virt(&walk, req, false);
 	if (ret)
 		return ret;
+
 	keylen = (ctx->pk[0].type == PKEY_KEYTYPE_AES_128) ? 48 : 64;
 	offset = (ctx->pk[0].type == PKEY_KEYTYPE_AES_128) ? 16 : 0;
-retry:
+
 	memset(&pcc_param, 0, sizeof(pcc_param));
 	memcpy(pcc_param.tweak, walk.iv, sizeof(pcc_param.tweak));
+	spin_lock_bh(&ctx->pk_lock);
 	memcpy(pcc_param.key + offset, ctx->pk[1].protkey, keylen);
-	cpacf_pcc(ctx->fc, pcc_param.key + offset);
-
 	memcpy(xts_param.key + offset, ctx->pk[0].protkey, keylen);
+	spin_unlock_bh(&ctx->pk_lock);
+	cpacf_pcc(ctx->fc, pcc_param.key + offset);
 	memcpy(xts_param.init, pcc_param.xts, 16);
 
 	while ((nbytes = walk.nbytes) != 0) {
@@ -435,11 +491,15 @@ retry:
 		if (k)
 			ret = skcipher_walk_done(&walk, nbytes - k);
 		if (k < n) {
-			if (__xts_paes_set_key(ctx) != 0)
+			if (__xts_paes_convert_key(ctx))
 				return skcipher_walk_done(&walk, -EIO);
-			goto retry;
+			spin_lock_bh(&ctx->pk_lock);
+			memcpy(xts_param.key + offset,
+			       ctx->pk[0].protkey, keylen);
+			spin_unlock_bh(&ctx->pk_lock);
 		}
 	}
+
 	return ret;
 }
 
@@ -476,6 +536,7 @@ static int ctr_paes_init(struct crypto_skcipher *tfm)
 	struct s390_paes_ctx *ctx = crypto_skcipher_ctx(tfm);
 
 	ctx->kb.key = NULL;
+	spin_lock_init(&ctx->pk_lock);
 
 	return 0;
 }
@@ -487,11 +548,11 @@ static void ctr_paes_exit(struct crypto_skcipher *tfm)
 	_free_kb_keybuf(&ctx->kb);
 }
 
-static int __ctr_paes_set_key(struct s390_paes_ctx *ctx)
+static inline int __ctr_paes_set_key(struct s390_paes_ctx *ctx)
 {
 	unsigned long fc;
 
-	if (__paes_convert_key(&ctx->kb, &ctx->pk))
+	if (__paes_convert_key(ctx))
 		return -EINVAL;
 
 	/* Pick the correct function code based on the protected key type */
@@ -543,49 +604,65 @@ static int ctr_paes_crypt(struct skcipher_request *req)
 	struct skcipher_walk walk;
 	unsigned int nbytes, n, k;
 	int ret, locked;
-
-	locked = spin_trylock(&ctrblk_lock);
+	struct {
+		u8 key[MAXPROTKEYSIZE];
+	} param;
 
 	ret = skcipher_walk_virt(&walk, req, false);
+	if (ret)
+		return ret;
+
+	spin_lock_bh(&ctx->pk_lock);
+	memcpy(param.key, ctx->pk.protkey, MAXPROTKEYSIZE);
+	spin_unlock_bh(&ctx->pk_lock);
+
+	locked = mutex_trylock(&ctrblk_lock);
+
 	while ((nbytes = walk.nbytes) >= AES_BLOCK_SIZE) {
 		n = AES_BLOCK_SIZE;
 		if (nbytes >= 2*AES_BLOCK_SIZE && locked)
 			n = __ctrblk_init(ctrblk, walk.iv, nbytes);
 		ctrptr = (n > AES_BLOCK_SIZE) ? ctrblk : walk.iv;
-		k = cpacf_kmctr(ctx->fc, ctx->pk.protkey, walk.dst.virt.addr,
+		k = cpacf_kmctr(ctx->fc, &param, walk.dst.virt.addr,
 				walk.src.virt.addr, n, ctrptr);
 		if (k) {
 			if (ctrptr == ctrblk)
 				memcpy(walk.iv, ctrptr + k - AES_BLOCK_SIZE,
 				       AES_BLOCK_SIZE);
 			crypto_inc(walk.iv, AES_BLOCK_SIZE);
-			ret = skcipher_walk_done(&walk, nbytes - n);
+			ret = skcipher_walk_done(&walk, nbytes - k);
 		}
 		if (k < n) {
-			if (__ctr_paes_set_key(ctx) != 0) {
+			if (__paes_convert_key(ctx)) {
 				if (locked)
-					spin_unlock(&ctrblk_lock);
+					mutex_unlock(&ctrblk_lock);
 				return skcipher_walk_done(&walk, -EIO);
 			}
+			spin_lock_bh(&ctx->pk_lock);
+			memcpy(param.key, ctx->pk.protkey, MAXPROTKEYSIZE);
+			spin_unlock_bh(&ctx->pk_lock);
 		}
 	}
 	if (locked)
-		spin_unlock(&ctrblk_lock);
+		mutex_unlock(&ctrblk_lock);
 	/*
 	 * final block may be < AES_BLOCK_SIZE, copy only nbytes
 	 */
 	if (nbytes) {
 		while (1) {
-			if (cpacf_kmctr(ctx->fc, ctx->pk.protkey, buf,
+			if (cpacf_kmctr(ctx->fc, &param, buf,
 					walk.src.virt.addr, AES_BLOCK_SIZE,
 					walk.iv) == AES_BLOCK_SIZE)
 				break;
-			if (__ctr_paes_set_key(ctx) != 0)
+			if (__paes_convert_key(ctx))
 				return skcipher_walk_done(&walk, -EIO);
+			spin_lock_bh(&ctx->pk_lock);
+			memcpy(param.key, ctx->pk.protkey, MAXPROTKEYSIZE);
+			spin_unlock_bh(&ctx->pk_lock);
 		}
 		memcpy(walk.dst.virt.addr, buf, nbytes);
 		crypto_inc(walk.iv, AES_BLOCK_SIZE);
-		ret = skcipher_walk_done(&walk, 0);
+		ret = skcipher_walk_done(&walk, nbytes);
 	}
 
 	return ret;
