@@ -582,7 +582,7 @@ static int sja1105_parse_ports_node(struct sja1105_private *priv,
 	struct device *dev = &priv->spidev->dev;
 	struct device_node *child;
 
-	for_each_child_of_node(ports_node, child) {
+	for_each_available_child_of_node(ports_node, child) {
 		struct device_node *phy_node;
 		phy_interface_t phy_mode;
 		u32 index;
