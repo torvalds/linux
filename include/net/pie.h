@@ -21,8 +21,8 @@ struct pie_params {
 	u32 limit;		/* number of packets that can be enqueued */
 	u32 alpha;		/* alpha and beta are between 0 and 32 */
 	u32 beta;		/* and are used for shift relative to 1 */
-	bool ecn;		/* true if ecn is enabled */
-	bool bytemode;		/* to scale drop early prob based on pkt size */
+	u8 ecn;			/* true if ecn is enabled */
+	u8 bytemode;		/* to scale drop early prob based on pkt size */
 	u8 dq_rate_estimator;	/* to calculate delay using Little's law */
 };
 
