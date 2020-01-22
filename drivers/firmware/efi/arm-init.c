@@ -55,7 +55,7 @@ static phys_addr_t efi_to_phys(unsigned long addr)
 
 static __initdata unsigned long screen_info_table = EFI_INVALID_TABLE_ADDR;
 
-static __initdata efi_config_table_type_t arch_tables[] = {
+static const efi_config_table_type_t arch_tables[] __initconst = {
 	{LINUX_EFI_ARM_SCREEN_INFO_TABLE_GUID, NULL, &screen_info_table},
 	{NULL_GUID, NULL, NULL}
 };
@@ -85,7 +85,7 @@ static void __init init_screen_info(void)
 
 static int __init uefi_init(void)
 {
-	void *config_tables;
+	efi_config_table_t *config_tables;
 	size_t table_size;
 	int retval;
 
@@ -118,7 +118,6 @@ static int __init uefi_init(void)
 		goto out;
 	}
 	retval = efi_config_parse_tables(config_tables, efi.systab->nr_tables,
-					 sizeof(efi_config_table_t),
 					 arch_tables);
 
 	if (!retval)

@@ -460,7 +460,7 @@ void __init efi_mem_reserve(phys_addr_t addr, u64 size)
 	efi_arch_mem_reserve(addr, size);
 }
 
-static __initdata efi_config_table_type_t common_tables[] = {
+static const efi_config_table_type_t common_tables[] __initconst = {
 	{ACPI_20_TABLE_GUID, "ACPI 2.0", &efi.acpi20},
 	{ACPI_TABLE_GUID, "ACPI", &efi.acpi},
 	{SMBIOS_TABLE_GUID, "SMBIOS", &efi.smbios},
@@ -477,9 +477,9 @@ static __initdata efi_config_table_type_t common_tables[] = {
 	{NULL_GUID, NULL, NULL},
 };
 
-static __init int match_config_table(efi_guid_t *guid,
+static __init int match_config_table(const efi_guid_t *guid,
 				     unsigned long table,
-				     efi_config_table_type_t *table_types)
+				     const efi_config_table_type_t *table_types)
 {
 	int i;
 
@@ -498,39 +498,38 @@ static __init int match_config_table(efi_guid_t *guid,
 	return 0;
 }
 
-int __init efi_config_parse_tables(void *config_tables, int count, int sz,
-				   efi_config_table_type_t *arch_tables)
+int __init efi_config_parse_tables(const efi_config_table_t *config_tables,
+				   int count,
+				   const efi_config_table_type_t *arch_tables)
 {
-	void *tablep;
+	const efi_config_table_64_t *tbl64 = (void *)config_tables;
+	const efi_config_table_32_t *tbl32 = (void *)config_tables;
+	const efi_guid_t *guid;
+	unsigned long table;
 	int i;
 
-	tablep = config_tables;
 	pr_info("");
 	for (i = 0; i < count; i++) {
-		efi_guid_t guid;
-		unsigned long table;
+		if (!IS_ENABLED(CONFIG_X86)) {
+			guid = &config_tables[i].guid;
+			table = (unsigned long)config_tables[i].table;
+		} else if (efi_enabled(EFI_64BIT)) {
+			guid = &tbl64[i].guid;
+			table = tbl64[i].table;
 
-		if (efi_enabled(EFI_64BIT)) {
-			u64 table64;
-			guid = ((efi_config_table_64_t *)tablep)->guid;
-			table64 = ((efi_config_table_64_t *)tablep)->table;
-			table = table64;
-#ifndef CONFIG_64BIT
-			if (table64 >> 32) {
+			if (IS_ENABLED(CONFIG_X86_32) &&
+			    tbl64[i].table > U32_MAX) {
 				pr_cont("\n");
 				pr_err("Table located above 4GB, disabling EFI.\n");
 				return -EINVAL;
 			}
-#endif
 		} else {
-			guid = ((efi_config_table_32_t *)tablep)->guid;
-			table = ((efi_config_table_32_t *)tablep)->table;
+			guid = &tbl32[i].guid;
+			table = tbl32[i].table;
 		}
 
-		if (!match_config_table(&guid, table, common_tables))
-			match_config_table(&guid, table, arch_tables);
-
-		tablep += sz;
+		if (!match_config_table(guid, table, common_tables))
+			match_config_table(guid, table, arch_tables);
 	}
 	pr_cont("\n");
 	set_bit(EFI_CONFIG_TABLES, &efi.flags);

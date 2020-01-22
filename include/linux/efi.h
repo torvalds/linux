@@ -613,8 +613,9 @@ extern void __init efi_esrt_init(void);
 #else
 static inline void efi_esrt_init(void) { }
 #endif
-extern int efi_config_parse_tables(void *config_tables, int count, int sz,
-				   efi_config_table_type_t *arch_tables);
+extern int efi_config_parse_tables(const efi_config_table_t *config_tables,
+				   int count,
+				   const efi_config_table_type_t *arch_tables);
 extern int efi_systab_check_header(const efi_table_hdr_t *systab_hdr,
 				   int min_major_version);
 extern void efi_systab_report_header(const efi_table_hdr_t *systab_hdr,

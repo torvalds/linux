@@ -60,7 +60,7 @@ static u64 efi_systab_phys __initdata;
 static unsigned long prop_phys = EFI_INVALID_TABLE_ADDR;
 static unsigned long uga_phys = EFI_INVALID_TABLE_ADDR;
 
-static efi_config_table_type_t arch_tables[] __initdata = {
+static const efi_config_table_type_t arch_tables[] __initconst = {
 	{EFI_PROPERTIES_TABLE_GUID, "PROP", &prop_phys},
 	{UGA_IO_PROTOCOL_GUID, "UGA", &uga_phys},
 #ifdef CONFIG_X86_UV
@@ -431,7 +431,7 @@ static int __init efi_systab_init(u64 phys)
 	return 0;
 }
 
-static int __init efi_config_init(efi_config_table_type_t *arch_tables)
+static int __init efi_config_init(const efi_config_table_type_t *arch_tables)
 {
 	void *config_tables;
 	int sz, ret;
@@ -454,7 +454,7 @@ static int __init efi_config_init(efi_config_table_type_t *arch_tables)
 		return -ENOMEM;
 	}
 
-	ret = efi_config_parse_tables(config_tables, efi.systab->nr_tables, sz,
+	ret = efi_config_parse_tables(config_tables, efi.systab->nr_tables,
 				      arch_tables);
 
 	early_memunmap(config_tables, efi.systab->nr_tables * sz);

@@ -56,7 +56,7 @@ unsigned long __initdata esi_phys = EFI_INVALID_TABLE_ADDR;
 unsigned long hcdp_phys = EFI_INVALID_TABLE_ADDR;
 unsigned long sal_systab_phys = EFI_INVALID_TABLE_ADDR;
 
-static __initdata efi_config_table_type_t arch_tables[] = {
+static const efi_config_table_type_t arch_tables[] __initconst = {
 	{ESI_TABLE_GUID, "ESI", &esi_phys},
 	{HCDP_TABLE_GUID, "HCDP", &hcdp_phys},
 	{MPS_TABLE_GUID, "MPS", &mps_phys},
@@ -533,7 +533,6 @@ efi_init (void)
 
 	if (efi_config_parse_tables(__va(efi_systab->tables),
 				    efi_systab->nr_tables,
-				    sizeof(efi_config_table_t),
 				    arch_tables) != 0)
 		return;
 
