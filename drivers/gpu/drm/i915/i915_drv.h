@@ -203,9 +203,7 @@ struct drm_i915_file_private {
 	} mm;
 
 	struct xarray context_xa;
-
-	struct idr vm_idr;
-	struct mutex vm_idr_lock; /* guards vm_idr */
+	struct xarray vm_xa;
 
 	unsigned int bsd_engine;
 
