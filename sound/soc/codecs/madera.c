@@ -4707,7 +4707,7 @@ EXPORT_SYMBOL_GPL(madera_fllhj_set_refclk);
  *
  * @component: Device to configure
  * @output: Output number
- * @diff: True to set the output to differential mode
+ * @differential: True to set the output to differential mode
  *
  * Some systems use external analogue switches to connect more
  * analogue devices to the CODEC than are supported by the device.  In
