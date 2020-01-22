@@ -427,6 +427,59 @@ static int index_from_addr(struct sonic_local *lp, dma_addr_t addr,
 	return -ENOENT;
 }
 
+/* Allocate and map a new skb to be used as a receive buffer. */
+static bool sonic_alloc_rb(struct net_device *dev, struct sonic_local *lp,
+			   struct sk_buff **new_skb, dma_addr_t *new_addr)
+{
+	*new_skb = netdev_alloc_skb(dev, SONIC_RBSIZE + 2);
+	if (!*new_skb)
+		return false;
+
+	if (SONIC_BUS_SCALE(lp->dma_bitmode) == 2)
+		skb_reserve(*new_skb, 2);
+
+	*new_addr = dma_map_single(lp->device, skb_put(*new_skb, SONIC_RBSIZE),
+				   SONIC_RBSIZE, DMA_FROM_DEVICE);
+	if (!*new_addr) {
+		dev_kfree_skb(*new_skb);
+		*new_skb = NULL;
+		return false;
+	}
+
+	return true;
+}
+
+/* Place a new receive resource in the Receive Resource Area and update RWP. */
+static void sonic_update_rra(struct net_device *dev, struct sonic_local *lp,
+			     dma_addr_t old_addr, dma_addr_t new_addr)
+{
+	unsigned int entry = sonic_rr_entry(dev, SONIC_READ(SONIC_RWP));
+	unsigned int end = sonic_rr_entry(dev, SONIC_READ(SONIC_RRP));
+	u32 buf;
+
+	/* The resources in the range [RRP, RWP) belong to the SONIC. This loop
+	 * scans the other resources in the RRA, those in the range [RWP, RRP).
+	 */
+	do {
+		buf = (sonic_rra_get(dev, entry, SONIC_RR_BUFADR_H) << 16) |
+		      sonic_rra_get(dev, entry, SONIC_RR_BUFADR_L);
+
+		if (buf == old_addr)
+			break;
+
+		entry = (entry + 1) & SONIC_RRS_MASK;
+	} while (entry != end);
+
+	WARN_ONCE(buf != old_addr, "failed to find resource!\n");
+
+	sonic_rra_put(dev, entry, SONIC_RR_BUFADR_H, new_addr >> 16);
+	sonic_rra_put(dev, entry, SONIC_RR_BUFADR_L, new_addr & 0xffff);
+
+	entry = (entry + 1) & SONIC_RRS_MASK;
+
+	SONIC_WRITE(SONIC_RWP, sonic_rr_addr(dev, entry));
+}
+
 /*
  * We have a good packet(s), pass it/them up the network stack.
  */
@@ -435,18 +488,15 @@ static void sonic_rx(struct net_device *dev)
 	struct sonic_local *lp = netdev_priv(dev);
 	int entry = lp->cur_rx;
 	int prev_entry = lp->eol_rx;
+	bool rbe = false;
 
 	while (sonic_rda_get(dev, entry, SONIC_RD_IN_USE) == 0) {
-		struct sk_buff *used_skb;
-		struct sk_buff *new_skb;
-		dma_addr_t new_laddr;
-		u16 bufadr_l;
-		u16 bufadr_h;
-		int pkt_len;
 		u16 status = sonic_rda_get(dev, entry, SONIC_RD_STATUS);
 
 		/* If the RD has LPKT set, the chip has finished with the RB */
 		if ((status & SONIC_RCR_PRX) && (status & SONIC_RCR_LPKT)) {
+			struct sk_buff *new_skb;
+			dma_addr_t new_laddr;
 			u32 addr = (sonic_rda_get(dev, entry,
 						  SONIC_RD_PKTPTR_H) << 16) |
 				   sonic_rda_get(dev, entry, SONIC_RD_PKTPTR_L);
@@ -457,55 +507,35 @@ static void sonic_rx(struct net_device *dev)
 				break;
 			}
 
-			/* Malloc up new buffer. */
-			new_skb = netdev_alloc_skb(dev, SONIC_RBSIZE + 2);
-			if (new_skb == NULL) {
+			if (sonic_alloc_rb(dev, lp, &new_skb, &new_laddr)) {
+				struct sk_buff *used_skb = lp->rx_skb[i];
+				int pkt_len;
+
+				/* Pass the used buffer up the stack */
+				dma_unmap_single(lp->device, addr, SONIC_RBSIZE,
+						 DMA_FROM_DEVICE);
+
+				pkt_len = sonic_rda_get(dev, entry,
+							SONIC_RD_PKTLEN);
+				skb_trim(used_skb, pkt_len);
+				used_skb->protocol = eth_type_trans(used_skb,
+								    dev);
+				netif_rx(used_skb);
+				lp->stats.rx_packets++;
+				lp->stats.rx_bytes += pkt_len;
+
+				lp->rx_skb[i] = new_skb;
+				lp->rx_laddr[i] = new_laddr;
+			} else {
+				/* Failed to obtain a new buffer so re-use it */
+				new_laddr = addr;
 				lp->stats.rx_dropped++;
-				break;
 			}
-			/* provide 16 byte IP header alignment unless DMA requires otherwise */
-			if(SONIC_BUS_SCALE(lp->dma_bitmode) == 2)
-				skb_reserve(new_skb, 2);
-
-			new_laddr = dma_map_single(lp->device, skb_put(new_skb, SONIC_RBSIZE),
-		                               SONIC_RBSIZE, DMA_FROM_DEVICE);
-			if (!new_laddr) {
-				dev_kfree_skb(new_skb);
-				printk(KERN_ERR "%s: Failed to map rx buffer, dropping packet.\n", dev->name);
-				lp->stats.rx_dropped++;
-				break;
-			}
-
-			/* now we have a new skb to replace it, pass the used one up the stack */
-			dma_unmap_single(lp->device, lp->rx_laddr[entry], SONIC_RBSIZE, DMA_FROM_DEVICE);
-			used_skb = lp->rx_skb[i];
-			pkt_len = sonic_rda_get(dev, entry, SONIC_RD_PKTLEN);
-			skb_trim(used_skb, pkt_len);
-			used_skb->protocol = eth_type_trans(used_skb, dev);
-			netif_rx(used_skb);
-			lp->stats.rx_packets++;
-			lp->stats.rx_bytes += pkt_len;
-
-			/* and insert the new skb */
-			lp->rx_laddr[i] = new_laddr;
-			lp->rx_skb[i] = new_skb;
-
-			bufadr_l = (unsigned long)new_laddr & 0xffff;
-			bufadr_h = (unsigned long)new_laddr >> 16;
-			sonic_rra_put(dev, i, SONIC_RR_BUFADR_L, bufadr_l);
-			sonic_rra_put(dev, i, SONIC_RR_BUFADR_H, bufadr_h);
-			/*
-			 * this was the last packet out of the current receive buffer
-			 * give the buffer back to the SONIC
+			/* If RBE is already asserted when RWP advances then
+			 * it's safe to clear RBE after processing this packet.
 			 */
-			lp->cur_rwp += SIZEOF_SONIC_RR * SONIC_BUS_SCALE(lp->dma_bitmode);
-			if (lp->cur_rwp >= lp->rra_end) lp->cur_rwp = lp->rra_laddr & 0xffff;
-			SONIC_WRITE(SONIC_RWP, lp->cur_rwp);
-			if (SONIC_READ(SONIC_ISR) & SONIC_INT_RBE) {
-				netif_dbg(lp, rx_err, dev, "%s: rx buffer exhausted\n",
-					  __func__);
-				SONIC_WRITE(SONIC_ISR, SONIC_INT_RBE); /* clear the flag */
-			}
+			rbe = rbe || SONIC_READ(SONIC_ISR) & SONIC_INT_RBE;
+			sonic_update_rra(dev, lp, addr, new_laddr);
 		}
 		/*
 		 * give back the descriptor
@@ -527,6 +557,9 @@ static void sonic_rx(struct net_device *dev)
 			      sonic_rda_get(dev, lp->eol_rx, SONIC_RD_LINK));
 		lp->eol_rx = prev_entry;
 	}
+
+	if (rbe)
+		SONIC_WRITE(SONIC_ISR, SONIC_INT_RBE);
 	/*
 	 * If any worth-while packets have been received, netif_rx()
 	 * has done a mark_bh(NET_BH) for us and will work on them
@@ -641,15 +674,10 @@ static int sonic_init(struct net_device *dev)
 	}
 
 	/* initialize all RRA registers */
-	lp->rra_end = (lp->rra_laddr + SONIC_NUM_RRS * SIZEOF_SONIC_RR *
-					SONIC_BUS_SCALE(lp->dma_bitmode)) & 0xffff;
-	lp->cur_rwp = (lp->rra_laddr + (SONIC_NUM_RRS - 1) * SIZEOF_SONIC_RR *
-					SONIC_BUS_SCALE(lp->dma_bitmode)) & 0xffff;
-
-	SONIC_WRITE(SONIC_RSA, lp->rra_laddr & 0xffff);
-	SONIC_WRITE(SONIC_REA, lp->rra_end);
-	SONIC_WRITE(SONIC_RRP, lp->rra_laddr & 0xffff);
-	SONIC_WRITE(SONIC_RWP, lp->cur_rwp);
+	SONIC_WRITE(SONIC_RSA, sonic_rr_addr(dev, 0));
+	SONIC_WRITE(SONIC_REA, sonic_rr_addr(dev, SONIC_NUM_RRS));
+	SONIC_WRITE(SONIC_RRP, sonic_rr_addr(dev, 0));
+	SONIC_WRITE(SONIC_RWP, sonic_rr_addr(dev, SONIC_NUM_RRS - 1));
 	SONIC_WRITE(SONIC_URRA, lp->rra_laddr >> 16);
 	SONIC_WRITE(SONIC_EOBC, (SONIC_RBSIZE >> 1) - (lp->dma_bitmode ? 2 : 1));
 
