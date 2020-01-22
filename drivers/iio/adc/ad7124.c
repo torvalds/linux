@@ -70,6 +70,11 @@
 /* AD7124_FILTER_X */
 #define AD7124_FILTER_FS_MSK		GENMASK(10, 0)
 #define AD7124_FILTER_FS(x)		FIELD_PREP(AD7124_FILTER_FS_MSK, x)
+#define AD7124_FILTER_TYPE_MSK		GENMASK(23, 21)
+#define AD7124_FILTER_TYPE_SEL(x)	FIELD_PREP(AD7124_FILTER_TYPE_MSK, x)
+
+#define AD7124_SINC3_FILTER 2
+#define AD7124_SINC4_FILTER 0
 
 enum ad7124_ids {
 	ID_AD7124_4,
@@ -119,6 +124,7 @@ struct ad7124_channel_config {
 	unsigned int vref_mv;
 	unsigned int pga_bits;
 	unsigned int odr;
+	unsigned int filter_type;
 };
 
 struct ad7124_state {
@@ -138,7 +144,8 @@ static const struct iio_chan_spec ad7124_channel_template = {
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
 		BIT(IIO_CHAN_INFO_SCALE) |
 		BIT(IIO_CHAN_INFO_OFFSET) |
-		BIT(IIO_CHAN_INFO_SAMP_FREQ),
+		BIT(IIO_CHAN_INFO_SAMP_FREQ) |
+		BIT(IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY),
 	.scan_type = {
 		.sign = 'u',
 		.realbits = 24,
@@ -281,6 +288,58 @@ static int ad7124_set_channel_gain(struct ad7124_state *st,
 	return 0;
 }
 
+static int ad7124_get_3db_filter_freq(struct ad7124_state *st,
+				      unsigned int channel)
+{
+	unsigned int fadc;
+
+	fadc = st->channel_config[channel].odr;
+
+	switch (st->channel_config[channel].filter_type) {
+	case AD7124_SINC3_FILTER:
+		return DIV_ROUND_CLOSEST(fadc * 230, 1000);
+	case AD7124_SINC4_FILTER:
+		return DIV_ROUND_CLOSEST(fadc * 262, 1000);
+	default:
+		return -EINVAL;
+	}
+}
+
+static int ad7124_set_3db_filter_freq(struct ad7124_state *st,
+				      unsigned int channel,
+				      unsigned int freq)
+{
+	unsigned int sinc4_3db_odr;
+	unsigned int sinc3_3db_odr;
+	unsigned int new_filter;
+	unsigned int new_odr;
+
+	sinc4_3db_odr = DIV_ROUND_CLOSEST(freq * 1000, 230);
+	sinc3_3db_odr = DIV_ROUND_CLOSEST(freq * 1000, 262);
+
+	if (sinc4_3db_odr > sinc3_3db_odr) {
+		new_filter = AD7124_SINC3_FILTER;
+		new_odr = sinc4_3db_odr;
+	} else {
+		new_filter = AD7124_SINC4_FILTER;
+		new_odr = sinc3_3db_odr;
+	}
+
+	if (st->channel_config[channel].filter_type != new_filter) {
+		int ret;
+
+		st->channel_config[channel].filter_type = new_filter;
+		ret = ad7124_spi_write_mask(st, AD7124_FILTER(channel),
+					    AD7124_FILTER_TYPE_MSK,
+					    AD7124_FILTER_TYPE_SEL(new_filter),
+					    3);
+		if (ret < 0)
+			return ret;
+	}
+
+	return ad7124_set_channel_odr(st, channel, new_odr);
+}
+
 static int ad7124_read_raw(struct iio_dev *indio_dev,
 			   struct iio_chan_spec const *chan,
 			   int *val, int *val2, long info)
@@ -323,6 +382,9 @@ static int ad7124_read_raw(struct iio_dev *indio_dev,
 		*val = st->channel_config[chan->address].odr;
 
 		return IIO_VAL_INT;
+	case IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY:
+		*val = ad7124_get_3db_filter_freq(st, chan->scan_index);
+		return IIO_VAL_INT;
 	default:
 		return -EINVAL;
 	}
@@ -355,6 +417,11 @@ static int ad7124_write_raw(struct iio_dev *indio_dev,
 		gain = DIV_ROUND_CLOSEST(res, val2);
 
 		return ad7124_set_channel_gain(st, chan->address, gain);
+	case IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY:
+		if (val2 != 0)
+			return -EINVAL;
+
+		return ad7124_set_3db_filter_freq(st, chan->address, val);
 	default:
 		return -EINVAL;
 	}
