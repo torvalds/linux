@@ -72,14 +72,114 @@ void mptcp_parse_option(const unsigned char *ptr, int opsize,
 	}
 }
 
+void mptcp_get_options(const struct sk_buff *skb,
+		       struct tcp_options_received *opt_rx)
+{
+	const unsigned char *ptr;
+	const struct tcphdr *th = tcp_hdr(skb);
+	int length = (th->doff * 4) - sizeof(struct tcphdr);
+
+	ptr = (const unsigned char *)(th + 1);
+
+	while (length > 0) {
+		int opcode = *ptr++;
+		int opsize;
+
+		switch (opcode) {
+		case TCPOPT_EOL:
+			return;
+		case TCPOPT_NOP:	/* Ref: RFC 793 section 3.1 */
+			length--;
+			continue;
+		default:
+			opsize = *ptr++;
+			if (opsize < 2) /* "silly options" */
+				return;
+			if (opsize > length)
+				return;	/* don't parse partial options */
+			if (opcode == TCPOPT_MPTCP)
+				mptcp_parse_option(ptr, opsize, opt_rx);
+			ptr += opsize - 2;
+			length -= opsize;
+		}
+	}
+}
+
+bool mptcp_syn_options(struct sock *sk, unsigned int *size,
+		       struct mptcp_out_options *opts)
+{
+	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(sk);
+
+	if (subflow->request_mptcp) {
+		pr_debug("local_key=%llu", subflow->local_key);
+		opts->suboptions = OPTION_MPTCP_MPC_SYN;
+		opts->sndr_key = subflow->local_key;
+		*size = TCPOLEN_MPTCP_MPC_SYN;
+		return true;
+	}
+	return false;
+}
+
+void mptcp_rcv_synsent(struct sock *sk)
+{
+	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(sk);
+	struct tcp_sock *tp = tcp_sk(sk);
+
+	pr_debug("subflow=%p", subflow);
+	if (subflow->request_mptcp && tp->rx_opt.mptcp.mp_capable) {
+		subflow->mp_capable = 1;
+		subflow->remote_key = tp->rx_opt.mptcp.sndr_key;
+	} else {
+		tcp_sk(sk)->is_mptcp = 0;
+	}
+}
+
+bool mptcp_established_options(struct sock *sk, struct sk_buff *skb,
+			       unsigned int *size, unsigned int remaining,
+			       struct mptcp_out_options *opts)
+{
+	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(sk);
+
+	if (subflow->mp_capable && !subflow->fourth_ack) {
+		opts->suboptions = OPTION_MPTCP_MPC_ACK;
+		opts->sndr_key = subflow->local_key;
+		opts->rcvr_key = subflow->remote_key;
+		*size = TCPOLEN_MPTCP_MPC_ACK;
+		subflow->fourth_ack = 1;
+		pr_debug("subflow=%p, local_key=%llu, remote_key=%llu",
+			 subflow, subflow->local_key, subflow->remote_key);
+		return true;
+	}
+	return false;
+}
+
+bool mptcp_synack_options(const struct request_sock *req, unsigned int *size,
+			  struct mptcp_out_options *opts)
+{
+	struct mptcp_subflow_request_sock *subflow_req = mptcp_subflow_rsk(req);
+
+	if (subflow_req->mp_capable) {
+		opts->suboptions = OPTION_MPTCP_MPC_SYNACK;
+		opts->sndr_key = subflow_req->local_key;
+		*size = TCPOLEN_MPTCP_MPC_SYNACK;
+		pr_debug("subflow_req=%p, local_key=%llu",
+			 subflow_req, subflow_req->local_key);
+		return true;
+	}
+	return false;
+}
+
 void mptcp_write_options(__be32 *ptr, struct mptcp_out_options *opts)
 {
 	if ((OPTION_MPTCP_MPC_SYN |
+	     OPTION_MPTCP_MPC_SYNACK |
 	     OPTION_MPTCP_MPC_ACK) & opts->suboptions) {
 		u8 len;
 
 		if (OPTION_MPTCP_MPC_SYN & opts->suboptions)
 			len = TCPOLEN_MPTCP_MPC_SYN;
+		else if (OPTION_MPTCP_MPC_SYNACK & opts->suboptions)
+			len = TCPOLEN_MPTCP_MPC_SYNACK;
 		else
 			len = TCPOLEN_MPTCP_MPC_ACK;
 

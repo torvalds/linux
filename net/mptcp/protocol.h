@@ -40,19 +40,47 @@
 struct mptcp_sock {
 	/* inet_connection_sock must be the first member */
 	struct inet_connection_sock sk;
+	u64		local_key;
+	u64		remote_key;
+	struct list_head conn_list;
 	struct socket	*subflow; /* outgoing connect/listener/!mp_capable */
 };
+
+#define mptcp_for_each_subflow(__msk, __subflow)			\
+	list_for_each_entry(__subflow, &((__msk)->conn_list), node)
 
 static inline struct mptcp_sock *mptcp_sk(const struct sock *sk)
 {
 	return (struct mptcp_sock *)sk;
 }
 
+struct mptcp_subflow_request_sock {
+	struct	tcp_request_sock sk;
+	u8	mp_capable : 1,
+		mp_join : 1,
+		backup : 1;
+	u64	local_key;
+	u64	remote_key;
+};
+
+static inline struct mptcp_subflow_request_sock *
+mptcp_subflow_rsk(const struct request_sock *rsk)
+{
+	return (struct mptcp_subflow_request_sock *)rsk;
+}
+
 /* MPTCP subflow context */
 struct mptcp_subflow_context {
-	u32	request_mptcp : 1;  /* send MP_CAPABLE */
+	struct	list_head node;/* conn_list of subflows */
+	u64	local_key;
+	u64	remote_key;
+	u32	request_mptcp : 1,  /* send MP_CAPABLE */
+		mp_capable : 1,	    /* remote is MPTCP capable */
+		fourth_ack : 1,	    /* send initial DSS */
+		conn_finished : 1;
 	struct	sock *tcp_sock;	    /* tcp sk backpointer */
 	struct	sock *conn;	    /* parent mptcp_sock */
+	const	struct inet_connection_sock_af_ops *icsk_af_ops;
 	struct	rcu_head rcu;
 };
 
@@ -73,5 +101,15 @@ mptcp_subflow_tcp_sock(const struct mptcp_subflow_context *subflow)
 
 void mptcp_subflow_init(void);
 int mptcp_subflow_create_socket(struct sock *sk, struct socket **new_sock);
+
+extern const struct inet_connection_sock_af_ops ipv4_specific;
+#if IS_ENABLED(CONFIG_MPTCP_IPV6)
+extern const struct inet_connection_sock_af_ops ipv6_specific;
+#endif
+
+void mptcp_get_options(const struct sk_buff *skb,
+		       struct tcp_options_received *opt_rx);
+
+void mptcp_finish_connect(struct sock *sk);
 
 #endif /* __MPTCP_PROTOCOL_H */
