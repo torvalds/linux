@@ -21,6 +21,7 @@
 #include <linux/miscdevice.h>
 #include <linux/mm.h>
 #include <linux/mm_types.h>
+#include <linux/module.h>
 #include <linux/rbtree.h>
 #include <linux/sched/task.h>
 #include <linux/seq_file.h>
@@ -660,4 +661,36 @@ err_reg:
 	kfree(idev);
 	return ret;
 }
+
+#ifdef CONFIG_ION_MODULE
+int ion_module_init(void)
+{
+	int ret;
+
+	ret = ion_device_create();
+#ifdef CONFIG_ION_SYSTEM_HEAP
+	if (ret)
+		return ret;
+
+	ret = ion_system_heap_create();
+	if (ret)
+		return ret;
+
+	ret = ion_system_contig_heap_create();
+#endif
+#ifdef CONFIG_ION_CMA_HEAP
+	if (ret)
+		return ret;
+
+	ret = ion_add_cma_heaps();
+#endif
+	return ret;
+}
+
+module_init(ion_module_init);
+#else
 subsys_initcall(ion_device_create);
+#endif
+
+MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("Ion memory allocator");
