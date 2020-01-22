@@ -7752,6 +7752,22 @@ int __dev_set_mtu(struct net_device *dev, int new_mtu)
 }
 EXPORT_SYMBOL(__dev_set_mtu);
 
+int dev_validate_mtu(struct net_device *dev, int new_mtu,
+		     struct netlink_ext_ack *extack)
+{
+	/* MTU must be positive, and in range */
+	if (new_mtu < 0 || new_mtu < dev->min_mtu) {
+		NL_SET_ERR_MSG(extack, "mtu less than device minimum");
+		return -EINVAL;
+	}
+
+	if (dev->max_mtu > 0 && new_mtu > dev->max_mtu) {
+		NL_SET_ERR_MSG(extack, "mtu greater than device maximum");
+		return -EINVAL;
+	}
+	return 0;
+}
+
 /**
  *	dev_set_mtu_ext - Change maximum transfer unit
  *	@dev: device
@@ -7768,16 +7784,9 @@ int dev_set_mtu_ext(struct net_device *dev, int new_mtu,
 	if (new_mtu == dev->mtu)
 		return 0;
 
-	/* MTU must be positive, and in range */
-	if (new_mtu < 0 || new_mtu < dev->min_mtu) {
-		NL_SET_ERR_MSG(extack, "mtu less than device minimum");
-		return -EINVAL;
-	}
-
-	if (dev->max_mtu > 0 && new_mtu > dev->max_mtu) {
-		NL_SET_ERR_MSG(extack, "mtu greater than device maximum");
-		return -EINVAL;
-	}
+	err = dev_validate_mtu(dev, new_mtu, extack);
+	if (err)
+		return err;
 
 	if (!netif_device_present(dev))
 		return -ENODEV;
