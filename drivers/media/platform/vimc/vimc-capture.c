@@ -423,7 +423,7 @@ struct vimc_ent_device *vimc_cap_add(struct vimc_device *vimc,
 
 	ret = vb2_queue_init(q);
 	if (ret) {
-		dev_err(&vimc->pdev.dev, "%s: vb2 queue init failed (err=%d)\n",
+		dev_err(vimc->mdev.dev, "%s: vb2 queue init failed (err=%d)\n",
 			vcfg_name, ret);
 		goto err_clean_m_ent;
 	}
@@ -443,7 +443,7 @@ struct vimc_ent_device *vimc_cap_add(struct vimc_device *vimc,
 	vcap->ved.ent = &vcap->vdev.entity;
 	vcap->ved.process_frame = vimc_cap_process_frame;
 	vcap->ved.vdev_get_format = vimc_cap_get_format;
-	vcap->ved.dev = &vimc->pdev.dev;
+	vcap->ved.dev = vimc->mdev.dev;
 
 	/* Initialize the video_device struct */
 	vdev = &vcap->vdev;
@@ -462,7 +462,7 @@ struct vimc_ent_device *vimc_cap_add(struct vimc_device *vimc,
 	/* Register the video_device with the v4l2 and the media framework */
 	ret = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
 	if (ret) {
-		dev_err(&vimc->pdev.dev, "%s: video register failed (err=%d)\n",
+		dev_err(vimc->mdev.dev, "%s: video register failed (err=%d)\n",
 			vcap->vdev.name, ret);
 		goto err_release_queue;
 	}

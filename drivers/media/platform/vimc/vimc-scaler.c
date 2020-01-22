@@ -512,7 +512,7 @@ struct vimc_ent_device *vimc_sca_add(struct vimc_device *vimc,
 	}
 
 	vsca->ved.process_frame = vimc_sca_process_frame;
-	vsca->ved.dev = &vimc->pdev.dev;
+	vsca->ved.dev = vimc->mdev.dev;
 
 	/* Initialize the frame format */
 	vsca->sink_fmt = sink_fmt_default;

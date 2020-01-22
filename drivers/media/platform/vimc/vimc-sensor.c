@@ -370,7 +370,7 @@ struct vimc_ent_device *vimc_sen_add(struct vimc_device *vimc,
 		goto err_free_tpg;
 
 	vsen->ved.process_frame = vimc_sen_process_frame;
-	vsen->ved.dev = &vimc->pdev.dev;
+	vsen->ved.dev = vimc->mdev.dev;
 
 	/* Initialize the frame format */
 	vsen->mbus_format = fmt_default;

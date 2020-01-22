@@ -569,7 +569,7 @@ struct vimc_ent_device *vimc_deb_add(struct vimc_device *vimc,
 		goto err_free_hdl;
 
 	vdeb->ved.process_frame = vimc_deb_process_frame;
-	vdeb->ved.dev = &vimc->pdev.dev;
+	vdeb->ved.dev = vimc->mdev.dev;
 	vdeb->mean_win_size = vimc_deb_ctrl_mean_win_size.def;
 
 	/* Initialize the frame format */
