@@ -81,9 +81,11 @@ struct pie_stats {
 /**
  * struct pie_skb_cb - contains private skb vars
  * @enqueue_time:	timestamp when the packet is enqueued
+ * @mem_usage:		size of the skb during enqueue
  */
 struct pie_skb_cb {
 	psched_time_t enqueue_time;
+	u32 mem_usage;
 };
 
 static inline void pie_params_init(struct pie_params *params)
