@@ -1610,6 +1610,8 @@ struct pvclock_clock {
 	u64 mask;
 	u32 mult;
 	u32 shift;
+	u64 base_cycles;
+	u64 offset;
 };
 
 struct pvclock_gtod_data {
@@ -1618,11 +1620,8 @@ struct pvclock_gtod_data {
 	struct pvclock_clock clock; /* extract of a clocksource struct */
 	struct pvclock_clock raw_clock; /* extract of a clocksource struct */
 
-	u64		boot_ns_raw;
-	u64		boot_ns;
-	u64		nsec_base;
+	ktime_t		offs_boot;
 	u64		wall_time_sec;
-	u64		monotonic_raw_nsec;
 };
 
 static struct pvclock_gtod_data pvclock_gtod_data;
@@ -1630,10 +1629,6 @@ static struct pvclock_gtod_data pvclock_gtod_data;
 static void update_pvclock_gtod(struct timekeeper *tk)
 {
 	struct pvclock_gtod_data *vdata = &pvclock_gtod_data;
-	u64 boot_ns, boot_ns_raw;
-
-	boot_ns = ktime_to_ns(ktime_add(tk->tkr_mono.base, tk->offs_boot));
-	boot_ns_raw = ktime_to_ns(ktime_add(tk->tkr_raw.base, tk->offs_boot));
 
 	write_seqcount_begin(&vdata->seq);
 
@@ -1643,20 +1638,20 @@ static void update_pvclock_gtod(struct timekeeper *tk)
 	vdata->clock.mask		= tk->tkr_mono.mask;
 	vdata->clock.mult		= tk->tkr_mono.mult;
 	vdata->clock.shift		= tk->tkr_mono.shift;
+	vdata->clock.base_cycles	= tk->tkr_mono.xtime_nsec;
+	vdata->clock.offset		= tk->tkr_mono.base;
 
 	vdata->raw_clock.vclock_mode	= tk->tkr_raw.clock->archdata.vclock_mode;
 	vdata->raw_clock.cycle_last	= tk->tkr_raw.cycle_last;
 	vdata->raw_clock.mask		= tk->tkr_raw.mask;
 	vdata->raw_clock.mult		= tk->tkr_raw.mult;
 	vdata->raw_clock.shift		= tk->tkr_raw.shift;
-
-	vdata->boot_ns			= boot_ns;
-	vdata->nsec_base		= tk->tkr_mono.xtime_nsec;
+	vdata->raw_clock.base_cycles	= tk->tkr_raw.xtime_nsec;
+	vdata->raw_clock.offset		= tk->tkr_raw.base;
 
 	vdata->wall_time_sec            = tk->xtime_sec;
 
-	vdata->boot_ns_raw		= boot_ns_raw;
-	vdata->monotonic_raw_nsec	= tk->tkr_raw.xtime_nsec;
+	vdata->offs_boot		= tk->offs_boot;
 
 	write_seqcount_end(&vdata->seq);
 }
@@ -2126,10 +2121,10 @@ static int do_monotonic_raw(s64 *t, u64 *tsc_timestamp)
 
 	do {
 		seq = read_seqcount_begin(&gtod->seq);
-		ns = gtod->monotonic_raw_nsec;
+		ns = gtod->raw_clock.base_cycles;
 		ns += vgettsc(&gtod->raw_clock, tsc_timestamp, &mode);
-		ns >>= gtod->clock.shift;
-		ns += gtod->boot_ns_raw;
+		ns >>= gtod->raw_clock.shift;
+		ns += ktime_to_ns(ktime_add(gtod->raw_clock.offset, gtod->offs_boot));
 	} while (unlikely(read_seqcount_retry(&gtod->seq, seq)));
 	*t = ns;
 
@@ -2146,7 +2141,7 @@ static int do_realtime(struct timespec64 *ts, u64 *tsc_timestamp)
 	do {
 		seq = read_seqcount_begin(&gtod->seq);
 		ts->tv_sec = gtod->wall_time_sec;
-		ns = gtod->nsec_base;
+		ns = gtod->clock.base_cycles;
 		ns += vgettsc(&gtod->clock, tsc_timestamp, &mode);
 		ns >>= gtod->clock.shift;
 	} while (unlikely(read_seqcount_retry(&gtod->seq, seq)));
