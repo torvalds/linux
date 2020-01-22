@@ -11,6 +11,7 @@ How to write kernel documentation
    kernel-doc
    parse-headers
    contributing
+   maintainer-profile
 
 .. only::  subproject and html
 
