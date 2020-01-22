@@ -1490,13 +1490,13 @@ config ARM64_E0PD
 	bool "Enable support for E0PD"
 	default y
 	help
-	   E0PD (part of the ARMv8.5 extensions) allows us to ensure
-	   that EL0 accesses made via TTBR1 always fault in constant time,
-	   providing similar benefits to KASLR as those provided by KPTI, but
-	   with lower overhead and without disrupting legitimate access to
-	   kernel memory such as SPE.
+	  E0PD (part of the ARMv8.5 extensions) allows us to ensure
+	  that EL0 accesses made via TTBR1 always fault in constant time,
+	  providing similar benefits to KASLR as those provided by KPTI, but
+	  with lower overhead and without disrupting legitimate access to
+	  kernel memory such as SPE.
 
-	   This option enables E0PD for TTBR1 where available.
+	  This option enables E0PD for TTBR1 where available.
 
 endmenu
 
