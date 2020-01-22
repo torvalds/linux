@@ -4,6 +4,7 @@
 #include <linux/err.h>
 #include <test_progs.h>
 #include "bpf_dctcp.skel.h"
+#include "bpf_cubic.skel.h"
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
@@ -158,6 +159,28 @@ done:
 	close(fd);
 }
 
+static void test_cubic(void)
+{
+	struct bpf_cubic *cubic_skel;
+	struct bpf_link *link;
+
+	cubic_skel = bpf_cubic__open_and_load();
+	if (CHECK(!cubic_skel, "bpf_cubic__open_and_load", "failed\n"))
+		return;
+
+	link = bpf_map__attach_struct_ops(cubic_skel->maps.cubic);
+	if (CHECK(IS_ERR(link), "bpf_map__attach_struct_ops", "err:%ld\n",
+		  PTR_ERR(link))) {
+		bpf_cubic__destroy(cubic_skel);
+		return;
+	}
+
+	do_test("bpf_cubic");
+
+	bpf_link__destroy(link);
+	bpf_cubic__destroy(cubic_skel);
+}
+
 static void test_dctcp(void)
 {
 	struct bpf_dctcp *dctcp_skel;
@@ -184,4 +207,6 @@ void test_bpf_tcp_ca(void)
 {
 	if (test__start_subtest("dctcp"))
 		test_dctcp();
+	if (test__start_subtest("cubic"))
+		test_cubic();
 }
