@@ -322,6 +322,7 @@ struct sonic_local {
 	int msg_enable;
 	struct device *device;         /* generic device */
 	struct net_device_stats stats;
+	spinlock_t lock;
 };
 
 #define TX_TIMEOUT (3 * HZ)
