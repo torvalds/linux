@@ -49,6 +49,7 @@ struct bio_crypt_ctx *bio_crypt_alloc_ctx(gfp_t gfp_mask)
 {
 	return mempool_alloc(bio_crypt_ctx_pool, gfp_mask);
 }
+EXPORT_SYMBOL_GPL(bio_crypt_alloc_ctx);
 
 void bio_crypt_free_ctx(struct bio *bio)
 {

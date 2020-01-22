@@ -221,6 +221,7 @@ int blk_crypto_init_key(struct blk_crypto_key *blk_key,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(blk_crypto_init_key);
 
 /**
  * blk_crypto_evict_key() - Evict a key from any inline encryption hardware
@@ -247,3 +248,4 @@ int blk_crypto_evict_key(struct request_queue *q,
 
 	return blk_crypto_fallback_evict_key(key);
 }
+EXPORT_SYMBOL_GPL(blk_crypto_evict_key);
