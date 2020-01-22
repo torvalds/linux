@@ -40,7 +40,6 @@ int intel_pmc_s0ix_counter_read(u64 *data);
 int intel_pmc_gcr_read(u32 offset, u32 *data);
 int intel_pmc_gcr_read64(u32 offset, u64 *data);
 int intel_pmc_gcr_write(u32 offset, u32 data);
-int intel_pmc_gcr_update(u32 offset, u32 mask, u32 val);
 
 #else
 
@@ -77,11 +76,6 @@ static inline int intel_pmc_gcr_read64(u32 offset, u64 *data)
 }
 
 static inline int intel_pmc_gcr_write(u32 offset, u32 data)
-{
-	return -EINVAL;
-}
-
-static inline int intel_pmc_gcr_update(u32 offset, u32 mask, u32 val)
 {
 	return -EINVAL;
 }
