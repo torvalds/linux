@@ -5,11 +5,6 @@
 #define _ICE_VIRTCHNL_PF_H_
 #include "ice.h"
 
-#define ICE_MAX_VLANID			4095
-#define ICE_VLAN_PRIORITY_S		12
-#define ICE_VLAN_M			0xFFF
-#define ICE_PRIORITY_M			0x7000
-
 /* Restrict number of MAC Addr and VLAN that non-trusted VF can programmed */
 #define ICE_MAX_VLAN_PER_VF		8
 #define ICE_MAX_MACADDR_PER_VF		12

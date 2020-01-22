@@ -528,7 +528,7 @@ static int ice_alloc_vsi_res(struct ice_vf *vf)
 	/* Check if port VLAN exist before, and restore it accordingly */
 	if (vf->port_vlan_info) {
 		ice_vsi_manage_pvid(vsi, vf->port_vlan_info, true);
-		ice_vsi_add_vlan(vsi, vf->port_vlan_info & ICE_VLAN_M);
+		ice_vsi_add_vlan(vsi, vf->port_vlan_info & VLAN_VID_MASK);
 	}
 
 	eth_broadcast_addr(broadcast);
@@ -2684,19 +2684,20 @@ int
 ice_set_vf_port_vlan(struct net_device *netdev, int vf_id, u16 vlan_id, u8 qos,
 		     __be16 vlan_proto)
 {
-	u16 vlanprio = vlan_id | (qos << ICE_VLAN_PRIORITY_S);
 	struct ice_pf *pf = ice_netdev_to_pf(netdev);
 	struct ice_vsi *vsi;
 	struct device *dev;
 	struct ice_vf *vf;
+	u16 vlanprio;
 	int ret = 0;
 
 	dev = ice_pf_to_dev(pf);
 	if (ice_validate_vf_id(pf, vf_id))
 		return -EINVAL;
 
-	if (vlan_id > ICE_MAX_VLANID || qos > 7) {
-		dev_err(dev, "Invalid VF Parameters\n");
+	if (vlan_id >= VLAN_N_VID || qos > 7) {
+		dev_err(dev, "Invalid Port VLAN parameters for VF %d, ID %d, QoS %d\n",
+			vf_id, vlan_id, qos);
 		return -EINVAL;
 	}
 
@@ -2710,16 +2711,17 @@ ice_set_vf_port_vlan(struct net_device *netdev, int vf_id, u16 vlan_id, u8 qos,
 	if (ice_check_vf_init(pf, vf))
 		return -EBUSY;
 
-	if (le16_to_cpu(vsi->info.pvid) == vlanprio) {
+	vlanprio = vlan_id | (qos << VLAN_PRIO_SHIFT);
+
+	if (vf->port_vlan_info == vlanprio) {
 		/* duplicate request, so just return success */
 		dev_dbg(dev, "Duplicate pvid %d request\n", vlanprio);
 		return ret;
 	}
 
 	/* If PVID, then remove all filters on the old VLAN */
-	if (vsi->info.pvid)
-		ice_vsi_kill_vlan(vsi, (le16_to_cpu(vsi->info.pvid) &
-				  VLAN_VID_MASK));
+	if (vf->port_vlan_info)
+		ice_vsi_kill_vlan(vsi, vf->port_vlan_info & VLAN_VID_MASK);
 
 	if (vlan_id || qos) {
 		ret = ice_vsi_manage_pvid(vsi, vlanprio, true);
@@ -2800,7 +2802,7 @@ static int ice_vc_process_vlan_msg(struct ice_vf *vf, u8 *msg, bool add_v)
 	}
 
 	for (i = 0; i < vfl->num_elements; i++) {
-		if (vfl->vlan_id[i] > ICE_MAX_VLANID) {
+		if (vfl->vlan_id[i] >= VLAN_N_VID) {
 			v_ret = VIRTCHNL_STATUS_ERR_PARAM;
 			dev_err(dev, "invalid VF VLAN id %d\n",
 				vfl->vlan_id[i]);
@@ -3197,14 +3199,12 @@ int
 ice_get_vf_cfg(struct net_device *netdev, int vf_id, struct ifla_vf_info *ivi)
 {
 	struct ice_pf *pf = ice_netdev_to_pf(netdev);
-	struct ice_vsi *vsi;
 	struct ice_vf *vf;
 
 	if (ice_validate_vf_id(pf, vf_id))
 		return -EINVAL;
 
 	vf = &pf->vf[vf_id];
-	vsi = pf->vsi[vf->lan_vsi_idx];
 
 	if (ice_check_vf_init(pf, vf))
 		return -EBUSY;
@@ -3213,9 +3213,8 @@ ice_get_vf_cfg(struct net_device *netdev, int vf_id, struct ifla_vf_info *ivi)
 	ether_addr_copy(ivi->mac, vf->dflt_lan_addr.addr);
 
 	/* VF configuration for VLAN and applicable QoS */
-	ivi->vlan = le16_to_cpu(vsi->info.pvid) & ICE_VLAN_M;
-	ivi->qos = (le16_to_cpu(vsi->info.pvid) & ICE_PRIORITY_M) >>
-		    ICE_VLAN_PRIORITY_S;
+	ivi->vlan = vf->port_vlan_info & VLAN_VID_MASK;
+	ivi->qos = (vf->port_vlan_info & VLAN_PRIO_MASK) >> VLAN_PRIO_SHIFT;
 
 	ivi->trusted = vf->trusted;
 	ivi->spoofchk = vf->spoofchk;
