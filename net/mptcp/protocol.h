@@ -11,7 +11,7 @@
 #include <net/tcp.h>
 #include <net/inet_connection_sock.h>
 
-#define MPTCP_SUPPORTED_VERSION	0
+#define MPTCP_SUPPORTED_VERSION	1
 
 /* MPTCP option bits */
 #define OPTION_MPTCP_MPC_SYN	BIT(0)
@@ -29,9 +29,10 @@
 #define MPTCPOPT_MP_FASTCLOSE	7
 
 /* MPTCP suboption lengths */
-#define TCPOLEN_MPTCP_MPC_SYN		12
+#define TCPOLEN_MPTCP_MPC_SYN		4
 #define TCPOLEN_MPTCP_MPC_SYNACK	12
 #define TCPOLEN_MPTCP_MPC_ACK		20
+#define TCPOLEN_MPTCP_MPC_ACK_DATA	22
 #define TCPOLEN_MPTCP_DSS_BASE		4
 #define TCPOLEN_MPTCP_DSS_ACK32		4
 #define TCPOLEN_MPTCP_DSS_ACK64		8
@@ -106,6 +107,7 @@ struct mptcp_subflow_context {
 	u64	remote_key;
 	u64	idsn;
 	u64	map_seq;
+	u32	snd_isn;
 	u32	token;
 	u32	rel_write_seq;
 	u32	map_subflow_seq;

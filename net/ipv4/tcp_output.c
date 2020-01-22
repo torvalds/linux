@@ -685,7 +685,7 @@ static unsigned int tcp_syn_options(struct sock *sk, struct sk_buff *skb,
 	if (sk_is_mptcp(sk)) {
 		unsigned int size;
 
-		if (mptcp_syn_options(sk, &size, &opts->mptcp)) {
+		if (mptcp_syn_options(sk, skb, &size, &opts->mptcp)) {
 			opts->options |= OPTION_MPTCP;
 			remaining -= size;
 		}

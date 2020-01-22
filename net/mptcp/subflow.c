@@ -77,7 +77,6 @@ static void subflow_init_req(struct request_sock *req,
 		if (err == 0)
 			subflow_req->mp_capable = 1;
 
-		subflow_req->remote_key = rx_opt.mptcp.sndr_key;
 		subflow_req->ssn_offset = TCP_SKB_CB(skb)->seq;
 	}
 }
@@ -180,11 +179,22 @@ static struct sock *subflow_syn_recv_sock(const struct sock *sk,
 					  bool *own_req)
 {
 	struct mptcp_subflow_context *listener = mptcp_subflow_ctx(sk);
+	struct mptcp_subflow_request_sock *subflow_req;
+	struct tcp_options_received opt_rx;
 	struct sock *child;
 
 	pr_debug("listener=%p, req=%p, conn=%p", listener, req, listener->conn);
 
-	/* if the sk is MP_CAPABLE, we already received the client key */
+	/* if the sk is MP_CAPABLE, we need to fetch the client key */
+	subflow_req = mptcp_subflow_rsk(req);
+	if (subflow_req->mp_capable) {
+		opt_rx.mptcp.mp_capable = 0;
+		mptcp_get_options(skb, &opt_rx);
+		if (!opt_rx.mptcp.mp_capable)
+			subflow_req->mp_capable = 0;
+		else
+			subflow_req->remote_key = opt_rx.mptcp.sndr_key;
+	}
 
 	child = listener->icsk_af_ops->syn_recv_sock(sk, skb, req, dst,
 						     req_unhash, own_req);
