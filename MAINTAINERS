@@ -11584,6 +11584,7 @@ B:	https://github.com/multipath-tcp/mptcp_net-next/issues
 S:	Maintained
 F:	include/net/mptcp.h
 F:	net/mptcp/
+F:	tools/testing/selftests/net/mptcp/
 
 NETWORKING [TCP]
 M:	Eric Dumazet <edumazet@google.com>
