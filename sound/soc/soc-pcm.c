@@ -72,6 +72,16 @@ static void soc_rtd_hw_free(struct snd_soc_pcm_runtime *rtd,
 		rtd->dai_link->ops->hw_free(substream);
 }
 
+static int soc_rtd_trigger(struct snd_soc_pcm_runtime *rtd,
+			   struct snd_pcm_substream *substream,
+			   int cmd)
+{
+	if (rtd->dai_link->ops &&
+	    rtd->dai_link->ops->trigger)
+		return rtd->dai_link->ops->trigger(substream, cmd);
+	return 0;
+}
+
 /**
  * snd_soc_runtime_activate() - Increment active count for PCM runtime components
  * @rtd: ASoC PCM runtime that is activated
@@ -1013,11 +1023,9 @@ static int soc_pcm_trigger_start(struct snd_pcm_substream *substream, int cmd)
 	struct snd_soc_dai *codec_dai;
 	int i, ret;
 
-	if (rtd->dai_link->ops->trigger) {
-		ret = rtd->dai_link->ops->trigger(substream, cmd);
-		if (ret < 0)
-			return ret;
-	}
+	ret = soc_rtd_trigger(rtd, substream, cmd);
+	if (ret < 0)
+		return ret;
 
 	for_each_rtd_components(rtd, i, component) {
 		ret = snd_soc_component_trigger(component, substream, cmd);
@@ -1062,11 +1070,9 @@ static int soc_pcm_trigger_stop(struct snd_pcm_substream *substream, int cmd)
 			return ret;
 	}
 
-	if (rtd->dai_link->ops->trigger) {
-		ret = rtd->dai_link->ops->trigger(substream, cmd);
-		if (ret < 0)
-			return ret;
-	}
+	ret = soc_rtd_trigger(rtd, substream, cmd);
+	if (ret < 0)
+		return ret;
 
 	return 0;
 }
