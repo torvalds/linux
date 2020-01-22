@@ -248,10 +248,10 @@ static void pie_process_dequeue(struct Qdisc *sch, struct sk_buff *skb)
 		q->vars.dq_count = 0;
 	}
 
-	/* Calculate the average drain rate from this value.  If queue length
-	 * has receded to a small value viz., <= QUEUE_THRESHOLD bytes,reset
+	/* Calculate the average drain rate from this value. If queue length
+	 * has receded to a small value viz., <= QUEUE_THRESHOLD bytes, reset
 	 * the dq_count to -1 as we don't have enough packets to calculate the
-	 * drain rate anymore The following if block is entered only when we
+	 * drain rate anymore. The following if block is entered only when we
 	 * have a substantial queue built up (QUEUE_THRESHOLD bytes or more)
 	 * and we calculate the drain rate for the threshold here.  dq_count is
 	 * in bytes, time difference in psched_time, hence rate is in
@@ -329,8 +329,8 @@ static void calculate_probability(struct Qdisc *sch)
 		qdelay_old = q->vars.qdelay_old;
 	}
 
-	/* If qdelay is zero and qlen is not, it means qlen is very small, less
-	 * than dequeue_rate, so we do not update probabilty in this round
+	/* If qdelay is zero and qlen is not, it means qlen is very small,
+	 * so we do not update probabilty in this round.
 	 */
 	if (qdelay == 0 && qlen != 0)
 		update_prob = false;
