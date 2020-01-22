@@ -68,31 +68,43 @@ static int mtk_hw_pin_field_lookup(struct mtk_pinctrl *hw,
 {
 	const struct mtk_pin_field_calc *c, *e;
 	const struct mtk_pin_reg_calc *rc;
+	int start = 0, end, check;
+	bool found = false;
 	u32 bits;
 
 	if (hw->soc->reg_cal && hw->soc->reg_cal[field].range) {
 		rc = &hw->soc->reg_cal[field];
 	} else {
 		dev_dbg(hw->dev,
-			"Not support field %d for pin %d (%s)\n",
-			field, desc->number, desc->name);
+			"Not support field %d for this soc\n", field);
 		return -ENOTSUPP;
 	}
 
+	end = rc->nranges - 1;
 	c = rc->range;
 	e = c + rc->nranges;
 
-	while (c < e) {
-		if (desc->number >= c->s_pin && desc->number <= c->e_pin)
+	while (start <= end) {
+		check = (start + end) >> 1;
+		if (desc->number >= rc->range[check].s_pin
+		 && desc->number <= rc->range[check].e_pin) {
+			found = true;
 			break;
-		c++;
+		} else if (start == end)
+			break;
+		else if (desc->number < rc->range[check].s_pin)
+			end = check - 1;
+		else
+			start = check + 1;
 	}
 
-	if (c >= e) {
+	if (!found) {
 		dev_dbg(hw->dev, "Not support field %d for pin = %d (%s)\n",
 			field, desc->number, desc->name);
 		return -ENOTSUPP;
 	}
+
+	c = rc->range + check;
 
 	if (c->i_base > hw->nbase - 1) {
 		dev_err(hw->dev,
@@ -181,6 +193,9 @@ int mtk_hw_set_value(struct mtk_pinctrl *hw, const struct mtk_pin_desc *desc,
 	err = mtk_hw_pin_field_get(hw, desc, field, &pf);
 	if (err)
 		return err;
+
+	if (value < 0 || value > pf.mask)
+		return -EINVAL;
 
 	if (!pf.next)
 		mtk_rmw(hw, pf.index, pf.offset, pf.mask << pf.bitpos,
