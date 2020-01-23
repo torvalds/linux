@@ -1834,7 +1834,7 @@ static int at_xdmac_alloc_chan_resources(struct dma_chan *chan)
 	}
 
 	for (i = 0; i < init_nr_desc_per_channel; i++) {
-		desc = at_xdmac_alloc_desc(chan, GFP_ATOMIC);
+		desc = at_xdmac_alloc_desc(chan, GFP_KERNEL);
 		if (!desc) {
 			dev_warn(chan2dev(chan),
 				"only %d descriptors have been allocated\n", i);
