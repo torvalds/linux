@@ -993,27 +993,20 @@ static void edac_inc_ue_error(struct edac_raw_error_desc *e)
 	}
 }
 
-static void edac_ce_error(struct edac_raw_error_desc *e,
-			  const char *detail)
+static void edac_ce_error(struct edac_raw_error_desc *e)
 {
 	struct mem_ctl_info *mci = error_desc_to_mci(e);
 	unsigned long remapped_page;
-	char *msg_aux = "";
-
-	if (*e->msg)
-		msg_aux = " ";
 
 	if (edac_mc_get_log_ce()) {
-		if (e->other_detail && *e->other_detail)
-			edac_mc_printk(mci, KERN_WARNING,
-				       "%d CE %s%son %s (%s %s - %s)\n",
-				       e->error_count, e->msg, msg_aux, e->label,
-				       e->location, detail, e->other_detail);
-		else
-			edac_mc_printk(mci, KERN_WARNING,
-				       "%d CE %s%son %s (%s %s)\n",
-				       e->error_count, e->msg, msg_aux, e->label,
-				       e->location, detail);
+		edac_mc_printk(mci, KERN_WARNING,
+			"%d CE %s%son %s (%s page:0x%lx offset:0x%lx grain:%ld syndrome:0x%lx%s%s)\n",
+			e->error_count, e->msg,
+			*e->msg ? " " : "",
+			e->label, e->location, e->page_frame_number, e->offset_in_page,
+			e->grain, e->syndrome,
+			*e->other_detail ? " - " : "",
+			e->other_detail);
 	}
 
 	edac_inc_ce_error(e);
@@ -1038,36 +1031,29 @@ static void edac_ce_error(struct edac_raw_error_desc *e,
 	}
 }
 
-static void edac_ue_error(struct edac_raw_error_desc *e,
-			  const char *detail)
+static void edac_ue_error(struct edac_raw_error_desc *e)
 {
 	struct mem_ctl_info *mci = error_desc_to_mci(e);
-	char *msg_aux = "";
-
-	if (*e->msg)
-		msg_aux = " ";
 
 	if (edac_mc_get_log_ue()) {
-		if (e->other_detail && *e->other_detail)
-			edac_mc_printk(mci, KERN_WARNING,
-				       "%d UE %s%son %s (%s %s - %s)\n",
-				       e->error_count, e->msg, msg_aux, e->label,
-				       e->location, detail, e->other_detail);
-		else
-			edac_mc_printk(mci, KERN_WARNING,
-				       "%d UE %s%son %s (%s %s)\n",
-				       e->error_count, e->msg, msg_aux, e->label,
-				       e->location, detail);
+		edac_mc_printk(mci, KERN_WARNING,
+			"%d UE %s%son %s (%s page:0x%lx offset:0x%lx grain:%ld%s%s)\n",
+			e->error_count, e->msg,
+			*e->msg ? " " : "",
+			e->label, e->location, e->page_frame_number, e->offset_in_page,
+			e->grain,
+			*e->other_detail ? " - " : "",
+			e->other_detail);
 	}
 
 	if (edac_mc_get_panic_on_ue()) {
-		if (e->other_detail && *e->other_detail)
-			panic("UE %s%son %s (%s%s - %s)\n",
-			      e->msg, msg_aux, e->label, e->location, detail,
-			      e->other_detail);
-		else
-			panic("UE %s%son %s (%s%s)\n",
-			      e->msg, msg_aux, e->label, e->location, detail);
+		panic("UE %s%son %s (%s page:0x%lx offset:0x%lx grain:%ld%s%s)\n",
+			e->msg,
+			*e->msg ? " " : "",
+			e->label, e->location, e->page_frame_number, e->offset_in_page,
+			e->grain,
+			*e->other_detail ? " - " : "",
+			e->other_detail);
 	}
 
 	edac_inc_ue_error(e);
@@ -1096,7 +1082,6 @@ static void edac_inc_csrow(struct edac_raw_error_desc *e, int row, int chan)
 void edac_raw_mc_handle_error(struct edac_raw_error_desc *e)
 {
 	struct mem_ctl_info *mci = error_desc_to_mci(e);
-	char detail[80];
 	u8 grain_bits;
 
 	/* Sanity-check driver-supplied grain value. */
@@ -1113,22 +1098,10 @@ void edac_raw_mc_handle_error(struct edac_raw_error_desc *e)
 			       (e->page_frame_number << PAGE_SHIFT) | e->offset_in_page,
 			       grain_bits, e->syndrome, e->other_detail);
 
-	/* Memory type dependent details about the error */
-	if (e->type == HW_EVENT_ERR_CORRECTED) {
-		snprintf(detail, sizeof(detail),
-			"page:0x%lx offset:0x%lx grain:%ld syndrome:0x%lx",
-			e->page_frame_number, e->offset_in_page,
-			e->grain, e->syndrome);
-		edac_ce_error(e, detail);
-	} else {
-		snprintf(detail, sizeof(detail),
-			"page:0x%lx offset:0x%lx grain:%ld",
-			e->page_frame_number, e->offset_in_page, e->grain);
-
-		edac_ue_error(e, detail);
-	}
-
-
+	if (e->type == HW_EVENT_ERR_CORRECTED)
+		edac_ce_error(e);
+	else
+		edac_ue_error(e);
 }
 EXPORT_SYMBOL_GPL(edac_raw_mc_handle_error);
 
@@ -1164,8 +1137,9 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 	e->page_frame_number = page_frame_number;
 	e->offset_in_page = offset_in_page;
 	e->syndrome = syndrome;
-	e->msg = msg;
-	e->other_detail = other_detail;
+	/* need valid strings here for both: */
+	e->msg = msg ?: "";
+	e->other_detail = other_detail ?: "";
 
 	/*
 	 * Check if the event report is consistent and if the memory location is
