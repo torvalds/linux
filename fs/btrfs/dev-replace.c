@@ -22,6 +22,46 @@
 #include "dev-replace.h"
 #include "sysfs.h"
 
+/*
+ * Device replace overview
+ *
+ * [Objective]
+ * To copy all extents (both new and on-disk) from source device to target
+ * device, while still keeping the filesystem read-write.
+ *
+ * [Method]
+ * There are two main methods involved:
+ *
+ * - Write duplication
+ *
+ *   All new writes will be written to both target and source devices, so even
+ *   if replace gets canceled, sources device still contans up-to-date data.
+ *
+ *   Location:		handle_ops_on_dev_replace() from __btrfs_map_block()
+ *   Start:		btrfs_dev_replace_start()
+ *   End:		btrfs_dev_replace_finishing()
+ *   Content:		Latest data/metadata
+ *
+ * - Copy existing extents
+ *
+ *   This happens by re-using scrub facility, as scrub also iterates through
+ *   existing extents from commit root.
+ *
+ *   Location:		scrub_write_block_to_dev_replace() from
+ *   			scrub_block_complete()
+ *   Content:		Data/meta from commit root.
+ *
+ * Due to the content difference, we need to avoid nocow write when dev-replace
+ * is happening.  This is done by marking the block group read-only and waiting
+ * for NOCOW writes.
+ *
+ * After replace is done, the finishing part is done by swapping the target and
+ * source devices.
+ *
+ *   Location:		btrfs_dev_replace_update_device_in_mapping_tree() from
+ *   			btrfs_dev_replace_finishing()
+ */
+
 static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 				       int scrub_ret);
 static void btrfs_dev_replace_update_device_in_mapping_tree(
