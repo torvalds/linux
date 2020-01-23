@@ -402,7 +402,7 @@ static ssize_t description_show(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
 {
-	struct most_interface *iface = to_most_interface(dev);
+	struct most_interface *iface = dev_get_drvdata(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%s\n", iface->description);
 }
@@ -411,7 +411,7 @@ static ssize_t interface_show(struct device *dev,
 			      struct device_attribute *attr,
 			      char *buf)
 {
-	struct most_interface *iface = to_most_interface(dev);
+	struct most_interface *iface = dev_get_drvdata(dev);
 
 	switch (iface->interface) {
 	case ITYPE_LOOPBACK:
@@ -476,7 +476,7 @@ static int print_links(struct device *dev, void *data)
 	int offs = d->offs;
 	char *buf = d->buf;
 	struct most_channel *c;
-	struct most_interface *iface = to_most_interface(dev);
+	struct most_interface *iface = dev_get_drvdata(dev);
 
 	list_for_each_entry(c, &iface->p->channel_list, list) {
 		if (c->pipe0.comp) {
@@ -484,7 +484,7 @@ static int print_links(struct device *dev, void *data)
 					 PAGE_SIZE - offs,
 					 "%s:%s:%s\n",
 					 c->pipe0.comp->name,
-					 dev_name(&iface->dev),
+					 dev_name(iface->dev),
 					 dev_name(&c->dev));
 		}
 		if (c->pipe1.comp) {
@@ -492,7 +492,7 @@ static int print_links(struct device *dev, void *data)
 					 PAGE_SIZE - offs,
 					 "%s:%s:%s\n",
 					 c->pipe1.comp->name,
-					 dev_name(&iface->dev),
+					 dev_name(iface->dev),
 					 dev_name(&c->dev));
 		}
 	}
@@ -534,7 +534,7 @@ static struct most_channel *get_channel(char *mdev, char *mdev_ch)
 	dev = bus_find_device_by_name(&mc.bus, NULL, mdev);
 	if (!dev)
 		return NULL;
-	iface = to_most_interface(dev);
+	iface = dev_get_drvdata(dev);
 	list_for_each_entry_safe(c, tmp, &iface->p->channel_list, list) {
 		if (!strcmp(dev_name(&c->dev), mdev_ch))
 			return c;
@@ -1232,7 +1232,7 @@ static int disconnect_channels(struct device *dev, void *data)
 	struct most_channel *c, *tmp;
 	struct most_component *comp = data;
 
-	iface = to_most_interface(dev);
+	iface = dev_get_drvdata(dev);
 	list_for_each_entry_safe(c, tmp, &iface->p->channel_list, list) {
 		if (c->pipe0.comp == comp || c->pipe1.comp == comp)
 			comp->disconnect_channel(c->iface, c->channel_id);
@@ -1261,14 +1261,11 @@ int most_deregister_component(struct most_component *comp)
 }
 EXPORT_SYMBOL_GPL(most_deregister_component);
 
-static void release_interface(struct device *dev)
-{
-	dev_info(&mc.dev, "releasing interface dev %s...\n", dev_name(dev));
-}
-
 static void release_channel(struct device *dev)
 {
-	dev_info(&mc.dev, "releasing channel dev %s...\n", dev_name(dev));
+	struct most_channel *c = to_channel(dev);
+
+	kfree(c);
 }
 
 /**
@@ -1305,14 +1302,14 @@ int most_register_interface(struct most_interface *iface)
 	INIT_LIST_HEAD(&iface->p->channel_list);
 	iface->p->dev_id = id;
 	strscpy(iface->p->name, iface->description, sizeof(iface->p->name));
-	iface->dev.init_name = iface->p->name;
-	iface->dev.bus = &mc.bus;
-	iface->dev.parent = &mc.dev;
-	iface->dev.groups = interface_attr_groups;
-	iface->dev.release = release_interface;
-	if (device_register(&iface->dev)) {
+	iface->dev->bus = &mc.bus;
+	iface->dev->parent = &mc.dev;
+	iface->dev->groups = interface_attr_groups;
+	dev_set_drvdata(iface->dev, iface);
+	if (device_register(iface->dev)) {
 		dev_err(&mc.dev, "registering iface->dev failed\n");
 		kfree(iface->p);
+		put_device(iface->dev);
 		ida_simple_remove(&mdev_id, id);
 		return -ENOMEM;
 	}
@@ -1328,7 +1325,7 @@ int most_register_interface(struct most_interface *iface)
 		else
 			snprintf(c->name, STRING_SIZE, "%s", name_suffix);
 		c->dev.init_name = c->name;
-		c->dev.parent = &iface->dev;
+		c->dev.parent = iface->dev;
 		c->dev.groups = channel_attr_groups;
 		c->dev.release = release_channel;
 		iface->p->channel[i] = c;
@@ -1362,16 +1359,15 @@ int most_register_interface(struct most_interface *iface)
 	return 0;
 
 err_free_most_channel:
-	kfree(c);
+	put_device(&c->dev);
 
 err_free_resources:
 	while (i > 0) {
 		c = iface->p->channel[--i];
 		device_unregister(&c->dev);
-		kfree(c);
 	}
 	kfree(iface->p);
-	device_unregister(&iface->dev);
+	device_unregister(iface->dev);
 	ida_simple_remove(&mdev_id, id);
 	return -ENOMEM;
 }
@@ -1401,12 +1397,11 @@ void most_deregister_interface(struct most_interface *iface)
 		c->pipe1.comp = NULL;
 		list_del(&c->list);
 		device_unregister(&c->dev);
-		kfree(c);
 	}
 
 	ida_simple_remove(&mdev_id, iface->p->dev_id);
 	kfree(iface->p);
-	device_unregister(&iface->dev);
+	device_unregister(iface->dev);
 }
 EXPORT_SYMBOL_GPL(most_deregister_interface);
 

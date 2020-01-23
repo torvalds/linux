@@ -229,7 +229,7 @@ struct mbo {
  * @priv Private field used by mostcore to store context information.
  */
 struct most_interface {
-	struct device dev;
+	struct device *dev;
 	struct device *driver_dev;
 	struct module *mod;
 	enum most_interface_type interface;
@@ -250,8 +250,6 @@ struct most_interface {
 	void *priv;
 	struct interface_private *p;
 };
-
-#define to_most_interface(d) container_of(d, struct most_interface, dev)
 
 /**
  * struct most_component - identifies a loadable component for the mostcore
