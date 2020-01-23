@@ -10,6 +10,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/workqueue.h>
 #include <keys/asymmetric-type.h>
 #include "ima.h"
 
@@ -24,6 +25,36 @@ static bool ima_process_keys;
  */
 static DEFINE_MUTEX(ima_keys_lock);
 static LIST_HEAD(ima_keys);
+
+/*
+ * If custom IMA policy is not loaded then keys queued up
+ * for measurement should be freed. This worker is used
+ * for handling this scenario.
+ */
+static long ima_key_queue_timeout = 300000; /* 5 Minutes */
+static void ima_keys_handler(struct work_struct *work);
+static DECLARE_DELAYED_WORK(ima_keys_delayed_work, ima_keys_handler);
+static bool timer_expired;
+
+/*
+ * This worker function frees keys that may still be
+ * queued up in case custom IMA policy was not loaded.
+ */
+static void ima_keys_handler(struct work_struct *work)
+{
+	timer_expired = true;
+	ima_process_queued_keys();
+}
+
+/*
+ * This function sets up a worker to free queued keys in case
+ * custom IMA policy was never loaded.
+ */
+void ima_init_key_queue(void)
+{
+	schedule_delayed_work(&ima_keys_delayed_work,
+			      msecs_to_jiffies(ima_key_queue_timeout));
+}
 
 static void ima_free_key_entry(struct ima_key_entry *entry)
 {
@@ -119,13 +150,16 @@ void ima_process_queued_keys(void)
 	if (!process)
 		return;
 
+	if (!timer_expired)
+		cancel_delayed_work_sync(&ima_keys_delayed_work);
 
 	list_for_each_entry_safe(entry, tmp, &ima_keys, list) {
-		process_buffer_measurement(entry->payload,
-					   entry->payload_len,
-					   entry->keyring_name,
-					   KEY_CHECK, 0,
-					   entry->keyring_name);
+		if (!timer_expired)
+			process_buffer_measurement(entry->payload,
+						   entry->payload_len,
+						   entry->keyring_name,
+						   KEY_CHECK, 0,
+						   entry->keyring_name);
 		list_del(&entry->list);
 		ima_free_key_entry(entry);
 	}

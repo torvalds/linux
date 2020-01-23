@@ -215,11 +215,13 @@ struct ima_key_entry {
 	size_t payload_len;
 	char *keyring_name;
 };
+void ima_init_key_queue(void);
 bool ima_should_queue_key(void);
 bool ima_queue_key(struct key *keyring, const void *payload,
 		   size_t payload_len);
 void ima_process_queued_keys(void);
 #else
+static inline void ima_init_key_queue(void) {}
 static inline bool ima_should_queue_key(void) { return false; }
 static inline bool ima_queue_key(struct key *keyring,
 				 const void *payload,
