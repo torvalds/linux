@@ -856,6 +856,7 @@ static int dim2_probe(struct platform_device *pdev)
 	dev->most_iface.driver_dev = &pdev->dev;
 	dev->most_iface.dev = &dev->dev;
 	dev->dev.init_name = "dim2_state";
+	dev->dev.parent = &pdev->dev;
 
 	ret = most_register_interface(&dev->most_iface);
 	if (ret) {

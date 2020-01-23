@@ -30,7 +30,6 @@ static struct ida mdev_id;
 static int dummy_num_buffers;
 
 static struct mostcore {
-	struct device dev;
 	struct device_driver drv;
 	struct bus_type bus;
 	struct list_head comp_list;
@@ -151,7 +150,7 @@ static void flush_channel_fifos(struct most_channel *c)
 	spin_unlock_irqrestore(&c->fifo_lock, hf_flags);
 
 	if (unlikely((!list_empty(&c->fifo) || !list_empty(&c->halt_fifo))))
-		dev_warn(&mc.dev, "fifo | trash fifo not empty\n");
+		dev_warn(&c->dev, "fifo | trash fifo not empty\n");
 }
 
 /**
@@ -624,7 +623,7 @@ int most_set_cfg_datatype(char *mdev, char *mdev_ch, char *buf)
 	}
 
 	if (i == ARRAY_SIZE(ch_data_type))
-		dev_warn(&mc.dev, "invalid attribute settings\n");
+		dev_warn(&c->dev, "invalid attribute settings\n");
 	return 0;
 }
 
@@ -643,7 +642,7 @@ int most_set_cfg_direction(char *mdev, char *mdev_ch, char *buf)
 	} else if (!strcmp(buf, "tx")) {
 		c->cfg.direction = MOST_CH_TX;
 	} else {
-		dev_err(&mc.dev, "Invalid direction\n");
+		dev_err(&c->dev, "Invalid direction\n");
 		return -ENODATA;
 	}
 	return 0;
@@ -796,7 +795,7 @@ static int hdm_enqueue_thread(void *data)
 		mutex_unlock(&c->nq_mutex);
 
 		if (unlikely(ret)) {
-			dev_err(&mc.dev, "hdm enqueue failed\n");
+			dev_err(&c->dev, "hdm enqueue failed\n");
 			nq_hdm_mbo(mbo);
 			c->hdm_enqueue_task = NULL;
 			return 0;
@@ -943,7 +942,7 @@ static void most_write_completion(struct mbo *mbo)
 
 	c = mbo->context;
 	if (mbo->status == MBO_E_INVAL)
-		dev_warn(&mc.dev, "Tx MBO status: invalid\n");
+		dev_warn(&c->dev, "Tx MBO status: invalid\n");
 	if (unlikely(c->is_poisoned || (mbo->status == MBO_E_CLOSE)))
 		trash_mbo(mbo);
 	else
@@ -1102,14 +1101,14 @@ int most_start_channel(struct most_interface *iface, int id,
 		goto out; /* already started by another component */
 
 	if (!try_module_get(iface->mod)) {
-		dev_err(&mc.dev, "failed to acquire HDM lock\n");
+		dev_err(&c->dev, "failed to acquire HDM lock\n");
 		mutex_unlock(&c->start_mutex);
 		return -ENOLCK;
 	}
 
 	c->cfg.extra_len = 0;
 	if (c->iface->configure(c->iface, c->channel_id, &c->cfg)) {
-		dev_err(&mc.dev, "channel configuration failed. Go check settings...\n");
+		dev_err(&c->dev, "channel configuration failed. Go check settings...\n");
 		ret = -EINVAL;
 		goto err_put_module;
 	}
@@ -1163,7 +1162,7 @@ int most_stop_channel(struct most_interface *iface, int id,
 	struct most_channel *c;
 
 	if (unlikely((!iface) || (id >= iface->num_channels) || (id < 0))) {
-		dev_err(&mc.dev, "Bad interface or index out of range\n");
+		pr_err("Bad interface or index out of range\n");
 		return -EINVAL;
 	}
 	c = iface->p->channel[id];
@@ -1183,7 +1182,7 @@ int most_stop_channel(struct most_interface *iface, int id,
 
 	c->is_poisoned = true;
 	if (c->iface->poison_channel(c->iface, c->channel_id)) {
-		dev_err(&mc.dev, "Cannot stop channel %d of mdev %s\n", c->channel_id,
+		dev_err(&c->dev, "Cannot stop channel %d of mdev %s\n", c->channel_id,
 			c->iface->description);
 		mutex_unlock(&c->start_mutex);
 		return -EAGAIN;
@@ -1193,7 +1192,7 @@ int most_stop_channel(struct most_interface *iface, int id,
 
 #ifdef CMPL_INTERRUPTIBLE
 	if (wait_for_completion_interruptible(&c->cleanup)) {
-		dev_err(&mc.dev, "Interrupted while clean up ch %d\n", c->channel_id);
+		dev_err(&c->dev, "Interrupted while clean up ch %d\n", c->channel_id);
 		mutex_unlock(&c->start_mutex);
 		return -EINTR;
 	}
@@ -1219,7 +1218,7 @@ EXPORT_SYMBOL_GPL(most_stop_channel);
 int most_register_component(struct most_component *comp)
 {
 	if (!comp) {
-		dev_err(&mc.dev, "Bad component\n");
+		pr_err("Bad component\n");
 		return -EINVAL;
 	}
 	list_add_tail(&comp->list, &mc.comp_list);
@@ -1252,7 +1251,7 @@ static int disconnect_channels(struct device *dev, void *data)
 int most_deregister_component(struct most_component *comp)
 {
 	if (!comp) {
-		dev_err(&mc.dev, "Bad component\n");
+		pr_err("Bad component\n");
 		return -EINVAL;
 	}
 
@@ -1284,13 +1283,13 @@ int most_register_interface(struct most_interface *iface)
 
 	if (!iface || !iface->enqueue || !iface->configure ||
 	    !iface->poison_channel || (iface->num_channels > MAX_CHANNELS)) {
-		dev_err(&mc.dev, "Bad interface or channel overflow\n");
+		dev_err(iface->dev, "Bad interface or channel overflow\n");
 		return -EINVAL;
 	}
 
 	id = ida_simple_get(&mdev_id, 0, 0, GFP_KERNEL);
 	if (id < 0) {
-		dev_err(&mc.dev, "Failed to alloc mdev ID\n");
+		dev_err(iface->dev, "Failed to alloc mdev ID\n");
 		return id;
 	}
 
@@ -1304,11 +1303,10 @@ int most_register_interface(struct most_interface *iface)
 	iface->p->dev_id = id;
 	strscpy(iface->p->name, iface->description, sizeof(iface->p->name));
 	iface->dev->bus = &mc.bus;
-	iface->dev->parent = &mc.dev;
 	iface->dev->groups = interface_attr_groups;
 	dev_set_drvdata(iface->dev, iface);
 	if (device_register(iface->dev)) {
-		dev_err(&mc.dev, "registering iface->dev failed\n");
+		dev_err(iface->dev, "registering iface->dev failed\n");
 		kfree(iface->p);
 		put_device(iface->dev);
 		ida_simple_remove(&mdev_id, id);
@@ -1352,7 +1350,7 @@ int most_register_interface(struct most_interface *iface)
 		mutex_init(&c->nq_mutex);
 		list_add_tail(&c->list, &iface->p->channel_list);
 		if (device_register(&c->dev)) {
-			dev_err(&mc.dev, "registering c->dev failed\n");
+			dev_err(&c->dev, "registering c->dev failed\n");
 			goto err_free_most_channel;
 		}
 	}
@@ -1452,11 +1450,6 @@ void most_resume_enqueue(struct most_interface *iface, int id)
 }
 EXPORT_SYMBOL_GPL(most_resume_enqueue);
 
-static void release_most_sub(struct device *dev)
-{
-	dev_info(&mc.dev, "releasing most_subsystem\n");
-}
-
 static int __init most_init(void)
 {
 	int err;
@@ -1472,25 +1465,17 @@ static int __init most_init(void)
 
 	err = bus_register(&mc.bus);
 	if (err) {
-		dev_err(&mc.dev, "Cannot register most bus\n");
+		pr_err("Cannot register most bus\n");
 		return err;
 	}
 	err = driver_register(&mc.drv);
 	if (err) {
-		dev_err(&mc.dev, "Cannot register core driver\n");
+		pr_err("Cannot register core driver\n");
 		goto err_unregister_bus;
-	}
-	mc.dev.init_name = "most_bus";
-	mc.dev.release = release_most_sub;
-	if (device_register(&mc.dev)) {
-		err = -ENOMEM;
-		goto err_unregister_driver;
 	}
 	configfs_init();
 	return 0;
 
-err_unregister_driver:
-	driver_unregister(&mc.drv);
 err_unregister_bus:
 	bus_unregister(&mc.bus);
 	return err;
@@ -1498,7 +1483,6 @@ err_unregister_bus:
 
 static void __exit most_exit(void)
 {
-	device_unregister(&mc.dev);
 	driver_unregister(&mc.drv);
 	bus_unregister(&mc.bus);
 	ida_destroy(&mdev_id);
