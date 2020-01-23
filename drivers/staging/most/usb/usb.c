@@ -1218,7 +1218,8 @@ static void hdm_disconnect(struct usb_interface *interface)
 	del_timer_sync(&mdev->link_stat_timer);
 	cancel_work_sync(&mdev->poll_work_obj);
 
-	device_unregister(&mdev->dci->dev);
+	if (mdev->dci)
+		device_unregister(&mdev->dci->dev);
 	most_deregister_interface(&mdev->iface);
 
 	kfree(mdev->busy_urbs);
