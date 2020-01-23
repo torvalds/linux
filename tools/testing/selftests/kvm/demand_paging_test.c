@@ -44,7 +44,6 @@
  */
 static uint64_t host_page_size;
 static uint64_t guest_page_size;
-static uint64_t guest_num_pages;
 
 static char *guest_data_prototype;
 
@@ -61,18 +60,30 @@ static uint64_t guest_test_phys_mem;
  */
 static uint64_t guest_test_virt_mem = DEFAULT_GUEST_TEST_MEM;
 
+struct vcpu_args {
+	uint64_t gva;
+	uint64_t pages;
+
+	/* Only used by the host userspace part of the vCPU thread */
+	int vcpu_id;
+	struct kvm_vm *vm;
+};
+
+static struct vcpu_args vcpu_args;
+
 /*
  * Continuously write to the first 8 bytes of each page in the demand paging
  * memory region.
  */
 static void guest_code(void)
 {
+	uint64_t gva = vcpu_args.gva;
+	uint64_t pages = vcpu_args.pages;
 	int i;
 
-	for (i = 0; i < guest_num_pages; i++) {
-		uint64_t addr = guest_test_virt_mem;
+	for (i = 0; i < pages; i++) {
+		uint64_t addr = gva + (i * guest_page_size);
 
-		addr += i * guest_page_size;
 		addr &= ~(host_page_size - 1);
 		*(uint64_t *)addr = 0x0123456789ABCDEF;
 	}
@@ -87,15 +98,16 @@ static uint64_t host_num_pages;
 static void *vcpu_worker(void *data)
 {
 	int ret;
-	struct kvm_vm *vm = data;
+	struct kvm_vm *vm = vcpu_args.vm;
+	int vcpu_id = vcpu_args.vcpu_id;
 	struct kvm_run *run;
 
-	run = vcpu_state(vm, VCPU_ID);
+	run = vcpu_state(vm, vcpu_id);
 
 	/* Let the guest access its memory */
-	ret = _vcpu_run(vm, VCPU_ID);
+	ret = _vcpu_run(vm, vcpu_id);
 	TEST_ASSERT(ret == 0, "vcpu_run failed: %d\n", ret);
-	if (get_ucall(vm, VCPU_ID, NULL) != UCALL_SYNC) {
+	if (get_ucall(vm, vcpu_id, NULL) != UCALL_SYNC) {
 		TEST_ASSERT(false,
 			    "Invalid guest sync status: exit_reason=%s\n",
 			    exit_reason_str(run->exit_reason));
@@ -287,6 +299,7 @@ static void run_test(enum vm_guest_mode mode, bool use_uffd,
 	pthread_t uffd_handler_thread;
 	int pipefd[2];
 	struct kvm_vm *vm;
+	uint64_t guest_num_pages;
 	int r;
 
 	/*
@@ -372,10 +385,13 @@ static void run_test(enum vm_guest_mode mode, bool use_uffd,
 	/* Export the shared variables to the guest */
 	sync_global_to_guest(vm, host_page_size);
 	sync_global_to_guest(vm, guest_page_size);
-	sync_global_to_guest(vm, guest_test_virt_mem);
-	sync_global_to_guest(vm, guest_num_pages);
 
-	pthread_create(&vcpu_thread, NULL, vcpu_worker, vm);
+	vcpu_args.vm = vm;
+	vcpu_args.vcpu_id = VCPU_ID;
+	vcpu_args.gva = guest_test_virt_mem;
+	vcpu_args.pages = guest_num_pages;
+	sync_global_to_guest(vm, vcpu_args);
+	pthread_create(&vcpu_thread, NULL, vcpu_worker, &vcpu_args);
 
 	/* Wait for the vcpu thread to quit */
 	pthread_join(vcpu_thread, NULL);
