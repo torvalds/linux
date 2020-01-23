@@ -442,6 +442,7 @@ struct errcount_attribute_data {
  * struct edac_raw_error_desc - Raw error report structure
  * @grain:			minimum granularity for an error report, in bytes
  * @error_count:		number of errors of the same type
+ * @type:			severity of the error (CE/UE/Fatal)
  * @top_layer:			top layer of the error (layer[0])
  * @mid_layer:			middle layer of the error (layer[1])
  * @low_layer:			low layer of the error (layer[2])
@@ -462,6 +463,7 @@ struct edac_raw_error_desc {
 	long grain;
 
 	u16 error_count;
+	enum hw_event_mc_err_type type;
 	int top_layer;
 	int mid_layer;
 	int low_layer;

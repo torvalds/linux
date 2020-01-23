@@ -1084,8 +1084,7 @@ static void edac_ue_error(struct mem_ctl_info *mci,
 	edac_inc_ue_error(mci, enable_per_layer_report, pos, error_count);
 }
 
-void edac_raw_mc_handle_error(const enum hw_event_mc_err_type type,
-			      struct mem_ctl_info *mci,
+void edac_raw_mc_handle_error(struct mem_ctl_info *mci,
 			      struct edac_raw_error_desc *e)
 {
 	char detail[80];
@@ -1100,14 +1099,14 @@ void edac_raw_mc_handle_error(const enum hw_event_mc_err_type type,
 
 	/* Report the error via the trace interface */
 	if (IS_ENABLED(CONFIG_RAS))
-		trace_mc_event(type, e->msg, e->label, e->error_count,
+		trace_mc_event(e->type, e->msg, e->label, e->error_count,
 			       mci->mc_idx, e->top_layer, e->mid_layer,
 			       e->low_layer,
 			       (e->page_frame_number << PAGE_SHIFT) | e->offset_in_page,
 			       grain_bits, e->syndrome, e->other_detail);
 
 	/* Memory type dependent details about the error */
-	if (type == HW_EVENT_ERR_CORRECTED) {
+	if (e->type == HW_EVENT_ERR_CORRECTED) {
 		snprintf(detail, sizeof(detail),
 			"page:0x%lx offset:0x%lx grain:%ld syndrome:0x%lx",
 			e->page_frame_number, e->offset_in_page,
@@ -1152,6 +1151,7 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 	/* Fills the error report buffer */
 	memset(e, 0, sizeof (*e));
 	e->error_count = error_count;
+	e->type = type;
 	e->top_layer = top_layer;
 	e->mid_layer = mid_layer;
 	e->low_layer = low_layer;
@@ -1282,6 +1282,6 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 	if (p > e->location)
 		*(p - 1) = '\0';
 
-	edac_raw_mc_handle_error(type, mci, e);
+	edac_raw_mc_handle_error(mci, e);
 }
 EXPORT_SYMBOL_GPL(edac_mc_handle_error);
