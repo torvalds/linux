@@ -1656,11 +1656,9 @@ static void at_xdmac_tasklet(unsigned long data)
 		at_xdmac_remove_xfer(atchan, desc);
 		spin_unlock(&atchan->lock);
 
-		if (!at_xdmac_chan_is_cyclic(atchan)) {
-			dma_cookie_complete(txd);
-			if (txd->flags & DMA_PREP_INTERRUPT)
-				dmaengine_desc_get_callback_invoke(txd, NULL);
-		}
+		dma_cookie_complete(txd);
+		if (txd->flags & DMA_PREP_INTERRUPT)
+			dmaengine_desc_get_callback_invoke(txd, NULL);
 
 		dma_run_dependencies(txd);
 
