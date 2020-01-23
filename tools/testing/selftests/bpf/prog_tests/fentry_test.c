@@ -9,7 +9,7 @@ void test_fentry_test(void)
 	struct test_pkt_access *pkt_skel = NULL;
 	struct fentry_test *fentry_skel = NULL;
 	int err, pkt_fd, i;
-	__u32 duration, retval;
+	__u32 duration = 0, retval;
 	__u64 *result;
 
 	pkt_skel = test_pkt_access__open_and_load();
