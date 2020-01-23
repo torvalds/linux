@@ -400,8 +400,7 @@ static int setup_regulators(struct lp3971 *lp3971,
 	return 0;
 }
 
-static int lp3971_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int lp3971_i2c_probe(struct i2c_client *i2c)
 {
 	struct lp3971 *lp3971;
 	struct lp3971_platform_data *pdata = dev_get_platdata(&i2c->dev);
@@ -449,7 +448,7 @@ static struct i2c_driver lp3971_i2c_driver = {
 	.driver = {
 		.name = "LP3971",
 	},
-	.probe    = lp3971_i2c_probe,
+	.probe_new = lp3971_i2c_probe,
 	.id_table = lp3971_i2c_id,
 };
 
