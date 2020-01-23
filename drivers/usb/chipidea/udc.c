@@ -1561,6 +1561,7 @@ static int ci_udc_vbus_session(struct usb_gadget *_gadget, int is_active)
 {
 	struct ci_hdrc *ci = container_of(_gadget, struct ci_hdrc, gadget);
 	unsigned long flags;
+	int ret = 0;
 
 	spin_lock_irqsave(&ci->lock, flags);
 	ci->vbus_active = is_active;
@@ -1570,10 +1571,14 @@ static int ci_udc_vbus_session(struct usb_gadget *_gadget, int is_active)
 		usb_phy_set_charger_state(ci->usb_phy, is_active ?
 			USB_CHARGER_PRESENT : USB_CHARGER_ABSENT);
 
+	if (ci->platdata->notify_event)
+		ret = ci->platdata->notify_event(ci,
+				CI_HDRC_CONTROLLER_VBUS_EVENT);
+
 	if (ci->driver)
 		ci_hdrc_gadget_connect(_gadget, is_active);
 
-	return 0;
+	return ret;
 }
 
 static int ci_udc_wakeup(struct usb_gadget *_gadget)
