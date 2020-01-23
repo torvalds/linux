@@ -781,7 +781,7 @@ static int allegro_mbox_write(struct allegro_dev *dev,
 
 	if (size > mbox->size) {
 		v4l2_err(&dev->v4l2_dev,
-			 "message (%zu bytes) to large for mailbox (%zu bytes)\n",
+			 "message (%zu bytes) too large for mailbox (%zu bytes)\n",
 			 size, mbox->size);
 		return -EINVAL;
 	}
