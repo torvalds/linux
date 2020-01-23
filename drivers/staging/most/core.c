@@ -28,14 +28,7 @@
 
 static struct ida mdev_id;
 static int dummy_num_buffers;
-
-static struct mostcore {
-	struct device_driver drv;
-	struct bus_type bus;
-	struct list_head comp_list;
-} mc;
-
-#define to_driver(d) container_of(d, struct mostcore, drv)
+static struct list_head comp_list;
 
 struct pipe {
 	struct most_component *comp;
@@ -457,7 +450,7 @@ static struct most_component *match_component(char *name)
 {
 	struct most_component *comp;
 
-	list_for_each_entry(comp, &mc.comp_list, list) {
+	list_for_each_entry(comp, &comp_list, list) {
 		if (!strcmp(comp->name, name))
 			return comp;
 	}
@@ -499,11 +492,24 @@ static int print_links(struct device *dev, void *data)
 	return 0;
 }
 
+static int most_match(struct device *dev, struct device_driver *drv)
+{
+	if (!strcmp(dev_name(dev), "most"))
+		return 0;
+	else
+		return 1;
+}
+
+static struct bus_type mostbus = {
+	.name = "most",
+	.match = most_match,
+};
+
 static ssize_t links_show(struct device_driver *drv, char *buf)
 {
 	struct show_links_data d = { .buf = buf };
 
-	bus_for_each_dev(&mc.bus, NULL, &d, print_links);
+	bus_for_each_dev(&mostbus, NULL, &d, print_links);
 	return d.offs;
 }
 
@@ -512,7 +518,7 @@ static ssize_t components_show(struct device_driver *drv, char *buf)
 	struct most_component *comp;
 	int offs = 0;
 
-	list_for_each_entry(comp, &mc.comp_list, list) {
+	list_for_each_entry(comp, &comp_list, list) {
 		offs += snprintf(buf + offs, PAGE_SIZE - offs, "%s\n",
 				 comp->name);
 	}
@@ -530,7 +536,7 @@ static struct most_channel *get_channel(char *mdev, char *mdev_ch)
 	struct most_interface *iface;
 	struct most_channel *c, *tmp;
 
-	dev = bus_find_device_by_name(&mc.bus, NULL, mdev);
+	dev = bus_find_device_by_name(&mostbus, NULL, mdev);
 	if (!dev)
 		return NULL;
 	put_device(dev);
@@ -722,13 +728,11 @@ static const struct attribute_group *mc_attr_groups[] = {
 	NULL,
 };
 
-static int most_match(struct device *dev, struct device_driver *drv)
-{
-	if (!strcmp(dev_name(dev), "most"))
-		return 0;
-	else
-		return 1;
-}
+static struct device_driver mostbus_driver = {
+	.name = "most_core",
+	.bus = &mostbus,
+	.groups = mc_attr_groups,
+};
 
 static inline void trash_mbo(struct mbo *mbo)
 {
@@ -1221,7 +1225,7 @@ int most_register_component(struct most_component *comp)
 		pr_err("Bad component\n");
 		return -EINVAL;
 	}
-	list_add_tail(&comp->list, &mc.comp_list);
+	list_add_tail(&comp->list, &comp_list);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(most_register_component);
@@ -1255,7 +1259,7 @@ int most_deregister_component(struct most_component *comp)
 		return -EINVAL;
 	}
 
-	bus_for_each_dev(&mc.bus, NULL, comp, disconnect_channels);
+	bus_for_each_dev(&mostbus, NULL, comp, disconnect_channels);
 	list_del(&comp->list);
 	return 0;
 }
@@ -1302,7 +1306,7 @@ int most_register_interface(struct most_interface *iface)
 	INIT_LIST_HEAD(&iface->p->channel_list);
 	iface->p->dev_id = id;
 	strscpy(iface->p->name, iface->description, sizeof(iface->p->name));
-	iface->dev->bus = &mc.bus;
+	iface->dev->bus = &mostbus;
 	iface->dev->groups = interface_attr_groups;
 	dev_set_drvdata(iface->dev, iface);
 	if (device_register(iface->dev)) {
@@ -1454,21 +1458,15 @@ static int __init most_init(void)
 {
 	int err;
 
-	INIT_LIST_HEAD(&mc.comp_list);
+	INIT_LIST_HEAD(&comp_list);
 	ida_init(&mdev_id);
 
-	mc.bus.name = "most",
-	mc.bus.match = most_match,
-	mc.drv.name = "most_core",
-	mc.drv.bus = &mc.bus,
-	mc.drv.groups = mc_attr_groups;
-
-	err = bus_register(&mc.bus);
+	err = bus_register(&mostbus);
 	if (err) {
 		pr_err("Cannot register most bus\n");
 		return err;
 	}
-	err = driver_register(&mc.drv);
+	err = driver_register(&mostbus_driver);
 	if (err) {
 		pr_err("Cannot register core driver\n");
 		goto err_unregister_bus;
@@ -1477,14 +1475,14 @@ static int __init most_init(void)
 	return 0;
 
 err_unregister_bus:
-	bus_unregister(&mc.bus);
+	bus_unregister(&mostbus);
 	return err;
 }
 
 static void __exit most_exit(void)
 {
-	driver_unregister(&mc.drv);
-	bus_unregister(&mc.bus);
+	driver_unregister(&mostbus_driver);
+	bus_unregister(&mostbus);
 	ida_destroy(&mdev_id);
 }
 
