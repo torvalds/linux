@@ -19,7 +19,6 @@
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/reset.h>
-#include <linux/gpio.h>
 
 /*
  * The Meson SPICC controller could support DMA based transfers, but is not
@@ -467,35 +466,14 @@ static int meson_spicc_unprepare_transfer(struct spi_master *master)
 
 static int meson_spicc_setup(struct spi_device *spi)
 {
-	int ret = 0;
-
 	if (!spi->controller_state)
 		spi->controller_state = spi_master_get_devdata(spi->master);
-	else if (gpio_is_valid(spi->cs_gpio))
-		goto out_gpio;
-	else if (spi->cs_gpio == -ENOENT)
-		return 0;
 
-	if (gpio_is_valid(spi->cs_gpio)) {
-		ret = gpio_request(spi->cs_gpio, dev_name(&spi->dev));
-		if (ret) {
-			dev_err(&spi->dev, "failed to request cs gpio\n");
-			return ret;
-		}
-	}
-
-out_gpio:
-	ret = gpio_direction_output(spi->cs_gpio,
-			!(spi->mode & SPI_CS_HIGH));
-
-	return ret;
+	return 0;
 }
 
 static void meson_spicc_cleanup(struct spi_device *spi)
 {
-	if (gpio_is_valid(spi->cs_gpio))
-		gpio_free(spi->cs_gpio);
-
 	spi->controller_state = NULL;
 }
 
@@ -564,6 +542,7 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	master->prepare_message = meson_spicc_prepare_message;
 	master->unprepare_transfer_hardware = meson_spicc_unprepare_transfer;
 	master->transfer_one = meson_spicc_transfer_one;
+	master->use_gpio_descriptors = true;
 
 	/* Setup max rate according to the Meson GX datasheet */
 	if ((rate >> 2) > SPICC_MAX_FREQ)
