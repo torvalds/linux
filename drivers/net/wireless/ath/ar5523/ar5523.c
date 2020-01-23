@@ -74,7 +74,7 @@ static void ar5523_read_reply(struct ar5523 *ar, struct ar5523_cmd_hdr *hdr,
 
 	if (cmd->odata) {
 		if (cmd->olen < olen) {
-			ar5523_err(ar, "olen to small %d < %d\n",
+			ar5523_err(ar, "olen too small %d < %d\n",
 				   cmd->olen, olen);
 			cmd->olen = 0;
 			cmd->res = -EOVERFLOW;
