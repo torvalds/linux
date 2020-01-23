@@ -142,7 +142,7 @@ int gfs2_assert_warn_i(struct gfs2_sbd *sdp, char *assertion,
  *          0 if it was already withdrawn
  */
 
-int gfs2_consist_i(struct gfs2_sbd *sdp, int cluster_wide, const char *function,
+int gfs2_consist_i(struct gfs2_sbd *sdp, const char *function,
 		   char *file, unsigned int line)
 {
 	gfs2_lm(sdp,
@@ -157,7 +157,7 @@ int gfs2_consist_i(struct gfs2_sbd *sdp, int cluster_wide, const char *function,
  *          0 if it was already withdrawn
  */
 
-int gfs2_consist_inode_i(struct gfs2_inode *ip, int cluster_wide,
+int gfs2_consist_inode_i(struct gfs2_inode *ip,
 			 const char *function, char *file, unsigned int line)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
@@ -178,7 +178,7 @@ int gfs2_consist_inode_i(struct gfs2_inode *ip, int cluster_wide,
  *          0 if it was already withdrawn
  */
 
-int gfs2_consist_rgrpd_i(struct gfs2_rgrpd *rgd, int cluster_wide,
+int gfs2_consist_rgrpd_i(struct gfs2_rgrpd *rgd,
 			 const char *function, char *file, unsigned int line)
 {
 	struct gfs2_sbd *sdp = rgd->rd_sbd;
