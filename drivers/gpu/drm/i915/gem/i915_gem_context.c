@@ -1002,13 +1002,13 @@ static int get_ppgtt(struct drm_i915_file_private *file_priv,
 	if (!rcu_access_pointer(ctx->vm))
 		return -ENODEV;
 
-	err = -ENODEV;
 	rcu_read_lock();
 	vm = context_get_vm_rcu(ctx);
-	if (vm)
-		err = xa_alloc(&file_priv->vm_xa, &id, vm,
-			       xa_limit_32b, GFP_KERNEL);
 	rcu_read_unlock();
+	if (!vm)
+		return -ENODEV;
+
+	err = xa_alloc(&file_priv->vm_xa, &id, vm, xa_limit_32b, GFP_KERNEL);
 	if (err)
 		goto err_put;
 
