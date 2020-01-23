@@ -459,7 +459,7 @@ void dpu_encoder_helper_split_config(
 	struct msm_display_info *disp_info;
 
 	if (!phys_enc->hw_mdptop || !phys_enc->parent) {
-		DPU_ERROR("invalid arg(s), encoder %d\n", phys_enc != 0);
+		DPU_ERROR("invalid arg(s), encoder %d\n", phys_enc != NULL);
 		return;
 	}
 
@@ -567,7 +567,7 @@ static int dpu_encoder_virt_atomic_check(
 
 	if (!drm_enc || !crtc_state || !conn_state) {
 		DPU_ERROR("invalid arg(s), drm_enc %d, crtc/conn state %d/%d\n",
-				drm_enc != 0, crtc_state != 0, conn_state != 0);
+				drm_enc != NULL, crtc_state != NULL, conn_state != NULL);
 		return -EINVAL;
 	}
 
@@ -1947,7 +1947,7 @@ static int dpu_encoder_virt_add_phys_encs(
 		if (IS_ERR_OR_NULL(enc)) {
 			DPU_ERROR_ENC(dpu_enc, "failed to init vid enc: %ld\n",
 				PTR_ERR(enc));
-			return enc == 0 ? -EINVAL : PTR_ERR(enc);
+			return enc == NULL ? -EINVAL : PTR_ERR(enc);
 		}
 
 		dpu_enc->phys_encs[dpu_enc->num_phys_encs] = enc;
@@ -1960,7 +1960,7 @@ static int dpu_encoder_virt_add_phys_encs(
 		if (IS_ERR_OR_NULL(enc)) {
 			DPU_ERROR_ENC(dpu_enc, "failed to init cmd enc: %ld\n",
 				PTR_ERR(enc));
-			return enc == 0 ? -EINVAL : PTR_ERR(enc);
+			return enc == NULL ? -EINVAL : PTR_ERR(enc);
 		}
 
 		dpu_enc->phys_encs[dpu_enc->num_phys_encs] = enc;
@@ -1991,7 +1991,7 @@ static int dpu_encoder_setup_display(struct dpu_encoder_virt *dpu_enc,
 	struct dpu_enc_phys_init_params phys_params;
 
 	if (!dpu_enc) {
-		DPU_ERROR("invalid arg(s), enc %d\n", dpu_enc != 0);
+		DPU_ERROR("invalid arg(s), enc %d\n", dpu_enc != NULL);
 		return -EINVAL;
 	}
 
