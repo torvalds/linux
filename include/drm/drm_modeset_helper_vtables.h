@@ -459,8 +459,8 @@ struct drm_crtc_helper_funcs {
 	 * Returns the current display scanout position from a CRTC and an
 	 * optional accurate ktime_get() timestamp of when the position was
 	 * measured. Note that this is a helper callback which is only used
-	 * if a driver uses drm_calc_vbltimestamp_from_scanoutpos() for the
-	 * @drm_driver.get_vblank_timestamp callback.
+	 * if a driver uses drm_crtc_vblank_helper_get_vblank_timestamp()
+	 * for the @drm_crtc_funcs.get_vblank_timestamp callback.
 	 *
 	 * Parameters:
 	 *

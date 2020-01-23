@@ -174,13 +174,13 @@ struct drm_vblank_crtc {
 	unsigned int pipe;
 	/**
 	 * @framedur_ns: Frame/Field duration in ns, used by
-	 * drm_calc_vbltimestamp_from_scanoutpos() and computed by
+	 * drm_crtc_vblank_helper_get_vblank_timestamp() and computed by
 	 * drm_calc_timestamping_constants().
 	 */
 	int framedur_ns;
 	/**
 	 * @linedur_ns: Line duration in ns, used by
-	 * drm_calc_vbltimestamp_from_scanoutpos() and computed by
+	 * drm_crtc_vblank_helper_get_vblank_timestamp() and computed by
 	 * drm_calc_timestamping_constants().
 	 */
 	int linedur_ns;
@@ -190,8 +190,8 @@ struct drm_vblank_crtc {
 	 *
 	 * Cache of the current hardware display mode. Only valid when @enabled
 	 * is set. This is used by helpers like
-	 * drm_calc_vbltimestamp_from_scanoutpos(). We can't just access the
-	 * hardware mode by e.g. looking at &drm_crtc_state.adjusted_mode,
+	 * drm_crtc_vblank_helper_get_vblank_timestamp(). We can't just access
+	 * the hardware mode by e.g. looking at &drm_crtc_state.adjusted_mode,
 	 * because that one is really hard to get from interrupt context.
 	 */
 	struct drm_display_mode hwmode;
@@ -240,6 +240,10 @@ wait_queue_head_t *drm_crtc_vblank_waitqueue(struct drm_crtc *crtc);
 void drm_crtc_set_max_vblank_count(struct drm_crtc *crtc,
 				   u32 max_vblank_count);
 
+/*
+ * Helpers for struct drm_crtc_funcs
+ */
+
 typedef bool (*drm_vblank_get_scanout_position_func)(struct drm_crtc *crtc,
 						     bool in_vblank_irq,
 						     int *vpos, int *hpos,
@@ -263,5 +267,9 @@ drm_crtc_vblank_helper_get_vblank_timestamp_internal(struct drm_crtc *crtc,
 						     bool in_vblank_irq,
 						     drm_vblank_get_scanout_position_func get_scanout_position,
 						     drm_vblank_get_scanout_position_legacy_func get_scanout_position_legacy);
+bool drm_crtc_vblank_helper_get_vblank_timestamp(struct drm_crtc *crtc,
+						 int *max_error,
+						 ktime_t *vblank_time,
+						 bool in_vblank_irq);
 
 #endif

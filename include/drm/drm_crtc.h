@@ -887,6 +887,47 @@ struct drm_crtc_funcs {
 	 * new drivers as the replacement of &drm_driver.disable_vblank hook.
 	 */
 	void (*disable_vblank)(struct drm_crtc *crtc);
+
+	/**
+	 * @get_vblank_timestamp:
+	 *
+	 * Called by drm_get_last_vbltimestamp(). Should return a precise
+	 * timestamp when the most recent vblank interval ended or will end.
+	 *
+	 * Specifically, the timestamp in @vblank_time should correspond as
+	 * closely as possible to the time when the first video scanline of
+	 * the video frame after the end of vblank will start scanning out,
+	 * the time immediately after end of the vblank interval. If the
+	 * @crtc is currently inside vblank, this will be a time in the future.
+	 * If the @crtc is currently scanning out a frame, this will be the
+	 * past start time of the current scanout. This is meant to adhere
+	 * to the OpenML OML_sync_control extension specification.
+	 *
+	 * Parameters:
+	 *
+	 * crtc:
+	 *     CRTC for which timestamp should be returned.
+	 * max_error:
+	 *     Maximum allowable timestamp error in nanoseconds.
+	 *     Implementation should strive to provide timestamp
+	 *     with an error of at most max_error nanoseconds.
+	 *     Returns true upper bound on error for timestamp.
+	 * vblank_time:
+	 *     Target location for returned vblank timestamp.
+	 * in_vblank_irq:
+	 *     True when called from drm_crtc_handle_vblank().  Some drivers
+	 *     need to apply some workarounds for gpu-specific vblank irq quirks
+	 *     if flag is set.
+	 *
+	 * Returns:
+	 *
+	 * True on success, false on failure, which means the core should
+	 * fallback to a simple timestamp taken in drm_crtc_handle_vblank().
+	 */
+	bool (*get_vblank_timestamp)(struct drm_crtc *crtc,
+				     int *max_error,
+				     ktime_t *vblank_time,
+				     bool in_vblank_irq);
 };
 
 /**
@@ -994,11 +1035,12 @@ struct drm_crtc {
 	 * Programmed mode in hw, after adjustments for encoders, crtc, panel
 	 * scaling etc. Should only be used by legacy drivers, for high
 	 * precision vblank timestamps in
-	 * drm_calc_vbltimestamp_from_scanoutpos().
+	 * drm_crtc_vblank_helper_get_vblank_timestamp().
 	 *
 	 * Note that atomic drivers should not use this, but instead use
 	 * &drm_crtc_state.adjusted_mode. And for high-precision timestamps
-	 * drm_calc_vbltimestamp_from_scanoutpos() used &drm_vblank_crtc.hwmode,
+	 * drm_crtc_vblank_helper_get_vblank_timestamp() used
+	 * &drm_vblank_crtc.hwmode,
 	 * which is filled out by calling drm_calc_timestamping_constants().
 	 */
 	struct drm_display_mode hwmode;
