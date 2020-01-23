@@ -63,14 +63,14 @@ static const char *read_super(struct cache_sb *sb, struct block_device *bdev,
 			      struct page **res)
 {
 	const char *err;
-	struct cache_sb *s;
+	struct cache_sb_disk *s;
 	struct buffer_head *bh = __bread(bdev, 1, SB_SIZE);
 	unsigned int i;
 
 	if (!bh)
 		return "IO error";
 
-	s = (struct cache_sb *) bh->b_data;
+	s = (struct cache_sb_disk *)bh->b_data;
 
 	sb->offset		= le64_to_cpu(s->offset);
 	sb->version		= le64_to_cpu(s->version);
@@ -209,7 +209,7 @@ static void write_bdev_super_endio(struct bio *bio)
 
 static void __write_super(struct cache_sb *sb, struct bio *bio)
 {
-	struct cache_sb *out = page_address(bio_first_page_all(bio));
+	struct cache_sb_disk *out = page_address(bio_first_page_all(bio));
 	unsigned int i;
 
 	bio->bi_iter.bi_sector	= SB_SECTOR;
