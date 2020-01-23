@@ -315,7 +315,8 @@ void intel_csr_load_program(struct drm_i915_private *dev_priv)
 	preempt_disable();
 
 	for (i = 0; i < fw_size; i++)
-		I915_WRITE_FW(CSR_PROGRAM(i), payload[i]);
+		intel_uncore_write_fw(&dev_priv->uncore, CSR_PROGRAM(i),
+				      payload[i]);
 
 	preempt_enable();
 
