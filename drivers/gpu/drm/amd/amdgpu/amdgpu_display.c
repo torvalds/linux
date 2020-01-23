@@ -99,7 +99,7 @@ static void amdgpu_display_flip_work_func(struct work_struct *__work)
 	     & (DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_IN_VBLANK)) ==
 	    (DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_IN_VBLANK) &&
 	    (int)(work->target_vblank -
-		  amdgpu_get_vblank_counter_kms(adev->ddev, amdgpu_crtc->crtc_id)) > 0) {
+		  amdgpu_get_vblank_counter_kms(crtc)) > 0) {
 		schedule_delayed_work(&work->flip_work, usecs_to_jiffies(1000));
 		return;
 	}
@@ -219,7 +219,7 @@ int amdgpu_display_crtc_page_flip_target(struct drm_crtc *crtc,
 	if (!adev->enable_virtual_display)
 		work->base = amdgpu_bo_gpu_offset(new_abo);
 	work->target_vblank = target - (uint32_t)drm_crtc_vblank_count(crtc) +
-		amdgpu_get_vblank_counter_kms(dev, work->crtc_id);
+		amdgpu_get_vblank_counter_kms(crtc);
 
 	/* we borrow the event spin lock for protecting flip_wrok */
 	spin_lock_irqsave(&crtc->dev->event_lock, flags);
