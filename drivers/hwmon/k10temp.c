@@ -7,7 +7,7 @@
  * Copyright (c) 2020 Guenter Roeck <linux@roeck-us.net>
  *
  * Implementation notes:
- * - CCD1 and CCD2 register address information as well as the calculation to
+ * - CCD register address information as well as the calculation to
  *   convert raw register values is from https://github.com/ocerman/zenpower.
  *   The information is not confirmed from chip datasheets, but experiments
  *   suggest that it provides reasonable temperature values.
@@ -18,11 +18,6 @@
  *   normalized to report 1A/LSB for core current and and 0.25A/LSB for SoC
  *   current. Reported values can be adjusted using the sensors configuration
  *   file.
- * - It is unknown if the mechanism to read CCD1/CCD2 temperature as well as
- *   current and voltage information works on higher-end Ryzen CPUs.
- *   Information reported by Windows tools suggests that additional sensors
- *   (both temperature and voltage/current) are supported, but their register
- *   location is currently unknown.
  */
 
 #include <linux/bitops.h>
@@ -80,8 +75,10 @@ static DEFINE_MUTEX(nb_smu_ind_mutex);
 
 /* F17h M01h Access througn SMN */
 #define F17H_M01H_REPORTED_TEMP_CTRL_OFFSET	0x00059800
-#define F17H_M70H_CCD1_TEMP			0x00059954
-#define F17H_M70H_CCD2_TEMP			0x00059958
+
+#define F17H_M70H_CCD_TEMP(x)			(0x00059954 + ((x) * 4))
+#define F17H_M70H_CCD_TEMP_VALID		BIT(11)
+#define F17H_M70H_CCD_TEMP_MASK			GENMASK(10, 0)
 
 #define F17H_M01H_SVI				0x0005A000
 #define F17H_M01H_SVI_TEL_PLANE0		(F17H_M01H_SVI + 0xc)
@@ -100,8 +97,7 @@ struct k10temp_data {
 	int temp_offset;
 	u32 temp_adjust_mask;
 	bool show_tdie;
-	bool show_tccd1;
-	bool show_tccd2;
+	u32 show_tccd;
 	u32 svi_addr[2];
 	bool show_current;
 	int cfactor[2];
@@ -188,6 +184,12 @@ const char *k10temp_temp_label[] = {
 	"Tctl",
 	"Tccd1",
 	"Tccd2",
+	"Tccd3",
+	"Tccd4",
+	"Tccd5",
+	"Tccd6",
+	"Tccd7",
+	"Tccd8",
 };
 
 const char *k10temp_in_label[] = {
@@ -277,15 +279,10 @@ static int k10temp_read_temp(struct device *dev, u32 attr, int channel,
 			if (*val < 0)
 				*val = 0;
 			break;
-		case 2:		/* Tccd1 */
+		case 2 ... 9:		/* Tccd{1-8} */
 			amd_smn_read(amd_pci_dev_to_node_id(data->pdev),
-				     F17H_M70H_CCD1_TEMP, &regval);
-			*val = (regval & 0xfff) * 125 - 305000;
-			break;
-		case 3:		/* Tccd2 */
-			amd_smn_read(amd_pci_dev_to_node_id(data->pdev),
-				     F17H_M70H_CCD2_TEMP, &regval);
-			*val = (regval & 0xfff) * 125 - 305000;
+				     F17H_M70H_CCD_TEMP(channel - 2), &regval);
+			*val = (regval & F17H_M70H_CCD_TEMP_MASK) * 125 - 49000;
 			break;
 		default:
 			return -EOPNOTSUPP;
@@ -343,12 +340,8 @@ static umode_t k10temp_is_visible(const void *_data,
 				if (!data->show_tdie)
 					return 0;
 				break;
-			case 2:		/* Tccd1 */
-				if (!data->show_tccd1)
-					return 0;
-				break;
-			case 3:		/* Tccd2 */
-				if (!data->show_tccd2)
+			case 2 ... 9:		/* Tccd{1-8} */
+				if (!(data->show_tccd & BIT(channel - 2)))
 					return 0;
 				break;
 			default:
@@ -382,12 +375,8 @@ static umode_t k10temp_is_visible(const void *_data,
 			case 0:		/* Tdie */
 			case 1:		/* Tctl */
 				break;
-			case 2:		/* Tccd1 */
-				if (!data->show_tccd1)
-					return 0;
-				break;
-			case 3:		/* Tccd2 */
-				if (!data->show_tccd2)
+			case 2 ... 9:		/* Tccd{1-8} */
+				if (!(data->show_tccd & BIT(channel - 2)))
 					return 0;
 				break;
 			default:
@@ -520,6 +509,12 @@ static const struct hwmon_channel_info *k10temp_info[] = {
 			   HWMON_T_LABEL,
 			   HWMON_T_INPUT | HWMON_T_LABEL,
 			   HWMON_T_INPUT | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL,
 			   HWMON_T_INPUT | HWMON_T_LABEL),
 	HWMON_CHANNEL_INFO(in,
 			   HWMON_I_INPUT | HWMON_I_LABEL,
@@ -540,6 +535,20 @@ static const struct hwmon_chip_info k10temp_chip_info = {
 	.ops = &k10temp_hwmon_ops,
 	.info = k10temp_info,
 };
+
+static void k10temp_get_ccd_support(struct pci_dev *pdev,
+				    struct k10temp_data *data, int limit)
+{
+	u32 regval;
+	int i;
+
+	for (i = 0; i < limit; i++) {
+		amd_smn_read(amd_pci_dev_to_node_id(pdev),
+			     F17H_M70H_CCD_TEMP(i), &regval);
+		if (regval & F17H_M70H_CCD_TEMP_VALID)
+			data->show_tccd |= BIT(i);
+	}
+}
 
 static int k10temp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
@@ -571,8 +580,6 @@ static int k10temp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		data->read_htcreg = read_htcreg_nb_f15;
 		data->read_tempreg = read_tempreg_nb_f15;
 	} else if (boot_cpu_data.x86 == 0x17 || boot_cpu_data.x86 == 0x18) {
-		u32 regval;
-
 		data->temp_adjust_mask = CUR_TEMP_RANGE_SEL_MASK;
 		data->read_tempreg = read_tempreg_nb_f17;
 		data->show_tdie = true;
@@ -587,6 +594,7 @@ static int k10temp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			data->svi_addr[1] = F17H_M01H_SVI_TEL_PLANE1;
 			data->cfactor[0] = CFACTOR_ICORE;
 			data->cfactor[1] = CFACTOR_ISOC;
+			k10temp_get_ccd_support(pdev, data, 4);
 			break;
 		case 0x31:	/* Zen2 Threadripper */
 		case 0x71:	/* Zen2 */
@@ -595,15 +603,7 @@ static int k10temp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			data->cfactor[1] = CFACTOR_ISOC;
 			data->svi_addr[0] = F17H_M01H_SVI_TEL_PLANE1;
 			data->svi_addr[1] = F17H_M01H_SVI_TEL_PLANE0;
-			amd_smn_read(amd_pci_dev_to_node_id(pdev),
-				     F17H_M70H_CCD1_TEMP, &regval);
-			if (regval & 0xfff)
-				data->show_tccd1 = true;
-
-			amd_smn_read(amd_pci_dev_to_node_id(pdev),
-				     F17H_M70H_CCD2_TEMP, &regval);
-			if (regval & 0xfff)
-				data->show_tccd2 = true;
+			k10temp_get_ccd_support(pdev, data, 8);
 			break;
 		}
 	} else {
