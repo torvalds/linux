@@ -636,43 +636,13 @@ static void ltdc_crtc_atomic_flush(struct drm_crtc *crtc,
 	}
 }
 
-static const struct drm_crtc_helper_funcs ltdc_crtc_helper_funcs = {
-	.mode_valid = ltdc_crtc_mode_valid,
-	.mode_fixup = ltdc_crtc_mode_fixup,
-	.mode_set_nofb = ltdc_crtc_mode_set_nofb,
-	.atomic_flush = ltdc_crtc_atomic_flush,
-	.atomic_enable = ltdc_crtc_atomic_enable,
-	.atomic_disable = ltdc_crtc_atomic_disable,
-};
-
-static int ltdc_crtc_enable_vblank(struct drm_crtc *crtc)
+static bool ltdc_crtc_get_scanout_position(struct drm_crtc *crtc,
+					   bool in_vblank_irq,
+					   int *vpos, int *hpos,
+					   ktime_t *stime, ktime_t *etime,
+					   const struct drm_display_mode *mode)
 {
-	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
-	struct drm_crtc_state *state = crtc->state;
-
-	DRM_DEBUG_DRIVER("\n");
-
-	if (state->enable)
-		reg_set(ldev->regs, LTDC_IER, IER_LIE);
-	else
-		return -EPERM;
-
-	return 0;
-}
-
-static void ltdc_crtc_disable_vblank(struct drm_crtc *crtc)
-{
-	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
-
-	DRM_DEBUG_DRIVER("\n");
-	reg_clear(ldev->regs, LTDC_IER, IER_LIE);
-}
-
-bool ltdc_crtc_scanoutpos(struct drm_device *ddev, unsigned int pipe,
-			  bool in_vblank_irq, int *vpos, int *hpos,
-			  ktime_t *stime, ktime_t *etime,
-			  const struct drm_display_mode *mode)
-{
+	struct drm_device *ddev = crtc->dev;
 	struct ltdc_device *ldev = ddev->dev_private;
 	int line, vactive_start, vactive_end, vtotal;
 
@@ -713,6 +683,39 @@ bool ltdc_crtc_scanoutpos(struct drm_device *ddev, unsigned int pipe,
 		*etime = ktime_get();
 
 	return true;
+}
+
+static const struct drm_crtc_helper_funcs ltdc_crtc_helper_funcs = {
+	.mode_valid = ltdc_crtc_mode_valid,
+	.mode_fixup = ltdc_crtc_mode_fixup,
+	.mode_set_nofb = ltdc_crtc_mode_set_nofb,
+	.atomic_flush = ltdc_crtc_atomic_flush,
+	.atomic_enable = ltdc_crtc_atomic_enable,
+	.atomic_disable = ltdc_crtc_atomic_disable,
+	.get_scanout_position = ltdc_crtc_get_scanout_position,
+};
+
+static int ltdc_crtc_enable_vblank(struct drm_crtc *crtc)
+{
+	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
+	struct drm_crtc_state *state = crtc->state;
+
+	DRM_DEBUG_DRIVER("\n");
+
+	if (state->enable)
+		reg_set(ldev->regs, LTDC_IER, IER_LIE);
+	else
+		return -EPERM;
+
+	return 0;
+}
+
+static void ltdc_crtc_disable_vblank(struct drm_crtc *crtc)
+{
+	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
+
+	DRM_DEBUG_DRIVER("\n");
+	reg_clear(ldev->regs, LTDC_IER, IER_LIE);
 }
 
 static const struct drm_crtc_funcs ltdc_crtc_funcs = {
