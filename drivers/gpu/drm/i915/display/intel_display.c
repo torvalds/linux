@@ -14649,8 +14649,10 @@ static int intel_atomic_check(struct drm_device *dev,
 		}
 
 		if (is_trans_port_sync_mode(new_crtc_state)) {
-			u8 trans = new_crtc_state->sync_mode_slaves_mask |
-				   BIT(new_crtc_state->master_transcoder);
+			u8 trans = new_crtc_state->sync_mode_slaves_mask;
+
+			if (new_crtc_state->master_transcoder != INVALID_TRANSCODER)
+				trans |= BIT(new_crtc_state->master_transcoder);
 
 			if (intel_cpu_transcoders_need_modeset(state, trans)) {
 				new_crtc_state->uapi.mode_changed = true;
