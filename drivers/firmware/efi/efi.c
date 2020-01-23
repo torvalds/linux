@@ -321,6 +321,9 @@ static int __init efisubsys_init(void)
 		}
 	}
 
+	if (efi_rt_services_supported(EFI_RT_SUPPORTED_TIME_SERVICES))
+		platform_device_register_simple("rtc-efi", 0, NULL, 0);
+
 	/* We register the efi directory at /sys/firmware/efi */
 	efi_kobj = kobject_create_and_add("efi", firmware_kobj);
 	if (!efi_kobj) {
