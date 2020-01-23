@@ -629,9 +629,9 @@ u32 i915_get_vblank_counter(struct drm_crtc *crtc)
 	 * register.
 	 */
 	do {
-		high1 = I915_READ_FW(high_frame) & PIPE_FRAME_HIGH_MASK;
-		low   = I915_READ_FW(low_frame);
-		high2 = I915_READ_FW(high_frame) & PIPE_FRAME_HIGH_MASK;
+		high1 = intel_de_read_fw(dev_priv, high_frame) & PIPE_FRAME_HIGH_MASK;
+		low   = intel_de_read_fw(dev_priv, low_frame);
+		high2 = intel_de_read_fw(dev_priv, high_frame) & PIPE_FRAME_HIGH_MASK;
 	} while (high1 != high2);
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
@@ -688,15 +688,17 @@ static u32 __intel_get_crtc_scanline_from_timestamp(struct intel_crtc *crtc)
 		 * pipe frame time stamp. The time stamp value
 		 * is sampled at every start of vertical blank.
 		 */
-		scan_prev_time = I915_READ_FW(PIPE_FRMTMSTMP(crtc->pipe));
+		scan_prev_time = intel_de_read_fw(dev_priv,
+						  PIPE_FRMTMSTMP(crtc->pipe));
 
 		/*
 		 * The TIMESTAMP_CTR register has the current
 		 * time stamp value.
 		 */
-		scan_curr_time = I915_READ_FW(IVB_TIMESTAMP_CTR);
+		scan_curr_time = intel_de_read_fw(dev_priv, IVB_TIMESTAMP_CTR);
 
-		scan_post_time = I915_READ_FW(PIPE_FRMTMSTMP(crtc->pipe));
+		scan_post_time = intel_de_read_fw(dev_priv,
+						  PIPE_FRMTMSTMP(crtc->pipe));
 	} while (scan_post_time != scan_prev_time);
 
 	scanline = div_u64(mul_u32_u32(scan_curr_time - scan_prev_time,
@@ -707,7 +709,10 @@ static u32 __intel_get_crtc_scanline_from_timestamp(struct intel_crtc *crtc)
 	return scanline;
 }
 
-/* I915_READ_FW, only for fast reads of display block, no need for forcewake etc. */
+/*
+ * intel_de_read_fw(), only for fast reads of display block, no need for
+ * forcewake etc.
+ */
 static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
@@ -731,9 +736,9 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 		vtotal /= 2;
 
 	if (IS_GEN(dev_priv, 2))
-		position = I915_READ_FW(PIPEDSL(pipe)) & DSL_LINEMASK_GEN2;
+		position = intel_de_read_fw(dev_priv, PIPEDSL(pipe)) & DSL_LINEMASK_GEN2;
 	else
-		position = I915_READ_FW(PIPEDSL(pipe)) & DSL_LINEMASK_GEN3;
+		position = intel_de_read_fw(dev_priv, PIPEDSL(pipe)) & DSL_LINEMASK_GEN3;
 
 	/*
 	 * On HSW, the DSL reg (0x70000) appears to return 0 if we
@@ -752,7 +757,7 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 
 		for (i = 0; i < 100; i++) {
 			udelay(1);
-			temp = I915_READ_FW(PIPEDSL(pipe)) & DSL_LINEMASK_GEN3;
+			temp = intel_de_read_fw(dev_priv, PIPEDSL(pipe)) & DSL_LINEMASK_GEN3;
 			if (temp != position) {
 				position = temp;
 				break;
@@ -823,7 +828,7 @@ bool i915_get_crtc_scanoutpos(struct drm_device *dev, unsigned int index,
 		 * We can split this into vertical and horizontal
 		 * scanout position.
 		 */
-		position = (I915_READ_FW(PIPEFRAMEPIXEL(pipe)) & PIPE_PIXEL_MASK) >> PIPE_PIXEL_SHIFT;
+		position = (intel_de_read_fw(dev_priv, PIPEFRAMEPIXEL(pipe)) & PIPE_PIXEL_MASK) >> PIPE_PIXEL_SHIFT;
 
 		/* convert to pixel counts */
 		vbl_start *= htotal;
