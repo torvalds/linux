@@ -140,6 +140,7 @@ extern void apic_soft_disable(void);
 extern void lapic_shutdown(void);
 extern void sync_Arb_IDs(void);
 extern void init_bsp_APIC(void);
+extern void apic_intr_mode_select(void);
 extern void apic_intr_mode_init(void);
 extern void init_apic_mappings(void);
 void register_lapic_address(unsigned long address);
@@ -188,6 +189,7 @@ static inline void disable_local_APIC(void) { }
 # define setup_secondary_APIC_clock x86_init_noop
 static inline void lapic_update_tsc_freq(void) { }
 static inline void init_bsp_APIC(void) { }
+static inline void apic_intr_mode_select(void) { }
 static inline void apic_intr_mode_init(void) { }
 static inline void lapic_assign_system_vectors(void) { }
 static inline void lapic_assign_legacy_vector(unsigned int i, bool r) { }
