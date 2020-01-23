@@ -1542,10 +1542,8 @@ static int atc_alloc_chan_resources(struct dma_chan *chan)
 	struct at_dma		*atdma = to_at_dma(chan->device);
 	struct at_desc		*desc;
 	struct at_dma_slave	*atslave;
-	unsigned long		flags;
 	int			i;
 	u32			cfg;
-	LIST_HEAD(tmp_list);
 
 	dev_vdbg(chan2dev(chan), "alloc_chan_resources\n");
 
@@ -1583,14 +1581,11 @@ static int atc_alloc_chan_resources(struct dma_chan *chan)
 				"Only %d initial descriptors\n", i);
 			break;
 		}
-		list_add_tail(&desc->desc_node, &tmp_list);
+		list_add_tail(&desc->desc_node, &atchan->free_list);
 	}
 
-	spin_lock_irqsave(&atchan->lock, flags);
 	atchan->descs_allocated = i;
-	list_splice(&tmp_list, &atchan->free_list);
 	dma_cookie_init(chan);
-	spin_unlock_irqrestore(&atchan->lock, flags);
 
 	/* channel parameters */
 	channel_writel(atchan, CFG, cfg);
