@@ -265,7 +265,10 @@ i915_gem_dumb_create(struct drm_file *file,
 						    DRM_FORMAT_MOD_LINEAR))
 		args->pitch = ALIGN(args->pitch, 4096);
 
-	args->size = args->pitch * args->height;
+	if (args->pitch < args->width)
+		return -EINVAL;
+
+	args->size = mul_u32_u32(args->pitch, args->height);
 
 	mem_type = INTEL_MEMORY_SYSTEM;
 	if (HAS_LMEM(to_i915(dev)))
