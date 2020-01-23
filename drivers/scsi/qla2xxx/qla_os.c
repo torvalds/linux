@@ -1700,6 +1700,8 @@ static void qla2x00_abort_srb(struct qla_qpair *qp, srb_t *sp, const int res,
 	bool ret_cmd;
 	uint32_t ratov_j;
 
+	lockdep_assert_held(qp->qp_lock_ptr);
+
 	if (qla2x00_chip_is_down(vha)) {
 		sp->done(sp, res);
 		return;
