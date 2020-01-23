@@ -824,6 +824,25 @@ static inline bool drm_dev_is_unplugged(struct drm_device *dev)
 }
 
 /**
+ * drm_core_check_all_features - check driver feature flags mask
+ * @dev: DRM device to check
+ * @features: feature flag(s) mask
+ *
+ * This checks @dev for driver features, see &drm_driver.driver_features,
+ * &drm_device.driver_features, and the various &enum drm_driver_feature flags.
+ *
+ * Returns true if all features in the @features mask are supported, false
+ * otherwise.
+ */
+static inline bool drm_core_check_all_features(const struct drm_device *dev,
+					       u32 features)
+{
+	u32 supported = dev->driver->driver_features & dev->driver_features;
+
+	return features && (supported & features) == features;
+}
+
+/**
  * drm_core_check_feature - check driver feature flags
  * @dev: DRM device to check
  * @feature: feature flag
@@ -833,9 +852,10 @@ static inline bool drm_dev_is_unplugged(struct drm_device *dev)
  *
  * Returns true if the @feature is supported, false otherwise.
  */
-static inline bool drm_core_check_feature(const struct drm_device *dev, u32 feature)
+static inline bool drm_core_check_feature(const struct drm_device *dev,
+					  enum drm_driver_feature feature)
 {
-	return dev->driver->driver_features & dev->driver_features & feature;
+	return drm_core_check_all_features(dev, feature);
 }
 
 /**
