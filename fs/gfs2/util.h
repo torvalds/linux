@@ -36,21 +36,29 @@ do { \
 } while (0)
 
 
-int gfs2_assert_withdraw_i(struct gfs2_sbd *sdp, char *assertion,
-			   const char *function, char *file, unsigned int line);
+void gfs2_assert_withdraw_i(struct gfs2_sbd *sdp, char *assertion,
+			    const char *function, char *file, unsigned int line);
 
 #define gfs2_assert_withdraw(sdp, assertion) \
-((likely(assertion)) ? 0 : gfs2_assert_withdraw_i((sdp), #assertion, \
-					__func__, __FILE__, __LINE__))
+	({ \
+		bool _bool = (assertion); \
+		if (unlikely(!_bool)) \
+			gfs2_assert_withdraw_i((sdp), #assertion, \
+					__func__, __FILE__, __LINE__); \
+		!_bool; \
+	})
 
-
-int gfs2_assert_warn_i(struct gfs2_sbd *sdp, char *assertion,
-		       const char *function, char *file, unsigned int line);
+void gfs2_assert_warn_i(struct gfs2_sbd *sdp, char *assertion,
+			const char *function, char *file, unsigned int line);
 
 #define gfs2_assert_warn(sdp, assertion) \
-((likely(assertion)) ? 0 : gfs2_assert_warn_i((sdp), #assertion, \
-					__func__, __FILE__, __LINE__))
-
+	({ \
+		bool _bool = (assertion); \
+		if (unlikely(!_bool)) \
+			gfs2_assert_warn_i((sdp), #assertion, \
+					__func__, __FILE__, __LINE__); \
+		!_bool; \
+	})
 
 void gfs2_consist_i(struct gfs2_sbd *sdp,
 		    const char *function, char *file, unsigned int line);

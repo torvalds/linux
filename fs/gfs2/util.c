@@ -84,37 +84,30 @@ int gfs2_withdraw(struct gfs2_sbd *sdp)
 
 /**
  * gfs2_assert_withdraw_i - Cause the machine to withdraw if @assertion is false
- * Returns: -1 if this call withdrew the machine,
- *          -2 if it was already withdrawn
  */
 
-int gfs2_assert_withdraw_i(struct gfs2_sbd *sdp, char *assertion,
-			   const char *function, char *file, unsigned int line)
+void gfs2_assert_withdraw_i(struct gfs2_sbd *sdp, char *assertion,
+			    const char *function, char *file, unsigned int line)
 {
-	int me;
-
 	gfs2_lm(sdp,
 		"fatal: assertion \"%s\" failed\n"
 		"   function = %s, file = %s, line = %u\n",
 		assertion, function, file, line);
-	me = gfs2_withdraw(sdp);
+	gfs2_withdraw(sdp);
 	dump_stack();
-	return (me) ? -1 : -2;
 }
 
 /**
  * gfs2_assert_warn_i - Print a message to the console if @assertion is false
- * Returns: -1 if we printed something
- *          -2 if we didn't
  */
 
-int gfs2_assert_warn_i(struct gfs2_sbd *sdp, char *assertion,
-		       const char *function, char *file, unsigned int line)
+void gfs2_assert_warn_i(struct gfs2_sbd *sdp, char *assertion,
+			const char *function, char *file, unsigned int line)
 {
 	if (time_before(jiffies,
 			sdp->sd_last_warning +
 			gfs2_tune_get(sdp, gt_complain_secs) * HZ))
-		return -2;
+		return;
 
 	if (sdp->sd_args.ar_errors == GFS2_ERRORS_WITHDRAW)
 		fs_warn(sdp, "warning: assertion \"%s\" failed at function = %s, file = %s, line = %u\n",
@@ -132,8 +125,6 @@ int gfs2_assert_warn_i(struct gfs2_sbd *sdp, char *assertion,
 		      sdp->sd_fsname, function, file, line);
 
 	sdp->sd_last_warning = jiffies;
-
-	return -1;
 }
 
 /**
