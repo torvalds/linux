@@ -9445,6 +9445,30 @@ static int fixup_bpf_calls(struct bpf_verifier_env *env)
 			goto patch_call_imm;
 		}
 
+		if (prog->jit_requested && BITS_PER_LONG == 64 &&
+		    insn->imm == BPF_FUNC_jiffies64) {
+			struct bpf_insn ld_jiffies_addr[2] = {
+				BPF_LD_IMM64(BPF_REG_0,
+					     (unsigned long)&jiffies),
+			};
+
+			insn_buf[0] = ld_jiffies_addr[0];
+			insn_buf[1] = ld_jiffies_addr[1];
+			insn_buf[2] = BPF_LDX_MEM(BPF_DW, BPF_REG_0,
+						  BPF_REG_0, 0);
+			cnt = 3;
+
+			new_prog = bpf_patch_insn_data(env, i + delta, insn_buf,
+						       cnt);
+			if (!new_prog)
+				return -ENOMEM;
+
+			delta    += cnt - 1;
+			env->prog = prog = new_prog;
+			insn      = new_prog->insnsi + i + delta;
+			continue;
+		}
+
 patch_call_imm:
 		fn = env->ops->get_func_proto(insn->imm, env->prog);
 		/* all functions that have prototype and verifier allowed

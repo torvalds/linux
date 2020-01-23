@@ -6,13 +6,28 @@
 #include <linux/types.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_core_read.h>
+#include "bpf_trace_helpers.h"
+
+#define BPF_STRUCT_OPS(name, args...) \
+SEC("struct_ops/"#name) \
+BPF_PROG(name, args)
+
+#define tcp_jiffies32 ((__u32)bpf_jiffies64())
 
 struct sock_common {
 	unsigned char	skc_state;
 } __attribute__((preserve_access_index));
 
+enum sk_pacing {
+	SK_PACING_NONE		= 0,
+	SK_PACING_NEEDED	= 1,
+	SK_PACING_FQ		= 2,
+};
+
 struct sock {
 	struct sock_common	__sk_common;
+	unsigned long		sk_pacing_rate;
+	__u32			sk_pacing_status; /* see enum sk_pacing */
 } __attribute__((preserve_access_index));
 
 struct inet_sock {
@@ -54,6 +69,7 @@ struct tcp_sock {
 	__u32	max_packets_out;
 	__u32	lsndtime;
 	__u32	prior_cwnd;
+	__u64	tcp_mstamp;	/* most recent packet received/sent */
 } __attribute__((preserve_access_index));
 
 static __always_inline struct inet_connection_sock *inet_csk(const struct sock *sk)
