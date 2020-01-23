@@ -47,6 +47,7 @@ EXPORT_SYMBOL(efi);
 
 static unsigned long __ro_after_init rng_seed = EFI_INVALID_TABLE_ADDR;
 static unsigned long __initdata mem_reserve = EFI_INVALID_TABLE_ADDR;
+static unsigned long __initdata rt_prop = EFI_INVALID_TABLE_ADDR;
 
 struct mm_struct efi_mm = {
 	.mm_rb			= RB_ROOT,
@@ -449,6 +450,7 @@ static const efi_config_table_type_t common_tables[] __initconst = {
 	{LINUX_EFI_TPM_EVENT_LOG_GUID, "TPMEventLog", &efi.tpm_log},
 	{LINUX_EFI_TPM_FINAL_LOG_GUID, "TPMFinalLog", &efi.tpm_final_log},
 	{LINUX_EFI_MEMRESERVE_TABLE_GUID, "MEMRESERVE", &mem_reserve},
+	{EFI_RT_PROPERTIES_TABLE_GUID, "RTPROP", &rt_prop},
 #ifdef CONFIG_EFI_RCI2_TABLE
 	{DELLEMC_EFI_RCI2_TABLE_GUID, NULL, &rci2_table_phys},
 #endif
@@ -572,6 +574,16 @@ int __init efi_config_parse_tables(const efi_config_table_t *config_tables,
 
 			prsv = rsv->next;
 			early_memunmap(p, PAGE_SIZE);
+		}
+	}
+
+	if (rt_prop != EFI_INVALID_TABLE_ADDR) {
+		efi_rt_properties_table_t *tbl;
+
+		tbl = early_memremap(rt_prop, sizeof(*tbl));
+		if (tbl) {
+			efi.runtime_supported_mask &= tbl->runtime_services_supported;
+			early_memunmap(tbl, sizeof(*tbl));
 		}
 	}
 
