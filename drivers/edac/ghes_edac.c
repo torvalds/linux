@@ -355,11 +355,8 @@ void ghes_edac_report_mem_error(int sev, struct cper_sec_mem_err *mem_err)
 				     mem_err->mem_dev_handle);
 
 		index = get_dimm_smbios_index(mci, mem_err->mem_dev_handle);
-		if (index >= 0) {
+		if (index >= 0)
 			e->top_layer = index;
-			e->enable_per_layer_report = true;
-		}
-
 	}
 	if (p > e->location)
 		*(p - 1) = '\0';

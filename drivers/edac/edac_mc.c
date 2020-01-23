@@ -946,7 +946,6 @@ const char *edac_layer_name[] = {
 EXPORT_SYMBOL_GPL(edac_layer_name);
 
 static void edac_inc_ce_error(struct mem_ctl_info *mci,
-			      bool enable_per_layer_report,
 			      const int pos[EDAC_MAX_LAYERS],
 			      const u16 count)
 {
@@ -954,7 +953,7 @@ static void edac_inc_ce_error(struct mem_ctl_info *mci,
 
 	mci->ce_mc += count;
 
-	if (!enable_per_layer_report) {
+	if (pos[0] < 0) {
 		mci->ce_noinfo_count += count;
 		return;
 	}
@@ -971,7 +970,6 @@ static void edac_inc_ce_error(struct mem_ctl_info *mci,
 }
 
 static void edac_inc_ue_error(struct mem_ctl_info *mci,
-				    bool enable_per_layer_report,
 				    const int pos[EDAC_MAX_LAYERS],
 				    const u16 count)
 {
@@ -979,7 +977,7 @@ static void edac_inc_ue_error(struct mem_ctl_info *mci,
 
 	mci->ue_mc += count;
 
-	if (!enable_per_layer_report) {
+	if (pos[0] < 0) {
 		mci->ue_noinfo_count += count;
 		return;
 	}
@@ -1003,7 +1001,6 @@ static void edac_ce_error(struct mem_ctl_info *mci,
 			  const char *label,
 			  const char *detail,
 			  const char *other_detail,
-			  const bool enable_per_layer_report,
 			  const unsigned long page_frame_number,
 			  const unsigned long offset_in_page,
 			  long grain)
@@ -1026,7 +1023,7 @@ static void edac_ce_error(struct mem_ctl_info *mci,
 				       error_count, msg, msg_aux, label,
 				       location, detail);
 	}
-	edac_inc_ce_error(mci, enable_per_layer_report, pos, error_count);
+	edac_inc_ce_error(mci, pos, error_count);
 
 	if (mci->scrub_mode == SCRUB_SW_SRC) {
 		/*
@@ -1056,8 +1053,7 @@ static void edac_ue_error(struct mem_ctl_info *mci,
 			  const char *location,
 			  const char *label,
 			  const char *detail,
-			  const char *other_detail,
-			  const bool enable_per_layer_report)
+			  const char *other_detail)
 {
 	char *msg_aux = "";
 
@@ -1086,7 +1082,7 @@ static void edac_ue_error(struct mem_ctl_info *mci,
 			      msg, msg_aux, label, location, detail);
 	}
 
-	edac_inc_ue_error(mci, enable_per_layer_report, pos, error_count);
+	edac_inc_ue_error(mci, pos, error_count);
 }
 
 static void edac_inc_csrow(struct edac_raw_error_desc *e, int row, int chan)
@@ -1136,16 +1132,16 @@ void edac_raw_mc_handle_error(struct edac_raw_error_desc *e)
 			"page:0x%lx offset:0x%lx grain:%ld syndrome:0x%lx",
 			e->page_frame_number, e->offset_in_page,
 			e->grain, e->syndrome);
-		edac_ce_error(mci, e->error_count, pos, e->msg, e->location, e->label,
-			      detail, e->other_detail, e->enable_per_layer_report,
+		edac_ce_error(mci, e->error_count, pos, e->msg, e->location,
+			      e->label, detail, e->other_detail,
 			      e->page_frame_number, e->offset_in_page, e->grain);
 	} else {
 		snprintf(detail, sizeof(detail),
 			"page:0x%lx offset:0x%lx grain:%ld",
 			e->page_frame_number, e->offset_in_page, e->grain);
 
-		edac_ue_error(mci, e->error_count, pos, e->msg, e->location, e->label,
-			      detail, e->other_detail, e->enable_per_layer_report);
+		edac_ue_error(mci, e->error_count, pos, e->msg, e->location,
+			      e->label, detail, e->other_detail);
 	}
 
 
@@ -1170,6 +1166,7 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 	int pos[EDAC_MAX_LAYERS] = { top_layer, mid_layer, low_layer };
 	int i, n_labels = 0;
 	struct edac_raw_error_desc *e = &mci->error_desc;
+	bool any_memory = true;
 
 	edac_dbg(3, "MC%d\n", mci->mc_idx);
 
@@ -1187,10 +1184,9 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 	e->other_detail = other_detail;
 
 	/*
-	 * Check if the event report is consistent and if the memory
-	 * location is known. If it is known, enable_per_layer_report will be
-	 * true, the DIMM(s) label info will be filled and the per-layer
-	 * error counters will be incremented.
+	 * Check if the event report is consistent and if the memory location is
+	 * known. If it is, the DIMM(s) label info will be filled and the
+	 * per-layer error counters will be incremented.
 	 */
 	for (i = 0; i < mci->n_layers; i++) {
 		if (pos[i] >= (int)mci->layers[i].size) {
@@ -1208,7 +1204,7 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 			pos[i] = -1;
 		}
 		if (pos[i] >= 0)
-			e->enable_per_layer_report = true;
+			any_memory = false;
 	}
 
 	/*
@@ -1239,9 +1235,9 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 
 		/*
 		 * If the error is memory-controller wide, there's no need to
-		 * seek for the affected DIMMs because the whole
-		 * channel/memory controller/...  may be affected.
-		 * Also, don't show errors for empty DIMM slots.
+		 * seek for the affected DIMMs because the whole channel/memory
+		 * controller/... may be affected. Also, don't show errors for
+		 * empty DIMM slots.
 		 */
 		if (!dimm->nr_pages)
 			continue;
@@ -1277,7 +1273,7 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 			chan = -2;
 	}
 
-	if (!e->enable_per_layer_report)
+	if (any_memory)
 		strcpy(e->label, "any memory");
 	else if (!*e->label)
 		strcpy(e->label, "unknown memory");
