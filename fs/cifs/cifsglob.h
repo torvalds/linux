@@ -1588,6 +1588,7 @@ struct mid_q_entry {
 	mid_callback_t *callback; /* call completion callback */
 	mid_handle_t *handle; /* call handle mid callback */
 	void *callback_data;	  /* general purpose pointer for callback */
+	struct task_struct *creator;
 	void *resp_buf;		/* pointer to received SMB header */
 	unsigned int resp_buf_size;
 	int mid_state;	/* wish this were enum but can not pass to wait_event */
