@@ -239,4 +239,29 @@ void drm_calc_timestamping_constants(struct drm_crtc *crtc,
 wait_queue_head_t *drm_crtc_vblank_waitqueue(struct drm_crtc *crtc);
 void drm_crtc_set_max_vblank_count(struct drm_crtc *crtc,
 				   u32 max_vblank_count);
+
+typedef bool (*drm_vblank_get_scanout_position_func)(struct drm_crtc *crtc,
+						     bool in_vblank_irq,
+						     int *vpos, int *hpos,
+						     ktime_t *stime,
+						     ktime_t *etime,
+						     const struct drm_display_mode *mode);
+
+typedef bool (*drm_vblank_get_scanout_position_legacy_func)(struct drm_device *dev,
+							    unsigned int pipe,
+							    bool in_vblank_irq,
+							    int *vpos,
+							    int *hpos,
+							    ktime_t *stime,
+							    ktime_t *etime,
+							    const struct drm_display_mode *mode);
+
+bool
+drm_crtc_vblank_helper_get_vblank_timestamp_internal(struct drm_crtc *crtc,
+						     int *max_error,
+						     ktime_t *vblank_time,
+						     bool in_vblank_irq,
+						     drm_vblank_get_scanout_position_func get_scanout_position,
+						     drm_vblank_get_scanout_position_legacy_func get_scanout_position_legacy);
+
 #endif

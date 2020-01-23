@@ -362,11 +362,8 @@ struct drm_driver {
 	 * True on success, false if a reliable scanout position counter could
 	 * not be read out.
 	 *
-	 * FIXME:
-	 *
-	 * Since this is a helper to implement @get_vblank_timestamp, we should
-	 * move it to &struct drm_crtc_helper_funcs, like all the other
-	 * helper-internal hooks.
+	 * This is deprecated and should not be used by new drivers.
+	 * Use &drm_crtc_helper_funcs.get_scanout_position instead.
 	 */
 	bool (*get_scanout_position) (struct drm_device *dev, unsigned int pipe,
 				      bool in_vblank_irq, int *vpos, int *hpos,

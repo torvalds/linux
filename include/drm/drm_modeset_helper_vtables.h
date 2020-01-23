@@ -450,6 +450,53 @@ struct drm_crtc_helper_funcs {
 	 */
 	void (*atomic_disable)(struct drm_crtc *crtc,
 			       struct drm_crtc_state *old_crtc_state);
+
+	/**
+	 * @get_scanout_position:
+	 *
+	 * Called by vblank timestamping code.
+	 *
+	 * Returns the current display scanout position from a CRTC and an
+	 * optional accurate ktime_get() timestamp of when the position was
+	 * measured. Note that this is a helper callback which is only used
+	 * if a driver uses drm_calc_vbltimestamp_from_scanoutpos() for the
+	 * @drm_driver.get_vblank_timestamp callback.
+	 *
+	 * Parameters:
+	 *
+	 * crtc:
+	 *     The CRTC.
+	 * in_vblank_irq:
+	 *     True when called from drm_crtc_handle_vblank(). Some drivers
+	 *     need to apply some workarounds for gpu-specific vblank irq
+	 *     quirks if the flag is set.
+	 * vpos:
+	 *     Target location for current vertical scanout position.
+	 * hpos:
+	 *     Target location for current horizontal scanout position.
+	 * stime:
+	 *     Target location for timestamp taken immediately before
+	 *     scanout position query. Can be NULL to skip timestamp.
+	 * etime:
+	 *     Target location for timestamp taken immediately after
+	 *     scanout position query. Can be NULL to skip timestamp.
+	 * mode:
+	 *     Current display timings.
+	 *
+	 * Returns vpos as a positive number while in active scanout area.
+	 * Returns vpos as a negative number inside vblank, counting the number
+	 * of scanlines to go until end of vblank, e.g., -1 means "one scanline
+	 * until start of active scanout / end of vblank."
+	 *
+	 * Returns:
+	 *
+	 * True on success, false if a reliable scanout position counter could
+	 * not be read out.
+	 */
+	bool (*get_scanout_position)(struct drm_crtc *crtc,
+				     bool in_vblank_irq, int *vpos, int *hpos,
+				     ktime_t *stime, ktime_t *etime,
+				     const struct drm_display_mode *mode);
 };
 
 /**

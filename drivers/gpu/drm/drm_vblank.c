@@ -30,6 +30,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_framebuffer.h>
+#include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_print.h>
 #include <drm/drm_vblank.h>
 
@@ -605,7 +606,7 @@ EXPORT_SYMBOL(drm_calc_timestamping_constants);
  * Implements calculation of exact vblank timestamps from given drm_display_mode
  * timings and current video scanout position of a CRTC. This can be directly
  * used as the &drm_driver.get_vblank_timestamp implementation of a kms driver
- * if &drm_driver.get_scanout_position is implemented.
+ * if &drm_crtc_helper_funcs.get_scanout_position is implemented.
  *
  * The current implementation only handles standard video modes. For double scan
  * and interlaced modes the driver is supposed to adjust the hardware mode
@@ -627,28 +628,85 @@ bool drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 					   ktime_t *vblank_time,
 					   bool in_vblank_irq)
 {
-	struct timespec64 ts_etime, ts_vblank_time;
-	ktime_t stime, etime;
-	bool vbl_status;
 	struct drm_crtc *crtc;
-	const struct drm_display_mode *mode;
-	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
-	int vpos, hpos, i;
-	int delta_ns, duration_ns;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return false;
 
 	crtc = drm_crtc_from_index(dev, pipe);
+	if (!crtc)
+		return false;
 
-	if (pipe >= dev->num_crtcs || !crtc) {
+	return drm_crtc_vblank_helper_get_vblank_timestamp_internal(crtc,
+								    max_error,
+								    vblank_time,
+								    in_vblank_irq,
+								    crtc->helper_private->get_scanout_position,
+								    dev->driver->get_scanout_position);
+}
+EXPORT_SYMBOL(drm_calc_vbltimestamp_from_scanoutpos);
+
+/**
+ * drm_crtc_vblank_helper_get_vblank_timestamp_internal - precise vblank
+ *                                                        timestamp helper
+ * @dev: DRM device
+ * @pipe: index of CRTC whose vblank timestamp to retrieve
+ * @max_error: Desired maximum allowable error in timestamps (nanosecs)
+ *             On return contains true maximum error of timestamp
+ * @vblank_time: Pointer to time which should receive the timestamp
+ * @in_vblank_irq:
+ *     True when called from drm_crtc_handle_vblank().  Some drivers
+ *     need to apply some workarounds for gpu-specific vblank irq quirks
+ *     if flag is set.
+ * @get_scanout_position:
+ *     Callback function to retrieve the scanout position. See
+ *     @struct drm_crtc_helper_funcs.get_scanout_position.
+ * @get_scanout_position_legacy:
+ *     Callback function to retrieve the scanout position. See
+ *     @struct drm_driver.get_scanout_position.
+ *
+ * Implements calculation of exact vblank timestamps from given drm_display_mode
+ * timings and current video scanout position of a CRTC.
+ *
+ * The current implementation only handles standard video modes. For double scan
+ * and interlaced modes the driver is supposed to adjust the hardware mode
+ * (taken from &drm_crtc_state.adjusted mode for atomic modeset drivers) to
+ * match the scanout position reported.
+ *
+ * Note that atomic drivers must call drm_calc_timestamping_constants() before
+ * enabling a CRTC. The atomic helpers already take care of that in
+ * drm_atomic_helper_update_legacy_modeset_state().
+ *
+ * Returns:
+ *
+ * Returns true on success, and false on failure, i.e. when no accurate
+ * timestamp could be acquired.
+ */
+bool
+drm_crtc_vblank_helper_get_vblank_timestamp_internal(
+	struct drm_crtc *crtc, int *max_error, ktime_t *vblank_time,
+	bool in_vblank_irq,
+	drm_vblank_get_scanout_position_func get_scanout_position,
+	drm_vblank_get_scanout_position_legacy_func get_scanout_position_legacy)
+{
+	struct drm_device *dev = crtc->dev;
+	unsigned int pipe = crtc->index;
+	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
+	struct timespec64 ts_etime, ts_vblank_time;
+	ktime_t stime, etime;
+	bool vbl_status;
+	const struct drm_display_mode *mode;
+	int vpos, hpos, i;
+	int delta_ns, duration_ns;
+
+	if (pipe >= dev->num_crtcs) {
 		DRM_ERROR("Invalid crtc %u\n", pipe);
 		return false;
 	}
 
 	/* Scanout position query not supported? Should not happen. */
-	if (!dev->driver->get_scanout_position) {
-		DRM_ERROR("Called from driver w/o get_scanout_position()!?\n");
+	if (!get_scanout_position && !get_scanout_position_legacy) {
+		DRM_ERROR("Called from CRTC w/o get_scanout_position()!?\n");
 		return false;
 	}
 
@@ -663,7 +721,6 @@ bool drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 	if (mode->crtc_clock == 0) {
 		DRM_DEBUG("crtc %u: Noop due to uninitialized mode.\n", pipe);
 		WARN_ON_ONCE(drm_drv_uses_atomic_modeset(dev));
-
 		return false;
 	}
 
@@ -679,11 +736,19 @@ bool drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 		 * Get vertical and horizontal scanout position vpos, hpos,
 		 * and bounding timestamps stime, etime, pre/post query.
 		 */
-		vbl_status = dev->driver->get_scanout_position(dev, pipe,
-							       in_vblank_irq,
-							       &vpos, &hpos,
-							       &stime, &etime,
-							       mode);
+		if (get_scanout_position) {
+			vbl_status = get_scanout_position(crtc,
+							  in_vblank_irq,
+							  &vpos, &hpos,
+							  &stime, &etime,
+							  mode);
+		} else {
+			vbl_status = get_scanout_position_legacy(dev, pipe,
+								 in_vblank_irq,
+								 &vpos, &hpos,
+								 &stime, &etime,
+								 mode);
+		}
 
 		/* Return as no-op if scanout query unsupported or failed. */
 		if (!vbl_status) {
@@ -735,7 +800,7 @@ bool drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 
 	return true;
 }
-EXPORT_SYMBOL(drm_calc_vbltimestamp_from_scanoutpos);
+EXPORT_SYMBOL(drm_crtc_vblank_helper_get_vblank_timestamp_internal);
 
 /**
  * drm_get_last_vbltimestamp - retrieve raw timestamp for the most recent
