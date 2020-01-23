@@ -1543,9 +1543,6 @@ static void at_xdmac_remove_xfer(struct at_xdmac_chan *atchan,
 static void at_xdmac_advance_work(struct at_xdmac_chan *atchan)
 {
 	struct at_xdmac_desc	*desc;
-	unsigned long		flags;
-
-	spin_lock_irqsave(&atchan->lock, flags);
 
 	/*
 	 * If channel is enabled, do nothing, advance_work will be triggered
@@ -1559,8 +1556,6 @@ static void at_xdmac_advance_work(struct at_xdmac_chan *atchan)
 		if (!desc->active_xfer)
 			at_xdmac_start_xfer(atchan, desc);
 	}
-
-	spin_unlock_irqrestore(&atchan->lock, flags);
 }
 
 static void at_xdmac_handle_cyclic(struct at_xdmac_chan *atchan)
@@ -1596,7 +1591,7 @@ static void at_xdmac_handle_error(struct at_xdmac_chan *atchan)
 	if (atchan->irq_status & AT_XDMAC_CIS_ROIS)
 		dev_err(chan2dev(&atchan->chan), "request overflow error!!!");
 
-	spin_lock_bh(&atchan->lock);
+	spin_lock_irq(&atchan->lock);
 
 	/* Channel must be disabled first as it's not done automatically */
 	at_xdmac_write(atxdmac, AT_XDMAC_GD, atchan->mask);
@@ -1607,7 +1602,7 @@ static void at_xdmac_handle_error(struct at_xdmac_chan *atchan)
 				    struct at_xdmac_desc,
 				    xfer_node);
 
-	spin_unlock_bh(&atchan->lock);
+	spin_unlock_irq(&atchan->lock);
 
 	/* Print bad descriptor's details if needed */
 	dev_dbg(chan2dev(&atchan->chan),
@@ -1640,21 +1635,21 @@ static void at_xdmac_tasklet(unsigned long data)
 		if (atchan->irq_status & error_mask)
 			at_xdmac_handle_error(atchan);
 
-		spin_lock(&atchan->lock);
+		spin_lock_irq(&atchan->lock);
 		desc = list_first_entry(&atchan->xfers_list,
 					struct at_xdmac_desc,
 					xfer_node);
 		dev_vdbg(chan2dev(&atchan->chan), "%s: desc 0x%p\n", __func__, desc);
 		if (!desc->active_xfer) {
 			dev_err(chan2dev(&atchan->chan), "Xfer not active: exiting");
-			spin_unlock(&atchan->lock);
+			spin_unlock_irq(&atchan->lock);
 			return;
 		}
 
 		txd = &desc->tx_dma_desc;
 
 		at_xdmac_remove_xfer(atchan, desc);
-		spin_unlock(&atchan->lock);
+		spin_unlock_irq(&atchan->lock);
 
 		dma_cookie_complete(txd);
 		if (txd->flags & DMA_PREP_INTERRUPT)
@@ -1662,7 +1657,9 @@ static void at_xdmac_tasklet(unsigned long data)
 
 		dma_run_dependencies(txd);
 
+		spin_lock_irq(&atchan->lock);
 		at_xdmac_advance_work(atchan);
+		spin_unlock_irq(&atchan->lock);
 	}
 }
 
@@ -1723,11 +1720,15 @@ static irqreturn_t at_xdmac_interrupt(int irq, void *dev_id)
 static void at_xdmac_issue_pending(struct dma_chan *chan)
 {
 	struct at_xdmac_chan *atchan = to_at_xdmac_chan(chan);
+	unsigned long flags;
 
 	dev_dbg(chan2dev(&atchan->chan), "%s\n", __func__);
 
-	if (!at_xdmac_chan_is_cyclic(atchan))
+	if (!at_xdmac_chan_is_cyclic(atchan)) {
+		spin_lock_irqsave(&atchan->lock, flags);
 		at_xdmac_advance_work(atchan);
+		spin_unlock_irqrestore(&atchan->lock, flags);
+	}
 
 	return;
 }
