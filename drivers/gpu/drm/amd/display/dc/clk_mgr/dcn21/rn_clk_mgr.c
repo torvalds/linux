@@ -459,16 +459,15 @@ void build_watermark_ranges(struct clk_bw_params *bw_params, struct pp_smu_wm_ra
 static void rn_notify_wm_ranges(struct clk_mgr *clk_mgr_base)
 {
 	struct dc_debug_options *debug = &clk_mgr_base->ctx->dc->debug;
-	struct pp_smu_wm_range_sets ranges = {0};
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
 	struct pp_smu_funcs *pp_smu = clk_mgr->pp_smu;
 
 	if (!debug->disable_pplib_wm_range) {
-		build_watermark_ranges(clk_mgr_base->bw_params, &ranges);
+		build_watermark_ranges(clk_mgr_base->bw_params, &clk_mgr_base->ranges);
 
 		/* Notify PP Lib/SMU which Watermarks to use for which clock ranges */
 		if (pp_smu && pp_smu->rn_funcs.set_wm_ranges)
-			pp_smu->rn_funcs.set_wm_ranges(&pp_smu->rn_funcs.pp_smu, &ranges);
+			pp_smu->rn_funcs.set_wm_ranges(&pp_smu->rn_funcs.pp_smu, &clk_mgr_base->ranges);
 	}
 
 }
