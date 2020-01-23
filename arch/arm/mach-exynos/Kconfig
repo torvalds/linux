@@ -64,7 +64,6 @@ config ARCH_EXYNOS4
 	select CLKSRC_SAMSUNG_PWM if CPU_EXYNOS4210
 	select CPU_EXYNOS4210
 	select GIC_NON_BANKED
-	select MIGHT_HAVE_CACHE_L2X0
 	help
 	  Samsung Exynos4 (Cortex-A9) SoC based systems
 
