@@ -5061,9 +5061,10 @@ static void skl_ddb_entry_write(struct drm_i915_private *dev_priv,
 				const struct skl_ddb_entry *entry)
 {
 	if (entry->end)
-		I915_WRITE_FW(reg, (entry->end - 1) << 16 | entry->start);
+		intel_de_write_fw(dev_priv, reg,
+				  (entry->end - 1) << 16 | entry->start);
 	else
-		I915_WRITE_FW(reg, 0);
+		intel_de_write_fw(dev_priv, reg, 0);
 }
 
 static void skl_write_wm_level(struct drm_i915_private *dev_priv,
@@ -5079,7 +5080,7 @@ static void skl_write_wm_level(struct drm_i915_private *dev_priv,
 	val |= level->plane_res_b;
 	val |= level->plane_res_l << PLANE_WM_LINES_SHIFT;
 
-	I915_WRITE_FW(reg, val);
+	intel_de_write_fw(dev_priv, reg, val);
 }
 
 void skl_write_plane_wm(struct intel_plane *plane,
