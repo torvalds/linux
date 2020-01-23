@@ -30,11 +30,19 @@ void ima_post_key_create_or_update(struct key *keyring, struct key *key,
 				   const void *payload, size_t payload_len,
 				   unsigned long flags, bool create)
 {
+	bool queued = false;
+
 	/* Only asymmetric keys are handled by this hook. */
 	if (key->type != &key_type_asymmetric)
 		return;
 
 	if (!payload || (payload_len == 0))
+		return;
+
+	if (ima_should_queue_key())
+		queued = ima_queue_key(keyring, payload, payload_len);
+
+	if (queued)
 		return;
 
 	/*
