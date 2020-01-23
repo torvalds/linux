@@ -143,7 +143,7 @@ static void flush_channel_fifos(struct most_channel *c)
 	spin_unlock_irqrestore(&c->fifo_lock, hf_flags);
 
 	if (unlikely((!list_empty(&c->fifo) || !list_empty(&c->halt_fifo))))
-		dev_warn(&c->dev, "fifo | trash fifo not empty\n");
+		dev_warn(&c->dev, "Channel or trash fifo not empty\n");
 }
 
 /**
@@ -629,7 +629,7 @@ int most_set_cfg_datatype(char *mdev, char *mdev_ch, char *buf)
 	}
 
 	if (i == ARRAY_SIZE(ch_data_type))
-		dev_warn(&c->dev, "invalid attribute settings\n");
+		dev_warn(&c->dev, "Invalid attribute settings\n");
 	return 0;
 }
 
@@ -799,7 +799,7 @@ static int hdm_enqueue_thread(void *data)
 		mutex_unlock(&c->nq_mutex);
 
 		if (unlikely(ret)) {
-			dev_err(&c->dev, "hdm enqueue failed\n");
+			dev_err(&c->dev, "Buffer enqueue failed\n");
 			nq_hdm_mbo(mbo);
 			c->hdm_enqueue_task = NULL;
 			return 0;
@@ -926,7 +926,7 @@ flush_fifos:
 void most_submit_mbo(struct mbo *mbo)
 {
 	if (WARN_ONCE(!mbo || !mbo->context,
-		      "bad mbo or missing channel reference\n"))
+		      "Bad buffer or missing channel reference\n"))
 		return;
 
 	nq_hdm_mbo(mbo);
@@ -945,8 +945,6 @@ static void most_write_completion(struct mbo *mbo)
 	struct most_channel *c;
 
 	c = mbo->context;
-	if (mbo->status == MBO_E_INVAL)
-		dev_warn(&c->dev, "Tx MBO status: invalid\n");
 	if (unlikely(c->is_poisoned || (mbo->status == MBO_E_CLOSE)))
 		trash_mbo(mbo);
 	else
@@ -1105,14 +1103,14 @@ int most_start_channel(struct most_interface *iface, int id,
 		goto out; /* already started by another component */
 
 	if (!try_module_get(iface->mod)) {
-		dev_err(&c->dev, "failed to acquire HDM lock\n");
+		dev_err(&c->dev, "Failed to acquire HDM lock\n");
 		mutex_unlock(&c->start_mutex);
 		return -ENOLCK;
 	}
 
 	c->cfg.extra_len = 0;
 	if (c->iface->configure(c->iface, c->channel_id, &c->cfg)) {
-		dev_err(&c->dev, "channel configuration failed. Go check settings...\n");
+		dev_err(&c->dev, "Channel configuration failed. Go check settings...\n");
 		ret = -EINVAL;
 		goto err_put_module;
 	}
@@ -1186,7 +1184,7 @@ int most_stop_channel(struct most_interface *iface, int id,
 
 	c->is_poisoned = true;
 	if (c->iface->poison_channel(c->iface, c->channel_id)) {
-		dev_err(&c->dev, "Cannot stop channel %d of mdev %s\n", c->channel_id,
+		dev_err(&c->dev, "Failed to stop channel %d of interface %s\n", c->channel_id,
 			c->iface->description);
 		mutex_unlock(&c->start_mutex);
 		return -EAGAIN;
@@ -1196,7 +1194,7 @@ int most_stop_channel(struct most_interface *iface, int id,
 
 #ifdef CMPL_INTERRUPTIBLE
 	if (wait_for_completion_interruptible(&c->cleanup)) {
-		dev_err(&c->dev, "Interrupted while clean up ch %d\n", c->channel_id);
+		dev_err(&c->dev, "Interrupted while cleaning up channel %d\n", c->channel_id);
 		mutex_unlock(&c->start_mutex);
 		return -EINTR;
 	}
@@ -1293,7 +1291,7 @@ int most_register_interface(struct most_interface *iface)
 
 	id = ida_simple_get(&mdev_id, 0, 0, GFP_KERNEL);
 	if (id < 0) {
-		dev_err(iface->dev, "Failed to alloc mdev ID\n");
+		dev_err(iface->dev, "Failed to allocate device ID\n");
 		return id;
 	}
 
@@ -1310,7 +1308,7 @@ int most_register_interface(struct most_interface *iface)
 	iface->dev->groups = interface_attr_groups;
 	dev_set_drvdata(iface->dev, iface);
 	if (device_register(iface->dev)) {
-		dev_err(iface->dev, "registering iface->dev failed\n");
+		dev_err(iface->dev, "Failed to register interface device\n");
 		kfree(iface->p);
 		put_device(iface->dev);
 		ida_simple_remove(&mdev_id, id);
@@ -1354,7 +1352,7 @@ int most_register_interface(struct most_interface *iface)
 		mutex_init(&c->nq_mutex);
 		list_add_tail(&c->list, &iface->p->channel_list);
 		if (device_register(&c->dev)) {
-			dev_err(&c->dev, "registering c->dev failed\n");
+			dev_err(&c->dev, "Failed to register channel device\n");
 			goto err_free_most_channel;
 		}
 	}
@@ -1463,12 +1461,12 @@ static int __init most_init(void)
 
 	err = bus_register(&mostbus);
 	if (err) {
-		pr_err("Cannot register most bus\n");
+		pr_err("Failed to register most bus\n");
 		return err;
 	}
 	err = driver_register(&mostbus_driver);
 	if (err) {
-		pr_err("Cannot register core driver\n");
+		pr_err("Failed to register core driver\n");
 		goto err_unregister_bus;
 	}
 	configfs_init();
