@@ -35,7 +35,7 @@ typedef __u16 __sum16;
 
 #include "test_iptunnel_common.h"
 #include "bpf_util.h"
-#include "bpf_endian.h"
+#include <bpf/bpf_endian.h>
 #include "trace_helpers.h"
 #include "flow_dissector_load.h"
 
@@ -46,8 +46,14 @@ enum verbosity {
 	VERBOSE_SUPER,
 };
 
+struct str_set {
+	const char **strs;
+	int cnt;
+};
+
 struct test_selector {
-	const char *name;
+	struct str_set whitelist;
+	struct str_set blacklist;
 	bool *num_set;
 	int num_set_len;
 };

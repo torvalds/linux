@@ -30,10 +30,10 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "libbpf.h"
-#include "xsk.h"
-#include "xdpsock.h"
+#include <bpf/libbpf.h>
+#include <bpf/xsk.h>
 #include <bpf/bpf.h>
+#include "xdpsock.h"
 
 #ifndef SOL_XDP
 #define SOL_XDP 283

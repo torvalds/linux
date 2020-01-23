@@ -4,8 +4,8 @@
  */
 #include <linux/bpf.h>
 
-#include "bpf_helpers.h"
-#include "bpf_endian.h"
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_endian.h>
 
 #define INTERVAL			1000000000ULL
 

@@ -2597,4 +2597,6 @@ static inline bool sk_dev_equal_l3scope(struct sock *sk, int dif)
 	return false;
 }
 
+void sock_def_readable(struct sock *sk);
+
 #endif	/* _SOCK_H */

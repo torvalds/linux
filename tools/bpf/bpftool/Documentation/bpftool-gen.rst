@@ -196,7 +196,7 @@ and global variables.
   #define __EXAMPLE_SKEL_H__
 
   #include <stdlib.h>
-  #include <libbpf.h>
+  #include <bpf/libbpf.h>
 
   struct example {
   	struct bpf_object_skeleton *skeleton;

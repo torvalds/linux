@@ -15,9 +15,9 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include <bpf.h>
+#include <bpf/bpf.h>
+#include <bpf/btf.h>
 
-#include "btf.h"
 #include "json_writer.h"
 #include "main.h"
 
@@ -48,6 +48,7 @@ const char * const map_type_name[] = {
 	[BPF_MAP_TYPE_QUEUE]			= "queue",
 	[BPF_MAP_TYPE_STACK]			= "stack",
 	[BPF_MAP_TYPE_SK_STORAGE]		= "sk_storage",
+	[BPF_MAP_TYPE_STRUCT_OPS]		= "struct_ops",
 };
 
 const size_t map_type_name_size = ARRAY_SIZE(map_type_name);
@@ -251,6 +252,7 @@ static int do_dump_btf(const struct btf_dumper *d,
 		       struct bpf_map_info *map_info, void *key,
 		       void *value)
 {
+	__u32 value_id;
 	int ret;
 
 	/* start of key-value pair */
@@ -264,9 +266,12 @@ static int do_dump_btf(const struct btf_dumper *d,
 			goto err_end_obj;
 	}
 
+	value_id = map_info->btf_vmlinux_value_type_id ?
+		: map_info->btf_value_type_id;
+
 	if (!map_is_per_cpu(map_info->type)) {
 		jsonw_name(d->jw, "value");
-		ret = btf_dumper_type(d, map_info->btf_value_type_id, value);
+		ret = btf_dumper_type(d, value_id, value);
 	} else {
 		unsigned int i, n, step;
 
@@ -278,8 +283,7 @@ static int do_dump_btf(const struct btf_dumper *d,
 			jsonw_start_object(d->jw);
 			jsonw_int_field(d->jw, "cpu", i);
 			jsonw_name(d->jw, "value");
-			ret = btf_dumper_type(d, map_info->btf_value_type_id,
-					      value + i * step);
+			ret = btf_dumper_type(d, value_id, value + i * step);
 			jsonw_end_object(d->jw);
 			if (ret)
 				break;
@@ -915,37 +919,63 @@ static int maps_have_btf(int *fds, int nb_fds)
 {
 	struct bpf_map_info info = {};
 	__u32 len = sizeof(info);
-	struct btf *btf = NULL;
 	int err, i;
 
 	for (i = 0; i < nb_fds; i++) {
 		err = bpf_obj_get_info_by_fd(fds[i], &info, &len);
 		if (err) {
 			p_err("can't get map info: %s", strerror(errno));
-			goto err_close;
+			return -1;
 		}
 
-		err = btf__get_from_id(info.btf_id, &btf);
-		if (err) {
-			p_err("failed to get btf");
-			goto err_close;
-		}
-
-		if (!btf)
+		if (!info.btf_id)
 			return 0;
 	}
 
 	return 1;
+}
 
-err_close:
-	for (; i < nb_fds; i++)
-		close(fds[i]);
-	return -1;
+static struct btf *btf_vmlinux;
+
+static struct btf *get_map_kv_btf(const struct bpf_map_info *info)
+{
+	struct btf *btf = NULL;
+
+	if (info->btf_vmlinux_value_type_id) {
+		if (!btf_vmlinux) {
+			btf_vmlinux = libbpf_find_kernel_btf();
+			if (IS_ERR(btf_vmlinux))
+				p_err("failed to get kernel btf");
+		}
+		return btf_vmlinux;
+	} else if (info->btf_value_type_id) {
+		int err;
+
+		err = btf__get_from_id(info->btf_id, &btf);
+		if (err || !btf) {
+			p_err("failed to get btf");
+			btf = err ? ERR_PTR(err) : ERR_PTR(-ESRCH);
+		}
+	}
+
+	return btf;
+}
+
+static void free_map_kv_btf(struct btf *btf)
+{
+	if (!IS_ERR(btf) && btf != btf_vmlinux)
+		btf__free(btf);
+}
+
+static void free_btf_vmlinux(void)
+{
+	if (!IS_ERR(btf_vmlinux))
+		btf__free(btf_vmlinux);
 }
 
 static int
 map_dump(int fd, struct bpf_map_info *info, json_writer_t *wtr,
-	 bool enable_btf, bool show_header)
+	 bool show_header)
 {
 	void *key, *value, *prev_key;
 	unsigned int num_elems = 0;
@@ -962,18 +992,13 @@ map_dump(int fd, struct bpf_map_info *info, json_writer_t *wtr,
 
 	prev_key = NULL;
 
-	if (enable_btf) {
-		err = btf__get_from_id(info->btf_id, &btf);
-		if (err || !btf) {
-			/* enable_btf is true only if we've already checked
-			 * that all maps have BTF information.
-			 */
-			p_err("failed to get btf");
+	if (wtr) {
+		btf = get_map_kv_btf(info);
+		if (IS_ERR(btf)) {
+			err = PTR_ERR(btf);
 			goto exit_free;
 		}
-	}
 
-	if (wtr) {
 		if (show_header) {
 			jsonw_start_object(wtr);	/* map object */
 			show_map_header_json(info, wtr);
@@ -1012,7 +1037,7 @@ exit_free:
 	free(key);
 	free(value);
 	close(fd);
-	btf__free(btf);
+	free_map_kv_btf(btf);
 
 	return err;
 }
@@ -1021,7 +1046,7 @@ static int do_dump(int argc, char **argv)
 {
 	json_writer_t *wtr = NULL, *btf_wtr = NULL;
 	struct bpf_map_info info = {};
-	int nb_fds, i = 0, btf = 0;
+	int nb_fds, i = 0;
 	__u32 len = sizeof(info);
 	int *fds = NULL;
 	int err = -1;
@@ -1041,17 +1066,17 @@ static int do_dump(int argc, char **argv)
 	if (json_output) {
 		wtr = json_wtr;
 	} else {
-		btf = maps_have_btf(fds, nb_fds);
-		if (btf < 0)
+		int do_plain_btf;
+
+		do_plain_btf = maps_have_btf(fds, nb_fds);
+		if (do_plain_btf < 0)
 			goto exit_close;
-		if (btf) {
+
+		if (do_plain_btf) {
 			btf_wtr = get_btf_writer();
-			if (btf_wtr) {
-				wtr = btf_wtr;
-			} else {
+			wtr = btf_wtr;
+			if (!btf_wtr)
 				p_info("failed to create json writer for btf. falling back to plain output");
-				btf = 0;
-			}
 		}
 	}
 
@@ -1062,7 +1087,7 @@ static int do_dump(int argc, char **argv)
 			p_err("can't get map info: %s", strerror(errno));
 			break;
 		}
-		err = map_dump(fds[i], &info, wtr, btf, nb_fds > 1);
+		err = map_dump(fds[i], &info, wtr, nb_fds > 1);
 		if (!wtr && i != nb_fds - 1)
 			printf("\n");
 
@@ -1073,13 +1098,14 @@ static int do_dump(int argc, char **argv)
 	if (wtr && nb_fds > 1)
 		jsonw_end_array(wtr);	/* root array */
 
-	if (btf)
+	if (btf_wtr)
 		jsonw_destroy(&btf_wtr);
 exit_close:
 	for (; i < nb_fds; i++)
 		close(fds[i]);
 exit_free:
 	free(fds);
+	free_btf_vmlinux();
 	return err;
 }
 

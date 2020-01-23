@@ -8,6 +8,10 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
+#include <sys/utsname.h>
+#include <sys/param.h>
+#include <sys/stat.h>
+#include <linux/kernel.h>
 #include <linux/err.h>
 #include <linux/btf.h>
 #include <gelf.h>
@@ -17,8 +21,11 @@
 #include "libbpf_internal.h"
 #include "hashmap.h"
 
-#define BTF_MAX_NR_TYPES 0x7fffffff
-#define BTF_MAX_STR_OFFSET 0x7fffffff
+/* make sure libbpf doesn't use kernel-only integer typedefs */
+#pragma GCC poison u8 u16 u32 u64 s8 s16 s32 s64
+
+#define BTF_MAX_NR_TYPES 0x7fffffffU
+#define BTF_MAX_STR_OFFSET 0x7fffffffU
 
 static struct btf_type btf_void;
 
@@ -50,7 +57,7 @@ static int btf_add_type(struct btf *btf, struct btf_type *t)
 		if (btf->types_size == BTF_MAX_NR_TYPES)
 			return -E2BIG;
 
-		expand_by = max(btf->types_size >> 2, 16);
+		expand_by = max(btf->types_size >> 2, 16U);
 		new_size = min(BTF_MAX_NR_TYPES, btf->types_size + expand_by);
 
 		new_types = realloc(btf->types, sizeof(*new_types) * new_size);
@@ -286,7 +293,7 @@ int btf__align_of(const struct btf *btf, __u32 id)
 	switch (kind) {
 	case BTF_KIND_INT:
 	case BTF_KIND_ENUM:
-		return min(sizeof(void *), t->size);
+		return min(sizeof(void *), (size_t)t->size);
 	case BTF_KIND_PTR:
 		return sizeof(void *);
 	case BTF_KIND_TYPEDEF:
@@ -1398,7 +1405,7 @@ static int btf_dedup_hypot_map_add(struct btf_dedup *d,
 	if (d->hypot_cnt == d->hypot_cap) {
 		__u32 *new_list;
 
-		d->hypot_cap += max(16, d->hypot_cap / 2);
+		d->hypot_cap += max((size_t)16, d->hypot_cap / 2);
 		new_list = realloc(d->hypot_list, sizeof(__u32) * d->hypot_cap);
 		if (!new_list)
 			return -ENOMEM;
@@ -1694,7 +1701,7 @@ static int btf_dedup_strings(struct btf_dedup *d)
 		if (strs.cnt + 1 > strs.cap) {
 			struct btf_str_ptr *new_ptrs;
 
-			strs.cap += max(strs.cnt / 2, 16);
+			strs.cap += max(strs.cnt / 2, 16U);
 			new_ptrs = realloc(strs.ptrs,
 					   sizeof(strs.ptrs[0]) * strs.cap);
 			if (!new_ptrs) {
@@ -2927,4 +2934,90 @@ static int btf_dedup_remap_types(struct btf_dedup *d)
 			return r;
 	}
 	return 0;
+}
+
+static struct btf *btf_load_raw(const char *path)
+{
+	struct btf *btf;
+	size_t read_cnt;
+	struct stat st;
+	void *data;
+	FILE *f;
+
+	if (stat(path, &st))
+		return ERR_PTR(-errno);
+
+	data = malloc(st.st_size);
+	if (!data)
+		return ERR_PTR(-ENOMEM);
+
+	f = fopen(path, "rb");
+	if (!f) {
+		btf = ERR_PTR(-errno);
+		goto cleanup;
+	}
+
+	read_cnt = fread(data, 1, st.st_size, f);
+	fclose(f);
+	if (read_cnt < st.st_size) {
+		btf = ERR_PTR(-EBADF);
+		goto cleanup;
+	}
+
+	btf = btf__new(data, read_cnt);
+
+cleanup:
+	free(data);
+	return btf;
+}
+
+/*
+ * Probe few well-known locations for vmlinux kernel image and try to load BTF
+ * data out of it to use for target BTF.
+ */
+struct btf *libbpf_find_kernel_btf(void)
+{
+	struct {
+		const char *path_fmt;
+		bool raw_btf;
+	} locations[] = {
+		/* try canonical vmlinux BTF through sysfs first */
+		{ "/sys/kernel/btf/vmlinux", true /* raw BTF */ },
+		/* fall back to trying to find vmlinux ELF on disk otherwise */
+		{ "/boot/vmlinux-%1$s" },
+		{ "/lib/modules/%1$s/vmlinux-%1$s" },
+		{ "/lib/modules/%1$s/build/vmlinux" },
+		{ "/usr/lib/modules/%1$s/kernel/vmlinux" },
+		{ "/usr/lib/debug/boot/vmlinux-%1$s" },
+		{ "/usr/lib/debug/boot/vmlinux-%1$s.debug" },
+		{ "/usr/lib/debug/lib/modules/%1$s/vmlinux" },
+	};
+	char path[PATH_MAX + 1];
+	struct utsname buf;
+	struct btf *btf;
+	int i;
+
+	uname(&buf);
+
+	for (i = 0; i < ARRAY_SIZE(locations); i++) {
+		snprintf(path, PATH_MAX, locations[i].path_fmt, buf.release);
+
+		if (access(path, R_OK))
+			continue;
+
+		if (locations[i].raw_btf)
+			btf = btf_load_raw(path);
+		else
+			btf = btf__parse_elf(path, NULL);
+
+		pr_debug("loading kernel BTF '%s': %ld\n",
+			 path, IS_ERR(btf) ? PTR_ERR(btf) : 0);
+		if (IS_ERR(btf))
+			continue;
+
+		return btf;
+	}
+
+	pr_warn("failed to find valid kernel BTF\n");
+	return ERR_PTR(-ESRCH);
 }

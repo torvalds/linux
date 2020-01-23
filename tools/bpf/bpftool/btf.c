@@ -8,15 +8,15 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-#include <bpf.h>
-#include <libbpf.h>
+#include <bpf/bpf.h>
+#include <bpf/btf.h>
+#include <bpf/libbpf.h>
 #include <linux/btf.h>
 #include <linux/hashtable.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "btf.h"
 #include "json_writer.h"
 #include "main.h"
 
@@ -370,6 +370,10 @@ static int dump_btf_c(const struct btf *btf,
 	if (IS_ERR(d))
 		return PTR_ERR(d);
 
+	printf("#ifndef BPF_NO_PRESERVE_ACCESS_INDEX\n");
+	printf("#pragma clang attribute push (__attribute__((preserve_access_index)), apply_to = record)\n");
+	printf("#endif\n\n");
+
 	if (root_type_cnt) {
 		for (i = 0; i < root_type_cnt; i++) {
 			err = btf_dump__dump_type(d, root_type_ids[i]);
@@ -385,6 +389,10 @@ static int dump_btf_c(const struct btf *btf,
 				goto done;
 		}
 	}
+
+	printf("#ifndef BPF_NO_PRESERVE_ACCESS_INDEX\n");
+	printf("#pragma clang attribute pop\n");
+	printf("#endif\n");
 
 done:
 	btf_dump__free(d);
@@ -524,7 +532,7 @@ static int do_dump(int argc, char **argv)
 		if (IS_ERR(btf)) {
 			err = PTR_ERR(btf);
 			btf = NULL;
-			p_err("failed to load BTF from %s: %s", 
+			p_err("failed to load BTF from %s: %s",
 			      *argv, strerror(err));
 			goto done;
 		}

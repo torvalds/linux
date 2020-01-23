@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause) */
 #include <iostream>
-#include "libbpf.h"
-#include "bpf.h"
-#include "btf.h"
+#include <bpf/libbpf.h>
+#include <bpf/bpf.h>
+#include <bpf/btf.h>
 #include "test_core_extern.skel.h"
 
 /* do nothing, just make sure we can link successfully */

@@ -22,17 +22,13 @@ get_cgroup_id_user
 test_skb_cgroup_id_user
 test_socket_cookie
 test_cgroup_storage
-test_select_reuseport
 test_flow_dissector
 flow_dissector_load
 test_netcnt
-test_section_names
 test_tcpnotify_user
 test_libbpf
 test_tcp_check_syncookie_user
 test_sysctl
-libbpf.pc
-libbpf.so.*
 test_hashmap
 test_btf_dump
 xdping
@@ -41,4 +37,4 @@ test_cpp
 /no_alu32
 /bpf_gcc
 /tools
-bpf_helper_defs.h
+

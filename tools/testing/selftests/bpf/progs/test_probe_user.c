@@ -5,13 +5,14 @@
 
 #include <netinet/in.h>
 
-#include "bpf_helpers.h"
-#include "bpf_tracing.h"
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_tracing.h>
+#include "bpf_trace_helpers.h"
 
 static struct sockaddr_in old;
 
 SEC("kprobe/__sys_connect")
-int handle_sys_connect(struct pt_regs *ctx)
+int BPF_KPROBE(handle_sys_connect)
 {
 	void *ptr = (void *)PT_REGS_PARM2(ctx);
 	struct sockaddr_in new;

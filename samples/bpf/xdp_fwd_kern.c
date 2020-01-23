@@ -19,7 +19,7 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 #define IPV6_FLOWINFO_MASK              cpu_to_be32(0x0FFFFFFF)
 

@@ -769,7 +769,7 @@ static int veth_poll(struct napi_struct *napi, int budget)
 	if (xdp_xmit & VETH_XDP_TX)
 		veth_xdp_flush(rq->dev, &bq);
 	if (xdp_xmit & VETH_XDP_REDIR)
-		xdp_do_flush_map();
+		xdp_do_flush();
 	xdp_clear_return_frame_no_direct();
 
 	return done;
