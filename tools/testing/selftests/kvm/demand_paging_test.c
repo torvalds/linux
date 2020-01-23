@@ -35,6 +35,12 @@
 
 #define DEFAULT_GUEST_TEST_MEM_SIZE (1 << 30) /* 1G */
 
+#ifdef PRINT_PER_PAGE_UPDATES
+#define PER_PAGE_DEBUG(...) DEBUG(__VA_ARGS__)
+#else
+#define PER_PAGE_DEBUG(...)
+#endif
+
 #ifdef PRINT_PER_VCPU_UPDATES
 #define PER_VCPU_DEBUG(...) DEBUG(__VA_ARGS__)
 #else
@@ -111,9 +117,13 @@ static void *vcpu_worker(void *data)
 	struct kvm_vm *vm = args->vm;
 	int vcpu_id = args->vcpu_id;
 	struct kvm_run *run;
+	struct timespec start;
+	struct timespec end;
 
 	vcpu_args_set(vm, vcpu_id, 1, vcpu_id);
 	run = vcpu_state(vm, vcpu_id);
+
+	clock_gettime(CLOCK_MONOTONIC, &start);
 
 	/* Let the guest access its memory */
 	ret = _vcpu_run(vm, vcpu_id);
@@ -123,6 +133,11 @@ static void *vcpu_worker(void *data)
 			    "Invalid guest sync status: exit_reason=%s\n",
 			    exit_reason_str(run->exit_reason));
 	}
+
+	clock_gettime(CLOCK_MONOTONIC, &end);
+	PER_VCPU_DEBUG("vCPU %d execution time: %lld.%.9lds\n", vcpu_id,
+		       (long long)(timespec_diff(start, end).tv_sec),
+		       timespec_diff(start, end).tv_nsec);
 
 	return NULL;
 }
@@ -161,6 +176,8 @@ static struct kvm_vm *create_vm(enum vm_guest_mode mode, int vcpus,
 static int handle_uffd_page_request(int uffd, uint64_t addr)
 {
 	pid_t tid;
+	struct timespec start;
+	struct timespec end;
 	struct uffdio_copy copy;
 	int r;
 
@@ -171,12 +188,21 @@ static int handle_uffd_page_request(int uffd, uint64_t addr)
 	copy.len = host_page_size;
 	copy.mode = 0;
 
+	clock_gettime(CLOCK_MONOTONIC, &start);
+
 	r = ioctl(uffd, UFFDIO_COPY, &copy);
 	if (r == -1) {
 		DEBUG("Failed Paged in 0x%lx from thread %d with errno: %d\n",
 		      addr, tid, errno);
 		return r;
 	}
+
+	clock_gettime(CLOCK_MONOTONIC, &end);
+
+	PER_PAGE_DEBUG("UFFDIO_COPY %d \t%lld ns\n", tid,
+		       (long long)timespec_to_ns(timespec_diff(start, end)));
+	PER_PAGE_DEBUG("Paged in %ld bytes at 0x%lx from thread %d\n",
+		       host_page_size, addr, tid);
 
 	return 0;
 }
@@ -196,7 +222,10 @@ static void *uffd_handler_thread_fn(void *arg)
 	int pipefd = uffd_args->pipefd;
 	useconds_t delay = uffd_args->delay;
 	int64_t pages = 0;
+	struct timespec start;
+	struct timespec end;
 
+	clock_gettime(CLOCK_MONOTONIC, &start);
 	while (!quit_uffd_thread) {
 		struct uffd_msg msg;
 		struct pollfd pollfd[2];
@@ -264,6 +293,13 @@ static void *uffd_handler_thread_fn(void *arg)
 		pages++;
 	}
 
+	clock_gettime(CLOCK_MONOTONIC, &end);
+	PER_VCPU_DEBUG("userfaulted %ld pages over %lld.%.9lds. (%f/sec)\n",
+		       pages, (long long)(timespec_diff(start, end).tv_sec),
+		       timespec_diff(start, end).tv_nsec, pages /
+		       ((double)timespec_diff(start, end).tv_sec +
+			(double)timespec_diff(start, end).tv_nsec / 100000000.0));
+
 	return NULL;
 }
 
@@ -328,6 +364,8 @@ static void run_test(enum vm_guest_mode mode, bool use_uffd,
 	uint64_t guest_num_pages;
 	int vcpu_id;
 	int r;
+	struct timespec start;
+	struct timespec end;
 
 	vm = create_vm(mode, vcpus, vcpu_memory_bytes);
 
@@ -368,7 +406,6 @@ static void run_test(enum vm_guest_mode mode, bool use_uffd,
 
 	DEBUG("guest physical test memory offset: 0x%lx\n",
 	      guest_test_phys_mem);
-
 
 	/* Add an extra memory slot for testing demand paging */
 	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS,
@@ -451,6 +488,8 @@ static void run_test(enum vm_guest_mode mode, bool use_uffd,
 
 	DEBUG("Finished creating vCPUs and starting uffd threads\n");
 
+	clock_gettime(CLOCK_MONOTONIC, &start);
+
 	for (vcpu_id = 0; vcpu_id < vcpus; vcpu_id++) {
 		pthread_create(&vcpu_threads[vcpu_id], NULL, vcpu_worker,
 			       &vcpu_args[vcpu_id]);
@@ -466,6 +505,8 @@ static void run_test(enum vm_guest_mode mode, bool use_uffd,
 
 	DEBUG("All vCPU threads joined\n");
 
+	clock_gettime(CLOCK_MONOTONIC, &end);
+
 	if (use_uffd) {
 		char c;
 
@@ -477,6 +518,13 @@ static void run_test(enum vm_guest_mode mode, bool use_uffd,
 			pthread_join(uffd_handler_threads[vcpu_id], NULL);
 		}
 	}
+
+	DEBUG("Total guest execution time: %lld.%.9lds\n",
+	      (long long)(timespec_diff(start, end).tv_sec),
+	      timespec_diff(start, end).tv_nsec);
+	DEBUG("Overall demand paging rate: %f pgs/sec\n",
+	      guest_num_pages / ((double)timespec_diff(start, end).tv_sec +
+	      (double)timespec_diff(start, end).tv_nsec / 100000000.0));
 
 	ucall_uninit(vm);
 	kvm_vm_free(vm);
