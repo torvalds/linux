@@ -328,12 +328,13 @@ static int __init efisubsys_init(void)
 		return -ENOMEM;
 	}
 
-	error = generic_ops_register();
-	if (error)
-		goto err_put;
-
-	if (efi_enabled(EFI_RUNTIME_SERVICES))
+	if (efi_rt_services_supported(EFI_RT_SUPPORTED_VARIABLE_SERVICES)) {
 		efivar_ssdt_load();
+		error = generic_ops_register();
+		if (error)
+			goto err_put;
+		platform_device_register_simple("efivars", 0, NULL, 0);
+	}
 
 	error = sysfs_create_group(efi_kobj, &efi_subsys_attr_group);
 	if (error) {
@@ -358,7 +359,8 @@ static int __init efisubsys_init(void)
 err_remove_group:
 	sysfs_remove_group(efi_kobj, &efi_subsys_attr_group);
 err_unregister:
-	generic_ops_unregister();
+	if (efi_rt_services_supported(EFI_RT_SUPPORTED_VARIABLE_SERVICES))
+		generic_ops_unregister();
 err_put:
 	kobject_put(efi_kobj);
 	return error;
@@ -649,20 +651,6 @@ void __init efi_systab_report_header(const efi_table_hdr_t *systab_hdr,
 		systab_hdr->revision & 0xffff,
 		vendor);
 }
-
-#ifdef CONFIG_EFI_VARS_MODULE
-static int __init efi_load_efivars(void)
-{
-	struct platform_device *pdev;
-
-	if (!efi_enabled(EFI_RUNTIME_SERVICES))
-		return 0;
-
-	pdev = platform_device_register_simple("efivars", 0, NULL, 0);
-	return PTR_ERR_OR_ZERO(pdev);
-}
-device_initcall(efi_load_efivars);
-#endif
 
 static __initdata char memory_type_name[][20] = {
 	"Reserved",
