@@ -441,7 +441,7 @@ void ghes_edac_report_mem_error(int sev, struct cper_sec_mem_err *mem_err)
 	if (p > pvt->other_detail)
 		*(p - 1) = '\0';
 
-	edac_raw_mc_handle_error(mci, e);
+	edac_raw_mc_handle_error(e);
 
 unlock:
 	spin_unlock_irqrestore(&ghes_lock, flags);

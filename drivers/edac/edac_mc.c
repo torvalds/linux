@@ -55,6 +55,11 @@ static LIST_HEAD(mc_devices);
  */
 static const char *edac_mc_owner;
 
+static struct mem_ctl_info *error_desc_to_mci(struct edac_raw_error_desc *e)
+{
+	return container_of(e, struct mem_ctl_info, error_desc);
+}
+
 int edac_get_report_status(void)
 {
 	return edac_report;
@@ -1084,9 +1089,9 @@ static void edac_ue_error(struct mem_ctl_info *mci,
 	edac_inc_ue_error(mci, enable_per_layer_report, pos, error_count);
 }
 
-void edac_raw_mc_handle_error(struct mem_ctl_info *mci,
-			      struct edac_raw_error_desc *e)
+void edac_raw_mc_handle_error(struct edac_raw_error_desc *e)
 {
+	struct mem_ctl_info *mci = error_desc_to_mci(e);
 	char detail[80];
 	int pos[EDAC_MAX_LAYERS] = { e->top_layer, e->mid_layer, e->low_layer };
 	u8 grain_bits;
@@ -1282,6 +1287,6 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 	if (p > e->location)
 		*(p - 1) = '\0';
 
-	edac_raw_mc_handle_error(mci, e);
+	edac_raw_mc_handle_error(e);
 }
 EXPORT_SYMBOL_GPL(edac_mc_handle_error);
