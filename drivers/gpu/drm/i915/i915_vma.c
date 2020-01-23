@@ -1279,16 +1279,21 @@ int i915_vma_unbind(struct i915_vma *vma)
 		/* XXX not always required: nop_clear_range */
 		wakeref = intel_runtime_pm_get(&vm->i915->runtime_pm);
 
+	/* Optimistic wait before taking the mutex */
+	err = i915_vma_sync(vma);
+	if (err)
+		goto out_rpm;
+
 	err = mutex_lock_interruptible(&vm->mutex);
 	if (err)
-		return err;
+		goto out_rpm;
 
 	err = __i915_vma_unbind(vma);
 	mutex_unlock(&vm->mutex);
 
+out_rpm:
 	if (wakeref)
 		intel_runtime_pm_put(&vm->i915->runtime_pm, wakeref);
-
 	return err;
 }
 
