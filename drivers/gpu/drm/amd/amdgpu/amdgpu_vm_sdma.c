@@ -58,9 +58,9 @@ static int amdgpu_vm_sdma_map_table(struct amdgpu_bo *table)
  * Negativ errno, 0 for success.
  */
 static int amdgpu_vm_sdma_prepare(struct amdgpu_vm_update_params *p,
-				  void *owner, struct dma_fence *exclusive)
+				  struct dma_resv *resv,
+				  enum amdgpu_sync_mode sync_mode)
 {
-	struct amdgpu_bo *root = p->vm->root.base.bo;
 	unsigned int ndw = AMDGPU_VM_SDMA_MIN_NUM_DW;
 	int r;
 
@@ -70,17 +70,10 @@ static int amdgpu_vm_sdma_prepare(struct amdgpu_vm_update_params *p,
 
 	p->num_dw_left = ndw;
 
-	/* Wait for moves to be completed */
-	r = amdgpu_sync_fence(&p->job->sync, exclusive, false);
-	if (r)
-		return r;
-
-	/* Don't wait for any submissions during page fault handling */
-	if (p->direct)
+	if (!resv)
 		return 0;
 
-	return amdgpu_sync_resv(p->adev, &p->job->sync, root->tbo.base.resv,
-				AMDGPU_SYNC_NE_OWNER, owner);
+	return amdgpu_sync_resv(p->adev, &p->job->sync, resv, sync_mode, p->vm);
 }
 
 /**

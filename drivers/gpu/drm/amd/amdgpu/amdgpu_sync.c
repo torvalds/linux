@@ -249,13 +249,6 @@ int amdgpu_sync_resv(struct amdgpu_device *adev, struct amdgpu_sync *sync,
 		    owner != AMDGPU_FENCE_OWNER_UNDEFINED)
 			continue;
 
-		/* VM updates only sync with moves but not with user
-		 * command submissions or KFD evictions fences
-		 */
-		if (fence_owner != AMDGPU_FENCE_OWNER_UNDEFINED &&
-		    owner == AMDGPU_FENCE_OWNER_VM)
-			continue;
-
 		/* Ignore fences depending on the sync mode */
 		switch (mode) {
 		case AMDGPU_SYNC_ALWAYS:
