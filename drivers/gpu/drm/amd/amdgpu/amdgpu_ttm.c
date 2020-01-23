@@ -58,6 +58,7 @@
 #include "amdgpu_amdkfd.h"
 #include "amdgpu_sdma.h"
 #include "amdgpu_ras.h"
+#include "amdgpu_atomfirmware.h"
 #include "bif/bif_4_1_d.h"
 
 #define AMDGPU_TTM_VRAM_MAX_DW_READ	(size_t)128
@@ -1960,13 +1961,23 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	 * reserve TMR memory at the top of VRAM which holds
 	 * IP Discovery data and is protected by PSP.
 	 */
+	adev->discovery_tmr_size =
+		amdgpu_atomfirmware_get_fw_reserved_fb_size(adev);
+	if (!adev->discovery_tmr_size &&
+	    adev->asic_type >= CHIP_NAVI10 &&
+	    amdgpu_discovery) {
+		/* if fw_reserved_fb_size is 0 from vbios,
+		 * then fallback to the default tmr_size */
+		adev->discovery_tmr_size = DISCOVERY_TMR_SIZE;
+	}
+
 	if (adev->discovery_tmr_size > 0) {
 		r = amdgpu_bo_create_kernel_at(adev,
-			adev->gmc.real_vram_size - adev->discovery_tmr_size,
-			adev->discovery_tmr_size,
-			AMDGPU_GEM_DOMAIN_VRAM,
-			&adev->discovery_memory,
-			NULL);
+					adev->gmc.real_vram_size - adev->discovery_tmr_size,
+					adev->discovery_tmr_size,
+					AMDGPU_GEM_DOMAIN_VRAM,
+					&adev->discovery_memory,
+					NULL);
 		if (r)
 			return r;
 	}
