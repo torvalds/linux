@@ -1820,22 +1820,17 @@ static int at_xdmac_alloc_chan_resources(struct dma_chan *chan)
 	struct at_xdmac_chan	*atchan = to_at_xdmac_chan(chan);
 	struct at_xdmac_desc	*desc;
 	int			i;
-	unsigned long		flags;
-
-	spin_lock_irqsave(&atchan->lock, flags);
 
 	if (at_xdmac_chan_is_enabled(atchan)) {
 		dev_err(chan2dev(chan),
 			"can't allocate channel resources (channel enabled)\n");
-		i = -EIO;
-		goto spin_unlock;
+		return -EIO;
 	}
 
 	if (!list_empty(&atchan->free_descs_list)) {
 		dev_err(chan2dev(chan),
 			"can't allocate channel resources (channel not free from a previous use)\n");
-		i = -EIO;
-		goto spin_unlock;
+		return -EIO;
 	}
 
 	for (i = 0; i < init_nr_desc_per_channel; i++) {
@@ -1852,8 +1847,6 @@ static int at_xdmac_alloc_chan_resources(struct dma_chan *chan)
 
 	dev_dbg(chan2dev(chan), "%s: allocated %d descriptors\n", __func__, i);
 
-spin_unlock:
-	spin_unlock_irqrestore(&atchan->lock, flags);
 	return i;
 }
 
