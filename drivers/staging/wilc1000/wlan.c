@@ -489,12 +489,12 @@ int wilc_wlan_handle_txq(struct wilc *wilc, u32 *txq_count)
 	struct wilc_vif *vif;
 
 	if (wilc->quit)
-		goto out;
+		goto out_update_cnt;
 
 	mutex_lock(&wilc->txq_add_to_head_cs);
 	tqe = wilc_wlan_txq_get_first(wilc);
 	if (!tqe)
-		goto out;
+		goto out_unlock;
 	dev = tqe->vif->ndev;
 	wilc_wlan_txq_filter_dup_tcp_ack(dev);
 	i = 0;
@@ -526,7 +526,7 @@ int wilc_wlan_handle_txq(struct wilc *wilc, u32 *txq_count)
 	}
 
 	if (i == 0)
-		goto out;
+		goto out_unlock;
 	vmm_table[i] = 0x0;
 
 	acquire_bus(wilc, WILC_BUS_ACQUIRE_AND_WAKEUP);
@@ -595,7 +595,11 @@ int wilc_wlan_handle_txq(struct wilc *wilc, u32 *txq_count)
 		goto out_release_bus;
 
 	if (entries == 0) {
-		ret = -ENOBUFS;
+		/*
+		 * No VMM space available in firmware so retry to transmit
+		 * the packet from tx queue.
+		 */
+		ret = WILC_VMM_ENTRY_FULL_RETRY;
 		goto out_release_bus;
 	}
 
@@ -662,9 +666,10 @@ int wilc_wlan_handle_txq(struct wilc *wilc, u32 *txq_count)
 out_release_bus:
 	release_bus(wilc, WILC_BUS_RELEASE_ALLOW_SLEEP);
 
-out:
+out_unlock:
 	mutex_unlock(&wilc->txq_add_to_head_cs);
 
+out_update_cnt:
 	*txq_count = wilc->txq_entries;
 	return ret;
 }

@@ -198,6 +198,7 @@
 #define IS_MGMT_STATUS_SUCCES	0x040
 
 #define WILC_WID_TYPE		GENMASK(15, 12)
+#define WILC_VMM_ENTRY_FULL_RETRY	1
 /********************************************
  *
  *      Tx/Rx Queue Structure

@@ -174,7 +174,7 @@ static int wilc_txq_task(void *vp)
 				}
 				srcu_read_unlock(&wl->srcu, srcu_idx);
 			}
-		} while (ret == -ENOBUFS && !wl->close);
+		} while (ret == WILC_VMM_ENTRY_FULL_RETRY && !wl->close);
 	}
 	return 0;
 }
