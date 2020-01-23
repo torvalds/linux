@@ -39,4 +39,6 @@ void test_assert(bool exp, const char *exp_str,
 		    #a, #b, #a, (unsigned long) __a, #b, (unsigned long) __b); \
 } while (0)
 
+size_t parse_size(const char *size);
+
 #endif /* SELFTEST_KVM_TEST_UTIL_H */
