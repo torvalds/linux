@@ -102,10 +102,14 @@ EXPORT_SYMBOL(iterate_dir);
  * filename length, and the above "soft error" worry means
  * that it's probably better left alone until we have that
  * issue clarified.
+ *
+ * Note the PATH_MAX check - it's arbitrary but the real
+ * kernel limit on a possible path component, not NAME_MAX,
+ * which is the technical standard limit.
  */
 static int verify_dirent_name(const char *name, int len)
 {
-	if (!len)
+	if (len <= 0 || len >= PATH_MAX)
 		return -EIO;
 	if (memchr(name, '/', len))
 		return -EIO;
