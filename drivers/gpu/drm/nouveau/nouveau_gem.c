@@ -702,6 +702,8 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 
 	if (!chan)
 		return nouveau_abi16_put(abi16, -ENOENT);
+	if (unlikely(atomic_read(&chan->killed)))
+		return nouveau_abi16_put(abi16, -ENODEV);
 
 	req->vram_available = drm->gem.vram_available;
 	req->gart_available = drm->gem.gart_available;
