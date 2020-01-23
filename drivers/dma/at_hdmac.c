@@ -1683,7 +1683,7 @@ static struct dma_chan *at_dma_xlate(struct of_phandle_args *dma_spec,
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
-	atslave = kzalloc(sizeof(*atslave), GFP_KERNEL);
+	atslave = kmalloc(sizeof(*atslave), GFP_KERNEL);
 	if (!atslave)
 		return NULL;
 
