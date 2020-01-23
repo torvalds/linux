@@ -1748,7 +1748,8 @@ intel_dp_aux_init(struct intel_dp *intel_dp)
 	drm_dp_aux_init(&intel_dp->aux);
 
 	/* Failure to allocate our preferred name is not critical */
-	intel_dp->aux.name = kasprintf(GFP_KERNEL, "DPDDC-%c",
+	intel_dp->aux.name = kasprintf(GFP_KERNEL, "AUX %c/port %c",
+				       aux_ch_name(dig_port->aux_ch),
 				       port_name(encoder->port));
 	intel_dp->aux.transfer = intel_dp_aux_transfer;
 }
