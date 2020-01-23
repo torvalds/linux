@@ -720,8 +720,7 @@ perf_event_paranoid:
 ====================
 
 Controls use of the performance events system by unprivileged
-users (without CAP_SYS_ADMIN).  The default value is 3 if
-CONFIG_SECURITY_PERF_EVENTS_RESTRICT is set, or 2 otherwise.
+users (without CAP_SYS_ADMIN).  The default value is 2.
 
 ===  ==================================================================
  -1  Allow use of (almost) all events by all users
@@ -735,8 +734,6 @@ CONFIG_SECURITY_PERF_EVENTS_RESTRICT is set, or 2 otherwise.
 >=1  Disallow CPU event access by users without CAP_SYS_ADMIN
 
 >=2  Disallow kernel profiling by users without CAP_SYS_ADMIN
-
->=3: Disallow all event access by users without CAP_SYS_ADMIN
 ===  ==================================================================
 
 
