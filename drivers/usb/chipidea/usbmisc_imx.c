@@ -100,6 +100,7 @@
 #define MX7D_USB_VBUS_WAKEUP_SOURCE_AVALID	MX7D_USB_VBUS_WAKEUP_SOURCE(1)
 #define MX7D_USB_VBUS_WAKEUP_SOURCE_BVALID	MX7D_USB_VBUS_WAKEUP_SOURCE(2)
 #define MX7D_USB_VBUS_WAKEUP_SOURCE_SESS_END	MX7D_USB_VBUS_WAKEUP_SOURCE(3)
+#define MX7D_USBNC_AUTO_RESUME				BIT(2)
 /* The default DM/DP value is pull-down */
 #define MX7D_USBNC_USB_CTRL2_OPMODE(v)			(v << 6)
 #define MX7D_USBNC_USB_CTRL2_OPMODE_NON_DRIVING	MX7D_USBNC_USB_CTRL2_OPMODE(1)
@@ -638,10 +639,17 @@ static int usbmisc_imx7d_init(struct imx_usbmisc_data *data)
 		reg |= MX6_BM_PWR_POLARITY;
 	writel(reg, usbmisc->base);
 
-	reg = readl(usbmisc->base + MX7D_USBNC_USB_CTRL2);
-	reg &= ~MX7D_USB_VBUS_WAKEUP_SOURCE_MASK;
-	writel(reg | MX7D_USB_VBUS_WAKEUP_SOURCE_BVALID,
-		 usbmisc->base + MX7D_USBNC_USB_CTRL2);
+	/* SoC non-burst setting */
+	reg = readl(usbmisc->base);
+	writel(reg | MX6_BM_NON_BURST_SETTING, usbmisc->base);
+
+	if (!data->hsic) {
+		reg = readl(usbmisc->base + MX7D_USBNC_USB_CTRL2);
+		reg &= ~MX7D_USB_VBUS_WAKEUP_SOURCE_MASK;
+		writel(reg | MX7D_USB_VBUS_WAKEUP_SOURCE_BVALID
+			| MX7D_USBNC_AUTO_RESUME,
+			usbmisc->base + MX7D_USBNC_USB_CTRL2);
+	}
 
 	spin_unlock_irqrestore(&usbmisc->lock, flags);
 
@@ -832,6 +840,70 @@ static int imx7d_charger_detection(struct imx_usbmisc_data *data)
 	return ret;
 }
 
+static int usbmisc_imx7ulp_init(struct imx_usbmisc_data *data)
+{
+	struct imx_usbmisc *usbmisc = dev_get_drvdata(data->dev);
+	unsigned long flags;
+	u32 reg;
+
+	if (data->index >= 1)
+		return -EINVAL;
+
+	spin_lock_irqsave(&usbmisc->lock, flags);
+	reg = readl(usbmisc->base);
+	if (data->disable_oc) {
+		reg |= MX6_BM_OVER_CUR_DIS;
+	} else {
+		reg &= ~MX6_BM_OVER_CUR_DIS;
+
+		/*
+		 * If the polarity is not configured keep it as setup by the
+		 * bootloader.
+		 */
+		if (data->oc_pol_configured && data->oc_pol_active_low)
+			reg |= MX6_BM_OVER_CUR_POLARITY;
+		else if (data->oc_pol_configured)
+			reg &= ~MX6_BM_OVER_CUR_POLARITY;
+	}
+	/* If the polarity is not set keep it as setup by the bootlader */
+	if (data->pwr_pol == 1)
+		reg |= MX6_BM_PWR_POLARITY;
+
+	writel(reg, usbmisc->base);
+
+	/* SoC non-burst setting */
+	reg = readl(usbmisc->base);
+	writel(reg | MX6_BM_NON_BURST_SETTING, usbmisc->base);
+
+	if (data->hsic) {
+		reg = readl(usbmisc->base);
+		writel(reg | MX6_BM_UTMI_ON_CLOCK, usbmisc->base);
+
+		reg = readl(usbmisc->base + MX6_USB_HSIC_CTRL_OFFSET);
+		reg |= MX6_BM_HSIC_EN | MX6_BM_HSIC_CLK_ON;
+		writel(reg, usbmisc->base + MX6_USB_HSIC_CTRL_OFFSET);
+
+		/*
+		 * For non-HSIC controller, the autoresume is enabled
+		 * at MXS PHY driver (usbphy_ctrl bit18).
+		 */
+		reg = readl(usbmisc->base + MX7D_USBNC_USB_CTRL2);
+		writel(reg | MX7D_USBNC_AUTO_RESUME,
+			usbmisc->base + MX7D_USBNC_USB_CTRL2);
+	} else {
+		reg = readl(usbmisc->base + MX7D_USBNC_USB_CTRL2);
+		reg &= ~MX7D_USB_VBUS_WAKEUP_SOURCE_MASK;
+		writel(reg | MX7D_USB_VBUS_WAKEUP_SOURCE_BVALID,
+			 usbmisc->base + MX7D_USBNC_USB_CTRL2);
+	}
+
+	spin_unlock_irqrestore(&usbmisc->lock, flags);
+
+	usbmisc_imx7d_set_wakeup(data, false);
+
+	return 0;
+}
+
 static const struct usbmisc_ops imx25_usbmisc_ops = {
 	.init = usbmisc_imx25_init,
 	.post = usbmisc_imx25_post,
@@ -871,6 +943,13 @@ static const struct usbmisc_ops imx7d_usbmisc_ops = {
 	.init = usbmisc_imx7d_init,
 	.set_wakeup = usbmisc_imx7d_set_wakeup,
 	.charger_detection = imx7d_charger_detection,
+};
+
+static const struct usbmisc_ops imx7ulp_usbmisc_ops = {
+	.init = usbmisc_imx7ulp_init,
+	.set_wakeup = usbmisc_imx7d_set_wakeup,
+	.hsic_set_connect = usbmisc_imx6_hsic_set_connect,
+	.hsic_set_clk = usbmisc_imx6_hsic_set_clk,
 };
 
 static inline bool is_imx53_usbmisc(struct imx_usbmisc_data *data)
@@ -1025,7 +1104,7 @@ static const struct of_device_id usbmisc_imx_dt_ids[] = {
 	},
 	{
 		.compatible = "fsl,imx7ulp-usbmisc",
-		.data = &imx7d_usbmisc_ops,
+		.data = &imx7ulp_usbmisc_ops,
 	},
 	{ /* sentinel */ }
 };
