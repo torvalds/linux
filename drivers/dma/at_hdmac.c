@@ -1523,7 +1523,6 @@ static void atc_issue_pending(struct dma_chan *chan)
 /**
  * atc_alloc_chan_resources - allocate resources for DMA channel
  * @chan: allocate descriptor resources for this channel
- * @client: current client requesting the channel be ready for requests
  *
  * return - the number of allocated descriptors
  */
