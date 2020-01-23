@@ -229,11 +229,11 @@ static const struct snd_soc_dapm_route kabylake_5663_map[] = {
 
 static struct snd_soc_codec_conf max98927_codec_conf[] = {
 	{
-		.dev_name = MAXIM_DEV0_NAME,
+		.dlc = COMP_CODEC_CONF(MAXIM_DEV0_NAME),
 		.name_prefix = "Right",
 	},
 	{
-		.dev_name = MAXIM_DEV1_NAME,
+		.dlc = COMP_CODEC_CONF(MAXIM_DEV1_NAME),
 		.name_prefix = "Left",
 	},
 };
@@ -398,7 +398,7 @@ static int kabylake_ssp_fixup(struct snd_soc_pcm_runtime *rtd,
 {
 	struct snd_interval *rate = hw_param_interval(params,
 			SNDRV_PCM_HW_PARAM_RATE);
-	struct snd_interval *channels = hw_param_interval(params,
+	struct snd_interval *chan = hw_param_interval(params,
 			SNDRV_PCM_HW_PARAM_CHANNELS);
 	struct snd_mask *fmt = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
 	struct snd_soc_dpcm *dpcm = container_of(
@@ -413,7 +413,7 @@ static int kabylake_ssp_fixup(struct snd_soc_pcm_runtime *rtd,
 	    !strcmp(fe_dai_link->name, "Kbl Audio Headset Playback") ||
 	    !strcmp(fe_dai_link->name, "Kbl Audio Capture Port")) {
 		rate->min = rate->max = 48000;
-		channels->min = channels->max = 2;
+		chan->min = chan->max = 2;
 		snd_mask_none(fmt);
 		snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S24_LE);
 	}
@@ -454,13 +454,13 @@ static struct snd_soc_ops kabylake_rt5663_ops = {
 static int kabylake_dmic_fixup(struct snd_soc_pcm_runtime *rtd,
 		struct snd_pcm_hw_params *params)
 {
-	struct snd_interval *channels = hw_param_interval(params,
+	struct snd_interval *chan = hw_param_interval(params,
 				SNDRV_PCM_HW_PARAM_CHANNELS);
 
 	if (params_channels(params) == 2 || DMIC_CH(dmic_constraints) == 2)
-		channels->min = channels->max = 2;
+		chan->min = chan->max = 2;
 	else
-		channels->min = channels->max = 4;
+		chan->min = chan->max = 4;
 
 	return 0;
 }

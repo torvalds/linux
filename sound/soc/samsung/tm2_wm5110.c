@@ -282,7 +282,7 @@ static int tm2_set_bias_level(struct snd_soc_card *card,
 {
 	struct snd_soc_pcm_runtime *rtd;
 
-	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[0].name);
+	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[0]);
 
 	if (dapm->dev != rtd->codec_dai->dev)
 		return 0;
@@ -314,7 +314,7 @@ static int tm2_late_probe(struct snd_soc_card *card)
 	struct snd_soc_dai *aif2_dai;
 	int ret;
 
-	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[TM2_DAI_AIF1].name);
+	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[TM2_DAI_AIF1]);
 	aif1_dai = rtd->codec_dai;
 	priv->component = rtd->codec_dai->component;
 
@@ -324,7 +324,7 @@ static int tm2_late_probe(struct snd_soc_card *card)
 		return ret;
 	}
 
-	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[TM2_DAI_AIF2].name);
+	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[TM2_DAI_AIF2]);
 	aif2_dai = rtd->codec_dai;
 
 	ret = snd_soc_dai_set_sysclk(aif2_dai, ARIZONA_CLK_ASYNCCLK, 0, 0);

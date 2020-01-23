@@ -543,7 +543,6 @@ static const struct snd_soc_component_driver lpass_component_driver = {
 	.name		= DRV_NAME,
 	.open		= lpass_platform_pcmops_open,
 	.close		= lpass_platform_pcmops_close,
-	.ioctl		= snd_soc_pcm_lib_ioctl,
 	.hw_params	= lpass_platform_pcmops_hw_params,
 	.hw_free	= lpass_platform_pcmops_hw_free,
 	.prepare	= lpass_platform_pcmops_prepare,

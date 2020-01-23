@@ -102,8 +102,6 @@ static int sst_byt_pcm_hw_params(struct snd_soc_component *component,
 		return ret;
 	}
 
-	snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(params));
-
 	ret = sst_byt_stream_buffer(byt, pcm_data->stream,
 				    substream->dma_buffer.addr,
 				    params_buffer_bytes(params));
@@ -117,17 +115,6 @@ static int sst_byt_pcm_hw_params(struct snd_soc_component *component,
 		dev_err(rtd->dev, "PCM: failed stream commit %d\n", ret);
 		return ret;
 	}
-
-	return 0;
-}
-
-static int sst_byt_pcm_hw_free(struct snd_soc_component *component,
-			       struct snd_pcm_substream *substream)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-
-	dev_dbg(rtd->dev, "PCM: hw_free\n");
-	snd_pcm_lib_free_pages(substream);
 
 	return 0;
 }
@@ -315,9 +302,8 @@ static int sst_byt_pcm_new(struct snd_soc_component *component,
 	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream ||
 	    pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream) {
 		size = sst_byt_pcm_hardware.buffer_bytes_max;
-		snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-						      pdata->dma_dev,
-						      size, size);
+		snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+					       pdata->dma_dev, size, size);
 	}
 
 	return 0;
@@ -373,9 +359,7 @@ static const struct snd_soc_component_driver byt_dai_component = {
 	.probe		= sst_byt_pcm_probe,
 	.open		= sst_byt_pcm_open,
 	.close		= sst_byt_pcm_close,
-	.ioctl		= snd_soc_pcm_lib_ioctl,
 	.hw_params	= sst_byt_pcm_hw_params,
-	.hw_free	= sst_byt_pcm_hw_free,
 	.trigger	= sst_byt_pcm_trigger,
 	.pointer	= sst_byt_pcm_pointer,
 	.mmap		= sst_byt_pcm_mmap,
