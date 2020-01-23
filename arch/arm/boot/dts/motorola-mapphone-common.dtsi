@@ -650,6 +650,11 @@
 	};
 };
 
+/* RNG is used by secure mode and not accessible */
+&rng_target {
+	status = "disabled";
+};
+
 /* Configure pwm clock source for timers 8 & 9 */
 &timer8 {
 	assigned-clocks = <&abe_clkctrl OMAP4_TIMER8_CLKCTRL 24>;
