@@ -823,7 +823,6 @@ static const struct intel_device_info tgl_info = {
 	.display.has_modular_fia = 1,
 	.engine_mask =
 		BIT(RCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS0) | BIT(VCS2),
-	.has_rps = false, /* XXX disabled for debugging */
 };
 
 #define GEN12_DGFX_FEATURES \
