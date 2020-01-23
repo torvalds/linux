@@ -52,22 +52,22 @@ int gfs2_assert_warn_i(struct gfs2_sbd *sdp, char *assertion,
 					__func__, __FILE__, __LINE__))
 
 
-int gfs2_consist_i(struct gfs2_sbd *sdp,
-		   const char *function, char *file, unsigned int line);
+void gfs2_consist_i(struct gfs2_sbd *sdp,
+		    const char *function, char *file, unsigned int line);
 
 #define gfs2_consist(sdp) \
 gfs2_consist_i((sdp), __func__, __FILE__, __LINE__)
 
 
-int gfs2_consist_inode_i(struct gfs2_inode *ip,
-			 const char *function, char *file, unsigned int line);
+void gfs2_consist_inode_i(struct gfs2_inode *ip,
+			  const char *function, char *file, unsigned int line);
 
 #define gfs2_consist_inode(ip) \
 gfs2_consist_inode_i((ip), __func__, __FILE__, __LINE__)
 
 
-int gfs2_consist_rgrpd_i(struct gfs2_rgrpd *rgd,
-			 const char *function, char *file, unsigned int line);
+void gfs2_consist_rgrpd_i(struct gfs2_rgrpd *rgd,
+			  const char *function, char *file, unsigned int line);
 
 #define gfs2_consist_rgrpd(rgd) \
 gfs2_consist_rgrpd_i((rgd), __func__, __FILE__, __LINE__)

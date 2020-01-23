@@ -138,27 +138,23 @@ int gfs2_assert_warn_i(struct gfs2_sbd *sdp, char *assertion,
 
 /**
  * gfs2_consist_i - Flag a filesystem consistency error and withdraw
- * Returns: -1 if this call withdrew the machine,
- *          0 if it was already withdrawn
  */
 
-int gfs2_consist_i(struct gfs2_sbd *sdp, const char *function,
-		   char *file, unsigned int line)
+void gfs2_consist_i(struct gfs2_sbd *sdp, const char *function,
+		    char *file, unsigned int line)
 {
 	gfs2_lm(sdp,
 		"fatal: filesystem consistency error - function = %s, file = %s, line = %u\n",
 		function, file, line);
-	return gfs2_withdraw(sdp);
+	gfs2_withdraw(sdp);
 }
 
 /**
  * gfs2_consist_inode_i - Flag an inode consistency error and withdraw
- * Returns: -1 if this call withdrew the machine,
- *          0 if it was already withdrawn
  */
 
-int gfs2_consist_inode_i(struct gfs2_inode *ip,
-			 const char *function, char *file, unsigned int line)
+void gfs2_consist_inode_i(struct gfs2_inode *ip,
+			  const char *function, char *file, unsigned int line)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 
@@ -169,17 +165,15 @@ int gfs2_consist_inode_i(struct gfs2_inode *ip,
 		(unsigned long long)ip->i_no_formal_ino,
 		(unsigned long long)ip->i_no_addr,
 		function, file, line);
-	return gfs2_withdraw(sdp);
+	gfs2_withdraw(sdp);
 }
 
 /**
  * gfs2_consist_rgrpd_i - Flag a RG consistency error and withdraw
- * Returns: -1 if this call withdrew the machine,
- *          0 if it was already withdrawn
  */
 
-int gfs2_consist_rgrpd_i(struct gfs2_rgrpd *rgd,
-			 const char *function, char *file, unsigned int line)
+void gfs2_consist_rgrpd_i(struct gfs2_rgrpd *rgd,
+			  const char *function, char *file, unsigned int line)
 {
 	struct gfs2_sbd *sdp = rgd->rd_sbd;
 	char fs_id_buf[sizeof(sdp->sd_fsname) + 7];
@@ -192,7 +186,7 @@ int gfs2_consist_rgrpd_i(struct gfs2_rgrpd *rgd,
 		"  function = %s, file = %s, line = %u\n",
 		(unsigned long long)rgd->rd_addr,
 		function, file, line);
-	return gfs2_withdraw(sdp);
+	gfs2_withdraw(sdp);
 }
 
 /**
