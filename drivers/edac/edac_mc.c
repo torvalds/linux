@@ -945,16 +945,16 @@ const char *edac_layer_name[] = {
 };
 EXPORT_SYMBOL_GPL(edac_layer_name);
 
-static void edac_inc_ce_error(struct mem_ctl_info *mci,
-			      const int pos[EDAC_MAX_LAYERS],
-			      const u16 count)
+static void edac_inc_ce_error(struct edac_raw_error_desc *e)
 {
+	int pos[EDAC_MAX_LAYERS] = { e->top_layer, e->mid_layer, e->low_layer };
+	struct mem_ctl_info *mci = error_desc_to_mci(e);
 	int i, index = 0;
 
-	mci->ce_mc += count;
+	mci->ce_mc += e->error_count;
 
 	if (pos[0] < 0) {
-		mci->ce_noinfo_count += count;
+		mci->ce_noinfo_count += e->error_count;
 		return;
 	}
 
@@ -962,23 +962,23 @@ static void edac_inc_ce_error(struct mem_ctl_info *mci,
 		if (pos[i] < 0)
 			break;
 		index += pos[i];
-		mci->ce_per_layer[i][index] += count;
+		mci->ce_per_layer[i][index] += e->error_count;
 
 		if (i < mci->n_layers - 1)
 			index *= mci->layers[i + 1].size;
 	}
 }
 
-static void edac_inc_ue_error(struct mem_ctl_info *mci,
-				    const int pos[EDAC_MAX_LAYERS],
-				    const u16 count)
+static void edac_inc_ue_error(struct edac_raw_error_desc *e)
 {
+	int pos[EDAC_MAX_LAYERS] = { e->top_layer, e->mid_layer, e->low_layer };
+	struct mem_ctl_info *mci = error_desc_to_mci(e);
 	int i, index = 0;
 
-	mci->ue_mc += count;
+	mci->ue_mc += e->error_count;
 
 	if (pos[0] < 0) {
-		mci->ue_noinfo_count += count;
+		mci->ue_noinfo_count += e->error_count;
 		return;
 	}
 
@@ -986,44 +986,37 @@ static void edac_inc_ue_error(struct mem_ctl_info *mci,
 		if (pos[i] < 0)
 			break;
 		index += pos[i];
-		mci->ue_per_layer[i][index] += count;
+		mci->ue_per_layer[i][index] += e->error_count;
 
 		if (i < mci->n_layers - 1)
 			index *= mci->layers[i + 1].size;
 	}
 }
 
-static void edac_ce_error(struct mem_ctl_info *mci,
-			  const u16 error_count,
-			  const int pos[EDAC_MAX_LAYERS],
-			  const char *msg,
-			  const char *location,
-			  const char *label,
-			  const char *detail,
-			  const char *other_detail,
-			  const unsigned long page_frame_number,
-			  const unsigned long offset_in_page,
-			  long grain)
+static void edac_ce_error(struct edac_raw_error_desc *e,
+			  const char *detail)
 {
+	struct mem_ctl_info *mci = error_desc_to_mci(e);
 	unsigned long remapped_page;
 	char *msg_aux = "";
 
-	if (*msg)
+	if (*e->msg)
 		msg_aux = " ";
 
 	if (edac_mc_get_log_ce()) {
-		if (other_detail && *other_detail)
+		if (e->other_detail && *e->other_detail)
 			edac_mc_printk(mci, KERN_WARNING,
 				       "%d CE %s%son %s (%s %s - %s)\n",
-				       error_count, msg, msg_aux, label,
-				       location, detail, other_detail);
+				       e->error_count, e->msg, msg_aux, e->label,
+				       e->location, detail, e->other_detail);
 		else
 			edac_mc_printk(mci, KERN_WARNING,
 				       "%d CE %s%son %s (%s %s)\n",
-				       error_count, msg, msg_aux, label,
-				       location, detail);
+				       e->error_count, e->msg, msg_aux, e->label,
+				       e->location, detail);
 	}
-	edac_inc_ce_error(mci, pos, error_count);
+
+	edac_inc_ce_error(e);
 
 	if (mci->scrub_mode == SCRUB_SW_SRC) {
 		/*
@@ -1038,51 +1031,46 @@ static void edac_ce_error(struct mem_ctl_info *mci,
 			* be scrubbed.
 			*/
 		remapped_page = mci->ctl_page_to_phys ?
-			mci->ctl_page_to_phys(mci, page_frame_number) :
-			page_frame_number;
+			mci->ctl_page_to_phys(mci, e->page_frame_number) :
+			e->page_frame_number;
 
-		edac_mc_scrub_block(remapped_page,
-					offset_in_page, grain);
+		edac_mc_scrub_block(remapped_page, e->offset_in_page, e->grain);
 	}
 }
 
-static void edac_ue_error(struct mem_ctl_info *mci,
-			  const u16 error_count,
-			  const int pos[EDAC_MAX_LAYERS],
-			  const char *msg,
-			  const char *location,
-			  const char *label,
-			  const char *detail,
-			  const char *other_detail)
+static void edac_ue_error(struct edac_raw_error_desc *e,
+			  const char *detail)
 {
+	struct mem_ctl_info *mci = error_desc_to_mci(e);
 	char *msg_aux = "";
 
-	if (*msg)
+	if (*e->msg)
 		msg_aux = " ";
 
 	if (edac_mc_get_log_ue()) {
-		if (other_detail && *other_detail)
+		if (e->other_detail && *e->other_detail)
 			edac_mc_printk(mci, KERN_WARNING,
 				       "%d UE %s%son %s (%s %s - %s)\n",
-				       error_count, msg, msg_aux, label,
-				       location, detail, other_detail);
+				       e->error_count, e->msg, msg_aux, e->label,
+				       e->location, detail, e->other_detail);
 		else
 			edac_mc_printk(mci, KERN_WARNING,
 				       "%d UE %s%son %s (%s %s)\n",
-				       error_count, msg, msg_aux, label,
-				       location, detail);
+				       e->error_count, e->msg, msg_aux, e->label,
+				       e->location, detail);
 	}
 
 	if (edac_mc_get_panic_on_ue()) {
-		if (other_detail && *other_detail)
+		if (e->other_detail && *e->other_detail)
 			panic("UE %s%son %s (%s%s - %s)\n",
-			      msg, msg_aux, label, location, detail, other_detail);
+			      e->msg, msg_aux, e->label, e->location, detail,
+			      e->other_detail);
 		else
 			panic("UE %s%son %s (%s%s)\n",
-			      msg, msg_aux, label, location, detail);
+			      e->msg, msg_aux, e->label, e->location, detail);
 	}
 
-	edac_inc_ue_error(mci, pos, error_count);
+	edac_inc_ue_error(e);
 }
 
 static void edac_inc_csrow(struct edac_raw_error_desc *e, int row, int chan)
@@ -1109,7 +1097,6 @@ void edac_raw_mc_handle_error(struct edac_raw_error_desc *e)
 {
 	struct mem_ctl_info *mci = error_desc_to_mci(e);
 	char detail[80];
-	int pos[EDAC_MAX_LAYERS] = { e->top_layer, e->mid_layer, e->low_layer };
 	u8 grain_bits;
 
 	/* Sanity-check driver-supplied grain value. */
@@ -1132,16 +1119,13 @@ void edac_raw_mc_handle_error(struct edac_raw_error_desc *e)
 			"page:0x%lx offset:0x%lx grain:%ld syndrome:0x%lx",
 			e->page_frame_number, e->offset_in_page,
 			e->grain, e->syndrome);
-		edac_ce_error(mci, e->error_count, pos, e->msg, e->location,
-			      e->label, detail, e->other_detail,
-			      e->page_frame_number, e->offset_in_page, e->grain);
+		edac_ce_error(e, detail);
 	} else {
 		snprintf(detail, sizeof(detail),
 			"page:0x%lx offset:0x%lx grain:%ld",
 			e->page_frame_number, e->offset_in_page, e->grain);
 
-		edac_ue_error(mci, e->error_count, pos, e->msg, e->location,
-			      e->label, detail, e->other_detail);
+		edac_ue_error(e, detail);
 	}
 
 
