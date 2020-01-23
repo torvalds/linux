@@ -39,7 +39,8 @@ static void gfs2_ail_error(struct gfs2_glock *gl, const struct buffer_head *bh)
 	fs_err(gl->gl_name.ln_sbd, "AIL glock %u:%llu mapping %p\n",
 	       gl->gl_name.ln_type, gl->gl_name.ln_number,
 	       gfs2_glock2aspace(gl));
-	gfs2_lm_withdraw(gl->gl_name.ln_sbd, "AIL error\n");
+	gfs2_lm(gl->gl_name.ln_sbd, "AIL error\n");
+	gfs2_withdraw(gl->gl_name.ln_sbd);
 }
 
 /**

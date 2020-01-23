@@ -165,7 +165,7 @@ restart:
 	spin_unlock(&sdp->sd_ail_lock);
 	blk_finish_plug(&plug);
 	if (withdraw)
-		gfs2_lm_withdraw(sdp, NULL);
+		gfs2_withdraw(sdp);
 	trace_gfs2_ail_flush(sdp, wbc, 0);
 }
 
@@ -239,8 +239,10 @@ static int gfs2_ail1_empty(struct gfs2_sbd *sdp)
 	ret = list_empty(&sdp->sd_ail1_list);
 	spin_unlock(&sdp->sd_ail_lock);
 
-	if (withdraw)
-		gfs2_lm_withdraw(sdp, "fatal: I/O error(s)\n");
+	if (withdraw) {
+		gfs2_lm(sdp, "fatal: I/O error(s)\n");
+		gfs2_withdraw(sdp);
+	}
 
 	return ret;
 }
@@ -1016,11 +1018,12 @@ int gfs2_logd(void *data)
 
 		/* Check for errors writing to the journal */
 		if (sdp->sd_log_error) {
-			gfs2_lm_withdraw(sdp,
-					 "GFS2: fsid=%s: error %d: "
-					 "withdrawing the file system to "
-					 "prevent further damage.\n",
-					 sdp->sd_fsname, sdp->sd_log_error);
+			gfs2_lm(sdp,
+				"GFS2: fsid=%s: error %d: "
+				"withdrawing the file system to "
+				"prevent further damage.\n",
+				sdp->sd_fsname, sdp->sd_log_error);
+			gfs2_withdraw(sdp);
 		}
 
 		did_flush = false;

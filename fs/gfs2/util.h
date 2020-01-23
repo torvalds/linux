@@ -177,6 +177,7 @@ static inline bool gfs2_withdrawn(struct gfs2_sbd *sdp)
 gfs2_tune_get_i(&(sdp)->sd_tune, &(sdp)->sd_tune.field)
 
 __printf(2, 3)
-int gfs2_lm_withdraw(struct gfs2_sbd *sdp, const char *fmt, ...);
+void gfs2_lm(struct gfs2_sbd *sdp, const char *fmt, ...);
+int gfs2_withdraw(struct gfs2_sbd *sdp);
 
 #endif /* __UTIL_DOT_H__ */
