@@ -2359,6 +2359,27 @@ static inline u16 ufshcd_upiu_wlun_to_scsi_wlun(u8 upiu_wlun_id)
 	return (upiu_wlun_id & ~UFS_UPIU_WLUN_ID) | SCSI_W_LUN_BASE;
 }
 
+static void ufshcd_init_lrb(struct ufs_hba *hba, struct ufshcd_lrb *lrb, int i)
+{
+	struct utp_transfer_cmd_desc *cmd_descp = hba->ucdl_base_addr;
+	struct utp_transfer_req_desc *utrdlp = hba->utrdl_base_addr;
+	dma_addr_t cmd_desc_element_addr = hba->ucdl_dma_addr +
+		i * sizeof(struct utp_transfer_cmd_desc);
+	u16 response_offset = offsetof(struct utp_transfer_cmd_desc,
+				       response_upiu);
+	u16 prdt_offset = offsetof(struct utp_transfer_cmd_desc, prd_table);
+
+	lrb->utr_descriptor_ptr = utrdlp + i;
+	lrb->utrd_dma_addr = hba->utrdl_dma_addr +
+		i * sizeof(struct utp_transfer_req_desc);
+	lrb->ucd_req_ptr = (struct utp_upiu_req *)(cmd_descp + i);
+	lrb->ucd_req_dma_addr = cmd_desc_element_addr;
+	lrb->ucd_rsp_ptr = (struct utp_upiu_rsp *)cmd_descp[i].response_upiu;
+	lrb->ucd_rsp_dma_addr = cmd_desc_element_addr + response_offset;
+	lrb->ucd_prdt_ptr = (struct ufshcd_sg_entry *)cmd_descp[i].prd_table;
+	lrb->ucd_prdt_dma_addr = cmd_desc_element_addr + prdt_offset;
+}
+
 /**
  * ufshcd_queuecommand - main entry point for SCSI requests
  * @host: SCSI host pointer
@@ -3394,7 +3415,6 @@ out:
  */
 static void ufshcd_host_memory_configure(struct ufs_hba *hba)
 {
-	struct utp_transfer_cmd_desc *cmd_descp;
 	struct utp_transfer_req_desc *utrdlp;
 	dma_addr_t cmd_desc_dma_addr;
 	dma_addr_t cmd_desc_element_addr;
@@ -3404,7 +3424,6 @@ static void ufshcd_host_memory_configure(struct ufs_hba *hba)
 	int i;
 
 	utrdlp = hba->utrdl_base_addr;
-	cmd_descp = hba->ucdl_base_addr;
 
 	response_offset =
 		offsetof(struct utp_transfer_cmd_desc, response_upiu);
@@ -3430,20 +3449,7 @@ static void ufshcd_host_memory_configure(struct ufs_hba *hba)
 		utrdlp[i].response_upiu_length =
 			cpu_to_le16(ALIGNED_UPIU_SIZE >> 2);
 
-		hba->lrb[i].utr_descriptor_ptr = (utrdlp + i);
-		hba->lrb[i].utrd_dma_addr = hba->utrdl_dma_addr +
-				(i * sizeof(struct utp_transfer_req_desc));
-		hba->lrb[i].ucd_req_ptr =
-			(struct utp_upiu_req *)(cmd_descp + i);
-		hba->lrb[i].ucd_req_dma_addr = cmd_desc_element_addr;
-		hba->lrb[i].ucd_rsp_ptr =
-			(struct utp_upiu_rsp *)cmd_descp[i].response_upiu;
-		hba->lrb[i].ucd_rsp_dma_addr = cmd_desc_element_addr +
-				response_offset;
-		hba->lrb[i].ucd_prdt_ptr =
-			(struct ufshcd_sg_entry *)cmd_descp[i].prd_table;
-		hba->lrb[i].ucd_prdt_dma_addr = cmd_desc_element_addr +
-				prdt_offset;
+		ufshcd_init_lrb(hba, &hba->lrb[i], i);
 	}
 }
 
