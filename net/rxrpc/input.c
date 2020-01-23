@@ -588,8 +588,6 @@ static void rxrpc_input_data(struct rxrpc_call *call, struct sk_buff *skb)
 		}
 	}
 
-	spin_lock(&call->input_lock);
-
 	/* Received data implicitly ACKs all of the request packets we sent
 	 * when we're acting as a client.
 	 */
@@ -607,8 +605,6 @@ static void rxrpc_input_data(struct rxrpc_call *call, struct sk_buff *skb)
 out:
 	trace_rxrpc_notify_socket(call->debug_id, serial);
 	rxrpc_notify_socket(call);
-
-	spin_unlock(&call->input_lock);
 	rxrpc_free_skb(skb, rxrpc_skb_put_input);
 	_leave(" [queued]");
 }
@@ -811,7 +807,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	offset = sizeof(struct rxrpc_wire_header);
 	if (skb_copy_bits(skb, offset, &ack, sizeof(ack)) < 0) {
 		rxrpc_proto_abort("XAK", call, 0);
-		goto out_not_locked;
+		goto out;
 	}
 	offset += sizeof(ack);
 
@@ -863,7 +859,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	    rxrpc_is_client_call(call)) {
 		rxrpc_set_call_completion(call, RXRPC_CALL_REMOTELY_ABORTED,
 					  0, -ENETRESET);
-		return;
+		goto out;
 	}
 
 	/* If we get an OUT_OF_SEQUENCE ACK from the server, that can also
@@ -877,7 +873,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	    rxrpc_is_client_call(call)) {
 		rxrpc_set_call_completion(call, RXRPC_CALL_REMOTELY_ABORTED,
 					  0, -ENETRESET);
-		return;
+		goto out;
 	}
 
 	/* Discard any out-of-order or duplicate ACKs (outside lock). */
@@ -885,7 +881,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 		trace_rxrpc_rx_discard_ack(call->debug_id, ack_serial,
 					   first_soft_ack, call->acks_first_seq,
 					   prev_pkt, call->acks_prev_seq);
-		goto out_not_locked;
+		goto out;
 	}
 
 	info.rxMTU = 0;
@@ -893,13 +889,11 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	if (skb->len >= ioffset + sizeof(info) &&
 	    skb_copy_bits(skb, ioffset, &info, sizeof(info)) < 0) {
 		rxrpc_proto_abort("XAI", call, 0);
-		goto out_not_locked;
+		goto out;
 	}
 
 	if (nr_acks > 0)
 		skb_condense(skb);
-
-	spin_lock(&call->input_lock);
 
 	/* Discard any out-of-order or duplicate ACKs (inside lock). */
 	if (!rxrpc_is_ack_valid(call, first_soft_ack, prev_pkt)) {
@@ -992,8 +986,6 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 
 	rxrpc_congestion_management(call, skb, &summary, acked_serial);
 out:
-	spin_unlock(&call->input_lock);
-out_not_locked:
 	rxrpc_free_skb(skb_put, rxrpc_skb_put_input);
 	rxrpc_free_skb(skb_old, rxrpc_skb_put_ack);
 }
@@ -1005,12 +997,8 @@ static void rxrpc_input_ackall(struct rxrpc_call *call, struct sk_buff *skb)
 {
 	struct rxrpc_ack_summary summary = { 0 };
 
-	spin_lock(&call->input_lock);
-
 	if (rxrpc_rotate_tx_window(call, call->tx_top, &summary))
 		rxrpc_end_tx_phase(call, false, "ETL");
-
-	spin_unlock(&call->input_lock);
 }
 
 /*
