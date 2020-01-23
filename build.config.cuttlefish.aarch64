@@ -4,8 +4,8 @@
 
 BUILD_INITRAMFS=1
 DEFCONFIG=cf_aarch_64_gki_defconfig
-PRE_DEFCONFIG_CMDS="cat ./common/arch/arm64/configs/gki_defconfig ./common/cuttlefish.fragment > ./common/arch/arm64/configs/${DEFCONFIG};"
-POST_DEFCONFIG_CMDS="rm ./common/arch/arm64/configs/${DEFCONFIG}"
+PRE_DEFCONFIG_CMDS="KCONFIG_CONFIG=${ROOT_DIR}/common/arch/arm64/configs/${DEFCONFIG} ${ROOT_DIR}/common/scripts/kconfig/merge_config.sh -m -r ${ROOT_DIR}/common/arch/arm64/configs/gki_defconfig ${ROOT_DIR}/common/cuttlefish.fragment"
+POST_DEFCONFIG_CMDS="rm ${ROOT_DIR}/common/arch/arm64/configs/${DEFCONFIG}"
 
 # Not saving any kernel images. This build step is meant purely to generate the .kos.
 FILES=""
