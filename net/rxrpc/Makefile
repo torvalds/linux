@@ -16,6 +16,7 @@ rxrpc-y := \
 	conn_service.o \
 	input.o \
 	insecure.o \
+	io_thread.o \
 	key.o \
 	local_event.o \
 	local_object.o \
