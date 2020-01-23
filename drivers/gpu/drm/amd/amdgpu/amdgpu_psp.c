@@ -1081,7 +1081,7 @@ static int psp_hw_start(struct psp_context *psp)
 	struct amdgpu_device *adev = psp->adev;
 	int ret;
 
-	if (!amdgpu_sriov_vf(adev) || !adev->in_gpu_reset) {
+	if (!amdgpu_sriov_vf(adev) && !adev->in_gpu_reset) {
 		if (psp->kdb_bin_size &&
 		    (psp->funcs->bootloader_load_kdb != NULL)) {
 			ret = psp_bootloader_load_kdb(psp);
@@ -1318,7 +1318,7 @@ static int psp_np_fw_load(struct psp_context *psp)
 
 	if (psp->autoload_supported) {
 		ucode = &adev->firmware.ucode[AMDGPU_UCODE_ID_SMC];
-		if (!ucode->fw)
+		if (!ucode->fw || amdgpu_sriov_vf(adev))
 			goto out;
 
 		ret = psp_execute_np_fw_load(psp, ucode);
