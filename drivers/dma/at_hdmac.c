@@ -147,7 +147,7 @@ static struct at_desc *atc_desc_get(struct at_dma_chan *atchan)
 
 	/* no more descriptor available in initial pool: create one more */
 	if (!ret)
-		ret = atc_alloc_descriptor(&atchan->chan_common, GFP_ATOMIC);
+		ret = atc_alloc_descriptor(&atchan->chan_common, GFP_NOWAIT);
 
 	return ret;
 }
@@ -931,7 +931,7 @@ atc_prep_dma_memset(struct dma_chan *chan, dma_addr_t dest, int value,
 		return NULL;
 	}
 
-	vaddr = dma_pool_alloc(atdma->memset_pool, GFP_ATOMIC, &paddr);
+	vaddr = dma_pool_alloc(atdma->memset_pool, GFP_NOWAIT, &paddr);
 	if (!vaddr) {
 		dev_err(chan2dev(chan), "%s: couldn't allocate buffer\n",
 			__func__);
@@ -989,7 +989,7 @@ atc_prep_dma_memset_sg(struct dma_chan *chan,
 		return NULL;
 	}
 
-	vaddr = dma_pool_alloc(atdma->memset_pool, GFP_ATOMIC, &paddr);
+	vaddr = dma_pool_alloc(atdma->memset_pool, GFP_NOWAIT, &paddr);
 	if (!vaddr) {
 		dev_err(chan2dev(chan), "%s: couldn't allocate buffer\n",
 			__func__);
