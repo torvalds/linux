@@ -253,11 +253,8 @@ static void rxrpc_rotate_rx_window(struct rxrpc_call *call)
 	acked = atomic_add_return(call->rx_consumed - old_consumed,
 				  &call->ackr_nr_consumed);
 	if (acked > 2 &&
-	    !test_and_set_bit(RXRPC_CALL_IDLE_ACK_PENDING, &call->flags)) {
-		rxrpc_send_ACK(call, RXRPC_ACK_IDLE, serial,
-			       rxrpc_propose_ack_rotate_rx);
-		rxrpc_transmit_ack_packets(call->peer->local);
-	}
+	    !test_and_set_bit(RXRPC_CALL_RX_IS_IDLE, &call->flags))
+		rxrpc_poke_call(call, rxrpc_call_poke_idle);
 }
 
 /*
@@ -377,7 +374,7 @@ done:
 	trace_rxrpc_recvdata(call, rxrpc_recvmsg_data_return, seq,
 			     rx_pkt_offset, rx_pkt_len, ret);
 	if (ret == -EAGAIN)
-		set_bit(RXRPC_CALL_RX_UNDERRUN, &call->flags);
+		set_bit(RXRPC_CALL_RX_IS_IDLE, &call->flags);
 	return ret;
 }
 

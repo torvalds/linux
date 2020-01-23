@@ -12,10 +12,8 @@
 static void rxrpc_proto_abort(const char *why,
 			      struct rxrpc_call *call, rxrpc_seq_t seq)
 {
-	if (rxrpc_abort_call(why, call, seq, RX_PROTOCOL_ERROR, -EBADMSG)) {
-		set_bit(RXRPC_CALL_EV_ABORT, &call->events);
-		rxrpc_queue_call(call, rxrpc_call_queue_abort);
-	}
+	if (rxrpc_abort_call(why, call, seq, RX_PROTOCOL_ERROR, -EBADMSG))
+		rxrpc_send_abort_packet(call);
 }
 
 /*
@@ -174,8 +172,8 @@ out_no_clear_ca:
 	call->cong_cwnd = cwnd;
 	call->cong_cumul_acks = cumulative_acks;
 	trace_rxrpc_congest(call, summary, acked_serial, change);
-	if (resend && !test_and_set_bit(RXRPC_CALL_EV_RESEND, &call->events))
-		rxrpc_queue_call(call, rxrpc_call_queue_resend);
+	if (resend)
+		rxrpc_resend(call, skb);
 	return;
 
 packet_loss_detected:
@@ -398,6 +396,8 @@ static void rxrpc_input_data_one(struct rxrpc_call *call, struct sk_buff *skb,
 		/* Send an immediate ACK if we fill in a hole */
 		else if (!skb_queue_empty(&call->rx_oos_queue))
 			ack_reason = RXRPC_ACK_DELAY;
+		else
+			atomic_inc_return(&call->ackr_nr_unacked);
 
 		window++;
 		if (after(window, wtop))
@@ -473,14 +473,6 @@ static void rxrpc_input_data_one(struct rxrpc_call *call, struct sk_buff *skb,
 	}
 
 send_ack:
-	if (ack_reason < 0 &&
-	    atomic_inc_return(&call->ackr_nr_unacked) > 2 &&
-	    test_and_set_bit(RXRPC_CALL_IDLE_ACK_PENDING, &call->flags)) {
-		ack_reason = RXRPC_ACK_IDLE;
-	} else if (ack_reason >= 0) {
-		set_bit(RXRPC_CALL_IDLE_ACK_PENDING, &call->flags);
-	}
-
 	if (ack_reason >= 0)
 		rxrpc_send_ACK(call, ack_reason, serial,
 			       rxrpc_propose_ack_input_data);
@@ -510,7 +502,7 @@ static bool rxrpc_input_split_jumbo(struct rxrpc_call *call, struct sk_buff *skb
 				  &jhdr, sizeof(jhdr)) < 0)
 			goto protocol_error;
 
-		jskb = skb_clone(skb, GFP_ATOMIC);
+		jskb = skb_clone(skb, GFP_NOFS);
 		if (!jskb) {
 			kdebug("couldn't clone");
 			return false;
@@ -562,24 +554,6 @@ static void rxrpc_input_data(struct rxrpc_call *call, struct sk_buff *skb)
 	if (state >= RXRPC_CALL_COMPLETE)
 		return;
 
-	/* Unshare the packet so that it can be modified for in-place
-	 * decryption.
-	 */
-	if (sp->hdr.securityIndex != 0) {
-		struct sk_buff *nskb = skb_unshare(skb, GFP_ATOMIC);
-		if (!nskb) {
-			rxrpc_eaten_skb(skb, rxrpc_skb_eaten_by_unshare_nomem);
-			return;
-		}
-
-		if (nskb != skb) {
-			rxrpc_eaten_skb(skb, rxrpc_skb_eaten_by_unshare);
-			skb = nskb;
-			rxrpc_new_skb(skb, rxrpc_skb_new_unshared);
-			sp = rxrpc_skb(skb);
-		}
-	}
-
 	if (state == RXRPC_CALL_SERVER_RECV_REQUEST) {
 		unsigned long timo = READ_ONCE(call->next_req_timo);
 		unsigned long now, expect_req_by;
@@ -599,15 +573,15 @@ static void rxrpc_input_data(struct rxrpc_call *call, struct sk_buff *skb)
 	if ((state == RXRPC_CALL_CLIENT_SEND_REQUEST ||
 	     state == RXRPC_CALL_CLIENT_AWAIT_REPLY) &&
 	    !rxrpc_receiving_reply(call))
-		goto out;
+		goto out_notify;
 
 	if (!rxrpc_input_split_jumbo(call, skb)) {
 		rxrpc_proto_abort("VLD", call, sp->hdr.seq);
-		goto out;
+		goto out_notify;
 	}
 	skb = NULL;
 
-out:
+out_notify:
 	trace_rxrpc_notify_socket(call->debug_id, serial);
 	rxrpc_notify_socket(call);
 	_leave(" [queued]");
@@ -665,32 +639,6 @@ static void rxrpc_complete_rtt_probe(struct rxrpc_call *call,
 
 	if (!matched)
 		trace_rxrpc_rtt_rx(call, rxrpc_rtt_rx_lost, 9, 0, acked_serial, 0, 0);
-}
-
-/*
- * Process the response to a ping that we sent to find out if we lost an ACK.
- *
- * If we got back a ping response that indicates a lower tx_top than what we
- * had at the time of the ping transmission, we adjudge all the DATA packets
- * sent between the response tx_top and the ping-time tx_top to have been lost.
- */
-static void rxrpc_input_check_for_lost_ack(struct rxrpc_call *call)
-{
-	if (after(call->acks_lost_top, call->acks_prev_seq) &&
-	    !test_and_set_bit(RXRPC_CALL_EV_RESEND, &call->events))
-		rxrpc_queue_call(call, rxrpc_call_queue_resend);
-}
-
-/*
- * Process a ping response.
- */
-static void rxrpc_input_ping_response(struct rxrpc_call *call,
-				      ktime_t resp_time,
-				      rxrpc_serial_t acked_serial,
-				      rxrpc_serial_t ack_serial)
-{
-	if (acked_serial == call->acks_lost_ping)
-		rxrpc_input_check_for_lost_ack(call);
 }
 
 /*
@@ -801,7 +749,6 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	struct rxrpc_ackpacket ack;
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	struct rxrpc_ackinfo info;
-	struct sk_buff *skb_old = NULL;
 	rxrpc_serial_t ack_serial, acked_serial;
 	rxrpc_seq_t first_soft_ack, hard_ack, prev_pkt;
 	int nr_acks, offset, ioffset;
@@ -809,10 +756,8 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	_enter("");
 
 	offset = sizeof(struct rxrpc_wire_header);
-	if (skb_copy_bits(skb, offset, &ack, sizeof(ack)) < 0) {
-		rxrpc_proto_abort("XAK", call, 0);
-		goto out;
-	}
+	if (skb_copy_bits(skb, offset, &ack, sizeof(ack)) < 0)
+		return rxrpc_proto_abort("XAK", call, 0);
 	offset += sizeof(ack);
 
 	ack_serial = sp->hdr.serial;
@@ -863,7 +808,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	    rxrpc_is_client_call(call)) {
 		rxrpc_set_call_completion(call, RXRPC_CALL_REMOTELY_ABORTED,
 					  0, -ENETRESET);
-		goto out;
+		return;
 	}
 
 	/* If we get an OUT_OF_SEQUENCE ACK from the server, that can also
@@ -877,7 +822,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	    rxrpc_is_client_call(call)) {
 		rxrpc_set_call_completion(call, RXRPC_CALL_REMOTELY_ABORTED,
 					  0, -ENETRESET);
-		goto out;
+		return;
 	}
 
 	/* Discard any out-of-order or duplicate ACKs (outside lock). */
@@ -885,39 +830,25 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 		trace_rxrpc_rx_discard_ack(call->debug_id, ack_serial,
 					   first_soft_ack, call->acks_first_seq,
 					   prev_pkt, call->acks_prev_seq);
-		goto out;
+		return;
 	}
 
 	info.rxMTU = 0;
 	ioffset = offset + nr_acks + 3;
 	if (skb->len >= ioffset + sizeof(info) &&
-	    skb_copy_bits(skb, ioffset, &info, sizeof(info)) < 0) {
-		rxrpc_proto_abort("XAI", call, 0);
-		goto out;
-	}
+	    skb_copy_bits(skb, ioffset, &info, sizeof(info)) < 0)
+		return rxrpc_proto_abort("XAI", call, 0);
 
 	if (nr_acks > 0)
 		skb_condense(skb);
 
-	/* Discard any out-of-order or duplicate ACKs (inside lock). */
-	if (!rxrpc_is_ack_valid(call, first_soft_ack, prev_pkt)) {
-		trace_rxrpc_rx_discard_ack(call->debug_id, ack_serial,
-					   first_soft_ack, call->acks_first_seq,
-					   prev_pkt, call->acks_prev_seq);
-		goto out;
-	}
 	call->acks_latest_ts = skb->tstamp;
-
 	call->acks_first_seq = first_soft_ack;
 	call->acks_prev_seq = prev_pkt;
 
 	switch (ack.reason) {
 	case RXRPC_ACK_PING:
 		break;
-	case RXRPC_ACK_PING_RESPONSE:
-		rxrpc_input_ping_response(call, skb->tstamp, acked_serial,
-					  ack_serial);
-		fallthrough;
 	default:
 		if (after(acked_serial, call->acks_highest_serial))
 			call->acks_highest_serial = acked_serial;
@@ -928,10 +859,8 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	if (info.rxMTU)
 		rxrpc_input_ackinfo(call, skb, &info);
 
-	if (first_soft_ack == 0) {
-		rxrpc_proto_abort("AK0", call, 0);
-		goto out;
-	}
+	if (first_soft_ack == 0)
+		return rxrpc_proto_abort("AK0", call, 0);
 
 	/* Ignore ACKs unless we are or have just been transmitting. */
 	switch (READ_ONCE(call->state)) {
@@ -941,45 +870,27 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	case RXRPC_CALL_SERVER_AWAIT_ACK:
 		break;
 	default:
-		goto out;
+		return;
 	}
 
 	if (before(hard_ack, call->acks_hard_ack) ||
-	    after(hard_ack, call->tx_top)) {
-		rxrpc_proto_abort("AKW", call, 0);
-		goto out;
-	}
-	if (nr_acks > call->tx_top - hard_ack) {
-		rxrpc_proto_abort("AKN", call, 0);
-		goto out;
-	}
+	    after(hard_ack, call->tx_top))
+		return rxrpc_proto_abort("AKW", call, 0);
+	if (nr_acks > call->tx_top - hard_ack)
+		return rxrpc_proto_abort("AKN", call, 0);
 
 	if (after(hard_ack, call->acks_hard_ack)) {
 		if (rxrpc_rotate_tx_window(call, hard_ack, &summary)) {
 			rxrpc_end_tx_phase(call, false, "ETA");
-			goto out;
+			return;
 		}
 	}
 
 	if (nr_acks > 0) {
-		if (offset > (int)skb->len - nr_acks) {
-			rxrpc_proto_abort("XSA", call, 0);
-			goto out;
-		}
-
-		rxrpc_get_skb(skb, rxrpc_skb_get_ack);
-		spin_lock(&call->acks_ack_lock);
-		skb_old = call->acks_soft_tbl;
-		call->acks_soft_tbl = skb;
-		spin_unlock(&call->acks_ack_lock);
-
+		if (offset > (int)skb->len - nr_acks)
+			return rxrpc_proto_abort("XSA", call, 0);
 		rxrpc_input_soft_acks(call, skb->data + offset, first_soft_ack,
 				      nr_acks, &summary);
-	} else if (call->acks_soft_tbl) {
-		spin_lock(&call->acks_ack_lock);
-		skb_old = call->acks_soft_tbl;
-		call->acks_soft_tbl = NULL;
-		spin_unlock(&call->acks_ack_lock);
 	}
 
 	if (test_bit(RXRPC_CALL_TX_LAST, &call->flags) &&
@@ -989,8 +900,6 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 				   rxrpc_propose_ack_ping_for_lost_reply);
 
 	rxrpc_congestion_management(call, skb, &summary, acked_serial);
-out:
-	rxrpc_free_skb(skb_old, rxrpc_skb_put_ack);
 }
 
 /*
@@ -1020,12 +929,19 @@ static void rxrpc_input_abort(struct rxrpc_call *call, struct sk_buff *skb)
 /*
  * Process an incoming call packet.
  */
-void rxrpc_input_call_event(struct rxrpc_call *call, struct sk_buff *skb)
+void rxrpc_input_call_packet(struct rxrpc_call *call, struct sk_buff *skb)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	unsigned long timo;
 
 	_enter("%p,%p", call, skb);
+
+	if (sp->hdr.serviceId != call->dest_srx.srx_service)
+		call->dest_srx.srx_service = sp->hdr.serviceId;
+	if ((int)sp->hdr.serial - (int)call->rx_serial > 0)
+		call->rx_serial = sp->hdr.serial;
+	if (!test_bit(RXRPC_CALL_RX_HEARD, &call->flags))
+		set_bit(RXRPC_CALL_RX_HEARD, &call->flags);
 
 	timo = READ_ONCE(call->next_rx_timo);
 	if (timo) {
@@ -1072,9 +988,10 @@ void rxrpc_input_call_event(struct rxrpc_call *call, struct sk_buff *skb)
  *
  * TODO: If callNumber > call_id + 1, renegotiate security.
  */
-void rxrpc_input_implicit_end_call(struct rxrpc_connection *conn,
-				   struct rxrpc_call *call)
+void rxrpc_implicit_end_call(struct rxrpc_call *call, struct sk_buff *skb)
 {
+	struct rxrpc_connection *conn = call->conn;
+
 	switch (READ_ONCE(call->state)) {
 	case RXRPC_CALL_SERVER_AWAIT_ACK:
 		rxrpc_call_completed(call);
@@ -1082,13 +999,13 @@ void rxrpc_input_implicit_end_call(struct rxrpc_connection *conn,
 	case RXRPC_CALL_COMPLETE:
 		break;
 	default:
-		if (rxrpc_abort_call("IMP", call, 0, RX_CALL_DEAD, -ESHUTDOWN)) {
-			set_bit(RXRPC_CALL_EV_ABORT, &call->events);
-			rxrpc_queue_call(call, rxrpc_call_queue_abort);
-		}
+		if (rxrpc_abort_call("IMP", call, 0, RX_CALL_DEAD, -ESHUTDOWN))
+			rxrpc_send_abort_packet(call);
 		trace_rxrpc_improper_term(call);
 		break;
 	}
+
+	rxrpc_input_call_event(call, skb);
 
 	spin_lock(&conn->bundle->channel_lock);
 	__rxrpc_disconnect_call(conn, call);

@@ -18,9 +18,9 @@
 #include <net/ip.h>
 #include "ar-internal.h"
 
-static void rxrpc_store_error(struct rxrpc_peer *, struct sock_exterr_skb *);
-static void rxrpc_distribute_error(struct rxrpc_peer *, int,
-				   enum rxrpc_call_completion);
+static void rxrpc_store_error(struct rxrpc_peer *, struct sk_buff *);
+static void rxrpc_distribute_error(struct rxrpc_peer *, struct sk_buff *,
+				   enum rxrpc_call_completion, int);
 
 /*
  * Find the peer associated with a local error.
@@ -161,7 +161,7 @@ void rxrpc_input_error(struct rxrpc_local *local, struct sk_buff *skb)
 		goto out;
 	}
 
-	rxrpc_store_error(peer, serr);
+	rxrpc_store_error(peer, skb);
 out:
 	rxrpc_put_peer(peer, rxrpc_peer_put_input_error);
 }
@@ -169,18 +169,14 @@ out:
 /*
  * Map an error report to error codes on the peer record.
  */
-static void rxrpc_store_error(struct rxrpc_peer *peer,
-			      struct sock_exterr_skb *serr)
+static void rxrpc_store_error(struct rxrpc_peer *peer, struct sk_buff *skb)
 {
 	enum rxrpc_call_completion compl = RXRPC_CALL_NETWORK_ERROR;
-	struct sock_extended_err *ee;
-	int err;
+	struct sock_exterr_skb *serr = SKB_EXT_ERR(skb);
+	struct sock_extended_err *ee = &serr->ee;
+	int err = ee->ee_errno;
 
 	_enter("");
-
-	ee = &serr->ee;
-
-	err = ee->ee_errno;
 
 	switch (ee->ee_origin) {
 	case SO_EE_ORIGIN_NONE:
@@ -197,14 +193,14 @@ static void rxrpc_store_error(struct rxrpc_peer *peer,
 		break;
 	}
 
-	rxrpc_distribute_error(peer, err, compl);
+	rxrpc_distribute_error(peer, skb, compl, err);
 }
 
 /*
  * Distribute an error that occurred on a peer.
  */
-static void rxrpc_distribute_error(struct rxrpc_peer *peer, int error,
-				   enum rxrpc_call_completion compl)
+static void rxrpc_distribute_error(struct rxrpc_peer *peer, struct sk_buff *skb,
+				   enum rxrpc_call_completion compl, int err)
 {
 	struct rxrpc_call *call;
 	HLIST_HEAD(error_targets);
@@ -219,7 +215,8 @@ static void rxrpc_distribute_error(struct rxrpc_peer *peer, int error,
 		spin_unlock(&peer->lock);
 
 		rxrpc_see_call(call, rxrpc_call_see_distribute_error);
-		rxrpc_set_call_completion(call, compl, 0, -error);
+		rxrpc_set_call_completion(call, compl, 0, -err);
+		rxrpc_input_call_event(call, skb);
 
 		spin_lock(&peer->lock);
 	}

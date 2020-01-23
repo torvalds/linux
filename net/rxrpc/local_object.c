@@ -20,7 +20,6 @@
 #include <net/af_rxrpc.h>
 #include "ar-internal.h"
 
-static void rxrpc_local_processor(struct work_struct *);
 static void rxrpc_local_rcu(struct rcu_head *);
 
 /*
@@ -97,12 +96,9 @@ static struct rxrpc_local *rxrpc_alloc_local(struct rxrpc_net *rxnet,
 		atomic_set(&local->active_users, 1);
 		local->rxnet = rxnet;
 		INIT_HLIST_NODE(&local->link);
-		INIT_WORK(&local->processor, rxrpc_local_processor);
 		INIT_LIST_HEAD(&local->ack_tx_queue);
 		spin_lock_init(&local->ack_tx_lock);
 		init_rwsem(&local->defrag_sem);
-		skb_queue_head_init(&local->reject_queue);
-		skb_queue_head_init(&local->event_queue);
 		skb_queue_head_init(&local->rx_queue);
 		INIT_LIST_HEAD(&local->call_attend_q);
 		local->client_bundles = RB_ROOT;
@@ -319,21 +315,6 @@ struct rxrpc_local *rxrpc_get_local_maybe(struct rxrpc_local *local,
 }
 
 /*
- * Queue a local endpoint and pass the caller's reference to the work item.
- */
-void rxrpc_queue_local(struct rxrpc_local *local)
-{
-	unsigned int debug_id = local->debug_id;
-	int r = refcount_read(&local->ref);
-	int u = atomic_read(&local->active_users);
-
-	if (rxrpc_queue_work(&local->processor))
-		trace_rxrpc_local(debug_id, rxrpc_local_queued, r, u);
-	else
-		rxrpc_put_local(local, rxrpc_local_put_already_queued);
-}
-
-/*
  * Drop a ref on a local endpoint.
  */
 void rxrpc_put_local(struct rxrpc_local *local, enum rxrpc_local_trace why)
@@ -374,7 +355,7 @@ struct rxrpc_local *rxrpc_use_local(struct rxrpc_local *local,
 
 /*
  * Cease using a local endpoint.  Once the number of active users reaches 0, we
- * start the closure of the transport in the work processor.
+ * start the closure of the transport in the I/O thread..
  */
 void rxrpc_unuse_local(struct rxrpc_local *local, enum rxrpc_local_trace why)
 {
@@ -416,50 +397,7 @@ void rxrpc_destroy_local(struct rxrpc_local *local)
 	/* At this point, there should be no more packets coming in to the
 	 * local endpoint.
 	 */
-	rxrpc_purge_queue(&local->reject_queue);
-	rxrpc_purge_queue(&local->event_queue);
 	rxrpc_purge_queue(&local->rx_queue);
-}
-
-/*
- * Process events on an endpoint.  The work item carries a ref which
- * we must release.
- */
-static void rxrpc_local_processor(struct work_struct *work)
-{
-	struct rxrpc_local *local =
-		container_of(work, struct rxrpc_local, processor);
-	bool again;
-
-	if (local->dead)
-		return;
-
-	rxrpc_see_local(local, rxrpc_local_processing);
-
-	do {
-		again = false;
-		if (!__rxrpc_use_local(local, rxrpc_local_use_work))
-			break;
-
-		if (!list_empty(&local->ack_tx_queue)) {
-			rxrpc_transmit_ack_packets(local);
-			again = true;
-		}
-
-		if (!skb_queue_empty(&local->reject_queue)) {
-			rxrpc_reject_packets(local);
-			again = true;
-		}
-
-		if (!skb_queue_empty(&local->event_queue)) {
-			rxrpc_process_local_events(local);
-			again = true;
-		}
-
-		__rxrpc_unuse_local(local, rxrpc_local_unuse_work);
-	} while (again);
-
-	rxrpc_put_local(local, rxrpc_local_put_queue);
 }
 
 /*
@@ -469,13 +407,8 @@ static void rxrpc_local_rcu(struct rcu_head *rcu)
 {
 	struct rxrpc_local *local = container_of(rcu, struct rxrpc_local, rcu);
 
-	_enter("%d", local->debug_id);
-
-	ASSERT(!work_pending(&local->processor));
-
 	rxrpc_see_local(local, rxrpc_local_free);
 	kfree(local);
-	_leave("");
 }
 
 /*

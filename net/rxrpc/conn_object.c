@@ -72,75 +72,54 @@ struct rxrpc_connection *rxrpc_alloc_connection(struct rxrpc_net *rxnet,
  *
  * The caller must be holding the RCU read lock.
  */
-struct rxrpc_connection *rxrpc_find_connection_rcu(struct rxrpc_local *local,
-						   struct sockaddr_rxrpc *srx,
-						   struct sk_buff *skb,
-						   struct rxrpc_peer **_peer)
+struct rxrpc_connection *rxrpc_find_client_connection_rcu(struct rxrpc_local *local,
+							  struct sockaddr_rxrpc *srx,
+							  struct sk_buff *skb)
 {
 	struct rxrpc_connection *conn;
-	struct rxrpc_conn_proto k;
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	struct rxrpc_peer *peer;
 
 	_enter(",%x", sp->hdr.cid & RXRPC_CIDMASK);
 
-	k.epoch	= sp->hdr.epoch;
-	k.cid	= sp->hdr.cid & RXRPC_CIDMASK;
-
-	if (rxrpc_to_server(sp)) {
-		/* We need to look up service connections by the full protocol
-		 * parameter set.  We look up the peer first as an intermediate
-		 * step and then the connection from the peer's tree.
-		 */
-		peer = rxrpc_lookup_peer_rcu(local, srx);
-		if (!peer)
-			goto not_found;
-		*_peer = peer;
-		conn = rxrpc_find_service_conn_rcu(peer, skb);
-		if (!conn || refcount_read(&conn->ref) == 0)
-			goto not_found;
-		_leave(" = %p", conn);
-		return conn;
-	} else {
-		/* Look up client connections by connection ID alone as their
-		 * IDs are unique for this machine.
-		 */
-		conn = idr_find(&rxrpc_client_conn_ids, sp->hdr.cid >> RXRPC_CIDSHIFT);
-		if (!conn || refcount_read(&conn->ref) == 0) {
-			_debug("no conn");
-			goto not_found;
-		}
-
-		if (conn->proto.epoch != k.epoch ||
-		    conn->local != local)
-			goto not_found;
-
-		peer = conn->peer;
-		switch (srx->transport.family) {
-		case AF_INET:
-			if (peer->srx.transport.sin.sin_port !=
-			    srx->transport.sin.sin_port ||
-			    peer->srx.transport.sin.sin_addr.s_addr !=
-			    srx->transport.sin.sin_addr.s_addr)
-				goto not_found;
-			break;
-#ifdef CONFIG_AF_RXRPC_IPV6
-		case AF_INET6:
-			if (peer->srx.transport.sin6.sin6_port !=
-			    srx->transport.sin6.sin6_port ||
-			    memcmp(&peer->srx.transport.sin6.sin6_addr,
-				   &srx->transport.sin6.sin6_addr,
-				   sizeof(struct in6_addr)) != 0)
-				goto not_found;
-			break;
-#endif
-		default:
-			BUG();
-		}
-
-		_leave(" = %p", conn);
-		return conn;
+	/* Look up client connections by connection ID alone as their IDs are
+	 * unique for this machine.
+	 */
+	conn = idr_find(&rxrpc_client_conn_ids, sp->hdr.cid >> RXRPC_CIDSHIFT);
+	if (!conn || refcount_read(&conn->ref) == 0) {
+		_debug("no conn");
+		goto not_found;
 	}
+
+	if (conn->proto.epoch != sp->hdr.epoch ||
+	    conn->local != local)
+		goto not_found;
+
+	peer = conn->peer;
+	switch (srx->transport.family) {
+	case AF_INET:
+		if (peer->srx.transport.sin.sin_port !=
+		    srx->transport.sin.sin_port ||
+		    peer->srx.transport.sin.sin_addr.s_addr !=
+		    srx->transport.sin.sin_addr.s_addr)
+			goto not_found;
+		break;
+#ifdef CONFIG_AF_RXRPC_IPV6
+	case AF_INET6:
+		if (peer->srx.transport.sin6.sin6_port !=
+		    srx->transport.sin6.sin6_port ||
+		    memcmp(&peer->srx.transport.sin6.sin6_addr,
+			   &srx->transport.sin6.sin6_addr,
+			   sizeof(struct in6_addr)) != 0)
+			goto not_found;
+		break;
+#endif
+	default:
+		BUG();
+	}
+
+	_leave(" = %p", conn);
+	return conn;
 
 not_found:
 	_leave(" = NULL");

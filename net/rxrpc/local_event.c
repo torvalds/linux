@@ -21,9 +21,9 @@ static const char rxrpc_version_string[65] = "linux-" UTS_RELEASE " AF_RXRPC";
 /*
  * Reply to a version request
  */
-static void rxrpc_send_version_request(struct rxrpc_local *local,
-				       struct rxrpc_host_header *hdr,
-				       struct sk_buff *skb)
+void rxrpc_send_version_request(struct rxrpc_local *local,
+				struct rxrpc_host_header *hdr,
+				struct sk_buff *skb)
 {
 	struct rxrpc_wire_header whdr;
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
@@ -70,43 +70,6 @@ static void rxrpc_send_version_request(struct rxrpc_local *local,
 	else
 		trace_rxrpc_tx_packet(local->debug_id, &whdr,
 				      rxrpc_tx_point_version_reply);
-
-	_leave("");
-}
-
-/*
- * Process event packets targeted at a local endpoint.
- */
-void rxrpc_process_local_events(struct rxrpc_local *local)
-{
-	struct sk_buff *skb;
-	char v;
-
-	_enter("");
-
-	skb = skb_dequeue(&local->event_queue);
-	if (skb) {
-		struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
-
-		rxrpc_see_skb(skb, rxrpc_skb_see_local_work);
-		_debug("{%d},{%u}", local->debug_id, sp->hdr.type);
-
-		switch (sp->hdr.type) {
-		case RXRPC_PACKET_TYPE_VERSION:
-			if (skb_copy_bits(skb, sizeof(struct rxrpc_wire_header),
-					  &v, 1) < 0)
-				return;
-			if (v == 0)
-				rxrpc_send_version_request(local, &sp->hdr, skb);
-			break;
-
-		default:
-			/* Just ignore anything we don't understand */
-			break;
-		}
-
-		rxrpc_free_skb(skb, rxrpc_skb_put_input);
-	}
 
 	_leave("");
 }
