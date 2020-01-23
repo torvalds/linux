@@ -311,6 +311,9 @@ static void mci_release(struct device *dev)
 	kfree(mci);
 }
 
+static int edac_mc_alloc_csrows(struct mem_ctl_info *mci);
+static int edac_mc_alloc_dimms(struct mem_ctl_info *mci);
+
 struct mem_ctl_info *edac_mc_alloc(unsigned int mc_num,
 				   unsigned int n_layers,
 				   struct edac_mc_layer *layers,
@@ -318,15 +321,11 @@ struct mem_ctl_info *edac_mc_alloc(unsigned int mc_num,
 {
 	struct mem_ctl_info *mci;
 	struct edac_mc_layer *layer;
-	struct csrow_info *csr;
-	struct rank_info *chan;
-	struct dimm_info *dimm;
 	u32 *ce_per_layer[EDAC_MAX_LAYERS], *ue_per_layer[EDAC_MAX_LAYERS];
-	unsigned int pos[EDAC_MAX_LAYERS];
 	unsigned int idx, size, tot_dimms = 1, count = 1;
 	unsigned int tot_csrows = 1, tot_channels = 1, tot_errcount = 0;
-	void *pvt, *p, *ptr = NULL;
-	int i, j, row, chn, n, len;
+	void *pvt, *ptr = NULL;
+	int i;
 	bool per_rank = false;
 
 	if (WARN_ON(n_layers > EDAC_MAX_LAYERS || n_layers == 0))
@@ -401,103 +400,11 @@ struct mem_ctl_info *edac_mc_alloc(unsigned int mc_num,
 	mci->num_cschannel = tot_channels;
 	mci->csbased = per_rank;
 
-	/*
-	 * Alocate and fill the csrow/channels structs
-	 */
-	mci->csrows = kcalloc(tot_csrows, sizeof(*mci->csrows), GFP_KERNEL);
-	if (!mci->csrows)
-		goto error;
-	for (row = 0; row < tot_csrows; row++) {
-		csr = kzalloc(sizeof(**mci->csrows), GFP_KERNEL);
-		if (!csr)
-			goto error;
-		mci->csrows[row] = csr;
-		csr->csrow_idx = row;
-		csr->mci = mci;
-		csr->nr_channels = tot_channels;
-		csr->channels = kcalloc(tot_channels, sizeof(*csr->channels),
-					GFP_KERNEL);
-		if (!csr->channels)
-			goto error;
-
-		for (chn = 0; chn < tot_channels; chn++) {
-			chan = kzalloc(sizeof(**csr->channels), GFP_KERNEL);
-			if (!chan)
-				goto error;
-			csr->channels[chn] = chan;
-			chan->chan_idx = chn;
-			chan->csrow = csr;
-		}
-	}
-
-	/*
-	 * Allocate and fill the dimm structs
-	 */
-	mci->dimms  = kcalloc(tot_dimms, sizeof(*mci->dimms), GFP_KERNEL);
-	if (!mci->dimms)
+	if (edac_mc_alloc_csrows(mci))
 		goto error;
 
-	memset(&pos, 0, sizeof(pos));
-	row = 0;
-	chn = 0;
-	for (idx = 0; idx < tot_dimms; idx++) {
-		chan = mci->csrows[row]->channels[chn];
-
-		dimm = kzalloc(sizeof(**mci->dimms), GFP_KERNEL);
-		if (!dimm)
-			goto error;
-		mci->dimms[idx] = dimm;
-		dimm->mci = mci;
-		dimm->idx = idx;
-
-		/*
-		 * Copy DIMM location and initialize it.
-		 */
-		len = sizeof(dimm->label);
-		p = dimm->label;
-		n = snprintf(p, len, "mc#%u", mc_num);
-		p += n;
-		len -= n;
-		for (j = 0; j < n_layers; j++) {
-			n = snprintf(p, len, "%s#%u",
-				     edac_layer_name[layers[j].type],
-				     pos[j]);
-			p += n;
-			len -= n;
-			dimm->location[j] = pos[j];
-
-			if (len <= 0)
-				break;
-		}
-
-		/* Link it to the csrows old API data */
-		chan->dimm = dimm;
-		dimm->csrow = row;
-		dimm->cschannel = chn;
-
-		/* Increment csrow location */
-		if (layers[0].is_virt_csrow) {
-			chn++;
-			if (chn == tot_channels) {
-				chn = 0;
-				row++;
-			}
-		} else {
-			row++;
-			if (row == tot_csrows) {
-				row = 0;
-				chn++;
-			}
-		}
-
-		/* Increment dimm location */
-		for (j = n_layers - 1; j >= 0; j--) {
-			pos[j]++;
-			if (pos[j] < layers[j].size)
-				break;
-			pos[j] = 0;
-		}
-	}
+	if (edac_mc_alloc_dimms(mci))
+		goto error;
 
 	mci->op_state = OP_ALLOC;
 
@@ -509,6 +416,134 @@ error:
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(edac_mc_alloc);
+
+static int edac_mc_alloc_csrows(struct mem_ctl_info *mci)
+{
+	unsigned int tot_channels = mci->num_cschannel;
+	unsigned int tot_csrows = mci->nr_csrows;
+	unsigned int row, chn;
+
+	/*
+	 * Alocate and fill the csrow/channels structs
+	 */
+	mci->csrows = kcalloc(tot_csrows, sizeof(*mci->csrows), GFP_KERNEL);
+	if (!mci->csrows)
+		return -ENOMEM;
+
+	for (row = 0; row < tot_csrows; row++) {
+		struct csrow_info *csr;
+
+		csr = kzalloc(sizeof(**mci->csrows), GFP_KERNEL);
+		if (!csr)
+			return -ENOMEM;
+
+		mci->csrows[row] = csr;
+		csr->csrow_idx = row;
+		csr->mci = mci;
+		csr->nr_channels = tot_channels;
+		csr->channels = kcalloc(tot_channels, sizeof(*csr->channels),
+					GFP_KERNEL);
+		if (!csr->channels)
+			return -ENOMEM;
+
+		for (chn = 0; chn < tot_channels; chn++) {
+			struct rank_info *chan;
+
+			chan = kzalloc(sizeof(**csr->channels), GFP_KERNEL);
+			if (!chan)
+				return -ENOMEM;
+
+			csr->channels[chn] = chan;
+			chan->chan_idx = chn;
+			chan->csrow = csr;
+		}
+	}
+
+	return 0;
+}
+
+static int edac_mc_alloc_dimms(struct mem_ctl_info *mci)
+{
+	unsigned int pos[EDAC_MAX_LAYERS];
+	unsigned int row, chn, idx;
+	int layer;
+	void *p;
+
+	/*
+	 * Allocate and fill the dimm structs
+	 */
+	mci->dimms  = kcalloc(mci->tot_dimms, sizeof(*mci->dimms), GFP_KERNEL);
+	if (!mci->dimms)
+		return -ENOMEM;
+
+	memset(&pos, 0, sizeof(pos));
+	row = 0;
+	chn = 0;
+	for (idx = 0; idx < mci->tot_dimms; idx++) {
+		struct dimm_info *dimm;
+		struct rank_info *chan;
+		int n, len;
+
+		chan = mci->csrows[row]->channels[chn];
+
+		dimm = kzalloc(sizeof(**mci->dimms), GFP_KERNEL);
+		if (!dimm)
+			return -ENOMEM;
+		mci->dimms[idx] = dimm;
+		dimm->mci = mci;
+		dimm->idx = idx;
+
+		/*
+		 * Copy DIMM location and initialize it.
+		 */
+		len = sizeof(dimm->label);
+		p = dimm->label;
+		n = snprintf(p, len, "mc#%u", mci->mc_idx);
+		p += n;
+		len -= n;
+		for (layer = 0; layer < mci->n_layers; layer++) {
+			n = snprintf(p, len, "%s#%u",
+				     edac_layer_name[mci->layers[layer].type],
+				     pos[layer]);
+			p += n;
+			len -= n;
+			dimm->location[layer] = pos[layer];
+
+			if (len <= 0)
+				break;
+		}
+
+		/* Link it to the csrows old API data */
+		chan->dimm = dimm;
+		dimm->csrow = row;
+		dimm->cschannel = chn;
+
+		/* Increment csrow location */
+		if (mci->layers[0].is_virt_csrow) {
+			chn++;
+			if (chn == mci->num_cschannel) {
+				chn = 0;
+				row++;
+			}
+		} else {
+			row++;
+			if (row == mci->nr_csrows) {
+				row = 0;
+				chn++;
+			}
+		}
+
+		/* Increment dimm location */
+		for (layer = mci->n_layers - 1; layer >= 0; layer--) {
+			pos[layer]++;
+			if (pos[layer] < mci->layers[layer].size)
+				break;
+			pos[layer] = 0;
+		}
+	}
+
+	return 0;
+}
 
 void edac_mc_free(struct mem_ctl_info *mci)
 {
