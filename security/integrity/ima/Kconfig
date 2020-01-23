@@ -316,3 +316,9 @@ config IMA_MEASURE_ASYMMETRIC_KEYS
 	depends on IMA
 	depends on ASYMMETRIC_PUBLIC_KEY_SUBTYPE=y
 	default y
+
+config IMA_QUEUE_EARLY_BOOT_KEYS
+	bool
+	depends on IMA_MEASURE_ASYMMETRIC_KEYS
+	depends on SYSTEM_TRUSTED_KEYRING
+	default y
