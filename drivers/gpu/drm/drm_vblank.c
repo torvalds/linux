@@ -604,9 +604,6 @@ EXPORT_SYMBOL(drm_calc_timestamping_constants);
  * @get_scanout_position:
  *     Callback function to retrieve the scanout position. See
  *     @struct drm_crtc_helper_funcs.get_scanout_position.
- * @get_scanout_position_legacy:
- *     Callback function to retrieve the scanout position. See
- *     @struct drm_driver.get_scanout_position.
  *
  * Implements calculation of exact vblank timestamps from given drm_display_mode
  * timings and current video scanout position of a CRTC.
@@ -629,8 +626,7 @@ bool
 drm_crtc_vblank_helper_get_vblank_timestamp_internal(
 	struct drm_crtc *crtc, int *max_error, ktime_t *vblank_time,
 	bool in_vblank_irq,
-	drm_vblank_get_scanout_position_func get_scanout_position,
-	drm_vblank_get_scanout_position_legacy_func get_scanout_position_legacy)
+	drm_vblank_get_scanout_position_func get_scanout_position)
 {
 	struct drm_device *dev = crtc->dev;
 	unsigned int pipe = crtc->index;
@@ -648,7 +644,7 @@ drm_crtc_vblank_helper_get_vblank_timestamp_internal(
 	}
 
 	/* Scanout position query not supported? Should not happen. */
-	if (!get_scanout_position && !get_scanout_position_legacy) {
+	if (!get_scanout_position) {
 		DRM_ERROR("Called from CRTC w/o get_scanout_position()!?\n");
 		return false;
 	}
@@ -679,19 +675,10 @@ drm_crtc_vblank_helper_get_vblank_timestamp_internal(
 		 * Get vertical and horizontal scanout position vpos, hpos,
 		 * and bounding timestamps stime, etime, pre/post query.
 		 */
-		if (get_scanout_position) {
-			vbl_status = get_scanout_position(crtc,
-							  in_vblank_irq,
-							  &vpos, &hpos,
-							  &stime, &etime,
-							  mode);
-		} else {
-			vbl_status = get_scanout_position_legacy(dev, pipe,
-								 in_vblank_irq,
-								 &vpos, &hpos,
-								 &stime, &etime,
-								 mode);
-		}
+		vbl_status = get_scanout_position(crtc, in_vblank_irq,
+						  &vpos, &hpos,
+						  &stime, &etime,
+						  mode);
 
 		/* Return as no-op if scanout query unsupported or failed. */
 		if (!vbl_status) {
@@ -783,7 +770,7 @@ bool drm_crtc_vblank_helper_get_vblank_timestamp(struct drm_crtc *crtc,
 {
 	return drm_crtc_vblank_helper_get_vblank_timestamp_internal(
 		crtc, max_error, vblank_time, in_vblank_irq,
-		crtc->helper_private->get_scanout_position, NULL);
+		crtc->helper_private->get_scanout_position);
 }
 EXPORT_SYMBOL(drm_crtc_vblank_helper_get_vblank_timestamp);
 

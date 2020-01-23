@@ -247,22 +247,12 @@ typedef bool (*drm_vblank_get_scanout_position_func)(struct drm_crtc *crtc,
 						     ktime_t *etime,
 						     const struct drm_display_mode *mode);
 
-typedef bool (*drm_vblank_get_scanout_position_legacy_func)(struct drm_device *dev,
-							    unsigned int pipe,
-							    bool in_vblank_irq,
-							    int *vpos,
-							    int *hpos,
-							    ktime_t *stime,
-							    ktime_t *etime,
-							    const struct drm_display_mode *mode);
-
 bool
 drm_crtc_vblank_helper_get_vblank_timestamp_internal(struct drm_crtc *crtc,
 						     int *max_error,
 						     ktime_t *vblank_time,
 						     bool in_vblank_irq,
-						     drm_vblank_get_scanout_position_func get_scanout_position,
-						     drm_vblank_get_scanout_position_legacy_func get_scanout_position_legacy);
+						     drm_vblank_get_scanout_position_func get_scanout_position);
 bool drm_crtc_vblank_helper_get_vblank_timestamp(struct drm_crtc *crtc,
 						 int *max_error,
 						 ktime_t *vblank_time,

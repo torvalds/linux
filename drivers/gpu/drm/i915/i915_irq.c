@@ -886,7 +886,7 @@ bool intel_crtc_get_vblank_timestamp(struct drm_crtc *crtc, int *max_error,
 {
 	return drm_crtc_vblank_helper_get_vblank_timestamp_internal(
 		crtc, max_error, vblank_time, in_vblank_irq,
-		i915_get_crtc_scanoutpos, NULL);
+		i915_get_crtc_scanoutpos);
 }
 
 int intel_get_crtc_scanline(struct intel_crtc *crtc)
