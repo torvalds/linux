@@ -421,7 +421,9 @@ int madera_core_free(struct madera_priv *priv);
 int madera_init_overheat(struct madera_priv *priv);
 int madera_free_overheat(struct madera_priv *priv);
 int madera_init_inputs(struct snd_soc_component *component);
-int madera_init_outputs(struct snd_soc_component *component, int n_mono_routes);
+int madera_init_outputs(struct snd_soc_component *component,
+			const struct snd_soc_dapm_route *routes,
+			int n_mono_routes, int n_real);
 int madera_init_bus_error_irq(struct madera_priv *priv, int dsp_num,
 			      irq_handler_t handler);
 void madera_free_bus_error_irq(struct madera_priv *priv, int dsp_num);

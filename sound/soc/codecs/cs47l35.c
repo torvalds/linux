@@ -631,6 +631,7 @@ SND_SOC_DAPM_OUTPUT("DRC2 Signal Activity"),
 SND_SOC_DAPM_OUTPUT("DSP Trigger Out"),
 
 SND_SOC_DAPM_DEMUX("HPOUT1 Demux", SND_SOC_NOPM, 0, 0, &cs47l35_outdemux),
+SND_SOC_DAPM_MUX("HPOUT1 Mono Mux", SND_SOC_NOPM, 0, 0, &cs47l35_outdemux),
 
 SND_SOC_DAPM_PGA("PWM1 Driver", MADERA_PWM_DRIVE_1, MADERA_PWM1_ENA_SHIFT,
 		 0, NULL, 0),
@@ -1309,6 +1310,8 @@ static const struct snd_soc_dapm_route cs47l35_dapm_routes[] = {
 	{ "SPKOUTN", NULL, "OUT4L" },
 	{ "SPKOUTP", NULL, "OUT4L" },
 
+	{ "OUT1R", NULL, "HPOUT1 Mono Mux" },
+
 	{ "HPOUTL", "HPOUT", "HPOUT1 Demux" },
 	{ "HPOUTR", "HPOUT", "HPOUT1 Demux" },
 	{ "EPOUTP", "EPOUT", "HPOUT1 Demux" },
@@ -1552,6 +1555,11 @@ static irqreturn_t cs47l35_adsp2_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static const struct snd_soc_dapm_route cs47l35_mono_routes[] = {
+	{ "HPOUT1 Mono Mux", "HPOUT", "OUT1L" },
+	{ "HPOUT1 Mono Mux", "EPOUT", "OUT1L" },
+};
+
 static int cs47l35_component_probe(struct snd_soc_component *component)
 {
 	struct cs47l35 *cs47l35 = snd_soc_component_get_drvdata(component);
@@ -1568,7 +1576,9 @@ static int cs47l35_component_probe(struct snd_soc_component *component)
 	if (ret)
 		return ret;
 
-	ret = madera_init_outputs(component, CS47L35_MONO_OUTPUTS);
+	ret = madera_init_outputs(component, cs47l35_mono_routes,
+				  ARRAY_SIZE(cs47l35_mono_routes),
+				  CS47L35_MONO_OUTPUTS);
 	if (ret)
 		return ret;
 
