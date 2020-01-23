@@ -146,17 +146,8 @@ static struct at_desc *atc_desc_get(struct at_dma_chan *atchan)
 		"scanned %u descriptors on freelist\n", i);
 
 	/* no more descriptor available in initial pool: create one more */
-	if (!ret) {
+	if (!ret)
 		ret = atc_alloc_descriptor(&atchan->chan_common, GFP_ATOMIC);
-		if (ret) {
-			spin_lock_irqsave(&atchan->lock, flags);
-			atchan->descs_allocated++;
-			spin_unlock_irqrestore(&atchan->lock, flags);
-		} else {
-			dev_err(chan2dev(&atchan->chan_common),
-					"not enough descriptors available\n");
-		}
-	}
 
 	return ret;
 }
@@ -1553,6 +1544,11 @@ static int atc_alloc_chan_resources(struct dma_chan *chan)
 		return -EIO;
 	}
 
+	if (!list_empty(&atchan->free_list)) {
+		dev_dbg(chan2dev(chan), "can't allocate channel resources (channel not freed from a previous use)\n");
+		return -EIO;
+	}
+
 	cfg = ATC_DEFAULT_CFG;
 
 	atslave = chan->private;
@@ -1568,11 +1564,6 @@ static int atc_alloc_chan_resources(struct dma_chan *chan)
 			cfg = atslave->cfg;
 	}
 
-	/* have we already been set up?
-	 * reconfigure channel but no need to reallocate descriptors */
-	if (!list_empty(&atchan->free_list))
-		return atchan->descs_allocated;
-
 	/* Allocate initial pool of descriptors */
 	for (i = 0; i < init_nr_desc_per_channel; i++) {
 		desc = atc_alloc_descriptor(chan, GFP_KERNEL);
@@ -1584,17 +1575,15 @@ static int atc_alloc_chan_resources(struct dma_chan *chan)
 		list_add_tail(&desc->desc_node, &atchan->free_list);
 	}
 
-	atchan->descs_allocated = i;
 	dma_cookie_init(chan);
 
 	/* channel parameters */
 	channel_writel(atchan, CFG, cfg);
 
 	dev_dbg(chan2dev(chan),
-		"alloc_chan_resources: allocated %d descriptors\n",
-		atchan->descs_allocated);
+		"alloc_chan_resources: allocated %d descriptors\n", i);
 
-	return atchan->descs_allocated;
+	return i;
 }
 
 /**
@@ -1608,9 +1597,6 @@ static void atc_free_chan_resources(struct dma_chan *chan)
 	struct at_desc		*desc, *_desc;
 	LIST_HEAD(list);
 
-	dev_dbg(chan2dev(chan), "free_chan_resources: (descs allocated=%u)\n",
-		atchan->descs_allocated);
-
 	/* ASSERT:  channel is idle */
 	BUG_ON(!list_empty(&atchan->active_list));
 	BUG_ON(!list_empty(&atchan->queue));
@@ -1623,7 +1609,6 @@ static void atc_free_chan_resources(struct dma_chan *chan)
 		dma_pool_free(atdma->dma_desc_pool, desc, desc->txd.phys);
 	}
 	list_splice_init(&atchan->free_list, &list);
-	atchan->descs_allocated = 0;
 	atchan->status = 0;
 
 	/*
