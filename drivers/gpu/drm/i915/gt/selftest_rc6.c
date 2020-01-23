@@ -56,9 +56,10 @@ int live_rc6_manual(void *arg)
 	res[1] = intel_rc6_residency_ns(rc6, GEN6_GT_GFX_RC6);
 
 	if (res[1] == res[0]) {
-		pr_err("Did not enter RC6! RC6_STATE=%08x, RC6_CONTROL=%08x\n",
+		pr_err("Did not enter RC6! RC6_STATE=%08x, RC6_CONTROL=%08x, residency=%lld\n",
 		       intel_uncore_read_fw(gt->uncore, GEN6_RC_STATE),
-		       intel_uncore_read_fw(gt->uncore, GEN6_RC_CONTROL));
+		       intel_uncore_read_fw(gt->uncore, GEN6_RC_CONTROL),
+		       res[0]);
 		err = -EINVAL;
 	}
 
