@@ -180,8 +180,8 @@ static long get_raw_temp(struct k10temp_data *data)
 }
 
 const char *k10temp_temp_label[] = {
-	"Tdie",
 	"Tctl",
+	"Tdie",
 	"Tccd1",
 	"Tccd2",
 	"Tccd3",
@@ -269,13 +269,13 @@ static int k10temp_read_temp(struct device *dev, u32 attr, int channel,
 	switch (attr) {
 	case hwmon_temp_input:
 		switch (channel) {
-		case 0:		/* Tdie */
-			*val = get_raw_temp(data) - data->temp_offset;
+		case 0:		/* Tctl */
+			*val = get_raw_temp(data);
 			if (*val < 0)
 				*val = 0;
 			break;
-		case 1:		/* Tctl */
-			*val = get_raw_temp(data);
+		case 1:		/* Tdie */
+			*val = get_raw_temp(data) - data->temp_offset;
 			if (*val < 0)
 				*val = 0;
 			break;
@@ -334,9 +334,9 @@ static umode_t k10temp_is_visible(const void *_data,
 		switch (attr) {
 		case hwmon_temp_input:
 			switch (channel) {
-			case 0:		/* Tdie, or Tctl if we don't show it */
+			case 0:		/* Tctl */
 				break;
-			case 1:		/* Tctl */
+			case 1:		/* Tdie */
 				if (!data->show_tdie)
 					return 0;
 				break;
@@ -372,8 +372,8 @@ static umode_t k10temp_is_visible(const void *_data,
 			if (!data->show_tdie)
 				return 0;
 			switch (channel) {
-			case 0:		/* Tdie */
-			case 1:		/* Tctl */
+			case 0:		/* Tctl */
+			case 1:		/* Tdie */
 				break;
 			case 2 ... 9:		/* Tccd{1-8} */
 				if (!(data->show_tccd & BIT(channel - 2)))
