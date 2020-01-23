@@ -311,112 +311,6 @@ static void mci_release(struct device *dev)
 	kfree(mci);
 }
 
-static int edac_mc_alloc_csrows(struct mem_ctl_info *mci);
-static int edac_mc_alloc_dimms(struct mem_ctl_info *mci);
-
-struct mem_ctl_info *edac_mc_alloc(unsigned int mc_num,
-				   unsigned int n_layers,
-				   struct edac_mc_layer *layers,
-				   unsigned int sz_pvt)
-{
-	struct mem_ctl_info *mci;
-	struct edac_mc_layer *layer;
-	u32 *ce_per_layer[EDAC_MAX_LAYERS], *ue_per_layer[EDAC_MAX_LAYERS];
-	unsigned int idx, size, tot_dimms = 1, count = 1;
-	unsigned int tot_csrows = 1, tot_channels = 1, tot_errcount = 0;
-	void *pvt, *ptr = NULL;
-	int i;
-	bool per_rank = false;
-
-	if (WARN_ON(n_layers > EDAC_MAX_LAYERS || n_layers == 0))
-		return NULL;
-
-	/*
-	 * Calculate the total amount of dimms and csrows/cschannels while
-	 * in the old API emulation mode
-	 */
-	for (idx = 0; idx < n_layers; idx++) {
-		tot_dimms *= layers[idx].size;
-
-		if (layers[idx].is_virt_csrow)
-			tot_csrows *= layers[idx].size;
-		else
-			tot_channels *= layers[idx].size;
-
-		if (layers[idx].type == EDAC_MC_LAYER_CHIP_SELECT)
-			per_rank = true;
-	}
-
-	/* Figure out the offsets of the various items from the start of an mc
-	 * structure.  We want the alignment of each item to be at least as
-	 * stringent as what the compiler would provide if we could simply
-	 * hardcode everything into a single struct.
-	 */
-	mci = edac_align_ptr(&ptr, sizeof(*mci), 1);
-	layer = edac_align_ptr(&ptr, sizeof(*layer), n_layers);
-	for (i = 0; i < n_layers; i++) {
-		count *= layers[i].size;
-		edac_dbg(4, "errcount layer %d size %d\n", i, count);
-		ce_per_layer[i] = edac_align_ptr(&ptr, sizeof(u32), count);
-		ue_per_layer[i] = edac_align_ptr(&ptr, sizeof(u32), count);
-		tot_errcount += 2 * count;
-	}
-
-	edac_dbg(4, "allocating %d error counters\n", tot_errcount);
-	pvt = edac_align_ptr(&ptr, sz_pvt, 1);
-	size = ((unsigned long)pvt) + sz_pvt;
-
-	edac_dbg(1, "allocating %u bytes for mci data (%d %s, %d csrows/channels)\n",
-		 size,
-		 tot_dimms,
-		 per_rank ? "ranks" : "dimms",
-		 tot_csrows * tot_channels);
-
-	mci = kzalloc(size, GFP_KERNEL);
-	if (mci == NULL)
-		return NULL;
-
-	mci->dev.release = mci_release;
-	device_initialize(&mci->dev);
-
-	/* Adjust pointers so they point within the memory we just allocated
-	 * rather than an imaginary chunk of memory located at address 0.
-	 */
-	layer = (struct edac_mc_layer *)(((char *)mci) + ((unsigned long)layer));
-	for (i = 0; i < n_layers; i++) {
-		mci->ce_per_layer[i] = (u32 *)((char *)mci + ((unsigned long)ce_per_layer[i]));
-		mci->ue_per_layer[i] = (u32 *)((char *)mci + ((unsigned long)ue_per_layer[i]));
-	}
-	pvt = sz_pvt ? (((char *)mci) + ((unsigned long)pvt)) : NULL;
-
-	/* setup index and various internal pointers */
-	mci->mc_idx = mc_num;
-	mci->tot_dimms = tot_dimms;
-	mci->pvt_info = pvt;
-	mci->n_layers = n_layers;
-	mci->layers = layer;
-	memcpy(mci->layers, layers, sizeof(*layer) * n_layers);
-	mci->nr_csrows = tot_csrows;
-	mci->num_cschannel = tot_channels;
-	mci->csbased = per_rank;
-
-	if (edac_mc_alloc_csrows(mci))
-		goto error;
-
-	if (edac_mc_alloc_dimms(mci))
-		goto error;
-
-	mci->op_state = OP_ALLOC;
-
-	return mci;
-
-error:
-	_edac_mc_free(mci);
-
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(edac_mc_alloc);
-
 static int edac_mc_alloc_csrows(struct mem_ctl_info *mci)
 {
 	unsigned int tot_channels = mci->num_cschannel;
@@ -544,6 +438,109 @@ static int edac_mc_alloc_dimms(struct mem_ctl_info *mci)
 
 	return 0;
 }
+
+struct mem_ctl_info *edac_mc_alloc(unsigned int mc_num,
+				   unsigned int n_layers,
+				   struct edac_mc_layer *layers,
+				   unsigned int sz_pvt)
+{
+	struct mem_ctl_info *mci;
+	struct edac_mc_layer *layer;
+	u32 *ce_per_layer[EDAC_MAX_LAYERS], *ue_per_layer[EDAC_MAX_LAYERS];
+	unsigned int idx, size, tot_dimms = 1, count = 1;
+	unsigned int tot_csrows = 1, tot_channels = 1, tot_errcount = 0;
+	void *pvt, *ptr = NULL;
+	int i;
+	bool per_rank = false;
+
+	if (WARN_ON(n_layers > EDAC_MAX_LAYERS || n_layers == 0))
+		return NULL;
+
+	/*
+	 * Calculate the total amount of dimms and csrows/cschannels while
+	 * in the old API emulation mode
+	 */
+	for (idx = 0; idx < n_layers; idx++) {
+		tot_dimms *= layers[idx].size;
+
+		if (layers[idx].is_virt_csrow)
+			tot_csrows *= layers[idx].size;
+		else
+			tot_channels *= layers[idx].size;
+
+		if (layers[idx].type == EDAC_MC_LAYER_CHIP_SELECT)
+			per_rank = true;
+	}
+
+	/* Figure out the offsets of the various items from the start of an mc
+	 * structure.  We want the alignment of each item to be at least as
+	 * stringent as what the compiler would provide if we could simply
+	 * hardcode everything into a single struct.
+	 */
+	mci = edac_align_ptr(&ptr, sizeof(*mci), 1);
+	layer = edac_align_ptr(&ptr, sizeof(*layer), n_layers);
+	for (i = 0; i < n_layers; i++) {
+		count *= layers[i].size;
+		edac_dbg(4, "errcount layer %d size %d\n", i, count);
+		ce_per_layer[i] = edac_align_ptr(&ptr, sizeof(u32), count);
+		ue_per_layer[i] = edac_align_ptr(&ptr, sizeof(u32), count);
+		tot_errcount += 2 * count;
+	}
+
+	edac_dbg(4, "allocating %d error counters\n", tot_errcount);
+	pvt = edac_align_ptr(&ptr, sz_pvt, 1);
+	size = ((unsigned long)pvt) + sz_pvt;
+
+	edac_dbg(1, "allocating %u bytes for mci data (%d %s, %d csrows/channels)\n",
+		 size,
+		 tot_dimms,
+		 per_rank ? "ranks" : "dimms",
+		 tot_csrows * tot_channels);
+
+	mci = kzalloc(size, GFP_KERNEL);
+	if (mci == NULL)
+		return NULL;
+
+	mci->dev.release = mci_release;
+	device_initialize(&mci->dev);
+
+	/* Adjust pointers so they point within the memory we just allocated
+	 * rather than an imaginary chunk of memory located at address 0.
+	 */
+	layer = (struct edac_mc_layer *)(((char *)mci) + ((unsigned long)layer));
+	for (i = 0; i < n_layers; i++) {
+		mci->ce_per_layer[i] = (u32 *)((char *)mci + ((unsigned long)ce_per_layer[i]));
+		mci->ue_per_layer[i] = (u32 *)((char *)mci + ((unsigned long)ue_per_layer[i]));
+	}
+	pvt = sz_pvt ? (((char *)mci) + ((unsigned long)pvt)) : NULL;
+
+	/* setup index and various internal pointers */
+	mci->mc_idx = mc_num;
+	mci->tot_dimms = tot_dimms;
+	mci->pvt_info = pvt;
+	mci->n_layers = n_layers;
+	mci->layers = layer;
+	memcpy(mci->layers, layers, sizeof(*layer) * n_layers);
+	mci->nr_csrows = tot_csrows;
+	mci->num_cschannel = tot_channels;
+	mci->csbased = per_rank;
+
+	if (edac_mc_alloc_csrows(mci))
+		goto error;
+
+	if (edac_mc_alloc_dimms(mci))
+		goto error;
+
+	mci->op_state = OP_ALLOC;
+
+	return mci;
+
+error:
+	_edac_mc_free(mci);
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(edac_mc_alloc);
 
 void edac_mc_free(struct mem_ctl_info *mci)
 {
