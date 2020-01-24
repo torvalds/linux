@@ -86,8 +86,10 @@ static __always_inline void allow_user_access(void __user *to, const void __user
 		set_kuap(AMR_KUAP_BLOCK_WRITE);
 	else if (dir == KUAP_WRITE)
 		set_kuap(AMR_KUAP_BLOCK_READ);
-	else
+	else if (dir == KUAP_READ_WRITE)
 		set_kuap(0);
+	else
+		BUILD_BUG();
 }
 
 static inline void prevent_user_access(void __user *to, const void __user *from,
