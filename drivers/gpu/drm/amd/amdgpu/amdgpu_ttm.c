@@ -60,6 +60,8 @@
 #include "amdgpu_ras.h"
 #include "bif/bif_4_1_d.h"
 
+#define AMDGPU_TTM_VRAM_MAX_DW_READ	(size_t)128
+
 static int amdgpu_map_buffer(struct ttm_buffer_object *bo,
 			     struct ttm_mem_reg *mem, unsigned num_pages,
 			     uint64_t offset, unsigned window,
@@ -2288,27 +2290,20 @@ static ssize_t amdgpu_ttm_vram_read(struct file *f, char __user *buf,
 	if (*pos >= adev->gmc.mc_vram_size)
 		return -ENXIO;
 
+	size = min(size, (size_t)(adev->gmc.mc_vram_size - *pos));
 	while (size) {
-		unsigned long flags;
-		uint32_t value;
+		size_t bytes = min(size, AMDGPU_TTM_VRAM_MAX_DW_READ * 4);
+		uint32_t value[AMDGPU_TTM_VRAM_MAX_DW_READ];
 
-		if (*pos >= adev->gmc.mc_vram_size)
-			return result;
-
-		spin_lock_irqsave(&adev->mmio_idx_lock, flags);
-		WREG32_NO_KIQ(mmMM_INDEX, ((uint32_t)*pos) | 0x80000000);
-		WREG32_NO_KIQ(mmMM_INDEX_HI, *pos >> 31);
-		value = RREG32_NO_KIQ(mmMM_DATA);
-		spin_unlock_irqrestore(&adev->mmio_idx_lock, flags);
-
-		r = put_user(value, (uint32_t *)buf);
+		amdgpu_device_vram_access(adev, *pos, value, bytes, false);
+		r = copy_to_user(buf, value, bytes);
 		if (r)
 			return r;
 
-		result += 4;
-		buf += 4;
-		*pos += 4;
-		size -= 4;
+		result += bytes;
+		buf += bytes;
+		*pos += bytes;
+		size -= bytes;
 	}
 
 	return result;
