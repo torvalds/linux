@@ -201,7 +201,7 @@ bool bxt_dsi_pll_is_enabled(struct drm_i915_private *dev_priv)
 	u32 mask;
 
 	mask = BXT_DSI_PLL_DO_ENABLE | BXT_DSI_PLL_LOCKED;
-	val = I915_READ(BXT_DSI_PLL_ENABLE);
+	val = intel_de_read(dev_priv, BXT_DSI_PLL_ENABLE);
 	enabled = (val & mask) == mask;
 
 	if (!enabled)
@@ -215,7 +215,7 @@ bool bxt_dsi_pll_is_enabled(struct drm_i915_private *dev_priv)
 	 * times, and since accessing DSI registers with invalid dividers
 	 * causes a system hang.
 	 */
-	val = I915_READ(BXT_DSI_PLL_CTL);
+	val = intel_de_read(dev_priv, BXT_DSI_PLL_CTL);
 	if (IS_GEMINILAKE(dev_priv)) {
 		if (!(val & BXT_DSIA_16X_MASK)) {
 			DRM_DEBUG_DRIVER("Invalid PLL divider (%08x)\n", val);
@@ -238,9 +238,9 @@ void bxt_dsi_pll_disable(struct intel_encoder *encoder)
 
 	DRM_DEBUG_KMS("\n");
 
-	val = I915_READ(BXT_DSI_PLL_ENABLE);
+	val = intel_de_read(dev_priv, BXT_DSI_PLL_ENABLE);
 	val &= ~BXT_DSI_PLL_DO_ENABLE;
-	I915_WRITE(BXT_DSI_PLL_ENABLE, val);
+	intel_de_write(dev_priv, BXT_DSI_PLL_ENABLE, val);
 
 	/*
 	 * PLL lock should deassert within 200us.
@@ -325,7 +325,7 @@ u32 bxt_dsi_get_pclk(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	int bpp = mipi_dsi_pixel_format_to_bpp(intel_dsi->pixel_format);
 
-	config->dsi_pll.ctrl = I915_READ(BXT_DSI_PLL_CTL);
+	config->dsi_pll.ctrl = intel_de_read(dev_priv, BXT_DSI_PLL_CTL);
 
 	dsi_ratio = config->dsi_pll.ctrl & BXT_DSI_PLL_RATIO_MASK;
 
@@ -343,11 +343,10 @@ void vlv_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 
-	temp = I915_READ(MIPI_CTRL(port));
+	temp = intel_de_read(dev_priv, MIPI_CTRL(port));
 	temp &= ~ESCAPE_CLOCK_DIVIDER_MASK;
-	I915_WRITE(MIPI_CTRL(port), temp |
-			intel_dsi->escape_clk_div <<
-			ESCAPE_CLOCK_DIVIDER_SHIFT);
+	intel_de_write(dev_priv, MIPI_CTRL(port),
+		       temp | intel_dsi->escape_clk_div << ESCAPE_CLOCK_DIVIDER_SHIFT);
 }
 
 static void glk_dsi_program_esc_clock(struct drm_device *dev,
@@ -393,8 +392,10 @@ static void glk_dsi_program_esc_clock(struct drm_device *dev,
 	else
 		txesc2_div = 10;
 
-	I915_WRITE(MIPIO_TXESC_CLK_DIV1, (1 << (txesc1_div - 1)) & GLK_TX_ESC_CLK_DIV1_MASK);
-	I915_WRITE(MIPIO_TXESC_CLK_DIV2, (1 << (txesc2_div - 1)) & GLK_TX_ESC_CLK_DIV2_MASK);
+	intel_de_write(dev_priv, MIPIO_TXESC_CLK_DIV1,
+		       (1 << (txesc1_div - 1)) & GLK_TX_ESC_CLK_DIV1_MASK);
+	intel_de_write(dev_priv, MIPIO_TXESC_CLK_DIV2,
+		       (1 << (txesc2_div - 1)) & GLK_TX_ESC_CLK_DIV2_MASK);
 }
 
 /* Program BXT Mipi clocks and dividers */
@@ -412,7 +413,7 @@ static void bxt_dsi_program_clocks(struct drm_device *dev, enum port port,
 	u32 mipi_8by3_divider;
 
 	/* Clear old configurations */
-	tmp = I915_READ(BXT_MIPI_CLOCK_CTL);
+	tmp = intel_de_read(dev_priv, BXT_MIPI_CLOCK_CTL);
 	tmp &= ~(BXT_MIPI_TX_ESCLK_FIXDIV_MASK(port));
 	tmp &= ~(BXT_MIPI_RX_ESCLK_UPPER_FIXDIV_MASK(port));
 	tmp &= ~(BXT_MIPI_8X_BY3_DIVIDER_MASK(port));
@@ -448,7 +449,7 @@ static void bxt_dsi_program_clocks(struct drm_device *dev, enum port port,
 	tmp |= BXT_MIPI_RX_ESCLK_LOWER_DIVIDER(port, rx_div_lower);
 	tmp |= BXT_MIPI_RX_ESCLK_UPPER_DIVIDER(port, rx_div_upper);
 
-	I915_WRITE(BXT_MIPI_CLOCK_CTL, tmp);
+	intel_de_write(dev_priv, BXT_MIPI_CLOCK_CTL, tmp);
 }
 
 int bxt_dsi_pll_compute(struct intel_encoder *encoder,
@@ -510,8 +511,8 @@ void bxt_dsi_pll_enable(struct intel_encoder *encoder,
 	DRM_DEBUG_KMS("\n");
 
 	/* Configure PLL vales */
-	I915_WRITE(BXT_DSI_PLL_CTL, config->dsi_pll.ctrl);
-	POSTING_READ(BXT_DSI_PLL_CTL);
+	intel_de_write(dev_priv, BXT_DSI_PLL_CTL, config->dsi_pll.ctrl);
+	intel_de_posting_read(dev_priv, BXT_DSI_PLL_CTL);
 
 	/* Program TX, RX, Dphy clocks */
 	if (IS_BROXTON(dev_priv)) {
@@ -522,9 +523,9 @@ void bxt_dsi_pll_enable(struct intel_encoder *encoder,
 	}
 
 	/* Enable DSI PLL */
-	val = I915_READ(BXT_DSI_PLL_ENABLE);
+	val = intel_de_read(dev_priv, BXT_DSI_PLL_ENABLE);
 	val |= BXT_DSI_PLL_DO_ENABLE;
-	I915_WRITE(BXT_DSI_PLL_ENABLE, val);
+	intel_de_write(dev_priv, BXT_DSI_PLL_ENABLE, val);
 
 	/* Timeout and fail if PLL not locked */
 	if (intel_de_wait_for_set(dev_priv, BXT_DSI_PLL_ENABLE,
@@ -544,20 +545,20 @@ void bxt_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
 
 	/* Clear old configurations */
 	if (IS_BROXTON(dev_priv)) {
-		tmp = I915_READ(BXT_MIPI_CLOCK_CTL);
+		tmp = intel_de_read(dev_priv, BXT_MIPI_CLOCK_CTL);
 		tmp &= ~(BXT_MIPI_TX_ESCLK_FIXDIV_MASK(port));
 		tmp &= ~(BXT_MIPI_RX_ESCLK_UPPER_FIXDIV_MASK(port));
 		tmp &= ~(BXT_MIPI_8X_BY3_DIVIDER_MASK(port));
 		tmp &= ~(BXT_MIPI_RX_ESCLK_LOWER_FIXDIV_MASK(port));
-		I915_WRITE(BXT_MIPI_CLOCK_CTL, tmp);
+		intel_de_write(dev_priv, BXT_MIPI_CLOCK_CTL, tmp);
 	} else {
-		tmp = I915_READ(MIPIO_TXESC_CLK_DIV1);
+		tmp = intel_de_read(dev_priv, MIPIO_TXESC_CLK_DIV1);
 		tmp &= ~GLK_TX_ESC_CLK_DIV1_MASK;
-		I915_WRITE(MIPIO_TXESC_CLK_DIV1, tmp);
+		intel_de_write(dev_priv, MIPIO_TXESC_CLK_DIV1, tmp);
 
-		tmp = I915_READ(MIPIO_TXESC_CLK_DIV2);
+		tmp = intel_de_read(dev_priv, MIPIO_TXESC_CLK_DIV2);
 		tmp &= ~GLK_TX_ESC_CLK_DIV2_MASK;
-		I915_WRITE(MIPIO_TXESC_CLK_DIV2, tmp);
+		intel_de_write(dev_priv, MIPIO_TXESC_CLK_DIV2, tmp);
 	}
-	I915_WRITE(MIPI_EOT_DISABLE(port), CLOCKSTOP);
+	intel_de_write(dev_priv, MIPI_EOT_DISABLE(port), CLOCKSTOP);
 }
