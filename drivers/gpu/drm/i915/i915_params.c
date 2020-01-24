@@ -103,10 +103,6 @@ i915_param_named(fastboot, int, 0600,
 	"(0=disabled, 1=enabled) "
 	"Default: -1 (use per-chip default)");
 
-i915_param_named_unsafe(prefault_disable, bool, 0600,
-	"Disable page prefaulting for pread/pwrite/reloc (default:false). "
-	"For developers only.");
-
 i915_param_named_unsafe(load_detect_test, bool, 0600,
 	"Force-enable the VGA load detect code for testing (default:false). "
 	"For developers only.");
