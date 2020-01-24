@@ -672,11 +672,6 @@ static noinline int create_subvol(struct inode *dir,
 		btrfs_abort_transaction(trans, ret);
 		goto fail;
 	}
-	if (!btrfs_grab_fs_root(new_root)) {
-		ret = -ENOENT;
-		btrfs_abort_transaction(trans, ret);
-		goto fail;
-	}
 
 	btrfs_record_root_in_trans(trans, new_root);
 
@@ -2191,10 +2186,6 @@ static noinline int search_ioctl(struct inode *inode,
 			btrfs_free_path(path);
 			return PTR_ERR(root);
 		}
-		if (!btrfs_grab_fs_root(root)) {
-			btrfs_free_path(path);
-			return -ENOENT;
-		}
 	}
 
 	key.objectid = sk->min_objectid;
@@ -2332,11 +2323,6 @@ static noinline int btrfs_search_path_in_tree(struct btrfs_fs_info *info,
 		root = NULL;
 		goto out;
 	}
-	if (!btrfs_grab_fs_root(root)) {
-		ret = -ENOENT;
-		root = NULL;
-		goto out;
-	}
 
 	key.objectid = dirid;
 	key.type = BTRFS_INODE_REF_KEY;
@@ -2430,10 +2416,6 @@ static int btrfs_search_path_in_tree_user(struct inode *inode,
 		root = btrfs_get_fs_root(fs_info, &key, true);
 		if (IS_ERR(root)) {
 			ret = PTR_ERR(root);
-			goto out;
-		}
-		if (!btrfs_grab_fs_root(root)) {
-			ret = -ENOENT;
 			goto out;
 		}
 
@@ -2683,10 +2665,6 @@ static int btrfs_ioctl_get_subvol_info(struct file *file, void __user *argp)
 	if (IS_ERR(root)) {
 		ret = PTR_ERR(root);
 		goto out_free;
-	}
-	if (!btrfs_grab_fs_root(root)) {
-		ret = -ENOENT;
-		goto out;
 	}
 	root_item = &root->root_item;
 
@@ -4016,10 +3994,6 @@ static long btrfs_ioctl_default_subvol(struct file *file, void __user *argp)
 	new_root = btrfs_get_fs_root(fs_info, &location, true);
 	if (IS_ERR(new_root)) {
 		ret = PTR_ERR(new_root);
-		goto out;
-	}
-	if (!btrfs_grab_fs_root(new_root)) {
-		ret = -ENOENT;
 		goto out;
 	}
 	if (!is_fstree(new_root->root_key.objectid)) {

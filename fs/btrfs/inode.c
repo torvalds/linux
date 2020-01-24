@@ -5158,10 +5158,6 @@ static int fixup_tree_root_location(struct btrfs_fs_info *fs_info,
 		err = PTR_ERR(new_root);
 		goto out;
 	}
-	if (!btrfs_grab_fs_root(new_root)) {
-		err = -ENOENT;
-		goto out;
-	}
 
 	*sub_root = new_root;
 	location->objectid = btrfs_root_dirid(&new_root->root_item);

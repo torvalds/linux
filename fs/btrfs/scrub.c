@@ -658,10 +658,6 @@ static int scrub_print_warning_inode(u64 inum, u64 offset, u64 root,
 		ret = PTR_ERR(local_root);
 		goto err;
 	}
-	if (!btrfs_grab_fs_root(local_root)) {
-		ret = -ENOENT;
-		goto err;
-	}
 
 	/*
 	 * this makes the path point to (inum INODE_ITEM ioff)

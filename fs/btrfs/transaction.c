@@ -1639,12 +1639,6 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 		btrfs_abort_transaction(trans, ret);
 		goto fail;
 	}
-	if (!btrfs_grab_fs_root(pending->snap)) {
-		ret = -ENOENT;
-		pending->snap = NULL;
-		btrfs_abort_transaction(trans, ret);
-		goto fail;
-	}
 
 	ret = btrfs_reloc_post_snapshot(trans, pending);
 	if (ret) {

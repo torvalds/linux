@@ -6163,10 +6163,6 @@ again:
 		tmp_key.offset = (u64)-1;
 
 		wc.replay_dest = btrfs_get_fs_root(fs_info, &tmp_key, true);
-		if (!IS_ERR(wc.replay_dest)) {
-			if (!btrfs_grab_fs_root(wc.replay_dest))
-				wc.replay_dest = ERR_PTR(-ENOENT);
-		}
 		if (IS_ERR(wc.replay_dest)) {
 			ret = PTR_ERR(wc.replay_dest);
 

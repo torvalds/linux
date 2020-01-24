@@ -527,12 +527,6 @@ static int resolve_indirect_ref(struct btrfs_fs_info *fs_info,
 		goto out_free;
 	}
 
-	if (!btrfs_grab_fs_root(root)) {
-		srcu_read_unlock(&fs_info->subvol_srcu, index);
-		ret = -ENOENT;
-		goto out_free;
-	}
-
 	if (btrfs_is_testing(fs_info)) {
 		srcu_read_unlock(&fs_info->subvol_srcu, index);
 		ret = -ENOENT;

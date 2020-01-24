@@ -659,7 +659,6 @@ static struct btrfs_root *read_fs_root(struct btrfs_fs_info *fs_info,
 					u64 root_objectid)
 {
 	struct btrfs_key key;
-	struct btrfs_root *root;
 
 	key.objectid = root_objectid;
 	key.type = BTRFS_ROOT_ITEM_KEY;
@@ -668,12 +667,7 @@ static struct btrfs_root *read_fs_root(struct btrfs_fs_info *fs_info,
 	else
 		key.offset = (u64)-1;
 
-	root = btrfs_get_fs_root(fs_info, &key, false);
-	if (IS_ERR(root))
-		return root;
-	if (!btrfs_grab_fs_root(root))
-		return ERR_PTR(-ENOENT);
-	return root;
+	return btrfs_get_fs_root(fs_info, &key, false);
 }
 
 static noinline_for_stack
