@@ -220,7 +220,7 @@ void drm_file_free(struct drm_file *file)
 	DRM_DEBUG("pid = %d, device = 0x%lx, open_count = %d\n",
 		  task_pid_nr(current),
 		  (long)old_encode_dev(file->minor->kdev->devt),
-		  READ_ONCE(dev->open_count));
+		  atomic_read(&dev->open_count));
 
 	if (drm_core_check_feature(dev, DRIVER_LEGACY) &&
 	    dev->driver->preclose)
@@ -379,7 +379,7 @@ int drm_open(struct inode *inode, struct file *filp)
 		return PTR_ERR(minor);
 
 	dev = minor->dev;
-	if (!dev->open_count++)
+	if (!atomic_fetch_inc(&dev->open_count))
 		need_setup = 1;
 
 	/* share address_space across all char-devs of a single device */
@@ -398,7 +398,7 @@ int drm_open(struct inode *inode, struct file *filp)
 	return 0;
 
 err_undo:
-	dev->open_count--;
+	atomic_dec(&dev->open_count);
 	drm_minor_release(minor);
 	return retcode;
 }
@@ -440,11 +440,11 @@ int drm_release(struct inode *inode, struct file *filp)
 
 	mutex_lock(&drm_global_mutex);
 
-	DRM_DEBUG("open_count = %d\n", dev->open_count);
+	DRM_DEBUG("open_count = %d\n", atomic_read(&dev->open_count));
 
 	drm_close_helper(filp);
 
-	if (!--dev->open_count)
+	if (atomic_dec_and_test(&dev->open_count))
 		drm_lastclose(dev);
 
 	mutex_unlock(&drm_global_mutex);
@@ -478,10 +478,10 @@ int drm_release_noglobal(struct inode *inode, struct file *filp)
 
 	drm_close_helper(filp);
 
-	mutex_lock(&drm_global_mutex);
-	if (!--dev->open_count)
+	if (atomic_dec_and_mutex_lock(&dev->open_count, &drm_global_mutex)) {
 		drm_lastclose(dev);
-	mutex_unlock(&drm_global_mutex);
+		mutex_unlock(&drm_global_mutex);
+	}
 
 	drm_minor_release(minor);
 
