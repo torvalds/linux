@@ -688,11 +688,16 @@ xfs_btree_get_bufl(
 	xfs_trans_t	*tp,		/* transaction pointer */
 	xfs_fsblock_t	fsbno)		/* file system block number */
 {
+	struct xfs_buf		*bp;
 	xfs_daddr_t		d;		/* real disk block address */
+	int			error;
 
 	ASSERT(fsbno != NULLFSBLOCK);
 	d = XFS_FSB_TO_DADDR(mp, fsbno);
-	return xfs_trans_get_buf(tp, mp->m_ddev_targp, d, mp->m_bsize, 0);
+	error = xfs_trans_get_buf(tp, mp->m_ddev_targp, d, mp->m_bsize, 0, &bp);
+	if (error)
+		return NULL;
+	return bp;
 }
 
 /*
@@ -706,12 +711,17 @@ xfs_btree_get_bufs(
 	xfs_agnumber_t	agno,		/* allocation group number */
 	xfs_agblock_t	agbno)		/* allocation group block number */
 {
+	struct xfs_buf		*bp;
 	xfs_daddr_t		d;		/* real disk block address */
+	int			error;
 
 	ASSERT(agno != NULLAGNUMBER);
 	ASSERT(agbno != NULLAGBLOCK);
 	d = XFS_AGB_TO_DADDR(mp, agno, agbno);
-	return xfs_trans_get_buf(tp, mp->m_ddev_targp, d, mp->m_bsize, 0);
+	error = xfs_trans_get_buf(tp, mp->m_ddev_targp, d, mp->m_bsize, 0, &bp);
+	if (error)
+		return NULL;
+	return bp;
 }
 
 /*
@@ -1270,11 +1280,10 @@ xfs_btree_get_buf_block(
 	error = xfs_btree_ptr_to_daddr(cur, ptr, &d);
 	if (error)
 		return error;
-	*bpp = xfs_trans_get_buf(cur->bc_tp, mp->m_ddev_targp, d,
-				 mp->m_bsize, 0);
-
-	if (!*bpp)
-		return -ENOMEM;
+	error = xfs_trans_get_buf(cur->bc_tp, mp->m_ddev_targp, d, mp->m_bsize,
+			0, bpp);
+	if (error)
+		return error;
 
 	(*bpp)->b_ops = cur->bc_ops->buf_ops;
 	*block = XFS_BUF_TO_BLOCK(*bpp);
