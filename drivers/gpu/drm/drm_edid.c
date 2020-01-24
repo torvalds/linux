@@ -4017,6 +4017,10 @@ cea_db_offsets(const u8 *cea, int *start, int *end)
 	 *   no non-DTD data.
 	 */
 	if (cea[0] == DATA_BLOCK_CTA) {
+		/*
+		 * for_each_displayid_db() has already verified
+		 * that these stay within expected bounds.
+		 */
 		*start = 3;
 		*end = *start + cea[2];
 	} else if (cea[0] == CEA_EXT) {
