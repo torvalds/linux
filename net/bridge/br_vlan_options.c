@@ -11,16 +11,54 @@
 bool br_vlan_opts_eq(const struct net_bridge_vlan *v1,
 		     const struct net_bridge_vlan *v2)
 {
-	return true;
+	return v1->state == v2->state;
 }
 
 bool br_vlan_opts_fill(struct sk_buff *skb, const struct net_bridge_vlan *v)
 {
-	return true;
+	return !nla_put_u8(skb, BRIDGE_VLANDB_ENTRY_STATE,
+			   br_vlan_get_state(v));
 }
 
 size_t br_vlan_opts_nl_size(void)
 {
+	return nla_total_size(sizeof(u8)); /* BRIDGE_VLANDB_ENTRY_STATE */
+}
+
+static int br_vlan_modify_state(struct net_bridge_vlan_group *vg,
+				struct net_bridge_vlan *v,
+				u8 state,
+				bool *changed,
+				struct netlink_ext_ack *extack)
+{
+	struct net_bridge *br;
+
+	ASSERT_RTNL();
+
+	if (state > BR_STATE_BLOCKING) {
+		NL_SET_ERR_MSG_MOD(extack, "Invalid vlan state");
+		return -EINVAL;
+	}
+
+	if (br_vlan_is_brentry(v))
+		br = v->br;
+	else
+		br = v->port->br;
+
+	if (br->stp_enabled == BR_KERNEL_STP) {
+		NL_SET_ERR_MSG_MOD(extack, "Can't modify vlan state when using kernel STP");
+		return -EBUSY;
+	}
+
+	if (v->state == state)
+		return 0;
+
+	if (v->vid == br_get_pvid(vg))
+		br_vlan_set_pvid_state(vg, state);
+
+	br_vlan_set_state(v, state);
+	*changed = true;
+
 	return 0;
 }
 
@@ -32,7 +70,17 @@ static int br_vlan_process_one_opts(const struct net_bridge *br,
 				    bool *changed,
 				    struct netlink_ext_ack *extack)
 {
+	int err;
+
 	*changed = false;
+	if (tb[BRIDGE_VLANDB_ENTRY_STATE]) {
+		u8 state = nla_get_u8(tb[BRIDGE_VLANDB_ENTRY_STATE]);
+
+		err = br_vlan_modify_state(vg, v, state, changed, extack);
+		if (err)
+			return err;
+	}
+
 	return 0;
 }
 
