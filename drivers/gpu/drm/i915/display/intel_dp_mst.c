@@ -360,9 +360,12 @@ static void intel_mst_post_disable_dp(struct intel_encoder *encoder,
 
 	drm_dp_update_payload_part2(&intel_dp->mst_mgr);
 
-	val = I915_READ(TRANS_DDI_FUNC_CTL(old_crtc_state->cpu_transcoder));
+	val = intel_de_read(dev_priv,
+			    TRANS_DDI_FUNC_CTL(old_crtc_state->cpu_transcoder));
 	val &= ~TRANS_DDI_DP_VC_PAYLOAD_ALLOC;
-	I915_WRITE(TRANS_DDI_FUNC_CTL(old_crtc_state->cpu_transcoder), val);
+	intel_de_write(dev_priv,
+		       TRANS_DDI_FUNC_CTL(old_crtc_state->cpu_transcoder),
+		       val);
 
 	if (intel_de_wait_for_set(dev_priv, intel_dp->regs.dp_tp_status,
 				  DP_TP_STATUS_ACT_SENT, 1))
@@ -458,8 +461,8 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder,
 		DRM_ERROR("failed to allocate vcpi\n");
 
 	intel_dp->active_mst_links++;
-	temp = I915_READ(intel_dp->regs.dp_tp_status);
-	I915_WRITE(intel_dp->regs.dp_tp_status, temp);
+	temp = intel_de_read(dev_priv, intel_dp->regs.dp_tp_status);
+	intel_de_write(dev_priv, intel_dp->regs.dp_tp_status, temp);
 
 	ret = drm_dp_update_payload_part1(&intel_dp->mst_mgr);
 
