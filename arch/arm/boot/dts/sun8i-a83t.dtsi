@@ -324,6 +324,17 @@
 			#reset-cells = <1>;
 		};
 
+		rotate: rotate@1020000 {
+			compatible = "allwinner,sun8i-a83t-de2-rotate";
+			reg = <0x1020000 0x10000>;
+			interrupts = <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&display_clocks CLK_BUS_ROT>,
+				 <&display_clocks CLK_ROT>;
+			clock-names = "bus",
+				      "mod";
+			resets = <&display_clocks RST_ROT>;
+		};
+
 		mixer0: mixer@1100000 {
 			compatible = "allwinner,sun8i-a83t-de2-mixer-0";
 			reg = <0x01100000 0x100000>;
