@@ -318,6 +318,10 @@ i915_error_state_store(struct i915_gpu_coredump *error)
 {
 }
 
+static inline void i915_gpu_coredump_put(struct i915_gpu_coredump *gpu)
+{
+}
+
 static inline struct i915_gpu_coredump *
 i915_first_error_state(struct drm_i915_private *i915)
 {
