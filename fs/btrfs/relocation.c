@@ -2521,6 +2521,7 @@ again:
 
 		root = read_fs_root(fs_info, reloc_root->root_key.offset);
 		BUG_ON(IS_ERR(root));
+		BUG_ON(!btrfs_grab_fs_root(root));
 		BUG_ON(root->reloc_root != reloc_root);
 
 		/*
@@ -2532,6 +2533,7 @@ again:
 		btrfs_update_reloc_root(trans, root);
 
 		list_add(&reloc_root->root_list, &reloc_roots);
+		btrfs_put_fs_root(root);
 	}
 
 	list_splice(&reloc_roots, &rc->reloc_roots);
