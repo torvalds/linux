@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
  */
 
 #define pr_fmt(fmt) "%s: " fmt, __func__
@@ -1277,22 +1277,16 @@ static int qpnp_lpg_parse_dt(struct qpnp_lpg_chip *chip)
 	if (!chip->lut)
 		return -ENOMEM;
 
-	chip->sdam_nvmem = devm_nvmem_device_get(chip->dev, "ppg_sdam");
-	if (IS_ERR_OR_NULL(chip->sdam_nvmem)) {
-		if (PTR_ERR(chip->sdam_nvmem) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-
-		addr = of_get_address(chip->dev->of_node, 1, NULL, NULL);
-		if (!addr) {
-			pr_debug("NO LUT address assigned\n");
-			devm_kfree(chip->dev, chip->lut);
-			chip->lut = NULL;
-			return 0;
+	if (of_find_property(chip->dev->of_node, "nvmem", NULL)) {
+		chip->sdam_nvmem = devm_nvmem_device_get(chip->dev, "ppg_sdam");
+		if (IS_ERR_OR_NULL(chip->sdam_nvmem)) {
+			rc = PTR_ERR(chip->sdam_nvmem);
+			if (rc != -EPROBE_DEFER)
+				dev_err(chip->dev, "Read nvmem device failed, rc=%d\n",
+					rc);
+			return rc;
 		}
 
-		chip->lut->reg_base = be32_to_cpu(*addr);
-		max_count = LPG_LUT_COUNT_MAX;
-	} else {
 		chip->use_sdam = true;
 		chip->pbs_dev_node = of_parse_phandle(chip->dev->of_node,
 				"qcom,pbs-client", 0);
@@ -1311,6 +1305,17 @@ static int qpnp_lpg_parse_dt(struct qpnp_lpg_chip *chip)
 		}
 
 		max_count = SDAM_LUT_COUNT_MAX;
+	} else {
+		addr = of_get_address(chip->dev->of_node, 1, NULL, NULL);
+		if (!addr) {
+			pr_debug("NO LUT address assigned\n");
+			devm_kfree(chip->dev, chip->lut);
+			chip->lut = NULL;
+			return 0;
+		}
+
+		chip->lut->reg_base = be32_to_cpu(*addr);
+		max_count = LPG_LUT_COUNT_MAX;
 	}
 
 	chip->lut->chip = chip;
