@@ -1,29 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
 
-humanize()
-{
-	local speed=$1; shift
-
-	for unit in bps Kbps Mbps Gbps; do
-		if (($(echo "$speed < 1024" | bc))); then
-			break
-		fi
-
-		speed=$(echo "scale=1; $speed / 1024" | bc)
-	done
-
-	echo "$speed${unit}"
-}
-
-rate()
-{
-	local t0=$1; shift
-	local t1=$1; shift
-	local interval=$1; shift
-
-	echo $((8 * (t1 - t0) / interval))
-}
-
 check_rate()
 {
 	local rate=$1; shift

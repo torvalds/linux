@@ -588,6 +588,30 @@ ethtool_stats_get()
 	ethtool -S $dev | grep "^ *$stat:" | head -n 1 | cut -d: -f2
 }
 
+humanize()
+{
+	local speed=$1; shift
+
+	for unit in bps Kbps Mbps Gbps; do
+		if (($(echo "$speed < 1024" | bc))); then
+			break
+		fi
+
+		speed=$(echo "scale=1; $speed / 1024" | bc)
+	done
+
+	echo "$speed${unit}"
+}
+
+rate()
+{
+	local t0=$1; shift
+	local t1=$1; shift
+	local interval=$1; shift
+
+	echo $((8 * (t1 - t0) / interval))
+}
+
 mac_get()
 {
 	local if_name=$1
