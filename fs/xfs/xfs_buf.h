@@ -213,22 +213,18 @@ xfs_buf_get(
 	return xfs_buf_get_map(target, &map, 1, 0, bpp);
 }
 
-static inline struct xfs_buf *
+static inline int
 xfs_buf_read(
 	struct xfs_buftarg	*target,
 	xfs_daddr_t		blkno,
 	size_t			numblks,
 	xfs_buf_flags_t		flags,
+	struct xfs_buf		**bpp,
 	const struct xfs_buf_ops *ops)
 {
-	struct xfs_buf		*bp;
-	int			error;
 	DEFINE_SINGLE_BUF_MAP(map, blkno, numblks);
 
-	error = xfs_buf_read_map(target, &map, 1, flags, &bp, ops);
-	if (error)
-		return NULL;
-	return bp;
+	return xfs_buf_read_map(target, &map, 1, flags, bpp, ops);
 }
 
 static inline void
