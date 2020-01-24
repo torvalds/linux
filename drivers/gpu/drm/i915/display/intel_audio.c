@@ -291,18 +291,18 @@ static bool intel_eld_uptodate(struct drm_connector *connector,
 	u32 tmp;
 	int i;
 
-	tmp = I915_READ(reg_eldv);
+	tmp = intel_de_read(dev_priv, reg_eldv);
 	tmp &= bits_eldv;
 
 	if (!tmp)
 		return false;
 
-	tmp = I915_READ(reg_elda);
+	tmp = intel_de_read(dev_priv, reg_elda);
 	tmp &= ~bits_elda;
-	I915_WRITE(reg_elda, tmp);
+	intel_de_write(dev_priv, reg_elda, tmp);
 
 	for (i = 0; i < drm_eld_size(eld) / 4; i++)
-		if (I915_READ(reg_edid) != *((const u32 *)eld + i))
+		if (intel_de_read(dev_priv, reg_edid) != *((const u32 *)eld + i))
 			return false;
 
 	return true;
@@ -317,16 +317,16 @@ static void g4x_audio_codec_disable(struct intel_encoder *encoder,
 
 	drm_dbg_kms(&dev_priv->drm, "Disable audio codec\n");
 
-	tmp = I915_READ(G4X_AUD_VID_DID);
+	tmp = intel_de_read(dev_priv, G4X_AUD_VID_DID);
 	if (tmp == INTEL_AUDIO_DEVBLC || tmp == INTEL_AUDIO_DEVCL)
 		eldv = G4X_ELDV_DEVCL_DEVBLC;
 	else
 		eldv = G4X_ELDV_DEVCTG;
 
 	/* Invalidate ELD */
-	tmp = I915_READ(G4X_AUD_CNTL_ST);
+	tmp = intel_de_read(dev_priv, G4X_AUD_CNTL_ST);
 	tmp &= ~eldv;
-	I915_WRITE(G4X_AUD_CNTL_ST, tmp);
+	intel_de_write(dev_priv, G4X_AUD_CNTL_ST, tmp);
 }
 
 static void g4x_audio_codec_enable(struct intel_encoder *encoder,
@@ -343,7 +343,7 @@ static void g4x_audio_codec_enable(struct intel_encoder *encoder,
 	drm_dbg_kms(&dev_priv->drm, "Enable audio codec, %u bytes ELD\n",
 		    drm_eld_size(eld));
 
-	tmp = I915_READ(G4X_AUD_VID_DID);
+	tmp = intel_de_read(dev_priv, G4X_AUD_VID_DID);
 	if (tmp == INTEL_AUDIO_DEVBLC || tmp == INTEL_AUDIO_DEVCL)
 		eldv = G4X_ELDV_DEVCL_DEVBLC;
 	else
@@ -355,19 +355,20 @@ static void g4x_audio_codec_enable(struct intel_encoder *encoder,
 			       G4X_HDMIW_HDMIEDID))
 		return;
 
-	tmp = I915_READ(G4X_AUD_CNTL_ST);
+	tmp = intel_de_read(dev_priv, G4X_AUD_CNTL_ST);
 	tmp &= ~(eldv | G4X_ELD_ADDR_MASK);
 	len = (tmp >> 9) & 0x1f;		/* ELD buffer size */
-	I915_WRITE(G4X_AUD_CNTL_ST, tmp);
+	intel_de_write(dev_priv, G4X_AUD_CNTL_ST, tmp);
 
 	len = min(drm_eld_size(eld) / 4, len);
 	drm_dbg(&dev_priv->drm, "ELD size %d\n", len);
 	for (i = 0; i < len; i++)
-		I915_WRITE(G4X_HDMIW_HDMIEDID, *((const u32 *)eld + i));
+		intel_de_write(dev_priv, G4X_HDMIW_HDMIEDID,
+			       *((const u32 *)eld + i));
 
-	tmp = I915_READ(G4X_AUD_CNTL_ST);
+	tmp = intel_de_read(dev_priv, G4X_AUD_CNTL_ST);
 	tmp |= eldv;
-	I915_WRITE(G4X_AUD_CNTL_ST, tmp);
+	intel_de_write(dev_priv, G4X_AUD_CNTL_ST, tmp);
 }
 
 static void
@@ -390,7 +391,7 @@ hsw_dp_audio_config_update(struct intel_encoder *encoder,
 	else
 		drm_dbg_kms(&dev_priv->drm, "using automatic Maud, Naud\n");
 
-	tmp = I915_READ(HSW_AUD_CFG(cpu_transcoder));
+	tmp = intel_de_read(dev_priv, HSW_AUD_CFG(cpu_transcoder));
 	tmp &= ~AUD_CONFIG_N_VALUE_INDEX;
 	tmp &= ~AUD_CONFIG_PIXEL_CLOCK_HDMI_MASK;
 	tmp &= ~AUD_CONFIG_N_PROG_ENABLE;
@@ -402,9 +403,9 @@ hsw_dp_audio_config_update(struct intel_encoder *encoder,
 		tmp |= AUD_CONFIG_N_PROG_ENABLE;
 	}
 
-	I915_WRITE(HSW_AUD_CFG(cpu_transcoder), tmp);
+	intel_de_write(dev_priv, HSW_AUD_CFG(cpu_transcoder), tmp);
 
-	tmp = I915_READ(HSW_AUD_M_CTS_ENABLE(cpu_transcoder));
+	tmp = intel_de_read(dev_priv, HSW_AUD_M_CTS_ENABLE(cpu_transcoder));
 	tmp &= ~AUD_CONFIG_M_MASK;
 	tmp &= ~AUD_M_CTS_M_VALUE_INDEX;
 	tmp &= ~AUD_M_CTS_M_PROG_ENABLE;
@@ -415,7 +416,7 @@ hsw_dp_audio_config_update(struct intel_encoder *encoder,
 		tmp |= AUD_M_CTS_M_PROG_ENABLE;
 	}
 
-	I915_WRITE(HSW_AUD_M_CTS_ENABLE(cpu_transcoder), tmp);
+	intel_de_write(dev_priv, HSW_AUD_M_CTS_ENABLE(cpu_transcoder), tmp);
 }
 
 static void
@@ -431,7 +432,7 @@ hsw_hdmi_audio_config_update(struct intel_encoder *encoder,
 
 	rate = acomp ? acomp->aud_sample_rate[port] : 0;
 
-	tmp = I915_READ(HSW_AUD_CFG(cpu_transcoder));
+	tmp = intel_de_read(dev_priv, HSW_AUD_CFG(cpu_transcoder));
 	tmp &= ~AUD_CONFIG_N_VALUE_INDEX;
 	tmp &= ~AUD_CONFIG_PIXEL_CLOCK_HDMI_MASK;
 	tmp &= ~AUD_CONFIG_N_PROG_ENABLE;
@@ -448,16 +449,16 @@ hsw_hdmi_audio_config_update(struct intel_encoder *encoder,
 		drm_dbg_kms(&dev_priv->drm, "using automatic N\n");
 	}
 
-	I915_WRITE(HSW_AUD_CFG(cpu_transcoder), tmp);
+	intel_de_write(dev_priv, HSW_AUD_CFG(cpu_transcoder), tmp);
 
 	/*
 	 * Let's disable "Enable CTS or M Prog bit"
 	 * and let HW calculate the value
 	 */
-	tmp = I915_READ(HSW_AUD_M_CTS_ENABLE(cpu_transcoder));
+	tmp = intel_de_read(dev_priv, HSW_AUD_M_CTS_ENABLE(cpu_transcoder));
 	tmp &= ~AUD_M_CTS_M_PROG_ENABLE;
 	tmp &= ~AUD_M_CTS_M_VALUE_INDEX;
-	I915_WRITE(HSW_AUD_M_CTS_ENABLE(cpu_transcoder), tmp);
+	intel_de_write(dev_priv, HSW_AUD_M_CTS_ENABLE(cpu_transcoder), tmp);
 }
 
 static void
@@ -484,20 +485,20 @@ static void hsw_audio_codec_disable(struct intel_encoder *encoder,
 	mutex_lock(&dev_priv->av_mutex);
 
 	/* Disable timestamps */
-	tmp = I915_READ(HSW_AUD_CFG(cpu_transcoder));
+	tmp = intel_de_read(dev_priv, HSW_AUD_CFG(cpu_transcoder));
 	tmp &= ~AUD_CONFIG_N_VALUE_INDEX;
 	tmp |= AUD_CONFIG_N_PROG_ENABLE;
 	tmp &= ~AUD_CONFIG_UPPER_N_MASK;
 	tmp &= ~AUD_CONFIG_LOWER_N_MASK;
 	if (intel_crtc_has_dp_encoder(old_crtc_state))
 		tmp |= AUD_CONFIG_N_VALUE_INDEX;
-	I915_WRITE(HSW_AUD_CFG(cpu_transcoder), tmp);
+	intel_de_write(dev_priv, HSW_AUD_CFG(cpu_transcoder), tmp);
 
 	/* Invalidate ELD */
-	tmp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
+	tmp = intel_de_read(dev_priv, HSW_AUD_PIN_ELD_CP_VLD);
 	tmp &= ~AUDIO_ELD_VALID(cpu_transcoder);
 	tmp &= ~AUDIO_OUTPUT_ENABLE(cpu_transcoder);
-	I915_WRITE(HSW_AUD_PIN_ELD_CP_VLD, tmp);
+	intel_de_write(dev_priv, HSW_AUD_PIN_ELD_CP_VLD, tmp);
 
 	mutex_unlock(&dev_priv->av_mutex);
 }
@@ -520,10 +521,10 @@ static void hsw_audio_codec_enable(struct intel_encoder *encoder,
 	mutex_lock(&dev_priv->av_mutex);
 
 	/* Enable audio presence detect, invalidate ELD */
-	tmp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
+	tmp = intel_de_read(dev_priv, HSW_AUD_PIN_ELD_CP_VLD);
 	tmp |= AUDIO_OUTPUT_ENABLE(cpu_transcoder);
 	tmp &= ~AUDIO_ELD_VALID(cpu_transcoder);
-	I915_WRITE(HSW_AUD_PIN_ELD_CP_VLD, tmp);
+	intel_de_write(dev_priv, HSW_AUD_PIN_ELD_CP_VLD, tmp);
 
 	/*
 	 * FIXME: We're supposed to wait for vblank here, but we have vblanks
@@ -533,19 +534,20 @@ static void hsw_audio_codec_enable(struct intel_encoder *encoder,
 	 */
 
 	/* Reset ELD write address */
-	tmp = I915_READ(HSW_AUD_DIP_ELD_CTRL(cpu_transcoder));
+	tmp = intel_de_read(dev_priv, HSW_AUD_DIP_ELD_CTRL(cpu_transcoder));
 	tmp &= ~IBX_ELD_ADDRESS_MASK;
-	I915_WRITE(HSW_AUD_DIP_ELD_CTRL(cpu_transcoder), tmp);
+	intel_de_write(dev_priv, HSW_AUD_DIP_ELD_CTRL(cpu_transcoder), tmp);
 
 	/* Up to 84 bytes of hw ELD buffer */
 	len = min(drm_eld_size(eld), 84);
 	for (i = 0; i < len / 4; i++)
-		I915_WRITE(HSW_AUD_EDID_DATA(cpu_transcoder), *((const u32 *)eld + i));
+		intel_de_write(dev_priv, HSW_AUD_EDID_DATA(cpu_transcoder),
+			       *((const u32 *)eld + i));
 
 	/* ELD valid */
-	tmp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
+	tmp = intel_de_read(dev_priv, HSW_AUD_PIN_ELD_CP_VLD);
 	tmp |= AUDIO_ELD_VALID(cpu_transcoder);
-	I915_WRITE(HSW_AUD_PIN_ELD_CP_VLD, tmp);
+	intel_de_write(dev_priv, HSW_AUD_PIN_ELD_CP_VLD, tmp);
 
 	/* Enable timestamps */
 	hsw_audio_config_update(encoder, crtc_state);
@@ -584,21 +586,21 @@ static void ilk_audio_codec_disable(struct intel_encoder *encoder,
 	}
 
 	/* Disable timestamps */
-	tmp = I915_READ(aud_config);
+	tmp = intel_de_read(dev_priv, aud_config);
 	tmp &= ~AUD_CONFIG_N_VALUE_INDEX;
 	tmp |= AUD_CONFIG_N_PROG_ENABLE;
 	tmp &= ~AUD_CONFIG_UPPER_N_MASK;
 	tmp &= ~AUD_CONFIG_LOWER_N_MASK;
 	if (intel_crtc_has_dp_encoder(old_crtc_state))
 		tmp |= AUD_CONFIG_N_VALUE_INDEX;
-	I915_WRITE(aud_config, tmp);
+	intel_de_write(dev_priv, aud_config, tmp);
 
 	eldv = IBX_ELD_VALID(port);
 
 	/* Invalidate ELD */
-	tmp = I915_READ(aud_cntrl_st2);
+	tmp = intel_de_read(dev_priv, aud_cntrl_st2);
 	tmp &= ~eldv;
-	I915_WRITE(aud_cntrl_st2, tmp);
+	intel_de_write(dev_priv, aud_cntrl_st2, tmp);
 }
 
 static void ilk_audio_codec_enable(struct intel_encoder *encoder,
@@ -651,27 +653,28 @@ static void ilk_audio_codec_enable(struct intel_encoder *encoder,
 	eldv = IBX_ELD_VALID(port);
 
 	/* Invalidate ELD */
-	tmp = I915_READ(aud_cntrl_st2);
+	tmp = intel_de_read(dev_priv, aud_cntrl_st2);
 	tmp &= ~eldv;
-	I915_WRITE(aud_cntrl_st2, tmp);
+	intel_de_write(dev_priv, aud_cntrl_st2, tmp);
 
 	/* Reset ELD write address */
-	tmp = I915_READ(aud_cntl_st);
+	tmp = intel_de_read(dev_priv, aud_cntl_st);
 	tmp &= ~IBX_ELD_ADDRESS_MASK;
-	I915_WRITE(aud_cntl_st, tmp);
+	intel_de_write(dev_priv, aud_cntl_st, tmp);
 
 	/* Up to 84 bytes of hw ELD buffer */
 	len = min(drm_eld_size(eld), 84);
 	for (i = 0; i < len / 4; i++)
-		I915_WRITE(hdmiw_hdmiedid, *((const u32 *)eld + i));
+		intel_de_write(dev_priv, hdmiw_hdmiedid,
+			       *((const u32 *)eld + i));
 
 	/* ELD valid */
-	tmp = I915_READ(aud_cntrl_st2);
+	tmp = intel_de_read(dev_priv, aud_cntrl_st2);
 	tmp |= eldv;
-	I915_WRITE(aud_cntrl_st2, tmp);
+	intel_de_write(dev_priv, aud_cntrl_st2, tmp);
 
 	/* Enable timestamps */
-	tmp = I915_READ(aud_config);
+	tmp = intel_de_read(dev_priv, aud_config);
 	tmp &= ~AUD_CONFIG_N_VALUE_INDEX;
 	tmp &= ~AUD_CONFIG_N_PROG_ENABLE;
 	tmp &= ~AUD_CONFIG_PIXEL_CLOCK_HDMI_MASK;
@@ -679,7 +682,7 @@ static void ilk_audio_codec_enable(struct intel_encoder *encoder,
 		tmp |= AUD_CONFIG_N_VALUE_INDEX;
 	else
 		tmp |= audio_config_hdmi_pixel_clock(crtc_state);
-	I915_WRITE(aud_config, tmp);
+	intel_de_write(dev_priv, aud_config, tmp);
 }
 
 /**
@@ -856,7 +859,8 @@ static unsigned long i915_audio_component_get_power(struct device *kdev)
 
 	if (dev_priv->audio_power_refcount++ == 0) {
 		if (IS_TIGERLAKE(dev_priv) || IS_ICELAKE(dev_priv)) {
-			I915_WRITE(AUD_FREQ_CNTRL, dev_priv->audio_freq_cntrl);
+			intel_de_write(dev_priv, AUD_FREQ_CNTRL,
+				       dev_priv->audio_freq_cntrl);
 			drm_dbg_kms(&dev_priv->drm,
 				    "restored AUD_FREQ_CNTRL to 0x%x\n",
 				    dev_priv->audio_freq_cntrl);
@@ -867,9 +871,8 @@ static unsigned long i915_audio_component_get_power(struct device *kdev)
 			glk_force_audio_cdclk(dev_priv, true);
 
 		if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
-			I915_WRITE(AUD_PIN_BUF_CTL,
-				   (I915_READ(AUD_PIN_BUF_CTL) |
-				    AUD_PIN_BUF_ENABLE));
+			intel_de_write(dev_priv, AUD_PIN_BUF_CTL,
+				       (intel_de_read(dev_priv, AUD_PIN_BUF_CTL) | AUD_PIN_BUF_ENABLE));
 	}
 
 	return ret;
@@ -904,15 +907,15 @@ static void i915_audio_component_codec_wake_override(struct device *kdev,
 	 * Enable/disable generating the codec wake signal, overriding the
 	 * internal logic to generate the codec wake to controller.
 	 */
-	tmp = I915_READ(HSW_AUD_CHICKENBIT);
+	tmp = intel_de_read(dev_priv, HSW_AUD_CHICKENBIT);
 	tmp &= ~SKL_AUD_CODEC_WAKE_SIGNAL;
-	I915_WRITE(HSW_AUD_CHICKENBIT, tmp);
+	intel_de_write(dev_priv, HSW_AUD_CHICKENBIT, tmp);
 	usleep_range(1000, 1500);
 
 	if (enable) {
-		tmp = I915_READ(HSW_AUD_CHICKENBIT);
+		tmp = intel_de_read(dev_priv, HSW_AUD_CHICKENBIT);
 		tmp |= SKL_AUD_CODEC_WAKE_SIGNAL;
-		I915_WRITE(HSW_AUD_CHICKENBIT, tmp);
+		intel_de_write(dev_priv, HSW_AUD_CHICKENBIT, tmp);
 		usleep_range(1000, 1500);
 	}
 
@@ -1135,7 +1138,8 @@ static void i915_audio_component_init(struct drm_i915_private *dev_priv)
 	}
 
 	if (IS_TIGERLAKE(dev_priv) || IS_ICELAKE(dev_priv)) {
-		dev_priv->audio_freq_cntrl = I915_READ(AUD_FREQ_CNTRL);
+		dev_priv->audio_freq_cntrl = intel_de_read(dev_priv,
+							   AUD_FREQ_CNTRL);
 		drm_dbg_kms(&dev_priv->drm,
 			    "init value of AUD_FREQ_CNTRL of 0x%x\n",
 			    dev_priv->audio_freq_cntrl);
