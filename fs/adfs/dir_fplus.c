@@ -114,7 +114,8 @@ static int adfs_fplus_read(struct super_block *sb, u32 indaddr,
 		return ret;
 
 	dir->bighead = h = (void *)dir->bhs[0]->b_data;
-	if (adfs_fplus_validate_header(h)) {
+	ret = adfs_fplus_validate_header(h);
+	if (ret) {
 		adfs_error(sb, "dir %06x has malformed header", indaddr);
 		goto out;
 	}
