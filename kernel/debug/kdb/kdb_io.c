@@ -553,7 +553,7 @@ int vkdb_printf(enum kdb_msgsrc src, const char *fmt, va_list ap)
 	int this_cpu, old_cpu;
 	char *cp, *cp2, *cphold = NULL, replaced_byte = ' ';
 	char *moreprompt = "more> ";
-	struct console *c = console_drivers;
+	struct console *c;
 	unsigned long uninitialized_var(flags);
 
 	/* Serialize kdb_printf if multiple cpus try to write at once.
@@ -698,10 +698,9 @@ kdb_printit:
 				cp2++;
 			}
 		}
-		while (c) {
+		for_each_console(c) {
 			c->write(c, cp, retlen - (cp - kdb_buffer));
 			touch_nmi_watchdog();
-			c = c->next;
 		}
 	}
 	if (logging) {
@@ -752,7 +751,6 @@ kdb_printit:
 			moreprompt = "more> ";
 
 		kdb_input_flush();
-		c = console_drivers;
 
 		if (dbg_io_ops && !dbg_io_ops->is_console) {
 			len = strlen(moreprompt);
@@ -762,10 +760,9 @@ kdb_printit:
 				cp++;
 			}
 		}
-		while (c) {
+		for_each_console(c) {
 			c->write(c, moreprompt, strlen(moreprompt));
 			touch_nmi_watchdog();
-			c = c->next;
 		}
 
 		if (logging)
