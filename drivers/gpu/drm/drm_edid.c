@@ -2858,7 +2858,7 @@ do_inferred_modes(struct detailed_timing *timing, void *c)
 	closure->modes += drm_dmt_modes_for_range(closure->connector,
 						  closure->edid,
 						  timing);
-	
+
 	if (!version_greater(closure->edid, 1, 1))
 		return; /* GTF not defined yet */
 
@@ -3100,7 +3100,7 @@ do_cvt_mode(struct detailed_timing *timing, void *c)
 
 static int
 add_cvt_modes(struct drm_connector *connector, struct edid *edid)
-{	
+{
 	struct detailed_mode_closure closure = {
 		.connector = connector,
 		.edid = edid,
@@ -4358,7 +4358,7 @@ void drm_edid_get_monitor_name(struct edid *edid, char *name, int bufsize)
 {
 	int name_length;
 	char buf[13];
-	
+
 	if (bufsize <= 0)
 		return;
 
