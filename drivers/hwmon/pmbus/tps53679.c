@@ -11,7 +11,12 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include "pmbus.h"
+
+enum chips {
+	tps53679, tps53688,
+};
 
 #define TPS53679_PROT_VR12_5MV		0x01 /* VR12.0 mode, 5-mV DAC */
 #define TPS53679_PROT_VR12_5_10MV	0x02 /* VR12.5 mode, 10-mV DAC */
@@ -53,47 +58,63 @@ static int tps53679_identify(struct i2c_client *client,
 }
 
 static struct pmbus_driver_info tps53679_info = {
-	.pages = TPS53679_PAGE_NUM,
 	.format[PSC_VOLTAGE_IN] = linear,
 	.format[PSC_VOLTAGE_OUT] = vid,
 	.format[PSC_TEMPERATURE] = linear,
 	.format[PSC_CURRENT_OUT] = linear,
 	.format[PSC_POWER] = linear,
-	.func[0] = PMBUS_HAVE_VIN | PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT |
+	.func[0] = PMBUS_HAVE_VIN |
+		PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT |
 		PMBUS_HAVE_IOUT | PMBUS_HAVE_STATUS_IOUT |
 		PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP |
 		PMBUS_HAVE_POUT,
-	.func[1] = PMBUS_HAVE_VIN | PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT |
+	.func[1] = PMBUS_HAVE_VIN |
+		PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT |
 		PMBUS_HAVE_IOUT | PMBUS_HAVE_STATUS_IOUT |
 		PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP |
 		PMBUS_HAVE_POUT,
-	.identify = tps53679_identify,
 };
 
 static int tps53679_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
 {
+	struct device *dev = &client->dev;
 	struct pmbus_driver_info *info;
+	enum chips chip_id;
 
-	info = devm_kmemdup(&client->dev, &tps53679_info, sizeof(*info),
-			    GFP_KERNEL);
+	if (dev->of_node)
+		chip_id = (enum chips)of_device_get_match_data(dev);
+	else
+		chip_id = id->driver_data;
+
+	info = devm_kmemdup(dev, &tps53679_info, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
+
+	switch (chip_id) {
+	case tps53679:
+	case tps53688:
+		info->pages = TPS53679_PAGE_NUM;
+		info->identify = tps53679_identify;
+		break;
+	default:
+		return -ENODEV;
+	}
 
 	return pmbus_do_probe(client, id, info);
 }
 
 static const struct i2c_device_id tps53679_id[] = {
-	{"tps53679", 0},
-	{"tps53688", 0},
+	{"tps53679", tps53679},
+	{"tps53688", tps53688},
 	{}
 };
 
 MODULE_DEVICE_TABLE(i2c, tps53679_id);
 
 static const struct of_device_id __maybe_unused tps53679_of_match[] = {
-	{.compatible = "ti,tps53679"},
-	{.compatible = "ti,tps53688"},
+	{.compatible = "ti,tps53679", .data = (void *)tps53679},
+	{.compatible = "ti,tps53688", .data = (void *)tps53688},
 	{}
 };
 MODULE_DEVICE_TABLE(of, tps53679_of_match);
