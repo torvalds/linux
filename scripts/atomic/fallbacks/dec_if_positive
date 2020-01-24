@@ -1,5 +1,5 @@
 cat <<EOF
-static inline ${ret}
+static __always_inline ${ret}
 ${atomic}_dec_if_positive(${atomic}_t *v)
 {
 	${int} dec, c = ${atomic}_read(v);

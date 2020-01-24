@@ -8,7 +8,7 @@ cat <<EOF
  * if the result is negative, or false when
  * result is greater than or equal to zero.
  */
-static inline bool
+static __always_inline bool
 ${atomic}_add_negative(${int} i, ${atomic}_t *v)
 {
 	return ${atomic}_add_return(i, v) < 0;

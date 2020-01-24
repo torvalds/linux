@@ -1,5 +1,5 @@
 cat <<EOF
-static inline ${ret}
+static __always_inline ${ret}
 ${atomic}_read_acquire(const ${atomic}_t *v)
 {
 	return smp_load_acquire(&(v)->counter);

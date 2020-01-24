@@ -8,7 +8,7 @@ cat << EOF
  * Atomically adds @a to @v, so long as @v was not already @u.
  * Returns original value of @v
  */
-static inline ${int}
+static __always_inline ${int}
 ${atomic}_fetch_add_unless(${atomic}_t *v, ${int} a, ${int} u)
 {
 	${int} c = ${atomic}_read(v);

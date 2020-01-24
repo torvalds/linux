@@ -146,8 +146,7 @@
 #endif
 
 #if defined(__SANITIZE_THREAD__) && __has_attribute(__no_sanitize_thread__)
-#define __no_sanitize_thread                                                   \
-	__attribute__((__noinline__)) __attribute__((no_sanitize_thread))
+#define __no_sanitize_thread __attribute__((no_sanitize_thread))
 #else
 #define __no_sanitize_thread
 #endif
