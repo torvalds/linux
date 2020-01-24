@@ -593,9 +593,10 @@ tc_rule_stats_get()
 	local dev=$1; shift
 	local pref=$1; shift
 	local dir=$1; shift
+	local selector=${1:-.packets}; shift
 
 	tc -j -s filter show dev $dev ${dir:-ingress} pref $pref \
-	    | jq '.[1].options.actions[].stats.packets'
+	    | jq ".[1].options.actions[].stats$selector"
 }
 
 ethtool_stats_get()
