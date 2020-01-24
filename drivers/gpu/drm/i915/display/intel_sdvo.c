@@ -217,23 +217,23 @@ static void intel_sdvo_write_sdvox(struct intel_sdvo *intel_sdvo, u32 val)
 	int i;
 
 	if (HAS_PCH_SPLIT(dev_priv)) {
-		I915_WRITE(intel_sdvo->sdvo_reg, val);
-		POSTING_READ(intel_sdvo->sdvo_reg);
+		intel_de_write(dev_priv, intel_sdvo->sdvo_reg, val);
+		intel_de_posting_read(dev_priv, intel_sdvo->sdvo_reg);
 		/*
 		 * HW workaround, need to write this twice for issue
 		 * that may result in first write getting masked.
 		 */
 		if (HAS_PCH_IBX(dev_priv)) {
-			I915_WRITE(intel_sdvo->sdvo_reg, val);
-			POSTING_READ(intel_sdvo->sdvo_reg);
+			intel_de_write(dev_priv, intel_sdvo->sdvo_reg, val);
+			intel_de_posting_read(dev_priv, intel_sdvo->sdvo_reg);
 		}
 		return;
 	}
 
 	if (intel_sdvo->port == PORT_B)
-		cval = I915_READ(GEN3_SDVOC);
+		cval = intel_de_read(dev_priv, GEN3_SDVOC);
 	else
-		bval = I915_READ(GEN3_SDVOB);
+		bval = intel_de_read(dev_priv, GEN3_SDVOB);
 
 	/*
 	 * Write the registers twice for luck. Sometimes,
@@ -241,11 +241,11 @@ static void intel_sdvo_write_sdvox(struct intel_sdvo *intel_sdvo, u32 val)
 	 * The BIOS does this too. Yay, magic
 	 */
 	for (i = 0; i < 2; i++) {
-		I915_WRITE(GEN3_SDVOB, bval);
-		POSTING_READ(GEN3_SDVOB);
+		intel_de_write(dev_priv, GEN3_SDVOB, bval);
+		intel_de_posting_read(dev_priv, GEN3_SDVOB);
 
-		I915_WRITE(GEN3_SDVOC, cval);
-		POSTING_READ(GEN3_SDVOC);
+		intel_de_write(dev_priv, GEN3_SDVOC, cval);
+		intel_de_posting_read(dev_priv, GEN3_SDVOC);
 	}
 }
 
@@ -1525,7 +1525,7 @@ static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder,
 		if (INTEL_GEN(dev_priv) < 5)
 			sdvox |= SDVO_BORDER_ENABLE;
 	} else {
-		sdvox = I915_READ(intel_sdvo->sdvo_reg);
+		sdvox = intel_de_read(dev_priv, intel_sdvo->sdvo_reg);
 		if (intel_sdvo->port == PORT_B)
 			sdvox &= SDVOB_PRESERVE_MASK;
 		else
@@ -1571,7 +1571,7 @@ bool intel_sdvo_port_enabled(struct drm_i915_private *dev_priv,
 {
 	u32 val;
 
-	val = I915_READ(sdvo_reg);
+	val = intel_de_read(dev_priv, sdvo_reg);
 
 	/* asserts want to know the pipe even if the port is disabled */
 	if (HAS_PCH_CPT(dev_priv))
@@ -1614,7 +1614,7 @@ static void intel_sdvo_get_config(struct intel_encoder *encoder,
 
 	pipe_config->output_types |= BIT(INTEL_OUTPUT_SDVO);
 
-	sdvox = I915_READ(intel_sdvo->sdvo_reg);
+	sdvox = intel_de_read(dev_priv, intel_sdvo->sdvo_reg);
 
 	ret = intel_sdvo_get_input_timing(intel_sdvo, &dtd);
 	if (!ret) {
@@ -1741,7 +1741,7 @@ static void intel_disable_sdvo(struct intel_encoder *encoder,
 		intel_sdvo_set_encoder_power_state(intel_sdvo,
 						   DRM_MODE_DPMS_OFF);
 
-	temp = I915_READ(intel_sdvo->sdvo_reg);
+	temp = intel_de_read(dev_priv, intel_sdvo->sdvo_reg);
 
 	temp &= ~SDVO_ENABLE;
 	intel_sdvo_write_sdvox(intel_sdvo, temp);
@@ -1798,7 +1798,7 @@ static void intel_enable_sdvo(struct intel_encoder *encoder,
 	int i;
 	bool success;
 
-	temp = I915_READ(intel_sdvo->sdvo_reg);
+	temp = intel_de_read(dev_priv, intel_sdvo->sdvo_reg);
 	temp |= SDVO_ENABLE;
 	intel_sdvo_write_sdvox(intel_sdvo, temp);
 
