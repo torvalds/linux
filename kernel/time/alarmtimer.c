@@ -143,11 +143,6 @@ static void alarmtimer_rtc_interface_remove(void)
 	class_interface_unregister(&alarmtimer_rtc_interface);
 }
 #else
-struct rtc_device *alarmtimer_get_rtcdev(void)
-{
-	return NULL;
-}
-#define rtcdev (NULL)
 static inline int alarmtimer_rtc_interface_setup(void) { return 0; }
 static inline void alarmtimer_rtc_interface_remove(void) { }
 static inline void alarmtimer_rtc_timer_init(void) { }
