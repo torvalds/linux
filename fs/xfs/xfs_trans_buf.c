@@ -280,7 +280,7 @@ xfs_trans_read_buf_map(
 		ASSERT(bp->b_ops != NULL);
 		error = xfs_buf_reverify(bp, ops);
 		if (error) {
-			xfs_buf_ioerror_alert(bp, __func__);
+			xfs_buf_ioerror_alert(bp, __return_address);
 
 			if (tp->t_flags & XFS_TRANS_DIRTY)
 				xfs_force_shutdown(tp->t_mountp,
@@ -302,7 +302,8 @@ xfs_trans_read_buf_map(
 		return 0;
 	}
 
-	error = xfs_buf_read_map(target, map, nmaps, flags, &bp, ops);
+	error = xfs_buf_read_map(target, map, nmaps, flags, &bp, ops,
+			__return_address);
 	switch (error) {
 	case 0:
 		break;
