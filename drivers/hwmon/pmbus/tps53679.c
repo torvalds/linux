@@ -16,8 +16,10 @@
 #include "pmbus.h"
 
 enum chips {
-	tps53679, tps53681, tps53688
+	tps53647, tps53667, tps53679, tps53681, tps53688
 };
+
+#define TPS53647_PAGE_NUM		1
 
 #define TPS53679_PROT_VR12_5MV		0x01 /* VR12.0 mode, 5-mV DAC */
 #define TPS53679_PROT_VR12_5_10MV	0x02 /* VR12.5 mode, 10-mV DAC */
@@ -38,7 +40,7 @@ static int tps53679_identify_mode(struct i2c_client *client,
 	u8 vout_params;
 	int i, ret;
 
-	for (i = 0; i < TPS53679_PAGE_NUM; i++) {
+	for (i = 0; i < info->pages; i++) {
 		/* Read the register with VOUT scaling value.*/
 		ret = pmbus_read_byte_data(client, i, PMBUS_VOUT_MODE);
 		if (ret < 0)
@@ -198,6 +200,11 @@ static int tps53679_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	switch (chip_id) {
+	case tps53647:
+	case tps53667:
+		info->pages = TPS53647_PAGE_NUM;
+		info->identify = tps53679_identify;
+		break;
 	case tps53679:
 	case tps53688:
 		info->pages = TPS53679_PAGE_NUM;
@@ -217,6 +224,8 @@ static int tps53679_probe(struct i2c_client *client,
 }
 
 static const struct i2c_device_id tps53679_id[] = {
+	{"tps53647", tps53647},
+	{"tps53667", tps53667},
 	{"tps53679", tps53679},
 	{"tps53681", tps53681},
 	{"tps53688", tps53688},
@@ -226,6 +235,8 @@ static const struct i2c_device_id tps53679_id[] = {
 MODULE_DEVICE_TABLE(i2c, tps53679_id);
 
 static const struct of_device_id __maybe_unused tps53679_of_match[] = {
+	{.compatible = "ti,tps53647", .data = (void *)tps53647},
+	{.compatible = "ti,tps53667", .data = (void *)tps53667},
 	{.compatible = "ti,tps53679", .data = (void *)tps53679},
 	{.compatible = "ti,tps53681", .data = (void *)tps53681},
 	{.compatible = "ti,tps53688", .data = (void *)tps53688},
