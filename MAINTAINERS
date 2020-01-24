@@ -14363,6 +14363,14 @@ F:	include/net/rose.h
 F:	include/uapi/linux/rose.h
 F:	net/rose/
 
+ROTATION DRIVER FOR ALLWINNER A83T
+M:	Jernej Skrabec <jernej.skrabec@siol.net>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Maintained
+F:	drivers/media/platform/sunxi/sun8i-rotate/
+F:	Documentation/devicetree/bindings/media/allwinner,sun8i-a83t-de2-rotate.yaml
+
 RTL2830 MEDIA DRIVER
 M:	Antti Palosaari <crope@iki.fi>
 L:	linux-media@vger.kernel.org
