@@ -9,6 +9,7 @@
 #define __NET_MPTCP_H
 
 #include <linux/skbuff.h>
+#include <linux/tcp.h>
 #include <linux/types.h>
 
 /* MPTCP sk_buff extension data */
@@ -22,11 +23,48 @@ struct mptcp_ext {
 			data_fin:1,
 			use_ack:1,
 			ack64:1,
-			__unused:3;
+			mpc_map:1,
+			__unused:2;
 	/* one byte hole */
 };
 
+struct mptcp_out_options {
+#if IS_ENABLED(CONFIG_MPTCP)
+	u16 suboptions;
+	u64 sndr_key;
+	u64 rcvr_key;
+	struct mptcp_ext ext_copy;
+#endif
+};
+
 #ifdef CONFIG_MPTCP
+
+void mptcp_init(void);
+
+static inline bool sk_is_mptcp(const struct sock *sk)
+{
+	return tcp_sk(sk)->is_mptcp;
+}
+
+static inline bool rsk_is_mptcp(const struct request_sock *req)
+{
+	return tcp_rsk(req)->is_mptcp;
+}
+
+void mptcp_parse_option(const struct sk_buff *skb, const unsigned char *ptr,
+			int opsize, struct tcp_options_received *opt_rx);
+bool mptcp_syn_options(struct sock *sk, const struct sk_buff *skb,
+		       unsigned int *size, struct mptcp_out_options *opts);
+void mptcp_rcv_synsent(struct sock *sk);
+bool mptcp_synack_options(const struct request_sock *req, unsigned int *size,
+			  struct mptcp_out_options *opts);
+bool mptcp_established_options(struct sock *sk, struct sk_buff *skb,
+			       unsigned int *size, unsigned int remaining,
+			       struct mptcp_out_options *opts);
+void mptcp_incoming_options(struct sock *sk, struct sk_buff *skb,
+			    struct tcp_options_received *opt_rx);
+
+void mptcp_write_options(__be32 *ptr, struct mptcp_out_options *opts);
 
 /* move the skb extension owership, with the assumption that 'to' is
  * newly allocated
@@ -70,6 +108,59 @@ static inline bool mptcp_skb_can_collapse(const struct sk_buff *to,
 
 #else
 
+static inline void mptcp_init(void)
+{
+}
+
+static inline bool sk_is_mptcp(const struct sock *sk)
+{
+	return false;
+}
+
+static inline bool rsk_is_mptcp(const struct request_sock *req)
+{
+	return false;
+}
+
+static inline void mptcp_parse_option(const struct sk_buff *skb,
+				      const unsigned char *ptr, int opsize,
+				      struct tcp_options_received *opt_rx)
+{
+}
+
+static inline bool mptcp_syn_options(struct sock *sk, const struct sk_buff *skb,
+				     unsigned int *size,
+				     struct mptcp_out_options *opts)
+{
+	return false;
+}
+
+static inline void mptcp_rcv_synsent(struct sock *sk)
+{
+}
+
+static inline bool mptcp_synack_options(const struct request_sock *req,
+					unsigned int *size,
+					struct mptcp_out_options *opts)
+{
+	return false;
+}
+
+static inline bool mptcp_established_options(struct sock *sk,
+					     struct sk_buff *skb,
+					     unsigned int *size,
+					     unsigned int remaining,
+					     struct mptcp_out_options *opts)
+{
+	return false;
+}
+
+static inline void mptcp_incoming_options(struct sock *sk,
+					  struct sk_buff *skb,
+					  struct tcp_options_received *opt_rx)
+{
+}
+
 static inline void mptcp_skb_ext_move(struct sk_buff *to,
 				      const struct sk_buff *from)
 {
@@ -82,4 +173,16 @@ static inline bool mptcp_skb_can_collapse(const struct sk_buff *to,
 }
 
 #endif /* CONFIG_MPTCP */
+
+void mptcp_handle_ipv6_mapped(struct sock *sk, bool mapped);
+
+#if IS_ENABLED(CONFIG_MPTCP_IPV6)
+int mptcpv6_init(void);
+#elif IS_ENABLED(CONFIG_IPV6)
+static inline int mptcpv6_init(void)
+{
+	return 0;
+}
+#endif
+
 #endif /* __NET_MPTCP_H */
