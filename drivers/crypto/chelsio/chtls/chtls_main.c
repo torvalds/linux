@@ -229,8 +229,7 @@ static void *chtls_uld_add(const struct cxgb4_lld_info *info)
 	struct chtls_dev *cdev;
 	int i, j;
 
-	cdev = kzalloc(sizeof(*cdev) + info->nports *
-		      (sizeof(struct net_device *)), GFP_KERNEL);
+	cdev = kzalloc(sizeof(*cdev), GFP_KERNEL);
 	if (!cdev)
 		goto out;
 
