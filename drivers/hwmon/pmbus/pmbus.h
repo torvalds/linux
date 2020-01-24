@@ -119,6 +119,9 @@ enum pmbus_regs {
 	PMBUS_MFR_DATE			= 0x9D,
 	PMBUS_MFR_SERIAL		= 0x9E,
 
+	PMBUS_IC_DEVICE_ID		= 0xAD,
+	PMBUS_IC_DEVICE_REV		= 0xAE,
+
 /*
  * Virtual registers.
  * Useful to support attributes which are not supported by standard PMBus
