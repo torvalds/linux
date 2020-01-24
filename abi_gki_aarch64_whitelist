@@ -106,6 +106,7 @@
   console_suspend_enabled
   __const_udelay
   consume_skb
+  contig_page_data
   _copy_from_iter_full
   copy_page
   copy_strings_kernel
@@ -222,6 +223,7 @@
   dma_fence_signal_locked
   dma_fence_wait_timeout
   dma_release_from_dev_coherent
+  down_read
   down_write
   dput
   driver_register
@@ -390,6 +392,7 @@
   ida_destroy
   ida_free
   init_net
+  __init_rwsem
   init_timer_key
   init_wait_entry
   __init_waitqueue_head
@@ -427,6 +430,7 @@
   kmem_cache_destroy
   kmem_cache_free
   kmemdup
+  kobject_create_and_add
   kobject_del
   kobject_init_and_add
   kobject_put
@@ -457,6 +461,7 @@
   __ll_sc_atomic64_andnot
   __ll_sc_atomic64_fetch_or
   __ll_sc_atomic64_or
+  __ll_sc_atomic64_sub
   __ll_sc_atomic_add
   __ll_sc_atomic_add_return
   __ll_sc_atomic_sub
@@ -480,6 +485,7 @@
   memzero_explicit
   misc_deregister
   misc_register
+  mod_node_page_state
   mod_timer
   __module_get
   module_put
@@ -600,6 +606,7 @@
   platform_driver_unregister
   platform_get_irq
   platform_get_resource
+  plist_add
   pm_generic_resume
   pm_generic_runtime_resume
   pm_generic_runtime_suspend
@@ -649,6 +656,8 @@
   _raw_write_lock_bh
   _raw_write_unlock
   _raw_write_unlock_bh
+  rb_erase
+  rb_insert_color
   rcu_barrier
   __rcu_read_lock
   __rcu_read_unlock
@@ -675,6 +684,7 @@
   regulator_list_voltage
   regulator_set_voltage
   release_sock
+  remap_pfn_range
   remove_arg_zero
   remove_conflicting_framebuffers
   remove_proc_entry
@@ -744,6 +754,8 @@
   sg_nents
   sg_nents_for_len
   sg_next
+  __sg_page_iter_next
+  __sg_page_iter_start
   shmem_file_setup
   shmem_read_mapping_page_gfp
   si_mem_available
@@ -805,6 +817,7 @@
   __sock_tx_timestamp
   sock_unregister
   __splice_from_pipe
+  split_page
   sprintf
   sscanf
   __stack_chk_fail
@@ -831,6 +844,7 @@
   synchronize_rcu
   sysfs_create_bin_file
   sysfs_create_group
+  sysfs_create_groups
   __sysfs_match_string
   sysfs_remove_bin_file
   sysfs_remove_group
@@ -841,6 +855,7 @@
   tasklet_init
   tasklet_kill
   __tasklet_schedule
+  totalram_pages
   trace_define_field
   trace_event_buffer_commit
   trace_event_buffer_reserve
@@ -890,11 +905,15 @@
   usb_put_hcd
   usb_remove_hcd
   usleep_range
+  vfree
+  vmalloc
   vmalloc_to_page
   vmap
   vm_get_page_prot
   vm_insert_mixed
   vm_insert_pfn
+  vm_map_ram
+  vm_unmap_ram
   vunmap
   wait_for_completion
   wait_for_completion_killable
