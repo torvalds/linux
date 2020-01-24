@@ -113,6 +113,7 @@ enum {
  * @vid: VLAN id
  * @flags: bridge vlan flags
  * @priv_flags: private (in-kernel) bridge vlan flags
+ * @state: STP state (e.g. blocking, learning, forwarding)
  * @stats: per-cpu VLAN statistics
  * @br: if MASTER flag set, this points to a bridge struct
  * @port: if MASTER flag unset, this points to a port struct
@@ -133,6 +134,7 @@ struct net_bridge_vlan {
 	u16				vid;
 	u16				flags;
 	u16				priv_flags;
+	u8				state;
 	struct br_vlan_stats __percpu	*stats;
 	union {
 		struct net_bridge	*br;
@@ -157,6 +159,7 @@ struct net_bridge_vlan {
  * @vlan_list: sorted VLAN entry list
  * @num_vlans: number of total VLAN entries
  * @pvid: PVID VLAN id
+ * @pvid_state: PVID's STP state (e.g. forwarding, learning, blocking)
  *
  * IMPORTANT: Be careful when checking if there're VLAN entries using list
  *            primitives because the bridge can have entries in its list which
@@ -170,6 +173,7 @@ struct net_bridge_vlan_group {
 	struct list_head		vlan_list;
 	u16				num_vlans;
 	u16				pvid;
+	u8				pvid_state;
 };
 
 /* bridge fdb flags */
@@ -935,7 +939,7 @@ static inline int br_multicast_igmp_type(const struct sk_buff *skb)
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
 bool br_allowed_ingress(const struct net_bridge *br,
 			struct net_bridge_vlan_group *vg, struct sk_buff *skb,
-			u16 *vid);
+			u16 *vid, u8 *state);
 bool br_allowed_egress(struct net_bridge_vlan_group *vg,
 		       const struct sk_buff *skb);
 bool br_should_learn(struct net_bridge_port *p, struct sk_buff *skb, u16 *vid);
@@ -976,6 +980,8 @@ void br_vlan_notify(const struct net_bridge *br,
 		    const struct net_bridge_port *p,
 		    u16 vid, u16 vid_range,
 		    int cmd);
+bool br_vlan_can_enter_range(const struct net_bridge_vlan *v_curr,
+			     const struct net_bridge_vlan *range_end);
 
 static inline struct net_bridge_vlan_group *br_vlan_group(
 					const struct net_bridge *br)
@@ -1035,7 +1041,7 @@ static inline u16 br_vlan_flags(const struct net_bridge_vlan *v, u16 pvid)
 static inline bool br_allowed_ingress(const struct net_bridge *br,
 				      struct net_bridge_vlan_group *vg,
 				      struct sk_buff *skb,
-				      u16 *vid)
+				      u16 *vid, u8 *state)
 {
 	return true;
 }
@@ -1188,6 +1194,55 @@ static inline void br_vlan_notify(const struct net_bridge *br,
 				  u16 vid, u16 vid_range,
 				  int cmd)
 {
+}
+#endif
+
+/* br_vlan_options.c */
+#ifdef CONFIG_BRIDGE_VLAN_FILTERING
+bool br_vlan_opts_eq(const struct net_bridge_vlan *v1,
+		     const struct net_bridge_vlan *v2);
+bool br_vlan_opts_fill(struct sk_buff *skb, const struct net_bridge_vlan *v);
+size_t br_vlan_opts_nl_size(void);
+int br_vlan_process_options(const struct net_bridge *br,
+			    const struct net_bridge_port *p,
+			    struct net_bridge_vlan *range_start,
+			    struct net_bridge_vlan *range_end,
+			    struct nlattr **tb,
+			    struct netlink_ext_ack *extack);
+
+/* vlan state manipulation helpers using *_ONCE to annotate lock-free access */
+static inline u8 br_vlan_get_state(const struct net_bridge_vlan *v)
+{
+	return READ_ONCE(v->state);
+}
+
+static inline void br_vlan_set_state(struct net_bridge_vlan *v, u8 state)
+{
+	WRITE_ONCE(v->state, state);
+}
+
+static inline u8 br_vlan_get_pvid_state(const struct net_bridge_vlan_group *vg)
+{
+	return READ_ONCE(vg->pvid_state);
+}
+
+static inline void br_vlan_set_pvid_state(struct net_bridge_vlan_group *vg,
+					  u8 state)
+{
+	WRITE_ONCE(vg->pvid_state, state);
+}
+
+/* learn_allow is true at ingress and false at egress */
+static inline bool br_vlan_state_allowed(u8 state, bool learn_allow)
+{
+	switch (state) {
+	case BR_STATE_LEARNING:
+		return learn_allow;
+	case BR_STATE_FORWARDING:
+		return true;
+	default:
+		return false;
+	}
 }
 #endif
 
