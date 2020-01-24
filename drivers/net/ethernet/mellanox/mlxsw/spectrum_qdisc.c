@@ -273,6 +273,24 @@ mlxsw_sp_qdisc_update_stats(struct mlxsw_sp *mlxsw_sp,
 	stats_base->tx_packets += tx_packets;
 }
 
+static void
+mlxsw_sp_qdisc_get_tc_stats(struct mlxsw_sp_port *mlxsw_sp_port,
+			    struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
+			    struct tc_qopt_offload_stats *stats_ptr)
+{
+	u64 tx_packets = 0;
+	u64 tx_bytes = 0;
+	u64 backlog = 0;
+	u64 drops = 0;
+
+	mlxsw_sp_qdisc_collect_tc_stats(mlxsw_sp_port, mlxsw_sp_qdisc,
+					&tx_bytes, &tx_packets,
+					&drops, &backlog);
+	mlxsw_sp_qdisc_update_stats(mlxsw_sp_port->mlxsw_sp, mlxsw_sp_qdisc,
+				    tx_bytes, tx_packets, drops, backlog,
+				    stats_ptr);
+}
+
 static int
 mlxsw_sp_tclass_congestion_enable(struct mlxsw_sp_port *mlxsw_sp_port,
 				  int tclass_num, u32 min, u32 max,
@@ -452,24 +470,15 @@ mlxsw_sp_qdisc_get_red_stats(struct mlxsw_sp_port *mlxsw_sp_port,
 	u8 tclass_num = mlxsw_sp_qdisc->tclass_num;
 	struct mlxsw_sp_qdisc_stats *stats_base;
 	struct mlxsw_sp_port_xstats *xstats;
-	u64 tx_packets = 0;
-	u64 tx_bytes = 0;
-	u64 backlog = 0;
 	u64 overlimits;
-	u64 drops = 0;
 
 	xstats = &mlxsw_sp_port->periodic_hw_stats.xstats;
 	stats_base = &mlxsw_sp_qdisc->stats_base;
 
-	mlxsw_sp_qdisc_collect_tc_stats(mlxsw_sp_port, mlxsw_sp_qdisc,
-					&tx_bytes, &tx_packets,
-					&drops, &backlog);
+	mlxsw_sp_qdisc_get_tc_stats(mlxsw_sp_port, mlxsw_sp_qdisc, stats_ptr);
 	overlimits = xstats->wred_drop[tclass_num] + xstats->ecn -
 		     stats_base->overlimits;
 
-	mlxsw_sp_qdisc_update_stats(mlxsw_sp_port->mlxsw_sp, mlxsw_sp_qdisc,
-				    tx_bytes, tx_packets, drops, backlog,
-				    stats_ptr);
 	stats_ptr->qstats->overlimits += overlimits;
 	stats_base->overlimits += overlimits;
 
