@@ -240,28 +240,21 @@ static void sdhci_am654_write_b(struct sdhci_host *host, u8 val, int reg)
 	writeb(val, host->ioaddr + reg);
 }
 
-static struct sdhci_ops sdhci_am654_ops = {
-	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
-	.get_timeout_clock = sdhci_pltfm_clk_get_max_clock,
-	.set_uhs_signaling = sdhci_set_uhs_signaling,
-	.set_bus_width = sdhci_set_bus_width,
-	.set_power = sdhci_am654_set_power,
-	.set_clock = sdhci_am654_set_clock,
-	.write_b = sdhci_am654_write_b,
-	.reset = sdhci_reset,
-};
+static int sdhci_am654_execute_tuning(struct mmc_host *mmc, u32 opcode)
+{
+	struct sdhci_host *host = mmc_priv(mmc);
+	int err = sdhci_execute_tuning(mmc, opcode);
 
-static const struct sdhci_pltfm_data sdhci_am654_pdata = {
-	.ops = &sdhci_am654_ops,
-	.quirks = SDHCI_QUIRK_INVERTED_WRITE_PROTECT |
-		  SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12,
-	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
-};
+	if (err)
+		return err;
+	/*
+	 * Tuning data remains in the buffer after tuning.
+	 * Do a command and data reset to get rid of it
+	 */
+	sdhci_reset(host, SDHCI_RESET_CMD | SDHCI_RESET_DATA);
 
-static const struct sdhci_am654_driver_data sdhci_am654_drvdata = {
-	.pdata = &sdhci_am654_pdata,
-	.flags = IOMUX_PRESENT | FREQSEL_2_BIT | STRBSEL_4_BIT | DLL_PRESENT,
-};
+	return 0;
+}
 
 static u32 sdhci_am654_cqhci_irq(struct sdhci_host *host, u32 intmask)
 {
@@ -275,6 +268,29 @@ static u32 sdhci_am654_cqhci_irq(struct sdhci_host *host, u32 intmask)
 
 	return 0;
 }
+
+static struct sdhci_ops sdhci_am654_ops = {
+	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
+	.get_timeout_clock = sdhci_pltfm_clk_get_max_clock,
+	.set_uhs_signaling = sdhci_set_uhs_signaling,
+	.set_bus_width = sdhci_set_bus_width,
+	.set_power = sdhci_am654_set_power,
+	.set_clock = sdhci_am654_set_clock,
+	.write_b = sdhci_am654_write_b,
+	.irq = sdhci_am654_cqhci_irq,
+	.reset = sdhci_reset,
+};
+
+static const struct sdhci_pltfm_data sdhci_am654_pdata = {
+	.ops = &sdhci_am654_ops,
+	.quirks = SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12,
+	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
+};
+
+static const struct sdhci_am654_driver_data sdhci_am654_drvdata = {
+	.pdata = &sdhci_am654_pdata,
+	.flags = IOMUX_PRESENT | FREQSEL_2_BIT | STRBSEL_4_BIT | DLL_PRESENT,
+};
 
 static struct sdhci_ops sdhci_j721e_8bit_ops = {
 	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
@@ -290,8 +306,7 @@ static struct sdhci_ops sdhci_j721e_8bit_ops = {
 
 static const struct sdhci_pltfm_data sdhci_j721e_8bit_pdata = {
 	.ops = &sdhci_j721e_8bit_ops,
-	.quirks = SDHCI_QUIRK_INVERTED_WRITE_PROTECT |
-		  SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12,
+	.quirks = SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12,
 	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
 };
 
@@ -314,8 +329,7 @@ static struct sdhci_ops sdhci_j721e_4bit_ops = {
 
 static const struct sdhci_pltfm_data sdhci_j721e_4bit_pdata = {
 	.ops = &sdhci_j721e_4bit_ops,
-	.quirks = SDHCI_QUIRK_INVERTED_WRITE_PROTECT |
-		  SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12,
+	.quirks = SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12,
 	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
 };
 
@@ -548,6 +562,8 @@ static int sdhci_am654_probe(struct platform_device *pdev)
 		dev_err(dev, "parsing dt failed (%d)\n", ret);
 		goto pm_runtime_put;
 	}
+
+	host->mmc_host_ops.execute_tuning = sdhci_am654_execute_tuning;
 
 	ret = sdhci_am654_init(host);
 	if (ret)
