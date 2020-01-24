@@ -5418,7 +5418,7 @@ int btrfs_drop_snapshot(struct btrfs_root *root,
 	} else {
 		free_extent_buffer(root->node);
 		free_extent_buffer(root->commit_root);
-		btrfs_put_fs_root(root);
+		btrfs_put_root(root);
 	}
 	root_dropped = true;
 out_end_trans:

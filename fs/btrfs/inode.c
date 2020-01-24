@@ -5401,7 +5401,7 @@ struct inode *btrfs_lookup_dentry(struct inode *dir, struct dentry *dentry)
 		inode = btrfs_iget(dir->i_sb, &location, sub_root);
 	}
 	if (root != sub_root)
-		btrfs_put_fs_root(sub_root);
+		btrfs_put_root(sub_root);
 	srcu_read_unlock(&fs_info->subvol_srcu, index);
 
 	if (!IS_ERR(inode) && root != sub_root) {
@@ -9729,14 +9729,14 @@ int btrfs_start_delalloc_roots(struct btrfs_fs_info *fs_info, int nr)
 	while (!list_empty(&splice) && nr) {
 		root = list_first_entry(&splice, struct btrfs_root,
 					delalloc_root);
-		root = btrfs_grab_fs_root(root);
+		root = btrfs_grab_root(root);
 		BUG_ON(!root);
 		list_move_tail(&root->delalloc_root,
 			       &fs_info->delalloc_roots);
 		spin_unlock(&fs_info->delalloc_root_lock);
 
 		ret = start_delalloc_inodes(root, nr, false);
-		btrfs_put_fs_root(root);
+		btrfs_put_root(root);
 		if (ret < 0)
 			goto out;
 

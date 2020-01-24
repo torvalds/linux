@@ -1144,7 +1144,7 @@ static char *get_subvol_name_from_objectid(struct btrfs_fs_info *fs_info,
 			ptr[0] = '/';
 			btrfs_release_path(path);
 		}
-		btrfs_put_fs_root(fs_root);
+		btrfs_put_root(fs_root);
 		fs_root = NULL;
 	}
 
@@ -1158,7 +1158,7 @@ static char *get_subvol_name_from_objectid(struct btrfs_fs_info *fs_info,
 	return name;
 
 err:
-	btrfs_put_fs_root(fs_root);
+	btrfs_put_root(fs_root);
 	btrfs_free_path(path);
 	kfree(name);
 	return ERR_PTR(ret);

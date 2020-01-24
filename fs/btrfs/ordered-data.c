@@ -580,7 +580,7 @@ void btrfs_wait_ordered_roots(struct btrfs_fs_info *fs_info, u64 nr,
 	while (!list_empty(&splice) && nr) {
 		root = list_first_entry(&splice, struct btrfs_root,
 					ordered_root);
-		root = btrfs_grab_fs_root(root);
+		root = btrfs_grab_root(root);
 		BUG_ON(!root);
 		list_move_tail(&root->ordered_root,
 			       &fs_info->ordered_roots);
@@ -588,7 +588,7 @@ void btrfs_wait_ordered_roots(struct btrfs_fs_info *fs_info, u64 nr,
 
 		done = btrfs_wait_ordered_extents(root, nr,
 						  range_start, range_len);
-		btrfs_put_fs_root(root);
+		btrfs_put_root(root);
 
 		spin_lock(&fs_info->ordered_root_lock);
 		if (nr != U64_MAX) {

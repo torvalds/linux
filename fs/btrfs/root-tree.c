@@ -287,7 +287,7 @@ int btrfs_find_orphan_roots(struct btrfs_fs_info *fs_info)
 			set_bit(BTRFS_ROOT_DEAD_TREE, &root->state);
 			btrfs_add_dead_root(root);
 		}
-		btrfs_put_fs_root(root);
+		btrfs_put_root(root);
 	}
 
 	btrfs_free_path(path);

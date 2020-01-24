@@ -88,7 +88,7 @@ static struct dentry *btrfs_get_dentry(struct super_block *sb, u64 objectid,
 	key.offset = 0;
 
 	inode = btrfs_iget(sb, &key, root);
-	btrfs_put_fs_root(root);
+	btrfs_put_root(root);
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
 		goto fail;

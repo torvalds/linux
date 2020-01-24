@@ -676,7 +676,7 @@ static noinline int create_subvol(struct inode *dir,
 	btrfs_record_root_in_trans(trans, new_root);
 
 	ret = btrfs_create_subvol_root(trans, new_root, root, new_dirid);
-	btrfs_put_fs_root(new_root);
+	btrfs_put_root(new_root);
 	if (ret) {
 		/* We potentially lose an unused inode item here */
 		btrfs_abort_transaction(trans, ret);
@@ -870,7 +870,7 @@ static int create_snapshot(struct btrfs_root *root, struct inode *dir,
 	d_instantiate(dentry, inode);
 	ret = 0;
 fail:
-	btrfs_put_fs_root(pending_snapshot->snap);
+	btrfs_put_root(pending_snapshot->snap);
 	btrfs_subvolume_release_metadata(fs_info, &pending_snapshot->block_rsv);
 dec_and_free:
 	if (snapshot_force_cow)
@@ -2176,7 +2176,7 @@ static noinline int search_ioctl(struct inode *inode,
 
 	if (sk->tree_id == 0) {
 		/* search the root of the inode that was passed */
-		root = btrfs_grab_fs_root(BTRFS_I(inode)->root);
+		root = btrfs_grab_root(BTRFS_I(inode)->root);
 	} else {
 		key.objectid = sk->tree_id;
 		key.type = BTRFS_ROOT_ITEM_KEY;
@@ -2210,7 +2210,7 @@ static noinline int search_ioctl(struct inode *inode,
 		ret = 0;
 err:
 	sk->nr_items = num_found;
-	btrfs_put_fs_root(root);
+	btrfs_put_root(root);
 	btrfs_free_path(path);
 	return ret;
 }
@@ -2371,7 +2371,7 @@ static noinline int btrfs_search_path_in_tree(struct btrfs_fs_info *info,
 	name[total_len] = '\0';
 	ret = 0;
 out:
-	btrfs_put_fs_root(root);
+	btrfs_put_root(root);
 	btrfs_free_path(path);
 	return ret;
 }
@@ -2499,7 +2499,7 @@ static int btrfs_search_path_in_tree_user(struct inode *inode,
 
 		memmove(args->path, ptr, total_len);
 		args->path[total_len] = '\0';
-		btrfs_put_fs_root(root);
+		btrfs_put_root(root);
 		root = NULL;
 		btrfs_release_path(path);
 	}
@@ -2536,7 +2536,7 @@ static int btrfs_search_path_in_tree_user(struct inode *inode,
 	args->name[item_len] = 0;
 
 out_put:
-	btrfs_put_fs_root(root);
+	btrfs_put_root(root);
 out:
 	btrfs_free_path(path);
 	return ret;
@@ -2739,7 +2739,7 @@ static int btrfs_ioctl_get_subvol_info(struct file *file, void __user *argp)
 		ret = -EFAULT;
 
 out:
-	btrfs_put_fs_root(root);
+	btrfs_put_root(root);
 out_free:
 	btrfs_free_path(path);
 	kzfree(subvol_info);
@@ -4034,7 +4034,7 @@ static long btrfs_ioctl_default_subvol(struct file *file, void __user *argp)
 	btrfs_set_fs_incompat(fs_info, DEFAULT_SUBVOL);
 	btrfs_end_transaction(trans);
 out_free:
-	btrfs_put_fs_root(new_root);
+	btrfs_put_root(new_root);
 	btrfs_free_path(path);
 out:
 	mnt_drop_write_file(file);

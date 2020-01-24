@@ -7205,7 +7205,7 @@ long btrfs_ioctl_send(struct file *mnt_file, struct btrfs_ioctl_send_args *arg)
 			if (!btrfs_root_readonly(clone_root) ||
 			    btrfs_root_dead(clone_root)) {
 				spin_unlock(&clone_root->root_item_lock);
-				btrfs_put_fs_root(clone_root);
+				btrfs_put_root(clone_root);
 				srcu_read_unlock(&fs_info->subvol_srcu, index);
 				ret = -EPERM;
 				goto out;
@@ -7213,7 +7213,7 @@ long btrfs_ioctl_send(struct file *mnt_file, struct btrfs_ioctl_send_args *arg)
 			if (clone_root->dedupe_in_progress) {
 				dedupe_in_progress_warn(clone_root);
 				spin_unlock(&clone_root->root_item_lock);
-				btrfs_put_fs_root(clone_root);
+				btrfs_put_root(clone_root);
 				srcu_read_unlock(&fs_info->subvol_srcu, index);
 				ret = -EAGAIN;
 				goto out;
@@ -7270,7 +7270,7 @@ long btrfs_ioctl_send(struct file *mnt_file, struct btrfs_ioctl_send_args *arg)
 	 * for possible clone sources.
 	 */
 	sctx->clone_roots[sctx->clone_roots_cnt++].root =
-		btrfs_grab_fs_root(sctx->send_root);
+		btrfs_grab_root(sctx->send_root);
 
 	/* We do a bsearch later */
 	sort(sctx->clone_roots, sctx->clone_roots_cnt,
@@ -7358,20 +7358,20 @@ out:
 		for (i = 0; i < sctx->clone_roots_cnt; i++) {
 			btrfs_root_dec_send_in_progress(
 					sctx->clone_roots[i].root);
-			btrfs_put_fs_root(sctx->clone_roots[i].root);
+			btrfs_put_root(sctx->clone_roots[i].root);
 		}
 	} else {
 		for (i = 0; sctx && i < clone_sources_to_rollback; i++) {
 			btrfs_root_dec_send_in_progress(
 					sctx->clone_roots[i].root);
-			btrfs_put_fs_root(sctx->clone_roots[i].root);
+			btrfs_put_root(sctx->clone_roots[i].root);
 		}
 
 		btrfs_root_dec_send_in_progress(send_root);
 	}
 	if (sctx && !IS_ERR_OR_NULL(sctx->parent_root)) {
 		btrfs_root_dec_send_in_progress(sctx->parent_root);
-		btrfs_put_fs_root(sctx->parent_root);
+		btrfs_put_root(sctx->parent_root);
 	}
 
 	kvfree(clone_sources_tmp);

@@ -1040,7 +1040,7 @@ out_free_root:
 	if (ret) {
 		free_extent_buffer(quota_root->node);
 		free_extent_buffer(quota_root->commit_root);
-		btrfs_put_fs_root(quota_root);
+		btrfs_put_root(quota_root);
 	}
 out:
 	if (ret) {
@@ -1106,7 +1106,7 @@ int btrfs_quota_disable(struct btrfs_fs_info *fs_info)
 
 	free_extent_buffer(quota_root->node);
 	free_extent_buffer(quota_root->commit_root);
-	btrfs_put_fs_root(quota_root);
+	btrfs_put_root(quota_root);
 
 end_trans:
 	ret = btrfs_end_transaction(trans);
