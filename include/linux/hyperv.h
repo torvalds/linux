@@ -182,19 +182,21 @@ static inline u32 hv_get_avail_to_write_percent(
  * 2 . 4  (Windows 8)
  * 3 . 0  (Windows 8 R2)
  * 4 . 0  (Windows 10)
+ * 4 . 1  (Windows 10 RS3)
  * 5 . 0  (Newer Windows 10)
+ * 5 . 1  (Windows 10 RS4)
+ * 5 . 2  (Windows Server 2019, RS5)
  */
 
 #define VERSION_WS2008  ((0 << 16) | (13))
 #define VERSION_WIN7    ((1 << 16) | (1))
 #define VERSION_WIN8    ((2 << 16) | (4))
 #define VERSION_WIN8_1    ((3 << 16) | (0))
-#define VERSION_WIN10	((4 << 16) | (0))
+#define VERSION_WIN10 ((4 << 16) | (0))
+#define VERSION_WIN10_V4_1 ((4 << 16) | (1))
 #define VERSION_WIN10_V5 ((5 << 16) | (0))
-
-#define VERSION_INVAL -1
-
-#define VERSION_CURRENT VERSION_WIN10_V5
+#define VERSION_WIN10_V5_1 ((5 << 16) | (1))
+#define VERSION_WIN10_V5_2 ((5 << 16) | (2))
 
 /* Make maximum size of pipe payload of 16K */
 #define MAX_PIPE_DATA_PAYLOAD		(sizeof(u8) * 16384)
@@ -245,7 +247,10 @@ struct vmbus_channel_offer {
 		} pipe;
 	} u;
 	/*
-	 * The sub_channel_index is defined in win8.
+	 * The sub_channel_index is defined in Win8: a value of zero means a
+	 * primary channel and a value of non-zero means a sub-channel.
+	 *
+	 * Before Win8, the field is reserved, meaning it's always zero.
 	 */
 	u16 sub_channel_index;
 	u16 reserved3;
@@ -422,6 +427,9 @@ enum vmbus_channel_message_type {
 	CHANNELMSG_TL_CONNECT_REQUEST		= 21,
 	CHANNELMSG_COUNT
 };
+
+/* Hyper-V supports about 2048 channels, and the RELIDs start with 1. */
+#define INVALID_RELID	U32_MAX
 
 struct vmbus_channel_message_header {
 	enum vmbus_channel_message_type msgtype;
@@ -926,12 +934,32 @@ struct vmbus_channel {
 	 * full outbound ring buffer.
 	 */
 	u64 out_full_first;
+
+	/* enabling/disabling fuzz testing on the channel (default is false)*/
+	bool fuzz_testing_state;
+
+	/*
+	 * Interrupt delay will delay the guest from emptying the ring buffer
+	 * for a specific amount of time. The delay is in microseconds and will
+	 * be between 1 to a maximum of 1000, its default is 0 (no delay).
+	 * The  Message delay will delay guest reading on a per message basis
+	 * in microseconds between 1 to 1000 with the default being 0
+	 * (no delay).
+	 */
+	u32 fuzz_testing_interrupt_delay;
+	u32 fuzz_testing_message_delay;
+
 };
 
 static inline bool is_hvsock_channel(const struct vmbus_channel *c)
 {
 	return !!(c->offermsg.offer.chn_flags &
 		  VMBUS_CHANNEL_TLNPI_PROVIDER_OFFER);
+}
+
+static inline bool is_sub_channel(const struct vmbus_channel *c)
+{
+	return c->offermsg.offer.sub_channel_index != 0;
 }
 
 static inline void set_channel_affinity_state(struct vmbus_channel *c,
@@ -1149,6 +1177,9 @@ struct hv_driver {
 	int (*remove)(struct hv_device *);
 	void (*shutdown)(struct hv_device *);
 
+	int (*suspend)(struct hv_device *);
+	int (*resume)(struct hv_device *);
+
 };
 
 /* Base device object */
@@ -1166,6 +1197,10 @@ struct hv_device {
 
 	struct vmbus_channel *channel;
 	struct kset	     *channels_kset;
+
+	/* place holder to keep track of the dir for hv device in debugfs */
+	struct dentry *debug_dir;
+
 };
 
 
@@ -1577,5 +1612,34 @@ hv_pkt_iter_next(struct vmbus_channel *channel,
 #define foreach_vmbus_pkt(pkt, channel) \
 	for (pkt = hv_pkt_iter_first(channel); pkt; \
 	    pkt = hv_pkt_iter_next(channel, pkt))
+
+/*
+ * Interface for passing data between SR-IOV PF and VF drivers. The VF driver
+ * sends requests to read and write blocks. Each block must be 128 bytes or
+ * smaller. Optionally, the VF driver can register a callback function which
+ * will be invoked when the host says that one or more of the first 64 block
+ * IDs is "invalid" which means that the VF driver should reread them.
+ */
+#define HV_CONFIG_BLOCK_SIZE_MAX 128
+
+int hyperv_read_cfg_blk(struct pci_dev *dev, void *buf, unsigned int buf_len,
+			unsigned int block_id, unsigned int *bytes_returned);
+int hyperv_write_cfg_blk(struct pci_dev *dev, void *buf, unsigned int len,
+			 unsigned int block_id);
+int hyperv_reg_block_invalidate(struct pci_dev *dev, void *context,
+				void (*block_invalidate)(void *context,
+							 u64 block_mask));
+
+struct hyperv_pci_block_ops {
+	int (*read_block)(struct pci_dev *dev, void *buf, unsigned int buf_len,
+			  unsigned int block_id, unsigned int *bytes_returned);
+	int (*write_block)(struct pci_dev *dev, void *buf, unsigned int len,
+			   unsigned int block_id);
+	int (*reg_blk_invalidate)(struct pci_dev *dev, void *context,
+				  void (*block_invalidate)(void *context,
+							   u64 block_mask));
+};
+
+extern struct hyperv_pci_block_ops hvpci_block_ops;
 
 #endif /* _HYPERV_H */

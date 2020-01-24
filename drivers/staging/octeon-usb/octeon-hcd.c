@@ -521,8 +521,7 @@ static void octeon_unmap_urb_for_dma(struct usb_hcd *hcd, struct urb *urb)
  */
 static inline u32 cvmx_usb_read_csr32(struct octeon_hcd *usb, u64 address)
 {
-	u32 result = cvmx_read64_uint32(address ^ 4);
-	return result;
+	return cvmx_read64_uint32(address ^ 4);
 }
 
 /**
@@ -1837,8 +1836,7 @@ static void cvmx_usb_start_channel(struct octeon_hcd *usb, int channel,
  *
  * Returns: Pipe or NULL if none are ready
  */
-static struct cvmx_usb_pipe *cvmx_usb_find_ready_pipe(
-		struct octeon_hcd *usb,
+static struct cvmx_usb_pipe *cvmx_usb_find_ready_pipe(struct octeon_hcd *usb,
 		enum cvmx_usb_transfer xfer_type)
 {
 	struct list_head *list = usb->active_pipes + xfer_type;
@@ -3513,7 +3511,7 @@ static const struct hc_driver octeon_hc_driver = {
 	.product_desc		= "Octeon Host Controller",
 	.hcd_priv_size		= sizeof(struct octeon_hcd),
 	.irq			= octeon_usb_irq,
-	.flags			= HCD_MEMORY | HCD_USB2,
+	.flags			= HCD_MEMORY | HCD_DMA | HCD_USB2,
 	.start			= octeon_usb_start,
 	.stop			= octeon_usb_stop,
 	.urb_enqueue		= octeon_usb_urb_enqueue,

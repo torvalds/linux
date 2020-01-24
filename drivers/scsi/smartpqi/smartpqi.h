@@ -276,7 +276,9 @@ struct pqi_raid_path_request {
 	u8	reserved4 : 2;
 	u8	additional_cdb_bytes_usage : 3;
 	u8	reserved5 : 3;
-	u8	cdb[32];
+	u8	cdb[16];
+	u8	reserved6[12];
+	__le32	timeout;
 	struct pqi_sg_descriptor
 		sg_descriptors[PQI_MAX_EMBEDDED_SG_DESCRIPTORS];
 };
@@ -385,7 +387,8 @@ struct pqi_task_management_request {
 	struct pqi_iu_header header;
 	__le16	request_id;
 	__le16	nexus_id;
-	u8	reserved[4];
+	u8	reserved[2];
+	__le16  timeout;
 	u8	lun_number[8];
 	__le16	protocol_specific;
 	__le16	outbound_queue_id_to_manage;
@@ -445,7 +448,7 @@ struct pqi_vendor_general_response {
 
 struct pqi_ofa_memory {
 	__le64	signature;	/* "OFA_QRM" */
-	__le16	version;	/* version of this struct(1 = 1st version) */
+	__le16	version;	/* version of this struct (1 = 1st version) */
 	u8	reserved[62];
 	__le32	bytes_allocated;	/* total allocated memory in bytes */
 	__le16	num_memory_descriptors;
@@ -761,6 +764,8 @@ struct pqi_config_table_firmware_features {
 #define PQI_FIRMWARE_FEATURE_OFA			0
 #define PQI_FIRMWARE_FEATURE_SMP			1
 #define PQI_FIRMWARE_FEATURE_SOFT_RESET_HANDSHAKE	11
+#define PQI_FIRMWARE_FEATURE_RAID_IU_TIMEOUT		13
+#define PQI_FIRMWARE_FEATURE_TMF_IU_TIMEOUT		14
 
 struct pqi_config_table_debug {
 	struct pqi_config_table_section_header header;
@@ -822,12 +827,20 @@ union pqi_reset_register {
 #define PQI_HBA_BUS			2
 #define PQI_EXTERNAL_RAID_VOLUME_BUS	3
 #define PQI_MAX_BUS			PQI_EXTERNAL_RAID_VOLUME_BUS
+#define PQI_VSEP_CISS_BTL		379
 
 struct report_lun_header {
 	__be32	list_length;
-	u8	extended_response;
+	u8	flags;
 	u8	reserved[3];
 };
+
+/* for flags field of struct report_lun_header */
+#define CISS_REPORT_LOG_FLAG_UNIQUE_LUN_ID	(1 << 0)
+#define CISS_REPORT_LOG_FLAG_QUEUE_DEPTH	(1 << 5)
+#define CISS_REPORT_LOG_FLAG_DRIVE_TYPE_MIX	(1 << 6)
+
+#define CISS_REPORT_PHYS_FLAG_OTHER		(1 << 1)
 
 struct report_log_lun_extended_entry {
 	u8	lunid[8];
@@ -850,7 +863,7 @@ struct report_phys_lun_extended_entry {
 };
 
 /* for device_flags field of struct report_phys_lun_extended_entry */
-#define REPORT_PHYS_LUN_DEV_FLAG_AIO_ENABLED	0x8
+#define CISS_REPORT_PHYS_DEV_FLAG_AIO_ENABLED	0x8
 
 struct report_phys_lun_extended {
 	struct report_lun_header header;
@@ -863,7 +876,7 @@ struct raid_map_disk_data {
 	u8	reserved[2];
 };
 
-/* constants for flags field of RAID map */
+/* for flags field of RAID map */
 #define RAID_MAP_ENCRYPTION_ENABLED	0x1
 
 struct raid_map {
@@ -906,7 +919,6 @@ struct pqi_scsi_dev {
 	u8	scsi3addr[8];
 	__be64	wwid;
 	u8	volume_id[16];
-	u8	unique_id[16];
 	u8	is_physical_device : 1;
 	u8	is_external_raid_device : 1;
 	u8	is_expander_smp_device : 1;
@@ -930,6 +942,9 @@ struct pqi_scsi_dev {
 	u8	active_path_index;
 	u8	path_map;
 	u8	bay;
+	u8	box_index;
+	u8	phys_box_on_bus;
+	u8	phy_connected_dev_type;
 	u8	box[8];
 	u16	phys_connector[8];
 	bool	raid_bypass_configured;	/* RAID bypass configured */
@@ -950,13 +965,9 @@ struct pqi_scsi_dev {
 };
 
 /* VPD inquiry pages */
-#define SCSI_VPD_SUPPORTED_PAGES	0x0	/* standard page */
-#define SCSI_VPD_DEVICE_ID		0x83	/* standard page */
 #define CISS_VPD_LV_DEVICE_GEOMETRY	0xc1	/* vendor-specific page */
 #define CISS_VPD_LV_BYPASS_STATUS	0xc2	/* vendor-specific page */
 #define CISS_VPD_LV_STATUS		0xc3	/* vendor-specific page */
-#define SCSI_VPD_HEADER_SZ		4
-#define SCSI_VPD_DEVICE_ID_IDX		8	/* Index of page id in page */
 
 #define VPD_PAGE	(1 << 8)
 
@@ -1073,6 +1084,9 @@ struct pqi_ctrl_info {
 	unsigned int	ctrl_id;
 	struct pci_dev	*pci_dev;
 	char		firmware_version[11];
+	char		serial_number[17];
+	char		model[17];
+	char		vendor[9];
 	void __iomem	*iomem_base;
 	struct pqi_ctrl_registers __iomem *registers;
 	struct pqi_device_registers __iomem *pqi_registers;
@@ -1123,13 +1137,16 @@ struct pqi_ctrl_info {
 	struct mutex	ofa_mutex; /* serialize ofa */
 	bool		controller_online;
 	bool		block_requests;
-	bool		in_shutdown;
+	bool		block_device_reset;
 	bool		in_ofa;
+	bool		in_shutdown;
 	u8		inbound_spanning_supported : 1;
 	u8		outbound_spanning_supported : 1;
 	u8		pqi_mode_enabled : 1;
 	u8		pqi_reset_quiesce_supported : 1;
 	u8		soft_reset_handshake_supported : 1;
+	u8		raid_iu_timeout_supported: 1;
+	u8		tmf_iu_timeout_supported: 1;
 
 	struct list_head scsi_device_list;
 	spinlock_t	scsi_device_list_lock;
@@ -1163,9 +1180,10 @@ struct pqi_ctrl_info {
 	spinlock_t	raid_bypass_retry_list_lock;
 	struct work_struct raid_bypass_retry_work;
 
-	struct          pqi_ofa_memory *pqi_ofa_mem_virt_addr;
-	dma_addr_t      pqi_ofa_mem_dma_handle;
-	void            **pqi_ofa_chunk_virt_addr;
+	struct pqi_ofa_memory *pqi_ofa_mem_virt_addr;
+	dma_addr_t	pqi_ofa_mem_dma_handle;
+	void		**pqi_ofa_chunk_virt_addr;
+	atomic_t	sync_cmds_outstanding;
 };
 
 enum pqi_ctrl_mode {
@@ -1184,10 +1202,6 @@ enum pqi_ctrl_mode {
 #define CISS_REPORT_PHYS	0xc3	/* Report Physical LUNs */
 #define CISS_GET_RAID_MAP	0xc8
 
-/* constants for CISS_REPORT_LOG/CISS_REPORT_PHYS commands */
-#define CISS_REPORT_LOG_EXTENDED		0x1
-#define CISS_REPORT_PHYS_EXTENDED		0x2
-
 /* BMIC commands */
 #define BMIC_IDENTIFY_CONTROLLER		0x11
 #define BMIC_IDENTIFY_PHYSICAL_DEVICE		0x15
@@ -1201,7 +1215,7 @@ enum pqi_ctrl_mode {
 #define BMIC_SET_DIAG_OPTIONS			0xf4
 #define BMIC_SENSE_DIAG_OPTIONS			0xf5
 
-#define CSMI_CC_SAS_SMP_PASSTHRU		0X17
+#define CSMI_CC_SAS_SMP_PASSTHRU		0x17
 
 #define SA_FLUSH_CACHE				0x1
 
@@ -1224,14 +1238,25 @@ struct bmic_identify_controller {
 	__le16	extended_logical_unit_count;
 	u8	reserved1[34];
 	__le16	firmware_build_number;
-	u8	reserved2[100];
+	u8	reserved2[8];
+	u8	vendor_id[8];
+	u8	product_id[16];
+	u8	reserved3[68];
 	u8	controller_mode;
-	u8	reserved3[32];
+	u8	reserved4[32];
 };
 
-#define SA_EXPANDER_SMP_DEVICE		0x05
-/*SCSI Invalid Device Type for SAS devices*/
-#define PQI_SAS_SCSI_INVALID_DEVTYPE	0xff
+struct bmic_sense_subsystem_info {
+	u8	reserved[44];
+	u8	ctrl_serial_number[16];
+};
+
+/* constants for device_type field */
+#define SA_DEVICE_TYPE_SATA		0x1
+#define SA_DEVICE_TYPE_SAS		0x2
+#define SA_DEVICE_TYPE_EXPANDER_SMP	0x5
+#define SA_DEVICE_TYPE_CONTROLLER	0x7
+#define SA_DEVICE_TYPE_NVME		0x9
 
 struct bmic_identify_physical_device {
 	u8	scsi_bus;		/* SCSI Bus number on controller */
@@ -1257,7 +1282,7 @@ struct bmic_identify_physical_device {
 	__le32	rpm;			/* drive rotational speed in RPM */
 	u8	device_type;		/* type of drive */
 	u8	sata_version;		/* only valid when device_type = */
-					/* BMIC_DEVICE_TYPE_SATA */
+					/* SA_DEVICE_TYPE_SATA */
 	__le64	big_total_block_count;
 	__le64	ris_starting_lba;
 	__le32	ris_size;
@@ -1380,18 +1405,6 @@ struct bmic_diag_options {
 
 #pragma pack()
 
-static inline struct pqi_ctrl_info *shost_to_hba(struct Scsi_Host *shost)
-{
-	void *hostdata = shost_priv(shost);
-
-	return *((struct pqi_ctrl_info **)hostdata);
-}
-
-static inline bool pqi_ctrl_offline(struct pqi_ctrl_info *ctrl_info)
-{
-	return !ctrl_info->controller_online;
-}
-
 static inline void pqi_ctrl_busy(struct pqi_ctrl_info *ctrl_info)
 {
 	atomic_inc(&ctrl_info->num_busy_threads);
@@ -1402,9 +1415,11 @@ static inline void pqi_ctrl_unbusy(struct pqi_ctrl_info *ctrl_info)
 	atomic_dec(&ctrl_info->num_busy_threads);
 }
 
-static inline bool pqi_ctrl_blocked(struct pqi_ctrl_info *ctrl_info)
+static inline struct pqi_ctrl_info *shost_to_hba(struct Scsi_Host *shost)
 {
-	return ctrl_info->block_requests;
+	void *hostdata = shost_priv(shost);
+
+	return *((struct pqi_ctrl_info **)hostdata);
 }
 
 void pqi_sas_smp_handler(struct bsg_job *job, struct Scsi_Host *shost,

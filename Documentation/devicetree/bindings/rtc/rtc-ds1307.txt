@@ -19,6 +19,7 @@ Required properties:
 	"pericom,pt7c4338",
 	"epson,rx8025",
 	"isil,isl12057"
+	"epson,rx8130"
 - reg: I2C bus address of the device
 
 Optional properties:

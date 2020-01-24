@@ -15,8 +15,29 @@
 #include <setjmp.h>
 #include <errno.h>
 
+#ifdef __x86_64__
+# define WIDTH "q"
+#else
+# define WIDTH "l"
+#endif
+
 /* Our sigaltstack scratch space. */
 static unsigned char altstack_data[SIGSTKSZ];
+
+static unsigned long get_eflags(void)
+{
+	unsigned long eflags;
+	asm volatile ("pushf" WIDTH "\n\tpop" WIDTH " %0" : "=rm" (eflags));
+	return eflags;
+}
+
+static void set_eflags(unsigned long eflags)
+{
+	asm volatile ("push" WIDTH " %0\n\tpopf" WIDTH
+		      : : "rm" (eflags) : "flags");
+}
+
+#define X86_EFLAGS_TF (1UL << 8)
 
 static void sethandler(int sig, void (*handler)(int, siginfo_t *, void *),
 		       int flags)
@@ -35,13 +56,22 @@ static sigjmp_buf jmpbuf;
 
 static volatile sig_atomic_t n_errs;
 
+#ifdef __x86_64__
+#define REG_AX REG_RAX
+#define REG_IP REG_RIP
+#else
+#define REG_AX REG_EAX
+#define REG_IP REG_EIP
+#endif
+
 static void sigsegv_or_sigbus(int sig, siginfo_t *info, void *ctx_void)
 {
 	ucontext_t *ctx = (ucontext_t*)ctx_void;
+	long ax = (long)ctx->uc_mcontext.gregs[REG_AX];
 
-	if (ctx->uc_mcontext.gregs[REG_EAX] != -EFAULT) {
-		printf("[FAIL]\tAX had the wrong value: 0x%x\n",
-		       ctx->uc_mcontext.gregs[REG_EAX]);
+	if (ax != -EFAULT && ax != -ENOSYS) {
+		printf("[FAIL]\tAX had the wrong value: 0x%lx\n",
+		       (unsigned long)ax);
 		n_errs++;
 	} else {
 		printf("[OK]\tSeems okay\n");
@@ -50,9 +80,42 @@ static void sigsegv_or_sigbus(int sig, siginfo_t *info, void *ctx_void)
 	siglongjmp(jmpbuf, 1);
 }
 
+static volatile sig_atomic_t sigtrap_consecutive_syscalls;
+
+static void sigtrap(int sig, siginfo_t *info, void *ctx_void)
+{
+	/*
+	 * KVM has some bugs that can cause us to stop making progress.
+	 * detect them and complain, but don't infinite loop or fail the
+	 * test.
+	 */
+
+	ucontext_t *ctx = (ucontext_t*)ctx_void;
+	unsigned short *ip = (unsigned short *)ctx->uc_mcontext.gregs[REG_IP];
+
+	if (*ip == 0x340f || *ip == 0x050f) {
+		/* The trap was on SYSCALL or SYSENTER */
+		sigtrap_consecutive_syscalls++;
+		if (sigtrap_consecutive_syscalls > 3) {
+			printf("[WARN]\tGot stuck single-stepping -- you probably have a KVM bug\n");
+			siglongjmp(jmpbuf, 1);
+		}
+	} else {
+		sigtrap_consecutive_syscalls = 0;
+	}
+}
+
 static void sigill(int sig, siginfo_t *info, void *ctx_void)
 {
-	printf("[SKIP]\tIllegal instruction\n");
+	ucontext_t *ctx = (ucontext_t*)ctx_void;
+	unsigned short *ip = (unsigned short *)ctx->uc_mcontext.gregs[REG_IP];
+
+	if (*ip == 0x0b0f) {
+		/* one of the ud2 instructions faulted */
+		printf("[OK]\tSYSCALL returned normally\n");
+	} else {
+		printf("[SKIP]\tIllegal instruction\n");
+	}
 	siglongjmp(jmpbuf, 1);
 }
 
@@ -120,9 +183,48 @@ int main()
 			"movl $-1, %%ebp\n\t"
 			"movl $-1, %%esp\n\t"
 			"syscall\n\t"
-			"pushl $0"	/* make sure we segfault cleanly */
+			"ud2"		/* make sure we recover cleanly */
 			: : : "memory", "flags");
 	}
+
+	printf("[RUN]\tSYSENTER with TF and invalid state\n");
+	sethandler(SIGTRAP, sigtrap, SA_ONSTACK);
+
+	if (sigsetjmp(jmpbuf, 1) == 0) {
+		sigtrap_consecutive_syscalls = 0;
+		set_eflags(get_eflags() | X86_EFLAGS_TF);
+		asm volatile (
+			"movl $-1, %%eax\n\t"
+			"movl $-1, %%ebx\n\t"
+			"movl $-1, %%ecx\n\t"
+			"movl $-1, %%edx\n\t"
+			"movl $-1, %%esi\n\t"
+			"movl $-1, %%edi\n\t"
+			"movl $-1, %%ebp\n\t"
+			"movl $-1, %%esp\n\t"
+			"sysenter"
+			: : : "memory", "flags");
+	}
+	set_eflags(get_eflags() & ~X86_EFLAGS_TF);
+
+	printf("[RUN]\tSYSCALL with TF and invalid state\n");
+	if (sigsetjmp(jmpbuf, 1) == 0) {
+		sigtrap_consecutive_syscalls = 0;
+		set_eflags(get_eflags() | X86_EFLAGS_TF);
+		asm volatile (
+			"movl $-1, %%eax\n\t"
+			"movl $-1, %%ebx\n\t"
+			"movl $-1, %%ecx\n\t"
+			"movl $-1, %%edx\n\t"
+			"movl $-1, %%esi\n\t"
+			"movl $-1, %%edi\n\t"
+			"movl $-1, %%ebp\n\t"
+			"movl $-1, %%esp\n\t"
+			"syscall\n\t"
+			"ud2"		/* make sure we recover cleanly */
+			: : : "memory", "flags");
+	}
+	set_eflags(get_eflags() & ~X86_EFLAGS_TF);
 
 	return 0;
 }

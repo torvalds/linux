@@ -98,6 +98,8 @@ static int ufs_bsg_request(struct bsg_job *job)
 
 	bsg_reply->reply_payload_rcv_len = 0;
 
+	pm_runtime_get_sync(hba->dev);
+
 	msgcode = bsg_request->msgcode;
 	switch (msgcode) {
 	case UPIU_TRANSACTION_QUERY_REQ:
@@ -122,7 +124,7 @@ static int ufs_bsg_request(struct bsg_job *job)
 		memcpy(&uc, &bsg_request->upiu_req.uc, UIC_CMD_SIZE);
 		ret = ufshcd_send_uic_cmd(hba, &uc);
 		if (ret)
-			dev_dbg(hba->dev,
+			dev_err(hba->dev,
 				"send uic cmd: error code %d\n", ret);
 
 		memcpy(&bsg_reply->upiu_rsp.uc, &uc, UIC_CMD_SIZE);
@@ -134,6 +136,8 @@ static int ufs_bsg_request(struct bsg_job *job)
 
 		break;
 	}
+
+	pm_runtime_put_sync(hba->dev);
 
 	if (!desc_buff)
 		goto out;
@@ -149,13 +153,16 @@ static int ufs_bsg_request(struct bsg_job *job)
 out:
 	bsg_reply->result = ret;
 	job->reply_len = sizeof(struct ufs_bsg_reply);
-	bsg_job_done(job, ret, bsg_reply->reply_payload_rcv_len);
+	/* complete the job here only if no error */
+	if (ret == 0)
+		bsg_job_done(job, ret, bsg_reply->reply_payload_rcv_len);
 
 	return ret;
 }
 
 /**
  * ufs_bsg_remove - detach and remove the added ufs-bsg node
+ * @hba: per adapter object
  *
  * Should be called when unloading the driver.
  */
@@ -196,7 +203,7 @@ int ufs_bsg_probe(struct ufs_hba *hba)
 	bsg_dev->parent = get_device(parent);
 	bsg_dev->release = ufs_bsg_node_release;
 
-	dev_set_name(bsg_dev, "ufs-bsg");
+	dev_set_name(bsg_dev, "ufs-bsg%u", shost->host_no);
 
 	ret = device_add(bsg_dev);
 	if (ret)

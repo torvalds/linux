@@ -314,10 +314,10 @@
 		display_clocks: clock@1000000 {
 			compatible = "allwinner,sun8i-a83t-de2-clk";
 			reg = <0x01000000 0x100000>;
-			clocks = <&ccu CLK_PLL_DE>,
-				 <&ccu CLK_BUS_DE>;
-			clock-names = "mod",
-				      "bus";
+			clocks = <&ccu CLK_BUS_DE>,
+				 <&ccu CLK_PLL_DE>;
+			clock-names = "bus",
+				      "mod";
 			resets = <&ccu RST_BUS_DE>;
 			#clock-cells = <1>;
 			#reset-cells = <1>;
@@ -583,6 +583,15 @@
 			reg = <0x1c14000 0x400>;
 		};
 
+		crypto: crypto@1c15000 {
+			compatible = "allwinner,sun8i-a83t-crypto";
+			reg = <0x01c15000 0x1000>;
+			interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&ccu RST_BUS_SS>;
+			clocks = <&ccu CLK_BUS_SS>, <&ccu CLK_SS>;
+			clock-names = "bus", "mod";
+		};
+
 		usb_otg: usb@1c19000 {
 			compatible = "allwinner,sun8i-a83t-musb",
 				     "allwinner,sun8i-a33-musb";
@@ -632,6 +641,7 @@
 			clocks = <&ccu CLK_BUS_EHCI0>;
 			resets = <&ccu RST_BUS_EHCI0>;
 			phys = <&usbphy 1>;
+			phy-names = "usb";
 			status = "disabled";
 		};
 
@@ -643,6 +653,7 @@
 			clocks = <&ccu CLK_BUS_OHCI0>, <&ccu CLK_USB_OHCI0>;
 			resets = <&ccu RST_BUS_OHCI0>;
 			phys = <&usbphy 1>;
+			phy-names = "usb";
 			status = "disabled";
 		};
 
@@ -654,6 +665,7 @@
 			clocks = <&ccu CLK_BUS_EHCI1>;
 			resets = <&ccu RST_BUS_EHCI1>;
 			phys = <&usbphy 2>;
+			phy-names = "usb";
 			status = "disabled";
 		};
 
@@ -678,6 +690,20 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			#gpio-cells = <3>;
+
+			/omit-if-no-ref/
+			csi_8bit_parallel_pins: csi-8bit-parallel-pins {
+				pins = "PE0", "PE2", "PE3", "PE6", "PE7",
+				       "PE8", "PE9", "PE10", "PE11",
+				       "PE12", "PE13";
+				function = "csi";
+			};
+
+			/omit-if-no-ref/
+			csi_mclk_pin: csi-mclk-pin {
+				pins = "PE1";
+				function = "csi";
+			};
 
 			emac_rgmii_pins: emac-rgmii-pins {
 				pins = "PD2", "PD3", "PD4", "PD5", "PD6", "PD7",
@@ -792,7 +818,7 @@
 		};
 
 		timer@1c20c00 {
-			compatible = "allwinner,sun4i-a10-timer";
+			compatible = "allwinner,sun8i-a23-timer";
 			reg = <0x01c20c00 0xa0>;
 			interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
@@ -997,6 +1023,21 @@
 			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_HIGH)>;
 		};
 
+		csi: camera@1cb0000 {
+			compatible = "allwinner,sun8i-a83t-csi";
+			reg = <0x01cb0000 0x1000>;
+			interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ccu CLK_BUS_CSI>,
+				 <&ccu CLK_CSI_SCLK>,
+				 <&ccu CLK_DRAM_CSI>;
+			clock-names = "bus", "mod", "ram";
+			resets = <&ccu RST_BUS_CSI>;
+			status = "disabled";
+
+			csi_in: port {
+			};
+		};
+
 		hdmi: hdmi@1ee0000 {
 			compatible = "allwinner,sun8i-a83t-dw-hdmi";
 			reg = <0x01ee0000 0x10000>;
@@ -1008,7 +1049,7 @@
 			resets = <&ccu RST_BUS_HDMI1>;
 			reset-names = "ctrl";
 			phys = <&hdmi_phy>;
-			phy-names = "hdmi-phy";
+			phy-names = "phy";
 			pinctrl-names = "default";
 			pinctrl-0 = <&hdmi_pins>;
 			status = "disabled";
@@ -1067,7 +1108,7 @@
 
 		r_cir: ir@1f02000 {
 			compatible = "allwinner,sun8i-a83t-ir",
-				"allwinner,sun5i-a13-ir";
+				"allwinner,sun6i-a31-ir";
 			clocks = <&r_ccu CLK_APB0_IR>, <&r_ccu CLK_IR>;
 			clock-names = "apb", "ir";
 			resets = <&r_ccu RST_APB0_IR>;

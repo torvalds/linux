@@ -15,12 +15,12 @@
 #include <linux/of.h>
 #include <linux/regulator/consumer.h>
 
-#include <drm/drm_modes.h>
-#include <drm/drm_panel.h>
-#include <drm/drmP.h>
-
 #include <video/videomode.h>
 #include <video/display_timing.h>
+
+#include <drm/drm_device.h>
+#include <drm/drm_modes.h>
+#include <drm/drm_panel.h>
 
 #define LCD_OLINUXINO_HEADER_MAGIC	0x4F4CB727
 #define LCD_OLINUXINO_DATA_LEN		256
@@ -288,9 +288,8 @@ static int lcd_olinuxino_probe(struct i2c_client *client,
 	if (IS_ERR(lcd->backlight))
 		return PTR_ERR(lcd->backlight);
 
-	drm_panel_init(&lcd->panel);
-	lcd->panel.dev = dev;
-	lcd->panel.funcs = &lcd_olinuxino_funcs;
+	drm_panel_init(&lcd->panel, dev, &lcd_olinuxino_funcs,
+		       DRM_MODE_CONNECTOR_DPI);
 
 	return drm_panel_add(&lcd->panel);
 }

@@ -902,7 +902,6 @@ static int oxnas_ox810se_pinconf_set(struct pinctrl_dev *pctldev,
 	struct oxnas_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
 	struct oxnas_gpio_bank *bank = pctl_to_bank(pctl, pin);
 	unsigned int param;
-	u32 arg;
 	unsigned int i;
 	u32 offset = pin - bank->gpio_chip.base;
 	u32 mask = BIT(offset);
@@ -912,7 +911,6 @@ static int oxnas_ox810se_pinconf_set(struct pinctrl_dev *pctldev,
 
 	for (i = 0; i < num_configs; i++) {
 		param = pinconf_to_config_param(configs[i]);
-		arg = pinconf_to_config_argument(configs[i]);
 
 		switch (param) {
 		case PIN_CONFIG_BIAS_PULL_UP:
@@ -941,7 +939,6 @@ static int oxnas_ox820_pinconf_set(struct pinctrl_dev *pctldev,
 	struct oxnas_gpio_bank *bank = pctl_to_bank(pctl, pin);
 	unsigned int bank_offset = (bank->id ? PINMUX_820_BANK_OFFSET : 0);
 	unsigned int param;
-	u32 arg;
 	unsigned int i;
 	u32 offset = pin - bank->gpio_chip.base;
 	u32 mask = BIT(offset);
@@ -951,7 +948,6 @@ static int oxnas_ox820_pinconf_set(struct pinctrl_dev *pctldev,
 
 	for (i = 0; i < num_configs; i++) {
 		param = pinconf_to_config_param(configs[i]);
-		arg = pinconf_to_config_argument(configs[i]);
 
 		switch (param) {
 		case PIN_CONFIG_BIAS_PULL_UP:
@@ -1200,7 +1196,7 @@ static int oxnas_gpio_probe(struct platform_device *pdev)
 	struct oxnas_gpio_bank *bank;
 	unsigned int id, ngpios;
 	int irq, ret;
-	struct resource *res;
+	struct gpio_irq_chip *girq;
 
 	if (of_parse_phandle_with_fixed_args(np, "gpio-ranges",
 					     3, 0, &pinspec)) {
@@ -1223,39 +1219,36 @@ static int oxnas_gpio_probe(struct platform_device *pdev)
 
 	bank = &oxnas_gpio_banks[id];
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	bank->reg_base = devm_ioremap_resource(&pdev->dev, res);
+	bank->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(bank->reg_base))
 		return PTR_ERR(bank->reg_base);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "irq get failed\n");
+	if (irq < 0)
 		return irq;
-	}
 
 	bank->id = id;
 	bank->gpio_chip.parent = &pdev->dev;
 	bank->gpio_chip.of_node = np;
 	bank->gpio_chip.ngpio = ngpios;
+	girq = &bank->gpio_chip.irq;
+	girq->chip = &bank->irq_chip;
+	girq->parent_handler = oxnas_gpio_irq_handler;
+	girq->num_parents = 1;
+	girq->parents = devm_kcalloc(&pdev->dev, 1, sizeof(*girq->parents),
+				     GFP_KERNEL);
+	if (!girq->parents)
+		return -ENOMEM;
+	girq->parents[0] = irq;
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_level_irq;
+
 	ret = gpiochip_add_data(&bank->gpio_chip, bank);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to add GPIO chip %u: %d\n",
 			id, ret);
 		return ret;
 	}
-
-	ret = gpiochip_irqchip_add(&bank->gpio_chip, &bank->irq_chip,
-				0, handle_level_irq, IRQ_TYPE_NONE);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to add IRQ chip %u: %d\n",
-			id, ret);
-		gpiochip_remove(&bank->gpio_chip);
-		return ret;
-	}
-
-	gpiochip_set_chained_irqchip(&bank->gpio_chip, &bank->irq_chip,
-				     irq, oxnas_gpio_irq_handler);
 
 	return 0;
 }

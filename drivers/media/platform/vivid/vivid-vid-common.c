@@ -262,21 +262,66 @@ struct vivid_fmt vivid_formats[] = {
 		.can_do_overlay = true,
 	},
 	{
-		.fourcc   = V4L2_PIX_FMT_RGB444, /* xxxxrrrr ggggbbbb */
+		.fourcc   = V4L2_PIX_FMT_RGB444, /* ggggbbbb xxxxrrrr */
 		.vdownsampling = { 1 },
 		.bit_depth = { 16 },
 		.planes   = 1,
 		.buffers = 1,
 	},
 	{
-		.fourcc   = V4L2_PIX_FMT_XRGB444, /* xxxxrrrr ggggbbbb */
+		.fourcc   = V4L2_PIX_FMT_XRGB444, /* ggggbbbb xxxxrrrr */
 		.vdownsampling = { 1 },
 		.bit_depth = { 16 },
 		.planes   = 1,
 		.buffers = 1,
 	},
 	{
-		.fourcc   = V4L2_PIX_FMT_ARGB444, /* aaaarrrr ggggbbbb */
+		.fourcc   = V4L2_PIX_FMT_ARGB444, /* ggggbbbb aaaarrrr */
+		.vdownsampling = { 1 },
+		.bit_depth = { 16 },
+		.planes   = 1,
+		.buffers = 1,
+		.alpha_mask = 0x00f0,
+	},
+	{
+		.fourcc   = V4L2_PIX_FMT_RGBX444, /* bbbbxxxx rrrrgggg */
+		.vdownsampling = { 1 },
+		.bit_depth = { 16 },
+		.planes   = 1,
+		.buffers = 1,
+	},
+	{
+		.fourcc   = V4L2_PIX_FMT_RGBA444, /* bbbbaaaa rrrrgggg */
+		.vdownsampling = { 1 },
+		.bit_depth = { 16 },
+		.planes   = 1,
+		.buffers = 1,
+		.alpha_mask = 0x00f0,
+	},
+	{
+		.fourcc   = V4L2_PIX_FMT_XBGR444, /* ggggrrrr xxxxbbbb */
+		.vdownsampling = { 1 },
+		.bit_depth = { 16 },
+		.planes   = 1,
+		.buffers = 1,
+	},
+	{
+		.fourcc   = V4L2_PIX_FMT_ABGR444, /* ggggrrrr aaaabbbb */
+		.vdownsampling = { 1 },
+		.bit_depth = { 16 },
+		.planes   = 1,
+		.buffers = 1,
+		.alpha_mask = 0x00f0,
+	},
+	{
+		.fourcc   = V4L2_PIX_FMT_BGRX444, /* rrrrxxxx bbbbgggg */
+		.vdownsampling = { 1 },
+		.bit_depth = { 16 },
+		.planes   = 1,
+		.buffers = 1,
+	},
+	{
+		.fourcc   = V4L2_PIX_FMT_BGRA444, /* rrrraaaa bbbbgggg  */
 		.vdownsampling = { 1 },
 		.bit_depth = { 16 },
 		.planes   = 1,
@@ -301,6 +346,57 @@ struct vivid_fmt vivid_formats[] = {
 	},
 	{
 		.fourcc   = V4L2_PIX_FMT_ARGB555, /* gggbbbbb arrrrrgg */
+		.vdownsampling = { 1 },
+		.bit_depth = { 16 },
+		.planes   = 1,
+		.buffers = 1,
+		.can_do_overlay = true,
+		.alpha_mask = 0x8000,
+	},
+	{
+		.fourcc   = V4L2_PIX_FMT_RGBX555, /* ggbbbbbx rrrrrggg */
+		.vdownsampling = { 1 },
+		.bit_depth = { 16 },
+		.planes   = 1,
+		.buffers = 1,
+		.can_do_overlay = true,
+	},
+	{
+		.fourcc   = V4L2_PIX_FMT_RGBA555, /* ggbbbbba rrrrrggg */
+		.vdownsampling = { 1 },
+		.bit_depth = { 16 },
+		.planes   = 1,
+		.buffers = 1,
+		.can_do_overlay = true,
+		.alpha_mask = 0x8000,
+	},
+	{
+		.fourcc   = V4L2_PIX_FMT_XBGR555, /* gggrrrrr xbbbbbgg */
+		.vdownsampling = { 1 },
+		.bit_depth = { 16 },
+		.planes   = 1,
+		.buffers = 1,
+		.can_do_overlay = true,
+	},
+	{
+		.fourcc   = V4L2_PIX_FMT_ABGR555, /* gggrrrrr abbbbbgg */
+		.vdownsampling = { 1 },
+		.bit_depth = { 16 },
+		.planes   = 1,
+		.buffers = 1,
+		.can_do_overlay = true,
+		.alpha_mask = 0x8000,
+	},
+	{
+		.fourcc   = V4L2_PIX_FMT_BGRX555, /* ggrrrrrx bbbbbggg */
+		.vdownsampling = { 1 },
+		.bit_depth = { 16 },
+		.planes   = 1,
+		.buffers = 1,
+		.can_do_overlay = true,
+	},
+	{
+		.fourcc   = V4L2_PIX_FMT_BGRA555, /* ggrrrrra bbbbbggg */
 		.vdownsampling = { 1 },
 		.bit_depth = { 16 },
 		.planes   = 1,
@@ -389,6 +485,36 @@ struct vivid_fmt vivid_formats[] = {
 	},
 	{
 		.fourcc   = V4L2_PIX_FMT_ABGR32, /* bgra */
+		.vdownsampling = { 1 },
+		.bit_depth = { 32 },
+		.planes   = 1,
+		.buffers = 1,
+		.alpha_mask = 0xff000000,
+	},
+	{
+		.fourcc   = V4L2_PIX_FMT_RGBX32, /* rgbx */
+		.vdownsampling = { 1 },
+		.bit_depth = { 32 },
+		.planes   = 1,
+		.buffers = 1,
+	},
+	{
+		.fourcc   = V4L2_PIX_FMT_BGRX32, /* xbgr */
+		.vdownsampling = { 1 },
+		.bit_depth = { 32 },
+		.planes   = 1,
+		.buffers = 1,
+	},
+	{
+		.fourcc   = V4L2_PIX_FMT_RGBA32, /* rgba */
+		.vdownsampling = { 1 },
+		.bit_depth = { 32 },
+		.planes   = 1,
+		.buffers = 1,
+		.alpha_mask = 0x000000ff,
+	},
+	{
+		.fourcc   = V4L2_PIX_FMT_BGRA32, /* abgr */
 		.vdownsampling = { 1 },
 		.bit_depth = { 32 },
 		.planes   = 1,
@@ -645,7 +771,7 @@ bool vivid_vid_can_loop(struct vivid_dev *dev)
 	    dev->field_cap == V4L2_FIELD_SEQ_BT)
 		return false;
 	if (vivid_is_svid_cap(dev) && vivid_is_svid_out(dev)) {
-		if (!(dev->std_cap & V4L2_STD_525_60) !=
+		if (!(dev->std_cap[dev->input] & V4L2_STD_525_60) !=
 		    !(dev->std_out & V4L2_STD_525_60))
 			return false;
 		return true;
@@ -797,26 +923,6 @@ int vivid_enum_fmt_vid(struct file *file, void  *priv,
 	return 0;
 }
 
-int vidioc_enum_fmt_vid_mplane(struct file *file, void  *priv,
-					struct v4l2_fmtdesc *f)
-{
-	struct vivid_dev *dev = video_drvdata(file);
-
-	if (!dev->multiplanar)
-		return -ENOTTY;
-	return vivid_enum_fmt_vid(file, priv, f);
-}
-
-int vidioc_enum_fmt_vid(struct file *file, void  *priv,
-					struct v4l2_fmtdesc *f)
-{
-	struct vivid_dev *dev = video_drvdata(file);
-
-	if (dev->multiplanar)
-		return -ENOTTY;
-	return vivid_enum_fmt_vid(file, priv, f);
-}
-
 int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *id)
 {
 	struct vivid_dev *dev = video_drvdata(file);
@@ -825,7 +931,7 @@ int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *id)
 	if (vdev->vfl_dir == VFL_DIR_RX) {
 		if (!vivid_is_sdtv_cap(dev))
 			return -ENODATA;
-		*id = dev->std_cap;
+		*id = dev->std_cap[dev->input];
 	} else {
 		if (!vivid_is_svid_out(dev))
 			return -ENODATA;
@@ -843,7 +949,7 @@ int vidioc_g_dv_timings(struct file *file, void *_fh,
 	if (vdev->vfl_dir == VFL_DIR_RX) {
 		if (!vivid_is_hdmi_cap(dev))
 			return -ENODATA;
-		*timings = dev->dv_timings_cap;
+		*timings = dev->dv_timings_cap[dev->input];
 	} else {
 		if (!vivid_is_hdmi_out(dev))
 			return -ENODATA;
@@ -907,6 +1013,8 @@ int vidioc_g_edid(struct file *file, void *_fh,
 			return -EINVAL;
 		if (dev->output_type[edid->pad] != HDMI)
 			return -EINVAL;
+		if (!dev->display_present[edid->pad])
+			return -ENODATA;
 		bus_idx = dev->cec_output2bus_map[edid->pad];
 		adap = dev->cec_tx_adap[bus_idx];
 	}

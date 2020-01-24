@@ -271,7 +271,7 @@ static inline int has_transparent_hugepage(void)
 	return boot_cpu_has(X86_FEATURE_PSE);
 }
 
-#ifdef __HAVE_ARCH_PTE_DEVMAP
+#ifdef CONFIG_ARCH_HAS_PTE_DEVMAP
 static inline int pmd_devmap(pmd_t pmd)
 {
 	return !!(pmd_val(pmd) & _PAGE_DEVMAP);
@@ -732,7 +732,7 @@ static inline int pte_present(pte_t a)
 	return pte_flags(a) & (_PAGE_PRESENT | _PAGE_PROTNONE);
 }
 
-#ifdef __HAVE_ARCH_PTE_DEVMAP
+#ifdef CONFIG_ARCH_HAS_PTE_DEVMAP
 static inline int pte_devmap(pte_t a)
 {
 	return (pte_flags(a) & _PAGE_DEVMAP) == _PAGE_DEVMAP;
@@ -1461,6 +1461,12 @@ extern bool pfn_modify_allowed(unsigned long pfn, pgprot_t prot);
 static inline bool arch_has_pfn_modify_check(void)
 {
 	return boot_cpu_has_bug(X86_BUG_L1TF);
+}
+
+#define arch_faults_on_old_pte arch_faults_on_old_pte
+static inline bool arch_faults_on_old_pte(void)
+{
+	return false;
 }
 
 #include <asm-generic/pgtable.h>

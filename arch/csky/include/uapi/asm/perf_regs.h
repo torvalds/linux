@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 // Copyright (C) 2019 Hangzhou C-SKY Microsystems co.,ltd.
 
 #ifndef _ASM_CSKY_PERF_REGS_H

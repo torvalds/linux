@@ -20,9 +20,9 @@
 #include <asm/smp-ops.h>
 #include <asm/time.h>
 
-static __initdata const void *fdt;
-static __initdata const struct mips_machine *mach;
-static __initdata const void *mach_match_data;
+static __initconst const void *fdt;
+static __initconst const struct mips_machine *mach;
+static __initconst const void *mach_match_data;
 
 void __init prom_init(void)
 {

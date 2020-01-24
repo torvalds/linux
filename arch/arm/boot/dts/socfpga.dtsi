@@ -85,6 +85,7 @@
 				clocks = <&l4_main_clk>;
 				clock-names = "apb_pclk";
 				resets = <&rst DMA_RESET>;
+				reset-names = "dma";
 			};
 		};
 
@@ -747,7 +748,7 @@
 
 		nand0: nand@ff900000 {
 			#address-cells = <0x1>;
-			#size-cells = <0x1>;
+			#size-cells = <0x0>;
 			compatible = "altr,socfpga-denali-nand";
 			reg = <0xff900000 0x100000>,
 			      <0xffb80000 0x10000>;

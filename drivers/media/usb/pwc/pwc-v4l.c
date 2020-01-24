@@ -483,9 +483,6 @@ static int pwc_querycap(struct file *file, void *fh, struct v4l2_capability *cap
 	strscpy(cap->driver, PWC_NAME, sizeof(cap->driver));
 	strscpy(cap->card, pdev->vdev.name, sizeof(cap->card));
 	usb_make_path(pdev->udev, cap->bus_info, sizeof(cap->bus_info));
-	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING |
-					V4L2_CAP_READWRITE;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -876,14 +873,9 @@ static int pwc_enum_fmt_vid_cap(struct file *file, void *fh, struct v4l2_fmtdesc
 	case 0:
 		/* RAW format */
 		f->pixelformat = pdev->type <= 646 ? V4L2_PIX_FMT_PWC1 : V4L2_PIX_FMT_PWC2;
-		f->flags = V4L2_FMT_FLAG_COMPRESSED;
-		strscpy(f->description, "Raw Philips Webcam",
-			sizeof(f->description));
 		break;
 	case 1:
 		f->pixelformat = V4L2_PIX_FMT_YUV420;
-		strscpy(f->description, "4:2:0, planar, Y-Cb-Cr",
-			sizeof(f->description));
 		break;
 	default:
 		return -EINVAL;

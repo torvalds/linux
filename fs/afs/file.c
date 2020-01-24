@@ -191,11 +191,13 @@ void afs_put_read(struct afs_read *req)
 	int i;
 
 	if (refcount_dec_and_test(&req->usage)) {
-		for (i = 0; i < req->nr_pages; i++)
-			if (req->pages[i])
-				put_page(req->pages[i]);
-		if (req->pages != req->array)
-			kfree(req->pages);
+		if (req->pages) {
+			for (i = 0; i < req->nr_pages; i++)
+				if (req->pages[i])
+					put_page(req->pages[i]);
+			if (req->pages != req->array)
+				kfree(req->pages);
+		}
 		kfree(req);
 	}
 }
@@ -221,7 +223,7 @@ static void afs_file_readpage_read_complete(struct page *page,
 /*
  * Fetch file data from the volume.
  */
-int afs_fetch_data(struct afs_vnode *vnode, struct key *key, struct afs_read *desc)
+int afs_fetch_data(struct afs_vnode *vnode, struct key *key, struct afs_read *req)
 {
 	struct afs_fs_cursor fc;
 	struct afs_status_cb *scb;
@@ -244,7 +246,7 @@ int afs_fetch_data(struct afs_vnode *vnode, struct key *key, struct afs_read *de
 
 		while (afs_select_fileserver(&fc)) {
 			fc.cb_break = afs_calc_vnode_cb_break(vnode);
-			afs_fs_fetch_data(&fc, scb, desc);
+			afs_fs_fetch_data(&fc, scb, req);
 		}
 
 		afs_check_for_remote_deletion(&fc, vnode);
@@ -255,7 +257,7 @@ int afs_fetch_data(struct afs_vnode *vnode, struct key *key, struct afs_read *de
 
 	if (ret == 0) {
 		afs_stat_v(vnode, n_fetches);
-		atomic_long_add(desc->actual_len,
+		atomic_long_add(req->actual_len,
 				&afs_v2net(vnode)->n_fetch_bytes);
 	}
 
@@ -310,8 +312,7 @@ int afs_page_filler(void *data, struct page *page)
 		/* fall through */
 	default:
 	go_on:
-		req = kzalloc(sizeof(struct afs_read) + sizeof(struct page *),
-			      GFP_KERNEL);
+		req = kzalloc(struct_size(req, array, 1), GFP_KERNEL);
 		if (!req)
 			goto enomem;
 
@@ -461,8 +462,7 @@ static int afs_readpages_one(struct file *file, struct address_space *mapping,
 		n++;
 	}
 
-	req = kzalloc(sizeof(struct afs_read) + sizeof(struct page *) * n,
-		      GFP_NOFS);
+	req = kzalloc(struct_size(req, array, n), GFP_NOFS);
 	if (!req)
 		return -ENOMEM;
 

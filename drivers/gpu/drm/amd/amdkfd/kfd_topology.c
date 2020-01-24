@@ -269,6 +269,8 @@ static ssize_t iolink_show(struct kobject *kobj, struct attribute *attr,
 	buffer[0] = 0;
 
 	iolink = container_of(attr, struct kfd_iolink_properties, attr);
+	if (iolink->gpu && kfd_devcgroup_check_permission(iolink->gpu))
+		return -EPERM;
 	sysfs_show_32bit_prop(buffer, "type", iolink->iolink_type);
 	sysfs_show_32bit_prop(buffer, "version_major", iolink->ver_maj);
 	sysfs_show_32bit_prop(buffer, "version_minor", iolink->ver_min);
@@ -305,6 +307,8 @@ static ssize_t mem_show(struct kobject *kobj, struct attribute *attr,
 	buffer[0] = 0;
 
 	mem = container_of(attr, struct kfd_mem_properties, attr);
+	if (mem->gpu && kfd_devcgroup_check_permission(mem->gpu))
+		return -EPERM;
 	sysfs_show_32bit_prop(buffer, "heap_type", mem->heap_type);
 	sysfs_show_64bit_prop(buffer, "size_in_bytes", mem->size_in_bytes);
 	sysfs_show_32bit_prop(buffer, "flags", mem->flags);
@@ -334,6 +338,8 @@ static ssize_t kfd_cache_show(struct kobject *kobj, struct attribute *attr,
 	buffer[0] = 0;
 
 	cache = container_of(attr, struct kfd_cache_properties, attr);
+	if (cache->gpu && kfd_devcgroup_check_permission(cache->gpu))
+		return -EPERM;
 	sysfs_show_32bit_prop(buffer, "processor_id_low",
 			cache->processor_id_low);
 	sysfs_show_32bit_prop(buffer, "level", cache->cache_level);
@@ -406,8 +412,6 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 		char *buffer)
 {
 	struct kfd_topology_device *dev;
-	char public_name[KFD_TOPOLOGY_PUBLIC_NAME_SIZE];
-	uint32_t i;
 	uint32_t log_max_watch_addr;
 
 	/* Making sure that the buffer is an empty string */
@@ -416,24 +420,24 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 	if (strcmp(attr->name, "gpu_id") == 0) {
 		dev = container_of(attr, struct kfd_topology_device,
 				attr_gpuid);
+		if (dev->gpu && kfd_devcgroup_check_permission(dev->gpu))
+			return -EPERM;
 		return sysfs_show_32bit_val(buffer, dev->gpu_id);
 	}
 
 	if (strcmp(attr->name, "name") == 0) {
 		dev = container_of(attr, struct kfd_topology_device,
 				attr_name);
-		for (i = 0; i < KFD_TOPOLOGY_PUBLIC_NAME_SIZE; i++) {
-			public_name[i] =
-					(char)dev->node_props.marketing_name[i];
-			if (dev->node_props.marketing_name[i] == 0)
-				break;
-		}
-		public_name[KFD_TOPOLOGY_PUBLIC_NAME_SIZE-1] = 0x0;
-		return sysfs_show_str_val(buffer, public_name);
+
+		if (dev->gpu && kfd_devcgroup_check_permission(dev->gpu))
+			return -EPERM;
+		return sysfs_show_str_val(buffer, dev->node_props.name);
 	}
 
 	dev = container_of(attr, struct kfd_topology_device,
 			attr_props);
+	if (dev->gpu && kfd_devcgroup_check_permission(dev->gpu))
+		return -EPERM;
 	sysfs_show_32bit_prop(buffer, "cpu_cores_count",
 			dev->node_props.cpu_cores_count);
 	sysfs_show_32bit_prop(buffer, "simd_count",
@@ -454,6 +458,8 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 			dev->node_props.lds_size_in_kb);
 	sysfs_show_32bit_prop(buffer, "gds_size_in_kb",
 			dev->node_props.gds_size_in_kb);
+	sysfs_show_32bit_prop(buffer, "num_gws",
+			dev->node_props.num_gws);
 	sysfs_show_32bit_prop(buffer, "wave_front_size",
 			dev->node_props.wave_front_size);
 	sysfs_show_32bit_prop(buffer, "array_count",
@@ -476,6 +482,10 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 			dev->node_props.drm_render_minor);
 	sysfs_show_64bit_prop(buffer, "hive_id",
 			dev->node_props.hive_id);
+	sysfs_show_32bit_prop(buffer, "num_sdma_engines",
+			dev->node_props.num_sdma_engines);
+	sysfs_show_32bit_prop(buffer, "num_sdma_xgmi_engines",
+			dev->node_props.num_sdma_xgmi_engines);
 
 	if (dev->gpu) {
 		log_max_watch_addr =
@@ -1078,8 +1088,9 @@ static uint32_t kfd_generate_gpu_id(struct kfd_dev *gpu)
 			local_mem_info.local_mem_size_public;
 
 	buf[0] = gpu->pdev->devfn;
-	buf[1] = gpu->pdev->subsystem_vendor;
-	buf[2] = gpu->pdev->subsystem_device;
+	buf[1] = gpu->pdev->subsystem_vendor |
+		(gpu->pdev->subsystem_device << 16);
+	buf[2] = pci_domain_nr(gpu->pdev->bus);
 	buf[3] = gpu->pdev->device;
 	buf[4] = gpu->pdev->bus->number;
 	buf[5] = lower_32_bits(local_mem_size);
@@ -1099,6 +1110,9 @@ static struct kfd_topology_device *kfd_assign_gpu(struct kfd_dev *gpu)
 {
 	struct kfd_topology_device *dev;
 	struct kfd_topology_device *out_dev = NULL;
+	struct kfd_mem_properties *mem;
+	struct kfd_cache_properties *cache;
+	struct kfd_iolink_properties *iolink;
 
 	down_write(&topology_lock);
 	list_for_each_entry(dev, &topology_device_list, list) {
@@ -1112,6 +1126,13 @@ static struct kfd_topology_device *kfd_assign_gpu(struct kfd_dev *gpu)
 		if (!dev->gpu && (dev->node_props.simd_count > 0)) {
 			dev->gpu = gpu;
 			out_dev = dev;
+
+			list_for_each_entry(mem, &dev->mem_props, list)
+				mem->gpu = dev->gpu;
+			list_for_each_entry(cache, &dev->cache_props, list)
+				cache->gpu = dev->gpu;
+			list_for_each_entry(iolink, &dev->io_link_props, list)
+				iolink->gpu = dev->gpu;
 			break;
 		}
 	}
@@ -1267,6 +1288,10 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	 */
 
 	amdgpu_amdkfd_get_cu_info(dev->gpu->kgd, &cu_info);
+
+	strncpy(dev->node_props.name, gpu->device_info->asic_name,
+			KFD_TOPOLOGY_PUBLIC_NAME_SIZE);
+
 	dev->node_props.simd_arrays_per_engine =
 		cu_info.num_shader_arrays_per_engine;
 
@@ -1281,6 +1306,12 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 		gpu->shared_resources.drm_render_minor;
 
 	dev->node_props.hive_id = gpu->hive_id;
+	dev->node_props.num_sdma_engines = gpu->device_info->num_sdma_engines;
+	dev->node_props.num_sdma_xgmi_engines =
+				gpu->device_info->num_xgmi_sdma_engines;
+	dev->node_props.num_gws = (hws_gws_support &&
+		dev->gpu->dqm->sched_policy != KFD_SCHED_POLICY_NO_HWS) ?
+		amdgpu_amdkfd_get_num_gws(dev->gpu->kgd) : 0;
 
 	kfd_fill_mem_clk_max_info(dev);
 	kfd_fill_iolink_non_crat_info(dev);
@@ -1298,6 +1329,7 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	case CHIP_POLARIS10:
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS12:
+	case CHIP_VEGAM:
 		pr_debug("Adding doorbell packet type capability\n");
 		dev->node_props.capability |= ((HSA_CAP_DOORBELL_TYPE_1_0 <<
 			HSA_CAP_DOORBELL_TYPE_TOTALBITS_SHIFT) &
@@ -1307,6 +1339,11 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	case CHIP_VEGA12:
 	case CHIP_VEGA20:
 	case CHIP_RAVEN:
+	case CHIP_RENOIR:
+	case CHIP_ARCTURUS:
+	case CHIP_NAVI10:
+	case CHIP_NAVI12:
+	case CHIP_NAVI14:
 		dev->node_props.capability |= ((HSA_CAP_DOORBELL_TYPE_2_0 <<
 			HSA_CAP_DOORBELL_TYPE_TOTALBITS_SHIFT) &
 			HSA_CAP_DOORBELL_TYPE_TOTALBITS_MASK);
@@ -1316,17 +1353,24 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 		     dev->gpu->device_info->asic_family);
 	}
 
+	/*
+	* Overwrite ATS capability according to needs_iommu_device to fix
+	* potential missing corresponding bit in CRAT of BIOS.
+	*/
+	if (dev->gpu->device_info->needs_iommu_device)
+		dev->node_props.capability |= HSA_CAP_ATS_PRESENT;
+	else
+		dev->node_props.capability &= ~HSA_CAP_ATS_PRESENT;
+
 	/* Fix errors in CZ CRAT.
 	 * simd_count: Carrizo CRAT reports wrong simd_count, probably
 	 *		because it doesn't consider masked out CUs
 	 * max_waves_per_simd: Carrizo reports wrong max_waves_per_simd
-	 * capability flag: Carrizo CRAT doesn't report IOMMU flags
 	 */
 	if (dev->gpu->device_info->asic_family == CHIP_CARRIZO) {
 		dev->node_props.simd_count =
 			cu_info.simd_per_cu * cu_info.cu_active_number;
 		dev->node_props.max_waves_per_simd = 10;
-		dev->node_props.capability |= HSA_CAP_ATS_PRESENT;
 	}
 
 	ctx = amdgpu_ras_get_context((struct amdgpu_device *)(dev->gpu->kgd));

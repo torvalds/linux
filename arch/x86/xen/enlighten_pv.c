@@ -117,6 +117,14 @@ static void __init xen_banner(void)
 	printk(KERN_INFO "Xen version: %d.%d%s%s\n",
 	       version >> 16, version & 0xffff, extra.extraversion,
 	       xen_feature(XENFEAT_mmu_pt_update_preserve_ad) ? " (preserve-AD)" : "");
+
+#ifdef CONFIG_X86_32
+	pr_warn("WARNING! WARNING! WARNING! WARNING! WARNING! WARNING! WARNING!\n"
+		"Support for running as 32-bit PV-guest under Xen will soon be removed\n"
+		"from the Linux kernel!\n"
+		"Please use either a 64-bit kernel or switch to HVM or PVH mode!\n"
+		"WARNING! WARNING! WARNING! WARNING! WARNING! WARNING! WARNING!\n");
+#endif
 }
 
 static void __init xen_pv_init_platform(void)
@@ -596,12 +604,12 @@ struct trap_array_entry {
 
 static struct trap_array_entry trap_array[] = {
 	{ debug,                       xen_xendebug,                    true },
-	{ int3,                        xen_xenint3,                     true },
 	{ double_fault,                xen_double_fault,                true },
 #ifdef CONFIG_X86_MCE
 	{ machine_check,               xen_machine_check,               true },
 #endif
 	{ nmi,                         xen_xennmi,                      true },
+	{ int3,                        xen_int3,                        false },
 	{ overflow,                    xen_overflow,                    false },
 #ifdef CONFIG_IA32_EMULATION
 	{ entry_INT80_compat,          xen_entry_INT80_compat,          false },
@@ -829,15 +837,6 @@ static void xen_load_sp0(unsigned long sp0)
 	this_cpu_write(cpu_tss_rw.x86_tss.sp0, sp0);
 }
 
-void xen_set_iopl_mask(unsigned mask)
-{
-	struct physdev_set_iopl set_iopl;
-
-	/* Force the change at ring 0. */
-	set_iopl.iopl = (mask == 0) ? 1 : (mask >> 12) & 3;
-	HYPERVISOR_physdev_op(PHYSDEVOP_set_iopl, &set_iopl);
-}
-
 static void xen_io_delay(void)
 {
 }
@@ -877,16 +876,6 @@ static void xen_write_cr4(unsigned long cr4)
 
 	native_write_cr4(cr4);
 }
-#ifdef CONFIG_X86_64
-static inline unsigned long xen_read_cr8(void)
-{
-	return 0;
-}
-static inline void xen_write_cr8(unsigned long val)
-{
-	BUG_ON(val);
-}
-#endif
 
 static u64 xen_read_msr_safe(unsigned int msr, int *err)
 {
@@ -998,7 +987,8 @@ void __init xen_setup_vcpu_info_placement(void)
 			__PV_IS_CALLEE_SAVE(xen_irq_disable_direct);
 		pv_ops.irq.irq_enable =
 			__PV_IS_CALLEE_SAVE(xen_irq_enable_direct);
-		pv_ops.mmu.read_cr2 = xen_read_cr2_direct;
+		pv_ops.mmu.read_cr2 =
+			__PV_IS_CALLEE_SAVE(xen_read_cr2_direct);
 	}
 }
 
@@ -1021,11 +1011,6 @@ static const struct pv_cpu_ops xen_cpu_ops __initconst = {
 	.write_cr0 = xen_write_cr0,
 
 	.write_cr4 = xen_write_cr4,
-
-#ifdef CONFIG_X86_64
-	.read_cr8 = xen_read_cr8,
-	.write_cr8 = xen_write_cr8,
-#endif
 
 	.wbinvd = native_wbinvd,
 
@@ -1061,7 +1046,6 @@ static const struct pv_cpu_ops xen_cpu_ops __initconst = {
 	.write_idt_entry = xen_write_idt_entry,
 	.load_sp0 = xen_load_sp0,
 
-	.set_iopl_mask = xen_set_iopl_mask,
 	.io_delay = xen_io_delay,
 
 	/* Xen takes care of %gs when switching to usermode for us */
@@ -1463,4 +1447,5 @@ const __initconst struct hypervisor_x86 x86_hyper_xen_pv = {
 	.detect                 = xen_platform_pv,
 	.type			= X86_HYPER_XEN_PV,
 	.runtime.pin_vcpu       = xen_pin_vcpu,
+	.ignore_nopv		= true,
 };

@@ -39,6 +39,8 @@ static const struct qeth_stats txq_stats[] = {
 	QETH_TXQ_STAT("TSO bytes", tso_bytes),
 	QETH_TXQ_STAT("Packing mode switches", packing_mode_switch),
 	QETH_TXQ_STAT("Queue stopped", stopped),
+	QETH_TXQ_STAT("Completion yield", completion_yield),
+	QETH_TXQ_STAT("Completion timer", completion_timer),
 };
 
 static const struct qeth_stats card_stats[] = {
@@ -47,6 +49,9 @@ static const struct qeth_stats card_stats[] = {
 	QETH_CARD_STAT("rx0 SG skbs", rx_sg_skbs),
 	QETH_CARD_STAT("rx0 SG page frags", rx_sg_frags),
 	QETH_CARD_STAT("rx0 SG page allocs", rx_sg_alloc_page),
+	QETH_CARD_STAT("rx0 dropped, no memory", rx_dropped_nomem),
+	QETH_CARD_STAT("rx0 dropped, bad format", rx_dropped_notsupp),
+	QETH_CARD_STAT("rx0 dropped, runt", rx_dropped_runt),
 };
 
 #define TXQ_STATS_LEN	ARRAY_SIZE(txq_stats)

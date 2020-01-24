@@ -297,9 +297,6 @@ static int dt3155_querycap(struct file *filp, void *p,
 	strscpy(cap->driver, DT3155_NAME, sizeof(cap->driver));
 	strscpy(cap->card, DT3155_NAME " frame grabber", sizeof(cap->card));
 	sprintf(cap->bus_info, "PCI:%s", pci_name(pd->pdev));
-	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE |
-		V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -309,7 +306,6 @@ static int dt3155_enum_fmt_vid_cap(struct file *filp,
 	if (f->index)
 		return -EINVAL;
 	f->pixelformat = V4L2_PIX_FMT_GREY;
-	strscpy(f->description, "8-bit Greyscale", sizeof(f->description));
 	return 0;
 }
 
@@ -490,6 +486,8 @@ static const struct video_device dt3155_vdev = {
 	.minor = -1,
 	.release = video_device_release_empty,
 	.tvnorms = V4L2_STD_ALL,
+	.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING |
+		       V4L2_CAP_READWRITE,
 };
 
 static int dt3155_probe(struct pci_dev *pdev, const struct pci_device_id *id)

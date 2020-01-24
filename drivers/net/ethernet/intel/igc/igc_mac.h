@@ -29,6 +29,8 @@ s32 igc_get_speed_and_duplex_copper(struct igc_hw *hw, u16 *speed,
 				    u16 *duplex);
 
 bool igc_enable_mng_pass_thru(struct igc_hw *hw);
+void igc_update_mc_addr_list(struct igc_hw *hw,
+			     u8 *mc_addr_list, u32 mc_addr_count);
 
 enum igc_mng_mode {
 	igc_mng_mode_none = 0,

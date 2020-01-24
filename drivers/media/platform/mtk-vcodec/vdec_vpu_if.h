@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2016 MediaTek Inc.
  * Author: PC Chen <pc.chen@mediatek.com>
@@ -75,14 +75,5 @@ int vpu_dec_deinit(struct vdec_vpu_inst *vpu);
  * @vpu: instance for vdec_vpu_inst
  */
 int vpu_dec_reset(struct vdec_vpu_inst *vpu);
-
-/**
- * vpu_dec_ipi_handler - Handler for VPU ipi message.
- *
- * @data: ipi message
- * @len : length of ipi message
- * @priv: callback private data which is passed by decoder when register.
- */
-void vpu_dec_ipi_handler(void *data, unsigned int len, void *priv);
 
 #endif

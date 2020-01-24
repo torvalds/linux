@@ -26,9 +26,9 @@ config FPGA_MGR_SOCFPGA_A10
 	  FPGA manager driver support for Altera Arria10 SoCFPGA.
 
 config ALTERA_PR_IP_CORE
-        tristate "Altera Partial Reconfiguration IP Core"
-        help
-          Core driver support for Altera Partial Reconfiguration IP component
+	tristate "Altera Partial Reconfiguration IP Core"
+	help
+	  Core driver support for Altera Partial Reconfiguration IP component
 
 config ALTERA_PR_IP_CORE_PLAT
 	tristate "Platform support of Altera Partial Reconfiguration IP Core"
@@ -40,16 +40,17 @@ config ALTERA_PR_IP_CORE_PLAT
 config FPGA_MGR_ALTERA_PS_SPI
 	tristate "Altera FPGA Passive Serial over SPI"
 	depends on SPI
+	select BITREVERSE
 	help
 	  FPGA manager driver support for Altera Arria/Cyclone/Stratix
 	  using the passive serial interface over SPI.
 
 config FPGA_MGR_ALTERA_CVP
-	tristate "Altera Arria-V/Cyclone-V/Stratix-V CvP FPGA Manager"
+	tristate "Altera CvP FPGA Manager"
 	depends on PCI
 	help
-	  FPGA manager driver support for Arria-V, Cyclone-V, Stratix-V
-	  and Arria 10 Altera FPGAs using the CvP interface over PCIe.
+	  FPGA manager driver support for Arria-V, Cyclone-V, Stratix-V,
+	  Arria 10 and Stratix10 Altera FPGAs using the CvP interface over PCIe.
 
 config FPGA_MGR_ZYNQ_FPGA
 	tristate "Xilinx Zynq FPGA"
@@ -155,7 +156,7 @@ config FPGA_DFL
 
 config FPGA_DFL_FME
 	tristate "FPGA DFL FME Driver"
-	depends on FPGA_DFL
+	depends on FPGA_DFL && HWMON
 	help
 	  The FPGA Management Engine (FME) is a feature device implemented
 	  under Device Feature List (DFL) framework. Select this option to

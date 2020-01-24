@@ -3,13 +3,15 @@
  * Copyright (C) 2016 Noralf Trønnes
  */
 
-#include <drm/drmP.h>
+#include <linux/module.h>
+#include <linux/slab.h>
+
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_bridge.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
-#include <linux/slab.h>
 
 /**
  * DOC: overview
@@ -41,7 +43,7 @@ drm_simple_kms_crtc_mode_valid(struct drm_crtc *crtc,
 		/* Anything goes */
 		return MODE_OK;
 
-	return pipe->funcs->mode_valid(crtc, mode);
+	return pipe->funcs->mode_valid(pipe, mode);
 }
 
 static int drm_simple_kms_crtc_check(struct drm_crtc *crtc,

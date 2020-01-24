@@ -139,24 +139,21 @@ static const struct snd_soc_ops rk_ops = {
 	.hw_params = rk_hw_params,
 };
 
-static struct snd_soc_dai_link_component rk_codecs[] = {
-	{ },
-	{
-		.name = "hdmi-audio-codec.2.auto",
-		.dai_name = "i2s-hifi",
-	},
-};
+SND_SOC_DAILINK_DEFS(audio,
+	DAILINK_COMP_ARRAY(COMP_EMPTY()),
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, NULL),
+			   COMP_CODEC("hdmi-audio-codec.2.auto", "i2s-hifi")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
 
 static struct snd_soc_dai_link rk_dailink = {
 	.name = "Codecs",
 	.stream_name = "Audio",
 	.init = rk_init,
 	.ops = &rk_ops,
-	.codecs = rk_codecs,
-	.num_codecs = ARRAY_SIZE(rk_codecs),
 	/* Set codecs as slave */
 	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 		SND_SOC_DAIFMT_CBS_CFS,
+	SND_SOC_DAILINK_REG(audio),
 };
 
 static struct snd_soc_card snd_soc_card_rk = {
@@ -232,15 +229,15 @@ static int snd_rk_mc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	rk_dailink.cpu_of_node = of_parse_phandle(np, "rockchip,i2s-controller",
+	rk_dailink.cpus->of_node = of_parse_phandle(np, "rockchip,i2s-controller",
 						  0);
-	if (!rk_dailink.cpu_of_node) {
+	if (!rk_dailink.cpus->of_node) {
 		dev_err(&pdev->dev,
 			"Property 'rockchip,i2s-controller' missing or invalid\n");
 		return -EINVAL;
 	}
 
-	rk_dailink.platform_of_node = rk_dailink.cpu_of_node;
+	rk_dailink.platforms->of_node = rk_dailink.cpus->of_node;
 
 	ret = snd_soc_of_parse_audio_routing(card, "rockchip,routing");
 	if (ret) {

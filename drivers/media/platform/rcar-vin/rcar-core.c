@@ -390,6 +390,28 @@ out:
 }
 
 /* -----------------------------------------------------------------------------
+ * Controls
+ */
+
+static int rvin_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct rvin_dev *vin =
+		container_of(ctrl->handler, struct rvin_dev, ctrl_handler);
+
+	switch (ctrl->id) {
+	case V4L2_CID_ALPHA_COMPONENT:
+		rvin_set_alpha(vin, ctrl->val);
+		break;
+	}
+
+	return 0;
+}
+
+static const struct v4l2_ctrl_ops rvin_ctrl_ops = {
+	.s_ctrl = rvin_s_ctrl,
+};
+
+/* -----------------------------------------------------------------------------
  * Async notifier
  */
 
@@ -477,6 +499,15 @@ static int rvin_parallel_subdevice_attach(struct rvin_dev *vin,
 	ret = v4l2_ctrl_handler_init(&vin->ctrl_handler, 16);
 	if (ret < 0)
 		return ret;
+
+	v4l2_ctrl_new_std(&vin->ctrl_handler, &rvin_ctrl_ops,
+			  V4L2_CID_ALPHA_COMPONENT, 0, 255, 1, 255);
+
+	if (vin->ctrl_handler.error) {
+		ret = vin->ctrl_handler.error;
+		v4l2_ctrl_handler_free(&vin->ctrl_handler);
+		return ret;
+	}
 
 	ret = v4l2_ctrl_add_handler(&vin->ctrl_handler, subdev->ctrl_handler,
 				    NULL, true);
@@ -633,7 +664,7 @@ static int rvin_parallel_init(struct rvin_dev *vin)
 	ret = v4l2_async_notifier_register(&vin->v4l2_dev, &vin->notifier);
 	if (ret < 0) {
 		vin_err(vin, "Notifier registration failed\n");
-		v4l2_async_notifier_cleanup(&vin->group->notifier);
+		v4l2_async_notifier_cleanup(&vin->notifier);
 		return ret;
 	}
 
@@ -870,6 +901,21 @@ static int rvin_mc_init(struct rvin_dev *vin)
 	if (ret)
 		rvin_group_put(vin);
 
+	ret = v4l2_ctrl_handler_init(&vin->ctrl_handler, 1);
+	if (ret < 0)
+		return ret;
+
+	v4l2_ctrl_new_std(&vin->ctrl_handler, &rvin_ctrl_ops,
+			  V4L2_CID_ALPHA_COMPONENT, 0, 255, 1, 255);
+
+	if (vin->ctrl_handler.error) {
+		ret = vin->ctrl_handler.error;
+		v4l2_ctrl_handler_free(&vin->ctrl_handler);
+		return ret;
+	}
+
+	vin->vdev.ctrl_handler = &vin->ctrl_handler;
+
 	return ret;
 }
 
@@ -937,6 +983,7 @@ static const struct rvin_group_route rcar_info_r8a7795_routes[] = {
 static const struct rvin_info rcar_info_r8a7795 = {
 	.model = RCAR_GEN3,
 	.use_mc = true,
+	.nv12 = true,
 	.max_width = 4096,
 	.max_height = 4096,
 	.routes = rcar_info_r8a7795_routes,
@@ -1031,6 +1078,7 @@ static const struct rvin_group_route rcar_info_r8a7796_routes[] = {
 static const struct rvin_info rcar_info_r8a7796 = {
 	.model = RCAR_GEN3,
 	.use_mc = true,
+	.nv12 = true,
 	.max_width = 4096,
 	.max_height = 4096,
 	.routes = rcar_info_r8a7796_routes,
@@ -1075,6 +1123,7 @@ static const struct rvin_group_route rcar_info_r8a77965_routes[] = {
 static const struct rvin_info rcar_info_r8a77965 = {
 	.model = RCAR_GEN3,
 	.use_mc = true,
+	.nv12 = true,
 	.max_width = 4096,
 	.max_height = 4096,
 	.routes = rcar_info_r8a77965_routes,
@@ -1122,6 +1171,7 @@ static const struct rvin_group_route rcar_info_r8a77980_routes[] = {
 static const struct rvin_info rcar_info_r8a77980 = {
 	.model = RCAR_GEN3,
 	.use_mc = true,
+	.nv12 = true,
 	.max_width = 4096,
 	.max_height = 4096,
 	.routes = rcar_info_r8a77980_routes,
@@ -1138,6 +1188,7 @@ static const struct rvin_group_route rcar_info_r8a77990_routes[] = {
 static const struct rvin_info rcar_info_r8a77990 = {
 	.model = RCAR_GEN3,
 	.use_mc = true,
+	.nv12 = true,
 	.max_width = 4096,
 	.max_height = 4096,
 	.routes = rcar_info_r8a77990_routes,
@@ -1150,6 +1201,7 @@ static const struct rvin_group_route rcar_info_r8a77995_routes[] = {
 static const struct rvin_info rcar_info_r8a77995 = {
 	.model = RCAR_GEN3,
 	.use_mc = true,
+	.nv12 = true,
 	.max_width = 4096,
 	.max_height = 4096,
 	.routes = rcar_info_r8a77995_routes,
@@ -1159,6 +1211,10 @@ static const struct of_device_id rvin_of_id_table[] = {
 	{
 		.compatible = "renesas,vin-r8a774a1",
 		.data = &rcar_info_r8a7796,
+	},
+	{
+		.compatible = "renesas,vin-r8a774b1",
+		.data = &rcar_info_r8a77965,
 	},
 	{
 		.compatible = "renesas,vin-r8a774c0",
@@ -1236,7 +1292,6 @@ static int rcar_vin_probe(struct platform_device *pdev)
 {
 	const struct soc_device_attribute *attr;
 	struct rvin_dev *vin;
-	struct resource *mem;
 	int irq, ret;
 
 	vin = devm_kzalloc(&pdev->dev, sizeof(*vin), GFP_KERNEL);
@@ -1245,6 +1300,7 @@ static int rcar_vin_probe(struct platform_device *pdev)
 
 	vin->dev = &pdev->dev;
 	vin->info = of_device_get_match_data(&pdev->dev);
+	vin->alpha = 0xff;
 
 	/*
 	 * Special care is needed on r8a7795 ES1.x since it
@@ -1254,11 +1310,7 @@ static int rcar_vin_probe(struct platform_device *pdev)
 	if (attr)
 		vin->info = attr->data;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (mem == NULL)
-		return -EINVAL;
-
-	vin->base = devm_ioremap_resource(vin->dev, mem);
+	vin->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(vin->base))
 		return PTR_ERR(vin->base);
 
@@ -1288,6 +1340,8 @@ static int rcar_vin_probe(struct platform_device *pdev)
 	return 0;
 
 error_group_unregister:
+	v4l2_ctrl_handler_free(&vin->ctrl_handler);
+
 	if (vin->info->use_mc) {
 		mutex_lock(&vin->group->lock);
 		if (&vin->v4l2_dev == vin->group->notifier.v4l2_dev) {
@@ -1323,9 +1377,9 @@ static int rcar_vin_remove(struct platform_device *pdev)
 		}
 		mutex_unlock(&vin->group->lock);
 		rvin_group_put(vin);
-	} else {
-		v4l2_ctrl_handler_free(&vin->ctrl_handler);
 	}
+
+	v4l2_ctrl_handler_free(&vin->ctrl_handler);
 
 	rvin_dma_unregister(vin);
 

@@ -15,6 +15,9 @@ struct stv6110x_config {
 	u8	addr;
 	u32	refclk;
 	u8	clk_div; /* divisor value for the output clock */
+	struct dvb_frontend		*frontend;
+
+	struct stv6110x_devctl* (*get_devctl)(struct i2c_client *i2c);
 };
 
 enum tuner_mode {

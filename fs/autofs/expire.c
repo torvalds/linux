@@ -70,6 +70,27 @@ done:
 	return status;
 }
 
+/* p->d_lock held */
+static struct dentry *positive_after(struct dentry *p, struct dentry *child)
+{
+	if (child)
+		child = list_next_entry(child, d_child);
+	else
+		child = list_first_entry(&p->d_subdirs, struct dentry, d_child);
+
+	list_for_each_entry_from(child, &p->d_subdirs, d_child) {
+		spin_lock_nested(&child->d_lock, DENTRY_D_LOCK_NESTED);
+		if (simple_positive(child)) {
+			dget_dlock(child);
+			spin_unlock(&child->d_lock);
+			return child;
+		}
+		spin_unlock(&child->d_lock);
+	}
+
+	return NULL;
+}
+
 /*
  * Calculate and dget next entry in the subdirs list under root.
  */
@@ -77,43 +98,14 @@ static struct dentry *get_next_positive_subdir(struct dentry *prev,
 					       struct dentry *root)
 {
 	struct autofs_sb_info *sbi = autofs_sbi(root->d_sb);
-	struct list_head *next;
 	struct dentry *q;
 
 	spin_lock(&sbi->lookup_lock);
 	spin_lock(&root->d_lock);
-
-	if (prev)
-		next = prev->d_child.next;
-	else {
-		prev = dget_dlock(root);
-		next = prev->d_subdirs.next;
-	}
-
-cont:
-	if (next == &root->d_subdirs) {
-		spin_unlock(&root->d_lock);
-		spin_unlock(&sbi->lookup_lock);
-		dput(prev);
-		return NULL;
-	}
-
-	q = list_entry(next, struct dentry, d_child);
-
-	spin_lock_nested(&q->d_lock, DENTRY_D_LOCK_NESTED);
-	/* Already gone or negative dentry (under construction) - try next */
-	if (!d_count(q) || !simple_positive(q)) {
-		spin_unlock(&q->d_lock);
-		next = q->d_child.next;
-		goto cont;
-	}
-	dget_dlock(q);
-	spin_unlock(&q->d_lock);
+	q = positive_after(root, prev);
 	spin_unlock(&root->d_lock);
 	spin_unlock(&sbi->lookup_lock);
-
 	dput(prev);
-
 	return q;
 }
 
@@ -124,59 +116,28 @@ static struct dentry *get_next_positive_dentry(struct dentry *prev,
 					       struct dentry *root)
 {
 	struct autofs_sb_info *sbi = autofs_sbi(root->d_sb);
-	struct list_head *next;
-	struct dentry *p, *ret;
+	struct dentry *p = prev, *ret = NULL, *d = NULL;
 
 	if (prev == NULL)
 		return dget(root);
 
 	spin_lock(&sbi->lookup_lock);
-relock:
-	p = prev;
 	spin_lock(&p->d_lock);
-again:
-	next = p->d_subdirs.next;
-	if (next == &p->d_subdirs) {
-		while (1) {
-			struct dentry *parent;
+	while (1) {
+		struct dentry *parent;
 
-			if (p == root) {
-				spin_unlock(&p->d_lock);
-				spin_unlock(&sbi->lookup_lock);
-				dput(prev);
-				return NULL;
-			}
-
-			parent = p->d_parent;
-			if (!spin_trylock(&parent->d_lock)) {
-				spin_unlock(&p->d_lock);
-				cpu_relax();
-				goto relock;
-			}
-			spin_unlock(&p->d_lock);
-			next = p->d_child.next;
-			p = parent;
-			if (next != &parent->d_subdirs)
-				break;
-		}
-	}
-	ret = list_entry(next, struct dentry, d_child);
-
-	spin_lock_nested(&ret->d_lock, DENTRY_D_LOCK_NESTED);
-	/* Negative dentry - try next */
-	if (!simple_positive(ret)) {
+		ret = positive_after(p, d);
+		if (ret || p == root)
+			break;
+		parent = p->d_parent;
 		spin_unlock(&p->d_lock);
-		lock_set_subclass(&ret->d_lock.dep_map, 0, _RET_IP_);
-		p = ret;
-		goto again;
+		spin_lock(&parent->d_lock);
+		d = p;
+		p = parent;
 	}
-	dget_dlock(ret);
-	spin_unlock(&ret->d_lock);
 	spin_unlock(&p->d_lock);
 	spin_unlock(&sbi->lookup_lock);
-
 	dput(prev);
-
 	return ret;
 }
 
@@ -250,7 +211,7 @@ static int autofs_tree_busy(struct vfsmount *mnt,
 			}
 		} else {
 			struct autofs_info *ino = autofs_dentry_ino(p);
-			unsigned int ino_count = atomic_read(&ino->count);
+			unsigned int ino_count = READ_ONCE(ino->count);
 
 			/* allow for dget above and top is already dgot */
 			if (p == top)
@@ -418,7 +379,7 @@ static struct dentry *should_expire(struct dentry *dentry,
 		/* Not a forced expire? */
 		if (!(how & AUTOFS_EXP_FORCED)) {
 			/* ref-walk currently on this dentry? */
-			ino_count = atomic_read(&ino->count) + 1;
+			ino_count = READ_ONCE(ino->count) + 1;
 			if (d_count(dentry) > ino_count)
 				return NULL;
 		}
@@ -435,7 +396,7 @@ static struct dentry *should_expire(struct dentry *dentry,
 		/* Not a forced expire? */
 		if (!(how & AUTOFS_EXP_FORCED)) {
 			/* ref-walk currently on this dentry? */
-			ino_count = atomic_read(&ino->count) + 1;
+			ino_count = READ_ONCE(ino->count) + 1;
 			if (d_count(dentry) > ino_count)
 				return NULL;
 		}
@@ -498,9 +459,10 @@ static struct dentry *autofs_expire_indirect(struct super_block *sb,
 		 */
 		how &= ~AUTOFS_EXP_LEAVES;
 		found = should_expire(expired, mnt, timeout, how);
-		if (!found || found != expired)
-			/* Something has changed, continue */
+		if (found != expired) { // something has changed, continue
+			dput(found);
 			goto next;
+		}
 
 		if (expired != dentry)
 			dput(dentry);

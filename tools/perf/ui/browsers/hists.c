@@ -6,21 +6,29 @@
 #include <stdlib.h>
 #include <string.h>
 #include <linux/rbtree.h>
+#include <linux/string.h>
 #include <sys/ttydefaults.h>
 #include <linux/time64.h>
+#include <linux/zalloc.h>
 
+#include "../../util/debug.h"
+#include "../../util/dso.h"
 #include "../../util/callchain.h"
 #include "../../util/evsel.h"
 #include "../../util/evlist.h"
+#include "../../util/header.h"
 #include "../../util/hist.h"
 #include "../../util/map.h"
 #include "../../util/symbol.h"
+#include "../../util/map_symbol.h"
+#include "../../util/branch.h"
 #include "../../util/pstack.h"
 #include "../../util/sort.h"
-#include "../../util/util.h"
 #include "../../util/top.h"
 #include "../../util/thread.h"
+#include "../../util/block-info.h"
 #include "../../arch/common.h"
+#include "../../perf.h"
 
 #include "../browsers/hists.h"
 #include "../helpline.h"
@@ -33,7 +41,7 @@
 #include "units.h"
 #include "time-utils.h"
 
-#include "sane_ctype.h"
+#include <linux/ctype.h>
 
 extern void hist_browser__init_hpp(void);
 
@@ -638,7 +646,11 @@ int hist_browser__run(struct hist_browser *browser, const char *help,
 		switch (key) {
 		case K_TIMER: {
 			u64 nr_entries;
-			hbt->timer(hbt->arg);
+
+			WARN_ON_ONCE(!hbt);
+
+			if (hbt)
+				hbt->timer(hbt->arg);
 
 			if (hist_browser__has_filter(browser) ||
 			    symbol_conf.report_hierarchy)
@@ -1470,7 +1482,7 @@ static int hist_browser__show_hierarchy_entry(struct hist_browser *browser,
 				int i = 0;
 
 				width -= fmt->entry(fmt, &hpp, entry);
-				ui_browser__printf(&browser->b, "%s", ltrim(s));
+				ui_browser__printf(&browser->b, "%s", skip_spaces(s));
 
 				while (isspace(s[i++]))
 					width++;
@@ -1686,7 +1698,7 @@ static int hists_browser__scnprintf_hierarchy_headers(struct hist_browser *brows
 			ret = fmt->header(fmt, &dummy_hpp, hists, 0, NULL);
 			dummy_hpp.buf[ret] = '\0';
 
-			start = trim(dummy_hpp.buf);
+			start = strim(dummy_hpp.buf);
 			ret = strlen(start);
 
 			if (start != dummy_hpp.buf)
@@ -1772,7 +1784,11 @@ static unsigned int hist_browser__refresh(struct ui_browser *browser)
 			continue;
 		}
 
-		percent = hist_entry__get_percent_limit(h);
+		if (symbol_conf.report_individual_block)
+			percent = block_info__total_cycles_percent(h);
+		else
+			percent = hist_entry__get_percent_limit(h);
+
 		if (percent < hb->min_pcnt)
 			continue;
 
@@ -2070,7 +2086,8 @@ static int hist_browser__fprintf_hierarchy_entry(struct hist_browser *browser,
 		advance_hpp(&hpp, ret);
 	}
 
-	printed += fprintf(fp, "%s\n", rtrim(s));
+	strim(s);
+	printed += fprintf(fp, "%s\n", s);
 
 	if (he->leaf && folded_sign == '-') {
 		printed += hist_browser__fprintf_callchain(browser, he, fp,
@@ -2181,7 +2198,7 @@ struct hist_browser *hist_browser__new(struct hists *hists)
 }
 
 static struct hist_browser *
-perf_evsel_browser__new(struct perf_evsel *evsel,
+perf_evsel_browser__new(struct evsel *evsel,
 			struct hist_browser_timer *hbt,
 			struct perf_env *env,
 			struct annotation_options *annotation_opts)
@@ -2346,7 +2363,7 @@ struct popup_action {
 	struct thread 		*thread;
 	struct map_symbol 	ms;
 	int			socket;
-	struct perf_evsel	*evsel;
+	struct evsel	*evsel;
 	enum rstype		rstype;
 
 	int (*fn)(struct hist_browser *browser, struct popup_action *act);
@@ -2355,7 +2372,7 @@ struct popup_action {
 static int
 do_annotate(struct hist_browser *browser, struct popup_action *act)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	struct annotation *notes;
 	struct hist_entry *he;
 	int err;
@@ -2368,7 +2385,11 @@ do_annotate(struct hist_browser *browser, struct popup_action *act)
 	if (!notes->src)
 		return 0;
 
-	evsel = hists_to_evsel(browser->hists);
+	if (browser->block_evsel)
+		evsel = browser->block_evsel;
+	else
+		evsel = hists_to_evsel(browser->hists);
+
 	err = map_symbol__tui_annotate(&act->ms, evsel, browser->hbt,
 				       browser->annotation_opts);
 	he = hist_browser__selected_entry(browser);
@@ -2388,16 +2409,15 @@ do_annotate(struct hist_browser *browser, struct popup_action *act)
 static int
 add_annotate_opt(struct hist_browser *browser __maybe_unused,
 		 struct popup_action *act, char **optstr,
-		 struct map *map, struct symbol *sym)
+		 struct map_symbol *ms)
 {
-	if (sym == NULL || map->dso->annotate_warned)
+	if (ms->sym == NULL || ms->map->dso->annotate_warned)
 		return 0;
 
-	if (asprintf(optstr, "Annotate %s", sym->name) < 0)
+	if (asprintf(optstr, "Annotate %s", ms->sym->name) < 0)
 		return 0;
 
-	act->ms.map = map;
-	act->ms.sym = sym;
+	act->ms = *ms;
 	act->fn = do_annotate;
 	return 1;
 }
@@ -2590,7 +2610,7 @@ static int
 add_script_opt_2(struct hist_browser *browser __maybe_unused,
 	       struct popup_action *act, char **optstr,
 	       struct thread *thread, struct symbol *sym,
-	       struct perf_evsel *evsel, const char *tstr)
+	       struct evsel *evsel, const char *tstr)
 {
 
 	if (thread) {
@@ -2617,7 +2637,7 @@ static int
 add_script_opt(struct hist_browser *browser,
 	       struct popup_action *act, char **optstr,
 	       struct thread *thread, struct symbol *sym,
-	       struct perf_evsel *evsel)
+	       struct evsel *evsel)
 {
 	int n, j;
 	struct hist_entry *he;
@@ -2647,7 +2667,7 @@ static int
 add_res_sample_opt(struct hist_browser *browser __maybe_unused,
 		   struct popup_action *act, char **optstr,
 		   struct res_sample *res_sample,
-		   struct perf_evsel *evsel,
+		   struct evsel *evsel,
 		   enum rstype type)
 {
 	if (!res_sample)
@@ -2808,7 +2828,7 @@ next:
 	}
 }
 
-static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
+static int perf_evsel__hists_browse(struct evsel *evsel, int nr_events,
 				    const char *helpline,
 				    bool left_exits,
 				    struct hist_browser_timer *hbt,
@@ -2819,7 +2839,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 {
 	struct hists *hists = evsel__hists(evsel);
 	struct hist_browser *browser = perf_evsel_browser__new(evsel, hbt, env, annotation_opts);
-	struct branch_info *bi;
+	struct branch_info *bi = NULL;
 #define MAX_OPTIONS  16
 	char *options[MAX_OPTIONS];
 	struct popup_action actions[MAX_OPTIONS];
@@ -2887,6 +2907,9 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 
 	if (symbol_conf.col_width_list_str)
 		perf_hpp__set_user_width(symbol_conf.col_width_list_str);
+
+	if (!is_report_browser(hbt))
+		browser->b.no_samples_msg = "Collecting samples...";
 
 	while (1) {
 		struct thread *thread = NULL;
@@ -3085,7 +3108,9 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			goto skip_annotation;
 
 		if (sort__mode == SORT_MODE__BRANCH) {
-			bi = browser->he_selection->branch_info;
+
+			if (browser->he_selection)
+				bi = browser->he_selection->branch_info;
 
 			if (bi == NULL)
 				goto skip_annotation;
@@ -3093,20 +3118,17 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			nr_options += add_annotate_opt(browser,
 						       &actions[nr_options],
 						       &options[nr_options],
-						       bi->from.map,
-						       bi->from.sym);
-			if (bi->to.sym != bi->from.sym)
+						       &bi->from.ms);
+			if (bi->to.ms.sym != bi->from.ms.sym)
 				nr_options += add_annotate_opt(browser,
 							&actions[nr_options],
 							&options[nr_options],
-							bi->to.map,
-							bi->to.sym);
+							&bi->to.ms);
 		} else {
 			nr_options += add_annotate_opt(browser,
 						       &actions[nr_options],
 						       &options[nr_options],
-						       browser->selection->map,
-						       browser->selection->sym);
+						       browser->selection);
 		}
 skip_annotation:
 		nr_options += add_thread_opt(browser, &actions[nr_options],
@@ -3190,9 +3212,9 @@ out:
 	return key;
 }
 
-struct perf_evsel_menu {
+struct evsel_menu {
 	struct ui_browser b;
-	struct perf_evsel *selection;
+	struct evsel *selection;
 	struct annotation_options *annotation_opts;
 	bool lost_events, lost_events_warned;
 	float min_pcnt;
@@ -3202,9 +3224,9 @@ struct perf_evsel_menu {
 static void perf_evsel_menu__write(struct ui_browser *browser,
 				   void *entry, int row)
 {
-	struct perf_evsel_menu *menu = container_of(browser,
-						    struct perf_evsel_menu, b);
-	struct perf_evsel *evsel = list_entry(entry, struct perf_evsel, node);
+	struct evsel_menu *menu = container_of(browser,
+						    struct evsel_menu, b);
+	struct evsel *evsel = list_entry(entry, struct evsel, core.node);
 	struct hists *hists = evsel__hists(evsel);
 	bool current_entry = ui_browser__is_current_entry(browser, row);
 	unsigned long nr_events = hists->stats.nr_events[PERF_RECORD_SAMPLE];
@@ -3217,7 +3239,7 @@ static void perf_evsel_menu__write(struct ui_browser *browser,
 						       HE_COLORSET_NORMAL);
 
 	if (perf_evsel__is_group_event(evsel)) {
-		struct perf_evsel *pos;
+		struct evsel *pos;
 
 		ev_name = perf_evsel__group_name(evsel);
 
@@ -3249,13 +3271,13 @@ static void perf_evsel_menu__write(struct ui_browser *browser,
 		menu->selection = evsel;
 }
 
-static int perf_evsel_menu__run(struct perf_evsel_menu *menu,
+static int perf_evsel_menu__run(struct evsel_menu *menu,
 				int nr_events, const char *help,
 				struct hist_browser_timer *hbt,
 				bool warn_lost_event)
 {
-	struct perf_evlist *evlist = menu->b.priv;
-	struct perf_evsel *pos;
+	struct evlist *evlist = menu->b.priv;
+	struct evsel *pos;
 	const char *title = "Available samples";
 	int delay_secs = hbt ? hbt->refresh : 0;
 	int key;
@@ -3269,7 +3291,8 @@ static int perf_evsel_menu__run(struct perf_evsel_menu *menu,
 
 		switch (key) {
 		case K_TIMER:
-			hbt->timer(hbt->arg);
+			if (hbt)
+				hbt->timer(hbt->arg);
 
 			if (!menu->lost_events_warned &&
 			    menu->lost_events &&
@@ -3300,14 +3323,14 @@ browse_hists:
 			ui_browser__show_title(&menu->b, title);
 			switch (key) {
 			case K_TAB:
-				if (pos->node.next == &evlist->entries)
-					pos = perf_evlist__first(evlist);
+				if (pos->core.node.next == &evlist->core.entries)
+					pos = evlist__first(evlist);
 				else
 					pos = perf_evsel__next(pos);
 				goto browse_hists;
 			case K_UNTAB:
-				if (pos->node.prev == &evlist->entries)
-					pos = perf_evlist__last(evlist);
+				if (pos->core.node.prev == &evlist->core.entries)
+					pos = evlist__last(evlist);
 				else
 					pos = perf_evsel__prev(pos);
 				goto browse_hists;
@@ -3342,7 +3365,7 @@ out:
 static bool filter_group_entries(struct ui_browser *browser __maybe_unused,
 				 void *entry)
 {
-	struct perf_evsel *evsel = list_entry(entry, struct perf_evsel, node);
+	struct evsel *evsel = list_entry(entry, struct evsel, core.node);
 
 	if (symbol_conf.event_group && !perf_evsel__is_group_leader(evsel))
 		return true;
@@ -3350,7 +3373,7 @@ static bool filter_group_entries(struct ui_browser *browser __maybe_unused,
 	return false;
 }
 
-static int __perf_evlist__tui_browse_hists(struct perf_evlist *evlist,
+static int __perf_evlist__tui_browse_hists(struct evlist *evlist,
 					   int nr_entries, const char *help,
 					   struct hist_browser_timer *hbt,
 					   float min_pcnt,
@@ -3358,10 +3381,10 @@ static int __perf_evlist__tui_browse_hists(struct perf_evlist *evlist,
 					   bool warn_lost_event,
 					   struct annotation_options *annotation_opts)
 {
-	struct perf_evsel *pos;
-	struct perf_evsel_menu menu = {
+	struct evsel *pos;
+	struct evsel_menu menu = {
 		.b = {
-			.entries    = &evlist->entries,
+			.entries    = &evlist->core.entries,
 			.refresh    = ui_browser__list_head_refresh,
 			.seek	    = ui_browser__list_head_seek,
 			.write	    = perf_evsel_menu__write,
@@ -3388,18 +3411,18 @@ static int __perf_evlist__tui_browse_hists(struct perf_evlist *evlist,
 				    hbt, warn_lost_event);
 }
 
-int perf_evlist__tui_browse_hists(struct perf_evlist *evlist, const char *help,
+int perf_evlist__tui_browse_hists(struct evlist *evlist, const char *help,
 				  struct hist_browser_timer *hbt,
 				  float min_pcnt,
 				  struct perf_env *env,
 				  bool warn_lost_event,
 				  struct annotation_options *annotation_opts)
 {
-	int nr_entries = evlist->nr_entries;
+	int nr_entries = evlist->core.nr_entries;
 
 single_entry:
 	if (nr_entries == 1) {
-		struct perf_evsel *first = perf_evlist__first(evlist);
+		struct evsel *first = evlist__first(evlist);
 
 		return perf_evsel__hists_browse(first, nr_entries, help,
 						false, hbt, min_pcnt,
@@ -3408,7 +3431,7 @@ single_entry:
 	}
 
 	if (symbol_conf.event_group) {
-		struct perf_evsel *pos;
+		struct evsel *pos;
 
 		nr_entries = 0;
 		evlist__for_each_entry(evlist, pos) {
@@ -3424,4 +3447,76 @@ single_entry:
 					       hbt, min_pcnt, env,
 					       warn_lost_event,
 					       annotation_opts);
+}
+
+static int block_hists_browser__title(struct hist_browser *browser, char *bf,
+				      size_t size)
+{
+	struct hists *hists = evsel__hists(browser->block_evsel);
+	const char *evname = perf_evsel__name(browser->block_evsel);
+	unsigned long nr_samples = hists->stats.nr_events[PERF_RECORD_SAMPLE];
+	int ret;
+
+	ret = scnprintf(bf, size, "# Samples: %lu", nr_samples);
+	if (evname)
+		scnprintf(bf + ret, size -  ret, " of event '%s'", evname);
+
+	return 0;
+}
+
+int block_hists_tui_browse(struct block_hist *bh, struct evsel *evsel,
+			   float min_percent, struct perf_env *env,
+			   struct annotation_options *annotation_opts)
+{
+	struct hists *hists = &bh->block_hists;
+	struct hist_browser *browser;
+	int key = -1;
+	struct popup_action action;
+	static const char help[] =
+	" q             Quit \n";
+
+	browser = hist_browser__new(hists);
+	if (!browser)
+		return -1;
+
+	browser->block_evsel = evsel;
+	browser->title = block_hists_browser__title;
+	browser->min_pcnt = min_percent;
+	browser->env = env;
+	browser->annotation_opts = annotation_opts;
+
+	/* reset abort key so that it can get Ctrl-C as a key */
+	SLang_reset_tty();
+	SLang_init_tty(0, 0, 0);
+
+	memset(&action, 0, sizeof(action));
+
+	while (1) {
+		key = hist_browser__run(browser, "? - help", true);
+
+		switch (key) {
+		case 'q':
+			goto out;
+		case '?':
+			ui_browser__help_window(&browser->b, help);
+			break;
+		case 'a':
+		case K_ENTER:
+			if (!browser->selection ||
+			    !browser->selection->sym) {
+				continue;
+			}
+
+			action.ms.map = browser->selection->map;
+			action.ms.sym = browser->selection->sym;
+			do_annotate(browser, &action);
+			continue;
+		default:
+			break;
+		}
+	}
+
+out:
+	hist_browser__delete(browser);
+	return 0;
 }

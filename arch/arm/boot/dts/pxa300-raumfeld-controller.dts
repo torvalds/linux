@@ -41,6 +41,8 @@
 	};
 
 	charger: charger {
+		pinctrl-names = "default";
+		pinctrl-0 = <&charger_pins>;
 		compatible = "gpio-charger";
 		charger-type = "mains";
 		gpios = <&gpio 101 GPIO_ACTIVE_LOW>;
@@ -109,9 +111,10 @@
 };
 
 &keys {
+	pinctrl-0 = <&gpio_keys_pins &dock_detect_pins>;
 	dock-detect {
 		label = "dock detect";
-		gpios = <&gpio 116 GPIO_ACTIVE_HIGH>;
+		gpios = <&gpio 116 GPIO_ACTIVE_LOW>;
 		linux,code = <KEY_F5>;
 	};
 };
@@ -234,6 +237,22 @@
 			MFP_PIN_PXA300(105) MFP_AF0	/* PWM	*/
 		>;
 		pinctrl-single,low-power-mode = MFP_LPM(MFP_LPM_FLOAT);
+	};
+
+	charger_pins: charger_pins {
+		pinctrl-single,pins = <
+			MFP_PIN_PXA300(31) MFP_AF0	/* PEN2	*/
+		>;
+		pinctrl-single,low-power-mode = MFP_LPM(MFP_LPM_PULL_HIGH);
+		pinctrl-single,bias-pullup = MPF_PULL_UP;
+	};
+
+	dock_detect_pins: dock_detect_pins {
+		pinctrl-single,pins = <
+			MFP_PIN_PXA300(116) MFP_AF0	/* DOCK_DETECT	*/
+		>;
+		pinctrl-single,low-power-mode = MFP_LPM(MFP_LPM_PULL_HIGH);
+		pinctrl-single,bias-pullup = MPF_PULL_UP;
 	};
 
 	lcdc_pins: lcdc-pins {

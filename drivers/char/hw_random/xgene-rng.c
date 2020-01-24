@@ -313,7 +313,6 @@ static struct hwrng xgene_rng_func = {
 
 static int xgene_rng_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	struct xgene_rng_dev *ctx;
 	int rc = 0;
 
@@ -324,8 +323,7 @@ static int xgene_rng_probe(struct platform_device *pdev)
 	ctx->dev = &pdev->dev;
 	platform_set_drvdata(pdev, ctx);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ctx->csr_base = devm_ioremap_resource(&pdev->dev, res);
+	ctx->csr_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ctx->csr_base))
 		return PTR_ERR(ctx->csr_base);
 
@@ -361,7 +359,7 @@ static int xgene_rng_probe(struct platform_device *pdev)
 
 	xgene_rng_func.priv = (unsigned long) ctx;
 
-	rc = hwrng_register(&xgene_rng_func);
+	rc = devm_hwrng_register(&pdev->dev, &xgene_rng_func);
 	if (rc) {
 		dev_err(&pdev->dev, "RNG registering failed error %d\n", rc);
 		if (!IS_ERR(ctx->clk))
@@ -375,7 +373,6 @@ static int xgene_rng_probe(struct platform_device *pdev)
 			rc);
 		if (!IS_ERR(ctx->clk))
 			clk_disable_unprepare(ctx->clk);
-		hwrng_unregister(&xgene_rng_func);
 		return rc;
 	}
 
@@ -392,7 +389,6 @@ static int xgene_rng_remove(struct platform_device *pdev)
 		dev_err(&pdev->dev, "RNG init wakeup failed error %d\n", rc);
 	if (!IS_ERR(ctx->clk))
 		clk_disable_unprepare(ctx->clk);
-	hwrng_unregister(&xgene_rng_func);
 
 	return rc;
 }

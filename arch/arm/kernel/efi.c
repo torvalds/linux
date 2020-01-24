@@ -8,8 +8,7 @@
 #include <asm/mach/map.h>
 #include <asm/mmu_context.h>
 
-static int __init set_permissions(pte_t *ptep, pgtable_t token,
-				  unsigned long addr, void *data)
+static int __init set_permissions(pte_t *ptep, unsigned long addr, void *data)
 {
 	efi_memory_desc_t *md = data;
 	pte_t pte = *ptep;

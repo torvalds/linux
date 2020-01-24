@@ -359,9 +359,10 @@ pnfs_clear_lseg_state(struct pnfs_layout_segment *lseg,
 }
 
 /*
- * Update the seqid of a layout stateid
+ * Update the seqid of a layout stateid after receiving
+ * NFS4ERR_OLD_STATEID
  */
-bool nfs4_layoutreturn_refresh_stateid(nfs4_stateid *dst,
+bool nfs4_layout_refresh_old_stateid(nfs4_stateid *dst,
 		struct pnfs_layout_range *dst_range,
 		struct inode *inode)
 {
@@ -377,7 +378,15 @@ bool nfs4_layoutreturn_refresh_stateid(nfs4_stateid *dst,
 
 	spin_lock(&inode->i_lock);
 	lo = NFS_I(inode)->layout;
-	if (lo && nfs4_stateid_match_other(dst, &lo->plh_stateid)) {
+	if (lo &&  pnfs_layout_is_valid(lo) &&
+	    nfs4_stateid_match_other(dst, &lo->plh_stateid)) {
+		/* Is our call using the most recent seqid? If so, bump it */
+		if (!nfs4_stateid_is_newer(&lo->plh_stateid, dst)) {
+			nfs4_stateid_seqid_inc(dst);
+			ret = true;
+			goto out;
+		}
+		/* Try to update the seqid to the most recent */
 		err = pnfs_mark_matching_lsegs_return(lo, &head, &range, 0);
 		if (err != -EBUSY) {
 			dst->seqid = lo->plh_stateid.seqid;
@@ -385,6 +394,7 @@ bool nfs4_layoutreturn_refresh_stateid(nfs4_stateid *dst,
 			ret = true;
 		}
 	}
+out:
 	spin_unlock(&inode->i_lock);
 	pnfs_free_lseg_list(&head);
 	return ret;
@@ -1440,6 +1450,52 @@ out_noroc:
 	return false;
 }
 
+int pnfs_roc_done(struct rpc_task *task, struct inode *inode,
+		struct nfs4_layoutreturn_args **argpp,
+		struct nfs4_layoutreturn_res **respp,
+		int *ret)
+{
+	struct nfs4_layoutreturn_args *arg = *argpp;
+	int retval = -EAGAIN;
+
+	if (!arg)
+		return 0;
+	/* Handle Layoutreturn errors */
+	switch (*ret) {
+	case 0:
+		retval = 0;
+		break;
+	case -NFS4ERR_NOMATCHING_LAYOUT:
+		/* Was there an RPC level error? If not, retry */
+		if (task->tk_rpc_status == 0)
+			break;
+		/* If the call was not sent, let caller handle it */
+		if (!RPC_WAS_SENT(task))
+			return 0;
+		/*
+		 * Otherwise, assume the call succeeded and
+		 * that we need to release the layout
+		 */
+		*ret = 0;
+		(*respp)->lrs_present = 0;
+		retval = 0;
+		break;
+	case -NFS4ERR_DELAY:
+		/* Let the caller handle the retry */
+		*ret = -NFS4ERR_NOMATCHING_LAYOUT;
+		return 0;
+	case -NFS4ERR_OLD_STATEID:
+		if (!nfs4_layout_refresh_old_stateid(&arg->stateid,
+					&arg->range, inode))
+			break;
+		*ret = -NFS4ERR_NOMATCHING_LAYOUT;
+		return -EAGAIN;
+	}
+	*argpp = NULL;
+	*respp = NULL;
+	return retval;
+}
+
 void pnfs_roc_release(struct nfs4_layoutreturn_args *args,
 		struct nfs4_layoutreturn_res *res,
 		int ret)
@@ -1449,10 +1505,15 @@ void pnfs_roc_release(struct nfs4_layoutreturn_args *args,
 	const nfs4_stateid *res_stateid = NULL;
 	struct nfs4_xdr_opaque_data *ld_private = args->ld_private;
 
-	if (ret == 0) {
-		arg_stateid = &args->stateid;
+	switch (ret) {
+	case -NFS4ERR_NOMATCHING_LAYOUT:
+		break;
+	case 0:
 		if (res->lrs_present)
 			res_stateid = &res->stateid;
+		/* Fallthrough */
+	default:
+		arg_stateid = &args->stateid;
 	}
 	pnfs_layoutreturn_free_lsegs(lo, arg_stateid, &args->range,
 			res_stateid);
@@ -1890,7 +1951,7 @@ lookup_again:
 		spin_unlock(&ino->i_lock);
 		lseg = ERR_PTR(wait_var_event_killable(&lo->plh_outstanding,
 					!atomic_read(&lo->plh_outstanding)));
-		if (IS_ERR(lseg) || !list_empty(&lo->plh_segs))
+		if (IS_ERR(lseg))
 			goto out_put_layout_hdr;
 		pnfs_put_layout_hdr(lo);
 		goto lookup_again;
@@ -1903,18 +1964,13 @@ lookup_again:
 		goto out_unlock;
 	}
 
-	if (!nfs4_valid_open_stateid(ctx->state)) {
-		trace_pnfs_update_layout(ino, pos, count, iomode, lo, lseg,
-				PNFS_UPDATE_LAYOUT_INVALID_OPEN);
-		goto out_unlock;
-	}
-
 	/*
 	 * Choose a stateid for the LAYOUTGET. If we don't have a layout
 	 * stateid, or it has been invalidated, then we must use the open
 	 * stateid.
 	 */
 	if (test_bit(NFS_LAYOUT_INVALID_STID, &lo->plh_flags)) {
+		int status;
 
 		/*
 		 * The first layoutget for the file. Need to serialize per
@@ -1934,13 +1990,21 @@ lookup_again:
 		}
 
 		first = true;
-		if (nfs4_select_rw_stateid(ctx->state,
+		status = nfs4_select_rw_stateid(ctx->state,
 					iomode == IOMODE_RW ? FMODE_WRITE : FMODE_READ,
-					NULL, &stateid, NULL) != 0) {
+					NULL, &stateid, NULL);
+		if (status != 0) {
+			lseg = ERR_PTR(status);
 			trace_pnfs_update_layout(ino, pos, count,
 					iomode, lo, lseg,
 					PNFS_UPDATE_LAYOUT_INVALID_OPEN);
-			goto out_unlock;
+			if (status != -EAGAIN)
+				goto out_unlock;
+			spin_unlock(&ino->i_lock);
+			nfs4_schedule_stateid_recovery(server, ctx->state);
+			pnfs_clear_first_layoutget(lo);
+			pnfs_put_layout_hdr(lo);
+			goto lookup_again;
 		}
 	} else {
 		nfs4_stateid_copy(&stateid, &lo->plh_stateid);
@@ -2029,6 +2093,8 @@ lookup_again:
 out_put_layout_hdr:
 	if (first)
 		pnfs_clear_first_layoutget(lo);
+	trace_pnfs_update_layout(ino, pos, count, iomode, lo, lseg,
+				 PNFS_UPDATE_LAYOUT_EXIT);
 	pnfs_put_layout_hdr(lo);
 out:
 	dprintk("%s: inode %s/%llu pNFS layout segment %s for "
@@ -2093,8 +2159,6 @@ out_unlock:
 	pnfs_put_layout_hdr(lo);
 	return NULL;
 }
-
-extern const nfs4_stateid current_stateid;
 
 static void _lgopen_prepare_attached(struct nfs4_opendata *data,
 				     struct nfs_open_context *ctx)
@@ -2468,7 +2532,7 @@ pnfs_generic_pg_init_write(struct nfs_pageio_descriptor *pgio,
 						   wb_size,
 						   IOMODE_RW,
 						   false,
-						   GFP_NOFS);
+						   GFP_KERNEL);
 		if (IS_ERR(pgio->pg_lseg)) {
 			pgio->pg_error = PTR_ERR(pgio->pg_lseg);
 			pgio->pg_lseg = NULL;

@@ -120,30 +120,31 @@ struct ice_cee_app_prio {
 	u8 prio_map;
 } __packed;
 
-u8 ice_get_dcbx_status(struct ice_hw *hw);
-enum ice_status ice_lldp_to_dcb_cfg(u8 *lldpmib, struct ice_dcbx_cfg *dcbcfg);
+enum ice_status
+ice_aq_get_dcb_cfg(struct ice_hw *hw, u8 mib_type, u8 bridgetype,
+		   struct ice_dcbx_cfg *dcbcfg);
 enum ice_status ice_get_dcb_cfg(struct ice_port_info *pi);
 enum ice_status ice_set_dcb_cfg(struct ice_port_info *pi);
-enum ice_status ice_init_dcb(struct ice_hw *hw);
+enum ice_status ice_init_dcb(struct ice_hw *hw, bool enable_mib_change);
 enum ice_status
 ice_query_port_ets(struct ice_port_info *pi,
 		   struct ice_aqc_port_ets_elem *buf, u16 buf_size,
 		   struct ice_sq_cd *cmd_details);
 #ifdef CONFIG_DCB
 enum ice_status
-ice_aq_stop_lldp(struct ice_hw *hw, bool shutdown_lldp_agent,
+ice_aq_stop_lldp(struct ice_hw *hw, bool shutdown_lldp_agent, bool persist,
 		 struct ice_sq_cd *cd);
-enum ice_status ice_aq_start_lldp(struct ice_hw *hw, struct ice_sq_cd *cd);
+enum ice_status
+ice_aq_start_lldp(struct ice_hw *hw, bool persist, struct ice_sq_cd *cd);
 enum ice_status
 ice_aq_start_stop_dcbx(struct ice_hw *hw, bool start_dcbx_agent,
 		       bool *dcbx_agent_status, struct ice_sq_cd *cd);
-enum ice_status
-ice_aq_cfg_lldp_mib_change(struct ice_hw *hw, bool ena_update,
-			   struct ice_sq_cd *cd);
+enum ice_status ice_cfg_lldp_mib_change(struct ice_hw *hw, bool ena_mib);
 #else /* CONFIG_DCB */
 static inline enum ice_status
 ice_aq_stop_lldp(struct ice_hw __always_unused *hw,
 		 bool __always_unused shutdown_lldp_agent,
+		 bool __always_unused persist,
 		 struct ice_sq_cd __always_unused *cd)
 {
 	return 0;
@@ -151,6 +152,7 @@ ice_aq_stop_lldp(struct ice_hw __always_unused *hw,
 
 static inline enum ice_status
 ice_aq_start_lldp(struct ice_hw __always_unused *hw,
+		  bool __always_unused persist,
 		  struct ice_sq_cd __always_unused *cd)
 {
 	return 0;
@@ -168,9 +170,8 @@ ice_aq_start_stop_dcbx(struct ice_hw __always_unused *hw,
 }
 
 static inline enum ice_status
-ice_aq_cfg_lldp_mib_change(struct ice_hw __always_unused *hw,
-			   bool __always_unused ena_update,
-			   struct ice_sq_cd __always_unused *cd)
+ice_cfg_lldp_mib_change(struct ice_hw __always_unused *hw,
+			bool __always_unused ena_mib)
 {
 	return 0;
 }

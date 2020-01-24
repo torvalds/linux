@@ -128,9 +128,9 @@ config IP6_NF_MATCH_HL
 	depends on NETFILTER_ADVANCED
 	select NETFILTER_XT_MATCH_HL
 	---help---
-	This is a backwards-compat option for the user's convenience
-	(e.g. when running oldconfig). It selects
-	CONFIG_NETFILTER_XT_MATCH_HL.
+	  This is a backwards-compat option for the user's convenience
+	  (e.g. when running oldconfig). It selects
+	  CONFIG_NETFILTER_XT_MATCH_HL.
 
 config IP6_NF_MATCH_IPV6HEADER
 	tristate '"ipv6header" IPv6 Extension Headers Match'
@@ -170,13 +170,13 @@ config IP6_NF_MATCH_RT
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 config IP6_NF_MATCH_SRH
-        tristate '"srh" Segment Routing header match support'
-        depends on NETFILTER_ADVANCED
-        help
-          srh matching allows you to match packets based on the segment
+	tristate '"srh" Segment Routing header match support'
+	depends on NETFILTER_ADVANCED
+	help
+	  srh matching allows you to match packets based on the segment
 	  routing header of the packet.
 
-          To compile it as a module, choose M here.  If unsure, say N.
+	  To compile it as a module, choose M here.  If unsure, say N.
 
 # The targets
 config IP6_NF_TARGET_HL
@@ -184,9 +184,9 @@ config IP6_NF_TARGET_HL
 	depends on NETFILTER_ADVANCED && IP6_NF_MANGLE
 	select NETFILTER_XT_TARGET_HL
 	---help---
-	This is a backwards-compatible option for the user's convenience
-	(e.g. when running oldconfig). It selects
-	CONFIG_NETFILTER_XT_TARGET_HL.
+	  This is a backwards-compatible option for the user's convenience
+	  (e.g. when running oldconfig). It selects
+	  CONFIG_NETFILTER_XT_TARGET_HL.
 
 config IP6_NF_FILTER
 	tristate "Packet filtering"
@@ -241,18 +241,18 @@ config IP6_NF_RAW
 	  and OUTPUT chains.
 
 	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
+	  <file:Documentation/kbuild/modules.rst>.  If unsure, say `N'.
 
 # security table for MAC policy
 config IP6_NF_SECURITY
-       tristate "Security table"
-       depends on SECURITY
-       depends on NETFILTER_ADVANCED
-       help
-         This option adds a `security' table to iptables, for use
-         with Mandatory Access Control (MAC) policy.
+	tristate "Security table"
+	depends on SECURITY
+	depends on NETFILTER_ADVANCED
+	help
+	  This option adds a `security' table to iptables, for use
+	  with Mandatory Access Control (MAC) policy.
 
-         If unsure, say N.
+	  If unsure, say N.
 
 config IP6_NF_NAT
 	tristate "ip6tables NAT support"

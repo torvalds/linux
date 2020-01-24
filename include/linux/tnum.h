@@ -5,6 +5,10 @@
  * propagate the unknown bits such that the tnum result represents all the
  * possible results for possible values of the operands.
  */
+
+#ifndef _LINUX_TNUM_H
+#define _LINUX_TNUM_H
+
 #include <linux/types.h>
 
 struct tnum {
@@ -26,7 +30,7 @@ struct tnum tnum_lshift(struct tnum a, u8 shift);
 /* Shift (rsh) a tnum right (by a fixed shift) */
 struct tnum tnum_rshift(struct tnum a, u8 shift);
 /* Shift (arsh) a tnum right (by a fixed min_shift) */
-struct tnum tnum_arshift(struct tnum a, u8 min_shift);
+struct tnum tnum_arshift(struct tnum a, u8 min_shift, u8 insn_bitness);
 /* Add two tnums, return @a + @b */
 struct tnum tnum_add(struct tnum a, struct tnum b);
 /* Subtract two tnums, return @a - @b */
@@ -81,3 +85,5 @@ bool tnum_in(struct tnum a, struct tnum b);
 int tnum_strn(char *str, size_t size, struct tnum a);
 /* Format a tnum as tristate binary expansion */
 int tnum_sbin(char *str, size_t size, struct tnum a);
+
+#endif /* _LINUX_TNUM_H */

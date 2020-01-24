@@ -192,6 +192,8 @@ kvm_emulate_mtmsr_orig_ins_offs:
 kvm_emulate_mtmsr_len:
 	.long (kvm_emulate_mtmsr_end - kvm_emulate_mtmsr) / 4
 
+#ifdef CONFIG_BOOKE
+
 /* also used for wrteei 1 */
 .global kvm_emulate_wrtee
 kvm_emulate_wrtee:
@@ -285,6 +287,10 @@ kvm_emulate_wrteei_0_branch_offs:
 kvm_emulate_wrteei_0_len:
 	.long (kvm_emulate_wrteei_0_end - kvm_emulate_wrteei_0) / 4
 
+#endif /* CONFIG_BOOKE */
+
+#ifdef CONFIG_PPC_BOOK3S_32
+
 .global kvm_emulate_mtsrin
 kvm_emulate_mtsrin:
 
@@ -333,6 +339,16 @@ kvm_emulate_mtsrin_orig_ins_offs:
 .global kvm_emulate_mtsrin_len
 kvm_emulate_mtsrin_len:
 	.long (kvm_emulate_mtsrin_end - kvm_emulate_mtsrin) / 4
+
+#endif /* CONFIG_PPC_BOOK3S_32 */
+
+	.balign 4
+	.global kvm_tmp
+kvm_tmp:
+	.space	(64 * 1024)
+
+.global kvm_tmp_end
+kvm_tmp_end:
 
 .global kvm_template_end
 kvm_template_end:

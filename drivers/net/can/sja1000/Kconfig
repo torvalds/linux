@@ -1,33 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0-only
+
 menuconfig CAN_SJA1000
 	tristate "Philips/NXP SJA1000 devices"
 	depends on HAS_IOMEM
 
 if CAN_SJA1000
-
-config CAN_SJA1000_ISA
-	tristate "ISA Bus based legacy SJA1000 driver"
-	---help---
-	  This driver adds legacy support for SJA1000 chips connected to
-	  the ISA bus using I/O port, memory mapped or indirect access.
-
-config CAN_SJA1000_PLATFORM
-	tristate "Generic Platform Bus based SJA1000 driver"
-	---help---
-	  This driver adds support for the SJA1000 chips connected to
-	  the "platform bus" (Linux abstraction for directly to the
-	  processor attached devices).  Which can be found on various
-	  boards from Phytec (http://www.phytec.de) like the PCM027,
-	  PCM038. It also provides the OpenFirmware "platform bus" found
-	  on embedded systems with OpenFirmware bindings, e.g. if you
-	  have a PowerPC based system you may want to enable this option.
-
-config CAN_EMS_PCMCIA
-	tristate "EMS CPC-CARD Card"
-	depends on PCMCIA
-	---help---
-	  This driver is for the one or two channel CPC-CARD cards from
-	  EMS Dr. Thomas Wuensche (http://www.ems-wuensche.de).
 
 config CAN_EMS_PCI
 	tristate "EMS CPC-PCI, CPC-PCIe and CPC-104P Card"
@@ -37,15 +14,29 @@ config CAN_EMS_PCI
 	  CPC-PCIe and CPC-104P cards from EMS Dr. Thomas Wuensche
 	  (http://www.ems-wuensche.de).
 
-config CAN_PEAK_PCMCIA
-	tristate "PEAK PCAN-PC Card"
+config CAN_EMS_PCMCIA
+	tristate "EMS CPC-CARD Card"
 	depends on PCMCIA
-	depends on HAS_IOPORT_MAP
 	---help---
-	  This driver is for the PCAN-PC Card PCMCIA adapter (1 or 2 channels)
-	  from PEAK-System (http://www.peak-system.com). To compile this
-	  driver as a module, choose M here: the module will be called
-	  peak_pcmcia.
+	  This driver is for the one or two channel CPC-CARD cards from
+	  EMS Dr. Thomas Wuensche (http://www.ems-wuensche.de).
+
+config CAN_F81601
+	tristate "Fintek F81601 PCIE to 2 CAN Controller"
+	depends on PCI
+	help
+	  This driver adds support for Fintek F81601 PCIE to 2 CAN
+	  Controller. It had internal 24MHz clock source, but it can
+	  be changed by manufacturer. Use modinfo to get usage for
+	  parameters. Visit http://www.fintek.com.tw to get more
+	  information.
+
+config CAN_KVASER_PCI
+	tristate "Kvaser PCIcanx and Kvaser PCIcan PCI Cards"
+	depends on PCI
+	---help---
+	  This driver is for the PCIcanx and PCIcan cards (1, 2 or
+	  4 channel) from Kvaser (http://www.kvaser.com).
 
 config CAN_PEAK_PCI
 	tristate "PEAK PCAN-PCI/PCIe/miniPCI Cards"
@@ -66,12 +57,15 @@ config CAN_PEAK_PCIEC
 	  Technik. This will also automatically select I2C and I2C_ALGO
 	  configuration options.
 
-config CAN_KVASER_PCI
-	tristate "Kvaser PCIcanx and Kvaser PCIcan PCI Cards"
-	depends on PCI
+config CAN_PEAK_PCMCIA
+	tristate "PEAK PCAN-PC Card"
+	depends on PCMCIA
+	depends on HAS_IOPORT_MAP
 	---help---
-	  This driver is for the PCIcanx and PCIcan cards (1, 2 or
-	  4 channel) from Kvaser (http://www.kvaser.com).
+	  This driver is for the PCAN-PC Card PCMCIA adapter (1 or 2 channels)
+	  from PEAK-System (http://www.peak-system.com). To compile this
+	  driver as a module, choose M here: the module will be called
+	  peak_pcmcia.
 
 config CAN_PLX_PCI
 	tristate "PLX90xx PCI-bridge based Cards"
@@ -90,6 +84,23 @@ config CAN_PLX_PCI
 	   - IXXAT Automation PC-I 04/PCI card (http://www.ixxat.com/)
 	   - Connect Tech Inc. CANpro/104-Plus Opto (CRG001) card (http://www.connecttech.com)
 	   - ASEM CAN raw - 2 isolated CAN channels (www.asem.it)
+
+config CAN_SJA1000_ISA
+	tristate "ISA Bus based legacy SJA1000 driver"
+	---help---
+	  This driver adds legacy support for SJA1000 chips connected to
+	  the ISA bus using I/O port, memory mapped or indirect access.
+
+config CAN_SJA1000_PLATFORM
+	tristate "Generic Platform Bus based SJA1000 driver"
+	---help---
+	  This driver adds support for the SJA1000 chips connected to
+	  the "platform bus" (Linux abstraction for directly to the
+	  processor attached devices).  Which can be found on various
+	  boards from Phytec (http://www.phytec.de) like the PCM027,
+	  PCM038. It also provides the OpenFirmware "platform bus" found
+	  on embedded systems with OpenFirmware bindings, e.g. if you
+	  have a PowerPC based system you may want to enable this option.
 
 config CAN_TSCAN1
 	tristate "TS-CAN1 PC104 boards"

@@ -2,6 +2,7 @@
 #ifndef __LINUX_PKT_SCHED_H
 #define __LINUX_PKT_SCHED_H
 
+#include <linux/const.h>
 #include <linux/types.h>
 
 /* Logical priority bands not depending on specific packet scheduler.
@@ -949,19 +950,25 @@ enum {
 	TCA_PIE_BETA,
 	TCA_PIE_ECN,
 	TCA_PIE_BYTEMODE,
+	TCA_PIE_DQ_RATE_ESTIMATOR,
 	__TCA_PIE_MAX
 };
 #define TCA_PIE_MAX   (__TCA_PIE_MAX - 1)
 
 struct tc_pie_xstats {
-	__u64 prob;             /* current probability */
-	__u32 delay;            /* current delay in ms */
-	__u32 avg_dq_rate;      /* current average dq_rate in bits/pie_time */
-	__u32 packets_in;       /* total number of packets enqueued */
-	__u32 dropped;          /* packets dropped due to pie_action */
-	__u32 overlimit;        /* dropped due to lack of space in queue */
-	__u32 maxq;             /* maximum queue size */
-	__u32 ecn_mark;         /* packets marked with ecn*/
+	__u64 prob;			/* current probability */
+	__u32 delay;			/* current delay in ms */
+	__u32 avg_dq_rate;		/* current average dq_rate in
+					 * bits/pie_time
+					 */
+	__u32 dq_rate_estimating;	/* is avg_dq_rate being calculated? */
+	__u32 packets_in;		/* total number of packets enqueued */
+	__u32 dropped;			/* packets dropped due to pie_action */
+	__u32 overlimit;		/* dropped due to lack of space
+					 * in queue
+					 */
+	__u32 maxq;			/* maximum queue size */
+	__u32 ecn_mark;			/* packets marked with ecn*/
 };
 
 /* CBS */
@@ -988,8 +995,9 @@ struct tc_etf_qopt {
 	__s32 delta;
 	__s32 clockid;
 	__u32 flags;
-#define TC_ETF_DEADLINE_MODE_ON	BIT(0)
-#define TC_ETF_OFFLOAD_ON	BIT(1)
+#define TC_ETF_DEADLINE_MODE_ON	_BITUL(0)
+#define TC_ETF_OFFLOAD_ON	_BITUL(1)
+#define TC_ETF_SKIP_SOCK_CHECK	_BITUL(2)
 };
 
 enum {
@@ -1158,6 +1166,9 @@ enum {
  *       [TCA_TAPRIO_ATTR_SCHED_ENTRY_INTERVAL]
  */
 
+#define TCA_TAPRIO_ATTR_FLAG_TXTIME_ASSIST	BIT(0)
+#define TCA_TAPRIO_ATTR_FLAG_FULL_OFFLOAD	BIT(1)
+
 enum {
 	TCA_TAPRIO_ATTR_UNSPEC,
 	TCA_TAPRIO_ATTR_PRIOMAP, /* struct tc_mqprio_qopt */
@@ -1169,6 +1180,8 @@ enum {
 	TCA_TAPRIO_ATTR_ADMIN_SCHED, /* The admin sched, only used in dump */
 	TCA_TAPRIO_ATTR_SCHED_CYCLE_TIME, /* s64 */
 	TCA_TAPRIO_ATTR_SCHED_CYCLE_TIME_EXTENSION, /* s64 */
+	TCA_TAPRIO_ATTR_FLAGS, /* u32 */
+	TCA_TAPRIO_ATTR_TXTIME_DELAY, /* u32 */
 	__TCA_TAPRIO_ATTR_MAX,
 };
 

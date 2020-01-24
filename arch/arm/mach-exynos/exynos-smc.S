@@ -10,7 +10,8 @@
 /*
  * Function signature: void exynos_smc(u32 cmd, u32 arg1, u32 arg2, u32 arg3)
  */
-
+	.arch armv7-a
+	.arch_extension sec
 ENTRY(exynos_smc)
 	stmfd	sp!, {r4-r11, lr}
 	dsb

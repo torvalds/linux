@@ -745,7 +745,19 @@
        vin-supply = <&sw1c_reg>;
 };
 
+&reg_vdd1p1 {
+	vin-supply = <&vgen5_reg>;
+};
+
+&reg_vdd2p5 {
+	vin-supply = <&vgen5_reg>;
+};
+
 &snvs_poweroff {
+	status = "okay";
+};
+
+&snvs_pwrkey {
 	status = "okay";
 };
 

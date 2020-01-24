@@ -34,16 +34,15 @@
 
 #include "iw_cxgb4.h"
 
-static int destroy_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
-		      struct c4iw_dev_ucontext *uctx, struct sk_buff *skb,
-		      struct c4iw_wr_wait *wr_waitp)
+static void destroy_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
+		       struct c4iw_dev_ucontext *uctx, struct sk_buff *skb,
+		       struct c4iw_wr_wait *wr_waitp)
 {
 	struct fw_ri_res_wr *res_wr;
 	struct fw_ri_res *res;
 	int wr_len;
-	int ret;
 
-	wr_len = sizeof *res_wr + sizeof *res;
+	wr_len = sizeof(*res_wr) + sizeof(*res);
 	set_wr_txq(skb, CPL_PRIORITY_CONTROL, 0);
 
 	res_wr = __skb_put_zero(skb, wr_len);
@@ -59,14 +58,13 @@ static int destroy_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 	res->u.cq.iqid = cpu_to_be32(cq->cqid);
 
 	c4iw_init_wr_wait(wr_waitp);
-	ret = c4iw_ref_send_wait(rdev, skb, wr_waitp, 0, 0, __func__);
+	c4iw_ref_send_wait(rdev, skb, wr_waitp, 0, 0, __func__);
 
 	kfree(cq->sw_queue);
 	dma_free_coherent(&(rdev->lldi.pdev->dev),
 			  cq->memsize, cq->queue,
 			  dma_unmap_addr(cq, mapping));
 	c4iw_put_cqid(rdev, cq->cqid, uctx);
-	return ret;
 }
 
 static int create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
@@ -104,7 +102,6 @@ static int create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 		goto err3;
 	}
 	dma_unmap_addr_set(cq, mapping, cq->dma_addr);
-	memset(cq->queue, 0, cq->memsize);
 
 	if (user && ucontext->is_32b_cqe) {
 		cq->qp_errp = &((struct t4_status_page *)
@@ -117,7 +114,7 @@ static int create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 	}
 
 	/* build fw_ri_res_wr */
-	wr_len = sizeof *res_wr + sizeof *res;
+	wr_len = sizeof(*res_wr) + sizeof(*res);
 
 	skb = alloc_skb(wr_len, GFP_KERNEL);
 	if (!skb) {
@@ -970,7 +967,7 @@ int c4iw_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 	return !err || err == -ENODATA ? npolled : err;
 }
 
-int c4iw_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
+void c4iw_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 {
 	struct c4iw_cq *chp;
 	struct c4iw_ucontext *ucontext;
@@ -988,18 +985,16 @@ int c4iw_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 		   ucontext ? &ucontext->uctx : &chp->cq.rdev->uctx,
 		   chp->destroy_skb, chp->wr_waitp);
 	c4iw_put_wr_wait(chp->wr_waitp);
-	kfree(chp);
-	return 0;
 }
 
-struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,
-			     const struct ib_cq_init_attr *attr,
-			     struct ib_udata *udata)
+int c4iw_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
+		   struct ib_udata *udata)
 {
+	struct ib_device *ibdev = ibcq->device;
 	int entries = attr->cqe;
 	int vector = attr->comp_vector;
-	struct c4iw_dev *rhp;
-	struct c4iw_cq *chp;
+	struct c4iw_dev *rhp = to_c4iw_dev(ibcq->device);
+	struct c4iw_cq *chp = to_c4iw_cq(ibcq);
 	struct c4iw_create_cq ucmd;
 	struct c4iw_create_cq_resp uresp;
 	int ret, wr_len;
@@ -1010,21 +1005,15 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,
 
 	pr_debug("ib_dev %p entries %d\n", ibdev, entries);
 	if (attr->flags)
-		return ERR_PTR(-EINVAL);
-
-	rhp = to_c4iw_dev(ibdev);
+		return -EINVAL;
 
 	if (vector >= rhp->rdev.lldi.nciq)
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	if (udata) {
 		if (udata->inlen < sizeof(ucmd))
 			ucontext->is_32b_cqe = 1;
 	}
-
-	chp = kzalloc(sizeof(*chp), GFP_KERNEL);
-	if (!chp)
-		return ERR_PTR(-ENOMEM);
 
 	chp->wr_waitp = c4iw_alloc_wr_wait(GFP_KERNEL);
 	if (!chp->wr_waitp) {
@@ -1095,10 +1084,10 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,
 
 	if (ucontext) {
 		ret = -ENOMEM;
-		mm = kmalloc(sizeof *mm, GFP_KERNEL);
+		mm = kmalloc(sizeof(*mm), GFP_KERNEL);
 		if (!mm)
 			goto err_remove_handle;
-		mm2 = kmalloc(sizeof *mm2, GFP_KERNEL);
+		mm2 = kmalloc(sizeof(*mm2), GFP_KERNEL);
 		if (!mm2)
 			goto err_free_mm;
 
@@ -1135,10 +1124,11 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,
 		mm2->len = PAGE_SIZE;
 		insert_mmap(ucontext, mm2);
 	}
-	pr_debug("cqid 0x%0x chp %p size %u memsize %zu, dma_addr 0x%0llx\n",
-		 chp->cq.cqid, chp, chp->cq.size,
-		 chp->cq.memsize, (unsigned long long)chp->cq.dma_addr);
-	return &chp->ibcq;
+
+	pr_debug("cqid 0x%0x chp %p size %u memsize %zu, dma_addr %pad\n",
+		 chp->cq.cqid, chp, chp->cq.size, chp->cq.memsize,
+		 &chp->cq.dma_addr);
+	return 0;
 err_free_mm2:
 	kfree(mm2);
 err_free_mm:
@@ -1154,8 +1144,7 @@ err_free_skb:
 err_free_wr_wait:
 	c4iw_put_wr_wait(chp->wr_waitp);
 err_free_chp:
-	kfree(chp);
-	return ERR_PTR(ret);
+	return ret;
 }
 
 int c4iw_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)

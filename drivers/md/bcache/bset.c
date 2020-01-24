@@ -155,6 +155,7 @@ int __bch_keylist_realloc(struct keylist *l, unsigned int u64s)
 	return 0;
 }
 
+/* Pop the top key of keylist by pointing l->top to its previous key */
 struct bkey *bch_keylist_pop(struct keylist *l)
 {
 	struct bkey *k = l->keys;
@@ -168,6 +169,7 @@ struct bkey *bch_keylist_pop(struct keylist *l)
 	return l->top = k;
 }
 
+/* Pop the bottom key of keylist and update l->top_p */
 void bch_keylist_pop_front(struct keylist *l)
 {
 	l->top_p -= bkey_u64s(l->keys);
@@ -309,7 +311,6 @@ void bch_btree_keys_free(struct btree_keys *b)
 	t->tree = NULL;
 	t->data = NULL;
 }
-EXPORT_SYMBOL(bch_btree_keys_free);
 
 int bch_btree_keys_alloc(struct btree_keys *b,
 			 unsigned int page_order,
@@ -342,29 +343,24 @@ err:
 	bch_btree_keys_free(b);
 	return -ENOMEM;
 }
-EXPORT_SYMBOL(bch_btree_keys_alloc);
 
 void bch_btree_keys_init(struct btree_keys *b, const struct btree_keys_ops *ops,
 			 bool *expensive_debug_checks)
 {
-	unsigned int i;
-
 	b->ops = ops;
 	b->expensive_debug_checks = expensive_debug_checks;
 	b->nsets = 0;
 	b->last_set_unwritten = 0;
 
-	/* XXX: shouldn't be needed */
-	for (i = 0; i < MAX_BSETS; i++)
-		b->set[i].size = 0;
 	/*
-	 * Second loop starts at 1 because b->keys[0]->data is the memory we
-	 * allocated
+	 * struct btree_keys in embedded in struct btree, and struct
+	 * bset_tree is embedded into struct btree_keys. They are all
+	 * initialized as 0 by kzalloc() in mca_bucket_alloc(), and
+	 * b->set[0].data is allocated in bch_btree_keys_alloc(), so we
+	 * don't have to initiate b->set[].size and b->set[].data here
+	 * any more.
 	 */
-	for (i = 1; i < MAX_BSETS; i++)
-		b->set[i].data = NULL;
 }
-EXPORT_SYMBOL(bch_btree_keys_init);
 
 /* Binary tree stuff for auxiliary search trees */
 
@@ -681,7 +677,6 @@ void bch_bset_init_next(struct btree_keys *b, struct bset *i, uint64_t magic)
 
 	bch_bset_build_unwritten_tree(b);
 }
-EXPORT_SYMBOL(bch_bset_init_next);
 
 /*
  * Build auxiliary binary tree 'struct bset_tree *t', this tree is used to
@@ -735,7 +730,6 @@ void bch_bset_build_written_tree(struct btree_keys *b)
 	     j = inorder_next(j, t->size))
 		make_bfloat(t, j);
 }
-EXPORT_SYMBOL(bch_bset_build_written_tree);
 
 /* Insert */
 
@@ -783,7 +777,6 @@ fix_right:	do {
 			j = j * 2 + 1;
 		} while (j < t->size);
 }
-EXPORT_SYMBOL(bch_bset_fix_invalidated_key);
 
 static void bch_bset_fix_lookup_table(struct btree_keys *b,
 				      struct bset_tree *t,
@@ -858,7 +851,6 @@ bool bch_bkey_try_merge(struct btree_keys *b, struct bkey *l, struct bkey *r)
 
 	return b->ops->key_merge(b, l, r);
 }
-EXPORT_SYMBOL(bch_bkey_try_merge);
 
 void bch_bset_insert(struct btree_keys *b, struct bkey *where,
 		     struct bkey *insert)
@@ -878,7 +870,6 @@ void bch_bset_insert(struct btree_keys *b, struct bkey *where,
 	bkey_copy(where, insert);
 	bch_bset_fix_lookup_table(b, t, where);
 }
-EXPORT_SYMBOL(bch_bset_insert);
 
 unsigned int bch_btree_insert_key(struct btree_keys *b, struct bkey *k,
 			      struct bkey *replace_key)
@@ -934,7 +925,6 @@ copy:	bkey_copy(m, k);
 merged:
 	return status;
 }
-EXPORT_SYMBOL(bch_btree_insert_key);
 
 /* Lookup */
 
@@ -970,45 +960,25 @@ static struct bset_search_iter bset_search_tree(struct bset_tree *t,
 	unsigned int inorder, j, n = 1;
 
 	do {
-		/*
-		 * A bit trick here.
-		 * If p < t->size, (int)(p - t->size) is a minus value and
-		 * the most significant bit is set, right shifting 31 bits
-		 * gets 1. If p >= t->size, the most significant bit is
-		 * not set, right shifting 31 bits gets 0.
-		 * So the following 2 lines equals to
-		 *	if (p >= t->size)
-		 *		p = 0;
-		 * but a branch instruction is avoided.
-		 */
 		unsigned int p = n << 4;
 
-		p &= ((int) (p - t->size)) >> 31;
-
-		prefetch(&t->tree[p]);
+		if (p < t->size)
+			prefetch(&t->tree[p]);
 
 		j = n;
 		f = &t->tree[j];
 
-		/*
-		 * Similar bit trick, use subtract operation to avoid a branch
-		 * instruction.
-		 *
-		 * n = (f->mantissa > bfloat_mantissa())
-		 *	? j * 2
-		 *	: j * 2 + 1;
-		 *
-		 * We need to subtract 1 from f->mantissa for the sign bit trick
-		 * to work  - that's done in make_bfloat()
-		 */
-		if (likely(f->exponent != 127))
-			n = j * 2 + (((unsigned int)
-				      (f->mantissa -
-				       bfloat_mantissa(search, f))) >> 31);
-		else
-			n = (bkey_cmp(tree_to_bkey(t, j), search) > 0)
-				? j * 2
-				: j * 2 + 1;
+		if (likely(f->exponent != 127)) {
+			if (f->mantissa >= bfloat_mantissa(search, f))
+				n = j * 2;
+			else
+				n = j * 2 + 1;
+		} else {
+			if (bkey_cmp(tree_to_bkey(t, j), search) > 0)
+				n = j * 2;
+			else
+				n = j * 2 + 1;
+		}
 	} while (n < t->size);
 
 	inorder = to_inorder(j, t);
@@ -1100,7 +1070,6 @@ struct bkey *__bch_bset_search(struct btree_keys *b, struct bset_tree *t,
 
 	return i.l;
 }
-EXPORT_SYMBOL(__bch_bset_search);
 
 /* Btree iterator */
 
@@ -1155,7 +1124,6 @@ struct bkey *bch_btree_iter_init(struct btree_keys *b,
 {
 	return __bch_btree_iter_init(b, iter, search, b->set);
 }
-EXPORT_SYMBOL(bch_btree_iter_init);
 
 static inline struct bkey *__bch_btree_iter_next(struct btree_iter *iter,
 						 btree_iter_cmp_fn *cmp)
@@ -1188,7 +1156,6 @@ struct bkey *bch_btree_iter_next(struct btree_iter *iter)
 	return __bch_btree_iter_next(iter, btree_iter_cmp);
 
 }
-EXPORT_SYMBOL(bch_btree_iter_next);
 
 struct bkey *bch_btree_iter_next_filter(struct btree_iter *iter,
 					struct btree_keys *b, ptr_filter_fn fn)
@@ -1219,7 +1186,6 @@ int bch_bset_sort_state_init(struct bset_sort_state *state,
 
 	return mempool_init_page_pool(&state->pool, 1, page_order);
 }
-EXPORT_SYMBOL(bch_bset_sort_state_init);
 
 static void btree_mergesort(struct btree_keys *b, struct bset *out,
 			    struct btree_iter *iter,
@@ -1336,7 +1302,6 @@ void bch_btree_sort_partial(struct btree_keys *b, unsigned int start,
 
 	EBUG_ON(oldsize >= 0 && bch_count_data(b) != oldsize);
 }
-EXPORT_SYMBOL(bch_btree_sort_partial);
 
 void bch_btree_sort_and_fix_extents(struct btree_keys *b,
 				    struct btree_iter *iter,
@@ -1389,7 +1354,6 @@ void bch_btree_sort_lazy(struct btree_keys *b, struct bset_sort_state *state)
 out:
 	bch_bset_build_written_tree(b);
 }
-EXPORT_SYMBOL(bch_btree_sort_lazy);
 
 void bch_btree_keys_stats(struct btree_keys *b, struct bset_stats *stats)
 {

@@ -1,6 +1,6 @@
 What:		/sys/kernel/debug/cec/*/error-inj
 Date:		March 2018
-Contact:	Hans Verkuil <hans.verkuil@cisco.com>
+Contact:	Hans Verkuil <hverkuil-cisco@xs4all.nl>
 Description:
 
 The CEC Framework allows for CEC error injection commands through

@@ -14,7 +14,7 @@ config NET_VENDOR_AMD
 	  say Y.
 
 	  Note that the answer to this question does not directly affect
-	  the kernel: saying N will just case the configurator to skip all
+	  the kernel: saying N will just cause the configurator to skip all
 	  the questions regarding AMD chipsets. If you say Y, you will be asked
 	  for your specific chipset/driver in the following questions.
 

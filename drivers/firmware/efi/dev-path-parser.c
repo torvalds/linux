@@ -17,9 +17,9 @@ struct acpi_hid_uid {
 	char uid[11]; /* UINT_MAX + null byte */
 };
 
-static int __init match_acpi_dev(struct device *dev, void *data)
+static int __init match_acpi_dev(struct device *dev, const void *data)
 {
-	struct acpi_hid_uid hid_uid = *(struct acpi_hid_uid *)data;
+	struct acpi_hid_uid hid_uid = *(const struct acpi_hid_uid *)data;
 	struct acpi_device *adev = to_acpi_device(dev);
 
 	if (acpi_match_device_ids(adev, hid_uid.hid))

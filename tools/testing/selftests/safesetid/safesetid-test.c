@@ -142,23 +142,19 @@ static void ensure_securityfs_mounted(void)
 
 static void write_policies(void)
 {
+	static char *policy_str =
+		"1:2\n"
+		"1:3\n"
+		"2:2\n"
+		"3:3\n";
 	ssize_t written;
 	int fd;
 
 	fd = open(add_whitelist_policy_file, O_WRONLY);
 	if (fd < 0)
 		die("cant open add_whitelist_policy file\n");
-	written = write(fd, "1:2", strlen("1:2"));
-	if (written != strlen("1:2")) {
-		if (written >= 0) {
-			die("short write to %s\n", add_whitelist_policy_file);
-		} else {
-			die("write to %s failed: %s\n",
-				add_whitelist_policy_file, strerror(errno));
-		}
-	}
-	written = write(fd, "1:3", strlen("1:3"));
-	if (written != strlen("1:3")) {
+	written = write(fd, policy_str, strlen(policy_str));
+	if (written != strlen(policy_str)) {
 		if (written >= 0) {
 			die("short write to %s\n", add_whitelist_policy_file);
 		} else {
@@ -217,7 +213,8 @@ static void test_setuid(uid_t child_uid, bool expect_success)
 	}
 
 	if (cpid == 0) {	    /* Code executed by child */
-		setuid(child_uid);
+		if (setuid(child_uid) < 0)
+			exit(EXIT_FAILURE);
 		if (getuid() == child_uid)
 			exit(EXIT_SUCCESS);
 		else
@@ -295,8 +292,10 @@ int main(int argc, char **argv)
 
 	// First test to make sure we can write userns mappings from a user
 	// that doesn't have any restrictions (as long as it has CAP_SETUID);
-	setuid(NO_POLICY_USER);
-	setgid(NO_POLICY_USER);
+	if (setuid(NO_POLICY_USER) < 0)
+		die("Error with set uid(%d)\n", NO_POLICY_USER);
+	if (setgid(NO_POLICY_USER) < 0)
+		die("Error with set gid(%d)\n", NO_POLICY_USER);
 
 	// Take away all but setid caps
 	drop_caps(true);
@@ -310,8 +309,10 @@ int main(int argc, char **argv)
 		die("test_userns failed when it should work\n");
 	}
 
-	setuid(RESTRICTED_PARENT);
-	setgid(RESTRICTED_PARENT);
+	if (setuid(RESTRICTED_PARENT) < 0)
+		die("Error with set uid(%d)\n", RESTRICTED_PARENT);
+	if (setgid(RESTRICTED_PARENT) < 0)
+		die("Error with set gid(%d)\n", RESTRICTED_PARENT);
 
 	test_setuid(ROOT_USER, false);
 	test_setuid(ALLOWED_CHILD1, true);

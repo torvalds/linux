@@ -60,7 +60,7 @@ ice_aq_get_lldp_mib(struct ice_hw *hw, u8 bridge_type, u8 mib_type, void *buf,
  * Enable or Disable posting of an event on ARQ when LLDP MIB
  * associated with the interface changes (0x0A01)
  */
-enum ice_status
+static enum ice_status
 ice_aq_cfg_lldp_mib_change(struct ice_hw *hw, bool ena_update,
 			   struct ice_sq_cd *cd)
 {
@@ -82,12 +82,14 @@ ice_aq_cfg_lldp_mib_change(struct ice_hw *hw, bool ena_update,
  * @hw: pointer to the HW struct
  * @shutdown_lldp_agent: True if LLDP Agent needs to be Shutdown
  *			 False if LLDP Agent needs to be Stopped
+ * @persist: True if Stop/Shutdown of LLDP Agent needs to be persistent across
+ *	     reboots
  * @cd: pointer to command details structure or NULL
  *
  * Stop or Shutdown the embedded LLDP Agent (0x0A05)
  */
 enum ice_status
-ice_aq_stop_lldp(struct ice_hw *hw, bool shutdown_lldp_agent,
+ice_aq_stop_lldp(struct ice_hw *hw, bool shutdown_lldp_agent, bool persist,
 		 struct ice_sq_cd *cd)
 {
 	struct ice_aqc_lldp_stop *cmd;
@@ -100,17 +102,22 @@ ice_aq_stop_lldp(struct ice_hw *hw, bool shutdown_lldp_agent,
 	if (shutdown_lldp_agent)
 		cmd->command |= ICE_AQ_LLDP_AGENT_SHUTDOWN;
 
+	if (persist)
+		cmd->command |= ICE_AQ_LLDP_AGENT_PERSIST_DIS;
+
 	return ice_aq_send_cmd(hw, &desc, NULL, 0, cd);
 }
 
 /**
  * ice_aq_start_lldp
  * @hw: pointer to the HW struct
+ * @persist: True if Start of LLDP Agent needs to be persistent across reboots
  * @cd: pointer to command details structure or NULL
  *
  * Start the embedded LLDP Agent on all ports. (0x0A06)
  */
-enum ice_status ice_aq_start_lldp(struct ice_hw *hw, struct ice_sq_cd *cd)
+enum ice_status
+ice_aq_start_lldp(struct ice_hw *hw, bool persist, struct ice_sq_cd *cd)
 {
 	struct ice_aqc_lldp_start *cmd;
 	struct ice_aq_desc desc;
@@ -120,6 +127,9 @@ enum ice_status ice_aq_start_lldp(struct ice_hw *hw, struct ice_sq_cd *cd)
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_lldp_start);
 
 	cmd->command = ICE_AQ_LLDP_AGENT_START;
+
+	if (persist)
+		cmd->command |= ICE_AQ_LLDP_AGENT_PERSIST_ENA;
 
 	return ice_aq_send_cmd(hw, &desc, NULL, 0, cd);
 }
@@ -163,7 +173,7 @@ ice_aq_set_lldp_mib(struct ice_hw *hw, u8 mib_type, void *buf, u16 buf_size,
  *
  * Get the DCBX status from the Firmware
  */
-u8 ice_get_dcbx_status(struct ice_hw *hw)
+static u8 ice_get_dcbx_status(struct ice_hw *hw)
 {
 	u32 reg;
 
@@ -434,8 +444,14 @@ ice_parse_cee_pgcfg_tlv(struct ice_cee_feat_tlv *tlv,
 	 *        |pg0|pg1|pg2|pg3|pg4|pg5|pg6|pg7|
 	 *        ---------------------------------
 	 */
-	ice_for_each_traffic_class(i)
+	ice_for_each_traffic_class(i) {
 		etscfg->tcbwtable[i] = buf[offset++];
+
+		if (etscfg->prio_table[i] == ICE_CEE_PGID_STRICT)
+			dcbcfg->etscfg.tsatable[i] = ICE_IEEE_TSA_STRICT;
+		else
+			dcbcfg->etscfg.tsatable[i] = ICE_IEEE_TSA_ETS;
+	}
 
 	/* Number of TCs supported (1 octet) */
 	etscfg->maxtcs = buf[offset];
@@ -614,7 +630,8 @@ ice_parse_org_tlv(struct ice_lldp_org_tlv *tlv, struct ice_dcbx_cfg *dcbcfg)
  *
  * Parse DCB configuration from the LLDPDU
  */
-enum ice_status ice_lldp_to_dcb_cfg(u8 *lldpmib, struct ice_dcbx_cfg *dcbcfg)
+static enum ice_status
+ice_lldp_to_dcb_cfg(u8 *lldpmib, struct ice_dcbx_cfg *dcbcfg)
 {
 	struct ice_lldp_org_tlv *tlv;
 	enum ice_status ret = 0;
@@ -658,13 +675,13 @@ enum ice_status ice_lldp_to_dcb_cfg(u8 *lldpmib, struct ice_dcbx_cfg *dcbcfg)
 /**
  * ice_aq_get_dcb_cfg
  * @hw: pointer to the HW struct
- * @mib_type: mib type for the query
+ * @mib_type: MIB type for the query
  * @bridgetype: bridge type for the query (remote)
  * @dcbcfg: store for LLDPDU data
  *
  * Query DCB configuration from the firmware
  */
-static enum ice_status
+enum ice_status
 ice_aq_get_dcb_cfg(struct ice_hw *hw, u8 mib_type, u8 bridgetype,
 		   struct ice_dcbx_cfg *dcbcfg)
 {
@@ -689,13 +706,13 @@ ice_aq_get_dcb_cfg(struct ice_hw *hw, u8 mib_type, u8 bridgetype,
 }
 
 /**
- * ice_aq_start_stop_dcbx - Start/Stop DCBx service in FW
+ * ice_aq_start_stop_dcbx - Start/Stop DCBX service in FW
  * @hw: pointer to the HW struct
- * @start_dcbx_agent: True if DCBx Agent needs to be started
- *		      False if DCBx Agent needs to be stopped
- * @dcbx_agent_status: FW indicates back the DCBx agent status
- *		       True if DCBx Agent is active
- *		       False if DCBx Agent is stopped
+ * @start_dcbx_agent: True if DCBX Agent needs to be started
+ *		      False if DCBX Agent needs to be stopped
+ * @dcbx_agent_status: FW indicates back the DCBX agent status
+ *		       True if DCBX Agent is active
+ *		       False if DCBX Agent is stopped
  * @cd: pointer to command details structure or NULL
  *
  * Start/Stop the embedded dcbx Agent. In case that this wrapper function
@@ -926,10 +943,11 @@ enum ice_status ice_get_dcb_cfg(struct ice_port_info *pi)
 /**
  * ice_init_dcb
  * @hw: pointer to the HW struct
+ * @enable_mib_change: enable MIB change event
  *
  * Update DCB configuration from the Firmware
  */
-enum ice_status ice_init_dcb(struct ice_hw *hw)
+enum ice_status ice_init_dcb(struct ice_hw *hw, bool enable_mib_change)
 {
 	struct ice_port_info *pi = hw->port_info;
 	enum ice_status ret = 0;
@@ -943,20 +961,51 @@ enum ice_status ice_init_dcb(struct ice_hw *hw)
 	pi->dcbx_status = ice_get_dcbx_status(hw);
 
 	if (pi->dcbx_status == ICE_DCBX_STATUS_DONE ||
-	    pi->dcbx_status == ICE_DCBX_STATUS_IN_PROGRESS) {
+	    pi->dcbx_status == ICE_DCBX_STATUS_IN_PROGRESS ||
+	    pi->dcbx_status == ICE_DCBX_STATUS_NOT_STARTED) {
 		/* Get current DCBX configuration */
 		ret = ice_get_dcb_cfg(pi);
-		pi->is_sw_lldp = (hw->adminq.sq_last_status == ICE_AQ_RC_EPERM);
 		if (ret)
 			return ret;
+		pi->is_sw_lldp = false;
 	} else if (pi->dcbx_status == ICE_DCBX_STATUS_DIS) {
 		return ICE_ERR_NOT_READY;
 	}
 
 	/* Configure the LLDP MIB change event */
-	ret = ice_aq_cfg_lldp_mib_change(hw, true, NULL);
+	if (enable_mib_change) {
+		ret = ice_aq_cfg_lldp_mib_change(hw, true, NULL);
+		if (ret)
+			pi->is_sw_lldp = true;
+	}
+
+	return ret;
+}
+
+/**
+ * ice_cfg_lldp_mib_change
+ * @hw: pointer to the HW struct
+ * @ena_mib: enable/disable MIB change event
+ *
+ * Configure (disable/enable) MIB
+ */
+enum ice_status ice_cfg_lldp_mib_change(struct ice_hw *hw, bool ena_mib)
+{
+	struct ice_port_info *pi = hw->port_info;
+	enum ice_status ret;
+
+	if (!hw->func_caps.common_cap.dcb)
+		return ICE_ERR_NOT_SUPPORTED;
+
+	/* Get DCBX status */
+	pi->dcbx_status = ice_get_dcbx_status(hw);
+
+	if (pi->dcbx_status == ICE_DCBX_STATUS_DIS)
+		return ICE_ERR_NOT_READY;
+
+	ret = ice_aq_cfg_lldp_mib_change(hw, ena_mib, NULL);
 	if (!ret)
-		pi->is_sw_lldp = false;
+		pi->is_sw_lldp = !ena_mib;
 
 	return ret;
 }

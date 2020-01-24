@@ -28,8 +28,7 @@ struct xchk_da_btree {
 	int			tree_level;
 };
 
-typedef int (*xchk_da_btree_rec_fn)(struct xchk_da_btree *ds,
-		int level, void *rec);
+typedef int (*xchk_da_btree_rec_fn)(struct xchk_da_btree *ds, int level);
 
 /* Check for da btree operation errors. */
 bool xchk_da_process_error(struct xchk_da_btree *ds, int level, int *error);

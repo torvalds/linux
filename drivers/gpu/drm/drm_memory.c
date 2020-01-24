@@ -1,4 +1,4 @@
-/**
+/*
  * \file drm_memory.c
  * Memory management wrappers for DRM
  *
@@ -33,10 +33,16 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <linux/highmem.h>
 #include <linux/export.h>
+#include <linux/highmem.h>
+#include <linux/pci.h>
+#include <linux/vmalloc.h>
 #include <xen/xen.h>
-#include <drm/drmP.h>
+
+#include <drm/drm_agpsupport.h>
+#include <drm/drm_cache.h>
+#include <drm/drm_device.h>
+
 #include "drm_legacy.h"
 
 #if IS_ENABLED(CONFIG_AGP)

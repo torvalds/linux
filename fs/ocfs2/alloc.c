@@ -2288,9 +2288,9 @@ static int ocfs2_extend_rotate_transaction(handle_t *handle, int subtree_depth,
 	int ret = 0;
 	int credits = (path->p_tree_depth - subtree_depth) * 2 + 1 + op_credits;
 
-	if (handle->h_buffer_credits < credits)
+	if (jbd2_handle_buffer_credits(handle) < credits)
 		ret = ocfs2_extend_trans(handle,
-					 credits - handle->h_buffer_credits);
+				credits - jbd2_handle_buffer_credits(handle));
 
 	return ret;
 }
@@ -2367,7 +2367,7 @@ static int ocfs2_rotate_tree_right(handle_t *handle,
 				   struct ocfs2_path *right_path,
 				   struct ocfs2_path **ret_left_path)
 {
-	int ret, start, orig_credits = handle->h_buffer_credits;
+	int ret, start, orig_credits = jbd2_handle_buffer_credits(handle);
 	u32 cpos;
 	struct ocfs2_path *left_path = NULL;
 	struct super_block *sb = ocfs2_metadata_cache_get_super(et->et_ci);
@@ -3148,7 +3148,7 @@ static int ocfs2_rotate_tree_left(handle_t *handle,
 				  struct ocfs2_path *path,
 				  struct ocfs2_cached_dealloc_ctxt *dealloc)
 {
-	int ret, orig_credits = handle->h_buffer_credits;
+	int ret, orig_credits = jbd2_handle_buffer_credits(handle);
 	struct ocfs2_path *tmp_path = NULL, *restart_path = NULL;
 	struct ocfs2_extent_block *eb;
 	struct ocfs2_extent_list *el;
@@ -3386,8 +3386,8 @@ static int ocfs2_merge_rec_right(struct ocfs2_path *left_path,
 							right_path);
 
 		ret = ocfs2_extend_rotate_transaction(handle, subtree_index,
-						      handle->h_buffer_credits,
-						      right_path);
+					jbd2_handle_buffer_credits(handle),
+					right_path);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
@@ -3548,8 +3548,8 @@ static int ocfs2_merge_rec_left(struct ocfs2_path *right_path,
 							right_path);
 
 		ret = ocfs2_extend_rotate_transaction(handle, subtree_index,
-						      handle->h_buffer_credits,
-						      left_path);
+					jbd2_handle_buffer_credits(handle),
+					left_path);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
@@ -3623,7 +3623,7 @@ static int ocfs2_merge_rec_left(struct ocfs2_path *right_path,
 		    le16_to_cpu(el->l_next_free_rec) == 1) {
 			/* extend credit for ocfs2_remove_rightmost_path */
 			ret = ocfs2_extend_rotate_transaction(handle, 0,
-					handle->h_buffer_credits,
+					jbd2_handle_buffer_credits(handle),
 					right_path);
 			if (ret) {
 				mlog_errno(ret);
@@ -3669,7 +3669,7 @@ static int ocfs2_try_to_merge_extent(handle_t *handle,
 	if (ctxt->c_split_covers_rec && ctxt->c_has_empty_extent) {
 		/* extend credit for ocfs2_remove_rightmost_path */
 		ret = ocfs2_extend_rotate_transaction(handle, 0,
-				handle->h_buffer_credits,
+				jbd2_handle_buffer_credits(handle),
 				path);
 		if (ret) {
 			mlog_errno(ret);
@@ -3725,7 +3725,7 @@ static int ocfs2_try_to_merge_extent(handle_t *handle,
 
 		/* extend credit for ocfs2_remove_rightmost_path */
 		ret = ocfs2_extend_rotate_transaction(handle, 0,
-					handle->h_buffer_credits,
+					jbd2_handle_buffer_credits(handle),
 					path);
 		if (ret) {
 			mlog_errno(ret);
@@ -3755,7 +3755,7 @@ static int ocfs2_try_to_merge_extent(handle_t *handle,
 
 		/* extend credit for ocfs2_remove_rightmost_path */
 		ret = ocfs2_extend_rotate_transaction(handle, 0,
-				handle->h_buffer_credits,
+				jbd2_handle_buffer_credits(handle),
 				path);
 		if (ret) {
 			mlog_errno(ret);
@@ -3799,7 +3799,7 @@ static int ocfs2_try_to_merge_extent(handle_t *handle,
 		if (ctxt->c_split_covers_rec) {
 			/* extend credit for ocfs2_remove_rightmost_path */
 			ret = ocfs2_extend_rotate_transaction(handle, 0,
-					handle->h_buffer_credits,
+					jbd2_handle_buffer_credits(handle),
 					path);
 			if (ret) {
 				mlog_errno(ret);
@@ -5358,7 +5358,7 @@ static int ocfs2_truncate_rec(handle_t *handle,
 	if (ocfs2_is_empty_extent(&el->l_recs[0]) && index > 0) {
 		/* extend credit for ocfs2_remove_rightmost_path */
 		ret = ocfs2_extend_rotate_transaction(handle, 0,
-				handle->h_buffer_credits,
+				jbd2_handle_buffer_credits(handle),
 				path);
 		if (ret) {
 			mlog_errno(ret);
@@ -5427,8 +5427,8 @@ static int ocfs2_truncate_rec(handle_t *handle,
 	}
 
 	ret = ocfs2_extend_rotate_transaction(handle, 0,
-					      handle->h_buffer_credits,
-					      path);
+					jbd2_handle_buffer_credits(handle),
+					path);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
@@ -5993,6 +5993,7 @@ int __ocfs2_flush_truncate_log(struct ocfs2_super *osb)
 	struct buffer_head *data_alloc_bh = NULL;
 	struct ocfs2_dinode *di;
 	struct ocfs2_truncate_log *tl;
+	struct ocfs2_journal *journal = osb->journal;
 
 	BUG_ON(inode_trylock(tl_inode));
 
@@ -6010,6 +6011,20 @@ int __ocfs2_flush_truncate_log(struct ocfs2_super *osb)
 		num_to_flush);
 	if (!num_to_flush) {
 		status = 0;
+		goto out;
+	}
+
+	/* Appending truncate log(TA) and and flushing truncate log(TF) are
+	 * two separated transactions. They can be both committed but not
+	 * checkpointed. If crash occurs then, both two transaction will be
+	 * replayed with several already released to global bitmap clusters.
+	 * Then truncate log will be replayed resulting in cluster double free.
+	 */
+	jbd2_journal_lock_updates(journal->j_journal);
+	status = jbd2_journal_flush(journal->j_journal);
+	jbd2_journal_unlock_updates(journal->j_journal);
+	if (status < 0) {
+		mlog_errno(status);
 		goto out;
 	}
 
@@ -6191,16 +6206,16 @@ int ocfs2_begin_truncate_log_recovery(struct ocfs2_super *osb,
 	if (le16_to_cpu(tl->tl_used)) {
 		trace_ocfs2_truncate_log_recovery_num(le16_to_cpu(tl->tl_used));
 
-		*tl_copy = kmalloc(tl_bh->b_size, GFP_KERNEL);
+		/*
+		 * Assuming the write-out below goes well, this copy will be
+		 * passed back to recovery for processing.
+		 */
+		*tl_copy = kmemdup(tl_bh->b_data, tl_bh->b_size, GFP_KERNEL);
 		if (!(*tl_copy)) {
 			status = -ENOMEM;
 			mlog_errno(status);
 			goto bail;
 		}
-
-		/* Assuming the write-out below goes well, this copy
-		 * will be passed back to recovery for processing. */
-		memcpy(*tl_copy, tl_bh->b_data, tl_bh->b_size);
 
 		/* All we need to do to clear the truncate log is set
 		 * tl_used. */
@@ -6792,6 +6807,8 @@ void ocfs2_map_and_dirty_page(struct inode *inode, handle_t *handle,
 			      struct page *page, int zero, u64 *phys)
 {
 	int ret, partial = 0;
+	loff_t start_byte = ((loff_t)page->index << PAGE_SHIFT) + from;
+	loff_t length = to - from;
 
 	ret = ocfs2_map_page_blocks(page, phys, inode, from, to, 0);
 	if (ret)
@@ -6811,7 +6828,8 @@ void ocfs2_map_and_dirty_page(struct inode *inode, handle_t *handle,
 	if (ret < 0)
 		mlog_errno(ret);
 	else if (ocfs2_should_order_data(inode)) {
-		ret = ocfs2_jbd2_file_inode(handle, inode);
+		ret = ocfs2_jbd2_inode_add_write(handle, inode,
+						 start_byte, length);
 		if (ret < 0)
 			mlog_errno(ret);
 	}

@@ -21,7 +21,12 @@
  */
 
 #include <linux/export.h>
-#include <drm/drmP.h>
+#include <linux/uaccess.h>
+
+#include <drm/drm_crtc.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_property.h>
 
 #include "drm_crtc_internal.h"
@@ -556,7 +561,7 @@ drm_property_create_blob(struct drm_device *dev, size_t length,
 	struct drm_property_blob *blob;
 	int ret;
 
-	if (!length || length > ULONG_MAX - sizeof(struct drm_property_blob))
+	if (!length || length > INT_MAX - sizeof(struct drm_property_blob))
 		return ERR_PTR(-EINVAL);
 
 	blob = kvzalloc(sizeof(struct drm_property_blob)+length, GFP_KERNEL);

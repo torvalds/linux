@@ -5,6 +5,7 @@
  * Author: Rob Clark <robdclark@gmail.com>
  */
 
+#include <drm/drm_fourcc.h>
 #include <drm/drm_util.h>
 
 #include "mdp5_kms.h"
@@ -116,14 +117,14 @@ uint32_t mdp5_smp_calculate(struct mdp5_smp *smp,
 		const struct mdp_format *format,
 		u32 width, bool hdecim)
 {
+	const struct drm_format_info *info = drm_format_info(format->base.pixel_format);
 	struct mdp5_kms *mdp5_kms = get_kms(smp);
 	int rev = mdp5_cfg_get_hw_rev(mdp5_kms->cfg);
 	int i, hsub, nplanes, nlines;
-	u32 fmt = format->base.pixel_format;
 	uint32_t blkcfg = 0;
 
-	nplanes = drm_format_num_planes(fmt);
-	hsub = drm_format_horz_chroma_subsampling(fmt);
+	nplanes = info->num_planes;
+	hsub = info->hsub;
 
 	/* different if BWC (compressed framebuffer?) enabled: */
 	nlines = 2;
@@ -133,7 +134,6 @@ uint32_t mdp5_smp_calculate(struct mdp5_smp *smp,
 	 * them together, writes to SMP using a single client.
 	 */
 	if ((rev > 0) && (format->chroma_sample > CHROMA_FULL)) {
-		fmt = DRM_FORMAT_NV24;
 		nplanes = 2;
 
 		/* if decimation is enabled, HW decimates less on the
@@ -146,7 +146,7 @@ uint32_t mdp5_smp_calculate(struct mdp5_smp *smp,
 	for (i = 0; i < nplanes; i++) {
 		int n, fetch_stride, cpp;
 
-		cpp = drm_format_plane_cpp(fmt, i);
+		cpp = info->cpp[i];
 		fetch_stride = width * cpp / (i ? hsub : 1);
 
 		n = DIV_ROUND_UP(fetch_stride * nlines, smp->blk_size);

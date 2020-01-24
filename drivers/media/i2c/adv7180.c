@@ -1309,9 +1309,6 @@ static int adv7180_probe(struct i2c_client *client,
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
 
-	v4l_info(client, "chip found @ 0x%02x (%s)\n",
-		 client->addr, client->adapter->name);
-
 	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
 	if (state == NULL)
 		return -ENOMEM;
@@ -1329,17 +1326,17 @@ static int adv7180_probe(struct i2c_client *client,
 	}
 
 	if (state->chip_info->flags & ADV7180_FLAG_MIPI_CSI2) {
-		state->csi_client = i2c_new_dummy(client->adapter,
+		state->csi_client = i2c_new_dummy_device(client->adapter,
 				ADV7180_DEFAULT_CSI_I2C_ADDR);
-		if (!state->csi_client)
-			return -ENOMEM;
+		if (IS_ERR(state->csi_client))
+			return PTR_ERR(state->csi_client);
 	}
 
 	if (state->chip_info->flags & ADV7180_FLAG_I2P) {
-		state->vpp_client = i2c_new_dummy(client->adapter,
+		state->vpp_client = i2c_new_dummy_device(client->adapter,
 				ADV7180_DEFAULT_VPP_I2C_ADDR);
-		if (!state->vpp_client) {
-			ret = -ENOMEM;
+		if (IS_ERR(state->vpp_client)) {
+			ret = PTR_ERR(state->vpp_client);
 			goto err_unregister_csi_client;
 		}
 	}
@@ -1381,6 +1378,9 @@ static int adv7180_probe(struct i2c_client *client,
 	ret = v4l2_async_register_subdev(sd);
 	if (ret)
 		goto err_free_irq;
+
+	v4l_info(client, "chip found @ 0x%02x (%s)\n",
+		 client->addr, client->adapter->name);
 
 	return 0;
 

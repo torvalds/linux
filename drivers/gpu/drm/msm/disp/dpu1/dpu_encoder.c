@@ -6,14 +6,16 @@
  */
 
 #define pr_fmt(fmt)	"[drm:%s:%d] " fmt, __func__, __LINE__
-#include <linux/kthread.h>
 #include <linux/debugfs.h>
+#include <linux/kthread.h>
 #include <linux/seq_file.h>
+
+#include <drm/drm_crtc.h>
+#include <drm/drm_file.h>
+#include <drm/drm_probe_helper.h>
 
 #include "msm_drv.h"
 #include "dpu_kms.h"
-#include <drm/drm_crtc.h>
-#include <drm/drm_probe_helper.h>
 #include "dpu_hwio.h"
 #include "dpu_hw_catalog.h"
 #include "dpu_hw_intf.h"
@@ -611,9 +613,6 @@ static int dpu_encoder_virt_atomic_check(
 		}
 	}
 
-	if (!ret)
-		drm_mode_set_crtcinfo(adj_mode, 0);
-
 	trace_dpu_enc_atomic_check_flags(DRMID(drm_enc), adj_mode->flags,
 			adj_mode->private_flags);
 
@@ -646,11 +645,6 @@ static void _dpu_encoder_update_vsync_source(struct dpu_encoder_virt *dpu_enc,
 	priv = drm_enc->dev->dev_private;
 
 	dpu_kms = to_dpu_kms(priv->kms);
-	if (!dpu_kms) {
-		DPU_ERROR("invalid dpu_kms\n");
-		return;
-	}
-
 	hw_mdptop = dpu_kms->hw_mdp;
 	if (!hw_mdptop) {
 		DPU_ERROR("invalid mdptop\n");
@@ -736,8 +730,7 @@ static int dpu_encoder_resource_control(struct drm_encoder *drm_enc,
 	struct msm_drm_private *priv;
 	bool is_vid_mode = false;
 
-	if (!drm_enc || !drm_enc->dev || !drm_enc->dev->dev_private ||
-			!drm_enc->crtc) {
+	if (!drm_enc || !drm_enc->dev || !drm_enc->crtc) {
 		DPU_ERROR("invalid parameters\n");
 		return -EINVAL;
 	}
@@ -1093,17 +1086,13 @@ static void _dpu_encoder_virt_enable_helper(struct drm_encoder *drm_enc)
 	struct msm_drm_private *priv;
 	struct dpu_kms *dpu_kms;
 
-	if (!drm_enc || !drm_enc->dev || !drm_enc->dev->dev_private) {
+	if (!drm_enc || !drm_enc->dev) {
 		DPU_ERROR("invalid parameters\n");
 		return;
 	}
 
 	priv = drm_enc->dev->dev_private;
 	dpu_kms = to_dpu_kms(priv->kms);
-	if (!dpu_kms) {
-		DPU_ERROR("invalid dpu_kms\n");
-		return;
-	}
 
 	dpu_enc = to_dpu_encoder_virt(drm_enc);
 	if (!dpu_enc || !dpu_enc->cur_master) {
@@ -1185,7 +1174,6 @@ static void dpu_encoder_virt_disable(struct drm_encoder *drm_enc)
 	struct dpu_encoder_virt *dpu_enc = NULL;
 	struct msm_drm_private *priv;
 	struct dpu_kms *dpu_kms;
-	struct drm_display_mode *mode;
 	int i = 0;
 
 	if (!drm_enc) {
@@ -1194,9 +1182,6 @@ static void dpu_encoder_virt_disable(struct drm_encoder *drm_enc)
 	} else if (!drm_enc->dev) {
 		DPU_ERROR("invalid dev\n");
 		return;
-	} else if (!drm_enc->dev->dev_private) {
-		DPU_ERROR("invalid dev_private\n");
-		return;
 	}
 
 	dpu_enc = to_dpu_encoder_virt(drm_enc);
@@ -1204,8 +1189,6 @@ static void dpu_encoder_virt_disable(struct drm_encoder *drm_enc)
 
 	mutex_lock(&dpu_enc->enc_lock);
 	dpu_enc->enabled = false;
-
-	mode = &drm_enc->crtc->state->adjusted_mode;
 
 	priv = drm_enc->dev->dev_private;
 	dpu_kms = to_dpu_kms(priv->kms);
@@ -1424,18 +1407,11 @@ static void dpu_encoder_off_work(struct work_struct *work)
  * extra_flush_bits: Additional bit mask to include in flush trigger
  */
 static void _dpu_encoder_trigger_flush(struct drm_encoder *drm_enc,
-		struct dpu_encoder_phys *phys, uint32_t extra_flush_bits,
-		bool async)
+		struct dpu_encoder_phys *phys, uint32_t extra_flush_bits)
 {
 	struct dpu_hw_ctl *ctl;
 	int pending_kickoff_cnt;
 	u32 ret = UINT_MAX;
-
-	if (!drm_enc || !phys) {
-		DPU_ERROR("invalid argument(s), drm_enc %d, phys_enc %d\n",
-				drm_enc != 0, phys != 0);
-		return;
-	}
 
 	if (!phys->hw_pp) {
 		DPU_ERROR("invalid pingpong hw\n");
@@ -1448,10 +1424,7 @@ static void _dpu_encoder_trigger_flush(struct drm_encoder *drm_enc,
 		return;
 	}
 
-	if (!async)
-		pending_kickoff_cnt = dpu_encoder_phys_inc_pending(phys);
-	else
-		pending_kickoff_cnt = atomic_read(&phys->pending_kickoff_cnt);
+	pending_kickoff_cnt = dpu_encoder_phys_inc_pending(phys);
 
 	if (extra_flush_bits && ctl->ops.update_pending_flush)
 		ctl->ops.update_pending_flush(ctl, extra_flush_bits);
@@ -1562,17 +1535,11 @@ static void dpu_encoder_helper_hw_reset(struct dpu_encoder_phys *phys_enc)
  *	a time.
  * dpu_enc: Pointer to virtual encoder structure
  */
-static void _dpu_encoder_kickoff_phys(struct dpu_encoder_virt *dpu_enc,
-				      bool async)
+static void _dpu_encoder_kickoff_phys(struct dpu_encoder_virt *dpu_enc)
 {
 	struct dpu_hw_ctl *ctl;
 	uint32_t i, pending_flush;
 	unsigned long lock_flags;
-
-	if (!dpu_enc) {
-		DPU_ERROR("invalid encoder\n");
-		return;
-	}
 
 	pending_flush = 0x0;
 
@@ -1595,13 +1562,12 @@ static void _dpu_encoder_kickoff_phys(struct dpu_encoder_virt *dpu_enc,
 		 * for async commits. So don't set this for async, since it'll
 		 * roll over to the next commit.
 		 */
-		if (!async && phys->split_role != ENC_ROLE_SLAVE)
+		if (phys->split_role != ENC_ROLE_SLAVE)
 			set_bit(i, dpu_enc->frame_busy_mask);
 
 		if (!phys->ops.needs_single_flush ||
 				!phys->ops.needs_single_flush(phys))
-			_dpu_encoder_trigger_flush(&dpu_enc->base, phys, 0x0,
-						   async);
+			_dpu_encoder_trigger_flush(&dpu_enc->base, phys, 0x0);
 		else if (ctl->ops.get_pending_flush)
 			pending_flush |= ctl->ops.get_pending_flush(ctl);
 	}
@@ -1611,7 +1577,7 @@ static void _dpu_encoder_kickoff_phys(struct dpu_encoder_virt *dpu_enc,
 		_dpu_encoder_trigger_flush(
 				&dpu_enc->base,
 				dpu_enc->cur_master,
-				pending_flush, async);
+				pending_flush);
 	}
 
 	_dpu_encoder_trigger_start(dpu_enc->cur_master);
@@ -1698,8 +1664,7 @@ static u32 _dpu_encoder_calculate_linetime(struct dpu_encoder_virt *dpu_enc,
 	return line_time;
 }
 
-static int _dpu_encoder_wakeup_time(struct drm_encoder *drm_enc,
-		ktime_t *wakeup_time)
+int dpu_encoder_vsync_time(struct drm_encoder *drm_enc, ktime_t *wakeup_time)
 {
 	struct drm_display_mode *mode;
 	struct dpu_encoder_virt *dpu_enc;
@@ -1753,8 +1718,7 @@ static void dpu_encoder_vsync_event_handler(struct timer_list *t)
 	struct msm_drm_private *priv;
 	struct msm_drm_thread *event_thread;
 
-	if (!drm_enc->dev || !drm_enc->dev->dev_private ||
-			!drm_enc->crtc) {
+	if (!drm_enc->dev || !drm_enc->crtc) {
 		DPU_ERROR("invalid parameters\n");
 		return;
 	}
@@ -1786,7 +1750,7 @@ static void dpu_encoder_vsync_event_work_handler(struct kthread_work *work)
 		return;
 	}
 
-	if (_dpu_encoder_wakeup_time(&dpu_enc->base, &wakeup_time))
+	if (dpu_encoder_vsync_time(&dpu_enc->base, &wakeup_time))
 		return;
 
 	trace_dpu_enc_vsync_event_work(DRMID(&dpu_enc->base), wakeup_time);
@@ -1794,17 +1758,13 @@ static void dpu_encoder_vsync_event_work_handler(struct kthread_work *work)
 			nsecs_to_jiffies(ktime_to_ns(wakeup_time)));
 }
 
-void dpu_encoder_prepare_for_kickoff(struct drm_encoder *drm_enc, bool async)
+void dpu_encoder_prepare_for_kickoff(struct drm_encoder *drm_enc)
 {
 	struct dpu_encoder_virt *dpu_enc;
 	struct dpu_encoder_phys *phys;
 	bool needs_hw_reset = false;
 	unsigned int i;
 
-	if (!drm_enc) {
-		DPU_ERROR("invalid args\n");
-		return;
-	}
 	dpu_enc = to_dpu_encoder_virt(drm_enc);
 
 	trace_dpu_enc_prepare_kickoff(DRMID(drm_enc));
@@ -1833,39 +1793,28 @@ void dpu_encoder_prepare_for_kickoff(struct drm_encoder *drm_enc, bool async)
 	}
 }
 
-void dpu_encoder_kickoff(struct drm_encoder *drm_enc, bool async)
+void dpu_encoder_kickoff(struct drm_encoder *drm_enc)
 {
 	struct dpu_encoder_virt *dpu_enc;
 	struct dpu_encoder_phys *phys;
 	ktime_t wakeup_time;
+	unsigned long timeout_ms;
 	unsigned int i;
 
-	if (!drm_enc) {
-		DPU_ERROR("invalid encoder\n");
-		return;
-	}
 	DPU_ATRACE_BEGIN("encoder_kickoff");
 	dpu_enc = to_dpu_encoder_virt(drm_enc);
 
 	trace_dpu_enc_kickoff(DRMID(drm_enc));
 
-	/*
-	 * Asynchronous frames don't handle FRAME_DONE events. As such, they
-	 * shouldn't enable the frame_done watchdog since it will always time
-	 * out.
-	 */
-	if (!async) {
-		unsigned long timeout_ms;
-		timeout_ms = DPU_ENCODER_FRAME_DONE_TIMEOUT_FRAMES * 1000 /
+	timeout_ms = DPU_ENCODER_FRAME_DONE_TIMEOUT_FRAMES * 1000 /
 			drm_mode_vrefresh(&drm_enc->crtc->state->adjusted_mode);
 
-		atomic_set(&dpu_enc->frame_done_timeout_ms, timeout_ms);
-		mod_timer(&dpu_enc->frame_done_timer,
-			  jiffies + msecs_to_jiffies(timeout_ms));
-	}
+	atomic_set(&dpu_enc->frame_done_timeout_ms, timeout_ms);
+	mod_timer(&dpu_enc->frame_done_timer,
+			jiffies + msecs_to_jiffies(timeout_ms));
 
 	/* All phys encs are ready to go, trigger the kickoff */
-	_dpu_encoder_kickoff_phys(dpu_enc, async);
+	_dpu_encoder_kickoff_phys(dpu_enc);
 
 	/* allow phys encs to handle any post-kickoff business */
 	for (i = 0; i < dpu_enc->num_phys_encs; i++) {
@@ -1875,7 +1824,7 @@ void dpu_encoder_kickoff(struct drm_encoder *drm_enc, bool async)
 	}
 
 	if (dpu_enc->disp_info.intf_type == DRM_MODE_ENCODER_DSI &&
-			!_dpu_encoder_wakeup_time(drm_enc, &wakeup_time)) {
+			!dpu_encoder_vsync_time(drm_enc, &wakeup_time)) {
 		trace_dpu_enc_early_kickoff(DRMID(drm_enc),
 					    ktime_to_ms(wakeup_time));
 		mod_timer(&dpu_enc->vsync_event_timer,
@@ -1948,8 +1897,6 @@ static int _dpu_encoder_debugfs_status_open(struct inode *inode,
 static int _dpu_encoder_init_debugfs(struct drm_encoder *drm_enc)
 {
 	struct dpu_encoder_virt *dpu_enc = to_dpu_encoder_virt(drm_enc);
-	struct msm_drm_private *priv;
-	struct dpu_kms *dpu_kms;
 	int i;
 
 	static const struct file_operations debugfs_status_fops = {
@@ -1961,21 +1908,16 @@ static int _dpu_encoder_init_debugfs(struct drm_encoder *drm_enc)
 
 	char name[DPU_NAME_SIZE];
 
-	if (!drm_enc->dev || !drm_enc->dev->dev_private) {
+	if (!drm_enc->dev) {
 		DPU_ERROR("invalid encoder or kms\n");
 		return -EINVAL;
 	}
-
-	priv = drm_enc->dev->dev_private;
-	dpu_kms = to_dpu_kms(priv->kms);
 
 	snprintf(name, DPU_NAME_SIZE, "encoder%u", drm_enc->base.id);
 
 	/* create overall sub-directory for the encoder */
 	dpu_enc->debugfs_root = debugfs_create_dir(name,
 			drm_enc->dev->primary->debugfs_root);
-	if (!dpu_enc->debugfs_root)
-		return -ENOMEM;
 
 	/* don't error check these */
 	debugfs_create_file("status", 0600,
@@ -2078,9 +2020,8 @@ static int dpu_encoder_setup_display(struct dpu_encoder_virt *dpu_enc,
 	enum dpu_intf_type intf_type;
 	struct dpu_enc_phys_init_params phys_params;
 
-	if (!dpu_enc || !dpu_kms) {
-		DPU_ERROR("invalid arg(s), enc %d kms %d\n",
-				dpu_enc != 0, dpu_kms != 0);
+	if (!dpu_enc) {
+		DPU_ERROR("invalid arg(s), enc %d\n", dpu_enc != 0);
 		return -EINVAL;
 	}
 
@@ -2169,14 +2110,12 @@ static void dpu_encoder_frame_done_timeout(struct timer_list *t)
 	struct dpu_encoder_virt *dpu_enc = from_timer(dpu_enc, t,
 			frame_done_timer);
 	struct drm_encoder *drm_enc = &dpu_enc->base;
-	struct msm_drm_private *priv;
 	u32 event;
 
-	if (!drm_enc->dev || !drm_enc->dev->dev_private) {
+	if (!drm_enc->dev) {
 		DPU_ERROR("invalid parameters\n");
 		return;
 	}
-	priv = drm_enc->dev->dev_private;
 
 	if (!dpu_enc->frame_busy_mask[0] || !dpu_enc->crtc_frame_event_cb) {
 		DRM_DEBUG_KMS("id:%u invalid timeout frame_busy_mask=%lu\n",
@@ -2225,8 +2164,6 @@ int dpu_encoder_setup(struct drm_device *dev, struct drm_encoder *enc,
 	ret = dpu_encoder_setup_display(dpu_enc, dpu_kms, disp_info);
 	if (ret)
 		goto fail;
-
-	spin_lock_init(&dpu_enc->enc_spinlock);
 
 	atomic_set(&dpu_enc->frame_done_timeout_ms, 0);
 	timer_setup(&dpu_enc->frame_done_timer,
@@ -2281,6 +2218,7 @@ struct drm_encoder *dpu_encoder_init(struct drm_device *dev,
 
 	drm_encoder_helper_add(&dpu_enc->base, &dpu_encoder_helper_funcs);
 
+	spin_lock_init(&dpu_enc->enc_spinlock);
 	dpu_enc->enabled = false;
 
 	return &dpu_enc->base;

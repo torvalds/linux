@@ -17,6 +17,7 @@
 #include <linux/irq.h>
 #include <linux/kexec.h>
 #include <linux/i8253.h>
+#include <linux/random.h>
 #include <asm/processor.h>
 #include <asm/hypervisor.h>
 #include <asm/hyperv-tlfs.h>
@@ -28,6 +29,7 @@
 #include <asm/timer.h>
 #include <asm/reboot.h>
 #include <asm/nmi.h>
+#include <clocksource/hyperv_timer.h>
 
 struct ms_hyperv_info ms_hyperv;
 EXPORT_SYMBOL_GPL(ms_hyperv);
@@ -80,6 +82,7 @@ __visible void __irq_entry hv_stimer0_vector_handler(struct pt_regs *regs)
 	inc_irq_stat(hyperv_stimer0_count);
 	if (hv_stimer0_handler)
 		hv_stimer0_handler();
+	add_interrupt_randomness(HYPERV_STIMER0_VECTOR, 0);
 	ack_APIC_irq();
 
 	exiting_irq();
@@ -89,7 +92,7 @@ __visible void __irq_entry hv_stimer0_vector_handler(struct pt_regs *regs)
 int hv_setup_stimer0_irq(int *irq, int *vector, void (*handler)(void))
 {
 	*vector = HYPERV_STIMER0_VECTOR;
-	*irq = 0;   /* Unused on x86/x64 */
+	*irq = -1;   /* Unused on x86/x64 */
 	hv_stimer0_handler = handler;
 	return 0;
 }
@@ -213,6 +216,10 @@ static void __init ms_hyperv_init_platform(void)
 	int hv_host_info_ecx;
 	int hv_host_info_edx;
 
+#ifdef CONFIG_PARAVIRT
+	pv_info.name = "Hyper-V";
+#endif
+
 	/*
 	 * Extract the features and hints
 	 */
@@ -266,9 +273,9 @@ static void __init ms_hyperv_init_platform(void)
 
 		rdmsrl(HV_X64_MSR_APIC_FREQUENCY, hv_lapic_frequency);
 		hv_lapic_frequency = div_u64(hv_lapic_frequency, HZ);
-		lapic_timer_frequency = hv_lapic_frequency;
+		lapic_timer_period = hv_lapic_frequency;
 		pr_info("Hyper-V: LAPIC Timer Frequency: %#x\n",
-			lapic_timer_frequency);
+			lapic_timer_period);
 	}
 
 	register_nmi_handler(NMI_UNKNOWN, hv_nmi_unknown, NMI_FLAG_FIRST,
@@ -283,7 +290,12 @@ static void __init ms_hyperv_init_platform(void)
 	machine_ops.shutdown = hv_machine_shutdown;
 	machine_ops.crash_shutdown = hv_machine_crash_shutdown;
 #endif
-	mark_tsc_unstable("running on Hyper-V");
+	if (ms_hyperv.features & HV_X64_ACCESS_TSC_INVARIANT) {
+		wrmsrl(HV_X64_MSR_TSC_INVARIANT_CONTROL, 0x1);
+		setup_force_cpu_cap(X86_FEATURE_TSC_RELIABLE);
+	} else {
+		mark_tsc_unstable("running on Hyper-V");
+	}
 
 	/*
 	 * Generation 2 instances don't support reading the NMI status from
@@ -336,6 +348,15 @@ static void __init ms_hyperv_init_platform(void)
 		x2apic_phys = 1;
 # endif
 
+	/* Register Hyper-V specific clocksource */
+	hv_init_clocksource();
+#endif
+}
+
+void hv_setup_sched_clock(void *sched_clock)
+{
+#ifdef CONFIG_PARAVIRT
+	pv_ops.time.sched_clock = sched_clock;
 #endif
 }
 

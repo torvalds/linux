@@ -152,6 +152,18 @@ qla2x00_chip_is_down(scsi_qla_host_t *vha)
 	return (qla2x00_reset_active(vha) || !vha->hw->flags.fw_started);
 }
 
+static void qla2xxx_init_sp(srb_t *sp, scsi_qla_host_t *vha,
+			    struct qla_qpair *qpair, fc_port_t *fcport)
+{
+	memset(sp, 0, sizeof(*sp));
+	sp->fcport = fcport;
+	sp->iocbs = 1;
+	sp->vha = vha;
+	sp->qpair = qpair;
+	sp->cmd_type = TYPE_SRB;
+	INIT_LIST_HEAD(&sp->elem);
+}
+
 static inline srb_t *
 qla2xxx_get_qpair_sp(scsi_qla_host_t *vha, struct qla_qpair *qpair,
     fc_port_t *fcport, gfp_t flag)
@@ -164,19 +176,9 @@ qla2xxx_get_qpair_sp(scsi_qla_host_t *vha, struct qla_qpair *qpair,
 		return NULL;
 
 	sp = mempool_alloc(qpair->srb_mempool, flag);
-	if (!sp)
-		goto done;
-
-	memset(sp, 0, sizeof(*sp));
-	sp->fcport = fcport;
-	sp->iocbs = 1;
-	sp->vha = vha;
-	sp->qpair = qpair;
-	sp->cmd_type = TYPE_SRB;
-	INIT_LIST_HEAD(&sp->elem);
-
-done:
-	if (!sp)
+	if (sp)
+		qla2xxx_init_sp(sp, vha, qpair, fcport);
+	else
 		QLA_QPAIR_MARK_NOT_BUSY(qpair);
 	return sp;
 }
@@ -304,4 +306,16 @@ qla_83xx_start_iocbs(struct qla_qpair *qpair)
 		req->ring_ptr++;
 
 	WRT_REG_DWORD(req->req_q_in, req->ring_index);
+}
+
+static inline int
+qla2xxx_get_fc4_priority(struct scsi_qla_host *vha)
+{
+	uint32_t data;
+
+	data =
+	    ((uint8_t *)vha->hw->nvram)[NVRAM_DUAL_FCP_NVME_FLAG_OFFSET];
+
+
+	return (data >> 6) & BIT_0 ? FC4_PRIORITY_FCP : FC4_PRIORITY_NVME;
 }

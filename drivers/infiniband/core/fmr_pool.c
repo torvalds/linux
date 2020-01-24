@@ -148,13 +148,6 @@ static void ib_fmr_batch_release(struct ib_fmr_pool *pool)
 		hlist_del_init(&fmr->cache_node);
 		fmr->remap_count = 0;
 		list_add_tail(&fmr->fmr->list, &fmr_list);
-
-#ifdef DEBUG
-		if (fmr->ref_count !=0) {
-			pr_warn(PFX "Unmapping FMR 0x%08x with ref count %d\n",
-				fmr, fmr->ref_count);
-		}
-#endif
 	}
 
 	list_splice_init(&pool->dirty_list, &unmap_list);
@@ -495,12 +488,6 @@ void ib_fmr_pool_unmap(struct ib_pool_fmr *fmr)
 			}
 		}
 	}
-
-#ifdef DEBUG
-	if (fmr->ref_count < 0)
-		pr_warn(PFX "FMR %p has ref count %d < 0\n",
-			fmr, fmr->ref_count);
-#endif
 
 	spin_unlock_irqrestore(&pool->pool_lock, flags);
 }

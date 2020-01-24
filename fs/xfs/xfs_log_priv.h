@@ -10,7 +10,6 @@ struct xfs_buf;
 struct xlog;
 struct xlog_ticket;
 struct xfs_mount;
-struct xfs_log_callback;
 
 /*
  * Flags for log structure
@@ -41,18 +40,15 @@ static inline uint xlog_get_client_id(__be32 i)
 /*
  * In core log state
  */
-#define XLOG_STATE_ACTIVE    0x0001 /* Current IC log being written to */
-#define XLOG_STATE_WANT_SYNC 0x0002 /* Want to sync this iclog; no more writes */
-#define XLOG_STATE_SYNCING   0x0004 /* This IC log is syncing */
-#define XLOG_STATE_DONE_SYNC 0x0008 /* Done syncing to disk */
-#define XLOG_STATE_DO_CALLBACK \
-			     0x0010 /* Process callback functions */
-#define XLOG_STATE_CALLBACK  0x0020 /* Callback functions now */
-#define XLOG_STATE_DIRTY     0x0040 /* Dirty IC log, not ready for ACTIVE status*/
-#define XLOG_STATE_IOERROR   0x0080 /* IO error happened in sync'ing log */
-#define XLOG_STATE_IOABORT   0x0100 /* force abort on I/O completion (debug) */
-#define XLOG_STATE_ALL	     0x7FFF /* All possible valid flags */
-#define XLOG_STATE_NOTUSED   0x8000 /* This IC log not being used */
+enum xlog_iclog_state {
+	XLOG_STATE_ACTIVE,	/* Current IC log being written to */
+	XLOG_STATE_WANT_SYNC,	/* Want to sync this iclog; no more writes */
+	XLOG_STATE_SYNCING,	/* This IC log is syncing */
+	XLOG_STATE_DONE_SYNC,	/* Done syncing to disk */
+	XLOG_STATE_CALLBACK,	/* Callback functions now */
+	XLOG_STATE_DIRTY,	/* Dirty IC log, not ready for ACTIVE status */
+	XLOG_STATE_IOERROR,	/* IO error happened in sync'ing log */
+};
 
 /*
  * Flags to log ticket
@@ -179,11 +175,8 @@ typedef struct xlog_ticket {
  *	the iclog.
  * - ic_forcewait is used to implement synchronous forcing of the iclog to disk.
  * - ic_next is the pointer to the next iclog in the ring.
- * - ic_bp is a pointer to the buffer used to write this incore log to disk.
  * - ic_log is a pointer back to the global log structure.
- * - ic_callback is a linked list of callback function/argument pairs to be
- *	called after an iclog finishes writing.
- * - ic_size is the full size of the header plus data.
+ * - ic_size is the full size of the log buffer, minus the cycle headers.
  * - ic_offset is the current number of bytes written to in this iclog.
  * - ic_refcnt is bumped when someone is writing to the log.
  * - ic_state is the state of the iclog.
@@ -193,7 +186,7 @@ typedef struct xlog_ticket {
  * structure cacheline aligned. The following fields can be contended on
  * by independent processes:
  *
- *	- ic_callback_*
+ *	- ic_callbacks
  *	- ic_refcnt
  *	- fields protected by the global l_icloglock
  *
@@ -206,23 +199,27 @@ typedef struct xlog_in_core {
 	wait_queue_head_t	ic_write_wait;
 	struct xlog_in_core	*ic_next;
 	struct xlog_in_core	*ic_prev;
-	struct xfs_buf		*ic_bp;
 	struct xlog		*ic_log;
-	int			ic_size;
-	int			ic_offset;
-	int			ic_bwritecnt;
-	unsigned short		ic_state;
+	u32			ic_size;
+	u32			ic_offset;
+	enum xlog_iclog_state	ic_state;
 	char			*ic_datap;	/* pointer to iclog data */
 
 	/* Callback structures need their own cacheline */
 	spinlock_t		ic_callback_lock ____cacheline_aligned_in_smp;
-	struct xfs_log_callback	*ic_callback;
-	struct xfs_log_callback	**ic_callback_tail;
+	struct list_head	ic_callbacks;
 
 	/* reference counts need their own cacheline */
 	atomic_t		ic_refcnt ____cacheline_aligned_in_smp;
 	xlog_in_core_2_t	*ic_data;
 #define ic_header	ic_data->hic_header
+#ifdef DEBUG
+	bool			ic_fail_crc : 1;
+#endif
+	struct semaphore	ic_sema;
+	struct work_struct	ic_end_io_work;
+	struct bio		ic_bio;
+	struct bio_vec		ic_bvec[];
 } xlog_in_core_t;
 
 /*
@@ -243,7 +240,7 @@ struct xfs_cil_ctx {
 	int			space_used;	/* aggregate size of regions */
 	struct list_head	busy_extents;	/* busy extents in chkpt */
 	struct xfs_log_vec	*lv_chain;	/* logvecs being pushed */
-	struct xfs_log_callback	log_cb;		/* completion callback hook. */
+	struct list_head	iclog_entry;
 	struct list_head	committing;	/* ctx committing list */
 	struct work_struct	discard_endio_work;
 };
@@ -350,9 +347,8 @@ struct xlog {
 	struct xfs_mount	*l_mp;	        /* mount point */
 	struct xfs_ail		*l_ailp;	/* AIL log is working with */
 	struct xfs_cil		*l_cilp;	/* CIL log is working with */
-	struct xfs_buf		*l_xbuf;        /* extra buffer for log
-						 * wrapping */
 	struct xfs_buftarg	*l_targ;        /* buftarg of log */
+	struct workqueue_struct	*l_ioend_workqueue; /* for I/O completions */
 	struct delayed_work	l_work;		/* background flush work */
 	uint			l_flags;
 	uint			l_quotaoffs_flag; /* XFS_DQ_*, for QUOTAOFFs */
@@ -361,7 +357,6 @@ struct xlog {
 	int			l_iclog_heads;  /* # of iclog header sectors */
 	uint			l_sectBBsize;   /* sector size in BBs (2^n) */
 	int			l_iclog_size;	/* size of log in bytes */
-	int			l_iclog_size_log; /* log power size of log */
 	int			l_iclog_bufs;	/* number of iclog buffers */
 	xfs_daddr_t		l_logBBstart;   /* start block of log */
 	int			l_logsize;      /* size of log in bytes */
@@ -399,8 +394,6 @@ struct xlog {
 	/* The following field are used for debugging; need to hold icloglock */
 #ifdef DEBUG
 	void			*l_iclog_bak[XLOG_MAX_ICLOGS];
-	/* log record crc error injection factor */
-	uint32_t		l_badcrc_factor;
 #endif
 	/* log recovery lsn tracking (for buffer submission */
 	xfs_lsn_t		l_recovery_lsn;
@@ -418,7 +411,7 @@ xlog_recover(
 extern int
 xlog_recover_finish(
 	struct xlog		*log);
-extern int
+extern void
 xlog_recover_cancel(struct xlog *);
 
 extern __le32	 xlog_cksum(struct xlog *log, struct xlog_rec_header *rhead,
@@ -542,7 +535,11 @@ xlog_cil_force(struct xlog *log)
  * by a spinlock. This matches the semantics of all the wait queues used in the
  * log code.
  */
-static inline void xlog_wait(wait_queue_head_t *wq, spinlock_t *lock)
+static inline void
+xlog_wait(
+	struct wait_queue_head	*wq,
+	struct spinlock		*lock)
+		__releases(lock)
 {
 	DECLARE_WAITQUEUE(wait, current);
 

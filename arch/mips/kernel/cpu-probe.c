@@ -608,7 +608,7 @@ static int set_ftlb_enable(struct cpuinfo_mips *c, enum ftlb_flags flags)
 		if (!(flags & FTLB_EN))
 			return 1;
 		return 0;
-	case CPU_LOONGSON3:
+	case CPU_LOONGSON64:
 		/* Flush ITLB, DTLB, VTLB and FTLB */
 		write_c0_diag(LOONGSON_DIAG_ITLB | LOONGSON_DIAG_DTLB |
 			      LOONGSON_DIAG_VTLB | LOONGSON_DIAG_FTLB);
@@ -1384,15 +1384,6 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 			break;
 		}
 		break;
-	case PRID_IMP_R4300:
-		c->cputype = CPU_R4300;
-		__cpu_name[cpu] = "R4300";
-		set_isa(c, MIPS_CPU_ISA_III);
-		c->fpu_msk31 |= FPU_CSR_CONDX;
-		c->options = R4K_OPTS | MIPS_CPU_FPU | MIPS_CPU_32FPR |
-			     MIPS_CPU_LLSC;
-		c->tlbsize = 32;
-		break;
 	case PRID_IMP_R4600:
 		c->cputype = CPU_R4600;
 		__cpu_name[cpu] = "R4600";
@@ -1468,14 +1459,6 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 			     MIPS_CPU_LLSC;
 		c->tlbsize = 48;
 		break;
-	case PRID_IMP_R5432:
-		c->cputype = CPU_R5432;
-		__cpu_name[cpu] = "R5432";
-		set_isa(c, MIPS_CPU_ISA_IV);
-		c->options = R4K_OPTS | MIPS_CPU_FPU | MIPS_CPU_32FPR |
-			     MIPS_CPU_WATCH | MIPS_CPU_LLSC;
-		c->tlbsize = 48;
-		break;
 	case PRID_IMP_R5500:
 		c->cputype = CPU_R5500;
 		__cpu_name[cpu] = "R5500";
@@ -1507,15 +1490,6 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 		 *	   0 =>	   48 entry JTLB
 		 */
 		c->tlbsize = (read_c0_info() & (1 << 29)) ? 64 : 48;
-		break;
-	case PRID_IMP_R8000:
-		c->cputype = CPU_R8000;
-		__cpu_name[cpu] = "RM8000";
-		set_isa(c, MIPS_CPU_ISA_IV);
-		c->options = MIPS_CPU_TLB | MIPS_CPU_4KEX |
-			     MIPS_CPU_FPU | MIPS_CPU_32FPR |
-			     MIPS_CPU_LLSC;
-		c->tlbsize = 384;      /* has weird TLB: 3-way x 128 */
 		break;
 	case PRID_IMP_R10000:
 		c->cputype = CPU_R10000;
@@ -1552,34 +1526,38 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 			     MIPS_CPU_LLSC | MIPS_CPU_BP_GHIST;
 		c->tlbsize = 64;
 		break;
-	case PRID_IMP_LOONGSON_64:  /* Loongson-2/3 */
+	case PRID_IMP_LOONGSON_64C:  /* Loongson-2/3 */
 		switch (c->processor_id & PRID_REV_MASK) {
 		case PRID_REV_LOONGSON2E:
-			c->cputype = CPU_LOONGSON2;
+			c->cputype = CPU_LOONGSON2EF;
 			__cpu_name[cpu] = "ICT Loongson-2";
 			set_elf_platform(cpu, "loongson2e");
 			set_isa(c, MIPS_CPU_ISA_III);
 			c->fpu_msk31 |= FPU_CSR_CONDX;
 			break;
 		case PRID_REV_LOONGSON2F:
-			c->cputype = CPU_LOONGSON2;
+			c->cputype = CPU_LOONGSON2EF;
 			__cpu_name[cpu] = "ICT Loongson-2";
 			set_elf_platform(cpu, "loongson2f");
 			set_isa(c, MIPS_CPU_ISA_III);
 			c->fpu_msk31 |= FPU_CSR_CONDX;
 			break;
 		case PRID_REV_LOONGSON3A_R1:
-			c->cputype = CPU_LOONGSON3;
+			c->cputype = CPU_LOONGSON64;
 			__cpu_name[cpu] = "ICT Loongson-3";
 			set_elf_platform(cpu, "loongson3a");
 			set_isa(c, MIPS_CPU_ISA_M64R1);
+			c->ases |= (MIPS_ASE_LOONGSON_MMI | MIPS_ASE_LOONGSON_CAM |
+				MIPS_ASE_LOONGSON_EXT);
 			break;
 		case PRID_REV_LOONGSON3B_R1:
 		case PRID_REV_LOONGSON3B_R2:
-			c->cputype = CPU_LOONGSON3;
+			c->cputype = CPU_LOONGSON64;
 			__cpu_name[cpu] = "ICT Loongson-3";
 			set_elf_platform(cpu, "loongson3b");
 			set_isa(c, MIPS_CPU_ISA_M64R1);
+			c->ases |= (MIPS_ASE_LOONGSON_MMI | MIPS_ASE_LOONGSON_CAM |
+				MIPS_ASE_LOONGSON_EXT);
 			break;
 		}
 
@@ -1587,12 +1565,13 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 			     MIPS_CPU_FPU | MIPS_CPU_LLSC |
 			     MIPS_CPU_32FPR;
 		c->tlbsize = 64;
+		set_cpu_asid_mask(c, MIPS_ENTRYHI_ASID);
 		c->writecombine = _CACHE_UNCACHED_ACCELERATED;
 		break;
 	case PRID_IMP_LOONGSON_32:  /* Loongson-1 */
 		decode_configs(c);
 
-		c->cputype = CPU_LOONGSON1;
+		c->cputype = CPU_LOONGSON32;
 
 		switch (c->processor_id & PRID_REV_MASK) {
 		case PRID_REV_LOONGSON1B:
@@ -1925,18 +1904,18 @@ platform:
 static inline void cpu_probe_loongson(struct cpuinfo_mips *c, unsigned int cpu)
 {
 	switch (c->processor_id & PRID_IMP_MASK) {
-	case PRID_IMP_LOONGSON_64:  /* Loongson-2/3 */
+	case PRID_IMP_LOONGSON_64C:  /* Loongson-2/3 */
 		switch (c->processor_id & PRID_REV_MASK) {
 		case PRID_REV_LOONGSON3A_R2_0:
 		case PRID_REV_LOONGSON3A_R2_1:
-			c->cputype = CPU_LOONGSON3;
+			c->cputype = CPU_LOONGSON64;
 			__cpu_name[cpu] = "ICT Loongson-3";
 			set_elf_platform(cpu, "loongson3a");
 			set_isa(c, MIPS_CPU_ISA_M64R2);
 			break;
 		case PRID_REV_LOONGSON3A_R3_0:
 		case PRID_REV_LOONGSON3A_R3_1:
-			c->cputype = CPU_LOONGSON3;
+			c->cputype = CPU_LOONGSON64;
 			__cpu_name[cpu] = "ICT Loongson-3";
 			set_elf_platform(cpu, "loongson3a");
 			set_isa(c, MIPS_CPU_ISA_M64R2);
@@ -1946,6 +1925,19 @@ static inline void cpu_probe_loongson(struct cpuinfo_mips *c, unsigned int cpu)
 		decode_configs(c);
 		c->options |= MIPS_CPU_FTLB | MIPS_CPU_TLBINV | MIPS_CPU_LDPTE;
 		c->writecombine = _CACHE_UNCACHED_ACCELERATED;
+		c->ases |= (MIPS_ASE_LOONGSON_MMI | MIPS_ASE_LOONGSON_CAM |
+			MIPS_ASE_LOONGSON_EXT | MIPS_ASE_LOONGSON_EXT2);
+		break;
+	case PRID_IMP_LOONGSON_64G:
+		c->cputype = CPU_LOONGSON64;
+		__cpu_name[cpu] = "ICT Loongson-3";
+		set_elf_platform(cpu, "loongson3a");
+		set_isa(c, MIPS_CPU_ISA_M64R2);
+		decode_configs(c);
+		c->options |= MIPS_CPU_FTLB | MIPS_CPU_TLBINV | MIPS_CPU_LDPTE;
+		c->writecombine = _CACHE_UNCACHED_ACCELERATED;
+		c->ases |= (MIPS_ASE_LOONGSON_MMI | MIPS_ASE_LOONGSON_CAM |
+			MIPS_ASE_LOONGSON_EXT | MIPS_ASE_LOONGSON_EXT2);
 		break;
 	default:
 		panic("Unknown Loongson Processor ID!");
@@ -1956,27 +1948,59 @@ static inline void cpu_probe_loongson(struct cpuinfo_mips *c, unsigned int cpu)
 static inline void cpu_probe_ingenic(struct cpuinfo_mips *c, unsigned int cpu)
 {
 	decode_configs(c);
-	/* JZRISC does not implement the CP0 counter. */
+
+	/*
+	 * XBurst misses a config2 register, so config3 decode was skipped in
+	 * decode_configs().
+	 */
+	decode_config3(c);
+
+	/* XBurst does not implement the CP0 counter. */
 	c->options &= ~MIPS_CPU_COUNTER;
 	BUG_ON(!__builtin_constant_p(cpu_has_counter) || cpu_has_counter);
+
 	switch (c->processor_id & PRID_IMP_MASK) {
-	case PRID_IMP_JZRISC:
-		c->cputype = CPU_JZRISC;
+	case PRID_IMP_XBURST:
+		c->cputype = CPU_XBURST;
 		c->writecombine = _CACHE_UNCACHED_ACCELERATED;
 		__cpu_name[cpu] = "Ingenic JZRISC";
+		/*
+		 * The XBurst core by default attempts to avoid branch target
+		 * buffer lookups by detecting & special casing loops. This
+		 * feature will cause BogoMIPS and lpj calculate in error.
+		 * Set cp0 config7 bit 4 to disable this feature.
+		 */
+		set_c0_config7(MIPS_CONF7_BTB_LOOP_EN);
 		break;
 	default:
 		panic("Unknown Ingenic Processor ID!");
 		break;
 	}
 
+	switch (c->processor_id & PRID_COMP_MASK) {
 	/*
-	 * The config0 register in the Xburst CPUs with a processor ID of
+	 * The config0 register in the XBurst CPUs with a processor ID of
+	 * PRID_COMP_INGENIC_D1 has an abandoned huge page tlb mode, this
+	 * mode is not compatible with the MIPS standard, it will cause
+	 * tlbmiss and into an infinite loop (line 21 in the tlb-funcs.S)
+	 * when starting the init process. After chip reset, the default
+	 * is HPTLB mode, Write 0xa9000000 to cp0 register 5 sel 4 to
+	 * switch back to VTLB mode to prevent getting stuck.
+	 */
+	case PRID_COMP_INGENIC_D1:
+		write_c0_page_ctrl(XBURST_PAGECTRL_HPTLB_DIS);
+		break;
+	/*
+	 * The config0 register in the XBurst CPUs with a processor ID of
 	 * PRID_COMP_INGENIC_D0 report themselves as MIPS32r2 compatible,
 	 * but they don't actually support this ISA.
 	 */
-	if ((c->processor_id & PRID_COMP_MASK) == PRID_COMP_INGENIC_D0)
+	case PRID_COMP_INGENIC_D0:
 		c->isa_level &= ~MIPS_CPU_ISA_M32R2;
+		break;
+	default:
+		break;
+	}
 }
 
 static inline void cpu_probe_netlogic(struct cpuinfo_mips *c, int cpu)
@@ -2184,6 +2208,39 @@ void cpu_probe(void)
 		     "Vector register partitioning unimplemented!");
 		elf_hwcap |= HWCAP_MIPS_MSA;
 	}
+
+	if (cpu_has_mips16)
+		elf_hwcap |= HWCAP_MIPS_MIPS16;
+
+	if (cpu_has_mdmx)
+		elf_hwcap |= HWCAP_MIPS_MDMX;
+
+	if (cpu_has_mips3d)
+		elf_hwcap |= HWCAP_MIPS_MIPS3D;
+
+	if (cpu_has_smartmips)
+		elf_hwcap |= HWCAP_MIPS_SMARTMIPS;
+
+	if (cpu_has_dsp)
+		elf_hwcap |= HWCAP_MIPS_DSP;
+
+	if (cpu_has_dsp2)
+		elf_hwcap |= HWCAP_MIPS_DSP2;
+
+	if (cpu_has_dsp3)
+		elf_hwcap |= HWCAP_MIPS_DSP3;
+
+	if (cpu_has_mips16e2)
+		elf_hwcap |= HWCAP_MIPS_MIPS16E2;
+
+	if (cpu_has_loongson_mmi)
+		elf_hwcap |= HWCAP_LOONGSON_MMI;
+
+	if (cpu_has_loongson_ext)
+		elf_hwcap |= HWCAP_LOONGSON_EXT;
+
+	if (cpu_has_loongson_ext2)
+		elf_hwcap |= HWCAP_LOONGSON_EXT2;
 
 	if (cpu_has_vz)
 		cpu_probe_vz(c);

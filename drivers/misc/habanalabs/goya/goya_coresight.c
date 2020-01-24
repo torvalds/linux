@@ -8,12 +8,17 @@
 #include "goyaP.h"
 #include "include/goya/goya_coresight.h"
 #include "include/goya/asic_reg/goya_regs.h"
+#include "include/goya/asic_reg/goya_masks.h"
 
 #include <uapi/misc/habanalabs.h>
 
 #include <linux/coresight.h>
 
 #define GOYA_PLDM_CORESIGHT_TIMEOUT_USEC	(CORESIGHT_TIMEOUT_USEC * 100)
+
+#define SPMU_SECTION_SIZE		DMA_CH_0_CS_SPMU_MAX_OFFSET
+#define SPMU_EVENT_TYPES_OFFSET		0x400
+#define SPMU_MAX_COUNTERS		6
 
 static u64 debug_stm_regs[GOYA_STM_LAST + 1] = {
 	[GOYA_STM_CPU]		= mmCPU_STM_BASE,
@@ -226,8 +231,15 @@ static int goya_config_stm(struct hl_device *hdev,
 		struct hl_debug_params *params)
 {
 	struct hl_debug_params_stm *input;
-	u64 base_reg = debug_stm_regs[params->reg_idx] - CFG_BASE;
+	u64 base_reg;
 	int rc;
+
+	if (params->reg_idx >= ARRAY_SIZE(debug_stm_regs)) {
+		dev_err(hdev->dev, "Invalid register index in STM\n");
+		return -EINVAL;
+	}
+
+	base_reg = debug_stm_regs[params->reg_idx] - CFG_BASE;
 
 	WREG32(base_reg + 0xFB0, CORESIGHT_UNLOCK);
 
@@ -288,9 +300,16 @@ static int goya_config_etf(struct hl_device *hdev,
 		struct hl_debug_params *params)
 {
 	struct hl_debug_params_etf *input;
-	u64 base_reg = debug_etf_regs[params->reg_idx] - CFG_BASE;
+	u64 base_reg;
 	u32 val;
 	int rc;
+
+	if (params->reg_idx >= ARRAY_SIZE(debug_etf_regs)) {
+		dev_err(hdev->dev, "Invalid register index in ETF\n");
+		return -EINVAL;
+	}
+
+	base_reg = debug_etf_regs[params->reg_idx] - CFG_BASE;
 
 	WREG32(base_reg + 0xFB0, CORESIGHT_UNLOCK);
 
@@ -359,33 +378,32 @@ static int goya_config_etr(struct hl_device *hdev,
 		struct hl_debug_params *params)
 {
 	struct hl_debug_params_etr *input;
-	u64 base_reg = mmPSOC_ETR_BASE - CFG_BASE;
 	u32 val;
 	int rc;
 
-	WREG32(base_reg + 0xFB0, CORESIGHT_UNLOCK);
+	WREG32(mmPSOC_ETR_LAR, CORESIGHT_UNLOCK);
 
-	val = RREG32(base_reg + 0x304);
+	val = RREG32(mmPSOC_ETR_FFCR);
 	val |= 0x1000;
-	WREG32(base_reg + 0x304, val);
+	WREG32(mmPSOC_ETR_FFCR, val);
 	val |= 0x40;
-	WREG32(base_reg + 0x304, val);
+	WREG32(mmPSOC_ETR_FFCR, val);
 
-	rc = goya_coresight_timeout(hdev, base_reg + 0x304, 6, false);
+	rc = goya_coresight_timeout(hdev, mmPSOC_ETR_FFCR, 6, false);
 	if (rc) {
 		dev_err(hdev->dev, "Failed to %s ETR on timeout, error %d\n",
 				params->enable ? "enable" : "disable", rc);
 		return rc;
 	}
 
-	rc = goya_coresight_timeout(hdev, base_reg + 0xC, 2, true);
+	rc = goya_coresight_timeout(hdev, mmPSOC_ETR_STS, 2, true);
 	if (rc) {
 		dev_err(hdev->dev, "Failed to %s ETR on timeout, error %d\n",
 				params->enable ? "enable" : "disable", rc);
 		return rc;
 	}
 
-	WREG32(base_reg + 0x20, 0);
+	WREG32(mmPSOC_ETR_CTL, 0);
 
 	if (params->enable) {
 		input = params->input;
@@ -405,25 +423,26 @@ static int goya_config_etr(struct hl_device *hdev,
 			return -EINVAL;
 		}
 
-		WREG32(base_reg + 0x34, 0x3FFC);
-		WREG32(base_reg + 0x4, input->buffer_size);
-		WREG32(base_reg + 0x28, input->sink_mode);
-		WREG32(base_reg + 0x110, 0x700);
-		WREG32(base_reg + 0x118,
+		WREG32(mmPSOC_ETR_BUFWM, 0x3FFC);
+		WREG32(mmPSOC_ETR_RSZ, input->buffer_size);
+		WREG32(mmPSOC_ETR_MODE, input->sink_mode);
+		WREG32(mmPSOC_ETR_AXICTL,
+				0x700 | PSOC_ETR_AXICTL_PROTCTRLBIT1_SHIFT);
+		WREG32(mmPSOC_ETR_DBALO,
 				lower_32_bits(input->buffer_address));
-		WREG32(base_reg + 0x11C,
+		WREG32(mmPSOC_ETR_DBAHI,
 				upper_32_bits(input->buffer_address));
-		WREG32(base_reg + 0x304, 3);
-		WREG32(base_reg + 0x308, 0xA);
-		WREG32(base_reg + 0x20, 1);
+		WREG32(mmPSOC_ETR_FFCR, 3);
+		WREG32(mmPSOC_ETR_PSCR, 0xA);
+		WREG32(mmPSOC_ETR_CTL, 1);
 	} else {
-		WREG32(base_reg + 0x34, 0);
-		WREG32(base_reg + 0x4, 0x400);
-		WREG32(base_reg + 0x118, 0);
-		WREG32(base_reg + 0x11C, 0);
-		WREG32(base_reg + 0x308, 0);
-		WREG32(base_reg + 0x28, 0);
-		WREG32(base_reg + 0x304, 0);
+		WREG32(mmPSOC_ETR_BUFWM, 0);
+		WREG32(mmPSOC_ETR_RSZ, 0x400);
+		WREG32(mmPSOC_ETR_DBALO, 0);
+		WREG32(mmPSOC_ETR_DBAHI, 0);
+		WREG32(mmPSOC_ETR_PSCR, 0);
+		WREG32(mmPSOC_ETR_MODE, 0);
+		WREG32(mmPSOC_ETR_FFCR, 0);
 
 		if (params->output_size >= sizeof(u64)) {
 			u32 rwp, rwphi;
@@ -433,8 +452,8 @@ static int goya_config_etr(struct hl_device *hdev,
 			 * the buffer is set in the RWP register (lower 32
 			 * bits), and in the RWPHI register (upper 8 bits).
 			 */
-			rwp = RREG32(base_reg + 0x18);
-			rwphi = RREG32(base_reg + 0x3c) & 0xff;
+			rwp = RREG32(mmPSOC_ETR_RWP);
+			rwphi = RREG32(mmPSOC_ETR_RWPHI) & 0xff;
 			*(u64 *) params->output = ((u64) rwphi << 32) | rwp;
 		}
 	}
@@ -445,11 +464,18 @@ static int goya_config_etr(struct hl_device *hdev,
 static int goya_config_funnel(struct hl_device *hdev,
 		struct hl_debug_params *params)
 {
-	WREG32(debug_funnel_regs[params->reg_idx] - CFG_BASE + 0xFB0,
-			CORESIGHT_UNLOCK);
+	u64 base_reg;
 
-	WREG32(debug_funnel_regs[params->reg_idx] - CFG_BASE,
-			params->enable ? 0x33F : 0);
+	if (params->reg_idx >= ARRAY_SIZE(debug_funnel_regs)) {
+		dev_err(hdev->dev, "Invalid register index in FUNNEL\n");
+		return -EINVAL;
+	}
+
+	base_reg = debug_funnel_regs[params->reg_idx] - CFG_BASE;
+
+	WREG32(base_reg + 0xFB0, CORESIGHT_UNLOCK);
+
+	WREG32(base_reg, params->enable ? 0x33F : 0);
 
 	return 0;
 }
@@ -458,8 +484,15 @@ static int goya_config_bmon(struct hl_device *hdev,
 		struct hl_debug_params *params)
 {
 	struct hl_debug_params_bmon *input;
-	u64 base_reg = debug_bmon_regs[params->reg_idx] - CFG_BASE;
+	u64 base_reg;
 	u32 pcie_base = 0;
+
+	if (params->reg_idx >= ARRAY_SIZE(debug_bmon_regs)) {
+		dev_err(hdev->dev, "Invalid register index in BMON\n");
+		return -EINVAL;
+	}
+
+	base_reg = debug_bmon_regs[params->reg_idx] - CFG_BASE;
 
 	WREG32(base_reg + 0x104, 1);
 
@@ -522,7 +555,7 @@ static int goya_config_bmon(struct hl_device *hdev,
 static int goya_config_spmu(struct hl_device *hdev,
 		struct hl_debug_params *params)
 {
-	u64 base_reg = debug_spmu_regs[params->reg_idx] - CFG_BASE;
+	u64 base_reg;
 	struct hl_debug_params_spmu *input = params->input;
 	u64 *output;
 	u32 output_arr_len;
@@ -530,6 +563,13 @@ static int goya_config_spmu(struct hl_device *hdev,
 	u32 overflow_idx;
 	u32 cycle_cnt_idx;
 	int i;
+
+	if (params->reg_idx >= ARRAY_SIZE(debug_spmu_regs)) {
+		dev_err(hdev->dev, "Invalid register index in SPMU\n");
+		return -EINVAL;
+	}
+
+	base_reg = debug_spmu_regs[params->reg_idx] - CFG_BASE;
 
 	if (params->enable) {
 		input = params->input;
@@ -539,7 +579,13 @@ static int goya_config_spmu(struct hl_device *hdev,
 
 		if (input->event_types_num < 3) {
 			dev_err(hdev->dev,
-				"not enough values for SPMU enable\n");
+				"not enough event types values for SPMU enable\n");
+			return -EINVAL;
+		}
+
+		if (input->event_types_num > SPMU_MAX_COUNTERS) {
+			dev_err(hdev->dev,
+				"too many event types values for SPMU enable\n");
 			return -EINVAL;
 		}
 
@@ -547,7 +593,8 @@ static int goya_config_spmu(struct hl_device *hdev,
 		WREG32(base_reg + 0xE04, 0x41013040);
 
 		for (i = 0 ; i < input->event_types_num ; i++)
-			WREG32(base_reg + 0x400 + i * 4, input->event_types[i]);
+			WREG32(base_reg + SPMU_EVENT_TYPES_OFFSET + i * 4,
+				input->event_types[i]);
 
 		WREG32(base_reg + 0xE04, 0x41013041);
 		WREG32(base_reg + 0xC00, 0x8000003F);
@@ -564,6 +611,12 @@ static int goya_config_spmu(struct hl_device *hdev,
 		if (output_arr_len < 3) {
 			dev_err(hdev->dev,
 				"not enough values for SPMU disable\n");
+			return -EINVAL;
+		}
+
+		if (events_num > SPMU_MAX_COUNTERS) {
+			dev_err(hdev->dev,
+				"too many events values for SPMU disable\n");
 			return -EINVAL;
 		}
 
@@ -584,24 +637,11 @@ static int goya_config_spmu(struct hl_device *hdev,
 	return 0;
 }
 
-static int goya_config_timestamp(struct hl_device *hdev,
-		struct hl_debug_params *params)
-{
-	WREG32(mmPSOC_TIMESTAMP_BASE - CFG_BASE, 0);
-	if (params->enable) {
-		WREG32(mmPSOC_TIMESTAMP_BASE - CFG_BASE + 0xC, 0);
-		WREG32(mmPSOC_TIMESTAMP_BASE - CFG_BASE + 0x8, 0);
-		WREG32(mmPSOC_TIMESTAMP_BASE - CFG_BASE, 1);
-	}
-
-	return 0;
-}
-
 int goya_debug_coresight(struct hl_device *hdev, void *data)
 {
 	struct hl_debug_params *params = data;
 	u32 val;
-	int rc;
+	int rc = 0;
 
 	switch (params->op) {
 	case HL_DEBUG_OP_STM:
@@ -623,7 +663,7 @@ int goya_debug_coresight(struct hl_device *hdev, void *data)
 		rc = goya_config_spmu(hdev, params);
 		break;
 	case HL_DEBUG_OP_TIMESTAMP:
-		rc = goya_config_timestamp(hdev, params);
+		/* Do nothing as this opcode is deprecated */
 		break;
 
 	default:

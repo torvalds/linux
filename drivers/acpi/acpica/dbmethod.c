@@ -302,6 +302,10 @@ acpi_status acpi_db_disassemble_method(char *name)
 	}
 
 	status = acpi_ut_allocate_owner_id(&obj_desc->method.owner_id);
+	if (ACPI_FAILURE(status)) {
+		return (status);
+	}
+
 	walk_state->owner_id = obj_desc->method.owner_id;
 
 	/* Push start scope on scope stack and make it current */
@@ -317,6 +321,10 @@ acpi_status acpi_db_disassemble_method(char *name)
 	walk_state->parse_flags |= ACPI_PARSE_DISASSEMBLE;
 
 	status = acpi_ps_parse_aml(walk_state);
+	if (ACPI_FAILURE(status)) {
+		return (status);
+	}
+
 	(void)acpi_dm_parse_deferred_ops(op);
 
 	/* Now we can disassemble the method */

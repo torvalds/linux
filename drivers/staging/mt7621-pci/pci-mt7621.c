@@ -17,6 +17,7 @@
 
 #include <linux/bitops.h>
 #include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -28,21 +29,22 @@
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
+#include <linux/sys_soc.h>
 #include <mt7621.h>
 #include <ralink_regs.h>
 
 #include "../../pci/pci.h"
 
 /* sysctl */
-#define MT7621_CHIP_REV_ID		0x0c
-#define CHIP_REV_MT7621_E2		0x0101
+#define MT7621_GPIO_MODE		0x60
 
 /* MediaTek specific configuration registers */
 #define PCIE_FTS_NUM			0x70c
 #define PCIE_FTS_NUM_MASK		GENMASK(15, 8)
-#define PCIE_FTS_NUM_L0(x)		((x) & 0xff << 8)
+#define PCIE_FTS_NUM_L0(x)		(((x) & 0xff) << 8)
 
 /* rt_sysc_membase relative registers */
+#define RALINK_CLKCFG1			0x30
 #define RALINK_PCIE_CLK_GEN		0x7c
 #define RALINK_PCIE_CLK_GEN1		0x80
 
@@ -81,7 +83,6 @@
 #define PCIE_BAR_ENABLE			BIT(0)
 #define PCIE_PORT_INT_EN(x)		BIT(20 + (x))
 #define PCIE_PORT_CLK_EN(x)		BIT(24 + (x))
-#define PCIE_PORT_PERST(x)		BIT(1 + (x))
 #define PCIE_PORT_LINKUP		BIT(0)
 
 #define PCIE_CLK_GEN_EN			BIT(31)
@@ -89,6 +90,9 @@
 #define PCIE_CLK_GEN1_DIS		GENMASK(30, 24)
 #define PCIE_CLK_GEN1_EN		(BIT(27) | BIT(25))
 #define MEMORY_BASE			0x0
+#define PERST_MODE_MASK			GENMASK(11, 10)
+#define PERST_MODE_GPIO			BIT(10)
+#define PERST_DELAY_US			1000
 
 /**
  * struct mt7621_pcie_port - PCIe port information
@@ -119,7 +123,10 @@ struct mt7621_pcie_port {
  * @offset: IO / Memory offset
  * @dev: Pointer to PCIe device
  * @ports: pointer to PCIe port information
+ * @perst: gpio reset
  * @rst: pointer to pcie reset
+ * @resets_inverted: depends on chip revision
+ * reset lines are inverted.
  */
 struct mt7621_pcie {
 	void __iomem *base;
@@ -132,7 +139,9 @@ struct mt7621_pcie {
 		resource_size_t io;
 	} offset;
 	struct list_head ports;
+	struct gpio_desc *perst;
 	struct reset_control *rst;
+	bool resets_inverted;
 };
 
 static inline u32 pcie_read(struct mt7621_pcie *pcie, u32 reg)
@@ -198,11 +207,33 @@ static void write_config(struct mt7621_pcie *pcie, unsigned int dev,
 	pcie_write(pcie, val, RALINK_PCI_CONFIG_DATA);
 }
 
+static inline void mt7621_perst_gpio_pcie_assert(struct mt7621_pcie *pcie)
+{
+	gpiod_set_value(pcie->perst, 0);
+	mdelay(PERST_DELAY_US);
+}
+
+static inline void mt7621_perst_gpio_pcie_deassert(struct mt7621_pcie *pcie)
+{
+	gpiod_set_value(pcie->perst, 1);
+	mdelay(PERST_DELAY_US);
+}
+
+static inline bool mt7621_pcie_port_is_linkup(struct mt7621_pcie_port *port)
+{
+	return (pcie_port_read(port, RALINK_PCI_STATUS) & PCIE_PORT_LINKUP) != 0;
+}
+
+static inline void mt7621_pcie_port_clk_disable(struct mt7621_pcie_port *port)
+{
+	rt_sysc_m32(PCIE_PORT_CLK_EN(port->slot), 0, RALINK_CLKCFG1);
+}
+
 static inline void mt7621_control_assert(struct mt7621_pcie_port *port)
 {
-	u32 chip_rev_id = rt_sysc_r32(MT7621_CHIP_REV_ID);
+	struct mt7621_pcie *pcie = port->pcie;
 
-	if ((chip_rev_id & 0xFFFF) == CHIP_REV_MT7621_E2)
+	if (pcie->resets_inverted)
 		reset_control_assert(port->pcie_rst);
 	else
 		reset_control_deassert(port->pcie_rst);
@@ -210,9 +241,9 @@ static inline void mt7621_control_assert(struct mt7621_pcie_port *port)
 
 static inline void mt7621_control_deassert(struct mt7621_pcie_port *port)
 {
-	u32 chip_rev_id = rt_sysc_r32(MT7621_CHIP_REV_ID);
+	struct mt7621_pcie *pcie = port->pcie;
 
-	if ((chip_rev_id & 0xFFFF) == CHIP_REV_MT7621_E2)
+	if (pcie->resets_inverted)
 		reset_control_deassert(port->pcie_rst);
 	else
 		reset_control_assert(port->pcie_rst);
@@ -344,6 +375,12 @@ static int mt7621_pcie_parse_dt(struct mt7621_pcie *pcie)
 	struct resource regs;
 	int err;
 
+	pcie->perst = devm_gpiod_get(dev, "perst", GPIOD_OUT_HIGH);
+	if (IS_ERR(pcie->perst)) {
+		dev_err(dev, "failed to get gpio perst\n");
+		return PTR_ERR(pcie->perst);
+	}
+
 	err = of_address_to_resource(node, 0, &regs);
 	if (err) {
 		dev_err(dev, "missing \"reg\" property\n");
@@ -365,6 +402,7 @@ static int mt7621_pcie_parse_dt(struct mt7621_pcie *pcie)
 
 		err = of_pci_get_devfn(child);
 		if (err < 0) {
+			of_node_put(child);
 			dev_err(dev, "failed to parse devfn: %d\n", err);
 			return err;
 		}
@@ -372,8 +410,10 @@ static int mt7621_pcie_parse_dt(struct mt7621_pcie *pcie)
 		slot = PCI_SLOT(err);
 
 		err = mt7621_pcie_parse_port(pcie, child, slot);
-		if (err)
+		if (err) {
+			of_node_put(child);
 			return err;
+		}
 	}
 
 	return 0;
@@ -384,7 +424,6 @@ static int mt7621_pcie_init_port(struct mt7621_pcie_port *port)
 	struct mt7621_pcie *pcie = port->pcie;
 	struct device *dev = pcie->dev;
 	u32 slot = port->slot;
-	u32 val = 0;
 	int err;
 
 	/*
@@ -393,46 +432,34 @@ static int mt7621_pcie_init_port(struct mt7621_pcie_port *port)
 	 */
 	mt7621_reset_port(port);
 
-	val = read_config(pcie, slot, PCIE_FTS_NUM);
-	dev_info(dev, "Port %d N_FTS = %x\n", (unsigned int)val, slot);
-
 	err = phy_init(port->phy);
 	if (err) {
 		dev_err(dev, "failed to initialize port%d phy\n", slot);
-		goto err_phy_init;
+		return err;
 	}
 
 	err = phy_power_on(port->phy);
 	if (err) {
 		dev_err(dev, "failed to power on port%d phy\n", slot);
-		goto err_phy_on;
-	}
-
-	if ((pcie_port_read(port, RALINK_PCI_STATUS) & PCIE_PORT_LINKUP) == 0) {
-		dev_err(dev, "pcie%d no card, disable it (RST & CLK)\n", slot);
-		mt7621_control_assert(port);
-		port->enabled = false;
-		err = -ENODEV;
-		goto err_no_link_up;
+		phy_exit(port->phy);
+		return err;
 	}
 
 	port->enabled = true;
 
 	return 0;
-
-err_no_link_up:
-	phy_power_off(port->phy);
-err_phy_on:
-	phy_exit(port->phy);
-err_phy_init:
-	return err;
 }
 
 static void mt7621_pcie_init_ports(struct mt7621_pcie *pcie)
 {
 	struct device *dev = pcie->dev;
 	struct mt7621_pcie_port *port, *tmp;
+	u32 val = 0;
 	int err;
+
+	rt_sysc_m32(PERST_MODE_MASK, PERST_MODE_GPIO, MT7621_GPIO_MODE);
+
+	mt7621_perst_gpio_pcie_assert(pcie);
 
 	list_for_each_entry_safe(port, tmp, &pcie->ports, list) {
 		u32 slot = port->slot;
@@ -441,10 +468,30 @@ static void mt7621_pcie_init_ports(struct mt7621_pcie *pcie)
 		if (err) {
 			dev_err(dev, "Initiating port %d failed\n", slot);
 			list_del(&port->list);
+		} else {
+			val = read_config(pcie, slot, PCIE_FTS_NUM);
+			dev_info(dev, "Port %d N_FTS = %x\n", slot,
+				 (unsigned int)val);
 		}
 	}
 
 	reset_control_assert(pcie->rst);
+
+	mt7621_perst_gpio_pcie_deassert(pcie);
+
+	list_for_each_entry(port, &pcie->ports, list) {
+		u32 slot = port->slot;
+
+		if (!mt7621_pcie_port_is_linkup(port)) {
+			dev_err(dev, "pcie%d no card, disable it (RST & CLK)\n",
+				slot);
+			phy_power_off(port->phy);
+			mt7621_control_assert(port);
+			mt7621_pcie_port_clk_disable(port);
+			port->enabled = false;
+		}
+	}
+
 	rt_sysc_m32(0x30, 2 << 4, SYSC_REG_SYSTEM_CONFIG1);
 	rt_sysc_m32(PCIE_CLK_GEN_EN, PCIE_CLK_GEN_DIS, RALINK_PCIE_CLK_GEN);
 	rt_sysc_m32(PCIE_CLK_GEN1_DIS, PCIE_CLK_GEN1_EN, RALINK_PCIE_CLK_GEN1);
@@ -453,30 +500,12 @@ static void mt7621_pcie_init_ports(struct mt7621_pcie *pcie)
 	reset_control_deassert(pcie->rst);
 }
 
-static int mt7621_pcie_enable_port(struct mt7621_pcie_port *port)
+static void mt7621_pcie_enable_port(struct mt7621_pcie_port *port)
 {
 	struct mt7621_pcie *pcie = port->pcie;
 	u32 slot = port->slot;
 	u32 offset = MT7621_PCIE_OFFSET + (slot * MT7621_NEXT_PORT);
 	u32 val;
-	int err;
-
-	/* assert port PERST_N */
-	val = pcie_read(pcie, RALINK_PCI_PCICFG_ADDR);
-	val |= PCIE_PORT_PERST(slot);
-	pcie_write(pcie, val, RALINK_PCI_PCICFG_ADDR);
-
-	/* de-assert port PERST_N */
-	val = pcie_read(pcie, RALINK_PCI_PCICFG_ADDR);
-	val &= ~PCIE_PORT_PERST(slot);
-	pcie_write(pcie, val, RALINK_PCI_PCICFG_ADDR);
-
-	/* 100ms timeout value should be enough for Gen1 training */
-	err = readl_poll_timeout(port->base + RALINK_PCI_STATUS,
-				 val, !!(val & PCIE_PORT_LINKUP),
-				 20, 100 * USEC_PER_MSEC);
-	if (err)
-		return -ETIMEDOUT;
 
 	/* enable pcie interrupt */
 	val = pcie_read(pcie, RALINK_PCI_PCIMSK_ADDR);
@@ -492,8 +521,6 @@ static int mt7621_pcie_enable_port(struct mt7621_pcie_port *port)
 	/* configure class code and revision ID */
 	pcie_write(pcie, PCIE_CLASS_CODE | PCIE_REVISION_ID,
 		   offset + RALINK_PCI_CLASS);
-
-	return 0;
 }
 
 static void mt7621_pcie_enable_ports(struct mt7621_pcie *pcie)
@@ -506,12 +533,8 @@ static void mt7621_pcie_enable_ports(struct mt7621_pcie *pcie)
 
 	list_for_each_entry(port, &pcie->ports, list) {
 		if (port->enabled) {
-			if (mt7621_pcie_enable_port(port)) {
-				dev_err(dev, "de-assert port %d PERST_N\n",
-					port->slot);
-				continue;
-			}
-			dev_info(dev, "PCIE%d enabled\n", slot);
+			mt7621_pcie_enable_port(port);
+			dev_info(dev, "PCIE%d enabled\n", num_slots_enabled);
 			num_slots_enabled++;
 		}
 	}
@@ -596,17 +619,12 @@ static int mt7621_pcie_request_resources(struct mt7621_pcie *pcie,
 					 struct list_head *res)
 {
 	struct device *dev = pcie->dev;
-	int err;
 
 	pci_add_resource_offset(res, &pcie->io, pcie->offset.io);
 	pci_add_resource_offset(res, &pcie->mem, pcie->offset.mem);
 	pci_add_resource(res, &pcie->busn);
 
-	err = devm_request_pci_bus_resources(dev, res);
-	if (err < 0)
-		return err;
-
-	return 0;
+	return devm_request_pci_bus_resources(dev, res);
 }
 
 static int mt7621_pcie_register_host(struct pci_host_bridge *host,
@@ -625,9 +643,14 @@ static int mt7621_pcie_register_host(struct pci_host_bridge *host,
 	return pci_host_probe(host);
 }
 
+static const struct soc_device_attribute mt7621_pci_quirks_match[] = {
+	{ .soc_id = "mt7621", .revision = "E2" }
+};
+
 static int mt7621_pci_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	const struct soc_device_attribute *attr;
 	struct mt7621_pcie *pcie;
 	struct pci_host_bridge *bridge;
 	int err;
@@ -644,6 +667,10 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 	pcie->dev = dev;
 	platform_set_drvdata(pdev, pcie);
 	INIT_LIST_HEAD(&pcie->ports);
+
+	attr = soc_device_match(mt7621_pci_quirks_match);
+	if (attr)
+		pcie->resets_inverted = true;
 
 	err = mt7621_pcie_parse_dt(pcie);
 	if (err) {
@@ -709,4 +736,4 @@ static int __init mt7621_pci_init(void)
 	return platform_driver_register(&mt7621_pci_driver);
 }
 
-arch_initcall(mt7621_pci_init);
+module_init(mt7621_pci_init);

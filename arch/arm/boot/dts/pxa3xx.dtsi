@@ -71,6 +71,14 @@
 #define MFP_DS13X	< (0x7 << 10) MFP_DSMSK >
 
 /*
+ * MFP bias pull mode for pins.
+ * Example of use: pinctrl-single,bias-pullup = MPF_PULL_UP;
+ */
+#define MPF_PULL_MSK	(0x7 << 13)
+#define MPF_PULL_DOWN	< (0x5 << 13) (0x5 << 13) 0 MPF_PULL_MSK >
+#define MPF_PULL_UP	< (0x6 << 13) (0x6 << 13) 0 MPF_PULL_MSK >
+
+/*
  * MFP low power mode for pins.
  * Example of use:
  *   pinctrl-single,low-power-mode = MFP_LPM(MFP_LPM_PULL_LOW|MFP_LPM_EDGE_FALL);

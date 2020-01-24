@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /* 
  * Copyright (C) 2000, 2001 Jeff Dike (jdike@karaya.com)
- * Licensed under the GPL
  */
 
 #include <linux/posix_types.h>

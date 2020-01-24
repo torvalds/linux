@@ -538,7 +538,6 @@ int ieee80211_ibss_finish_csa(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
 	struct cfg80211_bss *cbss;
-	int err, changed = 0;
 
 	sdata_assert_lock(sdata);
 
@@ -560,13 +559,7 @@ int ieee80211_ibss_finish_csa(struct ieee80211_sub_if_data *sdata)
 	ifibss->chandef = sdata->csa_chandef;
 
 	/* generate the beacon */
-	err = ieee80211_ibss_csa_beacon(sdata, NULL);
-	if (err < 0)
-		return err;
-
-	changed |= err;
-
-	return changed;
+	return ieee80211_ibss_csa_beacon(sdata, NULL);
 }
 
 void ieee80211_ibss_stop(struct ieee80211_sub_if_data *sdata)
@@ -1252,6 +1245,7 @@ void ieee80211_ibss_rx_no_sta(struct ieee80211_sub_if_data *sdata,
 
 static void ieee80211_ibss_sta_expire(struct ieee80211_sub_if_data *sdata)
 {
+	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta, *tmp;
 	unsigned long exp_time = IEEE80211_IBSS_INACTIVITY_LIMIT;
@@ -1268,10 +1262,17 @@ static void ieee80211_ibss_sta_expire(struct ieee80211_sub_if_data *sdata)
 		if (time_is_before_jiffies(last_active + exp_time) ||
 		    (time_is_before_jiffies(last_active + exp_rsn) &&
 		     sta->sta_state != IEEE80211_STA_AUTHORIZED)) {
+			u8 frame_buf[IEEE80211_DEAUTH_FRAME_LEN];
+
 			sta_dbg(sta->sdata, "expiring inactive %sSTA %pM\n",
 				sta->sta_state != IEEE80211_STA_AUTHORIZED ?
 				"not authorized " : "", sta->sta.addr);
 
+			ieee80211_send_deauth_disassoc(sdata, sta->sta.addr,
+						       ifibss->bssid,
+						       IEEE80211_STYPE_DEAUTH,
+						       WLAN_REASON_DEAUTH_LEAVING,
+						       true, frame_buf);
 			WARN_ON(__sta_info_destroy(sta));
 		}
 	}

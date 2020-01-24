@@ -35,7 +35,7 @@ u32 hw_read_otgsc(struct ci_hdrc *ci, u32 mask)
 	 * detection overwrite OTGSC register value
 	 */
 	cable = &ci->platdata->vbus_extcon;
-	if (!IS_ERR(cable->edev)) {
+	if (!IS_ERR(cable->edev) || ci->role_switch) {
 		if (cable->changed)
 			val |= OTGSC_BSVIS;
 		else
@@ -53,7 +53,7 @@ u32 hw_read_otgsc(struct ci_hdrc *ci, u32 mask)
 	}
 
 	cable = &ci->platdata->id_extcon;
-	if (!IS_ERR(cable->edev)) {
+	if (!IS_ERR(cable->edev) || ci->role_switch) {
 		if (cable->changed)
 			val |= OTGSC_IDIS;
 		else
@@ -83,7 +83,7 @@ void hw_write_otgsc(struct ci_hdrc *ci, u32 mask, u32 data)
 	struct ci_hdrc_cable *cable;
 
 	cable = &ci->platdata->vbus_extcon;
-	if (!IS_ERR(cable->edev)) {
+	if (!IS_ERR(cable->edev) || ci->role_switch) {
 		if (data & mask & OTGSC_BSVIS)
 			cable->changed = false;
 
@@ -97,7 +97,7 @@ void hw_write_otgsc(struct ci_hdrc *ci, u32 mask, u32 data)
 	}
 
 	cable = &ci->platdata->id_extcon;
-	if (!IS_ERR(cable->edev)) {
+	if (!IS_ERR(cable->edev) || ci->role_switch) {
 		if (data & mask & OTGSC_IDIS)
 			cable->changed = false;
 

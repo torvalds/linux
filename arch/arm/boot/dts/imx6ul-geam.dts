@@ -156,7 +156,7 @@
 };
 
 &i2c2 {
-	clock_frequency = <100000>;
+	clock-frequency = <100000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
@@ -169,7 +169,7 @@
 	display = <&display0>;
 	status = "okay";
 
-	display0: display {
+	display0: display0 {
 		bits-per-pixel = <16>;
 		bus-width = <18>;
 

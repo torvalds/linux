@@ -589,7 +589,8 @@ static void cxgbit_dcb_workfn(struct work_struct *work)
 	iscsi_app = &dcb_work->dcb_app;
 
 	if (iscsi_app->dcbx & DCB_CAP_DCBX_VER_IEEE) {
-		if (iscsi_app->app.selector != IEEE_8021QAZ_APP_SEL_ANY)
+		if ((iscsi_app->app.selector != IEEE_8021QAZ_APP_SEL_STREAM) &&
+		    (iscsi_app->app.selector != IEEE_8021QAZ_APP_SEL_ANY))
 			goto out;
 
 		priority = iscsi_app->app.priority;
@@ -707,7 +708,7 @@ static int __init cxgbit_init(void)
 	pr_info("%s dcb enabled.\n", DRV_NAME);
 	register_dcbevent_notifier(&cxgbit_dcbevent_nb);
 #endif
-	BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, cb) <
+	BUILD_BUG_ON(sizeof_field(struct sk_buff, cb) <
 		     sizeof(union cxgbit_skb_cb));
 	return 0;
 }

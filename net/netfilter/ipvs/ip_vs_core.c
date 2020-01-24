@@ -34,6 +34,8 @@
 #include <net/tcp.h>
 #include <net/udp.h>
 #include <net/icmp.h>                   /* for icmp_send */
+#include <net/gue.h>
+#include <net/gre.h>
 #include <net/route.h>
 #include <net/ip6_checksum.h>
 #include <net/netns/generic.h>		/* net_generic() */
@@ -615,7 +617,7 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 		unsigned int flags = (svc->flags & IP_VS_SVC_F_ONEPACKET &&
 				      iph->protocol == IPPROTO_UDP) ?
 				      IP_VS_CONN_F_ONE_PACKET : 0;
-		union nf_inet_addr daddr =  { .all = { 0, 0, 0, 0 } };
+		union nf_inet_addr daddr = { .all = { 0, 0, 0, 0 } };
 
 		/* create a new connection entry */
 		IP_VS_DBG(6, "%s(): create a cache_bypass entry\n", __func__);
@@ -892,7 +894,7 @@ static int handle_response_icmp(int af, struct sk_buff *skb,
 	if (IPPROTO_TCP == protocol || IPPROTO_UDP == protocol ||
 	    IPPROTO_SCTP == protocol)
 		offset += 2 * sizeof(__u16);
-	if (!skb_make_writable(skb, offset))
+	if (skb_ensure_writable(skb, offset))
 		goto out;
 
 #ifdef CONFIG_IP_VS_IPV6
@@ -1282,7 +1284,7 @@ handle_response(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
 
 	IP_VS_DBG_PKT(11, af, pp, skb, iph->off, "Outgoing packet");
 
-	if (!skb_make_writable(skb, iph->len))
+	if (skb_ensure_writable(skb, iph->len))
 		goto drop;
 
 	/* mangle the packet */
@@ -1574,6 +1576,73 @@ ip_vs_try_to_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
 	return 1;
 }
 
+/* Check the UDP tunnel and return its header length */
+static int ipvs_udp_decap(struct netns_ipvs *ipvs, struct sk_buff *skb,
+			  unsigned int offset, __u16 af,
+			  const union nf_inet_addr *daddr, __u8 *proto)
+{
+	struct udphdr _udph, *udph;
+	struct ip_vs_dest *dest;
+
+	udph = skb_header_pointer(skb, offset, sizeof(_udph), &_udph);
+	if (!udph)
+		goto unk;
+	offset += sizeof(struct udphdr);
+	dest = ip_vs_find_tunnel(ipvs, af, daddr, udph->dest);
+	if (!dest)
+		goto unk;
+	if (dest->tun_type == IP_VS_CONN_F_TUNNEL_TYPE_GUE) {
+		struct guehdr _gueh, *gueh;
+
+		gueh = skb_header_pointer(skb, offset, sizeof(_gueh), &_gueh);
+		if (!gueh)
+			goto unk;
+		if (gueh->control != 0 || gueh->version != 0)
+			goto unk;
+		/* Later we can support also IPPROTO_IPV6 */
+		if (gueh->proto_ctype != IPPROTO_IPIP)
+			goto unk;
+		*proto = gueh->proto_ctype;
+		return sizeof(struct udphdr) + sizeof(struct guehdr) +
+		       (gueh->hlen << 2);
+	}
+
+unk:
+	return 0;
+}
+
+/* Check the GRE tunnel and return its header length */
+static int ipvs_gre_decap(struct netns_ipvs *ipvs, struct sk_buff *skb,
+			  unsigned int offset, __u16 af,
+			  const union nf_inet_addr *daddr, __u8 *proto)
+{
+	struct gre_base_hdr _greh, *greh;
+	struct ip_vs_dest *dest;
+
+	greh = skb_header_pointer(skb, offset, sizeof(_greh), &_greh);
+	if (!greh)
+		goto unk;
+	dest = ip_vs_find_tunnel(ipvs, af, daddr, 0);
+	if (!dest)
+		goto unk;
+	if (dest->tun_type == IP_VS_CONN_F_TUNNEL_TYPE_GRE) {
+		__be16 type;
+
+		/* Only support version 0 and C (csum) */
+		if ((greh->flags & ~GRE_CSUM) != 0)
+			goto unk;
+		type = greh->protocol;
+		/* Later we can support also IPPROTO_IPV6 */
+		if (type != htons(ETH_P_IP))
+			goto unk;
+		*proto = IPPROTO_IPIP;
+		return gre_calc_hlen(gre_flags_to_tnl_flags(greh->flags));
+	}
+
+unk:
+	return 0;
+}
+
 /*
  *	Handle ICMP messages in the outside-to-inside direction (incoming).
  *	Find any that might be relevant, check against existing connections,
@@ -1593,6 +1662,7 @@ ip_vs_in_icmp(struct netns_ipvs *ipvs, struct sk_buff *skb, int *related,
 	struct ip_vs_proto_data *pd;
 	unsigned int offset, offset2, ihl, verdict;
 	bool ipip, new_cp = false;
+	union nf_inet_addr *raddr;
 
 	*related = 1;
 
@@ -1631,20 +1701,56 @@ ip_vs_in_icmp(struct netns_ipvs *ipvs, struct sk_buff *skb, int *related,
 	cih = skb_header_pointer(skb, offset, sizeof(_ciph), &_ciph);
 	if (cih == NULL)
 		return NF_ACCEPT; /* The packet looks wrong, ignore */
+	raddr = (union nf_inet_addr *)&cih->daddr;
 
 	/* Special case for errors for IPIP packets */
 	ipip = false;
 	if (cih->protocol == IPPROTO_IPIP) {
+		struct ip_vs_dest *dest;
+
 		if (unlikely(cih->frag_off & htons(IP_OFFSET)))
 			return NF_ACCEPT;
 		/* Error for our IPIP must arrive at LOCAL_IN */
 		if (!(skb_rtable(skb)->rt_flags & RTCF_LOCAL))
+			return NF_ACCEPT;
+		dest = ip_vs_find_tunnel(ipvs, AF_INET, raddr, 0);
+		/* Only for known tunnel */
+		if (!dest || dest->tun_type != IP_VS_CONN_F_TUNNEL_TYPE_IPIP)
 			return NF_ACCEPT;
 		offset += cih->ihl * 4;
 		cih = skb_header_pointer(skb, offset, sizeof(_ciph), &_ciph);
 		if (cih == NULL)
 			return NF_ACCEPT; /* The packet looks wrong, ignore */
 		ipip = true;
+	} else if ((cih->protocol == IPPROTO_UDP ||	/* Can be UDP encap */
+		    cih->protocol == IPPROTO_GRE) &&	/* Can be GRE encap */
+		   /* Error for our tunnel must arrive at LOCAL_IN */
+		   (skb_rtable(skb)->rt_flags & RTCF_LOCAL)) {
+		__u8 iproto;
+		int ulen;
+
+		/* Non-first fragment has no UDP header */
+		if (unlikely(cih->frag_off & htons(IP_OFFSET)))
+			return NF_ACCEPT;
+		offset2 = offset + cih->ihl * 4;
+		if (cih->protocol == IPPROTO_UDP)
+			ulen = ipvs_udp_decap(ipvs, skb, offset2, AF_INET,
+					      raddr, &iproto);
+		else
+			ulen = ipvs_gre_decap(ipvs, skb, offset2, AF_INET,
+					      raddr, &iproto);
+		if (ulen > 0) {
+			/* Skip IP and UDP/GRE tunnel headers */
+			offset = offset2 + ulen;
+			/* Now we should be at the original IP header */
+			cih = skb_header_pointer(skb, offset, sizeof(_ciph),
+						 &_ciph);
+			if (cih && cih->version == 4 && cih->ihl >= 5 &&
+			    iproto == IPPROTO_IPIP)
+				ipip = true;
+			else
+				return NF_ACCEPT;
+		}
 	}
 
 	pd = ip_vs_proto_data_get(ipvs, cih->protocol);
@@ -2245,7 +2351,6 @@ static const struct nf_hook_ops ip_vs_ops[] = {
 static int __net_init __ip_vs_init(struct net *net)
 {
 	struct netns_ipvs *ipvs;
-	int ret;
 
 	ipvs = net_generic(net, ip_vs_net_id);
 	if (ipvs == NULL)
@@ -2277,17 +2382,11 @@ static int __net_init __ip_vs_init(struct net *net)
 	if (ip_vs_sync_net_init(ipvs) < 0)
 		goto sync_fail;
 
-	ret = nf_register_net_hooks(net, ip_vs_ops, ARRAY_SIZE(ip_vs_ops));
-	if (ret < 0)
-		goto hook_fail;
-
 	return 0;
 /*
  * Error handling
  */
 
-hook_fail:
-	ip_vs_sync_net_cleanup(ipvs);
 sync_fail:
 	ip_vs_conn_net_cleanup(ipvs);
 conn_fail:
@@ -2303,40 +2402,63 @@ estimator_fail:
 	return -ENOMEM;
 }
 
-static void __net_exit __ip_vs_cleanup(struct net *net)
+static void __net_exit __ip_vs_cleanup_batch(struct list_head *net_list)
 {
-	struct netns_ipvs *ipvs = net_ipvs(net);
+	struct netns_ipvs *ipvs;
+	struct net *net;
 
-	ip_vs_service_net_cleanup(ipvs);	/* ip_vs_flush() with locks */
-	ip_vs_conn_net_cleanup(ipvs);
-	ip_vs_app_net_cleanup(ipvs);
-	ip_vs_protocol_net_cleanup(ipvs);
-	ip_vs_control_net_cleanup(ipvs);
-	ip_vs_estimator_net_cleanup(ipvs);
-	IP_VS_DBG(2, "ipvs netns %d released\n", ipvs->gen);
-	net->ipvs = NULL;
+	ip_vs_service_nets_cleanup(net_list);	/* ip_vs_flush() with locks */
+	list_for_each_entry(net, net_list, exit_list) {
+		ipvs = net_ipvs(net);
+		ip_vs_conn_net_cleanup(ipvs);
+		ip_vs_app_net_cleanup(ipvs);
+		ip_vs_protocol_net_cleanup(ipvs);
+		ip_vs_control_net_cleanup(ipvs);
+		ip_vs_estimator_net_cleanup(ipvs);
+		IP_VS_DBG(2, "ipvs netns %d released\n", ipvs->gen);
+		net->ipvs = NULL;
+	}
 }
 
-static void __net_exit __ip_vs_dev_cleanup(struct net *net)
+static int __net_init __ip_vs_dev_init(struct net *net)
 {
-	struct netns_ipvs *ipvs = net_ipvs(net);
+	int ret;
+
+	ret = nf_register_net_hooks(net, ip_vs_ops, ARRAY_SIZE(ip_vs_ops));
+	if (ret < 0)
+		goto hook_fail;
+	return 0;
+
+hook_fail:
+	return ret;
+}
+
+static void __net_exit __ip_vs_dev_cleanup_batch(struct list_head *net_list)
+{
+	struct netns_ipvs *ipvs;
+	struct net *net;
+
 	EnterFunction(2);
-	nf_unregister_net_hooks(net, ip_vs_ops, ARRAY_SIZE(ip_vs_ops));
-	ipvs->enable = 0;	/* Disable packet reception */
-	smp_wmb();
-	ip_vs_sync_net_cleanup(ipvs);
+	list_for_each_entry(net, net_list, exit_list) {
+		ipvs = net_ipvs(net);
+		nf_unregister_net_hooks(net, ip_vs_ops, ARRAY_SIZE(ip_vs_ops));
+		ipvs->enable = 0;	/* Disable packet reception */
+		smp_wmb();
+		ip_vs_sync_net_cleanup(ipvs);
+	}
 	LeaveFunction(2);
 }
 
 static struct pernet_operations ipvs_core_ops = {
 	.init = __ip_vs_init,
-	.exit = __ip_vs_cleanup,
+	.exit_batch = __ip_vs_cleanup_batch,
 	.id   = &ip_vs_net_id,
 	.size = sizeof(struct netns_ipvs),
 };
 
 static struct pernet_operations ipvs_core_dev_ops = {
-	.exit = __ip_vs_dev_cleanup,
+	.init = __ip_vs_dev_init,
+	.exit_batch = __ip_vs_dev_cleanup_batch,
 };
 
 /*

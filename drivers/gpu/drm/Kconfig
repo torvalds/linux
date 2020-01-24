@@ -24,6 +24,10 @@ menuconfig DRM
 	  details.  You should also select and configure AGP
 	  (/dev/agpgart) support if it is available for your platform.
 
+config DRM_MIPI_DBI
+	tristate
+	depends on DRM
+
 config DRM_MIPI_DSI
 	bool
 	depends on DRM
@@ -89,6 +93,21 @@ config DRM_KMS_FB_HELPER
 	help
 	  FBDEV helpers for KMS drivers.
 
+config DRM_DEBUG_DP_MST_TOPOLOGY_REFS
+        bool "Enable refcount backtrace history in the DP MST helpers"
+	depends on STACKTRACE_SUPPORT
+        select STACKDEPOT
+        depends on DRM_KMS_HELPER
+        depends on DEBUG_KERNEL
+        depends on EXPERT
+        help
+          Enables debug tracing for topology refs in DRM's DP MST helpers. A
+          history of each topology reference/dereference will be printed to the
+          kernel log once a port or branch device's topology refcount reaches 0.
+
+          This has the potential to use a lot of memory and print some very
+          large kernel messages. If in doubt, say "N".
+
 config DRM_FBDEV_EMULATION
 	bool "Enable legacy fbdev support for your modesetting driver"
 	depends on DRM
@@ -141,7 +160,7 @@ config DRM_LOAD_EDID_FIRMWARE
 	  monitor are unable to provide appropriate EDID data. Since this
 	  feature is provided as a workaround for broken hardware, the
 	  default case is N. Details and instructions how to build your own
-	  EDID data are given in Documentation/EDID/HOWTO.txt.
+	  EDID data are given in Documentation/driver-api/edid.rst.
 
 config DRM_DP_CEC
 	bool "Enable DisplayPort CEC-Tunneling-over-AUX HDMI support"
@@ -160,6 +179,26 @@ config DRM_TTM
 	  GPU memory management subsystem for devices with multiple
 	  GPU memory types. Will be enabled automatically if a device driver
 	  uses it.
+
+config DRM_TTM_DMA_PAGE_POOL
+	bool
+	depends on DRM_TTM && (SWIOTLB || INTEL_IOMMU)
+	default y
+	help
+	  Choose this if you need the TTM dma page pool
+
+config DRM_VRAM_HELPER
+	tristate
+	depends on DRM
+	help
+	  Helpers for VRAM memory management
+
+config DRM_TTM_HELPER
+	tristate
+	depends on DRM
+	select DRM_TTM
+	help
+	  Helpers for ttm-based gem objects
 
 config DRM_GEM_CMA_HELPER
 	bool
@@ -215,9 +254,9 @@ config DRM_AMDGPU
 	tristate "AMD GPU"
 	depends on DRM && PCI && MMU
 	select FW_LOADER
-        select DRM_KMS_HELPER
+	select DRM_KMS_HELPER
 	select DRM_SCHED
-        select DRM_TTM
+	select DRM_TTM
 	select POWER_SUPPLY
 	select HWMON
 	select BACKLIGHT_CLASS_DEVICE
@@ -246,6 +285,7 @@ config DRM_VKMS
 	tristate "Virtual KMS (EXPERIMENTAL)"
 	depends on DRM
 	select DRM_KMS_HELPER
+	select CRC32
 	default n
 	help
 	  Virtual Kernel Mode-Setting (VKMS) is used for testing or for
@@ -309,6 +349,8 @@ source "drivers/gpu/drm/sti/Kconfig"
 
 source "drivers/gpu/drm/imx/Kconfig"
 
+source "drivers/gpu/drm/ingenic/Kconfig"
+
 source "drivers/gpu/drm/v3d/Kconfig"
 
 source "drivers/gpu/drm/vc4/Kconfig"
@@ -327,7 +369,7 @@ source "drivers/gpu/drm/mxsfb/Kconfig"
 
 source "drivers/gpu/drm/meson/Kconfig"
 
-source "drivers/gpu/drm/tinydrm/Kconfig"
+source "drivers/gpu/drm/tiny/Kconfig"
 
 source "drivers/gpu/drm/pl111/Kconfig"
 
@@ -342,6 +384,8 @@ source "drivers/gpu/drm/lima/Kconfig"
 source "drivers/gpu/drm/panfrost/Kconfig"
 
 source "drivers/gpu/drm/aspeed/Kconfig"
+
+source "drivers/gpu/drm/mcde/Kconfig"
 
 # Keep legacy drivers last
 
@@ -382,8 +426,8 @@ config DRM_R128
 
 config DRM_I810
 	tristate "Intel I810"
-	# !PREEMPT because of missing ioctl locking
-	depends on DRM && AGP && AGP_INTEL && (!PREEMPT || BROKEN)
+	# !PREEMPTION because of missing ioctl locking
+	depends on DRM && AGP && AGP_INTEL && (!PREEMPTION || BROKEN)
 	help
 	  Choose this option if you have an Intel I810 graphics card.  If M is
 	  selected, the module will be called i810.  AGP support is required

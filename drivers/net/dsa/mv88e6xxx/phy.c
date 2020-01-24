@@ -137,7 +137,7 @@ static void mv88e6xxx_phy_ppu_reenable_work(struct work_struct *ugly)
 
 	chip = container_of(ugly, struct mv88e6xxx_chip, ppu_work);
 
-	mutex_lock(&chip->reg_lock);
+	mv88e6xxx_reg_lock(chip);
 
 	if (mutex_trylock(&chip->ppu_mutex)) {
 		if (mv88e6xxx_phy_ppu_enable(chip) == 0)
@@ -145,7 +145,7 @@ static void mv88e6xxx_phy_ppu_reenable_work(struct work_struct *ugly)
 		mutex_unlock(&chip->ppu_mutex);
 	}
 
-	mutex_unlock(&chip->reg_lock);
+	mv88e6xxx_reg_unlock(chip);
 }
 
 static void mv88e6xxx_phy_ppu_reenable_timer(struct timer_list *t)

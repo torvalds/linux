@@ -135,6 +135,9 @@ extern char igc_driver_version[];
 /* How many Rx Buffers do we bundle into one write to the hardware ? */
 #define IGC_RX_BUFFER_WRITE	16 /* Must be power of 2 */
 
+/* VLAN info */
+#define IGC_TX_FLAGS_VLAN_MASK	0xffff0000
+
 /* igc_test_staterr - tests bits within Rx descriptor status and error fields */
 static inline __le32 igc_test_staterr(union igc_adv_rx_desc *rx_desc,
 				      const u32 stat_err_bits)
@@ -254,6 +257,7 @@ struct igc_ring {
 	u16 count;                      /* number of desc. in the ring */
 	u8 queue_index;                 /* logical index of the ring*/
 	u8 reg_idx;                     /* physical index of the ring */
+	bool launchtime_enable;		/* true if LaunchTime is enabled */
 
 	/* everything past this point are written often */
 	u16 next_to_clean;
@@ -407,7 +411,6 @@ struct igc_adapter {
 	u32 tx_hwtstamp_timeouts;
 	u32 tx_hwtstamp_skipped;
 	u32 rx_hwtstamp_cleared;
-	u32 *shadow_vfta;
 
 	u32 rss_queues;
 	u32 rss_indir_tbl_init;

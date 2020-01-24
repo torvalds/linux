@@ -342,6 +342,13 @@ static void b53_set_forwarding(struct b53_device *dev, int enable)
 	b53_read8(dev, B53_CTRL_PAGE, B53_SWITCH_CTRL, &mgmt);
 	mgmt |= B53_MII_DUMB_FWDG_EN;
 	b53_write8(dev, B53_CTRL_PAGE, B53_SWITCH_CTRL, mgmt);
+
+	/* Look at B53_UC_FWD_EN and B53_MC_FWD_EN to decide whether
+	 * frames should be flooded or not.
+	 */
+	b53_read8(dev, B53_CTRL_PAGE, B53_IP_MULTICAST_CTRL, &mgmt);
+	mgmt |= B53_UC_FWD_EN | B53_MC_FWD_EN | B53_IPMC_FWD_EN;
+	b53_write8(dev, B53_CTRL_PAGE, B53_IP_MULTICAST_CTRL, mgmt);
 }
 
 static void b53_enable_vlan(struct b53_device *dev, bool enable,
@@ -510,9 +517,16 @@ EXPORT_SYMBOL(b53_imp_vlan_setup);
 int b53_enable_port(struct dsa_switch *ds, int port, struct phy_device *phy)
 {
 	struct b53_device *dev = ds->priv;
-	unsigned int cpu_port = ds->ports[port].cpu_dp->index;
+	unsigned int cpu_port;
 	int ret = 0;
 	u16 pvlan;
+
+	if (!dsa_is_user_port(ds, port))
+		return 0;
+
+	cpu_port = dsa_to_port(ds, port)->cpu_dp->index;
+
+	b53_br_egress_floods(ds, port, true, true);
 
 	if (dev->ops->irq_enable)
 		ret = dev->ops->irq_enable(dev, port);
@@ -629,6 +643,8 @@ static void b53_enable_cpu_port(struct b53_device *dev, int port)
 	b53_write8(dev, B53_CTRL_PAGE, B53_PORT_CTRL(port), port_ctrl);
 
 	b53_brcm_hdr_setup(dev->ds, port);
+
+	b53_br_egress_floods(dev->ds, port, true, true);
 }
 
 static void b53_enable_mib(struct b53_device *dev)
@@ -955,13 +971,13 @@ static int b53_setup(struct dsa_switch *ds)
 	if (ret)
 		dev_err(ds->dev, "failed to apply configuration\n");
 
-	/* Configure IMP/CPU port, disable unused ports. Enabled
+	/* Configure IMP/CPU port, disable all other ports. Enabled
 	 * ports will be configured with .port_enable
 	 */
 	for (port = 0; port < dev->num_ports; port++) {
 		if (dsa_is_cpu_port(ds, port))
 			b53_enable_cpu_port(dev, port);
-		else if (dsa_is_unused_port(ds, port))
+		else
 			b53_disable_port(ds, port);
 	}
 
@@ -1491,11 +1507,25 @@ static int b53_arl_op(struct b53_device *dev, int op, int port,
 		idx = 1;
 	}
 
-	memset(&ent, 0, sizeof(ent));
-	ent.port = port;
+	/* For multicast address, the port is a bitmask and the validity
+	 * is determined by having at least one port being still active
+	 */
+	if (!is_multicast_ether_addr(addr)) {
+		ent.port = port;
+		ent.is_valid = is_valid;
+	} else {
+		if (is_valid)
+			ent.port |= BIT(port);
+		else
+			ent.port &= ~BIT(port);
+
+		ent.is_valid = !!(ent.port);
+	}
+
 	ent.is_valid = is_valid;
 	ent.vid = vid;
 	ent.is_static = true;
+	ent.is_age = false;
 	memcpy(ent.mac, addr, ETH_ALEN);
 	b53_arl_from_entry(&mac_vid, &fwd_entry, &ent);
 
@@ -1614,10 +1644,51 @@ int b53_fdb_dump(struct dsa_switch *ds, int port,
 }
 EXPORT_SYMBOL(b53_fdb_dump);
 
+int b53_mdb_prepare(struct dsa_switch *ds, int port,
+		    const struct switchdev_obj_port_mdb *mdb)
+{
+	struct b53_device *priv = ds->priv;
+
+	/* 5325 and 5365 require some more massaging, but could
+	 * be supported eventually
+	 */
+	if (is5325(priv) || is5365(priv))
+		return -EOPNOTSUPP;
+
+	return 0;
+}
+EXPORT_SYMBOL(b53_mdb_prepare);
+
+void b53_mdb_add(struct dsa_switch *ds, int port,
+		 const struct switchdev_obj_port_mdb *mdb)
+{
+	struct b53_device *priv = ds->priv;
+	int ret;
+
+	ret = b53_arl_op(priv, 0, port, mdb->addr, mdb->vid, true);
+	if (ret)
+		dev_err(ds->dev, "failed to add MDB entry\n");
+}
+EXPORT_SYMBOL(b53_mdb_add);
+
+int b53_mdb_del(struct dsa_switch *ds, int port,
+		const struct switchdev_obj_port_mdb *mdb)
+{
+	struct b53_device *priv = ds->priv;
+	int ret;
+
+	ret = b53_arl_op(priv, 0, port, mdb->addr, mdb->vid, false);
+	if (ret)
+		dev_err(ds->dev, "failed to delete MDB entry\n");
+
+	return ret;
+}
+EXPORT_SYMBOL(b53_mdb_del);
+
 int b53_br_join(struct dsa_switch *ds, int port, struct net_device *br)
 {
 	struct b53_device *dev = ds->priv;
-	s8 cpu_port = ds->ports[port].cpu_dp->index;
+	s8 cpu_port = dsa_to_port(ds, port)->cpu_dp->index;
 	u16 pvlan, reg;
 	unsigned int i;
 
@@ -1663,7 +1734,7 @@ void b53_br_leave(struct dsa_switch *ds, int port, struct net_device *br)
 {
 	struct b53_device *dev = ds->priv;
 	struct b53_vlan *vl = &dev->vlans[0];
-	s8 cpu_port = ds->ports[port].cpu_dp->index;
+	s8 cpu_port = dsa_to_port(ds, port)->cpu_dp->index;
 	unsigned int i;
 	u16 pvlan, reg, pvid;
 
@@ -1748,6 +1819,38 @@ void b53_br_fast_age(struct dsa_switch *ds, int port)
 }
 EXPORT_SYMBOL(b53_br_fast_age);
 
+int b53_br_egress_floods(struct dsa_switch *ds, int port,
+			 bool unicast, bool multicast)
+{
+	struct b53_device *dev = ds->priv;
+	u16 uc, mc;
+
+	b53_read16(dev, B53_CTRL_PAGE, B53_UC_FLOOD_MASK, &uc);
+	if (unicast)
+		uc |= BIT(port);
+	else
+		uc &= ~BIT(port);
+	b53_write16(dev, B53_CTRL_PAGE, B53_UC_FLOOD_MASK, uc);
+
+	b53_read16(dev, B53_CTRL_PAGE, B53_MC_FLOOD_MASK, &mc);
+	if (multicast)
+		mc |= BIT(port);
+	else
+		mc &= ~BIT(port);
+	b53_write16(dev, B53_CTRL_PAGE, B53_MC_FLOOD_MASK, mc);
+
+	b53_read16(dev, B53_CTRL_PAGE, B53_IPMC_FLOOD_MASK, &mc);
+	if (multicast)
+		mc |= BIT(port);
+	else
+		mc &= ~BIT(port);
+	b53_write16(dev, B53_CTRL_PAGE, B53_IPMC_FLOOD_MASK, mc);
+
+	return 0;
+
+}
+EXPORT_SYMBOL(b53_br_egress_floods);
+
 static bool b53_possible_cpu_port(struct dsa_switch *ds, int port)
 {
 	/* Broadcom switches will accept enabling Broadcom tags on the
@@ -1808,7 +1911,6 @@ int b53_mirror_add(struct dsa_switch *ds, int port,
 		loc = B53_EG_MIR_CTL;
 
 	b53_read16(dev, B53_MGMT_PAGE, loc, &reg);
-	reg &= ~MIRROR_MASK;
 	reg |= BIT(port);
 	b53_write16(dev, B53_MGMT_PAGE, loc, reg);
 
@@ -1948,6 +2050,7 @@ static const struct dsa_switch_ops b53_switch_ops = {
 	.port_bridge_leave	= b53_br_leave,
 	.port_stp_state_set	= b53_br_set_stp_state,
 	.port_fast_age		= b53_br_fast_age,
+	.port_egress_floods	= b53_br_egress_floods,
 	.port_vlan_filtering	= b53_vlan_filtering,
 	.port_vlan_prepare	= b53_vlan_prepare,
 	.port_vlan_add		= b53_vlan_add,
@@ -1957,6 +2060,9 @@ static const struct dsa_switch_ops b53_switch_ops = {
 	.port_fdb_del		= b53_fdb_del,
 	.port_mirror_add	= b53_mirror_add,
 	.port_mirror_del	= b53_mirror_del,
+	.port_mdb_prepare	= b53_mdb_prepare,
+	.port_mdb_add		= b53_mdb_add,
+	.port_mdb_del		= b53_mdb_del,
 };
 
 struct b53_chip_data {
@@ -2304,9 +2410,12 @@ struct b53_device *b53_switch_alloc(struct device *base,
 	struct dsa_switch *ds;
 	struct b53_device *dev;
 
-	ds = dsa_switch_alloc(base, DSA_MAX_PORTS);
+	ds = devm_kzalloc(base, sizeof(*ds), GFP_KERNEL);
 	if (!ds)
 		return NULL;
+
+	ds->dev = base;
+	ds->num_ports = DSA_MAX_PORTS;
 
 	dev = devm_kzalloc(base, sizeof(*dev), GFP_KERNEL);
 	if (!dev)

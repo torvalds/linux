@@ -116,16 +116,18 @@ static int at91sam9g20ek_wm8731_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
+SND_SOC_DAILINK_DEFS(pcm,
+	DAILINK_COMP_ARRAY(COMP_CPU("at91rm9200_ssc.0")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm8731.0-001b", "wm8731-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("at91rm9200_ssc.0")));
+
 static struct snd_soc_dai_link at91sam9g20ek_dai = {
 	.name = "WM8731",
 	.stream_name = "WM8731 PCM",
-	.cpu_dai_name = "at91rm9200_ssc.0",
-	.codec_dai_name = "wm8731-hifi",
 	.init = at91sam9g20ek_wm8731_init,
-	.platform_name = "at91rm9200_ssc.0",
-	.codec_name = "wm8731.0-001b",
 	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 		   SND_SOC_DAIFMT_CBM_CFM,
+	SND_SOC_DAILINK_REG(pcm),
 };
 
 static struct snd_soc_card snd_soc_at91sam9g20ek = {
@@ -198,24 +200,24 @@ static int at91sam9g20ek_audio_probe(struct platform_device *pdev)
 		goto err;
 
 	/* Parse codec info */
-	at91sam9g20ek_dai.codec_name = NULL;
+	at91sam9g20ek_dai.codecs->name = NULL;
 	codec_np = of_parse_phandle(np, "atmel,audio-codec", 0);
 	if (!codec_np) {
 		dev_err(&pdev->dev, "codec info missing\n");
 		return -EINVAL;
 	}
-	at91sam9g20ek_dai.codec_of_node = codec_np;
+	at91sam9g20ek_dai.codecs->of_node = codec_np;
 
 	/* Parse dai and platform info */
-	at91sam9g20ek_dai.cpu_dai_name = NULL;
-	at91sam9g20ek_dai.platform_name = NULL;
+	at91sam9g20ek_dai.cpus->dai_name = NULL;
+	at91sam9g20ek_dai.platforms->name = NULL;
 	cpu_np = of_parse_phandle(np, "atmel,ssc-controller", 0);
 	if (!cpu_np) {
 		dev_err(&pdev->dev, "dai and pcm info missing\n");
 		return -EINVAL;
 	}
-	at91sam9g20ek_dai.cpu_of_node = cpu_np;
-	at91sam9g20ek_dai.platform_of_node = cpu_np;
+	at91sam9g20ek_dai.cpus->of_node = cpu_np;
+	at91sam9g20ek_dai.platforms->of_node = cpu_np;
 
 	of_node_put(codec_np);
 	of_node_put(cpu_np);

@@ -13,6 +13,7 @@
 #include <linux/netfilter/nf_tables.h>
 #include <net/netfilter/nf_tables_core.h>
 #include <net/netfilter/nf_tables.h>
+#include <net/netfilter/nf_tables_offload.h>
 
 void nft_immediate_eval(const struct nft_expr *expr,
 			struct nft_regs *regs,
@@ -124,6 +125,44 @@ static int nft_immediate_validate(const struct nft_ctx *ctx,
 	return 0;
 }
 
+static int nft_immediate_offload_verdict(struct nft_offload_ctx *ctx,
+					 struct nft_flow_rule *flow,
+					 const struct nft_immediate_expr *priv)
+{
+	struct flow_action_entry *entry;
+	const struct nft_data *data;
+
+	entry = &flow->rule->action.entries[ctx->num_actions++];
+
+	data = &priv->data;
+	switch (data->verdict.code) {
+	case NF_ACCEPT:
+		entry->id = FLOW_ACTION_ACCEPT;
+		break;
+	case NF_DROP:
+		entry->id = FLOW_ACTION_DROP;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static int nft_immediate_offload(struct nft_offload_ctx *ctx,
+				 struct nft_flow_rule *flow,
+				 const struct nft_expr *expr)
+{
+	const struct nft_immediate_expr *priv = nft_expr_priv(expr);
+
+	if (priv->dreg == NFT_REG_VERDICT)
+		return nft_immediate_offload_verdict(ctx, flow, priv);
+
+	memcpy(&ctx->regs[priv->dreg].data, &priv->data, sizeof(priv->data));
+
+	return 0;
+}
+
 static const struct nft_expr_ops nft_imm_ops = {
 	.type		= &nft_imm_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_immediate_expr)),
@@ -133,6 +172,8 @@ static const struct nft_expr_ops nft_imm_ops = {
 	.deactivate	= nft_immediate_deactivate,
 	.dump		= nft_immediate_dump,
 	.validate	= nft_immediate_validate,
+	.offload	= nft_immediate_offload,
+	.offload_flags	= NFT_OFFLOAD_F_ACTION,
 };
 
 struct nft_expr_type nft_imm_type __read_mostly = {

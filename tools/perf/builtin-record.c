@@ -8,10 +8,7 @@
  */
 #include "builtin.h"
 
-#include "perf.h"
-
 #include "util/build-id.h"
-#include "util/util.h"
 #include <subcmd/parse-options.h>
 #include "util/parse-events.h"
 #include "util/config.h"
@@ -23,9 +20,12 @@
 #include "util/evlist.h"
 #include "util/evsel.h"
 #include "util/debug.h"
+#include "util/mmap.h"
+#include "util/target.h"
 #include "util/session.h"
 #include "util/tool.h"
 #include "util/symbol.h"
+#include "util/record.h"
 #include "util/cpumap.h"
 #include "util/thread_map.h"
 #include "util/data.h"
@@ -39,10 +39,12 @@
 #include "util/trigger.h"
 #include "util/perf-hooks.h"
 #include "util/cpu-set-sched.h"
+#include "util/synthetic-events.h"
 #include "util/time-utils.h"
 #include "util/units.h"
 #include "util/bpf-event.h"
 #include "asm/bug.h"
+#include "perf.h"
 
 #include <errno.h>
 #include <inttypes.h>
@@ -53,7 +55,13 @@
 #include <signal.h>
 #include <sys/mman.h>
 #include <sys/wait.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <linux/err.h>
+#include <linux/string.h>
 #include <linux/time64.h>
+#include <linux/zalloc.h>
 
 struct switch_output {
 	bool		 enabled;
@@ -73,7 +81,7 @@ struct record {
 	u64			bytes_written;
 	struct perf_data	data;
 	struct auxtrace_record	*itr;
-	struct perf_evlist	*evlist;
+	struct evlist	*evlist;
 	struct perf_session	*session;
 	int			realtime_prio;
 	bool			no_buildid;
@@ -86,7 +94,10 @@ struct record {
 	struct switch_output	switch_output;
 	unsigned long long	samples;
 	cpu_set_t		affinity_mask;
+	unsigned long		output_max_size;	/* = 0: unlimited */
 };
+
+static volatile int done;
 
 static volatile int auxtrace_record__snapshot_started;
 static DEFINE_TRIGGER(auxtrace_snapshot_trigger);
@@ -115,7 +126,13 @@ static bool switch_output_time(struct record *rec)
 	       trigger_is_ready(&switch_output_trigger);
 }
 
-static int record__write(struct record *rec, struct perf_mmap *map __maybe_unused,
+static bool record__output_max_size_exceeded(struct record *rec)
+{
+	return rec->output_max_size &&
+	       (rec->bytes_written >= rec->output_max_size);
+}
+
+static int record__write(struct record *rec, struct mmap *map __maybe_unused,
 			 void *bf, size_t size)
 {
 	struct perf_data_file *file = &rec->session->data->file;
@@ -126,6 +143,13 @@ static int record__write(struct record *rec, struct perf_mmap *map __maybe_unuse
 	}
 
 	rec->bytes_written += size;
+
+	if (record__output_max_size_exceeded(rec) && !done) {
+		fprintf(stderr, "[ perf record: perf size limit reached (%" PRIu64 " KB),"
+				" stopping session ]\n",
+				rec->bytes_written >> 10);
+		done = 1;
+	}
 
 	if (switch_output_size(rec))
 		trigger_hit(&switch_output_trigger);
@@ -164,7 +188,7 @@ static int record__aio_write(struct aiocb *cblock, int trace_fd,
 	return rc;
 }
 
-static int record__aio_complete(struct perf_mmap *md, struct aiocb *cblock)
+static int record__aio_complete(struct mmap *md, struct aiocb *cblock)
 {
 	void *rem_buf;
 	off_t rem_off;
@@ -192,7 +216,7 @@ static int record__aio_complete(struct perf_mmap *md, struct aiocb *cblock)
 		 * every aio write request started in record__aio_push() so
 		 * decrement it because the request is now complete.
 		 */
-		perf_mmap__put(md);
+		perf_mmap__put(&md->core);
 		rc = 1;
 	} else {
 		/*
@@ -210,7 +234,7 @@ static int record__aio_complete(struct perf_mmap *md, struct aiocb *cblock)
 	return rc;
 }
 
-static int record__aio_sync(struct perf_mmap *md, bool sync_all)
+static int record__aio_sync(struct mmap *md, bool sync_all)
 {
 	struct aiocb **aiocb = md->aio.aiocb;
 	struct aiocb *cblocks = md->aio.cblocks;
@@ -251,12 +275,12 @@ struct record_aio {
 	size_t		size;
 };
 
-static int record__aio_pushfn(struct perf_mmap *map, void *to, void *buf, size_t size)
+static int record__aio_pushfn(struct mmap *map, void *to, void *buf, size_t size)
 {
 	struct record_aio *aio = to;
 
 	/*
-	 * map->base data pointed by buf is copied into free map->aio.data[] buffer
+	 * map->core.base data pointed by buf is copied into free map->aio.data[] buffer
 	 * to release space in the kernel buffer as fast as possible, calling
 	 * perf_mmap__consume() from perf_mmap__push() function.
 	 *
@@ -271,7 +295,7 @@ static int record__aio_pushfn(struct perf_mmap *map, void *to, void *buf, size_t
 
 	if (record__comp_enabled(aio->rec)) {
 		size = zstd_compress(aio->rec->session, aio->data + aio->size,
-				     perf_mmap__mmap_len(map) - aio->size,
+				     mmap__mmap_len(map) - aio->size,
 				     buf, size);
 	} else {
 		memcpy(aio->data + aio->size, buf, size);
@@ -288,7 +312,7 @@ static int record__aio_pushfn(struct perf_mmap *map, void *to, void *buf, size_t
 		 * after started aio request completion or at record__aio_push()
 		 * if the request failed to start.
 		 */
-		perf_mmap__get(map);
+		perf_mmap__get(&map->core);
 	}
 
 	aio->size += size;
@@ -296,7 +320,7 @@ static int record__aio_pushfn(struct perf_mmap *map, void *to, void *buf, size_t
 	return size;
 }
 
-static int record__aio_push(struct record *rec, struct perf_mmap *map, off_t *off)
+static int record__aio_push(struct record *rec, struct mmap *map, off_t *off)
 {
 	int ret, idx;
 	int trace_fd = rec->session->data->file.fd;
@@ -327,7 +351,7 @@ static int record__aio_push(struct record *rec, struct perf_mmap *map, off_t *of
 		 * map->refcount is decremented in record__aio_complete() after
 		 * aio write operation finishes successfully.
 		 */
-		perf_mmap__put(map);
+		perf_mmap__put(&map->core);
 	}
 
 	return ret;
@@ -346,16 +370,16 @@ static void record__aio_set_pos(int trace_fd, off_t pos)
 static void record__aio_mmap_read_sync(struct record *rec)
 {
 	int i;
-	struct perf_evlist *evlist = rec->evlist;
-	struct perf_mmap *maps = evlist->mmap;
+	struct evlist *evlist = rec->evlist;
+	struct mmap *maps = evlist->mmap;
 
 	if (!record__aio_enabled(rec))
 		return;
 
-	for (i = 0; i < evlist->nr_mmaps; i++) {
-		struct perf_mmap *map = &maps[i];
+	for (i = 0; i < evlist->core.nr_mmaps; i++) {
+		struct mmap *map = &maps[i];
 
-		if (map->base)
+		if (map->core.base)
 			record__aio_sync(map, true);
 	}
 }
@@ -383,7 +407,7 @@ static int record__aio_parse(const struct option *opt,
 #else /* HAVE_AIO_SUPPORT */
 static int nr_cblocks_max = 0;
 
-static int record__aio_push(struct record *rec __maybe_unused, struct perf_mmap *map __maybe_unused,
+static int record__aio_push(struct record *rec __maybe_unused, struct mmap *map __maybe_unused,
 			    off_t *off __maybe_unused)
 {
 	return -1;
@@ -435,7 +459,7 @@ static int record__mmap_flush_parse(const struct option *opt,
 	if (!opts->mmap_flush)
 		opts->mmap_flush = MMAP_FLUSH_DEFAULT;
 
-	flush_max = perf_evlist__mmap_size(opts->mmap_pages);
+	flush_max = evlist__mmap_size(opts->mmap_pages);
 	flush_max /= 4;
 	if (opts->mmap_flush > flush_max)
 		opts->mmap_flush = flush_max;
@@ -478,12 +502,12 @@ static int process_synthesized_event(struct perf_tool *tool,
 	return record__write(rec, NULL, event, event->header.size);
 }
 
-static int record__pushfn(struct perf_mmap *map, void *to, void *bf, size_t size)
+static int record__pushfn(struct mmap *map, void *to, void *bf, size_t size)
 {
 	struct record *rec = to;
 
 	if (record__comp_enabled(rec)) {
-		size = zstd_compress(rec->session, map->data, perf_mmap__mmap_len(map), bf, size);
+		size = zstd_compress(rec->session, map->data, mmap__mmap_len(map), bf, size);
 		bf   = map->data;
 	}
 
@@ -491,7 +515,6 @@ static int record__pushfn(struct perf_mmap *map, void *to, void *bf, size_t size
 	return record__write(rec, map, bf, size);
 }
 
-static volatile int done;
 static volatile int signr = -1;
 static volatile int child_finished;
 
@@ -523,7 +546,7 @@ static void record__sig_exit(void)
 #ifdef HAVE_AUXTRACE_SUPPORT
 
 static int record__process_auxtrace(struct perf_tool *tool,
-				    struct perf_mmap *map,
+				    struct mmap *map,
 				    union perf_event *event, void *data1,
 				    size_t len1, void *data2, size_t len2)
 {
@@ -532,7 +555,7 @@ static int record__process_auxtrace(struct perf_tool *tool,
 	size_t padding;
 	u8 pad[8] = {0};
 
-	if (!perf_data__is_pipe(data) && !perf_data__is_dir(data)) {
+	if (!perf_data__is_pipe(data) && perf_data__is_single_file(data)) {
 		off_t file_offset;
 		int fd = perf_data__fd(data);
 		int err;
@@ -561,7 +584,7 @@ static int record__process_auxtrace(struct perf_tool *tool,
 }
 
 static int record__auxtrace_mmap_read(struct record *rec,
-				      struct perf_mmap *map)
+				      struct mmap *map)
 {
 	int ret;
 
@@ -577,7 +600,7 @@ static int record__auxtrace_mmap_read(struct record *rec,
 }
 
 static int record__auxtrace_mmap_read_snapshot(struct record *rec,
-					       struct perf_mmap *map)
+					       struct mmap *map)
 {
 	int ret;
 
@@ -598,8 +621,8 @@ static int record__auxtrace_read_snapshot_all(struct record *rec)
 	int i;
 	int rc = 0;
 
-	for (i = 0; i < rec->evlist->nr_mmaps; i++) {
-		struct perf_mmap *map = &rec->evlist->mmap[i];
+	for (i = 0; i < rec->evlist->core.nr_mmaps; i++) {
+		struct mmap *map = &rec->evlist->mmap[i];
 
 		if (!map->auxtrace_mmap.base)
 			continue;
@@ -613,17 +636,33 @@ out:
 	return rc;
 }
 
-static void record__read_auxtrace_snapshot(struct record *rec)
+static void record__read_auxtrace_snapshot(struct record *rec, bool on_exit)
 {
 	pr_debug("Recording AUX area tracing snapshot\n");
 	if (record__auxtrace_read_snapshot_all(rec) < 0) {
 		trigger_error(&auxtrace_snapshot_trigger);
 	} else {
-		if (auxtrace_record__snapshot_finish(rec->itr))
+		if (auxtrace_record__snapshot_finish(rec->itr, on_exit))
 			trigger_error(&auxtrace_snapshot_trigger);
 		else
 			trigger_ready(&auxtrace_snapshot_trigger);
 	}
+}
+
+static int record__auxtrace_snapshot_exit(struct record *rec)
+{
+	if (trigger_is_error(&auxtrace_snapshot_trigger))
+		return 0;
+
+	if (!auxtrace_record__snapshot_started &&
+	    auxtrace_record__snapshot_start(rec->itr))
+		return -1;
+
+	record__read_auxtrace_snapshot(rec, true);
+	if (trigger_is_error(&auxtrace_snapshot_trigger))
+		return -1;
+
+	return 0;
 }
 
 static int record__auxtrace_init(struct record *rec)
@@ -641,6 +680,11 @@ static int record__auxtrace_init(struct record *rec)
 	if (err)
 		return err;
 
+	err = auxtrace_parse_sample_options(rec->itr, rec->evlist, &rec->opts,
+					    rec->opts.auxtrace_sample_opts);
+	if (err)
+		return err;
+
 	return auxtrace_parse_filters(rec->evlist);
 }
 
@@ -648,18 +692,25 @@ static int record__auxtrace_init(struct record *rec)
 
 static inline
 int record__auxtrace_mmap_read(struct record *rec __maybe_unused,
-			       struct perf_mmap *map __maybe_unused)
+			       struct mmap *map __maybe_unused)
 {
 	return 0;
 }
 
 static inline
-void record__read_auxtrace_snapshot(struct record *rec __maybe_unused)
+void record__read_auxtrace_snapshot(struct record *rec __maybe_unused,
+				    bool on_exit __maybe_unused)
 {
 }
 
 static inline
 int auxtrace_record__snapshot_start(struct auxtrace_record *itr __maybe_unused)
+{
+	return 0;
+}
+
+static inline
+int record__auxtrace_snapshot_exit(struct record *rec __maybe_unused)
 {
 	return 0;
 }
@@ -671,18 +722,51 @@ static int record__auxtrace_init(struct record *rec __maybe_unused)
 
 #endif
 
+static bool record__kcore_readable(struct machine *machine)
+{
+	char kcore[PATH_MAX];
+	int fd;
+
+	scnprintf(kcore, sizeof(kcore), "%s/proc/kcore", machine->root_dir);
+
+	fd = open(kcore, O_RDONLY);
+	if (fd < 0)
+		return false;
+
+	close(fd);
+
+	return true;
+}
+
+static int record__kcore_copy(struct machine *machine, struct perf_data *data)
+{
+	char from_dir[PATH_MAX];
+	char kcore_dir[PATH_MAX];
+	int ret;
+
+	snprintf(from_dir, sizeof(from_dir), "%s/proc", machine->root_dir);
+
+	ret = perf_data__make_kcore_dir(data, kcore_dir, sizeof(kcore_dir));
+	if (ret)
+		return ret;
+
+	return kcore_copy(from_dir, kcore_dir);
+}
+
 static int record__mmap_evlist(struct record *rec,
-			       struct perf_evlist *evlist)
+			       struct evlist *evlist)
 {
 	struct record_opts *opts = &rec->opts;
+	bool auxtrace_overwrite = opts->auxtrace_snapshot_mode ||
+				  opts->auxtrace_sample_mode;
 	char msg[512];
 
 	if (opts->affinity != PERF_AFFINITY_SYS)
 		cpu__setup_cpunode_map();
 
-	if (perf_evlist__mmap_ex(evlist, opts->mmap_pages,
+	if (evlist__mmap_ex(evlist, opts->mmap_pages,
 				 opts->auxtrace_mmap_pages,
-				 opts->auxtrace_snapshot_mode,
+				 auxtrace_overwrite,
 				 opts->nr_cblocks, opts->affinity,
 				 opts->mmap_flush, opts->comp_level) < 0) {
 		if (errno == EPERM) {
@@ -713,8 +797,8 @@ static int record__mmap(struct record *rec)
 static int record__open(struct record *rec)
 {
 	char msg[BUFSIZ];
-	struct perf_evsel *pos;
-	struct perf_evlist *evlist = rec->evlist;
+	struct evsel *pos;
+	struct evlist *evlist = rec->evlist;
 	struct perf_session *session = rec->session;
 	struct record_opts *opts = &rec->opts;
 	int rc = 0;
@@ -728,18 +812,18 @@ static int record__open(struct record *rec)
 		if (perf_evlist__add_dummy(evlist))
 			return -ENOMEM;
 
-		pos = perf_evlist__first(evlist);
+		pos = evlist__first(evlist);
 		pos->tracking = 0;
-		pos = perf_evlist__last(evlist);
+		pos = evlist__last(evlist);
 		pos->tracking = 1;
-		pos->attr.enable_on_exec = 1;
+		pos->core.attr.enable_on_exec = 1;
 	}
 
 	perf_evlist__config(evlist, opts, &callchain_param);
 
 	evlist__for_each_entry(evlist, pos) {
 try_again:
-		if (perf_evsel__open(pos, pos->cpus, pos->threads) < 0) {
+		if (evsel__open(pos, pos->core.cpus, pos->core.threads) < 0) {
 			if (perf_evsel__fallback(pos, errno, msg, sizeof(msg))) {
 				if (verbose > 0)
 					ui__warning("%s\n", msg);
@@ -748,7 +832,7 @@ try_again:
 			if ((errno == EINVAL || errno == EBADF) &&
 			    pos->leader != pos &&
 			    pos->weak_group) {
-			        pos = perf_evlist__reset_weak_group(evlist, pos);
+			        pos = perf_evlist__reset_weak_group(evlist, pos, true);
 				goto try_again;
 			}
 			rc = -errno;
@@ -759,6 +843,17 @@ try_again:
 		}
 
 		pos->supported = true;
+	}
+
+	if (symbol_conf.kptr_restrict && !perf_evlist__exclude_kernel(evlist)) {
+		pr_warning(
+"WARNING: Kernel address maps (/proc/{kallsyms,modules}) are restricted,\n"
+"check /proc/sys/kernel/kptr_restrict and /proc/sys/kernel/perf_event_paranoid.\n\n"
+"Samples in kernel functions may not be resolved if a suitable vmlinux\n"
+"file is not found in the buildid cache or in the vmlinux path.\n\n"
+"Samples in kernel modules won't be resolved at all.\n\n"
+"If some relocation was applied (e.g. kexec) symbols may be misresolved\n"
+"even with a suitable vmlinux or kallsyms file.\n\n");
 	}
 
 	if (perf_evlist__apply_filters(evlist, &pos)) {
@@ -782,7 +877,7 @@ out:
 static int process_sample_event(struct perf_tool *tool,
 				union perf_event *event,
 				struct perf_sample *sample,
-				struct perf_evsel *evsel,
+				struct evsel *evsel,
 				struct machine *machine)
 {
 	struct record *rec = container_of(tool, struct record, tool);
@@ -863,7 +958,7 @@ static struct perf_event_header finished_round_event = {
 	.type = PERF_RECORD_FINISHED_ROUND,
 };
 
-static void record__adjust_affinity(struct record *rec, struct perf_mmap *map)
+static void record__adjust_affinity(struct record *rec, struct mmap *map)
 {
 	if (rec->opts.affinity != PERF_AFFINITY_SYS &&
 	    !CPU_EQUAL(&rec->affinity_mask, &map->affinity_mask)) {
@@ -875,7 +970,7 @@ static void record__adjust_affinity(struct record *rec, struct perf_mmap *map)
 
 static size_t process_comp_header(void *record, size_t increment)
 {
-	struct compressed_event *event = record;
+	struct perf_record_compressed *event = record;
 	size_t size = sizeof(*event);
 
 	if (increment) {
@@ -893,7 +988,7 @@ static size_t zstd_compress(struct perf_session *session, void *dst, size_t dst_
 			    void *src, size_t src_size)
 {
 	size_t compressed;
-	size_t max_record_size = PERF_SAMPLE_MAX_SIZE - sizeof(struct compressed_event) - 1;
+	size_t max_record_size = PERF_SAMPLE_MAX_SIZE - sizeof(struct perf_record_compressed) - 1;
 
 	compressed = zstd_compress_stream_to_records(&session->zstd_data, dst, dst_size, src, src_size,
 						     max_record_size, process_comp_header);
@@ -904,13 +999,13 @@ static size_t zstd_compress(struct perf_session *session, void *dst, size_t dst_
 	return compressed;
 }
 
-static int record__mmap_read_evlist(struct record *rec, struct perf_evlist *evlist,
+static int record__mmap_read_evlist(struct record *rec, struct evlist *evlist,
 				    bool overwrite, bool synch)
 {
 	u64 bytes_written = rec->bytes_written;
 	int i;
 	int rc = 0;
-	struct perf_mmap *maps;
+	struct mmap *maps;
 	int trace_fd = rec->data.file.fd;
 	off_t off = 0;
 
@@ -927,20 +1022,20 @@ static int record__mmap_read_evlist(struct record *rec, struct perf_evlist *evli
 	if (record__aio_enabled(rec))
 		off = record__aio_get_pos(trace_fd);
 
-	for (i = 0; i < evlist->nr_mmaps; i++) {
+	for (i = 0; i < evlist->core.nr_mmaps; i++) {
 		u64 flush = 0;
-		struct perf_mmap *map = &maps[i];
+		struct mmap *map = &maps[i];
 
-		if (map->base) {
+		if (map->core.base) {
 			record__adjust_affinity(rec, map);
 			if (synch) {
-				flush = map->flush;
-				map->flush = 1;
+				flush = map->core.flush;
+				map->core.flush = 1;
 			}
 			if (!record__aio_enabled(rec)) {
 				if (perf_mmap__push(map, rec, record__pushfn) < 0) {
 					if (synch)
-						map->flush = flush;
+						map->core.flush = flush;
 					rc = -1;
 					goto out;
 				}
@@ -948,16 +1043,17 @@ static int record__mmap_read_evlist(struct record *rec, struct perf_evlist *evli
 				if (record__aio_push(rec, map, &off) < 0) {
 					record__aio_set_pos(trace_fd, off);
 					if (synch)
-						map->flush = flush;
+						map->core.flush = flush;
 					rc = -1;
 					goto out;
 				}
 			}
 			if (synch)
-				map->flush = flush;
+				map->core.flush = flush;
 		}
 
 		if (map->auxtrace_mmap.base && !rec->opts.auxtrace_snapshot_mode &&
+		    !rec->opts.auxtrace_sample_mode &&
 		    record__auxtrace_mmap_read(rec, map) != 0) {
 			rc = -1;
 			goto out;
@@ -1002,7 +1098,7 @@ static void record__init_features(struct record *rec)
 	if (rec->no_buildid)
 		perf_header__clear_feat(&session->header, HEADER_BUILD_ID);
 
-	if (!have_tracepoints(&rec->evlist->entries))
+	if (!have_tracepoints(&rec->evlist->core.entries))
 		perf_header__clear_feat(&session->header, HEADER_TRACING_DATA);
 
 	if (!rec->opts.branch_stack)
@@ -1047,7 +1143,7 @@ record__finish_output(struct record *rec)
 static int record__synthesize_workload(struct record *rec, bool tail)
 {
 	int err;
-	struct thread_map *thread_map;
+	struct perf_thread_map *thread_map;
 
 	if (rec->opts.tail_synthesize != tail)
 		return 0;
@@ -1060,7 +1156,7 @@ static int record__synthesize_workload(struct record *rec, bool tail)
 						 process_synthesized_event,
 						 &rec->session->machines.host,
 						 rec->opts.sample_address);
-	thread_map__put(thread_map);
+	perf_thread_map__put(thread_map);
 	return err;
 }
 
@@ -1110,7 +1206,7 @@ record__switch_output(struct record *rec, bool at_exit)
 		rec->switch_output.cur_file = n;
 		if (rec->switch_output.filenames[n]) {
 			remove(rec->switch_output.filenames[n]);
-			free(rec->switch_output.filenames[n]);
+			zfree(&rec->switch_output.filenames[n]);
 		}
 		rec->switch_output.filenames[n] = new_filename;
 	} else {
@@ -1155,23 +1251,14 @@ static void workload_exec_failed_signal(int signo __maybe_unused,
 static void snapshot_sig_handler(int sig);
 static void alarm_sig_handler(int sig);
 
-int __weak
-perf_event__synth_time_conv(const struct perf_event_mmap_page *pc __maybe_unused,
-			    struct perf_tool *tool __maybe_unused,
-			    perf_event__handler_t process __maybe_unused,
-			    struct machine *machine __maybe_unused)
-{
-	return 0;
-}
-
 static const struct perf_event_mmap_page *
-perf_evlist__pick_pc(struct perf_evlist *evlist)
+perf_evlist__pick_pc(struct evlist *evlist)
 {
 	if (evlist) {
-		if (evlist->mmap && evlist->mmap[0].base)
-			return evlist->mmap[0].base;
-		if (evlist->overwrite_mmap && evlist->overwrite_mmap[0].base)
-			return evlist->overwrite_mmap[0].base;
+		if (evlist->mmap && evlist->mmap[0].core.base)
+			return evlist->mmap[0].core.base;
+		if (evlist->overwrite_mmap && evlist->overwrite_mmap[0].core.base)
+			return evlist->overwrite_mmap[0].core.base;
 	}
 	return NULL;
 }
@@ -1218,7 +1305,7 @@ static int record__synthesize(struct record *rec, bool tail)
 			return err;
 		}
 
-		if (have_tracepoints(&rec->evlist->entries)) {
+		if (have_tracepoints(&rec->evlist->core.entries)) {
 			/*
 			 * FIXME err <= 0 here actually means that
 			 * there were no tracepoints so its not really
@@ -1241,6 +1328,15 @@ static int record__synthesize(struct record *rec, bool tail)
 					  process_synthesized_event, machine);
 	if (err)
 		goto out;
+
+	/* Synthesize id_index before auxtrace_info */
+	if (rec->opts.auxtrace_sample_mode) {
+		err = perf_event__synthesize_id_index(tool,
+						      process_synthesized_event,
+						      session->evlist, machine);
+		if (err)
+			goto out;
+	}
 
 	if (rec->opts.full_auxtrace) {
 		err = perf_event__synthesize_auxtrace_info(rec->itr, tool,
@@ -1275,7 +1371,7 @@ static int record__synthesize(struct record *rec, bool tail)
 	if (err)
 		goto out;
 
-	err = perf_event__synthesize_thread_map2(&rec->tool, rec->evlist->threads,
+	err = perf_event__synthesize_thread_map2(&rec->tool, rec->evlist->core.threads,
 						 process_synthesized_event,
 						NULL);
 	if (err < 0) {
@@ -1283,7 +1379,7 @@ static int record__synthesize(struct record *rec, bool tail)
 		return err;
 	}
 
-	err = perf_event__synthesize_cpu_map(&rec->tool, rec->evlist->cpus,
+	err = perf_event__synthesize_cpu_map(&rec->tool, rec->evlist->core.cpus,
 					     process_synthesized_event, NULL);
 	if (err < 0) {
 		pr_err("Couldn't synthesize cpu map.\n");
@@ -1295,7 +1391,7 @@ static int record__synthesize(struct record *rec, bool tail)
 	if (err < 0)
 		pr_warning("Couldn't synthesize bpf events.\n");
 
-	err = __machine__synthesize_threads(machine, tool, &opts->target, rec->evlist->threads,
+	err = __machine__synthesize_threads(machine, tool, &opts->target, rec->evlist->core.threads,
 					    process_synthesized_event, opts->sample_address,
 					    1);
 out:
@@ -1313,7 +1409,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	struct perf_data *data = &rec->data;
 	struct perf_session *session;
 	bool disabled = false, draining = false;
-	struct perf_evlist *sb_evlist = NULL;
+	struct evlist *sb_evlist = NULL;
 	int fd;
 	float ratio = 0;
 
@@ -1337,9 +1433,9 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	}
 
 	session = perf_session__new(data, false, tool);
-	if (session == NULL) {
+	if (IS_ERR(session)) {
 		pr_err("Perf session creation failed.\n");
-		return -1;
+		return PTR_ERR(session);
 	}
 
 	fd = perf_data__fd(data);
@@ -1352,6 +1448,12 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 
 	session->header.env.comp_type  = PERF_COMP_ZSTD;
 	session->header.env.comp_level = rec->opts.comp_level;
+
+	if (rec->opts.kcore &&
+	    !record__kcore_readable(&session->machines.host)) {
+		pr_err("ERROR: kcore is not readable.\n");
+		return -1;
+	}
 
 	record__init_features(rec);
 
@@ -1375,14 +1477,22 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	 * because we synthesize event name through the pipe
 	 * and need the id for that.
 	 */
-	if (data->is_pipe && rec->evlist->nr_entries == 1)
+	if (data->is_pipe && rec->evlist->core.nr_entries == 1)
 		rec->opts.sample_id = true;
 
 	if (record__open(rec) != 0) {
 		err = -1;
 		goto out_child;
 	}
-	session->header.env.comp_mmap_len = session->evlist->mmap_len;
+	session->header.env.comp_mmap_len = session->evlist->core.mmap_len;
+
+	if (rec->opts.kcore) {
+		err = record__kcore_copy(&session->machines.host, data);
+		if (err) {
+			pr_err("ERROR: Failed to copy kcore\n");
+			goto out_child;
+		}
+	}
 
 	err = bpf__apply_obj_config();
 	if (err) {
@@ -1453,7 +1563,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	 * so don't spoil it by prematurely enabling them.
 	 */
 	if (!target__none(&opts->target) && !opts->initial_delay)
-		perf_evlist__enable(rec->evlist);
+		evlist__enable(rec->evlist);
 
 	/*
 	 * Let the child rip
@@ -1506,7 +1616,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 
 	if (opts->initial_delay) {
 		usleep(opts->initial_delay * USEC_PER_MSEC);
-		perf_evlist__enable(rec->evlist);
+		evlist__enable(rec->evlist);
 	}
 
 	trigger_ready(&auxtrace_snapshot_trigger);
@@ -1536,7 +1646,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		if (auxtrace_record__snapshot_started) {
 			auxtrace_record__snapshot_started = 0;
 			if (!trigger_is_error(&auxtrace_snapshot_trigger))
-				record__read_auxtrace_snapshot(rec);
+				record__read_auxtrace_snapshot(rec, false);
 			if (trigger_is_error(&auxtrace_snapshot_trigger)) {
 				pr_err("AUX area tracing snapshot failed\n");
 				err = -1;
@@ -1585,7 +1695,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		if (hits == rec->samples) {
 			if (done || draining)
 				break;
-			err = perf_evlist__poll(rec->evlist, -1);
+			err = evlist__poll(rec->evlist, -1);
 			/*
 			 * Propagate error, only if there's any. Ignore positive
 			 * number of returned events and interrupt error.
@@ -1594,7 +1704,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 				err = 0;
 			waking++;
 
-			if (perf_evlist__filter_pollfd(rec->evlist, POLLERR | POLLHUP) == 0)
+			if (evlist__filter_pollfd(rec->evlist, POLLERR | POLLHUP) == 0)
 				draining = true;
 		}
 
@@ -1605,12 +1715,16 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		 */
 		if (done && !disabled && !target__none(&opts->target)) {
 			trigger_off(&auxtrace_snapshot_trigger);
-			perf_evlist__disable(rec->evlist);
+			evlist__disable(rec->evlist);
 			disabled = true;
 		}
 	}
+
 	trigger_off(&auxtrace_snapshot_trigger);
 	trigger_off(&switch_output_trigger);
+
+	if (opts->auxtrace_snapshot_on_exit)
+		record__auxtrace_snapshot_exit(rec);
 
 	if (forks && workload_exec_errno) {
 		char msg[STRERR_BUFSIZE];
@@ -1902,6 +2016,33 @@ static int record__parse_affinity(const struct option *opt, const char *str, int
 	return 0;
 }
 
+static int parse_output_max_size(const struct option *opt,
+				 const char *str, int unset)
+{
+	unsigned long *s = (unsigned long *)opt->value;
+	static struct parse_tag tags_size[] = {
+		{ .tag  = 'B', .mult = 1       },
+		{ .tag  = 'K', .mult = 1 << 10 },
+		{ .tag  = 'M', .mult = 1 << 20 },
+		{ .tag  = 'G', .mult = 1 << 30 },
+		{ .tag  = 0 },
+	};
+	unsigned long val;
+
+	if (unset) {
+		*s = 0;
+		return 0;
+	}
+
+	val = parse_tag_value(str, tags_size);
+	if (val != (unsigned long) -1) {
+		*s = val;
+		return 0;
+	}
+
+	return -1;
+}
+
 static int record__parse_mmap_pages(const struct option *opt,
 				    const char *str,
 				    int unset __maybe_unused)
@@ -1947,7 +2088,7 @@ out_free:
 
 static void switch_output_size_warn(struct record *rec)
 {
-	u64 wakeup_size = perf_evlist__mmap_size(rec->opts.mmap_pages);
+	u64 wakeup_size = evlist__mmap_size(rec->opts.mmap_pages);
 	struct switch_output *s = &rec->switch_output;
 
 	wakeup_size /= 2;
@@ -2024,6 +2165,31 @@ static const char * const __record_usage[] = {
 };
 const char * const *record_usage = __record_usage;
 
+static int build_id__process_mmap(struct perf_tool *tool, union perf_event *event,
+				  struct perf_sample *sample, struct machine *machine)
+{
+	/*
+	 * We already have the kernel maps, put in place via perf_session__create_kernel_maps()
+	 * no need to add them twice.
+	 */
+	if (!(event->header.misc & PERF_RECORD_MISC_USER))
+		return 0;
+	return perf_event__process_mmap(tool, event, sample, machine);
+}
+
+static int build_id__process_mmap2(struct perf_tool *tool, union perf_event *event,
+				   struct perf_sample *sample, struct machine *machine)
+{
+	/*
+	 * We already have the kernel maps, put in place via perf_session__create_kernel_maps()
+	 * no need to add them twice.
+	 */
+	if (!(event->header.misc & PERF_RECORD_MISC_USER))
+		return 0;
+
+	return perf_event__process_mmap2(tool, event, sample, machine);
+}
+
 /*
  * XXX Ideally would be local to cmd_record() and passed to a record__new
  * because we need to have access to it in record__exit, that is called
@@ -2053,8 +2219,8 @@ static struct record record = {
 		.exit		= perf_event__process_exit,
 		.comm		= perf_event__process_comm,
 		.namespaces	= perf_event__process_namespaces,
-		.mmap		= perf_event__process_mmap,
-		.mmap2		= perf_event__process_mmap2,
+		.mmap		= build_id__process_mmap,
+		.mmap2		= build_id__process_mmap2,
 		.ordered_events	= true,
 	},
 };
@@ -2150,6 +2316,7 @@ static struct option __record_options[] = {
 		     parse_cgroups),
 	OPT_UINTEGER('D', "delay", &record.opts.initial_delay,
 		  "ms to wait before starting measurement after program start"),
+	OPT_BOOLEAN(0, "kcore", &record.opts.kcore, "copy /proc/kcore"),
 	OPT_STRING('u', "uid", &record.opts.target.uid_str, "user",
 		   "user to profile"),
 
@@ -2179,6 +2346,8 @@ static struct option __record_options[] = {
 	parse_clockid),
 	OPT_STRING_OPTARG('S', "snapshot", &record.opts.auxtrace_snapshot_opts,
 			  "opts", "AUX area tracing Snapshot Mode", ""),
+	OPT_STRING_OPTARG(0, "aux-sample", &record.opts.auxtrace_sample_opts,
+			  "opts", "sample AUX area", ""),
 	OPT_UINTEGER(0, "proc-map-timeout", &proc_map_timeout,
 			"per thread proc mmap processing timeout in ms"),
 	OPT_BOOLEAN(0, "namespaces", &record.opts.record_namespaces,
@@ -2191,6 +2360,10 @@ static struct option __record_options[] = {
 	OPT_BOOLEAN_FLAG(0, "all-user", &record.opts.all_user,
 			 "Configure all used events to run in user space.",
 			 PARSE_OPT_EXCLUSIVE),
+	OPT_BOOLEAN(0, "kernel-callchains", &record.opts.kernel_callchains,
+		    "collect kernel callchains"),
+	OPT_BOOLEAN(0, "user-callchains", &record.opts.user_callchains,
+		    "collect user callchains"),
 	OPT_STRING(0, "clang-path", &llvm_param.clang_path, "clang path",
 		   "clang binary to use for compiling BPF scriptlets"),
 	OPT_STRING(0, "clang-opt", &llvm_param.clang_opt, "clang options",
@@ -2224,6 +2397,8 @@ static struct option __record_options[] = {
 			    "n", "Compressed records using specified level (default: 1 - fastest compression, 22 - greatest compression)",
 			    record__parse_comp_level),
 #endif
+	OPT_CALLBACK(0, "max-size", &record.output_max_size,
+		     "size", "Limit the maximum size of the output file", parse_output_max_size),
 	OPT_END()
 };
 
@@ -2261,7 +2436,7 @@ int cmd_record(int argc, const char **argv)
 	CPU_ZERO(&rec->affinity_mask);
 	rec->opts.affinity = PERF_AFFINITY_SYS;
 
-	rec->evlist = perf_evlist__new();
+	rec->evlist = evlist__new();
 	if (rec->evlist == NULL)
 		return -ENOMEM;
 
@@ -2283,6 +2458,9 @@ int cmd_record(int argc, const char **argv)
 			"cgroup monitoring only available in system-wide mode");
 
 	}
+
+	if (rec->opts.kcore)
+		rec->data.is_dir = true;
 
 	if (rec->opts.comp_level != 0) {
 		pr_debug("Compression enabled, disabling build id collection at the end of the session.\n");
@@ -2338,16 +2516,6 @@ int cmd_record(int argc, const char **argv)
 
 	err = -ENOMEM;
 
-	if (symbol_conf.kptr_restrict && !perf_evlist__exclude_kernel(rec->evlist))
-		pr_warning(
-"WARNING: Kernel address maps (/proc/{kallsyms,modules}) are restricted,\n"
-"check /proc/sys/kernel/kptr_restrict.\n\n"
-"Samples in kernel functions may not be resolved if a suitable vmlinux\n"
-"file is not found in the buildid cache or in the vmlinux path.\n\n"
-"Samples in kernel modules won't be resolved at all.\n\n"
-"If some relocation was applied (e.g. kexec) symbols may be misresolved\n"
-"even with a suitable vmlinux or kallsyms file.\n\n");
-
 	if (rec->no_buildid_cache || rec->no_buildid) {
 		disable_buildid_cache();
 	} else if (rec->switch_output.enabled) {
@@ -2382,7 +2550,7 @@ int cmd_record(int argc, const char **argv)
 	if (record.opts.overwrite)
 		record.opts.tail_synthesize = true;
 
-	if (rec->evlist->nr_entries == 0 &&
+	if (rec->evlist->core.nr_entries == 0 &&
 	    __perf_evlist__add_default(rec->evlist, !record.opts.no_samples) < 0) {
 		pr_err("Not enough memory for event selector list\n");
 		goto out;
@@ -2445,7 +2613,7 @@ int cmd_record(int argc, const char **argv)
 
 	err = __cmd_record(&record, argc, argv);
 out:
-	perf_evlist__delete(rec->evlist);
+	evlist__delete(rec->evlist);
 	symbol__exit();
 	auxtrace_record__free(rec->itr);
 	return err;

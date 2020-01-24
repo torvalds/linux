@@ -414,7 +414,7 @@ common_exception:
 	movi	a3, LOCKLEVEL
 
 .Lexception:
-	movi	a0, 1 << PS_WOE_BIT
+	movi	a0, PS_WOE_MASK
 	or	a3, a3, a0
 #else
 	addi	a2, a2, -EXCCAUSE_LEVEL1_INTERRUPT
@@ -422,7 +422,7 @@ common_exception:
 	extui	a3, a3, PS_INTLEVEL_SHIFT, PS_INTLEVEL_WIDTH
 					# a3 = PS.INTLEVEL
 	moveqz	a3, a0, a2		# a3 = LOCKLEVEL iff interrupt
-	movi	a2, 1 << PS_WOE_BIT
+	movi	a2, PS_WOE_MASK
 	or	a3, a3, a2
 	rsr	a2, exccause
 #endif
@@ -529,7 +529,7 @@ common_exception_return:
 	l32i	a4, a2, TI_PRE_COUNT
 	bnez	a4, 4f
 	call4	preempt_schedule_irq
-	j	1b
+	j	4f
 #endif
 
 #if XTENSA_FAKE_NMI
@@ -922,7 +922,7 @@ ENTRY(unrecoverable_exception)
 	wsr	a1, windowbase
 	rsync
 
-	movi	a1, (1 << PS_WOE_BIT) | LOCKLEVEL
+	movi	a1, PS_WOE_MASK | LOCKLEVEL
 	wsr	a1, ps
 	rsync
 
@@ -1003,7 +1003,41 @@ ENTRY(fast_alloca)
 4:	j	_WindowUnderflow4
 ENDPROC(fast_alloca)
 
+#ifdef CONFIG_USER_ABI_CALL0_PROBE
 /*
+ * fast illegal instruction handler.
+ *
+ * This is used to fix up user PS.WOE on the exception caused
+ * by the first opcode related to register window. If PS.WOE is
+ * already set it goes directly to the common user exception handler.
+ *
+ * Entry condition:
+ *
+ *   a0:	trashed, original value saved on stack (PT_AREG0)
+ *   a1:	a1
+ *   a2:	new stack pointer, original in DEPC
+ *   a3:	a3
+ *   depc:	a2, original value saved on stack (PT_DEPC)
+ *   excsave_1:	dispatch table
+ */
+
+ENTRY(fast_illegal_instruction_user)
+
+	rsr	a0, ps
+	bbsi.l	a0, PS_WOE_BIT, user_exception
+	s32i	a3, a2, PT_AREG3
+	movi	a3, PS_WOE_MASK
+	or	a0, a0, a3
+	wsr	a0, ps
+	l32i	a3, a2, PT_AREG3
+	l32i	a0, a2, PT_AREG0
+	rsr	a2, depc
+	rfe
+
+ENDPROC(fast_illegal_instruction_user)
+#endif
+
+	/*
  * fast system calls.
  *
  * WARNING:  The kernel doesn't save the entire user context before
@@ -1359,7 +1393,7 @@ ENTRY(fast_syscall_spill_registers)
 	rsr	a3, excsave1
 	l32i	a1, a3, EXC_TABLE_KSTK
 
-	movi	a4, (1 << PS_WOE_BIT) | LOCKLEVEL
+	movi	a4, PS_WOE_MASK | LOCKLEVEL
 	wsr	a4, ps
 	rsync
 
@@ -1842,7 +1876,7 @@ ENDPROC(fast_store_prohibited)
 
 ENTRY(system_call)
 
-	entry	a1, 32
+	abi_entry_default
 
 	/* regs->syscall = regs->areg[2] */
 
@@ -1857,11 +1891,10 @@ ENTRY(system_call)
 
 	mov	a6, a2
 	call4	do_syscall_trace_enter
+	beqz	a6, .Lsyscall_exit
 	l32i	a7, a2, PT_SYSCALL
 
 1:
-	s32i	a7, a1, 4
-
 	/* syscall = sys_call_table[syscall_nr] */
 
 	movi	a4, sys_call_table
@@ -1871,8 +1904,6 @@ ENTRY(system_call)
 
 	addx4	a4, a7, a4
 	l32i	a4, a4, 0
-	movi	a5, sys_ni_syscall;
-	beq	a4, a5, 1f
 
 	/* Load args: arg0 - arg5 are passed via regs. */
 
@@ -1883,25 +1914,19 @@ ENTRY(system_call)
 	l32i	a10, a2, PT_AREG8
 	l32i	a11, a2, PT_AREG9
 
-	/* Pass one additional argument to the syscall: pt_regs (on stack) */
-	s32i	a2, a1, 0
-
 	callx4	a4
 
 1:	/* regs->areg[2] = return_value */
 
 	s32i	a6, a2, PT_AREG2
 	bnez	a3, 1f
-	retw
+.Lsyscall_exit:
+	abi_ret_default
 
 1:
-	l32i	a4, a1, 4
-	l32i	a3, a2, PT_SYSCALL
-	s32i	a4, a2, PT_SYSCALL
 	mov	a6, a2
 	call4	do_syscall_trace_leave
-	s32i	a3, a2, PT_SYSCALL
-	retw
+	abi_ret_default
 
 ENDPROC(system_call)
 
@@ -1952,7 +1977,7 @@ ENDPROC(system_call)
 
 ENTRY(_switch_to)
 
-	entry	a1, 48
+	abi_entry(XTENSA_SPILL_STACK_RESERVE)
 
 	mov	a11, a3			# and 'next' (a3)
 
@@ -2013,7 +2038,7 @@ ENTRY(_switch_to)
 	wsr	a14, ps
 	rsync
 
-	retw
+	abi_ret(XTENSA_SPILL_STACK_RESERVE)
 
 ENDPROC(_switch_to)
 

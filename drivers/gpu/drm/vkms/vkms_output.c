@@ -6,7 +6,6 @@
 
 static void vkms_connector_destroy(struct drm_connector *connector)
 {
-	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 }
 
@@ -36,7 +35,7 @@ static const struct drm_connector_helper_funcs vkms_conn_helper_funcs = {
 	.get_modes    = vkms_conn_get_modes,
 };
 
-int vkms_output_init(struct vkms_device *vkmsdev)
+int vkms_output_init(struct vkms_device *vkmsdev, int index)
 {
 	struct vkms_output *output = &vkmsdev->output;
 	struct drm_device *dev = &vkmsdev->drm;
@@ -46,12 +45,12 @@ int vkms_output_init(struct vkms_device *vkmsdev)
 	struct drm_plane *primary, *cursor = NULL;
 	int ret;
 
-	primary = vkms_plane_init(vkmsdev, DRM_PLANE_TYPE_PRIMARY);
+	primary = vkms_plane_init(vkmsdev, DRM_PLANE_TYPE_PRIMARY, index);
 	if (IS_ERR(primary))
 		return PTR_ERR(primary);
 
 	if (enable_cursor) {
-		cursor = vkms_plane_init(vkmsdev, DRM_PLANE_TYPE_CURSOR);
+		cursor = vkms_plane_init(vkmsdev, DRM_PLANE_TYPE_CURSOR, index);
 		if (IS_ERR(cursor)) {
 			ret = PTR_ERR(cursor);
 			goto err_cursor;
@@ -70,12 +69,6 @@ int vkms_output_init(struct vkms_device *vkmsdev)
 	}
 
 	drm_connector_helper_add(connector, &vkms_conn_helper_funcs);
-
-	ret = drm_connector_register(connector);
-	if (ret) {
-		DRM_ERROR("Failed to register connector\n");
-		goto err_connector_register;
-	}
 
 	ret = drm_encoder_init(dev, encoder, &vkms_encoder_funcs,
 			       DRM_MODE_ENCODER_VIRTUAL, NULL);
@@ -99,9 +92,6 @@ err_attach:
 	drm_encoder_cleanup(encoder);
 
 err_encoder:
-	drm_connector_unregister(connector);
-
-err_connector_register:
 	drm_connector_cleanup(connector);
 
 err_connector:

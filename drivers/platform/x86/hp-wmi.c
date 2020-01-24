@@ -65,7 +65,7 @@ struct bios_args {
 	u32 command;
 	u32 commandtype;
 	u32 datasize;
-	u32 data;
+	u8 data[128];
 };
 
 enum hp_wmi_commandtype {
@@ -216,7 +216,7 @@ static int hp_wmi_perform_query(int query, enum hp_wmi_command command,
 		.command = command,
 		.commandtype = query,
 		.datasize = insize,
-		.data = 0,
+		.data = { 0 },
 	};
 	struct acpi_buffer input = { sizeof(struct bios_args), &args };
 	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
@@ -228,7 +228,7 @@ static int hp_wmi_perform_query(int query, enum hp_wmi_command command,
 
 	if (WARN_ON(insize > sizeof(args.data)))
 		return -EINVAL;
-	memcpy(&args.data, buffer, insize);
+	memcpy(&args.data[0], buffer, insize);
 
 	wmi_evaluate_method(HPWMI_BIOS_GUID, 0, mid, &input, &output);
 
@@ -300,7 +300,7 @@ static int __init hp_wmi_bios_2008_later(void)
 
 static int __init hp_wmi_bios_2009_later(void)
 {
-	int state = 0;
+	u8 state[128];
 	int ret = hp_wmi_perform_query(HPWMI_FEATURE2_QUERY, HPWMI_READ, &state,
 				       sizeof(state), sizeof(state));
 	if (!ret)
@@ -380,7 +380,7 @@ static int hp_wmi_rfkill2_refresh(void)
 	int err, i;
 
 	err = hp_wmi_perform_query(HPWMI_WIRELESS2_QUERY, HPWMI_READ, &state,
-				   0, sizeof(state));
+				   sizeof(state), sizeof(state));
 	if (err)
 		return err;
 
@@ -501,6 +501,17 @@ static DEVICE_ATTR_RW(als);
 static DEVICE_ATTR_RO(dock);
 static DEVICE_ATTR_RO(tablet);
 static DEVICE_ATTR_RW(postcode);
+
+static struct attribute *hp_wmi_attrs[] = {
+	&dev_attr_display.attr,
+	&dev_attr_hddtemp.attr,
+	&dev_attr_als.attr,
+	&dev_attr_dock.attr,
+	&dev_attr_tablet.attr,
+	&dev_attr_postcode.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(hp_wmi);
 
 static void hp_wmi_notify(u32 value, void *context)
 {
@@ -678,16 +689,6 @@ static void hp_wmi_input_destroy(void)
 	input_unregister_device(hp_wmi_input_dev);
 }
 
-static void cleanup_sysfs(struct platform_device *device)
-{
-	device_remove_file(&device->dev, &dev_attr_display);
-	device_remove_file(&device->dev, &dev_attr_hddtemp);
-	device_remove_file(&device->dev, &dev_attr_als);
-	device_remove_file(&device->dev, &dev_attr_dock);
-	device_remove_file(&device->dev, &dev_attr_tablet);
-	device_remove_file(&device->dev, &dev_attr_postcode);
-}
-
 static int __init hp_wmi_rfkill_setup(struct platform_device *device)
 {
 	int err, wireless;
@@ -777,7 +778,7 @@ static int __init hp_wmi_rfkill2_setup(struct platform_device *device)
 	int err, i;
 
 	err = hp_wmi_perform_query(HPWMI_WIRELESS2_QUERY, HPWMI_READ, &state,
-				   0, sizeof(state));
+				   sizeof(state), sizeof(state));
 	if (err)
 		return err < 0 ? err : -EINVAL;
 
@@ -858,8 +859,6 @@ fail:
 
 static int __init hp_wmi_bios_setup(struct platform_device *device)
 {
-	int err;
-
 	/* clear detected rfkill devices */
 	wifi_rfkill = NULL;
 	bluetooth_rfkill = NULL;
@@ -869,35 +868,12 @@ static int __init hp_wmi_bios_setup(struct platform_device *device)
 	if (hp_wmi_rfkill_setup(device))
 		hp_wmi_rfkill2_setup(device);
 
-	err = device_create_file(&device->dev, &dev_attr_display);
-	if (err)
-		goto add_sysfs_error;
-	err = device_create_file(&device->dev, &dev_attr_hddtemp);
-	if (err)
-		goto add_sysfs_error;
-	err = device_create_file(&device->dev, &dev_attr_als);
-	if (err)
-		goto add_sysfs_error;
-	err = device_create_file(&device->dev, &dev_attr_dock);
-	if (err)
-		goto add_sysfs_error;
-	err = device_create_file(&device->dev, &dev_attr_tablet);
-	if (err)
-		goto add_sysfs_error;
-	err = device_create_file(&device->dev, &dev_attr_postcode);
-	if (err)
-		goto add_sysfs_error;
 	return 0;
-
-add_sysfs_error:
-	cleanup_sysfs(device);
-	return err;
 }
 
 static int __exit hp_wmi_bios_remove(struct platform_device *device)
 {
 	int i;
-	cleanup_sysfs(device);
 
 	for (i = 0; i < rfkill2_count; i++) {
 		rfkill_unregister(rfkill2[i].rfkill);
@@ -966,6 +942,7 @@ static struct platform_driver hp_wmi_driver = {
 	.driver = {
 		.name = "hp-wmi",
 		.pm = &hp_wmi_pm_ops,
+		.dev_groups = hp_wmi_groups,
 	},
 	.remove = __exit_p(hp_wmi_bios_remove),
 };

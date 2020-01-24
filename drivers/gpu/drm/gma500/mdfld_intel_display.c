@@ -6,15 +6,18 @@
  *	Eric Anholt <eric@anholt.net>
  */
 
+#include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/pm_runtime.h>
 
-#include <drm/drmP.h>
-#include "psb_intel_reg.h"
-#include "gma_display.h"
+#include <drm/drm_crtc.h>
+#include <drm/drm_fourcc.h>
+
 #include "framebuffer.h"
-#include "mdfld_output.h"
+#include "gma_display.h"
 #include "mdfld_dsi_output.h"
+#include "mdfld_output.h"
+#include "psb_intel_reg.h"
 
 /* Hardcoded currently */
 static int ksel = KSEL_CRYSTAL_19;

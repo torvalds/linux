@@ -297,24 +297,24 @@ static __inline__ int atomic_dec_if_positive(atomic_t *v)
 
 #define ATOMIC64_INIT(i)	{ (i) }
 
-static __inline__ long atomic64_read(const atomic64_t *v)
+static __inline__ s64 atomic64_read(const atomic64_t *v)
 {
-	long t;
+	s64 t;
 
 	__asm__ __volatile__("ld%U1%X1 %0,%1" : "=r"(t) : "m"(v->counter));
 
 	return t;
 }
 
-static __inline__ void atomic64_set(atomic64_t *v, long i)
+static __inline__ void atomic64_set(atomic64_t *v, s64 i)
 {
 	__asm__ __volatile__("std%U0%X0 %1,%0" : "=m"(v->counter) : "r"(i));
 }
 
 #define ATOMIC64_OP(op, asm_op)						\
-static __inline__ void atomic64_##op(long a, atomic64_t *v)		\
+static __inline__ void atomic64_##op(s64 a, atomic64_t *v)		\
 {									\
-	long t;								\
+	s64 t;								\
 									\
 	__asm__ __volatile__(						\
 "1:	ldarx	%0,0,%3		# atomic64_" #op "\n"			\
@@ -327,10 +327,10 @@ static __inline__ void atomic64_##op(long a, atomic64_t *v)		\
 }
 
 #define ATOMIC64_OP_RETURN_RELAXED(op, asm_op)				\
-static inline long							\
-atomic64_##op##_return_relaxed(long a, atomic64_t *v)			\
+static inline s64							\
+atomic64_##op##_return_relaxed(s64 a, atomic64_t *v)			\
 {									\
-	long t;								\
+	s64 t;								\
 									\
 	__asm__ __volatile__(						\
 "1:	ldarx	%0,0,%3		# atomic64_" #op "_return_relaxed\n"	\
@@ -345,10 +345,10 @@ atomic64_##op##_return_relaxed(long a, atomic64_t *v)			\
 }
 
 #define ATOMIC64_FETCH_OP_RELAXED(op, asm_op)				\
-static inline long							\
-atomic64_fetch_##op##_relaxed(long a, atomic64_t *v)			\
+static inline s64							\
+atomic64_fetch_##op##_relaxed(s64 a, atomic64_t *v)			\
 {									\
-	long res, t;							\
+	s64 res, t;							\
 									\
 	__asm__ __volatile__(						\
 "1:	ldarx	%0,0,%4		# atomic64_fetch_" #op "_relaxed\n"	\
@@ -396,7 +396,7 @@ ATOMIC64_OPS(xor, xor)
 
 static __inline__ void atomic64_inc(atomic64_t *v)
 {
-	long t;
+	s64 t;
 
 	__asm__ __volatile__(
 "1:	ldarx	%0,0,%2		# atomic64_inc\n\
@@ -409,9 +409,9 @@ static __inline__ void atomic64_inc(atomic64_t *v)
 }
 #define atomic64_inc atomic64_inc
 
-static __inline__ long atomic64_inc_return_relaxed(atomic64_t *v)
+static __inline__ s64 atomic64_inc_return_relaxed(atomic64_t *v)
 {
-	long t;
+	s64 t;
 
 	__asm__ __volatile__(
 "1:	ldarx	%0,0,%2		# atomic64_inc_return_relaxed\n"
@@ -427,7 +427,7 @@ static __inline__ long atomic64_inc_return_relaxed(atomic64_t *v)
 
 static __inline__ void atomic64_dec(atomic64_t *v)
 {
-	long t;
+	s64 t;
 
 	__asm__ __volatile__(
 "1:	ldarx	%0,0,%2		# atomic64_dec\n\
@@ -440,9 +440,9 @@ static __inline__ void atomic64_dec(atomic64_t *v)
 }
 #define atomic64_dec atomic64_dec
 
-static __inline__ long atomic64_dec_return_relaxed(atomic64_t *v)
+static __inline__ s64 atomic64_dec_return_relaxed(atomic64_t *v)
 {
-	long t;
+	s64 t;
 
 	__asm__ __volatile__(
 "1:	ldarx	%0,0,%2		# atomic64_dec_return_relaxed\n"
@@ -463,9 +463,9 @@ static __inline__ long atomic64_dec_return_relaxed(atomic64_t *v)
  * Atomically test *v and decrement if it is greater than 0.
  * The function returns the old value of *v minus 1.
  */
-static __inline__ long atomic64_dec_if_positive(atomic64_t *v)
+static __inline__ s64 atomic64_dec_if_positive(atomic64_t *v)
 {
-	long t;
+	s64 t;
 
 	__asm__ __volatile__(
 	PPC_ATOMIC_ENTRY_BARRIER
@@ -502,9 +502,9 @@ static __inline__ long atomic64_dec_if_positive(atomic64_t *v)
  * Atomically adds @a to @v, so long as it was not @u.
  * Returns the old value of @v.
  */
-static __inline__ long atomic64_fetch_add_unless(atomic64_t *v, long a, long u)
+static __inline__ s64 atomic64_fetch_add_unless(atomic64_t *v, s64 a, s64 u)
 {
-	long t;
+	s64 t;
 
 	__asm__ __volatile__ (
 	PPC_ATOMIC_ENTRY_BARRIER
@@ -534,7 +534,7 @@ static __inline__ long atomic64_fetch_add_unless(atomic64_t *v, long a, long u)
  */
 static __inline__ int atomic64_inc_not_zero(atomic64_t *v)
 {
-	long t1, t2;
+	s64 t1, t2;
 
 	__asm__ __volatile__ (
 	PPC_ATOMIC_ENTRY_BARRIER

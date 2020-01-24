@@ -7,6 +7,7 @@ Required properties :
 	"ti,omap3-i2c" for OMAP3 SoCs
 	"ti,omap4-i2c" for OMAP4+ SoCs
 	"ti,am654-i2c", "ti,omap4-i2c" for AM654 SoCs
+	"ti,j721e-i2c", "ti,omap4-i2c" for J721E SoCs
 - ti,hwmods : Must be "i2c<n>", n being the instance number (1-based)
 - #address-cells = <1>;
 - #size-cells = <0>;

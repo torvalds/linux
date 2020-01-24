@@ -40,12 +40,16 @@ static int tegra_wm9712_init(struct snd_soc_pcm_runtime *rtd)
 	return snd_soc_dapm_force_enable_pin(&rtd->card->dapm, "Mic Bias");
 }
 
+SND_SOC_DAILINK_DEFS(hifi,
+	DAILINK_COMP_ARRAY(COMP_EMPTY()),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm9712-codec", "wm9712-hifi")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+
 static struct snd_soc_dai_link tegra_wm9712_dai = {
 	.name = "AC97 HiFi",
 	.stream_name = "AC97 HiFi",
-	.codec_dai_name = "wm9712-hifi",
-	.codec_name = "wm9712-codec",
 	.init = tegra_wm9712_init,
+	SND_SOC_DAILINK_REG(hifi),
 };
 
 static struct snd_soc_card snd_soc_tegra_wm9712 = {
@@ -92,16 +96,16 @@ static int tegra_wm9712_driver_probe(struct platform_device *pdev)
 	if (ret)
 		goto codec_unregister;
 
-	tegra_wm9712_dai.cpu_of_node = of_parse_phandle(np,
+	tegra_wm9712_dai.cpus->of_node = of_parse_phandle(np,
 				       "nvidia,ac97-controller", 0);
-	if (!tegra_wm9712_dai.cpu_of_node) {
+	if (!tegra_wm9712_dai.cpus->of_node) {
 		dev_err(&pdev->dev,
 			"Property 'nvidia,ac97-controller' missing or invalid\n");
 		ret = -EINVAL;
 		goto codec_unregister;
 	}
 
-	tegra_wm9712_dai.platform_of_node = tegra_wm9712_dai.cpu_of_node;
+	tegra_wm9712_dai.platforms->of_node = tegra_wm9712_dai.cpus->of_node;
 
 	ret = tegra_asoc_utils_init(&machine->util_data, &pdev->dev);
 	if (ret)

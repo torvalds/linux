@@ -177,6 +177,26 @@ static void resume_irqs(bool want_early)
 }
 
 /**
+ * rearm_wake_irq - rearm a wakeup interrupt line after signaling wakeup
+ * @irq: Interrupt to rearm
+ */
+void rearm_wake_irq(unsigned int irq)
+{
+	unsigned long flags;
+	struct irq_desc *desc = irq_get_desc_buslock(irq, &flags, IRQ_GET_DESC_CHECK_GLOBAL);
+
+	if (!desc || !(desc->istate & IRQS_SUSPENDED) ||
+	    !irqd_is_wakeup_set(&desc->irq_data))
+		return;
+
+	desc->istate &= ~IRQS_SUSPENDED;
+	irqd_set(&desc->irq_data, IRQD_WAKEUP_ARMED);
+	__enable_irq(desc);
+
+	irq_put_desc_busunlock(desc, flags);
+}
+
+/**
  * irq_pm_syscore_ops - enable interrupt lines early
  *
  * Enable all interrupt lines with %IRQF_EARLY_RESUME set.

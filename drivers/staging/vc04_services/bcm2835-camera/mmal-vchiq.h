@@ -4,10 +4,11 @@
  *
  * Copyright © 2013 Raspberry Pi (Trading) Ltd.
  *
- * Authors: Vincent Sanders <vincent.sanders@collabora.co.uk>
- *          Dave Stevenson <dsteve@broadcom.com>
- *          Simon Mellor <simellor@broadcom.com>
- *          Luke Diamand <luked@broadcom.com>
+ * Authors: Vincent Sanders @ Collabora
+ *          Dave Stevenson @ Broadcom
+ *		(now dave.stevenson@raspberrypi.org)
+ *          Simon Mellor @ Broadcom
+ *          Luke Diamand @ Broadcom
  *
  * MMAL interface to VCHIQ message passing
  */
@@ -47,7 +48,7 @@ typedef void (*vchiq_mmal_buffer_cb)(
 		unsigned long length, u32 mmal_flags, s64 dts, s64 pts);
 
 struct vchiq_mmal_port {
-	bool enabled;
+	u32 enabled:1;
 	u32 handle;
 	u32 type; /* port type, cached to use on port info set */
 	u32 index; /* port index, cached to use on port info set */
@@ -55,7 +56,7 @@ struct vchiq_mmal_port {
 	/* component port belongs to, allows simple deref */
 	struct vchiq_mmal_component *component;
 
-	struct vchiq_mmal_port *connected; /* port conencted to */
+	struct vchiq_mmal_port *connected; /* port connected to */
 
 	/* buffer info */
 	struct vchiq_mmal_port_buffer minimum_buffer;
@@ -71,6 +72,9 @@ struct vchiq_mmal_port {
 	struct list_head buffers;
 	/* lock to serialise adding and removing buffers from list */
 	spinlock_t slock;
+
+	/* Count of buffers the VPU has yet to return */
+	atomic_t buffers_with_vpu;
 	/* callback on buffer completion */
 	vchiq_mmal_buffer_cb buffer_cb;
 	/* callback context */
@@ -78,7 +82,7 @@ struct vchiq_mmal_port {
 };
 
 struct vchiq_mmal_component {
-	bool enabled;
+	u32 enabled:1;
 	u32 handle;  /* VideoCore handle for component */
 	u32 inputs;  /* Number of input ports */
 	u32 outputs; /* Number of output ports */
@@ -127,7 +131,7 @@ int vchiq_mmal_port_enable(
  * disable a port will dequeue any pending buffers
  */
 int vchiq_mmal_port_disable(struct vchiq_mmal_instance *instance,
-			   struct vchiq_mmal_port *port);
+			    struct vchiq_mmal_port *port);
 
 int vchiq_mmal_port_parameter_set(struct vchiq_mmal_instance *instance,
 				  struct vchiq_mmal_port *port,
@@ -145,8 +149,8 @@ int vchiq_mmal_port_set_format(struct vchiq_mmal_instance *instance,
 			       struct vchiq_mmal_port *port);
 
 int vchiq_mmal_port_connect_tunnel(struct vchiq_mmal_instance *instance,
-			    struct vchiq_mmal_port *src,
-			    struct vchiq_mmal_port *dst);
+				   struct vchiq_mmal_port *src,
+				   struct vchiq_mmal_port *dst);
 
 int vchiq_mmal_version(struct vchiq_mmal_instance *instance,
 		       u32 *major_out,

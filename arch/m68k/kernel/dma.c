@@ -18,57 +18,21 @@
 #include <asm/pgalloc.h>
 
 #if defined(CONFIG_MMU) && !defined(CONFIG_COLDFIRE)
-
-void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
-		gfp_t flag, unsigned long attrs)
+void arch_dma_prep_coherent(struct page *page, size_t size)
 {
-	struct page *page, **map;
-	pgprot_t pgprot;
-	void *addr;
-	int i, order;
+	cache_push(page_to_phys(page), size);
+}
 
-	pr_debug("dma_alloc_coherent: %d,%x\n", size, flag);
-
-	size = PAGE_ALIGN(size);
-	order = get_order(size);
-
-	page = alloc_pages(flag | __GFP_ZERO, order);
-	if (!page)
-		return NULL;
-
-	*handle = page_to_phys(page);
-	map = kmalloc(sizeof(struct page *) << order, flag & ~__GFP_DMA);
-	if (!map) {
-		__free_pages(page, order);
-		return NULL;
+pgprot_t pgprot_dmacoherent(pgprot_t prot)
+{
+	if (CPU_IS_040_OR_060) {
+		pgprot_val(prot) &= ~_PAGE_CACHE040;
+		pgprot_val(prot) |= _PAGE_GLOBAL040 | _PAGE_NOCACHE_S;
+	} else {
+		pgprot_val(prot) |= _PAGE_NOCACHE030;
 	}
-	split_page(page, order);
-
-	order = 1 << order;
-	size >>= PAGE_SHIFT;
-	map[0] = page;
-	for (i = 1; i < size; i++)
-		map[i] = page + i;
-	for (; i < order; i++)
-		__free_page(page + i);
-	pgprot = __pgprot(_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_DIRTY);
-	if (CPU_IS_040_OR_060)
-		pgprot_val(pgprot) |= _PAGE_GLOBAL040 | _PAGE_NOCACHE_S;
-	else
-		pgprot_val(pgprot) |= _PAGE_NOCACHE030;
-	addr = vmap(map, size, VM_MAP, pgprot);
-	kfree(map);
-
-	return addr;
+	return prot;
 }
-
-void arch_dma_free(struct device *dev, size_t size, void *addr,
-		dma_addr_t handle, unsigned long attrs)
-{
-	pr_debug("dma_free_coherent: %p, %x\n", addr, handle);
-	vfree(addr);
-}
-
 #else
 
 #include <asm/cacheflush.h>
@@ -97,8 +61,8 @@ void arch_dma_free(struct device *dev, size_t size, void *vaddr,
 
 #endif /* CONFIG_MMU && !CONFIG_COLDFIRE */
 
-void arch_sync_dma_for_device(struct device *dev, phys_addr_t handle,
-		size_t size, enum dma_data_direction dir)
+void arch_sync_dma_for_device(phys_addr_t handle, size_t size,
+		enum dma_data_direction dir)
 {
 	switch (dir) {
 	case DMA_BIDIRECTIONAL:
@@ -112,14 +76,5 @@ void arch_sync_dma_for_device(struct device *dev, phys_addr_t handle,
 		pr_err_ratelimited("dma_sync_single_for_device: unsupported dir %u\n",
 				   dir);
 		break;
-	}
-}
-
-void arch_setup_pdev_archdata(struct platform_device *pdev)
-{
-	if (pdev->dev.coherent_dma_mask == DMA_MASK_NONE &&
-	    pdev->dev.dma_mask == NULL) {
-		pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
-		pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
 	}
 }

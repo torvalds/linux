@@ -53,9 +53,8 @@
 #include <linux/of_graph.h>
 #include <linux/pm.h>
 
-#include <drm/drm_panel.h>
-#include <drm/drmP.h>
 #include <drm/drm_crtc.h>
+#include <drm/drm_device.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_panel.h>
 
@@ -400,7 +399,13 @@ static int rpi_touchscreen_probe(struct i2c_client *i2c,
 
 	/* Look up the DSI host.  It needs to probe before we do. */
 	endpoint = of_graph_get_next_endpoint(dev->of_node, NULL);
+	if (!endpoint)
+		return -ENODEV;
+
 	dsi_host_node = of_graph_get_remote_port_parent(endpoint);
+	if (!dsi_host_node)
+		goto error;
+
 	host = of_find_mipi_dsi_host_by_node(dsi_host_node);
 	of_node_put(dsi_host_node);
 	if (!host) {
@@ -409,6 +414,9 @@ static int rpi_touchscreen_probe(struct i2c_client *i2c,
 	}
 
 	info.node = of_graph_get_remote_port(endpoint);
+	if (!info.node)
+		goto error;
+
 	of_node_put(endpoint);
 
 	ts->dsi = mipi_dsi_device_register_full(host, &info);
@@ -418,8 +426,8 @@ static int rpi_touchscreen_probe(struct i2c_client *i2c,
 		return PTR_ERR(ts->dsi);
 	}
 
-	ts->base.dev = dev;
-	ts->base.funcs = &rpi_touchscreen_funcs;
+	drm_panel_init(&ts->base, dev, &rpi_touchscreen_funcs,
+		       DRM_MODE_CONNECTOR_DSI);
 
 	/* This appears last, as it's what will unblock the DSI host
 	 * driver's component bind function.
@@ -429,6 +437,10 @@ static int rpi_touchscreen_probe(struct i2c_client *i2c,
 		return ret;
 
 	return 0;
+
+error:
+	of_node_put(endpoint);
+	return -ENODEV;
 }
 
 static int rpi_touchscreen_remove(struct i2c_client *i2c)

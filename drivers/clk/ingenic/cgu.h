@@ -10,6 +10,7 @@
 #define __DRIVERS_CLK_INGENIC_CGU_H__
 
 #include <linux/bitops.h>
+#include <linux/clk-provider.h>
 #include <linux/of.h>
 #include <linux/spinlock.h>
 
@@ -79,6 +80,8 @@ struct ingenic_cgu_mux_info {
  *          isn't one
  * @busy_bit: the index of the busy bit within reg, or -1 if there isn't one
  * @stop_bit: the index of the stop bit within reg, or -1 if there isn't one
+ * @div_table: optional table to map the value read from the register to the
+ *             actual divider value
  */
 struct ingenic_cgu_div_info {
 	unsigned reg;
@@ -88,6 +91,7 @@ struct ingenic_cgu_div_info {
 	s8 ce_bit;
 	s8 busy_bit;
 	s8 stop_bit;
+	const u8 *div_table;
 };
 
 /**

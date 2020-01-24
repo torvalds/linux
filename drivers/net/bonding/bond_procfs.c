@@ -104,6 +104,8 @@ static void bond_info_show_master(struct seq_file *seq)
 		   bond->params.updelay * bond->params.miimon);
 	seq_printf(seq, "Down Delay (ms): %d\n",
 		   bond->params.downdelay * bond->params.miimon);
+	seq_printf(seq, "Peer Notification Delay (ms): %d\n",
+		   bond->params.peer_notif_delay * bond->params.miimon);
 
 
 	/* ARP information */

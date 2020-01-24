@@ -127,7 +127,7 @@ __malloc void *_uverbs_alloc(struct uverbs_attr_bundle *bundle, size_t size,
 	res = (void *)pbundle->internal_buffer + pbundle->internal_used;
 	pbundle->internal_used =
 		ALIGN(new_used, sizeof(*pbundle->internal_buffer));
-	if (flags & __GFP_ZERO)
+	if (want_init_on_alloc(flags))
 		memset(res, 0, size);
 	return res;
 }
@@ -794,6 +794,9 @@ int uverbs_copy_to_struct_or_zero(const struct uverbs_attr_bundle *bundle,
 				  size_t idx, const void *from, size_t size)
 {
 	const struct uverbs_attr *attr = uverbs_attr_get(bundle, idx);
+
+	if (IS_ERR(attr))
+		return PTR_ERR(attr);
 
 	if (size < attr->ptr_attr.len) {
 		if (clear_user(u64_to_user_ptr(attr->ptr_attr.data) + size,

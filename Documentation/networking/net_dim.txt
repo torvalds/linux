@@ -92,16 +92,16 @@ under some conditions.
 Part III: Registering a Network Device to DIM
 ==============================================
 
-Net DIM API exposes the main function net_dim(struct net_dim *dim,
-struct net_dim_sample end_sample). This function is the entry point to the Net
+Net DIM API exposes the main function net_dim(struct dim *dim,
+struct dim_sample end_sample). This function is the entry point to the Net
 DIM algorithm and has to be called every time the driver would like to check if
 it should change interrupt moderation parameters. The driver should provide two
-data structures: struct net_dim and struct net_dim_sample. Struct net_dim
+data structures: struct dim and struct dim_sample. Struct dim
 describes the state of DIM for a specific object (RX queue, TX queue,
 other queues, etc.). This includes the current selected profile, previous data
 samples, the callback function provided by the driver and more.
-Struct net_dim_sample describes a data sample, which will be compared to the
-data sample stored in struct net_dim in order to decide on the algorithm's next
+Struct dim_sample describes a data sample, which will be compared to the
+data sample stored in struct dim in order to decide on the algorithm's next
 step. The sample should include bytes, packets and interrupts, measured by
 the driver.
 
@@ -110,9 +110,9 @@ main net_dim() function. The recommended method is to call net_dim() on each
 interrupt. Since Net DIM has a built-in moderation and it might decide to skip
 iterations under certain conditions, there is no need to moderate the net_dim()
 calls as well. As mentioned above, the driver needs to provide an object of type
-struct net_dim to the net_dim() function call. It is advised for each entity
-using Net DIM to hold a struct net_dim as part of its data structure and use it
-as the main Net DIM API object. The struct net_dim_sample should hold the latest
+struct dim to the net_dim() function call. It is advised for each entity
+using Net DIM to hold a struct dim as part of its data structure and use it
+as the main Net DIM API object. The struct dim_sample should hold the latest
 bytes, packets and interrupts count. No need to perform any calculations, just
 include the raw data.
 
@@ -132,19 +132,19 @@ usage is not complete but it should make the outline of the usage clear.
 
 my_driver.c:
 
-#include <linux/net_dim.h>
+#include <linux/dim.h>
 
 /* Callback for net DIM to schedule on a decision to change moderation */
 void my_driver_do_dim_work(struct work_struct *work)
 {
-	/* Get struct net_dim from struct work_struct */
-	struct net_dim *dim = container_of(work, struct net_dim,
-					   work);
+	/* Get struct dim from struct work_struct */
+	struct dim *dim = container_of(work, struct dim,
+				       work);
 	/* Do interrupt moderation related stuff */
 	...
 
 	/* Signal net DIM work is done and it should move to next iteration */
-	dim->state = NET_DIM_START_MEASURE;
+	dim->state = DIM_START_MEASURE;
 }
 
 /* My driver's interrupt handler */
@@ -152,13 +152,13 @@ int my_driver_handle_interrupt(struct my_driver_entity *my_entity, ...)
 {
 	...
 	/* A struct to hold current measured data */
-	struct net_dim_sample dim_sample;
+	struct dim_sample dim_sample;
 	...
 	/* Initiate data sample struct with current data */
-	net_dim_sample(my_entity->events,
-		       my_entity->packets,
-		       my_entity->bytes,
-		       &dim_sample);
+	dim_update_sample(my_entity->events,
+		          my_entity->packets,
+		          my_entity->bytes,
+		          &dim_sample);
 	/* Call net DIM */
 	net_dim(&my_entity->dim, dim_sample);
 	...

@@ -48,6 +48,39 @@ int ubifs_compare_master_node(struct ubifs_info *c, void *m1, void *m2)
 	return 0;
 }
 
+/* mst_node_check_hash - Check hash of a master node
+ * @c: UBIFS file-system description object
+ * @mst: The master node
+ * @expected: The expected hash of the master node
+ *
+ * This checks the hash of a master node against a given expected hash.
+ * Note that we have two master nodes on a UBIFS image which have different
+ * sequence numbers and consequently different CRCs. To be able to match
+ * both master nodes we exclude the common node header containing the sequence
+ * number and CRC from the hash.
+ *
+ * Returns 0 if the hashes are equal, a negative error code otherwise.
+ */
+static int mst_node_check_hash(const struct ubifs_info *c,
+			       const struct ubifs_mst_node *mst,
+			       const u8 *expected)
+{
+	u8 calc[UBIFS_MAX_HASH_LEN];
+	const void *node = mst;
+
+	SHASH_DESC_ON_STACK(shash, c->hash_tfm);
+
+	shash->tfm = c->hash_tfm;
+
+	crypto_shash_digest(shash, node + sizeof(struct ubifs_ch),
+			    UBIFS_MST_NODE_SZ - sizeof(struct ubifs_ch), calc);
+
+	if (ubifs_check_hash(c, expected, calc))
+		return -EPERM;
+
+	return 0;
+}
+
 /**
  * scan_for_master - search the valid master node.
  * @c: UBIFS file-system description object
@@ -102,13 +135,21 @@ static int scan_for_master(struct ubifs_info *c)
 	if (!ubifs_authenticated(c))
 		return 0;
 
-	err = ubifs_node_verify_hmac(c, c->mst_node,
-				     sizeof(struct ubifs_mst_node),
-				     offsetof(struct ubifs_mst_node, hmac));
-	if (err) {
-		ubifs_err(c, "Failed to verify master node HMAC");
-		return -EPERM;
+	if (ubifs_hmac_zero(c, c->mst_node->hmac)) {
+		err = mst_node_check_hash(c, c->mst_node,
+					  c->sup_node->hash_mst);
+		if (err)
+			ubifs_err(c, "Failed to verify master node hash");
+	} else {
+		err = ubifs_node_verify_hmac(c, c->mst_node,
+					sizeof(struct ubifs_mst_node),
+					offsetof(struct ubifs_mst_node, hmac));
+		if (err)
+			ubifs_err(c, "Failed to verify master node HMAC");
 	}
+
+	if (err)
+		return -EPERM;
 
 	return 0;
 

@@ -201,7 +201,7 @@ static const struct icmp_control icmp_pointers[NR_ICMP_TYPES+1];
  */
 static struct sock *icmp_sk(struct net *net)
 {
-	return *this_cpu_ptr(net->ipv4.icmp_sk);
+	return this_cpu_read(*net->ipv4.icmp_sk);
 }
 
 /* Called with BH disabled */
@@ -249,10 +249,11 @@ bool icmp_global_allow(void)
 	bool rc = false;
 
 	/* Check if token bucket is empty and cannot be refilled
-	 * without taking the spinlock.
+	 * without taking the spinlock. The READ_ONCE() are paired
+	 * with the following WRITE_ONCE() in this same function.
 	 */
-	if (!icmp_global.credit) {
-		delta = min_t(u32, now - icmp_global.stamp, HZ);
+	if (!READ_ONCE(icmp_global.credit)) {
+		delta = min_t(u32, now - READ_ONCE(icmp_global.stamp), HZ);
 		if (delta < HZ / 50)
 			return false;
 	}
@@ -262,14 +263,14 @@ bool icmp_global_allow(void)
 	if (delta >= HZ / 50) {
 		incr = sysctl_icmp_msgs_per_sec * delta / HZ ;
 		if (incr)
-			icmp_global.stamp = now;
+			WRITE_ONCE(icmp_global.stamp, now);
 	}
 	credit = min_t(u32, icmp_global.credit + incr, sysctl_icmp_msgs_burst);
 	if (credit) {
 		credit--;
 		rc = true;
 	}
-	icmp_global.credit = credit;
+	WRITE_ONCE(icmp_global.credit, credit);
 	spin_unlock(&icmp_global.lock);
 	return rc;
 }
@@ -582,7 +583,13 @@ void __icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info,
 
 	if (!rt)
 		goto out;
-	net = dev_net(rt->dst.dev);
+
+	if (rt->dst.dev)
+		net = dev_net(rt->dst.dev);
+	else if (skb_in->dev)
+		net = dev_net(skb_in->dev);
+	else
+		goto out;
 
 	/*
 	 *	Find the original header. It is expected to be valid, of course.
@@ -676,7 +683,8 @@ void __icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info,
 			dev = dev_get_by_index_rcu(net, inet_iif(skb_in));
 
 		if (dev)
-			saddr = inet_select_addr(dev, 0, RT_SCOPE_LINK);
+			saddr = inet_select_addr(dev, iph->saddr,
+						 RT_SCOPE_LINK);
 		else
 			saddr = 0;
 		rcu_read_unlock();
@@ -902,7 +910,7 @@ static bool icmp_redirect(struct sk_buff *skb)
 		return false;
 	}
 
-	icmp_socket_deliver(skb, icmp_hdr(skb)->un.gateway);
+	icmp_socket_deliver(skb, ntohl(icmp_hdr(skb)->un.gateway));
 	return true;
 }
 

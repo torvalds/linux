@@ -9,12 +9,14 @@
  * of such GNU licence.
  */
 
+#include <linux/dma-fence.h>
+
 #include <drm/drm_crtc.h>
+#include <drm/drm_device.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_property.h>
 #include <drm/drm_writeback.h>
-#include <drm/drmP.h>
-#include <linux/dma-fence.h>
 
 /**
  * DOC: overview
@@ -322,6 +324,9 @@ void drm_writeback_cleanup_job(struct drm_writeback_job *job)
 	if (job->fb)
 		drm_framebuffer_put(job->fb);
 
+	if (job->out_fence)
+		dma_fence_put(job->out_fence);
+
 	kfree(job);
 }
 EXPORT_SYMBOL(drm_writeback_cleanup_job);
@@ -364,24 +369,28 @@ drm_writeback_signal_completion(struct drm_writeback_connector *wb_connector,
 {
 	unsigned long flags;
 	struct drm_writeback_job *job;
+	struct dma_fence *out_fence;
 
 	spin_lock_irqsave(&wb_connector->job_lock, flags);
 	job = list_first_entry_or_null(&wb_connector->job_queue,
 				       struct drm_writeback_job,
 				       list_entry);
-	if (job) {
+	if (job)
 		list_del(&job->list_entry);
-		if (job->out_fence) {
-			if (status)
-				dma_fence_set_error(job->out_fence, status);
-			dma_fence_signal(job->out_fence);
-			dma_fence_put(job->out_fence);
-		}
-	}
+
 	spin_unlock_irqrestore(&wb_connector->job_lock, flags);
 
 	if (WARN_ON(!job))
 		return;
+
+	out_fence = job->out_fence;
+	if (out_fence) {
+		if (status)
+			dma_fence_set_error(out_fence, status);
+		dma_fence_signal(out_fence);
+		dma_fence_put(out_fence);
+		job->out_fence = NULL;
+	}
 
 	INIT_WORK(&job->cleanup_work, cleanup_work);
 	queue_work(system_long_wq, &job->cleanup_work);

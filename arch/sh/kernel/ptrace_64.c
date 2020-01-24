@@ -550,7 +550,7 @@ asmlinkage void do_single_step(unsigned long long vec, struct pt_regs *regs)
 	   continually stepping. */
 	local_irq_enable();
 	regs->sr &= ~SR_SSTEP;
-	force_sig(SIGTRAP, current);
+	force_sig(SIGTRAP);
 }
 
 /* Called with interrupts disabled */
@@ -561,7 +561,7 @@ BUILD_TRAP_HANDLER(breakpoint)
 	/* We need to forward step the PC, to counteract the backstep done
 	   in signal.c. */
 	local_irq_enable();
-	force_sig(SIGTRAP, current);
+	force_sig(SIGTRAP);
 	regs->pc += 4;
 }
 

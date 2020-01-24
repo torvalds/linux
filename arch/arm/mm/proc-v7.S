@@ -389,6 +389,11 @@ __ca12_errata:
 	orr	r10, r10, #1 << 24		@ set bit #24
 	mcr	p15, 0, r10, c15, c0, 1		@ write diagnostic register
 #endif
+#ifdef CONFIG_ARM_ERRATA_857271
+	mrc	p15, 0, r10, c15, c0, 1		@ read diagnostic register
+	orr	r10, r10, #3 << 10		@ set bits #10 and #11
+	mcr	p15, 0, r10, c15, c0, 1		@ write diagnostic register
+#endif
 	b	__errata_finish
 
 __ca17_errata:
@@ -403,6 +408,11 @@ __ca17_errata:
 	mrcle	p15, 0, r10, c15, c0, 1		@ read diagnostic register
 	orrle	r10, r10, #1 << 12		@ set bit #12
 	mcrle	p15, 0, r10, c15, c0, 1		@ write diagnostic register
+#endif
+#ifdef CONFIG_ARM_ERRATA_857272
+	mrc	p15, 0, r10, c15, c0, 1		@ read diagnostic register
+	orr	r10, r10, #3 << 10		@ set bits #10 and #11
+	mcr	p15, 0, r10, c15, c0, 1		@ write diagnostic register
 #endif
 	b	__errata_finish
 
@@ -634,7 +644,7 @@ __v7_setup_stack:
 	string	cpu_elf_name, "v7"
 	.align
 
-	.section ".proc.info.init", #alloc
+	.section ".proc.info.init", "a"
 
 	/*
 	 * Standard v7 proc info content

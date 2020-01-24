@@ -37,12 +37,14 @@
 #include <linux/init_task.h>
 #include <linux/syscalls.h>
 #include <linux/proc_ns.h>
-#include <linux/proc_fs.h>
+#include <linux/refcount.h>
+#include <linux/anon_inodes.h>
+#include <linux/sched/signal.h>
 #include <linux/sched/task.h>
 #include <linux/idr.h>
 
 struct pid init_struct_pid = {
-	.count 		= ATOMIC_INIT(1),
+	.count		= REFCOUNT_INIT(1),
 	.tasks		= {
 		{ .first = NULL },
 		{ .first = NULL },
@@ -106,8 +108,7 @@ void put_pid(struct pid *pid)
 		return;
 
 	ns = pid->numbers[pid->level].ns;
-	if ((atomic_read(&pid->count) == 1) ||
-	     atomic_dec_and_test(&pid->count)) {
+	if (refcount_dec_and_test(&pid->count)) {
 		kmem_cache_free(ns->pid_cachep, pid);
 		put_pid_ns(ns);
 	}
@@ -156,7 +157,8 @@ void free_pid(struct pid *pid)
 	call_rcu(&pid->rcu, delayed_put_pid);
 }
 
-struct pid *alloc_pid(struct pid_namespace *ns)
+struct pid *alloc_pid(struct pid_namespace *ns, pid_t *set_tid,
+		      size_t set_tid_size)
 {
 	struct pid *pid;
 	enum pid_type type;
@@ -164,6 +166,17 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 	struct pid_namespace *tmp;
 	struct upid *upid;
 	int retval = -ENOMEM;
+
+	/*
+	 * set_tid_size contains the size of the set_tid array. Starting at
+	 * the most nested currently active PID namespace it tells alloc_pid()
+	 * which PID to set for a process in that most nested PID namespace
+	 * up to set_tid_size PID namespaces. It does not have to set the PID
+	 * for a process in all nested PID namespaces but set_tid_size must
+	 * never be greater than the current ns->level + 1.
+	 */
+	if (set_tid_size > ns->level + 1)
+		return ERR_PTR(-EINVAL);
 
 	pid = kmem_cache_alloc(ns->pid_cachep, GFP_KERNEL);
 	if (!pid)
@@ -173,24 +186,54 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 	pid->level = ns->level;
 
 	for (i = ns->level; i >= 0; i--) {
-		int pid_min = 1;
+		int tid = 0;
+
+		if (set_tid_size) {
+			tid = set_tid[ns->level - i];
+
+			retval = -EINVAL;
+			if (tid < 1 || tid >= pid_max)
+				goto out_free;
+			/*
+			 * Also fail if a PID != 1 is requested and
+			 * no PID 1 exists.
+			 */
+			if (tid != 1 && !tmp->child_reaper)
+				goto out_free;
+			retval = -EPERM;
+			if (!ns_capable(tmp->user_ns, CAP_SYS_ADMIN))
+				goto out_free;
+			set_tid_size--;
+		}
 
 		idr_preload(GFP_KERNEL);
 		spin_lock_irq(&pidmap_lock);
 
-		/*
-		 * init really needs pid 1, but after reaching the maximum
-		 * wrap back to RESERVED_PIDS
-		 */
-		if (idr_get_cursor(&tmp->idr) > RESERVED_PIDS)
-			pid_min = RESERVED_PIDS;
+		if (tid) {
+			nr = idr_alloc(&tmp->idr, NULL, tid,
+				       tid + 1, GFP_ATOMIC);
+			/*
+			 * If ENOSPC is returned it means that the PID is
+			 * alreay in use. Return EEXIST in that case.
+			 */
+			if (nr == -ENOSPC)
+				nr = -EEXIST;
+		} else {
+			int pid_min = 1;
+			/*
+			 * init really needs pid 1, but after reaching the
+			 * maximum wrap back to RESERVED_PIDS
+			 */
+			if (idr_get_cursor(&tmp->idr) > RESERVED_PIDS)
+				pid_min = RESERVED_PIDS;
 
-		/*
-		 * Store a null pointer so find_pid_ns does not find
-		 * a partially initialized PID (see below).
-		 */
-		nr = idr_alloc_cyclic(&tmp->idr, NULL, pid_min,
-				      pid_max, GFP_ATOMIC);
+			/*
+			 * Store a null pointer so find_pid_ns does not find
+			 * a partially initialized PID (see below).
+			 */
+			nr = idr_alloc_cyclic(&tmp->idr, NULL, pid_min,
+					      pid_max, GFP_ATOMIC);
+		}
 		spin_unlock_irq(&pidmap_lock);
 		idr_preload_end();
 
@@ -210,9 +253,11 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 	}
 
 	get_pid_ns(ns);
-	atomic_set(&pid->count, 1);
+	refcount_set(&pid->count, 1);
 	for (type = 0; type < PIDTYPE_MAX; ++type)
 		INIT_HLIST_HEAD(&pid->tasks[type]);
+
+	init_waitqueue_head(&pid->wait_pidfd);
 
 	upid = pid->numbers + ns->level;
 	spin_lock_irq(&pidmap_lock);
@@ -296,7 +341,7 @@ static void __change_pid(struct task_struct *task, enum pid_type type,
 	*pid_ptr = new;
 
 	for (tmp = PIDTYPE_MAX; --tmp >= 0; )
-		if (!hlist_empty(&pid->tasks[tmp]))
+		if (pid_has_task(pid, tmp))
 			return;
 
 	free_pid(pid);
@@ -449,6 +494,71 @@ EXPORT_SYMBOL_GPL(task_active_pid_ns);
 struct pid *find_ge_pid(int nr, struct pid_namespace *ns)
 {
 	return idr_get_next(&ns->idr, &nr);
+}
+
+/**
+ * pidfd_create() - Create a new pid file descriptor.
+ *
+ * @pid:  struct pid that the pidfd will reference
+ *
+ * This creates a new pid file descriptor with the O_CLOEXEC flag set.
+ *
+ * Note, that this function can only be called after the fd table has
+ * been unshared to avoid leaking the pidfd to the new process.
+ *
+ * Return: On success, a cloexec pidfd is returned.
+ *         On error, a negative errno number will be returned.
+ */
+static int pidfd_create(struct pid *pid)
+{
+	int fd;
+
+	fd = anon_inode_getfd("[pidfd]", &pidfd_fops, get_pid(pid),
+			      O_RDWR | O_CLOEXEC);
+	if (fd < 0)
+		put_pid(pid);
+
+	return fd;
+}
+
+/**
+ * pidfd_open() - Open new pid file descriptor.
+ *
+ * @pid:   pid for which to retrieve a pidfd
+ * @flags: flags to pass
+ *
+ * This creates a new pid file descriptor with the O_CLOEXEC flag set for
+ * the process identified by @pid. Currently, the process identified by
+ * @pid must be a thread-group leader. This restriction currently exists
+ * for all aspects of pidfds including pidfd creation (CLONE_PIDFD cannot
+ * be used with CLONE_THREAD) and pidfd polling (only supports thread group
+ * leaders).
+ *
+ * Return: On success, a cloexec pidfd is returned.
+ *         On error, a negative errno number will be returned.
+ */
+SYSCALL_DEFINE2(pidfd_open, pid_t, pid, unsigned int, flags)
+{
+	int fd;
+	struct pid *p;
+
+	if (flags)
+		return -EINVAL;
+
+	if (pid <= 0)
+		return -EINVAL;
+
+	p = find_get_pid(pid);
+	if (!p)
+		return -ESRCH;
+
+	if (pid_has_task(p, PIDTYPE_TGID))
+		fd = pidfd_create(p);
+	else
+		fd = -EINVAL;
+
+	put_pid(p);
+	return fd;
 }
 
 void __init pid_idr_init(void)

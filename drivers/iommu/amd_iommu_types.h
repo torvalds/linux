@@ -60,6 +60,12 @@
 #define MMIO_PPR_LOG_OFFSET	0x0038
 #define MMIO_GA_LOG_BASE_OFFSET	0x00e0
 #define MMIO_GA_LOG_TAIL_OFFSET	0x00e8
+#define MMIO_MSI_ADDR_LO_OFFSET	0x015C
+#define MMIO_MSI_ADDR_HI_OFFSET	0x0160
+#define MMIO_MSI_DATA_OFFSET	0x0164
+#define MMIO_INTCAPXT_EVT_OFFSET	0x0170
+#define MMIO_INTCAPXT_PPR_OFFSET	0x0178
+#define MMIO_INTCAPXT_GALOG_OFFSET	0x0180
 #define MMIO_CMD_HEAD_OFFSET	0x2000
 #define MMIO_CMD_TAIL_OFFSET	0x2008
 #define MMIO_EVT_HEAD_OFFSET	0x2010
@@ -124,8 +130,8 @@
 #define EVENT_TYPE_INV_PPR_REQ	0x9
 #define EVENT_DEVID_MASK	0xffff
 #define EVENT_DEVID_SHIFT	0
-#define EVENT_DOMID_MASK	0xffff
-#define EVENT_DOMID_SHIFT	0
+#define EVENT_DOMID_MASK_LO	0xffff
+#define EVENT_DOMID_MASK_HI	0xf0000
 #define EVENT_FLAGS_MASK	0xfff
 #define EVENT_FLAGS_SHIFT	0x10
 
@@ -150,6 +156,7 @@
 #define CONTROL_GALOG_EN        0x1CULL
 #define CONTROL_GAINT_EN        0x1DULL
 #define CONTROL_XT_EN           0x32ULL
+#define CONTROL_INTCAPXT_EN     0x33ULL
 
 #define CTRL_INV_TO_MASK	(7 << CONTROL_INV_TIMEOUT)
 #define CTRL_INV_TO_NONE	0
@@ -461,14 +468,12 @@ struct protection_domain {
 	struct iommu_domain domain; /* generic domain handle used by
 				       iommu core code */
 	spinlock_t lock;	/* mostly used to lock the page table*/
-	struct mutex api_lock;	/* protect page tables in the iommu-api path */
 	u16 id;			/* the domain id written to the device table */
 	int mode;		/* paging mode (0-6 levels) */
 	u64 *pt_root;		/* page table root pointer */
 	int glx;		/* Number of levels for GCR3 table */
 	u64 *gcr3_tbl;		/* Guest CR3 table */
 	unsigned long flags;	/* flags to find out type of domain */
-	bool updated;		/* complete domain flush required */
 	unsigned dev_cnt;	/* devices assigned to this domain */
 	unsigned dev_iommu[MAX_IOMMUS]; /* per-IOMMU reference count */
 };
@@ -592,6 +597,8 @@ struct amd_iommu {
 	/* DebugFS Info */
 	struct dentry *debugfs;
 #endif
+	/* IRQ notifier for IntCapXT interrupt */
+	struct irq_affinity_notify intcapxt_notify;
 };
 
 static inline struct amd_iommu *dev_to_amd_iommu(struct device *dev)
@@ -625,11 +632,14 @@ struct devid_map {
  * This struct contains device specific data for the IOMMU
  */
 struct iommu_dev_data {
+	/*Protect against attach/detach races */
+	spinlock_t lock;
+
 	struct list_head list;		  /* For domain->dev_list */
 	struct llist_node dev_data_list;  /* For global dev_data_list */
 	struct protection_domain *domain; /* Domain the device is bound to */
+	struct pci_dev *pdev;
 	u16 devid;			  /* PCI Device ID */
-	u16 alias;			  /* Alias Device ID */
 	bool iommu_v2;			  /* Device can make use of IOMMUv2 */
 	bool passthrough;		  /* Device is identity mapped */
 	struct {
@@ -864,6 +874,15 @@ struct amd_ir_data {
 	struct msi_msg msi_entry;
 	void *entry;    /* Pointer to union irte or struct irte_ga */
 	void *ref;      /* Pointer to the actual irte */
+
+	/**
+	 * Store information for activate/de-activate
+	 * Guest virtual APIC mode during runtime.
+	 */
+	struct irq_cfg *cfg;
+	int ga_vector;
+	int ga_root_ptr;
+	int ga_tag;
 };
 
 struct amd_irte_ops {

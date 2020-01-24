@@ -13,7 +13,34 @@
 
 #include <linux/of.h>
 #include <linux/phy.h>
-#include <asm/octeon/cvmx-helper-board.h>
+
+#ifdef CONFIG_CAVIUM_OCTEON_SOC
+
+#include <asm/octeon/octeon.h>
+
+#include <asm/octeon/cvmx-asxx-defs.h>
+#include <asm/octeon/cvmx-config.h>
+#include <asm/octeon/cvmx-fau.h>
+#include <asm/octeon/cvmx-gmxx-defs.h>
+#include <asm/octeon/cvmx-helper.h>
+#include <asm/octeon/cvmx-helper-util.h>
+#include <asm/octeon/cvmx-ipd.h>
+#include <asm/octeon/cvmx-ipd-defs.h>
+#include <asm/octeon/cvmx-npi-defs.h>
+#include <asm/octeon/cvmx-pip.h>
+#include <asm/octeon/cvmx-pko.h>
+#include <asm/octeon/cvmx-pow.h>
+#include <asm/octeon/cvmx-scratch.h>
+#include <asm/octeon/cvmx-spi.h>
+#include <asm/octeon/cvmx-spxx-defs.h>
+#include <asm/octeon/cvmx-stxx-defs.h>
+#include <asm/octeon/cvmx-wqe.h>
+
+#else
+
+#include "octeon-stubs.h"
+
+#endif
 
 /**
  * This is the definition of the Ethernet driver's private
@@ -64,7 +91,7 @@ int cvm_oct_common_stop(struct net_device *dev);
 int cvm_oct_common_open(struct net_device *dev,
 			void (*link_poll)(struct net_device *));
 void cvm_oct_note_carrier(struct octeon_ethernet *priv,
-			  cvmx_helper_link_info_t li);
+			  union cvmx_helper_link_info li);
 void cvm_oct_link_poll(struct net_device *dev);
 
 extern int always_use_pow;

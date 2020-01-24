@@ -22,7 +22,7 @@
  */
 
 #include <linux/firmware.h>
-#include <drm/drmP.h>
+
 #include "amdgpu.h"
 #include "amdgpu_uvd.h"
 #include "soc15.h"
@@ -194,7 +194,7 @@ static int uvd_v7_0_enc_ring_test_ring(struct amdgpu_ring *ring)
 	for (i = 0; i < adev->usec_timeout; i++) {
 		if (amdgpu_ring_get_rptr(ring) != rptr)
 			break;
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 
 	if (i >= adev->usec_timeout)
@@ -214,13 +214,14 @@ static int uvd_v7_0_enc_ring_test_ring(struct amdgpu_ring *ring)
  * Open up a stream for HW test
  */
 static int uvd_v7_0_enc_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
+				       struct amdgpu_bo *bo,
 				       struct dma_fence **fence)
 {
 	const unsigned ib_size_dw = 16;
 	struct amdgpu_job *job;
 	struct amdgpu_ib *ib;
 	struct dma_fence *f = NULL;
-	uint64_t dummy;
+	uint64_t addr;
 	int i, r;
 
 	r = amdgpu_job_alloc_with_ib(ring->adev, ib_size_dw * 4, &job);
@@ -228,15 +229,15 @@ static int uvd_v7_0_enc_get_create_msg(struct amdgpu_ring *ring, uint32_t handle
 		return r;
 
 	ib = &job->ibs[0];
-	dummy = ib->gpu_addr + 1024;
+	addr = amdgpu_bo_gpu_offset(bo);
 
 	ib->length_dw = 0;
 	ib->ptr[ib->length_dw++] = 0x00000018;
 	ib->ptr[ib->length_dw++] = 0x00000001; /* session info */
 	ib->ptr[ib->length_dw++] = handle;
 	ib->ptr[ib->length_dw++] = 0x00000000;
-	ib->ptr[ib->length_dw++] = upper_32_bits(dummy);
-	ib->ptr[ib->length_dw++] = dummy;
+	ib->ptr[ib->length_dw++] = upper_32_bits(addr);
+	ib->ptr[ib->length_dw++] = addr;
 
 	ib->ptr[ib->length_dw++] = 0x00000014;
 	ib->ptr[ib->length_dw++] = 0x00000002; /* task info */
@@ -275,13 +276,14 @@ err:
  * Close up a stream for HW test or if userspace failed to do so
  */
 static int uvd_v7_0_enc_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
-				struct dma_fence **fence)
+					struct amdgpu_bo *bo,
+					struct dma_fence **fence)
 {
 	const unsigned ib_size_dw = 16;
 	struct amdgpu_job *job;
 	struct amdgpu_ib *ib;
 	struct dma_fence *f = NULL;
-	uint64_t dummy;
+	uint64_t addr;
 	int i, r;
 
 	r = amdgpu_job_alloc_with_ib(ring->adev, ib_size_dw * 4, &job);
@@ -289,15 +291,15 @@ static int uvd_v7_0_enc_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handl
 		return r;
 
 	ib = &job->ibs[0];
-	dummy = ib->gpu_addr + 1024;
+	addr = amdgpu_bo_gpu_offset(bo);
 
 	ib->length_dw = 0;
 	ib->ptr[ib->length_dw++] = 0x00000018;
 	ib->ptr[ib->length_dw++] = 0x00000001;
 	ib->ptr[ib->length_dw++] = handle;
 	ib->ptr[ib->length_dw++] = 0x00000000;
-	ib->ptr[ib->length_dw++] = upper_32_bits(dummy);
-	ib->ptr[ib->length_dw++] = dummy;
+	ib->ptr[ib->length_dw++] = upper_32_bits(addr);
+	ib->ptr[ib->length_dw++] = addr;
 
 	ib->ptr[ib->length_dw++] = 0x00000014;
 	ib->ptr[ib->length_dw++] = 0x00000002;
@@ -334,13 +336,20 @@ err:
 static int uvd_v7_0_enc_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 {
 	struct dma_fence *fence = NULL;
+	struct amdgpu_bo *bo = NULL;
 	long r;
 
-	r = uvd_v7_0_enc_get_create_msg(ring, 1, NULL);
+	r = amdgpu_bo_create_reserved(ring->adev, 128 * 1024, PAGE_SIZE,
+				      AMDGPU_GEM_DOMAIN_VRAM,
+				      &bo, NULL, NULL);
+	if (r)
+		return r;
+
+	r = uvd_v7_0_enc_get_create_msg(ring, 1, bo, NULL);
 	if (r)
 		goto error;
 
-	r = uvd_v7_0_enc_get_destroy_msg(ring, 1, &fence);
+	r = uvd_v7_0_enc_get_destroy_msg(ring, 1, bo, &fence);
 	if (r)
 		goto error;
 
@@ -352,6 +361,8 @@ static int uvd_v7_0_enc_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 
 error:
 	dma_fence_put(fence);
+	amdgpu_bo_unreserve(bo);
+	amdgpu_bo_unref(&bo);
 	return r;
 }
 
@@ -1230,7 +1241,7 @@ static int uvd_v7_0_ring_test_ring(struct amdgpu_ring *ring)
 		tmp = RREG32_SOC15(UVD, ring->me, mmUVD_CONTEXT_ID);
 		if (tmp == 0xDEADBEEF)
 			break;
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 
 	if (i >= adev->usec_timeout)
@@ -1762,7 +1773,8 @@ static const struct amdgpu_ring_funcs uvd_v7_0_ring_vm_funcs = {
 	.type = AMDGPU_RING_TYPE_UVD,
 	.align_mask = 0xf,
 	.support_64bit_ptrs = false,
-	.vmhub = AMDGPU_MMHUB,
+	.no_user_fence = true,
+	.vmhub = AMDGPU_MMHUB_0,
 	.get_rptr = uvd_v7_0_ring_get_rptr,
 	.get_wptr = uvd_v7_0_ring_get_wptr,
 	.set_wptr = uvd_v7_0_ring_set_wptr,
@@ -1794,7 +1806,8 @@ static const struct amdgpu_ring_funcs uvd_v7_0_enc_ring_vm_funcs = {
 	.align_mask = 0x3f,
 	.nop = HEVC_ENC_CMD_NO_OP,
 	.support_64bit_ptrs = false,
-	.vmhub = AMDGPU_MMHUB,
+	.no_user_fence = true,
+	.vmhub = AMDGPU_MMHUB_0,
 	.get_rptr = uvd_v7_0_enc_ring_get_rptr,
 	.get_wptr = uvd_v7_0_enc_ring_get_wptr,
 	.set_wptr = uvd_v7_0_enc_ring_set_wptr,

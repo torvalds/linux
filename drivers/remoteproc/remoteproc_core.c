@@ -44,8 +44,6 @@
 static DEFINE_MUTEX(rproc_list_mutex);
 static LIST_HEAD(rproc_list);
 
-typedef int (*rproc_handle_resources_t)(struct rproc *rproc,
-				struct resource_table *table, int len);
 typedef int (*rproc_handle_resource_t)(struct rproc *rproc,
 				 void *, int offset, int avail);
 
@@ -336,7 +334,8 @@ int rproc_alloc_vring(struct rproc_vdev *rvdev, int i)
 			return -ENOMEM;
 	} else {
 		/* Register carveout in in list */
-		mem = rproc_mem_entry_init(dev, 0, 0, size, rsc->vring[i].da,
+		mem = rproc_mem_entry_init(dev, NULL, 0,
+					   size, rsc->vring[i].da,
 					   rproc_alloc_carveout,
 					   rproc_release_carveout,
 					   "vdev%dvring%d",
@@ -400,7 +399,7 @@ rproc_parse_vring(struct rproc_vdev *rvdev, struct fw_rsc_vdev *rsc, int i)
 void rproc_free_vring(struct rproc_vring *rvring)
 {
 	struct rproc *rproc = rvring->rvdev->rproc;
-	int idx = rvring->rvdev->vring - rvring;
+	int idx = rvring - rvring->rvdev->vring;
 	struct fw_rsc_vdev *rsc;
 
 	idr_remove(&rproc->notifyids, rvring->notifyid);
@@ -512,6 +511,7 @@ static int rproc_handle_vdev(struct rproc *rproc, struct fw_rsc_vdev *rsc,
 	/* Initialise vdev subdevice */
 	snprintf(name, sizeof(name), "vdev%dbuffer", rvdev->index);
 	rvdev->dev.parent = rproc->dev.parent;
+	rvdev->dev.dma_pfn_offset = rproc->dev.parent->dma_pfn_offset;
 	rvdev->dev.release = rproc_rvdev_release;
 	dev_set_name(&rvdev->dev, "%s#%s", dev_name(rvdev->dev.parent), name);
 	dev_set_drvdata(&rvdev->dev, rvdev);
@@ -912,7 +912,7 @@ static int rproc_handle_carveout(struct rproc *rproc,
 	}
 
 	/* Register carveout in in list */
-	carveout = rproc_mem_entry_init(dev, 0, 0, rsc->len, rsc->da,
+	carveout = rproc_mem_entry_init(dev, NULL, 0, rsc->len, rsc->da,
 					rproc_alloc_carveout,
 					rproc_release_carveout, rsc->name);
 	if (!carveout) {
@@ -1057,6 +1057,20 @@ static int rproc_handle_resources(struct rproc *rproc,
 		}
 
 		dev_dbg(dev, "rsc: type %d\n", hdr->type);
+
+		if (hdr->type >= RSC_VENDOR_START &&
+		    hdr->type <= RSC_VENDOR_END) {
+			ret = rproc_handle_rsc(rproc, hdr->type, rsc,
+					       offset + sizeof(*hdr), avail);
+			if (ret == RSC_HANDLED)
+				continue;
+			else if (ret < 0)
+				break;
+
+			dev_warn(dev, "unsupported vendor resource %d\n",
+				 hdr->type);
+			continue;
+		}
 
 		if (hdr->type >= RSC_LAST) {
 			dev_warn(dev, "unsupported resource %d\n", hdr->type);

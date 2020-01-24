@@ -433,7 +433,7 @@ static int mmphw_probe(struct platform_device *pdev)
 {
 	struct mmp_mach_plat_info *mi;
 	struct resource *res;
-	int ret, i, size, irq;
+	int ret, i, irq;
 	struct mmphw_path_plat *path_plat;
 	struct mmphw_ctrl *ctrl = NULL;
 
@@ -461,9 +461,9 @@ static int mmphw_probe(struct platform_device *pdev)
 	}
 
 	/* allocate */
-	size = sizeof(struct mmphw_ctrl) + sizeof(struct mmphw_path_plat) *
-	       mi->path_num;
-	ctrl = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
+	ctrl = devm_kzalloc(&pdev->dev,
+			    struct_size(ctrl, path_plats, mi->path_num),
+			    GFP_KERNEL);
 	if (!ctrl) {
 		ret = -ENOMEM;
 		goto failed;

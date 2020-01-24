@@ -32,10 +32,13 @@ static struct usb_device_id mt76x0_device_table[] = {
 	{ USB_DEVICE(0x20f4, 0x806b) },	/* TRENDnet TEW-806UBH  */
 	{ USB_DEVICE(0x7392, 0xc711) }, /* Devolo Wifi ac Stick */
 	{ USB_DEVICE(0x0df6, 0x0079) }, /* Sitecom Europe B.V. ac  Stick */
-	{ USB_DEVICE(0x2357, 0x0105),
-	  .driver_info = 1,	     }, /* TP-LINK Archer T1U */
-	{ USB_DEVICE_AND_INTERFACE_INFO(0x0E8D, 0x7630, 0xff, 0x2, 0xff)}, /* MT7630U */
-	{ USB_DEVICE_AND_INTERFACE_INFO(0x0E8D, 0x7650, 0xff, 0x2, 0xff)}, /* MT7650U */
+	{ USB_DEVICE(0x2357, 0x0123) }, /* TP-LINK T2UHP */
+	/* TP-LINK Archer T1U */
+	{ USB_DEVICE(0x2357, 0x0105), .driver_info = 1, },
+	/* MT7630U */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x0E8D, 0x7630, 0xff, 0x2, 0xff)},
+	/* MT7650U */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x0E8D, 0x7650, 0xff, 0x2, 0xff)},
 	{ 0, }
 };
 
@@ -100,7 +103,7 @@ static int mt76x0u_start(struct ieee80211_hw *hw)
 	struct mt76x02_dev *dev = hw->priv;
 	int ret;
 
-	ret = mt76x0_mac_start(dev);
+	ret = mt76x02u_mac_start(dev);
 	if (ret)
 		return ret;
 
@@ -125,22 +128,24 @@ static const struct ieee80211_ops mt76x0u_ops = {
 	.sta_state = mt76_sta_state,
 	.set_key = mt76x02_set_key,
 	.conf_tx = mt76x02_conf_tx,
-	.sw_scan_start = mt76x02_sw_scan,
+	.sw_scan_start = mt76_sw_scan,
 	.sw_scan_complete = mt76x02_sw_scan_complete,
 	.ampdu_action = mt76x02_ampdu_action,
 	.sta_rate_tbl_update = mt76x02_sta_rate_tbl_update,
 	.set_rts_threshold = mt76x02_set_rts_threshold,
 	.wake_tx_queue = mt76_wake_tx_queue,
 	.get_txpower = mt76_get_txpower,
+	.get_survey = mt76_get_survey,
 	.set_tim = mt76_set_tim,
 	.release_buffered_frames = mt76_release_buffered_frames,
+	.get_antenna = mt76_get_antenna,
 };
 
-static int mt76x0u_init_hardware(struct mt76x02_dev *dev)
+static int mt76x0u_init_hardware(struct mt76x02_dev *dev, bool reset)
 {
 	int err;
 
-	mt76x0_chip_onoff(dev, true, true);
+	mt76x0_chip_onoff(dev, true, reset);
 
 	if (!mt76x02_wait_for_mac(&dev->mt76))
 		return -ETIMEDOUT;
@@ -173,7 +178,7 @@ static int mt76x0u_register_device(struct mt76x02_dev *dev)
 	if (err < 0)
 		goto out_err;
 
-	err = mt76x0u_init_hardware(dev);
+	err = mt76x0u_init_hardware(dev, true);
 	if (err < 0)
 		goto out_err;
 
@@ -183,7 +188,7 @@ static int mt76x0u_register_device(struct mt76x02_dev *dev)
 
 	/* check hw sg support in order to enable AMSDU */
 	if (dev->mt76.usb.sg_en)
-		hw->max_tx_fragments = MT_SG_MAX_SIZE;
+		hw->max_tx_fragments = MT_TX_SG_MAX_SIZE;
 	else
 		hw->max_tx_fragments = 1;
 
@@ -200,6 +205,9 @@ static int mt76x0u_probe(struct usb_interface *usb_intf,
 			 const struct usb_device_id *id)
 {
 	static const struct mt76_driver_ops drv_ops = {
+		.drv_flags = MT_DRV_SW_RX_AIRTIME,
+		.survey_flags = SURVEY_INFO_TIME_TX,
+		.update_survey = mt76x02_update_channel,
 		.tx_prepare_skb = mt76x02u_tx_prepare_skb,
 		.tx_complete_skb = mt76x02u_tx_complete_skb,
 		.tx_status_data = mt76x02_tx_status_data,
@@ -214,7 +222,7 @@ static int mt76x0u_probe(struct usb_interface *usb_intf,
 	u32 mac_rev;
 	int ret;
 
-	mdev = mt76_alloc_device(&usb_dev->dev, sizeof(*dev), &mt76x0u_ops,
+	mdev = mt76_alloc_device(&usb_intf->dev, sizeof(*dev), &mt76x0u_ops,
 				 &drv_ops);
 	if (!mdev)
 		return -ENOMEM;
@@ -236,7 +244,7 @@ static int mt76x0u_probe(struct usb_interface *usb_intf,
 	if (ret)
 		goto err;
 
-	/* Disable the HW, otherwise MCU fail to initalize on hot reboot */
+	/* Disable the HW, otherwise MCU fail to initialize on hot reboot */
 	mt76x0_chip_onoff(dev, false, false);
 
 	if (!mt76x02_wait_for_mac(mdev)) {
@@ -266,6 +274,7 @@ static int mt76x0u_probe(struct usb_interface *usb_intf,
 err:
 	usb_set_intfdata(usb_intf, NULL);
 	usb_put_dev(interface_to_usbdev(usb_intf));
+	mt76u_deinit(&dev->mt76);
 
 	ieee80211_free_hw(mdev->hw);
 	return ret;
@@ -274,9 +283,9 @@ err:
 static void mt76x0_disconnect(struct usb_interface *usb_intf)
 {
 	struct mt76x02_dev *dev = usb_get_intfdata(usb_intf);
-	bool initalized = test_bit(MT76_STATE_INITIALIZED, &dev->mt76.state);
+	bool initialized = test_bit(MT76_STATE_INITIALIZED, &dev->mt76.state);
 
-	if (!initalized)
+	if (!initialized)
 		return;
 
 	ieee80211_unregister_hw(dev->mt76.hw);
@@ -285,6 +294,7 @@ static void mt76x0_disconnect(struct usb_interface *usb_intf)
 	usb_set_intfdata(usb_intf, NULL);
 	usb_put_dev(interface_to_usbdev(usb_intf));
 
+	mt76u_deinit(&dev->mt76);
 	ieee80211_free_hw(dev->mt76.hw);
 }
 
@@ -309,7 +319,7 @@ static int __maybe_unused mt76x0_resume(struct usb_interface *usb_intf)
 	if (ret < 0)
 		goto err;
 
-	ret = mt76x0u_init_hardware(dev);
+	ret = mt76x0u_init_hardware(dev, false);
 	if (ret)
 		goto err;
 

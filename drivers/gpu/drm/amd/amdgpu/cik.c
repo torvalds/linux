@@ -24,7 +24,8 @@
 #include <linux/firmware.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <drm/drmP.h>
+#include <linux/pci.h>
+
 #include "amdgpu.h"
 #include "amdgpu_atombios.h"
 #include "amdgpu_ih.h"
@@ -965,6 +966,25 @@ static bool cik_read_bios_from_rom(struct amdgpu_device *adev,
 
 static const struct amdgpu_allowed_register_entry cik_allowed_read_registers[] = {
 	{mmGRBM_STATUS},
+	{mmGRBM_STATUS2},
+	{mmGRBM_STATUS_SE0},
+	{mmGRBM_STATUS_SE1},
+	{mmGRBM_STATUS_SE2},
+	{mmGRBM_STATUS_SE3},
+	{mmSRBM_STATUS},
+	{mmSRBM_STATUS2},
+	{mmSDMA0_STATUS_REG + SDMA0_REGISTER_OFFSET},
+	{mmSDMA0_STATUS_REG + SDMA1_REGISTER_OFFSET},
+	{mmCP_STAT},
+	{mmCP_STALLED_STAT1},
+	{mmCP_STALLED_STAT2},
+	{mmCP_STALLED_STAT3},
+	{mmCP_CPF_BUSY_STAT},
+	{mmCP_CPF_STALLED_STAT1},
+	{mmCP_CPF_STATUS},
+	{mmCP_CPC_BUSY_STAT},
+	{mmCP_CPC_STALLED_STAT1},
+	{mmCP_CPC_STATUS},
 	{mmGB_ADDR_CONFIG},
 	{mmMC_ARB_RAMCFG},
 	{mmGB_TILE_MODE0},
@@ -1269,6 +1289,51 @@ static int cik_gpu_pci_config_reset(struct amdgpu_device *adev)
 }
 
 /**
+ * cik_asic_pci_config_reset - soft reset GPU
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Use PCI Config method to reset the GPU.
+ *
+ * Returns 0 for success.
+ */
+static int cik_asic_pci_config_reset(struct amdgpu_device *adev)
+{
+	int r;
+
+	amdgpu_atombios_scratch_regs_engine_hung(adev, true);
+
+	r = cik_gpu_pci_config_reset(adev);
+
+	amdgpu_atombios_scratch_regs_engine_hung(adev, false);
+
+	return r;
+}
+
+static enum amd_reset_method
+cik_asic_reset_method(struct amdgpu_device *adev)
+{
+	bool baco_reset;
+
+	switch (adev->asic_type) {
+	case CHIP_BONAIRE:
+	case CHIP_HAWAII:
+		/* disable baco reset until it works */
+		/* smu7_asic_get_baco_capability(adev, &baco_reset); */
+		baco_reset = false;
+		break;
+	default:
+		baco_reset = false;
+		break;
+	}
+
+	if (baco_reset)
+		return AMD_RESET_METHOD_BACO;
+	else
+		return AMD_RESET_METHOD_LEGACY;
+}
+
+/**
  * cik_asic_reset - soft reset GPU
  *
  * @adev: amdgpu_device pointer
@@ -1281,11 +1346,13 @@ static int cik_asic_reset(struct amdgpu_device *adev)
 {
 	int r;
 
-	amdgpu_atombios_scratch_regs_engine_hung(adev, true);
-
-	r = cik_gpu_pci_config_reset(adev);
-
-	amdgpu_atombios_scratch_regs_engine_hung(adev, false);
+	if (cik_asic_reset_method(adev) == AMD_RESET_METHOD_BACO) {
+		if (!adev->in_suspend)
+			amdgpu_inc_vram_lost(adev);
+		r = smu7_asic_baco_reset(adev);
+	} else {
+		r = cik_asic_pci_config_reset(adev);
+	}
 
 	return r;
 }
@@ -1377,7 +1444,6 @@ static int cik_set_vce_clocks(struct amdgpu_device *adev, u32 evclk, u32 ecclk)
 static void cik_pcie_gen3_enable(struct amdgpu_device *adev)
 {
 	struct pci_dev *root = adev->pdev->bus->self;
-	int bridge_pos, gpu_pos;
 	u32 speed_cntl, current_data_rate;
 	int i;
 	u16 tmp16;
@@ -1412,12 +1478,7 @@ static void cik_pcie_gen3_enable(struct amdgpu_device *adev)
 		DRM_INFO("enabling PCIE gen 2 link speeds, disable with amdgpu.pcie_gen2=0\n");
 	}
 
-	bridge_pos = pci_pcie_cap(root);
-	if (!bridge_pos)
-		return;
-
-	gpu_pos = pci_pcie_cap(adev->pdev);
-	if (!gpu_pos)
+	if (!pci_is_pcie(root) || !pci_is_pcie(adev->pdev))
 		return;
 
 	if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3) {
@@ -1427,14 +1488,17 @@ static void cik_pcie_gen3_enable(struct amdgpu_device *adev)
 			u16 bridge_cfg2, gpu_cfg2;
 			u32 max_lw, current_lw, tmp;
 
-			pci_read_config_word(root, bridge_pos + PCI_EXP_LNKCTL, &bridge_cfg);
-			pci_read_config_word(adev->pdev, gpu_pos + PCI_EXP_LNKCTL, &gpu_cfg);
+			pcie_capability_read_word(root, PCI_EXP_LNKCTL,
+						  &bridge_cfg);
+			pcie_capability_read_word(adev->pdev, PCI_EXP_LNKCTL,
+						  &gpu_cfg);
 
 			tmp16 = bridge_cfg | PCI_EXP_LNKCTL_HAWD;
-			pci_write_config_word(root, bridge_pos + PCI_EXP_LNKCTL, tmp16);
+			pcie_capability_write_word(root, PCI_EXP_LNKCTL, tmp16);
 
 			tmp16 = gpu_cfg | PCI_EXP_LNKCTL_HAWD;
-			pci_write_config_word(adev->pdev, gpu_pos + PCI_EXP_LNKCTL, tmp16);
+			pcie_capability_write_word(adev->pdev, PCI_EXP_LNKCTL,
+						   tmp16);
 
 			tmp = RREG32_PCIE(ixPCIE_LC_STATUS1);
 			max_lw = (tmp & PCIE_LC_STATUS1__LC_DETECTED_LINK_WIDTH_MASK) >>
@@ -1458,15 +1522,23 @@ static void cik_pcie_gen3_enable(struct amdgpu_device *adev)
 
 			for (i = 0; i < 10; i++) {
 				/* check status */
-				pci_read_config_word(adev->pdev, gpu_pos + PCI_EXP_DEVSTA, &tmp16);
+				pcie_capability_read_word(adev->pdev,
+							  PCI_EXP_DEVSTA,
+							  &tmp16);
 				if (tmp16 & PCI_EXP_DEVSTA_TRPND)
 					break;
 
-				pci_read_config_word(root, bridge_pos + PCI_EXP_LNKCTL, &bridge_cfg);
-				pci_read_config_word(adev->pdev, gpu_pos + PCI_EXP_LNKCTL, &gpu_cfg);
+				pcie_capability_read_word(root, PCI_EXP_LNKCTL,
+							  &bridge_cfg);
+				pcie_capability_read_word(adev->pdev,
+							  PCI_EXP_LNKCTL,
+							  &gpu_cfg);
 
-				pci_read_config_word(root, bridge_pos + PCI_EXP_LNKCTL2, &bridge_cfg2);
-				pci_read_config_word(adev->pdev, gpu_pos + PCI_EXP_LNKCTL2, &gpu_cfg2);
+				pcie_capability_read_word(root, PCI_EXP_LNKCTL2,
+							  &bridge_cfg2);
+				pcie_capability_read_word(adev->pdev,
+							  PCI_EXP_LNKCTL2,
+							  &gpu_cfg2);
 
 				tmp = RREG32_PCIE(ixPCIE_LC_CNTL4);
 				tmp |= PCIE_LC_CNTL4__LC_SET_QUIESCE_MASK;
@@ -1479,26 +1551,45 @@ static void cik_pcie_gen3_enable(struct amdgpu_device *adev)
 				msleep(100);
 
 				/* linkctl */
-				pci_read_config_word(root, bridge_pos + PCI_EXP_LNKCTL, &tmp16);
+				pcie_capability_read_word(root, PCI_EXP_LNKCTL,
+							  &tmp16);
 				tmp16 &= ~PCI_EXP_LNKCTL_HAWD;
 				tmp16 |= (bridge_cfg & PCI_EXP_LNKCTL_HAWD);
-				pci_write_config_word(root, bridge_pos + PCI_EXP_LNKCTL, tmp16);
+				pcie_capability_write_word(root, PCI_EXP_LNKCTL,
+							   tmp16);
 
-				pci_read_config_word(adev->pdev, gpu_pos + PCI_EXP_LNKCTL, &tmp16);
+				pcie_capability_read_word(adev->pdev,
+							  PCI_EXP_LNKCTL,
+							  &tmp16);
 				tmp16 &= ~PCI_EXP_LNKCTL_HAWD;
 				tmp16 |= (gpu_cfg & PCI_EXP_LNKCTL_HAWD);
-				pci_write_config_word(adev->pdev, gpu_pos + PCI_EXP_LNKCTL, tmp16);
+				pcie_capability_write_word(adev->pdev,
+							   PCI_EXP_LNKCTL,
+							   tmp16);
 
 				/* linkctl2 */
-				pci_read_config_word(root, bridge_pos + PCI_EXP_LNKCTL2, &tmp16);
-				tmp16 &= ~((1 << 4) | (7 << 9));
-				tmp16 |= (bridge_cfg2 & ((1 << 4) | (7 << 9)));
-				pci_write_config_word(root, bridge_pos + PCI_EXP_LNKCTL2, tmp16);
+				pcie_capability_read_word(root, PCI_EXP_LNKCTL2,
+							  &tmp16);
+				tmp16 &= ~(PCI_EXP_LNKCTL2_ENTER_COMP |
+					   PCI_EXP_LNKCTL2_TX_MARGIN);
+				tmp16 |= (bridge_cfg2 &
+					  (PCI_EXP_LNKCTL2_ENTER_COMP |
+					   PCI_EXP_LNKCTL2_TX_MARGIN));
+				pcie_capability_write_word(root,
+							   PCI_EXP_LNKCTL2,
+							   tmp16);
 
-				pci_read_config_word(adev->pdev, gpu_pos + PCI_EXP_LNKCTL2, &tmp16);
-				tmp16 &= ~((1 << 4) | (7 << 9));
-				tmp16 |= (gpu_cfg2 & ((1 << 4) | (7 << 9)));
-				pci_write_config_word(adev->pdev, gpu_pos + PCI_EXP_LNKCTL2, tmp16);
+				pcie_capability_read_word(adev->pdev,
+							  PCI_EXP_LNKCTL2,
+							  &tmp16);
+				tmp16 &= ~(PCI_EXP_LNKCTL2_ENTER_COMP |
+					   PCI_EXP_LNKCTL2_TX_MARGIN);
+				tmp16 |= (gpu_cfg2 &
+					  (PCI_EXP_LNKCTL2_ENTER_COMP |
+					   PCI_EXP_LNKCTL2_TX_MARGIN));
+				pcie_capability_write_word(adev->pdev,
+							   PCI_EXP_LNKCTL2,
+							   tmp16);
 
 				tmp = RREG32_PCIE(ixPCIE_LC_CNTL4);
 				tmp &= ~PCIE_LC_CNTL4__LC_SET_QUIESCE_MASK;
@@ -1513,15 +1604,16 @@ static void cik_pcie_gen3_enable(struct amdgpu_device *adev)
 	speed_cntl &= ~PCIE_LC_SPEED_CNTL__LC_FORCE_DIS_SW_SPEED_CHANGE_MASK;
 	WREG32_PCIE(ixPCIE_LC_SPEED_CNTL, speed_cntl);
 
-	pci_read_config_word(adev->pdev, gpu_pos + PCI_EXP_LNKCTL2, &tmp16);
-	tmp16 &= ~0xf;
+	pcie_capability_read_word(adev->pdev, PCI_EXP_LNKCTL2, &tmp16);
+	tmp16 &= ~PCI_EXP_LNKCTL2_TLS;
+
 	if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3)
-		tmp16 |= 3; /* gen3 */
+		tmp16 |= PCI_EXP_LNKCTL2_TLS_8_0GT; /* gen3 */
 	else if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN2)
-		tmp16 |= 2; /* gen2 */
+		tmp16 |= PCI_EXP_LNKCTL2_TLS_5_0GT; /* gen2 */
 	else
-		tmp16 |= 1; /* gen1 */
-	pci_write_config_word(adev->pdev, gpu_pos + PCI_EXP_LNKCTL2, tmp16);
+		tmp16 |= PCI_EXP_LNKCTL2_TLS_2_5GT; /* gen1 */
+	pcie_capability_write_word(adev->pdev, PCI_EXP_LNKCTL2, tmp16);
 
 	speed_cntl = RREG32_PCIE(ixPCIE_LC_SPEED_CNTL);
 	speed_cntl |= PCIE_LC_SPEED_CNTL__LC_INITIATE_LINK_SPEED_CHANGE_MASK;
@@ -1804,12 +1896,25 @@ static bool cik_need_reset_on_init(struct amdgpu_device *adev)
 	return false;
 }
 
+static uint64_t cik_get_pcie_replay_count(struct amdgpu_device *adev)
+{
+	uint64_t nak_r, nak_g;
+
+	/* Get the number of NAKs received and generated */
+	nak_r = RREG32_PCIE(ixPCIE_RX_NUM_NAK);
+	nak_g = RREG32_PCIE(ixPCIE_RX_NUM_NAK_GENERATED);
+
+	/* Add the total number of NAKs, i.e the number of replays */
+	return (nak_r + nak_g);
+}
+
 static const struct amdgpu_asic_funcs cik_asic_funcs =
 {
 	.read_disabled_bios = &cik_read_disabled_bios,
 	.read_bios_from_rom = &cik_read_bios_from_rom,
 	.read_register = &cik_read_register,
 	.reset = &cik_asic_reset,
+	.reset_method = &cik_asic_reset_method,
 	.set_vga_state = &cik_vga_set_state,
 	.get_xclk = &cik_get_xclk,
 	.set_uvd_clocks = &cik_set_uvd_clocks,
@@ -1821,6 +1926,7 @@ static const struct amdgpu_asic_funcs cik_asic_funcs =
 	.init_doorbell_index = &legacy_doorbell_index_init,
 	.get_pcie_usage = &cik_get_pcie_usage,
 	.need_reset_on_init = &cik_need_reset_on_init,
+	.get_pcie_replay_count = &cik_get_pcie_replay_count,
 };
 
 static int cik_common_early_init(void *handle)

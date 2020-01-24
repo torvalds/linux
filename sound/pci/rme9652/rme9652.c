@@ -279,12 +279,7 @@ static char channel_map_9636_ds[26] = {
 
 static int snd_hammerfall_get_buffer(struct pci_dev *pci, struct snd_dma_buffer *dmab, size_t size)
 {
-	dmab->dev.type = SNDRV_DMA_TYPE_DEV;
-	dmab->dev.dev = snd_dma_pci_data(pci);
-	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
-				size, dmab) < 0)
-		return -ENOMEM;
-	return 0;
+	return snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &pci->dev, size, dmab);
 }
 
 static void snd_hammerfall_free_buffer(struct snd_dma_buffer *dmab, struct pci_dev *pci)
@@ -2158,13 +2153,12 @@ static int snd_rme9652_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_rme9652 *rme9652 = snd_pcm_substream_chip(substream);
 	unsigned long flags;
-	int result = 0;
 
 	spin_lock_irqsave(&rme9652->lock, flags);
 	if (!rme9652->running)
 		rme9652_reset_hw_pointer(rme9652);
 	spin_unlock_irqrestore(&rme9652->lock, flags);
-	return result;
+	return 0;
 }
 
 static const struct snd_pcm_hardware snd_rme9652_playback_subinfo =

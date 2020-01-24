@@ -7,23 +7,26 @@
  * This driver supports the Broadcom V3D 3.3 and 4.1 OpenGL ES GPUs.
  * For V3D 2.x support, see the VC4 driver.
  *
- * Currently only single-core rendering using the binner and renderer,
- * along with TFU (texture formatting unit) rendering is supported.
- * V3D 4.x's CSD (compute shader dispatch) is not yet supported.
+ * The V3D GPU includes a tiled render (composed of a bin and render
+ * pipelines), the TFU (texture formatting unit), and the CSD (compute
+ * shader dispatch).
  */
 
 #include <linux/clk.h>
 #include <linux/device.h>
+#include <linux/dma-mapping.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
+
+#include <drm/drm_drv.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <uapi/drm/v3d_drm.h>
 
-#include "uapi/drm/v3d_drm.h"
 #include "v3d_drv.h"
 #include "v3d_regs.h"
 
@@ -120,6 +123,12 @@ static int v3d_get_param_ioctl(struct drm_device *dev, void *data,
 	case DRM_V3D_PARAM_SUPPORTS_TFU:
 		args->value = 1;
 		return 0;
+	case DRM_V3D_PARAM_SUPPORTS_CSD:
+		args->value = v3d_has_csd(v3d);
+		return 0;
+	case DRM_V3D_PARAM_SUPPORTS_CACHE_FLUSH:
+		args->value = 1;
+		return 0;
 	default:
 		DRM_DEBUG("Unknown parameter %d\n", args->param);
 		return -EINVAL;
@@ -163,7 +172,7 @@ v3d_postclose(struct drm_device *dev, struct drm_file *file)
 	kfree(v3d_priv);
 }
 
-DEFINE_DRM_GEM_SHMEM_FOPS(v3d_drm_fops);
+DEFINE_DRM_GEM_FOPS(v3d_drm_fops);
 
 /* DRM_AUTH is required on SUBMIT_CL for now, while we don't have GMP
  * protection between clients.  Note that render nodes would be be
@@ -179,12 +188,12 @@ static const struct drm_ioctl_desc v3d_drm_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(V3D_GET_PARAM, v3d_get_param_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(V3D_GET_BO_OFFSET, v3d_get_bo_offset_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(V3D_SUBMIT_TFU, v3d_submit_tfu_ioctl, DRM_RENDER_ALLOW | DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(V3D_SUBMIT_CSD, v3d_submit_csd_ioctl, DRM_RENDER_ALLOW | DRM_AUTH),
 };
 
 static struct drm_driver v3d_drm_driver = {
 	.driver_features = (DRIVER_GEM |
 			    DRIVER_RENDER |
-			    DRIVER_PRIME |
 			    DRIVER_SYNCOBJ),
 
 	.open = v3d_open,
@@ -235,9 +244,9 @@ static int v3d_platform_drm_probe(struct platform_device *pdev)
 	struct drm_device *drm;
 	struct v3d_dev *v3d;
 	int ret;
+	u32 mmu_debug;
 	u32 ident1;
 
-	dev->coherent_dma_mask = DMA_BIT_MASK(36);
 
 	v3d = kzalloc(sizeof(*v3d), GFP_KERNEL);
 	if (!v3d)
@@ -253,6 +262,11 @@ static int v3d_platform_drm_probe(struct platform_device *pdev)
 	ret = map_regs(v3d, &v3d->core_regs[0], "core0");
 	if (ret)
 		goto dev_free;
+
+	mmu_debug = V3D_READ(V3D_MMU_DEBUG_INFO);
+	dev->coherent_dma_mask =
+		DMA_BIT_MASK(30 + V3D_GET_FIELD(mmu_debug, V3D_MMU_PA_WIDTH));
+	v3d->va_width = 30 + V3D_GET_FIELD(mmu_debug, V3D_MMU_VA_WIDTH);
 
 	ident1 = V3D_READ(V3D_HUB_IDENT1);
 	v3d->ver = (V3D_GET_FIELD(ident1, V3D_HUB_IDENT1_TVER) * 10 +

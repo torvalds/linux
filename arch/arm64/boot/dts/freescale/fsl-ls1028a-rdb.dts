@@ -16,6 +16,7 @@
 	compatible = "fsl,ls1028a-rdb", "fsl,ls1028a";
 
 	aliases {
+		crypto = &crypto;
 		serial0 = &duart0;
 		serial1 = &duart1;
 	};
@@ -40,6 +41,15 @@
 		regulator-name = "1P8V";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+	};
+
+	sb_3v3: regulator-sb3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "3v3_vbus";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
 		regulator-always-on;
 	};
 
@@ -71,6 +81,19 @@
 			system-clock-frequency = <25000000>;
 		};
 	};
+};
+
+&esdhc {
+	sd-uhs-sdr104;
+	sd-uhs-sdr50;
+	sd-uhs-sdr25;
+	sd-uhs-sdr12;
+	status = "okay";
+};
+
+&esdhc1 {
+	mmc-hs200-1_8v;
+	status = "okay";
 };
 
 &i2c0 {
@@ -115,6 +138,12 @@
 			#size-cells = <0>;
 			reg = <0x3>;
 
+			temperature-sensor@4c {
+				compatible = "nxp,sa56004";
+				reg = <0x4c>;
+				vcc-supply = <&sb_3v3>;
+			};
+
 			rtc@51 {
 				compatible = "nxp,pcf2129";
 				reg = <0x51>;
@@ -150,4 +179,12 @@
 
 &sai4 {
 	status = "okay";
+};
+
+&sata {
+	status = "okay";
+};
+
+&usb1 {
+	dr_mode = "otg";
 };

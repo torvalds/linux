@@ -22,6 +22,9 @@
 #ifndef _nbio_7_4_0_SMN_HEADER
 #define _nbio_7_4_0_SMN_HEADER
 
+// addressBlock: nbio_nbif0_bif_ras_bif_ras_regblk
+// base address: 0x10100000
+#define smnBIFL_RAS_CENTRAL_STATUS			0x10139040
 
 #define smnNBIF_MGCG_CTRL_LCLK				0x1013a21c
 #define smnCPM_CONTROL					0x11180460
@@ -49,5 +52,17 @@
 #define smnPCIE_PERF_COUNT1_SCLK2			0x11180248
 #define smnPCIE_PERF_CNTL_EVENT_LC_PORT_SEL		0x1118024c
 #define smnPCIE_PERF_CNTL_EVENT_CI_PORT_SEL		0x11180250
+
+#define smnPCIE_RX_NUM_NAK				0x11180038
+#define smnPCIE_RX_NUM_NAK_GENERATED			0x1118003c
+
+// addressBlock: nbio_iohub_nb_misc_misc_cfgdec
+// base address: 0x13a10000
+#define smnIOHC_INTERRUPT_EOI				0x13a10120
+
+// addressBlock: nbio_iohub_nb_rascfg_ras_cfgdec
+// base address: 0x13a20000
+#define smnRAS_GLOBAL_STATUS_LO				0x13a20020
+#define smnRAS_GLOBAL_STATUS_HI				0x13a20024
 
 #endif	// _nbio_7_4_0_SMN_HEADER

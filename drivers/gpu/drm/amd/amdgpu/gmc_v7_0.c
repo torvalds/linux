@@ -20,8 +20,11 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+
 #include <linux/firmware.h>
-#include <drm/drmP.h>
+#include <linux/module.h>
+#include <linux/pci.h>
+
 #include <drm/drm_cache.h>
 #include "amdgpu.h"
 #include "cikd.h"
@@ -430,8 +433,8 @@ static int gmc_v7_0_mc_init(struct amdgpu_device *adev)
  *
  * Flush the TLB for the requested page table (CIK).
  */
-static void gmc_v7_0_flush_gpu_tlb(struct amdgpu_device *adev,
-				uint32_t vmid, uint32_t flush_type)
+static void gmc_v7_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
+					uint32_t vmhub, uint32_t flush_type)
 {
 	/* bits 0-15 are the VM contexts0-15 */
 	WREG32(mmVM_INVALIDATE_REQUEST, 1 << vmid);
@@ -460,25 +463,18 @@ static void gmc_v7_0_emit_pasid_mapping(struct amdgpu_ring *ring, unsigned vmid,
 	amdgpu_ring_emit_wreg(ring, mmIH_VMID_0_LUT + vmid, pasid);
 }
 
-static uint64_t gmc_v7_0_get_vm_pte_flags(struct amdgpu_device *adev,
-					  uint32_t flags)
-{
-	uint64_t pte_flag = 0;
-
-	if (flags & AMDGPU_VM_PAGE_READABLE)
-		pte_flag |= AMDGPU_PTE_READABLE;
-	if (flags & AMDGPU_VM_PAGE_WRITEABLE)
-		pte_flag |= AMDGPU_PTE_WRITEABLE;
-	if (flags & AMDGPU_VM_PAGE_PRT)
-		pte_flag |= AMDGPU_PTE_PRT;
-
-	return pte_flag;
-}
-
 static void gmc_v7_0_get_vm_pde(struct amdgpu_device *adev, int level,
 				uint64_t *addr, uint64_t *flags)
 {
 	BUG_ON(*addr & 0xFFFFFF0000000FFFULL);
+}
+
+static void gmc_v7_0_get_vm_pte(struct amdgpu_device *adev,
+				struct amdgpu_bo_va_mapping *mapping,
+				uint64_t *flags)
+{
+	*flags &= ~AMDGPU_PTE_EXECUTABLE;
+	*flags &= ~AMDGPU_PTE_PRT;
 }
 
 /**
@@ -674,7 +670,7 @@ static int gmc_v7_0_gart_enable(struct amdgpu_device *adev)
 		WREG32(mmCHUB_CONTROL, tmp);
 	}
 
-	gmc_v7_0_flush_gpu_tlb(adev, 0, 0);
+	gmc_v7_0_flush_gpu_tlb(adev, 0, 0, 0);
 	DRM_INFO("PCIE GART of %uM enabled (table at 0x%016llX).\n",
 		 (unsigned)(adev->gmc.gart_size >> 20),
 		 (unsigned long long)table_addr);
@@ -956,8 +952,9 @@ static unsigned gmc_v7_0_get_vbios_fb_size(struct amdgpu_device *adev)
 static int gmc_v7_0_sw_init(void *handle)
 {
 	int r;
-	int dma_bits;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	adev->num_vmhubs = 1;
 
 	if (adev->flags & AMD_IS_APU) {
 		adev->gmc.vram_type = AMDGPU_VRAM_TYPE_UNKNOWN;
@@ -987,25 +984,12 @@ static int gmc_v7_0_sw_init(void *handle)
 	 */
 	adev->gmc.mc_mask = 0xffffffffffULL; /* 40 bit MC */
 
-	/* set DMA mask + need_dma32 flags.
-	 * PCIE - can handle 40-bits.
-	 * IGP - can handle 40-bits
-	 * PCI - dma32 for legacy pci gart, 40 bits on newer asics
-	 */
-	adev->need_dma32 = false;
-	dma_bits = adev->need_dma32 ? 32 : 40;
-	r = pci_set_dma_mask(adev->pdev, DMA_BIT_MASK(dma_bits));
+	r = dma_set_mask_and_coherent(adev->dev, DMA_BIT_MASK(40));
 	if (r) {
-		adev->need_dma32 = true;
-		dma_bits = 32;
 		pr_warn("amdgpu: No suitable DMA available\n");
+		return r;
 	}
-	r = pci_set_consistent_dma_mask(adev->pdev, DMA_BIT_MASK(dma_bits));
-	if (r) {
-		pci_set_consistent_dma_mask(adev->pdev, DMA_BIT_MASK(32));
-		pr_warn("amdgpu: No coherent DMA available\n");
-	}
-	adev->need_swiotlb = drm_need_swiotlb(dma_bits);
+	adev->need_swiotlb = drm_need_swiotlb(40);
 
 	r = gmc_v7_0_init_microcode(adev);
 	if (r) {
@@ -1352,8 +1336,8 @@ static const struct amdgpu_gmc_funcs gmc_v7_0_gmc_funcs = {
 	.emit_flush_gpu_tlb = gmc_v7_0_emit_flush_gpu_tlb,
 	.emit_pasid_mapping = gmc_v7_0_emit_pasid_mapping,
 	.set_prt = gmc_v7_0_set_prt,
-	.get_vm_pte_flags = gmc_v7_0_get_vm_pte_flags,
-	.get_vm_pde = gmc_v7_0_get_vm_pde
+	.get_vm_pde = gmc_v7_0_get_vm_pde,
+	.get_vm_pte = gmc_v7_0_get_vm_pte
 };
 
 static const struct amdgpu_irq_src_funcs gmc_v7_0_irq_funcs = {

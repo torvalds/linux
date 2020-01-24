@@ -14,6 +14,8 @@
 #include <asm/uv/bios.h>
 #include <asm/uv/uv_hub.h>
 
+unsigned long uv_systab_phys __ro_after_init = EFI_INVALID_TABLE_ADDR;
+
 struct uv_systab *uv_systab;
 
 static s64 __uv_bios_call(enum uv_bios_cmd which, u64 a1, u64 a2, u64 a3,
@@ -182,20 +184,20 @@ int uv_bios_set_legacy_vga_target(bool decode, int domain, int bus)
 }
 EXPORT_SYMBOL_GPL(uv_bios_set_legacy_vga_target);
 
-void uv_bios_init(void)
+int uv_bios_init(void)
 {
 	uv_systab = NULL;
-	if ((efi.uv_systab == EFI_INVALID_TABLE_ADDR) ||
-	    !efi.uv_systab || efi_runtime_disabled()) {
+	if ((uv_systab_phys == EFI_INVALID_TABLE_ADDR) ||
+	    !uv_systab_phys || efi_runtime_disabled()) {
 		pr_crit("UV: UVsystab: missing\n");
-		return;
+		return -EEXIST;
 	}
 
-	uv_systab = ioremap(efi.uv_systab, sizeof(struct uv_systab));
+	uv_systab = ioremap(uv_systab_phys, sizeof(struct uv_systab));
 	if (!uv_systab || strncmp(uv_systab->signature, UV_SYSTAB_SIG, 4)) {
 		pr_err("UV: UVsystab: bad signature!\n");
 		iounmap(uv_systab);
-		return;
+		return -EINVAL;
 	}
 
 	/* Starting with UV4 the UV systab size is variable */
@@ -203,11 +205,12 @@ void uv_bios_init(void)
 		int size = uv_systab->size;
 
 		iounmap(uv_systab);
-		uv_systab = ioremap(efi.uv_systab, size);
+		uv_systab = ioremap(uv_systab_phys, size);
 		if (!uv_systab) {
 			pr_err("UV: UVsystab: ioremap(%d) failed!\n", size);
-			return;
+			return -EFAULT;
 		}
 	}
 	pr_info("UV: UVsystab: Revision:%x\n", uv_systab->revision);
+	return 0;
 }

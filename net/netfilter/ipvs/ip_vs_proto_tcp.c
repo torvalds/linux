@@ -159,7 +159,7 @@ tcp_snat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 	oldlen = skb->len - tcphoff;
 
 	/* csum_check requires unshared skb */
-	if (!skb_make_writable(skb, tcphoff+sizeof(*tcph)))
+	if (skb_ensure_writable(skb, tcphoff + sizeof(*tcph)))
 		return 0;
 
 	if (unlikely(cp->app != NULL)) {
@@ -237,7 +237,7 @@ tcp_dnat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 	oldlen = skb->len - tcphoff;
 
 	/* csum_check requires unshared skb */
-	if (!skb_make_writable(skb, tcphoff+sizeof(*tcph)))
+	if (skb_ensure_writable(skb, tcphoff + sizeof(*tcph)))
 		return 0;
 
 	if (unlikely(cp->app != NULL)) {
@@ -710,7 +710,7 @@ static int __ip_vs_tcp_init(struct netns_ipvs *ipvs, struct ip_vs_proto_data *pd
 							sizeof(tcp_timeouts));
 	if (!pd->timeout_table)
 		return -ENOMEM;
-	pd->tcp_state_table =  tcp_states;
+	pd->tcp_state_table = tcp_states;
 	return 0;
 }
 

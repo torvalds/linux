@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2017 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2019 Oracle and/or its affiliates. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -61,7 +61,7 @@ void rds_ib_recv_init_ring(struct rds_ib_connection *ic)
 		recv->r_wr.num_sge = RDS_IB_RECV_SGE;
 
 		sge = &recv->r_sge[0];
-		sge->addr = ic->i_recv_hdrs_dma + (i * sizeof(struct rds_header));
+		sge->addr = ic->i_recv_hdrs_dma[i];
 		sge->length = sizeof(struct rds_header);
 		sge->lkey = ic->i_pd->local_dma_lkey;
 
@@ -343,7 +343,7 @@ static int rds_ib_recv_refill_one(struct rds_connection *conn,
 	WARN_ON(ret != 1);
 
 	sge = &recv->r_sge[0];
-	sge->addr = ic->i_recv_hdrs_dma + (recv - ic->i_recvs) * sizeof(struct rds_header);
+	sge->addr = ic->i_recv_hdrs_dma[recv - ic->i_recvs];
 	sge->length = sizeof(struct rds_header);
 
 	sge = &recv->r_sge[1];
@@ -385,6 +385,7 @@ void rds_ib_recv_refill(struct rds_connection *conn, int prefill, gfp_t gfp)
 	unsigned int posted = 0;
 	int ret = 0;
 	bool can_wait = !!(gfp & __GFP_DIRECT_RECLAIM);
+	bool must_wake = false;
 	u32 pos;
 
 	/* the goal here is to just make sure that someone, somewhere
@@ -405,6 +406,7 @@ void rds_ib_recv_refill(struct rds_connection *conn, int prefill, gfp_t gfp)
 		recv = &ic->i_recvs[pos];
 		ret = rds_ib_recv_refill_one(conn, recv, gfp);
 		if (ret) {
+			must_wake = true;
 			break;
 		}
 
@@ -423,6 +425,11 @@ void rds_ib_recv_refill(struct rds_connection *conn, int prefill, gfp_t gfp)
 		}
 
 		posted++;
+
+		if ((posted > 128 && need_resched()) || posted > 8192) {
+			must_wake = true;
+			break;
+		}
 	}
 
 	/* We're doing flow control - update the window. */
@@ -445,10 +452,13 @@ void rds_ib_recv_refill(struct rds_connection *conn, int prefill, gfp_t gfp)
 	 * if we should requeue.
 	 */
 	if (rds_conn_up(conn) &&
-	    ((can_wait && rds_ib_ring_low(&ic->i_recv_ring)) ||
+	    (must_wake ||
+	    (can_wait && rds_ib_ring_low(&ic->i_recv_ring)) ||
 	    rds_ib_ring_empty(&ic->i_recv_ring))) {
 		queue_delayed_work(rds_wq, &conn->c_recv_w, 1);
 	}
+	if (can_wait)
+		cond_resched();
 }
 
 /*
@@ -851,7 +861,7 @@ static void rds_ib_process_recv(struct rds_connection *conn,
 	}
 	data_len -= sizeof(struct rds_header);
 
-	ihdr = &ic->i_recv_hdrs[recv - ic->i_recvs];
+	ihdr = ic->i_recv_hdrs[recv - ic->i_recvs];
 
 	/* Validate the checksum. */
 	if (!rds_message_verify_checksum(ihdr)) {
@@ -983,10 +993,11 @@ void rds_ib_recv_cqe_handler(struct rds_ib_connection *ic,
 	} else {
 		/* We expect errors as the qp is drained during shutdown */
 		if (rds_conn_up(conn) || rds_conn_connecting(conn))
-			rds_ib_conn_error(conn, "recv completion on <%pI6c,%pI6c, %d> had status %u (%s), disconnecting and reconnecting\n",
+			rds_ib_conn_error(conn, "recv completion on <%pI6c,%pI6c, %d> had status %u (%s), vendor err 0x%x, disconnecting and reconnecting\n",
 					  &conn->c_laddr, &conn->c_faddr,
 					  conn->c_tos, wc->status,
-					  ib_wc_status_msg(wc->status));
+					  ib_wc_status_msg(wc->status),
+					  wc->vendor_err);
 	}
 
 	/* rds_ib_process_recv() doesn't always consume the frag, and
@@ -1038,9 +1049,14 @@ int rds_ib_recv_init(void)
 	si_meminfo(&si);
 	rds_ib_sysctl_max_recv_allocation = si.totalram / 3 * PAGE_SIZE / RDS_FRAG_SIZE;
 
-	rds_ib_incoming_slab = kmem_cache_create("rds_ib_incoming",
-					sizeof(struct rds_ib_incoming),
-					0, SLAB_HWCACHE_ALIGN, NULL);
+	rds_ib_incoming_slab =
+		kmem_cache_create_usercopy("rds_ib_incoming",
+					   sizeof(struct rds_ib_incoming),
+					   0, SLAB_HWCACHE_ALIGN,
+					   offsetof(struct rds_ib_incoming,
+						    ii_inc.i_usercopy),
+					   sizeof(struct rds_inc_usercopy),
+					   NULL);
 	if (!rds_ib_incoming_slab)
 		goto out;
 

@@ -3,9 +3,12 @@
  * Copyright (c) 2015 MediaTek Inc.
  */
 
-#include <drm/drmP.h>
-#include <drm/drm_gem.h>
 #include <linux/dma-buf.h>
+
+#include <drm/drm.h>
+#include <drm/drm_device.h>
+#include <drm/drm_gem.h>
+#include <drm/drm_prime.h>
 
 #include "mtk_drm_drv.h"
 #include "mtk_drm_gem.h"
@@ -268,7 +271,7 @@ void *mtk_drm_gem_prime_vmap(struct drm_gem_object *obj)
 			       pgprot_writecombine(PAGE_KERNEL));
 
 out:
-	kfree((void *)sgt);
+	kfree(sgt);
 
 	return mtk_gem->kvaddr;
 }
@@ -282,5 +285,5 @@ void mtk_drm_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
 
 	vunmap(vaddr);
 	mtk_gem->kvaddr = 0;
-	kfree((void *)mtk_gem->pages);
+	kfree(mtk_gem->pages);
 }

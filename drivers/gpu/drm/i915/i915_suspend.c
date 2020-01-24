@@ -26,9 +26,13 @@
 
 #include <drm/i915_drm.h>
 
+#include "display/intel_fbc.h"
+#include "display/intel_gmbus.h"
+#include "display/intel_vga.h"
+
+#include "i915_drv.h"
 #include "i915_reg.h"
-#include "intel_drv.h"
-#include "intel_fbc.h"
+#include "i915_suspend.h"
 
 static void i915_save_display(struct drm_i915_private *dev_priv)
 {
@@ -54,15 +58,13 @@ static void i915_restore_display(struct drm_i915_private *dev_priv)
 	if (HAS_FBC(dev_priv) && INTEL_GEN(dev_priv) <= 4 && !IS_G4X(dev_priv))
 		I915_WRITE(FBC_CONTROL, dev_priv->regfile.saveFBC_CONTROL);
 
-	i915_redisable_vga(dev_priv);
+	intel_vga_redisable(dev_priv);
 }
 
 int i915_save_state(struct drm_i915_private *dev_priv)
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	int i;
-
-	mutex_lock(&dev_priv->drm.struct_mutex);
 
 	i915_save_display(dev_priv);
 
@@ -97,8 +99,6 @@ int i915_save_state(struct drm_i915_private *dev_priv)
 			dev_priv->regfile.saveSWF3[i] = I915_READ(SWF3(i));
 	}
 
-	mutex_unlock(&dev_priv->drm.struct_mutex);
-
 	return 0;
 }
 
@@ -106,8 +106,6 @@ int i915_restore_state(struct drm_i915_private *dev_priv)
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	int i;
-
-	mutex_lock(&dev_priv->drm.struct_mutex);
 
 	if (IS_GEN(dev_priv, 4))
 		pci_write_config_word(pdev, GCDGMBUS,
@@ -142,9 +140,7 @@ int i915_restore_state(struct drm_i915_private *dev_priv)
 			I915_WRITE(SWF3(i), dev_priv->regfile.saveSWF3[i]);
 	}
 
-	mutex_unlock(&dev_priv->drm.struct_mutex);
-
-	intel_i2c_reset(dev_priv);
+	intel_gmbus_reset(dev_priv);
 
 	return 0;
 }

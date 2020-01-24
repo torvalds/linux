@@ -53,6 +53,9 @@ enum cc_std_body {
 
 #define CC_COHERENT_CACHE_PARAMS 0xEEE
 
+#define CC_PINS_FULL	0x0
+#define CC_PINS_SLIM	0x9F
+
 /* Maximum DMA mask supported by IP */
 #define DMA_BIT_MASK_LEN 48
 
@@ -66,6 +69,8 @@ enum cc_std_body {
 #define CC_COMP_IRQ_MASK BIT(CC_HOST_IRR_AXIM_COMP_INT_BIT_SHIFT)
 
 #define CC_SECURITY_DISABLED_MASK BIT(CC_SECURITY_DISABLED_VALUE_BIT_SHIFT)
+
+#define CC_NVM_IS_IDLE_MASK BIT(CC_NVM_IS_IDLE_VALUE_BIT_SHIFT)
 
 #define AXIM_MON_COMP_VALUE GENMASK(CC_AXIM_MON_COMP_VALUE_BIT_SIZE + \
 				    CC_AXIM_MON_COMP_VALUE_BIT_SHIFT, \
@@ -121,15 +126,6 @@ struct cc_cpp_req {
 struct cc_crypto_req {
 	void (*user_cb)(struct device *dev, void *req, int err);
 	void *user_arg;
-	dma_addr_t ivgen_dma_addr[CC_MAX_IVGEN_DMA_ADDRESSES];
-	/* For the first 'ivgen_dma_addr_len' addresses of this array,
-	 * generated IV would be placed in it by send_request().
-	 * Same generated IV for all addresses!
-	 */
-	/* Amount of 'ivgen_dma_addr' elements to be filled. */
-	unsigned int ivgen_dma_addr_len;
-	/* The generated IV size required, 8/16 B allowed. */
-	unsigned int ivgen_size;
 	struct completion seq_compl; /* request completion */
 	struct cc_cpp_req cpp;
 };
@@ -153,7 +149,6 @@ struct cc_drvdata {
 	void *aead_handle;
 	void *request_mgr_handle;
 	void *fips_handle;
-	void *ivgen_handle;
 	void *sram_mgr_handle;
 	void *debugfs;
 	struct clk *clk;
@@ -216,6 +211,7 @@ static inline void dump_byte_array(const char *name, const u8 *the_array,
 		__dump_byte_array(name, the_array, size);
 }
 
+bool cc_wait_for_reset_completion(struct cc_drvdata *drvdata);
 int init_cc_regs(struct cc_drvdata *drvdata, bool is_probe);
 void fini_cc_regs(struct cc_drvdata *drvdata);
 int cc_clk_on(struct cc_drvdata *drvdata);

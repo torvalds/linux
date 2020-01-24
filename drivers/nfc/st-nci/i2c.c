@@ -72,7 +72,7 @@ static void st_nci_i2c_disable(void *phy_id)
  */
 static int st_nci_i2c_write(void *phy_id, struct sk_buff *skb)
 {
-	int r = -1;
+	int r;
 	struct st_nci_i2c_phy *phy = phy_id;
 	struct i2c_client *client = phy->i2c_dev;
 

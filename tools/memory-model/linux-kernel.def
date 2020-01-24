@@ -24,6 +24,7 @@ smp_mb__before_atomic() { __fence{before-atomic}; }
 smp_mb__after_atomic() { __fence{after-atomic}; }
 smp_mb__after_spinlock() { __fence{after-spinlock}; }
 smp_mb__after_unlock_lock() { __fence{after-unlock-lock}; }
+barrier() { __fence{barrier}; }
 
 // Exchange
 xchg(X,V)  __xchg{mb}(X,V)

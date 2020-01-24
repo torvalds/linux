@@ -246,7 +246,7 @@ static int nd_uuid_parse(struct device *dev, u8 *uuid_out, const char *buf,
  *
  * Enforce that uuids can only be changed while the device is disabled
  * (driver detached)
- * LOCKING: expects device_lock() is held on entry
+ * LOCKING: expects nd_device_lock() is held on entry
  */
 int nd_uuid_store(struct device *dev, u8 **uuid_out, const char *buf,
 		size_t len)
@@ -347,15 +347,15 @@ static DEVICE_ATTR_RO(provider);
 
 static int flush_namespaces(struct device *dev, void *data)
 {
-	device_lock(dev);
-	device_unlock(dev);
+	nd_device_lock(dev);
+	nd_device_unlock(dev);
 	return 0;
 }
 
 static int flush_regions_dimms(struct device *dev, void *data)
 {
-	device_lock(dev);
-	device_unlock(dev);
+	nd_device_lock(dev);
+	nd_device_unlock(dev);
 	device_for_each_child(dev, NULL, flush_namespaces);
 	return 0;
 }
@@ -385,10 +385,14 @@ static struct attribute *nvdimm_bus_attributes[] = {
 	NULL,
 };
 
-struct attribute_group nvdimm_bus_attribute_group = {
+static const struct attribute_group nvdimm_bus_attribute_group = {
 	.attrs = nvdimm_bus_attributes,
 };
-EXPORT_SYMBOL_GPL(nvdimm_bus_attribute_group);
+
+const struct attribute_group *nvdimm_bus_attribute_groups[] = {
+	&nvdimm_bus_attribute_group,
+	NULL,
+};
 
 int nvdimm_bus_add_badrange(struct nvdimm_bus *nvdimm_bus, u64 addr, u64 length)
 {
@@ -455,7 +459,6 @@ static __exit void libnvdimm_exit(void)
 	nd_region_exit();
 	nvdimm_exit();
 	nvdimm_bus_exit();
-	nd_region_devs_exit();
 	nvdimm_devs_exit();
 }
 

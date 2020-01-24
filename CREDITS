@@ -751,7 +751,7 @@ S: Santa Cruz, California
 S: USA
 
 N: Luis Correia
-E: lfcorreia@users.sf.net
+E: luisfcorreia@gmail.com
 D: Ralink rt2x00 WLAN driver
 S: Belas, Portugal
 
@@ -1637,6 +1637,10 @@ S: Panoramastrasse 18
 S: D-69126 Heidelberg
 S: Germany
 
+N: Simon Horman
+M: horms@verge.net.au
+D: Renesas ARM/ARM64 SoC maintainer
+
 N: Christopher Horn
 E: chorn@warwick.net
 D: Miscellaneous sysctl hacks
@@ -1770,7 +1774,6 @@ S: USA
 
 N: Dave Jones
 E: davej@codemonkey.org.uk
-W: http://www.codemonkey.org.uk
 D: Assorted VIA x86 support.
 D: 2.5 AGPGART overhaul.
 D: CPUFREQ maintenance.
@@ -1800,7 +1803,7 @@ S: 2300 Copenhagen S.
 S: Denmark
 
 N: Jozsef Kadlecsik
-E: kadlec@blackhole.kfki.hu
+E: kadlec@netfilter.org
 P: 1024D/470DB964 4CB3 1A05 713E 9BF7 FAC5  5809 DD8C B7B1 470D B964
 D: netfilter: TCP window tracking code
 D: netfilter: raw table
@@ -1872,8 +1875,9 @@ S: The Netherlands
 
 N: Martin Kepplinger
 E: martink@posteo.de
-E: martin.kepplinger@ginzinger.com
+E: martin.kepplinger@puri.sm
 W: http://www.martinkepplinger.com
+P: 4096R/5AB387D3 F208 2B88 0F9E 4239 3468  6E3F 5003 98DF 5AB3 87D3
 D: mma8452 accelerators iio driver
 D: pegasus_notetaker input driver
 D: Kernel fixes and cleanups
@@ -3120,7 +3124,7 @@ S: France
 N: Rik van Riel
 E: riel@redhat.com
 W: http://www.surriel.com/
-D: Linux-MM site, Documentation/sysctl/*, swap/mm readaround
+D: Linux-MM site, Documentation/admin-guide/sysctl/*, swap/mm readaround
 D: kswapd fixes, random kernel hacker, rmap VM,
 D: nl.linux.org administrator, minor scheduler additions
 S: Red Hat Boston

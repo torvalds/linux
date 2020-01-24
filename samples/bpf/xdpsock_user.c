@@ -27,8 +27,9 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "bpf/libbpf.h"
-#include "bpf/xsk.h"
+#include "libbpf.h"
+#include "xsk.h"
+#include "xdpsock.h"
 #include <bpf/bpf.h>
 
 #ifndef SOL_XDP
@@ -47,7 +48,6 @@
 #define BATCH_SIZE 64
 
 #define DEBUG_HEXDUMP 0
-#define MAX_SOCKS 8
 
 typedef __u64 u64;
 typedef __u32 u32;
@@ -67,8 +67,16 @@ static int opt_ifindex;
 static int opt_queue;
 static int opt_poll;
 static int opt_interval = 1;
+static u32 opt_xdp_bind_flags = XDP_USE_NEED_WAKEUP;
+static u32 opt_umem_flags;
+static int opt_unaligned_chunks;
+static int opt_mmap_flags;
 static u32 opt_xdp_bind_flags;
-static __u32 prog_id;
+static int opt_xsk_frame_size = XSK_UMEM__DEFAULT_FRAME_SIZE;
+static int opt_timeout = 1000;
+static bool opt_need_wakeup = true;
+static u32 opt_num_xsks = 1;
+static u32 prog_id;
 
 struct xsk_umem_info {
 	struct xsk_ring_prod fq;
@@ -172,7 +180,7 @@ static void *poller(void *arg)
 
 static void remove_xdp_program(void)
 {
-	__u32 curr_prog_id = 0;
+	u32 curr_prog_id = 0;
 
 	if (bpf_get_link_xdp_id(opt_ifindex, &curr_prog_id, opt_xdp_flags)) {
 		printf("bpf_get_link_xdp_id failed\n");
@@ -189,11 +197,11 @@ static void remove_xdp_program(void)
 static void int_exit(int sig)
 {
 	struct xsk_umem *umem = xsks[0]->umem->umem;
-
-	(void)sig;
+	int i;
 
 	dump_stats();
-	xsk_socket__delete(xsks[0]->xsk);
+	for (i = 0; i < num_socks; i++)
+		xsk_socket__delete(xsks[i]->xsk);
 	(void)xsk_umem__delete(umem);
 	remove_xdp_program();
 
@@ -276,6 +284,13 @@ static size_t gen_eth_frame(struct xsk_umem_info *umem, u64 addr)
 static struct xsk_umem_info *xsk_configure_umem(void *buffer, u64 size)
 {
 	struct xsk_umem_info *umem;
+	struct xsk_umem_config cfg = {
+		.fill_size = XSK_RING_PROD__DEFAULT_NUM_DESCS,
+		.comp_size = XSK_RING_CONS__DEFAULT_NUM_DESCS,
+		.frame_size = opt_xsk_frame_size,
+		.frame_headroom = XSK_UMEM__DEFAULT_FRAME_HEADROOM,
+		.flags = opt_umem_flags
+	};
 	int ret;
 
 	umem = calloc(1, sizeof(*umem));
@@ -283,7 +298,7 @@ static struct xsk_umem_info *xsk_configure_umem(void *buffer, u64 size)
 		exit_with_error(errno);
 
 	ret = xsk_umem__create(&umem->umem, buffer, size, &umem->fq, &umem->cq,
-			       NULL);
+			       &cfg);
 	if (ret)
 		exit_with_error(-ret);
 
@@ -291,13 +306,29 @@ static struct xsk_umem_info *xsk_configure_umem(void *buffer, u64 size)
 	return umem;
 }
 
-static struct xsk_socket_info *xsk_configure_socket(struct xsk_umem_info *umem)
+static void xsk_populate_fill_ring(struct xsk_umem_info *umem)
+{
+	int ret, i;
+	u32 idx;
+
+	ret = xsk_ring_prod__reserve(&umem->fq,
+				     XSK_RING_PROD__DEFAULT_NUM_DESCS, &idx);
+	if (ret != XSK_RING_PROD__DEFAULT_NUM_DESCS)
+		exit_with_error(-ret);
+	for (i = 0; i < XSK_RING_PROD__DEFAULT_NUM_DESCS; i++)
+		*xsk_ring_prod__fill_addr(&umem->fq, idx++) =
+			i * opt_xsk_frame_size;
+	xsk_ring_prod__submit(&umem->fq, XSK_RING_PROD__DEFAULT_NUM_DESCS);
+}
+
+static struct xsk_socket_info *xsk_configure_socket(struct xsk_umem_info *umem,
+						    bool rx, bool tx)
 {
 	struct xsk_socket_config cfg;
 	struct xsk_socket_info *xsk;
+	struct xsk_ring_cons *rxr;
+	struct xsk_ring_prod *txr;
 	int ret;
-	u32 idx;
-	int i;
 
 	xsk = calloc(1, sizeof(*xsk));
 	if (!xsk)
@@ -306,30 +337,23 @@ static struct xsk_socket_info *xsk_configure_socket(struct xsk_umem_info *umem)
 	xsk->umem = umem;
 	cfg.rx_size = XSK_RING_CONS__DEFAULT_NUM_DESCS;
 	cfg.tx_size = XSK_RING_PROD__DEFAULT_NUM_DESCS;
-	cfg.libbpf_flags = 0;
+	if (opt_num_xsks > 1)
+		cfg.libbpf_flags = XSK_LIBBPF_FLAGS__INHIBIT_PROG_LOAD;
+	else
+		cfg.libbpf_flags = 0;
 	cfg.xdp_flags = opt_xdp_flags;
 	cfg.bind_flags = opt_xdp_bind_flags;
+
+	rxr = rx ? &xsk->rx : NULL;
+	txr = tx ? &xsk->tx : NULL;
 	ret = xsk_socket__create(&xsk->xsk, opt_if, opt_queue, umem->umem,
-				 &xsk->rx, &xsk->tx, &cfg);
+				 rxr, txr, &cfg);
 	if (ret)
 		exit_with_error(-ret);
 
 	ret = bpf_get_link_xdp_id(opt_ifindex, &prog_id, opt_xdp_flags);
 	if (ret)
 		exit_with_error(-ret);
-
-	ret = xsk_ring_prod__reserve(&xsk->umem->fq,
-				     XSK_RING_PROD__DEFAULT_NUM_DESCS,
-				     &idx);
-	if (ret != XSK_RING_PROD__DEFAULT_NUM_DESCS)
-		exit_with_error(-ret);
-	for (i = 0;
-	     i < XSK_RING_PROD__DEFAULT_NUM_DESCS *
-		     XSK_UMEM__DEFAULT_FRAME_SIZE;
-	     i += XSK_UMEM__DEFAULT_FRAME_SIZE)
-		*xsk_ring_prod__fill_addr(&xsk->umem->fq, idx++) = i;
-	xsk_ring_prod__submit(&xsk->umem->fq,
-			      XSK_RING_PROD__DEFAULT_NUM_DESCS);
 
 	return xsk;
 }
@@ -346,6 +370,11 @@ static struct option long_options[] = {
 	{"interval", required_argument, 0, 'n'},
 	{"zero-copy", no_argument, 0, 'z'},
 	{"copy", no_argument, 0, 'c'},
+	{"frame-size", required_argument, 0, 'f'},
+	{"no-need-wakeup", no_argument, 0, 'm'},
+	{"unaligned", no_argument, 0, 'u'},
+	{"shared-umem", no_argument, 0, 'M'},
+	{"force", no_argument, 0, 'F'},
 	{0, 0, 0, 0}
 };
 
@@ -361,12 +390,17 @@ static void usage(const char *prog)
 		"  -q, --queue=n	Use queue n (default 0)\n"
 		"  -p, --poll		Use poll syscall\n"
 		"  -S, --xdp-skb=n	Use XDP skb-mod\n"
-		"  -N, --xdp-native=n	Enfore XDP native mode\n"
+		"  -N, --xdp-native=n	Enforce XDP native mode\n"
 		"  -n, --interval=n	Specify statistics update interval (default 1 sec).\n"
 		"  -z, --zero-copy      Force zero-copy mode.\n"
 		"  -c, --copy           Force copy mode.\n"
+		"  -m, --no-need-wakeup Turn off use of driver need wakeup flag.\n"
+		"  -f, --frame-size=n   Set the frame size (must be a power of two in aligned mode, default is %d).\n"
+		"  -u, --unaligned	Enable unaligned chunk placement\n"
+		"  -M, --shared-umem	Enable XDP_SHARED_UMEM\n"
+		"  -F, --force		Force loading the XDP prog\n"
 		"\n";
-	fprintf(stderr, str, prog);
+	fprintf(stderr, str, prog, XSK_UMEM__DEFAULT_FRAME_SIZE);
 	exit(EXIT_FAILURE);
 }
 
@@ -377,8 +411,8 @@ static void parse_command_line(int argc, char **argv)
 	opterr = 0;
 
 	for (;;) {
-		c = getopt_long(argc, argv, "Frtli:q:psSNn:cz", long_options,
-				&option_index);
+		c = getopt_long(argc, argv, "Frtli:q:psSNn:czf:muM",
+				long_options, &option_index);
 		if (c == -1)
 			break;
 
@@ -417,8 +451,23 @@ static void parse_command_line(int argc, char **argv)
 		case 'c':
 			opt_xdp_bind_flags |= XDP_COPY;
 			break;
+		case 'u':
+			opt_umem_flags |= XDP_UMEM_UNALIGNED_CHUNK_FLAG;
+			opt_unaligned_chunks = 1;
+			opt_mmap_flags = MAP_HUGETLB;
+			break;
 		case 'F':
 			opt_xdp_flags &= ~XDP_FLAGS_UPDATE_IF_NOEXIST;
+			break;
+		case 'f':
+			opt_xsk_frame_size = atoi(optarg);
+			break;
+		case 'm':
+			opt_need_wakeup = false;
+			opt_xdp_bind_flags &= ~XDP_USE_NEED_WAKEUP;
+			break;
+		case 'M':
+			opt_num_xsks = MAX_SOCKS;
 			break;
 		default:
 			usage(basename(argv[0]));
@@ -432,6 +481,12 @@ static void parse_command_line(int argc, char **argv)
 		usage(basename(argv[0]));
 	}
 
+	if ((opt_xsk_frame_size & (opt_xsk_frame_size - 1)) &&
+	    !opt_unaligned_chunks) {
+		fprintf(stderr, "--frame-size=%d is not a power of two\n",
+			opt_xsk_frame_size);
+		usage(basename(argv[0]));
+	}
 }
 
 static void kick_tx(struct xsk_socket_info *xsk)
@@ -444,8 +499,10 @@ static void kick_tx(struct xsk_socket_info *xsk)
 	exit_with_error(errno);
 }
 
-static inline void complete_tx_l2fwd(struct xsk_socket_info *xsk)
+static inline void complete_tx_l2fwd(struct xsk_socket_info *xsk,
+				     struct pollfd *fds)
 {
+	struct xsk_umem_info *umem = xsk->umem;
 	u32 idx_cq = 0, idx_fq = 0;
 	unsigned int rcvd;
 	size_t ndescs;
@@ -453,27 +510,30 @@ static inline void complete_tx_l2fwd(struct xsk_socket_info *xsk)
 	if (!xsk->outstanding_tx)
 		return;
 
-	kick_tx(xsk);
+	if (!opt_need_wakeup || xsk_ring_prod__needs_wakeup(&xsk->tx))
+		kick_tx(xsk);
+
 	ndescs = (xsk->outstanding_tx > BATCH_SIZE) ? BATCH_SIZE :
 		xsk->outstanding_tx;
 
 	/* re-add completed Tx buffers */
-	rcvd = xsk_ring_cons__peek(&xsk->umem->cq, ndescs, &idx_cq);
+	rcvd = xsk_ring_cons__peek(&umem->cq, ndescs, &idx_cq);
 	if (rcvd > 0) {
 		unsigned int i;
 		int ret;
 
-		ret = xsk_ring_prod__reserve(&xsk->umem->fq, rcvd, &idx_fq);
+		ret = xsk_ring_prod__reserve(&umem->fq, rcvd, &idx_fq);
 		while (ret != rcvd) {
 			if (ret < 0)
 				exit_with_error(-ret);
-			ret = xsk_ring_prod__reserve(&xsk->umem->fq, rcvd,
-						     &idx_fq);
+			if (xsk_ring_prod__needs_wakeup(&umem->fq))
+				ret = poll(fds, num_socks, opt_timeout);
+			ret = xsk_ring_prod__reserve(&umem->fq, rcvd, &idx_fq);
 		}
+
 		for (i = 0; i < rcvd; i++)
-			*xsk_ring_prod__fill_addr(&xsk->umem->fq, idx_fq++) =
-				*xsk_ring_cons__comp_addr(&xsk->umem->cq,
-							  idx_cq++);
+			*xsk_ring_prod__fill_addr(&umem->fq, idx_fq++) =
+				*xsk_ring_cons__comp_addr(&umem->cq, idx_cq++);
 
 		xsk_ring_prod__submit(&xsk->umem->fq, rcvd);
 		xsk_ring_cons__release(&xsk->umem->cq, rcvd);
@@ -490,7 +550,8 @@ static inline void complete_tx_only(struct xsk_socket_info *xsk)
 	if (!xsk->outstanding_tx)
 		return;
 
-	kick_tx(xsk);
+	if (!opt_need_wakeup || xsk_ring_prod__needs_wakeup(&xsk->tx))
+		kick_tx(xsk);
 
 	rcvd = xsk_ring_cons__peek(&xsk->umem->cq, BATCH_SIZE, &idx);
 	if (rcvd > 0) {
@@ -500,30 +561,38 @@ static inline void complete_tx_only(struct xsk_socket_info *xsk)
 	}
 }
 
-static void rx_drop(struct xsk_socket_info *xsk)
+static void rx_drop(struct xsk_socket_info *xsk, struct pollfd *fds)
 {
 	unsigned int rcvd, i;
 	u32 idx_rx = 0, idx_fq = 0;
 	int ret;
 
 	rcvd = xsk_ring_cons__peek(&xsk->rx, BATCH_SIZE, &idx_rx);
-	if (!rcvd)
+	if (!rcvd) {
+		if (xsk_ring_prod__needs_wakeup(&xsk->umem->fq))
+			ret = poll(fds, num_socks, opt_timeout);
 		return;
+	}
 
 	ret = xsk_ring_prod__reserve(&xsk->umem->fq, rcvd, &idx_fq);
 	while (ret != rcvd) {
 		if (ret < 0)
 			exit_with_error(-ret);
+		if (xsk_ring_prod__needs_wakeup(&xsk->umem->fq))
+			ret = poll(fds, num_socks, opt_timeout);
 		ret = xsk_ring_prod__reserve(&xsk->umem->fq, rcvd, &idx_fq);
 	}
 
 	for (i = 0; i < rcvd; i++) {
 		u64 addr = xsk_ring_cons__rx_desc(&xsk->rx, idx_rx)->addr;
 		u32 len = xsk_ring_cons__rx_desc(&xsk->rx, idx_rx++)->len;
+		u64 orig = xsk_umem__extract_addr(addr);
+
+		addr = xsk_umem__add_offset_to_addr(addr);
 		char *pkt = xsk_umem__get_data(xsk->umem->buffer, addr);
 
 		hex_dump(pkt, len, addr);
-		*xsk_ring_prod__fill_addr(&xsk->umem->fq, idx_fq++) = addr;
+		*xsk_ring_prod__fill_addr(&xsk->umem->fq, idx_fq++) = orig;
 	}
 
 	xsk_ring_prod__submit(&xsk->umem->fq, rcvd);
@@ -533,43 +602,63 @@ static void rx_drop(struct xsk_socket_info *xsk)
 
 static void rx_drop_all(void)
 {
-	struct pollfd fds[MAX_SOCKS + 1];
-	int i, ret, timeout, nfds = 1;
-
-	memset(fds, 0, sizeof(fds));
+	struct pollfd fds[MAX_SOCKS] = {};
+	int i, ret;
 
 	for (i = 0; i < num_socks; i++) {
 		fds[i].fd = xsk_socket__fd(xsks[i]->xsk);
 		fds[i].events = POLLIN;
-		timeout = 1000; /* 1sn */
 	}
 
 	for (;;) {
 		if (opt_poll) {
-			ret = poll(fds, nfds, timeout);
+			ret = poll(fds, num_socks, opt_timeout);
 			if (ret <= 0)
 				continue;
 		}
 
 		for (i = 0; i < num_socks; i++)
-			rx_drop(xsks[i]);
+			rx_drop(xsks[i], fds);
 	}
 }
 
-static void tx_only(struct xsk_socket_info *xsk)
+static void tx_only(struct xsk_socket_info *xsk, u32 frame_nb)
 {
-	int timeout, ret, nfds = 1;
-	struct pollfd fds[nfds + 1];
-	u32 idx, frame_nb = 0;
+	u32 idx;
 
-	memset(fds, 0, sizeof(fds));
-	fds[0].fd = xsk_socket__fd(xsk->xsk);
-	fds[0].events = POLLOUT;
-	timeout = 1000; /* 1sn */
+	if (xsk_ring_prod__reserve(&xsk->tx, BATCH_SIZE, &idx) == BATCH_SIZE) {
+		unsigned int i;
+
+		for (i = 0; i < BATCH_SIZE; i++) {
+			xsk_ring_prod__tx_desc(&xsk->tx, idx + i)->addr	=
+				(frame_nb + i) << XSK_UMEM__DEFAULT_FRAME_SHIFT;
+			xsk_ring_prod__tx_desc(&xsk->tx, idx + i)->len =
+				sizeof(pkt_data) - 1;
+		}
+
+		xsk_ring_prod__submit(&xsk->tx, BATCH_SIZE);
+		xsk->outstanding_tx += BATCH_SIZE;
+		frame_nb += BATCH_SIZE;
+		frame_nb %= NUM_FRAMES;
+	}
+
+	complete_tx_only(xsk);
+}
+
+static void tx_only_all(void)
+{
+	struct pollfd fds[MAX_SOCKS] = {};
+	u32 frame_nb[MAX_SOCKS] = {};
+	int i, ret;
+
+	for (i = 0; i < num_socks; i++) {
+		fds[0].fd = xsk_socket__fd(xsks[i]->xsk);
+		fds[0].events = POLLOUT;
+	}
 
 	for (;;) {
 		if (opt_poll) {
-			ret = poll(fds, nfds, timeout);
+			ret = poll(fds, num_socks, opt_timeout);
 			if (ret <= 0)
 				continue;
 
@@ -577,80 +666,139 @@ static void tx_only(struct xsk_socket_info *xsk)
 				continue;
 		}
 
-		if (xsk_ring_prod__reserve(&xsk->tx, BATCH_SIZE, &idx) ==
-		    BATCH_SIZE) {
-			unsigned int i;
-
-			for (i = 0; i < BATCH_SIZE; i++) {
-				xsk_ring_prod__tx_desc(&xsk->tx, idx + i)->addr
-					= (frame_nb + i) <<
-					XSK_UMEM__DEFAULT_FRAME_SHIFT;
-				xsk_ring_prod__tx_desc(&xsk->tx, idx + i)->len =
-					sizeof(pkt_data) - 1;
-			}
-
-			xsk_ring_prod__submit(&xsk->tx, BATCH_SIZE);
-			xsk->outstanding_tx += BATCH_SIZE;
-			frame_nb += BATCH_SIZE;
-			frame_nb %= NUM_FRAMES;
-		}
-
-		complete_tx_only(xsk);
+		for (i = 0; i < num_socks; i++)
+			tx_only(xsks[i], frame_nb[i]);
 	}
 }
 
-static void l2fwd(struct xsk_socket_info *xsk)
+static void l2fwd(struct xsk_socket_info *xsk, struct pollfd *fds)
 {
-	for (;;) {
-		unsigned int rcvd, i;
-		u32 idx_rx = 0, idx_tx = 0;
-		int ret;
+	unsigned int rcvd, i;
+	u32 idx_rx = 0, idx_tx = 0;
+	int ret;
 
-		for (;;) {
-			complete_tx_l2fwd(xsk);
+	complete_tx_l2fwd(xsk, fds);
 
-			rcvd = xsk_ring_cons__peek(&xsk->rx, BATCH_SIZE,
-						   &idx_rx);
-			if (rcvd > 0)
-				break;
-		}
+	rcvd = xsk_ring_cons__peek(&xsk->rx, BATCH_SIZE, &idx_rx);
+	if (!rcvd) {
+		if (xsk_ring_prod__needs_wakeup(&xsk->umem->fq))
+			ret = poll(fds, num_socks, opt_timeout);
+		return;
+	}
 
+	ret = xsk_ring_prod__reserve(&xsk->tx, rcvd, &idx_tx);
+	while (ret != rcvd) {
+		if (ret < 0)
+			exit_with_error(-ret);
+		if (xsk_ring_prod__needs_wakeup(&xsk->tx))
+			kick_tx(xsk);
 		ret = xsk_ring_prod__reserve(&xsk->tx, rcvd, &idx_tx);
-		while (ret != rcvd) {
-			if (ret < 0)
-				exit_with_error(-ret);
-			ret = xsk_ring_prod__reserve(&xsk->tx, rcvd, &idx_tx);
+	}
+
+	for (i = 0; i < rcvd; i++) {
+		u64 addr = xsk_ring_cons__rx_desc(&xsk->rx, idx_rx)->addr;
+		u32 len = xsk_ring_cons__rx_desc(&xsk->rx, idx_rx++)->len;
+		u64 orig = addr;
+
+		addr = xsk_umem__add_offset_to_addr(addr);
+		char *pkt = xsk_umem__get_data(xsk->umem->buffer, addr);
+
+		swap_mac_addresses(pkt);
+
+		hex_dump(pkt, len, addr);
+		xsk_ring_prod__tx_desc(&xsk->tx, idx_tx)->addr = orig;
+		xsk_ring_prod__tx_desc(&xsk->tx, idx_tx++)->len = len;
+	}
+
+	xsk_ring_prod__submit(&xsk->tx, rcvd);
+	xsk_ring_cons__release(&xsk->rx, rcvd);
+
+	xsk->rx_npkts += rcvd;
+	xsk->outstanding_tx += rcvd;
+}
+
+static void l2fwd_all(void)
+{
+	struct pollfd fds[MAX_SOCKS] = {};
+	int i, ret;
+
+	for (i = 0; i < num_socks; i++) {
+		fds[i].fd = xsk_socket__fd(xsks[i]->xsk);
+		fds[i].events = POLLOUT | POLLIN;
+	}
+
+	for (;;) {
+		if (opt_poll) {
+			ret = poll(fds, num_socks, opt_timeout);
+			if (ret <= 0)
+				continue;
 		}
 
-		for (i = 0; i < rcvd; i++) {
-			u64 addr = xsk_ring_cons__rx_desc(&xsk->rx,
-							  idx_rx)->addr;
-			u32 len = xsk_ring_cons__rx_desc(&xsk->rx,
-							 idx_rx++)->len;
-			char *pkt = xsk_umem__get_data(xsk->umem->buffer, addr);
+		for (i = 0; i < num_socks; i++)
+			l2fwd(xsks[i], fds);
+	}
+}
 
-			swap_mac_addresses(pkt);
+static void load_xdp_program(char **argv, struct bpf_object **obj)
+{
+	struct bpf_prog_load_attr prog_load_attr = {
+		.prog_type      = BPF_PROG_TYPE_XDP,
+	};
+	char xdp_filename[256];
+	int prog_fd;
 
-			hex_dump(pkt, len, addr);
-			xsk_ring_prod__tx_desc(&xsk->tx, idx_tx)->addr = addr;
-			xsk_ring_prod__tx_desc(&xsk->tx, idx_tx++)->len = len;
+	snprintf(xdp_filename, sizeof(xdp_filename), "%s_kern.o", argv[0]);
+	prog_load_attr.file = xdp_filename;
+
+	if (bpf_prog_load_xattr(&prog_load_attr, obj, &prog_fd))
+		exit(EXIT_FAILURE);
+	if (prog_fd < 0) {
+		fprintf(stderr, "ERROR: no program found: %s\n",
+			strerror(prog_fd));
+		exit(EXIT_FAILURE);
+	}
+
+	if (bpf_set_link_xdp_fd(opt_ifindex, prog_fd, opt_xdp_flags) < 0) {
+		fprintf(stderr, "ERROR: link set xdp fd failed\n");
+		exit(EXIT_FAILURE);
+	}
+}
+
+static void enter_xsks_into_map(struct bpf_object *obj)
+{
+	struct bpf_map *map;
+	int i, xsks_map;
+
+	map = bpf_object__find_map_by_name(obj, "xsks_map");
+	xsks_map = bpf_map__fd(map);
+	if (xsks_map < 0) {
+		fprintf(stderr, "ERROR: no xsks map found: %s\n",
+			strerror(xsks_map));
+			exit(EXIT_FAILURE);
+	}
+
+	for (i = 0; i < num_socks; i++) {
+		int fd = xsk_socket__fd(xsks[i]->xsk);
+		int key, ret;
+
+		key = i;
+		ret = bpf_map_update_elem(xsks_map, &key, &fd, 0);
+		if (ret) {
+			fprintf(stderr, "ERROR: bpf_map_update_elem %d\n", i);
+			exit(EXIT_FAILURE);
 		}
-
-		xsk_ring_prod__submit(&xsk->tx, rcvd);
-		xsk_ring_cons__release(&xsk->rx, rcvd);
-
-		xsk->rx_npkts += rcvd;
-		xsk->outstanding_tx += rcvd;
 	}
 }
 
 int main(int argc, char **argv)
 {
 	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
+	bool rx = false, tx = false;
 	struct xsk_umem_info *umem;
+	struct bpf_object *obj;
 	pthread_t pt;
+	int i, ret;
 	void *bufs;
-	int ret;
 
 	parse_command_line(argc, argv);
 
@@ -660,23 +808,35 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	ret = posix_memalign(&bufs, getpagesize(), /* PAGE_SIZE aligned */
-			     NUM_FRAMES * XSK_UMEM__DEFAULT_FRAME_SIZE);
-	if (ret)
-		exit_with_error(ret);
+	if (opt_num_xsks > 1)
+		load_xdp_program(argv, &obj);
 
-       /* Create sockets... */
-	umem = xsk_configure_umem(bufs,
-				  NUM_FRAMES * XSK_UMEM__DEFAULT_FRAME_SIZE);
-	xsks[num_socks++] = xsk_configure_socket(umem);
-
-	if (opt_bench == BENCH_TXONLY) {
-		int i;
-
-		for (i = 0; i < NUM_FRAMES * XSK_UMEM__DEFAULT_FRAME_SIZE;
-		     i += XSK_UMEM__DEFAULT_FRAME_SIZE)
-			(void)gen_eth_frame(umem, i);
+	/* Reserve memory for the umem. Use hugepages if unaligned chunk mode */
+	bufs = mmap(NULL, NUM_FRAMES * opt_xsk_frame_size,
+		    PROT_READ | PROT_WRITE,
+		    MAP_PRIVATE | MAP_ANONYMOUS | opt_mmap_flags, -1, 0);
+	if (bufs == MAP_FAILED) {
+		printf("ERROR: mmap failed\n");
+		exit(EXIT_FAILURE);
 	}
+
+	/* Create sockets... */
+	umem = xsk_configure_umem(bufs, NUM_FRAMES * opt_xsk_frame_size);
+	if (opt_bench == BENCH_RXDROP || opt_bench == BENCH_L2FWD) {
+		rx = true;
+		xsk_populate_fill_ring(umem);
+	}
+	if (opt_bench == BENCH_L2FWD || opt_bench == BENCH_TXONLY)
+		tx = true;
+	for (i = 0; i < opt_num_xsks; i++)
+		xsks[num_socks++] = xsk_configure_socket(umem, rx, tx);
+
+	if (opt_bench == BENCH_TXONLY)
+		for (i = 0; i < NUM_FRAMES; i++)
+			gen_eth_frame(umem, i * opt_xsk_frame_size);
+
+	if (opt_num_xsks > 1 && opt_bench != BENCH_TXONLY)
+		enter_xsks_into_map(obj);
 
 	signal(SIGINT, int_exit);
 	signal(SIGTERM, int_exit);
@@ -693,9 +853,9 @@ int main(int argc, char **argv)
 	if (opt_bench == BENCH_RXDROP)
 		rx_drop_all();
 	else if (opt_bench == BENCH_TXONLY)
-		tx_only(xsks[0]);
+		tx_only_all();
 	else
-		l2fwd(xsks[0]);
+		l2fwd_all();
 
 	return 0;
 }

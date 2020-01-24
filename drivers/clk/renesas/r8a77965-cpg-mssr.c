@@ -132,6 +132,7 @@ static const struct mssr_mod_clk r8a77965_mod_clks[] __initconst = {
 	DEF_MOD("cmt2",			301,	R8A77965_CLK_R),
 	DEF_MOD("cmt1",			302,	R8A77965_CLK_R),
 	DEF_MOD("cmt0",			303,	R8A77965_CLK_R),
+	DEF_MOD("tpu0",			304,	R8A77965_CLK_S3D4),
 	DEF_MOD("scif2",		310,	R8A77965_CLK_S3D4),
 	DEF_MOD("sdif3",		311,	R8A77965_CLK_SD3),
 	DEF_MOD("sdif2",		312,	R8A77965_CLK_SD2),
@@ -179,6 +180,9 @@ static const struct mssr_mod_clk r8a77965_mod_clks[] __initconst = {
 	DEF_MOD("ehci1",		702,	R8A77965_CLK_S3D2),
 	DEF_MOD("ehci0",		703,	R8A77965_CLK_S3D2),
 	DEF_MOD("hsusb",		704,	R8A77965_CLK_S3D2),
+	DEF_MOD("cmm3",			708,	R8A77965_CLK_S2D1),
+	DEF_MOD("cmm1",			710,	R8A77965_CLK_S2D1),
+	DEF_MOD("cmm0",			711,	R8A77965_CLK_S2D1),
 	DEF_MOD("csi20",		714,	R8A77965_CLK_CSI0),
 	DEF_MOD("csi40",		716,	R8A77965_CLK_CSI0),
 	DEF_MOD("du3",			721,	R8A77965_CLK_S2D1),
@@ -319,7 +323,7 @@ static int __init r8a77965_cpg_mssr_init(struct device *dev)
 	}
 
 	return rcar_gen3_cpg_init(cpg_pll_config, CLK_EXTALR, cpg_mode);
-};
+}
 
 const struct cpg_mssr_info r8a77965_cpg_mssr_info __initconst = {
 	/* Core Clocks */

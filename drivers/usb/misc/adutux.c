@@ -75,6 +75,7 @@ struct adu_device {
 	char			serial_number[8];
 
 	int			open_count; /* number of times this port has been opened */
+	unsigned long		disconnected:1;
 
 	char		*read_buffer_primary;
 	int			read_buffer_length;
@@ -116,7 +117,7 @@ static void adu_abort_transfers(struct adu_device *dev)
 {
 	unsigned long flags;
 
-	if (dev->udev == NULL)
+	if (dev->disconnected)
 		return;
 
 	/* shutdown transfer */
@@ -148,6 +149,7 @@ static void adu_delete(struct adu_device *dev)
 	kfree(dev->read_buffer_secondary);
 	kfree(dev->interrupt_in_buffer);
 	kfree(dev->interrupt_out_buffer);
+	usb_put_dev(dev->udev);
 	kfree(dev);
 }
 
@@ -243,7 +245,7 @@ static int adu_open(struct inode *inode, struct file *file)
 	}
 
 	dev = usb_get_intfdata(interface);
-	if (!dev || !dev->udev) {
+	if (!dev) {
 		retval = -ENODEV;
 		goto exit_no_device;
 	}
@@ -326,7 +328,7 @@ static int adu_release(struct inode *inode, struct file *file)
 	}
 
 	adu_release_internal(dev);
-	if (dev->udev == NULL) {
+	if (dev->disconnected) {
 		/* the device was unplugged before the file was released */
 		if (!dev->open_count)	/* ... and we're the last user */
 			adu_delete(dev);
@@ -343,7 +345,6 @@ static ssize_t adu_read(struct file *file, __user char *buffer, size_t count,
 	struct adu_device *dev;
 	size_t bytes_read = 0;
 	size_t bytes_to_read = count;
-	int i;
 	int retval = 0;
 	int timeout = 0;
 	int should_submit = 0;
@@ -355,7 +356,7 @@ static ssize_t adu_read(struct file *file, __user char *buffer, size_t count,
 		return -ERESTARTSYS;
 
 	/* verify that the device wasn't unplugged */
-	if (dev->udev == NULL) {
+	if (dev->disconnected) {
 		retval = -ENODEV;
 		pr_err("No device or device unplugged %d\n", retval);
 		goto exit;
@@ -371,23 +372,22 @@ static ssize_t adu_read(struct file *file, __user char *buffer, size_t count,
 	timeout = COMMAND_TIMEOUT;
 	dev_dbg(&dev->udev->dev, "%s : about to start looping\n", __func__);
 	while (bytes_to_read) {
-		int data_in_secondary = dev->secondary_tail - dev->secondary_head;
+		size_t data_in_secondary = dev->secondary_tail - dev->secondary_head;
 		dev_dbg(&dev->udev->dev,
-			"%s : while, data_in_secondary=%d, status=%d\n",
+			"%s : while, data_in_secondary=%zu, status=%d\n",
 			__func__, data_in_secondary,
 			dev->interrupt_in_urb->status);
 
 		if (data_in_secondary) {
 			/* drain secondary buffer */
-			int amount = bytes_to_read < data_in_secondary ? bytes_to_read : data_in_secondary;
-			i = copy_to_user(buffer, dev->read_buffer_secondary+dev->secondary_head, amount);
-			if (i) {
+			size_t amount = min(bytes_to_read, data_in_secondary);
+			if (copy_to_user(buffer, dev->read_buffer_secondary+dev->secondary_head, amount)) {
 				retval = -EFAULT;
 				goto exit;
 			}
-			dev->secondary_head += (amount - i);
-			bytes_read += (amount - i);
-			bytes_to_read -= (amount - i);
+			dev->secondary_head += amount;
+			bytes_read += amount;
+			bytes_to_read -= amount;
 		} else {
 			/* we check the primary buffer */
 			spin_lock_irqsave (&dev->buflock, flags);
@@ -520,7 +520,7 @@ static ssize_t adu_write(struct file *file, const __user char *buffer,
 		goto exit_nolock;
 
 	/* verify that the device wasn't unplugged */
-	if (dev->udev == NULL) {
+	if (dev->disconnected) {
 		retval = -ENODEV;
 		pr_err("No device or device unplugged %d\n", retval);
 		goto exit;
@@ -665,11 +665,11 @@ static int adu_probe(struct usb_interface *interface,
 
 	mutex_init(&dev->mtx);
 	spin_lock_init(&dev->buflock);
-	dev->udev = udev;
+	dev->udev = usb_get_dev(udev);
 	init_waitqueue_head(&dev->read_wait);
 	init_waitqueue_head(&dev->write_wait);
 
-	res = usb_find_common_endpoints_reverse(&interface->altsetting[0],
+	res = usb_find_common_endpoints_reverse(interface->cur_altsetting,
 			NULL, NULL,
 			&dev->interrupt_in_endpoint,
 			&dev->interrupt_out_endpoint);
@@ -764,13 +764,17 @@ static void adu_disconnect(struct usb_interface *interface)
 
 	dev = usb_get_intfdata(interface);
 
-	mutex_lock(&dev->mtx);	/* not interruptible */
-	dev->udev = NULL;	/* poison */
 	usb_deregister_dev(interface, &adu_class);
-	mutex_unlock(&dev->mtx);
+
+	usb_poison_urb(dev->interrupt_in_urb);
+	usb_poison_urb(dev->interrupt_out_urb);
 
 	mutex_lock(&adutux_mutex);
 	usb_set_intfdata(interface, NULL);
+
+	mutex_lock(&dev->mtx);	/* not interruptible */
+	dev->disconnected = 1;
+	mutex_unlock(&dev->mtx);
 
 	/* if the device is not opened, then we clean up right now */
 	if (!dev->open_count)

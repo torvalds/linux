@@ -39,8 +39,6 @@ static int rtl92cu_init_sw_vars(struct ieee80211_hw *hw)
 	rtlpriv->dm.dm_flag = 0;
 	rtlpriv->dm.disable_framebursting = false;
 	rtlpriv->dm.thermalvalue = 0;
-	rtlpriv->cfg->mod_params->sw_crypto =
-		rtlpriv->cfg->mod_params->sw_crypto;
 
 	/* for firmware buf */
 	rtlpriv->rtlhal.pfirmware = vzalloc(0x4000);

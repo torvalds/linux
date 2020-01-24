@@ -369,10 +369,6 @@ int sm_ll_find_free_block(struct ll_disk *ll, dm_block_t begin,
 			 */
 			dm_tm_unlock(ll->tm, blk);
 			continue;
-
-		} else if (r < 0) {
-			dm_tm_unlock(ll->tm, blk);
-			return r;
 		}
 
 		dm_tm_unlock(ll->tm, blk);

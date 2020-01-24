@@ -11,11 +11,10 @@
 #include <linux/types.h>
 #include <linux/workqueue.h>
 
-#include <drm/drmP.h>
+#include "dss/omapdss.h"
+
 #include <drm/drm_gem.h>
 #include <drm/omap_drm.h>
-
-#include "dss/omapdss.h"
 
 #include "omap_connector.h"
 #include "omap_crtc.h"
@@ -26,8 +25,8 @@
 #include "omap_irq.h"
 #include "omap_plane.h"
 
-#define DBG(fmt, ...) DRM_DEBUG(fmt"\n", ##__VA_ARGS__)
-#define VERB(fmt, ...) if (0) DRM_DEBUG(fmt, ##__VA_ARGS__) /* verbose debug */
+#define DBG(fmt, ...) DRM_DEBUG_DRIVER(fmt"\n", ##__VA_ARGS__)
+#define VERB(fmt, ...) if (0) DRM_DEBUG_DRIVER(fmt, ##__VA_ARGS__) /* verbose debug */
 
 #define MODULE_NAME     "omapdrm"
 

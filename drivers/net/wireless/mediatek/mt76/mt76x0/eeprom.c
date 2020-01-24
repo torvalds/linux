@@ -59,6 +59,11 @@ static void mt76x0_set_chip_cap(struct mt76x02_dev *dev)
 		dev_dbg(dev->mt76.dev, "mask out 2GHz support\n");
 	}
 
+	if (is_mt7630(dev)) {
+		dev->mt76.cap.has_5ghz = false;
+		dev_dbg(dev->mt76.dev, "mask out 5GHz support\n");
+	}
+
 	if (!mt76x02_field_valid(nic_conf1 & 0xff))
 		nic_conf1 &= 0xff00;
 
@@ -207,7 +212,7 @@ void mt76x0_get_tx_power_per_rate(struct mt76x02_dev *dev,
 void mt76x0_get_power_info(struct mt76x02_dev *dev,
 			   struct ieee80211_channel *chan, s8 *tp)
 {
-	struct mt76x0_chan_map {
+	static const struct mt76x0_chan_map {
 		u8 chan;
 		u8 offset;
 	} chan_map[] = {
@@ -337,7 +342,11 @@ int mt76x0_eeprom_init(struct mt76x02_dev *dev)
 	dev_info(dev->mt76.dev, "EEPROM ver:%02hhx fae:%02hhx\n",
 		 version, fae);
 
-	mt76x02_mac_setaddr(dev, dev->mt76.eeprom.data + MT_EE_MAC_ADDR);
+	memcpy(dev->mt76.macaddr, (u8 *)dev->mt76.eeprom.data + MT_EE_MAC_ADDR,
+	       ETH_ALEN);
+	mt76_eeprom_override(&dev->mt76);
+	mt76x02_mac_setaddr(dev, dev->mt76.macaddr);
+
 	mt76x0_set_chip_cap(dev);
 	mt76x0_set_freq_offset(dev);
 	mt76x0_set_temp_offset(dev);

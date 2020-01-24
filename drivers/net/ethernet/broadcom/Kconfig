@@ -13,9 +13,9 @@ config NET_VENDOR_BROADCOM
 	  say Y.
 
 	  Note that the answer to this question does not directly affect
-	  the kernel: saying N will just case the configurator to skip all
-	  the questions regarding AMD chipsets. If you say Y, you will be asked
-	  for your specific chipset/driver in the following questions.
+	  the kernel: saying N will just cause the configurator to skip all
+	  the questions regarding Broadcom chipsets. If you say Y, you will
+	  be asked for your specific chipset/driver in the following questions.
 
 if NET_VENDOR_BROADCOM
 
@@ -68,6 +68,7 @@ config BCMGENET
 	select FIXED_PHY
 	select BCM7XXX_PHY
 	select MDIO_BCM_UNIMAC
+	select DIMLIB
 	help
 	  This driver supports the built-in Ethernet MACs found in the
 	  Broadcom BCM7xxx Set Top Box family chipset.
@@ -187,6 +188,7 @@ config SYSTEMPORT
 	select MII
 	select PHYLIB
 	select FIXED_PHY
+	select DIMLIB
 	help
 	  This driver supports the built-in Ethernet MACs found in the
 	  Broadcom BCM7xxx Set Top Box family chipset using an internal
@@ -198,6 +200,8 @@ config BNXT
 	select FW_LOADER
 	select LIBCRC32C
 	select NET_DEVLINK
+	select PAGE_POOL
+	select DIMLIB
 	---help---
 	  This driver supports Broadcom NetXtreme-C/E 10/25/40/50 gigabit
 	  Ethernet cards.  To compile this driver as a module, choose M here:

@@ -5,6 +5,8 @@
 # Author: Jesper Dangaaard Brouer
 # License: GPL
 
+set -o errexit
+
 ## -- General shell logging cmds --
 function err() {
     local exitcode=$1
@@ -58,6 +60,7 @@ function pg_set() {
 function proc_cmd() {
     local result
     local proc_file=$1
+    local status=0
     # after shift, the remaining args are contained in $@
     shift
     local proc_ctrl=${PROC_DIR}/$proc_file
@@ -73,13 +76,13 @@ function proc_cmd() {
 	echo "cmd: $@ > $proc_ctrl"
     fi
     # Quoting of "$@" is important for space expansion
-    echo "$@" > "$proc_ctrl"
-    local status=$?
+    echo "$@" > "$proc_ctrl" || status=$?
 
-    result=$(grep "Result: OK:" $proc_ctrl)
-    # Due to pgctrl, cannot use exit code $? from grep
-    if [[ "$result" == "" ]]; then
-	grep "Result:" $proc_ctrl >&2
+    if [[ "$proc_file" != "pgctrl" ]]; then
+        result=$(grep "Result: OK:" $proc_ctrl) || true
+        if [[ "$result" == "" ]]; then
+            grep "Result:" $proc_ctrl >&2
+        fi
     fi
     if (( $status != 0 )); then
 	err 5 "Write error($status) occurred cmd: \"$@ > $proc_ctrl\""
@@ -104,6 +107,8 @@ function pgset() {
 	err 5 "Write error($status) occurred cmd: \"$1 > $PGDEV\""
     fi
 }
+
+[[ $EUID -eq 0 ]] && trap 'pg_ctrl "reset"' EXIT
 
 ## -- General shell tricks --
 
@@ -161,4 +166,169 @@ function get_node_cpus()
 	done
 
 	echo $node_cpu_list
+}
+
+# Check $1 is in between $2, $3 ($2 <= $1 <= $3)
+function in_between() { [[ ($1 -ge $2) && ($1 -le $3) ]] ; }
+
+# Extend shrunken IPv6 address.
+# fe80::42:bcff:fe84:e10a => fe80:0:0:0:42:bcff:fe84:e10a
+function extend_addr6()
+{
+    local addr=$1
+    local sep=: sep2=::
+    local sep_cnt=$(tr -cd $sep <<< $1 | wc -c)
+    local shrink
+
+    # separator count should be (2 <= $sep_cnt <= 7)
+    if ! (in_between $sep_cnt 2 7); then
+        err 5 "Invalid IP6 address: $1"
+    fi
+
+    # if shrink '::' occurs multiple, it's malformed.
+    shrink=( $(egrep -o "$sep{2,}" <<< $addr) )
+    if [[ ${#shrink[@]} -ne 0 ]]; then
+        if [[ ${#shrink[@]} -gt 1 || ( ${shrink[0]} != $sep2 ) ]]; then
+            err 5 "Invalid IP6 address: $1"
+        fi
+    fi
+
+    # add 0 at begin & end, and extend addr by adding :0
+    [[ ${addr:0:1} == $sep ]] && addr=0${addr}
+    [[ ${addr: -1} == $sep ]] && addr=${addr}0
+    echo "${addr/$sep2/$(printf ':0%.s' $(seq $[8-sep_cnt])):}"
+}
+
+# Given a single IP(v4/v6) address, whether it is valid.
+function validate_addr()
+{
+    # check function is called with (funcname)6
+    [[ ${FUNCNAME[1]: -1} == 6 ]] && local IP6=6
+    local bitlen=$[ IP6 ? 128 : 32 ]
+    local len=$[ IP6 ? 8 : 4 ]
+    local max=$[ 2**(len*2)-1 ]
+    local net prefix
+    local addr sep
+
+    IFS='/' read net prefix <<< $1
+    [[ $IP6 ]] && net=$(extend_addr6 $net)
+
+    # if prefix exists, check (0 <= $prefix <= $bitlen)
+    if [[ -n $prefix ]]; then
+        if ! (in_between $prefix 0 $bitlen); then
+            err 5 "Invalid prefix: /$prefix"
+        fi
+    fi
+
+    # set separator for each IP(v4/v6)
+    [[ $IP6 ]] && sep=: || sep=.
+    IFS=$sep read -a addr <<< $net
+
+    # array length
+    if [[ ${#addr[@]} != $len ]]; then
+        err 5 "Invalid IP$IP6 address: $1"
+    fi
+
+    # check each digit (0 <= $digit <= $max)
+    for digit in "${addr[@]}"; do
+        [[ $IP6 ]] && digit=$[ 16#$digit ]
+        if ! (in_between $digit 0 $max); then
+            err 5 "Invalid IP$IP6 address: $1"
+        fi
+    done
+
+    return 0
+}
+
+function validate_addr6() { validate_addr $@ ; }
+
+# Given a single IP(v4/v6) or CIDR, return minimum and maximum IP addr.
+function parse_addr()
+{
+    # check function is called with (funcname)6
+    [[ ${FUNCNAME[1]: -1} == 6 ]] && local IP6=6
+    local net prefix
+    local min_ip max_ip
+
+    IFS='/' read net prefix <<< $1
+    [[ $IP6 ]] && net=$(extend_addr6 $net)
+
+    if [[ -z $prefix ]]; then
+        min_ip=$net
+        max_ip=$net
+    else
+        # defining array for converting Decimal 2 Binary
+        # 00000000 00000001 00000010 00000011 00000100 ...
+        local d2b='{0..1}{0..1}{0..1}{0..1}{0..1}{0..1}{0..1}{0..1}'
+        [[ $IP6 ]] && d2b+=$d2b
+        eval local D2B=($d2b)
+
+        local bitlen=$[ IP6 ? 128 : 32 ]
+        local remain=$[ bitlen-prefix ]
+        local octet=$[ IP6 ? 16 : 8 ]
+        local min_mask max_mask
+        local min max
+        local ip_bit
+        local ip sep
+
+        # set separator for each IP(v4/v6)
+        [[ $IP6 ]] && sep=: || sep=.
+        IFS=$sep read -ra ip <<< $net
+
+        min_mask="$(printf '1%.s' $(seq $prefix))$(printf '0%.s' $(seq $remain))"
+        max_mask="$(printf '0%.s' $(seq $prefix))$(printf '1%.s' $(seq $remain))"
+
+        # calculate min/max ip with &,| operator
+        for i in "${!ip[@]}"; do
+            digit=$[ IP6 ? 16#${ip[$i]} : ${ip[$i]} ]
+            ip_bit=${D2B[$digit]}
+
+            idx=$[ octet*i ]
+            min[$i]=$[ 2#$ip_bit & 2#${min_mask:$idx:$octet} ]
+            max[$i]=$[ 2#$ip_bit | 2#${max_mask:$idx:$octet} ]
+            [[ $IP6 ]] && { min[$i]=$(printf '%X' ${min[$i]});
+                            max[$i]=$(printf '%X' ${max[$i]}); }
+        done
+
+        min_ip=$(IFS=$sep; echo "${min[*]}")
+        max_ip=$(IFS=$sep; echo "${max[*]}")
+    fi
+
+    echo $min_ip $max_ip
+}
+
+function parse_addr6() { parse_addr $@ ; }
+
+# Given a single or range of port(s), return minimum and maximum port number.
+function parse_ports()
+{
+    local port_str=$1
+    local port_list
+    local min_port
+    local max_port
+
+    IFS="-" read -ra port_list <<< $port_str
+
+    min_port=${port_list[0]}
+    max_port=${port_list[1]:-$min_port}
+
+    echo $min_port $max_port
+}
+
+# Given a minimum and maximum port, verify port number.
+function validate_ports()
+{
+    local min_port=$1
+    local max_port=$2
+
+    # 1 <= port <= 65535
+    if (in_between $min_port 1 65535); then
+	if (in_between $max_port 1 65535); then
+	    if [[ $min_port -le $max_port ]]; then
+		return 0
+	    fi
+	fi
+    fi
+
+    err 5 "Invalid port(s): $min_port-$max_port"
 }

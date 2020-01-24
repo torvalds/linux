@@ -148,7 +148,8 @@ static ssize_t iwl_dbgfs_tx_flush_write(struct iwl_mvm *mvm, char *buf,
 				    "FLUSHING all tids queues on sta_id = %d\n",
 				    flush_arg);
 		mutex_lock(&mvm->mutex);
-		ret = iwl_mvm_flush_sta_tids(mvm, flush_arg, 0xFF, 0) ? : count;
+		ret = iwl_mvm_flush_sta_tids(mvm, flush_arg, 0xFFFF, 0)
+			? : count;
 		mutex_unlock(&mvm->mutex);
 		return ret;
 	}
@@ -377,7 +378,7 @@ static ssize_t iwl_dbgfs_sar_geo_profile_read(struct file *file,
 		pos = scnprintf(buf, bufsz,
 				"SAR geographic profile disabled\n");
 	} else {
-		value = &mvm->geo_profiles[tbl_idx - 1].values[0];
+		value = &mvm->fwrt.geo_profiles[tbl_idx - 1].values[0];
 
 		pos += scnprintf(buf + pos, bufsz - pos,
 				 "Use geographic profile %d\n", tbl_idx);
@@ -465,6 +466,46 @@ static ssize_t iwl_dbgfs_rs_data_read(struct file *file, char __user *user_buf,
 	ret = simple_read_from_buffer(user_buf, count, ppos, buff, desc);
 	kfree(buff);
 	return ret;
+}
+
+static ssize_t iwl_dbgfs_amsdu_len_write(struct ieee80211_sta *sta,
+					 char *buf, size_t count,
+					 loff_t *ppos)
+{
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	int i;
+	u16 amsdu_len;
+
+	if (kstrtou16(buf, 0, &amsdu_len))
+		return -EINVAL;
+
+	if (amsdu_len) {
+		mvmsta->orig_amsdu_len = sta->max_amsdu_len;
+		sta->max_amsdu_len = amsdu_len;
+		for (i = 0; i < ARRAY_SIZE(sta->max_tid_amsdu_len); i++)
+			sta->max_tid_amsdu_len[i] = amsdu_len;
+	} else {
+		sta->max_amsdu_len = mvmsta->orig_amsdu_len;
+		mvmsta->orig_amsdu_len = 0;
+	}
+	return count;
+}
+
+static ssize_t iwl_dbgfs_amsdu_len_read(struct file *file,
+					char __user *user_buf,
+					size_t count, loff_t *ppos)
+{
+	struct ieee80211_sta *sta = file->private_data;
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+
+	char buf[32];
+	int pos;
+
+	pos = scnprintf(buf, sizeof(buf), "current %d ", sta->max_amsdu_len);
+	pos += scnprintf(buf + pos, sizeof(buf) - pos, "stored %d\n",
+			 mvmsta->orig_amsdu_len);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
 static ssize_t iwl_dbgfs_disable_power_off_read(struct file *file,
@@ -1016,18 +1057,10 @@ static ssize_t iwl_dbgfs_fw_restart_write(struct iwl_mvm *mvm, char *buf,
 static ssize_t iwl_dbgfs_fw_nmi_write(struct iwl_mvm *mvm, char *buf,
 				      size_t count, loff_t *ppos)
 {
-	int ret;
-
 	if (!iwl_mvm_firmware_running(mvm))
 		return -EIO;
 
-	ret = iwl_mvm_ref_sync(mvm, IWL_MVM_REF_NMI);
-	if (ret)
-		return ret;
-
 	iwl_force_nmi(mvm->trans);
-
-	iwl_mvm_unref(mvm, IWL_MVM_REF_NMI);
 
 	return count;
 }
@@ -1141,8 +1174,8 @@ static ssize_t iwl_dbgfs_inject_packet_write(struct iwl_mvm *mvm,
 	struct iwl_rx_mpdu_desc *desc;
 	int bin_len = count / 2;
 	int ret = -EINVAL;
-	size_t mpdu_cmd_hdr_size =
-		(mvm->trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560) ?
+	size_t mpdu_cmd_hdr_size = (mvm->trans->trans_cfg->device_family >=
+				    IWL_DEVICE_FAMILY_AX210) ?
 		sizeof(struct iwl_rx_mpdu_desc) :
 		IWL_RX_DESC_SIZE_V1;
 
@@ -1150,7 +1183,7 @@ static ssize_t iwl_dbgfs_inject_packet_write(struct iwl_mvm *mvm,
 		return -EIO;
 
 	/* supporting only 9000 descriptor */
-	if (!mvm->trans->cfg->mq_rx_supported)
+	if (!mvm->trans->trans_cfg->mq_rx_supported)
 		return -ENOTSUPP;
 
 	rxb._page = alloc_pages(GFP_ATOMIC, 0);
@@ -1340,36 +1373,14 @@ static ssize_t iwl_dbgfs_fw_dbg_collect_write(struct iwl_mvm *mvm,
 					      char *buf, size_t count,
 					      loff_t *ppos)
 {
-	int ret;
-
-	ret = iwl_mvm_ref_sync(mvm, IWL_MVM_REF_PRPH_WRITE);
-	if (ret)
-		return ret;
 	if (count == 0)
 		return 0;
 
+	iwl_dbg_tlv_time_point(&mvm->fwrt, IWL_FW_INI_TIME_POINT_USER_TRIGGER,
+			       NULL);
+
 	iwl_fw_dbg_collect(&mvm->fwrt, FW_DBG_TRIGGER_USER, buf,
 			   (count - 1), NULL);
-
-	iwl_mvm_unref(mvm, IWL_MVM_REF_PRPH_WRITE);
-
-	return count;
-}
-
-static ssize_t iwl_dbgfs_max_amsdu_len_write(struct iwl_mvm *mvm,
-					     char *buf, size_t count,
-					     loff_t *ppos)
-{
-	unsigned int max_amsdu_len;
-	int ret;
-
-	ret = kstrtouint(buf, 0, &max_amsdu_len);
-	if (ret)
-		return ret;
-
-	if (max_amsdu_len > IEEE80211_MAX_MPDU_LEN_VHT_11454)
-		return -EINVAL;
-	mvm->max_amsdu_len = max_amsdu_len;
 
 	return count;
 }
@@ -1557,87 +1568,6 @@ static ssize_t iwl_dbgfs_bcast_filters_macs_write(struct iwl_mvm *mvm,
 }
 #endif
 
-#define PRINT_MVM_REF(ref) do {						\
-	if (mvm->refs[ref])						\
-		pos += scnprintf(buf + pos, bufsz - pos,		\
-				 "\t(0x%lx): %d %s\n",			\
-				 BIT(ref), mvm->refs[ref], #ref);	\
-} while (0)
-
-static ssize_t iwl_dbgfs_d0i3_refs_read(struct file *file,
-					char __user *user_buf,
-					size_t count, loff_t *ppos)
-{
-	struct iwl_mvm *mvm = file->private_data;
-	int i, pos = 0;
-	char buf[256];
-	const size_t bufsz = sizeof(buf);
-	u32 refs = 0;
-
-	for (i = 0; i < IWL_MVM_REF_COUNT; i++)
-		if (mvm->refs[i])
-			refs |= BIT(i);
-
-	pos += scnprintf(buf + pos, bufsz - pos, "taken mvm refs: 0x%x\n",
-			 refs);
-
-	PRINT_MVM_REF(IWL_MVM_REF_UCODE_DOWN);
-	PRINT_MVM_REF(IWL_MVM_REF_SCAN);
-	PRINT_MVM_REF(IWL_MVM_REF_ROC);
-	PRINT_MVM_REF(IWL_MVM_REF_ROC_AUX);
-	PRINT_MVM_REF(IWL_MVM_REF_P2P_CLIENT);
-	PRINT_MVM_REF(IWL_MVM_REF_AP_IBSS);
-	PRINT_MVM_REF(IWL_MVM_REF_USER);
-	PRINT_MVM_REF(IWL_MVM_REF_TX);
-	PRINT_MVM_REF(IWL_MVM_REF_TX_AGG);
-	PRINT_MVM_REF(IWL_MVM_REF_ADD_IF);
-	PRINT_MVM_REF(IWL_MVM_REF_START_AP);
-	PRINT_MVM_REF(IWL_MVM_REF_BSS_CHANGED);
-	PRINT_MVM_REF(IWL_MVM_REF_PREPARE_TX);
-	PRINT_MVM_REF(IWL_MVM_REF_PROTECT_TDLS);
-	PRINT_MVM_REF(IWL_MVM_REF_CHECK_CTKILL);
-	PRINT_MVM_REF(IWL_MVM_REF_PRPH_READ);
-	PRINT_MVM_REF(IWL_MVM_REF_PRPH_WRITE);
-	PRINT_MVM_REF(IWL_MVM_REF_NMI);
-	PRINT_MVM_REF(IWL_MVM_REF_TM_CMD);
-	PRINT_MVM_REF(IWL_MVM_REF_EXIT_WORK);
-	PRINT_MVM_REF(IWL_MVM_REF_PROTECT_CSA);
-	PRINT_MVM_REF(IWL_MVM_REF_FW_DBG_COLLECT);
-	PRINT_MVM_REF(IWL_MVM_REF_INIT_UCODE);
-	PRINT_MVM_REF(IWL_MVM_REF_SENDING_CMD);
-	PRINT_MVM_REF(IWL_MVM_REF_RX);
-
-	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
-}
-
-static ssize_t iwl_dbgfs_d0i3_refs_write(struct iwl_mvm *mvm, char *buf,
-					 size_t count, loff_t *ppos)
-{
-	unsigned long value;
-	int ret;
-	bool taken;
-
-	ret = kstrtoul(buf, 10, &value);
-	if (ret < 0)
-		return ret;
-
-	mutex_lock(&mvm->mutex);
-
-	taken = mvm->refs[IWL_MVM_REF_USER];
-	if (value == 1 && !taken)
-		iwl_mvm_ref(mvm, IWL_MVM_REF_USER);
-	else if (value == 0 && taken)
-		iwl_mvm_unref(mvm, IWL_MVM_REF_USER);
-	else
-		ret = -EINVAL;
-
-	mutex_unlock(&mvm->mutex);
-
-	if (ret < 0)
-		return ret;
-	return count;
-}
-
 #define MVM_DEBUGFS_WRITE_FILE_OPS(name, bufsz) \
 	_MVM_DEBUGFS_WRITE_FILE_OPS(name, bufsz, struct iwl_mvm)
 #define MVM_DEBUGFS_READ_WRITE_FILE_OPS(name, bufsz) \
@@ -1670,20 +1600,13 @@ iwl_dbgfs_prph_reg_read(struct file *file,
 	int pos = 0;
 	char buf[32];
 	const size_t bufsz = sizeof(buf);
-	int ret;
 
 	if (!mvm->dbgfs_prph_reg_addr)
 		return -EINVAL;
 
-	ret = iwl_mvm_ref_sync(mvm, IWL_MVM_REF_PRPH_READ);
-	if (ret)
-		return ret;
-
 	pos += scnprintf(buf + pos, bufsz - pos, "Reg 0x%x: (0x%x)\n",
 		mvm->dbgfs_prph_reg_addr,
 		iwl_read_prph(mvm->trans, mvm->dbgfs_prph_reg_addr));
-
-	iwl_mvm_unref(mvm, IWL_MVM_REF_PRPH_READ);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
@@ -1694,7 +1617,6 @@ iwl_dbgfs_prph_reg_write(struct iwl_mvm *mvm, char *buf,
 {
 	u8 args;
 	u32 value;
-	int ret;
 
 	args = sscanf(buf, "%i %i", &mvm->dbgfs_prph_reg_addr, &value);
 	/* if we only want to set the reg address - nothing more to do */
@@ -1705,13 +1627,8 @@ iwl_dbgfs_prph_reg_write(struct iwl_mvm *mvm, char *buf,
 	if (args != 2)
 		return -EINVAL;
 
-	ret = iwl_mvm_ref_sync(mvm, IWL_MVM_REF_PRPH_WRITE);
-	if (ret)
-		return ret;
-
 	iwl_write_prph(mvm->trans, mvm->dbgfs_prph_reg_addr, value);
 
-	iwl_mvm_unref(mvm, IWL_MVM_REF_PRPH_WRITE);
 out:
 	return count;
 }
@@ -1845,6 +1762,38 @@ iwl_dbgfs_uapsd_noagg_bssids_read(struct file *file, char __user *user_buf,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
+static ssize_t
+iwl_dbgfs_ltr_config_write(struct iwl_mvm *mvm,
+			   char *buf, size_t count, loff_t *ppos)
+{
+	int ret;
+	struct iwl_ltr_config_cmd ltr_config = {0};
+
+	if (!iwl_mvm_firmware_running(mvm))
+		return -EIO;
+
+	if (sscanf(buf, "%x,%x,%x,%x,%x,%x,%x",
+		   &ltr_config.flags,
+		   &ltr_config.static_long,
+		   &ltr_config.static_short,
+		   &ltr_config.ltr_cfg_values[0],
+		   &ltr_config.ltr_cfg_values[1],
+		   &ltr_config.ltr_cfg_values[2],
+		   &ltr_config.ltr_cfg_values[3]) != 7) {
+		return -EINVAL;
+	}
+
+	mutex_lock(&mvm->mutex);
+	ret = iwl_mvm_send_cmd_pdu(mvm, LTR_CONFIG, 0, sizeof(ltr_config),
+				   &ltr_config);
+	mutex_unlock(&mvm->mutex);
+
+	if (ret)
+		IWL_ERR(mvm, "failed to send ltr configuration cmd\n");
+
+	return ret ?: count;
+}
+
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(prph_reg, 64);
 
 /* Device wide debugfs entries */
@@ -1870,10 +1819,8 @@ MVM_DEBUGFS_WRITE_FILE_OPS(fw_nmi, 10);
 MVM_DEBUGFS_WRITE_FILE_OPS(bt_tx_prio, 10);
 MVM_DEBUGFS_WRITE_FILE_OPS(bt_force_ant, 10);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(scan_ant_rxchain, 8);
-MVM_DEBUGFS_READ_WRITE_FILE_OPS(d0i3_refs, 8);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(fw_dbg_conf, 8);
 MVM_DEBUGFS_WRITE_FILE_OPS(fw_dbg_collect, 64);
-MVM_DEBUGFS_WRITE_FILE_OPS(max_amsdu_len, 8);
 MVM_DEBUGFS_WRITE_FILE_OPS(indirection_tbl,
 			   (IWL_RSS_INDIRECTION_TABLE_SIZE * 2));
 MVM_DEBUGFS_WRITE_FILE_OPS(inject_packet, 512);
@@ -1891,7 +1838,11 @@ MVM_DEBUGFS_READ_WRITE_FILE_OPS(bcast_filters_macs, 256);
 MVM_DEBUGFS_READ_FILE_OPS(sar_geo_profile);
 #endif
 
+MVM_DEBUGFS_READ_WRITE_STA_FILE_OPS(amsdu_len, 16);
+
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(he_sniffer_params, 32);
+
+MVM_DEBUGFS_WRITE_FILE_OPS(ltr_config, 512);
 
 static ssize_t iwl_dbgfs_mem_read(struct file *file, char __user *user_buf,
 				  size_t count, loff_t *ppos)
@@ -2032,8 +1983,10 @@ void iwl_mvm_sta_add_debugfs(struct ieee80211_hw *hw,
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 
-	if (iwl_mvm_has_tlc_offload(mvm))
+	if (iwl_mvm_has_tlc_offload(mvm)) {
 		MVM_DEBUGFS_ADD_STA_FILE(rs_data, dir, 0400);
+	}
+	MVM_DEBUGFS_ADD_STA_FILE(amsdu_len, dir, 0600);
 }
 
 void iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
@@ -2066,10 +2019,8 @@ void iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	MVM_DEBUGFS_ADD_FILE(bt_force_ant, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(scan_ant_rxchain, mvm->debugfs_dir, 0600);
 	MVM_DEBUGFS_ADD_FILE(prph_reg, mvm->debugfs_dir, 0600);
-	MVM_DEBUGFS_ADD_FILE(d0i3_refs, mvm->debugfs_dir, 0600);
 	MVM_DEBUGFS_ADD_FILE(fw_dbg_conf, mvm->debugfs_dir, 0600);
 	MVM_DEBUGFS_ADD_FILE(fw_dbg_collect, mvm->debugfs_dir, 0200);
-	MVM_DEBUGFS_ADD_FILE(max_amsdu_len, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(send_echo_cmd, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(indirection_tbl, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(inject_packet, mvm->debugfs_dir, 0200);
@@ -2079,6 +2030,9 @@ void iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	MVM_DEBUGFS_ADD_FILE(sar_geo_profile, dbgfs_dir, 0400);
 #endif
 	MVM_DEBUGFS_ADD_FILE(he_sniffer_params, mvm->debugfs_dir, 0600);
+
+	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_SET_LTR_GEN2))
+		MVM_DEBUGFS_ADD_FILE(ltr_config, mvm->debugfs_dir, 0200);
 
 	debugfs_create_bool("enable_scan_iteration_notif", 0600,
 			    mvm->debugfs_dir, &mvm->scan_iter_notif_enabled);

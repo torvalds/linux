@@ -2487,6 +2487,24 @@ const struct em28xx_board em28xx_boards[] = {
 		.ir_codes      = RC_MAP_HAUPPAUGE,
 		.leds          = hauppauge_dualhd_leds,
 	},
+	/*
+	 * 1b80:e349 Magix USB Videowandler-2
+	 * (same chips as Honestech VIDBOX NW03)
+	 * Empia EM2860, Philips SAA7113, Empia EMP202, No Tuner
+	 */
+	[EM2861_BOARD_MAGIX_VIDEOWANDLER2] = {
+		.name                = "Magix USB Videowandler-2",
+		.tuner_type          = TUNER_ABSENT,
+		.decoder             = EM28XX_SAA711X,
+		.input               = { {
+			.type     = EM28XX_VMUX_COMPOSITE,
+			.vmux     = SAA7115_COMPOSITE0,
+			.amux     = EM28XX_AMUX_LINE_IN,
+		}, {
+			.type     = EM28XX_VMUX_SVIDEO,
+			.amux     = EM28XX_AMUX_LINE_IN,
+		} },
+	},
 };
 EXPORT_SYMBOL_GPL(em28xx_boards);
 
@@ -2696,6 +2714,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM28178_BOARD_PLEX_PX_BCUD },
 	{ USB_DEVICE(0xeb1a, 0x5051), /* Ion Video 2 PC MKII / Startech svid2usb23 / Raygo R12-41373 */
 			.driver_info = EM2860_BOARD_TVP5150_REFERENCE_DESIGN },
+	{ USB_DEVICE(0x1b80, 0xe349), /* Magix USB Videowandler-2 */
+		.driver_info = EM2861_BOARD_MAGIX_VIDEOWANDLER2 },
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, em28xx_id_table);
@@ -3566,13 +3586,12 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 static int em28xx_duplicate_dev(struct em28xx *dev)
 {
 	int nr;
-	struct em28xx *sec_dev = kzalloc(sizeof(*sec_dev), GFP_KERNEL);
+	struct em28xx *sec_dev = kmemdup(dev, sizeof(*sec_dev), GFP_KERNEL);
 
 	if (!sec_dev) {
 		dev->dev_next = NULL;
 		return -ENOMEM;
 	}
-	memcpy(sec_dev, dev, sizeof(*sec_dev));
 	/* Check to see next free device and mark as used */
 	do {
 		nr = find_first_zero_bit(em28xx_devused, EM28XX_MAXBOARDS);
@@ -4020,7 +4039,6 @@ static void em28xx_usb_disconnect(struct usb_interface *intf)
 		dev->dev_next->disconnected = 1;
 		dev_info(&dev->intf->dev, "Disconnecting %s\n",
 			 dev->dev_next->name);
-		flush_request_modules(dev->dev_next);
 	}
 
 	dev->disconnected = 1;

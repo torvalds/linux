@@ -412,8 +412,10 @@ static int rzn1_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 	for_each_child_of_node(np, child) {
 		ret = rzn1_dt_node_to_map_one(pctldev, child, map, num_maps);
-		if (ret < 0)
+		if (ret < 0) {
+			of_node_put(child);
 			return ret;
+		}
 	}
 
 	return 0;
@@ -485,7 +487,7 @@ static int rzn1_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 {
 	struct rzn1_pinctrl *ipctl = pinctrl_dev_get_drvdata(pctldev);
 	enum pin_config_param param = pinconf_to_config_param(*config);
-	const u32 reg_drive[4] = { 4, 6, 8, 12 };
+	static const u32 reg_drive[4] = { 4, 6, 8, 12 };
 	u32 pull, drive, l1mux;
 	u32 l1, l2, arg = 0;
 
@@ -792,8 +794,10 @@ static int rzn1_pinctrl_parse_functions(struct device_node *np,
 		grp = &ipctl->groups[ipctl->ngroups];
 		grp->func = func->name;
 		ret = rzn1_pinctrl_parse_groups(child, grp, ipctl);
-		if (ret < 0)
+		if (ret < 0) {
+			of_node_put(child);
 			return ret;
+		}
 		i++;
 		ipctl->ngroups++;
 	}
@@ -838,8 +842,10 @@ static int rzn1_pinctrl_probe_dt(struct platform_device *pdev,
 
 	for_each_child_of_node(np, child) {
 		ret = rzn1_pinctrl_parse_functions(child, ipctl, i++);
-		if (ret < 0)
+		if (ret < 0) {
+			of_node_put(child);
 			return ret;
+		}
 	}
 
 	return 0;

@@ -532,9 +532,9 @@ static int intel_ntb3_mw_set_trans(struct ntb_dev *ntb, int pidx, int idx,
 	return 0;
 }
 
-int intel_ntb3_peer_db_addr(struct ntb_dev *ntb, phys_addr_t *db_addr,
-				resource_size_t *db_size,
-				u64 *db_data, int db_bit)
+static int intel_ntb3_peer_db_addr(struct ntb_dev *ntb, phys_addr_t *db_addr,
+				   resource_size_t *db_size,
+				   u64 *db_data, int db_bit)
 {
 	phys_addr_t db_addr_base;
 	struct intel_ntb_dev *ndev = ntb_ndev(ntb);

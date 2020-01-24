@@ -40,6 +40,7 @@ enum {
 	ND_OPT_RDNSS = 25,		/* RFC5006 */
 	ND_OPT_DNSSL = 31,		/* RFC6106 */
 	ND_OPT_6CO = 34,		/* RFC6775 */
+	ND_OPT_CAPTIVE_PORTAL = 37,	/* RFC7710 */
 	__ND_OPT_MAX
 };
 
@@ -413,8 +414,8 @@ static inline void __ipv6_confirm_neigh(struct net_device *dev,
 		unsigned long now = jiffies;
 
 		/* avoid dirtying neighbour */
-		if (n->confirmed != now)
-			n->confirmed = now;
+		if (READ_ONCE(n->confirmed) != now)
+			WRITE_ONCE(n->confirmed, now);
 	}
 	rcu_read_unlock_bh();
 }
@@ -430,8 +431,8 @@ static inline void __ipv6_confirm_neigh_stub(struct net_device *dev,
 		unsigned long now = jiffies;
 
 		/* avoid dirtying neighbour */
-		if (n->confirmed != now)
-			n->confirmed = now;
+		if (READ_ONCE(n->confirmed) != now)
+			WRITE_ONCE(n->confirmed, now);
 	}
 	rcu_read_unlock_bh();
 }

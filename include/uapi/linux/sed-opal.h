@@ -20,6 +20,11 @@ enum opal_mbr {
 	OPAL_MBR_DISABLE = 0x01,
 };
 
+enum opal_mbr_done_flag {
+	OPAL_MBR_NOT_DONE = 0x0,
+	OPAL_MBR_DONE = 0x01
+};
+
 enum opal_user {
 	OPAL_ADMIN1 = 0x0,
 	OPAL_USER1 = 0x01,
@@ -95,6 +100,38 @@ struct opal_mbr_data {
 	__u8 __align[7];
 };
 
+struct opal_mbr_done {
+	struct opal_key key;
+	__u8 done_flag;
+	__u8 __align[7];
+};
+
+struct opal_shadow_mbr {
+	struct opal_key key;
+	const __u64 data;
+	__u64 offset;
+	__u64 size;
+};
+
+/* Opal table operations */
+enum opal_table_ops {
+	OPAL_READ_TABLE,
+	OPAL_WRITE_TABLE,
+};
+
+#define OPAL_UID_LENGTH 8
+struct opal_read_write_table {
+	struct opal_key key;
+	const __u64 data;
+	const __u8 table_uid[OPAL_UID_LENGTH];
+	__u64 offset;
+	__u64 size;
+#define OPAL_TABLE_READ (1 << OPAL_READ_TABLE)
+#define OPAL_TABLE_WRITE (1 << OPAL_WRITE_TABLE)
+	__u64 flags;
+	__u64 priv;
+};
+
 #define IOC_OPAL_SAVE		    _IOW('p', 220, struct opal_lock_unlock)
 #define IOC_OPAL_LOCK_UNLOCK	    _IOW('p', 221, struct opal_lock_unlock)
 #define IOC_OPAL_TAKE_OWNERSHIP	    _IOW('p', 222, struct opal_key)
@@ -107,5 +144,9 @@ struct opal_mbr_data {
 #define IOC_OPAL_ENABLE_DISABLE_MBR _IOW('p', 229, struct opal_mbr_data)
 #define IOC_OPAL_ERASE_LR           _IOW('p', 230, struct opal_session_info)
 #define IOC_OPAL_SECURE_ERASE_LR    _IOW('p', 231, struct opal_session_info)
+#define IOC_OPAL_PSID_REVERT_TPR    _IOW('p', 232, struct opal_key)
+#define IOC_OPAL_MBR_DONE           _IOW('p', 233, struct opal_mbr_done)
+#define IOC_OPAL_WRITE_SHADOW_MBR   _IOW('p', 234, struct opal_shadow_mbr)
+#define IOC_OPAL_GENERIC_TABLE_RW   _IOW('p', 235, struct opal_read_write_table)
 
 #endif /* _UAPI_SED_OPAL_H */

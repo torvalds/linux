@@ -333,8 +333,9 @@ static void i40e_dbg_dump_vsi_seid(struct i40e_pf *pf, int seid)
 		 "    seid = %d, id = %d, uplink_seid = %d\n",
 		 vsi->seid, vsi->id, vsi->uplink_seid);
 	dev_info(&pf->pdev->dev,
-		 "    base_queue = %d, num_queue_pairs = %d, num_desc = %d\n",
-		 vsi->base_queue, vsi->num_queue_pairs, vsi->num_desc);
+		 "    base_queue = %d, num_queue_pairs = %d, num_tx_desc = %d, num_rx_desc = %d\n",
+		 vsi->base_queue, vsi->num_queue_pairs, vsi->num_tx_desc,
+		 vsi->num_rx_desc);
 	dev_info(&pf->pdev->dev, "    type = %i\n", vsi->type);
 	if (vsi->type == I40E_VSI_SRIOV)
 		dev_info(&pf->pdev->dev, "    VF ID = %i\n", vsi->vf_id);
@@ -1124,10 +1125,6 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		dev_info(&pf->pdev->dev, "debugfs: forcing GlobR\n");
 		i40e_do_reset_safe(pf, BIT(__I40E_GLOBAL_RESET_REQUESTED));
 
-	} else if (strncmp(cmd_buf, "empr", 4) == 0) {
-		dev_info(&pf->pdev->dev, "debugfs: forcing EMPR\n");
-		i40e_do_reset_safe(pf, BIT(__I40E_EMP_RESET_REQUESTED));
-
 	} else if (strncmp(cmd_buf, "read", 4) == 0) {
 		u32 address;
 		u32 value;
@@ -1330,7 +1327,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			}
 			ret = i40e_aq_add_rem_control_packet_filter(&pf->hw,
 						pf->hw.mac.addr,
-						I40E_ETH_P_LLDP, 0,
+						ETH_P_LLDP, 0,
 						pf->vsi[pf->lan_vsi]->seid,
 						0, true, NULL, NULL);
 			if (ret) {
@@ -1348,7 +1345,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 
 			ret = i40e_aq_add_rem_control_packet_filter(&pf->hw,
 						pf->hw.mac.addr,
-						I40E_ETH_P_LLDP, 0,
+						ETH_P_LLDP, 0,
 						pf->vsi[pf->lan_vsi]->seid,
 						0, false, NULL, NULL);
 			if (ret) {
@@ -1731,29 +1728,15 @@ static const struct file_operations i40e_dbg_netdev_ops_fops = {
  **/
 void i40e_dbg_pf_init(struct i40e_pf *pf)
 {
-	struct dentry *pfile;
 	const char *name = pci_name(pf->pdev);
-	const struct device *dev = &pf->pdev->dev;
 
 	pf->i40e_dbg_pf = debugfs_create_dir(name, i40e_dbg_root);
-	if (!pf->i40e_dbg_pf)
-		return;
 
-	pfile = debugfs_create_file("command", 0600, pf->i40e_dbg_pf, pf,
-				    &i40e_dbg_command_fops);
-	if (!pfile)
-		goto create_failed;
+	debugfs_create_file("command", 0600, pf->i40e_dbg_pf, pf,
+			    &i40e_dbg_command_fops);
 
-	pfile = debugfs_create_file("netdev_ops", 0600, pf->i40e_dbg_pf, pf,
-				    &i40e_dbg_netdev_ops_fops);
-	if (!pfile)
-		goto create_failed;
-
-	return;
-
-create_failed:
-	dev_info(dev, "debugfs dir/file for %s failed\n", name);
-	debugfs_remove_recursive(pf->i40e_dbg_pf);
+	debugfs_create_file("netdev_ops", 0600, pf->i40e_dbg_pf, pf,
+			    &i40e_dbg_netdev_ops_fops);
 }
 
 /**

@@ -38,6 +38,15 @@
 #define __long_aligned __attribute__((aligned((sizeof(long)))))
 #endif
 
+#define slave_info(bond_dev, slave_dev, fmt, ...) \
+	netdev_info(bond_dev, "(slave %s): " fmt, (slave_dev)->name, ##__VA_ARGS__)
+#define slave_warn(bond_dev, slave_dev, fmt, ...) \
+	netdev_warn(bond_dev, "(slave %s): " fmt, (slave_dev)->name, ##__VA_ARGS__)
+#define slave_dbg(bond_dev, slave_dev, fmt, ...) \
+	netdev_dbg(bond_dev, "(slave %s): " fmt, (slave_dev)->name, ##__VA_ARGS__)
+#define slave_err(bond_dev, slave_dev, fmt, ...) \
+	netdev_err(bond_dev, "(slave %s): " fmt, (slave_dev)->name, ##__VA_ARGS__)
+
 #define BOND_MODE(bond) ((bond)->params.mode)
 
 /* slave list primitives */
@@ -114,6 +123,7 @@ struct bond_params {
 	int fail_over_mac;
 	int updelay;
 	int downdelay;
+	int peer_notif_delay;
 	int lacp_fast;
 	unsigned int min_links;
 	int ad_select;
@@ -149,7 +159,6 @@ struct slave {
 	unsigned long target_last_arp_rx[BOND_MAX_ARP_TARGETS];
 	s8     link;		/* one of BOND_LINK_XXXX */
 	s8     link_new_state;	/* one of BOND_LINK_XXXX */
-	s8     new_link;
 	u8     backup:1,   /* indicates backup slave. Value corresponds with
 			      BOND_STATE_ACTIVE and BOND_STATE_BACKUP */
 	       inactive:1, /* indicates inactive slave */
@@ -193,7 +202,6 @@ struct bonding {
 	struct   slave __rcu *primary_slave;
 	struct   bond_up_slave __rcu *slave_arr; /* Array of usable slaves */
 	bool     force_primary;
-	u32      nest_level;
 	s32      slave_cnt; /* never change this value outside the attach/detach wrappers */
 	int     (*recv_probe)(const struct sk_buff *, struct bonding *,
 			      struct slave *);
@@ -229,6 +237,7 @@ struct bonding {
 	struct	 dentry *debug_dir;
 #endif /* CONFIG_DEBUG_FS */
 	struct rtnl_link_stats64 bond_stats;
+	struct lock_class_key stats_lock_key;
 };
 
 #define bond_slave_get_rcu(dev) \
@@ -539,7 +548,7 @@ static inline void bond_propose_link_state(struct slave *slave, int state)
 
 static inline void bond_commit_link_state(struct slave *slave, bool notify)
 {
-	if (slave->link == slave->link_new_state)
+	if (slave->link_new_state == BOND_LINK_NOCHANGE)
 		return;
 
 	slave->link = slave->link_new_state;

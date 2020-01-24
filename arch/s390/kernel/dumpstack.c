@@ -38,6 +38,7 @@ const char *stack_type_name(enum stack_type type)
 		return "unknown";
 	}
 }
+EXPORT_SYMBOL_GPL(stack_type_name);
 
 static inline bool in_stack(unsigned long sp, struct stack_info *info,
 			    enum stack_type type, unsigned long low,
@@ -93,7 +94,9 @@ int get_stack_info(unsigned long sp, struct task_struct *task,
 	if (!sp)
 		goto unknown;
 
-	task = task ? : current;
+	/* Sanity check: ABI requires SP to be aligned 8 bytes. */
+	if (sp & 0x7)
+		goto unknown;
 
 	/* Check per-task stack */
 	if (in_task_stack(sp, task, info))
@@ -114,12 +117,8 @@ recursion_check:
 	 * If it comes up a second time then there's something wrong going on:
 	 * just break out and report an unknown stack type.
 	 */
-	if (*visit_mask & (1UL << info->type)) {
-		printk_deferred_once(KERN_WARNING
-			"WARNING: stack recursion on stack type %d\n",
-			info->type);
+	if (*visit_mask & (1UL << info->type))
 		goto unknown;
-	}
 	*visit_mask |= 1UL << info->type;
 	return 0;
 unknown:
@@ -132,8 +131,6 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 	struct unwind_state state;
 
 	printk("Call Trace:\n");
-	if (!task)
-		task = current;
 	unwind_for_each_frame(&state, task, NULL, (unsigned long) stack)
 		printk(state.reliable ? " [<%016lx>] %pSR \n" :
 					"([<%016lx>] %pSR)\n",
@@ -199,9 +196,7 @@ void die(struct pt_regs *regs, const char *str)
 #ifdef CONFIG_PREEMPT
 	pr_cont("PREEMPT ");
 #endif
-#ifdef CONFIG_SMP
 	pr_cont("SMP ");
-#endif
 	if (debug_pagealloc_enabled())
 		pr_cont("DEBUG_PAGEALLOC");
 	pr_cont("\n");

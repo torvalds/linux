@@ -232,8 +232,6 @@ out:
 	return -ENOMEM;
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
-
 static void pcpu_free_lowcore(struct pcpu *pcpu)
 {
 	unsigned long async_stack, nodat_stack, lowcore;
@@ -253,8 +251,6 @@ static void pcpu_free_lowcore(struct pcpu *pcpu)
 	free_pages(lowcore, LC_ORDER);
 }
 
-#endif /* CONFIG_HOTPLUG_CPU */
-
 static void pcpu_prepare_secondary(struct pcpu *pcpu, int cpu)
 {
 	struct lowcore *lc = pcpu->lowcore;
@@ -266,10 +262,13 @@ static void pcpu_prepare_secondary(struct pcpu *pcpu, int cpu)
 	lc->spinlock_index = 0;
 	lc->percpu_offset = __per_cpu_offset[cpu];
 	lc->kernel_asce = S390_lowcore.kernel_asce;
+	lc->user_asce = S390_lowcore.kernel_asce;
 	lc->machine_flags = S390_lowcore.machine_flags;
 	lc->user_timer = lc->system_timer =
 		lc->steal_timer = lc->avg_steal_timer = 0;
 	__ctl_store(lc->cregs_save_area, 0, 15);
+	lc->cregs_save_area[1] = lc->kernel_asce;
+	lc->cregs_save_area[7] = lc->vdso_asce;
 	save_access_regs((unsigned int *) lc->access_regs_save_area);
 	memcpy(lc->stfle_fac_list, S390_lowcore.stfle_fac_list,
 	       sizeof(lc->stfle_fac_list));
@@ -414,14 +413,11 @@ EXPORT_SYMBOL(arch_vcpu_is_preempted);
 
 void smp_yield_cpu(int cpu)
 {
-	if (MACHINE_HAS_DIAG9C) {
-		diag_stat_inc_norecursion(DIAG_STAT_X09C);
-		asm volatile("diag %0,0,0x9c"
-			     : : "d" (pcpu_devices[cpu].address));
-	} else if (MACHINE_HAS_DIAG44) {
-		diag_stat_inc_norecursion(DIAG_STAT_X044);
-		asm volatile("diag 0,0,0x44");
-	}
+	if (!MACHINE_HAS_DIAG9C)
+		return;
+	diag_stat_inc_norecursion(DIAG_STAT_X09C);
+	asm volatile("diag %0,0,0x9c"
+		     : : "d" (pcpu_devices[cpu].address));
 }
 
 /*
@@ -728,38 +724,66 @@ static void __ref smp_get_core_info(struct sclp_core_info *info, int early)
 
 static int smp_add_present_cpu(int cpu);
 
-static int __smp_rescan_cpus(struct sclp_core_info *info, int sysfs_add)
+static int smp_add_core(struct sclp_core_entry *core, cpumask_t *avail,
+			bool configured, bool early)
 {
 	struct pcpu *pcpu;
-	cpumask_t avail;
-	int cpu, nr, i, j;
+	int cpu, nr, i;
 	u16 address;
 
 	nr = 0;
-	cpumask_xor(&avail, cpu_possible_mask, cpu_present_mask);
-	cpu = cpumask_first(&avail);
-	for (i = 0; (i < info->combined) && (cpu < nr_cpu_ids); i++) {
-		if (sclp.has_core_type && info->core[i].type != boot_core_type)
+	if (sclp.has_core_type && core->type != boot_core_type)
+		return nr;
+	cpu = cpumask_first(avail);
+	address = core->core_id << smp_cpu_mt_shift;
+	for (i = 0; (i <= smp_cpu_mtid) && (cpu < nr_cpu_ids); i++) {
+		if (pcpu_find_address(cpu_present_mask, address + i))
 			continue;
-		address = info->core[i].core_id << smp_cpu_mt_shift;
-		for (j = 0; j <= smp_cpu_mtid; j++) {
-			if (pcpu_find_address(cpu_present_mask, address + j))
-				continue;
-			pcpu = pcpu_devices + cpu;
-			pcpu->address = address + j;
-			pcpu->state =
-				(cpu >= info->configured*(smp_cpu_mtid + 1)) ?
-				CPU_STATE_STANDBY : CPU_STATE_CONFIGURED;
-			smp_cpu_set_polarization(cpu, POLARIZATION_UNKNOWN);
-			set_cpu_present(cpu, true);
-			if (sysfs_add && smp_add_present_cpu(cpu) != 0)
-				set_cpu_present(cpu, false);
-			else
-				nr++;
-			cpu = cpumask_next(cpu, &avail);
-			if (cpu >= nr_cpu_ids)
+		pcpu = pcpu_devices + cpu;
+		pcpu->address = address + i;
+		if (configured)
+			pcpu->state = CPU_STATE_CONFIGURED;
+		else
+			pcpu->state = CPU_STATE_STANDBY;
+		smp_cpu_set_polarization(cpu, POLARIZATION_UNKNOWN);
+		set_cpu_present(cpu, true);
+		if (!early && smp_add_present_cpu(cpu) != 0)
+			set_cpu_present(cpu, false);
+		else
+			nr++;
+		cpumask_clear_cpu(cpu, avail);
+		cpu = cpumask_next(cpu, avail);
+	}
+	return nr;
+}
+
+static int __smp_rescan_cpus(struct sclp_core_info *info, bool early)
+{
+	struct sclp_core_entry *core;
+	cpumask_t avail;
+	bool configured;
+	u16 core_id;
+	int nr, i;
+
+	nr = 0;
+	cpumask_xor(&avail, cpu_possible_mask, cpu_present_mask);
+	/*
+	 * Add IPL core first (which got logical CPU number 0) to make sure
+	 * that all SMT threads get subsequent logical CPU numbers.
+	 */
+	if (early) {
+		core_id = pcpu_devices[0].address >> smp_cpu_mt_shift;
+		for (i = 0; i < info->configured; i++) {
+			core = &info->core[i];
+			if (core->core_id == core_id) {
+				nr += smp_add_core(core, &avail, true, early);
 				break;
+			}
 		}
+	}
+	for (i = 0; i < info->combined; i++) {
+		configured = i < info->configured;
+		nr += smp_add_core(&info->core[i], &avail, configured, early);
 	}
 	return nr;
 }
@@ -809,7 +833,7 @@ void __init smp_detect_cpus(void)
 
 	/* Add CPUs present at boot */
 	get_online_cpus();
-	__smp_rescan_cpus(info, 0);
+	__smp_rescan_cpus(info, true);
 	put_online_cpus();
 	memblock_free_early((unsigned long)info, sizeof(*info));
 }
@@ -820,6 +844,8 @@ static void smp_init_secondary(void)
 
 	S390_lowcore.last_update_clock = get_tod_clock();
 	restore_access_regs(S390_lowcore.access_regs_save_area);
+	set_cpu_flag(CIF_ASCE_PRIMARY);
+	set_cpu_flag(CIF_ASCE_SECONDARY);
 	cpu_init();
 	preempt_disable();
 	init_cpu_timer();
@@ -847,7 +873,7 @@ static void __no_sanitize_address smp_start_secondary(void *cpuvoid)
 	S390_lowcore.restart_source = -1UL;
 	__ctl_load(S390_lowcore.cregs_save_area, 0, 15);
 	__load_psw_mask(PSW_KERNEL_BITS | PSW_MASK_DAT);
-	CALL_ON_STACK(smp_init_secondary, S390_lowcore.kernel_stack, 0);
+	CALL_ON_STACK_NORETURN(smp_init_secondary, S390_lowcore.kernel_stack);
 }
 
 /* Upping and downing of CPUs */
@@ -895,8 +921,6 @@ static int __init _setup_possible_cpus(char *s)
 }
 early_param("possible_cpus", _setup_possible_cpus);
 
-#ifdef CONFIG_HOTPLUG_CPU
-
 int __cpu_disable(void)
 {
 	unsigned long cregs[16];
@@ -936,8 +960,6 @@ void __noreturn cpu_die(void)
 	pcpu_sigp_retry(pcpu_devices + smp_processor_id(), SIGP_STOP, 0);
 	for (;;) ;
 }
-
-#endif /* CONFIG_HOTPLUG_CPU */
 
 void __init smp_fill_possible_mask(void)
 {
@@ -996,7 +1018,6 @@ int setup_profiling_timer(unsigned int multiplier)
 	return 0;
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
 static ssize_t cpu_configure_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
@@ -1073,7 +1094,6 @@ out:
 	return rc ? rc : count;
 }
 static DEVICE_ATTR(configure, 0644, cpu_configure_show, cpu_configure_store);
-#endif /* CONFIG_HOTPLUG_CPU */
 
 static ssize_t show_cpu_address(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -1083,9 +1103,7 @@ static ssize_t show_cpu_address(struct device *dev,
 static DEVICE_ATTR(address, 0444, show_cpu_address, NULL);
 
 static struct attribute *cpu_common_attrs[] = {
-#ifdef CONFIG_HOTPLUG_CPU
 	&dev_attr_configure.attr,
-#endif
 	&dev_attr_address.attr,
 	NULL,
 };
@@ -1144,14 +1162,10 @@ static int smp_add_present_cpu(int cpu)
 out_topology:
 	sysfs_remove_group(&s->kobj, &cpu_common_attr_group);
 out_cpu:
-#ifdef CONFIG_HOTPLUG_CPU
 	unregister_cpu(c);
-#endif
 out:
 	return rc;
 }
-
-#ifdef CONFIG_HOTPLUG_CPU
 
 int __ref smp_rescan_cpus(void)
 {
@@ -1164,7 +1178,7 @@ int __ref smp_rescan_cpus(void)
 	smp_get_core_info(info, 0);
 	get_online_cpus();
 	mutex_lock(&smp_cpu_state_mutex);
-	nr = __smp_rescan_cpus(info, 1);
+	nr = __smp_rescan_cpus(info, false);
 	mutex_unlock(&smp_cpu_state_mutex);
 	put_online_cpus();
 	kfree(info);
@@ -1188,17 +1202,14 @@ static ssize_t __ref rescan_store(struct device *dev,
 	return rc ? rc : count;
 }
 static DEVICE_ATTR_WO(rescan);
-#endif /* CONFIG_HOTPLUG_CPU */
 
 static int __init s390_smp_init(void)
 {
 	int cpu, rc = 0;
 
-#ifdef CONFIG_HOTPLUG_CPU
 	rc = device_create_file(cpu_subsys.dev_root, &dev_attr_rescan);
 	if (rc)
 		return rc;
-#endif
 	for_each_present_cpu(cpu) {
 		rc = smp_add_present_cpu(cpu);
 		if (rc)

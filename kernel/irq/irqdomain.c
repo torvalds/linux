@@ -31,7 +31,7 @@ struct irqchip_fwid {
 	struct fwnode_handle	fwnode;
 	unsigned int		type;
 	char			*name;
-	void *data;
+	phys_addr_t		*pa;
 };
 
 #ifdef CONFIG_GENERIC_IRQ_DEBUGFS
@@ -51,7 +51,7 @@ EXPORT_SYMBOL_GPL(irqchip_fwnode_ops);
  * @type:	Type of irqchip_fwnode. See linux/irqdomain.h
  * @name:	Optional user provided domain name
  * @id:		Optional user provided id if name != NULL
- * @data:	Optional user-provided data
+ * @pa:		Optional user-provided physical address
  *
  * Allocate a struct irqchip_fwid, and return a poiner to the embedded
  * fwnode_handle (or NULL on failure).
@@ -62,7 +62,8 @@ EXPORT_SYMBOL_GPL(irqchip_fwnode_ops);
  * domain struct.
  */
 struct fwnode_handle *__irq_domain_alloc_fwnode(unsigned int type, int id,
-						const char *name, void *data)
+						const char *name,
+						phys_addr_t *pa)
 {
 	struct irqchip_fwid *fwid;
 	char *n;
@@ -77,7 +78,7 @@ struct fwnode_handle *__irq_domain_alloc_fwnode(unsigned int type, int id,
 		n = kasprintf(GFP_KERNEL, "%s-%d", name, id);
 		break;
 	default:
-		n = kasprintf(GFP_KERNEL, "irqchip@%p", data);
+		n = kasprintf(GFP_KERNEL, "irqchip@%pa", pa);
 		break;
 	}
 
@@ -89,7 +90,7 @@ struct fwnode_handle *__irq_domain_alloc_fwnode(unsigned int type, int id,
 
 	fwid->type = type;
 	fwid->name = n;
-	fwid->data = data;
+	fwid->pa = pa;
 	fwid->fwnode.ops = &irqchip_fwnode_ops;
 	return &fwid->fwnode;
 }
@@ -123,7 +124,7 @@ EXPORT_SYMBOL_GPL(irq_domain_free_fwnode);
  * @ops: domain callbacks
  * @host_data: Controller private data pointer
  *
- * Allocates and initialize and irq_domain structure.
+ * Allocates and initializes an irq_domain structure.
  * Returns pointer to IRQ domain, or NULL on failure.
  */
 struct irq_domain *__irq_domain_add(struct fwnode_handle *fwnode, int size,
@@ -139,7 +140,7 @@ struct irq_domain *__irq_domain_add(struct fwnode_handle *fwnode, int size,
 
 	domain = kzalloc_node(sizeof(*domain) + (sizeof(unsigned int) * size),
 			      GFP_KERNEL, of_node_to_nid(of_node));
-	if (WARN_ON(!domain))
+	if (!domain)
 		return NULL;
 
 	if (fwnode && is_fwnode_irqchip(fwnode)) {
@@ -148,6 +149,7 @@ struct irq_domain *__irq_domain_add(struct fwnode_handle *fwnode, int size,
 		switch (fwid->type) {
 		case IRQCHIP_FWNODE_NAMED:
 		case IRQCHIP_FWNODE_NAMED_ID:
+			domain->fwnode = fwnode;
 			domain->name = kstrdup(fwid->name, GFP_KERNEL);
 			if (!domain->name) {
 				kfree(domain);

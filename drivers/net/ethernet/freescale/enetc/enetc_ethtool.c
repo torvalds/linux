@@ -555,6 +555,60 @@ static void enetc_get_ringparam(struct net_device *ndev,
 	}
 }
 
+static int enetc_get_ts_info(struct net_device *ndev,
+			     struct ethtool_ts_info *info)
+{
+	int *phc_idx;
+
+	phc_idx = symbol_get(enetc_phc_index);
+	if (phc_idx) {
+		info->phc_index = *phc_idx;
+		symbol_put(enetc_phc_index);
+	} else {
+		info->phc_index = -1;
+	}
+
+#ifdef CONFIG_FSL_ENETC_HW_TIMESTAMPING
+	info->so_timestamping = SOF_TIMESTAMPING_TX_HARDWARE |
+				SOF_TIMESTAMPING_RX_HARDWARE |
+				SOF_TIMESTAMPING_RAW_HARDWARE;
+
+	info->tx_types = (1 << HWTSTAMP_TX_OFF) |
+			 (1 << HWTSTAMP_TX_ON);
+	info->rx_filters = (1 << HWTSTAMP_FILTER_NONE) |
+			   (1 << HWTSTAMP_FILTER_ALL);
+#else
+	info->so_timestamping = SOF_TIMESTAMPING_RX_SOFTWARE |
+				SOF_TIMESTAMPING_SOFTWARE;
+#endif
+	return 0;
+}
+
+static void enetc_get_wol(struct net_device *dev,
+			  struct ethtool_wolinfo *wol)
+{
+	wol->supported = 0;
+	wol->wolopts = 0;
+
+	if (dev->phydev)
+		phy_ethtool_get_wol(dev->phydev, wol);
+}
+
+static int enetc_set_wol(struct net_device *dev,
+			 struct ethtool_wolinfo *wol)
+{
+	int ret;
+
+	if (!dev->phydev)
+		return -EOPNOTSUPP;
+
+	ret = phy_ethtool_set_wol(dev->phydev, wol);
+	if (!ret)
+		device_set_wakeup_enable(&dev->dev, wol->wolopts);
+
+	return ret;
+}
+
 static const struct ethtool_ops enetc_pf_ethtool_ops = {
 	.get_regs_len = enetc_get_reglen,
 	.get_regs = enetc_get_regs,
@@ -571,6 +625,9 @@ static const struct ethtool_ops enetc_pf_ethtool_ops = {
 	.get_link_ksettings = phy_ethtool_get_link_ksettings,
 	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 	.get_link = ethtool_op_get_link,
+	.get_ts_info = enetc_get_ts_info,
+	.get_wol = enetc_get_wol,
+	.set_wol = enetc_set_wol,
 };
 
 static const struct ethtool_ops enetc_vf_ethtool_ops = {
@@ -586,6 +643,7 @@ static const struct ethtool_ops enetc_vf_ethtool_ops = {
 	.set_rxfh = enetc_set_rxfh,
 	.get_ringparam = enetc_get_ringparam,
 	.get_link = ethtool_op_get_link,
+	.get_ts_info = enetc_get_ts_info,
 };
 
 void enetc_set_ethtool_ops(struct net_device *ndev)

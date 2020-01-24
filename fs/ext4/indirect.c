@@ -294,14 +294,12 @@ static int ext4_blks_to_allocate(Indirect *branch, int k, unsigned int blks,
 }
 
 /**
- *	ext4_alloc_branch - allocate and set up a chain of blocks.
- *	@handle: handle for this transaction
- *	@inode: owner
- *	@indirect_blks: number of allocated indirect blocks
- *	@blks: number of allocated direct blocks
- *	@goal: preferred place for allocation
- *	@offsets: offsets (in the blocks) to store the pointers to next.
- *	@branch: place to store the chain in.
+ * ext4_alloc_branch() - allocate and set up a chain of blocks
+ * @handle: handle for this transaction
+ * @ar: structure describing the allocation request
+ * @indirect_blks: number of allocated indirect blocks
+ * @offsets: offsets (in the blocks) to store the pointers to next.
+ * @branch: place to store the chain in.
  *
  *	This function allocates blocks, zeroes out all but the last one,
  *	links them into chain and (if we are synchronous) writes them to disk.
@@ -333,11 +331,14 @@ static int ext4_alloc_branch(handle_t *handle,
 	for (i = 0; i <= indirect_blks; i++) {
 		if (i == indirect_blks) {
 			new_blocks[i] = ext4_mb_new_blocks(handle, ar, &err);
-		} else
+		} else {
 			ar->goal = new_blocks[i] = ext4_new_meta_blocks(handle,
 					ar->inode, ar->goal,
 					ar->flags & EXT4_MB_DELALLOC_RESERVED,
 					NULL, &err);
+			/* Simplify error cleanup... */
+			branch[i+1].bh = NULL;
+		}
 		if (err) {
 			i--;
 			goto failed;
@@ -379,32 +380,35 @@ static int ext4_alloc_branch(handle_t *handle,
 	}
 	return 0;
 failed:
+	if (i == indirect_blks) {
+		/* Free data blocks */
+		ext4_free_blocks(handle, ar->inode, NULL, new_blocks[i],
+				 ar->len, 0);
+		i--;
+	}
 	for (; i >= 0; i--) {
 		/*
 		 * We want to ext4_forget() only freshly allocated indirect
-		 * blocks.  Buffer for new_blocks[i-1] is at branch[i].bh and
-		 * buffer at branch[0].bh is indirect block / inode already
-		 * existing before ext4_alloc_branch() was called.
+		 * blocks. Buffer for new_blocks[i] is at branch[i+1].bh
+		 * (buffer at branch[0].bh is indirect block / inode already
+		 * existing before ext4_alloc_branch() was called). Also
+		 * because blocks are freshly allocated, we don't need to
+		 * revoke them which is why we don't set
+		 * EXT4_FREE_BLOCKS_METADATA.
 		 */
-		if (i > 0 && i != indirect_blks && branch[i].bh)
-			ext4_forget(handle, 1, ar->inode, branch[i].bh,
-				    branch[i].bh->b_blocknr);
-		ext4_free_blocks(handle, ar->inode, NULL, new_blocks[i],
-				 (i == indirect_blks) ? ar->len : 1, 0);
+		ext4_free_blocks(handle, ar->inode, branch[i+1].bh,
+				 new_blocks[i], 1,
+				 branch[i+1].bh ? EXT4_FREE_BLOCKS_FORGET : 0);
 	}
 	return err;
 }
 
 /**
- * ext4_splice_branch - splice the allocated branch onto inode.
+ * ext4_splice_branch() - splice the allocated branch onto inode.
  * @handle: handle for this transaction
- * @inode: owner
- * @block: (logical) number of block we are adding
- * @chain: chain of indirect blocks (with a missing link - see
- *	ext4_alloc_branch)
+ * @ar: structure describing the allocation request
  * @where: location of missing link
  * @num:   number of indirect blocks we are adding
- * @blks:  number of direct blocks we are adding
  *
  * This function fills the missing link and does all housekeeping needed in
  * inode (->i_blocks, etc.). In case of success we end up with the full
@@ -695,27 +699,63 @@ int ext4_ind_trans_blocks(struct inode *inode, int nrblocks)
 	return DIV_ROUND_UP(nrblocks, EXT4_ADDR_PER_BLOCK(inode->i_sb)) + 4;
 }
 
+static int ext4_ind_trunc_restart_fn(handle_t *handle, struct inode *inode,
+				     struct buffer_head *bh, int *dropped)
+{
+	int err;
+
+	if (bh) {
+		BUFFER_TRACE(bh, "call ext4_handle_dirty_metadata");
+		err = ext4_handle_dirty_metadata(handle, inode, bh);
+		if (unlikely(err))
+			return err;
+	}
+	err = ext4_mark_inode_dirty(handle, inode);
+	if (unlikely(err))
+		return err;
+	/*
+	 * Drop i_data_sem to avoid deadlock with ext4_map_blocks.  At this
+	 * moment, get_block can be called only for blocks inside i_size since
+	 * page cache has been already dropped and writes are blocked by
+	 * i_mutex. So we can safely drop the i_data_sem here.
+	 */
+	BUG_ON(EXT4_JOURNAL(inode) == NULL);
+	ext4_discard_preallocations(inode);
+	up_write(&EXT4_I(inode)->i_data_sem);
+	*dropped = 1;
+	return 0;
+}
+
 /*
  * Truncate transactions can be complex and absolutely huge.  So we need to
  * be able to restart the transaction at a conventient checkpoint to make
  * sure we don't overflow the journal.
  *
  * Try to extend this transaction for the purposes of truncation.  If
- * extend fails, we need to propagate the failure up and restart the
- * transaction in the top-level truncate loop. --sct
- *
- * Returns 0 if we managed to create more room.  If we can't create more
- * room, and the transaction must be restarted we return 1.
+ * extend fails, we restart transaction.
  */
-static int try_to_extend_transaction(handle_t *handle, struct inode *inode)
+static int ext4_ind_truncate_ensure_credits(handle_t *handle,
+					    struct inode *inode,
+					    struct buffer_head *bh,
+					    int revoke_creds)
 {
-	if (!ext4_handle_valid(handle))
-		return 0;
-	if (ext4_handle_has_enough_credits(handle, EXT4_RESERVE_TRANS_BLOCKS+1))
-		return 0;
-	if (!ext4_journal_extend(handle, ext4_blocks_for_truncate(inode)))
-		return 0;
-	return 1;
+	int ret;
+	int dropped = 0;
+
+	ret = ext4_journal_ensure_credits_fn(handle, EXT4_RESERVE_TRANS_BLOCKS,
+			ext4_blocks_for_truncate(inode), revoke_creds,
+			ext4_ind_trunc_restart_fn(handle, inode, bh, &dropped));
+	if (dropped)
+		down_write(&EXT4_I(inode)->i_data_sem);
+	if (ret <= 0)
+		return ret;
+	if (bh) {
+		BUFFER_TRACE(bh, "retaking write access");
+		ret = ext4_journal_get_write_access(handle, bh);
+		if (unlikely(ret))
+			return ret;
+	}
+	return 0;
 }
 
 /*
@@ -850,27 +890,10 @@ static int ext4_clear_blocks(handle_t *handle, struct inode *inode,
 		return 1;
 	}
 
-	if (try_to_extend_transaction(handle, inode)) {
-		if (bh) {
-			BUFFER_TRACE(bh, "call ext4_handle_dirty_metadata");
-			err = ext4_handle_dirty_metadata(handle, inode, bh);
-			if (unlikely(err))
-				goto out_err;
-		}
-		err = ext4_mark_inode_dirty(handle, inode);
-		if (unlikely(err))
-			goto out_err;
-		err = ext4_truncate_restart_trans(handle, inode,
-					ext4_blocks_for_truncate(inode));
-		if (unlikely(err))
-			goto out_err;
-		if (bh) {
-			BUFFER_TRACE(bh, "retaking write access");
-			err = ext4_journal_get_write_access(handle, bh);
-			if (unlikely(err))
-				goto out_err;
-		}
-	}
+	err = ext4_ind_truncate_ensure_credits(handle, inode, bh,
+				ext4_free_data_revoke_credits(inode, count));
+	if (err < 0)
+		goto out_err;
 
 	for (p = first; p < last; p++)
 		*p = 0;
@@ -1053,11 +1076,11 @@ static void ext4_free_branches(handle_t *handle, struct inode *inode,
 			 */
 			if (ext4_handle_is_aborted(handle))
 				return;
-			if (try_to_extend_transaction(handle, inode)) {
-				ext4_mark_inode_dirty(handle, inode);
-				ext4_truncate_restart_trans(handle, inode,
-					    ext4_blocks_for_truncate(inode));
-			}
+			if (ext4_ind_truncate_ensure_credits(handle, inode,
+					NULL,
+					ext4_free_metadata_revoke_credits(
+							inode->i_sb, 1)) < 0)
+				return;
 
 			/*
 			 * The forget flag here is critical because if

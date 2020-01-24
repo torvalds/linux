@@ -306,6 +306,9 @@ static struct regulator_consumer_supply hawk_usb_supplies[] = {
 static struct regulator_init_data hawk_usb_vbus_data = {
 	.consumer_supplies	= hawk_usb_supplies,
 	.num_consumer_supplies	= ARRAY_SIZE(hawk_usb_supplies),
+	.constraints    = {
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+	},
 };
 
 static struct fixed_voltage_config hawk_usb_vbus = {

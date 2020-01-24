@@ -11,6 +11,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/kthread.h>
+#include <linux/bug.h>
 #include "zfcp_ext.h"
 #include "zfcp_reqlist.h"
 
@@ -173,7 +174,7 @@ static enum zfcp_erp_act_type zfcp_erp_required_act(enum zfcp_erp_act_type want,
 			return 0;
 		p_status = atomic_read(&port->status);
 		if (!(p_status & ZFCP_STATUS_COMMON_RUNNING) ||
-		      p_status & ZFCP_STATUS_COMMON_ERP_FAILED)
+		    p_status & ZFCP_STATUS_COMMON_ERP_FAILED)
 			return 0;
 		if (!(p_status & ZFCP_STATUS_COMMON_UNBLOCKED))
 			need = ZFCP_ERP_ACTION_REOPEN_PORT;
@@ -189,7 +190,7 @@ static enum zfcp_erp_act_type zfcp_erp_required_act(enum zfcp_erp_act_type want,
 			return 0;
 		a_status = atomic_read(&adapter->status);
 		if (!(a_status & ZFCP_STATUS_COMMON_RUNNING) ||
-		      a_status & ZFCP_STATUS_COMMON_ERP_FAILED)
+		    a_status & ZFCP_STATUS_COMMON_ERP_FAILED)
 			return 0;
 		if (p_status & ZFCP_STATUS_COMMON_NOESC)
 			return need;
@@ -216,6 +217,12 @@ static struct zfcp_erp_action *zfcp_erp_setup_act(enum zfcp_erp_act_type need,
 {
 	struct zfcp_erp_action *erp_action;
 	struct zfcp_scsi_dev *zfcp_sdev;
+
+	if (WARN_ON_ONCE(need != ZFCP_ERP_ACTION_REOPEN_LUN &&
+			 need != ZFCP_ERP_ACTION_REOPEN_PORT &&
+			 need != ZFCP_ERP_ACTION_REOPEN_PORT_FORCED &&
+			 need != ZFCP_ERP_ACTION_REOPEN_ADAPTER))
+		return NULL;
 
 	switch (need) {
 	case ZFCP_ERP_ACTION_REOPEN_LUN:

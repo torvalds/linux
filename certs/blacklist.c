@@ -124,7 +124,7 @@ int is_hash_blacklisted(const u8 *hash, size_t hash_len, const char *type)
 	*p = 0;
 
 	kref = keyring_search(make_key_ref(blacklist_keyring, true),
-			      &key_type_blacklist, buffer);
+			      &key_type_blacklist, buffer, false);
 	if (!IS_ERR(kref)) {
 		key_ref_put(kref);
 		ret = -EKEYREJECTED;
@@ -134,6 +134,15 @@ int is_hash_blacklisted(const u8 *hash, size_t hash_len, const char *type)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(is_hash_blacklisted);
+
+int is_binary_blacklisted(const u8 *hash, size_t hash_len)
+{
+	if (is_hash_blacklisted(hash, hash_len, "bin") == -EKEYREJECTED)
+		return -EPERM;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(is_binary_blacklisted);
 
 /*
  * Initialise the blacklist

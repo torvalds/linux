@@ -595,11 +595,8 @@ check_s_state:
 		case IB_WR_SEND_WITH_IMM:
 		case IB_WR_SEND_WITH_INV:
 			/* If no credit, return. */
-			if (!(qp->s_flags & RVT_S_UNLIMITED_CREDIT) &&
-			    rvt_cmp_msn(wqe->ssn, qp->s_lsn + 1) > 0) {
-				qp->s_flags |= RVT_S_WAIT_SSN_CREDIT;
+			if (!rvt_rc_credit_avail(qp, wqe))
 				goto bail;
-			}
 			if (len > pmtu) {
 				qp->s_state = OP(SEND_FIRST);
 				len = pmtu;
@@ -632,11 +629,8 @@ check_s_state:
 			goto no_flow_control;
 		case IB_WR_RDMA_WRITE_WITH_IMM:
 			/* If no credit, return. */
-			if (!(qp->s_flags & RVT_S_UNLIMITED_CREDIT) &&
-			    rvt_cmp_msn(wqe->ssn, qp->s_lsn + 1) > 0) {
-				qp->s_flags |= RVT_S_WAIT_SSN_CREDIT;
+			if (!rvt_rc_credit_avail(qp, wqe))
 				goto bail;
-			}
 no_flow_control:
 			put_ib_reth_vaddr(
 				wqe->rdma_wr.remote_addr,
@@ -1483,6 +1477,11 @@ static void update_num_rd_atomic(struct rvt_qp *qp, u32 psn,
 			req->ack_pending = cur_seg - req->comp_seg;
 			priv->pending_tid_r_segs += req->ack_pending;
 			qp->s_num_rd_atomic += req->ack_pending;
+			trace_hfi1_tid_req_update_num_rd_atomic(qp, 0,
+								wqe->wr.opcode,
+								wqe->psn,
+								wqe->lpsn,
+								req);
 		} else {
 			priv->pending_tid_r_segs += req->total_segs;
 			qp->s_num_rd_atomic += req->total_segs;
@@ -1830,23 +1829,13 @@ void hfi1_rc_send_complete(struct rvt_qp *qp, struct hfi1_opa_header *opah)
 	}
 
 	while (qp->s_last != qp->s_acked) {
-		u32 s_last;
-
 		wqe = rvt_get_swqe_ptr(qp, qp->s_last);
 		if (cmp_psn(wqe->lpsn, qp->s_sending_psn) >= 0 &&
 		    cmp_psn(qp->s_sending_psn, qp->s_sending_hpsn) <= 0)
 			break;
 		trdma_clean_swqe(qp, wqe);
-		rvt_qp_wqe_unreserve(qp, wqe);
-		s_last = qp->s_last;
-		trace_hfi1_qp_send_completion(qp, wqe, s_last);
-		if (++s_last >= qp->s_size)
-			s_last = 0;
-		qp->s_last = s_last;
-		/* see post_send() */
-		barrier();
-		rvt_put_qp_swqe(qp, wqe);
-		rvt_qp_swqe_complete(qp,
+		trace_hfi1_qp_send_completion(qp, wqe, qp->s_last);
+		rvt_qp_complete_swqe(qp,
 				     wqe,
 				     ib_hfi1_wc_opcode[wqe->wr.opcode],
 				     IB_WC_SUCCESS);
@@ -1890,19 +1879,9 @@ struct rvt_swqe *do_rc_completion(struct rvt_qp *qp,
 	trace_hfi1_rc_completion(qp, wqe->lpsn);
 	if (cmp_psn(wqe->lpsn, qp->s_sending_psn) < 0 ||
 	    cmp_psn(qp->s_sending_psn, qp->s_sending_hpsn) > 0) {
-		u32 s_last;
-
 		trdma_clean_swqe(qp, wqe);
-		rvt_put_qp_swqe(qp, wqe);
-		rvt_qp_wqe_unreserve(qp, wqe);
-		s_last = qp->s_last;
-		trace_hfi1_qp_send_completion(qp, wqe, s_last);
-		if (++s_last >= qp->s_size)
-			s_last = 0;
-		qp->s_last = s_last;
-		/* see post_send() */
-		barrier();
-		rvt_qp_swqe_complete(qp,
+		trace_hfi1_qp_send_completion(qp, wqe, qp->s_last);
+		rvt_qp_complete_swqe(qp,
 				     wqe,
 				     ib_hfi1_wc_opcode[wqe->wr.opcode],
 				     IB_WC_SUCCESS);
@@ -2230,15 +2209,15 @@ int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
 		if (qp->s_flags & RVT_S_WAIT_RNR)
 			goto bail_stop;
 		rdi = ib_to_rvt(qp->ibqp.device);
-		if (qp->s_rnr_retry == 0 &&
-		    !((rdi->post_parms[wqe->wr.opcode].flags &
-		      RVT_OPERATION_IGN_RNR_CNT) &&
-		      qp->s_rnr_retry_cnt == 0)) {
-			status = IB_WC_RNR_RETRY_EXC_ERR;
-			goto class_b;
+		if (!(rdi->post_parms[wqe->wr.opcode].flags &
+		       RVT_OPERATION_IGN_RNR_CNT)) {
+			if (qp->s_rnr_retry == 0) {
+				status = IB_WC_RNR_RETRY_EXC_ERR;
+				goto class_b;
+			}
+			if (qp->s_rnr_retry_cnt < 7 && qp->s_rnr_retry_cnt > 0)
+				qp->s_rnr_retry--;
 		}
-		if (qp->s_rnr_retry_cnt < 7 && qp->s_rnr_retry_cnt > 0)
-			qp->s_rnr_retry--;
 
 		/*
 		 * The last valid PSN is the previous PSN. For TID RDMA WRITE
@@ -3026,8 +3005,7 @@ send_last:
 		wc.dlid_path_bits = 0;
 		wc.port_num = 0;
 		/* Signal completion event if the solicited bit is set. */
-		rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.recv_cq), &wc,
-			     ib_bth_is_solicited(ohdr));
+		rvt_recv_cq(qp, &wc, ib_bth_is_solicited(ohdr));
 		break;
 
 	case OP(RDMA_WRITE_ONLY):

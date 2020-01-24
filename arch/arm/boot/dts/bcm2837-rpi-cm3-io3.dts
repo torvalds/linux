@@ -78,6 +78,15 @@
 
 &hdmi {
 	hpd-gpios = <&expgpio 1 GPIO_ACTIVE_LOW>;
+	power-domains = <&power RPI_POWER_DOMAIN_HDMI>;
+	status = "okay";
+};
+
+&sdhost {
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdhost_gpio48>;
+	bus-width = <4>;
+	status = "okay";
 };
 
 &uart0 {

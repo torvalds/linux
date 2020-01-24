@@ -257,7 +257,7 @@ extern void radix__mmu_cleanup_all(void);
 /* Functions for creating and updating partition table on POWER9 */
 extern void mmu_partition_table_init(void);
 extern void mmu_partition_table_set_entry(unsigned int lpid, unsigned long dw0,
-					  unsigned long dw1);
+					  unsigned long dw1, bool flush);
 #endif /* CONFIG_PPC64 */
 
 struct mm_struct;

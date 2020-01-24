@@ -4,7 +4,7 @@ KernelVersion:	3.5
 Contact:	Johan Hovold <jhovold@gmail.com>
 Description:
 		Get the ALS output channel used as input in
-		ALS-current-control mode (0, 1), where
+		ALS-current-control mode (0, 1), where:
 
 		0 - out_current0 (backlight 0)
 		1 - out_current1 (backlight 1)
@@ -28,7 +28,7 @@ Date:		April 2012
 KernelVersion:	3.5
 Contact:	Johan Hovold <jhovold@gmail.com>
 Description:
-		Set the brightness-mapping mode (0, 1), where
+		Set the brightness-mapping mode (0, 1), where:
 
 		0 - exponential mode
 		1 - linear mode
@@ -38,7 +38,7 @@ Date:		April 2012
 KernelVersion:	3.5
 Contact:	Johan Hovold <jhovold@gmail.com>
 Description:
-		Set the PWM-input control mask (5 bits), where
+		Set the PWM-input control mask (5 bits), where:
 
 		bit 5 - PWM-input enabled in Zone 4
 		bit 4 - PWM-input enabled in Zone 3

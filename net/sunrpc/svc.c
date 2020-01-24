@@ -1233,8 +1233,8 @@ svc_generic_init_request(struct svc_rqst *rqstp,
 
 	if (rqstp->rq_vers >= progp->pg_nvers )
 		goto err_bad_vers;
-	  versp = progp->pg_vers[rqstp->rq_vers];
-	  if (!versp)
+	versp = progp->pg_vers[rqstp->rq_vers];
+	if (!versp)
 		goto err_bad_vers;
 
 	/*
@@ -1337,6 +1337,8 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 		auth_stat = rpc_autherr_badcred;
 		auth_res = progp->pg_authenticate(rqstp);
 	}
+	if (auth_res != SVC_OK)
+		trace_svc_authenticate(rqstp, auth_res, auth_stat);
 	switch (auth_res) {
 	case SVC_OK:
 		break;
@@ -1595,7 +1597,7 @@ bc_svc_process(struct svc_serv *serv, struct rpc_rqst *req,
 	/* Parse and execute the bc call */
 	proc_error = svc_process_common(rqstp, argv, resv);
 
-	atomic_inc(&req->rq_xprt->bc_free_slots);
+	atomic_dec(&req->rq_xprt->bc_slot_count);
 	if (!proc_error) {
 		/* Processing error: drop the request */
 		xprt_free_bc_request(req);

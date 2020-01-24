@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/dma-direct.h>
 #include <linux/dma-debug.h>
+#include <linux/iommu.h>
 #include <linux/dmar.h>
 #include <linux/export.h>
 #include <linux/memblock.h>
@@ -11,7 +12,6 @@
 #include <asm/dma.h>
 #include <asm/iommu.h>
 #include <asm/gart.h>
-#include <asm/calgary.h>
 #include <asm/x86_init.h>
 #include <asm/iommu_table.h>
 
@@ -34,21 +34,6 @@ int no_iommu __read_mostly;
 /* Set this to 1 if there is a HW IOMMU in the system */
 int iommu_detected __read_mostly = 0;
 
-/*
- * This variable becomes 1 if iommu=pt is passed on the kernel command line.
- * If this variable is 1, IOMMU implementations do no DMA translation for
- * devices and allow every device to access to whole physical memory. This is
- * useful if a user wants to use an IOMMU only for KVM device assignment to
- * guests and not for driver dma translation.
- * It is also possible to disable by default in kernel config, and enable with
- * iommu=nopt at boot time.
- */
-#ifdef CONFIG_IOMMU_DEFAULT_PASSTHROUGH
-int iommu_pass_through __read_mostly = 1;
-#else
-int iommu_pass_through __read_mostly;
-#endif
-
 extern struct iommu_table_entry __iommu_table[], __iommu_table_end[];
 
 void __init pci_iommu_alloc(void)
@@ -70,7 +55,7 @@ void __init pci_iommu_alloc(void)
 }
 
 /*
- * See <Documentation/x86/x86_64/boot-options.txt> for the iommu kernel
+ * See <Documentation/x86/x86_64/boot-options.rst> for the iommu kernel
  * parameter documentation.
  */
 static __init int iommu_setup(char *p)
@@ -120,16 +105,11 @@ static __init int iommu_setup(char *p)
 			swiotlb = 1;
 #endif
 		if (!strncmp(p, "pt", 2))
-			iommu_pass_through = 1;
+			iommu_set_default_passthrough(true);
 		if (!strncmp(p, "nopt", 4))
-			iommu_pass_through = 0;
+			iommu_set_default_translated(true);
 
 		gart_parse_options(p);
-
-#ifdef CONFIG_CALGARY_IOMMU
-		if (!strncmp(p, "calgary", 7))
-			use_calgary = 1;
-#endif /* CONFIG_CALGARY_IOMMU */
 
 		p += strcspn(p, ",");
 		if (*p == ',')
@@ -160,7 +140,7 @@ rootfs_initcall(pci_iommu_init);
 
 static int via_no_dac_cb(struct pci_dev *pdev, void *data)
 {
-	pdev->dev.bus_dma_mask = DMA_BIT_MASK(32);
+	pdev->dev.bus_dma_limit = DMA_BIT_MASK(32);
 	return 0;
 }
 

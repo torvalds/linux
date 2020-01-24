@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (C) 2016 Felix Fietkau <nbd@nbd.name>
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include <linux/kernel.h>
@@ -80,7 +69,7 @@ static const struct ieee80211_ops mt76x0e_ops = {
 	.sta_state = mt76_sta_state,
 	.set_key = mt76x02_set_key,
 	.conf_tx = mt76x02_conf_tx,
-	.sw_scan_start = mt76x02_sw_scan,
+	.sw_scan_start = mt76_sw_scan,
 	.sw_scan_complete = mt76x02_sw_scan_complete,
 	.ampdu_action = mt76x02_ampdu_action,
 	.sta_rate_tbl_update = mt76x02_sta_rate_tbl_update,
@@ -92,6 +81,7 @@ static const struct ieee80211_ops mt76x0e_ops = {
 	.release_buffered_frames = mt76_release_buffered_frames,
 	.set_coverage_class = mt76x02_set_coverage_class,
 	.set_rts_threshold = mt76x02_set_rts_threshold,
+	.get_antenna = mt76_get_antenna,
 };
 
 static int mt76x0e_register_device(struct mt76x02_dev *dev)
@@ -130,15 +120,6 @@ static int mt76x0e_register_device(struct mt76x02_dev *dev)
 	mt76_clear(dev, 0x110, BIT(9));
 	mt76_set(dev, MT_MAX_LEN_CFG, BIT(13));
 
-	mt76_wr(dev, MT_CH_TIME_CFG,
-		MT_CH_TIME_CFG_TIMER_EN |
-		MT_CH_TIME_CFG_TX_AS_BUSY |
-		MT_CH_TIME_CFG_RX_AS_BUSY |
-		MT_CH_TIME_CFG_NAV_AS_BUSY |
-		MT_CH_TIME_CFG_EIFS_AS_BUSY |
-		MT_CH_CCA_RC_EN |
-		FIELD_PREP(MT_CH_TIME_CFG_CH_TIMER_CLR, 1));
-
 	err = mt76x0_register_device(dev);
 	if (err < 0)
 		return err;
@@ -153,7 +134,9 @@ mt76x0e_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	static const struct mt76_driver_ops drv_ops = {
 		.txwi_size = sizeof(struct mt76x02_txwi),
-		.tx_aligned4_skbs = true,
+		.drv_flags = MT_DRV_TX_ALIGNED4_SKBS |
+			     MT_DRV_SW_RX_AIRTIME,
+		.survey_flags = SURVEY_INFO_TIME_TX,
 		.update_survey = mt76x02_update_channel,
 		.tx_prepare_skb = mt76x02_tx_prepare_skb,
 		.tx_complete_skb = mt76x02_tx_complete_skb,

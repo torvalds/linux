@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/*
- * Copyright (C) 2007, 2011 Wolfgang Grandegger <wg@grandegger.com>
+/* Copyright (C) 2007, 2011 Wolfgang Grandegger <wg@grandegger.com>
  * Copyright (C) 2012 Stephane Grosjean <s.grosjean@peak-system.com>
  *
  * Derived from the PCAN project file driver/src/pcan_pci.c:
@@ -660,7 +659,7 @@ static int pciefd_can_probe(struct pciefd_board *pciefd)
 		pciefd_can_writereg(priv, CANFD_CLK_SEL_80MHZ,
 				    PCIEFD_REG_CAN_CLK_SEL);
 
-		/* fallthough */
+		/* fall through */
 	case CANFD_CLK_SEL_80MHZ:
 		priv->ucan.can.clock.freq = 80 * 1000 * 1000;
 		break;
@@ -841,7 +840,8 @@ err_disable_pci:
 
 	/* pci_xxx_config_word() return positive PCIBIOS_xxx error codes while
 	 * the probe() function must return a negative errno in case of failure
-	 * (err is unchanged if negative) */
+	 * (err is unchanged if negative)
+	 */
 	return pcibios_err_to_errno(err);
 }
 

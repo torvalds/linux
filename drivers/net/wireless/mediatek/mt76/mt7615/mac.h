@@ -98,6 +98,11 @@ enum rx_pkt_type {
 #define MT_RXV2_GROUP_ID		GENMASK(26, 21)
 #define MT_RXV2_LENGTH			GENMASK(20, 0)
 
+#define MT_RXV4_RCPI3			GENMASK(31, 24)
+#define MT_RXV4_RCPI2			GENMASK(23, 16)
+#define MT_RXV4_RCPI1			GENMASK(15, 8)
+#define MT_RXV4_RCPI0			GENMASK(7, 0)
+
 enum tx_header_format {
 	MT_HDR_FORMAT_802_3,
 	MT_HDR_FORMAT_CMD,
@@ -296,5 +301,33 @@ struct mt7615_tx_free {
 #define MT_TXS6_F1_RCPI_2		GENMASK(23, 16)
 #define MT_TXS6_F1_RCPI_1		GENMASK(15, 8)
 #define MT_TXS6_F1_RCPI_0		GENMASK(7, 0)
+
+enum mt7615_cipher_type {
+	MT_CIPHER_NONE,
+	MT_CIPHER_WEP40,
+	MT_CIPHER_TKIP,
+	MT_CIPHER_TKIP_NO_MIC,
+	MT_CIPHER_AES_CCMP,
+	MT_CIPHER_WEP104,
+	MT_CIPHER_BIP_CMAC_128,
+	MT_CIPHER_WEP128,
+	MT_CIPHER_WAPI,
+	MT_CIPHER_CCMP_256 = 10,
+	MT_CIPHER_GCMP,
+	MT_CIPHER_GCMP_256,
+};
+
+static inline struct mt7615_txp *
+mt7615_txwi_to_txp(struct mt76_dev *dev, struct mt76_txwi_cache *t)
+{
+	u8 *txwi;
+
+	if (!t)
+		return NULL;
+
+	txwi = mt76_get_txwi_ptr(dev, t);
+
+	return (struct mt7615_txp *)(txwi + MT_TXD_SIZE);
+}
 
 #endif

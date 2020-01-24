@@ -3,14 +3,18 @@
  * Copyright (C) 2017 Free Electrons
  */
 
+#include <linux/backlight.h>
+#include <linux/delay.h>
 #include <linux/gpio/consumer.h>
+#include <linux/module.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
 
-#include <drm/drmP.h>
-#include <drm/drm_panel.h>
-
 #include <video/mipi_display.h>
+
+#include <drm/drm_device.h>
+#include <drm/drm_modes.h>
+#include <drm/drm_panel.h>
 
 #define ST7789V_COLMOD_RGB_FMT_18BITS		(6 << 4)
 #define ST7789V_COLMOD_CTRL_FMT_18BITS		(6 << 0)
@@ -377,8 +381,8 @@ static int st7789v_probe(struct spi_device *spi)
 	spi_set_drvdata(spi, ctx);
 	ctx->spi = spi;
 
-	ctx->panel.dev = &spi->dev;
-	ctx->panel.funcs = &st7789v_drm_funcs;
+	drm_panel_init(&ctx->panel, &spi->dev, &st7789v_drm_funcs,
+		       DRM_MODE_CONNECTOR_DPI);
 
 	ctx->power = devm_regulator_get(&spi->dev, "power");
 	if (IS_ERR(ctx->power))

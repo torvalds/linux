@@ -9,7 +9,7 @@ only the AMD64 specific ones are listed here.
 
 Machine check
 =============
-Please see Documentation/x86/x86_64/machinecheck for sysfs runtime tunables.
+Please see Documentation/x86/x86_64/machinecheck.rst for sysfs runtime tunables.
 
    mce=off
 		Disable machine check
@@ -89,7 +89,7 @@ APICs
      Don't use the local APIC (alias for i386 compatibility)
 
    pirq=...
-	See Documentation/x86/i386/IO-APIC.txt
+	See Documentation/x86/i386/IO-APIC.rst
 
    noapictimer
 	Don't set up the APIC timer
@@ -230,7 +230,7 @@ IOMMU (input/output memory management unit)
 ===========================================
 Multiple x86-64 PCI-DMA mapping implementations exist, for example:
 
-   1. <lib/dma-direct.c>: use no hardware/software IOMMU at all
+   1. <kernel/dma/direct.c>: use no hardware/software IOMMU at all
       (e.g. because you have < 3 GB memory).
       Kernel boot message: "PCI-DMA: Disabling IOMMU"
 

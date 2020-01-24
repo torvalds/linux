@@ -50,20 +50,52 @@ EXPORT_SYMBOL_GPL(hash__alloc_context_id);
 
 void slb_setup_new_exec(void);
 
+static int realloc_context_ids(mm_context_t *ctx)
+{
+	int i, id;
+
+	/*
+	 * id 0 (aka. ctx->id) is special, we always allocate a new one, even if
+	 * there wasn't one allocated previously (which happens in the exec
+	 * case where ctx is newly allocated).
+	 *
+	 * We have to be a bit careful here. We must keep the existing ids in
+	 * the array, so that we can test if they're non-zero to decide if we
+	 * need to allocate a new one. However in case of error we must free the
+	 * ids we've allocated but *not* any of the existing ones (or risk a
+	 * UAF). That's why we decrement i at the start of the error handling
+	 * loop, to skip the id that we just tested but couldn't reallocate.
+	 */
+	for (i = 0; i < ARRAY_SIZE(ctx->extended_id); i++) {
+		if (i == 0 || ctx->extended_id[i]) {
+			id = hash__alloc_context_id();
+			if (id < 0)
+				goto error;
+
+			ctx->extended_id[i] = id;
+		}
+	}
+
+	/* The caller expects us to return id */
+	return ctx->id;
+
+error:
+	for (i--; i >= 0; i--) {
+		if (ctx->extended_id[i])
+			ida_free(&mmu_context_ida, ctx->extended_id[i]);
+	}
+
+	return id;
+}
+
 static int hash__init_new_context(struct mm_struct *mm)
 {
 	int index;
 
-	index = hash__alloc_context_id();
-	if (index < 0)
-		return index;
-
 	mm->context.hash_context = kmalloc(sizeof(struct hash_mm_context),
 					   GFP_KERNEL);
-	if (!mm->context.hash_context) {
-		ida_free(&mmu_context_ida, index);
+	if (!mm->context.hash_context)
 		return -ENOMEM;
-	}
 
 	/*
 	 * The old code would re-promote on fork, we don't do that when using
@@ -91,13 +123,20 @@ static int hash__init_new_context(struct mm_struct *mm)
 			mm->context.hash_context->spt = kmalloc(sizeof(struct subpage_prot_table),
 								GFP_KERNEL);
 			if (!mm->context.hash_context->spt) {
-				ida_free(&mmu_context_ida, index);
 				kfree(mm->context.hash_context);
 				return -ENOMEM;
 			}
 		}
 #endif
+	}
 
+	index = realloc_context_ids(&mm->context);
+	if (index < 0) {
+#ifdef CONFIG_PPC_SUBPAGE_PROT
+		kfree(mm->context.hash_context->spt);
+#endif
+		kfree(mm->context.hash_context);
+		return index;
 	}
 
 	pkey_mm_init(mm);
@@ -135,7 +174,6 @@ static int radix__init_new_context(struct mm_struct *mm)
 	 */
 	asm volatile("ptesync;isync" : : : "memory");
 
-	mm->context.npu_context = NULL;
 	mm->context.hash_context = NULL;
 
 	return index;
@@ -218,8 +256,21 @@ void destroy_context(struct mm_struct *mm)
 #ifdef CONFIG_SPAPR_TCE_IOMMU
 	WARN_ON_ONCE(!list_empty(&mm->context.iommu_group_mem_list));
 #endif
+	/*
+	 * For tasks which were successfully initialized we end up calling
+	 * arch_exit_mmap() which clears the process table entry. And
+	 * arch_exit_mmap() is called before the required fullmm TLB flush
+	 * which does a RIC=2 flush. Hence for an initialized task, we do clear
+	 * any cached process table entries.
+	 *
+	 * The condition below handles the error case during task init. We have
+	 * set the process table entry early and if we fail a task
+	 * initialization, we need to ensure the process table entry is zeroed.
+	 * We need not worry about process table entry caches because the task
+	 * never ran with the PID value.
+	 */
 	if (radix_enabled())
-		WARN_ON(process_tb[mm->context.id].prtb0 != 0);
+		process_tb[mm->context.id].prtb0 = 0;
 	else
 		subpage_prot_free(mm);
 	destroy_contexts(&mm->context);

@@ -40,7 +40,7 @@ struct uac_rtd_params {
 
 	void *rbuf;
 
-	unsigned max_psize;	/* MaxPacketSize of endpoint */
+	unsigned int max_psize;	/* MaxPacketSize of endpoint */
 	struct uac_req *ureq;
 
 	spinlock_t lock;
@@ -78,7 +78,7 @@ static const struct snd_pcm_hardware uac_pcm_hardware = {
 
 static void u_audio_iso_complete(struct usb_ep *ep, struct usb_request *req)
 {
-	unsigned pending;
+	unsigned int pending;
 	unsigned long flags, flags2;
 	unsigned int hw_ptr;
 	int status = req->status;
@@ -585,7 +585,7 @@ int g_audio_setup(struct g_audio *g_audio, const char *pcm_name,
 	sprintf(card->longname, "%s %i", card_name, card->dev->id);
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS,
-		snd_dma_continuous_data(GFP_KERNEL), 0, BUFF_SIZE_MAX);
+					      NULL, 0, BUFF_SIZE_MAX);
 
 	err = snd_card_register(card);
 

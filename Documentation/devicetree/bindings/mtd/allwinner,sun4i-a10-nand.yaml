@@ -11,7 +11,7 @@ allOf:
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>
-  - Maxime Ripard <maxime.ripard@bootlin.com>
+  - Maxime Ripard <mripard@kernel.org>
 
 properties:
   "#address-cells": true
@@ -55,9 +55,9 @@ patternProperties:
   "^pinctrl-[0-9]+$": true
 
   "^nand@[a-f0-9]+$":
+    type: object
     properties:
       reg:
-        maxItems: 1
         minimum: 0
         maximum: 7
 

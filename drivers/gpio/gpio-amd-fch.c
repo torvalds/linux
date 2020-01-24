@@ -25,14 +25,13 @@
 #define AMD_FCH_GPIO_FLAG_WRITE		BIT(22)
 #define AMD_FCH_GPIO_FLAG_READ		BIT(16)
 
-static struct resource amd_fch_gpio_iores =
+static const struct resource amd_fch_gpio_iores =
 	DEFINE_RES_MEM_NAMED(
 		AMD_FCH_MMIO_BASE + AMD_FCH_GPIO_BANK0_BASE,
 		AMD_FCH_GPIO_SIZE,
 		"amd-fch-gpio-iomem");
 
 struct amd_fch_gpio_priv {
-	struct platform_device		*pdev;
 	struct gpio_chip		gc;
 	void __iomem			*base;
 	struct amd_fch_gpio_pdata	*pdata;
@@ -93,7 +92,7 @@ static int amd_fch_gpio_get_direction(struct gpio_chip *gc, unsigned int gpio)
 	ret = (readl_relaxed(ptr) & AMD_FCH_GPIO_FLAG_DIRECTION);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	return ret;
+	return ret ? GPIO_LINE_DIRECTION_IN : GPIO_LINE_DIRECTION_OUT;
 }
 
 static void amd_fch_gpio_set(struct gpio_chip *gc,
@@ -153,7 +152,6 @@ static int amd_fch_gpio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	priv->pdata	= pdata;
-	priv->pdev	= pdev;
 
 	priv->gc.owner			= THIS_MODULE;
 	priv->gc.parent			= &pdev->dev;

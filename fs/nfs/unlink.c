@@ -396,12 +396,6 @@ nfs_complete_sillyrename(struct rpc_task *task, struct nfs_renamedata *data)
 		nfs_cancel_async_unlink(dentry);
 		return;
 	}
-
-	/*
-	 * vfs_unlink and the like do not issue this when a file is
-	 * sillyrenamed, so do it here.
-	 */
-	fsnotify_nameremove(dentry, 0);
 }
 
 #define SILLYNAME_PREFIX ".nfs"

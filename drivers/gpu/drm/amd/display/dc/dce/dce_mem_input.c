@@ -148,7 +148,7 @@ static void dce_mi_program_pte_vm(
 			pte->min_pte_before_flip_horiz_scan;
 
 	REG_UPDATE(GRPH_PIPE_OUTSTANDING_REQUEST_LIMIT,
-			GRPH_PIPE_OUTSTANDING_REQUEST_LIMIT, 0xff);
+			GRPH_PIPE_OUTSTANDING_REQUEST_LIMIT, 0x7f);
 
 	REG_UPDATE_3(DVMM_PTE_CONTROL,
 			DVMM_PAGE_WIDTH, page_width,
@@ -157,7 +157,7 @@ static void dce_mi_program_pte_vm(
 
 	REG_UPDATE_2(DVMM_PTE_ARB_CONTROL,
 			DVMM_PTE_REQ_PER_CHUNK, pte->pte_req_per_chunk,
-			DVMM_MAX_PTE_REQ_OUTSTANDING, 0xff);
+			DVMM_MAX_PTE_REQ_OUTSTANDING, 0x7f);
 }
 
 static void program_urgency_watermark(
@@ -391,10 +391,10 @@ static void program_tiling(
 static void program_size_and_rotation(
 	struct dce_mem_input *dce_mi,
 	enum dc_rotation_angle rotation,
-	const union plane_size *plane_size)
+	const struct plane_size *plane_size)
 {
-	const struct rect *in_rect = &plane_size->grph.surface_size;
-	struct rect hw_rect = plane_size->grph.surface_size;
+	const struct rect *in_rect = &plane_size->surface_size;
+	struct rect hw_rect = plane_size->surface_size;
 	const uint32_t rotation_angles[ROTATION_ANGLE_COUNT] = {
 			[ROTATION_ANGLE_0] = 0,
 			[ROTATION_ANGLE_90] = 1,
@@ -423,7 +423,7 @@ static void program_size_and_rotation(
 			GRPH_Y_END, hw_rect.height);
 
 	REG_SET(GRPH_PITCH, 0,
-			GRPH_PITCH, plane_size->grph.surface_pitch);
+			GRPH_PITCH, plane_size->surface_pitch);
 
 	REG_SET(HW_ROTATION, 0,
 			GRPH_ROTATION_ANGLE, rotation_angles[rotation]);
@@ -505,7 +505,7 @@ static void dce_mi_program_surface_config(
 	struct mem_input *mi,
 	enum surface_pixel_format format,
 	union dc_tiling_info *tiling_info,
-	union plane_size *plane_size,
+	struct plane_size *plane_size,
 	enum dc_rotation_angle rotation,
 	struct dc_plane_dcc_param *dcc,
 	bool horizontal_mirror)
@@ -606,11 +606,11 @@ static void dce_mi_allocate_dmif(
 	}
 
 	if (dce_mi->wa.single_head_rdreq_dmif_limit) {
-		uint32_t eanble =  (total_stream_num > 1) ? 0 :
+		uint32_t enable =  (total_stream_num > 1) ? 0 :
 				dce_mi->wa.single_head_rdreq_dmif_limit;
 
 		REG_UPDATE(MC_HUB_RDREQ_DMIF_LIMIT,
-				ENABLE, eanble);
+				ENABLE, enable);
 	}
 }
 
@@ -636,11 +636,11 @@ static void dce_mi_free_dmif(
 			10, 3500);
 
 	if (dce_mi->wa.single_head_rdreq_dmif_limit) {
-		uint32_t eanble =  (total_stream_num > 1) ? 0 :
+		uint32_t enable =  (total_stream_num > 1) ? 0 :
 				dce_mi->wa.single_head_rdreq_dmif_limit;
 
 		REG_UPDATE(MC_HUB_RDREQ_DMIF_LIMIT,
-				ENABLE, eanble);
+				ENABLE, enable);
 	}
 }
 

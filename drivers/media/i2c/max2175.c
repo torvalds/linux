@@ -591,8 +591,8 @@ static int max2175_set_lo_freq(struct max2175 *ctx, u32 lo_freq)
 		lo_freq *= lo_mult;
 
 	int_desired = lo_freq / ctx->xtal_freq;
-	frac_desired = div_u64((u64)(lo_freq % ctx->xtal_freq) << 20,
-			       ctx->xtal_freq);
+	frac_desired = div64_ul((u64)(lo_freq % ctx->xtal_freq) << 20,
+				ctx->xtal_freq);
 
 	/* Check CSM is not busy */
 	ret = max2175_poll_csm_ready(ctx);
@@ -1271,8 +1271,7 @@ static int max2175_refout_load_to_bits(struct i2c_client *client, u32 load,
 	return 0;
 }
 
-static int max2175_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int max2175_probe(struct i2c_client *client)
 {
 	bool master = true, am_hiz = false;
 	u32 refout_load, refout_bits = 0;	/* REFOUT disabled */
@@ -1433,7 +1432,7 @@ static struct i2c_driver max2175_driver = {
 		.name	= DRIVER_NAME,
 		.of_match_table = max2175_of_ids,
 	},
-	.probe		= max2175_probe,
+	.probe_new	= max2175_probe,
 	.remove		= max2175_remove,
 	.id_table	= max2175_id,
 };

@@ -301,6 +301,9 @@ static ssize_t qib_portattr_show(struct kobject *kobj,
 	struct qib_pportdata *ppd =
 		container_of(kobj, struct qib_pportdata, pport_kobj);
 
+	if (!pattr->show)
+		return -EIO;
+
 	return pattr->show(ppd, buf);
 }
 
@@ -311,6 +314,9 @@ static ssize_t qib_portattr_store(struct kobject *kobj,
 		container_of(attr, struct qib_port_attr, attr);
 	struct qib_pportdata *ppd =
 		container_of(kobj, struct qib_pportdata, pport_kobj);
+
+	if (!pattr->store)
+		return -EIO;
 
 	return pattr->store(ppd, buf, len);
 }
@@ -436,6 +442,7 @@ QIB_DIAGC_ATTR(dmawait);
 QIB_DIAGC_ATTR(unaligned);
 QIB_DIAGC_ATTR(rc_dupreq);
 QIB_DIAGC_ATTR(rc_seqnak);
+QIB_DIAGC_ATTR(rc_crwaits);
 
 static struct attribute *diagc_default_attributes[] = {
 	&qib_diagc_attr_rc_resends.attr,
@@ -453,6 +460,7 @@ static struct attribute *diagc_default_attributes[] = {
 	&qib_diagc_attr_unaligned.attr,
 	&qib_diagc_attr_rc_dupreq.attr,
 	&qib_diagc_attr_rc_seqnak.attr,
+	&qib_diagc_attr_rc_crwaits.attr,
 	NULL
 };
 

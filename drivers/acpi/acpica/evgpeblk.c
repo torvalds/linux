@@ -110,6 +110,9 @@ acpi_status acpi_ev_delete_gpe_block(struct acpi_gpe_block_info *gpe_block)
 
 	status =
 	    acpi_hw_disable_gpe_block(gpe_block->xrupt_block, gpe_block, NULL);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
 
 	if (!gpe_block->previous && !gpe_block->next) {
 
@@ -359,10 +362,10 @@ acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
 	walk_info.gpe_device = gpe_device;
 	walk_info.execute_by_owner_id = FALSE;
 
-	status = acpi_ns_walk_namespace(ACPI_TYPE_METHOD, gpe_device,
-					ACPI_UINT32_MAX, ACPI_NS_WALK_NO_UNLOCK,
-					acpi_ev_match_gpe_method, NULL,
-					&walk_info, NULL);
+	(void)acpi_ns_walk_namespace(ACPI_TYPE_METHOD, gpe_device,
+				     ACPI_UINT32_MAX, ACPI_NS_WALK_NO_UNLOCK,
+				     acpi_ev_match_gpe_method, NULL, &walk_info,
+				     NULL);
 
 	/* Return the new block */
 
@@ -453,7 +456,7 @@ acpi_ev_initialize_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 				continue;
 			}
 
-			status = acpi_ev_add_gpe_reference(gpe_event_info);
+			status = acpi_ev_add_gpe_reference(gpe_event_info, FALSE);
 			if (ACPI_FAILURE(status)) {
 				ACPI_EXCEPTION((AE_INFO, status,
 					"Could not enable GPE 0x%02X",

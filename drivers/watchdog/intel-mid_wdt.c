@@ -134,6 +134,7 @@ static int mid_wdt_probe(struct platform_device *pdev)
 	wdt_dev->timeout = MID_WDT_DEFAULT_TIMEOUT;
 	wdt_dev->parent = dev;
 
+	watchdog_set_nowayout(wdt_dev, WATCHDOG_NOWAYOUT);
 	watchdog_set_drvdata(wdt_dev, dev);
 
 	ret = devm_request_irq(dev, pdata->irq, mid_wdt_irq,
@@ -161,10 +162,8 @@ static int mid_wdt_probe(struct platform_device *pdev)
 	set_bit(WDOG_HW_RUNNING, &wdt_dev->status);
 
 	ret = devm_watchdog_register_device(dev, wdt_dev);
-	if (ret) {
-		dev_err(dev, "error registering watchdog device\n");
+	if (ret)
 		return ret;
-	}
 
 	dev_info(dev, "Intel MID watchdog device probed\n");
 

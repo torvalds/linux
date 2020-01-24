@@ -16,7 +16,7 @@
 #include "ipac.h"
 #include "iohelper.h"
 #include "netjet.h"
-#include <linux/isdn/hdlc.h>
+#include "isdnhdlc.h"
 
 #define NETJET_REV	"2.0"
 
@@ -380,8 +380,8 @@ read_dma(struct tiger_ch *bc, u32 idx, int cnt)
 	stat = bchannel_get_rxbuf(&bc->bch, cnt);
 	/* only transparent use the count here, HDLC overun is detected later */
 	if (stat == -ENOMEM) {
-		pr_warning("%s.B%d: No memory for %d bytes\n",
-			   card->name, bc->bch.nr, cnt);
+		pr_warn("%s.B%d: No memory for %d bytes\n",
+			card->name, bc->bch.nr, cnt);
 		return;
 	}
 	if (test_bit(FLG_TRANSPARENT, &bc->bch.Flags))
@@ -420,8 +420,8 @@ read_dma(struct tiger_ch *bc, u32 idx, int cnt)
 			recv_Bchannel(&bc->bch, 0, false);
 			stat = bchannel_get_rxbuf(&bc->bch, bc->bch.maxlen);
 			if (stat < 0) {
-				pr_warning("%s.B%d: No memory for %d bytes\n",
-					   card->name, bc->bch.nr, cnt);
+				pr_warn("%s.B%d: No memory for %d bytes\n",
+					card->name, bc->bch.nr, cnt);
 				return;
 			}
 		} else if (stat == -HDLC_CRC_ERROR) {
@@ -605,8 +605,7 @@ bc_next_frame(struct tiger_ch *bc)
 	if (bc->bch.tx_skb && bc->bch.tx_idx < bc->bch.tx_skb->len) {
 		fill_dma(bc);
 	} else {
-		if (bc->bch.tx_skb)
-			dev_kfree_skb(bc->bch.tx_skb);
+		dev_kfree_skb(bc->bch.tx_skb);
 		if (get_next_bframe(&bc->bch)) {
 			fill_dma(bc);
 			test_and_clear_bit(FLG_TX_EMPTY, &bc->bch.Flags);

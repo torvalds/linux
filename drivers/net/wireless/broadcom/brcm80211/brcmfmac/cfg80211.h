@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2010 Broadcom Corporation
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
- * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
- * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
- * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #ifndef BRCMFMAC_CFG80211_H
@@ -118,7 +107,8 @@ struct brcmf_cfg80211_security {
 enum brcmf_profile_fwsup {
 	BRCMF_PROFILE_FWSUP_NONE,
 	BRCMF_PROFILE_FWSUP_PSK,
-	BRCMF_PROFILE_FWSUP_1X
+	BRCMF_PROFILE_FWSUP_1X,
+	BRCMF_PROFILE_FWSUP_SAE
 };
 
 /**
@@ -133,6 +123,7 @@ struct brcmf_cfg80211_profile {
 	struct brcmf_cfg80211_security sec;
 	struct brcmf_wsec_key key[BRCMF_MAX_DEFAULT_KEYS];
 	enum brcmf_profile_fwsup use_fwsup;
+	bool is_ft;
 };
 
 /**
@@ -303,7 +294,6 @@ struct brcmf_cfg80211_wowl {
  */
 struct brcmf_cfg80211_info {
 	struct wiphy *wiphy;
-	struct cfg80211_ops *ops;
 	struct brcmf_cfg80211_conf *conf;
 	struct brcmf_p2p_info p2p;
 	struct brcmf_btcoex_info *btcoex;

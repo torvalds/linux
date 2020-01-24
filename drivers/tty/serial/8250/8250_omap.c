@@ -141,18 +141,20 @@ static void omap8250_set_mctrl(struct uart_port *port, unsigned int mctrl)
 
 	serial8250_do_set_mctrl(port, mctrl);
 
-	/*
-	 * Turn off autoRTS if RTS is lowered and restore autoRTS setting
-	 * if RTS is raised
-	 */
-	lcr = serial_in(up, UART_LCR);
-	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
-	if ((mctrl & TIOCM_RTS) && (port->status & UPSTAT_AUTORTS))
-		priv->efr |= UART_EFR_RTS;
-	else
-		priv->efr &= ~UART_EFR_RTS;
-	serial_out(up, UART_EFR, priv->efr);
-	serial_out(up, UART_LCR, lcr);
+	if (!mctrl_gpio_to_gpiod(up->gpios, UART_GPIO_RTS)) {
+		/*
+		 * Turn off autoRTS if RTS is lowered and restore autoRTS
+		 * setting if RTS is raised
+		 */
+		lcr = serial_in(up, UART_LCR);
+		serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
+		if ((mctrl & TIOCM_RTS) && (port->status & UPSTAT_AUTORTS))
+			priv->efr |= UART_EFR_RTS;
+		else
+			priv->efr &= ~UART_EFR_RTS;
+		serial_out(up, UART_EFR, priv->efr);
+		serial_out(up, UART_LCR, lcr);
+	}
 }
 
 /*
@@ -453,7 +455,9 @@ static void omap_8250_set_termios(struct uart_port *port,
 	priv->efr = 0;
 	up->port.status &= ~(UPSTAT_AUTOCTS | UPSTAT_AUTORTS | UPSTAT_AUTOXOFF);
 
-	if (termios->c_cflag & CRTSCTS && up->port.flags & UPF_HARD_FLOW) {
+	if (termios->c_cflag & CRTSCTS && up->port.flags & UPF_HARD_FLOW &&
+	    !mctrl_gpio_to_gpiod(up->gpios, UART_GPIO_RTS) &&
+	    !mctrl_gpio_to_gpiod(up->gpios, UART_GPIO_CTS)) {
 		/* Enable AUTOCTS (autoRTS is enabled when RTS is raised) */
 		up->port.status |= UPSTAT_AUTOCTS | UPSTAT_AUTORTS;
 		priv->efr |= UART_EFR_CTS;
@@ -923,15 +927,13 @@ static void omap_8250_dma_tx_complete(void *param)
 		ret = omap_8250_tx_dma(p);
 		if (ret)
 			en_thri = true;
-
 	} else if (p->capabilities & UART_CAP_RPM) {
 		en_thri = true;
 	}
 
 	if (en_thri) {
 		dma->tx_err = 1;
-		p->ier |= UART_IER_THRI;
-		serial_port_out(&p->port, UART_IER, p->ier);
+		serial8250_set_THRI(p);
 	}
 
 	spin_unlock_irqrestore(&p->port.lock, flags);
@@ -959,10 +961,7 @@ static int omap_8250_tx_dma(struct uart_8250_port *p)
 			ret = -EBUSY;
 			goto err;
 		}
-		if (p->ier & UART_IER_THRI) {
-			p->ier &= ~UART_IER_THRI;
-			serial_out(p, UART_IER, p->ier);
-		}
+		serial8250_clear_THRI(p);
 		return 0;
 	}
 
@@ -1020,10 +1019,7 @@ static int omap_8250_tx_dma(struct uart_8250_port *p)
 	if (dma->tx_err)
 		dma->tx_err = 0;
 
-	if (p->ier & UART_IER_THRI) {
-		p->ier &= ~UART_IER_THRI;
-		serial_out(p, UART_IER, p->ier);
-	}
+	serial8250_clear_THRI(p);
 	if (skip_byte)
 		serial_out(p, UART_TX, xmit->buf[xmit->tail]);
 	return 0;
@@ -1239,7 +1235,16 @@ static int omap8250_probe(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, true);
 	pm_runtime_use_autosuspend(&pdev->dev);
-	pm_runtime_set_autosuspend_delay(&pdev->dev, -1);
+
+	/*
+	 * Disable runtime PM until autosuspend delay unless specifically
+	 * enabled by the user via sysfs. This is the historic way to
+	 * prevent an unsafe default policy with lossy characters on wake-up.
+	 * For serdev devices this is not needed, the policy can be managed by
+	 * the serdev driver.
+	 */
+	if (!of_get_available_child_count(pdev->dev.of_node))
+		pm_runtime_set_autosuspend_delay(&pdev->dev, -1);
 
 	pm_runtime_irq_safe(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);

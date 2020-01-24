@@ -1296,15 +1296,25 @@ static struct snd_soc_dai_link *sun4i_codec_create_link(struct device *dev,
 {
 	struct snd_soc_dai_link *link = devm_kzalloc(dev, sizeof(*link),
 						     GFP_KERNEL);
-	if (!link)
+	struct snd_soc_dai_link_component *dlc = devm_kzalloc(dev,
+						3 * sizeof(*dlc), GFP_KERNEL);
+	if (!link || !dlc)
 		return NULL;
+
+	link->cpus	= &dlc[0];
+	link->codecs	= &dlc[1];
+	link->platforms	= &dlc[2];
+
+	link->num_cpus		= 1;
+	link->num_codecs	= 1;
+	link->num_platforms	= 1;
 
 	link->name		= "cdc";
 	link->stream_name	= "CDC PCM";
-	link->codec_dai_name	= "Codec";
-	link->cpu_dai_name	= dev_name(dev);
-	link->codec_name	= dev_name(dev);
-	link->platform_name	= dev_name(dev);
+	link->codecs->dai_name	= "Codec";
+	link->cpus->dai_name	= dev_name(dev);
+	link->codecs->name	= dev_name(dev);
+	link->platforms->name	= dev_name(dev);
 	link->dai_fmt		= SND_SOC_DAIFMT_I2S;
 
 	*num_links = 1;
@@ -1414,7 +1424,7 @@ static const struct snd_soc_dapm_route sun8i_codec_card_routes[] = {
 };
 
 static struct snd_soc_aux_dev aux_dev = {
-	.name = "Codec Analog Controls",
+	.dlc = COMP_EMPTY(),
 };
 
 static struct snd_soc_card *sun8i_a23_codec_create_card(struct device *dev)
@@ -1426,13 +1436,13 @@ static struct snd_soc_card *sun8i_a23_codec_create_card(struct device *dev)
 	if (!card)
 		return ERR_PTR(-ENOMEM);
 
-	aux_dev.codec_of_node = of_parse_phandle(dev->of_node,
+	aux_dev.dlc.of_node = of_parse_phandle(dev->of_node,
 						 "allwinner,codec-analog-controls",
 						 0);
-	if (!aux_dev.codec_of_node) {
+	if (!aux_dev.dlc.of_node) {
 		dev_err(dev, "Can't find analog controls for codec.\n");
 		return ERR_PTR(-EINVAL);
-	};
+	}
 
 	card->dai_link = sun4i_codec_create_link(dev, &card->num_links);
 	if (!card->dai_link)
@@ -1464,13 +1474,13 @@ static struct snd_soc_card *sun8i_h3_codec_create_card(struct device *dev)
 	if (!card)
 		return ERR_PTR(-ENOMEM);
 
-	aux_dev.codec_of_node = of_parse_phandle(dev->of_node,
+	aux_dev.dlc.of_node = of_parse_phandle(dev->of_node,
 						 "allwinner,codec-analog-controls",
 						 0);
-	if (!aux_dev.codec_of_node) {
+	if (!aux_dev.dlc.of_node) {
 		dev_err(dev, "Can't find analog controls for codec.\n");
 		return ERR_PTR(-EINVAL);
-	};
+	}
 
 	card->dai_link = sun4i_codec_create_link(dev, &card->num_links);
 	if (!card->dai_link)
@@ -1502,13 +1512,13 @@ static struct snd_soc_card *sun8i_v3s_codec_create_card(struct device *dev)
 	if (!card)
 		return ERR_PTR(-ENOMEM);
 
-	aux_dev.codec_of_node = of_parse_phandle(dev->of_node,
+	aux_dev.dlc.of_node = of_parse_phandle(dev->of_node,
 						 "allwinner,codec-analog-controls",
 						 0);
-	if (!aux_dev.codec_of_node) {
+	if (!aux_dev.dlc.of_node) {
 		dev_err(dev, "Can't find analog controls for codec.\n");
 		return ERR_PTR(-EINVAL);
-	};
+	}
 
 	card->dai_link = sun4i_codec_create_link(dev, &card->num_links);
 	if (!card->dai_link)

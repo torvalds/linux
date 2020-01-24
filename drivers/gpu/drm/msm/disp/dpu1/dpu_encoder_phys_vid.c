@@ -324,6 +324,10 @@ static void dpu_encoder_phys_vid_vblank_irq(void *arg, int irq_idx)
 
 	/* Signal any waiting atomic commit thread */
 	wake_up_all(&phys_enc->pending_kickoff_wq);
+
+	phys_enc->parent_ops->handle_frame_done(phys_enc->parent, phys_enc,
+			DPU_ENCODER_FRAME_EVENT_DONE);
+
 	DPU_ATRACE_END("vblank_irq");
 }
 
@@ -370,7 +374,7 @@ static void dpu_encoder_phys_vid_mode_set(
 		struct drm_display_mode *mode,
 		struct drm_display_mode *adj_mode)
 {
-	if (!phys_enc || !phys_enc->dpu_kms) {
+	if (!phys_enc) {
 		DPU_ERROR("invalid encoder/kms\n");
 		return;
 	}
@@ -483,8 +487,8 @@ static void dpu_encoder_phys_vid_get_hw_resources(
 	hw_res->intfs[phys_enc->intf_idx - INTF_0] = INTF_MODE_VIDEO;
 }
 
-static int _dpu_encoder_phys_vid_wait_for_vblank(
-		struct dpu_encoder_phys *phys_enc, bool notify)
+static int dpu_encoder_phys_vid_wait_for_vblank(
+		struct dpu_encoder_phys *phys_enc)
 {
 	struct dpu_encoder_wait_info wait_info;
 	int ret;
@@ -499,10 +503,6 @@ static int _dpu_encoder_phys_vid_wait_for_vblank(
 	wait_info.timeout_ms = KICKOFF_TIMEOUT_MS;
 
 	if (!dpu_encoder_phys_vid_is_master(phys_enc)) {
-		if (notify && phys_enc->parent_ops->handle_frame_done)
-			phys_enc->parent_ops->handle_frame_done(
-					phys_enc->parent, phys_enc,
-					DPU_ENCODER_FRAME_EVENT_DONE);
 		return 0;
 	}
 
@@ -512,18 +512,29 @@ static int _dpu_encoder_phys_vid_wait_for_vblank(
 
 	if (ret == -ETIMEDOUT) {
 		dpu_encoder_helper_report_irq_timeout(phys_enc, INTR_IDX_VSYNC);
-	} else if (!ret && notify && phys_enc->parent_ops->handle_frame_done)
-		phys_enc->parent_ops->handle_frame_done(
-				phys_enc->parent, phys_enc,
-				DPU_ENCODER_FRAME_EVENT_DONE);
+	}
 
 	return ret;
 }
 
-static int dpu_encoder_phys_vid_wait_for_vblank(
+static int dpu_encoder_phys_vid_wait_for_commit_done(
 		struct dpu_encoder_phys *phys_enc)
 {
-	return _dpu_encoder_phys_vid_wait_for_vblank(phys_enc, true);
+	struct dpu_hw_ctl *hw_ctl = phys_enc->hw_ctl;
+	int ret;
+
+	if (!hw_ctl)
+		return 0;
+
+	ret = wait_event_timeout(phys_enc->pending_kickoff_wq,
+		(hw_ctl->ops.get_flush_register(hw_ctl) == 0),
+		msecs_to_jiffies(50));
+	if (ret <= 0) {
+		DPU_ERROR("vblank timeout\n");
+		return -ETIMEDOUT;
+	}
+
+	return 0;
 }
 
 static void dpu_encoder_phys_vid_prepare_for_kickoff(
@@ -555,16 +566,13 @@ static void dpu_encoder_phys_vid_prepare_for_kickoff(
 
 static void dpu_encoder_phys_vid_disable(struct dpu_encoder_phys *phys_enc)
 {
-	struct msm_drm_private *priv;
 	unsigned long lock_flags;
 	int ret;
 
-	if (!phys_enc || !phys_enc->parent || !phys_enc->parent->dev ||
-			!phys_enc->parent->dev->dev_private) {
+	if (!phys_enc || !phys_enc->parent || !phys_enc->parent->dev) {
 		DPU_ERROR("invalid encoder/device\n");
 		return;
 	}
-	priv = phys_enc->parent->dev->dev_private;
 
 	if (!phys_enc->hw_intf || !phys_enc->hw_ctl) {
 		DPU_ERROR("invalid hw_intf %d hw_ctl %d\n",
@@ -595,7 +603,7 @@ static void dpu_encoder_phys_vid_disable(struct dpu_encoder_phys *phys_enc)
 	 * scanout buffer) don't latch properly..
 	 */
 	if (dpu_encoder_phys_vid_is_master(phys_enc)) {
-		ret = _dpu_encoder_phys_vid_wait_for_vblank(phys_enc, false);
+		ret = dpu_encoder_phys_vid_wait_for_vblank(phys_enc);
 		if (ret) {
 			atomic_set(&phys_enc->pending_kickoff_cnt, 0);
 			DRM_ERROR("wait disable failed: id:%u intf:%d ret:%d\n",
@@ -611,11 +619,6 @@ static void dpu_encoder_phys_vid_handle_post_kickoff(
 		struct dpu_encoder_phys *phys_enc)
 {
 	unsigned long lock_flags;
-
-	if (!phys_enc) {
-		DPU_ERROR("invalid encoder\n");
-		return;
-	}
 
 	/*
 	 * Video mode must flush CTL before enabling timing engine
@@ -681,7 +684,7 @@ static void dpu_encoder_phys_vid_init_ops(struct dpu_encoder_phys_ops *ops)
 	ops->destroy = dpu_encoder_phys_vid_destroy;
 	ops->get_hw_resources = dpu_encoder_phys_vid_get_hw_resources;
 	ops->control_vblank_irq = dpu_encoder_phys_vid_control_vblank_irq;
-	ops->wait_for_commit_done = dpu_encoder_phys_vid_wait_for_vblank;
+	ops->wait_for_commit_done = dpu_encoder_phys_vid_wait_for_commit_done;
 	ops->wait_for_vblank = dpu_encoder_phys_vid_wait_for_vblank;
 	ops->wait_for_tx_complete = dpu_encoder_phys_vid_wait_for_vblank;
 	ops->irq_control = dpu_encoder_phys_vid_irq_control;

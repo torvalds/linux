@@ -19,13 +19,15 @@
 
 #include "psc.h"
 
+SND_SOC_DAILINK_DEFS(hifi,
+	DAILINK_COMP_ARRAY(COMP_CPU("alchemy-ac97c")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("ac97-codec", "ac97-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("alchemy-pcm-dma.0")));
+
 static struct snd_soc_dai_link db1000_ac97_dai = {
 	.name		= "AC97",
 	.stream_name	= "AC97 HiFi",
-	.codec_dai_name	= "ac97-hifi",
-	.cpu_dai_name	= "alchemy-ac97c",
-	.platform_name	= "alchemy-pcm-dma.0",
-	.codec_name	= "ac97-codec",
+	SND_SOC_DAILINK_REG(hifi),
 };
 
 static struct snd_soc_card db1000_ac97 = {

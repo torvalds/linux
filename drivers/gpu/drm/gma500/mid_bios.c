@@ -11,11 +11,10 @@
  * - Check ioremap failures
  */
 
-#include <drm/drmP.h>
 #include <drm/drm.h>
-#include <drm/gma_drm.h>
-#include "psb_drv.h"
+
 #include "mid_bios.h"
+#include "psb_drv.h"
 
 static void mid_get_fuse_settings(struct drm_device *dev)
 {

@@ -9,5 +9,8 @@ are configurable at compile, boot or run time.
 .. toctree::
    :maxdepth: 1
 
+   spectre
    l1tf
    mds
+   tsx_async_abort
+   multihit.rst

@@ -2468,6 +2468,9 @@ static void mlxsw_sp_fdb_notify_mac_process(struct mlxsw_sp *mlxsw_sp,
 		goto just_remove;
 	}
 
+	if (mlxsw_sp_fid_is_dummy(mlxsw_sp, fid))
+		goto just_remove;
+
 	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_find_by_fid(mlxsw_sp_port, fid);
 	if (!mlxsw_sp_port_vlan) {
 		netdev_err(mlxsw_sp_port->dev, "Failed to find a matching {Port, VID} following FDB notification\n");
@@ -2527,6 +2530,9 @@ static void mlxsw_sp_fdb_notify_mac_lag_process(struct mlxsw_sp *mlxsw_sp,
 		goto just_remove;
 	}
 
+	if (mlxsw_sp_fid_is_dummy(mlxsw_sp, fid))
+		goto just_remove;
+
 	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_find_by_fid(mlxsw_sp_port, fid);
 	if (!mlxsw_sp_port_vlan) {
 		netdev_err(mlxsw_sp_port->dev, "Failed to find a matching {Port, VID} following FDB notification\n");
@@ -2585,7 +2591,7 @@ __mlxsw_sp_fdb_notify_mac_uc_tunnel_process(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		return err;
 
-	dev = __dev_get_by_index(&init_net, nve_ifindex);
+	dev = __dev_get_by_index(mlxsw_sp_net(mlxsw_sp), nve_ifindex);
 	if (!dev)
 		return -EINVAL;
 	*nve_dev = dev;

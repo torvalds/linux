@@ -1,7 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* 
  * Copyright (C) 2002 Jeff Dike (jdike@karaya.com)
  * Copyright (C) 2015 Richard Weinberger (richard@nod.at)
- * Licensed under the GPL
  */
 
 #ifndef __UM_UACCESS_H

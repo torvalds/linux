@@ -288,6 +288,7 @@ Mask  Description
 0x08  Log the read and write file operations and the VIDIOC_QBUF and
       VIDIOC_DQBUF ioctls.
 0x10  Log the poll file operation.
+0x20  Log error and messages in the control operations.
 ===== ================================================================
 
 Video device cleanup

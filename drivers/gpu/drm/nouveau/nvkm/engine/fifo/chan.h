@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_FIFO_CHAN_H__
 #define __NVKM_FIFO_CHAN_H__
 #define nvkm_fifo_chan(p) container_of((p), struct nvkm_fifo_chan, object)

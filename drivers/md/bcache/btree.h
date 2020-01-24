@@ -158,11 +158,13 @@ enum btree_flags {
 	BTREE_NODE_io_error,
 	BTREE_NODE_dirty,
 	BTREE_NODE_write_idx,
+	BTREE_NODE_journal_flush,
 };
 
 BTREE_FLAG(io_error);
 BTREE_FLAG(dirty);
 BTREE_FLAG(write_idx);
+BTREE_FLAG(journal_flush);
 
 static inline struct btree_write *btree_current_write(struct btree *b)
 {

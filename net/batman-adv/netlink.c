@@ -21,6 +21,7 @@
 #include <linux/if_vlan.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/limits.h>
 #include <linux/list.h>
 #include <linux/netdevice.h>
 #include <linux/netlink.h>
@@ -30,6 +31,7 @@
 #include <linux/stddef.h>
 #include <linux/types.h>
 #include <net/genetlink.h>
+#include <net/net_namespace.h>
 #include <net/netlink.h>
 #include <net/sock.h>
 #include <uapi/linux/batadv_packet.h>
@@ -48,8 +50,6 @@
 #include "soft-interface.h"
 #include "tp_meter.h"
 #include "translation-table.h"
-
-struct net;
 
 struct genl_family batadv_netlink_family;
 
@@ -164,7 +164,7 @@ batadv_netlink_get_ifindex(const struct nlmsghdr *nlh, int attrtype)
 {
 	struct nlattr *attr = nlmsg_find_attr(nlh, GENL_HDRLEN, attrtype);
 
-	return attr ? nla_get_u32(attr) : 0;
+	return (attr && nla_len(attr) == sizeof(u32)) ? nla_get_u32(attr) : 0;
 }
 
 /**

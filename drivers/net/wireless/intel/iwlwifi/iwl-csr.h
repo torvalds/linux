@@ -279,6 +279,7 @@
  *         Indicates MAC is entering a power-saving sleep power-down.
  *         Not a good time to access device-internal resources.
  */
+#define CSR_GP_CNTRL_REG_FLAG_INIT_DONE		     (0x00000004)
 #define CSR_GP_CNTRL_REG_FLAG_GOING_TO_SLEEP         (0x00000010)
 #define CSR_GP_CNTRL_REG_FLAG_XTAL_ON		     (0x00000400)
 
@@ -328,6 +329,8 @@ enum {
 #define CSR_HW_REV_TYPE_NONE		(0x00001F0)
 #define CSR_HW_REV_TYPE_QNJ		(0x0000360)
 #define CSR_HW_REV_TYPE_QNJ_B0		(0x0000364)
+#define CSR_HW_REV_TYPE_QU_B0		(0x0000334)
+#define CSR_HW_REV_TYPE_QU_C0		(0x0000338)
 #define CSR_HW_REV_TYPE_QUZ		(0x0000354)
 #define CSR_HW_REV_TYPE_HR_CDB		(0x0000340)
 #define CSR_HW_REV_TYPE_SO		(0x0000370)
@@ -336,6 +339,7 @@ enum {
 /* RF_ID value */
 #define CSR_HW_RF_ID_TYPE_JF		(0x00105100)
 #define CSR_HW_RF_ID_TYPE_HR		(0x0010A000)
+#define CSR_HW_RF_ID_TYPE_HR1		(0x0010c100)
 #define CSR_HW_RF_ID_TYPE_HRCDB		(0x00109F00)
 #define CSR_HW_RF_ID_TYPE_GF		(0x0010D000)
 #define CSR_HW_RF_ID_TYPE_GF4		(0x0010E000)
@@ -599,9 +603,7 @@ enum msix_fh_int_causes {
 enum msix_hw_int_causes {
 	MSIX_HW_INT_CAUSES_REG_ALIVE		= BIT(0),
 	MSIX_HW_INT_CAUSES_REG_WAKEUP		= BIT(1),
-	MSIX_HW_INT_CAUSES_REG_IPC		= BIT(1),
 	MSIX_HW_INT_CAUSES_REG_IML              = BIT(2),
-	MSIX_HW_INT_CAUSES_REG_SW_ERR_V2	= BIT(5),
 	MSIX_HW_INT_CAUSES_REG_CT_KILL		= BIT(6),
 	MSIX_HW_INT_CAUSES_REG_RF_KILL		= BIT(7),
 	MSIX_HW_INT_CAUSES_REG_PERIODIC		= BIT(8),

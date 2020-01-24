@@ -10,11 +10,9 @@ int ocxl_context_alloc(struct ocxl_context **context, struct ocxl_afu *afu,
 	int pasid;
 	struct ocxl_context *ctx;
 
-	*context = kzalloc(sizeof(struct ocxl_context), GFP_KERNEL);
-	if (!*context)
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	if (!ctx)
 		return -ENOMEM;
-
-	ctx = *context;
 
 	ctx->afu = afu;
 	mutex_lock(&afu->contexts_lock);
@@ -22,6 +20,7 @@ int ocxl_context_alloc(struct ocxl_context **context, struct ocxl_afu *afu,
 			afu->pasid_base + afu->pasid_max, GFP_KERNEL);
 	if (pasid < 0) {
 		mutex_unlock(&afu->contexts_lock);
+		kfree(ctx);
 		return pasid;
 	}
 	afu->pasid_count++;
@@ -43,6 +42,7 @@ int ocxl_context_alloc(struct ocxl_context **context, struct ocxl_afu *afu,
 	 * duration of the life of the context
 	 */
 	ocxl_afu_get(afu);
+	*context = ctx;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ocxl_context_alloc);
@@ -69,6 +69,7 @@ static void xsl_fault_error(void *data, u64 addr, u64 dsisr)
 int ocxl_context_attach(struct ocxl_context *ctx, u64 amr, struct mm_struct *mm)
 {
 	int rc;
+	unsigned long pidr = 0;
 
 	// Locks both status & tidr
 	mutex_lock(&ctx->status_mutex);
@@ -77,9 +78,11 @@ int ocxl_context_attach(struct ocxl_context *ctx, u64 amr, struct mm_struct *mm)
 		goto out;
 	}
 
-	rc = ocxl_link_add_pe(ctx->afu->fn->link, ctx->pasid,
-			mm->context.id, ctx->tidr, amr, mm,
-			xsl_fault_error, ctx);
+	if (mm)
+		pidr = mm->context.id;
+
+	rc = ocxl_link_add_pe(ctx->afu->fn->link, ctx->pasid, pidr, ctx->tidr,
+			      amr, mm, xsl_fault_error, ctx);
 	if (rc)
 		goto out;
 

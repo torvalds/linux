@@ -657,7 +657,7 @@ static int tegra_hsp_probe(struct platform_device *pdev)
 	hsp->num_db = (value >> HSP_nDB_SHIFT) & HSP_nINT_MASK;
 	hsp->num_si = (value >> HSP_nSI_SHIFT) & HSP_nINT_MASK;
 
-	err = platform_get_irq_byname(pdev, "doorbell");
+	err = platform_get_irq_byname_optional(pdev, "doorbell");
 	if (err >= 0)
 		hsp->doorbell_irq = err;
 
@@ -677,7 +677,7 @@ static int tegra_hsp_probe(struct platform_device *pdev)
 			if (!name)
 				return -ENOMEM;
 
-			err = platform_get_irq_byname(pdev, name);
+			err = platform_get_irq_byname_optional(pdev, name);
 			if (err >= 0) {
 				hsp->shared_irqs[i] = err;
 				count++;
@@ -775,18 +775,28 @@ static int __maybe_unused tegra_hsp_resume(struct device *dev)
 {
 	struct tegra_hsp *hsp = dev_get_drvdata(dev);
 	unsigned int i;
+	struct tegra_hsp_doorbell *db;
 
-	for (i = 0; i < hsp->num_sm; i++) {
-		struct tegra_hsp_mailbox *mb = &hsp->mailboxes[i];
+	list_for_each_entry(db, &hsp->doorbells, list) {
+		if (db && db->channel.chan)
+			tegra_hsp_doorbell_startup(db->channel.chan);
+	}
 
-		if (mb->channel.chan->cl)
-			tegra_hsp_mailbox_startup(mb->channel.chan);
+	if (hsp->mailboxes) {
+		for (i = 0; i < hsp->num_sm; i++) {
+			struct tegra_hsp_mailbox *mb = &hsp->mailboxes[i];
+
+			if (mb->channel.chan->cl)
+				tegra_hsp_mailbox_startup(mb->channel.chan);
+		}
 	}
 
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(tegra_hsp_pm_ops, NULL, tegra_hsp_resume);
+static const struct dev_pm_ops tegra_hsp_pm_ops = {
+	.resume_noirq = tegra_hsp_resume,
+};
 
 static const struct tegra_hsp_db_map tegra186_hsp_db_map[] = {
 	{ "ccplex", TEGRA_HSP_DB_MASTER_CCPLEX, HSP_DB_CCPLEX, },

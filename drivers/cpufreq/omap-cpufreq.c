@@ -122,23 +122,18 @@ static int omap_cpu_init(struct cpufreq_policy *policy)
 			dev_err(mpu_dev,
 				"%s: cpu%d: failed creating freq table[%d]\n",
 				__func__, policy->cpu, result);
-			goto fail;
+			clk_put(policy->clk);
+			return result;
 		}
 	}
 
 	atomic_inc_return(&freq_table_users);
 
 	/* FIXME: what's the actual transition time? */
-	result = cpufreq_generic_init(policy, freq_table, 300 * 1000);
-	if (!result) {
-		dev_pm_opp_of_register_em(policy->cpus);
-		return 0;
-	}
+	cpufreq_generic_init(policy, freq_table, 300 * 1000);
+	dev_pm_opp_of_register_em(policy->cpus);
 
-	freq_table_free();
-fail:
-	clk_put(policy->clk);
-	return result;
+	return 0;
 }
 
 static int omap_cpu_exit(struct cpufreq_policy *policy)

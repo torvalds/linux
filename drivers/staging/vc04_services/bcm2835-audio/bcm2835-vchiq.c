@@ -9,7 +9,7 @@
 
 struct bcm2835_audio_instance {
 	struct device *dev;
-	VCHI_SERVICE_HANDLE_T vchi_handle;
+	struct vchi_service_handle *vchi_handle;
 	struct completion msg_avail_comp;
 	struct mutex vchi_mutex;
 	struct bcm2835_alsa_stream *alsa_stream;
@@ -90,7 +90,7 @@ static int bcm2835_audio_send_simple(struct bcm2835_audio_instance *instance,
 }
 
 static void audio_vchi_callback(void *param,
-				const VCHI_CALLBACK_REASON_T reason,
+				const enum vchi_callback_reason reason,
 				void *msg_handle)
 {
 	struct bcm2835_audio_instance *instance = param;
@@ -103,6 +103,9 @@ static void audio_vchi_callback(void *param,
 
 	status = vchi_msg_dequeue(instance->vchi_handle,
 				  &m, sizeof(m), &msg_len, VCHI_FLAGS_NONE);
+	if (status)
+		return;
+
 	if (m.type == VC_AUDIO_MSG_TYPE_RESULT) {
 		instance->result = m.result.success;
 		complete(&instance->msg_avail_comp);
@@ -119,7 +122,7 @@ static void audio_vchi_callback(void *param,
 }
 
 static int
-vc_vchi_audio_init(VCHI_INSTANCE_T vchi_instance,
+vc_vchi_audio_init(struct vchi_instance_handle *vchi_instance,
 		   struct bcm2835_audio_instance *instance)
 {
 	struct service_creation params = {
@@ -289,6 +292,7 @@ int bcm2835_audio_stop(struct bcm2835_alsa_stream *alsa_stream)
 					 VC_AUDIO_MSG_TYPE_STOP, false);
 }
 
+/* FIXME: this doesn't seem working as expected for "draining" */
 int bcm2835_audio_drain(struct bcm2835_alsa_stream *alsa_stream)
 {
 	struct vc_audio_msg m = {

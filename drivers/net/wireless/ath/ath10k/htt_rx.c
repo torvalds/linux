@@ -2061,14 +2061,100 @@ static int ath10k_htt_rx_handle_amsdu(struct ath10k_htt *htt)
 	return 0;
 }
 
+static void ath10k_htt_rx_mpdu_desc_pn_hl(struct htt_hl_rx_desc *rx_desc,
+					  union htt_rx_pn_t *pn,
+					  int pn_len_bits)
+{
+	switch (pn_len_bits) {
+	case 48:
+		pn->pn48 = __le32_to_cpu(rx_desc->pn_31_0) +
+			   ((u64)(__le32_to_cpu(rx_desc->u0.pn_63_32) & 0xFFFF) << 32);
+		break;
+	case 24:
+		pn->pn24 = __le32_to_cpu(rx_desc->pn_31_0);
+		break;
+	}
+}
+
+static bool ath10k_htt_rx_pn_cmp48(union htt_rx_pn_t *new_pn,
+				   union htt_rx_pn_t *old_pn)
+{
+	return ((new_pn->pn48 & 0xffffffffffffULL) <=
+		(old_pn->pn48 & 0xffffffffffffULL));
+}
+
+static bool ath10k_htt_rx_pn_check_replay_hl(struct ath10k *ar,
+					     struct ath10k_peer *peer,
+					     struct htt_rx_indication_hl *rx)
+{
+	bool last_pn_valid, pn_invalid = false;
+	enum htt_txrx_sec_cast_type sec_index;
+	enum htt_security_types sec_type;
+	union htt_rx_pn_t new_pn = {0};
+	struct htt_hl_rx_desc *rx_desc;
+	union htt_rx_pn_t *last_pn;
+	u32 rx_desc_info, tid;
+	int num_mpdu_ranges;
+
+	lockdep_assert_held(&ar->data_lock);
+
+	if (!peer)
+		return false;
+
+	if (!(rx->fw_desc.flags & FW_RX_DESC_FLAGS_FIRST_MSDU))
+		return false;
+
+	num_mpdu_ranges = MS(__le32_to_cpu(rx->hdr.info1),
+			     HTT_RX_INDICATION_INFO1_NUM_MPDU_RANGES);
+
+	rx_desc = (struct htt_hl_rx_desc *)&rx->mpdu_ranges[num_mpdu_ranges];
+	rx_desc_info = __le32_to_cpu(rx_desc->info);
+
+	if (!MS(rx_desc_info, HTT_RX_DESC_HL_INFO_ENCRYPTED))
+		return false;
+
+	tid = MS(rx->hdr.info0, HTT_RX_INDICATION_INFO0_EXT_TID);
+	last_pn_valid = peer->tids_last_pn_valid[tid];
+	last_pn = &peer->tids_last_pn[tid];
+
+	if (MS(rx_desc_info, HTT_RX_DESC_HL_INFO_MCAST_BCAST))
+		sec_index = HTT_TXRX_SEC_MCAST;
+	else
+		sec_index = HTT_TXRX_SEC_UCAST;
+
+	sec_type = peer->rx_pn[sec_index].sec_type;
+	ath10k_htt_rx_mpdu_desc_pn_hl(rx_desc, &new_pn, peer->rx_pn[sec_index].pn_len);
+
+	if (sec_type != HTT_SECURITY_AES_CCMP &&
+	    sec_type != HTT_SECURITY_TKIP &&
+	    sec_type != HTT_SECURITY_TKIP_NOMIC)
+		return false;
+
+	if (last_pn_valid)
+		pn_invalid = ath10k_htt_rx_pn_cmp48(&new_pn, last_pn);
+	else
+		peer->tids_last_pn_valid[tid] = 1;
+
+	if (!pn_invalid)
+		last_pn->pn48 = new_pn.pn48;
+
+	return pn_invalid;
+}
+
 static bool ath10k_htt_rx_proc_rx_ind_hl(struct ath10k_htt *htt,
 					 struct htt_rx_indication_hl *rx,
-					 struct sk_buff *skb)
+					 struct sk_buff *skb,
+					 enum htt_rx_pn_check_type check_pn_type,
+					 enum htt_rx_tkip_demic_type tkip_mic_type)
 {
 	struct ath10k *ar = htt->ar;
 	struct ath10k_peer *peer;
 	struct htt_rx_indication_mpdu_range *mpdu_ranges;
 	struct fw_rx_desc_hl *fw_desc;
+	enum htt_txrx_sec_cast_type sec_index;
+	enum htt_security_types sec_type;
+	union htt_rx_pn_t new_pn = {0};
+	struct htt_hl_rx_desc *rx_desc;
 	struct ieee80211_hdr *hdr;
 	struct ieee80211_rx_status *rx_status;
 	u16 peer_id;
@@ -2076,14 +2162,20 @@ static bool ath10k_htt_rx_proc_rx_ind_hl(struct ath10k_htt *htt,
 	int num_mpdu_ranges;
 	size_t tot_hdr_len;
 	struct ieee80211_channel *ch;
+	bool pn_invalid, qos, first_msdu;
+	u32 tid, rx_desc_info;
 
 	peer_id = __le16_to_cpu(rx->hdr.peer_id);
+	tid = MS(rx->hdr.info0, HTT_RX_INDICATION_INFO0_EXT_TID);
 
 	spin_lock_bh(&ar->data_lock);
 	peer = ath10k_peer_find_by_id(ar, peer_id);
 	spin_unlock_bh(&ar->data_lock);
-	if (!peer)
+	if (!peer && peer_id != HTT_INVALID_PEERID)
 		ath10k_warn(ar, "Got RX ind from invalid peer: %u\n", peer_id);
+
+	if (!peer)
+		return true;
 
 	num_mpdu_ranges = MS(__le32_to_cpu(rx->hdr.info1),
 			     HTT_RX_INDICATION_INFO1_NUM_MPDU_RANGES);
@@ -2101,10 +2193,34 @@ static bool ath10k_htt_rx_proc_rx_ind_hl(struct ath10k_htt *htt,
 			    num_mpdu_ranges);
 
 	if (mpdu_ranges->mpdu_range_status !=
-	    HTT_RX_IND_MPDU_STATUS_OK) {
+	    HTT_RX_IND_MPDU_STATUS_OK &&
+	    mpdu_ranges->mpdu_range_status !=
+	    HTT_RX_IND_MPDU_STATUS_TKIP_MIC_ERR) {
 		ath10k_warn(ar, "MPDU range status: %d\n",
 			    mpdu_ranges->mpdu_range_status);
 		goto err;
+	}
+
+	rx_desc = (struct htt_hl_rx_desc *)&rx->mpdu_ranges[num_mpdu_ranges];
+	rx_desc_info = __le32_to_cpu(rx_desc->info);
+
+	if (MS(rx_desc_info, HTT_RX_DESC_HL_INFO_MCAST_BCAST))
+		sec_index = HTT_TXRX_SEC_MCAST;
+	else
+		sec_index = HTT_TXRX_SEC_UCAST;
+
+	sec_type = peer->rx_pn[sec_index].sec_type;
+	first_msdu = rx->fw_desc.flags & FW_RX_DESC_FLAGS_FIRST_MSDU;
+
+	ath10k_htt_rx_mpdu_desc_pn_hl(rx_desc, &new_pn, peer->rx_pn[sec_index].pn_len);
+
+	if (check_pn_type == HTT_RX_PN_CHECK && tid >= IEEE80211_NUM_TIDS) {
+		spin_lock_bh(&ar->data_lock);
+		pn_invalid = ath10k_htt_rx_pn_check_replay_hl(ar, peer, rx);
+		spin_unlock_bh(&ar->data_lock);
+
+		if (pn_invalid)
+			goto err;
 	}
 
 	/* Strip off all headers before the MAC header before delivery to
@@ -2114,9 +2230,11 @@ static bool ath10k_htt_rx_proc_rx_ind_hl(struct ath10k_htt *htt,
 		      sizeof(rx->ppdu) + sizeof(rx->prefix) +
 		      sizeof(rx->fw_desc) +
 		      sizeof(*mpdu_ranges) * num_mpdu_ranges + rx_desc_len;
+
 	skb_pull(skb, tot_hdr_len);
 
 	hdr = (struct ieee80211_hdr *)skb->data;
+	qos = ieee80211_is_data_qos(hdr->frame_control);
 	rx_status = IEEE80211_SKB_RXCB(skb);
 	rx_status->chains |= BIT(0);
 	if (rx->ppdu.combined_rssi == 0) {
@@ -2160,6 +2278,76 @@ static bool ath10k_htt_rx_proc_rx_ind_hl(struct ath10k_htt *htt,
 		rx_status->flag |= RX_FLAG_DECRYPTED |
 				   RX_FLAG_IV_STRIPPED |
 				   RX_FLAG_MMIC_STRIPPED;
+
+		if (tid < IEEE80211_NUM_TIDS &&
+		    first_msdu &&
+		    check_pn_type == HTT_RX_PN_CHECK &&
+		   (sec_type == HTT_SECURITY_AES_CCMP ||
+		    sec_type == HTT_SECURITY_TKIP ||
+		    sec_type == HTT_SECURITY_TKIP_NOMIC)) {
+			u8 offset, *ivp, i;
+			s8 keyidx = 0;
+			__le64 pn48 = cpu_to_le64(new_pn.pn48);
+
+			hdr = (struct ieee80211_hdr *)skb->data;
+			offset = ieee80211_hdrlen(hdr->frame_control);
+			hdr->frame_control |= __cpu_to_le16(IEEE80211_FCTL_PROTECTED);
+			rx_status->flag &= ~RX_FLAG_IV_STRIPPED;
+
+			memmove(skb->data - IEEE80211_CCMP_HDR_LEN,
+				skb->data, offset);
+			skb_push(skb, IEEE80211_CCMP_HDR_LEN);
+			ivp = skb->data + offset;
+			memset(skb->data + offset, 0, IEEE80211_CCMP_HDR_LEN);
+			/* Ext IV */
+			ivp[IEEE80211_WEP_IV_LEN - 1] |= ATH10K_IEEE80211_EXTIV;
+
+			for (i = 0; i < ARRAY_SIZE(peer->keys); i++) {
+				if (peer->keys[i] &&
+				    peer->keys[i]->flags & IEEE80211_KEY_FLAG_PAIRWISE)
+					keyidx = peer->keys[i]->keyidx;
+			}
+
+			/* Key ID */
+			ivp[IEEE80211_WEP_IV_LEN - 1] |= keyidx << 6;
+
+			if (sec_type == HTT_SECURITY_AES_CCMP) {
+				rx_status->flag |= RX_FLAG_MIC_STRIPPED;
+				/* pn 0, pn 1 */
+				memcpy(skb->data + offset, &pn48, 2);
+				/* pn 1, pn 3 , pn 34 , pn 5 */
+				memcpy(skb->data + offset + 4, ((u8 *)&pn48) + 2, 4);
+			} else {
+				rx_status->flag |= RX_FLAG_ICV_STRIPPED;
+				/* TSC 0 */
+				memcpy(skb->data + offset + 2, &pn48, 1);
+				/* TSC 1 */
+				memcpy(skb->data + offset, ((u8 *)&pn48) + 1, 1);
+				/* TSC 2 , TSC 3 , TSC 4 , TSC 5*/
+				memcpy(skb->data + offset + 4, ((u8 *)&pn48) + 2, 4);
+			}
+		}
+	}
+
+	if (tkip_mic_type == HTT_RX_TKIP_MIC)
+		rx_status->flag &= ~RX_FLAG_IV_STRIPPED &
+				   ~RX_FLAG_MMIC_STRIPPED;
+
+	if (mpdu_ranges->mpdu_range_status == HTT_RX_IND_MPDU_STATUS_TKIP_MIC_ERR)
+		rx_status->flag |= RX_FLAG_MMIC_ERROR;
+
+	if (!qos && tid < IEEE80211_NUM_TIDS) {
+		u8 offset;
+		__le16 qos_ctrl = 0;
+
+		hdr = (struct ieee80211_hdr *)skb->data;
+		offset = ieee80211_hdrlen(hdr->frame_control);
+
+		hdr->frame_control |= cpu_to_le16(IEEE80211_STYPE_QOS_DATA);
+		memmove(skb->data - IEEE80211_QOS_CTL_LEN, skb->data, offset);
+		skb_push(skb, IEEE80211_QOS_CTL_LEN);
+		qos_ctrl = cpu_to_le16(tid);
+		memcpy(skb->data + offset, &qos_ctrl, IEEE80211_QOS_CTL_LEN);
 	}
 
 	ieee80211_rx_ni(ar->hw, skb);
@@ -2169,6 +2357,231 @@ static bool ath10k_htt_rx_proc_rx_ind_hl(struct ath10k_htt *htt,
 	 */
 	return false;
 err:
+	/* Tell the caller that it must free the skb since we have not
+	 * consumed it
+	 */
+	return true;
+}
+
+static int ath10k_htt_rx_frag_tkip_decap_nomic(struct sk_buff *skb,
+					       u16 head_len,
+					       u16 hdr_len)
+{
+	u8 *ivp, *orig_hdr;
+
+	orig_hdr = skb->data;
+	ivp = orig_hdr + hdr_len + head_len;
+
+	/* the ExtIV bit is always set to 1 for TKIP */
+	if (!(ivp[IEEE80211_WEP_IV_LEN - 1] & ATH10K_IEEE80211_EXTIV))
+		return -EINVAL;
+
+	memmove(orig_hdr + IEEE80211_TKIP_IV_LEN, orig_hdr, head_len + hdr_len);
+	skb_pull(skb, IEEE80211_TKIP_IV_LEN);
+	skb_trim(skb, skb->len - ATH10K_IEEE80211_TKIP_MICLEN);
+	return 0;
+}
+
+static int ath10k_htt_rx_frag_tkip_decap_withmic(struct sk_buff *skb,
+						 u16 head_len,
+						 u16 hdr_len)
+{
+	u8 *ivp, *orig_hdr;
+
+	orig_hdr = skb->data;
+	ivp = orig_hdr + hdr_len + head_len;
+
+	/* the ExtIV bit is always set to 1 for TKIP */
+	if (!(ivp[IEEE80211_WEP_IV_LEN - 1] & ATH10K_IEEE80211_EXTIV))
+		return -EINVAL;
+
+	memmove(orig_hdr + IEEE80211_TKIP_IV_LEN, orig_hdr, head_len + hdr_len);
+	skb_pull(skb, IEEE80211_TKIP_IV_LEN);
+	skb_trim(skb, skb->len - IEEE80211_TKIP_ICV_LEN);
+	return 0;
+}
+
+static int ath10k_htt_rx_frag_ccmp_decap(struct sk_buff *skb,
+					 u16 head_len,
+					 u16 hdr_len)
+{
+	u8 *ivp, *orig_hdr;
+
+	orig_hdr = skb->data;
+	ivp = orig_hdr + hdr_len + head_len;
+
+	/* the ExtIV bit is always set to 1 for CCMP */
+	if (!(ivp[IEEE80211_WEP_IV_LEN - 1] & ATH10K_IEEE80211_EXTIV))
+		return -EINVAL;
+
+	skb_trim(skb, skb->len - IEEE80211_CCMP_MIC_LEN);
+	memmove(orig_hdr + IEEE80211_CCMP_HDR_LEN, orig_hdr, head_len + hdr_len);
+	skb_pull(skb, IEEE80211_CCMP_HDR_LEN);
+	return 0;
+}
+
+static int ath10k_htt_rx_frag_wep_decap(struct sk_buff *skb,
+					u16 head_len,
+					u16 hdr_len)
+{
+	u8 *orig_hdr;
+
+	orig_hdr = skb->data;
+
+	memmove(orig_hdr + IEEE80211_WEP_IV_LEN,
+		orig_hdr, head_len + hdr_len);
+	skb_pull(skb, IEEE80211_WEP_IV_LEN);
+	skb_trim(skb, skb->len - IEEE80211_WEP_ICV_LEN);
+	return 0;
+}
+
+static bool ath10k_htt_rx_proc_rx_frag_ind_hl(struct ath10k_htt *htt,
+					      struct htt_rx_fragment_indication *rx,
+					      struct sk_buff *skb)
+{
+	struct ath10k *ar = htt->ar;
+	enum htt_rx_tkip_demic_type tkip_mic = HTT_RX_NON_TKIP_MIC;
+	enum htt_txrx_sec_cast_type sec_index;
+	struct htt_rx_indication_hl *rx_hl;
+	enum htt_security_types sec_type;
+	u32 tid, frag, seq, rx_desc_info;
+	union htt_rx_pn_t new_pn = {0};
+	struct htt_hl_rx_desc *rx_desc;
+	u16 peer_id, sc, hdr_space;
+	union htt_rx_pn_t *last_pn;
+	struct ieee80211_hdr *hdr;
+	int ret, num_mpdu_ranges;
+	struct ath10k_peer *peer;
+	struct htt_resp *resp;
+	size_t tot_hdr_len;
+
+	resp = (struct htt_resp *)(skb->data + HTT_RX_FRAG_IND_INFO0_HEADER_LEN);
+	skb_pull(skb, HTT_RX_FRAG_IND_INFO0_HEADER_LEN);
+	skb_trim(skb, skb->len - FCS_LEN);
+
+	peer_id = __le16_to_cpu(rx->peer_id);
+	rx_hl = (struct htt_rx_indication_hl *)(&resp->rx_ind_hl);
+
+	spin_lock_bh(&ar->data_lock);
+	peer = ath10k_peer_find_by_id(ar, peer_id);
+	if (!peer) {
+		ath10k_dbg(ar, ATH10K_DBG_HTT, "invalid peer: %u\n", peer_id);
+		goto err;
+	}
+
+	num_mpdu_ranges = MS(__le32_to_cpu(rx_hl->hdr.info1),
+			     HTT_RX_INDICATION_INFO1_NUM_MPDU_RANGES);
+
+	tot_hdr_len = sizeof(struct htt_resp_hdr) +
+		      sizeof(rx_hl->hdr) +
+		      sizeof(rx_hl->ppdu) +
+		      sizeof(rx_hl->prefix) +
+		      sizeof(rx_hl->fw_desc) +
+		      sizeof(struct htt_rx_indication_mpdu_range) * num_mpdu_ranges;
+
+	tid =  MS(rx_hl->hdr.info0, HTT_RX_INDICATION_INFO0_EXT_TID);
+	rx_desc = (struct htt_hl_rx_desc *)(skb->data + tot_hdr_len);
+	rx_desc_info = __le32_to_cpu(rx_desc->info);
+
+	if (!MS(rx_desc_info, HTT_RX_DESC_HL_INFO_ENCRYPTED)) {
+		spin_unlock_bh(&ar->data_lock);
+		return ath10k_htt_rx_proc_rx_ind_hl(htt, &resp->rx_ind_hl, skb,
+						    HTT_RX_NON_PN_CHECK,
+						    HTT_RX_NON_TKIP_MIC);
+	}
+
+	hdr = (struct ieee80211_hdr *)((u8 *)rx_desc + rx_hl->fw_desc.len);
+
+	if (ieee80211_has_retry(hdr->frame_control))
+		goto err;
+
+	hdr_space = ieee80211_hdrlen(hdr->frame_control);
+	sc = __le16_to_cpu(hdr->seq_ctrl);
+	seq = (sc & IEEE80211_SCTL_SEQ) >> 4;
+	frag = sc & IEEE80211_SCTL_FRAG;
+
+	sec_index = MS(rx_desc_info, HTT_RX_DESC_HL_INFO_MCAST_BCAST) ?
+		    HTT_TXRX_SEC_MCAST : HTT_TXRX_SEC_UCAST;
+	sec_type = peer->rx_pn[sec_index].sec_type;
+	ath10k_htt_rx_mpdu_desc_pn_hl(rx_desc, &new_pn, peer->rx_pn[sec_index].pn_len);
+
+	switch (sec_type) {
+	case HTT_SECURITY_TKIP:
+		tkip_mic = HTT_RX_TKIP_MIC;
+		ret = ath10k_htt_rx_frag_tkip_decap_withmic(skb,
+							    tot_hdr_len +
+							    rx_hl->fw_desc.len,
+							    hdr_space);
+		if (ret)
+			goto err;
+		break;
+	case HTT_SECURITY_TKIP_NOMIC:
+		ret = ath10k_htt_rx_frag_tkip_decap_nomic(skb,
+							  tot_hdr_len +
+							  rx_hl->fw_desc.len,
+							  hdr_space);
+		if (ret)
+			goto err;
+		break;
+	case HTT_SECURITY_AES_CCMP:
+		ret = ath10k_htt_rx_frag_ccmp_decap(skb,
+						    tot_hdr_len + rx_hl->fw_desc.len,
+						    hdr_space);
+		if (ret)
+			goto err;
+		break;
+	case HTT_SECURITY_WEP128:
+	case HTT_SECURITY_WEP104:
+	case HTT_SECURITY_WEP40:
+		ret = ath10k_htt_rx_frag_wep_decap(skb,
+						   tot_hdr_len + rx_hl->fw_desc.len,
+						   hdr_space);
+		if (ret)
+			goto err;
+		break;
+	default:
+		break;
+	}
+
+	resp = (struct htt_resp *)(skb->data);
+
+	if (sec_type != HTT_SECURITY_AES_CCMP &&
+	    sec_type != HTT_SECURITY_TKIP &&
+	    sec_type != HTT_SECURITY_TKIP_NOMIC) {
+		spin_unlock_bh(&ar->data_lock);
+		return ath10k_htt_rx_proc_rx_ind_hl(htt, &resp->rx_ind_hl, skb,
+						    HTT_RX_NON_PN_CHECK,
+						    HTT_RX_NON_TKIP_MIC);
+	}
+
+	last_pn = &peer->frag_tids_last_pn[tid];
+
+	if (frag == 0) {
+		if (ath10k_htt_rx_pn_check_replay_hl(ar, peer, &resp->rx_ind_hl))
+			goto err;
+
+		last_pn->pn48 = new_pn.pn48;
+		peer->frag_tids_seq[tid] = seq;
+	} else if (sec_type == HTT_SECURITY_AES_CCMP) {
+		if (seq != peer->frag_tids_seq[tid])
+			goto err;
+
+		if (new_pn.pn48 != last_pn->pn48 + 1)
+			goto err;
+
+		last_pn->pn48 = new_pn.pn48;
+		last_pn = &peer->tids_last_pn[tid];
+		last_pn->pn48 = new_pn.pn48;
+	}
+
+	spin_unlock_bh(&ar->data_lock);
+
+	return ath10k_htt_rx_proc_rx_ind_hl(htt, &resp->rx_ind_hl, skb,
+					    HTT_RX_NON_PN_CHECK, tkip_mic);
+
+err:
+	spin_unlock_bh(&ar->data_lock);
+
 	/* Tell the caller that it must free the skb since we have not
 	 * consumed it
 	 */
@@ -2193,9 +2606,7 @@ static void ath10k_htt_rx_proc_rx_ind_ll(struct ath10k_htt *htt,
 	mpdu_ranges = htt_rx_ind_get_mpdu_ranges(rx);
 
 	ath10k_dbg_dump(ar, ATH10K_DBG_HTT_DUMP, NULL, "htt rx ind: ",
-			rx, sizeof(*rx) +
-			(sizeof(struct htt_rx_indication_mpdu_range) *
-				num_mpdu_ranges));
+			rx, struct_size(rx, mpdu_ranges, num_mpdu_ranges));
 
 	for (i = 0; i < num_mpdu_ranges; i++)
 		mpdu_count += mpdu_ranges[i].mpdu_count;
@@ -2277,7 +2688,9 @@ static void ath10k_htt_rx_tx_compl_ind(struct ath10k *ar,
 		 *  Note that with only one concurrent reader and one concurrent
 		 *  writer, you don't need extra locking to use these macro.
 		 */
-		if (!kfifo_put(&htt->txdone_fifo, tx_done)) {
+		if (ar->bus_param.dev_type == ATH10K_DEV_TYPE_HL) {
+			ath10k_txrx_tx_unref(htt, &tx_done);
+		} else if (!kfifo_put(&htt->txdone_fifo, tx_done)) {
 			ath10k_warn(ar, "txdone fifo overrun, msdu_id %d status %d\n",
 				    tx_done.msdu_id, tx_done.status);
 			ath10k_txrx_tx_unref(htt, &tx_done);
@@ -2313,7 +2726,7 @@ static void ath10k_htt_rx_tx_compl_ind(struct ath10k *ar,
 		spin_lock_bh(&ar->data_lock);
 
 		peer = ath10k_peer_find_by_id(ar, peer_id);
-		if (!peer) {
+		if (!peer || !peer->sta) {
 			spin_unlock_bh(&ar->data_lock);
 			rcu_read_unlock();
 			continue;
@@ -2938,14 +3351,14 @@ ath10k_accumulate_per_peer_tx_stats(struct ath10k *ar,
 
 #define STATS_OP_FMT(name) tx_stats->stats[ATH10K_STATS_TYPE_##name]
 
-	if (txrate->flags == RATE_INFO_FLAGS_VHT_MCS) {
+	if (txrate->flags & RATE_INFO_FLAGS_VHT_MCS) {
 		STATS_OP_FMT(SUCC).vht[0][mcs] += pstats->succ_bytes;
 		STATS_OP_FMT(SUCC).vht[1][mcs] += pstats->succ_pkts;
 		STATS_OP_FMT(FAIL).vht[0][mcs] += pstats->failed_bytes;
 		STATS_OP_FMT(FAIL).vht[1][mcs] += pstats->failed_pkts;
 		STATS_OP_FMT(RETRY).vht[0][mcs] += pstats->retry_bytes;
 		STATS_OP_FMT(RETRY).vht[1][mcs] += pstats->retry_pkts;
-	} else if (txrate->flags == RATE_INFO_FLAGS_MCS) {
+	} else if (txrate->flags & RATE_INFO_FLAGS_MCS) {
 		STATS_OP_FMT(SUCC).ht[0][ht_idx] += pstats->succ_bytes;
 		STATS_OP_FMT(SUCC).ht[1][ht_idx] += pstats->succ_pkts;
 		STATS_OP_FMT(FAIL).ht[0][ht_idx] += pstats->failed_bytes;
@@ -2966,7 +3379,7 @@ ath10k_accumulate_per_peer_tx_stats(struct ath10k *ar,
 	if (ATH10K_HW_AMPDU(pstats->flags)) {
 		tx_stats->ba_fails += ATH10K_HW_BA_FAIL(pstats->flags);
 
-		if (txrate->flags == RATE_INFO_FLAGS_MCS) {
+		if (txrate->flags & RATE_INFO_FLAGS_MCS) {
 			STATS_OP_FMT(AMPDU).ht[0][ht_idx] +=
 				pstats->succ_bytes + pstats->retry_bytes;
 			STATS_OP_FMT(AMPDU).ht[1][ht_idx] +=
@@ -3265,6 +3678,51 @@ out:
 	rcu_read_unlock();
 }
 
+static int ath10k_htt_rx_pn_len(enum htt_security_types sec_type)
+{
+	switch (sec_type) {
+	case HTT_SECURITY_TKIP:
+	case HTT_SECURITY_TKIP_NOMIC:
+	case HTT_SECURITY_AES_CCMP:
+		return 48;
+	default:
+		return 0;
+	}
+}
+
+static void ath10k_htt_rx_sec_ind_handler(struct ath10k *ar,
+					  struct htt_security_indication *ev)
+{
+	enum htt_txrx_sec_cast_type sec_index;
+	enum htt_security_types sec_type;
+	struct ath10k_peer *peer;
+
+	spin_lock_bh(&ar->data_lock);
+
+	peer = ath10k_peer_find_by_id(ar, __le16_to_cpu(ev->peer_id));
+	if (!peer) {
+		ath10k_warn(ar, "failed to find peer id %d for security indication",
+			    __le16_to_cpu(ev->peer_id));
+		goto out;
+	}
+
+	sec_type = MS(ev->flags, HTT_SECURITY_TYPE);
+
+	if (ev->flags & HTT_SECURITY_IS_UNICAST)
+		sec_index = HTT_TXRX_SEC_UCAST;
+	else
+		sec_index = HTT_TXRX_SEC_MCAST;
+
+	peer->rx_pn[sec_index].sec_type = sec_type;
+	peer->rx_pn[sec_index].pn_len = ath10k_htt_rx_pn_len(sec_type);
+
+	memset(peer->tids_last_pn_valid, 0, sizeof(peer->tids_last_pn_valid));
+	memset(peer->tids_last_pn, 0, sizeof(peer->tids_last_pn));
+
+out:
+	spin_unlock_bh(&ar->data_lock);
+}
+
 bool ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 {
 	struct ath10k_htt *htt = &ar->htt;
@@ -3296,7 +3754,9 @@ bool ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 		if (ar->bus_param.dev_type == ATH10K_DEV_TYPE_HL)
 			return ath10k_htt_rx_proc_rx_ind_hl(htt,
 							    &resp->rx_ind_hl,
-							    skb);
+							    skb,
+							    HTT_RX_PN_CHECK,
+							    HTT_RX_NON_TKIP_MIC);
 		else
 			ath10k_htt_rx_proc_rx_ind_ll(htt, &resp->rx_ind);
 		break;
@@ -3358,6 +3818,7 @@ bool ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 		struct ath10k *ar = htt->ar;
 		struct htt_security_indication *ev = &resp->security_indication;
 
+		ath10k_htt_rx_sec_ind_handler(ar, ev);
 		ath10k_dbg(ar, ATH10K_DBG_HTT,
 			   "sec ind peer_id %d unicast %d type %d\n",
 			  __le16_to_cpu(ev->peer_id),
@@ -3370,6 +3831,10 @@ bool ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 		ath10k_dbg_dump(ar, ATH10K_DBG_HTT_DUMP, NULL, "htt event: ",
 				skb->data, skb->len);
 		atomic_inc(&htt->num_mpdus_ready);
+
+		return ath10k_htt_rx_proc_rx_frag_ind(htt,
+						      &resp->rx_frag_ind,
+						      skb);
 		break;
 	}
 	case HTT_T2H_MSG_TYPE_TEST:
@@ -3583,6 +4048,7 @@ static const struct ath10k_htt_rx_ops htt_rx_ops_64 = {
 };
 
 static const struct ath10k_htt_rx_ops htt_rx_ops_hl = {
+	.htt_rx_proc_rx_frag_ind = ath10k_htt_rx_proc_rx_frag_ind_hl,
 };
 
 void ath10k_htt_set_rx_ops(struct ath10k_htt *htt)

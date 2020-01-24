@@ -86,33 +86,45 @@ static bool __of_node_is_type(const struct device_node *np, const char *type)
 	return np && match && type && !strcmp(match, type);
 }
 
-int of_n_addr_cells(struct device_node *np)
+int of_bus_n_addr_cells(struct device_node *np)
 {
 	u32 cells;
 
-	do {
-		if (np->parent)
-			np = np->parent;
+	for (; np; np = np->parent)
 		if (!of_property_read_u32(np, "#address-cells", &cells))
 			return cells;
-	} while (np->parent);
+
 	/* No #address-cells property for the root node */
 	return OF_ROOT_NODE_ADDR_CELLS_DEFAULT;
 }
+
+int of_n_addr_cells(struct device_node *np)
+{
+	if (np->parent)
+		np = np->parent;
+
+	return of_bus_n_addr_cells(np);
+}
 EXPORT_SYMBOL(of_n_addr_cells);
 
-int of_n_size_cells(struct device_node *np)
+int of_bus_n_size_cells(struct device_node *np)
 {
 	u32 cells;
 
-	do {
-		if (np->parent)
-			np = np->parent;
+	for (; np; np = np->parent)
 		if (!of_property_read_u32(np, "#size-cells", &cells))
 			return cells;
-	} while (np->parent);
+
 	/* No #size-cells property for the root node */
 	return OF_ROOT_NODE_SIZE_CELLS_DEFAULT;
+}
+
+int of_n_size_cells(struct device_node *np)
+{
+	if (np->parent)
+		np = np->parent;
+
+	return of_bus_n_size_cells(np);
 }
 EXPORT_SYMBOL(of_n_size_cells);
 
@@ -1286,6 +1298,13 @@ int of_phandle_iterator_init(struct of_phandle_iterator *it,
 
 	memset(it, 0, sizeof(*it));
 
+	/*
+	 * one of cell_count or cells_name must be provided to determine the
+	 * argument length.
+	 */
+	if (cell_count < 0 && !cells_name)
+		return -EINVAL;
+
 	list = of_get_property(np, list_name, &size);
 	if (!list)
 		return -ENOENT;
@@ -1335,11 +1354,20 @@ int of_phandle_iterator_next(struct of_phandle_iterator *it)
 
 			if (of_property_read_u32(it->node, it->cells_name,
 						 &count)) {
-				pr_err("%pOF: could not get %s for %pOF\n",
-				       it->parent,
-				       it->cells_name,
-				       it->node);
-				goto err;
+				/*
+				 * If both cell_count and cells_name is given,
+				 * fall back to cell_count in absence
+				 * of the cells_name property
+				 */
+				if (it->cell_count >= 0) {
+					count = it->cell_count;
+				} else {
+					pr_err("%pOF: could not get %s for %pOF\n",
+					       it->parent,
+					       it->cells_name,
+					       it->node);
+					goto err;
+				}
 			}
 		} else {
 			count = it->cell_count;
@@ -1503,10 +1531,17 @@ int of_parse_phandle_with_args(const struct device_node *np, const char *list_na
 				const char *cells_name, int index,
 				struct of_phandle_args *out_args)
 {
+	int cell_count = -1;
+
 	if (index < 0)
 		return -EINVAL;
-	return __of_parse_phandle_with_args(np, list_name, cells_name, 0,
-					    index, out_args);
+
+	/* If cells_name is NULL we assume a cell count of 0 */
+	if (!cells_name)
+		cell_count = 0;
+
+	return __of_parse_phandle_with_args(np, list_name, cells_name,
+					    cell_count, index, out_args);
 }
 EXPORT_SYMBOL(of_parse_phandle_with_args);
 
@@ -1588,7 +1623,7 @@ int of_parse_phandle_with_args_map(const struct device_node *np,
 	if (!pass_name)
 		goto free;
 
-	ret = __of_parse_phandle_with_args(np, list_name, cells_name, 0, index,
+	ret = __of_parse_phandle_with_args(np, list_name, cells_name, -1, index,
 					   out_args);
 	if (ret)
 		goto free;
@@ -1756,7 +1791,24 @@ int of_count_phandle_with_args(const struct device_node *np, const char *list_na
 	struct of_phandle_iterator it;
 	int rc, cur_index = 0;
 
-	rc = of_phandle_iterator_init(&it, np, list_name, cells_name, 0);
+	/*
+	 * If cells_name is NULL we assume a cell count of 0. This makes
+	 * counting the phandles trivial as each 32bit word in the list is a
+	 * phandle and no arguments are to consider. So we don't iterate through
+	 * the list but just use the length to determine the phandle count.
+	 */
+	if (!cells_name) {
+		const __be32 *list;
+		int size;
+
+		list = of_get_property(np, list_name, &size);
+		if (!list)
+			return -ENOENT;
+
+		return size / sizeof(*list);
+	}
+
+	rc = of_phandle_iterator_init(&it, np, list_name, cells_name, -1);
 	if (rc)
 		return rc;
 
@@ -2294,8 +2346,12 @@ int of_map_rid(struct device_node *np, u32 rid,
 		return 0;
 	}
 
-	pr_err("%pOF: Invalid %s translation - no match for rid 0x%x on %pOF\n",
-		np, map_name, rid, target && *target ? *target : NULL);
-	return -EFAULT;
+	pr_info("%pOF: no %s translation for rid 0x%x on %pOF\n", np, map_name,
+		rid, target && *target ? *target : NULL);
+
+	/* Bypasses translation */
+	if (id_out)
+		*id_out = rid;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(of_map_rid);

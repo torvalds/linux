@@ -20,7 +20,7 @@
  * Userspace note:
  * The same principle works for userspace, because 'error' pointers
  * fall down to the unused hole far from user space, as described
- * in Documentation/x86/x86_64/mm.txt for x86_64 arch:
+ * in Documentation/x86/x86_64/mm.rst for x86_64 arch:
  *
  * 0000000000000000 - 00007fffffffffff (=47 bits) user space, different per mm hole caused by [48:63] sign extension
  * ffffffffffe00000 - ffffffffffffffff (=2 MB) unused hole

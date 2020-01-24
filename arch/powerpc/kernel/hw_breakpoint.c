@@ -127,15 +127,58 @@ int arch_bp_generic_fields(int type, int *gen_bp_type)
 }
 
 /*
+ * Watchpoint match range is always doubleword(8 bytes) aligned on
+ * powerpc. If the given range is crossing doubleword boundary, we
+ * need to increase the length such that next doubleword also get
+ * covered. Ex,
+ *
+ *          address   len = 6 bytes
+ *                |=========.
+ *   |------------v--|------v--------|
+ *   | | | | | | | | | | | | | | | | |
+ *   |---------------|---------------|
+ *    <---8 bytes--->
+ *
+ * In this case, we should configure hw as:
+ *   start_addr = address & ~HW_BREAKPOINT_ALIGN
+ *   len = 16 bytes
+ *
+ * @start_addr and @end_addr are inclusive.
+ */
+static int hw_breakpoint_validate_len(struct arch_hw_breakpoint *hw)
+{
+	u16 max_len = DABR_MAX_LEN;
+	u16 hw_len;
+	unsigned long start_addr, end_addr;
+
+	start_addr = hw->address & ~HW_BREAKPOINT_ALIGN;
+	end_addr = (hw->address + hw->len - 1) | HW_BREAKPOINT_ALIGN;
+	hw_len = end_addr - start_addr + 1;
+
+	if (dawr_enabled()) {
+		max_len = DAWR_MAX_LEN;
+		/* DAWR region can't cross 512 bytes boundary */
+		if ((start_addr >> 9) != (end_addr >> 9))
+			return -EINVAL;
+	}
+
+	if (hw_len > max_len)
+		return -EINVAL;
+
+	hw->hw_len = hw_len;
+	return 0;
+}
+
+/*
  * Validate the arch-specific HW Breakpoint register settings
  */
 int hw_breakpoint_arch_parse(struct perf_event *bp,
 			     const struct perf_event_attr *attr,
 			     struct arch_hw_breakpoint *hw)
 {
-	int ret = -EINVAL, length_max;
+	int ret = -EINVAL;
 
-	if (!bp)
+	if (!bp || !attr->bp_len)
 		return ret;
 
 	hw->type = HW_BRK_TYPE_TRANSLATE;
@@ -155,26 +198,10 @@ int hw_breakpoint_arch_parse(struct perf_event *bp,
 	hw->address = attr->bp_addr;
 	hw->len = attr->bp_len;
 
-	/*
-	 * Since breakpoint length can be a maximum of HW_BREAKPOINT_LEN(8)
-	 * and breakpoint addresses are aligned to nearest double-word
-	 * HW_BREAKPOINT_ALIGN by rounding off to the lower address, the
-	 * 'symbolsize' should satisfy the check below.
-	 */
 	if (!ppc_breakpoint_available())
 		return -ENODEV;
-	length_max = 8; /* DABR */
-	if (dawr_enabled()) {
-		length_max = 512 ; /* 64 doublewords */
-		/* DAWR region can't cross 512 boundary */
-		if ((attr->bp_addr >> 9) !=
-		    ((attr->bp_addr + attr->bp_len - 1) >> 9))
-			return -EINVAL;
-	}
-	if (hw->len >
-	    (length_max - (hw->address & HW_BREAKPOINT_ALIGN)))
-		return -EINVAL;
-	return 0;
+
+	return hw_breakpoint_validate_len(hw);
 }
 
 /*
@@ -195,20 +222,80 @@ void thread_change_pc(struct task_struct *tsk, struct pt_regs *regs)
 	tsk->thread.last_hit_ubp = NULL;
 }
 
+static bool dar_within_range(unsigned long dar, struct arch_hw_breakpoint *info)
+{
+	return ((info->address <= dar) && (dar - info->address < info->len));
+}
+
+static bool
+dar_range_overlaps(unsigned long dar, int size, struct arch_hw_breakpoint *info)
+{
+	return ((dar <= info->address + info->len - 1) &&
+		(dar + size - 1 >= info->address));
+}
+
 /*
  * Handle debug exception notifications.
  */
+static bool stepping_handler(struct pt_regs *regs, struct perf_event *bp,
+			     struct arch_hw_breakpoint *info)
+{
+	unsigned int instr = 0;
+	int ret, type, size;
+	struct instruction_op op;
+	unsigned long addr = info->address;
+
+	if (__get_user_inatomic(instr, (unsigned int *)regs->nip))
+		goto fail;
+
+	ret = analyse_instr(&op, regs, instr);
+	type = GETTYPE(op.type);
+	size = GETSIZE(op.type);
+
+	if (!ret && (type == LARX || type == STCX)) {
+		printk_ratelimited("Breakpoint hit on instruction that can't be emulated."
+				   " Breakpoint at 0x%lx will be disabled.\n", addr);
+		goto disable;
+	}
+
+	/*
+	 * If it's extraneous event, we still need to emulate/single-
+	 * step the instruction, but we don't generate an event.
+	 */
+	if (size && !dar_range_overlaps(regs->dar, size, info))
+		info->type |= HW_BRK_TYPE_EXTRANEOUS_IRQ;
+
+	/* Do not emulate user-space instructions, instead single-step them */
+	if (user_mode(regs)) {
+		current->thread.last_hit_ubp = bp;
+		regs->msr |= MSR_SE;
+		return false;
+	}
+
+	if (!emulate_step(regs, instr))
+		goto fail;
+
+	return true;
+
+fail:
+	/*
+	 * We've failed in reliably handling the hw-breakpoint. Unregister
+	 * it and throw a warning message to let the user know about it.
+	 */
+	WARN(1, "Unable to handle hardware breakpoint. Breakpoint at "
+		"0x%lx will be disabled.", addr);
+
+disable:
+	perf_event_disable_inatomic(bp);
+	return false;
+}
+
 int hw_breakpoint_handler(struct die_args *args)
 {
 	int rc = NOTIFY_STOP;
 	struct perf_event *bp;
 	struct pt_regs *regs = args->regs;
-#ifndef CONFIG_PPC_8xx
-	int stepped = 1;
-	unsigned int instr;
-#endif
 	struct arch_hw_breakpoint *info;
-	unsigned long dar = regs->dar;
 
 	/* Disable breakpoints during exception handling */
 	hw_breakpoint_disable();
@@ -240,42 +327,15 @@ int hw_breakpoint_handler(struct die_args *args)
 		goto out;
 	}
 
-	/*
-	 * Verify if dar lies within the address range occupied by the symbol
-	 * being watched to filter extraneous exceptions.  If it doesn't,
-	 * we still need to single-step the instruction, but we don't
-	 * generate an event.
-	 */
 	info->type &= ~HW_BRK_TYPE_EXTRANEOUS_IRQ;
-	if (!((bp->attr.bp_addr <= dar) &&
-	      (dar - bp->attr.bp_addr < bp->attr.bp_len)))
-		info->type |= HW_BRK_TYPE_EXTRANEOUS_IRQ;
-
-#ifndef CONFIG_PPC_8xx
-	/* Do not emulate user-space instructions, instead single-step them */
-	if (user_mode(regs)) {
-		current->thread.last_hit_ubp = bp;
-		regs->msr |= MSR_SE;
-		goto out;
+	if (IS_ENABLED(CONFIG_PPC_8xx)) {
+		if (!dar_within_range(regs->dar, info))
+			info->type |= HW_BRK_TYPE_EXTRANEOUS_IRQ;
+	} else {
+		if (!stepping_handler(regs, bp, info))
+			goto out;
 	}
 
-	stepped = 0;
-	instr = 0;
-	if (!__get_user_inatomic(instr, (unsigned int *) regs->nip))
-		stepped = emulate_step(regs, instr);
-
-	/*
-	 * emulate_step() could not execute it. We've failed in reliably
-	 * handling the hw-breakpoint. Unregister it and throw a warning
-	 * message to let the user know about it.
-	 */
-	if (!stepped) {
-		WARN(1, "Unable to handle hardware breakpoint. Breakpoint at "
-			"0x%lx will be disabled.", info->address);
-		perf_event_disable_inatomic(bp);
-		goto out;
-	}
-#endif
 	/*
 	 * As a policy, the callback is invoked in a 'trigger-after-execute'
 	 * fashion
@@ -366,59 +426,3 @@ void hw_breakpoint_pmu_read(struct perf_event *bp)
 {
 	/* TODO */
 }
-
-bool dawr_force_enable;
-EXPORT_SYMBOL_GPL(dawr_force_enable);
-
-static ssize_t dawr_write_file_bool(struct file *file,
-				    const char __user *user_buf,
-				    size_t count, loff_t *ppos)
-{
-	struct arch_hw_breakpoint null_brk = {0, 0, 0};
-	size_t rc;
-
-	/* Send error to user if they hypervisor won't allow us to write DAWR */
-	if ((!dawr_force_enable) &&
-	    (firmware_has_feature(FW_FEATURE_LPAR)) &&
-	    (set_dawr(&null_brk) != H_SUCCESS))
-		return -1;
-
-	rc = debugfs_write_file_bool(file, user_buf, count, ppos);
-	if (rc)
-		return rc;
-
-	/* If we are clearing, make sure all CPUs have the DAWR cleared */
-	if (!dawr_force_enable)
-		smp_call_function((smp_call_func_t)set_dawr, &null_brk, 0);
-
-	return rc;
-}
-
-static const struct file_operations dawr_enable_fops = {
-	.read =		debugfs_read_file_bool,
-	.write =	dawr_write_file_bool,
-	.open =		simple_open,
-	.llseek =	default_llseek,
-};
-
-static int __init dawr_force_setup(void)
-{
-	dawr_force_enable = false;
-
-	if (cpu_has_feature(CPU_FTR_DAWR)) {
-		/* Don't setup sysfs file for user control on P8 */
-		dawr_force_enable = true;
-		return 0;
-	}
-
-	if (PVR_VER(mfspr(SPRN_PVR)) == PVR_POWER9) {
-		/* Turn DAWR off by default, but allow admin to turn it on */
-		dawr_force_enable = false;
-		debugfs_create_file_unsafe("dawr_enable_dangerous", 0600,
-					   powerpc_debugfs_root,
-					   &dawr_force_enable,
-					   &dawr_enable_fops);
-	}
-	return 0;
-}
-arch_initcall(dawr_force_setup);

@@ -7,7 +7,6 @@
 #ifndef _CX25840_CORE_H_
 #define _CX25840_CORE_H_
 
-
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
@@ -44,10 +43,15 @@ enum cx25840_media_pads {
  * @mute:		audio mute V4L2 control (non-cx2583x devices only)
  * @pvr150_workaround:	whether we enable workaround for Hauppauge PVR150
  *			hardware bug (audio dropping out)
+ * @generic_mode:	whether we disable ivtv-specific hacks
+ *			this mode gets turned on when the bridge driver calls
+ *			cx25840 subdevice init core op
  * @radio:		set if we are currently in the radio mode, otherwise
  *			the current mode is non-radio (that is, video)
  * @std:		currently set video standard
  * @vid_input:		currently set video input
+ * @vid_config:	currently set video output configuration
+ *			only used in the generic mode
  * @aud_input:		currently set audio input
  * @audclk_freq:	currently set audio sample rate
  * @audmode:		currently set audio mode (when in non-radio mode)
@@ -74,9 +78,11 @@ struct cx25840_state {
 		struct v4l2_ctrl *mute;
 	};
 	int pvr150_workaround;
+	bool generic_mode;
 	int radio;
 	v4l2_std_id std;
 	enum cx25840_video_input vid_input;
+	u32 vid_config;
 	enum cx25840_audio_input aud_input;
 	u32 audclk_freq;
 	int audmode;
@@ -84,7 +90,7 @@ struct cx25840_state {
 	enum cx25840_model id;
 	u32 rev;
 	int is_initialized;
-	unsigned vbi_regs_offset;
+	unsigned int vbi_regs_offset;
 	wait_queue_head_t fw_wait;
 	struct work_struct fw_work;
 	struct cx25840_ir_state *ir_state;
@@ -107,6 +113,14 @@ static inline bool is_cx2583x(struct cx25840_state *state)
 {
 	return state->id == CX25836 ||
 	       state->id == CX25837;
+}
+
+static inline bool is_cx2584x(struct cx25840_state *state)
+{
+	return state->id == CX25840 ||
+	       state->id == CX25841 ||
+	       state->id == CX25842 ||
+	       state->id == CX25843;
 }
 
 static inline bool is_cx231xx(struct cx25840_state *state)
@@ -142,7 +156,8 @@ int cx25840_write(struct i2c_client *client, u16 addr, u8 value);
 int cx25840_write4(struct i2c_client *client, u16 addr, u32 value);
 u8 cx25840_read(struct i2c_client *client, u16 addr);
 u32 cx25840_read4(struct i2c_client *client, u16 addr);
-int cx25840_and_or(struct i2c_client *client, u16 addr, unsigned mask, u8 value);
+int cx25840_and_or(struct i2c_client *client, u16 addr, unsigned int mask,
+		   u8 value);
 int cx25840_and_or4(struct i2c_client *client, u16 addr, u32 and_mask,
 		    u32 or_value);
 void cx25840_std_setup(struct i2c_client *client);
@@ -161,9 +176,12 @@ extern const struct v4l2_ctrl_ops cx25840_audio_ctrl_ops;
 /* ----------------------------------------------------------------------- */
 /* cx25850-vbi.c                                                           */
 int cx25840_s_raw_fmt(struct v4l2_subdev *sd, struct v4l2_vbi_format *fmt);
-int cx25840_s_sliced_fmt(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_format *fmt);
-int cx25840_g_sliced_fmt(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_format *fmt);
-int cx25840_decode_vbi_line(struct v4l2_subdev *sd, struct v4l2_decode_vbi_line *vbi);
+int cx25840_s_sliced_fmt(struct v4l2_subdev *sd,
+			 struct v4l2_sliced_vbi_format *fmt);
+int cx25840_g_sliced_fmt(struct v4l2_subdev *sd,
+			 struct v4l2_sliced_vbi_format *fmt);
+int cx25840_decode_vbi_line(struct v4l2_subdev *sd,
+			    struct v4l2_decode_vbi_line *vbi);
 
 /* ----------------------------------------------------------------------- */
 /* cx25850-ir.c                                                            */

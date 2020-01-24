@@ -100,7 +100,7 @@ copy_stack_frame(const void __user *fp, struct stack_frame_user *frame)
 {
 	int ret;
 
-	if (!access_ok(fp, sizeof(*frame)))
+	if (__range_not_ok(fp, sizeof(*frame), TASK_SIZE))
 		return 0;
 
 	ret = 1;
@@ -129,11 +129,9 @@ void arch_stack_walk_user(stack_trace_consume_fn consume_entry, void *cookie,
 			break;
 		if ((unsigned long)fp < regs->sp)
 			break;
-		if (frame.ret_addr) {
-			if (!consume_entry(cookie, frame.ret_addr, false))
-				return;
-		}
-		if (fp == frame.next_fp)
+		if (!frame.ret_addr)
+			break;
+		if (!consume_entry(cookie, frame.ret_addr, false))
 			break;
 		fp = frame.next_fp;
 	}

@@ -1,19 +1,18 @@
 # SPDX-License-Identifier: GPL-2.0
+
+common-objs := enetc.o enetc_cbdr.o enetc_ethtool.o
+
 obj-$(CONFIG_FSL_ENETC) += fsl-enetc.o
-fsl-enetc-$(CONFIG_FSL_ENETC) += enetc.o enetc_cbdr.o enetc_ethtool.o \
-				 enetc_mdio.o
+fsl-enetc-y := enetc_pf.o enetc_mdio.o $(common-objs)
 fsl-enetc-$(CONFIG_PCI_IOV) += enetc_msg.o
-fsl-enetc-objs := enetc_pf.o $(fsl-enetc-y)
+fsl-enetc-$(CONFIG_FSL_ENETC_QOS) += enetc_qos.o
 
 obj-$(CONFIG_FSL_ENETC_VF) += fsl-enetc-vf.o
+fsl-enetc-vf-y := enetc_vf.o $(common-objs)
+fsl-enetc-vf-$(CONFIG_FSL_ENETC_QOS) += enetc_qos.o
 
-ifeq ($(CONFIG_FSL_ENETC)$(CONFIG_FSL_ENETC_VF), yy)
-fsl-enetc-vf-objs := enetc_vf.o
-else
-fsl-enetc-vf-$(CONFIG_FSL_ENETC_VF) += enetc.o enetc_cbdr.o \
-				       enetc_ethtool.o
-fsl-enetc-vf-objs := enetc_vf.o $(fsl-enetc-vf-y)
-endif
+obj-$(CONFIG_FSL_ENETC_MDIO) += fsl-enetc-mdio.o
+fsl-enetc-mdio-y := enetc_pci_mdio.o enetc_mdio.o
 
 obj-$(CONFIG_FSL_ENETC_PTP_CLOCK) += fsl-enetc-ptp.o
-fsl-enetc-ptp-$(CONFIG_FSL_ENETC_PTP_CLOCK) += enetc_ptp.o
+fsl-enetc-ptp-y := enetc_ptp.o

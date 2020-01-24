@@ -157,7 +157,7 @@ int mlx5_cmd_alloc_memic(struct mlx5_dm *dm, phys_addr_t *addr,
 	return -ENOMEM;
 }
 
-int mlx5_cmd_dealloc_memic(struct mlx5_dm *dm, phys_addr_t addr, u64 length)
+void mlx5_cmd_dealloc_memic(struct mlx5_dm *dm, phys_addr_t addr, u64 length)
 {
 	struct mlx5_core_dev *dev = dm->dev;
 	u64 hw_start_addr = MLX5_CAP64_DEV_MEM(dev, memic_bar_start_addr);
@@ -175,145 +175,13 @@ int mlx5_cmd_dealloc_memic(struct mlx5_dm *dm, phys_addr_t addr, u64 length)
 	MLX5_SET(dealloc_memic_in, in, memic_size, length);
 
 	err =  mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
-
-	if (!err) {
-		spin_lock(&dm->lock);
-		bitmap_clear(dm->memic_alloc_pages,
-			     start_page_idx, num_pages);
-		spin_unlock(&dm->lock);
-	}
-
-	return err;
-}
-
-int mlx5_cmd_alloc_sw_icm(struct mlx5_dm *dm, int type, u64 length,
-			  u16 uid, phys_addr_t *addr, u32 *obj_id)
-{
-	struct mlx5_core_dev *dev = dm->dev;
-	u32 out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)] = {};
-	u32 in[MLX5_ST_SZ_DW(create_sw_icm_in)] = {};
-	unsigned long *block_map;
-	u64 icm_start_addr;
-	u32 log_icm_size;
-	u32 num_blocks;
-	u32 max_blocks;
-	u64 block_idx;
-	void *sw_icm;
-	int ret;
-
-	MLX5_SET(general_obj_in_cmd_hdr, in, opcode,
-		 MLX5_CMD_OP_CREATE_GENERAL_OBJECT);
-	MLX5_SET(general_obj_in_cmd_hdr, in, obj_type, MLX5_OBJ_TYPE_SW_ICM);
-	MLX5_SET(general_obj_in_cmd_hdr, in, uid, uid);
-
-	switch (type) {
-	case MLX5_IB_UAPI_DM_TYPE_STEERING_SW_ICM:
-		icm_start_addr = MLX5_CAP64_DEV_MEM(dev,
-						steering_sw_icm_start_address);
-		log_icm_size = MLX5_CAP_DEV_MEM(dev, log_steering_sw_icm_size);
-		block_map = dm->steering_sw_icm_alloc_blocks;
-		break;
-	case MLX5_IB_UAPI_DM_TYPE_HEADER_MODIFY_SW_ICM:
-		icm_start_addr = MLX5_CAP64_DEV_MEM(dev,
-					header_modify_sw_icm_start_address);
-		log_icm_size = MLX5_CAP_DEV_MEM(dev,
-						log_header_modify_sw_icm_size);
-		block_map = dm->header_modify_sw_icm_alloc_blocks;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	num_blocks = (length + MLX5_SW_ICM_BLOCK_SIZE(dev) - 1) >>
-		     MLX5_LOG_SW_ICM_BLOCK_SIZE(dev);
-	max_blocks = BIT(log_icm_size - MLX5_LOG_SW_ICM_BLOCK_SIZE(dev));
-	spin_lock(&dm->lock);
-	block_idx = bitmap_find_next_zero_area(block_map,
-					       max_blocks,
-					       0,
-					       num_blocks, 0);
-
-	if (block_idx < max_blocks)
-		bitmap_set(block_map,
-			   block_idx, num_blocks);
-
-	spin_unlock(&dm->lock);
-
-	if (block_idx >= max_blocks)
-		return -ENOMEM;
-
-	sw_icm = MLX5_ADDR_OF(create_sw_icm_in, in, sw_icm);
-	icm_start_addr += block_idx << MLX5_LOG_SW_ICM_BLOCK_SIZE(dev);
-	MLX5_SET64(sw_icm, sw_icm, sw_icm_start_addr,
-		   icm_start_addr);
-	MLX5_SET(sw_icm, sw_icm, log_sw_icm_size, ilog2(length));
-
-	ret = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
-	if (ret) {
-		spin_lock(&dm->lock);
-		bitmap_clear(block_map,
-			     block_idx, num_blocks);
-		spin_unlock(&dm->lock);
-
-		return ret;
-	}
-
-	*addr = icm_start_addr;
-	*obj_id = MLX5_GET(general_obj_out_cmd_hdr, out, obj_id);
-
-	return 0;
-}
-
-int mlx5_cmd_dealloc_sw_icm(struct mlx5_dm *dm, int type, u64 length,
-			    u16 uid, phys_addr_t addr, u32 obj_id)
-{
-	struct mlx5_core_dev *dev = dm->dev;
-	u32 out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)] = {};
-	u32 in[MLX5_ST_SZ_DW(general_obj_in_cmd_hdr)] = {};
-	unsigned long *block_map;
-	u32 num_blocks;
-	u64 start_idx;
-	int err;
-
-	num_blocks = (length + MLX5_SW_ICM_BLOCK_SIZE(dev) - 1) >>
-		     MLX5_LOG_SW_ICM_BLOCK_SIZE(dev);
-
-	switch (type) {
-	case MLX5_IB_UAPI_DM_TYPE_STEERING_SW_ICM:
-		start_idx =
-			(addr - MLX5_CAP64_DEV_MEM(
-					dev, steering_sw_icm_start_address)) >>
-			MLX5_LOG_SW_ICM_BLOCK_SIZE(dev);
-		block_map = dm->steering_sw_icm_alloc_blocks;
-		break;
-	case MLX5_IB_UAPI_DM_TYPE_HEADER_MODIFY_SW_ICM:
-		start_idx =
-			(addr -
-			 MLX5_CAP64_DEV_MEM(
-				 dev, header_modify_sw_icm_start_address)) >>
-			MLX5_LOG_SW_ICM_BLOCK_SIZE(dev);
-		block_map = dm->header_modify_sw_icm_alloc_blocks;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	MLX5_SET(general_obj_in_cmd_hdr, in, opcode,
-		 MLX5_CMD_OP_DESTROY_GENERAL_OBJECT);
-	MLX5_SET(general_obj_in_cmd_hdr, in, obj_type, MLX5_OBJ_TYPE_SW_ICM);
-	MLX5_SET(general_obj_in_cmd_hdr, in, obj_id, obj_id);
-	MLX5_SET(general_obj_in_cmd_hdr, in, uid, uid);
-
-	err =  mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 	if (err)
-		return err;
+		return;
 
 	spin_lock(&dm->lock);
-	bitmap_clear(block_map,
-		     start_idx, num_blocks);
+	bitmap_clear(dm->memic_alloc_pages,
+		     start_page_idx, num_pages);
 	spin_unlock(&dm->lock);
-
-	return 0;
 }
 
 int mlx5_cmd_query_ext_ppcnt_counters(struct mlx5_core_dev *dev, void *out)

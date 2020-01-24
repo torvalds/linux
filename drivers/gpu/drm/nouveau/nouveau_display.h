@@ -1,8 +1,12 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NOUVEAU_DISPLAY_H__
 #define __NOUVEAU_DISPLAY_H__
+
 #include "nouveau_drv.h"
+
 #include <nvif/disp.h>
+
+#include <drm/drm_framebuffer.h>
 
 struct nouveau_framebuffer {
 	struct drm_framebuffer base;

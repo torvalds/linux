@@ -753,6 +753,8 @@ u32 igb_rd32(struct e1000_hw *hw, u32 reg)
 		struct net_device *netdev = igb->netdev;
 		hw->hw_addr = NULL;
 		netdev_err(netdev, "PCIe link lost\n");
+		WARN(pci_device_is_present(igb->pdev),
+		     "igb: Failed to read reg 0x%x!\n", reg);
 	}
 
 	return value;
@@ -2063,7 +2065,8 @@ static void igb_check_swap_media(struct igb_adapter *adapter)
 	if ((hw->phy.media_type == e1000_media_type_copper) &&
 	    (!(connsw & E1000_CONNSW_AUTOSENSE_EN))) {
 		swap_now = true;
-	} else if (!(connsw & E1000_CONNSW_SERDESD)) {
+	} else if ((hw->phy.media_type != e1000_media_type_copper) &&
+		   !(connsw & E1000_CONNSW_SERDESD)) {
 		/* copper signal takes time to appear */
 		if (adapter->copper_tries < 4) {
 			adapter->copper_tries++;
@@ -2369,7 +2372,7 @@ void igb_reset(struct igb_adapter *adapter)
 		adapter->ei.get_invariants(hw);
 		adapter->flags &= ~IGB_FLAG_MEDIA_RESET;
 	}
-	if ((mac->type == e1000_82575) &&
+	if ((mac->type == e1000_82575 || mac->type == e1000_i350) &&
 	    (adapter->flags & IGB_FLAG_MAS_ENABLE)) {
 		igb_enable_mas(adapter);
 	}
@@ -2515,6 +2518,7 @@ igb_features_check(struct sk_buff *skb, struct net_device *dev,
 	if (unlikely(mac_hdr_len > IGB_MAX_MAC_HDR_LEN))
 		return features & ~(NETIF_F_HW_CSUM |
 				    NETIF_F_SCTP_CRC |
+				    NETIF_F_GSO_UDP_L4 |
 				    NETIF_F_HW_VLAN_CTAG_TX |
 				    NETIF_F_TSO |
 				    NETIF_F_TSO6);
@@ -2523,6 +2527,7 @@ igb_features_check(struct sk_buff *skb, struct net_device *dev,
 	if (unlikely(network_hdr_len >  IGB_MAX_NETWORK_HDR_LEN))
 		return features & ~(NETIF_F_HW_CSUM |
 				    NETIF_F_SCTP_CRC |
+				    NETIF_F_GSO_UDP_L4 |
 				    NETIF_F_TSO |
 				    NETIF_F_TSO6);
 
@@ -2577,11 +2582,11 @@ static int igb_offload_cbs(struct igb_adapter *adapter,
 #define VLAN_PRIO_FULL_MASK (0x07)
 
 static int igb_parse_cls_flower(struct igb_adapter *adapter,
-				struct tc_cls_flower_offload *f,
+				struct flow_cls_offload *f,
 				int traffic_class,
 				struct igb_nfc_filter *input)
 {
-	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(f);
+	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
 	struct flow_dissector *dissector = rule->match.dissector;
 	struct netlink_ext_ack *extack = f->common.extack;
 
@@ -2659,7 +2664,7 @@ static int igb_parse_cls_flower(struct igb_adapter *adapter,
 }
 
 static int igb_configure_clsflower(struct igb_adapter *adapter,
-				   struct tc_cls_flower_offload *cls_flower)
+				   struct flow_cls_offload *cls_flower)
 {
 	struct netlink_ext_ack *extack = cls_flower->common.extack;
 	struct igb_nfc_filter *filter, *f;
@@ -2721,7 +2726,7 @@ err_parse:
 }
 
 static int igb_delete_clsflower(struct igb_adapter *adapter,
-				struct tc_cls_flower_offload *cls_flower)
+				struct flow_cls_offload *cls_flower)
 {
 	struct igb_nfc_filter *filter;
 	int err;
@@ -2751,14 +2756,14 @@ out:
 }
 
 static int igb_setup_tc_cls_flower(struct igb_adapter *adapter,
-				   struct tc_cls_flower_offload *cls_flower)
+				   struct flow_cls_offload *cls_flower)
 {
 	switch (cls_flower->command) {
-	case TC_CLSFLOWER_REPLACE:
+	case FLOW_CLS_REPLACE:
 		return igb_configure_clsflower(adapter, cls_flower);
-	case TC_CLSFLOWER_DESTROY:
+	case FLOW_CLS_DESTROY:
 		return igb_delete_clsflower(adapter, cls_flower);
-	case TC_CLSFLOWER_STATS:
+	case FLOW_CLS_STATS:
 		return -EOPNOTSUPP;
 	default:
 		return -EOPNOTSUPP;
@@ -2777,25 +2782,6 @@ static int igb_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
 	case TC_SETUP_CLSFLOWER:
 		return igb_setup_tc_cls_flower(adapter, type_data);
 
-	default:
-		return -EOPNOTSUPP;
-	}
-}
-
-static int igb_setup_tc_block(struct igb_adapter *adapter,
-			      struct tc_block_offload *f)
-{
-	if (f->binder_type != TCF_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
-		return -EOPNOTSUPP;
-
-	switch (f->command) {
-	case TC_BLOCK_BIND:
-		return tcf_block_cb_register(f->block, igb_setup_tc_block_cb,
-					     adapter, adapter, f->extack);
-	case TC_BLOCK_UNBIND:
-		tcf_block_cb_unregister(f->block, igb_setup_tc_block_cb,
-					adapter);
-		return 0;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -2824,6 +2810,8 @@ static int igb_offload_txtime(struct igb_adapter *adapter,
 	return 0;
 }
 
+static LIST_HEAD(igb_block_cb_list);
+
 static int igb_setup_tc(struct net_device *dev, enum tc_setup_type type,
 			void *type_data)
 {
@@ -2833,7 +2821,11 @@ static int igb_setup_tc(struct net_device *dev, enum tc_setup_type type,
 	case TC_SETUP_QDISC_CBS:
 		return igb_offload_cbs(adapter, type_data);
 	case TC_SETUP_BLOCK:
-		return igb_setup_tc_block(adapter, type_data);
+		return flow_block_cb_setup_simple(type_data,
+						  &igb_block_cb_list,
+						  igb_setup_tc_block_cb,
+						  adapter, adapter, true);
+
 	case TC_SETUP_QDISC_ETF:
 		return igb_offload_txtime(adapter, type_data);
 
@@ -3132,7 +3124,7 @@ static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			    NETIF_F_HW_CSUM;
 
 	if (hw->mac.type >= e1000_82576)
-		netdev->features |= NETIF_F_SCTP_CRC;
+		netdev->features |= NETIF_F_SCTP_CRC | NETIF_F_GSO_UDP_L4;
 
 	if (hw->mac.type >= e1000_i350)
 		netdev->features |= NETIF_F_HW_TC;
@@ -4743,8 +4735,7 @@ static void igb_clean_rx_ring(struct igb_ring *rx_ring)
 {
 	u16 i = rx_ring->next_to_clean;
 
-	if (rx_ring->skb)
-		dev_kfree_skb(rx_ring->skb);
+	dev_kfree_skb(rx_ring->skb);
 	rx_ring->skb = NULL;
 
 	/* Free all the Rx ring sk_buffs */
@@ -5686,7 +5677,8 @@ static void igb_tx_ctxtdesc(struct igb_ring *tx_ring,
 	 * should have been handled by the upper layers.
 	 */
 	if (tx_ring->launchtime_enable) {
-		ts = ns_to_timespec64(first->skb->tstamp);
+		ts = ktime_to_timespec64(first->skb->tstamp);
+		first->skb->tstamp = ktime_set(0, 0);
 		context_desc->seqnum_seed = cpu_to_le32(ts.tv_nsec / 32);
 	} else {
 		context_desc->seqnum_seed = 0;
@@ -5706,6 +5698,7 @@ static int igb_tso(struct igb_ring *tx_ring,
 	} ip;
 	union {
 		struct tcphdr *tcp;
+		struct udphdr *udp;
 		unsigned char *hdr;
 	} l4;
 	u32 paylen, l4_offset;
@@ -5725,7 +5718,8 @@ static int igb_tso(struct igb_ring *tx_ring,
 	l4.hdr = skb_checksum_start(skb);
 
 	/* ADV DTYP TUCMD MKRLOC/ISCSIHEDLEN */
-	type_tucmd = E1000_ADVTXD_TUCMD_L4T_TCP;
+	type_tucmd = (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4) ?
+		      E1000_ADVTXD_TUCMD_L4T_UDP : E1000_ADVTXD_TUCMD_L4T_TCP;
 
 	/* initialize outer IP header fields */
 	if (ip.v4->version == 4) {
@@ -5753,12 +5747,19 @@ static int igb_tso(struct igb_ring *tx_ring,
 	/* determine offset of inner transport header */
 	l4_offset = l4.hdr - skb->data;
 
-	/* compute length of segmentation header */
-	*hdr_len = (l4.tcp->doff * 4) + l4_offset;
-
 	/* remove payload length from inner checksum */
 	paylen = skb->len - l4_offset;
-	csum_replace_by_diff(&l4.tcp->check, htonl(paylen));
+	if (type_tucmd & E1000_ADVTXD_TUCMD_L4T_TCP) {
+		/* compute length of segmentation header */
+		*hdr_len = (l4.tcp->doff * 4) + l4_offset;
+		csum_replace_by_diff(&l4.tcp->check,
+			(__force __wsum)htonl(paylen));
+	} else {
+		/* compute length of segmentation header */
+		*hdr_len = sizeof(*l4.udp) + l4_offset;
+		csum_replace_by_diff(&l4.udp->check,
+				     (__force __wsum)htonl(paylen));
+	}
 
 	/* update gso size and bytecount with header size */
 	first->gso_segs = skb_shinfo(skb)->gso_segs;
@@ -5929,7 +5930,7 @@ static int igb_tx_map(struct igb_ring *tx_ring,
 	struct sk_buff *skb = first->skb;
 	struct igb_tx_buffer *tx_buffer;
 	union e1000_adv_tx_desc *tx_desc;
-	struct skb_frag_struct *frag;
+	skb_frag_t *frag;
 	dma_addr_t dma;
 	unsigned int data_len, size;
 	u32 tx_flags = first->tx_flags;
@@ -6085,7 +6086,8 @@ netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
 	 * otherwise try next time
 	 */
 	for (f = 0; f < skb_shinfo(skb)->nr_frags; f++)
-		count += TXD_USE_COUNT(skb_shinfo(skb)->frags[f].size);
+		count += TXD_USE_COUNT(skb_frag_size(
+						&skb_shinfo(skb)->frags[f]));
 
 	if (igb_maybe_stop_tx(tx_ring, count + 3)) {
 		/* this is a hard error */
@@ -6234,7 +6236,6 @@ static void igb_get_stats64(struct net_device *netdev,
 static int igb_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
-	struct pci_dev *pdev = adapter->pdev;
 	int max_frame = new_mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN;
 
 	/* adjust max frame to be at least the size of a standard frame */
@@ -6250,8 +6251,8 @@ static int igb_change_mtu(struct net_device *netdev, int new_mtu)
 	if (netif_running(netdev))
 		igb_down(adapter);
 
-	dev_info(&pdev->dev, "changing MTU from %d to %d\n",
-		 netdev->mtu, new_mtu);
+	netdev_dbg(netdev, "changing MTU from %d to %d\n",
+		   netdev->mtu, new_mtu);
 	netdev->mtu = new_mtu;
 
 	if (netif_running(netdev))
@@ -6695,7 +6696,7 @@ static int __igb_notify_dca(struct device *dev, void *data)
 			igb_setup_dca(adapter);
 			break;
 		}
-		/* Fall Through since DCA is disabled. */
+		/* Fall Through - since DCA is disabled. */
 	case DCA_PROVIDER_REMOVE:
 		if (adapter->flags & IGB_FLAG_DCA_ENABLED) {
 			/* without this a class_device is left
@@ -8890,8 +8891,7 @@ static int __maybe_unused igb_resume(struct device *dev)
 
 static int __maybe_unused igb_runtime_idle(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct net_device *netdev = dev_get_drvdata(dev);
 	struct igb_adapter *adapter = netdev_priv(netdev);
 
 	if (!igb_has_link(adapter))

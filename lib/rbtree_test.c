@@ -77,26 +77,10 @@ static inline void erase_cached(struct test_node *node, struct rb_root_cached *r
 }
 
 
-static inline u32 augment_recompute(struct test_node *node)
-{
-	u32 max = node->val, child_augmented;
-	if (node->rb.rb_left) {
-		child_augmented = rb_entry(node->rb.rb_left, struct test_node,
-					   rb)->augmented;
-		if (max < child_augmented)
-			max = child_augmented;
-	}
-	if (node->rb.rb_right) {
-		child_augmented = rb_entry(node->rb.rb_right, struct test_node,
-					   rb)->augmented;
-		if (max < child_augmented)
-			max = child_augmented;
-	}
-	return max;
-}
+#define NODE_VAL(node) ((node)->val)
 
-RB_DECLARE_CALLBACKS(static, augment_callbacks, struct test_node, rb,
-		     u32, augmented, augment_recompute)
+RB_DECLARE_CALLBACKS_MAX(static, augment_callbacks,
+			 struct test_node, rb, u32, augmented, NODE_VAL)
 
 static void insert_augmented(struct test_node *node,
 			     struct rb_root_cached *root)
@@ -238,7 +222,20 @@ static void check_augmented(int nr_nodes)
 	check(nr_nodes);
 	for (rb = rb_first(&root.rb_root); rb; rb = rb_next(rb)) {
 		struct test_node *node = rb_entry(rb, struct test_node, rb);
-		WARN_ON_ONCE(node->augmented != augment_recompute(node));
+		u32 subtree, max = node->val;
+		if (node->rb.rb_left) {
+			subtree = rb_entry(node->rb.rb_left, struct test_node,
+					   rb)->augmented;
+			if (max < subtree)
+				max = subtree;
+		}
+		if (node->rb.rb_right) {
+			subtree = rb_entry(node->rb.rb_right, struct test_node,
+					   rb)->augmented;
+			if (max < subtree)
+				max = subtree;
+		}
+		WARN_ON_ONCE(node->augmented != max);
 	}
 }
 

@@ -291,8 +291,7 @@ static int bcm63xx_hsspi_transfer_one(struct spi_master *master,
 
 		msg->actual_length += t->len;
 
-		if (t->delay_usecs)
-			udelay(t->delay_usecs);
+		spi_transfer_delay_exec(t);
 
 		if (t->cs_change)
 			bcm63xx_hsspi_set_cs(bs, spi->chip_select, false);
@@ -330,7 +329,6 @@ static int bcm63xx_hsspi_probe(struct platform_device *pdev)
 {
 	struct spi_master *master;
 	struct bcm63xx_hsspi *bs;
-	struct resource *res_mem;
 	void __iomem *regs;
 	struct device *dev = &pdev->dev;
 	struct clk *clk, *pll_clk = NULL;
@@ -338,13 +336,10 @@ static int bcm63xx_hsspi_probe(struct platform_device *pdev)
 	u32 reg, rate, num_cs = HSSPI_SPI_MAX_CS;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(dev, "no irq: %d\n", irq);
+	if (irq < 0)
 		return irq;
-	}
 
-	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	regs = devm_ioremap_resource(dev, res_mem);
+	regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 

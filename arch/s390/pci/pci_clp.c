@@ -66,7 +66,7 @@ static inline int clp_get_ilp(unsigned long *ilp)
 /*
  * Call Logical Processor with c=0, the give constant lps and an lpcb request.
  */
-static inline int clp_req(void *data, unsigned int lps)
+static __always_inline int clp_req(void *data, unsigned int lps)
 {
 	struct { u8 _[CLP_BLK_SIZE]; } *req = data;
 	u64 ignored;
@@ -145,7 +145,7 @@ static int clp_store_query_pci_fn(struct zpci_dev *zdev,
 {
 	int i;
 
-	for (i = 0; i < PCI_BAR_COUNT; i++) {
+	for (i = 0; i < PCI_STD_NUM_BARS; i++) {
 		zdev->bars[i].val = le32_to_cpu(response->bar[i]);
 		zdev->bars[i].size = response->bar_size[i];
 	}
@@ -164,8 +164,8 @@ static int clp_store_query_pci_fn(struct zpci_dev *zdev,
 		       sizeof(zdev->util_str));
 	}
 	zdev->mio_capable = response->mio_addr_avail;
-	for (i = 0; i < PCI_BAR_COUNT; i++) {
-		if (!(response->mio.valid & (1 << (PCI_BAR_COUNT - i - 1))))
+	for (i = 0; i < PCI_STD_NUM_BARS; i++) {
+		if (!(response->mio.valid & (1 << (PCI_STD_NUM_BARS - i - 1))))
 			continue;
 
 		zdev->bars[i].mio_wb = (void __iomem *) response->mio.addr[i].wb;
@@ -291,7 +291,7 @@ int clp_enable_fh(struct zpci_dev *zdev, u8 nr_dma_as)
 		goto out;
 
 	zdev->fh = fh;
-	if (zdev->mio_capable) {
+	if (zpci_use_mio(zdev)) {
 		rc = clp_set_pci_fn(&fh, nr_dma_as, CLP_SET_ENABLE_MIO);
 		zpci_dbg(3, "ena mio fid:%x, fh:%x, rc:%d\n", zdev->fid, fh, rc);
 		if (rc)

@@ -139,8 +139,15 @@ int acpi_power_get_inferred_state(struct acpi_device *device, int *state);
 int acpi_power_on_resources(struct acpi_device *device, int state);
 int acpi_power_transition(struct acpi_device *device, int state);
 
+/* --------------------------------------------------------------------------
+                              Device Power Management
+   -------------------------------------------------------------------------- */
+int acpi_device_get_power(struct acpi_device *device, int *state);
 int acpi_wakeup_device_init(void);
 
+/* --------------------------------------------------------------------------
+                                  Processor
+   -------------------------------------------------------------------------- */
 #ifdef CONFIG_ARCH_MIGHT_HAVE_ACPI_PDC
 void acpi_early_processor_set_pdc(void);
 #else
@@ -158,7 +165,8 @@ static inline void acpi_early_processor_osc(void) {}
    -------------------------------------------------------------------------- */
 struct acpi_ec {
 	acpi_handle handle;
-	u32 gpe;
+	int gpe;
+	int irq;
 	unsigned long command_addr;
 	unsigned long data_addr;
 	bool global_lock;
@@ -187,9 +195,6 @@ void acpi_ec_ecdt_probe(void);
 void acpi_ec_dsdt_probe(void);
 void acpi_ec_block_transactions(void);
 void acpi_ec_unblock_transactions(void);
-void acpi_ec_mark_gpe_for_wake(void);
-void acpi_ec_set_gpe_wake_mask(u8 action);
-void acpi_ec_dispatch_gpe(void);
 int acpi_ec_add_query_handler(struct acpi_ec *ec, u8 query_bit,
 			      acpi_handle handle, acpi_ec_query_func func,
 			      void *data);
@@ -197,6 +202,7 @@ void acpi_ec_remove_query_handler(struct acpi_ec *ec, u8 query_bit);
 
 #ifdef CONFIG_PM_SLEEP
 void acpi_ec_flush_work(void);
+bool acpi_ec_dispatch_gpe(void);
 #endif
 
 
@@ -205,11 +211,9 @@ void acpi_ec_flush_work(void);
   -------------------------------------------------------------------------- */
 #ifdef CONFIG_ACPI_SYSTEM_POWER_STATES_SUPPORT
 extern bool acpi_s2idle_wakeup(void);
-extern bool acpi_sleep_no_ec_events(void);
 extern int acpi_sleep_init(void);
 #else
 static inline bool acpi_s2idle_wakeup(void) { return false; }
-static inline bool acpi_sleep_no_ec_events(void) { return true; }
 static inline int acpi_sleep_init(void) { return -ENXIO; }
 #endif
 

@@ -36,7 +36,7 @@
  *  mknod /dev/watchdog c 10 130
  *
  * For an example userspace keep-alive daemon, see:
- *   Documentation/watchdog/wdt.txt
+ *   Documentation/watchdog/wdt.rst
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -505,6 +505,7 @@ static const struct file_operations wb_smsc_wdt_fops = {
 	.llseek		= no_llseek,
 	.write		= wb_smsc_wdt_write,
 	.unlocked_ioctl	= wb_smsc_wdt_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= wb_smsc_wdt_open,
 	.release	= wb_smsc_wdt_release,
 };

@@ -6,9 +6,9 @@
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/mfd/cros_ec.h>
-#include <linux/mfd/cros_ec_commands.h>
 #include <linux/of.h>
+#include <linux/platform_data/cros_ec_commands.h>
+#include <linux/platform_data/cros_ec_proto.h>
 #include <linux/platform_device.h>
 #include <linux/rpmsg.h>
 #include <linux/slab.h>
@@ -41,6 +41,7 @@ struct cros_ec_rpmsg {
 	struct rpmsg_device *rpdev;
 	struct completion xfer_ack;
 	struct work_struct host_event_work;
+	struct rpmsg_endpoint *ept;
 };
 
 /**
@@ -72,7 +73,6 @@ static int cros_ec_pkt_xfer_rpmsg(struct cros_ec_device *ec_dev,
 				  struct cros_ec_command *ec_msg)
 {
 	struct cros_ec_rpmsg *ec_rpmsg = ec_dev->priv;
-	struct rpmsg_device *rpdev = ec_rpmsg->rpdev;
 	struct ec_host_response *response;
 	unsigned long timeout;
 	int len;
@@ -85,7 +85,7 @@ static int cros_ec_pkt_xfer_rpmsg(struct cros_ec_device *ec_dev,
 	dev_dbg(ec_dev->dev, "prepared, len=%d\n", len);
 
 	reinit_completion(&ec_rpmsg->xfer_ack);
-	ret = rpmsg_send(rpdev->ept, ec_dev->dout, len);
+	ret = rpmsg_send(ec_rpmsg->ept, ec_dev->dout, len);
 	if (ret) {
 		dev_err(ec_dev->dev, "rpmsg send failed\n");
 		return ret;
@@ -143,22 +143,11 @@ cros_ec_rpmsg_host_event_function(struct work_struct *host_event_work)
 						      struct cros_ec_rpmsg,
 						      host_event_work);
 	struct cros_ec_device *ec_dev = dev_get_drvdata(&ec_rpmsg->rpdev->dev);
-	bool wake_event = true;
-	int ret;
+	bool ec_has_more_events;
 
-	ret = cros_ec_get_next_event(ec_dev, &wake_event);
-
-	/*
-	 * Signal only if wake host events or any interrupt if
-	 * cros_ec_get_next_event() returned an error (default value for
-	 * wake_event is true)
-	 */
-	if (wake_event && device_may_wakeup(ec_dev->dev))
-		pm_wakeup_event(ec_dev->dev, 0);
-
-	if (ret > 0)
-		blocking_notifier_call_chain(&ec_dev->event_notifier,
-					     0, ec_dev);
+	do {
+		ec_has_more_events = cros_ec_handle_event(ec_dev);
+	} while (ec_has_more_events);
 }
 
 static int cros_ec_rpmsg_callback(struct rpmsg_device *rpdev, void *data,
@@ -196,11 +185,24 @@ static int cros_ec_rpmsg_callback(struct rpmsg_device *rpdev, void *data,
 	return 0;
 }
 
+static struct rpmsg_endpoint *
+cros_ec_rpmsg_create_ept(struct rpmsg_device *rpdev)
+{
+	struct rpmsg_channel_info chinfo = {};
+
+	strscpy(chinfo.name, rpdev->id.name, RPMSG_NAME_SIZE);
+	chinfo.src = rpdev->src;
+	chinfo.dst = RPMSG_ADDR_ANY;
+
+	return rpmsg_create_ept(rpdev, cros_ec_rpmsg_callback, NULL, chinfo);
+}
+
 static int cros_ec_rpmsg_probe(struct rpmsg_device *rpdev)
 {
 	struct device *dev = &rpdev->dev;
 	struct cros_ec_rpmsg *ec_rpmsg;
 	struct cros_ec_device *ec_dev;
+	int ret;
 
 	ec_dev = devm_kzalloc(dev, sizeof(*ec_dev), GFP_KERNEL);
 	if (!ec_dev)
@@ -225,7 +227,18 @@ static int cros_ec_rpmsg_probe(struct rpmsg_device *rpdev)
 	INIT_WORK(&ec_rpmsg->host_event_work,
 		  cros_ec_rpmsg_host_event_function);
 
-	return cros_ec_register(ec_dev);
+	ec_rpmsg->ept = cros_ec_rpmsg_create_ept(rpdev);
+	if (!ec_rpmsg->ept)
+		return -ENOMEM;
+
+	ret = cros_ec_register(ec_dev);
+	if (ret < 0) {
+		rpmsg_destroy_ept(ec_rpmsg->ept);
+		cancel_work_sync(&ec_rpmsg->host_event_work);
+		return ret;
+	}
+
+	return 0;
 }
 
 static void cros_ec_rpmsg_remove(struct rpmsg_device *rpdev)
@@ -233,8 +246,29 @@ static void cros_ec_rpmsg_remove(struct rpmsg_device *rpdev)
 	struct cros_ec_device *ec_dev = dev_get_drvdata(&rpdev->dev);
 	struct cros_ec_rpmsg *ec_rpmsg = ec_dev->priv;
 
+	cros_ec_unregister(ec_dev);
+	rpmsg_destroy_ept(ec_rpmsg->ept);
 	cancel_work_sync(&ec_rpmsg->host_event_work);
 }
+
+#ifdef CONFIG_PM_SLEEP
+static int cros_ec_rpmsg_suspend(struct device *dev)
+{
+	struct cros_ec_device *ec_dev = dev_get_drvdata(dev);
+
+	return cros_ec_suspend(ec_dev);
+}
+
+static int cros_ec_rpmsg_resume(struct device *dev)
+{
+	struct cros_ec_device *ec_dev = dev_get_drvdata(dev);
+
+	return cros_ec_resume(ec_dev);
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(cros_ec_rpmsg_pm_ops, cros_ec_rpmsg_suspend,
+			 cros_ec_rpmsg_resume);
 
 static const struct of_device_id cros_ec_rpmsg_of_match[] = {
 	{ .compatible = "google,cros-ec-rpmsg", },
@@ -246,10 +280,10 @@ static struct rpmsg_driver cros_ec_driver_rpmsg = {
 	.drv = {
 		.name   = "cros-ec-rpmsg",
 		.of_match_table = cros_ec_rpmsg_of_match,
+		.pm	= &cros_ec_rpmsg_pm_ops,
 	},
 	.probe		= cros_ec_rpmsg_probe,
 	.remove		= cros_ec_rpmsg_remove,
-	.callback	= cros_ec_rpmsg_callback,
 };
 
 module_rpmsg_driver(cros_ec_driver_rpmsg);

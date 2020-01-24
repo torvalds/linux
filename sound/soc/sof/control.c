@@ -11,7 +11,38 @@
 /* Mixer Controls */
 
 #include <linux/pm_runtime.h>
+#include <linux/leds.h>
 #include "sof-priv.h"
+
+static void update_mute_led(struct snd_sof_control *scontrol,
+			    struct snd_kcontrol *kcontrol,
+			    struct snd_ctl_elem_value *ucontrol)
+{
+	unsigned int temp = 0;
+	unsigned int mask;
+	int i;
+
+	mask = 1U << snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
+
+	for (i = 0; i < scontrol->num_channels; i++) {
+		if (ucontrol->value.integer.value[i]) {
+			temp |= mask;
+			break;
+		}
+	}
+
+	if (temp == scontrol->led_ctl.led_value)
+		return;
+
+	scontrol->led_ctl.led_value = temp;
+
+#if IS_REACHABLE(CONFIG_LEDS_TRIGGER_AUDIO)
+	if (!scontrol->led_ctl.direction)
+		ledtrig_audio_set(LED_AUDIO_MUTE, temp ? LED_OFF : LED_ON);
+	else
+		ledtrig_audio_set(LED_AUDIO_MICMUTE, temp ? LED_OFF : LED_ON);
+#endif
+}
 
 static inline u32 mixer_to_ipc(unsigned int value, u32 *volume_map, int size)
 {
@@ -39,26 +70,8 @@ int snd_sof_volume_get(struct snd_kcontrol *kcontrol,
 	struct soc_mixer_control *sm =
 		(struct soc_mixer_control *)kcontrol->private_value;
 	struct snd_sof_control *scontrol = sm->dobj.private;
-	struct snd_sof_dev *sdev = scontrol->sdev;
 	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
 	unsigned int i, channels = scontrol->num_channels;
-	int err, ret;
-
-	ret = pm_runtime_get_sync(sdev->dev);
-	if (ret < 0) {
-		dev_err_ratelimited(sdev->dev,
-				    "error: volume get failed to resume %d\n",
-				    ret);
-		pm_runtime_put_noidle(sdev->dev);
-		return ret;
-	}
-
-	/* get all the mixer data from DSP */
-	snd_sof_ipc_set_get_comp_data(sdev->ipc, scontrol,
-				      SOF_IPC_COMP_GET_VALUE,
-				      SOF_CTRL_TYPE_VALUE_CHAN_GET,
-				      SOF_CTRL_CMD_VOLUME,
-				      false);
 
 	/* read back each channel */
 	for (i = 0; i < channels; i++)
@@ -66,12 +79,6 @@ int snd_sof_volume_get(struct snd_kcontrol *kcontrol,
 			ipc_to_mixer(cdata->chanv[i].value,
 				     scontrol->volume_table, sm->max + 1);
 
-	pm_runtime_mark_last_busy(sdev->dev);
-	err = pm_runtime_put_autosuspend(sdev->dev);
-	if (err < 0)
-		dev_err_ratelimited(sdev->dev,
-				    "error: volume get failed to idle %d\n",
-				    err);
 	return 0;
 }
 
@@ -84,39 +91,26 @@ int snd_sof_volume_put(struct snd_kcontrol *kcontrol,
 	struct snd_sof_dev *sdev = scontrol->sdev;
 	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
 	unsigned int i, channels = scontrol->num_channels;
-	int ret, err;
-
-	ret = pm_runtime_get_sync(sdev->dev);
-	if (ret < 0) {
-		dev_err_ratelimited(sdev->dev,
-				    "error: volume put failed to resume %d\n",
-				    ret);
-		pm_runtime_put_noidle(sdev->dev);
-		return ret;
-	}
+	bool change = false;
+	u32 value;
 
 	/* update each channel */
 	for (i = 0; i < channels; i++) {
-		cdata->chanv[i].value =
-			mixer_to_ipc(ucontrol->value.integer.value[i],
+		value = mixer_to_ipc(ucontrol->value.integer.value[i],
 				     scontrol->volume_table, sm->max + 1);
+		change = change || (value != cdata->chanv[i].value);
 		cdata->chanv[i].channel = i;
+		cdata->chanv[i].value = value;
 	}
 
 	/* notify DSP of mixer updates */
-	snd_sof_ipc_set_get_comp_data(sdev->ipc, scontrol,
-				      SOF_IPC_COMP_SET_VALUE,
-				      SOF_CTRL_TYPE_VALUE_CHAN_GET,
-				      SOF_CTRL_CMD_VOLUME,
-				      true);
-
-	pm_runtime_mark_last_busy(sdev->dev);
-	err = pm_runtime_put_autosuspend(sdev->dev);
-	if (err < 0)
-		dev_err_ratelimited(sdev->dev,
-				    "error: volume put failed to idle %d\n",
-				    err);
-	return 0;
+	if (pm_runtime_active(sdev->dev))
+		snd_sof_ipc_set_get_comp_data(sdev->ipc, scontrol,
+					      SOF_IPC_COMP_SET_VALUE,
+					      SOF_CTRL_TYPE_VALUE_CHAN_GET,
+					      SOF_CTRL_CMD_VOLUME,
+					      true);
+	return change;
 }
 
 int snd_sof_switch_get(struct snd_kcontrol *kcontrol,
@@ -125,37 +119,13 @@ int snd_sof_switch_get(struct snd_kcontrol *kcontrol,
 	struct soc_mixer_control *sm =
 		(struct soc_mixer_control *)kcontrol->private_value;
 	struct snd_sof_control *scontrol = sm->dobj.private;
-	struct snd_sof_dev *sdev = scontrol->sdev;
 	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
 	unsigned int i, channels = scontrol->num_channels;
-	int err, ret;
-
-	ret = pm_runtime_get_sync(sdev->dev);
-	if (ret < 0) {
-		dev_err_ratelimited(sdev->dev,
-				    "error: switch get failed to resume %d\n",
-				    ret);
-		pm_runtime_put_noidle(sdev->dev);
-		return ret;
-	}
-
-	/* get all the mixer data from DSP */
-	snd_sof_ipc_set_get_comp_data(sdev->ipc, scontrol,
-				      SOF_IPC_COMP_GET_VALUE,
-				      SOF_CTRL_TYPE_VALUE_CHAN_GET,
-				      SOF_CTRL_CMD_SWITCH,
-				      false);
 
 	/* read back each channel */
 	for (i = 0; i < channels; i++)
 		ucontrol->value.integer.value[i] = cdata->chanv[i].value;
 
-	pm_runtime_mark_last_busy(sdev->dev);
-	err = pm_runtime_put_autosuspend(sdev->dev);
-	if (err < 0)
-		dev_err_ratelimited(sdev->dev,
-				    "error: switch get failed to idle %d\n",
-				    err);
 	return 0;
 }
 
@@ -168,37 +138,29 @@ int snd_sof_switch_put(struct snd_kcontrol *kcontrol,
 	struct snd_sof_dev *sdev = scontrol->sdev;
 	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
 	unsigned int i, channels = scontrol->num_channels;
-	int ret, err;
-
-	ret = pm_runtime_get_sync(sdev->dev);
-	if (ret < 0) {
-		dev_err_ratelimited(sdev->dev,
-				    "error: switch put failed to resume %d\n",
-				    ret);
-		pm_runtime_put_noidle(sdev->dev);
-		return ret;
-	}
+	bool change = false;
+	u32 value;
 
 	/* update each channel */
 	for (i = 0; i < channels; i++) {
-		cdata->chanv[i].value = ucontrol->value.integer.value[i];
+		value = ucontrol->value.integer.value[i];
+		change = change || (value != cdata->chanv[i].value);
 		cdata->chanv[i].channel = i;
+		cdata->chanv[i].value = value;
 	}
 
-	/* notify DSP of mixer updates */
-	snd_sof_ipc_set_get_comp_data(sdev->ipc, scontrol,
-				      SOF_IPC_COMP_SET_VALUE,
-				      SOF_CTRL_TYPE_VALUE_CHAN_GET,
-				      SOF_CTRL_CMD_SWITCH,
-				      true);
+	if (scontrol->led_ctl.use_led)
+		update_mute_led(scontrol, kcontrol, ucontrol);
 
-	pm_runtime_mark_last_busy(sdev->dev);
-	err = pm_runtime_put_autosuspend(sdev->dev);
-	if (err < 0)
-		dev_err_ratelimited(sdev->dev,
-				    "error: switch put failed to idle %d\n",
-				    err);
-	return 0;
+	/* notify DSP of mixer updates */
+	if (pm_runtime_active(sdev->dev))
+		snd_sof_ipc_set_get_comp_data(sdev->ipc, scontrol,
+					      SOF_IPC_COMP_SET_VALUE,
+					      SOF_CTRL_TYPE_VALUE_CHAN_GET,
+					      SOF_CTRL_CMD_SWITCH,
+					      true);
+
+	return change;
 }
 
 int snd_sof_enum_get(struct snd_kcontrol *kcontrol,
@@ -207,37 +169,13 @@ int snd_sof_enum_get(struct snd_kcontrol *kcontrol,
 	struct soc_enum *se =
 		(struct soc_enum *)kcontrol->private_value;
 	struct snd_sof_control *scontrol = se->dobj.private;
-	struct snd_sof_dev *sdev = scontrol->sdev;
 	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
 	unsigned int i, channels = scontrol->num_channels;
-	int err, ret;
-
-	ret = pm_runtime_get_sync(sdev->dev);
-	if (ret < 0) {
-		dev_err_ratelimited(sdev->dev,
-				    "error: enum get failed to resume %d\n",
-				    ret);
-		pm_runtime_put_noidle(sdev->dev);
-		return ret;
-	}
-
-	/* get all the enum data from DSP */
-	snd_sof_ipc_set_get_comp_data(sdev->ipc, scontrol,
-				      SOF_IPC_COMP_GET_VALUE,
-				      SOF_CTRL_TYPE_VALUE_CHAN_GET,
-				      SOF_CTRL_CMD_ENUM,
-				      false);
 
 	/* read back each channel */
 	for (i = 0; i < channels; i++)
 		ucontrol->value.enumerated.item[i] = cdata->chanv[i].value;
 
-	pm_runtime_mark_last_busy(sdev->dev);
-	err = pm_runtime_put_autosuspend(sdev->dev);
-	if (err < 0)
-		dev_err_ratelimited(sdev->dev,
-				    "error: enum get failed to idle %d\n",
-				    err);
 	return 0;
 }
 
@@ -250,37 +188,26 @@ int snd_sof_enum_put(struct snd_kcontrol *kcontrol,
 	struct snd_sof_dev *sdev = scontrol->sdev;
 	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
 	unsigned int i, channels = scontrol->num_channels;
-	int ret, err;
-
-	ret = pm_runtime_get_sync(sdev->dev);
-	if (ret < 0) {
-		dev_err_ratelimited(sdev->dev,
-				    "error: enum put failed to resume %d\n",
-				    ret);
-		pm_runtime_put_noidle(sdev->dev);
-		return ret;
-	}
+	bool change = false;
+	u32 value;
 
 	/* update each channel */
 	for (i = 0; i < channels; i++) {
-		cdata->chanv[i].value = ucontrol->value.enumerated.item[i];
+		value = ucontrol->value.enumerated.item[i];
+		change = change || (value != cdata->chanv[i].value);
 		cdata->chanv[i].channel = i;
+		cdata->chanv[i].value = value;
 	}
 
 	/* notify DSP of enum updates */
-	snd_sof_ipc_set_get_comp_data(sdev->ipc, scontrol,
-				      SOF_IPC_COMP_SET_VALUE,
-				      SOF_CTRL_TYPE_VALUE_CHAN_GET,
-				      SOF_CTRL_CMD_ENUM,
-				      true);
+	if (pm_runtime_active(sdev->dev))
+		snd_sof_ipc_set_get_comp_data(sdev->ipc, scontrol,
+					      SOF_IPC_COMP_SET_VALUE,
+					      SOF_CTRL_TYPE_VALUE_CHAN_GET,
+					      SOF_CTRL_CMD_ENUM,
+					      true);
 
-	pm_runtime_mark_last_busy(sdev->dev);
-	err = pm_runtime_put_autosuspend(sdev->dev);
-	if (err < 0)
-		dev_err_ratelimited(sdev->dev,
-				    "error: enum put failed to idle %d\n",
-				    err);
-	return 0;
+	return change;
 }
 
 int snd_sof_bytes_get(struct snd_kcontrol *kcontrol,
@@ -293,7 +220,7 @@ int snd_sof_bytes_get(struct snd_kcontrol *kcontrol,
 	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
 	struct sof_abi_hdr *data = cdata->data;
 	size_t size;
-	int ret, err;
+	int ret = 0;
 
 	if (be->max > sizeof(ucontrol->value.bytes.data)) {
 		dev_err_ratelimited(sdev->dev,
@@ -301,22 +228,6 @@ int snd_sof_bytes_get(struct snd_kcontrol *kcontrol,
 				    be->max);
 		return -EINVAL;
 	}
-
-	ret = pm_runtime_get_sync(sdev->dev);
-	if (ret < 0) {
-		dev_err_ratelimited(sdev->dev,
-				    "error: bytes get failed to resume %d\n",
-				    ret);
-		pm_runtime_put_noidle(sdev->dev);
-		return ret;
-	}
-
-	/* get all the binary data from DSP */
-	snd_sof_ipc_set_get_comp_data(sdev->ipc, scontrol,
-				      SOF_IPC_COMP_GET_DATA,
-				      SOF_CTRL_TYPE_DATA_GET,
-				      scontrol->cmd,
-				      false);
 
 	size = data->size + sizeof(*data);
 	if (size > be->max) {
@@ -331,12 +242,6 @@ int snd_sof_bytes_get(struct snd_kcontrol *kcontrol,
 	memcpy(ucontrol->value.bytes.data, data, size);
 
 out:
-	pm_runtime_mark_last_busy(sdev->dev);
-	err = pm_runtime_put_autosuspend(sdev->dev);
-	if (err < 0)
-		dev_err_ratelimited(sdev->dev,
-				    "error: bytes get failed to idle %d\n",
-				    err);
 	return ret;
 }
 
@@ -350,7 +255,6 @@ int snd_sof_bytes_put(struct snd_kcontrol *kcontrol,
 	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
 	struct sof_abi_hdr *data = cdata->data;
 	size_t size = data->size + sizeof(*data);
-	int ret, err;
 
 	if (be->max > sizeof(ucontrol->value.bytes.data)) {
 		dev_err_ratelimited(sdev->dev,
@@ -366,32 +270,18 @@ int snd_sof_bytes_put(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 	}
 
-	ret = pm_runtime_get_sync(sdev->dev);
-	if (ret < 0) {
-		dev_err_ratelimited(sdev->dev,
-				    "error: bytes put failed to resume %d\n",
-				    ret);
-		pm_runtime_put_noidle(sdev->dev);
-		return ret;
-	}
-
 	/* copy from kcontrol */
 	memcpy(data, ucontrol->value.bytes.data, size);
 
 	/* notify DSP of byte control updates */
-	snd_sof_ipc_set_get_comp_data(sdev->ipc, scontrol,
-				      SOF_IPC_COMP_SET_DATA,
-				      SOF_CTRL_TYPE_DATA_SET,
-				      scontrol->cmd,
-				      true);
+	if (pm_runtime_active(sdev->dev))
+		snd_sof_ipc_set_get_comp_data(sdev->ipc, scontrol,
+					      SOF_IPC_COMP_SET_DATA,
+					      SOF_CTRL_TYPE_DATA_SET,
+					      scontrol->cmd,
+					      true);
 
-	pm_runtime_mark_last_busy(sdev->dev);
-	err = pm_runtime_put_autosuspend(sdev->dev);
-	if (err < 0)
-		dev_err_ratelimited(sdev->dev,
-				    "error: bytes put failed to idle %d\n",
-				    err);
-	return ret;
+	return 0;
 }
 
 int snd_sof_bytes_ext_put(struct snd_kcontrol *kcontrol,
@@ -406,8 +296,6 @@ int snd_sof_bytes_ext_put(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_tlv header;
 	const struct snd_ctl_tlv __user *tlvd =
 		(const struct snd_ctl_tlv __user *)binary_data;
-	int ret;
-	int err;
 
 	/*
 	 * The beginning of bytes data contains a header from where
@@ -453,30 +341,15 @@ int snd_sof_bytes_ext_put(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 	}
 
-	ret = pm_runtime_get_sync(sdev->dev);
-	if (ret < 0) {
-		dev_err_ratelimited(sdev->dev,
-				    "error: bytes_ext put failed to resume %d\n",
-				    ret);
-		pm_runtime_put_noidle(sdev->dev);
-		return ret;
-	}
-
 	/* notify DSP of byte control updates */
-	snd_sof_ipc_set_get_comp_data(sdev->ipc, scontrol,
-				      SOF_IPC_COMP_SET_DATA,
-				      SOF_CTRL_TYPE_DATA_SET,
-				      scontrol->cmd,
-				      true);
+	if (pm_runtime_active(sdev->dev))
+		snd_sof_ipc_set_get_comp_data(sdev->ipc, scontrol,
+					      SOF_IPC_COMP_SET_DATA,
+					      SOF_CTRL_TYPE_DATA_SET,
+					      scontrol->cmd,
+					      true);
 
-	pm_runtime_mark_last_busy(sdev->dev);
-	err = pm_runtime_put_autosuspend(sdev->dev);
-	if (err < 0)
-		dev_err_ratelimited(sdev->dev,
-				    "error: bytes_ext put failed to idle %d\n",
-				    err);
-
-	return ret;
+	return 0;
 }
 
 int snd_sof_bytes_ext_get(struct snd_kcontrol *kcontrol,
@@ -492,17 +365,7 @@ int snd_sof_bytes_ext_get(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_tlv __user *tlvd =
 		(struct snd_ctl_tlv __user *)binary_data;
 	int data_size;
-	int err;
-	int ret;
-
-	ret = pm_runtime_get_sync(sdev->dev);
-	if (ret < 0) {
-		dev_err_ratelimited(sdev->dev,
-				    "error: bytes_ext get failed to resume %d\n",
-				    ret);
-		pm_runtime_put_noidle(sdev->dev);
-		return ret;
-	}
+	int ret = 0;
 
 	/*
 	 * Decrement the limit by ext bytes header size to
@@ -513,13 +376,6 @@ int snd_sof_bytes_ext_get(struct snd_kcontrol *kcontrol,
 	/* set the ABI header values */
 	cdata->data->magic = SOF_ABI_MAGIC;
 	cdata->data->abi = SOF_ABI_VERSION;
-
-	/* get all the component data from DSP */
-	ret = snd_sof_ipc_set_get_comp_data(sdev->ipc, scontrol,
-					    SOF_IPC_COMP_GET_DATA,
-					    SOF_CTRL_TYPE_DATA_GET,
-					    scontrol->cmd,
-					    false);
 
 	/* Prevent read of other kernel data or possibly corrupt response */
 	data_size = cdata->data->size + sizeof(const struct sof_abi_hdr);
@@ -543,11 +399,5 @@ int snd_sof_bytes_ext_get(struct snd_kcontrol *kcontrol,
 		ret = -EFAULT;
 
 out:
-	pm_runtime_mark_last_busy(sdev->dev);
-	err = pm_runtime_put_autosuspend(sdev->dev);
-	if (err < 0)
-		dev_err_ratelimited(sdev->dev,
-				    "error: bytes_ext get failed to idle %d\n",
-				    err);
 	return ret;
 }

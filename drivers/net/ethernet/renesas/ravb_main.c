@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Renesas Ethernet AVB device driver
  *
- * Copyright (C) 2014-2015 Renesas Electronics Corporation
+ * Copyright (C) 2014-2019 Renesas Electronics Corporation
  * Copyright (C) 2015 Renesas Solutions Corp.
  * Copyright (C) 2015-2016 Cogent Embedded, Inc. <source@cogentembedded.com>
  *
@@ -230,7 +230,7 @@ static void ravb_ring_free(struct net_device *ndev, int q)
 					       le32_to_cpu(desc->dptr)))
 				dma_unmap_single(ndev->dev.parent,
 						 le32_to_cpu(desc->dptr),
-						 priv->rx_buf_sz,
+						 RX_BUF_SZ,
 						 DMA_FROM_DEVICE);
 		}
 		ring_size = sizeof(struct ravb_ex_rx_desc) *
@@ -293,9 +293,9 @@ static void ravb_ring_format(struct net_device *ndev, int q)
 	for (i = 0; i < priv->num_rx_ring[q]; i++) {
 		/* RX descriptor */
 		rx_desc = &priv->rx_ring[q][i];
-		rx_desc->ds_cc = cpu_to_le16(priv->rx_buf_sz);
+		rx_desc->ds_cc = cpu_to_le16(RX_BUF_SZ);
 		dma_addr = dma_map_single(ndev->dev.parent, priv->rx_skb[q][i]->data,
-					  priv->rx_buf_sz,
+					  RX_BUF_SZ,
 					  DMA_FROM_DEVICE);
 		/* We just set the data size to 0 for a failed mapping which
 		 * should prevent DMA from happening...
@@ -342,9 +342,6 @@ static int ravb_ring_init(struct net_device *ndev, int q)
 	int ring_size;
 	int i;
 
-	priv->rx_buf_sz = (ndev->mtu <= 1492 ? PKT_BUF_SZ : ndev->mtu) +
-		ETH_HLEN + VLAN_HLEN + sizeof(__sum16);
-
 	/* Allocate RX and TX skb rings */
 	priv->rx_skb[q] = kcalloc(priv->num_rx_ring[q],
 				  sizeof(*priv->rx_skb[q]), GFP_KERNEL);
@@ -354,7 +351,7 @@ static int ravb_ring_init(struct net_device *ndev, int q)
 		goto error;
 
 	for (i = 0; i < priv->num_rx_ring[q]; i++) {
-		skb = netdev_alloc_skb(ndev, priv->rx_buf_sz + RAVB_ALIGN - 1);
+		skb = netdev_alloc_skb(ndev, RX_BUF_SZ + RAVB_ALIGN - 1);
 		if (!skb)
 			goto error;
 		ravb_set_buffer_align(skb);
@@ -447,12 +444,6 @@ static int ravb_dmac_init(struct net_device *ndev)
 	ravb_ring_format(ndev, RAVB_BE);
 	ravb_ring_format(ndev, RAVB_NC);
 
-#if defined(__LITTLE_ENDIAN)
-	ravb_modify(ndev, CCC, CCC_BOC, 0);
-#else
-	ravb_modify(ndev, CCC, CCC_BOC, CCC_BOC);
-#endif
-
 	/* Set AVB RX */
 	ravb_write(ndev,
 		   RCR_EFFS | RCR_ENCF | RCR_ETS0 | RCR_ESF | 0x18000000, RCR);
@@ -513,7 +504,10 @@ static void ravb_get_tx_tstamp(struct net_device *ndev)
 			kfree(ts_skb);
 			if (tag == tfa_tag) {
 				skb_tstamp_tx(skb, &shhwtstamps);
+				dev_consume_skb_any(skb);
 				break;
+			} else {
+				dev_kfree_skb_any(skb);
 			}
 		}
 		ravb_modify(ndev, TCCR, TCCR_TFR, TCCR_TFR);
@@ -587,7 +581,7 @@ static bool ravb_rx(struct net_device *ndev, int *quota, int q)
 			skb = priv->rx_skb[q][entry];
 			priv->rx_skb[q][entry] = NULL;
 			dma_unmap_single(ndev->dev.parent, le32_to_cpu(desc->dptr),
-					 priv->rx_buf_sz,
+					 RX_BUF_SZ,
 					 DMA_FROM_DEVICE);
 			get_ts &= (q == RAVB_NC) ?
 					RAVB_RXTSTAMP_TYPE_V2_L2_EVENT :
@@ -620,11 +614,11 @@ static bool ravb_rx(struct net_device *ndev, int *quota, int q)
 	for (; priv->cur_rx[q] - priv->dirty_rx[q] > 0; priv->dirty_rx[q]++) {
 		entry = priv->dirty_rx[q] % priv->num_rx_ring[q];
 		desc = &priv->rx_ring[q][entry];
-		desc->ds_cc = cpu_to_le16(priv->rx_buf_sz);
+		desc->ds_cc = cpu_to_le16(RX_BUF_SZ);
 
 		if (!priv->rx_skb[q][entry]) {
 			skb = netdev_alloc_skb(ndev,
-					       priv->rx_buf_sz +
+					       RX_BUF_SZ +
 					       RAVB_ALIGN - 1);
 			if (!skb)
 				break;	/* Better luck next round. */
@@ -1564,7 +1558,7 @@ static netdev_tx_t ravb_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 			}
 			goto unmap;
 		}
-		ts_skb->skb = skb;
+		ts_skb->skb = skb_get(skb);
 		ts_skb->tag = priv->ts_skb_tag++;
 		priv->ts_skb_tag &= 0x3ff;
 		list_add_tail(&ts_skb->list, &priv->ts_skb_list);
@@ -1624,17 +1618,10 @@ static struct net_device_stats *ravb_get_stats(struct net_device *ndev)
 	stats0 = &priv->stats[RAVB_BE];
 	stats1 = &priv->stats[RAVB_NC];
 
-	nstats->tx_dropped += ravb_read(ndev, TROCR);
-	ravb_write(ndev, 0, TROCR);	/* (write clear) */
-	nstats->collisions += ravb_read(ndev, CDCR);
-	ravb_write(ndev, 0, CDCR);	/* (write clear) */
-	nstats->tx_carrier_errors += ravb_read(ndev, LCCR);
-	ravb_write(ndev, 0, LCCR);	/* (write clear) */
-
-	nstats->tx_carrier_errors += ravb_read(ndev, CERCR);
-	ravb_write(ndev, 0, CERCR);	/* (write clear) */
-	nstats->tx_carrier_errors += ravb_read(ndev, CEECR);
-	ravb_write(ndev, 0, CEECR);	/* (write clear) */
+	if (priv->chip_id == RCAR_GEN3) {
+		nstats->tx_dropped += ravb_read(ndev, TROCR);
+		ravb_write(ndev, 0, TROCR);	/* (write clear) */
+	}
 
 	nstats->rx_packets = stats0->rx_packets + stats1->rx_packets;
 	nstats->tx_packets = stats0->tx_packets + stats1->tx_packets;
@@ -1693,6 +1680,7 @@ static int ravb_close(struct net_device *ndev)
 	/* Clear the timestamp list */
 	list_for_each_entry_safe(ts_skb, ts_skb2, &priv->ts_skb_list, list) {
 		list_del(&ts_skb->list);
+		kfree_skb(ts_skb->skb);
 		kfree(ts_skb);
 	}
 
@@ -1810,10 +1798,15 @@ static int ravb_do_ioctl(struct net_device *ndev, struct ifreq *req, int cmd)
 
 static int ravb_change_mtu(struct net_device *ndev, int new_mtu)
 {
-	if (netif_running(ndev))
-		return -EBUSY;
+	struct ravb_private *priv = netdev_priv(ndev);
 
 	ndev->mtu = new_mtu;
+
+	if (netif_running(ndev)) {
+		synchronize_irq(priv->emac_irq);
+		ravb_emac_init(ndev);
+	}
+
 	netdev_update_features(ndev);
 
 	return 0;
@@ -2055,7 +2048,9 @@ static int ravb_probe(struct platform_device *pdev)
 	spin_lock_init(&priv->lock);
 	INIT_WORK(&priv->work, ravb_tx_timeout_work);
 
-	priv->phy_interface = of_get_phy_mode(np);
+	error = of_get_phy_mode(np, &priv->phy_interface);
+	if (error && error != -ENODEV)
+		goto out_release;
 
 	priv->no_avb_link = of_property_read_bool(np, "renesas,no-ether-link");
 	priv->avb_link_active_low =

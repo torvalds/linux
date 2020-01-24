@@ -20,7 +20,7 @@
 int ceph_mdsmap_get_random_mds(struct ceph_mdsmap *m)
 {
 	int n = 0;
-	int i;
+	int i, j;
 
 	/* special case for one mds */
 	if (1 == m->m_num_mds && m->m_info[0].state > 0)
@@ -35,9 +35,12 @@ int ceph_mdsmap_get_random_mds(struct ceph_mdsmap *m)
 
 	/* pick */
 	n = prandom_u32() % n;
-	for (i = 0; n > 0; i++, n--)
-		while (m->m_info[i].state <= 0)
-			i++;
+	for (j = 0, i = 0; i < m->m_num_mds; i++) {
+		if (m->m_info[i].state > 0)
+			j++;
+		if (j > n)
+			break;
+	}
 
 	return i;
 }
@@ -107,7 +110,7 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 	struct ceph_mdsmap *m;
 	const void *start = *p;
 	int i, j, n;
-	int err = -EINVAL;
+	int err;
 	u8 mdsmap_v, mdsmap_cv;
 	u16 mdsmap_ev;
 
@@ -155,6 +158,7 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 		void *pexport_targets = NULL;
 		struct ceph_timespec laggy_since;
 		struct ceph_mds_info *info;
+		bool laggy;
 
 		ceph_decode_need(p, end, sizeof(u64) + 1, bad);
 		global_id = ceph_decode_64(p);
@@ -183,9 +187,11 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 		inc = ceph_decode_32(p);
 		state = ceph_decode_32(p);
 		state_seq = ceph_decode_64(p);
-		ceph_decode_copy(p, &addr, sizeof(addr));
-		ceph_decode_addr(&addr);
+		err = ceph_decode_entity_addr(p, end, &addr);
+		if (err)
+			goto corrupt;
 		ceph_decode_copy(p, &laggy_since, sizeof(laggy_since));
+		laggy = laggy_since.tv_sec != 0 || laggy_since.tv_nsec != 0;
 		*p += sizeof(u32);
 		ceph_decode_32_safe(p, end, namelen, bad);
 		*p += namelen;
@@ -203,10 +209,11 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 			*p = info_end;
 		}
 
-		dout("mdsmap_decode %d/%d %lld mds%d.%d %s %s\n",
+		dout("mdsmap_decode %d/%d %lld mds%d.%d %s %s%s\n",
 		     i+1, n, global_id, mds, inc,
 		     ceph_pr_addr(&addr),
-		     ceph_mds_state_name(state));
+		     ceph_mds_state_name(state),
+		     laggy ? "(laggy)" : "");
 
 		if (mds < 0 || state <= 0)
 			continue;
@@ -226,8 +233,7 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 		info->global_id = global_id;
 		info->state = state;
 		info->addr = addr;
-		info->laggy = (laggy_since.tv_sec != 0 ||
-			       laggy_since.tv_nsec != 0);
+		info->laggy = laggy;
 		info->num_export_targets = num_export_targets;
 		if (num_export_targets) {
 			info->export_targets = kcalloc(num_export_targets,
@@ -351,13 +357,15 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 		m->m_damaged = false;
 	}
 bad_ext:
+	dout("mdsmap_decode m_enabled: %d, m_damaged: %d, m_num_laggy: %d\n",
+	     !!m->m_enabled, !!m->m_damaged, m->m_num_laggy);
 	*p = end;
 	dout("mdsmap_decode success epoch %u\n", m->m_epoch);
 	return m;
 nomem:
 	err = -ENOMEM;
 	goto out_err;
-bad:
+corrupt:
 	pr_err("corrupt mdsmap\n");
 	print_hex_dump(KERN_DEBUG, "mdsmap: ",
 		       DUMP_PREFIX_OFFSET, 16, 1,
@@ -365,6 +373,9 @@ bad:
 out_err:
 	ceph_mdsmap_destroy(m);
 	return ERR_PTR(err);
+bad:
+	err = -EINVAL;
+	goto corrupt;
 }
 
 void ceph_mdsmap_destroy(struct ceph_mdsmap *m)

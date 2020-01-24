@@ -36,16 +36,14 @@ static int utimes_common(const struct path *path, struct timespec64 *times)
 		if (times[0].tv_nsec == UTIME_OMIT)
 			newattrs.ia_valid &= ~ATTR_ATIME;
 		else if (times[0].tv_nsec != UTIME_NOW) {
-			newattrs.ia_atime.tv_sec = times[0].tv_sec;
-			newattrs.ia_atime.tv_nsec = times[0].tv_nsec;
+			newattrs.ia_atime = timestamp_truncate(times[0], inode);
 			newattrs.ia_valid |= ATTR_ATIME_SET;
 		}
 
 		if (times[1].tv_nsec == UTIME_OMIT)
 			newattrs.ia_valid &= ~ATTR_MTIME;
 		else if (times[1].tv_nsec != UTIME_NOW) {
-			newattrs.ia_mtime.tv_sec = times[1].tv_sec;
-			newattrs.ia_mtime.tv_nsec = times[1].tv_nsec;
+			newattrs.ia_mtime = timestamp_truncate(times[1], inode);
 			newattrs.ia_valid |= ATTR_MTIME_SET;
 		}
 		/*
@@ -163,9 +161,9 @@ SYSCALL_DEFINE4(utimensat, int, dfd, const char __user *, filename,
  * utimensat() instead.
  */
 static long do_futimesat(int dfd, const char __user *filename,
-			 struct timeval __user *utimes)
+			 struct __kernel_old_timeval __user *utimes)
 {
-	struct timeval times[2];
+	struct __kernel_old_timeval times[2];
 	struct timespec64 tstimes[2];
 
 	if (utimes) {
@@ -192,13 +190,13 @@ static long do_futimesat(int dfd, const char __user *filename,
 
 
 SYSCALL_DEFINE3(futimesat, int, dfd, const char __user *, filename,
-		struct timeval __user *, utimes)
+		struct __kernel_old_timeval __user *, utimes)
 {
 	return do_futimesat(dfd, filename, utimes);
 }
 
 SYSCALL_DEFINE2(utimes, char __user *, filename,
-		struct timeval __user *, utimes)
+		struct __kernel_old_timeval __user *, utimes)
 {
 	return do_futimesat(AT_FDCWD, filename, utimes);
 }

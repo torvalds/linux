@@ -40,6 +40,7 @@
 #include <linux/ipmi.h>
 #include <linux/ipmi_smi.h>
 #include "ipmi_si.h"
+#include "ipmi_si_sm.h"
 #include <linux/string.h>
 #include <linux/ctype.h>
 
@@ -71,7 +72,7 @@ enum si_intf_state {
 
 static const char * const si_to_str[] = { "invalid", "kcs", "smic", "bt" };
 
-static int initialized;
+static bool initialized;
 
 /*
  * Indexes into stats[] in smi_info below.
@@ -221,6 +222,9 @@ struct smi_info {
 	 */
 	bool irq_enable_broken;
 
+	/* Is the driver in maintenance mode? */
+	bool in_maintenance_mode;
+
 	/*
 	 * Did we get an attention that we did not handle?
 	 */
@@ -264,7 +268,7 @@ void debug_timestamp(char *msg)
 	struct timespec64 t;
 
 	ktime_get_ts64(&t);
-	pr_debug("**%s: %lld.%9.9ld\n", msg, (long long) t.tv_sec, t.tv_nsec);
+	pr_debug("**%s: %lld.%9.9ld\n", msg, t.tv_sec, t.tv_nsec);
 }
 #else
 #define debug_timestamp(x)
@@ -931,42 +935,29 @@ static void set_run_to_completion(void *send_info, bool i_run_to_completion)
 }
 
 /*
- * Use -1 in the nsec value of the busy waiting timespec to tell that
- * we are spinning in kipmid looking for something and not delaying
- * between checks
+ * Use -1 as a special constant to tell that we are spinning in kipmid
+ * looking for something and not delaying between checks
  */
-static inline void ipmi_si_set_not_busy(struct timespec64 *ts)
-{
-	ts->tv_nsec = -1;
-}
-static inline int ipmi_si_is_busy(struct timespec64 *ts)
-{
-	return ts->tv_nsec != -1;
-}
-
-static inline int ipmi_thread_busy_wait(enum si_sm_result smi_result,
-					const struct smi_info *smi_info,
-					struct timespec64 *busy_until)
+#define IPMI_TIME_NOT_BUSY ns_to_ktime(-1ull)
+static inline bool ipmi_thread_busy_wait(enum si_sm_result smi_result,
+					 const struct smi_info *smi_info,
+					 ktime_t *busy_until)
 {
 	unsigned int max_busy_us = 0;
 
 	if (smi_info->si_num < num_max_busy_us)
 		max_busy_us = kipmid_max_busy_us[smi_info->si_num];
 	if (max_busy_us == 0 || smi_result != SI_SM_CALL_WITH_DELAY)
-		ipmi_si_set_not_busy(busy_until);
-	else if (!ipmi_si_is_busy(busy_until)) {
-		ktime_get_ts64(busy_until);
-		timespec64_add_ns(busy_until, max_busy_us*NSEC_PER_USEC);
+		*busy_until = IPMI_TIME_NOT_BUSY;
+	else if (*busy_until == IPMI_TIME_NOT_BUSY) {
+		*busy_until = ktime_get() + max_busy_us * NSEC_PER_USEC;
 	} else {
-		struct timespec64 now;
-
-		ktime_get_ts64(&now);
-		if (unlikely(timespec64_compare(&now, busy_until) > 0)) {
-			ipmi_si_set_not_busy(busy_until);
-			return 0;
+		if (unlikely(ktime_get() > *busy_until)) {
+			*busy_until = IPMI_TIME_NOT_BUSY;
+			return false;
 		}
 	}
-	return 1;
+	return true;
 }
 
 
@@ -984,9 +975,8 @@ static int ipmi_thread(void *data)
 	struct smi_info *smi_info = data;
 	unsigned long flags;
 	enum si_sm_result smi_result;
-	struct timespec64 busy_until;
+	ktime_t busy_until = IPMI_TIME_NOT_BUSY;
 
-	ipmi_si_set_not_busy(&busy_until);
 	set_user_nice(current, MAX_NICE);
 	while (!kthread_should_stop()) {
 		int busy_wait;
@@ -1007,11 +997,20 @@ static int ipmi_thread(void *data)
 		spin_unlock_irqrestore(&(smi_info->si_lock), flags);
 		busy_wait = ipmi_thread_busy_wait(smi_result, smi_info,
 						  &busy_until);
-		if (smi_result == SI_SM_CALL_WITHOUT_DELAY)
+		if (smi_result == SI_SM_CALL_WITHOUT_DELAY) {
 			; /* do nothing */
-		else if (smi_result == SI_SM_CALL_WITH_DELAY && busy_wait)
-			schedule();
-		else if (smi_result == SI_SM_IDLE) {
+		} else if (smi_result == SI_SM_CALL_WITH_DELAY && busy_wait) {
+			/*
+			 * In maintenance mode we run as fast as
+			 * possible to allow firmware updates to
+			 * complete as fast as possible, but normally
+			 * don't bang on the scheduler.
+			 */
+			if (smi_info->in_maintenance_mode)
+				schedule();
+			else
+				usleep_range(100, 200);
+		} else if (smi_result == SI_SM_IDLE) {
 			if (atomic_read(&smi_info->need_watch)) {
 				schedule_timeout_interruptible(100);
 			} else {
@@ -1019,8 +1018,9 @@ static int ipmi_thread(void *data)
 				__set_current_state(TASK_INTERRUPTIBLE);
 				schedule();
 			}
-		} else
+		} else {
 			schedule_timeout_interruptible(1);
+		}
 	}
 	return 0;
 }
@@ -1198,6 +1198,7 @@ static void set_maintenance_mode(void *send_info, bool enable)
 
 	if (!enable)
 		atomic_set(&smi_info->req_events, 0);
+	smi_info->in_maintenance_mode = enable;
 }
 
 static void shutdown_smi(void *send_info);
@@ -1266,12 +1267,12 @@ int ipmi_std_irq_setup(struct si_sm_io *io)
 	rv = request_irq(io->irq,
 			 ipmi_si_irq_handler,
 			 IRQF_SHARED,
-			 DEVICE_NAME,
+			 SI_DEVICE_NAME,
 			 io->irq_handler_data);
 	if (rv) {
 		dev_warn(io->dev, "%s unable to claim interrupt %d,"
 			 " running polled\n",
-			 DEVICE_NAME, io->irq);
+			 SI_DEVICE_NAME, io->irq);
 		io->irq = 0;
 	} else {
 		io->irq_cleanup = std_irq_cleanup;
@@ -1586,37 +1587,37 @@ out:
 }
 
 #define IPMI_SI_ATTR(name) \
-static ssize_t ipmi_##name##_show(struct device *dev,			\
-				  struct device_attribute *attr,	\
-				  char *buf)				\
+static ssize_t name##_show(struct device *dev,			\
+			   struct device_attribute *attr,		\
+			   char *buf)					\
 {									\
 	struct smi_info *smi_info = dev_get_drvdata(dev);		\
 									\
 	return snprintf(buf, 10, "%u\n", smi_get_stat(smi_info, name));	\
 }									\
-static DEVICE_ATTR(name, S_IRUGO, ipmi_##name##_show, NULL)
+static DEVICE_ATTR(name, 0444, name##_show, NULL)
 
-static ssize_t ipmi_type_show(struct device *dev,
-			      struct device_attribute *attr,
-			      char *buf)
+static ssize_t type_show(struct device *dev,
+			 struct device_attribute *attr,
+			 char *buf)
 {
 	struct smi_info *smi_info = dev_get_drvdata(dev);
 
 	return snprintf(buf, 10, "%s\n", si_to_str[smi_info->io.si_type]);
 }
-static DEVICE_ATTR(type, S_IRUGO, ipmi_type_show, NULL);
+static DEVICE_ATTR(type, 0444, type_show, NULL);
 
-static ssize_t ipmi_interrupts_enabled_show(struct device *dev,
-					    struct device_attribute *attr,
-					    char *buf)
+static ssize_t interrupts_enabled_show(struct device *dev,
+				       struct device_attribute *attr,
+				       char *buf)
 {
 	struct smi_info *smi_info = dev_get_drvdata(dev);
 	int enabled = smi_info->io.irq && !smi_info->interrupt_disabled;
 
 	return snprintf(buf, 10, "%d\n", enabled);
 }
-static DEVICE_ATTR(interrupts_enabled, S_IRUGO,
-		   ipmi_interrupts_enabled_show, NULL);
+static DEVICE_ATTR(interrupts_enabled, 0444,
+		   interrupts_enabled_show, NULL);
 
 IPMI_SI_ATTR(short_timeouts);
 IPMI_SI_ATTR(long_timeouts);
@@ -1630,9 +1631,9 @@ IPMI_SI_ATTR(events);
 IPMI_SI_ATTR(watchdog_pretimeouts);
 IPMI_SI_ATTR(incoming_messages);
 
-static ssize_t ipmi_params_show(struct device *dev,
-				struct device_attribute *attr,
-				char *buf)
+static ssize_t params_show(struct device *dev,
+			   struct device_attribute *attr,
+			   char *buf)
 {
 	struct smi_info *smi_info = dev_get_drvdata(dev);
 
@@ -1647,7 +1648,7 @@ static ssize_t ipmi_params_show(struct device *dev,
 			smi_info->io.irq,
 			smi_info->io.slave_addr);
 }
-static DEVICE_ATTR(params, S_IRUGO, ipmi_params_show, NULL);
+static DEVICE_ATTR(params, 0444, params_show, NULL);
 
 static struct attribute *ipmi_si_dev_attrs[] = {
 	&dev_attr_type.attr,
@@ -1828,8 +1829,7 @@ static inline void stop_timer_and_thread(struct smi_info *smi_info)
 	}
 
 	smi_info->timer_can_start = false;
-	if (smi_info->timer_running)
-		del_timer_sync(&smi_info->si_timer);
+	del_timer_sync(&smi_info->si_timer);
 }
 
 static struct smi_info *find_dup_si(struct smi_info *info)
@@ -2124,7 +2124,7 @@ static int __init init_ipmi_si(void)
 	}
 
 skip_fallback_noirq:
-	initialized = 1;
+	initialized = true;
 	mutex_unlock(&smi_infos_lock);
 
 	if (type)

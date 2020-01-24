@@ -315,6 +315,10 @@ static const struct of_device_id rcar_gen3_thermal_dt_ids[] = {
 		.data = &rcar_gen3_ths_tj_1_m3_w,
 	},
 	{
+		.compatible = "renesas,r8a774b1-thermal",
+		.data = &rcar_gen3_ths_tj_1,
+	},
+	{
 		.compatible = "renesas,r8a7795-thermal",
 		.data = &rcar_gen3_ths_tj_1,
 	},
@@ -443,9 +447,8 @@ static int rcar_gen3_thermal_probe(struct platform_device *pdev)
 		if (ret)
 			goto error_unregister;
 
-		ret = devm_add_action(dev, rcar_gen3_hwmon_action, zone);
+		ret = devm_add_action_or_reset(dev, rcar_gen3_hwmon_action, zone);
 		if (ret) {
-			rcar_gen3_hwmon_action(zone);
 			goto error_unregister;
 		}
 

@@ -58,8 +58,8 @@ extern int remove_proc_subtree(const char *, struct proc_dir_entry *);
 struct proc_dir_entry *proc_create_net_data(const char *name, umode_t mode,
 		struct proc_dir_entry *parent, const struct seq_operations *ops,
 		unsigned int state_size, void *data);
-#define proc_create_net(name, mode, parent, state_size, ops) \
-	proc_create_net_data(name, mode, parent, state_size, ops, NULL)
+#define proc_create_net(name, mode, parent, ops, state_size) \
+	proc_create_net_data(name, mode, parent, ops, state_size, NULL)
 struct proc_dir_entry *proc_create_net_single(const char *name, umode_t mode,
 		struct proc_dir_entry *parent,
 		int (*show)(struct seq_file *, void *), void *data);
@@ -74,6 +74,15 @@ struct proc_dir_entry *proc_create_net_single_write(const char *name, umode_t mo
 						    proc_write_t write,
 						    void *data);
 extern struct pid *tgid_pidfd_to_pid(const struct file *file);
+
+#ifdef CONFIG_PROC_PID_ARCH_STATUS
+/*
+ * The architecture which selects CONFIG_PROC_PID_ARCH_STATUS must
+ * provide proc_pid_arch_status() definition.
+ */
+int proc_pid_arch_status(struct seq_file *m, struct pid_namespace *ns,
+			struct pid *pid, struct task_struct *task);
+#endif /* CONFIG_PROC_PID_ARCH_STATUS */
 
 #else /* CONFIG_PROC_FS */
 

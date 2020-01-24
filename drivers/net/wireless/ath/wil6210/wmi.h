@@ -1,19 +1,8 @@
+/* SPDX-License-Identifier: ISC */
 /*
  * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
  * Copyright (c) 2012-2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2006-2012 Wilocity
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 /*
@@ -35,6 +24,7 @@
 #define WMI_PROX_RANGE_NUM		(3)
 #define WMI_MAX_LOSS_DMG_BEACONS	(20)
 #define MAX_NUM_OF_SECTORS		(128)
+#define WMI_INVALID_TEMPERATURE		(0xFFFFFFFF)
 #define WMI_SCHED_MAX_ALLOCS_PER_CMD	(4)
 #define WMI_RF_DTYPE_LENGTH		(3)
 #define WMI_RF_ETYPE_LENGTH		(3)
@@ -64,6 +54,7 @@
 #define WMI_QOS_MAX_WEIGHT		50
 #define WMI_QOS_SET_VIF_PRIORITY	(0xFF)
 #define WMI_QOS_DEFAULT_PRIORITY	(WMI_QOS_NUM_OF_PRIORITY)
+#define WMI_MAX_XIF_PORTS_NUM		(8)
 
 /* Mailbox interface
  * used for commands and events
@@ -95,6 +86,7 @@ enum wmi_fw_capability {
 	WMI_FW_CAPABILITY_SET_SILENT_RSSI_TABLE		= 13,
 	WMI_FW_CAPABILITY_LO_POWER_CALIB_FROM_OTP	= 14,
 	WMI_FW_CAPABILITY_PNO				= 15,
+	WMI_FW_CAPABILITY_CHANNEL_BONDING		= 17,
 	WMI_FW_CAPABILITY_REF_CLOCK_CONTROL		= 18,
 	WMI_FW_CAPABILITY_AP_SME_OFFLOAD_NONE		= 19,
 	WMI_FW_CAPABILITY_MULTI_VIFS			= 20,
@@ -105,6 +97,8 @@ enum wmi_fw_capability {
 	WMI_FW_CAPABILITY_TX_REQ_EXT			= 25,
 	WMI_FW_CAPABILITY_CHANNEL_4			= 26,
 	WMI_FW_CAPABILITY_IPA				= 27,
+	WMI_FW_CAPABILITY_TEMPERATURE_ALL_RF		= 30,
+	WMI_FW_CAPABILITY_SPLIT_REKEY			= 31,
 	WMI_FW_CAPABILITY_MAX,
 };
 
@@ -296,6 +290,7 @@ enum wmi_command_id {
 	WMI_SET_VRING_PRIORITY_WEIGHT_CMDID		= 0xA10,
 	WMI_SET_VRING_PRIORITY_CMDID			= 0xA11,
 	WMI_RBUFCAP_CFG_CMDID				= 0xA12,
+	WMI_TEMP_SENSE_ALL_CMDID			= 0xA13,
 	WMI_SET_MAC_ADDRESS_CMDID			= 0xF003,
 	WMI_ABORT_SCAN_CMDID				= 0xF007,
 	WMI_SET_PROMISCUOUS_MODE_CMDID			= 0xF041,
@@ -357,6 +352,19 @@ enum wmi_connect_ctrl_flag_bits {
 
 #define WMI_MAX_SSID_LEN	(32)
 
+enum wmi_channel {
+	WMI_CHANNEL_1	= 0x00,
+	WMI_CHANNEL_2	= 0x01,
+	WMI_CHANNEL_3	= 0x02,
+	WMI_CHANNEL_4	= 0x03,
+	WMI_CHANNEL_5	= 0x04,
+	WMI_CHANNEL_6	= 0x05,
+	WMI_CHANNEL_9	= 0x06,
+	WMI_CHANNEL_10	= 0x07,
+	WMI_CHANNEL_11	= 0x08,
+	WMI_CHANNEL_12	= 0x09,
+};
+
 /* WMI_CONNECT_CMDID */
 struct wmi_connect_cmd {
 	u8 network_type;
@@ -368,8 +376,12 @@ struct wmi_connect_cmd {
 	u8 group_crypto_len;
 	u8 ssid_len;
 	u8 ssid[WMI_MAX_SSID_LEN];
+	/* enum wmi_channel WMI_CHANNEL_1..WMI_CHANNEL_6; for EDMG this is
+	 * the primary channel number
+	 */
 	u8 channel;
-	u8 reserved0;
+	/* enum wmi_channel WMI_CHANNEL_9..WMI_CHANNEL_12 */
+	u8 edmg_channel;
 	u8 bssid[WMI_MAC_LEN];
 	__le32 ctrl_flags;
 	u8 dst_mac[WMI_MAC_LEN];
@@ -399,6 +411,8 @@ enum wmi_key_usage {
 	WMI_KEY_USE_PAIRWISE	= 0x00,
 	WMI_KEY_USE_RX_GROUP	= 0x01,
 	WMI_KEY_USE_TX_GROUP	= 0x02,
+	WMI_KEY_USE_STORE_PTK	= 0x03,
+	WMI_KEY_USE_APPLY_PTK	= 0x04,
 };
 
 struct wmi_add_cipher_key_cmd {
@@ -1411,12 +1425,7 @@ struct wmi_rf_xpm_write_cmd {
 	u8 data_bytes[0];
 } __packed;
 
-/* WMI_TEMP_SENSE_CMDID
- *
- * Measure MAC and radio temperatures
- *
- * Possible modes for temperature measurement
- */
+/* Possible modes for temperature measurement */
 enum wmi_temperature_measure_mode {
 	TEMPERATURE_USE_OLD_VALUE	= 0x01,
 	TEMPERATURE_MEASURE_NOW		= 0x02,
@@ -1942,6 +1951,14 @@ struct wmi_set_ap_slot_size_cmd {
 	__le32 slot_size;
 } __packed;
 
+/* WMI_TEMP_SENSE_ALL_CMDID */
+struct wmi_temp_sense_all_cmd {
+	u8 measure_baseband_en;
+	u8 measure_rf_en;
+	u8 measure_mode;
+	u8 reserved;
+} __packed;
+
 /* WMI Events
  * List of Events (target to host)
  */
@@ -2101,6 +2118,7 @@ enum wmi_event_id {
 	WMI_SET_VRING_PRIORITY_WEIGHT_EVENTID		= 0x1A10,
 	WMI_SET_VRING_PRIORITY_EVENTID			= 0x1A11,
 	WMI_RBUFCAP_CFG_EVENTID				= 0x1A12,
+	WMI_TEMP_SENSE_ALL_DONE_EVENTID			= 0x1A13,
 	WMI_SET_CHANNEL_EVENTID				= 0x9000,
 	WMI_ASSOC_REQ_EVENTID				= 0x9001,
 	WMI_EAPOL_RX_EVENTID				= 0x9002,
@@ -2304,8 +2322,12 @@ struct wmi_notify_req_done_event {
 
 /* WMI_CONNECT_EVENTID */
 struct wmi_connect_event {
+	/* enum wmi_channel WMI_CHANNEL_1..WMI_CHANNEL_6; for EDMG this is
+	 * the primary channel number
+	 */
 	u8 channel;
-	u8 reserved0;
+	/* enum wmi_channel WMI_CHANNEL_9..WMI_CHANNEL_12 */
+	u8 edmg_channel;
 	u8 bssid[WMI_MAC_LEN];
 	__le16 listen_interval;
 	__le16 beacon_interval;
@@ -2784,11 +2806,13 @@ struct wmi_fixed_scheduling_ul_config_event {
  */
 struct wmi_temp_sense_done_event {
 	/* Temperature times 1000 (actual temperature will be achieved by
-	 * dividing the value by 1000)
+	 * dividing the value by 1000). When temperature cannot be read from
+	 * device return WMI_INVALID_TEMPERATURE
 	 */
 	__le32 baseband_t1000;
 	/* Temperature times 1000 (actual temperature will be achieved by
-	 * dividing the value by 1000)
+	 * dividing the value by 1000). When temperature cannot be read from
+	 * device return WMI_INVALID_TEMPERATURE
 	 */
 	__le32 rf_t1000;
 } __packed;
@@ -4138,6 +4162,27 @@ struct wmi_rbufcap_cfg_event {
 	/* enum wmi_fw_status */
 	u8 status;
 	u8 reserved[3];
+} __packed;
+
+/* WMI_TEMP_SENSE_ALL_DONE_EVENTID
+ * Measure MAC and all radio temperatures
+ */
+struct wmi_temp_sense_all_done_event {
+	/* enum wmi_fw_status */
+	u8 status;
+	/* Bitmap of connected RFs */
+	u8 rf_bitmap;
+	u8 reserved[2];
+	/* Temperature times 1000 (actual temperature will be achieved by
+	 * dividing the value by 1000). When temperature cannot be read from
+	 * device return WMI_INVALID_TEMPERATURE
+	 */
+	__le32 rf_t1000[WMI_MAX_XIF_PORTS_NUM];
+	/* Temperature times 1000 (actual temperature will be achieved by
+	 * dividing the value by 1000). When temperature cannot be read from
+	 * device return WMI_INVALID_TEMPERATURE
+	 */
+	__le32 baseband_t1000;
 } __packed;
 
 #endif /* __WILOCITY_WMI_H__ */

@@ -29,6 +29,13 @@
 #include "dc_types.h"
 #include "grph_object_defs.h"
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+enum dc_link_fec_state {
+	dc_link_fec_not_ready,
+	dc_link_fec_ready,
+	dc_link_fec_enabled
+};
+#endif
 struct dc_link_status {
 	bool link_active;
 	struct dpcd_caps *dpcd_caps;
@@ -75,6 +82,9 @@ struct dc_link {
 	enum dc_irq_source irq_source_hpd_rx;/* aka DP Short Pulse  */
 	bool is_hpd_filter_disabled;
 	bool dp_ss_off;
+	bool link_state_valid;
+	bool aux_access_disabled;
+	bool sync_lt_in_progress;
 
 	/* caps is the same as reported_link_cap. link_traing use
 	 * reported_link_cap. Will clean up.  TODO
@@ -84,6 +94,7 @@ struct dc_link {
 	struct dc_link_settings cur_link_settings;
 	struct dc_lane_settings cur_lane_setting;
 	struct dc_link_settings preferred_link_setting;
+	struct dc_link_training_overrides preferred_training_settings;
 
 	uint8_t ddc_hw_inst;
 
@@ -115,7 +126,8 @@ struct dc_link {
 	unsigned short chip_caps;
 	unsigned int dpcd_sink_count;
 	enum edp_revision edp_revision;
-	bool psr_enabled;
+	bool psr_feature_enabled;
+	bool psr_allow_active;
 
 	/* MST record stream using this link */
 	struct link_flags {
@@ -128,6 +140,9 @@ struct dc_link {
 
 	struct link_trace link_trace;
 	struct gpio *hpd_gpio;
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	enum dc_link_fec_state fec_state;
+#endif
 };
 
 const struct dc_link_status *dc_link_get_status(const struct dc_link *dc_link);
@@ -144,6 +159,18 @@ static inline struct dc_link *dc_get_link_at_index(struct dc *dc, uint32_t link_
 	return dc->links[link_index];
 }
 
+static inline struct dc_link *get_edp_link(const struct dc *dc)
+{
+	int i;
+
+	// report any eDP links, even unconnected DDI's
+	for (i = 0; i < dc->link_count; i++) {
+		if (dc->links[i]->connector_signal == SIGNAL_TYPE_EDP)
+			return dc->links[i];
+	}
+	return NULL;
+}
+
 /* Set backlight level of an embedded panel (eDP, LVDS).
  * backlight_pwm_u16_16 is unsigned 32 bit with 16 bit integer
  * and 16 bit fractional, where 1.0 is max backlight value.
@@ -156,7 +183,7 @@ int dc_link_get_backlight_level(const struct dc_link *dc_link);
 
 bool dc_link_set_abm_disable(const struct dc_link *dc_link);
 
-bool dc_link_set_psr_enable(const struct dc_link *dc_link, bool enable, bool wait);
+bool dc_link_set_psr_allow_active(struct dc_link *dc_link, bool enable, bool wait);
 
 bool dc_link_get_psr_state(const struct dc_link *dc_link, uint32_t *psr_state);
 
@@ -178,6 +205,7 @@ enum dc_detect_reason {
 
 bool dc_link_detect(struct dc_link *dc_link, enum dc_detect_reason reason);
 bool dc_link_get_hpd_state(struct dc_link *dc_link);
+enum dc_status dc_link_allocate_mst_payload(struct pipe_ctx *pipe_ctx);
 
 /* Notify DC about DP RX Interrupt (aka Short Pulse Interrupt).
  * Return:
@@ -206,10 +234,23 @@ void dc_link_dp_set_drive_settings(
 	struct dc_link *link,
 	struct link_training_settings *lt_settings);
 
+bool dc_link_dp_perform_link_training_skip_aux(
+	struct dc_link *link,
+	const struct dc_link_settings *link_setting);
+
 enum link_training_result dc_link_dp_perform_link_training(
 	struct dc_link *link,
 	const struct dc_link_settings *link_setting,
 	bool skip_video_pattern);
+
+bool dc_link_dp_sync_lt_begin(struct dc_link *link);
+
+enum link_training_result dc_link_dp_sync_lt_attempt(
+	struct dc_link *link,
+	struct dc_link_settings *link_setting,
+	struct dc_link_training_overrides *lt_settings);
+
+bool dc_link_dp_sync_lt_end(struct dc_link *link, bool link_down);
 
 void dc_link_dp_enable_hpd(const struct dc_link *link);
 
@@ -240,6 +281,11 @@ void dc_link_perform_link_training(struct dc *dc,
 void dc_link_set_preferred_link_settings(struct dc *dc,
 					 struct dc_link_settings *link_setting,
 					 struct dc_link *link);
+void dc_link_set_preferred_training_settings(struct dc *dc,
+					struct dc_link_settings *link_setting,
+					struct dc_link_training_overrides *lt_overrides,
+					struct dc_link *link,
+					bool skip_immediate_retrain);
 void dc_link_enable_hpd(const struct dc_link *link);
 void dc_link_disable_hpd(const struct dc_link *link);
 void dc_link_set_test_pattern(struct dc_link *link,

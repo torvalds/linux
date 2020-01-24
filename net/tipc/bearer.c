@@ -44,6 +44,7 @@
 #include "netlink.h"
 #include "udp_media.h"
 #include "trace.h"
+#include "crypto.h"
 
 #define MAX_ADDR_STR 60
 
@@ -62,7 +63,7 @@ static struct tipc_bearer *bearer_get(struct net *net, int bearer_id)
 {
 	struct tipc_net *tn = tipc_net(net);
 
-	return rcu_dereference_rtnl(tn->bearer_list[bearer_id]);
+	return rcu_dereference(tn->bearer_list[bearer_id]);
 }
 
 static void bearer_disable(struct net *net, struct tipc_bearer *b);
@@ -210,7 +211,7 @@ void tipc_bearer_add_dest(struct net *net, u32 bearer_id, u32 dest)
 	struct tipc_bearer *b;
 
 	rcu_read_lock();
-	b = rcu_dereference_rtnl(tn->bearer_list[bearer_id]);
+	b = rcu_dereference(tn->bearer_list[bearer_id]);
 	if (b)
 		tipc_disc_add_dest(b->disc);
 	rcu_read_unlock();
@@ -222,7 +223,7 @@ void tipc_bearer_remove_dest(struct net *net, u32 bearer_id, u32 dest)
 	struct tipc_bearer *b;
 
 	rcu_read_lock();
-	b = rcu_dereference_rtnl(tn->bearer_list[bearer_id]);
+	b = rcu_dereference(tn->bearer_list[bearer_id]);
 	if (b)
 		tipc_disc_remove_dest(b->disc);
 	rcu_read_unlock();
@@ -315,6 +316,7 @@ static int tipc_enable_bearer(struct net *net, const char *name,
 	b->net_plane = bearer_id + 'A';
 	b->priority = prio;
 	test_and_set_bit_lock(0, &b->up);
+	refcount_set(&b->refcnt, 1);
 
 	res = tipc_disc_create(net, b, &b->bcast_addr, &skb);
 	if (res) {
@@ -351,6 +353,17 @@ static int tipc_reset_bearer(struct net *net, struct tipc_bearer *b)
 	return 0;
 }
 
+bool tipc_bearer_hold(struct tipc_bearer *b)
+{
+	return (b && refcount_inc_not_zero(&b->refcnt));
+}
+
+void tipc_bearer_put(struct tipc_bearer *b)
+{
+	if (b && refcount_dec_and_test(&b->refcnt))
+		kfree_rcu(b, rcu);
+}
+
 /**
  * bearer_disable
  *
@@ -369,7 +382,7 @@ static void bearer_disable(struct net *net, struct tipc_bearer *b)
 	if (b->disc)
 		tipc_disc_delete(b->disc);
 	RCU_INIT_POINTER(tn->bearer_list[bearer_id], NULL);
-	kfree_rcu(b, rcu);
+	tipc_bearer_put(b);
 	tipc_mon_delete(net, bearer_id);
 }
 
@@ -387,6 +400,11 @@ int tipc_enable_l2_media(struct net *net, struct tipc_bearer *b,
 		return -ENODEV;
 	if (tipc_mtu_bad(dev, 0)) {
 		dev_put(dev);
+		return -EINVAL;
+	}
+	if (dev == net->loopback_dev) {
+		dev_put(dev);
+		pr_info("Enabling <%s> not permitted\n", b->name);
 		return -EINVAL;
 	}
 
@@ -444,7 +462,7 @@ int tipc_l2_send_msg(struct net *net, struct sk_buff *skb,
 	struct net_device *dev;
 	int delta;
 
-	dev = (struct net_device *)rcu_dereference_rtnl(b->media_ptr);
+	dev = (struct net_device *)rcu_dereference(b->media_ptr);
 	if (!dev)
 		return 0;
 
@@ -481,7 +499,7 @@ int tipc_bearer_mtu(struct net *net, u32 bearer_id)
 	struct tipc_bearer *b;
 
 	rcu_read_lock();
-	b = rcu_dereference_rtnl(tipc_net(net)->bearer_list[bearer_id]);
+	b = rcu_dereference(tipc_net(net)->bearer_list[bearer_id]);
 	if (b)
 		mtu = b->mtu;
 	rcu_read_unlock();
@@ -499,10 +517,15 @@ void tipc_bearer_xmit_skb(struct net *net, u32 bearer_id,
 
 	rcu_read_lock();
 	b = bearer_get(net, bearer_id);
-	if (likely(b && (test_bit(0, &b->up) || msg_is_reset(hdr))))
-		b->media->send_msg(net, skb, b, dest);
-	else
+	if (likely(b && (test_bit(0, &b->up) || msg_is_reset(hdr)))) {
+#ifdef CONFIG_TIPC_CRYPTO
+		tipc_crypto_xmit(net, &skb, b, dest, NULL);
+		if (skb)
+#endif
+			b->media->send_msg(net, skb, b, dest);
+	} else {
 		kfree_skb(skb);
+	}
 	rcu_read_unlock();
 }
 
@@ -510,7 +533,8 @@ void tipc_bearer_xmit_skb(struct net *net, u32 bearer_id,
  */
 void tipc_bearer_xmit(struct net *net, u32 bearer_id,
 		      struct sk_buff_head *xmitq,
-		      struct tipc_media_addr *dst)
+		      struct tipc_media_addr *dst,
+		      struct tipc_node *__dnode)
 {
 	struct tipc_bearer *b;
 	struct sk_buff *skb, *tmp;
@@ -524,10 +548,15 @@ void tipc_bearer_xmit(struct net *net, u32 bearer_id,
 		__skb_queue_purge(xmitq);
 	skb_queue_walk_safe(xmitq, skb, tmp) {
 		__skb_dequeue(xmitq);
-		if (likely(test_bit(0, &b->up) || msg_is_reset(buf_msg(skb))))
-			b->media->send_msg(net, skb, b, dst);
-		else
+		if (likely(test_bit(0, &b->up) || msg_is_reset(buf_msg(skb)))) {
+#ifdef CONFIG_TIPC_CRYPTO
+			tipc_crypto_xmit(net, &skb, b, dst, __dnode);
+			if (skb)
+#endif
+				b->media->send_msg(net, skb, b, dst);
+		} else {
 			kfree_skb(skb);
+		}
 	}
 	rcu_read_unlock();
 }
@@ -538,6 +567,7 @@ void tipc_bearer_bc_xmit(struct net *net, u32 bearer_id,
 			 struct sk_buff_head *xmitq)
 {
 	struct tipc_net *tn = tipc_net(net);
+	struct tipc_media_addr *dst;
 	int net_id = tn->net_id;
 	struct tipc_bearer *b;
 	struct sk_buff *skb, *tmp;
@@ -552,7 +582,12 @@ void tipc_bearer_bc_xmit(struct net *net, u32 bearer_id,
 		msg_set_non_seq(hdr, 1);
 		msg_set_mc_netid(hdr, net_id);
 		__skb_dequeue(xmitq);
-		b->media->send_msg(net, skb, b, &b->bcast_addr);
+		dst = &b->bcast_addr;
+#ifdef CONFIG_TIPC_CRYPTO
+		tipc_crypto_xmit(net, &skb, b, dst, NULL);
+		if (skb)
+#endif
+			b->media->send_msg(net, skb, b, dst);
 	}
 	rcu_read_unlock();
 }
@@ -574,11 +609,12 @@ static int tipc_l2_rcv_msg(struct sk_buff *skb, struct net_device *dev,
 	struct tipc_bearer *b;
 
 	rcu_read_lock();
-	b = rcu_dereference_rtnl(dev->tipc_ptr) ?:
-		rcu_dereference_rtnl(orig_dev->tipc_ptr);
+	b = rcu_dereference(dev->tipc_ptr) ?:
+		rcu_dereference(orig_dev->tipc_ptr);
 	if (likely(b && test_bit(0, &b->up) &&
 		   (skb->pkt_type <= PACKET_MULTICAST))) {
 		skb_mark_not_on_list(skb);
+		TIPC_SKB_CB(skb)->flags = 0;
 		tipc_rcv(dev_net(b->pt.dev), skb, b);
 		rcu_read_unlock();
 		return NET_RX_SUCCESS;
@@ -672,6 +708,65 @@ void tipc_bearer_stop(struct net *net)
 			tn->bearer_list[i] = NULL;
 		}
 	}
+}
+
+void tipc_clone_to_loopback(struct net *net, struct sk_buff_head *pkts)
+{
+	struct net_device *dev = net->loopback_dev;
+	struct sk_buff *skb, *_skb;
+	int exp;
+
+	skb_queue_walk(pkts, _skb) {
+		skb = pskb_copy(_skb, GFP_ATOMIC);
+		if (!skb)
+			continue;
+
+		exp = SKB_DATA_ALIGN(dev->hard_header_len - skb_headroom(skb));
+		if (exp > 0 && pskb_expand_head(skb, exp, 0, GFP_ATOMIC)) {
+			kfree_skb(skb);
+			continue;
+		}
+
+		skb_reset_network_header(skb);
+		dev_hard_header(skb, dev, ETH_P_TIPC, dev->dev_addr,
+				dev->dev_addr, skb->len);
+		skb->dev = dev;
+		skb->pkt_type = PACKET_HOST;
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+		skb->protocol = eth_type_trans(skb, dev);
+		netif_rx_ni(skb);
+	}
+}
+
+static int tipc_loopback_rcv_pkt(struct sk_buff *skb, struct net_device *dev,
+				 struct packet_type *pt, struct net_device *od)
+{
+	consume_skb(skb);
+	return NET_RX_SUCCESS;
+}
+
+int tipc_attach_loopback(struct net *net)
+{
+	struct net_device *dev = net->loopback_dev;
+	struct tipc_net *tn = tipc_net(net);
+
+	if (!dev)
+		return -ENODEV;
+
+	dev_hold(dev);
+	tn->loopback_pt.dev = dev;
+	tn->loopback_pt.type = htons(ETH_P_TIPC);
+	tn->loopback_pt.func = tipc_loopback_rcv_pkt;
+	dev_add_pack(&tn->loopback_pt);
+	return 0;
+}
+
+void tipc_detach_loopback(struct net *net)
+{
+	struct tipc_net *tn = tipc_net(net);
+
+	dev_remove_pack(&tn->loopback_pt);
+	dev_put(net->loopback_dev);
 }
 
 /* Caller should hold rtnl_lock to protect the bearer */

@@ -5,6 +5,7 @@
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/reset/bitmain,bm1880-reset.h>
 
 / {
 	compatible = "bitmain,bm1880";
@@ -88,9 +89,15 @@
 			#size-cells = <1>;
 			ranges = <0x0 0x0 0x50010000 0x1000>;
 
-			pinctrl: pinctrl@50 {
+			pinctrl: pinctrl@400 {
 				compatible = "bitmain,bm1880-pinctrl";
-				reg = <0x50 0x4B0>;
+				reg = <0x400 0x120>;
+			};
+
+			rst: reset-controller@c00 {
+				compatible = "bitmain,bm1880-reset";
+				reg = <0xc00 0x8>;
+				#reset-cells = <1>;
 			};
 		};
 
@@ -154,6 +161,7 @@
 			interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
+			resets = <&rst BM1880_RST_UART0_1_CLK>;
 			status = "disabled";
 		};
 
@@ -163,6 +171,7 @@
 			interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
+			resets = <&rst BM1880_RST_UART0_1_ACLK>;
 			status = "disabled";
 		};
 
@@ -172,6 +181,7 @@
 			interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
+			resets = <&rst BM1880_RST_UART2_3_CLK>;
 			status = "disabled";
 		};
 
@@ -181,6 +191,7 @@
 			interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
+			resets = <&rst BM1880_RST_UART2_3_ACLK>;
 			status = "disabled";
 		};
 	};

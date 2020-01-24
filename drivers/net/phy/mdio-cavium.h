@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2009-2016 Cavium, Inc.
  */
@@ -108,6 +108,8 @@ static inline u64 oct_mdio_readq(u64 addr)
 	return cvmx_read_csr(addr);
 }
 #else
+#include <linux/io-64-nonatomic-lo-hi.h>
+
 #define oct_mdio_writeq(val, addr)	writeq(val, (void *)addr)
 #define oct_mdio_readq(addr)		readq((void *)addr)
 #endif

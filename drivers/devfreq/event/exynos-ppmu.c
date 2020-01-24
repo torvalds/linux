@@ -13,12 +13,18 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/suspend.h>
 #include <linux/devfreq-event.h>
 
 #include "exynos-ppmu.h"
+
+enum exynos_ppmu_type {
+	EXYNOS_TYPE_PPMU,
+	EXYNOS_TYPE_PPMU_V2,
+};
 
 struct exynos_ppmu_data {
 	struct clk *clk;
@@ -33,6 +39,7 @@ struct exynos_ppmu {
 	struct regmap *regmap;
 
 	struct exynos_ppmu_data ppmu;
+	enum exynos_ppmu_type ppmu_type;
 };
 
 #define PPMU_EVENT(name)			\
@@ -86,6 +93,12 @@ static struct __exynos_ppmu_events {
 	PPMU_EVENT(d1-cpu),
 	PPMU_EVENT(d1-general),
 	PPMU_EVENT(d1-rt),
+
+	/* For Exynos5422 SoC */
+	PPMU_EVENT(dmc0_0),
+	PPMU_EVENT(dmc0_1),
+	PPMU_EVENT(dmc1_0),
+	PPMU_EVENT(dmc1_1),
 };
 
 static int exynos_ppmu_find_ppmu_id(struct devfreq_event_dev *edev)
@@ -151,9 +164,9 @@ static int exynos_ppmu_set_event(struct devfreq_event_dev *edev)
 	if (ret < 0)
 		return ret;
 
-	/* Set the event of Read/Write data count  */
+	/* Set the event of proper data type monitoring */
 	ret = regmap_write(info->regmap, PPMU_BEVTxSEL(id),
-				PPMU_RO_DATA_CNT | PPMU_WO_DATA_CNT);
+			   edev->desc->event_type);
 	if (ret < 0)
 		return ret;
 
@@ -365,23 +378,11 @@ static int exynos_ppmu_v2_set_event(struct devfreq_event_dev *edev)
 	if (ret < 0)
 		return ret;
 
-	/* Set the event of Read/Write data count  */
-	switch (id) {
-	case PPMU_PMNCNT0:
-	case PPMU_PMNCNT1:
-	case PPMU_PMNCNT2:
-		ret = regmap_write(info->regmap, PPMU_V2_CH_EVx_TYPE(id),
-				PPMU_V2_RO_DATA_CNT | PPMU_V2_WO_DATA_CNT);
-		if (ret < 0)
-			return ret;
-		break;
-	case PPMU_PMNCNT3:
-		ret = regmap_write(info->regmap, PPMU_V2_CH_EVx_TYPE(id),
-				PPMU_V2_EVT3_RW_DATA_CNT);
-		if (ret < 0)
-			return ret;
-		break;
-	}
+	/* Set the event of proper data type monitoring */
+	ret = regmap_write(info->regmap, PPMU_V2_CH_EVx_TYPE(id),
+			   edev->desc->event_type);
+	if (ret < 0)
+		return ret;
 
 	/* Reset cycle counter/performance counter and enable PPMU */
 	ret = regmap_read(info->regmap, PPMU_V2_PMNC, &pmnc);
@@ -480,31 +481,24 @@ static const struct devfreq_event_ops exynos_ppmu_v2_ops = {
 static const struct of_device_id exynos_ppmu_id_match[] = {
 	{
 		.compatible = "samsung,exynos-ppmu",
-		.data = (void *)&exynos_ppmu_ops,
+		.data = (void *)EXYNOS_TYPE_PPMU,
 	}, {
 		.compatible = "samsung,exynos-ppmu-v2",
-		.data = (void *)&exynos_ppmu_v2_ops,
+		.data = (void *)EXYNOS_TYPE_PPMU_V2,
 	},
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, exynos_ppmu_id_match);
 
-static struct devfreq_event_ops *exynos_bus_get_ops(struct device_node *np)
-{
-	const struct of_device_id *match;
-
-	match = of_match_node(exynos_ppmu_id_match, np);
-	return (struct devfreq_event_ops *)match->data;
-}
-
 static int of_get_devfreq_events(struct device_node *np,
 				 struct exynos_ppmu *info)
 {
 	struct devfreq_event_desc *desc;
-	struct devfreq_event_ops *event_ops;
 	struct device *dev = info->dev;
 	struct device_node *events_np, *node;
 	int i, j, count;
+	const struct of_device_id *of_id;
+	int ret;
 
 	events_np = of_get_child_by_name(np, "events");
 	if (!events_np) {
@@ -512,13 +506,18 @@ static int of_get_devfreq_events(struct device_node *np,
 			"failed to get child node of devfreq-event devices\n");
 		return -EINVAL;
 	}
-	event_ops = exynos_bus_get_ops(np);
 
 	count = of_get_child_count(events_np);
 	desc = devm_kcalloc(dev, count, sizeof(*desc), GFP_KERNEL);
 	if (!desc)
 		return -ENOMEM;
 	info->num_events = count;
+
+	of_id = of_match_device(exynos_ppmu_id_match, dev);
+	if (of_id)
+		info->ppmu_type = (enum exynos_ppmu_type)of_id->data;
+	else
+		return -EINVAL;
 
 	j = 0;
 	for_each_child_of_node(events_np, node) {
@@ -537,10 +536,51 @@ static int of_get_devfreq_events(struct device_node *np,
 			continue;
 		}
 
-		desc[j].ops = event_ops;
+		switch (info->ppmu_type) {
+		case EXYNOS_TYPE_PPMU:
+			desc[j].ops = &exynos_ppmu_ops;
+			break;
+		case EXYNOS_TYPE_PPMU_V2:
+			desc[j].ops = &exynos_ppmu_v2_ops;
+			break;
+		}
+
 		desc[j].driver_data = info;
 
 		of_property_read_string(node, "event-name", &desc[j].name);
+		ret = of_property_read_u32(node, "event-data-type",
+					   &desc[j].event_type);
+		if (ret) {
+			/* Set the event of proper data type counting.
+			 * Check if the data type has been defined in DT,
+			 * use default if not.
+			 */
+			if (info->ppmu_type == EXYNOS_TYPE_PPMU_V2) {
+				struct devfreq_event_dev edev;
+				int id;
+				/* Not all registers take the same value for
+				 * read+write data count.
+				 */
+				edev.desc = &desc[j];
+				id = exynos_ppmu_find_ppmu_id(&edev);
+
+				switch (id) {
+				case PPMU_PMNCNT0:
+				case PPMU_PMNCNT1:
+				case PPMU_PMNCNT2:
+					desc[j].event_type = PPMU_V2_RO_DATA_CNT
+						| PPMU_V2_WO_DATA_CNT;
+					break;
+				case PPMU_PMNCNT3:
+					desc[j].event_type =
+						PPMU_V2_EVT3_RW_DATA_CNT;
+					break;
+				}
+			} else {
+				desc[j].event_type = PPMU_RO_DATA_CNT |
+					PPMU_WO_DATA_CNT;
+			}
+		}
 
 		j++;
 	}
@@ -633,7 +673,6 @@ static int exynos_ppmu_probe(struct platform_device *pdev)
 	for (i = 0; i < info->num_events; i++) {
 		edev[i] = devm_devfreq_event_add_edev(&pdev->dev, &desc[i]);
 		if (IS_ERR(edev[i])) {
-			ret = PTR_ERR(edev[i]);
 			dev_err(&pdev->dev,
 				"failed to add devfreq-event device\n");
 			return PTR_ERR(edev[i]);

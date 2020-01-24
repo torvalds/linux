@@ -35,7 +35,7 @@
  */
 
 #include <linux/kref.h>
-#include <linux/reservation.h>
+#include <linux/dma-resv.h>
 
 #include <drm/drm_vma_manager.h>
 
@@ -101,7 +101,7 @@ struct drm_gem_object_funcs {
 	/**
 	 * @pin:
 	 *
-	 * Pin backing buffer in memory.
+	 * Pin backing buffer in memory. Used by the drm_gem_map_attach() helper.
 	 *
 	 * This callback is optional.
 	 */
@@ -110,7 +110,7 @@ struct drm_gem_object_funcs {
 	/**
 	 * @unpin:
 	 *
-	 * Unpin backing buffer.
+	 * Unpin backing buffer. Used by the drm_gem_map_detach() helper.
 	 *
 	 * This callback is optional.
 	 */
@@ -120,16 +120,21 @@ struct drm_gem_object_funcs {
 	 * @get_sg_table:
 	 *
 	 * Returns a Scatter-Gather table representation of the buffer.
-	 * Used when exporting a buffer.
+	 * Used when exporting a buffer by the drm_gem_map_dma_buf() helper.
+	 * Releasing is done by calling dma_unmap_sg_attrs() and sg_free_table()
+	 * in drm_gem_unmap_buf(), therefore these helpers and this callback
+	 * here cannot be used for sg tables pointing at driver private memory
+	 * ranges.
 	 *
-	 * This callback is mandatory if buffer export is supported.
+	 * See also drm_prime_pages_to_sg().
 	 */
 	struct sg_table *(*get_sg_table)(struct drm_gem_object *obj);
 
 	/**
 	 * @vmap:
 	 *
-	 * Returns a virtual address for the buffer.
+	 * Returns a virtual address for the buffer. Used by the
+	 * drm_gem_dmabuf_vmap() helper.
 	 *
 	 * This callback is optional.
 	 */
@@ -138,11 +143,27 @@ struct drm_gem_object_funcs {
 	/**
 	 * @vunmap:
 	 *
-	 * Releases the the address previously returned by @vmap.
+	 * Releases the the address previously returned by @vmap. Used by the
+	 * drm_gem_dmabuf_vunmap() helper.
 	 *
 	 * This callback is optional.
 	 */
 	void (*vunmap)(struct drm_gem_object *obj, void *vaddr);
+
+	/**
+	 * @mmap:
+	 *
+	 * Handle mmap() of the gem object, setup vma accordingly.
+	 *
+	 * This callback is optional.
+	 *
+	 * The callback is used by by both drm_gem_mmap_obj() and
+	 * drm_gem_prime_mmap().  When @mmap is present @vm_ops is not
+	 * used, the @mmap callback must set vma->vm_ops instead. The @mmap
+	 * callback is always called with a 0 offset. The caller will remove
+	 * the fake offset as necessary.
+	 */
+	int (*mmap)(struct drm_gem_object *obj, struct vm_area_struct *vma);
 
 	/**
 	 * @vm_ops:
@@ -270,7 +291,7 @@ struct drm_gem_object {
 	 *
 	 * Normally (@resv == &@_resv) except for imported GEM objects.
 	 */
-	struct reservation_object *resv;
+	struct dma_resv *resv;
 
 	/**
 	 * @_resv:
@@ -279,7 +300,7 @@ struct drm_gem_object {
 	 *
 	 * This is unused for imported GEM objects.
 	 */
-	struct reservation_object _resv;
+	struct dma_resv _resv;
 
 	/**
 	 * @funcs:
@@ -384,7 +405,7 @@ void drm_gem_put_pages(struct drm_gem_object *obj, struct page **pages,
 int drm_gem_objects_lookup(struct drm_file *filp, void __user *bo_handles,
 			   int count, struct drm_gem_object ***objs_out);
 struct drm_gem_object *drm_gem_object_lookup(struct drm_file *filp, u32 handle);
-long drm_gem_reservation_object_wait(struct drm_file *filep, u32 handle,
+long drm_gem_dma_resv_wait(struct drm_file *filep, u32 handle,
 				    bool wait_all, unsigned long timeout);
 int drm_gem_lock_reservations(struct drm_gem_object **objs, int count,
 			      struct ww_acquire_ctx *acquire_ctx);
@@ -400,10 +421,5 @@ int drm_gem_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
 int drm_gem_dumb_destroy(struct drm_file *file,
 			 struct drm_device *dev,
 			 uint32_t handle);
-
-int drm_gem_pin(struct drm_gem_object *obj);
-void drm_gem_unpin(struct drm_gem_object *obj);
-void *drm_gem_vmap(struct drm_gem_object *obj);
-void drm_gem_vunmap(struct drm_gem_object *obj, void *vaddr);
 
 #endif /* __DRM_GEM_H__ */

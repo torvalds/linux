@@ -103,7 +103,6 @@ enum gsc_yuv_fmt {
 /**
  * struct gsc_fmt - the driver's internal color format data
  * @mbus_code: Media Bus pixel code, -1 if not applicable
- * @name: format description
  * @pixelformat: the fourcc code for this format, 0 if not applicable
  * @yorder: Y/C order
  * @corder: Chrominance order control
@@ -114,7 +113,6 @@ enum gsc_yuv_fmt {
  */
 struct gsc_fmt {
 	u32 mbus_code;
-	char	*name;
 	u32	pixelformat;
 	u32	color;
 	u32	yorder;
@@ -385,7 +383,7 @@ void gsc_m2m_job_finish(struct gsc_ctx *ctx, int vb_state);
 u32 get_plane_size(struct gsc_frame *fr, unsigned int plane);
 const struct gsc_fmt *get_format(int index);
 const struct gsc_fmt *find_fmt(u32 *pixelformat, u32 *mbus_code, u32 index);
-int gsc_enum_fmt_mplane(struct v4l2_fmtdesc *f);
+int gsc_enum_fmt(struct v4l2_fmtdesc *f);
 int gsc_try_fmt_mplane(struct gsc_ctx *ctx, struct v4l2_format *f);
 void gsc_set_frame_size(struct gsc_frame *frame, int width, int height);
 int gsc_g_fmt_mplane(struct gsc_ctx *ctx, struct v4l2_format *f);

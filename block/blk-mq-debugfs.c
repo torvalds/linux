@@ -17,7 +17,7 @@
 static void print_stat(struct seq_file *m, struct blk_rq_stat *stat)
 {
 	if (stat->nr_samples) {
-		seq_printf(m, "samples=%d, mean=%lld, min=%llu, max=%llu",
+		seq_printf(m, "samples=%d, mean=%llu, min=%llu, max=%llu",
 			   stat->nr_samples, stat->mean, stat->min, stat->max);
 	} else {
 		seq_puts(m, "samples=0");
@@ -29,13 +29,13 @@ static int queue_poll_stat_show(void *data, struct seq_file *m)
 	struct request_queue *q = data;
 	int bucket;
 
-	for (bucket = 0; bucket < BLK_MQ_POLL_STATS_BKTS/2; bucket++) {
-		seq_printf(m, "read  (%d Bytes): ", 1 << (9+bucket));
-		print_stat(m, &q->poll_stat[2*bucket]);
+	for (bucket = 0; bucket < (BLK_MQ_POLL_STATS_BKTS / 2); bucket++) {
+		seq_printf(m, "read  (%d Bytes): ", 1 << (9 + bucket));
+		print_stat(m, &q->poll_stat[2 * bucket]);
 		seq_puts(m, "\n");
 
-		seq_printf(m, "write (%d Bytes): ",  1 << (9+bucket));
-		print_stat(m, &q->poll_stat[2*bucket+1]);
+		seq_printf(m, "write (%d Bytes): ",  1 << (9 + bucket));
+		print_stat(m, &q->poll_stat[2 * bucket + 1]);
 		seq_puts(m, "\n");
 	}
 	return 0;
@@ -261,23 +261,6 @@ static int hctx_flags_show(void *data, struct seq_file *m)
 	return 0;
 }
 
-#define REQ_OP_NAME(name) [REQ_OP_##name] = #name
-static const char *const op_name[] = {
-	REQ_OP_NAME(READ),
-	REQ_OP_NAME(WRITE),
-	REQ_OP_NAME(FLUSH),
-	REQ_OP_NAME(DISCARD),
-	REQ_OP_NAME(SECURE_ERASE),
-	REQ_OP_NAME(ZONE_RESET),
-	REQ_OP_NAME(WRITE_SAME),
-	REQ_OP_NAME(WRITE_ZEROES),
-	REQ_OP_NAME(SCSI_IN),
-	REQ_OP_NAME(SCSI_OUT),
-	REQ_OP_NAME(DRV_IN),
-	REQ_OP_NAME(DRV_OUT),
-};
-#undef REQ_OP_NAME
-
 #define CMD_FLAG_NAME(name) [__REQ_##name] = #name
 static const char *const cmd_flag_name[] = {
 	CMD_FLAG_NAME(FAILFAST_DEV),
@@ -341,13 +324,14 @@ static const char *blk_mq_rq_state_name(enum mq_rq_state rq_state)
 int __blk_mq_debugfs_rq_show(struct seq_file *m, struct request *rq)
 {
 	const struct blk_mq_ops *const mq_ops = rq->q->mq_ops;
-	const unsigned int op = rq->cmd_flags & REQ_OP_MASK;
+	const unsigned int op = req_op(rq);
+	const char *op_str = blk_op_str(op);
 
 	seq_printf(m, "%p {.op=", rq);
-	if (op < ARRAY_SIZE(op_name) && op_name[op])
-		seq_printf(m, "%s", op_name[op]);
+	if (strcmp(op_str, "UNKNOWN") == 0)
+		seq_printf(m, "%u", op);
 	else
-		seq_printf(m, "%d", op);
+		seq_printf(m, "%s", op_str);
 	seq_puts(m, ", .cmd_flags=");
 	blk_flags_show(m, rq->cmd_flags & ~REQ_OP_MASK, cmd_flag_name,
 		       ARRAY_SIZE(cmd_flag_name));
@@ -779,8 +763,8 @@ static int blk_mq_debugfs_release(struct inode *inode, struct file *file)
 
 	if (attr->show)
 		return single_release(inode, file);
-	else
-		return seq_release(inode, file);
+
+	return seq_release(inode, file);
 }
 
 static const struct file_operations blk_mq_debugfs_fops = {
@@ -933,6 +917,13 @@ void blk_mq_debugfs_unregister_hctxs(struct request_queue *q)
 void blk_mq_debugfs_register_sched(struct request_queue *q)
 {
 	struct elevator_type *e = q->elevator->type;
+
+	/*
+	 * If the parent directory has not been created yet, return, we will be
+	 * called again later on and the directory/files will be created then.
+	 */
+	if (!q->debugfs_dir)
+		return;
 
 	if (!e->queue_debugfs_attrs)
 		return;

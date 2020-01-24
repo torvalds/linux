@@ -19,13 +19,10 @@
  * Derived from drivers/drm/gpu/panel/panel-samsung-ld9040.c
  */
 
-#include <drm/drmP.h>
-#include <drm/drm_panel.h>
-
-#include <linux/of_device.h>
 #include <linux/bitops.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
@@ -33,6 +30,10 @@
 #include <video/mipi_display.h>
 #include <video/of_videomode.h>
 #include <video/videomode.h>
+
+#include <drm/drm_modes.h>
+#include <drm/drm_panel.h>
+#include <drm/drm_print.h>
 
 #define ILI9322_CHIP_ID			0x00
 #define ILI9322_CHIP_ID_MAGIC		0x96
@@ -348,7 +349,6 @@ static const struct regmap_config ili9322_regmap_config = {
 
 static int ili9322_init(struct drm_panel *panel, struct ili9322 *ili)
 {
-	struct drm_connector *connector = panel->connector;
 	u8 reg;
 	int ret;
 	int i;
@@ -406,23 +406,11 @@ static int ili9322_init(struct drm_panel *panel, struct ili9322 *ili)
 	 * Polarity and inverted color order for RGB input.
 	 * None of this applies in the BT.656 mode.
 	 */
-	if (ili->conf->dclk_active_high) {
+	reg = 0;
+	if (ili->conf->dclk_active_high)
 		reg = ILI9322_POL_DCLK;
-		connector->display_info.bus_flags |=
-			DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE;
-	} else {
-		reg = 0;
-		connector->display_info.bus_flags |=
-			DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE;
-	}
-	if (ili->conf->de_active_high) {
+	if (ili->conf->de_active_high)
 		reg |= ILI9322_POL_DE;
-		connector->display_info.bus_flags |=
-			DRM_BUS_FLAG_DE_HIGH;
-	} else {
-		connector->display_info.bus_flags |=
-			DRM_BUS_FLAG_DE_LOW;
-	}
 	if (ili->conf->hsync_active_high)
 		reg |= ILI9322_POL_HSYNC;
 	if (ili->conf->vsync_active_high)
@@ -658,9 +646,20 @@ static int ili9322_get_modes(struct drm_panel *panel)
 	struct drm_connector *connector = panel->connector;
 	struct ili9322 *ili = panel_to_ili9322(panel);
 	struct drm_display_mode *mode;
+	struct drm_display_info *info;
 
-	connector->display_info.width_mm = ili->conf->width_mm;
-	connector->display_info.height_mm = ili->conf->height_mm;
+	info = &connector->display_info;
+	info->width_mm = ili->conf->width_mm;
+	info->height_mm = ili->conf->height_mm;
+	if (ili->conf->dclk_active_high)
+		info->bus_flags |= DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE;
+	else
+		info->bus_flags |= DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE;
+
+	if (ili->conf->de_active_high)
+		info->bus_flags |= DRM_BUS_FLAG_DE_HIGH;
+	else
+		info->bus_flags |= DRM_BUS_FLAG_DE_LOW;
 
 	switch (ili->input) {
 	case ILI9322_INPUT_SRGB_DUMMY_320X240:
@@ -896,9 +895,8 @@ static int ili9322_probe(struct spi_device *spi)
 		ili->input = ili->conf->input;
 	}
 
-	drm_panel_init(&ili->panel);
-	ili->panel.dev = dev;
-	ili->panel.funcs = &ili9322_drm_funcs;
+	drm_panel_init(&ili->panel, dev, &ili9322_drm_funcs,
+		       DRM_MODE_CONNECTOR_DPI);
 
 	return drm_panel_add(&ili->panel);
 }

@@ -24,14 +24,14 @@
  */
 
 #include "dm_services.h"
+#include "dc.h"
 #include "dcn_calcs.h"
 #include "dcn_calc_auto.h"
-#include "dc.h"
 #include "dal_asic_id.h"
-
 #include "resource.h"
 #include "dcn10/dcn10_resource.h"
 #include "dcn10/dcn10_hubbub.h"
+#include "dml/dml1_display_rq_dlg_calc.h"
 
 #include "dcn_calc_math.h"
 
@@ -53,7 +53,13 @@
  * remain as-is as it provides us with a guarantee from HW that it is correct.
  */
 
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+/* Defaults from spreadsheet rev#247.
+ * RV2 delta: dram_clock_change_latency, max_num_dpp
+ */
+#else
 /* Defaults from spreadsheet rev#247 */
+#endif
 const struct dcn_soc_bounding_box dcn10_soc_defaults = {
 		/* latencies */
 		.sr_exit_time = 17, /*us*/
@@ -323,7 +329,7 @@ static void pipe_ctx_to_e2e_pipe_params (
 			dcc_support_pixel_format(pipe->plane_state->format, &bpe) ? 1 : 0;
 	}
 	input->src.dcc_rate            = 1;
-	input->src.meta_pitch          = pipe->plane_state->dcc.grph.meta_pitch;
+	input->src.meta_pitch          = pipe->plane_state->dcc.meta_pitch;
 	input->src.source_scan         = dm_horz;
 	input->src.sw_mode             = pipe->plane_state->tiling_info.gfx9.swizzle;
 
@@ -699,6 +705,17 @@ static void hack_bounding_box(struct dcn_bw_internal_vars *v,
 		hack_force_pipe_split(v, context->streams[0]->timing.pix_clk_100hz);
 }
 
+
+unsigned int get_highest_allowed_voltage_level(uint32_t hw_internal_rev)
+{
+	/* for dali, the highest voltage level we want is 0 */
+	if (ASICREV_IS_DALI(hw_internal_rev))
+		return 0;
+
+	/* we are ok with all levels */
+	return 4;
+}
+
 bool dcn_validate_bandwidth(
 		struct dc *dc,
 		struct dc_state *context,
@@ -712,7 +729,7 @@ bool dcn_validate_bandwidth(
 
 	const struct resource_pool *pool = dc->res_pool;
 	struct dcn_bw_internal_vars *v = &context->dcn_bw_vars;
-	int i, input_idx;
+	int i, input_idx, k;
 	int vesa_sync_start, asic_blank_end, asic_blank_start;
 	bool bw_limit_pass;
 	float bw_limit;
@@ -726,6 +743,7 @@ bool dcn_validate_bandwidth(
 
 	memset(v, 0, sizeof(*v));
 	kernel_fpu_begin();
+
 	v->sr_exit_time = dc->dcn_soc->sr_exit_time;
 	v->sr_enter_plus_exit_time = dc->dcn_soc->sr_enter_plus_exit_time;
 	v->urgent_latency = dc->dcn_soc->urgent_latency;
@@ -873,8 +891,19 @@ bool dcn_validate_bandwidth(
 			v->lb_bit_per_pixel[input_idx] = 30;
 			v->viewport_width[input_idx] = pipe->stream->timing.h_addressable;
 			v->viewport_height[input_idx] = pipe->stream->timing.v_addressable;
-			v->scaler_rec_out_width[input_idx] = pipe->stream->timing.h_addressable;
-			v->scaler_recout_height[input_idx] = pipe->stream->timing.v_addressable;
+			/*
+			 * for cases where we have no plane, we want to validate up to 1080p
+			 * source size because here we are only interested in if the output
+			 * timing is supported or not. if we cannot support native resolution
+			 * of the high res display, we still want to support lower res up scale
+			 * to native
+			 */
+			if (v->viewport_width[input_idx] > 1920)
+				v->viewport_width[input_idx] = 1920;
+			if (v->viewport_height[input_idx] > 1080)
+				v->viewport_height[input_idx] = 1080;
+			v->scaler_rec_out_width[input_idx] = v->viewport_width[input_idx];
+			v->scaler_recout_height[input_idx] = v->viewport_height[input_idx];
 			v->override_hta_ps[input_idx] = 1;
 			v->override_vta_ps[input_idx] = 1;
 			v->override_hta_pschroma[input_idx] = 1;
@@ -1023,6 +1052,43 @@ bool dcn_validate_bandwidth(
 		mode_support_and_system_configuration(v);
 	}
 
+	display_pipe_configuration(v);
+
+	for (k = 0; k <= v->number_of_active_planes - 1; k++) {
+		if (v->source_scan[k] == dcn_bw_hor)
+			v->swath_width_y[k] = v->viewport_width[k] / v->dpp_per_plane[k];
+		else
+			v->swath_width_y[k] = v->viewport_height[k] / v->dpp_per_plane[k];
+	}
+	for (k = 0; k <= v->number_of_active_planes - 1; k++) {
+		if (v->source_pixel_format[k] == dcn_bw_rgb_sub_64) {
+			v->byte_per_pixel_dety[k] = 8.0;
+			v->byte_per_pixel_detc[k] = 0.0;
+		} else if (v->source_pixel_format[k] == dcn_bw_rgb_sub_32) {
+			v->byte_per_pixel_dety[k] = 4.0;
+			v->byte_per_pixel_detc[k] = 0.0;
+		} else if (v->source_pixel_format[k] == dcn_bw_rgb_sub_16) {
+			v->byte_per_pixel_dety[k] = 2.0;
+			v->byte_per_pixel_detc[k] = 0.0;
+		} else if (v->source_pixel_format[k] == dcn_bw_yuv420_sub_8) {
+			v->byte_per_pixel_dety[k] = 1.0;
+			v->byte_per_pixel_detc[k] = 2.0;
+		} else {
+			v->byte_per_pixel_dety[k] = 4.0f / 3.0f;
+			v->byte_per_pixel_detc[k] = 8.0f / 3.0f;
+		}
+	}
+
+	v->total_data_read_bandwidth = 0.0;
+	for (k = 0; k <= v->number_of_active_planes - 1; k++) {
+		v->read_bandwidth_plane_luma[k] = v->swath_width_y[k] * v->dpp_per_plane[k] *
+				dcn_bw_ceil2(v->byte_per_pixel_dety[k], 1.0) / (v->htotal[k] / v->pixel_clock[k]) * v->v_ratio[k];
+		v->read_bandwidth_plane_chroma[k] = v->swath_width_y[k] / 2.0 * v->dpp_per_plane[k] *
+				dcn_bw_ceil2(v->byte_per_pixel_detc[k], 2.0) / (v->htotal[k] / v->pixel_clock[k]) * v->v_ratio[k] / 2.0;
+		v->total_data_read_bandwidth = v->total_data_read_bandwidth +
+				v->read_bandwidth_plane_luma[k] + v->read_bandwidth_plane_chroma[k];
+	}
+
 	BW_VAL_TRACE_END_VOLTAGE_LEVEL();
 
 	if (v->voltage_level != number_of_states_plus_one && !fast_validate) {
@@ -1062,9 +1128,8 @@ bool dcn_validate_bandwidth(
 
 		context->bw_ctx.bw.dcn.clk.fclk_khz = (int)(bw_consumed * 1000000 /
 				(ddr4_dram_factor_single_Channel * v->number_of_channels));
-		if (bw_consumed == v->fabric_and_dram_bandwidth_vmin0p65) {
+		if (bw_consumed == v->fabric_and_dram_bandwidth_vmin0p65)
 			context->bw_ctx.bw.dcn.clk.fclk_khz = (int)(bw_consumed * 1000000 / 32);
-		}
 
 		context->bw_ctx.bw.dcn.clk.dcfclk_deep_sleep_khz = (int)(v->dcf_clk_deep_sleep * 1000);
 		context->bw_ctx.bw.dcn.clk.dcfclk_khz = (int)(v->dcfclk * 1000);
@@ -1079,7 +1144,8 @@ bool dcn_validate_bandwidth(
 					dc->debug.min_disp_clk_khz;
 		}
 
-		context->bw_ctx.bw.dcn.clk.dppclk_khz = context->bw_ctx.bw.dcn.clk.dispclk_khz / v->dispclk_dppclk_ratio;
+		context->bw_ctx.bw.dcn.clk.dppclk_khz = context->bw_ctx.bw.dcn.clk.dispclk_khz /
+				v->dispclk_dppclk_ratio;
 		context->bw_ctx.bw.dcn.clk.phyclk_khz = v->phyclk_per_state[v->voltage_level];
 		switch (v->voltage_level) {
 		case 0:
@@ -1166,9 +1232,7 @@ bool dcn_validate_bandwidth(
 						/* pipe not split previously needs split */
 						hsplit_pipe = find_idle_secondary_pipe(&context->res_ctx, pool, pipe);
 						ASSERT(hsplit_pipe);
-						split_stream_across_pipes(
-							&context->res_ctx, pool,
-							pipe, hsplit_pipe);
+						split_stream_across_pipes(&context->res_ctx, pool, pipe, hsplit_pipe);
 					}
 
 					dcn_bw_calc_rq_dlg_ttu(dc, v, hsplit_pipe, input_idx);
@@ -1199,7 +1263,6 @@ bool dcn_validate_bandwidth(
 	}
 
 	if (v->voltage_level == 0) {
-
 		context->bw_ctx.dml.soc.sr_enter_plus_exit_time_us =
 				dc->dcn_soc->sr_enter_plus_exit_time;
 		context->bw_ctx.dml.soc.sr_exit_time_us = dc->dcn_soc->sr_exit_time;
@@ -1217,7 +1280,7 @@ bool dcn_validate_bandwidth(
 	PERFORMANCE_TRACE_END();
 	BW_VAL_TRACE_FINISH();
 
-	if (bw_limit_pass && v->voltage_level != 5)
+	if (bw_limit_pass && v->voltage_level <= get_highest_allowed_voltage_level(dc->ctx->asic_id.hw_internal_rev))
 		return true;
 	else
 		return false;

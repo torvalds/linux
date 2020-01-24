@@ -48,7 +48,7 @@
 
 ******************************************************************************/
 
-
+#include <linux/compat.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
@@ -235,6 +235,13 @@ static int atyfb_pan_display(struct fb_var_screeninfo *var,
 			     struct fb_info *info);
 static int atyfb_blank(int blank, struct fb_info *info);
 static int atyfb_ioctl(struct fb_info *info, u_int cmd, u_long arg);
+#ifdef CONFIG_COMPAT
+static int atyfb_compat_ioctl(struct fb_info *info, u_int cmd, u_long arg)
+{
+	return atyfb_ioctl(info, cmd, (u_long)compat_ptr(arg));
+}
+#endif
+
 #ifdef __sparc__
 static int atyfb_mmap(struct fb_info *info, struct vm_area_struct *vma);
 #endif
@@ -290,6 +297,9 @@ static struct fb_ops atyfb_ops = {
 	.fb_pan_display	= atyfb_pan_display,
 	.fb_blank	= atyfb_blank,
 	.fb_ioctl	= atyfb_ioctl,
+#ifdef CONFIG_COMPAT
+	.fb_compat_ioctl = atyfb_compat_ioctl,
+#endif
 	.fb_fillrect	= atyfb_fillrect,
 	.fb_copyarea	= atyfb_copyarea,
 	.fb_imageblit	= atyfb_imageblit,
@@ -1188,19 +1198,6 @@ static int aty_crtc_to_var(const struct crtc *crtc,
 		(c_sync ? FB_SYNC_COMP_HIGH_ACT : 0);
 
 	switch (pix_width) {
-#if 0
-	case CRTC_PIX_WIDTH_4BPP:
-		bpp = 4;
-		var->red.offset = 0;
-		var->red.length = 8;
-		var->green.offset = 0;
-		var->green.length = 8;
-		var->blue.offset = 0;
-		var->blue.length = 8;
-		var->transp.offset = 0;
-		var->transp.length = 0;
-		break;
-#endif
 	case CRTC_PIX_WIDTH_8BPP:
 		bpp = 8;
 		var->red.offset = 0;
@@ -1466,11 +1463,6 @@ static int atyfb_set_par(struct fb_info *info)
 		var->bits_per_pixel,
 		par->crtc.vxres * var->bits_per_pixel / 8);
 #endif /* CONFIG_BOOTX_TEXT */
-#if 0
-	/* switch to accelerator mode */
-	if (!(par->crtc.gen_cntl & CRTC_EXT_DISP_EN))
-		aty_st_le32(CRTC_GEN_CNTL, par->crtc.gen_cntl | CRTC_EXT_DISP_EN, par);
-#endif
 #ifdef DEBUG
 {
 	/* dump non shadow CRTC, pll, LCD registers */
@@ -2394,17 +2386,6 @@ static int aty_init(struct fb_info *info)
 #else
 		case CLK_IBMRGB514:
 			par->pll_ops = &aty_pll_ibm514;
-			break;
-#endif
-#if 0 /* dead code */
-		case CLK_STG1703:
-			par->pll_ops = &aty_pll_stg1703;
-			break;
-		case CLK_CH8398:
-			par->pll_ops = &aty_pll_ch8398;
-			break;
-		case CLK_ATT20C408:
-			par->pll_ops = &aty_pll_att20c408;
 			break;
 #endif
 		default:
@@ -3550,10 +3531,9 @@ static int atyfb_pci_probe(struct pci_dev *pdev,
 
 	/* Allocate framebuffer */
 	info = framebuffer_alloc(sizeof(struct atyfb_par), &pdev->dev);
-	if (!info) {
-		PRINTKE("atyfb_pci_probe() can't alloc fb_info\n");
+	if (!info)
 		return -ENOMEM;
-	}
+
 	par = info->par;
 	par->bus_type = PCI;
 	info->fix = atyfb_fix;
@@ -3643,10 +3623,9 @@ static int __init atyfb_atari_probe(void)
 		}
 
 		info = framebuffer_alloc(sizeof(struct atyfb_par), NULL);
-		if (!info) {
-			PRINTKE("atyfb_atari_probe() can't alloc fb_info\n");
+		if (!info)
 			return -ENOMEM;
-		}
+
 		par = info->par;
 
 		info->fix = atyfb_fix;
@@ -3916,8 +3895,7 @@ static int atyfb_reboot_notify(struct notifier_block *nb,
 	if (!reboot_info)
 		goto out;
 
-	if (!lock_fb_info(reboot_info))
-		goto out;
+	lock_fb_info(reboot_info);
 
 	par = reboot_info->par;
 

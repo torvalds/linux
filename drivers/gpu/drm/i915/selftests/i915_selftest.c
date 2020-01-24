@@ -23,11 +23,14 @@
 
 #include <linux/random.h>
 
-#include "../i915_drv.h"
-#include "../i915_selftest.h"
+#include "gt/intel_gt_pm.h"
+#include "i915_drv.h"
+#include "i915_selftest.h"
+
+#include "igt_flush_test.h"
 
 struct i915_selftest i915_selftest __read_mostly = {
-	.timeout_ms = 1000,
+	.timeout_ms = 500,
 };
 
 int i915_mock_sanitycheck(void)
@@ -183,7 +186,7 @@ int i915_live_selftests(struct pci_dev *pdev)
 	if (!i915_selftest.live)
 		return 0;
 
-	err = run_selftests(live, to_i915(pci_get_drvdata(pdev)));
+	err = run_selftests(live, pdev_to_i915(pdev));
 	if (err) {
 		i915_selftest.live = err;
 		return err;
@@ -240,7 +243,65 @@ static bool apply_subtest_filter(const char *caller, const char *name)
 	return result;
 }
 
+int __i915_nop_setup(void *data)
+{
+	return 0;
+}
+
+int __i915_nop_teardown(int err, void *data)
+{
+	return err;
+}
+
+int __i915_live_setup(void *data)
+{
+	struct drm_i915_private *i915 = data;
+
+	/* The selftests expect an idle system */
+	if (intel_gt_pm_wait_for_idle(&i915->gt))
+		return -EIO;
+
+	return intel_gt_terminally_wedged(&i915->gt);
+}
+
+int __i915_live_teardown(int err, void *data)
+{
+	struct drm_i915_private *i915 = data;
+
+	if (igt_flush_test(i915))
+		err = -EIO;
+
+	i915_gem_drain_freed_objects(i915);
+
+	return err;
+}
+
+int __intel_gt_live_setup(void *data)
+{
+	struct intel_gt *gt = data;
+
+	/* The selftests expect an idle system */
+	if (intel_gt_pm_wait_for_idle(gt))
+		return -EIO;
+
+	return intel_gt_terminally_wedged(gt);
+}
+
+int __intel_gt_live_teardown(int err, void *data)
+{
+	struct intel_gt *gt = data;
+
+	if (igt_flush_test(gt->i915))
+		err = -EIO;
+
+	i915_gem_drain_freed_objects(gt->i915);
+
+	return err;
+}
+
 int __i915_subtests(const char *caller,
+		    int (*setup)(void *data),
+		    int (*teardown)(int err, void *data),
 		    const struct i915_subtest *st,
 		    unsigned int count,
 		    void *data)
@@ -255,10 +316,17 @@ int __i915_subtests(const char *caller,
 		if (!apply_subtest_filter(caller, st->name))
 			continue;
 
+		err = setup(data);
+		if (err) {
+			pr_err(DRIVER_NAME "/%s: setup failed for %s\n",
+			       caller, st->name);
+			return err;
+		}
+
 		pr_info(DRIVER_NAME ": Running %s/%s\n", caller, st->name);
 		GEM_TRACE("Running %s/%s\n", caller, st->name);
 
-		err = st->func(data);
+		err = teardown(st->func(data), data);
 		if (err && err != -EINTR) {
 			pr_err(DRIVER_NAME "/%s: %s failed with error %d\n",
 			       caller, st->name, err);

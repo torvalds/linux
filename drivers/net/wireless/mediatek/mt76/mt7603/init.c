@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ISC */
+// SPDX-License-Identifier: ISC
 
 #include <linux/etherdevice.h>
 #include "mt7603.h"
@@ -7,6 +7,8 @@
 
 const struct mt76_driver_ops mt7603_drv_ops = {
 	.txwi_size = MT_TXD_SIZE,
+	.drv_flags = MT_DRV_SW_RX_AIRTIME,
+	.survey_flags = SURVEY_INFO_TIME_TX,
 	.tx_prepare_skb = mt7603_tx_prepare_skb,
 	.tx_complete_skb = mt7603_tx_complete_skb,
 	.rx_skb = mt7603_queue_rx_skb,
@@ -227,11 +229,19 @@ mt7603_mac_init(struct mt7603_dev *dev)
 	mt76_rmw_field(dev, MT_LPON_BTEIR, MT_LPON_BTEIR_MBSS_MODE, 2);
 	mt76_rmw_field(dev, MT_WF_RMACDR, MT_WF_RMACDR_MBSSID_MASK, 2);
 
-	mt76_wr(dev, MT_AGG_ARUCR, FIELD_PREP(MT_AGG_ARxCR_LIMIT(0), 7));
+	mt76_wr(dev, MT_AGG_ARUCR,
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(0), 7) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(1), 2) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(2), 2) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(3), 2) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(4), 1) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(5), 1) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(6), 1) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(7), 1));
+
 	mt76_wr(dev, MT_AGG_ARDCR,
-		FIELD_PREP(MT_AGG_ARxCR_LIMIT(0), 0) |
-		FIELD_PREP(MT_AGG_ARxCR_LIMIT(1),
-			   max_t(int, 0, MT7603_RATE_RETRY - 2)) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(0), MT7603_RATE_RETRY - 1) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(1), MT7603_RATE_RETRY - 1) |
 		FIELD_PREP(MT_AGG_ARxCR_LIMIT(2), MT7603_RATE_RETRY - 1) |
 		FIELD_PREP(MT_AGG_ARxCR_LIMIT(3), MT7603_RATE_RETRY - 1) |
 		FIELD_PREP(MT_AGG_ARxCR_LIMIT(4), MT7603_RATE_RETRY - 1) |
@@ -240,8 +250,7 @@ mt7603_mac_init(struct mt7603_dev *dev)
 		FIELD_PREP(MT_AGG_ARxCR_LIMIT(7), MT7603_RATE_RETRY - 1));
 
 	mt76_wr(dev, MT_AGG_ARCR,
-		(MT_AGG_ARCR_INIT_RATE1 |
-		 FIELD_PREP(MT_AGG_ARCR_RTS_RATE_THR, 2) |
+		(FIELD_PREP(MT_AGG_ARCR_RTS_RATE_THR, 2) |
 		 MT_AGG_ARCR_RATE_DOWN_RATIO_EN |
 		 FIELD_PREP(MT_AGG_ARCR_RATE_DOWN_RATIO, 1) |
 		 FIELD_PREP(MT_AGG_ARCR_RATE_UP_EXTRA_TH, 4)));
@@ -437,7 +446,9 @@ mt7603_regd_notifier(struct wiphy *wiphy,
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct mt7603_dev *dev = hw->priv;
 
-	dev->ed_monitor = request->dfs_region == NL80211_DFS_ETSI;
+	dev->mt76.region = request->dfs_region;
+	dev->ed_monitor = dev->ed_monitor_enabled &&
+			  dev->mt76.region == NL80211_DFS_ETSI;
 }
 
 static int
@@ -463,8 +474,12 @@ mt7603_init_txpower(struct mt7603_dev *dev,
 	u8 *eeprom = (u8 *)dev->mt76.eeprom.data;
 	int target_power = eeprom[MT_EE_TX_POWER_0_START_2G + 2] & ~BIT(7);
 	u8 *rate_power = &eeprom[MT_EE_TX_POWER_CCK];
+	bool ext_pa = eeprom[MT_EE_NIC_CONF_0 + 1] & BIT(1);
 	int max_offset, cur_offset;
 	int i;
+
+	if (ext_pa && is_mt7603(dev))
+		target_power = eeprom[MT_EE_TX_POWER_TSSI_OFF] & ~BIT(7);
 
 	if (target_power & BIT(6))
 		target_power = -(target_power & GENMASK(5, 0));
@@ -488,11 +503,10 @@ mt7603_init_txpower(struct mt7603_dev *dev,
 
 	for (i = 0; i < sband->n_channels; i++) {
 		chan = &sband->channels[i];
-		chan->max_power = target_power;
+		chan->max_power = min_t(int, chan->max_reg_power, target_power);
 		chan->orig_mpwr = target_power;
 	}
 }
-
 
 int mt7603_register_device(struct mt7603_dev *dev)
 {
@@ -512,6 +526,8 @@ int mt7603_register_device(struct mt7603_dev *dev)
 	bus_ops->rmw = mt7603_rmw;
 	dev->mt76.bus = bus_ops;
 
+	INIT_LIST_HEAD(&dev->sta_poll_list);
+	spin_lock_init(&dev->sta_poll_lock);
 	spin_lock_init(&dev->ps_lock);
 
 	INIT_DELAYED_WORK(&dev->mt76.mac_work, mt7603_mac_work);
@@ -540,7 +556,6 @@ int mt7603_register_device(struct mt7603_dev *dev)
 	wiphy->iface_combinations = if_comb;
 	wiphy->n_iface_combinations = ARRAY_SIZE(if_comb);
 
-	ieee80211_hw_set(hw, SUPPORTS_REORDERING_BUFFER);
 	ieee80211_hw_set(hw, TX_STATUS_NO_AMPDU_LEN);
 
 	/* init led callbacks */
@@ -549,16 +564,7 @@ int mt7603_register_device(struct mt7603_dev *dev)
 		dev->mt76.led_cdev.blink_set = mt7603_led_set_blink;
 	}
 
-	wiphy->interface_modes =
-		BIT(NL80211_IFTYPE_STATION) |
-		BIT(NL80211_IFTYPE_AP) |
-#ifdef CONFIG_MAC80211_MESH
-		BIT(NL80211_IFTYPE_MESH_POINT) |
-#endif
-		BIT(NL80211_IFTYPE_ADHOC);
-
 	wiphy->flags |= WIPHY_FLAG_HAS_CHANNEL_SWITCH;
-
 	wiphy->reg_notifier = mt7603_regd_notifier;
 
 	ret = mt76_register_device(&dev->mt76, true, mt7603_rates,

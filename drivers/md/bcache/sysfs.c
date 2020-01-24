@@ -16,6 +16,8 @@
 #include <linux/sort.h>
 #include <linux/sched/clock.h>
 
+extern bool bcache_is_reboot;
+
 /* Default is 0 ("writethrough") */
 static const char * const bch_cache_modes[] = {
 	"writethrough",
@@ -84,8 +86,8 @@ read_attribute(bset_tree_stats);
 read_attribute(state);
 read_attribute(cache_read_races);
 read_attribute(reclaim);
+read_attribute(reclaimed_journal_buckets);
 read_attribute(flush_write);
-read_attribute(retry_flush_write);
 read_attribute(writeback_keys_done);
 read_attribute(writeback_keys_failed);
 read_attribute(io_errors);
@@ -132,6 +134,7 @@ rw_attribute(expensive_debug_checks);
 rw_attribute(cache_replacement_policy);
 rw_attribute(btree_shrinker_disabled);
 rw_attribute(copy_gc_enabled);
+rw_attribute(idle_max_writeback_rate);
 rw_attribute(gc_after_writeback);
 rw_attribute(size);
 
@@ -180,7 +183,7 @@ SHOW(__bch_cached_dev)
 	var_print(writeback_percent);
 	sysfs_hprint(writeback_rate,
 		     wb ? atomic_long_read(&dc->writeback_rate.rate) << 9 : 0);
-	sysfs_hprint(io_errors,		atomic_read(&dc->io_errors));
+	sysfs_printf(io_errors,		"%i", atomic_read(&dc->io_errors));
 	sysfs_printf(io_error_limit,	"%i", dc->error_limit);
 	sysfs_printf(io_disable,	"%i", dc->io_disable);
 	var_print(writeback_rate_update_seconds);
@@ -271,6 +274,10 @@ STORE(__cached_dev)
 	struct cache_set *c;
 	struct kobj_uevent_env *env;
 
+	/* no user space access if system is rebooting */
+	if (bcache_is_reboot)
+		return -EBUSY;
+
 #define d_strtoul(var)		sysfs_strtoul(var, dc->var)
 #define d_strtoul_nonzero(var)	sysfs_strtoul_clamp(var, dc->var, 1, INT_MAX)
 #define d_strtoi_h(var)		sysfs_hatoi(var, dc->var)
@@ -329,8 +336,11 @@ STORE(__cached_dev)
 		bch_cache_accounting_clear(&dc->accounting);
 
 	if (attr == &sysfs_running &&
-	    strtoul_or_return(buf))
-		bch_cached_dev_run(dc);
+	    strtoul_or_return(buf)) {
+		v = bch_cached_dev_run(dc);
+		if (v)
+			return v;
+	}
 
 	if (attr == &sysfs_cache_mode) {
 		v = __sysfs_match_string(bch_cache_modes, -1, buf);
@@ -408,6 +418,10 @@ STORE(bch_cached_dev)
 	struct cached_dev *dc = container_of(kobj, struct cached_dev,
 					     disk.kobj);
 
+	/* no user space access if system is rebooting */
+	if (bcache_is_reboot)
+		return -EBUSY;
+
 	mutex_lock(&bch_register_lock);
 	size = __cached_dev_store(kobj, attr, buf, size);
 
@@ -464,7 +478,7 @@ static struct attribute *bch_cached_dev_files[] = {
 	&sysfs_writeback_rate_p_term_inverse,
 	&sysfs_writeback_rate_minimum,
 	&sysfs_writeback_rate_debug,
-	&sysfs_errors,
+	&sysfs_io_errors,
 	&sysfs_io_error_limit,
 	&sysfs_io_disable,
 	&sysfs_dirty_data,
@@ -510,6 +524,10 @@ STORE(__bch_flash_dev)
 	struct bcache_device *d = container_of(kobj, struct bcache_device,
 					       kobj);
 	struct uuid_entry *u = &d->c->uuids[d->id];
+
+	/* no user space access if system is rebooting */
+	if (bcache_is_reboot)
+		return -EBUSY;
 
 	sysfs_strtoul(data_csum,	d->data_csum);
 
@@ -693,11 +711,11 @@ SHOW(__bch_cache_set)
 	sysfs_print(reclaim,
 		    atomic_long_read(&c->reclaim));
 
+	sysfs_print(reclaimed_journal_buckets,
+		    atomic_long_read(&c->reclaimed_journal_buckets));
+
 	sysfs_print(flush_write,
 		    atomic_long_read(&c->flush_write));
-
-	sysfs_print(retry_flush_write,
-		    atomic_long_read(&c->retry_flush_write));
 
 	sysfs_print(writeback_keys_done,
 		    atomic_long_read(&c->writeback_keys_done));
@@ -730,6 +748,8 @@ SHOW(__bch_cache_set)
 	sysfs_printf(gc_always_rewrite,		"%i", c->gc_always_rewrite);
 	sysfs_printf(btree_shrinker_disabled,	"%i", c->shrinker_disabled);
 	sysfs_printf(copy_gc_enabled,		"%i", c->copy_gc_enabled);
+	sysfs_printf(idle_max_writeback_rate,	"%i",
+		     c->idle_max_writeback_rate_enabled);
 	sysfs_printf(gc_after_writeback,	"%i", c->gc_after_writeback);
 	sysfs_printf(io_disable,		"%i",
 		     test_bit(CACHE_SET_IO_DISABLE, &c->flags));
@@ -745,6 +765,10 @@ STORE(__bch_cache_set)
 {
 	struct cache_set *c = container_of(kobj, struct cache_set, kobj);
 	ssize_t v;
+
+	/* no user space access if system is rebooting */
+	if (bcache_is_reboot)
+		return -EBUSY;
 
 	if (attr == &sysfs_unregister)
 		bch_cache_set_unregister(c);
@@ -843,6 +867,9 @@ STORE(__bch_cache_set)
 	sysfs_strtoul_bool(gc_always_rewrite,	c->gc_always_rewrite);
 	sysfs_strtoul_bool(btree_shrinker_disabled, c->shrinker_disabled);
 	sysfs_strtoul_bool(copy_gc_enabled,	c->copy_gc_enabled);
+	sysfs_strtoul_bool(idle_max_writeback_rate,
+			   c->idle_max_writeback_rate_enabled);
+
 	/*
 	 * write gc_after_writeback here may overwrite an already set
 	 * BCH_DO_AUTO_GC, it doesn't matter because this flag will be
@@ -864,6 +891,10 @@ SHOW(bch_cache_set_internal)
 STORE(bch_cache_set_internal)
 {
 	struct cache_set *c = container_of(kobj, struct cache_set, internal);
+
+	/* no user space access if system is rebooting */
+	if (bcache_is_reboot)
+		return -EBUSY;
 
 	return bch_cache_set_store(&c->kobj, attr, buf, size);
 }
@@ -914,8 +945,8 @@ static struct attribute *bch_cache_set_internal_files[] = {
 	&sysfs_bset_tree_stats,
 	&sysfs_cache_read_races,
 	&sysfs_reclaim,
+	&sysfs_reclaimed_journal_buckets,
 	&sysfs_flush_write,
-	&sysfs_retry_flush_write,
 	&sysfs_writeback_keys_done,
 	&sysfs_writeback_keys_failed,
 
@@ -929,6 +960,7 @@ static struct attribute *bch_cache_set_internal_files[] = {
 	&sysfs_gc_always_rewrite,
 	&sysfs_btree_shrinker_disabled,
 	&sysfs_copy_gc_enabled,
+	&sysfs_idle_max_writeback_rate,
 	&sysfs_gc_after_writeback,
 	&sysfs_io_disable,
 	&sysfs_cutoff_writeback,
@@ -939,6 +971,7 @@ KTYPE(bch_cache_set_internal);
 
 static int __bch_cache_cmp(const void *l, const void *r)
 {
+	cond_resched();
 	return *((uint16_t *)r) - *((uint16_t *)l);
 }
 
@@ -1049,6 +1082,10 @@ STORE(__bch_cache)
 {
 	struct cache *ca = container_of(kobj, struct cache, kobj);
 	ssize_t v;
+
+	/* no user space access if system is rebooting */
+	if (bcache_is_reboot)
+		return -EBUSY;
 
 	if (attr == &sysfs_discard) {
 		bool v = strtoul_or_return(buf);

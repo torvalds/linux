@@ -1,52 +1,7 @@
+// SPDX-License-Identifier: (GPL-2.0-or-later OR BSD-2-Clause)
 /*
  * libfdt - Flat Device Tree manipulation
  * Copyright (C) 2006 David Gibson, IBM Corporation.
- *
- * libfdt is dual licensed: you can use it either under the terms of
- * the GPL, or the BSD license, at your option.
- *
- *  a) This library is free software; you can redistribute it and/or
- *     modify it under the terms of the GNU General Public License as
- *     published by the Free Software Foundation; either version 2 of the
- *     License, or (at your option) any later version.
- *
- *     This library is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public
- *     License along with this library; if not, write to the Free
- *     Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
- *     MA 02110-1301 USA
- *
- * Alternatively,
- *
- *  b) Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *     1. Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *     2. Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials
- *        provided with the distribution.
- *
- *     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
- *     CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
- *     INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- *     MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- *     DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
- *     CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *     SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- *     NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- *     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- *     HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- *     CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- *     OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
- *     EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "libfdt_env.h"
 
@@ -121,6 +76,12 @@ static int fdt_sw_probe_struct_(void *fdt)
 			return err; \
 	}
 
+static inline uint32_t sw_flags(void *fdt)
+{
+	/* assert: (fdt_magic(fdt) == FDT_SW_MAGIC) */
+	return fdt_last_comp_version(fdt);
+}
+
 /* 'complete' state:	Enter this state after fdt_finish()
  *
  * Allowed functions: none
@@ -141,7 +102,7 @@ static void *fdt_grab_space_(void *fdt, size_t len)
 	return fdt_offset_ptr_w_(fdt, offset);
 }
 
-int fdt_create(void *buf, int bufsize)
+int fdt_create_with_flags(void *buf, int bufsize, uint32_t flags)
 {
 	const size_t hdrsize = FDT_ALIGN(sizeof(struct fdt_header),
 					 sizeof(struct fdt_reserve_entry));
@@ -150,11 +111,22 @@ int fdt_create(void *buf, int bufsize)
 	if (bufsize < hdrsize)
 		return -FDT_ERR_NOSPACE;
 
+	if (flags & ~FDT_CREATE_FLAGS_ALL)
+		return -FDT_ERR_BADFLAGS;
+
 	memset(buf, 0, bufsize);
 
+	/*
+	 * magic and last_comp_version keep intermediate state during the fdt
+	 * creation process, which is replaced with the proper FDT format by
+	 * fdt_finish().
+	 *
+	 * flags should be accessed with sw_flags().
+	 */
 	fdt_set_magic(fdt, FDT_SW_MAGIC);
 	fdt_set_version(fdt, FDT_LAST_SUPPORTED_VERSION);
-	fdt_set_last_comp_version(fdt, FDT_FIRST_SUPPORTED_VERSION);
+	fdt_set_last_comp_version(fdt, flags);
+
 	fdt_set_totalsize(fdt,  bufsize);
 
 	fdt_set_off_mem_rsvmap(fdt, hdrsize);
@@ -162,6 +134,11 @@ int fdt_create(void *buf, int bufsize)
 	fdt_set_off_dt_strings(fdt, 0);
 
 	return 0;
+}
+
+int fdt_create(void *buf, int bufsize)
+{
+	return fdt_create_with_flags(buf, bufsize, 0);
 }
 
 int fdt_resize(void *fdt, void *buf, int bufsize)
@@ -262,19 +239,13 @@ int fdt_end_node(void *fdt)
 	return 0;
 }
 
-static int fdt_find_add_string_(void *fdt, const char *s)
+static int fdt_add_string_(void *fdt, const char *s)
 {
 	char *strtab = (char *)fdt + fdt_totalsize(fdt);
-	const char *p;
 	int strtabsize = fdt_size_dt_strings(fdt);
 	int len = strlen(s) + 1;
 	int struct_top, offset;
 
-	p = fdt_find_string_(strtab - strtabsize, strtabsize, s);
-	if (p)
-		return p - strtab;
-
-	/* Add it */
 	offset = -strtabsize - len;
 	struct_top = fdt_off_dt_struct(fdt) + fdt_size_dt_struct(fdt);
 	if (fdt_totalsize(fdt) + offset < struct_top)
@@ -285,20 +256,56 @@ static int fdt_find_add_string_(void *fdt, const char *s)
 	return offset;
 }
 
+/* Must only be used to roll back in case of error */
+static void fdt_del_last_string_(void *fdt, const char *s)
+{
+	int strtabsize = fdt_size_dt_strings(fdt);
+	int len = strlen(s) + 1;
+
+	fdt_set_size_dt_strings(fdt, strtabsize - len);
+}
+
+static int fdt_find_add_string_(void *fdt, const char *s, int *allocated)
+{
+	char *strtab = (char *)fdt + fdt_totalsize(fdt);
+	int strtabsize = fdt_size_dt_strings(fdt);
+	const char *p;
+
+	*allocated = 0;
+
+	p = fdt_find_string_(strtab - strtabsize, strtabsize, s);
+	if (p)
+		return p - strtab;
+
+	*allocated = 1;
+
+	return fdt_add_string_(fdt, s);
+}
+
 int fdt_property_placeholder(void *fdt, const char *name, int len, void **valp)
 {
 	struct fdt_property *prop;
 	int nameoff;
+	int allocated;
 
 	FDT_SW_PROBE_STRUCT(fdt);
 
-	nameoff = fdt_find_add_string_(fdt, name);
+	/* String de-duplication can be slow, _NO_NAME_DEDUP skips it */
+	if (sw_flags(fdt) & FDT_CREATE_FLAG_NO_NAME_DEDUP) {
+		allocated = 1;
+		nameoff = fdt_add_string_(fdt, name);
+	} else {
+		nameoff = fdt_find_add_string_(fdt, name, &allocated);
+	}
 	if (nameoff == 0)
 		return -FDT_ERR_NOSPACE;
 
 	prop = fdt_grab_space_(fdt, sizeof(*prop) + FDT_TAGALIGN(len));
-	if (! prop)
+	if (! prop) {
+		if (allocated)
+			fdt_del_last_string_(fdt, name);
 		return -FDT_ERR_NOSPACE;
+	}
 
 	prop->tag = cpu_to_fdt32(FDT_PROP);
 	prop->nameoff = cpu_to_fdt32(nameoff);
@@ -360,6 +367,10 @@ int fdt_finish(void *fdt)
 
 	/* Finally, adjust the header */
 	fdt_set_totalsize(fdt, newstroffset + fdt_size_dt_strings(fdt));
+
+	/* And fix up fields that were keeping intermediate state. */
+	fdt_set_last_comp_version(fdt, FDT_FIRST_SUPPORTED_VERSION);
 	fdt_set_magic(fdt, FDT_MAGIC);
+
 	return 0;
 }

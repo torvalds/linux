@@ -167,7 +167,7 @@ struct nps_enet_priv {
 };
 
 /**
- * nps_reg_set - Sets ENET register with provided value.
+ * nps_enet_reg_set - Sets ENET register with provided value.
  * @priv:       Pointer to EZchip ENET private data structure.
  * @reg:        Register offset from base address.
  * @value:      Value to set in register.
@@ -179,7 +179,7 @@ static inline void nps_enet_reg_set(struct nps_enet_priv *priv,
 }
 
 /**
- * nps_reg_get - Gets value of specified ENET register.
+ * nps_enet_reg_get - Gets value of specified ENET register.
  * @priv:       Pointer to EZchip ENET private data structure.
  * @reg:        Register offset from base address.
  *

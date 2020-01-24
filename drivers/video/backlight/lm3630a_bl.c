@@ -12,6 +12,7 @@
 #include <linux/uaccess.h>
 #include <linux/interrupt.h>
 #include <linux/regmap.h>
+#include <linux/gpio/consumer.h>
 #include <linux/pwm.h>
 #include <linux/platform_data/lm3630a_bl.h>
 
@@ -48,6 +49,7 @@ struct lm3630a_chip {
 	struct lm3630a_platform_data *pdata;
 	struct backlight_device *bleda;
 	struct backlight_device *bledb;
+	struct gpio_desc *enable_gpio;
 	struct regmap *regmap;
 	struct pwm_device *pwmd;
 };
@@ -377,8 +379,7 @@ static int lm3630a_parse_led_sources(struct fwnode_handle *node,
 	u32 sources[LM3630A_NUM_SINKS];
 	int ret, num_sources, i;
 
-	num_sources = fwnode_property_read_u32_array(node, "led-sources", NULL,
-						     0);
+	num_sources = fwnode_property_count_u32(node, "led-sources");
 	if (num_sources < 0)
 		return default_led_sources;
 	else if (num_sources > ARRAY_SIZE(sources))
@@ -535,6 +536,13 @@ static int lm3630a_probe(struct i2c_client *client,
 	}
 	pchip->pdata = pdata;
 
+	pchip->enable_gpio = devm_gpiod_get_optional(&client->dev, "enable",
+						GPIOD_OUT_HIGH);
+	if (IS_ERR(pchip->enable_gpio)) {
+		rval = PTR_ERR(pchip->enable_gpio);
+		return rval;
+	}
+
 	/* chip initialize */
 	rval = lm3630a_chip_init(pchip);
 	if (rval < 0) {
@@ -599,12 +607,14 @@ static const struct i2c_device_id lm3630a_id[] = {
 	{}
 };
 
+MODULE_DEVICE_TABLE(i2c, lm3630a_id);
+
 static const struct of_device_id lm3630a_match_table[] = {
 	{ .compatible = "ti,lm3630a", },
 	{ },
 };
 
-MODULE_DEVICE_TABLE(i2c, lm3630a_id);
+MODULE_DEVICE_TABLE(of, lm3630a_match_table);
 
 static struct i2c_driver lm3630a_i2c_driver = {
 	.driver = {

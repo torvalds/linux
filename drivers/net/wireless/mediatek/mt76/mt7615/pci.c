@@ -27,14 +27,15 @@ u32 mt7615_reg_map(struct mt7615_dev *dev, u32 addr)
 	return MT_PCIE_REMAP_BASE_2 + offset;
 }
 
-void mt7615_rx_poll_complete(struct mt76_dev *mdev, enum mt76_rxq_id q)
+static void
+mt7615_rx_poll_complete(struct mt76_dev *mdev, enum mt76_rxq_id q)
 {
 	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
 
 	mt7615_irq_enable(dev, MT_INT_RX_DONE(q));
 }
 
-irqreturn_t mt7615_irq_handler(int irq, void *dev_instance)
+static irqreturn_t mt7615_irq_handler(int irq, void *dev_instance)
 {
 	struct mt7615_dev *dev = dev_instance;
 	u32 intr;
@@ -49,7 +50,7 @@ irqreturn_t mt7615_irq_handler(int irq, void *dev_instance)
 
 	if (intr & MT_INT_TX_DONE_ALL) {
 		mt7615_irq_disable(dev, MT_INT_TX_DONE_ALL);
-		tasklet_schedule(&dev->mt76.tx_tasklet);
+		napi_schedule(&dev->mt76.tx_napi);
 	}
 
 	if (intr & MT_INT_RX_DONE(0)) {
@@ -71,7 +72,10 @@ static int mt7615_pci_probe(struct pci_dev *pdev,
 	static const struct mt76_driver_ops drv_ops = {
 		/* txwi_size = txd size + txp size */
 		.txwi_size = MT_TXD_SIZE + sizeof(struct mt7615_txp),
-		.txwi_flags = MT_TXWI_NO_FREE,
+		.drv_flags = MT_DRV_TXWI_NO_FREE,
+		.survey_flags = SURVEY_INFO_TIME_TX |
+				SURVEY_INFO_TIME_RX |
+				SURVEY_INFO_TIME_BSS_RX,
 		.tx_prepare_skb = mt7615_tx_prepare_skb,
 		.tx_complete_skb = mt7615_tx_complete_skb,
 		.rx_skb = mt7615_queue_rx_skb,
@@ -80,6 +84,7 @@ static int mt7615_pci_probe(struct pci_dev *pdev,
 		.sta_add = mt7615_sta_add,
 		.sta_assoc = mt7615_sta_assoc,
 		.sta_remove = mt7615_sta_remove,
+		.update_survey = mt7615_update_channel,
 	};
 	struct mt7615_dev *dev;
 	struct mt76_dev *mdev;

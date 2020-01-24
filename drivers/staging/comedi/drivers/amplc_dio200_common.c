@@ -46,18 +46,6 @@ static unsigned char clk_gat_sce(unsigned int which, unsigned int chan,
 	       ((source & 030) << 3) | (source & 007);
 }
 
-static unsigned char clk_sce(unsigned int which, unsigned int chan,
-			     unsigned int source)
-{
-	return clk_gat_sce(which, chan, source);
-}
-
-static unsigned char gat_sce(unsigned int which, unsigned int chan,
-			     unsigned int source)
-{
-	return clk_gat_sce(which, chan, source);
-}
-
 /*
  * Periods of the internal clock sources in nanoseconds.
  */
@@ -489,7 +477,7 @@ static void dio200_subdev_8254_set_gate_src(struct comedi_device *dev,
 	unsigned int offset = dio200_subdev_8254_offset(dev, s);
 
 	dio200_write8(dev, DIO200_GAT_SCE(offset >> 3),
-		      gat_sce((offset >> 2) & 1, chan, src));
+		      clk_gat_sce((offset >> 2) & 1, chan, src));
 }
 
 static void dio200_subdev_8254_set_clock_src(struct comedi_device *dev,
@@ -500,7 +488,7 @@ static void dio200_subdev_8254_set_clock_src(struct comedi_device *dev,
 	unsigned int offset = dio200_subdev_8254_offset(dev, s);
 
 	dio200_write8(dev, DIO200_CLK_SCE(offset >> 3),
-		      clk_sce((offset >> 2) & 1, chan, src));
+		      clk_gat_sce((offset >> 2) & 1, chan, src));
 }
 
 static int dio200_subdev_8254_config(struct comedi_device *dev,

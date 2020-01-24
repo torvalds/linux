@@ -69,6 +69,9 @@ struct ceph_mds_reply_info_in {
 	u64 max_bytes;
 	u64 max_files;
 	s32 dir_pin;
+	struct ceph_timespec btime;
+	struct ceph_timespec snap_btime;
+	u64 change_attr;
 };
 
 struct ceph_mds_reply_dir_entry {
@@ -145,9 +148,9 @@ enum {
 	CEPH_MDS_SESSION_OPENING = 2,
 	CEPH_MDS_SESSION_OPEN = 3,
 	CEPH_MDS_SESSION_HUNG = 4,
-	CEPH_MDS_SESSION_CLOSING = 5,
-	CEPH_MDS_SESSION_RESTARTING = 6,
-	CEPH_MDS_SESSION_RECONNECTING = 7,
+	CEPH_MDS_SESSION_RESTARTING = 5,
+	CEPH_MDS_SESSION_RECONNECTING = 6,
+	CEPH_MDS_SESSION_CLOSING = 7,
 	CEPH_MDS_SESSION_REJECTED = 8,
 };
 
@@ -173,7 +176,7 @@ struct ceph_mds_session {
 	spinlock_t        s_cap_lock;
 	struct list_head  s_caps;     /* all caps issued by this session */
 	struct ceph_cap  *s_cap_iterator;
-	int               s_nr_caps, s_trim_caps;
+	int               s_nr_caps;
 	int               s_num_cap_releases;
 	int		  s_cap_reconnect;
 	int		  s_readonly;
@@ -337,6 +340,14 @@ struct ceph_quotarealm_inode {
 	struct inode *inode;
 };
 
+struct cap_wait {
+	struct list_head	list;
+	unsigned long		ino;
+	pid_t			tgid;
+	int			need;
+	int			want;
+};
+
 /*
  * mds client state
  */
@@ -413,6 +424,7 @@ struct ceph_mds_client {
 	spinlock_t	caps_list_lock;
 	struct		list_head caps_list; /* unused (reserved or
 						unreserved) */
+	struct		list_head cap_wait_list;
 	int		caps_total_count;    /* total caps allocated */
 	int		caps_use_count;      /* in use */
 	int		caps_use_max;	     /* max used caps */
@@ -504,7 +516,6 @@ extern char *ceph_mdsc_build_path(struct dentry *dentry, int *plen, u64 *base,
 
 extern void __ceph_mdsc_drop_dentry_lease(struct dentry *dentry);
 extern void ceph_mdsc_lease_send_msg(struct ceph_mds_session *session,
-				     struct inode *inode,
 				     struct dentry *dentry, char action,
 				     u32 seq);
 

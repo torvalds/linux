@@ -827,6 +827,7 @@ static const struct ethtool_ops ax88179_ethtool_ops = {
 	.nway_reset		= usbnet_nway_reset,
 	.get_link_ksettings	= ax88179_get_link_ksettings,
 	.set_link_ksettings	= ax88179_set_link_ksettings,
+	.get_ts_info		= ethtool_op_get_ts_info,
 };
 
 static void ax88179_set_multicast(struct net_device *net)
@@ -1214,6 +1215,32 @@ static int ax88179_led_setting(struct usbnet *dev)
 	return 0;
 }
 
+static void ax88179_get_mac_addr(struct usbnet *dev)
+{
+	u8 mac[ETH_ALEN];
+
+	/* Maybe the boot loader passed the MAC address via device tree */
+	if (!eth_platform_get_mac_address(&dev->udev->dev, mac)) {
+		netif_dbg(dev, ifup, dev->net,
+			  "MAC address read from device tree");
+	} else {
+		ax88179_read_cmd(dev, AX_ACCESS_MAC, AX_NODE_ID, ETH_ALEN,
+				 ETH_ALEN, mac);
+		netif_dbg(dev, ifup, dev->net,
+			  "MAC address read from ASIX chip");
+	}
+
+	if (is_valid_ether_addr(mac)) {
+		memcpy(dev->net->dev_addr, mac, ETH_ALEN);
+	} else {
+		netdev_info(dev->net, "invalid MAC address, using random\n");
+		eth_hw_addr_random(dev->net);
+	}
+
+	ax88179_write_cmd(dev, AX_ACCESS_MAC, AX_NODE_ID, ETH_ALEN, ETH_ALEN,
+			  dev->net->dev_addr);
+}
+
 static int ax88179_bind(struct usbnet *dev, struct usb_interface *intf)
 {
 	u8 buf[5];
@@ -1240,8 +1267,8 @@ static int ax88179_bind(struct usbnet *dev, struct usb_interface *intf)
 	ax88179_write_cmd(dev, AX_ACCESS_MAC, AX_CLK_SELECT, 1, 1, tmp);
 	msleep(100);
 
-	ax88179_read_cmd(dev, AX_ACCESS_MAC, AX_NODE_ID, ETH_ALEN,
-			 ETH_ALEN, dev->net->dev_addr);
+	/* Read MAC address from DTB or asix chip */
+	ax88179_get_mac_addr(dev);
 	memcpy(dev->net->perm_addr, dev->net->dev_addr, ETH_ALEN);
 
 	/* RX bulk configuration */
@@ -1366,8 +1393,7 @@ static int ax88179_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		return 0;
 
 	skb_trim(skb, skb->len - 4);
-	memcpy(&rx_hdr, skb_tail_pointer(skb), 4);
-	le32_to_cpus(&rx_hdr);
+	rx_hdr = get_unaligned_le32(skb_tail_pointer(skb));
 
 	pkt_cnt = (u16)rx_hdr;
 	hdr_off = (u16)(rx_hdr >> 16);
@@ -1422,6 +1448,7 @@ ax88179_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags)
 	int frame_size = dev->maxpacket;
 	int mss = skb_shinfo(skb)->gso_size;
 	int headroom;
+	void *ptr;
 
 	tx_hdr1 = skb->len;
 	tx_hdr2 = mss;
@@ -1436,13 +1463,9 @@ ax88179_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags)
 		return NULL;
 	}
 
-	skb_push(skb, 4);
-	cpu_to_le32s(&tx_hdr2);
-	skb_copy_to_linear_data(skb, &tx_hdr2, 4);
-
-	skb_push(skb, 4);
-	cpu_to_le32s(&tx_hdr1);
-	skb_copy_to_linear_data(skb, &tx_hdr1, 4);
+	ptr = skb_push(skb, 8);
+	put_unaligned_le32(tx_hdr1, ptr);
+	put_unaligned_le32(tx_hdr2, ptr + 4);
 
 	return skb;
 }
@@ -1545,8 +1568,8 @@ static int ax88179_reset(struct usbnet *dev)
 	/* Ethernet PHY Auto Detach*/
 	ax88179_auto_detach(dev, 0);
 
-	ax88179_read_cmd(dev, AX_ACCESS_MAC, AX_NODE_ID, ETH_ALEN, ETH_ALEN,
-			 dev->net->dev_addr);
+	/* Read MAC address from DTB or asix chip */
+	ax88179_get_mac_addr(dev);
 
 	/* RX bulk configuration */
 	memcpy(tmp, &AX88179_BULKIN_SIZE[0], 5);

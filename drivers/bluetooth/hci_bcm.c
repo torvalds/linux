@@ -260,7 +260,7 @@ static int bcm_gpio_set_power(struct bcm_device *dev, bool powered)
 	}
 
 	/* wait for device to power on and come out of reset */
-	usleep_range(10000, 20000);
+	usleep_range(100000, 120000);
 
 	dev->res_enabled = powered;
 
@@ -406,6 +406,9 @@ static int bcm_open(struct hci_uart *hu)
 
 	bt_dev_dbg(hu->hdev, "hu %p", hu);
 
+	if (!hci_uart_has_flow_control(hu))
+		return -EOPNOTSUPP;
+
 	bcm = kzalloc(sizeof(*bcm), GFP_KERNEL);
 	if (!bcm)
 		return -ENOMEM;
@@ -442,9 +445,11 @@ static int bcm_open(struct hci_uart *hu)
 
 out:
 	if (bcm->dev) {
+		hci_uart_set_flow_control(hu, true);
 		hu->init_speed = bcm->dev->init_speed;
 		hu->oper_speed = bcm->dev->oper_speed;
 		err = bcm_gpio_set_power(bcm->dev, true);
+		hci_uart_set_flow_control(hu, false);
 		if (err)
 			goto err_unset_hu;
 	}
@@ -821,6 +826,21 @@ unlock:
 }
 #endif
 
+/* Some firmware reports an IRQ which does not work (wrong pin in fw table?) */
+static const struct dmi_system_id bcm_broken_irq_dmi_table[] = {
+	{
+		.ident = "Meegopad T08",
+		.matches = {
+			DMI_EXACT_MATCH(DMI_BOARD_VENDOR,
+					"To be filled by OEM."),
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "T3 MRD"),
+			DMI_EXACT_MATCH(DMI_BOARD_VERSION, "V1.1"),
+		},
+	},
+	{ }
+};
+
+#ifdef CONFIG_ACPI
 static const struct acpi_gpio_params first_gpio = { 0, 0, false };
 static const struct acpi_gpio_params second_gpio = { 1, 0, false };
 static const struct acpi_gpio_params third_gpio = { 2, 0, false };
@@ -839,21 +859,6 @@ static const struct acpi_gpio_mapping acpi_bcm_int_first_gpios[] = {
 	{ },
 };
 
-/* Some firmware reports an IRQ which does not work (wrong pin in fw table?) */
-static const struct dmi_system_id bcm_broken_irq_dmi_table[] = {
-	{
-		.ident = "Meegopad T08",
-		.matches = {
-			DMI_EXACT_MATCH(DMI_BOARD_VENDOR,
-					"To be filled by OEM."),
-			DMI_EXACT_MATCH(DMI_BOARD_NAME, "T3 MRD"),
-			DMI_EXACT_MATCH(DMI_BOARD_VERSION, "V1.1"),
-		},
-	},
-	{ }
-};
-
-#ifdef CONFIG_ACPI
 static int bcm_resource(struct acpi_resource *ares, void *data)
 {
 	struct bcm_device *dev = data;
@@ -1416,8 +1421,11 @@ static void bcm_serdev_remove(struct serdev_device *serdev)
 #ifdef CONFIG_OF
 static const struct of_device_id bcm_bluetooth_of_match[] = {
 	{ .compatible = "brcm,bcm20702a1" },
+	{ .compatible = "brcm,bcm4345c5" },
 	{ .compatible = "brcm,bcm4330-bt" },
 	{ .compatible = "brcm,bcm43438-bt" },
+	{ .compatible = "brcm,bcm43540-bt" },
+	{ .compatible = "brcm,bcm4335a0" },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, bcm_bluetooth_of_match);

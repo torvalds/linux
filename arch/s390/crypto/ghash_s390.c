@@ -137,7 +137,7 @@ static struct shash_alg ghash_alg = {
 static int __init ghash_mod_init(void)
 {
 	if (!cpacf_query_func(CPACF_KIMD, CPACF_KIMD_GHASH))
-		return -EOPNOTSUPP;
+		return -ENODEV;
 
 	return crypto_register_shash(&ghash_alg);
 }
@@ -153,4 +153,4 @@ module_exit(ghash_mod_exit);
 MODULE_ALIAS_CRYPTO("ghash");
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("GHASH Message Digest Algorithm, s390 implementation");
+MODULE_DESCRIPTION("GHASH hash function, s390 implementation");

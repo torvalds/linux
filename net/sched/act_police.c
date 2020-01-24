@@ -40,12 +40,14 @@ static const struct nla_policy police_policy[TCA_POLICE_MAX + 1] = {
 	[TCA_POLICE_PEAKRATE]	= { .len = TC_RTAB_SIZE },
 	[TCA_POLICE_AVRATE]	= { .type = NLA_U32 },
 	[TCA_POLICE_RESULT]	= { .type = NLA_U32 },
+	[TCA_POLICE_RATE64]     = { .type = NLA_U64 },
+	[TCA_POLICE_PEAKRATE64] = { .type = NLA_U64 },
 };
 
 static int tcf_police_init(struct net *net, struct nlattr *nla,
 			       struct nlattr *est, struct tc_action **a,
 			       int ovr, int bind, bool rtnl_held,
-			       struct tcf_proto *tp,
+			       struct tcf_proto *tp, u32 flags,
 			       struct netlink_ext_ack *extack)
 {
 	int ret = 0, tcfp_result = TC_ACT_OK, err, size;
@@ -57,6 +59,8 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 	struct tc_action_net *tn = net_generic(net, police_net_id);
 	struct tcf_police_params *new;
 	bool exists = false;
+	u32 index;
+	u64 rate64, prate64;
 
 	if (nla == NULL)
 		return -EINVAL;
@@ -73,7 +77,8 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 		return -EINVAL;
 
 	parm = nla_data(tb[TCA_POLICE_TBF]);
-	err = tcf_idr_check_alloc(tn, &parm->index, a, bind);
+	index = parm->index;
+	err = tcf_idr_check_alloc(tn, &index, a, bind);
 	if (err < 0)
 		return err;
 	exists = err;
@@ -81,10 +86,10 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 		return 0;
 
 	if (!exists) {
-		ret = tcf_idr_create(tn, parm->index, NULL, a,
-				     &act_police_ops, bind, true);
+		ret = tcf_idr_create(tn, index, NULL, a,
+				     &act_police_ops, bind, true, 0);
 		if (ret) {
-			tcf_idr_cleanup(tn, parm->index);
+			tcf_idr_cleanup(tn, index);
 			return ret;
 		}
 		ret = ACT_P_CREATED;
@@ -153,14 +158,18 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 	}
 	if (R_tab) {
 		new->rate_present = true;
-		psched_ratecfg_precompute(&new->rate, &R_tab->rate, 0);
+		rate64 = tb[TCA_POLICE_RATE64] ?
+			 nla_get_u64(tb[TCA_POLICE_RATE64]) : 0;
+		psched_ratecfg_precompute(&new->rate, &R_tab->rate, rate64);
 		qdisc_put_rtab(R_tab);
 	} else {
 		new->rate_present = false;
 	}
 	if (P_tab) {
 		new->peak_present = true;
-		psched_ratecfg_precompute(&new->peak, &P_tab->rate, 0);
+		prate64 = tb[TCA_POLICE_PEAKRATE64] ?
+			  nla_get_u64(tb[TCA_POLICE_PEAKRATE64]) : 0;
+		psched_ratecfg_precompute(&new->peak, &P_tab->rate, prate64);
 		qdisc_put_rtab(P_tab);
 	} else {
 		new->peak_present = false;
@@ -182,9 +191,9 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 		police->tcfp_ptoks = new->tcfp_mtu_ptoks;
 	spin_unlock_bh(&police->tcfp_lock);
 	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
-	rcu_swap_protected(police->params,
-			   new,
-			   lockdep_is_held(&police->tcf_lock));
+	new = rcu_replace_pointer(police->params,
+				  new,
+				  lockdep_is_held(&police->tcf_lock));
 	spin_unlock_bh(&police->tcf_lock);
 
 	if (goto_ch)
@@ -285,10 +294,7 @@ static void tcf_police_stats_update(struct tc_action *a,
 	struct tcf_police *police = to_police(a);
 	struct tcf_t *tm = &police->tcf_tm;
 
-	_bstats_cpu_update(this_cpu_ptr(a->cpu_bstats), bytes, packets);
-	if (hw)
-		_bstats_cpu_update(this_cpu_ptr(a->cpu_bstats_hw),
-				   bytes, packets);
+	tcf_action_update_stats(a, bytes, packets, false, hw);
 	tm->lastuse = max_t(u64, tm->lastuse, lastuse);
 }
 
@@ -311,10 +317,22 @@ static int tcf_police_dump(struct sk_buff *skb, struct tc_action *a,
 				      lockdep_is_held(&police->tcf_lock));
 	opt.mtu = p->tcfp_mtu;
 	opt.burst = PSCHED_NS2TICKS(p->tcfp_burst);
-	if (p->rate_present)
+	if (p->rate_present) {
 		psched_ratecfg_getrate(&opt.rate, &p->rate);
-	if (p->peak_present)
+		if ((police->params->rate.rate_bytes_ps >= (1ULL << 32)) &&
+		    nla_put_u64_64bit(skb, TCA_POLICE_RATE64,
+				      police->params->rate.rate_bytes_ps,
+				      TCA_POLICE_PAD))
+			goto nla_put_failure;
+	}
+	if (p->peak_present) {
 		psched_ratecfg_getrate(&opt.peakrate, &p->peak);
+		if ((police->params->peak.rate_bytes_ps >= (1ULL << 32)) &&
+		    nla_put_u64_64bit(skb, TCA_POLICE_PEAKRATE64,
+				      police->params->peak.rate_bytes_ps,
+				      TCA_POLICE_PAD))
+			goto nla_put_failure;
+	}
 	if (nla_put(skb, TCA_POLICE_TBF, sizeof(opt), &opt))
 		goto nla_put_failure;
 	if (p->tcfp_result &&
@@ -324,10 +342,7 @@ static int tcf_police_dump(struct sk_buff *skb, struct tc_action *a,
 	    nla_put_u32(skb, TCA_POLICE_AVRATE, p->tcfp_ewma_rate))
 		goto nla_put_failure;
 
-	t.install = jiffies_to_clock_t(jiffies - police->tcf_tm.install);
-	t.lastuse = jiffies_to_clock_t(jiffies - police->tcf_tm.lastuse);
-	t.firstuse = jiffies_to_clock_t(jiffies - police->tcf_tm.firstuse);
-	t.expires = jiffies_to_clock_t(police->tcf_tm.expires);
+	tcf_tm_dump(&t, &police->tcf_tm);
 	if (nla_put_64bit(skb, TCA_POLICE_TM, sizeof(t), &t, TCA_POLICE_PAD))
 		goto nla_put_failure;
 	spin_unlock_bh(&police->tcf_lock);
@@ -369,7 +384,7 @@ static __net_init int police_init_net(struct net *net)
 {
 	struct tc_action_net *tn = net_generic(net, police_net_id);
 
-	return tc_action_net_init(tn, &act_police_ops);
+	return tc_action_net_init(net, tn, &act_police_ops);
 }
 
 static void __net_exit police_exit_net(struct list_head *net_list)

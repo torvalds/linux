@@ -735,7 +735,7 @@ transfer_bytes(const wd33c93_regs regs, struct scsi_cmnd *cmd,
  * source or destination for THIS transfer.
  */
 	if (!cmd->SCp.this_residual && cmd->SCp.buffers_residual) {
-		++cmd->SCp.buffer;
+		cmd->SCp.buffer = sg_next(cmd->SCp.buffer);
 		--cmd->SCp.buffers_residual;
 		cmd->SCp.this_residual = cmd->SCp.buffer->length;
 		cmd->SCp.ptr = sg_virt(cmd->SCp.buffer);
@@ -1854,6 +1854,7 @@ round_4(unsigned int x)
 		case 1: --x;
 			break;
 		case 2: ++x;
+			/* fall through */
 		case 3: ++x;
 	}
 	return x;

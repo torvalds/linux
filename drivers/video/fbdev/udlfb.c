@@ -1183,7 +1183,7 @@ static int dlfb_ops_blank(int blank_mode, struct fb_info *info)
 	return 0;
 }
 
-static struct fb_ops dlfb_ops = {
+static const struct fb_ops dlfb_ops = {
 	.owner = THIS_MODULE,
 	.fb_read = fb_sys_read,
 	.fb_write = dlfb_ops_write,
@@ -1686,10 +1686,8 @@ static int dlfb_usb_probe(struct usb_interface *intf,
 
 	/* allocates framebuffer driver structure, not framebuffer memory */
 	info = framebuffer_alloc(0, &dlfb->udev->dev);
-	if (!info) {
-		dev_err(&dlfb->udev->dev, "framebuffer_alloc failed\n");
+	if (!info)
 		goto error;
-	}
 
 	dlfb->info = info;
 	info->par = dlfb;

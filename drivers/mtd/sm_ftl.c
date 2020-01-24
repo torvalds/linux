@@ -247,7 +247,8 @@ static int sm_read_sector(struct sm_ftl *ftl,
 
 	/* FTL can contain -1 entries that are by default filled with bits */
 	if (block == -1) {
-		memset(buffer, 0xFF, SM_SECTOR_SIZE);
+		if (buffer)
+			memset(buffer, 0xFF, SM_SECTOR_SIZE);
 		return 0;
 	}
 
@@ -774,8 +775,11 @@ static int sm_init_zone(struct sm_ftl *ftl, int zone_num)
 			continue;
 
 		/* Read the oob of first sector */
-		if (sm_read_sector(ftl, zone_num, block, 0, NULL, &oob))
+		if (sm_read_sector(ftl, zone_num, block, 0, NULL, &oob)) {
+			kfifo_free(&zone->free_sectors);
+			kfree(zone->lba_to_phys_table);
 			return -EIO;
+		}
 
 		/* Test to see if block is erased. It is enough to test
 			first sector, because erase happens in one shot */

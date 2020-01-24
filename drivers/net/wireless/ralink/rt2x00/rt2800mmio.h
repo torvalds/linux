@@ -114,6 +114,8 @@
 #define RXD_W3_PLCP_SIGNAL		FIELD32(0x00020000)
 #define RXD_W3_PLCP_RSSI		FIELD32(0x00040000)
 
+unsigned int rt2800mmio_get_dma_done(struct data_queue *queue);
+
 /* TX descriptor initialization */
 __le32 *rt2800mmio_get_txwi(struct queue_entry *entry);
 void rt2800mmio_write_tx_desc(struct queue_entry *entry,

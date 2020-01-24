@@ -19,6 +19,7 @@
 #include <linux/string.h>
 #include <linux/tty.h>
 #include <linux/8250_pci.h>
+#include <linux/delay.h>
 
 #include <asm/byteorder.h>
 
@@ -36,6 +37,8 @@
 
 #define UART_EXAR_INT0		0x80
 #define UART_EXAR_8XMODE	0x88	/* 8X sampling rate select */
+#define UART_EXAR_SLEEP		0x8b	/* Sleep mode */
+#define UART_EXAR_DVID		0x8d	/* Device identification */
 
 #define UART_EXAR_FCTR		0x08	/* Feature Control Register */
 #define UART_FCTR_EXAR_IRDA	0x10	/* IrDa data encode select */
@@ -127,17 +130,113 @@ struct exar8250 {
 	int			line[0];
 };
 
+static void exar_pm(struct uart_port *port, unsigned int state, unsigned int old)
+{
+	/*
+	 * Exar UARTs have a SLEEP register that enables or disables each UART
+	 * to enter sleep mode separately. On the XR17V35x the register
+	 * is accessible to each UART at the UART_EXAR_SLEEP offset, but
+	 * the UART channel may only write to the corresponding bit.
+	 */
+	serial_port_out(port, UART_EXAR_SLEEP, state ? 0xff : 0);
+}
+
+/*
+ * XR17V35x UARTs have an extra fractional divisor register (DLD)
+ * Calculate divisor with extra 4-bit fractional portion
+ */
+static unsigned int xr17v35x_get_divisor(struct uart_port *p, unsigned int baud,
+					 unsigned int *frac)
+{
+	unsigned int quot_16;
+
+	quot_16 = DIV_ROUND_CLOSEST(p->uartclk, baud);
+	*frac = quot_16 & 0x0f;
+
+	return quot_16 >> 4;
+}
+
+static void xr17v35x_set_divisor(struct uart_port *p, unsigned int baud,
+				 unsigned int quot, unsigned int quot_frac)
+{
+	serial8250_do_set_divisor(p, baud, quot, quot_frac);
+
+	/* Preserve bits not related to baudrate; DLD[7:4]. */
+	quot_frac |= serial_port_in(p, 0x2) & 0xf0;
+	serial_port_out(p, 0x2, quot_frac);
+}
+
+static int xr17v35x_startup(struct uart_port *port)
+{
+	/*
+	 * First enable access to IER [7:5], ISR [5:4], FCR [5:4],
+	 * MCR [7:5] and MSR [7:0]
+	 */
+	serial_port_out(port, UART_XR_EFR, UART_EFR_ECB);
+
+	/*
+	 * Make sure all interrups are masked until initialization is
+	 * complete and the FIFOs are cleared
+	 */
+	serial_port_out(port, UART_IER, 0);
+
+	return serial8250_do_startup(port);
+}
+
+static void exar_shutdown(struct uart_port *port)
+{
+	unsigned char lsr;
+	bool tx_complete = 0;
+	struct uart_8250_port *up = up_to_u8250p(port);
+	struct circ_buf *xmit = &port->state->xmit;
+	int i = 0;
+
+	do {
+		lsr = serial_in(up, UART_LSR);
+		if (lsr & (UART_LSR_TEMT | UART_LSR_THRE))
+			tx_complete = 1;
+		else
+			tx_complete = 0;
+		usleep_range(1000, 1100);
+	} while (!uart_circ_empty(xmit) && !tx_complete && i++ < 1000);
+
+	serial8250_do_shutdown(port);
+}
+
 static int default_setup(struct exar8250 *priv, struct pci_dev *pcidev,
 			 int idx, unsigned int offset,
 			 struct uart_8250_port *port)
 {
 	const struct exar8250_board *board = priv->board;
 	unsigned int bar = 0;
+	unsigned char status;
 
 	port->port.iotype = UPIO_MEM;
 	port->port.mapbase = pci_resource_start(pcidev, bar) + offset;
 	port->port.membase = priv->virt + offset;
 	port->port.regshift = board->reg_shift;
+
+	/*
+	 * XR17V35x UARTs have an extra divisor register, DLD that gets enabled
+	 * with when DLAB is set which will cause the device to incorrectly match
+	 * and assign port type to PORT_16650. The EFR for this UART is found
+	 * at offset 0x09. Instead check the Deice ID (DVID) register
+	 * for a 2, 4 or 8 port UART.
+	 */
+	status = readb(port->port.membase + UART_EXAR_DVID);
+	if (status == 0x82 || status == 0x84 || status == 0x88) {
+		port->port.type = PORT_XR17V35X;
+
+		port->port.get_divisor = xr17v35x_get_divisor;
+		port->port.set_divisor = xr17v35x_set_divisor;
+
+		port->port.startup = xr17v35x_startup;
+	} else {
+		port->port.type = PORT_XR17D15X;
+	}
+
+	port->port.pm = exar_pm;
+	port->port.shutdown = exar_shutdown;
 
 	return 0;
 }
@@ -434,6 +533,16 @@ static void pci_xr17v35x_exit(struct pci_dev *pcidev)
 	port->port.private_data = NULL;
 }
 
+static inline void exar_misc_clear(struct exar8250 *priv)
+{
+	/* Clear all PCI interrupts by reading INT0. No effect on IIR */
+	readb(priv->virt + UART_EXAR_INT0);
+
+	/* Clear INT0 for Expansion Interface slave ports, too */
+	if (priv->board->num_ports > 8)
+		readb(priv->virt + 0x2000 + UART_EXAR_INT0);
+}
+
 /*
  * These Exar UARTs have an extra interrupt indicator that could fire for a
  * few interrupts that are not presented/cleared through IIR.  One of which is
@@ -445,14 +554,7 @@ static void pci_xr17v35x_exit(struct pci_dev *pcidev)
  */
 static irqreturn_t exar_misc_handler(int irq, void *data)
 {
-	struct exar8250 *priv = data;
-
-	/* Clear all PCI interrupts by reading INT0. No effect on IIR */
-	readb(priv->virt + UART_EXAR_INT0);
-
-	/* Clear INT0 for Expansion Interface slave ports, too */
-	if (priv->board->num_ports > 8)
-		readb(priv->virt + 0x2000 + UART_EXAR_INT0);
+	exar_misc_clear(data);
 
 	return IRQ_HANDLED;
 }
@@ -478,9 +580,7 @@ exar_pci_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 
 	nr_ports = board->num_ports ? board->num_ports : pcidev->device & 0x0f;
 
-	priv = devm_kzalloc(&pcidev->dev, sizeof(*priv) +
-			    sizeof(unsigned int) * nr_ports,
-			    GFP_KERNEL);
+	priv = devm_kzalloc(&pcidev->dev, struct_size(priv, line, nr_ports), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -496,8 +596,7 @@ exar_pci_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 		return rc;
 
 	memset(&uart, 0, sizeof(uart));
-	uart.port.flags = UPF_SKIP_TEST | UPF_BOOT_AUTOCONF | UPF_SHARE_IRQ
-			  | UPF_EXAR_EFR;
+	uart.port.flags = UPF_SHARE_IRQ | UPF_EXAR_EFR | UPF_FIXED_TYPE | UPF_FIXED_PORT;
 	uart.port.irq = pci_irq_vector(pcidev, 0);
 	uart.port.dev = &pcidev->dev;
 
@@ -505,6 +604,9 @@ exar_pci_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 			 IRQF_SHARED, "exar_uart", priv);
 	if (rc)
 		return rc;
+
+	/* Clear interrupts */
+	exar_misc_clear(priv);
 
 	for (i = 0; i < nr_ports && i < maxnr; i++) {
 		rc = board->setup(priv, pcidev, &uart, i);
@@ -561,9 +663,10 @@ static int __maybe_unused exar_suspend(struct device *dev)
 
 static int __maybe_unused exar_resume(struct device *dev)
 {
-	struct pci_dev *pcidev = to_pci_dev(dev);
-	struct exar8250 *priv = pci_get_drvdata(pcidev);
+	struct exar8250 *priv = dev_get_drvdata(dev);
 	unsigned int i;
+
+	exar_misc_clear(priv);
 
 	for (i = 0; i < priv->nr; i++)
 		if (priv->line[i] >= 0)

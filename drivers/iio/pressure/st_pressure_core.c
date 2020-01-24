@@ -12,10 +12,8 @@
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/types.h>
-#include <linux/mutex.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
-#include <linux/gpio.h>
 #include <linux/irq.h>
 #include <linux/delay.h>
 #include <linux/iio/iio.h>
@@ -664,25 +662,39 @@ static const struct iio_trigger_ops st_press_trigger_ops = {
 #define ST_PRESS_TRIGGER_OPS NULL
 #endif
 
+/*
+ * st_press_get_settings() - get sensor settings from device name
+ * @name: device name buffer reference.
+ *
+ * Return: valid reference on success, NULL otherwise.
+ */
+const struct st_sensor_settings *st_press_get_settings(const char *name)
+{
+	int index = st_sensors_get_settings_index(name,
+					st_press_sensors_settings,
+					ARRAY_SIZE(st_press_sensors_settings));
+	if (index < 0)
+		return NULL;
+
+	return &st_press_sensors_settings[index];
+}
+EXPORT_SYMBOL(st_press_get_settings);
+
 int st_press_common_probe(struct iio_dev *indio_dev)
 {
 	struct st_sensor_data *press_data = iio_priv(indio_dev);
 	struct st_sensors_platform_data *pdata =
 		(struct st_sensors_platform_data *)press_data->dev->platform_data;
-	int irq = press_data->get_irq_data_ready(indio_dev);
 	int err;
 
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &press_info;
-	mutex_init(&press_data->tb.buf_lock);
 
 	err = st_sensors_power_enable(indio_dev);
 	if (err)
 		return err;
 
-	err = st_sensors_check_device_support(indio_dev,
-					ARRAY_SIZE(st_press_sensors_settings),
-					st_press_sensors_settings);
+	err = st_sensors_verify_id(indio_dev);
 	if (err < 0)
 		goto st_press_power_off;
 
@@ -693,7 +705,6 @@ int st_press_common_probe(struct iio_dev *indio_dev)
 	 * element.
 	 */
 	press_data->num_data_channels = press_data->sensor_settings->num_ch - 1;
-	press_data->multiread_bit = press_data->sensor_settings->multi_read_bit;
 	indio_dev->channels = press_data->sensor_settings->ch;
 	indio_dev->num_channels = press_data->sensor_settings->num_ch;
 
@@ -716,7 +727,7 @@ int st_press_common_probe(struct iio_dev *indio_dev)
 	if (err < 0)
 		goto st_press_power_off;
 
-	if (irq > 0) {
+	if (press_data->irq > 0) {
 		err = st_sensors_allocate_trigger(indio_dev,
 						  ST_PRESS_TRIGGER_OPS);
 		if (err < 0)
@@ -733,7 +744,7 @@ int st_press_common_probe(struct iio_dev *indio_dev)
 	return err;
 
 st_press_device_register_error:
-	if (irq > 0)
+	if (press_data->irq > 0)
 		st_sensors_deallocate_trigger(indio_dev);
 st_press_probe_trigger_error:
 	st_press_deallocate_ring(indio_dev);
@@ -751,7 +762,7 @@ void st_press_common_remove(struct iio_dev *indio_dev)
 	st_sensors_power_disable(indio_dev);
 
 	iio_device_unregister(indio_dev);
-	if (press_data->get_irq_data_ready(indio_dev) > 0)
+	if (press_data->irq > 0)
 		st_sensors_deallocate_trigger(indio_dev);
 
 	st_press_deallocate_ring(indio_dev);

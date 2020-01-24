@@ -12,6 +12,7 @@
 #include <linux/blktrace_api.h>
 #include <linux/blk-cgroup.h>
 #include "blk.h"
+#include "blk-cgroup-rwstat.h"
 
 /* Max dispatch from a group in 1 round */
 static int throtl_grp_quantum = 8;
@@ -176,6 +177,9 @@ struct throtl_grp {
 	unsigned int bio_cnt; /* total bios */
 	unsigned int bad_bio_cnt; /* bios exceeding latency threshold */
 	unsigned long bio_cnt_reset_time;
+
+	struct blkg_rwstat stat_bytes;
+	struct blkg_rwstat stat_ios;
 };
 
 /* We measure latency for request size from <= 4k to >= 1M */
@@ -478,14 +482,22 @@ static void throtl_service_queue_init(struct throtl_service_queue *sq)
 	timer_setup(&sq->pending_timer, throtl_pending_timer_fn, 0);
 }
 
-static struct blkg_policy_data *throtl_pd_alloc(gfp_t gfp, int node)
+static struct blkg_policy_data *throtl_pd_alloc(gfp_t gfp,
+						struct request_queue *q,
+						struct blkcg *blkcg)
 {
 	struct throtl_grp *tg;
 	int rw;
 
-	tg = kzalloc_node(sizeof(*tg), gfp, node);
+	tg = kzalloc_node(sizeof(*tg), gfp, q->node);
 	if (!tg)
 		return NULL;
+
+	if (blkg_rwstat_init(&tg->stat_bytes, gfp))
+		goto err_free_tg;
+
+	if (blkg_rwstat_init(&tg->stat_ios, gfp))
+		goto err_exit_stat_bytes;
 
 	throtl_service_queue_init(&tg->service_queue);
 
@@ -511,6 +523,12 @@ static struct blkg_policy_data *throtl_pd_alloc(gfp_t gfp, int node)
 	tg->idletime_threshold_conf = DFL_IDLE_THRESHOLD;
 
 	return &tg->pd;
+
+err_exit_stat_bytes:
+	blkg_rwstat_exit(&tg->stat_bytes);
+err_free_tg:
+	kfree(tg);
+	return NULL;
 }
 
 static void throtl_pd_init(struct blkg_policy_data *pd)
@@ -609,6 +627,8 @@ static void throtl_pd_free(struct blkg_policy_data *pd)
 	struct throtl_grp *tg = pd_to_tg(pd);
 
 	del_timer_sync(&tg->service_queue.pending_timer);
+	blkg_rwstat_exit(&tg->stat_bytes);
+	blkg_rwstat_exit(&tg->stat_ios);
 	kfree(tg);
 }
 
@@ -881,13 +901,10 @@ static bool tg_with_in_iops_limit(struct throtl_grp *tg, struct bio *bio,
 	unsigned long jiffy_elapsed, jiffy_wait, jiffy_elapsed_rnd;
 	u64 tmp;
 
-	jiffy_elapsed = jiffy_elapsed_rnd = jiffies - tg->slice_start[rw];
+	jiffy_elapsed = jiffies - tg->slice_start[rw];
 
-	/* Slice has just started. Consider one slice interval */
-	if (!jiffy_elapsed)
-		jiffy_elapsed_rnd = tg->td->throtl_slice;
-
-	jiffy_elapsed_rnd = roundup(jiffy_elapsed_rnd, tg->td->throtl_slice);
+	/* Round up to the next throttle slice, wait time must be nonzero */
+	jiffy_elapsed_rnd = roundup(jiffy_elapsed + 1, tg->td->throtl_slice);
 
 	/*
 	 * jiffy_elapsed_rnd should not be a big value as minimum iops can be
@@ -1465,6 +1482,32 @@ static ssize_t tg_set_conf_uint(struct kernfs_open_file *of,
 	return tg_set_conf(of, buf, nbytes, off, false);
 }
 
+static int tg_print_rwstat(struct seq_file *sf, void *v)
+{
+	blkcg_print_blkgs(sf, css_to_blkcg(seq_css(sf)),
+			  blkg_prfill_rwstat, &blkcg_policy_throtl,
+			  seq_cft(sf)->private, true);
+	return 0;
+}
+
+static u64 tg_prfill_rwstat_recursive(struct seq_file *sf,
+				      struct blkg_policy_data *pd, int off)
+{
+	struct blkg_rwstat_sample sum;
+
+	blkg_rwstat_recursive_sum(pd_to_blkg(pd), &blkcg_policy_throtl, off,
+				  &sum);
+	return __blkg_prfill_rwstat(sf, pd, &sum);
+}
+
+static int tg_print_rwstat_recursive(struct seq_file *sf, void *v)
+{
+	blkcg_print_blkgs(sf, css_to_blkcg(seq_css(sf)),
+			  tg_prfill_rwstat_recursive, &blkcg_policy_throtl,
+			  seq_cft(sf)->private, true);
+	return 0;
+}
+
 static struct cftype throtl_legacy_files[] = {
 	{
 		.name = "throttle.read_bps_device",
@@ -1492,23 +1535,23 @@ static struct cftype throtl_legacy_files[] = {
 	},
 	{
 		.name = "throttle.io_service_bytes",
-		.private = (unsigned long)&blkcg_policy_throtl,
-		.seq_show = blkg_print_stat_bytes,
+		.private = offsetof(struct throtl_grp, stat_bytes),
+		.seq_show = tg_print_rwstat,
 	},
 	{
 		.name = "throttle.io_service_bytes_recursive",
-		.private = (unsigned long)&blkcg_policy_throtl,
-		.seq_show = blkg_print_stat_bytes_recursive,
+		.private = offsetof(struct throtl_grp, stat_bytes),
+		.seq_show = tg_print_rwstat_recursive,
 	},
 	{
 		.name = "throttle.io_serviced",
-		.private = (unsigned long)&blkcg_policy_throtl,
-		.seq_show = blkg_print_stat_ios,
+		.private = offsetof(struct throtl_grp, stat_ios),
+		.seq_show = tg_print_rwstat,
 	},
 	{
 		.name = "throttle.io_serviced_recursive",
-		.private = (unsigned long)&blkcg_policy_throtl,
-		.seq_show = blkg_print_stat_ios_recursive,
+		.private = offsetof(struct throtl_grp, stat_ios),
+		.seq_show = tg_print_rwstat_recursive,
 	},
 	{ }	/* terminate */
 };
@@ -2128,7 +2171,16 @@ bool blk_throtl_bio(struct request_queue *q, struct blkcg_gq *blkg,
 	WARN_ON_ONCE(!rcu_read_lock_held());
 
 	/* see throtl_charge_bio() */
-	if (bio_flagged(bio, BIO_THROTTLED) || !tg->has_rules[rw])
+	if (bio_flagged(bio, BIO_THROTTLED))
+		goto out;
+
+	if (!cgroup_subsys_on_dfl(io_cgrp_subsys)) {
+		blkg_rwstat_add(&tg->stat_bytes, bio->bi_opf,
+				bio->bi_iter.bi_size);
+		blkg_rwstat_add(&tg->stat_ios, bio->bi_opf, 1);
+	}
+
+	if (!tg->has_rules[rw])
 		goto out;
 
 	spin_lock_irq(&q->queue_lock);
@@ -2249,7 +2301,8 @@ void blk_throtl_stat_add(struct request *rq, u64 time_ns)
 	struct request_queue *q = rq->q;
 	struct throtl_data *td = q->td;
 
-	throtl_track_latency(td, rq->throtl_size, req_op(rq), time_ns >> 10);
+	throtl_track_latency(td, blk_rq_stats_sectors(rq), req_op(rq),
+			     time_ns >> 10);
 }
 
 void blk_throtl_bio_endio(struct bio *bio)

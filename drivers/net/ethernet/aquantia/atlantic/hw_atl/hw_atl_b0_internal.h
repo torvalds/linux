@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
+ * Copyright (C) 2014-2019 aQuantia Corporation. All rights reserved
  */
 
 /* File hw_atl_b0_internal.h: Definition of Atlantic B0 chip specific
@@ -64,8 +64,11 @@
 #define HW_ATL_B0_MPI_SPEED_MSK         0xFFFFU
 #define HW_ATL_B0_MPI_SPEED_SHIFT       16U
 
-#define HW_ATL_B0_TXBUF_MAX  160U
-#define HW_ATL_B0_RXBUF_MAX  320U
+#define HW_ATL_B0_TXBUF_MAX              160U
+#define HW_ATL_B0_PTP_TXBUF_SIZE           8U
+
+#define HW_ATL_B0_RXBUF_MAX              320U
+#define HW_ATL_B0_PTP_RXBUF_SIZE          16U
 
 #define HW_ATL_B0_RSS_REDIRECTION_MAX 64U
 #define HW_ATL_B0_RSS_REDIRECTION_BITS 3U
@@ -107,10 +110,17 @@
 #define HW_ATL_B0_RXD_NCEA0 (0x1)
 
 #define HW_ATL_B0_RXD_WB_STAT_RSSTYPE (0x0000000F)
+#define HW_ATL_B0_RXD_WB_STAT_RSSTYPE_SHIFT (0x0)
 #define HW_ATL_B0_RXD_WB_STAT_PKTTYPE (0x00000FF0)
+#define HW_ATL_B0_RXD_WB_STAT_PKTTYPE_SHIFT (0x4)
 #define HW_ATL_B0_RXD_WB_STAT_RXCTRL  (0x00180000)
+#define HW_ATL_B0_RXD_WB_STAT_RXCTRL_SHIFT (0x13)
 #define HW_ATL_B0_RXD_WB_STAT_SPLHDR  (0x00200000)
 #define HW_ATL_B0_RXD_WB_STAT_HDRLEN  (0xFFC00000)
+#define HW_ATL_B0_RXD_WB_STAT_HDRLEN_SHIFT (0x16)
+
+#define HW_ATL_B0_RXD_WB_PKTTYPE_VLAN          BIT(5)
+#define HW_ATL_B0_RXD_WB_PKTTYPE_VLAN_DOUBLE   BIT(6)
 
 #define HW_ATL_B0_RXD_WB_STAT2_DD      (0x0001)
 #define HW_ATL_B0_RXD_WB_STAT2_EOP     (0x0002)

@@ -9,33 +9,32 @@
  * Based on drivers/media/video/s5p-tv/mixer_reg.c
  */
 
-#include <drm/drmP.h>
-
-#include "regs-mixer.h"
-#include "regs-vp.h"
-
-#include <linux/kernel.h>
-#include <linux/ktime.h>
-#include <linux/spinlock.h>
-#include <linux/wait.h>
+#include <linux/clk.h>
+#include <linux/component.h>
+#include <linux/delay.h>
 #include <linux/i2c.h>
-#include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/delay.h>
-#include <linux/pm_runtime.h>
-#include <linux/clk.h>
-#include <linux/regulator/consumer.h>
+#include <linux/kernel.h>
+#include <linux/ktime.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/component.h>
+#include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
+#include <linux/regulator/consumer.h>
+#include <linux/spinlock.h>
+#include <linux/wait.h>
 
+#include <drm/drm_fourcc.h>
+#include <drm/drm_vblank.h>
 #include <drm/exynos_drm.h>
 
-#include "exynos_drm_drv.h"
 #include "exynos_drm_crtc.h"
+#include "exynos_drm_drv.h"
 #include "exynos_drm_fb.h"
 #include "exynos_drm_plane.h"
+#include "regs-mixer.h"
+#include "regs-vp.h"
 
 #define MIXER_WIN_NR		3
 #define VP_DEFAULT_WIN		2
@@ -1070,9 +1069,9 @@ static bool mixer_mode_fixup(struct exynos_drm_crtc *crtc,
 	struct mixer_context *ctx = crtc->ctx;
 	int width = mode->hdisplay, height = mode->vdisplay, i;
 
-	struct {
+	static const struct {
 		int hdisplay, vdisplay, htotal, vtotal, scan_val;
-	} static const modes[] = {
+	} modes[] = {
 		{ 720, 480, 858, 525, MXR_CFG_SCAN_NTSC | MXR_CFG_SCAN_SD },
 		{ 720, 576, 864, 625, MXR_CFG_SCAN_PAL | MXR_CFG_SCAN_SD },
 		{ 1280, 720, 1650, 750, MXR_CFG_SCAN_HD_720 | MXR_CFG_SCAN_HD },

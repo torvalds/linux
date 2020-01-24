@@ -709,12 +709,6 @@ static int _gadget_stop_activity(struct usb_gadget *gadget)
 	struct ci_hdrc    *ci = container_of(gadget, struct ci_hdrc, gadget);
 	unsigned long flags;
 
-	spin_lock_irqsave(&ci->lock, flags);
-	ci->gadget.speed = USB_SPEED_UNKNOWN;
-	ci->remote_wakeup = 0;
-	ci->suspended = 0;
-	spin_unlock_irqrestore(&ci->lock, flags);
-
 	/* flush all endpoints */
 	gadget_for_each_ep(ep, gadget) {
 		usb_ep_fifo_flush(ep);
@@ -731,6 +725,12 @@ static int _gadget_stop_activity(struct usb_gadget *gadget)
 		usb_ep_free_request(&ci->ep0in->ep, ci->status);
 		ci->status = NULL;
 	}
+
+	spin_lock_irqsave(&ci->lock, flags);
+	ci->gadget.speed = USB_SPEED_UNKNOWN;
+	ci->remote_wakeup = 0;
+	ci->suspended = 0;
+	spin_unlock_irqrestore(&ci->lock, flags);
 
 	return 0;
 }
@@ -1303,6 +1303,10 @@ static int ep_disable(struct usb_ep *ep)
 		return -EBUSY;
 
 	spin_lock_irqsave(hwep->lock, flags);
+	if (hwep->ci->gadget.speed == USB_SPEED_UNKNOWN) {
+		spin_unlock_irqrestore(hwep->lock, flags);
+		return 0;
+	}
 
 	/* only internal SW should disable ctrl endpts */
 
@@ -1392,6 +1396,10 @@ static int ep_queue(struct usb_ep *ep, struct usb_request *req,
 		return -EINVAL;
 
 	spin_lock_irqsave(hwep->lock, flags);
+	if (hwep->ci->gadget.speed == USB_SPEED_UNKNOWN) {
+		spin_unlock_irqrestore(hwep->lock, flags);
+		return 0;
+	}
 	retval = _ep_queue(ep, req, gfp_flags);
 	spin_unlock_irqrestore(hwep->lock, flags);
 	return retval;
@@ -1415,8 +1423,8 @@ static int ep_dequeue(struct usb_ep *ep, struct usb_request *req)
 		return -EINVAL;
 
 	spin_lock_irqsave(hwep->lock, flags);
-
-	hw_ep_flush(hwep->ci, hwep->num, hwep->dir);
+	if (hwep->ci->gadget.speed != USB_SPEED_UNKNOWN)
+		hw_ep_flush(hwep->ci, hwep->num, hwep->dir);
 
 	list_for_each_entry_safe(node, tmpnode, &hwreq->tds, td) {
 		dma_pool_free(hwep->td_pool, node->ptr, node->dma);
@@ -1487,6 +1495,10 @@ static void ep_fifo_flush(struct usb_ep *ep)
 	}
 
 	spin_lock_irqsave(hwep->lock, flags);
+	if (hwep->ci->gadget.speed == USB_SPEED_UNKNOWN) {
+		spin_unlock_irqrestore(hwep->lock, flags);
+		return;
+	}
 
 	hw_ep_flush(hwep->ci, hwep->num, hwep->dir);
 
@@ -1512,42 +1524,53 @@ static const struct usb_ep_ops usb_ep_ops = {
 /******************************************************************************
  * GADGET block
  *****************************************************************************/
+/**
+ * ci_hdrc_gadget_connect: caller makes sure gadget driver is binded
+ */
+static void ci_hdrc_gadget_connect(struct usb_gadget *_gadget, int is_active)
+{
+	struct ci_hdrc *ci = container_of(_gadget, struct ci_hdrc, gadget);
+	unsigned long flags;
+
+	if (is_active) {
+		pm_runtime_get_sync(&_gadget->dev);
+		hw_device_reset(ci);
+		spin_lock_irqsave(&ci->lock, flags);
+		if (ci->driver) {
+			hw_device_state(ci, ci->ep0out->qh.dma);
+			usb_gadget_set_state(_gadget, USB_STATE_POWERED);
+			usb_udc_vbus_handler(_gadget, true);
+		}
+		spin_unlock_irqrestore(&ci->lock, flags);
+	} else {
+		usb_udc_vbus_handler(_gadget, false);
+		if (ci->driver)
+			ci->driver->disconnect(&ci->gadget);
+		hw_device_state(ci, 0);
+		if (ci->platdata->notify_event)
+			ci->platdata->notify_event(ci,
+			CI_HDRC_CONTROLLER_STOPPED_EVENT);
+		_gadget_stop_activity(&ci->gadget);
+		pm_runtime_put_sync(&_gadget->dev);
+		usb_gadget_set_state(_gadget, USB_STATE_NOTATTACHED);
+	}
+}
+
 static int ci_udc_vbus_session(struct usb_gadget *_gadget, int is_active)
 {
 	struct ci_hdrc *ci = container_of(_gadget, struct ci_hdrc, gadget);
 	unsigned long flags;
-	int gadget_ready = 0;
 
 	spin_lock_irqsave(&ci->lock, flags);
 	ci->vbus_active = is_active;
-	if (ci->driver)
-		gadget_ready = 1;
 	spin_unlock_irqrestore(&ci->lock, flags);
 
 	if (ci->usb_phy)
 		usb_phy_set_charger_state(ci->usb_phy, is_active ?
 			USB_CHARGER_PRESENT : USB_CHARGER_ABSENT);
 
-	if (gadget_ready) {
-		if (is_active) {
-			pm_runtime_get_sync(&_gadget->dev);
-			hw_device_reset(ci);
-			hw_device_state(ci, ci->ep0out->qh.dma);
-			usb_gadget_set_state(_gadget, USB_STATE_POWERED);
-			usb_udc_vbus_handler(_gadget, true);
-		} else {
-			usb_udc_vbus_handler(_gadget, false);
-			if (ci->driver)
-				ci->driver->disconnect(&ci->gadget);
-			hw_device_state(ci, 0);
-			if (ci->platdata->notify_event)
-				ci->platdata->notify_event(ci,
-				CI_HDRC_CONTROLLER_STOPPED_EVENT);
-			_gadget_stop_activity(&ci->gadget);
-			pm_runtime_put_sync(&_gadget->dev);
-			usb_gadget_set_state(_gadget, USB_STATE_NOTATTACHED);
-		}
-	}
+	if (ci->driver)
+		ci_hdrc_gadget_connect(_gadget, is_active);
 
 	return 0;
 }
@@ -1559,6 +1582,10 @@ static int ci_udc_wakeup(struct usb_gadget *_gadget)
 	int ret = 0;
 
 	spin_lock_irqsave(&ci->lock, flags);
+	if (ci->gadget.speed == USB_SPEED_UNKNOWN) {
+		spin_unlock_irqrestore(&ci->lock, flags);
+		return 0;
+	}
 	if (!ci->remote_wakeup) {
 		ret = -EOPNOTSUPP;
 		goto out;
@@ -1596,7 +1623,7 @@ static int ci_udc_selfpowered(struct usb_gadget *_gadget, int is_on)
 }
 
 /* Change Data+ pullup status
- * this func is used by usb_gadget_connect/disconnet
+ * this func is used by usb_gadget_connect/disconnect
  */
 static int ci_udc_pullup(struct usb_gadget *_gadget, int is_on)
 {
@@ -1746,11 +1773,10 @@ static int ci_udc_start(struct usb_gadget *gadget,
 			 struct usb_gadget_driver *driver)
 {
 	struct ci_hdrc *ci = container_of(gadget, struct ci_hdrc, gadget);
-	int retval = -ENOMEM;
+	int retval;
 
 	if (driver->disconnect == NULL)
 		return -EINVAL;
-
 
 	ci->ep0out->ep.desc = &ctrl_endpt_out_desc;
 	retval = usb_ep_enable(&ci->ep0out->ep);
@@ -1770,18 +1796,10 @@ static int ci_udc_start(struct usb_gadget *gadget,
 		return retval;
 	}
 
-	pm_runtime_get_sync(&ci->gadget.dev);
-	if (ci->vbus_active) {
-		hw_device_reset(ci);
-	} else {
+	if (ci->vbus_active)
+		ci_hdrc_gadget_connect(gadget, 1);
+	else
 		usb_udc_vbus_handler(&ci->gadget, false);
-		pm_runtime_put_sync(&ci->gadget.dev);
-		return retval;
-	}
-
-	retval = hw_device_state(ci, ci->ep0out->qh.dma);
-	if (retval)
-		pm_runtime_put_sync(&ci->gadget.dev);
 
 	return retval;
 }
@@ -1811,6 +1829,7 @@ static int ci_udc_stop(struct usb_gadget *gadget)
 	unsigned long flags;
 
 	spin_lock_irqsave(&ci->lock, flags);
+	ci->driver = NULL;
 
 	if (ci->vbus_active) {
 		hw_device_state(ci, 0);
@@ -1823,7 +1842,6 @@ static int ci_udc_stop(struct usb_gadget *gadget)
 		pm_runtime_put(&ci->gadget.dev);
 	}
 
-	ci->driver = NULL;
 	spin_unlock_irqrestore(&ci->lock, flags);
 
 	ci_udc_stop_for_otg_fsm(ci);

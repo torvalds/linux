@@ -210,7 +210,7 @@ static int dccp_v6_send_response(const struct sock *sk, struct request_sock *req
 	final_p = fl6_update_dst(&fl6, rcu_dereference(np->opt), &final);
 	rcu_read_unlock();
 
-	dst = ip6_dst_lookup_flow(sk, &fl6, final_p);
+	dst = ip6_dst_lookup_flow(sock_net(sk), sk, &fl6, final_p);
 	if (IS_ERR(dst)) {
 		err = PTR_ERR(dst);
 		dst = NULL;
@@ -230,7 +230,8 @@ static int dccp_v6_send_response(const struct sock *sk, struct request_sock *req
 		opt = ireq->ipv6_opt;
 		if (!opt)
 			opt = rcu_dereference(np->opt);
-		err = ip6_xmit(sk, skb, &fl6, sk->sk_mark, opt, np->tclass);
+		err = ip6_xmit(sk, skb, &fl6, sk->sk_mark, opt, np->tclass,
+			       sk->sk_priority);
 		rcu_read_unlock();
 		err = net_xmit_eval(err);
 	}
@@ -281,10 +282,10 @@ static void dccp_v6_ctl_send_reset(const struct sock *sk, struct sk_buff *rxskb)
 	security_skb_classify_flow(rxskb, flowi6_to_flowi(&fl6));
 
 	/* sk = NULL, but it is safe for now. RST socket required. */
-	dst = ip6_dst_lookup_flow(ctl_sk, &fl6, NULL);
+	dst = ip6_dst_lookup_flow(sock_net(ctl_sk), ctl_sk, &fl6, NULL);
 	if (!IS_ERR(dst)) {
 		skb_dst_set(skb, dst);
-		ip6_xmit(ctl_sk, skb, &fl6, 0, NULL, 0);
+		ip6_xmit(ctl_sk, skb, &fl6, 0, NULL, 0, 0);
 		DCCP_INC_STATS(DCCP_MIB_OUTSEGS);
 		DCCP_INC_STATS(DCCP_MIB_OUTRSTS);
 		return;
@@ -830,7 +831,7 @@ static int dccp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 		if (fl6.flowlabel & IPV6_FLOWLABEL_MASK) {
 			struct ip6_flowlabel *flowlabel;
 			flowlabel = fl6_sock_lookup(sk, fl6.flowlabel);
-			if (flowlabel == NULL)
+			if (IS_ERR(flowlabel))
 				return -EINVAL;
 			fl6_sock_release(flowlabel);
 		}
@@ -911,7 +912,7 @@ static int dccp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	opt = rcu_dereference_protected(np->opt, lockdep_sock_is_held(sk));
 	final_p = fl6_update_dst(&fl6, opt, &final);
 
-	dst = ip6_dst_lookup_flow(sk, &fl6, final_p);
+	dst = ip6_dst_lookup_flow(sock_net(sk), sk, &fl6, final_p);
 	if (IS_ERR(dst)) {
 		err = PTR_ERR(dst);
 		goto failure;

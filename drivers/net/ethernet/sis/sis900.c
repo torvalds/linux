@@ -191,6 +191,8 @@ struct sis900_private {
 	unsigned int tx_full; /* The Tx queue is full. */
 	u8 host_bridge_rev;
 	u8 chipset_rev;
+	/* EEPROM data */
+	int eeprom_size;
 };
 
 MODULE_AUTHOR("Jim Huang <cmhuang@sis.com.tw>, Ollie Lho <ollie@sis.com.tw>");
@@ -262,7 +264,7 @@ static int sis900_get_mac_addr(struct pci_dev *pci_dev,
 	/* check to see if we have sane EEPROM */
 	signature = (u16) read_eeprom(ioaddr, EEPROMSignature);
 	if (signature == 0xffff || signature == 0x0000) {
-		printk (KERN_WARNING "%s: Error EERPOM read %x\n",
+		printk (KERN_WARNING "%s: Error EEPROM read %x\n",
 			pci_name(pci_dev), signature);
 		return 0;
 	}
@@ -359,9 +361,9 @@ static int sis635_get_mac_addr(struct pci_dev *pci_dev,
  *
  *	SiS962 or SiS963 model, use EEPROM to store MAC address. And EEPROM
  *	is shared by
- *	LAN and 1394. When access EEPROM, send EEREQ signal to hardware first
- *	and wait for EEGNT. If EEGNT is ON, EEPROM is permitted to be access
- *	by LAN, otherwise is not. After MAC address is read from EEPROM, send
+ *	LAN and 1394. When accessing EEPROM, send EEREQ signal to hardware first
+ *	and wait for EEGNT. If EEGNT is ON, EEPROM is permitted to be accessed
+ *	by LAN, otherwise it is not. After MAC address is read from EEPROM, send
  *	EEDONE signal to refuse EEPROM access by LAN.
  *	The EEPROM map of SiS962 or SiS963 is different to SiS900.
  *	The signature field in SiS962 or SiS963 spec is meaningless.
@@ -474,6 +476,8 @@ static int sis900_probe(struct pci_dev *pci_dev,
 	sis_priv->ioaddr = ioaddr;
 	sis_priv->pci_dev = pci_dev;
 	spin_lock_init(&sis_priv->lock);
+
+	sis_priv->eeprom_size = 24;
 
 	pci_set_drvdata(pci_dev, net_dev);
 
@@ -882,7 +886,7 @@ static void mdio_reset(struct sis900_private *sp)
  *	mdio_read - read MII PHY register
  *	@net_dev: the net device to read
  *	@phy_id: the phy address to read
- *	@location: the phy regiester id to read
+ *	@location: the phy register id to read
  *
  *	Read MII registers through MDIO and MDC
  *	using MDIO management frame structure and protocol(defined by ISO/IEC).
@@ -926,7 +930,7 @@ static int mdio_read(struct net_device *net_dev, int phy_id, int location)
  *	mdio_write - write MII PHY register
  *	@net_dev: the net device to write
  *	@phy_id: the phy address to write
- *	@location: the phy regiester id to write
+ *	@location: the phy register id to write
  *	@value: the register value to write with
  *
  *	Write MII registers with @value through MDIO and MDC
@@ -1057,7 +1061,7 @@ sis900_open(struct net_device *net_dev)
 	sis900_set_mode(sis_priv, HW_SPEED_10_MBPS, FDX_CAPABLE_HALF_SELECTED);
 
 	/* Enable all known interrupts by setting the interrupt mask. */
-	sw32(imr, RxSOVR | RxORN | RxERR | RxOK | TxURN | TxERR | TxIDLE);
+	sw32(imr, RxSOVR | RxORN | RxERR | RxOK | TxURN | TxERR | TxDESC);
 	sw32(cr, RxENA | sr32(cr));
 	sw32(ier, IE);
 
@@ -1101,7 +1105,7 @@ sis900_init_rxfilter (struct net_device * net_dev)
 		sw32(rfdr, w);
 
 		if (netif_msg_hw(sis_priv)) {
-			printk(KERN_DEBUG "%s: Receive Filter Addrss[%d]=%x\n",
+			printk(KERN_DEBUG "%s: Receive Filter Address[%d]=%x\n",
 			       net_dev->name, i, sr32(rfdr));
 		}
 	}
@@ -1148,7 +1152,7 @@ sis900_init_tx_ring(struct net_device *net_dev)
  *	@net_dev: the net device to initialize for
  *
  *	Initialize the Rx descriptor ring,
- *	and pre-allocate recevie buffers (socket buffer)
+ *	and pre-allocate receive buffers (socket buffer)
  */
 
 static void
@@ -1578,7 +1582,7 @@ static void sis900_tx_timeout(struct net_device *net_dev)
 	sw32(txdp, sis_priv->tx_ring_dma);
 
 	/* Enable all known interrupts by setting the interrupt mask. */
-	sw32(imr, RxSOVR | RxORN | RxERR | RxOK | TxURN | TxERR | TxIDLE);
+	sw32(imr, RxSOVR | RxORN | RxERR | RxOK | TxURN | TxERR | TxDESC);
 }
 
 /**
@@ -1618,7 +1622,7 @@ sis900_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
 			spin_unlock_irqrestore(&sis_priv->lock, flags);
 			return NETDEV_TX_OK;
 	}
-	sis_priv->tx_ring[entry].cmdsts = (OWN | skb->len);
+	sis_priv->tx_ring[entry].cmdsts = (OWN | INTR | skb->len);
 	sw32(cr, TxENA | sr32(cr));
 
 	sis_priv->cur_tx ++;
@@ -1674,8 +1678,8 @@ static irqreturn_t sis900_interrupt(int irq, void *dev_instance)
 	do {
 		status = sr32(isr);
 
-		if ((status & (HIBERR|TxURN|TxERR|TxIDLE|RxORN|RxERR|RxOK)) == 0)
-			/* nothing intresting happened */
+		if ((status & (HIBERR|TxURN|TxERR|TxDESC|RxORN|RxERR|RxOK)) == 0)
+			/* nothing interesting happened */
 			break;
 		handled = 1;
 
@@ -1684,7 +1688,7 @@ static irqreturn_t sis900_interrupt(int irq, void *dev_instance)
 			/* Rx interrupt */
 			sis900_rx(net_dev);
 
-		if (status & (TxURN | TxERR | TxIDLE))
+		if (status & (TxURN | TxERR | TxDESC))
 			/* Tx interrupt */
 			sis900_finish_xmit(net_dev);
 
@@ -1896,8 +1900,8 @@ static void sis900_finish_xmit (struct net_device *net_dev)
 
 		if (tx_status & OWN) {
 			/* The packet is not transmitted yet (owned by hardware) !
-			 * Note: the interrupt is generated only when Tx Machine
-			 * is idle, so this is an almost impossible case */
+			 * Note: this is an almost impossible condition
+			 * on TxDESC interrupt ('descriptor interrupt') */
 			break;
 		}
 
@@ -2122,6 +2126,68 @@ static void sis900_get_wol(struct net_device *net_dev, struct ethtool_wolinfo *w
 	wol->supported = (WAKE_PHY | WAKE_MAGIC);
 }
 
+static int sis900_get_eeprom_len(struct net_device *dev)
+{
+	struct sis900_private *sis_priv = netdev_priv(dev);
+
+	return sis_priv->eeprom_size;
+}
+
+static int sis900_read_eeprom(struct net_device *net_dev, u8 *buf)
+{
+	struct sis900_private *sis_priv = netdev_priv(net_dev);
+	void __iomem *ioaddr = sis_priv->ioaddr;
+	int wait, ret = -EAGAIN;
+	u16 signature;
+	u16 *ebuf = (u16 *)buf;
+	int i;
+
+	if (sis_priv->chipset_rev == SIS96x_900_REV) {
+		sw32(mear, EEREQ);
+		for (wait = 0; wait < 2000; wait++) {
+			if (sr32(mear) & EEGNT) {
+				/* read 16 bits, and index by 16 bits */
+				for (i = 0; i < sis_priv->eeprom_size / 2; i++)
+					ebuf[i] = (u16)read_eeprom(ioaddr, i);
+				ret = 0;
+				break;
+			}
+			udelay(1);
+		}
+		sw32(mear, EEDONE);
+	} else {
+		signature = (u16)read_eeprom(ioaddr, EEPROMSignature);
+		if (signature != 0xffff && signature != 0x0000) {
+			/* read 16 bits, and index by 16 bits */
+			for (i = 0; i < sis_priv->eeprom_size / 2; i++)
+				ebuf[i] = (u16)read_eeprom(ioaddr, i);
+			ret = 0;
+		}
+	}
+	return ret;
+}
+
+#define SIS900_EEPROM_MAGIC	0xBABE
+static int sis900_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom, u8 *data)
+{
+	struct sis900_private *sis_priv = netdev_priv(dev);
+	u8 *eebuf;
+	int res;
+
+	eebuf = kmalloc(sis_priv->eeprom_size, GFP_KERNEL);
+	if (!eebuf)
+		return -ENOMEM;
+
+	eeprom->magic = SIS900_EEPROM_MAGIC;
+	spin_lock_irq(&sis_priv->lock);
+	res = sis900_read_eeprom(dev, eebuf);
+	spin_unlock_irq(&sis_priv->lock);
+	if (!res)
+		memcpy(data, eebuf + eeprom->offset, eeprom->len);
+	kfree(eebuf);
+	return res;
+}
+
 static const struct ethtool_ops sis900_ethtool_ops = {
 	.get_drvinfo 	= sis900_get_drvinfo,
 	.get_msglevel	= sis900_get_msglevel,
@@ -2132,6 +2198,8 @@ static const struct ethtool_ops sis900_ethtool_ops = {
 	.set_wol	= sis900_set_wol,
 	.get_link_ksettings = sis900_get_link_ksettings,
 	.set_link_ksettings = sis900_set_link_ksettings,
+	.get_eeprom_len = sis900_get_eeprom_len,
+	.get_eeprom = sis900_get_eeprom,
 };
 
 /**
@@ -2473,7 +2541,7 @@ static int sis900_resume(struct pci_dev *pci_dev)
 	sis900_set_mode(sis_priv, HW_SPEED_10_MBPS, FDX_CAPABLE_HALF_SELECTED);
 
 	/* Enable all known interrupts by setting the interrupt mask. */
-	sw32(imr, RxSOVR | RxORN | RxERR | RxOK | TxURN | TxERR | TxIDLE);
+	sw32(imr, RxSOVR | RxORN | RxERR | RxOK | TxURN | TxERR | TxDESC);
 	sw32(cr, RxENA | sr32(cr));
 	sw32(ier, IE);
 

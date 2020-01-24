@@ -53,7 +53,7 @@ static void *image_load(struct kimage *image,
 
 	/*
 	 * We require a kernel with an unambiguous Image header. Per
-	 * Documentation/booting.txt, this is the case when image_size
+	 * Documentation/arm64/booting.rst, this is the case when image_size
 	 * is non-zero (practically speaking, since v3.17).
 	 */
 	h = (struct arm64_image_header *)kernel;
@@ -84,7 +84,7 @@ static void *image_load(struct kimage *image,
 
 	kbuf.buffer = kernel;
 	kbuf.bufsz = kernel_len;
-	kbuf.mem = 0;
+	kbuf.mem = KEXEC_BUF_MEM_UNKNOWN;
 	kbuf.memsz = le64_to_cpu(h->image_size);
 	text_offset = le64_to_cpu(h->text_offset);
 	kbuf.buf_align = MIN_KIMG_ALIGN;

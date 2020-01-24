@@ -22,8 +22,10 @@
  * Authors: Christian König
  */
 
-#include <drm/drmP.h>
 #include "amdgpu.h"
+#include "amdgpu_vm.h"
+#include "amdgpu_atomfirmware.h"
+#include "atom.h"
 
 struct amdgpu_vram_mgr {
 	struct drm_mm mm;
@@ -102,6 +104,39 @@ static ssize_t amdgpu_mem_info_vis_vram_used_show(struct device *dev,
 		amdgpu_vram_mgr_vis_usage(&adev->mman.bdev.man[TTM_PL_VRAM]));
 }
 
+static ssize_t amdgpu_mem_info_vram_vendor(struct device *dev,
+						 struct device_attribute *attr,
+						 char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = ddev->dev_private;
+
+	switch (adev->gmc.vram_vendor) {
+	case SAMSUNG:
+		return snprintf(buf, PAGE_SIZE, "samsung\n");
+	case INFINEON:
+		return snprintf(buf, PAGE_SIZE, "infineon\n");
+	case ELPIDA:
+		return snprintf(buf, PAGE_SIZE, "elpida\n");
+	case ETRON:
+		return snprintf(buf, PAGE_SIZE, "etron\n");
+	case NANYA:
+		return snprintf(buf, PAGE_SIZE, "nanya\n");
+	case HYNIX:
+		return snprintf(buf, PAGE_SIZE, "hynix\n");
+	case MOSEL:
+		return snprintf(buf, PAGE_SIZE, "mosel\n");
+	case WINBOND:
+		return snprintf(buf, PAGE_SIZE, "winbond\n");
+	case ESMT:
+		return snprintf(buf, PAGE_SIZE, "esmt\n");
+	case MICRON:
+		return snprintf(buf, PAGE_SIZE, "micron\n");
+	default:
+		return snprintf(buf, PAGE_SIZE, "unknown\n");
+	}
+}
+
 static DEVICE_ATTR(mem_info_vram_total, S_IRUGO,
 		   amdgpu_mem_info_vram_total_show, NULL);
 static DEVICE_ATTR(mem_info_vis_vram_total, S_IRUGO,
@@ -110,6 +145,8 @@ static DEVICE_ATTR(mem_info_vram_used, S_IRUGO,
 		   amdgpu_mem_info_vram_used_show, NULL);
 static DEVICE_ATTR(mem_info_vis_vram_used, S_IRUGO,
 		   amdgpu_mem_info_vis_vram_used_show, NULL);
+static DEVICE_ATTR(mem_info_vram_vendor, S_IRUGO,
+		   amdgpu_mem_info_vram_vendor, NULL);
 
 /**
  * amdgpu_vram_mgr_init - init VRAM manager and DRM MM
@@ -155,6 +192,11 @@ static int amdgpu_vram_mgr_init(struct ttm_mem_type_manager *man,
 		DRM_ERROR("Failed to create device file mem_info_vis_vram_used\n");
 		return ret;
 	}
+	ret = device_create_file(adev->dev, &dev_attr_mem_info_vram_vendor);
+	if (ret) {
+		DRM_ERROR("Failed to create device file mem_info_vram_vendor\n");
+		return ret;
+	}
 
 	return 0;
 }
@@ -181,6 +223,7 @@ static int amdgpu_vram_mgr_fini(struct ttm_mem_type_manager *man)
 	device_remove_file(adev->dev, &dev_attr_mem_info_vis_vram_total);
 	device_remove_file(adev->dev, &dev_attr_mem_info_vram_used);
 	device_remove_file(adev->dev, &dev_attr_mem_info_vis_vram_used);
+	device_remove_file(adev->dev, &dev_attr_mem_info_vram_vendor);
 	return 0;
 }
 
@@ -276,7 +319,7 @@ static int amdgpu_vram_mgr_new(struct ttm_mem_type_manager *man,
 	struct drm_mm_node *nodes;
 	enum drm_mm_insert_mode mode;
 	unsigned long lpfn, num_nodes, pages_per_node, pages_left;
-	uint64_t usage = 0, vis_usage = 0;
+	uint64_t vis_usage = 0, mem_bytes, max_bytes;
 	unsigned i;
 	int r;
 
@@ -284,20 +327,38 @@ static int amdgpu_vram_mgr_new(struct ttm_mem_type_manager *man,
 	if (!lpfn)
 		lpfn = man->size;
 
-	if (place->flags & TTM_PL_FLAG_CONTIGUOUS ||
-	    amdgpu_vram_page_split == -1) {
+	max_bytes = adev->gmc.mc_vram_size;
+	if (tbo->type != ttm_bo_type_kernel)
+		max_bytes -= AMDGPU_VM_RESERVED_VRAM;
+
+	/* bail out quickly if there's likely not enough VRAM for this BO */
+	mem_bytes = (u64)mem->num_pages << PAGE_SHIFT;
+	if (atomic64_add_return(mem_bytes, &mgr->usage) > max_bytes) {
+		atomic64_sub(mem_bytes, &mgr->usage);
+		mem->mm_node = NULL;
+		return 0;
+	}
+
+	if (place->flags & TTM_PL_FLAG_CONTIGUOUS) {
 		pages_per_node = ~0ul;
 		num_nodes = 1;
 	} else {
-		pages_per_node = max((uint32_t)amdgpu_vram_page_split,
-				     mem->page_alignment);
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+		pages_per_node = HPAGE_PMD_NR;
+#else
+		/* default to 2MB */
+		pages_per_node = (2UL << (20UL - PAGE_SHIFT));
+#endif
+		pages_per_node = max((uint32_t)pages_per_node, mem->page_alignment);
 		num_nodes = DIV_ROUND_UP(mem->num_pages, pages_per_node);
 	}
 
-	nodes = kvmalloc_array(num_nodes, sizeof(*nodes),
+	nodes = kvmalloc_array((uint32_t)num_nodes, sizeof(*nodes),
 			       GFP_KERNEL | __GFP_ZERO);
-	if (!nodes)
+	if (!nodes) {
+		atomic64_sub(mem_bytes, &mgr->usage);
 		return -ENOMEM;
+	}
 
 	mode = DRM_MM_INSERT_BEST;
 	if (place->flags & TTM_PL_FLAG_TOPDOWN)
@@ -317,7 +378,6 @@ static int amdgpu_vram_mgr_new(struct ttm_mem_type_manager *man,
 		if (unlikely(r))
 			break;
 
-		usage += nodes[i].size << PAGE_SHIFT;
 		vis_usage += amdgpu_vram_mgr_vis_size(adev, &nodes[i]);
 		amdgpu_vram_mgr_virt_start(mem, &nodes[i]);
 		pages_left -= pages;
@@ -337,14 +397,12 @@ static int amdgpu_vram_mgr_new(struct ttm_mem_type_manager *man,
 		if (unlikely(r))
 			goto error;
 
-		usage += nodes[i].size << PAGE_SHIFT;
 		vis_usage += amdgpu_vram_mgr_vis_size(adev, &nodes[i]);
 		amdgpu_vram_mgr_virt_start(mem, &nodes[i]);
 		pages_left -= pages;
 	}
 	spin_unlock(&mgr->lock);
 
-	atomic64_add(usage, &mgr->usage);
 	atomic64_add(vis_usage, &mgr->vis_usage);
 
 	mem->mm_node = nodes;
@@ -355,6 +413,7 @@ error:
 	while (i--)
 		drm_mm_remove_node(&nodes[i]);
 	spin_unlock(&mgr->lock);
+	atomic64_sub(mem->num_pages << PAGE_SHIFT, &mgr->usage);
 
 	kvfree(nodes);
 	return r == -ENOSPC ? 0 : r;

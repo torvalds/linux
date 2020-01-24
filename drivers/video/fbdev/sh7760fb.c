@@ -6,7 +6,7 @@
  *             Manuel Lauss <mano@roarinelk.homelinux.net>
  * (c) 2008 Nobuhiro Iwamatsu <iwamatsu.nobuhiro@renesas.com>
  *
- * PLEASE HAVE A LOOK AT Documentation/fb/sh7760fb.txt!
+ * PLEASE HAVE A LOOK AT Documentation/fb/sh7760fb.rst!
  *
  * Thanks to Siegfried Schaefer <s.schaefer at schaefer-edv.de>
  *     for his original source and testing!

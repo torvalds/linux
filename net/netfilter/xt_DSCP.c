@@ -31,7 +31,7 @@ dscp_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	u_int8_t dscp = ipv4_get_dsfield(ip_hdr(skb)) >> XT_DSCP_SHIFT;
 
 	if (dscp != dinfo->dscp) {
-		if (!skb_make_writable(skb, sizeof(struct iphdr)))
+		if (skb_ensure_writable(skb, sizeof(struct iphdr)))
 			return NF_DROP;
 
 		ipv4_change_dsfield(ip_hdr(skb),
@@ -49,7 +49,7 @@ dscp_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 	u_int8_t dscp = ipv6_get_dsfield(ipv6_hdr(skb)) >> XT_DSCP_SHIFT;
 
 	if (dscp != dinfo->dscp) {
-		if (!skb_make_writable(skb, sizeof(struct ipv6hdr)))
+		if (skb_ensure_writable(skb, sizeof(struct ipv6hdr)))
 			return NF_DROP;
 
 		ipv6_change_dsfield(ipv6_hdr(skb),
@@ -79,7 +79,7 @@ tos_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	nv   = (orig & ~info->tos_mask) ^ info->tos_value;
 
 	if (orig != nv) {
-		if (!skb_make_writable(skb, sizeof(struct iphdr)))
+		if (skb_ensure_writable(skb, sizeof(struct iphdr)))
 			return NF_DROP;
 		iph = ip_hdr(skb);
 		ipv4_change_dsfield(iph, 0, nv);
@@ -99,7 +99,7 @@ tos_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 	nv   = (orig & ~info->tos_mask) ^ info->tos_value;
 
 	if (orig != nv) {
-		if (!skb_make_writable(skb, sizeof(struct iphdr)))
+		if (skb_ensure_writable(skb, sizeof(struct iphdr)))
 			return NF_DROP;
 		iph = ipv6_hdr(skb);
 		ipv6_change_dsfield(iph, 0, nv);

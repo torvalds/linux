@@ -5,10 +5,6 @@
  * Copyright 2018 Google LLC
  *
  * This is the entry point for the drivers that control the Wilco EC.
- * This driver is responsible for several tasks:
- * - Initialize the register interface that is used by wilco_ec_mailbox()
- * - Create a platform device which is picked up by the debugfs driver
- * - Create a platform device which is picked up by the RTC driver
  */
 
 #include <linux/acpi.h>
@@ -52,9 +48,7 @@ static int wilco_ec_probe(struct platform_device *pdev)
 	ec->dev = dev;
 	mutex_init(&ec->mailbox_lock);
 
-	/* Largest data buffer size requirement is extended data response */
-	ec->data_size = sizeof(struct wilco_ec_response) +
-		EC_MAILBOX_DATA_SIZE_EXTENDED;
+	ec->data_size = sizeof(struct wilco_ec_response) + EC_MAILBOX_DATA_SIZE;
 	ec->data_buffer = devm_kzalloc(dev, ec->data_size, GFP_KERNEL);
 	if (!ec->data_buffer)
 		return -ENOMEM;
@@ -89,8 +83,49 @@ static int wilco_ec_probe(struct platform_device *pdev)
 		goto unregister_debugfs;
 	}
 
+	/* Set up the keyboard backlight LEDs. */
+	ret = wilco_keyboard_leds_init(ec);
+	if (ret < 0) {
+		dev_err(dev,
+			"Failed to initialize keyboard LEDs: %d\n",
+			ret);
+		goto unregister_rtc;
+	}
+
+	ret = wilco_ec_add_sysfs(ec);
+	if (ret < 0) {
+		dev_err(dev, "Failed to create sysfs entries: %d", ret);
+		goto unregister_rtc;
+	}
+
+	/* Register child device to be found by charger config driver. */
+	ec->charger_pdev = platform_device_register_data(dev, "wilco-charger",
+							 PLATFORM_DEVID_AUTO,
+							 NULL, 0);
+	if (IS_ERR(ec->charger_pdev)) {
+		dev_err(dev, "Failed to create charger platform device\n");
+		ret = PTR_ERR(ec->charger_pdev);
+		goto remove_sysfs;
+	}
+
+	/* Register child device that will be found by the telemetry driver. */
+	ec->telem_pdev = platform_device_register_data(dev, "wilco_telem",
+						       PLATFORM_DEVID_AUTO,
+						       ec, sizeof(*ec));
+	if (IS_ERR(ec->telem_pdev)) {
+		dev_err(dev, "Failed to create telemetry platform device\n");
+		ret = PTR_ERR(ec->telem_pdev);
+		goto unregister_charge_config;
+	}
+
 	return 0;
 
+unregister_charge_config:
+	platform_device_unregister(ec->charger_pdev);
+remove_sysfs:
+	wilco_ec_remove_sysfs(ec);
+unregister_rtc:
+	platform_device_unregister(ec->rtc_pdev);
 unregister_debugfs:
 	if (ec->debugfs_pdev)
 		platform_device_unregister(ec->debugfs_pdev);
@@ -102,6 +137,9 @@ static int wilco_ec_remove(struct platform_device *pdev)
 {
 	struct wilco_ec_device *ec = platform_get_drvdata(pdev);
 
+	platform_device_unregister(ec->charger_pdev);
+	wilco_ec_remove_sysfs(ec);
+	platform_device_unregister(ec->telem_pdev);
 	platform_device_unregister(ec->rtc_pdev);
 	if (ec->debugfs_pdev)
 		platform_device_unregister(ec->debugfs_pdev);

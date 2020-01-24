@@ -603,6 +603,7 @@ struct ip_vs_dest_user_kern {
 
 	u16			tun_type;	/* tunnel type */
 	__be16			tun_port;	/* tunnel port */
+	u16			tun_flags;	/* tunnel flags */
 };
 
 
@@ -665,6 +666,7 @@ struct ip_vs_dest {
 	atomic_t		last_weight;	/* server latest weight */
 	__u16			tun_type;	/* tunnel type */
 	__be16			tun_port;	/* tunnel port */
+	__u16			tun_flags;	/* tunnel flags */
 
 	refcount_t		refcnt;		/* reference counter */
 	struct ip_vs_stats      stats;          /* statistics */
@@ -808,10 +810,11 @@ struct ipvs_master_sync_state {
 	struct ip_vs_sync_buff	*sync_buff;
 	unsigned long		sync_queue_len;
 	unsigned int		sync_queue_delay;
-	struct task_struct	*master_thread;
 	struct delayed_work	master_wakeup_work;
 	struct netns_ipvs	*ipvs;
 };
+
+struct ip_vs_sync_thread_data;
 
 /* How much time to keep dests in trash */
 #define IP_VS_DEST_TRASH_PERIOD		(120 * HZ)
@@ -886,6 +889,7 @@ struct netns_ipvs {
 	struct delayed_work	defense_work;   /* Work handler */
 	int			drop_rate;
 	int			drop_counter;
+	int			old_secure_tcp;
 	atomic_t		dropentry;
 	/* locks in ctl.c */
 	spinlock_t		dropentry_lock;  /* drop entry handling */
@@ -943,7 +947,8 @@ struct netns_ipvs {
 	spinlock_t		sync_lock;
 	struct ipvs_master_sync_state *ms;
 	spinlock_t		sync_buff_lock;
-	struct task_struct	**backup_threads;
+	struct ip_vs_sync_thread_data *master_tinfo;
+	struct ip_vs_sync_thread_data *backup_tinfo;
 	int			threads_mask;
 	volatile int		sync_state;
 	struct mutex		sync_mutex;
@@ -1320,7 +1325,7 @@ void ip_vs_protocol_net_cleanup(struct netns_ipvs *ipvs);
 void ip_vs_control_net_cleanup(struct netns_ipvs *ipvs);
 void ip_vs_estimator_net_cleanup(struct netns_ipvs *ipvs);
 void ip_vs_sync_net_cleanup(struct netns_ipvs *ipvs);
-void ip_vs_service_net_cleanup(struct netns_ipvs *ipvs);
+void ip_vs_service_nets_cleanup(struct list_head *net_list);
 
 /* IPVS application functions
  * (from ip_vs_app.c)
@@ -1404,6 +1409,9 @@ bool ip_vs_has_real_service(struct netns_ipvs *ipvs, int af, __u16 protocol,
 struct ip_vs_dest *
 ip_vs_find_real_service(struct netns_ipvs *ipvs, int af, __u16 protocol,
 			const union nf_inet_addr *daddr, __be16 dport);
+struct ip_vs_dest *ip_vs_find_tunnel(struct netns_ipvs *ipvs, int af,
+				     const union nf_inet_addr *daddr,
+				     __be16 tun_port);
 
 int ip_vs_use_count_inc(void);
 void ip_vs_use_count_dec(void);
@@ -1496,6 +1504,9 @@ static inline int ip_vs_todrop(struct netns_ipvs *ipvs)
 #else
 static inline int ip_vs_todrop(struct netns_ipvs *ipvs) { return 0; }
 #endif
+
+#define IP_VS_DFWD_METHOD(dest) (atomic_read(&(dest)->conn_flags) & \
+				 IP_VS_CONN_F_FWD_MASK)
 
 /* ip_vs_fwd_tag returns the forwarding tag of the connection */
 #define IP_VS_FWD_METHOD(cp)  (cp->flags & IP_VS_CONN_F_FWD_MASK)

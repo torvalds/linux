@@ -171,6 +171,15 @@ static struct xen_blkif *xen_blkif_alloc(domid_t domid)
 	blkif->domid = domid;
 	atomic_set(&blkif->refcnt, 1);
 	init_completion(&blkif->drain_complete);
+
+	/*
+	 * Because freeing back to the cache may be deferred, it is not
+	 * safe to unload the module (and hence destroy the cache) until
+	 * this has completed. To prevent premature unloading, take an
+	 * extra module reference here and release only when the object
+	 * has been freed back to the cache.
+	 */
+	__module_get(THIS_MODULE);
 	INIT_WORK(&blkif->free_work, xen_blkif_deferred_free);
 
 	return blkif;
@@ -181,6 +190,9 @@ static int xen_blkif_map(struct xen_blkif_ring *ring, grant_ref_t *gref,
 {
 	int err;
 	struct xen_blkif *blkif = ring->blkif;
+	const struct blkif_common_sring *sring_common;
+	RING_IDX rsp_prod, req_prod;
+	unsigned int size;
 
 	/* Already connected through? */
 	if (ring->irq)
@@ -191,46 +203,62 @@ static int xen_blkif_map(struct xen_blkif_ring *ring, grant_ref_t *gref,
 	if (err < 0)
 		return err;
 
+	sring_common = (struct blkif_common_sring *)ring->blk_ring;
+	rsp_prod = READ_ONCE(sring_common->rsp_prod);
+	req_prod = READ_ONCE(sring_common->req_prod);
+
 	switch (blkif->blk_protocol) {
 	case BLKIF_PROTOCOL_NATIVE:
 	{
-		struct blkif_sring *sring;
-		sring = (struct blkif_sring *)ring->blk_ring;
-		BACK_RING_INIT(&ring->blk_rings.native, sring,
-			       XEN_PAGE_SIZE * nr_grefs);
+		struct blkif_sring *sring_native =
+			(struct blkif_sring *)ring->blk_ring;
+
+		BACK_RING_ATTACH(&ring->blk_rings.native, sring_native,
+				 rsp_prod, XEN_PAGE_SIZE * nr_grefs);
+		size = __RING_SIZE(sring_native, XEN_PAGE_SIZE * nr_grefs);
 		break;
 	}
 	case BLKIF_PROTOCOL_X86_32:
 	{
-		struct blkif_x86_32_sring *sring_x86_32;
-		sring_x86_32 = (struct blkif_x86_32_sring *)ring->blk_ring;
-		BACK_RING_INIT(&ring->blk_rings.x86_32, sring_x86_32,
-			       XEN_PAGE_SIZE * nr_grefs);
+		struct blkif_x86_32_sring *sring_x86_32 =
+			(struct blkif_x86_32_sring *)ring->blk_ring;
+
+		BACK_RING_ATTACH(&ring->blk_rings.x86_32, sring_x86_32,
+				 rsp_prod, XEN_PAGE_SIZE * nr_grefs);
+		size = __RING_SIZE(sring_x86_32, XEN_PAGE_SIZE * nr_grefs);
 		break;
 	}
 	case BLKIF_PROTOCOL_X86_64:
 	{
-		struct blkif_x86_64_sring *sring_x86_64;
-		sring_x86_64 = (struct blkif_x86_64_sring *)ring->blk_ring;
-		BACK_RING_INIT(&ring->blk_rings.x86_64, sring_x86_64,
-			       XEN_PAGE_SIZE * nr_grefs);
+		struct blkif_x86_64_sring *sring_x86_64 =
+			(struct blkif_x86_64_sring *)ring->blk_ring;
+
+		BACK_RING_ATTACH(&ring->blk_rings.x86_64, sring_x86_64,
+				 rsp_prod, XEN_PAGE_SIZE * nr_grefs);
+		size = __RING_SIZE(sring_x86_64, XEN_PAGE_SIZE * nr_grefs);
 		break;
 	}
 	default:
 		BUG();
 	}
 
+	err = -EIO;
+	if (req_prod - rsp_prod > size)
+		goto fail;
+
 	err = bind_interdomain_evtchn_to_irqhandler(blkif->domid, evtchn,
 						    xen_blkif_be_int, 0,
 						    "blkif-backend", ring);
-	if (err < 0) {
-		xenbus_unmap_ring_vfree(blkif->be->dev, ring->blk_ring);
-		ring->blk_rings.common.sring = NULL;
-		return err;
-	}
+	if (err < 0)
+		goto fail;
 	ring->irq = err;
 
 	return 0;
+
+fail:
+	xenbus_unmap_ring_vfree(blkif->be->dev, ring->blk_ring);
+	ring->blk_rings.common.sring = NULL;
+	return err;
 }
 
 static int xen_blkif_disconnect(struct xen_blkif *blkif)
@@ -320,6 +348,7 @@ static void xen_blkif_free(struct xen_blkif *blkif)
 
 	/* Make sure everything is drained before shutting down */
 	kmem_cache_free(xen_blkif_cachep, blkif);
+	module_put(THIS_MODULE);
 }
 
 int __init xen_blkif_interface_init(void)
@@ -331,6 +360,12 @@ int __init xen_blkif_interface_init(void)
 		return -ENOMEM;
 
 	return 0;
+}
+
+void xen_blkif_interface_fini(void)
+{
+	kmem_cache_destroy(xen_blkif_cachep);
+	xen_blkif_cachep = NULL;
 }
 
 /*
@@ -965,6 +1000,7 @@ static int read_per_ring_refs(struct xen_blkif_ring *ring, const char *dir)
 		}
 	}
 
+	err = -ENOMEM;
 	for (i = 0; i < nr_grefs * XEN_BLKIF_REQS_PER_PAGE; i++) {
 		req = kzalloc(sizeof(*req), GFP_KERNEL);
 		if (!req)
@@ -987,7 +1023,7 @@ static int read_per_ring_refs(struct xen_blkif_ring *ring, const char *dir)
 	err = xen_blkif_map(ring, ring_ref, nr_grefs, evtchn);
 	if (err) {
 		xenbus_dev_fatal(dev, err, "mapping ring-ref port %u", evtchn);
-		return err;
+		goto fail;
 	}
 
 	return 0;
@@ -1007,8 +1043,7 @@ fail:
 		}
 		kfree(req);
 	}
-	return -ENOMEM;
-
+	return err;
 }
 
 static int connect_ring(struct backend_info *be)
@@ -1115,10 +1150,16 @@ static struct xenbus_driver xen_blkbk_driver = {
 	.ids  = xen_blkbk_ids,
 	.probe = xen_blkbk_probe,
 	.remove = xen_blkbk_remove,
-	.otherend_changed = frontend_changed
+	.otherend_changed = frontend_changed,
+	.allow_rebind = true,
 };
 
 int xen_blkif_xenbus_init(void)
 {
 	return xenbus_register_backend(&xen_blkbk_driver);
+}
+
+void xen_blkif_xenbus_fini(void)
+{
+	xenbus_unregister_driver(&xen_blkbk_driver);
 }

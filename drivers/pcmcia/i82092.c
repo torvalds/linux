@@ -117,9 +117,9 @@ static int i82092aa_pci_probe(struct pci_dev *dev, const struct pci_device_id *i
 		
 		if (card_present(i)) {
 			sockets[i].card_state = 3;
-			dprintk(KERN_DEBUG "i82092aa: slot %i is occupied\n",i);
+			dev_dbg(&dev->dev, "i82092aa: slot %i is occupied\n", i);
 		} else {
-			dprintk(KERN_DEBUG "i82092aa: slot %i is vacant\n",i);
+			dev_dbg(&dev->dev, "i82092aa: slot %i is vacant\n", i);
 		}
 	}
 		
@@ -128,7 +128,7 @@ static int i82092aa_pci_probe(struct pci_dev *dev, const struct pci_device_id *i
 	pci_write_config_byte(dev, 0x50, configbyte); /* PCI Interrupt Routing Register */
 
 	/* Register the interrupt handler */
-	dprintk(KERN_DEBUG "Requesting interrupt %i \n",dev->irq);
+	dev_dbg(&dev->dev, "Requesting interrupt %i\n", dev->irq);
 	if ((ret = request_irq(dev->irq, i82092aa_interrupt, IRQF_SHARED, "i82092aa", i82092aa_interrupt))) {
 		printk(KERN_ERR "i82092aa: Failed to register IRQ %d, aborting\n", dev->irq);
 		goto err_out_free_res;
@@ -431,27 +431,25 @@ static int i82092aa_get_status(struct pcmcia_socket *socket, u_int *value)
 		
 	/* IO cards have a different meaning of bits 0,1 */
 	/* Also notice the inverse-logic on the bits */
-	 if (indirect_read(sock, I365_INTCTL) & I365_PC_IOCARD)	{
-	 	/* IO card */
-	 	if (!(status & I365_CS_STSCHG))
-	 		*value |= SS_STSCHG;
-	 } else { /* non I/O card */
-	 	if (!(status & I365_CS_BVD1))
-	 		*value |= SS_BATDEAD;
-	 	if (!(status & I365_CS_BVD2))
-	 		*value |= SS_BATWARN;
-	 		
-	 }
+	if (indirect_read(sock, I365_INTCTL) & I365_PC_IOCARD)	{
+		/* IO card */
+		if (!(status & I365_CS_STSCHG))
+			*value |= SS_STSCHG;
+	} else { /* non I/O card */
+		if (!(status & I365_CS_BVD1))
+			*value |= SS_BATDEAD;
+		if (!(status & I365_CS_BVD2))
+			*value |= SS_BATWARN;
+	}
 	 
-	 if (status & I365_CS_WRPROT)
-	 	(*value) |= SS_WRPROT;	/* card is write protected */
+	if (status & I365_CS_WRPROT)
+		(*value) |= SS_WRPROT;	/* card is write protected */
 	 
-	 if (status & I365_CS_READY)
-	 	(*value) |= SS_READY;    /* card is not busy */
+	if (status & I365_CS_READY)
+		(*value) |= SS_READY;    /* card is not busy */
 	 	
-	 if (status & I365_CS_POWERON)
-	 	(*value) |= SS_POWERON;  /* power is applied to the card */
-
+	if (status & I365_CS_POWERON)
+		(*value) |= SS_POWERON;  /* power is applied to the card */
 
 	leave("i82092aa_get_status");
 	return 0;

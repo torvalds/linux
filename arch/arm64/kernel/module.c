@@ -9,6 +9,7 @@
 
 #include <linux/bitops.h>
 #include <linux/elf.h>
+#include <linux/ftrace.h>
 #include <linux/gfp.h>
 #include <linux/kasan.h>
 #include <linux/kernel.h>
@@ -21,6 +22,7 @@
 
 void *module_alloc(unsigned long size)
 {
+	u64 module_alloc_end = module_alloc_base + MODULES_VSIZE;
 	gfp_t gfp_mask = GFP_KERNEL;
 	void *p;
 
@@ -28,9 +30,12 @@ void *module_alloc(unsigned long size)
 	if (IS_ENABLED(CONFIG_ARM64_MODULE_PLTS))
 		gfp_mask |= __GFP_NOWARN;
 
+	if (IS_ENABLED(CONFIG_KASAN))
+		/* don't exceed the static module region - see below */
+		module_alloc_end = MODULES_END;
+
 	p = __vmalloc_node_range(size, MODULE_ALIGN, module_alloc_base,
-				module_alloc_base + MODULES_VSIZE,
-				gfp_mask, PAGE_KERNEL_EXEC, 0,
+				module_alloc_end, gfp_mask, PAGE_KERNEL, 0,
 				NUMA_NO_NODE, __builtin_return_address(0));
 
 	if (!p && IS_ENABLED(CONFIG_ARM64_MODULE_PLTS) &&
@@ -46,7 +51,7 @@ void *module_alloc(unsigned long size)
 		 */
 		p = __vmalloc_node_range(size, MODULE_ALIGN, module_alloc_base,
 				module_alloc_base + SZ_2G, GFP_KERNEL,
-				PAGE_KERNEL_EXEC, 0, NUMA_NO_NODE,
+				PAGE_KERNEL, 0, NUMA_NO_NODE,
 				__builtin_return_address(0));
 
 	if (p && (kasan_module_alloc(p, size) < 0)) {
@@ -310,18 +315,21 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 		/* MOVW instruction relocations. */
 		case R_AARCH64_MOVW_UABS_G0_NC:
 			overflow_check = false;
+			/* Fall through */
 		case R_AARCH64_MOVW_UABS_G0:
 			ovf = reloc_insn_movw(RELOC_OP_ABS, loc, val, 0,
 					      AARCH64_INSN_IMM_MOVKZ);
 			break;
 		case R_AARCH64_MOVW_UABS_G1_NC:
 			overflow_check = false;
+			/* Fall through */
 		case R_AARCH64_MOVW_UABS_G1:
 			ovf = reloc_insn_movw(RELOC_OP_ABS, loc, val, 16,
 					      AARCH64_INSN_IMM_MOVKZ);
 			break;
 		case R_AARCH64_MOVW_UABS_G2_NC:
 			overflow_check = false;
+			/* Fall through */
 		case R_AARCH64_MOVW_UABS_G2:
 			ovf = reloc_insn_movw(RELOC_OP_ABS, loc, val, 32,
 					      AARCH64_INSN_IMM_MOVKZ);
@@ -389,6 +397,7 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 			break;
 		case R_AARCH64_ADR_PREL_PG_HI21_NC:
 			overflow_check = false;
+			/* Fall through */
 		case R_AARCH64_ADR_PREL_PG_HI21:
 			ovf = reloc_insn_adrp(me, sechdrs, loc, val);
 			if (ovf && ovf != -ERANGE)
@@ -462,22 +471,58 @@ overflow:
 	return -ENOEXEC;
 }
 
-int module_finalize(const Elf_Ehdr *hdr,
-		    const Elf_Shdr *sechdrs,
-		    struct module *me)
+static const Elf_Shdr *find_section(const Elf_Ehdr *hdr,
+				    const Elf_Shdr *sechdrs,
+				    const char *name)
 {
 	const Elf_Shdr *s, *se;
 	const char *secstrs = (void *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;
 
 	for (s = sechdrs, se = sechdrs + hdr->e_shnum; s < se; s++) {
-		if (strcmp(".altinstructions", secstrs + s->sh_name) == 0)
-			apply_alternatives_module((void *)s->sh_addr, s->sh_size);
-#ifdef CONFIG_ARM64_MODULE_PLTS
-		if (IS_ENABLED(CONFIG_DYNAMIC_FTRACE) &&
-		    !strcmp(".text.ftrace_trampoline", secstrs + s->sh_name))
-			me->arch.ftrace_trampoline = (void *)s->sh_addr;
-#endif
+		if (strcmp(name, secstrs + s->sh_name) == 0)
+			return s;
 	}
 
+	return NULL;
+}
+
+static inline void __init_plt(struct plt_entry *plt, unsigned long addr)
+{
+	*plt = get_plt_entry(addr, plt);
+}
+
+static int module_init_ftrace_plt(const Elf_Ehdr *hdr,
+				  const Elf_Shdr *sechdrs,
+				  struct module *mod)
+{
+#if defined(CONFIG_ARM64_MODULE_PLTS) && defined(CONFIG_DYNAMIC_FTRACE)
+	const Elf_Shdr *s;
+	struct plt_entry *plts;
+
+	s = find_section(hdr, sechdrs, ".text.ftrace_trampoline");
+	if (!s)
+		return -ENOEXEC;
+
+	plts = (void *)s->sh_addr;
+
+	__init_plt(&plts[FTRACE_PLT_IDX], FTRACE_ADDR);
+
+	if (IS_ENABLED(CONFIG_DYNAMIC_FTRACE_WITH_REGS))
+		__init_plt(&plts[FTRACE_REGS_PLT_IDX], FTRACE_REGS_ADDR);
+
+	mod->arch.ftrace_trampolines = plts;
+#endif
 	return 0;
+}
+
+int module_finalize(const Elf_Ehdr *hdr,
+		    const Elf_Shdr *sechdrs,
+		    struct module *me)
+{
+	const Elf_Shdr *s;
+	s = find_section(hdr, sechdrs, ".altinstructions");
+	if (s)
+		apply_alternatives_module((void *)s->sh_addr, s->sh_size);
+
+	return module_init_ftrace_plt(hdr, sechdrs, me);
 }

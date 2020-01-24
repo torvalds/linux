@@ -250,7 +250,7 @@ static void do_trap(struct exception_info *except_info, struct pt_regs *regs)
 	die_if_kernel(except_info->kernel_str, regs, addr);
 
 	force_sig_fault(except_info->signo, except_info->code,
-			(void __user *)addr, current);
+			(void __user *)addr);
 }
 
 /*

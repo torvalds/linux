@@ -46,15 +46,18 @@ static int flush_racache(struct inode *inode)
  * Post and wait for the I/O upcall to finish
  */
 ssize_t wait_for_direct_io(enum ORANGEFS_io_type type, struct inode *inode,
-    loff_t *offset, struct iov_iter *iter, size_t total_size,
-    loff_t readahead_size, struct orangefs_write_range *wr, int *index_return)
+	loff_t *offset, struct iov_iter *iter, size_t total_size,
+	loff_t readahead_size, struct orangefs_write_range *wr,
+	int *index_return, struct file *file)
 {
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 	struct orangefs_khandle *handle = &orangefs_inode->refn.khandle;
 	struct orangefs_kernel_op_s *new_op = NULL;
-	int buffer_index = -1;
+	int buffer_index;
 	ssize_t ret;
 	size_t copy_amount;
+	int open_for_read;
+	int open_for_write;
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_FILE_IO);
 	if (!new_op)
@@ -90,6 +93,38 @@ populate_shared_memory:
 		new_op->upcall.uid = from_kuid(&init_user_ns, wr->uid);
 		new_op->upcall.gid = from_kgid(&init_user_ns, wr->gid);
 	}
+	/*
+	 * Orangefs has no open, and orangefs checks file permissions
+	 * on each file access. Posix requires that file permissions
+	 * be checked on open and nowhere else. Orangefs-through-the-kernel
+	 * needs to seem posix compliant.
+	 *
+	 * The VFS opens files, even if the filesystem provides no
+	 * method. We can see if a file was successfully opened for
+	 * read and or for write by looking at file->f_mode.
+	 *
+	 * When writes are flowing from the page cache, file is no
+	 * longer available. We can trust the VFS to have checked
+	 * file->f_mode before writing to the page cache.
+	 *
+	 * The mode of a file might change between when it is opened
+	 * and IO commences, or it might be created with an arbitrary mode.
+	 *
+	 * We'll make sure we don't hit EACCES during the IO stage by
+	 * using UID 0. Some of the time we have access without changing
+	 * to UID 0 - how to check?
+	 */
+	if (file) {
+		open_for_write = file->f_mode & FMODE_WRITE;
+		open_for_read = file->f_mode & FMODE_READ;
+	} else {
+		open_for_write = 1;
+		open_for_read = 0; /* not relevant? */
+	}
+	if ((type == ORANGEFS_IO_WRITE) && open_for_write)
+		new_op->upcall.uid = 0;
+	if ((type == ORANGEFS_IO_READ) && open_for_read)
+		new_op->upcall.uid = 0;
 
 	gossip_debug(GOSSIP_FILE_DEBUG,
 		     "%s(%pU): offset: %llu total_size: %zd\n",
@@ -134,7 +169,6 @@ populate_shared_memory:
 	 */
 	if (ret == -EAGAIN && op_state_purged(new_op)) {
 		orangefs_bufmap_put(buffer_index);
-		buffer_index = -1;
 		if (type == ORANGEFS_IO_WRITE)
 			iov_iter_revert(iter, total_size);
 		gossip_debug(GOSSIP_FILE_DEBUG,
@@ -262,7 +296,6 @@ out:
 				"%s(%pU): PUT buffer_index %d\n",
 				__func__, handle, buffer_index);
 		}
-		buffer_index = -1;
 	}
 	op_release(new_op);
 	return ret;
@@ -357,11 +390,28 @@ static ssize_t orangefs_file_write_iter(struct kiocb *iocb,
 	return ret;
 }
 
+static int orangefs_getflags(struct inode *inode, unsigned long *uval)
+{
+	__u64 val = 0;
+	int ret;
+
+	ret = orangefs_inode_getxattr(inode,
+				      "user.pvfs2.meta_hint",
+				      &val, sizeof(val));
+	if (ret < 0 && ret != -ENODATA)
+		return ret;
+	else if (ret == -ENODATA)
+		val = 0;
+	*uval = val;
+	return 0;
+}
+
 /*
  * Perform a miscellaneous operation on a file.
  */
 static long orangefs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
+	struct inode *inode = file_inode(file);
 	int ret = -ENOTTY;
 	__u64 val = 0;
 	unsigned long uval;
@@ -375,20 +425,16 @@ static long orangefs_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 	 * and append flags
 	 */
 	if (cmd == FS_IOC_GETFLAGS) {
-		val = 0;
-		ret = orangefs_inode_getxattr(file_inode(file),
-					      "user.pvfs2.meta_hint",
-					      &val, sizeof(val));
-		if (ret < 0 && ret != -ENODATA)
+		ret = orangefs_getflags(inode, &uval);
+		if (ret)
 			return ret;
-		else if (ret == -ENODATA)
-			val = 0;
-		uval = val;
 		gossip_debug(GOSSIP_FILE_DEBUG,
 			     "orangefs_ioctl: FS_IOC_GETFLAGS: %llu\n",
 			     (unsigned long long)uval);
 		return put_user(uval, (int __user *)arg);
 	} else if (cmd == FS_IOC_SETFLAGS) {
+		unsigned long old_uval;
+
 		ret = 0;
 		if (get_user(uval, (int __user *)arg))
 			return -EFAULT;
@@ -404,11 +450,17 @@ static long orangefs_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 			gossip_err("orangefs_ioctl: the FS_IOC_SETFLAGS only supports setting one of FS_IMMUTABLE_FL|FS_APPEND_FL|FS_NOATIME_FL\n");
 			return -EINVAL;
 		}
+		ret = orangefs_getflags(inode, &old_uval);
+		if (ret)
+			return ret;
+		ret = vfs_ioc_setflags_prepare(inode, old_uval, uval);
+		if (ret)
+			return ret;
 		val = uval;
 		gossip_debug(GOSSIP_FILE_DEBUG,
 			     "orangefs_ioctl: FS_IOC_SETFLAGS: %llu\n",
 			     (unsigned long long)val);
-		ret = orangefs_inode_setxattr(file_inode(file),
+		ret = orangefs_inode_setxattr(inode,
 					      "user.pvfs2.meta_hint",
 					      &val, sizeof(val), 0);
 	}
@@ -538,7 +590,7 @@ static int orangefs_fsync(struct file *file,
  * Change the file pointer position for an instance of an open file.
  *
  * \note If .llseek is overriden, we must acquire lock as described in
- *       Documentation/filesystems/Locking.
+ *       Documentation/filesystems/locking.rst.
  *
  * Future upgrade could support SEEK_DATA and SEEK_HOLE but would
  * require much changes to the FS

@@ -14,13 +14,7 @@
 #include <linux/tcp.h>
 #include <linux/udp.h>
 #include "bpf_helpers.h"
-
-#define bpf_printk(fmt, ...)				\
-({							\
-	char ____fmt[] = fmt;				\
-	bpf_trace_printk(____fmt, sizeof(____fmt),	\
-			##__VA_ARGS__);			\
-})
+#include "bpf_endian.h"
 
 static __u32 rol32(__u32 word, unsigned int shift)
 {
@@ -170,53 +164,48 @@ struct lb_stats {
 	__u64 v1;
 };
 
-struct bpf_map_def __attribute__ ((section("maps"), used)) vip_map = {
-	.type = BPF_MAP_TYPE_HASH,
-	.key_size = sizeof(struct vip_definition),
-	.value_size = sizeof(struct vip_meta),
-	.max_entries = 512,
-	.map_flags = 0,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(max_entries, 512);
+	__type(key, struct vip_definition);
+	__type(value, struct vip_meta);
+} vip_map SEC(".maps");
 
-struct bpf_map_def __attribute__ ((section("maps"), used)) lru_cache = {
-	.type = BPF_MAP_TYPE_LRU_HASH,
-	.key_size = sizeof(struct flow_key),
-	.value_size = sizeof(struct real_pos_lru),
-	.max_entries = 300,
-	.map_flags = 1U << 1,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_LRU_HASH);
+	__uint(max_entries, 300);
+	__uint(map_flags, 1U << 1);
+	__type(key, struct flow_key);
+	__type(value, struct real_pos_lru);
+} lru_cache SEC(".maps");
 
-struct bpf_map_def __attribute__ ((section("maps"), used)) ch_rings = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(__u32),
-	.max_entries = 12 * 655,
-	.map_flags = 0,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 12 * 655);
+	__type(key, __u32);
+	__type(value, __u32);
+} ch_rings SEC(".maps");
 
-struct bpf_map_def __attribute__ ((section("maps"), used)) reals = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(struct real_definition),
-	.max_entries = 40,
-	.map_flags = 0,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 40);
+	__type(key, __u32);
+	__type(value, struct real_definition);
+} reals SEC(".maps");
 
-struct bpf_map_def __attribute__ ((section("maps"), used)) stats = {
-	.type = BPF_MAP_TYPE_PERCPU_ARRAY,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(struct lb_stats),
-	.max_entries = 515,
-	.map_flags = 0,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__uint(max_entries, 515);
+	__type(key, __u32);
+	__type(value, struct lb_stats);
+} stats SEC(".maps");
 
-struct bpf_map_def __attribute__ ((section("maps"), used)) ctl_array = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(struct ctl_value),
-	.max_entries = 16,
-	.map_flags = 0,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 16);
+	__type(key, __u32);
+	__type(value, struct ctl_value);
+} ctl_array SEC(".maps");
 
 struct eth_hdr {
 	unsigned char eth_dest[6];
@@ -317,7 +306,7 @@ bool encap_v6(struct xdp_md *xdp, struct ctl_value *cval,
 	ip6h->nexthdr = IPPROTO_IPV6;
 	ip_suffix = pckt->flow.srcv6[3] ^ pckt->flow.port16[0];
 	ip6h->payload_len =
-	    __builtin_bswap16(pkt_bytes + sizeof(struct ipv6hdr));
+	    bpf_htons(pkt_bytes + sizeof(struct ipv6hdr));
 	ip6h->hop_limit = 4;
 
 	ip6h->saddr.in6_u.u6_addr32[0] = 1;
@@ -334,7 +323,7 @@ bool encap_v4(struct xdp_md *xdp, struct ctl_value *cval,
 	      struct real_definition *dst, __u32 pkt_bytes)
 {
 
-	__u32 ip_suffix = __builtin_bswap16(pckt->flow.port16[0]);
+	__u32 ip_suffix = bpf_ntohs(pckt->flow.port16[0]);
 	struct eth_hdr *new_eth;
 	struct eth_hdr *old_eth;
 	__u16 *next_iph_u16;
@@ -364,7 +353,7 @@ bool encap_v4(struct xdp_md *xdp, struct ctl_value *cval,
 	iph->protocol = IPPROTO_IPIP;
 	iph->check = 0;
 	iph->tos = 1;
-	iph->tot_len = __builtin_bswap16(pkt_bytes + sizeof(struct iphdr));
+	iph->tot_len = bpf_htons(pkt_bytes + sizeof(struct iphdr));
 	/* don't update iph->daddr, since it will overwrite old eth_proto
 	 * and multiple iterations of bpf_prog_run() will fail
 	 */
@@ -651,7 +640,7 @@ static int process_l3_headers_v6(struct packet_description *pckt,
 	iph_len = sizeof(struct ipv6hdr);
 	*protocol = ip6h->nexthdr;
 	pckt->flow.proto = *protocol;
-	*pkt_bytes = __builtin_bswap16(ip6h->payload_len);
+	*pkt_bytes = bpf_ntohs(ip6h->payload_len);
 	off += iph_len;
 	if (*protocol == 45) {
 		return XDP_DROP;
@@ -683,7 +672,7 @@ static int process_l3_headers_v4(struct packet_description *pckt,
 		return XDP_DROP;
 	*protocol = iph->protocol;
 	pckt->flow.proto = *protocol;
-	*pkt_bytes = __builtin_bswap16(iph->tot_len);
+	*pkt_bytes = bpf_ntohs(iph->tot_len);
 	off += 20;
 	if (iph->frag_off & 65343)
 		return XDP_DROP;
@@ -820,10 +809,10 @@ int balancer_ingress(struct xdp_md *ctx)
 	nh_off = sizeof(struct eth_hdr);
 	if (data + nh_off > data_end)
 		return XDP_DROP;
-	eth_proto = eth->eth_proto;
-	if (eth_proto == 8)
+	eth_proto = bpf_ntohs(eth->eth_proto);
+	if (eth_proto == ETH_P_IP)
 		return process_packet(data, nh_off, data_end, 0, ctx);
-	else if (eth_proto == 56710)
+	else if (eth_proto == ETH_P_IPV6)
 		return process_packet(data, nh_off, data_end, 1, ctx);
 	else
 		return XDP_DROP;

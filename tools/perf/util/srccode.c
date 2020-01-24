@@ -4,7 +4,8 @@
  * Copyright (c) 2017, Intel Corporation.
  * Author: Andi Kleen
  */
-#include "linux/list.h"
+#include <linux/list.h>
+#include <linux/zalloc.h>
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -14,7 +15,8 @@
 #include <string.h>
 #include "srccode.h"
 #include "debug.h"
-#include "util.h"
+#include <internal/lib.h> // page_size
+#include "fncache.h"
 
 #define MAXSRCCACHE (32*1024*1024)
 #define MAXSRCFILES     64
@@ -34,14 +36,6 @@ static struct hlist_head srcfile_htab[SRC_HTAB_SZ];
 static LIST_HEAD(srcfile_list);
 static long map_total_sz;
 static int num_srcfiles;
-
-static unsigned shash(unsigned char *s)
-{
-	unsigned h = 0;
-	while (*s)
-		h = 65599 * h + *s++;
-	return h ^ (h >> 16);
-}
 
 static int countlines(char *map, int maplen)
 {
@@ -82,12 +76,12 @@ static void fill_lines(char **lines, int maxline, char *map, int maplen)
 
 static void free_srcfile(struct srcfile *sf)
 {
-	list_del(&sf->nd);
+	list_del_init(&sf->nd);
 	hlist_del(&sf->hash_nd);
 	map_total_sz -= sf->maplen;
 	munmap(sf->map, sf->maplen);
-	free(sf->lines);
-	free(sf->fn);
+	zfree(&sf->lines);
+	zfree(&sf->fn);
 	free(sf);
 	num_srcfiles--;
 }
@@ -153,7 +147,7 @@ static struct srcfile *find_srcfile(char *fn)
 out_map:
 	munmap(h->map, sz);
 out_fn:
-	free(h->fn);
+	zfree(&h->fn);
 out_h:
 	free(h);
 	return NULL;

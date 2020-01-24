@@ -200,13 +200,11 @@ int imgu_css_fw_init(struct imgu_css *css)
 			goto bad_fw;
 
 		for (j = 0; j < bi->info.isp.num_output_formats; j++)
-			if (bi->info.isp.output_formats[j] < 0 ||
-			    bi->info.isp.output_formats[j] >=
+			if (bi->info.isp.output_formats[j] >=
 			    IMGU_ABI_FRAME_FORMAT_NUM)
 				goto bad_fw;
 		for (j = 0; j < bi->info.isp.num_vf_formats; j++)
-			if (bi->info.isp.vf_formats[j] < 0 ||
-			    bi->info.isp.vf_formats[j] >=
+			if (bi->info.isp.vf_formats[j] >=
 			    IMGU_ABI_FRAME_FORMAT_NUM)
 				goto bad_fw;
 

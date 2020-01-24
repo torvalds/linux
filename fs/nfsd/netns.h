@@ -42,6 +42,11 @@ struct nfsd_net {
 	bool grace_ended;
 	time_t boot_time;
 
+	/* internal mount of the "nfsd" pseudofilesystem: */
+	struct vfsmount *nfsd_mnt;
+
+	struct dentry *nfsd_client_dir;
+
 	/*
 	 * reclaim_str_hashtbl[] holds known client info from previous reset/reboot
 	 * used in reboot/reset lease grace period processing
@@ -99,6 +104,7 @@ struct nfsd_net {
 
 	/* Time of server startup */
 	struct timespec64 nfssvc_boot;
+	seqlock_t boot_lock;
 
 	/*
 	 * Max number of connections this nfsd container will allow. Defaults
@@ -106,6 +112,7 @@ struct nfsd_net {
 	 */
 	unsigned int max_connections;
 
+	u32 clientid_base;
 	u32 clientid_counter;
 	u32 clverifier_counter;
 
@@ -127,6 +134,44 @@ struct nfsd_net {
 	 */
 	bool *nfsd_versions;
 	bool *nfsd4_minorversions;
+
+	/*
+	 * Duplicate reply cache
+	 */
+	struct nfsd_drc_bucket   *drc_hashtbl;
+	struct kmem_cache        *drc_slab;
+
+	/* max number of entries allowed in the cache */
+	unsigned int             max_drc_entries;
+
+	/* number of significant bits in the hash value */
+	unsigned int             maskbits;
+	unsigned int             drc_hashsize;
+
+	/*
+	 * Stats and other tracking of on the duplicate reply cache.
+	 * These fields and the "rc" fields in nfsdstats are modified
+	 * with only the per-bucket cache lock, which isn't really safe
+	 * and should be fixed if we want the statistics to be
+	 * completely accurate.
+	 */
+
+	/* total number of entries */
+	atomic_t                 num_drc_entries;
+
+	/* cache misses due only to checksum comparison failures */
+	unsigned int             payload_misses;
+
+	/* amount of memory (in bytes) currently consumed by the DRC */
+	unsigned int             drc_mem_usage;
+
+	/* longest hash chain seen */
+	unsigned int             longest_chain;
+
+	/* size of cache when we saw the longest hash chain */
+	unsigned int             longest_chain_cachesize;
+
+	struct shrinker		nfsd_reply_cache_shrinker;
 };
 
 /* Simple check to find out if a given net was properly initialized */
@@ -135,4 +180,7 @@ struct nfsd_net {
 extern void nfsd_netns_free_versions(struct nfsd_net *nn);
 
 extern unsigned int nfsd_net_id;
+
+void nfsd_copy_boot_verifier(__be32 verf[2], struct nfsd_net *nn);
+void nfsd_reset_boot_verifier(struct nfsd_net *nn);
 #endif /* __NFSD_NETNS_H__ */

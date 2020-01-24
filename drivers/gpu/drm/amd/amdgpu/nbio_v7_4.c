@@ -23,12 +23,42 @@
 #include "amdgpu.h"
 #include "amdgpu_atombios.h"
 #include "nbio_v7_4.h"
+#include "amdgpu_ras.h"
 
 #include "nbio/nbio_7_4_offset.h"
 #include "nbio/nbio_7_4_sh_mask.h"
 #include "nbio/nbio_7_4_0_smn.h"
+#include "ivsrcid/nbio/irqsrcs_nbif_7_4.h"
+#include <uapi/linux/kfd_ioctl.h>
 
 #define smnNBIF_MGCG_CTRL_LCLK	0x1013a21c
+
+/*
+ * These are nbio v7_4_1 registers mask. Temporarily define these here since
+ * nbio v7_4_1 header is incomplete.
+ */
+#define GPU_HDP_FLUSH_DONE__RSVD_ENG0_MASK	0x00001000L
+#define GPU_HDP_FLUSH_DONE__RSVD_ENG1_MASK	0x00002000L
+#define GPU_HDP_FLUSH_DONE__RSVD_ENG2_MASK	0x00004000L
+#define GPU_HDP_FLUSH_DONE__RSVD_ENG3_MASK	0x00008000L
+#define GPU_HDP_FLUSH_DONE__RSVD_ENG4_MASK	0x00010000L
+#define GPU_HDP_FLUSH_DONE__RSVD_ENG5_MASK	0x00020000L
+
+#define mmBIF_MMSCH1_DOORBELL_RANGE                     0x01dc
+#define mmBIF_MMSCH1_DOORBELL_RANGE_BASE_IDX            2
+//BIF_MMSCH1_DOORBELL_RANGE
+#define BIF_MMSCH1_DOORBELL_RANGE__OFFSET__SHIFT        0x2
+#define BIF_MMSCH1_DOORBELL_RANGE__SIZE__SHIFT          0x10
+#define BIF_MMSCH1_DOORBELL_RANGE__OFFSET_MASK          0x00000FFCL
+#define BIF_MMSCH1_DOORBELL_RANGE__SIZE_MASK            0x001F0000L
+
+static void nbio_v7_4_remap_hdp_registers(struct amdgpu_device *adev)
+{
+	WREG32_SOC15(NBIO, 0, mmREMAP_HDP_MEM_FLUSH_CNTL,
+		adev->rmmio_remap.reg_offset + KFD_MMIO_REMAP_HDP_MEM_FLUSH_CNTL);
+	WREG32_SOC15(NBIO, 0, mmREMAP_HDP_REG_FLUSH_CNTL,
+		adev->rmmio_remap.reg_offset + KFD_MMIO_REMAP_HDP_REG_FLUSH_CNTL);
+}
 
 static u32 nbio_v7_4_get_rev_id(struct amdgpu_device *adev)
 {
@@ -53,10 +83,9 @@ static void nbio_v7_4_hdp_flush(struct amdgpu_device *adev,
 				struct amdgpu_ring *ring)
 {
 	if (!ring || !ring->funcs->emit_wreg)
-		WREG32_SOC15_NO_KIQ(NBIO, 0, mmHDP_MEM_COHERENCY_FLUSH_CNTL, 0);
+		WREG32_NO_KIQ((adev->rmmio_remap.reg_offset + KFD_MMIO_REMAP_HDP_MEM_FLUSH_CNTL) >> 2, 0);
 	else
-		amdgpu_ring_emit_wreg(ring, SOC15_REG_OFFSET(
-			NBIO, 0, mmHDP_MEM_COHERENCY_FLUSH_CNTL), 0);
+		amdgpu_ring_emit_wreg(ring, (adev->rmmio_remap.reg_offset + KFD_MMIO_REMAP_HDP_MEM_FLUSH_CNTL) >> 2, 0);
 }
 
 static u32 nbio_v7_4_get_memsize(struct amdgpu_device *adev)
@@ -67,16 +96,56 @@ static u32 nbio_v7_4_get_memsize(struct amdgpu_device *adev)
 static void nbio_v7_4_sdma_doorbell_range(struct amdgpu_device *adev, int instance,
 			bool use_doorbell, int doorbell_index, int doorbell_size)
 {
-	u32 reg = instance == 0 ? SOC15_REG_OFFSET(NBIO, 0, mmBIF_SDMA0_DOORBELL_RANGE) :
-			SOC15_REG_OFFSET(NBIO, 0, mmBIF_SDMA1_DOORBELL_RANGE);
+	u32 reg, doorbell_range;
 
-	u32 doorbell_range = RREG32(reg);
+	if (instance < 2)
+		reg = instance +
+			SOC15_REG_OFFSET(NBIO, 0, mmBIF_SDMA0_DOORBELL_RANGE);
+	else
+		/*
+		 * These registers address of SDMA2~7 is not consecutive
+		 * from SDMA0~1. Need plus 4 dwords offset.
+		 *
+		 *   BIF_SDMA0_DOORBELL_RANGE:  0x3bc0
+		 *   BIF_SDMA1_DOORBELL_RANGE:  0x3bc4
+		 *   BIF_SDMA2_DOORBELL_RANGE:  0x3bd8
+		 */
+		reg = instance + 0x4 +
+			SOC15_REG_OFFSET(NBIO, 0, mmBIF_SDMA0_DOORBELL_RANGE);
+
+	doorbell_range = RREG32(reg);
 
 	if (use_doorbell) {
 		doorbell_range = REG_SET_FIELD(doorbell_range, BIF_SDMA0_DOORBELL_RANGE, OFFSET, doorbell_index);
 		doorbell_range = REG_SET_FIELD(doorbell_range, BIF_SDMA0_DOORBELL_RANGE, SIZE, doorbell_size);
 	} else
 		doorbell_range = REG_SET_FIELD(doorbell_range, BIF_SDMA0_DOORBELL_RANGE, SIZE, 0);
+
+	WREG32(reg, doorbell_range);
+}
+
+static void nbio_v7_4_vcn_doorbell_range(struct amdgpu_device *adev, bool use_doorbell,
+					 int doorbell_index, int instance)
+{
+	u32 reg;
+	u32 doorbell_range;
+
+	if (instance)
+		reg = SOC15_REG_OFFSET(NBIO, 0, mmBIF_MMSCH1_DOORBELL_RANGE);
+	else
+		reg = SOC15_REG_OFFSET(NBIO, 0, mmBIF_MMSCH0_DOORBELL_RANGE);
+
+	doorbell_range = RREG32(reg);
+
+	if (use_doorbell) {
+		doorbell_range = REG_SET_FIELD(doorbell_range,
+					       BIF_MMSCH0_DOORBELL_RANGE, OFFSET,
+					       doorbell_index);
+		doorbell_range = REG_SET_FIELD(doorbell_range,
+					       BIF_MMSCH0_DOORBELL_RANGE, SIZE, 8);
+	} else
+		doorbell_range = REG_SET_FIELD(doorbell_range,
+					       BIF_MMSCH0_DOORBELL_RANGE, SIZE, 0);
 
 	WREG32(reg, doorbell_range);
 }
@@ -199,7 +268,7 @@ static u32 nbio_v7_4_get_pcie_data_offset(struct amdgpu_device *adev)
 	return SOC15_REG_OFFSET(NBIO, 0, mmPCIE_DATA2);
 }
 
-static const struct nbio_hdp_flush_reg nbio_v7_4_hdp_flush_reg = {
+const struct nbio_hdp_flush_reg nbio_v7_4_hdp_flush_reg = {
 	.ref_and_mask_cp0 = GPU_HDP_FLUSH_DONE__CP0_MASK,
 	.ref_and_mask_cp1 = GPU_HDP_FLUSH_DONE__CP1_MASK,
 	.ref_and_mask_cp2 = GPU_HDP_FLUSH_DONE__CP2_MASK,
@@ -212,6 +281,12 @@ static const struct nbio_hdp_flush_reg nbio_v7_4_hdp_flush_reg = {
 	.ref_and_mask_cp9 = GPU_HDP_FLUSH_DONE__CP9_MASK,
 	.ref_and_mask_sdma0 = GPU_HDP_FLUSH_DONE__SDMA0_MASK,
 	.ref_and_mask_sdma1 = GPU_HDP_FLUSH_DONE__SDMA1_MASK,
+	.ref_and_mask_sdma2 = GPU_HDP_FLUSH_DONE__RSVD_ENG0_MASK,
+	.ref_and_mask_sdma3 = GPU_HDP_FLUSH_DONE__RSVD_ENG1_MASK,
+	.ref_and_mask_sdma4 = GPU_HDP_FLUSH_DONE__RSVD_ENG2_MASK,
+	.ref_and_mask_sdma5 = GPU_HDP_FLUSH_DONE__RSVD_ENG3_MASK,
+	.ref_and_mask_sdma6 = GPU_HDP_FLUSH_DONE__RSVD_ENG4_MASK,
+	.ref_and_mask_sdma7 = GPU_HDP_FLUSH_DONE__RSVD_ENG5_MASK,
 };
 
 static void nbio_v7_4_detect_hw_virt(struct amdgpu_device *adev)
@@ -233,17 +308,208 @@ static void nbio_v7_4_detect_hw_virt(struct amdgpu_device *adev)
 
 static void nbio_v7_4_init_registers(struct amdgpu_device *adev)
 {
-	uint32_t def, data;
 
-	def = data = RREG32_PCIE(smnPCIE_CI_CNTL);
-	data = REG_SET_FIELD(data, PCIE_CI_CNTL, CI_SLV_ORDERING_DIS, 1);
+}
 
-	if (def != data)
-		WREG32_PCIE(smnPCIE_CI_CNTL, data);
+static void nbio_v7_4_handle_ras_controller_intr_no_bifring(struct amdgpu_device *adev)
+{
+	uint32_t bif_doorbell_intr_cntl;
+
+	bif_doorbell_intr_cntl = RREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL);
+	if (REG_GET_FIELD(bif_doorbell_intr_cntl,
+		BIF_DOORBELL_INT_CNTL, RAS_CNTLR_INTERRUPT_STATUS)) {
+		/* driver has to clear the interrupt status when bif ring is disabled */
+		bif_doorbell_intr_cntl = REG_SET_FIELD(bif_doorbell_intr_cntl,
+						BIF_DOORBELL_INT_CNTL,
+						RAS_CNTLR_INTERRUPT_CLEAR, 1);
+		WREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL, bif_doorbell_intr_cntl);
+
+		amdgpu_ras_global_ras_isr(adev);
+	}
+}
+
+static void nbio_v7_4_handle_ras_err_event_athub_intr_no_bifring(struct amdgpu_device *adev)
+{
+	uint32_t bif_doorbell_intr_cntl;
+
+	bif_doorbell_intr_cntl = RREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL);
+	if (REG_GET_FIELD(bif_doorbell_intr_cntl,
+		BIF_DOORBELL_INT_CNTL, RAS_ATHUB_ERR_EVENT_INTERRUPT_STATUS)) {
+		/* driver has to clear the interrupt status when bif ring is disabled */
+		bif_doorbell_intr_cntl = REG_SET_FIELD(bif_doorbell_intr_cntl,
+						BIF_DOORBELL_INT_CNTL,
+						RAS_ATHUB_ERR_EVENT_INTERRUPT_CLEAR, 1);
+		WREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL, bif_doorbell_intr_cntl);
+
+		amdgpu_ras_global_ras_isr(adev);
+	}
+}
+
+
+static int nbio_v7_4_set_ras_controller_irq_state(struct amdgpu_device *adev,
+						  struct amdgpu_irq_src *src,
+						  unsigned type,
+						  enum amdgpu_interrupt_state state)
+{
+	/* The ras_controller_irq enablement should be done in psp bl when it
+	 * tries to enable ras feature. Driver only need to set the correct interrupt
+	 * vector for bare-metal and sriov use case respectively
+	 */
+	uint32_t bif_intr_cntl;
+
+	bif_intr_cntl = RREG32_SOC15(NBIO, 0, mmBIF_INTR_CNTL);
+	if (state == AMDGPU_IRQ_STATE_ENABLE) {
+		/* set interrupt vector select bit to 0 to select
+		 * vetcor 1 for bare metal case */
+		bif_intr_cntl = REG_SET_FIELD(bif_intr_cntl,
+					      BIF_INTR_CNTL,
+					      RAS_INTR_VEC_SEL, 0);
+		WREG32_SOC15(NBIO, 0, mmBIF_INTR_CNTL, bif_intr_cntl);
+	}
+
+	return 0;
+}
+
+static int nbio_v7_4_process_ras_controller_irq(struct amdgpu_device *adev,
+						struct amdgpu_irq_src *source,
+						struct amdgpu_iv_entry *entry)
+{
+	/* By design, the ih cookie for ras_controller_irq should be written
+	 * to BIFring instead of general iv ring. However, due to known bif ring
+	 * hw bug, it has to be disabled. There is no chance the process function
+	 * will be involked. Just left it as a dummy one.
+	 */
+	return 0;
+}
+
+static int nbio_v7_4_set_ras_err_event_athub_irq_state(struct amdgpu_device *adev,
+						       struct amdgpu_irq_src *src,
+						       unsigned type,
+						       enum amdgpu_interrupt_state state)
+{
+	/* The ras_controller_irq enablement should be done in psp bl when it
+	 * tries to enable ras feature. Driver only need to set the correct interrupt
+	 * vector for bare-metal and sriov use case respectively
+	 */
+	uint32_t bif_intr_cntl;
+
+	bif_intr_cntl = RREG32_SOC15(NBIO, 0, mmBIF_INTR_CNTL);
+	if (state == AMDGPU_IRQ_STATE_ENABLE) {
+		/* set interrupt vector select bit to 0 to select
+		 * vetcor 1 for bare metal case */
+		bif_intr_cntl = REG_SET_FIELD(bif_intr_cntl,
+					      BIF_INTR_CNTL,
+					      RAS_INTR_VEC_SEL, 0);
+		WREG32_SOC15(NBIO, 0, mmBIF_INTR_CNTL, bif_intr_cntl);
+	}
+
+	return 0;
+}
+
+static int nbio_v7_4_process_err_event_athub_irq(struct amdgpu_device *adev,
+						 struct amdgpu_irq_src *source,
+						 struct amdgpu_iv_entry *entry)
+{
+	/* By design, the ih cookie for err_event_athub_irq should be written
+	 * to BIFring instead of general iv ring. However, due to known bif ring
+	 * hw bug, it has to be disabled. There is no chance the process function
+	 * will be involked. Just left it as a dummy one.
+	 */
+	return 0;
+}
+
+static const struct amdgpu_irq_src_funcs nbio_v7_4_ras_controller_irq_funcs = {
+	.set = nbio_v7_4_set_ras_controller_irq_state,
+	.process = nbio_v7_4_process_ras_controller_irq,
+};
+
+static const struct amdgpu_irq_src_funcs nbio_v7_4_ras_err_event_athub_irq_funcs = {
+	.set = nbio_v7_4_set_ras_err_event_athub_irq_state,
+	.process = nbio_v7_4_process_err_event_athub_irq,
+};
+
+static int nbio_v7_4_init_ras_controller_interrupt (struct amdgpu_device *adev)
+{
+	int r;
+
+	/* init the irq funcs */
+	adev->nbio.ras_controller_irq.funcs =
+		&nbio_v7_4_ras_controller_irq_funcs;
+	adev->nbio.ras_controller_irq.num_types = 1;
+
+	/* register ras controller interrupt */
+	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_BIF,
+			      NBIF_7_4__SRCID__RAS_CONTROLLER_INTERRUPT,
+			      &adev->nbio.ras_controller_irq);
+	if (r)
+		return r;
+
+	return 0;
+}
+
+static int nbio_v7_4_init_ras_err_event_athub_interrupt (struct amdgpu_device *adev)
+{
+
+	int r;
+
+	/* init the irq funcs */
+	adev->nbio.ras_err_event_athub_irq.funcs =
+		&nbio_v7_4_ras_err_event_athub_irq_funcs;
+	adev->nbio.ras_err_event_athub_irq.num_types = 1;
+
+	/* register ras err event athub interrupt */
+	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_BIF,
+			      NBIF_7_4__SRCID__ERREVENT_ATHUB_INTERRUPT,
+			      &adev->nbio.ras_err_event_athub_irq);
+	if (r)
+		return r;
+
+	return 0;
+}
+
+static void nbio_v7_4_query_ras_error_count(struct amdgpu_device *adev,
+					void *ras_error_status)
+{
+	uint32_t global_sts, central_sts, int_eoi;
+	uint32_t corr, fatal, non_fatal;
+	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
+
+	global_sts = RREG32_PCIE(smnRAS_GLOBAL_STATUS_LO);
+	corr = REG_GET_FIELD(global_sts, RAS_GLOBAL_STATUS_LO, ParityErrCorr);
+	fatal = REG_GET_FIELD(global_sts, RAS_GLOBAL_STATUS_LO, ParityErrFatal);
+	non_fatal = REG_GET_FIELD(global_sts, RAS_GLOBAL_STATUS_LO,
+				ParityErrNonFatal);
+
+	if (corr)
+		err_data->ce_count++;
+	if (fatal)
+		err_data->ue_count++;
+
+	if (corr || fatal || non_fatal) {
+		central_sts = RREG32_PCIE(smnBIFL_RAS_CENTRAL_STATUS);
+		/* clear error status register */
+		WREG32_PCIE(smnRAS_GLOBAL_STATUS_LO, global_sts);
+
+		if (REG_GET_FIELD(central_sts, BIFL_RAS_CENTRAL_STATUS,
+				BIFL_RasContller_Intr_Recv)) {
+			/* clear interrupt status register */
+			WREG32_PCIE(smnBIFL_RAS_CENTRAL_STATUS, central_sts);
+			int_eoi = RREG32_PCIE(smnIOHC_INTERRUPT_EOI);
+			int_eoi = REG_SET_FIELD(int_eoi,
+					IOHC_INTERRUPT_EOI, SMI_EOI, 1);
+			WREG32_PCIE(smnIOHC_INTERRUPT_EOI, int_eoi);
+		}
+	}
+}
+
+static void nbio_v7_4_enable_doorbell_interrupt(struct amdgpu_device *adev,
+						bool enable)
+{
+	WREG32_FIELD15(NBIO, 0, BIF_DOORBELL_INT_CNTL,
+		       DOORBELL_INTERRUPT_DISABLE, enable ? 0 : 1);
 }
 
 const struct amdgpu_nbio_funcs nbio_v7_4_funcs = {
-	.hdp_flush_reg = &nbio_v7_4_hdp_flush_reg,
 	.get_hdp_flush_req_offset = nbio_v7_4_get_hdp_flush_req_offset,
 	.get_hdp_flush_done_offset = nbio_v7_4_get_hdp_flush_done_offset,
 	.get_pcie_index_offset = nbio_v7_4_get_pcie_index_offset,
@@ -253,13 +519,22 @@ const struct amdgpu_nbio_funcs nbio_v7_4_funcs = {
 	.hdp_flush = nbio_v7_4_hdp_flush,
 	.get_memsize = nbio_v7_4_get_memsize,
 	.sdma_doorbell_range = nbio_v7_4_sdma_doorbell_range,
+	.vcn_doorbell_range = nbio_v7_4_vcn_doorbell_range,
 	.enable_doorbell_aperture = nbio_v7_4_enable_doorbell_aperture,
 	.enable_doorbell_selfring_aperture = nbio_v7_4_enable_doorbell_selfring_aperture,
 	.ih_doorbell_range = nbio_v7_4_ih_doorbell_range,
+	.enable_doorbell_interrupt = nbio_v7_4_enable_doorbell_interrupt,
 	.update_medium_grain_clock_gating = nbio_v7_4_update_medium_grain_clock_gating,
 	.update_medium_grain_light_sleep = nbio_v7_4_update_medium_grain_light_sleep,
 	.get_clockgating_state = nbio_v7_4_get_clockgating_state,
 	.ih_control = nbio_v7_4_ih_control,
 	.init_registers = nbio_v7_4_init_registers,
 	.detect_hw_virt = nbio_v7_4_detect_hw_virt,
+	.remap_hdp_registers = nbio_v7_4_remap_hdp_registers,
+	.handle_ras_controller_intr_no_bifring = nbio_v7_4_handle_ras_controller_intr_no_bifring,
+	.handle_ras_err_event_athub_intr_no_bifring = nbio_v7_4_handle_ras_err_event_athub_intr_no_bifring,
+	.init_ras_controller_interrupt = nbio_v7_4_init_ras_controller_interrupt,
+	.init_ras_err_event_athub_interrupt = nbio_v7_4_init_ras_err_event_athub_interrupt,
+	.query_ras_error_count = nbio_v7_4_query_ras_error_count,
+	.ras_late_init = amdgpu_nbio_ras_late_init,
 };

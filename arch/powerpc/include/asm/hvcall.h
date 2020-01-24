@@ -302,9 +302,14 @@
 #define H_SCM_UNBIND_MEM        0x3F0
 #define H_SCM_QUERY_BLOCK_MEM_BINDING 0x3F4
 #define H_SCM_QUERY_LOGICAL_MEM_BINDING 0x3F8
-#define H_SCM_MEM_QUERY	        0x3FC
-#define H_SCM_BLOCK_CLEAR       0x400
-#define MAX_HCALL_OPCODE	H_SCM_BLOCK_CLEAR
+#define H_SCM_UNBIND_ALL        0x3FC
+#define H_SCM_HEALTH            0x400
+#define H_SCM_PERFORMANCE_STATS 0x418
+#define MAX_HCALL_OPCODE	H_SCM_PERFORMANCE_STATS
+
+/* Scope args for H_SCM_UNBIND_ALL */
+#define H_UNBIND_SCOPE_ALL (0x1)
+#define H_UNBIND_SCOPE_DRC (0x2)
 
 /* H_VIOCTL functions */
 #define H_GET_VIOA_DUMP_SIZE	0x01
@@ -336,6 +341,15 @@
 #define H_ENTER_NESTED		0xF804
 #define H_TLB_INVALIDATE	0xF808
 #define H_COPY_TOFROM_GUEST	0xF80C
+
+/* Flags for H_SVM_PAGE_IN */
+#define H_PAGE_IN_SHARED        0x1
+
+/* Platform-specific hcalls used by the Ultravisor */
+#define H_SVM_PAGE_IN		0xEF00
+#define H_SVM_PAGE_OUT		0xEF04
+#define H_SVM_INIT_START	0xEF08
+#define H_SVM_INIT_DONE		0xEF0C
 
 /* Values for 2nd argument to H_SET_MODE */
 #define H_SET_MODE_RESOURCE_SET_CIABR		1

@@ -774,7 +774,7 @@ void i40e_detect_recover_hung(struct i40e_vsi *vsi)
 static bool i40e_clean_tx_irq(struct i40e_vsi *vsi,
 			      struct i40e_ring *tx_ring, int napi_budget)
 {
-	u16 i = tx_ring->next_to_clean;
+	int i = tx_ring->next_to_clean;
 	struct i40e_tx_buffer *tx_buf;
 	struct i40e_tx_desc *tx_head;
 	struct i40e_tx_desc *tx_desc;
@@ -2960,10 +2960,16 @@ static int i40e_tso(struct i40e_tx_buffer *first, u8 *hdr_len,
 
 	/* remove payload length from inner checksum */
 	paylen = skb->len - l4_offset;
-	csum_replace_by_diff(&l4.tcp->check, (__force __wsum)htonl(paylen));
 
-	/* compute length of segmentation header */
-	*hdr_len = (l4.tcp->doff * 4) + l4_offset;
+	if (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4) {
+		csum_replace_by_diff(&l4.udp->check, (__force __wsum)htonl(paylen));
+		/* compute length of segmentation header */
+		*hdr_len = sizeof(*l4.udp) + l4_offset;
+	} else {
+		csum_replace_by_diff(&l4.tcp->check, (__force __wsum)htonl(paylen));
+		/* compute length of segmentation header */
+		*hdr_len = (l4.tcp->doff * 4) + l4_offset;
+	}
 
 	/* pull values out of skb_shinfo */
 	gso_size = skb_shinfo(skb)->gso_size;
@@ -3262,7 +3268,7 @@ int __i40e_maybe_stop_tx(struct i40e_ring *tx_ring, int size)
  **/
 bool __i40e_chk_linearize(struct sk_buff *skb)
 {
-	const struct skb_frag_struct *frag, *stale;
+	const skb_frag_t *frag, *stale;
 	int nr_frags, sum;
 
 	/* no need to check if number of frags is less than 7 */
@@ -3306,7 +3312,7 @@ bool __i40e_chk_linearize(struct sk_buff *skb)
 		 * descriptor associated with the fragment.
 		 */
 		if (stale_size > I40E_MAX_DATA_PER_TXD) {
-			int align_pad = -(stale->page_offset) &
+			int align_pad = -(skb_frag_off(stale)) &
 					(I40E_MAX_READ_REQ_SIZE - 1);
 
 			sum -= align_pad;
@@ -3349,7 +3355,7 @@ static inline int i40e_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 {
 	unsigned int data_len = skb->data_len;
 	unsigned int size = skb_headlen(skb);
-	struct skb_frag_struct *frag;
+	skb_frag_t *frag;
 	struct i40e_tx_buffer *tx_bi;
 	struct i40e_tx_desc *tx_desc;
 	u16 i = tx_ring->next_to_use;

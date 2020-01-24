@@ -1072,26 +1072,26 @@ static const struct x86_cpu_id intel_idle_ids[] __initconst = {
 	INTEL_CPU_FAM6(ATOM_AIRMONT,		idle_cpu_cht),
 	INTEL_CPU_FAM6(IVYBRIDGE,		idle_cpu_ivb),
 	INTEL_CPU_FAM6(IVYBRIDGE_X,		idle_cpu_ivt),
-	INTEL_CPU_FAM6(HASWELL_CORE,		idle_cpu_hsw),
+	INTEL_CPU_FAM6(HASWELL,			idle_cpu_hsw),
 	INTEL_CPU_FAM6(HASWELL_X,		idle_cpu_hsw),
-	INTEL_CPU_FAM6(HASWELL_ULT,		idle_cpu_hsw),
-	INTEL_CPU_FAM6(HASWELL_GT3E,		idle_cpu_hsw),
-	INTEL_CPU_FAM6(ATOM_SILVERMONT_X,	idle_cpu_avn),
-	INTEL_CPU_FAM6(BROADWELL_CORE,		idle_cpu_bdw),
-	INTEL_CPU_FAM6(BROADWELL_GT3E,		idle_cpu_bdw),
+	INTEL_CPU_FAM6(HASWELL_L,		idle_cpu_hsw),
+	INTEL_CPU_FAM6(HASWELL_G,		idle_cpu_hsw),
+	INTEL_CPU_FAM6(ATOM_SILVERMONT_D,	idle_cpu_avn),
+	INTEL_CPU_FAM6(BROADWELL,		idle_cpu_bdw),
+	INTEL_CPU_FAM6(BROADWELL_G,		idle_cpu_bdw),
 	INTEL_CPU_FAM6(BROADWELL_X,		idle_cpu_bdw),
-	INTEL_CPU_FAM6(BROADWELL_XEON_D,	idle_cpu_bdw),
-	INTEL_CPU_FAM6(SKYLAKE_MOBILE,		idle_cpu_skl),
-	INTEL_CPU_FAM6(SKYLAKE_DESKTOP,		idle_cpu_skl),
-	INTEL_CPU_FAM6(KABYLAKE_MOBILE,		idle_cpu_skl),
-	INTEL_CPU_FAM6(KABYLAKE_DESKTOP,	idle_cpu_skl),
+	INTEL_CPU_FAM6(BROADWELL_D,		idle_cpu_bdw),
+	INTEL_CPU_FAM6(SKYLAKE_L,		idle_cpu_skl),
+	INTEL_CPU_FAM6(SKYLAKE,			idle_cpu_skl),
+	INTEL_CPU_FAM6(KABYLAKE_L,		idle_cpu_skl),
+	INTEL_CPU_FAM6(KABYLAKE,		idle_cpu_skl),
 	INTEL_CPU_FAM6(SKYLAKE_X,		idle_cpu_skx),
 	INTEL_CPU_FAM6(XEON_PHI_KNL,		idle_cpu_knl),
 	INTEL_CPU_FAM6(XEON_PHI_KNM,		idle_cpu_knl),
 	INTEL_CPU_FAM6(ATOM_GOLDMONT,		idle_cpu_bxt),
 	INTEL_CPU_FAM6(ATOM_GOLDMONT_PLUS,	idle_cpu_bxt),
-	INTEL_CPU_FAM6(ATOM_GOLDMONT_X,		idle_cpu_dnv),
-	INTEL_CPU_FAM6(ATOM_TREMONT_X,		idle_cpu_dnv),
+	INTEL_CPU_FAM6(ATOM_GOLDMONT_D,		idle_cpu_dnv),
+	INTEL_CPU_FAM6(ATOM_TREMONT_D,		idle_cpu_dnv),
 	{}
 };
 
@@ -1291,8 +1291,8 @@ static void sklh_idle_state_table_update(void)
 			return;
 	}
 
-	skl_cstates[5].disabled = 1;	/* C8-SKL */
-	skl_cstates[6].disabled = 1;	/* C9-SKL */
+	skl_cstates[5].flags |= CPUIDLE_FLAG_UNUSABLE;	/* C8-SKL */
+	skl_cstates[6].flags |= CPUIDLE_FLAG_UNUSABLE;	/* C9-SKL */
 }
 /*
  * intel_idle_state_table_update()
@@ -1311,7 +1311,7 @@ static void intel_idle_state_table_update(void)
 	case INTEL_FAM6_ATOM_GOLDMONT_PLUS:
 		bxt_idle_state_table_update();
 		break;
-	case INTEL_FAM6_SKYLAKE_DESKTOP:
+	case INTEL_FAM6_SKYLAKE:
 		sklh_idle_state_table_update();
 		break;
 	}
@@ -1355,7 +1355,7 @@ static void __init intel_idle_cpuidle_driver_init(void)
 			continue;
 
 		/* if state marked as disabled, skip it */
-		if (cpuidle_state_table[cstate].disabled != 0) {
+		if (cpuidle_state_table[cstate].flags & CPUIDLE_FLAG_UNUSABLE) {
 			pr_debug("state %s is disabled\n",
 				 cpuidle_state_table[cstate].name);
 			continue;

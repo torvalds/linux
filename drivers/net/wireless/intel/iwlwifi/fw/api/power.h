@@ -420,13 +420,25 @@ struct iwl_per_chain_offset_group {
 } __packed; /* PER_CHAIN_LIMIT_OFFSET_GROUP_S_VER_1 */
 
 /**
+ * struct iwl_geo_tx_power_profile_cmd_v1 - struct for GEO_TX_POWER_LIMIT cmd.
+ * @ops: operations, value from &enum iwl_geo_per_chain_offset_operation
+ * @table: offset profile per band.
+ */
+struct iwl_geo_tx_power_profiles_cmd_v1 {
+	__le32 ops;
+	struct iwl_per_chain_offset_group table[IWL_NUM_GEO_PROFILES];
+} __packed; /* GEO_TX_POWER_LIMIT_VER_1 */
+
+/**
  * struct iwl_geo_tx_power_profile_cmd - struct for GEO_TX_POWER_LIMIT cmd.
  * @ops: operations, value from &enum iwl_geo_per_chain_offset_operation
  * @table: offset profile per band.
+ * @table_revision: BIOS table revision.
  */
 struct iwl_geo_tx_power_profiles_cmd {
 	__le32 ops;
 	struct iwl_per_chain_offset_group table[IWL_NUM_GEO_PROFILES];
+	__le32 table_revision;
 } __packed; /* GEO_TX_POWER_LIMIT */
 
 /**
@@ -436,6 +448,18 @@ struct iwl_geo_tx_power_profiles_cmd {
 struct iwl_geo_tx_power_profiles_resp {
 	__le32 profile_idx;
 } __packed; /* GEO_TX_POWER_LIMIT_RESP */
+
+/**
+ * struct iwl_ppag_table_cmd - struct for PER_PLATFORM_ANT_GAIN_CMD cmd.
+ * @enabled: 1 if PPAG is enabled, 0 otherwise
+ * @gain: table of antenna gain values per chain and sub-band
+ * @reserved: reserved
+ */
+struct iwl_ppag_table_cmd {
+	__le32 enabled;
+	s8 gain[IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS];
+	s8 reserved[2];
+} __packed; /* PER_PLATFORM_ANT_GAIN_CMD */
 
 /**
  * struct iwl_beacon_filter_cmd

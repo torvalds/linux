@@ -271,7 +271,7 @@ typedef struct pm_message {
  * actions to be performed by a device driver's callbacks generally depend on
  * the platform and subsystem the device belongs to.
  *
- * Refer to Documentation/power/runtime_pm.txt for more information about the
+ * Refer to Documentation/power/runtime_pm.rst for more information about the
  * role of the @runtime_suspend(), @runtime_resume() and @runtime_idle()
  * callbacks in device runtime power management.
  */
@@ -637,6 +637,7 @@ extern void dev_pm_put_subsys_data(struct device *dev);
  * struct dev_pm_domain - power management domain representation.
  *
  * @ops: Power management operations associated with this domain.
+ * @start: Called when a user needs to start the device via the domain.
  * @detach: Called when removing a device from the domain.
  * @activate: Called before executing probe routines for bus types and drivers.
  * @sync: Called after successful driver probe.
@@ -648,6 +649,7 @@ extern void dev_pm_put_subsys_data(struct device *dev);
  */
 struct dev_pm_domain {
 	struct dev_pm_ops	ops;
+	int (*start)(struct device *dev);
 	void (*detach)(struct device *dev, bool power_off);
 	int (*activate)(struct device *dev);
 	void (*sync)(struct device *dev);
@@ -712,8 +714,6 @@ struct dev_pm_domain {
 extern void device_pm_lock(void);
 extern void dpm_resume_start(pm_message_t state);
 extern void dpm_resume_end(pm_message_t state);
-extern void dpm_noirq_resume_devices(pm_message_t state);
-extern void dpm_noirq_end(void);
 extern void dpm_resume_noirq(pm_message_t state);
 extern void dpm_resume_early(pm_message_t state);
 extern void dpm_resume(pm_message_t state);
@@ -722,8 +722,6 @@ extern void dpm_complete(pm_message_t state);
 extern void device_pm_unlock(void);
 extern int dpm_suspend_end(pm_message_t state);
 extern int dpm_suspend_start(pm_message_t state);
-extern void dpm_noirq_begin(void);
-extern int dpm_noirq_suspend_devices(pm_message_t state);
 extern int dpm_suspend_noirq(pm_message_t state);
 extern int dpm_suspend_late(pm_message_t state);
 extern int dpm_suspend(pm_message_t state);
@@ -760,7 +758,6 @@ extern int pm_generic_poweroff_late(struct device *dev);
 extern int pm_generic_poweroff(struct device *dev);
 extern void pm_generic_complete(struct device *dev);
 
-extern void dev_pm_skip_next_resume_phases(struct device *dev);
 extern bool dev_pm_may_skip_resume(struct device *dev);
 extern bool dev_pm_smart_suspend_and_suspended(struct device *dev);
 

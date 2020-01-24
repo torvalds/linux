@@ -31,25 +31,20 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define RPCDBG_FACILITY	RPCDBG_TRANS
 #endif
 
+#define BC_MAX_SLOTS	64U
+
+unsigned int xprt_bc_max_slots(struct rpc_xprt *xprt)
+{
+	return BC_MAX_SLOTS;
+}
+
 /*
  * Helper routines that track the number of preallocation elements
  * on the transport.
  */
 static inline int xprt_need_to_requeue(struct rpc_xprt *xprt)
 {
-	return xprt->bc_alloc_count < atomic_read(&xprt->bc_free_slots);
-}
-
-static inline void xprt_inc_alloc_count(struct rpc_xprt *xprt, unsigned int n)
-{
-	atomic_add(n, &xprt->bc_free_slots);
-	xprt->bc_alloc_count += n;
-}
-
-static inline int xprt_dec_alloc_count(struct rpc_xprt *xprt, unsigned int n)
-{
-	atomic_sub(n, &xprt->bc_free_slots);
-	return xprt->bc_alloc_count -= n;
+	return xprt->bc_alloc_count < xprt->bc_alloc_max;
 }
 
 /*
@@ -145,6 +140,9 @@ int xprt_setup_bc(struct rpc_xprt *xprt, unsigned int min_reqs)
 
 	dprintk("RPC:       setup backchannel transport\n");
 
+	if (min_reqs > BC_MAX_SLOTS)
+		min_reqs = BC_MAX_SLOTS;
+
 	/*
 	 * We use a temporary list to keep track of the preallocated
 	 * buffers.  Once we're done building the list we splice it
@@ -172,7 +170,9 @@ int xprt_setup_bc(struct rpc_xprt *xprt, unsigned int min_reqs)
 	 */
 	spin_lock(&xprt->bc_pa_lock);
 	list_splice(&tmp_list, &xprt->bc_pa_list);
-	xprt_inc_alloc_count(xprt, min_reqs);
+	xprt->bc_alloc_count += min_reqs;
+	xprt->bc_alloc_max += min_reqs;
+	atomic_add(min_reqs, &xprt->bc_slot_count);
 	spin_unlock(&xprt->bc_pa_lock);
 
 	dprintk("RPC:       setup backchannel transport done\n");
@@ -220,11 +220,13 @@ void xprt_destroy_bc(struct rpc_xprt *xprt, unsigned int max_reqs)
 		goto out;
 
 	spin_lock_bh(&xprt->bc_pa_lock);
-	xprt_dec_alloc_count(xprt, max_reqs);
+	xprt->bc_alloc_max -= min(max_reqs, xprt->bc_alloc_max);
 	list_for_each_entry_safe(req, tmp, &xprt->bc_pa_list, rq_bc_pa_list) {
 		dprintk("RPC:        req=%p\n", req);
 		list_del(&req->rq_bc_pa_list);
 		xprt_free_allocation(req);
+		xprt->bc_alloc_count--;
+		atomic_dec(&xprt->bc_slot_count);
 		if (--max_reqs == 0)
 			break;
 	}
@@ -241,13 +243,14 @@ static struct rpc_rqst *xprt_get_bc_request(struct rpc_xprt *xprt, __be32 xid,
 	struct rpc_rqst *req = NULL;
 
 	dprintk("RPC:       allocate a backchannel request\n");
-	if (atomic_read(&xprt->bc_free_slots) <= 0)
-		goto not_found;
 	if (list_empty(&xprt->bc_pa_list)) {
 		if (!new)
 			goto not_found;
+		if (atomic_read(&xprt->bc_slot_count) >= BC_MAX_SLOTS)
+			goto not_found;
 		list_add_tail(&new->rq_bc_pa_list, &xprt->bc_pa_list);
 		xprt->bc_alloc_count++;
+		atomic_inc(&xprt->bc_slot_count);
 	}
 	req = list_first_entry(&xprt->bc_pa_list, struct rpc_rqst,
 				rq_bc_pa_list);
@@ -291,6 +294,7 @@ void xprt_free_bc_rqst(struct rpc_rqst *req)
 	if (xprt_need_to_requeue(xprt)) {
 		list_add_tail(&req->rq_bc_pa_list, &xprt->bc_pa_list);
 		xprt->bc_alloc_count++;
+		atomic_inc(&xprt->bc_slot_count);
 		req = NULL;
 	}
 	spin_unlock_bh(&xprt->bc_pa_lock);
@@ -303,8 +307,8 @@ void xprt_free_bc_rqst(struct rpc_rqst *req)
 		 */
 		dprintk("RPC:       Last session removed req=%p\n", req);
 		xprt_free_allocation(req);
-		return;
 	}
+	xprt_put(xprt);
 }
 
 /*
@@ -335,7 +339,7 @@ found:
 		spin_unlock(&xprt->bc_pa_lock);
 		if (new) {
 			if (req != new)
-				xprt_free_bc_rqst(new);
+				xprt_free_allocation(new);
 			break;
 		} else if (req)
 			break;
@@ -357,13 +361,14 @@ void xprt_complete_bc_request(struct rpc_rqst *req, uint32_t copied)
 
 	spin_lock(&xprt->bc_pa_lock);
 	list_del(&req->rq_bc_pa_list);
-	xprt_dec_alloc_count(xprt, 1);
+	xprt->bc_alloc_count--;
 	spin_unlock(&xprt->bc_pa_lock);
 
 	req->rq_private_buf.len = copied;
 	set_bit(RPC_BC_PA_IN_USE, &req->rq_bc_pa_state);
 
 	dprintk("RPC:       add callback request to list\n");
+	xprt_get(xprt);
 	spin_lock(&bc_serv->sv_cb_lock);
 	list_add(&req->rq_bc_list, &bc_serv->sv_cb_list);
 	wake_up(&bc_serv->sv_cb_waitq);

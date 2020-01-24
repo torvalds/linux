@@ -1584,7 +1584,7 @@ static const struct regmap_config rt9455_regmap_config = {
 static int rt9455_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
-	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
+	struct i2c_adapter *adapter = client->adapter;
 	struct device *dev = &client->dev;
 	struct rt9455_info *info;
 	struct power_supply_config rt9455_charger_config = {};

@@ -1,0 +1,26 @@
+[
+    {
+        "PublicDescription": "Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "EventCode": "0XB7",
+        "MSRValue": "0x000000000000010001",
+        "Counter": "0,1,2,3",
+        "UMask": "0x1",
+        "EventName": "OCR.DEMAND_DATA_RD.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "SampleAfterValue": "100003",
+        "BriefDescription": "Counts demand data reads that have any response type.",
+        "Offcore": "1"
+    },
+    {
+        "PublicDescription": "Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "EventCode": "0XB7",
+        "MSRValue": "0x000000000000010002",
+        "Counter": "0,1,2,3",
+        "UMask": "0x1",
+        "EventName": "OCR.DEMAND_RFO.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "SampleAfterValue": "100003",
+        "BriefDescription": "Counts all demand reads for ownership (RFO) requests and software based prefetches for exclusive ownership (PREFETCHW) that have any response type.",
+        "Offcore": "1"
+    }
+]

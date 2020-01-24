@@ -17,6 +17,7 @@
 struct dm_dev;
 struct dm_target;
 struct dm_table;
+struct dm_report_zones_args;
 struct mapped_device;
 struct bio_vec;
 
@@ -93,10 +94,9 @@ typedef int (*dm_message_fn) (struct dm_target *ti, unsigned argc, char **argv,
 
 typedef int (*dm_prepare_ioctl_fn) (struct dm_target *ti, struct block_device **bdev);
 
-typedef int (*dm_report_zones_fn) (struct dm_target *ti, sector_t sector,
-				   struct blk_zone *zones,
-				   unsigned int *nr_zones,
-				   gfp_t gfp_mask);
+typedef int (*dm_report_zones_fn) (struct dm_target *ti,
+				   struct dm_report_zones_args *args,
+				   unsigned int nr_zones);
 
 /*
  * These iteration functions are typically used to check (and combine)
@@ -423,9 +423,22 @@ struct gendisk *dm_disk(struct mapped_device *md);
 int dm_suspended(struct dm_target *ti);
 int dm_noflush_suspending(struct dm_target *ti);
 void dm_accept_partial_bio(struct bio *bio, unsigned n_sectors);
-void dm_remap_zone_report(struct dm_target *ti, sector_t start,
-			  struct blk_zone *zones, unsigned int *nr_zones);
 union map_info *dm_get_rq_mapinfo(struct request *rq);
+
+#ifdef CONFIG_BLK_DEV_ZONED
+struct dm_report_zones_args {
+	struct dm_target *tgt;
+	sector_t next_sector;
+
+	void *orig_data;
+	report_zones_cb orig_cb;
+	unsigned int zone_idx;
+
+	/* must be filled by ->report_zones before calling dm_report_zones_cb */
+	sector_t start;
+};
+int dm_report_zones_cb(struct blk_zone *zone, unsigned int idx, void *data);
+#endif /* CONFIG_BLK_DEV_ZONED */
 
 /*
  * Device mapper functions to parse and create devices specified by the
@@ -530,29 +543,20 @@ void *dm_vcalloc(unsigned long nmemb, unsigned long elem_size);
  *---------------------------------------------------------------*/
 #define DM_NAME "device-mapper"
 
-#define DM_RATELIMIT(pr_func, fmt, ...)					\
-do {									\
-	static DEFINE_RATELIMIT_STATE(rs, DEFAULT_RATELIMIT_INTERVAL,	\
-				      DEFAULT_RATELIMIT_BURST);		\
-									\
-	if (__ratelimit(&rs))						\
-		pr_func(DM_FMT(fmt), ##__VA_ARGS__);			\
-} while (0)
-
 #define DM_FMT(fmt) DM_NAME ": " DM_MSG_PREFIX ": " fmt "\n"
 
 #define DMCRIT(fmt, ...) pr_crit(DM_FMT(fmt), ##__VA_ARGS__)
 
 #define DMERR(fmt, ...) pr_err(DM_FMT(fmt), ##__VA_ARGS__)
-#define DMERR_LIMIT(fmt, ...) DM_RATELIMIT(pr_err, fmt, ##__VA_ARGS__)
+#define DMERR_LIMIT(fmt, ...) pr_err_ratelimited(DM_FMT(fmt), ##__VA_ARGS__)
 #define DMWARN(fmt, ...) pr_warn(DM_FMT(fmt), ##__VA_ARGS__)
-#define DMWARN_LIMIT(fmt, ...) DM_RATELIMIT(pr_warn, fmt, ##__VA_ARGS__)
+#define DMWARN_LIMIT(fmt, ...) pr_warn_ratelimited(DM_FMT(fmt), ##__VA_ARGS__)
 #define DMINFO(fmt, ...) pr_info(DM_FMT(fmt), ##__VA_ARGS__)
-#define DMINFO_LIMIT(fmt, ...) DM_RATELIMIT(pr_info, fmt, ##__VA_ARGS__)
+#define DMINFO_LIMIT(fmt, ...) pr_info_ratelimited(DM_FMT(fmt), ##__VA_ARGS__)
 
 #ifdef CONFIG_DM_DEBUG
 #define DMDEBUG(fmt, ...) printk(KERN_DEBUG DM_FMT(fmt), ##__VA_ARGS__)
-#define DMDEBUG_LIMIT(fmt, ...) DM_RATELIMIT(pr_debug, fmt, ##__VA_ARGS__)
+#define DMDEBUG_LIMIT(fmt, ...) pr_debug_ratelimited(DM_FMT(fmt), ##__VA_ARGS__)
 #else
 #define DMDEBUG(fmt, ...) no_printk(fmt, ##__VA_ARGS__)
 #define DMDEBUG_LIMIT(fmt, ...) no_printk(fmt, ##__VA_ARGS__)
@@ -603,9 +607,6 @@ do {									\
  * ceiling(n / size) * size
  */
 #define dm_round_up(n, sz) (dm_div_up((n), (sz)) * (sz))
-
-#define dm_array_too_big(fixed, obj, num) \
-	((num) > (UINT_MAX - (fixed)) / (obj))
 
 /*
  * Sector offset taken relative to the start of the target instead of

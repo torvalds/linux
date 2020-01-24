@@ -17,6 +17,9 @@ int utf8_strncmp(const struct unicode_map *um,
 
 int utf8_strncasecmp(const struct unicode_map *um,
 		 const struct qstr *s1, const struct qstr *s2);
+int utf8_strncasecmp_folded(const struct unicode_map *um,
+			    const struct qstr *cf,
+			    const struct qstr *s1);
 
 int utf8_normalize(const struct unicode_map *um, const struct qstr *str,
 		   unsigned char *dest, size_t dlen);

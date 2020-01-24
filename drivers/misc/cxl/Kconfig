@@ -5,16 +5,13 @@
 
 config CXL_BASE
 	bool
-	default n
 	select PPC_COPRO_BASE
 
 config CXL_AFU_DRIVER_OPS
 	bool
-	default n
 
 config CXL_LIB
 	bool
-	default n
 
 config CXL
 	tristate "Support for IBM Coherent Accelerators (CXL)"

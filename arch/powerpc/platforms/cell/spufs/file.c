@@ -446,7 +446,7 @@ static const struct file_operations spufs_cntl_fops = {
 	.release = spufs_cntl_release,
 	.read = simple_attr_read,
 	.write = simple_attr_write,
-	.llseek	= generic_file_llseek,
+	.llseek	= no_llseek,
 	.mmap = spufs_cntl_mmap,
 };
 

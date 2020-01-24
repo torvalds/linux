@@ -7,16 +7,18 @@
  */
 
 #include <linux/backlight.h>
+#include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
-
-#include <drm/drmP.h>
-#include <drm/drm_crtc.h>
-#include <drm/drm_panel.h>
 
 #include <video/display_timing.h>
 #include <video/videomode.h>
+
+#include <drm/drm_crtc.h>
+#include <drm/drm_device.h>
+#include <drm/drm_panel.h>
 
 struct seiko_panel_desc {
 	const struct drm_display_mode *modes;
@@ -272,9 +274,8 @@ static int seiko_panel_probe(struct device *dev,
 			return -EPROBE_DEFER;
 	}
 
-	drm_panel_init(&panel->base);
-	panel->base.dev = dev;
-	panel->base.funcs = &seiko_panel_funcs;
+	drm_panel_init(&panel->base, dev, &seiko_panel_funcs,
+		       DRM_MODE_CONNECTOR_DPI);
 
 	err = drm_panel_add(&panel->base);
 	if (err < 0)

@@ -42,6 +42,11 @@ OPTIONS
 	Prefixing with ! shows all syscalls but the ones specified.  You may
 	need to escape it.
 
+--filter=<filter>::
+        Event filter. This option should follow an event selector (-e) which
+	selects tracepoint event(s).
+
+
 -D msecs::
 --delay msecs::
 After starting the program, wait msecs before measuring. This is useful to
@@ -141,6 +146,10 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 	Show all syscalls followed by a summary by thread with min, max, and
     average times (in msec) and relative stddev.
 
+--errno-summary::
+	To be used with -s or -S, to show stats for the errnos experienced by
+	syscalls, using only this option will trigger --summary.
+
 --tool_stats::
 	Show tool stats such as number of times fd->pathname was discovered thru
 	hooking the open syscall return + vfs_getname or via reading /proc/pid/fd, etc.
@@ -176,6 +185,15 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 	only at exit time or when a syscall is interrupted, i.e. in those cases this
 	option is equivalent to the number of lines printed.
 
+--switch-on EVENT_NAME::
+	Only consider events after this event is found.
+
+--switch-off EVENT_NAME::
+	Stop considering events after this event is found.
+
+--show-on-off-events::
+	Show the --switch-on/off events too.
+
 --max-stack::
         Set the stack depth limit when parsing the callchain, anything
         beyond the specified depth will be ignored. Note that at this point
@@ -209,6 +227,11 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 	Do sorting on batches of events, use when noticing out of order events that
 	may happen, for instance, when a thread gets migrated to a different CPU
 	while processing a syscall.
+
+--libtraceevent_print::
+	Use libtraceevent to print tracepoint arguments. By default 'perf trace' uses
+	the same beautifiers used in the strace-like enter+exit lines to augment the
+	tracepoint arguments.
 
 --map-dump::
 	Dump BPF maps setup by events passed via -e, for instance the augmented_raw_syscalls

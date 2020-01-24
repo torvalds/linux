@@ -7,6 +7,7 @@
  *          Mika Westerberg <mika.westerberg@linux.intel.com>
  */
 
+#include <linux/dmi.h>
 #include <linux/errno.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
@@ -18,6 +19,20 @@
 #include <linux/pinctrl/pinctrl.h>
 
 #include "gpiolib.h"
+#include "gpiolib-acpi.h"
+
+#define QUIRK_NO_EDGE_EVENTS_ON_BOOT		0x01l
+#define QUIRK_NO_WAKEUP				0x02l
+
+static int run_edge_events_on_boot = -1;
+module_param(run_edge_events_on_boot, int, 0444);
+MODULE_PARM_DESC(run_edge_events_on_boot,
+		 "Run edge _AEI event-handlers at boot: 0=no, 1=yes, -1=auto");
+
+static int honor_wakeup = -1;
+module_param(honor_wakeup, int, 0444);
+MODULE_PARM_DESC(honor_wakeup,
+		 "Honor the ACPI wake-capable flag: 0=no, 1=yes, -1=auto");
 
 /**
  * struct acpi_gpio_event - ACPI GPIO event handler data
@@ -170,10 +185,13 @@ static void acpi_gpiochip_request_irq(struct acpi_gpio_chip *acpi_gpio,
 	event->irq_requested = true;
 
 	/* Make sure we trigger the initial state of edge-triggered IRQs */
-	value = gpiod_get_raw_value_cansleep(event->desc);
-	if (((event->irqflags & IRQF_TRIGGER_RISING) && value == 1) ||
-	    ((event->irqflags & IRQF_TRIGGER_FALLING) && value == 0))
-		event->handler(event->irq, event);
+	if (run_edge_events_on_boot &&
+	    (event->irqflags & (IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING))) {
+		value = gpiod_get_raw_value_cansleep(event->desc);
+		if (((event->irqflags & IRQF_TRIGGER_RISING) && value == 1) ||
+		    ((event->irqflags & IRQF_TRIGGER_FALLING) && value == 0))
+			event->handler(event->irq, event);
+	}
 }
 
 static void acpi_gpiochip_request_irqs(struct acpi_gpio_chip *acpi_gpio)
@@ -184,6 +202,7 @@ static void acpi_gpiochip_request_irqs(struct acpi_gpio_chip *acpi_gpio)
 		acpi_gpiochip_request_irq(acpi_gpio, event);
 }
 
+/* Always returns AE_OK so that we keep looping over the resources */
 static acpi_status acpi_gpiochip_alloc_event(struct acpi_resource *ares,
 					     void *context)
 {
@@ -217,23 +236,28 @@ static acpi_status acpi_gpiochip_alloc_event(struct acpi_resource *ares,
 	if (!handler)
 		return AE_OK;
 
-	desc = gpiochip_request_own_desc(chip, pin, "ACPI:Event", 0);
+	desc = gpiochip_request_own_desc(chip, pin, "ACPI:Event",
+					 GPIO_ACTIVE_HIGH, GPIOD_IN);
 	if (IS_ERR(desc)) {
-		dev_err(chip->parent, "Failed to request GPIO\n");
-		return AE_ERROR;
+		dev_err(chip->parent,
+			"Failed to request GPIO for pin 0x%04X, err %ld\n",
+			pin, PTR_ERR(desc));
+		return AE_OK;
 	}
-
-	gpiod_direction_input(desc);
 
 	ret = gpiochip_lock_as_irq(chip, pin);
 	if (ret) {
-		dev_err(chip->parent, "Failed to lock GPIO as interrupt\n");
+		dev_err(chip->parent,
+			"Failed to lock GPIO pin 0x%04X as interrupt, err %d\n",
+			pin, ret);
 		goto fail_free_desc;
 	}
 
 	irq = gpiod_to_irq(desc);
 	if (irq < 0) {
-		dev_err(chip->parent, "Failed to translate GPIO to IRQ\n");
+		dev_err(chip->parent,
+			"Failed to translate GPIO pin 0x%04X to IRQ, err %d\n",
+			pin, irq);
 		goto fail_unlock_irq;
 	}
 
@@ -265,7 +289,7 @@ static acpi_status acpi_gpiochip_alloc_event(struct acpi_resource *ares,
 	event->handle = evt_handle;
 	event->handler = handler;
 	event->irq = irq;
-	event->irq_is_wake = agpio->wake_capable == ACPI_WAKE_CAPABLE;
+	event->irq_is_wake = honor_wakeup && agpio->wake_capable == ACPI_WAKE_CAPABLE;
 	event->pin = pin;
 	event->desc = desc;
 
@@ -278,7 +302,7 @@ fail_unlock_irq:
 fail_free_desc:
 	gpiochip_free_own_desc(desc);
 
-	return AE_ERROR;
+	return AE_OK;
 }
 
 /**
@@ -382,6 +406,13 @@ int acpi_dev_add_driver_gpios(struct acpi_device *adev,
 	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(acpi_dev_add_driver_gpios);
+
+void acpi_dev_remove_driver_gpios(struct acpi_device *adev)
+{
+	if (adev)
+		adev->driver_gpios = NULL;
+}
+EXPORT_SYMBOL_GPL(acpi_dev_remove_driver_gpios);
 
 static void devm_acpi_dev_release_driver_gpios(struct device *dev, void *res)
 {
@@ -721,6 +752,16 @@ static struct gpio_desc *acpi_get_gpiod_by_index(struct acpi_device *adev,
 	return ret ? ERR_PTR(ret) : lookup.desc;
 }
 
+static bool acpi_can_fallback_to_crs(struct acpi_device *adev,
+				     const char *con_id)
+{
+	/* Never allow fallback if the device has properties */
+	if (acpi_dev_has_props(adev) || adev->driver_gpios)
+		return false;
+
+	return con_id == NULL;
+}
+
 struct gpio_desc *acpi_find_gpio(struct device *dev,
 				 const char *con_id,
 				 unsigned int idx,
@@ -951,6 +992,7 @@ acpi_gpio_adr_space_handler(u32 function, acpi_physical_address address,
 			const char *label = "ACPI:OpRegion";
 
 			desc = gpiochip_request_own_desc(chip, pin, label,
+							 GPIO_ACTIVE_HIGH,
 							 flags);
 			if (IS_ERR(desc)) {
 				status = AE_ERROR;
@@ -1256,15 +1298,6 @@ int acpi_gpio_count(struct device *dev, const char *con_id)
 	return count ? count : -ENOENT;
 }
 
-bool acpi_can_fallback_to_crs(struct acpi_device *adev, const char *con_id)
-{
-	/* Never allow fallback if the device has properties */
-	if (acpi_dev_has_props(adev) || adev->driver_gpios)
-		return false;
-
-	return con_id == NULL;
-}
-
 /* Run deferred acpi_gpiochip_request_irqs() */
 static int acpi_gpio_handle_deferred_request_irqs(void)
 {
@@ -1283,3 +1316,78 @@ static int acpi_gpio_handle_deferred_request_irqs(void)
 }
 /* We must use _sync so that this runs after the first deferred_probe run */
 late_initcall_sync(acpi_gpio_handle_deferred_request_irqs);
+
+static const struct dmi_system_id gpiolib_acpi_quirks[] = {
+	{
+		/*
+		 * The Minix Neo Z83-4 has a micro-USB-B id-pin handler for
+		 * a non existing micro-USB-B connector which puts the HDMI
+		 * DDC pins in GPIO mode, breaking HDMI support.
+		 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "MINIX"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Z83-4"),
+		},
+		.driver_data = (void *)QUIRK_NO_EDGE_EVENTS_ON_BOOT,
+	},
+	{
+		/*
+		 * The Terra Pad 1061 has a micro-USB-B id-pin handler, which
+		 * instead of controlling the actual micro-USB-B turns the 5V
+		 * boost for its USB-A connector off. The actual micro-USB-B
+		 * connector is wired for charging only.
+		 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Wortmann_AG"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "TERRA_PAD_1061"),
+		},
+		.driver_data = (void *)QUIRK_NO_EDGE_EVENTS_ON_BOOT,
+	},
+	{
+		/*
+		 * Various HP X2 10 Cherry Trail models use an external
+		 * embedded-controller connected via I2C + an ACPI GPIO
+		 * event handler. The embedded controller generates various
+		 * spurious wakeup events when suspended. So disable wakeup
+		 * for its handler (it uses the only ACPI GPIO event handler).
+		 * This breaks wakeup when opening the lid, the user needs
+		 * to press the power-button to wakeup the system. The
+		 * alternative is suspend simply not working, which is worse.
+		 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "HP x2 Detachable 10-p0XX"),
+		},
+		.driver_data = (void *)QUIRK_NO_WAKEUP,
+	},
+	{} /* Terminating entry */
+};
+
+static int acpi_gpio_setup_params(void)
+{
+	const struct dmi_system_id *id;
+	long quirks = 0;
+
+	id = dmi_first_match(gpiolib_acpi_quirks);
+	if (id)
+		quirks = (long)id->driver_data;
+
+	if (run_edge_events_on_boot < 0) {
+		if (quirks & QUIRK_NO_EDGE_EVENTS_ON_BOOT)
+			run_edge_events_on_boot = 0;
+		else
+			run_edge_events_on_boot = 1;
+	}
+
+	if (honor_wakeup < 0) {
+		if (quirks & QUIRK_NO_WAKEUP)
+			honor_wakeup = 0;
+		else
+			honor_wakeup = 1;
+	}
+
+	return 0;
+}
+
+/* Directly after dmi_setup() which runs as core_initcall() */
+postcore_initcall(acpi_gpio_setup_params);

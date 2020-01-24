@@ -357,7 +357,6 @@ extern int __fsnotify_parent(const struct path *path, struct dentry *dentry, __u
 extern void __fsnotify_inode_delete(struct inode *inode);
 extern void __fsnotify_vfsmount_delete(struct vfsmount *mnt);
 extern void fsnotify_sb_delete(struct super_block *sb);
-extern void fsnotify_nameremove(struct dentry *dentry, int isdir);
 extern u32 fsnotify_get_cookie(void);
 
 static inline int fsnotify_inode_watches_children(struct inode *inode)
@@ -476,6 +475,8 @@ extern void fsnotify_destroy_mark(struct fsnotify_mark *mark,
 extern void fsnotify_detach_mark(struct fsnotify_mark *mark);
 /* free mark */
 extern void fsnotify_free_mark(struct fsnotify_mark *mark);
+/* Wait until all marks queued for destruction are destroyed */
+extern void fsnotify_wait_marks_destroyed(void);
 /* run all the marks in a group, and clear all of the marks attached to given object type */
 extern void fsnotify_clear_marks_by_group(struct fsnotify_group *group, unsigned int type);
 /* run all the marks in a group, and clear all of the vfsmount marks */
@@ -525,9 +526,6 @@ static inline void __fsnotify_vfsmount_delete(struct vfsmount *mnt)
 {}
 
 static inline void fsnotify_sb_delete(struct super_block *sb)
-{}
-
-static inline void fsnotify_nameremove(struct dentry *dentry, int isdir)
 {}
 
 static inline void fsnotify_update_flags(struct dentry *dentry)

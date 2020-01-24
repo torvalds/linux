@@ -91,7 +91,7 @@ static unsigned int nf_nat_ftp(struct sk_buff *skb,
 		int ret;
 
 		exp->tuple.dst.u.tcp.port = htons(port);
-		ret = nf_ct_expect_related(exp);
+		ret = nf_ct_expect_related(exp, 0);
 		if (ret == 0)
 			break;
 		else if (ret != -EBUSY) {

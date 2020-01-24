@@ -45,6 +45,7 @@ Table of Contents
   3.9   /proc/<pid>/map_files - Information about memory mapped files
   3.10  /proc/<pid>/timerslack_ns - Task timerslack value
   3.11	/proc/<pid>/patch_state - Livepatch patch operation state
+  3.12	/proc/<pid>/arch_status - Task architecture specific information
 
   4	Configuring procfs
   4.1	Mount options
@@ -153,9 +154,11 @@ Table 1-1: Process specific entries in /proc
 		symbol the task is blocked in - or "0" if not blocked.
  pagemap	Page table
  stack		Report full stack trace, enable via CONFIG_STACKTRACE
- smaps		an extension based on maps, showing the memory consumption of
+ smaps		An extension based on maps, showing the memory consumption of
 		each mapping and flags associated with it
- numa_maps	an extension based on maps, showing the memory locality and
+ smaps_rollup	Accumulated smaps stats for all mappings of the process.  This
+		can be derived from smaps, but is faster and more convenient
+ numa_maps	An extension based on maps, showing the memory locality and
 		binding policy as well as mem usage (in pages) of each mapping.
 ..............................................................................
 
@@ -365,7 +368,7 @@ Table 1-4: Contents of the stat files (as of 2.6.30-rc7)
   exit_code     the thread's exit_code in the form reported by the waitpid system call
 ..............................................................................
 
-The /proc/PID/maps file containing the currently mapped memory regions and
+The /proc/PID/maps file contains the currently mapped memory regions and
 their access permissions.
 
 The format is:
@@ -416,11 +419,14 @@ is not associated with a file:
  or if empty, the mapping is anonymous.
 
 The /proc/PID/smaps is an extension based on maps, showing the memory
-consumption for each of the process's mappings. For each of mappings there
-is a series of lines such as the following:
+consumption for each of the process's mappings. For each mapping (aka Virtual
+Memory Area, or VMA) there is a series of lines such as the following:
 
 08048000-080bc000 r-xp 00000000 03:02 13130      /bin/bash
+
 Size:               1084 kB
+KernelPageSize:        4 kB
+MMUPageSize:           4 kB
 Rss:                 892 kB
 Pss:                 374 kB
 Shared_Clean:        892 kB
@@ -442,11 +448,14 @@ Locked:                0 kB
 THPeligible:           0
 VmFlags: rd ex mr mw me dw
 
-the first of these lines shows the same information as is displayed for the
-mapping in /proc/PID/maps.  The remaining lines show the size of the mapping
-(size), the amount of the mapping that is currently resident in RAM (RSS), the
-process' proportional share of this mapping (PSS), the number of clean and
-dirty private pages in the mapping.
+The first of these lines shows the same information as is displayed for the
+mapping in /proc/PID/maps.  Following lines show the size of the mapping
+(size); the size of each page allocated when backing a VMA (KernelPageSize),
+which is usually the same as the size in the page table entries; the page size
+used by the MMU when backing a VMA (in most cases, the same as KernelPageSize);
+the amount of the mapping that is currently resident in RAM (RSS); the
+process' proportional share of this mapping (PSS); and the number of clean and
+dirty shared and private pages in the mapping.
 
 The "proportional set size" (PSS) of a process is the count of pages it has
 in memory, where each page is divided by the number of processes sharing it.
@@ -477,8 +486,8 @@ replaced by copy-on-write) part of the underlying shmem object out on swap.
 "SwapPss" shows proportional swap share of this mapping. Unlike "Swap", this
 does not take into account swapped out page of underlying shmem objects.
 "Locked" indicates whether the mapping is locked in memory or not.
-"THPeligible" indicates whether the mapping is eligible for THP pages - 1 if
-true, 0 otherwise.
+"THPeligible" indicates whether the mapping is eligible for allocating THP
+pages - 1 if true, 0 otherwise. It just shows the current status.
 
 "VmFlags" field deserves a separate description. This member represents the kernel
 flags associated with the particular virtual memory area in two letter encoded
@@ -531,6 +540,19 @@ guarantees:
 2) If there is something at a given vaddr during the entirety of the
    life of the smaps/maps walk, there will be some output for it.
 
+The /proc/PID/smaps_rollup file includes the same fields as /proc/PID/smaps,
+but their values are the sums of the corresponding values for all mappings of
+the process.  Additionally, it contains these fields:
+
+Pss_Anon
+Pss_File
+Pss_Shmem
+
+They represent the proportional shares of anonymous, file, and shmem pages, as
+described for smaps above.  These fields are omitted in smaps since each
+mapping identifies the type (anon, file, or shmem) of all pages it contains.
+Thus all information in smaps_rollup can be derived from smaps, but at a
+significantly higher cost.
 
 The /proc/PID/clear_refs is used to reset the PG_Referenced and ACCESSED/YOUNG
 bits on both physical and virtual pages associated with a process, and the
@@ -1478,7 +1500,7 @@ review the kernel documentation in the directory /usr/src/linux/Documentation.
 This chapter  is  heavily  based  on the documentation included in the pre 2.2
 kernels, and became part of it in version 2.2.1 of the Linux kernel.
 
-Please see: Documentation/sysctl/ directory for descriptions of these
+Please see: Documentation/admin-guide/sysctl/ directory for descriptions of these
 entries.
 
 ------------------------------------------------------------------------------
@@ -1948,6 +1970,45 @@ patched.  If the patch is being enabled, then the task has already been
 patched.  If the patch is being disabled, then the task hasn't been
 unpatched yet.
 
+3.12 /proc/<pid>/arch_status - task architecture specific status
+-------------------------------------------------------------------
+When CONFIG_PROC_PID_ARCH_STATUS is enabled, this file displays the
+architecture specific status of the task.
+
+Example
+-------
+ $ cat /proc/6753/arch_status
+ AVX512_elapsed_ms:      8
+
+Description
+-----------
+
+x86 specific entries:
+---------------------
+ AVX512_elapsed_ms:
+ ------------------
+  If AVX512 is supported on the machine, this entry shows the milliseconds
+  elapsed since the last time AVX512 usage was recorded. The recording
+  happens on a best effort basis when a task is scheduled out. This means
+  that the value depends on two factors:
+
+    1) The time which the task spent on the CPU without being scheduled
+       out. With CPU isolation and a single runnable task this can take
+       several seconds.
+
+    2) The time since the task was scheduled out last. Depending on the
+       reason for being scheduled out (time slice exhausted, syscall ...)
+       this can be arbitrary long time.
+
+  As a consequence the value cannot be considered precise and authoritative
+  information. The application which uses this information has to be aware
+  of the overall scenario on the system in order to determine whether a
+  task is a real AVX512 user or not. Precise information can be obtained
+  with performance counters.
+
+  A special value of '-1' indicates that no AVX512 usage was recorded, thus
+  the task is unlikely an AVX512 user, but depends on the workload and the
+  scheduling scenario, it also could be a false negative mentioned above.
 
 ------------------------------------------------------------------------------
 Configuring procfs

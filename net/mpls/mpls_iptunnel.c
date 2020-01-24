@@ -133,11 +133,11 @@ static int mpls_xmit(struct sk_buff *skb)
 	mpls_stats_inc_outucastpkts(out_dev, skb);
 
 	if (rt) {
-		if (rt->rt_gw_family == AF_INET)
-			err = neigh_xmit(NEIGH_ARP_TABLE, out_dev, &rt->rt_gw4,
-					 skb);
-		else if (rt->rt_gw_family == AF_INET6)
+		if (rt->rt_gw_family == AF_INET6)
 			err = neigh_xmit(NEIGH_ND_TABLE, out_dev, &rt->rt_gw6,
+					 skb);
+		else
+			err = neigh_xmit(NEIGH_ARP_TABLE, out_dev, &rt->rt_gw4,
 					 skb);
 	} else if (rt6) {
 		if (ipv6_addr_v4mapped(&rt6->rt6i_gateway)) {

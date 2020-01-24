@@ -12,6 +12,7 @@
 #include <linux/debug_locks.h>
 #include <linux/sched/debug.h>
 #include <linux/interrupt.h>
+#include <linux/kgdb.h>
 #include <linux/kmsg_dump.h>
 #include <linux/kallsyms.h>
 #include <linux/notifier.h>
@@ -179,6 +180,7 @@ void panic(const char *fmt, ...)
 	 * after setting panic_cpu) from invoking panic() again.
 	 */
 	local_irq_disable();
+	preempt_disable_notrace();
 
 	/*
 	 * It's possible to come here directly from a panic-assertion and
@@ -218,6 +220,13 @@ void panic(const char *fmt, ...)
 	if (!test_taint(TAINT_DIE) && oops_in_progress <= 1)
 		dump_stack();
 #endif
+
+	/*
+	 * If kgdb is enabled, give it a chance to run before we stop all
+	 * the other CPUs or else we won't be able to debug processes left
+	 * running on them.
+	 */
+	kgdb_panic(buf);
 
 	/*
 	 * If we have crashed and we have a crash kernel loaded let it handle
@@ -372,7 +381,7 @@ const struct taint_flag taint_flags[TAINT_FLAGS_COUNT] = {
 /**
  * print_tainted - return a string to represent the kernel taint state.
  *
- * For individual taint flag meanings, see Documentation/sysctl/kernel.txt
+ * For individual taint flag meanings, see Documentation/admin-guide/sysctl/kernel.rst
  *
  * The string is overwritten by the next call to print_tainted(),
  * but is always NULL terminated.
@@ -551,9 +560,6 @@ void __warn(const char *file, int line, void *caller, unsigned taint,
 {
 	disable_trace_on_warning();
 
-	if (args)
-		pr_warn(CUT_HERE);
-
 	if (file)
 		pr_warn("WARNING: CPU: %d PID: %d at %s:%d %pS\n",
 			raw_smp_processor_id(), current->pid, file, line,
@@ -591,37 +597,26 @@ void __warn(const char *file, int line, void *caller, unsigned taint,
 	add_taint(taint, LOCKDEP_STILL_OK);
 }
 
-#ifdef WANT_WARN_ON_SLOWPATH
-void warn_slowpath_fmt(const char *file, int line, const char *fmt, ...)
+#ifndef __WARN_FLAGS
+void warn_slowpath_fmt(const char *file, int line, unsigned taint,
+		       const char *fmt, ...)
 {
 	struct warn_args args;
 
-	args.fmt = fmt;
-	va_start(args.args, fmt);
-	__warn(file, line, __builtin_return_address(0), TAINT_WARN, NULL,
-	       &args);
-	va_end(args.args);
-}
-EXPORT_SYMBOL(warn_slowpath_fmt);
+	pr_warn(CUT_HERE);
 
-void warn_slowpath_fmt_taint(const char *file, int line,
-			     unsigned taint, const char *fmt, ...)
-{
-	struct warn_args args;
+	if (!fmt) {
+		__warn(file, line, __builtin_return_address(0), taint,
+		       NULL, NULL);
+		return;
+	}
 
 	args.fmt = fmt;
 	va_start(args.args, fmt);
 	__warn(file, line, __builtin_return_address(0), taint, NULL, &args);
 	va_end(args.args);
 }
-EXPORT_SYMBOL(warn_slowpath_fmt_taint);
-
-void warn_slowpath_null(const char *file, int line)
-{
-	pr_warn(CUT_HERE);
-	__warn(file, line, __builtin_return_address(0), TAINT_WARN, NULL, NULL);
-}
-EXPORT_SYMBOL(warn_slowpath_null);
+EXPORT_SYMBOL(warn_slowpath_fmt);
 #else
 void __warn_printk(const char *fmt, ...)
 {
@@ -674,17 +669,6 @@ __visible void __stack_chk_fail(void)
 }
 EXPORT_SYMBOL(__stack_chk_fail);
 
-#endif
-
-#ifdef CONFIG_ARCH_HAS_REFCOUNT
-void refcount_error_report(struct pt_regs *regs, const char *err)
-{
-	WARN_RATELIMIT(1, "refcount_t %s at %pB in %s[%d], uid/euid: %u/%u\n",
-		err, (void *)instruction_pointer(regs),
-		current->comm, task_pid_nr(current),
-		from_kuid_munged(&init_user_ns, current_uid()),
-		from_kuid_munged(&init_user_ns, current_euid()));
-}
 #endif
 
 core_param(panic, panic_timeout, int, 0644);

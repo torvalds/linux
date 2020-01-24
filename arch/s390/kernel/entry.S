@@ -986,14 +986,12 @@ ENTRY(psw_idle)
 	stg	%r3,__SF_EMPTY(%r15)
 	larl	%r1,.Lpsw_idle_lpsw+4
 	stg	%r1,__SF_EMPTY+8(%r15)
-#ifdef CONFIG_SMP
 	larl	%r1,smp_cpu_mtid
 	llgf	%r1,0(%r1)
 	ltgr	%r1,%r1
 	jz	.Lpsw_idle_stcctm
 	.insn	rsy,0xeb0000000017,%r1,5,__SF_EMPTY+16(%r15)
 .Lpsw_idle_stcctm:
-#endif
 	oi	__LC_CPU_FLAGS+7,_CIF_ENABLED_WAIT
 	BPON
 	STCK	__CLOCK_IDLE_ENTER(%r2)
@@ -1468,7 +1466,6 @@ ENDPROC(cleanup_critical)
 	mvc	__CLOCK_IDLE_ENTER(8,%r2),__CLOCK_IDLE_EXIT(%r2)
 	mvc	__TIMER_IDLE_ENTER(8,%r2),__TIMER_IDLE_EXIT(%r2)
 1:	# calculate idle cycles
-#ifdef CONFIG_SMP
 	clg	%r9,BASED(.Lcleanup_idle_insn)
 	jl	3f
 	larl	%r1,smp_cpu_mtid
@@ -1486,7 +1483,6 @@ ENDPROC(cleanup_critical)
 	la	%r3,8(%r3)
 	la	%r4,8(%r4)
 	brct	%r1,2b
-#endif
 3:	# account system time going idle
 	lg	%r9,__LC_STEAL_TIMER
 	alg	%r9,__CLOCK_IDLE_ENTER(%r2)

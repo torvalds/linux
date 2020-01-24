@@ -38,11 +38,22 @@
 #define FPGA_CONFIG_DATA_CLAIM_TIMEOUT_MS	200
 #define FPGA_CONFIG_STATUS_TIMEOUT_SEC		30
 
+/* stratix10 service layer clients */
+#define STRATIX10_RSU				"stratix10-rsu"
+
 typedef void (svc_invoke_fn)(unsigned long, unsigned long, unsigned long,
 			     unsigned long, unsigned long, unsigned long,
 			     unsigned long, unsigned long,
 			     struct arm_smccc_res *);
 struct stratix10_svc_chan;
+
+/**
+ * struct stratix10_svc - svc private data
+ * @stratix10_svc_rsu: pointer to stratix10 RSU device
+ */
+struct stratix10_svc {
+	struct platform_device *stratix10_svc_rsu;
+};
 
 /**
  * struct stratix10_svc_sh_memory - service shared memory structure
@@ -296,7 +307,12 @@ static void svc_thread_recv_status_ok(struct stratix10_svc_data *p_data,
 		cb_data->status = BIT(SVC_STATUS_RECONFIG_COMPLETED);
 		break;
 	case COMMAND_RSU_UPDATE:
+	case COMMAND_RSU_NOTIFY:
 		cb_data->status = BIT(SVC_STATUS_RSU_OK);
+		break;
+	case COMMAND_RSU_RETRY:
+		cb_data->status = BIT(SVC_STATUS_RSU_OK);
+		cb_data->kaddr1 = &res.a1;
 		break;
 	default:
 		pr_warn("it shouldn't happen\n");
@@ -386,6 +402,16 @@ static int svc_normal_to_secure_thread(void *data)
 			a1 = pdata->arg[0];
 			a2 = 0;
 			break;
+		case COMMAND_RSU_NOTIFY:
+			a0 = INTEL_SIP_SMC_RSU_NOTIFY;
+			a1 = pdata->arg[0];
+			a2 = 0;
+			break;
+		case COMMAND_RSU_RETRY:
+			a0 = INTEL_SIP_SMC_RSU_RETRY_COUNTER;
+			a1 = 0;
+			a2 = 0;
+			break;
 		default:
 			pr_warn("it shouldn't happen\n");
 			break;
@@ -438,7 +464,28 @@ static int svc_normal_to_secure_thread(void *data)
 			pr_debug("%s: STATUS_REJECTED\n", __func__);
 			break;
 		case INTEL_SIP_SMC_FPGA_CONFIG_STATUS_ERROR:
+		case INTEL_SIP_SMC_RSU_ERROR:
 			pr_err("%s: STATUS_ERROR\n", __func__);
+			switch (pdata->command) {
+			/* for FPGA mgr */
+			case COMMAND_RECONFIG_DATA_CLAIM:
+			case COMMAND_RECONFIG:
+			case COMMAND_RECONFIG_DATA_SUBMIT:
+			case COMMAND_RECONFIG_STATUS:
+				cbdata->status =
+					BIT(SVC_STATUS_RECONFIG_ERROR);
+				break;
+
+			/* for RSU */
+			case COMMAND_RSU_STATUS:
+			case COMMAND_RSU_UPDATE:
+			case COMMAND_RSU_NOTIFY:
+			case COMMAND_RSU_RETRY:
+				cbdata->status =
+					BIT(SVC_STATUS_RSU_ERROR);
+				break;
+			}
+
 			cbdata->status = BIT(SVC_STATUS_RECONFIG_ERROR);
 			cbdata->kaddr1 = NULL;
 			cbdata->kaddr2 = NULL;
@@ -446,8 +493,24 @@ static int svc_normal_to_secure_thread(void *data)
 			pdata->chan->scl->receive_cb(pdata->chan->scl, cbdata);
 			break;
 		default:
-			pr_warn("it shouldn't happen\n");
+			pr_warn("Secure firmware doesn't support...\n");
+
+			/*
+			 * be compatible with older version firmware which
+			 * doesn't support RSU notify or retry
+			 */
+			if ((pdata->command == COMMAND_RSU_RETRY) ||
+				(pdata->command == COMMAND_RSU_NOTIFY)) {
+				cbdata->status =
+					BIT(SVC_STATUS_RSU_NO_SUPPORT);
+				cbdata->kaddr1 = NULL;
+				cbdata->kaddr2 = NULL;
+				cbdata->kaddr3 = NULL;
+				pdata->chan->scl->receive_cb(
+					pdata->chan->scl, cbdata);
+			}
 			break;
+
 		}
 	};
 
@@ -530,7 +593,7 @@ static int svc_get_sh_memory(struct platform_device *pdev,
 
 	if (!sh_memory->addr || !sh_memory->size) {
 		dev_err(dev,
-			"fails to get shared memory info from secure world\n");
+			"failed to get shared memory info from secure world\n");
 		return -ENOMEM;
 	}
 
@@ -768,7 +831,7 @@ int stratix10_svc_send(struct stratix10_svc_chan *chan, void *msg)
 					      "svc_smc_hvc_thread");
 			if (IS_ERR(chan->ctrl->task)) {
 				dev_err(chan->ctrl->dev,
-					"fails to create svc_smc_hvc_thread\n");
+					"failed to create svc_smc_hvc_thread\n");
 				kfree(p_data);
 				return -EINVAL;
 			}
@@ -913,6 +976,8 @@ static int stratix10_svc_drv_probe(struct platform_device *pdev)
 	struct stratix10_svc_chan *chans;
 	struct gen_pool *genpool;
 	struct stratix10_svc_sh_memory *sh_memory;
+	struct stratix10_svc *svc;
+
 	svc_invoke_fn *invoke_fn;
 	size_t fifo_size;
 	int ret;
@@ -957,7 +1022,7 @@ static int stratix10_svc_drv_probe(struct platform_device *pdev)
 	fifo_size = sizeof(struct stratix10_svc_data) * SVC_NUM_DATA_IN_FIFO;
 	ret = kfifo_alloc(&controller->svc_fifo, fifo_size, GFP_KERNEL);
 	if (ret) {
-		dev_err(dev, "fails to allocate FIFO\n");
+		dev_err(dev, "failed to allocate FIFO\n");
 		return ret;
 	}
 	spin_lock_init(&controller->svc_fifo_lock);
@@ -975,6 +1040,24 @@ static int stratix10_svc_drv_probe(struct platform_device *pdev)
 	list_add_tail(&controller->node, &svc_ctrl);
 	platform_set_drvdata(pdev, controller);
 
+	/* add svc client device(s) */
+	svc = devm_kzalloc(dev, sizeof(*svc), GFP_KERNEL);
+	if (!svc)
+		return -ENOMEM;
+
+	svc->stratix10_svc_rsu = platform_device_alloc(STRATIX10_RSU, 0);
+	if (!svc->stratix10_svc_rsu) {
+		dev_err(dev, "failed to allocate %s device\n", STRATIX10_RSU);
+		return -ENOMEM;
+	}
+
+	ret = platform_device_add(svc->stratix10_svc_rsu);
+	if (ret) {
+		platform_device_put(svc->stratix10_svc_rsu);
+		return ret;
+	}
+	dev_set_drvdata(dev, svc);
+
 	pr_info("Intel Service Layer Driver Initialized\n");
 
 	return ret;
@@ -982,7 +1065,10 @@ static int stratix10_svc_drv_probe(struct platform_device *pdev)
 
 static int stratix10_svc_drv_remove(struct platform_device *pdev)
 {
+	struct stratix10_svc *svc = dev_get_drvdata(&pdev->dev);
 	struct stratix10_svc_controller *ctrl = platform_get_drvdata(pdev);
+
+	platform_device_unregister(svc->stratix10_svc_rsu);
 
 	kfifo_free(&ctrl->svc_fifo);
 	if (ctrl->task) {

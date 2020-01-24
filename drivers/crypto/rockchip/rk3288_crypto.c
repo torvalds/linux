@@ -264,8 +264,8 @@ static int rk_crypto_register(struct rk_crypto_info *crypto_info)
 	for (i = 0; i < ARRAY_SIZE(rk_cipher_algs); i++) {
 		rk_cipher_algs[i]->dev = crypto_info;
 		if (rk_cipher_algs[i]->type == ALG_TYPE_CIPHER)
-			err = crypto_register_alg(
-					&rk_cipher_algs[i]->alg.crypto);
+			err = crypto_register_skcipher(
+					&rk_cipher_algs[i]->alg.skcipher);
 		else
 			err = crypto_register_ahash(
 					&rk_cipher_algs[i]->alg.hash);
@@ -277,7 +277,7 @@ static int rk_crypto_register(struct rk_crypto_info *crypto_info)
 err_cipher_algs:
 	for (k = 0; k < i; k++) {
 		if (rk_cipher_algs[i]->type == ALG_TYPE_CIPHER)
-			crypto_unregister_alg(&rk_cipher_algs[k]->alg.crypto);
+			crypto_unregister_skcipher(&rk_cipher_algs[k]->alg.skcipher);
 		else
 			crypto_unregister_ahash(&rk_cipher_algs[i]->alg.hash);
 	}
@@ -290,7 +290,7 @@ static void rk_crypto_unregister(void)
 
 	for (i = 0; i < ARRAY_SIZE(rk_cipher_algs); i++) {
 		if (rk_cipher_algs[i]->type == ALG_TYPE_CIPHER)
-			crypto_unregister_alg(&rk_cipher_algs[i]->alg.crypto);
+			crypto_unregister_skcipher(&rk_cipher_algs[i]->alg.skcipher);
 		else
 			crypto_unregister_ahash(&rk_cipher_algs[i]->alg.hash);
 	}
@@ -311,7 +311,6 @@ MODULE_DEVICE_TABLE(of, crypto_of_id_table);
 
 static int rk_crypto_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	struct device *dev = &pdev->dev;
 	struct rk_crypto_info *crypto_info;
 	int err = 0;
@@ -339,8 +338,7 @@ static int rk_crypto_probe(struct platform_device *pdev)
 
 	spin_lock_init(&crypto_info->lock);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	crypto_info->reg = devm_ioremap_resource(&pdev->dev, res);
+	crypto_info->reg = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(crypto_info->reg)) {
 		err = PTR_ERR(crypto_info->reg);
 		goto err_crypto;

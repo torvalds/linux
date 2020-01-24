@@ -92,6 +92,7 @@ struct qede_stats_common {
 	u64 non_coalesced_pkts;
 	u64 coalesced_bytes;
 	u64 link_change_count;
+	u64 ptp_skip_txts;
 
 	/* port */
 	u64 rx_64_byte_packets;
@@ -176,6 +177,20 @@ enum qede_flags_bit {
 	QEDE_FLAGS_TX_TIMESTAMPING_EN
 };
 
+#define QEDE_DUMP_MAX_ARGS 4
+enum qede_dump_cmd {
+	QEDE_DUMP_CMD_NONE = 0,
+	QEDE_DUMP_CMD_NVM_CFG,
+	QEDE_DUMP_CMD_GRCDUMP,
+	QEDE_DUMP_CMD_MAX
+};
+
+struct qede_dump_info {
+	enum qede_dump_cmd cmd;
+	u8 num_args;
+	u32 args[QEDE_DUMP_MAX_ARGS];
+};
+
 struct qede_dev {
 	struct qed_dev			*cdev;
 	struct net_device		*ndev;
@@ -189,6 +204,7 @@ struct qede_dev {
 
 	const struct qed_eth_ops	*ops;
 	struct qede_ptp			*ptp;
+	u64				ptp_skip_txts;
 
 	struct qed_dev_eth_info dev_info;
 #define QEDE_MAX_RSS_CNT(edev)	((edev)->dev_info.num_queues)
@@ -260,6 +276,7 @@ struct qede_dev {
 	struct qede_rdma_dev		rdma_info;
 
 	struct bpf_prog *xdp_prog;
+	struct qede_dump_info		dump_info;
 };
 
 enum QEDE_STATE {
@@ -447,7 +464,7 @@ struct qede_fastpath {
 	struct qede_tx_queue	*txq;
 	struct qede_tx_queue	*xdp_tx;
 
-#define VEC_NAME_SIZE  (FIELD_SIZEOF(struct net_device, name) + 8)
+#define VEC_NAME_SIZE  (sizeof_field(struct net_device, name) + 8)
 	char	name[VEC_NAME_SIZE];
 };
 
@@ -549,7 +566,7 @@ int qede_txq_has_work(struct qede_tx_queue *txq);
 void qede_recycle_rx_bd_ring(struct qede_rx_queue *rxq, u8 count);
 void qede_update_rx_prod(struct qede_dev *edev, struct qede_rx_queue *rxq);
 int qede_add_tc_flower_fltr(struct qede_dev *edev, __be16 proto,
-			    struct tc_cls_flower_offload *f);
+			    struct flow_cls_offload *f);
 
 #define RX_RING_SIZE_POW	13
 #define RX_RING_SIZE		((u16)BIT(RX_RING_SIZE_POW))

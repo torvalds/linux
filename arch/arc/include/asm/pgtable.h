@@ -32,8 +32,7 @@
 #ifndef _ASM_ARC_PGTABLE_H
 #define _ASM_ARC_PGTABLE_H
 
-#include <linux/const.h>
-#define __ARCH_USE_5LEVEL_HACK
+#include <linux/bits.h>
 #include <asm-generic/pgtable-nopmd.h>
 #include <asm/page.h>
 #include <asm/mmu.h>	/* to propagate CONFIG_ARC_MMU_VER <n> */
@@ -215,11 +214,11 @@
 #define BITS_FOR_PTE	(PGDIR_SHIFT - PAGE_SHIFT)
 #define BITS_FOR_PGD	(32 - PGDIR_SHIFT)
 
-#define PGDIR_SIZE	_BITUL(PGDIR_SHIFT)	/* vaddr span, not PDG sz */
+#define PGDIR_SIZE	BIT(PGDIR_SHIFT)	/* vaddr span, not PDG sz */
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
-#define	PTRS_PER_PTE	_BITUL(BITS_FOR_PTE)
-#define	PTRS_PER_PGD	_BITUL(BITS_FOR_PGD)
+#define	PTRS_PER_PTE	BIT(BITS_FOR_PTE)
+#define	PTRS_PER_PGD	BIT(BITS_FOR_PGD)
 
 /*
  * Number of entries a user land program use.
@@ -351,7 +350,7 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
  * Thus use this macro only when you are certain that "current" is current
  * e.g. when dealing with signal frame setup code etc
  */
-#ifndef CONFIG_SMP
+#ifdef ARC_USE_SCRATCH_REG
 #define pgd_offset_fast(mm, addr)	\
 ({					\
 	pgd_t *pgd_base = (pgd_t *) read_aux_reg(ARC_REG_SCRATCH_DATA0);  \
@@ -394,11 +393,6 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 
 /* to cope with aliasing VIPT cache */
 #define HAVE_ARCH_UNMAPPED_AREA
-
-/*
- * No page table caches to initialise
- */
-#define pgtable_cache_init()   do { } while (0)
 
 #endif /* __ASSEMBLY__ */
 

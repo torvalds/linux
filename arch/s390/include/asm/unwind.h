@@ -58,10 +58,11 @@ static inline bool unwind_error(struct unwind_state *state)
 static inline void unwind_start(struct unwind_state *state,
 				struct task_struct *task,
 				struct pt_regs *regs,
-				unsigned long sp)
+				unsigned long first_frame)
 {
-	sp = sp ? : get_stack_pointer(task, regs);
-	__unwind_start(state, task, regs, sp);
+	task = task ?: current;
+	first_frame = first_frame ?: get_stack_pointer(task, regs);
+	__unwind_start(state, task, regs, first_frame);
 }
 
 static inline struct pt_regs *unwind_get_entry_regs(struct unwind_state *state)
@@ -78,24 +79,5 @@ static inline void unwind_init(void) {}
 static inline void unwind_module_init(struct module *mod, void *orc_ip,
 				      size_t orc_ip_size, void *orc,
 				      size_t orc_size) {}
-
-#ifdef CONFIG_KASAN
-/*
- * This disables KASAN checking when reading a value from another task's stack,
- * since the other task could be running on another CPU and could have poisoned
- * the stack in the meantime.
- */
-#define READ_ONCE_TASK_STACK(task, x)			\
-({							\
-	unsigned long val;				\
-	if (task == current)				\
-		val = READ_ONCE(x);			\
-	else						\
-		val = READ_ONCE_NOCHECK(x);		\
-	val;						\
-})
-#else
-#define READ_ONCE_TASK_STACK(task, x) READ_ONCE(x)
-#endif
 
 #endif /* _ASM_S390_UNWIND_H */

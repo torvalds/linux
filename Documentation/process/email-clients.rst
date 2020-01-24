@@ -40,7 +40,7 @@ Emailed patches should be in ASCII or UTF-8 encoding only.
 If you configure your email client to send emails with UTF-8 encoding,
 you avoid some possible charset problems.
 
-Email clients should generate and maintain References: or In-Reply-To:
+Email clients should generate and maintain "References:" or "In-Reply-To:"
 headers so that mail threading is not broken.
 
 Copy-and-paste (or cut-and-paste) usually does not work for patches
@@ -89,7 +89,7 @@ Claws Mail (GUI)
 
 Works. Some people use this successfully for patches.
 
-To insert a patch use :menuselection:`Message-->Insert` File (:kbd:`CTRL-I`)
+To insert a patch use :menuselection:`Message-->Insert File` (:kbd:`CTRL-I`)
 or an external editor.
 
 If the inserted patch has to be edited in the Claws composition window
@@ -132,8 +132,8 @@ wrapping.
 At the bottom of your email, put the commonly-used patch delimiter before
 inserting your patch:  three hyphens (``---``).
 
-Then from the :menuselection:`Message` menu item, select insert file and
-choose your patch.
+Then from the :menuselection:`Message` menu item, select
+:menuselection:`insert file` and choose your patch.
 As an added bonus you can customise the message creation toolbar menu
 and put the :menuselection:`insert file` icon there.
 
@@ -149,18 +149,16 @@ patches so do not GPG sign them.  Signing patches that have been inserted
 as inlined text will make them tricky to extract from their 7-bit encoding.
 
 If you absolutely must send patches as attachments instead of inlining
-them as text, right click on the attachment and select properties, and
-highlight :menuselection:`Suggest automatic display` to make the attachment
+them as text, right click on the attachment and select :menuselection:`properties`,
+and highlight :menuselection:`Suggest automatic display` to make the attachment
 inlined to make it more viewable.
 
 When saving patches that are sent as inlined text, select the email that
 contains the patch from the message list pane, right click and select
 :menuselection:`save as`.  You can use the whole email unmodified as a patch
-if it was properly composed.  There is no option currently to save the email
-when you are actually viewing it in its own window -- there has been a request
-filed at kmail's bugzilla and hopefully this will be addressed.  Emails are
-saved as read-write for user only so you will have to chmod them to make them
-group and world readable if you copy them elsewhere.
+if it was properly composed.  Emails are saved as read-write for user only so
+you will have to chmod them to make them group and world readable if you copy
+them elsewhere.
 
 Lotus Notes (GUI)
 *****************

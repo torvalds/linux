@@ -33,6 +33,7 @@
 #include <asm/cpufeature.h>
 #include <asm/fpu/api.h>
 #include <asm/nospec-branch.h>
+#include <asm/io_bitmap.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/syscalls.h>
@@ -72,23 +73,18 @@ static long syscall_trace_enter(struct pt_regs *regs)
 
 	struct thread_info *ti = current_thread_info();
 	unsigned long ret = 0;
-	bool emulated = false;
 	u32 work;
 
 	if (IS_ENABLED(CONFIG_DEBUG_ENTRY))
 		BUG_ON(regs != task_pt_regs(current));
 
-	work = READ_ONCE(ti->flags) & _TIF_WORK_SYSCALL_ENTRY;
+	work = READ_ONCE(ti->flags);
 
-	if (unlikely(work & _TIF_SYSCALL_EMU))
-		emulated = true;
-
-	if ((emulated || (work & _TIF_SYSCALL_TRACE)) &&
-	    tracehook_report_syscall_entry(regs))
-		return -1L;
-
-	if (emulated)
-		return -1L;
+	if (work & (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_EMU)) {
+		ret = tracehook_report_syscall_entry(regs);
+		if (ret || (work & _TIF_SYSCALL_EMU))
+			return -1L;
+	}
 
 #ifdef CONFIG_SECCOMP
 	/*
@@ -201,6 +197,9 @@ __visible inline void prepare_exit_to_usermode(struct pt_regs *regs)
 	/* Reload ti->flags; we may have rescheduled above. */
 	cached_flags = READ_ONCE(ti->flags);
 
+	if (unlikely(cached_flags & _TIF_IO_BITMAP))
+		tss_update_io_bitmap();
+
 	fpregs_assert_state_consistent();
 	if (unlikely(cached_flags & _TIF_NEED_FPU_LOAD))
 		switch_fpu_return();
@@ -290,15 +289,16 @@ __visible void do_syscall_64(unsigned long nr, struct pt_regs *regs)
 	if (READ_ONCE(ti->flags) & _TIF_WORK_SYSCALL_ENTRY)
 		nr = syscall_trace_enter(regs);
 
-	/*
-	 * NB: Native and x32 syscalls are dispatched from the same
-	 * table.  The only functional difference is the x32 bit in
-	 * regs->orig_ax, which changes the behavior of some syscalls.
-	 */
-	nr &= __SYSCALL_MASK;
 	if (likely(nr < NR_syscalls)) {
 		nr = array_index_nospec(nr, NR_syscalls);
 		regs->ax = sys_call_table[nr](regs);
+#ifdef CONFIG_X86_X32_ABI
+	} else if (likely((nr & __X32_SYSCALL_BIT) &&
+			  (nr & ~__X32_SYSCALL_BIT) < X32_NR_syscalls)) {
+		nr = array_index_nospec(nr & ~__X32_SYSCALL_BIT,
+					X32_NR_syscalls);
+		regs->ax = x32_sys_call_table[nr](regs);
+#endif
 	}
 
 	syscall_return_slowpath(regs);

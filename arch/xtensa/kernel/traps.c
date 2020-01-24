@@ -51,6 +51,7 @@
 extern void kernel_exception(void);
 extern void user_exception(void);
 
+extern void fast_illegal_instruction_user(void);
 extern void fast_syscall_user(void);
 extern void fast_alloca(void);
 extern void fast_unaligned(void);
@@ -87,6 +88,9 @@ typedef struct {
 
 static dispatch_init_table_t __initdata dispatch_init_table[] = {
 
+#ifdef CONFIG_USER_ABI_CALL0_PROBE
+{ EXCCAUSE_ILLEGAL_INSTRUCTION,	USER,	   fast_illegal_instruction_user },
+#endif
 { EXCCAUSE_ILLEGAL_INSTRUCTION,	0,	   do_illegal_instruction},
 { EXCCAUSE_SYSTEM_CALL,		USER,	   fast_syscall_user },
 { EXCCAUSE_SYSTEM_CALL,		0,	   system_call },
@@ -184,7 +188,7 @@ void do_unhandled(struct pt_regs *regs, unsigned long exccause)
 			    "\tEXCCAUSE is %ld\n",
 			    current->comm, task_pid_nr(current), regs->pc,
 			    exccause);
-	force_sig(SIGILL, current);
+	force_sig(SIGILL);
 }
 
 /*
@@ -306,7 +310,7 @@ do_illegal_instruction(struct pt_regs *regs)
 
 	pr_info_ratelimited("Illegal Instruction in '%s' (pid = %d, pc = %#010lx)\n",
 			    current->comm, task_pid_nr(current), regs->pc);
-	force_sig(SIGILL, current);
+	force_sig(SIGILL);
 }
 
 
@@ -330,7 +334,7 @@ do_unaligned_user (struct pt_regs *regs)
 			    "(pid = %d, pc = %#010lx)\n",
 			    regs->excvaddr, current->comm,
 			    task_pid_nr(current), regs->pc);
-	force_sig_fault(SIGBUS, BUS_ADRALN, (void *) regs->excvaddr, current);
+	force_sig_fault(SIGBUS, BUS_ADRALN, (void *) regs->excvaddr);
 }
 #endif
 
@@ -354,7 +358,7 @@ do_debug(struct pt_regs *regs)
 
 	/* If in user mode, send SIGTRAP signal to current process */
 
-	force_sig(SIGTRAP, current);
+	force_sig(SIGTRAP);
 }
 
 
@@ -487,32 +491,27 @@ void show_trace(struct task_struct *task, unsigned long *sp)
 
 	pr_info("Call Trace:\n");
 	walk_stackframe(sp, show_trace_cb, NULL);
-#ifndef CONFIG_KALLSYMS
-	pr_cont("\n");
-#endif
 }
 
-static int kstack_depth_to_print = 24;
+#define STACK_DUMP_ENTRY_SIZE 4
+#define STACK_DUMP_LINE_SIZE 32
+static size_t kstack_depth_to_print = CONFIG_PRINT_STACK_DEPTH;
 
 void show_stack(struct task_struct *task, unsigned long *sp)
 {
-	int i = 0;
-	unsigned long *stack;
+	size_t len;
 
 	if (!sp)
 		sp = stack_pointer(task);
-	stack = sp;
+
+	len = min((-(size_t)sp) & (THREAD_SIZE - STACK_DUMP_ENTRY_SIZE),
+		  kstack_depth_to_print * STACK_DUMP_ENTRY_SIZE);
 
 	pr_info("Stack:\n");
-
-	for (i = 0; i < kstack_depth_to_print; i++) {
-		if (kstack_end(sp))
-			break;
-		pr_cont(" %08lx", *sp++);
-		if (i % 8 == 7)
-			pr_cont("\n");
-	}
-	show_trace(task, stack);
+	print_hex_dump(KERN_INFO, " ", DUMP_PREFIX_NONE,
+		       STACK_DUMP_LINE_SIZE, STACK_DUMP_ENTRY_SIZE,
+		       sp, len, false);
+	show_trace(task, sp);
 }
 
 DEFINE_SPINLOCK(die_lock);

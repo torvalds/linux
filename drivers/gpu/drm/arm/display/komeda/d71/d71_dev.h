@@ -43,8 +43,12 @@ struct d71_dev {
 
 #define to_d71_pipeline(x)	container_of(x, struct d71_pipeline, base)
 
+extern const struct komeda_pipeline_funcs d71_pipeline_funcs;
+
 int d71_probe_block(struct d71_dev *d71,
 		    struct block_header *blk, u32 __iomem *reg);
 void d71_read_block_header(u32 __iomem *reg, struct block_header *blk);
+
+void d71_dump(struct komeda_dev *mdev, struct seq_file *sf);
 
 #endif /* !_D71_DEV_H_ */

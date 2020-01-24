@@ -203,12 +203,21 @@ static struct ccu_nkmp pll_hsic_clk = {
  * hardcode it to match with the clock names.
  */
 #define SUN50I_H6_PLL_AUDIO_REG		0x078
+
+static struct ccu_sdm_setting pll_audio_sdm_table[] = {
+	{ .rate = 541900800, .pattern = 0xc001288d, .m = 1, .n = 22 },
+	{ .rate = 589824000, .pattern = 0xc00126e9, .m = 1, .n = 24 },
+};
+
 static struct ccu_nm pll_audio_base_clk = {
 	.enable		= BIT(31),
 	.lock		= BIT(28),
 	.n		= _SUNXI_CCU_MULT_MIN(8, 8, 12),
 	.m		= _SUNXI_CCU_DIV(1, 1), /* input divider */
+	.sdm		= _SUNXI_CCU_SDM(pll_audio_sdm_table,
+					 BIT(24), 0x178, BIT(31)),
 	.common		= {
+		.features	= CCU_FEATURE_SIGMA_DELTA_MOD,
 		.reg		= 0x078,
 		.hw.init	= CLK_HW_INIT("pll-audio-base", "osc24M",
 					      &ccu_nm_ops,
@@ -290,7 +299,7 @@ static SUNXI_CCU_M_WITH_MUX_GATE(gpu_clk, "gpu", gpu_parents, 0x670,
 				       0, 3,	/* M */
 				       24, 1,	/* mux */
 				       BIT(31),	/* gate */
-				       0);
+				       CLK_SET_RATE_PARENT);
 
 static SUNXI_CCU_GATE(bus_gpu_clk, "bus-gpu", "psi-ahb1-ahb2",
 		      0x67c, BIT(0), 0);
@@ -505,7 +514,7 @@ static struct ccu_div i2s3_clk = {
 		.hw.init	= CLK_HW_INIT_PARENTS("i2s3",
 						      audio_parents,
 						      &ccu_div_ops,
-						      0),
+						      CLK_SET_RATE_PARENT),
 	},
 };
 
@@ -518,7 +527,7 @@ static struct ccu_div i2s0_clk = {
 		.hw.init	= CLK_HW_INIT_PARENTS("i2s0",
 						      audio_parents,
 						      &ccu_div_ops,
-						      0),
+						      CLK_SET_RATE_PARENT),
 	},
 };
 
@@ -531,7 +540,7 @@ static struct ccu_div i2s1_clk = {
 		.hw.init	= CLK_HW_INIT_PARENTS("i2s1",
 						      audio_parents,
 						      &ccu_div_ops,
-						      0),
+						      CLK_SET_RATE_PARENT),
 	},
 };
 
@@ -544,7 +553,7 @@ static struct ccu_div i2s2_clk = {
 		.hw.init	= CLK_HW_INIT_PARENTS("i2s2",
 						      audio_parents,
 						      &ccu_div_ops,
-						      0),
+						      CLK_SET_RATE_PARENT),
 	},
 };
 
@@ -622,8 +631,9 @@ static SUNXI_CCU_GATE(bus_xhci_clk, "bus-xhci", "ahb3", 0xa8c, BIT(5), 0);
 static SUNXI_CCU_GATE(bus_ehci3_clk, "bus-ehci3", "ahb3", 0xa8c, BIT(7), 0);
 static SUNXI_CCU_GATE(bus_otg_clk, "bus-otg", "ahb3", 0xa8c, BIT(8), 0);
 
-static CLK_FIXED_FACTOR(pcie_ref_100m_clk, "pcie-ref-100M",
-			"pll-periph0-4x", 24, 1, 0);
+static struct clk_fixed_factor pll_periph0_4x_clk;
+static CLK_FIXED_FACTOR_HW(pcie_ref_100m_clk, "pcie-ref-100M",
+			   &pll_periph0_4x_clk.hw, 24, 1, 0);
 static SUNXI_CCU_GATE(pcie_ref_clk, "pcie-ref", "pcie-ref-100M",
 		      0xab0, BIT(31), 0);
 static SUNXI_CCU_GATE(pcie_ref_out_clk, "pcie-ref-out", "pcie-ref",
@@ -745,34 +755,52 @@ static SUNXI_CCU_M_WITH_MUX_GATE(hdcp_clk, "hdcp", hdcp_parents, 0xc40,
 static SUNXI_CCU_GATE(bus_hdcp_clk, "bus-hdcp", "ahb3", 0xc4c, BIT(0), 0);
 
 /* Fixed factor clocks */
-static CLK_FIXED_FACTOR(osc12M_clk, "osc12M", "osc24M", 2, 1, 0);
+static CLK_FIXED_FACTOR_FW_NAME(osc12M_clk, "osc12M", "hosc", 2, 1, 0);
+
+static const struct clk_hw *clk_parent_pll_audio[] = {
+	&pll_audio_base_clk.common.hw
+};
 
 /*
- * The divider of pll-audio is fixed to 8 now, as pll-audio-4x has a
- * fixed post-divider 2.
+ * The divider of pll-audio is fixed to 24 for now, so 24576000 and 22579200
+ * rates can be set exactly in conjunction with sigma-delta modulation.
  */
-static CLK_FIXED_FACTOR(pll_audio_clk, "pll-audio",
-			"pll-audio-base", 8, 1, CLK_SET_RATE_PARENT);
-static CLK_FIXED_FACTOR(pll_audio_2x_clk, "pll-audio-2x",
-			"pll-audio-base", 4, 1, CLK_SET_RATE_PARENT);
-static CLK_FIXED_FACTOR(pll_audio_4x_clk, "pll-audio-4x",
-			"pll-audio-base", 2, 1, CLK_SET_RATE_PARENT);
+static CLK_FIXED_FACTOR_HWS(pll_audio_clk, "pll-audio",
+			    clk_parent_pll_audio,
+			    24, 1, CLK_SET_RATE_PARENT);
+static CLK_FIXED_FACTOR_HWS(pll_audio_2x_clk, "pll-audio-2x",
+			    clk_parent_pll_audio,
+			    4, 1, CLK_SET_RATE_PARENT);
+static CLK_FIXED_FACTOR_HWS(pll_audio_4x_clk, "pll-audio-4x",
+			    clk_parent_pll_audio,
+			    2, 1, CLK_SET_RATE_PARENT);
 
-static CLK_FIXED_FACTOR(pll_periph0_4x_clk, "pll-periph0-4x",
-			"pll-periph0", 1, 4, 0);
-static CLK_FIXED_FACTOR(pll_periph0_2x_clk, "pll-periph0-2x",
-			"pll-periph0", 1, 2, 0);
+static const struct clk_hw *pll_periph0_parents[] = {
+	&pll_periph0_clk.common.hw
+};
+static CLK_FIXED_FACTOR_HWS(pll_periph0_4x_clk, "pll-periph0-4x",
+			    pll_periph0_parents,
+			    1, 4, 0);
+static CLK_FIXED_FACTOR_HWS(pll_periph0_2x_clk, "pll-periph0-2x",
+			    pll_periph0_parents,
+			    1, 2, 0);
 
-static CLK_FIXED_FACTOR(pll_periph1_4x_clk, "pll-periph1-4x",
-			"pll-periph1", 1, 4, 0);
-static CLK_FIXED_FACTOR(pll_periph1_2x_clk, "pll-periph1-2x",
-			"pll-periph1", 1, 2, 0);
+static const struct clk_hw *pll_periph1_parents[] = {
+	&pll_periph1_clk.common.hw
+};
+static CLK_FIXED_FACTOR_HWS(pll_periph1_4x_clk, "pll-periph1-4x",
+			    pll_periph1_parents,
+			    1, 4, 0);
+static CLK_FIXED_FACTOR_HWS(pll_periph1_2x_clk, "pll-periph1-2x",
+			    pll_periph1_parents,
+			    1, 2, 0);
 
-static CLK_FIXED_FACTOR(pll_video0_4x_clk, "pll-video0-4x",
-			"pll-video0", 1, 4, CLK_SET_RATE_PARENT);
-
-static CLK_FIXED_FACTOR(pll_video1_4x_clk, "pll-video1-4x",
-			"pll-video1", 1, 4, CLK_SET_RATE_PARENT);
+static CLK_FIXED_FACTOR_HW(pll_video0_4x_clk, "pll-video0-4x",
+			   &pll_video0_clk.common.hw,
+			   1, 4, CLK_SET_RATE_PARENT);
+static CLK_FIXED_FACTOR_HW(pll_video1_4x_clk, "pll-video1-4x",
+			   &pll_video1_clk.common.hw,
+			   1, 4, CLK_SET_RATE_PARENT);
 
 static struct ccu_common *sun50i_h6_ccu_clks[] = {
 	&pll_cpux_clk.common,
@@ -1196,12 +1224,12 @@ static int sun50i_h6_ccu_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * Force the post-divider of pll-audio to 8 and the output divider
-	 * of it to 1, to make the clock name represents the real frequency.
+	 * Force the post-divider of pll-audio to 12 and the output divider
+	 * of it to 2, so 24576000 and 22579200 rates can be set exactly.
 	 */
 	val = readl(reg + SUN50I_H6_PLL_AUDIO_REG);
 	val &= ~(GENMASK(21, 16) | BIT(0));
-	writel(val | (7 << 16), reg + SUN50I_H6_PLL_AUDIO_REG);
+	writel(val | (11 << 16) | BIT(0), reg + SUN50I_H6_PLL_AUDIO_REG);
 
 	/*
 	 * First clock parent (osc32K) is unusable for CEC. But since there

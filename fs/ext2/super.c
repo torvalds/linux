@@ -162,8 +162,7 @@ static void ext2_put_super (struct super_block * sb)
 	}
 	db_count = sbi->s_gdb_count;
 	for (i = 0; i < db_count; i++)
-		if (sbi->s_group_desc[i])
-			brelse (sbi->s_group_desc[i]);
+		brelse(sbi->s_group_desc[i]);
 	kfree(sbi->s_group_desc);
 	kfree(sbi->s_debts);
 	percpu_counter_destroy(&sbi->s_freeblocks_counter);
@@ -303,16 +302,16 @@ static int ext2_show_options(struct seq_file *seq, struct dentry *root)
 	if (test_opt(sb, NOBH))
 		seq_puts(seq, ",nobh");
 
-	if (sbi->s_mount_opt & EXT2_MOUNT_USRQUOTA)
+	if (test_opt(sb, USRQUOTA))
 		seq_puts(seq, ",usrquota");
 
-	if (sbi->s_mount_opt & EXT2_MOUNT_GRPQUOTA)
+	if (test_opt(sb, GRPQUOTA))
 		seq_puts(seq, ",grpquota");
 
-	if (sbi->s_mount_opt & EXT2_MOUNT_XIP)
+	if (test_opt(sb, XIP))
 		seq_puts(seq, ",xip");
 
-	if (sbi->s_mount_opt & EXT2_MOUNT_DAX)
+	if (test_opt(sb, DAX))
 		seq_puts(seq, ",dax");
 
 	if (!test_opt(sb, RESERVATION))
@@ -703,13 +702,7 @@ static int ext2_check_descriptors(struct super_block *sb)
 	for (i = 0; i < sbi->s_groups_count; i++) {
 		struct ext2_group_desc *gdp = ext2_get_group_desc(sb, i, NULL);
 		ext2_fsblk_t first_block = ext2_group_first_block_no(sb, i);
-		ext2_fsblk_t last_block;
-
-		if (i == sbi->s_groups_count - 1)
-			last_block = le32_to_cpu(sbi->s_es->s_blocks_count) - 1;
-		else
-			last_block = first_block +
-				(EXT2_BLOCKS_PER_GROUP(sb) - 1);
+		ext2_fsblk_t last_block = ext2_group_last_block_no(sb, i);
 
 		if (le32_to_cpu(gdp->bg_block_bitmap) < first_block ||
 		    le32_to_cpu(gdp->bg_block_bitmap) > last_block)
@@ -807,7 +800,6 @@ static unsigned long descriptor_loc(struct super_block *sb,
 {
 	struct ext2_sb_info *sbi = EXT2_SB(sb);
 	unsigned long bg, first_meta_bg;
-	int has_super = 0;
 	
 	first_meta_bg = le32_to_cpu(sbi->s_es->s_first_meta_bg);
 
@@ -815,10 +807,8 @@ static unsigned long descriptor_loc(struct super_block *sb,
 	    nr < first_meta_bg)
 		return (logic_sb_block + nr + 1);
 	bg = sbi->s_desc_per_block * nr;
-	if (ext2_bg_has_super(sb, bg))
-		has_super = 1;
 
-	return ext2_group_first_block_no(sb, bg) + has_super;
+	return ext2_group_first_block_no(sb, bg) + ext2_bg_has_super(sb, bg);
 }
 
 static int ext2_fill_super(struct super_block *sb, void *data, int silent)
@@ -935,8 +925,7 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->s_resgid = opts.s_resgid;
 
 	sb->s_flags = (sb->s_flags & ~SB_POSIXACL) |
-		((EXT2_SB(sb)->s_mount_opt & EXT2_MOUNT_POSIX_ACL) ?
-		 SB_POSIXACL : 0);
+		(test_opt(sb, POSIX_ACL) ? SB_POSIXACL : 0);
 	sb->s_iflags |= SB_I_CGROUPWB;
 
 	if (le32_to_cpu(es->s_rev_level) == EXT2_GOOD_OLD_REV &&
@@ -967,11 +956,11 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 
 	blocksize = BLOCK_SIZE << le32_to_cpu(sbi->s_es->s_log_block_size);
 
-	if (sbi->s_mount_opt & EXT2_MOUNT_DAX) {
+	if (test_opt(sb, DAX)) {
 		if (!bdev_dax_supported(sb->s_bdev, blocksize)) {
 			ext2_msg(sb, KERN_ERR,
 				"DAX unsupported by block device. Turning off DAX.");
-			sbi->s_mount_opt &= ~EXT2_MOUNT_DAX;
+			clear_opt(sbi->s_mount_opt, DAX);
 		}
 	}
 
@@ -1003,6 +992,8 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 
 	sb->s_maxbytes = ext2_max_size(sb->s_blocksize_bits);
 	sb->s_max_links = EXT2_LINK_MAX;
+	sb->s_time_min = S32_MIN;
+	sb->s_time_max = S32_MAX;
 
 	if (le32_to_cpu(es->s_rev_level) == EXT2_GOOD_OLD_REV) {
 		sbi->s_inode_size = EXT2_GOOD_OLD_INODE_SIZE;
@@ -1404,7 +1395,7 @@ out_set:
 	sbi->s_resuid = new_opts.s_resuid;
 	sbi->s_resgid = new_opts.s_resgid;
 	sb->s_flags = (sb->s_flags & ~SB_POSIXACL) |
-		((sbi->s_mount_opt & EXT2_MOUNT_POSIX_ACL) ? SB_POSIXACL : 0);
+		(test_opt(sb, POSIX_ACL) ? SB_POSIXACL : 0);
 	spin_unlock(&sbi->s_lock);
 
 	return 0;

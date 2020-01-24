@@ -13,7 +13,11 @@
 #include <linux/refcount.h>
 #include <linux/types.h>
 
-struct namespaces_event;
+#ifndef HAVE_SETNS_SUPPORT
+int setns(int fd, int nstype);
+#endif
+
+struct perf_record_namespaces;
 
 struct namespaces {
 	struct list_head list;
@@ -21,7 +25,7 @@ struct namespaces {
 	struct perf_ns_link_info link_info[];
 };
 
-struct namespaces *namespaces__new(struct namespaces_event *event);
+struct namespaces *namespaces__new(struct perf_record_namespaces *event);
 void namespaces__free(struct namespaces *namespaces);
 
 struct nsinfo {
@@ -61,5 +65,7 @@ static inline void __nsinfo__zput(struct nsinfo **nsip)
 }
 
 #define nsinfo__zput(nsi) __nsinfo__zput(&nsi)
+
+const char *perf_ns__name(unsigned int id);
 
 #endif  /* __PERF_NAMESPACES_H */

@@ -1004,6 +1004,8 @@ static void __team_compute_features(struct team *team)
 
 	team->dev->vlan_features = vlan_features;
 	team->dev->hw_enc_features = enc_features | NETIF_F_GSO_ENCAP_ALL |
+				     NETIF_F_HW_VLAN_CTAG_TX |
+				     NETIF_F_HW_VLAN_STAG_TX |
 				     NETIF_F_GSO_UDP_L4;
 	team->dev->hard_header_len = max_hard_header_len;
 
@@ -1613,7 +1615,6 @@ static int team_init(struct net_device *dev)
 	int err;
 
 	team->dev = dev;
-	mutex_init(&team->lock);
 	team_set_no_mode(team);
 
 	team->pcpu_stats = netdev_alloc_pcpu_stats(struct team_pcpu_stats);
@@ -1640,7 +1641,8 @@ static int team_init(struct net_device *dev)
 		goto err_options_register;
 	netif_carrier_off(dev);
 
-	netdev_lockdep_set_classes(dev);
+	lockdep_register_key(&team->team_lock_key);
+	__mutex_init(&team->lock, "team->team_lock_key", &team->team_lock_key);
 
 	return 0;
 
@@ -1671,6 +1673,7 @@ static void team_uninit(struct net_device *dev)
 	team_queue_override_fini(team);
 	mutex_unlock(&team->lock);
 	netdev_change_features(dev);
+	lockdep_unregister_key(&team->team_lock_key);
 }
 
 static void team_destructor(struct net_device *dev)
@@ -1974,8 +1977,15 @@ static int team_del_slave(struct net_device *dev, struct net_device *port_dev)
 	err = team_port_del(team, port_dev);
 	mutex_unlock(&team->lock);
 
-	if (!err)
-		netdev_change_features(dev);
+	if (err)
+		return err;
+
+	if (netif_is_team_master(port_dev)) {
+		lockdep_unregister_key(&team->team_lock_key);
+		lockdep_register_key(&team->team_lock_key);
+		lockdep_set_class(&team->lock, &team->team_lock_key);
+	}
+	netdev_change_features(dev);
 
 	return err;
 }
@@ -2054,9 +2064,37 @@ static void team_ethtool_get_drvinfo(struct net_device *dev,
 	strlcpy(drvinfo->version, UTS_RELEASE, sizeof(drvinfo->version));
 }
 
+static int team_ethtool_get_link_ksettings(struct net_device *dev,
+					   struct ethtool_link_ksettings *cmd)
+{
+	struct team *team= netdev_priv(dev);
+	unsigned long speed = 0;
+	struct team_port *port;
+
+	cmd->base.duplex = DUPLEX_UNKNOWN;
+	cmd->base.port = PORT_OTHER;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(port, &team->port_list, list) {
+		if (team_port_txable(port)) {
+			if (port->state.speed != SPEED_UNKNOWN)
+				speed += port->state.speed;
+			if (cmd->base.duplex == DUPLEX_UNKNOWN &&
+			    port->state.duplex != DUPLEX_UNKNOWN)
+				cmd->base.duplex = port->state.duplex;
+		}
+	}
+	rcu_read_unlock();
+
+	cmd->base.speed = speed ? : SPEED_UNKNOWN;
+
+	return 0;
+}
+
 static const struct ethtool_ops team_ethtool_ops = {
 	.get_drvinfo		= team_ethtool_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
+	.get_link_ksettings	= team_ethtool_get_link_ksettings,
 };
 
 /***********************
@@ -2128,12 +2166,12 @@ static void team_setup(struct net_device *dev)
 	dev->features |= NETIF_F_NETNS_LOCAL;
 
 	dev->hw_features = TEAM_VLAN_FEATURES |
-			   NETIF_F_HW_VLAN_CTAG_TX |
 			   NETIF_F_HW_VLAN_CTAG_RX |
 			   NETIF_F_HW_VLAN_CTAG_FILTER;
 
 	dev->hw_features |= NETIF_F_GSO_ENCAP_ALL | NETIF_F_GSO_UDP_L4;
 	dev->features |= dev->hw_features;
+	dev->features |= NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_STAG_TX;
 }
 
 static int team_newlink(struct net *src_net, struct net_device *dev,

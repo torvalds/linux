@@ -144,6 +144,7 @@ static inline void cec_msg_set_reply_to(struct cec_msg *msg,
 
 /* cec_msg flags field */
 #define CEC_MSG_FL_REPLY_TO_FOLLOWERS	(1 << 0)
+#define CEC_MSG_FL_RAW			(1 << 1)
 
 /* cec_msg tx/rx_status field */
 #define CEC_TX_STATUS_OK		(1 << 0)
@@ -316,6 +317,8 @@ static inline int cec_is_unconfigured(__u16 log_addr_mask)
 #define CEC_CAP_NEEDS_HPD	(1 << 6)
 /* Hardware can monitor CEC pin transitions */
 #define CEC_CAP_MONITOR_PIN	(1 << 7)
+/* CEC_ADAP_G_CONNECTOR_INFO is available */
+#define CEC_CAP_CONNECTOR_INFO	(1 << 8)
 
 /**
  * struct cec_caps - CEC capabilities structure.
@@ -374,6 +377,34 @@ struct cec_log_addrs {
 /* CDC-Only device: supports only CDC messages */
 #define CEC_LOG_ADDRS_FL_CDC_ONLY		(1 << 2)
 
+/**
+ * struct cec_drm_connector_info - tells which drm connector is
+ * associated with the CEC adapter.
+ * @card_no: drm card number
+ * @connector_id: drm connector ID
+ */
+struct cec_drm_connector_info {
+	__u32 card_no;
+	__u32 connector_id;
+};
+
+#define CEC_CONNECTOR_TYPE_NO_CONNECTOR	0
+#define CEC_CONNECTOR_TYPE_DRM		1
+
+/**
+ * struct cec_connector_info - tells if and which connector is
+ * associated with the CEC adapter.
+ * @type: connector type (if any)
+ * @drm: drm connector info
+ */
+struct cec_connector_info {
+	__u32 type;
+	union {
+		struct cec_drm_connector_info drm;
+		__u32 raw[16];
+	};
+};
+
 /* Events */
 
 /* Event that occurs when the adapter state changes */
@@ -397,10 +428,17 @@ struct cec_log_addrs {
  * struct cec_event_state_change - used when the CEC adapter changes state.
  * @phys_addr: the current physical address
  * @log_addr_mask: the current logical address mask
+ * @have_conn_info: if non-zero, then HDMI connector information is available.
+ *	This field is only valid if CEC_CAP_CONNECTOR_INFO is set. If that
+ *	capability is set and @have_conn_info is zero, then that indicates
+ *	that the HDMI connector device is not instantiated, either because
+ *	the HDMI driver is still configuring the device or because the HDMI
+ *	device was unbound.
  */
 struct cec_event_state_change {
 	__u16 phys_addr;
 	__u16 log_addr_mask;
+	__u16 have_conn_info;
 };
 
 /**
@@ -474,6 +512,9 @@ struct cec_event {
  */
 #define CEC_G_MODE		_IOR('a',  8, __u32)
 #define CEC_S_MODE		_IOW('a',  9, __u32)
+
+/* Get the connector info */
+#define CEC_ADAP_G_CONNECTOR_INFO _IOR('a',  10, struct cec_connector_info)
 
 /*
  * The remainder of this header defines all CEC messages and operands.
@@ -767,8 +808,8 @@ struct cec_event {
 #define CEC_MSG_SELECT_DIGITAL_SERVICE			0x93
 #define CEC_MSG_TUNER_DEVICE_STATUS			0x07
 /* Recording Flag Operand (rec_flag) */
-#define CEC_OP_REC_FLAG_USED				0
-#define CEC_OP_REC_FLAG_NOT_USED			1
+#define CEC_OP_REC_FLAG_NOT_USED			0
+#define CEC_OP_REC_FLAG_USED				1
 /* Tuner Display Info Operand (tuner_display_info) */
 #define CEC_OP_TUNER_DISPLAY_INFO_DIGITAL		0
 #define CEC_OP_TUNER_DISPLAY_INFO_NONE			1
@@ -819,6 +860,95 @@ struct cec_event {
 #define CEC_OP_MENU_STATE_DEACTIVATED			0x01
 
 #define CEC_MSG_USER_CONTROL_PRESSED			0x44
+/* UI Command Operand (ui_cmd) */
+#define CEC_OP_UI_CMD_SELECT				0x00
+#define CEC_OP_UI_CMD_UP				0x01
+#define CEC_OP_UI_CMD_DOWN				0x02
+#define CEC_OP_UI_CMD_LEFT				0x03
+#define CEC_OP_UI_CMD_RIGHT				0x04
+#define CEC_OP_UI_CMD_RIGHT_UP				0x05
+#define CEC_OP_UI_CMD_RIGHT_DOWN			0x06
+#define CEC_OP_UI_CMD_LEFT_UP				0x07
+#define CEC_OP_UI_CMD_LEFT_DOWN				0x08
+#define CEC_OP_UI_CMD_DEVICE_ROOT_MENU			0x09
+#define CEC_OP_UI_CMD_DEVICE_SETUP_MENU			0x0a
+#define CEC_OP_UI_CMD_CONTENTS_MENU			0x0b
+#define CEC_OP_UI_CMD_FAVORITE_MENU			0x0c
+#define CEC_OP_UI_CMD_BACK				0x0d
+#define CEC_OP_UI_CMD_MEDIA_TOP_MENU			0x10
+#define CEC_OP_UI_CMD_MEDIA_CONTEXT_SENSITIVE_MENU	0x11
+#define CEC_OP_UI_CMD_NUMBER_ENTRY_MODE			0x1d
+#define CEC_OP_UI_CMD_NUMBER_11				0x1e
+#define CEC_OP_UI_CMD_NUMBER_12				0x1f
+#define CEC_OP_UI_CMD_NUMBER_0_OR_NUMBER_10		0x20
+#define CEC_OP_UI_CMD_NUMBER_1				0x21
+#define CEC_OP_UI_CMD_NUMBER_2				0x22
+#define CEC_OP_UI_CMD_NUMBER_3				0x23
+#define CEC_OP_UI_CMD_NUMBER_4				0x24
+#define CEC_OP_UI_CMD_NUMBER_5				0x25
+#define CEC_OP_UI_CMD_NUMBER_6				0x26
+#define CEC_OP_UI_CMD_NUMBER_7				0x27
+#define CEC_OP_UI_CMD_NUMBER_8				0x28
+#define CEC_OP_UI_CMD_NUMBER_9				0x29
+#define CEC_OP_UI_CMD_DOT				0x2a
+#define CEC_OP_UI_CMD_ENTER				0x2b
+#define CEC_OP_UI_CMD_CLEAR				0x2c
+#define CEC_OP_UI_CMD_NEXT_FAVORITE			0x2f
+#define CEC_OP_UI_CMD_CHANNEL_UP			0x30
+#define CEC_OP_UI_CMD_CHANNEL_DOWN			0x31
+#define CEC_OP_UI_CMD_PREVIOUS_CHANNEL			0x32
+#define CEC_OP_UI_CMD_SOUND_SELECT			0x33
+#define CEC_OP_UI_CMD_INPUT_SELECT			0x34
+#define CEC_OP_UI_CMD_DISPLAY_INFORMATION		0x35
+#define CEC_OP_UI_CMD_HELP				0x36
+#define CEC_OP_UI_CMD_PAGE_UP				0x37
+#define CEC_OP_UI_CMD_PAGE_DOWN				0x38
+#define CEC_OP_UI_CMD_POWER				0x40
+#define CEC_OP_UI_CMD_VOLUME_UP				0x41
+#define CEC_OP_UI_CMD_VOLUME_DOWN			0x42
+#define CEC_OP_UI_CMD_MUTE				0x43
+#define CEC_OP_UI_CMD_PLAY				0x44
+#define CEC_OP_UI_CMD_STOP				0x45
+#define CEC_OP_UI_CMD_PAUSE				0x46
+#define CEC_OP_UI_CMD_RECORD				0x47
+#define CEC_OP_UI_CMD_REWIND				0x48
+#define CEC_OP_UI_CMD_FAST_FORWARD			0x49
+#define CEC_OP_UI_CMD_EJECT				0x4a
+#define CEC_OP_UI_CMD_SKIP_FORWARD			0x4b
+#define CEC_OP_UI_CMD_SKIP_BACKWARD			0x4c
+#define CEC_OP_UI_CMD_STOP_RECORD			0x4d
+#define CEC_OP_UI_CMD_PAUSE_RECORD			0x4e
+#define CEC_OP_UI_CMD_ANGLE				0x50
+#define CEC_OP_UI_CMD_SUB_PICTURE			0x51
+#define CEC_OP_UI_CMD_VIDEO_ON_DEMAND			0x52
+#define CEC_OP_UI_CMD_ELECTRONIC_PROGRAM_GUIDE		0x53
+#define CEC_OP_UI_CMD_TIMER_PROGRAMMING			0x54
+#define CEC_OP_UI_CMD_INITIAL_CONFIGURATION		0x55
+#define CEC_OP_UI_CMD_SELECT_BROADCAST_TYPE		0x56
+#define CEC_OP_UI_CMD_SELECT_SOUND_PRESENTATION		0x57
+#define CEC_OP_UI_CMD_AUDIO_DESCRIPTION			0x58
+#define CEC_OP_UI_CMD_INTERNET				0x59
+#define CEC_OP_UI_CMD_3D_MODE				0x5a
+#define CEC_OP_UI_CMD_PLAY_FUNCTION			0x60
+#define CEC_OP_UI_CMD_PAUSE_PLAY_FUNCTION		0x61
+#define CEC_OP_UI_CMD_RECORD_FUNCTION			0x62
+#define CEC_OP_UI_CMD_PAUSE_RECORD_FUNCTION		0x63
+#define CEC_OP_UI_CMD_STOP_FUNCTION			0x64
+#define CEC_OP_UI_CMD_MUTE_FUNCTION			0x65
+#define CEC_OP_UI_CMD_RESTORE_VOLUME_FUNCTION		0x66
+#define CEC_OP_UI_CMD_TUNE_FUNCTION			0x67
+#define CEC_OP_UI_CMD_SELECT_MEDIA_FUNCTION		0x68
+#define CEC_OP_UI_CMD_SELECT_AV_INPUT_FUNCTION		0x69
+#define CEC_OP_UI_CMD_SELECT_AUDIO_INPUT_FUNCTION	0x6a
+#define CEC_OP_UI_CMD_POWER_TOGGLE_FUNCTION		0x6b
+#define CEC_OP_UI_CMD_POWER_OFF_FUNCTION		0x6c
+#define CEC_OP_UI_CMD_POWER_ON_FUNCTION			0x6d
+#define CEC_OP_UI_CMD_F1_BLUE				0x71
+#define CEC_OP_UI_CMD_F2_RED				0x72
+#define CEC_OP_UI_CMD_F3_GREEN				0x73
+#define CEC_OP_UI_CMD_F4_YELLOW				0x74
+#define CEC_OP_UI_CMD_F5				0x75
+#define CEC_OP_UI_CMD_DATA				0x76
 /* UI Broadcast Type Operand (ui_bcast_type) */
 #define CEC_OP_UI_BCAST_TYPE_TOGGLE_ALL			0x00
 #define CEC_OP_UI_BCAST_TYPE_TOGGLE_DIG_ANA		0x01

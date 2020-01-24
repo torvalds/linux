@@ -9,6 +9,7 @@
 /dts-v1/;
 #include "r7s9210.dtsi"
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 #include <dt-bindings/pinctrl/r7s9210-pinctrl.h>
 
 / {
@@ -17,6 +18,8 @@
 
 	aliases {
 		serial0 = &scif4;
+		ethernet0 = &ether0;
+		ethernet1 = &ether1;
 	};
 
 	chosen {
@@ -24,9 +27,19 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory@40000000 {
-		device_type = "memory";
-		reg = <0x40000000 0x00800000>;	 /* HyperRAM */
+	keyboard {
+		compatible = "gpio-keys";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&keyboard_pins>;
+
+		key-3 {
+			interrupt-parent = <&irqc>;
+			interrupts = <0 IRQ_TYPE_EDGE_BOTH>;
+			linux,code = <KEY_3>;
+			label = "SW3";
+			wakeup-source;
+		};
 	};
 
 	lbsc {
@@ -44,24 +57,46 @@
 			gpios = <&pinctrl RZA2_PIN(PORTC, 1) GPIO_ACTIVE_HIGH>;
 		};
 	};
+
+	memory@40000000 {
+		device_type = "memory";
+		reg = <0x40000000 0x00800000>;	 /* HyperRAM */
+	};
+};
+
+&ehci0 {
+	status = "okay";
+};
+
+&ehci1 {
+	status = "okay";
+};
+
+&ether0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&eth0_pins>;
+	status = "okay";
+	renesas,no-ether-link;
+	phy-handle = <&phy0>;
+	phy0: ethernet-phy@0 {
+		reg = <0>;
+	};
+};
+
+&ether1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&eth1_pins>;
+	status = "okay";
+	renesas,no-ether-link;
+	phy-handle = <&phy1>;
+	phy1: ethernet-phy@1 {
+		reg = <0>;
+	};
 };
 
 /* EXTAL */
 &extal_clk {
 	clock-frequency = <24000000>;	/* 24MHz */
-};
-
-/* RTC_X1 */
-&rtc_x1_clk {
-	clock-frequency = <32768>;
-};
-
-&pinctrl {
-	/* Serial Console */
-	scif4_pins: serial4 {
-		pinmux = <RZA2_PINMUX(PORT9, 0, 4)>,	/* TxD4 */
-			 <RZA2_PINMUX(PORT9, 1, 4)>;	/* RxD4 */
-	};
 };
 
 /* High resolution System tick timers */
@@ -73,10 +108,112 @@
 	status = "okay";
 };
 
+&pinctrl {
+	eth0_pins: eth0 {
+		pinmux = <RZA2_PINMUX(PORTE, 0, 7)>, /* REF50CK0 */
+			 <RZA2_PINMUX(PORT6, 1, 7)>, /* RMMI0_TXDEN */
+			 <RZA2_PINMUX(PORT6, 2, 7)>, /* RMII0_TXD0 */
+			 <RZA2_PINMUX(PORT6, 3, 7)>, /* RMII0_TXD1 */
+			 <RZA2_PINMUX(PORTE, 4, 7)>, /* RMII0_CRSDV */
+			 <RZA2_PINMUX(PORTE, 1, 7)>, /* RMII0_RXD0 */
+			 <RZA2_PINMUX(PORTE, 2, 7)>, /* RMII0_RXD1 */
+			 <RZA2_PINMUX(PORTE, 3, 7)>, /* RMII0_RXER */
+			 <RZA2_PINMUX(PORTE, 5, 1)>, /* ET0_MDC */
+			 <RZA2_PINMUX(PORTE, 6, 1)>, /* ET0_MDIO */
+			 <RZA2_PINMUX(PORTL, 0, 5)>; /* IRQ4 */
+	};
+
+	eth1_pins: eth1 {
+		pinmux = <RZA2_PINMUX(PORTK, 3, 7)>, /* REF50CK1 */
+			 <RZA2_PINMUX(PORTK, 0, 7)>, /* RMMI1_TXDEN */
+			 <RZA2_PINMUX(PORTK, 1, 7)>, /* RMII1_TXD0 */
+			 <RZA2_PINMUX(PORTK, 2, 7)>, /* RMII1_TXD1 */
+			 <RZA2_PINMUX(PORT3, 2, 7)>, /* RMII1_CRSDV */
+			 <RZA2_PINMUX(PORTK, 4, 7)>, /* RMII1_RXD0 */
+			 <RZA2_PINMUX(PORT3, 5, 7)>, /* RMII1_RXD1 */
+			 <RZA2_PINMUX(PORT3, 1, 7)>, /* RMII1_RXER */
+			 <RZA2_PINMUX(PORT3, 3, 1)>, /* ET1_MDC */
+			 <RZA2_PINMUX(PORT3, 4, 1)>, /* ET1_MDIO */
+			 <RZA2_PINMUX(PORTL, 1, 5)>; /* IRQ5 */
+	};
+
+	keyboard_pins: keyboard {
+		pinmux = <RZA2_PINMUX(PORTJ, 1, 6)>;	/* IRQ0 */
+	};
+
+	/* Serial Console */
+	scif4_pins: serial4 {
+		pinmux = <RZA2_PINMUX(PORT9, 0, 4)>,	/* TxD4 */
+			 <RZA2_PINMUX(PORT9, 1, 4)>;	/* RxD4 */
+	};
+
+	sdhi0_pins: sdhi0 {
+		pinmux = <RZA2_PINMUX(PORT5, 0, 3)>,	/* SD0_CD */
+			 <RZA2_PINMUX(PORT5, 1, 3)>;	/* SD0_WP */
+	};
+
+	sdhi1_pins: sdhi1 {
+		pinmux = <RZA2_PINMUX(PORT5, 4, 3)>,	/* SD1_CD */
+			 <RZA2_PINMUX(PORT5, 5, 3)>;	/* SD1_WP */
+	};
+
+	usb0_pins: usb0 {
+		pinmux = <RZA2_PINMUX(PORT5, 2, 3)>,	/* VBUSIN0 */
+			 <RZA2_PINMUX(PORTC, 6, 1)>,	/* VBUSEN0 */
+			 <RZA2_PINMUX(PORTC, 7, 1)>;	/* OVRCUR0 */
+	};
+
+	usb1_pins: usb1 {
+		pinmux = <RZA2_PINMUX(PORTC, 0, 1)>,	/* VBUSIN1 */
+			 <RZA2_PINMUX(PORTC, 5, 1)>,	/* VBUSEN1 */
+			 <RZA2_PINMUX(PORT7, 5, 5)>;	/* OVRCUR1 */
+	};
+};
+
+/* RTC_X1 */
+&rtc_x1_clk {
+	clock-frequency = <32768>;
+};
+
 /* Serial Console */
 &scif4 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&scif4_pins>;
 
 	status = "okay";
+};
+
+&sdhi0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdhi0_pins>;
+	bus-width = <4>;
+	status = "okay";
+};
+
+&sdhi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdhi1_pins>;
+	bus-width = <4>;
+	status = "okay";
+};
+
+/* USB-0 as Host */
+&usb2_phy0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&usb0_pins>;
+	dr_mode = "host";	/* Requires JP3 to be fitted */
+	status = "okay";
+};
+
+/* USB-1 as Host */
+&usb2_phy1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&usb1_pins>;
+	dr_mode = "host";
+	status = "okay";
+};
+
+/* USB_X1 */
+&usb_x1_clk {
+	clock-frequency = <48000000>;
 };

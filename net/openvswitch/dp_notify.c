@@ -48,7 +48,7 @@ void ovs_dp_notify_wq(struct work_struct *work)
 				if (vport->ops->type == OVS_VPORT_TYPE_INTERNAL)
 					continue;
 
-				if (!(vport->dev->priv_flags & IFF_OVS_DATAPATH))
+				if (!(netif_is_ovs_port(vport->dev)))
 					dp_detach_port_notify(vport);
 			}
 		}

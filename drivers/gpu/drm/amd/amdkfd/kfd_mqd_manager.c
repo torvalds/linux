@@ -23,34 +23,74 @@
 
 #include "kfd_mqd_manager.h"
 #include "amdgpu_amdkfd.h"
+#include "kfd_device_queue_manager.h"
 
-struct mqd_manager *mqd_manager_init(enum KFD_MQD_TYPE type,
-					struct kfd_dev *dev)
+/* Mapping queue priority to pipe priority, indexed by queue priority */
+int pipe_priority_map[] = {
+	KFD_PIPE_PRIORITY_CS_LOW,
+	KFD_PIPE_PRIORITY_CS_LOW,
+	KFD_PIPE_PRIORITY_CS_LOW,
+	KFD_PIPE_PRIORITY_CS_LOW,
+	KFD_PIPE_PRIORITY_CS_LOW,
+	KFD_PIPE_PRIORITY_CS_LOW,
+	KFD_PIPE_PRIORITY_CS_LOW,
+	KFD_PIPE_PRIORITY_CS_MEDIUM,
+	KFD_PIPE_PRIORITY_CS_MEDIUM,
+	KFD_PIPE_PRIORITY_CS_MEDIUM,
+	KFD_PIPE_PRIORITY_CS_MEDIUM,
+	KFD_PIPE_PRIORITY_CS_HIGH,
+	KFD_PIPE_PRIORITY_CS_HIGH,
+	KFD_PIPE_PRIORITY_CS_HIGH,
+	KFD_PIPE_PRIORITY_CS_HIGH,
+	KFD_PIPE_PRIORITY_CS_HIGH
+};
+
+struct kfd_mem_obj *allocate_hiq_mqd(struct kfd_dev *dev, struct queue_properties *q)
 {
-	switch (dev->device_info->asic_family) {
-	case CHIP_KAVERI:
-		return mqd_manager_init_cik(type, dev);
-	case CHIP_HAWAII:
-		return mqd_manager_init_cik_hawaii(type, dev);
-	case CHIP_CARRIZO:
-		return mqd_manager_init_vi(type, dev);
-	case CHIP_TONGA:
-	case CHIP_FIJI:
-	case CHIP_POLARIS10:
-	case CHIP_POLARIS11:
-	case CHIP_POLARIS12:
-		return mqd_manager_init_vi_tonga(type, dev);
-	case CHIP_VEGA10:
-	case CHIP_VEGA12:
-	case CHIP_VEGA20:
-	case CHIP_RAVEN:
-		return mqd_manager_init_v9(type, dev);
-	default:
-		WARN(1, "Unexpected ASIC family %u",
-		     dev->device_info->asic_family);
-	}
+	struct kfd_mem_obj *mqd_mem_obj = NULL;
 
-	return NULL;
+	mqd_mem_obj = kzalloc(sizeof(struct kfd_mem_obj), GFP_KERNEL);
+	if (!mqd_mem_obj)
+		return NULL;
+
+	mqd_mem_obj->gtt_mem = dev->dqm->hiq_sdma_mqd.gtt_mem;
+	mqd_mem_obj->gpu_addr = dev->dqm->hiq_sdma_mqd.gpu_addr;
+	mqd_mem_obj->cpu_ptr = dev->dqm->hiq_sdma_mqd.cpu_ptr;
+
+	return mqd_mem_obj;
+}
+
+struct kfd_mem_obj *allocate_sdma_mqd(struct kfd_dev *dev,
+					struct queue_properties *q)
+{
+	struct kfd_mem_obj *mqd_mem_obj = NULL;
+	uint64_t offset;
+
+	mqd_mem_obj = kzalloc(sizeof(struct kfd_mem_obj), GFP_KERNEL);
+	if (!mqd_mem_obj)
+		return NULL;
+
+	offset = (q->sdma_engine_id *
+		dev->device_info->num_sdma_queues_per_engine +
+		q->sdma_queue_id) *
+		dev->dqm->mqd_mgrs[KFD_MQD_TYPE_SDMA]->mqd_size;
+
+	offset += dev->dqm->mqd_mgrs[KFD_MQD_TYPE_HIQ]->mqd_size;
+
+	mqd_mem_obj->gtt_mem = (void *)((uint64_t)dev->dqm->hiq_sdma_mqd.gtt_mem
+				+ offset);
+	mqd_mem_obj->gpu_addr = dev->dqm->hiq_sdma_mqd.gpu_addr + offset;
+	mqd_mem_obj->cpu_ptr = (uint32_t *)((uint64_t)
+				dev->dqm->hiq_sdma_mqd.cpu_ptr + offset);
+
+	return mqd_mem_obj;
+}
+
+void free_mqd_hiq_sdma(struct mqd_manager *mm, void *mqd,
+			struct kfd_mem_obj *mqd_mem_obj)
+{
+	WARN_ON(!mqd_mem_obj->gtt_mem);
+	kfree(mqd_mem_obj);
 }
 
 void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
@@ -58,8 +98,8 @@ void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 		uint32_t *se_mask)
 {
 	struct kfd_cu_info cu_info;
-	uint32_t cu_per_sh[4] = {0};
-	int i, se, cu = 0;
+	uint32_t cu_per_se[KFD_MAX_NUM_SE] = {0};
+	int i, se, sh, cu = 0;
 
 	amdgpu_amdkfd_get_cu_info(mm->dev->kgd, &cu_info);
 
@@ -67,8 +107,8 @@ void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 		cu_mask_count = cu_info.cu_active_number;
 
 	for (se = 0; se < cu_info.num_shader_engines; se++)
-		for (i = 0; i < 4; i++)
-			cu_per_sh[se] += hweight32(cu_info.cu_bitmap[se][i]);
+		for (sh = 0; sh < cu_info.num_shader_arrays_per_engine; sh++)
+			cu_per_se[se] += hweight32(cu_info.cu_bitmap[se % 4][sh + (se / 4)]);
 
 	/* Symmetrically map cu_mask to all SEs:
 	 * cu_mask[0] bit0 -> se_mask[0] bit0;
@@ -88,6 +128,6 @@ void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 				se = 0;
 				cu++;
 			}
-		} while (cu >= cu_per_sh[se] && cu < 32);
+		} while (cu >= cu_per_se[se] && cu < 32);
 	}
 }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright(c) 2013 - 2018 Intel Corporation. */
+/* Copyright(c) 2013 - 2019 Intel Corporation. */
 
 #include "fm10k.h"
 #include <linux/vmalloc.h>
@@ -54,7 +54,7 @@ err:
  **/
 static int fm10k_setup_all_tx_resources(struct fm10k_intfc *interface)
 {
-	int i, err = 0;
+	int i, err;
 
 	for (i = 0; i < interface->num_tx_queues; i++) {
 		err = fm10k_setup_tx_resources(interface->tx_ring[i]);
@@ -121,7 +121,7 @@ err:
  **/
 static int fm10k_setup_all_rx_resources(struct fm10k_intfc *interface)
 {
-	int i, err = 0;
+	int i, err;
 
 	for (i = 0; i < interface->num_rx_queues; i++) {
 		err = fm10k_setup_rx_resources(interface->rx_ring[i]);
@@ -169,7 +169,6 @@ void fm10k_unmap_and_free_tx_resource(struct fm10k_ring *ring,
  **/
 static void fm10k_clean_tx_ring(struct fm10k_ring *tx_ring)
 {
-	struct fm10k_tx_buffer *tx_buffer;
 	unsigned long size;
 	u16 i;
 
@@ -179,7 +178,8 @@ static void fm10k_clean_tx_ring(struct fm10k_ring *tx_ring)
 
 	/* Free all the Tx ring sk_buffs */
 	for (i = 0; i < tx_ring->count; i++) {
-		tx_buffer = &tx_ring->tx_buffer[i];
+		struct fm10k_tx_buffer *tx_buffer = &tx_ring->tx_buffer[i];
+
 		fm10k_unmap_and_free_tx_resource(tx_ring, tx_buffer);
 	}
 
@@ -253,8 +253,7 @@ static void fm10k_clean_rx_ring(struct fm10k_ring *rx_ring)
 	if (!rx_ring->rx_buffer)
 		return;
 
-	if (rx_ring->skb)
-		dev_kfree_skb(rx_ring->skb);
+	dev_kfree_skb(rx_ring->skb);
 	rx_ring->skb = NULL;
 
 	/* Free all the Rx ring sk_buffs */
@@ -871,7 +870,7 @@ static int fm10k_uc_vlan_unsync(struct net_device *netdev,
 	u16 glort = interface->glort;
 	u16 vid = interface->vid;
 	bool set = !!(vid / VLAN_N_VID);
-	int err = -EHOSTDOWN;
+	int err;
 
 	/* drop any leading bits on the VLAN ID */
 	vid &= VLAN_N_VID - 1;
@@ -891,7 +890,7 @@ static int fm10k_mc_vlan_unsync(struct net_device *netdev,
 	u16 glort = interface->glort;
 	u16 vid = interface->vid;
 	bool set = !!(vid / VLAN_N_VID);
-	int err = -EHOSTDOWN;
+	int err;
 
 	/* drop any leading bits on the VLAN ID */
 	vid &= VLAN_N_VID - 1;
@@ -1444,11 +1443,11 @@ static int __fm10k_setup_tc(struct net_device *dev, enum tc_setup_type type,
 static void fm10k_assign_l2_accel(struct fm10k_intfc *interface,
 				  struct fm10k_l2_accel *l2_accel)
 {
-	struct fm10k_ring *ring;
 	int i;
 
 	for (i = 0; i < interface->num_rx_queues; i++) {
-		ring = interface->rx_ring[i];
+		struct fm10k_ring *ring = interface->rx_ring[i];
+
 		rcu_assign_pointer(ring->l2_accel, l2_accel);
 	}
 
@@ -1463,7 +1462,7 @@ static void *fm10k_dfwd_add_station(struct net_device *dev,
 	struct fm10k_l2_accel *old_l2_accel = NULL;
 	struct fm10k_dglort_cfg dglort = { 0 };
 	struct fm10k_hw *hw = &interface->hw;
-	int size = 0, i;
+	int size, i;
 	u16 vid, glort;
 
 	/* The hardware supported by fm10k only filters on the destination MAC
@@ -1644,6 +1643,7 @@ static const struct net_device_ops fm10k_netdev_ops = {
 	.ndo_set_vf_vlan	= fm10k_ndo_set_vf_vlan,
 	.ndo_set_vf_rate	= fm10k_ndo_set_vf_bw,
 	.ndo_get_vf_config	= fm10k_ndo_get_vf_config,
+	.ndo_get_vf_stats	= fm10k_ndo_get_vf_stats,
 	.ndo_udp_tunnel_add	= fm10k_udp_tunnel_add,
 	.ndo_udp_tunnel_del	= fm10k_udp_tunnel_del,
 	.ndo_dfwd_add_station	= fm10k_dfwd_add_station,

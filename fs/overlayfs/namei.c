@@ -84,21 +84,21 @@ static int ovl_acceptable(void *ctx, struct dentry *dentry)
  * Return -ENODATA for "origin unknown".
  * Return <0 for an invalid file handle.
  */
-int ovl_check_fh_len(struct ovl_fh *fh, int fh_len)
+int ovl_check_fb_len(struct ovl_fb *fb, int fb_len)
 {
-	if (fh_len < sizeof(struct ovl_fh) || fh_len < fh->len)
+	if (fb_len < sizeof(struct ovl_fb) || fb_len < fb->len)
 		return -EINVAL;
 
-	if (fh->magic != OVL_FH_MAGIC)
+	if (fb->magic != OVL_FH_MAGIC)
 		return -EINVAL;
 
 	/* Treat larger version and unknown flags as "origin unknown" */
-	if (fh->version > OVL_FH_VERSION || fh->flags & ~OVL_FH_FLAG_ALL)
+	if (fb->version > OVL_FH_VERSION || fb->flags & ~OVL_FH_FLAG_ALL)
 		return -ENODATA;
 
 	/* Treat endianness mismatch as "origin unknown" */
-	if (!(fh->flags & OVL_FH_FLAG_ANY_ENDIAN) &&
-	    (fh->flags & OVL_FH_FLAG_BIG_ENDIAN) != OVL_FH_FLAG_CPU_ENDIAN)
+	if (!(fb->flags & OVL_FH_FLAG_ANY_ENDIAN) &&
+	    (fb->flags & OVL_FH_FLAG_BIG_ENDIAN) != OVL_FH_FLAG_CPU_ENDIAN)
 		return -ENODATA;
 
 	return 0;
@@ -119,15 +119,15 @@ static struct ovl_fh *ovl_get_fh(struct dentry *dentry, const char *name)
 	if (res == 0)
 		return NULL;
 
-	fh = kzalloc(res, GFP_KERNEL);
+	fh = kzalloc(res + OVL_FH_WIRE_OFFSET, GFP_KERNEL);
 	if (!fh)
 		return ERR_PTR(-ENOMEM);
 
-	res = vfs_getxattr(dentry, name, fh, res);
+	res = vfs_getxattr(dentry, name, fh->buf, res);
 	if (res < 0)
 		goto fail;
 
-	err = ovl_check_fh_len(fh, res);
+	err = ovl_check_fb_len(&fh->fb, res);
 	if (err < 0) {
 		if (err == -ENODATA)
 			goto out;
@@ -158,12 +158,12 @@ struct dentry *ovl_decode_real_fh(struct ovl_fh *fh, struct vfsmount *mnt,
 	 * Make sure that the stored uuid matches the uuid of the lower
 	 * layer where file handle will be decoded.
 	 */
-	if (!uuid_equal(&fh->uuid, &mnt->mnt_sb->s_uuid))
+	if (!uuid_equal(&fh->fb.uuid, &mnt->mnt_sb->s_uuid))
 		return NULL;
 
-	bytes = (fh->len - offsetof(struct ovl_fh, fid));
-	real = exportfs_decode_fh(mnt, (struct fid *)fh->fid,
-				  bytes >> 2, (int)fh->type,
+	bytes = (fh->fb.len - offsetof(struct ovl_fb, fid));
+	real = exportfs_decode_fh(mnt, (struct fid *)fh->fb.fid,
+				  bytes >> 2, (int)fh->fb.type,
 				  connected ? ovl_acceptable : NULL, mnt);
 	if (IS_ERR(real)) {
 		/*
@@ -173,7 +173,7 @@ struct dentry *ovl_decode_real_fh(struct ovl_fh *fh, struct vfsmount *mnt,
 		 * index entries correctly.
 		 */
 		if (real == ERR_PTR(-ESTALE) &&
-		    !(fh->flags & OVL_FH_FLAG_PATH_UPPER))
+		    !(fh->fb.flags & OVL_FH_FLAG_PATH_UPPER))
 			real = NULL;
 		return real;
 	}
@@ -200,7 +200,7 @@ static int ovl_lookup_single(struct dentry *base, struct ovl_lookup_data *d,
 	int err;
 	bool last_element = !post[0];
 
-	this = lookup_one_len_unlocked(name, base, namelen);
+	this = lookup_positive_unlocked(name, base, namelen);
 	if (IS_ERR(this)) {
 		err = PTR_ERR(this);
 		this = NULL;
@@ -208,8 +208,6 @@ static int ovl_lookup_single(struct dentry *base, struct ovl_lookup_data *d,
 			goto out;
 		goto out_err;
 	}
-	if (!this->d_inode)
-		goto put_and_out;
 
 	if (ovl_dentry_weird(this)) {
 		/* Don't support traversing automounts and other weirdness */
@@ -325,6 +323,14 @@ int ovl_check_origin_fh(struct ovl_fs *ofs, struct ovl_fh *fh, bool connected,
 	int i;
 
 	for (i = 0; i < ofs->numlower; i++) {
+		/*
+		 * If lower fs uuid is not unique among lower fs we cannot match
+		 * fh->uuid to layer.
+		 */
+		if (ofs->lower_layers[i].fsid &&
+		    ofs->lower_layers[i].fs->bad_uuid)
+			continue;
+
 		origin = ovl_decode_real_fh(fh, ofs->lower_layers[i].mnt,
 					    connected);
 		if (origin)
@@ -402,7 +408,7 @@ static int ovl_verify_fh(struct dentry *dentry, const char *name,
 	if (IS_ERR(ofh))
 		return PTR_ERR(ofh);
 
-	if (fh->len != ofh->len || memcmp(fh, ofh, fh->len))
+	if (fh->fb.len != ofh->fb.len || memcmp(&fh->fb, &ofh->fb, fh->fb.len))
 		err = -ESTALE;
 
 	kfree(ofh);
@@ -433,7 +439,7 @@ int ovl_verify_set_fh(struct dentry *dentry, const char *name,
 
 	err = ovl_verify_fh(dentry, name, fh);
 	if (set && err == -ENODATA)
-		err = ovl_do_setxattr(dentry, name, fh, fh->len, 0);
+		err = ovl_do_setxattr(dentry, name, fh->buf, fh->fb.len, 0);
 	if (err)
 		goto fail;
 
@@ -507,20 +513,20 @@ int ovl_verify_index(struct ovl_fs *ofs, struct dentry *index)
 		goto fail;
 
 	err = -EINVAL;
-	if (index->d_name.len < sizeof(struct ovl_fh)*2)
+	if (index->d_name.len < sizeof(struct ovl_fb)*2)
 		goto fail;
 
 	err = -ENOMEM;
 	len = index->d_name.len / 2;
-	fh = kzalloc(len, GFP_KERNEL);
+	fh = kzalloc(len + OVL_FH_WIRE_OFFSET, GFP_KERNEL);
 	if (!fh)
 		goto fail;
 
 	err = -EINVAL;
-	if (hex2bin((u8 *)fh, index->d_name.name, len))
+	if (hex2bin(fh->buf, index->d_name.name, len))
 		goto fail;
 
-	err = ovl_check_fh_len(fh, len);
+	err = ovl_check_fb_len(&fh->fb, len);
 	if (err)
 		goto fail;
 
@@ -599,11 +605,11 @@ static int ovl_get_index_name_fh(struct ovl_fh *fh, struct qstr *name)
 {
 	char *n, *s;
 
-	n = kcalloc(fh->len, 2, GFP_KERNEL);
+	n = kcalloc(fh->fb.len, 2, GFP_KERNEL);
 	if (!n)
 		return -ENOMEM;
 
-	s  = bin2hex(n, fh, fh->len);
+	s  = bin2hex(n, fh->buf, fh->fb.len);
 	*name = (struct qstr) QSTR_INIT(n, s - n);
 
 	return 0;
@@ -651,7 +657,7 @@ struct dentry *ovl_get_index_fh(struct ovl_fs *ofs, struct ovl_fh *fh)
 	if (err)
 		return ERR_PTR(err);
 
-	index = lookup_one_len_unlocked(name.name, ofs->indexdir, name.len);
+	index = lookup_positive_unlocked(name.name, ofs->indexdir, name.len);
 	kfree(name.name);
 	if (IS_ERR(index)) {
 		if (PTR_ERR(index) == -ENOENT)
@@ -659,9 +665,7 @@ struct dentry *ovl_get_index_fh(struct ovl_fs *ofs, struct ovl_fh *fh)
 		return index;
 	}
 
-	if (d_is_negative(index))
-		err = 0;
-	else if (ovl_is_whiteout(index))
+	if (ovl_is_whiteout(index))
 		err = -ESTALE;
 	else if (ovl_dentry_weird(index))
 		err = -EIO;
@@ -685,7 +689,7 @@ struct dentry *ovl_lookup_index(struct ovl_fs *ofs, struct dentry *upper,
 	if (err)
 		return ERR_PTR(err);
 
-	index = lookup_one_len_unlocked(name.name, ofs->indexdir, name.len);
+	index = lookup_positive_unlocked(name.name, ofs->indexdir, name.len);
 	if (IS_ERR(index)) {
 		err = PTR_ERR(index);
 		if (err == -ENOENT) {
@@ -700,9 +704,7 @@ struct dentry *ovl_lookup_index(struct ovl_fs *ofs, struct dentry *upper,
 	}
 
 	inode = d_inode(index);
-	if (d_is_negative(index)) {
-		goto out_dput;
-	} else if (ovl_is_whiteout(index) && !verify) {
+	if (ovl_is_whiteout(index) && !verify) {
 		/*
 		 * When index lookup is called with !verify for decoding an
 		 * overlay file handle, a whiteout index implies that decode
@@ -1131,7 +1133,7 @@ bool ovl_lower_positive(struct dentry *dentry)
 		struct dentry *this;
 		struct dentry *lowerdir = poe->lowerstack[i].dentry;
 
-		this = lookup_one_len_unlocked(name->name, lowerdir,
+		this = lookup_positive_unlocked(name->name, lowerdir,
 					       name->len);
 		if (IS_ERR(this)) {
 			switch (PTR_ERR(this)) {
@@ -1148,10 +1150,8 @@ bool ovl_lower_positive(struct dentry *dentry)
 				break;
 			}
 		} else {
-			if (this->d_inode) {
-				positive = !ovl_is_whiteout(this);
-				done = true;
-			}
+			positive = !ovl_is_whiteout(this);
+			done = true;
 			dput(this);
 		}
 	}

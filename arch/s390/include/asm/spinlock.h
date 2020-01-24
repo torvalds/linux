@@ -20,11 +20,7 @@
 
 extern int spin_retry;
 
-#ifndef CONFIG_SMP
-static inline bool arch_vcpu_is_preempted(int cpu) { return false; }
-#else
 bool arch_vcpu_is_preempted(int cpu);
-#endif
 
 #define vcpu_is_preempted arch_vcpu_is_preempted
 
@@ -89,7 +85,7 @@ static inline int arch_spin_trylock(arch_spinlock_t *lp)
 static inline void arch_spin_unlock(arch_spinlock_t *lp)
 {
 	typecheck(int, lp->lock);
-	asm volatile(
+	asm_inline volatile(
 		ALTERNATIVE("", ".long 0xb2fa0070", 49)	/* NIAI 7 */
 		"	sth	%1,%0\n"
 		: "=Q" (((unsigned short *) &lp->lock)[1])

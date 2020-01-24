@@ -223,10 +223,6 @@ static int si470x_vidioc_querycap(struct file *file, void *priv,
 {
 	strscpy(capability->driver, DRIVER_NAME, sizeof(capability->driver));
 	strscpy(capability->card, DRIVER_CARD, sizeof(capability->card));
-	capability->device_caps = V4L2_CAP_HW_FREQ_SEEK | V4L2_CAP_READWRITE |
-		V4L2_CAP_TUNER | V4L2_CAP_RADIO | V4L2_CAP_RDS_CAPTURE;
-	capability->capabilities = capability->device_caps | V4L2_CAP_DEVICE_CAPS;
-
 	return 0;
 }
 
@@ -334,8 +330,7 @@ end:
 /*
  * si470x_i2c_probe - probe for the device
  */
-static int si470x_i2c_probe(struct i2c_client *client,
-			    const struct i2c_device_id *id)
+static int si470x_i2c_probe(struct i2c_client *client)
 {
 	struct si470x_device *radio;
 	int retval = 0;
@@ -382,6 +377,9 @@ static int si470x_i2c_probe(struct i2c_client *client,
 	radio->videodev.lock = &radio->lock;
 	radio->videodev.v4l2_dev = &radio->v4l2_dev;
 	radio->videodev.release = video_device_release_empty;
+	radio->videodev.device_caps =
+		V4L2_CAP_HW_FREQ_SEEK | V4L2_CAP_READWRITE | V4L2_CAP_TUNER |
+		V4L2_CAP_RADIO | V4L2_CAP_RDS_CAPTURE;
 	video_set_drvdata(&radio->videodev, radio);
 
 	radio->gpio_reset = devm_gpiod_get_optional(&client->dev, "reset",
@@ -484,6 +482,8 @@ static int si470x_i2c_remove(struct i2c_client *client)
 	if (radio->gpio_reset)
 		gpiod_set_value(radio->gpio_reset, 0);
 
+	v4l2_ctrl_handler_free(&radio->hdl);
+	v4l2_device_unregister(&radio->v4l2_dev);
 	return 0;
 }
 
@@ -545,7 +545,7 @@ static struct i2c_driver si470x_i2c_driver = {
 		.pm		= &si470x_i2c_pm,
 #endif
 	},
-	.probe			= si470x_i2c_probe,
+	.probe_new		= si470x_i2c_probe,
 	.remove			= si470x_i2c_remove,
 	.id_table		= si470x_i2c_id,
 };

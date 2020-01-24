@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2017 Western Digital Corporation or its affiliates.
  *
@@ -37,7 +38,7 @@ enum {
 /*
  * Number of seconds of target BIO inactivity to consider the target idle.
  */
-#define DMZ_IDLE_PERIOD		(10UL * HZ)
+#define DMZ_IDLE_PERIOD			(10UL * HZ)
 
 /*
  * Percentage of unmapped (free) random zones below which reclaim starts
@@ -81,6 +82,7 @@ static int dmz_reclaim_align_wp(struct dmz_reclaim *zrc, struct dm_zone *zone,
 			    "Align zone %u wp %llu to %llu (wp+%u) blocks failed %d",
 			    dmz_id(zmd, zone), (unsigned long long)wp_block,
 			    (unsigned long long)block, nr_blocks, ret);
+		dmz_check_bdev(zrc->dev);
 		return ret;
 	}
 
@@ -134,6 +136,9 @@ static int dmz_reclaim_copy(struct dmz_reclaim *zrc,
 		set_bit(DM_KCOPYD_WRITE_SEQ, &flags);
 
 	while (block < end_block) {
+		if (dev->flags & DMZ_BDEV_DYING)
+			return -EIO;
+
 		/* Get a valid region from the source zone */
 		ret = dmz_first_valid_block(zmd, src_zone, &block);
 		if (ret <= 0)
@@ -215,7 +220,7 @@ static int dmz_reclaim_buf(struct dmz_reclaim *zrc, struct dm_zone *dzone)
 
 	dmz_unlock_flush(zmd);
 
-	return 0;
+	return ret;
 }
 
 /*
@@ -259,7 +264,7 @@ static int dmz_reclaim_seq_data(struct dmz_reclaim *zrc, struct dm_zone *dzone)
 
 	dmz_unlock_flush(zmd);
 
-	return 0;
+	return ret;
 }
 
 /*
@@ -312,7 +317,7 @@ static int dmz_reclaim_rnd_data(struct dmz_reclaim *zrc, struct dm_zone *dzone)
 
 	dmz_unlock_flush(zmd);
 
-	return 0;
+	return ret;
 }
 
 /*
@@ -334,7 +339,7 @@ static void dmz_reclaim_empty(struct dmz_reclaim *zrc, struct dm_zone *dzone)
 /*
  * Find a candidate zone for reclaim and process it.
  */
-static void dmz_reclaim(struct dmz_reclaim *zrc)
+static int dmz_do_reclaim(struct dmz_reclaim *zrc)
 {
 	struct dmz_metadata *zmd = zrc->metadata;
 	struct dm_zone *dzone;
@@ -344,8 +349,8 @@ static void dmz_reclaim(struct dmz_reclaim *zrc)
 
 	/* Get a data zone */
 	dzone = dmz_get_zone_for_reclaim(zmd);
-	if (!dzone)
-		return;
+	if (IS_ERR(dzone))
+		return PTR_ERR(dzone);
 
 	start = jiffies;
 
@@ -391,13 +396,20 @@ static void dmz_reclaim(struct dmz_reclaim *zrc)
 out:
 	if (ret) {
 		dmz_unlock_zone_reclaim(dzone);
-		return;
+		return ret;
 	}
 
-	(void) dmz_flush_metadata(zrc->metadata);
+	ret = dmz_flush_metadata(zrc->metadata);
+	if (ret) {
+		dmz_dev_debug(zrc->dev,
+			      "Metadata flush for zone %u failed, err %d\n",
+			      dmz_id(zmd, rzone), ret);
+		return ret;
+	}
 
 	dmz_dev_debug(zrc->dev, "Reclaimed zone %u in %u ms",
 		      dmz_id(zmd, rzone), jiffies_to_msecs(jiffies - start));
+	return 0;
 }
 
 /*
@@ -427,7 +439,7 @@ static bool dmz_should_reclaim(struct dmz_reclaim *zrc)
 		return false;
 
 	/*
-	 * If the percentage of unmappped random zones is low,
+	 * If the percentage of unmapped random zones is low,
 	 * reclaim even if the target is busy.
 	 */
 	return p_unmap_rnd <= DMZ_RECLAIM_LOW_UNMAP_RND;
@@ -442,6 +454,10 @@ static void dmz_reclaim_work(struct work_struct *work)
 	struct dmz_metadata *zmd = zrc->metadata;
 	unsigned int nr_rnd, nr_unmap_rnd;
 	unsigned int p_unmap_rnd;
+	int ret;
+
+	if (dmz_bdev_is_dying(zrc->dev))
+		return;
 
 	if (!dmz_should_reclaim(zrc)) {
 		mod_delayed_work(zrc->wq, &zrc->work, DMZ_IDLE_PERIOD);
@@ -471,7 +487,12 @@ static void dmz_reclaim_work(struct work_struct *work)
 		      (dmz_target_idle(zrc) ? "Idle" : "Busy"),
 		      p_unmap_rnd, nr_unmap_rnd, nr_rnd);
 
-	dmz_reclaim(zrc);
+	ret = dmz_do_reclaim(zrc);
+	if (ret) {
+		dmz_dev_debug(zrc->dev, "Reclaim error %d\n", ret);
+		if (!dmz_check_bdev(zrc->dev))
+			return;
+	}
 
 	dmz_schedule_reclaim(zrc);
 }

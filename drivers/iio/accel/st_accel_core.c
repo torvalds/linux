@@ -13,10 +13,8 @@
 #include <linux/acpi.h>
 #include <linux/errno.h>
 #include <linux/types.h>
-#include <linux/mutex.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
-#include <linux/gpio.h>
 #include <linux/irq.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -994,6 +992,7 @@ static const struct iio_trigger_ops st_accel_trigger_ops = {
 #define ST_ACCEL_TRIGGER_OPS NULL
 #endif
 
+#ifdef CONFIG_ACPI
 static const struct iio_mount_matrix *
 get_mount_matrix(const struct iio_dev *indio_dev,
 		 const struct iio_chan_spec *chan)
@@ -1014,7 +1013,6 @@ static const struct iio_chan_spec_ext_info mount_matrix_ext_info[] = {
 static int apply_acpi_orientation(struct iio_dev *indio_dev,
 				  struct iio_chan_spec *channels)
 {
-#ifdef CONFIG_ACPI
 	struct st_sensor_data *adata = iio_priv(indio_dev);
 	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
 	struct acpi_device *adev;
@@ -1142,37 +1140,54 @@ static int apply_acpi_orientation(struct iio_dev *indio_dev,
 out:
 	kfree(buffer.pointer);
 	return ret;
-#else /* !CONFIG_ACPI */
-	return 0;
-#endif
 }
+#else /* !CONFIG_ACPI */
+static int apply_acpi_orientation(struct iio_dev *indio_dev,
+				  struct iio_chan_spec *channels)
+{
+	return 0;
+}
+#endif
+
+/*
+ * st_accel_get_settings() - get sensor settings from device name
+ * @name: device name buffer reference.
+ *
+ * Return: valid reference on success, NULL otherwise.
+ */
+const struct st_sensor_settings *st_accel_get_settings(const char *name)
+{
+	int index = st_sensors_get_settings_index(name,
+					st_accel_sensors_settings,
+					ARRAY_SIZE(st_accel_sensors_settings));
+	if (index < 0)
+		return NULL;
+
+	return &st_accel_sensors_settings[index];
+}
+EXPORT_SYMBOL(st_accel_get_settings);
 
 int st_accel_common_probe(struct iio_dev *indio_dev)
 {
 	struct st_sensor_data *adata = iio_priv(indio_dev);
 	struct st_sensors_platform_data *pdata =
 		(struct st_sensors_platform_data *)adata->dev->platform_data;
-	int irq = adata->get_irq_data_ready(indio_dev);
 	struct iio_chan_spec *channels;
 	size_t channels_size;
 	int err;
 
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &accel_info;
-	mutex_init(&adata->tb.buf_lock);
 
 	err = st_sensors_power_enable(indio_dev);
 	if (err)
 		return err;
 
-	err = st_sensors_check_device_support(indio_dev,
-					ARRAY_SIZE(st_accel_sensors_settings),
-					st_accel_sensors_settings);
+	err = st_sensors_verify_id(indio_dev);
 	if (err < 0)
 		goto st_accel_power_off;
 
 	adata->num_data_channels = ST_ACCEL_NUMBER_DATA_CHANNELS;
-	adata->multiread_bit = adata->sensor_settings->multi_read_bit;
 	indio_dev->num_channels = ST_SENSORS_NUMBER_ALL_CHANNELS;
 
 	channels_size = indio_dev->num_channels * sizeof(struct iio_chan_spec);
@@ -1204,7 +1219,7 @@ int st_accel_common_probe(struct iio_dev *indio_dev)
 	if (err < 0)
 		goto st_accel_power_off;
 
-	if (irq > 0) {
+	if (adata->irq > 0) {
 		err = st_sensors_allocate_trigger(indio_dev,
 						 ST_ACCEL_TRIGGER_OPS);
 		if (err < 0)
@@ -1221,7 +1236,7 @@ int st_accel_common_probe(struct iio_dev *indio_dev)
 	return 0;
 
 st_accel_device_register_error:
-	if (irq > 0)
+	if (adata->irq > 0)
 		st_sensors_deallocate_trigger(indio_dev);
 st_accel_probe_trigger_error:
 	st_accel_deallocate_ring(indio_dev);
@@ -1239,7 +1254,7 @@ void st_accel_common_remove(struct iio_dev *indio_dev)
 	st_sensors_power_disable(indio_dev);
 
 	iio_device_unregister(indio_dev);
-	if (adata->get_irq_data_ready(indio_dev) > 0)
+	if (adata->irq > 0)
 		st_sensors_deallocate_trigger(indio_dev);
 
 	st_accel_deallocate_ring(indio_dev);

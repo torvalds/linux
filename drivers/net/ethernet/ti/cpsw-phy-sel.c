@@ -151,9 +151,9 @@ static void cpsw_gmii_sel_dra7xx(struct cpsw_phy_sel_priv *priv,
 }
 
 static struct platform_driver cpsw_phy_sel_driver;
-static int match(struct device *dev, void *data)
+static int match(struct device *dev, const void *data)
 {
-	struct device_node *node = (struct device_node *)data;
+	const struct device_node *node = (const struct device_node *)data;
 	return dev->of_node == node &&
 		dev->driver == &cpsw_phy_sel_driver.driver;
 }

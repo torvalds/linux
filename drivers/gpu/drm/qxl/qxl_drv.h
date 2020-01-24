@@ -31,22 +31,22 @@
  */
 
 #include <linux/dma-fence.h>
-#include <linux/workqueue.h>
 #include <linux/firmware.h>
 #include <linux/platform_device.h>
+#include <linux/workqueue.h>
 
 #include <drm/drm_crtc.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_gem_ttm_helper.h>
+#include <drm/drm_ioctl.h>
 #include <drm/drm_gem.h>
-#include <drm/drmP.h>
+#include <drm/qxl_drm.h>
 #include <drm/ttm/ttm_bo_api.h>
 #include <drm/ttm/ttm_bo_driver.h>
-/* just for ttm_validate_buffer */
 #include <drm/ttm/ttm_execbuf_util.h>
 #include <drm/ttm/ttm_module.h>
 #include <drm/ttm/ttm_placement.h>
-#include <drm/qxl_drm.h>
 
 #include "qxl_dev.h"
 
@@ -72,12 +72,13 @@ extern int qxl_max_ioctls;
 	QXL_INTERRUPT_CLIENT_MONITORS_CONFIG)
 
 struct qxl_bo {
+	struct ttm_buffer_object	tbo;
+
 	/* Protected by gem.mutex */
 	struct list_head		list;
 	/* Protected by tbo.reserved */
 	struct ttm_place		placements[3];
 	struct ttm_placement		placement;
-	struct ttm_buffer_object	tbo;
 	struct ttm_bo_kmap_obj		kmap;
 	unsigned int pin_count;
 	void				*kptr;
@@ -85,7 +86,6 @@ struct qxl_bo {
 	int                             type;
 
 	/* Constant after initialization */
-	struct drm_gem_object		gem_base;
 	unsigned int is_primary:1; /* is this now a primary surface */
 	unsigned int is_dumb:1;
 	struct qxl_bo *shadow;
@@ -94,7 +94,7 @@ struct qxl_bo {
 	uint32_t surface_id;
 	struct qxl_release *surf_create;
 };
-#define gem_to_qxl_bo(gobj) container_of((gobj), struct qxl_bo, gem_base)
+#define gem_to_qxl_bo(gobj) container_of((gobj), struct qxl_bo, tbo.base)
 #define to_qxl_bo(tobj) container_of((tobj), struct qxl_bo, tbo)
 
 struct qxl_gem {
@@ -355,7 +355,8 @@ int qxl_mode_dumb_mmap(struct drm_file *filp,
 /* qxl ttm */
 int qxl_ttm_init(struct qxl_device *qdev);
 void qxl_ttm_fini(struct qxl_device *qdev);
-int qxl_mmap(struct file *filp, struct vm_area_struct *vma);
+int qxl_ttm_io_mem_reserve(struct ttm_bo_device *bdev,
+			   struct ttm_mem_reg *mem);
 
 /* qxl image */
 

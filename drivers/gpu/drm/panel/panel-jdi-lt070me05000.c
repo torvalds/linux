@@ -10,18 +10,20 @@
  * JDI model LT070ME05000, and its data sheet is at:
  * http://panelone.net/en/7-0-inch/JDI_LT070ME05000_7.0_inch-datasheet
  */
+
 #include <linux/backlight.h>
+#include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/regulator/consumer.h>
 
-#include <drm/drmP.h>
+#include <video/mipi_display.h>
+
 #include <drm/drm_crtc.h>
 #include <drm/drm_mipi_dsi.h>
+#include <drm/drm_modes.h>
 #include <drm/drm_panel.h>
-
-#include <video/mipi_display.h>
 
 static const char * const regulator_names[] = {
 	"vddp",
@@ -435,9 +437,8 @@ static int jdi_panel_add(struct jdi_panel *jdi)
 		return ret;
 	}
 
-	drm_panel_init(&jdi->base);
-	jdi->base.funcs = &jdi_panel_funcs;
-	jdi->base.dev = &jdi->dsi->dev;
+	drm_panel_init(&jdi->base, &jdi->dsi->dev, &jdi_panel_funcs,
+		       DRM_MODE_CONNECTOR_DSI);
 
 	ret = drm_panel_add(&jdi->base);
 

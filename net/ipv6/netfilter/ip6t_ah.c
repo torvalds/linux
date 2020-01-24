@@ -55,7 +55,7 @@ static bool ah_mt6(const struct sk_buff *skb, struct xt_action_param *par)
 		return false;
 	}
 
-	hdrlen = (ah->hdrlen + 2) << 2;
+	hdrlen = ipv6_authlen(ah);
 
 	pr_debug("IPv6 AH LEN %u %u ", hdrlen, ah->hdrlen);
 	pr_debug("RES %04X ", ah->reserved);

@@ -24,12 +24,15 @@
 #include <linux/sched/task_stack.h>
 
 #include <asm/mshyperv.h>
+#include <linux/delay.h>
 #include <linux/notifier.h>
 #include <linux/ptrace.h>
 #include <linux/screen_info.h>
 #include <linux/kdebug.h>
 #include <linux/efi.h>
 #include <linux/random.h>
+#include <linux/syscore_ops.h>
+#include <clocksource/hyperv_timer.h>
 #include "hyperv_vmbus.h"
 
 struct vmbus_dynid {
@@ -76,7 +79,7 @@ static struct notifier_block hyperv_panic_block = {
 static const char *fb_mmio_name = "fb_range";
 static struct resource *fb_mmio;
 static struct resource *hyperv_mmio;
-static DEFINE_SEMAPHORE(hyperv_mmio_lock);
+static DEFINE_MUTEX(hyperv_mmio_lock);
 
 static int vmbus_exists(void)
 {
@@ -909,6 +912,45 @@ static void vmbus_shutdown(struct device *child_device)
 		drv->shutdown(dev);
 }
 
+#ifdef CONFIG_PM_SLEEP
+/*
+ * vmbus_suspend - Suspend a vmbus device
+ */
+static int vmbus_suspend(struct device *child_device)
+{
+	struct hv_driver *drv;
+	struct hv_device *dev = device_to_hv_device(child_device);
+
+	/* The device may not be attached yet */
+	if (!child_device->driver)
+		return 0;
+
+	drv = drv_to_hv_drv(child_device->driver);
+	if (!drv->suspend)
+		return -EOPNOTSUPP;
+
+	return drv->suspend(dev);
+}
+
+/*
+ * vmbus_resume - Resume a vmbus device
+ */
+static int vmbus_resume(struct device *child_device)
+{
+	struct hv_driver *drv;
+	struct hv_device *dev = device_to_hv_device(child_device);
+
+	/* The device may not be attached yet */
+	if (!child_device->driver)
+		return 0;
+
+	drv = drv_to_hv_drv(child_device->driver);
+	if (!drv->resume)
+		return -EOPNOTSUPP;
+
+	return drv->resume(dev);
+}
+#endif /* CONFIG_PM_SLEEP */
 
 /*
  * vmbus_device_release - Final callback release of the vmbus child device
@@ -918,11 +960,21 @@ static void vmbus_device_release(struct device *device)
 	struct hv_device *hv_dev = device_to_hv_device(device);
 	struct vmbus_channel *channel = hv_dev->channel;
 
+	hv_debug_rm_dev_dir(hv_dev);
+
 	mutex_lock(&vmbus_connection.channel_mutex);
 	hv_process_channel_removal(channel);
 	mutex_unlock(&vmbus_connection.channel_mutex);
 	kfree(hv_dev);
 }
+
+/*
+ * Note: we must use SET_NOIRQ_SYSTEM_SLEEP_PM_OPS rather than
+ * SET_SYSTEM_SLEEP_PM_OPS: see the comment before vmbus_bus_pm.
+ */
+static const struct dev_pm_ops vmbus_pm = {
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(vmbus_suspend, vmbus_resume)
+};
 
 /* The one and only one */
 static struct bus_type  hv_bus = {
@@ -934,6 +986,7 @@ static struct bus_type  hv_bus = {
 	.uevent =		vmbus_uevent,
 	.dev_groups =		vmbus_dev_groups,
 	.drv_groups =		vmbus_drv_groups,
+	.pm =			&vmbus_pm,
 };
 
 struct onmessage_work_context {
@@ -953,17 +1006,6 @@ static void vmbus_onmessage_work(struct work_struct *work)
 			   work);
 	vmbus_onmessage(&ctx->msg);
 	kfree(ctx);
-}
-
-static void hv_process_timer_expiration(struct hv_message *msg,
-					struct hv_per_cpu_context *hv_cpu)
-{
-	struct clock_event_device *dev = hv_cpu->clk_evt;
-
-	if (dev->event_handler)
-		dev->event_handler(dev);
-
-	vmbus_signal_eom(msg, HVMSG_TIMER_EXPIRED);
 }
 
 void vmbus_on_msg_dpc(unsigned long data)
@@ -1032,6 +1074,43 @@ msg_handled:
 	vmbus_signal_eom(msg, message_type);
 }
 
+#ifdef CONFIG_PM_SLEEP
+/*
+ * Fake RESCIND_CHANNEL messages to clean up hv_sock channels by force for
+ * hibernation, because hv_sock connections can not persist across hibernation.
+ */
+static void vmbus_force_channel_rescinded(struct vmbus_channel *channel)
+{
+	struct onmessage_work_context *ctx;
+	struct vmbus_channel_rescind_offer *rescind;
+
+	WARN_ON(!is_hvsock_channel(channel));
+
+	/*
+	 * sizeof(*ctx) is small and the allocation should really not fail,
+	 * otherwise the state of the hv_sock connections ends up in limbo.
+	 */
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL | __GFP_NOFAIL);
+
+	/*
+	 * So far, these are not really used by Linux. Just set them to the
+	 * reasonable values conforming to the definitions of the fields.
+	 */
+	ctx->msg.header.message_type = 1;
+	ctx->msg.header.payload_size = sizeof(*rescind);
+
+	/* These values are actually used by Linux. */
+	rescind = (struct vmbus_channel_rescind_offer *)ctx->msg.u.payload;
+	rescind->header.msgtype = CHANNELMSG_RESCIND_CHANNELOFFER;
+	rescind->child_relid = channel->offermsg.child_relid;
+
+	INIT_WORK(&ctx->work, vmbus_onmessage_work);
+
+	queue_work_on(vmbus_connection.connect_cpu,
+		      vmbus_connection.work_queue,
+		      &ctx->work);
+}
+#endif /* CONFIG_PM_SLEEP */
 
 /*
  * Direct callback for channels using other deferred processing
@@ -1159,9 +1238,10 @@ static void vmbus_isr(void)
 
 	/* Check if there are actual msgs to be processed */
 	if (msg->header.message_type != HVMSG_NONE) {
-		if (msg->header.message_type == HVMSG_TIMER_EXPIRED)
-			hv_process_timer_expiration(msg, hv_cpu);
-		else
+		if (msg->header.message_type == HVMSG_TIMER_EXPIRED) {
+			hv_stimer0_isr();
+			vmbus_signal_eom(msg, HVMSG_TIMER_EXPIRED);
+		} else
 			tasklet_schedule(&hv_cpu->msg_dpc);
 	}
 
@@ -1195,7 +1275,7 @@ static void hv_kmsg_dump(struct kmsg_dumper *dumper,
 	 * Write dump contents to the page. No need to synchronize; panic should
 	 * be single-threaded.
 	 */
-	kmsg_dump_get_buffer(dumper, true, hv_panic_page, PAGE_SIZE,
+	kmsg_dump_get_buffer(dumper, true, hv_panic_page, HV_HYP_PAGE_SIZE,
 			     &bytes_written);
 	if (bytes_written)
 		hyperv_report_panic_msg(panic_pa, bytes_written);
@@ -1206,8 +1286,6 @@ static struct kmsg_dumper hv_kmsg_dumper = {
 };
 
 static struct ctl_table_header *hv_ctl_table_hdr;
-static int zero;
-static int one = 1;
 
 /*
  * sysctl option to allow the user to control whether kmsg data should be
@@ -1220,8 +1298,8 @@ static struct ctl_table hv_ctl_table[] = {
 		.maxlen         = sizeof(int),
 		.mode           = 0644,
 		.proc_handler   = proc_dointvec_minmax,
-		.extra1		= &zero,
-		.extra2		= &one
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_ONE
 	},
 	{}
 };
@@ -1263,14 +1341,15 @@ static int vmbus_bus_init(void)
 	ret = hv_synic_alloc();
 	if (ret)
 		goto err_alloc;
+
 	/*
-	 * Initialize the per-cpu interrupt state and
-	 * connect to the host.
+	 * Initialize the per-cpu interrupt state and stimer state.
+	 * Then connect to the host.
 	 */
 	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "hyperv/vmbus:online",
 				hv_synic_init, hv_synic_cleanup);
 	if (ret < 0)
-		goto err_alloc;
+		goto err_cpuhp;
 	hyperv_cpuhp_online = ret;
 
 	ret = vmbus_connect();
@@ -1296,7 +1375,7 @@ static int vmbus_bus_init(void)
 		 */
 		hv_get_crash_ctl(hyperv_crash_ctl);
 		if (hyperv_crash_ctl & HV_CRASH_CTL_CRASH_NOTIFY_MSG) {
-			hv_panic_page = (void *)get_zeroed_page(GFP_KERNEL);
+			hv_panic_page = (void *)hv_alloc_hyperv_zeroed_page();
 			if (hv_panic_page) {
 				ret = kmsg_dump_register(&hv_kmsg_dumper);
 				if (ret)
@@ -1318,12 +1397,13 @@ static int vmbus_bus_init(void)
 
 err_connect:
 	cpuhp_remove_state(hyperv_cpuhp_online);
-err_alloc:
+err_cpuhp:
 	hv_synic_free();
+err_alloc:
 	hv_remove_vmbus_irq();
 
 	bus_unregister(&hv_bus);
-	free_page((unsigned long)hv_panic_page);
+	hv_free_hyperv_page((unsigned long)hv_panic_page);
 	unregister_sysctl_table(hv_ctl_table_hdr);
 	hv_ctl_table_hdr = NULL;
 	return ret;
@@ -1731,6 +1811,7 @@ int vmbus_device_register(struct hv_device *child_device_obj)
 		pr_err("Unable to register primary channeln");
 		goto err_kset_unregister;
 	}
+	hv_debug_add_dev_dir(child_device_obj);
 
 	return 0;
 
@@ -1932,7 +2013,7 @@ int vmbus_allocate_mmio(struct resource **new, struct hv_device *device_obj,
 	int retval;
 
 	retval = -ENXIO;
-	down(&hyperv_mmio_lock);
+	mutex_lock(&hyperv_mmio_lock);
 
 	/*
 	 * If overlaps with frame buffers are allowed, then first attempt to
@@ -1979,7 +2060,7 @@ int vmbus_allocate_mmio(struct resource **new, struct hv_device *device_obj,
 	}
 
 exit:
-	up(&hyperv_mmio_lock);
+	mutex_unlock(&hyperv_mmio_lock);
 	return retval;
 }
 EXPORT_SYMBOL_GPL(vmbus_allocate_mmio);
@@ -1996,7 +2077,7 @@ void vmbus_free_mmio(resource_size_t start, resource_size_t size)
 {
 	struct resource *iter;
 
-	down(&hyperv_mmio_lock);
+	mutex_lock(&hyperv_mmio_lock);
 	for (iter = hyperv_mmio; iter; iter = iter->sibling) {
 		if ((iter->start >= start + size) || (iter->end <= start))
 			continue;
@@ -2004,7 +2085,7 @@ void vmbus_free_mmio(resource_size_t start, resource_size_t size)
 		__release_region(iter, start, size);
 	}
 	release_mem_region(start, size);
-	up(&hyperv_mmio_lock);
+	mutex_unlock(&hyperv_mmio_lock);
 
 }
 EXPORT_SYMBOL_GPL(vmbus_free_mmio);
@@ -2046,12 +2127,149 @@ acpi_walk_err:
 	return ret_val;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int vmbus_bus_suspend(struct device *dev)
+{
+	struct vmbus_channel *channel, *sc;
+	unsigned long flags;
+
+	while (atomic_read(&vmbus_connection.offer_in_progress) != 0) {
+		/*
+		 * We wait here until the completion of any channel
+		 * offers that are currently in progress.
+		 */
+		msleep(1);
+	}
+
+	mutex_lock(&vmbus_connection.channel_mutex);
+	list_for_each_entry(channel, &vmbus_connection.chn_list, listentry) {
+		if (!is_hvsock_channel(channel))
+			continue;
+
+		vmbus_force_channel_rescinded(channel);
+	}
+	mutex_unlock(&vmbus_connection.channel_mutex);
+
+	/*
+	 * Wait until all the sub-channels and hv_sock channels have been
+	 * cleaned up. Sub-channels should be destroyed upon suspend, otherwise
+	 * they would conflict with the new sub-channels that will be created
+	 * in the resume path. hv_sock channels should also be destroyed, but
+	 * a hv_sock channel of an established hv_sock connection can not be
+	 * really destroyed since it may still be referenced by the userspace
+	 * application, so we just force the hv_sock channel to be rescinded
+	 * by vmbus_force_channel_rescinded(), and the userspace application
+	 * will thoroughly destroy the channel after hibernation.
+	 *
+	 * Note: the counter nr_chan_close_on_suspend may never go above 0 if
+	 * the VM has no sub-channel and hv_sock channel, e.g. a 1-vCPU VM.
+	 */
+	if (atomic_read(&vmbus_connection.nr_chan_close_on_suspend) > 0)
+		wait_for_completion(&vmbus_connection.ready_for_suspend_event);
+
+	WARN_ON(atomic_read(&vmbus_connection.nr_chan_fixup_on_resume) != 0);
+
+	mutex_lock(&vmbus_connection.channel_mutex);
+
+	list_for_each_entry(channel, &vmbus_connection.chn_list, listentry) {
+		/*
+		 * Invalidate the field. Upon resume, vmbus_onoffer() will fix
+		 * up the field, and the other fields (if necessary).
+		 */
+		channel->offermsg.child_relid = INVALID_RELID;
+
+		if (is_hvsock_channel(channel)) {
+			if (!channel->rescind) {
+				pr_err("hv_sock channel not rescinded!\n");
+				WARN_ON_ONCE(1);
+			}
+			continue;
+		}
+
+		spin_lock_irqsave(&channel->lock, flags);
+		list_for_each_entry(sc, &channel->sc_list, sc_list) {
+			pr_err("Sub-channel not deleted!\n");
+			WARN_ON_ONCE(1);
+		}
+		spin_unlock_irqrestore(&channel->lock, flags);
+
+		atomic_inc(&vmbus_connection.nr_chan_fixup_on_resume);
+	}
+
+	mutex_unlock(&vmbus_connection.channel_mutex);
+
+	vmbus_initiate_unload(false);
+
+	vmbus_connection.conn_state = DISCONNECTED;
+
+	/* Reset the event for the next resume. */
+	reinit_completion(&vmbus_connection.ready_for_resume_event);
+
+	return 0;
+}
+
+static int vmbus_bus_resume(struct device *dev)
+{
+	struct vmbus_channel_msginfo *msginfo;
+	size_t msgsize;
+	int ret;
+
+	/*
+	 * We only use the 'vmbus_proto_version', which was in use before
+	 * hibernation, to re-negotiate with the host.
+	 */
+	if (!vmbus_proto_version) {
+		pr_err("Invalid proto version = 0x%x\n", vmbus_proto_version);
+		return -EINVAL;
+	}
+
+	msgsize = sizeof(*msginfo) +
+		  sizeof(struct vmbus_channel_initiate_contact);
+
+	msginfo = kzalloc(msgsize, GFP_KERNEL);
+
+	if (msginfo == NULL)
+		return -ENOMEM;
+
+	ret = vmbus_negotiate_version(msginfo, vmbus_proto_version);
+
+	kfree(msginfo);
+
+	if (ret != 0)
+		return ret;
+
+	WARN_ON(atomic_read(&vmbus_connection.nr_chan_fixup_on_resume) == 0);
+
+	vmbus_request_offers();
+
+	wait_for_completion(&vmbus_connection.ready_for_resume_event);
+
+	/* Reset the event for the next suspend. */
+	reinit_completion(&vmbus_connection.ready_for_suspend_event);
+
+	return 0;
+}
+#endif /* CONFIG_PM_SLEEP */
+
 static const struct acpi_device_id vmbus_acpi_device_ids[] = {
 	{"VMBUS", 0},
 	{"VMBus", 0},
 	{"", 0},
 };
 MODULE_DEVICE_TABLE(acpi, vmbus_acpi_device_ids);
+
+/*
+ * Note: we must use SET_NOIRQ_SYSTEM_SLEEP_PM_OPS rather than
+ * SET_SYSTEM_SLEEP_PM_OPS, otherwise NIC SR-IOV can not work, because the
+ * "pci_dev_pm_ops" uses the "noirq" callbacks: in the resume path, the
+ * pci "noirq" restore callback runs before "non-noirq" callbacks (see
+ * resume_target_kernel() -> dpm_resume_start(), and hibernation_restore() ->
+ * dpm_resume_end()). This means vmbus_bus_resume() and the pci-hyperv's
+ * resume callback must also run via the "noirq" callbacks.
+ */
+static const struct dev_pm_ops vmbus_bus_pm = {
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(vmbus_bus_suspend, vmbus_bus_resume)
+};
 
 static struct acpi_driver vmbus_acpi_driver = {
 	.name = "vmbus",
@@ -2060,11 +2278,12 @@ static struct acpi_driver vmbus_acpi_driver = {
 		.add = vmbus_acpi_add,
 		.remove = vmbus_acpi_remove,
 	},
+	.drv.pm = &vmbus_bus_pm,
 };
 
 static void hv_kexec_handler(void)
 {
-	hv_synic_clockevents_cleanup();
+	hv_stimer_global_cleanup();
 	vmbus_initiate_unload(false);
 	vmbus_connection.conn_state = DISCONNECTED;
 	/* Make sure conn_state is set as hv_synic_cleanup checks for it */
@@ -2075,6 +2294,8 @@ static void hv_kexec_handler(void)
 
 static void hv_crash_handler(struct pt_regs *regs)
 {
+	int cpu;
+
 	vmbus_initiate_unload(true);
 	/*
 	 * In crash handler we can't schedule synic cleanup for all CPUs,
@@ -2082,8 +2303,54 @@ static void hv_crash_handler(struct pt_regs *regs)
 	 * for kdump.
 	 */
 	vmbus_connection.conn_state = DISCONNECTED;
-	hv_synic_cleanup(smp_processor_id());
+	cpu = smp_processor_id();
+	hv_stimer_cleanup(cpu);
+	hv_synic_disable_regs(cpu);
 	hyperv_cleanup();
+};
+
+static int hv_synic_suspend(void)
+{
+	/*
+	 * When we reach here, all the non-boot CPUs have been offlined.
+	 * If we're in a legacy configuration where stimer Direct Mode is
+	 * not enabled, the stimers on the non-boot CPUs have been unbound
+	 * in hv_synic_cleanup() -> hv_stimer_legacy_cleanup() ->
+	 * hv_stimer_cleanup() -> clockevents_unbind_device().
+	 *
+	 * hv_synic_suspend() only runs on CPU0 with interrupts disabled.
+	 * Here we do not call hv_stimer_legacy_cleanup() on CPU0 because:
+	 * 1) it's unnecessary as interrupts remain disabled between
+	 * syscore_suspend() and syscore_resume(): see create_image() and
+	 * resume_target_kernel()
+	 * 2) the stimer on CPU0 is automatically disabled later by
+	 * syscore_suspend() -> timekeeping_suspend() -> tick_suspend() -> ...
+	 * -> clockevents_shutdown() -> ... -> hv_ce_shutdown()
+	 * 3) a warning would be triggered if we call
+	 * clockevents_unbind_device(), which may sleep, in an
+	 * interrupts-disabled context.
+	 */
+
+	hv_synic_disable_regs(0);
+
+	return 0;
+}
+
+static void hv_synic_resume(void)
+{
+	hv_synic_enable_regs(0);
+
+	/*
+	 * Note: we don't need to call hv_stimer_init(0), because the timer
+	 * on CPU0 is not unbound in hv_synic_suspend(), and the timer is
+	 * automatically re-enabled in timekeeping_resume().
+	 */
+}
+
+/* The callbacks run only on CPU0, with irqs_disabled. */
+static struct syscore_ops hv_synic_syscore_ops = {
+	.suspend = hv_synic_suspend,
+	.resume = hv_synic_resume,
 };
 
 static int __init hv_acpi_init(void)
@@ -2108,6 +2375,7 @@ static int __init hv_acpi_init(void)
 		ret = -ETIMEDOUT;
 		goto cleanup;
 	}
+	hv_debug_init();
 
 	ret = vmbus_bus_init();
 	if (ret)
@@ -2115,6 +2383,8 @@ static int __init hv_acpi_init(void)
 
 	hv_setup_kexec_handler(hv_kexec_handler);
 	hv_setup_crash_handler(hv_crash_handler);
+
+	register_syscore_ops(&hv_synic_syscore_ops);
 
 	return 0;
 
@@ -2128,10 +2398,12 @@ static void __exit vmbus_exit(void)
 {
 	int cpu;
 
+	unregister_syscore_ops(&hv_synic_syscore_ops);
+
 	hv_remove_kexec_handler();
 	hv_remove_crash_handler();
 	vmbus_connection.conn_state = DISCONNECTED;
-	hv_synic_clockevents_cleanup();
+	hv_stimer_global_cleanup();
 	vmbus_disconnect();
 	hv_remove_vmbus_irq();
 	for_each_online_cpu(cpu) {
@@ -2140,6 +2412,8 @@ static void __exit vmbus_exit(void)
 
 		tasklet_kill(&hv_cpu->msg_dpc);
 	}
+	hv_debug_rm_all_dir();
+
 	vmbus_free_channels();
 
 	if (ms_hyperv.misc_features & HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE) {
@@ -2161,6 +2435,7 @@ static void __exit vmbus_exit(void)
 
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Microsoft Hyper-V VMBus Driver");
 
 subsys_initcall(hv_acpi_init);
 module_exit(vmbus_exit);

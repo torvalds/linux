@@ -1069,7 +1069,7 @@ static int smbd_post_send_data(
 
 	if (n_vec > SMBDIRECT_MAX_SGE) {
 		cifs_dbg(VFS, "Can't fit data to SGL, n_vec=%d\n", n_vec);
-		return -ENOMEM;
+		return -EINVAL;
 	}
 
 	sg_init_table(sgl, n_vec);
@@ -1476,6 +1476,7 @@ void smbd_destroy(struct TCP_Server_Info *server)
 	info->transport_status = SMBD_DESTROYED;
 
 	destroy_workqueue(info->workqueue);
+	log_rdma_event(INFO,  "rdma session destroyed\n");
 	kfree(info);
 }
 
@@ -1505,8 +1506,9 @@ create_conn:
 	log_rdma_event(INFO, "creating rdma session\n");
 	server->smbd_conn = smbd_get_connection(
 		server, (struct sockaddr *) &server->dstaddr);
-	log_rdma_event(INFO, "created rdma session info=%p\n",
-		server->smbd_conn);
+
+	if (server->smbd_conn)
+		cifs_dbg(VFS, "RDMA transport re-established\n");
 
 	return server->smbd_conn ? 0 : -ENOENT;
 }
@@ -1654,15 +1656,17 @@ static struct smbd_connection *_smbd_get_connection(
 
 	info->send_cq = NULL;
 	info->recv_cq = NULL;
-	info->send_cq = ib_alloc_cq(info->id->device, info,
-			info->send_credit_target, 0, IB_POLL_SOFTIRQ);
+	info->send_cq =
+		ib_alloc_cq_any(info->id->device, info,
+				info->send_credit_target, IB_POLL_SOFTIRQ);
 	if (IS_ERR(info->send_cq)) {
 		info->send_cq = NULL;
 		goto alloc_cq_failed;
 	}
 
-	info->recv_cq = ib_alloc_cq(info->id->device, info,
-			info->receive_credit_max, 0, IB_POLL_SOFTIRQ);
+	info->recv_cq =
+		ib_alloc_cq_any(info->id->device, info,
+				info->receive_credit_max, IB_POLL_SOFTIRQ);
 	if (IS_ERR(info->recv_cq)) {
 		info->recv_cq = NULL;
 		goto alloc_cq_failed;
@@ -1968,7 +1972,7 @@ read_rfc1002_done:
 
 	if (info->transport_status != SMBD_CONNECTED) {
 		log_read(ERR, "disconnected\n");
-		return 0;
+		return -ECONNABORTED;
 	}
 
 	goto again;
@@ -2267,12 +2271,7 @@ static void smbd_mr_recovery_work(struct work_struct *work)
 	int rc;
 
 	list_for_each_entry(smbdirect_mr, &info->mr_list, list) {
-		if (smbdirect_mr->state == MR_INVALIDATED)
-			ib_dma_unmap_sg(
-				info->id->device, smbdirect_mr->sgl,
-				smbdirect_mr->sgl_count,
-				smbdirect_mr->dir);
-		else if (smbdirect_mr->state == MR_ERROR) {
+		if (smbdirect_mr->state == MR_ERROR) {
 
 			/* recover this MR entry */
 			rc = ib_dereg_mr(smbdirect_mr->mr);
@@ -2600,11 +2599,20 @@ int smbd_deregister_mr(struct smbd_mr *smbdirect_mr)
 		 */
 		smbdirect_mr->state = MR_INVALIDATED;
 
-	/*
-	 * Schedule the work to do MR recovery for future I/Os
-	 * MR recovery is slow and we don't want it to block the current I/O
-	 */
-	queue_work(info->workqueue, &info->mr_recovery_work);
+	if (smbdirect_mr->state == MR_INVALIDATED) {
+		ib_dma_unmap_sg(
+			info->id->device, smbdirect_mr->sgl,
+			smbdirect_mr->sgl_count,
+			smbdirect_mr->dir);
+		smbdirect_mr->state = MR_READY;
+		if (atomic_inc_return(&info->mr_ready_count) == 1)
+			wake_up_interruptible(&info->wait_mr);
+	} else
+		/*
+		 * Schedule the work to do MR recovery for future I/Os MR
+		 * recovery is slow and don't want it to block current I/O
+		 */
+		queue_work(info->workqueue, &info->mr_recovery_work);
 
 done:
 	if (atomic_dec_and_test(&info->mr_used_count))

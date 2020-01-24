@@ -3,7 +3,6 @@
 #define _PERF_UTIL_TRACE_EVENT_H
 
 #include <traceevent/event-parse.h>
-#include <traceevent/trace-seq.h>
 #include "parse-events.h"
 
 struct machine;
@@ -48,8 +47,6 @@ void parse_saved_cmdline(struct tep_handle *pevent, char *file, unsigned int siz
 
 ssize_t trace_report(int fd, struct trace_event *tevent, bool repipe);
 
-struct tep_event *trace_find_next_event(struct tep_handle *pevent,
-					struct tep_event *event);
 unsigned long long read_size(struct tep_event *event, void *ptr, int size);
 unsigned long long eval_flag(const char *flag);
 
@@ -79,10 +76,13 @@ struct scripting_ops {
 	int (*stop_script) (void);
 	void (*process_event) (union perf_event *event,
 			       struct perf_sample *sample,
-			       struct perf_evsel *evsel,
+			       struct evsel *evsel,
 			       struct addr_location *al);
+	void (*process_switch)(union perf_event *event,
+			       struct perf_sample *sample,
+			       struct machine *machine);
 	void (*process_stat)(struct perf_stat_config *config,
-			     struct perf_evsel *evsel, u64 tstamp);
+			     struct evsel *evsel, u64 tstamp);
 	void (*process_stat_interval)(u64 tstamp);
 	int (*generate_script) (struct tep_handle *pevent, const char *outfile);
 };

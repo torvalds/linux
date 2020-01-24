@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2018 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2019 Oracle and/or its affiliates. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -47,8 +47,8 @@ void rds_inc_init(struct rds_incoming *inc, struct rds_connection *conn,
 	INIT_LIST_HEAD(&inc->i_item);
 	inc->i_conn = conn;
 	inc->i_saddr = *saddr;
-	inc->i_rdma_cookie = 0;
-	inc->i_rx_tstamp = ktime_set(0, 0);
+	inc->i_usercopy.rdma_cookie = 0;
+	inc->i_usercopy.rx_tstamp = ktime_set(0, 0);
 
 	memset(inc->i_rx_lat_trace, 0, sizeof(inc->i_rx_lat_trace));
 }
@@ -62,8 +62,8 @@ void rds_inc_path_init(struct rds_incoming *inc, struct rds_conn_path *cp,
 	inc->i_conn = cp->cp_conn;
 	inc->i_conn_path = cp;
 	inc->i_saddr = *saddr;
-	inc->i_rdma_cookie = 0;
-	inc->i_rx_tstamp = ktime_set(0, 0);
+	inc->i_usercopy.rdma_cookie = 0;
+	inc->i_usercopy.rx_tstamp = ktime_set(0, 0);
 }
 EXPORT_SYMBOL_GPL(rds_inc_path_init);
 
@@ -186,7 +186,7 @@ static void rds_recv_incoming_exthdrs(struct rds_incoming *inc, struct rds_sock 
 		case RDS_EXTHDR_RDMA_DEST:
 			/* We ignore the size for now. We could stash it
 			 * somewhere and use it for error checking. */
-			inc->i_rdma_cookie = rds_rdma_make_cookie(
+			inc->i_usercopy.rdma_cookie = rds_rdma_make_cookie(
 					be32_to_cpu(buffer.rdma_dest.h_rdma_rkey),
 					be32_to_cpu(buffer.rdma_dest.h_rdma_offset));
 
@@ -380,7 +380,7 @@ void rds_recv_incoming(struct rds_connection *conn, struct in6_addr *saddr,
 				      be32_to_cpu(inc->i_hdr.h_len),
 				      inc->i_hdr.h_dport);
 		if (sock_flag(sk, SOCK_RCVTSTAMP))
-			inc->i_rx_tstamp = ktime_get_real();
+			inc->i_usercopy.rx_tstamp = ktime_get_real();
 		rds_inc_addref(inc);
 		inc->i_rx_lat_trace[RDS_MSG_RX_END] = local_clock();
 		list_add_tail(&inc->i_item, &rs->rs_recv_queue);
@@ -540,16 +540,18 @@ static int rds_cmsg_recv(struct rds_incoming *inc, struct msghdr *msg,
 {
 	int ret = 0;
 
-	if (inc->i_rdma_cookie) {
+	if (inc->i_usercopy.rdma_cookie) {
 		ret = put_cmsg(msg, SOL_RDS, RDS_CMSG_RDMA_DEST,
-				sizeof(inc->i_rdma_cookie), &inc->i_rdma_cookie);
+				sizeof(inc->i_usercopy.rdma_cookie),
+				&inc->i_usercopy.rdma_cookie);
 		if (ret)
 			goto out;
 	}
 
-	if ((inc->i_rx_tstamp != 0) &&
+	if ((inc->i_usercopy.rx_tstamp != 0) &&
 	    sock_flag(rds_rs_to_sk(rs), SOCK_RCVTSTAMP)) {
-		struct __kernel_old_timeval tv = ns_to_kernel_old_timeval(inc->i_rx_tstamp);
+		struct __kernel_old_timeval tv =
+			ns_to_kernel_old_timeval(inc->i_usercopy.rx_tstamp);
 
 		if (!sock_flag(rds_rs_to_sk(rs), SOCK_TSTAMP_NEW)) {
 			ret = put_cmsg(msg, SOL_SOCKET, SO_TIMESTAMP_OLD,
@@ -811,6 +813,7 @@ void rds6_inc_info_copy(struct rds_incoming *inc,
 
 	minfo6.seq = be64_to_cpu(inc->i_hdr.h_sequence);
 	minfo6.len = be32_to_cpu(inc->i_hdr.h_len);
+	minfo6.tos = inc->i_conn->c_tos;
 
 	if (flip) {
 		minfo6.laddr = *daddr;
@@ -823,6 +826,8 @@ void rds6_inc_info_copy(struct rds_incoming *inc,
 		minfo6.lport = inc->i_hdr.h_sport;
 		minfo6.fport = inc->i_hdr.h_dport;
 	}
+
+	minfo6.flags = 0;
 
 	rds_info_copy(iter, &minfo6, sizeof(minfo6));
 }

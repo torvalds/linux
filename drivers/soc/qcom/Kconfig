@@ -4,6 +4,18 @@
 #
 menu "Qualcomm SoC drivers"
 
+config QCOM_AOSS_QMP
+	tristate "Qualcomm AOSS Driver"
+	depends on ARCH_QCOM || COMPILE_TEST
+	depends on MAILBOX
+	depends on COMMON_CLK && PM
+	select PM_GENERIC_DOMAINS
+	help
+	  This driver provides the means of communicating with and controlling
+	  the low-power state for resources related to the remoteproc
+	  subsystems as well as controlling the debug clocks exposed by the Always On
+	  Subsystem (AOSS) using Qualcomm Messaging Protocol (QMP).
+
 config QCOM_COMMAND_DB
 	bool "Qualcomm Command DB"
 	depends on ARCH_QCOM || COMPILE_TEST
@@ -46,21 +58,23 @@ config QCOM_LLCC
 	depends on ARCH_QCOM || COMPILE_TEST
 	help
 	  Qualcomm Technologies, Inc. platform specific
-	  Last Level Cache Controller(LLCC) driver. This provides interfaces
-	  to clients that use the LLCC. Say yes here to enable LLCC slice
-	  driver.
-
-config QCOM_SDM845_LLCC
-	tristate "Qualcomm Technologies, Inc. SDM845 LLCC driver"
-	depends on QCOM_LLCC
-	help
-	  Say yes here to enable the LLCC driver for SDM845. This provides
-	  data required to configure LLCC so that clients can start using the
-	  LLCC slices.
+	  Last Level Cache Controller(LLCC) driver for platforms such as,
+	  SDM845. This provides interfaces to clients that use the LLCC.
+	  Say yes here to enable LLCC slice driver.
 
 config QCOM_MDT_LOADER
 	tristate
 	select QCOM_SCM
+
+config QCOM_OCMEM
+	tristate "Qualcomm On Chip Memory (OCMEM) driver"
+	depends on ARCH_QCOM
+	select QCOM_SCM
+	help
+          The On Chip Memory (OCMEM) allocator allows various clients to
+          allocate memory from OCMEM based on performance, latency and power
+          requirements. This is typically used by the GPU, camera/video, and
+          audio components on some Snapdragon SoCs.
 
 config QCOM_PM
 	bool "Qualcomm Power Management"
@@ -162,6 +176,14 @@ config QCOM_SMSM
 	help
 	  Say yes here to support the Qualcomm Shared Memory State Machine.
 	  The state machine is represented by bits in shared memory.
+
+config QCOM_SOCINFO
+	tristate "Qualcomm socinfo driver"
+	depends on QCOM_SMEM
+	select SOC_BUS
+	help
+	 Say yes here to support the Qualcomm socinfo driver, providing
+	 information about the SoC to user space.
 
 config QCOM_WCNSS_CTRL
 	tristate "Qualcomm WCNSS control driver"

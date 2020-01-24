@@ -8,6 +8,8 @@
 #ifndef __DPU_KMS_H__
 #define __DPU_KMS_H__
 
+#include <drm/drm_drv.h>
+
 #include "msm_drv.h"
 #include "msm_kms.h"
 #include "msm_mmu.h"
@@ -29,7 +31,7 @@
  */
 #define DPU_DEBUG(fmt, ...)                                                \
 	do {                                                               \
-		if (unlikely(drm_debug & DRM_UT_KMS))                      \
+		if (drm_debug_enabled(DRM_UT_KMS))                         \
 			DRM_DEBUG(fmt, ##__VA_ARGS__); \
 		else                                                       \
 			pr_debug(fmt, ##__VA_ARGS__);                      \
@@ -41,7 +43,7 @@
  */
 #define DPU_DEBUG_DRIVER(fmt, ...)                                         \
 	do {                                                               \
-		if (unlikely(drm_debug & DRM_UT_DRIVER))                   \
+		if (drm_debug_enabled(DRM_UT_DRIVER))                      \
 			DRM_ERROR(fmt, ##__VA_ARGS__); \
 		else                                                       \
 			pr_debug(fmt, ##__VA_ARGS__);                      \
@@ -120,6 +122,14 @@ struct dpu_kms {
 	struct platform_device *pdev;
 	bool rpm_enabled;
 	struct dss_module_power mp;
+
+	/* reference count bandwidth requests, so we know when we can
+	 * release bandwidth.  Each atomic update increments, and frame-
+	 * done event decrements.  Additionally, for video mode, the
+	 * reference is incremented when crtc is enabled, and decremented
+	 * when disabled.
+	 */
+	atomic_t bandwidth_ref;
 };
 
 struct vsync_info {
@@ -128,10 +138,6 @@ struct vsync_info {
 };
 
 #define to_dpu_kms(x) container_of(x, struct dpu_kms, base)
-
-/* get struct msm_kms * from drm_device * */
-#define ddev_to_msm_kms(D) ((D) && (D)->dev_private ? \
-		((struct msm_drm_private *)((D)->dev_private))->kms : NULL)
 
 /**
  * Debugfs functions - extra helper functions for debugfs support
@@ -186,12 +192,8 @@ void dpu_debugfs_setup_regset32(struct dpu_debugfs_regset32 *regset,
  * @mode:   File mode within debugfs
  * @parent: Parent directory entry within debugfs, can be NULL
  * @regset: Pointer to persistent register block definition
- *
- * Return: dentry pointer for newly created file, use either debugfs_remove()
- *         or debugfs_remove_recursive() (on a parent directory) to remove the
- *         file
  */
-void *dpu_debugfs_create_regset32(const char *name, umode_t mode,
+void dpu_debugfs_create_regset32(const char *name, umode_t mode,
 		void *parent, struct dpu_debugfs_regset32 *regset);
 
 /**

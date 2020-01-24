@@ -21,6 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
+#include <linux/timer.h>
 #include <scsi/sas_ata.h>
 #include <scsi/libsas.h>
 
@@ -31,7 +32,13 @@
 #define HISI_SAS_MAX_DEVICES HISI_SAS_MAX_ITCT_ENTRIES
 #define HISI_SAS_RESET_BIT	0
 #define HISI_SAS_REJECT_CMD_BIT	1
-#define HISI_SAS_RESERVED_IPTT_CNT  96
+#define HISI_SAS_MAX_COMMANDS (HISI_SAS_QUEUE_SLOTS)
+#define HISI_SAS_RESERVED_IPTT  96
+#define HISI_SAS_UNRESERVED_IPTT \
+	(HISI_SAS_MAX_COMMANDS - HISI_SAS_RESERVED_IPTT)
+
+#define HISI_SAS_IOST_ITCT_CACHE_NUM 64
+#define HISI_SAS_IOST_ITCT_CACHE_DW_SZ 10
 
 #define HISI_SAS_STATUS_BUF_SZ (sizeof(struct hisi_sas_status_buffer))
 #define HISI_SAS_COMMAND_TABLE_SZ (sizeof(union hisi_sas_command_table))
@@ -61,10 +68,6 @@
 #define HISI_SAS_MAX_SMP_RESP_SZ 1028
 #define HISI_SAS_MAX_STP_RESP_SZ 28
 
-#define DEV_IS_EXPANDER(type) \
-	((type == SAS_EDGE_EXPANDER_DEVICE) || \
-	(type == SAS_FANOUT_EXPANDER_DEVICE))
-
 #define HISI_SAS_SATA_PROTOCOL_NONDATA		0x1
 #define HISI_SAS_SATA_PROTOCOL_PIO			0x2
 #define HISI_SAS_SATA_PROTOCOL_DMA			0x4
@@ -82,6 +85,7 @@
 #define HISI_SAS_PROT_MASK (HISI_SAS_DIF_PROT_MASK | HISI_SAS_DIX_PROT_MASK)
 
 #define HISI_SAS_WAIT_PHYUP_TIMEOUT 20
+#define CLEAR_ITCT_TIMEOUT	20
 
 struct hisi_hba;
 
@@ -132,7 +136,6 @@ struct hisi_sas_rst {
 
 #define HISI_SAS_DECLARE_RST_WORK_ON_STACK(r) \
 	DECLARE_COMPLETION_ONSTACK(c); \
-	DECLARE_WORK(w, hisi_sas_sync_rst_work_handler); \
 	struct hisi_sas_rst r = HISI_SAS_RST_WORK_INIT(r, c)
 
 enum hisi_sas_bit_err_type {
@@ -166,6 +169,7 @@ struct hisi_sas_phy {
 	enum sas_linkrate	minimum_linkrate;
 	enum sas_linkrate	maximum_linkrate;
 	int enable;
+	atomic_t down_cnt;
 };
 
 struct hisi_sas_port {
@@ -253,6 +257,22 @@ struct hisi_sas_debugfs_reg {
 	};
 };
 
+struct hisi_sas_iost_itct_cache {
+	u32 data[HISI_SAS_IOST_ITCT_CACHE_DW_SZ];
+};
+
+enum hisi_sas_debugfs_reg_array_member {
+	DEBUGFS_GLOBAL = 0,
+	DEBUGFS_AXI,
+	DEBUGFS_RAS,
+	DEBUGFS_REGS_NUM
+};
+
+enum hisi_sas_debugfs_cache_type {
+	HISI_SAS_ITCT_CACHE,
+	HISI_SAS_IOST_CACHE,
+};
+
 struct hisi_sas_hw {
 	int (*hw_init)(struct hisi_hba *hisi_hba);
 	void (*setup_itct)(struct hisi_hba *hisi_hba,
@@ -261,7 +281,6 @@ struct hisi_sas_hw {
 				struct domain_device *device);
 	struct hisi_sas_device *(*alloc_dev)(struct domain_device *device);
 	void (*sl_notify_ssp)(struct hisi_hba *hisi_hba, int phy_no);
-	int (*get_free_slot)(struct hisi_hba *hisi_hba, struct hisi_sas_dq *dq);
 	void (*start_delivery)(struct hisi_sas_dq *dq);
 	void (*prep_ssp)(struct hisi_hba *hisi_hba,
 			struct hisi_sas_slot *slot);
@@ -272,8 +291,6 @@ struct hisi_sas_hw {
 	void (*prep_abort)(struct hisi_hba *hisi_hba,
 			  struct hisi_sas_slot *slot,
 			  int device_id, int abort_flag, int tag_to_abort);
-	int (*slot_complete)(struct hisi_hba *hisi_hba,
-			     struct hisi_sas_slot *slot);
 	void (*phys_init)(struct hisi_hba *hisi_hba);
 	void (*phy_start)(struct hisi_hba *hisi_hba, int phy_no);
 	void (*phy_disable)(struct hisi_hba *hisi_hba, int phy_no);
@@ -282,8 +299,8 @@ struct hisi_sas_hw {
 	void (*phy_set_linkrate)(struct hisi_hba *hisi_hba, int phy_no,
 			struct sas_phy_linkrates *linkrates);
 	enum sas_linkrate (*phy_get_max_linkrate)(void);
-	void (*clear_itct)(struct hisi_hba *hisi_hba,
-			    struct hisi_sas_device *dev);
+	int (*clear_itct)(struct hisi_hba *hisi_hba,
+			  struct hisi_sas_device *dev);
 	void (*free_device)(struct hisi_sas_device *sas_dev);
 	int (*get_wideport_bitmap)(struct hisi_hba *hisi_hba, int port_id);
 	void (*dereg_device)(struct hisi_hba *hisi_hba,
@@ -292,16 +309,57 @@ struct hisi_sas_hw {
 	u32 (*get_phys_state)(struct hisi_hba *hisi_hba);
 	int (*write_gpio)(struct hisi_hba *hisi_hba, u8 reg_type,
 				u8 reg_index, u8 reg_count, u8 *write_data);
-	int (*wait_cmds_complete_timeout)(struct hisi_hba *hisi_hba,
-					  int delay_ms, int timeout_ms);
+	void (*wait_cmds_complete_timeout)(struct hisi_hba *hisi_hba,
+					   int delay_ms, int timeout_ms);
 	void (*snapshot_prepare)(struct hisi_hba *hisi_hba);
 	void (*snapshot_restore)(struct hisi_hba *hisi_hba);
-	int max_command_entries;
+	int (*set_bist)(struct hisi_hba *hisi_hba, bool enable);
+	void (*read_iost_itct_cache)(struct hisi_hba *hisi_hba,
+				     enum hisi_sas_debugfs_cache_type type,
+				     u32 *cache);
 	int complete_hdr_size;
 	struct scsi_host_template *sht;
 
-	const struct hisi_sas_debugfs_reg *debugfs_reg_global;
+	const struct hisi_sas_debugfs_reg *debugfs_reg_array[DEBUGFS_REGS_NUM];
 	const struct hisi_sas_debugfs_reg *debugfs_reg_port;
+};
+
+#define HISI_SAS_MAX_DEBUGFS_DUMP (50)
+
+struct hisi_sas_debugfs_cq {
+	struct hisi_sas_cq *cq;
+	void *complete_hdr;
+};
+
+struct hisi_sas_debugfs_dq {
+	struct hisi_sas_dq *dq;
+	struct hisi_sas_cmd_hdr *hdr;
+};
+
+struct hisi_sas_debugfs_regs {
+	struct hisi_hba *hisi_hba;
+	u32 *data;
+};
+
+struct hisi_sas_debugfs_port {
+	struct hisi_sas_phy *phy;
+	u32 *data;
+};
+
+struct hisi_sas_debugfs_iost {
+	struct hisi_sas_iost *iost;
+};
+
+struct hisi_sas_debugfs_itct {
+	struct hisi_sas_itct *itct;
+};
+
+struct hisi_sas_debugfs_iost_cache {
+	struct hisi_sas_iost_itct_cache *cache;
+};
+
+struct hisi_sas_debugfs_itct_cache {
+	struct hisi_sas_iost_itct_cache *cache;
 };
 
 struct hisi_hba {
@@ -375,17 +433,30 @@ struct hisi_hba {
 	int cq_nvecs;
 	unsigned int *reply_map;
 
-	/* debugfs memories */
-	u32 *debugfs_global_reg;
-	u32 *debugfs_port_reg[HISI_SAS_MAX_PHYS];
-	void *debugfs_complete_hdr[HISI_SAS_MAX_QUEUES];
-	struct hisi_sas_cmd_hdr	*debugfs_cmd_hdr[HISI_SAS_MAX_QUEUES];
-	struct hisi_sas_iost *debugfs_iost;
-	struct hisi_sas_itct *debugfs_itct;
+	/* bist */
+	enum sas_linkrate debugfs_bist_linkrate;
+	int debugfs_bist_code_mode;
+	int debugfs_bist_phy_no;
+	int debugfs_bist_mode;
+	u32 debugfs_bist_cnt;
+	int debugfs_bist_enable;
 
+	/* debugfs memories */
+	/* Put Global AXI and RAS Register into register array */
+	struct hisi_sas_debugfs_regs debugfs_regs[HISI_SAS_MAX_DEBUGFS_DUMP][DEBUGFS_REGS_NUM];
+	struct hisi_sas_debugfs_port debugfs_port_reg[HISI_SAS_MAX_DEBUGFS_DUMP][HISI_SAS_MAX_PHYS];
+	struct hisi_sas_debugfs_cq debugfs_cq[HISI_SAS_MAX_DEBUGFS_DUMP][HISI_SAS_MAX_QUEUES];
+	struct hisi_sas_debugfs_dq debugfs_dq[HISI_SAS_MAX_DEBUGFS_DUMP][HISI_SAS_MAX_QUEUES];
+	struct hisi_sas_debugfs_iost debugfs_iost[HISI_SAS_MAX_DEBUGFS_DUMP];
+	struct hisi_sas_debugfs_itct debugfs_itct[HISI_SAS_MAX_DEBUGFS_DUMP];
+	struct hisi_sas_debugfs_iost_cache debugfs_iost_cache[HISI_SAS_MAX_DEBUGFS_DUMP];
+	struct hisi_sas_debugfs_itct_cache debugfs_itct_cache[HISI_SAS_MAX_DEBUGFS_DUMP];
+
+	u64 debugfs_timestamp[HISI_SAS_MAX_DEBUGFS_DUMP];
+	int debugfs_dump_index;
 	struct dentry *debugfs_dir;
 	struct dentry *debugfs_dump_dentry;
-	bool debugfs_snapshot;
+	struct dentry *debugfs_bist_dentry;
 };
 
 /* Generic HW DMA host memory structures */
@@ -479,12 +550,12 @@ struct hisi_sas_command_table_stp {
 	u8	atapi_cdb[ATAPI_CDB_LEN];
 };
 
-#define HISI_SAS_SGE_PAGE_CNT SG_CHUNK_SIZE
+#define HISI_SAS_SGE_PAGE_CNT (124)
 struct hisi_sas_sge_page {
 	struct hisi_sas_sge sge[HISI_SAS_SGE_PAGE_CNT];
 }  __aligned(16);
 
-#define HISI_SAS_SGE_DIF_PAGE_CNT   SG_CHUNK_SIZE
+#define HISI_SAS_SGE_DIF_PAGE_CNT   HISI_SAS_SGE_PAGE_CNT
 struct hisi_sas_sge_dif_page {
 	struct hisi_sas_sge sge[HISI_SAS_SGE_DIF_PAGE_CNT];
 }  __aligned(16);
@@ -527,6 +598,7 @@ struct hisi_sas_slot_dif_buf_table {
 extern struct scsi_transport_template *hisi_sas_stt;
 
 extern bool hisi_sas_debugfs_enable;
+extern u32 hisi_sas_debugfs_dump_count;
 extern struct dentry *hisi_sas_debugfs_dir;
 
 extern void hisi_sas_stop_phys(struct hisi_hba *hisi_hba);
@@ -537,7 +609,6 @@ extern u8 hisi_sas_get_ata_protocol(struct host_to_dev_fis *fis,
 extern struct hisi_sas_port *to_hisi_sas_port(struct asd_sas_port *sas_port);
 extern void hisi_sas_sata_done(struct sas_task *task,
 			    struct hisi_sas_slot *slot);
-extern int hisi_sas_get_ncq_tag(struct sas_task *task, u32 *tag);
 extern int hisi_sas_get_fw_info(struct hisi_hba *hisi_hba);
 extern int hisi_sas_probe(struct platform_device *pdev,
 			  const struct hisi_sas_hw *ops);

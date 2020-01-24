@@ -239,9 +239,9 @@ void __init fixrange_init(unsigned long start, unsigned long end,
 	unsigned long vaddr;
 
 	vaddr = start;
-	i = __pgd_offset(vaddr);
-	j = __pud_offset(vaddr);
-	k = __pmd_offset(vaddr);
+	i = pgd_index(vaddr);
+	j = pud_index(vaddr);
+	k = pmd_index(vaddr);
 	pgd = pgd_base + i;
 
 	for ( ; (i < PTRS_PER_PGD) && (vaddr < end); pgd++, i++) {
@@ -269,37 +269,46 @@ void __init fixrange_init(unsigned long start, unsigned long end,
 #endif
 }
 
+struct maar_walk_info {
+	struct maar_config cfg[16];
+	unsigned int num_cfg;
+};
+
+static int maar_res_walk(unsigned long start_pfn, unsigned long nr_pages,
+			 void *data)
+{
+	struct maar_walk_info *wi = data;
+	struct maar_config *cfg = &wi->cfg[wi->num_cfg];
+	unsigned int maar_align;
+
+	/* MAAR registers hold physical addresses right shifted by 4 bits */
+	maar_align = BIT(MIPS_MAAR_ADDR_SHIFT + 4);
+
+	/* Fill in the MAAR config entry */
+	cfg->lower = ALIGN(PFN_PHYS(start_pfn), maar_align);
+	cfg->upper = ALIGN_DOWN(PFN_PHYS(start_pfn + nr_pages), maar_align) - 1;
+	cfg->attrs = MIPS_MAAR_S;
+
+	/* Ensure we don't overflow the cfg array */
+	if (!WARN_ON(wi->num_cfg >= ARRAY_SIZE(wi->cfg)))
+		wi->num_cfg++;
+
+	return 0;
+}
+
+
 unsigned __weak platform_maar_init(unsigned num_pairs)
 {
-	struct maar_config cfg[BOOT_MEM_MAP_MAX];
-	unsigned i, num_configured, num_cfg = 0;
+	unsigned int num_configured;
+	struct maar_walk_info wi;
 
-	for (i = 0; i < boot_mem_map.nr_map; i++) {
-		switch (boot_mem_map.map[i].type) {
-		case BOOT_MEM_RAM:
-		case BOOT_MEM_INIT_RAM:
-			break;
-		default:
-			continue;
-		}
+	wi.num_cfg = 0;
+	walk_system_ram_range(0, max_pfn, &wi, maar_res_walk);
 
-		/* Round lower up */
-		cfg[num_cfg].lower = boot_mem_map.map[i].addr;
-		cfg[num_cfg].lower = (cfg[num_cfg].lower + 0xffff) & ~0xffff;
-
-		/* Round upper down */
-		cfg[num_cfg].upper = boot_mem_map.map[i].addr +
-					boot_mem_map.map[i].size;
-		cfg[num_cfg].upper = (cfg[num_cfg].upper & ~0xffff) - 1;
-
-		cfg[num_cfg].attrs = MIPS_MAAR_S;
-		num_cfg++;
-	}
-
-	num_configured = maar_config(cfg, num_cfg, num_pairs);
-	if (num_configured < num_cfg)
-		pr_warn("Not enough MAAR pairs (%u) for all bootmem regions (%u)\n",
-			num_pairs, num_cfg);
+	num_configured = maar_config(wi.cfg, wi.num_cfg, num_pairs);
+	if (num_configured < wi.num_cfg)
+		pr_warn("Not enough MAAR pairs (%u) for all memory regions (%u)\n",
+			num_pairs, wi.num_cfg);
 
 	return num_configured;
 }
@@ -382,33 +391,6 @@ void maar_init(void)
 }
 
 #ifndef CONFIG_NEED_MULTIPLE_NODES
-int page_is_ram(unsigned long pagenr)
-{
-	int i;
-
-	for (i = 0; i < boot_mem_map.nr_map; i++) {
-		unsigned long addr, end;
-
-		switch (boot_mem_map.map[i].type) {
-		case BOOT_MEM_RAM:
-		case BOOT_MEM_INIT_RAM:
-			break;
-		default:
-			/* not usable memory */
-			continue;
-		}
-
-		addr = PFN_UP(boot_mem_map.map[i].addr);
-		end = PFN_DOWN(boot_mem_map.map[i].addr +
-			       boot_mem_map.map[i].size);
-
-		if (pagenr >= addr && pagenr < end)
-			return 1;
-	}
-
-	return 0;
-}
-
 void __init paging_init(void)
 {
 	unsigned long max_zone_pfns[MAX_NR_ZONES];
@@ -443,7 +425,7 @@ void __init paging_init(void)
 static struct kcore_list kcore_kseg0;
 #endif
 
-static inline void mem_init_free_highmem(void)
+static inline void __init mem_init_free_highmem(void)
 {
 #ifdef CONFIG_HIGHMEM
 	unsigned long tmp;
@@ -454,7 +436,7 @@ static inline void mem_init_free_highmem(void)
 	for (tmp = highstart_pfn; tmp < highend_pfn; tmp++) {
 		struct page *page = pfn_to_page(tmp);
 
-		if (!page_is_ram(tmp))
+		if (!memblock_is_memory(PFN_PHYS(tmp)))
 			SetPageReserved(page);
 		else
 			free_highmem_page(page);
@@ -464,6 +446,12 @@ static inline void mem_init_free_highmem(void)
 
 void __init mem_init(void)
 {
+	/*
+	 * When _PFN_SHIFT is greater than PAGE_SHIFT we won't have enough PTE
+	 * bits to hold a full 32b physical address on MIPS32 systems.
+	 */
+	BUILD_BUG_ON(IS_ENABLED(CONFIG_32BIT) && (_PFN_SHIFT > PAGE_SHIFT));
+
 #ifdef CONFIG_HIGHMEM
 #ifdef CONFIG_DISCONTIGMEM
 #error "CONFIG_HIGHMEM and CONFIG_DISCONTIGMEM dont work together yet"

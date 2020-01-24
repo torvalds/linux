@@ -16,7 +16,7 @@
 
 struct addr_location;
 struct map;
-struct namespaces_event;
+struct perf_record_namespaces;
 struct thread_stack;
 struct unwind_libunwind_ops;
 
@@ -25,7 +25,7 @@ struct thread {
 		struct rb_node	 rb_node;
 		struct list_head node;
 	};
-	struct map_groups	*mg;
+	struct maps		*maps;
 	pid_t			pid_; /* Not all tools update this */
 	pid_t			tid;
 	pid_t			ppid;
@@ -44,10 +44,6 @@ struct thread {
 	struct thread_stack	*ts;
 	struct nsinfo		*nsinfo;
 	struct srccode_state	srccode_state;
-#ifdef HAVE_LIBUNWIND_SUPPORT
-	void				*addr_space;
-	struct unwind_libunwind_ops	*unwind_libunwind_ops;
-#endif
 	bool			filter;
 	int			filter_entry_depth;
 };
@@ -57,7 +53,7 @@ struct namespaces;
 struct comm;
 
 struct thread *thread__new(pid_t pid, pid_t tid);
-int thread__init_map_groups(struct thread *thread, struct machine *machine);
+int thread__init_maps(struct thread *thread, struct machine *machine);
 void thread__delete(struct thread *thread);
 
 struct thread *thread__get(struct thread *thread);
@@ -76,9 +72,9 @@ static inline void thread__exited(struct thread *thread)
 	thread->dead = true;
 }
 
-struct namespaces *thread__namespaces(const struct thread *thread);
+struct namespaces *thread__namespaces(struct thread *thread);
 int thread__set_namespaces(struct thread *thread, u64 timestamp,
-			   struct namespaces_event *event);
+			   struct perf_record_namespaces *event);
 
 int __thread__set_comm(struct thread *thread, const char *comm, u64 timestamp,
 		       bool exec);
@@ -93,7 +89,7 @@ int thread__set_comm_from_proc(struct thread *thread);
 int thread__comm_len(struct thread *thread);
 struct comm *thread__comm(const struct thread *thread);
 struct comm *thread__exec_comm(const struct thread *thread);
-const char *thread__comm_str(const struct thread *thread);
+const char *thread__comm_str(struct thread *thread);
 int thread__insert_map(struct thread *thread, struct map *map);
 int thread__fork(struct thread *thread, struct thread *parent, u64 timestamp, bool do_maps_clone);
 size_t thread__fprintf(struct thread *thread, FILE *fp);

@@ -7,6 +7,7 @@
 # that already handles "probe:vfs_getname" if present, and used in the
 # "open" syscall "filename" argument beautifier.
 
+# SPDX-License-Identifier: GPL-2.0
 # Arnaldo Carvalho de Melo <acme@kernel.org>, 2017
 
 . $(dirname $0)/lib/probe.sh
@@ -30,6 +31,10 @@ err=$?
 if [ $err -ne 0 ] ; then
 	exit $err
 fi
+
+# Do not use whatever ~/.perfconfig file, it may change the output
+# via trace.{show_timestamp,show_prefix,etc}
+export PERF_CONFIG=/dev/null
 
 trace_open_vfs_getname
 err=$?

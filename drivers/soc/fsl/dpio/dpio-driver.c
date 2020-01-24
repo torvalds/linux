@@ -197,13 +197,22 @@ static int dpaa2_dpio_probe(struct fsl_mc_device *dpio_dev)
 				desc.cpu);
 	}
 
-	/*
-	 * Set the CENA regs to be the cache inhibited area of the portal to
-	 * avoid coherency issues if a user migrates to another core.
-	 */
-	desc.regs_cena = devm_memremap(dev, dpio_dev->regions[1].start,
-				       resource_size(&dpio_dev->regions[1]),
-				       MEMREMAP_WC);
+	if (dpio_dev->obj_desc.region_count < 3) {
+		/* No support for DDR backed portals, use classic mapping */
+		/*
+		 * Set the CENA regs to be the cache inhibited area of the
+		 * portal to avoid coherency issues if a user migrates to
+		 * another core.
+		 */
+		desc.regs_cena = devm_memremap(dev, dpio_dev->regions[1].start,
+					resource_size(&dpio_dev->regions[1]),
+					MEMREMAP_WC);
+	} else {
+		desc.regs_cena = devm_memremap(dev, dpio_dev->regions[2].start,
+					resource_size(&dpio_dev->regions[2]),
+					MEMREMAP_WB);
+	}
+
 	if (IS_ERR(desc.regs_cena)) {
 		dev_err(dev, "devm_memremap failed\n");
 		err = PTR_ERR(desc.regs_cena);

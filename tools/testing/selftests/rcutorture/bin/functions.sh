@@ -172,7 +172,7 @@ identify_qemu_append () {
 	local console=ttyS0
 	case "$1" in
 	qemu-system-x86_64|qemu-system-i386)
-		echo noapic selinux=0 initcall_debug debug
+		echo selinux=0 initcall_debug debug
 		;;
 	qemu-system-aarch64)
 		console=ttyAMA0
@@ -191,8 +191,19 @@ identify_qemu_append () {
 # Output arguments for qemu arguments based on the TORTURE_QEMU_MAC
 # and TORTURE_QEMU_INTERACTIVE environment variables.
 identify_qemu_args () {
+	local KVM_CPU=""
+	case "$1" in
+	qemu-system-x86_64)
+		KVM_CPU=kvm64
+		;;
+	qemu-system-i386)
+		KVM_CPU=kvm32
+		;;
+	esac
 	case "$1" in
 	qemu-system-x86_64|qemu-system-i386)
+		echo -machine q35,accel=kvm
+		echo -cpu ${KVM_CPU}
 		;;
 	qemu-system-aarch64)
 		echo -machine virt,gic-version=host -cpu host

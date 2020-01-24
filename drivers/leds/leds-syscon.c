@@ -115,7 +115,7 @@ static int syscon_led_probe(struct platform_device *pdev)
 	}
 	sled->cdev.brightness_set = syscon_led_set;
 
-	ret = led_classdev_register(dev, &sled->cdev);
+	ret = devm_led_classdev_register(dev, &sled->cdev);
 	if (ret < 0)
 		return ret;
 

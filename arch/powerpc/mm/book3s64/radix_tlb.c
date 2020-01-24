@@ -25,7 +25,7 @@
  * tlbiel instruction for radix, set invalidation
  * i.e., r=1 and is=01 or is=10 or is=11
  */
-static inline void tlbiel_radix_set_isa300(unsigned int set, unsigned int is,
+static __always_inline void tlbiel_radix_set_isa300(unsigned int set, unsigned int is,
 					unsigned int pid,
 					unsigned int ric, unsigned int prs)
 {
@@ -51,11 +51,15 @@ static void tlbiel_all_isa300(unsigned int num_sets, unsigned int is)
 	 * and partition table entries. Then flush the remaining sets of the
 	 * TLB.
 	 */
-	tlbiel_radix_set_isa300(0, is, 0, RIC_FLUSH_ALL, 0);
-	for (set = 1; set < num_sets; set++)
-		tlbiel_radix_set_isa300(set, is, 0, RIC_FLUSH_TLB, 0);
 
-	/* Do the same for process scoped entries. */
+	if (early_cpu_has_feature(CPU_FTR_HVMODE)) {
+		/* MSR[HV] should flush partition scope translations first. */
+		tlbiel_radix_set_isa300(0, is, 0, RIC_FLUSH_ALL, 0);
+		for (set = 1; set < num_sets; set++)
+			tlbiel_radix_set_isa300(set, is, 0, RIC_FLUSH_TLB, 0);
+	}
+
+	/* Flush process scoped entries. */
 	tlbiel_radix_set_isa300(0, is, 0, RIC_FLUSH_ALL, 1);
 	for (set = 1; set < num_sets; set++)
 		tlbiel_radix_set_isa300(set, is, 0, RIC_FLUSH_TLB, 1);
@@ -83,7 +87,7 @@ void radix__tlbiel_all(unsigned int action)
 	else
 		WARN(1, "%s called on pre-POWER9 CPU\n", __func__);
 
-	asm volatile(PPC_INVALIDATE_ERAT "; isync" : : :"memory");
+	asm volatile(PPC_ISA_3_0_INVALIDATE_ERAT "; isync" : : :"memory");
 }
 
 static __always_inline void __tlbiel_pid(unsigned long pid, int set,
@@ -116,22 +120,6 @@ static __always_inline void __tlbie_pid(unsigned long pid, unsigned long ric)
 	trace_tlbie(0, 0, rb, rs, ric, prs, r);
 }
 
-static __always_inline void __tlbiel_lpid(unsigned long lpid, int set,
-				unsigned long ric)
-{
-	unsigned long rb,rs,prs,r;
-
-	rb = PPC_BIT(52); /* IS = 2 */
-	rb |= set << PPC_BITLSHIFT(51);
-	rs = 0;  /* LPID comes from LPIDR */
-	prs = 0; /* partition scoped */
-	r = 1;   /* radix format */
-
-	asm volatile(PPC_TLBIEL(%0, %4, %3, %2, %1)
-		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(rs) : "memory");
-	trace_tlbie(lpid, 1, rb, rs, ric, prs, r);
-}
-
 static __always_inline void __tlbie_lpid(unsigned long lpid, unsigned long ric)
 {
 	unsigned long rb,rs,prs,r;
@@ -146,25 +134,22 @@ static __always_inline void __tlbie_lpid(unsigned long lpid, unsigned long ric)
 	trace_tlbie(lpid, 0, rb, rs, ric, prs, r);
 }
 
-static inline void __tlbiel_lpid_guest(unsigned long lpid, int set,
-				unsigned long ric)
+static __always_inline void __tlbie_lpid_guest(unsigned long lpid, unsigned long ric)
 {
 	unsigned long rb,rs,prs,r;
 
 	rb = PPC_BIT(52); /* IS = 2 */
-	rb |= set << PPC_BITLSHIFT(51);
-	rs = 0;  /* LPID comes from LPIDR */
+	rs = lpid;
 	prs = 1; /* process scoped */
 	r = 1;   /* radix format */
 
-	asm volatile(PPC_TLBIEL(%0, %4, %3, %2, %1)
+	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(rs) : "memory");
-	trace_tlbie(lpid, 1, rb, rs, ric, prs, r);
+	trace_tlbie(lpid, 0, rb, rs, ric, prs, r);
 }
 
-
-static inline void __tlbiel_va(unsigned long va, unsigned long pid,
-			       unsigned long ap, unsigned long ric)
+static __always_inline void __tlbiel_va(unsigned long va, unsigned long pid,
+					unsigned long ap, unsigned long ric)
 {
 	unsigned long rb,rs,prs,r;
 
@@ -179,8 +164,8 @@ static inline void __tlbiel_va(unsigned long va, unsigned long pid,
 	trace_tlbie(0, 1, rb, rs, ric, prs, r);
 }
 
-static inline void __tlbie_va(unsigned long va, unsigned long pid,
-			      unsigned long ap, unsigned long ric)
+static __always_inline void __tlbie_va(unsigned long va, unsigned long pid,
+				       unsigned long ap, unsigned long ric)
 {
 	unsigned long rb,rs,prs,r;
 
@@ -195,8 +180,8 @@ static inline void __tlbie_va(unsigned long va, unsigned long pid,
 	trace_tlbie(0, 0, rb, rs, ric, prs, r);
 }
 
-static inline void __tlbie_lpid_va(unsigned long va, unsigned long lpid,
-			      unsigned long ap, unsigned long ric)
+static __always_inline void __tlbie_lpid_va(unsigned long va, unsigned long lpid,
+					    unsigned long ap, unsigned long ric)
 {
 	unsigned long rb,rs,prs,r;
 
@@ -211,22 +196,83 @@ static inline void __tlbie_lpid_va(unsigned long va, unsigned long lpid,
 	trace_tlbie(lpid, 0, rb, rs, ric, prs, r);
 }
 
-static inline void fixup_tlbie(void)
+
+static inline void fixup_tlbie_va(unsigned long va, unsigned long pid,
+				  unsigned long ap)
 {
-	unsigned long pid = 0;
+	if (cpu_has_feature(CPU_FTR_P9_TLBIE_ERAT_BUG)) {
+		asm volatile("ptesync": : :"memory");
+		__tlbie_va(va, 0, ap, RIC_FLUSH_TLB);
+	}
+
+	if (cpu_has_feature(CPU_FTR_P9_TLBIE_STQ_BUG)) {
+		asm volatile("ptesync": : :"memory");
+		__tlbie_va(va, pid, ap, RIC_FLUSH_TLB);
+	}
+}
+
+static inline void fixup_tlbie_va_range(unsigned long va, unsigned long pid,
+					unsigned long ap)
+{
+	if (cpu_has_feature(CPU_FTR_P9_TLBIE_ERAT_BUG)) {
+		asm volatile("ptesync": : :"memory");
+		__tlbie_pid(0, RIC_FLUSH_TLB);
+	}
+
+	if (cpu_has_feature(CPU_FTR_P9_TLBIE_STQ_BUG)) {
+		asm volatile("ptesync": : :"memory");
+		__tlbie_va(va, pid, ap, RIC_FLUSH_TLB);
+	}
+}
+
+static inline void fixup_tlbie_pid(unsigned long pid)
+{
+	/*
+	 * We can use any address for the invalidation, pick one which is
+	 * probably unused as an optimisation.
+	 */
 	unsigned long va = ((1UL << 52) - 1);
 
-	if (cpu_has_feature(CPU_FTR_P9_TLBIE_BUG)) {
+	if (cpu_has_feature(CPU_FTR_P9_TLBIE_ERAT_BUG)) {
+		asm volatile("ptesync": : :"memory");
+		__tlbie_pid(0, RIC_FLUSH_TLB);
+	}
+
+	if (cpu_has_feature(CPU_FTR_P9_TLBIE_STQ_BUG)) {
 		asm volatile("ptesync": : :"memory");
 		__tlbie_va(va, pid, mmu_get_ap(MMU_PAGE_64K), RIC_FLUSH_TLB);
 	}
 }
 
+
+static inline void fixup_tlbie_lpid_va(unsigned long va, unsigned long lpid,
+				       unsigned long ap)
+{
+	if (cpu_has_feature(CPU_FTR_P9_TLBIE_ERAT_BUG)) {
+		asm volatile("ptesync": : :"memory");
+		__tlbie_lpid_va(va, 0, ap, RIC_FLUSH_TLB);
+	}
+
+	if (cpu_has_feature(CPU_FTR_P9_TLBIE_STQ_BUG)) {
+		asm volatile("ptesync": : :"memory");
+		__tlbie_lpid_va(va, lpid, ap, RIC_FLUSH_TLB);
+	}
+}
+
 static inline void fixup_tlbie_lpid(unsigned long lpid)
 {
+	/*
+	 * We can use any address for the invalidation, pick one which is
+	 * probably unused as an optimisation.
+	 */
 	unsigned long va = ((1UL << 52) - 1);
 
-	if (cpu_has_feature(CPU_FTR_P9_TLBIE_BUG)) {
+	if (cpu_has_feature(CPU_FTR_P9_TLBIE_ERAT_BUG)) {
+		asm volatile("ptesync": : :"memory");
+		__tlbie_lpid(0, RIC_FLUSH_TLB);
+	}
+
+	if (cpu_has_feature(CPU_FTR_P9_TLBIE_STQ_BUG)) {
 		asm volatile("ptesync": : :"memory");
 		__tlbie_lpid_va(va, lpid, mmu_get_ap(MMU_PAGE_64K), RIC_FLUSH_TLB);
 	}
@@ -235,7 +281,7 @@ static inline void fixup_tlbie_lpid(unsigned long lpid)
 /*
  * We use 128 set in radix mode and 256 set in hpt mode.
  */
-static inline void _tlbiel_pid(unsigned long pid, unsigned long ric)
+static __always_inline void _tlbiel_pid(unsigned long pid, unsigned long ric)
 {
 	int set;
 
@@ -258,7 +304,7 @@ static inline void _tlbiel_pid(unsigned long pid, unsigned long ric)
 		__tlbiel_pid(pid, set, RIC_FLUSH_TLB);
 
 	asm volatile("ptesync": : :"memory");
-	asm volatile(PPC_INVALIDATE_ERAT "; isync" : : :"memory");
+	asm volatile(PPC_RADIX_INVALIDATE_ERAT_USER "; isync" : : :"memory");
 }
 
 static inline void _tlbie_pid(unsigned long pid, unsigned long ric)
@@ -273,6 +319,7 @@ static inline void _tlbie_pid(unsigned long pid, unsigned long ric)
 	switch (ric) {
 	case RIC_FLUSH_TLB:
 		__tlbie_pid(pid, RIC_FLUSH_TLB);
+		fixup_tlbie_pid(pid);
 		break;
 	case RIC_FLUSH_PWC:
 		__tlbie_pid(pid, RIC_FLUSH_PWC);
@@ -280,37 +327,42 @@ static inline void _tlbie_pid(unsigned long pid, unsigned long ric)
 	case RIC_FLUSH_ALL:
 	default:
 		__tlbie_pid(pid, RIC_FLUSH_ALL);
+		fixup_tlbie_pid(pid);
 	}
-	fixup_tlbie();
 	asm volatile("eieio; tlbsync; ptesync": : :"memory");
 }
 
-static inline void _tlbiel_lpid(unsigned long lpid, unsigned long ric)
+struct tlbiel_pid {
+	unsigned long pid;
+	unsigned long ric;
+};
+
+static void do_tlbiel_pid(void *info)
 {
-	int set;
+	struct tlbiel_pid *t = info;
 
-	VM_BUG_ON(mfspr(SPRN_LPID) != lpid);
+	if (t->ric == RIC_FLUSH_TLB)
+		_tlbiel_pid(t->pid, RIC_FLUSH_TLB);
+	else if (t->ric == RIC_FLUSH_PWC)
+		_tlbiel_pid(t->pid, RIC_FLUSH_PWC);
+	else
+		_tlbiel_pid(t->pid, RIC_FLUSH_ALL);
+}
 
-	asm volatile("ptesync": : :"memory");
+static inline void _tlbiel_pid_multicast(struct mm_struct *mm,
+				unsigned long pid, unsigned long ric)
+{
+	struct cpumask *cpus = mm_cpumask(mm);
+	struct tlbiel_pid t = { .pid = pid, .ric = ric };
 
+	on_each_cpu_mask(cpus, do_tlbiel_pid, &t, 1);
 	/*
-	 * Flush the first set of the TLB, and if we're doing a RIC_FLUSH_ALL,
-	 * also flush the entire Page Walk Cache.
+	 * Always want the CPU translations to be invalidated with tlbiel in
+	 * these paths, so while coprocessors must use tlbie, we can not
+	 * optimise away the tlbiel component.
 	 */
-	__tlbiel_lpid(lpid, 0, ric);
-
-	/* For PWC, only one flush is needed */
-	if (ric == RIC_FLUSH_PWC) {
-		asm volatile("ptesync": : :"memory");
-		return;
-	}
-
-	/* For the remaining sets, just flush the TLB */
-	for (set = 1; set < POWER9_TLB_SETS_RADIX ; set++)
-		__tlbiel_lpid(lpid, set, RIC_FLUSH_TLB);
-
-	asm volatile("ptesync": : :"memory");
-	asm volatile(PPC_INVALIDATE_ERAT "; isync" : : :"memory");
+	if (atomic_read(&mm->context.copros) > 0)
+		_tlbie_pid(pid, RIC_FLUSH_ALL);
 }
 
 static inline void _tlbie_lpid(unsigned long lpid, unsigned long ric)
@@ -325,6 +377,7 @@ static inline void _tlbie_lpid(unsigned long lpid, unsigned long ric)
 	switch (ric) {
 	case RIC_FLUSH_TLB:
 		__tlbie_lpid(lpid, RIC_FLUSH_TLB);
+		fixup_tlbie_lpid(lpid);
 		break;
 	case RIC_FLUSH_PWC:
 		__tlbie_lpid(lpid, RIC_FLUSH_PWC);
@@ -332,39 +385,32 @@ static inline void _tlbie_lpid(unsigned long lpid, unsigned long ric)
 	case RIC_FLUSH_ALL:
 	default:
 		__tlbie_lpid(lpid, RIC_FLUSH_ALL);
+		fixup_tlbie_lpid(lpid);
+	}
+	asm volatile("eieio; tlbsync; ptesync": : :"memory");
+}
+
+static __always_inline void _tlbie_lpid_guest(unsigned long lpid, unsigned long ric)
+{
+	/*
+	 * Workaround the fact that the "ric" argument to __tlbie_pid
+	 * must be a compile-time contraint to match the "i" constraint
+	 * in the asm statement.
+	 */
+	switch (ric) {
+	case RIC_FLUSH_TLB:
+		__tlbie_lpid_guest(lpid, RIC_FLUSH_TLB);
+		break;
+	case RIC_FLUSH_PWC:
+		__tlbie_lpid_guest(lpid, RIC_FLUSH_PWC);
+		break;
+	case RIC_FLUSH_ALL:
+	default:
+		__tlbie_lpid_guest(lpid, RIC_FLUSH_ALL);
 	}
 	fixup_tlbie_lpid(lpid);
 	asm volatile("eieio; tlbsync; ptesync": : :"memory");
 }
-
-static inline void _tlbiel_lpid_guest(unsigned long lpid, unsigned long ric)
-{
-	int set;
-
-	VM_BUG_ON(mfspr(SPRN_LPID) != lpid);
-
-	asm volatile("ptesync": : :"memory");
-
-	/*
-	 * Flush the first set of the TLB, and if we're doing a RIC_FLUSH_ALL,
-	 * also flush the entire Page Walk Cache.
-	 */
-	__tlbiel_lpid_guest(lpid, 0, ric);
-
-	/* For PWC, only one flush is needed */
-	if (ric == RIC_FLUSH_PWC) {
-		asm volatile("ptesync": : :"memory");
-		return;
-	}
-
-	/* For the remaining sets, just flush the TLB */
-	for (set = 1; set < POWER9_TLB_SETS_RADIX ; set++)
-		__tlbiel_lpid_guest(lpid, set, RIC_FLUSH_TLB);
-
-	asm volatile("ptesync": : :"memory");
-	asm volatile(PPC_INVALIDATE_ERAT : : :"memory");
-}
-
 
 static inline void __tlbiel_va_range(unsigned long start, unsigned long end,
 				    unsigned long pid, unsigned long page_size,
@@ -377,8 +423,8 @@ static inline void __tlbiel_va_range(unsigned long start, unsigned long end,
 		__tlbiel_va(addr, pid, ap, RIC_FLUSH_TLB);
 }
 
-static inline void _tlbiel_va(unsigned long va, unsigned long pid,
-			      unsigned long psize, unsigned long ric)
+static __always_inline void _tlbiel_va(unsigned long va, unsigned long pid,
+				       unsigned long psize, unsigned long ric)
 {
 	unsigned long ap = mmu_get_ap(psize);
 
@@ -407,27 +453,76 @@ static inline void __tlbie_va_range(unsigned long start, unsigned long end,
 
 	for (addr = start; addr < end; addr += page_size)
 		__tlbie_va(addr, pid, ap, RIC_FLUSH_TLB);
+
+	fixup_tlbie_va_range(addr - page_size, pid, ap);
 }
 
-static inline void _tlbie_va(unsigned long va, unsigned long pid,
-			      unsigned long psize, unsigned long ric)
+static __always_inline void _tlbie_va(unsigned long va, unsigned long pid,
+				      unsigned long psize, unsigned long ric)
 {
 	unsigned long ap = mmu_get_ap(psize);
 
 	asm volatile("ptesync": : :"memory");
 	__tlbie_va(va, pid, ap, ric);
-	fixup_tlbie();
+	fixup_tlbie_va(va, pid, ap);
 	asm volatile("eieio; tlbsync; ptesync": : :"memory");
 }
 
-static inline void _tlbie_lpid_va(unsigned long va, unsigned long lpid,
+struct tlbiel_va {
+	unsigned long pid;
+	unsigned long va;
+	unsigned long psize;
+	unsigned long ric;
+};
+
+static void do_tlbiel_va(void *info)
+{
+	struct tlbiel_va *t = info;
+
+	if (t->ric == RIC_FLUSH_TLB)
+		_tlbiel_va(t->va, t->pid, t->psize, RIC_FLUSH_TLB);
+	else if (t->ric == RIC_FLUSH_PWC)
+		_tlbiel_va(t->va, t->pid, t->psize, RIC_FLUSH_PWC);
+	else
+		_tlbiel_va(t->va, t->pid, t->psize, RIC_FLUSH_ALL);
+}
+
+static inline void _tlbiel_va_multicast(struct mm_struct *mm,
+				unsigned long va, unsigned long pid,
+				unsigned long psize, unsigned long ric)
+{
+	struct cpumask *cpus = mm_cpumask(mm);
+	struct tlbiel_va t = { .va = va, .pid = pid, .psize = psize, .ric = ric };
+	on_each_cpu_mask(cpus, do_tlbiel_va, &t, 1);
+	if (atomic_read(&mm->context.copros) > 0)
+		_tlbie_va(va, pid, psize, RIC_FLUSH_TLB);
+}
+
+struct tlbiel_va_range {
+	unsigned long pid;
+	unsigned long start;
+	unsigned long end;
+	unsigned long page_size;
+	unsigned long psize;
+	bool also_pwc;
+};
+
+static void do_tlbiel_va_range(void *info)
+{
+	struct tlbiel_va_range *t = info;
+
+	_tlbiel_va_range(t->start, t->end, t->pid, t->page_size,
+				    t->psize, t->also_pwc);
+}
+
+static __always_inline void _tlbie_lpid_va(unsigned long va, unsigned long lpid,
 			      unsigned long psize, unsigned long ric)
 {
 	unsigned long ap = mmu_get_ap(psize);
 
 	asm volatile("ptesync": : :"memory");
 	__tlbie_lpid_va(va, lpid, ap, ric);
-	fixup_tlbie_lpid(lpid);
+	fixup_tlbie_lpid_va(va, lpid, ap);
 	asm volatile("eieio; tlbsync; ptesync": : :"memory");
 }
 
@@ -439,8 +534,22 @@ static inline void _tlbie_va_range(unsigned long start, unsigned long end,
 	if (also_pwc)
 		__tlbie_pid(pid, RIC_FLUSH_PWC);
 	__tlbie_va_range(start, end, pid, page_size, psize);
-	fixup_tlbie();
 	asm volatile("eieio; tlbsync; ptesync": : :"memory");
+}
+
+static inline void _tlbiel_va_range_multicast(struct mm_struct *mm,
+				unsigned long start, unsigned long end,
+				unsigned long pid, unsigned long page_size,
+				unsigned long psize, bool also_pwc)
+{
+	struct cpumask *cpus = mm_cpumask(mm);
+	struct tlbiel_va_range t = { .start = start, .end = end,
+				.pid = pid, .page_size = page_size,
+				.psize = psize, .also_pwc = also_pwc };
+
+	on_each_cpu_mask(cpus, do_tlbiel_va_range, &t, 1);
+	if (atomic_read(&mm->context.copros) > 0)
+		_tlbie_va_range(start, end, pid, page_size, psize, also_pwc);
 }
 
 /*
@@ -580,10 +689,14 @@ void radix__flush_tlb_mm(struct mm_struct *mm)
 			goto local;
 		}
 
-		if (mm_needs_flush_escalation(mm))
-			_tlbie_pid(pid, RIC_FLUSH_ALL);
-		else
-			_tlbie_pid(pid, RIC_FLUSH_TLB);
+		if (cputlb_use_tlbie()) {
+			if (mm_needs_flush_escalation(mm))
+				_tlbie_pid(pid, RIC_FLUSH_ALL);
+			else
+				_tlbie_pid(pid, RIC_FLUSH_TLB);
+		} else {
+			_tlbiel_pid_multicast(mm, pid, RIC_FLUSH_TLB);
+		}
 	} else {
 local:
 		_tlbiel_pid(pid, RIC_FLUSH_TLB);
@@ -609,24 +722,22 @@ static void __flush_all_mm(struct mm_struct *mm, bool fullmm)
 				goto local;
 			}
 		}
-		_tlbie_pid(pid, RIC_FLUSH_ALL);
+		if (cputlb_use_tlbie())
+			_tlbie_pid(pid, RIC_FLUSH_ALL);
+		else
+			_tlbiel_pid_multicast(mm, pid, RIC_FLUSH_ALL);
 	} else {
 local:
 		_tlbiel_pid(pid, RIC_FLUSH_ALL);
 	}
 	preempt_enable();
 }
+
 void radix__flush_all_mm(struct mm_struct *mm)
 {
 	__flush_all_mm(mm, false);
 }
 EXPORT_SYMBOL(radix__flush_all_mm);
-
-void radix__flush_tlb_pwc(struct mmu_gather *tlb, unsigned long addr)
-{
-	tlb->need_flush_all = 1;
-}
-EXPORT_SYMBOL(radix__flush_tlb_pwc);
 
 void radix__flush_tlb_page_psize(struct mm_struct *mm, unsigned long vmaddr,
 				 int psize)
@@ -644,7 +755,10 @@ void radix__flush_tlb_page_psize(struct mm_struct *mm, unsigned long vmaddr,
 			exit_flush_lazy_tlbs(mm);
 			goto local;
 		}
-		_tlbie_va(vmaddr, pid, psize, RIC_FLUSH_TLB);
+		if (cputlb_use_tlbie())
+			_tlbie_va(vmaddr, pid, psize, RIC_FLUSH_TLB);
+		else
+			_tlbiel_va_multicast(mm, vmaddr, pid, psize, RIC_FLUSH_TLB);
 	} else {
 local:
 		_tlbiel_va(vmaddr, pid, psize, RIC_FLUSH_TLB);
@@ -666,9 +780,35 @@ EXPORT_SYMBOL(radix__flush_tlb_page);
 #define radix__flush_all_mm radix__local_flush_all_mm
 #endif /* CONFIG_SMP */
 
+static void do_tlbiel_kernel(void *info)
+{
+	_tlbiel_pid(0, RIC_FLUSH_ALL);
+}
+
+static inline void _tlbiel_kernel_broadcast(void)
+{
+	on_each_cpu(do_tlbiel_kernel, NULL, 1);
+	if (tlbie_capable) {
+		/*
+		 * Coherent accelerators don't refcount kernel memory mappings,
+		 * so have to always issue a tlbie for them. This is quite a
+		 * slow path anyway.
+		 */
+		_tlbie_pid(0, RIC_FLUSH_ALL);
+	}
+}
+
+/*
+ * If kernel TLBIs ever become local rather than global, then
+ * drivers/misc/ocxl/link.c:ocxl_link_add_pe will need some work, as it
+ * assumes kernel TLBIs are global.
+ */
 void radix__flush_tlb_kernel_range(unsigned long start, unsigned long end)
 {
-	_tlbie_pid(0, RIC_FLUSH_ALL);
+	if (cputlb_use_tlbie())
+		_tlbie_pid(0, RIC_FLUSH_ALL);
+	else
+		_tlbiel_kernel_broadcast();
 }
 EXPORT_SYMBOL(radix__flush_tlb_kernel_range);
 
@@ -687,8 +827,7 @@ static unsigned long tlb_single_page_flush_ceiling __read_mostly = 33;
 static unsigned long tlb_local_single_page_flush_ceiling __read_mostly = POWER9_TLB_SETS_RADIX * 2;
 
 static inline void __radix__flush_tlb_range(struct mm_struct *mm,
-					unsigned long start, unsigned long end,
-					bool flush_all_sizes)
+					    unsigned long start, unsigned long end)
 
 {
 	unsigned long pid;
@@ -724,54 +863,48 @@ is_local:
 		if (local) {
 			_tlbiel_pid(pid, RIC_FLUSH_TLB);
 		} else {
-			if (mm_needs_flush_escalation(mm))
-				_tlbie_pid(pid, RIC_FLUSH_ALL);
-			else
-				_tlbie_pid(pid, RIC_FLUSH_TLB);
+			if (cputlb_use_tlbie()) {
+				if (mm_needs_flush_escalation(mm))
+					_tlbie_pid(pid, RIC_FLUSH_ALL);
+				else
+					_tlbie_pid(pid, RIC_FLUSH_TLB);
+			} else {
+				_tlbiel_pid_multicast(mm, pid, RIC_FLUSH_TLB);
+			}
 		}
 	} else {
-		bool hflush = flush_all_sizes;
-		bool gflush = flush_all_sizes;
+		bool hflush = false;
 		unsigned long hstart, hend;
-		unsigned long gstart, gend;
 
-		if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE))
-			hflush = true;
-
-		if (hflush) {
+		if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE)) {
 			hstart = (start + PMD_SIZE - 1) & PMD_MASK;
 			hend = end & PMD_MASK;
 			if (hstart == hend)
 				hflush = false;
+			else
+				hflush = true;
 		}
 
-		if (gflush) {
-			gstart = (start + PUD_SIZE - 1) & PUD_MASK;
-			gend = end & PUD_MASK;
-			if (gstart == gend)
-				gflush = false;
-		}
-
-		asm volatile("ptesync": : :"memory");
 		if (local) {
+			asm volatile("ptesync": : :"memory");
 			__tlbiel_va_range(start, end, pid, page_size, mmu_virtual_psize);
 			if (hflush)
 				__tlbiel_va_range(hstart, hend, pid,
 						PMD_SIZE, MMU_PAGE_2M);
-			if (gflush)
-				__tlbiel_va_range(gstart, gend, pid,
-						PUD_SIZE, MMU_PAGE_1G);
 			asm volatile("ptesync": : :"memory");
-		} else {
+		} else if (cputlb_use_tlbie()) {
+			asm volatile("ptesync": : :"memory");
 			__tlbie_va_range(start, end, pid, page_size, mmu_virtual_psize);
 			if (hflush)
 				__tlbie_va_range(hstart, hend, pid,
 						PMD_SIZE, MMU_PAGE_2M);
-			if (gflush)
-				__tlbie_va_range(gstart, gend, pid,
-						PUD_SIZE, MMU_PAGE_1G);
-			fixup_tlbie();
 			asm volatile("eieio; tlbsync; ptesync": : :"memory");
+		} else {
+			_tlbiel_va_range_multicast(mm,
+					start, end, pid, page_size, mmu_virtual_psize, false);
+			if (hflush)
+				_tlbiel_va_range_multicast(mm,
+					hstart, hend, pid, PMD_SIZE, MMU_PAGE_2M, false);
 		}
 	}
 	preempt_enable();
@@ -786,7 +919,7 @@ void radix__flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 		return radix__flush_hugetlb_tlb_range(vma, start, end);
 #endif
 
-	__radix__flush_tlb_range(vma->vm_mm, start, end, false);
+	__radix__flush_tlb_range(vma->vm_mm, start, end);
 }
 EXPORT_SYMBOL(radix__flush_tlb_range);
 
@@ -830,32 +963,19 @@ EXPORT_SYMBOL_GPL(radix__flush_pwc_lpid);
 /*
  * Flush partition scoped translations from LPID (=LPIDR)
  */
-void radix__flush_tlb_lpid(unsigned int lpid)
+void radix__flush_all_lpid(unsigned int lpid)
 {
 	_tlbie_lpid(lpid, RIC_FLUSH_ALL);
 }
-EXPORT_SYMBOL_GPL(radix__flush_tlb_lpid);
+EXPORT_SYMBOL_GPL(radix__flush_all_lpid);
 
 /*
- * Flush partition scoped translations from LPID (=LPIDR)
+ * Flush process scoped translations from LPID (=LPIDR)
  */
-void radix__local_flush_tlb_lpid(unsigned int lpid)
+void radix__flush_all_lpid_guest(unsigned int lpid)
 {
-	_tlbiel_lpid(lpid, RIC_FLUSH_ALL);
+	_tlbie_lpid_guest(lpid, RIC_FLUSH_ALL);
 }
-EXPORT_SYMBOL_GPL(radix__local_flush_tlb_lpid);
-
-/*
- * Flush process scoped translations from LPID (=LPIDR).
- * Important difference, the guest normally manages its own translations,
- * but some cases e.g., vCPU CPU migration require KVM to flush.
- */
-void radix__local_flush_tlb_lpid_guest(unsigned int lpid)
-{
-	_tlbiel_lpid_guest(lpid, RIC_FLUSH_ALL);
-}
-EXPORT_SYMBOL_GPL(radix__local_flush_tlb_lpid_guest);
-
 
 static void radix__flush_tlb_pwc_range_psize(struct mm_struct *mm, unsigned long start,
 				  unsigned long end, int psize);
@@ -875,53 +995,19 @@ void radix__tlb_flush(struct mmu_gather *tlb)
 	 * that flushes the process table entry cache upon process teardown.
 	 * See the comment for radix in arch_exit_mmap().
 	 */
-	if (tlb->fullmm) {
+	if (tlb->fullmm || tlb->need_flush_all) {
 		__flush_all_mm(mm, true);
-#if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLB_PAGE)
-	} else if (mm_tlb_flush_nested(mm)) {
-		/*
-		 * If there is a concurrent invalidation that is clearing ptes,
-		 * then it's possible this invalidation will miss one of those
-		 * cleared ptes and miss flushing the TLB. If this invalidate
-		 * returns before the other one flushes TLBs, that can result
-		 * in it returning while there are still valid TLBs inside the
-		 * range to be invalidated.
-		 *
-		 * See mm/memory.c:tlb_finish_mmu() for more details.
-		 *
-		 * The solution to this is ensure the entire range is always
-		 * flushed here. The problem for powerpc is that the flushes
-		 * are page size specific, so this "forced flush" would not
-		 * do the right thing if there are a mix of page sizes in
-		 * the range to be invalidated. So use __flush_tlb_range
-		 * which invalidates all possible page sizes in the range.
-		 *
-		 * PWC flush probably is not be required because the core code
-		 * shouldn't free page tables in this path, but accounting
-		 * for the possibility makes us a bit more robust.
-		 *
-		 * need_flush_all is an uncommon case because page table
-		 * teardown should be done with exclusive locks held (but
-		 * after locks are dropped another invalidate could come
-		 * in), it could be optimized further if necessary.
-		 */
-		if (!tlb->need_flush_all)
-			__radix__flush_tlb_range(mm, start, end, true);
-		else
-			radix__flush_all_mm(mm);
-#endif
 	} else if ( (psize = radix_get_mmu_psize(page_size)) == -1) {
-		if (!tlb->need_flush_all)
+		if (!tlb->freed_tables)
 			radix__flush_tlb_mm(mm);
 		else
 			radix__flush_all_mm(mm);
 	} else {
-		if (!tlb->need_flush_all)
+		if (!tlb->freed_tables)
 			radix__flush_tlb_range_psize(mm, start, end, psize);
 		else
 			radix__flush_tlb_pwc_range_psize(mm, start, end, psize);
 	}
-	tlb->need_flush_all = 0;
 }
 
 static __always_inline void __radix__flush_tlb_range_psize(struct mm_struct *mm,
@@ -961,16 +1047,26 @@ is_local:
 		if (local) {
 			_tlbiel_pid(pid, also_pwc ? RIC_FLUSH_ALL : RIC_FLUSH_TLB);
 		} else {
-			if (mm_needs_flush_escalation(mm))
-				also_pwc = true;
+			if (cputlb_use_tlbie()) {
+				if (mm_needs_flush_escalation(mm))
+					also_pwc = true;
 
-			_tlbie_pid(pid, also_pwc ? RIC_FLUSH_ALL : RIC_FLUSH_TLB);
+				_tlbie_pid(pid,
+					also_pwc ?  RIC_FLUSH_ALL : RIC_FLUSH_TLB);
+			} else {
+				_tlbiel_pid_multicast(mm, pid,
+					also_pwc ?  RIC_FLUSH_ALL : RIC_FLUSH_TLB);
+			}
+
 		}
 	} else {
 		if (local)
 			_tlbiel_va_range(start, end, pid, page_size, psize, also_pwc);
-		else
+		else if (cputlb_use_tlbie())
 			_tlbie_va_range(start, end, pid, page_size, psize, also_pwc);
+		else
+			_tlbiel_va_range_multicast(mm,
+					start, end, pid, page_size, psize, also_pwc);
 	}
 	preempt_enable();
 }
@@ -1012,7 +1108,11 @@ void radix__flush_tlb_collapsed_pmd(struct mm_struct *mm, unsigned long addr)
 			exit_flush_lazy_tlbs(mm);
 			goto local;
 		}
-		_tlbie_va_range(addr, end, pid, PAGE_SIZE, mmu_virtual_psize, true);
+		if (cputlb_use_tlbie())
+			_tlbie_va_range(addr, end, pid, PAGE_SIZE, mmu_virtual_psize, true);
+		else
+			_tlbiel_va_range_multicast(mm,
+					addr, end, pid, PAGE_SIZE, mmu_virtual_psize, true);
 	} else {
 local:
 		_tlbiel_va_range(addr, end, pid, PAGE_SIZE, mmu_virtual_psize, true);

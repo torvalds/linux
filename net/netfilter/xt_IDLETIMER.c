@@ -283,7 +283,7 @@ static int __init idletimer_tg_init(void)
 
 	idletimer_tg_kobj = &idletimer_tg_device->kobj;
 
-	err =  xt_register_target(&idletimer_tg);
+	err = xt_register_target(&idletimer_tg);
 	if (err < 0) {
 		pr_debug("couldn't register xt target\n");
 		goto out_dev;

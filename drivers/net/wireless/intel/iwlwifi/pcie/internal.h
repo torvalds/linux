@@ -166,7 +166,7 @@ struct iwl_rx_completion_desc {
  * @id: queue index
  * @bd: driver's pointer to buffer of receive buffer descriptors (rbd).
  *	Address size is 32 bit in pre-9000 devices and 64 bit in 9000 devices.
- *	In 22560 devices it is a pointer to a list of iwl_rx_transfer_desc's
+ *	In AX210 devices it is a pointer to a list of iwl_rx_transfer_desc's
  * @bd_dma: bus address of buffer of receive buffer descriptors (rbd)
  * @ubd: driver's pointer to buffer of used receive buffer descriptors (rbd)
  * @ubd_dma: physical address of buffer of used receive buffer descriptors (rbd)
@@ -253,7 +253,8 @@ struct iwl_dma_ptr {
  */
 static inline int iwl_queue_inc_wrap(struct iwl_trans *trans, int index)
 {
-	return ++index & (trans->cfg->base_params->max_tfd_queue_size - 1);
+	return ++index &
+		(trans->trans_cfg->base_params->max_tfd_queue_size - 1);
 }
 
 /**
@@ -263,7 +264,7 @@ static inline int iwl_queue_inc_wrap(struct iwl_trans *trans, int index)
 static inline __le16 iwl_get_closed_rb_stts(struct iwl_trans *trans,
 					    struct iwl_rxq *rxq)
 {
-	if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560) {
+	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
 		__le16 *rb_stts = rxq->rb_stts;
 
 		return READ_ONCE(*rb_stts);
@@ -280,7 +281,8 @@ static inline __le16 iwl_get_closed_rb_stts(struct iwl_trans *trans,
  */
 static inline int iwl_queue_dec_wrap(struct iwl_trans *trans, int index)
 {
-	return --index & (trans->cfg->base_params->max_tfd_queue_size - 1);
+	return --index &
+		(trans->trans_cfg->base_params->max_tfd_queue_size - 1);
 }
 
 struct iwl_cmd_meta {
@@ -556,9 +558,10 @@ struct iwl_trans_pcie {
 	void __iomem *hw_base;
 
 	bool ucode_write_complete;
+	bool sx_complete;
 	wait_queue_head_t ucode_write_waitq;
 	wait_queue_head_t wait_command_queue;
-	wait_queue_head_t d0i3_waitq;
+	wait_queue_head_t sx_waitq;
 
 	u8 page_offs, dev_cmd_offs;
 
@@ -581,7 +584,6 @@ struct iwl_trans_pcie {
 	/*protect hw register */
 	spinlock_t reg_lock;
 	bool cmd_hold_nic_awake;
-	bool ref_cmd_in_flight;
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	struct cont_rec fw_mon_data;
@@ -635,15 +637,15 @@ iwl_trans_pcie_get_trans(struct iwl_trans_pcie *trans_pcie)
  * Convention: trans API functions: iwl_trans_pcie_XXX
  *	Other functions: iwl_pcie_XXX
  */
-struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
-				       const struct pci_device_id *ent,
-				       const struct iwl_cfg *cfg);
+struct iwl_trans
+*iwl_trans_pcie_alloc(struct pci_dev *pdev,
+		      const struct pci_device_id *ent,
+		      const struct iwl_cfg_trans_params *cfg_trans);
 void iwl_trans_pcie_free(struct iwl_trans *trans);
 
 /*****************************************************
 * RX
 ******************************************************/
-int _iwl_pcie_rx_init(struct iwl_trans *trans);
 int iwl_pcie_rx_init(struct iwl_trans *trans);
 int iwl_pcie_gen2_rx_init(struct iwl_trans *trans);
 irqreturn_t iwl_pcie_msix_isr(int irq, void *data);
@@ -657,7 +659,6 @@ void iwl_pcie_rx_init_rxb_lists(struct iwl_rxq *rxq);
 int iwl_pcie_dummy_napi_poll(struct napi_struct *napi, int budget);
 void iwl_pcie_rxq_alloc_rbs(struct iwl_trans *trans, gfp_t priority,
 			    struct iwl_rxq *rxq);
-int iwl_pcie_rx_alloc(struct iwl_trans *trans);
 
 /*****************************************************
 * ICT - interrupt handling
@@ -697,15 +698,13 @@ void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 			    struct iwl_rx_cmd_buffer *rxb);
 void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 			    struct sk_buff_head *skbs);
+void iwl_trans_pcie_set_q_ptrs(struct iwl_trans *trans, int txq_id, int ptr);
 void iwl_trans_pcie_tx_reset(struct iwl_trans *trans);
-void iwl_pcie_gen2_update_byte_tbl(struct iwl_trans_pcie *trans_pcie,
-				   struct iwl_txq *txq, u16 byte_cnt,
-				   int num_tbs);
 
 static inline u16 iwl_pcie_tfd_tb_get_len(struct iwl_trans *trans, void *_tfd,
 					  u8 idx)
 {
-	if (trans->cfg->use_tfh) {
+	if (trans->trans_cfg->use_tfh) {
 		struct iwl_tfh_tfd *tfd = _tfd;
 		struct iwl_tfh_tb *tb = &tfd->tbs[idx];
 
@@ -874,6 +873,33 @@ static inline void iwl_enable_fw_load_int(struct iwl_trans *trans)
 	}
 }
 
+static inline void iwl_enable_fw_load_int_ctx_info(struct iwl_trans *trans)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	IWL_DEBUG_ISR(trans, "Enabling ALIVE interrupt only\n");
+
+	if (!trans_pcie->msix_enabled) {
+		/*
+		 * When we'll receive the ALIVE interrupt, the ISR will call
+		 * iwl_enable_fw_load_int_ctx_info again to set the ALIVE
+		 * interrupt (which is not really needed anymore) but also the
+		 * RX interrupt which will allow us to receive the ALIVE
+		 * notification (which is Rx) and continue the flow.
+		 */
+		trans_pcie->inta_mask =  CSR_INT_BIT_ALIVE | CSR_INT_BIT_FH_RX;
+		iwl_write32(trans, CSR_INT_MASK, trans_pcie->inta_mask);
+	} else {
+		iwl_enable_hw_int_msk_msix(trans,
+					   MSIX_HW_INT_CAUSES_REG_ALIVE);
+		/*
+		 * Leave all the FH causes enabled to get the ALIVE
+		 * notification.
+		 */
+		iwl_enable_fh_int_msk_msix(trans, trans_pcie->fh_init_mask);
+	}
+}
+
 static inline u16 iwl_pcie_get_cmd_index(const struct iwl_txq *q, u32 index)
 {
 	return index & (q->n_window - 1);
@@ -884,7 +910,7 @@ static inline void *iwl_pcie_get_tfd(struct iwl_trans *trans,
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	if (trans->cfg->use_tfh)
+	if (trans->trans_cfg->use_tfh)
 		idx = iwl_pcie_get_cmd_index(txq, idx);
 
 	return txq->tfds + trans_pcie->tfd_size * idx;
@@ -928,7 +954,7 @@ static inline void iwl_enable_rfkill_int(struct iwl_trans *trans)
 					   MSIX_HW_INT_CAUSES_REG_RF_KILL);
 	}
 
-	if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_9000) {
+	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_9000) {
 		/*
 		 * On 9000-series devices this bit isn't enabled by default, so
 		 * when we power down the device we need set the bit to allow it
@@ -1018,7 +1044,7 @@ static inline void __iwl_trans_pcie_set_bit(struct iwl_trans *trans,
 
 static inline bool iwl_pcie_dbg_on(struct iwl_trans *trans)
 {
-	return (trans->dbg_dest_tlv || trans->ini_valid);
+	return (trans->dbg.dest_tlv || iwl_trans_dbg_ini_valid(trans));
 }
 
 void iwl_trans_pcie_rf_kill(struct iwl_trans *trans, bool state);
@@ -1030,9 +1056,6 @@ void iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans);
 #else
 static inline void iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans) { }
 #endif
-
-int iwl_pci_fw_exit_d0i3(struct iwl_trans *trans);
-int iwl_pci_fw_enter_d0i3(struct iwl_trans *trans);
 
 void iwl_pcie_rx_allocator_work(struct work_struct *data);
 
@@ -1086,10 +1109,11 @@ int iwl_trans_pcie_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
 			   struct iwl_device_cmd *dev_cmd, int txq_id);
 int iwl_trans_pcie_gen2_send_hcmd(struct iwl_trans *trans,
 				  struct iwl_host_cmd *cmd);
-void iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans,
-				     bool low_power);
-void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans, bool low_power);
+void iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans);
+void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans);
 void iwl_pcie_gen2_txq_unmap(struct iwl_trans *trans, int txq_id);
 void iwl_pcie_gen2_tx_free(struct iwl_trans *trans);
 void iwl_pcie_gen2_tx_stop(struct iwl_trans *trans);
+void iwl_pcie_d3_complete_suspend(struct iwl_trans *trans,
+				  bool test, bool reset);
 #endif /* __iwl_trans_int_pcie_h__ */

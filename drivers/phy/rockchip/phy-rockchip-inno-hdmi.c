@@ -198,7 +198,7 @@
 #define RK3328_BYPASS_TERM_RESISTOR_CALIB		BIT(7)
 #define RK3328_TERM_RESISTOR_CALIB_SPEED_14_8(x)	UPDATE((x) >> 8, 6, 0)
 /* REG:0xc6 */
-#define RK3328_TERM_RESISTOR_CALIB_SPEED_7_0(x)		UPDATE(x, 7, 9)
+#define RK3328_TERM_RESISTOR_CALIB_SPEED_7_0(x)		UPDATE(x, 7, 0)
 /* REG:0xc7 */
 #define RK3328_TERM_RESISTOR_50				UPDATE(0, 2, 1)
 #define RK3328_TERM_RESISTOR_62_5			UPDATE(1, 2, 1)
@@ -603,6 +603,8 @@ static long inno_hdmi_phy_rk3228_clk_round_rate(struct clk_hw *hw,
 {
 	const struct pre_pll_config *cfg = pre_pll_cfg_table;
 
+	rate = (rate / 1000) * 1000;
+
 	for (; cfg->pixclock != 0; cfg++)
 		if (cfg->pixclock == rate && !cfg->fracdiv)
 			break;
@@ -754,6 +756,8 @@ static long inno_hdmi_phy_rk3328_clk_round_rate(struct clk_hw *hw,
 						unsigned long *parent_rate)
 {
 	const struct pre_pll_config *cfg = pre_pll_cfg_table;
+
+	rate = (rate / 1000) * 1000;
 
 	for (; cfg->pixclock != 0; cfg++)
 		if (cfg->pixclock == rate)

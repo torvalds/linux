@@ -382,7 +382,7 @@ static int rcar_gyroadc_parse_subdevs(struct iio_dev *indio_dev)
 				dev_err(dev,
 					"Only %i channels supported with %pOFn, but reg = <%i>.\n",
 					num_channels, child, reg);
-				return ret;
+				return -EINVAL;
 			}
 		}
 
@@ -391,7 +391,7 @@ static int rcar_gyroadc_parse_subdevs(struct iio_dev *indio_dev)
 			dev_err(dev,
 				"Channel %i uses different ADC mode than the rest.\n",
 				reg);
-			return ret;
+			return -EINVAL;
 		}
 
 		/* Channel is valid, grab the regulator. */
@@ -481,20 +481,16 @@ static int rcar_gyroadc_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rcar_gyroadc *priv;
 	struct iio_dev *indio_dev;
-	struct resource *mem;
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*priv));
-	if (!indio_dev) {
-		dev_err(dev, "Failed to allocate IIO device.\n");
+	if (!indio_dev)
 		return -ENOMEM;
-	}
 
 	priv = iio_priv(indio_dev);
 	priv->dev = dev;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->regs = devm_ioremap_resource(dev, mem);
+	priv->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->regs))
 		return PTR_ERR(priv->regs);
 

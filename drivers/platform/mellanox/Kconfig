@@ -41,7 +41,19 @@ config MLXBF_TMFIFO
 	depends on VIRTIO_CONSOLE && VIRTIO_NET
 	help
 	  Say y here to enable TmFifo support. The TmFifo driver provides
-          platform driver support for the TmFifo which supports console
-          and networking based on the virtio framework.
+	  platform driver support for the TmFifo which supports console
+	  and networking based on the virtio framework.
+
+config MLXBF_BOOTCTL
+	tristate "Mellanox BlueField Firmware Boot Control driver"
+	depends on ARM64
+	depends on ACPI
+	help
+	  The Mellanox BlueField firmware implements functionality to
+	  request swapping the primary and alternate eMMC boot partition,
+	  and to set up a watchdog that can undo that swap if the system
+	  does not boot up correctly. This driver provides sysfs access
+	  to the userspace tools, to be used in conjunction with the eMMC
+	  device driver to do necessary initial swap of the boot partition.
 
 endif # MELLANOX_PLATFORM

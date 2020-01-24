@@ -15,7 +15,48 @@
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
 #include <linux/leds.h>
-#include <linux/platform_data/leds-kirkwood-netxbig.h>
+
+struct netxbig_gpio_ext {
+	unsigned int	*addr;
+	int		num_addr;
+	unsigned int	*data;
+	int		num_data;
+	unsigned int	enable;
+};
+
+enum netxbig_led_mode {
+	NETXBIG_LED_OFF,
+	NETXBIG_LED_ON,
+	NETXBIG_LED_SATA,
+	NETXBIG_LED_TIMER1,
+	NETXBIG_LED_TIMER2,
+	NETXBIG_LED_MODE_NUM,
+};
+
+#define NETXBIG_LED_INVALID_MODE NETXBIG_LED_MODE_NUM
+
+struct netxbig_led_timer {
+	unsigned long		delay_on;
+	unsigned long		delay_off;
+	enum netxbig_led_mode	mode;
+};
+
+struct netxbig_led {
+	const char	*name;
+	const char	*default_trigger;
+	int		mode_addr;
+	int		*mode_val;
+	int		bright_addr;
+	int		bright_max;
+};
+
+struct netxbig_led_platform_data {
+	struct netxbig_gpio_ext	*gpio_ext;
+	struct netxbig_led_timer *timer;
+	int			num_timer;
+	struct netxbig_led	*leds;
+	int			num_leds;
+};
 
 /*
  * GPIO extension bus.
@@ -306,7 +347,6 @@ static int create_netxbig_led(struct platform_device *pdev,
 	return devm_led_classdev_register(&pdev->dev, &led_dat->cdev);
 }
 
-#ifdef CONFIG_OF_GPIO
 static int gpio_ext_get_of_pdata(struct device *dev, struct device_node *np,
 				 struct netxbig_gpio_ext *gpio_ext)
 {
@@ -388,12 +428,14 @@ static int netxbig_leds_get_of_pdata(struct device *dev,
 	}
 
 	gpio_ext = devm_kzalloc(dev, sizeof(*gpio_ext), GFP_KERNEL);
-	if (!gpio_ext)
+	if (!gpio_ext) {
+		of_node_put(gpio_ext_np);
 		return -ENOMEM;
+	}
 	ret = gpio_ext_get_of_pdata(dev, gpio_ext_np, gpio_ext);
+	of_node_put(gpio_ext_np);
 	if (ret)
 		return ret;
-	of_node_put(gpio_ext_np);
 	pdata->gpio_ext = gpio_ext;
 
 	/* Timers (optional) */
@@ -522,30 +564,20 @@ static const struct of_device_id of_netxbig_leds_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, of_netxbig_leds_match);
-#else
-static inline int
-netxbig_leds_get_of_pdata(struct device *dev,
-			  struct netxbig_led_platform_data *pdata)
-{
-	return -ENODEV;
-}
-#endif /* CONFIG_OF_GPIO */
 
 static int netxbig_led_probe(struct platform_device *pdev)
 {
-	struct netxbig_led_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	struct netxbig_led_platform_data *pdata;
 	struct netxbig_led_data *leds_data;
 	int i;
 	int ret;
 
-	if (!pdata) {
-		pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
-		if (!pdata)
-			return -ENOMEM;
-		ret = netxbig_leds_get_of_pdata(&pdev->dev, pdata);
-		if (ret)
-			return ret;
-	}
+	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return -ENOMEM;
+	ret = netxbig_leds_get_of_pdata(&pdev->dev, pdata);
+	if (ret)
+		return ret;
 
 	leds_data = devm_kcalloc(&pdev->dev,
 				 pdata->num_leds, sizeof(*leds_data),
@@ -571,7 +603,7 @@ static struct platform_driver netxbig_led_driver = {
 	.probe		= netxbig_led_probe,
 	.driver		= {
 		.name		= "leds-netxbig",
-		.of_match_table	= of_match_ptr(of_netxbig_leds_match),
+		.of_match_table	= of_netxbig_leds_match,
 	},
 };
 

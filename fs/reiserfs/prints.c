@@ -746,9 +746,6 @@ static void check_leaf_block_head(struct buffer_head *bh)
 
 static void check_internal_block_head(struct buffer_head *bh)
 {
-	struct block_head *blkh;
-
-	blkh = B_BLK_HEAD(bh);
 	if (!(B_LEVEL(bh) > DISK_LEAF_NODE_LEVEL && B_LEVEL(bh) <= MAX_HEIGHT))
 		reiserfs_panic(NULL, "vs-6025", "invalid level %z", bh);
 

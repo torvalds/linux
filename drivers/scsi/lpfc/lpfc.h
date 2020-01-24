@@ -51,6 +51,8 @@ struct lpfc_sli2_slim;
 		cmnd for menlo needs nearly twice as for firmware
 		downloads using bsg */
 
+#define LPFC_DEFAULT_XPSGL_SIZE	256
+#define LPFC_MAX_SG_TABLESIZE	0xffff
 #define LPFC_MIN_SG_SLI4_BUF_SZ	0x800	/* based on LPFC_DEFAULT_SG_SEG_CNT */
 #define LPFC_MAX_BG_SLI4_SEG_CNT_DIF 128 /* sg element count for BlockGuard */
 #define LPFC_MAX_SG_SEG_CNT_DIF 512	/* sg element count per scsi cmnd  */
@@ -274,6 +276,7 @@ struct lpfc_stats {
 	uint32_t elsXmitADISC;
 	uint32_t elsXmitLOGO;
 	uint32_t elsXmitSCR;
+	uint32_t elsXmitRSCN;
 	uint32_t elsXmitRNID;
 	uint32_t elsXmitFARP;
 	uint32_t elsXmitFARPR;
@@ -602,6 +605,12 @@ struct lpfc_epd_pool {
 	spinlock_t lock;	/* lock for expedite pool */
 };
 
+enum ras_state {
+	INACTIVE,
+	REG_INPROGRESS,
+	ACTIVE
+};
+
 struct lpfc_ras_fwlog {
 	uint8_t *fwlog_buff;
 	uint32_t fw_buffcount; /* Buffer size posted to FW */
@@ -618,7 +627,7 @@ struct lpfc_ras_fwlog {
 	bool ras_enabled;   /* Ras Enabled for the function */
 #define LPFC_RAS_DISABLE_LOGGING 0x00
 #define LPFC_RAS_ENABLE_LOGGING 0x01
-	bool ras_active;    /* RAS logging running state */
+	enum ras_state state;    /* RAS logging running state */
 };
 
 struct lpfc_hba {
@@ -722,6 +731,7 @@ struct lpfc_hba {
 #define HBA_FCOE_MODE		0x4 /* HBA function in FCoE Mode */
 #define HBA_SP_QUEUE_EVT	0x8 /* Slow-path qevt posted to worker thread*/
 #define HBA_POST_RECEIVE_BUFFER 0x10 /* Rcv buffers need to be posted */
+#define HBA_PERSISTENT_TOPO	0x20 /* Persistent topology support in hba */
 #define ELS_XRI_ABORT_EVENT	0x40
 #define ASYNC_EVENT		0x80
 #define LINK_DISABLED		0x100 /* Link disabled by user */
@@ -731,14 +741,13 @@ struct lpfc_hba {
 #define HBA_AER_ENABLED		0x1000 /* AER enabled with HBA */
 #define HBA_DEVLOSS_TMO         0x2000 /* HBA in devloss timeout */
 #define HBA_RRQ_ACTIVE		0x4000 /* process the rrq active list */
-#define HBA_FCP_IOQ_FLUSH	0x8000 /* FCP I/O queues being flushed */
+#define HBA_IOQ_FLUSH		0x8000 /* FCP/NVME I/O queues being flushed */
 #define HBA_FW_DUMP_OP		0x10000 /* Skips fn reset before FW dump */
 #define HBA_RECOVERABLE_UE	0x20000 /* Firmware supports recoverable UE */
 #define HBA_FORCED_LINK_SPEED	0x40000 /*
 					 * Firmware supports Forced Link Speed
 					 * capability
 					 */
-#define HBA_NVME_IOQ_FLUSH      0x80000 /* NVME IO queues flushed. */
 #define HBA_FLOGI_ISSUED	0x100000 /* FLOGI was issued */
 
 	uint32_t fcp_ring_in_use; /* When polling test if intr-hndlr active*/
@@ -794,10 +803,12 @@ struct lpfc_hba {
 	uint8_t  mds_diags_support;
 	uint8_t  bbcredit_support;
 	uint8_t  enab_exp_wqcq_pages;
+	u8	 nsler; /* Firmware supports FC-NVMe-2 SLER */
 
 	/* HBA Config Parameters */
 	uint32_t cfg_ack0;
 	uint32_t cfg_xri_rebalancing;
+	uint32_t cfg_xpsgl;
 	uint32_t cfg_enable_npiv;
 	uint32_t cfg_enable_rrq;
 	uint32_t cfg_topology;
@@ -819,11 +830,14 @@ struct lpfc_hba {
 	uint32_t cfg_use_msi;
 	uint32_t cfg_auto_imax;
 	uint32_t cfg_fcp_imax;
+	uint32_t cfg_force_rscn;
 	uint32_t cfg_cq_poll_threshold;
 	uint32_t cfg_cq_max_proc_limit;
 	uint32_t cfg_fcp_cpu_map;
+	uint32_t cfg_fcp_mq_threshold;
 	uint32_t cfg_hdw_queue;
 	uint32_t cfg_irq_chann;
+	uint32_t cfg_irq_numa;
 	uint32_t cfg_suppress_rsp;
 	uint32_t cfg_nvme_oas;
 	uint32_t cfg_nvme_embed_cmd;
@@ -866,7 +880,6 @@ struct lpfc_hba {
 	uint32_t cfg_aer_support;
 	uint32_t cfg_sriov_nr_virtfn;
 	uint32_t cfg_request_firmware_upgrade;
-	uint32_t cfg_iocb_cnt;
 	uint32_t cfg_suppress_link_up;
 	uint32_t cfg_rrq_xri_bitmap_sz;
 	uint32_t cfg_delay_discovery;
@@ -902,6 +915,7 @@ struct lpfc_hba {
 	wait_queue_head_t    work_waitq;
 	struct task_struct   *worker_thread;
 	unsigned long data_flags;
+	uint32_t border_sge_num;
 
 	uint32_t hbq_in_use;		/* HBQs in use flag */
 	uint32_t hbq_count;	        /* Count of configured HBQs */
@@ -983,7 +997,7 @@ struct lpfc_hba {
 	struct dma_pool *lpfc_drb_pool; /* data receive buffer pool */
 	struct dma_pool *lpfc_nvmet_drb_pool; /* data receive buffer pool */
 	struct dma_pool *lpfc_hbq_pool;	/* SLI3 hbq buffer pool */
-	struct dma_pool *txrdy_payload_pool;
+	struct dma_pool *lpfc_cmd_rsp_buf_pool;
 	struct lpfc_dma_pool lpfc_mbuf_safety_pool;
 
 	mempool_t *mbox_mem_pool;
@@ -1031,8 +1045,6 @@ struct lpfc_hba {
 	struct dentry *debug_hbqinfo;
 	struct dentry *debug_dumpHostSlim;
 	struct dentry *debug_dumpHBASlim;
-	struct dentry *debug_dumpData;   /* BlockGuard BPL */
-	struct dentry *debug_dumpDif;    /* BlockGuard BPL */
 	struct dentry *debug_InjErrLBA;  /* LBA to inject errors at */
 	struct dentry *debug_InjErrNPortID;  /* NPortID to inject errors at */
 	struct dentry *debug_InjErrWWPN;  /* WWPN to inject errors at */
@@ -1049,6 +1061,7 @@ struct lpfc_hba {
 #ifdef LPFC_HDWQ_LOCK_STAT
 	struct dentry *debug_lockstat;
 #endif
+	struct dentry *debug_ras_log;
 	atomic_t nvmeio_trc_cnt;
 	uint32_t nvmeio_trc_size;
 	uint32_t nvmeio_trc_output_idx;
@@ -1203,6 +1216,13 @@ struct lpfc_hba {
 	uint64_t ktime_seg10_min;
 	uint64_t ktime_seg10_max;
 #endif
+
+	struct hlist_node cpuhp;	/* used for cpuhp per hba callback */
+	struct timer_list cpuhp_poll_timer;
+	struct list_head poll_list;	/* slowpath eq polling list */
+#define LPFC_POLL_HB	1		/* slowpath heartbeat */
+#define LPFC_POLL_FASTPATH	0	/* called from fastpath */
+#define LPFC_POLL_SLOWPATH	1	/* called from slowpath */
 };
 
 static inline struct Scsi_Host *
@@ -1292,6 +1312,26 @@ lpfc_phba_elsring(struct lpfc_hba *phba)
 	return &phba->sli.sli3_ring[LPFC_ELS_RING];
 }
 
+/**
+ * lpfc_next_online_numa_cpu - Finds next online CPU on NUMA node
+ * @numa_mask: Pointer to phba's numa_mask member.
+ * @start: starting cpu index
+ *
+ * Note: If no valid cpu found, then nr_cpu_ids is returned.
+ *
+ **/
+static inline unsigned int
+lpfc_next_online_numa_cpu(const struct cpumask *numa_mask, unsigned int start)
+{
+	unsigned int cpu_it;
+
+	for_each_cpu_wrap(cpu_it, numa_mask, start) {
+		if (cpu_online(cpu_it))
+			break;
+	}
+
+	return cpu_it;
+}
 /**
  * lpfc_sli4_mod_hba_eq_delay - update EQ delay
  * @phba: Pointer to HBA context object.

@@ -167,9 +167,9 @@ struct acpi_evaluate_info {
 	u32 return_flags;	/* Used for return value analysis */
 	u32 return_btype;	/* Bitmapped type of the returned object */
 	u16 param_count;	/* Count of the input argument list */
+	u16 node_flags;		/* Same as Node->Flags */
 	u8 pass_number;		/* Parser pass number */
 	u8 return_object_type;	/* Object type of the returned object */
-	u8 node_flags;		/* Same as Node->Flags */
 	u8 flags;		/* General flags */
 };
 
@@ -190,6 +190,16 @@ struct acpi_device_walk_info {
 	u32 device_count;
 	u32 num_STA;
 	u32 num_INI;
+};
+
+/* Info used by Acpi  acpi_db_display_fields */
+
+struct acpi_region_walk_info {
+	u32 debug_level;
+	u32 count;
+	acpi_owner_id owner_id;
+	u8 display_type;
+	u32 address_space_id;
 };
 
 /* TBD: [Restructure] Merge with struct above */

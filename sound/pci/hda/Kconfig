@@ -12,6 +12,7 @@ config SND_HDA_INTEL
 	tristate "HD Audio PCI"
 	depends on SND_PCI
 	select SND_HDA
+	select SND_INTEL_DSP_CONFIG
 	help
 	  Say Y here to include support for Intel "High Definition
 	  Audio" (Azalia) and its compatible devices.
@@ -26,6 +27,7 @@ config SND_HDA_TEGRA
 	tristate "NVIDIA Tegra HD Audio"
 	depends on ARCH_TEGRA
 	select SND_HDA
+	select SND_HDA_ALIGNED_MMIO
 	help
 	  Say Y here to support the HDA controller present in NVIDIA
 	  Tegra SoCs

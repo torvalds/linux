@@ -189,7 +189,16 @@ struct phm_vce_clock_voltage_dependency_table {
 	struct phm_vce_clock_voltage_dependency_record entries[1];
 };
 
+
+enum SMU_ASIC_RESET_MODE
+{
+    SMU_ASIC_RESET_MODE_0,
+    SMU_ASIC_RESET_MODE_1,
+    SMU_ASIC_RESET_MODE_2,
+};
+
 struct pp_smumgr_func {
+	char *name;
 	int (*smu_init)(struct pp_hwmgr  *hwmgr);
 	int (*smu_fini)(struct pp_hwmgr  *hwmgr);
 	int (*start_smu)(struct pp_hwmgr  *hwmgr);
@@ -343,6 +352,13 @@ struct pp_hwmgr_func {
 	int (*set_asic_baco_state)(struct pp_hwmgr *hwmgr, enum BACO_STATE state);
 	int (*get_ppfeature_status)(struct pp_hwmgr *hwmgr, char *buf);
 	int (*set_ppfeature_status)(struct pp_hwmgr *hwmgr, uint64_t ppfeature_masks);
+	int (*set_mp1_state)(struct pp_hwmgr *hwmgr, enum pp_mp1_state mp1_state);
+	int (*asic_reset)(struct pp_hwmgr *hwmgr, enum SMU_ASIC_RESET_MODE mode);
+	int (*smu_i2c_bus_access)(struct pp_hwmgr *hwmgr, bool aquire);
+	int (*set_df_cstate)(struct pp_hwmgr *hwmgr, enum pp_df_cstate state);
+	int (*set_xgmi_pstate)(struct pp_hwmgr *hwmgr, uint32_t pstate);
+	int (*disable_power_features_for_compute_performance)(struct pp_hwmgr *hwmgr,
+					bool disable);
 };
 
 struct pp_table_func {
@@ -694,6 +710,7 @@ struct pp_thermal_controller_info {
 	uint8_t ucType;
 	uint8_t ucI2cLine;
 	uint8_t ucI2cAddress;
+	uint8_t use_hw_fan_control;
 	struct pp_fan_info fanInfo;
 	struct pp_advance_fan_control_parameters advanceFanControlParameters;
 };

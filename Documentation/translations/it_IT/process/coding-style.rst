@@ -696,7 +696,7 @@ nella stringa di titolo::
 	...
 
 Per la documentazione completa sui file di configurazione, consultate
-il documento Documentation/translations/it_IT/kbuild/kconfig-language.txt
+il documento Documentation/kbuild/kconfig-language.rst
 
 
 11) Strutture dati
@@ -1005,7 +1005,7 @@ struttura, usate
 
 .. code-block:: c
 
-	#define FIELD_SIZEOF(t, f) (sizeof(((t*)0)->f))
+	#define sizeof_field(t, f) (sizeof(((t*)0)->f))
 
 Ci sono anche le macro min() e max() che, se vi serve, effettuano un controllo
 rigido sui tipi.  Sentitevi liberi di leggere attentamente questo file

@@ -1,20 +1,10 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (C) 2016 Felix Fietkau <nbd@nbd.name>
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include "mt76x2.h"
+#include "../mt76x02_mac.h"
 
 static int
 mt76x2_start(struct ieee80211_hw *hw)
@@ -22,10 +12,7 @@ mt76x2_start(struct ieee80211_hw *hw)
 	struct mt76x02_dev *dev = hw->priv;
 	int ret;
 
-	ret = mt76x2_mac_start(dev);
-	if (ret)
-		return ret;
-
+	mt76x02_mac_start(dev);
 	ret = mt76x2_phy_start(dev);
 	if (ret)
 		return ret;
@@ -54,28 +41,27 @@ mt76x2_set_channel(struct mt76x02_dev *dev, struct cfg80211_chan_def *chandef)
 	int ret;
 
 	cancel_delayed_work_sync(&dev->cal_work);
+	tasklet_disable(&dev->mt76.pre_tbtt_tasklet);
+	tasklet_disable(&dev->dfs_pd.dfs_tasklet);
 
+	mutex_lock(&dev->mt76.mutex);
 	set_bit(MT76_RESET, &dev->mt76.state);
 
 	mt76_set_channel(&dev->mt76);
 
-	tasklet_disable(&dev->mt76.pre_tbtt_tasklet);
-	tasklet_disable(&dev->dfs_pd.dfs_tasklet);
-
 	mt76x2_mac_stop(dev, true);
 	ret = mt76x2_phy_set_channel(dev, chandef);
 
-	/* channel cycle counters read-and-clear */
-	mt76_rr(dev, MT_CH_IDLE);
-	mt76_rr(dev, MT_CH_BUSY);
-
+	mt76x02_mac_cc_reset(dev);
 	mt76x02_dfs_init_params(dev);
 
 	mt76x2_mac_resume(dev);
-	tasklet_enable(&dev->dfs_pd.dfs_tasklet);
-	tasklet_enable(&dev->mt76.pre_tbtt_tasklet);
 
 	clear_bit(MT76_RESET, &dev->mt76.state);
+	mutex_unlock(&dev->mt76.mutex);
+
+	tasklet_enable(&dev->dfs_pd.dfs_tasklet);
+	tasklet_enable(&dev->mt76.pre_tbtt_tasklet);
 
 	mt76_txq_schedule_all(&dev->mt76);
 
@@ -111,13 +97,13 @@ mt76x2_config(struct ieee80211_hw *hw, u32 changed)
 		}
 	}
 
+	mutex_unlock(&dev->mt76.mutex);
+
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
 		ieee80211_stop_queues(hw);
 		ret = mt76x2_set_channel(dev, &hw->conf.chandef);
 		ieee80211_wake_queues(hw);
 	}
-
-	mutex_unlock(&dev->mt76.mutex);
 
 	return ret;
 }
@@ -149,19 +135,6 @@ static int mt76x2_set_antenna(struct ieee80211_hw *hw, u32 tx_ant,
 	return 0;
 }
 
-static int mt76x2_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant,
-			      u32 *rx_ant)
-{
-	struct mt76x02_dev *dev = hw->priv;
-
-	mutex_lock(&dev->mt76.mutex);
-	*tx_ant = dev->mt76.antenna_mask;
-	*rx_ant = dev->mt76.antenna_mask;
-	mutex_unlock(&dev->mt76.mutex);
-
-	return 0;
-}
-
 const struct ieee80211_ops mt76x2_ops = {
 	.tx = mt76x02_tx,
 	.start = mt76x2_start,
@@ -174,7 +147,7 @@ const struct ieee80211_ops mt76x2_ops = {
 	.sta_state = mt76_sta_state,
 	.set_key = mt76x02_set_key,
 	.conf_tx = mt76x02_conf_tx,
-	.sw_scan_start = mt76x02_sw_scan,
+	.sw_scan_start = mt76_sw_scan,
 	.sw_scan_complete = mt76x02_sw_scan_complete,
 	.flush = mt76x2_flush,
 	.ampdu_action = mt76x02_ampdu_action,
@@ -186,7 +159,7 @@ const struct ieee80211_ops mt76x2_ops = {
 	.get_survey = mt76_get_survey,
 	.set_tim = mt76_set_tim,
 	.set_antenna = mt76x2_set_antenna,
-	.get_antenna = mt76x2_get_antenna,
+	.get_antenna = mt76_get_antenna,
 	.set_rts_threshold = mt76x02_set_rts_threshold,
 };
 

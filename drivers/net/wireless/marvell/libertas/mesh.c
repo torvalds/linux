@@ -86,6 +86,7 @@ static int lbs_mesh_config_send(struct lbs_private *priv,
 static int lbs_mesh_config(struct lbs_private *priv, uint16_t action,
 		uint16_t chan)
 {
+	struct wireless_dev *mesh_wdev;
 	struct cmd_ds_mesh_config cmd;
 	struct mrvl_meshie *ie;
 
@@ -105,10 +106,17 @@ static int lbs_mesh_config(struct lbs_private *priv, uint16_t action,
 		ie->val.active_protocol_id = MARVELL_MESH_PROTO_ID_HWMP;
 		ie->val.active_metric_id = MARVELL_MESH_METRIC_ID;
 		ie->val.mesh_capability = MARVELL_MESH_CAPABILITY;
-		ie->val.mesh_id_len = priv->mesh_ssid_len;
-		memcpy(ie->val.mesh_id, priv->mesh_ssid, priv->mesh_ssid_len);
+
+		if (priv->mesh_dev) {
+			mesh_wdev = priv->mesh_dev->ieee80211_ptr;
+			ie->val.mesh_id_len = mesh_wdev->mesh_id_up_len;
+			memcpy(ie->val.mesh_id, mesh_wdev->ssid,
+						mesh_wdev->mesh_id_up_len);
+		}
+
 		ie->len = sizeof(struct mrvl_meshie_val) -
-			IEEE80211_MAX_SSID_LEN + priv->mesh_ssid_len;
+			IEEE80211_MAX_SSID_LEN + ie->val.mesh_id_len;
+
 		cmd.length = cpu_to_le16(sizeof(struct mrvl_meshie_val));
 		break;
 	case CMD_ACT_MESH_CONFIG_STOP:
@@ -117,8 +125,8 @@ static int lbs_mesh_config(struct lbs_private *priv, uint16_t action,
 		return -1;
 	}
 	lbs_deb_cmd("mesh config action %d type %x channel %d SSID %*pE\n",
-		    action, priv->mesh_tlv, chan, priv->mesh_ssid_len,
-		    priv->mesh_ssid);
+		    action, priv->mesh_tlv, chan, ie->val.mesh_id_len,
+		    ie->val.mesh_id);
 
 	return __lbs_mesh_config_send(priv, &cmd, action, priv->mesh_tlv);
 }
@@ -863,12 +871,6 @@ int lbs_init_mesh(struct lbs_private *priv)
 	/* Stop meshing until interface is brought up */
 	lbs_mesh_config(priv, CMD_ACT_MESH_CONFIG_STOP, 1);
 
-	if (priv->mesh_tlv) {
-		sprintf(priv->mesh_ssid, "mesh");
-		priv->mesh_ssid_len = 4;
-		ret = 1;
-	}
-
 	return ret;
 }
 
@@ -997,6 +999,12 @@ static int lbs_add_mesh(struct lbs_private *priv)
 
 	mesh_wdev->iftype = NL80211_IFTYPE_MESH_POINT;
 	mesh_wdev->wiphy = priv->wdev->wiphy;
+
+	if (priv->mesh_tlv) {
+		sprintf(mesh_wdev->ssid, "mesh");
+		mesh_wdev->mesh_id_up_len = 4;
+	}
+
 	mesh_wdev->netdev = mesh_dev;
 
 	mesh_dev->ml_priv = priv;

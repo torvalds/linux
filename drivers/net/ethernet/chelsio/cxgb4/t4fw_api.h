@@ -87,6 +87,7 @@ enum fw_wr_opcodes {
 	FW_ULPTX_WR                    = 0x04,
 	FW_TP_WR                       = 0x05,
 	FW_ETH_TX_PKT_WR               = 0x08,
+	FW_ETH_TX_EO_WR                = 0x1c,
 	FW_OFLD_CONNECTION_WR          = 0x2f,
 	FW_FLOWC_WR                    = 0x0a,
 	FW_OFLD_TX_DATA_WR             = 0x0b,
@@ -534,6 +535,47 @@ struct fw_eth_tx_pkt_wr {
 	__be64 r3;
 };
 
+enum fw_eth_tx_eo_type {
+	FW_ETH_TX_EO_TYPE_UDPSEG = 0,
+	FW_ETH_TX_EO_TYPE_TCPSEG,
+};
+
+struct fw_eth_tx_eo_wr {
+	__be32 op_immdlen;
+	__be32 equiq_to_len16;
+	__be64 r3;
+	union fw_eth_tx_eo {
+		struct fw_eth_tx_eo_udpseg {
+			__u8   type;
+			__u8   ethlen;
+			__be16 iplen;
+			__u8   udplen;
+			__u8   rtplen;
+			__be16 r4;
+			__be16 mss;
+			__be16 schedpktsize;
+			__be32 plen;
+		} udpseg;
+		struct fw_eth_tx_eo_tcpseg {
+			__u8   type;
+			__u8   ethlen;
+			__be16 iplen;
+			__u8   tcplen;
+			__u8   tsclk_tsoff;
+			__be16 r4;
+			__be16 mss;
+			__be16 r5;
+			__be32 plen;
+		} tcpseg;
+	} u;
+};
+
+#define FW_ETH_TX_EO_WR_IMMDLEN_S	0
+#define FW_ETH_TX_EO_WR_IMMDLEN_M	0x1ff
+#define FW_ETH_TX_EO_WR_IMMDLEN_V(x)	((x) << FW_ETH_TX_EO_WR_IMMDLEN_S)
+#define FW_ETH_TX_EO_WR_IMMDLEN_G(x)	\
+	(((x) >> FW_ETH_TX_EO_WR_IMMDLEN_S) & FW_ETH_TX_EO_WR_IMMDLEN_M)
+
 struct fw_ofld_connection_wr {
 	__be32 op_compl;
 	__be32 len16_pkd;
@@ -658,6 +700,12 @@ enum fw_flowc_mnem_tcpstate {
 					      * waiting for FIN
 					      */
 	FW_FLOWC_MNEM_TCPSTATE_TIMEWAIT = 10, /* not expected */
+};
+
+enum fw_flowc_mnem_eostate {
+	FW_FLOWC_MNEM_EOSTATE_ESTABLISHED = 1, /* default */
+	/* graceful close, after sending outstanding payload */
+	FW_FLOWC_MNEM_EOSTATE_CLOSING = 2,
 };
 
 enum fw_flowc_mnem {
@@ -1134,6 +1182,7 @@ enum fw_caps_config_nic {
 	FW_CAPS_CONFIG_NIC		= 0x00000001,
 	FW_CAPS_CONFIG_NIC_VM		= 0x00000002,
 	FW_CAPS_CONFIG_NIC_HASHFILTER	= 0x00000020,
+	FW_CAPS_CONFIG_NIC_ETHOFLD	= 0x00000040,
 };
 
 enum fw_caps_config_ofld {
@@ -1221,6 +1270,23 @@ enum fw_params_mnem {
 /*
  * device parameters
  */
+
+#define FW_PARAMS_PARAM_FILTER_MODE_S 16
+#define FW_PARAMS_PARAM_FILTER_MODE_M 0xffff
+#define FW_PARAMS_PARAM_FILTER_MODE_V(x)          \
+	((x) << FW_PARAMS_PARAM_FILTER_MODE_S)
+#define FW_PARAMS_PARAM_FILTER_MODE_G(x)          \
+	(((x) >> FW_PARAMS_PARAM_FILTER_MODE_S) & \
+	FW_PARAMS_PARAM_FILTER_MODE_M)
+
+#define FW_PARAMS_PARAM_FILTER_MASK_S 0
+#define FW_PARAMS_PARAM_FILTER_MASK_M 0xffff
+#define FW_PARAMS_PARAM_FILTER_MASK_V(x)          \
+	((x) << FW_PARAMS_PARAM_FILTER_MASK_S)
+#define FW_PARAMS_PARAM_FILTER_MASK_G(x)          \
+	(((x) >> FW_PARAMS_PARAM_FILTER_MASK_S) & \
+	FW_PARAMS_PARAM_FILTER_MASK_M)
+
 enum fw_params_param_dev {
 	FW_PARAMS_PARAM_DEV_CCLK	= 0x00, /* chip core clock in khz */
 	FW_PARAMS_PARAM_DEV_PORTVEC	= 0x01, /* the port vector */
@@ -1250,12 +1316,17 @@ enum fw_params_param_dev {
 	FW_PARAMS_PARAM_DEV_RI_FR_NSMR_TPTE_WR	= 0x1C,
 	FW_PARAMS_PARAM_DEV_FILTER2_WR  = 0x1D,
 	FW_PARAMS_PARAM_DEV_MPSBGMAP	= 0x1E,
+	FW_PARAMS_PARAM_DEV_TPCHMAP     = 0x1F,
 	FW_PARAMS_PARAM_DEV_HMA_SIZE	= 0x20,
 	FW_PARAMS_PARAM_DEV_RDMA_WRITE_WITH_IMM = 0x21,
+	FW_PARAMS_PARAM_DEV_PPOD_EDRAM  = 0x23,
 	FW_PARAMS_PARAM_DEV_RI_WRITE_CMPL_WR    = 0x24,
 	FW_PARAMS_PARAM_DEV_OPAQUE_VIID_SMT_EXTN = 0x27,
+	FW_PARAMS_PARAM_DEV_HASHFILTER_WITH_OFLD = 0x28,
 	FW_PARAMS_PARAM_DEV_DBQ_TIMER	= 0x29,
 	FW_PARAMS_PARAM_DEV_DBQ_TIMERTICK = 0x2A,
+	FW_PARAMS_PARAM_DEV_NUM_TM_CLASS = 0x2B,
+	FW_PARAMS_PARAM_DEV_FILTER = 0x2E,
 };
 
 /*
@@ -1312,6 +1383,8 @@ enum fw_params_param_pfvf {
 	FW_PARAMS_PARAM_PFVF_RAWF_END = 0x37,
 	FW_PARAMS_PARAM_PFVF_NCRYPTO_LOOKASIDE = 0x39,
 	FW_PARAMS_PARAM_PFVF_PORT_CAPS32 = 0x3A,
+	FW_PARAMS_PARAM_PFVF_PPOD_EDRAM_START = 0x3B,
+	FW_PARAMS_PARAM_PFVF_PPOD_EDRAM_END = 0x3C,
 	FW_PARAMS_PARAM_PFVF_LINK_STATE = 0x40,
 };
 
@@ -1345,6 +1418,11 @@ enum fw_params_param_dev_diag {
 	FW_PARAM_DEV_DIAG_TMP		= 0x00,
 	FW_PARAM_DEV_DIAG_VDD		= 0x01,
 	FW_PARAM_DEV_DIAG_MAXTMPTHRESH	= 0x02,
+};
+
+enum fw_params_param_dev_filter {
+	FW_PARAM_DEV_FILTER_VNIC_MODE   = 0x00,
+	FW_PARAM_DEV_FILTER_MODE_MASK   = 0x01,
 };
 
 enum fw_params_param_dev_fwcache {

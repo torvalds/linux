@@ -39,6 +39,8 @@
 #include <linux/atomic.h>
 #include <linux/prefetch.h>
 
+#include "internal.h"
+
 /*
  * How many user pages to map in one call to get_user_pages().  This determines
  * the size of a structure in the slab cache
@@ -221,29 +223,7 @@ static inline struct page *dio_get_page(struct dio *dio,
 }
 
 /*
- * Warn about a page cache invalidation failure during a direct io write.
- */
-void dio_warn_stale_pagecache(struct file *filp)
-{
-	static DEFINE_RATELIMIT_STATE(_rs, 86400 * HZ, DEFAULT_RATELIMIT_BURST);
-	char pathname[128];
-	struct inode *inode = file_inode(filp);
-	char *path;
-
-	errseq_set(&inode->i_mapping->wb_err, -EIO);
-	if (__ratelimit(&_rs)) {
-		path = file_path(filp, pathname, sizeof(pathname));
-		if (IS_ERR(path))
-			path = "(unknown)";
-		pr_crit("Page cache invalidation failure on direct I/O.  Possible data corruption due to collision with buffered I/O!\n");
-		pr_crit("File: %s PID: %d Comm: %.20s\n", path, current->pid,
-			current->comm);
-	}
-}
-
-/**
  * dio_complete() - called when all DIO BIO I/O has been completed
- * @offset: the byte offset in the file of the completed operation
  *
  * This drops i_dio_count, lets interested parties know that a DIO operation
  * has completed, and calculates the resulting return code for the operation.
@@ -538,8 +518,8 @@ static struct bio *dio_await_one(struct dio *dio)
  */
 static blk_status_t dio_bio_complete(struct dio *dio, struct bio *bio)
 {
-	struct bio_vec *bvec;
 	blk_status_t err = bio->bi_status;
+	bool should_dirty = dio->op == REQ_OP_READ && dio->should_dirty;
 
 	if (err) {
 		if (err == BLK_STS_AGAIN && (bio->bi_opf & REQ_NOWAIT))
@@ -548,19 +528,10 @@ static blk_status_t dio_bio_complete(struct dio *dio, struct bio *bio)
 			dio->io_error = -EIO;
 	}
 
-	if (dio->is_async && dio->op == REQ_OP_READ && dio->should_dirty) {
+	if (dio->is_async && should_dirty) {
 		bio_check_pages_dirty(bio);	/* transfers ownership */
 	} else {
-		struct bvec_iter_all iter_all;
-
-		bio_for_each_segment_all(bvec, bio, iter_all) {
-			struct page *page = bvec->bv_page;
-
-			if (dio->op == REQ_OP_READ && !PageCompound(page) &&
-					dio->should_dirty)
-				set_page_dirty_lock(page);
-			put_page(page);
-		}
+		bio_release_pages(bio, should_dirty);
 		bio_put(bio);
 	}
 	return err;

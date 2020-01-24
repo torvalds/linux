@@ -20,8 +20,10 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+
+#include <linux/pci.h>
 #include <linux/slab.h>
-#include <drm/drmP.h>
+
 #include "amdgpu.h"
 #include "amdgpu_atombios.h"
 #include "amdgpu_ih.h"
@@ -57,7 +59,6 @@
 
 #include "vid.h"
 #include "vi.h"
-#include "vi_dpm.h"
 #include "gmc_v8_0.h"
 #include "gmc_v7_0.h"
 #include "gfx_v8_0.h"
@@ -688,6 +689,87 @@ static int vi_gpu_pci_config_reset(struct amdgpu_device *adev)
 	return -EINVAL;
 }
 
+int smu7_asic_get_baco_capability(struct amdgpu_device *adev, bool *cap)
+{
+	void *pp_handle = adev->powerplay.pp_handle;
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+
+	if (!pp_funcs || !pp_funcs->get_asic_baco_capability) {
+		*cap = false;
+		return -ENOENT;
+	}
+
+	return pp_funcs->get_asic_baco_capability(pp_handle, cap);
+}
+
+int smu7_asic_baco_reset(struct amdgpu_device *adev)
+{
+	void *pp_handle = adev->powerplay.pp_handle;
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+
+	if (!pp_funcs ||!pp_funcs->get_asic_baco_state ||!pp_funcs->set_asic_baco_state)
+		return -ENOENT;
+
+	/* enter BACO state */
+	if (pp_funcs->set_asic_baco_state(pp_handle, 1))
+		return -EIO;
+
+	/* exit BACO state */
+	if (pp_funcs->set_asic_baco_state(pp_handle, 0))
+		return -EIO;
+
+	dev_info(adev->dev, "GPU BACO reset\n");
+
+	return 0;
+}
+
+/**
+ * vi_asic_pci_config_reset - soft reset GPU
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Use PCI Config method to reset the GPU.
+ *
+ * Returns 0 for success.
+ */
+static int vi_asic_pci_config_reset(struct amdgpu_device *adev)
+{
+	int r;
+
+	amdgpu_atombios_scratch_regs_engine_hung(adev, true);
+
+	r = vi_gpu_pci_config_reset(adev);
+
+	amdgpu_atombios_scratch_regs_engine_hung(adev, false);
+
+	return r;
+}
+
+static enum amd_reset_method
+vi_asic_reset_method(struct amdgpu_device *adev)
+{
+	bool baco_reset;
+
+	switch (adev->asic_type) {
+	case CHIP_FIJI:
+	case CHIP_TONGA:
+	case CHIP_POLARIS10:
+	case CHIP_POLARIS11:
+	case CHIP_POLARIS12:
+	case CHIP_TOPAZ:
+		smu7_asic_get_baco_capability(adev, &baco_reset);
+		break;
+	default:
+		baco_reset = false;
+		break;
+	}
+
+	if (baco_reset)
+		return AMD_RESET_METHOD_BACO;
+	else
+		return AMD_RESET_METHOD_LEGACY;
+}
+
 /**
  * vi_asic_reset - soft reset GPU
  *
@@ -701,11 +783,13 @@ static int vi_asic_reset(struct amdgpu_device *adev)
 {
 	int r;
 
-	amdgpu_atombios_scratch_regs_engine_hung(adev, true);
-
-	r = vi_gpu_pci_config_reset(adev);
-
-	amdgpu_atombios_scratch_regs_engine_hung(adev, false);
+	if (vi_asic_reset_method(adev) == AMD_RESET_METHOD_BACO) {
+		if (!adev->in_suspend)
+			amdgpu_inc_vram_lost(adev);
+		r = smu7_asic_baco_reset(adev);
+	} else {
+		r = vi_asic_pci_config_reset(adev);
+	}
 
 	return r;
 }
@@ -987,6 +1071,18 @@ static void vi_get_pcie_usage(struct amdgpu_device *adev, uint64_t *count0,
 	*count1 = RREG32_PCIE(ixPCIE_PERF_COUNT1_TXCLK) | (cnt1_of << 32);
 }
 
+static uint64_t vi_get_pcie_replay_count(struct amdgpu_device *adev)
+{
+	uint64_t nak_r, nak_g;
+
+	/* Get the number of NAKs received and generated */
+	nak_r = RREG32_PCIE(ixPCIE_RX_NUM_NAK);
+	nak_g = RREG32_PCIE(ixPCIE_RX_NUM_NAK_GENERATED);
+
+	/* Add the total number of NAKs, i.e the number of replays */
+	return (nak_r + nak_g);
+}
+
 static bool vi_need_reset_on_init(struct amdgpu_device *adev)
 {
 	u32 clock_cntl, pc;
@@ -1010,6 +1106,7 @@ static const struct amdgpu_asic_funcs vi_asic_funcs =
 	.read_bios_from_rom = &vi_read_bios_from_rom,
 	.read_register = &vi_read_register,
 	.reset = &vi_asic_reset,
+	.reset_method = &vi_asic_reset_method,
 	.set_vga_state = &vi_vga_set_state,
 	.get_xclk = &vi_get_xclk,
 	.set_uvd_clocks = &vi_set_uvd_clocks,
@@ -1021,6 +1118,7 @@ static const struct amdgpu_asic_funcs vi_asic_funcs =
 	.init_doorbell_index = &legacy_doorbell_index_init,
 	.get_pcie_usage = &vi_get_pcie_usage,
 	.need_reset_on_init = &vi_need_reset_on_init,
+	.get_pcie_replay_count = &vi_get_pcie_replay_count,
 };
 
 #define CZ_REV_BRISTOL(rev)	 \

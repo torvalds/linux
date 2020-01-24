@@ -5,11 +5,11 @@
  * Authors: Thomas Hellstrom <thomas-at-tungstengraphics-dot-com>
  **************************************************************************/
 
-#include <drm/drmP.h>
-#include "psb_drv.h"
-#include "psb_reg.h"
-#include "psb_intel_reg.h"
 #include <linux/spinlock.h>
+
+#include "psb_drv.h"
+#include "psb_intel_reg.h"
+#include "psb_reg.h"
 
 static void psb_lid_timer_func(struct timer_list *t)
 {

@@ -29,6 +29,7 @@
 #include <linux/bug.h>
 #include <linux/ratelimit.h>
 #include <linux/uaccess.h>
+#include <linux/kdebug.h>
 
 #include <asm/assembly.h>
 #include <asm/io.h>
@@ -275,7 +276,7 @@ void die_if_kernel(char *str, struct pt_regs *regs, long err)
 static void handle_gdb_break(struct pt_regs *regs, int wot)
 {
 	force_sig_fault(SIGTRAP, wot,
-			(void __user *) (regs->iaoq[0] & ~3), current);
+			(void __user *) (regs->iaoq[0] & ~3));
 }
 
 static void handle_break(struct pt_regs *regs)
@@ -414,6 +415,7 @@ void parisc_terminate(char *msg, struct pt_regs *regs, int code, unsigned long o
 {
 	static DEFINE_SPINLOCK(terminate_lock);
 
+	(void)notify_die(DIE_OOPS, msg, regs, 0, code, SIGTRAP);
 	bust_spinlocks(1);
 
 	set_eiem(0);
@@ -609,13 +611,13 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 		si_code = ILL_PRVREG;
 	give_sigill:
 		force_sig_fault(SIGILL, si_code,
-				(void __user *) regs->iaoq[0], current);
+				(void __user *) regs->iaoq[0]);
 		return;
 
 	case 12:
 		/* Overflow Trap, let the userland signal handler do the cleanup */
 		force_sig_fault(SIGFPE, FPE_INTOVF,
-				(void __user *) regs->iaoq[0], current);
+				(void __user *) regs->iaoq[0]);
 		return;
 		
 	case 13:
@@ -627,7 +629,7 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 			 * to by si_addr.
 			 */
 			force_sig_fault(SIGFPE, FPE_CONDTRAP,
-					(void __user *) regs->iaoq[0], current);
+					(void __user *) regs->iaoq[0]);
 			return;
 		} 
 		/* The kernel doesn't want to handle condition codes */
@@ -739,7 +741,7 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 		force_sig_fault(SIGSEGV, SEGV_MAPERR,
 				(code == 7)?
 				((void __user *) regs->iaoq[0]) :
-				((void __user *) regs->ior), current);
+				((void __user *) regs->ior));
 		return;
 
 	case 28: 
@@ -754,7 +756,7 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 				task_pid_nr(current), current->comm);
 			/* SIGBUS, for lack of a better one. */
 			force_sig_fault(SIGBUS, BUS_OBJERR,
-					(void __user *)regs->ior, current);
+					(void __user *)regs->ior);
 			return;
 		}
 		pdc_chassis_send_status(PDC_CHASSIS_DIRECT_PANIC);
@@ -770,7 +772,7 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 				code, fault_space,
 				task_pid_nr(current), current->comm);
 		force_sig_fault(SIGSEGV, SEGV_MAPERR,
-				(void __user *)regs->ior, current);
+				(void __user *)regs->ior);
 		return;
 	    }
 	}

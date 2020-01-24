@@ -4,9 +4,9 @@
 #
 config CRYPTO_DEV_NITROX
 	tristate
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select CRYPTO_AES
-	select CRYPTO_DES
+	select CRYPTO_LIB_DES
 	select FW_LOADER
 
 config CRYPTO_DEV_NITROX_CNN55XX

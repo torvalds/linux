@@ -8,7 +8,7 @@
 #define __MSM_GEM_H__
 
 #include <linux/kref.h>
-#include <linux/reservation.h>
+#include <linux/dma-resv.h>
 #include "msm_drv.h"
 
 /* Additional internal-use only BO flags: */
@@ -130,6 +130,7 @@ void msm_gem_free_work(struct work_struct *work);
 struct msm_gem_submit {
 	struct drm_device *dev;
 	struct msm_gpu *gpu;
+	struct msm_gem_address_space *aspace;
 	struct list_head node;   /* node in ring submit list */
 	struct list_head bo_list;
 	struct ww_acquire_ctx ticket;

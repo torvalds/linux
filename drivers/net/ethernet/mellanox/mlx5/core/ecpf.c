@@ -83,30 +83,3 @@ void mlx5_ec_cleanup(struct mlx5_core_dev *dev)
 
 	mlx5_peer_pf_cleanup(dev);
 }
-
-static int mlx5_query_host_params_context(struct mlx5_core_dev *dev,
-					  u32 *out, int outlen)
-{
-	u32 in[MLX5_ST_SZ_DW(query_host_params_in)] = {};
-
-	MLX5_SET(query_host_params_in, in, opcode,
-		 MLX5_CMD_OP_QUERY_HOST_PARAMS);
-
-	return mlx5_cmd_exec(dev, in, sizeof(in), out, outlen);
-}
-
-int mlx5_query_host_params_num_vfs(struct mlx5_core_dev *dev, int *num_vf)
-{
-	u32 out[MLX5_ST_SZ_DW(query_host_params_out)] = {};
-	int err;
-
-	err = mlx5_query_host_params_context(dev, out, sizeof(out));
-	if (err)
-		return err;
-
-	*num_vf = MLX5_GET(query_host_params_out, out,
-			   host_params_context.host_num_of_vfs);
-	mlx5_core_dbg(dev, "host_num_of_vfs %d\n", *num_vf);
-
-	return 0;
-}

@@ -19,7 +19,7 @@
 	#size-cells = <1>;
 	interrupt-parent = <&gic>;
 
-	chipcommonA {
+	chipcommonA@18000000 {
 		compatible = "simple-bus";
 		ranges = <0x00000000 0x18000000 0x00001000>;
 		#address-cells = <1>;
@@ -44,7 +44,7 @@
 		};
 	};
 
-	mpcore {
+	mpcore@19000000 {
 		compatible = "simple-bus";
 		ranges = <0x00000000 0x19000000 0x00023000>;
 		#address-cells = <1>;
@@ -148,7 +148,7 @@
 		};
 	};
 
-	usb2_phy: usb2-phy {
+	usb2_phy: usb2-phy@1800c000 {
 		compatible = "brcm,ns-usb2-phy";
 		reg = <0x1800c000 0x1000>;
 		reg-names = "dmu";
@@ -353,11 +353,11 @@
 	mdio: mdio@18003000 {
 		compatible = "brcm,iproc-mdio";
 		reg = <0x18003000 0x8>;
-		#size-cells = <1>;
-		#address-cells = <0>;
+		#size-cells = <0>;
+		#address-cells = <1>;
 	};
 
-	mdio-bus-mux {
+	mdio-bus-mux@18003000 {
 		compatible = "mdio-mux-mmioreg";
 		mdio-parent-bus = <&mdio>;
 		#address-cells = <1>;
@@ -464,8 +464,6 @@
 	srab: srab@18007000 {
 		compatible = "brcm,bcm5301x-srab";
 		reg = <0x18007000 0x1000>;
-		#address-cells = <1>;
-		#size-cells = <0>;
 
 		status = "disabled";
 

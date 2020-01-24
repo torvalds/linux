@@ -5,6 +5,7 @@
  */
 #include <linux/clk.h>
 #include <linux/iopoll.h>
+#include <linux/interconnect.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/pm_runtime.h>
@@ -79,7 +80,7 @@ bool venus_helper_check_codec(struct venus_inst *inst, u32 v4l2_pixfmt)
 }
 EXPORT_SYMBOL_GPL(venus_helper_check_codec);
 
-static int venus_helper_queue_dpb_bufs(struct venus_inst *inst)
+int venus_helper_queue_dpb_bufs(struct venus_inst *inst)
 {
 	struct intbuf *buf;
 	int ret = 0;
@@ -100,6 +101,7 @@ static int venus_helper_queue_dpb_bufs(struct venus_inst *inst)
 fail:
 	return ret;
 }
+EXPORT_SYMBOL_GPL(venus_helper_queue_dpb_bufs);
 
 int venus_helper_free_dpb_bufs(struct venus_inst *inst)
 {
@@ -278,7 +280,7 @@ static const unsigned int intbuf_types_4xx[] = {
 	HFI_BUFFER_INTERNAL_PERSIST_1,
 };
 
-static int intbufs_alloc(struct venus_inst *inst)
+int venus_helper_intbufs_alloc(struct venus_inst *inst)
 {
 	const unsigned int *intbuf;
 	size_t arr_sz, i;
@@ -304,11 +306,59 @@ error:
 	intbufs_unset_buffers(inst);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(venus_helper_intbufs_alloc);
 
-static int intbufs_free(struct venus_inst *inst)
+int venus_helper_intbufs_free(struct venus_inst *inst)
 {
 	return intbufs_unset_buffers(inst);
 }
+EXPORT_SYMBOL_GPL(venus_helper_intbufs_free);
+
+int venus_helper_intbufs_realloc(struct venus_inst *inst)
+{
+	enum hfi_version ver = inst->core->res->hfi_version;
+	struct hfi_buffer_desc bd;
+	struct intbuf *buf, *n;
+	int ret;
+
+	list_for_each_entry_safe(buf, n, &inst->internalbufs, list) {
+		if (buf->type == HFI_BUFFER_INTERNAL_PERSIST ||
+		    buf->type == HFI_BUFFER_INTERNAL_PERSIST_1)
+			continue;
+
+		memset(&bd, 0, sizeof(bd));
+		bd.buffer_size = buf->size;
+		bd.buffer_type = buf->type;
+		bd.num_buffers = 1;
+		bd.device_addr = buf->da;
+		bd.response_required = true;
+
+		ret = hfi_session_unset_buffers(inst, &bd);
+
+		dma_free_attrs(inst->core->dev, buf->size, buf->va, buf->da,
+			       buf->attrs);
+
+		list_del_init(&buf->list);
+		kfree(buf);
+	}
+
+	ret = intbufs_set_buffer(inst, HFI_BUFFER_INTERNAL_SCRATCH(ver));
+	if (ret)
+		goto err;
+
+	ret = intbufs_set_buffer(inst, HFI_BUFFER_INTERNAL_SCRATCH_1(ver));
+	if (ret)
+		goto err;
+
+	ret = intbufs_set_buffer(inst, HFI_BUFFER_INTERNAL_SCRATCH_2(ver));
+	if (ret)
+		goto err;
+
+	return 0;
+err:
+	return ret;
+}
+EXPORT_SYMBOL_GPL(venus_helper_intbufs_realloc);
 
 static u32 load_per_instance(struct venus_inst *inst)
 {
@@ -339,12 +389,91 @@ static u32 load_per_type(struct venus_core *core, u32 session_type)
 	return mbs_per_sec;
 }
 
-static int load_scale_clocks(struct venus_core *core)
+static void mbs_to_bw(struct venus_inst *inst, u32 mbs, u32 *avg, u32 *peak)
 {
+	const struct venus_resources *res = inst->core->res;
+	const struct bw_tbl *bw_tbl;
+	unsigned int num_rows, i;
+
+	*avg = 0;
+	*peak = 0;
+
+	if (mbs == 0)
+		return;
+
+	if (inst->session_type == VIDC_SESSION_TYPE_ENC) {
+		num_rows = res->bw_tbl_enc_size;
+		bw_tbl = res->bw_tbl_enc;
+	} else if (inst->session_type == VIDC_SESSION_TYPE_DEC) {
+		num_rows = res->bw_tbl_dec_size;
+		bw_tbl = res->bw_tbl_dec;
+	} else {
+		return;
+	}
+
+	if (!bw_tbl || num_rows == 0)
+		return;
+
+	for (i = 0; i < num_rows; i++) {
+		if (mbs > bw_tbl[i].mbs_per_sec)
+			break;
+
+		if (inst->dpb_fmt & HFI_COLOR_FORMAT_10_BIT_BASE) {
+			*avg = bw_tbl[i].avg_10bit;
+			*peak = bw_tbl[i].peak_10bit;
+		} else {
+			*avg = bw_tbl[i].avg;
+			*peak = bw_tbl[i].peak;
+		}
+	}
+}
+
+static int load_scale_bw(struct venus_core *core)
+{
+	struct venus_inst *inst = NULL;
+	u32 mbs_per_sec, avg, peak, total_avg = 0, total_peak = 0;
+
+	mutex_lock(&core->lock);
+	list_for_each_entry(inst, &core->instances, list) {
+		mbs_per_sec = load_per_instance(inst);
+		mbs_to_bw(inst, mbs_per_sec, &avg, &peak);
+		total_avg += avg;
+		total_peak += peak;
+	}
+	mutex_unlock(&core->lock);
+
+	dev_dbg(core->dev, "total: avg_bw: %u, peak_bw: %u\n",
+		total_avg, total_peak);
+
+	return icc_set_bw(core->video_path, total_avg, total_peak);
+}
+
+static int set_clk_freq(struct venus_core *core, unsigned long freq)
+{
+	struct clk *clk = core->clks[0];
+	int ret;
+
+	ret = clk_set_rate(clk, freq);
+	if (ret)
+		return ret;
+
+	ret = clk_set_rate(core->core0_clk, freq);
+	if (ret)
+		return ret;
+
+	ret = clk_set_rate(core->core1_clk, freq);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int scale_clocks(struct venus_inst *inst)
+{
+	struct venus_core *core = inst->core;
 	const struct freq_tbl *table = core->res->freq_tbl;
 	unsigned int num_rows = core->res->freq_tbl_size;
 	unsigned long freq = table[0].freq;
-	struct clk *clk = core->clks[0];
 	struct device *dev = core->dev;
 	u32 mbs_per_sec;
 	unsigned int i;
@@ -370,24 +499,126 @@ static int load_scale_clocks(struct venus_core *core)
 
 set_freq:
 
-	ret = clk_set_rate(clk, freq);
-	if (ret)
-		goto err;
+	ret = set_clk_freq(core, freq);
+	if (ret) {
+		dev_err(dev, "failed to set clock rate %lu (%d)\n",
+			freq, ret);
+		return ret;
+	}
 
-	ret = clk_set_rate(core->core0_clk, freq);
-	if (ret)
-		goto err;
-
-	ret = clk_set_rate(core->core1_clk, freq);
-	if (ret)
-		goto err;
+	ret = load_scale_bw(core);
+	if (ret) {
+		dev_err(dev, "failed to set bandwidth (%d)\n",
+			ret);
+		return ret;
+	}
 
 	return 0;
-
-err:
-	dev_err(dev, "failed to set clock rate %lu (%d)\n", freq, ret);
-	return ret;
 }
+
+static unsigned long calculate_inst_freq(struct venus_inst *inst,
+					 unsigned long filled_len)
+{
+	unsigned long vpp_freq = 0, vsp_freq = 0;
+	u32 fps = (u32)inst->fps;
+	u32 mbs_per_sec;
+
+	mbs_per_sec = load_per_instance(inst) / fps;
+
+	vpp_freq = mbs_per_sec * inst->clk_data.codec_freq_data->vpp_freq;
+	/* 21 / 20 is overhead factor */
+	vpp_freq += vpp_freq / 20;
+	vsp_freq = mbs_per_sec * inst->clk_data.codec_freq_data->vsp_freq;
+
+	/* 10 / 7 is overhead factor */
+	if (inst->session_type == VIDC_SESSION_TYPE_ENC)
+		vsp_freq += (inst->controls.enc.bitrate * 10) / 7;
+	else
+		vsp_freq += ((fps * filled_len * 8) * 10) / 7;
+
+	return max(vpp_freq, vsp_freq);
+}
+
+static int scale_clocks_v4(struct venus_inst *inst)
+{
+	struct venus_core *core = inst->core;
+	const struct freq_tbl *table = core->res->freq_tbl;
+	unsigned int num_rows = core->res->freq_tbl_size;
+	struct v4l2_m2m_ctx *m2m_ctx = inst->m2m_ctx;
+	struct device *dev = core->dev;
+	unsigned long freq = 0, freq_core1 = 0, freq_core2 = 0;
+	unsigned long filled_len = 0;
+	struct venus_buffer *buf, *n;
+	struct vb2_buffer *vb;
+	int i, ret;
+
+	v4l2_m2m_for_each_src_buf_safe(m2m_ctx, buf, n) {
+		vb = &buf->vb.vb2_buf;
+		filled_len = max(filled_len, vb2_get_plane_payload(vb, 0));
+	}
+
+	if (inst->session_type == VIDC_SESSION_TYPE_DEC && !filled_len)
+		return 0;
+
+	freq = calculate_inst_freq(inst, filled_len);
+	inst->clk_data.freq = freq;
+
+	mutex_lock(&core->lock);
+	list_for_each_entry(inst, &core->instances, list) {
+		if (inst->clk_data.core_id == VIDC_CORE_ID_1) {
+			freq_core1 += inst->clk_data.freq;
+		} else if (inst->clk_data.core_id == VIDC_CORE_ID_2) {
+			freq_core2 += inst->clk_data.freq;
+		} else if (inst->clk_data.core_id == VIDC_CORE_ID_3) {
+			freq_core1 += inst->clk_data.freq;
+			freq_core2 += inst->clk_data.freq;
+		}
+	}
+	mutex_unlock(&core->lock);
+
+	freq = max(freq_core1, freq_core2);
+
+	if (freq >= table[0].freq) {
+		freq = table[0].freq;
+		dev_warn(dev, "HW is overloaded, needed: %lu max: %lu\n",
+			 freq, table[0].freq);
+		goto set_freq;
+	}
+
+	for (i = num_rows - 1 ; i >= 0; i--) {
+		if (freq <= table[i].freq) {
+			freq = table[i].freq;
+			break;
+		}
+	}
+
+set_freq:
+
+	ret = set_clk_freq(core, freq);
+	if (ret) {
+		dev_err(dev, "failed to set clock rate %lu (%d)\n",
+			freq, ret);
+		return ret;
+	}
+
+	ret = load_scale_bw(core);
+	if (ret) {
+		dev_err(dev, "failed to set bandwidth (%d)\n",
+			ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+int venus_helper_load_scale_clocks(struct venus_inst *inst)
+{
+	if (IS_V4(inst->core))
+		return scale_clocks_v4(inst);
+
+	return scale_clocks(inst);
+}
+EXPORT_SYMBOL_GPL(venus_helper_load_scale_clocks);
 
 static void fill_buffer_desc(const struct venus_buffer *buf,
 			     struct hfi_buffer_desc *bd, bool response)
@@ -413,6 +644,57 @@ static void return_buf_error(struct venus_inst *inst,
 	v4l2_m2m_buf_done(vbuf, VB2_BUF_STATE_ERROR);
 }
 
+static void
+put_ts_metadata(struct venus_inst *inst, struct vb2_v4l2_buffer *vbuf)
+{
+	struct vb2_buffer *vb = &vbuf->vb2_buf;
+	unsigned int i;
+	int slot = -1;
+	u64 ts_us = vb->timestamp;
+
+	for (i = 0; i < ARRAY_SIZE(inst->tss); i++) {
+		if (!inst->tss[i].used) {
+			slot = i;
+			break;
+		}
+	}
+
+	if (slot == -1) {
+		dev_dbg(inst->core->dev, "%s: no free slot\n", __func__);
+		return;
+	}
+
+	do_div(ts_us, NSEC_PER_USEC);
+
+	inst->tss[slot].used = true;
+	inst->tss[slot].flags = vbuf->flags;
+	inst->tss[slot].tc = vbuf->timecode;
+	inst->tss[slot].ts_us = ts_us;
+	inst->tss[slot].ts_ns = vb->timestamp;
+}
+
+void venus_helper_get_ts_metadata(struct venus_inst *inst, u64 timestamp_us,
+				  struct vb2_v4l2_buffer *vbuf)
+{
+	struct vb2_buffer *vb = &vbuf->vb2_buf;
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(inst->tss); ++i) {
+		if (!inst->tss[i].used)
+			continue;
+
+		if (inst->tss[i].ts_us != timestamp_us)
+			continue;
+
+		inst->tss[i].used = false;
+		vbuf->flags |= inst->tss[i].flags;
+		vbuf->timecode = inst->tss[i].tc;
+		vb->timestamp = inst->tss[i].ts_ns;
+		break;
+	}
+}
+EXPORT_SYMBOL_GPL(venus_helper_get_ts_metadata);
+
 static int
 session_process_buf(struct venus_inst *inst, struct vb2_v4l2_buffer *vbuf)
 {
@@ -437,6 +719,11 @@ session_process_buf(struct venus_inst *inst, struct vb2_v4l2_buffer *vbuf)
 
 		if (vbuf->flags & V4L2_BUF_FLAG_LAST || !fdata.filled_len)
 			fdata.flags |= HFI_BUFFERFLAG_EOS;
+
+		if (inst->session_type == VIDC_SESSION_TYPE_DEC)
+			put_ts_metadata(inst, vbuf);
+
+		venus_helper_load_scale_clocks(inst);
 	} else if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
 		if (inst->session_type == VIDC_SESSION_TYPE_ENC)
 			fdata.buffer_type = HFI_BUFFER_OUTPUT;
@@ -458,6 +745,13 @@ static bool is_dynamic_bufmode(struct venus_inst *inst)
 	struct venus_core *core = inst->core;
 	struct venus_caps *caps;
 
+	/*
+	 * v4 doesn't send BUFFER_ALLOC_MODE_SUPPORTED property and supports
+	 * dynamic buffer mode by default for HFI_BUFFER_OUTPUT/OUTPUT2.
+	 */
+	if (IS_V4(core))
+		return true;
+
 	caps = venus_caps_by_codec(core, inst->hfi_codec, inst->session_type);
 	if (!caps)
 		return false;
@@ -465,7 +759,7 @@ static bool is_dynamic_bufmode(struct venus_inst *inst)
 	return caps->cap_bufs_mode_dynamic;
 }
 
-static int session_unregister_bufs(struct venus_inst *inst)
+int venus_helper_unregister_bufs(struct venus_inst *inst)
 {
 	struct venus_buffer *buf, *n;
 	struct hfi_buffer_desc bd;
@@ -482,6 +776,7 @@ static int session_unregister_bufs(struct venus_inst *inst)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(venus_helper_unregister_bufs);
 
 static int session_register_bufs(struct venus_inst *inst)
 {
@@ -697,6 +992,7 @@ int venus_helper_set_core_usage(struct venus_inst *inst, u32 usage)
 	const u32 ptype = HFI_PROPERTY_CONFIG_VIDEOCORES_USAGE;
 	struct hfi_videocores_usage_type cu;
 
+	inst->clk_data.core_id = usage;
 	if (!IS_V4(inst->core))
 		return 0;
 
@@ -705,6 +1001,36 @@ int venus_helper_set_core_usage(struct venus_inst *inst, u32 usage)
 	return hfi_session_set_property(inst, ptype, &cu);
 }
 EXPORT_SYMBOL_GPL(venus_helper_set_core_usage);
+
+int venus_helper_init_codec_freq_data(struct venus_inst *inst)
+{
+	const struct codec_freq_data *data;
+	unsigned int i, data_size;
+	u32 pixfmt;
+	int ret = 0;
+
+	if (!IS_V4(inst->core))
+		return 0;
+
+	data = inst->core->res->codec_freq_data;
+	data_size = inst->core->res->codec_freq_data_size;
+	pixfmt = inst->session_type == VIDC_SESSION_TYPE_DEC ?
+			inst->fmt_out->pixfmt : inst->fmt_cap->pixfmt;
+
+	for (i = 0; i < data_size; i++) {
+		if (data[i].pixfmt == pixfmt &&
+		    data[i].session_type == inst->session_type) {
+			inst->clk_data.codec_freq_data = &data[i];
+			break;
+		}
+	}
+
+	if (!inst->clk_data.codec_freq_data)
+		ret = -EINVAL;
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(venus_helper_init_codec_freq_data);
 
 int venus_helper_set_num_bufs(struct venus_inst *inst, unsigned int input_bufs,
 			      unsigned int output_bufs,
@@ -940,6 +1266,17 @@ int venus_helper_vb2_buf_prepare(struct vb2_buffer *vb)
 {
 	struct venus_inst *inst = vb2_get_drv_priv(vb->vb2_queue);
 	unsigned int out_buf_size = venus_helper_get_opb_size(inst);
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+
+	if (V4L2_TYPE_IS_OUTPUT(vb->vb2_queue->type)) {
+		if (vbuf->field == V4L2_FIELD_ANY)
+			vbuf->field = V4L2_FIELD_NONE;
+		if (vbuf->field != V4L2_FIELD_NONE) {
+			dev_err(inst->core->dev, "%s field isn't supported\n",
+				__func__);
+			return -EINVAL;
+		}
+	}
 
 	if (vb->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE &&
 	    vb2_plane_size(vb, 0) < out_buf_size)
@@ -963,16 +1300,19 @@ void venus_helper_vb2_buf_queue(struct vb2_buffer *vb)
 
 	v4l2_m2m_buf_queue(m2m_ctx, vbuf);
 
-	if (!(inst->streamon_out & inst->streamon_cap))
+	if (inst->session_type == VIDC_SESSION_TYPE_ENC &&
+	    !(inst->streamon_out && inst->streamon_cap))
 		goto unlock;
 
-	ret = is_buf_refed(inst, vbuf);
-	if (ret)
-		goto unlock;
+	if (vb2_start_streaming_called(vb->vb2_queue)) {
+		ret = is_buf_refed(inst, vbuf);
+		if (ret)
+			goto unlock;
 
-	ret = session_process_buf(inst, vbuf);
-	if (ret)
-		return_buf_error(inst, vbuf);
+		ret = session_process_buf(inst, vbuf);
+		if (ret)
+			return_buf_error(inst, vbuf);
+	}
 
 unlock:
 	mutex_unlock(&inst->lock);
@@ -1002,8 +1342,8 @@ void venus_helper_vb2_stop_streaming(struct vb2_queue *q)
 	if (inst->streamon_out & inst->streamon_cap) {
 		ret = hfi_session_stop(inst);
 		ret |= hfi_session_unload_res(inst);
-		ret |= session_unregister_bufs(inst);
-		ret |= intbufs_free(inst);
+		ret |= venus_helper_unregister_bufs(inst);
+		ret |= venus_helper_intbufs_free(inst);
 		ret |= hfi_session_deinit(inst);
 
 		if (inst->session_error || core->sys_error)
@@ -1014,7 +1354,7 @@ void venus_helper_vb2_stop_streaming(struct vb2_queue *q)
 
 		venus_helper_free_dpb_bufs(inst);
 
-		load_scale_clocks(core);
+		venus_helper_load_scale_clocks(inst);
 		INIT_LIST_HEAD(&inst->registeredbufs);
 	}
 
@@ -1029,12 +1369,47 @@ void venus_helper_vb2_stop_streaming(struct vb2_queue *q)
 }
 EXPORT_SYMBOL_GPL(venus_helper_vb2_stop_streaming);
 
-int venus_helper_vb2_start_streaming(struct venus_inst *inst)
+int venus_helper_process_initial_cap_bufs(struct venus_inst *inst)
 {
-	struct venus_core *core = inst->core;
+	struct v4l2_m2m_ctx *m2m_ctx = inst->m2m_ctx;
+	struct v4l2_m2m_buffer *buf, *n;
 	int ret;
 
-	ret = intbufs_alloc(inst);
+	v4l2_m2m_for_each_dst_buf_safe(m2m_ctx, buf, n) {
+		ret = session_process_buf(inst, &buf->vb);
+		if (ret) {
+			return_buf_error(inst, &buf->vb);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(venus_helper_process_initial_cap_bufs);
+
+int venus_helper_process_initial_out_bufs(struct venus_inst *inst)
+{
+	struct v4l2_m2m_ctx *m2m_ctx = inst->m2m_ctx;
+	struct v4l2_m2m_buffer *buf, *n;
+	int ret;
+
+	v4l2_m2m_for_each_src_buf_safe(m2m_ctx, buf, n) {
+		ret = session_process_buf(inst, &buf->vb);
+		if (ret) {
+			return_buf_error(inst, &buf->vb);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(venus_helper_process_initial_out_bufs);
+
+int venus_helper_vb2_start_streaming(struct venus_inst *inst)
+{
+	int ret;
+
+	ret = venus_helper_intbufs_alloc(inst);
 	if (ret)
 		return ret;
 
@@ -1042,7 +1417,7 @@ int venus_helper_vb2_start_streaming(struct venus_inst *inst)
 	if (ret)
 		goto err_bufs_free;
 
-	load_scale_clocks(core);
+	venus_helper_load_scale_clocks(inst);
 
 	ret = hfi_session_load_res(inst);
 	if (ret)
@@ -1052,20 +1427,14 @@ int venus_helper_vb2_start_streaming(struct venus_inst *inst)
 	if (ret)
 		goto err_unload_res;
 
-	ret = venus_helper_queue_dpb_bufs(inst);
-	if (ret)
-		goto err_session_stop;
-
 	return 0;
 
-err_session_stop:
-	hfi_session_stop(inst);
 err_unload_res:
 	hfi_session_unload_res(inst);
 err_unreg_bufs:
-	session_unregister_bufs(inst);
+	venus_helper_unregister_bufs(inst);
 err_bufs_free:
-	intbufs_free(inst);
+	venus_helper_intbufs_free(inst);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(venus_helper_vb2_start_streaming);

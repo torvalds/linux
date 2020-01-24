@@ -39,6 +39,16 @@
 #define RTL8366RB_POWER_SAVE			0x15
 #define RTL8366RB_POWER_SAVE_ON			BIT(12)
 
+#define RTL_SUPPORTS_5000FULL			BIT(14)
+#define RTL_SUPPORTS_2500FULL			BIT(13)
+#define RTL_SUPPORTS_10000FULL			BIT(0)
+#define RTL_ADV_2500FULL			BIT(7)
+#define RTL_LPADV_10000FULL			BIT(11)
+#define RTL_LPADV_5000FULL			BIT(6)
+#define RTL_LPADV_2500FULL			BIT(5)
+
+#define RTL_GENERIC_PHYID			0x001cc800
+
 MODULE_DESCRIPTION("Realtek PHY driver");
 MODULE_AUTHOR("Johnson Leung");
 MODULE_LICENSE("GPL");
@@ -256,6 +266,166 @@ static int rtl8366rb_config_init(struct phy_device *phydev)
 	return ret;
 }
 
+static int rtlgen_read_mmd(struct phy_device *phydev, int devnum, u16 regnum)
+{
+	int ret;
+
+	if (devnum == MDIO_MMD_PCS && regnum == MDIO_PCS_EEE_ABLE) {
+		rtl821x_write_page(phydev, 0xa5c);
+		ret = __phy_read(phydev, 0x12);
+		rtl821x_write_page(phydev, 0);
+	} else if (devnum == MDIO_MMD_AN && regnum == MDIO_AN_EEE_ADV) {
+		rtl821x_write_page(phydev, 0xa5d);
+		ret = __phy_read(phydev, 0x10);
+		rtl821x_write_page(phydev, 0);
+	} else if (devnum == MDIO_MMD_AN && regnum == MDIO_AN_EEE_LPABLE) {
+		rtl821x_write_page(phydev, 0xa5d);
+		ret = __phy_read(phydev, 0x11);
+		rtl821x_write_page(phydev, 0);
+	} else {
+		ret = -EOPNOTSUPP;
+	}
+
+	return ret;
+}
+
+static int rtlgen_write_mmd(struct phy_device *phydev, int devnum, u16 regnum,
+			    u16 val)
+{
+	int ret;
+
+	if (devnum == MDIO_MMD_AN && regnum == MDIO_AN_EEE_ADV) {
+		rtl821x_write_page(phydev, 0xa5d);
+		ret = __phy_write(phydev, 0x10, val);
+		rtl821x_write_page(phydev, 0);
+	} else {
+		ret = -EOPNOTSUPP;
+	}
+
+	return ret;
+}
+
+static int rtl8125_read_mmd(struct phy_device *phydev, int devnum, u16 regnum)
+{
+	int ret = rtlgen_read_mmd(phydev, devnum, regnum);
+
+	if (ret != -EOPNOTSUPP)
+		return ret;
+
+	if (devnum == MDIO_MMD_PCS && regnum == MDIO_PCS_EEE_ABLE2) {
+		rtl821x_write_page(phydev, 0xa6e);
+		ret = __phy_read(phydev, 0x16);
+		rtl821x_write_page(phydev, 0);
+	} else if (devnum == MDIO_MMD_AN && regnum == MDIO_AN_EEE_ADV2) {
+		rtl821x_write_page(phydev, 0xa6d);
+		ret = __phy_read(phydev, 0x12);
+		rtl821x_write_page(phydev, 0);
+	} else if (devnum == MDIO_MMD_AN && regnum == MDIO_AN_EEE_LPABLE2) {
+		rtl821x_write_page(phydev, 0xa6d);
+		ret = __phy_read(phydev, 0x10);
+		rtl821x_write_page(phydev, 0);
+	}
+
+	return ret;
+}
+
+static int rtl8125_write_mmd(struct phy_device *phydev, int devnum, u16 regnum,
+			     u16 val)
+{
+	int ret = rtlgen_write_mmd(phydev, devnum, regnum, val);
+
+	if (ret != -EOPNOTSUPP)
+		return ret;
+
+	if (devnum == MDIO_MMD_AN && regnum == MDIO_AN_EEE_ADV2) {
+		rtl821x_write_page(phydev, 0xa6d);
+		ret = __phy_write(phydev, 0x12, val);
+		rtl821x_write_page(phydev, 0);
+	}
+
+	return ret;
+}
+
+static int rtl8125_get_features(struct phy_device *phydev)
+{
+	int val;
+
+	val = phy_read_paged(phydev, 0xa61, 0x13);
+	if (val < 0)
+		return val;
+
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
+			 phydev->supported, val & RTL_SUPPORTS_2500FULL);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
+			 phydev->supported, val & RTL_SUPPORTS_5000FULL);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
+			 phydev->supported, val & RTL_SUPPORTS_10000FULL);
+
+	return genphy_read_abilities(phydev);
+}
+
+static int rtl8125_config_aneg(struct phy_device *phydev)
+{
+	int ret = 0;
+
+	if (phydev->autoneg == AUTONEG_ENABLE) {
+		u16 adv2500 = 0;
+
+		if (linkmode_test_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
+				      phydev->advertising))
+			adv2500 = RTL_ADV_2500FULL;
+
+		ret = phy_modify_paged_changed(phydev, 0xa5d, 0x12,
+					       RTL_ADV_2500FULL, adv2500);
+		if (ret < 0)
+			return ret;
+	}
+
+	return __genphy_config_aneg(phydev, ret);
+}
+
+static int rtl8125_read_status(struct phy_device *phydev)
+{
+	if (phydev->autoneg == AUTONEG_ENABLE) {
+		int lpadv = phy_read_paged(phydev, 0xa5d, 0x13);
+
+		if (lpadv < 0)
+			return lpadv;
+
+		linkmode_mod_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
+			phydev->lp_advertising, lpadv & RTL_LPADV_10000FULL);
+		linkmode_mod_bit(ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
+			phydev->lp_advertising, lpadv & RTL_LPADV_5000FULL);
+		linkmode_mod_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
+			phydev->lp_advertising, lpadv & RTL_LPADV_2500FULL);
+	}
+
+	return genphy_read_status(phydev);
+}
+
+static bool rtlgen_supports_2_5gbps(struct phy_device *phydev)
+{
+	int val;
+
+	phy_write(phydev, RTL821x_PAGE_SELECT, 0xa61);
+	val = phy_read(phydev, 0x13);
+	phy_write(phydev, RTL821x_PAGE_SELECT, 0);
+
+	return val >= 0 && val & RTL_SUPPORTS_2500FULL;
+}
+
+static int rtlgen_match_phy_device(struct phy_device *phydev)
+{
+	return phydev->phy_id == RTL_GENERIC_PHYID &&
+	       !rtlgen_supports_2_5gbps(phydev);
+}
+
+static int rtl8125_match_phy_device(struct phy_device *phydev)
+{
+	return phydev->phy_id == RTL_GENERIC_PHYID &&
+	       rtlgen_supports_2_5gbps(phydev);
+}
+
 static struct phy_driver realtek_drvs[] = {
 	{
 		PHY_ID_MATCH_EXACT(0x00008201),
@@ -265,6 +435,15 @@ static struct phy_driver realtek_drvs[] = {
 		.name		= "RTL8201F Fast Ethernet",
 		.ack_interrupt	= &rtl8201_ack_interrupt,
 		.config_intr	= &rtl8201_config_intr,
+		.suspend	= genphy_suspend,
+		.resume		= genphy_resume,
+		.read_page	= rtl821x_read_page,
+		.write_page	= rtl821x_write_page,
+	}, {
+		PHY_ID_MATCH_MODEL(0x001cc880),
+		.name		= "RTL8208 Fast Ethernet",
+		.read_mmd	= genphy_read_mmd_unsupported,
+		.write_mmd	= genphy_write_mmd_unsupported,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
 		.read_page	= rtl821x_read_page,
@@ -326,12 +505,26 @@ static struct phy_driver realtek_drvs[] = {
 		.read_page	= rtl821x_read_page,
 		.write_page	= rtl821x_write_page,
 	}, {
-		PHY_ID_MATCH_EXACT(0x001cc800),
-		.name		= "Generic Realtek PHY",
+		.name		= "Generic FE-GE Realtek PHY",
+		.match_phy_device = rtlgen_match_phy_device,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
 		.read_page	= rtl821x_read_page,
 		.write_page	= rtl821x_write_page,
+		.read_mmd	= rtlgen_read_mmd,
+		.write_mmd	= rtlgen_write_mmd,
+	}, {
+		.name		= "RTL8125 2.5Gbps internal",
+		.match_phy_device = rtl8125_match_phy_device,
+		.get_features	= rtl8125_get_features,
+		.config_aneg	= rtl8125_config_aneg,
+		.read_status	= rtl8125_read_status,
+		.suspend	= genphy_suspend,
+		.resume		= genphy_resume,
+		.read_page	= rtl821x_read_page,
+		.write_page	= rtl821x_write_page,
+		.read_mmd	= rtl8125_read_mmd,
+		.write_mmd	= rtl8125_write_mmd,
 	}, {
 		PHY_ID_MATCH_EXACT(0x001cc961),
 		.name		= "RTL8366RB Gigabit Ethernet",

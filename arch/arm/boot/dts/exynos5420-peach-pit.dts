@@ -440,6 +440,7 @@
 				regulator-name = "vdd_ldo10";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -1062,6 +1063,10 @@
 
 &serial_3 {
 	status = "okay";
+};
+
+&timer {
+	arm,cpu-registers-not-fw-configured;
 };
 
 &tmu_cpu0 {

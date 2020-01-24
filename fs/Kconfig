@@ -11,7 +11,6 @@ config DCACHE_WORD_ACCESS
 
 config VALIDATE_FS_PARSER
 	bool "Validate filesystem parameter description"
-	default y
 	help
 	  Enable this to perform validation of the parameter description for a
 	  filesystem when it is registered.
@@ -112,6 +111,8 @@ config MANDATORY_FILE_LOCKING
 	  To the best of my knowledge this is dead code that no one cares about.
 
 source "fs/crypto/Kconfig"
+
+source "fs/verity/Kconfig"
 
 source "fs/notify/Kconfig"
 
@@ -262,6 +263,7 @@ source "fs/romfs/Kconfig"
 source "fs/pstore/Kconfig"
 source "fs/sysv/Kconfig"
 source "fs/ufs/Kconfig"
+source "fs/erofs/Kconfig"
 
 endif # MISC_FILESYSTEMS
 
@@ -319,5 +321,8 @@ endif # NETWORK_FILESYSTEMS
 source "fs/nls/Kconfig"
 source "fs/dlm/Kconfig"
 source "fs/unicode/Kconfig"
+
+config IO_WQ
+	bool
 
 endmenu

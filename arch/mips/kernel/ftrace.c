@@ -333,20 +333,21 @@ void prepare_ftrace_return(unsigned long *parent_ra_addr, unsigned long self_ra,
 		return;
 
 	/*
-	 * "parent_ra_addr" is the stack address saved the return address of
-	 * the caller of _mcount.
+	 * "parent_ra_addr" is the stack address where the return address of
+	 * the caller of _mcount is saved.
 	 *
-	 * if the gcc < 4.5, a leaf function does not save the return address
-	 * in the stack address, so, we "emulate" one in _mcount's stack space,
-	 * and hijack it directly, but for a non-leaf function, it save the
-	 * return address to the its own stack space, we can not hijack it
-	 * directly, but need to find the real stack address,
-	 * ftrace_get_parent_addr() does it!
+	 * If gcc < 4.5, a leaf function does not save the return address
+	 * in the stack address, so we "emulate" one in _mcount's stack space,
+	 * and hijack it directly.
+	 * For a non-leaf function, it does save the return address to its own
+	 * stack space, so we can not hijack it directly, but need to find the
+	 * real stack address, which is done by ftrace_get_parent_addr().
 	 *
-	 * if gcc>= 4.5, with the new -mmcount-ra-address option, for a
+	 * If gcc >= 4.5, with the new -mmcount-ra-address option, for a
 	 * non-leaf function, the location of the return address will be saved
-	 * to $12 for us, and for a leaf function, only put a zero into $12. we
-	 * do it in ftrace_graph_caller of mcount.S.
+	 * to $12 for us.
+	 * For a leaf function, it just puts a zero into $12, so we handle
+	 * it in ftrace_graph_caller() of mcount.S.
 	 */
 
 	/* old_parent_ra = *parent_ra_addr; */

@@ -27,6 +27,7 @@ struct route_info {
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/route.h>
+#include <net/nexthop.h>
 
 #define RT6_LOOKUP_F_IFACE		0x00000001
 #define RT6_LOOKUP_F_REACHABLE		0x00000002
@@ -35,6 +36,7 @@ struct route_info {
 #define RT6_LOOKUP_F_SRCPREF_PUBLIC	0x00000010
 #define RT6_LOOKUP_F_SRCPREF_COA	0x00000020
 #define RT6_LOOKUP_F_IGNORE_LINKSTATE	0x00000040
+#define RT6_LOOKUP_F_DST_NOREF		0x00000080
 
 /* We do not (yet ?) support IPv6 jumbograms (RFC 2675)
  * Unlike IPv4, hdr->seg_len doesn't include the IPv6 header
@@ -66,11 +68,14 @@ static inline bool rt6_need_strict(const struct in6_addr *daddr)
 		(IPV6_ADDR_MULTICAST | IPV6_ADDR_LINKLOCAL | IPV6_ADDR_LOOPBACK);
 }
 
+/* fib entries using a nexthop object can not be coalesced into
+ * a multipath route
+ */
 static inline bool rt6_qualify_for_ecmp(const struct fib6_info *f6i)
 {
 	/* the RTF_ADDRCONF flag filters out RA's */
-	return !(f6i->fib6_flags & RTF_ADDRCONF) &&
-		f6i->fib6_nh.fib_nh_gw_family;
+	return !(f6i->fib6_flags & RTF_ADDRCONF) && !f6i->nh &&
+		f6i->fib6_nh->fib_nh_gw_family;
 }
 
 void ip6_route_input(struct sk_buff *skb);
@@ -78,6 +83,10 @@ struct dst_entry *ip6_route_input_lookup(struct net *net,
 					 struct net_device *dev,
 					 struct flowi6 *fl6,
 					 const struct sk_buff *skb, int flags);
+
+struct dst_entry *ip6_route_output_flags_noref(struct net *net,
+					       const struct sock *sk,
+					       struct flowi6 *fl6, int flags);
 
 struct dst_entry *ip6_route_output_flags(struct net *net, const struct sock *sk,
 					 struct flowi6 *fl6, int flags);
@@ -87,6 +96,16 @@ static inline struct dst_entry *ip6_route_output(struct net *net,
 						 struct flowi6 *fl6)
 {
 	return ip6_route_output_flags(net, sk, fl6, 0);
+}
+
+/* Only conditionally release dst if flags indicates
+ * !RT6_LOOKUP_F_DST_NOREF or dst is in uncached_list.
+ */
+static inline void ip6_rt_put_flags(struct rt6_info *rt, int flags)
+{
+	if (!(flags & RT6_LOOKUP_F_DST_NOREF) ||
+	    !list_empty(&rt->rt6i_uncached))
+		ip6_rt_put(rt);
 }
 
 struct dst_entry *ip6_route_lookup(struct net *net, struct flowi6 *fl6,
@@ -178,7 +197,7 @@ struct rt6_rtnl_dump_arg {
 	struct fib_dump_filter filter;
 };
 
-int rt6_dump_route(struct fib6_info *f6i, void *p_arg);
+int rt6_dump_route(struct fib6_info *f6i, void *p_arg, unsigned int skip);
 void rt6_mtu_change(struct net_device *dev, unsigned int mtu);
 void rt6_remove_prefsrc(struct inet6_ifaddr *ifp);
 void rt6_clean_tohost(struct net *net, struct in6_addr *gateway);
@@ -262,8 +281,8 @@ static inline bool ip6_sk_ignore_df(const struct sock *sk)
 	       inet6_sk(sk)->pmtudisc == IPV6_PMTUDISC_OMIT;
 }
 
-static inline struct in6_addr *rt6_nexthop(struct rt6_info *rt,
-					   struct in6_addr *daddr)
+static inline const struct in6_addr *rt6_nexthop(const struct rt6_info *rt,
+						 const struct in6_addr *daddr)
 {
 	if (rt->rt6i_flags & RTF_GATEWAY)
 		return &rt->rt6i_gateway;
@@ -275,8 +294,13 @@ static inline struct in6_addr *rt6_nexthop(struct rt6_info *rt,
 
 static inline bool rt6_duplicate_nexthop(struct fib6_info *a, struct fib6_info *b)
 {
-	struct fib6_nh *nha = &a->fib6_nh, *nhb = &b->fib6_nh;
+	struct fib6_nh *nha, *nhb;
 
+	if (a->nh || b->nh)
+		return nexthop_cmp(a->nh, b->nh);
+
+	nha = a->fib6_nh;
+	nhb = b->fib6_nh;
 	return nha->fib_nh_dev == nhb->fib_nh_dev &&
 	       ipv6_addr_equal(&nha->fib_nh_gw6, &nhb->fib_nh_gw6) &&
 	       !lwtunnel_cmp_encap(nha->fib_nh_lws, nhb->fib_nh_lws);

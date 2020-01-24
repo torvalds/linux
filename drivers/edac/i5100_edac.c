@@ -417,7 +417,8 @@ static const char *i5100_err_msg(unsigned err)
 }
 
 /* convert csrow index into a rank (per channel -- 0..5) */
-static int i5100_csrow_to_rank(const struct mem_ctl_info *mci, int csrow)
+static unsigned int i5100_csrow_to_rank(const struct mem_ctl_info *mci,
+					unsigned int csrow)
 {
 	const struct i5100_priv *priv = mci->pvt_info;
 
@@ -425,7 +426,8 @@ static int i5100_csrow_to_rank(const struct mem_ctl_info *mci, int csrow)
 }
 
 /* convert csrow index into a channel (0..1) */
-static int i5100_csrow_to_chan(const struct mem_ctl_info *mci, int csrow)
+static unsigned int i5100_csrow_to_chan(const struct mem_ctl_info *mci,
+					unsigned int csrow)
 {
 	const struct i5100_priv *priv = mci->pvt_info;
 
@@ -653,11 +655,11 @@ static struct pci_dev *pci_get_device_func(unsigned vendor,
 	return ret;
 }
 
-static unsigned long i5100_npages(struct mem_ctl_info *mci, int csrow)
+static unsigned long i5100_npages(struct mem_ctl_info *mci, unsigned int csrow)
 {
 	struct i5100_priv *priv = mci->pvt_info;
-	const unsigned chan_rank = i5100_csrow_to_rank(mci, csrow);
-	const unsigned chan = i5100_csrow_to_chan(mci, csrow);
+	const unsigned int chan_rank = i5100_csrow_to_rank(mci, csrow);
+	const unsigned int chan = i5100_csrow_to_chan(mci, csrow);
 	unsigned addr_lines;
 
 	/* dimm present? */
@@ -711,7 +713,6 @@ static int i5100_read_spd_byte(const struct mem_ctl_info *mci,
 {
 	struct i5100_priv *priv = mci->pvt_info;
 	u16 w;
-	unsigned long et;
 
 	pci_read_config_word(priv->mc, I5100_SPDDATA, &w);
 	if (i5100_spddata_busy(w))
@@ -722,7 +723,6 @@ static int i5100_read_spd_byte(const struct mem_ctl_info *mci,
 						   0, 0));
 
 	/* wait up to 100ms */
-	et = jiffies + HZ / 10;
 	udelay(100);
 	while (1) {
 		pci_read_config_word(priv->mc, I5100_SPDDATA, &w);
@@ -846,20 +846,16 @@ static void i5100_init_interleaving(struct pci_dev *pdev,
 
 static void i5100_init_csrows(struct mem_ctl_info *mci)
 {
-	int i;
 	struct i5100_priv *priv = mci->pvt_info;
+	struct dimm_info *dimm;
 
-	for (i = 0; i < mci->tot_dimms; i++) {
-		struct dimm_info *dimm;
-		const unsigned long npages = i5100_npages(mci, i);
-		const unsigned chan = i5100_csrow_to_chan(mci, i);
-		const unsigned rank = i5100_csrow_to_rank(mci, i);
+	mci_for_each_dimm(mci, dimm) {
+		const unsigned long npages = i5100_npages(mci, dimm->idx);
+		const unsigned int chan = i5100_csrow_to_chan(mci, dimm->idx);
+		const unsigned int rank = i5100_csrow_to_rank(mci, dimm->idx);
 
 		if (!npages)
 			continue;
-
-		dimm = EDAC_DIMM_PTR(mci->layers, mci->dimms, mci->n_layers,
-			       chan, rank, 0);
 
 		dimm->nr_pages = npages;
 		dimm->grain = 32;

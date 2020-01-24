@@ -77,8 +77,14 @@ struct bpf_load_program_attr {
 	const struct bpf_insn *insns;
 	size_t insns_cnt;
 	const char *license;
-	__u32 kern_version;
-	__u32 prog_ifindex;
+	union {
+		__u32 kern_version;
+		__u32 attach_prog_fd;
+	};
+	union {
+		__u32 prog_ifindex;
+		__u32 attach_btf_id;
+	};
 	__u32 prog_btf_fd;
 	__u32 func_info_rec_size;
 	const void *func_info;
@@ -87,6 +93,7 @@ struct bpf_load_program_attr {
 	const void *line_info;
 	__u32 line_info_cnt;
 	__u32 log_level;
+	__u32 prog_flags;
 };
 
 /* Flags to direct loading requirements */
@@ -155,6 +162,7 @@ LIBBPF_API int bpf_prog_test_run(int prog_fd, int repeat, void *data,
 				 __u32 *retval, __u32 *duration);
 LIBBPF_API int bpf_prog_get_next_id(__u32 start_id, __u32 *next_id);
 LIBBPF_API int bpf_map_get_next_id(__u32 start_id, __u32 *next_id);
+LIBBPF_API int bpf_btf_get_next_id(__u32 start_id, __u32 *next_id);
 LIBBPF_API int bpf_prog_get_fd_by_id(__u32 id);
 LIBBPF_API int bpf_map_get_fd_by_id(__u32 id);
 LIBBPF_API int bpf_btf_get_fd_by_id(__u32 id);

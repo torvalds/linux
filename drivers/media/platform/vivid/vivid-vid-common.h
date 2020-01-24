@@ -28,8 +28,6 @@ void vivid_send_source_change(struct vivid_dev *dev, unsigned type);
 int vivid_vid_adjust_sel(unsigned flags, struct v4l2_rect *r);
 
 int vivid_enum_fmt_vid(struct file *file, void  *priv, struct v4l2_fmtdesc *f);
-int vidioc_enum_fmt_vid_mplane(struct file *file, void  *priv, struct v4l2_fmtdesc *f);
-int vidioc_enum_fmt_vid(struct file *file, void  *priv, struct v4l2_fmtdesc *f);
 int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *id);
 int vidioc_g_dv_timings(struct file *file, void *_fh, struct v4l2_dv_timings *timings);
 int vidioc_enum_dv_timings(struct file *file, void *_fh, struct v4l2_enum_dv_timings *timings);

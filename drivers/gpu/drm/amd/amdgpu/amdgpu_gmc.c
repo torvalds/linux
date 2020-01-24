@@ -24,7 +24,11 @@
  *
  */
 
+#include <linux/io-64-nonatomic-lo-hi.h>
+
 #include "amdgpu.h"
+#include "amdgpu_ras.h"
+#include "amdgpu_xgmi.h"
 
 /**
  * amdgpu_gmc_get_pde_for_bo - get the PDE for a BO
@@ -218,6 +222,14 @@ void amdgpu_gmc_agp_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc)
 	const uint64_t sixteen_gb_mask = ~(sixteen_gb - 1);
 	u64 size_af, size_bf;
 
+	if (amdgpu_sriov_vf(adev)) {
+		mc->agp_start = 0xffffffff;
+		mc->agp_end = 0x0;
+		mc->agp_size = 0;
+
+		return;
+	}
+
 	if (mc->fb_start > mc->gart_start) {
 		size_bf = (mc->fb_start & sixteen_gb_mask) -
 			ALIGN(mc->gart_end + 1, sixteen_gb);
@@ -294,4 +306,30 @@ bool amdgpu_gmc_filter_faults(struct amdgpu_device *adev, uint64_t addr,
 	fault->next = gmc->fault_hash[hash].idx;
 	gmc->fault_hash[hash].idx = gmc->last_fault++;
 	return false;
+}
+
+int amdgpu_gmc_ras_late_init(struct amdgpu_device *adev)
+{
+	int r;
+
+	if (adev->umc.funcs && adev->umc.funcs->ras_late_init) {
+		r = adev->umc.funcs->ras_late_init(adev);
+		if (r)
+			return r;
+	}
+
+	if (adev->mmhub.funcs && adev->mmhub.funcs->ras_late_init) {
+		r = adev->mmhub.funcs->ras_late_init(adev);
+		if (r)
+			return r;
+	}
+
+	return amdgpu_xgmi_ras_late_init(adev);
+}
+
+void amdgpu_gmc_ras_fini(struct amdgpu_device *adev)
+{
+	amdgpu_umc_ras_fini(adev);
+	amdgpu_mmhub_ras_fini(adev);
+	amdgpu_xgmi_ras_fini(adev);
 }

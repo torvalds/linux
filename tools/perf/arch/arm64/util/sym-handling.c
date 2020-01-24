@@ -4,13 +4,12 @@
  * Copyright (C) 2015 Naveen N. Rao, IBM Corporation
  */
 
-#include "debug.h"
-#include "symbol.h"
-#include "map.h"
-#include "probe-event.h"
-#include "probe-file.h"
+#include "symbol.h" // for the elf__needs_adjust_symbols() prototype
+#include <stdbool.h>
 
 #ifdef HAVE_LIBELF_SUPPORT
+#include <gelf.h>
+
 bool elf__needs_adjust_symbols(GElf_Ehdr ehdr)
 {
 	return ehdr.e_type == ET_EXEC ||

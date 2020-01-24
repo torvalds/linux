@@ -96,15 +96,44 @@ int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl,
 
 /* ------------------------------------------------------------------------- */
 
-/* I2C Helper functions */
-
-struct i2c_driver;
-struct i2c_adapter;
-struct i2c_client;
-struct i2c_device_id;
 struct v4l2_device;
 struct v4l2_subdev;
 struct v4l2_subdev_ops;
+
+/* I2C Helper functions */
+#include <linux/i2c.h>
+
+/**
+ * enum v4l2_i2c_tuner_type - specifies the range of tuner address that
+ *	should be used when seeking for I2C devices.
+ *
+ * @ADDRS_RADIO:		Radio tuner addresses.
+ *				Represent the following I2C addresses:
+ *				0x10 (if compiled with tea5761 support)
+ *				and 0x60.
+ * @ADDRS_DEMOD:		Demod tuner addresses.
+ *				Represent the following I2C addresses:
+ *				0x42, 0x43, 0x4a and 0x4b.
+ * @ADDRS_TV:			TV tuner addresses.
+ *				Represent the following I2C addresses:
+ *				0x42, 0x43, 0x4a, 0x4b, 0x60, 0x61, 0x62,
+ *				0x63 and 0x64.
+ * @ADDRS_TV_WITH_DEMOD:	TV tuner addresses if demod is present, this
+ *				excludes addresses used by the demodulator
+ *				from the list of candidates.
+ *				Represent the following I2C addresses:
+ *				0x60, 0x61, 0x62, 0x63 and 0x64.
+ *
+ * NOTE: All I2C addresses above use the 7-bit notation.
+ */
+enum v4l2_i2c_tuner_type {
+	ADDRS_RADIO,
+	ADDRS_DEMOD,
+	ADDRS_TV,
+	ADDRS_TV_WITH_DEMOD,
+};
+
+#if defined(CONFIG_VIDEO_V4L2_I2C)
 
 /**
  * v4l2_i2c_new_subdev - Load an i2c module and return an initialized
@@ -122,8 +151,6 @@ struct v4l2_subdev_ops;
 struct v4l2_subdev *v4l2_i2c_new_subdev(struct v4l2_device *v4l2_dev,
 		struct i2c_adapter *adapter, const char *client_type,
 		u8 addr, const unsigned short *probe_addrs);
-
-struct i2c_board_info;
 
 /**
  * v4l2_i2c_new_subdev_board - Load an i2c module and return an initialized
@@ -175,35 +202,6 @@ void v4l2_i2c_subdev_init(struct v4l2_subdev *sd, struct i2c_client *client,
 unsigned short v4l2_i2c_subdev_addr(struct v4l2_subdev *sd);
 
 /**
- * enum v4l2_i2c_tuner_type - specifies the range of tuner address that
- *	should be used when seeking for I2C devices.
- *
- * @ADDRS_RADIO:		Radio tuner addresses.
- *				Represent the following I2C addresses:
- *				0x10 (if compiled with tea5761 support)
- *				and 0x60.
- * @ADDRS_DEMOD:		Demod tuner addresses.
- *				Represent the following I2C addresses:
- *				0x42, 0x43, 0x4a and 0x4b.
- * @ADDRS_TV:			TV tuner addresses.
- *				Represent the following I2C addresses:
- *				0x42, 0x43, 0x4a, 0x4b, 0x60, 0x61, 0x62,
- *				0x63 and 0x64.
- * @ADDRS_TV_WITH_DEMOD:	TV tuner addresses if demod is present, this
- *				excludes addresses used by the demodulator
- *				from the list of candidates.
- *				Represent the following I2C addresses:
- *				0x60, 0x61, 0x62, 0x63 and 0x64.
- *
- * NOTE: All I2C addresses above use the 7-bit notation.
- */
-enum v4l2_i2c_tuner_type {
-	ADDRS_RADIO,
-	ADDRS_DEMOD,
-	ADDRS_TV,
-	ADDRS_TV_WITH_DEMOD,
-};
-/**
  * v4l2_i2c_tuner_addrs - Return a list of I2C tuner addresses to probe.
  *
  * @type: type of the tuner to seek, as defined by
@@ -213,14 +211,64 @@ enum v4l2_i2c_tuner_type {
  */
 const unsigned short *v4l2_i2c_tuner_addrs(enum v4l2_i2c_tuner_type type);
 
+/**
+ * v4l2_i2c_subdev_unregister - Unregister a v4l2_subdev
+ *
+ * @sd: pointer to &struct v4l2_subdev
+ */
+void v4l2_i2c_subdev_unregister(struct v4l2_subdev *sd);
+
+#else
+
+static inline struct v4l2_subdev *
+v4l2_i2c_new_subdev(struct v4l2_device *v4l2_dev,
+		    struct i2c_adapter *adapter, const char *client_type,
+		    u8 addr, const unsigned short *probe_addrs)
+{
+	return NULL;
+}
+
+static inline struct v4l2_subdev *
+v4l2_i2c_new_subdev_board(struct v4l2_device *v4l2_dev,
+			  struct i2c_adapter *adapter, struct i2c_board_info *info,
+			  const unsigned short *probe_addrs)
+{
+	return NULL;
+}
+
+static inline void
+v4l2_i2c_subdev_set_name(struct v4l2_subdev *sd, struct i2c_client *client,
+			 const char *devname, const char *postfix)
+{}
+
+static inline void
+v4l2_i2c_subdev_init(struct v4l2_subdev *sd, struct i2c_client *client,
+		     const struct v4l2_subdev_ops *ops)
+{}
+
+static inline unsigned short v4l2_i2c_subdev_addr(struct v4l2_subdev *sd)
+{
+	return I2C_CLIENT_END;
+}
+
+static inline const unsigned short *
+v4l2_i2c_tuner_addrs(enum v4l2_i2c_tuner_type type)
+{
+	return NULL;
+}
+
+static inline void v4l2_i2c_subdev_unregister(struct v4l2_subdev *sd)
+{}
+
+#endif
+
 /* ------------------------------------------------------------------------- */
 
 /* SPI Helper functions */
-#if defined(CONFIG_SPI)
 
 #include <linux/spi/spi.h>
 
-struct spi_device;
+#if defined(CONFIG_SPI)
 
 /**
  *  v4l2_spi_new_subdev - Load an spi module and return an initialized
@@ -246,6 +294,30 @@ struct v4l2_subdev *v4l2_spi_new_subdev(struct v4l2_device *v4l2_dev,
  */
 void v4l2_spi_subdev_init(struct v4l2_subdev *sd, struct spi_device *spi,
 		const struct v4l2_subdev_ops *ops);
+
+/**
+ * v4l2_spi_subdev_unregister - Unregister a v4l2_subdev
+ *
+ * @sd: pointer to &struct v4l2_subdev
+ */
+void v4l2_spi_subdev_unregister(struct v4l2_subdev *sd);
+
+#else
+
+static inline struct v4l2_subdev *
+v4l2_spi_new_subdev(struct v4l2_device *v4l2_dev,
+		    struct spi_master *master, struct spi_board_info *info)
+{
+	return NULL;
+}
+
+static inline void
+v4l2_spi_subdev_init(struct v4l2_subdev *sd, struct spi_device *spi,
+		     const struct v4l2_subdev_ops *ops)
+{}
+
+static inline void v4l2_spi_subdev_unregister(struct v4l2_subdev *sd)
+{}
 #endif
 
 /* ------------------------------------------------------------------------- */
@@ -385,8 +457,24 @@ int v4l2_s_parm_cap(struct video_device *vdev,
 /* Pixel format and FourCC helpers */
 
 /**
+ * enum v4l2_pixel_encoding - specifies the pixel encoding value
+ *
+ * @V4L2_PIXEL_ENC_UNKNOWN:	Pixel encoding is unknown/un-initialized
+ * @V4L2_PIXEL_ENC_YUV:		Pixel encoding is YUV
+ * @V4L2_PIXEL_ENC_RGB:		Pixel encoding is RGB
+ * @V4L2_PIXEL_ENC_BAYER:	Pixel encoding is Bayer
+ */
+enum v4l2_pixel_encoding {
+	V4L2_PIXEL_ENC_UNKNOWN = 0,
+	V4L2_PIXEL_ENC_YUV = 1,
+	V4L2_PIXEL_ENC_RGB = 2,
+	V4L2_PIXEL_ENC_BAYER = 3,
+};
+
+/**
  * struct v4l2_format_info - information about a V4L2 format
  * @format: 4CC format identifier (V4L2_PIX_FMT_*)
+ * @pixel_enc: Pixel encoding (see enum v4l2_pixel_encoding above)
  * @mem_planes: Number of memory planes, which includes the alpha plane (1 to 4).
  * @comp_planes: Number of component planes, which includes the alpha plane (1 to 4).
  * @bpp: Array of per-plane bytes per pixel
@@ -397,6 +485,7 @@ int v4l2_s_parm_cap(struct video_device *vdev,
  */
 struct v4l2_format_info {
 	u32 format;
+	u8 pixel_enc;
 	u8 mem_planes;
 	u8 comp_planes;
 	u8 bpp[4];
@@ -406,11 +495,27 @@ struct v4l2_format_info {
 	u8 block_h[4];
 };
 
-const struct v4l2_format_info *v4l2_format_info(u32 format);
+static inline bool v4l2_is_format_rgb(const struct v4l2_format_info *f)
+{
+	return f && f->pixel_enc == V4L2_PIXEL_ENC_RGB;
+}
 
-int v4l2_fill_pixfmt(struct v4l2_pix_format *pixfmt, int pixelformat,
-		     int width, int height);
-int v4l2_fill_pixfmt_mp(struct v4l2_pix_format_mplane *pixfmt, int pixelformat,
-			int width, int height);
+static inline bool v4l2_is_format_yuv(const struct v4l2_format_info *f)
+{
+	return f && f->pixel_enc == V4L2_PIXEL_ENC_YUV;
+}
+
+static inline bool v4l2_is_format_bayer(const struct v4l2_format_info *f)
+{
+	return f && f->pixel_enc == V4L2_PIXEL_ENC_BAYER;
+}
+
+const struct v4l2_format_info *v4l2_format_info(u32 format);
+void v4l2_apply_frmsize_constraints(u32 *width, u32 *height,
+				    const struct v4l2_frmsize_stepwise *frmsize);
+int v4l2_fill_pixfmt(struct v4l2_pix_format *pixfmt, u32 pixelformat,
+		     u32 width, u32 height);
+int v4l2_fill_pixfmt_mp(struct v4l2_pix_format_mplane *pixfmt, u32 pixelformat,
+			u32 width, u32 height);
 
 #endif /* V4L2_COMMON_H_ */

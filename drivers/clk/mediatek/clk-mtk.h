@@ -169,6 +169,11 @@ int mtk_clk_register_gates(struct device_node *node,
 			const struct mtk_gate *clks, int num,
 			struct clk_onecell_data *clk_data);
 
+int mtk_clk_register_gates_with_dev(struct device_node *node,
+		const struct mtk_gate *clks,
+		int num, struct clk_onecell_data *clk_data,
+		struct device *dev);
+
 struct mtk_clk_divider {
 	int id;
 	const char *name;
@@ -239,5 +244,8 @@ struct clk *mtk_clk_register_ref2usb_tx(const char *name,
 
 void mtk_register_reset_controller(struct device_node *np,
 			unsigned int num_regs, int regofs);
+
+void mtk_register_reset_controller_set_clr(struct device_node *np,
+	unsigned int num_regs, int regofs);
 
 #endif /* __DRV_CLK_MTK_H */

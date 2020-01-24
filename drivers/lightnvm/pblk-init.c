@@ -543,7 +543,7 @@ static void pblk_line_mg_free(struct pblk *pblk)
 
 	for (i = 0; i < PBLK_DATA_LINES; i++) {
 		kfree(l_mg->sline_meta[i]);
-		pblk_mfree(l_mg->eline_meta[i]->buf, l_mg->emeta_alloc_type);
+		kvfree(l_mg->eline_meta[i]->buf);
 		kfree(l_mg->eline_meta[i]);
 	}
 
@@ -560,7 +560,7 @@ static void pblk_line_meta_free(struct pblk_line_mgmt *l_mg,
 	kfree(line->erase_bitmap);
 	kfree(line->chks);
 
-	pblk_mfree(w_err_gc->lba_list, l_mg->emeta_alloc_type);
+	kvfree(w_err_gc->lba_list);
 	kfree(w_err_gc);
 }
 
@@ -890,29 +890,14 @@ static int pblk_line_mg_init(struct pblk *pblk)
 		if (!emeta)
 			goto fail_free_emeta;
 
-		if (lm->emeta_len[0] > KMALLOC_MAX_CACHE_SIZE) {
-			l_mg->emeta_alloc_type = PBLK_VMALLOC_META;
-
-			emeta->buf = vmalloc(lm->emeta_len[0]);
-			if (!emeta->buf) {
-				kfree(emeta);
-				goto fail_free_emeta;
-			}
-
-			emeta->nr_entries = lm->emeta_sec[0];
-			l_mg->eline_meta[i] = emeta;
-		} else {
-			l_mg->emeta_alloc_type = PBLK_KMALLOC_META;
-
-			emeta->buf = kmalloc(lm->emeta_len[0], GFP_KERNEL);
-			if (!emeta->buf) {
-				kfree(emeta);
-				goto fail_free_emeta;
-			}
-
-			emeta->nr_entries = lm->emeta_sec[0];
-			l_mg->eline_meta[i] = emeta;
+		emeta->buf = kvmalloc(lm->emeta_len[0], GFP_KERNEL);
+		if (!emeta->buf) {
+			kfree(emeta);
+			goto fail_free_emeta;
 		}
+
+		emeta->nr_entries = lm->emeta_sec[0];
+		l_mg->eline_meta[i] = emeta;
 	}
 
 	for (i = 0; i < l_mg->nr_lines; i++)
@@ -926,10 +911,7 @@ static int pblk_line_mg_init(struct pblk *pblk)
 
 fail_free_emeta:
 	while (--i >= 0) {
-		if (l_mg->emeta_alloc_type == PBLK_VMALLOC_META)
-			vfree(l_mg->eline_meta[i]->buf);
-		else
-			kfree(l_mg->eline_meta[i]->buf);
+		kvfree(l_mg->eline_meta[i]->buf);
 		kfree(l_mg->eline_meta[i]);
 	}
 

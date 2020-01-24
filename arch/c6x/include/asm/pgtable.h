@@ -8,7 +8,7 @@
 #ifndef _ASM_C6X_PGTABLE_H
 #define _ASM_C6X_PGTABLE_H
 
-#include <asm-generic/4level-fixup.h>
+#include <asm-generic/pgtable-nopud.h>
 
 #include <asm/setup.h>
 #include <asm/page.h>
@@ -58,11 +58,6 @@ extern void paging_init(void);
 extern unsigned long empty_zero_page;
 
 #define swapper_pg_dir ((pgd_t *) 0)
-
-/*
- * No page table caches to initialise
- */
-#define pgtable_cache_init()   do { } while (0)
 
 /*
  * c6x is !MMU, so define the simpliest implementation

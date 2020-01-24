@@ -57,6 +57,12 @@ o	A CPU-bound real-time task in a CONFIG_PREEMPT_RT kernel that
 	CONFIG_PREEMPT_RCU case, you might see stall-warning
 	messages.
 
+	You can use the rcutree.kthread_prio kernel boot parameter to
+	increase the scheduling priority of RCU's kthreads, which can
+	help avoid this problem.  However, please note that doing this
+	can increase your system's context-switch rate and thus degrade
+	performance.
+
 o	A periodic interrupt whose handler takes longer than the time
 	interval between successive pairs of interrupts.  This can
 	prevent RCU's kthreads and softirq handlers from running.
@@ -153,7 +159,7 @@ rcupdate.rcu_task_stall_timeout
 	This boot/sysfs parameter controls the RCU-tasks stall warning
 	interval.  A value of zero or less suppresses RCU-tasks stall
 	warnings.  A positive value sets the stall-warning interval
-	in jiffies.  An RCU-tasks stall warning starts with the line:
+	in seconds.  An RCU-tasks stall warning starts with the line:
 
 		INFO: rcu_tasks detected stalls on tasks:
 

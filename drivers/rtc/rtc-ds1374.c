@@ -14,7 +14,7 @@
  */
 /*
  * It would be more efficient to use i2c msgs/i2c_transfer directly but, as
- * recommened in .../Documentation/i2c/writing-clients section
+ * recommended in .../Documentation/i2c/writing-clients.rst section
  * "Sending and receiving", using SMBus level communication is preferred.
  */
 
@@ -439,14 +439,13 @@ static void ds1374_wdt_ping(void)
 
 static void ds1374_wdt_disable(void)
 {
-	int ret = -ENOIOCTLCMD;
 	int cr;
 
 	cr = i2c_smbus_read_byte_data(save_client, DS1374_REG_CR);
 	/* Disable watchdog timer */
 	cr &= ~DS1374_REG_CR_WACE;
 
-	ret = i2c_smbus_write_byte_data(save_client, DS1374_REG_CR, cr);
+	i2c_smbus_write_byte_data(save_client, DS1374_REG_CR, cr);
 }
 
 /*
@@ -586,6 +585,7 @@ static const struct file_operations ds1374_wdt_fops = {
 	.owner			= THIS_MODULE,
 	.read			= ds1374_wdt_read,
 	.unlocked_ioctl		= ds1374_wdt_unlocked_ioctl,
+	.compat_ioctl		= compat_ptr_ioctl,
 	.write			= ds1374_wdt_write,
 	.open                   = ds1374_wdt_open,
 	.release                = ds1374_wdt_release,

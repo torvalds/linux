@@ -44,10 +44,24 @@ static unsigned long clk_pwm_recalc_rate(struct clk_hw *hw,
 	return clk_pwm->fixed_rate;
 }
 
+static int clk_pwm_get_duty_cycle(struct clk_hw *hw, struct clk_duty *duty)
+{
+	struct clk_pwm *clk_pwm = to_clk_pwm(hw);
+	struct pwm_state state;
+
+	pwm_get_state(clk_pwm->pwm, &state);
+
+	duty->num = state.duty_cycle;
+	duty->den = state.period;
+
+	return 0;
+}
+
 static const struct clk_ops clk_pwm_ops = {
 	.prepare = clk_pwm_prepare,
 	.unprepare = clk_pwm_unprepare,
 	.recalc_rate = clk_pwm_recalc_rate,
+	.get_duty_cycle = clk_pwm_get_duty_cycle,
 };
 
 static int clk_pwm_probe(struct platform_device *pdev)

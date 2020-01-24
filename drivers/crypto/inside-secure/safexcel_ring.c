@@ -14,7 +14,7 @@ int safexcel_init_ring_descriptors(struct safexcel_crypto_priv *priv,
 				   struct safexcel_desc_ring *cdr,
 				   struct safexcel_desc_ring *rdr)
 {
-	cdr->offset = sizeof(u32) * priv->config.cd_offset;
+	cdr->offset = priv->config.cd_offset;
 	cdr->base = dmam_alloc_coherent(priv->dev,
 					cdr->offset * EIP197_DEFAULT_RING_SIZE,
 					&cdr->base_dma, GFP_KERNEL);
@@ -24,7 +24,7 @@ int safexcel_init_ring_descriptors(struct safexcel_crypto_priv *priv,
 	cdr->base_end = cdr->base + cdr->offset * (EIP197_DEFAULT_RING_SIZE - 1);
 	cdr->read = cdr->base;
 
-	rdr->offset = sizeof(u32) * priv->config.rd_offset;
+	rdr->offset = priv->config.rd_offset;
 	rdr->base = dmam_alloc_coherent(priv->dev,
 					rdr->offset * EIP197_DEFAULT_RING_SIZE,
 					&rdr->base_dma, GFP_KERNEL);
@@ -137,13 +137,23 @@ struct safexcel_command_desc *safexcel_add_cdesc(struct safexcel_crypto_priv *pr
 		struct safexcel_token *token =
 			(struct safexcel_token *)cdesc->control_data.token;
 
-		cdesc->control_data.packet_length = full_data_len;
+		/*
+		 * Note that the length here MUST be >0 or else the EIP(1)97
+		 * may hang. Newer EIP197 firmware actually incorporates this
+		 * fix already, but that doesn't help the EIP97 and we may
+		 * also be running older firmware.
+		 */
+		cdesc->control_data.packet_length = full_data_len ?: 1;
 		cdesc->control_data.options = EIP197_OPTION_MAGIC_VALUE |
 					      EIP197_OPTION_64BIT_CTX |
 					      EIP197_OPTION_CTX_CTRL_IN_CMD;
 		cdesc->control_data.context_lo =
 			(lower_32_bits(context) & GENMASK(31, 2)) >> 2;
 		cdesc->control_data.context_hi = upper_32_bits(context);
+
+		if (priv->version == EIP197B_MRVL ||
+		    priv->version == EIP197D_MRVL)
+			cdesc->control_data.options |= EIP197_OPTION_RC_AUTO;
 
 		/* TODO: large xform HMAC with SHA-384/512 uses refresh = 3 */
 		cdesc->control_data.refresh = 2;
@@ -170,6 +180,7 @@ struct safexcel_result_desc *safexcel_add_rdesc(struct safexcel_crypto_priv *pri
 
 	rdesc->first_seg = first;
 	rdesc->last_seg = last;
+	rdesc->result_size = EIP197_RD64_RESULT_SIZE;
 	rdesc->particle_size = len;
 	rdesc->data_lo = lower_32_bits(data);
 	rdesc->data_hi = upper_32_bits(data);

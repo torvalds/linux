@@ -322,6 +322,80 @@ i40e_status i40e_read_nvm_word(struct i40e_hw *hw, u16 offset,
 }
 
 /**
+ * i40e_read_nvm_module_data - Reads NVM Buffer to specified memory location
+ * @hw: Pointer to the HW structure
+ * @module_ptr: Pointer to module in words with respect to NVM beginning
+ * @module_offset: Offset in words from module start
+ * @data_offset: Offset in words from reading data area start
+ * @words_data_size: Words to read from NVM
+ * @data_ptr: Pointer to memory location where resulting buffer will be stored
+ **/
+enum i40e_status_code i40e_read_nvm_module_data(struct i40e_hw *hw,
+						u8 module_ptr,
+						u16 module_offset,
+						u16 data_offset,
+						u16 words_data_size,
+						u16 *data_ptr)
+{
+	i40e_status status;
+	u16 specific_ptr = 0;
+	u16 ptr_value = 0;
+	u32 offset = 0;
+
+	if (module_ptr != 0) {
+		status = i40e_read_nvm_word(hw, module_ptr, &ptr_value);
+		if (status) {
+			i40e_debug(hw, I40E_DEBUG_ALL,
+				   "Reading nvm word failed.Error code: %d.\n",
+				   status);
+			return I40E_ERR_NVM;
+		}
+	}
+#define I40E_NVM_INVALID_PTR_VAL 0x7FFF
+#define I40E_NVM_INVALID_VAL 0xFFFF
+
+	/* Pointer not initialized */
+	if (ptr_value == I40E_NVM_INVALID_PTR_VAL ||
+	    ptr_value == I40E_NVM_INVALID_VAL) {
+		i40e_debug(hw, I40E_DEBUG_ALL, "Pointer not initialized.\n");
+		return I40E_ERR_BAD_PTR;
+	}
+
+	/* Check whether the module is in SR mapped area or outside */
+	if (ptr_value & I40E_PTR_TYPE) {
+		/* Pointer points outside of the Shared RAM mapped area */
+		i40e_debug(hw, I40E_DEBUG_ALL,
+			   "Reading nvm data failed. Pointer points outside of the Shared RAM mapped area.\n");
+
+		return I40E_ERR_PARAM;
+	} else {
+		/* Read from the Shadow RAM */
+
+		status = i40e_read_nvm_word(hw, ptr_value + module_offset,
+					    &specific_ptr);
+		if (status) {
+			i40e_debug(hw, I40E_DEBUG_ALL,
+				   "Reading nvm word failed.Error code: %d.\n",
+				   status);
+			return I40E_ERR_NVM;
+		}
+
+		offset = ptr_value + module_offset + specific_ptr +
+			data_offset;
+
+		status = i40e_read_nvm_buffer(hw, offset, &words_data_size,
+					      data_ptr);
+		if (status) {
+			i40e_debug(hw, I40E_DEBUG_ALL,
+				   "Reading nvm buffer failed.Error code: %d.\n",
+				   status);
+		}
+	}
+
+	return status;
+}
+
+/**
  * i40e_read_nvm_buffer_srctl - Reads Shadow RAM buffer via SRCTL register
  * @hw: pointer to the HW structure
  * @offset: offset of the Shadow RAM word to read (0x000000 - 0x001FFF).
@@ -427,6 +501,36 @@ static i40e_status __i40e_read_nvm_buffer(struct i40e_hw *hw,
 		return i40e_read_nvm_buffer_aq(hw, offset, words, data);
 
 	return i40e_read_nvm_buffer_srctl(hw, offset, words, data);
+}
+
+/**
+ * i40e_read_nvm_buffer - Reads Shadow RAM buffer and acquire lock if necessary
+ * @hw: pointer to the HW structure
+ * @offset: offset of the Shadow RAM word to read (0x000000 - 0x001FFF).
+ * @words: (in) number of words to read; (out) number of words actually read
+ * @data: words read from the Shadow RAM
+ *
+ * Reads 16 bit words (data buffer) from the SR using the i40e_read_nvm_srrd()
+ * method. The buffer read is preceded by the NVM ownership take
+ * and followed by the release.
+ **/
+i40e_status i40e_read_nvm_buffer(struct i40e_hw *hw, u16 offset,
+				 u16 *words, u16 *data)
+{
+	i40e_status ret_code = 0;
+
+	if (hw->flags & I40E_HW_FLAG_AQ_SRCTL_ACCESS_ENABLE) {
+		ret_code = i40e_acquire_nvm(hw, I40E_RESOURCE_READ);
+		if (!ret_code) {
+			ret_code = i40e_read_nvm_buffer_aq(hw, offset, words,
+							   data);
+			i40e_release_nvm(hw);
+		}
+	} else {
+		ret_code = i40e_read_nvm_buffer_srctl(hw, offset, words, data);
+	}
+
+	return ret_code;
 }
 
 /**

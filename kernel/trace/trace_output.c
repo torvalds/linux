@@ -219,10 +219,10 @@ trace_print_hex_seq(struct trace_seq *p, const unsigned char *buf, int buf_len,
 {
 	int i;
 	const char *ret = trace_seq_buffer_ptr(p);
+	const char *fmt = concatenate ? "%*phN" : "%*ph";
 
-	for (i = 0; i < buf_len; i++)
-		trace_seq_printf(p, "%s%2.2x", concatenate || i == 0 ? "" : " ",
-				 buf[i]);
+	for (i = 0; i < buf_len; i += 16)
+		trace_seq_printf(p, fmt, min(buf_len - i, 16), &buf[i]);
 	trace_seq_putc(p, 0);
 
 	return ret;
@@ -273,6 +273,21 @@ trace_print_array_seq(struct trace_seq *p, const void *buf, int count,
 	return ret;
 }
 EXPORT_SYMBOL(trace_print_array_seq);
+
+const char *
+trace_print_hex_dump_seq(struct trace_seq *p, const char *prefix_str,
+			 int prefix_type, int rowsize, int groupsize,
+			 const void *buf, size_t len, bool ascii)
+{
+	const char *ret = trace_seq_buffer_ptr(p);
+
+	trace_seq_putc(p, '\n');
+	trace_seq_hex_dump(p, prefix_str, prefix_type,
+			   rowsize, groupsize, buf, len, ascii);
+	trace_seq_putc(p, 0);
+	return ret;
+}
+EXPORT_SYMBOL(trace_print_hex_dump_seq);
 
 int trace_raw_output_prep(struct trace_iterator *iter,
 			  struct trace_event *trace_event)
@@ -1109,17 +1124,10 @@ static enum print_line_t trace_user_stack_print(struct trace_iterator *iter,
 	for (i = 0; i < FTRACE_STACK_ENTRIES; i++) {
 		unsigned long ip = field->caller[i];
 
-		if (ip == ULONG_MAX || trace_seq_has_overflowed(s))
+		if (!ip || trace_seq_has_overflowed(s))
 			break;
 
 		trace_seq_puts(s, " => ");
-
-		if (!ip) {
-			trace_seq_puts(s, "??");
-			trace_seq_putc(s, '\n');
-			continue;
-		}
-
 		seq_print_user_ip(s, mm, ip, flags);
 		trace_seq_putc(s, '\n');
 	}

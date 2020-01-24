@@ -25,8 +25,9 @@
  *          Alex Deucher
  *          Jerome Glisse
  */
-#include <drm/drmP.h>
+
 #include "amdgpu.h"
+#include <drm/drm_debugfs.h>
 #include <drm/amdgpu_drm.h>
 #include "amdgpu_sched.h"
 #include "amdgpu_uvd.h"
@@ -35,13 +36,15 @@
 
 #include <linux/vga_switcheroo.h>
 #include <linux/slab.h>
+#include <linux/uaccess.h>
+#include <linux/pci.h>
 #include <linux/pm_runtime.h>
 #include "amdgpu_amdkfd.h"
 #include "amdgpu_gem.h"
 #include "amdgpu_display.h"
 #include "amdgpu_ras.h"
 
-static void amdgpu_unregister_gpu_instance(struct amdgpu_device *adev)
+void amdgpu_unregister_gpu_instance(struct amdgpu_device *adev)
 {
 	struct amdgpu_gpu_instance *gpu_instance;
 	int i;
@@ -102,7 +105,7 @@ done_free:
 	dev->dev_private = NULL;
 }
 
-static void amdgpu_register_gpu_instance(struct amdgpu_device *adev)
+void amdgpu_register_gpu_instance(struct amdgpu_device *adev)
 {
 	struct amdgpu_gpu_instance *gpu_instance;
 
@@ -140,41 +143,6 @@ int amdgpu_driver_load_kms(struct drm_device *dev, unsigned long flags)
 {
 	struct amdgpu_device *adev;
 	int r, acpi_status;
-
-#ifdef CONFIG_DRM_AMDGPU_SI
-	if (!amdgpu_si_support) {
-		switch (flags & AMD_ASIC_MASK) {
-		case CHIP_TAHITI:
-		case CHIP_PITCAIRN:
-		case CHIP_VERDE:
-		case CHIP_OLAND:
-		case CHIP_HAINAN:
-			dev_info(dev->dev,
-				 "SI support provided by radeon.\n");
-			dev_info(dev->dev,
-				 "Use radeon.si_support=0 amdgpu.si_support=1 to override.\n"
-				);
-			return -ENODEV;
-		}
-	}
-#endif
-#ifdef CONFIG_DRM_AMDGPU_CIK
-	if (!amdgpu_cik_support) {
-		switch (flags & AMD_ASIC_MASK) {
-		case CHIP_KAVERI:
-		case CHIP_BONAIRE:
-		case CHIP_HAWAII:
-		case CHIP_KABINI:
-		case CHIP_MULLINS:
-			dev_info(dev->dev,
-				 "CIK support provided by radeon.\n");
-			dev_info(dev->dev,
-				 "Use radeon.cik_support=0 amdgpu.cik_support=1 to override.\n"
-				);
-			return -ENODEV;
-		}
-	}
-#endif
 
 	adev = kzalloc(sizeof(struct amdgpu_device), GFP_KERNEL);
 	if (adev == NULL) {
@@ -222,7 +190,6 @@ int amdgpu_driver_load_kms(struct drm_device *dev, unsigned long flags)
 		pm_runtime_put_autosuspend(dev->dev);
 	}
 
-	amdgpu_register_gpu_instance(adev);
 out:
 	if (r) {
 		/* balance pm_runtime_get_sync in amdgpu_driver_unload_kms */
@@ -405,23 +372,38 @@ static int amdgpu_hw_ip_info(struct amdgpu_device *adev,
 		break;
 	case AMDGPU_HW_IP_VCN_DEC:
 		type = AMD_IP_BLOCK_TYPE_VCN;
-		if (adev->vcn.ring_dec.sched.ready)
-			++num_rings;
+		for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
+			if (adev->uvd.harvest_config & (1 << i))
+				continue;
+
+			if (adev->vcn.inst[i].ring_dec.sched.ready)
+				++num_rings;
+		}
 		ib_start_alignment = 16;
 		ib_size_alignment = 16;
 		break;
 	case AMDGPU_HW_IP_VCN_ENC:
 		type = AMD_IP_BLOCK_TYPE_VCN;
-		for (i = 0; i < adev->vcn.num_enc_rings; i++)
-			if (adev->vcn.ring_enc[i].sched.ready)
-				++num_rings;
+		for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
+			if (adev->uvd.harvest_config & (1 << i))
+				continue;
+
+			for (j = 0; j < adev->vcn.num_enc_rings; j++)
+				if (adev->vcn.inst[i].ring_enc[j].sched.ready)
+					++num_rings;
+		}
 		ib_start_alignment = 64;
 		ib_size_alignment = 1;
 		break;
 	case AMDGPU_HW_IP_VCN_JPEG:
 		type = AMD_IP_BLOCK_TYPE_VCN;
-		if (adev->vcn.ring_jpeg.sched.ready)
-			++num_rings;
+		for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
+			if (adev->uvd.harvest_config & (1 << i))
+				continue;
+
+			if (adev->vcn.inst[i].ring_jpeg.sched.ready)
+				++num_rings;
+		}
 		ib_start_alignment = 16;
 		ib_size_alignment = 16;
 		break;
@@ -590,13 +572,10 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		struct drm_amdgpu_info_gds gds_info;
 
 		memset(&gds_info, 0, sizeof(gds_info));
-		gds_info.gds_gfx_partition_size = adev->gds.mem.gfx_partition_size;
-		gds_info.compute_partition_size = adev->gds.mem.cs_partition_size;
-		gds_info.gds_total_size = adev->gds.mem.total_size;
-		gds_info.gws_per_gfx_partition = adev->gds.gws.gfx_partition_size;
-		gds_info.gws_per_compute_partition = adev->gds.gws.cs_partition_size;
-		gds_info.oa_per_gfx_partition = adev->gds.oa.gfx_partition_size;
-		gds_info.oa_per_compute_partition = adev->gds.oa.cs_partition_size;
+		gds_info.compute_partition_size = adev->gds.gds_size;
+		gds_info.gds_total_size = adev->gds.gds_size;
+		gds_info.gws_per_compute_partition = adev->gds.gws_size;
+		gds_info.oa_per_compute_partition = adev->gds.oa_size;
 		return copy_to_user(out, &gds_info,
 				    min((size_t)size, sizeof(gds_info))) ? -EFAULT : 0;
 	}
@@ -604,9 +583,12 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		struct drm_amdgpu_info_vram_gtt vram_gtt;
 
 		vram_gtt.vram_size = adev->gmc.real_vram_size -
-			atomic64_read(&adev->vram_pin_size);
-		vram_gtt.vram_cpu_accessible_size = adev->gmc.visible_vram_size -
-			atomic64_read(&adev->visible_pin_size);
+			atomic64_read(&adev->vram_pin_size) -
+			AMDGPU_VM_RESERVED_VRAM;
+		vram_gtt.vram_cpu_accessible_size =
+			min(adev->gmc.visible_vram_size -
+			    atomic64_read(&adev->visible_pin_size),
+			    vram_gtt.vram_size);
 		vram_gtt.gtt_size = adev->mman.bdev.man[TTM_PL_TT].size;
 		vram_gtt.gtt_size *= PAGE_SIZE;
 		vram_gtt.gtt_size -= atomic64_read(&adev->gart_pin_size);
@@ -619,15 +601,18 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		memset(&mem, 0, sizeof(mem));
 		mem.vram.total_heap_size = adev->gmc.real_vram_size;
 		mem.vram.usable_heap_size = adev->gmc.real_vram_size -
-			atomic64_read(&adev->vram_pin_size);
+			atomic64_read(&adev->vram_pin_size) -
+			AMDGPU_VM_RESERVED_VRAM;
 		mem.vram.heap_usage =
 			amdgpu_vram_mgr_usage(&adev->mman.bdev.man[TTM_PL_VRAM]);
 		mem.vram.max_allocation = mem.vram.usable_heap_size * 3 / 4;
 
 		mem.cpu_accessible_vram.total_heap_size =
 			adev->gmc.visible_vram_size;
-		mem.cpu_accessible_vram.usable_heap_size = adev->gmc.visible_vram_size -
-			atomic64_read(&adev->visible_pin_size);
+		mem.cpu_accessible_vram.usable_heap_size =
+			min(adev->gmc.visible_vram_size -
+			    atomic64_read(&adev->visible_pin_size),
+			    mem.vram.usable_heap_size);
 		mem.cpu_accessible_vram.heap_usage =
 			amdgpu_vram_mgr_vis_usage(&adev->mman.bdev.man[TTM_PL_VRAM]);
 		mem.cpu_accessible_vram.max_allocation =
@@ -662,20 +647,27 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		if (sh_num == AMDGPU_INFO_MMR_SH_INDEX_MASK)
 			sh_num = 0xffffffff;
 
+		if (info->read_mmr_reg.count > 128)
+			return -EINVAL;
+
 		regs = kmalloc_array(info->read_mmr_reg.count, sizeof(*regs), GFP_KERNEL);
 		if (!regs)
 			return -ENOMEM;
 		alloc_size = info->read_mmr_reg.count * sizeof(*regs);
 
-		for (i = 0; i < info->read_mmr_reg.count; i++)
+		amdgpu_gfx_off_ctrl(adev, false);
+		for (i = 0; i < info->read_mmr_reg.count; i++) {
 			if (amdgpu_asic_read_register(adev, se_num, sh_num,
 						      info->read_mmr_reg.dword_offset + i,
 						      &regs[i])) {
 				DRM_DEBUG_KMS("unallowed offset %#x\n",
 					      info->read_mmr_reg.dword_offset + i);
 				kfree(regs);
+				amdgpu_gfx_off_ctrl(adev, true);
 				return -EFAULT;
 			}
+		}
+		amdgpu_gfx_off_ctrl(adev, true);
 		n = copy_to_user(out, regs, min(size, alloc_size));
 		kfree(regs);
 		return n ? -EFAULT : 0;
@@ -712,7 +704,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		dev_info.ids_flags = 0;
 		if (adev->flags & AMD_IS_APU)
 			dev_info.ids_flags |= AMDGPU_IDS_FLAGS_FUSION;
-		if (amdgpu_sriov_vf(adev))
+		if (amdgpu_mcbp || amdgpu_sriov_vf(adev))
 			dev_info.ids_flags |= AMDGPU_IDS_FLAGS_PREEMPTION;
 
 		vm_size = adev->vm_manager.max_pfn * AMDGPU_GPU_PAGE_SIZE;
@@ -746,17 +738,6 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		dev_info.vce_harvest_config = adev->vce.harvest_config;
 		dev_info.gc_double_offchip_lds_buf =
 			adev->gfx.config.double_offchip_lds_buf;
-
-		if (amdgpu_ngg) {
-			dev_info.prim_buf_gpu_addr = adev->gfx.ngg.buf[NGG_PRIM].gpu_addr;
-			dev_info.prim_buf_size = adev->gfx.ngg.buf[NGG_PRIM].size;
-			dev_info.pos_buf_gpu_addr = adev->gfx.ngg.buf[NGG_POS].gpu_addr;
-			dev_info.pos_buf_size = adev->gfx.ngg.buf[NGG_POS].size;
-			dev_info.cntl_sb_buf_gpu_addr = adev->gfx.ngg.buf[NGG_CNTL].gpu_addr;
-			dev_info.cntl_sb_buf_size = adev->gfx.ngg.buf[NGG_CNTL].size;
-			dev_info.param_buf_gpu_addr = adev->gfx.ngg.buf[NGG_PARAM].gpu_addr;
-			dev_info.param_buf_size = adev->gfx.ngg.buf[NGG_PARAM].size;
-		}
 		dev_info.wave_front_size = adev->gfx.cu_info.wave_front_size;
 		dev_info.num_shader_visible_vgprs = adev->gfx.config.max_gprs;
 		dev_info.num_cu_per_sh = adev->gfx.config.max_cu_per_sh;
@@ -764,6 +745,12 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		dev_info.gs_vgt_table_depth = adev->gfx.config.gs_vgt_table_depth;
 		dev_info.gs_prim_buffer_depth = adev->gfx.config.gs_prim_buffer_depth;
 		dev_info.max_gs_waves_per_vgt = adev->gfx.config.max_gs_threads;
+
+		if (adev->family >= AMDGPU_FAMILY_NV)
+			dev_info.pa_sc_tile_steering_override =
+				adev->gfx.config.pa_sc_tile_steering_override;
+
+		dev_info.tcc_disabled_mask = adev->gfx.config.tcc_disabled_mask;
 
 		return copy_to_user(out, &dev_info,
 				    min((size_t)size, sizeof(dev_info))) ? -EFAULT : 0;
@@ -977,7 +964,13 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 	int r, pasid;
 
 	/* Ensure IB tests are run on ring */
-	flush_delayed_work(&adev->late_init_work);
+	flush_delayed_work(&adev->delayed_init_work);
+
+
+	if (amdgpu_ras_intr_triggered()) {
+		DRM_ERROR("RAS Intr triggered, device disabled!!");
+		return -EHWPOISON;
+	}
 
 	file_priv->driver_priv = NULL;
 
@@ -1006,7 +999,7 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 		goto error_vm;
 	}
 
-	if (amdgpu_sriov_vf(adev)) {
+	if (amdgpu_mcbp || amdgpu_sriov_vf(adev)) {
 		uint64_t csa_addr = amdgpu_csa_vaddr(adev) & AMDGPU_GMC_HOLE_MASK;
 
 		r = amdgpu_map_static_csa(adev, &fpriv->vm, adev->virt.csa_obj,
@@ -1069,7 +1062,7 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 
 	amdgpu_vm_bo_rmv(adev, fpriv->prt_va);
 
-	if (amdgpu_sriov_vf(adev)) {
+	if (amdgpu_mcbp || amdgpu_sriov_vf(adev)) {
 		/* TODO: how to handle reserve failure */
 		BUG_ON(amdgpu_bo_reserve(adev->virt.csa_obj, true));
 		amdgpu_vm_bo_rmv(adev, fpriv->csa_va);
@@ -1084,7 +1077,7 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 	amdgpu_vm_fini(adev, &fpriv->vm);
 
 	if (pasid)
-		amdgpu_pasid_free_delayed(pd->tbo.resv, pasid);
+		amdgpu_pasid_free_delayed(pd->tbo.base.resv, pasid);
 	amdgpu_bo_unref(&pd);
 
 	idr_for_each_entry(&fpriv->bo_list_handles, list, handle)

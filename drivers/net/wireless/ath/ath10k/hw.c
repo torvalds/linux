@@ -155,10 +155,13 @@ const struct ath10k_hw_values qca6174_values = {
 	.num_target_ce_config_wlan	= 7,
 	.ce_desc_meta_data_mask		= 0xFFFC,
 	.ce_desc_meta_data_lsb		= 2,
+	.rfkill_pin			= 16,
+	.rfkill_cfg			= 0,
+	.rfkill_on_level		= 1,
 };
 
 const struct ath10k_hw_values qca99x0_values = {
-	.rtc_state_val_on		= 5,
+	.rtc_state_val_on		= 7,
 	.ce_count			= 12,
 	.msi_assign_ce_max		= 12,
 	.num_target_ce_config_wlan	= 10,
@@ -1145,12 +1148,17 @@ static bool ath10k_qca99x0_rx_desc_msdu_limit_error(struct htt_rx_desc *rxd)
 const struct ath10k_hw_ops qca99x0_ops = {
 	.rx_desc_get_l3_pad_bytes = ath10k_qca99x0_rx_desc_get_l3_pad_bytes,
 	.rx_desc_get_msdu_limit_error = ath10k_qca99x0_rx_desc_msdu_limit_error,
+	.is_rssi_enable = ath10k_htt_tx_rssi_enable,
 };
 
 const struct ath10k_hw_ops qca6174_ops = {
 	.set_coverage_class = ath10k_hw_qca988x_set_coverage_class,
 	.enable_pll_clk = ath10k_hw_qca6174_enable_pll_clock,
 	.is_rssi_enable = ath10k_htt_tx_rssi_enable,
+};
+
+const struct ath10k_hw_ops qca6174_sdio_ops = {
+	.enable_pll_clk = ath10k_hw_qca6174_enable_pll_clock,
 };
 
 const struct ath10k_hw_ops wcn3990_ops = {

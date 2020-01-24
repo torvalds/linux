@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause) */
 /*
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -76,6 +76,9 @@ struct sof_ipc_dai_ssp_params {
 	uint16_t tdm_per_slot_padding_flag;
 	uint32_t clks_control;
 	uint32_t quirks;
+	uint32_t bclk_delay;	/* guaranteed time (ms) for which BCLK
+				 * will be driven, before sending data
+				 */
 } __packed;
 
 /* HDA Configuration Request - SOF_IPC_DAI_HDA_CONFIG */
@@ -167,12 +170,22 @@ struct sof_ipc_dai_dmic_params {
 
 	uint32_t wake_up_time;      /**< Time from clock start to data (us) */
 	uint32_t min_clock_on_time; /**< Min. time that clk is kept on (us) */
+	uint32_t unmute_ramp_time;  /**< Length of logarithmic gain ramp (ms) */
 
 	/* reserved for future use */
-	uint32_t reserved[6];
+	uint32_t reserved[5];
 
 	/**< variable number of pdm controller config */
 	struct sof_ipc_dai_dmic_pdm_ctrl pdm[0];
+} __packed;
+
+/* ALH Configuration Request - SOF_IPC_DAI_ALH_CONFIG */
+struct sof_ipc_dai_alh_params {
+	struct sof_ipc_hdr hdr;
+	uint32_t stream_id;
+
+	/* reserved for future use */
+	uint32_t reserved[15];
 } __packed;
 
 #endif

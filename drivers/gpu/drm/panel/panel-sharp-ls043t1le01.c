@@ -8,17 +8,18 @@
  */
 
 #include <linux/backlight.h>
+#include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/regulator/consumer.h>
 
-#include <drm/drmP.h>
+#include <video/mipi_display.h>
+
 #include <drm/drm_crtc.h>
+#include <drm/drm_device.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_panel.h>
-
-#include <video/mipi_display.h>
 
 struct sharp_nt_panel {
 	struct drm_panel base;
@@ -263,9 +264,8 @@ static int sharp_nt_panel_add(struct sharp_nt_panel *sharp_nt)
 	if (IS_ERR(sharp_nt->backlight))
 		return PTR_ERR(sharp_nt->backlight);
 
-	drm_panel_init(&sharp_nt->base);
-	sharp_nt->base.funcs = &sharp_nt_panel_funcs;
-	sharp_nt->base.dev = &sharp_nt->dsi->dev;
+	drm_panel_init(&sharp_nt->base, &sharp_nt->dsi->dev,
+		       &sharp_nt_panel_funcs, DRM_MODE_CONNECTOR_DSI);
 
 	return drm_panel_add(&sharp_nt->base);
 }

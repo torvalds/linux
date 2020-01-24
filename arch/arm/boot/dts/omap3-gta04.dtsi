@@ -11,7 +11,7 @@
 
 / {
 	model = "OMAP3 GTA04";
-	compatible = "ti,omap3-gta04", "ti,omap36xx", "ti,omap3";
+	compatible = "ti,omap3-gta04", "ti,omap3630", "ti,omap36xx", "ti,omap3";
 
 	cpus {
 		cpu@0 {
@@ -22,6 +22,10 @@
 	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x20000000>; /* 512 MB */
+	};
+
+	chosen {
+		stdout-path = &uart3;
 	};
 
 	aliases {
@@ -120,6 +124,7 @@
 			spi-max-frequency = <100000>;
 			spi-cpol;
 			spi-cpha;
+			spi-cs-high;
 
 			backlight= <&backlight>;
 			label = "lcd";

@@ -29,7 +29,7 @@ config FLATMEM_MANUAL
 
 	  For systems that have holes in their physical address
 	  spaces and for features like NUMA and memory hotplug,
-	  choose "Sparse Memory"
+	  choose "Sparse Memory".
 
 	  If unsure, choose this option (Flat Memory) over any other.
 
@@ -122,9 +122,9 @@ config SPARSEMEM_VMEMMAP
 	depends on SPARSEMEM && SPARSEMEM_VMEMMAP_ENABLE
 	default y
 	help
-	 SPARSEMEM_VMEMMAP uses a virtually mapped memmap to optimise
-	 pfn_to_page and page_to_pfn operations.  This is the most
-	 efficient option when sufficient kernel resources are available.
+	  SPARSEMEM_VMEMMAP uses a virtually mapped memmap to optimise
+	  pfn_to_page and page_to_pfn operations.  This is the most
+	  efficient option when sufficient kernel resources are available.
 
 config HAVE_MEMBLOCK_NODE_MAP
 	bool
@@ -132,7 +132,8 @@ config HAVE_MEMBLOCK_NODE_MAP
 config HAVE_MEMBLOCK_PHYS_MAP
 	bool
 
-config HAVE_GENERIC_GUP
+config HAVE_FAST_GUP
+	depends on MMU
 	bool
 
 config ARCH_KEEP_MEMBLOCK
@@ -159,14 +160,14 @@ config MEMORY_HOTPLUG_SPARSE
 	depends on SPARSEMEM && MEMORY_HOTPLUG
 
 config MEMORY_HOTPLUG_DEFAULT_ONLINE
-        bool "Online the newly added memory blocks by default"
-        depends on MEMORY_HOTPLUG
-        help
+	bool "Online the newly added memory blocks by default"
+	depends on MEMORY_HOTPLUG
+	help
 	  This option sets the default policy setting for memory hotplug
 	  onlining policy (/sys/devices/system/memory/auto_online_blocks) which
 	  determines what happens to newly added memory regions. Policy setting
 	  can always be changed at runtime.
-	  See Documentation/memory-hotplug.txt for more information.
+	  See Documentation/admin-guide/mm/memory-hotplug.rst for more information.
 
 	  Say Y here if you want all hot-plugged memory blocks to appear in
 	  'online' state by default.
@@ -226,14 +227,14 @@ config COMPACTION
 	select MIGRATION
 	depends on MMU
 	help
-          Compaction is the only memory management component to form
-          high order (larger physically contiguous) memory blocks
-          reliably. The page allocator relies on compaction heavily and
-          the lack of the feature can lead to unexpected OOM killer
-          invocations for high order memory requests. You shouldn't
-          disable this option unless there really is a strong reason for
-          it and then we would be really interested to hear about that at
-          linux-mm@kvack.org.
+	  Compaction is the only memory management component to form
+	  high order (larger physically contiguous) memory blocks
+	  reliably. The page allocator relies on compaction heavily and
+	  the lack of the feature can lead to unexpected OOM killer
+	  invocations for high order memory requests. You shouldn't
+	  disable this option unless there really is a strong reason for
+	  it and then we would be really interested to hear about that at
+	  linux-mm@kvack.org.
 
 #
 # support for page migration
@@ -257,7 +258,7 @@ config ARCH_ENABLE_THP_MIGRATION
 	bool
 
 config CONTIG_ALLOC
-       def_bool (MEMORY_ISOLATION && COMPACTION) || CMA
+	def_bool (MEMORY_ISOLATION && COMPACTION) || CMA
 
 config PHYS_ADDR_T_64BIT
 	def_bool 64BIT
@@ -272,11 +273,6 @@ config BOUNCE
 	  by default when ZONE_DMA or HIGHMEM is selected, but you
 	  may say n to override this.
 
-config NR_QUICK
-	int
-	depends on QUICKLIST
-	default "1"
-
 config VIRT_TO_BUS
 	bool
 	help
@@ -288,6 +284,7 @@ config VIRT_TO_BUS
 config MMU_NOTIFIER
 	bool
 	select SRCU
+	select INTERVAL_TREE
 
 config KSM
 	bool "Enable KSM for page merging"
@@ -305,10 +302,10 @@ config KSM
 	  root has set /sys/kernel/mm/ksm/run to 1 (if CONFIG_SYSFS is set).
 
 config DEFAULT_MMAP_MIN_ADDR
-        int "Low address space to protect from user allocation"
+	int "Low address space to protect from user allocation"
 	depends on MMU
-        default 4096
-        help
+	default 4096
+	help
 	  This is the portion of low virtual memory which should be protected
 	  from userspace allocation.  Keeping a user from writing to low pages
 	  can help reduce the impact of kernel NULL pointer bugs.
@@ -411,7 +408,7 @@ choice
 endchoice
 
 config ARCH_WANTS_THP_SWAP
-       def_bool n
+	def_bool n
 
 config THP_SWAP
 	def_bool y
@@ -648,8 +645,7 @@ config IDLE_PAGE_TRACKING
 	  See Documentation/admin-guide/mm/idle_page_tracking.rst for
 	  more details.
 
-# arch_add_memory() comprehends device memory
-config ARCH_HAS_ZONE_DEVICE
+config ARCH_HAS_PTE_DEVMAP
 	bool
 
 config ZONE_DEVICE
@@ -657,7 +653,7 @@ config ZONE_DEVICE
 	depends on MEMORY_HOTPLUG
 	depends on MEMORY_HOTREMOVE
 	depends on SPARSEMEM_VMEMMAP
-	depends on ARCH_HAS_ZONE_DEVICE
+	depends on ARCH_HAS_PTE_DEVMAP
 	select XARRAY_MULTI
 
 	help
@@ -669,75 +665,26 @@ config ZONE_DEVICE
 
 	  If FS_DAX is enabled, then say Y.
 
-config ARCH_HAS_HMM_MIRROR
-	bool
-	default y
-	depends on (X86_64 || PPC64)
-	depends on MMU && 64BIT
-
-config ARCH_HAS_HMM_DEVICE
-	bool
-	default y
-	depends on (X86_64 || PPC64)
-	depends on MEMORY_HOTPLUG
-	depends on MEMORY_HOTREMOVE
-	depends on SPARSEMEM_VMEMMAP
-	depends on ARCH_HAS_ZONE_DEVICE
-	select XARRAY_MULTI
-
-config ARCH_HAS_HMM
-	bool
-	default y
-	depends on (X86_64 || PPC64)
-	depends on ZONE_DEVICE
-	depends on MMU && 64BIT
-	depends on MEMORY_HOTPLUG
-	depends on MEMORY_HOTREMOVE
-	depends on SPARSEMEM_VMEMMAP
-
-config MIGRATE_VMA_HELPER
-	bool
-
 config DEV_PAGEMAP_OPS
 	bool
 
-config HMM
-	bool
-	select MMU_NOTIFIER
-	select MIGRATE_VMA_HELPER
-
+#
+# Helpers to mirror range of the CPU page tables of a process into device page
+# tables.
+#
 config HMM_MIRROR
-	bool "HMM mirror CPU page table into a device page table"
-	depends on ARCH_HAS_HMM
-	select HMM
-	help
-	  Select HMM_MIRROR if you want to mirror range of the CPU page table of a
-	  process into a device page table. Here, mirror means "keep synchronized".
-	  Prerequisites: the device must provide the ability to write-protect its
-	  page tables (at PAGE_SIZE granularity), and must be able to recover from
-	  the resulting potential page faults.
+	bool
+	depends on MMU
 
 config DEVICE_PRIVATE
 	bool "Unaddressable device memory (GPU memory, ...)"
-	depends on ARCH_HAS_HMM
-	select HMM
+	depends on ZONE_DEVICE
 	select DEV_PAGEMAP_OPS
 
 	help
 	  Allows creation of struct pages to represent unaddressable device
 	  memory; i.e., memory that is only accessible from the device (or
 	  group of devices). You likely also want to select HMM_MIRROR.
-
-config DEVICE_PUBLIC
-	bool "Addressable device memory (like GPU memory)"
-	depends on ARCH_HAS_HMM
-	select HMM
-	select DEV_PAGEMAP_OPS
-
-	help
-	  Allows creation of struct pages to represent addressable device
-	  memory; i.e., memory that is accessible from both the device and
-	  the CPU
 
 config FRAME_VECTOR
 	bool
@@ -762,7 +709,34 @@ config GUP_BENCHMARK
 
 	  See tools/testing/selftests/vm/gup_benchmark.c
 
+config GUP_GET_PTE_LOW_HIGH
+	bool
+
+config READ_ONLY_THP_FOR_FS
+	bool "Read-only THP for filesystems (EXPERIMENTAL)"
+	depends on TRANSPARENT_HUGE_PAGECACHE && SHMEM
+
+	help
+	  Allow khugepaged to put read-only file-backed pages in THP.
+
+	  This is marked experimental because it is a new feature. Write
+	  support of file THPs will be developed in the next few release
+	  cycles.
+
 config ARCH_HAS_PTE_SPECIAL
 	bool
+
+#
+# Some architectures require a special hugepage directory format that is
+# required to support multiple hugepage sizes. For example a4fe3ce76
+# "powerpc/mm: Allow more flexible layouts for hugepage pagetables"
+# introduced it on powerpc.  This allows for a more flexible hugepage
+# pagetable layouts.
+#
+config ARCH_HAS_HUGEPD
+	bool
+
+config MAPPING_DIRTY_HELPERS
+        bool
 
 endmenu

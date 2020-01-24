@@ -208,7 +208,6 @@ static inline int ap_query_configuration(struct ap_config_info *info)
 		return -EINVAL;
 	return ap_qci(info);
 }
-EXPORT_SYMBOL(ap_query_configuration);
 
 /**
  * ap_init_configuration(): Allocate and query configuration array.
@@ -794,8 +793,6 @@ static int ap_device_probe(struct device *dev)
 		drvres = ap_drv->flags & AP_DRIVER_FLAG_DEFAULT;
 		if (!!devres != !!drvres)
 			return -ENODEV;
-		/* (re-)init queue's state machine */
-		ap_queue_reinit_state(to_ap_queue(dev));
 	}
 
 	/* Add queue/card to list of active queues/cards */
@@ -1323,24 +1320,24 @@ static int ap_get_compatible_type(ap_qid_t qid, int rawtype, unsigned int func)
 	/* < CEX2A is not supported */
 	if (rawtype < AP_DEVICE_TYPE_CEX2A)
 		return 0;
-	/* up to CEX6 known and fully supported */
-	if (rawtype <= AP_DEVICE_TYPE_CEX6)
+	/* up to CEX7 known and fully supported */
+	if (rawtype <= AP_DEVICE_TYPE_CEX7)
 		return rawtype;
 	/*
-	 * unknown new type > CEX6, check for compatibility
+	 * unknown new type > CEX7, check for compatibility
 	 * to the highest known and supported type which is
-	 * currently CEX6 with the help of the QACT function.
+	 * currently CEX7 with the help of the QACT function.
 	 */
 	if (ap_qact_available()) {
 		struct ap_queue_status status;
 		union ap_qact_ap_info apinfo = {0};
 
 		apinfo.mode = (func >> 26) & 0x07;
-		apinfo.cat = AP_DEVICE_TYPE_CEX6;
+		apinfo.cat = AP_DEVICE_TYPE_CEX7;
 		status = ap_qact(qid, 0, &apinfo);
 		if (status.response_code == AP_RESPONSE_NORMAL
 		    && apinfo.cat >= AP_DEVICE_TYPE_CEX2A
-		    && apinfo.cat <= AP_DEVICE_TYPE_CEX6)
+		    && apinfo.cat <= AP_DEVICE_TYPE_CEX7)
 			comp_type = apinfo.cat;
 	}
 	if (!comp_type)
@@ -1356,16 +1353,16 @@ static int ap_get_compatible_type(ap_qid_t qid, int rawtype, unsigned int func)
  * Helper function to be used with bus_find_dev
  * matches for the card device with the given id
  */
-static int __match_card_device_with_id(struct device *dev, void *data)
+static int __match_card_device_with_id(struct device *dev, const void *data)
 {
-	return is_card_dev(dev) && to_ap_card(dev)->id == (int)(long) data;
+	return is_card_dev(dev) && to_ap_card(dev)->id == (int)(long)(void *) data;
 }
 
 /*
  * Helper function to be used with bus_find_dev
  * matches for the queue device with a given qid
  */
-static int __match_queue_device_with_qid(struct device *dev, void *data)
+static int __match_queue_device_with_qid(struct device *dev, const void *data)
 {
 	return is_queue_dev(dev) && to_ap_queue(dev)->qid == (int)(long) data;
 }
@@ -1374,7 +1371,7 @@ static int __match_queue_device_with_qid(struct device *dev, void *data)
  * Helper function to be used with bus_find_dev
  * matches any queue device with given queue id
  */
-static int __match_queue_device_with_queue_id(struct device *dev, void *data)
+static int __match_queue_device_with_queue_id(struct device *dev, const void *data)
 {
 	return is_queue_dev(dev)
 		&& AP_QID_QUEUE(to_ap_queue(dev)->qid) == (int)(long) data;

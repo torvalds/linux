@@ -188,8 +188,7 @@ int mlx5_rl_add_rate(struct mlx5_core_dev *dev, u16 *index,
 		/* new rate limit */
 		err = mlx5_set_pp_rate_limit_cmd(dev, entry->index, rl);
 		if (err) {
-			mlx5_core_err(dev, "Failed configuring rate limit(err %d): \
-				      rate %u, max_burst_sz %u, typical_pkt_sz %u\n",
+			mlx5_core_err(dev, "Failed configuring rate limit(err %d): rate %u, max_burst_sz %u, typical_pkt_sz %u\n",
 				      err, rl->rate, rl->max_burst_sz,
 				      rl->typical_pkt_sz);
 			goto out;
@@ -218,8 +217,7 @@ void mlx5_rl_remove_rate(struct mlx5_core_dev *dev, struct mlx5_rate_limit *rl)
 	mutex_lock(&table->rl_lock);
 	entry = find_rl_entry(table, rl);
 	if (!entry || !entry->refcount) {
-		mlx5_core_warn(dev, "Rate %u, max_burst_sz %u typical_pkt_sz %u \
-			       are not configured\n",
+		mlx5_core_warn(dev, "Rate %u, max_burst_sz %u typical_pkt_sz %u are not configured\n",
 			       rl->rate, rl->max_burst_sz, rl->typical_pkt_sz);
 		goto out;
 	}

@@ -29,7 +29,7 @@ void kvmhv_save_hv_regs(struct kvm_vcpu *vcpu, struct hv_guest_state *hr)
 {
 	struct kvmppc_vcore *vc = vcpu->arch.vcore;
 
-	hr->pcr = vc->pcr;
+	hr->pcr = vc->pcr | PCR_MASK;
 	hr->dpdes = vc->dpdes;
 	hr->hfscr = vcpu->arch.hfscr;
 	hr->tb_offset = vc->tb_offset;
@@ -65,7 +65,7 @@ static void byteswap_hv_regs(struct hv_guest_state *hr)
 	hr->lpid = swab32(hr->lpid);
 	hr->vcpu_token = swab32(hr->vcpu_token);
 	hr->lpcr = swab64(hr->lpcr);
-	hr->pcr = swab64(hr->pcr);
+	hr->pcr = swab64(hr->pcr) | PCR_MASK;
 	hr->amor = swab64(hr->amor);
 	hr->dpdes = swab64(hr->dpdes);
 	hr->hfscr = swab64(hr->hfscr);
@@ -148,7 +148,7 @@ static void restore_hv_regs(struct kvm_vcpu *vcpu, struct hv_guest_state *hr)
 {
 	struct kvmppc_vcore *vc = vcpu->arch.vcore;
 
-	vc->pcr = hr->pcr;
+	vc->pcr = hr->pcr | PCR_MASK;
 	vc->dpdes = hr->dpdes;
 	vcpu->arch.hfscr = hr->hfscr;
 	vcpu->arch.dawr = hr->dawr0;
@@ -398,7 +398,7 @@ static void kvmhv_flush_lpid(unsigned int lpid)
 	long rc;
 
 	if (!kvmhv_on_pseries()) {
-		radix__flush_tlb_lpid(lpid);
+		radix__flush_all_lpid(lpid);
 		return;
 	}
 
@@ -411,7 +411,7 @@ static void kvmhv_flush_lpid(unsigned int lpid)
 void kvmhv_set_ptbl_entry(unsigned int lpid, u64 dw0, u64 dw1)
 {
 	if (!kvmhv_on_pseries()) {
-		mmu_partition_table_set_entry(lpid, dw0, dw1);
+		mmu_partition_table_set_entry(lpid, dw0, dw1, true);
 		return;
 	}
 
@@ -1186,7 +1186,7 @@ static int kvmhv_translate_addr_nested(struct kvm_vcpu *vcpu,
 forward_to_l1:
 	vcpu->arch.fault_dsisr = flags;
 	if (vcpu->arch.trap == BOOK3S_INTERRUPT_H_INST_STORAGE) {
-		vcpu->arch.shregs.msr &= ~0x783f0000ul;
+		vcpu->arch.shregs.msr &= SRR1_MSR_BITS;
 		vcpu->arch.shregs.msr |= flags;
 	}
 	return RESUME_HOST;

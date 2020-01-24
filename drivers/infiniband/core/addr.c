@@ -183,7 +183,7 @@ static int ib_nl_ip_send_msg(struct rdma_dev_addr *dev_addr,
 
 	/* Repair the nlmsg header length */
 	nlmsg_end(skb, nlh);
-	rdma_nl_multicast(skb, RDMA_NL_GROUP_LS, GFP_KERNEL);
+	rdma_nl_multicast(&init_net, skb, RDMA_NL_GROUP_LS, GFP_KERNEL);
 
 	/* Make the request retry, so when we get the response from userspace
 	 * we will have something.
@@ -337,7 +337,7 @@ static int dst_fetch_ha(const struct dst_entry *dst,
 		neigh_event_send(n, NULL);
 		ret = -ENODATA;
 	} else {
-		memcpy(dev_addr->dst_dev_addr, n->ha, MAX_ADDR_LEN);
+		neigh_ha_snapshot(dev_addr->dst_dev_addr, n, dst->dev);
 	}
 
 	neigh_release(n);
@@ -352,7 +352,7 @@ static bool has_gateway(const struct dst_entry *dst, sa_family_t family)
 
 	if (family == AF_INET) {
 		rt = container_of(dst, struct rtable, dst);
-		return rt->rt_gw_family == AF_INET;
+		return rt->rt_uses_gateway;
 	}
 
 	rt6 = container_of(dst, struct rt6_info, dst);
@@ -421,16 +421,15 @@ static int addr6_resolve(struct sockaddr *src_sock,
 				(const struct sockaddr_in6 *)dst_sock;
 	struct flowi6 fl6;
 	struct dst_entry *dst;
-	int ret;
 
 	memset(&fl6, 0, sizeof fl6);
 	fl6.daddr = dst_in->sin6_addr;
 	fl6.saddr = src_in->sin6_addr;
 	fl6.flowi6_oif = addr->bound_dev_if;
 
-	ret = ipv6_stub->ipv6_dst_lookup(addr->net, NULL, &dst, &fl6);
-	if (ret < 0)
-		return ret;
+	dst = ipv6_stub->ipv6_dst_lookup_flow(addr->net, NULL, &fl6, NULL);
+	if (IS_ERR(dst))
+		return PTR_ERR(dst);
 
 	if (ipv6_addr_any(&src_in->sin6_addr))
 		src_in->sin6_addr = fl6.saddr;

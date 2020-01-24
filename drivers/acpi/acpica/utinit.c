@@ -180,7 +180,6 @@ acpi_status acpi_ut_init_globals(void)
 
 	/* Namespace */
 
-	acpi_gbl_module_code_list = NULL;
 	acpi_gbl_root_node = NULL;
 	acpi_gbl_root_node_struct.name.integer = ACPI_ROOT_NAME;
 	acpi_gbl_root_node_struct.descriptor_type = ACPI_DESC_TYPE_NAMED;

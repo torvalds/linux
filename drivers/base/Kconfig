@@ -148,6 +148,10 @@ config DEBUG_TEST_DRIVER_REMOVE
 	  unusable. You should say N here unless you are explicitly looking to
 	  test this functionality.
 
+config PM_QOS_KUNIT_TEST
+	bool "KUnit Test for PM QoS features"
+	depends on KUNIT
+
 config HMEM_REPORTING
 	bool
 	default n
@@ -202,7 +206,7 @@ config GENERIC_ARCH_TOPOLOGY
 	help
 	  Enable support for architectures common topology code: e.g., parsing
 	  CPU capacity information from DT, usage of such information for
-	  appropriate scaling, sysfs interface for changing capacity values at
+	  appropriate scaling, sysfs interface for reading capacity values at
 	  runtime.
 
 endmenu

@@ -42,7 +42,10 @@
 #include "dev-replace.h"
 #include "free-space-cache.h"
 #include "backref.h"
+#include "space-info.h"
+#include "sysfs.h"
 #include "tests/btrfs-tests.h"
+#include "block-group.h"
 
 #include "qgroup.h"
 #define CREATE_TRACE_POINTS
@@ -63,7 +66,7 @@ static struct file_system_type btrfs_root_fs_type;
 
 static int btrfs_remount(struct super_block *sb, int *flags, char *data);
 
-const char *btrfs_decode_error(int errno)
+const char * __attribute_const__ btrfs_decode_error(int errno)
 {
 	char *errstr = "unknown";
 
@@ -184,7 +187,7 @@ static struct ratelimit_state printk_limits[] = {
 	RATELIMIT_STATE_INIT(printk_limits[7], DEFAULT_RATELIMIT_INTERVAL, 100),
 };
 
-void btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...)
+void __cold btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...)
 {
 	char lvl[PRINTK_MAX_SINGLE_HEADER_LEN + 1] = "\0";
 	struct va_format vaf;
@@ -1216,7 +1219,7 @@ static int btrfs_fill_super(struct super_block *sb,
 	key.objectid = BTRFS_FIRST_FREE_OBJECTID;
 	key.type = BTRFS_INODE_ITEM_KEY;
 	key.offset = 0;
-	inode = btrfs_iget(sb, &key, fs_info->fs_root, NULL);
+	inode = btrfs_iget(sb, &key, fs_info->fs_root);
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
 		goto fail_close;
@@ -1553,6 +1556,8 @@ static struct dentry *btrfs_mount_root(struct file_system_type *fs_type,
 	} else {
 		snprintf(s->s_id, sizeof(s->s_id), "%pg", bdev);
 		btrfs_sb(s)->bdev_holder = fs_type;
+		if (!strstr(crc32c_impl(), "generic"))
+			set_bit(BTRFS_FS_CSUM_IMPL_FAST, &fs_info->flags);
 		error = btrfs_fill_super(s, fs_devices, data);
 	}
 	if (!error)
@@ -1601,13 +1606,9 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 {
 	struct vfsmount *mnt_root;
 	struct dentry *root;
-	fmode_t mode = FMODE_READ;
 	char *subvol_name = NULL;
 	u64 subvol_objectid = 0;
 	int error = 0;
-
-	if (!(flags & SB_RDONLY))
-		mode |= FMODE_WRITE;
 
 	error = btrfs_parse_subvol_options(data, &subvol_name,
 					&subvol_objectid);
@@ -1668,7 +1669,6 @@ static void btrfs_resize_thread_pool(struct btrfs_fs_info *fs_info,
 
 	btrfs_workqueue_set_max(fs_info->workers, new_pool_size);
 	btrfs_workqueue_set_max(fs_info->delalloc_workers, new_pool_size);
-	btrfs_workqueue_set_max(fs_info->submit_workers, new_pool_size);
 	btrfs_workqueue_set_max(fs_info->caching_workers, new_pool_size);
 	btrfs_workqueue_set_max(fs_info->endio_workers, new_pool_size);
 	btrfs_workqueue_set_max(fs_info->endio_meta_workers, new_pool_size);
@@ -1900,12 +1900,12 @@ static inline int btrfs_calc_avail_data_space(struct btrfs_fs_info *fs_info,
 	struct btrfs_device_info *devices_info;
 	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
 	struct btrfs_device *device;
-	u64 skip_space;
 	u64 type;
 	u64 avail_space;
 	u64 min_stripe_size;
-	int min_stripes = 1, num_stripes = 1;
+	int num_stripes = 1;
 	int i = 0, nr_devices;
+	const struct btrfs_raid_attr *rattr;
 
 	/*
 	 * We aren't under the device list lock, so this is racy-ish, but good
@@ -1929,21 +1929,21 @@ static inline int btrfs_calc_avail_data_space(struct btrfs_fs_info *fs_info,
 
 	/* calc min stripe number for data space allocation */
 	type = btrfs_data_alloc_profile(fs_info);
-	if (type & BTRFS_BLOCK_GROUP_RAID0) {
-		min_stripes = 2;
-		num_stripes = nr_devices;
-	} else if (type & BTRFS_BLOCK_GROUP_RAID1) {
-		min_stripes = 2;
-		num_stripes = 2;
-	} else if (type & BTRFS_BLOCK_GROUP_RAID10) {
-		min_stripes = 4;
-		num_stripes = 4;
-	}
+	rattr = &btrfs_raid_array[btrfs_bg_flags_to_raid_index(type)];
 
-	if (type & BTRFS_BLOCK_GROUP_DUP)
-		min_stripe_size = 2 * BTRFS_STRIPE_LEN;
-	else
-		min_stripe_size = BTRFS_STRIPE_LEN;
+	if (type & BTRFS_BLOCK_GROUP_RAID0)
+		num_stripes = nr_devices;
+	else if (type & BTRFS_BLOCK_GROUP_RAID1)
+		num_stripes = 2;
+	else if (type & BTRFS_BLOCK_GROUP_RAID1C3)
+		num_stripes = 3;
+	else if (type & BTRFS_BLOCK_GROUP_RAID1C4)
+		num_stripes = 4;
+	else if (type & BTRFS_BLOCK_GROUP_RAID10)
+		num_stripes = 4;
+
+	/* Adjust for more than 1 stripe per device */
+	min_stripe_size = rattr->dev_stripes * BTRFS_STRIPE_LEN;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(device, &fs_devices->devices, dev_list) {
@@ -1959,27 +1959,20 @@ static inline int btrfs_calc_avail_data_space(struct btrfs_fs_info *fs_info,
 		avail_space = device->total_bytes - device->bytes_used;
 
 		/* align with stripe_len */
-		avail_space = div_u64(avail_space, BTRFS_STRIPE_LEN);
-		avail_space *= BTRFS_STRIPE_LEN;
+		avail_space = rounddown(avail_space, BTRFS_STRIPE_LEN);
 
 		/*
 		 * In order to avoid overwriting the superblock on the drive,
 		 * btrfs starts at an offset of at least 1MB when doing chunk
 		 * allocation.
+		 *
+		 * This ensures we have at least min_stripe_size free space
+		 * after excluding 1MB.
 		 */
-		skip_space = SZ_1M;
-
-		/*
-		 * we can use the free space in [0, skip_space - 1], subtract
-		 * it from the total.
-		 */
-		if (avail_space && avail_space >= skip_space)
-			avail_space -= skip_space;
-		else
-			avail_space = 0;
-
-		if (avail_space < min_stripe_size)
+		if (avail_space <= SZ_1M + min_stripe_size)
 			continue;
+
+		avail_space -= SZ_1M;
 
 		devices_info[i].dev = device;
 		devices_info[i].max_avail = avail_space;
@@ -1994,9 +1987,8 @@ static inline int btrfs_calc_avail_data_space(struct btrfs_fs_info *fs_info,
 
 	i = nr_devices - 1;
 	avail_space = 0;
-	while (nr_devices >= min_stripes) {
-		if (num_stripes > nr_devices)
-			num_stripes = nr_devices;
+	while (nr_devices >= rattr->devs_min) {
+		num_stripes = min(num_stripes, nr_devices);
 
 		if (devices_info[i].max_avail >= min_stripe_size) {
 			int j;
@@ -2033,7 +2025,6 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(dentry->d_sb);
 	struct btrfs_super_block *disk_super = fs_info->super_copy;
-	struct list_head *head = &fs_info->space_info;
 	struct btrfs_space_info *found;
 	u64 total_used = 0;
 	u64 total_free_data = 0;
@@ -2047,7 +2038,7 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	int mixed = 0;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(found, head, list) {
+	list_for_each_entry_rcu(found, &fs_info->space_info, list) {
 		if (found->flags & BTRFS_BLOCK_GROUP_DATA) {
 			int i;
 
@@ -2308,7 +2299,7 @@ static const struct super_operations btrfs_super_ops = {
 static const struct file_operations btrfs_ctl_fops = {
 	.open = btrfs_control_open,
 	.unlocked_ioctl	 = btrfs_control_ioctl,
-	.compat_ioctl = btrfs_control_ioctl,
+	.compat_ioctl = compat_ptr_ioctl,
 	.owner	 = THIS_MODULE,
 	.llseek = noop_llseek,
 };
@@ -2371,9 +2362,13 @@ static int __init init_btrfs_fs(void)
 	if (err)
 		goto free_cachep;
 
-	err = extent_map_init();
+	err = extent_state_cache_init();
 	if (err)
 		goto free_extent_io;
+
+	err = extent_map_init();
+	if (err)
+		goto free_extent_state_cache;
 
 	err = ordered_data_init();
 	if (err)
@@ -2433,6 +2428,8 @@ free_ordered_data:
 	ordered_data_exit();
 free_extent_map:
 	extent_map_exit();
+free_extent_state_cache:
+	extent_state_cache_exit();
 free_extent_io:
 	extent_io_exit();
 free_cachep:
@@ -2453,6 +2450,7 @@ static void __exit exit_btrfs_fs(void)
 	btrfs_prelim_ref_exit();
 	ordered_data_exit();
 	extent_map_exit();
+	extent_state_cache_exit();
 	extent_io_exit();
 	btrfs_interface_exit();
 	btrfs_end_io_wq_exit();
@@ -2466,3 +2464,7 @@ late_initcall(init_btrfs_fs);
 module_exit(exit_btrfs_fs)
 
 MODULE_LICENSE("GPL");
+MODULE_SOFTDEP("pre: crc32c");
+MODULE_SOFTDEP("pre: xxhash64");
+MODULE_SOFTDEP("pre: sha256");
+MODULE_SOFTDEP("pre: blake2b-256");

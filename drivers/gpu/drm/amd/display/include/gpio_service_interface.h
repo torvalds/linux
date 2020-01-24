@@ -51,12 +51,28 @@ struct gpio *dal_gpio_service_create_irq(
 	uint32_t offset,
 	uint32_t mask);
 
+struct gpio *dal_gpio_service_create_generic_mux(
+	struct gpio_service *service,
+	uint32_t offset,
+	uint32_t mask);
+
+void dal_gpio_destroy_generic_mux(
+	struct gpio **mux);
+
+enum gpio_result dal_mux_setup_config(
+	struct gpio *mux,
+	struct gpio_generic_mux_config *config);
+
+struct gpio_pin_info dal_gpio_get_generic_pin_info(
+	struct gpio_service *service,
+	enum gpio_id id,
+	uint32_t en);
+
 struct ddc *dal_gpio_create_ddc(
 	struct gpio_service *service,
 	uint32_t offset,
 	uint32_t mask,
 	struct gpio_ddc_hw_info *info);
-
 
 void dal_gpio_destroy_ddc(
 	struct ddc **ddc);

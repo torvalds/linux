@@ -243,10 +243,7 @@ pwm_set_relative_duty_cycle(struct pwm_state *state, unsigned int duty_cycle,
  * @request: optional hook for requesting a PWM
  * @free: optional hook for freeing a PWM
  * @capture: capture and report PWM signal
- * @apply: atomically apply a new PWM config. The state argument
- *	   should be adjusted with the real hardware config (if the
- *	   approximate the period or duty_cycle value, state should
- *	   reflect it)
+ * @apply: atomically apply a new PWM config
  * @get_state: get the current PWM state. This function is only
  *	       called once per PWM device when the PWM chip is
  *	       registered.
@@ -262,7 +259,7 @@ struct pwm_ops {
 	int (*capture)(struct pwm_chip *chip, struct pwm_device *pwm,
 		       struct pwm_capture *result, unsigned long timeout);
 	int (*apply)(struct pwm_chip *chip, struct pwm_device *pwm,
-		     struct pwm_state *state);
+		     const struct pwm_state *state);
 	void (*get_state)(struct pwm_chip *chip, struct pwm_device *pwm,
 			  struct pwm_state *state);
 	struct module *owner;
@@ -316,7 +313,7 @@ struct pwm_capture {
 /* PWM user APIs */
 struct pwm_device *pwm_request(int pwm_id, const char *label);
 void pwm_free(struct pwm_device *pwm);
-int pwm_apply_state(struct pwm_device *pwm, struct pwm_state *state);
+int pwm_apply_state(struct pwm_device *pwm, const struct pwm_state *state);
 int pwm_adjust_config(struct pwm_device *pwm);
 
 /**
@@ -405,12 +402,16 @@ struct pwm_device *of_pwm_xlate_with_flags(struct pwm_chip *pc,
 		const struct of_phandle_args *args);
 
 struct pwm_device *pwm_get(struct device *dev, const char *con_id);
-struct pwm_device *of_pwm_get(struct device_node *np, const char *con_id);
+struct pwm_device *of_pwm_get(struct device *dev, struct device_node *np,
+			      const char *con_id);
 void pwm_put(struct pwm_device *pwm);
 
 struct pwm_device *devm_pwm_get(struct device *dev, const char *con_id);
 struct pwm_device *devm_of_pwm_get(struct device *dev, struct device_node *np,
 				   const char *con_id);
+struct pwm_device *devm_fwnode_pwm_get(struct device *dev,
+				       struct fwnode_handle *fwnode,
+				       const char *con_id);
 void devm_pwm_put(struct device *dev, struct pwm_device *pwm);
 #else
 static inline struct pwm_device *pwm_request(int pwm_id, const char *label)
@@ -493,7 +494,8 @@ static inline struct pwm_device *pwm_get(struct device *dev,
 	return ERR_PTR(-ENODEV);
 }
 
-static inline struct pwm_device *of_pwm_get(struct device_node *np,
+static inline struct pwm_device *of_pwm_get(struct device *dev,
+					    struct device_node *np,
 					    const char *con_id)
 {
 	return ERR_PTR(-ENODEV);
@@ -512,6 +514,13 @@ static inline struct pwm_device *devm_pwm_get(struct device *dev,
 static inline struct pwm_device *devm_of_pwm_get(struct device *dev,
 						 struct device_node *np,
 						 const char *con_id)
+{
+	return ERR_PTR(-ENODEV);
+}
+
+static inline struct pwm_device *
+devm_fwnode_pwm_get(struct device *dev, struct fwnode_handle *fwnode,
+		    const char *con_id)
 {
 	return ERR_PTR(-ENODEV);
 }

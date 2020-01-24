@@ -74,58 +74,6 @@ static int mlx5_MAD_IFC(struct mlx5_ib_dev *dev, int ignore_mkey,
 				port);
 }
 
-static int process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
-		       const struct ib_wc *in_wc, const struct ib_grh *in_grh,
-		       const struct ib_mad *in_mad, struct ib_mad *out_mad)
-{
-	u16 slid;
-	int err;
-
-	slid = in_wc ? ib_lid_cpu16(in_wc->slid) : be16_to_cpu(IB_LID_PERMISSIVE);
-
-	if (in_mad->mad_hdr.method == IB_MGMT_METHOD_TRAP && slid == 0)
-		return IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_CONSUMED;
-
-	if (in_mad->mad_hdr.mgmt_class == IB_MGMT_CLASS_SUBN_LID_ROUTED ||
-	    in_mad->mad_hdr.mgmt_class == IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE) {
-		if (in_mad->mad_hdr.method   != IB_MGMT_METHOD_GET &&
-		    in_mad->mad_hdr.method   != IB_MGMT_METHOD_SET &&
-		    in_mad->mad_hdr.method   != IB_MGMT_METHOD_TRAP_REPRESS)
-			return IB_MAD_RESULT_SUCCESS;
-
-		/* Don't process SMInfo queries -- the SMA can't handle them.
-		 */
-		if (in_mad->mad_hdr.attr_id == IB_SMP_ATTR_SM_INFO)
-			return IB_MAD_RESULT_SUCCESS;
-	} else if (in_mad->mad_hdr.mgmt_class == IB_MGMT_CLASS_PERF_MGMT ||
-		   in_mad->mad_hdr.mgmt_class == MLX5_IB_VENDOR_CLASS1   ||
-		   in_mad->mad_hdr.mgmt_class == MLX5_IB_VENDOR_CLASS2   ||
-		   in_mad->mad_hdr.mgmt_class == IB_MGMT_CLASS_CONG_MGMT) {
-		if (in_mad->mad_hdr.method  != IB_MGMT_METHOD_GET &&
-		    in_mad->mad_hdr.method  != IB_MGMT_METHOD_SET)
-			return IB_MAD_RESULT_SUCCESS;
-	} else {
-		return IB_MAD_RESULT_SUCCESS;
-	}
-
-	err = mlx5_MAD_IFC(to_mdev(ibdev),
-			   mad_flags & IB_MAD_IGNORE_MKEY,
-			   mad_flags & IB_MAD_IGNORE_BKEY,
-			   port_num, in_wc, in_grh, in_mad, out_mad);
-	if (err)
-		return IB_MAD_RESULT_FAILURE;
-
-	/* set return bit in status of directed route responses */
-	if (in_mad->mad_hdr.mgmt_class == IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE)
-		out_mad->mad_hdr.status |= cpu_to_be16(1 << 15);
-
-	if (in_mad->mad_hdr.method == IB_MGMT_METHOD_TRAP_REPRESS)
-		/* no response for trap repress */
-		return IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_CONSUMED;
-
-	return IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_REPLY;
-}
-
 static void pma_cnt_ext_assign(struct ib_pma_portcounters_ext *pma_cnt_ext,
 			       void *out)
 {
@@ -200,19 +148,33 @@ static void pma_cnt_assign(struct ib_pma_portcounters *pma_cnt,
 			     vl_15_dropped);
 }
 
-static int process_pma_cmd(struct mlx5_core_dev *mdev, u8 port_num,
+static int process_pma_cmd(struct mlx5_ib_dev *dev, u8 port_num,
 			   const struct ib_mad *in_mad, struct ib_mad *out_mad)
 {
-	int err;
+	struct mlx5_core_dev *mdev;
+	bool native_port = true;
+	u8 mdev_port_num;
 	void *out_cnt;
+	int err;
 
+	mdev = mlx5_ib_get_native_port_mdev(dev, port_num, &mdev_port_num);
+	if (!mdev) {
+		/* Fail to get the native port, likely due to 2nd port is still
+		 * unaffiliated. In such case default to 1st port and attached
+		 * PF device.
+		 */
+		native_port = false;
+		mdev = dev->mdev;
+		mdev_port_num = 1;
+	}
 	/* Declaring support of extended counters */
 	if (in_mad->mad_hdr.attr_id == IB_PMA_CLASS_PORT_INFO) {
 		struct ib_class_port_info cpi = {};
 
 		cpi.capability_mask = IB_PMA_CLASS_CAP_EXT_WIDTH;
 		memcpy((out_mad->data + 40), &cpi, sizeof(cpi));
-		return IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_REPLY;
+		err = IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_REPLY;
+		goto done;
 	}
 
 	if (in_mad->mad_hdr.attr_id == IB_PMA_PORT_COUNTERS_EXT) {
@@ -221,11 +183,13 @@ static int process_pma_cmd(struct mlx5_core_dev *mdev, u8 port_num,
 		int sz = MLX5_ST_SZ_BYTES(query_vport_counter_out);
 
 		out_cnt = kvzalloc(sz, GFP_KERNEL);
-		if (!out_cnt)
-			return IB_MAD_RESULT_FAILURE;
+		if (!out_cnt) {
+			err = IB_MAD_RESULT_FAILURE;
+			goto done;
+		}
 
 		err = mlx5_core_query_vport_counter(mdev, 0, 0,
-						    port_num, out_cnt, sz);
+						    mdev_port_num, out_cnt, sz);
 		if (!err)
 			pma_cnt_ext_assign(pma_cnt_ext, out_cnt);
 	} else {
@@ -234,55 +198,87 @@ static int process_pma_cmd(struct mlx5_core_dev *mdev, u8 port_num,
 		int sz = MLX5_ST_SZ_BYTES(ppcnt_reg);
 
 		out_cnt = kvzalloc(sz, GFP_KERNEL);
-		if (!out_cnt)
-			return IB_MAD_RESULT_FAILURE;
+		if (!out_cnt) {
+			err = IB_MAD_RESULT_FAILURE;
+			goto done;
+		}
 
-		err = mlx5_core_query_ib_ppcnt(mdev, port_num,
+		err = mlx5_core_query_ib_ppcnt(mdev, mdev_port_num,
 					       out_cnt, sz);
 		if (!err)
 			pma_cnt_assign(pma_cnt, out_cnt);
-		}
-
+	}
 	kvfree(out_cnt);
-	if (err)
-		return IB_MAD_RESULT_FAILURE;
-
-	return IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_REPLY;
+	err = err ? IB_MAD_RESULT_FAILURE :
+		    IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_REPLY;
+done:
+	if (native_port)
+		mlx5_ib_put_native_port_mdev(dev, port_num);
+	return err;
 }
 
 int mlx5_ib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 			const struct ib_wc *in_wc, const struct ib_grh *in_grh,
-			const struct ib_mad_hdr *in, size_t in_mad_size,
-			struct ib_mad_hdr *out, size_t *out_mad_size,
-			u16 *out_mad_pkey_index)
+			const struct ib_mad *in, struct ib_mad *out,
+			size_t *out_mad_size, u16 *out_mad_pkey_index)
 {
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
-	const struct ib_mad *in_mad = (const struct ib_mad *)in;
-	struct ib_mad *out_mad = (struct ib_mad *)out;
-	struct mlx5_core_dev *mdev;
-	u8 mdev_port_num;
-	int ret;
+	u8 mgmt_class = in->mad_hdr.mgmt_class;
+	u8 method = in->mad_hdr.method;
+	u16 slid;
+	int err;
 
-	if (WARN_ON_ONCE(in_mad_size != sizeof(*in_mad) ||
-			 *out_mad_size != sizeof(*out_mad)))
-		return IB_MAD_RESULT_FAILURE;
+	slid = in_wc ? ib_lid_cpu16(in_wc->slid) :
+		       be16_to_cpu(IB_LID_PERMISSIVE);
 
-	memset(out_mad->data, 0, sizeof(out_mad->data));
+	if (method == IB_MGMT_METHOD_TRAP && !slid)
+		return IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_CONSUMED;
 
-	mdev = mlx5_ib_get_native_port_mdev(dev, port_num, &mdev_port_num);
-	if (!mdev)
-		return IB_MAD_RESULT_FAILURE;
+	switch (mgmt_class) {
+	case IB_MGMT_CLASS_SUBN_LID_ROUTED:
+	case IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE: {
+		if (method != IB_MGMT_METHOD_GET &&
+		    method != IB_MGMT_METHOD_SET &&
+		    method != IB_MGMT_METHOD_TRAP_REPRESS)
+			return IB_MAD_RESULT_SUCCESS;
 
-	if (MLX5_CAP_GEN(mdev, vport_counters) &&
-	    in_mad->mad_hdr.mgmt_class == IB_MGMT_CLASS_PERF_MGMT &&
-	    in_mad->mad_hdr.method == IB_MGMT_METHOD_GET) {
-		ret = process_pma_cmd(mdev, mdev_port_num, in_mad, out_mad);
-	} else {
-		ret =  process_mad(ibdev, mad_flags, port_num, in_wc, in_grh,
-				   in_mad, out_mad);
+		/* Don't process SMInfo queries -- the SMA can't handle them.
+		 */
+		if (in->mad_hdr.attr_id == IB_SMP_ATTR_SM_INFO)
+			return IB_MAD_RESULT_SUCCESS;
+	} break;
+	case IB_MGMT_CLASS_PERF_MGMT:
+		if (MLX5_CAP_GEN(dev->mdev, vport_counters) &&
+		    method == IB_MGMT_METHOD_GET)
+			return process_pma_cmd(dev, port_num, in, out);
+		/* fallthrough */
+	case MLX5_IB_VENDOR_CLASS1:
+		/* fallthrough */
+	case MLX5_IB_VENDOR_CLASS2:
+	case IB_MGMT_CLASS_CONG_MGMT: {
+		if (method != IB_MGMT_METHOD_GET &&
+		    method != IB_MGMT_METHOD_SET)
+			return IB_MAD_RESULT_SUCCESS;
+	} break;
+	default:
+		return IB_MAD_RESULT_SUCCESS;
 	}
-	mlx5_ib_put_native_port_mdev(dev, port_num);
-	return ret;
+
+	err = mlx5_MAD_IFC(to_mdev(ibdev), mad_flags & IB_MAD_IGNORE_MKEY,
+			   mad_flags & IB_MAD_IGNORE_BKEY, port_num, in_wc,
+			   in_grh, in, out);
+	if (err)
+		return IB_MAD_RESULT_FAILURE;
+
+	/* set return bit in status of directed route responses */
+	if (mgmt_class == IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE)
+		out->mad_hdr.status |= cpu_to_be16(1 << 15);
+
+	if (method == IB_MGMT_METHOD_TRAP_REPRESS)
+		/* no response for trap repress */
+		return IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_CONSUMED;
+
+	return IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_REPLY;
 }
 
 int mlx5_query_ext_port_caps(struct mlx5_ib_dev *dev, u8 port)

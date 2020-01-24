@@ -17,7 +17,7 @@ int null_zone_init(struct nullb_device *dev)
 	unsigned int i;
 
 	if (!is_power_of_2(dev->zone_size)) {
-		pr_err("null_blk: zone_size must be power-of-two\n");
+		pr_err("zone_size must be power-of-two\n");
 		return -EINVAL;
 	}
 
@@ -31,7 +31,7 @@ int null_zone_init(struct nullb_device *dev)
 
 	if (dev->zone_nr_conv >= dev->nr_zones) {
 		dev->zone_nr_conv = dev->nr_zones - 1;
-		pr_info("null_blk: changed the number of conventional zones to %u",
+		pr_info("changed the number of conventional zones to %u",
 			dev->zone_nr_conv);
 	}
 
@@ -66,26 +66,56 @@ void null_zone_exit(struct nullb_device *dev)
 	kvfree(dev->zones);
 }
 
-int null_zone_report(struct gendisk *disk, sector_t sector,
-		     struct blk_zone *zones, unsigned int *nr_zones,
-		     gfp_t gfp_mask)
+int null_report_zones(struct gendisk *disk, sector_t sector,
+		unsigned int nr_zones, report_zones_cb cb, void *data)
 {
 	struct nullb *nullb = disk->private_data;
 	struct nullb_device *dev = nullb->dev;
-	unsigned int zno, nrz = 0;
+	unsigned int first_zone, i;
+	struct blk_zone zone;
+	int error;
 
-	zno = null_zone_no(dev, sector);
-	if (zno < dev->nr_zones) {
-		nrz = min_t(unsigned int, *nr_zones, dev->nr_zones - zno);
-		memcpy(zones, &dev->zones[zno], nrz * sizeof(struct blk_zone));
+	first_zone = null_zone_no(dev, sector);
+	if (first_zone >= dev->nr_zones)
+		return 0;
+
+	nr_zones = min(nr_zones, dev->nr_zones - first_zone);
+	for (i = 0; i < nr_zones; i++) {
+		/*
+		 * Stacked DM target drivers will remap the zone information by
+		 * modifying the zone information passed to the report callback.
+		 * So use a local copy to avoid corruption of the device zone
+		 * array.
+		 */
+		memcpy(&zone, &dev->zones[first_zone + i],
+		       sizeof(struct blk_zone));
+		error = cb(&zone, i, data);
+		if (error)
+			return error;
 	}
 
-	*nr_zones = nrz;
-
-	return 0;
+	return nr_zones;
 }
 
-void null_zone_write(struct nullb_cmd *cmd, sector_t sector,
+size_t null_zone_valid_read_len(struct nullb *nullb,
+				sector_t sector, unsigned int len)
+{
+	struct nullb_device *dev = nullb->dev;
+	struct blk_zone *zone = &dev->zones[null_zone_no(dev, sector)];
+	unsigned int nr_sectors = len >> SECTOR_SHIFT;
+
+	/* Read must be below the write pointer position */
+	if (zone->type == BLK_ZONE_TYPE_CONVENTIONAL ||
+	    sector + nr_sectors <= zone->wp)
+		return len;
+
+	if (sector > zone->wp)
+		return 0;
+
+	return (zone->wp - sector) << SECTOR_SHIFT;
+}
+
+static blk_status_t null_zone_write(struct nullb_cmd *cmd, sector_t sector,
 		     unsigned int nr_sectors)
 {
 	struct nullb_device *dev = cmd->nq->dev;
@@ -96,16 +126,16 @@ void null_zone_write(struct nullb_cmd *cmd, sector_t sector,
 	case BLK_ZONE_COND_FULL:
 		/* Cannot write to a full zone */
 		cmd->error = BLK_STS_IOERR;
-		break;
+		return BLK_STS_IOERR;
 	case BLK_ZONE_COND_EMPTY:
 	case BLK_ZONE_COND_IMP_OPEN:
+	case BLK_ZONE_COND_EXP_OPEN:
+	case BLK_ZONE_COND_CLOSED:
 		/* Writes must be at the write pointer position */
-		if (sector != zone->wp) {
-			cmd->error = BLK_STS_IOERR;
-			break;
-		}
+		if (sector != zone->wp)
+			return BLK_STS_IOERR;
 
-		if (zone->cond == BLK_ZONE_COND_EMPTY)
+		if (zone->cond != BLK_ZONE_COND_EXP_OPEN)
 			zone->cond = BLK_ZONE_COND_IMP_OPEN;
 
 		zone->wp += nr_sectors;
@@ -116,22 +146,79 @@ void null_zone_write(struct nullb_cmd *cmd, sector_t sector,
 		break;
 	default:
 		/* Invalid zone condition */
-		cmd->error = BLK_STS_IOERR;
-		break;
+		return BLK_STS_IOERR;
 	}
+	return BLK_STS_OK;
 }
 
-void null_zone_reset(struct nullb_cmd *cmd, sector_t sector)
+static blk_status_t null_zone_mgmt(struct nullb_cmd *cmd, enum req_opf op,
+				   sector_t sector)
 {
 	struct nullb_device *dev = cmd->nq->dev;
-	unsigned int zno = null_zone_no(dev, sector);
-	struct blk_zone *zone = &dev->zones[zno];
+	struct blk_zone *zone = &dev->zones[null_zone_no(dev, sector)];
+	size_t i;
 
-	if (zone->type == BLK_ZONE_TYPE_CONVENTIONAL) {
-		cmd->error = BLK_STS_IOERR;
-		return;
+	switch (op) {
+	case REQ_OP_ZONE_RESET_ALL:
+		for (i = 0; i < dev->nr_zones; i++) {
+			if (zone[i].type == BLK_ZONE_TYPE_CONVENTIONAL)
+				continue;
+			zone[i].cond = BLK_ZONE_COND_EMPTY;
+			zone[i].wp = zone[i].start;
+		}
+		break;
+	case REQ_OP_ZONE_RESET:
+		if (zone->type == BLK_ZONE_TYPE_CONVENTIONAL)
+			return BLK_STS_IOERR;
+
+		zone->cond = BLK_ZONE_COND_EMPTY;
+		zone->wp = zone->start;
+		break;
+	case REQ_OP_ZONE_OPEN:
+		if (zone->type == BLK_ZONE_TYPE_CONVENTIONAL)
+			return BLK_STS_IOERR;
+		if (zone->cond == BLK_ZONE_COND_FULL)
+			return BLK_STS_IOERR;
+
+		zone->cond = BLK_ZONE_COND_EXP_OPEN;
+		break;
+	case REQ_OP_ZONE_CLOSE:
+		if (zone->type == BLK_ZONE_TYPE_CONVENTIONAL)
+			return BLK_STS_IOERR;
+		if (zone->cond == BLK_ZONE_COND_FULL)
+			return BLK_STS_IOERR;
+
+		if (zone->wp == zone->start)
+			zone->cond = BLK_ZONE_COND_EMPTY;
+		else
+			zone->cond = BLK_ZONE_COND_CLOSED;
+		break;
+	case REQ_OP_ZONE_FINISH:
+		if (zone->type == BLK_ZONE_TYPE_CONVENTIONAL)
+			return BLK_STS_IOERR;
+
+		zone->cond = BLK_ZONE_COND_FULL;
+		zone->wp = zone->start + zone->len;
+		break;
+	default:
+		return BLK_STS_NOTSUPP;
 	}
+	return BLK_STS_OK;
+}
 
-	zone->cond = BLK_ZONE_COND_EMPTY;
-	zone->wp = zone->start;
+blk_status_t null_handle_zoned(struct nullb_cmd *cmd, enum req_opf op,
+			       sector_t sector, sector_t nr_sectors)
+{
+	switch (op) {
+	case REQ_OP_WRITE:
+		return null_zone_write(cmd, sector, nr_sectors);
+	case REQ_OP_ZONE_RESET:
+	case REQ_OP_ZONE_RESET_ALL:
+	case REQ_OP_ZONE_OPEN:
+	case REQ_OP_ZONE_CLOSE:
+	case REQ_OP_ZONE_FINISH:
+		return null_zone_mgmt(cmd, op, sector);
+	default:
+		return BLK_STS_OK;
+	}
 }

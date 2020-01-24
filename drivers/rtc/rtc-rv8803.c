@@ -517,7 +517,7 @@ static int rx8900_trickle_charger_init(struct rv8803_data *rv8803)
 static int rv8803_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
-	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
+	struct i2c_adapter *adapter = client->adapter;
 	struct rv8803_data *rv8803;
 	int err, flags;
 	struct nvmem_config nvmem_cfg = {
@@ -564,9 +564,8 @@ static int rv8803_probe(struct i2c_client *client,
 		dev_warn(&client->dev, "An alarm maybe have been missed.\n");
 
 	rv8803->rtc = devm_rtc_allocate_device(&client->dev);
-	if (IS_ERR(rv8803->rtc)) {
+	if (IS_ERR(rv8803->rtc))
 		return PTR_ERR(rv8803->rtc);
-	}
 
 	if (client->irq > 0) {
 		err = devm_request_threaded_irq(&client->dev, client->irq,

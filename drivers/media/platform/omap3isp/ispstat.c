@@ -1026,6 +1026,8 @@ void omap3isp_stat_unregister_entities(struct ispstat *stat)
 int omap3isp_stat_register_entities(struct ispstat *stat,
 				    struct v4l2_device *vdev)
 {
+	stat->subdev.dev = vdev->mdev->dev;
+
 	return v4l2_device_register_subdev(vdev, &stat->subdev);
 }
 
@@ -1037,7 +1039,7 @@ static int isp_stat_init_entities(struct ispstat *stat, const char *name,
 
 	v4l2_subdev_init(subdev, sd_ops);
 	snprintf(subdev->name, V4L2_SUBDEV_NAME_SIZE, "OMAP3 ISP %s", name);
-	subdev->grp_id = 1 << 16;	/* group ID for isp subdevs */
+	subdev->grp_id = BIT(16);	/* group ID for isp subdevs */
 	subdev->flags |= V4L2_SUBDEV_FL_HAS_EVENTS | V4L2_SUBDEV_FL_HAS_DEVNODE;
 	v4l2_set_subdevdata(subdev, stat);
 
@@ -1075,4 +1077,6 @@ void omap3isp_stat_cleanup(struct ispstat *stat)
 	mutex_destroy(&stat->ioctl_lock);
 	isp_stat_bufs_free(stat);
 	kfree(stat->buf);
+	kfree(stat->priv);
+	kfree(stat->recover_priv);
 }

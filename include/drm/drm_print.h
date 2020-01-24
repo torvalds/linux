@@ -32,6 +32,10 @@
 #include <linux/device.h>
 #include <linux/debugfs.h>
 
+#include <drm/drm.h>
+
+extern unsigned int drm_debug;
+
 /**
  * DOC: print
  *
@@ -81,11 +85,14 @@ void __drm_printfn_seq_file(struct drm_printer *p, struct va_format *vaf);
 void __drm_puts_seq_file(struct drm_printer *p, const char *str);
 void __drm_printfn_info(struct drm_printer *p, struct va_format *vaf);
 void __drm_printfn_debug(struct drm_printer *p, struct va_format *vaf);
+void __drm_printfn_err(struct drm_printer *p, struct va_format *vaf);
 
 __printf(2, 3)
 void drm_printf(struct drm_printer *p, const char *f, ...);
 void drm_puts(struct drm_printer *p, const char *str);
 void drm_print_regset32(struct drm_printer *p, struct debugfs_regset32 *regset);
+void drm_print_bits(struct drm_printer *p, unsigned long value,
+		    const char * const bits[], unsigned int nbits);
 
 __printf(2, 0)
 /**
@@ -225,6 +232,22 @@ static inline struct drm_printer drm_debug_printer(const char *prefix)
 	return p;
 }
 
+/**
+ * drm_err_printer - construct a &drm_printer that outputs to pr_err()
+ * @prefix: debug output prefix
+ *
+ * RETURNS:
+ * The &drm_printer object
+ */
+static inline struct drm_printer drm_err_printer(const char *prefix)
+{
+	struct drm_printer p = {
+		.printfn = __drm_printfn_err,
+		.prefix = prefix
+	};
+	return p;
+}
+
 /*
  * The following categories are defined:
  *
@@ -269,6 +292,11 @@ static inline struct drm_printer drm_debug_printer(const char *prefix)
 #define DRM_UT_STATE		0x40
 #define DRM_UT_LEASE		0x80
 #define DRM_UT_DP		0x100
+
+static inline bool drm_debug_enabled(unsigned int category)
+{
+	return unlikely(drm_debug & category);
+}
 
 __printf(3, 4)
 void drm_dev_printk(const struct device *dev, const char *level,

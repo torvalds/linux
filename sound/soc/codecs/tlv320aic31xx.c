@@ -171,6 +171,7 @@ struct aic31xx_priv {
 	int rate_div_line;
 	bool master_dapm_route_applied;
 	int irq;
+	u8 ocmv; /* output common-mode voltage */
 };
 
 struct aic31xx_rate_divs {
@@ -258,7 +259,6 @@ static SOC_ENUM_SINGLE_DECL(mic1rp_p_enum, AIC31XX_MICPGAPI, 4,
 static SOC_ENUM_SINGLE_DECL(mic1lm_p_enum, AIC31XX_MICPGAPI, 2,
 	mic_select_text);
 
-static SOC_ENUM_SINGLE_DECL(cm_m_enum, AIC31XX_MICPGAMI, 6, mic_select_text);
 static SOC_ENUM_SINGLE_DECL(mic1lm_m_enum, AIC31XX_MICPGAMI, 4,
 	mic_select_text);
 
@@ -1313,6 +1313,11 @@ static int aic31xx_codec_probe(struct snd_soc_component *component)
 	if (ret)
 		return ret;
 
+	/* set output common-mode voltage */
+	snd_soc_component_update_bits(component, AIC31XX_HPDRIVER,
+				      AIC31XX_HPD_OCMV_MASK,
+				      aic31xx->ocmv << AIC31XX_HPD_OCMV_SHIFT);
+
 	return 0;
 }
 
@@ -1502,6 +1507,43 @@ exit:
 		return IRQ_NONE;
 }
 
+static void aic31xx_configure_ocmv(struct aic31xx_priv *priv)
+{
+	struct device *dev = priv->dev;
+	int dvdd, avdd;
+	u32 value;
+
+	if (dev->fwnode &&
+	    fwnode_property_read_u32(dev->fwnode, "ai31xx-ocmv", &value)) {
+		/* OCMV setting is forced by DT */
+		if (value <= 3) {
+			priv->ocmv = value;
+			return;
+		}
+	}
+
+	avdd = regulator_get_voltage(priv->supplies[3].consumer);
+	dvdd = regulator_get_voltage(priv->supplies[5].consumer);
+
+	if (avdd > 3600000 || dvdd > 1950000) {
+		dev_warn(dev,
+			 "Too high supply voltage(s) AVDD: %d, DVDD: %d\n",
+			 avdd, dvdd);
+	} else if (avdd == 3600000 && dvdd == 1950000) {
+		priv->ocmv = AIC31XX_HPD_OCMV_1_8V;
+	} else if (avdd >= 3300000 && dvdd >= 1800000) {
+		priv->ocmv = AIC31XX_HPD_OCMV_1_65V;
+	} else if (avdd >= 3000000 && dvdd >= 1650000) {
+		priv->ocmv = AIC31XX_HPD_OCMV_1_5V;
+	} else if (avdd >= 2700000 && dvdd >= 1525000) {
+		priv->ocmv = AIC31XX_HPD_OCMV_1_35V;
+	} else {
+		dev_warn(dev,
+			 "Invalid supply voltage(s) AVDD: %d, DVDD: %d\n",
+			 avdd, dvdd);
+	}
+}
+
 static int aic31xx_i2c_probe(struct i2c_client *i2c,
 			     const struct i2c_device_id *id)
 {
@@ -1553,7 +1595,8 @@ static int aic31xx_i2c_probe(struct i2c_client *i2c,
 	aic31xx->gpio_reset = devm_gpiod_get_optional(aic31xx->dev, "reset",
 						      GPIOD_OUT_LOW);
 	if (IS_ERR(aic31xx->gpio_reset)) {
-		dev_err(aic31xx->dev, "not able to acquire gpio\n");
+		if (PTR_ERR(aic31xx->gpio_reset) != -EPROBE_DEFER)
+			dev_err(aic31xx->dev, "not able to acquire gpio\n");
 		return PTR_ERR(aic31xx->gpio_reset);
 	}
 
@@ -1564,9 +1607,13 @@ static int aic31xx_i2c_probe(struct i2c_client *i2c,
 				      ARRAY_SIZE(aic31xx->supplies),
 				      aic31xx->supplies);
 	if (ret) {
-		dev_err(aic31xx->dev, "Failed to request supplies: %d\n", ret);
+		if (ret != -EPROBE_DEFER)
+			dev_err(aic31xx->dev,
+				"Failed to request supplies: %d\n", ret);
 		return ret;
 	}
+
+	aic31xx_configure_ocmv(aic31xx);
 
 	if (aic31xx->irq > 0) {
 		regmap_update_bits(aic31xx->regmap, AIC31XX_GPIO1,

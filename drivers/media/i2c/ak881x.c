@@ -229,7 +229,7 @@ static const struct v4l2_subdev_ops ak881x_subdev_ops = {
 static int ak881x_probe(struct i2c_client *client,
 			const struct i2c_device_id *did)
 {
-	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
+	struct i2c_adapter *adapter = client->adapter;
 	struct ak881x *ak881x;
 	u8 ifmode, data;
 

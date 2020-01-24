@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (C) 2018 Felix Fietkau <nbd@nbd.name>
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #include "mt76.h"
 
@@ -34,8 +23,9 @@ mt76_aggr_release(struct mt76_rx_tid *tid, struct sk_buff_head *frames, int idx)
 }
 
 static void
-mt76_rx_aggr_release_frames(struct mt76_rx_tid *tid, struct sk_buff_head *frames,
-			 u16 head)
+mt76_rx_aggr_release_frames(struct mt76_rx_tid *tid,
+			    struct sk_buff_head *frames,
+			    u16 head)
 {
 	int idx;
 
@@ -74,15 +64,14 @@ mt76_rx_aggr_check_release(struct mt76_rx_tid *tid, struct sk_buff_head *frames)
 	for (idx = (tid->head + 1) % tid->size;
 	     idx != start && nframes;
 	     idx = (idx + 1) % tid->size) {
-
 		skb = tid->reorder_buf[idx];
 		if (!skb)
 			continue;
 
 		nframes--;
-		status = (struct mt76_rx_status *) skb->cb;
-		if (!time_after(jiffies, status->reorder_time +
-					 REORDER_TIMEOUT))
+		status = (struct mt76_rx_status *)skb->cb;
+		if (!time_after(jiffies,
+				status->reorder_time + REORDER_TIMEOUT))
 			continue;
 
 		mt76_rx_aggr_release_frames(tid, frames, status->seqno);
@@ -122,8 +111,8 @@ mt76_rx_aggr_reorder_work(struct work_struct *work)
 static void
 mt76_rx_aggr_check_ctl(struct sk_buff *skb, struct sk_buff_head *frames)
 {
-	struct mt76_rx_status *status = (struct mt76_rx_status *) skb->cb;
-	struct ieee80211_bar *bar = (struct ieee80211_bar *) skb->data;
+	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
+	struct ieee80211_bar *bar = (struct ieee80211_bar *)skb->data;
 	struct mt76_wcid *wcid = status->wcid;
 	struct mt76_rx_tid *tid;
 	u16 seqno;
@@ -141,15 +130,17 @@ mt76_rx_aggr_check_ctl(struct sk_buff *skb, struct sk_buff_head *frames)
 		return;
 
 	spin_lock_bh(&tid->lock);
-	mt76_rx_aggr_release_frames(tid, frames, seqno);
-	mt76_rx_aggr_release_head(tid, frames);
+	if (!tid->stopped) {
+		mt76_rx_aggr_release_frames(tid, frames, seqno);
+		mt76_rx_aggr_release_head(tid, frames);
+	}
 	spin_unlock_bh(&tid->lock);
 }
 
 void mt76_rx_aggr_reorder(struct sk_buff *skb, struct sk_buff_head *frames)
 {
-	struct mt76_rx_status *status = (struct mt76_rx_status *) skb->cb;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct mt76_wcid *wcid = status->wcid;
 	struct ieee80211_sta *sta;
 	struct mt76_rx_tid *tid;
@@ -233,7 +224,8 @@ void mt76_rx_aggr_reorder(struct sk_buff *skb, struct sk_buff_head *frames)
 	tid->nframes++;
 	mt76_rx_aggr_release_head(tid, frames);
 
-	ieee80211_queue_delayed_work(tid->dev->hw, &tid->reorder_work, REORDER_TIMEOUT);
+	ieee80211_queue_delayed_work(tid->dev->hw, &tid->reorder_work,
+				     REORDER_TIMEOUT);
 
 out:
 	spin_unlock_bh(&tid->lock);
@@ -267,8 +259,6 @@ static void mt76_rx_aggr_shutdown(struct mt76_dev *dev, struct mt76_rx_tid *tid)
 	u8 size = tid->size;
 	int i;
 
-	cancel_delayed_work(&tid->reorder_work);
-
 	spin_lock_bh(&tid->lock);
 
 	tid->stopped = true;
@@ -283,21 +273,19 @@ static void mt76_rx_aggr_shutdown(struct mt76_dev *dev, struct mt76_rx_tid *tid)
 	}
 
 	spin_unlock_bh(&tid->lock);
+
+	cancel_delayed_work_sync(&tid->reorder_work);
 }
 
 void mt76_rx_aggr_stop(struct mt76_dev *dev, struct mt76_wcid *wcid, u8 tidno)
 {
-	struct mt76_rx_tid *tid;
+	struct mt76_rx_tid *tid = NULL;
 
-	rcu_read_lock();
-
-	tid = rcu_dereference(wcid->aggr[tidno]);
+	rcu_swap_protected(wcid->aggr[tidno], tid,
+			   lockdep_is_held(&dev->mutex));
 	if (tid) {
-		rcu_assign_pointer(wcid->aggr[tidno], NULL);
 		mt76_rx_aggr_shutdown(dev, tid);
 		kfree_rcu(tid, rcu_head);
 	}
-
-	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(mt76_rx_aggr_stop);

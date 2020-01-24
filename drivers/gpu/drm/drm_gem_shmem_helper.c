@@ -10,6 +10,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 
+#include <drm/drm.h>
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_gem_shmem_helper.h>
@@ -31,7 +32,7 @@ static const struct drm_gem_object_funcs drm_gem_shmem_funcs = {
 	.get_sg_table = drm_gem_shmem_get_sg_table,
 	.vmap = drm_gem_shmem_vmap,
 	.vunmap = drm_gem_shmem_vunmap,
-	.vm_ops = &drm_gem_shmem_vm_ops,
+	.mmap = drm_gem_shmem_mmap,
 };
 
 /**
@@ -74,6 +75,7 @@ struct drm_gem_shmem_object *drm_gem_shmem_create(struct drm_device *dev, size_t
 	shmem = to_drm_gem_shmem_obj(obj);
 	mutex_init(&shmem->pages_lock);
 	mutex_init(&shmem->vmap_lock);
+	INIT_LIST_HEAD(&shmem->madv_list);
 
 	/*
 	 * Our buffers are kept pinned, so allocating them
@@ -117,11 +119,11 @@ void drm_gem_shmem_free_object(struct drm_gem_object *obj)
 		if (shmem->sgt) {
 			dma_unmap_sg(obj->dev->dev, shmem->sgt->sgl,
 				     shmem->sgt->nents, DMA_BIDIRECTIONAL);
-
-			drm_gem_shmem_put_pages(shmem);
 			sg_free_table(shmem->sgt);
 			kfree(shmem->sgt);
 		}
+		if (shmem->pages)
+			drm_gem_shmem_put_pages(shmem);
 	}
 
 	WARN_ON(shmem->pages_use_count);
@@ -361,6 +363,71 @@ drm_gem_shmem_create_with_handle(struct drm_file *file_priv,
 }
 EXPORT_SYMBOL(drm_gem_shmem_create_with_handle);
 
+/* Update madvise status, returns true if not purged, else
+ * false or -errno.
+ */
+int drm_gem_shmem_madvise(struct drm_gem_object *obj, int madv)
+{
+	struct drm_gem_shmem_object *shmem = to_drm_gem_shmem_obj(obj);
+
+	mutex_lock(&shmem->pages_lock);
+
+	if (shmem->madv >= 0)
+		shmem->madv = madv;
+
+	madv = shmem->madv;
+
+	mutex_unlock(&shmem->pages_lock);
+
+	return (madv >= 0);
+}
+EXPORT_SYMBOL(drm_gem_shmem_madvise);
+
+void drm_gem_shmem_purge_locked(struct drm_gem_object *obj)
+{
+	struct drm_device *dev = obj->dev;
+	struct drm_gem_shmem_object *shmem = to_drm_gem_shmem_obj(obj);
+
+	WARN_ON(!drm_gem_shmem_is_purgeable(shmem));
+
+	dma_unmap_sg(obj->dev->dev, shmem->sgt->sgl,
+		     shmem->sgt->nents, DMA_BIDIRECTIONAL);
+	sg_free_table(shmem->sgt);
+	kfree(shmem->sgt);
+	shmem->sgt = NULL;
+
+	drm_gem_shmem_put_pages_locked(shmem);
+
+	shmem->madv = -1;
+
+	drm_vma_node_unmap(&obj->vma_node, dev->anon_inode->i_mapping);
+	drm_gem_free_mmap_offset(obj);
+
+	/* Our goal here is to return as much of the memory as
+	 * is possible back to the system as we are called from OOM.
+	 * To do this we must instruct the shmfs to drop all of its
+	 * backing pages, *now*.
+	 */
+	shmem_truncate_range(file_inode(obj->filp), 0, (loff_t)-1);
+
+	invalidate_mapping_pages(file_inode(obj->filp)->i_mapping,
+			0, (loff_t)-1);
+}
+EXPORT_SYMBOL(drm_gem_shmem_purge_locked);
+
+bool drm_gem_shmem_purge(struct drm_gem_object *obj)
+{
+	struct drm_gem_shmem_object *shmem = to_drm_gem_shmem_obj(obj);
+
+	if (!mutex_trylock(&shmem->pages_lock))
+		return false;
+	drm_gem_shmem_purge_locked(obj);
+	mutex_unlock(&shmem->pages_lock);
+
+	return true;
+}
+EXPORT_SYMBOL(drm_gem_shmem_purge);
+
 /**
  * drm_gem_shmem_dumb_create - Create a dumb shmem buffer object
  * @file: DRM file structure to create the dumb buffer for
@@ -438,39 +505,30 @@ static void drm_gem_shmem_vm_close(struct vm_area_struct *vma)
 	drm_gem_vm_close(vma);
 }
 
-const struct vm_operations_struct drm_gem_shmem_vm_ops = {
+static const struct vm_operations_struct drm_gem_shmem_vm_ops = {
 	.fault = drm_gem_shmem_fault,
 	.open = drm_gem_shmem_vm_open,
 	.close = drm_gem_shmem_vm_close,
 };
-EXPORT_SYMBOL_GPL(drm_gem_shmem_vm_ops);
 
 /**
  * drm_gem_shmem_mmap - Memory-map a shmem GEM object
- * @filp: File object
+ * @obj: gem object
  * @vma: VMA for the area to be mapped
  *
  * This function implements an augmented version of the GEM DRM file mmap
  * operation for shmem objects. Drivers which employ the shmem helpers should
- * use this function as their &file_operations.mmap handler in the DRM device file's
- * file_operations structure.
- *
- * Instead of directly referencing this function, drivers should use the
- * DEFINE_DRM_GEM_SHMEM_FOPS() macro.
+ * use this function as their &drm_gem_object_funcs.mmap handler.
  *
  * Returns:
  * 0 on success or a negative error code on failure.
  */
-int drm_gem_shmem_mmap(struct file *filp, struct vm_area_struct *vma)
+int drm_gem_shmem_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 {
 	struct drm_gem_shmem_object *shmem;
 	int ret;
 
-	ret = drm_gem_mmap(filp, vma);
-	if (ret)
-		return ret;
-
-	shmem = to_drm_gem_shmem_obj(vma->vm_private_data);
+	shmem = to_drm_gem_shmem_obj(obj);
 
 	ret = drm_gem_shmem_get_pages(shmem);
 	if (ret) {
@@ -478,12 +536,10 @@ int drm_gem_shmem_mmap(struct file *filp, struct vm_area_struct *vma)
 		return ret;
 	}
 
-	/* VM_PFNMAP was set by drm_gem_mmap() */
-	vma->vm_flags &= ~VM_PFNMAP;
-	vma->vm_flags |= VM_MIXEDMAP;
-
-	/* Remove the fake offset */
-	vma->vm_pgoff -= drm_vma_node_start(&shmem->base.vma_node);
+	vma->vm_flags |= VM_MIXEDMAP | VM_DONTEXPAND;
+	vma->vm_page_prot = pgprot_writecombine(vm_get_page_prot(vma->vm_flags));
+	vma->vm_page_prot = pgprot_decrypted(vma->vm_page_prot);
+	vma->vm_ops = &drm_gem_shmem_vm_ops;
 
 	return 0;
 }

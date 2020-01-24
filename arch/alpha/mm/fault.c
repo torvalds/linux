@@ -221,13 +221,13 @@ retry:
 	up_read(&mm->mmap_sem);
 	/* Send a sigbus, regardless of whether we were in kernel
 	   or user mode.  */
-	force_sig_fault(SIGBUS, BUS_ADRERR, (void __user *) address, 0, current);
+	force_sig_fault(SIGBUS, BUS_ADRERR, (void __user *) address, 0);
 	if (!user_mode(regs))
 		goto no_context;
 	return;
 
  do_sigsegv:
-	force_sig_fault(SIGSEGV, si_code, (void __user *) address, 0, current);
+	force_sig_fault(SIGSEGV, si_code, (void __user *) address, 0);
 	return;
 
 #ifdef CONFIG_ALPHA_LARGE_VMALLOC

@@ -129,9 +129,9 @@ Di seguito una lista di file che sono presenti nei sorgente del kernel e che
 		https://www.ozlabs.org/~akpm/stuff/tpp.txt
 
 	"Linux kernel patch submission format"
-		http://linux.yyz.us/patch-format.html
+		https://web.archive.org/web/20180829112450/http://linux.yyz.us/patch-format.html
 
-  :ref:`Documentation/process/translations/it_IT/stable-api-nonsense.rst <it_stable_api_nonsense>`
+  :ref:`Documentation/translations/it_IT/process/stable-api-nonsense.rst <it_stable_api_nonsense>`
 
     Questo file descrive la motivazioni sottostanti la conscia decisione di
     non avere un API stabile all'interno del kernel, incluso cose come:

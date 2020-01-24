@@ -10,6 +10,7 @@
 #include <linux/cryptouser.h>
 #include <linux/sched.h>
 #include <net/netlink.h>
+#include <net/sock.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/internal/rng.h>
 #include <crypto/akcipher.h>
@@ -212,10 +213,6 @@ static int crypto_reportstat_one(struct crypto_alg *alg,
 		if (crypto_report_cipher(skb, alg))
 			goto nla_put_failure;
 		break;
-	case CRYPTO_ALG_TYPE_BLKCIPHER:
-		if (crypto_report_cipher(skb, alg))
-			goto nla_put_failure;
-		break;
 	case CRYPTO_ALG_TYPE_CIPHER:
 		if (crypto_report_cipher(skb, alg))
 			goto nla_put_failure;
@@ -298,6 +295,7 @@ out:
 int crypto_reportstat(struct sk_buff *in_skb, struct nlmsghdr *in_nlh,
 		      struct nlattr **attrs)
 {
+	struct net *net = sock_net(in_skb->sk);
 	struct crypto_user_alg *p = nlmsg_data(in_nlh);
 	struct crypto_alg *alg;
 	struct sk_buff *skb;
@@ -326,10 +324,12 @@ int crypto_reportstat(struct sk_buff *in_skb, struct nlmsghdr *in_nlh,
 drop_alg:
 	crypto_mod_put(alg);
 
-	if (err)
+	if (err) {
+		kfree_skb(skb);
 		return err;
+	}
 
-	return nlmsg_unicast(crypto_nlsk, skb, NETLINK_CB(in_skb).portid);
+	return nlmsg_unicast(net->crypto_nlsk, skb, NETLINK_CB(in_skb).portid);
 }
 
 MODULE_LICENSE("GPL");

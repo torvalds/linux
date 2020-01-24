@@ -17,6 +17,7 @@
 #include <linux/eventfd.h>
 #include <linux/workqueue.h>
 #include <linux/vfio_ccw.h>
+#include <asm/debug.h>
 
 #include "css.h"
 #include "vfio_ccw_cp.h"
@@ -134,9 +135,26 @@ extern fsm_func_t *vfio_ccw_jumptable[NR_VFIO_CCW_STATES][NR_VFIO_CCW_EVENTS];
 static inline void vfio_ccw_fsm_event(struct vfio_ccw_private *private,
 				     int event)
 {
+	trace_vfio_ccw_fsm_event(private->sch->schid, private->state, event);
 	vfio_ccw_jumptable[private->state][event](private, event);
 }
 
 extern struct workqueue_struct *vfio_ccw_work_q;
+
+
+/* s390 debug feature, similar to base cio */
+extern debug_info_t *vfio_ccw_debug_msg_id;
+extern debug_info_t *vfio_ccw_debug_trace_id;
+
+#define VFIO_CCW_TRACE_EVENT(imp, txt) \
+		debug_text_event(vfio_ccw_debug_trace_id, imp, txt)
+
+#define VFIO_CCW_MSG_EVENT(imp, args...) \
+		debug_sprintf_event(vfio_ccw_debug_msg_id, imp, ##args)
+
+static inline void VFIO_CCW_HEX_EVENT(int level, void *data, int length)
+{
+	debug_event(vfio_ccw_debug_trace_id, level, data, length);
+}
 
 #endif

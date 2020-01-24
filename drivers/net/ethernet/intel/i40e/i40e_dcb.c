@@ -877,7 +877,25 @@ i40e_status i40e_init_dcb(struct i40e_hw *hw, bool enable_mib_change)
 		return I40E_NOT_SUPPORTED;
 
 	/* Read LLDP NVM area */
-	ret = i40e_read_lldp_cfg(hw, &lldp_cfg);
+	if (hw->flags & I40E_HW_FLAG_FW_LLDP_PERSISTENT) {
+		u8 offset = 0;
+
+		if (hw->mac.type == I40E_MAC_XL710)
+			offset = I40E_LLDP_CURRENT_STATUS_XL710_OFFSET;
+		else if (hw->mac.type == I40E_MAC_X722)
+			offset = I40E_LLDP_CURRENT_STATUS_X722_OFFSET;
+		else
+			return I40E_NOT_SUPPORTED;
+
+		ret = i40e_read_nvm_module_data(hw,
+						I40E_SR_EMP_SR_SETTINGS_PTR,
+						offset,
+						I40E_LLDP_CURRENT_STATUS_OFFSET,
+						I40E_LLDP_CURRENT_STATUS_SIZE,
+						&lldp_cfg.adminstatus);
+	} else {
+		ret = i40e_read_lldp_cfg(hw, &lldp_cfg);
+	}
 	if (ret)
 		return I40E_ERR_NOT_READY;
 

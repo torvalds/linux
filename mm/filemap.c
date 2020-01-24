@@ -40,6 +40,7 @@
 #include <linux/rmap.h>
 #include <linux/delayacct.h>
 #include <linux/psi.h>
+#include <linux/ramfs.h>
 #include "internal.h"
 
 #define CREATE_TRACE_POINTS
@@ -126,7 +127,7 @@ static void page_cache_delete(struct address_space *mapping,
 	/* hugetlb pages are represented by a single entry in the xarray */
 	if (!PageHuge(page)) {
 		xas_set_order(&xas, page->index, compound_order(page));
-		nr = 1U << compound_order(page);
+		nr = compound_nr(page);
 	}
 
 	VM_BUG_ON_PAGE(!PageLocked(page), page);
@@ -203,8 +204,9 @@ static void unaccount_page_cache_page(struct address_space *mapping,
 		__mod_node_page_state(page_pgdat(page), NR_SHMEM, -nr);
 		if (PageTransHuge(page))
 			__dec_node_page_state(page, NR_SHMEM_THPS);
-	} else {
-		VM_BUG_ON_PAGE(PageTransHuge(page), page);
+	} else if (PageTransHuge(page)) {
+		__dec_node_page_state(page, NR_FILE_THPS);
+		filemap_nr_thps_dec(mapping);
 	}
 
 	/*
@@ -329,8 +331,7 @@ static void page_cache_delete_batch(struct address_space *mapping,
 		 * page or the index is of the last sub-page of this compound
 		 * page.
 		 */
-		if (page->index + (1UL << compound_order(page)) - 1 ==
-				xas.xa_index)
+		if (page->index + compound_nr(page) - 1 == xas.xa_index)
 			i++;
 		xas_store(&xas, NULL);
 		total_pages++;
@@ -412,7 +413,8 @@ int __filemap_fdatawrite_range(struct address_space *mapping, loff_t start,
 		.range_end = end,
 	};
 
-	if (!mapping_cap_writeback_dirty(mapping))
+	if (!mapping_cap_writeback_dirty(mapping) ||
+	    !mapping_tagged(mapping, PAGECACHE_TAG_DIRTY))
 		return 0;
 
 	wbc_attach_fdatawrite_inode(&wbc, mapping->host);
@@ -554,6 +556,28 @@ int filemap_fdatawait_range(struct address_space *mapping, loff_t start_byte,
 EXPORT_SYMBOL(filemap_fdatawait_range);
 
 /**
+ * filemap_fdatawait_range_keep_errors - wait for writeback to complete
+ * @mapping:		address space structure to wait for
+ * @start_byte:		offset in bytes where the range starts
+ * @end_byte:		offset in bytes where the range ends (inclusive)
+ *
+ * Walk the list of under-writeback pages of the given address space in the
+ * given range and wait for all of them.  Unlike filemap_fdatawait_range(),
+ * this function does not clear error status of the address space.
+ *
+ * Use this function if callers don't handle errors themselves.  Expected
+ * call sites are system-wide / filesystem-wide data flushers: e.g. sync(2),
+ * fsfreeze(8)
+ */
+int filemap_fdatawait_range_keep_errors(struct address_space *mapping,
+		loff_t start_byte, loff_t end_byte)
+{
+	__filemap_fdatawait_range(mapping, start_byte, end_byte);
+	return filemap_check_and_keep_errors(mapping);
+}
+EXPORT_SYMBOL(filemap_fdatawait_range_keep_errors);
+
+/**
  * file_fdatawait_range - wait for writeback to complete
  * @file:		file pointing to address space structure to wait for
  * @start_byte:		offset in bytes where the range starts
@@ -599,10 +623,13 @@ int filemap_fdatawait_keep_errors(struct address_space *mapping)
 }
 EXPORT_SYMBOL(filemap_fdatawait_keep_errors);
 
+/* Returns true if writeback might be needed or already in progress. */
 static bool mapping_needs_writeback(struct address_space *mapping)
 {
-	return (!dax_mapping(mapping) && mapping->nrpages) ||
-	    (dax_mapping(mapping) && mapping->nrexceptional);
+	if (dax_mapping(mapping))
+		return mapping->nrexceptional;
+
+	return mapping->nrpages;
 }
 
 int filemap_write_and_wait(struct address_space *mapping)
@@ -1622,7 +1649,7 @@ repeat:
 		}
 
 		/* Has the page been truncated? */
-		if (unlikely(page->mapping != mapping)) {
+		if (unlikely(compound_head(page)->mapping != mapping)) {
 			unlock_page(page);
 			put_page(page);
 			goto repeat;
@@ -2302,27 +2329,6 @@ EXPORT_SYMBOL(generic_file_read_iter);
 
 #ifdef CONFIG_MMU
 #define MMAP_LOTSAMISS  (100)
-static struct file *maybe_unlock_mmap_for_io(struct vm_fault *vmf,
-					     struct file *fpin)
-{
-	int flags = vmf->flags;
-
-	if (fpin)
-		return fpin;
-
-	/*
-	 * FAULT_FLAG_RETRY_NOWAIT means we don't want to wait on page locks or
-	 * anything, so we only pin the file and drop the mmap_sem if only
-	 * FAULT_FLAG_ALLOW_RETRY is set.
-	 */
-	if ((flags & (FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_RETRY_NOWAIT)) ==
-	    FAULT_FLAG_ALLOW_RETRY) {
-		fpin = get_file(vmf->vma->vm_file);
-		up_read(&vmf->vma->vm_mm->mmap_sem);
-	}
-	return fpin;
-}
-
 /*
  * lock_page_maybe_drop_mmap - lock the page, possibly dropping the mmap_sem
  * @vmf - the vm_fault for this fault.
@@ -2457,10 +2463,8 @@ static struct file *do_async_mmap_readahead(struct vm_fault *vmf,
  *
  * vma->vm_mm->mmap_sem must be held on entry.
  *
- * If our return value has VM_FAULT_RETRY set, it's because
- * lock_page_or_retry() returned 0.
- * The mmap_sem has usually been released in this case.
- * See __lock_page_or_retry() for the exception.
+ * If our return value has VM_FAULT_RETRY set, it's because the mmap_sem
+ * may be dropped before doing I/O or by lock_page_maybe_drop_mmap().
  *
  * If our return value does not have VM_FAULT_RETRY set, the mmap_sem
  * has not been released.
@@ -2517,12 +2521,12 @@ retry_find:
 		goto out_retry;
 
 	/* Did it get truncated? */
-	if (unlikely(page->mapping != mapping)) {
+	if (unlikely(compound_head(page)->mapping != mapping)) {
 		unlock_page(page);
 		put_page(page);
 		goto retry_find;
 	}
-	VM_BUG_ON_PAGE(page->index != offset, page);
+	VM_BUG_ON_PAGE(page_to_pgoff(page) != offset, page);
 
 	/*
 	 * We have a locked page in the page cache, now we need to check
@@ -2773,7 +2777,11 @@ repeat:
 		}
 
 filler:
-		err = filler(data, page);
+		if (filler)
+			err = filler(data, page);
+		else
+			err = mapping->a_ops->readpage(data, page);
+
 		if (err < 0) {
 			put_page(page);
 			return ERR_PTR(err);
@@ -2863,7 +2871,8 @@ struct page *read_cache_page(struct address_space *mapping,
 				int (*filler)(void *, struct page *),
 				void *data)
 {
-	return do_read_cache_page(mapping, index, filler, data, mapping_gfp_mask(mapping));
+	return do_read_cache_page(mapping, index, filler, data,
+			mapping_gfp_mask(mapping));
 }
 EXPORT_SYMBOL(read_cache_page);
 
@@ -2884,9 +2893,7 @@ struct page *read_cache_page_gfp(struct address_space *mapping,
 				pgoff_t index,
 				gfp_t gfp)
 {
-	filler_t *filler = (filler_t *)mapping->a_ops->readpage;
-
-	return do_read_cache_page(mapping, index, filler, NULL, gfp);
+	return do_read_cache_page(mapping, index, NULL, NULL, gfp);
 }
 EXPORT_SYMBOL(read_cache_page_gfp);
 
@@ -2895,24 +2902,11 @@ EXPORT_SYMBOL(read_cache_page_gfp);
  * LFS limits.  If pos is under the limit it becomes a short access.  If it
  * exceeds the limit we return -EFBIG.
  */
-static int generic_access_check_limits(struct file *file, loff_t pos,
-				       loff_t *count)
-{
-	struct inode *inode = file->f_mapping->host;
-	loff_t max_size = inode->i_sb->s_maxbytes;
-
-	if (!(file->f_flags & O_LARGEFILE))
-		max_size = MAX_NON_LFS;
-
-	if (unlikely(pos >= max_size))
-		return -EFBIG;
-	*count = min(*count, max_size - pos);
-	return 0;
-}
-
 static int generic_write_check_limits(struct file *file, loff_t pos,
 				      loff_t *count)
 {
+	struct inode *inode = file->f_mapping->host;
+	loff_t max_size = inode->i_sb->s_maxbytes;
 	loff_t limit = rlimit(RLIMIT_FSIZE);
 
 	if (limit != RLIM_INFINITY) {
@@ -2923,7 +2917,15 @@ static int generic_write_check_limits(struct file *file, loff_t pos,
 		*count = min(*count, limit - pos);
 	}
 
-	return generic_access_check_limits(file, pos, count);
+	if (!(file->f_flags & O_LARGEFILE))
+		max_size = MAX_NON_LFS;
+
+	if (unlikely(pos >= max_size))
+		return -EFBIG;
+
+	*count = min(*count, max_size - pos);
+
+	return 0;
 }
 
 /*
@@ -2939,6 +2941,9 @@ inline ssize_t generic_write_checks(struct kiocb *iocb, struct iov_iter *from)
 	struct inode *inode = file->f_mapping->host;
 	loff_t count;
 	int ret;
+
+	if (IS_SWAPFILE(inode))
+		return -ETXTBSY;
 
 	if (!iov_iter_count(from))
 		return 0;
@@ -2963,7 +2968,7 @@ EXPORT_SYMBOL(generic_write_checks);
 /*
  * Performs necessary checks before doing a clone.
  *
- * Can adjust amount of bytes to clone.
+ * Can adjust amount of bytes to clone via @req_count argument.
  * Returns appropriate error code that caller should return or
  * zero in case the clone should be allowed.
  */
@@ -3001,10 +3006,6 @@ int generic_remap_checks(struct file *file_in, loff_t pos_in,
 		return -EINVAL;
 	count = min(count, size_in - (uint64_t)pos_in);
 
-	ret = generic_access_check_limits(file_in, pos_in, &count);
-	if (ret)
-		return ret;
-
 	ret = generic_write_check_limits(file_out, pos_out, &count);
 	if (ret)
 		return ret;
@@ -3041,6 +3042,83 @@ int generic_remap_checks(struct file *file_in, loff_t pos_in,
 	return 0;
 }
 
+
+/*
+ * Performs common checks before doing a file copy/clone
+ * from @file_in to @file_out.
+ */
+int generic_file_rw_checks(struct file *file_in, struct file *file_out)
+{
+	struct inode *inode_in = file_inode(file_in);
+	struct inode *inode_out = file_inode(file_out);
+
+	/* Don't copy dirs, pipes, sockets... */
+	if (S_ISDIR(inode_in->i_mode) || S_ISDIR(inode_out->i_mode))
+		return -EISDIR;
+	if (!S_ISREG(inode_in->i_mode) || !S_ISREG(inode_out->i_mode))
+		return -EINVAL;
+
+	if (!(file_in->f_mode & FMODE_READ) ||
+	    !(file_out->f_mode & FMODE_WRITE) ||
+	    (file_out->f_flags & O_APPEND))
+		return -EBADF;
+
+	return 0;
+}
+
+/*
+ * Performs necessary checks before doing a file copy
+ *
+ * Can adjust amount of bytes to copy via @req_count argument.
+ * Returns appropriate error code that caller should return or
+ * zero in case the copy should be allowed.
+ */
+int generic_copy_file_checks(struct file *file_in, loff_t pos_in,
+			     struct file *file_out, loff_t pos_out,
+			     size_t *req_count, unsigned int flags)
+{
+	struct inode *inode_in = file_inode(file_in);
+	struct inode *inode_out = file_inode(file_out);
+	uint64_t count = *req_count;
+	loff_t size_in;
+	int ret;
+
+	ret = generic_file_rw_checks(file_in, file_out);
+	if (ret)
+		return ret;
+
+	/* Don't touch certain kinds of inodes */
+	if (IS_IMMUTABLE(inode_out))
+		return -EPERM;
+
+	if (IS_SWAPFILE(inode_in) || IS_SWAPFILE(inode_out))
+		return -ETXTBSY;
+
+	/* Ensure offsets don't wrap. */
+	if (pos_in + count < pos_in || pos_out + count < pos_out)
+		return -EOVERFLOW;
+
+	/* Shorten the copy to EOF */
+	size_in = i_size_read(inode_in);
+	if (pos_in >= size_in)
+		count = 0;
+	else
+		count = min(count, size_in - (uint64_t)pos_in);
+
+	ret = generic_write_check_limits(file_out, pos_out, &count);
+	if (ret)
+		return ret;
+
+	/* Don't allow overlapped copying within the same file. */
+	if (inode_in == inode_out &&
+	    pos_out + count > pos_in &&
+	    pos_out < pos_in + count)
+		return -EINVAL;
+
+	*req_count = count;
+	return 0;
+}
+
 int pagecache_write_begin(struct file *file, struct address_space *mapping,
 				loff_t pos, unsigned len, unsigned flags,
 				struct page **pagep, void **fsdata)
@@ -3061,6 +3139,27 @@ int pagecache_write_end(struct file *file, struct address_space *mapping,
 	return aops->write_end(file, mapping, pos, len, copied, page, fsdata);
 }
 EXPORT_SYMBOL(pagecache_write_end);
+
+/*
+ * Warn about a page cache invalidation failure during a direct I/O write.
+ */
+void dio_warn_stale_pagecache(struct file *filp)
+{
+	static DEFINE_RATELIMIT_STATE(_rs, 86400 * HZ, DEFAULT_RATELIMIT_BURST);
+	char pathname[128];
+	struct inode *inode = file_inode(filp);
+	char *path;
+
+	errseq_set(&inode->i_mapping->wb_err, -EIO);
+	if (__ratelimit(&_rs)) {
+		path = file_path(filp, pathname, sizeof(pathname));
+		if (IS_ERR(path))
+			path = "(unknown)";
+		pr_crit("Page cache invalidation failure on direct I/O.  Possible data corruption due to collision with buffered I/O!\n");
+		pr_crit("File: %s PID: %d Comm: %.20s\n", path, current->pid,
+			current->comm);
+	}
+}
 
 ssize_t
 generic_file_direct_write(struct kiocb *iocb, struct iov_iter *from)
@@ -3119,11 +3218,15 @@ generic_file_direct_write(struct kiocb *iocb, struct iov_iter *from)
 	 * Most of the time we do not need this since dio_complete() will do
 	 * the invalidation for us. However there are some file systems that
 	 * do not end up with dio_complete() being called, so let's not break
-	 * them by removing it completely
+	 * them by removing it completely.
+	 *
+	 * Noticeable example is a blkdev_direct_IO().
+	 *
+	 * Skip invalidation for async writes or if mapping has no pages.
 	 */
-	if (mapping->nrpages)
-		invalidate_inode_pages2_range(mapping,
-					pos >> PAGE_SHIFT, end);
+	if (written > 0 && mapping->nrpages &&
+	    invalidate_inode_pages2_range(mapping, pos >> PAGE_SHIFT, end))
+		dio_warn_stale_pagecache(file);
 
 	if (written > 0) {
 		pos += written;

@@ -24,7 +24,6 @@
 #include "soc15.h"
 
 #include "soc15_common.h"
-#include "soc15_hw_ip.h"
 #include "vega10_ip_offset.h"
 
 int vega10_reg_base_init(struct amdgpu_device *adev)
@@ -81,6 +80,10 @@ void vega10_doorbell_index_init(struct amdgpu_device *adev)
 	adev->doorbell_index.uvd_vce.vce_ring2_3 = AMDGPU_DOORBELL64_VCE_RING2_3;
 	adev->doorbell_index.uvd_vce.vce_ring4_5 = AMDGPU_DOORBELL64_VCE_RING4_5;
 	adev->doorbell_index.uvd_vce.vce_ring6_7 = AMDGPU_DOORBELL64_VCE_RING6_7;
+	adev->doorbell_index.vcn.vcn_ring0_1 = AMDGPU_DOORBELL64_VCN0_1;
+	adev->doorbell_index.vcn.vcn_ring2_3 = AMDGPU_DOORBELL64_VCN2_3;
+	adev->doorbell_index.vcn.vcn_ring4_5 = AMDGPU_DOORBELL64_VCN4_5;
+	adev->doorbell_index.vcn.vcn_ring6_7 = AMDGPU_DOORBELL64_VCN6_7;
 
 	adev->doorbell_index.first_non_cp = AMDGPU_DOORBELL64_FIRST_NON_CP;
 	adev->doorbell_index.last_non_cp = AMDGPU_DOORBELL64_LAST_NON_CP;

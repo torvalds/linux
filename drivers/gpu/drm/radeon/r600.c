@@ -25,19 +25,25 @@
  *          Alex Deucher
  *          Jerome Glisse
  */
+
 #include <linux/slab.h>
 #include <linux/seq_file.h>
 #include <linux/firmware.h>
 #include <linux/module.h>
-#include <drm/drmP.h>
+
+#include <drm/drm_debugfs.h>
+#include <drm/drm_device.h>
+#include <drm/drm_pci.h>
+#include <drm/drm_vblank.h>
 #include <drm/radeon_drm.h>
+
+#include "atom.h"
+#include "avivod.h"
+#include "r600d.h"
 #include "radeon.h"
 #include "radeon_asic.h"
 #include "radeon_audio.h"
 #include "radeon_mode.h"
-#include "r600d.h"
-#include "atom.h"
-#include "avivod.h"
 #include "radeon_ucode.h"
 
 /* Firmware Names */
@@ -2840,7 +2846,7 @@ int r600_ring_test(struct radeon_device *rdev, struct radeon_ring *ring)
 		tmp = RREG32(scratch);
 		if (tmp == 0xDEADBEEF)
 			break;
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 	if (i < rdev->usec_timeout) {
 		DRM_INFO("ring test on %d succeeded in %d usecs\n", ring->idx, i);
@@ -2957,7 +2963,7 @@ bool r600_semaphore_ring_emit(struct radeon_device *rdev,
 struct radeon_fence *r600_copy_cpdma(struct radeon_device *rdev,
 				     uint64_t src_offset, uint64_t dst_offset,
 				     unsigned num_gpu_pages,
-				     struct reservation_object *resv)
+				     struct dma_resv *resv)
 {
 	struct radeon_fence *fence;
 	struct radeon_sync sync;
@@ -3433,7 +3439,7 @@ int r600_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 		tmp = RREG32(scratch);
 		if (tmp == 0xDEADBEEF)
 			break;
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 	if (i < rdev->usec_timeout) {
 		DRM_INFO("ib test on ring %d succeeded in %u usecs\n", ib.fence->ring, i);
@@ -3690,8 +3696,8 @@ int r600_irq_init(struct radeon_device *rdev)
 	}
 
 	/* setup interrupt control */
-	/* set dummy read address to ring address */
-	WREG32(INTERRUPT_CNTL2, rdev->ih.gpu_addr >> 8);
+	/* set dummy read address to dummy page address */
+	WREG32(INTERRUPT_CNTL2, rdev->dummy_page.addr >> 8);
 	interrupt_cntl = RREG32(INTERRUPT_CNTL);
 	/* IH_DUMMY_RD_OVERRIDE=0 - dummy read disabled with msi, enabled without msi
 	 * IH_DUMMY_RD_OVERRIDE=1 - dummy read controlled by IH_DUMMY_RD_EN

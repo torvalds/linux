@@ -5,10 +5,14 @@
  *          Fabien Dessenne <fabien.dessenne@st.com>
  *          for STMicroelectronics.
  */
+
+#include <linux/dma-mapping.h>
 #include <linux/seq_file.h>
 
 #include <drm/drm_atomic.h>
+#include <drm/drm_device.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_gem_cma_helper.h>
 
 #include "sti_compositor.h"
@@ -99,7 +103,7 @@ struct sti_gdp_node_list {
 	dma_addr_t btm_field_paddr;
 };
 
-/**
+/*
  * STI GDP structure
  *
  * @sti_plane:          sti_plane structure

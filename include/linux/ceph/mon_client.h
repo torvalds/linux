@@ -104,12 +104,12 @@ struct ceph_mon_client {
 #endif
 };
 
-extern struct ceph_monmap *ceph_monmap_decode(void *p, void *end);
 extern int ceph_monmap_contains(struct ceph_monmap *m,
 				struct ceph_entity_addr *addr);
 
 extern int ceph_monc_init(struct ceph_mon_client *monc, struct ceph_client *cl);
 extern void ceph_monc_stop(struct ceph_mon_client *monc);
+extern void ceph_monc_reopen_session(struct ceph_mon_client *monc);
 
 enum {
 	CEPH_SUB_MONMAP = 0,

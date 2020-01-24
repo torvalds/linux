@@ -1018,6 +1018,20 @@ static inline void put_affine_portal(void)
 	put_cpu_var(qman_affine_portal);
 }
 
+
+static inline struct qman_portal *get_portal_for_channel(u16 channel)
+{
+	int i;
+
+	for (i = 0; i < num_possible_cpus(); i++) {
+		if (affine_portals[i] &&
+		    affine_portals[i]->config->channel == channel)
+			return affine_portals[i];
+	}
+
+	return NULL;
+}
+
 static struct workqueue_struct *qm_portal_wq;
 
 int qman_dqrr_set_ithresh(struct qman_portal *portal, u8 ithresh)
@@ -1068,6 +1082,20 @@ int qman_wq_alloc(void)
 	if (!qm_portal_wq)
 		return -ENOMEM;
 	return 0;
+}
+
+
+void qman_enable_irqs(void)
+{
+	int i;
+
+	for (i = 0; i < num_possible_cpus(); i++) {
+		if (affine_portals[i]) {
+			qm_out(&affine_portals[i]->p, QM_REG_ISR, 0xffffffff);
+			qm_out(&affine_portals[i]->p, QM_REG_IIR, 0);
+		}
+
+	}
 }
 
 /*
@@ -1164,6 +1192,7 @@ static int drain_mr_fqrni(struct qm_portal *p)
 {
 	const union qm_mr_entry *msg;
 loop:
+	qm_mr_pvb_update(p);
 	msg = qm_mr_current(p);
 	if (!msg) {
 		/*
@@ -1180,7 +1209,8 @@ loop:
 		 * entries well before the ring has been fully consumed, so
 		 * we're being *really* paranoid here.
 		 */
-		msleep(1);
+		mdelay(1);
+		qm_mr_pvb_update(p);
 		msg = qm_mr_current(p);
 		if (!msg)
 			return 0;
@@ -1267,8 +1297,8 @@ static int qman_create_portal(struct qman_portal *portal,
 	qm_out(p, QM_REG_ISDR, isdr);
 	portal->irq_sources = 0;
 	qm_out(p, QM_REG_IER, 0);
-	qm_out(p, QM_REG_ISR, 0xffffffff);
 	snprintf(portal->irqname, MAX_IRQNAME, IRQNAME, c->cpu);
+	qm_out(p, QM_REG_IIR, 1);
 	if (request_irq(c->irq, portal_isr, 0, portal->irqname,	portal)) {
 		dev_err(c->dev, "request_irq() failed\n");
 		goto fail_irq;
@@ -1288,7 +1318,7 @@ static int qman_create_portal(struct qman_portal *portal,
 	isdr &= ~(QM_PIRQ_DQRI | QM_PIRQ_MRI);
 	qm_out(p, QM_REG_ISDR, isdr);
 	if (qm_dqrr_current(p)) {
-		dev_err(c->dev, "DQRR unclean\n");
+		dev_dbg(c->dev, "DQRR unclean\n");
 		qm_dqrr_cdc_consume_n(p, 0xffff);
 	}
 	if (qm_mr_current(p) && drain_mr_fqrni(p)) {
@@ -1301,8 +1331,10 @@ static int qman_create_portal(struct qman_portal *portal,
 	}
 	/* Success */
 	portal->config = c;
+	qm_out(p, QM_REG_ISR, 0xffffffff);
 	qm_out(p, QM_REG_ISDR, 0);
-	qm_out(p, QM_REG_IIR, 0);
+	if (!qman_requires_cleanup())
+		qm_out(p, QM_REG_IIR, 0);
 	/* Write a sane SDQCR */
 	qm_dqrr_sdqcr_set(p, portal->sdqcr);
 	return 0;
@@ -1716,6 +1748,13 @@ struct qman_portal *qman_get_affine_portal(int cpu)
 	return affine_portals[cpu];
 }
 EXPORT_SYMBOL(qman_get_affine_portal);
+
+int qman_start_using_portal(struct qman_portal *p, struct device *dev)
+{
+	return (!device_link_add(dev, p->config->dev,
+				 DL_FLAG_AUTOREMOVE_CONSUMER)) ? -EINVAL : 0;
+}
+EXPORT_SYMBOL(qman_start_using_portal);
 
 int qman_p_poll_dqrr(struct qman_portal *p, unsigned int limit)
 {
@@ -2581,9 +2620,9 @@ static int _qm_dqrr_consume_and_match(struct qm_portal *p, u32 fqid, int s,
 #define qm_dqrr_drain_nomatch(p) \
 	_qm_dqrr_consume_and_match(p, 0, 0, false)
 
-static int qman_shutdown_fq(u32 fqid)
+int qman_shutdown_fq(u32 fqid)
 {
-	struct qman_portal *p;
+	struct qman_portal *p, *channel_portal;
 	struct device *dev;
 	union qm_mc_command *mcc;
 	union qm_mc_result *mcr;
@@ -2623,23 +2662,37 @@ static int qman_shutdown_fq(u32 fqid)
 	channel = qm_fqd_get_chan(&mcr->queryfq.fqd);
 	wq = qm_fqd_get_wq(&mcr->queryfq.fqd);
 
+	if (channel < qm_channel_pool1) {
+		channel_portal = get_portal_for_channel(channel);
+		if (channel_portal == NULL) {
+			dev_err(dev, "Can't find portal for dedicated channel 0x%x\n",
+				channel);
+			ret = -EIO;
+			goto out;
+		}
+	} else
+		channel_portal = p;
+
 	switch (state) {
 	case QM_MCR_NP_STATE_TEN_SCHED:
 	case QM_MCR_NP_STATE_TRU_SCHED:
 	case QM_MCR_NP_STATE_ACTIVE:
 	case QM_MCR_NP_STATE_PARKED:
 		orl_empty = 0;
-		mcc = qm_mc_start(&p->p);
+		mcc = qm_mc_start(&channel_portal->p);
 		qm_fqid_set(&mcc->fq, fqid);
-		qm_mc_commit(&p->p, QM_MCC_VERB_ALTER_RETIRE);
-		if (!qm_mc_result_timeout(&p->p, &mcr)) {
-			dev_err(dev, "QUERYFQ_NP timeout\n");
+		qm_mc_commit(&channel_portal->p, QM_MCC_VERB_ALTER_RETIRE);
+		if (!qm_mc_result_timeout(&channel_portal->p, &mcr)) {
+			dev_err(dev, "ALTER_RETIRE timeout\n");
 			ret = -ETIMEDOUT;
 			goto out;
 		}
 		DPAA_ASSERT((mcr->verb & QM_MCR_VERB_MASK) ==
 			    QM_MCR_VERB_ALTER_RETIRE);
 		res = mcr->result; /* Make a copy as we reuse MCR below */
+
+		if (res == QM_MCR_RESULT_OK)
+			drain_mr_fqrni(&channel_portal->p);
 
 		if (res == QM_MCR_RESULT_PENDING) {
 			/*
@@ -2670,21 +2723,25 @@ static int qman_shutdown_fq(u32 fqid)
 			}
 			/* Set the sdqcr to drain this channel */
 			if (channel < qm_channel_pool1)
-				qm_dqrr_sdqcr_set(&p->p,
+				qm_dqrr_sdqcr_set(&channel_portal->p,
 						  QM_SDQCR_TYPE_ACTIVE |
 						  QM_SDQCR_CHANNELS_DEDICATED);
 			else
-				qm_dqrr_sdqcr_set(&p->p,
+				qm_dqrr_sdqcr_set(&channel_portal->p,
 						  QM_SDQCR_TYPE_ACTIVE |
 						  QM_SDQCR_CHANNELS_POOL_CONV
 						  (channel));
 			do {
 				/* Keep draining DQRR while checking the MR*/
-				qm_dqrr_drain_nomatch(&p->p);
+				qm_dqrr_drain_nomatch(&channel_portal->p);
 				/* Process message ring too */
-				found_fqrn = qm_mr_drain(&p->p, FQRN);
+				found_fqrn = qm_mr_drain(&channel_portal->p,
+							 FQRN);
 				cpu_relax();
 			} while (!found_fqrn);
+			/* Restore SDQCR */
+			qm_dqrr_sdqcr_set(&channel_portal->p,
+					  channel_portal->sdqcr);
 
 		}
 		if (res != QM_MCR_RESULT_OK &&
@@ -2715,9 +2772,8 @@ static int qman_shutdown_fq(u32 fqid)
 				 * Wait for a dequeue and process the dequeues,
 				 * making sure to empty the ring completely
 				 */
-			} while (qm_dqrr_drain_wait(&p->p, fqid, FQ_EMPTY));
+			} while (!qm_dqrr_drain_wait(&p->p, fqid, FQ_EMPTY));
 		}
-		qm_dqrr_sdqcr_set(&p->p, 0);
 
 		while (!orl_empty) {
 			/* Wait for the ORL to have been completely drained */
@@ -2754,7 +2810,7 @@ static int qman_shutdown_fq(u32 fqid)
 
 		DPAA_ASSERT((mcr->verb & QM_MCR_VERB_MASK) ==
 			    QM_MCR_VERB_ALTER_OOS);
-		if (mcr->result) {
+		if (mcr->result != QM_MCR_RESULT_OK) {
 			dev_err(dev, "OOS fail: FQ 0x%x (0x%x)\n",
 				fqid, mcr->result);
 			ret = -EIO;

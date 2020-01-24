@@ -646,31 +646,6 @@ gk104_fifo_intr_dropped_fault(struct gk104_fifo *fifo)
 	nvkm_error(subdev, "DROPPED_MMU_FAULT %08x\n", stat);
 }
 
-static void
-gk104_fifo_intr_fault(struct gk104_fifo *fifo, int unit)
-{
-	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
-	struct nvkm_device *device = subdev->device;
-	u32 inst = nvkm_rd32(device, 0x002800 + (unit * 0x10));
-	u32 valo = nvkm_rd32(device, 0x002804 + (unit * 0x10));
-	u32 vahi = nvkm_rd32(device, 0x002808 + (unit * 0x10));
-	u32 type = nvkm_rd32(device, 0x00280c + (unit * 0x10));
-	struct nvkm_fault_data info;
-
-	info.inst   =  (u64)inst << 12;
-	info.addr   = ((u64)vahi << 32) | valo;
-	info.time   = 0;
-	info.engine = unit;
-	info.valid  = 1;
-	info.gpc    = (type & 0x1f000000) >> 24;
-	info.client = (type & 0x00001f00) >> 8;
-	info.access = (type & 0x00000080) >> 7;
-	info.hub    = (type & 0x00000040) >> 6;
-	info.reason = (type & 0x000000ff);
-
-	nvkm_fifo_fault(&fifo->base, &info);
-}
-
 static const struct nvkm_bitfield gk104_fifo_pbdma_intr_0[] = {
 	{ 0x00000001, "MEMREQ" },
 	{ 0x00000002, "MEMACK_TIMEOUT" },
@@ -849,7 +824,7 @@ gk104_fifo_intr(struct nvkm_fifo *base)
 		u32 mask = nvkm_rd32(device, 0x00259c);
 		while (mask) {
 			u32 unit = __ffs(mask);
-			gk104_fifo_intr_fault(fifo, unit);
+			fifo->func->intr.fault(&fifo->base, unit);
 			nvkm_wr32(device, 0x00259c, (1 << unit));
 			mask &= ~(1 << unit);
 		}
@@ -1204,6 +1179,7 @@ gk104_fifo_fault_gpcclient[] = {
 
 static const struct gk104_fifo_func
 gk104_fifo = {
+	.intr.fault = gf100_fifo_intr_fault,
 	.pbdma = &gk104_fifo_pbdma,
 	.fault.access = gk104_fifo_fault_access,
 	.fault.engine = gk104_fifo_fault_engine,

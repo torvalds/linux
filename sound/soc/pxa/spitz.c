@@ -252,16 +252,18 @@ static const struct snd_kcontrol_new wm8750_spitz_controls[] = {
 };
 
 /* spitz digital audio interface glue - connects codec <--> CPU */
+SND_SOC_DAILINK_DEFS(wm8750,
+	DAILINK_COMP_ARRAY(COMP_CPU("pxa2xx-i2s")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm8750.0-001b", "wm8750-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("pxa-pcm-audio")));
+
 static struct snd_soc_dai_link spitz_dai = {
 	.name = "wm8750",
 	.stream_name = "WM8750",
-	.cpu_dai_name = "pxa2xx-i2s",
-	.codec_dai_name = "wm8750-hifi",
-	.platform_name = "pxa-pcm-audio",
-	.codec_name = "wm8750.0-001b",
 	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 		   SND_SOC_DAIFMT_CBS_CFS,
 	.ops = &spitz_ops,
+	SND_SOC_DAILINK_REG(wm8750),
 };
 
 /* spitz audio machine driver */

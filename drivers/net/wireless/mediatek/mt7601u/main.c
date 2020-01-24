@@ -351,7 +351,7 @@ mt76_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct ieee80211_sta *sta = params->sta;
 	enum ieee80211_ampdu_mlme_action action = params->action;
 	u16 tid = params->tid;
-	u16 *ssn = &params->ssn;
+	u16 ssn = params->ssn;
 	struct mt76_sta *msta = (struct mt76_sta *) sta->drv_priv;
 
 	WARN_ON(msta->wcid.idx > GROUP_WCID(0));
@@ -371,9 +371,8 @@ mt76_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
 		break;
 	case IEEE80211_AMPDU_TX_START:
-		msta->agg_ssn[tid] = *ssn << 4;
-		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
-		break;
+		msta->agg_ssn[tid] = ssn << 4;
+		return IEEE80211_AMPDU_TX_START_IMMEDIATE;
 	case IEEE80211_AMPDU_TX_STOP_CONT:
 		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;

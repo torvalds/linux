@@ -255,7 +255,7 @@ static int nsio_rw_bytes(struct nd_namespace_common *ndns,
 	struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
 	unsigned int sz_align = ALIGN(size + (offset & (512 - 1)), 512);
 	sector_t sector = offset >> 9;
-	int rc = 0;
+	int rc = 0, ret = 0;
 
 	if (unlikely(!size))
 		return 0;
@@ -293,18 +293,21 @@ static int nsio_rw_bytes(struct nd_namespace_common *ndns,
 	}
 
 	memcpy_flushcache(nsio->addr + offset, buf, size);
-	nvdimm_flush(to_nd_region(ndns->dev.parent));
+	ret = nvdimm_flush(to_nd_region(ndns->dev.parent), NULL);
+	if (ret)
+		rc = ret;
 
 	return rc;
 }
 
-int devm_nsio_enable(struct device *dev, struct nd_namespace_io *nsio)
+int devm_nsio_enable(struct device *dev, struct nd_namespace_io *nsio,
+		resource_size_t size)
 {
 	struct resource *res = &nsio->res;
 	struct nd_namespace_common *ndns = &nsio->common;
 
-	nsio->size = resource_size(res);
-	if (!devm_request_mem_region(dev, res->start, resource_size(res),
+	nsio->size = size;
+	if (!devm_request_mem_region(dev, res->start, size,
 				dev_name(&ndns->dev))) {
 		dev_warn(dev, "could not reserve region %pR\n", res);
 		return -EBUSY;
@@ -316,12 +319,10 @@ int devm_nsio_enable(struct device *dev, struct nd_namespace_io *nsio)
 	nvdimm_badblocks_populate(to_nd_region(ndns->dev.parent), &nsio->bb,
 			&nsio->res);
 
-	nsio->addr = devm_memremap(dev, res->start, resource_size(res),
-			ARCH_MEMREMAP_PMEM);
+	nsio->addr = devm_memremap(dev, res->start, size, ARCH_MEMREMAP_PMEM);
 
 	return PTR_ERR_OR_ZERO(nsio->addr);
 }
-EXPORT_SYMBOL_GPL(devm_nsio_enable);
 
 void devm_nsio_disable(struct device *dev, struct nd_namespace_io *nsio)
 {
@@ -329,6 +330,5 @@ void devm_nsio_disable(struct device *dev, struct nd_namespace_io *nsio)
 
 	devm_memunmap(dev, nsio->addr);
 	devm_exit_badblocks(dev, &nsio->bb);
-	devm_release_mem_region(dev, res->start, resource_size(res));
+	devm_release_mem_region(dev, res->start, nsio->size);
 }
-EXPORT_SYMBOL_GPL(devm_nsio_disable);

@@ -24,17 +24,22 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  **************************************************************************/
-#include <linux/module.h>
+
 #include <linux/console.h>
 #include <linux/dma-mapping.h>
+#include <linux/module.h>
 
-#include <drm/drmP.h>
-#include "vmwgfx_drv.h"
-#include "vmwgfx_binding.h"
-#include "ttm_object.h"
-#include <drm/ttm/ttm_placement.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_ioctl.h>
+#include <drm/drm_pci.h>
+#include <drm/drm_sysfs.h>
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_module.h>
+#include <drm/ttm/ttm_placement.h>
+
+#include "ttm_object.h"
+#include "vmwgfx_binding.h"
+#include "vmwgfx_drv.h"
 
 #define VMWGFX_DRIVER_DESC "Linux drm driver for VMware graphics devices"
 #define VMWGFX_CHIP_SVGAII 0
@@ -186,7 +191,7 @@ static const struct drm_ioctl_desc vmw_ioctls[] = {
 		      DRM_RENDER_ALLOW),
 	VMW_IOCTL_DEF(VMW_REF_SURFACE, vmw_surface_reference_ioctl,
 		      DRM_AUTH | DRM_RENDER_ALLOW),
-	VMW_IOCTL_DEF(VMW_EXECBUF, NULL, DRM_AUTH |
+	VMW_IOCTL_DEF(VMW_EXECBUF, vmw_execbuf_ioctl, DRM_AUTH |
 		      DRM_RENDER_ALLOW),
 	VMW_IOCTL_DEF(VMW_FENCE_WAIT, vmw_fence_obj_wait_ioctl,
 		      DRM_RENDER_ALLOW),
@@ -254,7 +259,6 @@ static int vmw_restrict_dma_mask;
 static int vmw_assume_16bpp;
 
 static int vmw_probe(struct pci_dev *, const struct pci_device_id *);
-static void vmw_master_init(struct vmw_master *);
 static int vmwgfx_pm_notifier(struct notifier_block *nb, unsigned long val,
 			      void *ptr);
 
@@ -572,8 +576,7 @@ static int vmw_dma_select_mode(struct vmw_private *dev_priv)
 	else
 		dev_priv->map_mode = vmw_dma_map_populate;
 
-	/* No TTM coherent page pool? FIXME: Ask TTM instead! */
-        if (!(IS_ENABLED(CONFIG_SWIOTLB) || IS_ENABLED(CONFIG_INTEL_IOMMU)) &&
+        if (!IS_ENABLED(CONFIG_DRM_TTM_DMA_PAGE_POOL) &&
 	    (dev_priv->map_mode == vmw_dma_alloc_coherent))
 		return -EINVAL;
 
@@ -641,7 +644,6 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		INIT_LIST_HEAD(&dev_priv->res_lru[i]);
 	}
 
-	mutex_init(&dev_priv->init_mutex);
 	init_waitqueue_head(&dev_priv->fence_queue);
 	init_waitqueue_head(&dev_priv->fifo_queue);
 	dev_priv->fence_queue_waiters = 0;
@@ -765,10 +767,6 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	DRM_INFO("MMIO at 0x%08x size is %u kiB\n",
 		 dev_priv->mmio_start, dev_priv->mmio_size / 1024);
 
-	vmw_master_init(&dev_priv->fbdev_master);
-	ttm_lock_set_kill(&dev_priv->fbdev_master.lock, false, SIGTERM);
-	dev_priv->active_master = &dev_priv->fbdev_master;
-
 	dev_priv->mmio_virt = memremap(dev_priv->mmio_start,
 				       dev_priv->mmio_size, MEMREMAP_WB);
 
@@ -828,9 +826,13 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		goto out_no_fman;
 	}
 
+	drm_vma_offset_manager_init(&dev_priv->vma_manager,
+				    DRM_FILE_PAGE_OFFSET_START,
+				    DRM_FILE_PAGE_OFFSET_SIZE);
 	ret = ttm_bo_device_init(&dev_priv->bdev,
 				 &vmw_bo_driver,
 				 dev->anon_inode->i_mapping,
+				 &dev_priv->vma_manager,
 				 false);
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Failed initializing TTM buffer object driver.\n");
@@ -987,6 +989,7 @@ static void vmw_driver_unload(struct drm_device *dev)
 	if (dev_priv->has_mob)
 		(void) ttm_bo_clean_mm(&dev_priv->bdev, VMW_PL_MOB);
 	(void) ttm_bo_device_release(&dev_priv->bdev);
+	drm_vma_offset_manager_destroy(&dev_priv->vma_manager);
 	vmw_release_device_late(dev_priv);
 	vmw_fence_manager_takedown(dev_priv->fman);
 	if (dev_priv->capabilities & SVGA_CAP_IRQMASK)
@@ -1010,18 +1013,7 @@ static void vmw_driver_unload(struct drm_device *dev)
 static void vmw_postclose(struct drm_device *dev,
 			 struct drm_file *file_priv)
 {
-	struct vmw_fpriv *vmw_fp;
-
-	vmw_fp = vmw_fpriv(file_priv);
-
-	if (vmw_fp->locked_master) {
-		struct vmw_master *vmaster =
-			vmw_master(vmw_fp->locked_master);
-
-		ttm_lock_set_kill(&vmaster->lock, true, SIGTERM);
-		ttm_vt_unlock(&vmaster->lock);
-		drm_master_put(&vmw_fp->locked_master);
-	}
+	struct vmw_fpriv *vmw_fp = vmw_fpriv(file_priv);
 
 	ttm_object_file_release(&vmw_fp->tfile);
 	kfree(vmw_fp);
@@ -1050,55 +1042,6 @@ out_no_tfile:
 	return ret;
 }
 
-static struct vmw_master *vmw_master_check(struct drm_device *dev,
-					   struct drm_file *file_priv,
-					   unsigned int flags)
-{
-	int ret;
-	struct vmw_fpriv *vmw_fp = vmw_fpriv(file_priv);
-	struct vmw_master *vmaster;
-
-	if (!drm_is_primary_client(file_priv) || !(flags & DRM_AUTH))
-		return NULL;
-
-	ret = mutex_lock_interruptible(&dev->master_mutex);
-	if (unlikely(ret != 0))
-		return ERR_PTR(-ERESTARTSYS);
-
-	if (drm_is_current_master(file_priv)) {
-		mutex_unlock(&dev->master_mutex);
-		return NULL;
-	}
-
-	/*
-	 * Check if we were previously master, but now dropped. In that
-	 * case, allow at least render node functionality.
-	 */
-	if (vmw_fp->locked_master) {
-		mutex_unlock(&dev->master_mutex);
-
-		if (flags & DRM_RENDER_ALLOW)
-			return NULL;
-
-		DRM_ERROR("Dropped master trying to access ioctl that "
-			  "requires authentication.\n");
-		return ERR_PTR(-EACCES);
-	}
-	mutex_unlock(&dev->master_mutex);
-
-	/*
-	 * Take the TTM lock. Possibly sleep waiting for the authenticating
-	 * master to become master again, or for a SIGTERM if the
-	 * authenticating master exits.
-	 */
-	vmaster = vmw_master(file_priv->master);
-	ret = ttm_read_lock(&vmaster->lock, true);
-	if (unlikely(ret != 0))
-		vmaster = ERR_PTR(ret);
-
-	return vmaster;
-}
-
 static long vmw_generic_ioctl(struct file *filp, unsigned int cmd,
 			      unsigned long arg,
 			      long (*ioctl_func)(struct file *, unsigned int,
@@ -1107,9 +1050,7 @@ static long vmw_generic_ioctl(struct file *filp, unsigned int cmd,
 	struct drm_file *file_priv = filp->private_data;
 	struct drm_device *dev = file_priv->minor->dev;
 	unsigned int nr = DRM_IOCTL_NR(cmd);
-	struct vmw_master *vmaster;
 	unsigned int flags;
-	long ret;
 
 	/*
 	 * Do extra checking on driver private ioctls.
@@ -1121,15 +1062,7 @@ static long vmw_generic_ioctl(struct file *filp, unsigned int cmd,
 			&vmw_ioctls[nr - DRM_COMMAND_BASE];
 
 		if (nr == DRM_COMMAND_BASE + DRM_VMW_EXECBUF) {
-			ret = (long) drm_ioctl_permit(ioctl->flags, file_priv);
-			if (unlikely(ret != 0))
-				return ret;
-
-			if (unlikely((cmd & (IOC_IN | IOC_OUT)) != IOC_IN))
-				goto out_io_encoding;
-
-			return (long) vmw_execbuf_ioctl(dev, arg, file_priv,
-							_IOC_SIZE(cmd));
+			return ioctl_func(filp, cmd, arg);
 		} else if (nr == DRM_COMMAND_BASE + DRM_VMW_UPDATE_LAYOUT) {
 			if (!drm_is_current_master(file_priv) &&
 			    !capable(CAP_SYS_ADMIN))
@@ -1143,21 +1076,7 @@ static long vmw_generic_ioctl(struct file *filp, unsigned int cmd,
 	} else if (!drm_ioctl_flags(nr, &flags))
 		return -EINVAL;
 
-	vmaster = vmw_master_check(dev, file_priv, flags);
-	if (IS_ERR(vmaster)) {
-		ret = PTR_ERR(vmaster);
-
-		if (ret != -ERESTARTSYS)
-			DRM_INFO("IOCTL ERROR Command %d, Error %ld.\n",
-				 nr, ret);
-		return ret;
-	}
-
-	ret = ioctl_func(filp, cmd, arg);
-	if (vmaster)
-		ttm_read_unlock(&vmaster->lock);
-
-	return ret;
+	return ioctl_func(filp, cmd, arg);
 
 out_io_encoding:
 	DRM_ERROR("Invalid command format, ioctl %d\n",
@@ -1180,69 +1099,10 @@ static long vmw_compat_ioctl(struct file *filp, unsigned int cmd,
 }
 #endif
 
-static void vmw_lastclose(struct drm_device *dev)
-{
-}
-
-static void vmw_master_init(struct vmw_master *vmaster)
-{
-	ttm_lock_init(&vmaster->lock);
-}
-
-static int vmw_master_create(struct drm_device *dev,
-			     struct drm_master *master)
-{
-	struct vmw_master *vmaster;
-
-	vmaster = kzalloc(sizeof(*vmaster), GFP_KERNEL);
-	if (unlikely(!vmaster))
-		return -ENOMEM;
-
-	vmw_master_init(vmaster);
-	ttm_lock_set_kill(&vmaster->lock, true, SIGTERM);
-	master->driver_priv = vmaster;
-
-	return 0;
-}
-
-static void vmw_master_destroy(struct drm_device *dev,
-			       struct drm_master *master)
-{
-	struct vmw_master *vmaster = vmw_master(master);
-
-	master->driver_priv = NULL;
-	kfree(vmaster);
-}
-
 static int vmw_master_set(struct drm_device *dev,
 			  struct drm_file *file_priv,
 			  bool from_open)
 {
-	struct vmw_private *dev_priv = vmw_priv(dev);
-	struct vmw_fpriv *vmw_fp = vmw_fpriv(file_priv);
-	struct vmw_master *active = dev_priv->active_master;
-	struct vmw_master *vmaster = vmw_master(file_priv->master);
-	int ret = 0;
-
-	if (active) {
-		BUG_ON(active != &dev_priv->fbdev_master);
-		ret = ttm_vt_lock(&active->lock, false, vmw_fp->tfile);
-		if (unlikely(ret != 0))
-			return ret;
-
-		ttm_lock_set_kill(&active->lock, true, SIGTERM);
-		dev_priv->active_master = NULL;
-	}
-
-	ttm_lock_set_kill(&vmaster->lock, false, SIGTERM);
-	if (!from_open) {
-		ttm_vt_unlock(&vmaster->lock);
-		BUG_ON(vmw_fp->locked_master != file_priv->master);
-		drm_master_put(&vmw_fp->locked_master);
-	}
-
-	dev_priv->active_master = vmaster;
-
 	/*
 	 * Inform a new master that the layout may have changed while
 	 * it was gone.
@@ -1257,31 +1117,10 @@ static void vmw_master_drop(struct drm_device *dev,
 			    struct drm_file *file_priv)
 {
 	struct vmw_private *dev_priv = vmw_priv(dev);
-	struct vmw_fpriv *vmw_fp = vmw_fpriv(file_priv);
-	struct vmw_master *vmaster = vmw_master(file_priv->master);
-	int ret;
 
-	/**
-	 * Make sure the master doesn't disappear while we have
-	 * it locked.
-	 */
-
-	vmw_fp->locked_master = drm_master_get(file_priv->master);
-	ret = ttm_vt_lock(&vmaster->lock, false, vmw_fp->tfile);
 	vmw_kms_legacy_hotspot_clear(dev_priv);
-	if (unlikely((ret != 0))) {
-		DRM_ERROR("Unable to lock TTM at VT switch.\n");
-		drm_master_put(&vmw_fp->locked_master);
-	}
-
-	ttm_lock_set_kill(&vmaster->lock, false, SIGTERM);
-
 	if (!dev_priv->enable_fb)
 		vmw_svga_disable(dev_priv);
-
-	dev_priv->active_master = &dev_priv->fbdev_master;
-	ttm_lock_set_kill(&dev_priv->fbdev_master.lock, false, SIGTERM);
-	ttm_vt_unlock(&dev_priv->fbdev_master.lock);
 }
 
 /**
@@ -1551,17 +1390,14 @@ static const struct file_operations vmwgfx_driver_fops = {
 
 static struct drm_driver driver = {
 	.driver_features =
-	DRIVER_MODESET | DRIVER_PRIME | DRIVER_RENDER | DRIVER_ATOMIC,
+	DRIVER_MODESET | DRIVER_RENDER | DRIVER_ATOMIC,
 	.load = vmw_driver_load,
 	.unload = vmw_driver_unload,
-	.lastclose = vmw_lastclose,
 	.get_vblank_counter = vmw_get_vblank_counter,
 	.enable_vblank = vmw_enable_vblank,
 	.disable_vblank = vmw_disable_vblank,
 	.ioctls = vmw_ioctls,
 	.num_ioctls = ARRAY_SIZE(vmw_ioctls),
-	.master_create = vmw_master_create,
-	.master_destroy = vmw_master_destroy,
 	.master_set = vmw_master_set,
 	.master_drop = vmw_master_drop,
 	.open = vmw_driver_open,

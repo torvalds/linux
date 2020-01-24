@@ -255,7 +255,6 @@ static const struct rtc_class_ops cdns_rtc_ops = {
 static int cdns_rtc_probe(struct platform_device *pdev)
 {
 	struct cdns_rtc *crtc;
-	struct resource *res;
 	int ret;
 	unsigned long ref_clk_freq;
 
@@ -263,8 +262,7 @@ static int cdns_rtc_probe(struct platform_device *pdev)
 	if (!crtc)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	crtc->regs = devm_ioremap_resource(&pdev->dev, res);
+	crtc->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(crtc->regs))
 		return PTR_ERR(crtc->regs);
 
@@ -289,12 +287,8 @@ static int cdns_rtc_probe(struct platform_device *pdev)
 	}
 
 	crtc->rtc_dev = devm_rtc_allocate_device(&pdev->dev);
-	if (IS_ERR(crtc->rtc_dev)) {
-		ret = PTR_ERR(crtc->rtc_dev);
-		dev_err(&pdev->dev,
-			"Failed to allocate the RTC device, %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(crtc->rtc_dev))
+		return PTR_ERR(crtc->rtc_dev);
 
 	platform_set_drvdata(pdev, crtc);
 
@@ -343,11 +337,8 @@ static int cdns_rtc_probe(struct platform_device *pdev)
 	writel(CDNS_RTC_KRTCR_KRTC, crtc->regs + CDNS_RTC_KRTCR);
 
 	ret = rtc_register_device(crtc->rtc_dev);
-	if (ret) {
-		dev_err(&pdev->dev,
-			"Failed to register the RTC device, %d\n", ret);
+	if (ret)
 		goto err_disable_wakeup;
-	}
 
 	return 0;
 

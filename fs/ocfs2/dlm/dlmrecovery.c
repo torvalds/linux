@@ -1109,16 +1109,13 @@ static int dlm_send_mig_lockres_msg(struct dlm_ctxt *dlm,
 {
 	u64 mig_cookie = be64_to_cpu(mres->mig_cookie);
 	int mres_total_locks = be32_to_cpu(mres->total_locks);
-	int sz, ret = 0, status = 0;
+	int ret = 0, status = 0;
 	u8 orig_flags = mres->flags,
 	   orig_master = mres->master;
 
 	BUG_ON(mres->num_locks > DLM_MAX_MIGRATABLE_LOCKS);
 	if (!mres->num_locks)
 		return 0;
-
-	sz = sizeof(struct dlm_migratable_lockres) +
-		(mres->num_locks * sizeof(struct dlm_migratable_lock));
 
 	/* add an all-done flag if we reached the last lock */
 	orig_flags = mres->flags;
@@ -1133,7 +1130,8 @@ static int dlm_send_mig_lockres_msg(struct dlm_ctxt *dlm,
 
 	/* send it */
 	ret = o2net_send_message(DLM_MIG_LOCKRES_MSG, dlm->key, mres,
-				 sz, send_to, &status);
+				 struct_size(mres, ml, mres->num_locks),
+				 send_to, &status);
 	if (ret < 0) {
 		/* XXX: negative status is not handled.
 		 * this will end up killing this node. */

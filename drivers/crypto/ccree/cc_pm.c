@@ -8,7 +8,6 @@
 #include "cc_buffer_mgr.h"
 #include "cc_request_mgr.h"
 #include "cc_sram_mgr.h"
-#include "cc_ivgen.h"
 #include "cc_hash.h"
 #include "cc_pm.h"
 #include "cc_fips.h"
@@ -49,6 +48,11 @@ int cc_pm_resume(struct device *dev)
 		dev_err(dev, "failed getting clock back on. We're toast.\n");
 		return rc;
 	}
+	/* wait for Crytpcell reset completion */
+	if (!cc_wait_for_reset_completion(drvdata)) {
+		dev_err(dev, "Cryptocell reset not completed");
+		return -EBUSY;
+	}
 
 	cc_iowrite(drvdata, CC_REG(HOST_POWER_DOWN_EN), POWER_DOWN_DISABLE);
 	rc = init_cc_regs(drvdata, false);
@@ -68,7 +72,6 @@ int cc_pm_resume(struct device *dev)
 	/* must be after the queue resuming as it uses the HW queue*/
 	cc_init_hash_sram(drvdata);
 
-	cc_init_iv_sram(drvdata);
 	return 0;
 }
 
@@ -99,6 +102,12 @@ int cc_pm_put_suspend(struct device *dev)
 		rc = -EBUSY;
 	}
 	return rc;
+}
+
+bool cc_pm_is_dev_suspended(struct device *dev)
+{
+	/* check device state using runtime api */
+	return pm_runtime_suspended(dev);
 }
 
 int cc_pm_init(struct cc_drvdata *drvdata)

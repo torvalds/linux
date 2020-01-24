@@ -80,15 +80,17 @@ static long key_get_persistent(struct user_namespace *ns, kuid_t uid,
 	long ret;
 
 	/* Look in the register if it exists */
+	memset(&index_key, 0, sizeof(index_key));
 	index_key.type = &key_type_keyring;
 	index_key.description = buf;
 	index_key.desc_len = sprintf(buf, "_persistent.%u", from_kuid(ns, uid));
+	key_set_index_key(&index_key);
 
 	if (ns->persistent_keyring_register) {
 		reg_ref = make_key_ref(ns->persistent_keyring_register, true);
-		down_read(&ns->persistent_keyring_register_sem);
+		down_read(&ns->keyring_sem);
 		persistent_ref = find_key_to_update(reg_ref, &index_key);
-		up_read(&ns->persistent_keyring_register_sem);
+		up_read(&ns->keyring_sem);
 
 		if (persistent_ref)
 			goto found;
@@ -97,9 +99,9 @@ static long key_get_persistent(struct user_namespace *ns, kuid_t uid,
 	/* It wasn't in the register, so we'll need to create it.  We might
 	 * also need to create the register.
 	 */
-	down_write(&ns->persistent_keyring_register_sem);
+	down_write(&ns->keyring_sem);
 	persistent_ref = key_create_persistent(ns, uid, &index_key);
-	up_write(&ns->persistent_keyring_register_sem);
+	up_write(&ns->keyring_sem);
 	if (!IS_ERR(persistent_ref))
 		goto found;
 

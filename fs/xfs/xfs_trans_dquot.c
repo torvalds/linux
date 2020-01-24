@@ -11,7 +11,6 @@
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
 #include "xfs_inode.h"
-#include "xfs_error.h"
 #include "xfs_trans.h"
 #include "xfs_trans_priv.h"
 #include "xfs_quota.h"
@@ -26,10 +25,9 @@ STATIC void	xfs_trans_alloc_dqinfo(xfs_trans_t *);
  */
 void
 xfs_trans_dqjoin(
-	xfs_trans_t	*tp,
-	xfs_dquot_t	*dqp)
+	struct xfs_trans	*tp,
+	struct xfs_dquot	*dqp)
 {
-	ASSERT(dqp->q_transp != tp);
 	ASSERT(XFS_DQ_IS_LOCKED(dqp));
 	ASSERT(dqp->q_logitem.qli_dquot == dqp);
 
@@ -37,14 +35,7 @@ xfs_trans_dqjoin(
 	 * Get a log_item_desc to point at the new item.
 	 */
 	xfs_trans_add_item(tp, &dqp->q_logitem.qli_item);
-
-	/*
-	 * Initialize d_transp so we can later determine if this dquot is
-	 * associated with this transaction.
-	 */
-	dqp->q_transp = tp;
 }
-
 
 /*
  * This is called to mark the dquot as needing
@@ -58,10 +49,9 @@ xfs_trans_dqjoin(
  */
 void
 xfs_trans_log_dquot(
-	xfs_trans_t	*tp,
-	xfs_dquot_t	*dqp)
+	struct xfs_trans	*tp,
+	struct xfs_dquot	*dqp)
 {
-	ASSERT(dqp->q_transp == tp);
 	ASSERT(XFS_DQ_IS_LOCKED(dqp));
 
 	tp->t_flags |= XFS_TRANS_DIRTY;
@@ -347,7 +337,6 @@ xfs_trans_apply_dquot_deltas(
 				break;
 
 			ASSERT(XFS_DQ_IS_LOCKED(dqp));
-			ASSERT(dqp->q_transp == tp);
 
 			/*
 			 * adjust the actual number of blocks used
@@ -497,12 +486,12 @@ xfs_trans_apply_dquot_deltas(
  */
 void
 xfs_trans_unreserve_and_mod_dquots(
-	xfs_trans_t		*tp)
+	struct xfs_trans	*tp)
 {
 	int			i, j;
-	xfs_dquot_t		*dqp;
+	struct xfs_dquot	*dqp;
 	struct xfs_dqtrx	*qtrx, *qa;
-	bool                    locked;
+	bool			locked;
 
 	if (!tp->t_dqinfo || !(tp->t_flags & XFS_TRANS_DQ_DIRTY))
 		return;
@@ -582,21 +571,21 @@ xfs_quota_warn(
  */
 STATIC int
 xfs_trans_dqresv(
-	xfs_trans_t	*tp,
-	xfs_mount_t	*mp,
-	xfs_dquot_t	*dqp,
-	int64_t		nblks,
-	long		ninos,
-	uint		flags)
+	struct xfs_trans	*tp,
+	struct xfs_mount	*mp,
+	struct xfs_dquot	*dqp,
+	int64_t			nblks,
+	long			ninos,
+	uint			flags)
 {
-	xfs_qcnt_t	hardlimit;
-	xfs_qcnt_t	softlimit;
-	time_t		timer;
-	xfs_qwarncnt_t	warns;
-	xfs_qwarncnt_t	warnlimit;
-	xfs_qcnt_t	total_count;
-	xfs_qcnt_t	*resbcountp;
-	xfs_quotainfo_t	*q = mp->m_quotainfo;
+	xfs_qcnt_t		hardlimit;
+	xfs_qcnt_t		softlimit;
+	time_t			timer;
+	xfs_qwarncnt_t		warns;
+	xfs_qwarncnt_t		warnlimit;
+	xfs_qcnt_t		total_count;
+	xfs_qcnt_t		*resbcountp;
+	struct xfs_quotainfo	*q = mp->m_quotainfo;
 	struct xfs_def_quota	*defq;
 
 
@@ -835,13 +824,13 @@ xfs_trans_reserve_quota_nblks(
 /*
  * This routine is called to allocate a quotaoff log item.
  */
-xfs_qoff_logitem_t *
+struct xfs_qoff_logitem *
 xfs_trans_get_qoff_item(
-	xfs_trans_t		*tp,
-	xfs_qoff_logitem_t	*startqoff,
+	struct xfs_trans	*tp,
+	struct xfs_qoff_logitem	*startqoff,
 	uint			flags)
 {
-	xfs_qoff_logitem_t	*q;
+	struct xfs_qoff_logitem	*q;
 
 	ASSERT(tp != NULL);
 
@@ -863,8 +852,8 @@ xfs_trans_get_qoff_item(
  */
 void
 xfs_trans_log_quotaoff_item(
-	xfs_trans_t		*tp,
-	xfs_qoff_logitem_t	*qlp)
+	struct xfs_trans	*tp,
+	struct xfs_qoff_logitem	*qlp)
 {
 	tp->t_flags |= XFS_TRANS_DIRTY;
 	set_bit(XFS_LI_DIRTY, &qlp->qql_item.li_flags);
@@ -874,7 +863,7 @@ STATIC void
 xfs_trans_alloc_dqinfo(
 	xfs_trans_t	*tp)
 {
-	tp->t_dqinfo = kmem_zone_zalloc(xfs_qm_dqtrxzone, KM_SLEEP);
+	tp->t_dqinfo = kmem_zone_zalloc(xfs_qm_dqtrxzone, 0);
 }
 
 void
@@ -883,6 +872,6 @@ xfs_trans_free_dqinfo(
 {
 	if (!tp->t_dqinfo)
 		return;
-	kmem_zone_free(xfs_qm_dqtrxzone, tp->t_dqinfo);
+	kmem_cache_free(xfs_qm_dqtrxzone, tp->t_dqinfo);
 	tp->t_dqinfo = NULL;
 }

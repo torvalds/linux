@@ -132,10 +132,8 @@ static int ls1x_wdt_probe(struct platform_device *pdev)
 	watchdog_set_drvdata(ls1x_wdt, drvdata);
 
 	err = devm_watchdog_register_device(dev, &drvdata->wdt);
-	if (err) {
-		dev_err(dev, "failed to register watchdog device\n");
+	if (err)
 		return err;
-	}
 
 	platform_set_drvdata(pdev, drvdata);
 

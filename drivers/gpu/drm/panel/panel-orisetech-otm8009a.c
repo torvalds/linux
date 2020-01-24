@@ -6,13 +6,18 @@
  *          Yannick Fertre <yannick.fertre@st.com>
  */
 
-#include <drm/drmP.h>
-#include <drm/drm_mipi_dsi.h>
-#include <drm/drm_panel.h>
 #include <linux/backlight.h>
+#include <linux/delay.h>
 #include <linux/gpio/consumer.h>
+#include <linux/module.h>
 #include <linux/regulator/consumer.h>
+
 #include <video/mipi_display.h>
+
+#include <drm/drm_mipi_dsi.h>
+#include <drm/drm_modes.h>
+#include <drm/drm_panel.h>
+#include <drm/drm_print.h>
 
 #define OTM8009A_BACKLIGHT_DEFAULT	240
 #define OTM8009A_BACKLIGHT_MAX		255
@@ -450,9 +455,8 @@ static int otm8009a_probe(struct mipi_dsi_device *dsi)
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
 			  MIPI_DSI_MODE_LPM;
 
-	drm_panel_init(&ctx->panel);
-	ctx->panel.dev = dev;
-	ctx->panel.funcs = &otm8009a_drm_funcs;
+	drm_panel_init(&ctx->panel, dev, &otm8009a_drm_funcs,
+		       DRM_MODE_CONNECTOR_DSI);
 
 	ctx->bl_dev = devm_backlight_device_register(dev, dev_name(dev),
 						     dsi->host->dev, ctx,

@@ -29,9 +29,12 @@
  * not expect this type of fault. flush_cache_vmap is not exactly the right
  * place to put this, but it seems to work well enough.
  */
-#define flush_cache_vmap(start, end)		do { asm volatile("ptesync" ::: "memory"); } while (0)
+static inline void flush_cache_vmap(unsigned long start, unsigned long end)
+{
+	asm volatile("ptesync" ::: "memory");
+}
 #else
-#define flush_cache_vmap(start, end)		do { } while (0)
+static inline void flush_cache_vmap(unsigned long start, unsigned long end) { }
 #endif
 
 #define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 1
@@ -39,35 +42,40 @@ extern void flush_dcache_page(struct page *page);
 #define flush_dcache_mmap_lock(mapping)		do { } while (0)
 #define flush_dcache_mmap_unlock(mapping)	do { } while (0)
 
-extern void flush_icache_range(unsigned long, unsigned long);
+void flush_icache_range(unsigned long start, unsigned long stop);
 extern void flush_icache_user_range(struct vm_area_struct *vma,
 				    struct page *page, unsigned long addr,
 				    int len);
-extern void __flush_dcache_icache(void *page_va);
 extern void flush_dcache_icache_page(struct page *page);
-#if defined(CONFIG_PPC32) && !defined(CONFIG_BOOKE)
-extern void __flush_dcache_icache_phys(unsigned long physaddr);
-#else
-static inline void __flush_dcache_icache_phys(unsigned long physaddr)
-{
-	BUG();
-}
-#endif
+void __flush_dcache_icache(void *page);
 
-#ifdef CONFIG_PPC32
-/*
- * Write any modified data cache blocks out to memory and invalidate them.
- * Does not invalidate the corresponding instruction cache blocks.
+/**
+ * flush_dcache_range(): Write any modified data cache blocks out to memory and
+ * invalidate them. Does not invalidate the corresponding instruction cache
+ * blocks.
+ *
+ * @start: the start address
+ * @stop: the stop address (exclusive)
  */
 static inline void flush_dcache_range(unsigned long start, unsigned long stop)
 {
-	void *addr = (void *)(start & ~(L1_CACHE_BYTES - 1));
-	unsigned long size = stop - (unsigned long)addr + (L1_CACHE_BYTES - 1);
+	unsigned long shift = l1_dcache_shift();
+	unsigned long bytes = l1_dcache_bytes();
+	void *addr = (void *)(start & ~(bytes - 1));
+	unsigned long size = stop - (unsigned long)addr + (bytes - 1);
 	unsigned long i;
 
-	for (i = 0; i < size >> L1_CACHE_SHIFT; i++, addr += L1_CACHE_BYTES)
+	if (IS_ENABLED(CONFIG_PPC64)) {
+		mb();	/* sync */
+		isync();
+	}
+
+	for (i = 0; i < size >> shift; i++, addr += bytes)
 		dcbf(addr);
 	mb();	/* sync */
+
+	if (IS_ENABLED(CONFIG_PPC64))
+		isync();
 }
 
 /*
@@ -77,11 +85,13 @@ static inline void flush_dcache_range(unsigned long start, unsigned long stop)
  */
 static inline void clean_dcache_range(unsigned long start, unsigned long stop)
 {
-	void *addr = (void *)(start & ~(L1_CACHE_BYTES - 1));
-	unsigned long size = stop - (unsigned long)addr + (L1_CACHE_BYTES - 1);
+	unsigned long shift = l1_dcache_shift();
+	unsigned long bytes = l1_dcache_bytes();
+	void *addr = (void *)(start & ~(bytes - 1));
+	unsigned long size = stop - (unsigned long)addr + (bytes - 1);
 	unsigned long i;
 
-	for (i = 0; i < size >> L1_CACHE_SHIFT; i++, addr += L1_CACHE_BYTES)
+	for (i = 0; i < size >> shift; i++, addr += bytes)
 		dcbst(addr);
 	mb();	/* sync */
 }
@@ -94,20 +104,16 @@ static inline void clean_dcache_range(unsigned long start, unsigned long stop)
 static inline void invalidate_dcache_range(unsigned long start,
 					   unsigned long stop)
 {
-	void *addr = (void *)(start & ~(L1_CACHE_BYTES - 1));
-	unsigned long size = stop - (unsigned long)addr + (L1_CACHE_BYTES - 1);
+	unsigned long shift = l1_dcache_shift();
+	unsigned long bytes = l1_dcache_bytes();
+	void *addr = (void *)(start & ~(bytes - 1));
+	unsigned long size = stop - (unsigned long)addr + (bytes - 1);
 	unsigned long i;
 
-	for (i = 0; i < size >> L1_CACHE_SHIFT; i++, addr += L1_CACHE_BYTES)
+	for (i = 0; i < size >> shift; i++, addr += bytes)
 		dcbi(addr);
 	mb();	/* sync */
 }
-
-#endif /* CONFIG_PPC32 */
-#ifdef CONFIG_PPC64
-extern void flush_dcache_range(unsigned long start, unsigned long stop);
-extern void flush_inval_dcache_range(unsigned long start, unsigned long stop);
-#endif
 
 #define copy_to_user_page(vma, page, vaddr, dst, src, len) \
 	do { \

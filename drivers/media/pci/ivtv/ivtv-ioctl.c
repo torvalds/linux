@@ -73,8 +73,8 @@ static u16 select_service_from_set(int field, int line, u16 set, int is_pal)
 			return 0;
 	}
 	for (i = 0; i < 32; i++) {
-		if ((1 << i) & set)
-			return 1 << i;
+		if (BIT(i) & set)
+			return BIT(i);
 	}
 	return 0;
 }
@@ -734,18 +734,11 @@ static int ivtv_querycap(struct file *file, void *fh, struct v4l2_capability *vc
 {
 	struct ivtv_open_id *id = fh2id(file->private_data);
 	struct ivtv *itv = id->itv;
-	struct ivtv_stream *s = &itv->streams[id->type];
 
 	strscpy(vcap->driver, IVTV_DRIVER_NAME, sizeof(vcap->driver));
 	strscpy(vcap->card, itv->card_name, sizeof(vcap->card));
 	snprintf(vcap->bus_info, sizeof(vcap->bus_info), "PCI:%s", pci_name(itv->pdev));
 	vcap->capabilities = itv->v4l2_cap | V4L2_CAP_DEVICE_CAPS;
-	vcap->device_caps = s->caps;
-	if ((s->caps & V4L2_CAP_VIDEO_OUTPUT_OVERLAY) &&
-	    !itv->osd_video_pbase) {
-		vcap->capabilities &= ~V4L2_CAP_VIDEO_OUTPUT_OVERLAY;
-		vcap->device_caps &= ~V4L2_CAP_VIDEO_OUTPUT_OVERLAY;
-	}
 	return 0;
 }
 

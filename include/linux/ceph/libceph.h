@@ -84,11 +84,13 @@ struct ceph_options {
 #define CEPH_MSG_MAX_MIDDLE_LEN	(16*1024*1024)
 
 /*
- * Handle the largest possible rbd object in one message.
+ * The largest possible rbd data object is 32M.
+ * The largest possible rbd object map object is 64M.
+ *
  * There is no limit on the size of cephfs objects, but it has to obey
  * rsize and wsize mount options anyway.
  */
-#define CEPH_MSG_MAX_DATA_LEN	(32*1024*1024)
+#define CEPH_MSG_MAX_DATA_LEN	(64*1024*1024)
 
 #define CEPH_AUTH_NAME_DEFAULT   "guest"
 
@@ -278,10 +280,12 @@ extern const char *ceph_msg_type_name(int type);
 extern int ceph_check_fsid(struct ceph_client *client, struct ceph_fsid *fsid);
 extern void *ceph_kvmalloc(size_t size, gfp_t flags);
 
-extern struct ceph_options *ceph_parse_options(char *options,
-			      const char *dev_name, const char *dev_name_end,
-			      int (*parse_extra_token)(char *c, void *private),
-			      void *private);
+struct fs_parameter;
+struct ceph_options *ceph_alloc_options(void);
+int ceph_parse_mon_ips(const char *buf, size_t len, struct ceph_options *opt,
+		       struct fs_context *fc);
+int ceph_parse_param(struct fs_parameter *param, struct ceph_options *opt,
+		     struct fs_context *fc);
 int ceph_print_client_options(struct seq_file *m, struct ceph_client *client,
 			      bool show_all);
 extern void ceph_destroy_options(struct ceph_options *opt);
@@ -291,6 +295,7 @@ struct ceph_client *ceph_create_client(struct ceph_options *opt, void *private);
 struct ceph_entity_addr *ceph_client_addr(struct ceph_client *client);
 u64 ceph_client_gid(struct ceph_client *client);
 extern void ceph_destroy_client(struct ceph_client *client);
+extern void ceph_reset_client_addr(struct ceph_client *client);
 extern int __ceph_open_session(struct ceph_client *client,
 			       unsigned long started);
 extern int ceph_open_session(struct ceph_client *client);
@@ -299,10 +304,6 @@ int ceph_wait_for_latest_osdmap(struct ceph_client *client,
 
 /* pagevec.c */
 extern void ceph_release_page_vector(struct page **pages, int num_pages);
-
-extern struct page **ceph_get_direct_page_vector(const void __user *data,
-						 int num_pages,
-						 bool write_page);
 extern void ceph_put_page_vector(struct page **pages, int num_pages,
 				 bool dirty);
 extern struct page **ceph_alloc_page_vector(int num_pages, gfp_t flags);

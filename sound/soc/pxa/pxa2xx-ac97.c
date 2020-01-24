@@ -204,9 +204,17 @@ static struct snd_soc_dai_driver pxa_ac97_dai_driver[] = {
 
 static const struct snd_soc_component_driver pxa_ac97_component = {
 	.name		= "pxa-ac97",
-	.ops		= &pxa2xx_pcm_ops,
-	.pcm_new	= pxa2xx_soc_pcm_new,
-	.pcm_free	= pxa2xx_pcm_free_dma_buffers,
+	.pcm_construct	= pxa2xx_soc_pcm_new,
+	.pcm_destruct	= pxa2xx_soc_pcm_free,
+	.open		= pxa2xx_soc_pcm_open,
+	.close		= pxa2xx_soc_pcm_close,
+	.ioctl		= snd_soc_pcm_lib_ioctl,
+	.hw_params	= pxa2xx_soc_pcm_hw_params,
+	.hw_free	= pxa2xx_soc_pcm_hw_free,
+	.prepare	= pxa2xx_soc_pcm_prepare,
+	.trigger	= pxa2xx_soc_pcm_trigger,
+	.pointer	= pxa2xx_soc_pcm_pointer,
+	.mmap		= pxa2xx_soc_pcm_mmap,
 };
 
 #ifdef CONFIG_OF
@@ -250,7 +258,7 @@ static int pxa2xx_ac97_dev_probe(struct platform_device *pdev)
 	 * driver to do interesting things with the clocking to get us up
 	 * and running.
 	 */
-	return snd_soc_register_component(&pdev->dev, &pxa_ac97_component,
+	return devm_snd_soc_register_component(&pdev->dev, &pxa_ac97_component,
 					  pxa_ac97_dai_driver, ARRAY_SIZE(pxa_ac97_dai_driver));
 }
 
@@ -258,7 +266,6 @@ static int pxa2xx_ac97_dev_remove(struct platform_device *pdev)
 {
 	struct ac97_controller *ctrl = platform_get_drvdata(pdev);
 
-	snd_soc_unregister_component(&pdev->dev);
 	snd_ac97_controller_unregister(ctrl);
 	pxa2xx_ac97_hw_remove(pdev);
 	return 0;

@@ -37,4 +37,4 @@ Commands required for testing:
  - mkfs/ mkfs.ext4
 
 For more information please refer:
-kernel-source-tree/Documentation/blockdev/zram.txt
+kernel-source-tree/Documentation/admin-guide/blockdev/zram.rst

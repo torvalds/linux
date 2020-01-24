@@ -11,6 +11,9 @@
 #include <linux/dma-buf.h>
 
 #include <drm/drm_atomic_uapi.h>
+#include <drm/drm_damage_helper.h>
+#include <drm/drm_file.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 
 #include "msm_drv.h"
 #include "dpu_kms.h"
@@ -546,14 +549,9 @@ static void _dpu_plane_setup_scaler(struct dpu_plane *pdpu,
 		struct dpu_plane_state *pstate,
 		const struct dpu_format *fmt, bool color_fill)
 {
-	uint32_t chroma_subsmpl_h, chroma_subsmpl_v;
+	const struct drm_format_info *info = drm_format_info(fmt->base.pixel_format);
 
 	/* don't chroma subsample if decimating */
-	chroma_subsmpl_h =
-		drm_format_horz_chroma_subsampling(fmt->base.pixel_format);
-	chroma_subsmpl_v =
-		drm_format_vert_chroma_subsampling(fmt->base.pixel_format);
-
 	/* update scaler. calculate default config for QSEED3 */
 	_dpu_plane_setup_scaler3(pdpu, pstate,
 			drm_rect_width(&pdpu->pipe_cfg.src_rect),
@@ -561,7 +559,7 @@ static void _dpu_plane_setup_scaler(struct dpu_plane *pdpu,
 			drm_rect_width(&pdpu->pipe_cfg.dst_rect),
 			drm_rect_height(&pdpu->pipe_cfg.dst_rect),
 			&pstate->scaler3_cfg, fmt,
-			chroma_subsmpl_h, chroma_subsmpl_v);
+			info->hsub, info->vsub);
 }
 
 /**
@@ -768,8 +766,6 @@ static int dpu_plane_prepare_fb(struct drm_plane *plane,
 	struct dpu_plane *pdpu = to_dpu_plane(plane);
 	struct dpu_plane_state *pstate = to_dpu_plane_state(new_state);
 	struct dpu_hw_fmt_layout layout;
-	struct drm_gem_object *obj;
-	struct dma_fence *fence;
 	struct dpu_kms *kms = _dpu_plane_get_kms(&pdpu->base);
 	int ret;
 
@@ -786,10 +782,7 @@ static int dpu_plane_prepare_fb(struct drm_plane *plane,
 	 *       we can use msm_atomic_prepare_fb() instead of doing the
 	 *       implicit fence and fb prepare by hand here.
 	 */
-	obj = msm_framebuffer_bo(new_state->fb, 0);
-	fence = reservation_object_get_excl_rcu(obj->resv);
-	if (fence)
-		drm_atomic_set_fence_for_plane(new_state, fence);
+	drm_gem_fb_prepare_fb(plane, new_state);
 
 	if (pstate->aspace) {
 		ret = msm_framebuffer_prepare(new_state->fb,
@@ -1044,7 +1037,20 @@ static void dpu_plane_sspp_atomic_update(struct drm_plane *plane)
 				pstate->multirect_mode);
 
 	if (pdpu->pipe_hw->ops.setup_format) {
+		unsigned int rotation;
+
 		src_flags = 0x0;
+
+		rotation = drm_rotation_simplify(state->rotation,
+						 DRM_MODE_ROTATE_0 |
+						 DRM_MODE_REFLECT_X |
+						 DRM_MODE_REFLECT_Y);
+
+		if (rotation & DRM_MODE_REFLECT_X)
+			src_flags |= DPU_SSPP_FLIP_LR;
+
+		if (rotation & DRM_MODE_REFLECT_Y)
+			src_flags |= DPU_SSPP_FLIP_UD;
 
 		/* update format */
 		pdpu->pipe_hw->ops.setup_format(pdpu->pipe_hw, fmt, src_flags,
@@ -1318,9 +1324,6 @@ static int _dpu_plane_init_debugfs(struct drm_plane *plane)
 		debugfs_create_dir(pdpu->pipe_name,
 				plane->dev->primary->debugfs_root);
 
-	if (!pdpu->debugfs_root)
-		return -ENOMEM;
-
 	/* don't error check these */
 	debugfs_create_x32("features", 0600,
 			pdpu->debugfs_root, &pdpu->features);
@@ -1528,6 +1531,15 @@ struct drm_plane *dpu_plane_init(struct drm_device *dev,
 	ret = drm_plane_create_zpos_property(plane, 0, 0, zpos_max);
 	if (ret)
 		DPU_ERROR("failed to install zpos property, rc = %d\n", ret);
+
+	drm_plane_create_rotation_property(plane,
+			DRM_MODE_ROTATE_0,
+			DRM_MODE_ROTATE_0 |
+			DRM_MODE_ROTATE_180 |
+			DRM_MODE_REFLECT_X |
+			DRM_MODE_REFLECT_Y);
+
+	drm_plane_enable_fb_damage_clips(plane);
 
 	/* success! finalize initialization */
 	drm_plane_helper_add(plane, &dpu_plane_helper_funcs);

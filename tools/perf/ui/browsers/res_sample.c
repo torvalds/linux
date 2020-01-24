@@ -1,13 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Display a menu with individual samples to browse with perf script */
-#include "util.h"
 #include "hist.h"
 #include "evsel.h"
 #include "hists.h"
 #include "sort.h"
 #include "config.h"
 #include "time-utils.h"
+#include "../util.h"
+#include "../../util/util.h" // perf_exe()
+#include "../../perf.h"
+#include <stdlib.h>
+#include <string.h>
 #include <linux/time64.h>
+#include <linux/zalloc.h>
 
 static u64 context_len = 10 * NSEC_PER_MSEC;
 
@@ -24,7 +29,7 @@ void res_sample_init(void)
 }
 
 int res_sample_browse(struct res_sample *res_samples, int num_res,
-		      struct perf_evsel *evsel, enum rstype rstype)
+		      struct evsel *evsel, enum rstype rstype)
 {
 	char **names;
 	int i, n;
@@ -46,14 +51,14 @@ int res_sample_browse(struct res_sample *res_samples, int num_res,
 		if (asprintf(&names[i], "%s: CPU %d tid %d", tbuf,
 			     res_samples[i].cpu, res_samples[i].tid) < 0) {
 			while (--i >= 0)
-				free(names[i]);
+				zfree(&names[i]);
 			free(names);
 			return -1;
 		}
 	}
 	choice = ui__popup_menu(num_res, names);
 	for (i = 0; i < num_res; i++)
-		free(names[i]);
+		zfree(&names[i]);
 	free(names);
 
 	if (choice < 0 || choice >= num_res)
@@ -66,7 +71,7 @@ int res_sample_browse(struct res_sample *res_samples, int num_res,
 
 	timestamp__scnprintf_nsec(r->time, tsample, sizeof tsample);
 
-	attr_to_script(extra_format, &evsel->attr);
+	attr_to_script(extra_format, &evsel->core.attr);
 
 	if (asprintf(&cmd, "%s script %s%s --time %s %s%s %s%s --ns %s %s %s %s %s | less +/%s",
 		     perf,

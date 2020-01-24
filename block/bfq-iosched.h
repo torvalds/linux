@@ -10,6 +10,8 @@
 #include <linux/hrtimer.h>
 #include <linux/blk-cgroup.h>
 
+#include "blk-cgroup-rwstat.h"
+
 #define BFQ_IOPRIO_CLASSES	3
 #define BFQ_CL_IDLE_TIMEOUT	(HZ/5)
 
@@ -168,6 +170,9 @@ struct bfq_entity {
 	/* budget, used also to calculate F_i: F_i = S_i + @budget / @weight */
 	int budget;
 
+	/* device weight, if non-zero, it overrides the default weight of
+	 * bfq_group_data */
+	int dev_weight;
 	/* weight of the queue */
 	int weight;
 	/* next weight if a change is in progress */
@@ -357,6 +362,24 @@ struct bfq_queue {
 
 	/* max service rate measured so far */
 	u32 max_service_rate;
+
+	/*
+	 * Pointer to the waker queue for this queue, i.e., to the
+	 * queue Q such that this queue happens to get new I/O right
+	 * after some I/O request of Q is completed. For details, see
+	 * the comments on the choice of the queue for injection in
+	 * bfq_select_queue().
+	 */
+	struct bfq_queue *waker_bfqq;
+	/* node for woken_list, see below */
+	struct hlist_node woken_list_node;
+	/*
+	 * Head of the list of the woken queues for this queue, i.e.,
+	 * of the list of the queues for which this queue is a waker
+	 * queue. This list is used to reset the waker_bfqq pointer in
+	 * the woken queues when this queue exits.
+	 */
+	struct hlist_head woken_list;
 };
 
 /**
@@ -532,6 +555,9 @@ struct bfq_data {
 
 	/* time of last request completion (ns) */
 	u64 last_completion;
+
+	/* bfqq owning the last completed rq */
+	struct bfq_queue *last_completed_rq_bfqq;
 
 	/* time of last transition from empty to non-empty (ns) */
 	u64 last_empty_occupied_ns;
@@ -743,7 +769,8 @@ enum bfqq_state_flags {
 				 * update
 				 */
 	BFQQF_coop,		/* bfqq is shared */
-	BFQQF_split_coop	/* shared bfqq will be split */
+	BFQQF_split_coop,	/* shared bfqq will be split */
+	BFQQF_has_waker		/* bfqq has a waker queue */
 };
 
 #define BFQ_BFQQ_FNS(name)						\
@@ -763,6 +790,7 @@ BFQ_BFQQ_FNS(in_large_burst);
 BFQ_BFQQ_FNS(coop);
 BFQ_BFQQ_FNS(split_coop);
 BFQ_BFQQ_FNS(softrt_update);
+BFQ_BFQQ_FNS(has_waker);
 #undef BFQ_BFQQ_FNS
 
 /* Expiration reasons. */
@@ -777,8 +805,16 @@ enum bfqq_expiration {
 	BFQQE_PREEMPTED		/* preemption in progress */
 };
 
+struct bfq_stat {
+	struct percpu_counter		cpu_cnt;
+	atomic64_t			aux_cnt;
+};
+
 struct bfqg_stats {
-#if defined(CONFIG_BFQ_GROUP_IOSCHED) && defined(CONFIG_DEBUG_BLK_CGROUP)
+	/* basic stats */
+	struct blkg_rwstat		bytes;
+	struct blkg_rwstat		ios;
+#ifdef CONFIG_BFQ_CGROUP_DEBUG
 	/* number of ios merged */
 	struct blkg_rwstat		merged;
 	/* total time spent on device in ns, may not be accurate w/ queueing */
@@ -788,25 +824,25 @@ struct bfqg_stats {
 	/* number of IOs queued up */
 	struct blkg_rwstat		queued;
 	/* total disk time and nr sectors dispatched by this group */
-	struct blkg_stat		time;
+	struct bfq_stat		time;
 	/* sum of number of ios queued across all samples */
-	struct blkg_stat		avg_queue_size_sum;
+	struct bfq_stat		avg_queue_size_sum;
 	/* count of samples taken for average */
-	struct blkg_stat		avg_queue_size_samples;
+	struct bfq_stat		avg_queue_size_samples;
 	/* how many times this group has been removed from service tree */
-	struct blkg_stat		dequeue;
+	struct bfq_stat		dequeue;
 	/* total time spent waiting for it to be assigned a timeslice. */
-	struct blkg_stat		group_wait_time;
+	struct bfq_stat		group_wait_time;
 	/* time spent idling for this blkcg_gq */
-	struct blkg_stat		idle_time;
+	struct bfq_stat		idle_time;
 	/* total time with empty current active q with other requests queued */
-	struct blkg_stat		empty_time;
+	struct bfq_stat		empty_time;
 	/* fields after this shouldn't be cleared on stat reset */
 	u64				start_group_wait_time;
 	u64				start_idle_time;
 	u64				start_empty_time;
 	uint16_t			flags;
-#endif	/* CONFIG_BFQ_GROUP_IOSCHED && CONFIG_DEBUG_BLK_CGROUP */
+#endif /* CONFIG_BFQ_CGROUP_DEBUG */
 };
 
 #ifdef CONFIG_BFQ_GROUP_IOSCHED
@@ -925,6 +961,7 @@ void bfq_put_async_queues(struct bfq_data *bfqd, struct bfq_group *bfqg);
 
 /* ---------------- cgroups-support interface ---------------- */
 
+void bfqg_stats_update_legacy_io(struct request_queue *q, struct request *rq);
 void bfqg_stats_update_io_add(struct bfq_group *bfqg, struct bfq_queue *bfqq,
 			      unsigned int op);
 void bfqg_stats_update_io_remove(struct bfq_group *bfqg, unsigned int op);
@@ -1031,6 +1068,8 @@ struct bfq_group *bfqq_group(struct bfq_queue *bfqq);
 
 #define bfq_log_bfqq(bfqd, bfqq, fmt, args...)	do {			\
 	char pid_str[MAX_PID_STR_LENGTH];	\
+	if (likely(!blk_trace_note_message_enabled((bfqd)->queue)))	\
+		break;							\
 	bfq_pid_to_str((bfqq)->pid, pid_str, MAX_PID_STR_LENGTH);	\
 	blk_add_cgroup_trace_msg((bfqd)->queue,				\
 			bfqg_to_blkg(bfqq_group(bfqq))->blkcg,		\
@@ -1047,6 +1086,8 @@ struct bfq_group *bfqq_group(struct bfq_queue *bfqq);
 
 #define bfq_log_bfqq(bfqd, bfqq, fmt, args...) do {	\
 	char pid_str[MAX_PID_STR_LENGTH];	\
+	if (likely(!blk_trace_note_message_enabled((bfqd)->queue)))	\
+		break;							\
 	bfq_pid_to_str((bfqq)->pid, pid_str, MAX_PID_STR_LENGTH);	\
 	blk_add_trace_msg((bfqd)->queue, "bfq%s%c " fmt, pid_str,	\
 			bfq_bfqq_sync((bfqq)) ? 'S' : 'A',		\

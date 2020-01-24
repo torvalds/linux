@@ -114,5 +114,6 @@ int ath10k_qmi_wlan_disable(struct ath10k *ar);
 int ath10k_qmi_register_service_notifier(struct notifier_block *nb);
 int ath10k_qmi_init(struct ath10k *ar, u32 msa_size);
 int ath10k_qmi_deinit(struct ath10k *ar);
+int ath10k_qmi_set_fw_log_mode(struct ath10k *ar, u8 fw_log_mode);
 
 #endif /* ATH10K_QMI_H */

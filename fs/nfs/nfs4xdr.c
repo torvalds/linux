@@ -837,6 +837,7 @@ static int decode_layoutget(struct xdr_stream *xdr, struct rpc_rqst *req,
 #define NFS4_dec_sequence_sz \
 				(compound_decode_hdr_maxsz + \
 				 decode_sequence_maxsz)
+#endif
 #define NFS4_enc_get_lease_time_sz	(compound_encode_hdr_maxsz + \
 					 encode_sequence_maxsz + \
 					 encode_putrootfh_maxsz + \
@@ -845,6 +846,7 @@ static int decode_layoutget(struct xdr_stream *xdr, struct rpc_rqst *req,
 					 decode_sequence_maxsz + \
 					 decode_putrootfh_maxsz + \
 					 decode_fsinfo_maxsz)
+#if defined(CONFIG_NFS_V4_1)
 #define NFS4_enc_reclaim_complete_sz	(compound_encode_hdr_maxsz + \
 					 encode_sequence_maxsz + \
 					 encode_reclaim_complete_maxsz)
@@ -1057,7 +1059,7 @@ static void encode_nfs4_verifier(struct xdr_stream *xdr, const nfs4_verifier *ve
 }
 
 static __be32 *
-xdr_encode_nfstime4(__be32 *p, const struct timespec *t)
+xdr_encode_nfstime4(__be32 *p, const struct timespec64 *t)
 {
 	p = xdr_encode_hyper(p, (__s64)t->tv_sec);
 	*p++ = cpu_to_be32(t->tv_nsec);
@@ -1070,7 +1072,6 @@ static void encode_attrs(struct xdr_stream *xdr, const struct iattr *iap,
 				const struct nfs_server *server,
 				const uint32_t attrmask[])
 {
-	struct timespec ts;
 	char owner_name[IDMAP_NAMESZ];
 	char owner_group[IDMAP_NAMESZ];
 	int owner_namelen = 0;
@@ -1159,20 +1160,18 @@ static void encode_attrs(struct xdr_stream *xdr, const struct iattr *iap,
 	if (bmval[1] & FATTR4_WORD1_TIME_ACCESS_SET) {
 		if (iap->ia_valid & ATTR_ATIME_SET) {
 			*p++ = cpu_to_be32(NFS4_SET_TO_CLIENT_TIME);
-			ts = timespec64_to_timespec(iap->ia_atime);
-			p = xdr_encode_nfstime4(p, &ts);
+			p = xdr_encode_nfstime4(p, &iap->ia_atime);
 		} else
 			*p++ = cpu_to_be32(NFS4_SET_TO_SERVER_TIME);
 	}
 	if (bmval[1] & FATTR4_WORD1_TIME_MODIFY_SET) {
 		if (iap->ia_valid & ATTR_MTIME_SET) {
 			*p++ = cpu_to_be32(NFS4_SET_TO_CLIENT_TIME);
-			ts = timespec64_to_timespec(iap->ia_mtime);
-			p = xdr_encode_nfstime4(p, &ts);
+			p = xdr_encode_nfstime4(p, &iap->ia_mtime);
 		} else
 			*p++ = cpu_to_be32(NFS4_SET_TO_SERVER_TIME);
 	}
-	if (bmval[2] & FATTR4_WORD2_SECURITY_LABEL) {
+	if (label && (bmval[2] & FATTR4_WORD2_SECURITY_LABEL)) {
 		*p++ = cpu_to_be32(label->lfs);
 		*p++ = cpu_to_be32(label->pi);
 		*p++ = cpu_to_be32(label->len);
@@ -2957,6 +2956,8 @@ static void nfs4_xdr_enc_sequence(struct rpc_rqst *req, struct xdr_stream *xdr,
 	encode_nops(&hdr);
 }
 
+#endif
+
 /*
  * a GET_LEASE_TIME request
  */
@@ -2976,6 +2977,8 @@ static void nfs4_xdr_enc_get_lease_time(struct rpc_rqst *req,
 	encode_fsinfo(xdr, lease_bitmap, &hdr);
 	encode_nops(&hdr);
 }
+
+#ifdef CONFIG_NFS_V4_1
 
 /*
  * a RECLAIM_COMPLETE request
@@ -3187,7 +3190,7 @@ static bool __decode_op_hdr(struct xdr_stream *xdr, enum nfs_opnum4 expected,
 	return true;
 out_status:
 	nfserr = be32_to_cpup(p);
-	trace_nfs4_xdr_status(opnum, nfserr);
+	trace_nfs4_xdr_status(xdr, opnum, nfserr);
 	*nfs_retval = nfs4_stat_to_errno(nfserr);
 	return true;
 out_bad_operation:
@@ -3427,7 +3430,7 @@ static int decode_attr_lease_time(struct xdr_stream *xdr, uint32_t *bitmap, uint
 		*res = be32_to_cpup(p);
 		bitmap[0] &= ~FATTR4_WORD0_LEASE_TIME;
 	}
-	dprintk("%s: file size=%u\n", __func__, (unsigned int)*res);
+	dprintk("%s: lease time=%u\n", __func__, (unsigned int)*res);
 	return 0;
 }
 
@@ -4059,17 +4062,17 @@ static int decode_attr_space_used(struct xdr_stream *xdr, uint32_t *bitmap, uint
 }
 
 static __be32 *
-xdr_decode_nfstime4(__be32 *p, struct timespec *t)
+xdr_decode_nfstime4(__be32 *p, struct timespec64 *t)
 {
 	__u64 sec;
 
 	p = xdr_decode_hyper(p, &sec);
-	t-> tv_sec = (time_t)sec;
+	t-> tv_sec = sec;
 	t->tv_nsec = be32_to_cpup(p++);
 	return p;
 }
 
-static int decode_attr_time(struct xdr_stream *xdr, struct timespec *time)
+static int decode_attr_time(struct xdr_stream *xdr, struct timespec64 *time)
 {
 	__be32 *p;
 
@@ -4080,7 +4083,7 @@ static int decode_attr_time(struct xdr_stream *xdr, struct timespec *time)
 	return 0;
 }
 
-static int decode_attr_time_access(struct xdr_stream *xdr, uint32_t *bitmap, struct timespec *time)
+static int decode_attr_time_access(struct xdr_stream *xdr, uint32_t *bitmap, struct timespec64 *time)
 {
 	int status = 0;
 
@@ -4098,7 +4101,7 @@ static int decode_attr_time_access(struct xdr_stream *xdr, uint32_t *bitmap, str
 	return status;
 }
 
-static int decode_attr_time_metadata(struct xdr_stream *xdr, uint32_t *bitmap, struct timespec *time)
+static int decode_attr_time_metadata(struct xdr_stream *xdr, uint32_t *bitmap, struct timespec64 *time)
 {
 	int status = 0;
 
@@ -4117,7 +4120,7 @@ static int decode_attr_time_metadata(struct xdr_stream *xdr, uint32_t *bitmap, s
 }
 
 static int decode_attr_time_delta(struct xdr_stream *xdr, uint32_t *bitmap,
-				  struct timespec *time)
+				  struct timespec64 *time)
 {
 	int status = 0;
 
@@ -4180,7 +4183,7 @@ static int decode_attr_security_label(struct xdr_stream *xdr, uint32_t *bitmap,
 	return status;
 }
 
-static int decode_attr_time_modify(struct xdr_stream *xdr, uint32_t *bitmap, struct timespec *time)
+static int decode_attr_time_modify(struct xdr_stream *xdr, uint32_t *bitmap, struct timespec64 *time)
 {
 	int status = 0;
 
@@ -7122,6 +7125,8 @@ static int nfs4_xdr_dec_sequence(struct rpc_rqst *rqstp,
 	return status;
 }
 
+#endif
+
 /*
  * Decode GET_LEASE_TIME response
  */
@@ -7142,6 +7147,8 @@ static int nfs4_xdr_dec_get_lease_time(struct rpc_rqst *rqstp,
 		status = decode_fsinfo(xdr, res->lr_fsinfo);
 	return status;
 }
+
+#ifdef CONFIG_NFS_V4_1
 
 /*
  * Decode RECLAIM_COMPLETE response
@@ -7551,7 +7558,7 @@ const struct rpc_procinfo nfs4_procedures[] = {
 	PROC41(CREATE_SESSION,	enc_create_session,	dec_create_session),
 	PROC41(DESTROY_SESSION,	enc_destroy_session,	dec_destroy_session),
 	PROC41(SEQUENCE,	enc_sequence,		dec_sequence),
-	PROC41(GET_LEASE_TIME,	enc_get_lease_time,	dec_get_lease_time),
+	PROC(GET_LEASE_TIME,	enc_get_lease_time,	dec_get_lease_time),
 	PROC41(RECLAIM_COMPLETE,enc_reclaim_complete,	dec_reclaim_complete),
 	PROC41(GETDEVICEINFO,	enc_getdeviceinfo,	dec_getdeviceinfo),
 	PROC41(LAYOUTGET,	enc_layoutget,		dec_layoutget),
@@ -7571,6 +7578,7 @@ const struct rpc_procinfo nfs4_procedures[] = {
 	PROC42(CLONE,		enc_clone,		dec_clone),
 	PROC42(COPY,		enc_copy,		dec_copy),
 	PROC42(OFFLOAD_CANCEL,	enc_offload_cancel,	dec_offload_cancel),
+	PROC42(COPY_NOTIFY,	enc_copy_notify,	dec_copy_notify),
 	PROC(LOOKUPP,		enc_lookupp,		dec_lookupp),
 	PROC42(LAYOUTERROR,	enc_layouterror,	dec_layouterror),
 };

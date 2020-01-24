@@ -430,7 +430,7 @@ ath10k_dbg_sta_write_peer_debug_trigger(struct file *file,
 	}
 
 	ret = ath10k_wmi_peer_set_param(ar, arsta->arvif->vdev_id, sta->addr,
-					WMI_PEER_DEBUG, peer_debug_trigger);
+					ar->wmi.peer_param->debug, peer_debug_trigger);
 	if (ret) {
 		ath10k_warn(ar, "failed to set param to trigger peer tid logs for station ret: %d\n",
 			    ret);
@@ -662,6 +662,13 @@ static ssize_t ath10k_dbg_sta_dump_tx_stats(struct file *file,
 		return -ENOMEM;
 
 	mutex_lock(&ar->conf_mutex);
+
+	if (!arsta->tx_stats) {
+		ath10k_warn(ar, "failed to get tx stats");
+		mutex_unlock(&ar->conf_mutex);
+		kfree(buf);
+		return 0;
+	}
 
 	spin_lock_bh(&ar->data_lock);
 	for (k = 0; k < ATH10K_STATS_TYPE_MAX; k++) {

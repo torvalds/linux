@@ -38,6 +38,8 @@
 				interrupt-controller;
 				vcc-supply = <&db8500_vsmps2_reg>;
 				vio-supply = <&db8500_vsmps2_reg>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&stmpe_stuib_mode>;
 
 				wakeup-source;
 				st,autosleep-timeout = <1024>;
@@ -126,6 +128,15 @@
 		};
 
 		pinctrl {
+			/* Pull up this GPIO pin */
+			stmpe {
+				stmpe_stuib_mode: stmpe_stuib {
+					stuib_cfg {
+						ste,pins = "GPIO218_AH11";
+						ste,config = <&gpio_in_pu>;
+					};
+				};
+			};
 			prox {
 				prox_stuib_mode: prox_stuib {
 					stuib_cfg {

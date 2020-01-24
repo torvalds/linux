@@ -49,7 +49,7 @@ static const char kfd_dev_name[] = "kfd";
 static const struct file_operations kfd_fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = kfd_ioctl,
-	.compat_ioctl = kfd_ioctl,
+	.compat_ioctl = compat_ptr_ioctl,
 	.open = kfd_open,
 	.mmap = kfd_mmap,
 };
@@ -213,6 +213,8 @@ static int set_queue_properties_from_user(struct queue_properties *q_properties,
 		q_properties->type = KFD_QUEUE_TYPE_COMPUTE;
 	else if (args->queue_type == KFD_IOC_QUEUE_TYPE_SDMA)
 		q_properties->type = KFD_QUEUE_TYPE_SDMA;
+	else if (args->queue_type == KFD_IOC_QUEUE_TYPE_SDMA_XGMI)
+		q_properties->type = KFD_QUEUE_TYPE_SDMA_XGMI;
 	else
 		return -ENOTSUPP;
 
@@ -280,7 +282,7 @@ static int kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 		goto err_bind_process;
 	}
 
-	pr_debug("Creating queue for PASID %d on gpu 0x%x\n",
+	pr_debug("Creating queue for PASID 0x%x on gpu 0x%x\n",
 			p->pasid,
 			dev->id);
 
@@ -330,7 +332,7 @@ static int kfd_ioctl_destroy_queue(struct file *filp, struct kfd_process *p,
 	int retval;
 	struct kfd_ioctl_destroy_queue_args *args = data;
 
-	pr_debug("Destroying queue id %d for pasid %d\n",
+	pr_debug("Destroying queue id %d for pasid 0x%x\n",
 				args->queue_id,
 				p->pasid);
 
@@ -376,7 +378,7 @@ static int kfd_ioctl_update_queue(struct file *filp, struct kfd_process *p,
 	properties.queue_percent = args->queue_percentage;
 	properties.priority = args->queue_priority;
 
-	pr_debug("Updating queue id %d for pasid %d\n",
+	pr_debug("Updating queue id %d for pasid 0x%x\n",
 			args->queue_id, p->pasid);
 
 	mutex_lock(&p->mutex);
@@ -522,7 +524,7 @@ static int kfd_ioctl_set_trap_handler(struct file *filep,
 	struct kfd_process_device *pdd;
 
 	dev = kfd_device_by_id(args->gpu_id);
-	if (dev == NULL)
+	if (!dev)
 		return -EINVAL;
 
 	mutex_lock(&p->mutex);
@@ -837,7 +839,7 @@ static int kfd_ioctl_get_clock_counters(struct file *filep,
 
 	/* No access to rdtsc. Using raw monotonic time */
 	args->cpu_clock_counter = ktime_get_raw_ns();
-	args->system_clock_counter = ktime_get_boot_ns();
+	args->system_clock_counter = ktime_get_boottime_ns();
 
 	/* Since the counter is in nano-seconds we use 1GHz frequency */
 	args->system_clock_freq = 1000000000;
@@ -853,7 +855,7 @@ static int kfd_ioctl_get_process_apertures(struct file *filp,
 	struct kfd_process_device_apertures *pAperture;
 	struct kfd_process_device *pdd;
 
-	dev_dbg(kfd_device, "get apertures for PASID %d", p->pasid);
+	dev_dbg(kfd_device, "get apertures for PASID 0x%x", p->pasid);
 
 	args->num_of_nodes = 0;
 
@@ -911,7 +913,7 @@ static int kfd_ioctl_get_process_apertures_new(struct file *filp,
 	uint32_t nodes = 0;
 	int ret;
 
-	dev_dbg(kfd_device, "get apertures for PASID %d", p->pasid);
+	dev_dbg(kfd_device, "get apertures for PASID 0x%x", p->pasid);
 
 	if (args->num_of_nodes == 0) {
 		/* Return number of nodes, so that user space can alloacate
@@ -1126,7 +1128,7 @@ static int kfd_ioctl_set_scratch_backing_va(struct file *filep,
 	mutex_unlock(&p->mutex);
 
 	if (dev->dqm->sched_policy == KFD_SCHED_POLICY_NO_HWS &&
-	    pdd->qpd.vmid != 0)
+	    pdd->qpd.vmid != 0 && dev->kfd2kgd->set_scratch_backing_va)
 		dev->kfd2kgd->set_scratch_backing_va(
 			dev->kgd, args->va_addr, pdd->qpd.vmid);
 
@@ -1272,6 +1274,12 @@ static int kfd_ioctl_alloc_memory_of_gpu(struct file *filep,
 		if (args->size != kfd_doorbell_process_slice(dev))
 			return -EINVAL;
 		offset = kfd_get_process_doorbells(dev, p);
+	} else if (flags & KFD_IOC_ALLOC_MEM_FLAGS_MMIO_REMAP) {
+		if (args->size != PAGE_SIZE)
+			return -EINVAL;
+		offset = amdgpu_amdkfd_get_mmio_remap_phys_addr(dev->kgd);
+		if (!offset)
+			return -ENOMEM;
 	}
 
 	mutex_lock(&p->mutex);
@@ -1300,6 +1308,14 @@ static int kfd_ioctl_alloc_memory_of_gpu(struct file *filep,
 
 	args->handle = MAKE_HANDLE(args->gpu_id, idr_handle);
 	args->mmap_offset = offset;
+
+	/* MMIO is mapped through kfd device
+	 * Generate a kfd mmap offset
+	 */
+	if (flags & KFD_IOC_ALLOC_MEM_FLAGS_MMIO_REMAP) {
+		args->mmap_offset = KFD_MMAP_TYPE_MMIO | KFD_MMAP_GPU_ID(args->gpu_id);
+		args->mmap_offset <<= PAGE_SHIFT;
+	}
 
 	return 0;
 
@@ -1785,7 +1801,7 @@ static long kfd_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 	} else
 		goto err_i1;
 
-	dev_dbg(kfd_device, "ioctl cmd 0x%x (#%d), arg 0x%lx\n", cmd, nr, arg);
+	dev_dbg(kfd_device, "ioctl cmd 0x%x (#0x%x), arg 0x%lx\n", cmd, nr, arg);
 
 	process = kfd_get_process(current);
 	if (IS_ERR(process)) {
@@ -1840,10 +1856,44 @@ err_i1:
 		kfree(kdata);
 
 	if (retcode)
-		dev_dbg(kfd_device, "ret = %d\n", retcode);
+		dev_dbg(kfd_device, "ioctl cmd (#0x%x), arg 0x%lx, ret = %d\n",
+				nr, arg, retcode);
 
 	return retcode;
 }
+
+static int kfd_mmio_mmap(struct kfd_dev *dev, struct kfd_process *process,
+		      struct vm_area_struct *vma)
+{
+	phys_addr_t address;
+	int ret;
+
+	if (vma->vm_end - vma->vm_start != PAGE_SIZE)
+		return -EINVAL;
+
+	address = amdgpu_amdkfd_get_mmio_remap_phys_addr(dev->kgd);
+
+	vma->vm_flags |= VM_IO | VM_DONTCOPY | VM_DONTEXPAND | VM_NORESERVE |
+				VM_DONTDUMP | VM_PFNMAP;
+
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+
+	pr_debug("pasid 0x%x mapping mmio page\n"
+		 "     target user address == 0x%08llX\n"
+		 "     physical address    == 0x%08llX\n"
+		 "     vm_flags            == 0x%04lX\n"
+		 "     size                == 0x%04lX\n",
+		 process->pasid, (unsigned long long) vma->vm_start,
+		 address, vma->vm_flags, PAGE_SIZE);
+
+	ret = io_remap_pfn_range(vma,
+				vma->vm_start,
+				address >> PAGE_SHIFT,
+				PAGE_SIZE,
+				vma->vm_page_prot);
+	return ret;
+}
+
 
 static int kfd_mmap(struct file *filp, struct vm_area_struct *vma)
 {
@@ -1875,6 +1925,10 @@ static int kfd_mmap(struct file *filp, struct vm_area_struct *vma)
 		if (!dev)
 			return -ENODEV;
 		return kfd_reserved_mem_mmap(dev, process, vma);
+	case KFD_MMAP_TYPE_MMIO:
+		if (!dev)
+			return -ENODEV;
+		return kfd_mmio_mmap(dev, process, vma);
 	}
 
 	return -EFAULT;

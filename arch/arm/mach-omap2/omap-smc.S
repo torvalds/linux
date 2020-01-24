@@ -20,7 +20,8 @@
  * link register "lr".
  * Function signature : void omap_smc1(u32 fn, u32 arg)
  */
-
+	.arch armv7-a
+	.arch_extension sec
 ENTRY(omap_smc1)
 	stmfd   sp!, {r2-r12, lr}
 	mov	r12, r0

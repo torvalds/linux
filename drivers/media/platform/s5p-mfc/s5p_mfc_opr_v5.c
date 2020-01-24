@@ -692,9 +692,9 @@ static int s5p_mfc_set_enc_params(struct s5p_mfc_ctx *ctx)
 	/* multi-slice control */
 	/* multi-slice MB number or bit size */
 	mfc_write(dev, p->slice_mode, S5P_FIMV_ENC_MSLICE_CTRL);
-	if (p->slice_mode == V4L2_MPEG_VIDEO_MULTI_SICE_MODE_MAX_MB) {
+	if (p->slice_mode == V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_MB) {
 		mfc_write(dev, p->slice_mb, S5P_FIMV_ENC_MSLICE_MB);
-	} else if (p->slice_mode == V4L2_MPEG_VIDEO_MULTI_SICE_MODE_MAX_BYTES) {
+	} else if (p->slice_mode == V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_BYTES) {
 		mfc_write(dev, p->slice_bit, S5P_FIMV_ENC_MSLICE_BIT);
 	} else {
 		mfc_write(dev, 0, S5P_FIMV_ENC_MSLICE_MB);
@@ -711,7 +711,7 @@ static int s5p_mfc_set_enc_params(struct s5p_mfc_ctx *ctx)
 	reg = mfc_read(dev, S5P_FIMV_ENC_PADDING_CTRL);
 	if (p->pad) {
 		/** enable */
-		reg |= (1 << 31);
+		reg |= (1UL << 31);
 		/** cr value */
 		reg &= ~(0xFF << 16);
 		reg |= (p->pad_cr << 16);
@@ -955,7 +955,7 @@ static int s5p_mfc_set_enc_params_mpeg4(struct s5p_mfc_ctx *ctx)
 				S5P_FIMV_ENC_RC_FRAME_RATE);
 			shm = s5p_mfc_read_info_v5(ctx, RC_VOP_TIMING);
 			shm &= ~(0xFFFFFFFF);
-			shm |= (1 << 31);
+			shm |= (1UL << 31);
 			shm |= ((p->rc_framerate_num & 0x7FFF) << 16);
 			shm |= (p->rc_framerate_denom & 0xFFFF);
 			s5p_mfc_write_info_v5(ctx, shm, RC_VOP_TIMING);

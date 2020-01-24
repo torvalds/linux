@@ -9,7 +9,7 @@
 #ifdef CONFIG_DEBUG_BUGVERBOSE
 
 #define __EMIT_BUG(x) do {					\
-	asm volatile(						\
+	asm_inline volatile(					\
 		"0:	j	0b+2\n"				\
 		"1:\n"						\
 		".section .rodata.str,\"aMS\",@progbits,1\n"	\
@@ -28,7 +28,7 @@
 #else /* CONFIG_DEBUG_BUGVERBOSE */
 
 #define __EMIT_BUG(x) do {					\
-	asm volatile(						\
+	asm_inline volatile(					\
 		"0:	j	0b+2\n"				\
 		"1:\n"						\
 		".section __bug_table,\"awM\",@progbits,%1\n"	\

@@ -150,7 +150,6 @@ struct s5p_jpeg_variant {
 
 /**
  * struct jpeg_fmt - driver's internal color format data
- * @name:	format description
  * @fourcc:	the fourcc code, 0 if not applicable
  * @depth:	number of bits per pixel
  * @colplanes:	number of color planes (1 for packed formats)
@@ -159,7 +158,6 @@ struct s5p_jpeg_variant {
  * @flags:	flags describing format applicability
  */
 struct s5p_jpeg_fmt {
-	char	*name;
 	u32	fourcc;
 	int	depth;
 	int	colplanes;
@@ -192,7 +190,6 @@ struct s5p_jpeg_marker {
  * @dqt:	DQT markers' positions relative to the buffer beginning
  * @sof:	SOF0 marker's position relative to the buffer beginning
  * @sof_len:	SOF0 marker's payload length (without length field itself)
- * @components:	number of image components
  * @size:	image buffer size in bytes
  */
 struct s5p_jpeg_q_data {
@@ -204,7 +201,6 @@ struct s5p_jpeg_q_data {
 	struct s5p_jpeg_marker	dqt;
 	u32			sof;
 	u32			sof_len;
-	u32			components;
 	u32			size;
 };
 

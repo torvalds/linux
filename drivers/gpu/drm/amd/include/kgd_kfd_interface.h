@@ -174,6 +174,7 @@ struct tile_config {
 #define ALLOC_MEM_FLAGS_GTT		(1 << 1)
 #define ALLOC_MEM_FLAGS_USERPTR		(1 << 2)
 #define ALLOC_MEM_FLAGS_DOORBELL	(1 << 3)
+#define ALLOC_MEM_FLAGS_MMIO_REMAP	(1 << 4)
 
 /*
  * Allocation flags attributes/access options.
@@ -290,15 +291,18 @@ struct kfd2kgd_calls {
 	uint32_t (*address_watch_get_offset)(struct kgd_dev *kgd,
 					unsigned int watch_point_id,
 					unsigned int reg_offset);
-	bool (*get_atc_vmid_pasid_mapping_valid)(
+	bool (*get_atc_vmid_pasid_mapping_info)(
 					struct kgd_dev *kgd,
-					uint8_t vmid);
-	uint16_t (*get_atc_vmid_pasid_mapping_pasid)(
-					struct kgd_dev *kgd,
-					uint8_t vmid);
+					uint8_t vmid,
+					uint16_t *p_pasid);
 
+	/* No longer needed from GFXv9 onward. The scratch base address is
+	 * passed to the shader by the CP. It's the user mode driver's
+	 * responsibility.
+	 */
 	void (*set_scratch_backing_va)(struct kgd_dev *kgd,
 				uint64_t va, uint32_t vmid);
+
 	int (*get_tile_config)(struct kgd_dev *kgd, struct tile_config *config);
 
 	void (*set_vm_context_page_table_base)(struct kgd_dev *kgd,

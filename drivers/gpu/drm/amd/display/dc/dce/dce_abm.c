@@ -23,6 +23,8 @@
  *
  */
 
+#include <linux/slab.h>
+
 #include "dce_abm.h"
 #include "dm_services.h"
 #include "reg_helper.h"
@@ -58,6 +60,9 @@ static bool dce_abm_set_pipe(struct abm *abm, uint32_t controller_id)
 	struct dce_abm *abm_dce = TO_DCE_ABM(abm);
 	uint32_t rampingBoundary = 0xFFFF;
 
+	if (abm->dmcu_is_running == false)
+		return true;
+
 	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0,
 			1, 80000);
 
@@ -71,6 +76,9 @@ static bool dce_abm_set_pipe(struct abm *abm, uint32_t controller_id)
 
 	/* notifyDMCUMsg */
 	REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
+
+	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0,
+			1, 80000);
 
 	return true;
 }
@@ -234,6 +242,10 @@ static void dmcu_set_backlight_level(
 	s2 |= (backlight_8_bit << ATOM_S2_CURRENT_BL_LEVEL_SHIFT);
 
 	REG_WRITE(BIOS_SCRATCH_2, s2);
+
+	/* waitDMCUReadyForCmd */
+	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT,
+			0, 1, 80000);
 }
 
 static void dce_abm_init(struct abm *abm)
@@ -302,6 +314,9 @@ static bool dce_abm_set_level(struct abm *abm, uint32_t level)
 {
 	struct dce_abm *abm_dce = TO_DCE_ABM(abm);
 
+	if (abm->dmcu_is_running == false)
+		return true;
+
 	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0,
 			1, 80000);
 
@@ -319,6 +334,9 @@ static bool dce_abm_set_level(struct abm *abm, uint32_t level)
 static bool dce_abm_immediate_disable(struct abm *abm)
 {
 	struct dce_abm *abm_dce = TO_DCE_ABM(abm);
+
+	if (abm->dmcu_is_running == false)
+		return true;
 
 	dce_abm_set_pipe(abm, MCP_DISABLE_ABM_IMMEDIATELY);
 
@@ -386,6 +404,10 @@ static bool dce_abm_init_backlight(struct abm *abm)
 	/* Enable the backlight output */
 	REG_UPDATE(BL_PWM_CNTL, BL_PWM_EN, 1);
 
+	/* Disable fractional pwm if configured */
+	REG_UPDATE(BL_PWM_CNTL, BL_PWM_FRACTIONAL_EN,
+		   abm->ctx->dc->config.disable_fractional_pwm ? 0 : 1);
+
 	/* Unlock group 2 backlight registers */
 	REG_UPDATE(BL_PWM_GRP1_REG_LOCK,
 			BL_PWM_GRP1_REG_LOCK, 0);
@@ -443,6 +465,7 @@ static void dce_abm_construct(
 	base->stored_backlight_registers.BL_PWM_CNTL2 = 0;
 	base->stored_backlight_registers.BL_PWM_PERIOD_CNTL = 0;
 	base->stored_backlight_registers.LVTMA_PWRSEQ_REF_DIV_BL_PWM_REF_DIV = 0;
+	base->dmcu_is_running = false;
 
 	abm_dce->regs = regs;
 	abm_dce->abm_shift = abm_shift;

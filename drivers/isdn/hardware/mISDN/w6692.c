@@ -356,8 +356,7 @@ handle_rxD(struct w6692_hw *card) {
 			card->dch.err_rx++;
 #endif
 		}
-		if (card->dch.rx_skb)
-			dev_kfree_skb(card->dch.rx_skb);
+		dev_kfree_skb(card->dch.rx_skb);
 		card->dch.rx_skb = NULL;
 		WriteW6692(card, W_D_CMDR, W_D_CMDR_RACK | W_D_CMDR_RRST);
 	} else {
@@ -376,8 +375,7 @@ handle_txD(struct w6692_hw *card) {
 	if (card->dch.tx_skb && card->dch.tx_idx < card->dch.tx_skb->len) {
 		W6692_fill_Dfifo(card);
 	} else {
-		if (card->dch.tx_skb)
-			dev_kfree_skb(card->dch.tx_skb);
+		dev_kfree_skb(card->dch.tx_skb);
 		if (get_next_dframe(&card->dch))
 			W6692_fill_Dfifo(card);
 	}
@@ -468,8 +466,8 @@ W6692_empty_Bfifo(struct w6692_ch *wch, int count)
 		WriteW6692B(wch, W_B_CMDR, W_B_CMDR_RACK | W_B_CMDR_RACT);
 		if (wch->bch.rx_skb)
 			skb_trim(wch->bch.rx_skb, 0);
-		pr_warning("%s.B%d: No bufferspace for %d bytes\n",
-			   card->name, wch->bch.nr, count);
+		pr_warn("%s.B%d: No bufferspace for %d bytes\n",
+			card->name, wch->bch.nr, count);
 		return;
 	}
 	ptr = skb_put(wch->bch.rx_skb, count);
@@ -636,8 +634,7 @@ send_next(struct w6692_ch *wch)
 	if (wch->bch.tx_skb && wch->bch.tx_idx < wch->bch.tx_skb->len) {
 		W6692_fill_Bfifo(wch);
 	} else {
-		if (wch->bch.tx_skb)
-			dev_kfree_skb(wch->bch.tx_skb);
+		dev_kfree_skb(wch->bch.tx_skb);
 		if (get_next_bframe(&wch->bch)) {
 			W6692_fill_Bfifo(wch);
 			test_and_clear_bit(FLG_TX_EMPTY, &wch->bch.Flags);
@@ -732,8 +729,8 @@ W6692B_interrupt(struct w6692_hw *card, int ch)
 				 wch->bch.nr, star);
 		}
 		if (star & W_B_STAR_XDOW) {
-			pr_warning("%s: B%d XDOW proto=%x\n", card->name,
-				   wch->bch.nr, wch->bch.state);
+			pr_warn("%s: B%d XDOW proto=%x\n", card->name,
+				wch->bch.nr, wch->bch.state);
 #ifdef ERROR_STATISTIC
 			wch->bch.err_xdu++;
 #endif
@@ -750,8 +747,8 @@ W6692B_interrupt(struct w6692_hw *card, int ch)
 			return; /* handle XDOW only once */
 	}
 	if (stat & W_B_EXI_XDUN) {
-		pr_warning("%s: B%d XDUN proto=%x\n", card->name,
-			   wch->bch.nr, wch->bch.state);
+		pr_warn("%s: B%d XDUN proto=%x\n", card->name,
+			wch->bch.nr, wch->bch.state);
 #ifdef ERROR_STATISTIC
 		wch->bch.err_xdu++;
 #endif

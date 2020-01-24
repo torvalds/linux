@@ -60,6 +60,11 @@ OPTIONS
 	  - 'name' : User defined event name. Single quotes (') may be used to
 		    escape symbols in the name from parsing by shell and tool
 		    like this: name=\'CPU_CLK_UNHALTED.THREAD:cmask=0x1\'.
+	  - 'aux-output': Generate AUX records instead of events. This requires
+			  that an AUX area event is also provided.
+	  - 'aux-sample-size': Set sample size for AUX area sampling. If the
+	  '--aux-sample' option has been used, set aux-sample-size=0 to disable
+	  AUX area sampling for the event.
 
           See the linkperf:perf-list[1] man page for more parameters.
 
@@ -422,9 +427,20 @@ CLOCK_BOOTTIME, CLOCK_REALTIME and CLOCK_TAI.
 -S::
 --snapshot::
 Select AUX area tracing Snapshot Mode. This option is valid only with an
-AUX area tracing event. Optionally the number of bytes to capture per
-snapshot can be specified. In Snapshot Mode, trace data is captured only when
-signal SIGUSR2 is received.
+AUX area tracing event. Optionally, certain snapshot capturing parameters
+can be specified in a string that follows this option:
+  'e': take one last snapshot on exit; guarantees that there is at least one
+       snapshot in the output file;
+  <size>: if the PMU supports this, specify the desired snapshot size.
+
+In Snapshot Mode trace data is captured only when signal SIGUSR2 is received
+and on exit if the above 'e' option is given.
+
+--aux-sample[=OPTIONS]::
+Select AUX area sampling. At least one of the events selected by the -e option
+must be an AUX area event. Samples on other events will be created containing
+data from the AUX area. Optionally sample size may be specified, otherwise it
+defaults to 4KiB.
 
 --proc-map-timeout::
 When processing pre-existing threads /proc/XXX/mmap, it may take a long time,
@@ -490,6 +506,17 @@ Configure all used events to run in kernel space.
 --all-user::
 Configure all used events to run in user space.
 
+--kernel-callchains::
+Collect callchains only from kernel space. I.e. this option sets
+perf_event_attr.exclude_callchain_user to 1.
+
+--user-callchains::
+Collect callchains only from user space. I.e. this option sets
+perf_event_attr.exclude_callchain_kernel to 1.
+
+Don't use both --kernel-callchains and --user-callchains at the same time or no
+callchains will be collected.
+
 --timestamp-filename
 Append timestamp to output file name.
 
@@ -552,6 +579,13 @@ those fitting in the ring buffer at that moment.
 config terms. For example: 'cycles/overwrite/' and 'instructions/no-overwrite/'.
 
 Implies --tail-synthesize.
+
+--kcore::
+Make a copy of /proc/kcore and place it into a directory with the perf data file.
+
+--max-size=<size>::
+Limit the sample data max size, <size> is expected to be a number with
+appended unit character - B/K/M/G
 
 SEE ALSO
 --------

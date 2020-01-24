@@ -139,20 +139,16 @@ void hda_dsp_ctrl_misc_clock_gating(struct snd_sof_dev *sdev, bool enable)
  */
 int hda_dsp_ctrl_clock_power_gating(struct snd_sof_dev *sdev, bool enable)
 {
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	struct hdac_bus *bus = sof_to_bus(sdev);
-#endif
 	u32 val;
 
 	/* enable/disable audio dsp clock gating */
 	val = enable ? PCI_CGCTL_ADSPDCGE : 0;
 	snd_sof_pci_update_bits(sdev, PCI_CGCTL, PCI_CGCTL_ADSPDCGE, val);
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	/* enable/disable L1 support */
-	val = enable ? SOF_HDA_VS_EM2_L1SEN : 0;
-	snd_hdac_chip_updatel(bus, VS_EM2, SOF_HDA_VS_EM2_L1SEN, val);
-#endif
+	/* enable/disable DMI Link L1 support */
+	val = enable ? HDA_VS_INTEL_EM2_L1SEN : 0;
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, HDA_VS_INTEL_EM2,
+				HDA_VS_INTEL_EM2_L1SEN, val);
 
 	/* enable/disable audio dsp power gating */
 	val = enable ? 0 : PCI_PGCTL_ADSPPGD;
@@ -164,6 +160,9 @@ int hda_dsp_ctrl_clock_power_gating(struct snd_sof_dev *sdev, bool enable)
 int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev, bool full_reset)
 {
 	struct hdac_bus *bus = sof_to_bus(sdev);
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+	struct hdac_ext_link *hlink;
+#endif
 	struct hdac_stream *stream;
 	int sd_offset, ret = 0;
 
@@ -173,11 +172,6 @@ int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev, bool full_reset)
 	hda_dsp_ctrl_misc_clock_gating(sdev, false);
 
 	if (full_reset) {
-		/* clear WAKESTS */
-		snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, SOF_HDA_WAKESTS,
-					SOF_HDA_WAKESTS_INT_MASK,
-					SOF_HDA_WAKESTS_INT_MASK);
-
 		/* reset HDA controller */
 		ret = hda_dsp_ctrl_link_reset(sdev, true);
 		if (ret < 0) {
@@ -217,17 +211,14 @@ int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev, bool full_reset)
 	/* clear stream status */
 	list_for_each_entry(stream, &bus->stream_list, list) {
 		sd_offset = SOF_STREAM_SD_OFFSET(stream);
-		snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,
-					sd_offset +
-					SOF_HDA_ADSP_REG_CL_SD_STS,
-					SOF_HDA_CL_DMA_SD_INT_MASK,
-					SOF_HDA_CL_DMA_SD_INT_MASK);
+		snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR,
+				  sd_offset + SOF_HDA_ADSP_REG_CL_SD_STS,
+				  SOF_HDA_CL_DMA_SD_INT_MASK);
 	}
 
 	/* clear WAKESTS */
-	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, SOF_HDA_WAKESTS,
-				SOF_HDA_WAKESTS_INT_MASK,
-				SOF_HDA_WAKESTS_INT_MASK);
+	snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR, SOF_HDA_WAKESTS,
+			  SOF_HDA_WAKESTS_INT_MASK);
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 	/* clear rirb status */
@@ -248,13 +239,18 @@ int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev, bool full_reset)
 				SOF_HDA_INT_CTRL_EN | SOF_HDA_INT_GLOBAL_EN,
 				SOF_HDA_INT_CTRL_EN | SOF_HDA_INT_GLOBAL_EN);
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 	/* program the position buffer */
 	if (bus->use_posbuf && bus->posbuf.addr) {
-		snd_hdac_chip_writel(bus, DPLBASE, (u32)bus->posbuf.addr);
-		snd_hdac_chip_writel(bus, DPUBASE,
-				     upper_32_bits(bus->posbuf.addr));
+		snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR, SOF_HDA_ADSP_DPLBASE,
+				  (u32)bus->posbuf.addr);
+		snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR, SOF_HDA_ADSP_DPUBASE,
+				  upper_32_bits(bus->posbuf.addr));
 	}
+
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+	/* Reset stream-to-link mapping */
+	list_for_each_entry(hlink, &bus->hlink_list, list)
+		writel(0, hlink->ml_addr + AZX_REG_ML_LOSIDV);
 #endif
 
 	bus->chip_init = true;
@@ -262,4 +258,68 @@ int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev, bool full_reset)
 	hda_dsp_ctrl_misc_clock_gating(sdev, true);
 
 	return ret;
+}
+
+void hda_dsp_ctrl_stop_chip(struct snd_sof_dev *sdev)
+{
+	struct hdac_bus *bus = sof_to_bus(sdev);
+	struct hdac_stream *stream;
+	int sd_offset;
+
+	if (!bus->chip_init)
+		return;
+
+	/* disable interrupts in stream descriptor */
+	list_for_each_entry(stream, &bus->stream_list, list) {
+		sd_offset = SOF_STREAM_SD_OFFSET(stream);
+		snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,
+					sd_offset +
+					SOF_HDA_ADSP_REG_CL_SD_CTL,
+					SOF_HDA_CL_DMA_SD_INT_MASK,
+					0);
+	}
+
+	/* disable SIE for all streams */
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, SOF_HDA_INTCTL,
+				SOF_HDA_INT_ALL_STREAM,	0);
+
+	/* disable controller CIE and GIE */
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, SOF_HDA_INTCTL,
+				SOF_HDA_INT_CTRL_EN | SOF_HDA_INT_GLOBAL_EN,
+				0);
+
+	/* clear stream status */
+	list_for_each_entry(stream, &bus->stream_list, list) {
+		sd_offset = SOF_STREAM_SD_OFFSET(stream);
+		snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR,
+				  sd_offset + SOF_HDA_ADSP_REG_CL_SD_STS,
+				  SOF_HDA_CL_DMA_SD_INT_MASK);
+	}
+
+	/* clear WAKESTS */
+	snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR, SOF_HDA_WAKESTS,
+			  SOF_HDA_WAKESTS_INT_MASK);
+
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+	/* clear rirb status */
+	snd_hdac_chip_writeb(bus, RIRBSTS, RIRB_INT_MASK);
+#endif
+
+	/* clear interrupt status register */
+	snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR, SOF_HDA_INTSTS,
+			  SOF_HDA_INT_CTRL_EN | SOF_HDA_INT_ALL_STREAM);
+
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+	/* disable CORB/RIRB */
+	snd_hdac_bus_stop_cmd_io(bus);
+#endif
+	/* disable position buffer */
+	if (bus->posbuf.addr) {
+		snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR,
+				  SOF_HDA_ADSP_DPLBASE, 0);
+		snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR,
+				  SOF_HDA_ADSP_DPUBASE, 0);
+	}
+
+	bus->chip_init = false;
 }

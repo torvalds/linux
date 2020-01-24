@@ -12,6 +12,10 @@
 #include <linux/sched/task_stack.h>
 #include <linux/uaccess.h>
 
+#ifdef CONFIG_X86_32
+#include <asm/desc.h>
+#endif
+
 struct lkdtm_list {
 	struct list_head node;
 };
@@ -22,7 +26,7 @@ struct lkdtm_list {
  * recurse past the end of THREAD_SIZE by default.
  */
 #if defined(CONFIG_FRAME_WARN) && (CONFIG_FRAME_WARN > 0)
-#define REC_STACK_SIZE (CONFIG_FRAME_WARN / 2)
+#define REC_STACK_SIZE (_AC(CONFIG_FRAME_WARN, UL) / 2)
 #else
 #define REC_STACK_SIZE (THREAD_SIZE / 8)
 #endif
@@ -75,7 +79,12 @@ static int warn_counter;
 
 void lkdtm_WARNING(void)
 {
-	WARN(1, "Warning message trigger count: %d\n", warn_counter++);
+	WARN_ON(++warn_counter);
+}
+
+void lkdtm_WARNING_MESSAGE(void)
+{
+	WARN(1, "Warning message trigger count: %d\n", ++warn_counter);
 }
 
 void lkdtm_EXCEPTION(void)
@@ -91,7 +100,7 @@ void lkdtm_LOOP(void)
 
 void lkdtm_EXHAUST_STACK(void)
 {
-	pr_info("Calling function with %d frame size to depth %d ...\n",
+	pr_info("Calling function with %lu frame size to depth %d ...\n",
 		REC_STACK_SIZE, recur_count);
 	recursive_loop(recur_count);
 	pr_info("FAIL: survived without exhausting stack?!\n");
@@ -236,7 +245,7 @@ void lkdtm_CORRUPT_USER_DS(void)
 	set_fs(KERNEL_DS);
 
 	/* Make sure we do not keep running with a KERNEL_DS! */
-	force_sig(SIGKILL, current);
+	force_sig(SIGKILL);
 }
 
 /* Test that VMAP_STACK is actually allocating with a leading guard page */
@@ -265,4 +274,107 @@ void lkdtm_STACK_GUARD_PAGE_TRAILING(void)
 	byte = *ptr;
 
 	pr_err("FAIL: accessed page after stack!\n");
+}
+
+void lkdtm_UNSET_SMEP(void)
+{
+#if IS_ENABLED(CONFIG_X86_64) && !IS_ENABLED(CONFIG_UML)
+#define MOV_CR4_DEPTH	64
+	void (*direct_write_cr4)(unsigned long val);
+	unsigned char *insn;
+	unsigned long cr4;
+	int i;
+
+	cr4 = native_read_cr4();
+
+	if ((cr4 & X86_CR4_SMEP) != X86_CR4_SMEP) {
+		pr_err("FAIL: SMEP not in use\n");
+		return;
+	}
+	cr4 &= ~(X86_CR4_SMEP);
+
+	pr_info("trying to clear SMEP normally\n");
+	native_write_cr4(cr4);
+	if (cr4 == native_read_cr4()) {
+		pr_err("FAIL: pinning SMEP failed!\n");
+		cr4 |= X86_CR4_SMEP;
+		pr_info("restoring SMEP\n");
+		native_write_cr4(cr4);
+		return;
+	}
+	pr_info("ok: SMEP did not get cleared\n");
+
+	/*
+	 * To test the post-write pinning verification we need to call
+	 * directly into the middle of native_write_cr4() where the
+	 * cr4 write happens, skipping any pinning. This searches for
+	 * the cr4 writing instruction.
+	 */
+	insn = (unsigned char *)native_write_cr4;
+	for (i = 0; i < MOV_CR4_DEPTH; i++) {
+		/* mov %rdi, %cr4 */
+		if (insn[i] == 0x0f && insn[i+1] == 0x22 && insn[i+2] == 0xe7)
+			break;
+		/* mov %rdi,%rax; mov %rax, %cr4 */
+		if (insn[i]   == 0x48 && insn[i+1] == 0x89 &&
+		    insn[i+2] == 0xf8 && insn[i+3] == 0x0f &&
+		    insn[i+4] == 0x22 && insn[i+5] == 0xe0)
+			break;
+	}
+	if (i >= MOV_CR4_DEPTH) {
+		pr_info("ok: cannot locate cr4 writing call gadget\n");
+		return;
+	}
+	direct_write_cr4 = (void *)(insn + i);
+
+	pr_info("trying to clear SMEP with call gadget\n");
+	direct_write_cr4(cr4);
+	if (native_read_cr4() & X86_CR4_SMEP) {
+		pr_info("ok: SMEP removal was reverted\n");
+	} else {
+		pr_err("FAIL: cleared SMEP not detected!\n");
+		cr4 |= X86_CR4_SMEP;
+		pr_info("restoring SMEP\n");
+		native_write_cr4(cr4);
+	}
+#else
+	pr_err("XFAIL: this test is x86_64-only\n");
+#endif
+}
+
+void lkdtm_DOUBLE_FAULT(void)
+{
+#ifdef CONFIG_X86_32
+	/*
+	 * Trigger #DF by setting the stack limit to zero.  This clobbers
+	 * a GDT TLS slot, which is okay because the current task will die
+	 * anyway due to the double fault.
+	 */
+	struct desc_struct d = {
+		.type = 3,	/* expand-up, writable, accessed data */
+		.p = 1,		/* present */
+		.d = 1,		/* 32-bit */
+		.g = 0,		/* limit in bytes */
+		.s = 1,		/* not system */
+	};
+
+	local_irq_disable();
+	write_gdt_entry(get_cpu_gdt_rw(smp_processor_id()),
+			GDT_ENTRY_TLS_MIN, &d, DESCTYPE_S);
+
+	/*
+	 * Put our zero-limit segment in SS and then trigger a fault.  The
+	 * 4-byte access to (%esp) will fault with #SS, and the attempt to
+	 * deliver the fault will recursively cause #SS and result in #DF.
+	 * This whole process happens while NMIs and MCEs are blocked by the
+	 * MOV SS window.  This is nice because an NMI with an invalid SS
+	 * would also double-fault, resulting in the NMI or MCE being lost.
+	 */
+	asm volatile ("movw %0, %%ss; addl $0, (%%esp)" ::
+		      "r" ((unsigned short)(GDT_ENTRY_TLS_MIN << 3)));
+
+	pr_err("FAIL: tried to double fault but didn't die\n");
+#else
+	pr_err("XFAIL: this test is ia32-only\n");
+#endif
 }

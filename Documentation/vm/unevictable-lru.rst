@@ -98,7 +98,7 @@ Memory Control Group Interaction
 --------------------------------
 
 The unevictable LRU facility interacts with the memory control group [aka
-memory controller; see Documentation/cgroup-v1/memory.txt] by extending the
+memory controller; see Documentation/admin-guide/cgroup-v1/memory.rst] by extending the
 lru_list enum.
 
 The memory controller data structure automatically gets a per-zone unevictable
@@ -439,7 +439,7 @@ Compacting MLOCKED Pages
 
 The unevictable LRU can be scanned for compactable regions and the default
 behavior is to do so.  /proc/sys/vm/compact_unevictable_allowed controls
-this behavior (see Documentation/sysctl/vm.txt).  Once scanning of the
+this behavior (see Documentation/admin-guide/sysctl/vm.rst).  Once scanning of the
 unevictable LRU is enabled, the work of compaction is mostly handled by
 the page migration code and the same work flow as described in MIGRATING
 MLOCKED PAGES will apply.

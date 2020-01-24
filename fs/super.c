@@ -32,6 +32,7 @@
 #include <linux/backing-dev.h>
 #include <linux/rculist_bl.h>
 #include <linux/cleancache.h>
+#include <linux/fscrypt.h>
 #include <linux/fsnotify.h>
 #include <linux/lockdep.h>
 #include <linux/user_namespace.h>
@@ -257,6 +258,8 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags,
 	s->s_maxbytes = MAX_NON_LFS;
 	s->s_op = &default_op;
 	s->s_time_gran = 1000000000;
+	s->s_time_min = TIME64_MIN;
+	s->s_time_max = TIME64_MAX;
 	s->cleancache_poolid = CLEANCACHE_NO_POOL;
 
 	s->s_shrink.seeks = DEFAULT_SEEKS;
@@ -290,6 +293,7 @@ static void __put_super(struct super_block *s)
 		WARN_ON(s->s_inode_lru.node);
 		WARN_ON(!list_empty(&s->s_mounts));
 		security_sb_free(s);
+		fscrypt_sb_free(s);
 		put_user_ns(s->s_user_ns);
 		kfree(s->s_subtype);
 		call_rcu(&s->rcu, destroy_super_rcu);
@@ -444,10 +448,12 @@ void generic_shutdown_super(struct super_block *sb)
 		sync_filesystem(sb);
 		sb->s_flags &= ~SB_ACTIVE;
 
-		fsnotify_sb_delete(sb);
 		cgroup_writeback_umount();
 
+		/* evict all inodes with zero refcount */
 		evict_inodes(sb);
+		/* only nonzero refcount inodes can have marks */
+		fsnotify_sb_delete(sb);
 
 		if (sb->s_dio_done_wq) {
 			destroy_workqueue(sb->s_dio_done_wq);
@@ -476,6 +482,14 @@ void generic_shutdown_super(struct super_block *sb)
 
 EXPORT_SYMBOL(generic_shutdown_super);
 
+bool mount_capable(struct fs_context *fc)
+{
+	if (!(fc->fs_type->fs_flags & FS_USERNS_MOUNT))
+		return capable(CAP_SYS_ADMIN);
+	else
+		return ns_capable(fc->user_ns, CAP_SYS_ADMIN);
+}
+
 /**
  * sget_fc - Find or create a superblock
  * @fc:	Filesystem context.
@@ -503,20 +517,6 @@ struct super_block *sget_fc(struct fs_context *fc,
 	struct user_namespace *user_ns = fc->global ? &init_user_ns : fc->user_ns;
 	int err;
 
-	if (!(fc->sb_flags & SB_KERNMOUNT) &&
-	    fc->purpose != FS_CONTEXT_FOR_SUBMOUNT) {
-		/* Don't allow mounting unless the caller has CAP_SYS_ADMIN
-		 * over the namespace.
-		 */
-		if (!(fc->fs_type->fs_flags & FS_USERNS_MOUNT)) {
-			if (!capable(CAP_SYS_ADMIN))
-				return ERR_PTR(-EPERM);
-		} else {
-			if (!ns_capable(fc->user_ns, CAP_SYS_ADMIN))
-				return ERR_PTR(-EPERM);
-		}
-	}
-
 retry:
 	spin_lock(&sb_lock);
 	if (test) {
@@ -543,6 +543,7 @@ retry:
 	}
 	fc->s_fs_info = NULL;
 	s->s_type = fc->fs_type;
+	s->s_iflags |= fc->s_iflags;
 	strlcpy(s->s_id, s->s_type->name, sizeof(s->s_id));
 	list_add_tail(&s->s_list, &super_blocks);
 	hlist_add_head(&s->s_instances, &s->s_type->fs_supers);
@@ -565,28 +566,31 @@ share_extant_sb:
 EXPORT_SYMBOL(sget_fc);
 
 /**
- *	sget_userns -	find or create a superblock
- *	@type:	filesystem type superblock should belong to
- *	@test:	comparison callback
- *	@set:	setup callback
- *	@flags:	mount flags
- *	@user_ns: User namespace for the super_block
- *	@data:	argument to each of them
+ *	sget	-	find or create a superblock
+ *	@type:	  filesystem type superblock should belong to
+ *	@test:	  comparison callback
+ *	@set:	  setup callback
+ *	@flags:	  mount flags
+ *	@data:	  argument to each of them
  */
-struct super_block *sget_userns(struct file_system_type *type,
+struct super_block *sget(struct file_system_type *type,
 			int (*test)(struct super_block *,void *),
 			int (*set)(struct super_block *,void *),
-			int flags, struct user_namespace *user_ns,
+			int flags,
 			void *data)
 {
+	struct user_namespace *user_ns = current_user_ns();
 	struct super_block *s = NULL;
 	struct super_block *old;
 	int err;
 
-	if (!(flags & (SB_KERNMOUNT|SB_SUBMOUNT)) &&
-	    !(type->fs_flags & FS_USERNS_MOUNT) &&
-	    !capable(CAP_SYS_ADMIN))
-		return ERR_PTR(-EPERM);
+	/* We don't yet pass the user namespace of the parent
+	 * mount through to here so always use &init_user_ns
+	 * until that changes.
+	 */
+	if (flags & SB_SUBMOUNT)
+		user_ns = &init_user_ns;
+
 retry:
 	spin_lock(&sb_lock);
 	if (test) {
@@ -627,39 +631,6 @@ retry:
 	register_shrinker_prepared(&s->s_shrink);
 	return s;
 }
-
-EXPORT_SYMBOL(sget_userns);
-
-/**
- *	sget	-	find or create a superblock
- *	@type:	  filesystem type superblock should belong to
- *	@test:	  comparison callback
- *	@set:	  setup callback
- *	@flags:	  mount flags
- *	@data:	  argument to each of them
- */
-struct super_block *sget(struct file_system_type *type,
-			int (*test)(struct super_block *,void *),
-			int (*set)(struct super_block *,void *),
-			int flags,
-			void *data)
-{
-	struct user_namespace *user_ns = current_user_ns();
-
-	/* We don't yet pass the user namespace of the parent
-	 * mount through to here so always use &init_user_ns
-	 * until that changes.
-	 */
-	if (flags & SB_SUBMOUNT)
-		user_ns = &init_user_ns;
-
-	/* Ensure the requestor has permissions over the target filesystem */
-	if (!(flags & (SB_KERNMOUNT|SB_SUBMOUNT)) && !ns_capable(user_ns, CAP_SYS_ADMIN))
-		return ERR_PTR(-EPERM);
-
-	return sget_userns(type, test, set, flags, user_ns, data);
-}
-
 EXPORT_SYMBOL(sget);
 
 void drop_super(struct super_block *sb)
@@ -1147,50 +1118,6 @@ void kill_litter_super(struct super_block *sb)
 }
 EXPORT_SYMBOL(kill_litter_super);
 
-static int ns_test_super(struct super_block *sb, void *data)
-{
-	return sb->s_fs_info == data;
-}
-
-static int ns_set_super(struct super_block *sb, void *data)
-{
-	sb->s_fs_info = data;
-	return set_anon_super(sb, NULL);
-}
-
-struct dentry *mount_ns(struct file_system_type *fs_type,
-	int flags, void *data, void *ns, struct user_namespace *user_ns,
-	int (*fill_super)(struct super_block *, void *, int))
-{
-	struct super_block *sb;
-
-	/* Don't allow mounting unless the caller has CAP_SYS_ADMIN
-	 * over the namespace.
-	 */
-	if (!(flags & SB_KERNMOUNT) && !ns_capable(user_ns, CAP_SYS_ADMIN))
-		return ERR_PTR(-EPERM);
-
-	sb = sget_userns(fs_type, ns_test_super, ns_set_super, flags,
-			 user_ns, ns);
-	if (IS_ERR(sb))
-		return ERR_CAST(sb);
-
-	if (!sb->s_root) {
-		int err;
-		err = fill_super(sb, data, flags & SB_SILENT ? 1 : 0);
-		if (err) {
-			deactivate_locked_super(sb);
-			return ERR_PTR(err);
-		}
-
-		sb->s_flags |= SB_ACTIVE;
-	}
-
-	return dget(sb->s_root);
-}
-
-EXPORT_SYMBOL(mount_ns);
-
 int set_anon_super_fc(struct super_block *sb, struct fs_context *fc)
 {
 	return set_anon_super(sb, NULL);
@@ -1239,9 +1166,11 @@ int vfs_get_super(struct fs_context *fc,
 {
 	int (*test)(struct super_block *, struct fs_context *);
 	struct super_block *sb;
+	int err;
 
 	switch (keying) {
 	case vfs_get_single_super:
+	case vfs_get_single_reconf_super:
 		test = test_single_super;
 		break;
 	case vfs_get_keyed_super:
@@ -1259,22 +1188,68 @@ int vfs_get_super(struct fs_context *fc,
 		return PTR_ERR(sb);
 
 	if (!sb->s_root) {
-		int err = fill_super(sb, fc);
-		if (err) {
-			deactivate_locked_super(sb);
-			return err;
-		}
+		err = fill_super(sb, fc);
+		if (err)
+			goto error;
 
 		sb->s_flags |= SB_ACTIVE;
+		fc->root = dget(sb->s_root);
+	} else {
+		fc->root = dget(sb->s_root);
+		if (keying == vfs_get_single_reconf_super) {
+			err = reconfigure_super(fc);
+			if (err < 0) {
+				dput(fc->root);
+				fc->root = NULL;
+				goto error;
+			}
+		}
 	}
 
-	BUG_ON(fc->root);
-	fc->root = dget(sb->s_root);
 	return 0;
+
+error:
+	deactivate_locked_super(sb);
+	return err;
 }
 EXPORT_SYMBOL(vfs_get_super);
 
+int get_tree_nodev(struct fs_context *fc,
+		  int (*fill_super)(struct super_block *sb,
+				    struct fs_context *fc))
+{
+	return vfs_get_super(fc, vfs_get_independent_super, fill_super);
+}
+EXPORT_SYMBOL(get_tree_nodev);
+
+int get_tree_single(struct fs_context *fc,
+		  int (*fill_super)(struct super_block *sb,
+				    struct fs_context *fc))
+{
+	return vfs_get_super(fc, vfs_get_single_super, fill_super);
+}
+EXPORT_SYMBOL(get_tree_single);
+
+int get_tree_single_reconf(struct fs_context *fc,
+		  int (*fill_super)(struct super_block *sb,
+				    struct fs_context *fc))
+{
+	return vfs_get_super(fc, vfs_get_single_reconf_super, fill_super);
+}
+EXPORT_SYMBOL(get_tree_single_reconf);
+
+int get_tree_keyed(struct fs_context *fc,
+		  int (*fill_super)(struct super_block *sb,
+				    struct fs_context *fc),
+		void *key)
+{
+	fc->s_fs_info = key;
+	return vfs_get_super(fc, vfs_get_keyed_super, fill_super);
+}
+EXPORT_SYMBOL(get_tree_keyed);
+
 #ifdef CONFIG_BLOCK
+
 static int set_bdev_super(struct super_block *s, void *data)
 {
 	s->s_bdev = data;
@@ -1283,6 +1258,102 @@ static int set_bdev_super(struct super_block *s, void *data)
 
 	return 0;
 }
+
+static int set_bdev_super_fc(struct super_block *s, struct fs_context *fc)
+{
+	return set_bdev_super(s, fc->sget_key);
+}
+
+static int test_bdev_super_fc(struct super_block *s, struct fs_context *fc)
+{
+	return s->s_bdev == fc->sget_key;
+}
+
+/**
+ * get_tree_bdev - Get a superblock based on a single block device
+ * @fc: The filesystem context holding the parameters
+ * @fill_super: Helper to initialise a new superblock
+ */
+int get_tree_bdev(struct fs_context *fc,
+		int (*fill_super)(struct super_block *,
+				  struct fs_context *))
+{
+	struct block_device *bdev;
+	struct super_block *s;
+	fmode_t mode = FMODE_READ | FMODE_EXCL;
+	int error = 0;
+
+	if (!(fc->sb_flags & SB_RDONLY))
+		mode |= FMODE_WRITE;
+
+	if (!fc->source)
+		return invalf(fc, "No source specified");
+
+	bdev = blkdev_get_by_path(fc->source, mode, fc->fs_type);
+	if (IS_ERR(bdev)) {
+		errorf(fc, "%s: Can't open blockdev", fc->source);
+		return PTR_ERR(bdev);
+	}
+
+	/* Once the superblock is inserted into the list by sget_fc(), s_umount
+	 * will protect the lockfs code from trying to start a snapshot while
+	 * we are mounting
+	 */
+	mutex_lock(&bdev->bd_fsfreeze_mutex);
+	if (bdev->bd_fsfreeze_count > 0) {
+		mutex_unlock(&bdev->bd_fsfreeze_mutex);
+		blkdev_put(bdev, mode);
+		warnf(fc, "%pg: Can't mount, blockdev is frozen", bdev);
+		return -EBUSY;
+	}
+
+	fc->sb_flags |= SB_NOSEC;
+	fc->sget_key = bdev;
+	s = sget_fc(fc, test_bdev_super_fc, set_bdev_super_fc);
+	mutex_unlock(&bdev->bd_fsfreeze_mutex);
+	if (IS_ERR(s)) {
+		blkdev_put(bdev, mode);
+		return PTR_ERR(s);
+	}
+
+	if (s->s_root) {
+		/* Don't summarily change the RO/RW state. */
+		if ((fc->sb_flags ^ s->s_flags) & SB_RDONLY) {
+			warnf(fc, "%pg: Can't mount, would change RO state", bdev);
+			deactivate_locked_super(s);
+			blkdev_put(bdev, mode);
+			return -EBUSY;
+		}
+
+		/*
+		 * s_umount nests inside bd_mutex during
+		 * __invalidate_device().  blkdev_put() acquires
+		 * bd_mutex and can't be called under s_umount.  Drop
+		 * s_umount temporarily.  This is safe as we're
+		 * holding an active reference.
+		 */
+		up_write(&s->s_umount);
+		blkdev_put(bdev, mode);
+		down_write(&s->s_umount);
+	} else {
+		s->s_mode = mode;
+		snprintf(s->s_id, sizeof(s->s_id), "%pg", bdev);
+		sb_set_blocksize(s, block_size(bdev));
+		error = fill_super(s, fc);
+		if (error) {
+			deactivate_locked_super(s);
+			return error;
+		}
+
+		s->s_flags |= SB_ACTIVE;
+		bdev->bd_super = s;
+	}
+
+	BUG_ON(fc->root);
+	fc->root = dget(s->s_root);
+	return 0;
+}
+EXPORT_SYMBOL(get_tree_bdev);
 
 static int test_bdev_super(struct super_block *s, void *data)
 {
@@ -1488,11 +1559,6 @@ int vfs_get_tree(struct fs_context *fc)
 
 	sb = fc->root->d_sb;
 	WARN_ON(!sb->s_bdi);
-
-	if (fc->subtype && !sb->s_subtype) {
-		sb->s_subtype = fc->subtype;
-		fc->subtype = NULL;
-	}
 
 	/*
 	 * Write barrier is for super_cache_count(). We place it before setting

@@ -5,7 +5,12 @@
  */
 
 #ifdef CONFIG_DEBUG_FS
+
 #include <linux/debugfs.h>
+
+#include <drm/drm_debugfs.h>
+#include <drm/drm_file.h>
+
 #include "msm_drv.h"
 #include "msm_gpu.h"
 #include "msm_kms.h"
@@ -42,12 +47,8 @@ static int msm_gpu_release(struct inode *inode, struct file *file)
 	struct msm_gpu_show_priv *show_priv = m->private;
 	struct msm_drm_private *priv = show_priv->dev->dev_private;
 	struct msm_gpu *gpu = priv->gpu;
-	int ret;
 
-	ret = mutex_lock_interruptible(&show_priv->dev->struct_mutex);
-	if (ret)
-		return ret;
-
+	mutex_lock(&show_priv->dev->struct_mutex);
 	gpu->funcs->gpu_state_put(show_priv->state);
 	mutex_unlock(&show_priv->dev->struct_mutex);
 

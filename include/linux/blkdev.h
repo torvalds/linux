@@ -137,11 +137,11 @@ struct request {
 	unsigned int cmd_flags;		/* op and common flags */
 	req_flags_t rq_flags;
 
+	int tag;
 	int internal_tag;
 
 	/* the following two fields are internal, NEVER access directly */
 	unsigned int __data_len;	/* total data len */
-	int tag;
 	sector_t __sector;		/* sector cursor */
 
 	struct bio *bio;
@@ -194,7 +194,11 @@ struct request {
 
 	struct gendisk *rq_disk;
 	struct hd_struct *part;
-	/* Time that I/O was submitted to the kernel. */
+#ifdef CONFIG_BLK_RQ_ALLOC_TIME
+	/* Time that the first bio started allocating this request. */
+	u64 alloc_time_ns;
+#endif
+	/* Time that this request was allocated for this IO. */
 	u64 start_time_ns;
 	/* Time that I/O was submitted to the device. */
 	u64 io_start_time_ns;
@@ -202,9 +206,12 @@ struct request {
 #ifdef CONFIG_BLK_WBT
 	unsigned short wbt_flags;
 #endif
-#ifdef CONFIG_BLK_DEV_THROTTLING_LOW
-	unsigned short throtl_size;
-#endif
+	/*
+	 * rq sectors used for blk stats. It has the same value
+	 * with blk_rq_sectors(rq), except that it never be zeroed
+	 * by completion.
+	 */
+	unsigned short stats_sectors;
 
 	/*
 	 * Number of scatter-gather DMA addr+len pairs after
@@ -321,6 +328,7 @@ struct queue_limits {
 	unsigned int		max_sectors;
 	unsigned int		max_segment_size;
 	unsigned int		physical_block_size;
+	unsigned int		logical_block_size;
 	unsigned int		alignment_offset;
 	unsigned int		io_min;
 	unsigned int		io_opt;
@@ -331,7 +339,6 @@ struct queue_limits {
 	unsigned int		discard_granularity;
 	unsigned int		discard_alignment;
 
-	unsigned short		logical_block_size;
 	unsigned short		max_segments;
 	unsigned short		max_integrity_segments;
 	unsigned short		max_discard_segments;
@@ -342,29 +349,28 @@ struct queue_limits {
 	enum blk_zoned_model	zoned;
 };
 
+typedef int (*report_zones_cb)(struct blk_zone *zone, unsigned int idx,
+			       void *data);
+
 #ifdef CONFIG_BLK_DEV_ZONED
 
-extern unsigned int blkdev_nr_zones(struct block_device *bdev);
-extern int blkdev_report_zones(struct block_device *bdev,
-			       sector_t sector, struct blk_zone *zones,
-			       unsigned int *nr_zones, gfp_t gfp_mask);
-extern int blkdev_reset_zones(struct block_device *bdev, sector_t sectors,
-			      sector_t nr_sectors, gfp_t gfp_mask);
+#define BLK_ALL_ZONES  ((unsigned int)-1)
+int blkdev_report_zones(struct block_device *bdev, sector_t sector,
+			unsigned int nr_zones, report_zones_cb cb, void *data);
+unsigned int blkdev_nr_zones(struct gendisk *disk);
+extern int blkdev_zone_mgmt(struct block_device *bdev, enum req_opf op,
+			    sector_t sectors, sector_t nr_sectors,
+			    gfp_t gfp_mask);
 extern int blk_revalidate_disk_zones(struct gendisk *disk);
 
 extern int blkdev_report_zones_ioctl(struct block_device *bdev, fmode_t mode,
 				     unsigned int cmd, unsigned long arg);
-extern int blkdev_reset_zones_ioctl(struct block_device *bdev, fmode_t mode,
-				    unsigned int cmd, unsigned long arg);
+extern int blkdev_zone_mgmt_ioctl(struct block_device *bdev, fmode_t mode,
+				  unsigned int cmd, unsigned long arg);
 
 #else /* CONFIG_BLK_DEV_ZONED */
 
-static inline unsigned int blkdev_nr_zones(struct block_device *bdev)
-{
-	return 0;
-}
-
-static inline int blk_revalidate_disk_zones(struct gendisk *disk)
+static inline unsigned int blkdev_nr_zones(struct gendisk *disk)
 {
 	return 0;
 }
@@ -376,9 +382,9 @@ static inline int blkdev_report_zones_ioctl(struct block_device *bdev,
 	return -ENOTTY;
 }
 
-static inline int blkdev_reset_zones_ioctl(struct block_device *bdev,
-					   fmode_t mode, unsigned int cmd,
-					   unsigned long arg)
+static inline int blkdev_zone_mgmt_ioctl(struct block_device *bdev,
+					 fmode_t mode, unsigned int cmd,
+					 unsigned long arg)
 {
 	return -ENOTTY;
 }
@@ -386,10 +392,6 @@ static inline int blkdev_reset_zones_ioctl(struct block_device *bdev,
 #endif /* CONFIG_BLK_DEV_ZONED */
 
 struct request_queue {
-	/*
-	 * Together with queue_head for cacheline sharing
-	 */
-	struct list_head	queue_head;
 	struct request		*last_merge;
 	struct elevator_queue	*elevator;
 
@@ -403,7 +405,6 @@ struct request_queue {
 
 	/* sw queues */
 	struct blk_mq_ctx __percpu	*queue_ctx;
-	unsigned int		nr_queues;
 
 	unsigned int		queue_depth;
 
@@ -491,13 +492,15 @@ struct request_queue {
 
 	struct queue_limits	limits;
 
+	unsigned int		required_elevator_features;
+
 #ifdef CONFIG_BLK_DEV_ZONED
 	/*
 	 * Zoned block device information for request dispatch control.
 	 * nr_zones is the total number of zones of the device. This is always
-	 * 0 for regular block devices. seq_zones_bitmap is a bitmap of nr_zones
-	 * bits which indicates if a zone is conventional (bit clear) or
-	 * sequential (bit set). seq_zones_wlock is a bitmap of nr_zones
+	 * 0 for regular block devices. conv_zones_bitmap is a bitmap of nr_zones
+	 * bits which indicates if a zone is conventional (bit set) or
+	 * sequential (bit clear). seq_zones_wlock is a bitmap of nr_zones
 	 * bits which indicates if a zone is write locked, that is, if a write
 	 * request targeting the zone was dispatched. All three fields are
 	 * initialized by the low level device driver (e.g. scsi/sd.c).
@@ -510,7 +513,7 @@ struct request_queue {
 	 * blk_mq_unfreeze_queue().
 	 */
 	unsigned int		nr_zones;
-	unsigned long		*seq_zones_bitmap;
+	unsigned long		*conv_zones_bitmap;
 	unsigned long		*seq_zones_wlock;
 #endif /* CONFIG_BLK_DEV_ZONED */
 
@@ -534,6 +537,7 @@ struct request_queue {
 	struct delayed_work	requeue_work;
 
 	struct mutex		sysfs_lock;
+	struct mutex		sysfs_dir_lock;
 
 	/*
 	 * for reusing dead hctx instance in case of updating
@@ -606,6 +610,8 @@ struct request_queue {
 #define QUEUE_FLAG_SCSI_PASSTHROUGH 23	/* queue supports SCSI commands */
 #define QUEUE_FLAG_QUIESCED	24	/* queue has been quiesced */
 #define QUEUE_FLAG_PCI_P2PDMA	25	/* device supports PCI p2p requests */
+#define QUEUE_FLAG_ZONE_RESETALL 26	/* supports Zone Reset All */
+#define QUEUE_FLAG_RQ_ALLOC_TIME 27	/* record rq->alloc_time_ns */
 
 #define QUEUE_FLAG_MQ_DEFAULT	((1 << QUEUE_FLAG_IO_STAT) |		\
 				 (1 << QUEUE_FLAG_SAME_COMP))
@@ -625,6 +631,8 @@ bool blk_queue_flag_test_and_set(unsigned int flag, struct request_queue *q);
 #define blk_queue_io_stat(q)	test_bit(QUEUE_FLAG_IO_STAT, &(q)->queue_flags)
 #define blk_queue_add_random(q)	test_bit(QUEUE_FLAG_ADD_RANDOM, &(q)->queue_flags)
 #define blk_queue_discard(q)	test_bit(QUEUE_FLAG_DISCARD, &(q)->queue_flags)
+#define blk_queue_zone_resetall(q)	\
+	test_bit(QUEUE_FLAG_ZONE_RESETALL, &(q)->queue_flags)
 #define blk_queue_secure_erase(q) \
 	(test_bit(QUEUE_FLAG_SECERASE, &(q)->queue_flags))
 #define blk_queue_dax(q)	test_bit(QUEUE_FLAG_DAX, &(q)->queue_flags)
@@ -632,6 +640,12 @@ bool blk_queue_flag_test_and_set(unsigned int flag, struct request_queue *q);
 	test_bit(QUEUE_FLAG_SCSI_PASSTHROUGH, &(q)->queue_flags)
 #define blk_queue_pci_p2pdma(q)	\
 	test_bit(QUEUE_FLAG_PCI_P2PDMA, &(q)->queue_flags)
+#ifdef CONFIG_BLK_RQ_ALLOC_TIME
+#define blk_queue_rq_alloc_time(q)	\
+	test_bit(QUEUE_FLAG_RQ_ALLOC_TIME, &(q)->queue_flags)
+#else
+#define blk_queue_rq_alloc_time(q)	false
+#endif
 
 #define blk_noretry_request(rq) \
 	((rq)->cmd_flags & (REQ_FAILFAST_DEV|REQ_FAILFAST_TRANSPORT| \
@@ -639,6 +653,7 @@ bool blk_queue_flag_test_and_set(unsigned int flag, struct request_queue *q);
 #define blk_queue_quiesced(q)	test_bit(QUEUE_FLAG_QUIESCED, &(q)->queue_flags)
 #define blk_queue_pm_only(q)	atomic_read(&(q)->pm_only)
 #define blk_queue_fua(q)	test_bit(QUEUE_FLAG_FUA, &(q)->queue_flags)
+#define blk_queue_registered(q)	test_bit(QUEUE_FLAG_REGISTERED, &(q)->queue_flags)
 
 extern void blk_set_pm_only(struct request_queue *q);
 extern void blk_clear_pm_only(struct request_queue *q);
@@ -681,7 +696,7 @@ static inline bool blk_queue_is_zoned(struct request_queue *q)
 	}
 }
 
-static inline unsigned int blk_queue_zone_sectors(struct request_queue *q)
+static inline sector_t blk_queue_zone_sectors(struct request_queue *q)
 {
 	return blk_queue_is_zoned(q) ? q->limits.chunk_sectors : 0;
 }
@@ -703,9 +718,11 @@ static inline unsigned int blk_queue_zone_no(struct request_queue *q,
 static inline bool blk_queue_zone_is_seq(struct request_queue *q,
 					 sector_t sector)
 {
-	if (!blk_queue_is_zoned(q) || !q->seq_zones_bitmap)
+	if (!blk_queue_is_zoned(q))
 		return false;
-	return test_bit(blk_queue_zone_no(q, sector), q->seq_zones_bitmap);
+	if (!q->conv_zones_bitmap)
+		return true;
+	return !test_bit(blk_queue_zone_no(q, sector), q->conv_zones_bitmap);
 }
 #else /* CONFIG_BLK_DEV_ZONED */
 static inline unsigned int blk_queue_nr_zones(struct request_queue *q)
@@ -828,7 +845,6 @@ extern void blk_unregister_queue(struct gendisk *disk);
 extern blk_qc_t generic_make_request(struct bio *bio);
 extern blk_qc_t direct_make_request(struct bio *bio);
 extern void blk_rq_init(struct request_queue *q, struct request *rq);
-extern void blk_init_request_from_bio(struct request *req, struct bio *bio);
 extern void blk_put_request(struct request *);
 extern struct request *blk_get_request(struct request_queue *, unsigned int op,
 				       blk_mq_req_flags_t flags);
@@ -842,7 +858,6 @@ extern blk_status_t blk_insert_cloned_request(struct request_queue *q,
 				     struct request *rq);
 extern int blk_rq_append_bio(struct request *rq, struct bio **bio);
 extern void blk_queue_split(struct request_queue *, struct bio **);
-extern void blk_recount_segments(struct request_queue *, struct bio *);
 extern int scsi_verify_blk_ioctl(struct block_device *, unsigned int);
 extern int scsi_cmd_blk_ioctl(struct block_device *, fmode_t,
 			      unsigned int, void __user *);
@@ -850,6 +865,8 @@ extern int scsi_cmd_ioctl(struct request_queue *, struct gendisk *, fmode_t,
 			  unsigned int, void __user *);
 extern int sg_scsi_ioctl(struct request_queue *, struct gendisk *, fmode_t,
 			 struct scsi_ioctl_command __user *);
+extern int get_sg_io_hdr(struct sg_io_hdr *hdr, const void __user *argp);
+extern int put_sg_io_hdr(const struct sg_io_hdr *hdr, void __user *argp);
 
 extern int blk_queue_enter(struct request_queue *q, blk_mq_req_flags_t flags);
 extern void blk_queue_exit(struct request_queue *q);
@@ -866,6 +883,9 @@ extern void blk_execute_rq(struct request_queue *, struct gendisk *,
 			  struct request *, int);
 extern void blk_execute_rq_nowait(struct request_queue *, struct gendisk *,
 				  struct request *, int, rq_end_io_fn *);
+
+/* Helper to convert REQ_OP_XXX to its string format XXX */
+extern const char *blk_op_str(unsigned int op);
 
 int blk_status_to_errno(blk_status_t status);
 blk_status_t errno_to_blk_status(int errno);
@@ -897,6 +917,7 @@ static inline struct request_queue *bdev_get_queue(struct block_device *bdev)
  * blk_rq_err_bytes()		: bytes left till the next error boundary
  * blk_rq_sectors()		: sectors left in the entire request
  * blk_rq_cur_sectors()		: sectors left in the current segment
+ * blk_rq_stats_sectors()	: sectors of the entire request used for stats
  */
 static inline sector_t blk_rq_pos(const struct request *rq)
 {
@@ -923,6 +944,11 @@ static inline unsigned int blk_rq_sectors(const struct request *rq)
 static inline unsigned int blk_rq_cur_sectors(const struct request *rq)
 {
 	return blk_rq_cur_bytes(rq) >> SECTOR_SHIFT;
+}
+
+static inline unsigned int blk_rq_stats_sectors(const struct request *rq)
+{
+	return rq->stats_sectors;
 }
 
 #ifdef CONFIG_BLK_DEV_ZONED
@@ -1026,21 +1052,9 @@ void blk_steal_bios(struct bio_list *list, struct request *rq);
  *
  * blk_update_request() completes given number of bytes and updates
  * the request without completing it.
- *
- * blk_end_request() and friends.  __blk_end_request() must be called
- * with the request queue spinlock acquired.
- *
- * Several drivers define their own end_request and call
- * blk_end_request() for parts of the original function.
- * This prevents code duplication in drivers.
  */
 extern bool blk_update_request(struct request *rq, blk_status_t error,
 			       unsigned int nr_bytes);
-extern void blk_end_request_all(struct request *rq, blk_status_t error);
-extern bool __blk_end_request(struct request *rq, blk_status_t error,
-			      unsigned int nr_bytes);
-extern void __blk_end_request_all(struct request *rq, blk_status_t error);
-extern bool __blk_end_request_cur(struct request *rq, blk_status_t error);
 
 extern void __blk_complete_request(struct request *);
 extern void blk_abort_request(struct request *);
@@ -1063,7 +1077,7 @@ extern void blk_queue_max_write_same_sectors(struct request_queue *q,
 		unsigned int max_write_same_sectors);
 extern void blk_queue_max_write_zeroes_sectors(struct request_queue *q,
 		unsigned int max_write_same_sectors);
-extern void blk_queue_logical_block_size(struct request_queue *, unsigned short);
+extern void blk_queue_logical_block_size(struct request_queue *, unsigned int);
 extern void blk_queue_physical_block_size(struct request_queue *, unsigned int);
 extern void blk_queue_alignment_offset(struct request_queue *q,
 				       unsigned int alignment);
@@ -1091,6 +1105,10 @@ extern void blk_queue_dma_alignment(struct request_queue *, int);
 extern void blk_queue_update_dma_alignment(struct request_queue *, int);
 extern void blk_queue_rq_timeout(struct request_queue *, unsigned int);
 extern void blk_queue_write_cache(struct request_queue *q, bool enabled, bool fua);
+extern void blk_queue_required_elevator_features(struct request_queue *q,
+						 unsigned int features);
+extern bool blk_queue_can_use_dma_map_merging(struct request_queue *q,
+					      struct device *dev);
 
 /*
  * Number of physical segments as sent to the device.
@@ -1238,42 +1256,42 @@ enum blk_default_limits {
 	BLK_SEG_BOUNDARY_MASK	= 0xFFFFFFFFUL,
 };
 
-static inline unsigned long queue_segment_boundary(struct request_queue *q)
+static inline unsigned long queue_segment_boundary(const struct request_queue *q)
 {
 	return q->limits.seg_boundary_mask;
 }
 
-static inline unsigned long queue_virt_boundary(struct request_queue *q)
+static inline unsigned long queue_virt_boundary(const struct request_queue *q)
 {
 	return q->limits.virt_boundary_mask;
 }
 
-static inline unsigned int queue_max_sectors(struct request_queue *q)
+static inline unsigned int queue_max_sectors(const struct request_queue *q)
 {
 	return q->limits.max_sectors;
 }
 
-static inline unsigned int queue_max_hw_sectors(struct request_queue *q)
+static inline unsigned int queue_max_hw_sectors(const struct request_queue *q)
 {
 	return q->limits.max_hw_sectors;
 }
 
-static inline unsigned short queue_max_segments(struct request_queue *q)
+static inline unsigned short queue_max_segments(const struct request_queue *q)
 {
 	return q->limits.max_segments;
 }
 
-static inline unsigned short queue_max_discard_segments(struct request_queue *q)
+static inline unsigned short queue_max_discard_segments(const struct request_queue *q)
 {
 	return q->limits.max_discard_segments;
 }
 
-static inline unsigned int queue_max_segment_size(struct request_queue *q)
+static inline unsigned int queue_max_segment_size(const struct request_queue *q)
 {
 	return q->limits.max_segment_size;
 }
 
-static inline unsigned short queue_logical_block_size(struct request_queue *q)
+static inline unsigned queue_logical_block_size(const struct request_queue *q)
 {
 	int retval = 512;
 
@@ -1283,12 +1301,12 @@ static inline unsigned short queue_logical_block_size(struct request_queue *q)
 	return retval;
 }
 
-static inline unsigned short bdev_logical_block_size(struct block_device *bdev)
+static inline unsigned int bdev_logical_block_size(struct block_device *bdev)
 {
 	return queue_logical_block_size(bdev_get_queue(bdev));
 }
 
-static inline unsigned int queue_physical_block_size(struct request_queue *q)
+static inline unsigned int queue_physical_block_size(const struct request_queue *q)
 {
 	return q->limits.physical_block_size;
 }
@@ -1298,7 +1316,7 @@ static inline unsigned int bdev_physical_block_size(struct block_device *bdev)
 	return queue_physical_block_size(bdev_get_queue(bdev));
 }
 
-static inline unsigned int queue_io_min(struct request_queue *q)
+static inline unsigned int queue_io_min(const struct request_queue *q)
 {
 	return q->limits.io_min;
 }
@@ -1308,7 +1326,7 @@ static inline int bdev_io_min(struct block_device *bdev)
 	return queue_io_min(bdev_get_queue(bdev));
 }
 
-static inline unsigned int queue_io_opt(struct request_queue *q)
+static inline unsigned int queue_io_opt(const struct request_queue *q)
 {
 	return q->limits.io_opt;
 }
@@ -1318,7 +1336,7 @@ static inline int bdev_io_opt(struct block_device *bdev)
 	return queue_io_opt(bdev_get_queue(bdev));
 }
 
-static inline int queue_alignment_offset(struct request_queue *q)
+static inline int queue_alignment_offset(const struct request_queue *q)
 {
 	if (q->limits.misaligned)
 		return -1;
@@ -1348,7 +1366,7 @@ static inline int bdev_alignment_offset(struct block_device *bdev)
 	return q->limits.alignment_offset;
 }
 
-static inline int queue_discard_alignment(struct request_queue *q)
+static inline int queue_discard_alignment(const struct request_queue *q)
 {
 	if (q->limits.discard_misaligned)
 		return -1;
@@ -1429,7 +1447,7 @@ static inline bool bdev_is_zoned(struct block_device *bdev)
 	return false;
 }
 
-static inline unsigned int bdev_zone_sectors(struct block_device *bdev)
+static inline sector_t bdev_zone_sectors(struct block_device *bdev)
 {
 	struct request_queue *q = bdev_get_queue(bdev);
 
@@ -1438,7 +1456,7 @@ static inline unsigned int bdev_zone_sectors(struct block_device *bdev)
 	return 0;
 }
 
-static inline int queue_dma_alignment(struct request_queue *q)
+static inline int queue_dma_alignment(const struct request_queue *q)
 {
 	return q ? q->dma_alignment : 511;
 }
@@ -1503,10 +1521,14 @@ struct blk_integrity_iter {
 };
 
 typedef blk_status_t (integrity_processing_fn) (struct blk_integrity_iter *);
+typedef void (integrity_prepare_fn) (struct request *);
+typedef void (integrity_complete_fn) (struct request *, unsigned int);
 
 struct blk_integrity_profile {
 	integrity_processing_fn		*generate_fn;
 	integrity_processing_fn		*verify_fn;
+	integrity_prepare_fn		*prepare_fn;
+	integrity_complete_fn		*complete_fn;
 	const char			*name;
 };
 
@@ -1549,7 +1571,7 @@ static inline void blk_queue_max_integrity_segments(struct request_queue *q,
 }
 
 static inline unsigned short
-queue_max_integrity_segments(struct request_queue *q)
+queue_max_integrity_segments(const struct request_queue *q)
 {
 	return q->limits.max_integrity_segments;
 }
@@ -1632,7 +1654,7 @@ static inline void blk_queue_max_integrity_segments(struct request_queue *q,
 						    unsigned int segs)
 {
 }
-static inline unsigned short queue_max_integrity_segments(struct request_queue *q)
+static inline unsigned short queue_max_integrity_segments(const struct request_queue *q)
 {
 	return 0;
 }
@@ -1684,8 +1706,7 @@ struct block_device_operations {
 	/* this callback is with swap_lock and sometimes page table lock held */
 	void (*swap_slot_free_notify) (struct block_device *, unsigned long);
 	int (*report_zones)(struct gendisk *, sector_t sector,
-			    struct blk_zone *zones, unsigned int *nr_zones,
-			    gfp_t gfp_mask);
+			unsigned int nr_zones, report_zones_cb cb, void *data);
 	struct module *owner;
 	const struct pr_ops *pr_ops;
 };

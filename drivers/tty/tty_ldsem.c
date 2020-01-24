@@ -93,8 +93,7 @@ static void __ldsem_wake_readers(struct ld_semaphore *sem)
 
 	list_for_each_entry_safe(waiter, next, &sem->read_wait, list) {
 		tsk = waiter->task;
-		smp_mb();
-		waiter->task = NULL;
+		smp_store_release(&waiter->task, NULL);
 		wake_up_process(tsk);
 		put_task_struct(tsk);
 	}
@@ -194,7 +193,7 @@ down_read_failed(struct ld_semaphore *sem, long count, long timeout)
 	for (;;) {
 		set_current_state(TASK_UNINTERRUPTIBLE);
 
-		if (!waiter.task)
+		if (!smp_load_acquire(&waiter.task))
 			break;
 		if (!timeout)
 			break;
@@ -304,7 +303,7 @@ static int __ldsem_down_read_nested(struct ld_semaphore *sem,
 	if (count <= 0) {
 		lock_contended(&sem->dep_map, _RET_IP_);
 		if (!down_read_failed(sem, count, timeout)) {
-			rwsem_release(&sem->dep_map, 1, _RET_IP_);
+			rwsem_release(&sem->dep_map, _RET_IP_);
 			return 0;
 		}
 	}
@@ -323,7 +322,7 @@ static int __ldsem_down_write_nested(struct ld_semaphore *sem,
 	if ((count & LDSEM_ACTIVE_MASK) != LDSEM_ACTIVE_BIAS) {
 		lock_contended(&sem->dep_map, _RET_IP_);
 		if (!down_write_failed(sem, count, timeout)) {
-			rwsem_release(&sem->dep_map, 1, _RET_IP_);
+			rwsem_release(&sem->dep_map, _RET_IP_);
 			return 0;
 		}
 	}
@@ -391,7 +390,7 @@ void ldsem_up_read(struct ld_semaphore *sem)
 {
 	long count;
 
-	rwsem_release(&sem->dep_map, 1, _RET_IP_);
+	rwsem_release(&sem->dep_map, _RET_IP_);
 
 	count = atomic_long_add_return(-LDSEM_READ_BIAS, &sem->count);
 	if (count < 0 && (count & LDSEM_ACTIVE_MASK) == 0)
@@ -405,7 +404,7 @@ void ldsem_up_write(struct ld_semaphore *sem)
 {
 	long count;
 
-	rwsem_release(&sem->dep_map, 1, _RET_IP_);
+	rwsem_release(&sem->dep_map, _RET_IP_);
 
 	count = atomic_long_add_return(-LDSEM_WRITE_BIAS, &sem->count);
 	if (count < 0)

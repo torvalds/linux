@@ -599,6 +599,9 @@ struct wm_coeff_ctl_ops {
 struct wm_coeff_ctl {
 	const char *name;
 	const char *fw_name;
+	/* Subname is needed to match with firmware */
+	const char *subname;
+	unsigned int subname_len;
 	struct wm_adsp_alg_region alg_region;
 	struct wm_coeff_ctl_ops ops;
 	struct wm_adsp *dsp;
@@ -728,41 +731,18 @@ static void wm_adsp2_init_debugfs(struct wm_adsp *dsp,
 	struct dentry *root = NULL;
 	int i;
 
-	if (!component->debugfs_root) {
-		adsp_err(dsp, "No codec debugfs root\n");
-		goto err;
-	}
-
 	root = debugfs_create_dir(dsp->name, component->debugfs_root);
 
-	if (!root)
-		goto err;
+	debugfs_create_bool("booted", 0444, root, &dsp->booted);
+	debugfs_create_bool("running", 0444, root, &dsp->running);
+	debugfs_create_x32("fw_id", 0444, root, &dsp->fw_id);
+	debugfs_create_x32("fw_version", 0444, root, &dsp->fw_id_version);
 
-	if (!debugfs_create_bool("booted", 0444, root, &dsp->booted))
-		goto err;
-
-	if (!debugfs_create_bool("running", 0444, root, &dsp->running))
-		goto err;
-
-	if (!debugfs_create_x32("fw_id", 0444, root, &dsp->fw_id))
-		goto err;
-
-	if (!debugfs_create_x32("fw_version", 0444, root, &dsp->fw_id_version))
-		goto err;
-
-	for (i = 0; i < ARRAY_SIZE(wm_adsp_debugfs_fops); ++i) {
-		if (!debugfs_create_file(wm_adsp_debugfs_fops[i].name,
-					 0444, root, dsp,
-					 &wm_adsp_debugfs_fops[i].fops))
-			goto err;
-	}
+	for (i = 0; i < ARRAY_SIZE(wm_adsp_debugfs_fops); ++i)
+		debugfs_create_file(wm_adsp_debugfs_fops[i].name, 0444, root,
+				    dsp, &wm_adsp_debugfs_fops[i].fops);
 
 	dsp->debugfs_root = root;
-	return;
-
-err:
-	debugfs_remove_recursive(root);
-	adsp_err(dsp, "Failed to create debugfs\n");
 }
 
 static void wm_adsp2_cleanup_debugfs(struct wm_adsp *dsp)
@@ -1282,8 +1262,7 @@ static unsigned int wmfw_convert_flags(unsigned int in, unsigned int len)
 	}
 
 	if (in) {
-		if (in & WMFW_CTL_FLAG_READABLE)
-			out |= rd;
+		out |= rd;
 		if (in & WMFW_CTL_FLAG_WRITEABLE)
 			out |= wr;
 		if (in & WMFW_CTL_FLAG_VOLATILE)
@@ -1423,6 +1402,7 @@ static void wm_adsp_free_ctl_blk(struct wm_coeff_ctl *ctl)
 {
 	kfree(ctl->cache);
 	kfree(ctl->name);
+	kfree(ctl->subname);
 	kfree(ctl);
 }
 
@@ -1496,6 +1476,15 @@ static int wm_adsp_create_control(struct wm_adsp *dsp,
 		ret = -ENOMEM;
 		goto err_ctl;
 	}
+	if (subname) {
+		ctl->subname_len = subname_len;
+		ctl->subname = kmemdup(subname,
+				       strlen(subname) + 1, GFP_KERNEL);
+		if (!ctl->subname) {
+			ret = -ENOMEM;
+			goto err_ctl_name;
+		}
+	}
 	ctl->enabled = 1;
 	ctl->set = 0;
 	ctl->ops.xget = wm_coeff_get;
@@ -1509,7 +1498,7 @@ static int wm_adsp_create_control(struct wm_adsp *dsp,
 	ctl->cache = kzalloc(ctl->len, GFP_KERNEL);
 	if (!ctl->cache) {
 		ret = -ENOMEM;
-		goto err_ctl_name;
+		goto err_ctl_subname;
 	}
 
 	list_add(&ctl->list, &dsp->ctl_list);
@@ -1532,6 +1521,8 @@ static int wm_adsp_create_control(struct wm_adsp *dsp,
 
 err_ctl_cache:
 	kfree(ctl->cache);
+err_ctl_subname:
+	kfree(ctl->subname);
 err_ctl_name:
 	kfree(ctl->name);
 err_ctl:
@@ -2018,6 +2009,70 @@ out:
 
 	return ret;
 }
+
+/*
+ * Find wm_coeff_ctl with input name as its subname
+ * If not found, return NULL
+ */
+static struct wm_coeff_ctl *wm_adsp_get_ctl(struct wm_adsp *dsp,
+					     const char *name, int type,
+					     unsigned int alg)
+{
+	struct wm_coeff_ctl *pos, *rslt = NULL;
+
+	list_for_each_entry(pos, &dsp->ctl_list, list) {
+		if (!pos->subname)
+			continue;
+		if (strncmp(pos->subname, name, pos->subname_len) == 0 &&
+				pos->alg_region.alg == alg &&
+				pos->alg_region.type == type) {
+			rslt = pos;
+			break;
+		}
+	}
+
+	return rslt;
+}
+
+int wm_adsp_write_ctl(struct wm_adsp *dsp, const char *name, int type,
+		      unsigned int alg, void *buf, size_t len)
+{
+	struct wm_coeff_ctl *ctl;
+	struct snd_kcontrol *kcontrol;
+	int ret;
+
+	ctl = wm_adsp_get_ctl(dsp, name, type, alg);
+	if (!ctl)
+		return -EINVAL;
+
+	if (len > ctl->len)
+		return -EINVAL;
+
+	ret = wm_coeff_write_control(ctl, buf, len);
+
+	kcontrol = snd_soc_card_get_kcontrol(dsp->component->card, ctl->name);
+	snd_ctl_notify(dsp->component->card->snd_card,
+		       SNDRV_CTL_EVENT_MASK_VALUE, &kcontrol->id);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(wm_adsp_write_ctl);
+
+int wm_adsp_read_ctl(struct wm_adsp *dsp, const char *name, int type,
+		     unsigned int alg, void *buf, size_t len)
+{
+	struct wm_coeff_ctl *ctl;
+
+	ctl = wm_adsp_get_ctl(dsp, name, type, alg);
+	if (!ctl)
+		return -EINVAL;
+
+	if (len > ctl->len)
+		return -EINVAL;
+
+	return wm_coeff_read_control(ctl, buf, len);
+}
+EXPORT_SYMBOL_GPL(wm_adsp_read_ctl);
 
 static void wm_adsp_ctl_fixup_base(struct wm_adsp *dsp,
 				  const struct wm_adsp_alg_region *alg_region)
@@ -3720,11 +3775,16 @@ static int wm_adsp_buffer_parse_legacy(struct wm_adsp *dsp)
 	u32 xmalg, addr, magic;
 	int i, ret;
 
+	alg_region = wm_adsp_find_alg_region(dsp, WMFW_ADSP2_XM, dsp->fw_id);
+	if (!alg_region) {
+		adsp_err(dsp, "No algorithm region found\n");
+		return -EINVAL;
+	}
+
 	buf = wm_adsp_buffer_alloc(dsp);
 	if (!buf)
 		return -ENOMEM;
 
-	alg_region = wm_adsp_find_alg_region(dsp, WMFW_ADSP2_XM, dsp->fw_id);
 	xmalg = dsp->ops->sys_config_size / sizeof(__be32);
 
 	addr = alg_region->base + xmalg + ALG_XM_FIELD(magic);
@@ -4265,8 +4325,9 @@ static void wm_adsp_fatal_error(struct wm_adsp *dsp)
 	}
 }
 
-irqreturn_t wm_adsp2_bus_error(struct wm_adsp *dsp)
+irqreturn_t wm_adsp2_bus_error(int irq, void *data)
 {
+	struct wm_adsp *dsp = (struct wm_adsp *)data;
 	unsigned int val;
 	struct regmap *regmap = dsp->regmap;
 	int ret = 0;
@@ -4330,8 +4391,9 @@ error:
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_bus_error);
 
-irqreturn_t wm_halo_bus_error(struct wm_adsp *dsp)
+irqreturn_t wm_halo_bus_error(int irq, void *data)
 {
+	struct wm_adsp *dsp = (struct wm_adsp *)data;
 	struct regmap *regmap = dsp->regmap;
 	unsigned int fault[6];
 	struct reg_sequence clear[] = {

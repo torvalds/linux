@@ -412,7 +412,7 @@ ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_ioremap;
 	}
 
-	for (i = BAR_1; i <= BAR_5; i++) {
+	for (i = BAR_1; i < PCI_STD_NUM_BARS; i++) {
 		if (pci_resource_len(pdev, i) == 0)
 			continue;
 		if (pci_resource_flags(pdev, i) & IORESOURCE_IO) {
@@ -1331,9 +1331,7 @@ ixgb_tx_map(struct ixgb_adapter *adapter, struct sk_buff *skb,
 	}
 
 	for (f = 0; f < nr_frags; f++) {
-		const struct skb_frag_struct *frag;
-
-		frag = &skb_shinfo(skb)->frags[f];
+		const skb_frag_t *frag = &skb_shinfo(skb)->frags[f];
 		len = skb_frag_size(frag);
 		offset = 0;
 

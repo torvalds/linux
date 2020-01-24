@@ -1690,8 +1690,8 @@ static void cxgb4vf_get_pauseparam(struct net_device *dev,
 	struct port_info *pi = netdev_priv(dev);
 
 	pauseparam->autoneg = (pi->link_cfg.requested_fc & PAUSE_AUTONEG) != 0;
-	pauseparam->rx_pause = (pi->link_cfg.fc & PAUSE_RX) != 0;
-	pauseparam->tx_pause = (pi->link_cfg.fc & PAUSE_TX) != 0;
+	pauseparam->rx_pause = (pi->link_cfg.advertised_fc & PAUSE_RX) != 0;
+	pauseparam->tx_pause = (pi->link_cfg.advertised_fc & PAUSE_TX) != 0;
 }
 
 /*
@@ -2478,11 +2478,10 @@ static int setup_debugfs(struct adapter *adapter)
 	 * Debugfs support is best effort.
 	 */
 	for (i = 0; i < ARRAY_SIZE(debugfs_files); i++)
-		(void)debugfs_create_file(debugfs_files[i].name,
-				  debugfs_files[i].mode,
-				  adapter->debugfs_root,
-				  (void *)adapter,
-				  debugfs_files[i].fops);
+		debugfs_create_file(debugfs_files[i].name,
+				    debugfs_files[i].mode,
+				    adapter->debugfs_root, (void *)adapter,
+				    debugfs_files[i].fops);
 
 	return 0;
 }
@@ -3257,11 +3256,7 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 		adapter->debugfs_root =
 			debugfs_create_dir(pci_name(pdev),
 					   cxgb4vf_debugfs_root);
-		if (IS_ERR_OR_NULL(adapter->debugfs_root))
-			dev_warn(&pdev->dev, "could not create debugfs"
-				 " directory");
-		else
-			setup_debugfs(adapter);
+		setup_debugfs(adapter);
 	}
 
 	/*
@@ -3486,13 +3481,11 @@ static int __init cxgb4vf_module_init(void)
 		return -EINVAL;
 	}
 
-	/* Debugfs support is optional, just warn if this fails */
+	/* Debugfs support is optional, debugfs will warn if this fails */
 	cxgb4vf_debugfs_root = debugfs_create_dir(KBUILD_MODNAME, NULL);
-	if (IS_ERR_OR_NULL(cxgb4vf_debugfs_root))
-		pr_warn("could not create debugfs entry, continuing\n");
 
 	ret = pci_register_driver(&cxgb4vf_driver);
-	if (ret < 0 && !IS_ERR_OR_NULL(cxgb4vf_debugfs_root))
+	if (ret < 0)
 		debugfs_remove(cxgb4vf_debugfs_root);
 	return ret;
 }

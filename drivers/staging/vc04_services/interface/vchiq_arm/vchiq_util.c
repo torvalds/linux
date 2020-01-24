@@ -24,9 +24,9 @@ int vchiu_queue_init(struct vchiu_queue *queue, int size)
 				 GFP_KERNEL);
 	if (!queue->storage) {
 		vchiu_queue_delete(queue);
-		return 0;
+		return -ENOMEM;
 	}
-	return 1;
+	return 0;
 }
 
 void vchiu_queue_delete(struct vchiu_queue *queue)
@@ -39,18 +39,13 @@ int vchiu_queue_is_empty(struct vchiu_queue *queue)
 	return queue->read == queue->write;
 }
 
-int vchiu_queue_is_full(struct vchiu_queue *queue)
-{
-	return queue->write == queue->read + queue->size;
-}
-
 void vchiu_queue_push(struct vchiu_queue *queue, struct vchiq_header *header)
 {
 	if (!queue->initialized)
 		return;
 
 	while (queue->write == queue->read + queue->size) {
-		if (wait_for_completion_killable(&queue->pop))
+		if (wait_for_completion_interruptible(&queue->pop))
 			flush_signals(current);
 	}
 
@@ -63,7 +58,7 @@ void vchiu_queue_push(struct vchiu_queue *queue, struct vchiq_header *header)
 struct vchiq_header *vchiu_queue_peek(struct vchiu_queue *queue)
 {
 	while (queue->write == queue->read) {
-		if (wait_for_completion_killable(&queue->push))
+		if (wait_for_completion_interruptible(&queue->push))
 			flush_signals(current);
 	}
 
@@ -77,7 +72,7 @@ struct vchiq_header *vchiu_queue_pop(struct vchiu_queue *queue)
 	struct vchiq_header *header;
 
 	while (queue->write == queue->read) {
-		if (wait_for_completion_killable(&queue->push))
+		if (wait_for_completion_interruptible(&queue->push))
 			flush_signals(current);
 	}
 

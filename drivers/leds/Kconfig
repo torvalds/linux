@@ -17,7 +17,7 @@ if NEW_LEDS
 config LEDS_CLASS
 	tristate "LED Class Support"
 	help
-	  This option enables the led sysfs class in /sys/class/leds.  You'll
+	  This option enables the LED sysfs class in /sys/class/leds.  You'll
 	  need this to do anything useful with LEDs.  If unsure, say N.
 
 config LEDS_CLASS_FLASH
@@ -35,7 +35,7 @@ config LEDS_BRIGHTNESS_HW_CHANGED
 	depends on LEDS_CLASS
 	help
 	  This option enables support for the brightness_hw_changed attribute
-	  for led sysfs class devices under /sys/class/leds.
+	  for LED sysfs class devices under /sys/class/leds.
 
 	  See Documentation/ABI/testing/sysfs-class-led for details.
 
@@ -74,8 +74,11 @@ config LEDS_APU
 	depends on LEDS_CLASS
 	depends on X86 && DMI
 	help
-	  This driver makes the PC Engines APU/APU2/APU3 front panel LEDs
+	  This driver makes the PC Engines APU1 front panel LEDs
 	  accessible from userspace programs through the LED subsystem.
+
+	  If you're looking for APU2/3, use the pcengines-apu2 driver.
+	  (symbol CONFIG_PCENGINES_APU2)
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called leds-apu.
@@ -128,6 +131,19 @@ config LEDS_CR0014114
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called leds-cr0014114.
+
+config LEDS_EL15203000
+	tristate "LED Support for Crane EL15203000"
+	depends on LEDS_CLASS
+	depends on SPI
+	depends on OF
+	help
+	  This option enables support for EL15203000 LED Board
+	  (aka RED LED board) which is widely used in coffee vending
+	  machines produced by Crane Merchandising Systems.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called leds-el15203000.
 
 config LEDS_LM3530
 	tristate "LCD Backlight driver for LM3530"
@@ -587,6 +603,7 @@ config LEDS_NETXBIG
 	tristate "LED support for Big Network series LEDs"
 	depends on LEDS_CLASS
 	depends on MACH_KIRKWOOD
+	depends on OF_GPIO
 	default y
 	help
 	  This option enables support for LEDs found on the LaCie 2Big
@@ -783,6 +800,41 @@ config LEDS_NIC78BX
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called leds-nic78bx.
+
+config LEDS_SPI_BYTE
+	tristate "LED support for SPI LED controller with a single byte"
+	depends on LEDS_CLASS
+	depends on SPI
+	depends on OF
+	help
+	  This option enables support for LED controller which use a single byte
+	  for controlling the brightness. Currently the following controller is
+	  supported: Ubiquiti airCube ISP microcontroller based LED controller.
+
+config LEDS_TI_LMU_COMMON
+	tristate "LED driver for TI LMU"
+	depends on LEDS_CLASS
+	depends on REGMAP
+	help
+	  Say Y to enable the LED driver for TI LMU devices.
+	  This supports common features between the TI LM3532, LM3631, LM3632,
+	  LM3633, LM3695 and LM3697.
+
+config LEDS_LM3697
+	tristate "LED driver for LM3697"
+	depends on LEDS_TI_LMU_COMMON
+	depends on I2C && OF
+	help
+	  Say Y to enable the LM3697 LED driver for TI LMU devices.
+	  This supports the LED device LM3697.
+
+config LEDS_LM36274
+	tristate "LED driver for LM36274"
+	depends on LEDS_TI_LMU_COMMON
+	depends on MFD_TI_LMU
+	help
+	  Say Y to enable the LM36274 LED driver for TI LMU devices.
+	  This supports the LED device LM36274.
 
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"

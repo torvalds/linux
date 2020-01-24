@@ -417,6 +417,10 @@ static int ad9834_probe(struct spi_device *spi)
 	st = iio_priv(indio_dev);
 	mutex_init(&st->lock);
 	st->mclk = devm_clk_get(&spi->dev, NULL);
+	if (IS_ERR(st->mclk)) {
+		ret = PTR_ERR(st->mclk);
+		goto error_disable_reg;
+	}
 
 	ret = clk_prepare_enable(st->mclk);
 	if (ret) {
@@ -521,9 +525,20 @@ static const struct spi_device_id ad9834_id[] = {
 };
 MODULE_DEVICE_TABLE(spi, ad9834_id);
 
+static const struct of_device_id ad9834_of_match[] = {
+	{.compatible = "adi,ad9833"},
+	{.compatible = "adi,ad9834"},
+	{.compatible = "adi,ad9837"},
+	{.compatible = "adi,ad9838"},
+	{}
+};
+
+MODULE_DEVICE_TABLE(of, ad9834_of_match);
+
 static struct spi_driver ad9834_driver = {
 	.driver = {
 		.name	= "ad9834",
+		.of_match_table = ad9834_of_match
 	},
 	.probe		= ad9834_probe,
 	.remove		= ad9834_remove,

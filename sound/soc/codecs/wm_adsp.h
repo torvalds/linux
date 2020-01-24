@@ -171,8 +171,8 @@ int wm_adsp1_event(struct snd_soc_dapm_widget *w,
 int wm_adsp_early_event(struct snd_soc_dapm_widget *w,
 			struct snd_kcontrol *kcontrol, int event);
 
-irqreturn_t wm_adsp2_bus_error(struct wm_adsp *adsp);
-irqreturn_t wm_halo_bus_error(struct wm_adsp *dsp);
+irqreturn_t wm_adsp2_bus_error(int irq, void *data);
+irqreturn_t wm_halo_bus_error(int irq, void *data);
 irqreturn_t wm_halo_wdt_expire(int irq, void *data);
 
 int wm_adsp_event(struct snd_soc_dapm_widget *w,
@@ -201,5 +201,9 @@ int wm_adsp_compr_pointer(struct snd_compr_stream *stream,
 			  struct snd_compr_tstamp *tstamp);
 int wm_adsp_compr_copy(struct snd_compr_stream *stream,
 		       char __user *buf, size_t count);
+int wm_adsp_write_ctl(struct wm_adsp *dsp, const char *name,  int type,
+		      unsigned int alg, void *buf, size_t len);
+int wm_adsp_read_ctl(struct wm_adsp *dsp, const char *name,  int type,
+		      unsigned int alg, void *buf, size_t len);
 
 #endif

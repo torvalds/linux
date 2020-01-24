@@ -23,15 +23,15 @@ running, the suggested command should tell you.
 
 Again, keep in mind that this list assumes you are already functionally
 running a Linux kernel.  Also, not all tools are necessary on all
-systems; obviously, if you don't have any ISDN hardware, for example,
-you probably needn't concern yourself with isdn4k-utils.
+systems; obviously, if you don't have any PC Card hardware, for example,
+you probably needn't concern yourself with pcmciautils.
 
 ====================== ===============  ========================================
         Program        Minimal version       Command to check the version
 ====================== ===============  ========================================
 GNU C                  4.6              gcc --version
 GNU make               3.81             make --version
-binutils               2.20             ld -v
+binutils               2.21             ld -v
 flex                   2.5.35           flex --version
 bison                  2.0              bison --version
 util-linux             2.10o            fdformat --version
@@ -45,7 +45,6 @@ btrfs-progs            0.18             btrfsck
 pcmciautils            004              pccardctl -V
 quota-tools            3.09             quota -V
 PPP                    2.4.0            pppd --version
-isdn4k-utils           3.1pre1          isdnctrl 2>&1|grep version
 nfs-utils              1.0.5            showmount --version
 procps                 3.2.0            ps --version
 oprofile               0.9              oprofiled --version
@@ -77,9 +76,7 @@ You will need GNU make 3.81 or later to build the kernel.
 Binutils
 --------
 
-The build system has, as of 4.13, switched to using thin archives (`ar T`)
-rather than incremental linking (`ld -r`) for built-in.a intermediate steps.
-This requires binutils 2.20 or newer.
+Binutils 2.21 or newer is needed to build the kernel.
 
 pkg-config
 ----------
@@ -279,12 +276,6 @@ which can be made by::
 
 as root.
 
-Isdn4k-utils
-------------
-
-Due to changes in the length of the phone number field, isdn4k-utils
-needs to be recompiled or (preferably) upgraded.
-
 NFS-utils
 ---------
 
@@ -447,11 +438,6 @@ PPP
 ---
 
 - <ftp://ftp.samba.org/pub/ppp/>
-
-Isdn4k-utils
-------------
-
-- <ftp://ftp.isdn4linux.de/pub/isdn4linux/utils/>
 
 NFS-utils
 ---------

@@ -15,6 +15,7 @@
 #include <asm/epapr_hcalls.h>
 #include <asm/dcr.h>
 #include <asm/mmu_context.h>
+#include <asm/ultravisor-api.h>
 
 #include <uapi/asm/ucontext.h>
 
@@ -33,6 +34,16 @@ void kexec_copy_flush(struct kimage *image);
 extern struct static_key hcall_tracepoint_key;
 void __trace_hcall_entry(unsigned long opcode, unsigned long *args);
 void __trace_hcall_exit(long opcode, long retval, unsigned long *retbuf);
+
+/* Ultravisor */
+#if defined(CONFIG_PPC_POWERNV) || defined(CONFIG_PPC_SVM)
+long ucall_norets(unsigned long opcode, ...);
+#else
+static inline long ucall_norets(unsigned long opcode, ...)
+{
+	return U_NOT_AVAILABLE;
+}
+#endif
 
 /* OPAL */
 int64_t __opal_call(int64_t a0, int64_t a1, int64_t a2, int64_t a3,
@@ -81,7 +92,8 @@ long sys_swapcontext(struct ucontext __user *old_ctx,
 long sys_debug_setcontext(struct ucontext __user *ctx,
 			  int ndbg, struct sig_dbg_op __user *dbg);
 int
-ppc_select(int n, fd_set __user *inp, fd_set __user *outp, fd_set __user *exp, struct timeval __user *tvp);
+ppc_select(int n, fd_set __user *inp, fd_set __user *outp, fd_set __user *exp,
+	   struct __kernel_old_timeval __user *tvp);
 unsigned long __init early_init(unsigned long dt_ptr);
 void __init machine_init(u64 dt_ptr);
 #endif
@@ -123,7 +135,8 @@ extern int __ucmpdi2(u64, u64);
 
 /* tracing */
 void _mcount(void);
-unsigned long prepare_ftrace_return(unsigned long parent, unsigned long ip);
+unsigned long prepare_ftrace_return(unsigned long parent, unsigned long ip,
+						unsigned long sp);
 
 void pnv_power9_force_smt4_catch(void);
 void pnv_power9_force_smt4_release(void);
@@ -140,9 +153,12 @@ void _kvmppc_save_tm_pr(struct kvm_vcpu *vcpu, u64 guest_msr);
 /* Patch sites */
 extern s32 patch__call_flush_count_cache;
 extern s32 patch__flush_count_cache_return;
+extern s32 patch__flush_link_stack_return;
+extern s32 patch__call_kvm_flush_link_stack;
 extern s32 patch__memset_nocache, patch__memcpy_nocache;
 
 extern long flush_count_cache;
+extern long kvm_flush_link_stack;
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 void kvmppc_save_tm_hv(struct kvm_vcpu *vcpu, u64 msr, bool preserve_nv);

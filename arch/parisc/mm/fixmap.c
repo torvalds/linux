@@ -10,15 +10,17 @@
 #include <asm/cacheflush.h>
 #include <asm/fixmap.h>
 
-void set_fixmap(enum fixed_addresses idx, phys_addr_t phys)
+void notrace set_fixmap(enum fixed_addresses idx, phys_addr_t phys)
 {
 	unsigned long vaddr = __fix_to_virt(idx);
 	pgd_t *pgd = pgd_offset_k(vaddr);
-	pmd_t *pmd = pmd_offset(pgd, vaddr);
+	p4d_t *p4d = p4d_offset(pgd, vaddr);
+	pud_t *pud = pud_offset(p4d, vaddr);
+	pmd_t *pmd = pmd_offset(pud, vaddr);
 	pte_t *pte;
 
 	if (pmd_none(*pmd))
-		pmd = pmd_alloc(NULL, pgd, vaddr);
+		pmd = pmd_alloc(NULL, pud, vaddr);
 
 	pte = pte_offset_kernel(pmd, vaddr);
 	if (pte_none(*pte))
@@ -28,12 +30,17 @@ void set_fixmap(enum fixed_addresses idx, phys_addr_t phys)
 	flush_tlb_kernel_range(vaddr, vaddr + PAGE_SIZE);
 }
 
-void clear_fixmap(enum fixed_addresses idx)
+void notrace clear_fixmap(enum fixed_addresses idx)
 {
 	unsigned long vaddr = __fix_to_virt(idx);
 	pgd_t *pgd = pgd_offset_k(vaddr);
-	pmd_t *pmd = pmd_offset(pgd, vaddr);
+	p4d_t *p4d = p4d_offset(pgd, vaddr);
+	pud_t *pud = pud_offset(p4d, vaddr);
+	pmd_t *pmd = pmd_offset(pud, vaddr);
 	pte_t *pte = pte_offset_kernel(pmd, vaddr);
+
+	if (WARN_ON(pte_none(*pte)))
+		return;
 
 	pte_clear(&init_mm, vaddr, pte);
 

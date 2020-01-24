@@ -9,22 +9,25 @@
 #include <fcntl.h>
 #include <api/fs/fs.h>
 #include <linux/err.h>
+#include <linux/string.h>
 #include <api/fs/tracing_path.h>
 #include "evsel.h"
 #include "tests.h"
 #include "thread_map.h"
-#include "cpumap.h"
+#include <perf/cpumap.h>
+#include <internal/cpumap.h>
 #include "debug.h"
 #include "stat.h"
+#include "util/counts.h"
 
 int test__openat_syscall_event_on_all_cpus(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	int err = -1, fd, cpu;
-	struct cpu_map *cpus;
-	struct perf_evsel *evsel;
+	struct perf_cpu_map *cpus;
+	struct evsel *evsel;
 	unsigned int nr_openat_calls = 111, i;
 	cpu_set_t cpu_set;
-	struct thread_map *threads = thread_map__new(-1, getpid(), UINT_MAX);
+	struct perf_thread_map *threads = thread_map__new(-1, getpid(), UINT_MAX);
 	char sbuf[STRERR_BUFSIZE];
 	char errbuf[BUFSIZ];
 
@@ -33,9 +36,9 @@ int test__openat_syscall_event_on_all_cpus(struct test *test __maybe_unused, int
 		return -1;
 	}
 
-	cpus = cpu_map__new(NULL);
+	cpus = perf_cpu_map__new(NULL);
 	if (cpus == NULL) {
-		pr_debug("cpu_map__new\n");
+		pr_debug("perf_cpu_map__new\n");
 		goto out_thread_map_delete;
 	}
 
@@ -48,7 +51,7 @@ int test__openat_syscall_event_on_all_cpus(struct test *test __maybe_unused, int
 		goto out_cpu_map_delete;
 	}
 
-	if (perf_evsel__open(evsel, cpus, threads) < 0) {
+	if (evsel__open(evsel, cpus, threads) < 0) {
 		pr_debug("failed to open counter: %s, "
 			 "tweak /proc/sys/kernel/perf_event_paranoid?\n",
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
@@ -116,12 +119,12 @@ int test__openat_syscall_event_on_all_cpus(struct test *test __maybe_unused, int
 
 	perf_evsel__free_counts(evsel);
 out_close_fd:
-	perf_evsel__close_fd(evsel);
+	perf_evsel__close_fd(&evsel->core);
 out_evsel_delete:
-	perf_evsel__delete(evsel);
+	evsel__delete(evsel);
 out_cpu_map_delete:
-	cpu_map__put(cpus);
+	perf_cpu_map__put(cpus);
 out_thread_map_delete:
-	thread_map__put(threads);
+	perf_thread_map__put(threads);
 	return err;
 }

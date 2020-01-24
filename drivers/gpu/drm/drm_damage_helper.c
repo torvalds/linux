@@ -212,8 +212,14 @@ retry:
 	drm_for_each_plane(plane, fb->dev) {
 		struct drm_plane_state *plane_state;
 
-		if (plane->state->fb != fb)
+		ret = drm_modeset_lock(&plane->mutex, state->acquire_ctx);
+		if (ret)
+			goto out;
+
+		if (plane->state->fb != fb) {
+			drm_modeset_unlock(&plane->mutex);
 			continue;
+		}
 
 		plane_state = drm_atomic_get_plane_state(state, plane);
 		if (IS_ERR(plane_state)) {
@@ -286,7 +292,7 @@ drm_atomic_helper_damage_iter_init(struct drm_atomic_helper_damage_iter *iter,
 	iter->plane_src.y2 = (state->src.y2 >> 16) + !!(state->src.y2 & 0xFFFF);
 
 	if (!iter->clips || !drm_rect_equals(&state->src, &old_state->src)) {
-		iter->clips = 0;
+		iter->clips = NULL;
 		iter->num_clips = 0;
 		iter->full_update = true;
 	}

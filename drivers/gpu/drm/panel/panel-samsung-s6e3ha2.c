@@ -8,13 +8,17 @@
  * Hoegeun Kwon <hoegeun.kwon@samsung.com>
  */
 
-#include <drm/drmP.h>
-#include <drm/drm_mipi_dsi.h>
-#include <drm/drm_panel.h>
 #include <linux/backlight.h>
+#include <linux/delay.h>
 #include <linux/gpio/consumer.h>
+#include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/regulator/consumer.h>
+
+#include <drm/drm_mipi_dsi.h>
+#include <drm/drm_modes.h>
+#include <drm/drm_panel.h>
+#include <drm/drm_print.h>
 
 #define S6E3HA2_MIN_BRIGHTNESS		0
 #define S6E3HA2_MAX_BRIGHTNESS		100
@@ -728,9 +732,8 @@ static int s6e3ha2_probe(struct mipi_dsi_device *dsi)
 	ctx->bl_dev->props.brightness = S6E3HA2_DEFAULT_BRIGHTNESS;
 	ctx->bl_dev->props.power = FB_BLANK_POWERDOWN;
 
-	drm_panel_init(&ctx->panel);
-	ctx->panel.dev = dev;
-	ctx->panel.funcs = &s6e3ha2_drm_funcs;
+	drm_panel_init(&ctx->panel, dev, &s6e3ha2_drm_funcs,
+		       DRM_MODE_CONNECTOR_DSI);
 
 	ret = drm_panel_add(&ctx->panel);
 	if (ret < 0)

@@ -10,6 +10,7 @@
 #include <linux/syscalls.h>
 #include <linux/utime.h>
 #include <linux/file.h>
+#include <linux/memblock.h>
 
 static ssize_t __init xwrite(int fd, const char *p, size_t count)
 {
@@ -529,6 +530,13 @@ extern unsigned long __initramfs_size;
 
 void __weak free_initrd_mem(unsigned long start, unsigned long end)
 {
+#ifdef CONFIG_ARCH_KEEP_MEMBLOCK
+	unsigned long aligned_start = ALIGN_DOWN(start, PAGE_SIZE);
+	unsigned long aligned_end = ALIGN(end, PAGE_SIZE);
+
+	memblock_free(__pa(aligned_start), aligned_end - aligned_start);
+#endif
+
 	free_reserved_area((void *)start, (void *)end, POISON_FREE_INITMEM,
 			"initrd");
 }
@@ -617,7 +625,7 @@ static inline void clean_rootfs(void)
 #endif /* CONFIG_BLK_DEV_RAM */
 
 #ifdef CONFIG_BLK_DEV_RAM
-static void populate_initrd_image(char *err)
+static void __init populate_initrd_image(char *err)
 {
 	ssize_t written;
 	int fd;
@@ -637,7 +645,7 @@ static void populate_initrd_image(char *err)
 	ksys_close(fd);
 }
 #else
-static void populate_initrd_image(char *err)
+static void __init populate_initrd_image(char *err)
 {
 	printk(KERN_EMERG "Initramfs unpacking failed: %s\n", err);
 }

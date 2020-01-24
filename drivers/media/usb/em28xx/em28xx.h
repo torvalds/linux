@@ -149,6 +149,7 @@
 #define EM28174_BOARD_HAUPPAUGE_WINTV_DUALHD_01595 100
 #define EM2884_BOARD_TERRATEC_H6		  101
 #define EM2882_BOARD_ZOLID_HYBRID_TV_STICK		102
+#define EM2861_BOARD_MAGIX_VIDEOWANDLER2          103
 
 /* Limits minimum and default number of buffers */
 #define EM28XX_MIN_BUF 4
@@ -251,13 +252,11 @@ struct em28xx_usb_ctl {
 /**
  * struct em28xx_fmt - Struct to enumberate video formats
  *
- * @name:	Name for the video standard
  * @fourcc:	v4l2 format id
  * @depth:	mean number of bits to represent a pixel
  * @reg:	em28xx register value to set it
  */
 struct em28xx_fmt {
-	char	*name;
 	u32	fourcc;
 	int	depth;
 	int	reg;
@@ -657,7 +656,7 @@ struct em28xx {
 	enum em28xx_chip_id chip_id;
 
 	unsigned int is_em25xx:1;	// em25xx/em276x/7x/8x family bridge
-	unsigned int disconnected:1;	// device has been diconnected
+	unsigned int disconnected:1;	// device has been disconnected
 	unsigned int has_video:1;
 	unsigned int is_audio_only:1;
 	unsigned int is_webcam:1;

@@ -24,6 +24,37 @@
 #include "rt2800lib.h"
 #include "rt2800mmio.h"
 
+unsigned int rt2800mmio_get_dma_done(struct data_queue *queue)
+{
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
+	struct queue_entry *entry;
+	int idx, qid;
+
+	switch (queue->qid) {
+	case QID_AC_VO:
+	case QID_AC_VI:
+	case QID_AC_BE:
+	case QID_AC_BK:
+		qid = queue->qid;
+		idx = rt2x00mmio_register_read(rt2x00dev, TX_DTX_IDX(qid));
+		break;
+	case QID_MGMT:
+		idx = rt2x00mmio_register_read(rt2x00dev, TX_DTX_IDX(5));
+		break;
+	case QID_RX:
+		entry = rt2x00queue_get_entry(queue, Q_INDEX_DMA_DONE);
+		idx = entry->entry_idx;
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		idx = 0;
+		break;
+	}
+
+	return idx;
+}
+EXPORT_SYMBOL_GPL(rt2800mmio_get_dma_done);
+
 /*
  * TX descriptor initialization
  */

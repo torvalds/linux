@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2018 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2019 Oracle and/or its affiliates. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -30,6 +30,7 @@
  * SOFTWARE.
  *
  */
+#include <linux/dmapool.h>
 #include <linux/kernel.h>
 #include <linux/in.h>
 #include <linux/slab.h>
@@ -40,6 +41,7 @@
 #include "rds_single_path.h"
 #include "rds.h"
 #include "ib.h"
+#include "ib_mr.h"
 
 /*
  * Set the selected protocol version
@@ -150,6 +152,9 @@ void rds_ib_cm_connect_complete(struct rds_connection *conn, struct rdma_cm_even
 		  RDS_PROTOCOL_MAJOR(conn->c_version),
 		  RDS_PROTOCOL_MINOR(conn->c_version),
 		  ic->i_flowctl ? ", flow control" : "");
+
+	/* receive sl from the peer */
+	ic->i_sl = ic->i_cm_id->route.path_rec->sl;
 
 	atomic_set(&ic->i_cq_quiesce, 0);
 
@@ -435,6 +440,68 @@ static inline void ibdev_put_vector(struct rds_ib_device *rds_ibdev, int index)
 	rds_ibdev->vector_load[index]--;
 }
 
+/* Allocate DMA coherent memory to be used to store struct rds_header for
+ * sending/receiving packets.  The pointers to the DMA memory and the
+ * associated DMA addresses are stored in two arrays.
+ *
+ * @ibdev: the IB device
+ * @pool: the DMA memory pool
+ * @dma_addrs: pointer to the array for storing DMA addresses
+ * @num_hdrs: number of headers to allocate
+ *
+ * It returns the pointer to the array storing the DMA memory pointers.  On
+ * error, NULL pointer is returned.
+ */
+struct rds_header **rds_dma_hdrs_alloc(struct ib_device *ibdev,
+				       struct dma_pool *pool,
+				       dma_addr_t **dma_addrs, u32 num_hdrs)
+{
+	struct rds_header **hdrs;
+	dma_addr_t *hdr_daddrs;
+	u32 i;
+
+	hdrs = kvmalloc_node(sizeof(*hdrs) * num_hdrs, GFP_KERNEL,
+			     ibdev_to_node(ibdev));
+	if (!hdrs)
+		return NULL;
+
+	hdr_daddrs = kvmalloc_node(sizeof(*hdr_daddrs) * num_hdrs, GFP_KERNEL,
+				   ibdev_to_node(ibdev));
+	if (!hdr_daddrs) {
+		kvfree(hdrs);
+		return NULL;
+	}
+
+	for (i = 0; i < num_hdrs; i++) {
+		hdrs[i] = dma_pool_zalloc(pool, GFP_KERNEL, &hdr_daddrs[i]);
+		if (!hdrs[i]) {
+			rds_dma_hdrs_free(pool, hdrs, hdr_daddrs, i);
+			return NULL;
+		}
+	}
+
+	*dma_addrs = hdr_daddrs;
+	return hdrs;
+}
+
+/* Free the DMA memory used to store struct rds_header.
+ *
+ * @pool: the DMA memory pool
+ * @hdrs: pointer to the array storing DMA memory pointers
+ * @dma_addrs: pointer to the array storing DMA addresses
+ * @num_hdars: number of headers to free.
+ */
+void rds_dma_hdrs_free(struct dma_pool *pool, struct rds_header **hdrs,
+		       dma_addr_t *dma_addrs, u32 num_hdrs)
+{
+	u32 i;
+
+	for (i = 0; i < num_hdrs; i++)
+		dma_pool_free(pool, hdrs[i], dma_addrs[i]);
+	kvfree(hdrs);
+	kvfree(dma_addrs);
+}
+
 /*
  * This needs to be very careful to not leave IS_ERR pointers around for
  * cleanup to trip over.
@@ -446,7 +513,9 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 	struct ib_qp_init_attr attr;
 	struct ib_cq_init_attr cq_attr = {};
 	struct rds_ib_device *rds_ibdev;
+	unsigned long max_wrs;
 	int ret, fr_queue_space;
+	struct dma_pool *pool;
 
 	/*
 	 * It's normal to see a null device if an incoming connection races
@@ -460,18 +529,20 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 	 * completion queue and send queue. This extra space is used for FRMR
 	 * registration and invalidation work requests
 	 */
-	fr_queue_space = rds_ibdev->use_fastreg ?
-			 (RDS_IB_DEFAULT_FR_WR + 1) +
-			 (RDS_IB_DEFAULT_FR_INV_WR + 1)
-			 : 0;
+	fr_queue_space = (rds_ibdev->use_fastreg ? RDS_IB_DEFAULT_FR_WR : 0);
 
 	/* add the conn now so that connection establishment has the dev */
 	rds_ib_add_conn(rds_ibdev, conn);
 
-	if (rds_ibdev->max_wrs < ic->i_send_ring.w_nr + 1)
-		rds_ib_ring_resize(&ic->i_send_ring, rds_ibdev->max_wrs - 1);
-	if (rds_ibdev->max_wrs < ic->i_recv_ring.w_nr + 1)
-		rds_ib_ring_resize(&ic->i_recv_ring, rds_ibdev->max_wrs - 1);
+	max_wrs = rds_ibdev->max_wrs < rds_ib_sysctl_max_send_wr + 1 ?
+		rds_ibdev->max_wrs - 1 : rds_ib_sysctl_max_send_wr;
+	if (ic->i_send_ring.w_nr != max_wrs)
+		rds_ib_ring_resize(&ic->i_send_ring, max_wrs);
+
+	max_wrs = rds_ibdev->max_wrs < rds_ib_sysctl_max_recv_wr + 1 ?
+		rds_ibdev->max_wrs - 1 : rds_ib_sysctl_max_recv_wr;
+	if (ic->i_recv_ring.w_nr != max_wrs)
+		rds_ib_ring_resize(&ic->i_recv_ring, max_wrs);
 
 	/* Protection domain and memory range */
 	ic->i_pd = rds_ibdev->pd;
@@ -529,8 +600,6 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 	attr.qp_type = IB_QPT_RC;
 	attr.send_cq = ic->i_send_cq;
 	attr.recv_cq = ic->i_recv_cq;
-	atomic_set(&ic->i_fastreg_wrs, RDS_IB_DEFAULT_FR_WR);
-	atomic_set(&ic->i_fastunreg_wrs, RDS_IB_DEFAULT_FR_INV_WR);
 
 	/*
 	 * XXX this can fail if max_*_wr is too large?  Are we supposed
@@ -542,31 +611,28 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 		goto recv_cq_out;
 	}
 
-	ic->i_send_hdrs = ib_dma_alloc_coherent(dev,
-					   ic->i_send_ring.w_nr *
-						sizeof(struct rds_header),
-					   &ic->i_send_hdrs_dma, GFP_KERNEL);
+	pool = rds_ibdev->rid_hdrs_pool;
+	ic->i_send_hdrs = rds_dma_hdrs_alloc(dev, pool, &ic->i_send_hdrs_dma,
+					     ic->i_send_ring.w_nr);
 	if (!ic->i_send_hdrs) {
 		ret = -ENOMEM;
-		rdsdebug("ib_dma_alloc_coherent send failed\n");
+		rdsdebug("DMA send hdrs alloc failed\n");
 		goto qp_out;
 	}
 
-	ic->i_recv_hdrs = ib_dma_alloc_coherent(dev,
-					   ic->i_recv_ring.w_nr *
-						sizeof(struct rds_header),
-					   &ic->i_recv_hdrs_dma, GFP_KERNEL);
+	ic->i_recv_hdrs = rds_dma_hdrs_alloc(dev, pool, &ic->i_recv_hdrs_dma,
+					     ic->i_recv_ring.w_nr);
 	if (!ic->i_recv_hdrs) {
 		ret = -ENOMEM;
-		rdsdebug("ib_dma_alloc_coherent recv failed\n");
+		rdsdebug("DMA recv hdrs alloc failed\n");
 		goto send_hdrs_dma_out;
 	}
 
-	ic->i_ack = ib_dma_alloc_coherent(dev, sizeof(struct rds_header),
-				       &ic->i_ack_dma, GFP_KERNEL);
+	ic->i_ack = dma_pool_zalloc(pool, GFP_KERNEL,
+				    &ic->i_ack_dma);
 	if (!ic->i_ack) {
 		ret = -ENOMEM;
-		rdsdebug("ib_dma_alloc_coherent ack failed\n");
+		rdsdebug("DMA ack header alloc failed\n");
 		goto recv_hdrs_dma_out;
 	}
 
@@ -597,25 +663,31 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 
 sends_out:
 	vfree(ic->i_sends);
+
 ack_dma_out:
-	ib_dma_free_coherent(dev, sizeof(struct rds_header),
-			     ic->i_ack, ic->i_ack_dma);
+	dma_pool_free(pool, ic->i_ack, ic->i_ack_dma);
+	ic->i_ack = NULL;
+
 recv_hdrs_dma_out:
-	ib_dma_free_coherent(dev, ic->i_recv_ring.w_nr *
-					sizeof(struct rds_header),
-					ic->i_recv_hdrs, ic->i_recv_hdrs_dma);
+	rds_dma_hdrs_free(pool, ic->i_recv_hdrs, ic->i_recv_hdrs_dma,
+			  ic->i_recv_ring.w_nr);
+	ic->i_recv_hdrs = NULL;
+	ic->i_recv_hdrs_dma = NULL;
+
 send_hdrs_dma_out:
-	ib_dma_free_coherent(dev, ic->i_send_ring.w_nr *
-					sizeof(struct rds_header),
-					ic->i_send_hdrs, ic->i_send_hdrs_dma);
+	rds_dma_hdrs_free(pool, ic->i_send_hdrs, ic->i_send_hdrs_dma,
+			  ic->i_send_ring.w_nr);
+	ic->i_send_hdrs = NULL;
+	ic->i_send_hdrs_dma = NULL;
+
 qp_out:
 	rdma_destroy_qp(ic->i_cm_id);
 recv_cq_out:
-	if (!ib_destroy_cq(ic->i_recv_cq))
-		ic->i_recv_cq = NULL;
+	ib_destroy_cq(ic->i_recv_cq);
+	ic->i_recv_cq = NULL;
 send_cq_out:
-	if (!ib_destroy_cq(ic->i_send_cq))
-		ic->i_send_cq = NULL;
+	ib_destroy_cq(ic->i_send_cq);
+	ic->i_send_cq = NULL;
 rds_ibdev_out:
 	rds_ib_remove_conn(rds_ibdev, conn);
 out:
@@ -985,8 +1057,6 @@ void rds_ib_conn_path_shutdown(struct rds_conn_path *cp)
 		 ic->i_cm_id ? ic->i_cm_id->qp : NULL);
 
 	if (ic->i_cm_id) {
-		struct ib_device *dev = ic->i_cm_id->device;
-
 		rdsdebug("disconnecting cm %p\n", ic->i_cm_id);
 		err = rdma_disconnect(ic->i_cm_id);
 		if (err) {
@@ -996,6 +1066,11 @@ void rds_ib_conn_path_shutdown(struct rds_conn_path *cp)
 			rdsdebug("failed to disconnect, cm: %p err %d\n",
 				ic->i_cm_id, err);
 		}
+
+		/* kick off "flush_worker" for all pools in order to reap
+		 * all FRMR registrations that are still marked "FRMR_IS_INUSE"
+		 */
+		rds_ib_flush_mrs();
 
 		/*
 		 * We want to wait for tx and rx completion to finish
@@ -1009,8 +1084,8 @@ void rds_ib_conn_path_shutdown(struct rds_conn_path *cp)
 		wait_event(rds_ib_ring_empty_wait,
 			   rds_ib_ring_empty(&ic->i_recv_ring) &&
 			   (atomic_read(&ic->i_signaled_sends) == 0) &&
-			   (atomic_read(&ic->i_fastreg_wrs) == RDS_IB_DEFAULT_FR_WR) &&
-			   (atomic_read(&ic->i_fastunreg_wrs) == RDS_IB_DEFAULT_FR_INV_WR));
+			   (atomic_read(&ic->i_fastreg_inuse_count) == 0) &&
+			   (atomic_read(&ic->i_fastreg_wrs) == RDS_IB_DEFAULT_FR_WR));
 		tasklet_kill(&ic->i_send_tasklet);
 		tasklet_kill(&ic->i_recv_tasklet);
 
@@ -1031,24 +1106,39 @@ void rds_ib_conn_path_shutdown(struct rds_conn_path *cp)
 			ib_destroy_cq(ic->i_recv_cq);
 		}
 
-		/* then free the resources that ib callbacks use */
-		if (ic->i_send_hdrs)
-			ib_dma_free_coherent(dev,
-					   ic->i_send_ring.w_nr *
-						sizeof(struct rds_header),
-					   ic->i_send_hdrs,
-					   ic->i_send_hdrs_dma);
+		if (ic->rds_ibdev) {
+			struct dma_pool *pool;
 
-		if (ic->i_recv_hdrs)
-			ib_dma_free_coherent(dev,
-					   ic->i_recv_ring.w_nr *
-						sizeof(struct rds_header),
-					   ic->i_recv_hdrs,
-					   ic->i_recv_hdrs_dma);
+			pool = ic->rds_ibdev->rid_hdrs_pool;
 
-		if (ic->i_ack)
-			ib_dma_free_coherent(dev, sizeof(struct rds_header),
-					     ic->i_ack, ic->i_ack_dma);
+			/* then free the resources that ib callbacks use */
+			if (ic->i_send_hdrs) {
+				rds_dma_hdrs_free(pool, ic->i_send_hdrs,
+						  ic->i_send_hdrs_dma,
+						  ic->i_send_ring.w_nr);
+				ic->i_send_hdrs = NULL;
+				ic->i_send_hdrs_dma = NULL;
+			}
+
+			if (ic->i_recv_hdrs) {
+				rds_dma_hdrs_free(pool, ic->i_recv_hdrs,
+						  ic->i_recv_hdrs_dma,
+						  ic->i_recv_ring.w_nr);
+				ic->i_recv_hdrs = NULL;
+				ic->i_recv_hdrs_dma = NULL;
+			}
+
+			if (ic->i_ack) {
+				dma_pool_free(pool, ic->i_ack, ic->i_ack_dma);
+				ic->i_ack = NULL;
+			}
+		} else {
+			WARN_ON(ic->i_send_hdrs);
+			WARN_ON(ic->i_send_hdrs_dma);
+			WARN_ON(ic->i_recv_hdrs);
+			WARN_ON(ic->i_recv_hdrs_dma);
+			WARN_ON(ic->i_ack);
+		}
 
 		if (ic->i_sends)
 			rds_ib_send_clear_ring(ic);
@@ -1067,9 +1157,6 @@ void rds_ib_conn_path_shutdown(struct rds_conn_path *cp)
 		ic->i_pd = NULL;
 		ic->i_send_cq = NULL;
 		ic->i_recv_cq = NULL;
-		ic->i_send_hdrs = NULL;
-		ic->i_recv_hdrs = NULL;
-		ic->i_ack = NULL;
 	}
 	BUG_ON(ic->rds_ibdev);
 
@@ -1095,8 +1182,9 @@ void rds_ib_conn_path_shutdown(struct rds_conn_path *cp)
 	ic->i_flowctl = 0;
 	atomic_set(&ic->i_credits, 0);
 
-	rds_ib_ring_init(&ic->i_send_ring, rds_ib_sysctl_max_send_wr);
-	rds_ib_ring_init(&ic->i_recv_ring, rds_ib_sysctl_max_recv_wr);
+	/* Re-init rings, but retain sizes. */
+	rds_ib_ring_init(&ic->i_send_ring, ic->i_send_ring.w_nr);
+	rds_ib_ring_init(&ic->i_recv_ring, ic->i_recv_ring.w_nr);
 
 	if (ic->i_ibinc) {
 		rds_inc_put(&ic->i_ibinc->ii_inc);
@@ -1137,13 +1225,14 @@ int rds_ib_conn_alloc(struct rds_connection *conn, gfp_t gfp)
 	spin_lock_init(&ic->i_ack_lock);
 #endif
 	atomic_set(&ic->i_signaled_sends, 0);
+	atomic_set(&ic->i_fastreg_wrs, RDS_IB_DEFAULT_FR_WR);
 
 	/*
 	 * rds_ib_conn_shutdown() waits for these to be emptied so they
 	 * must be initialized before it can be called.
 	 */
-	rds_ib_ring_init(&ic->i_send_ring, rds_ib_sysctl_max_send_wr);
-	rds_ib_ring_init(&ic->i_recv_ring, rds_ib_sysctl_max_recv_wr);
+	rds_ib_ring_init(&ic->i_send_ring, 0);
+	rds_ib_ring_init(&ic->i_recv_ring, 0);
 
 	ic->conn = conn;
 	conn->c_transport_data = ic;

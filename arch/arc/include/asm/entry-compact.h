@@ -130,7 +130,7 @@
  * to be saved again on kernel mode stack, as part of pt_regs.
  *-------------------------------------------------------------*/
 .macro PROLOG_FREEUP_REG	reg, mem
-#ifdef CONFIG_SMP
+#ifndef ARC_USE_SCRATCH_REG
 	sr  \reg, [ARC_REG_SCRATCH_DATA0]
 #else
 	st  \reg, [\mem]
@@ -138,7 +138,7 @@
 .endm
 
 .macro PROLOG_RESTORE_REG	reg, mem
-#ifdef CONFIG_SMP
+#ifndef ARC_USE_SCRATCH_REG
 	lr  \reg, [ARC_REG_SCRATCH_DATA0]
 #else
 	ld  \reg, [\mem]
@@ -195,8 +195,8 @@
 	PUSHAX  CTOP_AUX_EFLAGS
 #endif
 
-	lr	r9, [ecr]
-	st      r9, [sp, PT_event]    /* EV_Trap expects r9 to have ECR */
+	lr	r10, [ecr]
+	st      r10, [sp, PT_event]    /* EV_Trap expects r10 to have ECR */
 .endm
 
 /*--------------------------------------------------------------

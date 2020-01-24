@@ -606,7 +606,6 @@ static int mxs_lradc_ts_probe(struct platform_device *pdev)
 	struct device_node *node = dev->parent->of_node;
 	struct mxs_lradc *lradc = dev_get_drvdata(dev->parent);
 	struct mxs_lradc_ts *ts;
-	struct resource *iores;
 	int ret, irq, virq, i;
 	u32 ts_wires = 0, adapt;
 
@@ -620,12 +619,9 @@ static int mxs_lradc_ts_probe(struct platform_device *pdev)
 	ts->dev = dev;
 	spin_lock_init(&ts->lock);
 
-	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!iores)
-		return -EINVAL;
-	ts->base = devm_ioremap(dev, iores->start, resource_size(iores));
-	if (!ts->base)
-		return -ENOMEM;
+	ts->base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(ts->base))
+		return PTR_ERR(ts->base);
 
 	ret = of_property_read_u32(node, "fsl,lradc-touchscreen-wires",
 				   &ts_wires);

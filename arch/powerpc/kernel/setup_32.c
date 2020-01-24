@@ -44,6 +44,7 @@
 #include <asm/asm-prototypes.h>
 #include <asm/kdump.h>
 #include <asm/feature-fixups.h>
+#include <asm/early_ioremap.h>
 
 #include "setup.h"
 
@@ -79,6 +80,8 @@ notrace void __init machine_init(u64 dt_ptr)
 
 	/* Configure static keys first, now that we're relocated. */
 	setup_feature_keys();
+
+	early_ioremap_setup();
 
 	/* Enable early debugging if any specified (see udbg.h) */
 	udbg_early_init();
@@ -206,6 +209,6 @@ __init void initialize_cache_info(void)
 	dcache_bsize = cur_cpu_spec->dcache_bsize;
 	icache_bsize = cur_cpu_spec->icache_bsize;
 	ucache_bsize = 0;
-	if (cpu_has_feature(CPU_FTR_UNIFIED_ID_CACHE))
+	if (IS_ENABLED(CONFIG_PPC_BOOK3S_601) || IS_ENABLED(CONFIG_E200))
 		ucache_bsize = icache_bsize = dcache_bsize;
 }

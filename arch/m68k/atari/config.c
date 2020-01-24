@@ -246,9 +246,9 @@ void __init config_atari(void)
 	} else if (hwreg_present(tt_palette)) {
 		ATARIHW_SET(TT_SHIFTER);
 		pr_cont(" TT_SHIFTER");
-	} else if (hwreg_present(&shifter.bas_hi)) {
-		if (hwreg_present(&shifter.bas_lo) &&
-		    (shifter.bas_lo = 0x0aau, shifter.bas_lo == 0x0aau)) {
+	} else if (hwreg_present(&shifter_st.bas_hi)) {
+		if (hwreg_present(&shifter_st.bas_lo) &&
+		    (shifter_st.bas_lo = 0x0aau, shifter_st.bas_lo == 0x0aau)) {
 			ATARIHW_SET(EXTD_SHIFTER);
 			pr_cont(" EXTD_SHIFTER");
 		} else {
@@ -869,8 +869,28 @@ static const struct resource atari_scsi_tt_rsrc[] __initconst = {
 };
 #endif
 
+/*
+ * Falcon IDE interface
+ */
+
+#define FALCON_IDE_BASE	0xfff00000
+
+static const struct resource atari_falconide_rsrc[] __initconst = {
+	{
+		.flags = IORESOURCE_MEM,
+		.start = FALCON_IDE_BASE,
+		.end   = FALCON_IDE_BASE + 0x39,
+	},
+	{
+		.flags = IORESOURCE_IRQ,
+		.start = IRQ_MFP_FSCSI,
+		.end   = IRQ_MFP_FSCSI,
+	},
+};
+
 int __init atari_platform_init(void)
 {
+	struct platform_device *pdev;
 	int rv = 0;
 
 	if (!MACH_IS_ATARI)
@@ -911,6 +931,13 @@ int __init atari_platform_init(void)
 		platform_device_register_simple("atari_scsi", -1,
 			atari_scsi_tt_rsrc, ARRAY_SIZE(atari_scsi_tt_rsrc));
 #endif
+
+	if (ATARIHW_PRESENT(IDE)) {
+		pdev = platform_device_register_simple("atari-falcon-ide", -1,
+			atari_falconide_rsrc, ARRAY_SIZE(atari_falconide_rsrc));
+		if (IS_ERR(pdev))
+			rv = PTR_ERR(pdev);
+	}
 
 	return rv;
 }

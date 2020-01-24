@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_NVDEC_H__
 #define __NVKM_NVDEC_H__
 #define nvkm_nvdec(p) container_of((p), struct nvkm_nvdec, engine)

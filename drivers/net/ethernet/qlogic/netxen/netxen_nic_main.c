@@ -1980,7 +1980,7 @@ netxen_map_tx_skb(struct pci_dev *pdev,
 		struct sk_buff *skb, struct netxen_cmd_buffer *pbuf)
 {
 	struct netxen_skb_frag *nf;
-	struct skb_frag_struct *frag;
+	skb_frag_t *frag;
 	int i, nr_frags;
 	dma_addr_t map;
 
@@ -2043,7 +2043,7 @@ netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	struct pci_dev *pdev;
 	int i, k;
 	int delta = 0;
-	struct skb_frag_struct *frag;
+	skb_frag_t *frag;
 
 	u32 producer;
 	int frag_count;
@@ -3248,6 +3248,7 @@ netxen_config_indev_addr(struct netxen_adapter *adapter,
 		struct net_device *dev, unsigned long event)
 {
 	struct in_device *indev;
+	struct in_ifaddr *ifa;
 
 	if (!netxen_destip_supported(adapter))
 		return;
@@ -3256,7 +3257,8 @@ netxen_config_indev_addr(struct netxen_adapter *adapter,
 	if (!indev)
 		return;
 
-	for_ifa(indev) {
+	rcu_read_lock();
+	in_dev_for_each_ifa_rcu(ifa, indev) {
 		switch (event) {
 		case NETDEV_UP:
 			netxen_list_config_ip(adapter, ifa, NX_IP_UP);
@@ -3267,8 +3269,8 @@ netxen_config_indev_addr(struct netxen_adapter *adapter,
 		default:
 			break;
 		}
-	} endfor_ifa(indev);
-
+	}
+	rcu_read_unlock();
 	in_dev_put(indev);
 }
 

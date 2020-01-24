@@ -196,6 +196,7 @@ static void tsc_check_state(int state)
 	case X86_VENDOR_AMD:
 	case X86_VENDOR_INTEL:
 	case X86_VENDOR_CENTAUR:
+	case X86_VENDOR_ZHAOXIN:
 		/*
 		 * AMD Fam10h TSC will tick in all
 		 * C/P/S0/S1 states when this bit is set.
@@ -641,6 +642,19 @@ static int acpi_idle_bm_check(void)
 	return bm_status;
 }
 
+static void wait_for_freeze(void)
+{
+#ifdef	CONFIG_X86
+	/* No delay is needed if we are in guest */
+	if (boot_cpu_has(X86_FEATURE_HYPERVISOR))
+		return;
+#endif
+	/* Dummy wait op - must do something useless after P_LVL2 read
+	   because chipsets cannot guarantee that STPCLK# signal
+	   gets asserted in time to freeze execution properly. */
+	inl(acpi_gbl_FADT.xpm_timer_block.address);
+}
+
 /**
  * acpi_idle_do_entry - enter idle state using the appropriate method
  * @cx: cstate data
@@ -657,10 +671,7 @@ static void __cpuidle acpi_idle_do_entry(struct acpi_processor_cx *cx)
 	} else {
 		/* IO port based C-state */
 		inb(cx->address);
-		/* Dummy wait op - must do something useless after P_LVL2 read
-		   because chipsets cannot guarantee that STPCLK# signal
-		   gets asserted in time to freeze execution properly. */
-		inl(acpi_gbl_FADT.xpm_timer_block.address);
+		wait_for_freeze();
 	}
 }
 
@@ -681,8 +692,7 @@ static int acpi_idle_play_dead(struct cpuidle_device *dev, int index)
 			safe_halt();
 		else if (cx->entry_method == ACPI_CSTATE_SYSTEMIO) {
 			inb(cx->address);
-			/* See comment in acpi_idle_do_entry() */
-			inl(acpi_gbl_FADT.xpm_timer_block.address);
+			wait_for_freeze();
 		} else
 			return -ENODEV;
 	}

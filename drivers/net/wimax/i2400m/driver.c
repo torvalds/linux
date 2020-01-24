@@ -905,11 +905,7 @@ int i2400m_setup(struct i2400m *i2400m, enum i2400m_bri bm_flags)
 		goto error_sysfs_setup;
 	}
 
-	result = i2400m_debugfs_add(i2400m);
-	if (result < 0) {
-		dev_err(dev, "cannot setup i2400m's debugfs: %d\n", result);
-		goto error_debugfs_setup;
-	}
+	i2400m_debugfs_add(i2400m);
 
 	result = i2400m_dev_start(i2400m, bm_flags);
 	if (result < 0)
@@ -919,7 +915,6 @@ int i2400m_setup(struct i2400m *i2400m, enum i2400m_bri bm_flags)
 
 error_dev_start:
 	i2400m_debugfs_rm(i2400m);
-error_debugfs_setup:
 	sysfs_remove_group(&i2400m->wimax_dev.net_dev->dev.kobj,
 			   &i2400m_dev_attr_group);
 error_sysfs_setup:

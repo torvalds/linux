@@ -447,7 +447,6 @@ config ASSOCIATIVE_ARRAY
 config HAS_IOMEM
 	bool
 	depends on !NO_IOMEM
-	select GENERIC_IO
 	default y
 
 config HAS_IOPORT_MAP
@@ -531,14 +530,6 @@ config LRU_CACHE
 config CLZ_TAB
 	bool
 
-config DDR
-	bool "JEDEC DDR data"
-	help
-	  Data from JEDEC specs for DDR SDRAM memories,
-	  particularly the AC timing parameters and addressing
-	  information. This data is useful for drivers handling
-	  DDR SDRAM controllers.
-
 config IRQ_POLL
 	bool "IRQ polling library"
 	help
@@ -562,6 +553,13 @@ config SIGNATURE
 	  Digital signature verification. Currently only RSA is supported.
 	  Implementation is done using GnuPG MPI library
 
+config DIMLIB
+	bool
+	help
+	  Dynamic Interrupt Moderation library.
+	  Implements an algorithm for dynamically changing CQ moderation values
+	  according to run time performance.
+
 #
 # libfdt files, only selected if needed.
 #
@@ -574,7 +572,12 @@ config OID_REGISTRY
 	  Enable fast lookup object identifier registry.
 
 config UCS2_STRING
-        tristate
+	tristate
+
+#
+# generic vdso
+#
+source "lib/vdso/Kconfig"
 
 source "lib/fonts/Kconfig"
 
@@ -602,6 +605,9 @@ config ARCH_NO_SG_CHAIN
 config ARCH_HAS_PMEM_API
 	bool
 
+config MEMREGION
+	bool
+
 # use memcpy to implement user copies for nommu architectures
 config UACCESS_MEMCPY
 	bool
@@ -626,10 +632,16 @@ config SBITMAP
 config PARMAN
 	tristate "parman" if COMPILE_TEST
 
+config OBJAGG
+	tristate "objagg" if COMPILE_TEST
+
 config STRING_SELFTEST
 	tristate "Test string functions"
 
 endmenu
+
+config GENERIC_IOREMAP
+	bool
 
 config GENERIC_LIB_ASHLDI3
 	bool
@@ -648,6 +660,3 @@ config GENERIC_LIB_CMPDI2
 
 config GENERIC_LIB_UCMPDI2
 	bool
-
-config OBJAGG
-	tristate "objagg" if COMPILE_TEST

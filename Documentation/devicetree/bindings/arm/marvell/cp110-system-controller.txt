@@ -78,8 +78,8 @@ Documentation/devicetree/bindings/pinctrl/marvell,mvebu-pinctrl.txt.
 
 Required properties:
 
-- compatible: "marvell,armada-7k-pinctrl",
-  "marvell,armada-8k-cpm-pinctrl" or "marvell,armada-8k-cps-pinctrl"
+- compatible: "marvell,armada-7k-pinctrl", "marvell,armada-8k-cpm-pinctrl",
+  "marvell,armada-8k-cps-pinctrl" or "marvell,cp115-standalone-pinctrl"
   depending on the specific variant of the SoC being used.
 
 Available mpp pins/groups and functions:

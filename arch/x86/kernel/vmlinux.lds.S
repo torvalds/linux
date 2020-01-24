@@ -21,6 +21,9 @@
 #define LOAD_OFFSET __START_KERNEL_map
 #endif
 
+#define EMITS_PT_NOTE
+#define RO_EXCEPTION_TABLE_ALIGN	16
+
 #include <asm-generic/vmlinux.lds.h>
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
@@ -141,17 +144,12 @@ SECTIONS
 		*(.text.__x86.indirect_thunk)
 		__indirect_thunk_end = .;
 #endif
-	} :text = 0x9090
+	} :text =0xcccc
 
-	/* End of text section */
+	/* End of text section, which should occupy whole number of pages */
 	_etext = .;
-
-	NOTES :text :note
-
-	EXCEPTION_TABLE(16) :text = 0x9090
-
-	/* .text should occupy whole number of pages */
 	. = ALIGN(PAGE_SIZE);
+
 	X86_ALIGN_RODATA_BEGIN
 	RO_DATA(PAGE_SIZE)
 	X86_ALIGN_RODATA_END
@@ -368,6 +366,14 @@ SECTIONS
 		__bss_stop = .;
 	}
 
+	/*
+	 * The memory occupied from _text to here, __end_of_kernel_reserve, is
+	 * automatically reserved in setup_arch(). Anything after here must be
+	 * explicitly reserved using memblock_reserve() or it will be discarded
+	 * and treated as available memory.
+	 */
+	__end_of_kernel_reserve = .;
+
 	. = ALIGN(PAGE_SIZE);
 	.brk : AT(ADDR(.brk) - LOAD_OFFSET) {
 		__brk_base = .;
@@ -379,10 +385,34 @@ SECTIONS
 	. = ALIGN(PAGE_SIZE);		/* keep VO_INIT_SIZE page aligned */
 	_end = .;
 
+#ifdef CONFIG_AMD_MEM_ENCRYPT
+	/*
+	 * Early scratch/workarea section: Lives outside of the kernel proper
+	 * (_text - _end).
+	 *
+	 * Resides after _end because even though the .brk section is after
+	 * __end_of_kernel_reserve, the .brk section is later reserved as a
+	 * part of the kernel. Since it is located after __end_of_kernel_reserve
+	 * it will be discarded and become part of the available memory. As
+	 * such, it can only be used by very early boot code and must not be
+	 * needed afterwards.
+	 *
+	 * Currently used by SME for performing in-place encryption of the
+	 * kernel during boot. Resides on a 2MB boundary to simplify the
+	 * pagetable setup used for SME in-place encryption.
+	 */
+	. = ALIGN(HPAGE_SIZE);
+	.init.scratch : AT(ADDR(.init.scratch) - LOAD_OFFSET) {
+		__init_scratch_begin = .;
+		*(.init.scratch)
+		. = ALIGN(HPAGE_SIZE);
+		__init_scratch_end = .;
+	}
+#endif
+
 	STABS_DEBUG
 	DWARF_DEBUG
 
-	/* Sections to be discarded */
 	DISCARDS
 	/DISCARD/ : {
 		*(.eh_frame)

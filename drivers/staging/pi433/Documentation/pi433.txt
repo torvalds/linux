@@ -14,7 +14,7 @@ until something gets received terminates the read request.
 The driver supports on the fly reloading of the hardware fifo of the rf
 chip, thus enabling for much longer telegrams than the hardware fifo size.
 
-Discription of driver operation
+Description of driver operation
 ===============================
 
 a) transmission

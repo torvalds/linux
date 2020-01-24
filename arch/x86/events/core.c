@@ -49,6 +49,7 @@ DEFINE_PER_CPU(struct cpu_hw_events, cpu_hw_events) = {
 	.enabled = 1,
 };
 
+DEFINE_STATIC_KEY_FALSE(rdpmc_never_available_key);
 DEFINE_STATIC_KEY_FALSE(rdpmc_always_available_key);
 
 u64 __read_mostly hw_cache_event_ids
@@ -375,7 +376,7 @@ int x86_add_exclusive(unsigned int what)
 	 * LBR and BTS are still mutually exclusive.
 	 */
 	if (x86_pmu.lbr_pt_coexist && what == x86_lbr_exclusive_pt)
-		return 0;
+		goto out;
 
 	if (!atomic_inc_not_zero(&x86_pmu.lbr_exclusive[what])) {
 		mutex_lock(&pmc_reserve_mutex);
@@ -387,6 +388,7 @@ int x86_add_exclusive(unsigned int what)
 		mutex_unlock(&pmc_reserve_mutex);
 	}
 
+out:
 	atomic_inc(&active_events);
 	return 0;
 
@@ -397,11 +399,15 @@ fail_unlock:
 
 void x86_del_exclusive(unsigned int what)
 {
+	atomic_dec(&active_events);
+
+	/*
+	 * See the comment in x86_add_exclusive().
+	 */
 	if (x86_pmu.lbr_pt_coexist && what == x86_lbr_exclusive_pt)
 		return;
 
 	atomic_dec(&x86_pmu.lbr_exclusive[what]);
-	atomic_dec(&active_events);
 }
 
 int x86_setup_perfctr(struct perf_event *event)
@@ -561,14 +567,14 @@ int x86_pmu_hw_config(struct perf_event *event)
 	}
 
 	/* sample_regs_user never support XMM registers */
-	if (unlikely(event->attr.sample_regs_user & PEBS_XMM_REGS))
+	if (unlikely(event->attr.sample_regs_user & PERF_REG_EXTENDED_MASK))
 		return -EINVAL;
 	/*
 	 * Besides the general purpose registers, XMM registers may
 	 * be collected in PEBS on some platforms, e.g. Icelake
 	 */
-	if (unlikely(event->attr.sample_regs_intr & PEBS_XMM_REGS)) {
-		if (x86_pmu.pebs_no_xmm_regs)
+	if (unlikely(event->attr.sample_regs_intr & PERF_REG_EXTENDED_MASK)) {
+		if (!(event->pmu->capabilities & PERF_PMU_CAP_EXTENDED_REGS))
 			return -EINVAL;
 
 		if (!event->attr.precise_ip)
@@ -1005,6 +1011,27 @@ static int collect_events(struct cpu_hw_events *cpuc, struct perf_event *leader,
 
 	/* current number of events already accepted */
 	n = cpuc->n_events;
+	if (!cpuc->n_events)
+		cpuc->pebs_output = 0;
+
+	if (!cpuc->is_fake && leader->attr.precise_ip) {
+		/*
+		 * For PEBS->PT, if !aux_event, the group leader (PT) went
+		 * away, the group was broken down and this singleton event
+		 * can't schedule any more.
+		 */
+		if (is_pebs_pt(leader) && !leader->aux_event)
+			return -EINVAL;
+
+		/*
+		 * pebs_output: 0: no PEBS so far, 1: PT, 2: DS
+		 */
+		if (cpuc->pebs_output &&
+		    cpuc->pebs_output != is_pebs_pt(leader) + 1)
+			return -EINVAL;
+
+		cpuc->pebs_output = is_pebs_pt(leader) + 1;
+	}
 
 	if (is_x86_event(leader)) {
 		if (n >= max_count)
@@ -1236,7 +1263,7 @@ void x86_pmu_enable_event(struct perf_event *event)
  * Add a single event to the PMU.
  *
  * The event is added to the group of enabled events
- * but only if it can be scehduled with existing events.
+ * but only if it can be scheduled with existing events.
  */
 static int x86_pmu_add(struct perf_event *event, int flags)
 {
@@ -1618,73 +1645,14 @@ static struct attribute_group x86_pmu_format_group __ro_after_init = {
 	.attrs = NULL,
 };
 
-/*
- * Remove all undefined events (x86_pmu.event_map(id) == 0)
- * out of events_attr attributes.
- */
-static void __init filter_events(struct attribute **attrs)
-{
-	struct device_attribute *d;
-	struct perf_pmu_events_attr *pmu_attr;
-	int offset = 0;
-	int i, j;
-
-	for (i = 0; attrs[i]; i++) {
-		d = (struct device_attribute *)attrs[i];
-		pmu_attr = container_of(d, struct perf_pmu_events_attr, attr);
-		/* str trumps id */
-		if (pmu_attr->event_str)
-			continue;
-		if (x86_pmu.event_map(i + offset))
-			continue;
-
-		for (j = i; attrs[j]; j++)
-			attrs[j] = attrs[j + 1];
-
-		/* Check the shifted attr. */
-		i--;
-
-		/*
-		 * event_map() is index based, the attrs array is organized
-		 * by increasing event index. If we shift the events, then
-		 * we need to compensate for the event_map(), otherwise
-		 * we are looking up the wrong event in the map
-		 */
-		offset++;
-	}
-}
-
-/* Merge two pointer arrays */
-__init struct attribute **merge_attr(struct attribute **a, struct attribute **b)
-{
-	struct attribute **new;
-	int j, i;
-
-	for (j = 0; a && a[j]; j++)
-		;
-	for (i = 0; b && b[i]; i++)
-		j++;
-	j++;
-
-	new = kmalloc_array(j, sizeof(struct attribute *), GFP_KERNEL);
-	if (!new)
-		return NULL;
-
-	j = 0;
-	for (i = 0; a && a[i]; i++)
-		new[j++] = a[i];
-	for (i = 0; b && b[i]; i++)
-		new[j++] = b[i];
-	new[j] = NULL;
-
-	return new;
-}
-
 ssize_t events_sysfs_show(struct device *dev, struct device_attribute *attr, char *page)
 {
-	struct perf_pmu_events_attr *pmu_attr = \
+	struct perf_pmu_events_attr *pmu_attr =
 		container_of(attr, struct perf_pmu_events_attr, attr);
-	u64 config = x86_pmu.event_map(pmu_attr->id);
+	u64 config = 0;
+
+	if (pmu_attr->id < x86_pmu.max_events)
+		config = x86_pmu.event_map(pmu_attr->id);
 
 	/* string trumps id */
 	if (pmu_attr->event_str)
@@ -1744,9 +1712,27 @@ static struct attribute *events_attr[] = {
 	NULL,
 };
 
+/*
+ * Remove all undefined events (x86_pmu.event_map(id) == 0)
+ * out of events_attr attributes.
+ */
+static umode_t
+is_visible(struct kobject *kobj, struct attribute *attr, int idx)
+{
+	struct perf_pmu_events_attr *pmu_attr;
+
+	if (idx >= x86_pmu.max_events)
+		return 0;
+
+	pmu_attr = container_of(attr, struct perf_pmu_events_attr, attr.attr);
+	/* str trumps id */
+	return pmu_attr->event_str || x86_pmu.event_map(idx) ? attr->mode : 0;
+}
+
 static struct attribute_group x86_pmu_events_group __ro_after_init = {
 	.name = "events",
 	.attrs = events_attr,
+	.is_visible = is_visible,
 };
 
 ssize_t x86_event_sysfs_show(char *page, u64 config, u64 event)
@@ -1842,37 +1828,10 @@ static int __init init_hw_perf_events(void)
 
 	x86_pmu_format_group.attrs = x86_pmu.format_attrs;
 
-	if (x86_pmu.caps_attrs) {
-		struct attribute **tmp;
-
-		tmp = merge_attr(x86_pmu_caps_group.attrs, x86_pmu.caps_attrs);
-		if (!WARN_ON(!tmp))
-			x86_pmu_caps_group.attrs = tmp;
-	}
-
-	if (x86_pmu.event_attrs)
-		x86_pmu_events_group.attrs = x86_pmu.event_attrs;
-
 	if (!x86_pmu.events_sysfs_show)
 		x86_pmu_events_group.attrs = &empty_attrs;
-	else
-		filter_events(x86_pmu_events_group.attrs);
 
-	if (x86_pmu.cpu_events) {
-		struct attribute **tmp;
-
-		tmp = merge_attr(x86_pmu_events_group.attrs, x86_pmu.cpu_events);
-		if (!WARN_ON(!tmp))
-			x86_pmu_events_group.attrs = tmp;
-	}
-
-	if (x86_pmu.attrs) {
-		struct attribute **tmp;
-
-		tmp = merge_attr(x86_pmu_attr_group.attrs, x86_pmu.attrs);
-		if (!WARN_ON(!tmp))
-			x86_pmu_attr_group.attrs = tmp;
-	}
+	pmu.attr_update = x86_pmu.attr_update;
 
 	pr_info("... version:                %d\n",     x86_pmu.version);
 	pr_info("... bit width:              %d\n",     x86_pmu.cntval_bits);
@@ -2161,7 +2120,7 @@ static int x86_pmu_event_init(struct perf_event *event)
 
 static void refresh_pce(void *ignored)
 {
-	load_mm_cr4(this_cpu_read(cpu_tlbstate.loaded_mm));
+	load_mm_cr4_irqsoff(this_cpu_read(cpu_tlbstate.loaded_mm));
 }
 
 static void x86_pmu_event_mapped(struct perf_event *event, struct mm_struct *mm)
@@ -2179,7 +2138,7 @@ static void x86_pmu_event_mapped(struct perf_event *event, struct mm_struct *mm)
 	 * For now, this can't happen because all callers hold mmap_sem
 	 * for write.  If this changes, we'll need a different solution.
 	 */
-	lockdep_assert_held_exclusive(&mm->mmap_sem);
+	lockdep_assert_held_write(&mm->mmap_sem);
 
 	if (atomic_inc_return(&mm->context.perf_rdpmc_allowed) == 1)
 		on_each_cpu_mask(mm_cpumask(mm), refresh_pce, NULL, 1);
@@ -2234,20 +2193,25 @@ static ssize_t set_attr_rdpmc(struct device *cdev,
 	if (x86_pmu.attr_rdpmc_broken)
 		return -ENOTSUPP;
 
-	if ((val == 2) != (x86_pmu.attr_rdpmc == 2)) {
+	if (val != x86_pmu.attr_rdpmc) {
 		/*
-		 * Changing into or out of always available, aka
-		 * perf-event-bypassing mode.  This path is extremely slow,
+		 * Changing into or out of never available or always available,
+		 * aka perf-event-bypassing mode. This path is extremely slow,
 		 * but only root can trigger it, so it's okay.
 		 */
+		if (val == 0)
+			static_branch_inc(&rdpmc_never_available_key);
+		else if (x86_pmu.attr_rdpmc == 0)
+			static_branch_dec(&rdpmc_never_available_key);
+
 		if (val == 2)
 			static_branch_inc(&rdpmc_always_available_key);
-		else
+		else if (x86_pmu.attr_rdpmc == 2)
 			static_branch_dec(&rdpmc_always_available_key);
-		on_each_cpu(refresh_pce, NULL, 1);
-	}
 
-	x86_pmu.attr_rdpmc = val;
+		on_each_cpu(refresh_pce, NULL, 1);
+		x86_pmu.attr_rdpmc = val;
+	}
 
 	return count;
 }
@@ -2296,6 +2260,13 @@ static void x86_pmu_sched_task(struct perf_event_context *ctx, bool sched_in)
 		x86_pmu.sched_task(ctx, sched_in);
 }
 
+static void x86_pmu_swap_task_ctx(struct perf_event_context *prev,
+				  struct perf_event_context *next)
+{
+	if (x86_pmu.swap_task_ctx)
+		x86_pmu.swap_task_ctx(prev, next);
+}
+
 void perf_check_microcode(void)
 {
 	if (x86_pmu.check_microcode)
@@ -2311,6 +2282,17 @@ static int x86_pmu_check_period(struct perf_event *event, u64 value)
 		if (x86_pmu.limit_period(event, value) > value)
 			return -EINVAL;
 	}
+
+	return 0;
+}
+
+static int x86_pmu_aux_output_match(struct perf_event *event)
+{
+	if (!(pmu.capabilities & PERF_PMU_CAP_AUX_OUTPUT))
+		return 0;
+
+	if (x86_pmu.aux_output_match)
+		return x86_pmu.aux_output_match(event);
 
 	return 0;
 }
@@ -2339,7 +2321,10 @@ static struct pmu pmu = {
 	.event_idx		= x86_pmu_event_idx,
 	.sched_task		= x86_pmu_sched_task,
 	.task_ctx_size          = sizeof(struct x86_perf_task_context),
+	.swap_task_ctx		= x86_pmu_swap_task_ctx,
 	.check_period		= x86_pmu_check_period,
+
+	.aux_output_match	= x86_pmu_aux_output_match,
 };
 
 void arch_perf_update_userpage(struct perf_event *event,
@@ -2402,13 +2387,13 @@ perf_callchain_kernel(struct perf_callchain_entry_ctx *entry, struct pt_regs *re
 		return;
 	}
 
-	if (perf_hw_regs(regs)) {
-		if (perf_callchain_store(entry, regs->ip))
-			return;
+	if (perf_callchain_store(entry, regs->ip))
+		return;
+
+	if (perf_hw_regs(regs))
 		unwind_start(&state, current, regs, NULL);
-	} else {
+	else
 		unwind_start(&state, current, NULL, (void *)regs->sp);
-	}
 
 	for (; !unwind_done(&state); unwind_next_frame(&state)) {
 		addr = unwind_get_return_address(&state);

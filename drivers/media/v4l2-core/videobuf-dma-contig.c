@@ -157,6 +157,7 @@ static void videobuf_dma_contig_user_put(struct videobuf_dma_contig_memory *mem)
 static int videobuf_dma_contig_user_get(struct videobuf_dma_contig_memory *mem,
 					struct videobuf_buffer *vb)
 {
+	unsigned long untagged_baddr = untagged_addr(vb->baddr);
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
 	unsigned long prev_pfn, this_pfn;
@@ -164,22 +165,22 @@ static int videobuf_dma_contig_user_get(struct videobuf_dma_contig_memory *mem,
 	unsigned int offset;
 	int ret;
 
-	offset = vb->baddr & ~PAGE_MASK;
+	offset = untagged_baddr & ~PAGE_MASK;
 	mem->size = PAGE_ALIGN(vb->size + offset);
 	ret = -EINVAL;
 
 	down_read(&mm->mmap_sem);
 
-	vma = find_vma(mm, vb->baddr);
+	vma = find_vma(mm, untagged_baddr);
 	if (!vma)
 		goto out_up;
 
-	if ((vb->baddr + mem->size) > vma->vm_end)
+	if ((untagged_baddr + mem->size) > vma->vm_end)
 		goto out_up;
 
 	pages_done = 0;
 	prev_pfn = 0; /* kill warning */
-	user_address = vb->baddr;
+	user_address = untagged_baddr;
 
 	while (pages_done < (mem->size >> PAGE_SHIFT)) {
 		ret = follow_pfn(vma, user_address, &this_pfn);
@@ -277,7 +278,6 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 	struct videobuf_dma_contig_memory *mem;
 	struct videobuf_mapping *map;
 	int retval;
-	unsigned long size;
 
 	dev_dbg(q->dev, "%s\n", __func__);
 
@@ -300,7 +300,6 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 		goto error;
 
 	/* Try to remap memory */
-	size = vma->vm_end - vma->vm_start;
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
 	/* the "vm_pgoff" is just used in v4l2 to find the
@@ -311,7 +310,7 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 	 */
 	vma->vm_pgoff = 0;
 
-	retval = vm_iomap_memory(vma, mem->dma_handle, size);
+	retval = vm_iomap_memory(vma, mem->dma_handle, mem->size);
 	if (retval) {
 		dev_err(q->dev, "mmap: remap failed with error %d. ",
 			retval);

@@ -121,7 +121,8 @@ static inline void cxgbi_device_destroy(struct cxgbi_device *cdev)
 		"cdev 0x%p, p# %u.\n", cdev, cdev->nports);
 	cxgbi_hbas_remove(cdev);
 	cxgbi_device_portmap_cleanup(cdev);
-	cxgbi_ppm_release(cdev->cdev2ppm(cdev));
+	if (cdev->cdev2ppm)
+		cxgbi_ppm_release(cdev->cdev2ppm(cdev));
 	if (cdev->pmap.max_connect)
 		cxgbi_free_big_mem(cdev->pmap.port_csk);
 	kfree(cdev);
@@ -1285,14 +1286,15 @@ EXPORT_SYMBOL_GPL(cxgbi_ddp_set_one_ppod);
 
 static unsigned char padding[4];
 
-void cxgbi_ddp_ppm_setup(void **ppm_pp, struct cxgbi_device *cdev,
-			 struct cxgbi_tag_format *tformat, unsigned int ppmax,
-			 unsigned int llimit, unsigned int start,
-			 unsigned int rsvd_factor)
+int cxgbi_ddp_ppm_setup(void **ppm_pp, struct cxgbi_device *cdev,
+			struct cxgbi_tag_format *tformat,
+			unsigned int iscsi_size, unsigned int llimit,
+			unsigned int start, unsigned int rsvd_factor,
+			unsigned int edram_start, unsigned int edram_size)
 {
 	int err = cxgbi_ppm_init(ppm_pp, cdev->ports[0], cdev->pdev,
-				cdev->lldev, tformat, ppmax, llimit, start,
-				rsvd_factor);
+				cdev->lldev, tformat, iscsi_size, llimit, start,
+				rsvd_factor, edram_start, edram_size);
 
 	if (err >= 0) {
 		struct cxgbi_ppm *ppm = (struct cxgbi_ppm *)(*ppm_pp);
@@ -1304,6 +1306,8 @@ void cxgbi_ddp_ppm_setup(void **ppm_pp, struct cxgbi_device *cdev,
 	} else {
 		cdev->flags |= CXGBI_FLAG_DDP_OFF;
 	}
+
+	return err;
 }
 EXPORT_SYMBOL_GPL(cxgbi_ddp_ppm_setup);
 
@@ -2281,34 +2285,6 @@ int cxgbi_set_conn_param(struct iscsi_cls_conn *cls_conn,
 }
 EXPORT_SYMBOL_GPL(cxgbi_set_conn_param);
 
-static inline int csk_print_port(struct cxgbi_sock *csk, char *buf)
-{
-	int len;
-
-	cxgbi_sock_get(csk);
-	len = sprintf(buf, "%hu\n", ntohs(csk->daddr.sin_port));
-	cxgbi_sock_put(csk);
-
-	return len;
-}
-
-static inline int csk_print_ip(struct cxgbi_sock *csk, char *buf)
-{
-	int len;
-
-	cxgbi_sock_get(csk);
-	if (csk->csk_family == AF_INET)
-		len = sprintf(buf, "%pI4",
-			      &csk->daddr.sin_addr.s_addr);
-	else
-		len = sprintf(buf, "%pI6",
-			      &csk->daddr6.sin6_addr);
-
-	cxgbi_sock_put(csk);
-
-	return len;
-}
-
 int cxgbi_get_ep_param(struct iscsi_endpoint *ep, enum iscsi_param param,
 		       char *buf)
 {
@@ -2771,7 +2747,7 @@ static int __init libcxgbi_init_module(void)
 {
 	pr_info("%s", version);
 
-	BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, cb) <
+	BUILD_BUG_ON(sizeof_field(struct sk_buff, cb) <
 		     sizeof(struct cxgbi_skb_cb));
 	return 0;
 }

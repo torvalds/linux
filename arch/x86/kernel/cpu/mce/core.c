@@ -65,7 +65,23 @@ static DEFINE_MUTEX(mce_sysfs_mutex);
 
 DEFINE_PER_CPU(unsigned, mce_exception_count);
 
-struct mce_bank *mce_banks __read_mostly;
+DEFINE_PER_CPU_READ_MOSTLY(unsigned int, mce_num_banks);
+
+struct mce_bank {
+	u64			ctl;			/* subevents to enable */
+	bool			init;			/* initialise bank? */
+};
+static DEFINE_PER_CPU_READ_MOSTLY(struct mce_bank[MAX_NR_BANKS], mce_banks_array);
+
+#define ATTR_LEN               16
+/* One object for each MCE bank, shared by all CPUs */
+struct mce_bank_dev {
+	struct device_attribute	attr;			/* device attribute */
+	char			attrname[ATTR_LEN];	/* attribute name */
+	u8			bank;			/* bank number */
+};
+static struct mce_bank_dev mce_bank_devs[MAX_NR_BANKS];
+
 struct mce_vendor_flags mce_flags __read_mostly;
 
 struct mca_config mca_cfg __read_mostly = {
@@ -472,8 +488,9 @@ int mce_usable_address(struct mce *m)
 	if (!(m->status & MCI_STATUS_ADDRV))
 		return 0;
 
-	/* Checks after this one are Intel-specific: */
-	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL)
+	/* Checks after this one are Intel/Zhaoxin-specific: */
+	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL &&
+	    boot_cpu_data.x86_vendor != X86_VENDOR_ZHAOXIN)
 		return 1;
 
 	if (!(m->status & MCI_STATUS_MISCV))
@@ -491,10 +508,13 @@ EXPORT_SYMBOL_GPL(mce_usable_address);
 
 bool mce_is_memory_error(struct mce *m)
 {
-	if (m->cpuvendor == X86_VENDOR_AMD ||
-	    m->cpuvendor == X86_VENDOR_HYGON) {
+	switch (m->cpuvendor) {
+	case X86_VENDOR_AMD:
+	case X86_VENDOR_HYGON:
 		return amd_mce_is_memory_error(m);
-	} else if (m->cpuvendor == X86_VENDOR_INTEL) {
+
+	case X86_VENDOR_INTEL:
+	case X86_VENDOR_ZHAOXIN:
 		/*
 		 * Intel SDM Volume 3B - 15.9.2 Compound Error Codes
 		 *
@@ -511,9 +531,10 @@ bool mce_is_memory_error(struct mce *m)
 		return (m->status & 0xef80) == BIT(7) ||
 		       (m->status & 0xef00) == BIT(8) ||
 		       (m->status & 0xeffc) == 0xc;
-	}
 
-	return false;
+	default:
+		return false;
+	}
 }
 EXPORT_SYMBOL_GPL(mce_is_memory_error);
 
@@ -675,6 +696,7 @@ DEFINE_PER_CPU(unsigned, mce_poll_count);
  */
 bool machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 {
+	struct mce_bank *mce_banks = this_cpu_ptr(mce_banks_array);
 	bool error_seen = false;
 	struct mce m;
 	int i;
@@ -686,7 +708,7 @@ bool machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 	if (flags & MCP_TIMESTAMP)
 		m.tsc = rdtsc();
 
-	for (i = 0; i < mca_cfg.banks; i++) {
+	for (i = 0; i < this_cpu_read(mce_num_banks); i++) {
 		if (!mce_banks[i].ctl || !test_bit(i, *b))
 			continue;
 
@@ -788,7 +810,7 @@ static int mce_no_way_out(struct mce *m, char **msg, unsigned long *validp,
 	char *tmp;
 	int i;
 
-	for (i = 0; i < mca_cfg.banks; i++) {
+	for (i = 0; i < this_cpu_read(mce_num_banks); i++) {
 		m->status = mce_rdmsrl(msr_ops.status(i));
 		if (!(m->status & MCI_STATUS_VAL))
 			continue;
@@ -797,8 +819,8 @@ static int mce_no_way_out(struct mce *m, char **msg, unsigned long *validp,
 		if (quirk_no_way_out)
 			quirk_no_way_out(i, m, regs);
 
+		m->bank = i;
 		if (mce_severity(m, mca_cfg.tolerant, &tmp, true) >= MCE_PANIC_SEVERITY) {
-			m->bank = i;
 			mce_read_aux(m, i);
 			*msg = tmp;
 			return 1;
@@ -1068,7 +1090,7 @@ static void mce_clear_state(unsigned long *toclear)
 {
 	int i;
 
-	for (i = 0; i < mca_cfg.banks; i++) {
+	for (i = 0; i < this_cpu_read(mce_num_banks); i++) {
 		if (test_bit(i, toclear))
 			mce_wrmsrl(msr_ops.status(i), 0);
 	}
@@ -1110,6 +1132,12 @@ static bool __mc_check_crashing_cpu(int cpu)
 		u64 mcgstatus;
 
 		mcgstatus = mce_rdmsrl(MSR_IA32_MCG_STATUS);
+
+		if (boot_cpu_data.x86_vendor == X86_VENDOR_ZHAOXIN) {
+			if (mcgstatus & MCG_STATUS_LMCES)
+				return false;
+		}
+
 		if (mcgstatus & MCG_STATUS_RIPV) {
 			mce_wrmsrl(MSR_IA32_MCG_STATUS, 0);
 			return true;
@@ -1122,10 +1150,11 @@ static void __mc_scan_banks(struct mce *m, struct mce *final,
 			    unsigned long *toclear, unsigned long *valid_banks,
 			    int no_way_out, int *worst)
 {
+	struct mce_bank *mce_banks = this_cpu_ptr(mce_banks_array);
 	struct mca_config *cfg = &mca_cfg;
 	int severity, i;
 
-	for (i = 0; i < cfg->banks; i++) {
+	for (i = 0; i < this_cpu_read(mce_num_banks); i++) {
 		__clear_bit(i, toclear);
 		if (!test_bit(i, valid_banks))
 			continue;
@@ -1259,9 +1288,10 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 
 	/*
 	 * Check if this MCE is signaled to only this logical processor,
-	 * on Intel only.
+	 * on Intel, Zhaoxin only.
 	 */
-	if (m.cpuvendor == X86_VENDOR_INTEL)
+	if (m.cpuvendor == X86_VENDOR_INTEL ||
+	    m.cpuvendor == X86_VENDOR_ZHAOXIN)
 		lmce = m.mcgstatus & MCG_STATUS_LMCES;
 
 	/*
@@ -1330,7 +1360,7 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 		local_irq_enable();
 
 		if (kill_it || do_memory_failure(&m))
-			force_sig(SIGBUS, current);
+			force_sig(SIGBUS);
 		local_irq_disable();
 		ist_end_non_atomic();
 	} else {
@@ -1463,27 +1493,29 @@ int mce_notify_irq(void)
 }
 EXPORT_SYMBOL_GPL(mce_notify_irq);
 
-static int __mcheck_cpu_mce_banks_init(void)
+static void __mcheck_cpu_mce_banks_init(void)
 {
+	struct mce_bank *mce_banks = this_cpu_ptr(mce_banks_array);
+	u8 n_banks = this_cpu_read(mce_num_banks);
 	int i;
 
-	mce_banks = kcalloc(MAX_NR_BANKS, sizeof(struct mce_bank), GFP_KERNEL);
-	if (!mce_banks)
-		return -ENOMEM;
-
-	for (i = 0; i < MAX_NR_BANKS; i++) {
+	for (i = 0; i < n_banks; i++) {
 		struct mce_bank *b = &mce_banks[i];
 
+		/*
+		 * Init them all, __mcheck_cpu_apply_quirks() is going to apply
+		 * the required vendor quirks before
+		 * __mcheck_cpu_init_clear_banks() does the final bank setup.
+		 */
 		b->ctl = -1ULL;
 		b->init = 1;
 	}
-	return 0;
 }
 
 /*
  * Initialize Machine Checks for a CPU.
  */
-static int __mcheck_cpu_cap_init(void)
+static void __mcheck_cpu_cap_init(void)
 {
 	u64 cap;
 	u8 b;
@@ -1491,16 +1523,16 @@ static int __mcheck_cpu_cap_init(void)
 	rdmsrl(MSR_IA32_MCG_CAP, cap);
 
 	b = cap & MCG_BANKCNT_MASK;
-	if (WARN_ON_ONCE(b > MAX_NR_BANKS))
+
+	if (b > MAX_NR_BANKS) {
+		pr_warn("CPU%d: Using only %u machine check banks out of %u\n",
+			smp_processor_id(), MAX_NR_BANKS, b);
 		b = MAX_NR_BANKS;
-
-	mca_cfg.banks = max(mca_cfg.banks, b);
-
-	if (!mce_banks) {
-		int err = __mcheck_cpu_mce_banks_init();
-		if (err)
-			return err;
 	}
+
+	this_cpu_write(mce_num_banks, b);
+
+	__mcheck_cpu_mce_banks_init();
 
 	/* Use accurate RIP reporting if available. */
 	if ((cap & MCG_EXT_P) && MCG_EXT_CNT(cap) >= 9)
@@ -1508,8 +1540,6 @@ static int __mcheck_cpu_cap_init(void)
 
 	if (cap & MCG_SER_P)
 		mca_cfg.ser = 1;
-
-	return 0;
 }
 
 static void __mcheck_cpu_init_generic(void)
@@ -1536,15 +1566,43 @@ static void __mcheck_cpu_init_generic(void)
 
 static void __mcheck_cpu_init_clear_banks(void)
 {
+	struct mce_bank *mce_banks = this_cpu_ptr(mce_banks_array);
 	int i;
 
-	for (i = 0; i < mca_cfg.banks; i++) {
+	for (i = 0; i < this_cpu_read(mce_num_banks); i++) {
 		struct mce_bank *b = &mce_banks[i];
 
 		if (!b->init)
 			continue;
 		wrmsrl(msr_ops.ctl(i), b->ctl);
 		wrmsrl(msr_ops.status(i), 0);
+	}
+}
+
+/*
+ * Do a final check to see if there are any unused/RAZ banks.
+ *
+ * This must be done after the banks have been initialized and any quirks have
+ * been applied.
+ *
+ * Do not call this from any user-initiated flows, e.g. CPU hotplug or sysfs.
+ * Otherwise, a user who disables a bank will not be able to re-enable it
+ * without a system reboot.
+ */
+static void __mcheck_cpu_check_banks(void)
+{
+	struct mce_bank *mce_banks = this_cpu_ptr(mce_banks_array);
+	u64 msrval;
+	int i;
+
+	for (i = 0; i < this_cpu_read(mce_num_banks); i++) {
+		struct mce_bank *b = &mce_banks[i];
+
+		if (!b->init)
+			continue;
+
+		rdmsrl(msr_ops.ctl(i), msrval);
+		b->init = !!msrval;
 	}
 }
 
@@ -1579,6 +1637,7 @@ static void quirk_sandybridge_ifu(int bank, struct mce *m, struct pt_regs *regs)
 /* Add per CPU specific workarounds here */
 static int __mcheck_cpu_apply_quirks(struct cpuinfo_x86 *c)
 {
+	struct mce_bank *mce_banks = this_cpu_ptr(mce_banks_array);
 	struct mca_config *cfg = &mca_cfg;
 
 	if (c->x86_vendor == X86_VENDOR_UNKNOWN) {
@@ -1588,7 +1647,7 @@ static int __mcheck_cpu_apply_quirks(struct cpuinfo_x86 *c)
 
 	/* This should be disabled by the BIOS, but isn't always */
 	if (c->x86_vendor == X86_VENDOR_AMD) {
-		if (c->x86 == 15 && cfg->banks > 4) {
+		if (c->x86 == 15 && this_cpu_read(mce_num_banks) > 4) {
 			/*
 			 * disable GART TBL walk error reporting, which
 			 * trips off incorrectly with the IOMMU & 3ware
@@ -1607,7 +1666,7 @@ static int __mcheck_cpu_apply_quirks(struct cpuinfo_x86 *c)
 		 * Various K7s with broken bank 0 around. Always disable
 		 * by default.
 		 */
-		if (c->x86 == 6 && cfg->banks > 0)
+		if (c->x86 == 6 && this_cpu_read(mce_num_banks) > 0)
 			mce_banks[0].ctl = 0;
 
 		/*
@@ -1629,7 +1688,7 @@ static int __mcheck_cpu_apply_quirks(struct cpuinfo_x86 *c)
 		 * valid event later, merely don't write CTL0.
 		 */
 
-		if (c->x86 == 6 && c->x86_model < 0x1A && cfg->banks > 0)
+		if (c->x86 == 6 && c->x86_model < 0x1A && this_cpu_read(mce_num_banks) > 0)
 			mce_banks[0].init = 0;
 
 		/*
@@ -1650,6 +1709,18 @@ static int __mcheck_cpu_apply_quirks(struct cpuinfo_x86 *c)
 		if (c->x86 == 6 && c->x86_model == 45)
 			quirk_no_way_out = quirk_sandybridge_ifu;
 	}
+
+	if (c->x86_vendor == X86_VENDOR_ZHAOXIN) {
+		/*
+		 * All newer Zhaoxin CPUs support MCE broadcasting. Enable
+		 * synchronization with a one second timeout.
+		 */
+		if (c->x86 > 6 || (c->x86_model == 0x19 || c->x86_model == 0x1f)) {
+			if (cfg->monarch_timeout < 0)
+				cfg->monarch_timeout = USEC_PER_SEC;
+		}
+	}
+
 	if (cfg->monarch_timeout < 0)
 		cfg->monarch_timeout = 0;
 	if (cfg->bootlog != 0)
@@ -1713,6 +1784,35 @@ static void mce_centaur_feature_init(struct cpuinfo_x86 *c)
 	}
 }
 
+static void mce_zhaoxin_feature_init(struct cpuinfo_x86 *c)
+{
+	struct mce_bank *mce_banks = this_cpu_ptr(mce_banks_array);
+
+	/*
+	 * These CPUs have MCA bank 8 which reports only one error type called
+	 * SVAD (System View Address Decoder). The reporting of that error is
+	 * controlled by IA32_MC8.CTL.0.
+	 *
+	 * If enabled, prefetching on these CPUs will cause SVAD MCE when
+	 * virtual machines start and result in a system  panic. Always disable
+	 * bank 8 SVAD error by default.
+	 */
+	if ((c->x86 == 7 && c->x86_model == 0x1b) ||
+	    (c->x86_model == 0x19 || c->x86_model == 0x1f)) {
+		if (this_cpu_read(mce_num_banks) > 8)
+			mce_banks[8].ctl = 0;
+	}
+
+	intel_init_cmci();
+	intel_init_lmce();
+	mce_adjust_timer = cmci_intel_adjust_timer;
+}
+
+static void mce_zhaoxin_feature_clear(struct cpuinfo_x86 *c)
+{
+	intel_clear_lmce();
+}
+
 static void __mcheck_cpu_init_vendor(struct cpuinfo_x86 *c)
 {
 	switch (c->x86_vendor) {
@@ -1734,6 +1834,10 @@ static void __mcheck_cpu_init_vendor(struct cpuinfo_x86 *c)
 		mce_centaur_feature_init(c);
 		break;
 
+	case X86_VENDOR_ZHAOXIN:
+		mce_zhaoxin_feature_init(c);
+		break;
+
 	default:
 		break;
 	}
@@ -1745,6 +1849,11 @@ static void __mcheck_cpu_clear_vendor(struct cpuinfo_x86 *c)
 	case X86_VENDOR_INTEL:
 		mce_intel_feature_clear(c);
 		break;
+
+	case X86_VENDOR_ZHAOXIN:
+		mce_zhaoxin_feature_clear(c);
+		break;
+
 	default:
 		break;
 	}
@@ -1815,7 +1924,9 @@ void mcheck_cpu_init(struct cpuinfo_x86 *c)
 	if (!mce_available(c))
 		return;
 
-	if (__mcheck_cpu_cap_init() < 0 || __mcheck_cpu_apply_quirks(c) < 0) {
+	__mcheck_cpu_cap_init();
+
+	if (__mcheck_cpu_apply_quirks(c) < 0) {
 		mca_cfg.disabled = 1;
 		return;
 	}
@@ -1832,6 +1943,7 @@ void mcheck_cpu_init(struct cpuinfo_x86 *c)
 	__mcheck_cpu_init_generic();
 	__mcheck_cpu_init_vendor(c);
 	__mcheck_cpu_init_clear_banks();
+	__mcheck_cpu_check_banks();
 	__mcheck_cpu_setup_timer();
 }
 
@@ -1863,7 +1975,7 @@ static void __mce_disable_bank(void *arg)
 
 void mce_disable_bank(int bank)
 {
-	if (bank >= mca_cfg.banks) {
+	if (bank >= this_cpu_read(mce_num_banks)) {
 		pr_warn(FW_BUG
 			"Ignoring request to disable invalid MCA bank %d.\n",
 			bank);
@@ -1949,9 +2061,10 @@ int __init mcheck_init(void)
  */
 static void mce_disable_error_reporting(void)
 {
+	struct mce_bank *mce_banks = this_cpu_ptr(mce_banks_array);
 	int i;
 
-	for (i = 0; i < mca_cfg.banks; i++) {
+	for (i = 0; i < this_cpu_read(mce_num_banks); i++) {
 		struct mce_bank *b = &mce_banks[i];
 
 		if (b->init)
@@ -1963,15 +2076,16 @@ static void mce_disable_error_reporting(void)
 static void vendor_disable_error_reporting(void)
 {
 	/*
-	 * Don't clear on Intel or AMD or Hygon CPUs. Some of these MSRs
-	 * are socket-wide.
-	 * Disabling them for just a single offlined CPU is bad, since it will
-	 * inhibit reporting for all shared resources on the socket like the
-	 * last level cache (LLC), the integrated memory controller (iMC), etc.
+	 * Don't clear on Intel or AMD or Hygon or Zhaoxin CPUs. Some of these
+	 * MSRs are socket-wide. Disabling them for just a single offlined CPU
+	 * is bad, since it will inhibit reporting for all shared resources on
+	 * the socket like the last level cache (LLC), the integrated memory
+	 * controller (iMC), etc.
 	 */
 	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL ||
 	    boot_cpu_data.x86_vendor == X86_VENDOR_HYGON ||
-	    boot_cpu_data.x86_vendor == X86_VENDOR_AMD)
+	    boot_cpu_data.x86_vendor == X86_VENDOR_AMD ||
+	    boot_cpu_data.x86_vendor == X86_VENDOR_ZHAOXIN)
 		return;
 
 	mce_disable_error_reporting();
@@ -2051,26 +2165,47 @@ static struct bus_type mce_subsys = {
 
 DEFINE_PER_CPU(struct device *, mce_device);
 
-static inline struct mce_bank *attr_to_bank(struct device_attribute *attr)
+static inline struct mce_bank_dev *attr_to_bank(struct device_attribute *attr)
 {
-	return container_of(attr, struct mce_bank, attr);
+	return container_of(attr, struct mce_bank_dev, attr);
 }
 
 static ssize_t show_bank(struct device *s, struct device_attribute *attr,
 			 char *buf)
 {
-	return sprintf(buf, "%llx\n", attr_to_bank(attr)->ctl);
+	u8 bank = attr_to_bank(attr)->bank;
+	struct mce_bank *b;
+
+	if (bank >= per_cpu(mce_num_banks, s->id))
+		return -EINVAL;
+
+	b = &per_cpu(mce_banks_array, s->id)[bank];
+
+	if (!b->init)
+		return -ENODEV;
+
+	return sprintf(buf, "%llx\n", b->ctl);
 }
 
 static ssize_t set_bank(struct device *s, struct device_attribute *attr,
 			const char *buf, size_t size)
 {
+	u8 bank = attr_to_bank(attr)->bank;
+	struct mce_bank *b;
 	u64 new;
 
 	if (kstrtou64(buf, 0, &new) < 0)
 		return -EINVAL;
 
-	attr_to_bank(attr)->ctl = new;
+	if (bank >= per_cpu(mce_num_banks, s->id))
+		return -EINVAL;
+
+	b = &per_cpu(mce_banks_array, s->id)[bank];
+
+	if (!b->init)
+		return -ENODEV;
+
+	b->ctl = new;
 	mce_restart();
 
 	return size;
@@ -2185,7 +2320,7 @@ static void mce_device_release(struct device *dev)
 	kfree(dev);
 }
 
-/* Per cpu device init. All of the cpus still share the same ctrl bank: */
+/* Per CPU device init. All of the CPUs still share the same bank device: */
 static int mce_device_create(unsigned int cpu)
 {
 	struct device *dev;
@@ -2217,8 +2352,8 @@ static int mce_device_create(unsigned int cpu)
 		if (err)
 			goto error;
 	}
-	for (j = 0; j < mca_cfg.banks; j++) {
-		err = device_create_file(dev, &mce_banks[j].attr);
+	for (j = 0; j < per_cpu(mce_num_banks, cpu); j++) {
+		err = device_create_file(dev, &mce_bank_devs[j].attr);
 		if (err)
 			goto error2;
 	}
@@ -2228,7 +2363,7 @@ static int mce_device_create(unsigned int cpu)
 	return 0;
 error2:
 	while (--j >= 0)
-		device_remove_file(dev, &mce_banks[j].attr);
+		device_remove_file(dev, &mce_bank_devs[j].attr);
 error:
 	while (--i >= 0)
 		device_remove_file(dev, mce_device_attrs[i]);
@@ -2249,8 +2384,8 @@ static void mce_device_remove(unsigned int cpu)
 	for (i = 0; mce_device_attrs[i]; i++)
 		device_remove_file(dev, mce_device_attrs[i]);
 
-	for (i = 0; i < mca_cfg.banks; i++)
-		device_remove_file(dev, &mce_banks[i].attr);
+	for (i = 0; i < per_cpu(mce_num_banks, cpu); i++)
+		device_remove_file(dev, &mce_bank_devs[i].attr);
 
 	device_unregister(dev);
 	cpumask_clear_cpu(cpu, mce_device_initialized);
@@ -2271,6 +2406,7 @@ static void mce_disable_cpu(void)
 
 static void mce_reenable_cpu(void)
 {
+	struct mce_bank *mce_banks = this_cpu_ptr(mce_banks_array);
 	int i;
 
 	if (!mce_available(raw_cpu_ptr(&cpu_info)))
@@ -2278,7 +2414,7 @@ static void mce_reenable_cpu(void)
 
 	if (!cpuhp_tasks_frozen)
 		cmci_reenable();
-	for (i = 0; i < mca_cfg.banks; i++) {
+	for (i = 0; i < this_cpu_read(mce_num_banks); i++) {
 		struct mce_bank *b = &mce_banks[i];
 
 		if (b->init)
@@ -2328,9 +2464,11 @@ static __init void mce_init_banks(void)
 {
 	int i;
 
-	for (i = 0; i < mca_cfg.banks; i++) {
-		struct mce_bank *b = &mce_banks[i];
+	for (i = 0; i < MAX_NR_BANKS; i++) {
+		struct mce_bank_dev *b = &mce_bank_devs[i];
 		struct device_attribute *a = &b->attr;
+
+		b->bank = i;
 
 		sysfs_attr_init(&a->attr);
 		a->attr.name	= b->attrname;
@@ -2441,22 +2579,16 @@ static int fake_panic_set(void *data, u64 val)
 DEFINE_DEBUGFS_ATTRIBUTE(fake_panic_fops, fake_panic_get, fake_panic_set,
 			 "%llu\n");
 
-static int __init mcheck_debugfs_init(void)
+static void __init mcheck_debugfs_init(void)
 {
-	struct dentry *dmce, *ffake_panic;
+	struct dentry *dmce;
 
 	dmce = mce_get_debugfs_dir();
-	if (!dmce)
-		return -ENOMEM;
-	ffake_panic = debugfs_create_file_unsafe("fake_panic", 0444, dmce,
-						 NULL, &fake_panic_fops);
-	if (!ffake_panic)
-		return -ENOMEM;
-
-	return 0;
+	debugfs_create_file_unsafe("fake_panic", 0444, dmce, NULL,
+				   &fake_panic_fops);
 }
 #else
-static int __init mcheck_debugfs_init(void) { return -EINVAL; }
+static void __init mcheck_debugfs_init(void) { }
 #endif
 
 DEFINE_STATIC_KEY_FALSE(mcsafe_key);
@@ -2464,8 +2596,6 @@ EXPORT_SYMBOL_GPL(mcsafe_key);
 
 static int __init mcheck_late_init(void)
 {
-	pr_info("Using %d MCE banks\n", mca_cfg.banks);
-
 	if (mca_cfg.recovery)
 		static_branch_inc(&mcsafe_key);
 

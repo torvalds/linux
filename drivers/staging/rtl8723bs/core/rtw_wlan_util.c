@@ -302,14 +302,9 @@ void Switch_DM_Func(struct adapter *padapter, u32 mode, u8 enable)
 		rtw_hal_set_hwreg(padapter, HW_VAR_DM_FUNC_CLR, (u8 *)(&mode));
 }
 
-static void Set_NETYPE0_MSR(struct adapter *padapter, u8 type)
-{
-	rtw_hal_set_hwreg(padapter, HW_VAR_MEDIA_STATUS, (u8 *)(&type));
-}
-
 void Set_MSR(struct adapter *padapter, u8 type)
 {
-	Set_NETYPE0_MSR(padapter, type);
+	rtw_hal_set_hwreg(padapter, HW_VAR_MEDIA_STATUS, (u8 *)(&type));
 }
 
 inline u8 rtw_get_oper_ch(struct adapter *adapter)
@@ -456,7 +451,7 @@ void set_channel_bwmode(struct adapter *padapter, unsigned char channel, unsigne
 	mutex_unlock(&(adapter_to_dvobj(padapter)->setch_mutex));
 }
 
-__inline u8 *get_my_bssid(struct wlan_bssid_ex *pnetwork)
+inline u8 *get_my_bssid(struct wlan_bssid_ex *pnetwork)
 {
 	return pnetwork->MacAddress;
 }
@@ -611,19 +606,6 @@ inline void clear_cam_entry(struct adapter *adapter, u8 id)
 	clear_cam_cache(adapter, id);
 }
 
-inline void write_cam_from_cache(struct adapter *adapter, u8 id)
-{
-	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
-	struct cam_ctl_t *cam_ctl = &dvobj->cam_ctl;
-	struct cam_entry_cache cache;
-
-	spin_lock_bh(&cam_ctl->lock);
-	memcpy(&cache, &dvobj->cam_cache[id], sizeof(struct cam_entry_cache));
-	spin_unlock_bh(&cam_ctl->lock);
-
-	_write_cam(adapter, id, cache.ctrl, cache.mac, cache.key);
-}
-
 void write_cam_cache(struct adapter *adapter, u8 id, u16 ctrl, u8 *mac, u8 *key)
 {
 	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
@@ -745,7 +727,7 @@ s16 rtw_camid_alloc(struct adapter *adapter, struct sta_info *sta, u8 kid)
 		i = _rtw_camid_search(adapter, addr, kid);
 		if (i >= 0) {
 			/* Fix issue that pairwise and group key have same key id. Pairwise key first, group key can overwirte group only(ex: rekey) */
-			if (sta || _rtw_camid_is_gk(adapter, i) == true)
+			if (sta || _rtw_camid_is_gk(adapter, i))
 				cam_id = i;
 			else
 				DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" group key id:%u the same key id as pairwise key\n"
@@ -1175,8 +1157,6 @@ void HT_info_handler(struct adapter *padapter, struct ndis_80211_var_ie *pIE)
 
 	pmlmeinfo->HT_info_enable = 1;
 	memcpy(&(pmlmeinfo->HT_info), pIE->data, pIE->Length);
-
-	return;
 }
 
 void HTOnAssocRsp(struct adapter *padapter)
@@ -1486,11 +1466,11 @@ int rtw_check_bcn_info(struct adapter *Adapter, u8 *pframe, u32 packet_len)
 		}
 	}
 
-	kfree((u8 *)bssid);
+	kfree(bssid);
 	return _SUCCESS;
 
 _mismatch:
-	kfree((u8 *)bssid);
+	kfree(bssid);
 
 	if (pmlmepriv->NumOfBcnInfoChkFail == 0)
 		pmlmepriv->timeBcnInfoChkStart = jiffies;
@@ -1620,16 +1600,10 @@ void Update_RA_Entry(struct adapter *padapter, struct sta_info *psta)
 	rtw_hal_update_ra_mask(psta, 0);
 }
 
-void enable_rate_adaptive(struct adapter *padapter, struct sta_info *psta);
-void enable_rate_adaptive(struct adapter *padapter, struct sta_info *psta)
-{
-	Update_RA_Entry(padapter, psta);
-}
-
 void set_sta_rate(struct adapter *padapter, struct sta_info *psta)
 {
 	/* rate adaptive */
-	enable_rate_adaptive(padapter, psta);
+	Update_RA_Entry(padapter, psta);
 }
 
 unsigned char check_assoc_AP(u8 *pframe, uint len)
@@ -1943,7 +1917,7 @@ void adaptive_early_32k(struct mlme_ext_priv *pmlmeext, u8 *pframe, uint len)
 
 	/* delay = (timestamp mod 1024*100)/1000 (unit: ms) */
 	/* delay_ms = do_div(tsf, (pmlmeinfo->bcn_interval*1024))/1000; */
-	delay_ms = rtw_modular64(tsf, (pmlmeinfo->bcn_interval*1024));
+	delay_ms = do_div(tsf, (pmlmeinfo->bcn_interval*1024));
 	delay_ms = delay_ms/1000;
 
 	if (delay_ms >= 8)
@@ -2005,11 +1979,6 @@ void adaptive_early_32k(struct mlme_ext_priv *pmlmeext, u8 *pframe, uint len)
 
 		pmlmeext->bcn_cnt = 0;
 	}
-}
-
-void beacon_timing_control(struct adapter *padapter)
-{
-	rtw_hal_bcn_related_reg_setting(padapter);
 }
 
 void rtw_alloc_macid(struct adapter *padapter, struct sta_info *psta)

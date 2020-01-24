@@ -270,7 +270,7 @@ static enum fe_stv0900_error stv0900_initialize(struct stv0900_internal *intp)
 
 static u32 stv0900_get_mclk_freq(struct stv0900_internal *intp, u32 ext_clk)
 {
-	u32 mclk = 90000000, div = 0, ad_div = 0;
+	u32 mclk, div, ad_div;
 
 	div = stv0900_get_bits(intp, F0900_M_DIV);
 	ad_div = ((stv0900_get_bits(intp, F0900_SELX1RATIO) == 1) ? 4 : 6);

@@ -1,18 +1,7 @@
+/* SPDX-License-Identifier: ISC */
 /*
  * Copyright (c) 2012-2016 Qualcomm Atheros, Inc.
  * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #ifndef WIL6210_TXRX_H
@@ -423,6 +412,46 @@ struct vring_rx_mac {
 #define RX_DMA_STATUS_PHY_INFO	BIT(6)
 #define RX_DMA_STATUS_FFM	BIT(7) /* EtherType Flex Filter Match */
 
+/* IEEE 802.11, 8.5.2 EAPOL-Key frames */
+#define WIL_KEY_INFO_KEY_TYPE BIT(3) /* val of 1 = Pairwise, 0 = Group key */
+
+#define WIL_KEY_INFO_MIC BIT(8)
+#define WIL_KEY_INFO_ENCR_KEY_DATA BIT(12) /* for rsn only */
+
+#define WIL_EAP_NONCE_LEN 32
+#define WIL_EAP_KEY_RSC_LEN 8
+#define WIL_EAP_REPLAY_COUNTER_LEN 8
+#define WIL_EAP_KEY_IV_LEN 16
+#define WIL_EAP_KEY_ID_LEN 8
+
+enum {
+	WIL_1X_TYPE_EAP_PACKET = 0,
+	WIL_1X_TYPE_EAPOL_START = 1,
+	WIL_1X_TYPE_EAPOL_LOGOFF = 2,
+	WIL_1X_TYPE_EAPOL_KEY = 3,
+};
+
+#define WIL_EAPOL_KEY_TYPE_RSN 2
+#define WIL_EAPOL_KEY_TYPE_WPA 254
+
+struct wil_1x_hdr {
+	u8 version;
+	u8 type;
+	__be16 length;
+	/* followed by data */
+} __packed;
+
+struct wil_eapol_key {
+	u8 type;
+	__be16 key_info;
+	__be16 key_length;
+	u8 replay_counter[WIL_EAP_REPLAY_COUNTER_LEN];
+	u8 key_nonce[WIL_EAP_NONCE_LEN];
+	u8 key_iv[WIL_EAP_KEY_IV_LEN];
+	u8 key_rsc[WIL_EAP_KEY_RSC_LEN];
+	u8 key_id[WIL_EAP_KEY_ID_LEN];
+} __packed;
+
 struct vring_rx_dma {
 	u32 d0;
 	struct wil_ring_dma_addr addr;
@@ -646,6 +675,8 @@ static inline void wil_skb_set_cid(struct sk_buff *skb, u8 cid)
 }
 
 void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev);
+void wil_netif_rx(struct sk_buff *skb, struct net_device *ndev, int cid,
+		  struct wil_net_stats *stats, bool gro);
 void wil_rx_reorder(struct wil6210_priv *wil, struct sk_buff *skb);
 void wil_rx_bar(struct wil6210_priv *wil, struct wil6210_vif *vif,
 		u8 cid, u8 tid, u16 seq);

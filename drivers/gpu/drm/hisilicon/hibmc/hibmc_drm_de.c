@@ -11,10 +11,16 @@
  *	Jianhua Li <lijianhua@huawei.com>
  */
 
+#include <linux/delay.h>
+
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_gem_vram_helper.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_vblank.h>
 
 #include "hibmc_drm_drv.h"
 #include "hibmc_drm_regs.h"
@@ -90,30 +96,21 @@ static void hibmc_plane_atomic_update(struct drm_plane *plane,
 {
 	struct drm_plane_state	*state	= plane->state;
 	u32 reg;
-	int ret;
-	u64 gpu_addr = 0;
+	s64 gpu_addr = 0;
 	unsigned int line_l;
 	struct hibmc_drm_private *priv = plane->dev->dev_private;
 	struct hibmc_framebuffer *hibmc_fb;
-	struct hibmc_bo *bo;
+	struct drm_gem_vram_object *gbo;
 
 	if (!state->fb)
 		return;
 
 	hibmc_fb = to_hibmc_framebuffer(state->fb);
-	bo = gem_to_hibmc_bo(hibmc_fb->obj);
-	ret = ttm_bo_reserve(&bo->bo, true, false, NULL);
-	if (ret) {
-		DRM_ERROR("failed to reserve ttm_bo: %d", ret);
-		return;
-	}
+	gbo = drm_gem_vram_of_gem(hibmc_fb->obj);
 
-	ret = hibmc_bo_pin(bo, TTM_PL_FLAG_VRAM, &gpu_addr);
-	ttm_bo_unreserve(&bo->bo);
-	if (ret) {
-		DRM_ERROR("failed to pin hibmc_bo: %d", ret);
-		return;
-	}
+	gpu_addr = drm_gem_vram_offset(gbo);
+	if (WARN_ON_ONCE(gpu_addr < 0))
+		return; /* Bug: we didn't pin the BO to VRAM in prepare_fb. */
 
 	writel(gpu_addr, priv->mmio + HIBMC_CRT_FB_ADDRESS);
 
@@ -152,6 +149,8 @@ static struct drm_plane_funcs hibmc_plane_funcs = {
 };
 
 static const struct drm_plane_helper_funcs hibmc_plane_helper_funcs = {
+	.prepare_fb	= drm_gem_vram_plane_helper_prepare_fb,
+	.cleanup_fb	= drm_gem_vram_plane_helper_cleanup_fb,
 	.atomic_check = hibmc_plane_atomic_check,
 	.atomic_update = hibmc_plane_atomic_update,
 };

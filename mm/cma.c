@@ -95,13 +95,11 @@ static void cma_clear_bitmap(struct cma *cma, unsigned long pfn,
 
 static int __init cma_activate_area(struct cma *cma)
 {
-	int bitmap_size = BITS_TO_LONGS(cma_bitmap_maxno(cma)) * sizeof(long);
 	unsigned long base_pfn = cma->base_pfn, pfn = base_pfn;
 	unsigned i = cma->count >> pageblock_order;
 	struct zone *zone;
 
-	cma->bitmap = kzalloc(bitmap_size, GFP_KERNEL);
-
+	cma->bitmap = bitmap_zalloc(cma_bitmap_maxno(cma), GFP_KERNEL);
 	if (!cma->bitmap) {
 		cma->count = 0;
 		return -ENOMEM;
@@ -139,7 +137,7 @@ static int __init cma_activate_area(struct cma *cma)
 
 not_in_zone:
 	pr_err("CMA area %s could not be activated\n", cma->name);
-	kfree(cma->bitmap);
+	bitmap_free(cma->bitmap);
 	cma->count = 0;
 	return -EINVAL;
 }
@@ -278,6 +276,12 @@ int __init cma_declare_contiguous(phys_addr_t base,
 	 */
 	alignment = max(alignment,  (phys_addr_t)PAGE_SIZE <<
 			  max_t(unsigned long, MAX_ORDER - 1, pageblock_order));
+	if (fixed && base & (alignment - 1)) {
+		ret = -EINVAL;
+		pr_err("Region at %pa must be aligned to %pa bytes\n",
+			&base, &alignment);
+		goto err;
+	}
 	base = ALIGN(base, alignment);
 	size = ALIGN(size, alignment);
 	limit &= ~(alignment - 1);
@@ -307,6 +311,13 @@ int __init cma_declare_contiguous(phys_addr_t base,
 	 */
 	if (limit == 0 || limit > memblock_end)
 		limit = memblock_end;
+
+	if (base + size > limit) {
+		ret = -EINVAL;
+		pr_err("Size (%pa) of region at %pa exceeds limit (%pa)\n",
+			&size, &base, &limit);
+		goto err;
+	}
 
 	/* Reserve memory */
 	if (fixed) {
@@ -494,7 +505,7 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
  * @pages: Allocated pages.
  * @count: Number of allocated pages.
  *
- * This function releases memory allocated by alloc_cma().
+ * This function releases memory allocated by cma_alloc().
  * It returns false when provided pages do not belong to contiguous area and
  * true otherwise.
  */

@@ -1148,8 +1148,7 @@ static int wl1273_fm_fops_release(struct file *file)
 	if (radio->rds_users > 0) {
 		radio->rds_users--;
 		if (radio->rds_users == 0) {
-			if (mutex_lock_interruptible(&core->lock))
-				return -EINTR;
+			mutex_lock(&core->lock);
 
 			radio->irq_flags &= ~WL1273_RDS_EVENT;
 
@@ -1284,14 +1283,6 @@ static int wl1273_fm_vidioc_querycap(struct file *file, void *priv,
 		sizeof(capability->card));
 	strscpy(capability->bus_info, radio->bus_type,
 		sizeof(capability->bus_info));
-
-	capability->device_caps = V4L2_CAP_HW_FREQ_SEEK |
-		V4L2_CAP_TUNER | V4L2_CAP_RADIO | V4L2_CAP_AUDIO |
-		V4L2_CAP_RDS_CAPTURE | V4L2_CAP_MODULATOR |
-		V4L2_CAP_RDS_OUTPUT;
-	capability->capabilities = capability->device_caps |
-		V4L2_CAP_DEVICE_CAPS;
-
 	return 0;
 }
 
@@ -1980,6 +1971,10 @@ static const struct video_device wl1273_viddev_template = {
 	.name			= WL1273_FM_DRIVER_NAME,
 	.release		= wl1273_vdev_release,
 	.vfl_dir		= VFL_DIR_TX,
+	.device_caps		= V4L2_CAP_HW_FREQ_SEEK | V4L2_CAP_TUNER |
+				  V4L2_CAP_RADIO | V4L2_CAP_AUDIO |
+				  V4L2_CAP_RDS_CAPTURE | V4L2_CAP_MODULATOR |
+				  V4L2_CAP_RDS_OUTPUT,
 };
 
 static int wl1273_fm_radio_remove(struct platform_device *pdev)

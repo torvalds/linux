@@ -104,7 +104,7 @@ void rtw_free_mlme_priv(struct mlme_priv *pmlmepriv)
 	}
 }
 
-struct wlan_network *_rtw_alloc_network(struct mlme_priv *pmlmepriv)
+struct wlan_network *rtw_alloc_network(struct mlme_priv *pmlmepriv)
 					/* _queue *free_queue) */
 {
 	struct wlan_network *pnetwork;
@@ -119,7 +119,7 @@ struct wlan_network *_rtw_alloc_network(struct mlme_priv *pmlmepriv)
 	list_del_init(&pnetwork->list);
 
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
-		 ("_rtw_alloc_network: ptr=%p\n", &pnetwork->list));
+		 ("rtw_alloc_network: ptr=%p\n", &pnetwork->list));
 	pnetwork->network_type = 0;
 	pnetwork->fixed = false;
 	pnetwork->last_scanned = jiffies;
@@ -159,7 +159,8 @@ static void _rtw_free_network(struct mlme_priv *pmlmepriv, struct wlan_network *
 	spin_unlock_bh(&free_queue->lock);
 }
 
-void _rtw_free_network_nolock(struct	mlme_priv *pmlmepriv, struct wlan_network *pnetwork)
+static void rtw_free_network_nolock(struct mlme_priv *pmlmepriv,
+				    struct wlan_network *pnetwork)
 {
 	struct __queue *free_queue = &pmlmepriv->free_bss_pool;
 
@@ -269,17 +270,6 @@ u16 rtw_get_capability(struct wlan_bssid_ex *bss)
 u8 *rtw_get_beacon_interval_from_ie(u8 *ie)
 {
 	return ie + 8;
-}
-
-static struct wlan_network *rtw_alloc_network(struct mlme_priv *pmlmepriv)
-{
-	return _rtw_alloc_network(pmlmepriv);
-}
-
-static void rtw_free_network_nolock(struct mlme_priv *pmlmepriv,
-				    struct wlan_network *pnetwork)
-{
-	_rtw_free_network_nolock(pmlmepriv, pnetwork);
 }
 
 int rtw_is_same_ibss(struct adapter *adapter, struct wlan_network *pnetwork)
@@ -832,7 +822,7 @@ void rtw_indicate_disconnect(struct adapter *padapter)
 
 inline void rtw_indicate_scan_done(struct adapter *padapter, bool aborted)
 {
-	rtw_os_indicate_scan_done(padapter, aborted);
+	indicate_wx_scan_complete_event(padapter);
 }
 
 static struct sta_info *rtw_joinbss_update_stainfo(struct adapter *padapter, struct wlan_network *pnetwork)
@@ -1330,11 +1320,10 @@ void _rtw_join_timeout_handler (struct timer_list *t)
 					continue;
 				}
 				break;
-			} else {
-				DBG_88E("%s We've try roaming but fail\n", __func__);
-				rtw_indicate_disconnect(adapter);
-				break;
 			}
+			DBG_88E("%s We've try roaming but fail\n", __func__);
+			rtw_indicate_disconnect(adapter);
+			break;
 		}
 	} else {
 		rtw_indicate_disconnect(adapter);
@@ -2056,19 +2045,18 @@ void _rtw_roaming(struct adapter *padapter, struct wlan_network *tgt_network)
 
 		while (1) {
 			do_join_r = rtw_do_join(padapter);
-			if (do_join_r == _SUCCESS) {
+			if (do_join_r == _SUCCESS)
 				break;
-			} else {
-				DBG_88E("roaming do_join return %d\n", do_join_r);
-				pmlmepriv->to_roaming--;
 
-				if (pmlmepriv->to_roaming > 0) {
-					continue;
-				} else {
-					DBG_88E("%s(%d) -to roaming fail, indicate_disconnect\n", __func__, __LINE__);
-					rtw_indicate_disconnect(padapter);
-					break;
-				}
+			DBG_88E("roaming do_join return %d\n", do_join_r);
+			pmlmepriv->to_roaming--;
+
+			if (pmlmepriv->to_roaming > 0) {
+				continue;
+			} else {
+				DBG_88E("%s(%d) -to roaming fail, indicate_disconnect\n", __func__, __LINE__);
+				rtw_indicate_disconnect(padapter);
+				break;
 			}
 		}
 	}

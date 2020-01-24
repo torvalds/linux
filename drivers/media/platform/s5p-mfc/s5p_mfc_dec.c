@@ -29,7 +29,6 @@
 
 static struct s5p_mfc_fmt formats[] = {
 	{
-		.name		= "4:2:0 2 Planes 16x16 Tiles",
 		.fourcc		= V4L2_PIX_FMT_NV12MT_16X16,
 		.codec_mode	= S5P_MFC_CODEC_NONE,
 		.type		= MFC_FMT_RAW,
@@ -37,7 +36,6 @@ static struct s5p_mfc_fmt formats[] = {
 		.versions	= MFC_V6_BIT | MFC_V7_BIT,
 	},
 	{
-		.name		= "4:2:0 2 Planes 64x32 Tiles",
 		.fourcc		= V4L2_PIX_FMT_NV12MT,
 		.codec_mode	= S5P_MFC_CODEC_NONE,
 		.type		= MFC_FMT_RAW,
@@ -45,7 +43,6 @@ static struct s5p_mfc_fmt formats[] = {
 		.versions	= MFC_V5_BIT,
 	},
 	{
-		.name		= "4:2:0 2 Planes Y/CbCr",
 		.fourcc		= V4L2_PIX_FMT_NV12M,
 		.codec_mode	= S5P_MFC_CODEC_NONE,
 		.type		= MFC_FMT_RAW,
@@ -53,7 +50,6 @@ static struct s5p_mfc_fmt formats[] = {
 		.versions	= MFC_V6PLUS_BITS,
 	},
 	{
-		.name		= "4:2:0 2 Planes Y/CrCb",
 		.fourcc		= V4L2_PIX_FMT_NV21M,
 		.codec_mode	= S5P_MFC_CODEC_NONE,
 		.type		= MFC_FMT_RAW,
@@ -61,7 +57,6 @@ static struct s5p_mfc_fmt formats[] = {
 		.versions	= MFC_V6PLUS_BITS,
 	},
 	{
-		.name		= "H264 Encoded Stream",
 		.fourcc		= V4L2_PIX_FMT_H264,
 		.codec_mode	= S5P_MFC_CODEC_H264_DEC,
 		.type		= MFC_FMT_DEC,
@@ -69,7 +64,6 @@ static struct s5p_mfc_fmt formats[] = {
 		.versions	= MFC_V5PLUS_BITS,
 	},
 	{
-		.name		= "H264/MVC Encoded Stream",
 		.fourcc		= V4L2_PIX_FMT_H264_MVC,
 		.codec_mode	= S5P_MFC_CODEC_H264_MVC_DEC,
 		.type		= MFC_FMT_DEC,
@@ -77,7 +71,6 @@ static struct s5p_mfc_fmt formats[] = {
 		.versions	= MFC_V6PLUS_BITS,
 	},
 	{
-		.name		= "H263 Encoded Stream",
 		.fourcc		= V4L2_PIX_FMT_H263,
 		.codec_mode	= S5P_MFC_CODEC_H263_DEC,
 		.type		= MFC_FMT_DEC,
@@ -85,7 +78,6 @@ static struct s5p_mfc_fmt formats[] = {
 		.versions	= MFC_V5PLUS_BITS,
 	},
 	{
-		.name		= "MPEG1 Encoded Stream",
 		.fourcc		= V4L2_PIX_FMT_MPEG1,
 		.codec_mode	= S5P_MFC_CODEC_MPEG2_DEC,
 		.type		= MFC_FMT_DEC,
@@ -93,7 +85,6 @@ static struct s5p_mfc_fmt formats[] = {
 		.versions	= MFC_V5PLUS_BITS,
 	},
 	{
-		.name		= "MPEG2 Encoded Stream",
 		.fourcc		= V4L2_PIX_FMT_MPEG2,
 		.codec_mode	= S5P_MFC_CODEC_MPEG2_DEC,
 		.type		= MFC_FMT_DEC,
@@ -101,7 +92,6 @@ static struct s5p_mfc_fmt formats[] = {
 		.versions	= MFC_V5PLUS_BITS,
 	},
 	{
-		.name		= "MPEG4 Encoded Stream",
 		.fourcc		= V4L2_PIX_FMT_MPEG4,
 		.codec_mode	= S5P_MFC_CODEC_MPEG4_DEC,
 		.type		= MFC_FMT_DEC,
@@ -109,7 +99,6 @@ static struct s5p_mfc_fmt formats[] = {
 		.versions	= MFC_V5PLUS_BITS,
 	},
 	{
-		.name		= "XviD Encoded Stream",
 		.fourcc		= V4L2_PIX_FMT_XVID,
 		.codec_mode	= S5P_MFC_CODEC_MPEG4_DEC,
 		.type		= MFC_FMT_DEC,
@@ -117,7 +106,6 @@ static struct s5p_mfc_fmt formats[] = {
 		.versions	= MFC_V5PLUS_BITS,
 	},
 	{
-		.name		= "VC1 Encoded Stream",
 		.fourcc		= V4L2_PIX_FMT_VC1_ANNEX_G,
 		.codec_mode	= S5P_MFC_CODEC_VC1_DEC,
 		.type		= MFC_FMT_DEC,
@@ -125,7 +113,6 @@ static struct s5p_mfc_fmt formats[] = {
 		.versions	= MFC_V5PLUS_BITS,
 	},
 	{
-		.name		= "VC1 RCV Encoded Stream",
 		.fourcc		= V4L2_PIX_FMT_VC1_ANNEX_L,
 		.codec_mode	= S5P_MFC_CODEC_VC1RCV_DEC,
 		.type		= MFC_FMT_DEC,
@@ -133,7 +120,6 @@ static struct s5p_mfc_fmt formats[] = {
 		.versions	= MFC_V5PLUS_BITS,
 	},
 	{
-		.name		= "VP8 Encoded Stream",
 		.fourcc		= V4L2_PIX_FMT_VP8,
 		.codec_mode	= S5P_MFC_CODEC_VP8_DEC,
 		.type		= MFC_FMT_DEC,
@@ -271,13 +257,6 @@ static int vidioc_querycap(struct file *file, void *priv,
 	strscpy(cap->card, dev->vfd_dec->name, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
 		 dev_name(&dev->plat_dev->dev));
-	/*
-	 * This is only a mem-to-mem video device. The capture and output
-	 * device capability flags are left only for backward compatibility
-	 * and are scheduled for removal.
-	 */
-	cap->device_caps = V4L2_CAP_VIDEO_M2M_MPLANE | V4L2_CAP_STREAMING;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -286,7 +265,6 @@ static int vidioc_enum_fmt(struct file *file, struct v4l2_fmtdesc *f,
 							bool out)
 {
 	struct s5p_mfc_dev *dev = video_drvdata(file);
-	struct s5p_mfc_fmt *fmt;
 	int i, j = 0;
 
 	for (i = 0; i < ARRAY_SIZE(formats); ++i) {
@@ -303,20 +281,18 @@ static int vidioc_enum_fmt(struct file *file, struct v4l2_fmtdesc *f,
 	}
 	if (i == ARRAY_SIZE(formats))
 		return -EINVAL;
-	fmt = &formats[i];
-	strscpy(f->description, fmt->name, sizeof(f->description));
-	f->pixelformat = fmt->fourcc;
+	f->pixelformat = formats[i].fourcc;
 	return 0;
 }
 
-static int vidioc_enum_fmt_vid_cap_mplane(struct file *file, void *pirv,
-							struct v4l2_fmtdesc *f)
+static int vidioc_enum_fmt_vid_cap(struct file *file, void *pirv,
+				   struct v4l2_fmtdesc *f)
 {
 	return vidioc_enum_fmt(file, f, false);
 }
 
-static int vidioc_enum_fmt_vid_out_mplane(struct file *file, void *priv,
-							struct v4l2_fmtdesc *f)
+static int vidioc_enum_fmt_vid_out(struct file *file, void *priv,
+				   struct v4l2_fmtdesc *f)
 {
 	return vidioc_enum_fmt(file, f, true);
 }
@@ -883,8 +859,8 @@ static int vidioc_subscribe_event(struct v4l2_fh *fh,
 /* v4l2_ioctl_ops */
 static const struct v4l2_ioctl_ops s5p_mfc_dec_ioctl_ops = {
 	.vidioc_querycap = vidioc_querycap,
-	.vidioc_enum_fmt_vid_cap_mplane = vidioc_enum_fmt_vid_cap_mplane,
-	.vidioc_enum_fmt_vid_out_mplane = vidioc_enum_fmt_vid_out_mplane,
+	.vidioc_enum_fmt_vid_cap = vidioc_enum_fmt_vid_cap,
+	.vidioc_enum_fmt_vid_out = vidioc_enum_fmt_vid_out,
 	.vidioc_g_fmt_vid_cap_mplane = vidioc_g_fmt,
 	.vidioc_g_fmt_vid_out_mplane = vidioc_g_fmt,
 	.vidioc_try_fmt_vid_cap_mplane = vidioc_try_fmt,

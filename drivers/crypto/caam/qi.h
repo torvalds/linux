@@ -14,32 +14,6 @@
 #include "desc.h"
 #include "desc_constr.h"
 
-/*
- * CAAM hardware constructs a job descriptor which points to a shared descriptor
- * (as pointed by context_a of to-CAAM FQ).
- * When the job descriptor is executed by DECO, the whole job descriptor
- * together with shared descriptor gets loaded in DECO buffer, which is
- * 64 words (each 32-bit) long.
- *
- * The job descriptor constructed by CAAM hardware has the following layout:
- *
- *	HEADER		(1 word)
- *	Shdesc ptr	(1 or 2 words)
- *	SEQ_OUT_PTR	(1 word)
- *	Out ptr		(1 or 2 words)
- *	Out length	(1 word)
- *	SEQ_IN_PTR	(1 word)
- *	In ptr		(1 or 2 words)
- *	In length	(1 word)
- *
- * The shdesc ptr is used to fetch shared descriptor contents into DECO buffer.
- *
- * Apart from shdesc contents, the total number of words that get loaded in DECO
- * buffer are '8' or '11'. The remaining words in DECO buffer can be used for
- * storing shared descriptor.
- */
-#define MAX_SDLEN	((CAAM_DESC_BYTES_MAX - DESC_JOB_IO_LEN) / CAAM_CMD_SZ)
-
 /* Length of a single buffer in the QI driver memory cache */
 #define CAAM_QI_MEMCACHE_SIZE	768
 
@@ -173,7 +147,6 @@ int caam_drv_ctx_update(struct caam_drv_ctx *drv_ctx, u32 *sh_desc);
 void caam_drv_ctx_rel(struct caam_drv_ctx *drv_ctx);
 
 int caam_qi_init(struct platform_device *pdev);
-void caam_qi_shutdown(struct device *dev);
 
 /**
  * qi_cache_alloc - Allocate buffers from CAAM-QI cache

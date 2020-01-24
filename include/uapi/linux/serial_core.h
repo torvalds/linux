@@ -129,7 +129,7 @@
 /* Motorola i.MX SoC */
 #define PORT_IMX	62
 
-/* Marvell MPSC */
+/* Marvell MPSC (obsolete unused) */
 #define PORT_MPSC	63
 
 /* TXX9 type number */
@@ -150,9 +150,6 @@
 
 #define PORT_PNX8XXX	70
 
-/* Hilscher netx */
-#define PORT_NETX	71
-
 /* SUN4V Hypervisor Console */
 #define PORT_SUNHV	72
 
@@ -163,9 +160,6 @@
 
 /* Blackfin bf5xx */
 #define PORT_BFIN	75
-
-/* Micrel KS8695 */
-#define PORT_KS8695	76
 
 /* Broadcom SB1250, etc. SOC */
 #define PORT_SB1250_DUART	77
@@ -292,5 +286,11 @@
 
 /* SiFive UART */
 #define PORT_SIFIVE_V0	120
+
+/* Sunix UART */
+#define PORT_SUNIX	121
+
+/* Freescale LINFlexD UART */
+#define PORT_LINFLEXUART	122
 
 #endif /* _UAPILINUX_SERIAL_CORE_H */

@@ -115,6 +115,21 @@ static const struct adreno_info gpulist[] = {
 		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
 		.init  = a4xx_gpu_init,
 	}, {
+		.rev   = ADRENO_REV(5, 1, 0, ANY_ID),
+		.revn = 510,
+		.name = "A510",
+		.fw = {
+			[ADRENO_FW_PM4] = "a530_pm4.fw",
+			[ADRENO_FW_PFP] = "a530_pfp.fw",
+		},
+		.gmem = SZ_256K,
+		/*
+		 * Increase inactive period to 250 to avoid bouncing
+		 * the GDSC which appears to make it grumpy
+		 */
+		.inactive_period = 250,
+		.init = a5xx_gpu_init,
+	}, {
 		.rev = ADRENO_REV(5, 3, 0, 2),
 		.revn = 530,
 		.name = "A530",
@@ -133,6 +148,24 @@ static const struct adreno_info gpulist[] = {
 			ADRENO_QUIRK_FAULT_DETECT_MASK,
 		.init = a5xx_gpu_init,
 		.zapfw = "a530_zap.mdt",
+	}, {
+		.rev = ADRENO_REV(5, 4, 0, 2),
+		.revn = 540,
+		.name = "A540",
+		.fw = {
+			[ADRENO_FW_PM4] = "a530_pm4.fw",
+			[ADRENO_FW_PFP] = "a530_pfp.fw",
+			[ADRENO_FW_GPMU] = "a540_gpmu.fw2",
+		},
+		.gmem = SZ_1M,
+		/*
+		 * Increase inactive period to 250 to avoid bouncing
+		 * the GDSC which appears to make it grumpy
+		 */
+		.inactive_period = 250,
+		.quirks = ADRENO_QUIRK_LMLOADKILL_DISABLE,
+		.init = a5xx_gpu_init,
+		.zapfw = "a540_zap.mdt",
 	}, {
 		.rev = ADRENO_REV(6, 3, 0, ANY_ID),
 		.revn = 630,
@@ -163,6 +196,7 @@ MODULE_FIRMWARE("qcom/a530_zap.b01");
 MODULE_FIRMWARE("qcom/a530_zap.b02");
 MODULE_FIRMWARE("qcom/a630_sqe.fw");
 MODULE_FIRMWARE("qcom/a630_gmu.bin");
+MODULE_FIRMWARE("qcom/a630_zap.mbn");
 
 static inline bool _rev_match(uint8_t entry, uint8_t id)
 {
@@ -340,7 +374,7 @@ static void adreno_unbind(struct device *dev, struct device *master,
 {
 	struct msm_gpu *gpu = dev_get_drvdata(dev);
 
-	gpu->funcs->pm_suspend(gpu);
+	pm_runtime_force_suspend(dev);
 	gpu->funcs->destroy(gpu);
 
 	set_gpu_pdev(dev_get_drvdata(master), NULL);

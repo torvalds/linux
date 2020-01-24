@@ -20,7 +20,7 @@
  * @nr_entries:	Number of entries in the storage array
  * @spaces:	Number of leading spaces to print
  */
-void stack_trace_print(unsigned long *entries, unsigned int nr_entries,
+void stack_trace_print(const unsigned long *entries, unsigned int nr_entries,
 		       int spaces)
 {
 	unsigned int i;
@@ -43,7 +43,7 @@ EXPORT_SYMBOL_GPL(stack_trace_print);
  *
  * Return: Number of bytes printed.
  */
-int stack_trace_snprint(char *buf, size_t size, unsigned long *entries,
+int stack_trace_snprint(char *buf, size_t size, const unsigned long *entries,
 			unsigned int nr_entries, int spaces)
 {
 	unsigned int generated, i, total = 0;
@@ -141,7 +141,8 @@ unsigned int stack_trace_save_tsk(struct task_struct *tsk, unsigned long *store,
 	struct stacktrace_cookie c = {
 		.store	= store,
 		.size	= size,
-		.skip	= skipnr + 1,
+		/* skip this function if they are tracing us */
+		.skip	= skipnr + (current == tsk),
 	};
 
 	if (!try_get_task_stack(tsk))
@@ -226,12 +227,17 @@ unsigned int stack_trace_save_user(unsigned long *store, unsigned int size)
 		.store	= store,
 		.size	= size,
 	};
+	mm_segment_t fs;
 
 	/* Trace user stack if not a kernel thread */
-	if (!current->mm)
+	if (current->flags & PF_KTHREAD)
 		return 0;
 
+	fs = get_fs();
+	set_fs(USER_DS);
 	arch_stack_walk_user(consume_entry, &c, task_pt_regs(current));
+	set_fs(fs);
+
 	return c.len;
 }
 #endif
@@ -253,14 +259,6 @@ __weak void
 save_stack_trace_regs(struct pt_regs *regs, struct stack_trace *trace)
 {
 	WARN_ONCE(1, KERN_INFO "save_stack_trace_regs() not implemented yet.\n");
-}
-
-__weak int
-save_stack_trace_tsk_reliable(struct task_struct *tsk,
-			      struct stack_trace *trace)
-{
-	WARN_ONCE(1, KERN_INFO "save_stack_tsk_reliable() not implemented yet.\n");
-	return -ENOSYS;
 }
 
 /**
@@ -301,7 +299,8 @@ unsigned int stack_trace_save_tsk(struct task_struct *task,
 	struct stack_trace trace = {
 		.entries	= store,
 		.max_entries	= size,
-		.skip		= skipnr + 1,
+		/* skip this function if they are tracing us */
+		.skip	= skipnr + (current == task),
 	};
 
 	save_stack_trace_tsk(task, &trace);

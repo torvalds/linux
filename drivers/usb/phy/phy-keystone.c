@@ -66,15 +66,13 @@ static int keystone_usbphy_probe(struct platform_device *pdev)
 {
 	struct device		*dev = &pdev->dev;
 	struct keystone_usbphy	*k_phy;
-	struct resource		*res;
 	int ret;
 
 	k_phy = devm_kzalloc(dev, sizeof(*k_phy), GFP_KERNEL);
 	if (!k_phy)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	k_phy->phy_ctrl = devm_ioremap_resource(dev, res);
+	k_phy->phy_ctrl = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(k_phy->phy_ctrl))
 		return PTR_ERR(k_phy->phy_ctrl);
 

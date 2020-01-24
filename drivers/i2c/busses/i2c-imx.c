@@ -20,6 +20,7 @@
  *
  */
 
+#include <linux/acpi.h>
 #include <linux/clk.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
@@ -255,6 +256,12 @@ static const struct of_device_id i2c_imx_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, i2c_imx_dt_ids);
 
+static const struct acpi_device_id i2c_imx_acpi_ids[] = {
+	{"NXP0001", .driver_data = (kernel_ulong_t)&vf610_i2c_hwdata},
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, i2c_imx_acpi_ids);
+
 static inline int is_imx1_i2c(struct imx_i2c_struct *i2c_imx)
 {
 	return i2c_imx->hwdata->devtype == IMX1_I2C;
@@ -273,8 +280,8 @@ static inline unsigned char imx_i2c_read_reg(struct imx_i2c_struct *i2c_imx,
 }
 
 /* Functions for DMA support */
-static int i2c_imx_dma_request(struct imx_i2c_struct *i2c_imx,
-			       dma_addr_t phy_addr)
+static void i2c_imx_dma_request(struct imx_i2c_struct *i2c_imx,
+						dma_addr_t phy_addr)
 {
 	struct imx_i2c_dma *dma;
 	struct dma_slave_config dma_sconfig;
@@ -283,7 +290,7 @@ static int i2c_imx_dma_request(struct imx_i2c_struct *i2c_imx,
 
 	dma = devm_kzalloc(dev, sizeof(*dma), GFP_KERNEL);
 	if (!dma)
-		return -ENOMEM;
+		return;
 
 	dma->chan_tx = dma_request_chan(dev, "tx");
 	if (IS_ERR(dma->chan_tx)) {
@@ -328,7 +335,7 @@ static int i2c_imx_dma_request(struct imx_i2c_struct *i2c_imx,
 	dev_info(dev, "using %s (tx) and %s (rx) for DMA transfers\n",
 		dma_chan_name(dma->chan_tx), dma_chan_name(dma->chan_rx));
 
-	return 0;
+	return;
 
 fail_rx:
 	dma_release_channel(dma->chan_rx);
@@ -336,8 +343,6 @@ fail_tx:
 	dma_release_channel(dma->chan_tx);
 fail_al:
 	devm_kfree(dev, dma);
-	/* return successfully if there is no dma support */
-	return ret == -ENODEV ? 0 : ret;
 }
 
 static void i2c_imx_dma_callback(void *arg)
@@ -1050,14 +1055,13 @@ static const struct i2c_algorithm i2c_imx_algo = {
 
 static int i2c_imx_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *of_id = of_match_device(i2c_imx_dt_ids,
-							   &pdev->dev);
 	struct imx_i2c_struct *i2c_imx;
 	struct resource *res;
 	struct imxi2c_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	void __iomem *base;
 	int irq, ret;
 	dma_addr_t phy_addr;
+	const struct imx_i2c_hwdata *match;
 
 	dev_dbg(&pdev->dev, "<%s>\n", __func__);
 
@@ -1077,8 +1081,9 @@ static int i2c_imx_probe(struct platform_device *pdev)
 	if (!i2c_imx)
 		return -ENOMEM;
 
-	if (of_id)
-		i2c_imx->hwdata = of_id->data;
+	match = device_get_match_data(&pdev->dev);
+	if (match)
+		i2c_imx->hwdata = match;
 	else
 		i2c_imx->hwdata = (struct imx_i2c_hwdata *)
 				platform_get_device_id(pdev)->driver_data;
@@ -1091,6 +1096,7 @@ static int i2c_imx_probe(struct platform_device *pdev)
 	i2c_imx->adapter.nr		= pdev->id;
 	i2c_imx->adapter.dev.of_node	= pdev->dev.of_node;
 	i2c_imx->base			= base;
+	ACPI_COMPANION_SET(&i2c_imx->adapter.dev, ACPI_COMPANION(&pdev->dev));
 
 	/* Get I2C clock */
 	i2c_imx->clk = devm_clk_get(&pdev->dev, NULL);
@@ -1165,17 +1171,13 @@ static int i2c_imx_probe(struct platform_device *pdev)
 	dev_dbg(&i2c_imx->adapter.dev, "device resources: %pR\n", res);
 	dev_dbg(&i2c_imx->adapter.dev, "adapter name: \"%s\"\n",
 		i2c_imx->adapter.name);
+	dev_info(&i2c_imx->adapter.dev, "IMX I2C adapter registered\n");
 
 	/* Init DMA config if supported */
-	ret = i2c_imx_dma_request(i2c_imx, phy_addr);
-	if (ret < 0)
-		goto del_adapter;
+	i2c_imx_dma_request(i2c_imx, phy_addr);
 
-	dev_info(&i2c_imx->adapter.dev, "IMX I2C adapter registered\n");
 	return 0;   /* Return OK */
 
-del_adapter:
-	i2c_del_adapter(&i2c_imx->adapter);
 clk_notifier_unregister:
 	clk_notifier_unregister(i2c_imx->clk, &i2c_imx->clk_change_nb);
 rpm_disable:
@@ -1220,8 +1222,7 @@ static int i2c_imx_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int i2c_imx_runtime_suspend(struct device *dev)
+static int __maybe_unused i2c_imx_runtime_suspend(struct device *dev)
 {
 	struct imx_i2c_struct *i2c_imx = dev_get_drvdata(dev);
 
@@ -1230,7 +1231,7 @@ static int i2c_imx_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int i2c_imx_runtime_resume(struct device *dev)
+static int __maybe_unused i2c_imx_runtime_resume(struct device *dev)
 {
 	struct imx_i2c_struct *i2c_imx = dev_get_drvdata(dev);
 	int ret;
@@ -1246,18 +1247,15 @@ static const struct dev_pm_ops i2c_imx_pm_ops = {
 	SET_RUNTIME_PM_OPS(i2c_imx_runtime_suspend,
 			   i2c_imx_runtime_resume, NULL)
 };
-#define I2C_IMX_PM_OPS (&i2c_imx_pm_ops)
-#else
-#define I2C_IMX_PM_OPS NULL
-#endif /* CONFIG_PM */
 
 static struct platform_driver i2c_imx_driver = {
 	.probe = i2c_imx_probe,
 	.remove = i2c_imx_remove,
 	.driver = {
 		.name = DRIVER_NAME,
-		.pm = I2C_IMX_PM_OPS,
+		.pm = &i2c_imx_pm_ops,
 		.of_match_table = i2c_imx_dt_ids,
+		.acpi_match_table = i2c_imx_acpi_ids,
 	},
 	.id_table = imx_i2c_devtype,
 };

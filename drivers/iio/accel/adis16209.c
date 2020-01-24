@@ -72,7 +72,7 @@
 #define  ADIS16209_STAT_FLASH_UPT_FAIL_BIT	2
 /* Power supply above 3.625 V */
 #define  ADIS16209_STAT_POWER_HIGH_BIT		1
-/* Power supply below 3.15 V */
+/* Power supply below 2.975 V */
 #define  ADIS16209_STAT_POWER_LOW_BIT		0
 
 #define ADIS16209_CMD_REG			0x3E
@@ -240,7 +240,7 @@ static const char * const adis16209_status_error_msgs[] = {
 	[ADIS16209_STAT_SPI_FAIL_BIT] = "SPI failure",
 	[ADIS16209_STAT_FLASH_UPT_FAIL_BIT] = "Flash update failed",
 	[ADIS16209_STAT_POWER_HIGH_BIT] = "Power supply above 3.625V",
-	[ADIS16209_STAT_POWER_LOW_BIT] = "Power supply below 3.15V",
+	[ADIS16209_STAT_POWER_LOW_BIT] = "Power supply below 2.975V",
 };
 
 static const struct adis_data adis16209_data = {

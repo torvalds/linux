@@ -31,14 +31,14 @@ struct ixgbe_stats {
 #define IXGBEVF_STAT(_name, _stat) { \
 	.stat_string = _name, \
 	.type = IXGBEVF_STATS, \
-	.sizeof_stat = FIELD_SIZEOF(struct ixgbevf_adapter, _stat), \
+	.sizeof_stat = sizeof_field(struct ixgbevf_adapter, _stat), \
 	.stat_offset = offsetof(struct ixgbevf_adapter, _stat) \
 }
 
 #define IXGBEVF_NETDEV_STAT(_net_stat) { \
 	.stat_string = #_net_stat, \
 	.type = NETDEV_STATS, \
-	.sizeof_stat = FIELD_SIZEOF(struct net_device_stats, _net_stat), \
+	.sizeof_stat = sizeof_field(struct net_device_stats, _net_stat), \
 	.stat_offset = offsetof(struct net_device_stats, _net_stat) \
 }
 
@@ -85,22 +85,16 @@ static int ixgbevf_get_link_ksettings(struct net_device *netdev,
 				      struct ethtool_link_ksettings *cmd)
 {
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
-	struct ixgbe_hw *hw = &adapter->hw;
-	u32 link_speed = 0;
-	bool link_up;
 
 	ethtool_link_ksettings_zero_link_mode(cmd, supported);
 	ethtool_link_ksettings_add_link_mode(cmd, supported, 10000baseT_Full);
 	cmd->base.autoneg = AUTONEG_DISABLE;
 	cmd->base.port = -1;
 
-	hw->mac.get_link_status = 1;
-	hw->mac.ops.check_link(hw, &link_speed, &link_up, false);
-
-	if (link_up) {
+	if (adapter->link_up) {
 		__u32 speed = SPEED_10000;
 
-		switch (link_speed) {
+		switch (adapter->link_speed) {
 		case IXGBE_LINK_SPEED_10GB_FULL:
 			speed = SPEED_10000;
 			break;

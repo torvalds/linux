@@ -307,7 +307,6 @@ static int jz4740_rtc_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct jz4740_rtc *rtc;
-	struct resource *mem;
 	const struct platform_device_id *id = platform_get_device_id(pdev);
 	const struct of_device_id *of_id = of_match_device(
 			jz4740_rtc_of_match, &pdev->dev);
@@ -323,13 +322,10 @@ static int jz4740_rtc_probe(struct platform_device *pdev)
 		rtc->type = id->driver_data;
 
 	rtc->irq = platform_get_irq(pdev, 0);
-	if (rtc->irq < 0) {
-		dev_err(&pdev->dev, "Failed to get platform irq\n");
+	if (rtc->irq < 0)
 		return -ENOENT;
-	}
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	rtc->base = devm_ioremap_resource(&pdev->dev, mem);
+	rtc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rtc->base))
 		return PTR_ERR(rtc->base);
 
@@ -362,10 +358,8 @@ static int jz4740_rtc_probe(struct platform_device *pdev)
 	rtc->rtc->range_max = U32_MAX;
 
 	ret = rtc_register_device(rtc->rtc);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to register rtc device: %d\n", ret);
+	if (ret)
 		return ret;
-	}
 
 	ret = devm_request_irq(&pdev->dev, rtc->irq, jz4740_rtc_irq, 0,
 				pdev->name, rtc);

@@ -15,7 +15,6 @@
 #include <linux/delay.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/pm_runtime.h>
-#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/export.h>
@@ -29,24 +28,6 @@
 
 #define DPCM_MAX_BE_USERS	8
 
-/*
- * snd_soc_dai_stream_valid() - check if a DAI supports the given stream
- *
- * Returns true if the DAI supports the indicated stream type.
- */
-static bool snd_soc_dai_stream_valid(struct snd_soc_dai *dai, int stream)
-{
-	struct snd_soc_pcm_stream *codec_stream;
-
-	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
-		codec_stream = &dai->driver->playback;
-	else
-		codec_stream = &dai->driver->capture;
-
-	/* If the codec specifies any channels at all, it supports the stream */
-	return codec_stream->channels_min;
-}
-
 /**
  * snd_soc_runtime_activate() - Increment active count for PCM runtime components
  * @rtd: ASoC PCM runtime that is activated
@@ -55,7 +36,7 @@ static bool snd_soc_dai_stream_valid(struct snd_soc_dai *dai, int stream)
  * Increments the active count for all the DAIs and components attached to a PCM
  * runtime. Should typically be called when a stream is opened.
  *
- * Must be called with the rtd->pcm_mutex being held
+ * Must be called with the rtd->card->pcm_mutex being held
  */
 void snd_soc_runtime_activate(struct snd_soc_pcm_runtime *rtd, int stream)
 {
@@ -63,7 +44,7 @@ void snd_soc_runtime_activate(struct snd_soc_pcm_runtime *rtd, int stream)
 	struct snd_soc_dai *codec_dai;
 	int i;
 
-	lockdep_assert_held(&rtd->pcm_mutex);
+	lockdep_assert_held(&rtd->card->pcm_mutex);
 
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		cpu_dai->playback_active++;
@@ -91,7 +72,7 @@ void snd_soc_runtime_activate(struct snd_soc_pcm_runtime *rtd, int stream)
  * Decrements the active count for all the DAIs and components attached to a PCM
  * runtime. Should typically be called when a stream is closed.
  *
- * Must be called with the rtd->pcm_mutex being held
+ * Must be called with the rtd->card->pcm_mutex being held
  */
 void snd_soc_runtime_deactivate(struct snd_soc_pcm_runtime *rtd, int stream)
 {
@@ -99,7 +80,7 @@ void snd_soc_runtime_deactivate(struct snd_soc_pcm_runtime *rtd, int stream)
 	struct snd_soc_dai *codec_dai;
 	int i;
 
-	lockdep_assert_held(&rtd->pcm_mutex);
+	lockdep_assert_held(&rtd->card->pcm_mutex);
 
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		cpu_dai->playback_active--;
@@ -137,11 +118,8 @@ bool snd_soc_runtime_ignore_pmdown_time(struct snd_soc_pcm_runtime *rtd)
 	if (!rtd->pmdown_time || rtd->dai_link->ignore_pmdown_time)
 		return true;
 
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
+	for_each_rtd_components(rtd, rtdcom, component)
 		ignore &= !component->driver->use_pmdown_time;
-	}
 
 	return ignore;
 }
@@ -446,30 +424,54 @@ static void soc_pcm_init_runtime_hw(struct snd_pcm_substream *substream)
 	hw->rate_max = min_not_zero(hw->rate_max, rate_max);
 }
 
+static int soc_pcm_components_open(struct snd_pcm_substream *substream,
+				   struct snd_soc_component **last)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_rtdcom_list *rtdcom;
+	struct snd_soc_component *component;
+	int ret = 0;
+
+	for_each_rtd_components(rtd, rtdcom, component) {
+		*last = component;
+
+		ret = snd_soc_component_module_get_when_open(component);
+		if (ret < 0) {
+			dev_err(component->dev,
+				"ASoC: can't get module %s\n",
+				component->name);
+			return ret;
+		}
+
+		ret = snd_soc_component_open(component, substream);
+		if (ret < 0) {
+			dev_err(component->dev,
+				"ASoC: can't open component %s: %d\n",
+				component->name, ret);
+			return ret;
+		}
+	}
+	*last = NULL;
+	return 0;
+}
+
 static int soc_pcm_components_close(struct snd_pcm_substream *substream,
 				    struct snd_soc_component *last)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_rtdcom_list *rtdcom;
 	struct snd_soc_component *component;
+	int ret = 0;
 
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
+	for_each_rtd_components(rtd, rtdcom, component) {
 		if (component == last)
 			break;
 
-		if (!component->driver->ops ||
-		    !component->driver->ops->close)
-			continue;
-
-		component->driver->ops->close(substream);
-
-		if (component->driver->module_get_upon_open)
-			module_put(component->dev->driver->owner);
+		ret |= snd_soc_component_close(component, substream);
+		snd_soc_component_module_put_when_close(component);
 	}
 
-	return 0;
+	return ret;
 }
 
 /*
@@ -492,57 +494,31 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 	for_each_rtd_codec_dai(rtd, i, codec_dai)
 		pinctrl_pm_select_default_state(codec_dai->dev);
 
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
+	for_each_rtd_components(rtd, rtdcom, component) {
 		pm_runtime_get_sync(component->dev);
 	}
 
-	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
+	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
 
 	/* startup the audio subsystem */
-	if (cpu_dai->driver->ops->startup) {
-		ret = cpu_dai->driver->ops->startup(substream, cpu_dai);
-		if (ret < 0) {
-			dev_err(cpu_dai->dev, "ASoC: can't open interface"
-				" %s: %d\n", cpu_dai->name, ret);
-			goto out;
-		}
+	ret = snd_soc_dai_startup(cpu_dai, substream);
+	if (ret < 0) {
+		dev_err(cpu_dai->dev, "ASoC: can't open interface %s: %d\n",
+			cpu_dai->name, ret);
+		goto out;
 	}
 
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
-		if (!component->driver->ops ||
-		    !component->driver->ops->open)
-			continue;
-
-		if (component->driver->module_get_upon_open &&
-		    !try_module_get(component->dev->driver->owner)) {
-			ret = -ENODEV;
-			goto module_err;
-		}
-
-		ret = component->driver->ops->open(substream);
-		if (ret < 0) {
-			dev_err(component->dev,
-				"ASoC: can't open component %s: %d\n",
-				component->name, ret);
-			goto component_err;
-		}
-	}
-	component = NULL;
+	ret = soc_pcm_components_open(substream, &component);
+	if (ret < 0)
+		goto component_err;
 
 	for_each_rtd_codec_dai(rtd, i, codec_dai) {
-		if (codec_dai->driver->ops->startup) {
-			ret = codec_dai->driver->ops->startup(substream,
-							      codec_dai);
-			if (ret < 0) {
-				dev_err(codec_dai->dev,
-					"ASoC: can't open codec %s: %d\n",
-					codec_dai->name, ret);
-				goto codec_dai_err;
-			}
+		ret = snd_soc_dai_startup(codec_dai, substream);
+		if (ret < 0) {
+			dev_err(codec_dai->dev,
+				"ASoC: can't open codec %s: %d\n",
+				codec_dai->name, ret);
+			goto codec_dai_err;
 		}
 
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
@@ -620,7 +596,7 @@ dynamic:
 
 	snd_soc_runtime_activate(rtd, substream->stream);
 
-	mutex_unlock(&rtd->pcm_mutex);
+	mutex_unlock(&rtd->card->pcm_mutex);
 	return 0;
 
 config_err:
@@ -631,22 +607,17 @@ machine_err:
 	i = rtd->num_codecs;
 
 codec_dai_err:
-	for_each_rtd_codec_dai_rollback(rtd, i, codec_dai) {
-		if (codec_dai->driver->ops->shutdown)
-			codec_dai->driver->ops->shutdown(substream, codec_dai);
-	}
+	for_each_rtd_codec_dai_rollback(rtd, i, codec_dai)
+		snd_soc_dai_shutdown(codec_dai, substream);
 
 component_err:
 	soc_pcm_components_close(substream, component);
-module_err:
-	if (cpu_dai->driver->ops->shutdown)
-		cpu_dai->driver->ops->shutdown(substream, cpu_dai);
+
+	snd_soc_dai_shutdown(cpu_dai, substream);
 out:
-	mutex_unlock(&rtd->pcm_mutex);
+	mutex_unlock(&rtd->card->pcm_mutex);
 
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
+	for_each_rtd_components(rtd, rtdcom, component) {
 		pm_runtime_mark_last_busy(component->dev);
 		pm_runtime_put_autosuspend(component->dev);
 	}
@@ -666,13 +637,11 @@ out:
  * This is to ensure there are no pops or clicks in between any music tracks
  * due to DAPM power cycling.
  */
-static void close_delayed_work(struct work_struct *work)
+static void close_delayed_work(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_pcm_runtime *rtd =
-			container_of(work, struct snd_soc_pcm_runtime, delayed_work.work);
 	struct snd_soc_dai *codec_dai = rtd->codec_dais[0];
 
-	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
+	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
 
 	dev_dbg(rtd->dev, "ASoC: pop wq checking: %s status: %s waiting: %s\n",
 		 codec_dai->driver->playback.stream_name,
@@ -686,7 +655,17 @@ static void close_delayed_work(struct work_struct *work)
 					  SND_SOC_DAPM_STREAM_STOP);
 	}
 
-	mutex_unlock(&rtd->pcm_mutex);
+	mutex_unlock(&rtd->card->pcm_mutex);
+}
+
+static void codec2codec_close_delayed_work(struct snd_soc_pcm_runtime *rtd)
+{
+	/*
+	 * Currently nothing to do for c2c links
+	 * Since c2c links are internal nodes in the DAPM graph and
+	 * don't interface with the outside world or application layer
+	 * we don't have to do any special handling on close.
+	 */
 }
 
 /*
@@ -703,7 +682,7 @@ static int soc_pcm_close(struct snd_pcm_substream *substream)
 	struct snd_soc_dai *codec_dai;
 	int i;
 
-	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
+	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
 
 	snd_soc_runtime_deactivate(rtd, substream->stream);
 
@@ -718,13 +697,10 @@ static int soc_pcm_close(struct snd_pcm_substream *substream)
 
 	snd_soc_dai_digital_mute(cpu_dai, 1, substream->stream);
 
-	if (cpu_dai->driver->ops->shutdown)
-		cpu_dai->driver->ops->shutdown(substream, cpu_dai);
+	snd_soc_dai_shutdown(cpu_dai, substream);
 
-	for_each_rtd_codec_dai(rtd, i, codec_dai) {
-		if (codec_dai->driver->ops->shutdown)
-			codec_dai->driver->ops->shutdown(substream, codec_dai);
-	}
+	for_each_rtd_codec_dai(rtd, i, codec_dai)
+		snd_soc_dai_shutdown(codec_dai, substream);
 
 	if (rtd->dai_link->ops->shutdown)
 		rtd->dai_link->ops->shutdown(substream);
@@ -750,11 +726,9 @@ static int soc_pcm_close(struct snd_pcm_substream *substream)
 					  SND_SOC_DAPM_STREAM_STOP);
 	}
 
-	mutex_unlock(&rtd->pcm_mutex);
+	mutex_unlock(&rtd->card->pcm_mutex);
 
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
+	for_each_rtd_components(rtd, rtdcom, component) {
 		pm_runtime_mark_last_busy(component->dev);
 		pm_runtime_put_autosuspend(component->dev);
 	}
@@ -783,7 +757,7 @@ static int soc_pcm_prepare(struct snd_pcm_substream *substream)
 	struct snd_soc_dai *codec_dai;
 	int i, ret = 0;
 
-	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
+	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
 
 	if (rtd->dai_link->ops->prepare) {
 		ret = rtd->dai_link->ops->prepare(substream);
@@ -794,14 +768,8 @@ static int soc_pcm_prepare(struct snd_pcm_substream *substream)
 		}
 	}
 
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
-		if (!component->driver->ops ||
-		    !component->driver->ops->prepare)
-			continue;
-
-		ret = component->driver->ops->prepare(substream);
+	for_each_rtd_components(rtd, rtdcom, component) {
+		ret = snd_soc_component_prepare(component, substream);
 		if (ret < 0) {
 			dev_err(component->dev,
 				"ASoC: platform prepare error: %d\n", ret);
@@ -810,25 +778,20 @@ static int soc_pcm_prepare(struct snd_pcm_substream *substream)
 	}
 
 	for_each_rtd_codec_dai(rtd, i, codec_dai) {
-		if (codec_dai->driver->ops->prepare) {
-			ret = codec_dai->driver->ops->prepare(substream,
-							      codec_dai);
-			if (ret < 0) {
-				dev_err(codec_dai->dev,
-					"ASoC: codec DAI prepare error: %d\n",
-					ret);
-				goto out;
-			}
+		ret = snd_soc_dai_prepare(codec_dai, substream);
+		if (ret < 0) {
+			dev_err(codec_dai->dev,
+				"ASoC: codec DAI prepare error: %d\n",
+				ret);
+			goto out;
 		}
 	}
 
-	if (cpu_dai->driver->ops->prepare) {
-		ret = cpu_dai->driver->ops->prepare(substream, cpu_dai);
-		if (ret < 0) {
-			dev_err(cpu_dai->dev,
-				"ASoC: cpu DAI prepare error: %d\n", ret);
-			goto out;
-		}
+	ret = snd_soc_dai_prepare(cpu_dai, substream);
+	if (ret < 0) {
+		dev_err(cpu_dai->dev,
+			"ASoC: cpu DAI prepare error: %d\n", ret);
+		goto out;
 	}
 
 	/* cancel any delayed stream shutdown that is pending */
@@ -847,7 +810,7 @@ static int soc_pcm_prepare(struct snd_pcm_substream *substream)
 	snd_soc_dai_digital_mute(cpu_dai, 0, substream->stream);
 
 out:
-	mutex_unlock(&rtd->pcm_mutex);
+	mutex_unlock(&rtd->card->pcm_mutex);
 	return ret;
 }
 
@@ -862,57 +825,22 @@ static void soc_pcm_codec_params_fixup(struct snd_pcm_hw_params *params,
 	interval->max = channels;
 }
 
-int soc_dai_hw_params(struct snd_pcm_substream *substream,
-		      struct snd_pcm_hw_params *params,
-		      struct snd_soc_dai *dai)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	int ret;
-
-	/* perform any topology hw_params fixups before DAI  */
-	if (rtd->dai_link->be_hw_params_fixup) {
-		ret = rtd->dai_link->be_hw_params_fixup(rtd, params);
-		if (ret < 0) {
-			dev_err(rtd->dev,
-				"ASoC: hw_params topology fixup failed %d\n",
-				ret);
-			return ret;
-		}
-	}
-
-	if (dai->driver->ops->hw_params) {
-		ret = dai->driver->ops->hw_params(substream, params, dai);
-		if (ret < 0) {
-			dev_err(dai->dev, "ASoC: can't set %s hw params: %d\n",
-				dai->name, ret);
-			return ret;
-		}
-	}
-
-	return 0;
-}
-
 static int soc_pcm_components_hw_free(struct snd_pcm_substream *substream,
 				      struct snd_soc_component *last)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_rtdcom_list *rtdcom;
 	struct snd_soc_component *component;
+	int ret = 0;
 
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
+	for_each_rtd_components(rtd, rtdcom, component) {
 		if (component == last)
 			break;
 
-		if (!component->driver->ops ||
-		    !component->driver->ops->hw_free)
-			continue;
-
-		component->driver->ops->hw_free(substream);
+		ret |= snd_soc_component_hw_free(component, substream);
 	}
 
-	return 0;
+	return ret;
 }
 
 /*
@@ -930,7 +858,12 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *codec_dai;
 	int i, ret = 0;
 
-	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
+	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
+
+	ret = soc_pcm_params_symmetry(substream, params);
+	if (ret)
+		goto out;
+
 	if (rtd->dai_link->ops->hw_params) {
 		ret = rtd->dai_link->ops->hw_params(substream, params);
 		if (ret < 0) {
@@ -974,7 +907,8 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 			soc_pcm_codec_params_fixup(&codec_params,
 						   codec_dai->rx_mask);
 
-		ret = soc_dai_hw_params(substream, &codec_params, codec_dai);
+		ret = snd_soc_dai_hw_params(codec_dai, substream,
+					    &codec_params);
 		if(ret < 0)
 			goto codec_err;
 
@@ -986,26 +920,9 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 		snd_soc_dapm_update_dai(substream, &codec_params, codec_dai);
 	}
 
-	ret = soc_dai_hw_params(substream, params, cpu_dai);
+	ret = snd_soc_dai_hw_params(cpu_dai, substream, params);
 	if (ret < 0)
 		goto interface_err;
-
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
-		if (!component->driver->ops ||
-		    !component->driver->ops->hw_params)
-			continue;
-
-		ret = component->driver->ops->hw_params(substream, params);
-		if (ret < 0) {
-			dev_err(component->dev,
-				"ASoC: %s hw params failed: %d\n",
-				component->name, ret);
-			goto component_err;
-		}
-	}
-	component = NULL;
 
 	/* store the parameters for each DAIs */
 	cpu_dai->rate = params_rate(params);
@@ -1015,18 +932,26 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 
 	snd_soc_dapm_update_dai(substream, params, cpu_dai);
 
-	ret = soc_pcm_params_symmetry(substream, params);
-        if (ret)
-		goto component_err;
+	for_each_rtd_components(rtd, rtdcom, component) {
+		ret = snd_soc_component_hw_params(component, substream, params);
+		if (ret < 0) {
+			dev_err(component->dev,
+				"ASoC: %s hw params failed: %d\n",
+				component->name, ret);
+			goto component_err;
+		}
+	}
+	component = NULL;
+
 out:
-	mutex_unlock(&rtd->pcm_mutex);
+	mutex_unlock(&rtd->card->pcm_mutex);
 	return ret;
 
 component_err:
 	soc_pcm_components_hw_free(substream, component);
 
-	if (cpu_dai->driver->ops->hw_free)
-		cpu_dai->driver->ops->hw_free(substream, cpu_dai);
+	snd_soc_dai_hw_free(cpu_dai, substream);
+	cpu_dai->rate = 0;
 
 interface_err:
 	i = rtd->num_codecs;
@@ -1036,15 +961,14 @@ codec_err:
 		if (!snd_soc_dai_stream_valid(codec_dai, substream->stream))
 			continue;
 
-		if (codec_dai->driver->ops->hw_free)
-			codec_dai->driver->ops->hw_free(substream, codec_dai);
+		snd_soc_dai_hw_free(codec_dai, substream);
 		codec_dai->rate = 0;
 	}
 
 	if (rtd->dai_link->ops->hw_free)
 		rtd->dai_link->ops->hw_free(substream);
 
-	mutex_unlock(&rtd->pcm_mutex);
+	mutex_unlock(&rtd->card->pcm_mutex);
 	return ret;
 }
 
@@ -1059,7 +983,7 @@ static int soc_pcm_hw_free(struct snd_pcm_substream *substream)
 	bool playback = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
 	int i;
 
-	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
+	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
 
 	/* clear the corresponding DAIs parameters when going to be inactive */
 	if (cpu_dai->active == 1) {
@@ -1096,18 +1020,50 @@ static int soc_pcm_hw_free(struct snd_pcm_substream *substream)
 		if (!snd_soc_dai_stream_valid(codec_dai, substream->stream))
 			continue;
 
-		if (codec_dai->driver->ops->hw_free)
-			codec_dai->driver->ops->hw_free(substream, codec_dai);
+		snd_soc_dai_hw_free(codec_dai, substream);
 	}
 
-	if (cpu_dai->driver->ops->hw_free)
-		cpu_dai->driver->ops->hw_free(substream, cpu_dai);
+	snd_soc_dai_hw_free(cpu_dai, substream);
 
-	mutex_unlock(&rtd->pcm_mutex);
+	mutex_unlock(&rtd->card->pcm_mutex);
 	return 0;
 }
 
-static int soc_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
+static int soc_pcm_trigger_start(struct snd_pcm_substream *substream, int cmd)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_component *component;
+	struct snd_soc_rtdcom_list *rtdcom;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_dai *codec_dai;
+	int i, ret;
+
+	if (rtd->dai_link->ops->trigger) {
+		ret = rtd->dai_link->ops->trigger(substream, cmd);
+		if (ret < 0)
+			return ret;
+	}
+
+	for_each_rtd_components(rtd, rtdcom, component) {
+		ret = snd_soc_component_trigger(component, substream, cmd);
+		if (ret < 0)
+			return ret;
+	}
+
+	ret = snd_soc_dai_trigger(cpu_dai, substream, cmd);
+	if (ret < 0)
+		return ret;
+
+	for_each_rtd_codec_dai(rtd, i, codec_dai) {
+		ret = snd_soc_dai_trigger(codec_dai, substream, cmd);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int soc_pcm_trigger_stop(struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_component *component;
@@ -1117,28 +1073,17 @@ static int soc_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	int i, ret;
 
 	for_each_rtd_codec_dai(rtd, i, codec_dai) {
-		if (codec_dai->driver->ops->trigger) {
-			ret = codec_dai->driver->ops->trigger(substream,
-							      cmd, codec_dai);
-			if (ret < 0)
-				return ret;
-		}
-	}
-
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
-		if (!component->driver->ops ||
-		    !component->driver->ops->trigger)
-			continue;
-
-		ret = component->driver->ops->trigger(substream, cmd);
+		ret = snd_soc_dai_trigger(codec_dai, substream, cmd);
 		if (ret < 0)
 			return ret;
 	}
 
-	if (cpu_dai->driver->ops->trigger) {
-		ret = cpu_dai->driver->ops->trigger(substream, cmd, cpu_dai);
+	ret = snd_soc_dai_trigger(cpu_dai, substream, cmd);
+	if (ret < 0)
+		return ret;
+
+	for_each_rtd_components(rtd, rtdcom, component) {
+		ret = snd_soc_component_trigger(component, substream, cmd);
 		if (ret < 0)
 			return ret;
 	}
@@ -1152,6 +1097,28 @@ static int soc_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	return 0;
 }
 
+static int soc_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
+{
+	int ret;
+
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_RESUME:
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		ret = soc_pcm_trigger_start(substream, cmd);
+		break;
+	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		ret = soc_pcm_trigger_stop(substream, cmd);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return ret;
+}
+
 static int soc_pcm_bespoke_trigger(struct snd_pcm_substream *substream,
 				   int cmd)
 {
@@ -1161,19 +1128,15 @@ static int soc_pcm_bespoke_trigger(struct snd_pcm_substream *substream,
 	int i, ret;
 
 	for_each_rtd_codec_dai(rtd, i, codec_dai) {
-		if (codec_dai->driver->ops->bespoke_trigger) {
-			ret = codec_dai->driver->ops->bespoke_trigger(substream,
-								cmd, codec_dai);
-			if (ret < 0)
-				return ret;
-		}
-	}
-
-	if (cpu_dai->driver->ops->bespoke_trigger) {
-		ret = cpu_dai->driver->ops->bespoke_trigger(substream, cmd, cpu_dai);
+		ret = snd_soc_dai_bespoke_trigger(codec_dai, substream, cmd);
 		if (ret < 0)
 			return ret;
 	}
+
+	ret = snd_soc_dai_bespoke_trigger(cpu_dai, substream, cmd);
+	if (ret < 0)
+		return ret;
+
 	return 0;
 }
 /*
@@ -1184,8 +1147,6 @@ static int soc_pcm_bespoke_trigger(struct snd_pcm_substream *substream,
 static snd_pcm_uframes_t soc_pcm_pointer(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component;
-	struct snd_soc_rtdcom_list *rtdcom;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct snd_soc_dai *codec_dai;
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -1197,28 +1158,16 @@ static snd_pcm_uframes_t soc_pcm_pointer(struct snd_pcm_substream *substream)
 	/* clearing the previous total delay */
 	runtime->delay = 0;
 
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
+	offset = snd_soc_pcm_component_pointer(substream);
 
-		if (!component->driver->ops ||
-		    !component->driver->ops->pointer)
-			continue;
-
-		/* FIXME: use 1st pointer */
-		offset = component->driver->ops->pointer(substream);
-		break;
-	}
 	/* base delay if assigned in pointer callback */
 	delay = runtime->delay;
 
-	if (cpu_dai->driver->ops->delay)
-		delay += cpu_dai->driver->ops->delay(substream, cpu_dai);
+	delay += snd_soc_dai_delay(cpu_dai, substream);
 
 	for_each_rtd_codec_dai(rtd, i, codec_dai) {
-		if (codec_dai->driver->ops->delay)
-			codec_delay = max(codec_delay,
-					codec_dai->driver->ops->delay(substream,
-								    codec_dai));
+		codec_delay = max(codec_delay,
+				  snd_soc_dai_delay(codec_dai, substream));
 	}
 	delay += codec_delay;
 
@@ -1233,6 +1182,9 @@ static int dpcm_be_connect(struct snd_soc_pcm_runtime *fe,
 {
 	struct snd_soc_dpcm *dpcm;
 	unsigned long flags;
+#ifdef CONFIG_DEBUG_FS
+	char *name;
+#endif
 
 	/* only add new dpcms */
 	for_each_dpcm_be(fe, stream, dpcm) {
@@ -1258,9 +1210,15 @@ static int dpcm_be_connect(struct snd_soc_pcm_runtime *fe,
 			stream ? "<-" : "->", be->dai_link->name);
 
 #ifdef CONFIG_DEBUG_FS
-	if (fe->debugfs_dpcm_root)
-		dpcm->debugfs_state = debugfs_create_u32(be->dai_link->name, 0644,
-				fe->debugfs_dpcm_root, &dpcm->state);
+	name = kasprintf(GFP_KERNEL, "%s:%s", be->dai_link->name,
+			 stream ? "capture" : "playback");
+	if (name) {
+		dpcm->debugfs_state = debugfs_create_dir(name,
+							 fe->debugfs_dpcm_root);
+		debugfs_create_u32("state", 0644, dpcm->debugfs_state,
+				   &dpcm->state);
+		kfree(name);
+	}
 #endif
 	return 1;
 }
@@ -1315,7 +1273,7 @@ void dpcm_be_disconnect(struct snd_soc_pcm_runtime *fe, int stream)
 		dpcm_be_reparent(fe, dpcm->be, stream);
 
 #ifdef CONFIG_DEBUG_FS
-		debugfs_remove(dpcm->debugfs_state);
+		debugfs_remove_recursive(dpcm->debugfs_state);
 #endif
 		spin_lock_irqsave(&fe->card->dpcm_lock, flags);
 		list_del(&dpcm->list_be);
@@ -1465,6 +1423,7 @@ static int dpcm_prune_paths(struct snd_soc_pcm_runtime *fe, int stream,
 	struct snd_soc_dapm_widget *widget;
 	struct snd_soc_dai *dai;
 	int prune = 0;
+	int do_prune;
 
 	/* Destroy any old FE <--> BE connections */
 	for_each_dpcm_be(fe, stream, dpcm) {
@@ -1478,13 +1437,16 @@ static int dpcm_prune_paths(struct snd_soc_pcm_runtime *fe, int stream,
 			continue;
 
 		/* is there a valid CODEC DAI widget for this BE */
+		do_prune = 1;
 		for_each_rtd_codec_dai(dpcm->be, i, dai) {
 			widget = dai_get_widget(dai, stream);
 
 			/* prune the BE if it's no longer in our active list */
 			if (widget && widget_in_list(list, widget))
-				continue;
+				do_prune = 0;
 		}
+		if (!do_prune)
+			continue;
 
 		dev_dbg(fe->dev, "ASoC: pruning %s BE %s for %s\n",
 			stream ? "capture" : "playback",
@@ -2369,42 +2331,81 @@ int dpcm_be_dai_trigger(struct snd_soc_pcm_runtime *fe, int stream,
 }
 EXPORT_SYMBOL_GPL(dpcm_be_dai_trigger);
 
+static int dpcm_dai_trigger_fe_be(struct snd_pcm_substream *substream,
+				  int cmd, bool fe_first)
+{
+	struct snd_soc_pcm_runtime *fe = substream->private_data;
+	int ret;
+
+	/* call trigger on the frontend before the backend. */
+	if (fe_first) {
+		dev_dbg(fe->dev, "ASoC: pre trigger FE %s cmd %d\n",
+			fe->dai_link->name, cmd);
+
+		ret = soc_pcm_trigger(substream, cmd);
+		if (ret < 0)
+			return ret;
+
+		ret = dpcm_be_dai_trigger(fe, substream->stream, cmd);
+		return ret;
+	}
+
+	/* call trigger on the frontend after the backend. */
+	ret = dpcm_be_dai_trigger(fe, substream->stream, cmd);
+	if (ret < 0)
+		return ret;
+
+	dev_dbg(fe->dev, "ASoC: post trigger FE %s cmd %d\n",
+		fe->dai_link->name, cmd);
+
+	ret = soc_pcm_trigger(substream, cmd);
+
+	return ret;
+}
+
 static int dpcm_fe_dai_do_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_soc_pcm_runtime *fe = substream->private_data;
-	int stream = substream->stream, ret;
+	int stream = substream->stream;
+	int ret = 0;
 	enum snd_soc_dpcm_trigger trigger = fe->dai_link->trigger[stream];
 
 	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_FE;
 
 	switch (trigger) {
 	case SND_SOC_DPCM_TRIGGER_PRE:
-		/* call trigger on the frontend before the backend. */
-
-		dev_dbg(fe->dev, "ASoC: pre trigger FE %s cmd %d\n",
-				fe->dai_link->name, cmd);
-
-		ret = soc_pcm_trigger(substream, cmd);
-		if (ret < 0) {
-			dev_err(fe->dev,"ASoC: trigger FE failed %d\n", ret);
-			goto out;
+		switch (cmd) {
+		case SNDRV_PCM_TRIGGER_START:
+		case SNDRV_PCM_TRIGGER_RESUME:
+		case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+			ret = dpcm_dai_trigger_fe_be(substream, cmd, true);
+			break;
+		case SNDRV_PCM_TRIGGER_STOP:
+		case SNDRV_PCM_TRIGGER_SUSPEND:
+		case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+			ret = dpcm_dai_trigger_fe_be(substream, cmd, false);
+			break;
+		default:
+			ret = -EINVAL;
+			break;
 		}
-
-		ret = dpcm_be_dai_trigger(fe, substream->stream, cmd);
 		break;
 	case SND_SOC_DPCM_TRIGGER_POST:
-		/* call trigger on the frontend after the backend. */
-
-		ret = dpcm_be_dai_trigger(fe, substream->stream, cmd);
-		if (ret < 0) {
-			dev_err(fe->dev,"ASoC: trigger FE failed %d\n", ret);
-			goto out;
+		switch (cmd) {
+		case SNDRV_PCM_TRIGGER_START:
+		case SNDRV_PCM_TRIGGER_RESUME:
+		case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+			ret = dpcm_dai_trigger_fe_be(substream, cmd, false);
+			break;
+		case SNDRV_PCM_TRIGGER_STOP:
+		case SNDRV_PCM_TRIGGER_SUSPEND:
+		case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+			ret = dpcm_dai_trigger_fe_be(substream, cmd, true);
+			break;
+		default:
+			ret = -EINVAL;
+			break;
 		}
-
-		dev_dbg(fe->dev, "ASoC: post trigger FE %s cmd %d\n",
-				fe->dai_link->name, cmd);
-
-		ret = soc_pcm_trigger(substream, cmd);
 		break;
 	case SND_SOC_DPCM_TRIGGER_BESPOKE:
 		/* bespoke trigger() - handles both FE and BEs */
@@ -2413,15 +2414,17 @@ static int dpcm_fe_dai_do_trigger(struct snd_pcm_substream *substream, int cmd)
 				fe->dai_link->name, cmd);
 
 		ret = soc_pcm_bespoke_trigger(substream, cmd);
-		if (ret < 0) {
-			dev_err(fe->dev,"ASoC: trigger FE failed %d\n", ret);
-			goto out;
-		}
 		break;
 	default:
 		dev_err(fe->dev, "ASoC: invalid trigger cmd %d for %s\n", cmd,
 				fe->dai_link->name);
 		ret = -EINVAL;
+		goto out;
+	}
+
+	if (ret < 0) {
+		dev_err(fe->dev, "ASoC: trigger FE cmd: %d failed: %d\n",
+			cmd, ret);
 		goto out;
 	}
 
@@ -2538,27 +2541,6 @@ out:
 	mutex_unlock(&fe->card->mutex);
 
 	return ret;
-}
-
-static int soc_pcm_ioctl(struct snd_pcm_substream *substream,
-		     unsigned int cmd, void *arg)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component;
-	struct snd_soc_rtdcom_list *rtdcom;
-
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
-		if (!component->driver->ops ||
-		    !component->driver->ops->ioctl)
-			continue;
-
-		/* FIXME: use 1st ioctl */
-		return component->driver->ops->ioctl(substream, cmd, arg);
-	}
-
-	return snd_pcm_lib_ioctl(substream, cmd, arg);
 }
 
 static int dpcm_run_update_shutdown(struct snd_soc_pcm_runtime *fe, int stream)
@@ -2733,8 +2715,8 @@ static int soc_dpcm_fe_runtime_update(struct snd_soc_pcm_runtime *fe, int new)
 		new ? "new" : "old", fe->dai_link->name);
 
 	/* skip if FE doesn't have playback capability */
-	if (!fe->cpu_dai->driver->playback.channels_min ||
-	    !fe->codec_dai->driver->playback.channels_min)
+	if (!snd_soc_dai_stream_valid(fe->cpu_dai,   SNDRV_PCM_STREAM_PLAYBACK) ||
+	    !snd_soc_dai_stream_valid(fe->codec_dai, SNDRV_PCM_STREAM_PLAYBACK))
 		goto capture;
 
 	/* skip if FE isn't currently playing */
@@ -2764,8 +2746,8 @@ static int soc_dpcm_fe_runtime_update(struct snd_soc_pcm_runtime *fe, int new)
 
 capture:
 	/* skip if FE doesn't have capture capability */
-	if (!fe->cpu_dai->driver->capture.channels_min ||
-	    !fe->codec_dai->driver->capture.channels_min)
+	if (!snd_soc_dai_stream_valid(fe->cpu_dai,   SNDRV_PCM_STREAM_CAPTURE) ||
+	    !snd_soc_dai_stream_valid(fe->codec_dai, SNDRV_PCM_STREAM_CAPTURE))
 		return 0;
 
 	/* skip if FE isn't currently capturing */
@@ -2910,161 +2892,13 @@ static int dpcm_fe_dai_close(struct snd_pcm_substream *fe_substream)
 	return ret;
 }
 
-static void soc_pcm_private_free(struct snd_pcm *pcm)
-{
-	struct snd_soc_pcm_runtime *rtd = pcm->private_data;
-	struct snd_soc_rtdcom_list *rtdcom;
-	struct snd_soc_component *component;
-
-	/* need to sync the delayed work before releasing resources */
-	flush_delayed_work(&rtd->delayed_work);
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
-		if (component->driver->pcm_free)
-			component->driver->pcm_free(pcm);
-	}
-}
-
-static int soc_rtdcom_ack(struct snd_pcm_substream *substream)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_rtdcom_list *rtdcom;
-	struct snd_soc_component *component;
-
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
-		if (!component->driver->ops ||
-		    !component->driver->ops->ack)
-			continue;
-
-		/* FIXME. it returns 1st ask now */
-		return component->driver->ops->ack(substream);
-	}
-
-	return -EINVAL;
-}
-
-static int soc_rtdcom_copy_user(struct snd_pcm_substream *substream, int channel,
-				unsigned long pos, void __user *buf,
-				unsigned long bytes)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_rtdcom_list *rtdcom;
-	struct snd_soc_component *component;
-
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
-		if (!component->driver->ops ||
-		    !component->driver->ops->copy_user)
-			continue;
-
-		/* FIXME. it returns 1st copy now */
-		return component->driver->ops->copy_user(substream, channel,
-							 pos, buf, bytes);
-	}
-
-	return -EINVAL;
-}
-
-static int soc_rtdcom_copy_kernel(struct snd_pcm_substream *substream, int channel,
-				  unsigned long pos, void *buf, unsigned long bytes)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_rtdcom_list *rtdcom;
-	struct snd_soc_component *component;
-
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
-		if (!component->driver->ops ||
-		    !component->driver->ops->copy_kernel)
-			continue;
-
-		/* FIXME. it returns 1st copy now */
-		return component->driver->ops->copy_kernel(substream, channel,
-							   pos, buf, bytes);
-	}
-
-	return -EINVAL;
-}
-
-static int soc_rtdcom_fill_silence(struct snd_pcm_substream *substream, int channel,
-				   unsigned long pos, unsigned long bytes)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_rtdcom_list *rtdcom;
-	struct snd_soc_component *component;
-
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
-		if (!component->driver->ops ||
-		    !component->driver->ops->fill_silence)
-			continue;
-
-		/* FIXME. it returns 1st silence now */
-		return component->driver->ops->fill_silence(substream, channel,
-							    pos, bytes);
-	}
-
-	return -EINVAL;
-}
-
-static struct page *soc_rtdcom_page(struct snd_pcm_substream *substream,
-				    unsigned long offset)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_rtdcom_list *rtdcom;
-	struct snd_soc_component *component;
-	struct page *page;
-
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
-		if (!component->driver->ops ||
-		    !component->driver->ops->page)
-			continue;
-
-		/* FIXME. it returns 1st page now */
-		page = component->driver->ops->page(substream, offset);
-		if (page)
-			return page;
-	}
-
-	return NULL;
-}
-
-static int soc_rtdcom_mmap(struct snd_pcm_substream *substream,
-			   struct vm_area_struct *vma)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_rtdcom_list *rtdcom;
-	struct snd_soc_component *component;
-
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
-		if (!component->driver->ops ||
-		    !component->driver->ops->mmap)
-			continue;
-
-		/* FIXME. it returns 1st mmap now */
-		return component->driver->ops->mmap(substream, vma);
-	}
-
-	return -EINVAL;
-}
-
 /* create a new pcm */
 int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 {
 	struct snd_soc_dai *codec_dai;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	struct snd_soc_component *component;
 	struct snd_soc_rtdcom_list *rtdcom;
+	struct snd_soc_component *component;
 	struct snd_pcm *pcm;
 	char new_name[64];
 	int ret = 0, playback = 0, capture = 0;
@@ -3074,15 +2908,23 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 		playback = rtd->dai_link->dpcm_playback;
 		capture = rtd->dai_link->dpcm_capture;
 	} else {
+		/* Adapt stream for codec2codec links */
+		struct snd_soc_pcm_stream *cpu_capture = rtd->dai_link->params ?
+			&cpu_dai->driver->playback : &cpu_dai->driver->capture;
+		struct snd_soc_pcm_stream *cpu_playback = rtd->dai_link->params ?
+			&cpu_dai->driver->capture : &cpu_dai->driver->playback;
+
 		for_each_rtd_codec_dai(rtd, i, codec_dai) {
-			if (codec_dai->driver->playback.channels_min)
+			if (snd_soc_dai_stream_valid(codec_dai, SNDRV_PCM_STREAM_PLAYBACK) &&
+			    snd_soc_dai_stream_valid(cpu_dai,   SNDRV_PCM_STREAM_PLAYBACK))
 				playback = 1;
-			if (codec_dai->driver->capture.channels_min)
+			if (snd_soc_dai_stream_valid(codec_dai, SNDRV_PCM_STREAM_CAPTURE) &&
+			    snd_soc_dai_stream_valid(cpu_dai,   SNDRV_PCM_STREAM_CAPTURE))
 				capture = 1;
 		}
 
-		capture = capture && cpu_dai->driver->capture.channels_min;
-		playback = playback && cpu_dai->driver->playback.channels_min;
+		capture = capture && cpu_capture->channels_min;
+		playback = playback && cpu_playback->channels_min;
 	}
 
 	if (rtd->dai_link->playback_only) {
@@ -3096,7 +2938,13 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 	}
 
 	/* create the PCM */
-	if (rtd->dai_link->no_pcm) {
+	if (rtd->dai_link->params) {
+		snprintf(new_name, sizeof(new_name), "codec2codec(%s)",
+			 rtd->dai_link->stream_name);
+
+		ret = snd_pcm_new_internal(rtd->card->snd_card, new_name, num,
+					   playback, capture, &pcm);
+	} else if (rtd->dai_link->no_pcm) {
 		snprintf(new_name, sizeof(new_name), "(%s)",
 			rtd->dai_link->stream_name);
 
@@ -3123,13 +2971,16 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 	dev_dbg(rtd->card->dev, "ASoC: registered pcm #%d %s\n",num, new_name);
 
 	/* DAPM dai link stream work */
-	INIT_DELAYED_WORK(&rtd->delayed_work, close_delayed_work);
+	if (rtd->dai_link->params)
+		rtd->close_delayed_work_func = codec2codec_close_delayed_work;
+	else
+		rtd->close_delayed_work_func = close_delayed_work;
 
 	pcm->nonatomic = rtd->dai_link->nonatomic;
 	rtd->pcm = pcm;
 	pcm->private_data = rtd;
 
-	if (rtd->dai_link->no_pcm) {
+	if (rtd->dai_link->no_pcm || rtd->dai_link->params) {
 		if (playback)
 			pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream->private_data = rtd;
 		if (capture)
@@ -3146,7 +2997,6 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 		rtd->ops.hw_free	= dpcm_fe_dai_hw_free;
 		rtd->ops.close		= dpcm_fe_dai_close;
 		rtd->ops.pointer	= soc_pcm_pointer;
-		rtd->ops.ioctl		= soc_pcm_ioctl;
 	} else {
 		rtd->ops.open		= soc_pcm_open;
 		rtd->ops.hw_params	= soc_pcm_hw_params;
@@ -3155,27 +3005,21 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 		rtd->ops.hw_free	= soc_pcm_hw_free;
 		rtd->ops.close		= soc_pcm_close;
 		rtd->ops.pointer	= soc_pcm_pointer;
-		rtd->ops.ioctl		= soc_pcm_ioctl;
 	}
 
-	for_each_rtdcom(rtd, rtdcom) {
-		const struct snd_pcm_ops *ops = rtdcom->component->driver->ops;
+	for_each_rtd_components(rtd, rtdcom, component) {
+		const struct snd_soc_component_driver *drv = component->driver;
 
-		if (!ops)
-			continue;
-
-		if (ops->ack)
-			rtd->ops.ack		= soc_rtdcom_ack;
-		if (ops->copy_user)
-			rtd->ops.copy_user	= soc_rtdcom_copy_user;
-		if (ops->copy_kernel)
-			rtd->ops.copy_kernel	= soc_rtdcom_copy_kernel;
-		if (ops->fill_silence)
-			rtd->ops.fill_silence	= soc_rtdcom_fill_silence;
-		if (ops->page)
-			rtd->ops.page		= soc_rtdcom_page;
-		if (ops->mmap)
-			rtd->ops.mmap		= soc_rtdcom_mmap;
+		if (drv->ioctl)
+			rtd->ops.ioctl		= snd_soc_pcm_component_ioctl;
+		if (drv->sync_stop)
+			rtd->ops.sync_stop	= snd_soc_pcm_component_sync_stop;
+		if (drv->copy_user)
+			rtd->ops.copy_user	= snd_soc_pcm_component_copy_user;
+		if (drv->page)
+			rtd->ops.page		= snd_soc_pcm_component_page;
+		if (drv->mmap)
+			rtd->ops.mmap		= snd_soc_pcm_component_mmap;
 	}
 
 	if (playback)
@@ -3184,22 +3028,12 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 	if (capture)
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &rtd->ops);
 
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
-		if (!component->driver->pcm_new)
-			continue;
-
-		ret = component->driver->pcm_new(rtd);
-		if (ret < 0) {
-			dev_err(component->dev,
-				"ASoC: pcm constructor failed: %d\n",
-				ret);
-			return ret;
-		}
+	ret = snd_soc_pcm_component_new(rtd);
+	if (ret < 0) {
+		dev_err(rtd->dev, "ASoC: pcm constructor failed: %d\n", ret);
+		return ret;
 	}
 
-	pcm->private_free = soc_pcm_private_free;
 	pcm->no_device_suspend = true;
 out:
 	dev_info(rtd->card->dev, "%s <-> %s mapping ok\n",
@@ -3420,11 +3254,11 @@ static ssize_t dpcm_state_read_file(struct file *file, char __user *user_buf,
 	if (!buf)
 		return -ENOMEM;
 
-	if (fe->cpu_dai->driver->playback.channels_min)
+	if (snd_soc_dai_stream_valid(fe->cpu_dai, SNDRV_PCM_STREAM_PLAYBACK))
 		offset += dpcm_show_state(fe, SNDRV_PCM_STREAM_PLAYBACK,
 					buf + offset, out_count - offset);
 
-	if (fe->cpu_dai->driver->capture.channels_min)
+	if (snd_soc_dai_stream_valid(fe->cpu_dai, SNDRV_PCM_STREAM_CAPTURE))
 		offset += dpcm_show_state(fe, SNDRV_PCM_STREAM_CAPTURE,
 					buf + offset, out_count - offset);
 
@@ -3445,17 +3279,14 @@ void soc_dpcm_debugfs_add(struct snd_soc_pcm_runtime *rtd)
 	if (!rtd->dai_link)
 		return;
 
+	if (!rtd->dai_link->dynamic)
+		return;
+
 	if (!rtd->card->debugfs_card_root)
 		return;
 
 	rtd->debugfs_dpcm_root = debugfs_create_dir(rtd->dai_link->name,
 			rtd->card->debugfs_card_root);
-	if (!rtd->debugfs_dpcm_root) {
-		dev_dbg(rtd->dev,
-			 "ASoC: Failed to create dpcm debugfs directory %s\n",
-			 rtd->dai_link->name);
-		return;
-	}
 
 	debugfs_create_file("state", 0444, rtd->debugfs_dpcm_root,
 			    rtd, &dpcm_state_fops);

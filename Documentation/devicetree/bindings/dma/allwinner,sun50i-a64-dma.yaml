@@ -1,0 +1,86 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/dma/allwinner,sun50i-a64-dma.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Allwinner A64 DMA Controller Device Tree Bindings
+
+maintainers:
+  - Chen-Yu Tsai <wens@csie.org>
+  - Maxime Ripard <mripard@kernel.org>
+
+allOf:
+  - $ref: "dma-controller.yaml#"
+
+properties:
+  "#dma-cells":
+    const: 1
+    description: The cell is the request line number.
+
+  compatible:
+    enum:
+      - allwinner,sun50i-a64-dma
+      - allwinner,sun50i-h6-dma
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    minItems: 1
+    maxItems: 2
+
+  clock-names:
+    items:
+      - const: bus
+      - const: mbus
+
+  resets:
+    maxItems: 1
+
+required:
+  - "#dma-cells"
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - resets
+  - dma-channels
+
+if:
+  properties:
+    compatible:
+      const: allwinner,sun50i-h6-dma
+
+then:
+  properties:
+    clocks:
+      maxItems: 2
+
+  required:
+    - clock-names
+
+else:
+  properties:
+    clocks:
+      maxItems: 1
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    dma: dma-controller@1c02000 {
+        compatible = "allwinner,sun50i-a64-dma";
+        reg = <0x01c02000 0x1000>;
+        interrupts = <0 50 4>;
+        clocks = <&ccu 30>;
+        dma-channels = <8>;
+        dma-requests = <27>;
+        resets = <&ccu 7>;
+        #dma-cells = <1>;
+    };
+
+...

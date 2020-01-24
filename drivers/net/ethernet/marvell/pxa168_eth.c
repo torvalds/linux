@@ -1425,8 +1425,7 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 	pep->dev = dev;
 	pep->clk = clk;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pep->base = devm_ioremap_resource(&pdev->dev, res);
+	pep->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pep->base)) {
 		err = -ENOMEM;
 		goto err_netdev;
@@ -1490,8 +1489,10 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 			goto err_netdev;
 		}
 		of_property_read_u32(np, "reg", &pep->phy_addr);
-		pep->phy_intf = of_get_phy_mode(pdev->dev.of_node);
 		of_node_put(np);
+		err = of_get_phy_mode(pdev->dev.of_node, &pep->phy_intf);
+		if (err && err != -ENODEV)
+			goto err_netdev;
 	}
 
 	/* Hardware supports only 3 ports */

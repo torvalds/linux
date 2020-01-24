@@ -15,6 +15,7 @@
 
 #include "blocklayoutxdr.h"
 #include "pnfs.h"
+#include "filecache.h"
 
 #define NFSDDBG_FACILITY	NFSDDBG_PNFS
 
@@ -121,15 +122,13 @@ nfsd4_block_commit_blocks(struct inode *inode, struct nfsd4_layoutcommit *lcp,
 {
 	loff_t new_size = lcp->lc_last_wr + 1;
 	struct iattr iattr = { .ia_valid = 0 };
-	struct timespec ts;
 	int error;
 
-	ts = timespec64_to_timespec(inode->i_mtime);
 	if (lcp->lc_mtime.tv_nsec == UTIME_NOW ||
-	    timespec_compare(&lcp->lc_mtime, &ts) < 0)
-		lcp->lc_mtime = timespec64_to_timespec(current_time(inode));
+	    timespec64_compare(&lcp->lc_mtime, &inode->i_mtime) < 0)
+		lcp->lc_mtime = current_time(inode);
 	iattr.ia_valid |= ATTR_ATIME | ATTR_CTIME | ATTR_MTIME;
-	iattr.ia_atime = iattr.ia_ctime = iattr.ia_mtime = timespec_to_timespec64(lcp->lc_mtime);
+	iattr.ia_atime = iattr.ia_ctime = iattr.ia_mtime = lcp->lc_mtime;
 
 	if (new_size > i_size_read(inode)) {
 		iattr.ia_valid |= ATTR_SIZE;
@@ -406,7 +405,7 @@ static void
 nfsd4_scsi_fence_client(struct nfs4_layout_stateid *ls)
 {
 	struct nfs4_client *clp = ls->ls_stid.sc_client;
-	struct block_device *bdev = ls->ls_file->f_path.mnt->mnt_sb->s_bdev;
+	struct block_device *bdev = ls->ls_file->nf_file->f_path.mnt->mnt_sb->s_bdev;
 
 	bdev->bd_disk->fops->pr_ops->pr_preempt(bdev, NFSD_MDS_PR_KEY,
 			nfsd4_scsi_pr_key(clp), 0, true);

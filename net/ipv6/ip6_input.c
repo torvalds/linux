@@ -80,15 +80,33 @@ static void ip6_sublist_rcv_finish(struct list_head *head)
 {
 	struct sk_buff *skb, *next;
 
-	list_for_each_entry_safe(skb, next, head, list)
+	list_for_each_entry_safe(skb, next, head, list) {
+		skb_list_del_init(skb);
 		dst_input(skb);
+	}
+}
+
+static bool ip6_can_use_hint(const struct sk_buff *skb,
+			     const struct sk_buff *hint)
+{
+	return hint && !skb_dst(skb) &&
+	       ipv6_addr_equal(&ipv6_hdr(hint)->daddr, &ipv6_hdr(skb)->daddr);
+}
+
+static struct sk_buff *ip6_extract_route_hint(const struct net *net,
+					      struct sk_buff *skb)
+{
+	if (fib6_routes_require_src(net) || fib6_has_custom_rules(net))
+		return NULL;
+
+	return skb;
 }
 
 static void ip6_list_rcv_finish(struct net *net, struct sock *sk,
 				struct list_head *head)
 {
+	struct sk_buff *skb, *next, *hint = NULL;
 	struct dst_entry *curr_dst = NULL;
-	struct sk_buff *skb, *next;
 	struct list_head sublist;
 
 	INIT_LIST_HEAD(&sublist);
@@ -102,9 +120,15 @@ static void ip6_list_rcv_finish(struct net *net, struct sock *sk,
 		skb = l3mdev_ip6_rcv(skb);
 		if (!skb)
 			continue;
-		ip6_rcv_finish_core(net, sk, skb);
+
+		if (ip6_can_use_hint(skb, hint))
+			skb_dst_copy(skb, hint);
+		else
+			ip6_rcv_finish_core(net, sk, skb);
 		dst = skb_dst(skb);
 		if (curr_dst != dst) {
+			hint = ip6_extract_route_hint(net, skb);
+
 			/* dispatch old sublist */
 			if (!list_empty(&sublist))
 				ip6_sublist_rcv_finish(&sublist);
@@ -221,6 +245,16 @@ static struct sk_buff *ip6_rcv_core(struct sk_buff *skb, struct net_device *dev,
 	if (ipv6_addr_is_multicast(&hdr->saddr))
 		goto err;
 
+	/* While RFC4291 is not explicit about v4mapped addresses
+	 * in IPv6 headers, it seems clear linux dual-stack
+	 * model can not deal properly with these.
+	 * Security models could be fooled by ::ffff:127.0.0.1 for example.
+	 *
+	 * https://tools.ietf.org/html/draft-itojun-v6ops-v4mapped-harmful-02
+	 */
+	if (ipv6_addr_v4mapped(&hdr->saddr))
+		goto err;
+
 	skb->transport_header = skb->network_header + sizeof(*hdr);
 	IP6CB(skb)->nhoff = offsetof(struct ipv6hdr, nexthdr);
 
@@ -313,7 +347,8 @@ void ipv6_list_rcv(struct list_head *head, struct packet_type *pt,
 		list_add_tail(&skb->list, &sublist);
 	}
 	/* dispatch final sublist */
-	ip6_sublist_rcv(&sublist, curr_dev, curr_net);
+	if (!list_empty(&sublist))
+		ip6_sublist_rcv(&sublist, curr_dev, curr_net);
 }
 
 INDIRECT_CALLABLE_DECLARE(int udpv6_rcv(struct sk_buff *));
@@ -369,7 +404,7 @@ resubmit_final:
 			/* Free reference early: we don't need it any more,
 			   and it may hold ip_conntrack module loaded
 			   indefinitely. */
-			nf_reset(skb);
+			nf_reset_ct(skb);
 
 			skb_postpull_rcsum(skb, skb_network_header(skb),
 					   skb_network_header_len(skb));

@@ -54,6 +54,7 @@
 
 #ifdef CONFIG_SUPERH
 #include <asm/sh_bios.h>
+#include <asm/platform_early.h>
 #endif
 
 #include "serial_mctrl_gpio.h"
@@ -1092,9 +1093,8 @@ static void rx_fifo_timer_fn(struct timer_list *t)
 	scif_set_rtrg(port, 1);
 }
 
-static ssize_t rx_trigger_show(struct device *dev,
-			       struct device_attribute *attr,
-			       char *buf)
+static ssize_t rx_fifo_trigger_show(struct device *dev,
+				    struct device_attribute *attr, char *buf)
 {
 	struct uart_port *port = dev_get_drvdata(dev);
 	struct sci_port *sci = to_sci_port(port);
@@ -1102,10 +1102,9 @@ static ssize_t rx_trigger_show(struct device *dev,
 	return sprintf(buf, "%d\n", sci->rx_trigger);
 }
 
-static ssize_t rx_trigger_store(struct device *dev,
-				struct device_attribute *attr,
-				const char *buf,
-				size_t count)
+static ssize_t rx_fifo_trigger_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
 {
 	struct uart_port *port = dev_get_drvdata(dev);
 	struct sci_port *sci = to_sci_port(port);
@@ -1123,7 +1122,7 @@ static ssize_t rx_trigger_store(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(rx_fifo_trigger, 0644, rx_trigger_show, rx_trigger_store);
+static DEVICE_ATTR_RW(rx_fifo_trigger);
 
 static ssize_t rx_fifo_timeout_show(struct device *dev,
 			       struct device_attribute *attr,
@@ -1398,6 +1397,7 @@ static void sci_dma_tx_work_fn(struct work_struct *work)
 	struct circ_buf *xmit = &port->state->xmit;
 	unsigned long flags;
 	dma_addr_t buf;
+	int head, tail;
 
 	/*
 	 * DMA is idle now.
@@ -1407,16 +1407,23 @@ static void sci_dma_tx_work_fn(struct work_struct *work)
 	 * consistent xmit buffer state.
 	 */
 	spin_lock_irq(&port->lock);
-	buf = s->tx_dma_addr + (xmit->tail & (UART_XMIT_SIZE - 1));
+	head = xmit->head;
+	tail = xmit->tail;
+	buf = s->tx_dma_addr + (tail & (UART_XMIT_SIZE - 1));
 	s->tx_dma_len = min_t(unsigned int,
-		CIRC_CNT(xmit->head, xmit->tail, UART_XMIT_SIZE),
-		CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE));
-	spin_unlock_irq(&port->lock);
+		CIRC_CNT(head, tail, UART_XMIT_SIZE),
+		CIRC_CNT_TO_END(head, tail, UART_XMIT_SIZE));
+	if (!s->tx_dma_len) {
+		/* Transmit buffer has been flushed */
+		spin_unlock_irq(&port->lock);
+		return;
+	}
 
 	desc = dmaengine_prep_slave_single(chan, buf, s->tx_dma_len,
 					   DMA_MEM_TO_DEV,
 					   DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc) {
+		spin_unlock_irq(&port->lock);
 		dev_warn(port->dev, "Failed preparing Tx DMA descriptor\n");
 		goto switch_to_pio;
 	}
@@ -1424,18 +1431,18 @@ static void sci_dma_tx_work_fn(struct work_struct *work)
 	dma_sync_single_for_device(chan->device->dev, buf, s->tx_dma_len,
 				   DMA_TO_DEVICE);
 
-	spin_lock_irq(&port->lock);
 	desc->callback = sci_dma_tx_complete;
 	desc->callback_param = s;
-	spin_unlock_irq(&port->lock);
 	s->cookie_tx = dmaengine_submit(desc);
 	if (dma_submit_error(s->cookie_tx)) {
+		spin_unlock_irq(&port->lock);
 		dev_warn(port->dev, "Failed submitting Tx DMA descriptor\n");
 		goto switch_to_pio;
 	}
 
+	spin_unlock_irq(&port->lock);
 	dev_dbg(port->dev, "%s: %p: %d...%d, cookie %d\n",
-		__func__, xmit->buf, xmit->tail, xmit->head, s->cookie_tx);
+		__func__, xmit->buf, tail, head, s->cookie_tx);
 
 	dma_async_issue_pending(chan);
 	return;
@@ -1648,11 +1655,18 @@ static void sci_free_dma(struct uart_port *port)
 
 static void sci_flush_buffer(struct uart_port *port)
 {
+	struct sci_port *s = to_sci_port(port);
+
 	/*
 	 * In uart_flush_buffer(), the xmit circular buffer has just been
-	 * cleared, so we have to reset tx_dma_len accordingly.
+	 * cleared, so we have to reset tx_dma_len accordingly, and stop any
+	 * pending transfers
 	 */
-	to_sci_port(port)->tx_dma_len = 0;
+	s->tx_dma_len = 0;
+	if (s->chan_tx) {
+		dmaengine_terminate_async(s->chan_tx);
+		s->cookie_tx = -EINVAL;
+	}
 }
 #else /* !CONFIG_SERIAL_SH_SCI_DMA */
 static inline void sci_request_dma(struct uart_port *port)
@@ -2086,12 +2100,12 @@ static unsigned int sci_get_mctrl(struct uart_port *port)
 	if (s->autorts) {
 		if (sci_get_cts(port))
 			mctrl |= TIOCM_CTS;
-	} else if (IS_ERR_OR_NULL(mctrl_gpio_to_gpiod(gpios, UART_GPIO_CTS))) {
+	} else if (!mctrl_gpio_to_gpiod(gpios, UART_GPIO_CTS)) {
 		mctrl |= TIOCM_CTS;
 	}
-	if (IS_ERR_OR_NULL(mctrl_gpio_to_gpiod(gpios, UART_GPIO_DSR)))
+	if (!mctrl_gpio_to_gpiod(gpios, UART_GPIO_DSR))
 		mctrl |= TIOCM_DSR;
-	if (IS_ERR_OR_NULL(mctrl_gpio_to_gpiod(gpios, UART_GPIO_DCD)))
+	if (!mctrl_gpio_to_gpiod(gpios, UART_GPIO_DCD))
 		mctrl |= TIOCM_CAR;
 
 	return mctrl;
@@ -2881,8 +2895,12 @@ static int sci_init_single(struct platform_device *dev,
 	port->mapbase = res->start;
 	sci_port->reg_size = resource_size(res);
 
-	for (i = 0; i < ARRAY_SIZE(sci_port->irqs); ++i)
-		sci_port->irqs[i] = platform_get_irq(dev, i);
+	for (i = 0; i < ARRAY_SIZE(sci_port->irqs); ++i) {
+		if (i)
+			sci_port->irqs[i] = platform_get_irq_optional(dev, i);
+		else
+			sci_port->irqs[i] = platform_get_irq(dev, i);
+	}
 
 	/* The SCI generates several interrupts. They can be muxed together or
 	 * connected to different interrupt lines. In the muxed case only one
@@ -3073,6 +3091,7 @@ static struct console serial_console = {
 	.data		= &sci_uart_driver,
 };
 
+#ifdef CONFIG_SUPERH
 static struct console early_serial_console = {
 	.name           = "early_ttySC",
 	.write          = serial_console_write,
@@ -3101,6 +3120,7 @@ static int sci_probe_earlyprintk(struct platform_device *pdev)
 	register_console(&early_serial_console);
 	return 0;
 }
+#endif
 
 #define SCI_CONSOLE	(&serial_console)
 
@@ -3137,14 +3157,10 @@ static int sci_remove(struct platform_device *dev)
 
 	sci_cleanup_single(port);
 
-	if (port->port.fifosize > 1) {
-		sysfs_remove_file(&dev->dev.kobj,
-				  &dev_attr_rx_fifo_trigger.attr);
-	}
-	if (type == PORT_SCIFA || type == PORT_SCIFB || type == PORT_HSCIF) {
-		sysfs_remove_file(&dev->dev.kobj,
-				  &dev_attr_rx_fifo_timeout.attr);
-	}
+	if (port->port.fifosize > 1)
+		device_remove_file(&dev->dev, &dev_attr_rx_fifo_trigger);
+	if (type == PORT_SCIFA || type == PORT_SCIFB || type == PORT_HSCIF)
+		device_remove_file(&dev->dev, &dev_attr_rx_fifo_timeout);
 
 	return 0;
 }
@@ -3272,14 +3288,12 @@ static int sci_probe_single(struct platform_device *dev,
 		return ret;
 
 	sciport->gpios = mctrl_gpio_init(&sciport->port, 0);
-	if (IS_ERR(sciport->gpios) && PTR_ERR(sciport->gpios) != -ENOSYS)
+	if (IS_ERR(sciport->gpios))
 		return PTR_ERR(sciport->gpios);
 
 	if (sciport->has_rtscts) {
-		if (!IS_ERR_OR_NULL(mctrl_gpio_to_gpiod(sciport->gpios,
-							UART_GPIO_CTS)) ||
-		    !IS_ERR_OR_NULL(mctrl_gpio_to_gpiod(sciport->gpios,
-							UART_GPIO_RTS))) {
+		if (mctrl_gpio_to_gpiod(sciport->gpios, UART_GPIO_CTS) ||
+		    mctrl_gpio_to_gpiod(sciport->gpios, UART_GPIO_RTS)) {
 			dev_err(&dev->dev, "Conflicting RTS/CTS config\n");
 			return -EINVAL;
 		}
@@ -3307,8 +3321,10 @@ static int sci_probe(struct platform_device *dev)
 	 * the special early probe. We don't have sufficient device state
 	 * to make it beyond this yet.
 	 */
-	if (is_early_platform_device(dev))
+#ifdef CONFIG_SUPERH
+	if (is_sh_early_platform_device(dev))
 		return sci_probe_earlyprintk(dev);
+#endif
 
 	if (dev->dev.of_node) {
 		p = sci_parse_dt(dev, &dev_id);
@@ -3332,19 +3348,17 @@ static int sci_probe(struct platform_device *dev)
 		return ret;
 
 	if (sp->port.fifosize > 1) {
-		ret = sysfs_create_file(&dev->dev.kobj,
-				&dev_attr_rx_fifo_trigger.attr);
+		ret = device_create_file(&dev->dev, &dev_attr_rx_fifo_trigger);
 		if (ret)
 			return ret;
 	}
 	if (sp->port.type == PORT_SCIFA || sp->port.type == PORT_SCIFB ||
 	    sp->port.type == PORT_HSCIF) {
-		ret = sysfs_create_file(&dev->dev.kobj,
-				&dev_attr_rx_fifo_timeout.attr);
+		ret = device_create_file(&dev->dev, &dev_attr_rx_fifo_timeout);
 		if (ret) {
 			if (sp->port.fifosize > 1) {
-				sysfs_remove_file(&dev->dev.kobj,
-					&dev_attr_rx_fifo_trigger.attr);
+				device_remove_file(&dev->dev,
+						   &dev_attr_rx_fifo_trigger);
 			}
 			return ret;
 		}
@@ -3405,8 +3419,8 @@ static void __exit sci_exit(void)
 		uart_unregister_driver(&sci_uart_driver);
 }
 
-#ifdef CONFIG_SERIAL_SH_SCI_CONSOLE
-early_platform_init_buffer("earlyprintk", &sci_driver,
+#if defined(CONFIG_SUPERH) && defined(CONFIG_SERIAL_SH_SCI_CONSOLE)
+sh_early_platform_init_buffer("earlyprintk", &sci_driver,
 			   early_serial_buf, ARRAY_SIZE(early_serial_buf));
 #endif
 #ifdef CONFIG_SERIAL_SH_SCI_EARLYCON

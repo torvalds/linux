@@ -576,6 +576,8 @@ static int gmac_setup_txqs(struct net_device *netdev)
 
 	if (port->txq_dma_base & ~DMA_Q_BASE_MASK) {
 		dev_warn(geth->dev, "TX queue base is not aligned\n");
+		dma_free_coherent(geth->dev, len * sizeof(*desc_ring),
+				  desc_ring, port->txq_dma_base);
 		kfree(skb_tab);
 		return -ENOMEM;
 	}
@@ -1182,9 +1184,8 @@ static int gmac_map_tx_bufs(struct net_device *netdev, struct sk_buff *skb,
 			buflen = skb_headlen(skb);
 		} else {
 			skb_frag = skb_si->frags + frag;
-			buffer = page_address(skb_frag_page(skb_frag)) +
-				 skb_frag->page_offset;
-			buflen = skb_frag->size;
+			buffer = skb_frag_address(skb_frag);
+			buflen = skb_frag_size(skb_frag);
 		}
 
 		if (frag == last_frag) {
@@ -2423,10 +2424,8 @@ static int gemini_ethernet_port_probe(struct platform_device *pdev)
 
 	/* Interrupt */
 	irq = platform_get_irq(pdev, 0);
-	if (irq <= 0) {
-		dev_err(dev, "no IRQ\n");
+	if (irq <= 0)
 		return irq ? irq : -ENODEV;
-	}
 	port->irq = irq;
 
 	/* Clock the port */
@@ -2527,6 +2526,7 @@ static int gemini_ethernet_port_remove(struct platform_device *pdev)
 	struct gemini_ethernet_port *port = platform_get_drvdata(pdev);
 
 	gemini_port_remove(port);
+	free_netdev(port->netdev);
 	return 0;
 }
 

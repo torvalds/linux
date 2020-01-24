@@ -803,7 +803,7 @@ asmlinkage int do_sigreturn(struct pt_regs *regs, struct switch_stack *sw)
 	return regs->d0;
 
 badframe:
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV);
 	return 0;
 }
 
@@ -825,7 +825,7 @@ asmlinkage int do_rt_sigreturn(struct pt_regs *regs, struct switch_stack *sw)
 	return regs->d0;
 
 badframe:
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV);
 	return 0;
 }
 

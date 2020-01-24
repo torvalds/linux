@@ -140,8 +140,8 @@ Optional properties:
   frequency for a short duration of time limited by the device's power, current
   and thermal limits.
 
-- opp-suspend: Marks the OPP to be used during device suspend. Only one OPP in
-  the table should have this.
+- opp-suspend: Marks the OPP to be used during device suspend. If multiple OPPs
+  in the table have this, the OPP with highest opp-hz will be used.
 
 - opp-supported-hw: This enables us to select only a subset of OPPs from the
   larger OPP table, based on what version of the hardware we are running on. We

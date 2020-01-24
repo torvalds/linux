@@ -41,6 +41,12 @@
  *
  * SVC_STATUS_RSU_OK:
  * Secure firmware accepts the request of remote status update (RSU).
+ *
+ * SVC_STATUS_RSU_ERROR:
+ * Error encountered during remote system update.
+ *
+ * SVC_STATUS_RSU_NO_SUPPORT:
+ * Secure firmware doesn't support RSU retry or notify feature.
  */
 #define SVC_STATUS_RECONFIG_REQUEST_OK		0
 #define SVC_STATUS_RECONFIG_BUFFER_SUBMITTED	1
@@ -50,6 +56,8 @@
 #define SVC_STATUS_RECONFIG_ERROR		5
 #define SVC_STATUS_RSU_OK			6
 #define SVC_STATUS_RSU_ERROR			7
+#define SVC_STATUS_RSU_NO_SUPPORT		8
+
 /**
  * Flag bit for COMMAND_RECONFIG
  *
@@ -95,6 +103,13 @@ struct stratix10_svc_chan;
  *
  * @COMMAND_RSU_UPDATE: set the offset of the bitstream to boot after reboot,
  * return status is SVC_STATUS_RSU_OK or SVC_STATUS_RSU_ERROR
+ *
+ * @COMMAND_RSU_NOTIFY: report the status of hard processor system
+ * software to firmware, return status is SVC_STATUS_RSU_OK or
+ * SVC_STATUS_RSU_ERROR
+ *
+ * @COMMAND_RSU_RETRY: query firmware for the current image's retry counter,
+ * return status is SVC_STATUS_RSU_OK or SVC_STATUS_RSU_ERROR
  */
 enum stratix10_svc_command_code {
 	COMMAND_NOOP = 0,
@@ -103,7 +118,9 @@ enum stratix10_svc_command_code {
 	COMMAND_RECONFIG_DATA_CLAIM,
 	COMMAND_RECONFIG_STATUS,
 	COMMAND_RSU_STATUS,
-	COMMAND_RSU_UPDATE
+	COMMAND_RSU_UPDATE,
+	COMMAND_RSU_NOTIFY,
+	COMMAND_RSU_RETRY,
 };
 
 /**

@@ -63,6 +63,7 @@ struct rcar_sysc_ch {
 
 static void __iomem *rcar_sysc_base;
 static DEFINE_SPINLOCK(rcar_sysc_lock); /* SMP CPUs + I/O devices */
+static u32 rcar_sysc_extmask_offs, rcar_sysc_extmask_val;
 
 static int rcar_sysc_pwr_on_off(const struct rcar_sysc_ch *sysc_ch, bool on)
 {
@@ -104,6 +105,14 @@ static int rcar_sysc_power(const struct rcar_sysc_ch *sysc_ch, bool on)
 	int k;
 
 	spin_lock_irqsave(&rcar_sysc_lock, flags);
+
+	/*
+	 * Mask external power requests for CPU or 3DG domains
+	 */
+	if (rcar_sysc_extmask_val) {
+		iowrite32(rcar_sysc_extmask_val,
+			  rcar_sysc_base + rcar_sysc_extmask_offs);
+	}
 
 	/*
 	 * The interrupt source needs to be enabled, but masked, to prevent the
@@ -148,6 +157,9 @@ static int rcar_sysc_power(const struct rcar_sysc_ch *sysc_ch, bool on)
 	iowrite32(isr_mask, rcar_sysc_base + SYSCISCR);
 
  out:
+	if (rcar_sysc_extmask_val)
+		iowrite32(0, rcar_sysc_base + rcar_sysc_extmask_offs);
+
 	spin_unlock_irqrestore(&rcar_sysc_lock, flags);
 
 	pr_debug("sysc power %s domain %d: %08x -> %d\n", on ? "on" : "off",
@@ -170,7 +182,7 @@ struct rcar_sysc_pd {
 	struct generic_pm_domain genpd;
 	struct rcar_sysc_ch ch;
 	unsigned int flags;
-	char name[0];
+	char name[];
 };
 
 static inline struct rcar_sysc_pd *to_rcar_pd(struct generic_pm_domain *d)
@@ -200,7 +212,6 @@ static int __init rcar_sysc_pd_setup(struct rcar_sysc_pd *pd)
 {
 	struct generic_pm_domain *genpd = &pd->genpd;
 	const char *name = pd->genpd.name;
-	struct dev_power_governor *gov = &simple_qos_governor;
 	int error;
 
 	if (pd->flags & PD_CPU) {
@@ -254,7 +265,7 @@ static int __init rcar_sysc_pd_setup(struct rcar_sysc_pd *pd)
 	rcar_sysc_power(&pd->ch, true);
 
 finalize:
-	error = pm_genpd_init(genpd, gov, false);
+	error = pm_genpd_init(genpd, &simple_qos_governor, false);
 	if (error)
 		pr_err("Failed to init PM domain %s: %d\n", name, error);
 
@@ -275,6 +286,9 @@ static const struct of_device_id rcar_sysc_matches[] __initconst = {
 #endif
 #ifdef CONFIG_SYSC_R8A774A1
 	{ .compatible = "renesas,r8a774a1-sysc", .data = &r8a774a1_sysc_info },
+#endif
+#ifdef CONFIG_SYSC_R8A774B1
+	{ .compatible = "renesas,r8a774b1-sysc", .data = &r8a774b1_sysc_info },
 #endif
 #ifdef CONFIG_SYSC_R8A774C0
 	{ .compatible = "renesas,r8a774c0-sysc", .data = &r8a774c0_sysc_info },
@@ -299,8 +313,11 @@ static const struct of_device_id rcar_sysc_matches[] __initconst = {
 #ifdef CONFIG_SYSC_R8A7795
 	{ .compatible = "renesas,r8a7795-sysc", .data = &r8a7795_sysc_info },
 #endif
-#ifdef CONFIG_SYSC_R8A7796
-	{ .compatible = "renesas,r8a7796-sysc", .data = &r8a7796_sysc_info },
+#ifdef CONFIG_SYSC_R8A77960
+	{ .compatible = "renesas,r8a7796-sysc", .data = &r8a77960_sysc_info },
+#endif
+#ifdef CONFIG_SYSC_R8A77961
+	{ .compatible = "renesas,r8a77961-sysc", .data = &r8a77961_sysc_info },
 #endif
 #ifdef CONFIG_SYSC_R8A77965
 	{ .compatible = "renesas,r8a77965-sysc", .data = &r8a77965_sysc_info },
@@ -346,7 +363,7 @@ static int __init rcar_sysc_pd_init(void)
 	if (info->init) {
 		error = info->init();
 		if (error)
-			return error;
+			goto out_put;
 	}
 
 	has_cpg_mstp = of_find_compatible_node(NULL, NULL,
@@ -360,6 +377,10 @@ static int __init rcar_sysc_pd_init(void)
 	}
 
 	rcar_sysc_base = base;
+
+	/* Optional External Request Mask Register */
+	rcar_sysc_extmask_offs = info->extmask_offs;
+	rcar_sysc_extmask_val = info->extmask_val;
 
 	domains = kzalloc(sizeof(*domains), GFP_KERNEL);
 	if (!domains) {

@@ -93,11 +93,6 @@ static inline void * phys_to_virt(unsigned long address)
 
 #define page_to_phys(page)	page_to_pa(page)
 
-static inline dma_addr_t __deprecated isa_page_to_bus(struct page *page)
-{
-	return page_to_phys(page);
-}
-
 /* Maximum PIO space address supported?  */
 #define IO_SPACE_LIMIT 0xffff
 
@@ -286,12 +281,6 @@ extern inline void ioport_unmap(void __iomem *addr)
 static inline void __iomem *ioremap(unsigned long port, unsigned long size)
 {
 	return IO_CONCAT(__IO_PREFIX,ioremap) (port, size);
-}
-
-static inline void __iomem *__ioremap(unsigned long port, unsigned long size,
-				      unsigned long flags)
-{
-	return ioremap(port, size);
 }
 
 static inline void __iomem * ioremap_nocache(unsigned long offset,

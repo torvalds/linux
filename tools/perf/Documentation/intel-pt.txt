@@ -88,20 +88,50 @@ smaller.
 
 To represent software control flow, "branches" samples are produced.  By default
 a branch sample is synthesized for every single branch.  To get an idea what
-data is available you can use the 'perf script' tool with no parameters, which
-will list all the samples.
+data is available you can use the 'perf script' tool with all itrace sampling
+options, which will list all the samples.
 
 	perf record -e intel_pt//u ls
-	perf script
+	perf script --itrace=ibxwpe
 
 An interesting field that is not printed by default is 'flags' which can be
 displayed as follows:
 
-	perf script -Fcomm,tid,pid,time,cpu,event,trace,ip,sym,dso,addr,symoff,flags
+	perf script --itrace=ibxwpe -F+flags
 
 The flags are "bcrosyiABEx" which stand for branch, call, return, conditional,
 system, asynchronous, interrupt, transaction abort, trace begin, trace end, and
 in transaction, respectively.
+
+Another interesting field that is not printed by default is 'ipc' which can be
+displayed as follows:
+
+	perf script --itrace=be -F+ipc
+
+There are two ways that instructions-per-cycle (IPC) can be calculated depending
+on the recording.
+
+If the 'cyc' config term (see config terms section below) was used, then IPC is
+calculated using the cycle count from CYC packets, otherwise MTC packets are
+used - refer to the 'mtc' config term.  When MTC is used, however, the values
+are less accurate because the timing is less accurate.
+
+Because Intel PT does not update the cycle count on every branch or instruction,
+the values will often be zero.  When there are values, they will be the number
+of instructions and number of cycles since the last update, and thus represent
+the average IPC since the last IPC for that event type.  Note IPC for "branches"
+events is calculated separately from IPC for "instructions" events.
+
+Also note that the IPC instruction count may or may not include the current
+instruction.  If the cycle count is associated with an asynchronous branch
+(e.g. page fault or interrupt), then the instruction count does not include the
+current instruction, otherwise it does.  That is consistent with whether or not
+that instruction has retired when the cycle count is updated.
+
+Another note, in the case of "branches" events, non-taken branches are not
+presently sampled, so IPC values for them do not appear e.g. a CYC packet with a
+TNT packet that starts with a non-taken branch.  To see every possible IPC
+value, "instructions" events can be used e.g. --itrace=i0ns
 
 While it is possible to create scripts to analyze the data, an alternative
 approach is available to export the data to a sqlite or postgresql database.
@@ -404,6 +434,56 @@ pwr_evt		Enable power events.  The power events provide information about
 		"0" otherwise.
 
 
+AUX area sampling option
+------------------------
+
+To select Intel PT "sampling" the AUX area sampling option can be used:
+
+	--aux-sample
+
+Optionally it can be followed by the sample size in bytes e.g.
+
+	--aux-sample=8192
+
+In addition, the Intel PT event to sample must be defined e.g.
+
+	-e intel_pt//u
+
+Samples on other events will be created containing Intel PT data e.g. the
+following will create Intel PT samples on the branch-misses event, note the
+events must be grouped using {}:
+
+	perf record --aux-sample -e '{intel_pt//u,branch-misses:u}'
+
+An alternative to '--aux-sample' is to add the config term 'aux-sample-size' to
+events.  In this case, the grouping is implied e.g.
+
+	perf record -e intel_pt//u -e branch-misses/aux-sample-size=8192/u
+
+is the same as:
+
+	perf record -e '{intel_pt//u,branch-misses/aux-sample-size=8192/u}'
+
+but allows for also using an address filter e.g.:
+
+	perf record -e intel_pt//u --filter 'filter * @/bin/ls' -e branch-misses/aux-sample-size=8192/u -- ls
+
+It is important to select a sample size that is big enough to contain at least
+one PSB packet.  If not a warning will be displayed:
+
+	Intel PT sample size (%zu) may be too small for PSB period (%zu)
+
+The calculation used for that is: if sample_size <= psb_period + 256 display the
+warning.  When sampling is used, psb_period defaults to 0 (2KiB).
+
+The default sample size is 4KiB.
+
+The sample size is passed in aux_sample_size in struct perf_event_attr.  The
+sample size is limited by the maximum event size which is 64KiB.  It is
+difficult to know how big the event might be without the trace sample attached,
+but the tool validates that the sample size is not greater than 60KiB.
+
+
 new snapshot option
 -------------------
 
@@ -457,8 +537,8 @@ their mlock limit (which defaults to 64KiB but is not multiplied by the number
 of cpus).
 
 In full-trace mode, powers of two are allowed for buffer size, with a minimum
-size of 2 pages.  In snapshot mode, it is the same but the minimum size is
-1 page.
+size of 2 pages.  In snapshot mode or sampling mode, it is the same but the
+minimum size is 1 page.
 
 The mmap size and auxtrace mmap size are displayed if the -vv option is used e.g.
 
@@ -471,11 +551,16 @@ Intel PT modes of operation
 
 Intel PT can be used in 2 modes:
 	full-trace mode
+	sample mode
 	snapshot mode
 
 Full-trace mode traces continuously e.g.
 
 	perf record -e intel_pt//u uname
+
+Sample mode attaches a Intel PT sample to other events e.g.
+
+	perf record --aux-sample -e intel_pt//u -e branch-misses:u
 
 Snapshot mode captures the available data when a signal is sent e.g.
 
@@ -713,7 +798,7 @@ Having no option is the same as
 
 which, in turn, is the same as
 
-	--itrace=ibxwpe
+	--itrace=cepwx
 
 The letters are:
 
@@ -889,3 +974,18 @@ amended to take the number of elements as a parameter.
 
 Note there is currently no advantage to using Intel PT instead of LBR, but
 that may change in the future if greater use is made of the data.
+
+
+PEBS via Intel PT
+=================
+
+Some hardware has the feature to redirect PEBS records to the Intel PT trace.
+Recording is selected by using the aux-output config term e.g.
+
+	perf record -c 10000 -e '{intel_pt/branch=0/,cycles/aux-output/ppp}' uname
+
+Note that currently, software only supports redirecting at most one PEBS event.
+
+To display PEBS events from the Intel PT trace, use the itrace 'o' option e.g.
+
+	perf script --itrace=oe

@@ -6,7 +6,7 @@
 #define TRACE_SYMBOL(a) {a, #a}
 
 // Generate the list using the following script:
-// sed -n 's/^#define \(EC_CMD_[[:alnum:]_]*\)\s.*/\tTRACE_SYMBOL(\1), \\/p' include/linux/mfd/cros_ec_commands.h
+// sed -n 's/^#define \(EC_CMD_[[:alnum:]_]*\)\s.*/\tTRACE_SYMBOL(\1), \\/p' include/linux/platform_data/cros_ec_commands.h
 #define EC_CMDS \
 	TRACE_SYMBOL(EC_CMD_PROTO_VERSION), \
 	TRACE_SYMBOL(EC_CMD_HELLO), \
@@ -98,7 +98,10 @@
 	TRACE_SYMBOL(EC_CMD_SB_READ_BLOCK), \
 	TRACE_SYMBOL(EC_CMD_SB_WRITE_BLOCK), \
 	TRACE_SYMBOL(EC_CMD_BATTERY_VENDOR_PARAM), \
-	TRACE_SYMBOL(EC_CMD_CODEC_I2S), \
+	TRACE_SYMBOL(EC_CMD_EC_CODEC), \
+	TRACE_SYMBOL(EC_CMD_EC_CODEC_DMIC), \
+	TRACE_SYMBOL(EC_CMD_EC_CODEC_I2S_RX), \
+	TRACE_SYMBOL(EC_CMD_EC_CODEC_WOV), \
 	TRACE_SYMBOL(EC_CMD_REBOOT_EC), \
 	TRACE_SYMBOL(EC_CMD_GET_PANIC_INFO), \
 	TRACE_SYMBOL(EC_CMD_ACPI_READ), \

@@ -65,8 +65,10 @@
 #define __fw_error_dump_h__
 
 #include <linux/types.h>
+#include "fw/api/cmdhdr.h"
 
 #define IWL_FW_ERROR_DUMP_BARKER	0x14789632
+#define IWL_FW_INI_ERROR_DUMP_BARKER	0x14789633
 
 /**
  * enum iwl_fw_error_dump_type - types of data in the dump file
@@ -278,19 +280,66 @@ struct iwl_fw_error_dump_mem {
 	u8 data[];
 };
 
-#define IWL_INI_DUMP_MEM_VER 1
-#define IWL_INI_DUMP_MONITOR_VER 1
-#define IWL_INI_DUMP_FIFO_VER 1
+/* Dump version, used by the dump parser to differentiate between
+ * different dump formats
+ */
+#define IWL_INI_DUMP_VER 1
+
+/* Use bit 31 as dump info type to avoid colliding with region types */
+#define IWL_INI_DUMP_INFO_TYPE BIT(31)
+
+/**
+ * struct iwl_fw_ini_dump_entry
+ * @list: list of dump entries
+ * @size: size of the data
+ * @data: entry data
+ */
+struct iwl_fw_ini_dump_entry {
+	struct list_head list;
+	u32 size;
+	u8 data[];
+} __packed;
+
+/**
+ * struct iwl_fw_error_dump_file - header of dump file
+ * @barker: must be %IWL_FW_INI_ERROR_DUMP_BARKER
+ * @file_len: the length of all the file including the header
+ */
+struct iwl_fw_ini_dump_file_hdr {
+	__le32 barker;
+	__le32 file_len;
+} __packed;
+
+/**
+ * struct iwl_fw_ini_fifo_hdr - fifo range header
+ * @fifo_num: the fifo number. In case of umac rx fifo, set BIT(31) to
+ *	distinguish between lmac and umac rx fifos
+ * @num_of_registers: num of registers to dump, dword size each
+ */
+struct iwl_fw_ini_fifo_hdr {
+	__le32 fifo_num;
+	__le32 num_of_registers;
+} __packed;
 
 /**
  * struct iwl_fw_ini_error_dump_range - range of memory
  * @range_data_size: the size of this range, in bytes
- * @start_addr: the start address of this range
+ * @internal_base_addr: base address of internal memory range
+ * @dram_base_addr: base address of dram monitor range
+ * @page_num: page number of memory range
+ * @fifo_hdr: fifo header of memory range
+ * @fw_pkt: FW packet header of memory range
  * @data: the actual memory
  */
 struct iwl_fw_ini_error_dump_range {
 	__le32 range_data_size;
-	__le64 start_addr;
+	union {
+		__le32 internal_base_addr;
+		__le64 dram_base_addr;
+		__le32 page_num;
+		struct iwl_fw_ini_fifo_hdr fifo_hdr;
+		struct iwl_cmd_header fw_pkt_hdr;
+	};
 	__le32 data[];
 } __packed;
 
@@ -334,29 +383,76 @@ struct iwl_fw_ini_error_dump_register {
 } __packed;
 
 /**
- * struct iwl_fw_ini_fifo_error_dump_range - ini fifo range dump
- * @fifo_num: the fifo num. In case of rxf and umac rxf, set BIT(31) to
- *	distinguish between lmac and umac
- * @num_of_registers: num of registers to dump, dword size each
- * @range_data_size: the size of the data
- * @data: consist of
- *	num_of_registers * (register address + register value) + fifo data
+ * struct iwl_fw_ini_dump_cfg_name - configuration name
+ * @image_type: image type the configuration is related to
+ * @cfg_name_len: length of the configuration name
+ * @cfg_name: name of the configuraiton
  */
-struct iwl_fw_ini_fifo_error_dump_range {
-	__le32 fifo_num;
-	__le32 num_of_registers;
-	__le32 range_data_size;
-	__le32 data[];
+struct iwl_fw_ini_dump_cfg_name {
+	__le32 image_type;
+	__le32 cfg_name_len;
+	u8 cfg_name[IWL_FW_INI_MAX_CFG_NAME];
+} __packed;
+
+/* struct iwl_fw_ini_dump_info - ini dump information
+ * @version: dump version
+ * @time_point: time point that caused the dump collection
+ * @trigger_reason: reason of the trigger
+ * @external_cfg_state: &enum iwl_ini_cfg_state
+ * @ver_type: FW version type
+ * @ver_subtype: FW version subype
+ * @hw_step: HW step
+ * @hw_type: HW type
+ * @rf_id_flavor: HW RF id flavor
+ * @rf_id_dash: HW RF id dash
+ * @rf_id_step: HW RF id step
+ * @rf_id_type: HW RF id type
+ * @lmac_major: lmac major version
+ * @lmac_minor: lmac minor version
+ * @umac_major: umac major version
+ * @umac_minor: umac minor version
+ * @fw_mon_mode: FW monitor mode &enum iwl_fw_ini_buffer_location
+ * @regions_mask: bitmap mask of regions ids in the dump
+ * @build_tag_len: length of the build tag
+ * @build_tag: build tag string
+ * @num_of_cfg_names: number of configuration name structs
+ * @cfg_names: configuration names
+ */
+struct iwl_fw_ini_dump_info {
+	__le32 version;
+	__le32 time_point;
+	__le32 trigger_reason;
+	__le32 external_cfg_state;
+	__le32 ver_type;
+	__le32 ver_subtype;
+	__le32 hw_step;
+	__le32 hw_type;
+	__le32 rf_id_flavor;
+	__le32 rf_id_dash;
+	__le32 rf_id_step;
+	__le32 rf_id_type;
+	__le32 lmac_major;
+	__le32 lmac_minor;
+	__le32 umac_major;
+	__le32 umac_minor;
+	__le32 fw_mon_mode;
+	__le64 regions_mask;
+	__le32 build_tag_len;
+	u8 build_tag[FW_VER_HUMAN_READABLE_SZ];
+	__le32 num_of_cfg_names;
+	struct iwl_fw_ini_dump_cfg_name cfg_names[];
 } __packed;
 
 /**
- * struct iwl_fw_ini_fifo_error_dump - ini fifo region dump
- * @header: the header of this region
- * @ranges: the memory ranges of this region
+ * struct iwl_fw_ini_err_table_dump - ini error table dump
+ * @header: header of the region
+ * @version: error table version
+ * @ranges: the memory ranges of this this region
  */
-struct iwl_fw_ini_fifo_error_dump {
+struct iwl_fw_ini_err_table_dump {
 	struct iwl_fw_ini_error_dump_header header;
-	struct iwl_fw_ini_fifo_error_dump_range ranges[];
+	__le32 version;
+	struct iwl_fw_ini_error_dump_range ranges[];
 } __packed;
 
 /**
@@ -375,15 +471,17 @@ struct iwl_fw_error_dump_rb {
 
 /**
  * struct iwl_fw_ini_monitor_dump - ini monitor dump
- * @header - header of the region
- * @write_ptr - write pointer position in the buffer
- * @cycle_cnt - cycles count
- * @ranges - the memory ranges of this this region
+ * @header: header of the region
+ * @write_ptr: write pointer position in the buffer
+ * @cycle_cnt: cycles count
+ * @cur_frag: current fragment in use
+ * @ranges: the memory ranges of this this region
  */
 struct iwl_fw_ini_monitor_dump {
 	struct iwl_fw_ini_error_dump_header header;
 	__le32 write_ptr;
 	__le32 cycle_cnt;
+	__le32 cur_frag;
 	struct iwl_fw_ini_error_dump_range ranges[];
 } __packed;
 

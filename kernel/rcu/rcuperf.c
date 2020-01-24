@@ -89,7 +89,7 @@ torture_param(int, writer_holdoff, 0, "Holdoff (us) between GPs, zero to disable
 
 static char *perf_type = "rcu";
 module_param(perf_type, charp, 0444);
-MODULE_PARM_DESC(perf_type, "Type of RCU to performance-test (rcu, rcu_bh, ...)");
+MODULE_PARM_DESC(perf_type, "Type of RCU to performance-test (rcu, srcu, ...)");
 
 static int nrealreaders;
 static int nrealwriters;
@@ -108,15 +108,6 @@ static u64 t_rcu_perf_writer_finished;
 static unsigned long b_rcu_perf_writer_started;
 static unsigned long b_rcu_perf_writer_finished;
 static DEFINE_PER_CPU(atomic_t, n_async_inflight);
-
-static int rcu_perf_writer_state;
-#define RTWS_INIT		0
-#define RTWS_ASYNC		1
-#define RTWS_BARRIER		2
-#define RTWS_EXP_SYNC		3
-#define RTWS_SYNC		4
-#define RTWS_IDLE		5
-#define RTWS_STOPPING		6
 
 #define MAX_MEAS 10000
 #define MIN_MEAS 100
@@ -375,6 +366,14 @@ rcu_perf_writer(void *arg)
 	if (holdoff)
 		schedule_timeout_uninterruptible(holdoff * HZ);
 
+	/*
+	 * Wait until rcu_end_inkernel_boot() is called for normal GP tests
+	 * so that RCU is not always expedited for normal GP tests.
+	 * The system_state test is approximate, but works well in practice.
+	 */
+	while (!gp_exp && system_state != SYSTEM_RUNNING)
+		schedule_timeout_uninterruptible(1);
+
 	t = ktime_get_mono_fast_ns();
 	if (atomic_inc_return(&n_rcu_perf_writer_started) >= nrealwriters) {
 		t_rcu_perf_writer_started = t;
@@ -396,25 +395,20 @@ retry:
 			if (!rhp)
 				rhp = kmalloc(sizeof(*rhp), GFP_KERNEL);
 			if (rhp && atomic_read(this_cpu_ptr(&n_async_inflight)) < gp_async_max) {
-				rcu_perf_writer_state = RTWS_ASYNC;
 				atomic_inc(this_cpu_ptr(&n_async_inflight));
 				cur_ops->async(rhp, rcu_perf_async_cb);
 				rhp = NULL;
 			} else if (!kthread_should_stop()) {
-				rcu_perf_writer_state = RTWS_BARRIER;
 				cur_ops->gp_barrier();
 				goto retry;
 			} else {
 				kfree(rhp); /* Because we are stopping. */
 			}
 		} else if (gp_exp) {
-			rcu_perf_writer_state = RTWS_EXP_SYNC;
 			cur_ops->exp_sync();
 		} else {
-			rcu_perf_writer_state = RTWS_SYNC;
 			cur_ops->sync();
 		}
-		rcu_perf_writer_state = RTWS_IDLE;
 		t = ktime_get_mono_fast_ns();
 		*wdp = t - *wdp;
 		i_max = i;
@@ -455,10 +449,8 @@ retry:
 		rcu_perf_wait_shutdown();
 	} while (!torture_must_stop());
 	if (gp_async) {
-		rcu_perf_writer_state = RTWS_BARRIER;
 		cur_ops->gp_barrier();
 	}
-	rcu_perf_writer_state = RTWS_STOPPING;
 	writer_n_durations[me] = i_max;
 	torture_kthread_stopping("rcu_perf_writer");
 	return 0;

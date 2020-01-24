@@ -6,9 +6,11 @@
  *          for STMicroelectronics.
  */
 
+#include <linux/dma-mapping.h>
 #include <linux/seq_file.h>
 
 #include <drm/drm_atomic.h>
+#include <drm/drm_device.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 
@@ -45,7 +47,7 @@ struct dma_pixmap {
 	void *base;
 };
 
-/**
+/*
  * STI Cursor structure
  *
  * @sti_plane:    sti_plane structure

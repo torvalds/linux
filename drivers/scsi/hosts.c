@@ -38,6 +38,7 @@
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_transport.h>
+#include <scsi/scsi_cmnd.h>
 
 #include "scsi_priv.h"
 #include "scsi_logging.h"
@@ -462,6 +463,9 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 	else
 		shost->dma_boundary = 0xffffffff;
 
+	if (sht->virt_boundary_mask)
+		shost->virt_boundary_mask = sht->virt_boundary_mask;
+
 	device_initialize(&shost->shost_gendev);
 	dev_set_name(&shost->shost_gendev, "host%d", shost->host_no);
 	shost->shost_gendev.bus = &scsi_bus_type;
@@ -551,13 +555,29 @@ struct Scsi_Host *scsi_host_get(struct Scsi_Host *shost)
 }
 EXPORT_SYMBOL(scsi_host_get);
 
+static bool scsi_host_check_in_flight(struct request *rq, void *data,
+				      bool reserved)
+{
+	int *count = data;
+	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(rq);
+
+	if (test_bit(SCMD_STATE_INFLIGHT, &cmd->state))
+		(*count)++;
+
+	return true;
+}
+
 /**
  * scsi_host_busy - Return the host busy counter
  * @shost:	Pointer to Scsi_Host to inc.
  **/
 int scsi_host_busy(struct Scsi_Host *shost)
 {
-	return atomic_read(&shost->host_busy);
+	int cnt = 0;
+
+	blk_mq_tagset_busy_iter(&shost->tag_set,
+				scsi_host_check_in_flight, &cnt);
+	return cnt;
 }
 EXPORT_SYMBOL(scsi_host_busy);
 

@@ -6,6 +6,7 @@
  * DSOs and symbol information, sort them and produce a diff.
  */
 #include "builtin.h"
+#include "perf.h"
 
 #include "util/debug.h"
 #include "util/event.h"
@@ -15,11 +16,19 @@
 #include "util/session.h"
 #include "util/tool.h"
 #include "util/sort.h"
+#include "util/srcline.h"
 #include "util/symbol.h"
-#include "util/util.h"
 #include "util/data.h"
 #include "util/config.h"
 #include "util/time-utils.h"
+#include "util/annotate.h"
+#include "util/map.h"
+#include "util/spark.h"
+#include "util/block-info.h"
+#include <linux/err.h>
+#include <linux/zalloc.h>
+#include <subcmd/pager.h>
+#include <subcmd/parse-options.h>
 
 #include <errno.h>
 #include <inttypes.h>
@@ -32,6 +41,7 @@ struct perf_diff {
 	struct perf_time_interval	*ptime_range;
 	int				 range_size;
 	int				 range_num;
+	bool				 has_br_stack;
 };
 
 /* Diff command specific HPP columns. */
@@ -44,6 +54,8 @@ enum {
 	PERF_HPP_DIFF__WEIGHTED_DIFF,
 	PERF_HPP_DIFF__FORMULA,
 	PERF_HPP_DIFF__DELTA_ABS,
+	PERF_HPP_DIFF__CYCLES,
+	PERF_HPP_DIFF__CYCLES_HIST,
 
 	PERF_HPP_DIFF__MAX_INDEX
 };
@@ -78,6 +90,7 @@ static bool force;
 static bool show_period;
 static bool show_formula;
 static bool show_baseline_only;
+static bool cycles_hist;
 static unsigned int sort_compute = 1;
 
 static s64 compute_wdiff_w1;
@@ -91,6 +104,7 @@ enum {
 	COMPUTE_RATIO,
 	COMPUTE_WEIGHTED_DIFF,
 	COMPUTE_DELTA_ABS,
+	COMPUTE_CYCLES,
 	COMPUTE_MAX,
 };
 
@@ -99,6 +113,7 @@ const char *compute_names[COMPUTE_MAX] = {
 	[COMPUTE_DELTA_ABS] = "delta-abs",
 	[COMPUTE_RATIO] = "ratio",
 	[COMPUTE_WEIGHTED_DIFF] = "wdiff",
+	[COMPUTE_CYCLES] = "cycles",
 };
 
 static int compute = COMPUTE_DELTA_ABS;
@@ -108,6 +123,7 @@ static int compute_2_hpp[COMPUTE_MAX] = {
 	[COMPUTE_DELTA_ABS]	= PERF_HPP_DIFF__DELTA_ABS,
 	[COMPUTE_RATIO]		= PERF_HPP_DIFF__RATIO,
 	[COMPUTE_WEIGHTED_DIFF]	= PERF_HPP_DIFF__WEIGHTED_DIFF,
+	[COMPUTE_CYCLES]	= PERF_HPP_DIFF__CYCLES,
 };
 
 #define MAX_COL_WIDTH 70
@@ -146,6 +162,14 @@ static struct header_column {
 	[PERF_HPP_DIFF__FORMULA] = {
 		.name  = "Formula",
 		.width = MAX_COL_WIDTH,
+	},
+	[PERF_HPP_DIFF__CYCLES] = {
+		.name  = "[Program Block Range] Cycles Diff",
+		.width = 70,
+	},
+	[PERF_HPP_DIFF__CYCLES_HIST] = {
+		.name  = "stddev/Hist",
+		.width = NUM_SPARKS + 9,
 	}
 };
 
@@ -335,10 +359,35 @@ static int formula_fprintf(struct hist_entry *he, struct hist_entry *pair,
 	return -1;
 }
 
+static void *block_hist_zalloc(size_t size)
+{
+	struct block_hist *bh;
+
+	bh = zalloc(size + sizeof(*bh));
+	if (!bh)
+		return NULL;
+
+	return &bh->he;
+}
+
+static void block_hist_free(void *he)
+{
+	struct block_hist *bh;
+
+	bh = container_of(he, struct block_hist, he);
+	hists__delete_entries(&bh->block_hists);
+	free(bh);
+}
+
+struct hist_entry_ops block_hist_ops = {
+	.new    = block_hist_zalloc,
+	.free   = block_hist_free,
+};
+
 static int diff__process_sample_event(struct perf_tool *tool,
 				      union perf_event *event,
 				      struct perf_sample *sample,
-				      struct perf_evsel *evsel,
+				      struct evsel *evsel,
 				      struct machine *machine)
 {
 	struct perf_diff *pdiff = container_of(tool, struct perf_diff, tool);
@@ -362,9 +411,23 @@ static int diff__process_sample_event(struct perf_tool *tool,
 		goto out_put;
 	}
 
-	if (!hists__add_entry(hists, &al, NULL, NULL, NULL, sample, true)) {
-		pr_warning("problem incrementing symbol period, skipping event\n");
-		goto out_put;
+	if (compute != COMPUTE_CYCLES) {
+		if (!hists__add_entry(hists, &al, NULL, NULL, NULL, sample,
+				      true)) {
+			pr_warning("problem incrementing symbol period, "
+				   "skipping event\n");
+			goto out_put;
+		}
+	} else {
+		if (!hists__add_entry_ops(hists, &block_hist_ops, &al, NULL,
+					  NULL, NULL, sample, true)) {
+			pr_warning("problem incrementing symbol period, "
+				   "skipping event\n");
+			goto out_put;
+		}
+
+		hist__account_cycles(sample->branch_stack, &al, sample, false,
+				     NULL);
 	}
 
 	/*
@@ -397,10 +460,10 @@ static struct perf_diff pdiff = {
 	},
 };
 
-static struct perf_evsel *evsel_match(struct perf_evsel *evsel,
-				      struct perf_evlist *evlist)
+static struct evsel *evsel_match(struct evsel *evsel,
+				      struct evlist *evlist)
 {
-	struct perf_evsel *e;
+	struct evsel *e;
 
 	evlist__for_each_entry(evlist, e) {
 		if (perf_evsel__match2(evsel, e))
@@ -410,9 +473,9 @@ static struct perf_evsel *evsel_match(struct perf_evsel *evsel,
 	return NULL;
 }
 
-static void perf_evlist__collapse_resort(struct perf_evlist *evlist)
+static void perf_evlist__collapse_resort(struct evlist *evlist)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	evlist__for_each_entry(evlist, evsel) {
 		struct hists *hists = evsel__hists(evsel);
@@ -474,6 +537,145 @@ static void hists__baseline_only(struct hists *hists)
 	}
 }
 
+static int64_t block_cycles_diff_cmp(struct hist_entry *left,
+				     struct hist_entry *right)
+{
+	bool pairs_left  = hist_entry__has_pairs(left);
+	bool pairs_right = hist_entry__has_pairs(right);
+	s64 l, r;
+
+	if (!pairs_left && !pairs_right)
+		return 0;
+
+	l = llabs(left->diff.cycles);
+	r = llabs(right->diff.cycles);
+	return r - l;
+}
+
+static int64_t block_sort(struct perf_hpp_fmt *fmt __maybe_unused,
+			  struct hist_entry *left, struct hist_entry *right)
+{
+	return block_cycles_diff_cmp(right, left);
+}
+
+static void init_block_hist(struct block_hist *bh)
+{
+	__hists__init(&bh->block_hists, &bh->block_list);
+	perf_hpp_list__init(&bh->block_list);
+
+	INIT_LIST_HEAD(&bh->block_fmt.list);
+	INIT_LIST_HEAD(&bh->block_fmt.sort_list);
+	bh->block_fmt.cmp = block_info__cmp;
+	bh->block_fmt.sort = block_sort;
+	perf_hpp_list__register_sort_field(&bh->block_list,
+					   &bh->block_fmt);
+	bh->valid = true;
+}
+
+static int block_pair_cmp(struct hist_entry *a, struct hist_entry *b)
+{
+	struct block_info *bi_a = a->block_info;
+	struct block_info *bi_b = b->block_info;
+	int cmp;
+
+	if (!bi_a->sym || !bi_b->sym)
+		return -1;
+
+	cmp = strcmp(bi_a->sym->name, bi_b->sym->name);
+
+	if ((!cmp) && (bi_a->start == bi_b->start) && (bi_a->end == bi_b->end))
+		return 0;
+
+	return -1;
+}
+
+static struct hist_entry *get_block_pair(struct hist_entry *he,
+					 struct hists *hists_pair)
+{
+	struct rb_root_cached *root = hists_pair->entries_in;
+	struct rb_node *next = rb_first_cached(root);
+	int cmp;
+
+	while (next != NULL) {
+		struct hist_entry *he_pair = rb_entry(next, struct hist_entry,
+						      rb_node_in);
+
+		next = rb_next(&he_pair->rb_node_in);
+
+		cmp = block_pair_cmp(he_pair, he);
+		if (!cmp)
+			return he_pair;
+	}
+
+	return NULL;
+}
+
+static void init_spark_values(unsigned long *svals, int num)
+{
+	for (int i = 0; i < num; i++)
+		svals[i] = 0;
+}
+
+static void update_spark_value(unsigned long *svals, int num,
+			       struct stats *stats, u64 val)
+{
+	int n = stats->n;
+
+	if (n < num)
+		svals[n] = val;
+}
+
+static void compute_cycles_diff(struct hist_entry *he,
+				struct hist_entry *pair)
+{
+	pair->diff.computed = true;
+	if (pair->block_info->num && he->block_info->num) {
+		pair->diff.cycles =
+			pair->block_info->cycles_aggr / pair->block_info->num_aggr -
+			he->block_info->cycles_aggr / he->block_info->num_aggr;
+
+		if (!cycles_hist)
+			return;
+
+		init_stats(&pair->diff.stats);
+		init_spark_values(pair->diff.svals, NUM_SPARKS);
+
+		for (int i = 0; i < pair->block_info->num; i++) {
+			u64 val;
+
+			if (i >= he->block_info->num || i >= NUM_SPARKS)
+				break;
+
+			val = llabs(pair->block_info->cycles_spark[i] -
+				     he->block_info->cycles_spark[i]);
+
+			update_spark_value(pair->diff.svals, NUM_SPARKS,
+					   &pair->diff.stats, val);
+			update_stats(&pair->diff.stats, val);
+		}
+	}
+}
+
+static void block_hists_match(struct hists *hists_base,
+			      struct hists *hists_pair)
+{
+	struct rb_root_cached *root = hists_base->entries_in;
+	struct rb_node *next = rb_first_cached(root);
+
+	while (next != NULL) {
+		struct hist_entry *he = rb_entry(next, struct hist_entry,
+						 rb_node_in);
+		struct hist_entry *pair = get_block_pair(he, hists_pair);
+
+		next = rb_next(&he->rb_node_in);
+
+		if (pair) {
+			hist_entry__add_pair(pair, he);
+			compute_cycles_diff(he, pair);
+		}
+	}
+}
+
 static void hists__precompute(struct hists *hists)
 {
 	struct rb_root_cached *root;
@@ -486,12 +688,19 @@ static void hists__precompute(struct hists *hists)
 
 	next = rb_first_cached(root);
 	while (next != NULL) {
+		struct block_hist *bh, *pair_bh;
 		struct hist_entry *he, *pair;
 		struct data__file *d;
 		int i;
 
 		he   = rb_entry(next, struct hist_entry, rb_node_in);
 		next = rb_next(&he->rb_node_in);
+
+		if (compute == COMPUTE_CYCLES) {
+			bh = container_of(he, struct block_hist, he);
+			init_block_hist(bh);
+			block_info__process_sym(he, bh, NULL, 0);
+		}
 
 		data__for_each_file_new(i, d) {
 			pair = get_pair_data(he, d);
@@ -508,6 +717,21 @@ static void hists__precompute(struct hists *hists)
 				break;
 			case COMPUTE_WEIGHTED_DIFF:
 				compute_wdiff(he, pair);
+				break;
+			case COMPUTE_CYCLES:
+				pair_bh = container_of(pair, struct block_hist,
+						       he);
+				init_block_hist(pair_bh);
+				block_info__process_sym(pair, pair_bh, NULL, 0);
+
+				bh = container_of(he, struct block_hist, he);
+
+				if (bh->valid && pair_bh->valid) {
+					block_hists_match(&bh->block_hists,
+							  &pair_bh->block_hists);
+					hists__output_resort(&pair_bh->block_hists,
+							     NULL);
+				}
 				break;
 			default:
 				BUG_ON(1);
@@ -720,6 +944,9 @@ static void hists__process(struct hists *hists)
 	hists__precompute(hists);
 	hists__output_resort(hists, NULL);
 
+	if (compute == COMPUTE_CYCLES)
+		symbol_conf.report_block = true;
+
 	hists__fprintf(hists, !quiet, 0, 0, 0, stdout,
 		       !symbol_conf.use_callchain);
 }
@@ -741,8 +968,8 @@ static void data__fprintf(void)
 
 static void data_process(void)
 {
-	struct perf_evlist *evlist_base = data__files[0].session->evlist;
-	struct perf_evsel *evsel_base;
+	struct evlist *evlist_base = data__files[0].session->evlist;
+	struct evsel *evsel_base;
 	bool first = true;
 
 	evlist__for_each_entry(evlist_base, evsel_base) {
@@ -751,8 +978,8 @@ static void data_process(void)
 		int i;
 
 		data__for_each_file_new(i, d) {
-			struct perf_evlist *evlist = d->session->evlist;
-			struct perf_evsel *evsel;
+			struct evlist *evlist = d->session->evlist;
+			struct evsel *evsel;
 			struct hists *hists;
 
 			evsel = evsel_match(evsel_base, evlist);
@@ -873,6 +1100,31 @@ static int parse_time_str(struct data__file *d, char *abstime_ostr,
 	return ret;
 }
 
+static int check_file_brstack(void)
+{
+	struct data__file *d;
+	bool has_br_stack;
+	int i;
+
+	data__for_each_file(i, d) {
+		d->session = perf_session__new(&d->data, false, &pdiff.tool);
+		if (IS_ERR(d->session)) {
+			pr_err("Failed to open %s\n", d->data.path);
+			return PTR_ERR(d->session);
+		}
+
+		has_br_stack = perf_header__has_feat(&d->session->header,
+						     HEADER_BRANCH_STACK);
+		perf_session__delete(d->session);
+		if (!has_br_stack)
+			return 0;
+	}
+
+	/* Set only all files having branch stacks */
+	pdiff.has_br_stack = true;
+	return 0;
+}
+
 static int __cmd_diff(void)
 {
 	struct data__file *d;
@@ -888,9 +1140,9 @@ static int __cmd_diff(void)
 
 	data__for_each_file(i, d) {
 		d->session = perf_session__new(&d->data, false, &pdiff.tool);
-		if (!d->session) {
+		if (IS_ERR(d->session)) {
+			ret = PTR_ERR(d->session);
 			pr_err("Failed to open %s\n", d->data.path);
-			ret = -1;
 			goto out_delete;
 		}
 
@@ -950,13 +1202,16 @@ static const struct option options[] = {
 	OPT_BOOLEAN('b', "baseline-only", &show_baseline_only,
 		    "Show only items with match in baseline"),
 	OPT_CALLBACK('c', "compute", &compute,
-		     "delta,delta-abs,ratio,wdiff:w1,w2 (default delta-abs)",
+		     "delta,delta-abs,ratio,wdiff:w1,w2 (default delta-abs),cycles",
 		     "Entries differential computation selection",
 		     setup_compute),
 	OPT_BOOLEAN('p', "period", &show_period,
 		    "Show period values."),
 	OPT_BOOLEAN('F', "formula", &show_formula,
 		    "Show formula."),
+	OPT_BOOLEAN(0, "cycles-hist", &cycles_hist,
+		    "Show cycles histogram and standard deviation "
+		    "- WARNING: use only with -c cycles."),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
 	OPT_BOOLEAN('f', "force", &force, "don't complain, do it"),
@@ -1028,6 +1283,49 @@ static int hpp__entry_baseline(struct hist_entry *he, char *buf, size_t size)
 	return ret;
 }
 
+static int cycles_printf(struct hist_entry *he, struct hist_entry *pair,
+			 struct perf_hpp *hpp, int width)
+{
+	struct block_hist *bh = container_of(he, struct block_hist, he);
+	struct block_hist *bh_pair = container_of(pair, struct block_hist, he);
+	struct hist_entry *block_he;
+	struct block_info *bi;
+	char buf[128];
+	char *start_line, *end_line;
+
+	block_he = hists__get_entry(&bh_pair->block_hists, bh->block_idx);
+	if (!block_he) {
+		hpp->skip = true;
+		return 0;
+	}
+
+	/*
+	 * Avoid printing the warning "addr2line_init failed for ..."
+	 */
+	symbol_conf.disable_add2line_warn = true;
+
+	bi = block_he->block_info;
+
+	start_line = map__srcline(he->ms.map, bi->sym->start + bi->start,
+				  he->ms.sym);
+
+	end_line = map__srcline(he->ms.map, bi->sym->start + bi->end,
+				he->ms.sym);
+
+	if ((start_line != SRCLINE_UNKNOWN) && (end_line != SRCLINE_UNKNOWN)) {
+		scnprintf(buf, sizeof(buf), "[%s -> %s] %4ld",
+			  start_line, end_line, block_he->diff.cycles);
+	} else {
+		scnprintf(buf, sizeof(buf), "[%7lx -> %7lx] %4ld",
+			  bi->start, bi->end, block_he->diff.cycles);
+	}
+
+	free_srcline(start_line);
+	free_srcline(end_line);
+
+	return scnprintf(hpp->buf, hpp->size, "%*s", width, buf);
+}
+
 static int __hpp__color_compare(struct perf_hpp_fmt *fmt,
 				struct perf_hpp *hpp, struct hist_entry *he,
 				int comparison_method)
@@ -1039,8 +1337,17 @@ static int __hpp__color_compare(struct perf_hpp_fmt *fmt,
 	s64 wdiff;
 	char pfmt[20] = " ";
 
-	if (!pair)
+	if (!pair) {
+		if (comparison_method == COMPUTE_CYCLES) {
+			struct block_hist *bh;
+
+			bh = container_of(he, struct block_hist, he);
+			if (bh->block_idx)
+				hpp->skip = true;
+		}
+
 		goto no_print;
+	}
 
 	switch (comparison_method) {
 	case COMPUTE_DELTA:
@@ -1075,6 +1382,8 @@ static int __hpp__color_compare(struct perf_hpp_fmt *fmt,
 		return color_snprintf(hpp->buf, hpp->size,
 				get_percent_color(wdiff),
 				pfmt, wdiff);
+	case COMPUTE_CYCLES:
+		return cycles_printf(he, pair, hpp, dfmt->header_width);
 	default:
 		BUG_ON(1);
 	}
@@ -1102,6 +1411,96 @@ static int hpp__color_wdiff(struct perf_hpp_fmt *fmt,
 			struct perf_hpp *hpp, struct hist_entry *he)
 {
 	return __hpp__color_compare(fmt, hpp, he, COMPUTE_WEIGHTED_DIFF);
+}
+
+static int hpp__color_cycles(struct perf_hpp_fmt *fmt,
+			     struct perf_hpp *hpp, struct hist_entry *he)
+{
+	return __hpp__color_compare(fmt, hpp, he, COMPUTE_CYCLES);
+}
+
+static int all_zero(unsigned long *vals, int len)
+{
+	int i;
+
+	for (i = 0; i < len; i++)
+		if (vals[i] != 0)
+			return 0;
+	return 1;
+}
+
+static int print_cycles_spark(char *bf, int size, unsigned long *svals, u64 n)
+{
+	int printed;
+
+	if (n <= 1)
+		return 0;
+
+	if (n > NUM_SPARKS)
+		n = NUM_SPARKS;
+	if (all_zero(svals, n))
+		return 0;
+
+	printed = print_spark(bf, size, svals, n);
+	printed += scnprintf(bf + printed, size - printed, " ");
+	return printed;
+}
+
+static int hpp__color_cycles_hist(struct perf_hpp_fmt *fmt,
+			    struct perf_hpp *hpp, struct hist_entry *he)
+{
+	struct diff_hpp_fmt *dfmt =
+		container_of(fmt, struct diff_hpp_fmt, fmt);
+	struct hist_entry *pair = get_pair_fmt(he, dfmt);
+	struct block_hist *bh = container_of(he, struct block_hist, he);
+	struct block_hist *bh_pair;
+	struct hist_entry *block_he;
+	char spark[32], buf[128];
+	double r;
+	int ret, pad;
+
+	if (!pair) {
+		if (bh->block_idx)
+			hpp->skip = true;
+
+		goto no_print;
+	}
+
+	bh_pair = container_of(pair, struct block_hist, he);
+
+	block_he = hists__get_entry(&bh_pair->block_hists, bh->block_idx);
+	if (!block_he) {
+		hpp->skip = true;
+		goto no_print;
+	}
+
+	ret = print_cycles_spark(spark, sizeof(spark), block_he->diff.svals,
+				 block_he->diff.stats.n);
+
+	r = rel_stddev_stats(stddev_stats(&block_he->diff.stats),
+			     avg_stats(&block_he->diff.stats));
+
+	if (ret) {
+		/*
+		 * Padding spaces if number of sparks less than NUM_SPARKS
+		 * otherwise the output is not aligned.
+		 */
+		pad = NUM_SPARKS - ((ret - 1) / 3);
+		scnprintf(buf, sizeof(buf), "%s%5.1f%% %s", "\u00B1", r, spark);
+		ret = scnprintf(hpp->buf, hpp->size, "%*s",
+				dfmt->header_width, buf);
+
+		if (pad) {
+			ret += scnprintf(hpp->buf + ret, hpp->size - ret,
+					 "%-*s", pad, " ");
+		}
+
+		return ret;
+	}
+
+no_print:
+	return scnprintf(hpp->buf, hpp->size, "%*s",
+			dfmt->header_width, " ");
 }
 
 static void
@@ -1305,6 +1704,14 @@ static void data__hpp_register(struct data__file *d, int idx)
 		fmt->color = hpp__color_delta;
 		fmt->sort  = hist_entry__cmp_delta_abs;
 		break;
+	case PERF_HPP_DIFF__CYCLES:
+		fmt->color = hpp__color_cycles;
+		fmt->sort  = hist_entry__cmp_nop;
+		break;
+	case PERF_HPP_DIFF__CYCLES_HIST:
+		fmt->color = hpp__color_cycles_hist;
+		fmt->sort  = hist_entry__cmp_nop;
+		break;
 	default:
 		fmt->sort  = hist_entry__cmp_nop;
 		break;
@@ -1330,9 +1737,13 @@ static int ui_init(void)
 		 *   PERF_HPP_DIFF__DELTA
 		 *   PERF_HPP_DIFF__RATIO
 		 *   PERF_HPP_DIFF__WEIGHTED_DIFF
+		 *   PERF_HPP_DIFF__CYCLES
 		 */
 		data__hpp_register(d, i ? compute_2_hpp[compute] :
 					  PERF_HPP_DIFF__BASELINE);
+
+		if (cycles_hist && i)
+			data__hpp_register(d, PERF_HPP_DIFF__CYCLES_HIST);
 
 		/*
 		 * And the rest:
@@ -1384,6 +1795,13 @@ static int ui_init(void)
 		break;
 	case COMPUTE_DELTA_ABS:
 		fmt->sort = hist_entry__cmp_delta_abs_idx;
+		break;
+	case COMPUTE_CYCLES:
+		/*
+		 * Should set since 'fmt->sort' is called without
+		 * checking valid during sorting
+		 */
+		fmt->sort = hist_entry__cmp_nop;
 		break;
 	default:
 		BUG_ON(1);
@@ -1481,10 +1899,21 @@ int cmd_diff(int argc, const char **argv)
 	if (quiet)
 		perf_quiet_option();
 
+	if (cycles_hist && (compute != COMPUTE_CYCLES))
+		usage_with_options(diff_usage, options);
+
+	symbol__annotation_init();
+
 	if (symbol__init(NULL) < 0)
 		return -1;
 
 	if (data_init(argc, argv) < 0)
+		return -1;
+
+	if (check_file_brstack() < 0)
+		return -1;
+
+	if (compute == COMPUTE_CYCLES && !pdiff.has_br_stack)
 		return -1;
 
 	if (ui_init() < 0)

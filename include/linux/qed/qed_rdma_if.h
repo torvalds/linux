@@ -225,7 +225,7 @@ struct qed_rdma_start_in_params {
 
 struct qed_rdma_add_user_out_params {
 	u16 dpi;
-	u64 dpi_addr;
+	void __iomem *dpi_addr;
 	u64 dpi_phys_addr;
 	u32 dpi_size;
 	u16 wid_count;
@@ -669,6 +669,8 @@ struct qed_rdma_ops {
 			     struct qed_ll2_stats *p_stats);
 	int (*ll2_set_mac_filter)(struct qed_dev *cdev,
 				  u8 *old_mac_address, u8 *new_mac_address);
+
+	int (*iwarp_set_engine_affin)(struct qed_dev *cdev, bool b_reset);
 
 	int (*iwarp_connect)(void *rdma_cxt,
 			     struct qed_iwarp_connect_in *iparams,

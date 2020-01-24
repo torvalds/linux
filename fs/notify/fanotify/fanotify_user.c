@@ -523,12 +523,13 @@ static const struct file_operations fanotify_fops = {
 	.fasync		= NULL,
 	.release	= fanotify_release,
 	.unlocked_ioctl	= fanotify_ioctl,
-	.compat_ioctl	= fanotify_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.llseek		= noop_llseek,
 };
 
 static int fanotify_find_path(int dfd, const char __user *filename,
-			      struct path *path, unsigned int flags)
+			      struct path *path, unsigned int flags, __u64 mask,
+			      unsigned int obj_type)
 {
 	int ret;
 
@@ -567,8 +568,15 @@ static int fanotify_find_path(int dfd, const char __user *filename,
 
 	/* you can only watch an inode if you have read permissions on it */
 	ret = inode_permission(path->dentry->d_inode, MAY_READ);
+	if (ret) {
+		path_put(path);
+		goto out;
+	}
+
+	ret = security_path_notify(path, mask, obj_type);
 	if (ret)
 		path_put(path);
+
 out:
 	return ret;
 }
@@ -920,6 +928,22 @@ static int fanotify_test_fid(struct path *path, __kernel_fsid_t *fsid)
 	return 0;
 }
 
+static int fanotify_events_supported(struct path *path, __u64 mask)
+{
+	/*
+	 * Some filesystems such as 'proc' acquire unusual locks when opening
+	 * files. For them fanotify permission events have high chances of
+	 * deadlocking the system - open done when reporting fanotify event
+	 * blocks on this "unusual" lock while another process holding the lock
+	 * waits for fanotify permission event to be answered. Just disallow
+	 * permission events for such filesystems.
+	 */
+	if (mask & FANOTIFY_PERM_EVENTS &&
+	    path->mnt->mnt_sb->s_type->fs_flags & FS_DISALLOW_NOTIFY_PERM)
+		return -EINVAL;
+	return 0;
+}
+
 static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 			    int dfd, const char  __user *pathname)
 {
@@ -931,6 +955,7 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 	__kernel_fsid_t __fsid, *fsid = NULL;
 	u32 valid_mask = FANOTIFY_EVENTS | FANOTIFY_EVENT_FLAGS;
 	unsigned int mark_type = flags & FANOTIFY_MARK_TYPE_BITS;
+	unsigned int obj_type;
 	int ret;
 
 	pr_debug("%s: fanotify_fd=%d flags=%x dfd=%d pathname=%p mask=%llx\n",
@@ -945,8 +970,13 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 
 	switch (mark_type) {
 	case FAN_MARK_INODE:
+		obj_type = FSNOTIFY_OBJ_TYPE_INODE;
+		break;
 	case FAN_MARK_MOUNT:
+		obj_type = FSNOTIFY_OBJ_TYPE_VFSMOUNT;
+		break;
 	case FAN_MARK_FILESYSTEM:
+		obj_type = FSNOTIFY_OBJ_TYPE_SB;
 		break;
 	default:
 		return -EINVAL;
@@ -1014,9 +1044,16 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 		goto fput_and_out;
 	}
 
-	ret = fanotify_find_path(dfd, pathname, &path, flags);
+	ret = fanotify_find_path(dfd, pathname, &path, flags,
+			(mask & ALL_FSNOTIFY_EVENTS), obj_type);
 	if (ret)
 		goto fput_and_out;
+
+	if (flags & FAN_MARK_ADD) {
+		ret = fanotify_events_supported(&path, mask);
+		if (ret)
+			goto path_put_and_out;
+	}
 
 	if (FAN_GROUP_FLAG(group, FAN_REPORT_FID)) {
 		ret = fanotify_test_fid(&path, &__fsid);

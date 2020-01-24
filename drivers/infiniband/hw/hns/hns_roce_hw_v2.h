@@ -54,7 +54,7 @@
 #define HNS_ROCE_V2_MAX_CQ_NUM			0x100000
 #define HNS_ROCE_V2_MAX_CQC_TIMER_NUM		0x100
 #define HNS_ROCE_V2_MAX_SRQ_NUM			0x100000
-#define HNS_ROCE_V2_MAX_CQE_NUM			0x10000
+#define HNS_ROCE_V2_MAX_CQE_NUM			0x400000
 #define HNS_ROCE_V2_MAX_SRQWQE_NUM		0x8000
 #define HNS_ROCE_V2_MAX_RQ_SGE_NUM		0x100
 #define HNS_ROCE_V2_MAX_SQ_SGE_NUM		0xff
@@ -87,8 +87,8 @@
 #define HNS_ROCE_V2_MTT_ENTRY_SZ		64
 #define HNS_ROCE_V2_CQE_ENTRY_SIZE		32
 #define HNS_ROCE_V2_SCCC_ENTRY_SZ		32
-#define HNS_ROCE_V2_QPC_TIMER_ENTRY_SZ		4096
-#define HNS_ROCE_V2_CQC_TIMER_ENTRY_SZ		4096
+#define HNS_ROCE_V2_QPC_TIMER_ENTRY_SZ		PAGE_SIZE
+#define HNS_ROCE_V2_CQC_TIMER_ENTRY_SZ		PAGE_SIZE
 #define HNS_ROCE_V2_PAGE_SIZE_SUPPORTED		0xFFFFF000
 #define HNS_ROCE_V2_MAX_INNER_MTPT_NUM		2
 #define HNS_ROCE_INVALID_LKEY			0x100
@@ -96,7 +96,10 @@
 #define HNS_ROCE_V2_UC_RC_SGE_NUM_IN_WQE	2
 #define HNS_ROCE_V2_RSV_QPS			8
 
-#define HNS_ROCE_V2_HW_RST_TIMEOUT             1000
+#define HNS_ROCE_V2_HW_RST_TIMEOUT		1000
+#define HNS_ROCE_V2_HW_RST_UNINT_DELAY		100
+
+#define HNS_ROCE_V2_HW_RST_COMPLETION_WAIT	20
 
 #define HNS_ROCE_CONTEXT_HOP_NUM		1
 #define HNS_ROCE_SCCC_HOP_NUM			1
@@ -126,8 +129,6 @@
 #define HNS_ROCE_CMD_FLAG_ERR_INTR	BIT(HNS_ROCE_CMD_FLAG_ERR_INTR_SHIFT)
 
 #define HNS_ROCE_CMQ_DESC_NUM_S		3
-#define HNS_ROCE_CMQ_EN_B		16
-#define HNS_ROCE_CMQ_ENABLE		BIT(HNS_ROCE_CMQ_EN_B)
 
 #define HNS_ROCE_CMQ_SCC_CLR_DONE_CNT		5
 
@@ -241,6 +242,7 @@ enum hns_roce_opcode_type {
 	HNS_ROCE_OPC_POST_MB				= 0x8504,
 	HNS_ROCE_OPC_QUERY_MB_ST			= 0x8505,
 	HNS_ROCE_OPC_CFG_BT_ATTR			= 0x8506,
+	HNS_ROCE_OPC_FUNC_CLEAR				= 0x8508,
 	HNS_ROCE_OPC_CLR_SCCC				= 0x8509,
 	HNS_ROCE_OPC_QUERY_SCCC				= 0x850a,
 	HNS_ROCE_OPC_RESET_SCCC				= 0x850b,
@@ -886,6 +888,10 @@ struct hns_roce_v2_qp_context {
 #define	V2_QPC_BYTE_256_SQ_FLUSH_IDX_S 16
 #define V2_QPC_BYTE_256_SQ_FLUSH_IDX_M GENMASK(31, 16)
 
+#define	V2_QP_RWE_S 1 /* rdma write enable */
+#define	V2_QP_RRE_S 2 /* rdma read enable */
+#define	V2_QP_ATE_S 3 /* rdma atomic enable */
+
 struct hns_roce_v2_cqe {
 	__le32	byte_4;
 	union {
@@ -1225,6 +1231,22 @@ struct hns_roce_query_fw_info {
 	__le32 fw_ver;
 	__le32 rsv[5];
 };
+
+struct hns_roce_func_clear {
+	__le32 rst_funcid_en;
+	__le32 func_done;
+	__le32 rsv[4];
+};
+
+#define FUNC_CLEAR_RST_FUN_DONE_S 0
+/* Each physical function manages up to 248 virtual functions；
+ * it takes up to 100ms for each function to execute clear；
+ * if an abnormal reset occurs, it is executed twice at most;
+ * so it takes up to 249 * 2 * 100ms.
+ */
+#define HNS_ROCE_V2_FUNC_CLEAR_TIMEOUT_MSECS	(249 * 2 * 100)
+#define HNS_ROCE_V2_READ_FUNC_CLEAR_FLAG_INTERVAL	40
+#define HNS_ROCE_V2_READ_FUNC_CLEAR_FLAG_FAIL_WAIT	20
 
 struct hns_roce_cfg_llm_a {
 	__le32 base_addr_l;

@@ -336,9 +336,7 @@ static int __init esp6_offload_init(void)
 
 static void __exit esp6_offload_exit(void)
 {
-	if (xfrm_unregister_type_offload(&esp6_type_offload, AF_INET6) < 0)
-		pr_info("%s: can't remove xfrm type offload\n", __func__);
-
+	xfrm_unregister_type_offload(&esp6_type_offload, AF_INET6);
 	inet6_del_offload(&esp6_offload, IPPROTO_ESP);
 }
 

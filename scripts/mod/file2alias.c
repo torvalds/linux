@@ -36,6 +36,11 @@ typedef uint16_t	__u16;
 typedef unsigned char	__u8;
 typedef struct {
 	__u8 b[16];
+} guid_t;
+
+/* backwards compatibility, don't use in new code */
+typedef struct {
+	__u8 b[16];
 } uuid_le;
 typedef struct {
 	__u8 b[16];

@@ -11,7 +11,6 @@
 
 #include <linux/sched.h>
 #include <linux/ptrace.h>
-#include <linux/namei.h>  /* LOOKUP_* */
 #include <uapi/linux/audit.h>
 
 #define AUDIT_INO_UNSET ((unsigned long)-1)
@@ -157,7 +156,8 @@ extern void		    audit_log_d_path(struct audit_buffer *ab,
 					     const struct path *path);
 extern void		    audit_log_key(struct audit_buffer *ab,
 					  char *key);
-extern void		    audit_log_link_denied(const char *operation);
+extern void		    audit_log_path_denied(int type,
+						  const char *operation);
 extern void		    audit_log_lost(const char *message);
 
 extern int audit_log_task_context(struct audit_buffer *ab);
@@ -182,6 +182,9 @@ static inline unsigned int audit_get_sessionid(struct task_struct *tsk)
 }
 
 extern u32 audit_enabled;
+
+extern int audit_signal_info(int sig, struct task_struct *t);
+
 #else /* CONFIG_AUDIT */
 static inline __printf(4, 5)
 void audit_log(struct audit_context *ctx, gfp_t gfp_mask, int type,
@@ -215,7 +218,7 @@ static inline void audit_log_d_path(struct audit_buffer *ab,
 { }
 static inline void audit_log_key(struct audit_buffer *ab, char *key)
 { }
-static inline void audit_log_link_denied(const char *string)
+static inline void audit_log_path_denied(int type, const char *operation)
 { }
 static inline int audit_log_task_context(struct audit_buffer *ab)
 {
@@ -235,6 +238,12 @@ static inline unsigned int audit_get_sessionid(struct task_struct *tsk)
 }
 
 #define audit_enabled AUDIT_OFF
+
+static inline int audit_signal_info(int sig, struct task_struct *t)
+{
+	return 0;
+}
+
 #endif /* CONFIG_AUDIT */
 
 #ifdef CONFIG_AUDIT_COMPAT_GENERIC
@@ -242,6 +251,10 @@ static inline unsigned int audit_get_sessionid(struct task_struct *tsk)
 #else
 #define audit_is_compat(arch)  false
 #endif
+
+#define AUDIT_INODE_PARENT	1	/* dentry represents the parent */
+#define AUDIT_INODE_HIDDEN	2	/* audit record should be hidden */
+#define AUDIT_INODE_NOEVAL	4	/* audit record incomplete */
 
 #ifdef CONFIG_AUDITSYSCALL
 #include <asm/syscall.h> /* for syscall_get_arch() */
@@ -256,9 +269,6 @@ extern void __audit_syscall_exit(int ret_success, long ret_value);
 extern struct filename *__audit_reusename(const __user char *uptr);
 extern void __audit_getname(struct filename *name);
 
-#define AUDIT_INODE_PARENT	1	/* dentry represents the parent */
-#define AUDIT_INODE_HIDDEN	2	/* audit record should be hidden */
-#define AUDIT_INODE_NOEVAL	4	/* audit record incomplete */
 extern void __audit_inode(struct filename *name, const struct dentry *dentry,
 				unsigned int flags);
 extern void __audit_file(const struct file *);
@@ -319,16 +329,9 @@ static inline void audit_getname(struct filename *name)
 }
 static inline void audit_inode(struct filename *name,
 				const struct dentry *dentry,
-				unsigned int flags) {
-	if (unlikely(!audit_dummy_context())) {
-		unsigned int aflags = 0;
-
-		if (flags & LOOKUP_PARENT)
-			aflags |= AUDIT_INODE_PARENT;
-		if (flags & LOOKUP_NO_EVAL)
-			aflags |= AUDIT_INODE_NOEVAL;
+				unsigned int aflags) {
+	if (unlikely(!audit_dummy_context()))
 		__audit_inode(name, dentry, aflags);
-	}
 }
 static inline void audit_file(struct file *file)
 {
@@ -552,7 +555,7 @@ static inline void __audit_inode_child(struct inode *parent,
 { }
 static inline void audit_inode(struct filename *name,
 				const struct dentry *dentry,
-				unsigned int parent)
+				unsigned int aflags)
 { }
 static inline void audit_file(struct file *file)
 {

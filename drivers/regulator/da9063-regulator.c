@@ -19,7 +19,6 @@
 #include <linux/regulator/machine.h>
 #include <linux/regulator/of_regulator.h>
 #include <linux/mfd/da9063/core.h>
-#include <linux/mfd/da9063/pdata.h>
 #include <linux/mfd/da9063/registers.h>
 
 
@@ -27,6 +26,49 @@
 #define BFIELD(_reg, _mask) \
 	REG_FIELD(_reg, __builtin_ffs((int)_mask) - 1, \
 		sizeof(unsigned int) * 8 - __builtin_clz((_mask)) - 1)
+
+/* DA9063 and DA9063L regulator IDs */
+enum {
+	/* BUCKs */
+	DA9063_ID_BCORE1,
+	DA9063_ID_BCORE2,
+	DA9063_ID_BPRO,
+	DA9063_ID_BMEM,
+	DA9063_ID_BIO,
+	DA9063_ID_BPERI,
+
+	/* BCORE1 and BCORE2 in merged mode */
+	DA9063_ID_BCORES_MERGED,
+	/* BMEM and BIO in merged mode */
+	DA9063_ID_BMEM_BIO_MERGED,
+	/* When two BUCKs are merged, they cannot be reused separately */
+
+	/* LDOs on both DA9063 and DA9063L */
+	DA9063_ID_LDO3,
+	DA9063_ID_LDO7,
+	DA9063_ID_LDO8,
+	DA9063_ID_LDO9,
+	DA9063_ID_LDO11,
+
+	/* DA9063-only LDOs */
+	DA9063_ID_LDO1,
+	DA9063_ID_LDO2,
+	DA9063_ID_LDO4,
+	DA9063_ID_LDO5,
+	DA9063_ID_LDO6,
+	DA9063_ID_LDO10,
+};
+
+/* Old regulator platform data */
+struct da9063_regulator_data {
+	int				id;
+	struct regulator_init_data	*initdata;
+};
+
+struct da9063_regulators_pdata {
+	unsigned			n_regulators;
+	struct da9063_regulator_data	*regulator_data;
+};
 
 /* Regulator capabilities and registers description */
 struct da9063_regulator_info {
@@ -183,7 +225,7 @@ static unsigned da9063_buck_get_mode(struct regulator_dev *rdev)
 {
 	struct da9063_regulator *regl = rdev_get_drvdata(rdev);
 	struct regmap_field *field;
-	unsigned int val, mode = 0;
+	unsigned int val;
 	int ret;
 
 	ret = regmap_field_read(regl->mode, &val);
@@ -193,7 +235,6 @@ static unsigned da9063_buck_get_mode(struct regulator_dev *rdev)
 	switch (val) {
 	default:
 	case BUCK_MODE_MANUAL:
-		mode = REGULATOR_MODE_FAST | REGULATOR_MODE_STANDBY;
 		/* Sleep flag bit decides the mode */
 		break;
 	case BUCK_MODE_SLEEP:
@@ -220,11 +261,9 @@ static unsigned da9063_buck_get_mode(struct regulator_dev *rdev)
 		return 0;
 
 	if (val)
-		mode &= REGULATOR_MODE_STANDBY;
+		return REGULATOR_MODE_STANDBY;
 	else
-		mode &= REGULATOR_MODE_NORMAL | REGULATOR_MODE_FAST;
-
-	return mode;
+		return REGULATOR_MODE_FAST;
 }
 
 /*
@@ -592,7 +631,6 @@ static const struct regulator_init_data *da9063_get_regulator_initdata(
 	return NULL;
 }
 
-#ifdef CONFIG_OF
 static struct of_regulator_match da9063_matches[] = {
 	[DA9063_ID_BCORE1]           = { .name = "bcore1"           },
 	[DA9063_ID_BCORE2]           = { .name = "bcore2"           },
@@ -670,20 +708,10 @@ static struct da9063_regulators_pdata *da9063_parse_regulators_dt(
 	*da9063_reg_matches = da9063_matches;
 	return pdata;
 }
-#else
-static struct da9063_regulators_pdata *da9063_parse_regulators_dt(
-		struct platform_device *pdev,
-		struct of_regulator_match **da9063_reg_matches)
-{
-	*da9063_reg_matches = NULL;
-	return ERR_PTR(-ENODEV);
-}
-#endif
 
 static int da9063_regulator_probe(struct platform_device *pdev)
 {
 	struct da9063 *da9063 = dev_get_drvdata(pdev->dev.parent);
-	struct da9063_pdata *da9063_pdata = dev_get_platdata(da9063->dev);
 	struct of_regulator_match *da9063_reg_matches = NULL;
 	struct da9063_regulators_pdata *regl_pdata;
 	const struct da9063_dev_model *model;
@@ -693,11 +721,7 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 	bool bcores_merged, bmem_bio_merged;
 	int id, irq, n, n_regulators, ret, val;
 
-	regl_pdata = da9063_pdata ? da9063_pdata->regulators_pdata : NULL;
-
-	if (!regl_pdata)
-		regl_pdata = da9063_parse_regulators_dt(pdev,
-							&da9063_reg_matches);
+	regl_pdata = da9063_parse_regulators_dt(pdev, &da9063_reg_matches);
 
 	if (IS_ERR(regl_pdata) || regl_pdata->n_regulators == 0) {
 		dev_err(&pdev->dev,
@@ -836,10 +860,8 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 
 	/* LDOs overcurrent event support */
 	irq = platform_get_irq_byname(pdev, "LDO_LIM");
-	if (irq < 0) {
-		dev_err(&pdev->dev, "Failed to get IRQ.\n");
+	if (irq < 0)
 		return irq;
-	}
 
 	ret = devm_request_threaded_irq(&pdev->dev, irq,
 				NULL, da9063_ldo_lim_event,

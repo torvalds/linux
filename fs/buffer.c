@@ -47,6 +47,9 @@
 #include <linux/pagevec.h>
 #include <linux/sched/mm.h>
 #include <trace/events/block.h>
+#include <linux/fscrypt.h>
+
+#include "internal.h"
 
 static int fsync_buffers_list(spinlock_t *lock, struct list_head *list);
 static int submit_bh_wbc(int op, int op_flags, struct buffer_head *bh,
@@ -246,10 +249,6 @@ out:
 	return ret;
 }
 
-/*
- * I/O completion handler for block_read_full_page() - pages
- * which come unlocked at the end of I/O.
- */
 static void end_buffer_async_read(struct buffer_head *bh, int uptodate)
 {
 	unsigned long flags;
@@ -305,6 +304,47 @@ still_busy:
 	bit_spin_unlock(BH_Uptodate_Lock, &first->b_state);
 	local_irq_restore(flags);
 	return;
+}
+
+struct decrypt_bh_ctx {
+	struct work_struct work;
+	struct buffer_head *bh;
+};
+
+static void decrypt_bh(struct work_struct *work)
+{
+	struct decrypt_bh_ctx *ctx =
+		container_of(work, struct decrypt_bh_ctx, work);
+	struct buffer_head *bh = ctx->bh;
+	int err;
+
+	err = fscrypt_decrypt_pagecache_blocks(bh->b_page, bh->b_size,
+					       bh_offset(bh));
+	end_buffer_async_read(bh, err == 0);
+	kfree(ctx);
+}
+
+/*
+ * I/O completion handler for block_read_full_page() - pages
+ * which come unlocked at the end of I/O.
+ */
+static void end_buffer_async_read_io(struct buffer_head *bh, int uptodate)
+{
+	/* Decrypt if needed */
+	if (uptodate && IS_ENABLED(CONFIG_FS_ENCRYPTION) &&
+	    IS_ENCRYPTED(bh->b_page->mapping->host) &&
+	    S_ISREG(bh->b_page->mapping->host->i_mode)) {
+		struct decrypt_bh_ctx *ctx = kmalloc(sizeof(*ctx), GFP_ATOMIC);
+
+		if (ctx) {
+			INIT_WORK(&ctx->work, decrypt_bh);
+			ctx->bh = bh;
+			fscrypt_enqueue_decrypt_work(&ctx->work);
+			return;
+		}
+		uptodate = 0;
+	}
+	end_buffer_async_read(bh, uptodate);
 }
 
 /*
@@ -379,7 +419,7 @@ EXPORT_SYMBOL(end_buffer_async_write);
  */
 static void mark_buffer_async_read(struct buffer_head *bh)
 {
-	bh->b_end_io = end_buffer_async_read;
+	bh->b_end_io = end_buffer_async_read_io;
 	set_buffer_async_read(bh);
 }
 
@@ -1385,10 +1425,10 @@ static bool has_bh_in_lru(int cpu, void *dummy)
 	
 	for (i = 0; i < BH_LRU_SIZE; i++) {
 		if (b->bhs[i])
-			return 1;
+			return true;
 	}
 
-	return 0;
+	return false;
 }
 
 void invalidate_bh_lrus(void)
@@ -2086,38 +2126,6 @@ int block_write_begin(struct address_space *mapping, loff_t pos, unsigned len,
 }
 EXPORT_SYMBOL(block_write_begin);
 
-void __generic_write_end(struct inode *inode, loff_t pos, unsigned copied,
-		struct page *page)
-{
-	loff_t old_size = inode->i_size;
-	bool i_size_changed = false;
-
-	/*
-	 * No need to use i_size_read() here, the i_size cannot change under us
-	 * because we hold i_rwsem.
-	 *
-	 * But it's important to update i_size while still holding page lock:
-	 * page writeout could otherwise come in and zero beyond i_size.
-	 */
-	if (pos + copied > inode->i_size) {
-		i_size_write(inode, pos + copied);
-		i_size_changed = true;
-	}
-
-	unlock_page(page);
-
-	if (old_size < pos)
-		pagecache_isize_extended(inode, old_size, pos);
-	/*
-	 * Don't mark the inode dirty under page lock. First, it unnecessarily
-	 * makes the holding time of page lock longer. Second, it forces lock
-	 * ordering of page lock and transaction start for journaling
-	 * filesystems.
-	 */
-	if (i_size_changed)
-		mark_inode_dirty(inode);
-}
-
 int block_write_end(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned copied,
 			struct page *page, void *fsdata)
@@ -2158,9 +2166,37 @@ int generic_write_end(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned copied,
 			struct page *page, void *fsdata)
 {
+	struct inode *inode = mapping->host;
+	loff_t old_size = inode->i_size;
+	bool i_size_changed = false;
+
 	copied = block_write_end(file, mapping, pos, len, copied, page, fsdata);
-	__generic_write_end(mapping->host, pos, copied, page);
+
+	/*
+	 * No need to use i_size_read() here, the i_size cannot change under us
+	 * because we hold i_rwsem.
+	 *
+	 * But it's important to update i_size while still holding page lock:
+	 * page writeout could otherwise come in and zero beyond i_size.
+	 */
+	if (pos + copied > inode->i_size) {
+		i_size_write(inode, pos + copied);
+		i_size_changed = true;
+	}
+
+	unlock_page(page);
 	put_page(page);
+
+	if (old_size < pos)
+		pagecache_isize_extended(inode, old_size, pos);
+	/*
+	 * Don't mark the inode dirty under page lock. First, it unnecessarily
+	 * makes the holding time of page lock longer. Second, it forces lock
+	 * ordering of page lock and transaction start for journaling
+	 * filesystems.
+	 */
+	if (i_size_changed)
+		mark_inode_dirty(inode);
 	return copied;
 }
 EXPORT_SYMBOL(generic_write_end);
@@ -2995,11 +3031,9 @@ static void end_bio_bh_io_sync(struct bio *bio)
  * errors, this only handles the "we need to be able to
  * do IO at the final sector" case.
  */
-void guard_bio_eod(int op, struct bio *bio)
+void guard_bio_eod(struct bio *bio)
 {
 	sector_t maxsector;
-	struct bio_vec *bvec = bio_last_bvec_all(bio);
-	unsigned truncated_bytes;
 	struct hd_struct *part;
 
 	rcu_read_lock();
@@ -3025,28 +3059,7 @@ void guard_bio_eod(int op, struct bio *bio)
 	if (likely((bio->bi_iter.bi_size >> 9) <= maxsector))
 		return;
 
-	/* Uhhuh. We've got a bio that straddles the device size! */
-	truncated_bytes = bio->bi_iter.bi_size - (maxsector << 9);
-
-	/*
-	 * The bio contains more than one segment which spans EOD, just return
-	 * and let IO layer turn it into an EIO
-	 */
-	if (truncated_bytes > bvec->bv_len)
-		return;
-
-	/* Truncate the bio.. */
-	bio->bi_iter.bi_size -= truncated_bytes;
-	bvec->bv_len -= truncated_bytes;
-
-	/* ..and clear the end of the buffer for reads */
-	if (op == REQ_OP_READ) {
-		struct bio_vec bv;
-
-		mp_bvec_last_segment(bvec, &bv);
-		zero_user(bv.bv_page, bv.bv_offset + bv.bv_len,
-				truncated_bytes);
-	}
+	bio_truncate(bio, maxsector << 9);
 }
 
 static int submit_bh_wbc(int op, int op_flags, struct buffer_head *bh,
@@ -3082,18 +3095,18 @@ static int submit_bh_wbc(int op, int op_flags, struct buffer_head *bh,
 	bio->bi_end_io = end_bio_bh_io_sync;
 	bio->bi_private = bh;
 
-	/* Take care of bh's that straddle the end of the device */
-	guard_bio_eod(op, bio);
-
 	if (buffer_meta(bh))
 		op_flags |= REQ_META;
 	if (buffer_prio(bh))
 		op_flags |= REQ_PRIO;
 	bio_set_op_attrs(bio, op, op_flags);
 
+	/* Take care of bh's that straddle the end of the device */
+	guard_bio_eod(bio);
+
 	if (wbc) {
 		wbc_init_bio(wbc, bio);
-		wbc_account_io(wbc, bh->b_page, bh->b_size);
+		wbc_account_cgroup_owner(wbc, bh->b_page, bh->b_size);
 	}
 
 	submit_bio(bio);

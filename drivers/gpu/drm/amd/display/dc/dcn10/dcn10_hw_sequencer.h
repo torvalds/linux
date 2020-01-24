@@ -71,6 +71,8 @@ void dcn10_get_hdr_visual_confirm_color(
 		struct pipe_ctx *pipe_ctx,
 		struct tg_color *color);
 
+bool dcn10_did_underflow_occur(struct dc *dc, struct pipe_ctx *pipe_ctx);
+
 void update_dchubp_dpp(
 	struct dc *dc,
 	struct pipe_ctx *pipe_ctx,
@@ -83,6 +85,8 @@ struct pipe_ctx *find_top_pipe_for_stream(
 
 int get_vupdate_offset_from_vsync(struct pipe_ctx *pipe_ctx);
 
+void dcn10_build_prescale_params(struct  dc_bias_and_scale *bias_and_scale,
+		const struct dc_plane_state *plane_state);
 void lock_all_pipes(struct dc *dc,
 	struct dc_state *context,
 	bool lock);

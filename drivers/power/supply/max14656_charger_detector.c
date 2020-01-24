@@ -247,7 +247,7 @@ static void stop_irq_work(void *data)
 static int max14656_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
 {
-	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
+	struct i2c_adapter *adapter = client->adapter;
 	struct device *dev = &client->dev;
 	struct power_supply_config psy_cfg = {};
 	struct max14656_chip *chip;

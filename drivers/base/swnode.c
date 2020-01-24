@@ -11,25 +11,25 @@
 #include <linux/property.h>
 #include <linux/slab.h>
 
-struct software_node {
+struct swnode {
 	int id;
 	struct kobject kobj;
 	struct fwnode_handle fwnode;
+	const struct software_node *node;
 
 	/* hierarchy */
 	struct ida child_ids;
 	struct list_head entry;
 	struct list_head children;
-	struct software_node *parent;
+	struct swnode *parent;
 
-	/* properties */
-	const struct property_entry *properties;
+	unsigned int allocated:1;
 };
 
 static DEFINE_IDA(swnode_root_ids);
 static struct kset *swnode_kset;
 
-#define kobj_to_swnode(_kobj_) container_of(_kobj_, struct software_node, kobj)
+#define kobj_to_swnode(_kobj_) container_of(_kobj_, struct swnode, kobj)
 
 static const struct fwnode_operations software_node_ops;
 
@@ -37,16 +37,55 @@ bool is_software_node(const struct fwnode_handle *fwnode)
 {
 	return !IS_ERR_OR_NULL(fwnode) && fwnode->ops == &software_node_ops;
 }
+EXPORT_SYMBOL_GPL(is_software_node);
 
-#define to_software_node(__fwnode)					\
+#define to_swnode(__fwnode)						\
 	({								\
-		typeof(__fwnode) __to_software_node_fwnode = __fwnode;	\
+		typeof(__fwnode) __to_swnode_fwnode = __fwnode;		\
 									\
-		is_software_node(__to_software_node_fwnode) ?		\
-			container_of(__to_software_node_fwnode,		\
-				     struct software_node, fwnode) :	\
-			NULL;						\
+		is_software_node(__to_swnode_fwnode) ?			\
+			container_of(__to_swnode_fwnode,		\
+				     struct swnode, fwnode) : NULL;	\
 	})
+
+static struct swnode *
+software_node_to_swnode(const struct software_node *node)
+{
+	struct swnode *swnode = NULL;
+	struct kobject *k;
+
+	if (!node)
+		return NULL;
+
+	spin_lock(&swnode_kset->list_lock);
+
+	list_for_each_entry(k, &swnode_kset->list, entry) {
+		swnode = kobj_to_swnode(k);
+		if (swnode->node == node)
+			break;
+		swnode = NULL;
+	}
+
+	spin_unlock(&swnode_kset->list_lock);
+
+	return swnode;
+}
+
+const struct software_node *to_software_node(const struct fwnode_handle *fwnode)
+{
+	const struct swnode *swnode = to_swnode(fwnode);
+
+	return swnode ? swnode->node : NULL;
+}
+EXPORT_SYMBOL_GPL(to_software_node);
+
+struct fwnode_handle *software_node_fwnode(const struct software_node *node)
+{
+	struct swnode *swnode = software_node_to_swnode(node);
+
+	return swnode ? &swnode->fwnode : NULL;
+}
+EXPORT_SYMBOL_GPL(software_node_fwnode);
 
 /* -------------------------------------------------------------------------- */
 /* property_entry processing */
@@ -64,71 +103,15 @@ property_entry_get(const struct property_entry *prop, const char *name)
 	return NULL;
 }
 
-static void
-property_set_pointer(struct property_entry *prop, const void *pointer)
-{
-	switch (prop->type) {
-	case DEV_PROP_U8:
-		if (prop->is_array)
-			prop->pointer.u8_data = pointer;
-		else
-			prop->value.u8_data = *((u8 *)pointer);
-		break;
-	case DEV_PROP_U16:
-		if (prop->is_array)
-			prop->pointer.u16_data = pointer;
-		else
-			prop->value.u16_data = *((u16 *)pointer);
-		break;
-	case DEV_PROP_U32:
-		if (prop->is_array)
-			prop->pointer.u32_data = pointer;
-		else
-			prop->value.u32_data = *((u32 *)pointer);
-		break;
-	case DEV_PROP_U64:
-		if (prop->is_array)
-			prop->pointer.u64_data = pointer;
-		else
-			prop->value.u64_data = *((u64 *)pointer);
-		break;
-	case DEV_PROP_STRING:
-		if (prop->is_array)
-			prop->pointer.str = pointer;
-		else
-			prop->value.str = pointer;
-		break;
-	default:
-		break;
-	}
-}
-
 static const void *property_get_pointer(const struct property_entry *prop)
 {
-	switch (prop->type) {
-	case DEV_PROP_U8:
-		if (prop->is_array)
-			return prop->pointer.u8_data;
-		return &prop->value.u8_data;
-	case DEV_PROP_U16:
-		if (prop->is_array)
-			return prop->pointer.u16_data;
-		return &prop->value.u16_data;
-	case DEV_PROP_U32:
-		if (prop->is_array)
-			return prop->pointer.u32_data;
-		return &prop->value.u32_data;
-	case DEV_PROP_U64:
-		if (prop->is_array)
-			return prop->pointer.u64_data;
-		return &prop->value.u64_data;
-	case DEV_PROP_STRING:
-		if (prop->is_array)
-			return prop->pointer.str;
-		return &prop->value.str;
-	default:
+	if (!prop->length)
 		return NULL;
-	}
+
+	if (prop->is_array)
+		return prop->pointer;
+
+	return &prop->value;
 }
 
 static const void *property_entry_find(const struct property_entry *props,
@@ -146,66 +129,6 @@ static const void *property_entry_find(const struct property_entry *props,
 	if (length > prop->length)
 		return ERR_PTR(-EOVERFLOW);
 	return pointer;
-}
-
-static int property_entry_read_u8_array(const struct property_entry *props,
-					const char *propname,
-					u8 *values, size_t nval)
-{
-	const void *pointer;
-	size_t length = nval * sizeof(*values);
-
-	pointer = property_entry_find(props, propname, length);
-	if (IS_ERR(pointer))
-		return PTR_ERR(pointer);
-
-	memcpy(values, pointer, length);
-	return 0;
-}
-
-static int property_entry_read_u16_array(const struct property_entry *props,
-					 const char *propname,
-					 u16 *values, size_t nval)
-{
-	const void *pointer;
-	size_t length = nval * sizeof(*values);
-
-	pointer = property_entry_find(props, propname, length);
-	if (IS_ERR(pointer))
-		return PTR_ERR(pointer);
-
-	memcpy(values, pointer, length);
-	return 0;
-}
-
-static int property_entry_read_u32_array(const struct property_entry *props,
-					 const char *propname,
-					 u32 *values, size_t nval)
-{
-	const void *pointer;
-	size_t length = nval * sizeof(*values);
-
-	pointer = property_entry_find(props, propname, length);
-	if (IS_ERR(pointer))
-		return PTR_ERR(pointer);
-
-	memcpy(values, pointer, length);
-	return 0;
-}
-
-static int property_entry_read_u64_array(const struct property_entry *props,
-					 const char *propname,
-					 u64 *values, size_t nval)
-{
-	const void *pointer;
-	size_t length = nval * sizeof(*values);
-
-	pointer = property_entry_find(props, propname, length);
-	if (IS_ERR(pointer))
-		return PTR_ERR(pointer);
-
-	memcpy(values, pointer, length);
-	return 0;
 }
 
 static int
@@ -226,49 +149,45 @@ static int property_entry_read_int_array(const struct property_entry *props,
 					 unsigned int elem_size, void *val,
 					 size_t nval)
 {
+	const void *pointer;
+	size_t length;
+
 	if (!val)
 		return property_entry_count_elems_of_size(props, name,
 							  elem_size);
-	switch (elem_size) {
-	case sizeof(u8):
-		return property_entry_read_u8_array(props, name, val, nval);
-	case sizeof(u16):
-		return property_entry_read_u16_array(props, name, val, nval);
-	case sizeof(u32):
-		return property_entry_read_u32_array(props, name, val, nval);
-	case sizeof(u64):
-		return property_entry_read_u64_array(props, name, val, nval);
-	}
 
-	return -ENXIO;
+	if (!is_power_of_2(elem_size) || elem_size > sizeof(u64))
+		return -ENXIO;
+
+	length = nval * elem_size;
+
+	pointer = property_entry_find(props, name, length);
+	if (IS_ERR(pointer))
+		return PTR_ERR(pointer);
+
+	memcpy(val, pointer, length);
+	return 0;
 }
 
 static int property_entry_read_string_array(const struct property_entry *props,
 					    const char *propname,
 					    const char **strings, size_t nval)
 {
-	const struct property_entry *prop;
 	const void *pointer;
-	size_t array_len, length;
+	size_t length;
+	int array_len;
 
 	/* Find out the array length. */
-	prop = property_entry_get(props, propname);
-	if (!prop)
-		return -EINVAL;
-
-	if (prop->is_array)
-		/* Find the length of an array. */
-		array_len = property_entry_count_elems_of_size(props, propname,
-							  sizeof(const char *));
-	else
-		/* The array length for a non-array string property is 1. */
-		array_len = 1;
+	array_len = property_entry_count_elems_of_size(props, propname,
+						       sizeof(const char *));
+	if (array_len < 0)
+		return array_len;
 
 	/* Return how many there are if strings is NULL. */
 	if (!strings)
 		return array_len;
 
-	array_len = min(nval, array_len);
+	array_len = min_t(size_t, nval, array_len);
 	length = array_len * sizeof(*strings);
 
 	pointer = property_entry_find(props, propname, length);
@@ -283,13 +202,15 @@ static int property_entry_read_string_array(const struct property_entry *props,
 static void property_entry_free_data(const struct property_entry *p)
 {
 	const void *pointer = property_get_pointer(p);
+	const char * const *src_str;
 	size_t i, nval;
 
 	if (p->is_array) {
-		if (p->type == DEV_PROP_STRING && p->pointer.str) {
+		if (p->type == DEV_PROP_STRING && p->pointer) {
+			src_str = p->pointer;
 			nval = p->length / sizeof(const char *);
 			for (i = 0; i < nval; i++)
-				kfree(p->pointer.str[i]);
+				kfree(src_str[i]);
 		}
 		kfree(pointer);
 	} else if (p->type == DEV_PROP_STRING) {
@@ -298,29 +219,29 @@ static void property_entry_free_data(const struct property_entry *p)
 	kfree(p->name);
 }
 
-static int property_copy_string_array(struct property_entry *dst,
-				      const struct property_entry *src)
+static const char * const *
+property_copy_string_array(const struct property_entry *src)
 {
 	const char **d;
+	const char * const *src_str = src->pointer;
 	size_t nval = src->length / sizeof(*d);
 	int i;
 
 	d = kcalloc(nval, sizeof(*d), GFP_KERNEL);
 	if (!d)
-		return -ENOMEM;
+		return NULL;
 
 	for (i = 0; i < nval; i++) {
-		d[i] = kstrdup(src->pointer.str[i], GFP_KERNEL);
-		if (!d[i] && src->pointer.str[i]) {
+		d[i] = kstrdup(src_str[i], GFP_KERNEL);
+		if (!d[i] && src_str[i]) {
 			while (--i >= 0)
 				kfree(d[i]);
 			kfree(d);
-			return -ENOMEM;
+			return NULL;
 		}
 	}
 
-	dst->pointer.str = d;
-	return 0;
+	return d;
 }
 
 static int property_entry_copy_data(struct property_entry *dst,
@@ -328,36 +249,35 @@ static int property_entry_copy_data(struct property_entry *dst,
 {
 	const void *pointer = property_get_pointer(src);
 	const void *new;
-	int error;
 
 	if (src->is_array) {
 		if (!src->length)
 			return -ENODATA;
 
 		if (src->type == DEV_PROP_STRING) {
-			error = property_copy_string_array(dst, src);
-			if (error)
-				return error;
-			new = dst->pointer.str;
+			new = property_copy_string_array(src);
+			if (!new)
+				return -ENOMEM;
 		} else {
 			new = kmemdup(pointer, src->length, GFP_KERNEL);
 			if (!new)
 				return -ENOMEM;
 		}
+
+		dst->is_array = true;
+		dst->pointer = new;
 	} else if (src->type == DEV_PROP_STRING) {
 		new = kstrdup(src->value.str, GFP_KERNEL);
 		if (!new && src->value.str)
 			return -ENOMEM;
+
+		dst->value.str = new;
 	} else {
-		new = pointer;
+		dst->value = src->value;
 	}
 
 	dst->length = src->length;
-	dst->is_array = src->is_array;
 	dst->type = src->type;
-
-	property_set_pointer(dst, new);
-
 	dst->name = kstrdup(src->name, GFP_KERNEL);
 	if (!dst->name)
 		goto out_free_data;
@@ -382,6 +302,9 @@ property_entries_dup(const struct property_entry *properties)
 	struct property_entry *p;
 	int i, n = 0;
 	int ret;
+
+	if (!properties)
+		return NULL;
 
 	while (properties[n].name)
 		n++;
@@ -430,7 +353,7 @@ EXPORT_SYMBOL_GPL(property_entries_free);
 
 static struct fwnode_handle *software_node_get(struct fwnode_handle *fwnode)
 {
-	struct software_node *swnode = to_software_node(fwnode);
+	struct swnode *swnode = to_swnode(fwnode);
 
 	kobject_get(&swnode->kobj);
 
@@ -439,7 +362,7 @@ static struct fwnode_handle *software_node_get(struct fwnode_handle *fwnode)
 
 static void software_node_put(struct fwnode_handle *fwnode)
 {
-	struct software_node *swnode = to_software_node(fwnode);
+	struct swnode *swnode = to_swnode(fwnode);
 
 	kobject_put(&swnode->kobj);
 }
@@ -447,8 +370,9 @@ static void software_node_put(struct fwnode_handle *fwnode)
 static bool software_node_property_present(const struct fwnode_handle *fwnode,
 					   const char *propname)
 {
-	return !!property_entry_get(to_software_node(fwnode)->properties,
-				    propname);
+	struct swnode *swnode = to_swnode(fwnode);
+
+	return !!property_entry_get(swnode->node->properties, propname);
 }
 
 static int software_node_read_int_array(const struct fwnode_handle *fwnode,
@@ -456,9 +380,9 @@ static int software_node_read_int_array(const struct fwnode_handle *fwnode,
 					unsigned int elem_size, void *val,
 					size_t nval)
 {
-	struct software_node *swnode = to_software_node(fwnode);
+	struct swnode *swnode = to_swnode(fwnode);
 
-	return property_entry_read_int_array(swnode->properties, propname,
+	return property_entry_read_int_array(swnode->node->properties, propname,
 					     elem_size, val, nval);
 }
 
@@ -466,27 +390,61 @@ static int software_node_read_string_array(const struct fwnode_handle *fwnode,
 					   const char *propname,
 					   const char **val, size_t nval)
 {
-	struct software_node *swnode = to_software_node(fwnode);
+	struct swnode *swnode = to_swnode(fwnode);
 
-	return property_entry_read_string_array(swnode->properties, propname,
-						val, nval);
+	return property_entry_read_string_array(swnode->node->properties,
+						propname, val, nval);
+}
+
+static const char *
+software_node_get_name(const struct fwnode_handle *fwnode)
+{
+	const struct swnode *swnode = to_swnode(fwnode);
+
+	if (!swnode)
+		return "(null)";
+
+	return kobject_name(&swnode->kobj);
+}
+
+static const char *
+software_node_get_name_prefix(const struct fwnode_handle *fwnode)
+{
+	struct fwnode_handle *parent;
+	const char *prefix;
+
+	parent = fwnode_get_parent(fwnode);
+	if (!parent)
+		return "";
+
+	/* Figure out the prefix from the parents. */
+	while (is_software_node(parent))
+		parent = fwnode_get_next_parent(parent);
+
+	prefix = fwnode_get_name_prefix(parent);
+	fwnode_handle_put(parent);
+
+	/* Guess something if prefix was NULL. */
+	return prefix ?: "/";
 }
 
 static struct fwnode_handle *
 software_node_get_parent(const struct fwnode_handle *fwnode)
 {
-	struct software_node *swnode = to_software_node(fwnode);
+	struct swnode *swnode = to_swnode(fwnode);
 
-	return swnode ? (swnode->parent ? &swnode->parent->fwnode : NULL) :
-			NULL;
+	if (!swnode || !swnode->parent)
+		return NULL;
+
+	return fwnode_handle_get(&swnode->parent->fwnode);
 }
 
 static struct fwnode_handle *
 software_node_get_next_child(const struct fwnode_handle *fwnode,
 			     struct fwnode_handle *child)
 {
-	struct software_node *p = to_software_node(fwnode);
-	struct software_node *c = to_software_node(child);
+	struct swnode *p = to_swnode(fwnode);
+	struct swnode *c = to_swnode(child);
 
 	if (!p || list_empty(&p->children) ||
 	    (c && list_is_last(&c->entry, &p->children)))
@@ -495,7 +453,7 @@ software_node_get_next_child(const struct fwnode_handle *fwnode,
 	if (c)
 		c = list_next_entry(c, entry);
 	else
-		c = list_first_entry(&p->children, struct software_node, entry);
+		c = list_first_entry(&p->children, struct swnode, entry);
 	return &c->fwnode;
 }
 
@@ -503,23 +461,65 @@ static struct fwnode_handle *
 software_node_get_named_child_node(const struct fwnode_handle *fwnode,
 				   const char *childname)
 {
-	struct software_node *swnode = to_software_node(fwnode);
-	const struct property_entry *prop;
-	struct software_node *child;
+	struct swnode *swnode = to_swnode(fwnode);
+	struct swnode *child;
 
 	if (!swnode || list_empty(&swnode->children))
 		return NULL;
 
 	list_for_each_entry(child, &swnode->children, entry) {
-		prop = property_entry_get(child->properties, "name");
-		if (!prop)
-			continue;
-		if (!strcmp(childname, prop->value.str)) {
+		if (!strcmp(childname, kobject_name(&child->kobj))) {
 			kobject_get(&child->kobj);
 			return &child->fwnode;
 		}
 	}
 	return NULL;
+}
+
+static int
+software_node_get_reference_args(const struct fwnode_handle *fwnode,
+				 const char *propname, const char *nargs_prop,
+				 unsigned int nargs, unsigned int index,
+				 struct fwnode_reference_args *args)
+{
+	struct swnode *swnode = to_swnode(fwnode);
+	const struct software_node_reference *ref;
+	const struct property_entry *prop;
+	struct fwnode_handle *refnode;
+	int i;
+
+	if (!swnode || !swnode->node->references)
+		return -ENOENT;
+
+	for (ref = swnode->node->references; ref->name; ref++)
+		if (!strcmp(ref->name, propname))
+			break;
+
+	if (!ref->name || index > (ref->nrefs - 1))
+		return -ENOENT;
+
+	refnode = software_node_fwnode(ref->refs[index].node);
+	if (!refnode)
+		return -ENOENT;
+
+	if (nargs_prop) {
+		prop = property_entry_get(swnode->node->properties, nargs_prop);
+		if (!prop)
+			return -EINVAL;
+
+		nargs = prop->value.u32_data;
+	}
+
+	if (nargs > NR_FWNODE_REFERENCE_ARGS)
+		return -EINVAL;
+
+	args->fwnode = software_node_get(refnode);
+	args->nargs = nargs;
+
+	for (i = 0; i < nargs; i++)
+		args->args[i] = ref->refs[index].args[i];
+
+	return 0;
 }
 
 static const struct fwnode_operations software_node_ops = {
@@ -528,15 +528,55 @@ static const struct fwnode_operations software_node_ops = {
 	.property_present = software_node_property_present,
 	.property_read_int_array = software_node_read_int_array,
 	.property_read_string_array = software_node_read_string_array,
+	.get_name = software_node_get_name,
+	.get_name_prefix = software_node_get_name_prefix,
 	.get_parent = software_node_get_parent,
 	.get_next_child_node = software_node_get_next_child,
 	.get_named_child_node = software_node_get_named_child_node,
+	.get_reference_args = software_node_get_reference_args
 };
 
 /* -------------------------------------------------------------------------- */
 
+/**
+ * software_node_find_by_name - Find software node by name
+ * @parent: Parent of the software node
+ * @name: Name of the software node
+ *
+ * The function will find a node that is child of @parent and that is named
+ * @name. If no node is found, the function returns NULL.
+ *
+ * NOTE: you will need to drop the reference with fwnode_handle_put() after use.
+ */
+const struct software_node *
+software_node_find_by_name(const struct software_node *parent, const char *name)
+{
+	struct swnode *swnode = NULL;
+	struct kobject *k;
+
+	if (!name)
+		return NULL;
+
+	spin_lock(&swnode_kset->list_lock);
+
+	list_for_each_entry(k, &swnode_kset->list, entry) {
+		swnode = kobj_to_swnode(k);
+		if (parent == swnode->node->parent && swnode->node->name &&
+		    !strcmp(name, swnode->node->name)) {
+			kobject_get(&swnode->kobj);
+			break;
+		}
+		swnode = NULL;
+	}
+
+	spin_unlock(&swnode_kset->list_lock);
+
+	return swnode ? swnode->node : NULL;
+}
+EXPORT_SYMBOL_GPL(software_node_find_by_name);
+
 static int
-software_node_register_properties(struct software_node *swnode,
+software_node_register_properties(struct software_node *node,
 				  const struct property_entry *properties)
 {
 	struct property_entry *props;
@@ -545,24 +585,20 @@ software_node_register_properties(struct software_node *swnode,
 	if (IS_ERR(props))
 		return PTR_ERR(props);
 
-	swnode->properties = props;
+	node->properties = props;
 
 	return 0;
 }
 
 static void software_node_release(struct kobject *kobj)
 {
-	struct software_node *swnode = kobj_to_swnode(kobj);
+	struct swnode *swnode = kobj_to_swnode(kobj);
 
-	if (swnode->parent) {
-		ida_simple_remove(&swnode->parent->child_ids, swnode->id);
-		list_del(&swnode->entry);
-	} else {
-		ida_simple_remove(&swnode_root_ids, swnode->id);
+	if (swnode->allocated) {
+		property_entries_free(swnode->node->properties);
+		kfree(swnode->node);
 	}
-
 	ida_destroy(&swnode->child_ids);
-	property_entries_free(swnode->properties);
 	kfree(swnode);
 }
 
@@ -571,12 +607,125 @@ static struct kobj_type software_node_type = {
 	.sysfs_ops = &kobj_sysfs_ops,
 };
 
+static struct fwnode_handle *
+swnode_register(const struct software_node *node, struct swnode *parent,
+		unsigned int allocated)
+{
+	struct swnode *swnode;
+	int ret;
+
+	swnode = kzalloc(sizeof(*swnode), GFP_KERNEL);
+	if (!swnode) {
+		ret = -ENOMEM;
+		goto out_err;
+	}
+
+	ret = ida_simple_get(parent ? &parent->child_ids : &swnode_root_ids,
+			     0, 0, GFP_KERNEL);
+	if (ret < 0) {
+		kfree(swnode);
+		goto out_err;
+	}
+
+	swnode->id = ret;
+	swnode->node = node;
+	swnode->parent = parent;
+	swnode->allocated = allocated;
+	swnode->kobj.kset = swnode_kset;
+	swnode->fwnode.ops = &software_node_ops;
+
+	ida_init(&swnode->child_ids);
+	INIT_LIST_HEAD(&swnode->entry);
+	INIT_LIST_HEAD(&swnode->children);
+
+	if (node->name)
+		ret = kobject_init_and_add(&swnode->kobj, &software_node_type,
+					   parent ? &parent->kobj : NULL,
+					   "%s", node->name);
+	else
+		ret = kobject_init_and_add(&swnode->kobj, &software_node_type,
+					   parent ? &parent->kobj : NULL,
+					   "node%d", swnode->id);
+	if (ret) {
+		kobject_put(&swnode->kobj);
+		return ERR_PTR(ret);
+	}
+
+	if (parent)
+		list_add_tail(&swnode->entry, &parent->children);
+
+	kobject_uevent(&swnode->kobj, KOBJ_ADD);
+	return &swnode->fwnode;
+
+out_err:
+	if (allocated)
+		property_entries_free(node->properties);
+	return ERR_PTR(ret);
+}
+
+/**
+ * software_node_register_nodes - Register an array of software nodes
+ * @nodes: Zero terminated array of software nodes to be registered
+ *
+ * Register multiple software nodes at once.
+ */
+int software_node_register_nodes(const struct software_node *nodes)
+{
+	int ret;
+	int i;
+
+	for (i = 0; nodes[i].name; i++) {
+		ret = software_node_register(&nodes[i]);
+		if (ret) {
+			software_node_unregister_nodes(nodes);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(software_node_register_nodes);
+
+/**
+ * software_node_unregister_nodes - Unregister an array of software nodes
+ * @nodes: Zero terminated array of software nodes to be unregistered
+ *
+ * Unregister multiple software nodes at once.
+ */
+void software_node_unregister_nodes(const struct software_node *nodes)
+{
+	struct swnode *swnode;
+	int i;
+
+	for (i = 0; nodes[i].name; i++) {
+		swnode = software_node_to_swnode(&nodes[i]);
+		if (swnode)
+			fwnode_remove_software_node(&swnode->fwnode);
+	}
+}
+EXPORT_SYMBOL_GPL(software_node_unregister_nodes);
+
+/**
+ * software_node_register - Register static software node
+ * @node: The software node to be registered
+ */
+int software_node_register(const struct software_node *node)
+{
+	struct swnode *parent = software_node_to_swnode(node->parent);
+
+	if (software_node_to_swnode(node))
+		return -EEXIST;
+
+	return PTR_ERR_OR_ZERO(swnode_register(node, parent, 0));
+}
+EXPORT_SYMBOL_GPL(software_node_register);
+
 struct fwnode_handle *
 fwnode_create_software_node(const struct property_entry *properties,
 			    const struct fwnode_handle *parent)
 {
-	struct software_node *p = NULL;
-	struct software_node *swnode;
+	struct software_node *node;
+	struct swnode *p = NULL;
 	int ret;
 
 	if (parent) {
@@ -584,56 +733,38 @@ fwnode_create_software_node(const struct property_entry *properties,
 			return ERR_CAST(parent);
 		if (!is_software_node(parent))
 			return ERR_PTR(-EINVAL);
-		p = to_software_node(parent);
+		p = to_swnode(parent);
 	}
 
-	swnode = kzalloc(sizeof(*swnode), GFP_KERNEL);
-	if (!swnode)
+	node = kzalloc(sizeof(*node), GFP_KERNEL);
+	if (!node)
 		return ERR_PTR(-ENOMEM);
 
-	ret = ida_simple_get(p ? &p->child_ids : &swnode_root_ids, 0, 0,
-			     GFP_KERNEL);
-	if (ret < 0) {
-		kfree(swnode);
-		return ERR_PTR(ret);
-	}
-
-	swnode->id = ret;
-	swnode->kobj.kset = swnode_kset;
-	swnode->fwnode.ops = &software_node_ops;
-
-	ida_init(&swnode->child_ids);
-	INIT_LIST_HEAD(&swnode->entry);
-	INIT_LIST_HEAD(&swnode->children);
-	swnode->parent = p;
-
-	if (p)
-		list_add_tail(&swnode->entry, &p->children);
-
-	ret = kobject_init_and_add(&swnode->kobj, &software_node_type,
-				   p ? &p->kobj : NULL, "node%d", swnode->id);
+	ret = software_node_register_properties(node, properties);
 	if (ret) {
-		kobject_put(&swnode->kobj);
+		kfree(node);
 		return ERR_PTR(ret);
 	}
 
-	ret = software_node_register_properties(swnode, properties);
-	if (ret) {
-		kobject_put(&swnode->kobj);
-		return ERR_PTR(ret);
-	}
+	node->parent = p ? p->node : NULL;
 
-	kobject_uevent(&swnode->kobj, KOBJ_ADD);
-	return &swnode->fwnode;
+	return swnode_register(node, p, 1);
 }
 EXPORT_SYMBOL_GPL(fwnode_create_software_node);
 
 void fwnode_remove_software_node(struct fwnode_handle *fwnode)
 {
-	struct software_node *swnode = to_software_node(fwnode);
+	struct swnode *swnode = to_swnode(fwnode);
 
 	if (!swnode)
 		return;
+
+	if (swnode->parent) {
+		ida_simple_remove(&swnode->parent->child_ids, swnode->id);
+		list_del(&swnode->entry);
+	} else {
+		ida_simple_remove(&swnode_root_ids, swnode->id);
+	}
 
 	kobject_put(&swnode->kobj);
 }
@@ -642,7 +773,7 @@ EXPORT_SYMBOL_GPL(fwnode_remove_software_node);
 int software_node_notify(struct device *dev, unsigned long action)
 {
 	struct fwnode_handle *fwnode = dev_fwnode(dev);
-	struct software_node *swnode;
+	struct swnode *swnode;
 	int ret;
 
 	if (!fwnode)
@@ -653,7 +784,7 @@ int software_node_notify(struct device *dev, unsigned long action)
 	if (!is_software_node(fwnode))
 		return 0;
 
-	swnode = to_software_node(fwnode);
+	swnode = to_swnode(fwnode);
 
 	switch (action) {
 	case KOBJ_ADD:

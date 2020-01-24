@@ -12,11 +12,11 @@ int qce_dma_request(struct device *dev, struct qce_dma_data *dma)
 {
 	int ret;
 
-	dma->txchan = dma_request_slave_channel_reason(dev, "tx");
+	dma->txchan = dma_request_chan(dev, "tx");
 	if (IS_ERR(dma->txchan))
 		return PTR_ERR(dma->txchan);
 
-	dma->rxchan = dma_request_slave_channel_reason(dev, "rx");
+	dma->rxchan = dma_request_chan(dev, "rx");
 	if (IS_ERR(dma->rxchan)) {
 		ret = PTR_ERR(dma->rxchan);
 		goto error_rx;

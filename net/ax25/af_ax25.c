@@ -855,6 +855,8 @@ static int ax25_create(struct net *net, struct socket *sock, int protocol,
 		break;
 
 	case SOCK_RAW:
+		if (!capable(CAP_NET_RAW))
+			return -EPERM;
 		break;
 	default:
 		return -ESOCKTNOSUPPORT;
@@ -1382,7 +1384,7 @@ static int ax25_accept(struct socket *sock, struct socket *newsock, int flags,
 
 	/* Now attach up the new socket */
 	kfree_skb(skb);
-	sk->sk_ack_backlog--;
+	sk_acceptq_removed(sk);
 	newsock->state = SS_CONNECTED;
 
 out:

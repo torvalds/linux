@@ -53,13 +53,12 @@ config COMMON_CLK_MAX9485
 	  This driver supports Maxim 9485 Programmable Audio Clock Generator
 
 config COMMON_CLK_RK808
-	tristate "Clock driver for RK805/RK808/RK818"
+	tristate "Clock driver for RK805/RK808/RK809/RK817/RK818"
 	depends on MFD_RK808
 	---help---
-	  This driver supports RK805, RK808 and RK818 crystal oscillator clock. These
-	  multi-function devices have two fixed-rate oscillators,
-	  clocked at 32KHz each. Clkout1 is always on, Clkout2 can off
-	  by control register.
+	  This driver supports RK805, RK809 and RK817, RK808 and RK818 crystal oscillator clock.
+	  These multi-function devices have two fixed-rate oscillators, clocked at 32KHz each.
+	  Clkout1 is always on, Clkout2 can off by control register.
 
 config COMMON_CLK_HI655X
 	tristate "Clock driver for Hi655x" if EXPERT
@@ -91,6 +90,17 @@ config COMMON_CLK_SCPI
 	  This driver uses SCPI Message Protocol to interact with the
 	  firmware providing all the clock controls.
 
+config COMMON_CLK_SI5341
+	tristate "Clock driver for SiLabs 5341 and 5340 A/B/C/D devices"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver supports Silicon Labs Si5341 and Si5340 programmable clock
+	  generators. Not all features of these chips are currently supported
+	  by the driver, in particular it only supports XTAL input. The chip can
+	  be pre-programmed to support other configurations and features not yet
+	  implemented in the driver.
+
 config COMMON_CLK_SI5351
 	tristate "Clock driver for SiLabs 5351A/B/C"
 	depends on I2C
@@ -106,7 +116,6 @@ config COMMON_CLK_SI514
 	depends on OF
 	select REGMAP_I2C
 	help
-	---help---
 	  This driver supports the Silicon Labs 514 programmable clock
 	  generator.
 
@@ -115,7 +124,6 @@ config COMMON_CLK_SI544
 	depends on I2C
 	select REGMAP_I2C
 	help
-	---help---
 	  This driver supports the Silicon Labs 544 programmable clock
 	  generator.
 
@@ -125,9 +133,15 @@ config COMMON_CLK_SI570
 	depends on OF
 	select REGMAP_I2C
 	help
-	---help---
 	  This driver supports Silicon Labs 570/571/598/599 programmable
 	  clock generators.
+
+config COMMON_CLK_BM1880
+	bool "Clock driver for Bitmain BM1880 SoC"
+	depends on ARCH_BITMAIN || COMPILE_TEST
+	default ARCH_BITMAIN
+	help
+	  This driver supports the clocks on Bitmain BM1880 SoC.
 
 config COMMON_CLK_CDCE706
 	tristate "Clock driver for TI CDCE706 clock synthesizer"
@@ -143,7 +157,6 @@ config COMMON_CLK_CDCE925
 	depends on OF
 	select REGMAP_I2C
 	help
-	---help---
 	  This driver supports the TI CDCE913/925/937/949 programmable clock
 	  synthesizer. Each chip has different number of PLLs and outputs.
 	  For example, the CDCE925 contains two PLLs with spread-spectrum
@@ -202,7 +215,6 @@ config COMMON_CLK_AXI_CLKGEN
 	tristate "AXI clkgen driver"
 	depends on ARCH_ZYNQ || MICROBLAZE || COMPILE_TEST
 	help
-	---help---
 	  Support for the Analog Devices axi-clkgen pcore clock generator for Xilinx
 	  FPGAs. It is commonly used in Analog Devices' reference designs.
 
@@ -215,7 +227,7 @@ config CLK_QORIQ
 
 config COMMON_CLK_XGENE
 	bool "Clock driver for APM XGene SoC"
-	default y
+	default ARCH_XGENE
 	depends on ARM64 || COMPILE_TEST
 	---help---
 	  Sypport for the APM X-Gene SoC reference, PLL, and device clocks.
@@ -269,34 +281,35 @@ config COMMON_CLK_VC5
 	depends on OF
 	select REGMAP_I2C
 	help
-	---help---
 	  This driver supports the IDT VersaClock 5 and VersaClock 6
 	  programmable clock generators.
 
 config COMMON_CLK_STM32MP157
 	def_bool COMMON_CLK && MACH_STM32MP157
 	help
-	---help---
 	  Support for stm32mp157 SoC family clocks
 
 config COMMON_CLK_STM32F
 	def_bool COMMON_CLK && (MACH_STM32F429 || MACH_STM32F469 || MACH_STM32F746)
 	help
-	---help---
 	  Support for stm32f4 and stm32f7 SoC families clocks
 
 config COMMON_CLK_STM32H7
 	def_bool COMMON_CLK && MACH_STM32H743
 	help
-	---help---
 	  Support for stm32h7 SoC family clocks
+
+config COMMON_CLK_MMP2
+	def_bool COMMON_CLK && (MACH_MMP2_DT || MACH_MMP3_DT)
+	help
+	  Support for Marvell MMP2 and MMP3 SoC clocks
 
 config COMMON_CLK_BD718XX
 	tristate "Clock driver for ROHM BD718x7 PMIC"
-	depends on MFD_ROHM_BD718XX
+	depends on MFD_ROHM_BD718XX || MFD_ROHM_BD70528
 	help
-	  This driver supports ROHM BD71837 and ROHM BD71847
-	  PMICs clock gates.
+	  This driver supports ROHM BD71837, ROHM BD71847 and
+	  ROHM BD70528 PMICs clock gates.
 
 config COMMON_CLK_FIXED_MMIO
 	bool "Clock driver for Memory Mapped Fixed values"

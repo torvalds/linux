@@ -1705,12 +1705,10 @@ static int pinmux_xway_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
 	const struct pinctrl_xway_soc *xway_soc;
-	struct resource *res;
 	int ret, i;
 
 	/* get and remap our register range */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	xway_info.membase[0] = devm_ioremap_resource(&pdev->dev, res);
+	xway_info.membase[0] = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(xway_info.membase[0]))
 		return PTR_ERR(xway_info.membase[0]);
 
@@ -1731,13 +1729,11 @@ static int pinmux_xway_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	for (i = 0; i < xway_chip.ngpio; i++) {
-		/* strlen("ioXY") + 1 = 5 */
-		char *name = devm_kzalloc(&pdev->dev, 5, GFP_KERNEL);
+		char *name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "io%d", i);
 
 		if (!name)
 			return -ENOMEM;
 
-		snprintf(name, 5, "io%d", i);
 		xway_info.pads[i].number = GPIO0 + i;
 		xway_info.pads[i].name = name;
 	}

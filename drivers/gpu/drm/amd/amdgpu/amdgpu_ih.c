@@ -21,7 +21,8 @@
  *
  */
 
-#include <drm/drmP.h>
+#include <linux/dma-mapping.h>
+
 #include "amdgpu.h"
 #include "amdgpu_ih.h"
 

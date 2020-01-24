@@ -229,7 +229,7 @@ static int hdc100x_read_raw(struct iio_dev *indio_dev,
 			*val2 = 65536;
 			return IIO_VAL_FRACTIONAL;
 		} else {
-			*val = 100;
+			*val = 100000;
 			*val2 = 65536;
 			return IIO_VAL_FRACTIONAL;
 		}
@@ -278,30 +278,33 @@ static int hdc100x_buffer_postenable(struct iio_dev *indio_dev)
 	struct hdc100x_data *data = iio_priv(indio_dev);
 	int ret;
 
+	ret = iio_triggered_buffer_postenable(indio_dev);
+	if (ret)
+		return ret;
+
 	/* Buffer is enabled. First set ACQ Mode, then attach poll func */
 	mutex_lock(&data->lock);
 	ret = hdc100x_update_config(data, HDC100X_REG_CONFIG_ACQ_MODE,
 				    HDC100X_REG_CONFIG_ACQ_MODE);
 	mutex_unlock(&data->lock);
 	if (ret)
-		return ret;
+		iio_triggered_buffer_predisable(indio_dev);
 
-	return iio_triggered_buffer_postenable(indio_dev);
+	return ret;
 }
 
 static int hdc100x_buffer_predisable(struct iio_dev *indio_dev)
 {
 	struct hdc100x_data *data = iio_priv(indio_dev);
-	int ret;
-
-	/* First detach poll func, then reset ACQ mode. OK to disable buffer */
-	ret = iio_triggered_buffer_predisable(indio_dev);
-	if (ret)
-		return ret;
+	int ret, ret2;
 
 	mutex_lock(&data->lock);
 	ret = hdc100x_update_config(data, HDC100X_REG_CONFIG_ACQ_MODE, 0);
 	mutex_unlock(&data->lock);
+
+	ret2 = iio_triggered_buffer_predisable(indio_dev);
+	if (ret == 0)
+		ret = ret2;
 
 	return ret;
 }
@@ -385,28 +388,16 @@ static int hdc100x_probe(struct i2c_client *client,
 	hdc100x_set_it_time(data, 1, hdc100x_int_time[1][0]);
 	hdc100x_update_config(data, HDC100X_REG_CONFIG_ACQ_MODE, 0);
 
-	ret = iio_triggered_buffer_setup(indio_dev, NULL,
+	ret = devm_iio_triggered_buffer_setup(&client->dev,
+					 indio_dev, NULL,
 					 hdc100x_trigger_handler,
 					 &hdc_buffer_setup_ops);
 	if (ret < 0) {
 		dev_err(&client->dev, "iio triggered buffer setup failed\n");
 		return ret;
 	}
-	ret = iio_device_register(indio_dev);
-	if (ret < 0)
-		iio_triggered_buffer_cleanup(indio_dev);
 
-	return ret;
-}
-
-static int hdc100x_remove(struct i2c_client *client)
-{
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
-
-	iio_device_unregister(indio_dev);
-	iio_triggered_buffer_cleanup(indio_dev);
-
-	return 0;
+	return devm_iio_device_register(&client->dev, indio_dev);
 }
 
 static const struct i2c_device_id hdc100x_id[] = {
@@ -436,7 +427,6 @@ static struct i2c_driver hdc100x_driver = {
 		.of_match_table = of_match_ptr(hdc100x_dt_ids),
 	},
 	.probe = hdc100x_probe,
-	.remove = hdc100x_remove,
 	.id_table = hdc100x_id,
 };
 module_i2c_driver(hdc100x_driver);

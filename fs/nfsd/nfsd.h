@@ -22,6 +22,7 @@
 
 #include <uapi/linux/nfsd/debug.h>
 
+#include "netns.h"
 #include "stats.h"
 #include "export.h"
 
@@ -85,6 +86,16 @@ int		nfsd_pool_stats_open(struct inode *, struct file *);
 int		nfsd_pool_stats_release(struct inode *, struct file *);
 
 void		nfsd_destroy(struct net *net);
+
+struct nfsdfs_client {
+	struct kref cl_ref;
+	void (*cl_release)(struct kref *kref);
+};
+
+struct nfsdfs_client *get_nfsdfs_client(struct inode *);
+struct dentry *nfsd_client_mkdir(struct nfsd_net *nn,
+		struct nfsdfs_client *ncl, u32 id, const struct tree_descr *);
+void nfsd_client_rmdir(struct dentry *dentry);
 
 #if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
 #ifdef CONFIG_NFSD_V2_ACL
@@ -269,7 +280,8 @@ void		nfsd_lockd_shutdown(void);
 #define nfserr_union_notsupp		cpu_to_be32(NFS4ERR_UNION_NOTSUPP)
 #define nfserr_offload_denied		cpu_to_be32(NFS4ERR_OFFLOAD_DENIED)
 #define nfserr_wrong_lfs		cpu_to_be32(NFS4ERR_WRONG_LFS)
-#define nfserr_badlabel		cpu_to_be32(NFS4ERR_BADLABEL)
+#define nfserr_badlabel			cpu_to_be32(NFS4ERR_BADLABEL)
+#define nfserr_file_open		cpu_to_be32(NFS4ERR_FILE_OPEN)
 
 /* error codes for internal use */
 /* if a request fails due to kmalloc failure, it gets dropped.

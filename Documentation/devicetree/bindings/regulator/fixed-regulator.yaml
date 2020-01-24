@@ -12,13 +12,26 @@ maintainers:
 
 description:
   Any property defined as part of the core regulator binding, defined in
-  regulator.txt, can also be used. However a fixed voltage regulator is
+  regulator.yaml, can also be used. However a fixed voltage regulator is
   expected to have the regulator-min-microvolt and regulator-max-microvolt
   to be the same.
 
+allOf:
+  - $ref: "regulator.yaml#"
+
+if:
+  properties:
+    compatible:
+      contains:
+        const: regulator-fixed-clock
+  required:
+    - clocks
+
 properties:
   compatible:
-    const: regulator-fixed
+    enum:
+      - regulator-fixed
+      - regulator-fixed-clock
 
   regulator-name: true
 
@@ -26,8 +39,19 @@ properties:
     description: gpio to use for enable control
     maxItems: 1
 
+  clocks:
+    description:
+      clock to use for enable control. This binding is only available if
+      the compatible is chosen to regulator-fixed-clock. The clock binding
+      is mandatory if compatible is chosen to regulator-fixed-clock.
+    maxItems: 1
+
   startup-delay-us:
     description: startup time in microseconds
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  off-on-delay-us:
+    description: off delay time in microseconds
     $ref: /schemas/types.yaml#/definitions/uint32
 
   enable-active-high:
@@ -44,7 +68,6 @@ properties:
 
   vin-supply:
     description: Input supply phandle.
-    $ref: /schemas/types.yaml#/definitions/phandle
 
 required:
   - compatible

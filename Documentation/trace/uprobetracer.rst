@@ -42,16 +42,19 @@ Synopsis of uprobe_tracer
    @+OFFSET	: Fetch memory at OFFSET (OFFSET from same file as PATH)
    $stackN	: Fetch Nth entry of stack (N >= 0)
    $stack	: Fetch stack address.
-   $retval	: Fetch return value.(*)
+   $retval	: Fetch return value.(\*1)
    $comm	: Fetch current task comm.
-   +|-offs(FETCHARG) : Fetch memory at FETCHARG +|- offs address.(**)
+   +|-[u]OFFS(FETCHARG) : Fetch memory at FETCHARG +|- OFFS address.(\*2)(\*3)
+   \IMM		: Store an immediate value to the argument.
    NAME=FETCHARG     : Set NAME as the argument name of FETCHARG.
    FETCHARG:TYPE     : Set TYPE as the type of FETCHARG. Currently, basic types
 		       (u8/u16/u32/u64/s8/s16/s32/s64), hexadecimal types
 		       (x8/x16/x32/x64), "string" and bitfield are supported.
 
-  (*) only for return probe.
-  (**) this is useful for fetching a field of data structures.
+  (\*1) only for return probe.
+  (\*2) this is useful for fetching a field of data structures.
+  (\*3) Unlike kprobe event, "u" prefix will just be ignored, becuse uprobe
+        events can access only user-space memory.
 
 Types
 -----
@@ -152,10 +155,15 @@ events, you need to enable it by::
 
     # echo 1 > events/uprobes/enable
 
-Lets disable the event after sleeping for some time.
+Lets start tracing, sleep for some time and stop tracing.
 ::
 
+    # echo 1 > tracing_on
     # sleep 20
+    # echo 0 > tracing_on
+
+Also, you can disable the event by::
+
     # echo 0 > events/uprobes/enable
 
 And you can see the traced information via /sys/kernel/debug/tracing/trace.

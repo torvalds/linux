@@ -3,6 +3,7 @@
 #define _TIME_UTILS_H_
 
 #include <stddef.h>
+#include <time.h>
 #include <linux/types.h>
 
 struct perf_time_interval {
@@ -25,6 +26,11 @@ bool perf_time__ranges_skip_sample(struct perf_time_interval *ptime_buf,
 
 struct perf_session;
 
+int perf_time__parse_for_ranges_reltime(const char *str, struct perf_session *session,
+				struct perf_time_interval **ranges,
+				int *range_size, int *range_num,
+				bool reltime);
+
 int perf_time__parse_for_ranges(const char *str, struct perf_session *session,
 				struct perf_time_interval **ranges,
 				int *range_size, int *range_num);
@@ -33,5 +39,13 @@ int timestamp__scnprintf_usec(u64 timestamp, char *buf, size_t sz);
 int timestamp__scnprintf_nsec(u64 timestamp, char *buf, size_t sz);
 
 int fetch_current_timestamp(char *buf, size_t sz);
+
+static inline unsigned long long rdclock(void)
+{
+	struct timespec ts;
+
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+	return ts.tv_sec * 1000000000ULL + ts.tv_nsec;
+}
 
 #endif

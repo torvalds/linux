@@ -145,7 +145,7 @@ int msm_dsi_dphy_timing_calc_v2(struct msm_dsi_dphy_timing *timing,
 {
 	const unsigned long bit_rate = clk_req->bitclk_rate;
 	const unsigned long esc_rate = clk_req->escclk_rate;
-	s32 ui, ui_x8, lpx;
+	s32 ui, ui_x8;
 	s32 tmax, tmin;
 	s32 pcnt0 = 50;
 	s32 pcnt1 = 50;
@@ -175,7 +175,6 @@ int msm_dsi_dphy_timing_calc_v2(struct msm_dsi_dphy_timing *timing,
 
 	ui = mult_frac(NSEC_PER_MSEC, coeff, bit_rate / 1000);
 	ui_x8 = ui << 3;
-	lpx = mult_frac(NSEC_PER_MSEC, coeff, esc_rate / 1000);
 
 	temp = S_DIV_ROUND_UP(38 * coeff - val_ckln * ui, ui_x8);
 	tmin = max_t(s32, temp, 0);
@@ -262,7 +261,7 @@ int msm_dsi_dphy_timing_calc_v3(struct msm_dsi_dphy_timing *timing,
 {
 	const unsigned long bit_rate = clk_req->bitclk_rate;
 	const unsigned long esc_rate = clk_req->escclk_rate;
-	s32 ui, ui_x8, lpx;
+	s32 ui, ui_x8;
 	s32 tmax, tmin;
 	s32 pcnt0 = 50;
 	s32 pcnt1 = 50;
@@ -284,7 +283,6 @@ int msm_dsi_dphy_timing_calc_v3(struct msm_dsi_dphy_timing *timing,
 
 	ui = mult_frac(NSEC_PER_MSEC, coeff, bit_rate / 1000);
 	ui_x8 = ui << 3;
-	lpx = mult_frac(NSEC_PER_MSEC, coeff, esc_rate / 1000);
 
 	temp = S_DIV_ROUND_UP(38 * coeff, ui_x8);
 	tmin = max_t(s32, temp, 0);
@@ -396,8 +394,12 @@ static int dsi_phy_regulator_init(struct msm_dsi_phy *phy)
 
 	ret = devm_regulator_bulk_get(dev, num, s);
 	if (ret < 0) {
-		DRM_DEV_ERROR(dev, "%s: failed to init regulator, ret=%d\n",
-						__func__, ret);
+		if (ret != -EPROBE_DEFER) {
+			DRM_DEV_ERROR(dev,
+				      "%s: failed to init regulator, ret=%d\n",
+				      __func__, ret);
+		}
+
 		return ret;
 	}
 
@@ -481,6 +483,8 @@ static const struct of_device_id dsi_phy_dt_match[] = {
 #ifdef CONFIG_DRM_MSM_DSI_28NM_PHY
 	{ .compatible = "qcom,dsi-phy-28nm-hpm",
 	  .data = &dsi_phy_28nm_hpm_cfgs },
+	{ .compatible = "qcom,dsi-phy-28nm-hpm-fam-b",
+	  .data = &dsi_phy_28nm_hpm_famb_cfgs },
 	{ .compatible = "qcom,dsi-phy-28nm-lp",
 	  .data = &dsi_phy_28nm_lp_cfgs },
 #endif
@@ -499,6 +503,8 @@ static const struct of_device_id dsi_phy_dt_match[] = {
 #ifdef CONFIG_DRM_MSM_DSI_10NM_PHY
 	{ .compatible = "qcom,dsi-phy-10nm",
 	  .data = &dsi_phy_10nm_cfgs },
+	{ .compatible = "qcom,dsi-phy-10nm-8998",
+	  .data = &dsi_phy_10nm_8998_cfgs },
 #endif
 	{}
 };
@@ -582,10 +588,8 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 	}
 
 	ret = dsi_phy_regulator_init(phy);
-	if (ret) {
-		DRM_DEV_ERROR(dev, "%s: failed to init regulator\n", __func__);
+	if (ret)
 		goto fail;
-	}
 
 	phy->ahb_clk = msm_clk_get(pdev, "iface");
 	if (IS_ERR(phy->ahb_clk)) {
@@ -608,10 +612,12 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 		goto fail;
 
 	phy->pll = msm_dsi_pll_init(pdev, phy->cfg->type, phy->id);
-	if (IS_ERR_OR_NULL(phy->pll))
+	if (IS_ERR_OR_NULL(phy->pll)) {
 		DRM_DEV_INFO(dev,
 			"%s: pll init failed: %ld, need separate pll clk driver\n",
 			__func__, PTR_ERR(phy->pll));
+		phy->pll = NULL;
+	}
 
 	dsi_phy_disable_resource(phy);
 

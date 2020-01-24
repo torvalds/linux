@@ -64,12 +64,12 @@
 
 	typedef struct work_struct _workitem;
 
-__inline static struct list_head *get_next(struct list_head	*list)
+static inline struct list_head *get_next(struct list_head	*list)
 {
 	return list->next;
 }
 
-__inline static struct list_head	*get_list_head(struct __queue	*queue)
+static inline struct list_head	*get_list_head(struct __queue	*queue)
 {
 	return (&(queue->queue));
 }
@@ -78,28 +78,28 @@ __inline static struct list_head	*get_list_head(struct __queue	*queue)
 #define LIST_CONTAINOR(ptr, type, member) \
 	container_of(ptr, type, member)
 
-__inline static void _set_timer(_timer *ptimer, u32 delay_time)
+static inline void _set_timer(_timer *ptimer, u32 delay_time)
 {
 	mod_timer(ptimer , (jiffies+(delay_time*HZ/1000)));
 }
 
-__inline static void _cancel_timer(_timer *ptimer, u8 *bcancelled)
+static inline void _cancel_timer(_timer *ptimer, u8 *bcancelled)
 {
 	del_timer_sync(ptimer);
 	*bcancelled =  true;/* true == 1; false == 0 */
 }
 
-__inline static void _init_workitem(_workitem *pwork, void *pfunc, void *cntx)
+static inline void _init_workitem(_workitem *pwork, void *pfunc, void *cntx)
 {
 	INIT_WORK(pwork, pfunc);
 }
 
-__inline static void _set_workitem(_workitem *pwork)
+static inline void _set_workitem(_workitem *pwork)
 {
 	schedule_work(pwork);
 }
 
-__inline static void _cancel_workitem_sync(_workitem *pwork)
+static inline void _cancel_workitem_sync(_workitem *pwork)
 {
 	cancel_work_sync(pwork);
 }
@@ -125,13 +125,6 @@ static inline void rtw_netif_start_queue(struct net_device *pnetdev)
 static inline void rtw_netif_stop_queue(struct net_device *pnetdev)
 {
 	netif_tx_stop_all_queues(pnetdev);
-}
-
-static inline void rtw_merge_string(char *dst, int dst_len, char *src1, char *src2)
-{
-	int	len = 0;
-	len += snprintf(dst+len, dst_len - len, "%s", src1);
-	len += snprintf(dst+len, dst_len - len, "%s", src2);
 }
 
 #define rtw_signal_process(pid, sig) kill_pid(find_vpid((pid)), (sig), 1)

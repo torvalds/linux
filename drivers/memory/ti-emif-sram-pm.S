@@ -14,12 +14,12 @@
  * GNU General Public License for more details.
  */
 
-#include <generated/ti-emif-asm-offsets.h>
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 #include <asm/memory.h>
 
 #include "emif.h"
+#include "ti-emif-asm-offsets.h"
 
 #define EMIF_POWER_MGMT_WAIT_SELF_REFRESH_8192_CYCLES	0x00a0
 #define EMIF_POWER_MGMT_SR_TIMER_MASK			0x00f0

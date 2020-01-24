@@ -37,6 +37,24 @@
 #include <linux/mlx5/fs.h>
 #include <linux/rhashtable.h>
 #include <linux/llist.h>
+#include <steering/fs_dr.h>
+
+struct mlx5_modify_hdr {
+	enum mlx5_flow_namespace_type ns_type;
+	union {
+		struct mlx5_fs_dr_action action;
+		u32 id;
+	};
+};
+
+struct mlx5_pkt_reformat {
+	enum mlx5_flow_namespace_type ns_type;
+	int reformat_type; /* from mlx5_ifc */
+	union {
+		struct mlx5_fs_dr_action action;
+		u32 id;
+	};
+};
 
 /* FS_TYPE_PRIO_CHAINS is a PRIO that will have namespaces only,
  * and those are in parallel to one another when going over them to connect
@@ -68,7 +86,7 @@ enum fs_flow_table_type {
 	FS_FT_SNIFFER_RX	= 0X5,
 	FS_FT_SNIFFER_TX	= 0X6,
 	FS_FT_RDMA_RX		= 0X7,
-	FS_FT_MAX_TYPE = FS_FT_SNIFFER_TX,
+	FS_FT_MAX_TYPE = FS_FT_RDMA_RX,
 };
 
 enum fs_flow_table_op_mod {
@@ -80,9 +98,15 @@ enum fs_fte_status {
 	FS_FTE_STATUS_EXISTING = 1UL << 0,
 };
 
+enum mlx5_flow_steering_mode {
+	MLX5_FLOW_STEERING_MODE_DMFS,
+	MLX5_FLOW_STEERING_MODE_SMFS
+};
+
 struct mlx5_flow_steering {
 	struct mlx5_core_dev *dev;
-	struct kmem_cache               *fgs_cache;
+	enum   mlx5_flow_steering_mode	mode;
+	struct kmem_cache		*fgs_cache;
 	struct kmem_cache               *ftes_cache;
 	struct mlx5_flow_root_namespace *root_ns;
 	struct mlx5_flow_root_namespace *fdb_root_ns;
@@ -128,6 +152,7 @@ struct mlx5_flow_handle {
 /* Type of children is mlx5_flow_group */
 struct mlx5_flow_table {
 	struct fs_node			node;
+	struct mlx5_fs_dr_table		fs_dr_table;
 	u32				id;
 	u16				vport;
 	unsigned int			max_fte;
@@ -137,6 +162,7 @@ struct mlx5_flow_table {
 	struct {
 		bool			active;
 		unsigned int		required_groups;
+		unsigned int		group_size;
 		unsigned int		num_groups;
 	} autogroup;
 	/* Protect fwd_rules */
@@ -145,6 +171,7 @@ struct mlx5_flow_table {
 	struct list_head		fwd_rules;
 	u32				flags;
 	struct rhltable			fgs_hash;
+	enum mlx5_flow_table_miss_action def_miss_action;
 };
 
 struct mlx5_ft_underlay_qp {
@@ -167,9 +194,11 @@ struct mlx5_ft_underlay_qp {
 /* Type of children is mlx5_flow_rule */
 struct fs_fte {
 	struct fs_node			node;
+	struct mlx5_fs_dr_rule		fs_dr_rule;
 	u32				val[MLX5_ST_SZ_DW_MATCH_PARAM];
 	u32				dests_size;
 	u32				index;
+	struct mlx5_flow_context	flow_context;
 	struct mlx5_flow_act		action;
 	enum fs_fte_status		status;
 	struct mlx5_fc			*counter;
@@ -190,6 +219,7 @@ struct fs_prio {
 struct mlx5_flow_namespace {
 	/* parent == NULL => root ns */
 	struct	fs_node			node;
+	enum mlx5_flow_table_miss_action def_miss_action;
 };
 
 struct mlx5_flow_group_mask {
@@ -200,6 +230,7 @@ struct mlx5_flow_group_mask {
 /* Type of children is fs_fte */
 struct mlx5_flow_group {
 	struct fs_node			node;
+	struct mlx5_fs_dr_matcher	fs_dr_matcher;
 	struct mlx5_flow_group_mask	mask;
 	u32				start_index;
 	u32				max_ftes;
@@ -211,6 +242,8 @@ struct mlx5_flow_group {
 
 struct mlx5_flow_root_namespace {
 	struct mlx5_flow_namespace	ns;
+	enum   mlx5_flow_steering_mode	mode;
+	struct mlx5_fs_dr_domain	fs_dr_domain;
 	enum   fs_flow_table_type	table_type;
 	struct mlx5_core_dev		*dev;
 	struct mlx5_flow_table		*root_ft;
@@ -218,7 +251,6 @@ struct mlx5_flow_root_namespace {
 	struct mutex			chain_lock;
 	struct list_head		underlay_qpns;
 	const struct mlx5_flow_cmds	*cmds;
-	enum mlx5_flow_table_miss_action def_miss_action;
 };
 
 int mlx5_init_fc_stats(struct mlx5_core_dev *dev);
@@ -228,6 +260,14 @@ void mlx5_fc_queue_stats_work(struct mlx5_core_dev *dev,
 			      unsigned long delay);
 void mlx5_fc_update_sampling_interval(struct mlx5_core_dev *dev,
 				      unsigned long interval);
+
+const struct mlx5_flow_cmds *mlx5_fs_cmd_get_fw_cmds(void);
+
+int mlx5_flow_namespace_set_peer(struct mlx5_flow_root_namespace *ns,
+				 struct mlx5_flow_root_namespace *peer_ns);
+
+int mlx5_flow_namespace_set_mode(struct mlx5_flow_namespace *ns,
+				 enum mlx5_flow_steering_mode mode);
 
 int mlx5_init_fs(struct mlx5_core_dev *dev);
 void mlx5_cleanup_fs(struct mlx5_core_dev *dev);
@@ -274,7 +314,8 @@ void mlx5_cleanup_fs(struct mlx5_core_dev *dev);
 	(type == FS_FT_FDB) ? MLX5_CAP_ESW_FLOWTABLE_FDB(mdev, cap) :		\
 	(type == FS_FT_SNIFFER_RX) ? MLX5_CAP_FLOWTABLE_SNIFFER_RX(mdev, cap) :		\
 	(type == FS_FT_SNIFFER_TX) ? MLX5_CAP_FLOWTABLE_SNIFFER_TX(mdev, cap) :		\
-	(BUILD_BUG_ON_ZERO(FS_FT_SNIFFER_TX != FS_FT_MAX_TYPE))\
+	(type == FS_FT_RDMA_RX) ? MLX5_CAP_FLOWTABLE_RDMA_RX(mdev, cap) :		\
+	(BUILD_BUG_ON_ZERO(FS_FT_RDMA_RX != FS_FT_MAX_TYPE))\
 	)
 
 #endif

@@ -77,9 +77,6 @@ Atomic State Reset and Initialization
 Atomic State Helper Reference
 -----------------------------
 
-.. kernel-doc:: include/drm/drm_atomic_state_helper.h
-   :internal:
-
 .. kernel-doc:: drivers/gpu/drm/drm_atomic_state_helper.c
    :export:
 
@@ -181,6 +178,21 @@ Panel Helper Reference
 .. kernel-doc:: drivers/gpu/drm/drm_panel_orientation_quirks.c
    :export:
 
+Panel Self Refresh Helper Reference
+===================================
+
+.. kernel-doc:: drivers/gpu/drm/drm_self_refresh_helper.c
+   :doc: overview
+
+.. kernel-doc:: drivers/gpu/drm/drm_self_refresh_helper.c
+   :export:
+
+HDCP Helper Functions Reference
+===============================
+
+.. kernel-doc:: drivers/gpu/drm/drm_hdcp.c
+   :export:
+
 Display Port Helper Functions Reference
 =======================================
 
@@ -247,6 +259,18 @@ the MST topology helpers easier to understand
                drm_dp_mst_topology_try_get_port drm_dp_mst_topology_get_port
                drm_dp_mst_topology_put_port
                drm_dp_mst_get_mstb_malloc drm_dp_mst_put_mstb_malloc
+
+MIPI DBI Helper Functions Reference
+===================================
+
+.. kernel-doc:: drivers/gpu/drm/drm_mipi_dbi.c
+   :doc: overview
+
+.. kernel-doc:: include/drm/drm_mipi_dbi.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_mipi_dbi.c
+   :export:
 
 MIPI DSI Helper Functions Reference
 ===================================

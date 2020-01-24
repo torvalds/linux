@@ -8,6 +8,7 @@ config SERIAL_8250
 	tristate "8250/16550 and compatible serial support"
 	depends on !S390
 	select SERIAL_CORE
+	select SERIAL_MCTRL_GPIO if GPIOLIB
 	---help---
 	  This selects whether you want to include the driver for the standard
 	  serial ports.  The standard answer is Y.  People who might say N
@@ -242,6 +243,7 @@ config SERIAL_8250_ASPEED_VUART
 	tristate "Aspeed Virtual UART"
 	depends on SERIAL_8250
 	depends on OF
+	depends on REGMAP && MFD_SYSCON
 	help
 	  If you want to use the virtual UART (VUART) device on Aspeed
 	  BMC platforms, enable this option. This enables the 16550A-
@@ -313,6 +315,9 @@ config SERIAL_8250_RSA
 
 	  If you don't have such card, or if unsure, say N.
 
+config SERIAL_8250_DWLIB
+	bool
+
 config SERIAL_8250_ACORN
 	tristate "Acorn expansion card serial port support"
 	depends on ARCH_ACORN && SERIAL_8250
@@ -330,7 +335,7 @@ config SERIAL_8250_BCM2835AUX
 
 	  Features and limitations of the UART are
 	    Registers are similar to 16650 registers,
-              set bits in the control registers that are unsupported
+	      set bits in the control registers that are unsupported
 	      are ignored and read back as 0
 	    7/8 bit operation with 1 start and 1 stop bit
 	    8 symbols deep fifo for rx and tx
@@ -353,6 +358,7 @@ config SERIAL_8250_FSL
 config SERIAL_8250_DW
 	tristate "Support for Synopsys DesignWare 8250 quirks"
 	depends on SERIAL_8250
+	select SERIAL_8250_DWLIB
 	help
 	  Selecting this option will enable handling of the extra features
 	  present in the Synopsys DesignWare APB UART.
@@ -439,6 +445,7 @@ config SERIAL_8250_LPSS
 	default SERIAL_8250
 	depends on SERIAL_8250 && PCI
 	depends on X86 || COMPILE_TEST
+	select SERIAL_8250_DWLIB
 	select DW_DMAC_CORE if SERIAL_8250_DMA
 	select DW_DMAC_PCI if (SERIAL_8250_DMA && X86_INTEL_LPSS)
 	select RATIONAL
@@ -461,16 +468,6 @@ config SERIAL_8250_MID
 	  Selecting this option will enable handling of the extra features
 	  present on the UART found on Intel Medfield SOC and various other
 	  Intel platforms.
-
-config SERIAL_8250_MOXA
-	tristate "MOXA SmartIO MUE support"
-	depends on SERIAL_8250 && PCI
-	help
-	  Say Y here if you have a Moxa SmartIO MUE multiport serial card.
-	  If unsure, say N.
-
-	  This driver can also be built as a module. The module will be called
-	  8250_moxa. If you want to do that, say M here.
 
 config SERIAL_8250_PXA
 	tristate "PXA serial port support"

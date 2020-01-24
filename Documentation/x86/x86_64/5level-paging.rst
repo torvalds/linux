@@ -20,7 +20,7 @@ physical address space. This "ought to be enough for anybody" ©.
 QEMU 2.9 and later support 5-level paging.
 
 Virtual memory layout for 5-level paging is described in
-Documentation/x86/x86_64/mm.txt
+Documentation/x86/x86_64/mm.rst
 
 
 Enabling 5-level paging

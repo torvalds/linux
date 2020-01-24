@@ -23,7 +23,7 @@ config KPC2000_CORE
 	  If unsure, say N.
 
 config KPC2000_SPI
-	tristate "Kaktronics KPC SPI device"
+	tristate "Daktronics KPC SPI device"
 	depends on KPC2000 && SPI
 	help
 	  Say Y here if you wish to support the Daktronics KPC PCI
@@ -35,7 +35,7 @@ config KPC2000_SPI
 	  If unsure, say N.
 
 config KPC2000_I2C
-	tristate "Kaktronics KPC I2C device"
+	tristate "Daktronics KPC I2C device"
 	depends on KPC2000 && I2C
 	help
 	  Say Y here if you wish to support the Daktronics KPC PCI

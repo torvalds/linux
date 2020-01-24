@@ -340,6 +340,8 @@ static int __ipgre_rcv(struct sk_buff *skb, const struct tnl_ptk_info *tpi,
 				  iph->saddr, iph->daddr, tpi->key);
 
 	if (tunnel) {
+		const struct iphdr *tnl_params;
+
 		if (__iptunnel_pull_header(skb, hdr_len, tpi->proto,
 					   raw_proto, false) < 0)
 			goto drop;
@@ -348,7 +350,9 @@ static int __ipgre_rcv(struct sk_buff *skb, const struct tnl_ptk_info *tpi,
 			skb_pop_mac_header(skb);
 		else
 			skb_reset_mac_header(skb);
-		if (tunnel->collect_md) {
+
+		tnl_params = &tunnel->parms.iph;
+		if (tunnel->collect_md || tnl_params->daddr == 0) {
 			__be16 flags;
 			__be64 tun_id;
 
@@ -509,9 +513,9 @@ static void erspan_fb_xmit(struct sk_buff *skb, struct net_device *dev)
 	key = &tun_info->key;
 	if (!(tun_info->key.tun_flags & TUNNEL_ERSPAN_OPT))
 		goto err_free_skb;
-	md = ip_tunnel_info_opts(tun_info);
-	if (!md)
+	if (tun_info->options_len < sizeof(*md))
 		goto err_free_skb;
+	md = ip_tunnel_info_opts(tun_info);
 
 	/* ERSPAN has fixed 8 byte GRE header */
 	version = md->version;
@@ -1446,6 +1450,7 @@ static void erspan_setup(struct net_device *dev)
 	struct ip_tunnel *t = netdev_priv(dev);
 
 	ether_setup(dev);
+	dev->max_mtu = 0;
 	dev->netdev_ops = &erspan_netdev_ops;
 	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
@@ -1459,8 +1464,8 @@ static const struct nla_policy ipgre_policy[IFLA_GRE_MAX + 1] = {
 	[IFLA_GRE_OFLAGS]	= { .type = NLA_U16 },
 	[IFLA_GRE_IKEY]		= { .type = NLA_U32 },
 	[IFLA_GRE_OKEY]		= { .type = NLA_U32 },
-	[IFLA_GRE_LOCAL]	= { .len = FIELD_SIZEOF(struct iphdr, saddr) },
-	[IFLA_GRE_REMOTE]	= { .len = FIELD_SIZEOF(struct iphdr, daddr) },
+	[IFLA_GRE_LOCAL]	= { .len = sizeof_field(struct iphdr, saddr) },
+	[IFLA_GRE_REMOTE]	= { .len = sizeof_field(struct iphdr, daddr) },
 	[IFLA_GRE_TTL]		= { .type = NLA_U8 },
 	[IFLA_GRE_TOS]		= { .type = NLA_U8 },
 	[IFLA_GRE_PMTUDISC]	= { .type = NLA_U8 },

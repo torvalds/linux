@@ -1154,3 +1154,5 @@
 		};
 	};
 };
+
+#include "hi3660-coresight.dtsi"

@@ -49,6 +49,7 @@
 #include "pnfs.h"
 #include "nfs.h"
 #include "netns.h"
+#include "sysfs.h"
 
 #define NFSDBG_FACILITY		NFSDBG_CLIENT
 
@@ -175,6 +176,7 @@ struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_init)
 	clp->cl_rpcclient = ERR_PTR(-EINVAL);
 
 	clp->cl_proto = cl_init->proto;
+	clp->cl_nconnect = cl_init->nconnect;
 	clp->cl_net = get_net(cl_init->net);
 
 	clp->cl_principal = "*";
@@ -192,7 +194,7 @@ error_0:
 EXPORT_SYMBOL_GPL(nfs_alloc_client);
 
 #if IS_ENABLED(CONFIG_NFS_V4)
-void nfs_cleanup_cb_ident_idr(struct net *net)
+static void nfs_cleanup_cb_ident_idr(struct net *net)
 {
 	struct nfs_net *nn = net_generic(net, nfs_net_id);
 
@@ -214,7 +216,7 @@ static void pnfs_init_server(struct nfs_server *server)
 }
 
 #else
-void nfs_cleanup_cb_ident_idr(struct net *net)
+static void nfs_cleanup_cb_ident_idr(struct net *net)
 {
 }
 
@@ -310,6 +312,12 @@ again:
 		/* Match nfsv4 minorversion */
 		if (clp->cl_minorversion != data->minorversion)
 			continue;
+
+		/* Match request for a dedicated DS */
+		if (test_bit(NFS_CS_DS, &data->init_flags) !=
+		    test_bit(NFS_CS_DS, &clp->cl_flags))
+			continue;
+
 		/* Match the full socket address */
 		if (!rpc_cmp_addr_port(sap, clap))
 			/* Match all xprt_switch full socket addresses */
@@ -406,10 +414,10 @@ struct nfs_client *nfs_get_client(const struct nfs_client_initdata *cl_init)
 		clp = nfs_match_client(cl_init);
 		if (clp) {
 			spin_unlock(&nn->nfs_client_lock);
-			if (IS_ERR(clp))
-				return clp;
 			if (new)
 				new->rpc_ops->free_client(new);
+			if (IS_ERR(clp))
+				return clp;
 			return nfs_found_client(cl_init, clp);
 		}
 		if (new) {
@@ -493,6 +501,7 @@ int nfs_create_rpc_client(struct nfs_client *clp,
 	struct rpc_create_args args = {
 		.net		= clp->cl_net,
 		.protocol	= clp->cl_proto,
+		.nconnect	= clp->cl_nconnect,
 		.address	= (struct sockaddr *)&clp->cl_addr,
 		.addrsize	= clp->cl_addrlen,
 		.timeout	= cl_init->timeparms,
@@ -512,6 +521,10 @@ int nfs_create_rpc_client(struct nfs_client *clp,
 		args.flags |= RPC_CLNT_CREATE_NONPRIVPORT;
 	if (test_bit(NFS_CS_INFINITE_SLOTS, &clp->cl_flags))
 		args.flags |= RPC_CLNT_CREATE_INFINITE_SLOTS;
+	if (test_bit(NFS_CS_NOPING, &clp->cl_flags))
+		args.flags |= RPC_CLNT_CREATE_NOPING;
+	if (test_bit(NFS_CS_REUSEPORT, &clp->cl_flags))
+		args.flags |= RPC_CLNT_CREATE_REUSEPORT;
 
 	if (!IS_ERR(clp->cl_rpcclient))
 		return 0;
@@ -658,6 +671,8 @@ static int nfs_init_server(struct nfs_server *server,
 		.net = data->net,
 		.timeparms = &timeparms,
 		.cred = server->cred,
+		.nconnect = data->nfs_server.nconnect,
+		.init_flags = (1UL << NFS_CS_REUSEPORT),
 	};
 	struct nfs_client *clp;
 	int error;
@@ -1072,6 +1087,18 @@ void nfs_clients_init(struct net *net)
 #endif
 	spin_lock_init(&nn->nfs_client_lock);
 	nn->boot_time = ktime_get_real();
+
+	nfs_netns_sysfs_setup(nn, net);
+}
+
+void nfs_clients_exit(struct net *net)
+{
+	struct nfs_net *nn = net_generic(net, nfs_net_id);
+
+	nfs_netns_sysfs_destroy(nn);
+	nfs_cleanup_cb_ident_idr(net);
+	WARN_ON_ONCE(!list_empty(&nn->nfs_client_list));
+	WARN_ON_ONCE(!list_empty(&nn->nfs_volume_list));
 }
 
 #ifdef CONFIG_PROC_FS

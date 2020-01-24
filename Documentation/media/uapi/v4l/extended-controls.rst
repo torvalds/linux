@@ -85,20 +85,17 @@ be able to see such compound controls. In other words, these controls
 with compound types should only be used programmatically.
 
 Since such compound controls need to expose more information about
-themselves than is possible with
-:ref:`VIDIOC_QUERYCTRL` the
-:ref:`VIDIOC_QUERY_EXT_CTRL <VIDIOC_QUERYCTRL>` ioctl was added. In
-particular, this ioctl gives the dimensions of the N-dimensional array
-if this control consists of more than one element.
+themselves than is possible with :ref:`VIDIOC_QUERYCTRL <VIDIOC_QUERYCTRL>`
+the :ref:`VIDIOC_QUERY_EXT_CTRL <VIDIOC_QUERYCTRL>` ioctl was added. In
+particular, this ioctl gives the dimensions of the N-dimensional array if
+this control consists of more than one element.
 
 .. note::
 
    #. It is important to realize that due to the flexibility of controls it is
       necessary to check whether the control you want to set actually is
       supported in the driver and what the valid range of values is. So use
-      the :ref:`VIDIOC_QUERYCTRL` (or :ref:`VIDIOC_QUERY_EXT_CTRL
-      <VIDIOC_QUERYCTRL>`) and :ref:`VIDIOC_QUERYMENU <VIDIOC_QUERYCTRL>`
-      ioctls to check this.
+      :ref:`VIDIOC_QUERYCTRL` to check this.
 
    #. It is possible that some of the menu indices in a control of
       type ``V4L2_CTRL_TYPE_MENU`` may not be supported (``VIDIOC_QUERYMENU``
@@ -144,7 +141,7 @@ control class is found:
     while (0 == ioctl(fd, VIDIOC_QUERYCTRL, &qctrl)) {
 	if (V4L2_CTRL_ID2CLASS(qctrl.id) != V4L2_CTRL_CLASS_MPEG)
 	    break;
-	    /* ... */
+	/* ... */
 	qctrl.id |= V4L2_CTRL_FLAG_NEXT_CTRL;
     }
 

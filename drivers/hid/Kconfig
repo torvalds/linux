@@ -273,6 +273,15 @@ config HID_CP2112
 	and gpiochip to expose these functions of the CP2112. The
 	customizable USB descriptor fields are exposed as sysfs attributes.
 
+config HID_CREATIVE_SB0540
+	tristate "Creative SB0540 infrared receiver"
+	depends on USB_HID
+	help
+	Support for Creative infrared SB0540-compatible remote controls, such
+	as the RM-1500 and RM-1800 remotes.
+
+	Say Y here if you want support for Creative SB0540 infrared receiver.
+
 config HID_CYPRESS
 	tristate "Cypress mouse and barcode readers"
 	depends on HID
@@ -376,7 +385,7 @@ config HOLTEK_FF
 
 config HID_GOOGLE_HAMMER
 	tristate "Google Hammer Keyboard"
-	depends on USB_HID && LEDS_CLASS && MFD_CROS_EC
+	depends on USB_HID && LEDS_CLASS && CROS_EC
 	---help---
 	Say Y here if you have a Google Hammer device.
 
@@ -516,6 +525,7 @@ config HID_LENOVO
 config HID_LOGITECH
 	tristate "Logitech devices"
 	depends on HID
+	depends on LEDS_CLASS
 	default !EXPERT
 	---help---
 	Support for Logitech devices that are not fully compliant with HID standard.

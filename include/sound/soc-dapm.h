@@ -353,6 +353,8 @@ struct device;
 #define SND_SOC_DAPM_WILL_PMD   0x80    /* called at start of sequence */
 #define SND_SOC_DAPM_PRE_POST_PMD \
 				(SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD)
+#define SND_SOC_DAPM_PRE_POST_PMU \
+				(SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU)
 
 /* convenience event type detection */
 #define SND_SOC_DAPM_EVENT_ON(e)	\
@@ -402,6 +404,9 @@ int snd_soc_dapm_new_controls(struct snd_soc_dapm_context *dapm,
 struct snd_soc_dapm_widget *snd_soc_dapm_new_control(
 		struct snd_soc_dapm_context *dapm,
 		const struct snd_soc_dapm_widget *widget);
+struct snd_soc_dapm_widget *snd_soc_dapm_new_control_unlocked(
+		struct snd_soc_dapm_context *dapm,
+		const struct snd_soc_dapm_widget *widget);
 int snd_soc_dapm_new_dai_widgets(struct snd_soc_dapm_context *dapm,
 				 struct snd_soc_dai *dai);
 int snd_soc_dapm_link_dai_widgets(struct snd_soc_card *card);
@@ -414,6 +419,9 @@ int snd_soc_dapm_update_dai(struct snd_pcm_substream *substream,
 /* dapm path setup */
 int snd_soc_dapm_new_widgets(struct snd_soc_card *card);
 void snd_soc_dapm_free(struct snd_soc_dapm_context *dapm);
+void snd_soc_dapm_init(struct snd_soc_dapm_context *dapm,
+		       struct snd_soc_card *card,
+		       struct snd_soc_component *component);
 int snd_soc_dapm_add_routes(struct snd_soc_dapm_context *dapm,
 			    const struct snd_soc_dapm_route *route, int num);
 int snd_soc_dapm_del_routes(struct snd_soc_dapm_context *dapm,
@@ -659,8 +667,6 @@ struct snd_soc_dapm_context {
 	unsigned int idle_bias_off:1; /* Use BIAS_OFF instead of STANDBY */
 	/* Go to BIAS_OFF in suspend if the DAPM context is idle */
 	unsigned int suspend_bias_off:1;
-	void (*seq_notifier)(struct snd_soc_dapm_context *,
-			     enum snd_soc_dapm_type, int);
 
 	struct device *dev; /* from parent - for debug */
 	struct snd_soc_component *component; /* parent component */
@@ -669,10 +675,6 @@ struct snd_soc_dapm_context {
 	/* used during DAPM updates */
 	enum snd_soc_bias_level target_bias_level;
 	struct list_head list;
-
-	int (*stream_event)(struct snd_soc_dapm_context *dapm, int event);
-	int (*set_bias_level)(struct snd_soc_dapm_context *dapm,
-			      enum snd_soc_bias_level level);
 
 	struct snd_soc_dapm_wcache path_sink_cache;
 	struct snd_soc_dapm_wcache path_source_cache;

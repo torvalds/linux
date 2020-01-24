@@ -15,10 +15,7 @@
 #include <sound/soc-acpi.h>
 #include <sound/soc-acpi-intel-match.h>
 #include <sound/sof.h>
-#ifdef CONFIG_X86
-#include <asm/iosf_mbi.h>
-#endif
-
+#include "../intel/common/soc-intel-quirks.h"
 #include "ops.h"
 
 /* platform specific devices */
@@ -31,6 +28,12 @@ MODULE_PARM_DESC(fw_path, "alternate path for SOF firmware.");
 static char *tplg_path;
 module_param(tplg_path, charp, 0444);
 MODULE_PARM_DESC(tplg_path, "alternate path for SOF topology.");
+
+static int sof_acpi_debug;
+module_param_named(sof_acpi_debug, sof_acpi_debug, int, 0444);
+MODULE_PARM_DESC(sof_acpi_debug, "SOF ACPI debug options (0x0 all off)");
+
+#define SOF_ACPI_DISABLE_PM_RUNTIME BIT(0)
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HASWELL)
 static const struct sof_dev_desc sof_acpi_haswell_desc = {
@@ -99,56 +102,6 @@ static const struct sof_dev_desc sof_acpi_baytrail_desc = {
 	.arch_ops = &sof_xtensa_arch_ops
 };
 
-#ifdef CONFIG_X86 /* TODO: move this to common helper */
-
-static bool is_byt_cr(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-	int status;
-
-	if (iosf_mbi_available()) {
-		u32 bios_status;
-		status = iosf_mbi_read(BT_MBI_UNIT_PMC, /* 0x04 PUNIT */
-				       MBI_REG_READ, /* 0x10 */
-				       0x006, /* BIOS_CONFIG */
-				       &bios_status);
-
-		if (status) {
-			dev_err(dev, "could not read PUNIT BIOS_CONFIG\n");
-		} else {
-			/* bits 26:27 mirror PMIC options */
-			bios_status = (bios_status >> 26) & 3;
-
-			if (bios_status == 1 || bios_status == 3) {
-				dev_info(dev, "Detected Baytrail-CR platform\n");
-				return true;
-			}
-
-			dev_info(dev, "BYT-CR not detected\n");
-		}
-	} else {
-		dev_info(dev, "IOSF_MBI not available, no BYT-CR detection\n");
-	}
-
-	if (platform_get_resource(pdev, IORESOURCE_IRQ, 5) == NULL) {
-		/*
-		 * Some devices detected as BYT-T have only a single IRQ listed,
-		 * causing platform_get_irq with index 5 to return -ENXIO.
-		 * The correct IRQ in this case is at index 0, as on BYT-CR.
-		 */
-		dev_info(dev, "Falling back to Baytrail-CR platform\n");
-		return true;
-	}
-
-	return false;
-}
-#else
-static int is_byt_cr(struct platform_device *pdev)
-{
-	return 0;
-}
-#endif
-
 static const struct sof_dev_desc sof_acpi_cherrytrail_desc = {
 	.machines = snd_soc_acpi_intel_cherrytrail_machines,
 	.resindex_lpe_base = 0,
@@ -169,11 +122,14 @@ static const struct sof_dev_desc sof_acpi_cherrytrail_desc = {
 static const struct dev_pm_ops sof_acpi_pm = {
 	SET_SYSTEM_SLEEP_PM_OPS(snd_sof_suspend, snd_sof_resume)
 	SET_RUNTIME_PM_OPS(snd_sof_runtime_suspend, snd_sof_runtime_resume,
-			   NULL)
+			   snd_sof_runtime_idle)
 };
 
 static void sof_acpi_probe_complete(struct device *dev)
 {
+	if (sof_acpi_debug & SOF_ACPI_DISABLE_PM_RUNTIME)
+		return;
+
 	/* allow runtime_pm */
 	pm_runtime_set_autosuspend_delay(dev, SND_SOF_SUSPEND_DELAY_MS);
 	pm_runtime_use_autosuspend(dev);
@@ -200,7 +156,7 @@ static int sof_acpi_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
-	if (desc == &sof_acpi_baytrail_desc && is_byt_cr(pdev))
+	if (desc == &sof_acpi_baytrail_desc && soc_intel_is_byt_cr(pdev))
 		desc = &sof_acpi_baytrailcr_desc;
 #endif
 
@@ -274,7 +230,8 @@ static int sof_acpi_probe(struct platform_device *pdev)
 
 static int sof_acpi_remove(struct platform_device *pdev)
 {
-	pm_runtime_disable(&pdev->dev);
+	if (!(sof_acpi_debug & SOF_ACPI_DISABLE_PM_RUNTIME))
+		pm_runtime_disable(&pdev->dev);
 
 	/* call sof helper for DSP hardware remove */
 	snd_sof_device_remove(&pdev->dev);

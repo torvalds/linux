@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
-ifneq ($(srctree),.)
+ifdef building_out_of_srctree
 
 symlinks := $(patsubst $(srctree)/$(src)/%,%,$(wildcard $(srctree)/$(src)/*.py))
 

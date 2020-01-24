@@ -22,7 +22,7 @@ while read header; do
 	OLDSUM="$(tail -n 1 ${LINUXDIR}/include/${header})"
 	OLDSUM="${OLDSUM#// }"
 
-	NEWSUM="$(head -n -1 ${LINUXDIR}/include/${header} | sha1sum)"
+	NEWSUM="$(sed '$d' ${LINUXDIR}/include/${header} | sha1sum)"
 	NEWSUM="${NEWSUM%% *}"
 
 	if [ "${OLDSUM}" != "${NEWSUM}" ]; then

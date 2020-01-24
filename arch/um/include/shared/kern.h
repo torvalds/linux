@@ -1,6 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* 
  * Copyright (C) 2000 Jeff Dike (jdike@karaya.com)
- * Licensed under the GPL
  */
 
 #ifndef __KERN_H__

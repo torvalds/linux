@@ -78,11 +78,10 @@ static int clk_factor_set_rate(struct clk_hw *hw, unsigned long drate,
 	struct mmp_clk_factor_masks *masks = factor->masks;
 	int i;
 	unsigned long val;
-	unsigned long prev_rate, rate = 0;
+	unsigned long rate = 0;
 	unsigned long flags = 0;
 
 	for (i = 0; i < factor->ftbl_cnt; i++) {
-		prev_rate = rate;
 		rate = (((prate / 10000) * factor->ftbl[i].den) /
 			(factor->ftbl[i].num * factor->masks->factor)) * 10000;
 		if (rate > drate)

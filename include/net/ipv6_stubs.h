@@ -24,8 +24,10 @@ struct ipv6_stub {
 				 const struct in6_addr *addr);
 	int (*ipv6_sock_mc_drop)(struct sock *sk, int ifindex,
 				 const struct in6_addr *addr);
-	int (*ipv6_dst_lookup)(struct net *net, struct sock *sk,
-			       struct dst_entry **dst, struct flowi6 *fl6);
+	struct dst_entry *(*ipv6_dst_lookup_flow)(struct net *net,
+						  const struct sock *sk,
+						  struct flowi6 *fl6,
+						  const struct in6_addr *final_dst);
 	int (*ipv6_route_input)(struct sk_buff *skb);
 
 	struct fib6_table *(*fib6_get_table)(struct net *net, u32 id);
@@ -45,6 +47,11 @@ struct ipv6_stub {
 			    struct fib6_config *cfg, gfp_t gfp_flags,
 			    struct netlink_ext_ack *extack);
 	void (*fib6_nh_release)(struct fib6_nh *fib6_nh);
+	void (*fib6_update_sernum)(struct net *net, struct fib6_info *rt);
+	int (*ip6_del_rt)(struct net *net, struct fib6_info *rt);
+	void (*fib6_rt_update)(struct net *net, struct fib6_info *rt,
+			       struct nl_info *info);
+
 	void (*udpv6_encap_enable)(void);
 	void (*ndisc_send_na)(struct net_device *dev, const struct in6_addr *daddr,
 			      const struct in6_addr *solicited_addr,

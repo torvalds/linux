@@ -114,6 +114,7 @@ struct nv50_head_atom {
 		u8 nhsync:1;
 		u8 nvsync:1;
 		u8 depth:4;
+		u8 bpc;
 	} or;
 
 	/* Currently only used for MST */
@@ -185,6 +186,11 @@ struct nv50_wndw_atom {
 	} xlut;
 
 	struct {
+		u32 matrix[12];
+		bool valid;
+	} csc;
+
+	struct {
 		u8  mode:2;
 		u8  interval:4;
 
@@ -216,14 +222,23 @@ struct nv50_wndw_atom {
 		u16 y;
 	} point;
 
+	struct {
+		u8 depth;
+		u8 k1;
+		u8 src_color:4;
+		u8 dst_color:4;
+	} blend;
+
 	union nv50_wndw_atom_mask {
 		struct {
 			bool ntfy:1;
 			bool sema:1;
 			bool xlut:1;
+			bool csc:1;
 			bool image:1;
 			bool scale:1;
 			bool point:1;
+			bool blend:1;
 		};
 		u8 mask;
 	} set, clr;

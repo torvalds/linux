@@ -143,6 +143,9 @@ config I2C_I801
 	    Cedar Fork (PCH)
 	    Ice Lake (PCH)
 	    Comet Lake (PCH)
+	    Elkhart Lake (PCH)
+	    Tiger Lake (PCH)
+	    Jasper Lake (SOC)
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
@@ -290,7 +293,7 @@ config I2C_VIA
 	select I2C_ALGOBIT
 	help
 	  If you say yes to this option, support will be included for the VIA
-          82C586B I2C interface
+	  82C586B I2C interface
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-via.
@@ -427,6 +430,7 @@ config I2C_AXXIA
 	tristate "Axxia I2C controller"
 	depends on ARCH_AXXIA || COMPILE_TEST
 	default ARCH_AXXIA
+	select I2C_SLAVE
 	help
 	  Say yes if you want to support the I2C bus on Axxia platforms.
 
@@ -436,7 +440,7 @@ config I2C_AXXIA
 
 config I2C_BCM2835
 	tristate "Broadcom BCM2835 I2C controller"
-	depends on ARCH_BCM2835
+	depends on ARCH_BCM2835 || ARCH_BRCMSTB
 	help
 	  If you say yes to this option, support will be included for the
 	  BCM2835 I2C controller.
@@ -674,15 +678,15 @@ config I2C_IMX_LPI2C
 	tristate "IMX Low Power I2C interface"
 	depends on ARCH_MXC || COMPILE_TEST
 	help
-          Say Y here if you want to use the Low Power IIC bus controller
-          on the Freescale i.MX processors.
+	  Say Y here if you want to use the Low Power IIC bus controller
+	  on the Freescale i.MX processors.
 
-          This driver can also be built as a module. If so, the module
-          will be called i2c-imx-lpi2c.
+	  This driver can also be built as a module. If so, the module
+	  will be called i2c-imx-lpi2c.
 
 config I2C_IOP3XX
 	tristate "Intel IOPx3xx and IXP4xx on-chip I2C interface"
-	depends on ARCH_IOP32X || ARCH_IOP33X || ARCH_IXP4XX || ARCH_IOP13XX
+	depends on ARCH_IOP32X || ARCH_IXP4XX
 	help
 	  Say Y here if you want to use the IIC bus controller on
 	  the Intel IOPx3xx I/O Processors or IXP4xx Network Processors.
@@ -692,7 +696,7 @@ config I2C_IOP3XX
 
 config I2C_JZ4780
 	tristate "JZ4780 I2C controller interface support"
-	depends on MACH_JZ4780 || COMPILE_TEST
+	depends on MIPS || COMPILE_TEST
 	help
 	 If you say yes to this option, support will be included for the
 	 Ingenic JZ4780 I2C controller.
@@ -745,6 +749,13 @@ config I2C_MT65XX
 	  for MT65xx and MT81xx.
 	  If you want to use MediaTek(R) I2C interface, say Y or M here.
 	  If unsure, say N.
+
+config I2C_MT7621
+	tristate "MT7621/MT7628 I2C Controller"
+	depends on (RALINK && (SOC_MT7620 || SOC_MT7621)) || COMPILE_TEST
+	help
+	  Say Y here to include support for I2C controller in the
+	  MediaTek MT7621/MT7628 SoCs.
 
 config I2C_MV64XXX
 	tristate "Marvell mv64xxx I2C Controller"
@@ -864,6 +875,7 @@ config I2C_PXA_PCI
 config I2C_PXA_SLAVE
 	bool "Intel PXA2XX I2C Slave comms support"
 	depends on I2C_PXA && !X86_32
+	select I2C_SLAVE
 	help
 	  Support I2C slave mode communications on the PXA I2C bus.  This
 	  is necessary for systems where the PXA may be a target on the
@@ -968,7 +980,7 @@ config I2C_SIRF
 	  will be called i2c-sirf.
 
 config I2C_SPRD
-	bool "Spreadtrum I2C interface"
+	tristate "Spreadtrum I2C interface"
 	depends on I2C=y && ARCH_SPRD
 	help
 	  If you say yes to this option, support will be included for the
@@ -1172,9 +1184,9 @@ config I2C_DIOLAN_U2C
 	  will be called i2c-diolan-u2c.
 
 config I2C_DLN2
-       tristate "Diolan DLN-2 USB I2C adapter"
-       depends on MFD_DLN2
-       help
+	tristate "Diolan DLN-2 USB I2C adapter"
+	depends on MFD_DLN2
+	help
 	 If you say yes to this option, support will be included for Diolan
 	 DLN2, a USB to I2C interface.
 
@@ -1197,7 +1209,7 @@ config I2C_PARPORT
 	  and makes it easier to add support for new devices.
 
 	  An adapter type parameter is now mandatory.  Please read the file
-	  Documentation/i2c/busses/i2c-parport for details.
+	  Documentation/i2c/busses/i2c-parport.rst for details.
 
 	  Another driver exists, named i2c-parport-light, which doesn't depend
 	  on the parport driver.  This is meant for embedded systems. Don't say
@@ -1273,9 +1285,9 @@ config I2C_VIPERBOARD
 	help
 	  Say yes here to access the I2C part of the Nano River
 	  Technologies Viperboard as I2C master.
-          See viperboard API specification and Nano
-          River Tech's viperboard.h for detailed meaning
-          of the module parameters.
+	  See viperboard API specification and Nano
+	  River Tech's viperboard.h for detailed meaning
+	  of the module parameters.
 
 comment "Other I2C/SMBus bus drivers"
 
@@ -1299,6 +1311,20 @@ config I2C_ELEKTOR
 
 	  This support is also available as a module.  If so, the module
 	  will be called i2c-elektor.
+
+config I2C_ICY
+	tristate "ICY Zorro card"
+	depends on ZORRO
+	select I2C_ALGOPCF
+	help
+	  This supports the PCF8584 Zorro bus I2C adapter, known as ICY.
+	  Say Y if you own such an adapter.
+
+	  This support is also available as a module.  If so, the module
+	  will be called i2c-icy.
+
+	  If you have a 2019 edition board with an LTC2990 sensor at address
+	  0x4c, loading the module 'ltc2990' is sufficient to enable it.
 
 config I2C_MLXCPLD
 	tristate "Mellanox I2C driver"
@@ -1336,7 +1362,7 @@ config I2C_SIBYTE
 
 config I2C_CROS_EC_TUNNEL
 	tristate "ChromeOS EC tunnel I2C bus"
-	depends on MFD_CROS_EC
+	depends on CROS_EC
 	help
 	  If you say yes here you get an I2C bus that will tunnel i2c commands
 	  through to the other side of the ChromeOS EC to the i2c bus

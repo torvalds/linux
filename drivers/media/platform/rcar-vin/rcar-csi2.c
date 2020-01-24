@@ -1019,10 +1019,8 @@ static int rcsi2_probe_resources(struct rcar_csi2 *priv,
 		return ret;
 
 	priv->rstc = devm_reset_control_get(&pdev->dev, NULL);
-	if (IS_ERR(priv->rstc))
-		return PTR_ERR(priv->rstc);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(priv->rstc);
 }
 
 static const struct rcar_csi2_info rcar_csi2_info_r8a7795 = {
@@ -1082,6 +1080,10 @@ static const struct of_device_id rcar_csi2_of_table[] = {
 	{
 		.compatible = "renesas,r8a774a1-csi2",
 		.data = &rcar_csi2_info_r8a7796,
+	},
+	{
+		.compatible = "renesas,r8a774b1-csi2",
+		.data = &rcar_csi2_info_r8a77965,
 	},
 	{
 		.compatible = "renesas,r8a774c0-csi2",

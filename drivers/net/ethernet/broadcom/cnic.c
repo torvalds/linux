@@ -4096,11 +4096,15 @@ static int cnic_cm_alloc_mem(struct cnic_dev *dev)
 {
 	struct cnic_local *cp = dev->cnic_priv;
 	u32 port_id;
+	int i;
 
 	cp->csk_tbl = kvcalloc(MAX_CM_SK_TBL_SZ, sizeof(struct cnic_sock),
 			       GFP_KERNEL);
 	if (!cp->csk_tbl)
 		return -ENOMEM;
+
+	for (i = 0; i < MAX_CM_SK_TBL_SZ; i++)
+		atomic_set(&cp->csk_tbl[i].ref_count, 0);
 
 	port_id = prandom_u32();
 	port_id %= CNIC_LOCAL_PORT_RANGE;
@@ -5204,6 +5208,8 @@ static void cnic_init_rings(struct cnic_dev *dev)
 		cnic_init_bnx2x_tx_ring(dev, data);
 		cnic_init_bnx2x_rx_ring(dev, data);
 
+		data->general.fp_hsi_ver =  ETH_FP_HSI_VERSION;
+
 		l5_data.phy_address.lo = udev->l2_buf_map & 0xffffffff;
 		l5_data.phy_address.hi = (u64) udev->l2_buf_map >> 32;
 
@@ -5480,6 +5486,7 @@ static struct cnic_dev *cnic_alloc_dev(struct net_device *dev,
 	cdev->unregister_device = cnic_unregister_device;
 	cdev->iscsi_nl_msg_recv = cnic_iscsi_nl_msg_recv;
 	cdev->get_fc_npiv_tbl = cnic_get_fc_npiv_tbl;
+	atomic_set(&cdev->ref_count, 0);
 
 	cp = cdev->cnic_priv;
 	cp->dev = cdev;

@@ -134,7 +134,7 @@ static inline void copy_overflow(int size, unsigned long count)
 	WARN(1, "Buffer overflow detected (%d < %lu)!\n", size, count);
 }
 
-static __always_inline bool
+static __always_inline __must_check bool
 check_copy_size(const void *addr, size_t bytes, bool is_source)
 {
 	int sz = __compiletime_object_size(addr);
@@ -147,6 +147,8 @@ check_copy_size(const void *addr, size_t bytes, bool is_source)
 			__bad_copy_to();
 		return false;
 	}
+	if (WARN_ON_ONCE(bytes > INT_MAX))
+		return false;
 	check_object_size(addr, bytes, is_source);
 	return true;
 }

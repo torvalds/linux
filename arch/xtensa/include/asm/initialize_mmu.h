@@ -23,6 +23,7 @@
 #ifndef _XTENSA_INITIALIZE_MMU_H
 #define _XTENSA_INITIALIZE_MMU_H
 
+#include <linux/init.h>
 #include <asm/pgtable.h>
 #include <asm/vectors.h>
 
@@ -42,7 +43,7 @@
 #if XCHAL_HAVE_S32C1I && (XCHAL_HW_MIN_VERSION >= XTENSA_HWVERSION_RC_2009_0)
 /*
  * We Have Atomic Operation Control (ATOMCTL) Register; Initialize it.
- * For details see Documentation/xtensa/atomctl.txt
+ * For details see Documentation/xtensa/atomctl.rst
  */
 #if XCHAL_DCACHE_IS_COHERENT
 	movi	a3, 0x25	/* For SMP/MX -- internal for writeback,
@@ -183,7 +184,7 @@
 #endif
 
 #if XCHAL_HAVE_MPU
-	.data
+	__REFCONST
 	.align	4
 .Lattribute_table:
 	.long 0x000000, 0x1fff00, 0x1ddf00, 0x1eef00

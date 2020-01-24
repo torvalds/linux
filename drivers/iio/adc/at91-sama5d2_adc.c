@@ -1483,7 +1483,7 @@ dma_free_area:
 			  st->dma_st.rx_buf, st->dma_st.rx_dma_buf);
 dma_chan_disable:
 	dma_release_channel(st->dma_st.dma_chan);
-	st->dma_st.dma_chan = 0;
+	st->dma_st.dma_chan = NULL;
 dma_exit:
 	dev_info(&pdev->dev, "continuing without DMA support\n");
 }
@@ -1506,7 +1506,7 @@ static void at91_adc_dma_disable(struct platform_device *pdev)
 	dma_free_coherent(st->dma_st.dma_chan->device->dev, pages * PAGE_SIZE,
 			  st->dma_st.rx_buf, st->dma_st.rx_dma_buf);
 	dma_release_channel(st->dma_st.dma_chan);
-	st->dma_st.dma_chan = 0;
+	st->dma_st.dma_chan = NULL;
 
 	dev_info(&pdev->dev, "continuing without DMA support\n");
 }
@@ -1578,8 +1578,7 @@ static void at91_adc_hw_init(struct at91_adc_state *st)
 static ssize_t at91_adc_get_fifo_state(struct device *dev,
 				       struct device_attribute *attr, char *buf)
 {
-	struct iio_dev *indio_dev =
-			platform_get_drvdata(to_platform_device(dev));
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct at91_adc_state *st = iio_priv(indio_dev);
 
 	return scnprintf(buf, PAGE_SIZE, "%d\n", !!st->dma_st.dma_chan);
@@ -1588,8 +1587,7 @@ static ssize_t at91_adc_get_fifo_state(struct device *dev,
 static ssize_t at91_adc_get_watermark(struct device *dev,
 				      struct device_attribute *attr, char *buf)
 {
-	struct iio_dev *indio_dev =
-			platform_get_drvdata(to_platform_device(dev));
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct at91_adc_state *st = iio_priv(indio_dev);
 
 	return scnprintf(buf, PAGE_SIZE, "%d\n", st->dma_st.watermark);
@@ -1841,8 +1839,7 @@ static int at91_adc_remove(struct platform_device *pdev)
 
 static __maybe_unused int at91_adc_suspend(struct device *dev)
 {
-	struct iio_dev *indio_dev =
-			platform_get_drvdata(to_platform_device(dev));
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct at91_adc_state *st = iio_priv(indio_dev);
 
 	/*
@@ -1862,8 +1859,7 @@ static __maybe_unused int at91_adc_suspend(struct device *dev)
 
 static __maybe_unused int at91_adc_resume(struct device *dev)
 {
-	struct iio_dev *indio_dev =
-			platform_get_drvdata(to_platform_device(dev));
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct at91_adc_state *st = iio_priv(indio_dev);
 	int ret;
 

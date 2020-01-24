@@ -30,13 +30,13 @@ int send_fault_sig(struct pt_regs *regs)
 	pr_debug("send_fault_sig: %p,%d,%d\n", addr, signo, si_code);
 
 	if (user_mode(regs)) {
-		force_sig_fault(signo, si_code, addr, current);
+		force_sig_fault(signo, si_code, addr);
 	} else {
 		if (fixup_exception(regs))
 			return -1;
 
 		//if (signo == SIGBUS)
-		//	force_sig_fault(si_signo, si_code, addr, current);
+		//	force_sig_fault(si_signo, si_code, addr);
 
 		/*
 		 * Oops. The kernel tried to access some bad page. We'll have to

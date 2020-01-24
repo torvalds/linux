@@ -86,6 +86,7 @@ extern unsigned long zero_page_mask;
  */
 extern unsigned long VMALLOC_START;
 extern unsigned long VMALLOC_END;
+#define VMALLOC_DEFAULT_SIZE	((128UL << 30) - MODULES_LEN)
 extern struct page *vmemmap;
 
 #define VMEM_MAX_PHYS ((unsigned long) vmemmap)
@@ -265,11 +266,9 @@ static inline int is_module_addr(void *addr)
 #endif
 
 #define _REGION_ENTRY_BITS	 0xfffffffffffff22fUL
-#define _REGION_ENTRY_BITS_LARGE 0xffffffff8000fe2fUL
 
 /* Bits in the segment table entry */
 #define _SEGMENT_ENTRY_BITS			0xfffffffffffffe33UL
-#define _SEGMENT_ENTRY_BITS_LARGE		0xfffffffffff0ff33UL
 #define _SEGMENT_ENTRY_HARDWARE_BITS		0xfffffffffffffe30UL
 #define _SEGMENT_ENTRY_HARDWARE_BITS_LARGE	0xfffffffffff00730UL
 #define _SEGMENT_ENTRY_ORIGIN_LARGE ~0xfffffUL /* large page address	    */
@@ -698,10 +697,8 @@ static inline int pmd_large(pmd_t pmd)
 
 static inline int pmd_bad(pmd_t pmd)
 {
-	if ((pmd_val(pmd) & _SEGMENT_ENTRY_TYPE_MASK) > 0)
+	if ((pmd_val(pmd) & _SEGMENT_ENTRY_TYPE_MASK) > 0 || pmd_large(pmd))
 		return 1;
-	if (pmd_large(pmd))
-		return (pmd_val(pmd) & ~_SEGMENT_ENTRY_BITS_LARGE) != 0;
 	return (pmd_val(pmd) & ~_SEGMENT_ENTRY_BITS) != 0;
 }
 
@@ -709,12 +706,10 @@ static inline int pud_bad(pud_t pud)
 {
 	unsigned long type = pud_val(pud) & _REGION_ENTRY_TYPE_MASK;
 
-	if (type > _REGION_ENTRY_TYPE_R3)
+	if (type > _REGION_ENTRY_TYPE_R3 || pud_large(pud))
 		return 1;
 	if (type < _REGION_ENTRY_TYPE_R3)
 		return 0;
-	if (pud_large(pud))
-		return (pud_val(pud) & ~_REGION_ENTRY_BITS_LARGE) != 0;
 	return (pud_val(pud) & ~_REGION_ENTRY_BITS) != 0;
 }
 
@@ -757,18 +752,12 @@ static inline int pmd_write(pmd_t pmd)
 
 static inline int pmd_dirty(pmd_t pmd)
 {
-	int dirty = 1;
-	if (pmd_large(pmd))
-		dirty = (pmd_val(pmd) & _SEGMENT_ENTRY_DIRTY) != 0;
-	return dirty;
+	return (pmd_val(pmd) & _SEGMENT_ENTRY_DIRTY) != 0;
 }
 
 static inline int pmd_young(pmd_t pmd)
 {
-	int young = 1;
-	if (pmd_large(pmd))
-		young = (pmd_val(pmd) & _SEGMENT_ENTRY_YOUNG) != 0;
-	return young;
+	return (pmd_val(pmd) & _SEGMENT_ENTRY_YOUNG) != 0;
 }
 
 static inline int pte_present(pte_t pte)
@@ -996,9 +985,9 @@ static inline pte_t pte_mkhuge(pte_t pte)
 #define IPTE_NODAT	0x400
 #define IPTE_GUEST_ASCE	0x800
 
-static inline void __ptep_ipte(unsigned long address, pte_t *ptep,
-			       unsigned long opt, unsigned long asce,
-			       int local)
+static __always_inline void __ptep_ipte(unsigned long address, pte_t *ptep,
+					unsigned long opt, unsigned long asce,
+					int local)
 {
 	unsigned long pto = (unsigned long) ptep;
 
@@ -1019,8 +1008,8 @@ static inline void __ptep_ipte(unsigned long address, pte_t *ptep,
 		: [r1] "a" (pto), [m4] "i" (local) : "memory");
 }
 
-static inline void __ptep_ipte_range(unsigned long address, int nr,
-				     pte_t *ptep, int local)
+static __always_inline void __ptep_ipte_range(unsigned long address, int nr,
+					      pte_t *ptep, int local)
 {
 	unsigned long pto = (unsigned long) ptep;
 
@@ -1172,8 +1161,6 @@ void gmap_pmdp_idte_global(struct mm_struct *mm, unsigned long vmaddr);
 static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 			      pte_t *ptep, pte_t entry)
 {
-	if (!MACHINE_HAS_NX)
-		pte_val(entry) &= ~_PAGE_NOEXEC;
 	if (pte_present(entry))
 		pte_val(entry) &= ~_PAGE_UNUSED;
 	if (mm_has_pgste(mm))
@@ -1190,6 +1177,8 @@ static inline pte_t mk_pte_phys(unsigned long physpage, pgprot_t pgprot)
 {
 	pte_t __pte;
 	pte_val(__pte) = physpage + pgprot_val(pgprot);
+	if (!MACHINE_HAS_NX)
+		pte_val(__pte) &= ~_PAGE_NOEXEC;
 	return pte_mkyoung(__pte);
 }
 
@@ -1268,16 +1257,11 @@ static inline pte_t *pte_offset(pmd_t *pmd, unsigned long address)
 
 #define pte_offset_kernel(pmd, address) pte_offset(pmd, address)
 #define pte_offset_map(pmd, address) pte_offset_kernel(pmd, address)
-#define pte_unmap(pte) do { } while (0)
 
-static inline bool gup_fast_permitted(unsigned long start, int nr_pages)
+static inline void pte_unmap(pte_t *pte) { }
+
+static inline bool gup_fast_permitted(unsigned long start, unsigned long end)
 {
-	unsigned long len, end;
-
-	len = (unsigned long) nr_pages << PAGE_SHIFT;
-	end = start + len;
-	if (end < start)
-		return false;
 	return end <= current->mm->context.asce_limit;
 }
 #define gup_fast_permitted gup_fast_permitted
@@ -1301,29 +1285,23 @@ static inline pmd_t pmd_wrprotect(pmd_t pmd)
 static inline pmd_t pmd_mkwrite(pmd_t pmd)
 {
 	pmd_val(pmd) |= _SEGMENT_ENTRY_WRITE;
-	if (pmd_large(pmd) && !(pmd_val(pmd) & _SEGMENT_ENTRY_DIRTY))
-		return pmd;
-	pmd_val(pmd) &= ~_SEGMENT_ENTRY_PROTECT;
+	if (pmd_val(pmd) & _SEGMENT_ENTRY_DIRTY)
+		pmd_val(pmd) &= ~_SEGMENT_ENTRY_PROTECT;
 	return pmd;
 }
 
 static inline pmd_t pmd_mkclean(pmd_t pmd)
 {
-	if (pmd_large(pmd)) {
-		pmd_val(pmd) &= ~_SEGMENT_ENTRY_DIRTY;
-		pmd_val(pmd) |= _SEGMENT_ENTRY_PROTECT;
-	}
+	pmd_val(pmd) &= ~_SEGMENT_ENTRY_DIRTY;
+	pmd_val(pmd) |= _SEGMENT_ENTRY_PROTECT;
 	return pmd;
 }
 
 static inline pmd_t pmd_mkdirty(pmd_t pmd)
 {
-	if (pmd_large(pmd)) {
-		pmd_val(pmd) |= _SEGMENT_ENTRY_DIRTY |
-				_SEGMENT_ENTRY_SOFT_DIRTY;
-		if (pmd_val(pmd) & _SEGMENT_ENTRY_WRITE)
-			pmd_val(pmd) &= ~_SEGMENT_ENTRY_PROTECT;
-	}
+	pmd_val(pmd) |= _SEGMENT_ENTRY_DIRTY | _SEGMENT_ENTRY_SOFT_DIRTY;
+	if (pmd_val(pmd) & _SEGMENT_ENTRY_WRITE)
+		pmd_val(pmd) &= ~_SEGMENT_ENTRY_PROTECT;
 	return pmd;
 }
 
@@ -1337,29 +1315,23 @@ static inline pud_t pud_wrprotect(pud_t pud)
 static inline pud_t pud_mkwrite(pud_t pud)
 {
 	pud_val(pud) |= _REGION3_ENTRY_WRITE;
-	if (pud_large(pud) && !(pud_val(pud) & _REGION3_ENTRY_DIRTY))
-		return pud;
-	pud_val(pud) &= ~_REGION_ENTRY_PROTECT;
+	if (pud_val(pud) & _REGION3_ENTRY_DIRTY)
+		pud_val(pud) &= ~_REGION_ENTRY_PROTECT;
 	return pud;
 }
 
 static inline pud_t pud_mkclean(pud_t pud)
 {
-	if (pud_large(pud)) {
-		pud_val(pud) &= ~_REGION3_ENTRY_DIRTY;
-		pud_val(pud) |= _REGION_ENTRY_PROTECT;
-	}
+	pud_val(pud) &= ~_REGION3_ENTRY_DIRTY;
+	pud_val(pud) |= _REGION_ENTRY_PROTECT;
 	return pud;
 }
 
 static inline pud_t pud_mkdirty(pud_t pud)
 {
-	if (pud_large(pud)) {
-		pud_val(pud) |= _REGION3_ENTRY_DIRTY |
-				_REGION3_ENTRY_SOFT_DIRTY;
-		if (pud_val(pud) & _REGION3_ENTRY_WRITE)
-			pud_val(pud) &= ~_REGION_ENTRY_PROTECT;
-	}
+	pud_val(pud) |= _REGION3_ENTRY_DIRTY | _REGION3_ENTRY_SOFT_DIRTY;
+	if (pud_val(pud) & _REGION3_ENTRY_WRITE)
+		pud_val(pud) &= ~_REGION_ENTRY_PROTECT;
 	return pud;
 }
 
@@ -1383,38 +1355,29 @@ static inline unsigned long massage_pgprot_pmd(pgprot_t pgprot)
 
 static inline pmd_t pmd_mkyoung(pmd_t pmd)
 {
-	if (pmd_large(pmd)) {
-		pmd_val(pmd) |= _SEGMENT_ENTRY_YOUNG;
-		if (pmd_val(pmd) & _SEGMENT_ENTRY_READ)
-			pmd_val(pmd) &= ~_SEGMENT_ENTRY_INVALID;
-	}
+	pmd_val(pmd) |= _SEGMENT_ENTRY_YOUNG;
+	if (pmd_val(pmd) & _SEGMENT_ENTRY_READ)
+		pmd_val(pmd) &= ~_SEGMENT_ENTRY_INVALID;
 	return pmd;
 }
 
 static inline pmd_t pmd_mkold(pmd_t pmd)
 {
-	if (pmd_large(pmd)) {
-		pmd_val(pmd) &= ~_SEGMENT_ENTRY_YOUNG;
-		pmd_val(pmd) |= _SEGMENT_ENTRY_INVALID;
-	}
+	pmd_val(pmd) &= ~_SEGMENT_ENTRY_YOUNG;
+	pmd_val(pmd) |= _SEGMENT_ENTRY_INVALID;
 	return pmd;
 }
 
 static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
 {
-	if (pmd_large(pmd)) {
-		pmd_val(pmd) &= _SEGMENT_ENTRY_ORIGIN_LARGE |
-			_SEGMENT_ENTRY_DIRTY | _SEGMENT_ENTRY_YOUNG |
-			_SEGMENT_ENTRY_LARGE | _SEGMENT_ENTRY_SOFT_DIRTY;
-		pmd_val(pmd) |= massage_pgprot_pmd(newprot);
-		if (!(pmd_val(pmd) & _SEGMENT_ENTRY_DIRTY))
-			pmd_val(pmd) |= _SEGMENT_ENTRY_PROTECT;
-		if (!(pmd_val(pmd) & _SEGMENT_ENTRY_YOUNG))
-			pmd_val(pmd) |= _SEGMENT_ENTRY_INVALID;
-		return pmd;
-	}
-	pmd_val(pmd) &= _SEGMENT_ENTRY_ORIGIN;
+	pmd_val(pmd) &= _SEGMENT_ENTRY_ORIGIN_LARGE |
+		_SEGMENT_ENTRY_DIRTY | _SEGMENT_ENTRY_YOUNG |
+		_SEGMENT_ENTRY_LARGE | _SEGMENT_ENTRY_SOFT_DIRTY;
 	pmd_val(pmd) |= massage_pgprot_pmd(newprot);
+	if (!(pmd_val(pmd) & _SEGMENT_ENTRY_DIRTY))
+		pmd_val(pmd) |= _SEGMENT_ENTRY_PROTECT;
+	if (!(pmd_val(pmd) & _SEGMENT_ENTRY_YOUNG))
+		pmd_val(pmd) |= _SEGMENT_ENTRY_INVALID;
 	return pmd;
 }
 
@@ -1440,9 +1403,9 @@ static inline void __pmdp_csp(pmd_t *pmdp)
 #define IDTE_NODAT	0x1000
 #define IDTE_GUEST_ASCE	0x2000
 
-static inline void __pmdp_idte(unsigned long addr, pmd_t *pmdp,
-			       unsigned long opt, unsigned long asce,
-			       int local)
+static __always_inline void __pmdp_idte(unsigned long addr, pmd_t *pmdp,
+					unsigned long opt, unsigned long asce,
+					int local)
 {
 	unsigned long sto;
 
@@ -1466,9 +1429,9 @@ static inline void __pmdp_idte(unsigned long addr, pmd_t *pmdp,
 	}
 }
 
-static inline void __pudp_idte(unsigned long addr, pud_t *pudp,
-			       unsigned long opt, unsigned long asce,
-			       int local)
+static __always_inline void __pudp_idte(unsigned long addr, pud_t *pudp,
+					unsigned long opt, unsigned long asce,
+					int local)
 {
 	unsigned long r3o;
 
@@ -1686,12 +1649,6 @@ extern void s390_reset_cmma(struct mm_struct *mm);
 /* s390 has a private copy of get unmapped area to deal with cache synonyms */
 #define HAVE_ARCH_UNMAPPED_AREA
 #define HAVE_ARCH_UNMAPPED_AREA_TOPDOWN
-
-/*
- * No page table caches to initialise
- */
-static inline void pgtable_cache_init(void) { }
-static inline void check_pgt_cache(void) { }
 
 #include <asm-generic/pgtable.h>
 

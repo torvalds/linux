@@ -83,7 +83,6 @@
 #define VID_CHANNEL_NUM 8
 
 struct cx25821_fmt {
-	char *name;
 	u32 fourcc;		/* v4l2 format id */
 	int depth;
 	int flags;

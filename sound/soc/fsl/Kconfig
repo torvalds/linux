@@ -25,6 +25,16 @@ config SND_SOC_FSL_SAI
 	  This option is only useful for out-of-tree drivers since
 	  in-tree drivers select it automatically.
 
+config SND_SOC_FSL_MQS
+	tristate "Medium Quality Sound (MQS) module support"
+	depends on SND_SOC_FSL_SAI
+	select REGMAP_MMIO
+	help
+	  Say Y if you want to add Medium Quality Sound (MQS)
+	  support for the Freescale CPUs.
+	  This option is only useful for out-of-tree drivers since
+	  in-tree drivers select it automatically.
+
 config SND_SOC_FSL_AUDMIX
 	tristate "Audio Mixer (AUDMIX) module support"
 	select REGMAP_MMIO

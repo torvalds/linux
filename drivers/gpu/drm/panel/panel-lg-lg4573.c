@@ -12,16 +12,19 @@
  * Andrzej Hajda <a.hajda@samsung.com>
 */
 
-#include <drm/drmP.h>
-#include <drm/drm_panel.h>
-
+#include <linux/delay.h>
 #include <linux/gpio/consumer.h>
+#include <linux/module.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
 
 #include <video/mipi_display.h>
 #include <video/of_videomode.h>
 #include <video/videomode.h>
+
+#include <drm/drm_device.h>
+#include <drm/drm_modes.h>
+#include <drm/drm_panel.h>
 
 struct lg4573 {
 	struct drm_panel panel;
@@ -256,9 +259,8 @@ static int lg4573_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	drm_panel_init(&ctx->panel);
-	ctx->panel.dev = &spi->dev;
-	ctx->panel.funcs = &lg4573_drm_funcs;
+	drm_panel_init(&ctx->panel, &spi->dev, &lg4573_drm_funcs,
+		       DRM_MODE_CONNECTOR_DPI);
 
 	return drm_panel_add(&ctx->panel);
 }

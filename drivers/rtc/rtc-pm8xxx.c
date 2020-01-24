@@ -49,7 +49,7 @@ struct pm8xxx_rtc_regs {
  * @regmap:		regmap used to access RTC registers
  * @allow_set_time:	indicates whether writing to the RTC is allowed
  * @rtc_alarm_irq:	rtc alarm irq number.
- * @ctrl_reg:		rtc control register.
+ * @regs:		rtc registers description.
  * @rtc_dev:		device structure.
  * @ctrl_reg_lock:	spinlock protecting access to ctrl_reg.
  */
@@ -468,10 +468,8 @@ static int pm8xxx_rtc_probe(struct platform_device *pdev)
 	}
 
 	rtc_dd->rtc_alarm_irq = platform_get_irq(pdev, 0);
-	if (rtc_dd->rtc_alarm_irq < 0) {
-		dev_err(&pdev->dev, "Alarm IRQ resource absent!\n");
+	if (rtc_dd->rtc_alarm_irq < 0)
 		return -ENXIO;
-	}
 
 	rtc_dd->allow_set_time = of_property_read_bool(pdev->dev.of_node,
 						      "allow-set-time");

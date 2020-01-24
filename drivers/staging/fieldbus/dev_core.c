@@ -23,9 +23,6 @@ static dev_t fieldbus_devt;
 static DEFINE_IDA(fieldbus_ida);
 static DEFINE_MUTEX(fieldbus_mtx);
 
-static const char ctrl_enabled[] = "enabled";
-static const char ctrl_disabled[] = "disabled";
-
 static ssize_t online_show(struct device *dev, struct device_attribute *attr,
 			   char *buf)
 {
@@ -211,16 +208,16 @@ static ssize_t fieldbus_write(struct file *filp, const char __user *buf,
 	return fbdev->write_area(fbdev, buf, size, offset);
 }
 
-static unsigned int fieldbus_poll(struct file *filp, poll_table *wait)
+static __poll_t fieldbus_poll(struct file *filp, poll_table *wait)
 {
 	struct fb_open_file *of = filp->private_data;
 	struct fieldbus_dev *fbdev = of->fbdev;
-	unsigned int mask = POLLIN | POLLRDNORM | POLLOUT | POLLWRNORM;
+	__poll_t mask = EPOLLIN | EPOLLRDNORM | EPOLLOUT | EPOLLWRNORM;
 
 	poll_wait(filp, &fbdev->dc_wq, wait);
 	/* data changed ? */
 	if (fbdev->dc_event != of->dc_event)
-		mask |= POLLPRI | POLLERR;
+		mask |= EPOLLPRI | EPOLLERR;
 	return mask;
 }
 

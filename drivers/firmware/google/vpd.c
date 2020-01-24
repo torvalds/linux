@@ -92,8 +92,8 @@ static int vpd_section_check_key_name(const u8 *key, s32 key_len)
 	return VPD_OK;
 }
 
-static int vpd_section_attrib_add(const u8 *key, s32 key_len,
-				  const u8 *value, s32 value_len,
+static int vpd_section_attrib_add(const u8 *key, u32 key_len,
+				  const u8 *value, u32 value_len,
 				  void *arg)
 {
 	int ret;
@@ -316,19 +316,7 @@ static struct coreboot_driver vpd_driver = {
 	},
 	.tag = CB_TAG_VPD,
 };
-
-static int __init coreboot_vpd_init(void)
-{
-	return coreboot_driver_register(&vpd_driver);
-}
-
-static void __exit coreboot_vpd_exit(void)
-{
-	coreboot_driver_unregister(&vpd_driver);
-}
-
-module_init(coreboot_vpd_init);
-module_exit(coreboot_vpd_exit);
+module_coreboot_driver(vpd_driver);
 
 MODULE_AUTHOR("Google, Inc.");
 MODULE_LICENSE("GPL");

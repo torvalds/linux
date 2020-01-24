@@ -761,13 +761,13 @@ struct els_entry_24xx {
 #define ECF_CLR_PASSTHRU_PEND	BIT_12
 #define ECF_INCL_FRAME_HDR	BIT_11
 
-	uint32_t rx_byte_count;
-	uint32_t tx_byte_count;
+	__le32	 rx_byte_count;
+	__le32	 tx_byte_count;
 
 	__le64	 tx_address __packed;	/* Data segment 0 address. */
-	uint32_t tx_len;		/* Data segment 0 length. */
+	__le32	 tx_len;		/* Data segment 0 length. */
 	__le64	 rx_address __packed;	/* Data segment 1 address. */
-	uint32_t rx_len;		/* Data segment 1 length. */
+	__le32	 rx_len;		/* Data segment 1 length. */
 };
 
 struct els_sts_entry_24xx {
@@ -1523,6 +1523,10 @@ struct qla_flt_header {
 #define FLT_REG_NVRAM_SEC_28XX_1	0x10F
 #define FLT_REG_NVRAM_SEC_28XX_2	0x111
 #define FLT_REG_NVRAM_SEC_28XX_3	0x113
+#define FLT_REG_MPI_PRI_28XX		0xD3
+#define FLT_REG_MPI_SEC_28XX		0xF0
+#define FLT_REG_PEP_PRI_28XX		0xD1
+#define FLT_REG_PEP_SEC_28XX		0xF1
 
 struct qla_flt_region {
 	uint16_t code;
@@ -2100,5 +2104,7 @@ struct qla_fcp_prio_cfg {
 /* 83XX Flash locations -- occupies second 8MB region. */
 #define FA_FLASH_LAYOUT_ADDR_83	(0x3F1000/4)
 #define FA_FLASH_LAYOUT_ADDR_28	(0x11000/4)
+
+#define NVRAM_DUAL_FCP_NVME_FLAG_OFFSET	0x196
 
 #endif

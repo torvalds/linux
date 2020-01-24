@@ -24,7 +24,7 @@ struct nfp_app;
 #define NFP_FL_STAT_ID_MU_NUM		GENMASK(31, 22)
 #define NFP_FL_STAT_ID_STAT		GENMASK(21, 0)
 
-#define NFP_FL_STATS_ELEM_RS		FIELD_SIZEOF(struct nfp_fl_stats_id, \
+#define NFP_FL_STATS_ELEM_RS		sizeof_field(struct nfp_fl_stats_id, \
 						     init_unalloc)
 #define NFP_FLOWER_MASK_ENTRY_RS	256
 #define NFP_FLOWER_MASK_ELEMENT_RS	1
@@ -42,6 +42,7 @@ struct nfp_app;
 #define NFP_FL_FEATS_VLAN_PCP		BIT(3)
 #define NFP_FL_FEATS_VF_RLIM		BIT(4)
 #define NFP_FL_FEATS_FLOW_MOD		BIT(5)
+#define NFP_FL_FEATS_PRE_TUN_RULES	BIT(6)
 #define NFP_FL_FEATS_FLOW_MERGE		BIT(30)
 #define NFP_FL_FEATS_LAG		BIT(31)
 
@@ -162,6 +163,7 @@ struct nfp_fl_internal_ports {
  * @qos_stats_work:	Workqueue for qos stats processing
  * @qos_rate_limiters:	Current active qos rate limiters
  * @qos_stats_lock:	Lock on qos stats updates
+ * @pre_tun_rule_cnt:	Number of pre-tunnel rules offloaded
  */
 struct nfp_flower_priv {
 	struct nfp_app *app;
@@ -193,6 +195,7 @@ struct nfp_flower_priv {
 	struct delayed_work qos_stats_work;
 	unsigned int qos_rate_limiters;
 	spinlock_t qos_stats_lock; /* Protect the qos stats */
+	int pre_tun_rule_cnt;
 };
 
 /**
@@ -218,6 +221,7 @@ struct nfp_fl_qos {
  * @block_shared:	Flag indicating if offload applies to shared blocks
  * @mac_list:		List entry of reprs that share the same offloaded MAC
  * @qos_table:		Stored info on filters implementing qos
+ * @on_bridge:		Indicates if the repr is attached to a bridge
  */
 struct nfp_flower_repr_priv {
 	struct nfp_repr *nfp_repr;
@@ -227,6 +231,7 @@ struct nfp_flower_repr_priv {
 	bool block_shared;
 	struct list_head mac_list;
 	struct nfp_fl_qos qos_table;
+	bool on_bridge;
 };
 
 /**
@@ -280,6 +285,11 @@ struct nfp_fl_payload {
 	char *action_data;
 	struct list_head linked_flows;
 	bool in_hw;
+	struct {
+		struct net_device *dev;
+		__be16 vlan_tci;
+		__be16 port_idx;
+	} pre_tun_rule;
 };
 
 struct nfp_fl_payload_link {
@@ -333,6 +343,11 @@ static inline bool nfp_flower_is_merge_flow(struct nfp_fl_payload *flow_pay)
 	return flow_pay->tc_flower_cookie == (unsigned long)flow_pay;
 }
 
+static inline bool nfp_flower_is_supported_bridge(struct net_device *netdev)
+{
+	return netif_is_ovs_master(netdev);
+}
+
 int nfp_flower_metadata_init(struct nfp_app *app, u64 host_ctx_count,
 			     unsigned int host_ctx_split);
 void nfp_flower_metadata_cleanup(struct nfp_app *app);
@@ -343,19 +358,22 @@ int nfp_flower_merge_offloaded_flows(struct nfp_app *app,
 				     struct nfp_fl_payload *sub_flow1,
 				     struct nfp_fl_payload *sub_flow2);
 int nfp_flower_compile_flow_match(struct nfp_app *app,
-				  struct tc_cls_flower_offload *flow,
+				  struct flow_cls_offload *flow,
 				  struct nfp_fl_key_ls *key_ls,
 				  struct net_device *netdev,
 				  struct nfp_fl_payload *nfp_flow,
-				  enum nfp_flower_tun_type tun_type);
+				  enum nfp_flower_tun_type tun_type,
+				  struct netlink_ext_ack *extack);
 int nfp_flower_compile_action(struct nfp_app *app,
-			      struct tc_cls_flower_offload *flow,
+			      struct flow_cls_offload *flow,
 			      struct net_device *netdev,
-			      struct nfp_fl_payload *nfp_flow);
-int nfp_compile_flow_metadata(struct nfp_app *app,
-			      struct tc_cls_flower_offload *flow,
 			      struct nfp_fl_payload *nfp_flow,
-			      struct net_device *netdev);
+			      struct netlink_ext_ack *extack);
+int nfp_compile_flow_metadata(struct nfp_app *app,
+			      struct flow_cls_offload *flow,
+			      struct nfp_fl_payload *nfp_flow,
+			      struct net_device *netdev,
+			      struct netlink_ext_ack *extack);
 void __nfp_modify_flow_metadata(struct nfp_flower_priv *priv,
 				struct nfp_fl_payload *nfp_flow);
 int nfp_modify_flow_metadata(struct nfp_app *app,
@@ -389,7 +407,8 @@ int nfp_flower_lag_netdev_event(struct nfp_flower_priv *priv,
 bool nfp_flower_lag_unprocessed_msg(struct nfp_app *app, struct sk_buff *skb);
 int nfp_flower_lag_populate_pre_action(struct nfp_app *app,
 				       struct net_device *master,
-				       struct nfp_fl_pre_lag *pre_act);
+				       struct nfp_fl_pre_lag *pre_act,
+				       struct netlink_ext_ack *extack);
 int nfp_flower_lag_get_output_id(struct nfp_app *app,
 				 struct net_device *master);
 void nfp_flower_qos_init(struct nfp_app *app);
@@ -411,4 +430,8 @@ void
 nfp_flower_non_repr_priv_put(struct nfp_app *app, struct net_device *netdev);
 u32 nfp_flower_get_port_id_from_netdev(struct nfp_app *app,
 				       struct net_device *netdev);
+int nfp_flower_xmit_pre_tun_flow(struct nfp_app *app,
+				 struct nfp_fl_payload *flow);
+int nfp_flower_xmit_pre_tun_del_flow(struct nfp_app *app,
+				     struct nfp_fl_payload *flow);
 #endif

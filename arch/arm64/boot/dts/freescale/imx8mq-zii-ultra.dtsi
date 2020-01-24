@@ -62,29 +62,26 @@
 	reg_3p3_main: regulator-3p3-main {
 		compatible = "regulator-fixed";
 		vin-supply = <&reg_12p0_main>;
-		regulator-name = "3V3V_MAIN";
+		regulator-name = "3V3_MAIN";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		regulator-always-on;
 	};
 
-	reg_5p0_user_usb: regulator-5p0-user-usb {
+	reg_gen_3p3: regulator-gen-3p3 {
 		compatible = "regulator-fixed";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_reg_user_usb>;
-		vin-supply = <&reg_5p0_main>;
-		regulator-name = "5V_USER_USB";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		gpio = <&gpio3 12 GPIO_ACTIVE_LOW>;
-		startup-delay-us = <1000>;
+		vin-supply = <&reg_3p3_main>;
+		regulator-name = "GEN_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
 	};
 
 	reg_usdhc2_vmmc: regulator-vsd-3v3 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_reg_usdhc2>;
 		compatible = "regulator-fixed";
-		vin-supply = <&reg_3p3_main>;
+		vin-supply = <&reg_gen_3p3>;
 		regulator-name = "3V3_SD";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
@@ -100,9 +97,9 @@
 		regulator-name = "0V9_ARM";
 		regulator-min-microvolt = <900000>;
 		regulator-max-microvolt = <1000000>;
-		gpios = <&gpio3 19 GPIO_ACTIVE_HIGH>;
-		states = <1000000 0x0
-		           900000 0x1>;
+		gpios = <&gpio3 16 GPIO_ACTIVE_HIGH>;
+		states = <1000000 0x1
+		           900000 0x0>;
 		regulator-always-on;
 	};
 };
@@ -244,6 +241,13 @@
 		line-name = "usb-mode1";
 	};
 
+	usb-pwr {
+		gpio-hog;
+		gpios = <12 GPIO_ACTIVE_LOW>;
+		output-high;
+		line-name = "usb-pwr-ctrl-en-n";
+	};
+
 	usb-mode2 {
 		gpio-hog;
 		gpios = <13 GPIO_ACTIVE_HIGH>;
@@ -257,6 +261,29 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c1>;
 	status = "okay";
+
+	accelerometer@1c {
+		compatible = "fsl,mma8451";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_accel>;
+		reg = <0x1c>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <20 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-names = "INT2";
+		vdd-supply = <&reg_gen_3p3>;
+		vddio-supply = <&reg_gen_3p3>;
+	};
+
+	ucs1002: charger@32 {
+		compatible = "microchip,ucs1002";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_ucs1002>;
+		reg = <0x32>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <17 IRQ_TYPE_EDGE_BOTH>,
+		             <18 IRQ_TYPE_EDGE_BOTH>;
+		interrupt-names = "a_det", "alert";
+	};
 };
 
 &i2c2 {
@@ -373,6 +400,11 @@
 		reg = <0x2c>;
 		reset-gpios = <&gpio3 25 GPIO_ACTIVE_LOW>;
 	};
+
+	watchdog@38 {
+		compatible = "zii,rave-wdt";
+		reg = <0x38>;
+	};
 };
 
 &i2c4 {
@@ -428,7 +460,7 @@
 };
 
 &usb3_phy0 {
-	vbus-supply = <&reg_5p0_user_usb>;
+	vbus-supply = <&ucs1002>;
 	status = "okay";
 };
 
@@ -480,6 +512,8 @@
 };
 
 &usdhc1 {
+	assigned-clocks = <&clk IMX8MQ_CLK_USDHC1>;
+	assigned-clock-rates = <400000000>;
 	pinctrl-names = "default", "state_100mhz", "state_200mhz";
 	pinctrl-0 = <&pinctrl_usdhc1>;
 	pinctrl-1 = <&pinctrl_usdhc1_100mhz>;
@@ -493,6 +527,8 @@
 };
 
 &usdhc2 {
+	assigned-clocks = <&clk IMX8MQ_CLK_USDHC2>;
+	assigned-clock-rates = <200000000>;
 	pinctrl-names = "default", "state_100mhz", "state_200mhz";
 	pinctrl-0 = <&pinctrl_usdhc2>;
 	pinctrl-1 = <&pinctrl_usdhc2_100mhz>;
@@ -507,6 +543,12 @@
 };
 
 &iomuxc {
+	pinctrl_accel: accelgrp {
+		fsl,pins = <
+			MX8MQ_IOMUXC_SAI5_RXC_GPIO3_IO20		0x41
+		>;
+	};
+
 	pinctrl_fec1: fec1grp {
 		fsl,pins = <
 			MX8MQ_IOMUXC_ENET_MDC_ENET1_MDC			0x3
@@ -532,6 +574,7 @@
 		fsl,pins = <
 			MX8MQ_IOMUXC_NAND_DATA04_GPIO3_IO10		0x6
 			MX8MQ_IOMUXC_NAND_DATA05_GPIO3_IO11		0x6
+			MX8MQ_IOMUXC_NAND_DATA06_GPIO3_IO12		0x6
 			MX8MQ_IOMUXC_NAND_DATA07_GPIO3_IO13		0x6
 		>;
 	};
@@ -597,12 +640,6 @@
 		>;
 	};
 
-	pinctrl_reg_user_usb: reguserusbgrp {
-		fsl,pins = <
-			MX8MQ_IOMUXC_NAND_DATA06_GPIO3_IO12		0x6
-		>;
-	};
-
 	pinctrl_switch_irq: switchgrp {
 		fsl,pins = <
 			MX8MQ_IOMUXC_GPIO1_IO15_GPIO1_IO15		0x41
@@ -627,6 +664,13 @@
 		fsl,pins = <
 			MX8MQ_IOMUXC_UART2_RXD_UART2_DCE_RX		0x49
 			MX8MQ_IOMUXC_UART2_TXD_UART2_DCE_TX		0x49
+		>;
+	};
+
+	pinctrl_ucs1002: ucs1002grp {
+		fsl,pins = <
+			MX8MQ_IOMUXC_NAND_WE_B_GPIO3_IO17		0x41
+			MX8MQ_IOMUXC_NAND_WP_B_GPIO3_IO18		0x41
 		>;
 	};
 

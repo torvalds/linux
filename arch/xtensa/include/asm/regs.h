@@ -81,6 +81,7 @@
 /*  PS register fields.  */
 
 #define PS_WOE_BIT		18
+#define PS_WOE_MASK		0x00040000
 #define PS_CALLINC_SHIFT	16
 #define PS_CALLINC_MASK		0x00030000
 #define PS_OWB_SHIFT		8

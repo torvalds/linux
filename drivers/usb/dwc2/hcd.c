@@ -4608,7 +4608,7 @@ static int _dwc2_hcd_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 
 	buf = urb->transfer_buffer;
 
-	if (hcd->self.uses_dma) {
+	if (hcd_uses_dma(hcd)) {
 		if (!buf && (urb->transfer_dma & 3)) {
 			dev_err(hsotg->dev,
 				"%s: unaligned transfer with no transfer_buffer",
@@ -4685,7 +4685,6 @@ fail2:
 	spin_unlock_irqrestore(&hsotg->lock, flags);
 	urb->hcpriv = NULL;
 	kfree(qtd);
-	qtd = NULL;
 fail1:
 	if (qh_allocated) {
 		struct dwc2_qtd *qtd2, *qtd2_tmp;
@@ -5063,12 +5062,12 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg)
 		dwc2_hc_driver.reset_device = dwc2_reset_device;
 	}
 
+	if (hsotg->params.host_dma)
+		dwc2_hc_driver.flags |= HCD_DMA;
+
 	hcd = usb_create_hcd(&dwc2_hc_driver, hsotg->dev, dev_name(hsotg->dev));
 	if (!hcd)
 		goto error1;
-
-	if (!hsotg->params.host_dma)
-		hcd->self.uses_dma = 0;
 
 	hcd->has_tt = 1;
 
@@ -5586,4 +5585,23 @@ int dwc2_host_exit_hibernation(struct dwc2_hsotg *hsotg, int rem_wakeup,
 	hsotg->lx_state = DWC2_L0;
 	dev_dbg(hsotg->dev, "Host hibernation restore complete\n");
 	return ret;
+}
+
+bool dwc2_host_can_poweroff_phy(struct dwc2_hsotg *dwc2)
+{
+	struct usb_device *root_hub = dwc2_hsotg_to_hcd(dwc2)->self.root_hub;
+
+	/* If the controller isn't allowed to wakeup then we can power off. */
+	if (!device_may_wakeup(dwc2->dev))
+		return true;
+
+	/*
+	 * We don't want to power off the PHY if something under the
+	 * root hub has wakeup enabled.
+	 */
+	if (usb_wakeup_enabled_descendants(root_hub))
+		return false;
+
+	/* No reason to keep the PHY powered, so allow poweroff */
+	return true;
 }

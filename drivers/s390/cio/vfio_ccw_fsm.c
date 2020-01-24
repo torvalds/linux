@@ -15,9 +15,6 @@
 #include "ioasm.h"
 #include "vfio_ccw_private.h"
 
-#define CREATE_TRACE_POINTS
-#include "vfio_ccw_trace.h"
-
 static int fsm_io_helper(struct vfio_ccw_private *private)
 {
 	struct subchannel *sch;
@@ -37,8 +34,13 @@ static int fsm_io_helper(struct vfio_ccw_private *private)
 		goto out;
 	}
 
+	VFIO_CCW_TRACE_EVENT(5, "stIO");
+	VFIO_CCW_TRACE_EVENT(5, dev_name(&sch->dev));
+
 	/* Issue "Start Subchannel" */
 	ccode = ssch(sch->schid, orb);
+
+	VFIO_CCW_HEX_EVENT(5, &ccode, sizeof(ccode));
 
 	switch (ccode) {
 	case 0:
@@ -86,8 +88,13 @@ static int fsm_do_halt(struct vfio_ccw_private *private)
 
 	spin_lock_irqsave(sch->lock, flags);
 
+	VFIO_CCW_TRACE_EVENT(2, "haltIO");
+	VFIO_CCW_TRACE_EVENT(2, dev_name(&sch->dev));
+
 	/* Issue "Halt Subchannel" */
 	ccode = hsch(sch->schid);
+
+	VFIO_CCW_HEX_EVENT(2, &ccode, sizeof(ccode));
 
 	switch (ccode) {
 	case 0:
@@ -122,8 +129,13 @@ static int fsm_do_clear(struct vfio_ccw_private *private)
 
 	spin_lock_irqsave(sch->lock, flags);
 
+	VFIO_CCW_TRACE_EVENT(2, "clearIO");
+	VFIO_CCW_TRACE_EVENT(2, dev_name(&sch->dev));
+
 	/* Issue "Clear Subchannel" */
 	ccode = csch(sch->schid);
+
+	VFIO_CCW_HEX_EVENT(2, &ccode, sizeof(ccode));
 
 	switch (ccode) {
 	case 0:
@@ -148,6 +160,9 @@ static void fsm_notoper(struct vfio_ccw_private *private,
 			enum vfio_ccw_event event)
 {
 	struct subchannel *sch = private->sch;
+
+	VFIO_CCW_TRACE_EVENT(2, "notoper");
+	VFIO_CCW_TRACE_EVENT(2, dev_name(&sch->dev));
 
 	/*
 	 * TODO:
@@ -229,6 +244,7 @@ static void fsm_io_request(struct vfio_ccw_private *private,
 	struct ccw_io_region *io_region = private->io_region;
 	struct mdev_device *mdev = private->mdev;
 	char *errstr = "request";
+	struct subchannel_id schid = get_schid(private);
 
 	private->state = VFIO_CCW_STATE_CP_PROCESSING;
 	memcpy(scsw, io_region->scsw_area, sizeof(*scsw));
@@ -239,18 +255,32 @@ static void fsm_io_request(struct vfio_ccw_private *private,
 		/* Don't try to build a cp if transport mode is specified. */
 		if (orb->tm.b) {
 			io_region->ret_code = -EOPNOTSUPP;
+			VFIO_CCW_MSG_EVENT(2,
+					   "%pUl (%x.%x.%04x): transport mode\n",
+					   mdev_uuid(mdev), schid.cssid,
+					   schid.ssid, schid.sch_no);
 			errstr = "transport mode";
 			goto err_out;
 		}
 		io_region->ret_code = cp_init(&private->cp, mdev_dev(mdev),
 					      orb);
 		if (io_region->ret_code) {
+			VFIO_CCW_MSG_EVENT(2,
+					   "%pUl (%x.%x.%04x): cp_init=%d\n",
+					   mdev_uuid(mdev), schid.cssid,
+					   schid.ssid, schid.sch_no,
+					   io_region->ret_code);
 			errstr = "cp init";
 			goto err_out;
 		}
 
 		io_region->ret_code = cp_prefetch(&private->cp);
 		if (io_region->ret_code) {
+			VFIO_CCW_MSG_EVENT(2,
+					   "%pUl (%x.%x.%04x): cp_prefetch=%d\n",
+					   mdev_uuid(mdev), schid.cssid,
+					   schid.ssid, schid.sch_no,
+					   io_region->ret_code);
 			errstr = "cp prefetch";
 			cp_free(&private->cp);
 			goto err_out;
@@ -259,24 +289,37 @@ static void fsm_io_request(struct vfio_ccw_private *private,
 		/* Start channel program and wait for I/O interrupt. */
 		io_region->ret_code = fsm_io_helper(private);
 		if (io_region->ret_code) {
+			VFIO_CCW_MSG_EVENT(2,
+					   "%pUl (%x.%x.%04x): fsm_io_helper=%d\n",
+					   mdev_uuid(mdev), schid.cssid,
+					   schid.ssid, schid.sch_no,
+					   io_region->ret_code);
 			errstr = "cp fsm_io_helper";
 			cp_free(&private->cp);
 			goto err_out;
 		}
 		return;
 	} else if (scsw->cmd.fctl & SCSW_FCTL_HALT_FUNC) {
+		VFIO_CCW_MSG_EVENT(2,
+				   "%pUl (%x.%x.%04x): halt on io_region\n",
+				   mdev_uuid(mdev), schid.cssid,
+				   schid.ssid, schid.sch_no);
 		/* halt is handled via the async cmd region */
 		io_region->ret_code = -EOPNOTSUPP;
 		goto err_out;
 	} else if (scsw->cmd.fctl & SCSW_FCTL_CLEAR_FUNC) {
+		VFIO_CCW_MSG_EVENT(2,
+				   "%pUl (%x.%x.%04x): clear on io_region\n",
+				   mdev_uuid(mdev), schid.cssid,
+				   schid.ssid, schid.sch_no);
 		/* clear is handled via the async cmd region */
 		io_region->ret_code = -EOPNOTSUPP;
 		goto err_out;
 	}
 
 err_out:
-	trace_vfio_ccw_io_fctl(scsw->cmd.fctl, get_schid(private),
-			       io_region->ret_code, errstr);
+	trace_vfio_ccw_fsm_io_request(scsw->cmd.fctl, schid,
+				      io_region->ret_code, errstr);
 }
 
 /*
@@ -298,6 +341,10 @@ static void fsm_async_request(struct vfio_ccw_private *private,
 		/* should not happen? */
 		cmd_region->ret_code = -EINVAL;
 	}
+
+	trace_vfio_ccw_fsm_async_request(get_schid(private),
+					 cmd_region->command,
+					 cmd_region->ret_code);
 }
 
 /*
@@ -307,6 +354,9 @@ static void fsm_irq(struct vfio_ccw_private *private,
 		    enum vfio_ccw_event event)
 {
 	struct irb *irb = this_cpu_ptr(&cio_irb);
+
+	VFIO_CCW_TRACE_EVENT(6, "IRQ");
+	VFIO_CCW_TRACE_EVENT(6, dev_name(&private->sch->dev));
 
 	memcpy(&private->irb, irb, sizeof(*irb));
 

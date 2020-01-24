@@ -35,6 +35,7 @@ struct mlxsw_sp_sb_cm {
 };
 
 #define MLXSW_SP_SB_INFI -1U
+#define MLXSW_SP_SB_REST -2U
 
 struct mlxsw_sp_sb_pm {
 	u32 min_buff;
@@ -250,6 +251,10 @@ static int mlxsw_sp_sb_pm_occ_clear(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 		&mlxsw_sp->sb_vals->pool_dess[pool_index];
 	char sbpm_pl[MLXSW_REG_SBPM_LEN];
 
+	if (local_port == MLXSW_PORT_CPU_PORT &&
+	    des->dir == MLXSW_REG_SBXX_DIR_INGRESS)
+		return 0;
+
 	mlxsw_reg_sbpm_pack(sbpm_pl, local_port, des->pool, des->dir,
 			    true, 0, 0);
 	return mlxsw_reg_trans_query(mlxsw_sp->core, MLXSW_REG(sbpm), sbpm_pl,
@@ -272,6 +277,10 @@ static int mlxsw_sp_sb_pm_occ_query(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 		&mlxsw_sp->sb_vals->pool_dess[pool_index];
 	char sbpm_pl[MLXSW_REG_SBPM_LEN];
 	struct mlxsw_sp_sb_pm *pm;
+
+	if (local_port == MLXSW_PORT_CPU_PORT &&
+	    des->dir == MLXSW_REG_SBXX_DIR_INGRESS)
+		return 0;
 
 	pm = mlxsw_sp_sb_pm_get(mlxsw_sp, local_port, pool_index);
 	mlxsw_reg_sbpm_pack(sbpm_pl, local_port, des->pool, des->dir,
@@ -413,19 +422,16 @@ static void mlxsw_sp_sb_ports_fini(struct mlxsw_sp *mlxsw_sp)
 		.freeze_size = _freeze_size,				\
 	}
 
-#define MLXSW_SP1_SB_PR_INGRESS_SIZE	12440000
-#define MLXSW_SP1_SB_PR_EGRESS_SIZE	13232000
 #define MLXSW_SP1_SB_PR_CPU_SIZE	(256 * 1000)
 
 /* Order according to mlxsw_sp1_sb_pool_dess */
 static const struct mlxsw_sp_sb_pr mlxsw_sp1_sb_prs[] = {
-	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_DYNAMIC,
-		       MLXSW_SP1_SB_PR_INGRESS_SIZE),
+	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_DYNAMIC, MLXSW_SP_SB_REST),
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_DYNAMIC, 0),
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_DYNAMIC, 0),
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_DYNAMIC, 0),
-	MLXSW_SP_SB_PR_EXT(MLXSW_REG_SBPR_MODE_DYNAMIC,
-			   MLXSW_SP1_SB_PR_EGRESS_SIZE, true, false),
+	MLXSW_SP_SB_PR_EXT(MLXSW_REG_SBPR_MODE_DYNAMIC, MLXSW_SP_SB_REST,
+			   true, false),
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_DYNAMIC, 0),
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_DYNAMIC, 0),
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_DYNAMIC, 0),
@@ -437,19 +443,16 @@ static const struct mlxsw_sp_sb_pr mlxsw_sp1_sb_prs[] = {
 			   MLXSW_SP1_SB_PR_CPU_SIZE, true, false),
 };
 
-#define MLXSW_SP2_SB_PR_INGRESS_SIZE	38128752
-#define MLXSW_SP2_SB_PR_EGRESS_SIZE	38128752
 #define MLXSW_SP2_SB_PR_CPU_SIZE	(256 * 1000)
 
 /* Order according to mlxsw_sp2_sb_pool_dess */
 static const struct mlxsw_sp_sb_pr mlxsw_sp2_sb_prs[] = {
-	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_DYNAMIC,
-		       MLXSW_SP2_SB_PR_INGRESS_SIZE),
+	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_DYNAMIC, MLXSW_SP_SB_REST),
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_STATIC, 0),
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_STATIC, 0),
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_STATIC, 0),
-	MLXSW_SP_SB_PR_EXT(MLXSW_REG_SBPR_MODE_DYNAMIC,
-			   MLXSW_SP2_SB_PR_EGRESS_SIZE, true, false),
+	MLXSW_SP_SB_PR_EXT(MLXSW_REG_SBPR_MODE_DYNAMIC, MLXSW_SP_SB_REST,
+			   true, false),
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_STATIC, 0),
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_STATIC, 0),
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_STATIC, 0),
@@ -463,10 +466,32 @@ static const struct mlxsw_sp_sb_pr mlxsw_sp2_sb_prs[] = {
 
 static int mlxsw_sp_sb_prs_init(struct mlxsw_sp *mlxsw_sp,
 				const struct mlxsw_sp_sb_pr *prs,
+				const struct mlxsw_sp_sb_pool_des *pool_dess,
 				size_t prs_len)
 {
+	/* Round down, unlike mlxsw_sp_bytes_cells(). */
+	u32 sb_cells = div_u64(mlxsw_sp->sb->sb_size, mlxsw_sp->sb->cell_size);
+	u32 rest_cells[2] = {sb_cells, sb_cells};
 	int i;
 	int err;
+
+	/* Calculate how much space to give to the "REST" pools in either
+	 * direction.
+	 */
+	for (i = 0; i < prs_len; i++) {
+		enum mlxsw_reg_sbxx_dir dir = pool_dess[i].dir;
+		u32 size = prs[i].size;
+		u32 size_cells;
+
+		if (size == MLXSW_SP_SB_INFI || size == MLXSW_SP_SB_REST)
+			continue;
+
+		size_cells = mlxsw_sp_bytes_cells(mlxsw_sp, size);
+		if (WARN_ON_ONCE(size_cells > rest_cells[dir]))
+			continue;
+
+		rest_cells[dir] -= size_cells;
+	}
 
 	for (i = 0; i < prs_len; i++) {
 		u32 size = prs[i].size;
@@ -475,6 +500,10 @@ static int mlxsw_sp_sb_prs_init(struct mlxsw_sp *mlxsw_sp,
 		if (size == MLXSW_SP_SB_INFI) {
 			err = mlxsw_sp_sb_pr_write(mlxsw_sp, i, prs[i].mode,
 						   0, true);
+		} else if (size == MLXSW_SP_SB_REST) {
+			size_cells = rest_cells[pool_dess[i].dir];
+			err = mlxsw_sp_sb_pr_write(mlxsw_sp, i, prs[i].mode,
+						   size_cells, false);
 		} else {
 			size_cells = mlxsw_sp_bytes_cells(mlxsw_sp, size);
 			err = mlxsw_sp_sb_pr_write(mlxsw_sp, i, prs[i].mode,
@@ -896,7 +925,7 @@ int mlxsw_sp_buffers_init(struct mlxsw_sp *mlxsw_sp)
 	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, CELL_SIZE))
 		return -EIO;
 
-	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, MAX_BUFFER_SIZE))
+	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, GUARANTEED_SHARED_BUFFER))
 		return -EIO;
 
 	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, MAX_HEADROOM_SIZE))
@@ -907,7 +936,7 @@ int mlxsw_sp_buffers_init(struct mlxsw_sp *mlxsw_sp)
 		return -ENOMEM;
 	mlxsw_sp->sb->cell_size = MLXSW_CORE_RES_GET(mlxsw_sp->core, CELL_SIZE);
 	mlxsw_sp->sb->sb_size = MLXSW_CORE_RES_GET(mlxsw_sp->core,
-						   MAX_BUFFER_SIZE);
+						   GUARANTEED_SHARED_BUFFER);
 	max_headroom_size = MLXSW_CORE_RES_GET(mlxsw_sp->core,
 					       MAX_HEADROOM_SIZE);
 	/* Round down, because this limit must not be overstepped. */
@@ -918,6 +947,7 @@ int mlxsw_sp_buffers_init(struct mlxsw_sp *mlxsw_sp)
 	if (err)
 		goto err_sb_ports_init;
 	err = mlxsw_sp_sb_prs_init(mlxsw_sp, mlxsw_sp->sb_vals->prs,
+				   mlxsw_sp->sb_vals->pool_dess,
 				   mlxsw_sp->sb_vals->pool_count);
 	if (err)
 		goto err_sb_prs_init;
@@ -1005,7 +1035,8 @@ int mlxsw_sp_sb_pool_set(struct mlxsw_core *mlxsw_core,
 	mode = (enum mlxsw_reg_sbpr_mode) threshold_type;
 	pr = &mlxsw_sp->sb_vals->prs[pool_index];
 
-	if (size > MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_BUFFER_SIZE)) {
+	if (size > MLXSW_CORE_RES_GET(mlxsw_sp->core,
+				      GUARANTEED_SHARED_BUFFER)) {
 		NL_SET_ERR_MSG_MOD(extack, "Exceeded shared buffer size");
 		return -EINVAL;
 	}
@@ -1013,12 +1044,12 @@ int mlxsw_sp_sb_pool_set(struct mlxsw_core *mlxsw_core,
 	if (pr->freeze_mode && pr->mode != mode) {
 		NL_SET_ERR_MSG_MOD(extack, "Changing this pool's threshold type is forbidden");
 		return -EINVAL;
-	};
+	}
 
 	if (pr->freeze_size && pr->size != size) {
 		NL_SET_ERR_MSG_MOD(extack, "Changing this pool's size is forbidden");
 		return -EINVAL;
-	};
+	}
 
 	return mlxsw_sp_sb_pr_write(mlxsw_sp, pool_index, mode,
 				    pool_size, false);
@@ -1085,6 +1116,11 @@ int mlxsw_sp_sb_port_pool_set(struct mlxsw_core_port *mlxsw_core_port,
 	u32 max_buff;
 	int err;
 
+	if (local_port == MLXSW_PORT_CPU_PORT) {
+		NL_SET_ERR_MSG_MOD(extack, "Changing CPU port's threshold is forbidden");
+		return -EINVAL;
+	}
+
 	err = mlxsw_sp_sb_threshold_in(mlxsw_sp, pool_index,
 				       threshold, &max_buff, extack);
 	if (err)
@@ -1129,6 +1165,11 @@ int mlxsw_sp_sb_tc_pool_bind_set(struct mlxsw_core_port *mlxsw_core_port,
 	enum mlxsw_reg_sbxx_dir dir = (enum mlxsw_reg_sbxx_dir) pool_type;
 	u32 max_buff;
 	int err;
+
+	if (local_port == MLXSW_PORT_CPU_PORT) {
+		NL_SET_ERR_MSG_MOD(extack, "Changing CPU port's binding is forbidden");
+		return -EINVAL;
+	}
 
 	if (dir != mlxsw_sp->sb_vals->pool_dess[pool_index].dir) {
 		NL_SET_ERR_MSG_MOD(extack, "Binding egress TC to ingress pool and vice versa is forbidden");
@@ -1187,6 +1228,11 @@ static void mlxsw_sp_sb_sr_occ_query_cb(struct mlxsw_core *mlxsw_core,
 	     local_port < mlxsw_core_max_ports(mlxsw_core); local_port++) {
 		if (!mlxsw_sp->ports[local_port])
 			continue;
+		if (local_port == MLXSW_PORT_CPU_PORT) {
+			/* Ingress quotas are not supported for the CPU port */
+			masked_count++;
+			continue;
+		}
 		for (i = 0; i < MLXSW_SP_SB_ING_TC_COUNT; i++) {
 			cm = mlxsw_sp_sb_cm_get(mlxsw_sp, local_port, i,
 						MLXSW_REG_SBXX_DIR_INGRESS);
@@ -1222,7 +1268,7 @@ int mlxsw_sp_sb_occ_snapshot(struct mlxsw_core *mlxsw_core,
 	char *sbsr_pl;
 	u8 masked_count;
 	u8 local_port_1;
-	u8 local_port = 0;
+	u8 local_port;
 	int i;
 	int err;
 	int err2;
@@ -1231,8 +1277,8 @@ int mlxsw_sp_sb_occ_snapshot(struct mlxsw_core *mlxsw_core,
 	if (!sbsr_pl)
 		return -ENOMEM;
 
+	local_port = MLXSW_PORT_CPU_PORT;
 next_batch:
-	local_port++;
 	local_port_1 = local_port;
 	masked_count = 0;
 	mlxsw_reg_sbsr_pack(sbsr_pl, false);
@@ -1243,7 +1289,11 @@ next_batch:
 	for (; local_port < mlxsw_core_max_ports(mlxsw_core); local_port++) {
 		if (!mlxsw_sp->ports[local_port])
 			continue;
-		mlxsw_reg_sbsr_ingress_port_mask_set(sbsr_pl, local_port, 1);
+		if (local_port != MLXSW_PORT_CPU_PORT) {
+			/* Ingress quotas are not supported for the CPU port */
+			mlxsw_reg_sbsr_ingress_port_mask_set(sbsr_pl,
+							     local_port, 1);
+		}
 		mlxsw_reg_sbsr_egress_port_mask_set(sbsr_pl, local_port, 1);
 		for (i = 0; i < mlxsw_sp->sb_vals->pool_count; i++) {
 			err = mlxsw_sp_sb_pm_occ_query(mlxsw_sp, local_port, i,
@@ -1264,8 +1314,10 @@ do_query:
 				    cb_priv);
 	if (err)
 		goto out;
-	if (local_port < mlxsw_core_max_ports(mlxsw_core))
+	if (local_port < mlxsw_core_max_ports(mlxsw_core)) {
+		local_port++;
 		goto next_batch;
+	}
 
 out:
 	err2 = mlxsw_reg_trans_bulk_wait(&bulk_list);
@@ -1282,7 +1334,7 @@ int mlxsw_sp_sb_occ_max_clear(struct mlxsw_core *mlxsw_core,
 	LIST_HEAD(bulk_list);
 	char *sbsr_pl;
 	unsigned int masked_count;
-	u8 local_port = 0;
+	u8 local_port;
 	int i;
 	int err;
 	int err2;
@@ -1291,8 +1343,8 @@ int mlxsw_sp_sb_occ_max_clear(struct mlxsw_core *mlxsw_core,
 	if (!sbsr_pl)
 		return -ENOMEM;
 
+	local_port = MLXSW_PORT_CPU_PORT;
 next_batch:
-	local_port++;
 	masked_count = 0;
 	mlxsw_reg_sbsr_pack(sbsr_pl, true);
 	for (i = 0; i < MLXSW_SP_SB_ING_TC_COUNT; i++)
@@ -1302,7 +1354,11 @@ next_batch:
 	for (; local_port < mlxsw_core_max_ports(mlxsw_core); local_port++) {
 		if (!mlxsw_sp->ports[local_port])
 			continue;
-		mlxsw_reg_sbsr_ingress_port_mask_set(sbsr_pl, local_port, 1);
+		if (local_port != MLXSW_PORT_CPU_PORT) {
+			/* Ingress quotas are not supported for the CPU port */
+			mlxsw_reg_sbsr_ingress_port_mask_set(sbsr_pl,
+							     local_port, 1);
+		}
 		mlxsw_reg_sbsr_egress_port_mask_set(sbsr_pl, local_port, 1);
 		for (i = 0; i < mlxsw_sp->sb_vals->pool_count; i++) {
 			err = mlxsw_sp_sb_pm_occ_clear(mlxsw_sp, local_port, i,
@@ -1319,8 +1375,10 @@ do_query:
 				    &bulk_list, NULL, 0);
 	if (err)
 		goto out;
-	if (local_port < mlxsw_core_max_ports(mlxsw_core))
+	if (local_port < mlxsw_core_max_ports(mlxsw_core)) {
+		local_port++;
 		goto next_batch;
+	}
 
 out:
 	err2 = mlxsw_reg_trans_bulk_wait(&bulk_list);

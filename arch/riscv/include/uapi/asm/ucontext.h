@@ -1,12 +1,12 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
+/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
 /*
  * Copyright (C) 2012 ARM Ltd.
  * Copyright (C) 2017 SiFive, Inc.
  *
  * This file was copied from arch/arm64/include/uapi/asm/ucontext.h
  */
-#ifndef _UAPI__ASM_UCONTEXT_H
-#define _UAPI__ASM_UCONTEXT_H
+#ifndef _UAPI_ASM_RISCV_UCONTEXT_H
+#define _UAPI_ASM_RISCV_UCONTEXT_H
 
 #include <linux/types.h>
 
@@ -31,4 +31,4 @@ struct ucontext {
 	struct sigcontext uc_mcontext;
 };
 
-#endif /* _UAPI__ASM_UCONTEXT_H */
+#endif /* _UAPI_ASM_RISCV_UCONTEXT_H */

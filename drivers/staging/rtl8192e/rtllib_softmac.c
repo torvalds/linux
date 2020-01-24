@@ -1382,15 +1382,10 @@ rtllib_association_req(struct rtllib_network *beacon,
 	ieee->assocreq_ies = NULL;
 	ies = &(hdr->info_element[0].id);
 	ieee->assocreq_ies_len = (skb->data + skb->len) - ies;
-	ieee->assocreq_ies = kmalloc(ieee->assocreq_ies_len, GFP_ATOMIC);
-	if (ieee->assocreq_ies)
-		memcpy(ieee->assocreq_ies, ies, ieee->assocreq_ies_len);
-	else {
-		netdev_info(ieee->dev,
-			    "%s()Warning: can't alloc memory for assocreq_ies\n",
-			    __func__);
+	ieee->assocreq_ies = kmemdup(ies, ieee->assocreq_ies_len, GFP_ATOMIC);
+	if (!ieee->assocreq_ies)
 		ieee->assocreq_ies_len = 0;
-	}
+
 	return skb;
 }
 
@@ -2049,8 +2044,9 @@ static short rtllib_sta_ps_sleep(struct rtllib_device *ieee, u64 *time)
 
 }
 
-static inline void rtllib_sta_ps(struct rtllib_device *ieee)
+static inline void rtllib_sta_ps(unsigned long data)
 {
+	struct rtllib_device *ieee = (struct rtllib_device *)data;
 	u64 time;
 	short sleep;
 	unsigned long flags, flags2;
@@ -2259,17 +2255,12 @@ rtllib_rx_assoc_resp(struct rtllib_device *ieee, struct sk_buff *skb,
 			ieee->assocresp_ies = NULL;
 			ies = &(assoc_resp->info_element[0].id);
 			ieee->assocresp_ies_len = (skb->data + skb->len) - ies;
-			ieee->assocresp_ies = kmalloc(ieee->assocresp_ies_len,
+			ieee->assocresp_ies = kmemdup(ies,
+						      ieee->assocresp_ies_len,
 						      GFP_ATOMIC);
-			if (ieee->assocresp_ies)
-				memcpy(ieee->assocresp_ies, ies,
-				       ieee->assocresp_ies_len);
-			else {
-				netdev_info(ieee->dev,
-					    "%s()Warning: can't alloc memory for assocresp_ies\n",
-					    __func__);
+			if (!ieee->assocresp_ies)
 				ieee->assocresp_ies_len = 0;
-			}
+
 			rtllib_associate_complete(ieee);
 		} else {
 			/* aid could not been allocated */
@@ -3037,9 +3028,7 @@ void rtllib_softmac_init(struct rtllib_device *ieee)
 	spin_lock_init(&ieee->mgmt_tx_lock);
 	spin_lock_init(&ieee->beacon_lock);
 
-	tasklet_init(&ieee->ps_task,
-	     (void(*)(unsigned long)) rtllib_sta_ps,
-	     (unsigned long)ieee);
+	tasklet_init(&ieee->ps_task, rtllib_sta_ps, (unsigned long)ieee);
 
 }
 

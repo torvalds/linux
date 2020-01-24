@@ -62,7 +62,7 @@ static struct bio *mpage_bio_submit(int op, int op_flags, struct bio *bio)
 {
 	bio->bi_end_io = mpage_end_io;
 	bio_set_op_attrs(bio, op, op_flags);
-	guard_bio_eod(op, bio);
+	guard_bio_eod(bio);
 	submit_bio(bio);
 	return NULL;
 }
@@ -647,7 +647,7 @@ alloc_new:
 	 * the confused fail path above (OOM) will be very confused when
 	 * it finds all bh marked clean (i.e. it will not write anything)
 	 */
-	wbc_account_io(wbc, page, PAGE_SIZE);
+	wbc_account_cgroup_owner(wbc, page, PAGE_SIZE);
 	length = first_unmapped << blkbits;
 	if (bio_add_page(bio, page, length, 0) < length) {
 		bio = mpage_bio_submit(REQ_OP_WRITE, op_flags, bio);

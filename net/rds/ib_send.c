@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2017 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2019 Oracle and/or its affiliates. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -69,6 +69,16 @@ static void rds_ib_send_complete(struct rds_message *rm,
 	complete(rm, notify_status);
 }
 
+static void rds_ib_send_unmap_data(struct rds_ib_connection *ic,
+				   struct rm_data_op *op,
+				   int wc_status)
+{
+	if (op->op_nents)
+		ib_dma_unmap_sg(ic->i_cm_id->device,
+				op->op_sg, op->op_nents,
+				DMA_TO_DEVICE);
+}
+
 static void rds_ib_send_unmap_rdma(struct rds_ib_connection *ic,
 				   struct rm_rdma_op *op,
 				   int wc_status)
@@ -127,21 +137,6 @@ static void rds_ib_send_unmap_atomic(struct rds_ib_connection *ic,
 		rds_ib_stats_inc(s_ib_atomic_cswp);
 	else
 		rds_ib_stats_inc(s_ib_atomic_fadd);
-}
-
-static void rds_ib_send_unmap_data(struct rds_ib_connection *ic,
-				   struct rm_data_op *op,
-				   int wc_status)
-{
-	struct rds_message *rm = container_of(op, struct rds_message, data);
-
-	if (op->op_nents)
-		ib_dma_unmap_sg(ic->i_cm_id->device,
-				op->op_sg, op->op_nents,
-				DMA_TO_DEVICE);
-
-	if (rm->rdma.op_active && rm->data.op_notify)
-		rds_ib_send_unmap_rdma(ic, &rm->rdma, wc_status);
 }
 
 /*
@@ -206,7 +201,8 @@ void rds_ib_send_init_ring(struct rds_ib_connection *ic)
 		send->s_wr.ex.imm_data = 0;
 
 		sge = &send->s_sge[0];
-		sge->addr = ic->i_send_hdrs_dma + (i * sizeof(struct rds_header));
+		sge->addr = ic->i_send_hdrs_dma[i];
+
 		sge->length = sizeof(struct rds_header);
 		sge->lkey = ic->i_pd->local_dma_lkey;
 
@@ -305,10 +301,10 @@ void rds_ib_send_cqe_handler(struct rds_ib_connection *ic, struct ib_wc *wc)
 
 	/* We expect errors as the qp is drained during shutdown */
 	if (wc->status != IB_WC_SUCCESS && rds_conn_up(conn)) {
-		rds_ib_conn_error(conn, "send completion on <%pI6c,%pI6c,%d> had status %u (%s), disconnecting and reconnecting\n",
+		rds_ib_conn_error(conn, "send completion on <%pI6c,%pI6c,%d> had status %u (%s), vendor err 0x%x, disconnecting and reconnecting\n",
 				  &conn->c_laddr, &conn->c_faddr,
 				  conn->c_tos, wc->status,
-				  ib_wc_status_msg(wc->status));
+				  ib_wc_status_msg(wc->status), wc->vendor_err);
 	}
 }
 
@@ -636,11 +632,13 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 		send->s_queued = jiffies;
 		send->s_op = NULL;
 
-		send->s_sge[0].addr = ic->i_send_hdrs_dma
-			+ (pos * sizeof(struct rds_header));
+		send->s_sge[0].addr = ic->i_send_hdrs_dma[pos];
+
 		send->s_sge[0].length = sizeof(struct rds_header);
 
-		memcpy(&ic->i_send_hdrs[pos], &rm->m_inc.i_hdr, sizeof(struct rds_header));
+		memcpy(ic->i_send_hdrs[pos], &rm->m_inc.i_hdr,
+		       sizeof(struct rds_header));
+
 
 		/* Set up the data, if present */
 		if (i < work_alloc
@@ -679,7 +677,7 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 			 &send->s_wr, send->s_wr.num_sge, send->s_wr.next);
 
 		if (ic->i_flowctl && adv_credits) {
-			struct rds_header *hdr = &ic->i_send_hdrs[pos];
+			struct rds_header *hdr = ic->i_send_hdrs[pos];
 
 			/* add credit and redo the header checksum */
 			hdr->h_credit = adv_credits;
@@ -902,7 +900,9 @@ int rds_ib_xmit_rdma(struct rds_connection *conn, struct rm_rdma_op *op)
 		send->s_queued = jiffies;
 		send->s_op = NULL;
 
-		nr_sig += rds_ib_set_wr_signal_state(ic, send, op->op_notify);
+		if (!op->op_notify)
+			nr_sig += rds_ib_set_wr_signal_state(ic, send,
+							     op->op_notify);
 
 		send->s_wr.opcode = op->op_write ? IB_WR_RDMA_WRITE : IB_WR_RDMA_READ;
 		send->s_rdma_wr.remote_addr = remote_addr;

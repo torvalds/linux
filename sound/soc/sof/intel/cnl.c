@@ -17,6 +17,7 @@
 
 #include "../ops.h"
 #include "hda.h"
+#include "hda-ipc.h"
 
 static const struct snd_sof_debugfs_map cnl_dsp_debugfs[] = {
 	{"hda", HDA_DSP_HDA_BAR, 0, 0x4000, SOF_DEBUGFS_ACCESS_ALWAYS},
@@ -31,27 +32,20 @@ static irqreturn_t cnl_ipc_irq_thread(int irq, void *context)
 {
 	struct snd_sof_dev *sdev = context;
 	u32 hipci;
-	u32 hipcctl;
 	u32 hipcida;
 	u32 hipctdr;
 	u32 hipctdd;
 	u32 msg;
 	u32 msg_ext;
-	irqreturn_t ret = IRQ_NONE;
+	bool ipc_irq = false;
 
 	hipcida = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCIDA);
-	hipcctl = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCCTL);
 	hipctdr = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCTDR);
-
-	/* reenable IPC interrupt */
-	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, HDA_DSP_REG_ADSPIC,
-				HDA_DSP_ADSPIC_IPC, HDA_DSP_ADSPIC_IPC);
+	hipctdd = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCTDD);
+	hipci = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCIDR);
 
 	/* reply message from DSP */
-	if (hipcida & CNL_DSP_REG_HIPCIDA_DONE &&
-	    hipcctl & CNL_DSP_REG_HIPCCTL_DONE) {
-		hipci = snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-					 CNL_DSP_REG_HIPCIDR);
+	if (hipcida & CNL_DSP_REG_HIPCIDA_DONE) {
 		msg_ext = hipci & CNL_DSP_REG_HIPCIDR_MSG_MASK;
 		msg = hipcida & CNL_DSP_REG_HIPCIDA_MSG_MASK;
 
@@ -79,13 +73,11 @@ static irqreturn_t cnl_ipc_irq_thread(int irq, void *context)
 
 		spin_unlock_irq(&sdev->ipc_lock);
 
-		ret = IRQ_HANDLED;
+		ipc_irq = true;
 	}
 
 	/* new message from DSP */
 	if (hipctdr & CNL_DSP_REG_HIPCTDR_BUSY) {
-		hipctdd = snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-					   CNL_DSP_REG_HIPCTDD);
 		msg = hipctdr & CNL_DSP_REG_HIPCTDR_MSG_MASK;
 		msg_ext = hipctdd & CNL_DSP_REG_HIPCTDD_MSG_MASK;
 
@@ -101,25 +93,36 @@ static irqreturn_t cnl_ipc_irq_thread(int irq, void *context)
 			snd_sof_ipc_msgs_rx(sdev);
 		}
 
-		/*
-		 * clear busy interrupt to tell dsp controller this
-		 * interrupt has been accepted, not trigger it again
-		 */
-		snd_sof_dsp_update_bits_forced(sdev, HDA_DSP_BAR,
-					       CNL_DSP_REG_HIPCTDR,
-					       CNL_DSP_REG_HIPCTDR_BUSY,
-					       CNL_DSP_REG_HIPCTDR_BUSY);
-
 		cnl_ipc_host_done(sdev);
 
-		ret = IRQ_HANDLED;
+		ipc_irq = true;
 	}
 
-	return ret;
+	if (!ipc_irq) {
+		/*
+		 * This interrupt is not shared so no need to return IRQ_NONE.
+		 */
+		dev_dbg_ratelimited(sdev->dev,
+				    "nothing to do in IPC IRQ thread\n");
+	}
+
+	/* re-enable IPC interrupt */
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, HDA_DSP_REG_ADSPIC,
+				HDA_DSP_ADSPIC_IPC, HDA_DSP_ADSPIC_IPC);
+
+	return IRQ_HANDLED;
 }
 
 static void cnl_ipc_host_done(struct snd_sof_dev *sdev)
 {
+	/*
+	 * clear busy interrupt to tell dsp controller this
+	 * interrupt has been accepted, not trigger it again
+	 */
+	snd_sof_dsp_update_bits_forced(sdev, HDA_DSP_BAR,
+				       CNL_DSP_REG_HIPCTDR,
+				       CNL_DSP_REG_HIPCTDR_BUSY,
+				       CNL_DSP_REG_HIPCTDR_BUSY);
 	/*
 	 * set done bit to ack dsp the msg has been
 	 * processed and send reply msg to dsp
@@ -148,16 +151,45 @@ static void cnl_ipc_dsp_done(struct snd_sof_dev *sdev)
 				CNL_DSP_REG_HIPCCTL_DONE);
 }
 
+static bool cnl_compact_ipc_compress(struct snd_sof_ipc_msg *msg,
+				     u32 *dr, u32 *dd)
+{
+	struct sof_ipc_pm_gate *pm_gate;
+
+	if (msg->header == (SOF_IPC_GLB_PM_MSG | SOF_IPC_PM_GATE)) {
+		pm_gate = msg->msg_data;
+
+		/* send the compact message via the primary register */
+		*dr = HDA_IPC_MSG_COMPACT | HDA_IPC_PM_GATE;
+
+		/* send payload via the extended data register */
+		*dd = pm_gate->flags;
+
+		return true;
+	}
+
+	return false;
+}
+
 static int cnl_ipc_send_msg(struct snd_sof_dev *sdev,
 			    struct snd_sof_ipc_msg *msg)
 {
-	u32 cmd = msg->header;
+	u32 dr = 0;
+	u32 dd = 0;
 
-	/* send the message */
-	sof_mailbox_write(sdev, sdev->host_box.offset, msg->msg_data,
-			  msg->msg_size);
-	snd_sof_dsp_write(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCIDR,
-			  cmd | CNL_DSP_REG_HIPCIDR_BUSY);
+	if (cnl_compact_ipc_compress(msg, &dr, &dd)) {
+		/* send the message via IPC registers */
+		snd_sof_dsp_write(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCIDD,
+				  dd);
+		snd_sof_dsp_write(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCIDR,
+				  CNL_DSP_REG_HIPCIDR_BUSY | dr);
+	} else {
+		/* send the message via mailbox */
+		sof_mailbox_write(sdev, sdev->host_box.offset, msg->msg_data,
+				  msg->msg_size);
+		snd_sof_dsp_write(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCIDR,
+				  CNL_DSP_REG_HIPCIDR_BUSY);
+	}
 
 	return 0;
 }
@@ -167,6 +199,8 @@ static void cnl_ipc_dump(struct snd_sof_dev *sdev)
 	u32 hipcctl;
 	u32 hipcida;
 	u32 hipctdr;
+
+	hda_ipc_irq_dump(sdev);
 
 	/* read IPC status */
 	hipcida = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCIDA);
@@ -202,7 +236,9 @@ const struct snd_sof_dsp_ops sof_cnl_ops = {
 
 	/* ipc */
 	.send_msg	= cnl_ipc_send_msg,
-	.fw_ready	= hda_dsp_ipc_fw_ready,
+	.fw_ready	= sof_fw_ready,
+	.get_mailbox_offset = hda_dsp_ipc_get_mailbox_offset,
+	.get_window_offset = hda_dsp_ipc_get_window_offset,
 
 	.ipc_msg_data	= hda_ipc_msg_data,
 	.ipc_pcm_params	= hda_ipc_pcm_params,
@@ -217,6 +253,7 @@ const struct snd_sof_dsp_ops sof_cnl_ops = {
 	.pcm_open	= hda_dsp_pcm_open,
 	.pcm_close	= hda_dsp_pcm_close,
 	.pcm_hw_params	= hda_dsp_pcm_hw_params,
+	.pcm_hw_free	= hda_dsp_stream_hw_free,
 	.pcm_trigger	= hda_dsp_pcm_trigger,
 	.pcm_pointer	= hda_dsp_pcm_pointer,
 
@@ -248,7 +285,16 @@ const struct snd_sof_dsp_ops sof_cnl_ops = {
 	.resume			= hda_dsp_resume,
 	.runtime_suspend	= hda_dsp_runtime_suspend,
 	.runtime_resume		= hda_dsp_runtime_resume,
+	.runtime_idle		= hda_dsp_runtime_idle,
 	.set_hw_params_upon_resume = hda_dsp_set_hw_params_upon_resume,
+	.set_power_state	= hda_dsp_set_power_state,
+
+	/* ALSA HW info flags */
+	.hw_info =	SNDRV_PCM_INFO_MMAP |
+			SNDRV_PCM_INFO_MMAP_VALID |
+			SNDRV_PCM_INFO_INTERLEAVED |
+			SNDRV_PCM_INFO_PAUSE |
+			SNDRV_PCM_INFO_NO_PERIOD_WAKEUP,
 };
 EXPORT_SYMBOL(sof_cnl_ops);
 
@@ -270,3 +316,71 @@ const struct sof_intel_dsp_desc cnl_chip_info = {
 	.ssp_base_offset = CNL_SSP_BASE_OFFSET,
 };
 EXPORT_SYMBOL(cnl_chip_info);
+
+const struct sof_intel_dsp_desc icl_chip_info = {
+	/* Icelake */
+	.cores_num = 4,
+	.init_core_mask = 1,
+	.cores_mask = HDA_DSP_CORE_MASK(0) |
+				HDA_DSP_CORE_MASK(1) |
+				HDA_DSP_CORE_MASK(2) |
+				HDA_DSP_CORE_MASK(3),
+	.ipc_req = CNL_DSP_REG_HIPCIDR,
+	.ipc_req_mask = CNL_DSP_REG_HIPCIDR_BUSY,
+	.ipc_ack = CNL_DSP_REG_HIPCIDA,
+	.ipc_ack_mask = CNL_DSP_REG_HIPCIDA_DONE,
+	.ipc_ctl = CNL_DSP_REG_HIPCCTL,
+	.rom_init_timeout	= 300,
+	.ssp_count = ICL_SSP_COUNT,
+	.ssp_base_offset = CNL_SSP_BASE_OFFSET,
+};
+EXPORT_SYMBOL(icl_chip_info);
+
+const struct sof_intel_dsp_desc tgl_chip_info = {
+	/* Tigerlake */
+	.cores_num = 4,
+	.init_core_mask = 1,
+	.cores_mask = HDA_DSP_CORE_MASK(0),
+	.ipc_req = CNL_DSP_REG_HIPCIDR,
+	.ipc_req_mask = CNL_DSP_REG_HIPCIDR_BUSY,
+	.ipc_ack = CNL_DSP_REG_HIPCIDA,
+	.ipc_ack_mask = CNL_DSP_REG_HIPCIDA_DONE,
+	.ipc_ctl = CNL_DSP_REG_HIPCCTL,
+	.rom_init_timeout	= 300,
+	.ssp_count = ICL_SSP_COUNT,
+	.ssp_base_offset = CNL_SSP_BASE_OFFSET,
+};
+EXPORT_SYMBOL(tgl_chip_info);
+
+const struct sof_intel_dsp_desc ehl_chip_info = {
+	/* Elkhartlake */
+	.cores_num = 4,
+	.init_core_mask = 1,
+	.cores_mask = HDA_DSP_CORE_MASK(0),
+	.ipc_req = CNL_DSP_REG_HIPCIDR,
+	.ipc_req_mask = CNL_DSP_REG_HIPCIDR_BUSY,
+	.ipc_ack = CNL_DSP_REG_HIPCIDA,
+	.ipc_ack_mask = CNL_DSP_REG_HIPCIDA_DONE,
+	.ipc_ctl = CNL_DSP_REG_HIPCCTL,
+	.rom_init_timeout	= 300,
+	.ssp_count = ICL_SSP_COUNT,
+	.ssp_base_offset = CNL_SSP_BASE_OFFSET,
+};
+EXPORT_SYMBOL(ehl_chip_info);
+
+const struct sof_intel_dsp_desc jsl_chip_info = {
+	/* Jasperlake */
+	.cores_num = 2,
+	.init_core_mask = 1,
+	.cores_mask = HDA_DSP_CORE_MASK(0) |
+				HDA_DSP_CORE_MASK(1),
+	.ipc_req = CNL_DSP_REG_HIPCIDR,
+	.ipc_req_mask = CNL_DSP_REG_HIPCIDR_BUSY,
+	.ipc_ack = CNL_DSP_REG_HIPCIDA,
+	.ipc_ack_mask = CNL_DSP_REG_HIPCIDA_DONE,
+	.ipc_ctl = CNL_DSP_REG_HIPCCTL,
+	.rom_init_timeout	= 300,
+	.ssp_count = ICL_SSP_COUNT,
+	.ssp_base_offset = CNL_SSP_BASE_OFFSET,
+};
+EXPORT_SYMBOL(jsl_chip_info);

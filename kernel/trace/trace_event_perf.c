@@ -8,6 +8,7 @@
 
 #include <linux/module.h>
 #include <linux/kprobes.h>
+#include <linux/security.h>
 #include "trace.h"
 #include "trace_probe.h"
 
@@ -26,8 +27,10 @@ static int	total_ref_count;
 static int perf_trace_event_perm(struct trace_event_call *tp_event,
 				 struct perf_event *p_event)
 {
+	int ret;
+
 	if (tp_event->perf_perm) {
-		int ret = tp_event->perf_perm(tp_event, p_event);
+		ret = tp_event->perf_perm(tp_event, p_event);
 		if (ret)
 			return ret;
 	}
@@ -46,8 +49,9 @@ static int perf_trace_event_perm(struct trace_event_call *tp_event,
 
 	/* The ftrace function trace is allowed only for root. */
 	if (ftrace_event_is_function(tp_event)) {
-		if (perf_paranoid_tracepoint_raw() && !capable(CAP_SYS_ADMIN))
-			return -EPERM;
+		ret = perf_allow_tracepoint(&p_event->attr);
+		if (ret)
+			return ret;
 
 		if (!is_sampling_event(p_event))
 			return 0;
@@ -82,8 +86,9 @@ static int perf_trace_event_perm(struct trace_event_call *tp_event,
 	 * ...otherwise raw tracepoint data can be a severe data leak,
 	 * only allow root to have these.
 	 */
-	if (perf_paranoid_tracepoint_raw() && !capable(CAP_SYS_ADMIN))
-		return -EPERM;
+	ret = perf_allow_tracepoint(&p_event->attr);
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -272,9 +277,11 @@ int perf_kprobe_init(struct perf_event *p_event, bool is_retprobe)
 		goto out;
 	}
 
+	mutex_lock(&event_mutex);
 	ret = perf_trace_event_init(tp_event, p_event);
 	if (ret)
 		destroy_local_trace_kprobe(tp_event);
+	mutex_unlock(&event_mutex);
 out:
 	kfree(func);
 	return ret;
@@ -282,8 +289,10 @@ out:
 
 void perf_kprobe_destroy(struct perf_event *p_event)
 {
+	mutex_lock(&event_mutex);
 	perf_trace_event_close(p_event);
 	perf_trace_event_unreg(p_event);
+	mutex_unlock(&event_mutex);
 
 	destroy_local_trace_kprobe(p_event->tp_event);
 }
@@ -416,8 +425,7 @@ void perf_trace_buf_update(void *record, u16 type)
 	unsigned long flags;
 
 	local_save_flags(flags);
-	tracing_generic_entry_update(entry, flags, pc);
-	entry->type = type;
+	tracing_generic_entry_update(entry, type, flags, pc);
 }
 NOKPROBE_SYMBOL(perf_trace_buf_update);
 

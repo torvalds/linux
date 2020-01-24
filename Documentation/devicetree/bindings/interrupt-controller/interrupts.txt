@@ -22,10 +22,10 @@ controller node. This property is inherited, so it may be specified in an
 interrupt client node or in any of its parent nodes. Interrupts listed in the
 "interrupts" property are always in reference to the node's interrupt parent.
 
-The "interrupts-extended" property is a special form for use when a node needs
-to reference multiple interrupt parents. Each entry in this property contains
-both the parent phandle and the interrupt specifier. "interrupts-extended"
-should only be used when a device has multiple interrupt parents.
+The "interrupts-extended" property is a special form; useful when a node needs
+to reference multiple interrupt parents or a different interrupt parent than
+the inherited one. Each entry in this property contains both the parent phandle
+and the interrupt specifier.
 
   Example:
 	interrupts-extended = <&intc1 5 1>, <&intc2 1 0>;
@@ -108,3 +108,15 @@ commonly used:
 			sensitivity = <7>;
 		};
 	};
+
+3) Interrupt wakeup parent
+--------------------------
+
+Some interrupt controllers in a SoC, are always powered on and have a select
+interrupts routed to them, so that they can wakeup the SoC from suspend. These
+interrupt controllers do not fall into the category of a parent interrupt
+controller and can be specified by the "wakeup-parent" property and contain a
+single phandle referring to the wakeup capable interrupt controller.
+
+   Example:
+	wakeup-parent = <&pdc_intc>;

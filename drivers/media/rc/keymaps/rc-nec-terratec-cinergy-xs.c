@@ -23,16 +23,16 @@ static struct rc_map_table nec_terratec_cinergy_xs[] = {
 	{ 0x1444, KEY_TEXT},		/* Teletext */
 	{ 0x1445, KEY_DELETE},
 
-	{ 0x1402, KEY_1},
-	{ 0x1403, KEY_2},
-	{ 0x1404, KEY_3},
-	{ 0x1405, KEY_4},
-	{ 0x1406, KEY_5},
-	{ 0x1407, KEY_6},
-	{ 0x1408, KEY_7},
-	{ 0x1409, KEY_8},
-	{ 0x140a, KEY_9},
-	{ 0x140c, KEY_0},
+	{ 0x1402, KEY_NUMERIC_1},
+	{ 0x1403, KEY_NUMERIC_2},
+	{ 0x1404, KEY_NUMERIC_3},
+	{ 0x1405, KEY_NUMERIC_4},
+	{ 0x1406, KEY_NUMERIC_5},
+	{ 0x1407, KEY_NUMERIC_6},
+	{ 0x1408, KEY_NUMERIC_7},
+	{ 0x1409, KEY_NUMERIC_8},
+	{ 0x140a, KEY_NUMERIC_9},
+	{ 0x140c, KEY_NUMERIC_0},
 
 	{ 0x140b, KEY_TUNER},		/* AV */
 	{ 0x140d, KEY_MODE},		/* A.B */
@@ -79,16 +79,16 @@ static struct rc_map_table nec_terratec_cinergy_xs[] = {
 	/* Terratec Black IR, with most keys in black */
 	{ 0x04eb01, KEY_POWER2},
 
-	{ 0x04eb02, KEY_1},
-	{ 0x04eb03, KEY_2},
-	{ 0x04eb04, KEY_3},
-	{ 0x04eb05, KEY_4},
-	{ 0x04eb06, KEY_5},
-	{ 0x04eb07, KEY_6},
-	{ 0x04eb08, KEY_7},
-	{ 0x04eb09, KEY_8},
-	{ 0x04eb0a, KEY_9},
-	{ 0x04eb0c, KEY_0},
+	{ 0x04eb02, KEY_NUMERIC_1},
+	{ 0x04eb03, KEY_NUMERIC_2},
+	{ 0x04eb04, KEY_NUMERIC_3},
+	{ 0x04eb05, KEY_NUMERIC_4},
+	{ 0x04eb06, KEY_NUMERIC_5},
+	{ 0x04eb07, KEY_NUMERIC_6},
+	{ 0x04eb08, KEY_NUMERIC_7},
+	{ 0x04eb09, KEY_NUMERIC_8},
+	{ 0x04eb0a, KEY_NUMERIC_9},
+	{ 0x04eb0c, KEY_NUMERIC_0},
 
 	{ 0x04eb0b, KEY_TEXT},		/* TXT */
 	{ 0x04eb0d, KEY_REFRESH},	/* Refresh */

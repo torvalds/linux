@@ -25,15 +25,17 @@
  * Jackie Li<yaodong.li@intel.com>
  */
 
-#include <linux/module.h>
-
-#include "mdfld_dsi_output.h"
-#include "mdfld_dsi_dpi.h"
-#include "mdfld_output.h"
-#include "mdfld_dsi_pkg_sender.h"
-#include "tc35876x-dsi-lvds.h"
+#include <linux/delay.h>
+#include <linux/moduleparam.h>
 #include <linux/pm_runtime.h>
+
 #include <asm/intel_scu_ipc.h>
+
+#include "mdfld_dsi_dpi.h"
+#include "mdfld_dsi_output.h"
+#include "mdfld_dsi_pkg_sender.h"
+#include "mdfld_output.h"
+#include "tc35876x-dsi-lvds.h"
 
 /* get the LABC from command line. */
 static int LABC_control = 1;
@@ -496,7 +498,7 @@ void mdfld_dsi_output_init(struct drm_device *dev,
 		return;
 	}
 
-	/*create a new connetor*/
+	/*create a new connector*/
 	dsi_connector = kzalloc(sizeof(struct mdfld_dsi_connector), GFP_KERNEL);
 	if (!dsi_connector) {
 		DRM_ERROR("No memory");

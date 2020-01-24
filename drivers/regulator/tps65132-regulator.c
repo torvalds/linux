@@ -136,8 +136,9 @@ static int tps65132_of_parse_cb(struct device_node *np,
 	struct tps65132_reg_pdata *rpdata = &tps->reg_pdata[desc->id];
 	int ret;
 
-	rpdata->en_gpiod = devm_fwnode_get_index_gpiod_from_child(tps->dev,
-					"enable", 0, &np->fwnode, 0, "enable");
+	rpdata->en_gpiod = devm_fwnode_gpiod_get(tps->dev, of_fwnode_handle(np),
+						 "enable", GPIOD_ASIS,
+						 "enable");
 	if (IS_ERR(rpdata->en_gpiod)) {
 		ret = PTR_ERR(rpdata->en_gpiod);
 
@@ -147,9 +148,11 @@ static int tps65132_of_parse_cb(struct device_node *np,
 		return 0;
 	}
 
-	rpdata->act_dis_gpiod = devm_fwnode_get_index_gpiod_from_child(
-					tps->dev, "active-discharge", 0,
-					&np->fwnode, 0, "active-discharge");
+	rpdata->act_dis_gpiod = devm_fwnode_gpiod_get(tps->dev,
+						      of_fwnode_handle(np),
+						      "active-discharge",
+						      GPIOD_ASIS,
+						      "active-discharge");
 	if (IS_ERR(rpdata->act_dis_gpiod)) {
 		ret = PTR_ERR(rpdata->act_dis_gpiod);
 

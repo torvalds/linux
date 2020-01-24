@@ -113,6 +113,7 @@
 /* Field definition for Descriptor offset */
 #define QDMA_CCDF_STATUS		20
 #define QDMA_CCDF_OFFSET		20
+#define QDMA_SDDF_CMD(x)		(((u64)(x)) << 32)
 
 /* Field definition for safe loop count*/
 #define FSL_QDMA_HALT_COUNT		1500
@@ -341,6 +342,7 @@ static void fsl_qdma_free_chan_resources(struct dma_chan *chan)
 static void fsl_qdma_comp_fill_memcpy(struct fsl_qdma_comp *fsl_comp,
 				      dma_addr_t dst, dma_addr_t src, u32 len)
 {
+	u32 cmd;
 	struct fsl_qdma_format *sdf, *ddf;
 	struct fsl_qdma_format *ccdf, *csgf_desc, *csgf_src, *csgf_dest;
 
@@ -369,14 +371,14 @@ static void fsl_qdma_comp_fill_memcpy(struct fsl_qdma_comp *fsl_comp,
 	/* This entry is the last entry. */
 	qdma_csgf_set_f(csgf_dest, len);
 	/* Descriptor Buffer */
-	sdf->data =
-		cpu_to_le64(FSL_QDMA_CMD_RWTTYPE <<
-			    FSL_QDMA_CMD_RWTTYPE_OFFSET);
-	ddf->data =
-		cpu_to_le64(FSL_QDMA_CMD_RWTTYPE <<
-			    FSL_QDMA_CMD_RWTTYPE_OFFSET);
-	ddf->data |=
-		cpu_to_le64(FSL_QDMA_CMD_LWC << FSL_QDMA_CMD_LWC_OFFSET);
+	cmd = cpu_to_le32(FSL_QDMA_CMD_RWTTYPE <<
+			  FSL_QDMA_CMD_RWTTYPE_OFFSET);
+	sdf->data = QDMA_SDDF_CMD(cmd);
+
+	cmd = cpu_to_le32(FSL_QDMA_CMD_RWTTYPE <<
+			  FSL_QDMA_CMD_RWTTYPE_OFFSET);
+	cmd |= cpu_to_le32(FSL_QDMA_CMD_LWC << FSL_QDMA_CMD_LWC_OFFSET);
+	ddf->data = QDMA_SDDF_CMD(cmd);
 }
 
 /*
@@ -756,10 +758,8 @@ fsl_qdma_irq_init(struct platform_device *pdev,
 
 	fsl_qdma->error_irq =
 		platform_get_irq_byname(pdev, "qdma-error");
-	if (fsl_qdma->error_irq < 0) {
-		dev_err(&pdev->dev, "Can't get qdma controller irq.\n");
+	if (fsl_qdma->error_irq < 0)
 		return fsl_qdma->error_irq;
-	}
 
 	ret = devm_request_irq(&pdev->dev, fsl_qdma->error_irq,
 			       fsl_qdma_error_handler, 0,
@@ -774,11 +774,8 @@ fsl_qdma_irq_init(struct platform_device *pdev,
 		fsl_qdma->queue_irq[i] =
 				platform_get_irq_byname(pdev, irq_name);
 
-		if (fsl_qdma->queue_irq[i] < 0) {
-			dev_err(&pdev->dev,
-				"Can't get qdma queue %d irq.\n", i);
+		if (fsl_qdma->queue_irq[i] < 0)
 			return fsl_qdma->queue_irq[i];
-		}
 
 		ret = devm_request_irq(&pdev->dev,
 				       fsl_qdma->queue_irq[i],
@@ -1158,6 +1155,9 @@ static int fsl_qdma_probe(struct platform_device *pdev)
 		return ret;
 
 	fsl_qdma->irq_base = platform_get_irq_byname(pdev, "qdma-queue0");
+	if (fsl_qdma->irq_base < 0)
+		return fsl_qdma->irq_base;
+
 	fsl_qdma->feature = of_property_read_bool(np, "big-endian");
 	INIT_LIST_HEAD(&fsl_qdma->dma_dev.channels);
 

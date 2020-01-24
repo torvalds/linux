@@ -80,7 +80,7 @@ static inline bool userspace_irqchip(struct kvm *kvm)
 static void soft_timer_start(struct hrtimer *hrt, u64 ns)
 {
 	hrtimer_start(hrt, ktime_add_ns(ktime_get(), ns),
-		      HRTIMER_MODE_ABS);
+		      HRTIMER_MODE_ABS_HARD);
 }
 
 static void soft_timer_cancel(struct hrtimer *hrt)
@@ -237,10 +237,10 @@ static bool kvm_timer_should_fire(struct arch_timer_context *timer_ctx)
 
 		switch (index) {
 		case TIMER_VTIMER:
-			cnt_ctl = read_sysreg_el0(cntv_ctl);
+			cnt_ctl = read_sysreg_el0(SYS_CNTV_CTL);
 			break;
 		case TIMER_PTIMER:
-			cnt_ctl = read_sysreg_el0(cntp_ctl);
+			cnt_ctl = read_sysreg_el0(SYS_CNTP_CTL);
 			break;
 		case NR_KVM_TIMERS:
 			/* GCC is braindead */
@@ -350,20 +350,20 @@ static void timer_save_state(struct arch_timer_context *ctx)
 
 	switch (index) {
 	case TIMER_VTIMER:
-		ctx->cnt_ctl = read_sysreg_el0(cntv_ctl);
-		ctx->cnt_cval = read_sysreg_el0(cntv_cval);
+		ctx->cnt_ctl = read_sysreg_el0(SYS_CNTV_CTL);
+		ctx->cnt_cval = read_sysreg_el0(SYS_CNTV_CVAL);
 
 		/* Disable the timer */
-		write_sysreg_el0(0, cntv_ctl);
+		write_sysreg_el0(0, SYS_CNTV_CTL);
 		isb();
 
 		break;
 	case TIMER_PTIMER:
-		ctx->cnt_ctl = read_sysreg_el0(cntp_ctl);
-		ctx->cnt_cval = read_sysreg_el0(cntp_cval);
+		ctx->cnt_ctl = read_sysreg_el0(SYS_CNTP_CTL);
+		ctx->cnt_cval = read_sysreg_el0(SYS_CNTP_CVAL);
 
 		/* Disable the timer */
-		write_sysreg_el0(0, cntp_ctl);
+		write_sysreg_el0(0, SYS_CNTP_CTL);
 		isb();
 
 		break;
@@ -429,14 +429,14 @@ static void timer_restore_state(struct arch_timer_context *ctx)
 
 	switch (index) {
 	case TIMER_VTIMER:
-		write_sysreg_el0(ctx->cnt_cval, cntv_cval);
+		write_sysreg_el0(ctx->cnt_cval, SYS_CNTV_CVAL);
 		isb();
-		write_sysreg_el0(ctx->cnt_ctl, cntv_ctl);
+		write_sysreg_el0(ctx->cnt_ctl, SYS_CNTV_CTL);
 		break;
 	case TIMER_PTIMER:
-		write_sysreg_el0(ctx->cnt_cval, cntp_cval);
+		write_sysreg_el0(ctx->cnt_cval, SYS_CNTP_CVAL);
 		isb();
-		write_sysreg_el0(ctx->cnt_ctl, cntp_ctl);
+		write_sysreg_el0(ctx->cnt_ctl, SYS_CNTP_CTL);
 		break;
 	case NR_KVM_TIMERS:
 		BUG();
@@ -697,11 +697,11 @@ void kvm_timer_vcpu_init(struct kvm_vcpu *vcpu)
 	update_vtimer_cntvoff(vcpu, kvm_phys_timer_read());
 	ptimer->cntvoff = 0;
 
-	hrtimer_init(&timer->bg_timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+	hrtimer_init(&timer->bg_timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS_HARD);
 	timer->bg_timer.function = kvm_bg_timer_expire;
 
-	hrtimer_init(&vtimer->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
-	hrtimer_init(&ptimer->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+	hrtimer_init(&vtimer->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS_HARD);
+	hrtimer_init(&ptimer->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS_HARD);
 	vtimer->hrtimer.function = kvm_hrtimer_expire;
 	ptimer->hrtimer.function = kvm_hrtimer_expire;
 

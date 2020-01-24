@@ -166,42 +166,52 @@ EXPORT_SYMBOL_GPL(fsl_mc_bus_type);
 struct device_type fsl_mc_bus_dprc_type = {
 	.name = "fsl_mc_bus_dprc"
 };
+EXPORT_SYMBOL_GPL(fsl_mc_bus_dprc_type);
 
 struct device_type fsl_mc_bus_dpni_type = {
 	.name = "fsl_mc_bus_dpni"
 };
+EXPORT_SYMBOL_GPL(fsl_mc_bus_dpni_type);
 
 struct device_type fsl_mc_bus_dpio_type = {
 	.name = "fsl_mc_bus_dpio"
 };
+EXPORT_SYMBOL_GPL(fsl_mc_bus_dpio_type);
 
 struct device_type fsl_mc_bus_dpsw_type = {
 	.name = "fsl_mc_bus_dpsw"
 };
+EXPORT_SYMBOL_GPL(fsl_mc_bus_dpsw_type);
 
 struct device_type fsl_mc_bus_dpbp_type = {
 	.name = "fsl_mc_bus_dpbp"
 };
+EXPORT_SYMBOL_GPL(fsl_mc_bus_dpbp_type);
 
 struct device_type fsl_mc_bus_dpcon_type = {
 	.name = "fsl_mc_bus_dpcon"
 };
+EXPORT_SYMBOL_GPL(fsl_mc_bus_dpcon_type);
 
 struct device_type fsl_mc_bus_dpmcp_type = {
 	.name = "fsl_mc_bus_dpmcp"
 };
+EXPORT_SYMBOL_GPL(fsl_mc_bus_dpmcp_type);
 
 struct device_type fsl_mc_bus_dpmac_type = {
 	.name = "fsl_mc_bus_dpmac"
 };
+EXPORT_SYMBOL_GPL(fsl_mc_bus_dpmac_type);
 
 struct device_type fsl_mc_bus_dprtc_type = {
 	.name = "fsl_mc_bus_dprtc"
 };
+EXPORT_SYMBOL_GPL(fsl_mc_bus_dprtc_type);
 
 struct device_type fsl_mc_bus_dpseci_type = {
 	.name = "fsl_mc_bus_dpseci"
 };
+EXPORT_SYMBOL_GPL(fsl_mc_bus_dpseci_type);
 
 static struct device_type *fsl_mc_get_device_type(const char *type)
 {
@@ -487,10 +497,19 @@ static int fsl_mc_device_get_mmio_regions(struct fsl_mc_device *mc_dev,
 				"dprc_get_obj_region() failed: %d\n", error);
 			goto error_cleanup_regions;
 		}
-
-		error = translate_mc_addr(mc_dev, mc_region_type,
+		/*
+		 * Older MC only returned region offset and no base address
+		 * If base address is in the region_desc use it otherwise
+		 * revert to old mechanism
+		 */
+		if (region_desc.base_address)
+			regions[i].start = region_desc.base_address +
+						region_desc.base_offset;
+		else
+			error = translate_mc_addr(mc_dev, mc_region_type,
 					  region_desc.base_offset,
 					  &regions[i].start);
+
 		if (error < 0) {
 			dev_err(parent_dev,
 				"Invalid MC offset: %#x (for %s.%d\'s region %d)\n",
@@ -504,6 +523,8 @@ static int fsl_mc_device_get_mmio_regions(struct fsl_mc_device *mc_dev,
 		regions[i].flags = IORESOURCE_IO;
 		if (region_desc.flags & DPRC_REGION_CACHEABLE)
 			regions[i].flags |= IORESOURCE_CACHEABLE;
+		if (region_desc.flags & DPRC_REGION_SHAREABLE)
+			regions[i].flags |= IORESOURCE_MEM;
 	}
 
 	mc_dev->regions = regions;
@@ -690,6 +711,39 @@ void fsl_mc_device_remove(struct fsl_mc_device *mc_dev)
 	put_device(&mc_dev->dev);
 }
 EXPORT_SYMBOL_GPL(fsl_mc_device_remove);
+
+struct fsl_mc_device *fsl_mc_get_endpoint(struct fsl_mc_device *mc_dev)
+{
+	struct fsl_mc_device *mc_bus_dev, *endpoint;
+	struct fsl_mc_obj_desc endpoint_desc = { 0 };
+	struct dprc_endpoint endpoint1 = { 0 };
+	struct dprc_endpoint endpoint2 = { 0 };
+	int state, err;
+
+	mc_bus_dev = to_fsl_mc_device(mc_dev->dev.parent);
+	strcpy(endpoint1.type, mc_dev->obj_desc.type);
+	endpoint1.id = mc_dev->obj_desc.id;
+
+	err = dprc_get_connection(mc_bus_dev->mc_io, 0,
+				  mc_bus_dev->mc_handle,
+				  &endpoint1, &endpoint2,
+				  &state);
+
+	if (err == -ENOTCONN || state == -1)
+		return ERR_PTR(-ENOTCONN);
+
+	if (err < 0) {
+		dev_err(&mc_bus_dev->dev, "dprc_get_connection() = %d\n", err);
+		return ERR_PTR(err);
+	}
+
+	strcpy(endpoint_desc.type, endpoint2.type);
+	endpoint_desc.id = endpoint2.id;
+	endpoint = fsl_mc_device_lookup(&endpoint_desc, mc_bus_dev);
+
+	return endpoint;
+}
+EXPORT_SYMBOL_GPL(fsl_mc_get_endpoint);
 
 static int parse_mc_ranges(struct device *dev,
 			   int *paddr_cells,

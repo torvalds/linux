@@ -336,7 +336,7 @@ static bool sctp_error(struct sk_buff *skb,
 	if (state->hook == NF_INET_PRE_ROUTING &&
 	    state->net->ct.sysctl_checksum &&
 	    skb->ip_summed == CHECKSUM_NONE) {
-		if (!skb_make_writable(skb, dataoff + sizeof(struct sctphdr))) {
+		if (skb_ensure_writable(skb, dataoff + sizeof(*sh))) {
 			logmsg = "nf_ct_sctp: failed to read header ";
 			goto out_invalid;
 		}
@@ -593,6 +593,9 @@ static int sctp_timeout_nlattr_to_obj(struct nlattr *tb[],
 	unsigned int *timeouts = data;
 	struct nf_sctp_net *sn = nf_sctp_pernet(net);
 	int i;
+
+	if (!timeouts)
+		timeouts = sn->timeouts;
 
 	/* set default SCTP timeouts. */
 	for (i=0; i<SCTP_CONNTRACK_MAX; i++)

@@ -1328,10 +1328,8 @@ mgr_bcast(struct mISDNchannel *ch, struct sk_buff *skb)
 	}
 out:
 	read_unlock_irqrestore(&mgr->lock, flags);
-	if (cskb)
-		dev_kfree_skb(cskb);
-	if (skb)
-		dev_kfree_skb(skb);
+	dev_kfree_skb(cskb);
+	dev_kfree_skb(skb);
 	return 0;
 }
 

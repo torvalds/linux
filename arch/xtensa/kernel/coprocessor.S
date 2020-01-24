@@ -14,17 +14,10 @@
 
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>
-#include <asm/processor.h>
+#include <asm/asmmacro.h>
 #include <asm/coprocessor.h>
-#include <asm/thread_info.h>
-#include <asm/asm-uaccess.h>
-#include <asm/unistd.h>
-#include <asm/ptrace.h>
 #include <asm/current.h>
-#include <asm/pgtable.h>
-#include <asm/page.h>
-#include <asm/signal.h>
-#include <asm/tlbflush.h>
+#include <asm/regs.h>
 
 #if XTENSA_HAVE_COPROCESSORS
 
@@ -121,7 +114,9 @@
 
 ENTRY(coprocessor_flush)
 
-	entry	a1, 32
+	/* reserve 4 bytes on stack to save a0 */
+	abi_entry(4)
+
 	s32i	a0, a1, 0
 	movi	a0, .Lsave_cp_regs_jump_table
 	addx8	a3, a3, a0
@@ -131,7 +126,8 @@ ENTRY(coprocessor_flush)
 	beqz	a3, 1f
 	callx0	a3
 1:	l32i	a0, a1, 0
-	retw
+
+	abi_ret(4)
 
 ENDPROC(coprocessor_flush)
 

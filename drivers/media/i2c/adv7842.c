@@ -2547,7 +2547,7 @@ struct adv7842_cfg_read_infoframe {
 	u8 payload_addr;
 };
 
-static void log_infoframe(struct v4l2_subdev *sd, struct adv7842_cfg_read_infoframe *cri)
+static void log_infoframe(struct v4l2_subdev *sd, const struct adv7842_cfg_read_infoframe *cri)
 {
 	int i;
 	u8 buffer[32];
@@ -2585,7 +2585,7 @@ static void log_infoframe(struct v4l2_subdev *sd, struct adv7842_cfg_read_infofr
 static void adv7842_log_infoframes(struct v4l2_subdev *sd)
 {
 	int i;
-	struct adv7842_cfg_read_infoframe cri[] = {
+	static const struct adv7842_cfg_read_infoframe cri[] = {
 		{ "AVI", 0x01, 0xe0, 0x00 },
 		{ "Audio", 0x02, 0xe3, 0x1c },
 		{ "SDP", 0x04, 0xe6, 0x2a },
@@ -3351,28 +3351,17 @@ static const struct v4l2_ctrl_config adv7842_ctrl_free_run_color = {
 static void adv7842_unregister_clients(struct v4l2_subdev *sd)
 {
 	struct adv7842_state *state = to_state(sd);
-	if (state->i2c_avlink)
-		i2c_unregister_device(state->i2c_avlink);
-	if (state->i2c_cec)
-		i2c_unregister_device(state->i2c_cec);
-	if (state->i2c_infoframe)
-		i2c_unregister_device(state->i2c_infoframe);
-	if (state->i2c_sdp_io)
-		i2c_unregister_device(state->i2c_sdp_io);
-	if (state->i2c_sdp)
-		i2c_unregister_device(state->i2c_sdp);
-	if (state->i2c_afe)
-		i2c_unregister_device(state->i2c_afe);
-	if (state->i2c_repeater)
-		i2c_unregister_device(state->i2c_repeater);
-	if (state->i2c_edid)
-		i2c_unregister_device(state->i2c_edid);
-	if (state->i2c_hdmi)
-		i2c_unregister_device(state->i2c_hdmi);
-	if (state->i2c_cp)
-		i2c_unregister_device(state->i2c_cp);
-	if (state->i2c_vdp)
-		i2c_unregister_device(state->i2c_vdp);
+	i2c_unregister_device(state->i2c_avlink);
+	i2c_unregister_device(state->i2c_cec);
+	i2c_unregister_device(state->i2c_infoframe);
+	i2c_unregister_device(state->i2c_sdp_io);
+	i2c_unregister_device(state->i2c_sdp);
+	i2c_unregister_device(state->i2c_afe);
+	i2c_unregister_device(state->i2c_repeater);
+	i2c_unregister_device(state->i2c_edid);
+	i2c_unregister_device(state->i2c_hdmi);
+	i2c_unregister_device(state->i2c_cp);
+	i2c_unregister_device(state->i2c_vdp);
 
 	state->i2c_avlink = NULL;
 	state->i2c_cec = NULL;
@@ -3400,9 +3389,12 @@ static struct i2c_client *adv7842_dummy_client(struct v4l2_subdev *sd, const cha
 		return NULL;
 	}
 
-	cp = i2c_new_dummy(client->adapter, io_read(sd, io_reg) >> 1);
-	if (!cp)
-		v4l2_err(sd, "register %s on i2c addr 0x%x failed\n", desc, addr);
+	cp = i2c_new_dummy_device(client->adapter, io_read(sd, io_reg) >> 1);
+	if (IS_ERR(cp)) {
+		v4l2_err(sd, "register %s on i2c addr 0x%x failed with %ld\n",
+			 desc, addr, PTR_ERR(cp));
+		cp = NULL;
+	}
 
 	return cp;
 }

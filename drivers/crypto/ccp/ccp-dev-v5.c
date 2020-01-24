@@ -2,16 +2,13 @@
 /*
  * AMD Cryptographic Coprocessor (CCP) driver
  *
- * Copyright (C) 2016,2017 Advanced Micro Devices, Inc.
+ * Copyright (C) 2016,2019 Advanced Micro Devices, Inc.
  *
  * Author: Gary R Hook <gary.hook@amd.com>
  */
 
-#include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/pci.h>
 #include <linux/kthread.h>
-#include <linux/debugfs.h>
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
 #include <linux/compiler.h>
@@ -792,8 +789,19 @@ static int ccp5_init(struct ccp_device *ccp)
 
 	/* Find available queues */
 	qmr = ioread32(ccp->io_regs + Q_MASK_REG);
-	for (i = 0; i < MAX_HW_QUEUES; i++) {
+	/*
+	 * Check for a access to the registers.  If this read returns
+	 * 0xffffffff, it's likely that the system is running a broken
+	 * BIOS which disallows access to the device. Stop here and fail
+	 * the initialization (but not the load, as the PSP could get
+	 * properly initialized).
+	 */
+	if (qmr == 0xffffffff) {
+		dev_notice(dev, "ccp: unable to access the device: you might be running a broken BIOS.\n");
+		return 1;
+	}
 
+	for (i = 0; (i < MAX_HW_QUEUES) && (ccp->cmd_q_count < ccp->max_q_count); i++) {
 		if (!(qmr & (1 << i)))
 			continue;
 
@@ -806,6 +814,7 @@ static int ccp5_init(struct ccp_device *ccp)
 		if (!dma_pool) {
 			dev_err(dev, "unable to allocate dma pool\n");
 			ret = -ENOMEM;
+			goto e_pool;
 		}
 
 		cmd_q = &ccp->cmd_q[ccp->cmd_q_count];
@@ -819,9 +828,9 @@ static int ccp5_init(struct ccp_device *ccp)
 		/* Page alignment satisfies our needs for N <= 128 */
 		BUILD_BUG_ON(COMMANDS_PER_QUEUE > 128);
 		cmd_q->qsize = Q_SIZE(Q_DESC_SIZE);
-		cmd_q->qbase = dma_alloc_coherent(dev, cmd_q->qsize,
-						  &cmd_q->qbase_dma,
-						  GFP_KERNEL);
+		cmd_q->qbase = dmam_alloc_coherent(dev, cmd_q->qsize,
+						   &cmd_q->qbase_dma,
+						   GFP_KERNEL);
 		if (!cmd_q->qbase) {
 			dev_err(dev, "unable to allocate command queue\n");
 			ret = -ENOMEM;
@@ -857,7 +866,7 @@ static int ccp5_init(struct ccp_device *ccp)
 
 	if (ccp->cmd_q_count == 0) {
 		dev_notice(dev, "no command queues available\n");
-		ret = -EIO;
+		ret = 1;
 		goto e_pool;
 	}
 
@@ -970,8 +979,10 @@ static int ccp5_init(struct ccp_device *ccp)
 	if (ret)
 		goto e_hwrng;
 
+#ifdef CONFIG_CRYPTO_DEV_CCP_DEBUGFS
 	/* Set up debugfs entries */
 	ccp5_debugfs_setup(ccp);
+#endif
 
 	return 0;
 
@@ -995,7 +1006,6 @@ e_pool:
 
 static void ccp5_destroy(struct ccp_device *ccp)
 {
-	struct device *dev = ccp->dev;
 	struct ccp_cmd_queue *cmd_q;
 	struct ccp_cmd *cmd;
 	unsigned int i;
@@ -1009,11 +1019,13 @@ static void ccp5_destroy(struct ccp_device *ccp)
 	/* Remove this device from the list of available units first */
 	ccp_del_device(ccp);
 
+#ifdef CONFIG_CRYPTO_DEV_CCP_DEBUGFS
 	/* We're in the process of tearing down the entire driver;
 	 * when all the devices are gone clean up debugfs
 	 */
 	if (ccp_present())
 		ccp5_debugfs_destroy();
+#endif
 
 	/* Disable and clear interrupts */
 	ccp5_disable_queue_interrupts(ccp);
@@ -1035,12 +1047,6 @@ static void ccp5_destroy(struct ccp_device *ccp)
 			kthread_stop(ccp->cmd_q[i].kthread);
 
 	sp_free_ccp_irq(ccp->sp, ccp);
-
-	for (i = 0; i < ccp->cmd_q_count; i++) {
-		cmd_q = &ccp->cmd_q[i];
-		dma_free_coherent(dev, cmd_q->qsize, cmd_q->qbase,
-				  cmd_q->qbase_dma);
-	}
 
 	/* Flush the cmd and backlog queue */
 	while (!list_empty(&ccp->cmd)) {

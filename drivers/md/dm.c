@@ -440,15 +440,48 @@ static int dm_blk_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return dm_get_geometry(md, geo);
 }
 
-static int dm_blk_report_zones(struct gendisk *disk, sector_t sector,
-			       struct blk_zone *zones, unsigned int *nr_zones,
-			       gfp_t gfp_mask)
-{
 #ifdef CONFIG_BLK_DEV_ZONED
+int dm_report_zones_cb(struct blk_zone *zone, unsigned int idx, void *data)
+{
+	struct dm_report_zones_args *args = data;
+	sector_t sector_diff = args->tgt->begin - args->start;
+
+	/*
+	 * Ignore zones beyond the target range.
+	 */
+	if (zone->start >= args->start + args->tgt->len)
+		return 0;
+
+	/*
+	 * Remap the start sector and write pointer position of the zone
+	 * to match its position in the target range.
+	 */
+	zone->start += sector_diff;
+	if (zone->type != BLK_ZONE_TYPE_CONVENTIONAL) {
+		if (zone->cond == BLK_ZONE_COND_FULL)
+			zone->wp = zone->start + zone->len;
+		else if (zone->cond == BLK_ZONE_COND_EMPTY)
+			zone->wp = zone->start;
+		else
+			zone->wp += sector_diff;
+	}
+
+	args->next_sector = zone->start + zone->len;
+	return args->orig_cb(zone, args->zone_idx++, args->orig_data);
+}
+EXPORT_SYMBOL_GPL(dm_report_zones_cb);
+
+static int dm_blk_report_zones(struct gendisk *disk, sector_t sector,
+		unsigned int nr_zones, report_zones_cb cb, void *data)
+{
 	struct mapped_device *md = disk->private_data;
-	struct dm_target *tgt;
 	struct dm_table *map;
 	int srcu_idx, ret;
+	struct dm_report_zones_args args = {
+		.next_sector = sector,
+		.orig_data = data,
+		.orig_cb = cb,
+	};
 
 	if (dm_suspended_md(md))
 		return -EAGAIN;
@@ -457,39 +490,30 @@ static int dm_blk_report_zones(struct gendisk *disk, sector_t sector,
 	if (!map)
 		return -EIO;
 
-	tgt = dm_table_find_target(map, sector);
-	if (!dm_target_is_valid(tgt)) {
-		ret = -EIO;
-		goto out;
-	}
+	do {
+		struct dm_target *tgt;
 
-	/*
-	 * If we are executing this, we already know that the block device
-	 * is a zoned device and so each target should have support for that
-	 * type of drive. A missing report_zones method means that the target
-	 * driver has a problem.
-	 */
-	if (WARN_ON(!tgt->type->report_zones)) {
-		ret = -EIO;
-		goto out;
-	}
+		tgt = dm_table_find_target(map, args.next_sector);
+		if (WARN_ON_ONCE(!tgt->type->report_zones)) {
+			ret = -EIO;
+			goto out;
+		}
 
-	/*
-	 * blkdev_report_zones() will loop and call this again to cover all the
-	 * zones of the target, eventually moving on to the next target.
-	 * So there is no need to loop here trying to fill the entire array
-	 * of zones.
-	 */
-	ret = tgt->type->report_zones(tgt, sector, zones,
-				      nr_zones, gfp_mask);
+		args.tgt = tgt;
+		ret = tgt->type->report_zones(tgt, &args, nr_zones);
+		if (ret < 0)
+			goto out;
+	} while (args.zone_idx < nr_zones &&
+		 args.next_sector < get_capacity(disk));
 
+	ret = args.zone_idx;
 out:
 	dm_put_live_table(md, srcu_idx);
 	return ret;
-#else
-	return -ENOTSUPP;
-#endif
 }
+#else
+#define dm_blk_report_zones		NULL
+#endif /* CONFIG_BLK_DEV_ZONED */
 
 static int dm_prepare_ioctl(struct mapped_device *md, int *srcu_idx,
 			    struct block_device **bdev)
@@ -1074,7 +1098,7 @@ static struct dm_target *dm_dax_get_live_target(struct mapped_device *md,
 		return NULL;
 
 	ti = dm_table_find_target(map, sector);
-	if (!dm_target_is_valid(ti))
+	if (!ti)
 		return NULL;
 
 	return ti;
@@ -1119,7 +1143,7 @@ static bool dm_dax_supported(struct dax_device *dax_dev, struct block_device *bd
 	if (!map)
 		return false;
 
-	ret = dm_table_supports_dax(map, blocksize);
+	ret = dm_table_supports_dax(map, device_supports_dax, &blocksize);
 
 	dm_put_live_table(md, srcu_idx);
 
@@ -1176,7 +1200,8 @@ static size_t dm_dax_copy_to_iter(struct dax_device *dax_dev, pgoff_t pgoff,
 
 /*
  * A target may call dm_accept_partial_bio only from the map routine.  It is
- * allowed for all bio types except REQ_PREFLUSH and REQ_OP_ZONE_RESET.
+ * allowed for all bio types except REQ_PREFLUSH, REQ_OP_ZONE_RESET,
+ * REQ_OP_ZONE_OPEN, REQ_OP_ZONE_CLOSE and REQ_OP_ZONE_FINISH.
  *
  * dm_accept_partial_bio informs the dm that the target only wants to process
  * additional n_sectors sectors of the bio and the rest of the data should be
@@ -1213,54 +1238,6 @@ void dm_accept_partial_bio(struct bio *bio, unsigned n_sectors)
 	bio->bi_iter.bi_size = n_sectors << SECTOR_SHIFT;
 }
 EXPORT_SYMBOL_GPL(dm_accept_partial_bio);
-
-/*
- * The zone descriptors obtained with a zone report indicate
- * zone positions within the underlying device of the target. The zone
- * descriptors must be remapped to match their position within the dm device.
- * The caller target should obtain the zones information using
- * blkdev_report_zones() to ensure that remapping for partition offset is
- * already handled.
- */
-void dm_remap_zone_report(struct dm_target *ti, sector_t start,
-			  struct blk_zone *zones, unsigned int *nr_zones)
-{
-#ifdef CONFIG_BLK_DEV_ZONED
-	struct blk_zone *zone;
-	unsigned int nrz = *nr_zones;
-	int i;
-
-	/*
-	 * Remap the start sector and write pointer position of the zones in
-	 * the array. Since we may have obtained from the target underlying
-	 * device more zones that the target size, also adjust the number
-	 * of zones.
-	 */
-	for (i = 0; i < nrz; i++) {
-		zone = zones + i;
-		if (zone->start >= start + ti->len) {
-			memset(zone, 0, sizeof(struct blk_zone) * (nrz - i));
-			break;
-		}
-
-		zone->start = zone->start + ti->begin - start;
-		if (zone->type == BLK_ZONE_TYPE_CONVENTIONAL)
-			continue;
-
-		if (zone->cond == BLK_ZONE_COND_FULL)
-			zone->wp = zone->start + zone->len;
-		else if (zone->cond == BLK_ZONE_COND_EMPTY)
-			zone->wp = zone->start;
-		else
-			zone->wp = zone->wp + ti->begin - start;
-	}
-
-	*nr_zones = i;
-#else /* !CONFIG_BLK_DEV_ZONED */
-	*nr_zones = 0;
-#endif
-}
-EXPORT_SYMBOL_GPL(dm_remap_zone_report);
 
 static blk_qc_t __map_bio(struct dm_target_io *tio)
 {
@@ -1574,7 +1551,7 @@ static int __split_and_process_non_flush(struct clone_info *ci)
 	int r;
 
 	ti = dm_table_find_target(ci->map, ci->sector);
-	if (!dm_target_is_valid(ti))
+	if (!ti)
 		return -EIO;
 
 	if (__process_abnormal_io(ci, ti, &r))
@@ -1629,7 +1606,7 @@ static blk_qc_t __split_and_process_bio(struct mapped_device *md,
 		ci.sector_count = 0;
 		error = __send_empty_flush(&ci);
 		/* dec_pending submits any data associated with flush */
-	} else if (bio_op(bio) == REQ_OP_ZONE_RESET) {
+	} else if (op_is_zone_mgmt(bio_op(bio))) {
 		ci.bio = bio;
 		ci.sector_count = 0;
 		error = __split_and_process_non_flush(&ci);
@@ -1750,7 +1727,7 @@ static blk_qc_t dm_process_bio(struct mapped_device *md,
 
 	if (!ti) {
 		ti = dm_table_find_target(map, bio->bi_iter.bi_sector);
-		if (unlikely(!ti || !dm_target_is_valid(ti))) {
+		if (unlikely(!ti)) {
 			bio_io_error(bio);
 			return ret;
 		}
@@ -1991,7 +1968,8 @@ static struct mapped_device *alloc_dev(int minor)
 	sprintf(md->disk->disk_name, "dm-%d", minor);
 
 	if (IS_ENABLED(CONFIG_DAX_DRIVER)) {
-		md->dax_dev = alloc_dax(md, md->disk->disk_name, &dm_dax_ops);
+		md->dax_dev = alloc_dax(md, md->disk->disk_name,
+					&dm_dax_ops, 0);
 		if (!md->dax_dev)
 			goto bad;
 	}

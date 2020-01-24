@@ -22,11 +22,11 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
-#include <mach/bridge-regs.h>
-#include <mach/pm.h>
 #include <plat/common.h>
 #include <plat/irq.h>
 #include <plat/time.h>
+#include "bridge-regs.h"
+#include "pm.h"
 #include "common.h"
 
 /* These can go away once Dove uses the mvebu-mbus DT binding */

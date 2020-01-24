@@ -7,23 +7,32 @@
  *
  **************************************************************************/
 
-#include <drm/drmP.h>
+#include <linux/cpu.h>
+#include <linux/module.h>
+#include <linux/notifier.h>
+#include <linux/pm_runtime.h>
+#include <linux/spinlock.h>
+
+#include <asm/set_memory.h>
+
+#include <acpi/video.h>
+
 #include <drm/drm.h>
-#include "psb_drv.h"
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+#include <drm/drm_ioctl.h>
+#include <drm/drm_irq.h>
+#include <drm/drm_pci.h>
+#include <drm/drm_pciids.h>
+#include <drm/drm_vblank.h>
+
 #include "framebuffer.h"
-#include "psb_reg.h"
-#include "psb_intel_reg.h"
 #include "intel_bios.h"
 #include "mid_bios.h"
-#include <drm/drm_pciids.h>
 #include "power.h"
-#include <linux/cpu.h>
-#include <linux/notifier.h>
-#include <linux/spinlock.h>
-#include <linux/pm_runtime.h>
-#include <acpi/video.h>
-#include <linux/module.h>
-#include <asm/set_memory.h>
+#include "psb_drv.h"
+#include "psb_intel_reg.h"
+#include "psb_reg.h"
 
 static struct drm_driver driver;
 static int psb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent);

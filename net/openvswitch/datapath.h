@@ -139,6 +139,18 @@ struct ovs_net {
 	bool xt_label;
 };
 
+/**
+ * enum ovs_pkt_hash_types - hash info to include with a packet
+ * to send to userspace.
+ * @OVS_PACKET_HASH_SW_BIT: indicates hash was computed in software stack.
+ * @OVS_PACKET_HASH_L4_BIT: indicates hash is a canonical 4-tuple hash
+ * over transport ports.
+ */
+enum ovs_pkt_hash_types {
+	OVS_PACKET_HASH_SW_BIT = (1ULL << 32),
+	OVS_PACKET_HASH_L4_BIT = (1ULL << 33),
+};
+
 extern unsigned int ovs_net_id;
 void ovs_lock(void);
 void ovs_unlock(void);
@@ -217,6 +229,8 @@ static inline struct datapath *get_dp(struct net *net, int dp_ifindex)
 
 extern struct notifier_block ovs_dp_device_notifier;
 extern struct genl_family dp_vport_genl_family;
+
+DECLARE_STATIC_KEY_FALSE(tc_recirc_sharing_support);
 
 void ovs_dp_process_packet(struct sk_buff *skb, struct sw_flow_key *key);
 void ovs_dp_detach_port(struct vport *);

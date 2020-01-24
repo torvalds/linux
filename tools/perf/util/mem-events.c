@@ -8,10 +8,10 @@
 #include <unistd.h>
 #include <api/fs/fs.h>
 #include <linux/kernel.h>
+#include "map_symbol.h"
 #include "mem-events.h"
 #include "debug.h"
 #include "symbol.h"
-#include "sort.h"
 
 unsigned int perf_mem_events__loads_ldlat = 30;
 
@@ -410,7 +410,7 @@ do {				\
 		return -1;
 	}
 
-	if (!mi->daddr.map || !mi->iaddr.map) {
+	if (!mi->daddr.ms.map || !mi->iaddr.ms.map) {
 		stats->nomap++;
 		return -1;
 	}

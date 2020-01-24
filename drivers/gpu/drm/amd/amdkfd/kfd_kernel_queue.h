@@ -102,5 +102,6 @@ struct kernel_queue {
 void kernel_queue_init_cik(struct kernel_queue_ops *ops);
 void kernel_queue_init_vi(struct kernel_queue_ops *ops);
 void kernel_queue_init_v9(struct kernel_queue_ops *ops);
+void kernel_queue_init_v10(struct kernel_queue_ops *ops);
 
 #endif /* KFD_KERNEL_QUEUE_H_ */

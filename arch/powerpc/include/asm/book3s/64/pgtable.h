@@ -90,7 +90,6 @@
 #define _PAGE_SOFT_DIRTY	_RPAGE_SW3 /* software: software dirty tracking */
 #define _PAGE_SPECIAL		_RPAGE_SW2 /* software: special page */
 #define _PAGE_DEVMAP		_RPAGE_SW1 /* software: ZONE_DEVICE page */
-#define __HAVE_ARCH_PTE_DEVMAP
 
 /*
  * Drivers request for cache inhibited pte mapping using _PAGE_NO_CACHE
@@ -274,8 +273,15 @@ extern unsigned long __vmalloc_end;
 #define VMALLOC_START	__vmalloc_start
 #define VMALLOC_END	__vmalloc_end
 
+static inline unsigned int ioremap_max_order(void)
+{
+	if (radix_enabled())
+		return PUD_SHIFT;
+	return 7 + PAGE_SHIFT; /* default from linux/vmalloc.h */
+}
+#define IOREMAP_MAX_ORDER ioremap_max_order()
+
 extern unsigned long __kernel_virt_start;
-extern unsigned long __kernel_virt_size;
 extern unsigned long __kernel_io_start;
 extern unsigned long __kernel_io_end;
 #define KERN_VIRT_START __kernel_virt_start
@@ -283,7 +289,6 @@ extern unsigned long __kernel_io_end;
 #define KERN_IO_END __kernel_io_end
 
 extern struct page *vmemmap;
-extern unsigned long ioremap_bot;
 extern unsigned long pci_io_base;
 #endif /* __ASSEMBLY__ */
 
@@ -311,6 +316,7 @@ extern unsigned long pci_io_base;
 #define  PHB_IO_BASE	(ISA_IO_END)
 #define  PHB_IO_END	(KERN_IO_START + FULL_IO_SIZE)
 #define IOREMAP_BASE	(PHB_IO_END)
+#define IOREMAP_START	(ioremap_bot)
 #define IOREMAP_END	(KERN_IO_END)
 
 /* Advertise special mapping type for AGP */
@@ -602,8 +608,10 @@ static inline bool pte_access_permitted(pte_t pte, bool write)
  */
 static inline pte_t pfn_pte(unsigned long pfn, pgprot_t pgprot)
 {
-	return __pte((((pte_basic_t)(pfn) << PAGE_SHIFT) & PTE_RPN_MASK) |
-		     pgprot_val(pgprot));
+	VM_BUG_ON(pfn >> (64 - PAGE_SHIFT));
+	VM_BUG_ON((pfn << PAGE_SHIFT) & ~PTE_RPN_MASK);
+
+	return __pte(((pte_basic_t)pfn << PAGE_SHIFT) | pgprot_val(pgprot));
 }
 
 static inline unsigned long pte_pfn(pte_t pte)
@@ -1341,6 +1349,27 @@ static inline bool is_pte_rw_upgrade(unsigned long old_val, unsigned long new_va
 		return true;
 
 	return false;
+}
+
+/*
+ * Like pmd_huge() and pmd_large(), but works regardless of config options
+ */
+#define pmd_is_leaf pmd_is_leaf
+static inline bool pmd_is_leaf(pmd_t pmd)
+{
+	return !!(pmd_raw(pmd) & cpu_to_be64(_PAGE_PTE));
+}
+
+#define pud_is_leaf pud_is_leaf
+static inline bool pud_is_leaf(pud_t pud)
+{
+	return !!(pud_raw(pud) & cpu_to_be64(_PAGE_PTE));
+}
+
+#define pgd_is_leaf pgd_is_leaf
+static inline bool pgd_is_leaf(pgd_t pgd)
+{
+	return !!(pgd_raw(pgd) & cpu_to_be64(_PAGE_PTE));
 }
 
 #endif /* __ASSEMBLY__ */

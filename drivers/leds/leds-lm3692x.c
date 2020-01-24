@@ -13,7 +13,6 @@
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
-#include <uapi/linux/uleds.h>
 
 #define LM36922_MODEL	0
 #define LM36923_MODEL	1
@@ -103,7 +102,6 @@
  * @regmap - Devices register map
  * @enable_gpio - VDDIO/EN gpio to enable communication interface
  * @regulator - LED supply regulator pointer
- * @label - LED label
  * @led_enable - LED sync to be enabled
  * @model_id - Current device model ID enumerated
  */
@@ -114,7 +112,6 @@ struct lm3692x_led {
 	struct regmap *regmap;
 	struct gpio_desc *enable_gpio;
 	struct regulator *regulator;
-	char label[LED_MAX_NAME_SIZE];
 	int led_enable;
 	int model_id;
 };
@@ -177,19 +174,20 @@ static int lm3692x_brightness_set(struct led_classdev *led_cdev,
 
 	ret = lm3692x_fault_check(led);
 	if (ret) {
-		dev_err(&led->client->dev, "Cannot read/clear faults\n");
+		dev_err(&led->client->dev, "Cannot read/clear faults: %d\n",
+			ret);
 		goto out;
 	}
 
 	ret = regmap_write(led->regmap, LM3692X_BRT_MSB, brt_val);
 	if (ret) {
-		dev_err(&led->client->dev, "Cannot write MSB\n");
+		dev_err(&led->client->dev, "Cannot write MSB: %d\n", ret);
 		goto out;
 	}
 
 	ret = regmap_write(led->regmap, LM3692X_BRT_LSB, led_brightness_lsb);
 	if (ret) {
-		dev_err(&led->client->dev, "Cannot write LSB\n");
+		dev_err(&led->client->dev, "Cannot write LSB: %d\n", ret);
 		goto out;
 	}
 out:
@@ -200,13 +198,13 @@ out:
 static int lm3692x_init(struct lm3692x_led *led)
 {
 	int enable_state;
-	int ret;
+	int ret, reg_ret;
 
 	if (led->regulator) {
 		ret = regulator_enable(led->regulator);
 		if (ret) {
 			dev_err(&led->client->dev,
-				"Failed to enable regulator\n");
+				"Failed to enable regulator: %d\n", ret);
 			return ret;
 		}
 	}
@@ -216,7 +214,8 @@ static int lm3692x_init(struct lm3692x_led *led)
 
 	ret = lm3692x_fault_check(led);
 	if (ret) {
-		dev_err(&led->client->dev, "Cannot read/clear faults\n");
+		dev_err(&led->client->dev, "Cannot read/clear faults: %d\n",
+			ret);
 		goto out;
 	}
 
@@ -251,9 +250,9 @@ static int lm3692x_init(struct lm3692x_led *led)
 		goto out;
 
 	ret = regmap_write(led->regmap, LM3692X_BOOST_CTRL,
-			LM3692X_BRHT_MODE_RAMP_MULTI |
-			LM3692X_BL_ADJ_POL |
-			LM3692X_RAMP_RATE_250us);
+			LM3692X_BOOST_SW_1MHZ |
+			LM3692X_BOOST_SW_NO_SHIFT |
+			LM3692X_OCP_PROT_1_5A);
 	if (ret)
 		goto out;
 
@@ -270,7 +269,7 @@ static int lm3692x_init(struct lm3692x_led *led)
 		goto out;
 
 	ret = regmap_write(led->regmap, LM3692X_BRT_CTRL,
-			LM3692X_BL_ADJ_POL | LM3692X_PWM_HYSTER_4LSB);
+			LM3692X_BL_ADJ_POL | LM3692X_RAMP_EN);
 	if (ret)
 		goto out;
 
@@ -314,18 +313,19 @@ out:
 		gpiod_direction_output(led->enable_gpio, 0);
 
 	if (led->regulator) {
-		ret = regulator_disable(led->regulator);
-		if (ret)
+		reg_ret = regulator_disable(led->regulator);
+		if (reg_ret)
 			dev_err(&led->client->dev,
-				"Failed to disable regulator\n");
+				"Failed to disable regulator: %d\n", reg_ret);
 	}
 
 	return ret;
 }
+
 static int lm3692x_probe_dt(struct lm3692x_led *led)
 {
 	struct fwnode_handle *child = NULL;
-	const char *name;
+	struct led_init_data init_data = {};
 	int ret;
 
 	led->enable_gpio = devm_gpiod_get_optional(&led->client->dev,
@@ -337,9 +337,18 @@ static int lm3692x_probe_dt(struct lm3692x_led *led)
 		return ret;
 	}
 
-	led->regulator = devm_regulator_get(&led->client->dev, "vled");
-	if (IS_ERR(led->regulator))
+	led->regulator = devm_regulator_get_optional(&led->client->dev, "vled");
+	if (IS_ERR(led->regulator)) {
+		ret = PTR_ERR(led->regulator);
+		if (ret != -ENODEV) {
+			if (ret != -EPROBE_DEFER)
+				dev_err(&led->client->dev,
+					"Failed to get vled regulator: %d\n",
+					ret);
+			return ret;
+		}
 		led->regulator = NULL;
+	}
 
 	child = device_get_next_child_node(&led->client->dev, child);
 	if (!child) {
@@ -350,29 +359,22 @@ static int lm3692x_probe_dt(struct lm3692x_led *led)
 	fwnode_property_read_string(child, "linux,default-trigger",
 				    &led->led_dev.default_trigger);
 
-	ret = fwnode_property_read_string(child, "label", &name);
-	if (ret)
-		snprintf(led->label, sizeof(led->label),
-			"%s::", led->client->name);
-	else
-		snprintf(led->label, sizeof(led->label),
-			 "%s:%s", led->client->name, name);
-
 	ret = fwnode_property_read_u32(child, "reg", &led->led_enable);
 	if (ret) {
 		dev_err(&led->client->dev, "reg DT property missing\n");
 		return ret;
 	}
 
-	led->led_dev.name = led->label;
+	init_data.fwnode = child;
+	init_data.devicename = led->client->name;
+	init_data.default_label = ":";
 
-	ret = devm_led_classdev_register(&led->client->dev, &led->led_dev);
+	ret = devm_led_classdev_register_ext(&led->client->dev, &led->led_dev,
+					     &init_data);
 	if (ret) {
 		dev_err(&led->client->dev, "led register err: %d\n", ret);
 		return ret;
 	}
-
-	led->led_dev.dev->of_node = to_of_node(child);
 
 	return 0;
 }
@@ -419,7 +421,8 @@ static int lm3692x_remove(struct i2c_client *client)
 
 	ret = regmap_update_bits(led->regmap, LM3692X_EN, LM3692X_DEVICE_EN, 0);
 	if (ret) {
-		dev_err(&led->client->dev, "Failed to disable regulator\n");
+		dev_err(&led->client->dev, "Failed to disable regulator: %d\n",
+			ret);
 		return ret;
 	}
 
@@ -430,7 +433,7 @@ static int lm3692x_remove(struct i2c_client *client)
 		ret = regulator_disable(led->regulator);
 		if (ret)
 			dev_err(&led->client->dev,
-				"Failed to disable regulator\n");
+				"Failed to disable regulator: %d\n", ret);
 	}
 
 	mutex_destroy(&led->lock);

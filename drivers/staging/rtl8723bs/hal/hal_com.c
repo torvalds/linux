@@ -30,7 +30,6 @@ void rtw_hal_data_deinit(struct adapter *padapter)
 {
 	if (is_primary_adapter(padapter)) {	/* if (padapter->isprimary) */
 		if (padapter->HalData) {
-			phy_free_filebuf(padapter);
 			vfree(padapter->HalData);
 			padapter->HalData = NULL;
 			padapter->hal_data_sz = 0;
@@ -125,7 +124,7 @@ u8 hal_com_config_channel_plan(
 	if (0xFF == hw_channel_plan)
 		AutoLoadFail = true;
 
-	if (false == AutoLoadFail) {
+	if (!AutoLoadFail) {
 		u8 hw_chnlPlan;
 
 		hw_chnlPlan = hw_channel_plan & (~EEPROM_CHANNEL_PLAN_BY_HW_MASK);
@@ -152,10 +151,7 @@ bool HAL_IsLegalChannel(struct adapter *Adapter, u32 Channel)
 {
 	bool bLegalChannel = true;
 
-	if (Channel > 14) {
-		bLegalChannel = false;
-		DBG_871X("Channel > 14 but wireless_mode do not support 5G\n");
-	} else if ((Channel <= 14) && (Channel >= 1)) {
+	if ((Channel <= 14) && (Channel >= 1)) {
 		if (IsSupported24G(Adapter->registrypriv.wireless_mode) == false) {
 			bLegalChannel = false;
 			DBG_871X("(Channel <= 14) && (Channel >= 1) but wireless_mode do not support 2.4G\n");
@@ -961,12 +957,6 @@ clear_evt:
 	c2h_evt_clear(adapter);
 exit:
 	return ret;
-}
-
-
-u8  rtw_hal_networktype_to_raid(struct adapter *adapter, struct sta_info *psta)
-{
-	return networktype_to_raid_ex(adapter, psta);
 }
 
 u8 rtw_get_mgntframe_raid(struct adapter *adapter, unsigned char network_type)

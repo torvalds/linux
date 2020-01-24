@@ -93,8 +93,17 @@ enum sync_source dal_gpio_get_sync_source(
 enum gpio_pin_output_state dal_gpio_get_output_state(
 	const struct gpio *gpio);
 
+struct hw_ddc *dal_gpio_get_ddc(struct gpio *gpio);
+
+struct hw_hpd *dal_gpio_get_hpd(struct gpio *gpio);
+
+struct hw_generic *dal_gpio_get_generic(struct gpio *gpio);
+
 /* Close the handle */
 void dal_gpio_close(
 	struct gpio *gpio);
+
+
+
 
 #endif

@@ -54,8 +54,7 @@ static bool event_interrupt_isr_v9(struct kfd_dev *dev,
 		memcpy(patched_ihre, ih_ring_entry,
 				dev->device_info->ih_ring_entry_size);
 
-		pasid = dev->kfd2kgd->get_atc_vmid_pasid_mapping_pasid(
-				dev->kgd, vmid);
+		pasid = dev->dqm->vmid_pasid[vmid];
 
 		/* Patch the pasid field */
 		patched_ihre[3] = cpu_to_le32((le32_to_cpu(patched_ihre[3])
@@ -80,6 +79,7 @@ static bool event_interrupt_isr_v9(struct kfd_dev *dev,
 		source_id == SOC15_INTSRC_SQ_INTERRUPT_MSG ||
 		source_id == SOC15_INTSRC_CP_BAD_OPCODE ||
 		client_id == SOC15_IH_CLIENTID_VMC ||
+		client_id == SOC15_IH_CLIENTID_VMC1 ||
 		client_id == SOC15_IH_CLIENTID_UTCL2;
 }
 
@@ -104,6 +104,7 @@ static void event_interrupt_wq_v9(struct kfd_dev *dev,
 	else if (source_id == SOC15_INTSRC_CP_BAD_OPCODE)
 		kfd_signal_hw_exception_event(pasid);
 	else if (client_id == SOC15_IH_CLIENTID_VMC ||
+		client_id == SOC15_IH_CLIENTID_VMC1 ||
 		 client_id == SOC15_IH_CLIENTID_UTCL2) {
 		struct kfd_vm_fault_info info = {0};
 		uint16_t ring_id = SOC15_RING_ID_FROM_IH_ENTRY(ih_ring_entry);

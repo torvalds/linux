@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright(c) 2013 - 2018 Intel Corporation. */
+/* Copyright(c) 2013 - 2019 Intel Corporation. */
 
 #include "fm10k.h"
 
@@ -36,7 +36,7 @@ static int fm10k_dcbnl_ieee_getets(struct net_device *dev, struct ieee_ets *ets)
 static int fm10k_dcbnl_ieee_setets(struct net_device *dev, struct ieee_ets *ets)
 {
 	u8 num_tc = 0;
-	int i, err;
+	int i;
 
 	/* verify type and determine num_tcs needed */
 	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
@@ -57,7 +57,7 @@ static int fm10k_dcbnl_ieee_setets(struct net_device *dev, struct ieee_ets *ets)
 
 	/* update TC hardware mapping if necessary */
 	if (num_tc != netdev_get_num_tc(dev)) {
-		err = fm10k_setup_tc(dev, num_tc);
+		int err = fm10k_setup_tc(dev, num_tc);
 		if (err)
 			return err;
 	}

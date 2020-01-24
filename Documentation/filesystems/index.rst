@@ -16,9 +16,14 @@ algorithms work.
 .. toctree::
    :maxdepth: 2
 
-   path-lookup.rst
+   vfs
+   path-lookup
    api-summary
    splice
+   locking
+   directory-locking
+
+   porting
 
 Filesystem support layers
 =========================
@@ -31,13 +36,15 @@ filesystem implementations.
 
    journalling
    fscrypt
+   fsverity
 
-Filesystem-specific documentation
-=================================
+Filesystems
+===========
 
-Documentation for individual filesystem types can be found here.
+Documentation for filesystem implementations.
 
 .. toctree::
    :maxdepth: 2
 
-   binderfs.rst
+   autofs
+   virtiofs

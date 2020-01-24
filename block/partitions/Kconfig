@@ -194,7 +194,7 @@ config LDM_PARTITION
 	  Normal partitions are now called Basic Disks under Windows 2000, XP,
 	  and Vista.
 
-	  For a fuller description read <file:Documentation/ldm.txt>.
+	  For a fuller description read <file:Documentation/admin-guide/ldm.rst>.
 
 	  If unsure, say N.
 

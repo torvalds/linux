@@ -144,6 +144,10 @@ static int pvrdma_port_immutable(struct ib_device *ibdev, u8 port_num,
 }
 
 static const struct ib_device_ops pvrdma_dev_ops = {
+	.owner = THIS_MODULE,
+	.driver_id = RDMA_DRIVER_VMW_PVRDMA,
+	.uverbs_abi_ver = PVRDMA_UVERBS_ABI_VERSION,
+
 	.add_gid = pvrdma_add_gid,
 	.alloc_mr = pvrdma_alloc_mr,
 	.alloc_pd = pvrdma_alloc_pd,
@@ -178,6 +182,7 @@ static const struct ib_device_ops pvrdma_dev_ops = {
 	.req_notify_cq = pvrdma_req_notify_cq,
 
 	INIT_RDMA_OBJ_SIZE(ib_ah, pvrdma_ah, ibah),
+	INIT_RDMA_OBJ_SIZE(ib_cq, pvrdma_cq, ibcq),
 	INIT_RDMA_OBJ_SIZE(ib_pd, pvrdma_pd, ibpd),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, pvrdma_ucontext, ibucontext),
 };
@@ -198,10 +203,8 @@ static int pvrdma_register_device(struct pvrdma_dev *dev)
 	dev->ib_dev.node_guid = dev->dsr->caps.node_guid;
 	dev->sys_image_guid = dev->dsr->caps.sys_image_guid;
 	dev->flags = 0;
-	dev->ib_dev.owner = THIS_MODULE;
 	dev->ib_dev.num_comp_vectors = 1;
 	dev->ib_dev.dev.parent = &dev->pdev->dev;
-	dev->ib_dev.uverbs_abi_ver = PVRDMA_UVERBS_ABI_VERSION;
 	dev->ib_dev.uverbs_cmd_mask =
 		(1ull << IB_USER_VERBS_CMD_GET_CONTEXT)		|
 		(1ull << IB_USER_VERBS_CMD_QUERY_DEVICE)	|
@@ -261,7 +264,6 @@ static int pvrdma_register_device(struct pvrdma_dev *dev)
 		if (!dev->srq_tbl)
 			goto err_qp_free;
 	}
-	dev->ib_dev.driver_id = RDMA_DRIVER_VMW_PVRDMA;
 	ret = ib_device_set_netdev(&dev->ib_dev, dev->netdev, 1);
 	if (ret)
 		return ret;

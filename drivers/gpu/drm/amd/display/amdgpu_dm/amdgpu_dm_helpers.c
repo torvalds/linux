@@ -28,7 +28,6 @@
 #include <linux/version.h>
 #include <linux/i2c.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/amdgpu_drm.h>
 #include <drm/drm_edid.h>
@@ -98,11 +97,10 @@ enum dc_edid_status dm_helpers_parse_edid_caps(
 			(struct edid *) edid->raw_edid);
 
 	sad_count = drm_edid_to_sad((struct edid *) edid->raw_edid, &sads);
-	if (sad_count <= 0) {
-		DRM_INFO("SADs count is: %d, don't need to read it\n",
-				sad_count);
+	if (sad_count < 0)
+		DRM_ERROR("Couldn't read SADs: %d\n", sad_count);
+	if (sad_count <= 0)
 		return result;
-	}
 
 	edid_caps->audio_mode_count = sad_count < DC_MAX_AUDIO_DESC_COUNT ? sad_count : DC_MAX_AUDIO_DESC_COUNT;
 	for (i = 0; i < edid_caps->audio_mode_count; ++i) {
@@ -283,7 +281,7 @@ void dm_helpers_dp_mst_clear_payload_allocation_table(
  * Polls for ACT (allocation change trigger) handled and sends
  * ALLOCATE_PAYLOAD message.
  */
-bool dm_helpers_dp_mst_poll_for_allocation_change_trigger(
+enum act_return_status dm_helpers_dp_mst_poll_for_allocation_change_trigger(
 		struct dc_context *ctx,
 		const struct dc_stream_state *stream)
 {
@@ -294,19 +292,19 @@ bool dm_helpers_dp_mst_poll_for_allocation_change_trigger(
 	aconnector = (struct amdgpu_dm_connector *)stream->dm_stream_context;
 
 	if (!aconnector || !aconnector->mst_port)
-		return false;
+		return ACT_FAILED;
 
 	mst_mgr = &aconnector->mst_port->mst_mgr;
 
 	if (!mst_mgr->mst_state)
-		return false;
+		return ACT_FAILED;
 
 	ret = drm_dp_check_act_status(mst_mgr);
 
 	if (ret)
-		return false;
+		return ACT_FAILED;
 
-	return true;
+	return ACT_SUCCESS;
 }
 
 bool dm_helpers_dp_mst_send_payload_allocation(
@@ -542,6 +540,18 @@ bool dm_helpers_submit_i2c(
 
 	return result;
 }
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+bool dm_helpers_dp_write_dsc_enable(
+		struct dc_context *ctx,
+		const struct dc_stream_state *stream,
+		bool enable
+)
+{
+	uint8_t enable_dsc = enable ? 1 : 0;
+
+	return dm_helpers_dp_write_dpcd(ctx, stream->sink->link, DP_DSC_ENABLE, &enable_dsc, 1);
+}
+#endif
 
 bool dm_helpers_is_dp_sink_present(struct dc_link *link)
 {

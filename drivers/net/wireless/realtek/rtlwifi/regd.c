@@ -276,22 +276,6 @@ static void _rtl_reg_apply_world_flags(struct wiphy *wiphy,
 	return;
 }
 
-static void _rtl_dump_channel_map(struct wiphy *wiphy)
-{
-	enum nl80211_band band;
-	struct ieee80211_supported_band *sband;
-	struct ieee80211_channel *ch;
-	unsigned int i;
-
-	for (band = 0; band < NUM_NL80211_BANDS; band++) {
-		if (!wiphy->bands[band])
-			continue;
-		sband = wiphy->bands[band];
-		for (i = 0; i < sband->n_channels; i++)
-			ch = &sband->channels[i];
-	}
-}
-
 static int _rtl_reg_notifier_apply(struct wiphy *wiphy,
 				   struct regulatory_request *request,
 				   struct rtl_regulatory *reg)
@@ -308,8 +292,6 @@ static int _rtl_reg_notifier_apply(struct wiphy *wiphy,
 		_rtl_reg_apply_world_flags(wiphy, request->initiator, reg);
 		break;
 	}
-
-	_rtl_dump_channel_map(wiphy);
 
 	return 0;
 }
@@ -404,7 +386,7 @@ int rtl_regd_init(struct ieee80211_hw *hw,
 	struct wiphy *wiphy = hw->wiphy;
 	struct country_code_to_enum_rd *country = NULL;
 
-	if (wiphy == NULL || &rtlpriv->regd == NULL)
+	if (!wiphy)
 		return -EINVAL;
 
 	/* init country_code from efuse channel plan */

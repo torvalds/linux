@@ -37,16 +37,6 @@ struct task_security_struct {
 	u32 sockcreate_sid;	/* fscreate SID */
 };
 
-/*
- * get the subjective security ID of the current task
- */
-static inline u32 current_sid(void)
-{
-	const struct task_security_struct *tsec = current_security();
-
-	return tsec->sid;
-}
-
 enum label_initialized {
 	LABEL_INVALID,		/* invalid or not initialized */
 	LABEL_INITIALIZED,	/* initialized */
@@ -151,7 +141,11 @@ struct pkey_security_struct {
 };
 
 struct bpf_security_struct {
-	u32 sid;  /*SID of bpf obj creater*/
+	u32 sid;  /* SID of bpf obj creator */
+};
+
+struct perf_event_security_struct {
+	u32 sid;  /* SID of perf_event obj creator */
 };
 
 extern struct lsm_blob_sizes selinux_blob_sizes;
@@ -183,6 +177,16 @@ static inline struct ipc_security_struct *selinux_ipc(
 						const struct kern_ipc_perm *ipc)
 {
 	return ipc->security + selinux_blob_sizes.lbs_ipc;
+}
+
+/*
+ * get the subjective security ID of the current task
+ */
+static inline u32 current_sid(void)
+{
+	const struct task_security_struct *tsec = selinux_cred(current_cred());
+
+	return tsec->sid;
 }
 
 #endif /* _SELINUX_OBJSEC_H_ */

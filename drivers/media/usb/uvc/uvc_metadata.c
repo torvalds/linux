@@ -51,7 +51,7 @@ static int uvc_meta_v4l2_get_format(struct file *file, void *fh,
 	memset(fmt, 0, sizeof(*fmt));
 
 	fmt->dataformat = stream->meta.format;
-	fmt->buffersize = UVC_METATADA_BUF_SIZE;
+	fmt->buffersize = UVC_METADATA_BUF_SIZE;
 
 	return 0;
 }
@@ -72,7 +72,7 @@ static int uvc_meta_v4l2_try_format(struct file *file, void *fh,
 
 	fmt->dataformat = fmeta == dev->info->meta_format
 			? fmeta : V4L2_META_FMT_UVC;
-	fmt->buffersize = UVC_METATADA_BUF_SIZE;
+	fmt->buffersize = UVC_METADATA_BUF_SIZE;
 
 	return 0;
 }

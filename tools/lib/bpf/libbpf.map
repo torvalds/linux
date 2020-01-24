@@ -164,3 +164,47 @@ LIBBPF_0.0.3 {
 		bpf_map_freeze;
 		btf__finalize_data;
 } LIBBPF_0.0.2;
+
+LIBBPF_0.0.4 {
+	global:
+		bpf_link__destroy;
+		bpf_object__load_xattr;
+		bpf_program__attach_kprobe;
+		bpf_program__attach_perf_event;
+		bpf_program__attach_raw_tracepoint;
+		bpf_program__attach_tracepoint;
+		bpf_program__attach_uprobe;
+		btf_dump__dump_type;
+		btf_dump__free;
+		btf_dump__new;
+		btf__parse_elf;
+		libbpf_num_possible_cpus;
+		perf_buffer__free;
+		perf_buffer__new;
+		perf_buffer__new_raw;
+		perf_buffer__poll;
+		xsk_umem__create;
+} LIBBPF_0.0.3;
+
+LIBBPF_0.0.5 {
+	global:
+		bpf_btf_get_next_id;
+} LIBBPF_0.0.4;
+
+LIBBPF_0.0.6 {
+	global:
+		bpf_get_link_xdp_info;
+		bpf_map__get_pin_path;
+		bpf_map__is_pinned;
+		bpf_map__set_pin_path;
+		bpf_object__open_file;
+		bpf_object__open_mem;
+		bpf_program__attach_trace;
+		bpf_program__get_expected_attach_type;
+		bpf_program__get_type;
+		bpf_program__is_tracing;
+		bpf_program__set_tracing;
+		bpf_program__size;
+		btf__find_by_name_kind;
+		libbpf_find_vmlinux_btf_id;
+} LIBBPF_0.0.5;

@@ -9,22 +9,10 @@
 #include "xfs_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_defer.h"
-#include "xfs_btree.h"
-#include "xfs_bit.h"
-#include "xfs_log_format.h"
-#include "xfs_trans.h"
 #include "xfs_sb.h"
-#include "xfs_inode.h"
 #include "xfs_alloc.h"
 #include "xfs_ialloc.h"
-#include "xfs_rmap.h"
-#include "xfs_error.h"
-#include "xfs_errortag.h"
-#include "xfs_icache.h"
 #include "xfs_health.h"
-#include "xfs_bmap.h"
-#include "scrub/xfs_scrub.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/trace.h"
@@ -116,7 +104,7 @@ next_loop_perag:
 		pag = NULL;
 		error = 0;
 
-		if (fatal_signal_pending(current))
+		if (xchk_should_terminate(sc, &error))
 			break;
 	}
 
@@ -137,7 +125,7 @@ xchk_setup_fscounters(
 	struct xchk_fscounters	*fsc;
 	int			error;
 
-	sc->buf = kmem_zalloc(sizeof(struct xchk_fscounters), KM_SLEEP);
+	sc->buf = kmem_zalloc(sizeof(struct xchk_fscounters), 0);
 	if (!sc->buf)
 		return -ENOMEM;
 	fsc = sc->buf;
@@ -175,6 +163,7 @@ xchk_fscount_aggregate_agcounts(
 	uint64_t		delayed;
 	xfs_agnumber_t		agno;
 	int			tries = 8;
+	int			error = 0;
 
 retry:
 	fsc->icount = 0;
@@ -208,9 +197,12 @@ retry:
 
 		xfs_perag_put(pag);
 
-		if (fatal_signal_pending(current))
+		if (xchk_should_terminate(sc, &error))
 			break;
 	}
+
+	if (error)
+		return error;
 
 	/*
 	 * The global incore space reservation is taken from the incore

@@ -544,6 +544,31 @@ static int fsi_slave_scan(struct fsi_slave *slave)
 	return 0;
 }
 
+static unsigned long aligned_access_size(size_t offset, size_t count)
+{
+	unsigned long offset_unit, count_unit;
+
+	/* Criteria:
+	 *
+	 * 1. Access size must be less than or equal to the maximum access
+	 *    width or the highest power-of-two factor of offset
+	 * 2. Access size must be less than or equal to the amount specified by
+	 *    count
+	 *
+	 * The access width is optimal if we can calculate 1 to be strictly
+	 * equal while still satisfying 2.
+	 */
+
+	/* Find 1 by the bottom bit of offset (with a 4 byte access cap) */
+	offset_unit = BIT(__builtin_ctzl(offset | 4));
+
+	/* Find 2 by the top bit of count */
+	count_unit = BIT(8 * sizeof(unsigned long) - 1 - __builtin_clzl(count));
+
+	/* Constrain the maximum access width to the minimum of both criteria */
+	return BIT(__builtin_ctzl(offset_unit | count_unit));
+}
+
 static ssize_t fsi_slave_sysfs_raw_read(struct file *file,
 		struct kobject *kobj, struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count)
@@ -559,8 +584,7 @@ static ssize_t fsi_slave_sysfs_raw_read(struct file *file,
 		return -EINVAL;
 
 	for (total_len = 0; total_len < count; total_len += read_len) {
-		read_len = min_t(size_t, count, 4);
-		read_len -= off & 0x3;
+		read_len = aligned_access_size(off, count - total_len);
 
 		rc = fsi_slave_read(slave, off, buf + total_len, read_len);
 		if (rc)
@@ -587,8 +611,7 @@ static ssize_t fsi_slave_sysfs_raw_write(struct file *file,
 		return -EINVAL;
 
 	for (total_len = 0; total_len < count; total_len += write_len) {
-		write_len = min_t(size_t, count, 4);
-		write_len -= off & 0x3;
+		write_len = aligned_access_size(off, count - total_len);
 
 		rc = fsi_slave_write(slave, off, buf + total_len, write_len);
 		if (rc)
@@ -1029,6 +1052,14 @@ static int fsi_slave_init(struct fsi_master *master, int link, uint8_t id)
 
 	}
 
+	rc = fsi_slave_set_smode(slave);
+	if (rc) {
+		dev_warn(&master->dev,
+				"can't set smode on slave:%02x:%02x %d\n",
+				link, id, rc);
+		goto err_free;
+	}
+
 	/* Allocate a minor in the FSI space */
 	rc = __fsi_get_new_minor(slave, fsi_dev_cfam, &slave->dev.devt,
 				 &slave->cdev_idx);
@@ -1040,17 +1071,14 @@ static int fsi_slave_init(struct fsi_master *master, int link, uint8_t id)
 	rc = cdev_device_add(&slave->cdev, &slave->dev);
 	if (rc) {
 		dev_err(&slave->dev, "Error %d creating slave device\n", rc);
-		goto err_free;
+		goto err_free_ida;
 	}
 
-	rc = fsi_slave_set_smode(slave);
-	if (rc) {
-		dev_warn(&master->dev,
-				"can't set smode on slave:%02x:%02x %d\n",
-				link, id, rc);
-		kfree(slave);
-		return -ENODEV;
-	}
+	/* Now that we have the cdev registered with the core, any fatal
+	 * failures beyond this point will need to clean up through
+	 * cdev_device_del(). Fortunately though, nothing past here is fatal.
+	 */
+
 	if (master->link_config)
 		master->link_config(master, link,
 				    slave->t_send_delay,
@@ -1067,10 +1095,13 @@ static int fsi_slave_init(struct fsi_master *master, int link, uint8_t id)
 		dev_dbg(&master->dev, "failed during slave scan with: %d\n",
 				rc);
 
-	return rc;
+	return 0;
 
- err_free:
-	put_device(&slave->dev);
+err_free_ida:
+	fsi_free_minor(slave->dev.devt);
+err_free:
+	of_node_put(slave->dev.of_node);
+	kfree(slave);
 	return rc;
 }
 
@@ -1233,6 +1264,19 @@ static ssize_t master_break_store(struct device *dev,
 
 static DEVICE_ATTR(break, 0200, NULL, master_break_store);
 
+static struct attribute *master_attrs[] = {
+	&dev_attr_break.attr,
+	&dev_attr_rescan.attr,
+	NULL
+};
+
+ATTRIBUTE_GROUPS(master);
+
+static struct class fsi_master_class = {
+	.name = "fsi-master",
+	.dev_groups = master_groups,
+};
+
 int fsi_master_register(struct fsi_master *master)
 {
 	int rc;
@@ -1241,23 +1285,10 @@ int fsi_master_register(struct fsi_master *master)
 	mutex_init(&master->scan_lock);
 	master->idx = ida_simple_get(&master_ida, 0, INT_MAX, GFP_KERNEL);
 	dev_set_name(&master->dev, "fsi%d", master->idx);
+	master->dev.class = &fsi_master_class;
 
 	rc = device_register(&master->dev);
 	if (rc) {
-		ida_simple_remove(&master_ida, master->idx);
-		return rc;
-	}
-
-	rc = device_create_file(&master->dev, &dev_attr_rescan);
-	if (rc) {
-		device_del(&master->dev);
-		ida_simple_remove(&master_ida, master->idx);
-		return rc;
-	}
-
-	rc = device_create_file(&master->dev, &dev_attr_break);
-	if (rc) {
-		device_del(&master->dev);
 		ida_simple_remove(&master_ida, master->idx);
 		return rc;
 	}
@@ -1342,8 +1373,15 @@ static int __init fsi_init(void)
 	rc = bus_register(&fsi_bus_type);
 	if (rc)
 		goto fail_bus;
+
+	rc = class_register(&fsi_master_class);
+	if (rc)
+		goto fail_class;
+
 	return 0;
 
+ fail_class:
+	bus_unregister(&fsi_bus_type);
  fail_bus:
 	unregister_chrdev_region(fsi_base_dev, FSI_CHAR_MAX_DEVICES);
 	return rc;
@@ -1352,6 +1390,7 @@ postcore_initcall(fsi_init);
 
 static void fsi_exit(void)
 {
+	class_unregister(&fsi_master_class);
 	bus_unregister(&fsi_bus_type);
 	unregister_chrdev_region(fsi_base_dev, FSI_CHAR_MAX_DEVICES);
 	ida_destroy(&fsi_minor_ida);

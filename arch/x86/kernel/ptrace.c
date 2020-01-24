@@ -25,6 +25,7 @@
 #include <linux/rcupdate.h>
 #include <linux/export.h>
 #include <linux/context_tracking.h>
+#include <linux/nospec.h>
 
 #include <linux/uaccess.h>
 #include <asm/pgtable.h>
@@ -41,6 +42,7 @@
 #include <asm/traps.h>
 #include <asm/syscall.h>
 #include <asm/fsgsbase.h>
+#include <asm/io_bitmap.h>
 
 #include "tls.h"
 
@@ -154,35 +156,6 @@ static inline bool invalid_selector(u16 value)
 
 #define FLAG_MASK		FLAG_MASK_32
 
-/*
- * X86_32 CPUs don't save ss and esp if the CPU is already in kernel mode
- * when it traps.  The previous stack will be directly underneath the saved
- * registers, and 'sp/ss' won't even have been saved. Thus the '&regs->sp'.
- *
- * Now, if the stack is empty, '&regs->sp' is out of range. In this
- * case we try to take the previous stack. To always return a non-null
- * stack pointer we fall back to regs as stack if no previous stack
- * exists.
- *
- * This is valid only for kernel mode traps.
- */
-unsigned long kernel_stack_pointer(struct pt_regs *regs)
-{
-	unsigned long context = (unsigned long)regs & ~(THREAD_SIZE - 1);
-	unsigned long sp = (unsigned long)&regs->sp;
-	u32 *prev_esp;
-
-	if (context == (sp & ~(THREAD_SIZE - 1)))
-		return sp;
-
-	prev_esp = (u32 *)(context);
-	if (*prev_esp)
-		return (unsigned long)*prev_esp;
-
-	return (unsigned long)regs;
-}
-EXPORT_SYMBOL_GPL(kernel_stack_pointer);
-
 static unsigned long *pt_regs_access(struct pt_regs *regs, unsigned long regno)
 {
 	BUILD_BUG_ON(offsetof(struct pt_regs, bx) != 0);
@@ -209,6 +182,9 @@ static u16 get_segment_reg(struct task_struct *task, unsigned long offset)
 static int set_segment_reg(struct task_struct *task,
 			   unsigned long offset, u16 value)
 {
+	if (WARN_ON_ONCE(task == current))
+		return -EIO;
+
 	/*
 	 * The value argument was already truncated to 16 bits.
 	 */
@@ -229,16 +205,14 @@ static int set_segment_reg(struct task_struct *task,
 	case offsetof(struct user_regs_struct, ss):
 		if (unlikely(value == 0))
 			return -EIO;
+		/* Else, fall through */
 
 	default:
 		*pt_regs_access(task_pt_regs(task), offset) = value;
 		break;
 
 	case offsetof(struct user_regs_struct, gs):
-		if (task == current)
-			set_user_gs(task_pt_regs(task), value);
-		else
-			task_user_gs(task) = value;
+		task_user_gs(task) = value;
 	}
 
 	return 0;
@@ -298,32 +272,41 @@ static u16 get_segment_reg(struct task_struct *task, unsigned long offset)
 static int set_segment_reg(struct task_struct *task,
 			   unsigned long offset, u16 value)
 {
+	if (WARN_ON_ONCE(task == current))
+		return -EIO;
+
 	/*
 	 * The value argument was already truncated to 16 bits.
 	 */
 	if (invalid_selector(value))
 		return -EIO;
 
+	/*
+	 * This function has some ABI oddities.
+	 *
+	 * A 32-bit ptracer probably expects that writing FS or GS will change
+	 * FSBASE or GSBASE respectively.  In the absence of FSGSBASE support,
+	 * this code indeed has that effect.  When FSGSBASE is added, this
+	 * will require a special case.
+	 *
+	 * For existing 64-bit ptracers, writing FS or GS *also* currently
+	 * changes the base if the selector is nonzero the next time the task
+	 * is run.  This behavior may not be needed, and trying to preserve it
+	 * when FSGSBASE is added would be complicated at best.
+	 */
+
 	switch (offset) {
 	case offsetof(struct user_regs_struct,fs):
 		task->thread.fsindex = value;
-		if (task == current)
-			loadsegment(fs, task->thread.fsindex);
 		break;
 	case offsetof(struct user_regs_struct,gs):
 		task->thread.gsindex = value;
-		if (task == current)
-			load_gs_index(task->thread.gsindex);
 		break;
 	case offsetof(struct user_regs_struct,ds):
 		task->thread.ds = value;
-		if (task == current)
-			loadsegment(ds, task->thread.ds);
 		break;
 	case offsetof(struct user_regs_struct,es):
 		task->thread.es = value;
-		if (task == current)
-			loadsegment(es, task->thread.es);
 		break;
 
 		/*
@@ -401,6 +384,9 @@ static int putreg(struct task_struct *child,
 		 * When changing the FS base, use do_arch_prctl_64()
 		 * to set the index to zero and to set the base
 		 * as requested.
+		 *
+		 * NB: This behavior is nonsensical and likely needs to
+		 * change when FSGSBASE support is added.
 		 */
 		if (child->thread.fsbase != value)
 			return do_arch_prctl_64(child, ARCH_SET_FS, value);
@@ -645,7 +631,8 @@ static unsigned long ptrace_get_debugreg(struct task_struct *tsk, int n)
 	unsigned long val = 0;
 
 	if (n < HBP_NUM) {
-		struct perf_event *bp = thread->ptrace_bps[n];
+		int index = array_index_nospec(n, HBP_NUM);
+		struct perf_event *bp = thread->ptrace_bps[index];
 
 		if (bp)
 			val = bp->hw.info.address;
@@ -723,7 +710,9 @@ static int ptrace_set_debugreg(struct task_struct *tsk, int n,
 static int ioperm_active(struct task_struct *target,
 			 const struct user_regset *regset)
 {
-	return target->thread.io_bitmap_max / regset->size;
+	struct io_bitmap *iobm = target->thread.io_bitmap;
+
+	return iobm ? DIV_ROUND_UP(iobm->max, regset->size) : 0;
 }
 
 static int ioperm_get(struct task_struct *target,
@@ -731,12 +720,13 @@ static int ioperm_get(struct task_struct *target,
 		      unsigned int pos, unsigned int count,
 		      void *kbuf, void __user *ubuf)
 {
-	if (!target->thread.io_bitmap_ptr)
+	struct io_bitmap *iobm = target->thread.io_bitmap;
+
+	if (!iobm)
 		return -ENXIO;
 
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				   target->thread.io_bitmap_ptr,
-				   0, IO_BITMAP_BYTES);
+				   iobm->bitmap, 0, IO_BITMAP_BYTES);
 }
 
 /*
@@ -747,9 +737,6 @@ static int ioperm_get(struct task_struct *target,
 void ptrace_disable(struct task_struct *child)
 {
 	user_disable_single_step(child);
-#ifdef TIF_SYSCALL_EMU
-	clear_tsk_thread_flag(child, TIF_SYSCALL_EMU);
-#endif
 }
 
 #if defined CONFIG_X86_32 || defined CONFIG_IA32_EMULATION
@@ -1361,18 +1348,19 @@ const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 #endif
 }
 
-void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs,
-					 int error_code, int si_code)
+void send_sigtrap(struct pt_regs *regs, int error_code, int si_code)
 {
+	struct task_struct *tsk = current;
+
 	tsk->thread.trap_nr = X86_TRAP_DB;
 	tsk->thread.error_code = error_code;
 
 	/* Send us the fake SIGTRAP */
 	force_sig_fault(SIGTRAP, si_code,
-			user_mode(regs) ? (void __user *)regs->ip : NULL, tsk);
+			user_mode(regs) ? (void __user *)regs->ip : NULL);
 }
 
 void user_single_step_report(struct pt_regs *regs)
 {
-	send_sigtrap(current, regs, 0, TRAP_BRKPT);
+	send_sigtrap(regs, 0, TRAP_BRKPT);
 }

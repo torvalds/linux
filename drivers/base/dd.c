@@ -235,6 +235,19 @@ static int __init deferred_probe_timeout_setup(char *str)
 }
 __setup("deferred_probe_timeout=", deferred_probe_timeout_setup);
 
+static int __driver_deferred_probe_check_state(struct device *dev)
+{
+	if (!initcalls_done)
+		return -EPROBE_DEFER;
+
+	if (!deferred_probe_timeout) {
+		dev_WARN(dev, "deferred probe timeout, ignoring dependency");
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+
 /**
  * driver_deferred_probe_check_state() - Check deferred probe state
  * @dev: device to check
@@ -248,14 +261,40 @@ __setup("deferred_probe_timeout=", deferred_probe_timeout_setup);
  */
 int driver_deferred_probe_check_state(struct device *dev)
 {
-	if (initcalls_done) {
-		if (!deferred_probe_timeout) {
-			dev_WARN(dev, "deferred probe timeout, ignoring dependency");
-			return -ETIMEDOUT;
-		}
-		dev_warn(dev, "ignoring dependency for device, assuming no driver");
-		return -ENODEV;
-	}
+	int ret;
+
+	ret = __driver_deferred_probe_check_state(dev);
+	if (ret < 0)
+		return ret;
+
+	dev_warn(dev, "ignoring dependency for device, assuming no driver");
+
+	return -ENODEV;
+}
+
+/**
+ * driver_deferred_probe_check_state_continue() - check deferred probe state
+ * @dev: device to check
+ *
+ * Returns -ETIMEDOUT if deferred probe debug timeout has expired, or
+ * -EPROBE_DEFER otherwise.
+ *
+ * Drivers or subsystems can opt-in to calling this function instead of
+ * directly returning -EPROBE_DEFER.
+ *
+ * This is similar to driver_deferred_probe_check_state(), but it allows the
+ * subsystem to keep deferring probe after built-in drivers have had a chance
+ * to probe. One scenario where that is useful is if built-in drivers rely on
+ * resources that are provided by modular drivers.
+ */
+int driver_deferred_probe_check_state_continue(struct device *dev)
+{
+	int ret;
+
+	ret = __driver_deferred_probe_check_state(dev);
+	if (ret < 0)
+		return ret;
+
 	return -EPROBE_DEFER;
 }
 
@@ -515,8 +554,15 @@ re_probe:
 			goto probe_failed;
 	}
 
+	if (device_add_groups(dev, drv->dev_groups)) {
+		dev_err(dev, "device_add_groups() failed\n");
+		goto dev_groups_failed;
+	}
+
 	if (test_remove) {
 		test_remove = false;
+
+		device_remove_groups(dev, drv->dev_groups);
 
 		if (dev->bus->remove)
 			dev->bus->remove(dev);
@@ -545,6 +591,11 @@ re_probe:
 		 drv->bus->name, __func__, dev_name(dev), drv->name);
 	goto done;
 
+dev_groups_failed:
+	if (dev->bus->remove)
+		dev->bus->remove(dev);
+	else if (drv->remove)
+		drv->remove(dev);
 probe_failed:
 	if (dev->bus)
 		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
@@ -1074,6 +1125,8 @@ static void __device_release_driver(struct device *dev, struct device *parent)
 						     dev);
 
 		pm_runtime_put_sync(dev);
+
+		device_remove_groups(dev, drv->dev_groups);
 
 		if (dev->bus && dev->bus->remove)
 			dev->bus->remove(dev);

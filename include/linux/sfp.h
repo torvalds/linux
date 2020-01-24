@@ -428,6 +428,10 @@ enum {
 	SFP_TEC_CUR			= 0x6c,
 
 	SFP_STATUS			= 0x6e,
+	SFP_STATUS_TX_DISABLE		= BIT(7),
+	SFP_STATUS_TX_DISABLE_FORCE	= BIT(6),
+	SFP_STATUS_TX_FAULT		= BIT(2),
+	SFP_STATUS_RX_LOS		= BIT(1),
 	SFP_ALARM0			= 0x70,
 	SFP_ALARM0_TEMP_HIGH		= BIT(7),
 	SFP_ALARM0_TEMP_LOW		= BIT(6),
@@ -464,11 +468,14 @@ enum {
 struct fwnode_handle;
 struct ethtool_eeprom;
 struct ethtool_modinfo;
-struct net_device;
 struct sfp_bus;
 
 /**
  * struct sfp_upstream_ops - upstream operations structure
+ * @attach: called when the sfp socket driver is bound to the upstream
+ *   (mandatory).
+ * @detach: called when the sfp socket driver is unbound from the upstream
+ *   (mandatory).
  * @module_insert: called after a module has been detected to determine
  *   whether the module is supported for the upstream device.
  * @module_remove: called after the module has been removed.
@@ -481,6 +488,8 @@ struct sfp_bus;
  *   been removed.
  */
 struct sfp_upstream_ops {
+	void (*attach)(void *priv, struct sfp_bus *bus);
+	void (*detach)(void *priv, struct sfp_bus *bus);
 	int (*module_insert)(void *priv, const struct sfp_eeprom_id *id);
 	void (*module_remove)(void *priv);
 	void (*link_down)(void *priv);
@@ -503,10 +512,11 @@ int sfp_get_module_eeprom(struct sfp_bus *bus, struct ethtool_eeprom *ee,
 			  u8 *data);
 void sfp_upstream_start(struct sfp_bus *bus);
 void sfp_upstream_stop(struct sfp_bus *bus);
-struct sfp_bus *sfp_register_upstream(struct fwnode_handle *fwnode,
-				      struct net_device *ndev, void *upstream,
-				      const struct sfp_upstream_ops *ops);
-void sfp_unregister_upstream(struct sfp_bus *bus);
+void sfp_bus_put(struct sfp_bus *bus);
+struct sfp_bus *sfp_bus_find_fwnode(struct fwnode_handle *fwnode);
+int sfp_bus_add_upstream(struct sfp_bus *bus, void *upstream,
+			 const struct sfp_upstream_ops *ops);
+void sfp_bus_del_upstream(struct sfp_bus *bus);
 #else
 static inline int sfp_parse_port(struct sfp_bus *bus,
 				 const struct sfp_eeprom_id *id,
@@ -548,15 +558,22 @@ static inline void sfp_upstream_stop(struct sfp_bus *bus)
 {
 }
 
-static inline struct sfp_bus *sfp_register_upstream(
-	struct fwnode_handle *fwnode,
-	struct net_device *ndev, void *upstream,
-	const struct sfp_upstream_ops *ops)
+static inline void sfp_bus_put(struct sfp_bus *bus)
 {
-	return (struct sfp_bus *)-1;
 }
 
-static inline void sfp_unregister_upstream(struct sfp_bus *bus)
+static inline struct sfp_bus *sfp_bus_find_fwnode(struct fwnode_handle *fwnode)
+{
+	return NULL;
+}
+
+static inline int sfp_bus_add_upstream(struct sfp_bus *bus, void *upstream,
+				       const struct sfp_upstream_ops *ops)
+{
+	return 0;
+}
+
+static inline void sfp_bus_del_upstream(struct sfp_bus *bus)
 {
 }
 #endif

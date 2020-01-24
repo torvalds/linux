@@ -7,6 +7,7 @@ unsigned int snd_usb_combine_bytes(unsigned char *bytes, int size);
 void *snd_usb_find_desc(void *descstart, int desclen, void *after, u8 dtype);
 void *snd_usb_find_csint_desc(void *descstart, int desclen, void *after, u8 dsubtype);
 
+int snd_usb_pipe_sanity_check(struct usb_device *dev, unsigned int pipe);
 int snd_usb_ctl_msg(struct usb_device *dev, unsigned int pipe,
 		    __u8 request, __u8 requesttype, __u16 value, __u16 index,
 		    void *data, __u16 size);
@@ -29,5 +30,9 @@ static inline int snd_usb_ctrl_intf(struct snd_usb_audio *chip)
 {
 	return get_iface_desc(chip->ctrl_intf)->bInterfaceNumber;
 }
+
+/* in validate.c */
+bool snd_usb_validate_audio_desc(void *p, int protocol);
+bool snd_usb_validate_midi_desc(void *p);
 
 #endif /* __USBAUDIO_HELPER_H */

@@ -21,6 +21,19 @@ config MDIO_BUS
 
 if MDIO_BUS
 
+config MDIO_ASPEED
+	tristate "ASPEED MDIO bus controller"
+	depends on ARCH_ASPEED || COMPILE_TEST
+	depends on OF_MDIO && HAS_IOMEM
+	help
+	  This module provides a driver for the independent MDIO bus
+	  controllers found in the ASPEED AST2600 SoC. This is a driver for the
+	  third revision of the ASPEED MDIO register interface - the first two
+	  revisions are the "old" and "new" interfaces found in the AST2400 and
+	  AST2500, embedded in the MAC. For legacy reasons, FTGMAC100 driver
+	  continues to drive the embedded MDIO controller for the AST2400 and
+	  AST2500 SoCs, so say N if AST2600 support is not required.
+
 config MDIO_BCM_IPROC
 	tristate "Broadcom iProc MDIO bus controller"
 	depends on ARCH_BCM_IPROC || COMPILE_TEST
@@ -159,8 +172,8 @@ config MDIO_MSCC_MIIM
 
 config MDIO_OCTEON
 	tristate "Octeon and some ThunderX SOCs MDIO buses"
-	depends on 64BIT
-	depends on HAS_IOMEM && OF_MDIO
+	depends on (64BIT && OF_MDIO) || COMPILE_TEST
+	depends on HAS_IOMEM
 	select MDIO_CAVIUM
 	help
 	  This module provides a driver for the Octeon and ThunderX MDIO
@@ -244,6 +257,15 @@ config SFP
 	depends on HWMON || HWMON=n
 	select MDIO_I2C
 
+config ADIN_PHY
+	tristate "Analog Devices Industrial Ethernet PHYs"
+	help
+	  Adds support for the Analog Devices Industrial Ethernet PHYs.
+	  Currently supports the:
+	  - ADIN1200 - Robust,Industrial, Low Power 10/100 Ethernet PHY
+	  - ADIN1300 - Robust,Industrial, Low Latency 10/100/1000 Gigabit
+	    Ethernet PHY
+
 config AMD_PHY
 	tristate "AMD PHYs"
 	---help---
@@ -259,11 +281,6 @@ config AX88796B_PHY
 	help
 	  Currently supports the Asix Electronics PHY found in the X-Surf 100
 	  AX88796B package.
-
-config AT803X_PHY
-	tristate "AT803X PHYs"
-	---help---
-	  Currently supports the AT8030 and AT8035 model
 
 config BCM63XX_PHY
 	tristate "Broadcom 63xx SOCs internal PHY"
@@ -323,14 +340,14 @@ config DAVICOM_PHY
 	  Currently supports dm9161e and dm9131
 
 config DP83822_PHY
-	tristate "Texas Instruments DP83822 PHY"
+	tristate "Texas Instruments DP83822/825 PHYs"
 	---help---
-	  Supports the DP83822 PHY.
+	  Supports the DP83822 and DP83825I PHYs.
 
 config DP83TC811_PHY
-	tristate "Texas Instruments DP83TC822 PHY"
+	tristate "Texas Instruments DP83TC811 PHY"
 	---help---
-	  Supports the DP83TC822 PHY.
+	  Supports the DP83TC811 PHY.
 
 config DP83848_PHY
 	tristate "Texas Instruments DP83848 PHY"
@@ -341,6 +358,12 @@ config DP83867_PHY
 	tristate "Texas Instruments DP83867 Gigabit PHY"
 	---help---
 	  Currently supports the DP83867 PHY.
+
+config DP83869_PHY
+	tristate "Texas Instruments DP83869 Gigabit PHY"
+	---help---
+	  Currently supports the DP83869 PHY.  This PHY supports copper and
+	  fiber connections.
 
 config FIXED_PHY
 	tristate "MDIO Bus/PHY emulation with fixed speed/link PHYs"
@@ -416,6 +439,18 @@ config NATIONAL_PHY
 	---help---
 	  Currently supports the DP83865 PHY.
 
+config NXP_TJA11XX_PHY
+	tristate "NXP TJA11xx PHYs support"
+	depends on HWMON
+	---help---
+	  Currently supports the NXP TJA1100 and TJA1101 PHY.
+
+config AT803X_PHY
+	tristate "Qualcomm Atheros AR803X PHYs"
+	depends on REGULATOR
+	help
+	  Currently supports the AR8030, AR8031, AR8033 and AR8035 model
+
 config QSEMI_PHY
 	tristate "Quality Semiconductor PHYs"
 	---help---
@@ -432,9 +467,9 @@ config RENESAS_PHY
 	  Supports the Renesas PHYs uPD60620 and uPD60620A.
 
 config ROCKCHIP_PHY
-        tristate "Driver for Rockchip Ethernet PHYs"
-        ---help---
-          Currently supports the integrated Ethernet PHY.
+	tristate "Driver for Rockchip Ethernet PHYs"
+	---help---
+	  Currently supports the integrated Ethernet PHY.
 
 config SMSC_PHY
 	tristate "SMSC PHYs"

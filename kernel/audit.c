@@ -830,7 +830,7 @@ static int kauditd_thread(void *dummy)
 		rc = kauditd_send_queue(sk, portid,
 					&audit_hold_queue, UNICAST_RETRIES,
 					NULL, kauditd_rehold_skb);
-		if (ac && rc < 0) {
+		if (rc < 0) {
 			sk = NULL;
 			auditd_reset(ac);
 			goto main_queue;
@@ -840,7 +840,7 @@ static int kauditd_thread(void *dummy)
 		rc = kauditd_send_queue(sk, portid,
 					&audit_retry_queue, UNICAST_RETRIES,
 					NULL, kauditd_hold_skb);
-		if (ac && rc < 0) {
+		if (rc < 0) {
 			sk = NULL;
 			auditd_reset(ac);
 			goto main_queue;
@@ -2155,18 +2155,19 @@ void audit_log_task_info(struct audit_buffer *ab)
 EXPORT_SYMBOL(audit_log_task_info);
 
 /**
- * audit_log_link_denied - report a link restriction denial
- * @operation: specific link operation
+ * audit_log_path_denied - report a path restriction denial
+ * @type: audit message type (AUDIT_ANOM_LINK, AUDIT_ANOM_CREAT, etc)
+ * @operation: specific operation name
  */
-void audit_log_link_denied(const char *operation)
+void audit_log_path_denied(int type, const char *operation)
 {
 	struct audit_buffer *ab;
 
 	if (!audit_enabled || audit_dummy_context())
 		return;
 
-	/* Generate AUDIT_ANOM_LINK with subject, operation, outcome. */
-	ab = audit_log_start(audit_context(), GFP_KERNEL, AUDIT_ANOM_LINK);
+	/* Generate log with subject, operation, outcome. */
+	ab = audit_log_start(audit_context(), GFP_KERNEL, type);
 	if (!ab)
 		return;
 	audit_log_format(ab, "op=%s", operation);
@@ -2258,6 +2259,33 @@ int audit_set_loginuid(kuid_t loginuid)
 out:
 	audit_log_set_loginuid(oldloginuid, loginuid, oldsessionid, sessionid, rc);
 	return rc;
+}
+
+/**
+ * audit_signal_info - record signal info for shutting down audit subsystem
+ * @sig: signal value
+ * @t: task being signaled
+ *
+ * If the audit subsystem is being terminated, record the task (pid)
+ * and uid that is doing that.
+ */
+int audit_signal_info(int sig, struct task_struct *t)
+{
+	kuid_t uid = current_uid(), auid;
+
+	if (auditd_test_task(t) &&
+	    (sig == SIGTERM || sig == SIGHUP ||
+	     sig == SIGUSR1 || sig == SIGUSR2)) {
+		audit_sig_pid = task_tgid_nr(current);
+		auid = audit_get_loginuid(current);
+		if (uid_valid(auid))
+			audit_sig_uid = auid;
+		else
+			audit_sig_uid = uid;
+		security_task_getsecid(current, &audit_sig_sid);
+	}
+
+	return audit_signal_info_syscall(t);
 }
 
 /**

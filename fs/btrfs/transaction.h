@@ -13,7 +13,6 @@
 
 enum btrfs_trans_state {
 	TRANS_STATE_RUNNING,
-	TRANS_STATE_BLOCKED,
 	TRANS_STATE_COMMIT_START,
 	TRANS_STATE_COMMIT_DOING,
 	TRANS_STATE_UNBLOCKED,
@@ -94,11 +93,13 @@ struct btrfs_transaction {
 #define __TRANS_JOIN		(1U << 11)
 #define __TRANS_JOIN_NOLOCK	(1U << 12)
 #define __TRANS_DUMMY		(1U << 13)
+#define __TRANS_JOIN_NOSTART	(1U << 14)
 
 #define TRANS_START		(__TRANS_START | __TRANS_FREEZABLE)
 #define TRANS_ATTACH		(__TRANS_ATTACH)
 #define TRANS_JOIN		(__TRANS_JOIN | __TRANS_FREEZABLE)
 #define TRANS_JOIN_NOLOCK	(__TRANS_JOIN_NOLOCK)
+#define TRANS_JOIN_NOSTART	(__TRANS_JOIN_NOSTART)
 
 #define TRANS_EXTWRITERS	(__TRANS_START | __TRANS_ATTACH)
 
@@ -182,7 +183,8 @@ struct btrfs_trans_handle *btrfs_start_transaction_fallback_global_rsv(
 					unsigned int num_items,
 					int min_factor);
 struct btrfs_trans_handle *btrfs_join_transaction(struct btrfs_root *root);
-struct btrfs_trans_handle *btrfs_join_transaction_nolock(struct btrfs_root *root);
+struct btrfs_trans_handle *btrfs_join_transaction_spacecache(struct btrfs_root *root);
+struct btrfs_trans_handle *btrfs_join_transaction_nostart(struct btrfs_root *root);
 struct btrfs_trans_handle *btrfs_attach_transaction(struct btrfs_root *root);
 struct btrfs_trans_handle *btrfs_attach_transaction_barrier(
 					struct btrfs_root *root);
@@ -215,8 +217,6 @@ int btrfs_record_root_in_trans(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root);
 int btrfs_write_marked_extents(struct btrfs_fs_info *fs_info,
 				struct extent_io_tree *dirty_pages, int mark);
-int btrfs_wait_extents(struct btrfs_fs_info *fs_info,
-		       struct extent_io_tree *dirty_pages);
 int btrfs_wait_tree_log_extents(struct btrfs_root *root, int mark);
 int btrfs_transaction_blocked(struct btrfs_fs_info *info);
 int btrfs_transaction_in_commit(struct btrfs_fs_info *info);
@@ -224,5 +224,6 @@ void btrfs_put_transaction(struct btrfs_transaction *transaction);
 void btrfs_apply_pending_changes(struct btrfs_fs_info *fs_info);
 void btrfs_add_dropped_root(struct btrfs_trans_handle *trans,
 			    struct btrfs_root *root);
+void btrfs_trans_release_chunk_metadata(struct btrfs_trans_handle *trans);
 
 #endif

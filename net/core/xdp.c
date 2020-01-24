@@ -14,6 +14,8 @@
 #include <net/page_pool.h>
 
 #include <net/xdp.h>
+#include <net/xdp_priv.h> /* struct xdp_mem_allocator */
+#include <trace/events/xdp.h>
 
 #define REG_STATE_NEW		0x0
 #define REG_STATE_REGISTERED	0x1
@@ -29,23 +31,12 @@ static int mem_id_next = MEM_ID_MIN;
 static bool mem_id_init; /* false */
 static struct rhashtable *mem_id_ht;
 
-struct xdp_mem_allocator {
-	struct xdp_mem_info mem;
-	union {
-		void *allocator;
-		struct page_pool *page_pool;
-		struct zero_copy_allocator *zc_alloc;
-	};
-	struct rhash_head node;
-	struct rcu_head rcu;
-};
-
 static u32 xdp_mem_id_hashfn(const void *data, u32 len, u32 seed)
 {
 	const u32 *k = data;
 	const u32 key = *k;
 
-	BUILD_BUG_ON(FIELD_SIZEOF(struct xdp_mem_allocator, mem.id)
+	BUILD_BUG_ON(sizeof_field(struct xdp_mem_allocator, mem.id)
 		     != sizeof(u32));
 
 	/* Use cyclic increasing ID as direct hash key */
@@ -65,7 +56,7 @@ static const struct rhashtable_params mem_id_rht_params = {
 	.nelem_hint = 64,
 	.head_offset = offsetof(struct xdp_mem_allocator, node),
 	.key_offset  = offsetof(struct xdp_mem_allocator, mem.id),
-	.key_len = FIELD_SIZEOF(struct xdp_mem_allocator, mem.id),
+	.key_len = sizeof_field(struct xdp_mem_allocator, mem.id),
 	.max_size = MEM_ID_MAX,
 	.min_size = 8,
 	.automatic_shrinking = true,
@@ -82,16 +73,60 @@ static void __xdp_mem_allocator_rcu_free(struct rcu_head *rcu)
 	/* Allow this ID to be reused */
 	ida_simple_remove(&mem_id_pool, xa->mem.id);
 
-	/* Notice, driver is expected to free the *allocator,
-	 * e.g. page_pool, and MUST also use RCU free.
-	 */
-
-	/* Poison memory */
-	xa->mem.id = 0xFFFF;
-	xa->mem.type = 0xF0F0;
-	xa->allocator = (void *)0xDEAD9001;
-
 	kfree(xa);
+}
+
+static void mem_xa_remove(struct xdp_mem_allocator *xa)
+{
+	trace_mem_disconnect(xa);
+
+	if (!rhashtable_remove_fast(mem_id_ht, &xa->node, mem_id_rht_params))
+		call_rcu(&xa->rcu, __xdp_mem_allocator_rcu_free);
+}
+
+static void mem_allocator_disconnect(void *allocator)
+{
+	struct xdp_mem_allocator *xa;
+	struct rhashtable_iter iter;
+
+	mutex_lock(&mem_id_lock);
+
+	rhashtable_walk_enter(mem_id_ht, &iter);
+	do {
+		rhashtable_walk_start(&iter);
+
+		while ((xa = rhashtable_walk_next(&iter)) && !IS_ERR(xa)) {
+			if (xa->allocator == allocator)
+				mem_xa_remove(xa);
+		}
+
+		rhashtable_walk_stop(&iter);
+
+	} while (xa == ERR_PTR(-EAGAIN));
+	rhashtable_walk_exit(&iter);
+
+	mutex_unlock(&mem_id_lock);
+}
+
+static void mem_id_disconnect(int id)
+{
+	struct xdp_mem_allocator *xa;
+
+	mutex_lock(&mem_id_lock);
+
+	xa = rhashtable_lookup_fast(mem_id_ht, &id, mem_id_rht_params);
+	if (!xa) {
+		mutex_unlock(&mem_id_lock);
+		WARN(1, "Request remove non-existing id(%d), driver bug?", id);
+		return;
+	}
+
+	trace_mem_disconnect(xa);
+
+	if (!rhashtable_remove_fast(mem_id_ht, &xa->node, mem_id_rht_params))
+		call_rcu(&xa->rcu, __xdp_mem_allocator_rcu_free);
+
+	mutex_unlock(&mem_id_lock);
 }
 
 void xdp_rxq_info_unreg_mem_model(struct xdp_rxq_info *xdp_rxq)
@@ -104,21 +139,18 @@ void xdp_rxq_info_unreg_mem_model(struct xdp_rxq_info *xdp_rxq)
 		return;
 	}
 
-	if (xdp_rxq->mem.type != MEM_TYPE_PAGE_POOL &&
-	    xdp_rxq->mem.type != MEM_TYPE_ZERO_COPY) {
-		return;
-	}
-
 	if (id == 0)
 		return;
 
-	mutex_lock(&mem_id_lock);
+	if (xdp_rxq->mem.type == MEM_TYPE_ZERO_COPY)
+		return mem_id_disconnect(id);
 
-	xa = rhashtable_lookup_fast(mem_id_ht, &id, mem_id_rht_params);
-	if (xa && !rhashtable_remove_fast(mem_id_ht, &xa->node, mem_id_rht_params))
-		call_rcu(&xa->rcu, __xdp_mem_allocator_rcu_free);
-
-	mutex_unlock(&mem_id_lock);
+	if (xdp_rxq->mem.type == MEM_TYPE_PAGE_POOL) {
+		rcu_read_lock();
+		xa = rhashtable_lookup(mem_id_ht, &id, mem_id_rht_params);
+		page_pool_destroy(xa->page_pool);
+		rcu_read_unlock();
+	}
 }
 EXPORT_SYMBOL_GPL(xdp_rxq_info_unreg_mem_model);
 
@@ -301,12 +333,18 @@ int xdp_rxq_info_reg_mem_model(struct xdp_rxq_info *xdp_rxq,
 	/* Insert allocator into ID lookup table */
 	ptr = rhashtable_insert_slow(mem_id_ht, &id, &xdp_alloc->node);
 	if (IS_ERR(ptr)) {
+		ida_simple_remove(&mem_id_pool, xdp_rxq->mem.id);
+		xdp_rxq->mem.id = 0;
 		errno = PTR_ERR(ptr);
 		goto err;
 	}
 
+	if (type == MEM_TYPE_PAGE_POOL)
+		page_pool_use_xdp_mem(allocator, mem_allocator_disconnect);
+
 	mutex_unlock(&mem_id_lock);
 
+	trace_mem_connect(xdp_alloc, xdp_rxq);
 	return 0;
 err:
 	mutex_unlock(&mem_id_lock);
@@ -317,7 +355,7 @@ EXPORT_SYMBOL_GPL(xdp_rxq_info_reg_mem_model);
 
 /* XDP RX runs under NAPI protection, and in different delivery error
  * scenarios (e.g. queue full), it is possible to return the xdp_frame
- * while still leveraging this protection.  The @napi_direct boolian
+ * while still leveraging this protection.  The @napi_direct boolean
  * is used for those calls sites.  Thus, allowing for faster recycling
  * of xdp_frames/pages in those cases.
  */
@@ -333,12 +371,8 @@ static void __xdp_return(void *data, struct xdp_mem_info *mem, bool napi_direct,
 		/* mem->id is valid, checked in xdp_rxq_info_reg_mem_model() */
 		xa = rhashtable_lookup(mem_id_ht, &mem->id, mem_id_rht_params);
 		page = virt_to_head_page(data);
-		if (xa) {
-			napi_direct &= !xdp_return_frame_no_direct();
-			page_pool_put_page(xa->page_pool, page, napi_direct);
-		} else {
-			put_page(page);
-		}
+		napi_direct &= !xdp_return_frame_no_direct();
+		page_pool_put_page(xa->page_pool, page, napi_direct);
 		rcu_read_unlock();
 		break;
 	case MEM_TYPE_PAGE_SHARED:
@@ -378,6 +412,21 @@ void xdp_return_buff(struct xdp_buff *xdp)
 	__xdp_return(xdp->data, &xdp->rxq->mem, true, xdp->handle);
 }
 EXPORT_SYMBOL_GPL(xdp_return_buff);
+
+/* Only called for MEM_TYPE_PAGE_POOL see xdp.h */
+void __xdp_release_frame(void *data, struct xdp_mem_info *mem)
+{
+	struct xdp_mem_allocator *xa;
+	struct page *page;
+
+	rcu_read_lock();
+	xa = rhashtable_lookup(mem_id_ht, &mem->id, mem_id_rht_params);
+	page = virt_to_head_page(data);
+	if (xa)
+		page_pool_release_page(xa->page_pool, page);
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL_GPL(__xdp_release_frame);
 
 int xdp_attachment_query(struct xdp_attachment_info *info,
 			 struct netdev_bpf *bpf)

@@ -2,6 +2,7 @@
 config PINCTRL_LOCHNAGAR
 	tristate "Cirrus Logic Lochnagar pinctrl driver"
 	depends on MFD_LOCHNAGAR
+	select GPIOLIB
 	select PINMUX
 	select PINCONF
 	select GENERIC_PINCONF
@@ -15,6 +16,9 @@ config PINCTRL_MADERA
 	select PINMUX
 	select GENERIC_PINCONF
 
+config PINCTRL_CS47L15
+	bool
+
 config PINCTRL_CS47L35
 	bool
 
@@ -22,4 +26,7 @@ config PINCTRL_CS47L85
 	bool
 
 config PINCTRL_CS47L90
+	bool
+
+config PINCTRL_CS47L92
 	bool

@@ -152,6 +152,7 @@ static struct ap_queue_status ap_sm_recv(struct ap_queue *aq)
 			ap_msg->receive(aq, ap_msg, aq->reply);
 			break;
 		}
+		/* fall through */
 	case AP_RESPONSE_NO_PENDING_REPLY:
 		if (!status.queue_empty || aq->queue_count <= 0)
 			break;
@@ -637,7 +638,7 @@ struct ap_queue *ap_queue_create(ap_qid_t qid, int device_type)
 	aq->ap_dev.device.type = &ap_queue_type;
 	aq->ap_dev.device_type = device_type;
 	aq->qid = qid;
-	aq->state = AP_STATE_RESET_START;
+	aq->state = AP_STATE_UNBOUND;
 	aq->interrupt = AP_INTR_DISABLED;
 	spin_lock_init(&aq->lock);
 	INIT_LIST_HEAD(&aq->list);
@@ -770,10 +771,11 @@ void ap_queue_remove(struct ap_queue *aq)
 	spin_unlock_bh(&aq->lock);
 }
 
-void ap_queue_reinit_state(struct ap_queue *aq)
+void ap_queue_init_state(struct ap_queue *aq)
 {
 	spin_lock_bh(&aq->lock);
 	aq->state = AP_STATE_RESET_START;
 	ap_wait(ap_sm_event(aq, AP_EVENT_POLL));
 	spin_unlock_bh(&aq->lock);
 }
+EXPORT_SYMBOL(ap_queue_init_state);

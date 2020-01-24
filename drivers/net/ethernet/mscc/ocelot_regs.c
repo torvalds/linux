@@ -224,12 +224,34 @@ static const u32 ocelot_sys_regmap[] = {
 	REG(SYS_PTP_CFG,                   0x0006c4),
 };
 
+static const u32 ocelot_s2_regmap[] = {
+	REG(S2_CORE_UPDATE_CTRL,           0x000000),
+	REG(S2_CORE_MV_CFG,                0x000004),
+	REG(S2_CACHE_ENTRY_DAT,            0x000008),
+	REG(S2_CACHE_MASK_DAT,             0x000108),
+	REG(S2_CACHE_ACTION_DAT,           0x000208),
+	REG(S2_CACHE_CNT_DAT,              0x000308),
+	REG(S2_CACHE_TG_DAT,               0x000388),
+};
+
+static const u32 ocelot_ptp_regmap[] = {
+	REG(PTP_PIN_CFG,                   0x000000),
+	REG(PTP_PIN_TOD_SEC_MSB,           0x000004),
+	REG(PTP_PIN_TOD_SEC_LSB,           0x000008),
+	REG(PTP_PIN_TOD_NSEC,              0x00000c),
+	REG(PTP_CFG_MISC,                  0x0000a0),
+	REG(PTP_CLK_CFG_ADJ_CFG,           0x0000a4),
+	REG(PTP_CLK_CFG_ADJ_FREQ,          0x0000a8),
+};
+
 static const u32 *ocelot_regmap[] = {
 	[ANA] = ocelot_ana_regmap,
 	[QS] = ocelot_qs_regmap,
 	[QSYS] = ocelot_qsys_regmap,
 	[REW] = ocelot_rew_regmap,
 	[SYS] = ocelot_sys_regmap,
+	[S2] = ocelot_s2_regmap,
+	[PTP] = ocelot_ptp_regmap,
 };
 
 static const struct reg_field ocelot_regfields[] = {
@@ -401,7 +423,7 @@ static void ocelot_pll5_init(struct ocelot *ocelot)
 		     HSIO_PLL5G_CFG2_AMPC_SEL(0x10));
 }
 
-int ocelot_chip_init(struct ocelot *ocelot)
+int ocelot_chip_init(struct ocelot *ocelot, const struct ocelot_ops *ops)
 {
 	int ret;
 
@@ -409,6 +431,7 @@ int ocelot_chip_init(struct ocelot *ocelot)
 	ocelot->stats_layout = ocelot_stats_layout;
 	ocelot->num_stats = ARRAY_SIZE(ocelot_stats_layout);
 	ocelot->shared_queue_sz = 224 * 1024;
+	ocelot->ops = ops;
 
 	ret = ocelot_regfields_init(ocelot, ocelot_regfields);
 	if (ret)

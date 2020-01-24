@@ -1178,11 +1178,6 @@ registers_show(struct device *_dev, struct device_attribute *attr, char *buf)
 	size = PAGE_SIZE;
 	spin_lock_irqsave(&dev->lock, flags);
 
-	if (dev->driver)
-		s = dev->driver->driver.name;
-	else
-		s = "(none)";
-
 	/* Main Control Registers */
 	t = scnprintf(next, size, "%s version %s,"
 		"chiprev %02x, locctl %02x\n"

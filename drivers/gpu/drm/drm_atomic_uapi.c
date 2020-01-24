@@ -490,7 +490,7 @@ drm_atomic_crtc_get_property(struct drm_crtc *crtc,
 	struct drm_mode_config *config = &dev->mode_config;
 
 	if (property == config->prop_active)
-		*val = state->active;
+		*val = drm_atomic_crtc_effectively_active(state);
 	else if (property == config->prop_mode_id)
 		*val = (state->mode_blob) ? state->mode_blob->base.id : 0;
 	else if (property == config->prop_vrr_enabled)
@@ -676,6 +676,8 @@ static int drm_atomic_connector_set_property(struct drm_connector *connector,
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_mode_config *config = &dev->mode_config;
+	bool replaced = false;
+	int ret;
 
 	if (property == config->prop_crtc_id) {
 		struct drm_crtc *crtc = drm_crtc_find(dev, file_priv, val);
@@ -726,18 +728,27 @@ static int drm_atomic_connector_set_property(struct drm_connector *connector,
 		 */
 		if (state->link_status != DRM_LINK_STATUS_GOOD)
 			state->link_status = val;
+	} else if (property == config->hdr_output_metadata_property) {
+		ret = drm_atomic_replace_property_blob_from_id(dev,
+				&state->hdr_output_metadata,
+				val,
+				sizeof(struct hdr_output_metadata), -1,
+				&replaced);
+		return ret;
 	} else if (property == config->aspect_ratio_property) {
 		state->picture_aspect_ratio = val;
 	} else if (property == config->content_type_property) {
 		state->content_type = val;
 	} else if (property == connector->scaling_mode_property) {
 		state->scaling_mode = val;
-	} else if (property == connector->content_protection_property) {
+	} else if (property == config->content_protection_property) {
 		if (val == DRM_MODE_CONTENT_PROTECTION_ENABLED) {
 			DRM_DEBUG_KMS("only drivers can set CP Enabled\n");
 			return -EINVAL;
 		}
 		state->content_protection = val;
+	} else if (property == config->hdcp_content_type_property) {
+		state->hdcp_content_type = val;
 	} else if (property == connector->colorspace_property) {
 		state->colorspace = val;
 	} else if (property == config->writeback_fb_id_property) {
@@ -779,7 +790,10 @@ drm_atomic_connector_get_property(struct drm_connector *connector,
 	if (property == config->prop_crtc_id) {
 		*val = (state->crtc) ? state->crtc->base.id : 0;
 	} else if (property == config->dpms_property) {
-		*val = connector->dpms;
+		if (state->crtc && state->crtc->state->self_refresh_active)
+			*val = DRM_MODE_DPMS_ON;
+		else
+			*val = connector->dpms;
 	} else if (property == config->tv_select_subconnector_property) {
 		*val = state->tv.subconnector;
 	} else if (property == config->tv_left_margin_property) {
@@ -814,8 +828,13 @@ drm_atomic_connector_get_property(struct drm_connector *connector,
 		*val = state->colorspace;
 	} else if (property == connector->scaling_mode_property) {
 		*val = state->scaling_mode;
-	} else if (property == connector->content_protection_property) {
+	} else if (property == config->hdr_output_metadata_property) {
+		*val = state->hdr_output_metadata ?
+			state->hdr_output_metadata->base.id : 0;
+	} else if (property == config->content_protection_property) {
 		*val = state->content_protection;
+	} else if (property == config->hdcp_content_type_property) {
+		*val = state->hdcp_content_type;
 	} else if (property == config->writeback_fb_id_property) {
 		/* Writeback framebuffer is one-shot, write and forget */
 		*val = 0;
@@ -1018,7 +1037,7 @@ int drm_atomic_set_property(struct drm_atomic_state *state,
  * As a contrast, with implicit fencing the kernel keeps track of any
  * ongoing rendering, and automatically ensures that the atomic update waits
  * for any pending rendering to complete. For shared buffers represented with
- * a &struct dma_buf this is tracked in &struct reservation_object.
+ * a &struct dma_buf this is tracked in &struct dma_resv.
  * Implicit syncing is how Linux traditionally worked (e.g. DRI2/3 on X.org),
  * whereas explicit fencing is what Android wants.
  *
@@ -1286,8 +1305,7 @@ int drm_mode_atomic_ioctl(struct drm_device *dev,
 	if (arg->reserved)
 		return -EINVAL;
 
-	if ((arg->flags & DRM_MODE_PAGE_FLIP_ASYNC) &&
-			!dev->mode_config.async_page_flip)
+	if (arg->flags & DRM_MODE_PAGE_FLIP_ASYNC)
 		return -EINVAL;
 
 	/* can't test and expect an event at the same time. */
@@ -1387,7 +1405,7 @@ retry:
 	} else if (arg->flags & DRM_MODE_ATOMIC_NONBLOCK) {
 		ret = drm_atomic_nonblocking_commit(state);
 	} else {
-		if (unlikely(drm_debug & DRM_UT_STATE))
+		if (drm_debug_enabled(DRM_UT_STATE))
 			drm_atomic_print_state(state);
 
 		ret = drm_atomic_commit(state);

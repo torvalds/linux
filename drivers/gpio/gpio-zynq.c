@@ -360,7 +360,7 @@ static int zynq_gpio_dir_out(struct gpio_chip *chip, unsigned int pin,
  *
  * This function returns the direction of the specified GPIO.
  *
- * Return: 0 for output, 1 for input
+ * Return: GPIO_LINE_DIRECTION_OUT or GPIO_LINE_DIRECTION_IN
  */
 static int zynq_gpio_get_direction(struct gpio_chip *chip, unsigned int pin)
 {
@@ -372,7 +372,10 @@ static int zynq_gpio_get_direction(struct gpio_chip *chip, unsigned int pin)
 
 	reg = readl_relaxed(gpio->base_addr + ZYNQ_GPIO_DIRM_OFFSET(bank_num));
 
-	return !(reg & BIT(bank_pin_num));
+	if (reg & BIT(bank_pin_num))
+		return GPIO_LINE_DIRECTION_OUT;
+
+	return GPIO_LINE_DIRECTION_IN;
 }
 
 /**
@@ -681,6 +684,8 @@ static void zynq_gpio_restore_context(struct zynq_gpio *gpio)
 	unsigned int bank_num;
 
 	for (bank_num = 0; bank_num < gpio->p_data->max_bank; bank_num++) {
+		writel_relaxed(ZYNQ_GPIO_IXR_DISABLE_ALL, gpio->base_addr +
+				ZYNQ_GPIO_INTDIS_OFFSET(bank_num));
 		writel_relaxed(gpio->context.datalsw[bank_num],
 			       gpio->base_addr +
 			       ZYNQ_GPIO_DATA_LSW_OFFSET(bank_num));
@@ -690,9 +695,6 @@ static void zynq_gpio_restore_context(struct zynq_gpio *gpio)
 		writel_relaxed(gpio->context.dirm[bank_num],
 			       gpio->base_addr +
 			       ZYNQ_GPIO_DIRM_OFFSET(bank_num));
-		writel_relaxed(gpio->context.int_en[bank_num],
-			       gpio->base_addr +
-			       ZYNQ_GPIO_INTEN_OFFSET(bank_num));
 		writel_relaxed(gpio->context.int_type[bank_num],
 			       gpio->base_addr +
 			       ZYNQ_GPIO_INTTYPE_OFFSET(bank_num));
@@ -702,6 +704,9 @@ static void zynq_gpio_restore_context(struct zynq_gpio *gpio)
 		writel_relaxed(gpio->context.int_any[bank_num],
 			       gpio->base_addr +
 			       ZYNQ_GPIO_INTANY_OFFSET(bank_num));
+		writel_relaxed(~(gpio->context.int_en[bank_num]),
+			       gpio->base_addr +
+			       ZYNQ_GPIO_INTEN_OFFSET(bank_num));
 	}
 }
 
@@ -830,6 +835,7 @@ static int zynq_gpio_probe(struct platform_device *pdev)
 	int ret, bank_num;
 	struct zynq_gpio *gpio;
 	struct gpio_chip *chip;
+	struct gpio_irq_chip *girq;
 	const struct of_device_id *match;
 
 	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
@@ -849,10 +855,8 @@ static int zynq_gpio_probe(struct platform_device *pdev)
 		return PTR_ERR(gpio->base_addr);
 
 	gpio->irq = platform_get_irq(pdev, 0);
-	if (gpio->irq < 0) {
-		dev_err(&pdev->dev, "invalid IRQ\n");
+	if (gpio->irq < 0)
 		return gpio->irq;
-	}
 
 	/* configure the gpio chip */
 	chip = &gpio->chip;
@@ -887,6 +891,27 @@ static int zynq_gpio_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_pm_dis;
 
+	/* disable interrupts for all banks */
+	for (bank_num = 0; bank_num < gpio->p_data->max_bank; bank_num++)
+		writel_relaxed(ZYNQ_GPIO_IXR_DISABLE_ALL, gpio->base_addr +
+			       ZYNQ_GPIO_INTDIS_OFFSET(bank_num));
+
+	/* Set up the GPIO irqchip */
+	girq = &chip->irq;
+	girq->chip = &zynq_gpio_edge_irqchip;
+	girq->parent_handler = zynq_gpio_irqhandler;
+	girq->num_parents = 1;
+	girq->parents = devm_kcalloc(&pdev->dev, 1,
+				     sizeof(*girq->parents),
+				     GFP_KERNEL);
+	if (!girq->parents) {
+		ret = -ENOMEM;
+		goto err_pm_put;
+	}
+	girq->parents[0] = gpio->irq;
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_level_irq;
+
 	/* report a bug if gpio chip registration fails */
 	ret = gpiochip_add_data(chip, gpio);
 	if (ret) {
@@ -894,27 +919,10 @@ static int zynq_gpio_probe(struct platform_device *pdev)
 		goto err_pm_put;
 	}
 
-	/* disable interrupts for all banks */
-	for (bank_num = 0; bank_num < gpio->p_data->max_bank; bank_num++)
-		writel_relaxed(ZYNQ_GPIO_IXR_DISABLE_ALL, gpio->base_addr +
-			       ZYNQ_GPIO_INTDIS_OFFSET(bank_num));
-
-	ret = gpiochip_irqchip_add(chip, &zynq_gpio_edge_irqchip, 0,
-				   handle_level_irq, IRQ_TYPE_NONE);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to add irq chip\n");
-		goto err_rm_gpiochip;
-	}
-
-	gpiochip_set_chained_irqchip(chip, &zynq_gpio_edge_irqchip, gpio->irq,
-				     zynq_gpio_irqhandler);
-
 	pm_runtime_put(&pdev->dev);
 
 	return 0;
 
-err_rm_gpiochip:
-	gpiochip_remove(chip);
 err_pm_put:
 	pm_runtime_put(&pdev->dev);
 err_pm_dis:

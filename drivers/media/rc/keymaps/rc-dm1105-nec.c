@@ -15,16 +15,16 @@
 static struct rc_map_table dm1105_nec[] = {
 	{ 0x0a, KEY_POWER2},		/* power */
 	{ 0x0c, KEY_MUTE},		/* mute */
-	{ 0x11, KEY_1},
-	{ 0x12, KEY_2},
-	{ 0x13, KEY_3},
-	{ 0x14, KEY_4},
-	{ 0x15, KEY_5},
-	{ 0x16, KEY_6},
-	{ 0x17, KEY_7},
-	{ 0x18, KEY_8},
-	{ 0x19, KEY_9},
-	{ 0x10, KEY_0},
+	{ 0x11, KEY_NUMERIC_1},
+	{ 0x12, KEY_NUMERIC_2},
+	{ 0x13, KEY_NUMERIC_3},
+	{ 0x14, KEY_NUMERIC_4},
+	{ 0x15, KEY_NUMERIC_5},
+	{ 0x16, KEY_NUMERIC_6},
+	{ 0x17, KEY_NUMERIC_7},
+	{ 0x18, KEY_NUMERIC_8},
+	{ 0x19, KEY_NUMERIC_9},
+	{ 0x10, KEY_NUMERIC_0},
 	{ 0x1c, KEY_CHANNELUP},		/* ch+ */
 	{ 0x0f, KEY_CHANNELDOWN},	/* ch- */
 	{ 0x1a, KEY_VOLUMEUP},		/* vol+ */

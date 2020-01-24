@@ -124,4 +124,41 @@ struct ring_desc {
 #define REG_FW_STS_ICM_EN_INVERT	BIT(1)
 #define REG_FW_STS_ICM_EN		BIT(0)
 
+/* ICL NHI VSEC registers */
+
+/* FW ready */
+#define VS_CAP_9			0xc8
+#define VS_CAP_9_FW_READY		BIT(31)
+/* UUID */
+#define VS_CAP_10			0xcc
+#define VS_CAP_11			0xd0
+/* LTR */
+#define VS_CAP_15			0xe0
+#define VS_CAP_16			0xe4
+/* TBT2PCIe */
+#define VS_CAP_18			0xec
+#define VS_CAP_18_DONE			BIT(0)
+/* PCIe2TBT */
+#define VS_CAP_19			0xf0
+#define VS_CAP_19_VALID			BIT(0)
+#define VS_CAP_19_CMD_SHIFT		1
+#define VS_CAP_19_CMD_MASK		GENMASK(7, 1)
+/* Force power */
+#define VS_CAP_22			0xfc
+#define VS_CAP_22_FORCE_POWER		BIT(1)
+#define VS_CAP_22_DMA_DELAY_MASK	GENMASK(31, 24)
+#define VS_CAP_22_DMA_DELAY_SHIFT	24
+
+/**
+ * enum icl_lc_mailbox_cmd - ICL specific LC mailbox commands
+ * @ICL_LC_GO2SX: Ask LC to enter Sx without wake
+ * @ICL_LC_GO2SX_NO_WAKE: Ask LC to enter Sx with wake
+ * @ICL_LC_PREPARE_FOR_RESET: Prepare LC for reset
+ */
+enum icl_lc_mailbox_cmd {
+	ICL_LC_GO2SX = 0x02,
+	ICL_LC_GO2SX_NO_WAKE = 0x03,
+	ICL_LC_PREPARE_FOR_RESET = 0x21,
+};
+
 #endif

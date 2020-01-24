@@ -1198,6 +1198,9 @@ SYSCALL_DEFINE0(rt_sigreturn)
 			goto bad;
 
 		if (MSR_TM_ACTIVE(msr_hi<<32)) {
+			/* Trying to start TM on non TM system */
+			if (!cpu_has_feature(CPU_FTR_TM))
+				goto bad;
 			/* We only recheckpoint on return if we're
 			 * transaction.
 			 */
@@ -1245,7 +1248,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 				   current->comm, current->pid,
 				   rt_sf, regs->nip, regs->link);
 
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV);
 	return 0;
 }
 
@@ -1334,7 +1337,7 @@ SYSCALL_DEFINE3(debug_setcontext, struct ucontext __user *, ctx,
 					   current->comm, current->pid,
 					   ctx, regs->nip, regs->link);
 
-		force_sig(SIGSEGV, current);
+		force_sig(SIGSEGV);
 		goto out;
 	}
 
@@ -1512,6 +1515,6 @@ badframe:
 				   current->comm, current->pid,
 				   addr, regs->nip, regs->link);
 
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV);
 	return 0;
 }

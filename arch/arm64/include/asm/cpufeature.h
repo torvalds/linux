@@ -35,9 +35,10 @@
  */
 
 enum ftr_type {
-	FTR_EXACT,	/* Use a predefined safe value */
-	FTR_LOWER_SAFE,	/* Smaller value is safe */
-	FTR_HIGHER_SAFE,/* Bigger value is safe */
+	FTR_EXACT,			/* Use a predefined safe value */
+	FTR_LOWER_SAFE,			/* Smaller value is safe */
+	FTR_HIGHER_SAFE,		/* Bigger value is safe */
+	FTR_HIGHER_OR_ZERO_SAFE,	/* Bigger value is safe, but 0 is biggest */
 };
 
 #define FTR_STRICT	true	/* SANITY check strict matching required */
@@ -288,9 +289,16 @@ struct arm64_cpu_capabilities {
 	u16 type;
 	bool (*matches)(const struct arm64_cpu_capabilities *caps, int scope);
 	/*
-	 * Take the appropriate actions to enable this capability for this CPU.
-	 * For each successfully booted CPU, this method is called for each
-	 * globally detected capability.
+	 * Take the appropriate actions to configure this capability
+	 * for this CPU. If the capability is detected by the kernel
+	 * this will be called on all the CPUs in the system,
+	 * including the hotplugged CPUs, regardless of whether the
+	 * capability is available on that specific CPU. This is
+	 * useful for some capabilities (e.g, working around CPU
+	 * errata), where all the CPUs must take some action (e.g,
+	 * changing system control/configuration). Thus, if an action
+	 * is required only if the CPU has the capability, then the
+	 * routine must check it before taking any action.
 	 */
 	void (*cpu_enable)(const struct arm64_cpu_capabilities *cap);
 	union {
@@ -360,21 +368,6 @@ cpucap_multi_entry_cap_matches(const struct arm64_cpu_capabilities *entry,
 			return true;
 
 	return false;
-}
-
-/*
- * Take appropriate action for all matching entries in the shared capability
- * entry.
- */
-static inline void
-cpucap_multi_entry_cap_cpu_enable(const struct arm64_cpu_capabilities *entry)
-{
-	const struct arm64_cpu_capabilities *caps;
-
-	for (caps = entry->match_list; caps->matches; caps++)
-		if (caps->matches(caps, SCOPE_LOCAL_CPU) &&
-		    caps->cpu_enable)
-			caps->cpu_enable(caps);
 }
 
 extern DECLARE_BITMAP(cpu_hwcaps, ARM64_NCAPS);
@@ -614,6 +607,18 @@ static inline bool system_uses_irq_prio_masking(void)
 	       cpus_have_const_cap(ARM64_HAS_IRQ_PRIO_MASKING);
 }
 
+static inline bool system_has_prio_mask_debugging(void)
+{
+	return IS_ENABLED(CONFIG_ARM64_DEBUG_PRIORITY_MASKING) &&
+	       system_uses_irq_prio_masking();
+}
+
+#define ARM64_BP_HARDEN_UNKNOWN		-1
+#define ARM64_BP_HARDEN_WA_NEEDED	0
+#define ARM64_BP_HARDEN_NOT_REQUIRED	1
+
+int get_spectre_v2_workaround_state(void);
+
 #define ARM64_SSBD_UNKNOWN		-1
 #define ARM64_SSBD_FORCE_DISABLE	0
 #define ARM64_SSBD_KERNEL		1
@@ -654,6 +659,20 @@ static inline u32 id_aa64mmfr0_parange_to_phys_shift(int parange)
 	default: return CONFIG_ARM64_PA_BITS;
 	}
 }
+
+/* Check whether hardware update of the Access flag is supported */
+static inline bool cpu_has_hw_af(void)
+{
+	u64 mmfr1;
+
+	if (!IS_ENABLED(CONFIG_ARM64_HW_AFDBM))
+		return false;
+
+	mmfr1 = read_cpuid(ID_AA64MMFR1_EL1);
+	return cpuid_feature_extract_unsigned_field(mmfr1,
+						ID_AA64MMFR1_HADBS_SHIFT);
+}
+
 #endif /* __ASSEMBLY__ */
 
 #endif

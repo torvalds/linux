@@ -29,7 +29,7 @@ static int tcf_vlan_act(struct sk_buff *skb, const struct tc_action *a,
 	u16 tci;
 
 	tcf_lastuse_update(&v->tcf_tm);
-	bstats_cpu_update(this_cpu_ptr(v->common.cpu_bstats), skb);
+	tcf_action_update_bstats(&v->common, skb);
 
 	/* Ensure 'data' points at mac_header prior calling vlan manipulating
 	 * functions.
@@ -88,7 +88,7 @@ out:
 	return action;
 
 drop:
-	qstats_drop_inc(this_cpu_ptr(v->common.cpu_qstats));
+	tcf_action_inc_drop_qstats(&v->common);
 	return TC_ACT_SHOT;
 }
 
@@ -102,7 +102,8 @@ static const struct nla_policy vlan_policy[TCA_VLAN_MAX + 1] = {
 static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 			 struct nlattr *est, struct tc_action **a,
 			 int ovr, int bind, bool rtnl_held,
-			 struct tcf_proto *tp, struct netlink_ext_ack *extack)
+			 struct tcf_proto *tp, u32 flags,
+			 struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, vlan_net_id);
 	struct nlattr *tb[TCA_VLAN_MAX + 1];
@@ -116,6 +117,7 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 	u8 push_prio = 0;
 	bool exists = false;
 	int ret = 0, err;
+	u32 index;
 
 	if (!nla)
 		return -EINVAL;
@@ -128,7 +130,8 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 	if (!tb[TCA_VLAN_PARMS])
 		return -EINVAL;
 	parm = nla_data(tb[TCA_VLAN_PARMS]);
-	err = tcf_idr_check_alloc(tn, &parm->index, a, bind);
+	index = parm->index;
+	err = tcf_idr_check_alloc(tn, &index, a, bind);
 	if (err < 0)
 		return err;
 	exists = err;
@@ -144,7 +147,7 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 			if (exists)
 				tcf_idr_release(*a, bind);
 			else
-				tcf_idr_cleanup(tn, parm->index);
+				tcf_idr_cleanup(tn, index);
 			return -EINVAL;
 		}
 		push_vid = nla_get_u16(tb[TCA_VLAN_PUSH_VLAN_ID]);
@@ -152,7 +155,7 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 			if (exists)
 				tcf_idr_release(*a, bind);
 			else
-				tcf_idr_cleanup(tn, parm->index);
+				tcf_idr_cleanup(tn, index);
 			return -ERANGE;
 		}
 
@@ -166,7 +169,7 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 				if (exists)
 					tcf_idr_release(*a, bind);
 				else
-					tcf_idr_cleanup(tn, parm->index);
+					tcf_idr_cleanup(tn, index);
 				return -EPROTONOSUPPORT;
 			}
 		} else {
@@ -180,16 +183,16 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 		if (exists)
 			tcf_idr_release(*a, bind);
 		else
-			tcf_idr_cleanup(tn, parm->index);
+			tcf_idr_cleanup(tn, index);
 		return -EINVAL;
 	}
 	action = parm->v_action;
 
 	if (!exists) {
-		ret = tcf_idr_create(tn, parm->index, est, a,
-				     &act_vlan_ops, bind, true);
+		ret = tcf_idr_create_from_flags(tn, index, est, a,
+						&act_vlan_ops, bind, flags);
 		if (ret) {
-			tcf_idr_cleanup(tn, parm->index);
+			tcf_idr_cleanup(tn, index);
 			return ret;
 		}
 
@@ -218,7 +221,7 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 
 	spin_lock_bh(&v->tcf_lock);
 	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
-	rcu_swap_protected(v->vlan_p, p, lockdep_is_held(&v->tcf_lock));
+	p = rcu_replace_pointer(v->vlan_p, p, lockdep_is_held(&v->tcf_lock));
 	spin_unlock_bh(&v->tcf_lock);
 
 	if (goto_ch)
@@ -299,11 +302,29 @@ static int tcf_vlan_walker(struct net *net, struct sk_buff *skb,
 	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
 }
 
+static void tcf_vlan_stats_update(struct tc_action *a, u64 bytes, u32 packets,
+				  u64 lastuse, bool hw)
+{
+	struct tcf_vlan *v = to_vlan(a);
+	struct tcf_t *tm = &v->tcf_tm;
+
+	tcf_action_update_stats(a, bytes, packets, false, hw);
+	tm->lastuse = max_t(u64, tm->lastuse, lastuse);
+}
+
 static int tcf_vlan_search(struct net *net, struct tc_action **a, u32 index)
 {
 	struct tc_action_net *tn = net_generic(net, vlan_net_id);
 
 	return tcf_idr_search(tn, a, index);
+}
+
+static size_t tcf_vlan_get_fill_size(const struct tc_action *act)
+{
+	return nla_total_size(sizeof(struct tc_vlan))
+		+ nla_total_size(sizeof(u16)) /* TCA_VLAN_PUSH_VLAN_ID */
+		+ nla_total_size(sizeof(u16)) /* TCA_VLAN_PUSH_VLAN_PROTOCOL */
+		+ nla_total_size(sizeof(u8)); /* TCA_VLAN_PUSH_VLAN_PRIORITY */
 }
 
 static struct tc_action_ops act_vlan_ops = {
@@ -315,6 +336,8 @@ static struct tc_action_ops act_vlan_ops = {
 	.init		=	tcf_vlan_init,
 	.cleanup	=	tcf_vlan_cleanup,
 	.walk		=	tcf_vlan_walker,
+	.stats_update	=	tcf_vlan_stats_update,
+	.get_fill_size	=	tcf_vlan_get_fill_size,
 	.lookup		=	tcf_vlan_search,
 	.size		=	sizeof(struct tcf_vlan),
 };
@@ -323,7 +346,7 @@ static __net_init int vlan_init_net(struct net *net)
 {
 	struct tc_action_net *tn = net_generic(net, vlan_net_id);
 
-	return tc_action_net_init(tn, &act_vlan_ops);
+	return tc_action_net_init(net, tn, &act_vlan_ops);
 }
 
 static void __net_exit vlan_exit_net(struct list_head *net_list)

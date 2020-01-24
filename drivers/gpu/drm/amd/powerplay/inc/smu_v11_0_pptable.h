@@ -121,7 +121,7 @@ struct smu_11_0_powerplay_table
 {
       struct atom_common_table_header header;
       uint8_t  table_revision;
-      uint32_t table_size;                          //Driver portion table size. The offset to smc_pptable including header size
+      uint16_t table_size;                          //Driver portion table size. The offset to smc_pptable including header size
       uint32_t golden_pp_id;
       uint32_t golden_revision;
       uint16_t format_id;
@@ -141,7 +141,9 @@ struct smu_11_0_powerplay_table
       struct smu_11_0_power_saving_clock_table      power_saving_clock;
       struct smu_11_0_overdrive_table               overdrive_table;
 
+#ifndef SMU_11_0_PARTIAL_PPTABLE
       PPTable_t smc_pptable;                        //PPTable_t in smu11_driver_if.h
+#endif
 } __attribute__((packed));
 
 #endif

@@ -10,11 +10,20 @@
  */
 
 #include <linux/module.h>
+#include <linux/platform_device.h>
+#include <linux/dma-mapping.h>
+
 #include <drm/drm_gem.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_file.h>
+#include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_ioctl.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_vblank.h>
+
 #include "vkms_drv.h"
 
 #define DRIVER_NAME	"vkms"
@@ -55,7 +64,36 @@ static void vkms_release(struct drm_device *dev)
 	drm_atomic_helper_shutdown(&vkms->drm);
 	drm_mode_config_cleanup(&vkms->drm);
 	drm_dev_fini(&vkms->drm);
-	destroy_workqueue(vkms->output.crc_workq);
+	destroy_workqueue(vkms->output.composer_workq);
+}
+
+static void vkms_atomic_commit_tail(struct drm_atomic_state *old_state)
+{
+	struct drm_device *dev = old_state->dev;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *old_crtc_state;
+	int i;
+
+	drm_atomic_helper_commit_modeset_disables(dev, old_state);
+
+	drm_atomic_helper_commit_planes(dev, old_state, 0);
+
+	drm_atomic_helper_commit_modeset_enables(dev, old_state);
+
+	drm_atomic_helper_fake_vblank(old_state);
+
+	drm_atomic_helper_commit_hw_done(old_state);
+
+	drm_atomic_helper_wait_for_flip_done(dev, old_state);
+
+	for_each_old_crtc_in_state(old_state, crtc, old_crtc_state, i) {
+		struct vkms_crtc_state *vkms_state =
+			to_vkms_crtc_state(old_crtc_state);
+
+		flush_work(&vkms_state->composer_work);
+	}
+
+	drm_atomic_helper_cleanup_planes(dev, old_state);
 }
 
 static struct drm_driver vkms_driver = {
@@ -66,6 +104,8 @@ static struct drm_driver vkms_driver = {
 	.gem_vm_ops		= &vkms_gem_vm_ops,
 	.gem_free_object_unlocked = vkms_gem_free_object,
 	.get_vblank_timestamp	= vkms_get_vblank_timestamp,
+	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
+	.gem_prime_import_sg_table = vkms_prime_import_sg_table,
 
 	.name			= DRIVER_NAME,
 	.desc			= DRIVER_DESC,
@@ -80,6 +120,10 @@ static const struct drm_mode_config_funcs vkms_mode_funcs = {
 	.atomic_commit = drm_atomic_helper_commit,
 };
 
+static const struct drm_mode_config_helper_funcs vkms_mode_config_helpers = {
+	.atomic_commit_tail = vkms_atomic_commit_tail,
+};
+
 static int vkms_modeset_init(struct vkms_device *vkmsdev)
 {
 	struct drm_device *dev = &vkmsdev->drm;
@@ -91,8 +135,9 @@ static int vkms_modeset_init(struct vkms_device *vkmsdev)
 	dev->mode_config.max_width = XRES_MAX;
 	dev->mode_config.max_height = YRES_MAX;
 	dev->mode_config.preferred_depth = 24;
+	dev->mode_config.helper_private = &vkms_mode_config_helpers;
 
-	return vkms_output_init(vkmsdev);
+	return vkms_output_init(vkmsdev, 0);
 }
 
 static int __init vkms_init(void)
@@ -114,6 +159,14 @@ static int __init vkms_init(void)
 			   &vkms_device->platform->dev);
 	if (ret)
 		goto out_unregister;
+
+	ret = dma_coerce_mask_and_coherent(vkms_device->drm.dev,
+					   DMA_BIT_MASK(64));
+
+	if (ret) {
+		DRM_ERROR("Could not initialize DMA support\n");
+		goto out_fini;
+	}
 
 	vkms_device->drm.irq_enabled = true;
 

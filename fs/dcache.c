@@ -319,7 +319,7 @@ static inline void __d_set_inode_and_type(struct dentry *dentry,
 	flags = READ_ONCE(dentry->d_flags);
 	flags &= ~(DCACHE_ENTRY_TYPE | DCACHE_FALLTHRU);
 	flags |= type_flags;
-	WRITE_ONCE(dentry->d_flags, flags);
+	smp_store_release(&dentry->d_flags, flags);
 }
 
 static inline void __d_clear_type_and_inode(struct dentry *dentry)
@@ -861,6 +861,32 @@ void dput(struct dentry *dentry)
 }
 EXPORT_SYMBOL(dput);
 
+static void __dput_to_list(struct dentry *dentry, struct list_head *list)
+__must_hold(&dentry->d_lock)
+{
+	if (dentry->d_flags & DCACHE_SHRINK_LIST) {
+		/* let the owner of the list it's on deal with it */
+		--dentry->d_lockref.count;
+	} else {
+		if (dentry->d_flags & DCACHE_LRU_LIST)
+			d_lru_del(dentry);
+		if (!--dentry->d_lockref.count)
+			d_shrink_add(dentry, list);
+	}
+}
+
+void dput_to_list(struct dentry *dentry, struct list_head *list)
+{
+	rcu_read_lock();
+	if (likely(fast_dput(dentry))) {
+		rcu_read_unlock();
+		return;
+	}
+	rcu_read_unlock();
+	if (!retain_dentry(dentry))
+		__dput_to_list(dentry, list);
+	spin_unlock(&dentry->d_lock);
+}
 
 /* This must be called with d_lock held */
 static inline void __dget_dlock(struct dentry *dentry)
@@ -877,17 +903,19 @@ struct dentry *dget_parent(struct dentry *dentry)
 {
 	int gotref;
 	struct dentry *ret;
+	unsigned seq;
 
 	/*
 	 * Do optimistic parent lookup without any
 	 * locking.
 	 */
 	rcu_read_lock();
+	seq = raw_seqcount_begin(&dentry->d_seq);
 	ret = READ_ONCE(dentry->d_parent);
 	gotref = lockref_get_not_zero(&ret->d_lockref);
 	rcu_read_unlock();
 	if (likely(gotref)) {
-		if (likely(ret == READ_ONCE(dentry->d_parent)))
+		if (!read_seqcount_retry(&dentry->d_seq, seq))
 			return ret;
 		dput(ret);
 	}
@@ -1067,7 +1095,7 @@ out:
 	return false;
 }
 
-static void shrink_dentry_list(struct list_head *list)
+void shrink_dentry_list(struct list_head *list)
 {
 	while (!list_empty(list)) {
 		struct dentry *dentry, *parent;
@@ -1089,18 +1117,9 @@ static void shrink_dentry_list(struct list_head *list)
 		rcu_read_unlock();
 		d_shrink_del(dentry);
 		parent = dentry->d_parent;
+		if (parent != dentry)
+			__dput_to_list(parent, list);
 		__dentry_kill(dentry);
-		if (parent == dentry)
-			continue;
-		/*
-		 * We need to prune ancestors too. This is necessary to prevent
-		 * quadratic behavior of shrink_dcache_parent(), but is also
-		 * expected to be beneficial in reducing dentry cache
-		 * fragmentation.
-		 */
-		dentry = parent;
-		while (dentry && !lockref_put_or_lock(&dentry->d_lockref))
-			dentry = dentry_kill(dentry);
 	}
 }
 
@@ -1302,7 +1321,7 @@ resume:
 
 		if (!list_empty(&dentry->d_subdirs)) {
 			spin_unlock(&this_parent->d_lock);
-			spin_release(&dentry->d_lock.dep_map, 1, _RET_IP_);
+			spin_release(&dentry->d_lock.dep_map, _RET_IP_);
 			this_parent = dentry;
 			spin_acquire(&this_parent->d_lock.dep_map, 0, 1, _RET_IP_);
 			goto repeat;
@@ -1445,8 +1464,11 @@ out:
 
 struct select_data {
 	struct dentry *start;
+	union {
+		long found;
+		struct dentry *victim;
+	};
 	struct list_head dispose;
-	int found;
 };
 
 static enum d_walk_ret select_collect(void *_data, struct dentry *dentry)
@@ -1478,6 +1500,37 @@ out:
 	return ret;
 }
 
+static enum d_walk_ret select_collect2(void *_data, struct dentry *dentry)
+{
+	struct select_data *data = _data;
+	enum d_walk_ret ret = D_WALK_CONTINUE;
+
+	if (data->start == dentry)
+		goto out;
+
+	if (dentry->d_flags & DCACHE_SHRINK_LIST) {
+		if (!dentry->d_lockref.count) {
+			rcu_read_lock();
+			data->victim = dentry;
+			return D_WALK_QUIT;
+		}
+	} else {
+		if (dentry->d_flags & DCACHE_LRU_LIST)
+			d_lru_del(dentry);
+		if (!dentry->d_lockref.count)
+			d_shrink_add(dentry, &data->dispose);
+	}
+	/*
+	 * We can return to the caller if we have found some (this
+	 * ensures forward progress). We'll be coming back to find
+	 * the rest.
+	 */
+	if (!list_empty(&data->dispose))
+		ret = need_resched() ? D_WALK_QUIT : D_WALK_NORETRY;
+out:
+	return ret;
+}
+
 /**
  * shrink_dcache_parent - prune dcache
  * @parent: parent of entries to prune
@@ -1487,12 +1540,9 @@ out:
 void shrink_dcache_parent(struct dentry *parent)
 {
 	for (;;) {
-		struct select_data data;
+		struct select_data data = {.start = parent};
 
 		INIT_LIST_HEAD(&data.dispose);
-		data.start = parent;
-		data.found = 0;
-
 		d_walk(parent, &data, select_collect);
 
 		if (!list_empty(&data.dispose)) {
@@ -1503,6 +1553,24 @@ void shrink_dcache_parent(struct dentry *parent)
 		cond_resched();
 		if (!data.found)
 			break;
+		data.victim = NULL;
+		d_walk(parent, &data, select_collect2);
+		if (data.victim) {
+			struct dentry *parent;
+			spin_lock(&data.victim->d_lock);
+			if (!shrink_lock_dentry(data.victim)) {
+				spin_unlock(&data.victim->d_lock);
+				rcu_read_unlock();
+			} else {
+				rcu_read_unlock();
+				parent = data.victim->d_parent;
+				if (parent != data.victim)
+					__dput_to_list(parent, &data.dispose);
+				__dentry_kill(data.victim);
+			}
+		}
+		if (!list_empty(&data.dispose))
+			shrink_dentry_list(&data.dispose);
 	}
 }
 EXPORT_SYMBOL(shrink_dcache_parent);
@@ -1613,7 +1681,7 @@ EXPORT_SYMBOL(d_invalidate);
  * copied and the copy passed in may be reused after this call.
  */
  
-struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
+static struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
 {
 	struct dentry *dentry;
 	char *dname;
@@ -2372,7 +2440,6 @@ EXPORT_SYMBOL(d_hash_and_lookup);
 void d_delete(struct dentry * dentry)
 {
 	struct inode *inode = dentry->d_inode;
-	int isdir = d_is_dir(dentry);
 
 	spin_lock(&inode->i_lock);
 	spin_lock(&dentry->d_lock);
@@ -2387,7 +2454,6 @@ void d_delete(struct dentry * dentry)
 		spin_unlock(&dentry->d_lock);
 		spin_unlock(&inode->i_lock);
 	}
-	fsnotify_nameremove(dentry, isdir);
 }
 EXPORT_SYMBOL(d_delete);
 

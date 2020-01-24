@@ -507,7 +507,7 @@ static void issue_probersp(struct adapter *padapter, unsigned char *da)
 		pwps_ie = rtw_get_wps_ie(cur_network->ies+_FIXED_IE_LENGTH_, cur_network->ie_length-_FIXED_IE_LENGTH_, NULL, &wps_ielen);
 
 		/* inerset & update wps_probe_resp_ie */
-		if ((pmlmepriv->wps_probe_resp_ie != NULL) && pwps_ie && (wps_ielen > 0)) {
+		if (pmlmepriv->wps_probe_resp_ie && pwps_ie && wps_ielen > 0) {
 			uint wps_offset, remainder_ielen;
 			u8 *premainder_ie;
 
@@ -4854,7 +4854,7 @@ u8 setopmode_hdl(struct adapter *padapter, u8 *pbuf)
 	}
 
 	rtw_hal_set_hwreg(padapter, HW_VAR_SET_OPMODE, (u8 *)(&type));
-	/* Set_NETYPE0_MSR(padapter, type); */
+	/* Set_MSR(padapter, type); */
 
 	return H2C_SUCCESS;
 }
@@ -5322,7 +5322,7 @@ u8 set_tx_beacon_cmd(struct adapter *padapter)
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
-	u8 res = _SUCCESS;
+	u8 res;
 	int len_diff = 0;
 
 	ph2c = kzalloc(sizeof(struct cmd_obj), GFP_ATOMIC);

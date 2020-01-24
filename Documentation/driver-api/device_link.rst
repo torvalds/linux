@@ -78,8 +78,8 @@ typically deleted in its ``->remove`` callback for symmetry.  That way, if the
 driver is compiled as a module, the device link is added on module load and
 orderly deleted on unload.  The same restrictions that apply to device link
 addition (e.g. exclusion of a parallel suspend/resume transition) apply equally
-to deletion.  Device links with ``DL_FLAG_STATELESS`` unset (i.e. managed
-device links) are deleted automatically by the driver core.
+to deletion.  Device links managed by the driver core are deleted automatically
+by it.
 
 Several flags may be specified on device link addition, two of which
 have already been mentioned above:  ``DL_FLAG_STATELESS`` to express that no
@@ -281,7 +281,8 @@ State machine
   :c:func:`driver_bound()`.)
 
 * Before a consumer device is probed, presence of supplier drivers is
-  verified by checking that links to suppliers are in ``DL_STATE_AVAILABLE``
+  verified by checking the consumer device is not in the wait_for_suppliers
+  list and by checking that links to suppliers are in ``DL_STATE_AVAILABLE``
   state.  The state of the links is updated to ``DL_STATE_CONSUMER_PROBE``.
   (Call to :c:func:`device_links_check_suppliers()` from
   :c:func:`really_probe()`.)

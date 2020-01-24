@@ -109,7 +109,7 @@
 #define	START_SEGNO(segno)		\
 	(SIT_BLOCK_OFFSET(segno) * SIT_ENTRY_PER_BLOCK)
 #define SIT_BLK_CNT(sbi)			\
-	((MAIN_SEGS(sbi) + SIT_ENTRY_PER_BLOCK - 1) / SIT_ENTRY_PER_BLOCK)
+	DIV_ROUND_UP(MAIN_SEGS(sbi), SIT_ENTRY_PER_BLOCK)
 #define f2fs_bitmap_size(nr)			\
 	(BITS_TO_LONGS(nr) * sizeof(unsigned long))
 
@@ -226,9 +226,13 @@ struct sit_info {
 	block_t sit_base_addr;		/* start block address of SIT area */
 	block_t sit_blocks;		/* # of blocks used by SIT area */
 	block_t written_valid_blocks;	/* # of valid blocks in main area */
+	char *bitmap;			/* all bitmaps pointer */
 	char *sit_bitmap;		/* SIT bitmap pointer */
 #ifdef CONFIG_F2FS_CHECK_FS
 	char *sit_bitmap_mir;		/* SIT bitmap mirror */
+
+	/* bitmap of segments to be ignored by GC in case of errors */
+	unsigned long *invalid_segmap;
 #endif
 	unsigned int bitmap_size;	/* SIT bitmap size */
 
@@ -309,6 +313,8 @@ struct sit_entry_set {
  */
 static inline struct curseg_info *CURSEG_I(struct f2fs_sb_info *sbi, int type)
 {
+	if (type == CURSEG_COLD_DATA_PINNED)
+		type = CURSEG_COLD_DATA;
 	return (struct curseg_info *)(SM_I(sbi)->curseg_array + type);
 }
 
@@ -582,13 +588,13 @@ static inline bool has_not_enough_free_secs(struct f2fs_sb_info *sbi,
 		reserved_sections(sbi) + needed);
 }
 
-static inline int f2fs_is_checkpoint_ready(struct f2fs_sb_info *sbi)
+static inline bool f2fs_is_checkpoint_ready(struct f2fs_sb_info *sbi)
 {
 	if (likely(!is_sbi_flag_set(sbi, SBI_CP_DISABLED)))
-		return 0;
+		return true;
 	if (likely(!has_not_enough_free_secs(sbi, 0, 0)))
-		return 0;
-	return -ENOSPC;
+		return true;
+	return false;
 }
 
 static inline bool excess_prefree_segs(struct f2fs_sb_info *sbi)
@@ -693,21 +699,19 @@ static inline int check_block_count(struct f2fs_sb_info *sbi,
 	} while (cur_pos < sbi->blocks_per_seg);
 
 	if (unlikely(GET_SIT_VBLOCKS(raw_sit) != valid_blocks)) {
-		f2fs_msg(sbi->sb, KERN_ERR,
-				"Mismatch valid blocks %d vs. %d",
-					GET_SIT_VBLOCKS(raw_sit), valid_blocks);
+		f2fs_err(sbi, "Mismatch valid blocks %d vs. %d",
+			 GET_SIT_VBLOCKS(raw_sit), valid_blocks);
 		set_sbi_flag(sbi, SBI_NEED_FSCK);
-		return -EINVAL;
+		return -EFSCORRUPTED;
 	}
 
 	/* check segment usage, and check boundary of a given segment number */
 	if (unlikely(GET_SIT_VBLOCKS(raw_sit) > sbi->blocks_per_seg
 					|| segno > TOTAL_SEGS(sbi) - 1)) {
-		f2fs_msg(sbi->sb, KERN_ERR,
-				"Wrong valid blocks %d or segno %u",
-					GET_SIT_VBLOCKS(raw_sit), segno);
+		f2fs_err(sbi, "Wrong valid blocks %d or segno %u",
+			 GET_SIT_VBLOCKS(raw_sit), segno);
 		set_sbi_flag(sbi, SBI_NEED_FSCK);
-		return -EINVAL;
+		return -EFSCORRUPTED;
 	}
 	return 0;
 }

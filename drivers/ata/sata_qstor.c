@@ -100,7 +100,7 @@ static int qs_scr_write(struct ata_link *link, unsigned int sc_reg, u32 val);
 static int qs_ata_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
 static int qs_port_start(struct ata_port *ap);
 static void qs_host_stop(struct ata_host *host);
-static void qs_qc_prep(struct ata_queued_cmd *qc);
+static enum ata_completion_errors qs_qc_prep(struct ata_queued_cmd *qc);
 static unsigned int qs_qc_issue(struct ata_queued_cmd *qc);
 static int qs_check_atapi_dma(struct ata_queued_cmd *qc);
 static void qs_freeze(struct ata_port *ap);
@@ -260,7 +260,7 @@ static unsigned int qs_fill_sg(struct ata_queued_cmd *qc)
 	return si;
 }
 
-static void qs_qc_prep(struct ata_queued_cmd *qc)
+static enum ata_completion_errors qs_qc_prep(struct ata_queued_cmd *qc)
 {
 	struct qs_port_priv *pp = qc->ap->private_data;
 	u8 dflags = QS_DF_PORD, *buf = pp->pkt;
@@ -272,7 +272,7 @@ static void qs_qc_prep(struct ata_queued_cmd *qc)
 
 	qs_enter_reg_mode(qc->ap);
 	if (qc->tf.protocol != ATA_PROT_DMA)
-		return;
+		return AC_ERR_OK;
 
 	nelem = qs_fill_sg(qc);
 
@@ -295,6 +295,8 @@ static void qs_qc_prep(struct ata_queued_cmd *qc)
 
 	/* frame information structure (FIS) */
 	ata_tf_to_fis(&qc->tf, 0, 1, &buf[32]);
+
+	return AC_ERR_OK;
 }
 
 static inline void qs_packet_start(struct ata_queued_cmd *qc)
@@ -477,7 +479,6 @@ static int qs_port_start(struct ata_port *ap)
 				      GFP_KERNEL);
 	if (!pp->pkt)
 		return -ENOMEM;
-	memset(pp->pkt, 0, QS_PKT_BYTES);
 	ap->private_data = pp;
 
 	qs_enter_reg_mode(ap);
@@ -538,33 +539,13 @@ static void qs_host_init(struct ata_host *host, unsigned int chip_id)
 static int qs_set_dma_masks(struct pci_dev *pdev, void __iomem *mmio_base)
 {
 	u32 bus_info = readl(mmio_base + QS_HID_HPHY);
-	int rc, have_64bit_bus = (bus_info & QS_HPHY_64BIT);
+	int dma_bits = (bus_info & QS_HPHY_64BIT) ? 64 : 32;
+	int rc;
 
-	if (have_64bit_bus &&
-	    !dma_set_mask(&pdev->dev, DMA_BIT_MASK(64))) {
-		rc = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
-		if (rc) {
-			rc = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
-			if (rc) {
-				dev_err(&pdev->dev,
-					"64-bit DMA enable failed\n");
-				return rc;
-			}
-		}
-	} else {
-		rc = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
-		if (rc) {
-			dev_err(&pdev->dev, "32-bit DMA enable failed\n");
-			return rc;
-		}
-		rc = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
-		if (rc) {
-			dev_err(&pdev->dev,
-				"32-bit consistent DMA enable failed\n");
-			return rc;
-		}
-	}
-	return 0;
+	rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(dma_bits));
+	if (rc)
+		dev_err(&pdev->dev, "%d-bit DMA enable failed\n", dma_bits);
+	return rc;
 }
 
 static int qs_ata_init_one(struct pci_dev *pdev,

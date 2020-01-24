@@ -86,15 +86,10 @@ unsigned int scsi_logging_level;
 EXPORT_SYMBOL(scsi_logging_level);
 #endif
 
-/* sd, scsi core and power management need to coordinate flushing async actions */
-ASYNC_DOMAIN(scsi_sd_probe_domain);
-EXPORT_SYMBOL(scsi_sd_probe_domain);
-
 /*
- * Separate domain (from scsi_sd_probe_domain) to maximize the benefit of
- * asynchronous system resume operations.  It is marked 'exclusive' to avoid
- * being included in the async_synchronize_full() that is invoked by
- * dpm_resume()
+ * Domain for asynchronous system resume operations.  It is marked 'exclusive'
+ * to avoid being included in the async_synchronize_full() that is invoked by
+ * dpm_resume().
  */
 ASYNC_DOMAIN_EXCLUSIVE(scsi_sd_pm_domain);
 EXPORT_SYMBOL(scsi_sd_pm_domain);
@@ -191,7 +186,7 @@ void scsi_finish_command(struct scsi_cmnd *cmd)
 	struct scsi_driver *drv;
 	unsigned int good_bytes;
 
-	scsi_device_unbusy(sdev);
+	scsi_device_unbusy(sdev, cmd);
 
 	/*
 	 * Clear the flags that say that the device/target/host is no longer
@@ -439,8 +434,8 @@ static void scsi_update_vpd_page(struct scsi_device *sdev, u8 page,
 		return;
 
 	mutex_lock(&sdev->inquiry_mutex);
-	rcu_swap_protected(*sdev_vpd_buf, vpd_buf,
-			   lockdep_is_held(&sdev->inquiry_mutex));
+	vpd_buf = rcu_replace_pointer(*sdev_vpd_buf, vpd_buf,
+				      lockdep_is_held(&sdev->inquiry_mutex));
 	mutex_unlock(&sdev->inquiry_mutex);
 
 	if (vpd_buf)
@@ -470,10 +465,14 @@ void scsi_attach_vpd(struct scsi_device *sdev)
 		return;
 
 	for (i = 4; i < vpd_buf->len; i++) {
+		if (vpd_buf->data[i] == 0x0)
+			scsi_update_vpd_page(sdev, 0x0, &sdev->vpd_pg0);
 		if (vpd_buf->data[i] == 0x80)
 			scsi_update_vpd_page(sdev, 0x80, &sdev->vpd_pg80);
 		if (vpd_buf->data[i] == 0x83)
 			scsi_update_vpd_page(sdev, 0x83, &sdev->vpd_pg83);
+		if (vpd_buf->data[i] == 0x89)
+			scsi_update_vpd_page(sdev, 0x89, &sdev->vpd_pg89);
 	}
 	kfree(vpd_buf);
 }
@@ -821,7 +820,6 @@ static void __exit exit_scsi(void)
 	scsi_exit_devinfo();
 	scsi_exit_procfs();
 	scsi_exit_queue();
-	async_unregister_domain(&scsi_sd_probe_domain);
 }
 
 subsys_initcall(init_scsi);

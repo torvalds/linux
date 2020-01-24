@@ -65,8 +65,7 @@ struct aead_req_ctx {
 	unsigned int hw_iv_size ____cacheline_aligned;
 	/* used to prevent cache coherence problem */
 	u8 backup_mac[MAX_MAC_SIZE];
-	u8 *backup_iv; /*store iv for generated IV flow*/
-	u8 *backup_giv; /*store iv for rfc3686(ctr) flow*/
+	u8 *backup_iv; /* store orig iv */
 	u32 assoclen; /* internal assoclen */
 	dma_addr_t mac_buf_dma_addr; /* internal ICV DMA buffer */
 	/* buffer for internal ccm configurations */

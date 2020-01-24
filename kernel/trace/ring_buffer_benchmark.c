@@ -267,12 +267,12 @@ static void ring_buffer_producer(void)
 		if (consumer && !(cnt % wakeup_interval))
 			wake_up_process(consumer);
 
-#ifndef CONFIG_PREEMPT
+#ifndef CONFIG_PREEMPTION
 		/*
-		 * If we are a non preempt kernel, the 10 second run will
+		 * If we are a non preempt kernel, the 10 seconds run will
 		 * stop everything while it runs. Instead, we will call
 		 * cond_resched and also add any time that was lost by a
-		 * rescedule.
+		 * reschedule.
 		 *
 		 * Do a cond resched at the same frequency we would wake up
 		 * the reader.

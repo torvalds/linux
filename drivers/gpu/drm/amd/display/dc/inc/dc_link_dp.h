@@ -28,6 +28,8 @@
 
 #define LINK_TRAINING_ATTEMPTS 4
 #define LINK_TRAINING_RETRY_DELAY 50 /* ms */
+#define LINK_AUX_DEFAULT_EXTENDED_TIMEOUT_PERIOD 32000 /*us*/
+#define LINK_AUX_DEFAULT_TIMEOUT_PERIOD 400 /*us*/
 
 struct dc_link;
 struct dc_stream_state;
@@ -37,6 +39,14 @@ bool dp_verify_link_cap(
 	struct dc_link *link,
 	struct dc_link_settings *known_limit_link_setting,
 	int *fail_count);
+
+bool dp_verify_link_cap_with_retries(
+	struct dc_link *link,
+	struct dc_link_settings *known_limit_link_setting,
+	int attempts);
+
+bool dp_verify_mst_link_cap(
+	struct dc_link *link);
 
 bool dp_validate_mode_timing(
 	struct dc_link *link,
@@ -61,5 +71,17 @@ void detect_edp_sink_caps(struct dc_link *link);
 bool is_dp_active_dongle(const struct dc_link *link);
 
 void dp_enable_mst_on_sink(struct dc_link *link, bool enable);
+
+enum dp_panel_mode dp_get_panel_mode(struct dc_link *link);
+void dp_set_panel_mode(struct dc_link *link, enum dp_panel_mode panel_mode);
+
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+void dp_set_fec_ready(struct dc_link *link, bool ready);
+void dp_set_fec_enable(struct dc_link *link, bool enable);
+bool dp_set_dsc_enable(struct pipe_ctx *pipe_ctx, bool enable);
+bool dp_set_dsc_pps_sdp(struct pipe_ctx *pipe_ctx, bool enable);
+void dp_set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable);
+bool dp_update_dsc_config(struct pipe_ctx *pipe_ctx);
+#endif
 
 #endif /* __DC_LINK_DP_H__ */

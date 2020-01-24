@@ -41,6 +41,13 @@ enum pp_smu_ver {
 	 */
 	PP_SMU_UNSUPPORTED,
 	PP_SMU_VER_RV,
+#ifndef CONFIG_TRIM_DRM_AMD_DC_DCN2_0
+	PP_SMU_VER_NV,
+#endif
+#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
+	PP_SMU_VER_RN,
+#endif
+
 	PP_SMU_VER_MAX
 };
 
@@ -56,12 +63,30 @@ struct pp_smu {
 	const void *dm;
 };
 
+enum pp_smu_status {
+	PP_SMU_RESULT_UNDEFINED = 0,
+	PP_SMU_RESULT_OK = 1,
+	PP_SMU_RESULT_FAIL,
+	PP_SMU_RESULT_UNSUPPORTED
+};
+
+#define PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MIN 0x0
+#define PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MAX 0xFFFF
+
+enum wm_type {
+	WM_TYPE_PSTATE_CHG = 0,
+	WM_TYPE_RETRAINING = 1,
+};
+
+/* This structure is a copy of WatermarkRowGeneric_t defined by smuxx_driver_if.h*/
 struct pp_smu_wm_set_range {
-	unsigned int wm_inst;
-	uint32_t min_fill_clk_mhz;
-	uint32_t max_fill_clk_mhz;
-	uint32_t min_drain_clk_mhz;
-	uint32_t max_drain_clk_mhz;
+	uint16_t min_fill_clk_mhz;
+	uint16_t max_fill_clk_mhz;
+	uint16_t min_drain_clk_mhz;
+	uint16_t max_drain_clk_mhz;
+
+	uint8_t wm_inst;
+	uint8_t wm_type;
 };
 
 #define MAX_WATERMARK_SETS 4
@@ -80,6 +105,7 @@ struct pp_smu_funcs_rv {
 	/* PPSMC_MSG_SetDisplayCount
 	 * 0 triggers S0i2 optimization
 	 */
+
 	void (*set_display_count)(struct pp_smu *pp, int count);
 
 	/* reader and writer WM's are sent together as part of one table*/
@@ -115,13 +141,163 @@ struct pp_smu_funcs_rv {
 
 	/* PME w/a */
 	void (*set_pme_wa_enable)(struct pp_smu *pp);
+};
 
+#ifndef CONFIG_TRIM_DRM_AMD_DC_DCN2_0
+/* Used by pp_smu_funcs_nv.set_voltage_by_freq
+ *
+ */
+enum pp_smu_nv_clock_id {
+	PP_SMU_NV_DISPCLK,
+	PP_SMU_NV_PHYCLK,
+	PP_SMU_NV_PIXELCLK
+};
+
+/*
+ * Used by pp_smu_funcs_nv.get_maximum_sustainable_clocks
+ */
+struct pp_smu_nv_clock_table {
+	// voltage managed SMU, freq set by driver
+	unsigned int    displayClockInKhz;
+	unsigned int	dppClockInKhz;
+	unsigned int    phyClockInKhz;
+	unsigned int    pixelClockInKhz;
+	unsigned int	dscClockInKhz;
+
+	// freq/voltage managed by SMU
+	unsigned int	fabricClockInKhz;
+	unsigned int	socClockInKhz;
+	unsigned int    dcfClockInKhz;
+	unsigned int    uClockInKhz;
+};
+
+struct pp_smu_funcs_nv {
+	struct pp_smu pp_smu;
+
+	/* PPSMC_MSG_SetDisplayCount
+	 * 0 triggers S0i2 optimization
+	 */
+	enum pp_smu_status (*set_display_count)(struct pp_smu *pp, int count);
+
+	/* PPSMC_MSG_SetHardMinDcfclkByFreq
+	 * fixed clock at requested freq, either from FCH bypass or DFS
+	 */
+	enum pp_smu_status (*set_hard_min_dcfclk_by_freq)(struct pp_smu *pp, int Mhz);
+
+	/* PPSMC_MSG_SetMinDeepSleepDcfclk
+	 * when DF is in cstate, dcf clock is further divided down
+	 * to just above given frequency
+	 */
+	enum pp_smu_status (*set_min_deep_sleep_dcfclk)(struct pp_smu *pp, int Mhz);
+
+	/* PPSMC_MSG_SetHardMinUclkByFreq
+	 * UCLK will vary with DPM, but never below requested hard min
+	 */
+	enum pp_smu_status (*set_hard_min_uclk_by_freq)(struct pp_smu *pp, int Mhz);
+
+	/* PPSMC_MSG_SetHardMinSocclkByFreq
+	 * Needed for DWB support
+	 */
+	enum pp_smu_status (*set_hard_min_socclk_by_freq)(struct pp_smu *pp, int Mhz);
+
+	/* PME w/a */
+	enum pp_smu_status (*set_pme_wa_enable)(struct pp_smu *pp);
+
+	/* PPSMC_MSG_SetHardMinByFreq
+	 * Needed to set ASIC voltages for clocks programmed by DAL
+	 */
+	enum pp_smu_status (*set_voltage_by_freq)(struct pp_smu *pp,
+			enum pp_smu_nv_clock_id clock_id, int Mhz);
+
+	/* reader and writer WM's are sent together as part of one table*/
+	/*
+	 * PPSMC_MSG_SetDriverDramAddrHigh
+	 * PPSMC_MSG_SetDriverDramAddrLow
+	 * PPSMC_MSG_TransferTableDram2Smu
+	 *
+	 * on DCN20:
+	 * 	reader fill clk = uclk
+	 * 	reader drain clk = dcfclk
+	 * 	writer fill clk = socclk
+	 * 	writer drain clk = uclk
+	 * */
+	enum pp_smu_status (*set_wm_ranges)(struct pp_smu *pp,
+			struct pp_smu_wm_range_sets *ranges);
+
+	/* Not a single SMU message.  This call should return maximum sustainable limit for all
+	 * clocks that DC depends on.  These will be used as basis for mode enumeration.
+	 */
+	enum pp_smu_status (*get_maximum_sustainable_clocks)(struct pp_smu *pp,
+			struct pp_smu_nv_clock_table *max_clocks);
+
+	/* This call should return the discrete uclk DPM states available
+	 */
+	enum pp_smu_status (*get_uclk_dpm_states)(struct pp_smu *pp,
+			unsigned int *clock_values_in_khz, unsigned int *num_states);
+
+	/* Not a single SMU message.  This call informs PPLIB that display will not be able
+	 * to perform pstate handshaking in its current state.  Typically this handshake
+	 * is used to perform uCLK switching, so disabling pstate disables uCLK switching.
+	 *
+	 * Note that when setting handshake to unsupported, the call is pre-emptive.  That means
+	 * DC will make the call BEFORE setting up the display state which would cause pstate
+	 * request to go un-acked.  Only when the call completes should such a state be applied to
+	 * DC hardware
+	 */
+	enum pp_smu_status (*set_pstate_handshake_support)(struct pp_smu *pp,
+			BOOLEAN pstate_handshake_supported);
+};
+#endif
+
+#define PP_SMU_NUM_SOCCLK_DPM_LEVELS  8
+#define PP_SMU_NUM_DCFCLK_DPM_LEVELS  8
+#define PP_SMU_NUM_FCLK_DPM_LEVELS    4
+#define PP_SMU_NUM_MEMCLK_DPM_LEVELS  4
+
+struct dpm_clock {
+  uint32_t  Freq;    // In MHz
+  uint32_t  Vol;     // Millivolts with 2 fractional bits
+};
+
+
+/* this is a copy of the structure defined in smuxx_driver_if.h*/
+struct dpm_clocks {
+	struct dpm_clock DcfClocks[PP_SMU_NUM_DCFCLK_DPM_LEVELS];
+	struct dpm_clock SocClocks[PP_SMU_NUM_SOCCLK_DPM_LEVELS];
+	struct dpm_clock FClocks[PP_SMU_NUM_FCLK_DPM_LEVELS];
+	struct dpm_clock MemClocks[PP_SMU_NUM_MEMCLK_DPM_LEVELS];
+};
+
+
+struct pp_smu_funcs_rn {
+	struct pp_smu pp_smu;
+
+	/*
+	 * reader and writer WM's are sent together as part of one table
+	 *
+	 * PPSMC_MSG_SetDriverDramAddrHigh
+	 * PPSMC_MSG_SetDriverDramAddrLow
+	 * PPSMC_MSG_TransferTableDram2Smu
+	 *
+	 */
+	enum pp_smu_status (*set_wm_ranges)(struct pp_smu *pp,
+			struct pp_smu_wm_range_sets *ranges);
+
+	enum pp_smu_status (*get_dpm_clock_table) (struct pp_smu *pp,
+			struct dpm_clocks *clock_table);
 };
 
 struct pp_smu_funcs {
 	struct pp_smu ctx;
 	union {
 		struct pp_smu_funcs_rv rv_funcs;
+#ifndef CONFIG_TRIM_DRM_AMD_DC_DCN2_0
+		struct pp_smu_funcs_nv nv_funcs;
+#endif
+#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
+		struct pp_smu_funcs_rn rn_funcs;
+#endif
+
 	};
 };
 

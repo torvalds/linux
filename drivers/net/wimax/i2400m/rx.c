@@ -1253,7 +1253,6 @@ int i2400m_rx(struct i2400m *i2400m, struct sk_buff *skb)
 	skb_len = skb->len;
 	d_fnstart(4, dev, "(i2400m %p skb %p [size %u])\n",
 		  i2400m, skb, skb_len);
-	result = -EIO;
 	msg_hdr = (void *) skb->data;
 	result = i2400m_rx_msg_hdr_check(i2400m, msg_hdr, skb_len);
 	if (result < 0)

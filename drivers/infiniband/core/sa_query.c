@@ -860,7 +860,7 @@ static int ib_nl_send_msg(struct ib_sa_query *query, gfp_t gfp_mask)
 	/* Repair the nlmsg header length */
 	nlmsg_end(skb, nlh);
 
-	return rdma_nl_multicast(skb, RDMA_NL_GROUP_LS, gfp_mask);
+	return rdma_nl_multicast(&init_net, skb, RDMA_NL_GROUP_LS, gfp_mask);
 }
 
 static int ib_nl_make_request(struct ib_sa_query *query, gfp_t gfp_mask)
@@ -1246,7 +1246,7 @@ static int init_ah_attr_grh_fields(struct ib_device *device, u8 port_num,
  * @port_num: Port on the specified device.
  * @rec: path record entry to use for ah attributes initialization.
  * @ah_attr: address handle attributes to initialization from path record.
- * @sgid_attr: SGID attribute to consider during initialization.
+ * @gid_attr: SGID attribute to consider during initialization.
  *
  * When ib_init_ah_attr_from_path() returns success,
  * (a) for IB link layer it optionally contains a reference to SGID attribute

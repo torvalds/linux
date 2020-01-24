@@ -5,8 +5,8 @@
 #include <libunwind.h>
 #include "perf_regs.h"
 #include "../../util/unwind.h"
-#include "../../util/debug.h"
 #endif
+#include "../../util/debug.h"
 
 int LIBUNWIND__ARCH_REG_ID(int regnum)
 {

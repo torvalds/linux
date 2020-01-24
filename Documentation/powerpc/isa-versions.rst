@@ -1,11 +1,12 @@
+==========================
 CPU to ISA Version Mapping
 ==========================
 
 Mapping of some CPU versions to relevant ISA versions.
 
-========= ====================
+========= ====================================================================
 CPU       Architecture version
-========= ====================
+========= ====================================================================
 Power9    Power ISA v3.0B
 Power8    Power ISA v2.07
 Power7    Power ISA v2.06
@@ -22,7 +23,7 @@ PPC970    - PowerPC User Instruction Set Architecture Book I v2.01
           - PowerPC Virtual Environment Architecture Book II v2.01
           - PowerPC Operating Environment Architecture Book III v2.01
           - Plus Altivec/VMX ~= 2.03
-========= ====================
+========= ====================================================================
 
 
 Key Features
@@ -58,9 +59,9 @@ Power5     No
 PPC970     No
 ========== ====
 
-========== ====================
+========== ====================================
 CPU        Transactional Memory
-========== ====================
+========== ====================================
 Power9     Yes (* see transactional_memory.txt)
 Power8     Yes
 Power7     No
@@ -71,4 +72,4 @@ Power5++   No
 Power5+    No
 Power5     No
 PPC970     No
-========== ====================
+========== ====================================

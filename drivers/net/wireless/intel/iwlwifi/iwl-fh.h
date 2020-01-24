@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -29,7 +29,7 @@
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -127,7 +127,7 @@
 static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
 					     unsigned int chnl)
 {
-	if (trans->cfg->use_tfh) {
+	if (trans->trans_cfg->use_tfh) {
 		WARN_ON_ONCE(chnl >= 64);
 		return TFH_TFDQ_CBB_TABLE + 8 * chnl;
 	}
@@ -148,7 +148,7 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
  *
  * Bits 3:0:
  * Define the maximum number of pending read requests.
- * Maximum configration value allowed is 0xC
+ * Maximum configuration value allowed is 0xC
  * Bits 9:8:
  * Define the maximum transfer size. (64 / 128 / 256)
  * Bit 10:
@@ -768,7 +768,7 @@ struct iwlagn_scd_bc_tbl {
 
 /**
  * struct iwl_gen3_bc_tbl scheduler byte count table gen3
- * For 22560 and on:
+ * For AX210 and on:
  * @tfd_offset: 0-12 - tx command byte count
  *		12-13 - number of 64 byte chunks
  *		14-16 - reserved

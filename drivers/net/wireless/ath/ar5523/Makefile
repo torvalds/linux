@@ -1,2 +1,2 @@
-# SPDX-License-Identifier: GPL-2.0-only
+# SPDX-License-Identifier: ISC
 obj-$(CONFIG_AR5523)   := ar5523.o

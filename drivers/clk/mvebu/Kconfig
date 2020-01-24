@@ -8,6 +8,9 @@ config MVEBU_CLK_CPU
 config MVEBU_CLK_COREDIV
 	bool
 
+config ARMADA_AP_CP_HELPER
+	bool
+
 config ARMADA_370_CLK
 	bool
 	select MVEBU_CLK_COMMON
@@ -35,9 +38,14 @@ config ARMADA_XP_CLK
 
 config ARMADA_AP806_SYSCON
 	bool
+	select ARMADA_AP_CP_HELPER
+
+config ARMADA_AP_CPU_CLK
+	bool
 
 config ARMADA_CP110_SYSCON
 	bool
+	select ARMADA_AP_CP_HELPER
 
 config DOVE_CLK
 	bool

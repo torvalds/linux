@@ -1032,8 +1032,6 @@ static int check_atl_transfer(struct usb_hcd *hcd, struct ptd *ptd,
 			urb->status = -EOVERFLOW;
 		else if (FROM_DW3_CERR(ptd->dw3))
 			urb->status = -EPIPE;  /* Stall */
-		else if (ptd->dw3 & DW3_ERROR_BIT)
-			urb->status = -EPROTO; /* XactErr */
 		else
 			urb->status = -EPROTO; /* Unknown */
 /*

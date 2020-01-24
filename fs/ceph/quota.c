@@ -135,7 +135,7 @@ static struct inode *lookup_quotarealm_inode(struct ceph_mds_client *mdsc,
 		return NULL;
 
 	mutex_lock(&qri->mutex);
-	if (qri->inode) {
+	if (qri->inode && ceph_is_any_caps(qri->inode)) {
 		/* A request has already returned the inode */
 		mutex_unlock(&qri->mutex);
 		return qri->inode;
@@ -146,7 +146,18 @@ static struct inode *lookup_quotarealm_inode(struct ceph_mds_client *mdsc,
 		mutex_unlock(&qri->mutex);
 		return NULL;
 	}
-	in = ceph_lookup_inode(sb, realm->ino);
+	if (qri->inode) {
+		/* get caps */
+		int ret = __ceph_do_getattr(qri->inode, NULL,
+					    CEPH_STAT_CAP_INODE, true);
+		if (ret >= 0)
+			in = qri->inode;
+		else
+			in = ERR_PTR(ret);
+	}  else {
+		in = ceph_lookup_inode(sb, realm->ino);
+	}
+
 	if (IS_ERR(in)) {
 		pr_warn("Can't lookup inode %llx (err: %ld)\n",
 			realm->ino, PTR_ERR(in));

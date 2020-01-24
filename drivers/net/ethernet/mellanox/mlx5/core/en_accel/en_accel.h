@@ -39,6 +39,7 @@
 #include "en_accel/ipsec_rxtx.h"
 #include "en_accel/tls_rxtx.h"
 #include "en.h"
+#include "en/txrx.h"
 
 #if IS_ENABLED(CONFIG_GENEVE)
 static inline bool mlx5_geneve_tx_allowed(struct mlx5_core_dev *mdev)

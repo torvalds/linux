@@ -53,11 +53,16 @@ static const struct snd_soc_ops storm_soc_ops = {
 	.hw_params	= storm_ops_hw_params,
 };
 
+SND_SOC_DAILINK_DEFS(hifi,
+	DAILINK_COMP_ARRAY(COMP_EMPTY()),
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "HiFi")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+
 static struct snd_soc_dai_link storm_dai_link = {
 	.name		= "Primary",
 	.stream_name	= "Primary",
-	.codec_dai_name	= "HiFi",
 	.ops		= &storm_soc_ops,
+	SND_SOC_DAILINK_REG(hifi),
 };
 
 static int storm_parse_of(struct snd_soc_card *card)
@@ -65,15 +70,15 @@ static int storm_parse_of(struct snd_soc_card *card)
 	struct snd_soc_dai_link *dai_link = card->dai_link;
 	struct device_node *np = card->dev->of_node;
 
-	dai_link->cpu_of_node = of_parse_phandle(np, "cpu", 0);
-	if (!dai_link->cpu_of_node) {
+	dai_link->cpus->of_node = of_parse_phandle(np, "cpu", 0);
+	if (!dai_link->cpus->of_node) {
 		dev_err(card->dev, "error getting cpu phandle\n");
 		return -EINVAL;
 	}
-	dai_link->platform_of_node = dai_link->cpu_of_node;
+	dai_link->platforms->of_node = dai_link->cpus->of_node;
 
-	dai_link->codec_of_node = of_parse_phandle(np, "codec", 0);
-	if (!dai_link->codec_of_node) {
+	dai_link->codecs->of_node = of_parse_phandle(np, "codec", 0);
+	if (!dai_link->codecs->of_node) {
 		dev_err(card->dev, "error getting codec phandle\n");
 		return -EINVAL;
 	}

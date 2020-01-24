@@ -2174,7 +2174,7 @@ static inline int igbvf_tx_map_adv(struct igbvf_adapter *adapter,
 		goto dma_error;
 
 	for (f = 0; f < skb_shinfo(skb)->nr_frags; f++) {
-		const struct skb_frag_struct *frag;
+		const skb_frag_t *frag;
 
 		count++;
 		i++;
@@ -2437,8 +2437,8 @@ static int igbvf_change_mtu(struct net_device *netdev, int new_mtu)
 		adapter->rx_buffer_len = ETH_FRAME_LEN + VLAN_HLEN +
 					 ETH_FCS_LEN;
 
-	dev_info(&adapter->pdev->dev, "changing MTU from %d to %d\n",
-		 netdev->mtu, new_mtu);
+	netdev_dbg(netdev, "changing MTU from %d to %d\n",
+		   netdev->mtu, new_mtu);
 	netdev->mtu = new_mtu;
 
 	if (netif_running(netdev))

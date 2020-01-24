@@ -21,7 +21,6 @@ if COMMON_CLK_QCOM
 
 config QCOM_A53PLL
 	tristate "MSM8916 A53 PLL"
-	default ARCH_QCOM
 	help
 	  Support for the A53 PLL on MSM8916 devices. It provides
 	  the CPU with frequencies above 1GHz.
@@ -31,7 +30,6 @@ config QCOM_A53PLL
 config QCOM_CLK_APCS_MSM8916
 	tristate "MSM8916 APCS Clock Controller"
 	depends on QCOM_APCS_IPC || COMPILE_TEST
-	default ARCH_QCOM
 	help
 	  Support for the APCS Clock Controller on msm8916 devices. The
 	  APCS is managing the mux and divider which feeds the CPUs.
@@ -222,12 +220,30 @@ config MSM_GCC_8998
 	  Say Y if you want to use peripheral devices such as UART, SPI,
 	  i2c, USB, UFS, SD/eMMC, PCIe, etc.
 
+config MSM_GPUCC_8998
+	tristate "MSM8998 Graphics Clock Controller"
+	select MSM_GCC_8998
+	select QCOM_GDSC
+	help
+	  Support for the graphics clock controller on MSM8998 devices.
+	  Say Y if you want to support graphics controller devices and
+	  functionality such as 3D graphics.
+
 config QCS_GCC_404
 	tristate "QCS404 Global Clock Controller"
 	help
 	  Support for the global clock controller on QCS404 devices.
 	  Say Y if you want to use multimedia devices or peripheral
 	  devices such as UART, SPI, I2C, USB, SD/eMMC, PCIe etc.
+
+config SC_GCC_7180
+	tristate "SC7180 Global Clock Controller"
+	select QCOM_GDSC
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the global clock controller on SC7180 devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  I2C, USB, UFS, SDCC, etc.
 
 config SDM_CAMCC_845
 	tristate "SDM845 Camera Clock Controller"
@@ -249,6 +265,14 @@ config QCS_TURING_404
 	help
 	  Support for the Turing Clock Controller on QCS404, provides clocks
 	  and resets for the Turing subsystem.
+
+config QCS_Q6SSTOP_404
+	tristate "QCS404 Q6SSTOP Clock Controller"
+	select QCS_GCC_404
+	help
+	  Support for the Q6SSTOP clock controller on QCS404 devices.
+	  Say Y if you want to use the Q6SSTOP branch clocks of the WCSS clock
+	  controller to reset the Q6SSTOP subsystem.
 
 config SDM_GCC_845
 	tristate "SDM845 Global Clock Controller"
@@ -291,6 +315,13 @@ config SDM_LPASSCC_845
 	  Support for the LPASS clock controller on SDM845 devices.
 	  Say Y if you want to use the LPASS branch clocks of the LPASS clock
 	  controller to reset the LPASS subsystem.
+
+config SM_GCC_8150
+	tristate "SM8150 Global Clock Controller"
+	help
+	  Support for the global clock controller on SM8150 devices.
+	  Say Y if you want to use peripheral devices such as UART,
+	  SPI, I2C, USB, SD/UFS, PCIe etc.
 
 config SPMI_PMIC_CLKDIV
 	tristate "SPMI PMIC clkdiv Support"

@@ -46,7 +46,6 @@ struct stk1160_decimate_ctrl {
 /* supported video standards */
 static struct stk1160_fmt format[] = {
 	{
-		.name     = "16 bpp YUY2, 4:2:2, packed",
 		.fourcc   = V4L2_PIX_FMT_UYVY,
 		.depth    = 16,
 	}
@@ -337,11 +336,6 @@ static int vidioc_querycap(struct file *file,
 	strscpy(cap->driver, "stk1160", sizeof(cap->driver));
 	strscpy(cap->card, "stk1160", sizeof(cap->card));
 	usb_make_path(dev->udev, cap->bus_info, sizeof(cap->bus_info));
-	cap->device_caps =
-		V4L2_CAP_VIDEO_CAPTURE |
-		V4L2_CAP_STREAMING |
-		V4L2_CAP_READWRITE;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -351,7 +345,6 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 	if (f->index != 0)
 		return -EINVAL;
 
-	strscpy(f->description, format[f->index].name, sizeof(f->description));
 	f->pixelformat = format[f->index].fourcc;
 	return 0;
 }
@@ -821,6 +814,8 @@ int stk1160_video_register(struct stk1160 *dev)
 
 	/* This will be used to set video_device parent */
 	dev->vdev.v4l2_dev = &dev->v4l2_dev;
+	dev->vdev.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING |
+				V4L2_CAP_READWRITE;
 
 	/* NTSC is default */
 	dev->norm = V4L2_STD_NTSC_M;

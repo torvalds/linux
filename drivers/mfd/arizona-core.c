@@ -814,11 +814,7 @@ static int arizona_of_get_core_pdata(struct arizona *arizona)
 	int ret, i;
 
 	/* Handle old non-standard DT binding */
-	pdata->reset = devm_gpiod_get_from_of_node(arizona->dev,
-						   arizona->dev->of_node,
-						   "wlf,reset", 0,
-						   GPIOD_OUT_LOW,
-						   "arizona /RESET");
+	pdata->reset = devm_gpiod_get(arizona->dev, "wlf,reset", GPIOD_OUT_LOW);
 	if (IS_ERR(pdata->reset)) {
 		ret = PTR_ERR(pdata->reset);
 
@@ -993,7 +989,7 @@ int arizona_dev_init(struct arizona *arizona)
 	unsigned int reg, val;
 	int (*apply_patch)(struct arizona *) = NULL;
 	const struct mfd_cell *subdevs = NULL;
-	int n_subdevs, ret, i;
+	int n_subdevs = 0, ret, i;
 
 	dev_set_drvdata(arizona->dev, arizona);
 	mutex_init(&arizona->clk_lock);

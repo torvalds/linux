@@ -26,6 +26,7 @@
 #include <linux/types.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
+#include <linux/gpio/consumer.h>
 
 #include "../../pci.h"
 #include "pcie-designware.h"
@@ -352,7 +353,7 @@ static void dra7xx_pcie_ep_init(struct dw_pcie_ep *ep)
 	struct dra7xx_pcie *dra7xx = to_dra7xx_pcie(pci);
 	enum pci_barno bar;
 
-	for (bar = BAR_0; bar <= BAR_5; bar++)
+	for (bar = 0; bar < PCI_STD_NUM_BARS; bar++)
 		dw_pcie_ep_reset_bar(pci, bar);
 
 	dra7xx_pcie_enable_wrapper_interrupts(dra7xx);

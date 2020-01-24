@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menuconfig SAMPLES
 	bool "Sample kernel code"
-	depends on !UML
 	help
 	  You can build and test sample kernel code here.
 
@@ -19,6 +18,21 @@ config SAMPLE_TRACE_PRINTK
 	help
 	 This builds a module that calls trace_printk() and can be used to
 	 test various trace_printk() calls from a module.
+
+config SAMPLE_FTRACE_DIRECT
+	tristate "Build register_ftrace_direct() example"
+	depends on DYNAMIC_FTRACE_WITH_DIRECT_CALLS && m
+	depends on X86_64 # has x86_64 inlined asm
+	help
+	  This builds an ftrace direct function example
+	  that hooks to wake_up_process and prints the parameters.
+
+config SAMPLE_TRACE_ARRAY
+        tristate "Build sample module for kernel access to Ftrace instancess"
+	depends on EVENT_TRACING && m
+	help
+	 This builds a module that demonstrates the use of various APIs to
+	 access Ftrace instances from within the kernel.
 
 config SAMPLE_KOBJECT
 	tristate "Build kobject examples"
@@ -95,16 +109,24 @@ config SAMPLE_CONFIGFS
 
 config SAMPLE_CONNECTOR
 	tristate "Build connector sample -- loadable modules only"
-	depends on CONNECTOR && m
+	depends on CONNECTOR && HEADERS_INSTALL && m
 	help
 	  When enabled, this builds both a sample kernel module for
 	  the connector interface and a user space tool to communicate
 	  with it.
-	  See also Documentation/connector/connector.txt
+	  See also Documentation/driver-api/connector.rst
+
+config SAMPLE_HIDRAW
+	bool "hidraw sample"
+	depends on HEADERS_INSTALL
+
+config SAMPLE_PIDFD
+	bool "pidfd sample"
+	depends on HEADERS_INSTALL
 
 config SAMPLE_SECCOMP
 	bool "Build seccomp sample code"
-	depends on SECCOMP_FILTER
+	depends on SECCOMP_FILTER && HEADERS_INSTALL
 	help
 	  Build samples of seccomp filters using various methods of
 	  BPF filter construction.
@@ -156,9 +178,17 @@ config SAMPLE_ANDROID_BINDERFS
 
 config SAMPLE_VFS
 	bool "Build example programs that use new VFS system calls"
+	depends on HEADERS_INSTALL
 	help
 	  Build example userspace programs that use new VFS system calls such
 	  as mount API and statx().  Note that this is restricted to the x86
 	  arch whilst it accesses system calls that aren't yet in all arches.
+
+config SAMPLE_INTEL_MEI
+	bool "Build example program working with intel mei driver"
+	depends on INTEL_MEI
+	help
+	  Build a sample program to work with mei device.
+
 
 endif # SAMPLES

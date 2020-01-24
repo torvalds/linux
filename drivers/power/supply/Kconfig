@@ -15,6 +15,20 @@ config POWER_SUPPLY_DEBUG
 	  Say Y here to enable debugging messages for power supply class
 	  and drivers.
 
+config POWER_SUPPLY_HWMON
+	bool
+	prompt "Expose power supply sensors as hwmon device"
+	depends on HWMON=y || HWMON=POWER_SUPPLY
+	default y
+	help
+	  This options enables API that allows sensors found on a
+	  power supply device (current, voltage, temperature) to be
+	  exposed as a hwmon device.
+
+	  Say 'Y' here if you want power supplies to
+	  have hwmon sysfs interface too.
+
+
 config PDA_POWER
 	tristate "Generic PDA/phone power driver"
 	depends on !S390
@@ -152,7 +166,7 @@ config BATTERY_PMU
 
 config BATTERY_OLPC
 	tristate "One Laptop Per Child battery"
-	depends on X86_32 && OLPC
+	depends on OLPC_EC
 	help
 	  Say Y to enable support for the battery on the OLPC laptop.
 
@@ -403,17 +417,6 @@ config CHARGER_PCF50633
 	help
 	 Say Y to include support for NXP PCF50633 Main Battery Charger.
 
-config BATTERY_JZ4740
-	tristate "Ingenic JZ4740 battery"
-	depends on MACH_JZ4740
-	depends on MFD_JZ4740_ADC
-	help
-	  Say Y to enable support for the battery on Ingenic JZ4740 based
-	  boards.
-
-	  This driver can be build as a module. If so, the module will be
-	  called jz4740-battery.
-
 config BATTERY_RX51
 	tristate "Nokia RX-51 (N900) battery driver"
 	depends on TWL4030_MADC
@@ -626,7 +629,7 @@ config BATTERY_GAUGE_LTC2941
 
 config AB8500_BM
 	bool "AB8500 Battery Management Driver"
-	depends on AB8500_CORE && AB8500_GPADC
+	depends on AB8500_CORE && AB8500_GPADC && (IIO = y)
 	help
 	  Say Y to include support for AB8500 battery management.
 
@@ -656,7 +659,7 @@ config CHARGER_RT9455
 
 config CHARGER_CROS_USBPD
 	tristate "ChromeOS EC based USBPD charger"
-	depends on MFD_CROS_EC
+	depends on CROS_EC
 	default n
 	help
 	  Say Y here to enable ChromeOS EC based USBPD charger
@@ -688,5 +691,23 @@ config CHARGER_UCS1002
 	help
 	  Say Y to enable support for Microchip UCS1002 Programmable
 	  USB Port Power Controller with Charger Emulation.
+
+config CHARGER_BD70528
+	tristate "ROHM bd70528 charger driver"
+	depends on MFD_ROHM_BD70528
+	default n
+	help
+	 Say Y here to enable support for getting battery status
+	 information and altering charger configurations from charger
+	 block of the ROHM BD70528 Power Management IC.
+
+config CHARGER_WILCO
+	tristate "Wilco EC based charger for ChromeOS"
+	depends on WILCO_EC
+	help
+	  Say Y here to enable control of the charging routines performed
+	  by the Embedded Controller on the Chromebook named Wilco. Further
+	  information can be found in
+	  Documentation/ABI/testing/sysfs-class-power-wilco
 
 endif # POWER_SUPPLY

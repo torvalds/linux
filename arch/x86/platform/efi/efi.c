@@ -59,9 +59,32 @@ static efi_system_table_t efi_systab __initdata;
 
 static efi_config_table_type_t arch_tables[] __initdata = {
 #ifdef CONFIG_X86_UV
-	{UV_SYSTEM_TABLE_GUID, "UVsystab", &efi.uv_systab},
+	{UV_SYSTEM_TABLE_GUID, "UVsystab", &uv_systab_phys},
 #endif
 	{NULL_GUID, NULL, NULL},
+};
+
+static const unsigned long * const efi_tables[] = {
+	&efi.mps,
+	&efi.acpi,
+	&efi.acpi20,
+	&efi.smbios,
+	&efi.smbios3,
+	&efi.boot_info,
+	&efi.hcdp,
+	&efi.uga,
+#ifdef CONFIG_X86_UV
+	&uv_systab_phys,
+#endif
+	&efi.fw_vendor,
+	&efi.runtime,
+	&efi.config_table,
+	&efi.esrt,
+	&efi.properties_table,
+	&efi.mem_attr_table,
+#ifdef CONFIG_EFI_RCI2_TABLE
+	&rci2_table_phys,
+#endif
 };
 
 u64 efi_setup;		/* efi setup_data physical address */
@@ -105,6 +128,9 @@ void __init efi_find_mirror(void)
 	efi_memory_desc_t *md;
 	u64 mirror_size = 0, total_size = 0;
 
+	if (!efi_enabled(EFI_MEMMAP))
+		return;
+
 	for_each_efi_memory_desc(md) {
 		unsigned long long start = md->phys_addr;
 		unsigned long long size = md->num_pages << EFI_PAGE_SHIFT;
@@ -122,13 +148,17 @@ void __init efi_find_mirror(void)
 
 /*
  * Tell the kernel about the EFI memory map.  This might include
- * more than the max 128 entries that can fit in the e820 legacy
- * (zeropage) memory map.
+ * more than the max 128 entries that can fit in the passed in e820
+ * legacy (zeropage) memory map, but the kernel's e820 table can hold
+ * E820_MAX_ENTRIES.
  */
 
 static void __init do_add_efi_memmap(void)
 {
 	efi_memory_desc_t *md;
+
+	if (!efi_enabled(EFI_MEMMAP))
+		return;
 
 	for_each_efi_memory_desc(md) {
 		unsigned long long start = md->phys_addr;
@@ -141,7 +171,10 @@ static void __init do_add_efi_memmap(void)
 		case EFI_BOOT_SERVICES_CODE:
 		case EFI_BOOT_SERVICES_DATA:
 		case EFI_CONVENTIONAL_MEMORY:
-			if (md->attribute & EFI_MEMORY_WB)
+			if (efi_soft_reserve_enabled()
+			    && (md->attribute & EFI_MEMORY_SP))
+				e820_type = E820_TYPE_SOFT_RESERVED;
+			else if (md->attribute & EFI_MEMORY_WB)
 				e820_type = E820_TYPE_RAM;
 			else
 				e820_type = E820_TYPE_RESERVED;
@@ -167,9 +200,34 @@ static void __init do_add_efi_memmap(void)
 			e820_type = E820_TYPE_RESERVED;
 			break;
 		}
+
 		e820__range_add(start, size, e820_type);
 	}
 	e820__update_table(e820_table);
+}
+
+/*
+ * Given add_efi_memmap defaults to 0 and there there is no alternative
+ * e820 mechanism for soft-reserved memory, import the full EFI memory
+ * map if soft reservations are present and enabled. Otherwise, the
+ * mechanism to disable the kernel's consideration of EFI_MEMORY_SP is
+ * the efi=nosoftreserve option.
+ */
+static bool do_efi_soft_reserve(void)
+{
+	efi_memory_desc_t *md;
+
+	if (!efi_enabled(EFI_MEMMAP))
+		return false;
+
+	if (!efi_soft_reserve_enabled())
+		return false;
+
+	for_each_efi_memory_desc(md)
+		if (md->type == EFI_CONVENTIONAL_MEMORY &&
+		    (md->attribute & EFI_MEMORY_SP))
+			return true;
+	return false;
 }
 
 int __init efi_memblock_x86_reserve_range(void)
@@ -201,8 +259,10 @@ int __init efi_memblock_x86_reserve_range(void)
 	if (rv)
 		return rv;
 
-	if (add_efi_memmap)
+	if (add_efi_memmap || do_efi_soft_reserve())
 		do_add_efi_memmap();
+
+	efi_fake_memmap_early();
 
 	WARN(efi.memmap.desc_version != 1,
 	     "Unexpected EFI_MEMORY_DESCRIPTOR version %ld",
@@ -756,6 +816,15 @@ static bool should_map_region(efi_memory_desc_t *md)
 		return false;
 
 	/*
+	 * EFI specific purpose memory may be reserved by default
+	 * depending on kernel config and boot options.
+	 */
+	if (md->type == EFI_CONVENTIONAL_MEMORY &&
+	    efi_soft_reserve_enabled() &&
+	    (md->attribute & EFI_MEMORY_SP))
+		return false;
+
+	/*
 	 * Map all of RAM so that we can access arguments in the 1:1
 	 * mapping when making EFI runtime calls.
 	 */
@@ -894,9 +963,6 @@ static void __init kexec_enter_virtual_mode(void)
 
 	if (efi_enabled(EFI_OLD_MEMMAP) && (__supported_pte_mask & _PAGE_NX))
 		runtime_code_page_mkexec();
-
-	/* clean DUMMY object */
-	efi_delete_dummy_variable();
 #endif
 }
 
@@ -1049,3 +1115,17 @@ static int __init arch_parse_efi_cmdline(char *str)
 	return 0;
 }
 early_param("efi", arch_parse_efi_cmdline);
+
+bool efi_is_table_address(unsigned long phys_addr)
+{
+	unsigned int i;
+
+	if (phys_addr == EFI_INVALID_TABLE_ADDR)
+		return false;
+
+	for (i = 0; i < ARRAY_SIZE(efi_tables); i++)
+		if (*(efi_tables[i]) == phys_addr)
+			return true;
+
+	return false;
+}

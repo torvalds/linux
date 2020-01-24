@@ -96,8 +96,7 @@ void rxe_mem_cleanup(struct rxe_pool_entry *arg)
 	struct rxe_mem *mem = container_of(arg, typeof(*mem), pelem);
 	int i;
 
-	if (mem->umem)
-		ib_umem_release(mem->umem);
+	ib_umem_release(mem->umem);
 
 	if (mem->map) {
 		for (i = 0; i < mem->num_map; i++)
@@ -170,7 +169,7 @@ int rxe_mem_init_user(struct rxe_pd *pd, u64 start,
 	void			*vaddr;
 	int err;
 
-	umem = ib_umem_get(udata, start, length, access, 0);
+	umem = ib_umem_get(udata, start, length, access);
 	if (IS_ERR(umem)) {
 		pr_warn("err %d from rxe_umem_get\n",
 			(int)PTR_ERR(umem));

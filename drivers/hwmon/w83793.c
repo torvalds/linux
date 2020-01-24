@@ -1458,6 +1458,7 @@ static const struct file_operations watchdog_fops = {
 	.release = watchdog_close,
 	.write = watchdog_write,
 	.unlocked_ioctl = watchdog_ioctl,
+	.compat_ioctl = compat_ptr_ioctl,
 };
 
 /*
@@ -1551,9 +1552,6 @@ static int w83793_remove(struct i2c_client *client)
 	for (i = 0; i < ARRAY_SIZE(w83793_temp); i++)
 		device_remove_file(dev, &w83793_temp[i].dev_attr);
 
-	i2c_unregister_device(data->lm75[0]);
-	i2c_unregister_device(data->lm75[1]);
-
 	/* Decrease data reference counter */
 	mutex_lock(&watchdog_data_mutex);
 	kref_put(&data->kref, w83793_release_resources);
@@ -1565,7 +1563,7 @@ static int w83793_remove(struct i2c_client *client)
 static int
 w83793_detect_subclients(struct i2c_client *client)
 {
-	int i, id, err;
+	int i, id;
 	int address = client->addr;
 	u8 tmp;
 	struct i2c_adapter *adapter = client->adapter;
@@ -1580,8 +1578,7 @@ w83793_detect_subclients(struct i2c_client *client)
 					"invalid subclient "
 					"address %d; must be 0x48-0x4f\n",
 					force_subclients[i]);
-				err = -EINVAL;
-				goto ERROR_SC_0;
+				return -EINVAL;
 			}
 		}
 		w83793_write_value(client, W83793_REG_I2C_SUBADDR,
@@ -1591,28 +1588,21 @@ w83793_detect_subclients(struct i2c_client *client)
 
 	tmp = w83793_read_value(client, W83793_REG_I2C_SUBADDR);
 	if (!(tmp & 0x08))
-		data->lm75[0] = i2c_new_dummy(adapter, 0x48 + (tmp & 0x7));
+		data->lm75[0] = devm_i2c_new_dummy_device(&client->dev, adapter,
+							  0x48 + (tmp & 0x7));
 	if (!(tmp & 0x80)) {
-		if ((data->lm75[0] != NULL)
+		if (!IS_ERR(data->lm75[0])
 		    && ((tmp & 0x7) == ((tmp >> 4) & 0x7))) {
 			dev_err(&client->dev,
 				"duplicate addresses 0x%x, "
 				"use force_subclients\n", data->lm75[0]->addr);
-			err = -ENODEV;
-			goto ERROR_SC_1;
+			return -ENODEV;
 		}
-		data->lm75[1] = i2c_new_dummy(adapter,
-					      0x48 + ((tmp >> 4) & 0x7));
+		data->lm75[1] = devm_i2c_new_dummy_device(&client->dev, adapter,
+							  0x48 + ((tmp >> 4) & 0x7));
 	}
 
 	return 0;
-
-	/* Undo inits in case of errors */
-
-ERROR_SC_1:
-	i2c_unregister_device(data->lm75[0]);
-ERROR_SC_0:
-	return err;
 }
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
@@ -1945,9 +1935,6 @@ exit_remove:
 
 	for (i = 0; i < ARRAY_SIZE(w83793_temp); i++)
 		device_remove_file(dev, &w83793_temp[i].dev_attr);
-
-	i2c_unregister_device(data->lm75[0]);
-	i2c_unregister_device(data->lm75[1]);
 free_mem:
 	kfree(data);
 exit:
@@ -2110,7 +2097,7 @@ END:
 static u8 w83793_read_value(struct i2c_client *client, u16 reg)
 {
 	struct w83793_data *data = i2c_get_clientdata(client);
-	u8 res = 0xff;
+	u8 res;
 	u8 new_bank = reg >> 8;
 
 	new_bank |= data->bank & 0xfc;

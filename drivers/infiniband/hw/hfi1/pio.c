@@ -1594,9 +1594,8 @@ void hfi1_sc_wantpiobuf_intr(struct send_context *sc, u32 needint)
 	else
 		sc_del_credit_return_intr(sc);
 	trace_hfi1_wantpiointr(sc, needint, sc->credit_ctrl);
-	if (needint) {
+	if (needint)
 		sc_return_credits(sc);
-	}
 }
 
 /**

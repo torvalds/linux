@@ -17,6 +17,10 @@
 #include <linux/jump_label.h>
 #include <linux/delay.h>
 #include <linux/stop_machine.h>
+#include <linux/spinlock.h>
+#include <linux/cpuhotplug.h>
+#include <linux/workqueue.h>
+#include <linux/proc_fs.h>
 #include <asm/processor.h>
 #include <asm/mmu.h>
 #include <asm/page.h>
@@ -52,13 +56,607 @@ EXPORT_SYMBOL(plpar_hcall);
 EXPORT_SYMBOL(plpar_hcall9);
 EXPORT_SYMBOL(plpar_hcall_norets);
 
+/*
+ * H_BLOCK_REMOVE supported block size for this page size in segment who's base
+ * page size is that page size.
+ *
+ * The first index is the segment base page size, the second one is the actual
+ * page size.
+ */
+static int hblkrm_size[MMU_PAGE_COUNT][MMU_PAGE_COUNT] __ro_after_init;
+
+/*
+ * Due to the involved complexity, and that the current hypervisor is only
+ * returning this value or 0, we are limiting the support of the H_BLOCK_REMOVE
+ * buffer size to 8 size block.
+ */
+#define HBLKRM_SUPPORTED_BLOCK_SIZE 8
+
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
+static u8 dtl_mask = DTL_LOG_PREEMPT;
+#else
+static u8 dtl_mask;
+#endif
+
+void alloc_dtl_buffers(unsigned long *time_limit)
+{
+	int cpu;
+	struct paca_struct *pp;
+	struct dtl_entry *dtl;
+
+	for_each_possible_cpu(cpu) {
+		pp = paca_ptrs[cpu];
+		if (pp->dispatch_log)
+			continue;
+		dtl = kmem_cache_alloc(dtl_cache, GFP_KERNEL);
+		if (!dtl) {
+			pr_warn("Failed to allocate dispatch trace log for cpu %d\n",
+				cpu);
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
+			pr_warn("Stolen time statistics will be unreliable\n");
+#endif
+			break;
+		}
+
+		pp->dtl_ridx = 0;
+		pp->dispatch_log = dtl;
+		pp->dispatch_log_end = dtl + N_DISPATCH_LOG;
+		pp->dtl_curr = dtl;
+
+		if (time_limit && time_after(jiffies, *time_limit)) {
+			cond_resched();
+			*time_limit = jiffies + HZ;
+		}
+	}
+}
+
+void register_dtl_buffer(int cpu)
+{
+	long ret;
+	struct paca_struct *pp;
+	struct dtl_entry *dtl;
+	int hwcpu = get_hard_smp_processor_id(cpu);
+
+	pp = paca_ptrs[cpu];
+	dtl = pp->dispatch_log;
+	if (dtl && dtl_mask) {
+		pp->dtl_ridx = 0;
+		pp->dtl_curr = dtl;
+		lppaca_of(cpu).dtl_idx = 0;
+
+		/* hypervisor reads buffer length from this field */
+		dtl->enqueue_to_dispatch_time = cpu_to_be32(DISPATCH_LOG_BYTES);
+		ret = register_dtl(hwcpu, __pa(dtl));
+		if (ret)
+			pr_err("WARNING: DTL registration of cpu %d (hw %d) failed with %ld\n",
+			       cpu, hwcpu, ret);
+
+		lppaca_of(cpu).dtl_enable_mask = dtl_mask;
+	}
+}
+
+#ifdef CONFIG_PPC_SPLPAR
+struct dtl_worker {
+	struct delayed_work work;
+	int cpu;
+};
+
+struct vcpu_dispatch_data {
+	int last_disp_cpu;
+
+	int total_disp;
+
+	int same_cpu_disp;
+	int same_chip_disp;
+	int diff_chip_disp;
+	int far_chip_disp;
+
+	int numa_home_disp;
+	int numa_remote_disp;
+	int numa_far_disp;
+};
+
+/*
+ * This represents the number of cpus in the hypervisor. Since there is no
+ * architected way to discover the number of processors in the host, we
+ * provision for dealing with NR_CPUS. This is currently 2048 by default, and
+ * is sufficient for our purposes. This will need to be tweaked if
+ * CONFIG_NR_CPUS is changed.
+ */
+#define NR_CPUS_H	NR_CPUS
+
+DEFINE_RWLOCK(dtl_access_lock);
+static DEFINE_PER_CPU(struct vcpu_dispatch_data, vcpu_disp_data);
+static DEFINE_PER_CPU(u64, dtl_entry_ridx);
+static DEFINE_PER_CPU(struct dtl_worker, dtl_workers);
+static enum cpuhp_state dtl_worker_state;
+static DEFINE_MUTEX(dtl_enable_mutex);
+static int vcpudispatch_stats_on __read_mostly;
+static int vcpudispatch_stats_freq = 50;
+static __be32 *vcpu_associativity, *pcpu_associativity;
+
+
+static void free_dtl_buffers(unsigned long *time_limit)
+{
+#ifndef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
+	int cpu;
+	struct paca_struct *pp;
+
+	for_each_possible_cpu(cpu) {
+		pp = paca_ptrs[cpu];
+		if (!pp->dispatch_log)
+			continue;
+		kmem_cache_free(dtl_cache, pp->dispatch_log);
+		pp->dtl_ridx = 0;
+		pp->dispatch_log = 0;
+		pp->dispatch_log_end = 0;
+		pp->dtl_curr = 0;
+
+		if (time_limit && time_after(jiffies, *time_limit)) {
+			cond_resched();
+			*time_limit = jiffies + HZ;
+		}
+	}
+#endif
+}
+
+static int init_cpu_associativity(void)
+{
+	vcpu_associativity = kcalloc(num_possible_cpus() / threads_per_core,
+			VPHN_ASSOC_BUFSIZE * sizeof(__be32), GFP_KERNEL);
+	pcpu_associativity = kcalloc(NR_CPUS_H / threads_per_core,
+			VPHN_ASSOC_BUFSIZE * sizeof(__be32), GFP_KERNEL);
+
+	if (!vcpu_associativity || !pcpu_associativity) {
+		pr_err("error allocating memory for associativity information\n");
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static void destroy_cpu_associativity(void)
+{
+	kfree(vcpu_associativity);
+	kfree(pcpu_associativity);
+	vcpu_associativity = pcpu_associativity = 0;
+}
+
+static __be32 *__get_cpu_associativity(int cpu, __be32 *cpu_assoc, int flag)
+{
+	__be32 *assoc;
+	int rc = 0;
+
+	assoc = &cpu_assoc[(int)(cpu / threads_per_core) * VPHN_ASSOC_BUFSIZE];
+	if (!assoc[0]) {
+		rc = hcall_vphn(cpu, flag, &assoc[0]);
+		if (rc)
+			return NULL;
+	}
+
+	return assoc;
+}
+
+static __be32 *get_pcpu_associativity(int cpu)
+{
+	return __get_cpu_associativity(cpu, pcpu_associativity, VPHN_FLAG_PCPU);
+}
+
+static __be32 *get_vcpu_associativity(int cpu)
+{
+	return __get_cpu_associativity(cpu, vcpu_associativity, VPHN_FLAG_VCPU);
+}
+
+static int cpu_relative_dispatch_distance(int last_disp_cpu, int cur_disp_cpu)
+{
+	__be32 *last_disp_cpu_assoc, *cur_disp_cpu_assoc;
+
+	if (last_disp_cpu >= NR_CPUS_H || cur_disp_cpu >= NR_CPUS_H)
+		return -EINVAL;
+
+	last_disp_cpu_assoc = get_pcpu_associativity(last_disp_cpu);
+	cur_disp_cpu_assoc = get_pcpu_associativity(cur_disp_cpu);
+
+	if (!last_disp_cpu_assoc || !cur_disp_cpu_assoc)
+		return -EIO;
+
+	return cpu_distance(last_disp_cpu_assoc, cur_disp_cpu_assoc);
+}
+
+static int cpu_home_node_dispatch_distance(int disp_cpu)
+{
+	__be32 *disp_cpu_assoc, *vcpu_assoc;
+	int vcpu_id = smp_processor_id();
+
+	if (disp_cpu >= NR_CPUS_H) {
+		pr_debug_ratelimited("vcpu dispatch cpu %d > %d\n",
+						disp_cpu, NR_CPUS_H);
+		return -EINVAL;
+	}
+
+	disp_cpu_assoc = get_pcpu_associativity(disp_cpu);
+	vcpu_assoc = get_vcpu_associativity(vcpu_id);
+
+	if (!disp_cpu_assoc || !vcpu_assoc)
+		return -EIO;
+
+	return cpu_distance(disp_cpu_assoc, vcpu_assoc);
+}
+
+static void update_vcpu_disp_stat(int disp_cpu)
+{
+	struct vcpu_dispatch_data *disp;
+	int distance;
+
+	disp = this_cpu_ptr(&vcpu_disp_data);
+	if (disp->last_disp_cpu == -1) {
+		disp->last_disp_cpu = disp_cpu;
+		return;
+	}
+
+	disp->total_disp++;
+
+	if (disp->last_disp_cpu == disp_cpu ||
+		(cpu_first_thread_sibling(disp->last_disp_cpu) ==
+					cpu_first_thread_sibling(disp_cpu)))
+		disp->same_cpu_disp++;
+	else {
+		distance = cpu_relative_dispatch_distance(disp->last_disp_cpu,
+								disp_cpu);
+		if (distance < 0)
+			pr_debug_ratelimited("vcpudispatch_stats: cpu %d: error determining associativity\n",
+					smp_processor_id());
+		else {
+			switch (distance) {
+			case 0:
+				disp->same_chip_disp++;
+				break;
+			case 1:
+				disp->diff_chip_disp++;
+				break;
+			case 2:
+				disp->far_chip_disp++;
+				break;
+			default:
+				pr_debug_ratelimited("vcpudispatch_stats: cpu %d (%d -> %d): unexpected relative dispatch distance %d\n",
+						 smp_processor_id(),
+						 disp->last_disp_cpu,
+						 disp_cpu,
+						 distance);
+			}
+		}
+	}
+
+	distance = cpu_home_node_dispatch_distance(disp_cpu);
+	if (distance < 0)
+		pr_debug_ratelimited("vcpudispatch_stats: cpu %d: error determining associativity\n",
+				smp_processor_id());
+	else {
+		switch (distance) {
+		case 0:
+			disp->numa_home_disp++;
+			break;
+		case 1:
+			disp->numa_remote_disp++;
+			break;
+		case 2:
+			disp->numa_far_disp++;
+			break;
+		default:
+			pr_debug_ratelimited("vcpudispatch_stats: cpu %d on %d: unexpected numa dispatch distance %d\n",
+						 smp_processor_id(),
+						 disp_cpu,
+						 distance);
+		}
+	}
+
+	disp->last_disp_cpu = disp_cpu;
+}
+
+static void process_dtl_buffer(struct work_struct *work)
+{
+	struct dtl_entry dtle;
+	u64 i = __this_cpu_read(dtl_entry_ridx);
+	struct dtl_entry *dtl = local_paca->dispatch_log + (i % N_DISPATCH_LOG);
+	struct dtl_entry *dtl_end = local_paca->dispatch_log_end;
+	struct lppaca *vpa = local_paca->lppaca_ptr;
+	struct dtl_worker *d = container_of(work, struct dtl_worker, work.work);
+
+	if (!local_paca->dispatch_log)
+		return;
+
+	/* if we have been migrated away, we cancel ourself */
+	if (d->cpu != smp_processor_id()) {
+		pr_debug("vcpudispatch_stats: cpu %d worker migrated -- canceling worker\n",
+						smp_processor_id());
+		return;
+	}
+
+	if (i == be64_to_cpu(vpa->dtl_idx))
+		goto out;
+
+	while (i < be64_to_cpu(vpa->dtl_idx)) {
+		dtle = *dtl;
+		barrier();
+		if (i + N_DISPATCH_LOG < be64_to_cpu(vpa->dtl_idx)) {
+			/* buffer has overflowed */
+			pr_debug_ratelimited("vcpudispatch_stats: cpu %d lost %lld DTL samples\n",
+				d->cpu,
+				be64_to_cpu(vpa->dtl_idx) - N_DISPATCH_LOG - i);
+			i = be64_to_cpu(vpa->dtl_idx) - N_DISPATCH_LOG;
+			dtl = local_paca->dispatch_log + (i % N_DISPATCH_LOG);
+			continue;
+		}
+		update_vcpu_disp_stat(be16_to_cpu(dtle.processor_id));
+		++i;
+		++dtl;
+		if (dtl == dtl_end)
+			dtl = local_paca->dispatch_log;
+	}
+
+	__this_cpu_write(dtl_entry_ridx, i);
+
+out:
+	schedule_delayed_work_on(d->cpu, to_delayed_work(work),
+					HZ / vcpudispatch_stats_freq);
+}
+
+static int dtl_worker_online(unsigned int cpu)
+{
+	struct dtl_worker *d = &per_cpu(dtl_workers, cpu);
+
+	memset(d, 0, sizeof(*d));
+	INIT_DELAYED_WORK(&d->work, process_dtl_buffer);
+	d->cpu = cpu;
+
+#ifndef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
+	per_cpu(dtl_entry_ridx, cpu) = 0;
+	register_dtl_buffer(cpu);
+#else
+	per_cpu(dtl_entry_ridx, cpu) = be64_to_cpu(lppaca_of(cpu).dtl_idx);
+#endif
+
+	schedule_delayed_work_on(cpu, &d->work, HZ / vcpudispatch_stats_freq);
+	return 0;
+}
+
+static int dtl_worker_offline(unsigned int cpu)
+{
+	struct dtl_worker *d = &per_cpu(dtl_workers, cpu);
+
+	cancel_delayed_work_sync(&d->work);
+
+#ifndef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
+	unregister_dtl(get_hard_smp_processor_id(cpu));
+#endif
+
+	return 0;
+}
+
+static void set_global_dtl_mask(u8 mask)
+{
+	int cpu;
+
+	dtl_mask = mask;
+	for_each_present_cpu(cpu)
+		lppaca_of(cpu).dtl_enable_mask = dtl_mask;
+}
+
+static void reset_global_dtl_mask(void)
+{
+	int cpu;
+
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
+	dtl_mask = DTL_LOG_PREEMPT;
+#else
+	dtl_mask = 0;
+#endif
+	for_each_present_cpu(cpu)
+		lppaca_of(cpu).dtl_enable_mask = dtl_mask;
+}
+
+static int dtl_worker_enable(unsigned long *time_limit)
+{
+	int rc = 0, state;
+
+	if (!write_trylock(&dtl_access_lock)) {
+		rc = -EBUSY;
+		goto out;
+	}
+
+	set_global_dtl_mask(DTL_LOG_ALL);
+
+	/* Setup dtl buffers and register those */
+	alloc_dtl_buffers(time_limit);
+
+	state = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "powerpc/dtl:online",
+					dtl_worker_online, dtl_worker_offline);
+	if (state < 0) {
+		pr_err("vcpudispatch_stats: unable to setup workqueue for DTL processing\n");
+		free_dtl_buffers(time_limit);
+		reset_global_dtl_mask();
+		write_unlock(&dtl_access_lock);
+		rc = -EINVAL;
+		goto out;
+	}
+	dtl_worker_state = state;
+
+out:
+	return rc;
+}
+
+static void dtl_worker_disable(unsigned long *time_limit)
+{
+	cpuhp_remove_state(dtl_worker_state);
+	free_dtl_buffers(time_limit);
+	reset_global_dtl_mask();
+	write_unlock(&dtl_access_lock);
+}
+
+static ssize_t vcpudispatch_stats_write(struct file *file, const char __user *p,
+		size_t count, loff_t *ppos)
+{
+	unsigned long time_limit = jiffies + HZ;
+	struct vcpu_dispatch_data *disp;
+	int rc, cmd, cpu;
+	char buf[16];
+
+	if (count > 15)
+		return -EINVAL;
+
+	if (copy_from_user(buf, p, count))
+		return -EFAULT;
+
+	buf[count] = 0;
+	rc = kstrtoint(buf, 0, &cmd);
+	if (rc || cmd < 0 || cmd > 1) {
+		pr_err("vcpudispatch_stats: please use 0 to disable or 1 to enable dispatch statistics\n");
+		return rc ? rc : -EINVAL;
+	}
+
+	mutex_lock(&dtl_enable_mutex);
+
+	if ((cmd == 0 && !vcpudispatch_stats_on) ||
+			(cmd == 1 && vcpudispatch_stats_on))
+		goto out;
+
+	if (cmd) {
+		rc = init_cpu_associativity();
+		if (rc)
+			goto out;
+
+		for_each_possible_cpu(cpu) {
+			disp = per_cpu_ptr(&vcpu_disp_data, cpu);
+			memset(disp, 0, sizeof(*disp));
+			disp->last_disp_cpu = -1;
+		}
+
+		rc = dtl_worker_enable(&time_limit);
+		if (rc) {
+			destroy_cpu_associativity();
+			goto out;
+		}
+	} else {
+		dtl_worker_disable(&time_limit);
+		destroy_cpu_associativity();
+	}
+
+	vcpudispatch_stats_on = cmd;
+
+out:
+	mutex_unlock(&dtl_enable_mutex);
+	if (rc)
+		return rc;
+	return count;
+}
+
+static int vcpudispatch_stats_display(struct seq_file *p, void *v)
+{
+	int cpu;
+	struct vcpu_dispatch_data *disp;
+
+	if (!vcpudispatch_stats_on) {
+		seq_puts(p, "off\n");
+		return 0;
+	}
+
+	for_each_online_cpu(cpu) {
+		disp = per_cpu_ptr(&vcpu_disp_data, cpu);
+		seq_printf(p, "cpu%d", cpu);
+		seq_put_decimal_ull(p, " ", disp->total_disp);
+		seq_put_decimal_ull(p, " ", disp->same_cpu_disp);
+		seq_put_decimal_ull(p, " ", disp->same_chip_disp);
+		seq_put_decimal_ull(p, " ", disp->diff_chip_disp);
+		seq_put_decimal_ull(p, " ", disp->far_chip_disp);
+		seq_put_decimal_ull(p, " ", disp->numa_home_disp);
+		seq_put_decimal_ull(p, " ", disp->numa_remote_disp);
+		seq_put_decimal_ull(p, " ", disp->numa_far_disp);
+		seq_puts(p, "\n");
+	}
+
+	return 0;
+}
+
+static int vcpudispatch_stats_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, vcpudispatch_stats_display, NULL);
+}
+
+static const struct file_operations vcpudispatch_stats_proc_ops = {
+	.open		= vcpudispatch_stats_open,
+	.read		= seq_read,
+	.write		= vcpudispatch_stats_write,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static ssize_t vcpudispatch_stats_freq_write(struct file *file,
+		const char __user *p, size_t count, loff_t *ppos)
+{
+	int rc, freq;
+	char buf[16];
+
+	if (count > 15)
+		return -EINVAL;
+
+	if (copy_from_user(buf, p, count))
+		return -EFAULT;
+
+	buf[count] = 0;
+	rc = kstrtoint(buf, 0, &freq);
+	if (rc || freq < 1 || freq > HZ) {
+		pr_err("vcpudispatch_stats_freq: please specify a frequency between 1 and %d\n",
+				HZ);
+		return rc ? rc : -EINVAL;
+	}
+
+	vcpudispatch_stats_freq = freq;
+
+	return count;
+}
+
+static int vcpudispatch_stats_freq_display(struct seq_file *p, void *v)
+{
+	seq_printf(p, "%d\n", vcpudispatch_stats_freq);
+	return 0;
+}
+
+static int vcpudispatch_stats_freq_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, vcpudispatch_stats_freq_display, NULL);
+}
+
+static const struct file_operations vcpudispatch_stats_freq_proc_ops = {
+	.open		= vcpudispatch_stats_freq_open,
+	.read		= seq_read,
+	.write		= vcpudispatch_stats_freq_write,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int __init vcpudispatch_stats_procfs_init(void)
+{
+	if (!lppaca_shared_proc(get_lppaca()))
+		return 0;
+
+	if (!proc_create("powerpc/vcpudispatch_stats", 0600, NULL,
+					&vcpudispatch_stats_proc_ops))
+		pr_err("vcpudispatch_stats: error creating procfs file\n");
+	else if (!proc_create("powerpc/vcpudispatch_stats_freq", 0600, NULL,
+					&vcpudispatch_stats_freq_proc_ops))
+		pr_err("vcpudispatch_stats_freq: error creating procfs file\n");
+
+	return 0;
+}
+
+machine_device_initcall(pseries, vcpudispatch_stats_procfs_init);
+#endif /* CONFIG_PPC_SPLPAR */
+
 void vpa_init(int cpu)
 {
 	int hwcpu = get_hard_smp_processor_id(cpu);
 	unsigned long addr;
 	long ret;
-	struct paca_struct *pp;
-	struct dtl_entry *dtl;
 
 	/*
 	 * The spec says it "may be problematic" if CPU x registers the VPA of
@@ -99,22 +697,7 @@ void vpa_init(int cpu)
 	/*
 	 * Register dispatch trace log, if one has been allocated.
 	 */
-	pp = paca_ptrs[cpu];
-	dtl = pp->dispatch_log;
-	if (dtl) {
-		pp->dtl_ridx = 0;
-		pp->dtl_curr = dtl;
-		lppaca_of(cpu).dtl_idx = 0;
-
-		/* hypervisor reads buffer length from this field */
-		dtl->enqueue_to_dispatch_time = cpu_to_be32(DISPATCH_LOG_BYTES);
-		ret = register_dtl(hwcpu, __pa(dtl));
-		if (ret)
-			pr_err("WARNING: DTL registration of cpu %d (hw %d) "
-			       "failed with %ld\n", smp_processor_id(),
-			       hwcpu, ret);
-		lppaca_of(cpu).dtl_enable_mask = 2;
-	}
+	register_dtl_buffer(cpu);
 }
 
 #ifdef CONFIG_PPC_BOOK3S_64
@@ -191,7 +774,7 @@ static long pSeries_lpar_hpte_remove(unsigned long hpte_group)
 
 		/* don't remove a bolted entry */
 		lpar_rc = plpar_pte_remove(H_ANDCOND, hpte_group + slot_offset,
-					   (0x1UL << 4), &dummy1, &dummy2);
+					   HPTE_V_BOLTED, &dummy1, &dummy2);
 		if (lpar_rc == H_SUCCESS)
 			return i;
 
@@ -355,11 +938,19 @@ static long pSeries_lpar_hpte_find(unsigned long vpn, int psize, int ssize)
 	hash = hpt_hash(vpn, mmu_psize_defs[psize].shift, ssize);
 	want_v = hpte_encode_avpn(vpn, psize, ssize);
 
-	/* Bolted entries are always in the primary group */
+	/*
+	 * We try to keep bolted entries always in primary hash
+	 * But in some case we can find them in secondary too.
+	 */
 	hpte_group = (hash & htab_hash_mask) * HPTES_PER_GROUP;
 	slot = __pSeries_lpar_hpte_find(want_v, hpte_group);
-	if (slot < 0)
-		return -1;
+	if (slot < 0) {
+		/* Try in secondary */
+		hpte_group = (~hash & htab_hash_mask) * HPTES_PER_GROUP;
+		slot = __pSeries_lpar_hpte_find(want_v, hpte_group);
+		if (slot < 0)
+			return -1;
+	}
 	return hpte_group + slot;
 }
 
@@ -416,6 +1007,17 @@ static void pSeries_lpar_hpte_invalidate(unsigned long slot, unsigned long vpn,
 #define HBLKR_CTRL_SUCCESS	0x8000000000000000UL
 #define HBLKR_CTRL_ERRNOTFOUND	0x8800000000000000UL
 #define HBLKR_CTRL_ERRBUSY	0xa000000000000000UL
+
+/*
+ * Returned true if we are supporting this block size for the specified segment
+ * base page size and actual page size.
+ *
+ * Currently, we only support 8 size block.
+ */
+static inline bool is_supported_hlbkrm(int bpsize, int psize)
+{
+	return (hblkrm_size[bpsize][psize] == HBLKRM_SUPPORTED_BLOCK_SIZE);
+}
 
 /**
  * H_BLOCK_REMOVE caller.
@@ -576,7 +1178,8 @@ static inline void __pSeries_lpar_hugepage_invalidate(unsigned long *slot,
 	if (lock_tlbie)
 		spin_lock_irqsave(&pSeries_lpar_tlbie_lock, flags);
 
-	if (firmware_has_feature(FW_FEATURE_BLOCK_REMOVE))
+	/* Assuming THP size is 16M */
+	if (is_supported_hlbkrm(psize, MMU_PAGE_16M))
 		hugepage_block_invalidate(slot, vpn, count, psize, ssize);
 	else
 		hugepage_bulk_invalidate(slot, vpn, count, psize, ssize);
@@ -745,6 +1348,140 @@ static void do_block_remove(unsigned long number, struct ppc64_tlb_batch *batch,
 }
 
 /*
+ * TLB Block Invalidate Characteristics
+ *
+ * These characteristics define the size of the block the hcall H_BLOCK_REMOVE
+ * is able to process for each couple segment base page size, actual page size.
+ *
+ * The ibm,get-system-parameter properties is returning a buffer with the
+ * following layout:
+ *
+ * [ 2 bytes size of the RTAS buffer (excluding these 2 bytes) ]
+ * -----------------
+ * TLB Block Invalidate Specifiers:
+ * [ 1 byte LOG base 2 of the TLB invalidate block size being specified ]
+ * [ 1 byte Number of page sizes (N) that are supported for the specified
+ *          TLB invalidate block size ]
+ * [ 1 byte Encoded segment base page size and actual page size
+ *          MSB=0 means 4k segment base page size and actual page size
+ *          MSB=1 the penc value in mmu_psize_def ]
+ * ...
+ * -----------------
+ * Next TLB Block Invalidate Specifiers...
+ * -----------------
+ * [ 0 ]
+ */
+static inline void set_hblkrm_bloc_size(int bpsize, int psize,
+					unsigned int block_size)
+{
+	if (block_size > hblkrm_size[bpsize][psize])
+		hblkrm_size[bpsize][psize] = block_size;
+}
+
+/*
+ * Decode the Encoded segment base page size and actual page size.
+ * PAPR specifies:
+ *   - bit 7 is the L bit
+ *   - bits 0-5 are the penc value
+ * If the L bit is 0, this means 4K segment base page size and actual page size
+ * otherwise the penc value should be read.
+ */
+#define HBLKRM_L_MASK		0x80
+#define HBLKRM_PENC_MASK	0x3f
+static inline void __init check_lp_set_hblkrm(unsigned int lp,
+					      unsigned int block_size)
+{
+	unsigned int bpsize, psize;
+
+	/* First, check the L bit, if not set, this means 4K */
+	if ((lp & HBLKRM_L_MASK) == 0) {
+		set_hblkrm_bloc_size(MMU_PAGE_4K, MMU_PAGE_4K, block_size);
+		return;
+	}
+
+	lp &= HBLKRM_PENC_MASK;
+	for (bpsize = 0; bpsize < MMU_PAGE_COUNT; bpsize++) {
+		struct mmu_psize_def *def = &mmu_psize_defs[bpsize];
+
+		for (psize = 0; psize < MMU_PAGE_COUNT; psize++) {
+			if (def->penc[psize] == lp) {
+				set_hblkrm_bloc_size(bpsize, psize, block_size);
+				return;
+			}
+		}
+	}
+}
+
+#define SPLPAR_TLB_BIC_TOKEN		50
+
+/*
+ * The size of the TLB Block Invalidate Characteristics is variable. But at the
+ * maximum it will be the number of possible page sizes *2 + 10 bytes.
+ * Currently MMU_PAGE_COUNT is 16, which means 42 bytes. Use a cache line size
+ * (128 bytes) for the buffer to get plenty of space.
+ */
+#define SPLPAR_TLB_BIC_MAXLENGTH	128
+
+void __init pseries_lpar_read_hblkrm_characteristics(void)
+{
+	unsigned char local_buffer[SPLPAR_TLB_BIC_MAXLENGTH];
+	int call_status, len, idx, bpsize;
+
+	if (!firmware_has_feature(FW_FEATURE_BLOCK_REMOVE))
+		return;
+
+	spin_lock(&rtas_data_buf_lock);
+	memset(rtas_data_buf, 0, RTAS_DATA_BUF_SIZE);
+	call_status = rtas_call(rtas_token("ibm,get-system-parameter"), 3, 1,
+				NULL,
+				SPLPAR_TLB_BIC_TOKEN,
+				__pa(rtas_data_buf),
+				RTAS_DATA_BUF_SIZE);
+	memcpy(local_buffer, rtas_data_buf, SPLPAR_TLB_BIC_MAXLENGTH);
+	local_buffer[SPLPAR_TLB_BIC_MAXLENGTH - 1] = '\0';
+	spin_unlock(&rtas_data_buf_lock);
+
+	if (call_status != 0) {
+		pr_warn("%s %s Error calling get-system-parameter (0x%x)\n",
+			__FILE__, __func__, call_status);
+		return;
+	}
+
+	/*
+	 * The first two (2) bytes of the data in the buffer are the length of
+	 * the returned data, not counting these first two (2) bytes.
+	 */
+	len = be16_to_cpu(*((u16 *)local_buffer)) + 2;
+	if (len > SPLPAR_TLB_BIC_MAXLENGTH) {
+		pr_warn("%s too large returned buffer %d", __func__, len);
+		return;
+	}
+
+	idx = 2;
+	while (idx < len) {
+		u8 block_shift = local_buffer[idx++];
+		u32 block_size;
+		unsigned int npsize;
+
+		if (!block_shift)
+			break;
+
+		block_size = 1 << block_shift;
+
+		for (npsize = local_buffer[idx++];
+		     npsize > 0 && idx < len; npsize--)
+			check_lp_set_hblkrm((unsigned int) local_buffer[idx++],
+					    block_size);
+	}
+
+	for (bpsize = 0; bpsize < MMU_PAGE_COUNT; bpsize++)
+		for (idx = 0; idx < MMU_PAGE_COUNT; idx++)
+			if (hblkrm_size[bpsize][idx])
+				pr_info("H_BLOCK_REMOVE supports base psize:%d psize:%d block size:%d",
+					bpsize, idx, hblkrm_size[bpsize][idx]);
+}
+
+/*
  * Take a spinlock around flushes to avoid bouncing the hypervisor tlbie
  * lock.
  */
@@ -763,7 +1500,7 @@ static void pSeries_lpar_flush_hash_range(unsigned long number, int local)
 	if (lock_tlbie)
 		spin_lock_irqsave(&pSeries_lpar_tlbie_lock, flags);
 
-	if (firmware_has_feature(FW_FEATURE_BLOCK_REMOVE)) {
+	if (is_supported_hlbkrm(batch->psize, batch->psize)) {
 		do_block_remove(number, batch, param);
 		goto out;
 	}
@@ -846,7 +1583,10 @@ static int pseries_lpar_resize_hpt_commit(void *data)
 	return 0;
 }
 
-/* Must be called in user context */
+/*
+ * Must be called in process context. The caller must hold the
+ * cpus_lock.
+ */
 static int pseries_lpar_resize_hpt(unsigned long shift)
 {
 	struct hpt_resize_state state = {
@@ -900,7 +1640,8 @@ static int pseries_lpar_resize_hpt(unsigned long shift)
 
 	t1 = ktime_get();
 
-	rc = stop_machine(pseries_lpar_resize_hpt_commit, &state, NULL);
+	rc = stop_machine_cpuslocked(pseries_lpar_resize_hpt_commit,
+				     &state, NULL);
 
 	t2 = ktime_get();
 
@@ -960,16 +1701,24 @@ void __init hpte_init_pseries(void)
 	mmu_hash_ops.flush_hash_range	 = pSeries_lpar_flush_hash_range;
 	mmu_hash_ops.hpte_clear_all      = pseries_hpte_clear_all;
 	mmu_hash_ops.hugepage_invalidate = pSeries_lpar_hugepage_invalidate;
-	register_process_table		 = pseries_lpar_register_process_table;
 
 	if (firmware_has_feature(FW_FEATURE_HPT_RESIZE))
 		mmu_hash_ops.resize_hpt = pseries_lpar_resize_hpt;
+
+	/*
+	 * On POWER9, we need to do a H_REGISTER_PROC_TBL hcall
+	 * to inform the hypervisor that we wish to use the HPT.
+	 */
+	if (cpu_has_feature(CPU_FTR_ARCH_300))
+		pseries_lpar_register_process_table(0, 0, 0);
 }
 
 void radix_init_pseries(void)
 {
 	pr_info("Using radix MMU under hypervisor\n");
-	register_process_table = pseries_lpar_register_process_table;
+
+	pseries_lpar_register_process_table(__pa(process_tb),
+						0, PRTB_SIZE_SHIFT - 12);
 }
 
 #ifdef CONFIG_PPC_SMLPAR
@@ -1251,30 +2000,17 @@ static int __init vpa_debugfs_init(void)
 {
 	char name[16];
 	long i;
-	static struct dentry *vpa_dir;
+	struct dentry *vpa_dir;
 
 	if (!firmware_has_feature(FW_FEATURE_SPLPAR))
 		return 0;
 
 	vpa_dir = debugfs_create_dir("vpa", powerpc_debugfs_root);
-	if (!vpa_dir) {
-		pr_warn("%s: can't create vpa root dir\n", __func__);
-		return -ENOMEM;
-	}
 
 	/* set up the per-cpu vpa file*/
 	for_each_possible_cpu(i) {
-		struct dentry *d;
-
 		sprintf(name, "cpu-%ld", i);
-
-		d = debugfs_create_file(name, 0400, vpa_dir, (void *)i,
-					&vpa_fops);
-		if (!d) {
-			pr_warn("%s: can't create per-cpu vpa file\n",
-					__func__);
-			return -ENOMEM;
-		}
+		debugfs_create_file(name, 0400, vpa_dir, (void *)i, &vpa_fops);
 	}
 
 	return 0;

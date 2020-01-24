@@ -913,9 +913,9 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 
 	/* No GRH for DR SMP */
 	ret = device->ops.process_mad(device, 0, port_num, &mad_wc, NULL,
-				      (const struct ib_mad_hdr *)smp, mad_size,
-				      (struct ib_mad_hdr *)mad_priv->mad,
-				      &mad_size, &out_mad_pkey_index);
+				      (const struct ib_mad *)smp,
+				      (struct ib_mad *)mad_priv->mad, &mad_size,
+				      &out_mad_pkey_index);
 	switch (ret)
 	{
 	case IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_REPLY:
@@ -1396,25 +1396,6 @@ void ib_free_recv_mad(struct ib_mad_recv_wc *mad_recv_wc)
 	}
 }
 EXPORT_SYMBOL(ib_free_recv_mad);
-
-struct ib_mad_agent *ib_redirect_mad_qp(struct ib_qp *qp,
-					u8 rmpp_version,
-					ib_mad_send_handler send_handler,
-					ib_mad_recv_handler recv_handler,
-					void *context)
-{
-	return ERR_PTR(-EINVAL);	/* XXX: for now */
-}
-EXPORT_SYMBOL(ib_redirect_mad_qp);
-
-int ib_process_mad_wc(struct ib_mad_agent *mad_agent,
-		      struct ib_wc *wc)
-{
-	dev_err(&mad_agent->device->dev,
-		"ib_process_mad_wc() not implemented yet\n");
-	return 0;
-}
-EXPORT_SYMBOL(ib_process_mad_wc);
 
 static int method_in_use(struct ib_mad_mgmt_method_table **method,
 			 struct ib_mad_reg_req *mad_reg_req)
@@ -2340,9 +2321,9 @@ static void ib_mad_recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	if (port_priv->device->ops.process_mad) {
 		ret = port_priv->device->ops.process_mad(
 			port_priv->device, 0, port_priv->port_num, wc,
-			&recv->grh, (const struct ib_mad_hdr *)recv->mad,
-			recv->mad_size, (struct ib_mad_hdr *)response->mad,
-			&mad_size, &resp_mad_pkey_index);
+			&recv->grh, (const struct ib_mad *)recv->mad,
+			(struct ib_mad *)response->mad, &mad_size,
+			&resp_mad_pkey_index);
 
 		if (opa)
 			wc->pkey_index = resp_mad_pkey_index;
@@ -3224,18 +3205,18 @@ static int ib_mad_port_open(struct ib_device *device,
 	if (has_smi)
 		cq_size *= 2;
 
+	port_priv->pd = ib_alloc_pd(device, 0);
+	if (IS_ERR(port_priv->pd)) {
+		dev_err(&device->dev, "Couldn't create ib_mad PD\n");
+		ret = PTR_ERR(port_priv->pd);
+		goto error3;
+	}
+
 	port_priv->cq = ib_alloc_cq(port_priv->device, port_priv, cq_size, 0,
 			IB_POLL_UNBOUND_WORKQUEUE);
 	if (IS_ERR(port_priv->cq)) {
 		dev_err(&device->dev, "Couldn't create ib_mad CQ\n");
 		ret = PTR_ERR(port_priv->cq);
-		goto error3;
-	}
-
-	port_priv->pd = ib_alloc_pd(device, 0);
-	if (IS_ERR(port_priv->pd)) {
-		dev_err(&device->dev, "Couldn't create ib_mad PD\n");
-		ret = PTR_ERR(port_priv->pd);
 		goto error4;
 	}
 
@@ -3278,11 +3259,11 @@ error8:
 error7:
 	destroy_mad_qp(&port_priv->qp_info[0]);
 error6:
-	ib_dealloc_pd(port_priv->pd);
-error4:
 	ib_free_cq(port_priv->cq);
 	cleanup_recv_queue(&port_priv->qp_info[1]);
 	cleanup_recv_queue(&port_priv->qp_info[0]);
+error4:
+	ib_dealloc_pd(port_priv->pd);
 error3:
 	kfree(port_priv);
 
@@ -3312,8 +3293,8 @@ static int ib_mad_port_close(struct ib_device *device, int port_num)
 	destroy_workqueue(port_priv->wq);
 	destroy_mad_qp(&port_priv->qp_info[1]);
 	destroy_mad_qp(&port_priv->qp_info[0]);
-	ib_dealloc_pd(port_priv->pd);
 	ib_free_cq(port_priv->cq);
+	ib_dealloc_pd(port_priv->pd);
 	cleanup_recv_queue(&port_priv->qp_info[1]);
 	cleanup_recv_queue(&port_priv->qp_info[0]);
 	/* XXX: Handle deallocation of MAD registration tables */

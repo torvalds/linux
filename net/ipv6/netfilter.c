@@ -16,6 +16,9 @@
 #include <net/ip6_route.h>
 #include <net/xfrm.h>
 #include <net/netfilter/nf_queue.h>
+#include <net/netfilter/nf_conntrack_bridge.h>
+#include <net/netfilter/ipv6/nf_defrag_ipv6.h>
+#include "../bridge/br_private.h"
 
 int ip6_route_me_harder(struct net *net, struct sk_buff *skb)
 {
@@ -109,16 +112,145 @@ int __nf_ip6_route(struct net *net, struct dst_entry **dst,
 }
 EXPORT_SYMBOL_GPL(__nf_ip6_route);
 
+int br_ip6_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
+		    struct nf_bridge_frag_data *data,
+		    int (*output)(struct net *, struct sock *sk,
+				  const struct nf_bridge_frag_data *data,
+				  struct sk_buff *))
+{
+	int frag_max_size = BR_INPUT_SKB_CB(skb)->frag_max_size;
+	ktime_t tstamp = skb->tstamp;
+	struct ip6_frag_state state;
+	u8 *prevhdr, nexthdr = 0;
+	unsigned int mtu, hlen;
+	int hroom, err = 0;
+	__be32 frag_id;
+
+	err = ip6_find_1stfragopt(skb, &prevhdr);
+	if (err < 0)
+		goto blackhole;
+	hlen = err;
+	nexthdr = *prevhdr;
+
+	mtu = skb->dev->mtu;
+	if (frag_max_size > mtu ||
+	    frag_max_size < IPV6_MIN_MTU)
+		goto blackhole;
+
+	mtu = frag_max_size;
+	if (mtu < hlen + sizeof(struct frag_hdr) + 8)
+		goto blackhole;
+	mtu -= hlen + sizeof(struct frag_hdr);
+
+	frag_id = ipv6_select_ident(net, &ipv6_hdr(skb)->daddr,
+				    &ipv6_hdr(skb)->saddr);
+
+	if (skb->ip_summed == CHECKSUM_PARTIAL &&
+	    (err = skb_checksum_help(skb)))
+		goto blackhole;
+
+	hroom = LL_RESERVED_SPACE(skb->dev);
+	if (skb_has_frag_list(skb)) {
+		unsigned int first_len = skb_pagelen(skb);
+		struct ip6_fraglist_iter iter;
+		struct sk_buff *frag2;
+
+		if (first_len - hlen > mtu ||
+		    skb_headroom(skb) < (hroom + sizeof(struct frag_hdr)))
+			goto blackhole;
+
+		if (skb_cloned(skb))
+			goto slow_path;
+
+		skb_walk_frags(skb, frag2) {
+			if (frag2->len > mtu ||
+			    skb_headroom(frag2) < (hlen + hroom + sizeof(struct frag_hdr)))
+				goto blackhole;
+
+			/* Partially cloned skb? */
+			if (skb_shared(frag2))
+				goto slow_path;
+		}
+
+		err = ip6_fraglist_init(skb, hlen, prevhdr, nexthdr, frag_id,
+					&iter);
+		if (err < 0)
+			goto blackhole;
+
+		for (;;) {
+			/* Prepare header of the next frame,
+			 * before previous one went down.
+			 */
+			if (iter.frag)
+				ip6_fraglist_prepare(skb, &iter);
+
+			skb->tstamp = tstamp;
+			err = output(net, sk, data, skb);
+			if (err || !iter.frag)
+				break;
+
+			skb = ip6_fraglist_next(&iter);
+		}
+
+		kfree(iter.tmp_hdr);
+		if (!err)
+			return 0;
+
+		kfree_skb_list(iter.frag);
+		return err;
+	}
+slow_path:
+	/* This is a linearized skbuff, the original geometry is lost for us.
+	 * This may also be a clone skbuff, we could preserve the geometry for
+	 * the copies but probably not worth the effort.
+	 */
+	ip6_frag_init(skb, hlen, mtu, skb->dev->needed_tailroom,
+		      LL_RESERVED_SPACE(skb->dev), prevhdr, nexthdr, frag_id,
+		      &state);
+
+	while (state.left > 0) {
+		struct sk_buff *skb2;
+
+		skb2 = ip6_frag_next(skb, &state);
+		if (IS_ERR(skb2)) {
+			err = PTR_ERR(skb2);
+			goto blackhole;
+		}
+
+		skb2->tstamp = tstamp;
+		err = output(net, sk, data, skb2);
+		if (err)
+			goto blackhole;
+	}
+	consume_skb(skb);
+	return err;
+
+blackhole:
+	kfree_skb(skb);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(br_ip6_fragment);
+
 static const struct nf_ipv6_ops ipv6ops = {
 #if IS_MODULE(CONFIG_IPV6)
 	.chk_addr		= ipv6_chk_addr,
 	.route_me_harder	= ip6_route_me_harder,
 	.dev_get_saddr		= ipv6_dev_get_saddr,
 	.route			= __nf_ip6_route,
+#if IS_ENABLED(CONFIG_SYN_COOKIES)
+	.cookie_init_sequence	= __cookie_v6_init_sequence,
+	.cookie_v6_check	= __cookie_v6_check,
+#endif
 #endif
 	.route_input		= ip6_route_input,
 	.fragment		= ip6_fragment,
 	.reroute		= nf_ip6_reroute,
+#if IS_MODULE(CONFIG_IPV6) && IS_ENABLED(CONFIG_NF_DEFRAG_IPV6)
+	.br_defrag		= nf_ct_frag6_gather,
+#endif
+#if IS_MODULE(CONFIG_IPV6)
+	.br_fragment		= br_ip6_fragment,
+#endif
 };
 
 int __init ipv6_netfilter_init(void)

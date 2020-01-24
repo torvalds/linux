@@ -351,14 +351,6 @@ config MTD_NAND_SOCRATES
 	help
 	  Enables support for NAND Flash chips wired onto Socrates board.
 
-config MTD_NAND_NUC900
-	tristate "Nuvoton NUC9xx/w90p910 NAND controller"
-	depends on ARCH_W90X900 || COMPILE_TEST
-	depends on HAS_IOMEM
-	help
-	  This enables the driver for the NAND Flash on evaluation board based
-	  on w90p910 / NUC9xx.
-
 source "drivers/mtd/nand/raw/ingenic/Kconfig"
 
 config MTD_NAND_FSMC
@@ -407,6 +399,12 @@ config MTD_NAND_MTK
 	  Enables support for NAND controller on MTK SoCs.
 	  This controller is found on mt27xx, mt81xx, mt65xx SoCs.
 
+config MTD_NAND_MXIC
+	tristate "Macronix raw NAND controller"
+	depends on HAS_IOMEM || COMPILE_TEST
+	help
+	  This selects the Macronix raw NAND controller driver.
+
 config MTD_NAND_TEGRA
 	tristate "NVIDIA Tegra NAND controller"
 	depends on ARCH_TEGRA || COMPILE_TEST
@@ -451,6 +449,13 @@ config MTD_NAND_PLATFORM
 	  This implements a generic NAND driver for on-SOC platform
 	  devices. You will need to provide platform-specific functions
 	  via platform_data.
+
+config MTD_NAND_CADENCE
+	tristate "Support Cadence NAND (HPNFC) controller"
+	depends on OF || COMPILE_TEST
+	help
+	  Enable the driver for NAND flash on platforms using a Cadence NAND
+	  controller.
 
 comment "Misc"
 

@@ -11,10 +11,14 @@ bindings/sound/madera.txt
 Required properties:
 
   - compatible : One of the following chip-specific strings:
+        "cirrus,cs47l15"
         "cirrus,cs47l35"
         "cirrus,cs47l85"
         "cirrus,cs47l90"
         "cirrus,cs47l91"
+        "cirrus,cs42l92"
+        "cirrus,cs47l92"
+        "cirrus,cs47l93"
         "cirrus,wm1840"
 
   - reg : I2C slave address when connected using I2C, chip select number when
@@ -22,7 +26,7 @@ Required properties:
 
   - DCVDD-supply : Power supply for the device as defined in
     bindings/regulator/regulator.txt
-    Mandatory on CS47L35, CS47L90, CS47L91
+    Mandatory on CS47L15, CS47L35, CS47L90, CS47L91, CS42L92, CS47L92, CS47L93
     Optional on CS47L85, WM1840
 
   - AVDD-supply, DBVDD1-supply, DBVDD2-supply, CPVDD1-supply, CPVDD2-supply :
@@ -35,7 +39,7 @@ Required properties:
     (CS47L85, WM1840)
 
   - SPKVDD-supply : Power supply for the device
-    (CS47L35)
+    (CS47L15, CS47L35)
 
   - interrupt-controller : Indicates that this device is an interrupt controller
 
@@ -62,6 +66,14 @@ Optional properties:
   - reset-gpios : One entry specifying the GPIO controlling /RESET.
     As defined in bindings/gpio.txt.
     Although optional, it is strongly recommended to use a hardware reset
+
+  - clocks: Should reference the clocks supplied on MCLK1, MCLK2 and MCLK3
+  - clock-names: May contain up to three strings:
+      "mclk1" for the clock supplied on MCLK1, recommended to be a high
+      quality audio reference clock
+      "mclk2" for the clock supplied on MCLK2, required to be an always on
+      32k clock
+      "mclk3" for the clock supplied on MCLK3
 
   - MICBIASx : Initial data for the MICBIAS regulators, as covered in
     Documentation/devicetree/bindings/regulator/regulator.txt.

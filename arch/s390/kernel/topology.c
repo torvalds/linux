@@ -311,7 +311,8 @@ int arch_update_cpu_topology(void)
 	on_each_cpu(__arch_update_dedicated_flag, NULL, 0);
 	for_each_online_cpu(cpu) {
 		dev = get_cpu_device(cpu);
-		kobject_uevent(&dev->kobj, KOBJ_CHANGE);
+		if (dev)
+			kobject_uevent(&dev->kobj, KOBJ_CHANGE);
 	}
 	return rc;
 }
@@ -587,15 +588,13 @@ static int topology_ctl_handler(struct ctl_table *ctl, int write,
 {
 	int enabled = topology_is_enabled();
 	int new_mode;
-	int zero = 0;
-	int one = 1;
 	int rc;
 	struct ctl_table ctl_entry = {
 		.procname	= ctl->procname,
 		.data		= &enabled,
 		.maxlen		= sizeof(int),
-		.extra1		= &zero,
-		.extra2		= &one,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_ONE,
 	};
 
 	rc = proc_douintvec_minmax(&ctl_entry, write, buffer, lenp, ppos);

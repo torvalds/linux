@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2018 The Linux Foundation. All rights reserved. */
 
+#include <linux/dma-mapping.h>
+
 #include "msm_drv.h"
 #include "msm_mmu.h"
 #include "adreno/adreno_gpu.h"
@@ -19,14 +21,12 @@ struct msm_gpummu {
 #define GPUMMU_PAGE_SIZE SZ_4K
 #define TABLE_SIZE (sizeof(uint32_t) * GPUMMU_VA_RANGE / GPUMMU_PAGE_SIZE)
 
-static int msm_gpummu_attach(struct msm_mmu *mmu, const char * const *names,
-		int cnt)
+static int msm_gpummu_attach(struct msm_mmu *mmu)
 {
 	return 0;
 }
 
-static void msm_gpummu_detach(struct msm_mmu *mmu, const char * const *names,
-		int cnt)
+static void msm_gpummu_detach(struct msm_mmu *mmu)
 {
 }
 

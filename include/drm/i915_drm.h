@@ -30,11 +30,11 @@
 #include <uapi/drm/i915_drm.h>
 
 /* For use by IPS driver */
-extern unsigned long i915_read_mch_val(void);
-extern bool i915_gpu_raise(void);
-extern bool i915_gpu_lower(void);
-extern bool i915_gpu_busy(void);
-extern bool i915_gpu_turbo_disable(void);
+unsigned long i915_read_mch_val(void);
+bool i915_gpu_raise(void);
+bool i915_gpu_lower(void);
+bool i915_gpu_busy(void);
+bool i915_gpu_turbo_disable(void);
 
 /* Exported from arch/x86/kernel/early-quirks.c */
 extern struct resource intel_graphics_stolen_res;
@@ -99,20 +99,5 @@ extern struct resource intel_graphics_stolen_res;
 #define INTEL_GEN11_BSM_DW0	0xc0
 #define INTEL_GEN11_BSM_DW1	0xc4
 #define   INTEL_BSM_MASK	(-(1u << 20))
-
-enum port {
-	PORT_NONE = -1,
-
-	PORT_A = 0,
-	PORT_B,
-	PORT_C,
-	PORT_D,
-	PORT_E,
-	PORT_F,
-
-	I915_MAX_PORTS
-};
-
-#define port_name(p) ((p) + 'A')
 
 #endif				/* _I915_DRM_H_ */

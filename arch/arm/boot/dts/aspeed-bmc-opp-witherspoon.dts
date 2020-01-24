@@ -33,6 +33,13 @@
 			compatible = "shared-dma-pool";
 			reusable;
 		};
+
+		video_engine_memory: jpegbuffer {
+			size = <0x02000000>;	/* 32MM */
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
 	};
 
 	gpio-keys {
@@ -193,6 +200,7 @@
 		status = "okay";
 		label = "bmc";
 		m25p,fast-read;
+		spi-max-frequency = <50000000>;
 
 		partitions {
 			#address-cells = < 1 >;
@@ -217,6 +225,7 @@
 		status = "okay";
 		label = "alt-bmc";
 		m25p,fast-read;
+		spi-max-frequency = <50000000>;
 
 		partitions {
 			#address-cells = < 1 >;
@@ -235,7 +244,6 @@
 				label = "alt-obmc-ubi";
 			};
 		};
-
 	};
 };
 
@@ -248,6 +256,7 @@
 		status = "okay";
 		label = "pnor";
 		m25p,fast-read;
+		spi-max-frequency = <100000000>;
 	};
 };
 
@@ -286,6 +295,9 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_rmii1_default>;
+	clocks = <&syscon ASPEED_CLK_GATE_MAC1CLK>,
+		 <&syscon ASPEED_CLK_MAC1RCLK>;
+	clock-names = "MACCLK", "RCLK";
 	use-ncsi;
 };
 
@@ -640,3 +652,10 @@
 &vhub {
 	status = "okay";
 };
+
+&video {
+	status = "okay";
+	memory-region = <&video_engine_memory>;
+};
+
+#include "ibm-power9-dual.dtsi"

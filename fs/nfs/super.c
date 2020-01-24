@@ -77,6 +77,8 @@
 #define NFS_DEFAULT_VERSION 2
 #endif
 
+#define NFS_MAX_CONNECTIONS 16
+
 enum {
 	/* Mount options that take no arguments */
 	Opt_soft, Opt_softerr, Opt_hard,
@@ -108,6 +110,7 @@ enum {
 	Opt_nfsvers,
 	Opt_sec, Opt_proto, Opt_mountproto, Opt_mounthost,
 	Opt_addr, Opt_mountaddr, Opt_clientaddr,
+	Opt_nconnect,
 	Opt_lookupcache,
 	Opt_fscache_uniq,
 	Opt_local_lock,
@@ -180,6 +183,8 @@ static const match_table_t nfs_mount_option_tokens = {
 	{ Opt_clientaddr, "clientaddr=%s" },
 	{ Opt_mounthost, "mounthost=%s" },
 	{ Opt_mountaddr, "mountaddr=%s" },
+
+	{ Opt_nconnect, "nconnect=%s" },
 
 	{ Opt_lookupcache, "lookupcache=%s" },
 	{ Opt_fscache_uniq, "fsc=%s" },
@@ -452,10 +457,8 @@ int nfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 		struct dentry *pd_dentry;
 
 		pd_dentry = dget_parent(dentry);
-		if (pd_dentry != NULL) {
-			nfs_zap_caches(d_inode(pd_dentry));
-			dput(pd_dentry);
-		}
+		nfs_zap_caches(d_inode(pd_dentry));
+		dput(pd_dentry);
 	}
 	nfs_free_fattr(res.fattr);
 	if (error < 0)
@@ -582,7 +585,7 @@ static void nfs_show_mountd_options(struct seq_file *m, struct nfs_server *nfss,
 	}
 	default:
 		if (showdefaults)
-			seq_printf(m, ",mountaddr=unspecified");
+			seq_puts(m, ",mountaddr=unspecified");
 	}
 
 	if (nfss->mountd_version || showdefaults)
@@ -673,6 +676,8 @@ static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss,
 	seq_printf(m, ",proto=%s",
 		   rpc_peeraddr2str(nfss->client, RPC_DISPLAY_NETID));
 	rcu_read_unlock();
+	if (clp->cl_nconnect > 0)
+		seq_printf(m, ",nconnect=%u", clp->cl_nconnect);
 	if (version == 4) {
 		if (nfss->port != NFS_PORT)
 			seq_printf(m, ",port=%u", nfss->port);
@@ -690,29 +695,29 @@ static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss,
 		nfs_show_nfsv4_options(m, nfss, showdefaults);
 
 	if (nfss->options & NFS_OPTION_FSCACHE)
-		seq_printf(m, ",fsc");
+		seq_puts(m, ",fsc");
 
 	if (nfss->options & NFS_OPTION_MIGRATION)
-		seq_printf(m, ",migration");
+		seq_puts(m, ",migration");
 
 	if (nfss->flags & NFS_MOUNT_LOOKUP_CACHE_NONEG) {
 		if (nfss->flags & NFS_MOUNT_LOOKUP_CACHE_NONE)
-			seq_printf(m, ",lookupcache=none");
+			seq_puts(m, ",lookupcache=none");
 		else
-			seq_printf(m, ",lookupcache=pos");
+			seq_puts(m, ",lookupcache=pos");
 	}
 
 	local_flock = nfss->flags & NFS_MOUNT_LOCAL_FLOCK;
 	local_fcntl = nfss->flags & NFS_MOUNT_LOCAL_FCNTL;
 
 	if (!local_flock && !local_fcntl)
-		seq_printf(m, ",local_lock=none");
+		seq_puts(m, ",local_lock=none");
 	else if (local_flock && local_fcntl)
-		seq_printf(m, ",local_lock=all");
+		seq_puts(m, ",local_lock=all");
 	else if (local_flock)
-		seq_printf(m, ",local_lock=flock");
+		seq_puts(m, ",local_lock=flock");
 	else
-		seq_printf(m, ",local_lock=posix");
+		seq_puts(m, ",local_lock=posix");
 }
 
 /*
@@ -735,11 +740,21 @@ int nfs_show_options(struct seq_file *m, struct dentry *root)
 EXPORT_SYMBOL_GPL(nfs_show_options);
 
 #if IS_ENABLED(CONFIG_NFS_V4)
+static void show_lease(struct seq_file *m, struct nfs_server *server)
+{
+	struct nfs_client *clp = server->nfs_client;
+	unsigned long expire;
+
+	seq_printf(m, ",lease_time=%ld", clp->cl_lease_time / HZ);
+	expire = clp->cl_last_renewal + clp->cl_lease_time;
+	seq_printf(m, ",lease_expired=%ld",
+		   time_after(expire, jiffies) ?  0 : (jiffies - expire) / HZ);
+}
 #ifdef CONFIG_NFS_V4_1
 static void show_sessions(struct seq_file *m, struct nfs_server *server)
 {
 	if (nfs4_has_session(server->nfs_client))
-		seq_printf(m, ",sessions");
+		seq_puts(m, ",sessions");
 }
 #else
 static void show_sessions(struct seq_file *m, struct nfs_server *server) {}
@@ -816,7 +831,7 @@ int nfs_show_stats(struct seq_file *m, struct dentry *root)
 	/*
 	 * Display all mount option settings
 	 */
-	seq_printf(m, "\n\topts:\t");
+	seq_puts(m, "\n\topts:\t");
 	seq_puts(m, sb_rdonly(root->d_sb) ? "ro" : "rw");
 	seq_puts(m, root->d_sb->s_flags & SB_SYNCHRONOUS ? ",sync" : "");
 	seq_puts(m, root->d_sb->s_flags & SB_NOATIME ? ",noatime" : "");
@@ -827,7 +842,7 @@ int nfs_show_stats(struct seq_file *m, struct dentry *root)
 
 	show_implementation_id(m, nfss);
 
-	seq_printf(m, "\n\tcaps:\t");
+	seq_puts(m, "\n\tcaps:\t");
 	seq_printf(m, "caps=0x%x", nfss->caps);
 	seq_printf(m, ",wtmult=%u", nfss->wtmult);
 	seq_printf(m, ",dtsize=%u", nfss->dtsize);
@@ -836,13 +851,14 @@ int nfs_show_stats(struct seq_file *m, struct dentry *root)
 
 #if IS_ENABLED(CONFIG_NFS_V4)
 	if (nfss->nfs_client->rpc_ops->version == 4) {
-		seq_printf(m, "\n\tnfsv4:\t");
+		seq_puts(m, "\n\tnfsv4:\t");
 		seq_printf(m, "bm0=0x%x", nfss->attr_bitmask[0]);
 		seq_printf(m, ",bm1=0x%x", nfss->attr_bitmask[1]);
 		seq_printf(m, ",bm2=0x%x", nfss->attr_bitmask[2]);
 		seq_printf(m, ",acl=0x%x", nfss->acl_bitmask);
 		show_sessions(m, nfss);
 		show_pnfs(m, nfss);
+		show_lease(m, nfss);
 	}
 #endif
 
@@ -874,20 +890,20 @@ int nfs_show_stats(struct seq_file *m, struct dentry *root)
 		preempt_enable();
 	}
 
-	seq_printf(m, "\n\tevents:\t");
+	seq_puts(m, "\n\tevents:\t");
 	for (i = 0; i < __NFSIOS_COUNTSMAX; i++)
 		seq_printf(m, "%lu ", totals.events[i]);
-	seq_printf(m, "\n\tbytes:\t");
+	seq_puts(m, "\n\tbytes:\t");
 	for (i = 0; i < __NFSIOS_BYTESMAX; i++)
 		seq_printf(m, "%Lu ", totals.bytes[i]);
 #ifdef CONFIG_NFS_FSCACHE
 	if (nfss->options & NFS_OPTION_FSCACHE) {
-		seq_printf(m, "\n\tfsc:\t");
+		seq_puts(m, "\n\tfsc:\t");
 		for (i = 0; i < __NFSIOS_FSCACHEMAX; i++)
 			seq_printf(m, "%Lu ", totals.fscache[i]);
 	}
 #endif
-	seq_printf(m, "\n");
+	seq_putc(m, '\n');
 
 	rpc_clnt_show_stats(m, nfss->client);
 
@@ -1549,6 +1565,11 @@ static int nfs_parse_mount_options(char *raw,
 			if (mnt->mount_server.addrlen == 0)
 				goto out_invalid_address;
 			break;
+		case Opt_nconnect:
+			if (nfs_get_option_ul_bound(args, &option, 1, NFS_MAX_CONNECTIONS))
+				goto out_invalid_value;
+			mnt->nfs_server.nconnect = option;
+			break;
 		case Opt_lookupcache:
 			string = match_strdup(args);
 			if (string == NULL)
@@ -1571,7 +1592,7 @@ static int nfs_parse_mount_options(char *raw,
 					dfprintk(MOUNT, "NFS:   invalid "
 							"lookupcache argument\n");
 					return 0;
-			};
+			}
 			break;
 		case Opt_fscache_uniq:
 			if (nfs_get_option_str(args, &mnt->fscache_uniq))
@@ -1604,7 +1625,7 @@ static int nfs_parse_mount_options(char *raw,
 				dfprintk(MOUNT, "NFS:	invalid	"
 						"local_lock argument\n");
 				return 0;
-			};
+			}
 			break;
 
 		/*
@@ -2239,6 +2260,7 @@ nfs_compare_remount_data(struct nfs_server *nfss,
 	    data->acdirmin != nfss->acdirmin / HZ ||
 	    data->acdirmax != nfss->acdirmax / HZ ||
 	    data->timeo != (10U * nfss->client->cl_timeout->to_initval / HZ) ||
+	    (data->options & NFS_OPTION_FSCACHE) != (nfss->options & NFS_OPTION_FSCACHE) ||
 	    data->nfs_server.port != nfss->port ||
 	    data->nfs_server.addrlen != nfss->nfs_client->cl_addrlen ||
 	    !rpc_cmp_addr((struct sockaddr *)&data->nfs_server.address,
@@ -2360,6 +2382,15 @@ void nfs_fill_super(struct super_block *sb, struct nfs_mount_info *mount_info)
 		sb->s_flags |= SB_POSIXACL;
 		sb->s_time_gran = 1;
 		sb->s_export_op = &nfs_export_ops;
+	} else
+		sb->s_time_gran = 1000;
+
+	if (server->nfs_client->rpc_ops->version != 4) {
+		sb->s_time_min = 0;
+		sb->s_time_max = U32_MAX;
+	} else {
+		sb->s_time_min = S64_MIN;
+		sb->s_time_max = S64_MAX;
 	}
 
  	nfs_initialise_sb(sb);
@@ -2380,7 +2411,6 @@ static void nfs_clone_super(struct super_block *sb,
 	sb->s_maxbytes = old_sb->s_maxbytes;
 	sb->s_xattr = old_sb->s_xattr;
 	sb->s_op = old_sb->s_op;
-	sb->s_time_gran = 1;
 	sb->s_export_op = old_sb->s_export_op;
 
 	if (server->nfs_client->rpc_ops->version != 2) {
@@ -2388,6 +2418,16 @@ static void nfs_clone_super(struct super_block *sb,
 		 * so ourselves when necessary.
 		 */
 		sb->s_flags |= SB_POSIXACL;
+		sb->s_time_gran = 1;
+	} else
+		sb->s_time_gran = 1000;
+
+	if (server->nfs_client->rpc_ops->version != 4) {
+		sb->s_time_min = 0;
+		sb->s_time_max = U32_MAX;
+	} else {
+		sb->s_time_min = S64_MIN;
+		sb->s_time_max = S64_MAX;
 	}
 
  	nfs_initialise_sb(sb);
@@ -2545,7 +2585,7 @@ static void nfs_get_cache_cookie(struct super_block *sb,
 		if (mnt_s->fscache_key) {
 			uniq = mnt_s->fscache_key->key.uniquifier;
 			ulen = mnt_s->fscache_key->key.uniq_len;
-		};
+		}
 	} else
 		return;
 
@@ -2605,6 +2645,13 @@ int nfs_clone_sb_security(struct super_block *s, struct dentry *mntroot,
 }
 EXPORT_SYMBOL_GPL(nfs_clone_sb_security);
 
+static void nfs_set_readahead(struct backing_dev_info *bdi,
+			      unsigned long iomax_pages)
+{
+	bdi->ra_pages = VM_READAHEAD_PAGES;
+	bdi->io_pages = iomax_pages;
+}
+
 struct dentry *nfs_fs_mount_common(struct nfs_server *server,
 				   int flags, const char *dev_name,
 				   struct nfs_mount_info *mount_info,
@@ -2647,7 +2694,7 @@ struct dentry *nfs_fs_mount_common(struct nfs_server *server,
 			mntroot = ERR_PTR(error);
 			goto error_splat_super;
 		}
-		s->s_bdi->ra_pages = server->rpages * NFS_MAX_READAHEAD;
+		nfs_set_readahead(s->s_bdi, server->rpages);
 		server->super = s;
 	}
 

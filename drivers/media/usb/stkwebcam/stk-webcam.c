@@ -643,8 +643,7 @@ static int v4l_stk_release(struct file *fp)
 		dev->owner = NULL;
 	}
 
-	if (is_present(dev))
-		usb_autopm_put_interface(dev->interface);
+	usb_autopm_put_interface(dev->interface);
 	mutex_unlock(&dev->lock);
 	return v4l2_fh_release(fp);
 }
@@ -798,10 +797,6 @@ static int stk_vidioc_querycap(struct file *filp,
 	strscpy(cap->driver, "stk", sizeof(cap->driver));
 	strscpy(cap->card, "stk", sizeof(cap->card));
 	usb_make_path(dev->udev, cap->bus_info, sizeof(cap->bus_info));
-
-	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE
-		| V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -861,23 +856,18 @@ static int stk_vidioc_enum_fmt_vid_cap(struct file *filp,
 	switch (fmtd->index) {
 	case 0:
 		fmtd->pixelformat = V4L2_PIX_FMT_RGB565;
-		strscpy(fmtd->description, "r5g6b5", sizeof(fmtd->description));
 		break;
 	case 1:
 		fmtd->pixelformat = V4L2_PIX_FMT_RGB565X;
-		strscpy(fmtd->description, "r5g6b5BE", sizeof(fmtd->description));
 		break;
 	case 2:
 		fmtd->pixelformat = V4L2_PIX_FMT_UYVY;
-		strscpy(fmtd->description, "yuv4:2:2", sizeof(fmtd->description));
 		break;
 	case 3:
 		fmtd->pixelformat = V4L2_PIX_FMT_SBGGR8;
-		strscpy(fmtd->description, "Raw bayer", sizeof(fmtd->description));
 		break;
 	case 4:
 		fmtd->pixelformat = V4L2_PIX_FMT_YUYV;
-		strscpy(fmtd->description, "yuv4:2:2", sizeof(fmtd->description));
 		break;
 	default:
 		return -EINVAL;
@@ -1261,6 +1251,8 @@ static int stk_register_video_device(struct stk_camera *dev)
 	dev->vdev = stk_v4l_data;
 	dev->vdev.lock = &dev->lock;
 	dev->vdev.v4l2_dev = &dev->v4l2_dev;
+	dev->vdev.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
+				V4L2_CAP_STREAMING;
 	video_set_drvdata(&dev->vdev, dev);
 	err = video_register_device(&dev->vdev, VFL_TYPE_GRABBER, -1);
 	if (err)

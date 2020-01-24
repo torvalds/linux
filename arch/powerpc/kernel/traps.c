@@ -250,15 +250,22 @@ static void oops_end(unsigned long flags, struct pt_regs *regs,
 }
 NOKPROBE_SYMBOL(oops_end);
 
+static char *get_mmu_str(void)
+{
+	if (early_radix_enabled())
+		return " MMU=Radix";
+	if (early_mmu_has_feature(MMU_FTR_HPTE_TABLE))
+		return " MMU=Hash";
+	return "";
+}
+
 static int __die(const char *str, struct pt_regs *regs, long err)
 {
 	printk("Oops: %s, sig: %ld [#%d]\n", str, err, ++die_counter);
 
-	printk("%s PAGE_SIZE=%luK%s%s%s%s%s%s%s %s\n",
+	printk("%s PAGE_SIZE=%luK%s%s%s%s%s%s %s\n",
 	       IS_ENABLED(CONFIG_CPU_LITTLE_ENDIAN) ? "LE" : "BE",
-	       PAGE_SIZE / 1024,
-	       early_radix_enabled() ? " MMU=Radix" : "",
-	       early_mmu_has_feature(MMU_FTR_HPTE_TABLE) ? " MMU=Hash" : "",
+	       PAGE_SIZE / 1024, get_mmu_str(),
 	       IS_ENABLED(CONFIG_PREEMPT) ? " PREEMPT" : "",
 	       IS_ENABLED(CONFIG_SMP) ? " SMP" : "",
 	       IS_ENABLED(CONFIG_SMP) ? (" NR_CPUS=" __stringify(NR_CPUS)) : "",
@@ -297,7 +304,7 @@ NOKPROBE_SYMBOL(die);
 
 void user_single_step_report(struct pt_regs *regs)
 {
-	force_sig_fault(SIGTRAP, TRAP_TRACE, (void __user *)regs->nip, current);
+	force_sig_fault(SIGTRAP, TRAP_TRACE, (void __user *)regs->nip);
 }
 
 static void show_signal_msg(int signr, struct pt_regs *regs, int code,
@@ -363,7 +370,7 @@ void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr)
 	if (!exception_common(signr, regs, code, addr))
 		return;
 
-	force_sig_fault(signr, code, (void __user *)addr, current);
+	force_sig_fault(signr, code, (void __user *)addr);
 }
 
 /*
@@ -472,6 +479,7 @@ void system_reset_exception(struct pt_regs *regs)
 	if (debugger(regs))
 		goto out;
 
+	kmsg_dump(KMSG_DUMP_OOPS);
 	/*
 	 * A system reset is a request to dump, so we always send
 	 * it through the crashdump code (if fadump or kdump are

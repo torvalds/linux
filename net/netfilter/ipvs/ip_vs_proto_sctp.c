@@ -101,7 +101,7 @@ sctp_snat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 #endif
 
 	/* csum_check requires unshared skb */
-	if (!skb_make_writable(skb, sctphoff + sizeof(*sctph)))
+	if (skb_ensure_writable(skb, sctphoff + sizeof(*sctph)))
 		return 0;
 
 	if (unlikely(cp->app != NULL)) {
@@ -148,7 +148,7 @@ sctp_dnat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 #endif
 
 	/* csum_check requires unshared skb */
-	if (!skb_make_writable(skb, sctphoff + sizeof(*sctph)))
+	if (skb_ensure_writable(skb, sctphoff + sizeof(*sctph)))
 		return 0;
 
 	if (unlikely(cp->app != NULL)) {

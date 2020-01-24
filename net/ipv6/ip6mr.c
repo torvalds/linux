@@ -265,9 +265,10 @@ static void __net_exit ip6mr_rules_exit(struct net *net)
 	rtnl_unlock();
 }
 
-static int ip6mr_rules_dump(struct net *net, struct notifier_block *nb)
+static int ip6mr_rules_dump(struct net *net, struct notifier_block *nb,
+			    struct netlink_ext_ack *extack)
 {
-	return fib_rules_dump(net, nb, RTNL_FAMILY_IP6MR);
+	return fib_rules_dump(net, nb, RTNL_FAMILY_IP6MR, extack);
 }
 
 static unsigned int ip6mr_rules_seq_read(struct net *net)
@@ -324,7 +325,8 @@ static void __net_exit ip6mr_rules_exit(struct net *net)
 	rtnl_unlock();
 }
 
-static int ip6mr_rules_dump(struct net *net, struct notifier_block *nb)
+static int ip6mr_rules_dump(struct net *net, struct notifier_block *nb,
+			    struct netlink_ext_ack *extack)
 {
 	return 0;
 }
@@ -1148,8 +1150,8 @@ static int ip6mr_cache_unresolved(struct mr_table *mrt, mifi_t mifi,
 		 *	Create a new entry if allowable
 		 */
 
-		if (atomic_read(&mrt->cache_resolve_queue_len) >= 10 ||
-		    (c = ip6mr_cache_alloc_unres()) == NULL) {
+		c = ip6mr_cache_alloc_unres();
+		if (!c) {
 			spin_unlock_bh(&mfc_unres_lock);
 
 			kfree_skb(skb);
@@ -1256,10 +1258,11 @@ static unsigned int ip6mr_seq_read(struct net *net)
 	return net->ipv6.ipmr_seq + ip6mr_rules_seq_read(net);
 }
 
-static int ip6mr_dump(struct net *net, struct notifier_block *nb)
+static int ip6mr_dump(struct net *net, struct notifier_block *nb,
+		      struct netlink_ext_ack *extack)
 {
 	return mr_dump(net, nb, RTNL_FAMILY_IP6MR, ip6mr_rules_dump,
-		       ip6mr_mr_table_iter, &mrt_lock);
+		       ip6mr_mr_table_iter, &mrt_lock, extack);
 }
 
 static struct notifier_block ip6_mr_notifier = {

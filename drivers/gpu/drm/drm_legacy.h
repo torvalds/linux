@@ -29,11 +29,15 @@
  * drivers use them, and removing them are API breaks.
  */
 #include <linux/list.h>
+
+#include <drm/drm.h>
+#include <drm/drm_device.h>
 #include <drm/drm_legacy.h>
 
 struct agp_memory;
 struct drm_device;
 struct drm_file;
+struct drm_buf_desc;
 
 /*
  * Generic DRM Contexts
@@ -187,10 +191,12 @@ int drm_legacy_sg_free(struct drm_device *dev, void *data,
 void drm_legacy_init_members(struct drm_device *dev);
 void drm_legacy_destroy_members(struct drm_device *dev);
 void drm_legacy_dev_reinit(struct drm_device *dev);
+int drm_legacy_setup(struct drm_device * dev);
 #else
 static inline void drm_legacy_init_members(struct drm_device *dev) {}
 static inline void drm_legacy_destroy_members(struct drm_device *dev) {}
 static inline void drm_legacy_dev_reinit(struct drm_device *dev) {}
+static inline int drm_legacy_setup(struct drm_device * dev) { return 0; }
 #endif
 
 #if IS_ENABLED(CONFIG_DRM_LEGACY)

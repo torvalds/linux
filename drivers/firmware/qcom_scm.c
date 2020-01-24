@@ -9,6 +9,7 @@
 #include <linux/init.h>
 #include <linux/cpumask.h>
 #include <linux/export.h>
+#include <linux/dma-direct.h>
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -191,6 +192,46 @@ bool qcom_scm_pas_supported(u32 peripheral)
 EXPORT_SYMBOL(qcom_scm_pas_supported);
 
 /**
+ * qcom_scm_ocmem_lock_available() - is OCMEM lock/unlock interface available
+ */
+bool qcom_scm_ocmem_lock_available(void)
+{
+	return __qcom_scm_is_call_available(__scm->dev, QCOM_SCM_OCMEM_SVC,
+					    QCOM_SCM_OCMEM_LOCK_CMD);
+}
+EXPORT_SYMBOL(qcom_scm_ocmem_lock_available);
+
+/**
+ * qcom_scm_ocmem_lock() - call OCMEM lock interface to assign an OCMEM
+ * region to the specified initiator
+ *
+ * @id:     tz initiator id
+ * @offset: OCMEM offset
+ * @size:   OCMEM size
+ * @mode:   access mode (WIDE/NARROW)
+ */
+int qcom_scm_ocmem_lock(enum qcom_scm_ocmem_client id, u32 offset, u32 size,
+			u32 mode)
+{
+	return __qcom_scm_ocmem_lock(__scm->dev, id, offset, size, mode);
+}
+EXPORT_SYMBOL(qcom_scm_ocmem_lock);
+
+/**
+ * qcom_scm_ocmem_unlock() - call OCMEM unlock interface to release an OCMEM
+ * region from the specified initiator
+ *
+ * @id:     tz initiator id
+ * @offset: OCMEM offset
+ * @size:   OCMEM size
+ */
+int qcom_scm_ocmem_unlock(enum qcom_scm_ocmem_client id, u32 offset, u32 size)
+{
+	return __qcom_scm_ocmem_unlock(__scm->dev, id, offset, size);
+}
+EXPORT_SYMBOL(qcom_scm_ocmem_unlock);
+
+/**
  * qcom_scm_pas_init_image() - Initialize peripheral authentication service
  *			       state machine for a given peripheral, using the
  *			       metadata
@@ -326,6 +367,19 @@ static const struct reset_control_ops qcom_scm_pas_reset_ops = {
 	.deassert = qcom_scm_pas_reset_deassert,
 };
 
+/**
+ * qcom_scm_restore_sec_cfg_available() - Check if secure environment
+ * supports restore security config interface.
+ *
+ * Return true if restore-cfg interface is supported, false if not.
+ */
+bool qcom_scm_restore_sec_cfg_available(void)
+{
+	return __qcom_scm_is_call_available(__scm->dev, QCOM_SCM_SVC_MP,
+					    QCOM_SCM_RESTORE_SEC_CFG);
+}
+EXPORT_SYMBOL(qcom_scm_restore_sec_cfg_available);
+
 int qcom_scm_restore_sec_cfg(u32 device_id, u32 spare)
 {
 	return __qcom_scm_restore_sec_cfg(__scm->dev, device_id, spare);
@@ -343,6 +397,12 @@ int qcom_scm_iommu_secure_ptbl_init(u64 addr, u32 size, u32 spare)
 	return __qcom_scm_iommu_secure_ptbl_init(__scm->dev, addr, size, spare);
 }
 EXPORT_SYMBOL(qcom_scm_iommu_secure_ptbl_init);
+
+int qcom_scm_qsmmu500_wait_safe_toggle(bool en)
+{
+	return __qcom_scm_qsmmu500_wait_safe_toggle(__scm->dev, en);
+}
+EXPORT_SYMBOL(qcom_scm_qsmmu500_wait_safe_toggle);
 
 int qcom_scm_io_readl(phys_addr_t addr, unsigned int *val)
 {
@@ -425,21 +485,23 @@ EXPORT_SYMBOL(qcom_scm_set_remote_state);
  * @mem_sz:   size of the region.
  * @srcvm:    vmid for current set of owners, each set bit in
  *            flag indicate a unique owner
- * @newvm:    array having new owners and corrsponding permission
+ * @newvm:    array having new owners and corresponding permission
  *            flags
  * @dest_cnt: number of owners in next set.
  *
- * Return negative errno on failure, 0 on success, with @srcvm updated.
+ * Return negative errno on failure or 0 on success with @srcvm updated.
  */
 int qcom_scm_assign_mem(phys_addr_t mem_addr, size_t mem_sz,
 			unsigned int *srcvm,
-			struct qcom_scm_vmperm *newvm, int dest_cnt)
+			const struct qcom_scm_vmperm *newvm,
+			unsigned int dest_cnt)
 {
 	struct qcom_scm_current_perm_info *destvm;
 	struct qcom_scm_mem_map_info *mem_to_map;
 	phys_addr_t mem_to_map_phys;
 	phys_addr_t dest_phys;
 	phys_addr_t ptr_phys;
+	dma_addr_t ptr_dma;
 	size_t mem_to_map_sz;
 	size_t dest_sz;
 	size_t src_sz;
@@ -447,52 +509,50 @@ int qcom_scm_assign_mem(phys_addr_t mem_addr, size_t mem_sz,
 	int next_vm;
 	__le32 *src;
 	void *ptr;
-	int ret;
-	int len;
-	int i;
+	int ret, i, b;
+	unsigned long srcvm_bits = *srcvm;
 
-	src_sz = hweight_long(*srcvm) * sizeof(*src);
+	src_sz = hweight_long(srcvm_bits) * sizeof(*src);
 	mem_to_map_sz = sizeof(*mem_to_map);
 	dest_sz = dest_cnt * sizeof(*destvm);
 	ptr_sz = ALIGN(src_sz, SZ_64) + ALIGN(mem_to_map_sz, SZ_64) +
 			ALIGN(dest_sz, SZ_64);
 
-	ptr = dma_alloc_coherent(__scm->dev, ptr_sz, &ptr_phys, GFP_KERNEL);
+	ptr = dma_alloc_coherent(__scm->dev, ptr_sz, &ptr_dma, GFP_KERNEL);
 	if (!ptr)
 		return -ENOMEM;
+	ptr_phys = dma_to_phys(__scm->dev, ptr_dma);
 
 	/* Fill source vmid detail */
 	src = ptr;
-	len = hweight_long(*srcvm);
-	for (i = 0; i < len; i++) {
-		src[i] = cpu_to_le32(ffs(*srcvm) - 1);
-		*srcvm ^= 1 << (ffs(*srcvm) - 1);
-	}
+	i = 0;
+	for_each_set_bit(b, &srcvm_bits, BITS_PER_LONG)
+		src[i++] = cpu_to_le32(b);
 
 	/* Fill details of mem buff to map */
 	mem_to_map = ptr + ALIGN(src_sz, SZ_64);
 	mem_to_map_phys = ptr_phys + ALIGN(src_sz, SZ_64);
-	mem_to_map[0].mem_addr = cpu_to_le64(mem_addr);
-	mem_to_map[0].mem_size = cpu_to_le64(mem_sz);
+	mem_to_map->mem_addr = cpu_to_le64(mem_addr);
+	mem_to_map->mem_size = cpu_to_le64(mem_sz);
 
 	next_vm = 0;
 	/* Fill details of next vmid detail */
 	destvm = ptr + ALIGN(mem_to_map_sz, SZ_64) + ALIGN(src_sz, SZ_64);
 	dest_phys = ptr_phys + ALIGN(mem_to_map_sz, SZ_64) + ALIGN(src_sz, SZ_64);
-	for (i = 0; i < dest_cnt; i++) {
-		destvm[i].vmid = cpu_to_le32(newvm[i].vmid);
-		destvm[i].perm = cpu_to_le32(newvm[i].perm);
-		destvm[i].ctx = 0;
-		destvm[i].ctx_size = 0;
-		next_vm |= BIT(newvm[i].vmid);
+	for (i = 0; i < dest_cnt; i++, destvm++, newvm++) {
+		destvm->vmid = cpu_to_le32(newvm->vmid);
+		destvm->perm = cpu_to_le32(newvm->perm);
+		destvm->ctx = 0;
+		destvm->ctx_size = 0;
+		next_vm |= BIT(newvm->vmid);
 	}
 
 	ret = __qcom_scm_assign_mem(__scm->dev, mem_to_map_phys, mem_to_map_sz,
 				    ptr_phys, src_sz, dest_phys, dest_sz);
-	dma_free_coherent(__scm->dev, ALIGN(ptr_sz, SZ_64), ptr, ptr_phys);
+	dma_free_coherent(__scm->dev, ptr_sz, ptr, ptr_dma);
 	if (ret) {
 		dev_err(__scm->dev,
-			"Assign memory protection call failed %d.\n", ret);
+			"Assign memory protection call failed %d\n", ret);
 		return -EINVAL;
 	}
 

@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2012 Guenter Roeck <linux@roeck-us.net>
  *
- * For further information, see the Documentation/spi/spi-sc18is602 file.
+ * For further information, see the Documentation/spi/spi-sc18is602.rst file.
  */
 
 /**

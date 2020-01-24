@@ -57,6 +57,9 @@ static void fsnotify_unmount_inodes(struct super_block *sb)
 		 * doing an __iget/iput with SB_ACTIVE clear would actually
 		 * evict all inodes with zero i_count from icache which is
 		 * unnecessarily violent and may in fact be illegal to do.
+		 * However, we should have been called /after/ evict_inodes
+		 * removed all zero refcount inodes, in any case.  Test to
+		 * be sure.
 		 */
 		if (!atomic_read(&inode->i_count)) {
 			spin_unlock(&inode->i_lock);
@@ -77,6 +80,7 @@ static void fsnotify_unmount_inodes(struct super_block *sb)
 
 		iput_inode = inode;
 
+		cond_resched();
 		spin_lock(&sb->s_inode_list_lock);
 	}
 	spin_unlock(&sb->s_inode_list_lock);
@@ -93,47 +97,6 @@ void fsnotify_sb_delete(struct super_block *sb)
 	fsnotify_unmount_inodes(sb);
 	fsnotify_clear_marks_by_sb(sb);
 }
-
-/*
- * fsnotify_nameremove - a filename was removed from a directory
- *
- * This is mostly called under parent vfs inode lock so name and
- * dentry->d_parent should be stable. However there are some corner cases where
- * inode lock is not held. So to be on the safe side and be reselient to future
- * callers and out of tree users of d_delete(), we do not assume that d_parent
- * and d_name are stable and we use dget_parent() and
- * take_dentry_name_snapshot() to grab stable references.
- */
-void fsnotify_nameremove(struct dentry *dentry, int isdir)
-{
-	struct dentry *parent;
-	struct name_snapshot name;
-	__u32 mask = FS_DELETE;
-
-	/* d_delete() of pseudo inode? (e.g. __ns_get_path() playing tricks) */
-	if (IS_ROOT(dentry))
-		return;
-
-	if (isdir)
-		mask |= FS_ISDIR;
-
-	parent = dget_parent(dentry);
-	/* Avoid unneeded take_dentry_name_snapshot() */
-	if (!(d_inode(parent)->i_fsnotify_mask & FS_DELETE) &&
-	    !(dentry->d_sb->s_fsnotify_mask & FS_DELETE))
-		goto out_dput;
-
-	take_dentry_name_snapshot(&name, dentry);
-
-	fsnotify(d_inode(parent), mask, d_inode(dentry), FSNOTIFY_EVENT_INODE,
-		 &name.name, 0);
-
-	release_dentry_name_snapshot(&name);
-
-out_dput:
-	dput(parent);
-}
-EXPORT_SYMBOL(fsnotify_nameremove);
 
 /*
  * Given an inode, first check if we care what happens to our children.  Inotify
@@ -421,8 +384,6 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(fsnotify);
-
-extern struct kmem_cache *fsnotify_mark_connector_cachep;
 
 static __init int fsnotify_init(void)
 {

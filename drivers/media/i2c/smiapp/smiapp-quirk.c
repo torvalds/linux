@@ -194,7 +194,7 @@ static int jt8ev1_post_streamoff(struct smiapp_sensor *sensor)
 		return rval;
 
 	/* Wait for 1 ms + one line => 2 ms is likely enough */
-	usleep_range(2000, 2000);
+	usleep_range(2000, 2050);
 
 	/* Restore it */
 	rval = smiapp_write_8(sensor, 0x3205, 0x00);

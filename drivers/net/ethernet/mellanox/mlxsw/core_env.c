@@ -50,6 +50,7 @@ mlxsw_env_query_module_eeprom(struct mlxsw_core *mlxsw_core, int module,
 	char eeprom_tmp[MLXSW_REG_MCIA_EEPROM_SIZE];
 	char mcia_pl[MLXSW_REG_MCIA_LEN];
 	u16 i2c_addr;
+	u8 page = 0;
 	int status;
 	int err;
 
@@ -62,11 +63,21 @@ mlxsw_env_query_module_eeprom(struct mlxsw_core *mlxsw_core, int module,
 
 	i2c_addr = MLXSW_REG_MCIA_I2C_ADDR_LOW;
 	if (offset >= MLXSW_REG_MCIA_EEPROM_PAGE_LENGTH) {
-		i2c_addr = MLXSW_REG_MCIA_I2C_ADDR_HIGH;
-		offset -= MLXSW_REG_MCIA_EEPROM_PAGE_LENGTH;
+		page = MLXSW_REG_MCIA_PAGE_GET(offset);
+		offset -= MLXSW_REG_MCIA_EEPROM_UP_PAGE_LENGTH * page;
+		/* When reading upper pages 1, 2 and 3 the offset starts at
+		 * 128. Please refer to "QSFP+ Memory Map" figure in SFF-8436
+		 * specification for graphical depiction.
+		 * MCIA register accepts buffer size <= 48. Page of size 128
+		 * should be read by chunks of size 48, 48, 32. Align the size
+		 * of the last chunk to avoid reading after the end of the
+		 * page.
+		 */
+		if (offset + size > MLXSW_REG_MCIA_EEPROM_PAGE_LENGTH)
+			size = MLXSW_REG_MCIA_EEPROM_PAGE_LENGTH - offset;
 	}
 
-	mlxsw_reg_mcia_pack(mcia_pl, module, 0, 0, offset, size, i2c_addr);
+	mlxsw_reg_mcia_pack(mcia_pl, module, 0, page, offset, size, i2c_addr);
 
 	err = mlxsw_reg_query(mlxsw_core, MLXSW_REG(mcia), mcia_pl);
 	if (err)
@@ -92,33 +103,20 @@ int mlxsw_env_module_temp_thresholds_get(struct mlxsw_core *core, int module,
 		u16 temp;
 	} temp_thresh;
 	char mcia_pl[MLXSW_REG_MCIA_LEN] = {0};
-	char mtbr_pl[MLXSW_REG_MTBR_LEN] = {0};
-	u16 module_temp;
+	char mtmp_pl[MLXSW_REG_MTMP_LEN];
+	unsigned int module_temp;
 	bool qsfp;
 	int err;
 
-	mlxsw_reg_mtbr_pack(mtbr_pl, MLXSW_REG_MTBR_BASE_MODULE_INDEX + module,
-			    1);
-	err = mlxsw_reg_query(core, MLXSW_REG(mtbr), mtbr_pl);
+	mlxsw_reg_mtmp_pack(mtmp_pl, MLXSW_REG_MTMP_MODULE_INDEX_MIN + module,
+			    false, false);
+	err = mlxsw_reg_query(core, MLXSW_REG(mtmp), mtmp_pl);
 	if (err)
 		return err;
-
-	/* Don't read temperature thresholds for module with no valid info. */
-	mlxsw_reg_mtbr_temp_unpack(mtbr_pl, 0, &module_temp, NULL);
-	switch (module_temp) {
-	case MLXSW_REG_MTBR_BAD_SENS_INFO: /* fall-through */
-	case MLXSW_REG_MTBR_NO_CONN: /* fall-through */
-	case MLXSW_REG_MTBR_NO_TEMP_SENS: /* fall-through */
-	case MLXSW_REG_MTBR_INDEX_NA:
+	mlxsw_reg_mtmp_unpack(mtmp_pl, &module_temp, NULL, NULL);
+	if (!module_temp) {
 		*temp = 0;
 		return 0;
-	default:
-		/* Do not consider thresholds for zero temperature. */
-		if (MLXSW_REG_MTMP_TEMP_TO_MC(module_temp) == 0) {
-			*temp = 0;
-			return 0;
-		}
-		break;
 	}
 
 	/* Read Free Side Device Temperature Thresholds from page 03h
@@ -181,7 +179,7 @@ int mlxsw_env_get_module_info(struct mlxsw_core *mlxsw_core, int module,
 	switch (module_id) {
 	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP:
 		modinfo->type       = ETH_MODULE_SFF_8436;
-		modinfo->eeprom_len = ETH_MODULE_SFF_8436_LEN;
+		modinfo->eeprom_len = ETH_MODULE_SFF_8436_MAX_LEN;
 		break;
 	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP_PLUS: /* fall-through */
 	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP28:
@@ -189,10 +187,10 @@ int mlxsw_env_get_module_info(struct mlxsw_core *mlxsw_core, int module,
 		    module_rev_id >=
 		    MLXSW_REG_MCIA_EEPROM_MODULE_INFO_REV_ID_8636) {
 			modinfo->type       = ETH_MODULE_SFF_8636;
-			modinfo->eeprom_len = ETH_MODULE_SFF_8636_LEN;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8636_MAX_LEN;
 		} else {
 			modinfo->type       = ETH_MODULE_SFF_8436;
-			modinfo->eeprom_len = ETH_MODULE_SFF_8436_LEN;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8436_MAX_LEN;
 		}
 		break;
 	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_SFP:

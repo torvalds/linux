@@ -83,6 +83,8 @@ ENDPROC(enable_omap3630_toggle_l2_on_restore)
  *
  * r0 = physical address of the parameters
  */
+	.arch armv7-a
+	.arch_extension sec
 ENTRY(save_secure_ram_context)
 	stmfd	sp!, {r4 - r11, lr}	@ save registers on stack
 	mov	r3, r0			@ physical address of parameters

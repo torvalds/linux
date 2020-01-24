@@ -15,7 +15,13 @@ Description:
 		 9 - I/Os currently in progress
 		10 - time spent doing I/Os (ms)
 		11 - weighted time spent doing I/Os (ms)
-		For more details refer Documentation/iostats.txt
+		12 - discards completed
+		13 - discards merged
+		14 - sectors discarded
+		15 - time spent discarding (ms)
+		16 - flush requests completed
+		17 - time spent flushing (ms)
+		For more details refer Documentation/admin-guide/iostats.rst
 
 
 What:		/sys/block/<disk>/<part>/stat

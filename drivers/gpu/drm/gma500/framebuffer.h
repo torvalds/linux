@@ -9,7 +9,6 @@
 #ifndef _FRAMEBUFFER_H_
 #define _FRAMEBUFFER_H_
 
-#include <drm/drmP.h>
 #include <drm/drm_fb_helper.h>
 
 #include "psb_drv.h"

@@ -240,7 +240,8 @@ struct gfs2_glock_operations {
 	int (*go_demote_ok) (const struct gfs2_glock *gl);
 	int (*go_lock) (struct gfs2_holder *gh);
 	void (*go_unlock) (struct gfs2_holder *gh);
-	void (*go_dump)(struct seq_file *seq, struct gfs2_glock *gl);
+	void (*go_dump)(struct seq_file *seq, struct gfs2_glock *gl,
+			const char *fs_id_buf);
 	void (*go_callback)(struct gfs2_glock *gl, bool remote);
 	const int go_type;
 	const unsigned long go_flags;
@@ -504,7 +505,6 @@ struct gfs2_trans {
 	unsigned int tr_num_buf_rm;
 	unsigned int tr_num_databuf_rm;
 	unsigned int tr_num_revoke;
-	unsigned int tr_num_revoke_rm;
 
 	struct list_head tr_list;
 	struct list_head tr_databuf;
@@ -584,10 +584,10 @@ struct gfs2_args {
 	unsigned int ar_rgrplvb:1;		/* use lvbs for rgrp info */
 	unsigned int ar_loccookie:1;		/* use location based readdir
 						   cookies */
-	int ar_commit;				/* Commit interval */
-	int ar_statfs_quantum;			/* The fast statfs interval */
-	int ar_quota_quantum;			/* The quota interval */
-	int ar_statfs_percent;			/* The % change to force sync */
+	s32 ar_commit;				/* Commit interval */
+	s32 ar_statfs_quantum;			/* The fast statfs interval */
+	s32 ar_quota_quantum;			/* The quota interval */
+	s32 ar_statfs_percent;			/* The % change to force sync */
 };
 
 struct gfs2_tune {
@@ -609,7 +609,7 @@ struct gfs2_tune {
 enum {
 	SDF_JOURNAL_CHECKED	= 0,
 	SDF_JOURNAL_LIVE	= 1,
-	SDF_SHUTDOWN		= 2,
+	SDF_WITHDRAWN		= 2,
 	SDF_NOBARRIERS		= 3,
 	SDF_NORECOVERY		= 4,
 	SDF_DEMOTE		= 5,
@@ -725,6 +725,7 @@ struct gfs2_sbd {
 	struct gfs2_glock *sd_freeze_gl;
 	struct work_struct sd_freeze_work;
 	wait_queue_head_t sd_glock_wait;
+	wait_queue_head_t sd_async_glock_wait;
 	atomic_t sd_glock_disposal;
 	struct completion sd_locking_init;
 	struct completion sd_wdack;

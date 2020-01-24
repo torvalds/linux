@@ -40,6 +40,8 @@ typedef unsigned long long pte_basic_t;
 typedef unsigned long pte_basic_t;
 #endif
 
+#include <asm/bug.h>
+
 /*
  * Clear page using the dcbz instruction, which doesn't cause any
  * memory traffic (except to write out any cache lines which get
@@ -48,6 +50,8 @@ typedef unsigned long pte_basic_t;
 static inline void clear_page(void *addr)
 {
 	unsigned int i;
+
+	WARN_ON((unsigned long)addr & (L1_CACHE_BYTES - 1));
 
 	for (i = 0; i < PAGE_SIZE / L1_CACHE_BYTES; i++, addr += L1_CACHE_BYTES)
 		dcbz(addr);

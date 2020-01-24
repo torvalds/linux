@@ -2,22 +2,16 @@
 /*
  * Copyright (c) 2014 Christoph Hellwig.
  */
-#include <linux/iomap.h>
 #include "xfs.h"
+#include "xfs_shared.h"
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
-#include "xfs_sb.h"
 #include "xfs_mount.h"
 #include "xfs_inode.h"
 #include "xfs_trans.h"
-#include "xfs_log.h"
 #include "xfs_bmap.h"
-#include "xfs_bmap_util.h"
-#include "xfs_error.h"
 #include "xfs_iomap.h"
-#include "xfs_shared.h"
-#include "xfs_bit.h"
 #include "xfs_pnfs.h"
 
 /*
@@ -39,7 +33,7 @@ xfs_break_leased_layouts(
 	struct xfs_inode	*ip = XFS_I(inode);
 	int			error;
 
-	while ((error = break_layout(inode, false) == -EWOULDBLOCK)) {
+	while ((error = break_layout(inode, false)) == -EWOULDBLOCK) {
 		xfs_iunlock(ip, *iolock);
 		*did_unlock = true;
 		error = break_layout(inode, true);
@@ -66,7 +60,7 @@ xfs_fs_get_uuid(
 
 	printk_once(KERN_NOTICE
 "XFS (%s): using experimental pNFS feature, use at your own risk!\n",
-		mp->m_fsname);
+		mp->m_super->s_id);
 
 	if (*len < sizeof(uuid_t))
 		return -EINVAL;
@@ -149,43 +143,38 @@ xfs_fs_map_blocks(
 	lock_flags = xfs_ilock_data_map_shared(ip);
 	error = xfs_bmapi_read(ip, offset_fsb, end_fsb - offset_fsb,
 				&imap, &nimaps, bmapi_flags);
-	xfs_iunlock(ip, lock_flags);
 
-	if (error)
-		goto out_unlock;
+	ASSERT(!nimaps || imap.br_startblock != DELAYSTARTBLOCK);
 
-	if (write) {
-		enum xfs_prealloc_flags	flags = 0;
+	if (!error && write &&
+	    (!nimaps || imap.br_startblock == HOLESTARTBLOCK)) {
+		if (offset + length > XFS_ISIZE(ip))
+			end_fsb = xfs_iomap_eof_align_last_fsb(ip, end_fsb);
+		else if (nimaps && imap.br_startblock == HOLESTARTBLOCK)
+			end_fsb = min(end_fsb, imap.br_startoff +
+					       imap.br_blockcount);
+		xfs_iunlock(ip, lock_flags);
 
-		ASSERT(imap.br_startblock != DELAYSTARTBLOCK);
-
-		if (!nimaps || imap.br_startblock == HOLESTARTBLOCK) {
-			/*
-			 * xfs_iomap_write_direct() expects to take ownership of
-			 * the shared ilock.
-			 */
-			xfs_ilock(ip, XFS_ILOCK_SHARED);
-			error = xfs_iomap_write_direct(ip, offset, length,
-						       &imap, nimaps);
-			if (error)
-				goto out_unlock;
-
-			/*
-			 * Ensure the next transaction is committed
-			 * synchronously so that the blocks allocated and
-			 * handed out to the client are guaranteed to be
-			 * present even after a server crash.
-			 */
-			flags |= XFS_PREALLOC_SET | XFS_PREALLOC_SYNC;
-		}
-
-		error = xfs_update_prealloc_flags(ip, flags);
+		error = xfs_iomap_write_direct(ip, offset_fsb,
+				end_fsb - offset_fsb, &imap);
 		if (error)
 			goto out_unlock;
+
+		/*
+		 * Ensure the next transaction is committed synchronously so
+		 * that the blocks allocated and handed out to the client are
+		 * guaranteed to be present even after a server crash.
+		 */
+		error = xfs_update_prealloc_flags(ip,
+				XFS_PREALLOC_SET | XFS_PREALLOC_SYNC);
+		if (error)
+			goto out_unlock;
+	} else {
+		xfs_iunlock(ip, lock_flags);
 	}
 	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
 
-	error = xfs_bmbt_to_iomap(ip, iomap, &imap, false);
+	error = xfs_bmbt_to_iomap(ip, iomap, &imap, 0);
 	*device_generation = mp->m_generation;
 	return error;
 out_unlock:

@@ -5,7 +5,7 @@
  * Copyright (c) 2002-3 Patrick Mochel
  * Copyright (c) 2002-3 Open Source Development Labs
  *
- * Please see Documentation/driver-model/platform.txt for more
+ * Please see Documentation/driver-api/driver-model/platform.rst for more
  * information.
  */
 
@@ -40,25 +40,6 @@ struct device platform_bus = {
 EXPORT_SYMBOL_GPL(platform_bus);
 
 /**
- * arch_setup_pdev_archdata - Allow manipulation of archdata before its used
- * @pdev: platform device
- *
- * This is called before platform_device_add() such that any pdev_archdata may
- * be setup before the platform_notifier is called.  So if a user needs to
- * manipulate any relevant information in the pdev_archdata they can do:
- *
- *	platform_device_alloc()
- *	... manipulate ...
- *	platform_device_add()
- *
- * And if they don't care they can just call platform_device_register() and
- * everything will just work out.
- */
-void __weak arch_setup_pdev_archdata(struct platform_device *pdev)
-{
-}
-
-/**
  * platform_get_resource - get a resource for a device
  * @dev: platform device
  * @type: resource type
@@ -79,6 +60,7 @@ struct resource *platform_get_resource(struct platform_device *dev,
 }
 EXPORT_SYMBOL_GPL(platform_get_resource);
 
+#ifdef CONFIG_HAS_IOMEM
 /**
  * devm_platform_ioremap_resource - call devm_ioremap_resource() for a platform
  *				    device
@@ -87,7 +69,6 @@ EXPORT_SYMBOL_GPL(platform_get_resource);
  *        resource management
  * @index: resource index
  */
-#ifdef CONFIG_HAS_IOMEM
 void __iomem *devm_platform_ioremap_resource(struct platform_device *pdev,
 					     unsigned int index)
 {
@@ -97,14 +78,63 @@ void __iomem *devm_platform_ioremap_resource(struct platform_device *pdev,
 	return devm_ioremap_resource(&pdev->dev, res);
 }
 EXPORT_SYMBOL_GPL(devm_platform_ioremap_resource);
+
+/**
+ * devm_platform_ioremap_resource_wc - write-combined variant of
+ *                                     devm_platform_ioremap_resource()
+ *
+ * @pdev: platform device to use both for memory resource lookup as well as
+ *        resource management
+ * @index: resource index
+ */
+void __iomem *devm_platform_ioremap_resource_wc(struct platform_device *pdev,
+						unsigned int index)
+{
+	struct resource *res;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, index);
+	return devm_ioremap_resource_wc(&pdev->dev, res);
+}
+
+/**
+ * devm_platform_ioremap_resource_byname - call devm_ioremap_resource for
+ *					   a platform device, retrieve the
+ *					   resource by name
+ *
+ * @pdev: platform device to use both for memory resource lookup as well as
+ *	  resource management
+ * @name: name of the resource
+ */
+void __iomem *
+devm_platform_ioremap_resource_byname(struct platform_device *pdev,
+				      const char *name)
+{
+	struct resource *res;
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, name);
+	return devm_ioremap_resource(&pdev->dev, res);
+}
+EXPORT_SYMBOL_GPL(devm_platform_ioremap_resource_byname);
 #endif /* CONFIG_HAS_IOMEM */
 
 /**
- * platform_get_irq - get an IRQ for a device
+ * platform_get_irq_optional - get an optional IRQ for a device
  * @dev: platform device
  * @num: IRQ number index
+ *
+ * Gets an IRQ for a platform device. Device drivers should check the return
+ * value for errors so as to not pass a negative integer value to the
+ * request_irq() APIs. This is the same as platform_get_irq(), except that it
+ * does not print an error message if an IRQ can not be obtained.
+ *
+ * Example:
+ *		int irq = platform_get_irq_optional(pdev, 0);
+ *		if (irq < 0)
+ *			return irq;
+ *
+ * Return: IRQ number on success, negative error number on failure.
  */
-int platform_get_irq(struct platform_device *dev, unsigned int num)
+int platform_get_irq_optional(struct platform_device *dev, unsigned int num)
 {
 #ifdef CONFIG_SPARC
 	/* sparc does not have irqs represented as IORESOURCE_IRQ resources */
@@ -113,9 +143,9 @@ int platform_get_irq(struct platform_device *dev, unsigned int num)
 	return dev->archdata.irqs[num];
 #else
 	struct resource *r;
-	if (IS_ENABLED(CONFIG_OF_IRQ) && dev->dev.of_node) {
-		int ret;
+	int ret;
 
+	if (IS_ENABLED(CONFIG_OF_IRQ) && dev->dev.of_node) {
 		ret = of_irq_get(dev->dev.of_node, num);
 		if (ret > 0 || ret == -EPROBE_DEFER)
 			return ret;
@@ -124,8 +154,6 @@ int platform_get_irq(struct platform_device *dev, unsigned int num)
 	r = platform_get_resource(dev, IORESOURCE_IRQ, num);
 	if (has_acpi_companion(&dev->dev)) {
 		if (r && r->flags & IORESOURCE_DISABLED) {
-			int ret;
-
 			ret = acpi_irq_get(ACPI_HANDLE(&dev->dev), num, r);
 			if (ret)
 				return ret;
@@ -157,11 +185,43 @@ int platform_get_irq(struct platform_device *dev, unsigned int num)
 	 * the device will only expose one IRQ, and this fallback
 	 * allows a common code path across either kind of resource.
 	 */
-	if (num == 0 && has_acpi_companion(&dev->dev))
-		return acpi_dev_gpio_irq_get(ACPI_COMPANION(&dev->dev), num);
+	if (num == 0 && has_acpi_companion(&dev->dev)) {
+		ret = acpi_dev_gpio_irq_get(ACPI_COMPANION(&dev->dev), num);
+		/* Our callers expect -ENXIO for missing IRQs. */
+		if (ret >= 0 || ret == -EPROBE_DEFER)
+			return ret;
+	}
 
 	return -ENXIO;
 #endif
+}
+EXPORT_SYMBOL_GPL(platform_get_irq_optional);
+
+/**
+ * platform_get_irq - get an IRQ for a device
+ * @dev: platform device
+ * @num: IRQ number index
+ *
+ * Gets an IRQ for a platform device and prints an error message if finding the
+ * IRQ fails. Device drivers should check the return value for errors so as to
+ * not pass a negative integer value to the request_irq() APIs.
+ *
+ * Example:
+ *		int irq = platform_get_irq(pdev, 0);
+ *		if (irq < 0)
+ *			return irq;
+ *
+ * Return: IRQ number on success, negative error number on failure.
+ */
+int platform_get_irq(struct platform_device *dev, unsigned int num)
+{
+	int ret;
+
+	ret = platform_get_irq_optional(dev, num);
+	if (ret < 0 && ret != -EPROBE_DEFER)
+		dev_err(&dev->dev, "IRQ index %u not found\n", num);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(platform_get_irq);
 
@@ -175,7 +235,7 @@ int platform_irq_count(struct platform_device *dev)
 {
 	int ret, nr = 0;
 
-	while ((ret = platform_get_irq(dev, nr)) >= 0)
+	while ((ret = platform_get_irq_optional(dev, nr)) >= 0)
 		nr++;
 
 	if (ret == -EPROBE_DEFER)
@@ -210,27 +270,62 @@ struct resource *platform_get_resource_byname(struct platform_device *dev,
 }
 EXPORT_SYMBOL_GPL(platform_get_resource_byname);
 
-/**
- * platform_get_irq_byname - get an IRQ for a device by name
- * @dev: platform device
- * @name: IRQ name
- */
-int platform_get_irq_byname(struct platform_device *dev, const char *name)
+static int __platform_get_irq_byname(struct platform_device *dev,
+				     const char *name)
 {
 	struct resource *r;
+	int ret;
 
 	if (IS_ENABLED(CONFIG_OF_IRQ) && dev->dev.of_node) {
-		int ret;
-
 		ret = of_irq_get_byname(dev->dev.of_node, name);
 		if (ret > 0 || ret == -EPROBE_DEFER)
 			return ret;
 	}
 
 	r = platform_get_resource_byname(dev, IORESOURCE_IRQ, name);
-	return r ? r->start : -ENXIO;
+	if (r)
+		return r->start;
+
+	return -ENXIO;
+}
+
+/**
+ * platform_get_irq_byname - get an IRQ for a device by name
+ * @dev: platform device
+ * @name: IRQ name
+ *
+ * Get an IRQ like platform_get_irq(), but then by name rather then by index.
+ *
+ * Return: IRQ number on success, negative error number on failure.
+ */
+int platform_get_irq_byname(struct platform_device *dev, const char *name)
+{
+	int ret;
+
+	ret = __platform_get_irq_byname(dev, name);
+	if (ret < 0 && ret != -EPROBE_DEFER)
+		dev_err(&dev->dev, "IRQ %s not found\n", name);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(platform_get_irq_byname);
+
+/**
+ * platform_get_irq_byname_optional - get an optional IRQ for a device by name
+ * @dev: platform device
+ * @name: IRQ name
+ *
+ * Get an optional IRQ by name like platform_get_irq_byname(). Except that it
+ * does not print an error message if an IRQ can not be obtained.
+ *
+ * Return: IRQ number on success, negative error number on failure.
+ */
+int platform_get_irq_byname_optional(struct platform_device *dev,
+				     const char *name)
+{
+	return __platform_get_irq_byname(dev, name);
+}
+EXPORT_SYMBOL_GPL(platform_get_irq_byname_optional);
 
 /**
  * platform_add_devices - add a numbers of platform devices
@@ -257,6 +352,20 @@ EXPORT_SYMBOL_GPL(platform_add_devices);
 struct platform_object {
 	struct platform_device pdev;
 	char name[];
+};
+
+/*
+ * Set up default DMA mask for platform devices if the they weren't
+ * previously set by the architecture / DT.
+ */
+static void setup_pdev_dma_masks(struct platform_device *pdev)
+{
+	if (!pdev->dev.coherent_dma_mask)
+		pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
+	if (!pdev->dma_mask)
+		pdev->dma_mask = DMA_BIT_MASK(32);
+	if (!pdev->dev.dma_mask)
+		pdev->dev.dma_mask = &pdev->dma_mask;
 };
 
 /**
@@ -305,7 +414,7 @@ struct platform_device *platform_device_alloc(const char *name, int id)
 		pa->pdev.id = id;
 		device_initialize(&pa->pdev.dev);
 		pa->pdev.dev.release = platform_device_release;
-		arch_setup_pdev_archdata(&pa->pdev);
+		setup_pdev_dma_masks(&pa->pdev);
 	}
 
 	return pa ? &pa->pdev : NULL;
@@ -507,7 +616,7 @@ EXPORT_SYMBOL_GPL(platform_device_del);
 int platform_device_register(struct platform_device *pdev)
 {
 	device_initialize(&pdev->dev);
-	arch_setup_pdev_archdata(pdev);
+	setup_pdev_dma_masks(pdev);
 	return platform_device_add(pdev);
 }
 EXPORT_SYMBOL_GPL(platform_device_register);
@@ -1197,6 +1306,27 @@ struct bus_type platform_bus_type = {
 };
 EXPORT_SYMBOL_GPL(platform_bus_type);
 
+static inline int __platform_match(struct device *dev, const void *drv)
+{
+	return platform_match(dev, (struct device_driver *)drv);
+}
+
+/**
+ * platform_find_device_by_driver - Find a platform device with a given
+ * driver.
+ * @start: The device to start the search from.
+ * @drv: The device driver to look for.
+ */
+struct device *platform_find_device_by_driver(struct device *start,
+					      const struct device_driver *drv)
+{
+	return bus_find_device(&platform_bus_type, start, drv,
+			       __platform_match);
+}
+EXPORT_SYMBOL_GPL(platform_find_device_by_driver);
+
+void __weak __init early_platform_cleanup(void) { }
+
 int __init platform_bus_init(void)
 {
 	int error;
@@ -1214,289 +1344,3 @@ int __init platform_bus_init(void)
 	of_platform_register_reconfig_notifier();
 	return error;
 }
-
-static __initdata LIST_HEAD(early_platform_driver_list);
-static __initdata LIST_HEAD(early_platform_device_list);
-
-/**
- * early_platform_driver_register - register early platform driver
- * @epdrv: early_platform driver structure
- * @buf: string passed from early_param()
- *
- * Helper function for early_platform_init() / early_platform_init_buffer()
- */
-int __init early_platform_driver_register(struct early_platform_driver *epdrv,
-					  char *buf)
-{
-	char *tmp;
-	int n;
-
-	/* Simply add the driver to the end of the global list.
-	 * Drivers will by default be put on the list in compiled-in order.
-	 */
-	if (!epdrv->list.next) {
-		INIT_LIST_HEAD(&epdrv->list);
-		list_add_tail(&epdrv->list, &early_platform_driver_list);
-	}
-
-	/* If the user has specified device then make sure the driver
-	 * gets prioritized. The driver of the last device specified on
-	 * command line will be put first on the list.
-	 */
-	n = strlen(epdrv->pdrv->driver.name);
-	if (buf && !strncmp(buf, epdrv->pdrv->driver.name, n)) {
-		list_move(&epdrv->list, &early_platform_driver_list);
-
-		/* Allow passing parameters after device name */
-		if (buf[n] == '\0' || buf[n] == ',')
-			epdrv->requested_id = -1;
-		else {
-			epdrv->requested_id = simple_strtoul(&buf[n + 1],
-							     &tmp, 10);
-
-			if (buf[n] != '.' || (tmp == &buf[n + 1])) {
-				epdrv->requested_id = EARLY_PLATFORM_ID_ERROR;
-				n = 0;
-			} else
-				n += strcspn(&buf[n + 1], ",") + 1;
-		}
-
-		if (buf[n] == ',')
-			n++;
-
-		if (epdrv->bufsize) {
-			memcpy(epdrv->buffer, &buf[n],
-			       min_t(int, epdrv->bufsize, strlen(&buf[n]) + 1));
-			epdrv->buffer[epdrv->bufsize - 1] = '\0';
-		}
-	}
-
-	return 0;
-}
-
-/**
- * early_platform_add_devices - adds a number of early platform devices
- * @devs: array of early platform devices to add
- * @num: number of early platform devices in array
- *
- * Used by early architecture code to register early platform devices and
- * their platform data.
- */
-void __init early_platform_add_devices(struct platform_device **devs, int num)
-{
-	struct device *dev;
-	int i;
-
-	/* simply add the devices to list */
-	for (i = 0; i < num; i++) {
-		dev = &devs[i]->dev;
-
-		if (!dev->devres_head.next) {
-			pm_runtime_early_init(dev);
-			INIT_LIST_HEAD(&dev->devres_head);
-			list_add_tail(&dev->devres_head,
-				      &early_platform_device_list);
-		}
-	}
-}
-
-/**
- * early_platform_driver_register_all - register early platform drivers
- * @class_str: string to identify early platform driver class
- *
- * Used by architecture code to register all early platform drivers
- * for a certain class. If omitted then only early platform drivers
- * with matching kernel command line class parameters will be registered.
- */
-void __init early_platform_driver_register_all(char *class_str)
-{
-	/* The "class_str" parameter may or may not be present on the kernel
-	 * command line. If it is present then there may be more than one
-	 * matching parameter.
-	 *
-	 * Since we register our early platform drivers using early_param()
-	 * we need to make sure that they also get registered in the case
-	 * when the parameter is missing from the kernel command line.
-	 *
-	 * We use parse_early_options() to make sure the early_param() gets
-	 * called at least once. The early_param() may be called more than
-	 * once since the name of the preferred device may be specified on
-	 * the kernel command line. early_platform_driver_register() handles
-	 * this case for us.
-	 */
-	parse_early_options(class_str);
-}
-
-/**
- * early_platform_match - find early platform device matching driver
- * @epdrv: early platform driver structure
- * @id: id to match against
- */
-static struct platform_device * __init
-early_platform_match(struct early_platform_driver *epdrv, int id)
-{
-	struct platform_device *pd;
-
-	list_for_each_entry(pd, &early_platform_device_list, dev.devres_head)
-		if (platform_match(&pd->dev, &epdrv->pdrv->driver))
-			if (pd->id == id)
-				return pd;
-
-	return NULL;
-}
-
-/**
- * early_platform_left - check if early platform driver has matching devices
- * @epdrv: early platform driver structure
- * @id: return true if id or above exists
- */
-static int __init early_platform_left(struct early_platform_driver *epdrv,
-				       int id)
-{
-	struct platform_device *pd;
-
-	list_for_each_entry(pd, &early_platform_device_list, dev.devres_head)
-		if (platform_match(&pd->dev, &epdrv->pdrv->driver))
-			if (pd->id >= id)
-				return 1;
-
-	return 0;
-}
-
-/**
- * early_platform_driver_probe_id - probe drivers matching class_str and id
- * @class_str: string to identify early platform driver class
- * @id: id to match against
- * @nr_probe: number of platform devices to successfully probe before exiting
- */
-static int __init early_platform_driver_probe_id(char *class_str,
-						 int id,
-						 int nr_probe)
-{
-	struct early_platform_driver *epdrv;
-	struct platform_device *match;
-	int match_id;
-	int n = 0;
-	int left = 0;
-
-	list_for_each_entry(epdrv, &early_platform_driver_list, list) {
-		/* only use drivers matching our class_str */
-		if (strcmp(class_str, epdrv->class_str))
-			continue;
-
-		if (id == -2) {
-			match_id = epdrv->requested_id;
-			left = 1;
-
-		} else {
-			match_id = id;
-			left += early_platform_left(epdrv, id);
-
-			/* skip requested id */
-			switch (epdrv->requested_id) {
-			case EARLY_PLATFORM_ID_ERROR:
-			case EARLY_PLATFORM_ID_UNSET:
-				break;
-			default:
-				if (epdrv->requested_id == id)
-					match_id = EARLY_PLATFORM_ID_UNSET;
-			}
-		}
-
-		switch (match_id) {
-		case EARLY_PLATFORM_ID_ERROR:
-			pr_warn("%s: unable to parse %s parameter\n",
-				class_str, epdrv->pdrv->driver.name);
-			/* fall-through */
-		case EARLY_PLATFORM_ID_UNSET:
-			match = NULL;
-			break;
-		default:
-			match = early_platform_match(epdrv, match_id);
-		}
-
-		if (match) {
-			/*
-			 * Set up a sensible init_name to enable
-			 * dev_name() and others to be used before the
-			 * rest of the driver core is initialized.
-			 */
-			if (!match->dev.init_name && slab_is_available()) {
-				if (match->id != -1)
-					match->dev.init_name =
-						kasprintf(GFP_KERNEL, "%s.%d",
-							  match->name,
-							  match->id);
-				else
-					match->dev.init_name =
-						kasprintf(GFP_KERNEL, "%s",
-							  match->name);
-
-				if (!match->dev.init_name)
-					return -ENOMEM;
-			}
-
-			if (epdrv->pdrv->probe(match))
-				pr_warn("%s: unable to probe %s early.\n",
-					class_str, match->name);
-			else
-				n++;
-		}
-
-		if (n >= nr_probe)
-			break;
-	}
-
-	if (left)
-		return n;
-	else
-		return -ENODEV;
-}
-
-/**
- * early_platform_driver_probe - probe a class of registered drivers
- * @class_str: string to identify early platform driver class
- * @nr_probe: number of platform devices to successfully probe before exiting
- * @user_only: only probe user specified early platform devices
- *
- * Used by architecture code to probe registered early platform drivers
- * within a certain class. For probe to happen a registered early platform
- * device matching a registered early platform driver is needed.
- */
-int __init early_platform_driver_probe(char *class_str,
-				       int nr_probe,
-				       int user_only)
-{
-	int k, n, i;
-
-	n = 0;
-	for (i = -2; n < nr_probe; i++) {
-		k = early_platform_driver_probe_id(class_str, i, nr_probe - n);
-
-		if (k < 0)
-			break;
-
-		n += k;
-
-		if (user_only)
-			break;
-	}
-
-	return n;
-}
-
-/**
- * early_platform_cleanup - clean up early platform code
- */
-void __init early_platform_cleanup(void)
-{
-	struct platform_device *pd, *pd2;
-
-	/* clean up the devres list used to chain devices */
-	list_for_each_entry_safe(pd, pd2, &early_platform_device_list,
-				 dev.devres_head) {
-		list_del(&pd->dev.devres_head);
-		memset(&pd->dev.devres_head, 0, sizeof(pd->dev.devres_head));
-	}
-}
-

@@ -53,9 +53,6 @@ static void cache_init(struct cache_head *h, struct cache_detail *detail)
 	h->last_refresh = now;
 }
 
-static inline int cache_is_valid(struct cache_head *h);
-static void cache_fresh_locked(struct cache_head *head, time_t expiry,
-				struct cache_detail *detail);
 static void cache_fresh_unlocked(struct cache_head *head,
 				struct cache_detail *detail);
 
@@ -105,9 +102,6 @@ static struct cache_head *sunrpc_cache_add_entry(struct cache_detail *detail,
 			if (cache_is_expired(detail, tmp)) {
 				hlist_del_init_rcu(&tmp->cache_list);
 				detail->entries --;
-				if (cache_is_valid(tmp) == -EAGAIN)
-					set_bit(CACHE_NEGATIVE, &tmp->flags);
-				cache_fresh_locked(tmp, 0, detail);
 				freeme = tmp;
 				break;
 			}
@@ -373,7 +367,7 @@ void sunrpc_init_cache_detail(struct cache_detail *cd)
 	spin_lock(&cache_list_lock);
 	cd->nextcheck = 0;
 	cd->entries = 0;
-	atomic_set(&cd->readers, 0);
+	atomic_set(&cd->writers, 0);
 	cd->last_close = 0;
 	cd->last_warn = -1;
 	list_add(&cd->others, &cache_list);
@@ -1029,11 +1023,13 @@ static int cache_open(struct inode *inode, struct file *filp,
 		}
 		rp->offset = 0;
 		rp->q.reader = 1;
-		atomic_inc(&cd->readers);
+
 		spin_lock(&queue_lock);
 		list_add(&rp->q.list, &cd->queue);
 		spin_unlock(&queue_lock);
 	}
+	if (filp->f_mode & FMODE_WRITE)
+		atomic_inc(&cd->writers);
 	filp->private_data = rp;
 	return 0;
 }
@@ -1062,8 +1058,10 @@ static int cache_release(struct inode *inode, struct file *filp,
 		filp->private_data = NULL;
 		kfree(rp);
 
+	}
+	if (filp->f_mode & FMODE_WRITE) {
+		atomic_dec(&cd->writers);
 		cd->last_close = seconds_since_boot();
-		atomic_dec(&cd->readers);
 	}
 	module_put(cd->owner);
 	return 0;
@@ -1171,7 +1169,7 @@ static void warn_no_listener(struct cache_detail *detail)
 
 static bool cache_listeners_exist(struct cache_detail *detail)
 {
-	if (atomic_read(&detail->readers))
+	if (atomic_read(&detail->writers))
 		return true;
 	if (detail->last_close == 0)
 		/* This cache was never opened */
@@ -1375,7 +1373,6 @@ static void *cache_seq_next(struct seq_file *m, void *p, loff_t *pos)
 				hlist_first_rcu(&cd->hash_table[hash])),
 				struct cache_head, cache_list);
 }
-EXPORT_SYMBOL_GPL(cache_seq_next);
 
 void *cache_seq_start_rcu(struct seq_file *m, loff_t *pos)
 	__acquires(RCU)
@@ -1520,6 +1517,9 @@ static ssize_t write_flush(struct file *file, const char __user *buf,
 	cd->flush_time = now;
 	cd->nextcheck = now;
 	cache_flush();
+
+	if (cd->flush)
+		cd->flush();
 
 	*ppos += count;
 	return count;

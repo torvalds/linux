@@ -87,14 +87,14 @@
 static int usbvision_nr;
 
 static struct usbvision_v4l2_format_st usbvision_v4l2_format[] = {
-	{ 1, 1,  8, V4L2_PIX_FMT_GREY    , "GREY" },
-	{ 1, 2, 16, V4L2_PIX_FMT_RGB565  , "RGB565" },
-	{ 1, 3, 24, V4L2_PIX_FMT_RGB24   , "RGB24" },
-	{ 1, 4, 32, V4L2_PIX_FMT_RGB32   , "RGB32" },
-	{ 1, 2, 16, V4L2_PIX_FMT_RGB555  , "RGB555" },
-	{ 1, 2, 16, V4L2_PIX_FMT_YUYV    , "YUV422" },
-	{ 1, 2, 12, V4L2_PIX_FMT_YVU420  , "YUV420P" }, /* 1.5 ! */
-	{ 1, 2, 16, V4L2_PIX_FMT_YUV422P , "YUV422P" }
+	{ 1, 1,  8, V4L2_PIX_FMT_GREY },
+	{ 1, 2, 16, V4L2_PIX_FMT_RGB565 },
+	{ 1, 3, 24, V4L2_PIX_FMT_RGB24 },
+	{ 1, 4, 32, V4L2_PIX_FMT_RGB32 },
+	{ 1, 2, 16, V4L2_PIX_FMT_RGB555 },
+	{ 1, 2, 16, V4L2_PIX_FMT_YUYV },
+	{ 1, 2, 12, V4L2_PIX_FMT_YVU420 }, /* 1.5 ! */
+	{ 1, 2, 16, V4L2_PIX_FMT_YUV422P }
 };
 
 /* Function prototypes */
@@ -314,6 +314,10 @@ static int usbvision_v4l2_open(struct file *file)
 	if (mutex_lock_interruptible(&usbvision->v4l2_lock))
 		return -ERESTARTSYS;
 
+	if (usbvision->remove_pending) {
+		err_code = -ENODEV;
+		goto unlock;
+	}
 	if (usbvision->user) {
 		err_code = -EBUSY;
 	} else {
@@ -377,6 +381,7 @@ unlock:
 static int usbvision_v4l2_close(struct file *file)
 {
 	struct usb_usbvision *usbvision = video_drvdata(file);
+	int r;
 
 	PDEBUG(DBG_IO, "close");
 
@@ -391,9 +396,10 @@ static int usbvision_v4l2_close(struct file *file)
 	usbvision_scratch_free(usbvision);
 
 	usbvision->user--;
+	r = usbvision->remove_pending;
 	mutex_unlock(&usbvision->v4l2_lock);
 
-	if (usbvision->remove_pending) {
+	if (r) {
 		printk(KERN_INFO "%s: Final disconnect\n", __func__);
 		usbvision_release(usbvision);
 		return 0;
@@ -452,24 +458,21 @@ static int vidioc_querycap(struct file *file, void  *priv,
 					struct v4l2_capability *vc)
 {
 	struct usb_usbvision *usbvision = video_drvdata(file);
-	struct video_device *vdev = video_devdata(file);
+
+	if (!usbvision->dev)
+		return -ENODEV;
 
 	strscpy(vc->driver, "USBVision", sizeof(vc->driver));
 	strscpy(vc->card,
 		usbvision_device_data[usbvision->dev_model].model_string,
 		sizeof(vc->card));
 	usb_make_path(usbvision->dev, vc->bus_info, sizeof(vc->bus_info));
-	vc->device_caps = usbvision->have_tuner ? V4L2_CAP_TUNER : 0;
-	if (vdev->vfl_type == VFL_TYPE_GRABBER)
-		vc->device_caps |= V4L2_CAP_VIDEO_CAPTURE |
-			V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
-	else
-		vc->device_caps |= V4L2_CAP_RADIO;
-
-	vc->capabilities = vc->device_caps | V4L2_CAP_VIDEO_CAPTURE |
-		V4L2_CAP_READWRITE | V4L2_CAP_STREAMING | V4L2_CAP_DEVICE_CAPS;
+	vc->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
+			   V4L2_CAP_STREAMING | V4L2_CAP_DEVICE_CAPS;
 	if (usbvision_device_data[usbvision->dev_model].radio)
 		vc->capabilities |= V4L2_CAP_RADIO;
+	if (usbvision->have_tuner)
+		vc->capabilities |= V4L2_CAP_TUNER;
 	return 0;
 }
 
@@ -802,8 +805,6 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 {
 	if (vfd->index >= USBVISION_SUPPORTED_PALETTES - 1)
 		return -EINVAL;
-	strscpy(vfd->description, usbvision_v4l2_format[vfd->index].desc,
-		sizeof(vfd->description));
 	vfd->pixelformat = usbvision_v4l2_format[vfd->index].format;
 	return 0;
 }
@@ -973,7 +974,6 @@ static ssize_t usbvision_read(struct file *file, char __user *buf,
 	       __func__,
 	       (unsigned long)count, frame->bytes_read);
 
-#if 1
 	/*
 	 * FIXME:
 	 * For now, forget the frame if it has not been read in one shot.
@@ -982,15 +982,6 @@ static ssize_t usbvision_read(struct file *file, char __user *buf,
 
 	/* Mark it as available to be used again. */
 	frame->grabstate = frame_state_unused;
-#else
-	if (frame->bytes_read >= frame->scanlength) {
-		/* All data has been read */
-		frame->bytes_read = 0;
-
-		/* Mark it as available to be used again. */
-		frame->grabstate = frame_state_unused;
-	}
-#endif
 
 	return count;
 }
@@ -1079,6 +1070,11 @@ static int usbvision_radio_open(struct file *file)
 
 	if (mutex_lock_interruptible(&usbvision->v4l2_lock))
 		return -ERESTARTSYS;
+
+	if (usbvision->remove_pending) {
+		err_code = -ENODEV;
+		goto out;
+	}
 	err_code = v4l2_fh_open(file);
 	if (err_code)
 		goto out;
@@ -1111,21 +1107,24 @@ out:
 static int usbvision_radio_close(struct file *file)
 {
 	struct usb_usbvision *usbvision = video_drvdata(file);
+	int r;
 
 	PDEBUG(DBG_IO, "");
 
 	mutex_lock(&usbvision->v4l2_lock);
 	/* Set packet size to 0 */
 	usbvision->iface_alt = 0;
-	usb_set_interface(usbvision->dev, usbvision->iface,
-				    usbvision->iface_alt);
+	if (usbvision->dev)
+		usb_set_interface(usbvision->dev, usbvision->iface,
+				  usbvision->iface_alt);
 
 	usbvision_audio_off(usbvision);
 	usbvision->radio = 0;
 	usbvision->user--;
+	r = usbvision->remove_pending;
 	mutex_unlock(&usbvision->v4l2_lock);
 
-	if (usbvision->remove_pending) {
+	if (r) {
 		printk(KERN_INFO "%s: Final disconnect\n", __func__);
 		v4l2_fh_release(file);
 		usbvision_release(usbvision);
@@ -1267,6 +1266,11 @@ static int usbvision_register_video(struct usb_usbvision *usbvision)
 		v4l2_disable_ioctl(&usbvision->vdev, VIDIOC_G_FREQUENCY);
 		v4l2_disable_ioctl(&usbvision->vdev, VIDIOC_S_TUNER);
 	}
+	usbvision->vdev.device_caps = V4L2_CAP_VIDEO_CAPTURE |
+				      V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
+	if (usbvision->have_tuner)
+		usbvision->vdev.device_caps |= V4L2_CAP_TUNER;
+
 	if (video_register_device(&usbvision->vdev, VFL_TYPE_GRABBER, video_nr) < 0)
 		goto err_exit;
 	printk(KERN_INFO "USBVision[%d]: registered USBVision Video device %s [v4l2]\n",
@@ -1277,6 +1281,7 @@ static int usbvision_register_video(struct usb_usbvision *usbvision)
 		/* usbvision has radio */
 		usbvision_vdev_init(usbvision, &usbvision->rdev,
 			      &usbvision_radio_template, "USBVision Radio");
+		usbvision->rdev.device_caps = V4L2_CAP_RADIO | V4L2_CAP_TUNER;
 		if (video_register_device(&usbvision->rdev, VFL_TYPE_RADIO, radio_nr) < 0)
 			goto err_exit;
 		printk(KERN_INFO "USBVision[%d]: registered USBVision Radio device %s [v4l2]\n",
@@ -1551,6 +1556,7 @@ err_usb:
 static void usbvision_disconnect(struct usb_interface *intf)
 {
 	struct usb_usbvision *usbvision = to_usbvision(usb_get_intfdata(intf));
+	int u;
 
 	PDEBUG(DBG_PROBE, "");
 
@@ -1567,13 +1573,14 @@ static void usbvision_disconnect(struct usb_interface *intf)
 	v4l2_device_disconnect(&usbvision->v4l2_dev);
 	usbvision_i2c_unregister(usbvision);
 	usbvision->remove_pending = 1;	/* Now all ISO data will be ignored */
+	u = usbvision->user;
 
 	usb_put_dev(usbvision->dev);
 	usbvision->dev = NULL;	/* USB device is no more */
 
 	mutex_unlock(&usbvision->v4l2_lock);
 
-	if (usbvision->user) {
+	if (u) {
 		printk(KERN_INFO "%s: In use, disconnect pending\n",
 		       __func__);
 		wake_up_interruptible(&usbvision->wait_frame);

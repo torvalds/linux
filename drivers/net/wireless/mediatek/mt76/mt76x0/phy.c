@@ -102,14 +102,14 @@ out:
 static int
 mt76x0_rf_wr(struct mt76x02_dev *dev, u32 offset, u8 val)
 {
-	if (mt76_is_usb(dev)) {
+	if (mt76_is_usb(&dev->mt76)) {
 		struct mt76_reg_pair pair = {
 			.reg = offset,
 			.value = val,
 		};
 
 		WARN_ON_ONCE(!test_bit(MT76_STATE_MCU_RUNNING,
-			     &dev->mt76.state));
+				       &dev->mt76.state));
 		return mt76_wr_rp(dev, MT_MCU_MEMMAP_RF, &pair, 1);
 	} else {
 		return mt76x0_rf_csr_wr(dev, offset, val);
@@ -121,13 +121,13 @@ static int mt76x0_rf_rr(struct mt76x02_dev *dev, u32 offset)
 	int ret;
 	u32 val;
 
-	if (mt76_is_usb(dev)) {
+	if (mt76_is_usb(&dev->mt76)) {
 		struct mt76_reg_pair pair = {
 			.reg = offset,
 		};
 
 		WARN_ON_ONCE(!test_bit(MT76_STATE_MCU_RUNNING,
-			     &dev->mt76.state));
+				       &dev->mt76.state));
 		ret = mt76_rd_rp(dev, MT_MCU_MEMMAP_RF, &pair, 1);
 		val = pair.value;
 	} else {
@@ -176,7 +176,7 @@ mt76x0_phy_rf_csr_wr_rp(struct mt76x02_dev *dev,
 }
 
 #define RF_RANDOM_WRITE(dev, tab) do {					\
-	if (mt76_is_mmio(dev))						\
+	if (mt76_is_mmio(&dev->mt76))					\
 		mt76x0_phy_rf_csr_wr_rp(dev, tab, ARRAY_SIZE(tab));	\
 	else								\
 		mt76_wr_rp(dev, MT_MCU_MEMMAP_RF, tab, ARRAY_SIZE(tab));\
@@ -230,7 +230,8 @@ mt76x0_phy_set_band(struct mt76x02_dev *dev, enum nl80211_band band)
 }
 
 static void
-mt76x0_phy_set_chan_rf_params(struct mt76x02_dev *dev, u8 channel, u16 rf_bw_band)
+mt76x0_phy_set_chan_rf_params(struct mt76x02_dev *dev, u8 channel,
+			      u16 rf_bw_band)
 {
 	const struct mt76x0_freq_item *freq_item;
 	u16 rf_band = rf_bw_band & 0xff00;
@@ -252,9 +253,9 @@ mt76x0_phy_set_chan_rf_params(struct mt76x02_dev *dev, u8 channel, u16 rf_bw_ban
 			rf_band = mt76x0_frequency_plan[i].band;
 
 			if (b_sdm)
-				freq_item = &(mt76x0_sdm_frequency_plan[i]);
+				freq_item = &mt76x0_sdm_frequency_plan[i];
 			else
-				freq_item = &(mt76x0_frequency_plan[i]);
+				freq_item = &mt76x0_frequency_plan[i];
 
 			mt76x0_rf_wr(dev, MT_RF(0, 37), freq_item->pllR37);
 			mt76x0_rf_wr(dev, MT_RF(0, 36), freq_item->pllR36);
@@ -359,11 +360,12 @@ mt76x0_phy_set_chan_rf_params(struct mt76x02_dev *dev, u8 channel, u16 rf_bw_ban
 
 	band = (rf_band & RF_G_BAND) ? NL80211_BAND_2GHZ : NL80211_BAND_5GHZ;
 	if (mt76x02_ext_pa_enabled(dev, band)) {
-		/*
-			MT_RF_MISC (offset: 0x0518)
-			[2]1'b1: enable external A band PA, 1'b0: disable external A band PA
-			[3]1'b1: enable external G band PA, 1'b0: disable external G band PA
-		*/
+		/* MT_RF_MISC (offset: 0x0518)
+		 * [2]1'b1: enable external A band PA
+		 *    1'b0: disable external A band PA
+		 * [3]1'b1: enable external G band PA
+		 *    1'b0: disable external G band PA
+		 */
 		if (rf_band & RF_A_BAND)
 			mt76_set(dev, MT_RF_MISC, BIT(2));
 		else
@@ -385,7 +387,9 @@ mt76x0_phy_set_chan_rf_params(struct mt76x02_dev *dev, u8 channel, u16 rf_bw_ban
 		mt76_wr(dev, MT_TX_ALC_CFG_1, mac_reg);
 	} else {
 		mt76_wr(dev, MT_TX0_RF_GAIN_ATTEN, 0x686A7800);
-		/* Set Atten mode = 0 For Ext A band, Disable Tx Inc dcoc Cal. */
+		/* Set Atten mode = 0
+		 * For Ext A band, Disable Tx Inc dcoc Cal.
+		 */
 		mac_reg = mt76_rr(dev, MT_TX_ALC_CFG_1);
 		mac_reg &= 0x890400FF;
 		mt76_wr(dev, MT_TX_ALC_CFG_1, mac_reg);
@@ -422,15 +426,15 @@ mt76x0_phy_set_chan_bbp_params(struct mt76x02_dev *dev, u16 rf_bw_band)
 static void mt76x0_phy_ant_select(struct mt76x02_dev *dev)
 {
 	u16 ee_ant = mt76x02_eeprom_get(dev, MT_EE_ANTENNA);
+	u16 ee_cfg1 = mt76x02_eeprom_get(dev, MT_EE_CFG1_INIT);
 	u16 nic_conf2 = mt76x02_eeprom_get(dev, MT_EE_NIC_CONF_2);
-	u32 wlan, coex3, cmb;
+	u32 wlan, coex3;
 	bool ant_div;
 
 	wlan = mt76_rr(dev, MT_WLAN_FUN_CTRL);
-	cmb = mt76_rr(dev, MT_CMB_CTRL);
 	coex3 = mt76_rr(dev, MT_COEXCFG3);
 
-	cmb   &= ~(BIT(14) | BIT(12));
+	ee_ant &= ~(BIT(14) | BIT(12));
 	wlan  &= ~(BIT(6) | BIT(5));
 	coex3 &= ~GENMASK(5, 2);
 
@@ -439,7 +443,7 @@ static void mt76x0_phy_ant_select(struct mt76x02_dev *dev)
 		ant_div = !(nic_conf2 & MT_EE_NIC_CONF_2_ANT_OPT) &&
 			  (nic_conf2 & MT_EE_NIC_CONF_2_ANT_DIV);
 		if (ant_div)
-			cmb |= BIT(12);
+			ee_ant |= BIT(12);
 		else
 			coex3 |= BIT(4);
 		coex3 |= BIT(3);
@@ -456,10 +460,11 @@ static void mt76x0_phy_ant_select(struct mt76x02_dev *dev)
 	}
 
 	if (is_mt7630(dev))
-		cmb |= BIT(14) | BIT(11);
+		ee_ant |= BIT(14) | BIT(11);
 
 	mt76_wr(dev, MT_WLAN_FUN_CTRL, wlan);
-	mt76_wr(dev, MT_CMB_CTRL, cmb);
+	mt76_rmw(dev, MT_CMB_CTRL, GENMASK(15, 0), ee_ant);
+	mt76_rmw(dev, MT_CSR_EE_CFG1, GENMASK(15, 0), ee_cfg1);
 	mt76_clear(dev, MT_COEXCFG0, BIT(2));
 	mt76_wr(dev, MT_COEXCFG3, coex3);
 }
@@ -489,7 +494,7 @@ mt76x0_phy_bbp_set_bw(struct mt76x02_dev *dev, enum nl80211_chan_width width)
 	case NL80211_CHAN_WIDTH_160:
 	case NL80211_CHAN_WIDTH_5:
 		/* TODO error */
-		return ;
+		return;
 	}
 
 	mt76x02_mcu_function_select(dev, BW_SETTING, bw);
@@ -739,7 +744,7 @@ mt76x0_phy_get_delta_power(struct mt76x02_dev *dev, u8 tx_mode,
 
 	if (!tx_mode) {
 		data = mt76_rr(dev, MT_BBP(CORE, 1));
-		if (is_mt7630(dev) && mt76_is_mmio(dev)) {
+		if (is_mt7630(dev) && mt76_is_mmio(&dev->mt76)) {
 			int offset;
 
 			/* 2.3 * 8192 or 1.5 * 8192 */
@@ -894,7 +899,6 @@ void mt76x0_phy_calibrate(struct mt76x02_dev *dev, bool power_on)
 	}
 
 	mt76x02_mcu_calibrate(dev, MCU_CAL_FULL, val);
-	msleep(350);
 	mt76x02_mcu_calibrate(dev, MCU_CAL_LC, is_5ghz);
 	usleep_range(15000, 20000);
 
@@ -904,8 +908,8 @@ void mt76x0_phy_calibrate(struct mt76x02_dev *dev, bool power_on)
 }
 EXPORT_SYMBOL_GPL(mt76x0_phy_calibrate);
 
-int mt76x0_phy_set_channel(struct mt76x02_dev *dev,
-			   struct cfg80211_chan_def *chandef)
+void mt76x0_phy_set_channel(struct mt76x02_dev *dev,
+			    struct cfg80211_chan_def *chandef)
 {
 	u32 ext_cca_chan[4] = {
 		[0] = FIELD_PREP(MT_EXT_CCA_CFG_CCA0, 0) |
@@ -939,7 +943,6 @@ int mt76x0_phy_set_channel(struct mt76x02_dev *dev,
 	freq1 = chandef->center_freq1;
 	channel = chandef->chan->hw_value;
 	rf_bw_band = (channel <= 14) ? RF_G_BAND : RF_A_BAND;
-	dev->mt76.chandef = *chandef;
 
 	switch (chandef->width) {
 	case NL80211_CHAN_WIDTH_40:
@@ -963,7 +966,7 @@ int mt76x0_phy_set_channel(struct mt76x02_dev *dev,
 		break;
 	}
 
-	if (mt76_is_usb(dev)) {
+	if (mt76_is_usb(&dev->mt76)) {
 		mt76x0_phy_bbp_set_bw(dev, chandef->width);
 	} else {
 		if (chandef->width == NL80211_CHAN_WIDTH_80 ||
@@ -1000,7 +1003,7 @@ int mt76x0_phy_set_channel(struct mt76x02_dev *dev,
 	/* enable vco */
 	mt76x0_rf_set(dev, MT_RF(0, 4), BIT(7));
 	if (scan)
-		return 0;
+		return;
 
 	mt76x02_init_agc_gain(dev);
 	mt76x0_phy_calibrate(dev, false);
@@ -1008,8 +1011,6 @@ int mt76x0_phy_set_channel(struct mt76x02_dev *dev,
 
 	ieee80211_queue_delayed_work(dev->mt76.hw, &dev->cal_work,
 				     MT_CALIBRATE_INTERVAL);
-
-	return 0;
 }
 
 static void mt76x0_phy_temp_sensor(struct mt76x02_dev *dev)
@@ -1073,7 +1074,7 @@ mt76x0_phy_update_channel_gain(struct mt76x02_dev *dev)
 		dev->cal.avg_rssi_all = -75;
 
 	low_gain = (dev->cal.avg_rssi_all > mt76x02_get_rssi_gain_thresh(dev)) +
-		   (dev->cal.avg_rssi_all > mt76x02_get_low_rssi_gain_thresh(dev));
+		(dev->cal.avg_rssi_all > mt76x02_get_low_rssi_gain_thresh(dev));
 
 	gain_change = dev->cal.low_gain < 0 ||
 		      (dev->cal.low_gain & 2) ^ (low_gain & 2);
@@ -1121,7 +1122,7 @@ static void mt76x0_rf_patch_reg_array(struct mt76x02_dev *dev,
 
 		switch (reg) {
 		case MT_RF(0, 3):
-			if (mt76_is_mmio(dev)) {
+			if (mt76_is_mmio(&dev->mt76)) {
 				if (is_mt7630(dev))
 					val = 0x70;
 				else
@@ -1168,7 +1169,8 @@ static void mt76x0_phy_rf_init(struct mt76x02_dev *dev)
 
 		if (item->bw_band == RF_BW_20)
 			mt76x0_rf_wr(dev, item->rf_bank_reg, item->value);
-		else if (((RF_G_BAND | RF_BW_20) & item->bw_band) == (RF_G_BAND | RF_BW_20))
+		else if (((RF_G_BAND | RF_BW_20) & item->bw_band) ==
+			  (RF_G_BAND | RF_BW_20))
 			mt76x0_rf_wr(dev, item->rf_bank_reg, item->value);
 	}
 
@@ -1180,10 +1182,9 @@ static void mt76x0_phy_rf_init(struct mt76x02_dev *dev)
 		}
 	}
 
-	/*
-	   Frequency calibration
-	   E1: B0.R22<6:0>: xo_cxo<6:0>
-	   E2: B0.R21<0>: xo_cxo<0>, B0.R22<7:0>: xo_cxo<8:1>
+	/* Frequency calibration
+	 * E1: B0.R22<6:0>: xo_cxo<6:0>
+	 * E2: B0.R21<0>: xo_cxo<0>, B0.R22<7:0>: xo_cxo<8:1>
 	 */
 	mt76x0_rf_wr(dev, MT_RF(0, 22),
 		     min_t(u8, dev->cal.rx.freq_offset, 0xbf));

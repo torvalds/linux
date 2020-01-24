@@ -710,11 +710,12 @@ static int mt6797_afe_component_probe(struct snd_soc_component *component)
 }
 
 static const struct snd_soc_component_driver mt6797_afe_component = {
-	.name = AFE_PCM_NAME,
-	.ops = &mtk_afe_pcm_ops,
-	.pcm_new = mtk_afe_pcm_new,
-	.pcm_free = mtk_afe_pcm_free,
-	.probe = mt6797_afe_component_probe,
+	.name		= AFE_PCM_NAME,
+	.probe		= mt6797_afe_component_probe,
+	.ioctl		= snd_soc_pcm_lib_ioctl,
+	.pointer	= mtk_afe_pcm_pointer,
+	.pcm_construct	= mtk_afe_pcm_new,
+	.pcm_destruct	= mtk_afe_pcm_free,
 };
 
 static int mt6797_dai_memif_register(struct mtk_base_afe *afe)
@@ -749,7 +750,6 @@ static int mt6797_afe_pcm_dev_probe(struct platform_device *pdev)
 {
 	struct mtk_base_afe *afe;
 	struct mt6797_afe_private *afe_priv;
-	struct resource *res;
 	struct device *dev;
 	int i, irq_id, ret;
 
@@ -774,9 +774,7 @@ static int mt6797_afe_pcm_dev_probe(struct platform_device *pdev)
 	}
 
 	/* regmap init */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
-	afe->base_addr = devm_ioremap_resource(&pdev->dev, res);
+	afe->base_addr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(afe->base_addr))
 		return PTR_ERR(afe->base_addr);
 

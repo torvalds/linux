@@ -85,6 +85,16 @@ static inline void tlb_invalid_all(void)
 #endif
 }
 
+static inline void local_tlb_invalid_all(void)
+{
+#ifdef CONFIG_CPU_HAS_TLBI
+	asm volatile("tlbi.all\n":::"memory");
+	sync_is();
+#else
+	tlb_invalid_all();
+#endif
+}
+
 static inline void tlb_invalid_indexed(void)
 {
 	mtcr("cr<8, 15>", 0x02000000);

@@ -24,33 +24,20 @@
 #ifndef __AMDGPU_MN_H__
 #define __AMDGPU_MN_H__
 
-/*
- * MMU Notifier
- */
-struct amdgpu_mn;
+#include <linux/types.h>
+#include <linux/hmm.h>
+#include <linux/rwsem.h>
+#include <linux/workqueue.h>
+#include <linux/interval_tree.h>
 
-enum amdgpu_mn_type {
-	AMDGPU_MN_TYPE_GFX,
-	AMDGPU_MN_TYPE_HSA,
-};
-
-#if defined(CONFIG_MMU_NOTIFIER)
-void amdgpu_mn_lock(struct amdgpu_mn *mn);
-void amdgpu_mn_unlock(struct amdgpu_mn *mn);
-struct amdgpu_mn *amdgpu_mn_get(struct amdgpu_device *adev,
-				enum amdgpu_mn_type type);
+#if defined(CONFIG_HMM_MIRROR)
 int amdgpu_mn_register(struct amdgpu_bo *bo, unsigned long addr);
 void amdgpu_mn_unregister(struct amdgpu_bo *bo);
 #else
-static inline void amdgpu_mn_lock(struct amdgpu_mn *mn) {}
-static inline void amdgpu_mn_unlock(struct amdgpu_mn *mn) {}
-static inline struct amdgpu_mn *amdgpu_mn_get(struct amdgpu_device *adev,
-					      enum amdgpu_mn_type type)
-{
-	return NULL;
-}
 static inline int amdgpu_mn_register(struct amdgpu_bo *bo, unsigned long addr)
 {
+	DRM_WARN_ONCE("HMM_MIRROR kernel config option is not enabled, "
+		      "add CONFIG_ZONE_DEVICE=y in config file to fix this\n");
 	return -ENODEV;
 }
 static inline void amdgpu_mn_unregister(struct amdgpu_bo *bo) {}

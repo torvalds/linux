@@ -134,7 +134,7 @@ static int bsr_mmap(struct file *filp, struct vm_area_struct *vma)
 	return 0;
 }
 
-static int bsr_open(struct inode * inode, struct file * filp)
+static int bsr_open(struct inode *inode, struct file *filp)
 {
 	struct cdev *cdev = inode->i_cdev;
 	struct bsr_dev *dev = container_of(cdev, struct bsr_dev, bsr_cdev);
@@ -309,7 +309,8 @@ static int __init bsr_init(void)
 		goto out_err_2;
 	}
 
-	if ((ret = bsr_create_devs(np)) < 0) {
+	ret = bsr_create_devs(np);
+	if (ret < 0) {
 		np = NULL;
 		goto out_err_3;
 	}

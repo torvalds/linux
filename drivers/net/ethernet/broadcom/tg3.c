@@ -6280,6 +6280,10 @@ static int tg3_ptp_enable(struct ptp_clock_info *ptp,
 
 	switch (rq->type) {
 	case PTP_CLK_REQ_PEROUT:
+		/* Reject requests with unsupported flags */
+		if (rq->perout.flags)
+			return -EOPNOTSUPP;
+
 		if (rq->perout.index != 0)
 			return -EINVAL;
 
@@ -6710,7 +6714,7 @@ static int tg3_alloc_rx_data(struct tg3 *tp, struct tg3_rx_prodring_set *tpr,
 	skb_size = SKB_DATA_ALIGN(data_size + TG3_RX_OFFSET(tp)) +
 		   SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 	if (skb_size <= PAGE_SIZE) {
-		data = netdev_alloc_frag(skb_size);
+		data = napi_alloc_frag(skb_size);
 		*frag_size = skb_size;
 	} else {
 		data = kmalloc(skb_size, GFP_ATOMIC);
@@ -18041,8 +18045,7 @@ static void tg3_remove_one(struct pci_dev *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int tg3_suspend(struct device *device)
 {
-	struct pci_dev *pdev = to_pci_dev(device);
-	struct net_device *dev = pci_get_drvdata(pdev);
+	struct net_device *dev = dev_get_drvdata(device);
 	struct tg3 *tp = netdev_priv(dev);
 	int err = 0;
 
@@ -18098,8 +18101,7 @@ unlock:
 
 static int tg3_resume(struct device *device)
 {
-	struct pci_dev *pdev = to_pci_dev(device);
-	struct net_device *dev = pci_get_drvdata(pdev);
+	struct net_device *dev = dev_get_drvdata(device);
 	struct tg3 *tp = netdev_priv(dev);
 	int err = 0;
 

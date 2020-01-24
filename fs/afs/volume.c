@@ -12,8 +12,6 @@
 unsigned __read_mostly afs_volume_gc_delay = 10;
 unsigned __read_mostly afs_volume_record_life = 60 * 60;
 
-static const char *const afs_voltypes[] = { "R/W", "R/O", "BAK" };
-
 /*
  * Allocate a volume record and load it up from a vldb record.
  */
@@ -43,6 +41,7 @@ static struct afs_volume *afs_alloc_volume(struct afs_fs_context *params,
 	atomic_set(&volume->usage, 1);
 	INIT_LIST_HEAD(&volume->proc_link);
 	rwlock_init(&volume->servers_lock);
+	rwlock_init(&volume->cb_v_break_lock);
 	memcpy(volume->name, vldb->name, vldb->name_len + 1);
 
 	slist = afs_alloc_server_list(params->cell, params->key, vldb, type_mask);

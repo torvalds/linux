@@ -5,13 +5,13 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
+#include "xfs_shared.h"
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_quota.h"
 #include "xfs_mount.h"
 #include "xfs_inode.h"
-#include "xfs_error.h"
 #include "xfs_trans.h"
 #include "xfs_qm.h"
 
@@ -54,13 +54,13 @@ xfs_fill_statvfs_from_dquot(
  */
 void
 xfs_qm_statvfs(
-	xfs_inode_t		*ip,
+	struct xfs_inode	*ip,
 	struct kstatfs		*statp)
 {
-	xfs_mount_t		*mp = ip->i_mount;
-	xfs_dquot_t		*dqp;
+	struct xfs_mount	*mp = ip->i_mount;
+	struct xfs_dquot	*dqp;
 
-	if (!xfs_qm_dqget(mp, xfs_get_projid(ip), XFS_DQ_PROJ, false, &dqp)) {
+	if (!xfs_qm_dqget(mp, ip->i_d.di_projid, XFS_DQ_PROJ, false, &dqp)) {
 		xfs_fill_statvfs_from_dquot(statp, dqp);
 		xfs_qm_dqput(dqp);
 	}

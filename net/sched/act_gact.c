@@ -53,7 +53,8 @@ static const struct nla_policy gact_policy[TCA_GACT_MAX + 1] = {
 static int tcf_gact_init(struct net *net, struct nlattr *nla,
 			 struct nlattr *est, struct tc_action **a,
 			 int ovr, int bind, bool rtnl_held,
-			 struct tcf_proto *tp, struct netlink_ext_ack *extack)
+			 struct tcf_proto *tp, u32 flags,
+			 struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, gact_net_id);
 	struct nlattr *tb[TCA_GACT_MAX + 1];
@@ -61,6 +62,7 @@ static int tcf_gact_init(struct net *net, struct nlattr *nla,
 	struct tc_gact *parm;
 	struct tcf_gact *gact;
 	int ret = 0;
+	u32 index;
 	int err;
 #ifdef CONFIG_GACT_PROB
 	struct tc_gact_p *p_parm = NULL;
@@ -77,6 +79,7 @@ static int tcf_gact_init(struct net *net, struct nlattr *nla,
 	if (tb[TCA_GACT_PARMS] == NULL)
 		return -EINVAL;
 	parm = nla_data(tb[TCA_GACT_PARMS]);
+	index = parm->index;
 
 #ifndef CONFIG_GACT_PROB
 	if (tb[TCA_GACT_PROB] != NULL)
@@ -94,12 +97,12 @@ static int tcf_gact_init(struct net *net, struct nlattr *nla,
 	}
 #endif
 
-	err = tcf_idr_check_alloc(tn, &parm->index, a, bind);
+	err = tcf_idr_check_alloc(tn, &index, a, bind);
 	if (!err) {
-		ret = tcf_idr_create(tn, parm->index, est, a,
-				     &act_gact_ops, bind, true);
+		ret = tcf_idr_create_from_flags(tn, index, est, a,
+						&act_gact_ops, bind, flags);
 		if (ret) {
-			tcf_idr_cleanup(tn, parm->index);
+			tcf_idr_cleanup(tn, index);
 			return ret;
 		}
 		ret = ACT_P_CREATED;
@@ -159,9 +162,9 @@ static int tcf_gact_act(struct sk_buff *skb, const struct tc_action *a,
 		action = gact_rand[ptype](gact);
 	}
 #endif
-	bstats_cpu_update(this_cpu_ptr(gact->common.cpu_bstats), skb);
+	tcf_action_update_bstats(&gact->common, skb);
 	if (action == TC_ACT_SHOT)
-		qstats_drop_inc(this_cpu_ptr(gact->common.cpu_qstats));
+		tcf_action_inc_drop_qstats(&gact->common);
 
 	tcf_lastuse_update(&gact->tcf_tm);
 
@@ -175,15 +178,7 @@ static void tcf_gact_stats_update(struct tc_action *a, u64 bytes, u32 packets,
 	int action = READ_ONCE(gact->tcf_action);
 	struct tcf_t *tm = &gact->tcf_tm;
 
-	_bstats_cpu_update(this_cpu_ptr(gact->common.cpu_bstats), bytes,
-			   packets);
-	if (action == TC_ACT_SHOT)
-		this_cpu_ptr(gact->common.cpu_qstats)->drops += packets;
-
-	if (hw)
-		_bstats_cpu_update(this_cpu_ptr(gact->common.cpu_bstats_hw),
-				   bytes, packets);
-
+	tcf_action_update_stats(a, bytes, packets, action == TC_ACT_SHOT, hw);
 	tm->lastuse = max_t(u64, tm->lastuse, lastuse);
 }
 
@@ -276,7 +271,7 @@ static __net_init int gact_init_net(struct net *net)
 {
 	struct tc_action_net *tn = net_generic(net, gact_net_id);
 
-	return tc_action_net_init(tn, &act_gact_ops);
+	return tc_action_net_init(net, tn, &act_gact_ops);
 }
 
 static void __net_exit gact_exit_net(struct list_head *net_list)

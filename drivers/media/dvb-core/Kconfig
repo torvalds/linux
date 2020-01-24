@@ -19,7 +19,6 @@ config DVB_MAX_ADAPTERS
 config DVB_DYNAMIC_MINORS
 	bool "Dynamic DVB minor allocation"
 	depends on DVB_CORE
-	default n
 	help
 	  If you say Y here, the DVB subsystem will use dynamic minor
 	  allocation for any device that uses the DVB major number.
@@ -32,7 +31,6 @@ config DVB_DYNAMIC_MINORS
 config DVB_DEMUX_SECTION_LOSS_LOG
 	bool "Enable DVB demux section packet loss log"
 	depends on DVB_CORE
-	default n
 	help
 	  Enable extra log messages meant to detect packet loss
 	  inside the Kernel.
@@ -45,7 +43,6 @@ config DVB_DEMUX_SECTION_LOSS_LOG
 config DVB_ULE_DEBUG
 	bool "Enable DVB net ULE packet debug messages"
 	depends on DVB_CORE
-	default n
 	help
 	  Enable extra log messages meant to detect problems while
 	  handling DVB network ULE packet loss inside the Kernel.

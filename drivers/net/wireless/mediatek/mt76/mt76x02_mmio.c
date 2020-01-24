@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (C) 2016 Felix Fietkau <nbd@nbd.name>
  * Copyright (C) 2018 Lorenzo Bianconi <lorenzo.bianconi83@gmail.com>
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include <linux/kernel.h>
@@ -97,7 +86,8 @@ void mt76x02e_init_beacon_config(struct mt76x02_dev *dev)
 	dev->beacon_ops = &beacon_ops;
 
 	/* Fire a pre-TBTT interrupt 8 ms before TBTT */
-	mt76_rmw_field(dev, MT_INT_TIMER_CFG, MT_INT_TIMER_CFG_PRE_TBTT, 8 << 4);
+	mt76_rmw_field(dev, MT_INT_TIMER_CFG, MT_INT_TIMER_CFG_PRE_TBTT,
+		       8 << 4);
 	mt76_rmw_field(dev, MT_INT_TIMER_CFG, MT_INT_TIMER_CFG_GP_TIMER,
 		       MT_DFS_GP_INTERVAL);
 	mt76_wr(dev, MT_INT_TIMER_EN, 0);
@@ -166,7 +156,8 @@ static void mt76x02_tx_tasklet(unsigned long data)
 
 static int mt76x02_poll_tx(struct napi_struct *napi, int budget)
 {
-	struct mt76x02_dev *dev = container_of(napi, struct mt76x02_dev, tx_napi);
+	struct mt76x02_dev *dev = container_of(napi, struct mt76x02_dev,
+					       mt76.tx_napi);
 	int i;
 
 	mt76x02_mac_poll_tx_status(dev, false);
@@ -200,7 +191,7 @@ int mt76x02_dma_init(struct mt76x02_dev *dev)
 		return -ENOMEM;
 
 	tasklet_init(&dev->mt76.tx_tasklet, mt76x02_tx_tasklet,
-		     (unsigned long) dev);
+		     (unsigned long)dev);
 	tasklet_init(&dev->mt76.pre_tbtt_tasklet, mt76x02_pre_tbtt_tasklet,
 		     (unsigned long)dev);
 
@@ -245,9 +236,9 @@ int mt76x02_dma_init(struct mt76x02_dev *dev)
 	if (ret)
 		return ret;
 
-	netif_tx_napi_add(&dev->mt76.napi_dev, &dev->tx_napi, mt76x02_poll_tx,
-			  NAPI_POLL_WEIGHT);
-	napi_enable(&dev->tx_napi);
+	netif_tx_napi_add(&dev->mt76.napi_dev, &dev->mt76.tx_napi,
+			  mt76x02_poll_tx, NAPI_POLL_WEIGHT);
+	napi_enable(&dev->mt76.tx_napi);
 
 	return 0;
 }
@@ -303,7 +294,7 @@ irqreturn_t mt76x02_irq_handler(int irq, void *dev_instance)
 
 	if (intr & (MT_INT_TX_STAT | MT_INT_TX_DONE_ALL)) {
 		mt76x02_irq_disable(dev, MT_INT_TX_DONE_ALL);
-		napi_schedule(&dev->tx_napi);
+		napi_schedule(&dev->mt76.tx_napi);
 	}
 
 	if (intr & MT_INT_GPTIMER) {
@@ -334,7 +325,6 @@ static void mt76x02_dma_enable(struct mt76x02_dev *dev)
 void mt76x02_dma_cleanup(struct mt76x02_dev *dev)
 {
 	tasklet_kill(&dev->mt76.tx_tasklet);
-	netif_napi_del(&dev->tx_napi);
 	mt76_dma_cleanup(&dev->mt76);
 }
 EXPORT_SYMBOL_GPL(mt76x02_dma_cleanup);
@@ -353,6 +343,7 @@ EXPORT_SYMBOL_GPL(mt76x02_dma_disable);
 
 void mt76x02_mac_start(struct mt76x02_dev *dev)
 {
+	mt76x02_mac_reset_counters(dev);
 	mt76x02_dma_enable(dev);
 	mt76_wr(dev, MT_RX_FILTR_CFG, dev->mt76.rxfilter);
 	mt76_wr(dev, MT_MAC_SYS_CTRL,
@@ -395,12 +386,12 @@ static void mt76x02_key_sync(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct mt76_wcid *wcid;
 
 	if (!sta)
-	    return;
+		return;
 
-	wcid = (struct mt76_wcid *) sta->drv_priv;
+	wcid = (struct mt76_wcid *)sta->drv_priv;
 
 	if (wcid->hw_key_idx != key->keyidx || wcid->sw_iv)
-	    return;
+		return;
 
 	mt76x02_mac_wcid_sync_pn(dev, wcid->idx, key);
 }
@@ -454,7 +445,7 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 
 	tasklet_disable(&dev->mt76.pre_tbtt_tasklet);
 	tasklet_disable(&dev->mt76.tx_tasklet);
-	napi_disable(&dev->tx_napi);
+	napi_disable(&dev->mt76.tx_napi);
 
 	for (i = 0; i < ARRAY_SIZE(dev->mt76.napi); i++)
 		napi_disable(&dev->mt76.napi[i]);
@@ -508,8 +499,8 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 	clear_bit(MT76_RESET, &dev->mt76.state);
 
 	tasklet_enable(&dev->mt76.tx_tasklet);
-	napi_enable(&dev->tx_napi);
-	napi_schedule(&dev->tx_napi);
+	napi_enable(&dev->mt76.tx_napi);
+	napi_schedule(&dev->mt76.tx_napi);
 
 	tasklet_enable(&dev->mt76.pre_tbtt_tasklet);
 

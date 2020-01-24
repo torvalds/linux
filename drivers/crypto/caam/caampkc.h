@@ -89,24 +89,33 @@ struct caam_rsa_key {
  * caam_rsa_ctx - per session context.
  * @key         : RSA key in DMA zone
  * @dev         : device structure
+ * @padding_dma : dma address of padding, for adding it to the input
  */
 struct caam_rsa_ctx {
 	struct caam_rsa_key key;
 	struct device *dev;
+	dma_addr_t padding_dma;
+
 };
 
 /**
  * caam_rsa_req_ctx - per request context.
- * @src: input scatterlist (stripped of leading zeros)
+ * @src           : input scatterlist (stripped of leading zeros)
+ * @fixup_src     : input scatterlist (that might be stripped of leading zeros)
+ * @fixup_src_len : length of the fixup_src input scatterlist
  */
 struct caam_rsa_req_ctx {
 	struct scatterlist src[2];
+	struct scatterlist *fixup_src;
+	unsigned int fixup_src_len;
 };
 
 /**
  * rsa_edesc - s/w-extended rsa descriptor
- * @src_nents     : number of segments in input scatterlist
- * @dst_nents     : number of segments in output scatterlist
+ * @src_nents     : number of segments in input s/w scatterlist
+ * @dst_nents     : number of segments in output s/w scatterlist
+ * @mapped_src_nents: number of segments in input h/w link table
+ * @mapped_dst_nents: number of segments in output h/w link table
  * @sec4_sg_bytes : length of h/w link table
  * @sec4_sg_dma   : dma address of h/w link table
  * @sec4_sg       : pointer to h/w link table
@@ -116,6 +125,8 @@ struct caam_rsa_req_ctx {
 struct rsa_edesc {
 	int src_nents;
 	int dst_nents;
+	int mapped_src_nents;
+	int mapped_dst_nents;
 	int sec4_sg_bytes;
 	dma_addr_t sec4_sg_dma;
 	struct sec4_sg_entry *sec4_sg;

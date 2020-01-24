@@ -56,7 +56,7 @@ instead of ``double-indenting`` the ``case`` labels.  E.g.:
 	case 'K':
 	case 'k':
 		mem <<= 10;
-		/* fall through */
+		fallthrough;
 	default:
 		break;
 	}
@@ -686,7 +686,7 @@ filesystems) should advertise this prominently in their prompt string::
 	...
 
 For full documentation on the configuration files, see the file
-Documentation/kbuild/kconfig-language.txt.
+Documentation/kbuild/kconfig-language.rst.
 
 
 11) Data structures
@@ -988,7 +988,7 @@ Similarly, if you need to calculate the size of some structure member, use
 
 .. code-block:: c
 
-	#define FIELD_SIZEOF(t, f) (sizeof(((t*)0)->f))
+	#define sizeof_field(t, f) (sizeof(((t*)0)->f))
 
 There are also min() and max() macros that do strict type checking if you
 need them.  Feel free to peruse that header file to see what else is already

@@ -1,13 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright 2003 PathScale Inc
  * Derived from include/asm-i386/pgtable.h
- * Licensed under the GPL
  */
 
 #ifndef __UM_PGTABLE_3LEVEL_H
 #define __UM_PGTABLE_3LEVEL_H
 
-#define __ARCH_USE_5LEVEL_HACK
 #include <asm-generic/pgtable-nopud.h>
 
 /* PGDIR_SHIFT determines what a third-level page table entry can map */

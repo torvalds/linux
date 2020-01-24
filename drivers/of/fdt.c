@@ -24,6 +24,7 @@
 #include <linux/debugfs.h>
 #include <linux/serial_core.h>
 #include <linux/sysfs.h>
+#include <linux/random.h>
 
 #include <asm/setup.h>  /* for COMMAND_LINE_SIZE */
 #include <asm/page.h>
@@ -38,7 +39,7 @@
  * memory entries in the /memory node. This function may be called
  * any time after initial_boot_param is set.
  */
-void of_fdt_limit_memory(int limit)
+void __init of_fdt_limit_memory(int limit)
 {
 	int memory;
 	int len;
@@ -78,57 +79,6 @@ void of_fdt_limit_memory(int limit)
 	}
 }
 
-/**
- * of_fdt_is_compatible - Return true if given node from the given blob has
- * compat in its compatible list
- * @blob: A device tree blob
- * @node: node to test
- * @compat: compatible string to compare with compatible list.
- *
- * On match, returns a non-zero value with smaller values returned for more
- * specific compatible values.
- */
-static int of_fdt_is_compatible(const void *blob,
-		      unsigned long node, const char *compat)
-{
-	const char *cp;
-	int cplen;
-	unsigned long l, score = 0;
-
-	cp = fdt_getprop(blob, node, "compatible", &cplen);
-	if (cp == NULL)
-		return 0;
-	while (cplen > 0) {
-		score++;
-		if (of_compat_cmp(cp, compat, strlen(compat)) == 0)
-			return score;
-		l = strlen(cp) + 1;
-		cp += l;
-		cplen -= l;
-	}
-
-	return 0;
-}
-
-/**
- * of_fdt_is_big_endian - Return true if given node needs BE MMIO accesses
- * @blob: A device tree blob
- * @node: node to test
- *
- * Returns true if the node has a "big-endian" property, or if the kernel
- * was compiled for BE *and* the node has a "native-endian" property.
- * Returns false otherwise.
- */
-bool of_fdt_is_big_endian(const void *blob, unsigned long node)
-{
-	if (fdt_getprop(blob, node, "big-endian", NULL))
-		return true;
-	if (IS_ENABLED(CONFIG_CPU_BIG_ENDIAN) &&
-	    fdt_getprop(blob, node, "native-endian", NULL))
-		return true;
-	return false;
-}
-
 static bool of_fdt_device_is_available(const void *blob, unsigned long node)
 {
 	const char *status = fdt_getprop(blob, node, "status", NULL);
@@ -140,27 +90,6 @@ static bool of_fdt_device_is_available(const void *blob, unsigned long node)
 		return true;
 
 	return false;
-}
-
-/**
- * of_fdt_match - Return true if node matches a list of compatible values
- */
-int of_fdt_match(const void *blob, unsigned long node,
-                 const char *const *compat)
-{
-	unsigned int tmp, score = 0;
-
-	if (!compat)
-		return 0;
-
-	while (*compat) {
-		tmp = of_fdt_is_compatible(blob, node, *compat);
-		if (tmp && (score == 0 || (tmp < score)))
-			score = tmp;
-		compat++;
-	}
-
-	return score;
 }
 
 static void *unflatten_dt_alloc(void **mem, unsigned long size,
@@ -483,8 +412,8 @@ void *__unflatten_device_tree(const void *blob,
 	/* Second pass, do actual unflattening */
 	unflatten_dt_nodes(blob, mem, dad, mynodes);
 	if (be32_to_cpup(mem + size) != 0xdeadbeef)
-		pr_warning("End of tree marker overwritten: %08x\n",
-			   be32_to_cpup(mem + size));
+		pr_warn("End of tree marker overwritten: %08x\n",
+			be32_to_cpup(mem + size));
 
 	if (detached && mynodes) {
 		of_node_set_flag(*mynodes, OF_DETACHED);
@@ -535,7 +464,7 @@ EXPORT_SYMBOL_GPL(of_fdt_unflatten_tree);
 int __initdata dt_root_addr_cells;
 int __initdata dt_root_size_cells;
 
-void *initial_boot_params;
+void *initial_boot_params __ro_after_init;
 
 #ifdef CONFIG_OF_EARLY_FLATTREE
 
@@ -551,7 +480,8 @@ static int __init __reserved_mem_reserve_reg(unsigned long node,
 	phys_addr_t base, size;
 	int len;
 	const __be32 *prop;
-	int nomap, first = 1;
+	int first = 1;
+	bool nomap;
 
 	prop = of_get_flat_dt_prop(node, "reg", &len);
 	if (!prop)
@@ -666,7 +596,7 @@ void __init early_init_fdt_scan_reserved_mem(void)
 		fdt_get_mem_rsv(initial_boot_params, n, &base, &size);
 		if (!size)
 			break;
-		early_init_dt_reserve_memory_arch(base, size, 0);
+		early_init_dt_reserve_memory_arch(base, size, false);
 	}
 
 	of_scan_flat_dt(__fdt_scan_reserved_mem, NULL);
@@ -684,7 +614,7 @@ void __init early_init_fdt_reserve_self(void)
 	/* Reserve the dtb region */
 	early_init_dt_reserve_memory_arch(__pa(initial_boot_params),
 					  fdt_totalsize(initial_boot_params),
-					  0);
+					  false);
 }
 
 /**
@@ -758,7 +688,7 @@ int __init of_scan_flat_dt_subnodes(unsigned long parent,
  * @return offset of the subnode, or -FDT_ERR_NOTFOUND if there is none
  */
 
-int of_get_flat_dt_subnode_by_name(unsigned long node, const char *uname)
+int __init of_get_flat_dt_subnode_by_name(unsigned long node, const char *uname)
 {
 	return fdt_subnode_offset(initial_boot_params, node, uname);
 }
@@ -769,14 +699,6 @@ int of_get_flat_dt_subnode_by_name(unsigned long node, const char *uname)
 unsigned long __init of_get_flat_dt_root(void)
 {
 	return 0;
-}
-
-/**
- * of_get_flat_dt_size - Return the total size of the FDT
- */
-int __init of_get_flat_dt_size(void)
-{
-	return fdt_totalsize(initial_boot_params);
 }
 
 /**
@@ -792,6 +714,38 @@ const void *__init of_get_flat_dt_prop(unsigned long node, const char *name,
 }
 
 /**
+ * of_fdt_is_compatible - Return true if given node from the given blob has
+ * compat in its compatible list
+ * @blob: A device tree blob
+ * @node: node to test
+ * @compat: compatible string to compare with compatible list.
+ *
+ * On match, returns a non-zero value with smaller values returned for more
+ * specific compatible values.
+ */
+static int of_fdt_is_compatible(const void *blob,
+		      unsigned long node, const char *compat)
+{
+	const char *cp;
+	int cplen;
+	unsigned long l, score = 0;
+
+	cp = fdt_getprop(blob, node, "compatible", &cplen);
+	if (cp == NULL)
+		return 0;
+	while (cplen > 0) {
+		score++;
+		if (of_compat_cmp(cp, compat, strlen(compat)) == 0)
+			return score;
+		l = strlen(cp) + 1;
+		cp += l;
+		cplen -= l;
+	}
+
+	return 0;
+}
+
+/**
  * of_flat_dt_is_compatible - Return true if given node has compat in compatible list
  * @node: node to test
  * @compat: compatible string to compare with compatible list.
@@ -804,9 +758,21 @@ int __init of_flat_dt_is_compatible(unsigned long node, const char *compat)
 /**
  * of_flat_dt_match - Return true if node matches a list of compatible values
  */
-int __init of_flat_dt_match(unsigned long node, const char *const *compat)
+static int __init of_flat_dt_match(unsigned long node, const char *const *compat)
 {
-	return of_fdt_match(initial_boot_params, node, compat);
+	unsigned int tmp, score = 0;
+
+	if (!compat)
+		return 0;
+
+	while (*compat) {
+		tmp = of_fdt_is_compatible(initial_boot_params, node, *compat);
+		if (tmp && (score == 0 || (tmp < score)))
+			score = tmp;
+		compat++;
+	}
+
+	return score;
 }
 
 /**
@@ -981,8 +947,8 @@ int __init early_init_dt_scan_chosen_stdout(void)
 		if (fdt_node_check_compatible(fdt, offset, match->compatible))
 			continue;
 
-		of_setup_earlycon(match, offset, options);
-		return 0;
+		if (of_setup_earlycon(match, offset, options) == 0)
+			return 0;
 	}
 	return -ENODEV;
 }
@@ -1079,6 +1045,7 @@ int __init early_init_dt_scan_chosen(unsigned long node, const char *uname,
 {
 	int l;
 	const char *p;
+	const void *rng_seed;
 
 	pr_debug("search \"chosen\", depth: %d, uname: %s\n", depth, uname);
 
@@ -1113,6 +1080,18 @@ int __init early_init_dt_scan_chosen(unsigned long node, const char *uname,
 
 	pr_debug("Command line is: %s\n", (char*)data);
 
+	rng_seed = of_get_flat_dt_prop(node, "rng-seed", &l);
+	if (rng_seed && l > 0) {
+		add_bootloader_randomness(rng_seed, l);
+
+		/* try to clear seed so it won't be found. */
+		fdt_nop_property(initial_boot_params, node, "rng-seed");
+
+		/* update CRC check value */
+		of_fdt_crc32 = crc32_be(~0, initial_boot_params,
+				fdt_totalsize(initial_boot_params));
+	}
+
 	/* break now */
 	return 1;
 }
@@ -1141,25 +1120,25 @@ void __init __weak early_init_dt_add_memory_arch(u64 base, u64 size)
 	size &= PAGE_MASK;
 
 	if (base > MAX_MEMBLOCK_ADDR) {
-		pr_warning("Ignoring memory block 0x%llx - 0x%llx\n",
-				base, base + size);
+		pr_warn("Ignoring memory block 0x%llx - 0x%llx\n",
+			base, base + size);
 		return;
 	}
 
 	if (base + size - 1 > MAX_MEMBLOCK_ADDR) {
-		pr_warning("Ignoring memory range 0x%llx - 0x%llx\n",
-				((u64)MAX_MEMBLOCK_ADDR) + 1, base + size);
+		pr_warn("Ignoring memory range 0x%llx - 0x%llx\n",
+			((u64)MAX_MEMBLOCK_ADDR) + 1, base + size);
 		size = MAX_MEMBLOCK_ADDR - base + 1;
 	}
 
 	if (base + size < phys_offset) {
-		pr_warning("Ignoring memory block 0x%llx - 0x%llx\n",
-			   base, base + size);
+		pr_warn("Ignoring memory block 0x%llx - 0x%llx\n",
+			base, base + size);
 		return;
 	}
 	if (base < phys_offset) {
-		pr_warning("Ignoring memory range 0x%llx - 0x%llx\n",
-			   base, phys_offset);
+		pr_warn("Ignoring memory range 0x%llx - 0x%llx\n",
+			base, phys_offset);
 		size -= phys_offset - base;
 		base = phys_offset;
 	}

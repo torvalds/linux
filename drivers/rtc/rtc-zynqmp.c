@@ -44,7 +44,7 @@ struct xlnx_rtc_dev {
 	void __iomem		*reg_base;
 	int			alarm_irq;
 	int			sec_irq;
-	int			calibval;
+	unsigned int		calibval;
 };
 
 static int xlnx_rtc_set_time(struct device *dev, struct rtc_time *tm)
@@ -195,7 +195,6 @@ static irqreturn_t xlnx_rtc_interrupt(int irq, void *id)
 static int xlnx_rtc_probe(struct platform_device *pdev)
 {
 	struct xlnx_rtc_dev *xrtcdev;
-	struct resource *res;
 	int ret;
 
 	xrtcdev = devm_kzalloc(&pdev->dev, sizeof(*xrtcdev), GFP_KERNEL);
@@ -211,17 +210,13 @@ static int xlnx_rtc_probe(struct platform_device *pdev)
 	xrtcdev->rtc->ops = &xlnx_rtc_ops;
 	xrtcdev->rtc->range_max = U32_MAX;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
-	xrtcdev->reg_base = devm_ioremap_resource(&pdev->dev, res);
+	xrtcdev->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(xrtcdev->reg_base))
 		return PTR_ERR(xrtcdev->reg_base);
 
 	xrtcdev->alarm_irq = platform_get_irq_byname(pdev, "alarm");
-	if (xrtcdev->alarm_irq < 0) {
-		dev_err(&pdev->dev, "no irq resource\n");
+	if (xrtcdev->alarm_irq < 0)
 		return xrtcdev->alarm_irq;
-	}
 	ret = devm_request_irq(&pdev->dev, xrtcdev->alarm_irq,
 			       xlnx_rtc_interrupt, 0,
 			       dev_name(&pdev->dev), xrtcdev);
@@ -231,10 +226,8 @@ static int xlnx_rtc_probe(struct platform_device *pdev)
 	}
 
 	xrtcdev->sec_irq = platform_get_irq_byname(pdev, "sec");
-	if (xrtcdev->sec_irq < 0) {
-		dev_err(&pdev->dev, "no irq resource\n");
+	if (xrtcdev->sec_irq < 0)
 		return xrtcdev->sec_irq;
-	}
 	ret = devm_request_irq(&pdev->dev, xrtcdev->sec_irq,
 			       xlnx_rtc_interrupt, 0,
 			       dev_name(&pdev->dev), xrtcdev);

@@ -558,7 +558,7 @@ static unsigned long mremap_to(unsigned long addr, unsigned long old_len,
 	ret = get_unmapped_area(vma->vm_file, new_addr, new_len, vma->vm_pgoff +
 				((addr - vma->vm_start) >> PAGE_SHIFT),
 				map_flags);
-	if (offset_in_page(ret))
+	if (IS_ERR_VALUE(ret))
 		goto out1;
 
 	ret = move_vma(vma, addr, old_len, new_len, new_addr, locked, uf,
@@ -605,6 +605,9 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
 	struct vm_userfaultfd_ctx uf = NULL_VM_UFFD_CTX;
 	LIST_HEAD(uf_unmap_early);
 	LIST_HEAD(uf_unmap);
+
+	addr = untagged_addr(addr);
+	new_addr = untagged_addr(new_addr);
 
 	if (flags & ~(MREMAP_FIXED | MREMAP_MAYMOVE))
 		return ret;
@@ -703,7 +706,7 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
 					vma->vm_pgoff +
 					((addr - vma->vm_start) >> PAGE_SHIFT),
 					map_flags);
-		if (offset_in_page(new_addr)) {
+		if (IS_ERR_VALUE(new_addr)) {
 			ret = new_addr;
 			goto out;
 		}

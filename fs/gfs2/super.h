@@ -24,8 +24,6 @@ static inline unsigned int gfs2_jindex_size(struct gfs2_sbd *sdp)
 
 extern void gfs2_jindex_free(struct gfs2_sbd *sdp);
 
-extern int gfs2_mount_args(struct gfs2_args *args, char *data);
-
 extern struct gfs2_jdesc *gfs2_jdesc_find(struct gfs2_sbd *sdp, unsigned int jid);
 extern int gfs2_jdesc_check(struct gfs2_jdesc *jd);
 
@@ -33,6 +31,7 @@ extern int gfs2_lookup_in_master_dir(struct gfs2_sbd *sdp, char *filename,
 				     struct gfs2_inode **ipp);
 
 extern int gfs2_make_fs_rw(struct gfs2_sbd *sdp);
+extern int gfs2_make_fs_ro(struct gfs2_sbd *sdp);
 extern void gfs2_online_uevent(struct gfs2_sbd *sdp);
 extern int gfs2_statfs_init(struct gfs2_sbd *sdp);
 extern void gfs2_statfs_change(struct gfs2_sbd *sdp, s64 total, s64 free,
@@ -43,6 +42,8 @@ extern void update_statfs(struct gfs2_sbd *sdp, struct buffer_head *m_bh,
 			  struct buffer_head *l_bh);
 extern int gfs2_statfs_sync(struct super_block *sb, int type);
 extern void gfs2_freeze_func(struct work_struct *work);
+
+extern void free_sbd(struct gfs2_sbd *sdp);
 
 extern struct file_system_type gfs2_fs_type;
 extern struct file_system_type gfs2meta_fs_type;

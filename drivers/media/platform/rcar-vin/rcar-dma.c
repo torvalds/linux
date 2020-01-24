@@ -111,10 +111,14 @@
 #define VNIE_EFE		(1 << 1)
 
 /* Video n Data Mode Register bits */
+#define VNDMR_A8BIT(n)		(((n) & 0xff) << 24)
+#define VNDMR_A8BIT_MASK	(0xff << 24)
 #define VNDMR_EXRGB		(1 << 8)
 #define VNDMR_BPSM		(1 << 4)
+#define VNDMR_ABIT		(1 << 2)
 #define VNDMR_DTMD_YCSEP	(1 << 1)
-#define VNDMR_DTMD_ARGB1555	(1 << 0)
+#define VNDMR_DTMD_ARGB		(1 << 0)
+#define VNDMR_DTMD_YCSEP_420	(3 << 0)
 
 /* Video n Data Mode Register 2 bits */
 #define VNDMR2_VPS		(1 << 30)
@@ -526,12 +530,17 @@ static void rvin_set_coeff(struct rvin_dev *vin, unsigned short xs)
 
 static void rvin_crop_scale_comp_gen2(struct rvin_dev *vin)
 {
+	unsigned int crop_height;
 	u32 xs, ys;
 
 	/* Set scaling coefficient */
+	crop_height = vin->crop.height;
+	if (V4L2_FIELD_IS_INTERLACED(vin->format.field))
+		crop_height *= 2;
+
 	ys = 0;
-	if (vin->crop.height != vin->compose.height)
-		ys = (4096 * vin->crop.height) / vin->compose.height;
+	if (crop_height != vin->compose.height)
+		ys = (4096 * crop_height) / vin->compose.height;
 	rvin_write(vin, ys, VNYS_REG);
 
 	xs = 0;
@@ -554,16 +563,11 @@ static void rvin_crop_scale_comp_gen2(struct rvin_dev *vin)
 	rvin_write(vin, 0, VNSPPOC_REG);
 	rvin_write(vin, 0, VNSLPOC_REG);
 	rvin_write(vin, vin->format.width - 1, VNEPPOC_REG);
-	switch (vin->format.field) {
-	case V4L2_FIELD_INTERLACED:
-	case V4L2_FIELD_INTERLACED_TB:
-	case V4L2_FIELD_INTERLACED_BT:
+
+	if (V4L2_FIELD_IS_INTERLACED(vin->format.field))
 		rvin_write(vin, vin->format.height / 2 - 1, VNELPOC_REG);
-		break;
-	default:
+	else
 		rvin_write(vin, vin->format.height - 1, VNELPOC_REG);
-		break;
-	}
 
 	vin_dbg(vin,
 		"Pre-Clip: %ux%u@%u:%u YS: %d XS: %d Post-Clip: %ux%u@%u:%u\n",
@@ -574,33 +578,23 @@ static void rvin_crop_scale_comp_gen2(struct rvin_dev *vin)
 
 void rvin_crop_scale_comp(struct rvin_dev *vin)
 {
+	const struct rvin_video_format *fmt;
+	u32 stride;
+
 	/* Set Start/End Pixel/Line Pre-Clip */
 	rvin_write(vin, vin->crop.left, VNSPPRC_REG);
 	rvin_write(vin, vin->crop.left + vin->crop.width - 1, VNEPPRC_REG);
+	rvin_write(vin, vin->crop.top, VNSLPRC_REG);
+	rvin_write(vin, vin->crop.top + vin->crop.height - 1, VNELPRC_REG);
 
-	switch (vin->format.field) {
-	case V4L2_FIELD_INTERLACED:
-	case V4L2_FIELD_INTERLACED_TB:
-	case V4L2_FIELD_INTERLACED_BT:
-		rvin_write(vin, vin->crop.top / 2, VNSLPRC_REG);
-		rvin_write(vin, (vin->crop.top + vin->crop.height) / 2 - 1,
-			   VNELPRC_REG);
-		break;
-	default:
-		rvin_write(vin, vin->crop.top, VNSLPRC_REG);
-		rvin_write(vin, vin->crop.top + vin->crop.height - 1,
-			   VNELPRC_REG);
-		break;
-	}
 
 	/* TODO: Add support for the UDS scaler. */
 	if (vin->info->model != RCAR_GEN3)
 		rvin_crop_scale_comp_gen2(vin);
 
-	if (vin->format.pixelformat == V4L2_PIX_FMT_NV16)
-		rvin_write(vin, ALIGN(vin->format.width, 0x20), VNIS_REG);
-	else
-		rvin_write(vin, ALIGN(vin->format.width, 0x10), VNIS_REG);
+	fmt = rvin_format_from_pixel(vin, vin->format.pixelformat);
+	stride = vin->format.bytesperline / fmt->bpp;
+	rvin_write(vin, stride, VNIS_REG);
 }
 
 /* -----------------------------------------------------------------------------
@@ -635,6 +629,9 @@ static int rvin_setup(struct rvin_dev *vin)
 	case V4L2_FIELD_NONE:
 		vnmc = VNMC_IM_ODD_EVEN;
 		progressive = true;
+		break;
+	case V4L2_FIELD_ALTERNATE:
+		vnmc = VNMC_IM_ODD_EVEN;
 		break;
 	default:
 		vnmc = VNMC_IM_ODD;
@@ -705,11 +702,13 @@ static int rvin_setup(struct rvin_dev *vin)
 	 * Output format
 	 */
 	switch (vin->format.pixelformat) {
+	case V4L2_PIX_FMT_NV12:
 	case V4L2_PIX_FMT_NV16:
 		rvin_write(vin,
-			   ALIGN(vin->format.width * vin->format.height, 0x80),
-			   VNUVAOF_REG);
-		dmr = VNDMR_DTMD_YCSEP;
+			   ALIGN(vin->format.bytesperline * vin->format.height,
+				 0x80), VNUVAOF_REG);
+		dmr = vin->format.pixelformat == V4L2_PIX_FMT_NV12 ?
+			VNDMR_DTMD_YCSEP_420 : VNDMR_DTMD_YCSEP;
 		output_is_yuv = true;
 		break;
 	case V4L2_PIX_FMT_YUYV:
@@ -721,7 +720,7 @@ static int rvin_setup(struct rvin_dev *vin)
 		output_is_yuv = true;
 		break;
 	case V4L2_PIX_FMT_XRGB555:
-		dmr = VNDMR_DTMD_ARGB1555;
+		dmr = VNDMR_DTMD_ARGB;
 		break;
 	case V4L2_PIX_FMT_RGB565:
 		dmr = 0;
@@ -729,6 +728,12 @@ static int rvin_setup(struct rvin_dev *vin)
 	case V4L2_PIX_FMT_XBGR32:
 		/* Note: not supported on M1 */
 		dmr = VNDMR_EXRGB;
+		break;
+	case V4L2_PIX_FMT_ARGB555:
+		dmr = (vin->alpha ? VNDMR_ABIT : 0) | VNDMR_DTMD_ARGB;
+		break;
+	case V4L2_PIX_FMT_ABGR32:
+		dmr = VNDMR_A8BIT(vin->alpha) | VNDMR_EXRGB | VNDMR_DTMD_ARGB;
 		break;
 	default:
 		vin_err(vin, "Invalid pixelformat (0x%x)\n",
@@ -788,13 +793,25 @@ static bool rvin_capture_active(struct rvin_dev *vin)
 	return rvin_read(vin, VNMS_REG) & VNMS_CA;
 }
 
+static enum v4l2_field rvin_get_active_field(struct rvin_dev *vin, u32 vnms)
+{
+	if (vin->format.field == V4L2_FIELD_ALTERNATE) {
+		/* If FS is set it is an Even field. */
+		if (vnms & VNMS_FS)
+			return V4L2_FIELD_BOTTOM;
+		return V4L2_FIELD_TOP;
+	}
+
+	return vin->format.field;
+}
+
 static void rvin_set_slot_addr(struct rvin_dev *vin, int slot, dma_addr_t addr)
 {
 	const struct rvin_video_format *fmt;
 	int offsetx, offsety;
 	dma_addr_t offset;
 
-	fmt = rvin_format_from_pixel(vin->format.pixelformat);
+	fmt = rvin_format_from_pixel(vin, vin->format.pixelformat);
 
 	/*
 	 * There is no HW support for composition do the beast we can
@@ -937,7 +954,7 @@ static irqreturn_t rvin_irq(int irq, void *data)
 
 	/* Capture frame */
 	if (vin->queue_buf[slot]) {
-		vin->queue_buf[slot]->field = vin->format.field;
+		vin->queue_buf[slot]->field = rvin_get_active_field(vin, vnms);
 		vin->queue_buf[slot]->sequence = vin->sequence;
 		vin->queue_buf[slot]->vb2_buf.timestamp = ktime_get_ns();
 		vb2_buffer_done(&vin->queue_buf[slot]->vb2_buf,
@@ -1064,6 +1081,7 @@ static int rvin_mc_validate_format(struct rvin_dev *vin, struct v4l2_subdev *sd,
 		case V4L2_FIELD_TOP:
 		case V4L2_FIELD_BOTTOM:
 		case V4L2_FIELD_NONE:
+		case V4L2_FIELD_ALTERNATE:
 			break;
 		case V4L2_FIELD_INTERLACED_TB:
 		case V4L2_FIELD_INTERLACED_BT:
@@ -1342,4 +1360,35 @@ int rvin_set_channel_routing(struct rvin_dev *vin, u8 chsel)
 	pm_runtime_put(vin->dev);
 
 	return 0;
+}
+
+void rvin_set_alpha(struct rvin_dev *vin, unsigned int alpha)
+{
+	unsigned long flags;
+	u32 dmr;
+
+	spin_lock_irqsave(&vin->qlock, flags);
+
+	vin->alpha = alpha;
+
+	if (vin->state == STOPPED)
+		goto out;
+
+	switch (vin->format.pixelformat) {
+	case V4L2_PIX_FMT_ARGB555:
+		dmr = rvin_read(vin, VNDMR_REG) & ~VNDMR_ABIT;
+		if (vin->alpha)
+			dmr |= VNDMR_ABIT;
+		break;
+	case V4L2_PIX_FMT_ABGR32:
+		dmr = rvin_read(vin, VNDMR_REG) & ~VNDMR_A8BIT_MASK;
+		dmr |= VNDMR_A8BIT(vin->alpha);
+		break;
+	default:
+		goto out;
+	}
+
+	rvin_write(vin, dmr,  VNDMR_REG);
+out:
+	spin_unlock_irqrestore(&vin->qlock, flags);
 }

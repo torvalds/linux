@@ -443,11 +443,31 @@ int dprc_get_obj_region(struct fsl_mc_io *mc_io,
 	struct fsl_mc_command cmd = { 0 };
 	struct dprc_cmd_get_obj_region *cmd_params;
 	struct dprc_rsp_get_obj_region *rsp_params;
+	u16 major_ver, minor_ver;
 	int err;
 
 	/* prepare command */
-	cmd.header = mc_encode_cmd_header(DPRC_CMDID_GET_OBJ_REG,
-					  cmd_flags, token);
+	err = dprc_get_api_version(mc_io, 0,
+				     &major_ver,
+				     &minor_ver);
+	if (err)
+		return err;
+
+	/**
+	 * MC API version 6.3 introduced a new field to the region
+	 * descriptor: base_address. If the older API is in use then the base
+	 * address is set to zero to indicate it needs to be obtained elsewhere
+	 * (typically the device tree).
+	 */
+	if (major_ver > 6 || (major_ver == 6 && minor_ver >= 3))
+		cmd.header =
+			mc_encode_cmd_header(DPRC_CMDID_GET_OBJ_REG_V2,
+					     cmd_flags, token);
+	else
+		cmd.header =
+			mc_encode_cmd_header(DPRC_CMDID_GET_OBJ_REG,
+					     cmd_flags, token);
+
 	cmd_params = (struct dprc_cmd_get_obj_region *)cmd.params;
 	cmd_params->obj_id = cpu_to_le32(obj_id);
 	cmd_params->region_index = region_index;
@@ -461,8 +481,12 @@ int dprc_get_obj_region(struct fsl_mc_io *mc_io,
 
 	/* retrieve response parameters */
 	rsp_params = (struct dprc_rsp_get_obj_region *)cmd.params;
-	region_desc->base_offset = le64_to_cpu(rsp_params->base_addr);
+	region_desc->base_offset = le64_to_cpu(rsp_params->base_offset);
 	region_desc->size = le32_to_cpu(rsp_params->size);
+	if (major_ver > 6 || (major_ver == 6 && minor_ver >= 3))
+		region_desc->base_address = le64_to_cpu(rsp_params->base_addr);
+	else
+		region_desc->base_address = 0;
 
 	return 0;
 }
@@ -527,6 +551,59 @@ int dprc_get_container_id(struct fsl_mc_io *mc_io,
 
 	/* retrieve response parameters */
 	*container_id = (int)mc_cmd_read_object_id(&cmd);
+
+	return 0;
+}
+
+/**
+ * dprc_get_connection() - Get connected endpoint and link status if connection
+ *			exists.
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPRC object
+ * @endpoint1:	Endpoint 1 configuration parameters
+ * @endpoint2:	Returned endpoint 2 configuration parameters
+ * @state:	Returned link state:
+ *		1 - link is up;
+ *		0 - link is down;
+ *		-1 - no connection (endpoint2 information is irrelevant)
+ *
+ * Return:     '0' on Success; -ENOTCONN if connection does not exist.
+ */
+int dprc_get_connection(struct fsl_mc_io *mc_io,
+			u32 cmd_flags,
+			u16 token,
+			const struct dprc_endpoint *endpoint1,
+			struct dprc_endpoint *endpoint2,
+			int *state)
+{
+	struct dprc_cmd_get_connection *cmd_params;
+	struct dprc_rsp_get_connection *rsp_params;
+	struct fsl_mc_command cmd = { 0 };
+	int err, i;
+
+	/* prepare command */
+	cmd.header = mc_encode_cmd_header(DPRC_CMDID_GET_CONNECTION,
+					  cmd_flags,
+					  token);
+	cmd_params = (struct dprc_cmd_get_connection *)cmd.params;
+	cmd_params->ep1_id = cpu_to_le32(endpoint1->id);
+	cmd_params->ep1_interface_id = cpu_to_le16(endpoint1->if_id);
+	for (i = 0; i < 16; i++)
+		cmd_params->ep1_type[i] = endpoint1->type[i];
+
+	/* send command to mc */
+	err = mc_send_command(mc_io, &cmd);
+	if (err)
+		return -ENOTCONN;
+
+	/* retrieve response parameters */
+	rsp_params = (struct dprc_rsp_get_connection *)cmd.params;
+	endpoint2->id = le32_to_cpu(rsp_params->ep2_id);
+	endpoint2->if_id = le16_to_cpu(rsp_params->ep2_interface_id);
+	*state = le32_to_cpu(rsp_params->state);
+	for (i = 0; i < 16; i++)
+		endpoint2->type[i] = rsp_params->ep2_type[i];
 
 	return 0;
 }

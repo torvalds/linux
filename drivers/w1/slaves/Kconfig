@@ -74,6 +74,14 @@ config W1_SLAVE_DS2805
           organized as 7 pages of 16 bytes each with 64bit
           unique number. Requires OverDrive Speed to talk to.
 
+config W1_SLAVE_DS2430
+	tristate "256b EEPROM family support (DS2430)"
+	help
+	  Say Y here if you want to use a 1-wire 256bit EEPROM
+	  family device (DS2430).
+	  This EEPROM is organized as one page of 32 bytes for random
+	  access.
+
 config W1_SLAVE_DS2431
 	tristate "1kb EEPROM family support (DS2431)"
 	help
@@ -100,6 +108,13 @@ config W1_SLAVE_DS2438
 	help
 	  Say Y here if you want to use a 1-wire
 	  DS2438 Smart Battery Monitor device support
+
+config W1_SLAVE_DS250X
+	tristate "512b/1kb/16kb EPROM family support"
+	select CRC16
+	help
+	  Say Y here if you want to use a 1-wire
+	  512b/1kb/16kb EPROM family device (DS250x).
 
 config W1_SLAVE_DS2780
 	tristate "Dallas 2780 battery monitor chip"

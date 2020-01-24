@@ -9,6 +9,8 @@ Required properties:
 - compatible : Shall contain one of
   - "renesas,r8a7743-lvds" for R8A7743 (RZ/G1M) compatible LVDS encoders
   - "renesas,r8a7744-lvds" for R8A7744 (RZ/G1N) compatible LVDS encoders
+  - "renesas,r8a774a1-lvds" for R8A774A1 (RZ/G2M) compatible LVDS encoders
+  - "renesas,r8a774b1-lvds" for R8A774B1 (RZ/G2N) compatible LVDS encoders
   - "renesas,r8a774c0-lvds" for R8A774C0 (RZ/G2E) compatible LVDS encoders
   - "renesas,r8a7790-lvds" for R8A7790 (R-Car H2) compatible LVDS encoders
   - "renesas,r8a7791-lvds" for R8A7791 (R-Car M2-W) compatible LVDS encoders
@@ -45,14 +47,24 @@ OF graph bindings specified in Documentation/devicetree/bindings/graph.txt.
 
 Each port shall have a single endpoint.
 
+Optional properties:
+
+- renesas,companion : phandle to the companion LVDS encoder. This property is
+  mandatory for the first LVDS encoder on D3 and E3 SoCs, and shall point to
+  the second encoder to be used as a companion in dual-link mode. It shall not
+  be set for any other LVDS encoder.
+
 
 Example:
 
 	lvds0: lvds@feb90000 {
-		compatible = "renesas,r8a7790-lvds";
-		reg = <0 0xfeb90000 0 0x1c>;
-		clocks = <&cpg CPG_MOD 726>;
-		resets = <&cpg 726>;
+		compatible = "renesas,r8a77990-lvds";
+		reg = <0 0xfeb90000 0 0x20>;
+		clocks = <&cpg CPG_MOD 727>;
+		power-domains = <&sysc R8A77990_PD_ALWAYS_ON>;
+		resets = <&cpg 727>;
+
+		renesas,companion = <&lvds1>;
 
 		ports {
 			#address-cells = <1>;

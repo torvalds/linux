@@ -9,10 +9,12 @@ rtw88-y += main.o \
 	   rx.o \
 	   mac.o \
 	   phy.o \
+	   coex.o \
 	   efuse.o \
 	   fw.o \
 	   ps.o \
 	   sec.o \
+	   bf.o \
 	   regd.o
 
 rtw88-$(CONFIG_RTW88_8822BE)	+= rtw8822b.o rtw8822b_table.o

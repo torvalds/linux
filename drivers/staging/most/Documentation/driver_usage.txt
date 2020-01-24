@@ -42,7 +42,7 @@ the attached network interface controller hardware. Hence, a given module
 of this layer is designed to handle exactly one of the peripheral
 interfaces (e.g. USB, MediaLB, I2C) the hardware provides.
 
-A module of the application layer is referred to as a core comoponent,
+A module of the application layer is referred to as a core component,
 which kind of extends the core by providing connectivity to the user space.
 Applications, then, can access a MOST network via character devices, an
 ALSA soundcard, a Network adapter or a V4L2 capture device.
@@ -119,7 +119,7 @@ following components are available
 
 The driver is to be configured via configfs. Each loaded component kernel
 object (see section 1.3) registers a subsystem with configfs, which is used to
-configure and establish communiction pathways (links) to attached devices on
+configure and establish communication pathways (links) to attached devices on
 the bus. To do so, the user has to descend into the component's configuration
 directory and create a new directory (child config itmes). The name of this
 directory will be used as a reference for the link and it will contain the
@@ -137,12 +137,12 @@ following attributes:
 	- direction
 	  configure whether this link will be an input or output
 	- dbr_size
-	  configure DBR data buffer size (this is used for MediaLB communiction
+	  configure DBR data buffer size (this is used for MediaLB communication
 	  only)
 	- packets_per_xact
 	  configure the number of packets that will be collected from the
 	  network before being transmitted via USB (this is used for USB
-	  communiction only)
+	  communication only)
 	- device
 	  name of the device the link is to be attached to
 	- channel

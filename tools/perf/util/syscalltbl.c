@@ -10,9 +10,9 @@
 #include <linux/compiler.h>
 
 #ifdef HAVE_SYSCALL_TABLE_SUPPORT
+#include <linux/zalloc.h>
 #include <string.h>
 #include "string2.h"
-#include "util.h"
 
 #if defined(__x86_64__)
 #include <asm/syscalls_64.c>
@@ -79,6 +79,7 @@ static int syscalltbl__init_native(struct syscalltbl *tbl)
 
 	qsort(tbl->syscalls.entries, nr_entries, sizeof(struct syscall), syscallcmp);
 	tbl->syscalls.nr_entries = nr_entries;
+	tbl->syscalls.max_id	 = syscalltbl_native_max_id;
 	return 0;
 }
 

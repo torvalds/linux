@@ -43,15 +43,15 @@
 
 
 /* Trace certain actions in the driver */
-#define PWC_DEBUG_LEVEL_MODULE	(1<<0)
-#define PWC_DEBUG_LEVEL_PROBE	(1<<1)
-#define PWC_DEBUG_LEVEL_OPEN	(1<<2)
-#define PWC_DEBUG_LEVEL_READ	(1<<3)
-#define PWC_DEBUG_LEVEL_MEMORY	(1<<4)
-#define PWC_DEBUG_LEVEL_FLOW	(1<<5)
-#define PWC_DEBUG_LEVEL_SIZE	(1<<6)
-#define PWC_DEBUG_LEVEL_IOCTL	(1<<7)
-#define PWC_DEBUG_LEVEL_TRACE	(1<<8)
+#define PWC_DEBUG_LEVEL_MODULE	BIT(0)
+#define PWC_DEBUG_LEVEL_PROBE	BIT(1)
+#define PWC_DEBUG_LEVEL_OPEN	BIT(2)
+#define PWC_DEBUG_LEVEL_READ	BIT(3)
+#define PWC_DEBUG_LEVEL_MEMORY	BIT(4)
+#define PWC_DEBUG_LEVEL_FLOW	BIT(5)
+#define PWC_DEBUG_LEVEL_SIZE	BIT(6)
+#define PWC_DEBUG_LEVEL_IOCTL	BIT(7)
+#define PWC_DEBUG_LEVEL_TRACE	BIT(8)
 
 #define PWC_DEBUG_MODULE(fmt, args...) PWC_DEBUG(MODULE, fmt, ##args)
 #define PWC_DEBUG_PROBE(fmt, args...) PWC_DEBUG(PROBE, fmt, ##args)

@@ -187,10 +187,8 @@ static int arc_ps2_probe(struct platform_device *pdev)
 	int error, id, i;
 
 	irq = platform_get_irq_byname(pdev, "arc_ps2_irq");
-	if (irq < 0) {
-		dev_err(&pdev->dev, "no IRQ defined\n");
+	if (irq < 0)
 		return -EINVAL;
-	}
 
 	arc_ps2 = devm_kzalloc(&pdev->dev, sizeof(struct arc_ps2_data),
 				GFP_KERNEL);

@@ -160,6 +160,11 @@ static struct policydb_compat_info policydb_compat[] = {
 		.sym_num	= SYM_NUM,
 		.ocon_num	= OCON_NUM,
 	},
+	{
+		.version	= POLICYDB_VERSION_GLBLUB,
+		.sym_num	= SYM_NUM,
+		.ocon_num	= OCON_NUM,
+	},
 };
 
 static struct policydb_compat_info *policydb_lookup_compat(int version)
@@ -174,393 +179,6 @@ static struct policydb_compat_info *policydb_lookup_compat(int version)
 		}
 	}
 	return info;
-}
-
-/*
- * Initialize the role table.
- */
-static int roles_init(struct policydb *p)
-{
-	char *key = NULL;
-	int rc;
-	struct role_datum *role;
-
-	role = kzalloc(sizeof(*role), GFP_KERNEL);
-	if (!role)
-		return -ENOMEM;
-
-	rc = -EINVAL;
-	role->value = ++p->p_roles.nprim;
-	if (role->value != OBJECT_R_VAL)
-		goto out;
-
-	rc = -ENOMEM;
-	key = kstrdup(OBJECT_R, GFP_KERNEL);
-	if (!key)
-		goto out;
-
-	rc = hashtab_insert(p->p_roles.table, key, role);
-	if (rc)
-		goto out;
-
-	return 0;
-out:
-	kfree(key);
-	kfree(role);
-	return rc;
-}
-
-static u32 filenametr_hash(struct hashtab *h, const void *k)
-{
-	const struct filename_trans *ft = k;
-	unsigned long hash;
-	unsigned int byte_num;
-	unsigned char focus;
-
-	hash = ft->stype ^ ft->ttype ^ ft->tclass;
-
-	byte_num = 0;
-	while ((focus = ft->name[byte_num++]))
-		hash = partial_name_hash(focus, hash);
-	return hash & (h->size - 1);
-}
-
-static int filenametr_cmp(struct hashtab *h, const void *k1, const void *k2)
-{
-	const struct filename_trans *ft1 = k1;
-	const struct filename_trans *ft2 = k2;
-	int v;
-
-	v = ft1->stype - ft2->stype;
-	if (v)
-		return v;
-
-	v = ft1->ttype - ft2->ttype;
-	if (v)
-		return v;
-
-	v = ft1->tclass - ft2->tclass;
-	if (v)
-		return v;
-
-	return strcmp(ft1->name, ft2->name);
-
-}
-
-static u32 rangetr_hash(struct hashtab *h, const void *k)
-{
-	const struct range_trans *key = k;
-	return (key->source_type + (key->target_type << 3) +
-		(key->target_class << 5)) & (h->size - 1);
-}
-
-static int rangetr_cmp(struct hashtab *h, const void *k1, const void *k2)
-{
-	const struct range_trans *key1 = k1, *key2 = k2;
-	int v;
-
-	v = key1->source_type - key2->source_type;
-	if (v)
-		return v;
-
-	v = key1->target_type - key2->target_type;
-	if (v)
-		return v;
-
-	v = key1->target_class - key2->target_class;
-
-	return v;
-}
-
-/*
- * Initialize a policy database structure.
- */
-static int policydb_init(struct policydb *p)
-{
-	int i, rc;
-
-	memset(p, 0, sizeof(*p));
-
-	for (i = 0; i < SYM_NUM; i++) {
-		rc = symtab_init(&p->symtab[i], symtab_sizes[i]);
-		if (rc)
-			goto out;
-	}
-
-	rc = avtab_init(&p->te_avtab);
-	if (rc)
-		goto out;
-
-	rc = roles_init(p);
-	if (rc)
-		goto out;
-
-	rc = cond_policydb_init(p);
-	if (rc)
-		goto out;
-
-	p->filename_trans = hashtab_create(filenametr_hash, filenametr_cmp, (1 << 10));
-	if (!p->filename_trans) {
-		rc = -ENOMEM;
-		goto out;
-	}
-
-	p->range_tr = hashtab_create(rangetr_hash, rangetr_cmp, 256);
-	if (!p->range_tr) {
-		rc = -ENOMEM;
-		goto out;
-	}
-
-	ebitmap_init(&p->filename_trans_ttypes);
-	ebitmap_init(&p->policycaps);
-	ebitmap_init(&p->permissive_map);
-
-	return 0;
-out:
-	hashtab_destroy(p->filename_trans);
-	hashtab_destroy(p->range_tr);
-	for (i = 0; i < SYM_NUM; i++)
-		hashtab_destroy(p->symtab[i].table);
-	return rc;
-}
-
-/*
- * The following *_index functions are used to
- * define the val_to_name and val_to_struct arrays
- * in a policy database structure.  The val_to_name
- * arrays are used when converting security context
- * structures into string representations.  The
- * val_to_struct arrays are used when the attributes
- * of a class, role, or user are needed.
- */
-
-static int common_index(void *key, void *datum, void *datap)
-{
-	struct policydb *p;
-	struct common_datum *comdatum;
-
-	comdatum = datum;
-	p = datap;
-	if (!comdatum->value || comdatum->value > p->p_commons.nprim)
-		return -EINVAL;
-
-	p->sym_val_to_name[SYM_COMMONS][comdatum->value - 1] = key;
-
-	return 0;
-}
-
-static int class_index(void *key, void *datum, void *datap)
-{
-	struct policydb *p;
-	struct class_datum *cladatum;
-
-	cladatum = datum;
-	p = datap;
-	if (!cladatum->value || cladatum->value > p->p_classes.nprim)
-		return -EINVAL;
-
-	p->sym_val_to_name[SYM_CLASSES][cladatum->value - 1] = key;
-	p->class_val_to_struct[cladatum->value - 1] = cladatum;
-	return 0;
-}
-
-static int role_index(void *key, void *datum, void *datap)
-{
-	struct policydb *p;
-	struct role_datum *role;
-
-	role = datum;
-	p = datap;
-	if (!role->value
-	    || role->value > p->p_roles.nprim
-	    || role->bounds > p->p_roles.nprim)
-		return -EINVAL;
-
-	p->sym_val_to_name[SYM_ROLES][role->value - 1] = key;
-	p->role_val_to_struct[role->value - 1] = role;
-	return 0;
-}
-
-static int type_index(void *key, void *datum, void *datap)
-{
-	struct policydb *p;
-	struct type_datum *typdatum;
-
-	typdatum = datum;
-	p = datap;
-
-	if (typdatum->primary) {
-		if (!typdatum->value
-		    || typdatum->value > p->p_types.nprim
-		    || typdatum->bounds > p->p_types.nprim)
-			return -EINVAL;
-		p->sym_val_to_name[SYM_TYPES][typdatum->value - 1] = key;
-		p->type_val_to_struct_array[typdatum->value - 1] = typdatum;
-	}
-
-	return 0;
-}
-
-static int user_index(void *key, void *datum, void *datap)
-{
-	struct policydb *p;
-	struct user_datum *usrdatum;
-
-	usrdatum = datum;
-	p = datap;
-	if (!usrdatum->value
-	    || usrdatum->value > p->p_users.nprim
-	    || usrdatum->bounds > p->p_users.nprim)
-		return -EINVAL;
-
-	p->sym_val_to_name[SYM_USERS][usrdatum->value - 1] = key;
-	p->user_val_to_struct[usrdatum->value - 1] = usrdatum;
-	return 0;
-}
-
-static int sens_index(void *key, void *datum, void *datap)
-{
-	struct policydb *p;
-	struct level_datum *levdatum;
-
-	levdatum = datum;
-	p = datap;
-
-	if (!levdatum->isalias) {
-		if (!levdatum->level->sens ||
-		    levdatum->level->sens > p->p_levels.nprim)
-			return -EINVAL;
-
-		p->sym_val_to_name[SYM_LEVELS][levdatum->level->sens - 1] = key;
-	}
-
-	return 0;
-}
-
-static int cat_index(void *key, void *datum, void *datap)
-{
-	struct policydb *p;
-	struct cat_datum *catdatum;
-
-	catdatum = datum;
-	p = datap;
-
-	if (!catdatum->isalias) {
-		if (!catdatum->value || catdatum->value > p->p_cats.nprim)
-			return -EINVAL;
-
-		p->sym_val_to_name[SYM_CATS][catdatum->value - 1] = key;
-	}
-
-	return 0;
-}
-
-static int (*index_f[SYM_NUM]) (void *key, void *datum, void *datap) =
-{
-	common_index,
-	class_index,
-	role_index,
-	type_index,
-	user_index,
-	cond_index_bool,
-	sens_index,
-	cat_index,
-};
-
-#ifdef DEBUG_HASHES
-static void hash_eval(struct hashtab *h, const char *hash_name)
-{
-	struct hashtab_info info;
-
-	hashtab_stat(h, &info);
-	pr_debug("SELinux: %s:  %d entries and %d/%d buckets used, "
-	       "longest chain length %d\n", hash_name, h->nel,
-	       info.slots_used, h->size, info.max_chain_len);
-}
-
-static void symtab_hash_eval(struct symtab *s)
-{
-	int i;
-
-	for (i = 0; i < SYM_NUM; i++)
-		hash_eval(s[i].table, symtab_name[i]);
-}
-
-#else
-static inline void hash_eval(struct hashtab *h, char *hash_name)
-{
-}
-#endif
-
-/*
- * Define the other val_to_name and val_to_struct arrays
- * in a policy database structure.
- *
- * Caller must clean up on failure.
- */
-static int policydb_index(struct policydb *p)
-{
-	int i, rc;
-
-	if (p->mls_enabled)
-		pr_debug("SELinux:  %d users, %d roles, %d types, %d bools, %d sens, %d cats\n",
-			 p->p_users.nprim, p->p_roles.nprim, p->p_types.nprim,
-			 p->p_bools.nprim, p->p_levels.nprim, p->p_cats.nprim);
-	else
-		pr_debug("SELinux:  %d users, %d roles, %d types, %d bools\n",
-			 p->p_users.nprim, p->p_roles.nprim, p->p_types.nprim,
-			 p->p_bools.nprim);
-
-	pr_debug("SELinux:  %d classes, %d rules\n",
-		 p->p_classes.nprim, p->te_avtab.nel);
-
-#ifdef DEBUG_HASHES
-	avtab_hash_eval(&p->te_avtab, "rules");
-	symtab_hash_eval(p->symtab);
-#endif
-
-	p->class_val_to_struct = kcalloc(p->p_classes.nprim,
-					 sizeof(*p->class_val_to_struct),
-					 GFP_KERNEL);
-	if (!p->class_val_to_struct)
-		return -ENOMEM;
-
-	p->role_val_to_struct = kcalloc(p->p_roles.nprim,
-					sizeof(*p->role_val_to_struct),
-					GFP_KERNEL);
-	if (!p->role_val_to_struct)
-		return -ENOMEM;
-
-	p->user_val_to_struct = kcalloc(p->p_users.nprim,
-					sizeof(*p->user_val_to_struct),
-					GFP_KERNEL);
-	if (!p->user_val_to_struct)
-		return -ENOMEM;
-
-	p->type_val_to_struct_array = kvcalloc(p->p_types.nprim,
-					       sizeof(*p->type_val_to_struct_array),
-					       GFP_KERNEL);
-	if (!p->type_val_to_struct_array)
-		return -ENOMEM;
-
-	rc = cond_init_bool_indexes(p);
-	if (rc)
-		goto out;
-
-	for (i = 0; i < SYM_NUM; i++) {
-		p->sym_val_to_name[i] = kvcalloc(p->symtab[i].nprim,
-						 sizeof(char *),
-						 GFP_KERNEL);
-		if (!p->sym_val_to_name[i])
-			return -ENOMEM;
-
-		rc = hashtab_map(p->symtab[i].table, index_f[i], p);
-		if (rc)
-			goto out;
-	}
-	rc = 0;
-out:
-	return rc;
 }
 
 /*
@@ -719,6 +337,7 @@ static int (*destroy_f[SYM_NUM]) (void *key, void *datum, void *datap) =
 static int filenametr_destroy(void *key, void *datum, void *p)
 {
 	struct filename_trans *ft = key;
+
 	kfree(ft->name);
 	kfree(key);
 	kfree(datum);
@@ -729,6 +348,7 @@ static int filenametr_destroy(void *key, void *datum, void *p)
 static int range_tr_destroy(void *key, void *datum, void *p)
 {
 	struct mls_range *rt = datum;
+
 	kfree(key);
 	ebitmap_destroy(&rt->level[0].cat);
 	ebitmap_destroy(&rt->level[1].cat);
@@ -748,6 +368,397 @@ static void ocontext_destroy(struct ocontext *c, int i)
 	    i == OCON_NETIF || i == OCON_FSUSE)
 		kfree(c->u.name);
 	kfree(c);
+}
+
+/*
+ * Initialize the role table.
+ */
+static int roles_init(struct policydb *p)
+{
+	char *key = NULL;
+	int rc;
+	struct role_datum *role;
+
+	role = kzalloc(sizeof(*role), GFP_KERNEL);
+	if (!role)
+		return -ENOMEM;
+
+	rc = -EINVAL;
+	role->value = ++p->p_roles.nprim;
+	if (role->value != OBJECT_R_VAL)
+		goto out;
+
+	rc = -ENOMEM;
+	key = kstrdup(OBJECT_R, GFP_KERNEL);
+	if (!key)
+		goto out;
+
+	rc = hashtab_insert(p->p_roles.table, key, role);
+	if (rc)
+		goto out;
+
+	return 0;
+out:
+	kfree(key);
+	kfree(role);
+	return rc;
+}
+
+static u32 filenametr_hash(struct hashtab *h, const void *k)
+{
+	const struct filename_trans *ft = k;
+	unsigned long hash;
+	unsigned int byte_num;
+	unsigned char focus;
+
+	hash = ft->stype ^ ft->ttype ^ ft->tclass;
+
+	byte_num = 0;
+	while ((focus = ft->name[byte_num++]))
+		hash = partial_name_hash(focus, hash);
+	return hash & (h->size - 1);
+}
+
+static int filenametr_cmp(struct hashtab *h, const void *k1, const void *k2)
+{
+	const struct filename_trans *ft1 = k1;
+	const struct filename_trans *ft2 = k2;
+	int v;
+
+	v = ft1->stype - ft2->stype;
+	if (v)
+		return v;
+
+	v = ft1->ttype - ft2->ttype;
+	if (v)
+		return v;
+
+	v = ft1->tclass - ft2->tclass;
+	if (v)
+		return v;
+
+	return strcmp(ft1->name, ft2->name);
+
+}
+
+static u32 rangetr_hash(struct hashtab *h, const void *k)
+{
+	const struct range_trans *key = k;
+
+	return (key->source_type + (key->target_type << 3) +
+		(key->target_class << 5)) & (h->size - 1);
+}
+
+static int rangetr_cmp(struct hashtab *h, const void *k1, const void *k2)
+{
+	const struct range_trans *key1 = k1, *key2 = k2;
+	int v;
+
+	v = key1->source_type - key2->source_type;
+	if (v)
+		return v;
+
+	v = key1->target_type - key2->target_type;
+	if (v)
+		return v;
+
+	v = key1->target_class - key2->target_class;
+
+	return v;
+}
+
+/*
+ * Initialize a policy database structure.
+ */
+static int policydb_init(struct policydb *p)
+{
+	int i, rc;
+
+	memset(p, 0, sizeof(*p));
+
+	for (i = 0; i < SYM_NUM; i++) {
+		rc = symtab_init(&p->symtab[i], symtab_sizes[i]);
+		if (rc)
+			goto out;
+	}
+
+	rc = avtab_init(&p->te_avtab);
+	if (rc)
+		goto out;
+
+	rc = roles_init(p);
+	if (rc)
+		goto out;
+
+	rc = cond_policydb_init(p);
+	if (rc)
+		goto out;
+
+	p->filename_trans = hashtab_create(filenametr_hash, filenametr_cmp,
+					   (1 << 10));
+	if (!p->filename_trans) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	p->range_tr = hashtab_create(rangetr_hash, rangetr_cmp, 256);
+	if (!p->range_tr) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	ebitmap_init(&p->filename_trans_ttypes);
+	ebitmap_init(&p->policycaps);
+	ebitmap_init(&p->permissive_map);
+
+	return 0;
+out:
+	hashtab_destroy(p->filename_trans);
+	hashtab_destroy(p->range_tr);
+	for (i = 0; i < SYM_NUM; i++) {
+		hashtab_map(p->symtab[i].table, destroy_f[i], NULL);
+		hashtab_destroy(p->symtab[i].table);
+	}
+	return rc;
+}
+
+/*
+ * The following *_index functions are used to
+ * define the val_to_name and val_to_struct arrays
+ * in a policy database structure.  The val_to_name
+ * arrays are used when converting security context
+ * structures into string representations.  The
+ * val_to_struct arrays are used when the attributes
+ * of a class, role, or user are needed.
+ */
+
+static int common_index(void *key, void *datum, void *datap)
+{
+	struct policydb *p;
+	struct common_datum *comdatum;
+
+	comdatum = datum;
+	p = datap;
+	if (!comdatum->value || comdatum->value > p->p_commons.nprim)
+		return -EINVAL;
+
+	p->sym_val_to_name[SYM_COMMONS][comdatum->value - 1] = key;
+
+	return 0;
+}
+
+static int class_index(void *key, void *datum, void *datap)
+{
+	struct policydb *p;
+	struct class_datum *cladatum;
+
+	cladatum = datum;
+	p = datap;
+	if (!cladatum->value || cladatum->value > p->p_classes.nprim)
+		return -EINVAL;
+
+	p->sym_val_to_name[SYM_CLASSES][cladatum->value - 1] = key;
+	p->class_val_to_struct[cladatum->value - 1] = cladatum;
+	return 0;
+}
+
+static int role_index(void *key, void *datum, void *datap)
+{
+	struct policydb *p;
+	struct role_datum *role;
+
+	role = datum;
+	p = datap;
+	if (!role->value
+	    || role->value > p->p_roles.nprim
+	    || role->bounds > p->p_roles.nprim)
+		return -EINVAL;
+
+	p->sym_val_to_name[SYM_ROLES][role->value - 1] = key;
+	p->role_val_to_struct[role->value - 1] = role;
+	return 0;
+}
+
+static int type_index(void *key, void *datum, void *datap)
+{
+	struct policydb *p;
+	struct type_datum *typdatum;
+
+	typdatum = datum;
+	p = datap;
+
+	if (typdatum->primary) {
+		if (!typdatum->value
+		    || typdatum->value > p->p_types.nprim
+		    || typdatum->bounds > p->p_types.nprim)
+			return -EINVAL;
+		p->sym_val_to_name[SYM_TYPES][typdatum->value - 1] = key;
+		p->type_val_to_struct[typdatum->value - 1] = typdatum;
+	}
+
+	return 0;
+}
+
+static int user_index(void *key, void *datum, void *datap)
+{
+	struct policydb *p;
+	struct user_datum *usrdatum;
+
+	usrdatum = datum;
+	p = datap;
+	if (!usrdatum->value
+	    || usrdatum->value > p->p_users.nprim
+	    || usrdatum->bounds > p->p_users.nprim)
+		return -EINVAL;
+
+	p->sym_val_to_name[SYM_USERS][usrdatum->value - 1] = key;
+	p->user_val_to_struct[usrdatum->value - 1] = usrdatum;
+	return 0;
+}
+
+static int sens_index(void *key, void *datum, void *datap)
+{
+	struct policydb *p;
+	struct level_datum *levdatum;
+
+	levdatum = datum;
+	p = datap;
+
+	if (!levdatum->isalias) {
+		if (!levdatum->level->sens ||
+		    levdatum->level->sens > p->p_levels.nprim)
+			return -EINVAL;
+
+		p->sym_val_to_name[SYM_LEVELS][levdatum->level->sens - 1] = key;
+	}
+
+	return 0;
+}
+
+static int cat_index(void *key, void *datum, void *datap)
+{
+	struct policydb *p;
+	struct cat_datum *catdatum;
+
+	catdatum = datum;
+	p = datap;
+
+	if (!catdatum->isalias) {
+		if (!catdatum->value || catdatum->value > p->p_cats.nprim)
+			return -EINVAL;
+
+		p->sym_val_to_name[SYM_CATS][catdatum->value - 1] = key;
+	}
+
+	return 0;
+}
+
+static int (*index_f[SYM_NUM]) (void *key, void *datum, void *datap) =
+{
+	common_index,
+	class_index,
+	role_index,
+	type_index,
+	user_index,
+	cond_index_bool,
+	sens_index,
+	cat_index,
+};
+
+#ifdef DEBUG_HASHES
+static void hash_eval(struct hashtab *h, const char *hash_name)
+{
+	struct hashtab_info info;
+
+	hashtab_stat(h, &info);
+	pr_debug("SELinux: %s:  %d entries and %d/%d buckets used, longest chain length %d\n",
+		 hash_name, h->nel, info.slots_used, h->size,
+		 info.max_chain_len);
+}
+
+static void symtab_hash_eval(struct symtab *s)
+{
+	int i;
+
+	for (i = 0; i < SYM_NUM; i++)
+		hash_eval(s[i].table, symtab_name[i]);
+}
+
+#else
+static inline void hash_eval(struct hashtab *h, char *hash_name)
+{
+}
+#endif
+
+/*
+ * Define the other val_to_name and val_to_struct arrays
+ * in a policy database structure.
+ *
+ * Caller must clean up on failure.
+ */
+static int policydb_index(struct policydb *p)
+{
+	int i, rc;
+
+	if (p->mls_enabled)
+		pr_debug("SELinux:  %d users, %d roles, %d types, %d bools, %d sens, %d cats\n",
+			 p->p_users.nprim, p->p_roles.nprim, p->p_types.nprim,
+			 p->p_bools.nprim, p->p_levels.nprim, p->p_cats.nprim);
+	else
+		pr_debug("SELinux:  %d users, %d roles, %d types, %d bools\n",
+			 p->p_users.nprim, p->p_roles.nprim, p->p_types.nprim,
+			 p->p_bools.nprim);
+
+	pr_debug("SELinux:  %d classes, %d rules\n",
+		 p->p_classes.nprim, p->te_avtab.nel);
+
+#ifdef DEBUG_HASHES
+	avtab_hash_eval(&p->te_avtab, "rules");
+	symtab_hash_eval(p->symtab);
+#endif
+
+	p->class_val_to_struct = kcalloc(p->p_classes.nprim,
+					 sizeof(*p->class_val_to_struct),
+					 GFP_KERNEL);
+	if (!p->class_val_to_struct)
+		return -ENOMEM;
+
+	p->role_val_to_struct = kcalloc(p->p_roles.nprim,
+					sizeof(*p->role_val_to_struct),
+					GFP_KERNEL);
+	if (!p->role_val_to_struct)
+		return -ENOMEM;
+
+	p->user_val_to_struct = kcalloc(p->p_users.nprim,
+					sizeof(*p->user_val_to_struct),
+					GFP_KERNEL);
+	if (!p->user_val_to_struct)
+		return -ENOMEM;
+
+	p->type_val_to_struct = kvcalloc(p->p_types.nprim,
+					 sizeof(*p->type_val_to_struct),
+					 GFP_KERNEL);
+	if (!p->type_val_to_struct)
+		return -ENOMEM;
+
+	rc = cond_init_bool_indexes(p);
+	if (rc)
+		goto out;
+
+	for (i = 0; i < SYM_NUM; i++) {
+		p->sym_val_to_name[i] = kvcalloc(p->symtab[i].nprim,
+						 sizeof(char *),
+						 GFP_KERNEL);
+		if (!p->sym_val_to_name[i])
+			return -ENOMEM;
+
+		rc = hashtab_map(p->symtab[i].table, index_f[i], p);
+		if (rc)
+			goto out;
+	}
+	rc = 0;
+out:
+	return rc;
 }
 
 /*
@@ -773,7 +784,7 @@ void policydb_destroy(struct policydb *p)
 	kfree(p->class_val_to_struct);
 	kfree(p->role_val_to_struct);
 	kfree(p->user_val_to_struct);
-	kvfree(p->type_val_to_struct_array);
+	kvfree(p->type_val_to_struct);
 
 	avtab_destroy(&p->te_avtab);
 
@@ -1718,7 +1729,7 @@ static int type_bounds_sanity_check(void *key, void *datum, void *datap)
 			return -EINVAL;
 		}
 
-		upper = p->type_val_to_struct_array[upper->bounds - 1];
+		upper = p->type_val_to_struct[upper->bounds - 1];
 		BUG_ON(!upper);
 
 		if (upper->attribute) {

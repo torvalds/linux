@@ -11,21 +11,11 @@
 #include <linux/vbox_err.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_damage_helper.h>
 
 #include "vbox_drv.h"
 #include "vboxvideo_guest.h"
 #include "vboxvideo_vbe.h"
-
-static void vbox_user_framebuffer_destroy(struct drm_framebuffer *fb)
-{
-	struct vbox_framebuffer *vbox_fb = to_vbox_framebuffer(fb);
-
-	if (vbox_fb->obj)
-		drm_gem_object_put_unlocked(vbox_fb->obj);
-
-	drm_framebuffer_cleanup(fb);
-	kfree(fb);
-}
 
 void vbox_report_caps(struct vbox_private *vbox)
 {
@@ -36,87 +26,6 @@ void vbox_report_caps(struct vbox_private *vbox)
 	hgsmi_send_caps_info(vbox->guest_pool, caps);
 	caps |= VBVACAPS_VIDEO_MODE_HINTS;
 	hgsmi_send_caps_info(vbox->guest_pool, caps);
-}
-
-/* Send information about dirty rectangles to VBVA. */
-void vbox_framebuffer_dirty_rectangles(struct drm_framebuffer *fb,
-				       struct drm_clip_rect *rects,
-				       unsigned int num_rects)
-{
-	struct vbox_private *vbox = fb->dev->dev_private;
-	struct drm_display_mode *mode;
-	struct drm_crtc *crtc;
-	int crtc_x, crtc_y;
-	unsigned int i;
-
-	mutex_lock(&vbox->hw_mutex);
-	list_for_each_entry(crtc, &fb->dev->mode_config.crtc_list, head) {
-		if (crtc->primary->state->fb != fb)
-			continue;
-
-		mode = &crtc->state->mode;
-		crtc_x = crtc->primary->state->src_x >> 16;
-		crtc_y = crtc->primary->state->src_y >> 16;
-
-		for (i = 0; i < num_rects; ++i) {
-			struct vbva_cmd_hdr cmd_hdr;
-			unsigned int crtc_id = to_vbox_crtc(crtc)->crtc_id;
-
-			if (rects[i].x1 > crtc_x + mode->hdisplay ||
-			    rects[i].y1 > crtc_y + mode->vdisplay ||
-			    rects[i].x2 < crtc_x ||
-			    rects[i].y2 < crtc_y)
-				continue;
-
-			cmd_hdr.x = (s16)rects[i].x1;
-			cmd_hdr.y = (s16)rects[i].y1;
-			cmd_hdr.w = (u16)rects[i].x2 - rects[i].x1;
-			cmd_hdr.h = (u16)rects[i].y2 - rects[i].y1;
-
-			if (!vbva_buffer_begin_update(&vbox->vbva_info[crtc_id],
-						      vbox->guest_pool))
-				continue;
-
-			vbva_write(&vbox->vbva_info[crtc_id], vbox->guest_pool,
-				   &cmd_hdr, sizeof(cmd_hdr));
-			vbva_buffer_end_update(&vbox->vbva_info[crtc_id]);
-		}
-	}
-	mutex_unlock(&vbox->hw_mutex);
-}
-
-static int vbox_user_framebuffer_dirty(struct drm_framebuffer *fb,
-				       struct drm_file *file_priv,
-				       unsigned int flags, unsigned int color,
-				       struct drm_clip_rect *rects,
-				       unsigned int num_rects)
-{
-	vbox_framebuffer_dirty_rectangles(fb, rects, num_rects);
-
-	return 0;
-}
-
-static const struct drm_framebuffer_funcs vbox_fb_funcs = {
-	.destroy = vbox_user_framebuffer_destroy,
-	.dirty = vbox_user_framebuffer_dirty,
-};
-
-int vbox_framebuffer_init(struct vbox_private *vbox,
-			  struct vbox_framebuffer *vbox_fb,
-			  const struct drm_mode_fb_cmd2 *mode_cmd,
-			  struct drm_gem_object *obj)
-{
-	int ret;
-
-	drm_helper_mode_fill_fb_struct(&vbox->ddev, &vbox_fb->base, mode_cmd);
-	vbox_fb->obj = obj;
-	ret = drm_framebuffer_init(&vbox->ddev, &vbox_fb->base, &vbox_fb_funcs);
-	if (ret) {
-		DRM_ERROR("framebuffer init failed %d\n", ret);
-		return ret;
-	}
-
-	return 0;
 }
 
 static int vbox_accel_init(struct vbox_private *vbox)
@@ -269,93 +178,4 @@ void vbox_hw_fini(struct vbox_private *vbox)
 	vbox_accel_fini(vbox);
 	gen_pool_destroy(vbox->guest_pool);
 	pci_iounmap(vbox->ddev.pdev, vbox->guest_heap);
-}
-
-int vbox_gem_create(struct vbox_private *vbox,
-		    u32 size, bool iskernel, struct drm_gem_object **obj)
-{
-	struct vbox_bo *vboxbo;
-	int ret;
-
-	*obj = NULL;
-
-	size = roundup(size, PAGE_SIZE);
-	if (size == 0)
-		return -EINVAL;
-
-	ret = vbox_bo_create(vbox, size, 0, 0, &vboxbo);
-	if (ret) {
-		if (ret != -ERESTARTSYS)
-			DRM_ERROR("failed to allocate GEM object\n");
-		return ret;
-	}
-
-	*obj = &vboxbo->gem;
-
-	return 0;
-}
-
-int vbox_dumb_create(struct drm_file *file,
-		     struct drm_device *dev, struct drm_mode_create_dumb *args)
-{
-	struct vbox_private *vbox =
-		container_of(dev, struct vbox_private, ddev);
-	struct drm_gem_object *gobj;
-	u32 handle;
-	int ret;
-
-	args->pitch = args->width * ((args->bpp + 7) / 8);
-	args->size = args->pitch * args->height;
-
-	ret = vbox_gem_create(vbox, args->size, false, &gobj);
-	if (ret)
-		return ret;
-
-	ret = drm_gem_handle_create(file, gobj, &handle);
-	drm_gem_object_put_unlocked(gobj);
-	if (ret)
-		return ret;
-
-	args->handle = handle;
-
-	return 0;
-}
-
-void vbox_gem_free_object(struct drm_gem_object *obj)
-{
-	struct vbox_bo *vbox_bo = gem_to_vbox_bo(obj);
-
-	ttm_bo_put(&vbox_bo->bo);
-}
-
-static inline u64 vbox_bo_mmap_offset(struct vbox_bo *bo)
-{
-	return drm_vma_node_offset_addr(&bo->bo.vma_node);
-}
-
-int
-vbox_dumb_mmap_offset(struct drm_file *file,
-		      struct drm_device *dev,
-		      u32 handle, u64 *offset)
-{
-	struct drm_gem_object *obj;
-	int ret;
-	struct vbox_bo *bo;
-
-	mutex_lock(&dev->struct_mutex);
-	obj = drm_gem_object_lookup(file, handle);
-	if (!obj) {
-		ret = -ENOENT;
-		goto out_unlock;
-	}
-
-	bo = gem_to_vbox_bo(obj);
-	*offset = vbox_bo_mmap_offset(bo);
-
-	drm_gem_object_put(obj);
-	ret = 0;
-
-out_unlock:
-	mutex_unlock(&dev->struct_mutex);
-	return ret;
 }

@@ -278,9 +278,10 @@ static void __net_exit ipmr_rules_exit(struct net *net)
 	rtnl_unlock();
 }
 
-static int ipmr_rules_dump(struct net *net, struct notifier_block *nb)
+static int ipmr_rules_dump(struct net *net, struct notifier_block *nb,
+			   struct netlink_ext_ack *extack)
 {
-	return fib_rules_dump(net, nb, RTNL_FAMILY_IPMR);
+	return fib_rules_dump(net, nb, RTNL_FAMILY_IPMR, extack);
 }
 
 static unsigned int ipmr_rules_seq_read(struct net *net)
@@ -336,7 +337,8 @@ static void __net_exit ipmr_rules_exit(struct net *net)
 	rtnl_unlock();
 }
 
-static int ipmr_rules_dump(struct net *net, struct notifier_block *nb)
+static int ipmr_rules_dump(struct net *net, struct notifier_block *nb,
+			   struct netlink_ext_ack *extack)
 {
 	return 0;
 }
@@ -1134,8 +1136,8 @@ static int ipmr_cache_unresolved(struct mr_table *mrt, vifi_t vifi,
 
 	if (!found) {
 		/* Create a new entry if allowable */
-		if (atomic_read(&mrt->cache_resolve_queue_len) >= 10 ||
-		    (c = ipmr_cache_alloc_unres()) == NULL) {
+		c = ipmr_cache_alloc_unres();
+		if (!c) {
 			spin_unlock_bh(&mfc_unres_lock);
 
 			kfree_skb(skb);
@@ -1794,7 +1796,7 @@ static void ip_encap(struct net *net, struct sk_buff *skb,
 	ip_send_check(iph);
 
 	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
-	nf_reset(skb);
+	nf_reset_ct(skb);
 }
 
 static inline int ipmr_forward_finish(struct net *net, struct sock *sk,
@@ -2140,7 +2142,7 @@ int ip_mr_input(struct sk_buff *skb)
 
 			mroute_sk = rcu_dereference(mrt->mroute_sk);
 			if (mroute_sk) {
-				nf_reset(skb);
+				nf_reset_ct(skb);
 				raw_rcv(mroute_sk, skb);
 				return 0;
 			}
@@ -2289,7 +2291,8 @@ int ipmr_get_route(struct net *net, struct sk_buff *skb,
 			rcu_read_unlock();
 			return -ENODEV;
 		}
-		skb2 = skb_clone(skb, GFP_ATOMIC);
+
+		skb2 = skb_realloc_headroom(skb, sizeof(struct iphdr));
 		if (!skb2) {
 			read_unlock(&mrt_lock);
 			rcu_read_unlock();
@@ -3040,10 +3043,11 @@ static unsigned int ipmr_seq_read(struct net *net)
 	return net->ipv4.ipmr_seq + ipmr_rules_seq_read(net);
 }
 
-static int ipmr_dump(struct net *net, struct notifier_block *nb)
+static int ipmr_dump(struct net *net, struct notifier_block *nb,
+		     struct netlink_ext_ack *extack)
 {
 	return mr_dump(net, nb, RTNL_FAMILY_IPMR, ipmr_rules_dump,
-		       ipmr_mr_table_iter, &mrt_lock);
+		       ipmr_mr_table_iter, &mrt_lock, extack);
 }
 
 static const struct fib_notifier_ops ipmr_notifier_ops_template = {

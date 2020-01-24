@@ -44,7 +44,7 @@ config PWM_AB8500
 
 config PWM_ATMEL
 	tristate "Atmel PWM support"
-	depends on ARCH_AT91
+	depends on ARCH_AT91 && OF
 	help
 	  Generic PWM framework driver for Atmel SoC.
 
@@ -145,7 +145,7 @@ config PWM_CRC
 
 config PWM_CROS_EC
 	tristate "ChromeOS EC PWM driver"
-	depends on MFD_CROS_EC
+	depends on CROS_EC
 	help
 	  PWM driver for exposing a PWM attached to the ChromeOS Embedded
 	  Controller.
@@ -401,6 +401,17 @@ config PWM_SAMSUNG
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-samsung.
 
+config PWM_SIFIVE
+	tristate "SiFive PWM support"
+	depends on OF
+	depends on COMMON_CLK
+	depends on RISCV || COMPILE_TEST
+	help
+	  Generic PWM framework driver for SiFive SoCs.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-sifive.
+
 config PWM_SPEAR
 	tristate "STMicroelectronics SPEAr PWM support"
 	depends on PLAT_SPEAR
@@ -411,6 +422,17 @@ config PWM_SPEAR
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-spear.
+
+config PWM_SPRD
+	tristate "Spreadtrum PWM support"
+	depends on ARCH_SPRD || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  Generic PWM framework driver for the PWM controller on
+	  Spreadtrum SoCs.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-sprd.
 
 config PWM_STI
 	tristate "STiH4xx PWM support"
@@ -485,15 +507,6 @@ config  PWM_TIEHRPWM
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-tiehrpwm.
-
-config  PWM_TIPWMSS
-	bool
-	default y if (ARCH_OMAP2PLUS) && (PWM_TIECAP || PWM_TIEHRPWM)
-	help
-	  PWM Subsystem driver support for AM33xx SOC.
-
-	  PWM submodules require PWM config space access from submodule
-	  drivers and require common parent driver support.
 
 config PWM_TWL
 	tristate "TWL4030/6030 PWM support"

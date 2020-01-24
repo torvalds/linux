@@ -98,7 +98,7 @@ __register_chrdev_region(unsigned int major, unsigned int baseminor,
 			   int minorct, const char *name)
 {
 	struct char_device_struct *cd, *curr, *prev = NULL;
-	int ret = -EBUSY;
+	int ret;
 	int i;
 
 	if (major >= CHRDEV_MAJOR_MAX) {
@@ -129,6 +129,7 @@ __register_chrdev_region(unsigned int major, unsigned int baseminor,
 		major = ret;
 	}
 
+	ret = -EBUSY;
 	i = major_to_index(major);
 	for (curr = chrdevs[i]; curr; prev = curr, curr = curr->next) {
 		if (curr->major < major)
@@ -351,7 +352,7 @@ static struct kobject *cdev_get(struct cdev *p)
 
 	if (owner && !try_module_get(owner))
 		return NULL;
-	kobj = kobject_get(&p->kobj);
+	kobj = kobject_get_unless_zero(&p->kobj);
 	if (!kobj)
 		module_put(owner);
 	return kobj;

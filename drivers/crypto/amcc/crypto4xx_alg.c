@@ -67,11 +67,15 @@ static void set_dynamic_sa_command_1(struct dynamic_sa_ctl *sa, u32 cm,
 }
 
 static inline int crypto4xx_crypt(struct skcipher_request *req,
-				  const unsigned int ivlen, bool decrypt)
+				  const unsigned int ivlen, bool decrypt,
+				  bool check_blocksize)
 {
 	struct crypto_skcipher *cipher = crypto_skcipher_reqtfm(req);
 	struct crypto4xx_ctx *ctx = crypto_skcipher_ctx(cipher);
 	__le32 iv[AES_IV_SIZE];
+
+	if (check_blocksize && !IS_ALIGNED(req->cryptlen, AES_BLOCK_SIZE))
+		return -EINVAL;
 
 	if (ivlen)
 		crypto4xx_memcpy_to_le32(iv, req->iv, ivlen);
@@ -81,24 +85,34 @@ static inline int crypto4xx_crypt(struct skcipher_request *req,
 		ctx->sa_len, 0, NULL);
 }
 
-int crypto4xx_encrypt_noiv(struct skcipher_request *req)
+int crypto4xx_encrypt_noiv_block(struct skcipher_request *req)
 {
-	return crypto4xx_crypt(req, 0, false);
+	return crypto4xx_crypt(req, 0, false, true);
 }
 
-int crypto4xx_encrypt_iv(struct skcipher_request *req)
+int crypto4xx_encrypt_iv_stream(struct skcipher_request *req)
 {
-	return crypto4xx_crypt(req, AES_IV_SIZE, false);
+	return crypto4xx_crypt(req, AES_IV_SIZE, false, false);
 }
 
-int crypto4xx_decrypt_noiv(struct skcipher_request *req)
+int crypto4xx_decrypt_noiv_block(struct skcipher_request *req)
 {
-	return crypto4xx_crypt(req, 0, true);
+	return crypto4xx_crypt(req, 0, true, true);
 }
 
-int crypto4xx_decrypt_iv(struct skcipher_request *req)
+int crypto4xx_decrypt_iv_stream(struct skcipher_request *req)
 {
-	return crypto4xx_crypt(req, AES_IV_SIZE, true);
+	return crypto4xx_crypt(req, AES_IV_SIZE, true, false);
+}
+
+int crypto4xx_encrypt_iv_block(struct skcipher_request *req)
+{
+	return crypto4xx_crypt(req, AES_IV_SIZE, false, true);
+}
+
+int crypto4xx_decrypt_iv_block(struct skcipher_request *req)
+{
+	return crypto4xx_crypt(req, AES_IV_SIZE, true, true);
 }
 
 /**
@@ -269,8 +283,8 @@ crypto4xx_ctr_crypt(struct skcipher_request *req, bool encrypt)
 		return ret;
 	}
 
-	return encrypt ? crypto4xx_encrypt_iv(req)
-		       : crypto4xx_decrypt_iv(req);
+	return encrypt ? crypto4xx_encrypt_iv_stream(req)
+		       : crypto4xx_decrypt_iv_stream(req);
 }
 
 static int crypto4xx_sk_setup_fallback(struct crypto4xx_ctx *ctx,
@@ -513,28 +527,20 @@ static int crypto4xx_aes_gcm_validate_keylen(unsigned int keylen)
 static int crypto4xx_compute_gcm_hash_key_sw(__le32 *hash_start, const u8 *key,
 					     unsigned int keylen)
 {
-	struct crypto_cipher *aes_tfm = NULL;
+	struct crypto_aes_ctx ctx;
 	uint8_t src[16] = { 0 };
-	int rc = 0;
+	int rc;
 
-	aes_tfm = crypto_alloc_cipher("aes", 0, CRYPTO_ALG_NEED_FALLBACK);
-	if (IS_ERR(aes_tfm)) {
-		rc = PTR_ERR(aes_tfm);
-		pr_warn("could not load aes cipher driver: %d\n", rc);
+	rc = aes_expandkey(&ctx, key, keylen);
+	if (rc) {
+		pr_err("aes_expandkey() failed: %d\n", rc);
 		return rc;
 	}
 
-	rc = crypto_cipher_setkey(aes_tfm, key, keylen);
-	if (rc) {
-		pr_err("setkey() failed: %d\n", rc);
-		goto out;
-	}
-
-	crypto_cipher_encrypt_one(aes_tfm, src, src);
+	aes_encrypt(&ctx, src, src);
 	crypto4xx_memcpy_to_le32(hash_start, src, 16);
-out:
-	crypto_free_cipher(aes_tfm);
-	return rc;
+	memzero_explicit(&ctx, sizeof(ctx));
+	return 0;
 }
 
 int crypto4xx_setkey_aes_gcm(struct crypto_aead *cipher,

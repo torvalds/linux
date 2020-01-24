@@ -215,7 +215,10 @@ static int tegra_gpio_get_direction(struct gpio_chip *chip,
 
 	oe = tegra_gpio_readl(tgi, GPIO_OE(tgi, offset));
 
-	return !(oe & pin_mask);
+	if (oe & pin_mask)
+		return GPIO_LINE_DIRECTION_OUT;
+
+	return GPIO_LINE_DIRECTION_IN;
 }
 
 static int tegra_gpio_set_debounce(struct gpio_chip *chip, unsigned int offset,
@@ -541,8 +544,8 @@ DEFINE_SHOW_ATTRIBUTE(tegra_dbg_gpio);
 
 static void tegra_gpio_debuginit(struct tegra_gpio_info *tgi)
 {
-	(void) debugfs_create_file("tegra_gpio", 0444,
-				   NULL, tgi, &tegra_dbg_gpio_fops);
+	debugfs_create_file("tegra_gpio", 0444, NULL, tgi,
+			    &tegra_dbg_gpio_fops);
 }
 
 #else
@@ -624,10 +627,8 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 
 	for (i = 0; i < tgi->bank_count; i++) {
 		ret = platform_get_irq(pdev, i);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "Missing IRQ resource: %d\n", ret);
+		if (ret < 0)
 			return ret;
-		}
 
 		bank = &tgi->bank_info[i];
 		bank->bank = i;

@@ -74,6 +74,8 @@ static const char * const prog_type_name[] = {
 	[BPF_PROG_TYPE_SK_REUSEPORT]		= "sk_reuseport",
 	[BPF_PROG_TYPE_FLOW_DISSECTOR]		= "flow_dissector",
 	[BPF_PROG_TYPE_CGROUP_SYSCTL]		= "cgroup_sysctl",
+	[BPF_PROG_TYPE_RAW_TRACEPOINT_WRITABLE]	= "raw_tracepoint_writable",
+	[BPF_PROG_TYPE_CGROUP_SOCKOPT]		= "cgroup_sockopt",
 };
 
 extern const char * const map_type_name[];
@@ -91,14 +93,16 @@ extern json_writer_t *json_wtr;
 extern bool json_output;
 extern bool show_pinned;
 extern bool block_mount;
-extern int bpf_flags;
+extern bool verifier_logs;
+extern bool relaxed_maps;
 extern struct pinned_obj_table prog_table;
 extern struct pinned_obj_table map_table;
 
-void p_err(const char *fmt, ...);
-void p_info(const char *fmt, ...);
+void __printf(1, 2) p_err(const char *fmt, ...);
+void __printf(1, 2) p_info(const char *fmt, ...);
 
 bool is_prefix(const char *pfx, const char *str);
+int detect_common_prefix(const char *arg, ...);
 void fprint_hex(FILE *f, void *arg, unsigned int n, const char *sep);
 void usage(void) __noreturn;
 

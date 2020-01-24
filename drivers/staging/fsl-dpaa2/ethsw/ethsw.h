@@ -23,9 +23,13 @@
 /* Number of IRQs supported */
 #define DPSW_IRQ_NUM	2
 
+/* Port is member of VLAN */
 #define ETHSW_VLAN_MEMBER	1
+/* VLAN to be treated as untagged on egress */
 #define ETHSW_VLAN_UNTAGGED	2
+/* Untagged frames will be assigned to this VLAN */
 #define ETHSW_VLAN_PVID		4
+/* VLAN configured on the switch */
 #define ETHSW_VLAN_GLOBAL	8
 
 /* Maximum Frame Length supported by HW (currently 10k) */
@@ -62,6 +66,11 @@ struct ethsw_core {
 
 	u8				vlans[VLAN_VID_MASK + 1];
 	bool				learning;
+
+	struct notifier_block		port_nb;
+	struct notifier_block		port_switchdev_nb;
+	struct notifier_block		port_switchdevb_nb;
+	struct workqueue_struct		*workqueue;
 };
 
 #endif	/* __ETHSW_H */

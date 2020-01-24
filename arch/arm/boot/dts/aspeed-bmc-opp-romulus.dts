@@ -42,6 +42,13 @@
 			compatible = "shared-dma-pool";
 			reusable;
 		};
+
+		video_engine_memory: jpegbuffer {
+			size = <0x02000000>;	/* 32M */
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
 	};
 
 	leds {
@@ -105,6 +112,7 @@
 		status = "okay";
 		m25p,fast-read;
 		label = "bmc";
+		spi-max-frequency = <50000000>;
 #include "openbmc-flash-layout.dtsi"
 	};
 };
@@ -118,6 +126,7 @@
 		status = "okay";
 		m25p,fast-read;
 		label = "pnor";
+		spi-max-frequency = <100000000>;
 	};
 };
 
@@ -153,6 +162,9 @@
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_rmii1_default>;
+	clocks = <&syscon ASPEED_CLK_GATE_MAC1CLK>,
+		 <&syscon ASPEED_CLK_MAC1RCLK>;
+	clock-names = "MACCLK", "RCLK";
 };
 
 &i2c1 {
@@ -304,3 +316,10 @@
 &adc {
 	status = "okay";
 };
+
+&video {
+	status = "okay";
+	memory-region = <&video_engine_memory>;
+};
+
+#include "ibm-power9-dual.dtsi"

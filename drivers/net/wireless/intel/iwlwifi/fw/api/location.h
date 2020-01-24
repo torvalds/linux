@@ -82,7 +82,7 @@ enum iwl_location_subcmd_ids {
 	TOF_RANGE_ABORT_CMD = 0x2,
 	/**
 	 * @TOF_RANGE_REQ_EXT_CMD: TOF extended ranging config,
-	 *	uses &struct iwl_tof_range_request_ext_cmd
+	 *	uses &struct iwl_tof_range_req_ext_cmd
 	 */
 	TOF_RANGE_REQ_EXT_CMD = 0x3,
 	/**
@@ -292,7 +292,7 @@ struct iwl_tof_responder_dyn_config_cmd {
 } __packed; /* TOF_RESPONDER_DYN_CONFIG_CMD_API_S_VER_2 */
 
 /**
- * struct iwl_tof_range_request_ext_cmd - extended range req for WLS
+ * struct iwl_tof_range_req_ext_cmd - extended range req for WLS
  * @tsf_timer_offset_msec: the recommended time offset (mSec) from the AP's TSF
  * @reserved: reserved
  * @min_delta_ftm: Minimal time between two consecutive measurements,
@@ -937,8 +937,13 @@ struct iwl_ftm_responder_stats {
 	__le16 reserved;
 } __packed; /* TOF_RESPONDER_STATISTICS_NTFY_S_VER_2 */
 
-#define IWL_CSI_CHUNK_CTL_NUM_MASK	0x3
-#define IWL_CSI_CHUNK_CTL_IDX_MASK	0xc
+#define IWL_CSI_MAX_EXPECTED_CHUNKS		16
+
+#define IWL_CSI_CHUNK_CTL_NUM_MASK_VER_1	0x0003
+#define IWL_CSI_CHUNK_CTL_IDX_MASK_VER_1	0x000c
+
+#define IWL_CSI_CHUNK_CTL_NUM_MASK_VER_2	0x00ff
+#define IWL_CSI_CHUNK_CTL_IDX_MASK_VER_2	0xff00
 
 struct iwl_csi_chunk_notification {
 	__le32 token;
@@ -946,6 +951,6 @@ struct iwl_csi_chunk_notification {
 	__le16 ctl;
 	__le32 size;
 	u8 data[];
-} __packed; /* CSI_CHUNKS_HDR_NTFY_API_S_VER_1 */
+} __packed; /* CSI_CHUNKS_HDR_NTFY_API_S_VER_1/VER_2 */
 
 #endif /* __iwl_fw_api_location_h__ */

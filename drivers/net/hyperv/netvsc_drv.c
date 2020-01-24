@@ -285,9 +285,9 @@ static inline u32 netvsc_get_hash(
 		else if (flow.basic.n_proto == htons(ETH_P_IPV6))
 			hash = jhash2((u32 *)&flow.addrs.v6addrs, 8, hashrnd);
 		else
-			hash = 0;
+			return 0;
 
-		skb_set_hash(skb, hash, PKT_HASH_TYPE_L3);
+		__skb_set_sw_hash(skb, hash, false);
 	}
 
 	return hash;
@@ -435,7 +435,7 @@ static u32 init_page_array(void *hdr, u32 len, struct sk_buff *skb,
 		skb_frag_t *frag = skb_shinfo(skb)->frags + i;
 
 		slots_used += fill_pg_buf(skb_frag_page(frag),
-					frag->page_offset,
+					skb_frag_off(frag),
 					skb_frag_size(frag), &pb[slots_used]);
 	}
 	return slots_used;
@@ -449,7 +449,7 @@ static int count_skb_frag_slots(struct sk_buff *skb)
 	for (i = 0; i < frags; i++) {
 		skb_frag_t *frag = skb_shinfo(skb)->frags + i;
 		unsigned long size = skb_frag_size(frag);
-		unsigned long offset = frag->page_offset;
+		unsigned long offset = skb_frag_off(frag);
 
 		/* Skip unused frames from start of page */
 		offset &= ~PAGE_MASK;
@@ -571,7 +571,7 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 
 	/* Use the skb control buffer for building up the packet */
 	BUILD_BUG_ON(sizeof(struct hv_netvsc_packet) >
-			FIELD_SIZEOF(struct sk_buff, cb));
+			sizeof_field(struct sk_buff, cb));
 	packet = (struct hv_netvsc_packet *)skb->cb;
 
 	packet->q_idx = skb_get_queue_mapping(skb);
@@ -766,6 +766,7 @@ static struct sk_buff *netvsc_alloc_recv_skb(struct net_device *net,
 	const struct ndis_pkt_8021q_info *vlan = nvchan->rsc.vlan;
 	const struct ndis_tcp_ip_checksum_info *csum_info =
 						nvchan->rsc.csum_info;
+	const u32 *hash_info = nvchan->rsc.hash_info;
 	struct sk_buff *skb;
 	int i;
 
@@ -795,13 +796,15 @@ static struct sk_buff *netvsc_alloc_recv_skb(struct net_device *net,
 	    skb->protocol == htons(ETH_P_IP))
 		netvsc_comp_ipcsum(skb);
 
-	/* Do L4 checksum offload if enabled and present.
-	 */
+	/* Do L4 checksum offload if enabled and present. */
 	if (csum_info && (net->features & NETIF_F_RXCSUM)) {
 		if (csum_info->receive.tcp_checksum_succeeded ||
 		    csum_info->receive.udp_checksum_succeeded)
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 	}
+
+	if (hash_info && (net->features & NETIF_F_RXHASH))
+		skb_set_hash(skb, *hash_info, PKT_HASH_TYPE_L4);
 
 	if (vlan) {
 		u16 vlan_tci = vlan->vlanid | (vlan->pri << VLAN_PRIO_SHIFT) |
@@ -836,7 +839,6 @@ int netvsc_recv_callback(struct net_device *net,
 
 	if (unlikely(!skb)) {
 		++net_device_ctx->eth_stats.rx_no_memory;
-		rcu_read_unlock();
 		return NVSP_STAT_FAIL;
 	}
 
@@ -983,7 +985,7 @@ static int netvsc_attach(struct net_device *ndev,
 	if (netif_running(ndev)) {
 		ret = rndis_filter_open(nvdev);
 		if (ret)
-			return ret;
+			goto err;
 
 		rdev = nvdev->extension;
 		if (!rdev->link_state)
@@ -991,6 +993,13 @@ static int netvsc_attach(struct net_device *ndev,
 	}
 
 	return 0;
+
+err:
+	netif_device_detach(ndev);
+
+	rndis_filter_device_remove(hdev, nvdev);
+
+	return ret;
 }
 
 static int netvsc_set_channels(struct net_device *net,
@@ -1240,12 +1249,15 @@ static void netvsc_get_stats64(struct net_device *net,
 			       struct rtnl_link_stats64 *t)
 {
 	struct net_device_context *ndev_ctx = netdev_priv(net);
-	struct netvsc_device *nvdev = rcu_dereference_rtnl(ndev_ctx->nvdev);
+	struct netvsc_device *nvdev;
 	struct netvsc_vf_pcpu_stats vf_tot;
 	int i;
 
+	rcu_read_lock();
+
+	nvdev = rcu_dereference(ndev_ctx->nvdev);
 	if (!nvdev)
-		return;
+		goto out;
 
 	netdev_stats_to_stats64(t, &net->stats);
 
@@ -1284,6 +1296,8 @@ static void netvsc_get_stats64(struct net_device *net,
 		t->rx_packets	+= packets;
 		t->multicast	+= multicast;
 	}
+out:
+	rcu_read_unlock();
 }
 
 static int netvsc_set_mac_addr(struct net_device *ndev, void *p)
@@ -1648,7 +1662,7 @@ static int netvsc_get_rxfh(struct net_device *dev, u32 *indir, u8 *key,
 	rndis_dev = ndev->extension;
 	if (indir) {
 		for (i = 0; i < ITAB_NUM; i++)
-			indir[i] = rndis_dev->rx_table[i];
+			indir[i] = ndc->rx_table[i];
 	}
 
 	if (key)
@@ -1678,7 +1692,7 @@ static int netvsc_set_rxfh(struct net_device *dev, const u32 *indir,
 				return -EINVAL;
 
 		for (i = 0; i < ITAB_NUM; i++)
-			rndis_dev->rx_table[i] = indir[i];
+			ndc->rx_table[i] = indir[i];
 	}
 
 	if (!key) {
@@ -1781,13 +1795,15 @@ static int netvsc_set_features(struct net_device *ndev,
 	netdev_features_t change = features ^ ndev->features;
 	struct net_device_context *ndevctx = netdev_priv(ndev);
 	struct netvsc_device *nvdev = rtnl_dereference(ndevctx->nvdev);
+	struct net_device *vf_netdev = rtnl_dereference(ndevctx->vf_netdev);
 	struct ndis_offload_params offloads;
+	int ret = 0;
 
 	if (!nvdev || nvdev->destroy)
 		return -ENODEV;
 
 	if (!(change & NETIF_F_LRO))
-		return 0;
+		goto syncvf;
 
 	memset(&offloads, 0, sizeof(struct ndis_offload_params));
 
@@ -1799,7 +1815,21 @@ static int netvsc_set_features(struct net_device *ndev,
 		offloads.rsc_ip_v6 = NDIS_OFFLOAD_PARAMETERS_RSC_DISABLED;
 	}
 
-	return rndis_filter_set_offload_params(ndev, nvdev, &offloads);
+	ret = rndis_filter_set_offload_params(ndev, nvdev, &offloads);
+
+	if (ret) {
+		features ^= NETIF_F_LRO;
+		ndev->features = features;
+	}
+
+syncvf:
+	if (!vf_netdev)
+		return ret;
+
+	vf_netdev->wanted_features = features;
+	netdev_update_features(vf_netdev);
+
+	return ret;
 }
 
 static u32 netvsc_get_msglevel(struct net_device *ndev)
@@ -2177,6 +2207,10 @@ static int netvsc_register_vf(struct net_device *vf_netdev)
 
 	dev_hold(vf_netdev);
 	rcu_assign_pointer(net_device_ctx->vf_netdev, vf_netdev);
+
+	vf_netdev->wanted_features = ndev->features;
+	netdev_update_features(vf_netdev);
+
 	return NOTIFY_OK;
 }
 
@@ -2309,11 +2343,9 @@ static int netvsc_probe(struct hv_device *dev,
 
 	/* hw_features computed in rndis_netdev_set_hwcaps() */
 	net->features = net->hw_features |
-		NETIF_F_HIGHDMA | NETIF_F_SG |
-		NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX;
+		NETIF_F_HIGHDMA | NETIF_F_HW_VLAN_CTAG_TX |
+		NETIF_F_HW_VLAN_CTAG_RX;
 	net->vlan_features = net->features;
-
-	netdev_lockdep_set_classes(net);
 
 	/* MTU range: 68 - 1500 or 65521 */
 	net->min_mtu = NETVSC_MTU_MIN;
@@ -2392,6 +2424,61 @@ static int netvsc_remove(struct hv_device *dev)
 	return 0;
 }
 
+static int netvsc_suspend(struct hv_device *dev)
+{
+	struct net_device_context *ndev_ctx;
+	struct net_device *vf_netdev, *net;
+	struct netvsc_device *nvdev;
+	int ret;
+
+	net = hv_get_drvdata(dev);
+
+	ndev_ctx = netdev_priv(net);
+	cancel_delayed_work_sync(&ndev_ctx->dwork);
+
+	rtnl_lock();
+
+	nvdev = rtnl_dereference(ndev_ctx->nvdev);
+	if (nvdev == NULL) {
+		ret = -ENODEV;
+		goto out;
+	}
+
+	vf_netdev = rtnl_dereference(ndev_ctx->vf_netdev);
+	if (vf_netdev)
+		netvsc_unregister_vf(vf_netdev);
+
+	/* Save the current config info */
+	ndev_ctx->saved_netvsc_dev_info = netvsc_devinfo_get(nvdev);
+
+	ret = netvsc_detach(net, nvdev);
+out:
+	rtnl_unlock();
+
+	return ret;
+}
+
+static int netvsc_resume(struct hv_device *dev)
+{
+	struct net_device *net = hv_get_drvdata(dev);
+	struct net_device_context *net_device_ctx;
+	struct netvsc_device_info *device_info;
+	int ret;
+
+	rtnl_lock();
+
+	net_device_ctx = netdev_priv(net);
+	device_info = net_device_ctx->saved_netvsc_dev_info;
+
+	ret = netvsc_attach(net, device_info);
+
+	rtnl_unlock();
+
+	kfree(device_info);
+	net_device_ctx->saved_netvsc_dev_info = NULL;
+
+	return ret;
+}
 static const struct hv_vmbus_device_id id_table[] = {
 	/* Network guid */
 	{ HV_NIC_GUID, },
@@ -2406,6 +2493,8 @@ static struct  hv_driver netvsc_drv = {
 	.id_table = id_table,
 	.probe = netvsc_probe,
 	.remove = netvsc_remove,
+	.suspend = netvsc_suspend,
+	.resume = netvsc_resume,
 	.driver = {
 		.probe_type = PROBE_FORCE_SYNCHRONOUS,
 	},

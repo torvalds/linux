@@ -391,6 +391,7 @@ static int fcrypt_setkey(struct crypto_tfm *tfm, const u8 *key, unsigned int key
 
 static struct crypto_alg fcrypt_alg = {
 	.cra_name		=	"fcrypt",
+	.cra_driver_name	=	"fcrypt-generic",
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	8,
 	.cra_ctxsize		=	sizeof(struct fcrypt_ctx),

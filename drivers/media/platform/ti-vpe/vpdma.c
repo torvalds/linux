@@ -56,6 +56,11 @@ const struct vpdma_data_format vpdma_yuv_fmts[] = {
 		.data_type	= DATA_TYPE_C420,
 		.depth		= 4,
 	},
+	[VPDMA_DATA_FMT_CB420] = {
+		.type		= VPDMA_DATA_FMT_TYPE_YUV,
+		.data_type	= DATA_TYPE_CB420,
+		.depth		= 4,
+	},
 	[VPDMA_DATA_FMT_YCR422] = {
 		.type		= VPDMA_DATA_FMT_TYPE_YUV,
 		.data_type	= DATA_TYPE_YCR422,
@@ -445,23 +450,25 @@ int vpdma_list_cleanup(struct vpdma_data *vpdma, int list_num,
 
 	ret = vpdma_map_desc_buf(vpdma, &abort_list.buf);
 	if (ret)
-		return ret;
+		goto free_desc;
 	ret = vpdma_submit_descs(vpdma, &abort_list, list_num);
 	if (ret)
-		return ret;
+		goto unmap_desc;
 
 	while (vpdma_list_busy(vpdma, list_num) && --timeout)
 		;
 
 	if (timeout == 0) {
 		dev_err(&vpdma->pdev->dev, "Timed out cleaning up VPDMA list\n");
-		return -EBUSY;
+		ret = -EBUSY;
 	}
 
+unmap_desc:
 	vpdma_unmap_desc_buf(vpdma, &abort_list.buf);
+free_desc:
 	vpdma_free_desc_buf(&abort_list.buf);
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(vpdma_list_cleanup);
 
@@ -757,7 +764,7 @@ static void dump_dtd(struct vpdma_dtd *dtd)
 		pr_debug("word1: line_length = %d, xfer_height = %d\n",
 			dtd_get_line_length(dtd), dtd_get_xfer_height(dtd));
 
-	pr_debug("word2: start_addr = %pad\n", &dtd->start_addr);
+	pr_debug("word2: start_addr = %x\n", dtd->start_addr);
 
 	pr_debug("word3: pkt_type = %d, mode = %d, dir = %d, chan = %d, pri = %d, next_chan = %d\n",
 		 dtd_get_pkt_type(dtd),
@@ -823,7 +830,8 @@ void vpdma_rawchan_add_out_dtd(struct vpdma_desc_list *list, int width,
 	channel = next_chan = raw_vpdma_chan;
 
 	if (fmt->type == VPDMA_DATA_FMT_TYPE_YUV &&
-			fmt->data_type == DATA_TYPE_C420) {
+	    (fmt->data_type == DATA_TYPE_C420 ||
+	     fmt->data_type == DATA_TYPE_CB420)) {
 		rect.height >>= 1;
 		rect.top >>= 1;
 		depth = 8;
@@ -891,7 +899,8 @@ void vpdma_add_in_dtd(struct vpdma_desc_list *list, int width,
 	channel = next_chan = chan_info[chan].num;
 
 	if (fmt->type == VPDMA_DATA_FMT_TYPE_YUV &&
-			fmt->data_type == DATA_TYPE_C420) {
+	    (fmt->data_type == DATA_TYPE_C420 ||
+	     fmt->data_type == DATA_TYPE_CB420)) {
 		rect.height >>= 1;
 		rect.top >>= 1;
 		depth = 8;

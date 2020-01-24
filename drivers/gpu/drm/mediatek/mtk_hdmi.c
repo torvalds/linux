@@ -3,11 +3,7 @@
  * Copyright (c) 2014 MediaTek Inc.
  * Author: Jie Qiu <jie.qiu@mediatek.com>
  */
-#include <drm/drmP.h>
-#include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc.h>
-#include <drm/drm_probe_helper.h>
-#include <drm/drm_edid.h>
+
 #include <linux/arm-smccc.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -23,7 +19,16 @@
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
+
 #include <sound/hdmi-codec.h>
+
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_bridge.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_edid.h>
+#include <drm/drm_print.h>
+#include <drm/drm_probe_helper.h>
+
 #include "mtk_cec.h"
 #include "mtk_hdmi.h"
 #include "mtk_hdmi_regs.h"
@@ -333,6 +338,9 @@ static void mtk_hdmi_hw_send_info_frame(struct mtk_hdmi *hdmi, u8 *buffer,
 		ctrl_frame_en = VS_EN;
 		ctrl_reg = GRL_ACP_ISRC_CTRL;
 		break;
+	default:
+		dev_err(hdmi->dev, "Unknown infoframe type %d\n", frame_type);
+		return;
 	}
 	mtk_hdmi_clear_bits(hdmi, ctrl_reg, ctrl_frame_en);
 	mtk_hdmi_write(hdmi, GRL_INFOFRM_TYPE, frame_type);

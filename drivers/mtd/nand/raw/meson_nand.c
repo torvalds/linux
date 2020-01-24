@@ -1320,6 +1320,7 @@ static int meson_nfc_nand_chips_init(struct device *dev,
 		ret = meson_nfc_nand_chip_init(dev, nfc, nand_np);
 		if (ret) {
 			meson_nfc_nand_chip_cleanup(nfc);
+			of_node_put(nand_np);
 			return ret;
 		}
 	}
@@ -1398,10 +1399,8 @@ static int meson_nfc_probe(struct platform_device *pdev)
 	}
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(dev, "no NFC IRQ resource\n");
+	if (irq < 0)
 		return -EINVAL;
-	}
 
 	ret = meson_nfc_clk_init(nfc);
 	if (ret) {

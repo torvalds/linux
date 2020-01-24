@@ -4,16 +4,14 @@
  * Author: Jyri Sarha <jsarha@ti.com>
  */
 
-#include <drm/drmP.h>
-
 #include <drm/drm_atomic.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_atomic_helper.h>
-#include <uapi/drm/drm_fourcc.h>
+#include <drm/drm_fourcc.h>
 
 #include "tilcdc_drv.h"
 
-static struct drm_plane_funcs tilcdc_plane_funcs = {
+static const struct drm_plane_funcs tilcdc_plane_funcs = {
 	.update_plane	= drm_atomic_helper_update_plane,
 	.disable_plane	= drm_atomic_helper_disable_plane,
 	.destroy	= drm_plane_cleanup,

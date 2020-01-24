@@ -8,7 +8,7 @@
 
 const char *phy_speed_to_str(int speed)
 {
-	BUILD_BUG_ON_MSG(__ETHTOOL_LINK_MODE_MASK_NBITS != 67,
+	BUILD_BUG_ON_MSG(__ETHTOOL_LINK_MODE_MASK_NBITS != 74,
 		"Enum ethtool_link_mode_bit_indices and phylib are out of sync. "
 		"If a speed or mode has been added please update phy_speed_to_str "
 		"and the PHY settings array.\n");
@@ -42,6 +42,8 @@ const char *phy_speed_to_str(int speed)
 		return "100Gbps";
 	case SPEED_200000:
 		return "200Gbps";
+	case SPEED_400000:
+		return "400Gbps";
 	case SPEED_UNKNOWN:
 		return "Unknown";
 	default:
@@ -70,6 +72,12 @@ EXPORT_SYMBOL_GPL(phy_duplex_to_str);
 			       .bit = ETHTOOL_LINK_MODE_ ## b ## _BIT}
 
 static const struct phy_setting settings[] = {
+	/* 400G */
+	PHY_SETTING( 400000, FULL, 400000baseCR8_Full		),
+	PHY_SETTING( 400000, FULL, 400000baseKR8_Full		),
+	PHY_SETTING( 400000, FULL, 400000baseLR8_ER8_FR8_Full	),
+	PHY_SETTING( 400000, FULL, 400000baseDR8_Full		),
+	PHY_SETTING( 400000, FULL, 400000baseSR8_Full		),
 	/* 200G */
 	PHY_SETTING( 200000, FULL, 200000baseCR4_Full		),
 	PHY_SETTING( 200000, FULL, 200000baseKR4_Full		),
@@ -131,9 +139,11 @@ static const struct phy_setting settings[] = {
 	PHY_SETTING(   1000, FULL,   1000baseKX_Full		),
 	PHY_SETTING(   1000, FULL,   1000baseT_Full		),
 	PHY_SETTING(   1000, HALF,   1000baseT_Half		),
+	PHY_SETTING(   1000, FULL,   1000baseT1_Full		),
 	PHY_SETTING(   1000, FULL,   1000baseX_Full		),
 	/* 100M */
 	PHY_SETTING(    100, FULL,    100baseT_Full		),
+	PHY_SETTING(    100, FULL,    100baseT1_Full		),
 	PHY_SETTING(    100, HALF,    100baseT_Half		),
 	/* 10M */
 	PHY_SETTING(     10, FULL,     10baseT_Full		),
@@ -205,19 +215,24 @@ size_t phy_speeds(unsigned int *speeds, size_t size,
 	return count;
 }
 
-static int __set_phy_supported(struct phy_device *phydev, u32 max_speed)
+static int __set_linkmode_max_speed(u32 max_speed, unsigned long *addr)
 {
 	const struct phy_setting *p;
 	int i;
 
 	for (i = 0, p = settings; i < ARRAY_SIZE(settings); i++, p++) {
 		if (p->speed > max_speed)
-			linkmode_clear_bit(p->bit, phydev->supported);
+			linkmode_clear_bit(p->bit, addr);
 		else
 			break;
 	}
 
 	return 0;
+}
+
+static int __set_phy_supported(struct phy_device *phydev, u32 max_speed)
+{
+	return __set_linkmode_max_speed(max_speed, phydev->supported);
 }
 
 int phy_set_max_speed(struct phy_device *phydev, u32 max_speed)
@@ -276,6 +291,18 @@ void of_set_phy_eee_broken(struct phy_device *phydev)
 	phydev->eee_broken_modes = broken;
 }
 
+void phy_resolve_aneg_pause(struct phy_device *phydev)
+{
+	if (phydev->duplex == DUPLEX_FULL) {
+		phydev->pause = linkmode_test_bit(ETHTOOL_LINK_MODE_Pause_BIT,
+						  phydev->lp_advertising);
+		phydev->asym_pause = linkmode_test_bit(
+			ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+			phydev->lp_advertising);
+	}
+}
+EXPORT_SYMBOL_GPL(phy_resolve_aneg_pause);
+
 /**
  * phy_resolve_aneg_linkmode - resolve the advertisements into phy settings
  * @phydev: The phy_device struct
@@ -298,15 +325,37 @@ void phy_resolve_aneg_linkmode(struct phy_device *phydev)
 			break;
 		}
 
-	if (phydev->duplex == DUPLEX_FULL) {
-		phydev->pause = linkmode_test_bit(ETHTOOL_LINK_MODE_Pause_BIT,
-						  phydev->lp_advertising);
-		phydev->asym_pause = linkmode_test_bit(
-			ETHTOOL_LINK_MODE_Asym_Pause_BIT,
-			phydev->lp_advertising);
-	}
+	phy_resolve_aneg_pause(phydev);
 }
 EXPORT_SYMBOL_GPL(phy_resolve_aneg_linkmode);
+
+static int phy_resolve_min_speed(struct phy_device *phydev, bool fdx_only)
+{
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(common);
+	int i = ARRAY_SIZE(settings);
+
+	linkmode_and(common, phydev->lp_advertising, phydev->advertising);
+
+	while (--i >= 0) {
+		if (test_bit(settings[i].bit, common)) {
+			if (fdx_only && settings[i].duplex != DUPLEX_FULL)
+				continue;
+			return settings[i].speed;
+		}
+	}
+
+	return SPEED_UNKNOWN;
+}
+
+int phy_speed_down_core(struct phy_device *phydev)
+{
+	int min_common_speed = phy_resolve_min_speed(phydev, true);
+
+	if (min_common_speed == SPEED_UNKNOWN)
+		return -EINVAL;
+
+	return __set_linkmode_max_speed(min_common_speed, phydev->advertising);
+}
 
 static void mmd_phy_indirect(struct mii_bus *bus, int phy_addr, int devad,
 			     u16 regnum)
@@ -370,9 +419,9 @@ int phy_read_mmd(struct phy_device *phydev, int devad, u32 regnum)
 {
 	int ret;
 
-	mutex_lock(&phydev->mdio.bus->mdio_lock);
+	phy_lock_mdio_bus(phydev);
 	ret = __phy_read_mmd(phydev, devad, regnum);
-	mutex_unlock(&phydev->mdio.bus->mdio_lock);
+	phy_unlock_mdio_bus(phydev);
 
 	return ret;
 }
@@ -431,9 +480,9 @@ int phy_write_mmd(struct phy_device *phydev, int devad, u32 regnum, u16 val)
 {
 	int ret;
 
-	mutex_lock(&phydev->mdio.bus->mdio_lock);
+	phy_lock_mdio_bus(phydev);
 	ret = __phy_write_mmd(phydev, devad, regnum, val);
-	mutex_unlock(&phydev->mdio.bus->mdio_lock);
+	phy_unlock_mdio_bus(phydev);
 
 	return ret;
 }
@@ -487,9 +536,9 @@ int phy_modify_changed(struct phy_device *phydev, u32 regnum, u16 mask, u16 set)
 {
 	int ret;
 
-	mutex_lock(&phydev->mdio.bus->mdio_lock);
+	phy_lock_mdio_bus(phydev);
 	ret = __phy_modify_changed(phydev, regnum, mask, set);
-	mutex_unlock(&phydev->mdio.bus->mdio_lock);
+	phy_unlock_mdio_bus(phydev);
 
 	return ret;
 }
@@ -531,9 +580,9 @@ int phy_modify(struct phy_device *phydev, u32 regnum, u16 mask, u16 set)
 {
 	int ret;
 
-	mutex_lock(&phydev->mdio.bus->mdio_lock);
+	phy_lock_mdio_bus(phydev);
 	ret = __phy_modify(phydev, regnum, mask, set);
-	mutex_unlock(&phydev->mdio.bus->mdio_lock);
+	phy_unlock_mdio_bus(phydev);
 
 	return ret;
 }
@@ -590,9 +639,9 @@ int phy_modify_mmd_changed(struct phy_device *phydev, int devad, u32 regnum,
 {
 	int ret;
 
-	mutex_lock(&phydev->mdio.bus->mdio_lock);
+	phy_lock_mdio_bus(phydev);
 	ret = __phy_modify_mmd_changed(phydev, devad, regnum, mask, set);
-	mutex_unlock(&phydev->mdio.bus->mdio_lock);
+	phy_unlock_mdio_bus(phydev);
 
 	return ret;
 }
@@ -638,9 +687,9 @@ int phy_modify_mmd(struct phy_device *phydev, int devad, u32 regnum,
 {
 	int ret;
 
-	mutex_lock(&phydev->mdio.bus->mdio_lock);
+	phy_lock_mdio_bus(phydev);
 	ret = __phy_modify_mmd(phydev, devad, regnum, mask, set);
-	mutex_unlock(&phydev->mdio.bus->mdio_lock);
+	phy_unlock_mdio_bus(phydev);
 
 	return ret;
 }
@@ -648,11 +697,17 @@ EXPORT_SYMBOL_GPL(phy_modify_mmd);
 
 static int __phy_read_page(struct phy_device *phydev)
 {
+	if (WARN_ONCE(!phydev->drv->read_page, "read_page callback not available, PHY driver not loaded?\n"))
+		return -EOPNOTSUPP;
+
 	return phydev->drv->read_page(phydev);
 }
 
 static int __phy_write_page(struct phy_device *phydev, int page)
 {
+	if (WARN_ONCE(!phydev->drv->write_page, "write_page callback not available, PHY driver not loaded?\n"))
+		return -EOPNOTSUPP;
+
 	return phydev->drv->write_page(phydev, page);
 }
 
@@ -666,7 +721,7 @@ static int __phy_write_page(struct phy_device *phydev, int page)
  */
 int phy_save_page(struct phy_device *phydev)
 {
-	mutex_lock(&phydev->mdio.bus->mdio_lock);
+	phy_lock_mdio_bus(phydev);
 	return __phy_read_page(phydev);
 }
 EXPORT_SYMBOL_GPL(phy_save_page);
@@ -733,7 +788,7 @@ int phy_restore_page(struct phy_device *phydev, int oldpage, int ret)
 		ret = oldpage;
 	}
 
-	mutex_unlock(&phydev->mdio.bus->mdio_lock);
+	phy_unlock_mdio_bus(phydev);
 
 	return ret;
 }
@@ -781,6 +836,29 @@ int phy_write_paged(struct phy_device *phydev, int page, u32 regnum, u16 val)
 EXPORT_SYMBOL(phy_write_paged);
 
 /**
+ * phy_modify_paged_changed() - Function for modifying a paged register
+ * @phydev: a pointer to a &struct phy_device
+ * @page: the page for the phy
+ * @regnum: register number
+ * @mask: bit mask of bits to clear
+ * @set: bit mask of bits to set
+ *
+ * Returns negative errno, 0 if there was no change, and 1 in case of change
+ */
+int phy_modify_paged_changed(struct phy_device *phydev, int page, u32 regnum,
+			     u16 mask, u16 set)
+{
+	int ret = 0, oldpage;
+
+	oldpage = phy_select_page(phydev, page);
+	if (oldpage >= 0)
+		ret = __phy_modify_changed(phydev, regnum, mask, set);
+
+	return phy_restore_page(phydev, oldpage, ret);
+}
+EXPORT_SYMBOL(phy_modify_paged_changed);
+
+/**
  * phy_modify_paged() - Convenience function for modifying a paged register
  * @phydev: a pointer to a &struct phy_device
  * @page: the page for the phy
@@ -793,12 +871,8 @@ EXPORT_SYMBOL(phy_write_paged);
 int phy_modify_paged(struct phy_device *phydev, int page, u32 regnum,
 		     u16 mask, u16 set)
 {
-	int ret = 0, oldpage;
+	int ret = phy_modify_paged_changed(phydev, page, regnum, mask, set);
 
-	oldpage = phy_select_page(phydev, page);
-	if (oldpage >= 0)
-		ret = __phy_modify(phydev, regnum, mask, set);
-
-	return phy_restore_page(phydev, oldpage, ret);
+	return ret < 0 ? ret : 0;
 }
 EXPORT_SYMBOL(phy_modify_paged);

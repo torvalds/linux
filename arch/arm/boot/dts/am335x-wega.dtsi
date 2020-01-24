@@ -12,16 +12,12 @@
 		compatible = "ti,da830-evm-audio";
 	};
 
-	regulators {
-		compatible = "simple-bus";
-
-		vcc3v3: fixedregulator1 {
-			compatible = "regulator-fixed";
-			regulator-name = "vcc3v3";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			regulator-boot-on;
-		};
+	vcc3v3: fixedregulator1 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
 	};
 };
 
@@ -195,32 +191,6 @@
 	status = "okay";
 };
 
-/* USB */
-&cppi41dma {
-	status = "okay";
-};
-
-&usb_ctrl_mod {
-	status = "okay";
-};
-
-&usb {
-	status = "okay";
-};
-
-&usb0 {
-	status = "okay";
-};
-
-&usb0_phy {
-	status = "okay";
-};
-
 &usb1 {
 	dr_mode = "host";
-	status = "okay";
-};
-
-&usb1_phy {
-	status = "okay";
 };

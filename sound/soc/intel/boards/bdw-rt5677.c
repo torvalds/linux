@@ -74,6 +74,11 @@ static const struct snd_soc_dapm_route bdw_rt5677_map[] = {
 	/* CODEC BE connections */
 	{"SSP0 CODEC IN", NULL, "AIF1 Capture"},
 	{"AIF1 Playback", NULL, "SSP0 CODEC OUT"},
+	{"DSP Capture", NULL, "DSP Buffer"},
+
+	/* DSP Clock Connections */
+	{ "DSP Buffer", NULL, "SSP0 CODEC IN" },
+	{ "SSP0 CODEC IN", NULL, "DSPTX" },
 };
 
 static const struct snd_kcontrol_new bdw_rt5677_controls[] = {
@@ -165,8 +170,35 @@ static int bdw_rt5677_hw_params(struct snd_pcm_substream *substream,
 	return ret;
 }
 
+static int bdw_rt5677_dsp_hw_params(struct snd_pcm_substream *substream,
+	struct snd_pcm_hw_params *params)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	int ret;
+
+	ret = snd_soc_dai_set_sysclk(codec_dai, RT5677_SCLK_S_PLL1, 24576000,
+		SND_SOC_CLOCK_IN);
+	if (ret < 0) {
+		dev_err(rtd->dev, "can't set codec sysclk configuration\n");
+		return ret;
+	}
+	ret = snd_soc_dai_set_pll(codec_dai, 0, RT5677_PLL1_S_MCLK,
+		24000000, 24576000);
+	if (ret < 0) {
+		dev_err(rtd->dev, "can't set codec pll configuration\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 static const struct snd_soc_ops bdw_rt5677_ops = {
 	.hw_params = bdw_rt5677_hw_params,
+};
+
+static const struct snd_soc_ops bdw_rt5677_dsp_ops = {
+	.hw_params = bdw_rt5677_dsp_hw_params,
 };
 
 #if !IS_ENABLED(CONFIG_SND_SOC_SOF_BROADWELL)
@@ -208,6 +240,11 @@ static int bdw_rt5677_init(struct snd_soc_pcm_runtime *rtd)
 	rt5677_sel_asrc_clk_src(component, RT5677_DA_STEREO_FILTER |
 			RT5677_AD_STEREO1_FILTER | RT5677_I2S1_SOURCE,
 			RT5677_CLK_SEL_I2S1_ASRC);
+	/* Enable codec ASRC function for Mono ADC L.
+	 * The ASRC clock source is clk_sys2_asrc.
+	 */
+	rt5677_sel_asrc_clk_src(component, RT5677_AD_MONO_L_FILTER,
+			RT5677_CLK_SEL_SYS2);
 
 	/* Request rt5677 GPIO for headphone amp control */
 	bdw_rt5677->gpio_hp_en = devm_gpiod_get(component->dev, "headphone-enable",
@@ -246,16 +283,30 @@ static int bdw_rt5677_init(struct snd_soc_pcm_runtime *rtd)
 }
 
 /* broadwell digital audio interface glue - connects codec <--> CPU */
+SND_SOC_DAILINK_DEF(dummy,
+	DAILINK_COMP_ARRAY(COMP_DUMMY()));
+
+SND_SOC_DAILINK_DEF(fe,
+	DAILINK_COMP_ARRAY(COMP_CPU("System Pin")));
+
+SND_SOC_DAILINK_DEF(platform,
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("haswell-pcm-audio")));
+
+SND_SOC_DAILINK_DEF(be,
+	DAILINK_COMP_ARRAY(COMP_CODEC("i2c-RT5677CE:00", "rt5677-aif1")));
+
+/* Wake on voice interface */
+SND_SOC_DAILINK_DEFS(dsp,
+	DAILINK_COMP_ARRAY(COMP_CPU("spi-RT5677AA:00")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("i2c-RT5677CE:00", "rt5677-dspbuffer")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("spi-RT5677AA:00")));
+
 static struct snd_soc_dai_link bdw_rt5677_dais[] = {
 	/* Front End DAI links */
 	{
 		.name = "System PCM",
 		.stream_name = "System Playback/Capture",
-		.cpu_dai_name = "System Pin",
-		.platform_name = "haswell-pcm-audio",
 		.dynamic = 1,
-		.codec_name = "snd-soc-dummy",
-		.codec_dai_name = "snd-soc-dummy-dai",
 #if !IS_ENABLED(CONFIG_SND_SOC_SOF_BROADWELL)
 		.init = bdw_rt5677_rtd_init,
 #endif
@@ -265,6 +316,15 @@ static struct snd_soc_dai_link bdw_rt5677_dais[] = {
 		},
 		.dpcm_capture = 1,
 		.dpcm_playback = 1,
+		SND_SOC_DAILINK_REG(fe, dummy, platform),
+	},
+
+	/* Non-DPCM links */
+	{
+		.name = "Codec DSP",
+		.stream_name = "Wake on Voice",
+		.ops = &bdw_rt5677_dsp_ops,
+		SND_SOC_DAILINK_REG(dsp),
 	},
 
 	/* Back End DAI links */
@@ -272,11 +332,7 @@ static struct snd_soc_dai_link bdw_rt5677_dais[] = {
 		/* SSP0 - Codec */
 		.name = "Codec",
 		.id = 0,
-		.cpu_dai_name = "snd-soc-dummy-dai",
-		.platform_name = "snd-soc-dummy",
 		.no_pcm = 1,
-		.codec_name = "i2c-RT5677CE:00",
-		.codec_dai_name = "rt5677-aif1",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 			SND_SOC_DAIFMT_CBS_CFS,
 		.ignore_suspend = 1,
@@ -286,6 +342,7 @@ static struct snd_soc_dai_link bdw_rt5677_dais[] = {
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
 		.init = bdw_rt5677_init,
+		SND_SOC_DAILINK_REG(dummy, be, dummy),
 	},
 };
 
@@ -334,7 +391,6 @@ static int bdw_rt5677_probe(struct platform_device *pdev)
 {
 	struct bdw_rt5677_priv *bdw_rt5677;
 	struct snd_soc_acpi_mach *mach;
-	const char *platform_name = NULL;
 	int ret;
 
 	bdw_rt5677_card.dev = &pdev->dev;
@@ -349,11 +405,8 @@ static int bdw_rt5677_probe(struct platform_device *pdev)
 
 	/* override plaform name, if required */
 	mach = (&pdev->dev)->platform_data;
-	if (mach) /* extra check since legacy does not pass parameters */
-		platform_name = mach->mach_params.platform;
-
 	ret = snd_soc_fixup_dai_links_platform_name(&bdw_rt5677_card,
-						    platform_name);
+						    mach->mach_params.platform);
 	if (ret)
 		return ret;
 

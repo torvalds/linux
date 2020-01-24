@@ -234,6 +234,7 @@ static const struct file_operations ath79_wdt_fops = {
 	.llseek		= no_llseek,
 	.write		= ath79_wdt_write,
 	.unlocked_ioctl	= ath79_wdt_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= ath79_wdt_open,
 	.release	= ath79_wdt_release,
 };
@@ -302,7 +303,7 @@ static int ath79_wdt_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static void ath97_wdt_shutdown(struct platform_device *pdev)
+static void ath79_wdt_shutdown(struct platform_device *pdev)
 {
 	ath79_wdt_disable();
 }
@@ -318,7 +319,7 @@ MODULE_DEVICE_TABLE(of, ath79_wdt_match);
 static struct platform_driver ath79_wdt_driver = {
 	.probe		= ath79_wdt_probe,
 	.remove		= ath79_wdt_remove,
-	.shutdown	= ath97_wdt_shutdown,
+	.shutdown	= ath79_wdt_shutdown,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.of_match_table = of_match_ptr(ath79_wdt_match),

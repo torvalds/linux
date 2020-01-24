@@ -153,6 +153,15 @@ static int sof_restore_pipelines(struct snd_sof_dev *sdev)
 			continue;
 		}
 
+		/*
+		 * The link DMA channel would be invalidated for running
+		 * streams but not for streams that were in the PAUSED
+		 * state during suspend. So invalidate it here before setting
+		 * the dai config in the DSP.
+		 */
+		if (config->type == SOF_DAI_INTEL_HDA)
+			config->hda.link_dma_ch = DMA_CHAN_INVALID;
+
 		ret = sof_ipc_tx_message(sdev->ipc,
 					 config->hdr.cmd, config,
 					 config->hdr.size,
@@ -188,7 +197,7 @@ static int sof_restore_pipelines(struct snd_sof_dev *sdev)
 	return ret;
 }
 
-static int sof_send_pm_ipc(struct snd_sof_dev *sdev, int cmd)
+static int sof_send_pm_ctx_ipc(struct snd_sof_dev *sdev, int cmd)
 {
 	struct sof_ipc_pm_ctx pm_ctx;
 	struct sof_ipc_reply reply;
@@ -204,7 +213,7 @@ static int sof_send_pm_ipc(struct snd_sof_dev *sdev, int cmd)
 				 sizeof(pm_ctx), &reply, sizeof(reply));
 }
 
-static void sof_set_hw_params_upon_resume(struct snd_sof_dev *sdev)
+static int sof_set_hw_params_upon_resume(struct snd_sof_dev *sdev)
 {
 	struct snd_pcm_substream *substream;
 	struct snd_sof_pcm *spcm;
@@ -224,12 +233,12 @@ static void sof_set_hw_params_upon_resume(struct snd_sof_dev *sdev)
 
 			state = substream->runtime->status->state;
 			if (state == SNDRV_PCM_STATE_SUSPENDED)
-				spcm->hw_params_upon_resume[dir] = 1;
+				spcm->prepared[dir] = false;
 		}
 	}
 
 	/* set internal flag for BE */
-	snd_sof_dsp_hw_params_upon_resume(sdev);
+	return snd_sof_dsp_hw_params_upon_resume(sdev);
 }
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_ENABLE_DEBUGFS_CACHE)
@@ -311,11 +320,14 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 	}
 
 	/* notify DSP of system resume */
-	ret = sof_send_pm_ipc(sdev, SOF_IPC_PM_CTX_RESTORE);
+	ret = sof_send_pm_ctx_ipc(sdev, SOF_IPC_PM_CTX_RESTORE);
 	if (ret < 0)
 		dev_err(sdev->dev,
 			"error: ctx_restore ipc error during resume %d\n",
 			ret);
+
+	/* initialize default D0 sub-state */
+	sdev->d0_substate = SOF_DSP_D0I0;
 
 	return ret;
 }
@@ -333,8 +345,15 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 	snd_sof_release_trace(sdev);
 
 	/* set restore_stream for all streams during system suspend */
-	if (!runtime_suspend)
-		sof_set_hw_params_upon_resume(sdev);
+	if (!runtime_suspend) {
+		ret = sof_set_hw_params_upon_resume(sdev);
+		if (ret < 0) {
+			dev_err(sdev->dev,
+				"error: setting hw_params flag during suspend %d\n",
+				ret);
+			return ret;
+		}
+	}
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_ENABLE_DEBUGFS_CACHE)
 	/* cache debugfs contents during runtime suspend */
@@ -342,19 +361,28 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 		sof_cache_debugfs(sdev);
 #endif
 	/* notify DSP of upcoming power down */
-	ret = sof_send_pm_ipc(sdev, SOF_IPC_PM_CTX_SAVE);
-	if (ret < 0) {
+	ret = sof_send_pm_ctx_ipc(sdev, SOF_IPC_PM_CTX_SAVE);
+	if (ret == -EBUSY || ret == -EAGAIN) {
+		/*
+		 * runtime PM has logic to handle -EBUSY/-EAGAIN so
+		 * pass these errors up
+		 */
 		dev_err(sdev->dev,
 			"error: ctx_save ipc error during suspend %d\n",
 			ret);
 		return ret;
+	} else if (ret < 0) {
+		/* FW in unexpected state, continue to power down */
+		dev_warn(sdev->dev,
+			 "ctx_save ipc error %d, proceeding with suspend\n",
+			 ret);
 	}
 
 	/* power down all DSP cores */
 	if (runtime_suspend)
-		ret = snd_sof_dsp_runtime_suspend(sdev, 0);
+		ret = snd_sof_dsp_runtime_suspend(sdev);
 	else
-		ret = snd_sof_dsp_suspend(sdev, 0);
+		ret = snd_sof_dsp_suspend(sdev);
 	if (ret < 0)
 		dev_err(sdev->dev,
 			"error: failed to power down DSP during suspend %d\n",
@@ -369,20 +397,149 @@ int snd_sof_runtime_suspend(struct device *dev)
 }
 EXPORT_SYMBOL(snd_sof_runtime_suspend);
 
+int snd_sof_runtime_idle(struct device *dev)
+{
+	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
+
+	return snd_sof_dsp_runtime_idle(sdev);
+}
+EXPORT_SYMBOL(snd_sof_runtime_idle);
+
 int snd_sof_runtime_resume(struct device *dev)
 {
 	return sof_resume(dev, true);
 }
 EXPORT_SYMBOL(snd_sof_runtime_resume);
 
+int snd_sof_set_d0_substate(struct snd_sof_dev *sdev,
+			    enum sof_d0_substate d0_substate)
+{
+	int ret;
+
+	if (sdev->d0_substate == d0_substate)
+		return 0;
+
+	/* do platform specific set_state */
+	ret = snd_sof_dsp_set_power_state(sdev, d0_substate);
+	if (ret < 0)
+		return ret;
+
+	/* update dsp D0 sub-state */
+	sdev->d0_substate = d0_substate;
+
+	return 0;
+}
+EXPORT_SYMBOL(snd_sof_set_d0_substate);
+
+/*
+ * Audio DSP states may transform as below:-
+ *
+ *                                         D0I3 compatible stream
+ *     Runtime    +---------------------+   opened only, timeout
+ *     suspend    |                     +--------------------+
+ *   +------------+       D0(active)    |                    |
+ *   |            |                     <---------------+    |
+ *   |   +-------->                     |               |    |
+ *   |   |Runtime +--^--+---------^--+--+ The last      |    |
+ *   |   |resume     |  |         |  |    opened D0I3   |    |
+ *   |   |           |  |         |  |    compatible    |    |
+ *   |   |     resume|  |         |  |    stream closed |    |
+ *   |   |      from |  | D3      |  |                  |    |
+ *   |   |       D3  |  |suspend  |  | d0i3             |    |
+ *   |   |           |  |         |  |suspend           |    |
+ *   |   |           |  |         |  |                  |    |
+ *   |   |           |  |         |  |                  |    |
+ * +-v---+-----------+--v-------+ |  |           +------+----v----+
+ * |                            | |  +----------->                |
+ * |       D3 (suspended)       | |              |      D0I3      +-----+
+ * |                            | +--------------+                |     |
+ * |                            |  resume from   |                |     |
+ * +-------------------^--------+  d0i3 suspend  +----------------+     |
+ *                     |                                                |
+ *                     |                       D3 suspend               |
+ *                     +------------------------------------------------+
+ *
+ * d0i3_suspend = s0_suspend && D0I3 stream opened,
+ * D3 suspend = !d0i3_suspend,
+ */
+
 int snd_sof_resume(struct device *dev)
 {
+	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
+	int ret;
+
+	if (snd_sof_dsp_d0i3_on_suspend(sdev)) {
+		/* resume from D0I3 */
+		dev_dbg(sdev->dev, "DSP will exit from D0i3...\n");
+		ret = snd_sof_set_d0_substate(sdev, SOF_DSP_D0I0);
+		if (ret == -ENOTSUPP) {
+			/* fallback to resume from D3 */
+			dev_dbg(sdev->dev, "D0i3 not supported, fall back to resume from D3...\n");
+			goto d3_resume;
+		} else if (ret < 0) {
+			dev_err(sdev->dev, "error: failed to exit from D0I3 %d\n",
+				ret);
+			return ret;
+		}
+
+		/* platform-specific resume from D0i3 */
+		return snd_sof_dsp_resume(sdev);
+	}
+
+d3_resume:
+	/* resume from D3 */
 	return sof_resume(dev, false);
 }
 EXPORT_SYMBOL(snd_sof_resume);
 
 int snd_sof_suspend(struct device *dev)
 {
+	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
+	int ret;
+
+	if (snd_sof_dsp_d0i3_on_suspend(sdev)) {
+		/* suspend to D0i3 */
+		dev_dbg(sdev->dev, "DSP is trying to enter D0i3...\n");
+		ret = snd_sof_set_d0_substate(sdev, SOF_DSP_D0I3);
+		if (ret == -ENOTSUPP) {
+			/* fallback to D3 suspend */
+			dev_dbg(sdev->dev, "D0i3 not supported, fall back to D3...\n");
+			goto d3_suspend;
+		} else if (ret < 0) {
+			dev_err(sdev->dev, "error: failed to enter D0I3, %d\n",
+				ret);
+			return ret;
+		}
+
+		/* platform-specific suspend to D0i3 */
+		return snd_sof_dsp_suspend(sdev);
+	}
+
+d3_suspend:
+	/* suspend to D3 */
 	return sof_suspend(dev, false);
 }
 EXPORT_SYMBOL(snd_sof_suspend);
+
+int snd_sof_prepare(struct device *dev)
+{
+	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
+
+#if defined(CONFIG_ACPI)
+	sdev->s0_suspend = acpi_target_system_state() == ACPI_STATE_S0;
+#else
+	/* will suspend to S3 by default */
+	sdev->s0_suspend = false;
+#endif
+
+	return 0;
+}
+EXPORT_SYMBOL(snd_sof_prepare);
+
+void snd_sof_complete(struct device *dev)
+{
+	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
+
+	sdev->s0_suspend = false;
+}
+EXPORT_SYMBOL(snd_sof_complete);

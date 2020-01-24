@@ -10,9 +10,9 @@
 static void
 nfp_flower_compile_meta_tci(struct nfp_flower_meta_tci *ext,
 			    struct nfp_flower_meta_tci *msk,
-			    struct tc_cls_flower_offload *flow, u8 key_type)
+			    struct flow_cls_offload *flow, u8 key_type)
 {
-	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(flow);
+	struct flow_rule *rule = flow_cls_offload_flow_rule(flow);
 	u16 tmp_tci;
 
 	memset(ext, 0, sizeof(struct nfp_flower_meta_tci));
@@ -54,7 +54,8 @@ nfp_flower_compile_ext_meta(struct nfp_flower_ext_meta *frame, u32 key_ext)
 
 static int
 nfp_flower_compile_port(struct nfp_flower_in_port *frame, u32 cmsg_port,
-			bool mask_version, enum nfp_flower_tun_type tun_type)
+			bool mask_version, enum nfp_flower_tun_type tun_type,
+			struct netlink_ext_ack *extack)
 {
 	if (mask_version) {
 		frame->in_port = cpu_to_be32(~0);
@@ -64,8 +65,10 @@ nfp_flower_compile_port(struct nfp_flower_in_port *frame, u32 cmsg_port,
 	if (tun_type) {
 		frame->in_port = cpu_to_be32(NFP_FL_PORT_TYPE_TUN | tun_type);
 	} else {
-		if (!cmsg_port)
+		if (!cmsg_port) {
+			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: invalid ingress interface for match offload");
 			return -EOPNOTSUPP;
+		}
 		frame->in_port = cpu_to_be32(cmsg_port);
 	}
 
@@ -75,9 +78,9 @@ nfp_flower_compile_port(struct nfp_flower_in_port *frame, u32 cmsg_port,
 static void
 nfp_flower_compile_mac(struct nfp_flower_mac_mpls *ext,
 		       struct nfp_flower_mac_mpls *msk,
-		       struct tc_cls_flower_offload *flow)
+		       struct flow_cls_offload *flow)
 {
-	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(flow);
+	struct flow_rule *rule = flow_cls_offload_flow_rule(flow);
 
 	memset(ext, 0, sizeof(struct nfp_flower_mac_mpls));
 	memset(msk, 0, sizeof(struct nfp_flower_mac_mpls));
@@ -127,9 +130,9 @@ nfp_flower_compile_mac(struct nfp_flower_mac_mpls *ext,
 static void
 nfp_flower_compile_tport(struct nfp_flower_tp_ports *ext,
 			 struct nfp_flower_tp_ports *msk,
-			 struct tc_cls_flower_offload *flow)
+			 struct flow_cls_offload *flow)
 {
-	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(flow);
+	struct flow_rule *rule = flow_cls_offload_flow_rule(flow);
 
 	memset(ext, 0, sizeof(struct nfp_flower_tp_ports));
 	memset(msk, 0, sizeof(struct nfp_flower_tp_ports));
@@ -148,9 +151,9 @@ nfp_flower_compile_tport(struct nfp_flower_tp_ports *ext,
 static void
 nfp_flower_compile_ip_ext(struct nfp_flower_ip_ext *ext,
 			  struct nfp_flower_ip_ext *msk,
-			  struct tc_cls_flower_offload *flow)
+			  struct flow_cls_offload *flow)
 {
-	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(flow);
+	struct flow_rule *rule = flow_cls_offload_flow_rule(flow);
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_BASIC)) {
 		struct flow_match_basic match;
@@ -222,9 +225,9 @@ nfp_flower_compile_ip_ext(struct nfp_flower_ip_ext *ext,
 static void
 nfp_flower_compile_ipv4(struct nfp_flower_ipv4 *ext,
 			struct nfp_flower_ipv4 *msk,
-			struct tc_cls_flower_offload *flow)
+			struct flow_cls_offload *flow)
 {
-	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(flow);
+	struct flow_rule *rule = flow_cls_offload_flow_rule(flow);
 	struct flow_match_ipv4_addrs match;
 
 	memset(ext, 0, sizeof(struct nfp_flower_ipv4));
@@ -244,9 +247,9 @@ nfp_flower_compile_ipv4(struct nfp_flower_ipv4 *ext,
 static void
 nfp_flower_compile_ipv6(struct nfp_flower_ipv6 *ext,
 			struct nfp_flower_ipv6 *msk,
-			struct tc_cls_flower_offload *flow)
+			struct flow_cls_offload *flow)
 {
-	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(flow);
+	struct flow_rule *rule = flow_cls_offload_flow_rule(flow);
 
 	memset(ext, 0, sizeof(struct nfp_flower_ipv6));
 	memset(msk, 0, sizeof(struct nfp_flower_ipv6));
@@ -266,7 +269,7 @@ nfp_flower_compile_ipv6(struct nfp_flower_ipv6 *ext,
 
 static int
 nfp_flower_compile_geneve_opt(void *ext, void *msk,
-			      struct tc_cls_flower_offload *flow)
+			      struct flow_cls_offload *flow)
 {
 	struct flow_match_enc_opts match;
 
@@ -278,11 +281,76 @@ nfp_flower_compile_geneve_opt(void *ext, void *msk,
 }
 
 static void
+nfp_flower_compile_tun_ipv4_addrs(struct nfp_flower_tun_ipv4 *ext,
+				  struct nfp_flower_tun_ipv4 *msk,
+				  struct flow_cls_offload *flow)
+{
+	struct flow_rule *rule = flow_cls_offload_flow_rule(flow);
+
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS)) {
+		struct flow_match_ipv4_addrs match;
+
+		flow_rule_match_enc_ipv4_addrs(rule, &match);
+		ext->src = match.key->src;
+		ext->dst = match.key->dst;
+		msk->src = match.mask->src;
+		msk->dst = match.mask->dst;
+	}
+}
+
+static void
+nfp_flower_compile_tun_ip_ext(struct nfp_flower_tun_ip_ext *ext,
+			      struct nfp_flower_tun_ip_ext *msk,
+			      struct flow_cls_offload *flow)
+{
+	struct flow_rule *rule = flow_cls_offload_flow_rule(flow);
+
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_IP)) {
+		struct flow_match_ip match;
+
+		flow_rule_match_enc_ip(rule, &match);
+		ext->tos = match.key->tos;
+		ext->ttl = match.key->ttl;
+		msk->tos = match.mask->tos;
+		msk->ttl = match.mask->ttl;
+	}
+}
+
+static void
+nfp_flower_compile_ipv4_gre_tun(struct nfp_flower_ipv4_gre_tun *ext,
+				struct nfp_flower_ipv4_gre_tun *msk,
+				struct flow_cls_offload *flow)
+{
+	struct flow_rule *rule = flow_cls_offload_flow_rule(flow);
+
+	memset(ext, 0, sizeof(struct nfp_flower_ipv4_gre_tun));
+	memset(msk, 0, sizeof(struct nfp_flower_ipv4_gre_tun));
+
+	/* NVGRE is the only supported GRE tunnel type */
+	ext->ethertype = cpu_to_be16(ETH_P_TEB);
+	msk->ethertype = cpu_to_be16(~0);
+
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_KEYID)) {
+		struct flow_match_enc_keyid match;
+
+		flow_rule_match_enc_keyid(rule, &match);
+		ext->tun_key = match.key->keyid;
+		msk->tun_key = match.mask->keyid;
+
+		ext->tun_flags = cpu_to_be16(NFP_FL_GRE_FLAG_KEY);
+		msk->tun_flags = cpu_to_be16(NFP_FL_GRE_FLAG_KEY);
+	}
+
+	nfp_flower_compile_tun_ipv4_addrs(&ext->ipv4, &msk->ipv4, flow);
+	nfp_flower_compile_tun_ip_ext(&ext->ip_ext, &msk->ip_ext, flow);
+}
+
+static void
 nfp_flower_compile_ipv4_udp_tun(struct nfp_flower_ipv4_udp_tun *ext,
 				struct nfp_flower_ipv4_udp_tun *msk,
-				struct tc_cls_flower_offload *flow)
+				struct flow_cls_offload *flow)
 {
-	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(flow);
+	struct flow_rule *rule = flow_cls_offload_flow_rule(flow);
 
 	memset(ext, 0, sizeof(struct nfp_flower_ipv4_udp_tun));
 	memset(msk, 0, sizeof(struct nfp_flower_ipv4_udp_tun));
@@ -298,33 +366,17 @@ nfp_flower_compile_ipv4_udp_tun(struct nfp_flower_ipv4_udp_tun *ext,
 		msk->tun_id = cpu_to_be32(temp_vni);
 	}
 
-	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS)) {
-		struct flow_match_ipv4_addrs match;
-
-		flow_rule_match_enc_ipv4_addrs(rule, &match);
-		ext->ip_src = match.key->src;
-		ext->ip_dst = match.key->dst;
-		msk->ip_src = match.mask->src;
-		msk->ip_dst = match.mask->dst;
-	}
-
-	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_IP)) {
-		struct flow_match_ip match;
-
-		flow_rule_match_enc_ip(rule, &match);
-		ext->tos = match.key->tos;
-		ext->ttl = match.key->ttl;
-		msk->tos = match.mask->tos;
-		msk->ttl = match.mask->ttl;
-	}
+	nfp_flower_compile_tun_ipv4_addrs(&ext->ipv4, &msk->ipv4, flow);
+	nfp_flower_compile_tun_ip_ext(&ext->ip_ext, &msk->ip_ext, flow);
 }
 
 int nfp_flower_compile_flow_match(struct nfp_app *app,
-				  struct tc_cls_flower_offload *flow,
+				  struct flow_cls_offload *flow,
 				  struct nfp_fl_key_ls *key_ls,
 				  struct net_device *netdev,
 				  struct nfp_fl_payload *nfp_flow,
-				  enum nfp_flower_tun_type tun_type)
+				  enum nfp_flower_tun_type tun_type,
+				  struct netlink_ext_ack *extack)
 {
 	u32 port_id;
 	int err;
@@ -357,13 +409,13 @@ int nfp_flower_compile_flow_match(struct nfp_app *app,
 
 	/* Populate Exact Port data. */
 	err = nfp_flower_compile_port((struct nfp_flower_in_port *)ext,
-				      port_id, false, tun_type);
+				      port_id, false, tun_type, extack);
 	if (err)
 		return err;
 
 	/* Populate Mask Port Data. */
 	err = nfp_flower_compile_port((struct nfp_flower_in_port *)msk,
-				      port_id, true, tun_type);
+				      port_id, true, tun_type, extack);
 	if (err)
 		return err;
 
@@ -402,12 +454,27 @@ int nfp_flower_compile_flow_match(struct nfp_app *app,
 		msk += sizeof(struct nfp_flower_ipv6);
 	}
 
+	if (key_ls->key_layer_two & NFP_FLOWER_LAYER2_GRE) {
+		__be32 tun_dst;
+
+		nfp_flower_compile_ipv4_gre_tun((void *)ext, (void *)msk, flow);
+		tun_dst = ((struct nfp_flower_ipv4_gre_tun *)ext)->ipv4.dst;
+		ext += sizeof(struct nfp_flower_ipv4_gre_tun);
+		msk += sizeof(struct nfp_flower_ipv4_gre_tun);
+
+		/* Store the tunnel destination in the rule data.
+		 * This must be present and be an exact match.
+		 */
+		nfp_flow->nfp_tun_ipv4_addr = tun_dst;
+		nfp_tunnel_add_ipv4_off(app, tun_dst);
+	}
+
 	if (key_ls->key_layer & NFP_FLOWER_LAYER_VXLAN ||
 	    key_ls->key_layer_two & NFP_FLOWER_LAYER2_GENEVE) {
 		__be32 tun_dst;
 
 		nfp_flower_compile_ipv4_udp_tun((void *)ext, (void *)msk, flow);
-		tun_dst = ((struct nfp_flower_ipv4_udp_tun *)ext)->ip_dst;
+		tun_dst = ((struct nfp_flower_ipv4_udp_tun *)ext)->ipv4.dst;
 		ext += sizeof(struct nfp_flower_ipv4_udp_tun);
 		msk += sizeof(struct nfp_flower_ipv4_udp_tun);
 

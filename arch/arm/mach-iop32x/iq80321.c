@@ -19,7 +19,7 @@
 #include <linux/mtd/physmap.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
-#include <mach/hardware.h>
+#include <linux/gpio/machine.h>
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -28,7 +28,9 @@
 #include <asm/mach-types.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
-#include <mach/time.h>
+
+#include "hardware.h"
+#include "irqs.h"
 #include "gpio-iop32x.h"
 
 /*
@@ -168,6 +170,8 @@ static struct platform_device iq80321_serial_device = {
 static void __init iq80321_init_machine(void)
 {
 	register_iop32x_gpio();
+	gpiod_add_lookup_table(&iop3xx_i2c0_gpio_lookup);
+	gpiod_add_lookup_table(&iop3xx_i2c1_gpio_lookup);
 	platform_device_register(&iop3xx_i2c0_device);
 	platform_device_register(&iop3xx_i2c1_device);
 	platform_device_register(&iq80321_flash_device);

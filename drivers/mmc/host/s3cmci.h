@@ -67,8 +67,6 @@ struct s3cmci_host {
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry		*debug_root;
-	struct dentry		*debug_state;
-	struct dentry		*debug_regs;
 #endif
 
 #ifdef CONFIG_ARM_S3C24XX_CPUFREQ

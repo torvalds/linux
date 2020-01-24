@@ -26,7 +26,7 @@
 static int napi_weight = NAPI_POLL_WEIGHT;
 module_param(napi_weight, int, 0444);
 
-static bool csum = true, gso = true, napi_tx;
+static bool csum = true, gso = true, napi_tx = true;
 module_param(csum, bool, 0444);
 module_param(gso, bool, 0444);
 module_param(napi_tx, bool, 0644);
@@ -1331,7 +1331,7 @@ static int virtnet_receive(struct receive_queue *rq, int budget,
 		}
 	}
 
-	if (rq->vq->num_free > virtqueue_get_vring_size(rq->vq) / 2) {
+	if (rq->vq->num_free > min((unsigned int)budget, virtqueue_get_vring_size(rq->vq)) / 2) {
 		if (!try_fill_recv(vi, rq, GFP_ATOMIC))
 			schedule_delayed_work(&vi->refill, 0);
 	}
@@ -1585,7 +1585,7 @@ static netdev_tx_t start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Don't wait up for transmitted skbs to be freed. */
 	if (!use_napi) {
 		skb_orphan(skb);
-		nf_reset(skb);
+		nf_reset_ct(skb);
 	}
 
 	/* If running out of space, stop queue to avoid getting packets that we
@@ -2445,11 +2445,8 @@ static int virtnet_xdp_set(struct net_device *dev, struct bpf_prog *prog,
 	if (!prog && !old_prog)
 		return 0;
 
-	if (prog) {
-		prog = bpf_prog_add(prog, vi->max_queue_pairs - 1);
-		if (IS_ERR(prog))
-			return PTR_ERR(prog);
-	}
+	if (prog)
+		bpf_prog_add(prog, vi->max_queue_pairs - 1);
 
 	/* Make sure NAPI is not using any XDP TX queues for RX. */
 	if (netif_running(dev)) {

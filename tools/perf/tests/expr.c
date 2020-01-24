@@ -3,6 +3,8 @@
 #include "util/expr.h"
 #include "tests.h"
 #include <stdlib.h>
+#include <string.h>
+#include <linux/zalloc.h>
 
 static int test(struct parse_ctx *ctx, const char *e, double val2)
 {
@@ -58,7 +60,7 @@ int test__expr(struct test *t __maybe_unused, int subtest __maybe_unused)
 	TEST_ASSERT_VAL("find other", other[3] == NULL);
 
 	for (i = 0; i < num_other; i++)
-		free((void *)other[i]);
+		zfree(&other[i]);
 	free((void *)other);
 
 	return 0;

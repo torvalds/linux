@@ -79,7 +79,7 @@ then
 	echo ' ---' Summary: 1>&2
 	grep '!!!' $T/*.sh.out 1>&2
 	nfail="`grep '!!!' $T/*.sh.out | wc -l`"
-	echo 'Number of failed herd runs (e.g., timeout): ' $nfail 1>&2
+	echo 'Number of failed herd7 runs (e.g., timeout): ' $nfail 1>&2
 	exit 1
 else
 	echo All runs completed successfully. 1>&2

@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2011 Broadcom Corporation
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
- * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
- * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
- * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include <linux/kernel.h>
@@ -1189,8 +1178,12 @@ static void brcmf_usb_probe_phase2(struct device *dev, int ret,
 	if (ret)
 		goto error;
 
+	ret = brcmf_alloc(devinfo->dev, devinfo->settings);
+	if (ret)
+		goto error;
+
 	/* Attach to the common driver interface */
-	ret = brcmf_attach(devinfo->dev, devinfo->settings);
+	ret = brcmf_attach(devinfo->dev);
 	if (ret)
 		goto error;
 
@@ -1262,7 +1255,10 @@ static int brcmf_usb_probe_cb(struct brcmf_usbdev_info *devinfo)
 	}
 
 	if (!brcmf_usb_dlneeded(devinfo)) {
-		ret = brcmf_attach(devinfo->dev, devinfo->settings);
+		ret = brcmf_alloc(devinfo->dev, devinfo->settings);
+		if (ret)
+			goto fail;
+		ret = brcmf_attach(devinfo->dev);
 		if (ret)
 			goto fail;
 		/* we are done */
@@ -1290,6 +1286,7 @@ static int brcmf_usb_probe_cb(struct brcmf_usbdev_info *devinfo)
 
 fail:
 	/* Release resources in reverse order */
+	brcmf_free(devinfo->dev);
 	kfree(bus);
 	brcmf_usb_detach(devinfo);
 	return ret;
@@ -1303,6 +1300,7 @@ brcmf_usb_disconnect_cb(struct brcmf_usbdev_info *devinfo)
 	brcmf_dbg(USB, "Enter, bus_pub %p\n", devinfo);
 
 	brcmf_detach(devinfo->dev);
+	brcmf_free(devinfo->dev);
 	kfree(devinfo->bus_pub.bus);
 	brcmf_usb_detach(devinfo);
 }
@@ -1446,10 +1444,12 @@ static int brcmf_usb_suspend(struct usb_interface *intf, pm_message_t state)
 
 	brcmf_dbg(USB, "Enter\n");
 	devinfo->bus_pub.state = BRCMFMAC_USB_STATE_SLEEP;
-	if (devinfo->wowl_enabled)
+	if (devinfo->wowl_enabled) {
 		brcmf_cancel_all_urbs(devinfo);
-	else
+	} else {
 		brcmf_detach(&usb->dev);
+		brcmf_free(&usb->dev);
+	}
 	return 0;
 }
 
@@ -1462,8 +1462,19 @@ static int brcmf_usb_resume(struct usb_interface *intf)
 	struct brcmf_usbdev_info *devinfo = brcmf_usb_get_businfo(&usb->dev);
 
 	brcmf_dbg(USB, "Enter\n");
-	if (!devinfo->wowl_enabled)
-		return brcmf_attach(devinfo->dev, devinfo->settings);
+	if (!devinfo->wowl_enabled) {
+		int err;
+
+		err = brcmf_alloc(&usb->dev, devinfo->settings);
+		if (err)
+			return err;
+
+		err = brcmf_attach(devinfo->dev);
+		if (err) {
+			brcmf_free(devinfo->dev);
+			return err;
+		}
+	}
 
 	devinfo->bus_pub.state = BRCMFMAC_USB_STATE_UP;
 	brcmf_usb_rx_fill_all(devinfo);

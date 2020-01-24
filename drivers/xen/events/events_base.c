@@ -247,7 +247,7 @@ static void xen_irq_info_cleanup(struct irq_info *info)
  */
 unsigned int evtchn_from_irq(unsigned irq)
 {
-	if (unlikely(WARN(irq >= nr_irqs, "Invalid irq %d!\n", irq)))
+	if (WARN(irq >= nr_irqs, "Invalid irq %d!\n", irq))
 		return 0;
 
 	return info_for_irq(irq)->evtchn;
@@ -1213,31 +1213,21 @@ void xen_send_IPI_one(unsigned int cpu, enum ipi_vector vector)
 	notify_remote_via_irq(irq);
 }
 
-static DEFINE_PER_CPU(unsigned, xed_nesting_count);
-
 static void __xen_evtchn_do_upcall(void)
 {
 	struct vcpu_info *vcpu_info = __this_cpu_read(xen_vcpu);
-	int cpu = get_cpu();
-	unsigned count;
+	int cpu = smp_processor_id();
 
 	do {
 		vcpu_info->evtchn_upcall_pending = 0;
-
-		if (__this_cpu_inc_return(xed_nesting_count) - 1)
-			goto out;
 
 		xen_evtchn_handle_events(cpu);
 
 		BUG_ON(!irqs_disabled());
 
-		count = __this_cpu_read(xed_nesting_count);
-		__this_cpu_write(xed_nesting_count, 0);
-	} while (count != 1 || vcpu_info->evtchn_upcall_pending);
+		virt_rmb(); /* Hypervisor can set upcall pending. */
 
-out:
-
-	put_cpu();
+	} while (vcpu_info->evtchn_upcall_pending);
 }
 
 void xen_evtchn_do_upcall(struct pt_regs *regs)
@@ -1294,7 +1284,7 @@ void rebind_evtchn_irq(int evtchn, int irq)
 }
 
 /* Rebind an evtchn so that it gets delivered to a specific cpu */
-int xen_rebind_evtchn_to_cpu(int evtchn, unsigned tcpu)
+static int xen_rebind_evtchn_to_cpu(int evtchn, unsigned int tcpu)
 {
 	struct evtchn_bind_vcpu bind_vcpu;
 	int masked;
@@ -1328,7 +1318,6 @@ int xen_rebind_evtchn_to_cpu(int evtchn, unsigned tcpu)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(xen_rebind_evtchn_to_cpu);
 
 static int set_affinity_irq(struct irq_data *data, const struct cpumask *dest,
 			    bool force)
@@ -1341,6 +1330,15 @@ static int set_affinity_irq(struct irq_data *data, const struct cpumask *dest,
 
 	return ret;
 }
+
+/* To be called with desc->lock held. */
+int xen_set_affinity_evtchn(struct irq_desc *desc, unsigned int tcpu)
+{
+	struct irq_data *d = irq_desc_get_irq_data(desc);
+
+	return set_affinity_irq(d, cpumask_of(tcpu), false);
+}
+EXPORT_SYMBOL_GPL(xen_set_affinity_evtchn);
 
 static void enable_dynirq(struct irq_data *data)
 {

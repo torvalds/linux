@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2010 Broadcom Corporation
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
- * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
- * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
- * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 /* ****************** SDIO CARD Interface Functions **************************/
 
@@ -1119,7 +1108,8 @@ static int brcmf_ops_sdio_suspend(struct device *dev)
 	struct sdio_func *func;
 	struct brcmf_bus *bus_if;
 	struct brcmf_sdio_dev *sdiodev;
-	mmc_pm_flag_t sdio_flags;
+	mmc_pm_flag_t pm_caps, sdio_flags;
+	int ret = 0;
 
 	func = container_of(dev, struct sdio_func, dev);
 	brcmf_dbg(SDIO, "Enter: F%d\n", func->num);
@@ -1130,19 +1120,33 @@ static int brcmf_ops_sdio_suspend(struct device *dev)
 	bus_if = dev_get_drvdata(dev);
 	sdiodev = bus_if->bus_priv.sdio;
 
-	brcmf_sdiod_freezer_on(sdiodev);
-	brcmf_sdio_wd_timer(sdiodev->bus, 0);
+	pm_caps = sdio_get_host_pm_caps(func);
 
-	sdio_flags = MMC_PM_KEEP_POWER;
-	if (sdiodev->wowl_enabled) {
-		if (sdiodev->settings->bus.sdio.oob_irq_supported)
-			enable_irq_wake(sdiodev->settings->bus.sdio.oob_irq_nr);
-		else
-			sdio_flags |= MMC_PM_WAKE_SDIO_IRQ;
+	if (pm_caps & MMC_PM_KEEP_POWER) {
+		/* preserve card power during suspend */
+		brcmf_sdiod_freezer_on(sdiodev);
+		brcmf_sdio_wd_timer(sdiodev->bus, 0);
+
+		sdio_flags = MMC_PM_KEEP_POWER;
+		if (sdiodev->wowl_enabled) {
+			if (sdiodev->settings->bus.sdio.oob_irq_supported)
+				enable_irq_wake(sdiodev->settings->bus.sdio.oob_irq_nr);
+			else
+				sdio_flags |= MMC_PM_WAKE_SDIO_IRQ;
+		}
+
+		if (sdio_set_host_pm_flags(sdiodev->func1, sdio_flags))
+			brcmf_err("Failed to set pm_flags %x\n", sdio_flags);
+
+	} else {
+		/* power will be cut so remove device, probe again in resume */
+		brcmf_sdiod_intr_unregister(sdiodev);
+		ret = brcmf_sdiod_remove(sdiodev);
+		if (ret)
+			brcmf_err("Failed to remove device on suspend\n");
 	}
-	if (sdio_set_host_pm_flags(sdiodev->func1, sdio_flags))
-		brcmf_err("Failed to set pm_flags %x\n", sdio_flags);
-	return 0;
+
+	return ret;
 }
 
 static int brcmf_ops_sdio_resume(struct device *dev)
@@ -1150,13 +1154,23 @@ static int brcmf_ops_sdio_resume(struct device *dev)
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
 	struct sdio_func *func = container_of(dev, struct sdio_func, dev);
+	mmc_pm_flag_t pm_caps = sdio_get_host_pm_caps(func);
+	int ret = 0;
 
 	brcmf_dbg(SDIO, "Enter: F%d\n", func->num);
 	if (func->num != 2)
 		return 0;
 
-	brcmf_sdiod_freezer_off(sdiodev);
-	return 0;
+	if (!(pm_caps & MMC_PM_KEEP_POWER)) {
+		/* bus was powered off and device removed, probe again */
+		ret = brcmf_sdiod_probe(sdiodev);
+		if (ret)
+			brcmf_err("Failed to probe device on resume\n");
+	} else {
+		brcmf_sdiod_freezer_off(sdiodev);
+	}
+
+	return ret;
 }
 
 static const struct dev_pm_ops brcmf_sdio_pm_ops = {

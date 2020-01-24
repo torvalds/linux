@@ -266,6 +266,7 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 
 		tw->tw_transparent	= inet->transparent;
 		tw->tw_mark		= sk->sk_mark;
+		tw->tw_priority		= sk->sk_priority;
 		tw->tw_rcv_wscale	= tp->rx_opt.rcv_wscale;
 		tcptw->tw_rcv_nxt	= tp->rcv_nxt;
 		tcptw->tw_snd_nxt	= tp->snd_nxt;
@@ -274,7 +275,7 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 		tcptw->tw_ts_recent_stamp = tp->rx_opt.ts_recent_stamp;
 		tcptw->tw_ts_offset	= tp->tsoffset;
 		tcptw->tw_last_oow_ack_time = 0;
-
+		tcptw->tw_tx_delay	= tp->tcp_tx_delay;
 #if IS_ENABLED(CONFIG_IPV6)
 		if (tw->tw_family == PF_INET6) {
 			struct ipv6_pinfo *np = inet6_sk(sk);
@@ -283,6 +284,7 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 			tw->tw_v6_rcv_saddr = sk->sk_v6_rcv_saddr;
 			tw->tw_tclass = np->tclass;
 			tw->tw_flowlabel = be32_to_cpu(np->flow_label & IPV6_FLOWLABEL_MASK);
+			tw->tw_txhash = sk->sk_txhash;
 			tw->tw_ipv6only = sk->sk_ipv6only;
 		}
 #endif
@@ -460,6 +462,7 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 	struct tcp_request_sock *treq = tcp_rsk(req);
 	struct inet_connection_sock *newicsk;
 	struct tcp_sock *oldtp, *newtp;
+	u32 seq;
 
 	if (!newsk)
 		return NULL;
@@ -473,12 +476,16 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 	/* Now setup tcp_sock */
 	newtp->pred_flags = 0;
 
-	newtp->rcv_wup = newtp->copied_seq =
-	newtp->rcv_nxt = treq->rcv_isn + 1;
+	seq = treq->rcv_isn + 1;
+	newtp->rcv_wup = seq;
+	WRITE_ONCE(newtp->copied_seq, seq);
+	WRITE_ONCE(newtp->rcv_nxt, seq);
 	newtp->segs_in = 1;
 
-	newtp->snd_sml = newtp->snd_una =
-	newtp->snd_nxt = newtp->snd_up = treq->snt_isn + 1;
+	seq = treq->snt_isn + 1;
+	newtp->snd_sml = newtp->snd_una = seq;
+	WRITE_ONCE(newtp->snd_nxt, seq);
+	newtp->snd_up = seq;
 
 	INIT_LIST_HEAD(&newtp->tsq_node);
 	INIT_LIST_HEAD(&newtp->tsorted_sent_queue);
@@ -493,7 +500,7 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 	newtp->total_retrans = req->num_retrans;
 
 	tcp_init_xmit_timers(newsk);
-	newtp->write_seq = newtp->pushed_seq = treq->snt_isn + 1;
+	WRITE_ONCE(newtp->write_seq, newtp->pushed_seq = treq->snt_isn + 1);
 
 	if (sock_flag(newsk, SOCK_KEEPOPEN))
 		inet_csk_reset_keepalive_timer(newsk,
@@ -539,7 +546,7 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 	newtp->rx_opt.mss_clamp = req->mss;
 	tcp_ecn_openreq_child(newtp, req);
 	newtp->fastopen_req = NULL;
-	newtp->fastopen_rsk = NULL;
+	RCU_INIT_POINTER(newtp->fastopen_rsk, NULL);
 
 	__TCP_INC_STATS(sock_net(sk), TCP_MIB_PASSIVEOPENS);
 

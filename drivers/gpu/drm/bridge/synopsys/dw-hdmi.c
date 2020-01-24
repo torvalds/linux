@@ -6,35 +6,39 @@
  * Copyright (C) 2011-2013 Freescale Semiconductor, Inc.
  * Copyright (C) 2010, Guennadi Liakhovetski <g.liakhovetski@gmx.de>
  */
-#include <linux/module.h>
-#include <linux/irq.h>
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/clk.h>
 #include <linux/hdmi.h>
+#include <linux/irq.h>
+#include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of_device.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/regmap.h>
+#include <linux/dma-mapping.h>
 #include <linux/spinlock.h>
 
-#include <drm/drm_of.h>
-#include <drm/drmP.h>
-#include <drm/drm_atomic_helper.h>
-#include <drm/drm_edid.h>
-#include <drm/drm_encoder_slave.h>
-#include <drm/drm_scdc_helper.h>
-#include <drm/drm_probe_helper.h>
-#include <drm/bridge/dw_hdmi.h>
+#include <media/cec-notifier.h>
 
 #include <uapi/linux/media-bus-format.h>
 #include <uapi/linux/videodev2.h>
 
-#include "dw-hdmi.h"
+#include <drm/bridge/dw_hdmi.h>
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_bridge.h>
+#include <drm/drm_edid.h>
+#include <drm/drm_of.h>
+#include <drm/drm_print.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_scdc_helper.h>
+
 #include "dw-hdmi-audio.h"
 #include "dw-hdmi-cec.h"
+#include "dw-hdmi.h"
 
-#include <media/cec-notifier.h>
-
+#define DDC_CI_ADDR		0x37
 #define DDC_SEGMENT_ADDR	0x30
 
 #define HDMI_EDID_LEN		512
@@ -164,6 +168,10 @@ struct dw_hdmi {
 	bool sink_is_hdmi;
 	bool sink_has_audio;
 
+	struct pinctrl *pinctrl;
+	struct pinctrl_state *default_state;
+	struct pinctrl_state *unwedge_state;
+
 	struct mutex mutex;		/* for state below and previous_mode */
 	enum drm_connector_force force;	/* mutex-protected force state */
 	bool disabled;			/* DRM has disabled our bridge */
@@ -184,7 +192,12 @@ struct dw_hdmi {
 	void (*enable_audio)(struct dw_hdmi *hdmi);
 	void (*disable_audio)(struct dw_hdmi *hdmi);
 
+	struct mutex cec_notifier_mutex;
 	struct cec_notifier *cec_notifier;
+
+	hdmi_codec_plugged_cb plugged_cb;
+	struct device *codec_dev;
+	enum drm_connector_status last_connector_result;
 };
 
 #define HDMI_IH_PHY_STAT0_RX_SENSE \
@@ -209,6 +222,28 @@ static inline u8 hdmi_readb(struct dw_hdmi *hdmi, int offset)
 	return val;
 }
 
+static void handle_plugged_change(struct dw_hdmi *hdmi, bool plugged)
+{
+	if (hdmi->plugged_cb && hdmi->codec_dev)
+		hdmi->plugged_cb(hdmi->codec_dev, plugged);
+}
+
+int dw_hdmi_set_plugged_cb(struct dw_hdmi *hdmi, hdmi_codec_plugged_cb fn,
+			   struct device *codec_dev)
+{
+	bool plugged;
+
+	mutex_lock(&hdmi->mutex);
+	hdmi->plugged_cb = fn;
+	hdmi->codec_dev = codec_dev;
+	plugged = hdmi->last_connector_result == connector_status_connected;
+	handle_plugged_change(hdmi, plugged);
+	mutex_unlock(&hdmi->mutex);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dw_hdmi_set_plugged_cb);
+
 static void hdmi_modb(struct dw_hdmi *hdmi, u8 data, u8 mask, unsigned reg)
 {
 	regmap_update_bits(hdmi->regm, reg << hdmi->reg_shift, mask, data);
@@ -222,6 +257,13 @@ static void hdmi_mask_writeb(struct dw_hdmi *hdmi, u8 data, unsigned int reg,
 
 static void dw_hdmi_i2c_init(struct dw_hdmi *hdmi)
 {
+	hdmi_writeb(hdmi, HDMI_PHY_I2CM_INT_ADDR_DONE_POL,
+		    HDMI_PHY_I2CM_INT_ADDR);
+
+	hdmi_writeb(hdmi, HDMI_PHY_I2CM_CTLINT_ADDR_NAC_POL |
+		    HDMI_PHY_I2CM_CTLINT_ADDR_ARBITRATION_POL,
+		    HDMI_PHY_I2CM_CTLINT_ADDR);
+
 	/* Software reset */
 	hdmi_writeb(hdmi, 0x00, HDMI_I2CM_SOFTRSTZ);
 
@@ -242,11 +284,82 @@ static void dw_hdmi_i2c_init(struct dw_hdmi *hdmi)
 		    HDMI_IH_MUTE_I2CM_STAT0);
 }
 
+static bool dw_hdmi_i2c_unwedge(struct dw_hdmi *hdmi)
+{
+	/* If no unwedge state then give up */
+	if (!hdmi->unwedge_state)
+		return false;
+
+	dev_info(hdmi->dev, "Attempting to unwedge stuck i2c bus\n");
+
+	/*
+	 * This is a huge hack to workaround a problem where the dw_hdmi i2c
+	 * bus could sometimes get wedged.  Once wedged there doesn't appear
+	 * to be any way to unwedge it (including the HDMI_I2CM_SOFTRSTZ)
+	 * other than pulsing the SDA line.
+	 *
+	 * We appear to be able to pulse the SDA line (in the eyes of dw_hdmi)
+	 * by:
+	 * 1. Remux the pin as a GPIO output, driven low.
+	 * 2. Wait a little while.  1 ms seems to work, but we'll do 10.
+	 * 3. Immediately jump to remux the pin as dw_hdmi i2c again.
+	 *
+	 * At the moment of remuxing, the line will still be low due to its
+	 * recent stint as an output, but then it will be pulled high by the
+	 * (presumed) external pullup.  dw_hdmi seems to see this as a rising
+	 * edge and that seems to get it out of its jam.
+	 *
+	 * This wedging was only ever seen on one TV, and only on one of
+	 * its HDMI ports.  It happened when the TV was powered on while the
+	 * device was plugged in.  A scope trace shows the TV bringing both SDA
+	 * and SCL low, then bringing them both back up at roughly the same
+	 * time.  Presumably this confuses dw_hdmi because it saw activity but
+	 * no real STOP (maybe it thinks there's another master on the bus?).
+	 * Giving it a clean rising edge of SDA while SCL is already high
+	 * presumably makes dw_hdmi see a STOP which seems to bring dw_hdmi out
+	 * of its stupor.
+	 *
+	 * Note that after coming back alive, transfers seem to immediately
+	 * resume, so if we unwedge due to a timeout we should wait a little
+	 * longer for our transfer to finish, since it might have just started
+	 * now.
+	 */
+	pinctrl_select_state(hdmi->pinctrl, hdmi->unwedge_state);
+	msleep(10);
+	pinctrl_select_state(hdmi->pinctrl, hdmi->default_state);
+
+	return true;
+}
+
+static int dw_hdmi_i2c_wait(struct dw_hdmi *hdmi)
+{
+	struct dw_hdmi_i2c *i2c = hdmi->i2c;
+	int stat;
+
+	stat = wait_for_completion_timeout(&i2c->cmp, HZ / 10);
+	if (!stat) {
+		/* If we can't unwedge, return timeout */
+		if (!dw_hdmi_i2c_unwedge(hdmi))
+			return -EAGAIN;
+
+		/* We tried to unwedge; give it another chance */
+		stat = wait_for_completion_timeout(&i2c->cmp, HZ / 10);
+		if (!stat)
+			return -EAGAIN;
+	}
+
+	/* Check for error condition on the bus */
+	if (i2c->stat & HDMI_IH_I2CM_STAT0_ERROR)
+		return -EIO;
+
+	return 0;
+}
+
 static int dw_hdmi_i2c_read(struct dw_hdmi *hdmi,
 			    unsigned char *buf, unsigned int length)
 {
 	struct dw_hdmi_i2c *i2c = hdmi->i2c;
-	int stat;
+	int ret;
 
 	if (!i2c->is_regaddr) {
 		dev_dbg(hdmi->dev, "set read register address to 0\n");
@@ -265,13 +378,9 @@ static int dw_hdmi_i2c_read(struct dw_hdmi *hdmi,
 			hdmi_writeb(hdmi, HDMI_I2CM_OPERATION_READ,
 				    HDMI_I2CM_OPERATION);
 
-		stat = wait_for_completion_timeout(&i2c->cmp, HZ / 10);
-		if (!stat)
-			return -EAGAIN;
-
-		/* Check for error condition on the bus */
-		if (i2c->stat & HDMI_IH_I2CM_STAT0_ERROR)
-			return -EIO;
+		ret = dw_hdmi_i2c_wait(hdmi);
+		if (ret)
+			return ret;
 
 		*buf++ = hdmi_readb(hdmi, HDMI_I2CM_DATAI);
 	}
@@ -284,7 +393,7 @@ static int dw_hdmi_i2c_write(struct dw_hdmi *hdmi,
 			     unsigned char *buf, unsigned int length)
 {
 	struct dw_hdmi_i2c *i2c = hdmi->i2c;
-	int stat;
+	int ret;
 
 	if (!i2c->is_regaddr) {
 		/* Use the first write byte as register address */
@@ -302,13 +411,9 @@ static int dw_hdmi_i2c_write(struct dw_hdmi *hdmi,
 		hdmi_writeb(hdmi, HDMI_I2CM_OPERATION_WRITE,
 			    HDMI_I2CM_OPERATION);
 
-		stat = wait_for_completion_timeout(&i2c->cmp, HZ / 10);
-		if (!stat)
-			return -EAGAIN;
-
-		/* Check for error condition on the bus */
-		if (i2c->stat & HDMI_IH_I2CM_STAT0_ERROR)
-			return -EIO;
+		ret = dw_hdmi_i2c_wait(hdmi);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
@@ -321,6 +426,15 @@ static int dw_hdmi_i2c_xfer(struct i2c_adapter *adap,
 	struct dw_hdmi_i2c *i2c = hdmi->i2c;
 	u8 addr = msgs[0].addr;
 	int i, ret = 0;
+
+	if (addr == DDC_CI_ADDR)
+		/*
+		 * The internal I2C controller does not support the multi-byte
+		 * read and write operations needed for DDC/CI.
+		 * TOFIX: Blacklist the DDC/CI address until we filter out
+		 * unsupported I2C operations.
+		 */
+		return -EOPNOTSUPP;
 
 	dev_dbg(hdmi->dev, "xfer: num: %d, addr: %#x\n", num, addr);
 
@@ -432,8 +546,14 @@ static void hdmi_set_cts_n(struct dw_hdmi *hdmi, unsigned int cts,
 	/* nshift factor = 0 */
 	hdmi_modb(hdmi, 0, HDMI_AUD_CTS3_N_SHIFT_MASK, HDMI_AUD_CTS3);
 
-	hdmi_writeb(hdmi, ((cts >> 16) & HDMI_AUD_CTS3_AUDCTS19_16_MASK) |
-		    HDMI_AUD_CTS3_CTS_MANUAL, HDMI_AUD_CTS3);
+	/* Use automatic CTS generation mode when CTS is not set */
+	if (cts)
+		hdmi_writeb(hdmi, ((cts >> 16) &
+				   HDMI_AUD_CTS3_AUDCTS19_16_MASK) |
+				  HDMI_AUD_CTS3_CTS_MANUAL,
+			    HDMI_AUD_CTS3);
+	else
+		hdmi_writeb(hdmi, 0, HDMI_AUD_CTS3);
 	hdmi_writeb(hdmi, (cts >> 8) & 0xff, HDMI_AUD_CTS2);
 	hdmi_writeb(hdmi, cts & 0xff, HDMI_AUD_CTS1);
 
@@ -498,29 +618,58 @@ static unsigned int hdmi_compute_n(unsigned int freq, unsigned long pixel_clk)
 	return n;
 }
 
+/*
+ * When transmitting IEC60958 linear PCM audio, these registers allow to
+ * configure the channel status information of all the channel status
+ * bits in the IEC60958 frame. For the moment this configuration is only
+ * used when the I2S audio interface, General Purpose Audio (GPA),
+ * or AHB audio DMA (AHBAUDDMA) interface is active
+ * (for S/PDIF interface this information comes from the stream).
+ */
+void dw_hdmi_set_channel_status(struct dw_hdmi *hdmi,
+				u8 *channel_status)
+{
+	/*
+	 * Set channel status register for frequency and word length.
+	 * Use default values for other registers.
+	 */
+	hdmi_writeb(hdmi, channel_status[3], HDMI_FC_AUDSCHNLS7);
+	hdmi_writeb(hdmi, channel_status[4], HDMI_FC_AUDSCHNLS8);
+}
+EXPORT_SYMBOL_GPL(dw_hdmi_set_channel_status);
+
 static void hdmi_set_clk_regenerator(struct dw_hdmi *hdmi,
 	unsigned long pixel_clk, unsigned int sample_rate)
 {
 	unsigned long ftdms = pixel_clk;
 	unsigned int n, cts;
+	u8 config3;
 	u64 tmp;
 
 	n = hdmi_compute_n(sample_rate, pixel_clk);
 
-	/*
-	 * Compute the CTS value from the N value.  Note that CTS and N
-	 * can be up to 20 bits in total, so we need 64-bit math.  Also
-	 * note that our TDMS clock is not fully accurate; it is accurate
-	 * to kHz.  This can introduce an unnecessary remainder in the
-	 * calculation below, so we don't try to warn about that.
-	 */
-	tmp = (u64)ftdms * n;
-	do_div(tmp, 128 * sample_rate);
-	cts = tmp;
+	config3 = hdmi_readb(hdmi, HDMI_CONFIG3_ID);
 
-	dev_dbg(hdmi->dev, "%s: fs=%uHz ftdms=%lu.%03luMHz N=%d cts=%d\n",
-		__func__, sample_rate, ftdms / 1000000, (ftdms / 1000) % 1000,
-		n, cts);
+	/* Only compute CTS when using internal AHB audio */
+	if (config3 & HDMI_CONFIG3_AHBAUDDMA) {
+		/*
+		 * Compute the CTS value from the N value.  Note that CTS and N
+		 * can be up to 20 bits in total, so we need 64-bit math.  Also
+		 * note that our TDMS clock is not fully accurate; it is
+		 * accurate to kHz.  This can introduce an unnecessary remainder
+		 * in the calculation below, so we don't try to warn about that.
+		 */
+		tmp = (u64)ftdms * n;
+		do_div(tmp, 128 * sample_rate);
+		cts = tmp;
+
+		dev_dbg(hdmi->dev, "%s: fs=%uHz ftdms=%lu.%03luMHz N=%d cts=%d\n",
+			__func__, sample_rate,
+			ftdms / 1000000, (ftdms / 1000) % 1000,
+			n, cts);
+	} else {
+		cts = 0;
+	}
 
 	spin_lock_irq(&hdmi->audio_lock);
 	hdmi->audio_n = n;
@@ -553,6 +702,42 @@ void dw_hdmi_set_sample_rate(struct dw_hdmi *hdmi, unsigned int rate)
 	mutex_unlock(&hdmi->audio_mutex);
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_set_sample_rate);
+
+void dw_hdmi_set_channel_count(struct dw_hdmi *hdmi, unsigned int cnt)
+{
+	u8 layout;
+
+	mutex_lock(&hdmi->audio_mutex);
+
+	/*
+	 * For >2 channel PCM audio, we need to select layout 1
+	 * and set an appropriate channel map.
+	 */
+	if (cnt > 2)
+		layout = HDMI_FC_AUDSCONF_AUD_PACKET_LAYOUT_LAYOUT1;
+	else
+		layout = HDMI_FC_AUDSCONF_AUD_PACKET_LAYOUT_LAYOUT0;
+
+	hdmi_modb(hdmi, layout, HDMI_FC_AUDSCONF_AUD_PACKET_LAYOUT_MASK,
+		  HDMI_FC_AUDSCONF);
+
+	/* Set the audio infoframes channel count */
+	hdmi_modb(hdmi, (cnt - 1) << HDMI_FC_AUDICONF0_CC_OFFSET,
+		  HDMI_FC_AUDICONF0_CC_MASK, HDMI_FC_AUDICONF0);
+
+	mutex_unlock(&hdmi->audio_mutex);
+}
+EXPORT_SYMBOL_GPL(dw_hdmi_set_channel_count);
+
+void dw_hdmi_set_channel_allocation(struct dw_hdmi *hdmi, unsigned int ca)
+{
+	mutex_lock(&hdmi->audio_mutex);
+
+	hdmi_writeb(hdmi, ca, HDMI_FC_AUDICONF2);
+
+	mutex_unlock(&hdmi->audio_mutex);
+}
+EXPORT_SYMBOL_GPL(dw_hdmi_set_channel_allocation);
 
 static void hdmi_enable_audio_clk(struct dw_hdmi *hdmi, bool enable)
 {
@@ -1585,6 +1770,41 @@ static void hdmi_config_vendor_specific_infoframe(struct dw_hdmi *hdmi,
 			HDMI_FC_DATAUTO0_VSD_MASK);
 }
 
+static void hdmi_config_drm_infoframe(struct dw_hdmi *hdmi)
+{
+	const struct drm_connector_state *conn_state = hdmi->connector.state;
+	struct hdmi_drm_infoframe frame;
+	u8 buffer[30];
+	ssize_t err;
+	int i;
+
+	if (!hdmi->plat_data->use_drm_infoframe)
+		return;
+
+	hdmi_modb(hdmi, HDMI_FC_PACKET_TX_EN_DRM_DISABLE,
+		  HDMI_FC_PACKET_TX_EN_DRM_MASK, HDMI_FC_PACKET_TX_EN);
+
+	err = drm_hdmi_infoframe_set_hdr_metadata(&frame, conn_state);
+	if (err < 0)
+		return;
+
+	err = hdmi_drm_infoframe_pack(&frame, buffer, sizeof(buffer));
+	if (err < 0) {
+		dev_err(hdmi->dev, "Failed to pack drm infoframe: %zd\n", err);
+		return;
+	}
+
+	hdmi_writeb(hdmi, frame.version, HDMI_FC_DRM_HB0);
+	hdmi_writeb(hdmi, frame.length, HDMI_FC_DRM_HB1);
+
+	for (i = 0; i < frame.length; i++)
+		hdmi_writeb(hdmi, buffer[4 + i], HDMI_FC_DRM_PB0 + i);
+
+	hdmi_writeb(hdmi, 1, HDMI_FC_DRM_UP);
+	hdmi_modb(hdmi, HDMI_FC_PACKET_TX_EN_DRM_ENABLE,
+		  HDMI_FC_PACKET_TX_EN_DRM_MASK, HDMI_FC_PACKET_TX_EN);
+}
+
 static void hdmi_av_composer(struct dw_hdmi *hdmi,
 			     const struct drm_display_mode *mode)
 {
@@ -1896,7 +2116,7 @@ static int dw_hdmi_setup(struct dw_hdmi *hdmi, struct drm_display_mode *mode)
 
 		/* HDMI Initialization Step E - Configure audio */
 		hdmi_clk_regenerator_update_pixel_clock(hdmi);
-		hdmi_enable_audio_clk(hdmi, true);
+		hdmi_enable_audio_clk(hdmi, hdmi->audio_enable);
 	}
 
 	/* not for DVI mode */
@@ -1906,6 +2126,7 @@ static int dw_hdmi_setup(struct dw_hdmi *hdmi, struct drm_display_mode *mode)
 		/* HDMI Initialization Step F - Configure AVI InfoFrame */
 		hdmi_config_AVI(hdmi, mode);
 		hdmi_config_vendor_specific_infoframe(hdmi, mode);
+		hdmi_config_drm_infoframe(hdmi);
 	} else {
 		dev_dbg(hdmi->dev, "%s DVI mode\n", __func__);
 	}
@@ -1918,16 +2139,6 @@ static int dw_hdmi_setup(struct dw_hdmi *hdmi, struct drm_display_mode *mode)
 	dw_hdmi_clear_overflow(hdmi);
 
 	return 0;
-}
-
-static void dw_hdmi_setup_i2c(struct dw_hdmi *hdmi)
-{
-	hdmi_writeb(hdmi, HDMI_PHY_I2CM_INT_ADDR_DONE_POL,
-		    HDMI_PHY_I2CM_INT_ADDR);
-
-	hdmi_writeb(hdmi, HDMI_PHY_I2CM_CTLINT_ADDR_NAC_POL |
-		    HDMI_PHY_I2CM_CTLINT_ADDR_ARBITRATION_POL,
-		    HDMI_PHY_I2CM_CTLINT_ADDR);
 }
 
 static void initialize_hdmi_ih_mutes(struct dw_hdmi *hdmi)
@@ -2044,6 +2255,7 @@ dw_hdmi_connector_detect(struct drm_connector *connector, bool force)
 {
 	struct dw_hdmi *hdmi = container_of(connector, struct dw_hdmi,
 					     connector);
+	enum drm_connector_status result;
 
 	mutex_lock(&hdmi->mutex);
 	hdmi->force = DRM_FORCE_UNSPECIFIED;
@@ -2051,7 +2263,18 @@ dw_hdmi_connector_detect(struct drm_connector *connector, bool force)
 	dw_hdmi_update_phy_mask(hdmi);
 	mutex_unlock(&hdmi->mutex);
 
-	return hdmi->phy.ops->read_hpd(hdmi, hdmi->phy.data);
+	result = hdmi->phy.ops->read_hpd(hdmi, hdmi->phy.data);
+
+	mutex_lock(&hdmi->mutex);
+	if (result != hdmi->last_connector_result) {
+		dev_dbg(hdmi->dev, "read_hpd result: %d", result);
+		handle_plugged_change(hdmi,
+				      result == connector_status_connected);
+		hdmi->last_connector_result = result;
+	}
+	mutex_unlock(&hdmi->mutex);
+
+	return result;
 }
 
 static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
@@ -2082,6 +2305,45 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 	return ret;
 }
 
+static bool hdr_metadata_equal(const struct drm_connector_state *old_state,
+			       const struct drm_connector_state *new_state)
+{
+	struct drm_property_blob *old_blob = old_state->hdr_output_metadata;
+	struct drm_property_blob *new_blob = new_state->hdr_output_metadata;
+
+	if (!old_blob || !new_blob)
+		return old_blob == new_blob;
+
+	if (old_blob->length != new_blob->length)
+		return false;
+
+	return !memcmp(old_blob->data, new_blob->data, old_blob->length);
+}
+
+static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
+					  struct drm_atomic_state *state)
+{
+	struct drm_connector_state *old_state =
+		drm_atomic_get_old_connector_state(state, connector);
+	struct drm_connector_state *new_state =
+		drm_atomic_get_new_connector_state(state, connector);
+	struct drm_crtc *crtc = new_state->crtc;
+	struct drm_crtc_state *crtc_state;
+
+	if (!crtc)
+		return 0;
+
+	if (!hdr_metadata_equal(old_state, new_state)) {
+		crtc_state = drm_atomic_get_crtc_state(state, crtc);
+		if (IS_ERR(crtc_state))
+			return PTR_ERR(crtc_state);
+
+		crtc_state->mode_changed = true;
+	}
+
+	return 0;
+}
+
 static void dw_hdmi_connector_force(struct drm_connector *connector)
 {
 	struct dw_hdmi *hdmi = container_of(connector, struct dw_hdmi,
@@ -2106,6 +2368,7 @@ static const struct drm_connector_funcs dw_hdmi_connector_funcs = {
 
 static const struct drm_connector_helper_funcs dw_hdmi_connector_helper_funcs = {
 	.get_modes = dw_hdmi_connector_get_modes,
+	.atomic_check = dw_hdmi_connector_atomic_check,
 };
 
 static int dw_hdmi_bridge_attach(struct drm_bridge *bridge)
@@ -2113,18 +2376,46 @@ static int dw_hdmi_bridge_attach(struct drm_bridge *bridge)
 	struct dw_hdmi *hdmi = bridge->driver_private;
 	struct drm_encoder *encoder = bridge->encoder;
 	struct drm_connector *connector = &hdmi->connector;
+	struct cec_connector_info conn_info;
+	struct cec_notifier *notifier;
 
 	connector->interlace_allowed = 1;
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
 
 	drm_connector_helper_add(connector, &dw_hdmi_connector_helper_funcs);
 
-	drm_connector_init(bridge->dev, connector, &dw_hdmi_connector_funcs,
-			   DRM_MODE_CONNECTOR_HDMIA);
+	drm_connector_init_with_ddc(bridge->dev, connector,
+				    &dw_hdmi_connector_funcs,
+				    DRM_MODE_CONNECTOR_HDMIA,
+				    hdmi->ddc);
+
+	if (hdmi->version >= 0x200a && hdmi->plat_data->use_drm_infoframe)
+		drm_object_attach_property(&connector->base,
+			connector->dev->mode_config.hdr_output_metadata_property, 0);
 
 	drm_connector_attach_encoder(connector, encoder);
 
+	cec_fill_conn_info_from_drm(&conn_info, connector);
+
+	notifier = cec_notifier_conn_register(hdmi->dev, NULL, &conn_info);
+	if (!notifier)
+		return -ENOMEM;
+
+	mutex_lock(&hdmi->cec_notifier_mutex);
+	hdmi->cec_notifier = notifier;
+	mutex_unlock(&hdmi->cec_notifier_mutex);
+
 	return 0;
+}
+
+static void dw_hdmi_bridge_detach(struct drm_bridge *bridge)
+{
+	struct dw_hdmi *hdmi = bridge->driver_private;
+
+	mutex_lock(&hdmi->cec_notifier_mutex);
+	cec_notifier_conn_unregister(hdmi->cec_notifier);
+	hdmi->cec_notifier = NULL;
+	mutex_unlock(&hdmi->cec_notifier_mutex);
 }
 
 static enum drm_mode_status
@@ -2183,6 +2474,7 @@ static void dw_hdmi_bridge_enable(struct drm_bridge *bridge)
 
 static const struct drm_bridge_funcs dw_hdmi_bridge_funcs = {
 	.attach = dw_hdmi_bridge_attach,
+	.detach = dw_hdmi_bridge_detach,
 	.enable = dw_hdmi_bridge_enable,
 	.disable = dw_hdmi_bridge_disable,
 	.mode_set = dw_hdmi_bridge_mode_set,
@@ -2290,9 +2582,11 @@ static irqreturn_t dw_hdmi_irq(int irq, void *dev_id)
 				       phy_stat & HDMI_PHY_HPD,
 				       phy_stat & HDMI_PHY_RX_SENSE);
 
-		if ((phy_stat & (HDMI_PHY_RX_SENSE | HDMI_PHY_HPD)) == 0)
-			cec_notifier_set_phys_addr(hdmi->cec_notifier,
-						   CEC_PHYS_ADDR_INVALID);
+		if ((phy_stat & (HDMI_PHY_RX_SENSE | HDMI_PHY_HPD)) == 0) {
+			mutex_lock(&hdmi->cec_notifier_mutex);
+			cec_notifier_phys_addr_invalidate(hdmi->cec_notifier);
+			mutex_unlock(&hdmi->cec_notifier_mutex);
+		}
 	}
 
 	if (intr_stat & HDMI_IH_PHY_STAT0_HPD) {
@@ -2430,6 +2724,21 @@ static const struct regmap_config hdmi_regmap_32bit_config = {
 	.max_register	= HDMI_I2CM_FS_SCL_LCNT_0_ADDR << 2,
 };
 
+static void dw_hdmi_init_hw(struct dw_hdmi *hdmi)
+{
+	initialize_hdmi_ih_mutes(hdmi);
+
+	/*
+	 * Reset HDMI DDC I2C master controller and mute I2CM interrupts.
+	 * Even if we are using a separate i2c adapter doing this doesn't
+	 * hurt.
+	 */
+	dw_hdmi_i2c_init(hdmi);
+
+	if (hdmi->phy.ops->setup_hpd)
+		hdmi->phy.ops->setup_hpd(hdmi, hdmi->phy.data);
+}
+
 static struct dw_hdmi *
 __dw_hdmi_probe(struct platform_device *pdev,
 		const struct dw_hdmi_plat_data *plat_data)
@@ -2460,9 +2769,11 @@ __dw_hdmi_probe(struct platform_device *pdev,
 	hdmi->rxsense = true;
 	hdmi->phy_mask = (u8)~(HDMI_PHY_HPD | HDMI_PHY_RX_SENSE);
 	hdmi->mc_clkdis = 0x7f;
+	hdmi->last_connector_result = connector_status_disconnected;
 
 	mutex_init(&hdmi->mutex);
 	mutex_init(&hdmi->audio_mutex);
+	mutex_init(&hdmi->cec_notifier_mutex);
 	spin_lock_init(&hdmi->audio_lock);
 
 	ddc_node = of_parse_phandle(np, "ddc-i2c-bus", 0);
@@ -2581,7 +2892,7 @@ __dw_hdmi_probe(struct platform_device *pdev,
 		 prod_id1 & HDMI_PRODUCT_ID1_HDCP ? "with" : "without",
 		 hdmi->phy.name);
 
-	initialize_hdmi_ih_mutes(hdmi);
+	dw_hdmi_init_hw(hdmi);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
@@ -2595,12 +2906,6 @@ __dw_hdmi_probe(struct platform_device *pdev,
 	if (ret)
 		goto err_iahb;
 
-	hdmi->cec_notifier = cec_notifier_get(dev);
-	if (!hdmi->cec_notifier) {
-		ret = -ENOMEM;
-		goto err_iahb;
-	}
-
 	/*
 	 * To prevent overflows in HDMI_IH_FC_STAT2, set the clk regenerator
 	 * N and cts values before enabling phy
@@ -2609,6 +2914,24 @@ __dw_hdmi_probe(struct platform_device *pdev,
 
 	/* If DDC bus is not specified, try to register HDMI I2C bus */
 	if (!hdmi->ddc) {
+		/* Look for (optional) stuff related to unwedging */
+		hdmi->pinctrl = devm_pinctrl_get(dev);
+		if (!IS_ERR(hdmi->pinctrl)) {
+			hdmi->unwedge_state =
+				pinctrl_lookup_state(hdmi->pinctrl, "unwedge");
+			hdmi->default_state =
+				pinctrl_lookup_state(hdmi->pinctrl, "default");
+
+			if (IS_ERR(hdmi->default_state) ||
+			    IS_ERR(hdmi->unwedge_state)) {
+				if (!IS_ERR(hdmi->unwedge_state))
+					dev_warn(dev,
+						 "Unwedge requires default pinctrl\n");
+				hdmi->default_state = NULL;
+				hdmi->unwedge_state = NULL;
+			}
+		}
+
 		hdmi->ddc = dw_hdmi_i2c_adapter(hdmi);
 		if (IS_ERR(hdmi->ddc))
 			hdmi->ddc = NULL;
@@ -2619,10 +2942,6 @@ __dw_hdmi_probe(struct platform_device *pdev,
 #ifdef CONFIG_OF
 	hdmi->bridge.of_node = pdev->dev.of_node;
 #endif
-
-	dw_hdmi_setup_i2c(hdmi);
-	if (hdmi->phy.ops->setup_hpd)
-		hdmi->phy.ops->setup_hpd(hdmi, hdmi->phy.data);
 
 	memset(&pdevinfo, 0, sizeof(pdevinfo));
 	pdevinfo.parent = dev;
@@ -2651,6 +2970,7 @@ __dw_hdmi_probe(struct platform_device *pdev,
 		struct dw_hdmi_i2s_audio_data audio;
 
 		audio.hdmi	= hdmi;
+		audio.eld	= hdmi->connector.eld;
 		audio.write	= hdmi_writeb;
 		audio.read	= hdmi_readb;
 		hdmi->enable_audio = dw_hdmi_i2s_audio_enable;
@@ -2676,10 +2996,6 @@ __dw_hdmi_probe(struct platform_device *pdev,
 		hdmi->cec = platform_device_register_full(&pdevinfo);
 	}
 
-	/* Reset HDMI DDC I2C master controller and mute I2CM interrupts */
-	if (hdmi->i2c)
-		dw_hdmi_i2c_init(hdmi);
-
 	return hdmi;
 
 err_iahb:
@@ -2687,9 +3003,6 @@ err_iahb:
 		i2c_del_adapter(&hdmi->i2c->adap);
 		hdmi->ddc = NULL;
 	}
-
-	if (hdmi->cec_notifier)
-		cec_notifier_put(hdmi->cec_notifier);
 
 	clk_disable_unprepare(hdmi->iahb_clk);
 	if (hdmi->cec_clk)
@@ -2711,9 +3024,6 @@ static void __dw_hdmi_remove(struct dw_hdmi *hdmi)
 
 	/* Disable all interrupts */
 	hdmi_writeb(hdmi, ~0, HDMI_IH_MUTE_PHY_STAT0);
-
-	if (hdmi->cec_notifier)
-		cec_notifier_put(hdmi->cec_notifier);
 
 	clk_disable_unprepare(hdmi->iahb_clk);
 	clk_disable_unprepare(hdmi->isfr_clk);
@@ -2782,6 +3092,12 @@ void dw_hdmi_unbind(struct dw_hdmi *hdmi)
 	__dw_hdmi_remove(hdmi);
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_unbind);
+
+void dw_hdmi_resume(struct dw_hdmi *hdmi)
+{
+	dw_hdmi_init_hw(hdmi);
+}
+EXPORT_SYMBOL_GPL(dw_hdmi_resume);
 
 MODULE_AUTHOR("Sascha Hauer <s.hauer@pengutronix.de>");
 MODULE_AUTHOR("Andy Yan <andy.yan@rock-chips.com>");

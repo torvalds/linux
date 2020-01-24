@@ -430,15 +430,13 @@ static const struct snd_soc_component_driver ep93xx_i2s_component = {
 static int ep93xx_i2s_probe(struct platform_device *pdev)
 {
 	struct ep93xx_i2s_info *info;
-	struct resource *res;
 	int err;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	info->regs = devm_ioremap_resource(&pdev->dev, res);
+	info->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(info->regs))
 		return PTR_ERR(info->regs);
 
@@ -473,19 +471,17 @@ static int ep93xx_i2s_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(&pdev->dev, info);
 
-	err = snd_soc_register_component(&pdev->dev, &ep93xx_i2s_component,
+	err = devm_snd_soc_register_component(&pdev->dev, &ep93xx_i2s_component,
 					 &ep93xx_i2s_dai, 1);
 	if (err)
 		goto fail_put_lrclk;
 
 	err = devm_ep93xx_pcm_platform_register(&pdev->dev);
 	if (err)
-		goto fail_unregister;
+		goto fail_put_lrclk;
 
 	return 0;
 
-fail_unregister:
-	snd_soc_unregister_component(&pdev->dev);
 fail_put_lrclk:
 	clk_put(info->lrclk);
 fail_put_sclk:
@@ -500,7 +496,6 @@ static int ep93xx_i2s_remove(struct platform_device *pdev)
 {
 	struct ep93xx_i2s_info *info = dev_get_drvdata(&pdev->dev);
 
-	snd_soc_unregister_component(&pdev->dev);
 	clk_put(info->lrclk);
 	clk_put(info->sclk);
 	clk_put(info->mclk);

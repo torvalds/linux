@@ -198,15 +198,15 @@ void ptrace_disable(struct task_struct *child)
 /*
  * Handle hitting a breakpoint.
  */
-void ptrace_break(struct task_struct *tsk, struct pt_regs *regs)
+void ptrace_break(struct pt_regs *regs)
 {
 	force_sig_fault(SIGTRAP, TRAP_BRKPT,
-			(void __user *)instruction_pointer(regs), tsk);
+			(void __user *)instruction_pointer(regs));
 }
 
 static int break_trap(struct pt_regs *regs, unsigned int instr)
 {
-	ptrace_break(current, regs);
+	ptrace_break(regs);
 	return 0;
 }
 
@@ -923,7 +923,7 @@ asmlinkage int syscall_trace_enter(struct pt_regs *regs, int scno)
 
 	/* Do seccomp after ptrace; syscall may have changed. */
 #ifdef CONFIG_HAVE_ARCH_SECCOMP_FILTER
-	if (secure_computing(NULL) == -1)
+	if (secure_computing() == -1)
 		return -1;
 #else
 	/* XXX: remove this once OABI gets fixed */

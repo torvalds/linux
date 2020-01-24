@@ -31,8 +31,10 @@
 #define SIO_REG_DEVID		0x20	/* Device ID (2 bytes) */
 #define SIO_REG_DEVREV		0x22	/* Device revision */
 #define SIO_REG_MANID		0x23	/* Fintek ID (2 bytes) */
+#define SIO_REG_CLOCK_SEL	0x26	/* Clock select */
 #define SIO_REG_ROM_ADDR_SEL	0x27	/* ROM address select */
 #define SIO_F81866_REG_PORT_SEL	0x27	/* F81866 Multi-Function Register */
+#define SIO_REG_TSI_LEVEL_SEL	0x28	/* TSI Level select */
 #define SIO_REG_MFUNCT1		0x29	/* Multi function select 1 */
 #define SIO_REG_MFUNCT2		0x2a	/* Multi function select 2 */
 #define SIO_REG_MFUNCT3		0x2b	/* Multi function select 3 */
@@ -49,6 +51,7 @@
 #define SIO_F71869A_ID		0x1007	/* Chipset ID */
 #define SIO_F71882_ID		0x0541	/* Chipset ID */
 #define SIO_F71889_ID		0x0723	/* Chipset ID */
+#define SIO_F81803_ID		0x1210	/* Chipset ID */
 #define SIO_F81865_ID		0x0704	/* Chipset ID */
 #define SIO_F81866_ID		0x1010	/* Chipset ID */
 
@@ -108,7 +111,7 @@ MODULE_PARM_DESC(start_withtimeout, "Start watchdog timer on module load with"
 	" given initial timeout. Zero (default) disables this feature.");
 
 enum chips { f71808fg, f71858fg, f71862fg, f71868, f71869, f71882fg, f71889fg,
-	     f81865, f81866};
+	     f81803, f81865, f81866};
 
 static const char *f71808e_names[] = {
 	"f71808fg",
@@ -118,6 +121,7 @@ static const char *f71808e_names[] = {
 	"f71869",
 	"f71882fg",
 	"f71889fg",
+	"f81803",
 	"f81865",
 	"f81866",
 };
@@ -368,6 +372,14 @@ static int watchdog_start(void)
 		/* set pin 40 to WDTRST# */
 		superio_outb(watchdog.sioaddr, SIO_REG_MFUNCT3,
 			superio_inb(watchdog.sioaddr, SIO_REG_MFUNCT3) & 0xcf);
+		break;
+
+	case f81803:
+		/* Enable TSI Level register bank */
+		superio_clear_bit(watchdog.sioaddr, SIO_REG_CLOCK_SEL, 3);
+		/* Set pin 27 to WDTRST# */
+		superio_outb(watchdog.sioaddr, SIO_REG_TSI_LEVEL_SEL, 0x5f &
+			superio_inb(watchdog.sioaddr, SIO_REG_TSI_LEVEL_SEL));
 		break;
 
 	case f81865:
@@ -657,6 +669,7 @@ static const struct file_operations watchdog_fops = {
 	.release	= watchdog_release,
 	.write		= watchdog_write,
 	.unlocked_ioctl	= watchdog_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 };
 
 static struct miscdevice watchdog_miscdev = {
@@ -809,6 +822,9 @@ static int __init f71808e_find(int sioaddr)
 		/* Confirmed (by datasheet) not to have a watchdog. */
 		err = -ENODEV;
 		goto exit;
+	case SIO_F81803_ID:
+		watchdog.type = f81803;
+		break;
 	case SIO_F81865_ID:
 		watchdog.type = f81865;
 		break;

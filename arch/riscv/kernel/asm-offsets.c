@@ -71,7 +71,7 @@ void asm_offsets(void)
 	OFFSET(TASK_THREAD_FCSR, task_struct, thread.fstate.fcsr);
 
 	DEFINE(PT_SIZE, sizeof(struct pt_regs));
-	OFFSET(PT_SEPC, pt_regs, sepc);
+	OFFSET(PT_EPC, pt_regs, epc);
 	OFFSET(PT_RA, pt_regs, ra);
 	OFFSET(PT_FP, pt_regs, s0);
 	OFFSET(PT_S0, pt_regs, s0);
@@ -105,9 +105,9 @@ void asm_offsets(void)
 	OFFSET(PT_T6, pt_regs, t6);
 	OFFSET(PT_GP, pt_regs, gp);
 	OFFSET(PT_ORIG_A0, pt_regs, orig_a0);
-	OFFSET(PT_SSTATUS, pt_regs, sstatus);
-	OFFSET(PT_SBADADDR, pt_regs, sbadaddr);
-	OFFSET(PT_SCAUSE, pt_regs, scause);
+	OFFSET(PT_STATUS, pt_regs, status);
+	OFFSET(PT_BADADDR, pt_regs, badaddr);
+	OFFSET(PT_CAUSE, pt_regs, cause);
 
 	/*
 	 * THREAD_{F,X}* might be larger than a S-type offset can handle, but

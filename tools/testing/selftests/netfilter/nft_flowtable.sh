@@ -226,17 +226,19 @@ check_transfer()
 	return 0
 }
 
-test_tcp_forwarding()
+test_tcp_forwarding_ip()
 {
 	local nsa=$1
 	local nsb=$2
+	local dstip=$3
+	local dstport=$4
 	local lret=0
 
 	ip netns exec $nsb nc -w 5 -l -p 12345 < "$ns2in" > "$ns2out" &
 	lpid=$!
 
 	sleep 1
-	ip netns exec $nsa nc -w 4 10.0.2.99 12345 < "$ns1in" > "$ns1out" &
+	ip netns exec $nsa nc -w 4 "$dstip" "$dstport" < "$ns1in" > "$ns1out" &
 	cpid=$!
 
 	sleep 3
@@ -253,6 +255,28 @@ test_tcp_forwarding()
 	check_transfer "$ns2in" "$ns1out" "ns1 <- ns2"
 	if [ $? -ne 0 ];then
 		lret=1
+	fi
+
+	return $lret
+}
+
+test_tcp_forwarding()
+{
+	test_tcp_forwarding_ip "$1" "$2" 10.0.2.99 12345
+
+	return $?
+}
+
+test_tcp_forwarding_nat()
+{
+	local lret
+
+	test_tcp_forwarding_ip "$1" "$2" 10.0.2.99 12345
+	lret=$?
+
+	if [ $lret -eq 0 ] ; then
+		test_tcp_forwarding_ip "$1" "$2" 10.6.6.6 1666
+		lret=$?
 	fi
 
 	return $lret
@@ -283,14 +307,19 @@ ip -net ns2 route add 192.168.10.1 via 10.0.2.1
 # Same, but with NAT enabled.
 ip netns exec nsr1 nft -f - <<EOF
 table ip nat {
+   chain prerouting {
+      type nat hook prerouting priority 0; policy accept;
+      meta iif "veth0" ip daddr 10.6.6.6 tcp dport 1666 counter dnat ip to 10.0.2.99:12345
+   }
+
    chain postrouting {
       type nat hook postrouting priority 0; policy accept;
-      meta oifname "veth1" masquerade
+      meta oifname "veth1" counter masquerade
    }
 }
 EOF
 
-test_tcp_forwarding ns1 ns2
+test_tcp_forwarding_nat ns1 ns2
 
 if [ $? -eq 0 ] ;then
 	echo "PASS: flow offloaded for ns1/ns2 with NAT"
@@ -313,12 +342,60 @@ fi
 ip netns exec ns1 sysctl net.ipv4.ip_no_pmtu_disc=0 > /dev/null
 ip netns exec ns2 sysctl net.ipv4.ip_no_pmtu_disc=0 > /dev/null
 
-test_tcp_forwarding ns1 ns2
+test_tcp_forwarding_nat ns1 ns2
 if [ $? -eq 0 ] ;then
 	echo "PASS: flow offloaded for ns1/ns2 with NAT and pmtu discovery"
 else
 	echo "FAIL: flow offload for ns1/ns2 with NAT and pmtu discovery" 1>&2
 	ip netns exec nsr1 nft list ruleset
+fi
+
+KEY_SHA="0x"$(ps -xaf | sha1sum | cut -d " " -f 1)
+KEY_AES="0x"$(ps -xaf | md5sum | cut -d " " -f 1)
+SPI1=$RANDOM
+SPI2=$RANDOM
+
+if [ $SPI1 -eq $SPI2 ]; then
+	SPI2=$((SPI2+1))
+fi
+
+do_esp() {
+    local ns=$1
+    local me=$2
+    local remote=$3
+    local lnet=$4
+    local rnet=$5
+    local spi_out=$6
+    local spi_in=$7
+
+    ip -net $ns xfrm state add src $remote dst $me proto esp spi $spi_in  enc aes $KEY_AES  auth sha1 $KEY_SHA mode tunnel sel src $rnet dst $lnet
+    ip -net $ns xfrm state add src $me  dst $remote proto esp spi $spi_out enc aes $KEY_AES auth sha1 $KEY_SHA mode tunnel sel src $lnet dst $rnet
+
+    # to encrypt packets as they go out (includes forwarded packets that need encapsulation)
+    ip -net $ns xfrm policy add src $lnet dst $rnet dir out tmpl src $me dst $remote proto esp mode tunnel priority 1 action allow
+    # to fwd decrypted packets after esp processing:
+    ip -net $ns xfrm policy add src $rnet dst $lnet dir fwd tmpl src $remote dst $me proto esp mode tunnel priority 1 action allow
+
+}
+
+do_esp nsr1 192.168.10.1 192.168.10.2 10.0.1.0/24 10.0.2.0/24 $SPI1 $SPI2
+
+do_esp nsr2 192.168.10.2 192.168.10.1 10.0.2.0/24 10.0.1.0/24 $SPI2 $SPI1
+
+ip netns exec nsr1 nft delete table ip nat
+
+# restore default routes
+ip -net ns2 route del 192.168.10.1 via 10.0.2.1
+ip -net ns2 route add default via 10.0.2.1
+ip -net ns2 route add default via dead:2::1
+
+test_tcp_forwarding ns1 ns2
+if [ $? -eq 0 ] ;then
+	echo "PASS: ipsec tunnel mode for ns1/ns2"
+else
+	echo "FAIL: ipsec tunnel mode for ns1/ns2"
+	ip netns exec nsr1 nft list ruleset 1>&2
+	ip netns exec nsr1 cat /proc/net/xfrm_stat 1>&2
 fi
 
 exit $ret

@@ -1,0 +1,93 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+
+$id: http://devicetree.org/schemas/hwmon/ti,tmp513.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TMP513/512 system monitor sensor
+
+maintainers:
+  - Eric Tremblay <etremblay@distech-controls.com>
+
+description: |
+  The TMP512 (dual-channel) and TMP513 (triple-channel) are system monitors
+  that include remote sensors, a local temperature sensor, and a high-side
+  current shunt monitor. These system monitors have the capability of measuring
+  remote temperatures, on-chip temperatures, and system voltage/power/current
+  consumption.
+
+  Datasheets:
+  http://www.ti.com/lit/gpn/tmp513
+  http://www.ti.com/lit/gpn/tmp512
+
+
+properties:
+  compatible:
+    enum:
+      - ti,tmp512
+      - ti,tmp513
+
+  reg:
+    maxItems: 1
+
+  shunt-resistor-micro-ohms:
+    description: |
+      If 0, the calibration process will be skiped and the current and power
+      measurement engine will not work. Temperature and voltage measurement
+      will continue to work. The shunt value also need to respect:
+      rshunt <= pga-gain * 40 * 1000 * 1000.
+      If not, it's not possible to compute a valid calibration value.
+    default: 1000
+
+  ti,pga-gain:
+    description: |
+      The gain value for the PGA function. This is 8, 4, 2 or 1.
+      The PGA gain affect the shunt voltage range.
+      The range will be equal to: pga-gain * 40mV
+    allOf:
+      - $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [1, 2, 4, 8]
+    default: 8
+
+  ti,bus-range-microvolt:
+    description: |
+      This is the operating range of the bus voltage in microvolt
+    allOf:
+      - $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [16000000, 32000000]
+    default: 32000000
+
+  ti,nfactor:
+    description: |
+      Array of three(TMP513) or two(TMP512) n-Factor value for each remote
+      temperature channel.
+      See datasheet Table 11 for n-Factor range list and value interpretation.
+    allOf:
+      - $ref: /schemas/types.yaml#definitions/uint32-array
+      - minItems: 2
+        maxItems: 3
+        items:
+          default: 0x00
+          minimum: 0x00
+          maximum: 0xFF
+
+required:
+  - compatible
+  - reg
+
+examples:
+  - |
+    i2c {
+          #address-cells = <1>;
+          #size-cells = <0>;
+
+          tmp513@5c {
+              compatible = "ti,tmp513";
+              reg = <0x5C>;
+              shunt-resistor-micro-ohms = <330000>;
+              ti,bus-range-microvolt = <32000000>;
+              ti,pga-gain = <8>;
+              ti,nfactor = <0x1 0xF3 0x00>;
+          };
+    };

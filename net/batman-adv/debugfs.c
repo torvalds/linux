@@ -10,7 +10,6 @@
 #include <asm/current.h>
 #include <linux/dcache.h>
 #include <linux/debugfs.h>
-#include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/export.h>
 #include <linux/fs.h>
@@ -293,31 +292,13 @@ static struct batadv_debuginfo *batadv_hardif_debuginfos[] = {
 void batadv_debugfs_init(void)
 {
 	struct batadv_debuginfo **bat_debug;
-	struct dentry *file;
 
 	batadv_debugfs = debugfs_create_dir(BATADV_DEBUGFS_SUBDIR, NULL);
-	if (batadv_debugfs == ERR_PTR(-ENODEV))
-		batadv_debugfs = NULL;
 
-	if (!batadv_debugfs)
-		goto err;
-
-	for (bat_debug = batadv_general_debuginfos; *bat_debug; ++bat_debug) {
-		file = debugfs_create_file(((*bat_debug)->attr).name,
-					   S_IFREG | ((*bat_debug)->attr).mode,
-					   batadv_debugfs, NULL,
-					   &(*bat_debug)->fops);
-		if (!file) {
-			pr_err("Can't add general debugfs file: %s\n",
-			       ((*bat_debug)->attr).name);
-			goto err;
-		}
-	}
-
-	return;
-err:
-	debugfs_remove_recursive(batadv_debugfs);
-	batadv_debugfs = NULL;
+	for (bat_debug = batadv_general_debuginfos; *bat_debug; ++bat_debug)
+		debugfs_create_file(((*bat_debug)->attr).name,
+				    S_IFREG | ((*bat_debug)->attr).mode,
+				    batadv_debugfs, NULL, &(*bat_debug)->fops);
 }
 
 /**
@@ -333,42 +314,23 @@ void batadv_debugfs_destroy(void)
  * batadv_debugfs_add_hardif() - creates the base directory for a hard interface
  *  in debugfs.
  * @hard_iface: hard interface which should be added.
- *
- * Return: 0 on success or negative error number in case of failure
  */
-int batadv_debugfs_add_hardif(struct batadv_hard_iface *hard_iface)
+void batadv_debugfs_add_hardif(struct batadv_hard_iface *hard_iface)
 {
 	struct net *net = dev_net(hard_iface->net_dev);
 	struct batadv_debuginfo **bat_debug;
-	struct dentry *file;
-
-	if (!batadv_debugfs)
-		goto out;
 
 	if (net != &init_net)
-		return 0;
+		return;
 
 	hard_iface->debug_dir = debugfs_create_dir(hard_iface->net_dev->name,
 						   batadv_debugfs);
-	if (!hard_iface->debug_dir)
-		goto out;
 
-	for (bat_debug = batadv_hardif_debuginfos; *bat_debug; ++bat_debug) {
-		file = debugfs_create_file(((*bat_debug)->attr).name,
-					   S_IFREG | ((*bat_debug)->attr).mode,
-					   hard_iface->debug_dir,
-					   hard_iface->net_dev,
-					   &(*bat_debug)->fops);
-		if (!file)
-			goto rem_attr;
-	}
-
-	return 0;
-rem_attr:
-	debugfs_remove_recursive(hard_iface->debug_dir);
-	hard_iface->debug_dir = NULL;
-out:
-	return -ENOMEM;
+	for (bat_debug = batadv_hardif_debuginfos; *bat_debug; ++bat_debug)
+		debugfs_create_file(((*bat_debug)->attr).name,
+				    S_IFREG | ((*bat_debug)->attr).mode,
+				    hard_iface->debug_dir, hard_iface->net_dev,
+				    &(*bat_debug)->fops);
 }
 
 /**
@@ -379,15 +341,12 @@ void batadv_debugfs_rename_hardif(struct batadv_hard_iface *hard_iface)
 {
 	const char *name = hard_iface->net_dev->name;
 	struct dentry *dir;
-	struct dentry *d;
 
 	dir = hard_iface->debug_dir;
 	if (!dir)
 		return;
 
-	d = debugfs_rename(dir->d_parent, dir, dir->d_parent, name);
-	if (!d)
-		pr_err("Can't rename debugfs dir to %s\n", name);
+	debugfs_rename(dir->d_parent, dir, dir->d_parent, name);
 }
 
 /**
@@ -419,44 +378,29 @@ int batadv_debugfs_add_meshif(struct net_device *dev)
 	struct batadv_priv *bat_priv = netdev_priv(dev);
 	struct batadv_debuginfo **bat_debug;
 	struct net *net = dev_net(dev);
-	struct dentry *file;
-
-	if (!batadv_debugfs)
-		goto out;
 
 	if (net != &init_net)
 		return 0;
 
 	bat_priv->debug_dir = debugfs_create_dir(dev->name, batadv_debugfs);
-	if (!bat_priv->debug_dir)
-		goto out;
 
-	if (batadv_socket_setup(bat_priv) < 0)
-		goto rem_attr;
+	batadv_socket_setup(bat_priv);
 
 	if (batadv_debug_log_setup(bat_priv) < 0)
 		goto rem_attr;
 
-	for (bat_debug = batadv_mesh_debuginfos; *bat_debug; ++bat_debug) {
-		file = debugfs_create_file(((*bat_debug)->attr).name,
-					   S_IFREG | ((*bat_debug)->attr).mode,
-					   bat_priv->debug_dir,
-					   dev, &(*bat_debug)->fops);
-		if (!file) {
-			batadv_err(dev, "Can't add debugfs file: %s/%s\n",
-				   dev->name, ((*bat_debug)->attr).name);
-			goto rem_attr;
-		}
-	}
+	for (bat_debug = batadv_mesh_debuginfos; *bat_debug; ++bat_debug)
+		debugfs_create_file(((*bat_debug)->attr).name,
+				    S_IFREG | ((*bat_debug)->attr).mode,
+				    bat_priv->debug_dir, dev,
+				    &(*bat_debug)->fops);
 
-	if (batadv_nc_init_debugfs(bat_priv) < 0)
-		goto rem_attr;
+	batadv_nc_init_debugfs(bat_priv);
 
 	return 0;
 rem_attr:
 	debugfs_remove_recursive(bat_priv->debug_dir);
 	bat_priv->debug_dir = NULL;
-out:
 	return -ENOMEM;
 }
 
@@ -469,15 +413,12 @@ void batadv_debugfs_rename_meshif(struct net_device *dev)
 	struct batadv_priv *bat_priv = netdev_priv(dev);
 	const char *name = dev->name;
 	struct dentry *dir;
-	struct dentry *d;
 
 	dir = bat_priv->debug_dir;
 	if (!dir)
 		return;
 
-	d = debugfs_rename(dir->d_parent, dir, dir->d_parent, name);
-	if (!d)
-		pr_err("Can't rename debugfs dir to %s\n", name);
+	debugfs_rename(dir->d_parent, dir, dir->d_parent, name);
 }
 
 /**

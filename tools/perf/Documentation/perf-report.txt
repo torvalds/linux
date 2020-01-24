@@ -89,7 +89,7 @@ OPTIONS
 	- socket: processor socket number the task ran at the time of sample
 	- srcline: filename and line number executed at the time of sample.  The
 	DWARF debugging info must be provided.
-	- srcfile: file name of the source file of the same. Requires dwarf
+	- srcfile: file name of the source file of the samples. Requires dwarf
 	information.
 	- weight: Event specific weight, e.g. memory latency or transaction
 	abort cost. This is the global weight.
@@ -412,12 +412,13 @@ OPTIONS
 
 --time::
 	Only analyze samples within given time window: <start>,<stop>. Times
-	have the format seconds.microseconds. If start is not given (i.e., time
+	have the format seconds.nanoseconds. If start is not given (i.e. time
 	string is ',x.y') then analysis starts at the beginning of the file. If
-	stop time is not given (i.e, time string is 'x.y,') then analysis goes
-	to end of file.
+	stop time is not given (i.e. time string is 'x.y,') then analysis goes
+	to end of file. Multiple ranges can be separated by spaces, which
+	requires the argument to be quoted e.g. --time "1234.567,1234.789 1235,"
 
-	Also support time percent with multiple time range. Time string is
+	Also support time percent with multiple time ranges. Time string is
 	'a%/n,b%/m,...' or 'a%-b%,c%-%d,...'.
 
 	For example:
@@ -436,6 +437,23 @@ OPTIONS
 	Select from 0% to 10% and 30% to 40% slices:
 
 	  perf report --time 0%-10%,30%-40%
+
+--switch-on EVENT_NAME::
+	Only consider events after this event is found.
+
+	This may be interesting to measure a workload only after some initialization
+	phase is over, i.e. insert a perf probe at that point and then using this
+	option with that probe.
+
+--switch-off EVENT_NAME::
+	Stop considering events after this event is found.
+
+--show-on-off-events::
+	Show the --switch-on/off events too. This has no effect in 'perf report' now
+	but probably we'll make the default not to show the switch-on/off events
+        on the --group mode and if there is only one event besides the off/on ones,
+	go straight to the histogram browser, just like 'perf report' with no events
+	explicitely specified does.
 
 --itrace::
 	Options for decoding instruction tracing data. The options are:
@@ -506,6 +524,17 @@ include::itrace.txt[]
 --time-quantum::
 	Configure time quantum for time sort key. Default 100ms.
 	Accepts s, us, ms, ns units.
+
+--total-cycles::
+	When --total-cycles is specified, it supports sorting for all blocks by
+	'Sampled Cycles%'. This is useful to concentrate on the globally hottest
+	blocks. In output, there are some new columns:
+
+	'Sampled Cycles%' - block sampled cycles aggregation / total sampled cycles
+	'Sampled Cycles'  - block sampled cycles aggregation
+	'Avg Cycles%'     - block average sampled cycles / sum of total block average
+			    sampled cycles
+	'Avg Cycles'      - block average sampled cycles
 
 include::callchain-overhead-calculation.txt[]
 

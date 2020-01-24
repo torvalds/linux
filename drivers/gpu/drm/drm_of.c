@@ -3,12 +3,13 @@
 #include <linux/export.h>
 #include <linux/list.h>
 #include <linux/of_graph.h>
-#include <drm/drmP.h>
+
 #include <drm/drm_bridge.h>
 #include <drm/drm_crtc.h>
+#include <drm/drm_device.h>
 #include <drm/drm_encoder.h>
-#include <drm/drm_panel.h>
 #include <drm/drm_of.h>
+#include <drm/drm_panel.h>
 
 /**
  * DOC: overview
@@ -248,11 +249,6 @@ int drm_of_find_panel_or_bridge(const struct device_node *np,
 	remote = of_graph_get_remote_node(np, port, endpoint);
 	if (!remote)
 		return -ENODEV;
-
-	if (!of_device_is_available(remote)) {
-		of_node_put(remote);
-		return -ENODEV;
-	}
 
 	if (panel) {
 		*panel = of_drm_find_panel(remote);

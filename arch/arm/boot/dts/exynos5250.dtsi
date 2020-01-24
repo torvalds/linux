@@ -164,7 +164,7 @@
 	};
 
 	soc: soc {
-		sysram@2020000 {
+		sram@2020000 {
 			compatible = "mmio-sram";
 			reg = <0x02020000 0x30000>;
 			#address-cells = <1>;
@@ -233,28 +233,17 @@
 			power-domains = <&pd_mau>;
 		};
 
-		mct@101c0000 {
+		timer@101c0000 {
 			compatible = "samsung,exynos4210-mct";
 			reg = <0x101C0000 0x800>;
-			interrupt-controller;
-			#interrupt-cells = <2>;
-			interrupt-parent = <&mct_map>;
-			interrupts = <0 0>, <1 0>, <2 0>, <3 0>,
-				     <4 0>, <5 0>;
 			clocks = <&clock CLK_FIN_PLL>, <&clock CLK_MCT>;
 			clock-names = "fin_pll", "mct";
-
-			mct_map: mct-map {
-				#interrupt-cells = <2>;
-				#address-cells = <0>;
-				#size-cells = <0>;
-				interrupt-map = <0x0 0 &combiner 23 3>,
-						<0x1 0 &combiner 23 4>,
-						<0x2 0 &combiner 25 2>,
-						<0x3 0 &combiner 25 3>,
-						<0x4 0 &gic 0 120 IRQ_TYPE_LEVEL_HIGH>,
-						<0x5 0 &gic 0 121 IRQ_TYPE_LEVEL_HIGH>;
-			};
+			interrupts-extended = <&combiner 23 3>,
+					      <&combiner 23 4>,
+					      <&combiner 25 2>,
+					      <&combiner 25 3>,
+					      <&gic GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>,
+					      <&gic GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		pinctrl_0: pinctrl@11400000 {
@@ -328,6 +317,53 @@
 			iommus = <&sysmmu_rotator>;
 		};
 
+		mali: gpu@11800000 {
+			compatible = "samsung,exynos5250-mali", "arm,mali-t604";
+			reg = <0x11800000 0x5000>;
+			interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "job", "mmu", "gpu";
+			clocks = <&clock CLK_G3D>;
+			clock-names = "core";
+			operating-points-v2 = <&gpu_opp_table>;
+			power-domains = <&pd_g3d>;
+			status = "disabled";
+
+			gpu_opp_table: gpu-opp-table {
+				compatible = "operating-points-v2";
+
+				opp-100000000 {
+					opp-hz = /bits/ 64 <100000000>;
+					opp-microvolt = <925000>;
+				};
+				opp-160000000 {
+					opp-hz = /bits/ 64 <160000000>;
+					opp-microvolt = <925000>;
+				};
+				opp-266000000 {
+					opp-hz = /bits/ 64 <266000000>;
+					opp-microvolt = <1025000>;
+				};
+				opp-350000000 {
+					opp-hz = /bits/ 64 <350000000>;
+					opp-microvolt = <1075000>;
+				};
+				opp-400000000 {
+					opp-hz = /bits/ 64 <400000000>;
+					opp-microvolt = <1125000>;
+				};
+				opp-450000000 {
+					opp-hz = /bits/ 64 <450000000>;
+					opp-microvolt = <1150000>;
+				};
+				opp-533000000 {
+					opp-hz = /bits/ 64 <533000000>;
+					opp-microvolt = <1250000>;
+				};
+			};
+		};
+
 		tmu: tmu@10060000 {
 			compatible = "samsung,exynos5250-tmu";
 			reg = <0x10060000 0x100>;
@@ -346,6 +382,7 @@
 			clock-names = "sata", "sclk_sata";
 			phys = <&sata_phy>;
 			phy-names = "sata-phy";
+			ports-implemented = <0x1>;
 			status = "disabled";
 		};
 
@@ -538,9 +575,9 @@
 			compatible = "samsung,s5pv210-i2s";
 			status = "disabled";
 			reg = <0x03830000 0x100>;
-			dmas = <&pdma0 10
-				&pdma0 9
-				&pdma0 8>;
+			dmas = <&pdma0 10>,
+				<&pdma0 9>,
+				<&pdma0 8>;
 			dma-names = "tx", "rx", "tx-sec";
 			clocks = <&clock_audss EXYNOS_I2S_BUS>,
 				<&clock_audss EXYNOS_I2S_BUS>,
@@ -558,8 +595,8 @@
 			compatible = "samsung,s3c6410-i2s";
 			status = "disabled";
 			reg = <0x12D60000 0x100>;
-			dmas = <&pdma1 12
-				&pdma1 11>;
+			dmas = <&pdma1 12>,
+				<&pdma1 11>;
 			dma-names = "tx", "rx";
 			clocks = <&clock CLK_I2S1>, <&clock CLK_DIV_I2S1>;
 			clock-names = "iis", "i2s_opclk0";
@@ -573,8 +610,8 @@
 			compatible = "samsung,s3c6410-i2s";
 			status = "disabled";
 			reg = <0x12D70000 0x100>;
-			dmas = <&pdma0 12
-				&pdma0 11>;
+			dmas = <&pdma0 12>,
+				<&pdma0 11>;
 			dma-names = "tx", "rx";
 			clocks = <&clock CLK_I2S2>, <&clock CLK_DIV_I2S2>;
 			clock-names = "iis", "i2s_opclk0";
@@ -617,12 +654,8 @@
 
 			clocks = <&clock CLK_USB2>;
 			clock-names = "usbhost";
-			#address-cells = <1>;
-			#size-cells = <0>;
-			port@0 {
-				reg = <0>;
-				phys = <&usb2_phy_gen 1>;
-			};
+			phys = <&usb2_phy_gen 1>;
+			phy-names = "host";
 		};
 
 		ohci: usb@12120000 {
@@ -632,12 +665,8 @@
 
 			clocks = <&clock CLK_USB2>;
 			clock-names = "usbhost";
-			#address-cells = <1>;
-			#size-cells = <0>;
-			port@0 {
-				reg = <0>;
-				phys = <&usb2_phy_gen 1>;
-			};
+			phys = <&usb2_phy_gen 1>;
+			phy-names = "host";
 		};
 
 		usb2_phy_gen: phy@12130000 {

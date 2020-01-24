@@ -185,4 +185,10 @@
 			status = "disabled";
 		};
 	};
+
+	usb_power_supply: usb-power-supply {
+		compatible = "x-powers,axp803-usb-power-supply",
+			     "x-powers,axp813-usb-power-supply";
+		status = "disabled";
+	};
 };

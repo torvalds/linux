@@ -175,6 +175,26 @@ int sysfs_create_group(struct kobject *kobj,
 }
 EXPORT_SYMBOL_GPL(sysfs_create_group);
 
+static int internal_create_groups(struct kobject *kobj, int update,
+				  const struct attribute_group **groups)
+{
+	int error = 0;
+	int i;
+
+	if (!groups)
+		return 0;
+
+	for (i = 0; groups[i]; i++) {
+		error = internal_create_group(kobj, update, groups[i]);
+		if (error) {
+			while (--i >= 0)
+				sysfs_remove_group(kobj, groups[i]);
+			break;
+		}
+	}
+	return error;
+}
+
 /**
  * sysfs_create_groups - given a directory kobject, create a bunch of attribute groups
  * @kobj:	The kobject to create the group on
@@ -191,23 +211,27 @@ EXPORT_SYMBOL_GPL(sysfs_create_group);
 int sysfs_create_groups(struct kobject *kobj,
 			const struct attribute_group **groups)
 {
-	int error = 0;
-	int i;
-
-	if (!groups)
-		return 0;
-
-	for (i = 0; groups[i]; i++) {
-		error = sysfs_create_group(kobj, groups[i]);
-		if (error) {
-			while (--i >= 0)
-				sysfs_remove_group(kobj, groups[i]);
-			break;
-		}
-	}
-	return error;
+	return internal_create_groups(kobj, 0, groups);
 }
 EXPORT_SYMBOL_GPL(sysfs_create_groups);
+
+/**
+ * sysfs_update_groups - given a directory kobject, create a bunch of attribute groups
+ * @kobj:	The kobject to update the group on
+ * @groups:	The attribute groups to update, NULL terminated
+ *
+ * This function update a bunch of attribute groups.  If an error occurs when
+ * updating a group, all previously updated groups will be removed together
+ * with already existing (not updated) attributes.
+ *
+ * Returns 0 on success or error code from sysfs_update_group on failure.
+ */
+int sysfs_update_groups(struct kobject *kobj,
+			const struct attribute_group **groups)
+{
+	return internal_create_groups(kobj, 1, groups);
+}
+EXPORT_SYMBOL_GPL(sysfs_update_groups);
 
 /**
  * sysfs_update_group - given a directory kobject, update an attribute group

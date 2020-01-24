@@ -22,7 +22,7 @@
 #define __XDP_ACT_SYM_FN(x)	\
 	{ XDP_##x, #x },
 #define __XDP_ACT_SYM_TAB	\
-	__XDP_ACT_MAP(__XDP_ACT_SYM_FN) { -1, 0 }
+	__XDP_ACT_MAP(__XDP_ACT_SYM_FN) { -1, NULL }
 __XDP_ACT_MAP(__XDP_ACT_TP_FN)
 
 TRACE_EVENT(xdp_exception,
@@ -48,6 +48,35 @@ TRACE_EVENT(xdp_exception,
 		  __entry->prog_id,
 		  __print_symbolic(__entry->act, __XDP_ACT_SYM_TAB),
 		  __entry->ifindex)
+);
+
+TRACE_EVENT(xdp_bulk_tx,
+
+	TP_PROTO(const struct net_device *dev,
+		 int sent, int drops, int err),
+
+	TP_ARGS(dev, sent, drops, err),
+
+	TP_STRUCT__entry(
+		__field(int, ifindex)
+		__field(u32, act)
+		__field(int, drops)
+		__field(int, sent)
+		__field(int, err)
+	),
+
+	TP_fast_assign(
+		__entry->ifindex	= dev->ifindex;
+		__entry->act		= XDP_TX;
+		__entry->drops		= drops;
+		__entry->sent		= sent;
+		__entry->err		= err;
+	),
+
+	TP_printk("ifindex=%d action=%s sent=%d drops=%d err=%d",
+		  __entry->ifindex,
+		  __print_symbolic(__entry->act, __XDP_ACT_SYM_TAB),
+		  __entry->sent, __entry->drops, __entry->err)
 );
 
 DECLARE_EVENT_CLASS(xdp_redirect_template,
@@ -146,9 +175,9 @@ struct _bpf_dtab_netdev {
 #endif /* __DEVMAP_OBJ_TYPE */
 
 #define devmap_ifindex(fwd, map)				\
-	(!fwd ? 0 :						\
-	 ((map->map_type == BPF_MAP_TYPE_DEVMAP) ?		\
-	  ((struct _bpf_dtab_netdev *)fwd)->dev->ifindex : 0))
+	((map->map_type == BPF_MAP_TYPE_DEVMAP ||		\
+	  map->map_type == BPF_MAP_TYPE_DEVMAP_HASH) ?		\
+	  ((struct _bpf_dtab_netdev *)fwd)->dev->ifindex : 0)
 
 #define _trace_xdp_redirect_map(dev, xdp, fwd, map, idx)		\
 	 trace_xdp_redirect_map(dev, xdp, devmap_ifindex(fwd, map),	\
@@ -267,6 +296,110 @@ TRACE_EVENT(xdp_devmap_xmit,
 		  __print_symbolic(__entry->act, __XDP_ACT_SYM_TAB),
 		  __entry->sent, __entry->drops,
 		  __entry->from_ifindex, __entry->to_ifindex, __entry->err)
+);
+
+/* Expect users already include <net/xdp.h>, but not xdp_priv.h */
+#include <net/xdp_priv.h>
+
+#define __MEM_TYPE_MAP(FN)	\
+	FN(PAGE_SHARED)		\
+	FN(PAGE_ORDER0)		\
+	FN(PAGE_POOL)		\
+	FN(ZERO_COPY)
+
+#define __MEM_TYPE_TP_FN(x)	\
+	TRACE_DEFINE_ENUM(MEM_TYPE_##x);
+#define __MEM_TYPE_SYM_FN(x)	\
+	{ MEM_TYPE_##x, #x },
+#define __MEM_TYPE_SYM_TAB	\
+	__MEM_TYPE_MAP(__MEM_TYPE_SYM_FN) { -1, 0 }
+__MEM_TYPE_MAP(__MEM_TYPE_TP_FN)
+
+TRACE_EVENT(mem_disconnect,
+
+	TP_PROTO(const struct xdp_mem_allocator *xa),
+
+	TP_ARGS(xa),
+
+	TP_STRUCT__entry(
+		__field(const struct xdp_mem_allocator *,	xa)
+		__field(u32,		mem_id)
+		__field(u32,		mem_type)
+		__field(const void *,	allocator)
+	),
+
+	TP_fast_assign(
+		__entry->xa		= xa;
+		__entry->mem_id		= xa->mem.id;
+		__entry->mem_type	= xa->mem.type;
+		__entry->allocator	= xa->allocator;
+	),
+
+	TP_printk("mem_id=%d mem_type=%s allocator=%p",
+		  __entry->mem_id,
+		  __print_symbolic(__entry->mem_type, __MEM_TYPE_SYM_TAB),
+		  __entry->allocator
+	)
+);
+
+TRACE_EVENT(mem_connect,
+
+	TP_PROTO(const struct xdp_mem_allocator *xa,
+		 const struct xdp_rxq_info *rxq),
+
+	TP_ARGS(xa, rxq),
+
+	TP_STRUCT__entry(
+		__field(const struct xdp_mem_allocator *,	xa)
+		__field(u32,		mem_id)
+		__field(u32,		mem_type)
+		__field(const void *,	allocator)
+		__field(const struct xdp_rxq_info *,		rxq)
+		__field(int,		ifindex)
+	),
+
+	TP_fast_assign(
+		__entry->xa		= xa;
+		__entry->mem_id		= xa->mem.id;
+		__entry->mem_type	= xa->mem.type;
+		__entry->allocator	= xa->allocator;
+		__entry->rxq		= rxq;
+		__entry->ifindex	= rxq->dev->ifindex;
+	),
+
+	TP_printk("mem_id=%d mem_type=%s allocator=%p"
+		  " ifindex=%d",
+		  __entry->mem_id,
+		  __print_symbolic(__entry->mem_type, __MEM_TYPE_SYM_TAB),
+		  __entry->allocator,
+		  __entry->ifindex
+	)
+);
+
+TRACE_EVENT(mem_return_failed,
+
+	TP_PROTO(const struct xdp_mem_info *mem,
+		 const struct page *page),
+
+	TP_ARGS(mem, page),
+
+	TP_STRUCT__entry(
+		__field(const struct page *,	page)
+		__field(u32,		mem_id)
+		__field(u32,		mem_type)
+	),
+
+	TP_fast_assign(
+		__entry->page		= page;
+		__entry->mem_id		= mem->id;
+		__entry->mem_type	= mem->type;
+	),
+
+	TP_printk("mem_id=%d mem_type=%s page=%p",
+		  __entry->mem_id,
+		  __print_symbolic(__entry->mem_type, __MEM_TYPE_SYM_TAB),
+		  __entry->page
+	)
 );
 
 #endif /* _TRACE_XDP_H */

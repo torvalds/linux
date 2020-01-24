@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config NET_VENDOR_MEDIATEK
 	bool "MediaTek ethernet driver"
-	depends on ARCH_MEDIATEK || SOC_MT7621
+	depends on ARCH_MEDIATEK || SOC_MT7621 || SOC_MT7620
 	---help---
 	  If you have a Mediatek SoC with ethernet, say Y.
 
@@ -9,8 +9,7 @@ if NET_VENDOR_MEDIATEK
 
 config NET_MEDIATEK_SOC
 	tristate "MediaTek SoC Gigabit Ethernet support"
-	depends on NET_VENDOR_MEDIATEK
-	select PHYLIB
+	select PHYLINK
 	---help---
 	  This driver supports the gigabit ethernet MACs in the
 	  MediaTek SoC family.

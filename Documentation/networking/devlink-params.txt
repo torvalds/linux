@@ -48,4 +48,24 @@ fw_load_policy		[DEVICE, GENERIC]
 			  Load firmware version preferred by the driver.
 			* DEVLINK_PARAM_FW_LOAD_POLICY_VALUE_FLASH (1)
 			  Load firmware currently stored in flash.
+			* DEVLINK_PARAM_FW_LOAD_POLICY_VALUE_DISK (2)
+			  Load firmware currently available on host's disk.
 			Type: u8
+
+reset_dev_on_drv_probe	[DEVICE, GENERIC]
+			Controls the device's reset policy on driver probe.
+			Valid values:
+			* DEVLINK_PARAM_RESET_DEV_ON_DRV_PROBE_VALUE_UNKNOWN (0)
+			  Unknown or invalid value.
+			* DEVLINK_PARAM_RESET_DEV_ON_DRV_PROBE_VALUE_ALWAYS (1)
+			  Always reset device on driver probe.
+			* DEVLINK_PARAM_RESET_DEV_ON_DRV_PROBE_VALUE_NEVER (2)
+			  Never reset device on driver probe.
+			* DEVLINK_PARAM_RESET_DEV_ON_DRV_PROBE_VALUE_DISK (3)
+			  Reset only if device firmware can be found in the
+			  filesystem.
+			Type: u8
+
+enable_roce		[DEVICE, GENERIC]
+			Enable handling of RoCE traffic in the device.
+			Type: Boolean

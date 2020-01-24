@@ -21,7 +21,7 @@ static const struct clk_range plla_outputs[] = {
 };
 
 static const struct clk_pll_characteristics plla_characteristics = {
-	.input = { .min = 12000000, .max = 12000000 },
+	.input = { .min = 12000000, .max = 24000000 },
 	.num_output = ARRAY_SIZE(plla_outputs),
 	.output = plla_outputs,
 	.icpll = plla_icpll,
@@ -162,7 +162,7 @@ static void __init sama5d2_pmc_setup(struct device_node *np)
 		return;
 	mainxtal_name = of_clk_get_parent_name(np, i);
 
-	regmap = syscon_node_to_regmap(np);
+	regmap = device_node_to_regmap(np);
 	if (IS_ERR(regmap))
 		return;
 

@@ -24,11 +24,14 @@
  */
 
 #include <linux/crc32.h>
+#include <linux/delay.h>
+
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_vblank.h>
 
 #include "qxl_drv.h"
 #include "qxl_object.h"
@@ -794,7 +797,7 @@ static int qxl_plane_prepare_fb(struct drm_plane *plane,
 		    qdev->dumb_shadow_bo->surf.height != surf.height) {
 			if (qdev->dumb_shadow_bo) {
 				drm_gem_object_put_unlocked
-					(&qdev->dumb_shadow_bo->gem_base);
+					(&qdev->dumb_shadow_bo->tbo.base);
 				qdev->dumb_shadow_bo = NULL;
 			}
 			qxl_bo_create(qdev, surf.height * surf.stride,
@@ -804,10 +807,10 @@ static int qxl_plane_prepare_fb(struct drm_plane *plane,
 		if (user_bo->shadow != qdev->dumb_shadow_bo) {
 			if (user_bo->shadow) {
 				drm_gem_object_put_unlocked
-					(&user_bo->shadow->gem_base);
+					(&user_bo->shadow->tbo.base);
 				user_bo->shadow = NULL;
 			}
-			drm_gem_object_get(&qdev->dumb_shadow_bo->gem_base);
+			drm_gem_object_get(&qdev->dumb_shadow_bo->tbo.base);
 			user_bo->shadow = qdev->dumb_shadow_bo;
 		}
 	}
@@ -838,7 +841,7 @@ static void qxl_plane_cleanup_fb(struct drm_plane *plane,
 	qxl_bo_unpin(user_bo);
 
 	if (old_state->fb != plane->state->fb && user_bo->shadow) {
-		drm_gem_object_put_unlocked(&user_bo->shadow->gem_base);
+		drm_gem_object_put_unlocked(&user_bo->shadow->tbo.base);
 		user_bo->shadow = NULL;
 	}
 }

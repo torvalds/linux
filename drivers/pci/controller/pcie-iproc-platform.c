@@ -43,8 +43,6 @@ static int iproc_pcie_pltfm_probe(struct platform_device *pdev)
 	struct iproc_pcie *pcie;
 	struct device_node *np = dev->of_node;
 	struct resource reg;
-	resource_size_t iobase = 0;
-	LIST_HEAD(resources);
 	struct pci_host_bridge *bridge;
 	int ret;
 
@@ -87,21 +85,18 @@ static int iproc_pcie_pltfm_probe(struct platform_device *pdev)
 
 	/*
 	 * DT nodes are not used by all platforms that use the iProc PCIe
-	 * core driver. For platforms that require explict inbound mapping
+	 * core driver. For platforms that require explicit inbound mapping
 	 * configuration, "dma-ranges" would have been present in DT
 	 */
 	pcie->need_ib_cfg = of_property_read_bool(np, "dma-ranges");
 
 	/* PHY use is optional */
-	pcie->phy = devm_phy_get(dev, "pcie-phy");
-	if (IS_ERR(pcie->phy)) {
-		if (PTR_ERR(pcie->phy) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-		pcie->phy = NULL;
-	}
+	pcie->phy = devm_phy_optional_get(dev, "pcie-phy");
+	if (IS_ERR(pcie->phy))
+		return PTR_ERR(pcie->phy);
 
-	ret = devm_of_pci_get_host_bridge_resources(dev, 0, 0xff, &resources,
-						    &iobase);
+	ret = pci_parse_request_of_pci_ranges(dev, &bridge->windows,
+					      &bridge->dma_ranges, NULL);
 	if (ret) {
 		dev_err(dev, "unable to get PCI host bridge resources\n");
 		return ret;
@@ -116,10 +111,9 @@ static int iproc_pcie_pltfm_probe(struct platform_device *pdev)
 		pcie->map_irq = of_irq_parse_and_map_pci;
 	}
 
-	ret = iproc_pcie_setup(pcie, &resources);
+	ret = iproc_pcie_setup(pcie, &bridge->windows);
 	if (ret) {
 		dev_err(dev, "PCIe controller setup failed\n");
-		pci_free_resource_list(&resources);
 		return ret;
 	}
 

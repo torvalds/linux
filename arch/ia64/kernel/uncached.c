@@ -24,7 +24,6 @@
 #include <asm/pgtable.h>
 #include <linux/atomic.h>
 #include <asm/tlbflush.h>
-#include <asm/sn/arch.h>
 
 
 extern void __init efi_memmap_walk_uc(efi_freemem_callback_t, void *);
@@ -121,18 +120,15 @@ static int uncached_add_chunk(struct uncached_pool *uc_pool, int nid)
 	status = ia64_pal_prefetch_visibility(PAL_VISIBILITY_PHYSICAL);
 	if (status == PAL_VISIBILITY_OK_REMOTE_NEEDED) {
 		atomic_set(&uc_pool->status, 0);
-		status = smp_call_function(uncached_ipi_visibility, uc_pool, 1);
-		if (status || atomic_read(&uc_pool->status))
+		smp_call_function(uncached_ipi_visibility, uc_pool, 1);
+		if (atomic_read(&uc_pool->status))
 			goto failed;
 	} else if (status != PAL_VISIBILITY_OK)
 		goto failed;
 
 	preempt_disable();
 
-	if (ia64_platform_is("sn2"))
-		sn_flush_all_caches(uc_addr, IA64_GRANULE_SIZE);
-	else
-		flush_icache_range(uc_addr, uc_addr + IA64_GRANULE_SIZE);
+	flush_icache_range(uc_addr, uc_addr + IA64_GRANULE_SIZE);
 
 	/* flush the just introduced uncached translation from the TLB */
 	local_flush_tlb_all();
@@ -143,8 +139,8 @@ static int uncached_add_chunk(struct uncached_pool *uc_pool, int nid)
 	if (status != PAL_STATUS_SUCCESS)
 		goto failed;
 	atomic_set(&uc_pool->status, 0);
-	status = smp_call_function(uncached_ipi_mc_drain, uc_pool, 1);
-	if (status || atomic_read(&uc_pool->status))
+	smp_call_function(uncached_ipi_mc_drain, uc_pool, 1);
+	if (atomic_read(&uc_pool->status))
 		goto failed;
 
 	/*

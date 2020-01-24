@@ -53,6 +53,7 @@
 #define SB_VERSION_1			1
 #define SB_VERSION_2			2
 #define SB_VERSION_3			3
+#define SB_VERSION_4			4
 #define SB_SECTORS			8
 #define MAX_SECTORS_PER_BLOCK		8
 
@@ -73,6 +74,7 @@ struct superblock {
 #define SB_FLAG_HAVE_JOURNAL_MAC	0x1
 #define SB_FLAG_RECALCULATING		0x2
 #define SB_FLAG_DIRTY_BITMAP		0x4
+#define SB_FLAG_FIXED_PADDING		0x8
 
 #define	JOURNAL_ENTRY_ROUNDUP		8
 
@@ -250,6 +252,7 @@ struct dm_integrity_c {
 	bool journal_uptodate;
 	bool just_formatted;
 	bool recalculate_flag;
+	bool fix_padding;
 
 	struct alg_spec internal_hash_alg;
 	struct alg_spec journal_crypt_alg;
@@ -345,6 +348,14 @@ static void __DEBUG_bytes(__u8 *bytes, size_t len, const char *msg, ...)
 #define DEBUG_bytes(bytes, len, msg, ...)	do { } while (0)
 #endif
 
+static void dm_integrity_prepare(struct request *rq)
+{
+}
+
+static void dm_integrity_complete(struct request *rq, unsigned int nr_bytes)
+{
+}
+
 /*
  * DM Integrity profile, protection is performed layer above (dm-crypt)
  */
@@ -352,6 +363,8 @@ static const struct blk_integrity_profile dm_integrity_profile = {
 	.name			= "DM-DIF-EXT-TAG",
 	.generate_fn		= NULL,
 	.verify_fn		= NULL,
+	.prepare_fn		= dm_integrity_prepare,
+	.complete_fn		= dm_integrity_complete,
 };
 
 static void dm_integrity_map_continue(struct dm_integrity_io *dio, bool from_map);
@@ -453,7 +466,9 @@ static void wraparound_section(struct dm_integrity_c *ic, unsigned *sec_ptr)
 
 static void sb_set_version(struct dm_integrity_c *ic)
 {
-	if (ic->mode == 'B' || ic->sb->flags & cpu_to_le32(SB_FLAG_DIRTY_BITMAP))
+	if (ic->sb->flags & cpu_to_le32(SB_FLAG_FIXED_PADDING))
+		ic->sb->version = SB_VERSION_4;
+	else if (ic->mode == 'B' || ic->sb->flags & cpu_to_le32(SB_FLAG_DIRTY_BITMAP))
 		ic->sb->version = SB_VERSION_3;
 	else if (ic->meta_dev || ic->sb->flags & cpu_to_le32(SB_FLAG_RECALCULATING))
 		ic->sb->version = SB_VERSION_2;
@@ -475,6 +490,9 @@ static int sync_rw_sb(struct dm_integrity_c *ic, int op, int op_flags)
 	io_loc.bdev = ic->meta_dev ? ic->meta_dev->bdev : ic->dev->bdev;
 	io_loc.sector = ic->start;
 	io_loc.count = SB_SECTORS;
+
+	if (op == REQ_OP_WRITE)
+		sb_set_version(ic);
 
 	return dm_io(&io_req, 1, &io_loc, NULL);
 }
@@ -1940,7 +1958,22 @@ offload_to_thread:
 			queue_work(ic->wait_wq, &dio->work);
 			return;
 		}
+		if (journal_read_pos != NOT_FOUND)
+			dio->range.n_sectors = ic->sectors_per_block;
 		wait_and_add_new_range(ic, &dio->range);
+		/*
+		 * wait_and_add_new_range drops the spinlock, so the journal
+		 * may have been changed arbitrarily. We need to recheck.
+		 * To simplify the code, we restrict I/O size to just one block.
+		 */
+		if (journal_read_pos != NOT_FOUND) {
+			sector_t next_sector;
+			unsigned new_pos = find_journal_node(ic, dio->range.logical_sector, &next_sector);
+			if (unlikely(new_pos != journal_read_pos)) {
+				remove_range_unlocked(ic, &dio->range);
+				goto retry;
+			}
+		}
 	}
 	spin_unlock_irq(&ic->endio_wait.lock);
 
@@ -2317,7 +2350,6 @@ static void recalc_write_super(struct dm_integrity_c *ic)
 	if (dm_integrity_failed(ic))
 		return;
 
-	sb_set_version(ic);
 	r = sync_rw_sb(ic, REQ_OP_WRITE, 0);
 	if (unlikely(r))
 		dm_integrity_io_error(ic, "writing superblock", r);
@@ -2928,6 +2960,7 @@ static void dm_integrity_status(struct dm_target *ti, status_type_t type,
 		arg_count += !!ic->internal_hash_alg.alg_string;
 		arg_count += !!ic->journal_crypt_alg.alg_string;
 		arg_count += !!ic->journal_mac_alg.alg_string;
+		arg_count += (ic->sb->flags & cpu_to_le32(SB_FLAG_FIXED_PADDING)) != 0;
 		DMEMIT("%s %llu %u %c %u", ic->dev->name, (unsigned long long)ic->start,
 		       ic->tag_size, ic->mode, arg_count);
 		if (ic->meta_dev)
@@ -2947,6 +2980,8 @@ static void dm_integrity_status(struct dm_target *ti, status_type_t type,
 			DMEMIT(" sectors_per_bit:%llu", (unsigned long long)ic->sectors_per_block << ic->log2_blocks_per_bitmap_bit);
 			DMEMIT(" bitmap_flush_interval:%u", jiffies_to_msecs(ic->bitmap_flush_interval));
 		}
+		if ((ic->sb->flags & cpu_to_le32(SB_FLAG_FIXED_PADDING)) != 0)
+			DMEMIT(" fix_padding");
 
 #define EMIT_ALG(a, n)							\
 		do {							\
@@ -3015,8 +3050,14 @@ static int calculate_device_limits(struct dm_integrity_c *ic)
 	if (!ic->meta_dev) {
 		sector_t last_sector, last_area, last_offset;
 
-		ic->metadata_run = roundup((__u64)ic->tag_size << (ic->sb->log2_interleave_sectors - ic->sb->log2_sectors_per_block),
-					   (__u64)(1 << SECTOR_SHIFT << METADATA_PADDING_SECTORS)) >> SECTOR_SHIFT;
+		/* we have to maintain excessive padding for compatibility with existing volumes */
+		__u64 metadata_run_padding =
+			ic->sb->flags & cpu_to_le32(SB_FLAG_FIXED_PADDING) ?
+			(__u64)(METADATA_PADDING_SECTORS << SECTOR_SHIFT) :
+			(__u64)(1 << SECTOR_SHIFT << METADATA_PADDING_SECTORS);
+
+		ic->metadata_run = round_up((__u64)ic->tag_size << (ic->sb->log2_interleave_sectors - ic->sb->log2_sectors_per_block),
+					    metadata_run_padding) >> SECTOR_SHIFT;
 		if (!(ic->metadata_run & (ic->metadata_run - 1)))
 			ic->log2_metadata_run = __ffs(ic->metadata_run);
 		else
@@ -3059,6 +3100,8 @@ static int initialize_superblock(struct dm_integrity_c *ic, unsigned journal_sec
 		journal_sections = 1;
 
 	if (!ic->meta_dev) {
+		if (ic->fix_padding)
+			ic->sb->flags |= cpu_to_le32(SB_FLAG_FIXED_PADDING);
 		ic->sb->journal_sections = cpu_to_le32(journal_sections);
 		if (!interleave_sectors)
 			interleave_sectors = DEFAULT_INTERLEAVE_SECTORS;
@@ -3358,7 +3401,7 @@ static int create_journal(struct dm_integrity_c *ic, char **error)
 				goto bad;
 			}
 
-			crypt_iv = kmalloc(ivsize, GFP_KERNEL);
+			crypt_iv = kzalloc(ivsize, GFP_KERNEL);
 			if (!crypt_iv) {
 				*error = "Could not allocate iv";
 				r = -ENOMEM;
@@ -3387,7 +3430,6 @@ static int create_journal(struct dm_integrity_c *ic, char **error)
 				sg_set_buf(&sg[i], va, PAGE_SIZE);
 			}
 			sg_set_buf(&sg[i], &ic->commit_ids, sizeof ic->commit_ids);
-			memset(crypt_iv, 0x00, ivsize);
 
 			skcipher_request_set_crypt(req, sg, sg,
 						   PAGE_SIZE * ic->journal_pages + sizeof ic->commit_ids, crypt_iv);
@@ -3699,6 +3741,8 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 				goto bad;
 		} else if (!strcmp(opt_string, "recalculate")) {
 			ic->recalculate_flag = true;
+		} else if (!strcmp(opt_string, "fix_padding")) {
+			ic->fix_padding = true;
 		} else {
 			r = -EINVAL;
 			ti->error = "Invalid argument";
@@ -3841,7 +3885,7 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 			should_write_sb = true;
 	}
 
-	if (!ic->sb->version || ic->sb->version > SB_VERSION_3) {
+	if (!ic->sb->version || ic->sb->version > SB_VERSION_4) {
 		r = -EINVAL;
 		ti->error = "Unknown version";
 		goto bad;
@@ -4156,7 +4200,7 @@ static void dm_integrity_dtr(struct dm_target *ti)
 
 static struct target_type integrity_target = {
 	.name			= "integrity",
-	.version		= {1, 3, 0},
+	.version		= {1, 4, 0},
 	.module			= THIS_MODULE,
 	.features		= DM_TARGET_SINGLETON | DM_TARGET_INTEGRITY,
 	.ctr			= dm_integrity_ctr,

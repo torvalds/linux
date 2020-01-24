@@ -253,21 +253,9 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 	if ((!abort_active && io_lock_on) || IS_NOPOLLING_TYPE(ha)) {
 		set_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags);
 
-		if (IS_P3P_TYPE(ha)) {
-			if (RD_REG_DWORD(&reg->isp82.hint) &
-				HINT_MBX_INT_PENDING) {
-				ha->flags.mbox_busy = 0;
-				spin_unlock_irqrestore(&ha->hardware_lock,
-					flags);
-
-				atomic_dec(&ha->num_pend_mbx_stage2);
-				ql_dbg(ql_dbg_mbx, vha, 0x1010,
-				    "Pending mailbox timeout, exiting.\n");
-				rval = QLA_FUNCTION_TIMEOUT;
-				goto premature_exit;
-			}
+		if (IS_P3P_TYPE(ha))
 			WRT_REG_DWORD(&reg->isp82.hint, HINT_MBX_INT_PENDING);
-		} else if (IS_FWI2_CAPABLE(ha))
+		else if (IS_FWI2_CAPABLE(ha))
 			WRT_REG_DWORD(&reg->isp24.hccr, HCCRX_SET_HOST_INT);
 		else
 			WRT_REG_WORD(&reg->isp.hccr, HCCR_SET_HOST_INT);
@@ -394,8 +382,12 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 			goto premature_exit;
 		}
 
-		if (ha->mailbox_out[0] != MBS_COMMAND_COMPLETE)
+		if (ha->mailbox_out[0] != MBS_COMMAND_COMPLETE) {
+			ql_dbg(ql_dbg_mbx, vha, 0x11ff,
+			       "mb_out[0] = %#x <> %#x\n", ha->mailbox_out[0],
+			       MBS_COMMAND_COMPLETE);
 			rval = QLA_FUNCTION_FAILED;
+		}
 
 		/* Load return mailbox registers. */
 		iptr2 = mcp->mb;
@@ -710,6 +702,7 @@ qla2x00_execute_fw(scsi_qla_host_t *vha, uint32_t risc_addr)
 		mcp->mb[2] = LSW(risc_addr);
 		mcp->mb[3] = 0;
 		mcp->mb[4] = 0;
+		mcp->mb[11] = 0;
 		ha->flags.using_lr_setting = 0;
 		if (IS_QLA25XX(ha) || IS_QLA81XX(ha) || IS_QLA83XX(ha) ||
 		    IS_QLA27XX(ha) || IS_QLA28XX(ha)) {
@@ -754,7 +747,7 @@ qla2x00_execute_fw(scsi_qla_host_t *vha, uint32_t risc_addr)
 		if (ha->flags.exchoffld_enabled)
 			mcp->mb[4] |= ENABLE_EXCHANGE_OFFLD;
 
-		mcp->out_mb |= MBX_4|MBX_3|MBX_2|MBX_1;
+		mcp->out_mb |= MBX_4 | MBX_3 | MBX_2 | MBX_1 | MBX_11;
 		mcp->in_mb |= MBX_3 | MBX_2 | MBX_1;
 	} else {
 		mcp->mb[1] = LSW(risc_addr);
@@ -1939,7 +1932,7 @@ qla2x00_get_port_database(scsi_qla_host_t *vha, fc_port_t *fcport, uint8_t opt)
 		pd24 = (struct port_database_24xx *) pd;
 
 		/* Check for logged in state. */
-		if (fcport->fc4f_nvme) {
+		if (NVME_TARGET(ha, fcport)) {
 			current_login_state = pd24->current_login_state >> 4;
 			last_login_state = pd24->last_login_state >> 4;
 		} else {
@@ -2257,7 +2250,7 @@ qla2x00_lip_reset(scsi_qla_host_t *vha)
 	mbx_cmd_t mc;
 	mbx_cmd_t *mcp = &mc;
 
-	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x105a,
+	ql_dbg(ql_dbg_disc, vha, 0x105a,
 	    "Entered %s.\n", __func__);
 
 	if (IS_CNA_CAPABLE(vha->hw)) {
@@ -3891,14 +3884,25 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 		case TOPO_N2N:
 			ha->current_topology = ISP_CFG_N;
 			spin_lock_irqsave(&vha->hw->tgt.sess_lock, flags);
+			list_for_each_entry(fcport, &vha->vp_fcports, list) {
+				fcport->scan_state = QLA_FCPORT_SCAN;
+				fcport->n2n_flag = 0;
+			}
+
 			fcport = qla2x00_find_fcport_by_wwpn(vha,
 			    rptid_entry->u.f1.port_name, 1);
 			spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
 
 			if (fcport) {
 				fcport->plogi_nack_done_deadline = jiffies + HZ;
-				fcport->dm_login_expire = jiffies + 3*HZ;
+				fcport->dm_login_expire = jiffies + 2*HZ;
 				fcport->scan_state = QLA_FCPORT_FOUND;
+				fcport->n2n_flag = 1;
+				fcport->keep_nport_handle = 1;
+				fcport->fc4_type = FS_FC4TYPE_FCP;
+				if (vha->flags.nvme_enabled)
+					fcport->fc4_type |= FS_FC4TYPE_NVME;
+
 				switch (fcport->disc_state) {
 				case DSC_DELETED:
 					set_bit(RELOGIN_NEEDED,
@@ -3917,6 +3921,7 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 					vha->d_id.b24 = 0;
 					vha->d_id.b.al_pa = 1;
 					ha->flags.n2n_bigger = 1;
+					ha->flags.n2n_ae = 0;
 
 					id.b.al_pa = 2;
 					ql_dbg(ql_dbg_async, vha, 0x5075,
@@ -3927,18 +3932,18 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 					    "Format 1: Remote login - Waiting for WWPN %8phC.\n",
 					    rptid_entry->u.f1.port_name);
 					ha->flags.n2n_bigger = 0;
+					ha->flags.n2n_ae = 1;
 				}
 				qla24xx_post_newsess_work(vha, &id,
 				    rptid_entry->u.f1.port_name,
 				    rptid_entry->u.f1.node_name,
 				    NULL,
-				    FC4_TYPE_UNKNOWN);
+				    FS_FCP_IS_N2N);
 			}
 
 			/* if our portname is higher then initiate N2N login */
 
 			set_bit(N2N_LOGIN_NEEDED, &vha->dpc_flags);
-			ha->flags.n2n_ae = 1;
 			return;
 			break;
 		case TOPO_FL:
@@ -4031,6 +4036,7 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 
 		list_for_each_entry(fcport, &vha->vp_fcports, list) {
 			fcport->scan_state = QLA_FCPORT_SCAN;
+			fcport->n2n_flag = 0;
 		}
 
 		fcport = qla2x00_find_fcport_by_wwpn(vha,
@@ -4040,6 +4046,14 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 			fcport->login_retry = vha->hw->login_retry_count;
 			fcport->plogi_nack_done_deadline = jiffies + HZ;
 			fcport->scan_state = QLA_FCPORT_FOUND;
+			fcport->keep_nport_handle = 1;
+			fcport->n2n_flag = 1;
+			fcport->d_id.b.domain =
+				rptid_entry->u.f2.remote_nport_id[2];
+			fcport->d_id.b.area =
+				rptid_entry->u.f2.remote_nport_id[1];
+			fcport->d_id.b.al_pa =
+				rptid_entry->u.f2.remote_nport_id[0];
 		}
 	}
 }
@@ -6213,10 +6227,8 @@ qla26xx_dport_diagnostics(scsi_qla_host_t *vha,
 	return rval;
 }
 
-static void qla2x00_async_mb_sp_done(void *s, int res)
+static void qla2x00_async_mb_sp_done(srb_t *sp, int res)
 {
-	struct srb *sp = s;
-
 	sp->u.iocb_cmd.u.mbx.rc = res;
 
 	complete(&sp->u.iocb_cmd.u.mbx.comp);
@@ -6277,16 +6289,12 @@ int qla24xx_send_mb_cmd(struct scsi_qla_host *vha, mbx_cmd_t *mcp)
 	case  QLA_SUCCESS:
 		ql_dbg(ql_dbg_mbx, vha, 0x119d, "%s: %s done.\n",
 		    __func__, sp->name);
-		sp->free(sp);
 		break;
 	default:
 		ql_dbg(ql_dbg_mbx, vha, 0x119e, "%s: %s Failed. %x.\n",
 		    __func__, sp->name, rval);
-		sp->free(sp);
 		break;
 	}
-
-	return rval;
 
 done_free_sp:
 	sp->free(sp);
@@ -6352,7 +6360,7 @@ int __qla24xx_parse_gpdb(struct scsi_qla_host *vha, fc_port_t *fcport,
 	uint64_t zero = 0;
 	u8 current_login_state, last_login_state;
 
-	if (fcport->fc4f_nvme) {
+	if (NVME_TARGET(vha->hw, fcport)) {
 		current_login_state = pd->current_login_state >> 4;
 		last_login_state = pd->last_login_state >> 4;
 	} else {
@@ -6387,8 +6395,8 @@ int __qla24xx_parse_gpdb(struct scsi_qla_host *vha, fc_port_t *fcport,
 	fcport->d_id.b.al_pa = pd->port_id[2];
 	fcport->d_id.b.rsvd_1 = 0;
 
-	if (fcport->fc4f_nvme) {
-		fcport->port_type = 0;
+	if (NVME_TARGET(vha->hw, fcport)) {
+		fcport->port_type = FCT_NVME;
 		if ((pd->prli_svc_param_word_3[0] & BIT_5) == 0)
 			fcport->port_type |= FCT_NVME_INITIATOR;
 		if ((pd->prli_svc_param_word_3[0] & BIT_4) == 0)

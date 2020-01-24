@@ -75,8 +75,6 @@ static inline void hibernate_reserved_size_init(void) {}
 static inline void hibernate_image_size_init(void) {}
 #endif /* !CONFIG_HIBERNATION */
 
-extern int pfn_is_nosave(unsigned long);
-
 #define power_attr(_name) \
 static struct kobj_attribute _name##_attr = {	\
 	.attr	= {				\
@@ -181,7 +179,7 @@ extern void swsusp_close(fmode_t);
 extern int swsusp_unmark(void);
 #endif
 
-struct timeval;
+struct __kernel_old_timeval;
 /* kernel/power/swsusp.c */
 extern void swsusp_show_speed(ktime_t, ktime_t, unsigned int, char *);
 

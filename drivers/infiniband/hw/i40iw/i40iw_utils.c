@@ -174,10 +174,14 @@ int i40iw_inetaddr_event(struct notifier_block *notifier,
 		rcu_read_lock();
 		in = __in_dev_get_rcu(upper_dev);
 
-		if (!in->ifa_list)
-			local_ipaddr = 0;
-		else
-			local_ipaddr = ntohl(in->ifa_list->ifa_address);
+		local_ipaddr = 0;
+		if (in) {
+			struct in_ifaddr *ifa;
+
+			ifa = rcu_dereference(in->ifa_list);
+			if (ifa)
+				local_ipaddr = ntohl(ifa->ifa_address);
+		}
 
 		rcu_read_unlock();
 	} else {

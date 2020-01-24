@@ -582,6 +582,7 @@ struct cache_set {
 	 */
 	wait_queue_head_t	btree_cache_wait;
 	struct task_struct	*btree_cache_alloc_lock;
+	spinlock_t		btree_cannibalize_lock;
 
 	/*
 	 * When we free a btree node, we increment the gen of the bucket the
@@ -705,8 +706,8 @@ struct cache_set {
 	atomic_long_t		writeback_keys_failed;
 
 	atomic_long_t		reclaim;
+	atomic_long_t		reclaimed_journal_buckets;
 	atomic_long_t		flush_write;
-	atomic_long_t		retry_flush_write;
 
 	enum			{
 		ON_ERROR_UNREGISTER,
@@ -723,11 +724,10 @@ struct cache_set {
 	unsigned int		gc_always_rewrite:1;
 	unsigned int		shrinker_disabled:1;
 	unsigned int		copy_gc_enabled:1;
+	unsigned int		idle_max_writeback_rate_enabled:1;
 
 #define BUCKET_HASH_BITS	12
 	struct hlist_head	bucket_hash[1 << BUCKET_HASH_BITS];
-
-	DECLARE_HEAP(struct btree *, flush_btree);
 };
 
 struct bbio {
@@ -979,7 +979,7 @@ bool bch_cached_dev_error(struct cached_dev *dc);
 __printf(2, 3)
 bool bch_cache_set_error(struct cache_set *c, const char *fmt, ...);
 
-void bch_prio_write(struct cache *ca);
+int bch_prio_write(struct cache *ca, bool wait);
 void bch_write_bdev_super(struct cached_dev *dc, struct closure *parent);
 
 extern struct workqueue_struct *bcache_wq;
@@ -1006,7 +1006,7 @@ int bch_flash_dev_create(struct cache_set *c, uint64_t size);
 int bch_cached_dev_attach(struct cached_dev *dc, struct cache_set *c,
 			  uint8_t *set_uuid);
 void bch_cached_dev_detach(struct cached_dev *dc);
-void bch_cached_dev_run(struct cached_dev *dc);
+int bch_cached_dev_run(struct cached_dev *dc);
 void bcache_device_stop(struct bcache_device *d);
 
 void bch_cache_set_unregister(struct cache_set *c);

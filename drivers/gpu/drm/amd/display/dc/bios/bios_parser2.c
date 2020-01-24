@@ -23,6 +23,8 @@
  *
  */
 
+#include <linux/slab.h>
+
 #include "dm_services.h"
 
 #include "ObjectID.h"
@@ -1313,6 +1315,8 @@ static enum bp_result bios_parser_get_encoder_cap_info(
 			ATOM_ENCODER_CAP_RECORD_HBR3_EN) ? 1 : 0;
 	info->HDMI_6GB_EN = (record->encodercaps &
 			ATOM_ENCODER_CAP_RECORD_HDMI6Gbps_EN) ? 1 : 0;
+	info->DP_IS_USB_C = (record->encodercaps &
+			ATOM_ENCODER_CAP_RECORD_USB_C_TYPE) ? 1 : 0;
 
 	return BP_RESULT_OK;
 }
@@ -1398,6 +1402,10 @@ static enum bp_result get_integrated_info_v11(
 	info->ma_channel_number = info_v11->umachannelnumber;
 	info->lvds_ss_percentage =
 	le16_to_cpu(info_v11->lvds_ss_percentage);
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+	info->dp_ss_control =
+	le16_to_cpu(info_v11->reserved1);
+#endif
 	info->lvds_sspread_rate_in_10hz =
 	le16_to_cpu(info_v11->lvds_ss_rate_10hz);
 	info->hdmi_ss_percentage =
@@ -1605,8 +1613,6 @@ static enum bp_result construct_integrated_info(
 
 	struct atom_common_table_header *header;
 	struct atom_data_revision revision;
-
-	struct clock_voltage_caps temp = {0, 0};
 	uint32_t i;
 	uint32_t j;
 
@@ -1619,6 +1625,7 @@ static enum bp_result construct_integrated_info(
 		/* Don't need to check major revision as they are all 1 */
 		switch (revision.minor) {
 		case 11:
+		case 12:
 			result = get_integrated_info_v11(bp, info);
 			break;
 		default:
@@ -1636,10 +1643,8 @@ static enum bp_result construct_integrated_info(
 				info->disp_clk_voltage[j-1].max_supported_clk
 				) {
 				/* swap j and j - 1*/
-				temp = info->disp_clk_voltage[j-1];
-				info->disp_clk_voltage[j-1] =
-					info->disp_clk_voltage[j];
-				info->disp_clk_voltage[j] = temp;
+				swap(info->disp_clk_voltage[j - 1],
+				     info->disp_clk_voltage[j]);
 			}
 		}
 	}
@@ -1873,8 +1878,6 @@ static const struct dc_vbios_funcs vbios_funcs = {
 
 	.get_device_tag = bios_parser_get_device_tag,
 
-	.get_firmware_info = bios_parser_get_firmware_info,
-
 	.get_spread_spectrum_info = bios_parser_get_spread_spectrum_info,
 
 	.get_ss_entry_number = bios_parser_get_ss_entry_number,
@@ -1990,6 +1993,7 @@ static bool bios_parser_construct(
 	dal_bios_parser_init_cmd_tbl_helper2(&bp->cmd_helper, dce_version);
 
 	bp->base.integrated_info = bios_parser_create_integrated_info(&bp->base);
+	bp->base.fw_info_valid = bios_parser_get_firmware_info(&bp->base, &bp->base.fw_info) == BP_RESULT_OK;
 
 	return true;
 }

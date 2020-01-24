@@ -148,18 +148,13 @@ void do_softirq_own_stack(void)
 	call_on_stack(__do_softirq, isp);
 }
 
-bool handle_irq(struct irq_desc *desc, struct pt_regs *regs)
+void handle_irq(struct irq_desc *desc, struct pt_regs *regs)
 {
 	int overflow = check_stack_overflow();
-
-	if (IS_ERR_OR_NULL(desc))
-		return false;
 
 	if (user_mode(regs) || !execute_on_irq_stack(overflow, desc)) {
 		if (unlikely(overflow))
 			print_stack_overflow();
 		generic_handle_irq_desc(desc);
 	}
-
-	return true;
 }

@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (C) 2016 Felix Fietkau <nbd@nbd.name>
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include <linux/debugfs.h>
@@ -30,7 +19,8 @@ mt76x02_ampdu_stat_read(struct seq_file *file, void *data)
 		seq_puts(file, "\n");
 		seq_puts(file, "Count:  ");
 		for (j = 0; j < 8; j++)
-			seq_printf(file, "%8d | ", dev->aggr_stats[i * 8 + j]);
+			seq_printf(file, "%8d | ",
+				   dev->mt76.aggr_stats[i * 8 + j]);
 		seq_puts(file, "\n");
 		seq_puts(file, "--------");
 		for (j = 0; j < 8; j++)
@@ -120,12 +110,16 @@ static int
 mt76_edcca_set(void *data, u64 val)
 {
 	struct mt76x02_dev *dev = data;
-	enum nl80211_dfs_regions region = dev->dfs_pd.region;
+	enum nl80211_dfs_regions region = dev->mt76.region;
+
+	mutex_lock(&dev->mt76.mutex);
 
 	dev->ed_monitor_enabled = !!val;
 	dev->ed_monitor = dev->ed_monitor_enabled &&
 			  region == NL80211_DFS_ETSI;
-	mt76x02_edcca_init(dev, true);
+	mt76x02_edcca_init(dev);
+
+	mutex_unlock(&dev->mt76.mutex);
 
 	return 0;
 }
@@ -150,10 +144,12 @@ void mt76x02_init_debugfs(struct mt76x02_dev *dev)
 	if (!dir)
 		return;
 
+	debugfs_create_devm_seqfile(dev->mt76.dev, "queues", dir,
+				    mt76_queues_read);
 	debugfs_create_u8("temperature", 0400, dir, &dev->cal.temp);
 	debugfs_create_bool("tpc", 0600, dir, &dev->enable_tpc);
 
-	debugfs_create_file("edcca", 0400, dir, dev, &fops_edcca);
+	debugfs_create_file("edcca", 0600, dir, dev, &fops_edcca);
 	debugfs_create_file("ampdu_stat", 0400, dir, dev, &fops_ampdu_stat);
 	debugfs_create_file("dfs_stats", 0400, dir, dev, &fops_dfs_stat);
 	debugfs_create_devm_seqfile(dev->mt76.dev, "txpower", dir,

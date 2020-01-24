@@ -10,6 +10,7 @@
 #define ISPREG(vha)	(&(vha)->hw->iobase->isp24)
 #define IOBAR(reg)	offsetof(typeof(*(reg)), iobase_addr)
 #define IOBASE(vha)	IOBAR(ISPREG(vha))
+#define INVALID_ENTRY ((struct qla27xx_fwdt_entry *)0xffffffffffffffffUL)
 
 static inline void
 qla27xx_insert16(uint16_t value, void *buf, ulong *len)
@@ -261,6 +262,7 @@ qla27xx_fwdt_entry_t262(struct scsi_qla_host *vha,
 	ulong start = le32_to_cpu(ent->t262.start_addr);
 	ulong end = le32_to_cpu(ent->t262.end_addr);
 	ulong dwords;
+	int rc;
 
 	ql_dbg(ql_dbg_misc, vha, 0xd206,
 	    "%s: rdram(%x) [%lx]\n", __func__, ent->t262.ram_area, *len);
@@ -308,7 +310,13 @@ qla27xx_fwdt_entry_t262(struct scsi_qla_host *vha,
 	dwords = end - start + 1;
 	if (buf) {
 		buf += *len;
-		qla24xx_dump_ram(vha->hw, start, buf, dwords, &buf);
+		rc = qla24xx_dump_ram(vha->hw, start, buf, dwords, &buf);
+		if (rc != QLA_SUCCESS) {
+			ql_dbg(ql_dbg_async, vha, 0xffff,
+			    "%s: dump ram MB failed. Area %xh start %lxh end %lxh\n",
+			    __func__, area, start, end);
+			return INVALID_ENTRY;
+		}
 	}
 	*len += dwords * sizeof(uint32_t);
 done:
@@ -429,7 +437,7 @@ qla27xx_fwdt_entry_t266(struct scsi_qla_host *vha,
 	ql_dbg(ql_dbg_misc, vha, 0xd20a,
 	    "%s: reset risc [%lx]\n", __func__, *len);
 	if (buf)
-		qla24xx_soft_reset(vha->hw);
+		WARN_ON_ONCE(qla24xx_soft_reset(vha->hw) != QLA_SUCCESS);
 
 	return qla27xx_next_entry(ent);
 }
@@ -838,6 +846,13 @@ qla27xx_walk_template(struct scsi_qla_host *vha,
 		ent = qla27xx_find_entry(type)(vha, ent, buf, len);
 		if (!ent)
 			break;
+
+		if (ent == INVALID_ENTRY) {
+			*len = 0;
+			ql_dbg(ql_dbg_async, vha, 0xffff,
+			    "Unable to capture FW dump");
+			goto bailout;
+		}
 	}
 
 	if (tmp->count)
@@ -847,6 +862,9 @@ qla27xx_walk_template(struct scsi_qla_host *vha,
 	if (ent)
 		ql_dbg(ql_dbg_misc, vha, 0xd019,
 		    "%s: missing end entry\n", __func__);
+
+bailout:
+	cpu_to_le32s(&tmp->count);	/* endianize residual count */
 }
 
 static void
@@ -860,8 +878,9 @@ qla27xx_driver_info(struct qla27xx_fwdt_template *tmp)
 {
 	uint8_t v[] = { 0, 0, 0, 0, 0, 0 };
 
-	sscanf(qla2x00_version_str, "%hhu.%hhu.%hhu.%hhu.%hhu.%hhu",
-	    v+0, v+1, v+2, v+3, v+4, v+5);
+	WARN_ON_ONCE(sscanf(qla2x00_version_str,
+			    "%hhu.%hhu.%hhu.%hhu.%hhu.%hhu",
+			    v+0, v+1, v+2, v+3, v+4, v+5) != 6);
 
 	tmp->driver_info[0] = v[3] << 24 | v[2] << 16 | v[1] << 8 | v[0];
 	tmp->driver_info[1] = v[5] << 8 | v[4];
@@ -998,8 +1017,9 @@ qla27xx_fwdump(scsi_qla_host_t *vha, int hardware_locked)
 		uint j;
 		ulong len;
 		void *buf = vha->hw->fw_dump;
+		uint count = vha->hw->fw_dump_mpi ? 2 : 1;
 
-		for (j = 0; j < 2; j++, fwdt++, buf += len) {
+		for (j = 0; j < count; j++, fwdt++, buf += len) {
 			ql_log(ql_log_warn, vha, 0xd011,
 			    "-> fwdt%u running...\n", j);
 			if (!fwdt->template) {
@@ -1009,7 +1029,9 @@ qla27xx_fwdump(scsi_qla_host_t *vha, int hardware_locked)
 			}
 			len = qla27xx_execute_fwdt_template(vha,
 			    fwdt->template, buf);
-			if (len != fwdt->dump_size) {
+			if (len == 0) {
+				goto bailout;
+			} else if (len != fwdt->dump_size) {
 				ql_log(ql_log_warn, vha, 0xd013,
 				    "-> fwdt%u fwdump residual=%+ld\n",
 				    j, fwdt->dump_size - len);
@@ -1024,6 +1046,8 @@ qla27xx_fwdump(scsi_qla_host_t *vha, int hardware_locked)
 		qla2x00_post_uevent_work(vha, QLA_UEVENT_CODE_FW_DUMP);
 	}
 
+bailout:
+	vha->hw->fw_dump_mpi = 0;
 #ifndef __CHECKER__
 	if (!hardware_locked)
 		spin_unlock_irqrestore(&vha->hw->hardware_lock, flags);

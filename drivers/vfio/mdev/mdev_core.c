@@ -143,6 +143,8 @@ int mdev_register_device(struct device *dev, const struct mdev_parent_ops *ops)
 {
 	int ret;
 	struct mdev_parent *parent;
+	char *env_string = "MDEV_STATE=registered";
+	char *envp[] = { env_string, NULL };
 
 	/* check for mandatory ops */
 	if (!ops || !ops->create || !ops->remove || !ops->supported_type_groups)
@@ -194,6 +196,8 @@ int mdev_register_device(struct device *dev, const struct mdev_parent_ops *ops)
 	mutex_unlock(&parent_list_lock);
 
 	dev_info(dev, "MDEV: Registered\n");
+	kobject_uevent_env(&dev->kobj, KOBJ_CHANGE, envp);
+
 	return 0;
 
 add_dev_err:
@@ -217,6 +221,8 @@ EXPORT_SYMBOL(mdev_register_device);
 void mdev_unregister_device(struct device *dev)
 {
 	struct mdev_parent *parent;
+	char *env_string = "MDEV_STATE=unregistered";
+	char *envp[] = { env_string, NULL };
 
 	mutex_lock(&parent_list_lock);
 	parent = __find_parent_device(dev);
@@ -240,6 +246,9 @@ void mdev_unregister_device(struct device *dev)
 	up_write(&parent->unreg_sem);
 
 	mdev_put_parent(parent);
+
+	/* We still have the caller's reference to use for the uevent */
+	kobject_uevent_env(&dev->kobj, KOBJ_CHANGE, envp);
 }
 EXPORT_SYMBOL(mdev_unregister_device);
 

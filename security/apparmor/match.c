@@ -616,8 +616,8 @@ unsigned int aa_dfa_matchn_until(struct aa_dfa *dfa, unsigned int start,
 
 #define inc_wb_pos(wb)						\
 do {								\
-	wb->pos = (wb->pos + 1) & (wb->size - 1);		\
-	wb->len = (wb->len + 1) & (wb->size - 1);		\
+	wb->pos = (wb->pos + 1) & (WB_HISTORY_SIZE - 1);		\
+	wb->len = (wb->len + 1) & (WB_HISTORY_SIZE - 1);		\
 } while (0)
 
 /* For DFAs that don't support extended tagging of states */
@@ -636,7 +636,7 @@ static bool is_loop(struct match_workbuf *wb, unsigned int state,
 			return true;
 		}
 		if (pos == 0)
-			pos = wb->size;
+			pos = WB_HISTORY_SIZE;
 		pos--;
 	}
 

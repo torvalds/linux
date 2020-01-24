@@ -8,6 +8,7 @@
  * struct sdw_intel_ops: Intel audio driver callback ops
  *
  * @config_stream: configure the stream with the hw_params
+ * the first argument containing the context is mandatory
  */
 struct sdw_intel_ops {
 	int (*config_stream)(void *arg, void *substream,

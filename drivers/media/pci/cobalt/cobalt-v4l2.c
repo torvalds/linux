@@ -483,13 +483,8 @@ static int cobalt_querycap(struct file *file, void *priv_fh,
 	strscpy(vcap->card, "cobalt", sizeof(vcap->card));
 	snprintf(vcap->bus_info, sizeof(vcap->bus_info),
 		 "PCIe:%s", pci_name(cobalt->pci_dev));
-	vcap->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
-	if (s->is_output)
-		vcap->device_caps |= V4L2_CAP_VIDEO_OUTPUT;
-	else
-		vcap->device_caps |= V4L2_CAP_VIDEO_CAPTURE;
-	vcap->capabilities = vcap->device_caps | V4L2_CAP_DEVICE_CAPS |
-		V4L2_CAP_VIDEO_CAPTURE;
+	vcap->capabilities = V4L2_CAP_STREAMING | V4L2_CAP_READWRITE |
+		V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_DEVICE_CAPS;
 	if (cobalt->have_hsma_tx)
 		vcap->capabilities |= V4L2_CAP_VIDEO_OUTPUT;
 	return 0;
@@ -693,15 +688,12 @@ static int cobalt_enum_fmt_vid_cap(struct file *file, void *priv_fh,
 {
 	switch (f->index) {
 	case 0:
-		strscpy(f->description, "YUV 4:2:2", sizeof(f->description));
 		f->pixelformat = V4L2_PIX_FMT_YUYV;
 		break;
 	case 1:
-		strscpy(f->description, "RGB24", sizeof(f->description));
 		f->pixelformat = V4L2_PIX_FMT_RGB24;
 		break;
 	case 2:
-		strscpy(f->description, "RGB32", sizeof(f->description));
 		f->pixelformat = V4L2_PIX_FMT_BGR32;
 		break;
 	default:
@@ -793,7 +785,6 @@ static int cobalt_try_fmt_vid_cap(struct file *file, void *priv_fh,
 
 	pix->sizeimage = pix->bytesperline * pix->height;
 	pix->field = V4L2_FIELD_NONE;
-	pix->priv = 0;
 
 	return 0;
 }
@@ -898,11 +889,9 @@ static int cobalt_enum_fmt_vid_out(struct file *file, void *priv_fh,
 {
 	switch (f->index) {
 	case 0:
-		strscpy(f->description, "YUV 4:2:2", sizeof(f->description));
 		f->pixelformat = V4L2_PIX_FMT_YUYV;
 		break;
 	case 1:
-		strscpy(f->description, "RGB32", sizeof(f->description));
 		f->pixelformat = V4L2_PIX_FMT_BGR32;
 		break;
 	default:
@@ -1274,6 +1263,11 @@ static int cobalt_node_register(struct cobalt *cobalt, int node)
 	q->lock = &s->lock;
 	q->dev = &cobalt->pci_dev->dev;
 	vdev->queue = q;
+	vdev->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
+	if (s->is_output)
+		vdev->device_caps |= V4L2_CAP_VIDEO_OUTPUT;
+	else
+		vdev->device_caps |= V4L2_CAP_VIDEO_CAPTURE;
 
 	video_set_drvdata(vdev, s);
 	ret = vb2_queue_init(q);

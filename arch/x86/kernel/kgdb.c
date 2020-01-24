@@ -118,14 +118,6 @@ char *dbg_get_reg(int regno, void *mem, struct pt_regs *regs)
 
 #ifdef CONFIG_X86_32
 	switch (regno) {
-	case GDB_SS:
-		if (!user_mode(regs))
-			*(unsigned long *)mem = __KERNEL_DS;
-		break;
-	case GDB_SP:
-		if (!user_mode(regs))
-			*(unsigned long *)mem = kernel_stack_pointer(regs);
-		break;
 	case GDB_GS:
 	case GDB_FS:
 		*(unsigned long *)mem = 0xFFFF;
@@ -424,7 +416,7 @@ static void kgdb_disable_hw_debug(struct pt_regs *regs)
  */
 void kgdb_roundup_cpus(void)
 {
-	apic->send_IPI_allbutself(APIC_DM_NMI);
+	apic_send_IPI_allbutself(NMI_VECTOR);
 }
 #endif
 

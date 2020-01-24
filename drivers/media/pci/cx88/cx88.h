@@ -99,7 +99,6 @@ static inline unsigned int norm_maxh(v4l2_std_id norm)
 /* static data                                                 */
 
 struct cx8800_fmt {
-	const char  *name;
 	u32   fourcc;          /* v4l2 format id */
 	int   depth;
 	int   flags;
@@ -229,6 +228,7 @@ extern const struct sram_channel cx88_sram_channels[];
 #define CX88_BOARD_WINFAST_DTV1800H_XC4000 88
 #define CX88_BOARD_WINFAST_TV2000_XP_GLOBAL_6F36 89
 #define CX88_BOARD_WINFAST_TV2000_XP_GLOBAL_6F43 90
+#define CX88_BOARD_NOTONLYTV_LV3H          91
 
 enum cx88_itype {
 	CX88_VMUX_COMPOSITE1 = 1,

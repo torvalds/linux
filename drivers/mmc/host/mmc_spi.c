@@ -891,7 +891,7 @@ mmc_spi_data_do(struct mmc_spi_host *host, struct mmc_command *cmd,
 	/* Handle scatterlist segments one at a time, with synch for
 	 * each 512-byte block
 	 */
-	for (sg = data->sg, n_sg = data->sg_len; n_sg; n_sg--, sg++) {
+	for_each_sg(data->sg, sg, data->sg_len, n_sg) {
 		int			status = 0;
 		dma_addr_t		dma_addr = 0;
 		void			*kmap_addr;
@@ -1421,7 +1421,7 @@ static int mmc_spi_probe(struct spi_device *spi)
 	 * Index 0 is card detect
 	 * Old boardfiles were specifying 1 ms as debounce
 	 */
-	status = mmc_gpiod_request_cd(mmc, NULL, 0, false, 1, NULL);
+	status = mmc_gpiod_request_cd(mmc, NULL, 0, false, 1000, NULL);
 	if (status == -EPROBE_DEFER)
 		goto fail_add_host;
 	if (!status) {

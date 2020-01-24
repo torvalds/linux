@@ -390,6 +390,7 @@ void qede_fill_by_demand_stats(struct qede_dev *edev)
 	p_common->brb_discards = stats.common.brb_discards;
 	p_common->tx_mac_ctrl_frames = stats.common.tx_mac_ctrl_frames;
 	p_common->link_change_count = stats.common.link_change_count;
+	p_common->ptp_skip_txts = edev->ptp_skip_txts;
 
 	if (QEDE_IS_BB(edev)) {
 		struct qede_stats_bb *p_bb = &edev->stats.bb;
@@ -547,13 +548,13 @@ static int qede_setup_tc(struct net_device *ndev, u8 num_tc)
 }
 
 static int
-qede_set_flower(struct qede_dev *edev, struct tc_cls_flower_offload *f,
+qede_set_flower(struct qede_dev *edev, struct flow_cls_offload *f,
 		__be16 proto)
 {
 	switch (f->command) {
-	case TC_CLSFLOWER_REPLACE:
+	case FLOW_CLS_REPLACE:
 		return qede_add_tc_flower_fltr(edev, proto, f);
-	case TC_CLSFLOWER_DESTROY:
+	case FLOW_CLS_DESTROY:
 		return qede_delete_flow_filter(edev, f->cookie);
 	default:
 		return -EOPNOTSUPP;
@@ -563,7 +564,7 @@ qede_set_flower(struct qede_dev *edev, struct tc_cls_flower_offload *f,
 static int qede_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
 				  void *cb_priv)
 {
-	struct tc_cls_flower_offload *f;
+	struct flow_cls_offload *f;
 	struct qede_dev *edev = cb_priv;
 
 	if (!tc_cls_can_offload_and_chain0(edev->ndev, type_data))
@@ -578,24 +579,7 @@ static int qede_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
 	}
 }
 
-static int qede_setup_tc_block(struct qede_dev *edev,
-			       struct tc_block_offload *f)
-{
-	if (f->binder_type != TCF_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
-		return -EOPNOTSUPP;
-
-	switch (f->command) {
-	case TC_BLOCK_BIND:
-		return tcf_block_cb_register(f->block,
-					     qede_setup_tc_block_cb,
-					     edev, edev, f->extack);
-	case TC_BLOCK_UNBIND:
-		tcf_block_cb_unregister(f->block, qede_setup_tc_block_cb, edev);
-		return 0;
-	default:
-		return -EOPNOTSUPP;
-	}
-}
+static LIST_HEAD(qede_block_cb_list);
 
 static int
 qede_setup_tc_offload(struct net_device *dev, enum tc_setup_type type,
@@ -606,7 +590,10 @@ qede_setup_tc_offload(struct net_device *dev, enum tc_setup_type type,
 
 	switch (type) {
 	case TC_SETUP_BLOCK:
-		return qede_setup_tc_block(edev, type_data);
+		return flow_block_cb_setup_simple(type_data,
+						  &qede_block_cb_list,
+						  qede_setup_tc_block_cb,
+						  edev, edev, true);
 	case TC_SETUP_QDISC_MQPRIO:
 		mqprio = type_data;
 
@@ -959,13 +946,13 @@ void __qede_unlock(struct qede_dev *edev)
 /* This version of the lock should be used when acquiring the RTNL lock is also
  * needed in addition to the internal qede lock.
  */
-void qede_lock(struct qede_dev *edev)
+static void qede_lock(struct qede_dev *edev)
 {
 	rtnl_lock();
 	__qede_lock(edev);
 }
 
-void qede_unlock(struct qede_dev *edev)
+static void qede_unlock(struct qede_dev *edev)
 {
 	__qede_unlock(edev);
 	rtnl_unlock();
@@ -1221,8 +1208,16 @@ enum qede_remove_mode {
 static void __qede_remove(struct pci_dev *pdev, enum qede_remove_mode mode)
 {
 	struct net_device *ndev = pci_get_drvdata(pdev);
-	struct qede_dev *edev = netdev_priv(ndev);
-	struct qed_dev *cdev = edev->cdev;
+	struct qede_dev *edev;
+	struct qed_dev *cdev;
+
+	if (!ndev) {
+		dev_info(&pdev->dev, "Device has already been removed\n");
+		return;
+	}
+
+	edev = netdev_priv(ndev);
+	cdev = edev->cdev;
 
 	DP_INFO(edev, "Starting qede_remove\n");
 
@@ -1306,7 +1301,8 @@ static void qede_free_mem_sb(struct qede_dev *edev, struct qed_sb_info *sb_info,
 			     u16 sb_id)
 {
 	if (sb_info->sb_virt) {
-		edev->ops->common->sb_release(edev->cdev, sb_info, sb_id);
+		edev->ops->common->sb_release(edev->cdev, sb_info, sb_id,
+					      QED_SB_TYPE_L2_QUEUE);
 		dma_free_coherent(&edev->pdev->dev, sizeof(*sb_info->sb_virt),
 				  (void *)sb_info->sb_virt, sb_info->sb_phys);
 		memset(sb_info, 0, sizeof(*sb_info));
@@ -1410,6 +1406,7 @@ static int qede_alloc_mem_rxq(struct qede_dev *edev, struct qede_rx_queue *rxq)
 		rxq->rx_buf_seg_size = roundup_pow_of_two(size);
 	} else {
 		rxq->rx_buf_seg_size = PAGE_SIZE;
+		edev->ndev->features &= ~NETIF_F_GRO_HW;
 	}
 
 	/* Allocate the parallel driver ring for Rx buffers */
@@ -1454,6 +1451,7 @@ static int qede_alloc_mem_rxq(struct qede_dev *edev, struct qede_rx_queue *rxq)
 		}
 	}
 
+	edev->gro_disable = !(edev->ndev->features & NETIF_F_GRO_HW);
 	if (!edev->gro_disable)
 		qede_set_tpa_param(rxq);
 err:
@@ -1706,8 +1704,6 @@ static void qede_init_fp(struct qede_dev *edev)
 		snprintf(fp->name, sizeof(fp->name), "%s-fp-%d",
 			 edev->ndev->name, queue_id);
 	}
-
-	edev->gro_disable = !(edev->ndev->features & NETIF_F_GRO_HW);
 }
 
 static int qede_set_real_num_queues(struct qede_dev *edev)
@@ -2119,12 +2115,8 @@ static int qede_start_queues(struct qede_dev *edev, bool clear_stats)
 			if (rc)
 				goto out;
 
-			fp->rxq->xdp_prog = bpf_prog_add(edev->xdp_prog, 1);
-			if (IS_ERR(fp->rxq->xdp_prog)) {
-				rc = PTR_ERR(fp->rxq->xdp_prog);
-				fp->rxq->xdp_prog = NULL;
-				goto out;
-			}
+			bpf_prog_add(edev->xdp_prog, 1);
+			fp->rxq->xdp_prog = edev->xdp_prog;
 		}
 
 		if (fp->type & QEDE_FASTPATH_TX) {
@@ -2230,6 +2222,8 @@ out:
 
 	if (mode != QEDE_UNLOAD_RECOVERY)
 		DP_NOTICE(edev, "Link is down\n");
+
+	edev->ptp_skip_txts = 0;
 
 	DP_INFO(edev, "Ending qede unload\n");
 }

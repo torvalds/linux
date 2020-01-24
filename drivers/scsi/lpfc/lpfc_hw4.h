@@ -210,7 +210,6 @@ struct lpfc_sli_intf {
 #define LPFC_MAX_IMAX          5000000
 #define LPFC_DEF_IMAX          0
 
-#define LPFC_IMAX_THRESHOLD    1000
 #define LPFC_MAX_AUTO_EQ_DELAY 120
 #define LPFC_EQ_DELAY_STEP     15
 #define LPFC_EQD_ISR_TRIGGER   20000
@@ -2050,6 +2049,23 @@ struct sli4_sge {	/* SLI-4 */
 	uint32_t sge_len;
 };
 
+struct sli4_hybrid_sgl {
+	struct list_head list_node;
+	struct sli4_sge *dma_sgl;
+	dma_addr_t dma_phys_sgl;
+};
+
+struct fcp_cmd_rsp_buf {
+	struct list_head list_node;
+
+	/* for storing cmd/rsp dma alloc'ed virt_addr */
+	struct fcp_cmnd *fcp_cmnd;
+	struct fcp_rsp *fcp_rsp;
+
+	/* for storing this cmd/rsp's dma mapped phys addr from per CPU pool */
+	dma_addr_t fcp_cmd_rsp_dma_handle;
+};
+
 struct sli4_sge_diseed {	/* SLI-4 */
 	uint32_t ref_tag;
 	uint32_t ref_tag_tran;
@@ -2303,6 +2319,7 @@ struct lpfc_mbx_redisc_fcf_tbl {
 #define ADD_STATUS_OPERATION_ALREADY_ACTIVE		0x67
 #define ADD_STATUS_FW_NOT_SUPPORTED			0xEB
 #define ADD_STATUS_INVALID_REQUEST			0x4B
+#define ADD_STATUS_FW_DOWNLOAD_HW_DISABLED              0x58
 
 struct lpfc_mbx_sli4_config {
 	struct mbox_header header;
@@ -2792,6 +2809,15 @@ struct lpfc_mbx_read_config {
 #define lpfc_mbx_rd_conf_trunk_SHIFT		12
 #define lpfc_mbx_rd_conf_trunk_MASK		0x0000000F
 #define lpfc_mbx_rd_conf_trunk_WORD		word2
+#define lpfc_mbx_rd_conf_pt_SHIFT		20
+#define lpfc_mbx_rd_conf_pt_MASK		0x00000003
+#define lpfc_mbx_rd_conf_pt_WORD		word2
+#define lpfc_mbx_rd_conf_tf_SHIFT		22
+#define lpfc_mbx_rd_conf_tf_MASK		0x00000001
+#define lpfc_mbx_rd_conf_tf_WORD		word2
+#define lpfc_mbx_rd_conf_ptv_SHIFT		23
+#define lpfc_mbx_rd_conf_ptv_MASK		0x00000001
+#define lpfc_mbx_rd_conf_ptv_WORD		word2
 #define lpfc_mbx_rd_conf_topology_SHIFT		24
 #define lpfc_mbx_rd_conf_topology_MASK		0x000000FF
 #define lpfc_mbx_rd_conf_topology_WORD		word2
@@ -3449,6 +3475,9 @@ struct lpfc_sli4_parameters {
 #define cfg_xib_SHIFT				4
 #define cfg_xib_MASK				0x00000001
 #define cfg_xib_WORD				word19
+#define cfg_xpsgl_SHIFT				6
+#define cfg_xpsgl_MASK				0x00000001
+#define cfg_xpsgl_WORD				word19
 #define cfg_eqdr_SHIFT				8
 #define cfg_eqdr_MASK				0x00000001
 #define cfg_eqdr_WORD				word19
@@ -3459,6 +3488,13 @@ struct lpfc_sli4_parameters {
 #define cfg_bv1s_SHIFT                          10
 #define cfg_bv1s_MASK                           0x00000001
 #define cfg_bv1s_WORD                           word19
+#define cfg_pvl_SHIFT				13
+#define cfg_pvl_MASK				0x00000001
+#define cfg_pvl_WORD				word19
+
+#define cfg_nsler_SHIFT                         12
+#define cfg_nsler_MASK                          0x00000001
+#define cfg_nsler_WORD                          word19
 
 	uint32_t word20;
 #define cfg_max_tow_xri_SHIFT			0
@@ -3494,6 +3530,7 @@ struct lpfc_sli4_parameters {
 
 #define LPFC_SET_UE_RECOVERY		0x10
 #define LPFC_SET_MDS_DIAGS		0x11
+#define LPFC_SET_DUAL_DUMP		0x1e
 struct lpfc_mbx_set_feature {
 	struct mbox_header header;
 	uint32_t feature;
@@ -3508,6 +3545,15 @@ struct lpfc_mbx_set_feature {
 #define lpfc_mbx_set_feature_mds_deep_loopbk_SHIFT  1
 #define lpfc_mbx_set_feature_mds_deep_loopbk_MASK   0x00000001
 #define lpfc_mbx_set_feature_mds_deep_loopbk_WORD   word6
+#define lpfc_mbx_set_feature_dd_SHIFT		0
+#define lpfc_mbx_set_feature_dd_MASK		0x00000001
+#define lpfc_mbx_set_feature_dd_WORD		word6
+#define lpfc_mbx_set_feature_ddquery_SHIFT	1
+#define lpfc_mbx_set_feature_ddquery_MASK	0x00000001
+#define lpfc_mbx_set_feature_ddquery_WORD	word6
+#define LPFC_DISABLE_DUAL_DUMP		0
+#define LPFC_ENABLE_DUAL_DUMP		1
+#define LPFC_QUERY_OP_DUAL_DUMP		2
 	uint32_t word7;
 #define lpfc_mbx_set_feature_UERP_SHIFT 0
 #define lpfc_mbx_set_feature_UERP_MASK  0x0000ffff
@@ -4237,6 +4283,8 @@ struct lpfc_acqe_sli {
 #define LPFC_SLI_EVENT_TYPE_DIAG_DUMP		0x5
 #define LPFC_SLI_EVENT_TYPE_MISCONFIGURED	0x9
 #define LPFC_SLI_EVENT_TYPE_REMOTE_DPORT	0xA
+#define LPFC_SLI_EVENT_TYPE_MISCONF_FAWWN	0xF
+#define LPFC_SLI_EVENT_TYPE_EEPROM_FAILURE	0x10
 };
 
 /*
@@ -4314,6 +4362,12 @@ struct wqe_common {
 #define wqe_rcvoxid_SHIFT     16
 #define wqe_rcvoxid_MASK      0x0000FFFF
 #define wqe_rcvoxid_WORD      word9
+#define wqe_sof_SHIFT         24
+#define wqe_sof_MASK          0x000000FF
+#define wqe_sof_WORD          word9
+#define wqe_eof_SHIFT         16
+#define wqe_eof_MASK          0x000000FF
+#define wqe_eof_WORD          word9
 	uint32_t word10;
 #define wqe_ebde_cnt_SHIFT    0
 #define wqe_ebde_cnt_MASK     0x0000000f
@@ -4595,6 +4649,7 @@ struct lpfc_nvme_prli {
 #define prli_type_code_WORD             word1
 	uint32_t word_rsvd2;
 	uint32_t word_rsvd3;
+
 	uint32_t word4;
 #define prli_fba_SHIFT                  0
 #define prli_fba_MASK                   0x00000001
@@ -4611,6 +4666,9 @@ struct lpfc_nvme_prli {
 #define prli_conf_SHIFT                 7
 #define prli_conf_MASK                  0x00000001
 #define prli_conf_WORD                  word4
+#define prli_nsler_SHIFT		8
+#define prli_nsler_MASK			0x00000001
+#define prli_nsler_WORD			word4
 	uint32_t word5;
 #define prli_fb_sz_SHIFT                0
 #define prli_fb_sz_MASK                 0x0000ffff
@@ -4625,6 +4683,7 @@ struct create_xri_wqe {
 	uint32_t rsvd_12_15[4];         /* word 12-15 */
 };
 
+#define INHIBIT_ABORT 1
 #define T_REQUEST_TAG 3
 #define T_XRI_TAG 1
 
@@ -4773,8 +4832,8 @@ union lpfc_wqe128 {
 	struct send_frame_wqe send_frame;
 };
 
-#define MAGIC_NUMER_G6 0xFEAA0003
-#define MAGIC_NUMER_G7 0xFEAA0005
+#define MAGIC_NUMBER_G6 0xFEAA0003
+#define MAGIC_NUMBER_G7 0xFEAA0005
 
 struct lpfc_grp_hdr {
 	uint32_t size;

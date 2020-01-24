@@ -14,6 +14,7 @@
 #include <linux/string.h>
 #include <linux/pagemap.h>
 #include <linux/mount.h>
+#include <linux/fs_context.h>
 #include <linux/namei.h>
 #include <linux/fsnotify.h>
 #include <linux/kernel.h>
@@ -50,7 +51,7 @@ static BLOCKING_NOTIFIER_HEAD(rpc_pipefs_notifier_list);
 
 int rpc_pipefs_notifier_register(struct notifier_block *nb)
 {
-	return blocking_notifier_chain_cond_register(&rpc_pipefs_notifier_list, nb);
+	return blocking_notifier_chain_register(&rpc_pipefs_notifier_list, nb);
 }
 EXPORT_SYMBOL_GPL(rpc_pipefs_notifier_register);
 
@@ -598,6 +599,8 @@ static int __rpc_rmdir(struct inode *dir, struct dentry *dentry)
 
 	dget(dentry);
 	ret = simple_rmdir(dir, dentry);
+	if (!ret)
+		fsnotify_rmdir(dir, dentry);
 	d_delete(dentry);
 	dput(dentry);
 	return ret;
@@ -609,6 +612,8 @@ static int __rpc_unlink(struct inode *dir, struct dentry *dentry)
 
 	dget(dentry);
 	ret = simple_unlink(dir, dentry);
+	if (!ret)
+		fsnotify_unlink(dir, dentry);
 	d_delete(dentry);
 	dput(dentry);
 	return ret;
@@ -1348,11 +1353,11 @@ rpc_gssd_dummy_depopulate(struct dentry *pipe_dentry)
 }
 
 static int
-rpc_fill_super(struct super_block *sb, void *data, int silent)
+rpc_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct inode *inode;
 	struct dentry *root, *gssd_dentry;
-	struct net *net = get_net(sb->s_fs_info);
+	struct net *net = sb->s_fs_info;
 	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
 	int err;
 
@@ -1409,12 +1414,28 @@ gssd_running(struct net *net)
 }
 EXPORT_SYMBOL_GPL(gssd_running);
 
-static struct dentry *
-rpc_mount(struct file_system_type *fs_type,
-		int flags, const char *dev_name, void *data)
+static int rpc_fs_get_tree(struct fs_context *fc)
 {
-	struct net *net = current->nsproxy->net_ns;
-	return mount_ns(fs_type, flags, data, net, net->user_ns, rpc_fill_super);
+	return get_tree_keyed(fc, rpc_fill_super, get_net(fc->net_ns));
+}
+
+static void rpc_fs_free_fc(struct fs_context *fc)
+{
+	if (fc->s_fs_info)
+		put_net(fc->s_fs_info);
+}
+
+static const struct fs_context_operations rpc_fs_context_ops = {
+	.free		= rpc_fs_free_fc,
+	.get_tree	= rpc_fs_get_tree,
+};
+
+static int rpc_init_fs_context(struct fs_context *fc)
+{
+	put_user_ns(fc->user_ns);
+	fc->user_ns = get_user_ns(fc->net_ns->user_ns);
+	fc->ops = &rpc_fs_context_ops;
+	return 0;
 }
 
 static void rpc_kill_sb(struct super_block *sb)
@@ -1442,7 +1463,7 @@ out:
 static struct file_system_type rpc_pipe_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "rpc_pipefs",
-	.mount		= rpc_mount,
+	.init_fs_context = rpc_init_fs_context,
 	.kill_sb	= rpc_kill_sb,
 };
 MODULE_ALIAS_FS("rpc_pipefs");

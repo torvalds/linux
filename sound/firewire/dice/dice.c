@@ -19,6 +19,7 @@ MODULE_LICENSE("GPL v2");
 #define OUI_MAUDIO		0x000d6c
 #define OUI_MYTEK		0x001ee8
 #define OUI_SSL			0x0050c2	// Actually ID reserved by IEEE.
+#define OUI_PRESONUS		0x000a92
 
 #define DICE_CATEGORY_ID	0x04
 #define WEISS_CATEGORY_ID	0x00
@@ -370,6 +371,14 @@ static const struct ieee1394_device_id dice_id_table[] = {
 				  IEEE1394_MATCH_MODEL_ID,
 		.vendor_id	= OUI_SSL,
 		.model_id	= 0x000070,
+	},
+	// Presonus FireStudio.
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_PRESONUS,
+		.model_id	= 0x000008,
+		.driver_data	= (kernel_ulong_t)snd_dice_detect_presonus_formats,
 	},
 	{
 		.match_flags = IEEE1394_MATCH_VERSION,

@@ -857,7 +857,7 @@ static void fd_calibrate( void )
 	}
 
 	if (ATARIHW_PRESENT(FDCSPEED))
-		dma_wd.fdc_speed = 0; 	/* always seek with 8 Mhz */;
+		dma_wd.fdc_speed = 0;   /* always seek with 8 Mhz */
 	DPRINT(("fd_calibrate\n"));
 	SET_IRQ_HANDLER( fd_calibrate_done );
 	/* we can't verify, since the speed may be incorrect */
@@ -1726,6 +1726,7 @@ static int fd_locked_ioctl(struct block_device *bdev, fmode_t mode,
 		/* MSch: invalidate default_params */
 		default_params[drive].blocks  = 0;
 		set_capacity(floppy->disk, MAX_DISK_SIZE * 2);
+		/* Fall through */
 	case FDFMTEND:
 	case FDFLUSH:
 		/* invalidate the buffer track to force a reread */

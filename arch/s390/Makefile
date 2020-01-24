@@ -10,8 +10,6 @@
 # Copyright (C) 1994 by Linus Torvalds
 #
 
-KBUILD_DEFCONFIG := defconfig
-
 LD_BFD		:= elf64-s390
 KBUILD_LDFLAGS	:= -m elf64_s390
 KBUILD_AFLAGS_MODULE += -fPIC
@@ -47,6 +45,7 @@ mflags-$(CONFIG_MARCH_Z196)   := -march=z196
 mflags-$(CONFIG_MARCH_ZEC12)  := -march=zEC12
 mflags-$(CONFIG_MARCH_Z13)    := -march=z13
 mflags-$(CONFIG_MARCH_Z14)    := -march=z14
+mflags-$(CONFIG_MARCH_Z15)    := -march=z15
 
 export CC_FLAGS_MARCH := $(mflags-y)
 
@@ -61,6 +60,7 @@ cflags-$(CONFIG_MARCH_Z196_TUNE)	+= -mtune=z196
 cflags-$(CONFIG_MARCH_ZEC12_TUNE)	+= -mtune=zEC12
 cflags-$(CONFIG_MARCH_Z13_TUNE)		+= -mtune=z13
 cflags-$(CONFIG_MARCH_Z14_TUNE)		+= -mtune=z14
+cflags-$(CONFIG_MARCH_Z15_TUNE)		+= -mtune=z15
 
 cflags-y += -Wa,-I$(srctree)/arch/$(ARCH)/include
 
@@ -157,7 +157,6 @@ zfcpdump:
 
 vdso_install:
 	$(Q)$(MAKE) $(build)=arch/$(ARCH)/kernel/vdso64 $@
-	$(Q)$(MAKE) $(build)=arch/$(ARCH)/kernel/vdso32 $@
 
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)

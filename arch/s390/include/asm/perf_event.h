@@ -12,6 +12,7 @@
 
 #include <linux/perf_event.h>
 #include <linux/device.h>
+#include <asm/stacktrace.h>
 
 /* Per-CPU flags for PMU states */
 #define PMU_F_RESERVED			0x1000
@@ -60,6 +61,7 @@ struct perf_sf_sde_regs {
 #define PERF_CPUM_SF_MODE_MASK		(PERF_CPUM_SF_BASIC_MODE| \
 					 PERF_CPUM_SF_DIAG_MODE)
 #define PERF_CPUM_SF_FULL_BLOCKS	0x0004	  /* Process full SDBs only */
+#define PERF_CPUM_SF_FREQ_MODE		0x0008	  /* Sampling with frequency */
 
 #define REG_NONE		0
 #define REG_OVERFLOW		1
@@ -70,5 +72,12 @@ struct perf_sf_sde_regs {
 #define SAMPL_FLAGS(hwc)	((hwc)->config_base)
 #define SAMPL_DIAG_MODE(hwc)	(SAMPL_FLAGS(hwc) & PERF_CPUM_SF_DIAG_MODE)
 #define SDB_FULL_BLOCKS(hwc)	(SAMPL_FLAGS(hwc) & PERF_CPUM_SF_FULL_BLOCKS)
+#define SAMPLE_FREQ_MODE(hwc)	(SAMPL_FLAGS(hwc) & PERF_CPUM_SF_FREQ_MODE)
+
+#define perf_arch_fetch_caller_regs(regs, __ip) do {			\
+	(regs)->psw.addr = (__ip);					\
+	(regs)->gprs[15] = (unsigned long)__builtin_frame_address(0) -	\
+		offsetof(struct stack_frame, back_chain);		\
+} while (0)
 
 #endif /* _ASM_S390_PERF_EVENT_H */

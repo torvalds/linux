@@ -79,6 +79,8 @@ void snd_hdac_bus_init_cmd_io(struct hdac_bus *bus)
 	snd_hdac_chip_writew(bus, RINTCNT, 1);
 	/* enable rirb dma and response irq */
 	snd_hdac_chip_writeb(bus, RIRBCTL, AZX_RBCTL_DMA_EN | AZX_RBCTL_IRQ_EN);
+	/* Accept unsolicited responses */
+	snd_hdac_chip_updatel(bus, GCTL, AZX_GCTL_UNSOL, AZX_GCTL_UNSOL);
 	spin_unlock_irq(&bus->reg_lock);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_bus_init_cmd_io);
@@ -241,6 +243,8 @@ int snd_hdac_bus_get_response(struct hdac_bus *bus, unsigned int addr,
 
 	for (loopcounter = 0;; loopcounter++) {
 		spin_lock_irq(&bus->reg_lock);
+		if (bus->polling_mode)
+			snd_hdac_bus_update_rirb(bus);
 		if (!bus->rirb.cmds[addr]) {
 			if (res)
 				*res = bus->rirb.res[addr]; /* the last value */
@@ -415,9 +419,6 @@ int snd_hdac_bus_reset_link(struct hdac_bus *bus, bool full_reset)
 		return -EBUSY;
 	}
 
-	/* Accept unsolicited responses */
-	snd_hdac_chip_updatel(bus, GCTL, AZX_GCTL_UNSOL, AZX_GCTL_UNSOL);
-
 	/* detect codecs */
 	if (!bus->codec_mask) {
 		bus->codec_mask = snd_hdac_chip_readw(bus, STATESTS);
@@ -574,12 +575,13 @@ int snd_hdac_bus_alloc_stream_pages(struct hdac_bus *bus)
 {
 	struct hdac_stream *s;
 	int num_streams = 0;
+	int dma_type = bus->dma_type ? bus->dma_type : SNDRV_DMA_TYPE_DEV;
 	int err;
 
 	list_for_each_entry(s, &bus->stream_list, list) {
 		/* allocate memory for the BDL for each stream */
-		err = bus->io_ops->dma_alloc_pages(bus, SNDRV_DMA_TYPE_DEV,
-						   BDL_SIZE, &s->bdl);
+		err = snd_dma_alloc_pages(dma_type, bus->dev,
+					  BDL_SIZE, &s->bdl);
 		num_streams++;
 		if (err < 0)
 			return -ENOMEM;
@@ -588,16 +590,15 @@ int snd_hdac_bus_alloc_stream_pages(struct hdac_bus *bus)
 	if (WARN_ON(!num_streams))
 		return -EINVAL;
 	/* allocate memory for the position buffer */
-	err = bus->io_ops->dma_alloc_pages(bus, SNDRV_DMA_TYPE_DEV,
-					   num_streams * 8, &bus->posbuf);
+	err = snd_dma_alloc_pages(dma_type, bus->dev,
+				  num_streams * 8, &bus->posbuf);
 	if (err < 0)
 		return -ENOMEM;
 	list_for_each_entry(s, &bus->stream_list, list)
 		s->posbuf = (__le32 *)(bus->posbuf.area + s->index * 8);
 
 	/* single page (at least 4096 bytes) must suffice for both ringbuffes */
-	return bus->io_ops->dma_alloc_pages(bus, SNDRV_DMA_TYPE_DEV,
-					    PAGE_SIZE, &bus->rb);
+	return snd_dma_alloc_pages(dma_type, bus->dev, PAGE_SIZE, &bus->rb);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_bus_alloc_stream_pages);
 
@@ -611,12 +612,12 @@ void snd_hdac_bus_free_stream_pages(struct hdac_bus *bus)
 
 	list_for_each_entry(s, &bus->stream_list, list) {
 		if (s->bdl.area)
-			bus->io_ops->dma_free_pages(bus, &s->bdl);
+			snd_dma_free_pages(&s->bdl);
 	}
 
 	if (bus->rb.area)
-		bus->io_ops->dma_free_pages(bus, &bus->rb);
+		snd_dma_free_pages(&bus->rb);
 	if (bus->posbuf.area)
-		bus->io_ops->dma_free_pages(bus, &bus->posbuf);
+		snd_dma_free_pages(&bus->posbuf);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_bus_free_stream_pages);

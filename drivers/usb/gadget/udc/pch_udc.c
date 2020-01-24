@@ -1519,7 +1519,6 @@ static void pch_udc_free_dma_chain(struct pch_udc_dev *dev,
 		td = phys_to_virt(addr);
 		addr2 = (dma_addr_t)td->next;
 		dma_pool_free(dev->data_requests, td, addr);
-		td->next = 0x00;
 		addr = addr2;
 	}
 	req->chain_len = 1;
@@ -3046,8 +3045,7 @@ static void pch_udc_remove(struct pci_dev *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int pch_udc_suspend(struct device *d)
 {
-	struct pci_dev *pdev = to_pci_dev(d);
-	struct pch_udc_dev *dev = pci_get_drvdata(pdev);
+	struct pch_udc_dev *dev = dev_get_drvdata(d);
 
 	pch_udc_disable_interrupts(dev, UDC_DEVINT_MSK);
 	pch_udc_disable_ep_interrupts(dev, UDC_EPINT_MSK_DISABLE_ALL);

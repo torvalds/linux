@@ -657,13 +657,12 @@ static void
 vmxnet3_append_frag(struct sk_buff *skb, struct Vmxnet3_RxCompDesc *rcd,
 		    struct vmxnet3_rx_buf_info *rbi)
 {
-	struct skb_frag_struct *frag = skb_shinfo(skb)->frags +
-		skb_shinfo(skb)->nr_frags;
+	skb_frag_t *frag = skb_shinfo(skb)->frags + skb_shinfo(skb)->nr_frags;
 
 	BUG_ON(skb_shinfo(skb)->nr_frags >= MAX_SKB_FRAGS);
 
 	__skb_frag_set_page(frag, rbi->page);
-	frag->page_offset = 0;
+	skb_frag_off_set(frag, 0);
 	skb_frag_size_set(frag, rcd->len);
 	skb->data_len += rcd->len;
 	skb->truesize += PAGE_SIZE;
@@ -755,7 +754,7 @@ vmxnet3_map_pkt(struct sk_buff *skb, struct vmxnet3_tx_ctx *ctx,
 	}
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		const struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[i];
+		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 		u32 buf_size;
 
 		buf_offset = 0;
@@ -956,7 +955,7 @@ static int txd_estimate(const struct sk_buff *skb)
 	int i;
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		const struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[i];
+		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
 		count += VMXNET3_TXD_NEEDED(skb_frag_size(frag));
 	}
@@ -3247,6 +3246,7 @@ vmxnet3_probe_device(struct pci_dev *pdev,
 		.ndo_start_xmit = vmxnet3_xmit_frame,
 		.ndo_set_mac_address = vmxnet3_set_mac_addr,
 		.ndo_change_mtu = vmxnet3_change_mtu,
+		.ndo_fix_features = vmxnet3_fix_features,
 		.ndo_set_features = vmxnet3_set_features,
 		.ndo_get_stats64 = vmxnet3_get_stats64,
 		.ndo_tx_timeout = vmxnet3_tx_timeout,
@@ -3429,7 +3429,6 @@ vmxnet3_probe_device(struct pci_dev *pdev,
 			err = -ENOMEM;
 			goto err_ver;
 		}
-		memset(adapter->coal_conf, 0, sizeof(*adapter->coal_conf));
 		adapter->coal_conf->coalMode = VMXNET3_COALESCE_DISABLED;
 		adapter->default_coal_mode = true;
 	}
@@ -3651,13 +3650,19 @@ vmxnet3_suspend(struct device *device)
 	}
 
 	if (adapter->wol & WAKE_ARP) {
-		in_dev = in_dev_get(netdev);
-		if (!in_dev)
-			goto skip_arp;
+		rcu_read_lock();
 
-		ifa = (struct in_ifaddr *)in_dev->ifa_list;
-		if (!ifa)
+		in_dev = __in_dev_get_rcu(netdev);
+		if (!in_dev) {
+			rcu_read_unlock();
 			goto skip_arp;
+		}
+
+		ifa = rcu_dereference(in_dev->ifa_list);
+		if (!ifa) {
+			rcu_read_unlock();
+			goto skip_arp;
+		}
 
 		pmConf->filters[i].patternSize = ETH_HLEN + /* Ethernet header*/
 			sizeof(struct arphdr) +		/* ARP header */
@@ -3677,7 +3682,9 @@ vmxnet3_suspend(struct device *device)
 
 		/* The Unicast IPv4 address in 'tip' field. */
 		arpreq += 2 * ETH_ALEN + sizeof(u32);
-		*(u32 *)arpreq = ifa->ifa_address;
+		*(__be32 *)arpreq = ifa->ifa_address;
+
+		rcu_read_unlock();
 
 		/* The mask for the relevant bits. */
 		pmConf->filters[i].mask[0] = 0x00;
@@ -3686,7 +3693,6 @@ vmxnet3_suspend(struct device *device)
 		pmConf->filters[i].mask[3] = 0x00;
 		pmConf->filters[i].mask[4] = 0xC0; /* IPv4 TIP */
 		pmConf->filters[i].mask[5] = 0x03; /* IPv4 TIP */
-		in_dev_put(in_dev);
 
 		pmConf->wakeUpEvents |= VMXNET3_PM_WAKEUP_FILTER;
 		i++;

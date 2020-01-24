@@ -23,19 +23,6 @@ struct scsi_host_cmd_pool;
 struct scsi_transport_template;
 
 
-/*
- * The various choices mean:
- * NONE: Self evident.	Host adapter is not capable of scatter-gather.
- * ALL:	 Means that the host adapter module can do scatter-gather,
- *	 and that there is no limit to the size of the table to which
- *	 we scatter/gather data.  The value we set here is the maximum
- *	 single element sglist.  To use chained sglists, the adapter
- *	 has to set a value beyond ALL (and correctly use the chain
- *	 handling API.
- * Anything else:  Indicates the maximum number of chains that can be
- *	 used in one scatter-gather request.
- */
-#define SG_NONE 0
 #define SG_ALL	SG_CHUNK_SIZE
 
 #define MODE_UNKNOWN 0x00
@@ -80,8 +67,10 @@ struct scsi_host_template {
 	 * command block to the LLDD.  When the driver finished
 	 * processing the command the done callback is invoked.
 	 *
-	 * If queuecommand returns 0, then the HBA has accepted the
-	 * command.  The done() function must be called on the command
+	 * If queuecommand returns 0, then the driver has accepted the
+	 * command.  It must also push it to the HBA if the scsi_cmnd
+	 * flag SCMD_LAST is set, or if the driver does not implement
+	 * commit_rqs.  The done() function must be called on the command
 	 * when the driver has finished with it. (you may call done on the
 	 * command before queuecommand returns, but in this case you
 	 * *must* return 0 from queuecommand).
@@ -108,6 +97,16 @@ struct scsi_host_template {
 	 * STATUS: REQUIRED
 	 */
 	int (* queuecommand)(struct Scsi_Host *, struct scsi_cmnd *);
+
+	/*
+	 * The commit_rqs function is used to trigger a hardware
+	 * doorbell after some requests have been queued with
+	 * queuecommand, when an error is encountered before sending
+	 * the request with SCMD_LAST set.
+	 *
+	 * STATUS: OPTIONAL
+	 */
+	void (*commit_rqs)(struct Scsi_Host *, u16);
 
 	/*
 	 * This is an error handling strategy routine.  You don't need to
@@ -333,7 +332,7 @@ struct scsi_host_template {
 	/*
 	 * This determines if we will use a non-interrupt driven
 	 * or an interrupt driven scheme.  It is set to the maximum number
-	 * of simultaneous commands a given host adapter will accept.
+	 * of simultaneous commands a single hw queue in HBA will accept.
 	 */
 	int can_queue;
 
@@ -368,6 +367,8 @@ struct scsi_host_template {
 	 * boundary will be split in two.
 	 */
 	unsigned long dma_boundary;
+
+	unsigned long virt_boundary_mask;
 
 	/*
 	 * This specifies "machine infinity" for host templates which don't
@@ -472,6 +473,9 @@ struct scsi_host_template {
 	 */
 	unsigned int cmd_size;
 	struct scsi_host_cmd_pool *cmd_pool;
+
+	/* Delay for runtime autosuspend */
+	int rpm_autosuspend_delay;
 };
 
 /*
@@ -537,7 +541,6 @@ struct Scsi_Host {
 	/* Area to keep a shared tag map */
 	struct blk_mq_tag_set	tag_set;
 
-	atomic_t host_busy;		   /* commands actually active on low-level */
 	atomic_t host_blocked;
 
 	unsigned int host_failed;	   /* commands that failed.
@@ -587,6 +590,7 @@ struct Scsi_Host {
 	unsigned int max_sectors;
 	unsigned int max_segment_size;
 	unsigned long dma_boundary;
+	unsigned long virt_boundary_mask;
 	/*
 	 * In scsi-mq mode, the number of hardware queues supported by the LLD.
 	 *

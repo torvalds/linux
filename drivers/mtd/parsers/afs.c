@@ -371,8 +371,7 @@ static int parse_afs_partitions(struct mtd_info *mtd,
 
 out_free_parts:
 	while (i >= 0) {
-		if (parts[i].name)
-			kfree(parts[i].name);
+		kfree(parts[i].name);
 		i--;
 	}
 	kfree(parts);

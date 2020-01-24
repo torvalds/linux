@@ -2,10 +2,12 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
- * Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
  */
 #ifndef _WMI_TLV_H
 #define _WMI_TLV_H
+
+#include <linux/bitops.h>
 
 #define WMI_TLV_CMD(grp_id) (((grp_id) << 12) | 0x1)
 #define WMI_TLV_EV(grp_id) (((grp_id) << 12) | 0x1)
@@ -301,11 +303,15 @@ enum wmi_tlv_event_id {
 	WMI_TLV_VDEV_STOPPED_EVENTID,
 	WMI_TLV_VDEV_INSTALL_KEY_COMPLETE_EVENTID,
 	WMI_TLV_VDEV_MCC_BCN_INTERVAL_CHANGE_REQ_EVENTID,
+	WMI_TLV_VDEV_TSF_REPORT_EVENTID,
+	WMI_TLV_VDEV_DELETE_RESP_EVENTID,
 	WMI_TLV_PEER_STA_KICKOUT_EVENTID = WMI_TLV_EV(WMI_TLV_GRP_PEER),
 	WMI_TLV_PEER_INFO_EVENTID,
 	WMI_TLV_PEER_TX_FAIL_CNT_THR_EVENTID,
 	WMI_TLV_PEER_ESTIMATED_LINKSPEED_EVENTID,
 	WMI_TLV_PEER_STATE_EVENTID,
+	WMI_TLV_PEER_ASSOC_CONF_EVENTID,
+	WMI_TLV_PEER_DELETE_RESP_EVENTID,
 	WMI_TLV_MGMT_RX_EVENTID = WMI_TLV_EV(WMI_TLV_GRP_MGMT),
 	WMI_TLV_HOST_SWBA_EVENTID,
 	WMI_TLV_TBTTOFFSET_UPDATE_EVENTID,
@@ -522,6 +528,24 @@ enum wmi_tlv_vdev_param {
 	WMI_TLV_VDEV_PARAM_DTIM_POLICY,
 	WMI_TLV_VDEV_PARAM_IBSS_PS_WARMUP_TIME_SECS,
 	WMI_TLV_VDEV_PARAM_IBSS_PS_1RX_CHAIN_IN_ATIM_WINDOW_ENABLE,
+};
+
+enum wmi_tlv_peer_param {
+	WMI_TLV_PEER_SMPS_STATE = 0x1, /* see %wmi_peer_smps_state */
+	WMI_TLV_PEER_AMPDU      = 0x2,
+	WMI_TLV_PEER_AUTHORIZE  = 0x3,
+	WMI_TLV_PEER_CHAN_WIDTH = 0x4,
+	WMI_TLV_PEER_NSS        = 0x5,
+	WMI_TLV_PEER_USE_4ADDR  = 0x6,
+	WMI_TLV_PEER_MEMBERSHIP = 0x7,
+	WMI_TLV_PEER_USERPOS = 0x8,
+	WMI_TLV_PEER_CRIT_PROTO_HINT_ENABLED = 0x9,
+	WMI_TLV_PEER_TX_FAIL_CNT_THR = 0xa,
+	WMI_TLV_PEER_SET_HW_RETRY_CTS2S = 0xb,
+	WMI_TLV_PEER_IBSS_ATIM_WINDOW_LENGTH = 0xc,
+	WMI_TLV_PEER_PHYMODE = 0xd,
+	WMI_TLV_PEER_USE_FIXED_PWR = 0xe,
+	WMI_TLV_PEER_DUMMY_VAR = 0xff,
 };
 
 enum wmi_tlv_peer_flags {
@@ -1405,6 +1429,11 @@ enum wmi_tlv_service {
 	WMI_TLV_SERVICE_WLAN_HPCS_PULSE = 172,
 	WMI_TLV_SERVICE_PER_VDEV_CHAINMASK_CONFIG_SUPPORT = 173,
 	WMI_TLV_SERVICE_TX_DATA_MGMT_ACK_RSSI = 174,
+	WMI_TLV_SERVICE_NAN_DISABLE_SUPPORT = 175,
+	WMI_TLV_SERVICE_HTT_H2T_NO_HTC_HDR_LEN_IN_MSG_LEN = 176,
+	WMI_TLV_SERVICE_COEX_SUPPORT_UNEQUAL_ISOLATION = 177,
+	WMI_TLV_SERVICE_HW_DB2DBM_CONVERSION_SUPPORT = 178,
+	WMI_TLV_SERVICE_SUPPORT_EXTEND_ADDRESS = 179,
 
 	WMI_TLV_MAX_EXT_SERVICE = 256,
 };
@@ -1567,6 +1596,10 @@ wmi_tlv_svc_map(const __le32 *in, unsigned long *out, size_t len)
 	       WMI_SERVICE_SAP_AUTH_OFFLOAD, len);
 	SVCMAP(WMI_TLV_SERVICE_MGMT_TX_WMI,
 	       WMI_SERVICE_MGMT_TX_WMI, len);
+	SVCMAP(WMI_TLV_SERVICE_MESH_11S,
+	       WMI_SERVICE_MESH_11S, len);
+	SVCMAP(WMI_TLV_SERVICE_SYNC_DELETE_CMDS,
+	       WMI_SERVICE_SYNC_DELETE_CMDS, len);
 }
 
 static inline void
@@ -1580,6 +1613,9 @@ wmi_tlv_svc_map_ext(const __le32 *in, unsigned long *out, size_t len)
 	       WMI_TLV_MAX_SERVICE);
 	SVCMAP(WMI_TLV_SERVICE_TX_DATA_MGMT_ACK_RSSI,
 	       WMI_SERVICE_TX_DATA_ACK_RSSI, WMI_TLV_MAX_SERVICE);
+	SVCMAP(WMI_TLV_SERVICE_SUPPORT_EXTEND_ADDRESS,
+	       WMI_SERVICE_SUPPORT_EXTEND_ADDRESS,
+	       WMI_TLV_MAX_SERVICE);
 }
 
 #undef SVCMAP
@@ -1606,6 +1642,22 @@ struct chan_info_params {
 };
 
 #define WMI_TLV_FLAG_MGMT_BUNDLE_TX_COMPL	BIT(9)
+
+struct wmi_tlv_chan_info_event {
+	__le32 err_code;
+	__le32 freq;
+	__le32 cmd_flags;
+	__le32 noise_floor;
+	__le32 rx_clear_count;
+	__le32 cycle_count;
+	__le32 chan_tx_pwr_range;
+	__le32 chan_tx_pwr_tp;
+	__le32 rx_frame_count;
+	__le32 my_bss_rx_cycle_count;
+	__le32 rx_11b_mode_data_duration;
+	__le32 tx_frame_cnt;
+	__le32 mac_clk_mhz;
+} __packed;
 
 struct wmi_tlv_mgmt_tx_compl_ev {
 	__le32 desc_id;
@@ -1719,6 +1771,21 @@ struct wmi_tlv_resource_config {
 	__le32 host_capab;
 } __packed;
 
+/* structure describing host memory chunk. */
+struct host_memory_chunk_tlv {
+	/* id of the request that is passed up in service ready */
+	__le32 req_id;
+
+	/* the physical address the memory chunk */
+	__le32 ptr;
+
+	/* size of the chunk */
+	__le32 size;
+
+	/* the upper 32 bit address valid only for more than 32 bit target */
+	__le32 ptr_high;
+} __packed;
+
 struct wmi_tlv_init_cmd {
 	struct wmi_tlv_abi_version abi;
 	__le32 num_host_mem_chunks;
@@ -1774,6 +1841,16 @@ struct wmi_tlv_start_scan_cmd {
 	struct wmi_mac_addr mac_addr;
 	struct wmi_mac_addr mac_mask;
 } __packed;
+
+enum wmi_tlv_vdev_subtype {
+	WMI_TLV_VDEV_SUBTYPE_NONE	= 0,
+	WMI_TLV_VDEV_SUBTYPE_P2P_DEV	= 1,
+	WMI_TLV_VDEV_SUBTYPE_P2P_CLI	= 2,
+	WMI_TLV_VDEV_SUBTYPE_P2P_GO	= 3,
+	WMI_TLV_VDEV_SUBTYPE_PROXY_STA	= 4,
+	WMI_TLV_VDEV_SUBTYPE_MESH	= 5,
+	WMI_TLV_VDEV_SUBTYPE_MESH_11S	= 6,
+};
 
 struct wmi_tlv_vdev_start_cmd {
 	__le32 vdev_id;
@@ -2200,6 +2277,31 @@ struct wmi_tlv_tdls_peer_event {
 	__le32 peer_reason;
 	__le32 vdev_id;
 } __packed;
+
+enum wmi_tlv_sys_cap_info_flags {
+	WMI_TLV_SYS_CAP_INFO_RXTX_LED	= BIT(0),
+	WMI_TLV_SYS_CAP_INFO_RFKILL	= BIT(1),
+};
+
+#define WMI_TLV_RFKILL_CFG_GPIO_PIN_NUM		GENMASK(5, 0)
+#define WMI_TLV_RFKILL_CFG_RADIO_LEVEL		BIT(6)
+#define WMI_TLV_RFKILL_CFG_PIN_AS_GPIO		GENMASK(10, 7)
+
+enum wmi_tlv_rfkill_enable_radio {
+	WMI_TLV_RFKILL_ENABLE_RADIO_ON	= 0,
+	WMI_TLV_RFKILL_ENABLE_RADIO_OFF	= 1,
+};
+
+enum wmi_tlv_rfkill_radio_state {
+	WMI_TLV_RFKILL_RADIO_STATE_OFF	= 1,
+	WMI_TLV_RFKILL_RADIO_STATE_ON	= 2,
+};
+
+struct wmi_tlv_rfkill_state_change_ev {
+	__le32 gpio_pin_num;
+	__le32 int_type;
+	__le32 radio_state;
+};
 
 void ath10k_wmi_tlv_attach(struct ath10k *ar);
 

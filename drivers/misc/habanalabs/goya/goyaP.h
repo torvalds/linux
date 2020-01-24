@@ -55,6 +55,8 @@
 
 #define DRAM_PHYS_DEFAULT_SIZE		0x100000000ull	/* 4GB */
 
+#define GOYA_DEFAULT_CARD_NAME		"HL1000"
+
 /* DRAM Memory Map */
 
 #define CPU_FW_IMAGE_SIZE		0x10000000	/* 256MB */
@@ -68,19 +70,19 @@
 						MMU_PAGE_TABLES_SIZE)
 #define MMU_CACHE_MNG_ADDR		(MMU_DRAM_DEFAULT_PAGE_ADDR + \
 					MMU_DRAM_DEFAULT_PAGE_SIZE)
-#define DRAM_KMD_END_ADDR		(MMU_CACHE_MNG_ADDR + \
+#define DRAM_DRIVER_END_ADDR		(MMU_CACHE_MNG_ADDR + \
 						MMU_CACHE_MNG_SIZE)
 
 #define DRAM_BASE_ADDR_USER		0x20000000
 
-#if (DRAM_KMD_END_ADDR > DRAM_BASE_ADDR_USER)
-#error "KMD must reserve no more than 512MB"
+#if (DRAM_DRIVER_END_ADDR > DRAM_BASE_ADDR_USER)
+#error "Driver must reserve no more than 512MB"
 #endif
 
 /*
- * SRAM Memory Map for KMD
+ * SRAM Memory Map for Driver
  *
- * KMD occupies KMD_SRAM_SIZE bytes from the start of SRAM. It is used for
+ * Driver occupies DRIVER_SRAM_SIZE bytes from the start of SRAM. It is used for
  * MME/TPC QMANs
  *
  */
@@ -106,10 +108,10 @@
 #define TPC7_QMAN_BASE_OFFSET	(TPC6_QMAN_BASE_OFFSET + \
 				(TPC_QMAN_LENGTH * QMAN_PQ_ENTRY_SIZE))
 
-#define SRAM_KMD_RES_OFFSET	(TPC7_QMAN_BASE_OFFSET + \
+#define SRAM_DRIVER_RES_OFFSET	(TPC7_QMAN_BASE_OFFSET + \
 				(TPC_QMAN_LENGTH * QMAN_PQ_ENTRY_SIZE))
 
-#if (SRAM_KMD_RES_OFFSET >= GOYA_KMD_SRAM_RESERVED_SIZE_FROM_START)
+#if (SRAM_DRIVER_RES_OFFSET >= GOYA_KMD_SRAM_RESERVED_SIZE_FROM_START)
 #error "MME/TPC QMANs SRAM space exceeds limit"
 #endif
 
@@ -125,6 +127,12 @@
 #define VA_DDR_SPACE_END	0x2000000000ull		/* 128GB */
 #define VA_DDR_SPACE_SIZE	(VA_DDR_SPACE_END - \
 					VA_DDR_SPACE_START)	/* 128GB */
+
+#if (HL_CPU_ACCESSIBLE_MEM_SIZE != SZ_2M)
+#error "HL_CPU_ACCESSIBLE_MEM_SIZE must be exactly 2MB to enable MMU mapping"
+#endif
+
+#define VA_CPU_ACCESSIBLE_MEM_ADDR	0x8000000000ull
 
 #define DMA_MAX_TRANSFER_SIZE	U32_MAX
 
@@ -156,7 +164,9 @@ struct goya_device {
 
 	u64		ddr_bar_cur_addr;
 	u32		events_stat[GOYA_ASYNC_EVENT_ID_SIZE];
+	u32		events_stat_aggregate[GOYA_ASYNC_EVENT_ID_SIZE];
 	u32		hw_cap_initialized;
+	u8		device_cpu_mmu_mappings_done;
 };
 
 void goya_get_fixed_properties(struct hl_device *hdev);
@@ -170,7 +180,7 @@ int goya_late_init(struct hl_device *hdev);
 void goya_late_fini(struct hl_device *hdev);
 
 void goya_ring_doorbell(struct hl_device *hdev, u32 hw_queue_id, u32 pi);
-void goya_flush_pq_write(struct hl_device *hdev, u64 *pq, u64 exp_val);
+void goya_pqe_write(struct hl_device *hdev, __le64 *pqe, struct hl_bd *bd);
 void goya_update_eq_ci(struct hl_device *hdev, u32 val);
 void goya_restore_phase_topology(struct hl_device *hdev);
 int goya_context_switch(struct hl_device *hdev, u32 asid);
@@ -204,18 +214,14 @@ int goya_armcp_info_get(struct hl_device *hdev);
 int goya_debug_coresight(struct hl_device *hdev, void *data);
 void goya_halt_coresight(struct hl_device *hdev);
 
-void goya_mmu_prepare(struct hl_device *hdev, u32 asid);
-int goya_mmu_clear_pgt_range(struct hl_device *hdev);
-int goya_mmu_set_dram_default_page(struct hl_device *hdev);
-
 int goya_suspend(struct hl_device *hdev);
 int goya_resume(struct hl_device *hdev);
 
 void goya_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entry);
-void *goya_get_events_stat(struct hl_device *hdev, u32 *size);
+void *goya_get_events_stat(struct hl_device *hdev, bool aggregate, u32 *size);
 
-void goya_add_end_of_cb_packets(u64 kernel_address, u32 len, u64 cq_addr,
-				u32 cq_val, u32 msix_vec);
+void goya_add_end_of_cb_packets(struct hl_device *hdev, u64 kernel_address,
+				u32 len, u64 cq_addr, u32 cq_val, u32 msix_vec);
 int goya_cs_parser(struct hl_device *hdev, struct hl_cs_parser *parser);
 void *goya_get_int_queue_base(struct hl_device *hdev, u32 queue_id,
 				dma_addr_t *dma_handle,	u16 *queue_len);
@@ -225,5 +231,8 @@ void *goya_cpu_accessible_dma_pool_alloc(struct hl_device *hdev, size_t size,
 					dma_addr_t *dma_handle);
 void goya_cpu_accessible_dma_pool_free(struct hl_device *hdev, size_t size,
 					void *vaddr);
+void goya_mmu_remove_device_cpu_mappings(struct hl_device *hdev);
+
+int goya_get_clk_rate(struct hl_device *hdev, u32 *cur_clk, u32 *max_clk);
 
 #endif /* GOYAP_H_ */

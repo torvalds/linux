@@ -80,17 +80,19 @@ static int ttc_pm860x_init(struct snd_soc_pcm_runtime *rtd)
 }
 
 /* ttc/td-dkb digital audio interface glue - connects codec <--> CPU */
+SND_SOC_DAILINK_DEFS(i2s,
+	DAILINK_COMP_ARRAY(COMP_CPU("pxa-ssp-dai.1")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("88pm860x-codec", "88pm860x-i2s")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("mmp-pcm-audio")));
+
 static struct snd_soc_dai_link ttc_pm860x_hifi_dai[] = {
 {
 	 .name = "88pm860x i2s",
 	 .stream_name = "audio playback",
-	 .codec_name = "88pm860x-codec",
-	 .platform_name = "mmp-pcm-audio",
-	 .cpu_dai_name = "pxa-ssp-dai.1",
-	 .codec_dai_name = "88pm860x-i2s",
 	 .dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 			SND_SOC_DAIFMT_CBM_CFM,
 	 .init = ttc_pm860x_init,
+	 SND_SOC_DAILINK_REG(i2s),
 },
 };
 

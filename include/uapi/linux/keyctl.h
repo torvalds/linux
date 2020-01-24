@@ -67,6 +67,8 @@
 #define KEYCTL_PKEY_SIGN		27	/* Create a public key signature */
 #define KEYCTL_PKEY_VERIFY		28	/* Verify a public key signature */
 #define KEYCTL_RESTRICT_KEYRING		29	/* Restrict keys allowed to link to a keyring */
+#define KEYCTL_MOVE			30	/* Move keys between keyrings */
+#define KEYCTL_CAPABILITIES		31	/* Find capabilities of keyrings subsystem */
 
 /* keyctl structures */
 struct keyctl_dh_params {
@@ -111,5 +113,22 @@ struct keyctl_pkey_params {
 	};
 	__u32		__spare[7];
 };
+
+#define KEYCTL_MOVE_EXCL	0x00000001 /* Do not displace from the to-keyring */
+
+/*
+ * Capabilities flags.  The capabilities list is an array of 8-bit integers;
+ * each integer can carry up to 8 flags.
+ */
+#define KEYCTL_CAPS0_CAPABILITIES	0x01 /* KEYCTL_CAPABILITIES supported */
+#define KEYCTL_CAPS0_PERSISTENT_KEYRINGS 0x02 /* Persistent keyrings enabled */
+#define KEYCTL_CAPS0_DIFFIE_HELLMAN	0x04 /* Diffie-Hellman computation enabled */
+#define KEYCTL_CAPS0_PUBLIC_KEY		0x08 /* Public key ops enabled */
+#define KEYCTL_CAPS0_BIG_KEY		0x10 /* big_key-type enabled */
+#define KEYCTL_CAPS0_INVALIDATE		0x20 /* KEYCTL_INVALIDATE supported */
+#define KEYCTL_CAPS0_RESTRICT_KEYRING	0x40 /* KEYCTL_RESTRICT_KEYRING supported */
+#define KEYCTL_CAPS0_MOVE		0x80 /* KEYCTL_MOVE supported */
+#define KEYCTL_CAPS1_NS_KEYRING_NAME	0x01 /* Keyring names are per-user_namespace */
+#define KEYCTL_CAPS1_NS_KEY_TAG		0x02 /* Key indexing can include a namespace tag */
 
 #endif /*  _LINUX_KEYCTL_H */

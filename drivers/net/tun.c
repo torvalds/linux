@@ -136,10 +136,10 @@ struct tap_filter {
 #define TUN_FLOW_EXPIRE (3 * HZ)
 
 struct tun_pcpu_stats {
-	u64 rx_packets;
-	u64 rx_bytes;
-	u64 tx_packets;
-	u64 tx_bytes;
+	u64_stats_t rx_packets;
+	u64_stats_t rx_bytes;
+	u64_stats_t tx_packets;
+	u64_stats_t tx_bytes;
 	struct u64_stats_sync syncp;
 	u32 rx_dropped;
 	u32 tx_dropped;
@@ -160,7 +160,6 @@ struct tun_pcpu_stats {
 struct tun_file {
 	struct sock sk;
 	struct socket socket;
-	struct socket_wq wq;
 	struct tun_struct __rcu *tun;
 	struct fasync_struct *fasync;
 	/* only used for fasnyc */
@@ -314,8 +313,8 @@ static void tun_napi_init(struct tun_struct *tun, struct tun_file *tfile,
 	tfile->napi_enabled = napi_en;
 	tfile->napi_frags_enabled = napi_en && napi_frags;
 	if (napi_en) {
-		netif_napi_add(tun->dev, &tfile->napi, tun_napi_poll,
-			       NAPI_POLL_WEIGHT);
+		netif_tx_napi_add(tun->dev, &tfile->napi, tun_napi_poll,
+				  NAPI_POLL_WEIGHT);
 		napi_enable(&tfile->napi);
 	}
 }
@@ -527,8 +526,8 @@ static void tun_flow_update(struct tun_struct *tun, u32 rxhash,
 	e = tun_flow_find(head, rxhash);
 	if (likely(e)) {
 		/* TODO: keep queueing to old queue until it's empty? */
-		if (e->queue_index != queue_index)
-			e->queue_index = queue_index;
+		if (READ_ONCE(e->queue_index) != queue_index)
+			WRITE_ONCE(e->queue_index, queue_index);
 		if (e->updated != jiffies)
 			e->updated = jiffies;
 		sock_rps_record_flow_hash(e->rps_rxhash);
@@ -788,7 +787,8 @@ static void tun_detach_all(struct net_device *dev)
 }
 
 static int tun_attach(struct tun_struct *tun, struct file *file,
-		      bool skip_filter, bool napi, bool napi_frags)
+		      bool skip_filter, bool napi, bool napi_frags,
+		      bool publish_tun)
 {
 	struct tun_file *tfile = file->private_data;
 	struct net_device *dev = tun->dev;
@@ -871,7 +871,8 @@ static int tun_attach(struct tun_struct *tun, struct file *file,
 	 * initialized tfile; otherwise we risk using half-initialized
 	 * object.
 	 */
-	rcu_assign_pointer(tfile->tun, tun);
+	if (publish_tun)
+		rcu_assign_pointer(tfile->tun, tun);
 	rcu_assign_pointer(tun->tfiles[tun->numqueues], tfile);
 	tun->numqueues++;
 	tun_set_real_num_queues(tun);
@@ -1014,17 +1015,7 @@ static void tun_net_uninit(struct net_device *dev)
 /* Net device open. */
 static int tun_net_open(struct net_device *dev)
 {
-	struct tun_struct *tun = netdev_priv(dev);
-	int i;
-
 	netif_tx_start_all_queues(dev);
-
-	for (i = 0; i < tun->numqueues; i++) {
-		struct tun_file *tfile;
-
-		tfile = rtnl_dereference(tun->tfiles[i]);
-		tfile->socket.sk->sk_write_space(tfile->socket.sk);
-	}
 
 	return 0;
 }
@@ -1113,7 +1104,7 @@ static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 	 */
 	skb_orphan(skb);
 
-	nf_reset(skb);
+	nf_reset_ct(skb);
 
 	if (ptr_ring_produce(&tfile->tx_ring, skb))
 		goto drop;
@@ -1176,10 +1167,10 @@ tun_net_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 		p = per_cpu_ptr(tun->pcpu_stats, i);
 		do {
 			start = u64_stats_fetch_begin(&p->syncp);
-			rxpackets	= p->rx_packets;
-			rxbytes		= p->rx_bytes;
-			txpackets	= p->tx_packets;
-			txbytes		= p->tx_bytes;
+			rxpackets	= u64_stats_read(&p->rx_packets);
+			rxbytes		= u64_stats_read(&p->rx_bytes);
+			txpackets	= u64_stats_read(&p->tx_packets);
+			txbytes		= u64_stats_read(&p->tx_bytes);
 		} while (u64_stats_fetch_retry(&p->syncp, start));
 
 		stats->rx_packets	+= rxpackets;
@@ -1610,7 +1601,8 @@ static bool tun_can_build_skb(struct tun_struct *tun, struct tun_file *tfile,
 	return true;
 }
 
-static struct sk_buff *__tun_build_skb(struct page_frag *alloc_frag, char *buf,
+static struct sk_buff *__tun_build_skb(struct tun_file *tfile,
+				       struct page_frag *alloc_frag, char *buf,
 				       int buflen, int len, int pad)
 {
 	struct sk_buff *skb = build_skb(buf, buflen);
@@ -1620,6 +1612,7 @@ static struct sk_buff *__tun_build_skb(struct page_frag *alloc_frag, char *buf,
 
 	skb_reserve(skb, pad);
 	skb_put(skb, len);
+	skb_set_owner_w(skb, tfile->socket.sk);
 
 	get_page(alloc_frag->page);
 	alloc_frag->offset += buflen;
@@ -1697,7 +1690,8 @@ static struct sk_buff *tun_build_skb(struct tun_struct *tun,
 	 */
 	if (hdr->gso_type || !xdp_prog) {
 		*skb_xdp = 1;
-		return __tun_build_skb(alloc_frag, buf, buflen, len, pad);
+		return __tun_build_skb(tfile, alloc_frag, buf, buflen, len,
+				       pad);
 	}
 
 	*skb_xdp = 0;
@@ -1734,7 +1728,7 @@ static struct sk_buff *tun_build_skb(struct tun_struct *tun,
 	rcu_read_unlock();
 	local_bh_enable();
 
-	return __tun_build_skb(alloc_frag, buf, buflen, len, pad);
+	return __tun_build_skb(tfile, alloc_frag, buf, buflen, len, pad);
 
 err_xdp:
 	put_page(alloc_frag->page);
@@ -2004,8 +1998,8 @@ drop:
 
 	stats = get_cpu_ptr(tun->pcpu_stats);
 	u64_stats_update_begin(&stats->syncp);
-	stats->rx_packets++;
-	stats->rx_bytes += len;
+	u64_stats_inc(&stats->rx_packets);
+	u64_stats_add(&stats->rx_bytes, len);
 	u64_stats_update_end(&stats->syncp);
 	put_cpu_ptr(stats);
 
@@ -2058,8 +2052,8 @@ static ssize_t tun_put_user_xdp(struct tun_struct *tun,
 
 	stats = get_cpu_ptr(tun->pcpu_stats);
 	u64_stats_update_begin(&stats->syncp);
-	stats->tx_packets++;
-	stats->tx_bytes += ret;
+	u64_stats_inc(&stats->tx_packets);
+	u64_stats_add(&stats->tx_bytes, ret);
 	u64_stats_update_end(&stats->syncp);
 	put_cpu_ptr(tun->pcpu_stats);
 
@@ -2153,8 +2147,8 @@ done:
 	/* caller is in process context, */
 	stats = get_cpu_ptr(tun->pcpu_stats);
 	u64_stats_update_begin(&stats->syncp);
-	stats->tx_packets++;
-	stats->tx_bytes += skb->len + vlan_hlen;
+	u64_stats_inc(&stats->tx_packets);
+	u64_stats_add(&stats->tx_bytes, skb->len + vlan_hlen);
 	u64_stats_update_end(&stats->syncp);
 	put_cpu_ptr(tun->pcpu_stats);
 
@@ -2175,7 +2169,7 @@ static void *tun_ring_recv(struct tun_file *tfile, int noblock, int *err)
 		goto out;
 	}
 
-	add_wait_queue(&tfile->wq.wait, &wait);
+	add_wait_queue(&tfile->socket.wq.wait, &wait);
 
 	while (1) {
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -2195,7 +2189,7 @@ static void *tun_ring_recv(struct tun_file *tfile, int noblock, int *err)
 	}
 
 	__set_current_state(TASK_RUNNING);
-	remove_wait_queue(&tfile->wq.wait, &wait);
+	remove_wait_queue(&tfile->socket.wq.wait, &wait);
 
 out:
 	*err = error;
@@ -2296,7 +2290,13 @@ static void tun_free_netdev(struct net_device *dev)
 	struct tun_struct *tun = netdev_priv(dev);
 
 	BUG_ON(!(list_empty(&tun->disabled)));
+
 	free_percpu(tun->pcpu_stats);
+	/* We clear pcpu_stats so that tun_set_iff() can tell if
+	 * tun_free_netdev() has been called from register_netdevice().
+	 */
+	tun->pcpu_stats = NULL;
+
 	tun_flow_uninit(tun);
 	security_tun_dev_free_security(tun->security);
 	__tun_set_ebpf(tun, &tun->steering_prog, NULL);
@@ -2511,8 +2511,8 @@ build:
 	 */
 	stats = this_cpu_ptr(tun->pcpu_stats);
 	u64_stats_update_begin(&stats->syncp);
-	stats->rx_packets++;
-	stats->rx_bytes += datasize;
+	u64_stats_inc(&stats->rx_packets);
+	u64_stats_add(&stats->rx_bytes, datasize);
 	u64_stats_update_end(&stats->syncp);
 
 	if (rxhash)
@@ -2738,7 +2738,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 
 		err = tun_attach(tun, file, ifr->ifr_flags & IFF_NOFILTER,
 				 ifr->ifr_flags & IFF_NAPI,
-				 ifr->ifr_flags & IFF_NAPI_FRAGS);
+				 ifr->ifr_flags & IFF_NAPI_FRAGS, true);
 		if (err < 0)
 			return err;
 
@@ -2788,9 +2788,6 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 
 		if (!dev)
 			return -ENOMEM;
-		err = dev_get_valid_name(net, dev, name);
-		if (err < 0)
-			goto err_free_dev;
 
 		dev_net_set(dev, net);
 		dev->rtnl_link_ops = &tun_link_ops;
@@ -2837,13 +2834,17 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 
 		INIT_LIST_HEAD(&tun->disabled);
 		err = tun_attach(tun, file, false, ifr->ifr_flags & IFF_NAPI,
-				 ifr->ifr_flags & IFF_NAPI_FRAGS);
+				 ifr->ifr_flags & IFF_NAPI_FRAGS, false);
 		if (err < 0)
 			goto err_free_flow;
 
 		err = register_netdevice(tun->dev);
 		if (err < 0)
 			goto err_detach;
+		/* free_netdev() won't check refcnt, to aovid race
+		 * with dev_put() we need publish tun after registration.
+		 */
+		rcu_assign_pointer(tfile->tun, tun);
 	}
 
 	netif_carrier_on(tun->dev);
@@ -2861,8 +2862,12 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 
 err_detach:
 	tun_detach_all(dev);
-	/* register_netdevice() already called tun_free_netdev() */
-	goto err_free_dev;
+	/* We are here because register_netdevice() has failed.
+	 * If register_netdevice() already called tun_free_netdev()
+	 * while dealing with the error, tun->pcpu_stats has been cleared.
+	 */
+	if (!tun->pcpu_stats)
+		goto err_free_dev;
 
 err_free_flow:
 	tun_flow_uninit(tun);
@@ -2986,7 +2991,7 @@ static int tun_set_queue(struct file *file, struct ifreq *ifr)
 		if (ret < 0)
 			goto unlock;
 		ret = tun_attach(tun, file, false, tun->flags & IFF_NAPI,
-				 tun->flags & IFF_NAPI_FRAGS);
+				 tun->flags & IFF_NAPI_FRAGS, true);
 	} else if (ifr->ifr_flags & IFF_DETACH_QUEUE) {
 		tun = rtnl_dereference(tfile->tun);
 		if (!tun || !(tun->flags & IFF_MULTI_QUEUE) || tfile->detached)
@@ -3425,8 +3430,7 @@ static int tun_chr_open(struct inode *inode, struct file * file)
 	tfile->flags = 0;
 	tfile->ifindex = 0;
 
-	init_waitqueue_head(&tfile->wq.wait);
-	RCU_INIT_POINTER(tfile->socket.wq, &tfile->wq);
+	init_waitqueue_head(&tfile->socket.wq.wait);
 
 	tfile->socket.file = file;
 	tfile->socket.ops = &tun_socket_ops;
@@ -3634,6 +3638,7 @@ static int tun_device_event(struct notifier_block *unused,
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct tun_struct *tun = netdev_priv(dev);
+	int i;
 
 	if (dev->rtnl_link_ops != &tun_link_ops)
 		return NOTIFY_DONE;
@@ -3642,6 +3647,14 @@ static int tun_device_event(struct notifier_block *unused,
 	case NETDEV_CHANGE_TX_QUEUE_LEN:
 		if (tun_queue_resize(tun))
 			return NOTIFY_BAD;
+		break;
+	case NETDEV_UP:
+		for (i = 0; i < tun->numqueues; i++) {
+			struct tun_file *tfile;
+
+			tfile = rtnl_dereference(tun->tfiles[i]);
+			tfile->socket.sk->sk_write_space(tfile->socket.sk);
+		}
 		break;
 	default:
 		break;

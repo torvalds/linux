@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * Contact Information:
  *  Intel Linux Wireless <linuxwifi@intel.com>
@@ -69,16 +69,16 @@ static const struct iwl_eeprom_params iwl1000_eeprom_params = {
 	.fw_name_pre = IWL1000_FW_PRE,				\
 	.ucode_api_max = IWL1000_UCODE_API_MAX,			\
 	.ucode_api_min = IWL1000_UCODE_API_MIN,			\
-	.device_family = IWL_DEVICE_FAMILY_1000,		\
+	.trans.device_family = IWL_DEVICE_FAMILY_1000,		\
 	.max_inst_size = IWLAGN_RTC_INST_SIZE,			\
 	.max_data_size = IWLAGN_RTC_DATA_SIZE,			\
 	.nvm_ver = EEPROM_1000_EEPROM_VERSION,		\
 	.nvm_calib_ver = EEPROM_1000_TX_POWER_VERSION,	\
-	.base_params = &iwl1000_base_params,			\
+	.trans.base_params = &iwl1000_base_params,		\
 	.eeprom_params = &iwl1000_eeprom_params,		\
 	.led_mode = IWL_LED_BLINK,				\
 	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,	\
-	.csr = &iwl_csr_v1
+	.trans.csr = &iwl_csr_v1
 
 const struct iwl_cfg iwl1000_bgn_cfg = {
 	.name = "Intel(R) Centrino(R) Wireless-N 1000 BGN",
@@ -95,17 +95,17 @@ const struct iwl_cfg iwl1000_bg_cfg = {
 	.fw_name_pre = IWL100_FW_PRE,				\
 	.ucode_api_max = IWL100_UCODE_API_MAX,			\
 	.ucode_api_min = IWL100_UCODE_API_MIN,			\
-	.device_family = IWL_DEVICE_FAMILY_100,			\
+	.trans.device_family = IWL_DEVICE_FAMILY_100,		\
 	.max_inst_size = IWLAGN_RTC_INST_SIZE,			\
 	.max_data_size = IWLAGN_RTC_DATA_SIZE,			\
 	.nvm_ver = EEPROM_1000_EEPROM_VERSION,		\
 	.nvm_calib_ver = EEPROM_1000_TX_POWER_VERSION,	\
-	.base_params = &iwl1000_base_params,			\
+	.trans.base_params = &iwl1000_base_params,		\
 	.eeprom_params = &iwl1000_eeprom_params,		\
 	.led_mode = IWL_LED_RF_STATE,				\
 	.rx_with_siso_diversity = true,				\
 	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,	\
-	.csr = &iwl_csr_v1
+	.trans.csr = &iwl_csr_v1
 
 const struct iwl_cfg iwl100_bgn_cfg = {
 	.name = "Intel(R) Centrino(R) Wireless-N 100 BGN",

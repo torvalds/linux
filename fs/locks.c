@@ -212,6 +212,7 @@ struct file_lock_list_struct {
 static DEFINE_PER_CPU(struct file_lock_list_struct, file_lock_list);
 DEFINE_STATIC_PERCPU_RWSEM(file_rwsem);
 
+
 /*
  * The blocked_hash is used to find POSIX lock loops for deadlock detection.
  * It is protected by blocked_lock_lock.
@@ -658,9 +659,6 @@ static inline int locks_overlap(struct file_lock *fl1, struct file_lock *fl2)
  */
 static int posix_same_owner(struct file_lock *fl1, struct file_lock *fl2)
 {
-	if (fl1->fl_lmops && fl1->fl_lmops->lm_compare_owner)
-		return fl2->fl_lmops == fl1->fl_lmops &&
-			fl1->fl_lmops->lm_compare_owner(fl1, fl2);
 	return fl1->fl_owner == fl2->fl_owner;
 }
 
@@ -701,8 +699,6 @@ static void locks_delete_global_locks(struct file_lock *fl)
 static unsigned long
 posix_owner_key(struct file_lock *fl)
 {
-	if (fl->fl_lmops && fl->fl_lmops->lm_owner_key)
-		return fl->fl_lmops->lm_owner_key(fl);
 	return (unsigned long)fl->fl_owner;
 }
 
@@ -1534,11 +1530,21 @@ static void time_out_leases(struct inode *inode, struct list_head *dispose)
 
 static bool leases_conflict(struct file_lock *lease, struct file_lock *breaker)
 {
-	if ((breaker->fl_flags & FL_LAYOUT) != (lease->fl_flags & FL_LAYOUT))
-		return false;
-	if ((breaker->fl_flags & FL_DELEG) && (lease->fl_flags & FL_LEASE))
-		return false;
-	return locks_conflict(breaker, lease);
+	bool rc;
+
+	if ((breaker->fl_flags & FL_LAYOUT) != (lease->fl_flags & FL_LAYOUT)) {
+		rc = false;
+		goto trace;
+	}
+	if ((breaker->fl_flags & FL_DELEG) && (lease->fl_flags & FL_LEASE)) {
+		rc = false;
+		goto trace;
+	}
+
+	rc = locks_conflict(breaker, lease);
+trace:
+	trace_leases_conflict(rc, lease, breaker);
+	return rc;
 }
 
 static bool
@@ -1587,7 +1593,7 @@ int __break_lease(struct inode *inode, unsigned int mode, unsigned int type)
 	ctx = smp_load_acquire(&inode->i_flctx);
 	if (!ctx) {
 		WARN_ON_ONCE(1);
-		return error;
+		goto free_lock;
 	}
 
 	percpu_down_read(&file_rwsem);
@@ -1667,6 +1673,7 @@ out:
 	spin_unlock(&ctx->flc_lock);
 	percpu_up_read(&file_rwsem);
 	locks_dispose_list(&dispose);
+free_lock:
 	locks_free_lock(new_fl);
 	return error;
 }
@@ -1753,10 +1760,10 @@ int fcntl_getlease(struct file *filp)
 }
 
 /**
- * check_conflicting_open - see if the given dentry points to a file that has
+ * check_conflicting_open - see if the given file points to an inode that has
  *			    an existing open that would conflict with the
  *			    desired lease.
- * @dentry:	dentry to check
+ * @filp:	file to check
  * @arg:	type of lease that we're trying to acquire
  * @flags:	current lock flags
  *
@@ -1764,30 +1771,42 @@ int fcntl_getlease(struct file *filp)
  * conflict with the lease we're trying to set.
  */
 static int
-check_conflicting_open(const struct dentry *dentry, const long arg, int flags)
+check_conflicting_open(struct file *filp, const long arg, int flags)
 {
-	int ret = 0;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = locks_inode(filp);
+	int self_wcount = 0, self_rcount = 0;
 
 	if (flags & FL_LAYOUT)
 		return 0;
 
-	if ((arg == F_RDLCK) && inode_is_open_for_write(inode))
+	if (arg == F_RDLCK)
+		return inode_is_open_for_write(inode) ? -EAGAIN : 0;
+	else if (arg != F_WRLCK)
+		return 0;
+
+	/*
+	 * Make sure that only read/write count is from lease requestor.
+	 * Note that this will result in denying write leases when i_writecount
+	 * is negative, which is what we want.  (We shouldn't grant write leases
+	 * on files open for execution.)
+	 */
+	if (filp->f_mode & FMODE_WRITE)
+		self_wcount = 1;
+	else if (filp->f_mode & FMODE_READ)
+		self_rcount = 1;
+
+	if (atomic_read(&inode->i_writecount) != self_wcount ||
+	    atomic_read(&inode->i_readcount) != self_rcount)
 		return -EAGAIN;
 
-	if ((arg == F_WRLCK) && ((d_count(dentry) > 1) ||
-	    (atomic_read(&inode->i_count) > 1)))
-		ret = -EAGAIN;
-
-	return ret;
+	return 0;
 }
 
 static int
 generic_add_lease(struct file *filp, long arg, struct file_lock **flp, void **priv)
 {
 	struct file_lock *fl, *my_fl = NULL, *lease;
-	struct dentry *dentry = filp->f_path.dentry;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = locks_inode(filp);
 	struct file_lock_context *ctx;
 	bool is_deleg = (*flp)->fl_flags & FL_DELEG;
 	int error;
@@ -1822,7 +1841,7 @@ generic_add_lease(struct file *filp, long arg, struct file_lock **flp, void **pr
 	percpu_down_read(&file_rwsem);
 	spin_lock(&ctx->flc_lock);
 	time_out_leases(inode, &dispose);
-	error = check_conflicting_open(dentry, arg, lease->fl_flags);
+	error = check_conflicting_open(filp, arg, lease->fl_flags);
 	if (error)
 		goto out;
 
@@ -1879,7 +1898,7 @@ generic_add_lease(struct file *filp, long arg, struct file_lock **flp, void **pr
 	 * precedes these checks.
 	 */
 	smp_mb();
-	error = check_conflicting_open(dentry, arg, lease->fl_flags);
+	error = check_conflicting_open(filp, arg, lease->fl_flags);
 	if (error) {
 		locks_unlink_lock_ctx(lease);
 		goto out;
@@ -1973,6 +1992,64 @@ int generic_setlease(struct file *filp, long arg, struct file_lock **flp,
 }
 EXPORT_SYMBOL(generic_setlease);
 
+#if IS_ENABLED(CONFIG_SRCU)
+/*
+ * Kernel subsystems can register to be notified on any attempt to set
+ * a new lease with the lease_notifier_chain. This is used by (e.g.) nfsd
+ * to close files that it may have cached when there is an attempt to set a
+ * conflicting lease.
+ */
+static struct srcu_notifier_head lease_notifier_chain;
+
+static inline void
+lease_notifier_chain_init(void)
+{
+	srcu_init_notifier_head(&lease_notifier_chain);
+}
+
+static inline void
+setlease_notifier(long arg, struct file_lock *lease)
+{
+	if (arg != F_UNLCK)
+		srcu_notifier_call_chain(&lease_notifier_chain, arg, lease);
+}
+
+int lease_register_notifier(struct notifier_block *nb)
+{
+	return srcu_notifier_chain_register(&lease_notifier_chain, nb);
+}
+EXPORT_SYMBOL_GPL(lease_register_notifier);
+
+void lease_unregister_notifier(struct notifier_block *nb)
+{
+	srcu_notifier_chain_unregister(&lease_notifier_chain, nb);
+}
+EXPORT_SYMBOL_GPL(lease_unregister_notifier);
+
+#else /* !IS_ENABLED(CONFIG_SRCU) */
+static inline void
+lease_notifier_chain_init(void)
+{
+}
+
+static inline void
+setlease_notifier(long arg, struct file_lock *lease)
+{
+}
+
+int lease_register_notifier(struct notifier_block *nb)
+{
+	return 0;
+}
+EXPORT_SYMBOL_GPL(lease_register_notifier);
+
+void lease_unregister_notifier(struct notifier_block *nb)
+{
+}
+EXPORT_SYMBOL_GPL(lease_unregister_notifier);
+
+#endif /* IS_ENABLED(CONFIG_SRCU) */
+
 /**
  * vfs_setlease        -       sets a lease on an open file
  * @filp:	file pointer
@@ -1993,6 +2070,8 @@ EXPORT_SYMBOL(generic_setlease);
 int
 vfs_setlease(struct file *filp, long arg, struct file_lock **lease, void **priv)
 {
+	if (lease)
+		setlease_notifier(arg, *lease);
 	if (filp->f_op->setlease)
 		return filp->f_op->setlease(filp, arg, lease, priv);
 	else
@@ -2767,14 +2846,14 @@ static void lock_get_status(struct seq_file *f, struct file_lock *fl,
 			       ? (fl->fl_type & LOCK_WRITE) ? "RW   " : "READ "
 			       : (fl->fl_type & LOCK_WRITE) ? "WRITE" : "NONE ");
 	} else {
-		seq_printf(f, "%s ",
-			       (lease_breaking(fl))
-			       ? (fl->fl_type == F_UNLCK) ? "UNLCK" : "READ "
-			       : (fl->fl_type == F_WRLCK) ? "WRITE" : "READ ");
+		int type = IS_LEASE(fl) ? target_leasetype(fl) : fl->fl_type;
+
+		seq_printf(f, "%s ", (type == F_WRLCK) ? "WRITE" :
+				     (type == F_RDLCK) ? "READ" : "UNLCK");
 	}
 	if (inode) {
 		/* userspace relies on this representation of dev_t */
-		seq_printf(f, "%d %02x:%02x:%ld ", fl_pid,
+		seq_printf(f, "%d %02x:%02x:%lu ", fl_pid,
 				MAJOR(inode->i_sb->s_dev),
 				MINOR(inode->i_sb->s_dev), inode->i_ino);
 	} else {
@@ -2906,6 +2985,7 @@ static int __init filelock_init(void)
 		INIT_HLIST_HEAD(&fll->hlist);
 	}
 
+	lease_notifier_chain_init();
 	return 0;
 }
 core_initcall(filelock_init);

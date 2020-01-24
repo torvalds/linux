@@ -374,7 +374,7 @@ static int do_rx_dma(struct atm_vcc *vcc,struct sk_buff *skb,
 		here = (eni_vcc->descr+skip) & (eni_vcc->words-1);
 		dma[j++] = (here << MID_DMA_COUNT_SHIFT) | (vcc->vci
 		    << MID_DMA_VCI_SHIFT) | MID_DT_JK;
-		j++;
+		dma[j++] = 0;
 	}
 	here = (eni_vcc->descr+size+skip) & (eni_vcc->words-1);
 	if (!eff) size += skip;
@@ -447,7 +447,7 @@ static int do_rx_dma(struct atm_vcc *vcc,struct sk_buff *skb,
 	if (size != eff) {
 		dma[j++] = (here << MID_DMA_COUNT_SHIFT) |
 		    (vcc->vci << MID_DMA_VCI_SHIFT) | MID_DT_JK;
-		j++;
+		dma[j++] = 0;
 	}
 	if (!j || j > 2*RX_DMA_BUF) {
 		printk(KERN_CRIT DEV_LABEL "!j or j too big!!!\n");
@@ -1136,7 +1136,7 @@ DPRINTK("doing direct send\n"); /* @@@ well, this doesn't work anyway */
 			else
 				put_dma(tx->index,eni_dev->dma,&j,(unsigned long)
 				    skb_frag_page(&skb_shinfo(skb)->frags[i]) +
-					skb_shinfo(skb)->frags[i].page_offset,
+					skb_frag_off(&skb_shinfo(skb)->frags[i]),
 				    skb_frag_size(&skb_shinfo(skb)->frags[i]));
 	}
 	if (skb->len & 3) {

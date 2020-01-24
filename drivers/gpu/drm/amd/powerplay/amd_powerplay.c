@@ -924,6 +924,19 @@ static int pp_odn_edit_dpm_table(void *handle, uint32_t type, long *input, uint3
 	return hwmgr->hwmgr_func->odn_edit_dpm_table(hwmgr, type, input, size);
 }
 
+static int pp_dpm_set_mp1_state(void *handle, enum pp_mp1_state mp1_state)
+{
+	struct pp_hwmgr *hwmgr = handle;
+
+	if (!hwmgr || !hwmgr->pm_en)
+		return -EINVAL;
+
+	if (hwmgr->hwmgr_func->set_mp1_state)
+		return hwmgr->hwmgr_func->set_mp1_state(hwmgr, mp1_state);
+
+	return 0;
+}
+
 static int pp_dpm_switch_power_profile(void *handle,
 		enum PP_SMC_POWER_PROFILE type, bool en)
 {
@@ -954,6 +967,14 @@ static int pp_dpm_switch_power_profile(void *handle,
 		index = fls(hwmgr->workload_mask);
 		index = index <= Workload_Policy_Max ? index - 1 : 0;
 		workload = hwmgr->workload_setting[index];
+	}
+
+	if (type == PP_SMC_POWER_PROFILE_COMPUTE &&
+		hwmgr->hwmgr_func->disable_power_features_for_compute_performance) {
+			if (hwmgr->hwmgr_func->disable_power_features_for_compute_performance(hwmgr, en)) {
+				mutex_unlock(&hwmgr->smu_lock);
+				return -EINVAL;
+			}
 	}
 
 	if (hwmgr->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL)
@@ -1408,6 +1429,7 @@ static int pp_get_asic_baco_capability(void *handle, bool *cap)
 {
 	struct pp_hwmgr *hwmgr = handle;
 
+	*cap = false;
 	if (!hwmgr)
 		return -EINVAL;
 
@@ -1495,6 +1517,80 @@ static int pp_set_ppfeature_status(void *handle, uint64_t ppfeature_masks)
 	return ret;
 }
 
+static int pp_asic_reset_mode_2(void *handle)
+{
+	struct pp_hwmgr *hwmgr = handle;
+		int ret = 0;
+
+	if (!hwmgr || !hwmgr->pm_en)
+		return -EINVAL;
+
+	if (hwmgr->hwmgr_func->asic_reset == NULL) {
+		pr_info_ratelimited("%s was not implemented.\n", __func__);
+		return -EINVAL;
+	}
+
+	mutex_lock(&hwmgr->smu_lock);
+	ret = hwmgr->hwmgr_func->asic_reset(hwmgr, SMU_ASIC_RESET_MODE_2);
+	mutex_unlock(&hwmgr->smu_lock);
+
+	return ret;
+}
+
+static int pp_smu_i2c_bus_access(void *handle, bool acquire)
+{
+	struct pp_hwmgr *hwmgr = handle;
+	int ret = 0;
+
+	if (!hwmgr || !hwmgr->pm_en)
+		return -EINVAL;
+
+	if (hwmgr->hwmgr_func->smu_i2c_bus_access == NULL) {
+		pr_info_ratelimited("%s was not implemented.\n", __func__);
+		return -EINVAL;
+	}
+
+	mutex_lock(&hwmgr->smu_lock);
+	ret = hwmgr->hwmgr_func->smu_i2c_bus_access(hwmgr, acquire);
+	mutex_unlock(&hwmgr->smu_lock);
+
+	return ret;
+}
+
+static int pp_set_df_cstate(void *handle, enum pp_df_cstate state)
+{
+	struct pp_hwmgr *hwmgr = handle;
+
+	if (!hwmgr)
+		return -EINVAL;
+
+	if (!hwmgr->pm_en || !hwmgr->hwmgr_func->set_df_cstate)
+		return 0;
+
+	mutex_lock(&hwmgr->smu_lock);
+	hwmgr->hwmgr_func->set_df_cstate(hwmgr, state);
+	mutex_unlock(&hwmgr->smu_lock);
+
+	return 0;
+}
+
+static int pp_set_xgmi_pstate(void *handle, uint32_t pstate)
+{
+	struct pp_hwmgr *hwmgr = handle;
+
+	if (!hwmgr)
+		return -EINVAL;
+
+	if (!hwmgr->pm_en || !hwmgr->hwmgr_func->set_xgmi_pstate)
+		return 0;
+
+	mutex_lock(&hwmgr->smu_lock);
+	hwmgr->hwmgr_func->set_xgmi_pstate(hwmgr, pstate);
+	mutex_unlock(&hwmgr->smu_lock);
+
+	return 0;
+}
+
 static const struct amd_pm_funcs pp_dpm_funcs = {
 	.load_firmware = pp_dpm_load_fw,
 	.wait_for_fw_loading_complete = pp_dpm_fw_loading_complete,
@@ -1525,6 +1621,7 @@ static const struct amd_pm_funcs pp_dpm_funcs = {
 	.get_power_profile_mode = pp_get_power_profile_mode,
 	.set_power_profile_mode = pp_set_power_profile_mode,
 	.odn_edit_dpm_table = pp_odn_edit_dpm_table,
+	.set_mp1_state = pp_dpm_set_mp1_state,
 	.set_power_limit = pp_set_power_limit,
 	.get_power_limit = pp_get_power_limit,
 /* export to DC */
@@ -1550,4 +1647,8 @@ static const struct amd_pm_funcs pp_dpm_funcs = {
 	.set_asic_baco_state = pp_set_asic_baco_state,
 	.get_ppfeature_status = pp_get_ppfeature_status,
 	.set_ppfeature_status = pp_set_ppfeature_status,
+	.asic_reset_mode_2 = pp_asic_reset_mode_2,
+	.smu_i2c_bus_access = pp_smu_i2c_bus_access,
+	.set_df_cstate = pp_set_df_cstate,
+	.set_xgmi_pstate = pp_set_xgmi_pstate,
 };

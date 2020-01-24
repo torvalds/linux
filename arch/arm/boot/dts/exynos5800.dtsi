@@ -17,7 +17,7 @@
 };
 
 &clock {
-	compatible = "samsung,exynos5800-clock";
+	compatible = "samsung,exynos5800-clock", "syscon";
 };
 
 &cluster_a15_opp_table {
@@ -130,4 +130,13 @@
 
 &mfc {
 	compatible = "samsung,mfc-v8";
+};
+
+&soc {
+	cam_pd: power-domain@10045100 {
+		compatible = "samsung,exynos4210-pd";
+		reg = <0x10045100 0x20>;
+		#power-domain-cells = <0>;
+		label = "CAM";
+	};
 };

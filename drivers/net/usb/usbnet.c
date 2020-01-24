@@ -100,6 +100,11 @@ int usbnet_get_endpoints(struct usbnet *dev, struct usb_interface *intf)
 			int				intr = 0;
 
 			e = alt->endpoint + ep;
+
+			/* ignore endpoints which cannot transfer data */
+			if (!usb_endpoint_maxp(&e->desc))
+				continue;
+
 			switch (e->desc.bmAttributes) {
 			case USB_ENDPOINT_XFER_INT:
 				if (!usb_endpoint_dir_in(&e->desc))
@@ -339,6 +344,8 @@ void usbnet_update_max_qlen(struct usbnet *dev)
 {
 	enum usb_device_speed speed = dev->udev->speed;
 
+	if (!dev->rx_urb_size || !dev->hard_mtu)
+		goto insanity;
 	switch (speed) {
 	case USB_SPEED_HIGH:
 		dev->rx_qlen = MAX_QUEUE_MEMORY / dev->rx_urb_size;
@@ -355,6 +362,7 @@ void usbnet_update_max_qlen(struct usbnet *dev)
 		dev->tx_qlen = 5 * MAX_QUEUE_MEMORY / dev->hard_mtu;
 		break;
 	default:
+insanity:
 		dev->rx_qlen = dev->tx_qlen = 4;
 	}
 }
@@ -1324,11 +1332,11 @@ static int build_dma_sg(const struct sk_buff *skb, struct urb *urb)
 	total_len += skb_headlen(skb);
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		struct skb_frag_struct *f = &skb_shinfo(skb)->frags[i];
+		skb_frag_t *f = &skb_shinfo(skb)->frags[i];
 
 		total_len += skb_frag_size(f);
-		sg_set_page(&urb->sg[i + s], f->page.p, f->size,
-				f->page_offset);
+		sg_set_page(&urb->sg[i + s], skb_frag_page(f), skb_frag_size(f),
+			    skb_frag_off(f));
 	}
 	urb->transfer_buffer_length = total_len;
 
@@ -1565,6 +1573,13 @@ static void usbnet_bh (struct timer_list *t)
 	}
 }
 
+static void usbnet_bh_tasklet(unsigned long data)
+{
+	struct timer_list *t = (struct timer_list *)data;
+
+	usbnet_bh(t);
+}
+
 
 /*-------------------------------------------------------------------------
  *
@@ -1692,7 +1707,7 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 	skb_queue_head_init (&dev->txq);
 	skb_queue_head_init (&dev->done);
 	skb_queue_head_init(&dev->rxq_pause);
-	dev->bh.func = (void (*)(unsigned long))usbnet_bh;
+	dev->bh.func = usbnet_bh_tasklet;
 	dev->bh.data = (unsigned long)&dev->delay;
 	INIT_WORK (&dev->kevent, usbnet_deferred_kevent);
 	init_usb_anchor(&dev->deferred);
@@ -2169,7 +2184,7 @@ static int __init usbnet_init(void)
 {
 	/* Compiler should optimize this out. */
 	BUILD_BUG_ON(
-		FIELD_SIZEOF(struct sk_buff, cb) < sizeof(struct skb_data));
+		sizeof_field(struct sk_buff, cb) < sizeof(struct skb_data));
 
 	eth_random_addr(node_id);
 	return 0;

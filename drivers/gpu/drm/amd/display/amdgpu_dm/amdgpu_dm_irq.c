@@ -23,8 +23,6 @@
  *
  */
 
-#include <drm/drmP.h>
-
 #include "dm_services_types.h"
 #include "dc.h"
 
@@ -278,8 +276,6 @@ void *amdgpu_dm_irq_register_interrupt(struct amdgpu_device *adev,
 		DRM_ERROR("DM_IRQ: failed to allocate irq handler!\n");
 		return DAL_INVALID_IRQ_HANDLER_IDX;
 	}
-
-	memset(handler_data, 0, sizeof(*handler_data));
 
 	init_handler_common_data(handler_data, ih, handler_args, &adev->dm);
 
@@ -736,8 +732,10 @@ void amdgpu_dm_hpd_init(struct amdgpu_device *adev)
 {
 	struct drm_device *dev = adev->ddev;
 	struct drm_connector *connector;
+	struct drm_connector_list_iter iter;
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+	drm_connector_list_iter_begin(dev, &iter);
+	drm_for_each_connector_iter(connector, &iter) {
 		struct amdgpu_dm_connector *amdgpu_dm_connector =
 				to_amdgpu_dm_connector(connector);
 
@@ -755,6 +753,7 @@ void amdgpu_dm_hpd_init(struct amdgpu_device *adev)
 					true);
 		}
 	}
+	drm_connector_list_iter_end(&iter);
 }
 
 /**
@@ -769,8 +768,10 @@ void amdgpu_dm_hpd_fini(struct amdgpu_device *adev)
 {
 	struct drm_device *dev = adev->ddev;
 	struct drm_connector *connector;
+	struct drm_connector_list_iter iter;
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+	drm_connector_list_iter_begin(dev, &iter);
+	drm_for_each_connector_iter(connector, &iter) {
 		struct amdgpu_dm_connector *amdgpu_dm_connector =
 				to_amdgpu_dm_connector(connector);
 		const struct dc_link *dc_link = amdgpu_dm_connector->dc_link;
@@ -783,4 +784,5 @@ void amdgpu_dm_hpd_fini(struct amdgpu_device *adev)
 					false);
 		}
 	}
+	drm_connector_list_iter_end(&iter);
 }

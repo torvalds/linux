@@ -63,7 +63,16 @@ properties:
     description:
       Set this flag to force EHCI reset after resume.
 
-  phys: true
+  companion:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+     Phandle of a companion.
+
+  phys:
+    description: PHY specifier for the USB PHY
+
+  phy-names:
+    const: usb
 
 required:
   - compatible
@@ -74,7 +83,7 @@ additionalProperties: false
 
 examples:
   - |
-    ehci@e0000300 {
+    usb@e0000300 {
         compatible = "ibm,usb-ehci-440epx", "generic-ehci";
         interrupt-parent = <&UIC0>;
         interrupts = <0x1a 4>;

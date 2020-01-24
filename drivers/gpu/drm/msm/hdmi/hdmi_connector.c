@@ -4,7 +4,8 @@
  * Author: Rob Clark <robdclark@gmail.com>
  */
 
-#include <linux/gpio.h>
+#include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 #include <linux/pinctrl/consumer.h>
 
 #include "msm_kms.h"
@@ -68,30 +69,21 @@ static void msm_hdmi_phy_reset(struct hdmi *hdmi)
 
 static int gpio_config(struct hdmi *hdmi, bool on)
 {
-	struct device *dev = &hdmi->pdev->dev;
 	const struct hdmi_platform_config *config = hdmi->config;
-	int ret, i;
+	int i;
 
 	if (on) {
 		for (i = 0; i < HDMI_MAX_NUM_GPIO; i++) {
 			struct hdmi_gpio_data gpio = config->gpios[i];
 
-			if (gpio.num != -1) {
-				ret = gpio_request(gpio.num, gpio.label);
-				if (ret) {
-					DRM_DEV_ERROR(dev,
-						"'%s'(%d) gpio_request failed: %d\n",
-						gpio.label, gpio.num, ret);
-					goto err;
-				}
-
+			if (gpio.gpiod) {
 				if (gpio.output) {
-					gpio_direction_output(gpio.num,
-							      gpio.value);
+					gpiod_direction_output(gpio.gpiod,
+							       gpio.value);
 				} else {
-					gpio_direction_input(gpio.num);
-					gpio_set_value_cansleep(gpio.num,
-								gpio.value);
+					gpiod_direction_input(gpio.gpiod);
+					gpiod_set_value_cansleep(gpio.gpiod,
+								 gpio.value);
 				}
 			}
 		}
@@ -101,29 +93,20 @@ static int gpio_config(struct hdmi *hdmi, bool on)
 		for (i = 0; i < HDMI_MAX_NUM_GPIO; i++) {
 			struct hdmi_gpio_data gpio = config->gpios[i];
 
-			if (gpio.num == -1)
+			if (!gpio.gpiod)
 				continue;
 
 			if (gpio.output) {
 				int value = gpio.value ? 0 : 1;
 
-				gpio_set_value_cansleep(gpio.num, value);
+				gpiod_set_value_cansleep(gpio.gpiod, value);
 			}
-
-			gpio_free(gpio.num);
 		};
 
 		DBG("gpio off");
 	}
 
 	return 0;
-err:
-	while (i--) {
-		if (config->gpios[i].num != -1)
-			gpio_free(config->gpios[i].num);
-	}
-
-	return ret;
 }
 
 static void enable_hpd_clocks(struct hdmi *hdmi, bool enable)
@@ -311,7 +294,7 @@ static enum drm_connector_status detect_gpio(struct hdmi *hdmi)
 	const struct hdmi_platform_config *config = hdmi->config;
 	struct hdmi_gpio_data hpd_gpio = config->gpios[HPD_GPIO_INDEX];
 
-	return gpio_get_value(hpd_gpio.num) ?
+	return gpiod_get_value(hpd_gpio.gpiod) ?
 			connector_status_connected :
 			connector_status_disconnected;
 }
@@ -330,7 +313,7 @@ static enum drm_connector_status hdmi_connector_detect(
 	 * some platforms may not have hpd gpio. Rely only on the status
 	 * provided by REG_HDMI_HPD_INT_STATUS in this case.
 	 */
-	if (hpd_gpio.num == -1)
+	if (!hpd_gpio.gpiod)
 		return detect_reg(hdmi);
 
 	do {

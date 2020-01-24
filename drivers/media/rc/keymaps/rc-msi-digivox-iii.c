@@ -14,22 +14,22 @@
    since rc-kworld-315u.c lacks NEC extended address byte. */
 static struct rc_map_table msi_digivox_iii[] = {
 	{ 0x61d601, KEY_VIDEO },           /* Source */
-	{ 0x61d602, KEY_3 },
+	{ 0x61d602, KEY_NUMERIC_3 },
 	{ 0x61d603, KEY_POWER },           /* ShutDown */
-	{ 0x61d604, KEY_1 },
-	{ 0x61d605, KEY_5 },
-	{ 0x61d606, KEY_6 },
+	{ 0x61d604, KEY_NUMERIC_1 },
+	{ 0x61d605, KEY_NUMERIC_5 },
+	{ 0x61d606, KEY_NUMERIC_6 },
 	{ 0x61d607, KEY_CHANNELDOWN },     /* CH- */
-	{ 0x61d608, KEY_2 },
+	{ 0x61d608, KEY_NUMERIC_2 },
 	{ 0x61d609, KEY_CHANNELUP },       /* CH+ */
-	{ 0x61d60a, KEY_9 },
+	{ 0x61d60a, KEY_NUMERIC_9 },
 	{ 0x61d60b, KEY_ZOOM },            /* Zoom */
-	{ 0x61d60c, KEY_7 },
-	{ 0x61d60d, KEY_8 },
+	{ 0x61d60c, KEY_NUMERIC_7 },
+	{ 0x61d60d, KEY_NUMERIC_8 },
 	{ 0x61d60e, KEY_VOLUMEUP },        /* Vol+ */
-	{ 0x61d60f, KEY_4 },
+	{ 0x61d60f, KEY_NUMERIC_4 },
 	{ 0x61d610, KEY_ESC },             /* [back up arrow] */
-	{ 0x61d611, KEY_0 },
+	{ 0x61d611, KEY_NUMERIC_0 },
 	{ 0x61d612, KEY_OK },              /* [enter arrow] */
 	{ 0x61d613, KEY_VOLUMEDOWN },      /* Vol- */
 	{ 0x61d614, KEY_RECORD },          /* Rec */

@@ -4,6 +4,7 @@
 
 #include <linux/if_ether.h>
 #include <linux/phy.h>
+#include <linux/spinlock.h>
 
 struct ll_temac_platform_data {
 	bool txcsum;		/* Enable/disable TX checksum */
@@ -21,7 +22,7 @@ struct ll_temac_platform_data {
 	 * TEMAC IP block, the same mutex should be passed here, as
 	 * they share the same DCR bus bridge.
 	 */
-	struct mutex *indirect_mutex;
+	spinlock_t *indirect_lock;
 	/* DMA channel control setup */
 	u8 tx_irq_timeout;	/* TX Interrupt Delay Time-out */
 	u8 tx_irq_count;	/* TX Interrupt Coalescing Threshold Count */

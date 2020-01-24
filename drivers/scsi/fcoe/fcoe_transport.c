@@ -308,7 +308,7 @@ EXPORT_SYMBOL_GPL(fcoe_get_wwn);
 u32 fcoe_fc_crc(struct fc_frame *fp)
 {
 	struct sk_buff *skb = fp_skb(fp);
-	struct skb_frag_struct *frag;
+	skb_frag_t *frag;
 	unsigned char *data;
 	unsigned long off, len, clen;
 	u32 crc;
@@ -318,7 +318,7 @@ u32 fcoe_fc_crc(struct fc_frame *fp)
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		frag = &skb_shinfo(skb)->frags[i];
-		off = frag->page_offset;
+		off = skb_frag_off(frag);
 		len = skb_frag_size(frag);
 		while (len > 0) {
 			clen = min(len, PAGE_SIZE - (off & ~PAGE_MASK));

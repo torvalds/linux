@@ -36,8 +36,8 @@
 #include "book3s.h"
 #include "trace.h"
 
-#define VM_STAT(x) offsetof(struct kvm, stat.x), KVM_STAT_VM
-#define VCPU_STAT(x) offsetof(struct kvm_vcpu, stat.x), KVM_STAT_VCPU
+#define VM_STAT(x, ...) offsetof(struct kvm, stat.x), KVM_STAT_VM, ## __VA_ARGS__
+#define VCPU_STAT(x, ...) offsetof(struct kvm_vcpu, stat.x), KVM_STAT_VCPU, ## __VA_ARGS__
 
 /* #define EXIT_DEBUG */
 
@@ -69,31 +69,10 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "pthru_all",       VCPU_STAT(pthru_all) },
 	{ "pthru_host",      VCPU_STAT(pthru_host) },
 	{ "pthru_bad_aff",   VCPU_STAT(pthru_bad_aff) },
-	{ "largepages_2M",    VM_STAT(num_2M_pages) },
-	{ "largepages_1G",    VM_STAT(num_1G_pages) },
+	{ "largepages_2M",    VM_STAT(num_2M_pages, .mode = 0444) },
+	{ "largepages_1G",    VM_STAT(num_1G_pages, .mode = 0444) },
 	{ NULL }
 };
-
-void kvmppc_unfixup_split_real(struct kvm_vcpu *vcpu)
-{
-	if (vcpu->arch.hflags & BOOK3S_HFLAG_SPLIT_HACK) {
-		ulong pc = kvmppc_get_pc(vcpu);
-		ulong lr = kvmppc_get_lr(vcpu);
-		if ((pc & SPLIT_HACK_MASK) == SPLIT_HACK_OFFS)
-			kvmppc_set_pc(vcpu, pc & ~SPLIT_HACK_MASK);
-		if ((lr & SPLIT_HACK_MASK) == SPLIT_HACK_OFFS)
-			kvmppc_set_lr(vcpu, lr & ~SPLIT_HACK_MASK);
-		vcpu->arch.hflags &= ~BOOK3S_HFLAG_SPLIT_HACK;
-	}
-}
-EXPORT_SYMBOL_GPL(kvmppc_unfixup_split_real);
-
-static inline unsigned long kvmppc_interrupt_offset(struct kvm_vcpu *vcpu)
-{
-	if (!is_kvmppc_hv_enabled(vcpu->kvm))
-		return to_book3s(vcpu)->hior;
-	return 0;
-}
 
 static inline void kvmppc_update_int_pending(struct kvm_vcpu *vcpu,
 			unsigned long pending_now, unsigned long old_pending)
@@ -134,11 +113,7 @@ static inline bool kvmppc_critical_section(struct kvm_vcpu *vcpu)
 
 void kvmppc_inject_interrupt(struct kvm_vcpu *vcpu, int vec, u64 flags)
 {
-	kvmppc_unfixup_split_real(vcpu);
-	kvmppc_set_srr0(vcpu, kvmppc_get_pc(vcpu));
-	kvmppc_set_srr1(vcpu, (kvmppc_get_msr(vcpu) & ~0x783f0000ul) | flags);
-	kvmppc_set_pc(vcpu, kvmppc_interrupt_offset(vcpu) + vec);
-	vcpu->arch.mmu.reset_msr(vcpu);
+	vcpu->kvm->arch.kvm_ops->inject_interrupt(vcpu, vec, flags);
 }
 
 static int kvmppc_book3s_vec2irqprio(unsigned int vec)
@@ -1083,9 +1058,11 @@ static int kvmppc_book3s_init(void)
 	if (xics_on_xive()) {
 		kvmppc_xive_init_module();
 		kvm_register_device_ops(&kvm_xive_ops, KVM_DEV_TYPE_XICS);
-		kvmppc_xive_native_init_module();
-		kvm_register_device_ops(&kvm_xive_native_ops,
-					KVM_DEV_TYPE_XIVE);
+		if (kvmppc_xive_native_supported()) {
+			kvmppc_xive_native_init_module();
+			kvm_register_device_ops(&kvm_xive_native_ops,
+						KVM_DEV_TYPE_XIVE);
+		}
 	} else
 #endif
 		kvm_register_device_ops(&kvm_xics_ops, KVM_DEV_TYPE_XICS);

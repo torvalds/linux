@@ -306,6 +306,8 @@ static const struct pvr2_fx2cmd_descdef pvr2_fx2cmd_desc[] = {
 	{FX2CMD_ONAIR_DTV_STREAMING_OFF, "onair dtv stream off"},
 	{FX2CMD_ONAIR_DTV_POWER_ON, "onair dtv power on"},
 	{FX2CMD_ONAIR_DTV_POWER_OFF, "onair dtv power off"},
+	{FX2CMD_HCW_DEMOD_RESET_PIN, "hcw demod reset pin"},
+	{FX2CMD_HCW_MAKO_SLEEP_PIN, "hcw mako sleep pin"},
 };
 
 
@@ -658,7 +660,7 @@ static int ctrl_check_input(struct pvr2_ctrl *cptr,int v)
 {
 	if (v < 0 || v > PVR2_CVAL_INPUT_MAX)
 		return 0;
-	return ((1 << v) & cptr->hdw->input_allowed_mask) != 0;
+	return ((1UL << v) & cptr->hdw->input_allowed_mask) != 0;
 }
 
 static int ctrl_set_input(struct pvr2_ctrl *cptr,int m,int v)
@@ -782,7 +784,7 @@ static int ctrl_cx2341x_set(struct pvr2_ctrl *cptr,int m,int v)
 
 static unsigned int ctrl_cx2341x_getv4lflags(struct pvr2_ctrl *cptr)
 {
-	struct v4l2_queryctrl qctrl;
+	struct v4l2_queryctrl qctrl = {};
 	struct pvr2_ctl_info *info;
 	qctrl.id = cptr->info->v4l_id;
 	cx2341x_ctrl_query(&cptr->hdw->enc_ctl_state,&qctrl);
@@ -1670,7 +1672,7 @@ static int pvr2_decoder_enable(struct pvr2_hdw *hdw,int enablefl)
 	}
 	if (!hdw->flag_decoder_missed) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "WARNING: No decoder present");
+			   "***WARNING*** No decoder present");
 		hdw->flag_decoder_missed = !0;
 		trace_stbit("flag_decoder_missed",
 			    hdw->flag_decoder_missed);
@@ -2129,9 +2131,27 @@ static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 				      ((0) << 16));
 	}
 
-	// This step MUST happen after the earlier powerup step.
+	/* This step MUST happen after the earlier powerup step */
 	pvr2_i2c_core_init(hdw);
 	if (!pvr2_hdw_dev_ok(hdw)) return;
+
+	/* Reset demod only on Hauppauge 160xxx platform */
+	if (le16_to_cpu(hdw->usb_dev->descriptor.idVendor) == 0x2040 &&
+	    (le16_to_cpu(hdw->usb_dev->descriptor.idProduct) == 0x7502 ||
+	     le16_to_cpu(hdw->usb_dev->descriptor.idProduct) == 0x7510)) {
+		pr_info("%s(): resetting 160xxx demod\n", __func__);
+		/* TODO: not sure this is proper place to reset once only */
+		pvr2_issue_simple_cmd(hdw,
+				      FX2CMD_HCW_DEMOD_RESET_PIN |
+				      (1 << 8) |
+				      ((0) << 16));
+		usleep_range(10000, 10500);
+		pvr2_issue_simple_cmd(hdw,
+				      FX2CMD_HCW_DEMOD_RESET_PIN |
+				      (1 << 8) |
+				      ((1) << 16));
+		usleep_range(10000, 10500);
+	}
 
 	pvr2_hdw_load_modules(hdw);
 	if (!pvr2_hdw_dev_ok(hdw)) return;
@@ -2356,7 +2376,7 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	if (hdw_desc->flag_is_experimental) {
 		pvr2_trace(PVR2_TRACE_INFO, "**********");
 		pvr2_trace(PVR2_TRACE_INFO,
-			   "WARNING: Support for this device (%s) is experimental.",
+			   "***WARNING*** Support for this device (%s) is experimental.",
 							      hdw_desc->description);
 		pvr2_trace(PVR2_TRACE_INFO,
 			   "Important functionality might not be entirely working.");
@@ -2425,7 +2445,7 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	/* Ensure that default input choice is a valid one. */
 	m = hdw->input_avail_mask;
 	if (m) for (idx = 0; idx < (sizeof(m) << 3); idx++) {
-		if (!((1 << idx) & m)) continue;
+		if (!((1UL << idx) & m)) continue;
 		hdw->input_val = idx;
 		break;
 	}
@@ -2481,11 +2501,11 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	// Initialize control data regarding video standard masks
 	valid_std_mask = pvr2_std_get_usable();
 	for (idx = 0; idx < 32; idx++) {
-		if (!(valid_std_mask & (1 << idx))) continue;
+		if (!(valid_std_mask & (1UL << idx))) continue;
 		cnt1 = pvr2_std_id_to_str(
 			hdw->std_mask_names[idx],
 			sizeof(hdw->std_mask_names[idx])-1,
-			1 << idx);
+			1UL << idx);
 		hdw->std_mask_names[idx][cnt1] = 0;
 	}
 	cptr = pvr2_hdw_get_ctrl_by_id(hdw,PVR2_CID_STDAVAIL);
@@ -3309,7 +3329,7 @@ static u8 *pvr2_full_eeprom_fetch(struct pvr2_hdw *hdw)
 	int ret;
 	int mode16 = 0;
 	unsigned pcnt,tcnt;
-	eeprom = kmalloc(EEPROM_SIZE,GFP_KERNEL);
+	eeprom = kzalloc(EEPROM_SIZE, GFP_KERNEL);
 	if (!eeprom) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 			   "Failed to allocate memory required to read eeprom");
@@ -3344,7 +3364,6 @@ static u8 *pvr2_full_eeprom_fetch(struct pvr2_hdw *hdw)
 	   (1) we're only fetching part of the eeprom, and (2) if we were
 	   getting the whole thing our I2C driver can't grab it in one
 	   pass - which is what tveeprom is otherwise going to attempt */
-	memset(eeprom,0,EEPROM_SIZE);
 	for (tcnt = 0; tcnt < EEPROM_SIZE; tcnt += pcnt) {
 		pcnt = 16;
 		if (pcnt + tcnt > EEPROM_SIZE) pcnt = EEPROM_SIZE-tcnt;
@@ -4002,6 +4021,20 @@ int pvr2_hdw_cmd_decoder_reset(struct pvr2_hdw *hdw)
 static int pvr2_hdw_cmd_hcw_demod_reset(struct pvr2_hdw *hdw, int onoff)
 {
 	hdw->flag_ok = !0;
+
+	/* Use this for Hauppauge 160xxx only */
+	if (le16_to_cpu(hdw->usb_dev->descriptor.idVendor) == 0x2040 &&
+	    (le16_to_cpu(hdw->usb_dev->descriptor.idProduct) == 0x7502 ||
+	     le16_to_cpu(hdw->usb_dev->descriptor.idProduct) == 0x7510)) {
+		pr_debug("%s(): resetting demod on Hauppauge 160xxx platform skipped\n",
+			 __func__);
+		/* Can't reset 160xxx or it will trash Demod tristate */
+		return pvr2_issue_simple_cmd(hdw,
+					     FX2CMD_HCW_MAKO_SLEEP_PIN |
+					     (1 << 8) |
+					     ((onoff ? 1 : 0) << 16));
+	}
+
 	return pvr2_issue_simple_cmd(hdw,
 				     FX2CMD_HCW_DEMOD_RESETIN |
 				     (1 << 8) |
@@ -4639,7 +4672,7 @@ static unsigned int print_input_mask(unsigned int msk,
 	unsigned int idx,ccnt;
 	unsigned int tcnt = 0;
 	for (idx = 0; idx < ARRAY_SIZE(control_values_input); idx++) {
-		if (!((1 << idx) & msk)) continue;
+		if (!((1UL << idx) & msk)) continue;
 		ccnt = scnprintf(buf+tcnt,
 				 acnt-tcnt,
 				 "%s%s",
@@ -5066,7 +5099,7 @@ int pvr2_hdw_set_input_allowed(struct pvr2_hdw *hdw,
 			break;
 		}
 		hdw->input_allowed_mask = nv;
-		if ((1 << hdw->input_val) & hdw->input_allowed_mask) {
+		if ((1UL << hdw->input_val) & hdw->input_allowed_mask) {
 			/* Current mode is still in the allowed mask, so
 			   we're done. */
 			break;
@@ -5079,7 +5112,7 @@ int pvr2_hdw_set_input_allowed(struct pvr2_hdw *hdw,
 		}
 		m = hdw->input_allowed_mask;
 		for (idx = 0; idx < (sizeof(m) << 3); idx++) {
-			if (!((1 << idx) & m)) continue;
+			if (!((1UL << idx) & m)) continue;
 			pvr2_hdw_set_input(hdw,idx);
 			break;
 		}

@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <stdlib.h>
 #include <string.h>
+#include <linux/string.h>
 #include <sys/time.h>
 #include <linux/time64.h>
 #include <time.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <math.h>
+#include <linux/ctype.h>
 
-#include "perf.h"
 #include "debug.h"
 #include "time-utils.h"
 #include "session.h"
@@ -116,6 +117,66 @@ int perf_time__parse_str(struct perf_time_interval *ptime, const char *ostr)
 	return rc;
 }
 
+static int perf_time__parse_strs(struct perf_time_interval *ptime,
+				 const char *ostr, int size)
+{
+	const char *cp;
+	char *str, *arg, *p;
+	int i, num = 0, rc = 0;
+
+	/* Count the commas */
+	for (cp = ostr; *cp; cp++)
+		num += !!(*cp == ',');
+
+	if (!num)
+		return -EINVAL;
+
+	BUG_ON(num > size);
+
+	str = strdup(ostr);
+	if (!str)
+		return -ENOMEM;
+
+	/* Split the string and parse each piece, except the last */
+	for (i = 0, p = str; i < num - 1; i++) {
+		arg = p;
+		/* Find next comma, there must be one */
+		p = skip_spaces(strchr(p, ',') + 1);
+		/* Skip the value, must not contain space or comma */
+		while (*p && !isspace(*p)) {
+			if (*p++ == ',') {
+				rc = -EINVAL;
+				goto out;
+			}
+		}
+		/* Split and parse */
+		if (*p)
+			*p++ = 0;
+		rc = perf_time__parse_str(ptime + i, arg);
+		if (rc < 0)
+			goto out;
+	}
+
+	/* Parse the last piece */
+	rc = perf_time__parse_str(ptime + i, p);
+	if (rc < 0)
+		goto out;
+
+	/* Check there is no overlap */
+	for (i = 0; i < num - 1; i++) {
+		if (ptime[i].end >= ptime[i + 1].start) {
+			rc = -EINVAL;
+			goto out;
+		}
+	}
+
+	rc = num;
+out:
+	free(str);
+
+	return rc;
+}
+
 static int parse_percent(double *pcnt, char *str)
 {
 	char *c, *endptr;
@@ -135,12 +196,30 @@ static int parse_percent(double *pcnt, char *str)
 	return 0;
 }
 
+static int set_percent_time(struct perf_time_interval *ptime, double start_pcnt,
+			    double end_pcnt, u64 start, u64 end)
+{
+	u64 total = end - start;
+
+	if (start_pcnt < 0.0 || start_pcnt > 1.0 ||
+	    end_pcnt < 0.0 || end_pcnt > 1.0) {
+		return -1;
+	}
+
+	ptime->start = start + round(start_pcnt * total);
+	ptime->end = start + round(end_pcnt * total);
+
+	if (ptime->end > ptime->start && ptime->end != end)
+		ptime->end -= 1;
+
+	return 0;
+}
+
 static int percent_slash_split(char *str, struct perf_time_interval *ptime,
 			       u64 start, u64 end)
 {
 	char *p, *end_str;
 	double pcnt, start_pcnt, end_pcnt;
-	u64 total = end - start;
 	int i;
 
 	/*
@@ -168,15 +247,7 @@ static int percent_slash_split(char *str, struct perf_time_interval *ptime,
 	start_pcnt = pcnt * (i - 1);
 	end_pcnt = pcnt * i;
 
-	if (start_pcnt < 0.0 || start_pcnt > 1.0 ||
-	    end_pcnt < 0.0 || end_pcnt > 1.0) {
-		return -1;
-	}
-
-	ptime->start = start + round(start_pcnt * total);
-	ptime->end = start + round(end_pcnt * total);
-
-	return 0;
+	return set_percent_time(ptime, start_pcnt, end_pcnt, start, end);
 }
 
 static int percent_dash_split(char *str, struct perf_time_interval *ptime,
@@ -184,7 +255,6 @@ static int percent_dash_split(char *str, struct perf_time_interval *ptime,
 {
 	char *start_str = NULL, *end_str;
 	double start_pcnt, end_pcnt;
-	u64 total = end - start;
 	int ret;
 
 	/*
@@ -203,16 +273,7 @@ static int percent_dash_split(char *str, struct perf_time_interval *ptime,
 
 	free(start_str);
 
-	if (start_pcnt < 0.0 || start_pcnt > 1.0 ||
-	    end_pcnt < 0.0 || end_pcnt > 1.0 ||
-	    start_pcnt > end_pcnt) {
-		return -1;
-	}
-
-	ptime->start = start + round(start_pcnt * total);
-	ptime->end = start + round(end_pcnt * total);
-
-	return 0;
+	return set_percent_time(ptime, start_pcnt, end_pcnt, start, end);
 }
 
 typedef int (*time_pecent_split)(char *, struct perf_time_interval *,
@@ -389,50 +450,58 @@ bool perf_time__ranges_skip_sample(struct perf_time_interval *ptime_buf,
 		ptime = &ptime_buf[i];
 
 		if (timestamp >= ptime->start &&
-		    ((timestamp < ptime->end && i < num - 1) ||
-		     (timestamp <= ptime->end && i == num - 1))) {
-			break;
+		    (timestamp <= ptime->end || !ptime->end)) {
+			return false;
 		}
 	}
 
-	return (i == num) ? true : false;
+	return true;
 }
 
-int perf_time__parse_for_ranges(const char *time_str,
+int perf_time__parse_for_ranges_reltime(const char *time_str,
 				struct perf_session *session,
 				struct perf_time_interval **ranges,
-				int *range_size, int *range_num)
+				int *range_size, int *range_num,
+				bool reltime)
 {
+	bool has_percent = strchr(time_str, '%');
 	struct perf_time_interval *ptime_range;
-	int size, num, ret;
+	int size, num, ret = -EINVAL;
 
 	ptime_range = perf_time__range_alloc(time_str, &size);
 	if (!ptime_range)
 		return -ENOMEM;
 
-	if (perf_time__parse_str(ptime_range, time_str) != 0) {
+	if (has_percent || reltime) {
 		if (session->evlist->first_sample_time == 0 &&
 		    session->evlist->last_sample_time == 0) {
 			pr_err("HINT: no first/last sample time found in perf data.\n"
 			       "Please use latest perf binary to execute 'perf record'\n"
 			       "(if '--buildid-all' is enabled, please set '--timestamp-boundary').\n");
-			ret = -EINVAL;
 			goto error;
 		}
+	}
 
+	if (has_percent) {
 		num = perf_time__percent_parse_str(
 				ptime_range, size,
 				time_str,
 				session->evlist->first_sample_time,
 				session->evlist->last_sample_time);
-
-		if (num < 0) {
-			pr_err("Invalid time string\n");
-			ret = -EINVAL;
-			goto error;
-		}
 	} else {
-		num = 1;
+		num = perf_time__parse_strs(ptime_range, time_str, size);
+	}
+
+	if (num < 0)
+		goto error_invalid;
+
+	if (reltime) {
+		int i;
+
+		for (i = 0; i < num; i++) {
+			ptime_range[i].start += session->evlist->first_sample_time;
+			ptime_range[i].end += session->evlist->first_sample_time;
+		}
 	}
 
 	*range_size = size;
@@ -440,9 +509,20 @@ int perf_time__parse_for_ranges(const char *time_str,
 	*ranges = ptime_range;
 	return 0;
 
+error_invalid:
+	pr_err("Invalid time string\n");
 error:
 	free(ptime_range);
 	return ret;
+}
+
+int perf_time__parse_for_ranges(const char *time_str,
+				struct perf_session *session,
+				struct perf_time_interval **ranges,
+				int *range_size, int *range_num)
+{
+	return perf_time__parse_for_ranges_reltime(time_str, session, ranges,
+					range_size, range_num, false);
 }
 
 int timestamp__scnprintf_usec(u64 timestamp, char *buf, size_t sz)

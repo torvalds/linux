@@ -2034,7 +2034,7 @@ static int cas_rx_process_pkt(struct cas *cp, struct cas_rx_comp *rxc,
 
 		__skb_frag_set_page(frag, page->buffer);
 		__skb_frag_ref(frag);
-		frag->page_offset = off;
+		skb_frag_off_set(frag, off);
 		skb_frag_size_set(frag, hlen - swivel);
 
 		/* any more data? */
@@ -2058,7 +2058,7 @@ static int cas_rx_process_pkt(struct cas *cp, struct cas_rx_comp *rxc,
 
 			__skb_frag_set_page(frag, page->buffer);
 			__skb_frag_ref(frag);
-			frag->page_offset = 0;
+			skb_frag_off_set(frag, 0);
 			skb_frag_size_set(frag, hlen);
 			RX_USED_ADD(page, hlen + cp->crc_size);
 		}
@@ -2816,7 +2816,7 @@ static inline int cas_xmit_tx_ringN(struct cas *cp, int ring,
 		mapping = skb_frag_dma_map(&cp->pdev->dev, fragp, 0, len,
 					   DMA_TO_DEVICE);
 
-		tabort = cas_calc_tabort(cp, fragp->page_offset, len);
+		tabort = cas_calc_tabort(cp, skb_frag_off(fragp), len);
 		if (unlikely(tabort)) {
 			void *addr;
 
@@ -2827,7 +2827,7 @@ static inline int cas_xmit_tx_ringN(struct cas *cp, int ring,
 
 			addr = cas_page_map(skb_frag_page(fragp));
 			memcpy(tx_tiny_buf(cp, ring, entry),
-			       addr + fragp->page_offset + len - tabort,
+			       addr + skb_frag_off(fragp) + len - tabort,
 			       tabort);
 			cas_page_unmap(addr);
 			mapping = tx_tiny_map(cp, ring, entry, tentry);

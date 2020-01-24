@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright(c) 2013 - 2018 Intel Corporation. */
+/* Copyright(c) 2013 - 2019 Intel Corporation. */
 
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -344,7 +344,6 @@ static void fm10k_detach_subtask(struct fm10k_intfc *interface)
 	struct net_device *netdev = interface->netdev;
 	u32 __iomem *hw_addr;
 	u32 value;
-	int err;
 
 	/* do nothing if netdev is still present or hw_addr is set */
 	if (netif_device_present(netdev) || interface->hw.hw_addr)
@@ -362,6 +361,8 @@ static void fm10k_detach_subtask(struct fm10k_intfc *interface)
 	hw_addr = READ_ONCE(interface->uc_addr);
 	value = readl(hw_addr);
 	if (~value) {
+		int err;
+
 		/* Make sure the reset was initiated because we detached,
 		 * otherwise we might race with a different reset flow.
 		 */
@@ -629,6 +630,9 @@ void fm10k_update_stats(struct fm10k_intfc *interface)
 	net_stats->rx_errors = rx_errors;
 	net_stats->rx_dropped = interface->stats.nodesc_drop.count;
 
+	/* Update VF statistics */
+	fm10k_iov_update_stats(interface);
+
 	clear_bit(__FM10K_UPDATING_STATS, interface->state);
 }
 
@@ -697,8 +701,6 @@ static void fm10k_watchdog_subtask(struct fm10k_intfc *interface)
  */
 static void fm10k_check_hang_subtask(struct fm10k_intfc *interface)
 {
-	int i;
-
 	/* If we're down or resetting, just bail */
 	if (test_bit(__FM10K_DOWN, interface->state) ||
 	    test_bit(__FM10K_RESETTING, interface->state))
@@ -710,6 +712,8 @@ static void fm10k_check_hang_subtask(struct fm10k_intfc *interface)
 	interface->next_tx_hang_check = jiffies + (2 * HZ);
 
 	if (netif_carrier_ok(interface->netdev)) {
+		int i;
+
 		/* Force detection of hung controller */
 		for (i = 0; i < interface->num_tx_queues; i++)
 			set_check_for_tx_hang(interface->tx_ring[i]);
@@ -897,7 +901,7 @@ static void fm10k_configure_tx_ring(struct fm10k_intfc *interface,
 
 	/* Map interrupt */
 	if (ring->q_vector) {
-		txint = ring->q_vector->v_idx + NON_Q_VECTORS(hw);
+		txint = ring->q_vector->v_idx + NON_Q_VECTORS;
 		txint |= FM10K_INT_MAP_TIMER0;
 	}
 
@@ -1036,7 +1040,7 @@ static void fm10k_configure_rx_ring(struct fm10k_intfc *interface,
 
 	/* Map interrupt */
 	if (ring->q_vector) {
-		rxint = ring->q_vector->v_idx + NON_Q_VECTORS(hw);
+		rxint = ring->q_vector->v_idx + NON_Q_VECTORS;
 		rxint |= FM10K_INT_MAP_TIMER1;
 	}
 
@@ -1719,10 +1723,9 @@ int fm10k_mbx_request_irq(struct fm10k_intfc *interface)
 void fm10k_qv_free_irq(struct fm10k_intfc *interface)
 {
 	int vector = interface->num_q_vectors;
-	struct fm10k_hw *hw = &interface->hw;
 	struct msix_entry *entry;
 
-	entry = &interface->msix_entries[NON_Q_VECTORS(hw) + vector];
+	entry = &interface->msix_entries[NON_Q_VECTORS + vector];
 
 	while (vector) {
 		struct fm10k_q_vector *q_vector;
@@ -1759,7 +1762,7 @@ int fm10k_qv_request_irq(struct fm10k_intfc *interface)
 	unsigned int ri = 0, ti = 0;
 	int vector, err;
 
-	entry = &interface->msix_entries[NON_Q_VECTORS(hw)];
+	entry = &interface->msix_entries[NON_Q_VECTORS];
 
 	for (vector = 0; vector < interface->num_q_vectors; vector++) {
 		struct fm10k_q_vector *q_vector = interface->q_vector[vector];
@@ -2339,7 +2342,7 @@ static int fm10k_handle_resume(struct fm10k_intfc *interface)
 	/* Restart the MAC/VLAN request queue in-case of outstanding events */
 	fm10k_macvlan_schedule(interface);
 
-	return err;
+	return 0;
 }
 
 /**
@@ -2352,7 +2355,7 @@ static int fm10k_handle_resume(struct fm10k_intfc *interface)
  **/
 static int __maybe_unused fm10k_resume(struct device *dev)
 {
-	struct fm10k_intfc *interface = pci_get_drvdata(to_pci_dev(dev));
+	struct fm10k_intfc *interface = dev_get_drvdata(dev);
 	struct net_device *netdev = interface->netdev;
 	struct fm10k_hw *hw = &interface->hw;
 	int err;
@@ -2379,7 +2382,7 @@ static int __maybe_unused fm10k_resume(struct device *dev)
  **/
 static int __maybe_unused fm10k_suspend(struct device *dev)
 {
-	struct fm10k_intfc *interface = pci_get_drvdata(to_pci_dev(dev));
+	struct fm10k_intfc *interface = dev_get_drvdata(dev);
 	struct net_device *netdev = interface->netdev;
 
 	netif_device_detach(netdev);

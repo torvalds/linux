@@ -121,6 +121,9 @@
 #define CECB_CTRL_TYPE_NEXT	2
 
 #define CECB_CTRL2		0x01
+
+#define CECB_CTRL2_RISE_DEL_MAX	GENMASK(4, 0)
+
 #define CECB_INTR_MASK		0x02
 #define CECB_LADD_LOW		0x05
 #define CECB_LADD_HIGH		0x06
@@ -165,6 +168,11 @@
 
 #define CECB_WAKEUPCTRL		0x31
 
+struct meson_ao_cec_g12a_data {
+	/* Setup the internal CECB_CTRL2 register */
+	bool				ctrl2_setup;
+};
+
 struct meson_ao_cec_g12a_device {
 	struct platform_device		*pdev;
 	struct regmap			*regmap;
@@ -175,6 +183,7 @@ struct meson_ao_cec_g12a_device {
 	struct cec_msg			rx_msg;
 	struct clk			*oscin;
 	struct clk			*core;
+	const struct meson_ao_cec_g12a_data *data;
 };
 
 static const struct regmap_config meson_ao_cec_g12a_regmap_conf = {
@@ -365,27 +374,21 @@ static int meson_ao_cec_g12a_read(void *context, unsigned int addr,
 {
 	struct meson_ao_cec_g12a_device *ao_cec = context;
 	u32 reg = FIELD_PREP(CECB_RW_ADDR, addr);
-	unsigned long flags;
 	int ret = 0;
-
-	spin_lock_irqsave(&ao_cec->cec_reg_lock, flags);
 
 	ret = regmap_write(ao_cec->regmap, CECB_RW_REG, reg);
 	if (ret)
-		goto read_out;
+		return ret;
 
 	ret = regmap_read_poll_timeout(ao_cec->regmap, CECB_RW_REG, reg,
 				       !(reg & CECB_RW_BUS_BUSY),
 				       5, 1000);
 	if (ret)
-		goto read_out;
+		return ret;
 
 	ret = regmap_read(ao_cec->regmap, CECB_RW_REG, &reg);
 
 	*data = FIELD_GET(CECB_RW_RD_DATA, reg);
-
-read_out:
-	spin_unlock_irqrestore(&ao_cec->cec_reg_lock, flags);
 
 	return ret;
 }
@@ -394,19 +397,11 @@ static int meson_ao_cec_g12a_write(void *context, unsigned int addr,
 				   unsigned int data)
 {
 	struct meson_ao_cec_g12a_device *ao_cec = context;
-	unsigned long flags;
 	u32 reg = FIELD_PREP(CECB_RW_ADDR, addr) |
 		  FIELD_PREP(CECB_RW_WR_DATA, data) |
 		  CECB_RW_WRITE_EN;
-	int ret = 0;
 
-	spin_lock_irqsave(&ao_cec->cec_reg_lock, flags);
-
-	ret = regmap_write(ao_cec->regmap, CECB_RW_REG, reg);
-
-	spin_unlock_irqrestore(&ao_cec->cec_reg_lock, flags);
-
-	return ret;
+	return regmap_write(ao_cec->regmap, CECB_RW_REG, reg);
 }
 
 static const struct regmap_config meson_ao_cec_g12a_cec_regmap_conf = {
@@ -415,7 +410,6 @@ static const struct regmap_config meson_ao_cec_g12a_cec_regmap_conf = {
 	.reg_read = meson_ao_cec_g12a_read,
 	.reg_write = meson_ao_cec_g12a_write,
 	.max_register = 0xffff,
-	.fast_io = true,
 };
 
 static inline void
@@ -620,6 +614,10 @@ static int meson_ao_cec_g12a_adap_enable(struct cec_adapter *adap, bool enable)
 	regmap_update_bits(ao_cec->regmap, CECB_GEN_CNTL_REG,
 			   CECB_GEN_CNTL_RESET, 0);
 
+	if (ao_cec->data->ctrl2_setup)
+		regmap_write(ao_cec->regmap_cec, CECB_CTRL2,
+			     FIELD_PREP(CECB_CTRL2_RISE_DEL_MAX, 2));
+
 	meson_ao_cec_g12a_irq_setup(ao_cec, true);
 
 	return 0;
@@ -647,21 +645,22 @@ static int meson_ao_cec_g12a_probe(struct platform_device *pdev)
 	if (!ao_cec)
 		return -ENOMEM;
 
+	ao_cec->data = of_device_get_match_data(&pdev->dev);
+	if (!ao_cec->data) {
+		dev_err(&pdev->dev, "failed to get match data\n");
+		return -ENODEV;
+	}
+
 	spin_lock_init(&ao_cec->cec_reg_lock);
 	ao_cec->pdev = pdev;
 
-	ao_cec->notify = cec_notifier_get(hdmi_dev);
-	if (!ao_cec->notify)
-		return -ENOMEM;
-
 	ao_cec->adap = cec_allocate_adapter(&meson_ao_cec_g12a_ops, ao_cec,
 					    "meson_g12a_ao_cec",
-					    CEC_CAP_DEFAULTS,
+					    CEC_CAP_DEFAULTS |
+					    CEC_CAP_CONNECTOR_INFO,
 					    CEC_MAX_LOG_ADDRS);
-	if (IS_ERR(ao_cec->adap)) {
-		ret = PTR_ERR(ao_cec->adap);
-		goto out_probe_notify;
-	}
+	if (IS_ERR(ao_cec->adap))
+		return PTR_ERR(ao_cec->adap);
 
 	ao_cec->adap->owner = THIS_MODULE;
 
@@ -717,27 +716,30 @@ static int meson_ao_cec_g12a_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ao_cec);
 
-	ret = cec_register_adapter(ao_cec->adap, &pdev->dev);
-	if (ret < 0) {
-		cec_notifier_put(ao_cec->notify);
+	ao_cec->notify = cec_notifier_cec_adap_register(hdmi_dev, NULL,
+							ao_cec->adap);
+	if (!ao_cec->notify) {
+		ret = -ENOMEM;
 		goto out_probe_core_clk;
 	}
+
+	ret = cec_register_adapter(ao_cec->adap, &pdev->dev);
+	if (ret < 0)
+		goto out_probe_notify;
 
 	/* Setup Hardware */
 	regmap_write(ao_cec->regmap, CECB_GEN_CNTL_REG, CECB_GEN_CNTL_RESET);
 
-	cec_register_cec_notifier(ao_cec->adap, ao_cec->notify);
-
 	return 0;
+
+out_probe_notify:
+	cec_notifier_cec_adap_unregister(ao_cec->notify, ao_cec->adap);
 
 out_probe_core_clk:
 	clk_disable_unprepare(ao_cec->core);
 
 out_probe_adapter:
 	cec_delete_adapter(ao_cec->adap);
-
-out_probe_notify:
-	cec_notifier_put(ao_cec->notify);
 
 	dev_err(&pdev->dev, "CEC controller registration failed\n");
 
@@ -750,15 +752,30 @@ static int meson_ao_cec_g12a_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(ao_cec->core);
 
-	cec_unregister_adapter(ao_cec->adap);
+	cec_notifier_cec_adap_unregister(ao_cec->notify, ao_cec->adap);
 
-	cec_notifier_put(ao_cec->notify);
+	cec_unregister_adapter(ao_cec->adap);
 
 	return 0;
 }
 
+static const struct meson_ao_cec_g12a_data ao_cec_g12a_data = {
+	.ctrl2_setup = false,
+};
+
+static const struct meson_ao_cec_g12a_data ao_cec_sm1_data = {
+	.ctrl2_setup = true,
+};
+
 static const struct of_device_id meson_ao_cec_g12a_of_match[] = {
-	{ .compatible = "amlogic,meson-g12a-ao-cec", },
+	{
+		.compatible = "amlogic,meson-g12a-ao-cec",
+		.data = &ao_cec_g12a_data,
+	},
+	{
+		.compatible = "amlogic,meson-sm1-ao-cec",
+		.data = &ao_cec_sm1_data,
+	},
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, meson_ao_cec_g12a_of_match);

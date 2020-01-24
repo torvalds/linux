@@ -694,7 +694,7 @@ static int snd_cs4281_trigger(struct snd_pcm_substream *substream, int cmd)
 
 static unsigned int snd_cs4281_rate(unsigned int rate, unsigned int *real_rate)
 {
-	unsigned int val = ~0;
+	unsigned int val;
 	
 	if (real_rate)
 		*real_rate = rate;
@@ -707,9 +707,8 @@ static unsigned int snd_cs4281_rate(unsigned int rate, unsigned int *real_rate)
 	case 44100:	return 1;
 	case 48000:	return 0;
 	default:
-		goto __variable;
+		break;
 	}
-      __variable:
 	val = 1536000 / rate;
 	if (real_rate)
 		*real_rate = 1536000 / val;
@@ -976,7 +975,8 @@ static int snd_cs4281_pcm(struct cs4281 *chip, int device)
 	chip->pcm = pcm;
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(chip->pci), 64*1024, 512*1024);
+					      &chip->pci->dev,
+					      64*1024, 512*1024);
 
 	return 0;
 }

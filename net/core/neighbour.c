@@ -98,9 +98,6 @@ static int neigh_blackhole(struct neighbour *neigh, struct sk_buff *skb)
 
 static void neigh_cleanup_and_release(struct neighbour *neigh)
 {
-	if (neigh->parms->neigh_cleanup)
-		neigh->parms->neigh_cleanup(neigh);
-
 	trace_neigh_cleanup_and_release(neigh, 0);
 	__neigh_notify(neigh, RTM_DELNEIGH, 0, 0);
 	call_netevent_notifiers(NETEVENT_NEIGH_UPDATE, neigh);
@@ -582,6 +579,8 @@ static struct neighbour *___neigh_create(struct neigh_table *tbl,
 	unsigned int key_len = tbl->key_len;
 	int error;
 	struct neigh_hash_table *nht;
+
+	trace_neigh_create(tbl, dev, pkey, n, exempt_from_gc);
 
 	if (!n) {
 		rc = ERR_PTR(-ENOBUFS);
@@ -1122,6 +1121,7 @@ int __neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
 
 			atomic_set(&neigh->probes,
 				   NEIGH_VAR(neigh->parms, UCAST_PROBES));
+			neigh_del_timer(neigh);
 			neigh->nud_state     = NUD_INCOMPLETE;
 			neigh->updated = now;
 			next = now + max(NEIGH_VAR(neigh->parms, RETRANS_TIME),
@@ -1138,6 +1138,7 @@ int __neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
 		}
 	} else if (neigh->nud_state & NUD_STALE) {
 		neigh_dbg(2, "neigh %p is delayed\n", neigh);
+		neigh_del_timer(neigh);
 		neigh->nud_state = NUD_DELAY;
 		neigh->updated = jiffies;
 		neigh_add_timer(neigh, jiffies +
@@ -1193,7 +1194,7 @@ static void neigh_update_hhs(struct neighbour *neigh)
 
 	if (update) {
 		hh = &neigh->hh;
-		if (hh->hh_len) {
+		if (READ_ONCE(hh->hh_len)) {
 			write_seqlock_bh(&hh->hh_lock);
 			update(hh, neigh->dev, neigh->ha);
 			write_sequnlock_bh(&hh->hh_lock);
@@ -1472,7 +1473,7 @@ int neigh_resolve_output(struct neighbour *neigh, struct sk_buff *skb)
 		struct net_device *dev = neigh->dev;
 		unsigned int seq;
 
-		if (dev->header_ops->cache && !neigh->hh.hh_len)
+		if (dev->header_ops->cache && !READ_ONCE(neigh->hh.hh_len))
 			neigh_hh_init(neigh);
 
 		do {
@@ -2048,8 +2049,8 @@ static int neightbl_fill_info(struct sk_buff *skb, struct neigh_table *tbl,
 		goto nla_put_failure;
 	{
 		unsigned long now = jiffies;
-		unsigned int flush_delta = now - tbl->last_flush;
-		unsigned int rand_delta = now - tbl->last_rand;
+		long flush_delta = now - tbl->last_flush;
+		long rand_delta = now - tbl->last_rand;
 		struct neigh_hash_table *nht;
 		struct ndt_config ndc = {
 			.ndtc_key_len		= tbl->key_len,
@@ -3029,7 +3030,7 @@ static struct neighbour *neigh_get_first(struct seq_file *seq)
 	struct net *net = seq_file_net(seq);
 	struct neigh_hash_table *nht = state->nht;
 	struct neighbour *n = NULL;
-	int bucket = state->bucket;
+	int bucket;
 
 	state->flags &= ~NEIGH_SEQ_IS_PNEIGH;
 	for (bucket = 0; bucket < (1 << nht->hash_shift); bucket++) {
@@ -3372,8 +3373,6 @@ void neigh_app_ns(struct neighbour *n)
 EXPORT_SYMBOL(neigh_app_ns);
 
 #ifdef CONFIG_SYSCTL
-static int zero;
-static int int_max = INT_MAX;
 static int unres_qlen_max = INT_MAX / SKB_TRUESIZE(ETH_FRAME_LEN);
 
 static int proc_unres_qlen(struct ctl_table *ctl, int write,
@@ -3382,7 +3381,7 @@ static int proc_unres_qlen(struct ctl_table *ctl, int write,
 	int size, ret;
 	struct ctl_table tmp = *ctl;
 
-	tmp.extra1 = &zero;
+	tmp.extra1 = SYSCTL_ZERO;
 	tmp.extra2 = &unres_qlen_max;
 	tmp.data = &size;
 
@@ -3447,8 +3446,8 @@ static int neigh_proc_dointvec_zero_intmax(struct ctl_table *ctl, int write,
 	struct ctl_table tmp = *ctl;
 	int ret;
 
-	tmp.extra1 = &zero;
-	tmp.extra2 = &int_max;
+	tmp.extra1 = SYSCTL_ZERO;
+	tmp.extra2 = SYSCTL_INT_MAX;
 
 	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
 	neigh_proc_update(ctl, write);
@@ -3593,24 +3592,24 @@ static struct neigh_sysctl_table {
 			.procname	= "gc_thresh1",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
-			.extra1 	= &zero,
-			.extra2		= &int_max,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_INT_MAX,
 			.proc_handler	= proc_dointvec_minmax,
 		},
 		[NEIGH_VAR_GC_THRESH2] = {
 			.procname	= "gc_thresh2",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
-			.extra1 	= &zero,
-			.extra2		= &int_max,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_INT_MAX,
 			.proc_handler	= proc_dointvec_minmax,
 		},
 		[NEIGH_VAR_GC_THRESH3] = {
 			.procname	= "gc_thresh3",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
-			.extra1 	= &zero,
-			.extra2		= &int_max,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_INT_MAX,
 			.proc_handler	= proc_dointvec_minmax,
 		},
 		{},

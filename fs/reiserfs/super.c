@@ -1976,6 +1976,9 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 		goto error_unlocked;
 	}
 
+	s->s_time_min = 0;
+	s->s_time_max = U32_MAX;
+
 	rs = SB_DISK_SUPER_BLOCK(s);
 	/*
 	 * Let's do basic sanity check to verify that underlying device is not
@@ -2045,6 +2048,8 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 
 	if (replay_only(s))
 		goto error_unlocked;
+
+	s->s_xattr = reiserfs_xattr_handlers;
 
 	if (bdev_read_only(s->s_bdev) && !sb_rdonly(s)) {
 		SWARN(silent, s, "clm-7000",

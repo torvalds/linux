@@ -48,6 +48,36 @@ static inline void tegra_serial_handle_break(struct uart_port *port)
 }
 #endif
 
+static int of_8250_rs485_config(struct uart_port *port,
+				  struct serial_rs485 *rs485)
+{
+	struct uart_8250_port *up = up_to_u8250p(port);
+
+	/* Clamp the delays to [0, 100ms] */
+	rs485->delay_rts_before_send = min(rs485->delay_rts_before_send, 100U);
+	rs485->delay_rts_after_send  = min(rs485->delay_rts_after_send, 100U);
+
+	port->rs485 = *rs485;
+
+	/*
+	 * Both serial8250_em485_init and serial8250_em485_destroy
+	 * are idempotent
+	 */
+	if (rs485->flags & SER_RS485_ENABLED) {
+		int ret = serial8250_em485_init(up);
+
+		if (ret) {
+			rs485->flags &= ~SER_RS485_ENABLED;
+			port->rs485.flags &= ~SER_RS485_ENABLED;
+		}
+		return ret;
+	}
+
+	serial8250_em485_destroy(up);
+
+	return 0;
+}
+
 /*
  * Fill a struct uart_port for a given device node
  */
@@ -70,9 +100,10 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 		/* Get clk rate through clk driver if present */
 		info->clk = devm_clk_get(&ofdev->dev, NULL);
 		if (IS_ERR(info->clk)) {
-			dev_warn(&ofdev->dev,
-				"clk or clock-frequency not defined\n");
 			ret = PTR_ERR(info->clk);
+			if (ret != -EPROBE_DEFER)
+				dev_warn(&ofdev->dev,
+					 "failed to get clock: %d\n", ret);
 			goto err_pmruntime;
 		}
 
@@ -177,6 +208,7 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 		port->flags |= UPF_SKIP_TEST;
 
 	port->dev = &ofdev->dev;
+	port->rs485_config = of_8250_rs485_config;
 
 	switch (type) {
 	case PORT_TEGRA:
@@ -205,18 +237,16 @@ err_pmruntime:
 /*
  * Try to register a serial port
  */
-static const struct of_device_id of_platform_serial_table[];
 static int of_platform_serial_probe(struct platform_device *ofdev)
 {
-	const struct of_device_id *match;
 	struct of_serial_info *info;
 	struct uart_8250_port port8250;
+	unsigned int port_type;
 	u32 tx_threshold;
-	int port_type;
 	int ret;
 
-	match = of_match_device(of_platform_serial_table, &ofdev->dev);
-	if (!match)
+	port_type = (unsigned long)of_device_get_match_data(&ofdev->dev);
+	if (port_type == PORT_UNKNOWN)
 		return -EINVAL;
 
 	if (of_property_read_bool(ofdev->dev.of_node, "used-by-rtas"))
@@ -226,7 +256,6 @@ static int of_platform_serial_probe(struct platform_device *ofdev)
 	if (info == NULL)
 		return -ENOMEM;
 
-	port_type = (unsigned long)match->data;
 	memset(&port8250, 0, sizeof(port8250));
 	ret = of_platform_serial_setup(ofdev, port_type, &port8250.port, info);
 	if (ret)

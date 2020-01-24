@@ -10,6 +10,8 @@
 #define PENDING_SIG	0xFFFFFFFFFFFFFFFFUL
 #define PRIO 4001
 
+typedef void (*sereq_completion_t)(void *req, int err);
+
 /**
  * struct gphdr - General purpose Header
  * @param0: first parameter.
@@ -203,12 +205,14 @@ struct nitrox_crypto_ctx {
 		struct flexi_crypto_context *fctx;
 	} u;
 	struct crypto_ctx_hdr *chdr;
+	sereq_completion_t callback;
 };
 
 struct nitrox_kcrypt_request {
 	struct se_crypto_request creq;
 	u8 *src;
 	u8 *dst;
+	u8 *iv_out;
 };
 
 /**
@@ -397,6 +401,36 @@ struct nps_pkt_instr {
 	union pkt_hdr irh;
 	union slc_store_info slc;
 	u64 fdata[2];
+};
+
+/**
+ * struct aqmq_command_s - The 32 byte command for AE processing.
+ * @opcode: Request opcode
+ * @param1: Request control parameter 1
+ * @param2: Request control parameter 2
+ * @dlen: Input length
+ * @dptr: Input pointer points to buffer in remote host
+ * @rptr: Result pointer points to buffer in remote host
+ * @grp: AQM Group (0..7)
+ * @cptr: Context pointer
+ */
+struct aqmq_command_s {
+	__be16 opcode;
+	__be16 param1;
+	__be16 param2;
+	__be16 dlen;
+	__be64 dptr;
+	__be64 rptr;
+	union {
+		__be64 word3;
+#if defined(__BIG_ENDIAN_BITFIELD)
+		u64 grp : 3;
+		u64 cptr : 61;
+#else
+		u64 cptr : 61;
+		u64 grp : 3;
+#endif
+	};
 };
 
 /**

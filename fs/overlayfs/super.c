@@ -212,6 +212,7 @@ static void ovl_free_fs(struct ovl_fs *ofs)
 {
 	unsigned i;
 
+	iput(ofs->workbasedir_trap);
 	iput(ofs->indexdir_trap);
 	iput(ofs->workdir_trap);
 	iput(ofs->upperdir_trap);
@@ -1003,6 +1004,25 @@ static int ovl_setup_trap(struct super_block *sb, struct dentry *dir,
 	return 0;
 }
 
+/*
+ * Determine how we treat concurrent use of upperdir/workdir based on the
+ * index feature. This is papering over mount leaks of container runtimes,
+ * for example, an old overlay mount is leaked and now its upperdir is
+ * attempted to be used as a lower layer in a new overlay mount.
+ */
+static int ovl_report_in_use(struct ovl_fs *ofs, const char *name)
+{
+	if (ofs->config.index) {
+		pr_err("overlayfs: %s is in-use as upperdir/workdir of another mount, mount with '-o index=off' to override exclusive upperdir protection.\n",
+		       name);
+		return -EBUSY;
+	} else {
+		pr_warn("overlayfs: %s is in-use as upperdir/workdir of another mount, accessing files from both mounts will result in undefined behavior.\n",
+			name);
+		return 0;
+	}
+}
+
 static int ovl_get_upper(struct super_block *sb, struct ovl_fs *ofs,
 			 struct path *upperpath)
 {
@@ -1040,14 +1060,12 @@ static int ovl_get_upper(struct super_block *sb, struct ovl_fs *ofs,
 	upper_mnt->mnt_flags &= ~(MNT_NOATIME | MNT_NODIRATIME | MNT_RELATIME);
 	ofs->upper_mnt = upper_mnt;
 
-	err = -EBUSY;
 	if (ovl_inuse_trylock(ofs->upper_mnt->mnt_root)) {
 		ofs->upperdir_locked = true;
-	} else if (ofs->config.index) {
-		pr_err("overlayfs: upperdir is in-use by another mount, mount with '-o index=off' to override exclusive upperdir protection.\n");
-		goto out;
 	} else {
-		pr_warn("overlayfs: upperdir is in-use by another mount, accessing files from both mounts will result in undefined behavior.\n");
+		err = ovl_report_in_use(ofs, "upperdir");
+		if (err)
+			goto out;
 	}
 
 	err = 0;
@@ -1157,15 +1175,18 @@ static int ovl_get_workdir(struct super_block *sb, struct ovl_fs *ofs,
 
 	ofs->workbasedir = dget(workpath.dentry);
 
-	err = -EBUSY;
 	if (ovl_inuse_trylock(ofs->workbasedir)) {
 		ofs->workdir_locked = true;
-	} else if (ofs->config.index) {
-		pr_err("overlayfs: workdir is in-use by another mount, mount with '-o index=off' to override exclusive workdir protection.\n");
-		goto out;
 	} else {
-		pr_warn("overlayfs: workdir is in-use by another mount, accessing files from both mounts will result in undefined behavior.\n");
+		err = ovl_report_in_use(ofs, "workdir");
+		if (err)
+			goto out;
 	}
+
+	err = ovl_setup_trap(sb, ofs->workbasedir, &ofs->workbasedir_trap,
+			     "workdir");
+	if (err)
+		goto out;
 
 	err = ovl_make_workdir(sb, ofs, &workpath);
 
@@ -1234,7 +1255,7 @@ static bool ovl_lower_uuid_ok(struct ovl_fs *ofs, const uuid_t *uuid)
 {
 	unsigned int i;
 
-	if (!ofs->config.nfs_export && !(ofs->config.index && ofs->upper_mnt))
+	if (!ofs->config.nfs_export && !ofs->upper_mnt)
 		return true;
 
 	for (i = 0; i < ofs->numlowerfs; i++) {
@@ -1242,9 +1263,13 @@ static bool ovl_lower_uuid_ok(struct ovl_fs *ofs, const uuid_t *uuid)
 		 * We use uuid to associate an overlay lower file handle with a
 		 * lower layer, so we can accept lower fs with null uuid as long
 		 * as all lower layers with null uuid are on the same fs.
+		 * if we detect multiple lower fs with the same uuid, we
+		 * disable lower file handle decoding on all of them.
 		 */
-		if (uuid_equal(&ofs->lower_fs[i].sb->s_uuid, uuid))
+		if (uuid_equal(&ofs->lower_fs[i].sb->s_uuid, uuid)) {
+			ofs->lower_fs[i].bad_uuid = true;
 			return false;
+		}
 	}
 	return true;
 }
@@ -1256,6 +1281,7 @@ static int ovl_get_fsid(struct ovl_fs *ofs, const struct path *path)
 	unsigned int i;
 	dev_t dev;
 	int err;
+	bool bad_uuid = false;
 
 	/* fsid 0 is reserved for upper fs even with non upper overlay */
 	if (ofs->upper_mnt && ofs->upper_mnt->mnt_sb == sb)
@@ -1267,11 +1293,15 @@ static int ovl_get_fsid(struct ovl_fs *ofs, const struct path *path)
 	}
 
 	if (!ovl_lower_uuid_ok(ofs, &sb->s_uuid)) {
-		ofs->config.index = false;
-		ofs->config.nfs_export = false;
-		pr_warn("overlayfs: %s uuid detected in lower fs '%pd2', falling back to index=off,nfs_export=off.\n",
-			uuid_is_null(&sb->s_uuid) ? "null" : "conflicting",
-			path->dentry);
+		bad_uuid = true;
+		if (ofs->config.index || ofs->config.nfs_export) {
+			ofs->config.index = false;
+			ofs->config.nfs_export = false;
+			pr_warn("overlayfs: %s uuid detected in lower fs '%pd2', falling back to index=off,nfs_export=off.\n",
+				uuid_is_null(&sb->s_uuid) ? "null" :
+							    "conflicting",
+				path->dentry);
+		}
 	}
 
 	err = get_anon_bdev(&dev);
@@ -1282,6 +1312,7 @@ static int ovl_get_fsid(struct ovl_fs *ofs, const struct path *path)
 
 	ofs->lower_fs[ofs->numlowerfs].sb = sb;
 	ofs->lower_fs[ofs->numlowerfs].pseudo_dev = dev;
+	ofs->lower_fs[ofs->numlowerfs].bad_uuid = bad_uuid;
 	ofs->numlowerfs++;
 
 	return ofs->numlowerfs;
@@ -1313,15 +1344,15 @@ static int ovl_get_lower_layers(struct super_block *sb, struct ovl_fs *ofs,
 		if (err < 0)
 			goto out;
 
-		err = -EBUSY;
-		if (ovl_is_inuse(stack[i].dentry)) {
-			pr_err("overlayfs: lowerdir is in-use as upperdir/workdir\n");
-			goto out;
-		}
-
 		err = ovl_setup_trap(sb, stack[i].dentry, &trap, "lowerdir");
 		if (err)
 			goto out;
+
+		if (ovl_is_inuse(stack[i].dentry)) {
+			err = ovl_report_in_use(ofs, "lowerdir");
+			if (err)
+				goto out;
+		}
 
 		mnt = clone_private_mount(&stack[i]);
 		err = PTR_ERR(mnt);
@@ -1469,8 +1500,8 @@ out_err:
  * - another layer of this overlayfs instance
  * - upper/work dir of any overlayfs instance
  */
-static int ovl_check_layer(struct super_block *sb, struct dentry *dentry,
-			   const char *name)
+static int ovl_check_layer(struct super_block *sb, struct ovl_fs *ofs,
+			   struct dentry *dentry, const char *name)
 {
 	struct dentry *next = dentry, *parent;
 	int err = 0;
@@ -1482,13 +1513,11 @@ static int ovl_check_layer(struct super_block *sb, struct dentry *dentry,
 
 	/* Walk back ancestors to root (inclusive) looking for traps */
 	while (!err && parent != next) {
-		if (ovl_is_inuse(parent)) {
-			err = -EBUSY;
-			pr_err("overlayfs: %s path overlapping in-use upperdir/workdir\n",
-			       name);
-		} else if (ovl_lookup_trap_inode(sb, parent)) {
+		if (ovl_lookup_trap_inode(sb, parent)) {
 			err = -ELOOP;
 			pr_err("overlayfs: overlapping %s path\n", name);
+		} else if (ovl_is_inuse(parent)) {
+			err = ovl_report_in_use(ofs, name);
 		}
 		next = parent;
 		parent = dget_parent(next);
@@ -1509,7 +1538,8 @@ static int ovl_check_overlapping_layers(struct super_block *sb,
 	int i, err;
 
 	if (ofs->upper_mnt) {
-		err = ovl_check_layer(sb, ofs->upper_mnt->mnt_root, "upperdir");
+		err = ovl_check_layer(sb, ofs, ofs->upper_mnt->mnt_root,
+				      "upperdir");
 		if (err)
 			return err;
 
@@ -1520,13 +1550,14 @@ static int ovl_check_overlapping_layers(struct super_block *sb,
 		 * workbasedir.  In that case, we already have their traps in
 		 * inode cache and we will catch that case on lookup.
 		 */
-		err = ovl_check_layer(sb, ofs->workbasedir, "workdir");
+		err = ovl_check_layer(sb, ofs, ofs->workbasedir, "workdir");
 		if (err)
 			return err;
 	}
 
 	for (i = 0; i < ofs->numlower; i++) {
-		err = ovl_check_layer(sb, ofs->lower_layers[i].mnt->mnt_root,
+		err = ovl_check_layer(sb, ofs,
+				      ofs->lower_layers[i].mnt->mnt_root,
 				      "lowerdir");
 		if (err)
 			return err;

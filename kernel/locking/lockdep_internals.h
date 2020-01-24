@@ -92,6 +92,7 @@ static const unsigned long LOCKF_USED_IN_IRQ_READ =
 #define MAX_LOCKDEP_ENTRIES	16384UL
 #define MAX_LOCKDEP_CHAINS_BITS	15
 #define MAX_STACK_TRACE_ENTRIES	262144UL
+#define STACK_TRACE_HASH_SIZE	8192
 #else
 #define MAX_LOCKDEP_ENTRIES	32768UL
 
@@ -102,6 +103,7 @@ static const unsigned long LOCKF_USED_IN_IRQ_READ =
  * addresses. Protected by the hash_lock.
  */
 #define MAX_STACK_TRACE_ENTRIES	524288UL
+#define STACK_TRACE_HASH_SIZE	16384
 #endif
 
 #define MAX_LOCKDEP_CHAINS	(1UL << MAX_LOCKDEP_CHAINS_BITS)
@@ -116,7 +118,8 @@ extern struct lock_chain lock_chains[];
 extern void get_usage_chars(struct lock_class *class,
 			    char usage[LOCK_USAGE_CHARS]);
 
-extern const char * __get_key_name(struct lockdep_subclass_key *key, char *str);
+extern const char *__get_key_name(const struct lockdep_subclass_key *key,
+				  char *str);
 
 struct lock_class *lock_chain_get_class(struct lock_chain *chain, int i);
 
@@ -131,13 +134,16 @@ extern unsigned int nr_hardirq_chains;
 extern unsigned int nr_softirq_chains;
 extern unsigned int nr_process_chains;
 extern unsigned int max_lockdep_depth;
-extern unsigned int max_recursion_depth;
 
 extern unsigned int max_bfs_queue_depth;
 
 #ifdef CONFIG_PROVE_LOCKING
 extern unsigned long lockdep_count_forward_deps(struct lock_class *);
 extern unsigned long lockdep_count_backward_deps(struct lock_class *);
+#ifdef CONFIG_TRACE_IRQFLAGS
+u64 lockdep_stack_trace_count(void);
+u64 lockdep_stack_hash_count(void);
+#endif
 #else
 static inline unsigned long
 lockdep_count_forward_deps(struct lock_class *class)
@@ -160,25 +166,22 @@ lockdep_count_backward_deps(struct lock_class *class)
  * and we want to avoid too much cache bouncing.
  */
 struct lockdep_stats {
-	int	chain_lookup_hits;
-	int	chain_lookup_misses;
-	int	hardirqs_on_events;
-	int	hardirqs_off_events;
-	int	redundant_hardirqs_on;
-	int	redundant_hardirqs_off;
-	int	softirqs_on_events;
-	int	softirqs_off_events;
-	int	redundant_softirqs_on;
-	int	redundant_softirqs_off;
-	int	nr_unused_locks;
-	int	nr_redundant_checks;
-	int	nr_redundant;
-	int	nr_cyclic_checks;
-	int	nr_cyclic_check_recursions;
-	int	nr_find_usage_forwards_checks;
-	int	nr_find_usage_forwards_recursions;
-	int	nr_find_usage_backwards_checks;
-	int	nr_find_usage_backwards_recursions;
+	unsigned long  chain_lookup_hits;
+	unsigned int   chain_lookup_misses;
+	unsigned long  hardirqs_on_events;
+	unsigned long  hardirqs_off_events;
+	unsigned long  redundant_hardirqs_on;
+	unsigned long  redundant_hardirqs_off;
+	unsigned long  softirqs_on_events;
+	unsigned long  softirqs_off_events;
+	unsigned long  redundant_softirqs_on;
+	unsigned long  redundant_softirqs_off;
+	int            nr_unused_locks;
+	unsigned int   nr_redundant_checks;
+	unsigned int   nr_redundant;
+	unsigned int   nr_cyclic_checks;
+	unsigned int   nr_find_usage_forwards_checks;
+	unsigned int   nr_find_usage_backwards_checks;
 
 	/*
 	 * Per lock class locking operation stat counts

@@ -1581,6 +1581,7 @@ static long ibmvscsis_adapter_info(struct scsi_info *vscsi,
 	case H_PERMISSION:
 		if (connection_broken(vscsi))
 			flag_bits = (RESPONSE_Q_DOWN | CLIENT_FAILED);
+		/* Fall through */
 	default:
 		dev_err(&vscsi->dev, "adapter_info: h_copy_rdma to client failed, rc %ld\n",
 			rc);
@@ -2353,7 +2354,6 @@ static long ibmvscsis_srp_i_logout(struct scsi_info *vscsi,
 {
 	struct iu_entry *iue = cmd->iue;
 	struct srp_i_logout *log_out = &vio_iu(iue)->srp.i_logout;
-	long rc = ADAPT_SUCCESS;
 
 	if ((vscsi->debit > 0) || !list_empty(&vscsi->schedule_q) ||
 	    !list_empty(&vscsi->waiting_rsp)) {
@@ -2369,7 +2369,7 @@ static long ibmvscsis_srp_i_logout(struct scsi_info *vscsi,
 		ibmvscsis_post_disconnect(vscsi, WAIT_IDLE, 0);
 	}
 
-	return rc;
+	return ADAPT_SUCCESS;
 }
 
 /* Called with intr lock held */
@@ -2492,8 +2492,10 @@ static long ibmvscsis_ping_response(struct scsi_info *vscsi)
 		break;
 	case H_CLOSED:
 		vscsi->flags |= CLIENT_FAILED;
+		/* Fall through */
 	case H_DROPPED:
 		vscsi->flags |= RESPONSE_Q_DOWN;
+		/* Fall through */
 	case H_REMOTE_PARM:
 		dev_err(&vscsi->dev, "ping_response: h_send_crq failed, rc %ld\n",
 			rc);

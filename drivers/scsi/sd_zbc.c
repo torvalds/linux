@@ -9,6 +9,8 @@
  */
 
 #include <linux/blkdev.h>
+#include <linux/vmalloc.h>
+#include <linux/sched/mm.h>
 
 #include <asm/unaligned.h>
 
@@ -17,40 +19,33 @@
 
 #include "sd.h"
 
-/**
- * sd_zbc_parse_report - Convert a zone descriptor to a struct blk_zone,
- * @sdkp: The disk the report originated from
- * @buf: Address of the report zone descriptor
- * @zone: the destination zone structure
- *
- * All LBA sized values are converted to 512B sectors unit.
- */
-static void sd_zbc_parse_report(struct scsi_disk *sdkp, u8 *buf,
-				struct blk_zone *zone)
+static int sd_zbc_parse_report(struct scsi_disk *sdkp, u8 *buf,
+			       unsigned int idx, report_zones_cb cb, void *data)
 {
 	struct scsi_device *sdp = sdkp->device;
+	struct blk_zone zone = { 0 };
 
-	memset(zone, 0, sizeof(struct blk_zone));
-
-	zone->type = buf[0] & 0x0f;
-	zone->cond = (buf[1] >> 4) & 0xf;
+	zone.type = buf[0] & 0x0f;
+	zone.cond = (buf[1] >> 4) & 0xf;
 	if (buf[1] & 0x01)
-		zone->reset = 1;
+		zone.reset = 1;
 	if (buf[1] & 0x02)
-		zone->non_seq = 1;
+		zone.non_seq = 1;
 
-	zone->len = logical_to_sectors(sdp, get_unaligned_be64(&buf[8]));
-	zone->start = logical_to_sectors(sdp, get_unaligned_be64(&buf[16]));
-	zone->wp = logical_to_sectors(sdp, get_unaligned_be64(&buf[24]));
-	if (zone->type != ZBC_ZONE_TYPE_CONV &&
-	    zone->cond == ZBC_ZONE_COND_FULL)
-		zone->wp = zone->start + zone->len;
+	zone.len = logical_to_sectors(sdp, get_unaligned_be64(&buf[8]));
+	zone.start = logical_to_sectors(sdp, get_unaligned_be64(&buf[16]));
+	zone.wp = logical_to_sectors(sdp, get_unaligned_be64(&buf[24]));
+	if (zone.type != ZBC_ZONE_TYPE_CONV &&
+	    zone.cond == ZBC_ZONE_COND_FULL)
+		zone.wp = zone.start + zone.len;
+
+	return cb(&zone, idx, data);
 }
 
 /**
  * sd_zbc_do_report_zones - Issue a REPORT ZONES scsi command.
  * @sdkp: The target disk
- * @buf: Buffer to use for the reply
+ * @buf: vmalloc-ed buffer to use for the reply
  * @buflen: the buffer size
  * @lba: Start LBA of the report
  * @partial: Do partial report
@@ -79,16 +74,17 @@ static int sd_zbc_do_report_zones(struct scsi_disk *sdkp, unsigned char *buf,
 	put_unaligned_be32(buflen, &cmd[10]);
 	if (partial)
 		cmd[14] = ZBC_REPORT_ZONE_PARTIAL;
-	memset(buf, 0, buflen);
 
 	result = scsi_execute_req(sdp, cmd, DMA_FROM_DEVICE,
 				  buf, buflen, &sshdr,
 				  timeout, SD_MAX_RETRIES, NULL);
 	if (result) {
 		sd_printk(KERN_ERR, sdkp,
-			  "REPORT ZONES lba %llu failed with %d/%d\n",
-			  (unsigned long long)lba,
-			  host_byte(result), driver_byte(result));
+			  "REPORT ZONES start lba %llu failed\n", lba);
+		sd_print_result(sdkp, "REPORT ZONES", result);
+		if (driver_byte(result) == DRIVER_SENSE &&
+		    scsi_sense_valid(&sshdr))
+			sd_print_sense_hdr(sdkp, &sshdr);
 		return -EIO;
 	}
 
@@ -104,58 +100,52 @@ static int sd_zbc_do_report_zones(struct scsi_disk *sdkp, unsigned char *buf,
 }
 
 /**
- * sd_zbc_report_zones - Disk report zones operation.
- * @disk: The target disk
- * @sector: Start 512B sector of the report
- * @zones: Array of zone descriptors
- * @nr_zones: Number of descriptors in the array
- * @gfp_mask: Memory allocation mask
+ * Allocate a buffer for report zones reply.
+ * @sdkp: The target disk
+ * @nr_zones: Maximum number of zones to report
+ * @buflen: Size of the buffer allocated
  *
- * Execute a report zones command on the target disk.
+ * Try to allocate a reply buffer for the number of requested zones.
+ * The size of the buffer allocated may be smaller than requested to
+ * satify the device constraint (max_hw_sectors, max_segments, etc).
+ *
+ * Return the address of the allocated buffer and update @buflen with
+ * the size of the allocated buffer.
  */
-int sd_zbc_report_zones(struct gendisk *disk, sector_t sector,
-			struct blk_zone *zones, unsigned int *nr_zones,
-			gfp_t gfp_mask)
+static void *sd_zbc_alloc_report_buffer(struct scsi_disk *sdkp,
+					unsigned int nr_zones, size_t *buflen)
 {
-	struct scsi_disk *sdkp = scsi_disk(disk);
-	unsigned int i, buflen, nrz = *nr_zones;
-	unsigned char *buf;
-	size_t offset = 0;
-	int ret = 0;
-
-	if (!sd_is_zoned(sdkp))
-		/* Not a zoned device */
-		return -EOPNOTSUPP;
+	struct request_queue *q = sdkp->disk->queue;
+	size_t bufsize;
+	void *buf;
 
 	/*
-	 * Get a reply buffer for the number of requested zones plus a header,
-	 * without exceeding the device maximum command size. For ATA disks,
-	 * buffers must be aligned to 512B.
+	 * Report zone buffer size should be at most 64B times the number of
+	 * zones requested plus the 64B reply header, but should be at least
+	 * SECTOR_SIZE for ATA devices.
+	 * Make sure that this size does not exceed the hardware capabilities.
+	 * Furthermore, since the report zone command cannot be split, make
+	 * sure that the allocated buffer can always be mapped by limiting the
+	 * number of pages allocated to the HBA max segments limit.
 	 */
-	buflen = min(queue_max_hw_sectors(disk->queue) << 9,
-		     roundup((nrz + 1) * 64, 512));
-	buf = kmalloc(buflen, gfp_mask);
-	if (!buf)
-		return -ENOMEM;
+	nr_zones = min(nr_zones, sdkp->nr_zones);
+	bufsize = roundup((nr_zones + 1) * 64, SECTOR_SIZE);
+	bufsize = min_t(size_t, bufsize,
+			queue_max_hw_sectors(q) << SECTOR_SHIFT);
+	bufsize = min_t(size_t, bufsize, queue_max_segments(q) << PAGE_SHIFT);
 
-	ret = sd_zbc_do_report_zones(sdkp, buf, buflen,
-			sectors_to_logical(sdkp->device, sector), true);
-	if (ret)
-		goto out_free_buf;
-
-	nrz = min(nrz, get_unaligned_be32(&buf[0]) / 64);
-	for (i = 0; i < nrz; i++) {
-		offset += 64;
-		sd_zbc_parse_report(sdkp, buf + offset, zones);
-		zones++;
+	while (bufsize >= SECTOR_SIZE) {
+		buf = __vmalloc(bufsize,
+				GFP_KERNEL | __GFP_ZERO | __GFP_NORETRY,
+				PAGE_KERNEL);
+		if (buf) {
+			*buflen = bufsize;
+			return buf;
+		}
+		bufsize >>= 1;
 	}
 
-	*nr_zones = nrz;
-
-out_free_buf:
-	kfree(buf);
-
-	return ret;
+	return NULL;
 }
 
 /**
@@ -167,13 +157,65 @@ static inline sector_t sd_zbc_zone_sectors(struct scsi_disk *sdkp)
 	return logical_to_sectors(sdkp->device, sdkp->zone_blocks);
 }
 
+int sd_zbc_report_zones(struct gendisk *disk, sector_t sector,
+			unsigned int nr_zones, report_zones_cb cb, void *data)
+{
+	struct scsi_disk *sdkp = scsi_disk(disk);
+	unsigned int nr, i;
+	unsigned char *buf;
+	size_t offset, buflen = 0;
+	int zone_idx = 0;
+	int ret;
+
+	if (!sd_is_zoned(sdkp))
+		/* Not a zoned device */
+		return -EOPNOTSUPP;
+
+	buf = sd_zbc_alloc_report_buffer(sdkp, nr_zones, &buflen);
+	if (!buf)
+		return -ENOMEM;
+
+	while (zone_idx < nr_zones && sector < get_capacity(disk)) {
+		ret = sd_zbc_do_report_zones(sdkp, buf, buflen,
+				sectors_to_logical(sdkp->device, sector), true);
+		if (ret)
+			goto out;
+
+		offset = 0;
+		nr = min(nr_zones, get_unaligned_be32(&buf[0]) / 64);
+		if (!nr)
+			break;
+
+		for (i = 0; i < nr && zone_idx < nr_zones; i++) {
+			offset += 64;
+			ret = sd_zbc_parse_report(sdkp, buf + offset, zone_idx,
+						  cb, data);
+			if (ret)
+				goto out;
+			zone_idx++;
+		}
+
+		sector += sd_zbc_zone_sectors(sdkp) * i;
+	}
+
+	ret = zone_idx;
+out:
+	kvfree(buf);
+	return ret;
+}
+
 /**
- * sd_zbc_setup_reset_cmnd - Prepare a RESET WRITE POINTER scsi command.
+ * sd_zbc_setup_zone_mgmt_cmnd - Prepare a zone ZBC_OUT command. The operations
+ *			can be RESET WRITE POINTER, OPEN, CLOSE or FINISH.
  * @cmd: the command to setup
+ * @op: Operation to be performed
+ * @all: All zones control
  *
- * Called from sd_init_command() for a REQ_OP_ZONE_RESET request.
+ * Called from sd_init_command() for REQ_OP_ZONE_RESET, REQ_OP_ZONE_RESET_ALL,
+ * REQ_OP_ZONE_OPEN, REQ_OP_ZONE_CLOSE or REQ_OP_ZONE_FINISH requests.
  */
-blk_status_t sd_zbc_setup_reset_cmnd(struct scsi_cmnd *cmd)
+blk_status_t sd_zbc_setup_zone_mgmt_cmnd(struct scsi_cmnd *cmd,
+					 unsigned char op, bool all)
 {
 	struct request *rq = cmd->request;
 	struct scsi_disk *sdkp = scsi_disk(rq->rq_disk);
@@ -194,8 +236,11 @@ blk_status_t sd_zbc_setup_reset_cmnd(struct scsi_cmnd *cmd)
 	cmd->cmd_len = 16;
 	memset(cmd->cmnd, 0, cmd->cmd_len);
 	cmd->cmnd[0] = ZBC_OUT;
-	cmd->cmnd[1] = ZO_RESET_WRITE_POINTER;
-	put_unaligned_be64(block, &cmd->cmnd[2]);
+	cmd->cmnd[1] = op;
+	if (all)
+		cmd->cmnd[14] = 0x1;
+	else
+		put_unaligned_be64(block, &cmd->cmnd[2]);
 
 	rq->timeout = SD_TIMEOUT;
 	cmd->sc_data_direction = DMA_NONE;
@@ -220,24 +265,16 @@ void sd_zbc_complete(struct scsi_cmnd *cmd, unsigned int good_bytes,
 	int result = cmd->result;
 	struct request *rq = cmd->request;
 
-	switch (req_op(rq)) {
-	case REQ_OP_ZONE_RESET:
-
-		if (result &&
-		    sshdr->sense_key == ILLEGAL_REQUEST &&
-		    sshdr->asc == 0x24)
-			/*
-			 * INVALID FIELD IN CDB error: reset of a conventional
-			 * zone was attempted. Nothing to worry about, so be
-			 * quiet about the error.
-			 */
-			rq->rq_flags |= RQF_QUIET;
-		break;
-
-	case REQ_OP_WRITE:
-	case REQ_OP_WRITE_ZEROES:
-	case REQ_OP_WRITE_SAME:
-		break;
+	if (op_is_zone_mgmt(req_op(rq)) &&
+	    result &&
+	    sshdr->sense_key == ILLEGAL_REQUEST &&
+	    sshdr->asc == 0x24) {
+		/*
+		 * INVALID FIELD IN CDB error: a zone management command was
+		 * attempted on a conventional zone. Nothing to worry about,
+		 * so be quiet about the error.
+		 */
+		rq->rq_flags |= RQF_QUIET;
 	}
 }
 
@@ -287,8 +324,6 @@ static int sd_zbc_check_zoned_characteristics(struct scsi_disk *sdkp,
 	return 0;
 }
 
-#define SD_ZBC_BUF_SIZE 131072U
-
 /**
  * sd_zbc_check_zones - Check the device capacity and zone sizes
  * @sdkp: Target disk
@@ -302,26 +337,18 @@ static int sd_zbc_check_zoned_characteristics(struct scsi_disk *sdkp,
  * Returns the zone size in number of blocks upon success or an error code
  * upon failure.
  */
-static int sd_zbc_check_zones(struct scsi_disk *sdkp, u32 *zblocks)
+static int sd_zbc_check_zones(struct scsi_disk *sdkp, unsigned char *buf,
+			      u32 *zblocks)
 {
 	u64 zone_blocks = 0;
-	sector_t max_lba, block = 0;
-	unsigned char *buf;
+	sector_t max_lba;
 	unsigned char *rec;
-	unsigned int buf_len;
-	unsigned int list_length;
 	int ret;
-	u8 same;
 
-	/* Get a buffer */
-	buf = kmalloc(SD_ZBC_BUF_SIZE, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	/* Do a report zone to get max_lba and the same field */
-	ret = sd_zbc_do_report_zones(sdkp, buf, SD_ZBC_BUF_SIZE, 0, false);
+	/* Do a report zone to get max_lba and the size of the first zone */
+	ret = sd_zbc_do_report_zones(sdkp, buf, SD_BUF_SIZE, 0, false);
 	if (ret)
-		goto out_free;
+		return ret;
 
 	if (sdkp->rc_basis == 0) {
 		/* The max_lba field is the capacity of this device */
@@ -336,88 +363,34 @@ static int sd_zbc_check_zones(struct scsi_disk *sdkp, u32 *zblocks)
 		}
 	}
 
-	/*
-	 * Check same field: for any value other than 0, we know that all zones
-	 * have the same size.
-	 */
-	same = buf[4] & 0x0f;
-	if (same > 0) {
-		rec = &buf[64];
-		zone_blocks = get_unaligned_be64(&rec[8]);
-		goto out;
-	}
-
-	/*
-	 * Check the size of all zones: all zones must be of
-	 * equal size, except the last zone which can be smaller
-	 * than other zones.
-	 */
-	do {
-
-		/* Parse REPORT ZONES header */
-		list_length = get_unaligned_be32(&buf[0]) + 64;
-		rec = buf + 64;
-		buf_len = min(list_length, SD_ZBC_BUF_SIZE);
-
-		/* Parse zone descriptors */
-		while (rec < buf + buf_len) {
-			u64 this_zone_blocks = get_unaligned_be64(&rec[8]);
-
-			if (zone_blocks == 0) {
-				zone_blocks = this_zone_blocks;
-			} else if (this_zone_blocks != zone_blocks &&
-				   (block + this_zone_blocks < sdkp->capacity
-				    || this_zone_blocks > zone_blocks)) {
-				zone_blocks = 0;
-				goto out;
-			}
-			block += this_zone_blocks;
-			rec += 64;
-		}
-
-		if (block < sdkp->capacity) {
-			ret = sd_zbc_do_report_zones(sdkp, buf, SD_ZBC_BUF_SIZE,
-						     block, true);
-			if (ret)
-				goto out_free;
-		}
-
-	} while (block < sdkp->capacity);
-
-out:
-	if (!zone_blocks) {
-		if (sdkp->first_scan)
-			sd_printk(KERN_NOTICE, sdkp,
-				  "Devices with non constant zone "
-				  "size are not supported\n");
-		ret = -ENODEV;
-	} else if (!is_power_of_2(zone_blocks)) {
+	/* Parse REPORT ZONES header */
+	rec = buf + 64;
+	zone_blocks = get_unaligned_be64(&rec[8]);
+	if (!zone_blocks || !is_power_of_2(zone_blocks)) {
 		if (sdkp->first_scan)
 			sd_printk(KERN_NOTICE, sdkp,
 				  "Devices with non power of 2 zone "
 				  "size are not supported\n");
-		ret = -ENODEV;
-	} else if (logical_to_sectors(sdkp->device, zone_blocks) > UINT_MAX) {
+		return -ENODEV;
+	}
+
+	if (logical_to_sectors(sdkp->device, zone_blocks) > UINT_MAX) {
 		if (sdkp->first_scan)
 			sd_printk(KERN_NOTICE, sdkp,
 				  "Zone size too large\n");
-		ret = -EFBIG;
-	} else {
-		*zblocks = zone_blocks;
-		ret = 0;
+		return -EFBIG;
 	}
 
-out_free:
-	kfree(buf);
+	*zblocks = zone_blocks;
 
-	return ret;
+	return 0;
 }
 
 int sd_zbc_read_zones(struct scsi_disk *sdkp, unsigned char *buf)
 {
 	struct gendisk *disk = sdkp->disk;
 	unsigned int nr_zones;
-	u32 zone_blocks;
+	u32 zone_blocks = 0;
 	int ret;
 
 	if (!sd_is_zoned(sdkp))
@@ -436,13 +409,14 @@ int sd_zbc_read_zones(struct scsi_disk *sdkp, unsigned char *buf)
 	 * Check zone size: only devices with a constant zone size (except
 	 * an eventual last runt zone) that is a power of 2 are supported.
 	 */
-	ret = sd_zbc_check_zones(sdkp, &zone_blocks);
+	ret = sd_zbc_check_zones(sdkp, buf, &zone_blocks);
 	if (ret != 0)
 		goto err;
 
 	/* The drive satisfies the kernel restrictions: set it up */
-	blk_queue_chunk_sectors(sdkp->disk->queue,
-			logical_to_sectors(sdkp->device, zone_blocks));
+	blk_queue_flag_set(QUEUE_FLAG_ZONE_RESETALL, sdkp->disk->queue);
+	blk_queue_required_elevator_features(sdkp->disk->queue,
+					     ELEVATOR_F_ZBD_SEQ_WRITE);
 	nr_zones = round_up(sdkp->capacity, zone_blocks) >> ilog2(zone_blocks);
 
 	/* READ16/WRITE16 is mandatory for ZBC disks */

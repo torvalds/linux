@@ -30,7 +30,7 @@
 #include "cedrus_hw.h"
 #include "cedrus_regs.h"
 
-int cedrus_engine_enable(struct cedrus_dev *dev, enum cedrus_codec codec)
+int cedrus_engine_enable(struct cedrus_ctx *ctx, enum cedrus_codec codec)
 {
 	u32 reg = 0;
 
@@ -46,11 +46,24 @@ int cedrus_engine_enable(struct cedrus_dev *dev, enum cedrus_codec codec)
 		reg |= VE_MODE_DEC_MPEG;
 		break;
 
+	case CEDRUS_CODEC_H264:
+		reg |= VE_MODE_DEC_H264;
+		break;
+
+	case CEDRUS_CODEC_H265:
+		reg |= VE_MODE_DEC_H265;
+		break;
+
 	default:
 		return -EINVAL;
 	}
 
-	cedrus_write(dev, VE_MODE, reg);
+	if (ctx->src_fmt.width == 4096)
+		reg |= VE_MODE_PIC_WIDTH_IS_4096;
+	if (ctx->src_fmt.width > 2048)
+		reg |= VE_MODE_PIC_WIDTH_MORE_2048;
+
+	cedrus_write(ctx->dev, VE_MODE, reg);
 
 	return 0;
 }
@@ -74,9 +87,6 @@ void cedrus_dst_format_set(struct cedrus_dev *dev,
 
 		reg = VE_PRIMARY_OUT_FMT_NV12;
 		cedrus_write(dev, VE_PRIMARY_OUT_FMT, reg);
-
-		reg = VE_CHROMA_BUF_LEN_SDRT(chroma_size / 2);
-		cedrus_write(dev, VE_CHROMA_BUF_LEN, reg);
 
 		reg = chroma_size / 2;
 		cedrus_write(dev, VE_PRIMARY_CHROMA_BUF_LEN, reg);
@@ -102,7 +112,6 @@ static irqreturn_t cedrus_irq(int irq, void *data)
 {
 	struct cedrus_dev *dev = data;
 	struct cedrus_ctx *ctx;
-	struct vb2_v4l2_buffer *src_buf, *dst_buf;
 	enum vb2_buffer_state state;
 	enum cedrus_irq_status status;
 
@@ -120,24 +129,13 @@ static irqreturn_t cedrus_irq(int irq, void *data)
 	dev->dec_ops[ctx->current_codec]->irq_disable(ctx);
 	dev->dec_ops[ctx->current_codec]->irq_clear(ctx);
 
-	src_buf = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
-	dst_buf = v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
-
-	if (!src_buf || !dst_buf) {
-		v4l2_err(&dev->v4l2_dev,
-			 "Missing source and/or destination buffers\n");
-		return IRQ_HANDLED;
-	}
-
 	if (status == CEDRUS_IRQ_ERROR)
 		state = VB2_BUF_STATE_ERROR;
 	else
 		state = VB2_BUF_STATE_DONE;
 
-	v4l2_m2m_buf_done(src_buf, state);
-	v4l2_m2m_buf_done(dst_buf, state);
-
-	v4l2_m2m_job_finish(ctx->dev->m2m_dev, ctx->fh.m2m_ctx);
+	v4l2_m2m_buf_done_and_job_finish(ctx->dev->m2m_dev, ctx->fh.m2m_ctx,
+					 state);
 
 	return IRQ_HANDLED;
 }
@@ -145,7 +143,6 @@ static irqreturn_t cedrus_irq(int irq, void *data)
 int cedrus_hw_probe(struct cedrus_dev *dev)
 {
 	const struct cedrus_variant *variant;
-	struct resource *res;
 	int irq_dec;
 	int ret;
 
@@ -156,11 +153,8 @@ int cedrus_hw_probe(struct cedrus_dev *dev)
 	dev->capabilities = variant->capabilities;
 
 	irq_dec = platform_get_irq(dev->pdev, 0);
-	if (irq_dec <= 0) {
-		dev_err(dev->dev, "Failed to get IRQ\n");
-
+	if (irq_dec <= 0)
 		return irq_dec;
-	}
 	ret = devm_request_irq(dev->dev, irq_dec, cedrus_irq,
 			       0, dev_name(dev->dev), dev);
 	if (ret) {
@@ -227,8 +221,7 @@ int cedrus_hw_probe(struct cedrus_dev *dev)
 		goto err_sram;
 	}
 
-	res = platform_get_resource(dev->pdev, IORESOURCE_MEM, 0);
-	dev->base = devm_ioremap_resource(dev->dev, res);
+	dev->base = devm_platform_ioremap_resource(dev->pdev, 0);
 	if (IS_ERR(dev->base)) {
 		dev_err(dev->dev, "Failed to map registers\n");
 
@@ -236,7 +229,7 @@ int cedrus_hw_probe(struct cedrus_dev *dev)
 		goto err_sram;
 	}
 
-	ret = clk_set_rate(dev->mod_clk, CEDRUS_CLOCK_RATE_DEFAULT);
+	ret = clk_set_rate(dev->mod_clk, variant->mod_rate);
 	if (ret) {
 		dev_err(dev->dev, "Failed to set clock rate\n");
 

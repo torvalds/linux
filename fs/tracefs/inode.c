@@ -16,6 +16,7 @@
 #include <linux/namei.h>
 #include <linux/tracefs.h>
 #include <linux/fsnotify.h>
+#include <linux/security.h>
 #include <linux/seq_file.h>
 #include <linux/parser.h>
 #include <linux/magic.h>
@@ -390,6 +391,9 @@ struct dentry *tracefs_create_file(const char *name, umode_t mode,
 	struct dentry *dentry;
 	struct inode *inode;
 
+	if (security_locked_down(LOCKDOWN_TRACEFS))
+		return NULL;
+
 	if (!(mode & S_IFMT))
 		mode |= S_IFREG;
 	BUG_ON(!S_ISREG(mode));
@@ -505,9 +509,12 @@ static int __tracefs_remove(struct dentry *dentry, struct dentry *parent)
 			switch (dentry->d_inode->i_mode & S_IFMT) {
 			case S_IFDIR:
 				ret = simple_rmdir(parent->d_inode, dentry);
+				if (!ret)
+					fsnotify_rmdir(parent->d_inode, dentry);
 				break;
 			default:
 				simple_unlink(parent->d_inode, dentry);
+				fsnotify_unlink(parent->d_inode, dentry);
 				break;
 			}
 			if (!ret)

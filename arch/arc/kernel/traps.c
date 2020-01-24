@@ -47,7 +47,7 @@ unhandled_exception(const char *str, struct pt_regs *regs,
 
 		tsk->thread.fault_address = (__force unsigned int)addr;
 
-		force_sig_fault(signo, si_code, addr, tsk);
+		force_sig_fault(signo, si_code, addr);
 
 	} else {
 		/* If not due to copy_(to|from)_user, we are doomed */

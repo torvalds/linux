@@ -41,7 +41,7 @@
 #define HPTE_LOCK_BIT (56+3)
 #endif
 
-DEFINE_RAW_SPINLOCK(native_tlbie_lock);
+static DEFINE_RAW_SPINLOCK(native_tlbie_lock);
 
 static inline void tlbiel_hash_set_isa206(unsigned int set, unsigned int is)
 {
@@ -56,7 +56,7 @@ static inline void tlbiel_hash_set_isa206(unsigned int set, unsigned int is)
  * tlbiel instruction for hash, set invalidation
  * i.e., r=1 and is=01 or is=10 or is=11
  */
-static inline void tlbiel_hash_set_isa300(unsigned int set, unsigned int is,
+static __always_inline void tlbiel_hash_set_isa300(unsigned int set, unsigned int is,
 					unsigned int pid,
 					unsigned int ric, unsigned int prs)
 {
@@ -112,7 +112,7 @@ static void tlbiel_all_isa300(unsigned int num_sets, unsigned int is)
 
 	asm volatile("ptesync": : :"memory");
 
-	asm volatile(PPC_INVALIDATE_ERAT "; isync" : : :"memory");
+	asm volatile(PPC_ISA_3_0_INVALIDATE_ERAT "; isync" : : :"memory");
 }
 
 void hash__tlbiel_all(unsigned int action)
@@ -197,9 +197,32 @@ static inline unsigned long  ___tlbie(unsigned long vpn, int psize,
 	return va;
 }
 
-static inline void fixup_tlbie(unsigned long vpn, int psize, int apsize, int ssize)
+static inline void fixup_tlbie_vpn(unsigned long vpn, int psize,
+				   int apsize, int ssize)
 {
-	if (cpu_has_feature(CPU_FTR_P9_TLBIE_BUG)) {
+	if (cpu_has_feature(CPU_FTR_P9_TLBIE_ERAT_BUG)) {
+		/* Radix flush for a hash guest */
+
+		unsigned long rb,rs,prs,r,ric;
+
+		rb = PPC_BIT(52); /* IS = 2 */
+		rs = 0;  /* lpid = 0 */
+		prs = 0; /* partition scoped */
+		r = 1;   /* radix format */
+		ric = 0; /* RIC_FLSUH_TLB */
+
+		/*
+		 * Need the extra ptesync to make sure we don't
+		 * re-order the tlbie
+		 */
+		asm volatile("ptesync": : :"memory");
+		asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
+			     : : "r"(rb), "i"(r), "i"(prs),
+			       "i"(ric), "r"(rs) : "memory");
+	}
+
+
+	if (cpu_has_feature(CPU_FTR_P9_TLBIE_STQ_BUG)) {
 		/* Need the extra ptesync to ensure we don't reorder tlbie*/
 		asm volatile("ptesync": : :"memory");
 		___tlbie(vpn, psize, apsize, ssize);
@@ -283,7 +306,7 @@ static inline void tlbie(unsigned long vpn, int psize, int apsize,
 		asm volatile("ptesync": : :"memory");
 	} else {
 		__tlbie(vpn, psize, apsize, ssize);
-		fixup_tlbie(vpn, psize, apsize, ssize);
+		fixup_tlbie_vpn(vpn, psize, apsize, ssize);
 		asm volatile("eieio; tlbsync; ptesync": : :"memory");
 	}
 	if (lock_tlbie && !use_local)
@@ -459,19 +482,12 @@ static long native_hpte_updatepp(unsigned long slot, unsigned long newpp,
 	return ret;
 }
 
-static long native_hpte_find(unsigned long vpn, int psize, int ssize)
+static long __native_hpte_find(unsigned long want_v, unsigned long slot)
 {
 	struct hash_pte *hptep;
-	unsigned long hash;
+	unsigned long hpte_v;
 	unsigned long i;
-	long slot;
-	unsigned long want_v, hpte_v;
 
-	hash = hpt_hash(vpn, mmu_psize_defs[psize].shift, ssize);
-	want_v = hpte_encode_avpn(vpn, psize, ssize);
-
-	/* Bolted mappings are only ever in the primary group */
-	slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
 	for (i = 0; i < HPTES_PER_GROUP; i++) {
 
 		hptep = htab_address + slot;
@@ -483,6 +499,33 @@ static long native_hpte_find(unsigned long vpn, int psize, int ssize)
 	}
 
 	return -1;
+}
+
+static long native_hpte_find(unsigned long vpn, int psize, int ssize)
+{
+	unsigned long hpte_group;
+	unsigned long want_v;
+	unsigned long hash;
+	long slot;
+
+	hash = hpt_hash(vpn, mmu_psize_defs[psize].shift, ssize);
+	want_v = hpte_encode_avpn(vpn, psize, ssize);
+
+	/*
+	 * We try to keep bolted entries always in primary hash
+	 * But in some case we can find them in secondary too.
+	 */
+	hpte_group = (hash & htab_hash_mask) * HPTES_PER_GROUP;
+	slot = __native_hpte_find(want_v, hpte_group);
+	if (slot < 0) {
+		/* Try in secondary */
+		hpte_group = (~hash & htab_hash_mask) * HPTES_PER_GROUP;
+		slot = __native_hpte_find(want_v, hpte_group);
+		if (slot < 0)
+			return -1;
+	}
+
+	return slot;
 }
 
 /*
@@ -856,7 +899,7 @@ static void native_flush_hash_range(unsigned long number, int local)
 		/*
 		 * Just do one more with the last used values.
 		 */
-		fixup_tlbie(vpn, psize, psize, ssize);
+		fixup_tlbie_vpn(vpn, psize, psize, ssize);
 		asm volatile("eieio; tlbsync; ptesync":::"memory");
 
 		if (lock_tlbie)

@@ -376,21 +376,7 @@ static void rxrpc_secure_connection(struct rxrpc_connection *conn)
 	_enter("{%d}", conn->debug_id);
 
 	ASSERT(conn->security_ix != 0);
-
-	if (!conn->params.key) {
-		_debug("set up security");
-		ret = rxrpc_init_server_conn_security(conn);
-		switch (ret) {
-		case 0:
-			break;
-		case -ENOENT:
-			abort_code = RX_CALL_DEAD;
-			goto abort;
-		default:
-			abort_code = RXKADNOAUTH;
-			goto abort;
-		}
-	}
+	ASSERT(conn->server_key);
 
 	if (conn->security->issue_challenge(conn) < 0) {
 		abort_code = RX_CALL_DEAD;
@@ -472,7 +458,7 @@ void rxrpc_process_connection(struct work_struct *work)
 	/* go through the conn-level event packets, releasing the ref on this
 	 * connection that each one has when we've finished with it */
 	while ((skb = skb_dequeue(&conn->rx_queue))) {
-		rxrpc_see_skb(skb, rxrpc_skb_rx_seen);
+		rxrpc_see_skb(skb, rxrpc_skb_seen);
 		ret = rxrpc_process_event(conn, skb, &abort_code);
 		switch (ret) {
 		case -EPROTO:
@@ -484,7 +470,7 @@ void rxrpc_process_connection(struct work_struct *work)
 			goto requeue_and_leave;
 		case -ECONNABORTED:
 		default:
-			rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
+			rxrpc_free_skb(skb, rxrpc_skb_freed);
 			break;
 		}
 	}
@@ -501,6 +487,6 @@ requeue_and_leave:
 protocol_error:
 	if (rxrpc_abort_connection(conn, ret, abort_code) < 0)
 		goto requeue_and_leave;
-	rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
+	rxrpc_free_skb(skb, rxrpc_skb_freed);
 	goto out;
 }

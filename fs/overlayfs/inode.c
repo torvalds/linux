@@ -200,8 +200,14 @@ int ovl_getattr(const struct path *path, struct kstat *stat,
 			if (ovl_test_flag(OVL_INDEX, d_inode(dentry)) ||
 			    (!ovl_verify_lower(dentry->d_sb) &&
 			     (is_dir || lowerstat.nlink == 1))) {
-				stat->ino = lowerstat.ino;
 				lower_layer = ovl_layer_lower(dentry);
+				/*
+				 * Cannot use origin st_dev;st_ino because
+				 * origin inode content may differ from overlay
+				 * inode content.
+				 */
+				if (samefs || lower_layer->fsid)
+					stat->ino = lowerstat.ino;
 			}
 
 			/*
@@ -383,7 +389,8 @@ static bool ovl_can_list(const char *s)
 		return true;
 
 	/* Never list trusted.overlay, list other trusted for superuser only */
-	return !ovl_is_private_xattr(s) && capable(CAP_SYS_ADMIN);
+	return !ovl_is_private_xattr(s) &&
+	       ns_capable_noaudit(&init_user_ns, CAP_SYS_ADMIN);
 }
 
 ssize_t ovl_listxattr(struct dentry *dentry, char *list, size_t size)

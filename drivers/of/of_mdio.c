@@ -162,7 +162,7 @@ static const struct of_device_id whitelist_phys[] = {
  * A device which is not a phy is expected to have a compatible string
  * indicating what sort of device it is.
  */
-static bool of_mdiobus_child_is_phy(struct device_node *child)
+bool of_mdiobus_child_is_phy(struct device_node *child)
 {
 	u32 phy_id;
 
@@ -187,6 +187,7 @@ static bool of_mdiobus_child_is_phy(struct device_node *child)
 
 	return false;
 }
+EXPORT_SYMBOL(of_mdiobus_child_is_phy);
 
 /**
  * of_mdiobus_register - Register mii_bus and create PHYs from the device tree
@@ -280,12 +281,6 @@ unregister:
 }
 EXPORT_SYMBOL(of_mdiobus_register);
 
-/* Helper function for of_phy_find_device */
-static int of_phy_match(struct device *dev, void *phy_np)
-{
-	return dev->of_node == phy_np;
-}
-
 /**
  * of_phy_find_device - Give a PHY node, find the phy_device
  * @phy_np: Pointer to the phy's device tree node
@@ -301,7 +296,7 @@ struct phy_device *of_phy_find_device(struct device_node *phy_np)
 	if (!phy_np)
 		return NULL;
 
-	d = bus_find_device(&mdio_bus_type, NULL, phy_np, of_phy_match);
+	d = bus_find_device_by_of_node(&mdio_bus_type, phy_np);
 	if (d) {
 		mdiodev = to_mdio_device(d);
 		if (mdiodev->flags & MDIO_DEVICE_FLAG_PHY)
@@ -367,8 +362,8 @@ struct phy_device *of_phy_get_and_connect(struct net_device *dev,
 	struct phy_device *phy;
 	int ret;
 
-	iface = of_get_phy_mode(np);
-	if (iface < 0)
+	ret = of_get_phy_mode(np, &iface);
+	if (ret)
 		return NULL;
 	if (of_phy_is_fixed_link(np)) {
 		ret = of_phy_register_fixed_link(np);

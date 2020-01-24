@@ -17,12 +17,15 @@
 #include <linux/sched/task.h>
 #include <linux/swiotlb.h>
 
+#include <asm/clint.h>
 #include <asm/setup.h>
 #include <asm/sections.h>
 #include <asm/pgtable.h>
 #include <asm/smp.h>
 #include <asm/tlbflush.h>
 #include <asm/thread_info.h>
+
+#include "head.h"
 
 #ifdef CONFIG_DUMMY_CONSOLE
 struct screen_info screen_info = {
@@ -39,11 +42,9 @@ struct screen_info screen_info = {
 atomic_t hart_lottery;
 unsigned long boot_cpu_hartid;
 
-void __init parse_dtb(phys_addr_t dtb_phys)
+void __init parse_dtb(void)
 {
-	void *dtb = __va(dtb_phys);
-
-	if (early_init_dt_scan(dtb))
+	if (early_init_dt_scan(dtb_early_va))
 		return;
 
 	pr_err("No DTB passed to the kernel\n");
@@ -67,6 +68,7 @@ void __init setup_arch(char **cmdline_p)
 	setup_bootmem();
 	paging_init();
 	unflatten_device_tree();
+	clint_init_boot_cpu();
 
 #ifdef CONFIG_SWIOTLB
 	swiotlb_init(1);

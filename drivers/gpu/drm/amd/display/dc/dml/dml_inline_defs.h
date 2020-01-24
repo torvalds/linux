@@ -129,4 +129,12 @@ static inline unsigned int dml_round_to_multiple(unsigned int num,
 	else
 		return (num - remainder);
 }
+static inline double dml_abs(double a)
+{
+	if (a > 0)
+		return a;
+	else
+		return (a*(-1));
+}
+
 #endif

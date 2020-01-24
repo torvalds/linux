@@ -2411,12 +2411,6 @@ static int r8a66597_probe(struct platform_device *pdev)
 	if (usb_disabled())
 		return -ENODEV;
 
-	if (pdev->dev.dma_mask) {
-		ret = -EINVAL;
-		dev_err(&pdev->dev, "dma not supported\n");
-		goto clean_up;
-	}
-
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		ret = -ENODEV;

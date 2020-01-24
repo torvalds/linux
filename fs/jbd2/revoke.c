@@ -371,6 +371,11 @@ int jbd2_journal_revoke(handle_t *handle, unsigned long long blocknr,
 	}
 #endif
 
+	if (WARN_ON_ONCE(handle->h_revoke_credits <= 0)) {
+		if (!bh_in)
+			brelse(bh);
+		return -EIO;
+	}
 	/* We really ought not ever to revoke twice in a row without
            first having the revoke cancelled: it's illegal to free a
            block twice without allocating it in between! */
@@ -391,6 +396,7 @@ int jbd2_journal_revoke(handle_t *handle, unsigned long long blocknr,
 			__brelse(bh);
 		}
 	}
+	handle->h_revoke_credits--;
 
 	jbd_debug(2, "insert revoke for block %llu, bh_in=%p\n",blocknr, bh_in);
 	err = insert_revoke_hash(journal, blocknr,
@@ -638,10 +644,8 @@ static void flush_descriptor(journal_t *journal,
 {
 	jbd2_journal_revoke_header_t *header;
 
-	if (is_journal_aborted(journal)) {
-		put_bh(descriptor);
+	if (is_journal_aborted(journal))
 		return;
-	}
 
 	header = (jbd2_journal_revoke_header_t *)descriptor->b_data;
 	header->r_count = cpu_to_be32(offset);

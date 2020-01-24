@@ -30,6 +30,10 @@ module_param(use_dma_mrpc, bool, 0644);
 MODULE_PARM_DESC(use_dma_mrpc,
 		 "Enable the use of the DMA MRPC feature");
 
+static int nirqs = 32;
+module_param(nirqs, int, 0644);
+MODULE_PARM_DESC(nirqs, "number of interrupts to allocate (more may be useful for NTB applications)");
+
 static dev_t switchtec_devt;
 static DEFINE_IDA(switchtec_minor_ida);
 
@@ -671,7 +675,7 @@ static int ioctl_event_summary(struct switchtec_dev *stdev,
 		return -ENOMEM;
 
 	s->global = ioread32(&stdev->mmio_sw_event->global_summary);
-	s->part_bitmap = ioread32(&stdev->mmio_sw_event->part_event_bitmap);
+	s->part_bitmap = ioread64(&stdev->mmio_sw_event->part_event_bitmap);
 	s->local_part = ioread32(&stdev->mmio_part_cfg->part_event_summary);
 
 	for (i = 0; i < stdev->partition_count; i++) {
@@ -1021,7 +1025,7 @@ static const struct file_operations switchtec_fops = {
 	.read = switchtec_dev_read,
 	.poll = switchtec_dev_poll,
 	.unlocked_ioctl = switchtec_dev_ioctl,
-	.compat_ioctl = switchtec_dev_ioctl,
+	.compat_ioctl = compat_ptr_ioctl,
 };
 
 static void link_event_work(struct work_struct *work)
@@ -1263,8 +1267,12 @@ static int switchtec_init_isr(struct switchtec_dev *stdev)
 	int dma_mrpc_irq;
 	int rc;
 
-	nvecs = pci_alloc_irq_vectors(stdev->pdev, 1, 4,
-				      PCI_IRQ_MSIX | PCI_IRQ_MSI);
+	if (nirqs < 4)
+		nirqs = 4;
+
+	nvecs = pci_alloc_irq_vectors(stdev->pdev, 1, nirqs,
+				      PCI_IRQ_MSIX | PCI_IRQ_MSI |
+				      PCI_IRQ_VIRTUAL);
 	if (nvecs < 0)
 		return nvecs;
 

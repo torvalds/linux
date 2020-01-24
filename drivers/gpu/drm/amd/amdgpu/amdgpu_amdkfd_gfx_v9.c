@@ -19,17 +19,10 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-
-#define pr_fmt(fmt) "kfd2kgd: " fmt
-
-#include <linux/module.h>
-#include <linux/fdtable.h>
-#include <linux/uaccess.h>
 #include <linux/mmu_context.h>
-#include <drm/drmP.h>
+
 #include "amdgpu.h"
 #include "amdgpu_amdkfd.h"
-#include "soc15_hw_ip.h"
 #include "gc/gc_9_0_offset.h"
 #include "gc/gc_9_0_sh_mask.h"
 #include "vega10_enum.h"
@@ -47,10 +40,8 @@
 #include "soc15d.h"
 #include "mmhub_v1_0.h"
 #include "gfxhub_v1_0.h"
+#include "gmc_v9_0.h"
 
-
-#define V9_PIPE_PER_MEC		(4)
-#define V9_QUEUES_PER_PIPE_MEC	(8)
 
 enum hqd_dequeue_request_type {
 	NO_ACTION = 0,
@@ -58,66 +49,11 @@ enum hqd_dequeue_request_type {
 	RESET_WAVES
 };
 
-/*
- * Register access functions
- */
-
-static void kgd_program_sh_mem_settings(struct kgd_dev *kgd, uint32_t vmid,
-		uint32_t sh_mem_config,
-		uint32_t sh_mem_ape1_base, uint32_t sh_mem_ape1_limit,
-		uint32_t sh_mem_bases);
-static int kgd_set_pasid_vmid_mapping(struct kgd_dev *kgd, unsigned int pasid,
-		unsigned int vmid);
-static int kgd_init_interrupts(struct kgd_dev *kgd, uint32_t pipe_id);
-static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
-			uint32_t queue_id, uint32_t __user *wptr,
-			uint32_t wptr_shift, uint32_t wptr_mask,
-			struct mm_struct *mm);
-static int kgd_hqd_dump(struct kgd_dev *kgd,
-			uint32_t pipe_id, uint32_t queue_id,
-			uint32_t (**dump)[2], uint32_t *n_regs);
-static int kgd_hqd_sdma_load(struct kgd_dev *kgd, void *mqd,
-			     uint32_t __user *wptr, struct mm_struct *mm);
-static int kgd_hqd_sdma_dump(struct kgd_dev *kgd,
-			     uint32_t engine_id, uint32_t queue_id,
-			     uint32_t (**dump)[2], uint32_t *n_regs);
-static bool kgd_hqd_is_occupied(struct kgd_dev *kgd, uint64_t queue_address,
-		uint32_t pipe_id, uint32_t queue_id);
-static bool kgd_hqd_sdma_is_occupied(struct kgd_dev *kgd, void *mqd);
-static int kgd_hqd_destroy(struct kgd_dev *kgd, void *mqd,
-				enum kfd_preempt_type reset_type,
-				unsigned int utimeout, uint32_t pipe_id,
-				uint32_t queue_id);
-static int kgd_hqd_sdma_destroy(struct kgd_dev *kgd, void *mqd,
-				unsigned int utimeout);
-static int kgd_address_watch_disable(struct kgd_dev *kgd);
-static int kgd_address_watch_execute(struct kgd_dev *kgd,
-					unsigned int watch_point_id,
-					uint32_t cntl_val,
-					uint32_t addr_hi,
-					uint32_t addr_lo);
-static int kgd_wave_control_execute(struct kgd_dev *kgd,
-					uint32_t gfx_index_val,
-					uint32_t sq_cmd);
-static uint32_t kgd_address_watch_get_offset(struct kgd_dev *kgd,
-					unsigned int watch_point_id,
-					unsigned int reg_offset);
-
-static bool get_atc_vmid_pasid_mapping_valid(struct kgd_dev *kgd,
-		uint8_t vmid);
-static uint16_t get_atc_vmid_pasid_mapping_pasid(struct kgd_dev *kgd,
-		uint8_t vmid);
-static void set_vm_context_page_table_base(struct kgd_dev *kgd, uint32_t vmid,
-		uint64_t page_table_base);
-static void set_scratch_backing_va(struct kgd_dev *kgd,
-					uint64_t va, uint32_t vmid);
-static int invalidate_tlbs(struct kgd_dev *kgd, uint16_t pasid);
-static int invalidate_tlbs_vmid(struct kgd_dev *kgd, uint16_t vmid);
 
 /* Because of REG_GET_FIELD() being used, we put this function in the
  * asic specific file.
  */
-static int amdgpu_amdkfd_get_tile_config(struct kgd_dev *kgd,
+int kgd_gfx_v9_get_tile_config(struct kgd_dev *kgd,
 		struct tile_config *config)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
@@ -133,39 +69,6 @@ static int amdgpu_amdkfd_get_tile_config(struct kgd_dev *kgd,
 			ARRAY_SIZE(adev->gfx.config.macrotile_mode_array);
 
 	return 0;
-}
-
-static const struct kfd2kgd_calls kfd2kgd = {
-	.program_sh_mem_settings = kgd_program_sh_mem_settings,
-	.set_pasid_vmid_mapping = kgd_set_pasid_vmid_mapping,
-	.init_interrupts = kgd_init_interrupts,
-	.hqd_load = kgd_hqd_load,
-	.hqd_sdma_load = kgd_hqd_sdma_load,
-	.hqd_dump = kgd_hqd_dump,
-	.hqd_sdma_dump = kgd_hqd_sdma_dump,
-	.hqd_is_occupied = kgd_hqd_is_occupied,
-	.hqd_sdma_is_occupied = kgd_hqd_sdma_is_occupied,
-	.hqd_destroy = kgd_hqd_destroy,
-	.hqd_sdma_destroy = kgd_hqd_sdma_destroy,
-	.address_watch_disable = kgd_address_watch_disable,
-	.address_watch_execute = kgd_address_watch_execute,
-	.wave_control_execute = kgd_wave_control_execute,
-	.address_watch_get_offset = kgd_address_watch_get_offset,
-	.get_atc_vmid_pasid_mapping_pasid =
-			get_atc_vmid_pasid_mapping_pasid,
-	.get_atc_vmid_pasid_mapping_valid =
-			get_atc_vmid_pasid_mapping_valid,
-	.set_scratch_backing_va = set_scratch_backing_va,
-	.get_tile_config = amdgpu_amdkfd_get_tile_config,
-	.set_vm_context_page_table_base = set_vm_context_page_table_base,
-	.invalidate_tlbs = invalidate_tlbs,
-	.invalidate_tlbs_vmid = invalidate_tlbs_vmid,
-	.get_hive_id = amdgpu_amdkfd_get_hive_id,
-};
-
-struct kfd2kgd_calls *amdgpu_amdkfd_gfx_9_0_get_functions(void)
-{
-	return (struct kfd2kgd_calls *)&kfd2kgd;
 }
 
 static inline struct amdgpu_device *get_amdgpu_device(struct kgd_dev *kgd)
@@ -215,7 +118,7 @@ static void release_queue(struct kgd_dev *kgd)
 	unlock_srbm(kgd);
 }
 
-static void kgd_program_sh_mem_settings(struct kgd_dev *kgd, uint32_t vmid,
+void kgd_gfx_v9_program_sh_mem_settings(struct kgd_dev *kgd, uint32_t vmid,
 					uint32_t sh_mem_config,
 					uint32_t sh_mem_ape1_base,
 					uint32_t sh_mem_ape1_limit,
@@ -225,14 +128,14 @@ static void kgd_program_sh_mem_settings(struct kgd_dev *kgd, uint32_t vmid,
 
 	lock_srbm(kgd, 0, 0, 0, vmid);
 
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmSH_MEM_CONFIG), sh_mem_config);
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmSH_MEM_BASES), sh_mem_bases);
+	WREG32_RLC(SOC15_REG_OFFSET(GC, 0, mmSH_MEM_CONFIG), sh_mem_config);
+	WREG32_RLC(SOC15_REG_OFFSET(GC, 0, mmSH_MEM_BASES), sh_mem_bases);
 	/* APE1 no longer exists on GFX9 */
 
 	unlock_srbm(kgd);
 }
 
-static int kgd_set_pasid_vmid_mapping(struct kgd_dev *kgd, unsigned int pasid,
+int kgd_gfx_v9_set_pasid_vmid_mapping(struct kgd_dev *kgd, unsigned int pasid,
 					unsigned int vmid)
 {
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
@@ -293,7 +196,7 @@ static int kgd_set_pasid_vmid_mapping(struct kgd_dev *kgd, unsigned int pasid,
  * but still works
  */
 
-static int kgd_init_interrupts(struct kgd_dev *kgd, uint32_t pipe_id)
+int kgd_gfx_v9_init_interrupts(struct kgd_dev *kgd, uint32_t pipe_id)
 {
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	uint32_t mec;
@@ -313,22 +216,21 @@ static int kgd_init_interrupts(struct kgd_dev *kgd, uint32_t pipe_id)
 	return 0;
 }
 
-static uint32_t get_sdma_base_addr(struct amdgpu_device *adev,
+static uint32_t get_sdma_rlc_reg_offset(struct amdgpu_device *adev,
 				unsigned int engine_id,
 				unsigned int queue_id)
 {
-	uint32_t base[2] = {
+	uint32_t sdma_engine_reg_base[2] = {
 		SOC15_REG_OFFSET(SDMA0, 0,
 				 mmSDMA0_RLC0_RB_CNTL) - mmSDMA0_RLC0_RB_CNTL,
 		SOC15_REG_OFFSET(SDMA1, 0,
 				 mmSDMA1_RLC0_RB_CNTL) - mmSDMA1_RLC0_RB_CNTL
 	};
-	uint32_t retval;
+	uint32_t retval = sdma_engine_reg_base[engine_id]
+		+ queue_id * (mmSDMA0_RLC1_RB_CNTL - mmSDMA0_RLC0_RB_CNTL);
 
-	retval = base[engine_id] + queue_id * (mmSDMA0_RLC1_RB_CNTL -
-					       mmSDMA0_RLC0_RB_CNTL);
-
-	pr_debug("sdma base address: 0x%x\n", retval);
+	pr_debug("RLC register offset for SDMA%d RLC%d: 0x%x\n", engine_id,
+			queue_id, retval);
 
 	return retval;
 }
@@ -343,7 +245,7 @@ static inline struct v9_sdma_mqd *get_sdma_mqd(void *mqd)
 	return (struct v9_sdma_mqd *)mqd;
 }
 
-static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
+int kgd_gfx_v9_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 			uint32_t queue_id, uint32_t __user *wptr,
 			uint32_t wptr_shift, uint32_t wptr_mask,
 			struct mm_struct *mm)
@@ -369,7 +271,7 @@ static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 		value = RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_CP_SCHEDULERS));
 		value = REG_SET_FIELD(value, RLC_CP_SCHEDULERS, scheduler1,
 			((mec << 5) | (pipe << 3) | queue_id | 0x80));
-		WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_CP_SCHEDULERS), value);
+		WREG32_RLC(SOC15_REG_OFFSET(GC, 0, mmRLC_CP_SCHEDULERS), value);
 	}
 
 	/* HQD registers extend from CP_MQD_BASE_ADDR to CP_HQD_EOP_WPTR_MEM. */
@@ -378,13 +280,13 @@ static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 
 	for (reg = hqd_base;
 	     reg <= SOC15_REG_OFFSET(GC, 0, mmCP_HQD_PQ_WPTR_HI); reg++)
-		WREG32(reg, mqd_hqd[reg - hqd_base]);
+		WREG32_RLC(reg, mqd_hqd[reg - hqd_base]);
 
 
 	/* Activate doorbell logic before triggering WPTR poll. */
 	data = REG_SET_FIELD(m->cp_hqd_pq_doorbell_control,
 			     CP_HQD_PQ_DOORBELL_CONTROL, DOORBELL_EN, 1);
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmCP_HQD_PQ_DOORBELL_CONTROL), data);
+	WREG32_RLC(SOC15_REG_OFFSET(GC, 0, mmCP_HQD_PQ_DOORBELL_CONTROL), data);
 
 	if (wptr) {
 		/* Don't read wptr with get_user because the user
@@ -413,32 +315,32 @@ static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 		guessed_wptr += m->cp_hqd_pq_wptr_lo & ~(queue_size - 1);
 		guessed_wptr += (uint64_t)m->cp_hqd_pq_wptr_hi << 32;
 
-		WREG32(SOC15_REG_OFFSET(GC, 0, mmCP_HQD_PQ_WPTR_LO),
+		WREG32_RLC(SOC15_REG_OFFSET(GC, 0, mmCP_HQD_PQ_WPTR_LO),
 		       lower_32_bits(guessed_wptr));
-		WREG32(SOC15_REG_OFFSET(GC, 0, mmCP_HQD_PQ_WPTR_HI),
+		WREG32_RLC(SOC15_REG_OFFSET(GC, 0, mmCP_HQD_PQ_WPTR_HI),
 		       upper_32_bits(guessed_wptr));
-		WREG32(SOC15_REG_OFFSET(GC, 0, mmCP_HQD_PQ_WPTR_POLL_ADDR),
+		WREG32_RLC(SOC15_REG_OFFSET(GC, 0, mmCP_HQD_PQ_WPTR_POLL_ADDR),
 		       lower_32_bits((uintptr_t)wptr));
-		WREG32(SOC15_REG_OFFSET(GC, 0, mmCP_HQD_PQ_WPTR_POLL_ADDR_HI),
+		WREG32_RLC(SOC15_REG_OFFSET(GC, 0, mmCP_HQD_PQ_WPTR_POLL_ADDR_HI),
 		       upper_32_bits((uintptr_t)wptr));
 		WREG32(SOC15_REG_OFFSET(GC, 0, mmCP_PQ_WPTR_POLL_CNTL1),
 		       get_queue_mask(adev, pipe_id, queue_id));
 	}
 
 	/* Start the EOP fetcher */
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmCP_HQD_EOP_RPTR),
+	WREG32_RLC(SOC15_REG_OFFSET(GC, 0, mmCP_HQD_EOP_RPTR),
 	       REG_SET_FIELD(m->cp_hqd_eop_rptr,
 			     CP_HQD_EOP_RPTR, INIT_FETCHER, 1));
 
 	data = REG_SET_FIELD(m->cp_hqd_active, CP_HQD_ACTIVE, ACTIVE, 1);
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmCP_HQD_ACTIVE), data);
+	WREG32_RLC(SOC15_REG_OFFSET(GC, 0, mmCP_HQD_ACTIVE), data);
 
 	release_queue(kgd);
 
 	return 0;
 }
 
-static int kgd_hqd_dump(struct kgd_dev *kgd,
+int kgd_gfx_v9_hqd_dump(struct kgd_dev *kgd,
 			uint32_t pipe_id, uint32_t queue_id,
 			uint32_t (**dump)[2], uint32_t *n_regs)
 {
@@ -475,71 +377,67 @@ static int kgd_hqd_sdma_load(struct kgd_dev *kgd, void *mqd,
 {
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	struct v9_sdma_mqd *m;
-	uint32_t sdma_base_addr, sdmax_gfx_context_cntl;
+	uint32_t sdma_rlc_reg_offset;
 	unsigned long end_jiffies;
 	uint32_t data;
 	uint64_t data64;
 	uint64_t __user *wptr64 = (uint64_t __user *)wptr;
 
 	m = get_sdma_mqd(mqd);
-	sdma_base_addr = get_sdma_base_addr(adev, m->sdma_engine_id,
+	sdma_rlc_reg_offset = get_sdma_rlc_reg_offset(adev, m->sdma_engine_id,
 					    m->sdma_queue_id);
-	sdmax_gfx_context_cntl = m->sdma_engine_id ?
-		SOC15_REG_OFFSET(SDMA1, 0, mmSDMA1_GFX_CONTEXT_CNTL) :
-		SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_GFX_CONTEXT_CNTL);
 
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_CNTL,
+	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_CNTL,
 		m->sdmax_rlcx_rb_cntl & (~SDMA0_RLC0_RB_CNTL__RB_ENABLE_MASK));
 
 	end_jiffies = msecs_to_jiffies(2000) + jiffies;
 	while (true) {
-		data = RREG32(sdma_base_addr + mmSDMA0_RLC0_CONTEXT_STATUS);
+		data = RREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_CONTEXT_STATUS);
 		if (data & SDMA0_RLC0_CONTEXT_STATUS__IDLE_MASK)
 			break;
-		if (time_after(jiffies, end_jiffies))
+		if (time_after(jiffies, end_jiffies)) {
+			pr_err("SDMA RLC not idle in %s\n", __func__);
 			return -ETIME;
+		}
 		usleep_range(500, 1000);
 	}
-	data = RREG32(sdmax_gfx_context_cntl);
-	data = REG_SET_FIELD(data, SDMA0_GFX_CONTEXT_CNTL,
-			     RESUME_CTX, 0);
-	WREG32(sdmax_gfx_context_cntl, data);
 
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_DOORBELL_OFFSET,
+	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_DOORBELL_OFFSET,
 	       m->sdmax_rlcx_doorbell_offset);
 
 	data = REG_SET_FIELD(m->sdmax_rlcx_doorbell, SDMA0_RLC0_DOORBELL,
 			     ENABLE, 1);
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_DOORBELL, data);
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_RPTR, m->sdmax_rlcx_rb_rptr);
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_RPTR_HI,
+	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_DOORBELL, data);
+	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_RPTR,
+				m->sdmax_rlcx_rb_rptr);
+	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_RPTR_HI,
 				m->sdmax_rlcx_rb_rptr_hi);
 
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_MINOR_PTR_UPDATE, 1);
+	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_MINOR_PTR_UPDATE, 1);
 	if (read_user_wptr(mm, wptr64, data64)) {
-		WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_WPTR,
+		WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_WPTR,
 		       lower_32_bits(data64));
-		WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_WPTR_HI,
+		WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_WPTR_HI,
 		       upper_32_bits(data64));
 	} else {
-		WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_WPTR,
+		WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_WPTR,
 		       m->sdmax_rlcx_rb_rptr);
-		WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_WPTR_HI,
+		WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_WPTR_HI,
 		       m->sdmax_rlcx_rb_rptr_hi);
 	}
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_MINOR_PTR_UPDATE, 0);
+	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_MINOR_PTR_UPDATE, 0);
 
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_BASE, m->sdmax_rlcx_rb_base);
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_BASE_HI,
+	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_BASE, m->sdmax_rlcx_rb_base);
+	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_BASE_HI,
 			m->sdmax_rlcx_rb_base_hi);
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_RPTR_ADDR_LO,
+	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_RPTR_ADDR_LO,
 			m->sdmax_rlcx_rb_rptr_addr_lo);
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_RPTR_ADDR_HI,
+	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_RPTR_ADDR_HI,
 			m->sdmax_rlcx_rb_rptr_addr_hi);
 
 	data = REG_SET_FIELD(m->sdmax_rlcx_rb_cntl, SDMA0_RLC0_RB_CNTL,
 			     RB_ENABLE, 1);
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_CNTL, data);
+	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_CNTL, data);
 
 	return 0;
 }
@@ -549,7 +447,8 @@ static int kgd_hqd_sdma_dump(struct kgd_dev *kgd,
 			     uint32_t (**dump)[2], uint32_t *n_regs)
 {
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
-	uint32_t sdma_base_addr = get_sdma_base_addr(adev, engine_id, queue_id);
+	uint32_t sdma_rlc_reg_offset = get_sdma_rlc_reg_offset(adev,
+			engine_id, queue_id);
 	uint32_t i = 0, reg;
 #undef HQD_N_REGS
 #define HQD_N_REGS (19+6+7+10)
@@ -559,15 +458,15 @@ static int kgd_hqd_sdma_dump(struct kgd_dev *kgd,
 		return -ENOMEM;
 
 	for (reg = mmSDMA0_RLC0_RB_CNTL; reg <= mmSDMA0_RLC0_DOORBELL; reg++)
-		DUMP_REG(sdma_base_addr + reg);
+		DUMP_REG(sdma_rlc_reg_offset + reg);
 	for (reg = mmSDMA0_RLC0_STATUS; reg <= mmSDMA0_RLC0_CSA_ADDR_HI; reg++)
-		DUMP_REG(sdma_base_addr + reg);
+		DUMP_REG(sdma_rlc_reg_offset + reg);
 	for (reg = mmSDMA0_RLC0_IB_SUB_REMAIN;
 	     reg <= mmSDMA0_RLC0_MINOR_PTR_UPDATE; reg++)
-		DUMP_REG(sdma_base_addr + reg);
+		DUMP_REG(sdma_rlc_reg_offset + reg);
 	for (reg = mmSDMA0_RLC0_MIDCMD_DATA0;
 	     reg <= mmSDMA0_RLC0_MIDCMD_CNTL; reg++)
-		DUMP_REG(sdma_base_addr + reg);
+		DUMP_REG(sdma_rlc_reg_offset + reg);
 
 	WARN_ON_ONCE(i != HQD_N_REGS);
 	*n_regs = i;
@@ -575,7 +474,7 @@ static int kgd_hqd_sdma_dump(struct kgd_dev *kgd,
 	return 0;
 }
 
-static bool kgd_hqd_is_occupied(struct kgd_dev *kgd, uint64_t queue_address,
+bool kgd_gfx_v9_hqd_is_occupied(struct kgd_dev *kgd, uint64_t queue_address,
 				uint32_t pipe_id, uint32_t queue_id)
 {
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
@@ -601,14 +500,14 @@ static bool kgd_hqd_sdma_is_occupied(struct kgd_dev *kgd, void *mqd)
 {
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	struct v9_sdma_mqd *m;
-	uint32_t sdma_base_addr;
+	uint32_t sdma_rlc_reg_offset;
 	uint32_t sdma_rlc_rb_cntl;
 
 	m = get_sdma_mqd(mqd);
-	sdma_base_addr = get_sdma_base_addr(adev, m->sdma_engine_id,
+	sdma_rlc_reg_offset = get_sdma_rlc_reg_offset(adev, m->sdma_engine_id,
 					    m->sdma_queue_id);
 
-	sdma_rlc_rb_cntl = RREG32(sdma_base_addr + mmSDMA0_RLC0_RB_CNTL);
+	sdma_rlc_rb_cntl = RREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_CNTL);
 
 	if (sdma_rlc_rb_cntl & SDMA0_RLC0_RB_CNTL__RB_ENABLE_MASK)
 		return true;
@@ -616,7 +515,7 @@ static bool kgd_hqd_sdma_is_occupied(struct kgd_dev *kgd, void *mqd)
 	return false;
 }
 
-static int kgd_hqd_destroy(struct kgd_dev *kgd, void *mqd,
+int kgd_gfx_v9_hqd_destroy(struct kgd_dev *kgd, void *mqd,
 				enum kfd_preempt_type reset_type,
 				unsigned int utimeout, uint32_t pipe_id,
 				uint32_t queue_id)
@@ -633,7 +532,7 @@ static int kgd_hqd_destroy(struct kgd_dev *kgd, void *mqd,
 	acquire_queue(kgd, pipe_id, queue_id);
 
 	if (m->cp_hqd_vmid == 0)
-		WREG32_FIELD15(GC, 0, RLC_CP_SCHEDULERS, scheduler1, 0);
+		WREG32_FIELD15_RLC(GC, 0, RLC_CP_SCHEDULERS, scheduler1, 0);
 
 	switch (reset_type) {
 	case KFD_PREEMPT_TYPE_WAVEFRONT_DRAIN:
@@ -647,7 +546,7 @@ static int kgd_hqd_destroy(struct kgd_dev *kgd, void *mqd,
 		break;
 	}
 
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmCP_HQD_DEQUEUE_REQUEST), type);
+	WREG32_RLC(SOC15_REG_OFFSET(GC, 0, mmCP_HQD_DEQUEUE_REQUEST), type);
 
 	end_jiffies = (utimeout * HZ / 1000) + jiffies;
 	while (true) {
@@ -671,64 +570,126 @@ static int kgd_hqd_sdma_destroy(struct kgd_dev *kgd, void *mqd,
 {
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	struct v9_sdma_mqd *m;
-	uint32_t sdma_base_addr;
+	uint32_t sdma_rlc_reg_offset;
 	uint32_t temp;
 	unsigned long end_jiffies = (utimeout * HZ / 1000) + jiffies;
 
 	m = get_sdma_mqd(mqd);
-	sdma_base_addr = get_sdma_base_addr(adev, m->sdma_engine_id,
+	sdma_rlc_reg_offset = get_sdma_rlc_reg_offset(adev, m->sdma_engine_id,
 					    m->sdma_queue_id);
 
-	temp = RREG32(sdma_base_addr + mmSDMA0_RLC0_RB_CNTL);
+	temp = RREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_CNTL);
 	temp = temp & ~SDMA0_RLC0_RB_CNTL__RB_ENABLE_MASK;
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_CNTL, temp);
+	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_CNTL, temp);
 
 	while (true) {
-		temp = RREG32(sdma_base_addr + mmSDMA0_RLC0_CONTEXT_STATUS);
+		temp = RREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_CONTEXT_STATUS);
 		if (temp & SDMA0_RLC0_CONTEXT_STATUS__IDLE_MASK)
 			break;
-		if (time_after(jiffies, end_jiffies))
+		if (time_after(jiffies, end_jiffies)) {
+			pr_err("SDMA RLC not idle in %s\n", __func__);
 			return -ETIME;
+		}
 		usleep_range(500, 1000);
 	}
 
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_DOORBELL, 0);
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_CNTL,
-		RREG32(sdma_base_addr + mmSDMA0_RLC0_RB_CNTL) |
+	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_DOORBELL, 0);
+	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_CNTL,
+		RREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_CNTL) |
 		SDMA0_RLC0_RB_CNTL__RB_ENABLE_MASK);
 
-	m->sdmax_rlcx_rb_rptr = RREG32(sdma_base_addr + mmSDMA0_RLC0_RB_RPTR);
+	m->sdmax_rlcx_rb_rptr = RREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_RPTR);
 	m->sdmax_rlcx_rb_rptr_hi =
-		RREG32(sdma_base_addr + mmSDMA0_RLC0_RB_RPTR_HI);
+		RREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_RPTR_HI);
 
 	return 0;
 }
 
-static bool get_atc_vmid_pasid_mapping_valid(struct kgd_dev *kgd,
-							uint8_t vmid)
+bool kgd_gfx_v9_get_atc_vmid_pasid_mapping_info(struct kgd_dev *kgd,
+					uint8_t vmid, uint16_t *p_pasid)
 {
-	uint32_t reg;
+	uint32_t value;
 	struct amdgpu_device *adev = (struct amdgpu_device *) kgd;
 
-	reg = RREG32(SOC15_REG_OFFSET(ATHUB, 0, mmATC_VMID0_PASID_MAPPING)
+	value = RREG32(SOC15_REG_OFFSET(ATHUB, 0, mmATC_VMID0_PASID_MAPPING)
 		     + vmid);
-	return reg & ATC_VMID0_PASID_MAPPING__VALID_MASK;
+	*p_pasid = value & ATC_VMID0_PASID_MAPPING__PASID_MASK;
+
+	return !!(value & ATC_VMID0_PASID_MAPPING__VALID_MASK);
 }
 
-static uint16_t get_atc_vmid_pasid_mapping_pasid(struct kgd_dev *kgd,
-								uint8_t vmid)
+static int invalidate_tlbs_with_kiq(struct amdgpu_device *adev, uint16_t pasid,
+			uint32_t flush_type)
 {
-	uint32_t reg;
-	struct amdgpu_device *adev = (struct amdgpu_device *) kgd;
+	signed long r;
+	uint32_t seq;
+	struct amdgpu_ring *ring = &adev->gfx.kiq.ring;
 
-	reg = RREG32(SOC15_REG_OFFSET(ATHUB, 0, mmATC_VMID0_PASID_MAPPING)
-		     + vmid);
-	return reg & ATC_VMID0_PASID_MAPPING__PASID_MASK;
+	spin_lock(&adev->gfx.kiq.ring_lock);
+	amdgpu_ring_alloc(ring, 12); /* fence + invalidate_tlbs package*/
+	amdgpu_ring_write(ring, PACKET3(PACKET3_INVALIDATE_TLBS, 0));
+	amdgpu_ring_write(ring,
+			PACKET3_INVALIDATE_TLBS_DST_SEL(1) |
+			PACKET3_INVALIDATE_TLBS_ALL_HUB(1) |
+			PACKET3_INVALIDATE_TLBS_PASID(pasid) |
+			PACKET3_INVALIDATE_TLBS_FLUSH_TYPE(flush_type));
+	amdgpu_fence_emit_polling(ring, &seq);
+	amdgpu_ring_commit(ring);
+	spin_unlock(&adev->gfx.kiq.ring_lock);
+
+	r = amdgpu_fence_wait_polling(ring, seq, adev->usec_timeout);
+	if (r < 1) {
+		DRM_ERROR("wait for kiq fence error: %ld.\n", r);
+		return -ETIME;
+	}
+
+	return 0;
 }
 
-static void write_vmid_invalidate_request(struct kgd_dev *kgd, uint8_t vmid)
+int kgd_gfx_v9_invalidate_tlbs(struct kgd_dev *kgd, uint16_t pasid)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *) kgd;
+	int vmid, i;
+	uint16_t queried_pasid;
+	bool ret;
+	struct amdgpu_ring *ring = &adev->gfx.kiq.ring;
+	uint32_t flush_type = 0;
+
+	if (adev->in_gpu_reset)
+		return -EIO;
+	if (adev->gmc.xgmi.num_physical_nodes &&
+		adev->asic_type == CHIP_VEGA20)
+		flush_type = 2;
+
+	if (ring->sched.ready)
+		return invalidate_tlbs_with_kiq(adev, pasid, flush_type);
+
+	for (vmid = 0; vmid < 16; vmid++) {
+		if (!amdgpu_amdkfd_is_kfd_vmid(adev, vmid))
+			continue;
+
+		ret = kgd_gfx_v9_get_atc_vmid_pasid_mapping_info(kgd, vmid,
+				&queried_pasid);
+		if (ret && queried_pasid == pasid) {
+			for (i = 0; i < adev->num_vmhubs; i++)
+				amdgpu_gmc_flush_gpu_tlb(adev, vmid,
+							i, flush_type);
+			break;
+		}
+	}
+
+	return 0;
+}
+
+int kgd_gfx_v9_invalidate_tlbs_vmid(struct kgd_dev *kgd, uint16_t vmid)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *) kgd;
+	int i;
+
+	if (!amdgpu_amdkfd_is_kfd_vmid(adev, vmid)) {
+		pr_err("non kfd vmid %d\n", vmid);
+		return 0;
+	}
 
 	/* Use legacy mode tlb invalidation.
 	 *
@@ -745,82 +706,18 @@ static void write_vmid_invalidate_request(struct kgd_dev *kgd, uint8_t vmid)
 	 * TODO 2: support range-based invalidation, requires kfg2kgd
 	 * interface change
 	 */
-	amdgpu_gmc_flush_gpu_tlb(adev, vmid, 0);
-}
-
-static int invalidate_tlbs_with_kiq(struct amdgpu_device *adev, uint16_t pasid)
-{
-	signed long r;
-	uint32_t seq;
-	struct amdgpu_ring *ring = &adev->gfx.kiq.ring;
-
-	spin_lock(&adev->gfx.kiq.ring_lock);
-	amdgpu_ring_alloc(ring, 12); /* fence + invalidate_tlbs package*/
-	amdgpu_ring_write(ring, PACKET3(PACKET3_INVALIDATE_TLBS, 0));
-	amdgpu_ring_write(ring,
-			PACKET3_INVALIDATE_TLBS_DST_SEL(1) |
-			PACKET3_INVALIDATE_TLBS_ALL_HUB(1) |
-			PACKET3_INVALIDATE_TLBS_PASID(pasid) |
-			PACKET3_INVALIDATE_TLBS_FLUSH_TYPE(0)); /* legacy */
-	amdgpu_fence_emit_polling(ring, &seq);
-	amdgpu_ring_commit(ring);
-	spin_unlock(&adev->gfx.kiq.ring_lock);
-
-	r = amdgpu_fence_wait_polling(ring, seq, adev->usec_timeout);
-	if (r < 1) {
-		DRM_ERROR("wait for kiq fence error: %ld.\n", r);
-		return -ETIME;
-	}
+	for (i = 0; i < adev->num_vmhubs; i++)
+		amdgpu_gmc_flush_gpu_tlb(adev, vmid, i, 0);
 
 	return 0;
 }
 
-static int invalidate_tlbs(struct kgd_dev *kgd, uint16_t pasid)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *) kgd;
-	int vmid;
-	struct amdgpu_ring *ring = &adev->gfx.kiq.ring;
-
-	if (adev->in_gpu_reset)
-		return -EIO;
-
-	if (ring->sched.ready)
-		return invalidate_tlbs_with_kiq(adev, pasid);
-
-	for (vmid = 0; vmid < 16; vmid++) {
-		if (!amdgpu_amdkfd_is_kfd_vmid(adev, vmid))
-			continue;
-		if (get_atc_vmid_pasid_mapping_valid(kgd, vmid)) {
-			if (get_atc_vmid_pasid_mapping_pasid(kgd, vmid)
-				== pasid) {
-				write_vmid_invalidate_request(kgd, vmid);
-				break;
-			}
-		}
-	}
-
-	return 0;
-}
-
-static int invalidate_tlbs_vmid(struct kgd_dev *kgd, uint16_t vmid)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *) kgd;
-
-	if (!amdgpu_amdkfd_is_kfd_vmid(adev, vmid)) {
-		pr_err("non kfd vmid %d\n", vmid);
-		return 0;
-	}
-
-	write_vmid_invalidate_request(kgd, vmid);
-	return 0;
-}
-
-static int kgd_address_watch_disable(struct kgd_dev *kgd)
+int kgd_gfx_v9_address_watch_disable(struct kgd_dev *kgd)
 {
 	return 0;
 }
 
-static int kgd_address_watch_execute(struct kgd_dev *kgd,
+int kgd_gfx_v9_address_watch_execute(struct kgd_dev *kgd,
 					unsigned int watch_point_id,
 					uint32_t cntl_val,
 					uint32_t addr_hi,
@@ -829,7 +726,7 @@ static int kgd_address_watch_execute(struct kgd_dev *kgd,
 	return 0;
 }
 
-static int kgd_wave_control_execute(struct kgd_dev *kgd,
+int kgd_gfx_v9_wave_control_execute(struct kgd_dev *kgd,
 					uint32_t gfx_index_val,
 					uint32_t sq_cmd)
 {
@@ -838,7 +735,7 @@ static int kgd_wave_control_execute(struct kgd_dev *kgd,
 
 	mutex_lock(&adev->grbm_idx_mutex);
 
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmGRBM_GFX_INDEX), gfx_index_val);
+	WREG32_SOC15_RLC_SHADOW(GC, 0, mmGRBM_GFX_INDEX, gfx_index_val);
 	WREG32(SOC15_REG_OFFSET(GC, 0, mmSQ_CMD), sq_cmd);
 
 	data = REG_SET_FIELD(data, GRBM_GFX_INDEX,
@@ -848,29 +745,20 @@ static int kgd_wave_control_execute(struct kgd_dev *kgd,
 	data = REG_SET_FIELD(data, GRBM_GFX_INDEX,
 		SE_BROADCAST_WRITES, 1);
 
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmGRBM_GFX_INDEX), data);
+	WREG32_SOC15_RLC_SHADOW(GC, 0, mmGRBM_GFX_INDEX, data);
 	mutex_unlock(&adev->grbm_idx_mutex);
 
 	return 0;
 }
 
-static uint32_t kgd_address_watch_get_offset(struct kgd_dev *kgd,
+uint32_t kgd_gfx_v9_address_watch_get_offset(struct kgd_dev *kgd,
 					unsigned int watch_point_id,
 					unsigned int reg_offset)
 {
 	return 0;
 }
 
-static void set_scratch_backing_va(struct kgd_dev *kgd,
-					uint64_t va, uint32_t vmid)
-{
-	/* No longer needed on GFXv9. The scratch base address is
-	 * passed to the shader by the CP. It's the user mode driver's
-	 * responsibility.
-	 */
-}
-
-static void set_vm_context_page_table_base(struct kgd_dev *kgd, uint32_t vmid,
+void kgd_gfx_v9_set_vm_context_page_table_base(struct kgd_dev *kgd, uint32_t vmid,
 		uint64_t page_table_base)
 {
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
@@ -885,7 +773,37 @@ static void set_vm_context_page_table_base(struct kgd_dev *kgd, uint32_t vmid,
 	 * now, all processes share the same address space size, like
 	 * on GFX8 and older.
 	 */
-	mmhub_v1_0_setup_vm_pt_regs(adev, vmid, page_table_base);
+	if (adev->asic_type == CHIP_ARCTURUS) {
+		/* Two MMHUBs */
+		mmhub_v9_4_setup_vm_pt_regs(adev, 0, vmid, page_table_base);
+		mmhub_v9_4_setup_vm_pt_regs(adev, 1, vmid, page_table_base);
+	} else
+		mmhub_v1_0_setup_vm_pt_regs(adev, vmid, page_table_base);
 
 	gfxhub_v1_0_setup_vm_pt_regs(adev, vmid, page_table_base);
 }
+
+const struct kfd2kgd_calls gfx_v9_kfd2kgd = {
+	.program_sh_mem_settings = kgd_gfx_v9_program_sh_mem_settings,
+	.set_pasid_vmid_mapping = kgd_gfx_v9_set_pasid_vmid_mapping,
+	.init_interrupts = kgd_gfx_v9_init_interrupts,
+	.hqd_load = kgd_gfx_v9_hqd_load,
+	.hqd_sdma_load = kgd_hqd_sdma_load,
+	.hqd_dump = kgd_gfx_v9_hqd_dump,
+	.hqd_sdma_dump = kgd_hqd_sdma_dump,
+	.hqd_is_occupied = kgd_gfx_v9_hqd_is_occupied,
+	.hqd_sdma_is_occupied = kgd_hqd_sdma_is_occupied,
+	.hqd_destroy = kgd_gfx_v9_hqd_destroy,
+	.hqd_sdma_destroy = kgd_hqd_sdma_destroy,
+	.address_watch_disable = kgd_gfx_v9_address_watch_disable,
+	.address_watch_execute = kgd_gfx_v9_address_watch_execute,
+	.wave_control_execute = kgd_gfx_v9_wave_control_execute,
+	.address_watch_get_offset = kgd_gfx_v9_address_watch_get_offset,
+	.get_atc_vmid_pasid_mapping_info =
+			kgd_gfx_v9_get_atc_vmid_pasid_mapping_info,
+	.get_tile_config = kgd_gfx_v9_get_tile_config,
+	.set_vm_context_page_table_base = kgd_gfx_v9_set_vm_context_page_table_base,
+	.invalidate_tlbs = kgd_gfx_v9_invalidate_tlbs,
+	.invalidate_tlbs_vmid = kgd_gfx_v9_invalidate_tlbs_vmid,
+	.get_hive_id = amdgpu_amdkfd_get_hive_id,
+};

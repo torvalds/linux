@@ -216,9 +216,10 @@ static struct shash_alg alg = {
 	.final		=	md4_final,
 	.descsize	=	sizeof(struct md4_ctx),
 	.base		=	{
-		.cra_name	=	"md4",
-		.cra_blocksize	=	MD4_HMAC_BLOCK_SIZE,
-		.cra_module	=	THIS_MODULE,
+		.cra_name	 =	"md4",
+		.cra_driver_name =	"md4-generic",
+		.cra_blocksize	 =	MD4_HMAC_BLOCK_SIZE,
+		.cra_module	 =	THIS_MODULE,
 	}
 };
 

@@ -32,72 +32,76 @@
  */
 
 #define ENTER	mov PER_CPU_VAR(current_task), %_ASM_BX
-#define EXIT	ASM_CLAC ;	\
-		ret
 
 .text
-ENTRY(__put_user_1)
+SYM_FUNC_START(__put_user_1)
 	ENTER
 	cmp TASK_addr_limit(%_ASM_BX),%_ASM_CX
-	jae bad_put_user
+	jae .Lbad_put_user
 	ASM_STAC
 1:	movb %al,(%_ASM_CX)
 	xor %eax,%eax
-	EXIT
-ENDPROC(__put_user_1)
+	ASM_CLAC
+	ret
+SYM_FUNC_END(__put_user_1)
 EXPORT_SYMBOL(__put_user_1)
 
-ENTRY(__put_user_2)
+SYM_FUNC_START(__put_user_2)
 	ENTER
 	mov TASK_addr_limit(%_ASM_BX),%_ASM_BX
 	sub $1,%_ASM_BX
 	cmp %_ASM_BX,%_ASM_CX
-	jae bad_put_user
+	jae .Lbad_put_user
 	ASM_STAC
 2:	movw %ax,(%_ASM_CX)
 	xor %eax,%eax
-	EXIT
-ENDPROC(__put_user_2)
+	ASM_CLAC
+	ret
+SYM_FUNC_END(__put_user_2)
 EXPORT_SYMBOL(__put_user_2)
 
-ENTRY(__put_user_4)
+SYM_FUNC_START(__put_user_4)
 	ENTER
 	mov TASK_addr_limit(%_ASM_BX),%_ASM_BX
 	sub $3,%_ASM_BX
 	cmp %_ASM_BX,%_ASM_CX
-	jae bad_put_user
+	jae .Lbad_put_user
 	ASM_STAC
 3:	movl %eax,(%_ASM_CX)
 	xor %eax,%eax
-	EXIT
-ENDPROC(__put_user_4)
+	ASM_CLAC
+	ret
+SYM_FUNC_END(__put_user_4)
 EXPORT_SYMBOL(__put_user_4)
 
-ENTRY(__put_user_8)
+SYM_FUNC_START(__put_user_8)
 	ENTER
 	mov TASK_addr_limit(%_ASM_BX),%_ASM_BX
 	sub $7,%_ASM_BX
 	cmp %_ASM_BX,%_ASM_CX
-	jae bad_put_user
+	jae .Lbad_put_user
 	ASM_STAC
 4:	mov %_ASM_AX,(%_ASM_CX)
 #ifdef CONFIG_X86_32
 5:	movl %edx,4(%_ASM_CX)
 #endif
 	xor %eax,%eax
-	EXIT
-ENDPROC(__put_user_8)
+	ASM_CLAC
+	RET
+SYM_FUNC_END(__put_user_8)
 EXPORT_SYMBOL(__put_user_8)
 
-bad_put_user:
+SYM_CODE_START_LOCAL(.Lbad_put_user_clac)
+	ASM_CLAC
+.Lbad_put_user:
 	movl $-EFAULT,%eax
-	EXIT
-END(bad_put_user)
+	RET
+SYM_CODE_END(.Lbad_put_user_clac)
 
-	_ASM_EXTABLE_UA(1b, bad_put_user)
-	_ASM_EXTABLE_UA(2b, bad_put_user)
-	_ASM_EXTABLE_UA(3b, bad_put_user)
-	_ASM_EXTABLE_UA(4b, bad_put_user)
+	_ASM_EXTABLE_UA(1b, .Lbad_put_user_clac)
+	_ASM_EXTABLE_UA(2b, .Lbad_put_user_clac)
+	_ASM_EXTABLE_UA(3b, .Lbad_put_user_clac)
+	_ASM_EXTABLE_UA(4b, .Lbad_put_user_clac)
 #ifdef CONFIG_X86_32
-	_ASM_EXTABLE_UA(5b, bad_put_user)
+	_ASM_EXTABLE_UA(5b, .Lbad_put_user_clac)
 #endif

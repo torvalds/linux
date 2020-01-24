@@ -533,7 +533,7 @@ uspace_segv:
 		       "access (PC %lx PR %lx)\n", current->comm, regs->pc,
 		       regs->pr);
 
-		force_sig_fault(SIGBUS, si_code, (void __user *)address, current);
+		force_sig_fault(SIGBUS, si_code, (void __user *)address);
 	} else {
 		inc_unaligned_kernel_access();
 
@@ -603,7 +603,7 @@ asmlinkage void do_divide_error(unsigned long r4)
 		/* Let gcc know unhandled cases don't make it past here */
 		return;
 	}
-	force_sig_fault(SIGFPE, code, NULL, current);
+	force_sig_fault(SIGFPE, code, NULL);
 }
 #endif
 
@@ -611,7 +611,6 @@ asmlinkage void do_reserved_inst(void)
 {
 	struct pt_regs *regs = current_pt_regs();
 	unsigned long error_code;
-	struct task_struct *tsk = current;
 
 #ifdef CONFIG_SH_FPU_EMU
 	unsigned short inst = 0;
@@ -633,7 +632,7 @@ asmlinkage void do_reserved_inst(void)
 		/* Enable DSP mode, and restart instruction. */
 		regs->sr |= SR_DSP;
 		/* Save DSP mode */
-		tsk->thread.dsp_status.status |= SR_DSP;
+		current->thread.dsp_status.status |= SR_DSP;
 		return;
 	}
 #endif
@@ -641,7 +640,7 @@ asmlinkage void do_reserved_inst(void)
 	error_code = lookup_exception_vector();
 
 	local_irq_enable();
-	force_sig(SIGILL, tsk);
+	force_sig(SIGILL);
 	die_if_no_fixup("reserved instruction", regs, error_code);
 }
 
@@ -697,7 +696,6 @@ asmlinkage void do_illegal_slot_inst(void)
 {
 	struct pt_regs *regs = current_pt_regs();
 	unsigned long inst;
-	struct task_struct *tsk = current;
 
 	if (kprobe_handle_illslot(regs->pc) == 0)
 		return;
@@ -716,7 +714,7 @@ asmlinkage void do_illegal_slot_inst(void)
 	inst = lookup_exception_vector();
 
 	local_irq_enable();
-	force_sig(SIGILL, tsk);
+	force_sig(SIGILL);
 	die_if_no_fixup("illegal slot instruction", regs, inst);
 }
 

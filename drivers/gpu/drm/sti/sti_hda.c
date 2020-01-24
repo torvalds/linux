@@ -6,12 +6,17 @@
 
 #include <linux/clk.h>
 #include <linux/component.h>
+#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/seq_file.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_bridge.h>
+#include <drm/drm_debugfs.h>
+#include <drm/drm_device.h>
+#include <drm/drm_file.h>
+#include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
 /* HDformatter registers */
@@ -226,7 +231,7 @@ static const struct sti_hda_video_config hda_supported_modes[] = {
 	 AWGi_720x480p_60, NN_720x480p_60, VID_ED}
 };
 
-/**
+/*
  * STI hd analog structure
  *
  * @dev: driver device

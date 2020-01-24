@@ -39,11 +39,12 @@ DESTDIR_SQ = '$(subst ','\'',$(DESTDIR))'
 
 LP64 := $(shell echo __LP64__ | ${CC} ${CFLAGS} -E -x c - | tail -n 1)
 ifeq ($(LP64), 1)
-  libdir_relative = lib64
+  libdir_relative_temp = lib64
 else
-  libdir_relative = lib
+  libdir_relative_temp = lib
 endif
 
+libdir_relative ?= $(libdir_relative_temp)
 prefix ?= /usr/local
 libdir = $(prefix)/$(libdir_relative)
 man_dir = $(prefix)/share/man
@@ -57,30 +58,6 @@ includedir_SQ = '$(subst ','\'',$(includedir))'
 export man_dir man_dir_SQ INSTALL
 export DESTDIR DESTDIR_SQ
 export EVENT_PARSE_VERSION
-
-set_plugin_dir := 1
-
-# Set plugin_dir to preffered global plugin location
-# If we install under $HOME directory we go under
-# $(HOME)/.traceevent/plugins
-#
-# We dont set PLUGIN_DIR in case we install under $HOME
-# directory, because by default the code looks under:
-# $(HOME)/.traceevent/plugins by default.
-#
-ifeq ($(plugin_dir),)
-ifeq ($(prefix),$(HOME))
-override plugin_dir = $(HOME)/.traceevent/plugins
-set_plugin_dir := 0
-else
-override plugin_dir = $(libdir)/traceevent/plugins
-endif
-endif
-
-ifeq ($(set_plugin_dir),1)
-PLUGIN_DIR = -DPLUGIN_DIR="$(plugin_dir)"
-PLUGIN_DIR_SQ = '$(subst ','\'',$(PLUGIN_DIR))'
-endif
 
 include ../../scripts/Makefile.include
 
@@ -105,7 +82,6 @@ export prefix libdir src obj
 # Shell quotes
 libdir_SQ = $(subst ','\'',$(libdir))
 libdir_relative_SQ = $(subst ','\'',$(libdir_relative))
-plugin_dir_SQ = $(subst ','\'',$(plugin_dir))
 
 CONFIG_INCLUDES = 
 CONFIG_LIBS	=
@@ -122,6 +98,7 @@ EVENT_PARSE_VERSION = $(EP_VERSION).$(EP_PATCHLEVEL).$(EP_EXTRAVERSION)
 
 LIB_TARGET  = libtraceevent.a libtraceevent.so.$(EVENT_PARSE_VERSION)
 LIB_INSTALL = libtraceevent.a libtraceevent.so*
+LIB_INSTALL := $(addprefix $(OUTPUT),$(LIB_INSTALL))
 
 INCLUDES = -I. -I $(srctree)/tools/include $(CONFIG_INCLUDES)
 
@@ -151,29 +128,14 @@ MAKEOVERRIDES=
 export srctree OUTPUT CC LD CFLAGS V
 build := -f $(srctree)/tools/build/Makefile.build dir=. obj
 
-PLUGINS  = plugin_jbd2.so
-PLUGINS += plugin_hrtimer.so
-PLUGINS += plugin_kmem.so
-PLUGINS += plugin_kvm.so
-PLUGINS += plugin_mac80211.so
-PLUGINS += plugin_sched_switch.so
-PLUGINS += plugin_function.so
-PLUGINS += plugin_xen.so
-PLUGINS += plugin_scsi.so
-PLUGINS += plugin_cfg80211.so
-
-PLUGINS    := $(addprefix $(OUTPUT),$(PLUGINS))
-PLUGINS_IN := $(PLUGINS:.so=-in.o)
-
 TE_IN      := $(OUTPUT)libtraceevent-in.o
 LIB_TARGET := $(addprefix $(OUTPUT),$(LIB_TARGET))
-DYNAMIC_LIST_FILE := $(OUTPUT)libtraceevent-dynamic-list
 
-CMD_TARGETS = $(LIB_TARGET) $(PLUGINS) $(DYNAMIC_LIST_FILE)
+CMD_TARGETS = $(LIB_TARGET)
 
 TARGETS = $(CMD_TARGETS)
 
-all: all_cmd
+all: all_cmd plugins
 
 all_cmd: $(CMD_TARGETS)
 
@@ -187,17 +149,6 @@ $(OUTPUT)libtraceevent.so.$(EVENT_PARSE_VERSION): $(TE_IN)
 
 $(OUTPUT)libtraceevent.a: $(TE_IN)
 	$(QUIET_LINK)$(RM) $@; $(AR) rcs $@ $^
-
-$(OUTPUT)libtraceevent-dynamic-list: $(PLUGINS)
-	$(QUIET_GEN)$(call do_generate_dynamic_list_file, $(PLUGINS), $@)
-
-plugins: $(PLUGINS)
-
-__plugin_obj = $(notdir $@)
-  plugin_obj = $(__plugin_obj:-in.o=)
-
-$(PLUGINS_IN): force
-	$(Q)$(MAKE) $(build)=$(plugin_obj)
 
 $(OUTPUT)%.so: $(OUTPUT)%-in.o
 	$(QUIET_LINK)$(CC) $(CFLAGS) -shared $(LDFLAGS) -nostartfiles -o $@ $^
@@ -258,29 +209,11 @@ define do_install
 	$(INSTALL) $(if $3,-m $3,) $1 '$(DESTDIR_SQ)$2'
 endef
 
-define do_install_plugins
-	for plugin in $1; do				\
-	  $(call do_install,$$plugin,$(plugin_dir_SQ));	\
-	done
-endef
-
-define do_generate_dynamic_list_file
-	symbol_type=`$(NM) -u -D $1 | awk 'NF>1 {print $$1}' | \
-	xargs echo "U W w" | tr ' ' '\n' | sort -u | xargs echo`;\
-	if [ "$$symbol_type" = "U W w" ];then				\
-		(echo '{';						\
-		$(NM) -u -D $1 | awk 'NF>1 {print "\t"$$2";"}' | sort -u;\
-		echo '};';						\
-		) > $2;							\
-	else								\
-		(echo Either missing one of [$1] or bad version of $(NM)) 1>&2;\
-	fi
-endef
-
-PKG_CONFIG_FILE = libtraceevent.pc
+PKG_CONFIG_SOURCE_FILE = libtraceevent.pc
+PKG_CONFIG_FILE := $(addprefix $(OUTPUT),$(PKG_CONFIG_SOURCE_FILE))
 define do_install_pkgconfig_file
 	if [ -n "${pkgconfig_dir}" ]; then 					\
-		cp -f ${PKG_CONFIG_FILE}.template ${PKG_CONFIG_FILE}; 		\
+		cp -f ${PKG_CONFIG_SOURCE_FILE}.template ${PKG_CONFIG_FILE};	\
 		sed -i "s|INSTALL_PREFIX|${1}|g" ${PKG_CONFIG_FILE}; 		\
 		sed -i "s|LIB_VERSION|${EVENT_PARSE_VERSION}|g" ${PKG_CONFIG_FILE}; \
 		sed -i "s|LIB_DIR|${libdir}|g" ${PKG_CONFIG_FILE}; \
@@ -296,24 +229,20 @@ install_lib: all_cmd install_plugins install_headers install_pkgconfig
 		$(call do_install_mkdir,$(libdir_SQ)); \
 		cp -fpR $(LIB_INSTALL) $(DESTDIR)$(libdir_SQ)
 
-install_plugins: $(PLUGINS)
-	$(call QUIET_INSTALL, trace_plugins) \
-		$(call do_install_plugins, $(PLUGINS))
-
 install_pkgconfig:
 	$(call QUIET_INSTALL, $(PKG_CONFIG_FILE)) \
 		$(call do_install_pkgconfig_file,$(prefix))
 
 install_headers:
 	$(call QUIET_INSTALL, headers) \
-		$(call do_install,event-parse.h,$(DESTDIR)$(includedir_SQ),644); \
-		$(call do_install,event-utils.h,$(DESTDIR)$(includedir_SQ),644); \
-		$(call do_install,trace-seq.h,$(DESTDIR)$(includedir_SQ),644); \
-		$(call do_install,kbuffer.h,$(DESTDIR)$(includedir_SQ),644)
+		$(call do_install,event-parse.h,$(includedir_SQ),644); \
+		$(call do_install,event-utils.h,$(includedir_SQ),644); \
+		$(call do_install,trace-seq.h,$(includedir_SQ),644); \
+		$(call do_install,kbuffer.h,$(includedir_SQ),644)
 
 install: install_lib
 
-clean:
+clean: clean_plugins
 	$(call QUIET_CLEAN, libtraceevent) \
 		$(RM) *.o *~ $(TARGETS) *.a *.so $(VERSION_FILES) .*.d .*.cmd; \
 		$(RM) TRACEEVENT-CFLAGS tags TAGS; \
@@ -351,7 +280,19 @@ help:
 	@echo '  doc-install         - install the man pages'
 	@echo '  doc-uninstall       - uninstall the man pages'
 	@echo''
-PHONY += force plugins
+
+PHONY += plugins
+plugins:
+	$(call descend,plugins)
+
+PHONY += install_plugins
+install_plugins:
+	$(call descend,plugins,install)
+
+PHONY += clean_plugins
+clean_plugins:
+	$(call descend,plugins,clean)
+
 force:
 
 # Declare the contents of the .PHONY variable as phony.  We keep that

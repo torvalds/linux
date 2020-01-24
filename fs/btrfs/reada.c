@@ -14,6 +14,7 @@
 #include "disk-io.h"
 #include "transaction.h"
 #include "dev-replace.h"
+#include "block-group.h"
 
 #undef DEBUG
 
@@ -226,7 +227,7 @@ static struct reada_zone *reada_find_zone(struct btrfs_device *dev, u64 logical,
 	struct btrfs_fs_info *fs_info = dev->fs_info;
 	int ret;
 	struct reada_zone *zone;
-	struct btrfs_block_group_cache *cache = NULL;
+	struct btrfs_block_group *cache = NULL;
 	u64 start;
 	u64 end;
 	int i;
@@ -247,8 +248,8 @@ static struct reada_zone *reada_find_zone(struct btrfs_device *dev, u64 logical,
 	if (!cache)
 		return NULL;
 
-	start = cache->key.objectid;
-	end = start + cache->key.offset - 1;
+	start = cache->start;
+	end = start + cache->length - 1;
 	btrfs_put_block_group(cache);
 
 	zone = kzalloc(sizeof(*zone), GFP_KERNEL);
@@ -638,6 +639,35 @@ static int reada_pick_zone(struct btrfs_device *dev)
 	return 1;
 }
 
+static int reada_tree_block_flagged(struct btrfs_fs_info *fs_info, u64 bytenr,
+				    int mirror_num, struct extent_buffer **eb)
+{
+	struct extent_buffer *buf = NULL;
+	int ret;
+
+	buf = btrfs_find_create_tree_block(fs_info, bytenr);
+	if (IS_ERR(buf))
+		return 0;
+
+	set_bit(EXTENT_BUFFER_READAHEAD, &buf->bflags);
+
+	ret = read_extent_buffer_pages(buf, WAIT_PAGE_LOCK, mirror_num);
+	if (ret) {
+		free_extent_buffer_stale(buf);
+		return ret;
+	}
+
+	if (test_bit(EXTENT_BUFFER_CORRUPT, &buf->bflags)) {
+		free_extent_buffer_stale(buf);
+		return -EIO;
+	} else if (extent_buffer_uptodate(buf)) {
+		*eb = buf;
+	} else {
+		free_extent_buffer(buf);
+	}
+	return 0;
+}
+
 static int reada_start_machine_dev(struct btrfs_device *dev)
 {
 	struct btrfs_fs_info *fs_info = dev->fs_info;
@@ -722,21 +752,19 @@ static int reada_start_machine_dev(struct btrfs_device *dev)
 static void reada_start_machine_worker(struct btrfs_work *work)
 {
 	struct reada_machine_work *rmw;
-	struct btrfs_fs_info *fs_info;
 	int old_ioprio;
 
 	rmw = container_of(work, struct reada_machine_work, work);
-	fs_info = rmw->fs_info;
-
-	kfree(rmw);
 
 	old_ioprio = IOPRIO_PRIO_VALUE(task_nice_ioclass(current),
 				       task_nice_ioprio(current));
 	set_task_ioprio(current, BTRFS_IOPRIO_READA);
-	__reada_start_machine(fs_info);
+	__reada_start_machine(rmw->fs_info);
 	set_task_ioprio(current, old_ioprio);
 
-	atomic_dec(&fs_info->reada_works_cnt);
+	atomic_dec(&rmw->fs_info->reada_works_cnt);
+
+	kfree(rmw);
 }
 
 static void __reada_start_machine(struct btrfs_fs_info *fs_info)
@@ -791,8 +819,7 @@ static void reada_start_machine(struct btrfs_fs_info *fs_info)
 		/* FIXME we cannot handle this properly right now */
 		BUG();
 	}
-	btrfs_init_work(&rmw->work, btrfs_readahead_helper,
-			reada_start_machine_worker, NULL, NULL);
+	btrfs_init_work(&rmw->work, reada_start_machine_worker, NULL, NULL);
 	rmw->fs_info = fs_info;
 
 	btrfs_queue_work(fs_info->readahead_workers, &rmw->work);

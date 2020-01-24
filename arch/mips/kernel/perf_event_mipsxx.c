@@ -790,15 +790,19 @@ static void reset_counters(void *arg)
 	case 4:
 		mipsxx_pmu_write_control(3, 0);
 		mipspmu.write_counter(3, 0);
+		/* fall through */
 	case 3:
 		mipsxx_pmu_write_control(2, 0);
 		mipspmu.write_counter(2, 0);
+		/* fall through */
 	case 2:
 		mipsxx_pmu_write_control(1, 0);
 		mipspmu.write_counter(1, 0);
+		/* fall through */
 	case 1:
 		mipsxx_pmu_write_control(0, 0);
 		mipspmu.write_counter(0, 0);
+		/* fall through */
 	}
 }
 
@@ -1380,7 +1384,7 @@ static int mipsxx_pmu_handle_shared_irq(void)
 	struct perf_sample_data data;
 	unsigned int counters = mipspmu.num_counters;
 	u64 counter;
-	int handled = IRQ_NONE;
+	int n, handled = IRQ_NONE;
 	struct pt_regs *regs;
 
 	if (cpu_has_perf_cntr_intr_bit && !(read_c0_cause() & CAUSEF_PCI))
@@ -1401,20 +1405,16 @@ static int mipsxx_pmu_handle_shared_irq(void)
 
 	perf_sample_data_init(&data, 0, 0);
 
-	switch (counters) {
-#define HANDLE_COUNTER(n)						\
-	case n + 1:							\
-		if (test_bit(n, cpuc->used_mask)) {			\
-			counter = mipspmu.read_counter(n);		\
-			if (counter & mipspmu.overflow) {		\
-				handle_associated_event(cpuc, n, &data, regs); \
-				handled = IRQ_HANDLED;			\
-			}						\
-		}
-	HANDLE_COUNTER(3)
-	HANDLE_COUNTER(2)
-	HANDLE_COUNTER(1)
-	HANDLE_COUNTER(0)
+	for (n = counters - 1; n >= 0; n--) {
+		if (!test_bit(n, cpuc->used_mask))
+			continue;
+
+		counter = mipspmu.read_counter(n);
+		if (!(counter & mipspmu.overflow))
+			continue;
+
+		handle_associated_event(cpuc, n, &data, regs);
+		handled = IRQ_HANDLED;
 	}
 
 #ifdef CONFIG_MIPS_PERF_SHARED_TC_COUNTERS
@@ -1623,7 +1623,7 @@ static const struct mips_perf_event *mipsxx_pmu_map_raw_event(u64 config)
 			raw_event.cntr_mask =
 				raw_id > 127 ? CNTR_ODD : CNTR_EVEN;
 		break;
-	case CPU_LOONGSON3:
+	case CPU_LOONGSON64:
 		raw_event.cntr_mask = raw_id > 127 ? CNTR_ODD : CNTR_EVEN;
 	break;
 	}
@@ -1764,12 +1764,12 @@ init_hw_perf_events(void)
 		mipspmu.general_event_map = &mipsxxcore_event_map;
 		mipspmu.cache_event_map = &mipsxxcore_cache_map;
 		break;
-	case CPU_LOONGSON1:
+	case CPU_LOONGSON32:
 		mipspmu.name = "mips/loongson1";
 		mipspmu.general_event_map = &mipsxxcore_event_map;
 		mipspmu.cache_event_map = &mipsxxcore_cache_map;
 		break;
-	case CPU_LOONGSON3:
+	case CPU_LOONGSON64:
 		mipspmu.name = "mips/loongson3";
 		mipspmu.general_event_map = &loongson3_event_map;
 		mipspmu.cache_event_map = &loongson3_cache_map;

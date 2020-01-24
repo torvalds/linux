@@ -65,6 +65,18 @@ static void cs_put(struct hl_cs *cs)
 	kref_put(&cs->refcount, cs_do_release);
 }
 
+static bool is_cb_patched(struct hl_device *hdev, struct hl_cs_job *job)
+{
+	/*
+	 * Patched CB is created for external queues jobs, and for H/W queues
+	 * jobs if the user CB was allocated by driver and MMU is disabled.
+	 */
+	return (job->queue_type == QUEUE_TYPE_EXT ||
+			(job->queue_type == QUEUE_TYPE_HW &&
+					job->is_kernel_allocated_cb &&
+					!hdev->mmu_enable));
+}
+
 /*
  * cs_parser - parse the user command submission
  *
@@ -91,11 +103,13 @@ static int cs_parser(struct hl_fpriv *hpriv, struct hl_cs_job *job)
 	parser.patched_cb = NULL;
 	parser.user_cb = job->user_cb;
 	parser.user_cb_size = job->user_cb_size;
-	parser.ext_queue = job->ext_queue;
+	parser.queue_type = job->queue_type;
+	parser.is_kernel_allocated_cb = job->is_kernel_allocated_cb;
 	job->patched_cb = NULL;
 
 	rc = hdev->asic_funcs->cs_parser(hdev, &parser);
-	if (job->ext_queue) {
+
+	if (is_cb_patched(hdev, job)) {
 		if (!rc) {
 			job->patched_cb = parser.patched_cb;
 			job->job_cb_size = parser.patched_cb_size;
@@ -124,7 +138,7 @@ static void free_job(struct hl_device *hdev, struct hl_cs_job *job)
 {
 	struct hl_cs *cs = job->cs;
 
-	if (job->ext_queue) {
+	if (is_cb_patched(hdev, job)) {
 		hl_userptr_delete_list(hdev, &job->userptr_list);
 
 		/*
@@ -140,6 +154,19 @@ static void free_job(struct hl_device *hdev, struct hl_cs_job *job)
 		}
 	}
 
+	/* For H/W queue jobs, if a user CB was allocated by driver and MMU is
+	 * enabled, the user CB isn't released in cs_parser() and thus should be
+	 * released here.
+	 */
+	if (job->queue_type == QUEUE_TYPE_HW &&
+			job->is_kernel_allocated_cb && hdev->mmu_enable) {
+		spin_lock(&job->user_cb->lock);
+		job->user_cb->cs_cnt--;
+		spin_unlock(&job->user_cb->lock);
+
+		hl_cb_put(job->user_cb);
+	}
+
 	/*
 	 * This is the only place where there can be multiple threads
 	 * modifying the list at the same time
@@ -150,7 +177,8 @@ static void free_job(struct hl_device *hdev, struct hl_cs_job *job)
 
 	hl_debugfs_remove_job(hdev, job);
 
-	if (job->ext_queue)
+	if (job->queue_type == QUEUE_TYPE_EXT ||
+			job->queue_type == QUEUE_TYPE_HW)
 		cs_put(cs);
 
 	kfree(job);
@@ -178,11 +206,23 @@ static void cs_do_release(struct kref *ref)
 
 	/* We also need to update CI for internal queues */
 	if (cs->submitted) {
-		int cs_cnt = atomic_dec_return(&hdev->cs_active_cnt);
+		hdev->asic_funcs->hw_queues_lock(hdev);
 
-		WARN_ONCE((cs_cnt < 0),
-			"hl%d: error in CS active cnt %d\n",
-			hdev->id, cs_cnt);
+		hdev->cs_active_cnt--;
+		if (!hdev->cs_active_cnt) {
+			struct hl_device_idle_busy_ts *ts;
+
+			ts = &hdev->idle_busy_ts_arr[hdev->idle_busy_ts_idx++];
+			ts->busy_to_idle_ts = ktime_get();
+
+			if (hdev->idle_busy_ts_idx == HL_IDLE_BUSY_TS_ARR_SIZE)
+				hdev->idle_busy_ts_idx = 0;
+		} else if (hdev->cs_active_cnt < 0) {
+			dev_crit(hdev->dev, "CS active cnt %d is negative\n",
+				hdev->cs_active_cnt);
+		}
+
+		hdev->asic_funcs->hw_queues_unlock(hdev);
 
 		hl_int_hw_queue_update_ci(cs);
 
@@ -305,6 +345,8 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 	other = ctx->cs_pending[fence->cs_seq & (HL_MAX_PENDING_CS - 1)];
 	if ((other) && (!dma_fence_is_signaled(other))) {
 		spin_unlock(&ctx->cs_lock);
+		dev_dbg(hdev->dev,
+			"Rejecting CS because of too many in-flights CS\n");
 		rc = -EAGAIN;
 		goto free_fence;
 	}
@@ -373,18 +415,13 @@ static void job_wq_completion(struct work_struct *work)
 	free_job(hdev, job);
 }
 
-static struct hl_cb *validate_queue_index(struct hl_device *hdev,
-					struct hl_cb_mgr *cb_mgr,
-					struct hl_cs_chunk *chunk,
-					bool *ext_queue)
+static int validate_queue_index(struct hl_device *hdev,
+				struct hl_cs_chunk *chunk,
+				enum hl_queue_type *queue_type,
+				bool *is_kernel_allocated_cb)
 {
 	struct asic_fixed_properties *asic = &hdev->asic_prop;
 	struct hw_queue_properties *hw_queue_prop;
-	u32 cb_handle;
-	struct hl_cb *cb;
-
-	/* Assume external queue */
-	*ext_queue = true;
 
 	hw_queue_prop = &asic->hw_queues_props[chunk->queue_index];
 
@@ -392,19 +429,29 @@ static struct hl_cb *validate_queue_index(struct hl_device *hdev,
 			(hw_queue_prop->type == QUEUE_TYPE_NA)) {
 		dev_err(hdev->dev, "Queue index %d is invalid\n",
 			chunk->queue_index);
-		return NULL;
+		return -EINVAL;
 	}
 
-	if (hw_queue_prop->kmd_only) {
-		dev_err(hdev->dev, "Queue index %d is restricted for KMD\n",
+	if (hw_queue_prop->driver_only) {
+		dev_err(hdev->dev,
+			"Queue index %d is restricted for the kernel driver\n",
 			chunk->queue_index);
-		return NULL;
-	} else if (hw_queue_prop->type == QUEUE_TYPE_INT) {
-		*ext_queue = false;
-		return (struct hl_cb *) (uintptr_t) chunk->cb_handle;
+		return -EINVAL;
 	}
 
-	/* Retrieve CB object */
+	*queue_type = hw_queue_prop->type;
+	*is_kernel_allocated_cb = !!hw_queue_prop->requires_kernel_cb;
+
+	return 0;
+}
+
+static struct hl_cb *get_cb_from_cs_chunk(struct hl_device *hdev,
+					struct hl_cb_mgr *cb_mgr,
+					struct hl_cs_chunk *chunk)
+{
+	struct hl_cb *cb;
+	u32 cb_handle;
+
 	cb_handle = (u32) (chunk->cb_handle >> PAGE_SHIFT);
 
 	cb = hl_cb_get(hdev, cb_mgr, cb_handle);
@@ -429,7 +476,8 @@ release_cb:
 	return NULL;
 }
 
-struct hl_cs_job *hl_cs_allocate_job(struct hl_device *hdev, bool ext_queue)
+struct hl_cs_job *hl_cs_allocate_job(struct hl_device *hdev,
+		enum hl_queue_type queue_type, bool is_kernel_allocated_cb)
 {
 	struct hl_cs_job *job;
 
@@ -437,12 +485,14 @@ struct hl_cs_job *hl_cs_allocate_job(struct hl_device *hdev, bool ext_queue)
 	if (!job)
 		return NULL;
 
-	job->ext_queue = ext_queue;
+	job->queue_type = queue_type;
+	job->is_kernel_allocated_cb = is_kernel_allocated_cb;
 
-	if (job->ext_queue) {
+	if (is_cb_patched(hdev, job))
 		INIT_LIST_HEAD(&job->userptr_list);
+
+	if (job->queue_type == QUEUE_TYPE_EXT)
 		INIT_WORK(&job->finish_work, job_wq_completion);
-	}
 
 	return job;
 }
@@ -455,7 +505,7 @@ static int _hl_cs_ioctl(struct hl_fpriv *hpriv, void __user *chunks,
 	struct hl_cs_job *job;
 	struct hl_cs *cs;
 	struct hl_cb *cb;
-	bool ext_queue_present = false;
+	bool int_queues_only = true;
 	u32 size_to_copy;
 	int rc, i, parse_cnt;
 
@@ -499,23 +549,33 @@ static int _hl_cs_ioctl(struct hl_fpriv *hpriv, void __user *chunks,
 	/* Validate ALL the CS chunks before submitting the CS */
 	for (i = 0, parse_cnt = 0 ; i < num_chunks ; i++, parse_cnt++) {
 		struct hl_cs_chunk *chunk = &cs_chunk_array[i];
-		bool ext_queue;
+		enum hl_queue_type queue_type;
+		bool is_kernel_allocated_cb;
 
-		cb = validate_queue_index(hdev, &hpriv->cb_mgr, chunk,
-					&ext_queue);
-		if (ext_queue) {
-			ext_queue_present = true;
+		rc = validate_queue_index(hdev, chunk, &queue_type,
+						&is_kernel_allocated_cb);
+		if (rc)
+			goto free_cs_object;
+
+		if (is_kernel_allocated_cb) {
+			cb = get_cb_from_cs_chunk(hdev, &hpriv->cb_mgr, chunk);
 			if (!cb) {
 				rc = -EINVAL;
 				goto free_cs_object;
 			}
+		} else {
+			cb = (struct hl_cb *) (uintptr_t) chunk->cb_handle;
 		}
 
-		job = hl_cs_allocate_job(hdev, ext_queue);
+		if (queue_type == QUEUE_TYPE_EXT || queue_type == QUEUE_TYPE_HW)
+			int_queues_only = false;
+
+		job = hl_cs_allocate_job(hdev, queue_type,
+						is_kernel_allocated_cb);
 		if (!job) {
 			dev_err(hdev->dev, "Failed to allocate a new job\n");
 			rc = -ENOMEM;
-			if (ext_queue)
+			if (is_kernel_allocated_cb)
 				goto release_cb;
 			else
 				goto free_cs_object;
@@ -525,7 +585,7 @@ static int _hl_cs_ioctl(struct hl_fpriv *hpriv, void __user *chunks,
 		job->cs = cs;
 		job->user_cb = cb;
 		job->user_cb_size = chunk->cb_size;
-		if (job->ext_queue)
+		if (is_kernel_allocated_cb)
 			job->job_cb_size = cb->size;
 		else
 			job->job_cb_size = chunk->cb_size;
@@ -538,10 +598,11 @@ static int _hl_cs_ioctl(struct hl_fpriv *hpriv, void __user *chunks,
 		/*
 		 * Increment CS reference. When CS reference is 0, CS is
 		 * done and can be signaled to user and free all its resources
-		 * Only increment for JOB on external queues, because only
-		 * for those JOBs we get completion
+		 * Only increment for JOB on external or H/W queues, because
+		 * only for those JOBs we get completion
 		 */
-		if (job->ext_queue)
+		if (job->queue_type == QUEUE_TYPE_EXT ||
+				job->queue_type == QUEUE_TYPE_HW)
 			cs_get(cs);
 
 		hl_debugfs_add_job(hdev, job);
@@ -555,9 +616,9 @@ static int _hl_cs_ioctl(struct hl_fpriv *hpriv, void __user *chunks,
 		}
 	}
 
-	if (!ext_queue_present) {
+	if (int_queues_only) {
 		dev_err(hdev->dev,
-			"Reject CS %d.%llu because no external queues jobs\n",
+			"Reject CS %d.%llu because only internal queues jobs are present\n",
 			cs->ctx->asid, cs->sequence);
 		rc = -EINVAL;
 		goto free_cs_object;
@@ -565,9 +626,10 @@ static int _hl_cs_ioctl(struct hl_fpriv *hpriv, void __user *chunks,
 
 	rc = hl_hw_queue_schedule_cs(cs);
 	if (rc) {
-		dev_err(hdev->dev,
-			"Failed to submit CS %d.%llu to H/W queues, error %d\n",
-			cs->ctx->asid, cs->sequence, rc);
+		if (rc != -EAGAIN)
+			dev_err(hdev->dev,
+				"Failed to submit CS %d.%llu to H/W queues, error %d\n",
+				cs->ctx->asid, cs->sequence, rc);
 		goto free_cs_object;
 	}
 
@@ -682,14 +744,12 @@ int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 		u32 tmp;
 
 		rc = hl_poll_timeout_memory(hdev,
-			(u64) (uintptr_t) &ctx->thread_ctx_switch_wait_token,
-			jiffies_to_usecs(hdev->timeout_jiffies),
-			&tmp);
+			&ctx->thread_ctx_switch_wait_token, tmp, (tmp == 1),
+			100, jiffies_to_usecs(hdev->timeout_jiffies), false);
 
-		if (rc || !tmp) {
+		if (rc == -ETIMEDOUT) {
 			dev_err(hdev->dev,
-				"context switch phase didn't finish in time\n");
-			rc = -ETIMEDOUT;
+				"context switch phase timeout (%d)\n", tmp);
 			goto out;
 		}
 	}
@@ -764,8 +824,9 @@ int hl_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 	memset(args, 0, sizeof(*args));
 
 	if (rc < 0) {
-		dev_err(hdev->dev, "Error %ld on waiting for CS handle %llu\n",
-			rc, seq);
+		dev_err_ratelimited(hdev->dev,
+				"Error %ld on waiting for CS handle %llu\n",
+				rc, seq);
 		if (rc == -ERESTARTSYS) {
 			args->out.status = HL_WAIT_CS_STATUS_INTERRUPTED;
 			rc = -EINTR;

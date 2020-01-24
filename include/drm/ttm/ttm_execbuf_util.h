@@ -70,6 +70,7 @@ extern void ttm_eu_backoff_reservation(struct ww_acquire_ctx *ticket,
  * @list:    thread private list of ttm_validate_buffer structs.
  * @intr:    should the wait be interruptible
  * @dups:    [out] optional list of duplicates.
+ * @del_lru: true if BOs should be removed from the LRU.
  *
  * Tries to reserve bos pointed to by the list entries for validation.
  * If the function returns 0, all buffers are marked as "unfenced",

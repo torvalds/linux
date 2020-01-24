@@ -11,11 +11,12 @@
  *
  * which is what it's designed for.
  */
-#include "cache.h"
 #include "path.h"
+#include "cache.h"
 #include <linux/kernel.h>
 #include <limits.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <dirent.h>

@@ -17,6 +17,7 @@ config SPARC
 	select ARCH_MIGHT_HAVE_PC_SERIO
 	select OF
 	select OF_PROMTREE
+	select HAVE_ASM_MODVERSIONS
 	select HAVE_IDE
 	select HAVE_OPROFILE
 	select HAVE_ARCH_KGDB if !SMP || SPARC64
@@ -179,7 +180,7 @@ config SMP
 	  Y to "Enhanced Real Time Clock Support", below. The "Advanced Power
 	  Management" code will be disabled if you say Y here.
 
-	  See also <file:Documentation/lockup-watchdogs.txt> and the SMP-HOWTO
+	  See also <file:Documentation/admin-guide/lockup-watchdogs.rst> and the SMP-HOWTO
 	  available at <http://www.tldp.org/docs.html#howto>.
 
 	  If you don't know what to do here, say N.
@@ -299,9 +300,6 @@ config NODES_SHIFT
 config NODES_SPAN_OTHER_NODES
 	def_bool y
 	depends on NEED_MULTIPLE_NODES
-
-config ARCH_SELECT_MEMORY_MODEL
-	def_bool y if SPARC64
 
 config ARCH_SPARSEMEM_ENABLE
 	def_bool y if SPARC64

@@ -21,7 +21,10 @@
 struct hinic_rxq_stats {
 	u64                     pkts;
 	u64                     bytes;
-
+	u64			errors;
+	u64			csum_errors;
+	u64			other_errors;
+	u64			alloc_skb_err;
 	struct u64_stats_sync   syncp;
 };
 
@@ -32,6 +35,8 @@ struct hinic_rxq {
 	struct hinic_rxq_stats  rxq_stats;
 
 	char                    *irq_name;
+	u16			buf_len;
+	u32			rx_buff_shift;
 
 	struct napi_struct      napi;
 };

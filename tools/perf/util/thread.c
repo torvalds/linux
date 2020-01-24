@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
-#include "../perf.h"
 #include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <linux/kernel.h>
+#include <linux/zalloc.h>
+#include "dso.h"
 #include "session.h"
 #include "thread.h"
 #include "thread-stack.h"
-#include "util.h"
 #include "debug.h"
 #include "namespaces.h"
 #include "comm.h"
@@ -19,21 +19,21 @@
 
 #include <api/fs/fs.h>
 
-int thread__init_map_groups(struct thread *thread, struct machine *machine)
+int thread__init_maps(struct thread *thread, struct machine *machine)
 {
 	pid_t pid = thread->pid_;
 
 	if (pid == thread->tid || pid == -1) {
-		thread->mg = map_groups__new(machine);
+		thread->maps = maps__new(machine);
 	} else {
 		struct thread *leader = __machine__findnew_thread(machine, pid, pid);
 		if (leader) {
-			thread->mg = map_groups__get(leader->mg);
+			thread->maps = maps__get(leader->maps);
 			thread__put(leader);
 		}
 	}
 
-	return thread->mg ? 0 : -1;
+	return thread->maps ? 0 : -1;
 }
 
 struct thread *thread__new(pid_t pid, pid_t tid)
@@ -86,26 +86,25 @@ void thread__delete(struct thread *thread)
 
 	thread_stack__free(thread);
 
-	if (thread->mg) {
-		map_groups__put(thread->mg);
-		thread->mg = NULL;
+	if (thread->maps) {
+		maps__put(thread->maps);
+		thread->maps = NULL;
 	}
 	down_write(&thread->namespaces_lock);
 	list_for_each_entry_safe(namespaces, tmp_namespaces,
 				 &thread->namespaces_list, list) {
-		list_del(&namespaces->list);
+		list_del_init(&namespaces->list);
 		namespaces__free(namespaces);
 	}
 	up_write(&thread->namespaces_lock);
 
 	down_write(&thread->comm_lock);
 	list_for_each_entry_safe(comm, tmp_comm, &thread->comm_list, list) {
-		list_del(&comm->list);
+		list_del_init(&comm->list);
 		comm__free(comm);
 	}
 	up_write(&thread->comm_lock);
 
-	unwind__finish_access(thread);
 	nsinfo__zput(thread->nsinfo);
 	srccode_state_free(&thread->srccode_state);
 
@@ -125,10 +124,27 @@ void thread__put(struct thread *thread)
 {
 	if (thread && refcount_dec_and_test(&thread->refcnt)) {
 		/*
-		 * Remove it from the dead_threads list, as last reference
-		 * is gone.
+		 * Remove it from the dead threads list, as last reference is
+		 * gone, if it is in a dead threads list.
+		 *
+		 * We may not be there anymore if say, the machine where it was
+		 * stored was already deleted, so we already removed it from
+		 * the dead threads and some other piece of code still keeps a
+		 * reference.
+		 *
+		 * This is what 'perf sched' does and finally drops it in
+		 * perf_sched__lat(), where it calls perf_sched__read_events(),
+		 * that processes the events by creating a session and deleting
+		 * it, which ends up destroying the list heads for the dead
+		 * threads, but before it does that it removes all threads from
+		 * it using list_del_init().
+		 *
+		 * So we need to check here if it is in a dead threads list and
+		 * if so, remove it before finally deleting the thread, to avoid
+		 * an use after free situation.
 		 */
-		list_del_init(&thread->node);
+		if (!list_empty(&thread->node))
+			list_del_init(&thread->node);
 		thread__delete(thread);
 	}
 }
@@ -141,19 +157,19 @@ static struct namespaces *__thread__namespaces(const struct thread *thread)
 	return list_first_entry(&thread->namespaces_list, struct namespaces, list);
 }
 
-struct namespaces *thread__namespaces(const struct thread *thread)
+struct namespaces *thread__namespaces(struct thread *thread)
 {
 	struct namespaces *ns;
 
-	down_read((struct rw_semaphore *)&thread->namespaces_lock);
+	down_read(&thread->namespaces_lock);
 	ns = __thread__namespaces(thread);
-	up_read((struct rw_semaphore *)&thread->namespaces_lock);
+	up_read(&thread->namespaces_lock);
 
 	return ns;
 }
 
 static int __thread__set_namespaces(struct thread *thread, u64 timestamp,
-				    struct namespaces_event *event)
+				    struct perf_record_namespaces *event)
 {
 	struct namespaces *new, *curr = __thread__namespaces(thread);
 
@@ -177,7 +193,7 @@ static int __thread__set_namespaces(struct thread *thread, u64 timestamp,
 }
 
 int thread__set_namespaces(struct thread *thread, u64 timestamp,
-			   struct namespaces_event *event)
+			   struct perf_record_namespaces *event)
 {
 	int ret;
 
@@ -197,13 +213,23 @@ struct comm *thread__comm(const struct thread *thread)
 
 struct comm *thread__exec_comm(const struct thread *thread)
 {
-	struct comm *comm, *last = NULL;
+	struct comm *comm, *last = NULL, *second_last = NULL;
 
 	list_for_each_entry(comm, &thread->comm_list, list) {
 		if (comm->exec)
 			return comm;
+		second_last = last;
 		last = comm;
 	}
+
+	/*
+	 * 'last' with no start time might be the parent's comm of a synthesized
+	 * thread (created by processing a synthesized fork event). For a main
+	 * thread, that is very probably wrong. Prefer a later comm to avoid
+	 * that case.
+	 */
+	if (second_last && !last->start && thread->pid_ == thread->tid)
+		return second_last;
 
 	return last;
 }
@@ -225,7 +251,7 @@ static int ____thread__set_comm(struct thread *thread, const char *str,
 		list_add(&new->list, &thread->comm_list);
 
 		if (exec)
-			unwind__flush_access(thread);
+			unwind__flush_access(thread->maps);
 	}
 
 	thread->comm_set = true;
@@ -271,13 +297,13 @@ static const char *__thread__comm_str(const struct thread *thread)
 	return comm__str(comm);
 }
 
-const char *thread__comm_str(const struct thread *thread)
+const char *thread__comm_str(struct thread *thread)
 {
 	const char *str;
 
-	down_read((struct rw_semaphore *)&thread->comm_lock);
+	down_read(&thread->comm_lock);
 	str = __thread__comm_str(thread);
-	up_read((struct rw_semaphore *)&thread->comm_lock);
+	up_read(&thread->comm_lock);
 
 	return str;
 }
@@ -298,19 +324,19 @@ int thread__comm_len(struct thread *thread)
 size_t thread__fprintf(struct thread *thread, FILE *fp)
 {
 	return fprintf(fp, "Thread %d %s\n", thread->tid, thread__comm_str(thread)) +
-	       map_groups__fprintf(thread->mg, fp);
+	       maps__fprintf(thread->maps, fp);
 }
 
 int thread__insert_map(struct thread *thread, struct map *map)
 {
 	int ret;
 
-	ret = unwind__prepare_access(thread, map, NULL);
+	ret = unwind__prepare_access(thread->maps, map, NULL);
 	if (ret)
 		return ret;
 
-	map_groups__fixup_overlappings(thread->mg, map, stderr);
-	map_groups__insert(thread->mg, map);
+	maps__fixup_overlappings(thread->maps, map, stderr);
+	maps__insert(thread->maps, map);
 
 	return 0;
 }
@@ -319,13 +345,13 @@ static int __thread__prepare_access(struct thread *thread)
 {
 	bool initialized = false;
 	int err = 0;
-	struct maps *maps = &thread->mg->maps;
+	struct maps *maps = thread->maps;
 	struct map *map;
 
 	down_read(&maps->lock);
 
-	for (map = maps__first(maps); map; map = map__next(map)) {
-		err = unwind__prepare_access(thread, map, &initialized);
+	maps__for_each_entry(maps, map) {
+		err = unwind__prepare_access(thread->maps, map, &initialized);
 		if (err || initialized)
 			break;
 	}
@@ -345,21 +371,19 @@ static int thread__prepare_access(struct thread *thread)
 	return err;
 }
 
-static int thread__clone_map_groups(struct thread *thread,
-				    struct thread *parent,
-				    bool do_maps_clone)
+static int thread__clone_maps(struct thread *thread, struct thread *parent, bool do_maps_clone)
 {
 	/* This is new thread, we share map groups for process. */
 	if (thread->pid_ == parent->pid_)
 		return thread__prepare_access(thread);
 
-	if (thread->mg == parent->mg) {
+	if (thread->maps == parent->maps) {
 		pr_debug("broken map groups on thread %d/%d parent %d/%d\n",
 			 thread->pid_, thread->tid, parent->pid_, parent->tid);
 		return 0;
 	}
 	/* But this one is new process, copy maps. */
-	return do_maps_clone ? map_groups__clone(thread, parent->mg) : 0;
+	return do_maps_clone ? maps__clone(thread, parent->maps) : 0;
 }
 
 int thread__fork(struct thread *thread, struct thread *parent, u64 timestamp, bool do_maps_clone)
@@ -375,7 +399,7 @@ int thread__fork(struct thread *thread, struct thread *parent, u64 timestamp, bo
 	}
 
 	thread->ppid = parent->tid;
-	return thread__clone_map_groups(thread, parent, do_maps_clone);
+	return thread__clone_maps(thread, parent, do_maps_clone);
 }
 
 void thread__find_cpumode_addr_location(struct thread *thread, u64 addr,

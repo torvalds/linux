@@ -2721,7 +2721,7 @@ static void ipw_eeprom_init_sram(struct ipw_priv *priv)
 		/* Do not load eeprom data on fatal error or suspend */
 		ipw_write32(priv, IPW_EEPROM_LOAD_DISABLE, 0);
 	} else {
-		IPW_DEBUG_INFO("Enabling FW initializationg of SRAM\n");
+		IPW_DEBUG_INFO("Enabling FW initialization of SRAM\n");
 
 		/* Load eeprom data on fatal error or suspend */
 		ipw_write32(priv, IPW_EEPROM_LOAD_DISABLE, 1);
@@ -6788,9 +6788,6 @@ static int ipw_wx_set_mlme(struct net_device *dev,
 {
 	struct ipw_priv *priv = libipw_priv(dev);
 	struct iw_mlme *mlme = (struct iw_mlme *)extra;
-	__le16 reason;
-
-	reason = cpu_to_le16(mlme->reason_code);
 
 	switch (mlme->cmd) {
 	case IW_MLME_DEAUTH:

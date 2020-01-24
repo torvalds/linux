@@ -11,7 +11,6 @@
 #include <stdlib.h>
 #include <sys/inotify.h>
 #include <string.h>
-#include <sys/types.h>
 #include <sys/wait.h>
 
 #include "../kselftest.h"
@@ -73,6 +72,7 @@ static int cg_prepare_for_wait(const char *cgroup)
 	if (ret == -1) {
 		debug("Error: inotify_add_watch() failed\n");
 		close(fd);
+		fd = -1;
 	}
 
 	return fd;
@@ -449,6 +449,59 @@ cleanup:
 }
 
 /*
+ * The test creates a cgroups and freezes it. Then it creates a child cgroup
+ * and populates it with a task. After that it checks that the child cgroup
+ * is frozen and the parent cgroup remains frozen too.
+ */
+static int test_cgfreezer_mkdir(const char *root)
+{
+	int ret = KSFT_FAIL;
+	char *parent, *child = NULL;
+	int pid;
+
+	parent = cg_name(root, "cg_test_mkdir_A");
+	if (!parent)
+		goto cleanup;
+
+	child = cg_name(parent, "cg_test_mkdir_B");
+	if (!child)
+		goto cleanup;
+
+	if (cg_create(parent))
+		goto cleanup;
+
+	if (cg_freeze_wait(parent, true))
+		goto cleanup;
+
+	if (cg_create(child))
+		goto cleanup;
+
+	pid = cg_run_nowait(child, child_fn, NULL);
+	if (pid < 0)
+		goto cleanup;
+
+	if (cg_wait_for_proc_count(child, 1))
+		goto cleanup;
+
+	if (cg_check_frozen(child, true))
+		goto cleanup;
+
+	if (cg_check_frozen(parent, true))
+		goto cleanup;
+
+	ret = KSFT_PASS;
+
+cleanup:
+	if (child)
+		cg_destroy(child);
+	free(child);
+	if (parent)
+		cg_destroy(parent);
+	free(parent);
+	return ret;
+}
+
+/*
  * The test creates two nested cgroups, freezes the parent
  * and removes the child. Then it checks that the parent cgroup
  * remains frozen and it's possible to create a new child
@@ -649,7 +702,7 @@ static int proc_check_stopped(int pid)
 	char buf[PAGE_SIZE];
 	int len;
 
-	len = proc_read_text(pid, "stat", buf, sizeof(buf));
+	len = proc_read_text(pid, 0, "stat", buf, sizeof(buf));
 	if (len == -1) {
 		debug("Can't get %d stat\n", pid);
 		return -1;
@@ -816,6 +869,7 @@ struct cgfreezer_test {
 	T(test_cgfreezer_simple),
 	T(test_cgfreezer_tree),
 	T(test_cgfreezer_forkbomb),
+	T(test_cgfreezer_mkdir),
 	T(test_cgfreezer_rmdir),
 	T(test_cgfreezer_migrate),
 	T(test_cgfreezer_ptrace),

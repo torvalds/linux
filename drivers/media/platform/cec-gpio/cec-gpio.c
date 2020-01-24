@@ -8,16 +8,17 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/gpio/consumer.h>
+#include <media/cec-notifier.h>
 #include <media/cec-pin.h>
 
 struct cec_gpio {
 	struct cec_adapter	*adap;
+	struct cec_notifier	*notifier;
 	struct device		*dev;
 
 	struct gpio_desc	*cec_gpio;
 	int			cec_irq;
 	bool			cec_is_low;
-	bool			cec_have_irq;
 
 	struct gpio_desc	*hpd_gpio;
 	int			hpd_irq;
@@ -55,9 +56,6 @@ static void cec_gpio_low(struct cec_adapter *adap)
 
 	if (cec->cec_is_low)
 		return;
-	if (WARN_ON_ONCE(cec->cec_have_irq))
-		free_irq(cec->cec_irq, cec);
-	cec->cec_have_irq = false;
 	cec->cec_is_low = true;
 	gpiod_set_value(cec->cec_gpio, 0);
 }
@@ -114,14 +112,7 @@ static bool cec_gpio_enable_irq(struct cec_adapter *adap)
 {
 	struct cec_gpio *cec = cec_get_drvdata(adap);
 
-	if (cec->cec_have_irq)
-		return true;
-
-	if (request_irq(cec->cec_irq, cec_gpio_irq_handler,
-			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-			adap->name, cec))
-		return false;
-	cec->cec_have_irq = true;
+	enable_irq(cec->cec_irq);
 	return true;
 }
 
@@ -129,9 +120,7 @@ static void cec_gpio_disable_irq(struct cec_adapter *adap)
 {
 	struct cec_gpio *cec = cec_get_drvdata(adap);
 
-	if (cec->cec_have_irq)
-		free_irq(cec->cec_irq, cec);
-	cec->cec_have_irq = false;
+	disable_irq(cec->cec_irq);
 }
 
 static void cec_gpio_status(struct cec_adapter *adap, struct seq_file *file)
@@ -139,8 +128,7 @@ static void cec_gpio_status(struct cec_adapter *adap, struct seq_file *file)
 	struct cec_gpio *cec = cec_get_drvdata(adap);
 
 	seq_printf(file, "mode: %s\n", cec->cec_is_low ? "low-drive" : "read");
-	if (cec->cec_have_irq)
-		seq_printf(file, "using irq: %d\n", cec->cec_irq);
+	seq_printf(file, "using irq: %d\n", cec->cec_irq);
 	if (cec->hpd_gpio)
 		seq_printf(file, "hpd: %s\n",
 			   cec->hpd_is_high ? "high" : "low");
@@ -187,8 +175,16 @@ static const struct cec_pin_ops cec_gpio_pin_ops = {
 static int cec_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct device *hdmi_dev;
 	struct cec_gpio *cec;
+	u32 caps = CEC_CAP_DEFAULTS | CEC_CAP_MONITOR_ALL | CEC_CAP_MONITOR_PIN;
 	int ret;
+
+	hdmi_dev = cec_notifier_parse_hdmi_phandle(dev);
+	if (PTR_ERR(hdmi_dev) == -EPROBE_DEFER)
+		return PTR_ERR(hdmi_dev);
+	if (IS_ERR(hdmi_dev))
+		caps |= CEC_CAP_PHYS_ADDR;
 
 	cec = devm_kzalloc(dev, sizeof(*cec), GFP_KERNEL);
 	if (!cec)
@@ -210,10 +206,17 @@ static int cec_gpio_probe(struct platform_device *pdev)
 		return PTR_ERR(cec->v5_gpio);
 
 	cec->adap = cec_pin_allocate_adapter(&cec_gpio_pin_ops,
-		cec, pdev->name, CEC_CAP_DEFAULTS | CEC_CAP_PHYS_ADDR |
-				 CEC_CAP_MONITOR_ALL | CEC_CAP_MONITOR_PIN);
+					     cec, pdev->name, caps);
 	if (IS_ERR(cec->adap))
 		return PTR_ERR(cec->adap);
+
+	ret = devm_request_irq(dev, cec->cec_irq, cec_gpio_irq_handler,
+			       IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+			       cec->adap->name, cec);
+	if (ret)
+		goto del_adap;
+
+	cec_gpio_disable_irq(cec->adap);
 
 	if (cec->hpd_gpio) {
 		cec->hpd_irq = gpiod_to_irq(cec->hpd_gpio);
@@ -224,7 +227,7 @@ static int cec_gpio_probe(struct platform_device *pdev)
 			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
 			"hpd-gpio", cec);
 		if (ret)
-			return ret;
+			goto del_adap;
 	}
 
 	if (cec->v5_gpio) {
@@ -236,23 +239,37 @@ static int cec_gpio_probe(struct platform_device *pdev)
 			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
 			"v5-gpio", cec);
 		if (ret)
-			return ret;
+			goto del_adap;
+	}
+
+	if (!IS_ERR(hdmi_dev)) {
+		cec->notifier = cec_notifier_cec_adap_register(hdmi_dev, NULL,
+							       cec->adap);
+		if (!cec->notifier) {
+			ret = -ENOMEM;
+			goto del_adap;
+		}
 	}
 
 	ret = cec_register_adapter(cec->adap, &pdev->dev);
-	if (ret) {
-		cec_delete_adapter(cec->adap);
-		return ret;
-	}
+	if (ret)
+		goto unreg_notifier;
 
 	platform_set_drvdata(pdev, cec);
 	return 0;
+
+unreg_notifier:
+	cec_notifier_cec_adap_unregister(cec->notifier, cec->adap);
+del_adap:
+	cec_delete_adapter(cec->adap);
+	return ret;
 }
 
 static int cec_gpio_remove(struct platform_device *pdev)
 {
 	struct cec_gpio *cec = platform_get_drvdata(pdev);
 
+	cec_notifier_cec_adap_unregister(cec->notifier, cec->adap);
 	cec_unregister_adapter(cec->adap);
 	return 0;
 }

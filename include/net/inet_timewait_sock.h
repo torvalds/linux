@@ -70,6 +70,8 @@ struct inet_timewait_sock {
 				tw_flowlabel	: 20,
 				tw_pad		: 2,	/* 2 bits hole */
 				tw_tos		: 8;
+	u32			tw_txhash;
+	u32			tw_priority;
 	struct timer_list	tw_timer;
 	struct inet_bind_bucket	*tw_tb;
 };

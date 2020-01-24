@@ -289,6 +289,29 @@ struct altr_sdram_mc_data {
 #define ALTR_A10_ECC_INIT_WATCHDOG_10US      10000
 
 /************* Stratix10 Defines **************/
+#define ALTR_S10_ECC_CTRL_SDRAM_OFST      0x00
+#define ALTR_S10_ECC_EN                   BIT(0)
+
+#define ALTR_S10_ECC_ERRINTEN_OFST        0x10
+#define ALTR_S10_ECC_ERRINTENS_OFST       0x14
+#define ALTR_S10_ECC_ERRINTENR_OFST       0x18
+#define ALTR_S10_ECC_SERRINTEN            BIT(0)
+
+#define ALTR_S10_ECC_INTMODE_OFST         0x1C
+#define ALTR_S10_ECC_INTMODE              BIT(0)
+
+#define ALTR_S10_ECC_INTSTAT_OFST         0x20
+#define ALTR_S10_ECC_SERRPENA             BIT(0)
+#define ALTR_S10_ECC_DERRPENA             BIT(8)
+#define ALTR_S10_ECC_ERRPENA_MASK         (ALTR_S10_ECC_SERRPENA | \
+					   ALTR_S10_ECC_DERRPENA)
+
+#define ALTR_S10_ECC_INTTEST_OFST         0x24
+#define ALTR_S10_ECC_TSERRA               BIT(0)
+#define ALTR_S10_ECC_TDERRA               BIT(8)
+#define ALTR_S10_ECC_TSERRB               BIT(16)
+#define ALTR_S10_ECC_TDERRB               BIT(24)
+
 #define ALTR_S10_DERR_ADDRA_OFST          0x2C
 
 /* Stratix10 ECC Manager Defines */
@@ -300,7 +323,7 @@ struct altr_sdram_mc_data {
 #define S10_SYSMGR_UE_ADDR_OFST           0x224
 
 #define S10_DDR0_IRQ_MASK                 BIT(16)
-#define S10_DBE_IRQ_MASK                  0x3FE
+#define S10_DBE_IRQ_MASK                  0x3FFFE
 
 /* Define ECC Block Offsets for peripherals */
 #define ECC_BLK_ADDRESS_OFST              0x40

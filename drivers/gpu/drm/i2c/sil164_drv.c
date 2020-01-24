@@ -26,8 +26,9 @@
 
 #include <linux/module.h>
 
-#include <drm/drmP.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_encoder_slave.h>
+#include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/i2c/sil164.h>
 
@@ -43,7 +44,7 @@ struct sil164_priv {
 	((struct sil164_priv *)to_encoder_slave(x)->slave_priv)
 
 #define sil164_dbg(client, format, ...) do {				\
-		if (drm_debug & DRM_UT_KMS)				\
+		if (drm_debug_enabled(DRM_UT_KMS))			\
 			dev_printk(KERN_DEBUG, &client->dev,		\
 				   "%s: " format, __func__, ## __VA_ARGS__); \
 	} while (0)

@@ -54,10 +54,25 @@ struct phylink_link_state {
 	unsigned int an_complete:1;
 };
 
+enum phylink_op_type {
+	PHYLINK_NETDEV = 0,
+	PHYLINK_DEV,
+};
+
+/**
+ * struct phylink_config - PHYLINK configuration structure
+ * @dev: a pointer to a struct device associated with the MAC
+ * @type: operation type of PHYLINK instance
+ */
+struct phylink_config {
+	struct device *dev;
+	enum phylink_op_type type;
+};
+
 /**
  * struct phylink_mac_ops - MAC operations structure.
  * @validate: Validate and update the link configuration.
- * @mac_link_state: Read the current link state from the hardware.
+ * @mac_pcs_get_state: Read the current link state from the hardware.
  * @mac_config: configure the MAC for the selected mode and state.
  * @mac_an_restart: restart 802.3z BaseX autonegotiation.
  * @mac_link_down: take the link down.
@@ -66,16 +81,17 @@ struct phylink_link_state {
  * The individual methods are described more fully below.
  */
 struct phylink_mac_ops {
-	void (*validate)(struct net_device *ndev, unsigned long *supported,
+	void (*validate)(struct phylink_config *config,
+			 unsigned long *supported,
 			 struct phylink_link_state *state);
-	int (*mac_link_state)(struct net_device *ndev,
-			      struct phylink_link_state *state);
-	void (*mac_config)(struct net_device *ndev, unsigned int mode,
+	void (*mac_pcs_get_state)(struct phylink_config *config,
+				  struct phylink_link_state *state);
+	void (*mac_config)(struct phylink_config *config, unsigned int mode,
 			   const struct phylink_link_state *state);
-	void (*mac_an_restart)(struct net_device *ndev);
-	void (*mac_link_down)(struct net_device *ndev, unsigned int mode,
+	void (*mac_an_restart)(struct phylink_config *config);
+	void (*mac_link_down)(struct phylink_config *config, unsigned int mode,
 			      phy_interface_t interface);
-	void (*mac_link_up)(struct net_device *ndev, unsigned int mode,
+	void (*mac_link_up)(struct phylink_config *config, unsigned int mode,
 			    phy_interface_t interface,
 			    struct phy_device *phy);
 };
@@ -83,7 +99,7 @@ struct phylink_mac_ops {
 #if 0 /* For kernel-doc purposes only. */
 /**
  * validate - Validate and update the link configuration
- * @ndev: a pointer to a &struct net_device for the MAC.
+ * @config: a pointer to a &struct phylink_config.
  * @supported: ethtool bitmask for supported link modes.
  * @state: a pointer to a &struct phylink_link_state.
  *
@@ -93,33 +109,41 @@ struct phylink_mac_ops {
  * Note that the PHY may be able to transform from one connection
  * technology to another, so, eg, don't clear 1000BaseX just
  * because the MAC is unable to BaseX mode. This is more about
- * clearing unsupported speeds and duplex settings.
+ * clearing unsupported speeds and duplex settings. The port modes
+ * should not be cleared; phylink_set_port_modes() will help with this.
  *
  * If the @state->interface mode is %PHY_INTERFACE_MODE_1000BASEX
  * or %PHY_INTERFACE_MODE_2500BASEX, select the appropriate mode
  * based on @state->advertising and/or @state->speed and update
- * @state->interface accordingly.
+ * @state->interface accordingly. See phylink_helper_basex_speed().
+ *
+ * When @state->interface is %PHY_INTERFACE_MODE_NA, phylink expects the
+ * MAC driver to return all supported link modes.
+ *
+ * If the @state->interface mode is not supported, then the @supported
+ * mask must be cleared.
  */
-void validate(struct net_device *ndev, unsigned long *supported,
+void validate(struct phylink_config *config, unsigned long *supported,
 	      struct phylink_link_state *state);
 
 /**
- * mac_link_state() - Read the current link state from the hardware
- * @ndev: a pointer to a &struct net_device for the MAC.
+ * mac_pcs_get_state() - Read the current inband link state from the hardware
+ * @config: a pointer to a &struct phylink_config.
  * @state: a pointer to a &struct phylink_link_state.
  *
- * Read the current link state from the MAC, reporting the current
- * speed in @state->speed, duplex mode in @state->duplex, pause mode
- * in @state->pause using the %MLO_PAUSE_RX and %MLO_PAUSE_TX bits,
- * negotiation completion state in @state->an_complete, and link
- * up state in @state->link.
+ * Read the current inband link state from the MAC PCS, reporting the
+ * current speed in @state->speed, duplex mode in @state->duplex, pause
+ * mode in @state->pause using the %MLO_PAUSE_RX and %MLO_PAUSE_TX bits,
+ * negotiation completion state in @state->an_complete, and link up state
+ * in @state->link. If possible, @state->lp_advertising should also be
+ * populated.
  */
-int mac_link_state(struct net_device *ndev,
-		   struct phylink_link_state *state);
+void mac_pcs_get_state(struct phylink_config *config,
+		       struct phylink_link_state *state);
 
 /**
  * mac_config() - configure the MAC for the selected mode and state
- * @ndev: a pointer to a &struct net_device for the MAC.
+ * @config: a pointer to a &struct phylink_config.
  * @mode: one of %MLO_AN_FIXED, %MLO_AN_PHY, %MLO_AN_INBAND.
  * @state: a pointer to a &struct phylink_link_state.
  *
@@ -143,7 +167,7 @@ int mac_link_state(struct net_device *ndev,
  *   1000base-X or Cisco SGMII mode depending on the @state->interface
  *   mode). In both cases, link state management (whether the link
  *   is up or not) is performed by the MAC, and reported via the
- *   mac_link_state() callback. Changes in link state must be made
+ *   mac_pcs_get_state() callback. Changes in link state must be made
  *   by calling phylink_mac_change().
  *
  *   If in 802.3z mode, the link speed is fixed, dependent on the
@@ -168,18 +192,18 @@ int mac_link_state(struct net_device *ndev,
  * down.  This "update" behaviour is critical to avoid bouncing the
  * link up status.
  */
-void mac_config(struct net_device *ndev, unsigned int mode,
+void mac_config(struct phylink_config *config, unsigned int mode,
 		const struct phylink_link_state *state);
 
 /**
  * mac_an_restart() - restart 802.3z BaseX autonegotiation
- * @ndev: a pointer to a &struct net_device for the MAC.
+ * @config: a pointer to a &struct phylink_config.
  */
-void mac_an_restart(struct net_device *ndev);
+void mac_an_restart(struct phylink_config *config);
 
 /**
  * mac_link_down() - take the link down
- * @ndev: a pointer to a &struct net_device for the MAC.
+ * @config: a pointer to a &struct phylink_config.
  * @mode: link autonegotiation mode
  * @interface: link &typedef phy_interface_t mode
  *
@@ -188,12 +212,12 @@ void mac_an_restart(struct net_device *ndev);
  * Energy Efficient Ethernet MAC configuration. Interface type
  * selection must be done in mac_config().
  */
-void mac_link_down(struct net_device *ndev, unsigned int mode,
+void mac_link_down(struct phylink_config *config, unsigned int mode,
 		   phy_interface_t interface);
 
 /**
  * mac_link_up() - allow the link to come up
- * @ndev: a pointer to a &struct net_device for the MAC.
+ * @config: a pointer to a &struct phylink_config.
  * @mode: link autonegotiation mode
  * @interface: link &typedef phy_interface_t mode
  * @phy: any attached phy
@@ -204,13 +228,14 @@ void mac_link_down(struct net_device *ndev, unsigned int mode,
  * phy_init_eee() and perform appropriate MAC configuration for EEE.
  * Interface type selection must be done in mac_config().
  */
-void mac_link_up(struct net_device *ndev, unsigned int mode,
+void mac_link_up(struct phylink_config *config, unsigned int mode,
 		 phy_interface_t interface,
 		 struct phy_device *phy);
 #endif
 
-struct phylink *phylink_create(struct net_device *, struct fwnode_handle *,
-	phy_interface_t iface, const struct phylink_mac_ops *ops);
+struct phylink *phylink_create(struct phylink_config *, struct fwnode_handle *,
+			       phy_interface_t iface,
+			       const struct phylink_mac_ops *ops);
 void phylink_destroy(struct phylink *);
 
 int phylink_connect_phy(struct phylink *, struct phy_device *);

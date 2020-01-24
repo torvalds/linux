@@ -854,8 +854,6 @@ static int create_ring_buffer(struct pci_dev *pci_dev,
 	if (!Head)
 		return -ENOMEM;
 
-	memset(Head, 0, MemSize);
-
 	PARingBufferCur = PARingBufferHead;
 	Cur = Head;
 
@@ -906,8 +904,6 @@ static int AllocateRingBuffers(struct pci_dev *pci_dev,
 	PASCListMem = tmp;
 	if (SCListMem == NULL)
 		return -ENOMEM;
-
-	memset(SCListMem, 0, SCListMemSize);
 
 	pRingBuffer->SCListMem = SCListMem;
 	pRingBuffer->PASCListMem = PASCListMem;

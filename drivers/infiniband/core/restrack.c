@@ -6,6 +6,7 @@
 #include <rdma/rdma_cm.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/restrack.h>
+#include <rdma/rdma_counter.h>
 #include <linux/mutex.h>
 #include <linux/sched/task.h>
 #include <linux/pid_namespace.h>
@@ -45,6 +46,7 @@ static const char *type2str(enum rdma_restrack_type type)
 		[RDMA_RESTRACK_CM_ID] = "CM_ID",
 		[RDMA_RESTRACK_MR] = "MR",
 		[RDMA_RESTRACK_CTX] = "CTX",
+		[RDMA_RESTRACK_COUNTER] = "COUNTER",
 	};
 
 	return names[type];
@@ -105,10 +107,8 @@ void rdma_restrack_clean(struct ib_device *dev)
  * rdma_restrack_count() - the current usage of specific object
  * @dev:  IB device
  * @type: actual type of object to operate
- * @ns:   PID namespace
  */
-int rdma_restrack_count(struct ib_device *dev, enum rdma_restrack_type type,
-			struct pid_namespace *ns)
+int rdma_restrack_count(struct ib_device *dev, enum rdma_restrack_type type)
 {
 	struct rdma_restrack_root *rt = &dev->res[type];
 	struct rdma_restrack_entry *e;
@@ -116,12 +116,8 @@ int rdma_restrack_count(struct ib_device *dev, enum rdma_restrack_type type,
 	u32 cnt = 0;
 
 	xa_lock(&rt->xa);
-	xas_for_each(&xas, e, U32_MAX) {
-		if (ns == &init_pid_ns ||
-		    (!rdma_is_kernel_res(e) &&
-		     ns == task_active_pid_ns(e->task)))
-			cnt++;
-	}
+	xas_for_each(&xas, e, U32_MAX)
+		cnt++;
 	xa_unlock(&rt->xa);
 	return cnt;
 }
@@ -169,6 +165,8 @@ static struct ib_device *res_to_dev(struct rdma_restrack_entry *res)
 		return container_of(res, struct ib_mr, res)->device;
 	case RDMA_RESTRACK_CTX:
 		return container_of(res, struct ib_ucontext, res)->device;
+	case RDMA_RESTRACK_COUNTER:
+		return container_of(res, struct rdma_counter, res)->device;
 	default:
 		WARN_ONCE(true, "Wrong resource tracking type %u\n", res->type);
 		return NULL;
@@ -190,6 +188,20 @@ void rdma_restrack_set_task(struct rdma_restrack_entry *res,
 }
 EXPORT_SYMBOL(rdma_restrack_set_task);
 
+/**
+ * rdma_restrack_attach_task() - attach the task onto this resource
+ * @res:  resource entry
+ * @task: the task to attach, the current task will be used if it is NULL.
+ */
+void rdma_restrack_attach_task(struct rdma_restrack_entry *res,
+			       struct task_struct *task)
+{
+	if (res->task)
+		put_task_struct(res->task);
+	get_task_struct(task);
+	res->task = task;
+}
+
 static void rdma_restrack_add(struct rdma_restrack_entry *res)
 {
 	struct ib_device *dev = res_to_dev(res);
@@ -203,15 +215,22 @@ static void rdma_restrack_add(struct rdma_restrack_entry *res)
 
 	kref_init(&res->kref);
 	init_completion(&res->comp);
-	if (res->type != RDMA_RESTRACK_QP)
-		ret = xa_alloc_cyclic(&rt->xa, &res->id, res, xa_limit_32b,
-				&rt->next_id, GFP_KERNEL);
-	else {
+	if (res->type == RDMA_RESTRACK_QP) {
 		/* Special case to ensure that LQPN points to right QP */
 		struct ib_qp *qp = container_of(res, struct ib_qp, res);
 
 		ret = xa_insert(&rt->xa, qp->qp_num, res, GFP_KERNEL);
 		res->id = ret ? 0 : qp->qp_num;
+	} else if (res->type == RDMA_RESTRACK_COUNTER) {
+		/* Special case to ensure that cntn points to right counter */
+		struct rdma_counter *counter;
+
+		counter = container_of(res, struct rdma_counter, res);
+		ret = xa_insert(&rt->xa, counter->id, res, GFP_KERNEL);
+		res->id = ret ? 0 : counter->id;
+	} else {
+		ret = xa_alloc_cyclic(&rt->xa, &res->id, res, xa_limit_32b,
+				      &rt->next_id, GFP_KERNEL);
 	}
 
 	if (!ret)
@@ -237,7 +256,8 @@ EXPORT_SYMBOL(rdma_restrack_kadd);
  */
 void rdma_restrack_uadd(struct rdma_restrack_entry *res)
 {
-	if (res->type != RDMA_RESTRACK_CM_ID)
+	if ((res->type != RDMA_RESTRACK_CM_ID) &&
+	    (res->type != RDMA_RESTRACK_COUNTER))
 		res->task = NULL;
 
 	if (!res->task)

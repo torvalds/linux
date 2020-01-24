@@ -5,7 +5,8 @@ The Cadence MIPI-CSI2 TX controller is a CSI-2 bridge supporting up to
 4 CSI lanes in output, and up to 4 different pixel streams in input.
 
 Required properties:
-  - compatible: must be set to "cdns,csi2tx"
+  - compatible: must be set to "cdns,csi2tx" or "cdns,csi2tx-1.3"
+    for version 1.3 of the controller, "cdns,csi2tx-2.1" for v2.1
   - reg: base address and size of the memory mapped region
   - clocks: phandles to the clocks driving the controller
   - clock-names: must contain:

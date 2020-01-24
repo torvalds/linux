@@ -1023,6 +1023,8 @@ struct usb_device_id cx231xx_id_table[] = {
 	 .driver_info = CX231XX_BOARD_HAUPPAUGE_EXETER},
 	{USB_DEVICE(0x2040, 0xb123),
 	 .driver_info = CX231XX_BOARD_HAUPPAUGE_955Q},
+	{USB_DEVICE(0x2040, 0xb124),
+	 .driver_info = CX231XX_BOARD_HAUPPAUGE_955Q},
 	{USB_DEVICE(0x2040, 0xb151),
 	 .driver_info = CX231XX_BOARD_HAUPPAUGE_935C},
 	{USB_DEVICE(0x2040, 0xb150),
@@ -1349,7 +1351,7 @@ static void cx231xx_unregister_media_device(struct cx231xx *dev)
 /*
  * cx231xx_realease_resources()
  * unregisters the v4l2,i2c and usb devices
- * called when the device gets disconected or at module unload
+ * called when the device gets disconnected or at module unload
 */
 void cx231xx_release_resources(struct cx231xx *dev)
 {
@@ -1477,13 +1479,11 @@ static int cx231xx_init_dev(struct cx231xx *dev, struct usb_device *udev,
 		goto err_dev_init;
 	}
 
-	/* init video dma queues */
+	/* init video dma queue */
 	INIT_LIST_HEAD(&dev->video_mode.vidq.active);
-	INIT_LIST_HEAD(&dev->video_mode.vidq.queued);
 
-	/* init vbi dma queues */
+	/* init vbi dma queue */
 	INIT_LIST_HEAD(&dev->vbi_mode.vidq.active);
-	INIT_LIST_HEAD(&dev->vbi_mode.vidq.queued);
 
 	/* Reset other chips required if they are tied up with GPIO pins */
 	cx231xx_add_into_devlist(dev);
@@ -1922,7 +1922,7 @@ err_if:
 
 /*
  * cx231xx_usb_disconnect()
- * called when the device gets diconencted
+ * called when the device gets disconnected
  * video device will be unregistered on v4l2_close in case it is still open
  */
 static void cx231xx_usb_disconnect(struct usb_interface *interface)

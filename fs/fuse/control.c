@@ -346,7 +346,7 @@ static int fuse_ctl_fill_super(struct super_block *sb, struct fs_context *fctx)
 
 static int fuse_ctl_get_tree(struct fs_context *fc)
 {
-	return vfs_get_super(fc, vfs_get_single_super, fuse_ctl_fill_super);
+	return get_tree_single(fc, fuse_ctl_fill_super);
 }
 
 static const struct fs_context_operations fuse_ctl_context_ops = {

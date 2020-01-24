@@ -35,6 +35,16 @@
 
 #include "powernv.h"
 
+#define OPAL_MSG_QUEUE_MAX 16
+
+struct opal_msg_node {
+	struct list_head	list;
+	struct opal_msg		msg;
+};
+
+static DEFINE_SPINLOCK(msg_list_lock);
+static LIST_HEAD(msg_list);
+
 /* /sys/firmware/opal */
 struct kobject *opal_kobj;
 
@@ -50,6 +60,8 @@ struct mcheck_recoverable_range {
 	u64 recover_addr;
 };
 
+static int msg_list_size;
+
 static struct mcheck_recoverable_range *mc_recoverable_range;
 static int mc_recoverable_range_len;
 
@@ -58,6 +70,8 @@ static DEFINE_SPINLOCK(opal_write_lock);
 static struct atomic_notifier_head opal_msg_notifier_head[OPAL_MSG_TYPE_MAX];
 static uint32_t opal_heartbeat;
 static struct task_struct *kopald_tsk;
+static struct opal_msg *opal_msg;
+static u32 opal_msg_size __ro_after_init;
 
 void opal_configure_cores(void)
 {
@@ -202,16 +216,18 @@ static int __init opal_register_exception_handlers(void)
 	glue = 0x7000;
 
 	/*
-	 * Check if we are running on newer firmware that exports
-	 * OPAL_HANDLE_HMI token. If yes, then don't ask OPAL to patch
-	 * the HMI interrupt and we catch it directly in Linux.
+	 * Only ancient OPAL firmware requires this.
+	 * Specifically, firmware from FW810.00 (released June 2014)
+	 * through FW810.20 (Released October 2014).
 	 *
-	 * For older firmware (i.e currently released POWER8 System Firmware
-	 * as of today <= SV810_087), we fallback to old behavior and let OPAL
-	 * patch the HMI vector and handle it inside OPAL firmware.
+	 * Check if we are running on newer (post Oct 2014) firmware that
+	 * exports the OPAL_HANDLE_HMI token. If yes, then don't ask OPAL to
+	 * patch the HMI interrupt and we catch it directly in Linux.
 	 *
-	 * For newer firmware (in development/yet to be released) we will
-	 * start catching/handling HMI directly in Linux.
+	 * For older firmware (i.e < FW810.20), we fallback to old behavior and
+	 * let OPAL patch the HMI vector and handle it inside OPAL firmware.
+	 *
+	 * For newer firmware we catch/handle the HMI directly in Linux.
 	 */
 	if (!opal_check_token(OPAL_HANDLE_HMI)) {
 		pr_info("Old firmware detected, OPAL handles HMIs.\n");
@@ -221,12 +237,54 @@ static int __init opal_register_exception_handlers(void)
 		glue += 128;
 	}
 
+	/*
+	 * Only applicable to ancient firmware, all modern
+	 * (post March 2015/skiboot 5.0) firmware will just return
+	 * OPAL_UNSUPPORTED.
+	 */
 	opal_register_exception_handler(OPAL_SOFTPATCH_HANDLER, 0, glue);
 #endif
 
 	return 0;
 }
 machine_early_initcall(powernv, opal_register_exception_handlers);
+
+static void queue_replay_msg(void *msg)
+{
+	struct opal_msg_node *msg_node;
+
+	if (msg_list_size < OPAL_MSG_QUEUE_MAX) {
+		msg_node = kzalloc(sizeof(*msg_node), GFP_ATOMIC);
+		if (msg_node) {
+			INIT_LIST_HEAD(&msg_node->list);
+			memcpy(&msg_node->msg, msg, sizeof(struct opal_msg));
+			list_add_tail(&msg_node->list, &msg_list);
+			msg_list_size++;
+		} else
+			pr_warn_once("message queue no memory\n");
+
+		if (msg_list_size >= OPAL_MSG_QUEUE_MAX)
+			pr_warn_once("message queue full\n");
+	}
+}
+
+static void dequeue_replay_msg(enum opal_msg_type msg_type)
+{
+	struct opal_msg_node *msg_node, *tmp;
+
+	list_for_each_entry_safe(msg_node, tmp, &msg_list, list) {
+		if (be32_to_cpu(msg_node->msg.msg_type) != msg_type)
+			continue;
+
+		atomic_notifier_call_chain(&opal_msg_notifier_head[msg_type],
+					msg_type,
+					&msg_node->msg);
+
+		list_del(&msg_node->list);
+		kfree(msg_node);
+		msg_list_size--;
+	}
+}
 
 /*
  * Opal message notifier based on message type. Allow subscribers to get
@@ -235,14 +293,30 @@ machine_early_initcall(powernv, opal_register_exception_handlers);
 int opal_message_notifier_register(enum opal_msg_type msg_type,
 					struct notifier_block *nb)
 {
+	int ret;
+	unsigned long flags;
+
 	if (!nb || msg_type >= OPAL_MSG_TYPE_MAX) {
 		pr_warn("%s: Invalid arguments, msg_type:%d\n",
 			__func__, msg_type);
 		return -EINVAL;
 	}
 
-	return atomic_notifier_chain_register(
-				&opal_msg_notifier_head[msg_type], nb);
+	spin_lock_irqsave(&msg_list_lock, flags);
+	ret = atomic_notifier_chain_register(
+		&opal_msg_notifier_head[msg_type], nb);
+
+	/*
+	 * If the registration succeeded, replay any queued messages that came
+	 * in prior to the notifier chain registration. msg_list_lock held here
+	 * to ensure they're delivered prior to any subsequent messages.
+	 */
+	if (ret == 0)
+		dequeue_replay_msg(msg_type);
+
+	spin_unlock_irqrestore(&msg_list_lock, flags);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(opal_message_notifier_register);
 
@@ -256,6 +330,23 @@ EXPORT_SYMBOL_GPL(opal_message_notifier_unregister);
 
 static void opal_message_do_notify(uint32_t msg_type, void *msg)
 {
+	unsigned long flags;
+	bool queued = false;
+
+	spin_lock_irqsave(&msg_list_lock, flags);
+	if (opal_msg_notifier_head[msg_type].head == NULL) {
+		/*
+		 * Queue up the msg since no notifiers have registered
+		 * yet for this msg_type.
+		 */
+		queue_replay_msg(msg);
+		queued = true;
+	}
+	spin_unlock_irqrestore(&msg_list_lock, flags);
+
+	if (queued)
+		return;
+
 	/* notify subscribers */
 	atomic_notifier_call_chain(&opal_msg_notifier_head[msg_type],
 					msg_type, msg);
@@ -264,14 +355,9 @@ static void opal_message_do_notify(uint32_t msg_type, void *msg)
 static void opal_handle_message(void)
 {
 	s64 ret;
-	/*
-	 * TODO: pre-allocate a message buffer depending on opal-msg-size
-	 * value in /proc/device-tree.
-	 */
-	static struct opal_msg msg;
 	u32 type;
 
-	ret = opal_get_msg(__pa(&msg), sizeof(msg));
+	ret = opal_get_msg(__pa(opal_msg), opal_msg_size);
 	/* No opal message pending. */
 	if (ret == OPAL_RESOURCE)
 		return;
@@ -283,14 +369,14 @@ static void opal_handle_message(void)
 		return;
 	}
 
-	type = be32_to_cpu(msg.msg_type);
+	type = be32_to_cpu(opal_msg->msg_type);
 
 	/* Sanity check */
 	if (type >= OPAL_MSG_TYPE_MAX) {
 		pr_warn_once("%s: Unknown message type: %u\n", __func__, type);
 		return;
 	}
-	opal_message_do_notify(type, (void *)&msg);
+	opal_message_do_notify(type, (void *)opal_msg);
 }
 
 static irqreturn_t opal_message_notify(int irq, void *data)
@@ -299,9 +385,23 @@ static irqreturn_t opal_message_notify(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int __init opal_message_init(void)
+static int __init opal_message_init(struct device_node *opal_node)
 {
 	int ret, i, irq;
+
+	ret = of_property_read_u32(opal_node, "opal-msg-size", &opal_msg_size);
+	if (ret) {
+		pr_notice("Failed to read opal-msg-size property\n");
+		opal_msg_size = sizeof(struct opal_msg);
+	}
+
+	opal_msg = kmalloc(opal_msg_size, GFP_KERNEL);
+	if (!opal_msg) {
+		opal_msg_size = sizeof(struct opal_msg);
+		/* Try to allocate fixed message size */
+		opal_msg = kmalloc(opal_msg_size, GFP_KERNEL);
+		BUG_ON(opal_msg == NULL);
+	}
 
 	for (i = 0; i < OPAL_MSG_TYPE_MAX; i++)
 		ATOMIC_INIT_NOTIFIER_HEAD(&opal_msg_notifier_head[i]);
@@ -698,7 +798,10 @@ static ssize_t symbol_map_read(struct file *fp, struct kobject *kobj,
 				       bin_attr->size);
 }
 
-static BIN_ATTR_RO(symbol_map, 0);
+static struct bin_attribute symbol_map_attr = {
+	.attr = {.name = "symbol_map", .mode = 0400},
+	.read = symbol_map_read
+};
 
 static void opal_export_symmap(void)
 {
@@ -715,10 +818,10 @@ static void opal_export_symmap(void)
 		return;
 
 	/* Setup attributes */
-	bin_attr_symbol_map.private = __va(be64_to_cpu(syms[0]));
-	bin_attr_symbol_map.size = be64_to_cpu(syms[1]);
+	symbol_map_attr.private = __va(be64_to_cpu(syms[0]));
+	symbol_map_attr.size = be64_to_cpu(syms[1]);
 
-	rc = sysfs_create_bin_file(opal_kobj, &bin_attr_symbol_map);
+	rc = sysfs_create_bin_file(opal_kobj, &symbol_map_attr);
 	if (rc)
 		pr_warn("Error %d creating OPAL symbols file\n", rc);
 }
@@ -903,7 +1006,7 @@ static int __init opal_init(void)
 	}
 
 	/* Initialise OPAL messaging system */
-	opal_message_init();
+	opal_message_init(opal_node);
 
 	/* Initialise OPAL asynchronous completion interface */
 	opal_async_comp_init();
@@ -980,6 +1083,9 @@ static int __init opal_init(void)
 
 	/* Initialise OPAL Power control interface */
 	opal_power_control_init();
+
+	/* Initialize OPAL secure variables */
+	opal_pdev_init("ibm,secvar-backend");
 
 	return 0;
 }

@@ -163,7 +163,7 @@ asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
 	return regs->uregs[0];
 
 badframe:
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV);
 	return 0;
 }
 
@@ -316,6 +316,7 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 				regs->uregs[0] = -EINTR;
 				break;
 			}
+			/* Else, fall through */
 		case -ERESTARTNOINTR:
 			regs->uregs[0] = regs->orig_r0;
 			regs->ipc -= 4;
@@ -360,6 +361,7 @@ static void do_signal(struct pt_regs *regs)
 		switch (regs->uregs[0]) {
 		case -ERESTART_RESTARTBLOCK:
 			regs->uregs[15] = __NR_restart_syscall;
+			/* Fall through */
 		case -ERESTARTNOHAND:
 		case -ERESTARTSYS:
 		case -ERESTARTNOINTR:

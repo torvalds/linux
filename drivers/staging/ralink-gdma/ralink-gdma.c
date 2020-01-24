@@ -796,7 +796,6 @@ static int gdma_dma_probe(struct platform_device *pdev)
 	struct gdma_dma_dev *dma_dev;
 	struct dma_device *dd;
 	unsigned int i;
-	struct resource *res;
 	int ret;
 	int irq;
 	void __iomem *base;
@@ -814,23 +813,19 @@ static int gdma_dma_probe(struct platform_device *pdev)
 	dma_dev = devm_kzalloc(&pdev->dev,
 			       struct_size(dma_dev, chan, data->chancnt),
 			       GFP_KERNEL);
-	if (!dma_dev) {
+	if (!dma_dev)
 		return -EINVAL;
-	}
 	dma_dev->data = data;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 	dma_dev->base = base;
 	tasklet_init(&dma_dev->task, gdma_dma_tasklet, (unsigned long)dma_dev);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "failed to get irq\n");
+	if (irq < 0)
 		return -EINVAL;
-	}
 	ret = devm_request_irq(&pdev->dev, irq, gdma_dma_irq,
 			       0, dev_name(&pdev->dev), dma_dev);
 	if (ret) {

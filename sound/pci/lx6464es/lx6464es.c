@@ -49,6 +49,14 @@ static const struct pci_device_id snd_lx6464es_ids[] = {
 			 PCI_VENDOR_ID_DIGIGRAM,
 			 PCI_SUBDEVICE_ID_DIGIGRAM_LX6464ES_CAE_SERIAL_SUBSYSTEM),
 	},			/* LX6464ES-CAE */
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_LX6464ES,
+			 PCI_VENDOR_ID_DIGIGRAM,
+			 PCI_SUBDEVICE_ID_DIGIGRAM_LX6464ESE_SERIAL_SUBSYSTEM),
+	},			/* LX6464ESe */
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_LX6464ES,
+			 PCI_VENDOR_ID_DIGIGRAM,
+			 PCI_SUBDEVICE_ID_DIGIGRAM_LX6464ESE_CAE_SERIAL_SUBSYSTEM),
+	},			/* LX6464ESe-CAE */
 	{ 0, },
 };
 
@@ -253,9 +261,8 @@ exit:
 
 static int lx_pcm_close(struct snd_pcm_substream *substream)
 {
-	int err = 0;
 	dev_dbg(substream->pcm->card->dev, "->lx_pcm_close\n");
-	return err;
+	return 0;
 }
 
 static snd_pcm_uframes_t lx_pcm_stream_pointer(struct snd_pcm_substream
@@ -839,7 +846,7 @@ static int lx_pcm_create(struct lx6464es *chip)
 	strcpy(pcm->name, card_name);
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(chip->pci),
+					      &chip->pci->dev,
 					      size, size);
 
 	chip->pcm = pcm;

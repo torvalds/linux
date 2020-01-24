@@ -16,17 +16,22 @@
 #include <stdbool.h>
 #include <errno.h>
 #include <math.h>
+#include <linux/string.h>
+#include <linux/zalloc.h>
 
 #include "asm/bug.h"
 
+#include "debug.h"
+#include "dso.h"
+#include "event.h"
 #include "hist.h"
-#include "util.h"
 #include "sort.h"
 #include "machine.h"
 #include "map.h"
 #include "callchain.h"
 #include "branch.h"
 #include "symbol.h"
+#include "../perf.h"
 
 #define CALLCHAIN_PARAM_DEFAULT			\
 	.mode		= CHAIN_GRAPH_ABS,	\
@@ -577,8 +582,8 @@ fill_node(struct callchain_node *node, struct callchain_cursor *cursor)
 			return -1;
 		}
 		call->ip = cursor_node->ip;
-		call->ms.sym = cursor_node->sym;
-		call->ms.map = map__get(cursor_node->map);
+		call->ms = cursor_node->ms;
+		map__get(call->ms.map);
 		call->srcline = cursor_node->srcline;
 
 		if (cursor_node->branch) {
@@ -636,7 +641,7 @@ add_child(struct callchain_node *parent,
 		struct callchain_list *call, *tmp;
 
 		list_for_each_entry_safe(call, tmp, &new->val, list) {
-			list_del(&call->list);
+			list_del_init(&call->list);
 			map__zput(call->ms.map);
 			free(call);
 		}
@@ -715,21 +720,21 @@ static enum match_result match_chain(struct callchain_cursor_node *node,
 		/* otherwise fall-back to symbol-based comparison below */
 		__fallthrough;
 	case CCKEY_FUNCTION:
-		if (node->sym && cnode->ms.sym) {
+		if (node->ms.sym && cnode->ms.sym) {
 			/*
 			 * Compare inlined frames based on their symbol name
 			 * because different inlined frames will have the same
 			 * symbol start. Otherwise do a faster comparison based
 			 * on the symbol start address.
 			 */
-			if (cnode->ms.sym->inlined || node->sym->inlined) {
+			if (cnode->ms.sym->inlined || node->ms.sym->inlined) {
 				match = match_chain_strings(cnode->ms.sym->name,
-							    node->sym->name);
+							    node->ms.sym->name);
 				if (match != MATCH_ERROR)
 					break;
 			} else {
 				match = match_chain_dso_addresses(cnode->ms.map, cnode->ms.sym->start,
-								  node->map, node->sym->start);
+								  node->ms.map, node->ms.sym->start);
 				break;
 			}
 		}
@@ -737,7 +742,7 @@ static enum match_result match_chain(struct callchain_cursor_node *node,
 		__fallthrough;
 	case CCKEY_ADDRESS:
 	default:
-		match = match_chain_dso_addresses(cnode->ms.map, cnode->ip, node->map, node->ip);
+		match = match_chain_dso_addresses(cnode->ms.map, cnode->ip, node->ms.map, node->ip);
 		break;
 	}
 
@@ -999,10 +1004,9 @@ merge_chain_branch(struct callchain_cursor *cursor,
 	int err = 0;
 
 	list_for_each_entry_safe(list, next_list, &src->val, list) {
-		callchain_cursor_append(cursor, list->ip,
-					list->ms.map, list->ms.sym,
+		callchain_cursor_append(cursor, list->ip, &list->ms,
 					false, NULL, 0, 0, 0, list->srcline);
-		list_del(&list->list);
+		list_del_init(&list->list);
 		map__zput(list->ms.map);
 		free(list);
 	}
@@ -1039,7 +1043,7 @@ int callchain_merge(struct callchain_cursor *cursor,
 }
 
 int callchain_cursor_append(struct callchain_cursor *cursor,
-			    u64 ip, struct map *map, struct symbol *sym,
+			    u64 ip, struct map_symbol *ms,
 			    bool branch, struct branch_flags *flags,
 			    int nr_loop_iter, u64 iter_cycles, u64 branch_from,
 			    const char *srcline)
@@ -1055,9 +1059,9 @@ int callchain_cursor_append(struct callchain_cursor *cursor,
 	}
 
 	node->ip = ip;
-	map__zput(node->map);
-	node->map = map__get(map);
-	node->sym = sym;
+	map__zput(node->ms.map);
+	node->ms = *ms;
+	map__get(node->ms.map);
 	node->branch = branch;
 	node->nr_loop_iter = nr_loop_iter;
 	node->iter_cycles = iter_cycles;
@@ -1077,7 +1081,7 @@ int callchain_cursor_append(struct callchain_cursor *cursor,
 
 int sample__resolve_callchain(struct perf_sample *sample,
 			      struct callchain_cursor *cursor, struct symbol **parent,
-			      struct perf_evsel *evsel, struct addr_location *al,
+			      struct evsel *evsel, struct addr_location *al,
 			      int max_stack)
 {
 	if (sample->callchain == NULL && !symbol_conf.show_branchflag_count)
@@ -1102,8 +1106,9 @@ int hist_entry__append_callchain(struct hist_entry *he, struct perf_sample *samp
 int fill_callchain_info(struct addr_location *al, struct callchain_cursor_node *node,
 			bool hide_unresolved)
 {
-	al->map = node->map;
-	al->sym = node->sym;
+	al->maps = node->ms.maps;
+	al->map = node->ms.map;
+	al->sym = node->ms.sym;
 	al->srcline = node->srcline;
 	al->addr = node->ip;
 
@@ -1114,8 +1119,8 @@ int fill_callchain_info(struct addr_location *al, struct callchain_cursor_node *
 			goto out;
 	}
 
-	if (al->map->groups == &al->machine->kmaps) {
-		if (machine__is_host(al->machine)) {
+	if (al->maps == &al->maps->machine->kmaps) {
+		if (machine__is_host(al->maps->machine)) {
 			al->cpumode = PERF_RECORD_MISC_KERNEL;
 			al->level = 'k';
 		} else {
@@ -1123,7 +1128,7 @@ int fill_callchain_info(struct addr_location *al, struct callchain_cursor_node *
 			al->level = 'g';
 		}
 	} else {
-		if (machine__is_host(al->machine)) {
+		if (machine__is_host(al->maps->machine)) {
 			al->cpumode = PERF_RECORD_MISC_USER;
 			al->level = '.';
 		} else if (perf_guest) {
@@ -1453,13 +1458,13 @@ static void free_callchain_node(struct callchain_node *node)
 	struct rb_node *n;
 
 	list_for_each_entry_safe(list, tmp, &node->parent_val, list) {
-		list_del(&list->list);
+		list_del_init(&list->list);
 		map__zput(list->ms.map);
 		free(list);
 	}
 
 	list_for_each_entry_safe(list, tmp, &node->val, list) {
-		list_del(&list->list);
+		list_del_init(&list->list);
 		map__zput(list->ms.map);
 		free(list);
 	}
@@ -1544,7 +1549,7 @@ int callchain_node__make_parent_list(struct callchain_node *node)
 
 out:
 	list_for_each_entry_safe(chain, new, &head, list) {
-		list_del(&chain->list);
+		list_del_init(&chain->list);
 		map__zput(chain->ms.map);
 		free(chain);
 	}
@@ -1566,7 +1571,7 @@ int callchain_cursor__copy(struct callchain_cursor *dst,
 		if (node == NULL)
 			break;
 
-		rc = callchain_cursor_append(dst, node->ip, node->map, node->sym,
+		rc = callchain_cursor_append(dst, node->ip, &node->ms,
 					     node->branch, &node->branch_flags,
 					     node->nr_loop_iter,
 					     node->iter_cycles,
@@ -1592,5 +1597,5 @@ void callchain_cursor_reset(struct callchain_cursor *cursor)
 	cursor->last = &cursor->first;
 
 	for (node = cursor->first; node != NULL; node = node->next)
-		map__zput(node->map);
+		map__zput(node->ms.map);
 }

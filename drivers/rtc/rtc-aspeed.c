@@ -85,15 +85,12 @@ static const struct rtc_class_ops aspeed_rtc_ops = {
 static int aspeed_rtc_probe(struct platform_device *pdev)
 {
 	struct aspeed_rtc *rtc;
-	struct resource *res;
-	int ret;
 
 	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
 	if (!rtc)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	rtc->base = devm_ioremap_resource(&pdev->dev, res);
+	rtc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rtc->base))
 		return PTR_ERR(rtc->base);
 
@@ -107,11 +104,7 @@ static int aspeed_rtc_probe(struct platform_device *pdev)
 	rtc->rtc_dev->range_min = RTC_TIMESTAMP_BEGIN_1900;
 	rtc->rtc_dev->range_max = 38814989399LL; /* 3199-12-31 23:59:59 */
 
-	ret = rtc_register_device(rtc->rtc_dev);
-	if (ret)
-		return ret;
-
-	return 0;
+	return rtc_register_device(rtc->rtc_dev);
 }
 
 static const struct of_device_id aspeed_rtc_match[] = {

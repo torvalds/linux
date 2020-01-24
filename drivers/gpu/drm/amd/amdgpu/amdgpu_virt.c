@@ -21,6 +21,10 @@
  *
  */
 
+#include <linux/module.h>
+
+#include <drm/drm_drv.h>
+
 #include "amdgpu.h"
 
 bool amdgpu_virt_mmio_blocked(struct amdgpu_device *adev)
@@ -386,7 +390,8 @@ static uint32_t parse_clk(char *buf, bool min)
                 if (!ptr)
                         break;
                 ptr+=2;
-                clk = simple_strtoul(ptr, NULL, 10);
+		if (kstrtou32(ptr, 10, &clk))
+			return 0;
         } while (!min);
 
         return clk * 100;
@@ -425,4 +430,3 @@ uint32_t amdgpu_virt_get_mclk(struct amdgpu_device *adev, bool lowest)
 
 	return clk;
 }
-

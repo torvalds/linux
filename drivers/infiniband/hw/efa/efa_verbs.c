@@ -13,10 +13,6 @@
 
 #include "efa.h"
 
-#define EFA_MMAP_FLAG_SHIFT 56
-#define EFA_MMAP_PAGE_MASK GENMASK(EFA_MMAP_FLAG_SHIFT - 1, 0)
-#define EFA_MMAP_INVALID U64_MAX
-
 enum {
 	EFA_MMAP_DMA_PAGE = 0,
 	EFA_MMAP_IO_WC,
@@ -27,19 +23,38 @@ enum {
 	(BIT(EFA_ADMIN_FATAL_ERROR) | BIT(EFA_ADMIN_WARNING) | \
 	 BIT(EFA_ADMIN_NOTIFICATION) | BIT(EFA_ADMIN_KEEP_ALIVE))
 
-struct efa_mmap_entry {
-	void  *obj;
+struct efa_user_mmap_entry {
+	struct rdma_user_mmap_entry rdma_entry;
 	u64 address;
-	u64 length;
-	u32 mmap_page;
 	u8 mmap_flag;
 };
 
-static inline u64 get_mmap_key(const struct efa_mmap_entry *efa)
-{
-	return ((u64)efa->mmap_flag << EFA_MMAP_FLAG_SHIFT) |
-	       ((u64)efa->mmap_page << PAGE_SHIFT);
-}
+#define EFA_DEFINE_STATS(op) \
+	op(EFA_TX_BYTES, "tx_bytes") \
+	op(EFA_TX_PKTS, "tx_pkts") \
+	op(EFA_RX_BYTES, "rx_bytes") \
+	op(EFA_RX_PKTS, "rx_pkts") \
+	op(EFA_RX_DROPS, "rx_drops") \
+	op(EFA_SUBMITTED_CMDS, "submitted_cmds") \
+	op(EFA_COMPLETED_CMDS, "completed_cmds") \
+	op(EFA_NO_COMPLETION_CMDS, "no_completion_cmds") \
+	op(EFA_KEEP_ALIVE_RCVD, "keep_alive_rcvd") \
+	op(EFA_ALLOC_PD_ERR, "alloc_pd_err") \
+	op(EFA_CREATE_QP_ERR, "create_qp_err") \
+	op(EFA_REG_MR_ERR, "reg_mr_err") \
+	op(EFA_ALLOC_UCONTEXT_ERR, "alloc_ucontext_err") \
+	op(EFA_CREATE_AH_ERR, "create_ah_err")
+
+#define EFA_STATS_ENUM(ename, name) ename,
+#define EFA_STATS_STR(ename, name) [ename] = name,
+
+enum efa_hw_stats {
+	EFA_DEFINE_STATS(EFA_STATS_ENUM)
+};
+
+static const char *const efa_stats_names[] = {
+	EFA_DEFINE_STATS(EFA_STATS_STR)
+};
 
 #define EFA_CHUNK_PAYLOAD_SHIFT       12
 #define EFA_CHUNK_PAYLOAD_SIZE        BIT(EFA_CHUNK_PAYLOAD_SHIFT)
@@ -54,8 +69,6 @@ static inline u64 get_mmap_key(const struct efa_mmap_entry *efa)
 
 #define EFA_CHUNK_USED_SIZE \
 	((EFA_PTRS_PER_CHUNK * EFA_CHUNK_PAYLOAD_PTR_SIZE) + EFA_CHUNK_PTR_SIZE)
-
-#define EFA_SUPPORTED_ACCESS_FLAGS IB_ACCESS_LOCAL_WRITE
 
 struct pbl_chunk {
 	dma_addr_t dma_addr;
@@ -120,8 +133,19 @@ static inline struct efa_ah *to_eah(struct ib_ah *ibah)
 	return container_of(ibah, struct efa_ah, ibah);
 }
 
+static inline struct efa_user_mmap_entry *
+to_emmap(struct rdma_user_mmap_entry *rdma_entry)
+{
+	return container_of(rdma_entry, struct efa_user_mmap_entry, rdma_entry);
+}
+
+static inline bool is_rdma_read_cap(struct efa_dev *dev)
+{
+	return dev->dev_attr.device_caps & EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_RDMA_READ_MASK;
+}
+
 #define field_avail(x, fld, sz) (offsetof(typeof(x), fld) + \
-				 sizeof(((typeof(x) *)0)->fld) <= (sz))
+				 sizeof_field(typeof(x), fld) <= (sz))
 
 #define is_reserved_cleared(reserved) \
 	!memchr_inv(reserved, 0, sizeof(reserved))
@@ -143,106 +167,6 @@ static void *efa_zalloc_mapped(struct efa_dev *dev, dma_addr_t *dma_addr,
 	}
 
 	return addr;
-}
-
-/*
- * This is only called when the ucontext is destroyed and there can be no
- * concurrent query via mmap or allocate on the xarray, thus we can be sure no
- * other thread is using the entry pointer. We also know that all the BAR
- * pages have either been zap'd or munmaped at this point.  Normal pages are
- * refcounted and will be freed at the proper time.
- */
-static void mmap_entries_remove_free(struct efa_dev *dev,
-				     struct efa_ucontext *ucontext)
-{
-	struct efa_mmap_entry *entry;
-	unsigned long mmap_page;
-
-	xa_for_each(&ucontext->mmap_xa, mmap_page, entry) {
-		xa_erase(&ucontext->mmap_xa, mmap_page);
-
-		ibdev_dbg(
-			&dev->ibdev,
-			"mmap: obj[0x%p] key[%#llx] addr[%#llx] len[%#llx] removed\n",
-			entry->obj, get_mmap_key(entry), entry->address,
-			entry->length);
-		if (entry->mmap_flag == EFA_MMAP_DMA_PAGE)
-			/* DMA mapping is already gone, now free the pages */
-			free_pages_exact(phys_to_virt(entry->address),
-					 entry->length);
-		kfree(entry);
-	}
-}
-
-static struct efa_mmap_entry *mmap_entry_get(struct efa_dev *dev,
-					     struct efa_ucontext *ucontext,
-					     u64 key, u64 len)
-{
-	struct efa_mmap_entry *entry;
-	u64 mmap_page;
-
-	mmap_page = (key & EFA_MMAP_PAGE_MASK) >> PAGE_SHIFT;
-	if (mmap_page > U32_MAX)
-		return NULL;
-
-	entry = xa_load(&ucontext->mmap_xa, mmap_page);
-	if (!entry || get_mmap_key(entry) != key || entry->length != len)
-		return NULL;
-
-	ibdev_dbg(&dev->ibdev,
-		  "mmap: obj[0x%p] key[%#llx] addr[%#llx] len[%#llx] removed\n",
-		  entry->obj, key, entry->address, entry->length);
-
-	return entry;
-}
-
-/*
- * Note this locking scheme cannot support removal of entries, except during
- * ucontext destruction when the core code guarentees no concurrency.
- */
-static u64 mmap_entry_insert(struct efa_dev *dev, struct efa_ucontext *ucontext,
-			     void *obj, u64 address, u64 length, u8 mmap_flag)
-{
-	struct efa_mmap_entry *entry;
-	u32 next_mmap_page;
-	int err;
-
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
-	if (!entry)
-		return EFA_MMAP_INVALID;
-
-	entry->obj = obj;
-	entry->address = address;
-	entry->length = length;
-	entry->mmap_flag = mmap_flag;
-
-	xa_lock(&ucontext->mmap_xa);
-	if (check_add_overflow(ucontext->mmap_xa_page,
-			       (u32)(length >> PAGE_SHIFT),
-			       &next_mmap_page))
-		goto err_unlock;
-
-	entry->mmap_page = ucontext->mmap_xa_page;
-	ucontext->mmap_xa_page = next_mmap_page;
-	err = __xa_insert(&ucontext->mmap_xa, entry->mmap_page, entry,
-			  GFP_KERNEL);
-	if (err)
-		goto err_unlock;
-
-	xa_unlock(&ucontext->mmap_xa);
-
-	ibdev_dbg(
-		&dev->ibdev,
-		"mmap: obj[0x%p] addr[%#llx], len[%#llx], key[%#llx] inserted\n",
-		entry->obj, entry->address, entry->length, get_mmap_key(entry));
-
-	return get_mmap_key(entry);
-
-err_unlock:
-	xa_unlock(&ucontext->mmap_xa);
-	kfree(entry);
-	return EFA_MMAP_INVALID;
-
 }
 
 int efa_query_device(struct ib_device *ibdev,
@@ -279,12 +203,17 @@ int efa_query_device(struct ib_device *ibdev,
 				 dev_attr->max_rq_depth);
 	props->max_send_sge = dev_attr->max_sq_sge;
 	props->max_recv_sge = dev_attr->max_rq_sge;
+	props->max_sge_rd = dev_attr->max_wr_rdma_sge;
 
 	if (udata && udata->outlen) {
 		resp.max_sq_sge = dev_attr->max_sq_sge;
 		resp.max_rq_sge = dev_attr->max_rq_sge;
 		resp.max_sq_wr = dev_attr->max_sq_depth;
 		resp.max_rq_wr = dev_attr->max_rq_depth;
+		resp.max_rdma_size = dev_attr->max_rdma_size;
+
+		if (is_rdma_read_cap(dev))
+			resp.device_caps |= EFA_QUERY_DEVICE_CAPS_RDMA_READ;
 
 		err = ib_copy_to_udata(udata, &resp,
 				       min(sizeof(resp), udata->outlen));
@@ -306,14 +235,14 @@ int efa_query_port(struct ib_device *ibdev, u8 port,
 	props->lmc = 1;
 
 	props->state = IB_PORT_ACTIVE;
-	props->phys_state = 5;
+	props->phys_state = IB_PORT_PHYS_STATE_LINK_UP;
 	props->gid_tbl_len = 1;
 	props->pkey_tbl_len = 1;
 	props->active_speed = IB_SPEED_EDR;
 	props->active_width = IB_WIDTH_4X;
-	props->max_mtu = ib_mtu_int_to_enum(dev->mtu);
-	props->active_mtu = ib_mtu_int_to_enum(dev->mtu);
-	props->max_msg_sz = dev->mtu;
+	props->max_mtu = ib_mtu_int_to_enum(dev->dev_attr.mtu);
+	props->active_mtu = ib_mtu_int_to_enum(dev->dev_attr.mtu);
+	props->max_msg_sz = dev->dev_attr.mtu;
 	props->max_vl_num = 1;
 
 	return 0;
@@ -374,7 +303,7 @@ int efa_query_gid(struct ib_device *ibdev, u8 port, int index,
 {
 	struct efa_dev *dev = to_edev(ibdev);
 
-	memcpy(gid->raw, dev->addr, sizeof(dev->addr));
+	memcpy(gid->raw, dev->dev_attr.addr, sizeof(dev->dev_attr.addr));
 
 	return 0;
 }
@@ -447,12 +376,6 @@ void efa_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 	struct efa_dev *dev = to_edev(ibpd->device);
 	struct efa_pd *pd = to_epd(ibpd);
 
-	if (udata->inlen &&
-	    !ib_is_udata_cleared(udata, 0, udata->inlen)) {
-		ibdev_dbg(&dev->ibdev, "Incompatible ABI params\n");
-		return;
-	}
-
 	ibdev_dbg(&dev->ibdev, "Dealloc pd[%d]\n", pd->pdn);
 	efa_pd_dealloc(dev, pd->pdn);
 }
@@ -464,17 +387,22 @@ static int efa_destroy_qp_handle(struct efa_dev *dev, u32 qp_handle)
 	return efa_com_destroy_qp(&dev->edev, &params);
 }
 
+static void efa_qp_user_mmap_entries_remove(struct efa_ucontext *uctx,
+					    struct efa_qp *qp)
+{
+	rdma_user_mmap_entry_remove(qp->rq_mmap_entry);
+	rdma_user_mmap_entry_remove(qp->rq_db_mmap_entry);
+	rdma_user_mmap_entry_remove(qp->llq_desc_mmap_entry);
+	rdma_user_mmap_entry_remove(qp->sq_db_mmap_entry);
+}
+
 int efa_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 {
+	struct efa_ucontext *ucontext = rdma_udata_to_drv_context(udata,
+		struct efa_ucontext, ibucontext);
 	struct efa_dev *dev = to_edev(ibqp->pd->device);
 	struct efa_qp *qp = to_eqp(ibqp);
 	int err;
-
-	if (udata->inlen &&
-	    !ib_is_udata_cleared(udata, 0, udata->inlen)) {
-		ibdev_dbg(&dev->ibdev, "Incompatible ABI params\n");
-		return -EINVAL;
-	}
 
 	ibdev_dbg(&dev->ibdev, "Destroy qp[%u]\n", ibqp->qp_num);
 	err = efa_destroy_qp_handle(dev, qp->qp_handle);
@@ -490,8 +418,34 @@ int efa_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 				 DMA_TO_DEVICE);
 	}
 
+	efa_qp_user_mmap_entries_remove(ucontext, qp);
 	kfree(qp);
 	return 0;
+}
+
+static struct rdma_user_mmap_entry*
+efa_user_mmap_entry_insert(struct ib_ucontext *ucontext,
+			   u64 address, size_t length,
+			   u8 mmap_flag, u64 *offset)
+{
+	struct efa_user_mmap_entry *entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	int err;
+
+	if (!entry)
+		return NULL;
+
+	entry->address = address;
+	entry->mmap_flag = mmap_flag;
+
+	err = rdma_user_mmap_entry_insert(ucontext, &entry->rdma_entry,
+					  length);
+	if (err) {
+		kfree(entry);
+		return NULL;
+	}
+	*offset = rdma_user_mmap_get_offset(&entry->rdma_entry);
+
+	return &entry->rdma_entry;
 }
 
 static int qp_mmap_entries_setup(struct efa_qp *qp,
@@ -500,51 +454,65 @@ static int qp_mmap_entries_setup(struct efa_qp *qp,
 				 struct efa_com_create_qp_params *params,
 				 struct efa_ibv_create_qp_resp *resp)
 {
-	/*
-	 * Once an entry is inserted it might be mmapped, hence cannot be
-	 * cleaned up until dealloc_ucontext.
-	 */
-	resp->sq_db_mmap_key =
-		mmap_entry_insert(dev, ucontext, qp,
-				  dev->db_bar_addr + resp->sq_db_offset,
-				  PAGE_SIZE, EFA_MMAP_IO_NC);
-	if (resp->sq_db_mmap_key == EFA_MMAP_INVALID)
+	size_t length;
+	u64 address;
+
+	address = dev->db_bar_addr + resp->sq_db_offset;
+	qp->sq_db_mmap_entry =
+		efa_user_mmap_entry_insert(&ucontext->ibucontext,
+					   address,
+					   PAGE_SIZE, EFA_MMAP_IO_NC,
+					   &resp->sq_db_mmap_key);
+	if (!qp->sq_db_mmap_entry)
 		return -ENOMEM;
 
 	resp->sq_db_offset &= ~PAGE_MASK;
 
-	resp->llq_desc_mmap_key =
-		mmap_entry_insert(dev, ucontext, qp,
-				  dev->mem_bar_addr + resp->llq_desc_offset,
-				  PAGE_ALIGN(params->sq_ring_size_in_bytes +
-					     (resp->llq_desc_offset & ~PAGE_MASK)),
-				  EFA_MMAP_IO_WC);
-	if (resp->llq_desc_mmap_key == EFA_MMAP_INVALID)
-		return -ENOMEM;
+	address = dev->mem_bar_addr + resp->llq_desc_offset;
+	length = PAGE_ALIGN(params->sq_ring_size_in_bytes +
+			    (resp->llq_desc_offset & ~PAGE_MASK));
+
+	qp->llq_desc_mmap_entry =
+		efa_user_mmap_entry_insert(&ucontext->ibucontext,
+					   address, length,
+					   EFA_MMAP_IO_WC,
+					   &resp->llq_desc_mmap_key);
+	if (!qp->llq_desc_mmap_entry)
+		goto err_remove_mmap;
 
 	resp->llq_desc_offset &= ~PAGE_MASK;
 
 	if (qp->rq_size) {
-		resp->rq_db_mmap_key =
-			mmap_entry_insert(dev, ucontext, qp,
-					  dev->db_bar_addr + resp->rq_db_offset,
-					  PAGE_SIZE, EFA_MMAP_IO_NC);
-		if (resp->rq_db_mmap_key == EFA_MMAP_INVALID)
-			return -ENOMEM;
+		address = dev->db_bar_addr + resp->rq_db_offset;
+
+		qp->rq_db_mmap_entry =
+			efa_user_mmap_entry_insert(&ucontext->ibucontext,
+						   address, PAGE_SIZE,
+						   EFA_MMAP_IO_NC,
+						   &resp->rq_db_mmap_key);
+		if (!qp->rq_db_mmap_entry)
+			goto err_remove_mmap;
 
 		resp->rq_db_offset &= ~PAGE_MASK;
 
-		resp->rq_mmap_key =
-			mmap_entry_insert(dev, ucontext, qp,
-					  virt_to_phys(qp->rq_cpu_addr),
-					  qp->rq_size, EFA_MMAP_DMA_PAGE);
-		if (resp->rq_mmap_key == EFA_MMAP_INVALID)
-			return -ENOMEM;
+		address = virt_to_phys(qp->rq_cpu_addr);
+		qp->rq_mmap_entry =
+			efa_user_mmap_entry_insert(&ucontext->ibucontext,
+						   address, qp->rq_size,
+						   EFA_MMAP_DMA_PAGE,
+						   &resp->rq_mmap_key);
+		if (!qp->rq_mmap_entry)
+			goto err_remove_mmap;
 
 		resp->rq_mmap_size = qp->rq_size;
 	}
 
 	return 0;
+
+err_remove_mmap:
+	efa_qp_user_mmap_entries_remove(ucontext, qp);
+
+	return -ENOMEM;
 }
 
 static int efa_qp_validate_cap(struct efa_dev *dev,
@@ -619,7 +587,6 @@ struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
 	struct efa_dev *dev = to_edev(ibpd->device);
 	struct efa_ibv_create_qp_resp resp = {};
 	struct efa_ibv_create_qp cmd = {};
-	bool rq_entry_inserted = false;
 	struct efa_ucontext *ucontext;
 	struct efa_qp *qp;
 	int err;
@@ -727,7 +694,6 @@ struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
 	if (err)
 		goto err_destroy_qp;
 
-	rq_entry_inserted = true;
 	qp->qp_handle = create_qp_resp.qp_handle;
 	qp->ibqp.qp_num = create_qp_resp.qp_num;
 	qp->ibqp.qp_type = init_attr->qp_type;
@@ -744,7 +710,7 @@ struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
 			ibdev_dbg(&dev->ibdev,
 				  "Failed to copy udata for qp[%u]\n",
 				  create_qp_resp.qp_num);
-			goto err_destroy_qp;
+			goto err_remove_mmap_entries;
 		}
 	}
 
@@ -752,13 +718,16 @@ struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
 
 	return &qp->ibqp;
 
+err_remove_mmap_entries:
+	efa_qp_user_mmap_entries_remove(ucontext, qp);
 err_destroy_qp:
 	efa_destroy_qp_handle(dev, create_qp_resp.qp_handle);
 err_free_mapped:
 	if (qp->rq_size) {
 		dma_unmap_single(&dev->pdev->dev, qp->rq_dma_addr, qp->rq_size,
 				 DMA_TO_DEVICE);
-		if (!rq_entry_inserted)
+
+		if (!qp->rq_mmap_entry)
 			free_pages_exact(qp->rq_cpu_addr, qp->rq_size);
 	}
 err_free_qp:
@@ -870,57 +839,48 @@ static int efa_destroy_cq_idx(struct efa_dev *dev, int cq_idx)
 	return efa_com_destroy_cq(&dev->edev, &params);
 }
 
-int efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
+void efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 {
 	struct efa_dev *dev = to_edev(ibcq->device);
 	struct efa_cq *cq = to_ecq(ibcq);
-	int err;
-
-	if (udata->inlen &&
-	    !ib_is_udata_cleared(udata, 0, udata->inlen)) {
-		ibdev_dbg(&dev->ibdev, "Incompatible ABI params\n");
-		return -EINVAL;
-	}
 
 	ibdev_dbg(&dev->ibdev,
 		  "Destroy cq[%d] virt[0x%p] freed: size[%lu], dma[%pad]\n",
 		  cq->cq_idx, cq->cpu_addr, cq->size, &cq->dma_addr);
 
-	err = efa_destroy_cq_idx(dev, cq->cq_idx);
-	if (err)
-		return err;
-
+	efa_destroy_cq_idx(dev, cq->cq_idx);
 	dma_unmap_single(&dev->pdev->dev, cq->dma_addr, cq->size,
 			 DMA_FROM_DEVICE);
-
-	kfree(cq);
-	return 0;
+	rdma_user_mmap_entry_remove(cq->mmap_entry);
 }
 
 static int cq_mmap_entries_setup(struct efa_dev *dev, struct efa_cq *cq,
 				 struct efa_ibv_create_cq_resp *resp)
 {
 	resp->q_mmap_size = cq->size;
-	resp->q_mmap_key = mmap_entry_insert(dev, cq->ucontext, cq,
-					     virt_to_phys(cq->cpu_addr),
-					     cq->size, EFA_MMAP_DMA_PAGE);
-	if (resp->q_mmap_key == EFA_MMAP_INVALID)
+	cq->mmap_entry = efa_user_mmap_entry_insert(&cq->ucontext->ibucontext,
+						    virt_to_phys(cq->cpu_addr),
+						    cq->size, EFA_MMAP_DMA_PAGE,
+						    &resp->q_mmap_key);
+	if (!cq->mmap_entry)
 		return -ENOMEM;
 
 	return 0;
 }
 
-static struct ib_cq *do_create_cq(struct ib_device *ibdev, int entries,
-				  int vector, struct ib_ucontext *ibucontext,
-				  struct ib_udata *udata)
+int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
+		  struct ib_udata *udata)
 {
+	struct efa_ucontext *ucontext = rdma_udata_to_drv_context(
+		udata, struct efa_ucontext, ibucontext);
 	struct efa_ibv_create_cq_resp resp = {};
 	struct efa_com_create_cq_params params;
 	struct efa_com_create_cq_result result;
+	struct ib_device *ibdev = ibcq->device;
 	struct efa_dev *dev = to_edev(ibdev);
 	struct efa_ibv_create_cq cmd = {};
-	bool cq_entry_inserted = false;
-	struct efa_cq *cq;
+	struct efa_cq *cq = to_ecq(ibcq);
+	int entries = attr->cqe;
 	int err;
 
 	ibdev_dbg(ibdev, "create_cq entries %d\n", entries);
@@ -978,19 +938,13 @@ static struct ib_cq *do_create_cq(struct ib_device *ibdev, int entries,
 		goto err_out;
 	}
 
-	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
-	if (!cq) {
-		err = -ENOMEM;
-		goto err_out;
-	}
-
-	cq->ucontext = to_eucontext(ibucontext);
+	cq->ucontext = ucontext;
 	cq->size = PAGE_ALIGN(cmd.cq_entry_size * entries * cmd.num_sub_cqs);
 	cq->cpu_addr = efa_zalloc_mapped(dev, &cq->dma_addr, cq->size,
 					 DMA_FROM_DEVICE);
 	if (!cq->cpu_addr) {
 		err = -ENOMEM;
-		goto err_free_cq;
+		goto err_out;
 	}
 
 	params.uarn = cq->ucontext->uarn;
@@ -1009,12 +963,10 @@ static struct ib_cq *do_create_cq(struct ib_device *ibdev, int entries,
 
 	err = cq_mmap_entries_setup(dev, cq, &resp);
 	if (err) {
-		ibdev_dbg(ibdev,
-			  "Could not setup cq[%u] mmap entries\n", cq->cq_idx);
+		ibdev_dbg(ibdev, "Could not setup cq[%u] mmap entries\n",
+			  cq->cq_idx);
 		goto err_destroy_cq;
 	}
-
-	cq_entry_inserted = true;
 
 	if (udata->outlen) {
 		err = ib_copy_to_udata(udata, &resp,
@@ -1022,40 +974,28 @@ static struct ib_cq *do_create_cq(struct ib_device *ibdev, int entries,
 		if (err) {
 			ibdev_dbg(ibdev,
 				  "Failed to copy udata for create_cq\n");
-			goto err_destroy_cq;
+			goto err_remove_mmap;
 		}
 	}
 
-	ibdev_dbg(ibdev,
-		  "Created cq[%d], cq depth[%u]. dma[%pad] virt[0x%p]\n",
+	ibdev_dbg(ibdev, "Created cq[%d], cq depth[%u]. dma[%pad] virt[0x%p]\n",
 		  cq->cq_idx, result.actual_depth, &cq->dma_addr, cq->cpu_addr);
 
-	return &cq->ibcq;
+	return 0;
 
+err_remove_mmap:
+	rdma_user_mmap_entry_remove(cq->mmap_entry);
 err_destroy_cq:
 	efa_destroy_cq_idx(dev, cq->cq_idx);
 err_free_mapped:
 	dma_unmap_single(&dev->pdev->dev, cq->dma_addr, cq->size,
 			 DMA_FROM_DEVICE);
-	if (!cq_entry_inserted)
+	if (!cq->mmap_entry)
 		free_pages_exact(cq->cpu_addr, cq->size);
-err_free_cq:
-	kfree(cq);
+
 err_out:
 	atomic64_inc(&dev->stats.sw_stats.create_cq_err);
-	return ERR_PTR(err);
-}
-
-struct ib_cq *efa_create_cq(struct ib_device *ibdev,
-			    const struct ib_cq_init_attr *attr,
-			    struct ib_udata *udata)
-{
-	struct efa_ucontext *ucontext = rdma_udata_to_drv_context(udata,
-								  struct efa_ucontext,
-								  ibucontext);
-
-	return do_create_cq(ibdev, attr->cqe, attr->comp_vector,
-			    &ucontext->ibucontext, udata);
+	return err;
 }
 
 static int umem_to_page_list(struct efa_dev *dev,
@@ -1065,21 +1005,15 @@ static int umem_to_page_list(struct efa_dev *dev,
 			     u8 hp_shift)
 {
 	u32 pages_in_hp = BIT(hp_shift - PAGE_SHIFT);
-	struct sg_dma_page_iter sg_iter;
-	unsigned int page_idx = 0;
+	struct ib_block_iter biter;
 	unsigned int hp_idx = 0;
 
 	ibdev_dbg(&dev->ibdev, "hp_cnt[%u], pages_in_hp[%u]\n",
 		  hp_cnt, pages_in_hp);
 
-	for_each_sg_dma_page(umem->sg_head.sgl, &sg_iter, umem->nmap, 0) {
-		if (page_idx % pages_in_hp == 0) {
-			page_list[hp_idx] = sg_page_iter_dma_address(&sg_iter);
-			hp_idx++;
-		}
-
-		page_idx++;
-	}
+	rdma_for_each_block(umem->sg_head.sgl, &biter, umem->nmap,
+			    BIT(hp_shift))
+		page_list[hp_idx++] = rdma_block_iter_dma_address(&biter);
 
 	return 0;
 }
@@ -1114,14 +1048,14 @@ err:
  */
 static int pbl_chunk_list_create(struct efa_dev *dev, struct pbl_context *pbl)
 {
-	unsigned int entry, payloads_in_sg, chunk_list_size, chunk_idx, payload_idx;
 	struct pbl_chunk_list *chunk_list = &pbl->phys.indirect.chunk_list;
 	int page_cnt = pbl->phys.indirect.pbl_buf_size_in_pages;
 	struct scatterlist *pages_sgl = pbl->phys.indirect.sgl;
+	unsigned int chunk_list_size, chunk_idx, payload_idx;
 	int sg_dma_cnt = pbl->phys.indirect.sg_dma_cnt;
 	struct efa_com_ctrl_buff_info *ctrl_buf;
 	u64 *cur_chunk_buf, *prev_chunk_buf;
-	struct scatterlist *sg;
+	struct ib_block_iter biter;
 	dma_addr_t dma_addr;
 	int i;
 
@@ -1155,18 +1089,15 @@ static int pbl_chunk_list_create(struct efa_dev *dev, struct pbl_context *pbl)
 	chunk_idx = 0;
 	payload_idx = 0;
 	cur_chunk_buf = chunk_list->chunks[0].buf;
-	for_each_sg(pages_sgl, sg, sg_dma_cnt, entry) {
-		payloads_in_sg = sg_dma_len(sg) >> EFA_CHUNK_PAYLOAD_SHIFT;
-		for (i = 0; i < payloads_in_sg; i++) {
-			cur_chunk_buf[payload_idx++] =
-				(sg_dma_address(sg) & ~(EFA_CHUNK_PAYLOAD_SIZE - 1)) +
-				(EFA_CHUNK_PAYLOAD_SIZE * i);
+	rdma_for_each_block(pages_sgl, &biter, sg_dma_cnt,
+			    EFA_CHUNK_PAYLOAD_SIZE) {
+		cur_chunk_buf[payload_idx++] =
+			rdma_block_iter_dma_address(&biter);
 
-			if (payload_idx == EFA_PTRS_PER_CHUNK) {
-				chunk_idx++;
-				cur_chunk_buf = chunk_list->chunks[chunk_idx].buf;
-				payload_idx = 0;
-			}
+		if (payload_idx == EFA_PTRS_PER_CHUNK) {
+			chunk_idx++;
+			cur_chunk_buf = chunk_list->chunks[chunk_idx].buf;
+			payload_idx = 0;
 		}
 	}
 
@@ -1314,30 +1245,30 @@ static int pbl_create(struct efa_dev *dev,
 	int err;
 
 	pbl->pbl_buf_size_in_bytes = hp_cnt * EFA_CHUNK_PAYLOAD_PTR_SIZE;
-	pbl->pbl_buf = kzalloc(pbl->pbl_buf_size_in_bytes,
-			       GFP_KERNEL | __GFP_NOWARN);
-	if (pbl->pbl_buf) {
+	pbl->pbl_buf = kvzalloc(pbl->pbl_buf_size_in_bytes, GFP_KERNEL);
+	if (!pbl->pbl_buf)
+		return -ENOMEM;
+
+	if (is_vmalloc_addr(pbl->pbl_buf)) {
+		pbl->physically_continuous = 0;
+		err = umem_to_page_list(dev, umem, pbl->pbl_buf, hp_cnt,
+					hp_shift);
+		if (err)
+			goto err_free;
+
+		err = pbl_indirect_initialize(dev, pbl);
+		if (err)
+			goto err_free;
+	} else {
 		pbl->physically_continuous = 1;
 		err = umem_to_page_list(dev, umem, pbl->pbl_buf, hp_cnt,
 					hp_shift);
 		if (err)
-			goto err_continuous;
+			goto err_free;
+
 		err = pbl_continuous_initialize(dev, pbl);
 		if (err)
-			goto err_continuous;
-	} else {
-		pbl->physically_continuous = 0;
-		pbl->pbl_buf = vzalloc(pbl->pbl_buf_size_in_bytes);
-		if (!pbl->pbl_buf)
-			return -ENOMEM;
-
-		err = umem_to_page_list(dev, umem, pbl->pbl_buf, hp_cnt,
-					hp_shift);
-		if (err)
-			goto err_indirect;
-		err = pbl_indirect_initialize(dev, pbl);
-		if (err)
-			goto err_indirect;
+			goto err_free;
 	}
 
 	ibdev_dbg(&dev->ibdev,
@@ -1346,24 +1277,20 @@ static int pbl_create(struct efa_dev *dev,
 
 	return 0;
 
-err_continuous:
-	kfree(pbl->pbl_buf);
-	return err;
-err_indirect:
-	vfree(pbl->pbl_buf);
+err_free:
+	kvfree(pbl->pbl_buf);
 	return err;
 }
 
 static void pbl_destroy(struct efa_dev *dev, struct pbl_context *pbl)
 {
-	if (pbl->physically_continuous) {
+	if (pbl->physically_continuous)
 		dma_unmap_single(&dev->pdev->dev, pbl->phys.continuous.dma_addr,
 				 pbl->pbl_buf_size_in_bytes, DMA_TO_DEVICE);
-		kfree(pbl->pbl_buf);
-	} else {
+	else
 		pbl_indirect_terminate(dev, pbl);
-		vfree(pbl->pbl_buf);
-	}
+
+	kvfree(pbl->pbl_buf);
 }
 
 static int efa_create_inline_pbl(struct efa_dev *dev, struct efa_mr *mr,
@@ -1417,56 +1344,6 @@ static int efa_create_pbl(struct efa_dev *dev,
 	return 0;
 }
 
-static void efa_cont_pages(struct ib_umem *umem, u64 addr,
-			   unsigned long max_page_shift,
-			   int *count, u8 *shift, u32 *ncont)
-{
-	struct scatterlist *sg;
-	u64 base = ~0, p = 0;
-	unsigned long tmp;
-	unsigned long m;
-	u64 len, pfn;
-	int i = 0;
-	int entry;
-
-	addr = addr >> PAGE_SHIFT;
-	tmp = (unsigned long)addr;
-	m = find_first_bit(&tmp, BITS_PER_LONG);
-	if (max_page_shift)
-		m = min_t(unsigned long, max_page_shift - PAGE_SHIFT, m);
-
-	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
-		len = DIV_ROUND_UP(sg_dma_len(sg), PAGE_SIZE);
-		pfn = sg_dma_address(sg) >> PAGE_SHIFT;
-		if (base + p != pfn) {
-			/*
-			 * If either the offset or the new
-			 * base are unaligned update m
-			 */
-			tmp = (unsigned long)(pfn | p);
-			if (!IS_ALIGNED(tmp, 1 << m))
-				m = find_first_bit(&tmp, BITS_PER_LONG);
-
-			base = pfn;
-			p = 0;
-		}
-
-		p += len;
-		i += len;
-	}
-
-	if (i) {
-		m = min_t(unsigned long, ilog2(roundup_pow_of_two(i)), m);
-		*ncont = DIV_ROUND_UP(i, (1 << m));
-	} else {
-		m = 0;
-		*ncont = 0;
-	}
-
-	*shift = PAGE_SHIFT + m;
-	*count = i;
-}
-
 struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 			 u64 virt_addr, int access_flags,
 			 struct ib_udata *udata)
@@ -1474,11 +1351,11 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 	struct efa_dev *dev = to_edev(ibpd->device);
 	struct efa_com_reg_mr_params params = {};
 	struct efa_com_reg_mr_result result = {};
-	unsigned long max_page_shift;
 	struct pbl_context pbl;
+	int supp_access_flags;
+	unsigned int pg_sz;
 	struct efa_mr *mr;
 	int inline_size;
-	int npages;
 	int err;
 
 	if (udata->inlen &&
@@ -1489,10 +1366,14 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 		goto err_out;
 	}
 
-	if (access_flags & ~EFA_SUPPORTED_ACCESS_FLAGS) {
+	supp_access_flags =
+		IB_ACCESS_LOCAL_WRITE |
+		(is_rdma_read_cap(dev) ? IB_ACCESS_REMOTE_READ : 0);
+
+	if (access_flags & ~supp_access_flags) {
 		ibdev_dbg(&dev->ibdev,
 			  "Unsupported access flags[%#x], supported[%#x]\n",
-			  access_flags, EFA_SUPPORTED_ACCESS_FLAGS);
+			  access_flags, supp_access_flags);
 		err = -EOPNOTSUPP;
 		goto err_out;
 	}
@@ -1503,7 +1384,7 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 		goto err_out;
 	}
 
-	mr->umem = ib_umem_get(udata, start, length, access_flags, 0);
+	mr->umem = ib_umem_get(udata, start, length, access_flags);
 	if (IS_ERR(mr->umem)) {
 		err = PTR_ERR(mr->umem);
 		ibdev_dbg(&dev->ibdev,
@@ -1514,14 +1395,25 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 	params.pd = to_epd(ibpd)->pdn;
 	params.iova = virt_addr;
 	params.mr_length_in_bytes = length;
-	params.permissions = access_flags & 0x1;
-	max_page_shift = fls64(dev->dev_attr.page_size_cap);
+	params.permissions = access_flags;
 
-	efa_cont_pages(mr->umem, start, max_page_shift, &npages,
-		       &params.page_shift, &params.page_num);
+	pg_sz = ib_umem_find_best_pgsz(mr->umem,
+				       dev->dev_attr.page_size_cap,
+				       virt_addr);
+	if (!pg_sz) {
+		err = -EOPNOTSUPP;
+		ibdev_dbg(&dev->ibdev, "Failed to find a suitable page size in page_size_cap %#llx\n",
+			  dev->dev_attr.page_size_cap);
+		goto err_unmap;
+	}
+
+	params.page_shift = __ffs(pg_sz);
+	params.page_num = DIV_ROUND_UP(length + (start & (pg_sz - 1)),
+				       pg_sz);
+
 	ibdev_dbg(&dev->ibdev,
-		  "start %#llx length %#llx npages %d params.page_shift %u params.page_num %u\n",
-		  start, length, npages, params.page_shift, params.page_num);
+		  "start %#llx length %#llx params.page_shift %u params.page_num %u\n",
+		  start, length, params.page_shift, params.page_num);
 
 	inline_size = ARRAY_SIZE(params.pbl.inline_pbl_array);
 	if (params.page_num <= inline_size) {
@@ -1567,22 +1459,14 @@ int efa_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 	struct efa_mr *mr = to_emr(ibmr);
 	int err;
 
-	if (udata->inlen &&
-	    !ib_is_udata_cleared(udata, 0, udata->inlen)) {
-		ibdev_dbg(&dev->ibdev, "Incompatible ABI params\n");
-		return -EINVAL;
-	}
-
 	ibdev_dbg(&dev->ibdev, "Deregister mr[%d]\n", ibmr->lkey);
 
-	if (mr->umem) {
-		params.l_key = mr->ibmr.lkey;
-		err = efa_com_dereg_mr(&dev->edev, &params);
-		if (err)
-			return err;
-		ib_umem_release(mr->umem);
-	}
+	params.l_key = mr->ibmr.lkey;
+	err = efa_com_dereg_mr(&dev->edev, &params);
+	if (err)
+		return err;
 
+	ib_umem_release(mr->umem);
 	kfree(mr);
 
 	return 0;
@@ -1633,7 +1517,6 @@ int efa_alloc_ucontext(struct ib_ucontext *ibucontext, struct ib_udata *udata)
 		goto err_out;
 
 	ucontext->uarn = result.uarn;
-	xa_init(&ucontext->mmap_xa);
 
 	resp.cmds_supp_udata_mask |= EFA_USER_CMDS_SUPP_UDATA_QUERY_DEVICE;
 	resp.cmds_supp_udata_mask |= EFA_USER_CMDS_SUPP_UDATA_CREATE_AH;
@@ -1662,38 +1545,56 @@ void efa_dealloc_ucontext(struct ib_ucontext *ibucontext)
 	struct efa_ucontext *ucontext = to_eucontext(ibucontext);
 	struct efa_dev *dev = to_edev(ibucontext->device);
 
-	mmap_entries_remove_free(dev, ucontext);
 	efa_dealloc_uar(dev, ucontext->uarn);
 }
 
-static int __efa_mmap(struct efa_dev *dev, struct efa_ucontext *ucontext,
-		      struct vm_area_struct *vma, u64 key, u64 length)
+void efa_mmap_free(struct rdma_user_mmap_entry *rdma_entry)
 {
-	struct efa_mmap_entry *entry;
-	unsigned long va;
-	u64 pfn;
-	int err;
+	struct efa_user_mmap_entry *entry = to_emmap(rdma_entry);
 
-	entry = mmap_entry_get(dev, ucontext, key, length);
-	if (!entry) {
-		ibdev_dbg(&dev->ibdev, "key[%#llx] does not have valid entry\n",
-			  key);
+	/* DMA mapping is already gone, now free the pages */
+	if (entry->mmap_flag == EFA_MMAP_DMA_PAGE)
+		free_pages_exact(phys_to_virt(entry->address),
+				 entry->rdma_entry.npages * PAGE_SIZE);
+	kfree(entry);
+}
+
+static int __efa_mmap(struct efa_dev *dev, struct efa_ucontext *ucontext,
+		      struct vm_area_struct *vma)
+{
+	struct rdma_user_mmap_entry *rdma_entry;
+	struct efa_user_mmap_entry *entry;
+	unsigned long va;
+	int err = 0;
+	u64 pfn;
+
+	rdma_entry = rdma_user_mmap_entry_get(&ucontext->ibucontext, vma);
+	if (!rdma_entry) {
+		ibdev_dbg(&dev->ibdev,
+			  "pgoff[%#lx] does not have valid entry\n",
+			  vma->vm_pgoff);
 		return -EINVAL;
 	}
+	entry = to_emmap(rdma_entry);
 
 	ibdev_dbg(&dev->ibdev,
-		  "Mapping address[%#llx], length[%#llx], mmap_flag[%d]\n",
-		  entry->address, length, entry->mmap_flag);
+		  "Mapping address[%#llx], length[%#zx], mmap_flag[%d]\n",
+		  entry->address, rdma_entry->npages * PAGE_SIZE,
+		  entry->mmap_flag);
 
 	pfn = entry->address >> PAGE_SHIFT;
 	switch (entry->mmap_flag) {
 	case EFA_MMAP_IO_NC:
-		err = rdma_user_mmap_io(&ucontext->ibucontext, vma, pfn, length,
-					pgprot_noncached(vma->vm_page_prot));
+		err = rdma_user_mmap_io(&ucontext->ibucontext, vma, pfn,
+					entry->rdma_entry.npages * PAGE_SIZE,
+					pgprot_noncached(vma->vm_page_prot),
+					rdma_entry);
 		break;
 	case EFA_MMAP_IO_WC:
-		err = rdma_user_mmap_io(&ucontext->ibucontext, vma, pfn, length,
-					pgprot_writecombine(vma->vm_page_prot));
+		err = rdma_user_mmap_io(&ucontext->ibucontext, vma, pfn,
+					entry->rdma_entry.npages * PAGE_SIZE,
+					pgprot_writecombine(vma->vm_page_prot),
+					rdma_entry);
 		break;
 	case EFA_MMAP_DMA_PAGE:
 		for (va = vma->vm_start; va < vma->vm_end;
@@ -1707,12 +1608,15 @@ static int __efa_mmap(struct efa_dev *dev, struct efa_ucontext *ucontext,
 		err = -EINVAL;
 	}
 
-	if (err)
+	if (err) {
 		ibdev_dbg(
 			&dev->ibdev,
-			"Couldn't mmap address[%#llx] length[%#llx] mmap_flag[%d] err[%d]\n",
-			entry->address, length, entry->mmap_flag, err);
+			"Couldn't mmap address[%#llx] length[%#zx] mmap_flag[%d] err[%d]\n",
+			entry->address, rdma_entry->npages * PAGE_SIZE,
+			entry->mmap_flag, err);
+	}
 
+	rdma_user_mmap_entry_put(rdma_entry);
 	return err;
 }
 
@@ -1721,26 +1625,13 @@ int efa_mmap(struct ib_ucontext *ibucontext,
 {
 	struct efa_ucontext *ucontext = to_eucontext(ibucontext);
 	struct efa_dev *dev = to_edev(ibucontext->device);
-	u64 length = vma->vm_end - vma->vm_start;
-	u64 key = vma->vm_pgoff << PAGE_SHIFT;
+	size_t length = vma->vm_end - vma->vm_start;
 
 	ibdev_dbg(&dev->ibdev,
-		  "start %#lx, end %#lx, length = %#llx, key = %#llx\n",
-		  vma->vm_start, vma->vm_end, length, key);
+		  "start %#lx, end %#lx, length = %#zx, pgoff = %#lx\n",
+		  vma->vm_start, vma->vm_end, length, vma->vm_pgoff);
 
-	if (length % PAGE_SIZE != 0 || !(vma->vm_flags & VM_SHARED)) {
-		ibdev_dbg(&dev->ibdev,
-			  "length[%#llx] is not page size aligned[%#lx] or VM_SHARED is not set [%#lx]\n",
-			  length, PAGE_SIZE, vma->vm_flags);
-		return -EINVAL;
-	}
-
-	if (vma->vm_flags & VM_EXEC) {
-		ibdev_dbg(&dev->ibdev, "Mapping executable pages is not permitted\n");
-		return -EPERM;
-	}
-
-	return __efa_mmap(dev, ucontext, vma, key, length);
+	return __efa_mmap(dev, ucontext, vma);
 }
 
 static int efa_ah_destroy(struct efa_dev *dev, struct efa_ah *ah)
@@ -1825,6 +1716,54 @@ void efa_destroy_ah(struct ib_ah *ibah, u32 flags)
 	}
 
 	efa_ah_destroy(dev, ah);
+}
+
+struct rdma_hw_stats *efa_alloc_hw_stats(struct ib_device *ibdev, u8 port_num)
+{
+	return rdma_alloc_hw_stats_struct(efa_stats_names,
+					  ARRAY_SIZE(efa_stats_names),
+					  RDMA_HW_STATS_DEFAULT_LIFESPAN);
+}
+
+int efa_get_hw_stats(struct ib_device *ibdev, struct rdma_hw_stats *stats,
+		     u8 port_num, int index)
+{
+	struct efa_com_get_stats_params params = {};
+	union efa_com_get_stats_result result;
+	struct efa_dev *dev = to_edev(ibdev);
+	struct efa_com_basic_stats *bs;
+	struct efa_com_stats_admin *as;
+	struct efa_stats *s;
+	int err;
+
+	params.type = EFA_ADMIN_GET_STATS_TYPE_BASIC;
+	params.scope = EFA_ADMIN_GET_STATS_SCOPE_ALL;
+
+	err = efa_com_get_stats(&dev->edev, &params, &result);
+	if (err)
+		return err;
+
+	bs = &result.basic_stats;
+	stats->value[EFA_TX_BYTES] = bs->tx_bytes;
+	stats->value[EFA_TX_PKTS] = bs->tx_pkts;
+	stats->value[EFA_RX_BYTES] = bs->rx_bytes;
+	stats->value[EFA_RX_PKTS] = bs->rx_pkts;
+	stats->value[EFA_RX_DROPS] = bs->rx_drops;
+
+	as = &dev->edev.aq.stats;
+	stats->value[EFA_SUBMITTED_CMDS] = atomic64_read(&as->submitted_cmd);
+	stats->value[EFA_COMPLETED_CMDS] = atomic64_read(&as->completed_cmd);
+	stats->value[EFA_NO_COMPLETION_CMDS] = atomic64_read(&as->no_completion);
+
+	s = &dev->stats;
+	stats->value[EFA_KEEP_ALIVE_RCVD] = atomic64_read(&s->keep_alive_rcvd);
+	stats->value[EFA_ALLOC_PD_ERR] = atomic64_read(&s->sw_stats.alloc_pd_err);
+	stats->value[EFA_CREATE_QP_ERR] = atomic64_read(&s->sw_stats.create_qp_err);
+	stats->value[EFA_REG_MR_ERR] = atomic64_read(&s->sw_stats.reg_mr_err);
+	stats->value[EFA_ALLOC_UCONTEXT_ERR] = atomic64_read(&s->sw_stats.alloc_ucontext_err);
+	stats->value[EFA_CREATE_AH_ERR] = atomic64_read(&s->sw_stats.create_ah_err);
+
+	return ARRAY_SIZE(efa_stats_names);
 }
 
 enum rdma_link_layer efa_port_link_layer(struct ib_device *ibdev,

@@ -9,10 +9,12 @@ config UML
 	select ARCH_NO_PREEMPT
 	select HAVE_ARCH_AUDITSYSCALL
 	select HAVE_ARCH_SECCOMP_FILTER
+	select HAVE_ASM_MODVERSIONS
 	select HAVE_UID16
 	select HAVE_FUTEX_CMPXCHG if FUTEX
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DEBUG_BUGVERBOSE
+	select HAVE_COPY_THREAD_TLS
 	select GENERIC_IRQ_SHOW
 	select GENERIC_CPU_DEVICES
 	select GENERIC_CLOCKEVENTS
@@ -152,7 +154,7 @@ config KERNEL_STACK_ORDER
 	  It is possible to reduce the stack to 1 for 64BIT and 0 for 32BIT on
 	  older (pre-2017) CPUs. It is not recommended on newer CPUs due to the
 	  increase in the size of the state which needs to be saved when handling
-          signals.
+	  signals.
 
 config MMAPPER
 	tristate "iomem emulation driver"
@@ -183,6 +185,18 @@ config SECCOMP
 	  defined by each seccomp mode.
 
 	  If unsure, say Y.
+
+config UML_TIME_TRAVEL_SUPPORT
+	bool
+	prompt "Support time-travel mode (e.g. for test execution)"
+	help
+	  Enable this option to support time travel inside the UML instance.
+
+	  After enabling this option, two modes are accessible at runtime
+	  (selected by the kernel command line), see the kernel's command-
+	  line help for more details.
+
+	  It is safe to say Y, but you probably don't need this.
 
 endmenu
 

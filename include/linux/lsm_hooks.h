@@ -77,7 +77,7 @@
  *	state.  This is called immediately after commit_creds().
  *
  * Security hooks for mount using fs_context.
- *	[See also Documentation/filesystems/mounting.txt]
+ *	[See also Documentation/filesystems/mount_api.txt]
  *
  * @fs_context_dup:
  *	Allocate and attach a security structure to sc->security.  This pointer
@@ -339,6 +339,9 @@
  *	Check for permission to change root directory.
  *	@path contains the path structure.
  *	Return 0 if permission is granted.
+ * @path_notify:
+ *	Check permissions before setting a watch on events as defined by @mask,
+ *	on an object at @path, whose type is defined by @obj_type.
  * @inode_readlink:
  *	Check the permission to read the symbolic link.
  *	@dentry contains the dentry structure for the file link.
@@ -1446,6 +1449,11 @@
  * @bpf_prog_free_security:
  *	Clean up the security information stored inside bpf prog.
  *
+ * @locked_down
+ *     Determine whether a kernel feature that potentially enables arbitrary
+ *     code execution in kernel space should be permitted.
+ *
+ *     @what: kernel feature being accessed
  */
 union security_list_options {
 	int (*binder_set_context_mgr)(struct task_struct *mgr);
@@ -1535,7 +1543,9 @@ union security_list_options {
 	int (*path_chown)(const struct path *path, kuid_t uid, kgid_t gid);
 	int (*path_chroot)(const struct path *path);
 #endif
-
+	/* Needed for inode based security check */
+	int (*path_notify)(const struct path *path, u64 mask,
+				unsigned int obj_type);
 	int (*inode_alloc_security)(struct inode *inode);
 	void (*inode_free_security)(struct inode *inode);
 	int (*inode_init_security)(struct inode *inode, struct inode *dir,
@@ -1807,6 +1817,15 @@ union security_list_options {
 	int (*bpf_prog_alloc_security)(struct bpf_prog_aux *aux);
 	void (*bpf_prog_free_security)(struct bpf_prog_aux *aux);
 #endif /* CONFIG_BPF_SYSCALL */
+	int (*locked_down)(enum lockdown_reason what);
+#ifdef CONFIG_PERF_EVENTS
+	int (*perf_event_open)(struct perf_event_attr *attr, int type);
+	int (*perf_event_alloc)(struct perf_event *event);
+	void (*perf_event_free)(struct perf_event *event);
+	int (*perf_event_read)(struct perf_event *event);
+	int (*perf_event_write)(struct perf_event *event);
+
+#endif
 };
 
 struct security_hook_heads {
@@ -1860,6 +1879,8 @@ struct security_hook_heads {
 	struct hlist_head path_chown;
 	struct hlist_head path_chroot;
 #endif
+	/* Needed for inode based modules as well */
+	struct hlist_head path_notify;
 	struct hlist_head inode_alloc_security;
 	struct hlist_head inode_free_security;
 	struct hlist_head inode_init_security;
@@ -2046,6 +2067,14 @@ struct security_hook_heads {
 	struct hlist_head bpf_prog_alloc_security;
 	struct hlist_head bpf_prog_free_security;
 #endif /* CONFIG_BPF_SYSCALL */
+	struct hlist_head locked_down;
+#ifdef CONFIG_PERF_EVENTS
+	struct hlist_head perf_event_open;
+	struct hlist_head perf_event_alloc;
+	struct hlist_head perf_event_free;
+	struct hlist_head perf_event_read;
+	struct hlist_head perf_event_write;
+#endif
 } __randomize_layout;
 
 /*
@@ -2104,10 +2133,16 @@ struct lsm_info {
 };
 
 extern struct lsm_info __start_lsm_info[], __end_lsm_info[];
+extern struct lsm_info __start_early_lsm_info[], __end_early_lsm_info[];
 
 #define DEFINE_LSM(lsm)							\
 	static struct lsm_info __lsm_##lsm				\
 		__used __section(.lsm_info.init)			\
+		__aligned(sizeof(unsigned long))
+
+#define DEFINE_EARLY_LSM(lsm)						\
+	static struct lsm_info __early_lsm_##lsm			\
+		__used __section(.early_lsm_info.init)			\
 		__aligned(sizeof(unsigned long))
 
 #ifdef CONFIG_SECURITY_SELINUX_DISABLE

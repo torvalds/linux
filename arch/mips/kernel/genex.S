@@ -18,6 +18,7 @@
 #include <asm/fpregdef.h>
 #include <asm/mipsregs.h>
 #include <asm/stackframe.h>
+#include <asm/sync.h>
 #include <asm/war.h>
 #include <asm/thread_info.h>
 
@@ -32,9 +33,6 @@
 NESTED(except_vec3_generic, 0, sp)
 	.set	push
 	.set	noat
-#if R5432_CP0_INTERRUPT_WAR
-	mfc0	k0, CP0_INDEX
-#endif
 	mfc0	k1, CP0_CAUSE
 	andi	k1, k1, 0x7c
 #ifdef CONFIG_64BIT
@@ -356,8 +354,9 @@ NESTED(ejtag_debug_handler, PT_SIZE, sp)
 
 #ifdef CONFIG_SMP
 1:	PTR_LA	k0, ejtag_debug_buffer_spinlock
-	ll	k0, 0(k0)
-	bnez	k0, 1b
+	__SYNC(full, loongson3_war)
+2:	ll	k0, 0(k0)
+	bnez	k0, 2b
 	PTR_LA	k0, ejtag_debug_buffer_spinlock
 	sc	k0, 0(k0)
 	beqz	k0, 1b
@@ -660,7 +659,7 @@ isrdhwr:
 	.set	pop
 	END(handle_ri_rdhwr)
 
-#ifdef CONFIG_64BIT
+#ifdef CONFIG_CPU_R4X00_BUGS64
 /* A temporary overflow handler used by check_daddi(). */
 
 	__INIT

@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (C) 2016 Felix Fietkau <nbd@nbd.name>
  * Copyright (C) 2018 Lorenzo Bianconi <lorenzo.bianconi83@gmail.com>
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include <linux/kernel.h>
@@ -65,7 +54,7 @@ int mt76x02_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
 			break;
 		}
 
-		rxfce = (u32 *) skb->cb;
+		rxfce = (u32 *)skb->cb;
 
 		if (seq == FIELD_GET(MT_RX_FCE_INFO_CMD_SEQ, *rxfce))
 			check_seq = true;
@@ -86,11 +75,11 @@ int mt76x02_mcu_function_select(struct mt76x02_dev *dev, enum mcu_function func,
 				u32 val)
 {
 	struct {
-	    __le32 id;
-	    __le32 value;
+		__le32 id;
+		__le32 value;
 	} __packed __aligned(4) msg = {
-	    .id = cpu_to_le32(func),
-	    .value = cpu_to_le32(val),
+		.id = cpu_to_le32(func),
+		.value = cpu_to_le32(val),
 	};
 	bool wait = false;
 
@@ -111,7 +100,8 @@ int mt76x02_mcu_set_radio_state(struct mt76x02_dev *dev, bool on)
 		.level = cpu_to_le32(0),
 	};
 
-	return mt76_mcu_send_msg(dev, CMD_POWER_SAVING_OP, &msg, sizeof(msg), false);
+	return mt76_mcu_send_msg(dev, CMD_POWER_SAVING_OP, &msg, sizeof(msg),
+				 false);
 }
 EXPORT_SYMBOL_GPL(mt76x02_mcu_set_radio_state);
 
@@ -124,7 +114,7 @@ int mt76x02_mcu_calibrate(struct mt76x02_dev *dev, int type, u32 param)
 		.id = cpu_to_le32(type),
 		.value = cpu_to_le32(param),
 	};
-	bool is_mt76x2e = mt76_is_mmio(dev) && is_mt76x2(dev);
+	bool is_mt76x2e = mt76_is_mmio(&dev->mt76) && is_mt76x2(dev);
 	int ret;
 
 	if (is_mt76x2e)

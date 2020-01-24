@@ -81,7 +81,6 @@ static int kdwc3_probe(struct platform_device *pdev)
 	struct device		*dev = &pdev->dev;
 	struct device_node	*node = pdev->dev.of_node;
 	struct dwc3_keystone	*kdwc;
-	struct resource		*res;
 	int			error, irq;
 
 	kdwc = devm_kzalloc(dev, sizeof(*kdwc), GFP_KERNEL);
@@ -92,8 +91,7 @@ static int kdwc3_probe(struct platform_device *pdev)
 
 	kdwc->dev = dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	kdwc->usbss = devm_ioremap_resource(dev, res);
+	kdwc->usbss = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(kdwc->usbss))
 		return PTR_ERR(kdwc->usbss);
 
@@ -112,7 +110,6 @@ static int kdwc3_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "missing irq\n");
 		error = irq;
 		goto err_irq;
 	}

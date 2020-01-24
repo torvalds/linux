@@ -24,6 +24,8 @@
  *
  */
 
+#include <linux/slab.h>
+
 #include "dm_services.h"
 
 
@@ -46,8 +48,7 @@
 #include "dce110/dce110_hw_sequencer.h"
 #include "dce120/dce120_hw_sequencer.h"
 #include "dce/dce_transform.h"
-
-#include "dce/dce_clk_mgr.h"
+#include "clk_mgr.h"
 #include "dce/dce_audio.h"
 #include "dce/dce_link_encoder.h"
 #include "dce/dce_stream_encoder.h"
@@ -292,6 +293,14 @@ static const struct dce_stream_encoder_mask se_mask = {
 		SE_COMMON_MASK_SH_LIST_DCE120(_MASK)
 };
 
+static const struct dce110_aux_registers_shift aux_shift = {
+	DCE12_AUX_MASK_SH_LIST(__SHIFT)
+};
+
+static const struct dce110_aux_registers_mask aux_mask = {
+	DCE12_AUX_MASK_SH_LIST(_MASK)
+};
+
 #define opp_regs(id)\
 [id] = {\
 	OPP_DCE_120_REG_LIST(id),\
@@ -351,9 +360,40 @@ static const struct dce_audio_shift audio_shift = {
 		DCE120_AUD_COMMON_MASK_SH_LIST(__SHIFT)
 };
 
-static const struct dce_aduio_mask audio_mask = {
+static const struct dce_audio_mask audio_mask = {
 		DCE120_AUD_COMMON_MASK_SH_LIST(_MASK)
 };
+
+static int map_transmitter_id_to_phy_instance(
+	enum transmitter transmitter)
+{
+	switch (transmitter) {
+	case TRANSMITTER_UNIPHY_A:
+		return 0;
+	break;
+	case TRANSMITTER_UNIPHY_B:
+		return 1;
+	break;
+	case TRANSMITTER_UNIPHY_C:
+		return 2;
+	break;
+	case TRANSMITTER_UNIPHY_D:
+		return 3;
+	break;
+	case TRANSMITTER_UNIPHY_E:
+		return 4;
+	break;
+	case TRANSMITTER_UNIPHY_F:
+		return 5;
+	break;
+	case TRANSMITTER_UNIPHY_G:
+		return 6;
+	break;
+	default:
+		ASSERT(0);
+		return 0;
+	}
+}
 
 #define clk_src_regs(index, id)\
 [index] = {\
@@ -403,7 +443,10 @@ struct dce_aux *dce120_aux_engine_create(
 
 	dce110_aux_engine_construct(aux_engine, ctx, inst,
 				    SW_AUX_TIMEOUT_PERIOD_MULTIPLIER * AUX_TIMEOUT_PERIOD,
-				    &aux_engine_regs[inst]);
+				    &aux_engine_regs[inst],
+					&aux_mask,
+					&aux_shift,
+					ctx->dc->caps.extended_aux_timeout_support);
 
 	return &aux_engine->base;
 }
@@ -480,7 +523,7 @@ static const struct dc_debug_options debug_defaults = {
 		.disable_clock_gate = true,
 };
 
-struct clock_source *dce120_clock_source_create(
+static struct clock_source *dce120_clock_source_create(
 	struct dc_context *ctx,
 	struct dc_bios *bios,
 	enum clock_source_id id,
@@ -499,18 +542,19 @@ struct clock_source *dce120_clock_source_create(
 		return &clk_src->base;
 	}
 
+	kfree(clk_src);
 	BREAK_TO_DEBUGGER();
 	return NULL;
 }
 
-void dce120_clock_source_destroy(struct clock_source **clk_src)
+static void dce120_clock_source_destroy(struct clock_source **clk_src)
 {
 	kfree(TO_DCE110_CLK_SRC(*clk_src));
 	*clk_src = NULL;
 }
 
 
-bool dce120_hw_sequencer_create(struct dc *dc)
+static bool dce120_hw_sequencer_create(struct dc *dc)
 {
 	/* All registers used by dce11.2 match those in dce11 in offset and
 	 * structure
@@ -609,9 +653,6 @@ static void destruct(struct dce110_resource_pool *pool)
 
 	if (pool->base.dmcu != NULL)
 		dce_dmcu_destroy(&pool->base.dmcu);
-
-	if (pool->base.clk_mgr != NULL)
-		dce_clk_mgr_destroy(&pool->base.clk_mgr);
 }
 
 static void read_dce_straps(
@@ -656,14 +697,18 @@ static struct link_encoder *dce120_link_encoder_create(
 {
 	struct dce110_link_encoder *enc110 =
 		kzalloc(sizeof(struct dce110_link_encoder), GFP_KERNEL);
+	int link_regs_id;
 
 	if (!enc110)
 		return NULL;
 
+	link_regs_id =
+		map_transmitter_id_to_phy_instance(enc_init_data->transmitter);
+
 	dce110_link_encoder_construct(enc110,
 				      enc_init_data,
 				      &link_enc_feature,
-				      &link_enc_regs[enc_init_data->transmitter],
+				      &link_enc_regs[link_regs_id],
 				      &link_enc_aux_regs[enc_init_data->channel - 1],
 				      &link_enc_hpd_regs[enc_init_data->hpd_source]);
 
@@ -837,7 +882,8 @@ static const struct resource_funcs dce120_res_pool_funcs = {
 	.link_enc_create = dce120_link_encoder_create,
 	.validate_bandwidth = dce112_validate_bandwidth,
 	.validate_plane = dce100_validate_plane,
-	.add_stream_to_ctx = dce112_add_stream_to_ctx
+	.add_stream_to_ctx = dce112_add_stream_to_ctx,
+	.find_first_free_match_stream_enc_for_link = dce110_find_first_free_match_stream_enc_for_link
 };
 
 static void bw_calcs_data_update_from_pplib(struct dc *dc)
@@ -848,6 +894,8 @@ static void bw_calcs_data_update_from_pplib(struct dc *dc)
 	int i;
 	unsigned int clk;
 	unsigned int latency;
+	/*original logic in dal3*/
+	int memory_type_multiplier = MEMORY_TYPE_MULTIPLIER_CZ;
 
 	/*do system clock*/
 	if (!dm_pp_get_clock_levels_by_type_with_latency(
@@ -906,13 +954,16 @@ static void bw_calcs_data_update_from_pplib(struct dc *dc)
 	 * ALSO always convert UMA clock (from PPLIB)  to YCLK (HW formula):
 	 * YCLK = UMACLK*m_memoryTypeMultiplier
 	 */
+	if (dc->bw_vbios->memory_type == bw_def_hbm)
+		memory_type_multiplier = MEMORY_TYPE_HBM;
+
 	dc->bw_vbios->low_yclk = bw_frc_to_fixed(
-		mem_clks.data[0].clocks_in_khz * MEMORY_TYPE_MULTIPLIER_CZ, 1000);
+		mem_clks.data[0].clocks_in_khz * memory_type_multiplier, 1000);
 	dc->bw_vbios->mid_yclk = bw_frc_to_fixed(
-		mem_clks.data[mem_clks.num_levels>>1].clocks_in_khz * MEMORY_TYPE_MULTIPLIER_CZ,
+		mem_clks.data[mem_clks.num_levels>>1].clocks_in_khz * memory_type_multiplier,
 		1000);
 	dc->bw_vbios->high_yclk = bw_frc_to_fixed(
-		mem_clks.data[mem_clks.num_levels-1].clocks_in_khz * MEMORY_TYPE_MULTIPLIER_CZ,
+		mem_clks.data[mem_clks.num_levels-1].clocks_in_khz * memory_type_multiplier,
 		1000);
 
 	/* Now notify PPLib/SMU about which Watermarks sets they should select
@@ -1001,7 +1052,7 @@ static bool construct(
 	dc->caps.max_cursor_size = 128;
 	dc->caps.dual_link_dvi = true;
 	dc->caps.psp_setup_panel_mode = true;
-
+	dc->caps.extended_aux_timeout_support = false;
 	dc->debug = debug_defaults;
 
 	/*************************************************
@@ -1045,17 +1096,6 @@ static bool construct(
 			BREAK_TO_DEBUGGER();
 			goto clk_src_create_fail;
 		}
-	}
-
-	if (is_vg20)
-		pool->base.clk_mgr = dce121_clk_mgr_create(ctx);
-	else
-		pool->base.clk_mgr = dce120_clk_mgr_create(ctx);
-
-	if (pool->base.clk_mgr == NULL) {
-		dm_error("DC: failed to create display clock!\n");
-		BREAK_TO_DEBUGGER();
-		goto dccg_create_fail;
 	}
 
 	pool->base.dmcu = dce_dmcu_create(ctx,
@@ -1177,16 +1217,6 @@ static bool construct(
 	if (!resource_construct(num_virtual_links, dc, &pool->base, res_funcs))
 		goto res_create_fail;
 
-	/*
-	 * This is a bit of a hack. The xGMI enabled info is used to determine
-	 * if audio and display clocks need to be adjusted with the WAFL link's
-	 * SS info. This is a responsiblity of the clk_mgr. But since MMHUB is
-	 * under hwseq, and the relevant register is in MMHUB, we have to do it
-	 * here.
-	 */
-	if (is_vg20 && dce121_xgmi_enabled(dc->hwseq))
-		dce121_clock_patch_xgmi_ss_info(pool->base.clk_mgr);
-
 	/* Create hardware sequencer */
 	if (!dce120_hw_sequencer_create(dc))
 		goto controller_create_fail;
@@ -1204,7 +1234,6 @@ static bool construct(
 
 irqs_create_fail:
 controller_create_fail:
-dccg_create_fail:
 clk_src_create_fail:
 res_create_fail:
 
@@ -1226,6 +1255,7 @@ struct resource_pool *dce120_create_resource_pool(
 	if (construct(num_virtual_links, dc, pool))
 		return &pool->base;
 
+	kfree(pool);
 	BREAK_TO_DEBUGGER();
 	return NULL;
 }

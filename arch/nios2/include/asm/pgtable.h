@@ -291,8 +291,6 @@ static inline void pte_clear(struct mm_struct *mm,
 
 #include <asm-generic/pgtable.h>
 
-#define pgtable_cache_init()		do { } while (0)
-
 extern void __init paging_init(void);
 extern void __init mmu_init(void);
 

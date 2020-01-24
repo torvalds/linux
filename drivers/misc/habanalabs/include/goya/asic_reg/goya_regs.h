@@ -84,10 +84,12 @@
 #include "tpc6_rtr_regs.h"
 #include "tpc7_nrtr_regs.h"
 #include "tpc0_eml_cfg_regs.h"
+#include "psoc_etr_regs.h"
 
 #include "psoc_global_conf_masks.h"
 #include "dma_macro_masks.h"
 #include "dma_qm_0_masks.h"
+#include "dma_ch_0_masks.h"
 #include "tpc0_qm_masks.h"
 #include "tpc0_cmdq_masks.h"
 #include "mme_qm_masks.h"

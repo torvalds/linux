@@ -46,8 +46,6 @@ static const uuid_le mei_nfc_info_guid = MEI_UUID_NFC_INFO;
  */
 static void number_of_connections(struct mei_cl_device *cldev)
 {
-	dev_dbg(&cldev->dev, "running hook %s\n", __func__);
-
 	if (cldev->me_cl->props.max_number_of_connections > 1)
 		cldev->do_match = 0;
 }
@@ -59,8 +57,6 @@ static void number_of_connections(struct mei_cl_device *cldev)
  */
 static void blacklist(struct mei_cl_device *cldev)
 {
-	dev_dbg(&cldev->dev, "running hook %s\n", __func__);
-
 	cldev->do_match = 0;
 }
 
@@ -71,8 +67,6 @@ static void blacklist(struct mei_cl_device *cldev)
  */
 static void whitelist(struct mei_cl_device *cldev)
 {
-	dev_dbg(&cldev->dev, "running hook %s\n", __func__);
-
 	cldev->do_match = 1;
 }
 
@@ -218,13 +212,21 @@ static void mei_mkhi_fix(struct mei_cl_device *cldev)
 {
 	int ret;
 
+	/* No need to enable the client if nothing is needed from it */
+	if (!cldev->bus->fw_f_fw_ver_supported &&
+	    !cldev->bus->hbm_f_os_supported)
+		return;
+
 	ret = mei_cldev_enable(cldev);
 	if (ret)
 		return;
 
-	ret = mei_fwver(cldev);
-	if (ret < 0)
-		dev_err(&cldev->dev, "FW version command failed %d\n", ret);
+	if (cldev->bus->fw_f_fw_ver_supported) {
+		ret = mei_fwver(cldev);
+		if (ret < 0)
+			dev_err(&cldev->dev, "FW version command failed %d\n",
+				ret);
+	}
 
 	if (cldev->bus->hbm_f_os_supported) {
 		ret = mei_osver(cldev);
@@ -248,7 +250,6 @@ static void mei_wd(struct mei_cl_device *cldev)
 {
 	struct pci_dev *pdev = to_pci_dev(cldev->dev.parent);
 
-	dev_dbg(&cldev->dev, "running hook %s\n", __func__);
 	if (pdev->device == MEI_DEV_ID_WPT_LP ||
 	    pdev->device == MEI_DEV_ID_SPT ||
 	    pdev->device == MEI_DEV_ID_SPT_H)
@@ -401,8 +402,6 @@ static void mei_nfc(struct mei_cl_device *cldev)
 	int ret;
 
 	bus = cldev->bus;
-
-	dev_dbg(&cldev->dev, "running hook %s\n", __func__);
 
 	mutex_lock(&bus->device_lock);
 	/* we need to connect to INFO GUID */

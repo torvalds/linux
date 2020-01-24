@@ -4,17 +4,20 @@
  */
 
 #include <linux/backlight.h>
+#include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/regulator/consumer.h>
 
-#include <drm/drmP.h>
-#include <drm/drm_crtc.h>
-#include <drm/drm_mipi_dsi.h>
-#include <drm/drm_panel.h>
-
 #include <video/mipi_display.h>
+
+#include <drm/drm_crtc.h>
+#include <drm/drm_device.h>
+#include <drm/drm_mipi_dsi.h>
+#include <drm/drm_modes.h>
+#include <drm/drm_panel.h>
+#include <drm/drm_print.h>
 
 struct kingdisplay_panel {
 	struct drm_panel base;
@@ -388,9 +391,8 @@ static int kingdisplay_panel_add(struct kingdisplay_panel *kingdisplay)
 	if (IS_ERR(kingdisplay->backlight))
 		return PTR_ERR(kingdisplay->backlight);
 
-	drm_panel_init(&kingdisplay->base);
-	kingdisplay->base.funcs = &kingdisplay_panel_funcs;
-	kingdisplay->base.dev = &kingdisplay->link->dev;
+	drm_panel_init(&kingdisplay->base, &kingdisplay->link->dev,
+		       &kingdisplay_panel_funcs, DRM_MODE_CONNECTOR_DSI);
 
 	return drm_panel_add(&kingdisplay->base);
 }

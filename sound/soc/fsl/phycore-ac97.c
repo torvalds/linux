@@ -20,15 +20,17 @@ static struct snd_soc_card imx_phycore;
 static const struct snd_soc_ops imx_phycore_hifi_ops = {
 };
 
+SND_SOC_DAILINK_DEFS(hifi,
+	DAILINK_COMP_ARRAY(COMP_CPU("imx-ssi.0")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm9712-codec", "wm9712-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("imx-ssi.0")));
+
 static struct snd_soc_dai_link imx_phycore_dai_ac97[] = {
 	{
 		.name		= "HiFi",
 		.stream_name	= "HiFi",
-		.codec_dai_name		= "wm9712-hifi",
-		.codec_name	= "wm9712-codec",
-		.cpu_dai_name	= "imx-ssi.0",
-		.platform_name	= "imx-ssi.0",
 		.ops		= &imx_phycore_hifi_ops,
+		SND_SOC_DAILINK_REG(hifi),
 	},
 };
 

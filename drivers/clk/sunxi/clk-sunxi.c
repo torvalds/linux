@@ -980,6 +980,8 @@ static struct clk ** __init sunxi_divs_clk_setup(struct device_node *node,
 		if (endp) {
 			derived_name = kstrndup(clk_name, endp - clk_name,
 						GFP_KERNEL);
+			if (!derived_name)
+				return NULL;
 			factors.name = derived_name;
 		} else {
 			factors.name = clk_name;
@@ -1078,8 +1080,8 @@ static struct clk ** __init sunxi_divs_clk_setup(struct device_node *node,
 						 rate_hw, rate_ops,
 						 gate_hw, &clk_gate_ops,
 						 clkflags |
-						 data->div[i].critical ?
-							CLK_IS_CRITICAL : 0);
+						 (data->div[i].critical ?
+							CLK_IS_CRITICAL : 0));
 
 		WARN_ON(IS_ERR(clk_data->clks[i]));
 	}

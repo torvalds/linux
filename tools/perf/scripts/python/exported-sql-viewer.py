@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 # SPDX-License-Identifier: GPL-2.0
 # exported-sql-viewer.py: view data from sql database
 # Copyright (c) 2014-2018, Intel Corporation.
@@ -91,6 +91,7 @@
 from __future__ import print_function
 
 import sys
+import argparse
 import weakref
 import threading
 import string
@@ -104,10 +105,26 @@ except ImportError:
 	glb_nsz = 16
 import re
 import os
-from PySide.QtCore import *
-from PySide.QtGui import *
-from PySide.QtSql import *
+import random
+import copy
+import math
+
 pyside_version_1 = True
+if not "--pyside-version-1" in sys.argv:
+	try:
+		from PySide2.QtCore import *
+		from PySide2.QtGui import *
+		from PySide2.QtSql import *
+		from PySide2.QtWidgets import *
+		pyside_version_1 = False
+	except:
+		pass
+
+if pyside_version_1:
+	from PySide.QtCore import *
+	from PySide.QtGui import *
+	from PySide.QtSql import *
+
 from decimal import *
 from ctypes import *
 from multiprocessing import Process, Array, Value, Event
@@ -186,9 +203,10 @@ class Thread(QThread):
 
 class TreeModel(QAbstractItemModel):
 
-	def __init__(self, glb, parent=None):
+	def __init__(self, glb, params, parent=None):
 		super(TreeModel, self).__init__(parent)
 		self.glb = glb
+		self.params = params
 		self.root = self.GetRoot()
 		self.last_row_read = 0
 
@@ -326,6 +344,15 @@ def LookupCreateModel(model_name, create_fn):
 	model_cache_lock.release()
 	return model
 
+def LookupModel(model_name):
+	model_cache_lock.acquire()
+	try:
+		model = model_cache[model_name]
+	except:
+		model = None
+	model_cache_lock.release()
+	return model
+
 # Find bar
 
 class FindBar():
@@ -377,7 +404,7 @@ class FindBar():
 		self.hbox.addWidget(self.close_button)
 
 		self.bar = QWidget()
-		self.bar.setLayout(self.hbox);
+		self.bar.setLayout(self.hbox)
 		self.bar.hide()
 
 	def Widget(self):
@@ -385,6 +412,7 @@ class FindBar():
 
 	def Activate(self):
 		self.bar.show()
+		self.textbox.lineEdit().selectAll()
 		self.textbox.setFocus()
 
 	def Deactivate(self):
@@ -449,11 +477,12 @@ class FindBar():
 
 class CallGraphLevelItemBase(object):
 
-	def __init__(self, glb, row, parent_item):
+	def __init__(self, glb, params, row, parent_item):
 		self.glb = glb
+		self.params = params
 		self.row = row
 		self.parent_item = parent_item
-		self.query_done = False;
+		self.query_done = False
 		self.child_count = 0
 		self.child_items = []
 		if parent_item:
@@ -489,18 +518,24 @@ class CallGraphLevelItemBase(object):
 
 class CallGraphLevelTwoPlusItemBase(CallGraphLevelItemBase):
 
-	def __init__(self, glb, row, comm_id, thread_id, call_path_id, time, branch_count, parent_item):
-		super(CallGraphLevelTwoPlusItemBase, self).__init__(glb, row, parent_item)
+	def __init__(self, glb, params, row, comm_id, thread_id, call_path_id, time, insn_cnt, cyc_cnt, branch_count, parent_item):
+		super(CallGraphLevelTwoPlusItemBase, self).__init__(glb, params, row, parent_item)
 		self.comm_id = comm_id
 		self.thread_id = thread_id
 		self.call_path_id = call_path_id
+		self.insn_cnt = insn_cnt
+		self.cyc_cnt = cyc_cnt
 		self.branch_count = branch_count
 		self.time = time
 
 	def Select(self):
-		self.query_done = True;
+		self.query_done = True
 		query = QSqlQuery(self.glb.db)
-		QueryExec(query, "SELECT call_path_id, name, short_name, COUNT(calls.id), SUM(return_time - call_time), SUM(branch_count)"
+		if self.params.have_ipc:
+			ipc_str = ", SUM(insn_count), SUM(cyc_count)"
+		else:
+			ipc_str = ""
+		QueryExec(query, "SELECT call_path_id, name, short_name, COUNT(calls.id), SUM(return_time - call_time)" + ipc_str + ", SUM(branch_count)"
 					" FROM calls"
 					" INNER JOIN call_paths ON calls.call_path_id = call_paths.id"
 					" INNER JOIN symbols ON call_paths.symbol_id = symbols.id"
@@ -511,7 +546,15 @@ class CallGraphLevelTwoPlusItemBase(CallGraphLevelItemBase):
 					" GROUP BY call_path_id, name, short_name"
 					" ORDER BY call_path_id")
 		while query.next():
-			child_item = CallGraphLevelThreeItem(self.glb, self.child_count, self.comm_id, self.thread_id, query.value(0), query.value(1), query.value(2), query.value(3), int(query.value(4)), int(query.value(5)), self)
+			if self.params.have_ipc:
+				insn_cnt = int(query.value(5))
+				cyc_cnt = int(query.value(6))
+				branch_count = int(query.value(7))
+			else:
+				insn_cnt = 0
+				cyc_cnt = 0
+				branch_count = int(query.value(5))
+			child_item = CallGraphLevelThreeItem(self.glb, self.params, self.child_count, self.comm_id, self.thread_id, query.value(0), query.value(1), query.value(2), query.value(3), int(query.value(4)), insn_cnt, cyc_cnt, branch_count, self)
 			self.child_items.append(child_item)
 			self.child_count += 1
 
@@ -519,48 +562,68 @@ class CallGraphLevelTwoPlusItemBase(CallGraphLevelItemBase):
 
 class CallGraphLevelThreeItem(CallGraphLevelTwoPlusItemBase):
 
-	def __init__(self, glb, row, comm_id, thread_id, call_path_id, name, dso, count, time, branch_count, parent_item):
-		super(CallGraphLevelThreeItem, self).__init__(glb, row, comm_id, thread_id, call_path_id, time, branch_count, parent_item)
+	def __init__(self, glb, params, row, comm_id, thread_id, call_path_id, name, dso, count, time, insn_cnt, cyc_cnt, branch_count, parent_item):
+		super(CallGraphLevelThreeItem, self).__init__(glb, params, row, comm_id, thread_id, call_path_id, time, insn_cnt, cyc_cnt, branch_count, parent_item)
 		dso = dsoname(dso)
-		self.data = [ name, dso, str(count), str(time), PercentToOneDP(time, parent_item.time), str(branch_count), PercentToOneDP(branch_count, parent_item.branch_count) ]
+		if self.params.have_ipc:
+			insn_pcnt = PercentToOneDP(insn_cnt, parent_item.insn_cnt)
+			cyc_pcnt = PercentToOneDP(cyc_cnt, parent_item.cyc_cnt)
+			br_pcnt = PercentToOneDP(branch_count, parent_item.branch_count)
+			ipc = CalcIPC(cyc_cnt, insn_cnt)
+			self.data = [ name, dso, str(count), str(time), PercentToOneDP(time, parent_item.time), str(insn_cnt), insn_pcnt, str(cyc_cnt), cyc_pcnt, ipc, str(branch_count), br_pcnt ]
+		else:
+			self.data = [ name, dso, str(count), str(time), PercentToOneDP(time, parent_item.time), str(branch_count), PercentToOneDP(branch_count, parent_item.branch_count) ]
 		self.dbid = call_path_id
 
 # Context-sensitive call graph data model level two item
 
 class CallGraphLevelTwoItem(CallGraphLevelTwoPlusItemBase):
 
-	def __init__(self, glb, row, comm_id, thread_id, pid, tid, parent_item):
-		super(CallGraphLevelTwoItem, self).__init__(glb, row, comm_id, thread_id, 1, 0, 0, parent_item)
-		self.data = [str(pid) + ":" + str(tid), "", "", "", "", "", ""]
+	def __init__(self, glb, params, row, comm_id, thread_id, pid, tid, parent_item):
+		super(CallGraphLevelTwoItem, self).__init__(glb, params, row, comm_id, thread_id, 1, 0, 0, 0, 0, parent_item)
+		if self.params.have_ipc:
+			self.data = [str(pid) + ":" + str(tid), "", "", "", "", "", "", "", "", "", "", ""]
+		else:
+			self.data = [str(pid) + ":" + str(tid), "", "", "", "", "", ""]
 		self.dbid = thread_id
 
 	def Select(self):
 		super(CallGraphLevelTwoItem, self).Select()
 		for child_item in self.child_items:
 			self.time += child_item.time
+			self.insn_cnt += child_item.insn_cnt
+			self.cyc_cnt += child_item.cyc_cnt
 			self.branch_count += child_item.branch_count
 		for child_item in self.child_items:
 			child_item.data[4] = PercentToOneDP(child_item.time, self.time)
-			child_item.data[6] = PercentToOneDP(child_item.branch_count, self.branch_count)
+			if self.params.have_ipc:
+				child_item.data[6] = PercentToOneDP(child_item.insn_cnt, self.insn_cnt)
+				child_item.data[8] = PercentToOneDP(child_item.cyc_cnt, self.cyc_cnt)
+				child_item.data[11] = PercentToOneDP(child_item.branch_count, self.branch_count)
+			else:
+				child_item.data[6] = PercentToOneDP(child_item.branch_count, self.branch_count)
 
 # Context-sensitive call graph data model level one item
 
 class CallGraphLevelOneItem(CallGraphLevelItemBase):
 
-	def __init__(self, glb, row, comm_id, comm, parent_item):
-		super(CallGraphLevelOneItem, self).__init__(glb, row, parent_item)
-		self.data = [comm, "", "", "", "", "", ""]
+	def __init__(self, glb, params, row, comm_id, comm, parent_item):
+		super(CallGraphLevelOneItem, self).__init__(glb, params, row, parent_item)
+		if self.params.have_ipc:
+			self.data = [comm, "", "", "", "", "", "", "", "", "", "", ""]
+		else:
+			self.data = [comm, "", "", "", "", "", ""]
 		self.dbid = comm_id
 
 	def Select(self):
-		self.query_done = True;
+		self.query_done = True
 		query = QSqlQuery(self.glb.db)
 		QueryExec(query, "SELECT thread_id, pid, tid"
 					" FROM comm_threads"
 					" INNER JOIN threads ON thread_id = threads.id"
 					" WHERE comm_id = " + str(self.dbid))
 		while query.next():
-			child_item = CallGraphLevelTwoItem(self.glb, self.child_count, self.dbid, query.value(0), query.value(1), query.value(2), self)
+			child_item = CallGraphLevelTwoItem(self.glb, self.params, self.child_count, self.dbid, query.value(0), query.value(1), query.value(2), self)
 			self.child_items.append(child_item)
 			self.child_count += 1
 
@@ -568,25 +631,35 @@ class CallGraphLevelOneItem(CallGraphLevelItemBase):
 
 class CallGraphRootItem(CallGraphLevelItemBase):
 
-	def __init__(self, glb):
-		super(CallGraphRootItem, self).__init__(glb, 0, None)
+	def __init__(self, glb, params):
+		super(CallGraphRootItem, self).__init__(glb, params, 0, None)
 		self.dbid = 0
-		self.query_done = True;
+		self.query_done = True
+		if_has_calls = ""
+		if IsSelectable(glb.db, "comms", columns = "has_calls"):
+			if_has_calls = " WHERE has_calls = " + glb.dbref.TRUE
 		query = QSqlQuery(glb.db)
-		QueryExec(query, "SELECT id, comm FROM comms")
+		QueryExec(query, "SELECT id, comm FROM comms" + if_has_calls)
 		while query.next():
 			if not query.value(0):
 				continue
-			child_item = CallGraphLevelOneItem(glb, self.child_count, query.value(0), query.value(1), self)
+			child_item = CallGraphLevelOneItem(glb, params, self.child_count, query.value(0), query.value(1), self)
 			self.child_items.append(child_item)
 			self.child_count += 1
+
+# Call graph model parameters
+
+class CallGraphModelParams():
+
+	def __init__(self, glb, parent=None):
+		self.have_ipc = IsSelectable(glb.db, "calls", columns = "insn_count, cyc_count")
 
 # Context-sensitive call graph data model base
 
 class CallGraphModelBase(TreeModel):
 
 	def __init__(self, glb, parent=None):
-		super(CallGraphModelBase, self).__init__(glb, parent)
+		super(CallGraphModelBase, self).__init__(glb, CallGraphModelParams(glb), parent)
 
 	def FindSelect(self, value, pattern, query):
 		if pattern:
@@ -668,17 +741,26 @@ class CallGraphModel(CallGraphModelBase):
 		super(CallGraphModel, self).__init__(glb, parent)
 
 	def GetRoot(self):
-		return CallGraphRootItem(self.glb)
+		return CallGraphRootItem(self.glb, self.params)
 
 	def columnCount(self, parent=None):
-		return 7
+		if self.params.have_ipc:
+			return 12
+		else:
+			return 7
 
 	def columnHeader(self, column):
-		headers = ["Call Path", "Object", "Count ", "Time (ns) ", "Time (%) ", "Branch Count ", "Branch Count (%) "]
+		if self.params.have_ipc:
+			headers = ["Call Path", "Object", "Count ", "Time (ns) ", "Time (%) ", "Insn Cnt", "Insn Cnt (%)", "Cyc Cnt", "Cyc Cnt (%)", "IPC", "Branch Count ", "Branch Count (%) "]
+		else:
+			headers = ["Call Path", "Object", "Count ", "Time (ns) ", "Time (%) ", "Branch Count ", "Branch Count (%) "]
 		return headers[column]
 
 	def columnAlignment(self, column):
-		alignment = [ Qt.AlignLeft, Qt.AlignLeft, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight ]
+		if self.params.have_ipc:
+			alignment = [ Qt.AlignLeft, Qt.AlignLeft, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight ]
+		else:
+			alignment = [ Qt.AlignLeft, Qt.AlignLeft, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight ]
 		return alignment[column]
 
 	def DoFindSelect(self, query, match):
@@ -715,22 +797,29 @@ class CallGraphModel(CallGraphModelBase):
 
 class CallTreeLevelTwoPlusItemBase(CallGraphLevelItemBase):
 
-	def __init__(self, glb, row, comm_id, thread_id, calls_id, time, branch_count, parent_item):
-		super(CallTreeLevelTwoPlusItemBase, self).__init__(glb, row, parent_item)
+	def __init__(self, glb, params, row, comm_id, thread_id, calls_id, call_time, time, insn_cnt, cyc_cnt, branch_count, parent_item):
+		super(CallTreeLevelTwoPlusItemBase, self).__init__(glb, params, row, parent_item)
 		self.comm_id = comm_id
 		self.thread_id = thread_id
 		self.calls_id = calls_id
-		self.branch_count = branch_count
+		self.call_time = call_time
 		self.time = time
+		self.insn_cnt = insn_cnt
+		self.cyc_cnt = cyc_cnt
+		self.branch_count = branch_count
 
 	def Select(self):
-		self.query_done = True;
+		self.query_done = True
 		if self.calls_id == 0:
 			comm_thread = " AND comm_id = " + str(self.comm_id) + " AND thread_id = " + str(self.thread_id)
 		else:
 			comm_thread = ""
+		if self.params.have_ipc:
+			ipc_str = ", insn_count, cyc_count"
+		else:
+			ipc_str = ""
 		query = QSqlQuery(self.glb.db)
-		QueryExec(query, "SELECT calls.id, name, short_name, call_time, return_time - call_time, branch_count"
+		QueryExec(query, "SELECT calls.id, name, short_name, call_time, return_time - call_time" + ipc_str + ", branch_count"
 					" FROM calls"
 					" INNER JOIN call_paths ON calls.call_path_id = call_paths.id"
 					" INNER JOIN symbols ON call_paths.symbol_id = symbols.id"
@@ -738,7 +827,15 @@ class CallTreeLevelTwoPlusItemBase(CallGraphLevelItemBase):
 					" WHERE calls.parent_id = " + str(self.calls_id) + comm_thread +
 					" ORDER BY call_time, calls.id")
 		while query.next():
-			child_item = CallTreeLevelThreeItem(self.glb, self.child_count, self.comm_id, self.thread_id, query.value(0), query.value(1), query.value(2), query.value(3), int(query.value(4)), int(query.value(5)), self)
+			if self.params.have_ipc:
+				insn_cnt = int(query.value(5))
+				cyc_cnt = int(query.value(6))
+				branch_count = int(query.value(7))
+			else:
+				insn_cnt = 0
+				cyc_cnt = 0
+				branch_count = int(query.value(5))
+			child_item = CallTreeLevelThreeItem(self.glb, self.params, self.child_count, self.comm_id, self.thread_id, query.value(0), query.value(1), query.value(2), query.value(3), int(query.value(4)), insn_cnt, cyc_cnt, branch_count, self)
 			self.child_items.append(child_item)
 			self.child_count += 1
 
@@ -746,48 +843,68 @@ class CallTreeLevelTwoPlusItemBase(CallGraphLevelItemBase):
 
 class CallTreeLevelThreeItem(CallTreeLevelTwoPlusItemBase):
 
-	def __init__(self, glb, row, comm_id, thread_id, calls_id, name, dso, count, time, branch_count, parent_item):
-		super(CallTreeLevelThreeItem, self).__init__(glb, row, comm_id, thread_id, calls_id, time, branch_count, parent_item)
+	def __init__(self, glb, params, row, comm_id, thread_id, calls_id, name, dso, call_time, time, insn_cnt, cyc_cnt, branch_count, parent_item):
+		super(CallTreeLevelThreeItem, self).__init__(glb, params, row, comm_id, thread_id, calls_id, call_time, time, insn_cnt, cyc_cnt, branch_count, parent_item)
 		dso = dsoname(dso)
-		self.data = [ name, dso, str(count), str(time), PercentToOneDP(time, parent_item.time), str(branch_count), PercentToOneDP(branch_count, parent_item.branch_count) ]
+		if self.params.have_ipc:
+			insn_pcnt = PercentToOneDP(insn_cnt, parent_item.insn_cnt)
+			cyc_pcnt = PercentToOneDP(cyc_cnt, parent_item.cyc_cnt)
+			br_pcnt = PercentToOneDP(branch_count, parent_item.branch_count)
+			ipc = CalcIPC(cyc_cnt, insn_cnt)
+			self.data = [ name, dso, str(call_time), str(time), PercentToOneDP(time, parent_item.time), str(insn_cnt), insn_pcnt, str(cyc_cnt), cyc_pcnt, ipc, str(branch_count), br_pcnt ]
+		else:
+			self.data = [ name, dso, str(call_time), str(time), PercentToOneDP(time, parent_item.time), str(branch_count), PercentToOneDP(branch_count, parent_item.branch_count) ]
 		self.dbid = calls_id
 
 # Call tree data model level two item
 
 class CallTreeLevelTwoItem(CallTreeLevelTwoPlusItemBase):
 
-	def __init__(self, glb, row, comm_id, thread_id, pid, tid, parent_item):
-		super(CallTreeLevelTwoItem, self).__init__(glb, row, comm_id, thread_id, 0, 0, 0, parent_item)
-		self.data = [str(pid) + ":" + str(tid), "", "", "", "", "", ""]
+	def __init__(self, glb, params, row, comm_id, thread_id, pid, tid, parent_item):
+		super(CallTreeLevelTwoItem, self).__init__(glb, params, row, comm_id, thread_id, 0, 0, 0, 0, 0, 0, parent_item)
+		if self.params.have_ipc:
+			self.data = [str(pid) + ":" + str(tid), "", "", "", "", "", "", "", "", "", "", ""]
+		else:
+			self.data = [str(pid) + ":" + str(tid), "", "", "", "", "", ""]
 		self.dbid = thread_id
 
 	def Select(self):
 		super(CallTreeLevelTwoItem, self).Select()
 		for child_item in self.child_items:
 			self.time += child_item.time
+			self.insn_cnt += child_item.insn_cnt
+			self.cyc_cnt += child_item.cyc_cnt
 			self.branch_count += child_item.branch_count
 		for child_item in self.child_items:
 			child_item.data[4] = PercentToOneDP(child_item.time, self.time)
-			child_item.data[6] = PercentToOneDP(child_item.branch_count, self.branch_count)
+			if self.params.have_ipc:
+				child_item.data[6] = PercentToOneDP(child_item.insn_cnt, self.insn_cnt)
+				child_item.data[8] = PercentToOneDP(child_item.cyc_cnt, self.cyc_cnt)
+				child_item.data[11] = PercentToOneDP(child_item.branch_count, self.branch_count)
+			else:
+				child_item.data[6] = PercentToOneDP(child_item.branch_count, self.branch_count)
 
 # Call tree data model level one item
 
 class CallTreeLevelOneItem(CallGraphLevelItemBase):
 
-	def __init__(self, glb, row, comm_id, comm, parent_item):
-		super(CallTreeLevelOneItem, self).__init__(glb, row, parent_item)
-		self.data = [comm, "", "", "", "", "", ""]
+	def __init__(self, glb, params, row, comm_id, comm, parent_item):
+		super(CallTreeLevelOneItem, self).__init__(glb, params, row, parent_item)
+		if self.params.have_ipc:
+			self.data = [comm, "", "", "", "", "", "", "", "", "", "", ""]
+		else:
+			self.data = [comm, "", "", "", "", "", ""]
 		self.dbid = comm_id
 
 	def Select(self):
-		self.query_done = True;
+		self.query_done = True
 		query = QSqlQuery(self.glb.db)
 		QueryExec(query, "SELECT thread_id, pid, tid"
 					" FROM comm_threads"
 					" INNER JOIN threads ON thread_id = threads.id"
 					" WHERE comm_id = " + str(self.dbid))
 		while query.next():
-			child_item = CallTreeLevelTwoItem(self.glb, self.child_count, self.dbid, query.value(0), query.value(1), query.value(2), self)
+			child_item = CallTreeLevelTwoItem(self.glb, self.params, self.child_count, self.dbid, query.value(0), query.value(1), query.value(2), self)
 			self.child_items.append(child_item)
 			self.child_count += 1
 
@@ -795,16 +912,19 @@ class CallTreeLevelOneItem(CallGraphLevelItemBase):
 
 class CallTreeRootItem(CallGraphLevelItemBase):
 
-	def __init__(self, glb):
-		super(CallTreeRootItem, self).__init__(glb, 0, None)
+	def __init__(self, glb, params):
+		super(CallTreeRootItem, self).__init__(glb, params, 0, None)
 		self.dbid = 0
-		self.query_done = True;
+		self.query_done = True
+		if_has_calls = ""
+		if IsSelectable(glb.db, "comms", columns = "has_calls"):
+			if_has_calls = " WHERE has_calls = " + glb.dbref.TRUE
 		query = QSqlQuery(glb.db)
-		QueryExec(query, "SELECT id, comm FROM comms")
+		QueryExec(query, "SELECT id, comm FROM comms" + if_has_calls)
 		while query.next():
 			if not query.value(0):
 				continue
-			child_item = CallTreeLevelOneItem(glb, self.child_count, query.value(0), query.value(1), self)
+			child_item = CallTreeLevelOneItem(glb, params, self.child_count, query.value(0), query.value(1), self)
 			self.child_items.append(child_item)
 			self.child_count += 1
 
@@ -816,17 +936,26 @@ class CallTreeModel(CallGraphModelBase):
 		super(CallTreeModel, self).__init__(glb, parent)
 
 	def GetRoot(self):
-		return CallTreeRootItem(self.glb)
+		return CallTreeRootItem(self.glb, self.params)
 
 	def columnCount(self, parent=None):
-		return 7
+		if self.params.have_ipc:
+			return 12
+		else:
+			return 7
 
 	def columnHeader(self, column):
-		headers = ["Call Path", "Object", "Call Time", "Time (ns) ", "Time (%) ", "Branch Count ", "Branch Count (%) "]
+		if self.params.have_ipc:
+			headers = ["Call Path", "Object", "Call Time", "Time (ns) ", "Time (%) ", "Insn Cnt", "Insn Cnt (%)", "Cyc Cnt", "Cyc Cnt (%)", "IPC", "Branch Count ", "Branch Count (%) "]
+		else:
+			headers = ["Call Path", "Object", "Call Time", "Time (ns) ", "Time (%) ", "Branch Count ", "Branch Count (%) "]
 		return headers[column]
 
 	def columnAlignment(self, column):
-		alignment = [ Qt.AlignLeft, Qt.AlignLeft, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight ]
+		if self.params.have_ipc:
+			alignment = [ Qt.AlignLeft, Qt.AlignLeft, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight ]
+		else:
+			alignment = [ Qt.AlignLeft, Qt.AlignLeft, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight ]
 		return alignment[column]
 
 	def DoFindSelect(self, query, match):
@@ -855,20 +984,41 @@ class CallTreeModel(CallGraphModelBase):
 		ids.insert(0, query.value(1))
 		return ids
 
-# Vertical widget layout
+# Vertical layout
+
+class HBoxLayout(QHBoxLayout):
+
+	def __init__(self, *children):
+		super(HBoxLayout, self).__init__()
+
+		self.layout().setContentsMargins(0, 0, 0, 0)
+		for child in children:
+			if child.isWidgetType():
+				self.layout().addWidget(child)
+			else:
+				self.layout().addLayout(child)
+
+# Horizontal layout
+
+class VBoxLayout(QVBoxLayout):
+
+	def __init__(self, *children):
+		super(VBoxLayout, self).__init__()
+
+		self.layout().setContentsMargins(0, 0, 0, 0)
+		for child in children:
+			if child.isWidgetType():
+				self.layout().addWidget(child)
+			else:
+				self.layout().addLayout(child)
+
+# Vertical layout widget
 
 class VBox():
 
-	def __init__(self, w1, w2, w3=None):
+	def __init__(self, *children):
 		self.vbox = QWidget()
-		self.vbox.setLayout(QVBoxLayout());
-
-		self.vbox.layout().setContentsMargins(0, 0, 0, 0)
-
-		self.vbox.layout().addWidget(w1)
-		self.vbox.layout().addWidget(w2)
-		if w3:
-			self.vbox.layout().addWidget(w3)
+		self.vbox.setLayout(VBoxLayout(*children))
 
 	def Widget(self):
 		return self.vbox
@@ -947,7 +1097,7 @@ class CallGraphWindow(TreeWindowBase):
 
 class CallTreeWindow(TreeWindowBase):
 
-	def __init__(self, glb, parent=None):
+	def __init__(self, glb, parent=None, thread_at_time=None):
 		super(CallTreeWindow, self).__init__(parent)
 
 		self.model = LookupCreateModel("Call Tree", lambda x=glb: CallTreeModel(x))
@@ -964,6 +1114,1343 @@ class CallTreeWindow(TreeWindowBase):
 		self.setWidget(self.vbox.Widget())
 
 		AddSubWindow(glb.mainwindow.mdi_area, self, "Call Tree")
+
+		if thread_at_time:
+			self.DisplayThreadAtTime(*thread_at_time)
+
+	def DisplayThreadAtTime(self, comm_id, thread_id, time):
+		parent = QModelIndex()
+		for dbid in (comm_id, thread_id):
+			found = False
+			n = self.model.rowCount(parent)
+			for row in xrange(n):
+				child = self.model.index(row, 0, parent)
+				if child.internalPointer().dbid == dbid:
+					found = True
+					self.view.setCurrentIndex(child)
+					parent = child
+					break
+			if not found:
+				return
+		found = False
+		while True:
+			n = self.model.rowCount(parent)
+			if not n:
+				return
+			last_child = None
+			for row in xrange(n):
+				child = self.model.index(row, 0, parent)
+				child_call_time = child.internalPointer().call_time
+				if child_call_time < time:
+					last_child = child
+				elif child_call_time == time:
+					self.view.setCurrentIndex(child)
+					return
+				elif child_call_time > time:
+					break
+			if not last_child:
+				if not found:
+					child = self.model.index(0, 0, parent)
+					self.view.setCurrentIndex(child)
+				return
+			found = True
+			self.view.setCurrentIndex(last_child)
+			parent = last_child
+
+# ExecComm() gets the comm_id of the command string that was set when the process exec'd i.e. the program name
+
+def ExecComm(db, thread_id, time):
+	query = QSqlQuery(db)
+	QueryExec(query, "SELECT comm_threads.comm_id, comms.c_time, comms.exec_flag"
+				" FROM comm_threads"
+				" INNER JOIN comms ON comms.id = comm_threads.comm_id"
+				" WHERE comm_threads.thread_id = " + str(thread_id) +
+				" ORDER BY comms.c_time, comms.id")
+	first = None
+	last = None
+	while query.next():
+		if first is None:
+			first = query.value(0)
+		if query.value(2) and Decimal(query.value(1)) <= Decimal(time):
+			last = query.value(0)
+	if not(last is None):
+		return last
+	return first
+
+# Container for (x, y) data
+
+class XY():
+	def __init__(self, x=0, y=0):
+		self.x = x
+		self.y = y
+
+	def __str__(self):
+		return "XY({}, {})".format(str(self.x), str(self.y))
+
+# Container for sub-range data
+
+class Subrange():
+	def __init__(self, lo=0, hi=0):
+		self.lo = lo
+		self.hi = hi
+
+	def __str__(self):
+		return "Subrange({}, {})".format(str(self.lo), str(self.hi))
+
+# Graph data region base class
+
+class GraphDataRegion(object):
+
+	def __init__(self, key, title = "", ordinal = ""):
+		self.key = key
+		self.title = title
+		self.ordinal = ordinal
+
+# Function to sort GraphDataRegion
+
+def GraphDataRegionOrdinal(data_region):
+	return data_region.ordinal
+
+# Attributes for a graph region
+
+class GraphRegionAttribute():
+
+	def __init__(self, colour):
+		self.colour = colour
+
+# Switch graph data region represents a task
+
+class SwitchGraphDataRegion(GraphDataRegion):
+
+	def __init__(self, key, exec_comm_id, pid, tid, comm, thread_id, comm_id):
+		super(SwitchGraphDataRegion, self).__init__(key)
+
+		self.title = str(pid) + " / " + str(tid) + " " + comm
+		# Order graph legend within exec comm by pid / tid / time
+		self.ordinal = str(pid).rjust(16) + str(exec_comm_id).rjust(8) + str(tid).rjust(16)
+		self.exec_comm_id = exec_comm_id
+		self.pid = pid
+		self.tid = tid
+		self.comm = comm
+		self.thread_id = thread_id
+		self.comm_id = comm_id
+
+# Graph data point
+
+class GraphDataPoint():
+
+	def __init__(self, data, index, x, y, altx=None, alty=None, hregion=None, vregion=None):
+		self.data = data
+		self.index = index
+		self.x = x
+		self.y = y
+		self.altx = altx
+		self.alty = alty
+		self.hregion = hregion
+		self.vregion = vregion
+
+# Graph data (single graph) base class
+
+class GraphData(object):
+
+	def __init__(self, collection, xbase=Decimal(0), ybase=Decimal(0)):
+		self.collection = collection
+		self.points = []
+		self.xbase = xbase
+		self.ybase = ybase
+		self.title = ""
+
+	def AddPoint(self, x, y, altx=None, alty=None, hregion=None, vregion=None):
+		index = len(self.points)
+
+		x = float(Decimal(x) - self.xbase)
+		y = float(Decimal(y) - self.ybase)
+
+		self.points.append(GraphDataPoint(self, index, x, y, altx, alty, hregion, vregion))
+
+	def XToData(self, x):
+		return Decimal(x) + self.xbase
+
+	def YToData(self, y):
+		return Decimal(y) + self.ybase
+
+# Switch graph data (for one CPU)
+
+class SwitchGraphData(GraphData):
+
+	def __init__(self, db, collection, cpu, xbase):
+		super(SwitchGraphData, self).__init__(collection, xbase)
+
+		self.cpu = cpu
+		self.title = "CPU " + str(cpu)
+		self.SelectSwitches(db)
+
+	def SelectComms(self, db, thread_id, last_comm_id, start_time, end_time):
+		query = QSqlQuery(db)
+		QueryExec(query, "SELECT id, c_time"
+					" FROM comms"
+					" WHERE c_thread_id = " + str(thread_id) +
+					"   AND exec_flag = " + self.collection.glb.dbref.TRUE +
+					"   AND c_time >= " + str(start_time) +
+					"   AND c_time <= " + str(end_time) +
+					" ORDER BY c_time, id")
+		while query.next():
+			comm_id = query.value(0)
+			if comm_id == last_comm_id:
+				continue
+			time = query.value(1)
+			hregion = self.HRegion(db, thread_id, comm_id, time)
+			self.AddPoint(time, 1000, None, None, hregion)
+
+	def SelectSwitches(self, db):
+		last_time = None
+		last_comm_id = None
+		last_thread_id = None
+		query = QSqlQuery(db)
+		QueryExec(query, "SELECT time, thread_out_id, thread_in_id, comm_out_id, comm_in_id, flags"
+					" FROM context_switches"
+					" WHERE machine_id = " + str(self.collection.machine_id) +
+					"   AND cpu = " + str(self.cpu) +
+					" ORDER BY time, id")
+		while query.next():
+			flags = int(query.value(5))
+			if flags & 1:
+				# Schedule-out: detect and add exec's
+				if last_thread_id == query.value(1) and last_comm_id is not None and last_comm_id != query.value(3):
+					self.SelectComms(db, last_thread_id, last_comm_id, last_time, query.value(0))
+				continue
+			# Schedule-in: add data point
+			if len(self.points) == 0:
+				start_time = self.collection.glb.StartTime(self.collection.machine_id)
+				hregion = self.HRegion(db, query.value(1), query.value(3), start_time)
+				self.AddPoint(start_time, 1000, None, None, hregion)
+			time = query.value(0)
+			comm_id = query.value(4)
+			thread_id = query.value(2)
+			hregion = self.HRegion(db, thread_id, comm_id, time)
+			self.AddPoint(time, 1000, None, None, hregion)
+			last_time = time
+			last_comm_id = comm_id
+			last_thread_id = thread_id
+
+	def NewHRegion(self, db, key, thread_id, comm_id, time):
+		exec_comm_id = ExecComm(db, thread_id, time)
+		query = QSqlQuery(db)
+		QueryExec(query, "SELECT pid, tid FROM threads WHERE id = " + str(thread_id))
+		if query.next():
+			pid = query.value(0)
+			tid = query.value(1)
+		else:
+			pid = -1
+			tid = -1
+		query = QSqlQuery(db)
+		QueryExec(query, "SELECT comm FROM comms WHERE id = " + str(comm_id))
+		if query.next():
+			comm = query.value(0)
+		else:
+			comm = ""
+		return SwitchGraphDataRegion(key, exec_comm_id, pid, tid, comm, thread_id, comm_id)
+
+	def HRegion(self, db, thread_id, comm_id, time):
+		key = str(thread_id) + ":" + str(comm_id)
+		hregion = self.collection.LookupHRegion(key)
+		if hregion is None:
+			hregion = self.NewHRegion(db, key, thread_id, comm_id, time)
+			self.collection.AddHRegion(key, hregion)
+		return hregion
+
+# Graph data collection (multiple related graphs) base class
+
+class GraphDataCollection(object):
+
+	def __init__(self, glb):
+		self.glb = glb
+		self.data = []
+		self.hregions = {}
+		self.xrangelo = None
+		self.xrangehi = None
+		self.yrangelo = None
+		self.yrangehi = None
+		self.dp = XY(0, 0)
+
+	def AddGraphData(self, data):
+		self.data.append(data)
+
+	def LookupHRegion(self, key):
+		if key in self.hregions:
+			return self.hregions[key]
+		return None
+
+	def AddHRegion(self, key, hregion):
+		self.hregions[key] = hregion
+
+# Switch graph data collection (SwitchGraphData for each CPU)
+
+class SwitchGraphDataCollection(GraphDataCollection):
+
+	def __init__(self, glb, db, machine_id):
+		super(SwitchGraphDataCollection, self).__init__(glb)
+
+		self.machine_id = machine_id
+		self.cpus = self.SelectCPUs(db)
+
+		self.xrangelo = glb.StartTime(machine_id)
+		self.xrangehi = glb.FinishTime(machine_id)
+
+		self.yrangelo = Decimal(0)
+		self.yrangehi = Decimal(1000)
+
+		for cpu in self.cpus:
+			self.AddGraphData(SwitchGraphData(db, self, cpu, self.xrangelo))
+
+	def SelectCPUs(self, db):
+		cpus = []
+		query = QSqlQuery(db)
+		QueryExec(query, "SELECT DISTINCT cpu"
+					" FROM context_switches"
+					" WHERE machine_id = " + str(self.machine_id))
+		while query.next():
+			cpus.append(int(query.value(0)))
+		return sorted(cpus)
+
+# Switch graph data graphics item displays the graphed data
+
+class SwitchGraphDataGraphicsItem(QGraphicsItem):
+
+	def __init__(self, data, graph_width, graph_height, attrs, event_handler, parent=None):
+		super(SwitchGraphDataGraphicsItem, self).__init__(parent)
+
+		self.data = data
+		self.graph_width = graph_width
+		self.graph_height = graph_height
+		self.attrs = attrs
+		self.event_handler = event_handler
+		self.setAcceptHoverEvents(True)
+
+	def boundingRect(self):
+		return QRectF(0, 0, self.graph_width, self.graph_height)
+
+	def PaintPoint(self, painter, last, x):
+		if not(last is None or last.hregion.pid == 0 or x < self.attrs.subrange.x.lo):
+			if last.x < self.attrs.subrange.x.lo:
+				x0 = self.attrs.subrange.x.lo
+			else:
+				x0 = last.x
+			if x > self.attrs.subrange.x.hi:
+				x1 = self.attrs.subrange.x.hi
+			else:
+				x1 = x - 1
+			x0 = self.attrs.XToPixel(x0)
+			x1 = self.attrs.XToPixel(x1)
+
+			y0 = self.attrs.YToPixel(last.y)
+
+			colour = self.attrs.region_attributes[last.hregion.key].colour
+
+			width = x1 - x0 + 1
+			if width < 2:
+				painter.setPen(colour)
+				painter.drawLine(x0, self.graph_height - y0, x0, self.graph_height)
+			else:
+				painter.fillRect(x0, self.graph_height - y0, width, self.graph_height - 1, colour)
+
+	def paint(self, painter, option, widget):
+		last = None
+		for point in self.data.points:
+			self.PaintPoint(painter, last, point.x)
+			if point.x > self.attrs.subrange.x.hi:
+				break;
+			last = point
+		self.PaintPoint(painter, last, self.attrs.subrange.x.hi + 1)
+
+	def BinarySearchPoint(self, target):
+		lower_pos = 0
+		higher_pos = len(self.data.points)
+		while True:
+			pos = int((lower_pos + higher_pos) / 2)
+			val = self.data.points[pos].x
+			if target >= val:
+				lower_pos = pos
+			else:
+				higher_pos = pos
+			if higher_pos <= lower_pos + 1:
+				return lower_pos
+
+	def XPixelToData(self, x):
+		x = self.attrs.PixelToX(x)
+		if x < self.data.points[0].x:
+			x = 0
+			pos = 0
+			low = True
+		else:
+			pos = self.BinarySearchPoint(x)
+			low = False
+		return (low, pos, self.data.XToData(x))
+
+	def EventToData(self, event):
+		no_data = (None,) * 4
+		if len(self.data.points) < 1:
+			return no_data
+		x = event.pos().x()
+		if x < 0:
+			return no_data
+		low0, pos0, time_from = self.XPixelToData(x)
+		low1, pos1, time_to = self.XPixelToData(x + 1)
+		hregions = set()
+		hregion_times = []
+		if not low1:
+			for i in xrange(pos0, pos1 + 1):
+				hregion = self.data.points[i].hregion
+				hregions.add(hregion)
+				if i == pos0:
+					time = time_from
+				else:
+					time = self.data.XToData(self.data.points[i].x)
+				hregion_times.append((hregion, time))
+		return (time_from, time_to, hregions, hregion_times)
+
+	def hoverMoveEvent(self, event):
+		time_from, time_to, hregions, hregion_times = self.EventToData(event)
+		if time_from is not None:
+			self.event_handler.PointEvent(self.data.cpu, time_from, time_to, hregions)
+
+	def hoverLeaveEvent(self, event):
+		self.event_handler.NoPointEvent()
+
+	def mousePressEvent(self, event):
+		if event.button() != Qt.RightButton:
+			super(SwitchGraphDataGraphicsItem, self).mousePressEvent(event)
+			return
+		time_from, time_to, hregions, hregion_times = self.EventToData(event)
+		if hregion_times:
+			self.event_handler.RightClickEvent(self.data.cpu, hregion_times, event.screenPos())
+
+# X-axis graphics item
+
+class XAxisGraphicsItem(QGraphicsItem):
+
+	def __init__(self, width, parent=None):
+		super(XAxisGraphicsItem, self).__init__(parent)
+
+		self.width = width
+		self.max_mark_sz = 4
+		self.height = self.max_mark_sz + 1
+
+	def boundingRect(self):
+		return QRectF(0, 0, self.width, self.height)
+
+	def Step(self):
+		attrs = self.parentItem().attrs
+		subrange = attrs.subrange.x
+		t = subrange.hi - subrange.lo
+		s = (3.0 * t) / self.width
+		n = 1.0
+		while s > n:
+			n = n * 10.0
+		return n
+
+	def PaintMarks(self, painter, at_y, lo, hi, step, i):
+		attrs = self.parentItem().attrs
+		x = lo
+		while x <= hi:
+			xp = attrs.XToPixel(x)
+			if i % 10:
+				if i % 5:
+					sz = 1
+				else:
+					sz = 2
+			else:
+				sz = self.max_mark_sz
+				i = 0
+			painter.drawLine(xp, at_y, xp, at_y + sz)
+			x += step
+			i += 1
+
+	def paint(self, painter, option, widget):
+		# Using QPainter::drawLine(int x1, int y1, int x2, int y2) so x2 = width -1
+		painter.drawLine(0, 0, self.width - 1, 0)
+		n = self.Step()
+		attrs = self.parentItem().attrs
+		subrange = attrs.subrange.x
+		if subrange.lo:
+			x_offset = n - (subrange.lo % n)
+		else:
+			x_offset = 0.0
+		x = subrange.lo + x_offset
+		i = (x / n) % 10
+		self.PaintMarks(painter, 0, x, subrange.hi, n, i)
+
+	def ScaleDimensions(self):
+		n = self.Step()
+		attrs = self.parentItem().attrs
+		lo = attrs.subrange.x.lo
+		hi = (n * 10.0) + lo
+		width = attrs.XToPixel(hi)
+		if width > 500:
+			width = 0
+		return (n, lo, hi, width)
+
+	def PaintScale(self, painter, at_x, at_y):
+		n, lo, hi, width = self.ScaleDimensions()
+		if not width:
+			return
+		painter.drawLine(at_x, at_y, at_x + width, at_y)
+		self.PaintMarks(painter, at_y, lo, hi, n, 0)
+
+	def ScaleWidth(self):
+		n, lo, hi, width = self.ScaleDimensions()
+		return width
+
+	def ScaleHeight(self):
+		return self.height
+
+	def ScaleUnit(self):
+		return self.Step() * 10
+
+# Scale graphics item base class
+
+class ScaleGraphicsItem(QGraphicsItem):
+
+	def __init__(self, axis, parent=None):
+		super(ScaleGraphicsItem, self).__init__(parent)
+		self.axis = axis
+
+	def boundingRect(self):
+		scale_width = self.axis.ScaleWidth()
+		if not scale_width:
+			return QRectF()
+		return QRectF(0, 0, self.axis.ScaleWidth() + 100, self.axis.ScaleHeight())
+
+	def paint(self, painter, option, widget):
+		scale_width = self.axis.ScaleWidth()
+		if not scale_width:
+			return
+		self.axis.PaintScale(painter, 0, 5)
+		x = scale_width + 4
+		painter.drawText(QPointF(x, 10), self.Text())
+
+	def Unit(self):
+		return self.axis.ScaleUnit()
+
+	def Text(self):
+		return ""
+
+# Switch graph scale graphics item
+
+class SwitchScaleGraphicsItem(ScaleGraphicsItem):
+
+	def __init__(self, axis, parent=None):
+		super(SwitchScaleGraphicsItem, self).__init__(axis, parent)
+
+	def Text(self):
+		unit = self.Unit()
+		if unit >= 1000000000:
+			unit = int(unit / 1000000000)
+			us = "s"
+		elif unit >= 1000000:
+			unit = int(unit / 1000000)
+			us = "ms"
+		elif unit >= 1000:
+			unit = int(unit / 1000)
+			us = "us"
+		else:
+			unit = int(unit)
+			us = "ns"
+		return " = " + str(unit) + " " + us
+
+# Switch graph graphics item contains graph title, scale, x/y-axis, and the graphed data
+
+class SwitchGraphGraphicsItem(QGraphicsItem):
+
+	def __init__(self, collection, data, attrs, event_handler, first, parent=None):
+		super(SwitchGraphGraphicsItem, self).__init__(parent)
+		self.collection = collection
+		self.data = data
+		self.attrs = attrs
+		self.event_handler = event_handler
+
+		margin = 20
+		title_width = 50
+
+		self.title_graphics = QGraphicsSimpleTextItem(data.title, self)
+
+		self.title_graphics.setPos(margin, margin)
+		graph_width = attrs.XToPixel(attrs.subrange.x.hi) + 1
+		graph_height = attrs.YToPixel(attrs.subrange.y.hi) + 1
+
+		self.graph_origin_x = margin + title_width + margin
+		self.graph_origin_y = graph_height + margin
+
+		x_axis_size = 1
+		y_axis_size = 1
+		self.yline = QGraphicsLineItem(0, 0, 0, graph_height, self)
+
+		self.x_axis = XAxisGraphicsItem(graph_width, self)
+		self.x_axis.setPos(self.graph_origin_x, self.graph_origin_y + 1)
+
+		if first:
+			self.scale_item = SwitchScaleGraphicsItem(self.x_axis, self)
+			self.scale_item.setPos(self.graph_origin_x, self.graph_origin_y + 10)
+
+		self.yline.setPos(self.graph_origin_x - y_axis_size, self.graph_origin_y - graph_height)
+
+		self.axis_point = QGraphicsLineItem(0, 0, 0, 0, self)
+		self.axis_point.setPos(self.graph_origin_x - 1, self.graph_origin_y +1)
+
+		self.width = self.graph_origin_x + graph_width + margin
+		self.height = self.graph_origin_y + margin
+
+		self.graph = SwitchGraphDataGraphicsItem(data, graph_width, graph_height, attrs, event_handler, self)
+		self.graph.setPos(self.graph_origin_x, self.graph_origin_y - graph_height)
+
+		if parent and 'EnableRubberBand' in dir(parent):
+			parent.EnableRubberBand(self.graph_origin_x, self.graph_origin_x + graph_width - 1, self)
+
+	def boundingRect(self):
+		return QRectF(0, 0, self.width, self.height)
+
+	def paint(self, painter, option, widget):
+		pass
+
+	def RBXToPixel(self, x):
+		return self.attrs.PixelToX(x - self.graph_origin_x)
+
+	def RBXRangeToPixel(self, x0, x1):
+		return (self.RBXToPixel(x0), self.RBXToPixel(x1 + 1))
+
+	def RBPixelToTime(self, x):
+		if x < self.data.points[0].x:
+			return self.data.XToData(0)
+		return self.data.XToData(x)
+
+	def RBEventTimes(self, x0, x1):
+		x0, x1 = self.RBXRangeToPixel(x0, x1)
+		time_from = self.RBPixelToTime(x0)
+		time_to = self.RBPixelToTime(x1)
+		return (time_from, time_to)
+
+	def RBEvent(self, x0, x1):
+		time_from, time_to = self.RBEventTimes(x0, x1)
+		self.event_handler.RangeEvent(time_from, time_to)
+
+	def RBMoveEvent(self, x0, x1):
+		if x1 < x0:
+			x0, x1 = x1, x0
+		self.RBEvent(x0, x1)
+
+	def RBReleaseEvent(self, x0, x1, selection_state):
+		if x1 < x0:
+			x0, x1 = x1, x0
+		x0, x1 = self.RBXRangeToPixel(x0, x1)
+		self.event_handler.SelectEvent(x0, x1, selection_state)
+
+# Graphics item to draw a vertical bracket (used to highlight "forward" sub-range)
+
+class VerticalBracketGraphicsItem(QGraphicsItem):
+
+	def __init__(self, parent=None):
+		super(VerticalBracketGraphicsItem, self).__init__(parent)
+
+		self.width = 0
+		self.height = 0
+		self.hide()
+
+	def SetSize(self, width, height):
+		self.width = width + 1
+		self.height = height + 1
+
+	def boundingRect(self):
+		return QRectF(0, 0, self.width, self.height)
+
+	def paint(self, painter, option, widget):
+		colour = QColor(255, 255, 0, 32)
+		painter.fillRect(0, 0, self.width, self.height, colour)
+		x1 = self.width - 1
+		y1 = self.height - 1
+		painter.drawLine(0, 0, x1, 0)
+		painter.drawLine(0, 0, 0, 3)
+		painter.drawLine(x1, 0, x1, 3)
+		painter.drawLine(0, y1, x1, y1)
+		painter.drawLine(0, y1, 0, y1 - 3)
+		painter.drawLine(x1, y1, x1, y1 - 3)
+
+# Graphics item to contain graphs arranged vertically
+
+class VertcalGraphSetGraphicsItem(QGraphicsItem):
+
+	def __init__(self, collection, attrs, event_handler, child_class, parent=None):
+		super(VertcalGraphSetGraphicsItem, self).__init__(parent)
+
+		self.collection = collection
+
+		self.top = 10
+
+		self.width = 0
+		self.height = self.top
+
+		self.rubber_band = None
+		self.rb_enabled = False
+
+		first = True
+		for data in collection.data:
+			child = child_class(collection, data, attrs, event_handler, first, self)
+			child.setPos(0, self.height + 1)
+			rect = child.boundingRect()
+			if rect.right() > self.width:
+				self.width = rect.right()
+			self.height = self.height + rect.bottom() + 1
+			first = False
+
+		self.bracket = VerticalBracketGraphicsItem(self)
+
+	def EnableRubberBand(self, xlo, xhi, rb_event_handler):
+		if self.rb_enabled:
+			return
+		self.rb_enabled = True
+		self.rb_in_view = False
+		self.setAcceptedMouseButtons(Qt.LeftButton)
+		self.rb_xlo = xlo
+		self.rb_xhi = xhi
+		self.rb_event_handler = rb_event_handler
+		self.mousePressEvent = self.MousePressEvent
+		self.mouseMoveEvent = self.MouseMoveEvent
+		self.mouseReleaseEvent = self.MouseReleaseEvent
+
+	def boundingRect(self):
+		return QRectF(0, 0, self.width, self.height)
+
+	def paint(self, painter, option, widget):
+		pass
+
+	def RubberBandParent(self):
+		scene = self.scene()
+		view = scene.views()[0]
+		viewport = view.viewport()
+		return viewport
+
+	def RubberBandSetGeometry(self, rect):
+		scene_rectf = self.mapRectToScene(QRectF(rect))
+		scene = self.scene()
+		view = scene.views()[0]
+		poly = view.mapFromScene(scene_rectf)
+		self.rubber_band.setGeometry(poly.boundingRect())
+
+	def SetSelection(self, selection_state):
+		if self.rubber_band:
+			if selection_state:
+				self.RubberBandSetGeometry(selection_state)
+				self.rubber_band.show()
+			else:
+				self.rubber_band.hide()
+
+	def SetBracket(self, rect):
+		if rect:
+			x, y, width, height = rect.x(), rect.y(), rect.width(), rect.height()
+			self.bracket.setPos(x, y)
+			self.bracket.SetSize(width, height)
+			self.bracket.show()
+		else:
+			self.bracket.hide()
+
+	def RubberBandX(self, event):
+		x = event.pos().toPoint().x()
+		if x < self.rb_xlo:
+			x = self.rb_xlo
+		elif x > self.rb_xhi:
+			x = self.rb_xhi
+		else:
+			self.rb_in_view = True
+		return x
+
+	def RubberBandRect(self, x):
+		if self.rb_origin.x() <= x:
+			width = x - self.rb_origin.x()
+			rect = QRect(self.rb_origin, QSize(width, self.height))
+		else:
+			width = self.rb_origin.x() - x
+			top_left = QPoint(self.rb_origin.x() - width, self.rb_origin.y())
+			rect = QRect(top_left, QSize(width, self.height))
+		return rect
+
+	def MousePressEvent(self, event):
+		self.rb_in_view = False
+		x = self.RubberBandX(event)
+		self.rb_origin = QPoint(x, self.top)
+		if self.rubber_band is None:
+			self.rubber_band = QRubberBand(QRubberBand.Rectangle, self.RubberBandParent())
+		self.RubberBandSetGeometry(QRect(self.rb_origin, QSize(0, self.height)))
+		if self.rb_in_view:
+			self.rubber_band.show()
+			self.rb_event_handler.RBMoveEvent(x, x)
+		else:
+			self.rubber_band.hide()
+
+	def MouseMoveEvent(self, event):
+		x = self.RubberBandX(event)
+		rect = self.RubberBandRect(x)
+		self.RubberBandSetGeometry(rect)
+		if self.rb_in_view:
+			self.rubber_band.show()
+			self.rb_event_handler.RBMoveEvent(self.rb_origin.x(), x)
+
+	def MouseReleaseEvent(self, event):
+		x = self.RubberBandX(event)
+		if self.rb_in_view:
+			selection_state = self.RubberBandRect(x)
+		else:
+			selection_state = None
+		self.rb_event_handler.RBReleaseEvent(self.rb_origin.x(), x, selection_state)
+
+# Switch graph legend data model
+
+class SwitchGraphLegendModel(QAbstractTableModel):
+
+	def __init__(self, collection, region_attributes, parent=None):
+		super(SwitchGraphLegendModel, self).__init__(parent)
+
+		self.region_attributes = region_attributes
+
+		self.child_items = sorted(collection.hregions.values(), key=GraphDataRegionOrdinal)
+		self.child_count = len(self.child_items)
+
+		self.highlight_set = set()
+
+		self.column_headers = ("pid", "tid", "comm")
+
+	def rowCount(self, parent):
+		return self.child_count
+
+	def headerData(self, section, orientation, role):
+		if role != Qt.DisplayRole:
+			return None
+		if orientation != Qt.Horizontal:
+			return None
+		return self.columnHeader(section)
+
+	def index(self, row, column, parent):
+		return self.createIndex(row, column, self.child_items[row])
+
+	def columnCount(self, parent=None):
+		return len(self.column_headers)
+
+	def columnHeader(self, column):
+		return self.column_headers[column]
+
+	def data(self, index, role):
+		if role == Qt.BackgroundRole:
+			child = self.child_items[index.row()]
+			if child in self.highlight_set:
+				return self.region_attributes[child.key].colour
+			return None
+		if role == Qt.ForegroundRole:
+			child = self.child_items[index.row()]
+			if child in self.highlight_set:
+				return QColor(255, 255, 255)
+			return self.region_attributes[child.key].colour
+		if role != Qt.DisplayRole:
+			return None
+		hregion = self.child_items[index.row()]
+		col = index.column()
+		if col == 0:
+			return hregion.pid
+		if col == 1:
+			return hregion.tid
+		if col == 2:
+			return hregion.comm
+		return None
+
+	def SetHighlight(self, row, set_highlight):
+		child = self.child_items[row]
+		top_left = self.createIndex(row, 0, child)
+		bottom_right = self.createIndex(row, len(self.column_headers) - 1, child)
+		self.dataChanged.emit(top_left, bottom_right)
+
+	def Highlight(self, highlight_set):
+		for row in xrange(self.child_count):
+			child = self.child_items[row]
+			if child in self.highlight_set:
+				if child not in highlight_set:
+					self.SetHighlight(row, False)
+			elif child in highlight_set:
+				self.SetHighlight(row, True)
+		self.highlight_set = highlight_set
+
+# Switch graph legend is a table
+
+class SwitchGraphLegend(QWidget):
+
+	def __init__(self, collection, region_attributes, parent=None):
+		super(SwitchGraphLegend, self).__init__(parent)
+
+		self.data_model = SwitchGraphLegendModel(collection, region_attributes)
+
+		self.model = QSortFilterProxyModel()
+		self.model.setSourceModel(self.data_model)
+
+		self.view = QTableView()
+		self.view.setModel(self.model)
+		self.view.setEditTriggers(QAbstractItemView.NoEditTriggers)
+		self.view.verticalHeader().setVisible(False)
+		self.view.sortByColumn(-1, Qt.AscendingOrder)
+		self.view.setSortingEnabled(True)
+		self.view.resizeColumnsToContents()
+		self.view.resizeRowsToContents()
+
+		self.vbox = VBoxLayout(self.view)
+		self.setLayout(self.vbox)
+
+		sz1 = self.view.columnWidth(0) + self.view.columnWidth(1) + self.view.columnWidth(2) + 2
+		sz1 = sz1 + self.view.verticalScrollBar().sizeHint().width()
+		self.saved_size = sz1
+
+	def resizeEvent(self, event):
+		self.saved_size = self.size().width()
+		super(SwitchGraphLegend, self).resizeEvent(event)
+
+	def Highlight(self, highlight_set):
+		self.data_model.Highlight(highlight_set)
+		self.update()
+
+	def changeEvent(self, event):
+		if event.type() == QEvent.FontChange:
+			self.view.resizeRowsToContents()
+			self.view.resizeColumnsToContents()
+			# Need to resize rows again after column resize
+			self.view.resizeRowsToContents()
+		super(SwitchGraphLegend, self).changeEvent(event)
+
+# Random colour generation
+
+def RGBColourTooLight(r, g, b):
+	if g > 230:
+		return True
+	if g <= 160:
+		return False
+	if r <= 180 and g <= 180:
+		return False
+	if r < 60:
+		return False
+	return True
+
+def GenerateColours(x):
+	cs = [0]
+	for i in xrange(1, x):
+		cs.append(int((255.0 / i) + 0.5))
+	colours = []
+	for r in cs:
+		for g in cs:
+			for b in cs:
+				# Exclude black and colours that look too light against a white background
+				if (r, g, b) == (0, 0, 0) or RGBColourTooLight(r, g, b):
+					continue
+				colours.append(QColor(r, g, b))
+	return colours
+
+def GenerateNColours(n):
+	for x in xrange(2, n + 2):
+		colours = GenerateColours(x)
+		if len(colours) >= n:
+			return colours
+	return []
+
+def GenerateNRandomColours(n, seed):
+	colours = GenerateNColours(n)
+	random.seed(seed)
+	random.shuffle(colours)
+	return colours
+
+# Graph attributes, in particular the scale and subrange that change when zooming
+
+class GraphAttributes():
+
+	def __init__(self, scale, subrange, region_attributes, dp):
+		self.scale = scale
+		self.subrange = subrange
+		self.region_attributes = region_attributes
+		# Rounding avoids errors due to finite floating point precision
+		self.dp = dp	# data decimal places
+		self.Update()
+
+	def XToPixel(self, x):
+		return int(round((x - self.subrange.x.lo) * self.scale.x, self.pdp.x))
+
+	def YToPixel(self, y):
+		return int(round((y - self.subrange.y.lo) * self.scale.y, self.pdp.y))
+
+	def PixelToXRounded(self, px):
+		return round((round(px, 0) / self.scale.x), self.dp.x) + self.subrange.x.lo
+
+	def PixelToYRounded(self, py):
+		return round((round(py, 0) / self.scale.y), self.dp.y) + self.subrange.y.lo
+
+	def PixelToX(self, px):
+		x = self.PixelToXRounded(px)
+		if self.pdp.x == 0:
+			rt = self.XToPixel(x)
+			if rt > px:
+				return x - 1
+		return x
+
+	def PixelToY(self, py):
+		y = self.PixelToYRounded(py)
+		if self.pdp.y == 0:
+			rt = self.YToPixel(y)
+			if rt > py:
+				return y - 1
+		return y
+
+	def ToPDP(self, dp, scale):
+		# Calculate pixel decimal places:
+		#    (10 ** dp) is the minimum delta in the data
+		#    scale it to get the minimum delta in pixels
+		#    log10 gives the number of decimals places negatively
+		#    subtrace 1 to divide by 10
+		#    round to the lower negative number
+		#    change the sign to get the number of decimals positively
+		x = math.log10((10 ** dp) * scale)
+		if x < 0:
+			x -= 1
+			x = -int(math.floor(x) - 0.1)
+		else:
+			x = 0
+		return x
+
+	def Update(self):
+		x = self.ToPDP(self.dp.x, self.scale.x)
+		y = self.ToPDP(self.dp.y, self.scale.y)
+		self.pdp = XY(x, y) # pixel decimal places
+
+# Switch graph splitter which divides the CPU graphs from the legend
+
+class SwitchGraphSplitter(QSplitter):
+
+	def __init__(self, parent=None):
+		super(SwitchGraphSplitter, self).__init__(parent)
+
+		self.first_time = False
+
+	def resizeEvent(self, ev):
+		if self.first_time:
+			self.first_time = False
+			sz1 = self.widget(1).view.columnWidth(0) + self.widget(1).view.columnWidth(1) + self.widget(1).view.columnWidth(2) + 2
+			sz1 = sz1 + self.widget(1).view.verticalScrollBar().sizeHint().width()
+			sz0 = self.size().width() - self.handleWidth() - sz1
+			self.setSizes([sz0, sz1])
+		elif not(self.widget(1).saved_size is None):
+			sz1 = self.widget(1).saved_size
+			sz0 = self.size().width() - self.handleWidth() - sz1
+			self.setSizes([sz0, sz1])
+		super(SwitchGraphSplitter, self).resizeEvent(ev)
+
+# Graph widget base class
+
+class GraphWidget(QWidget):
+
+	graph_title_changed = Signal(object)
+
+	def __init__(self, parent=None):
+		super(GraphWidget, self).__init__(parent)
+
+	def GraphTitleChanged(self, title):
+		self.graph_title_changed.emit(title)
+
+	def Title(self):
+		return ""
+
+# Display time in s, ms, us or ns
+
+def ToTimeStr(val):
+	val = Decimal(val)
+	if val >= 1000000000:
+		return "{} s".format((val / 1000000000).quantize(Decimal("0.000000001")))
+	if val >= 1000000:
+		return "{} ms".format((val / 1000000).quantize(Decimal("0.000001")))
+	if val >= 1000:
+		return "{} us".format((val / 1000).quantize(Decimal("0.001")))
+	return "{} ns".format(val.quantize(Decimal("1")))
+
+# Switch (i.e. context switch i.e. Time Chart by CPU) graph widget which contains the CPU graphs and the legend and control buttons
+
+class SwitchGraphWidget(GraphWidget):
+
+	def __init__(self, glb, collection, parent=None):
+		super(SwitchGraphWidget, self).__init__(parent)
+
+		self.glb = glb
+		self.collection = collection
+
+		self.back_state = []
+		self.forward_state = []
+		self.selection_state = (None, None)
+		self.fwd_rect = None
+		self.start_time = self.glb.StartTime(collection.machine_id)
+
+		i = 0
+		hregions = collection.hregions.values()
+		colours = GenerateNRandomColours(len(hregions), 1013)
+		region_attributes = {}
+		for hregion in hregions:
+			if hregion.pid == 0 and hregion.tid == 0:
+				region_attributes[hregion.key] = GraphRegionAttribute(QColor(0, 0, 0))
+			else:
+				region_attributes[hregion.key] = GraphRegionAttribute(colours[i])
+				i = i + 1
+
+		# Default to entire range
+		xsubrange = Subrange(0.0, float(collection.xrangehi - collection.xrangelo) + 1.0)
+		ysubrange = Subrange(0.0, float(collection.yrangehi - collection.yrangelo) + 1.0)
+		subrange = XY(xsubrange, ysubrange)
+
+		scale = self.GetScaleForRange(subrange)
+
+		self.attrs = GraphAttributes(scale, subrange, region_attributes, collection.dp)
+
+		self.item = VertcalGraphSetGraphicsItem(collection, self.attrs, self, SwitchGraphGraphicsItem)
+
+		self.scene = QGraphicsScene()
+		self.scene.addItem(self.item)
+
+		self.view = QGraphicsView(self.scene)
+		self.view.centerOn(0, 0)
+		self.view.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+
+		self.legend = SwitchGraphLegend(collection, region_attributes)
+
+		self.splitter = SwitchGraphSplitter()
+		self.splitter.addWidget(self.view)
+		self.splitter.addWidget(self.legend)
+
+		self.point_label = QLabel("")
+		self.point_label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+
+		self.back_button = QToolButton()
+		self.back_button.setIcon(self.style().standardIcon(QStyle.SP_ArrowLeft))
+		self.back_button.setDisabled(True)
+		self.back_button.released.connect(lambda: self.Back())
+
+		self.forward_button = QToolButton()
+		self.forward_button.setIcon(self.style().standardIcon(QStyle.SP_ArrowRight))
+		self.forward_button.setDisabled(True)
+		self.forward_button.released.connect(lambda: self.Forward())
+
+		self.zoom_button = QToolButton()
+		self.zoom_button.setText("Zoom")
+		self.zoom_button.setDisabled(True)
+		self.zoom_button.released.connect(lambda: self.Zoom())
+
+		self.hbox = HBoxLayout(self.back_button, self.forward_button, self.zoom_button, self.point_label)
+
+		self.vbox = VBoxLayout(self.splitter, self.hbox)
+
+		self.setLayout(self.vbox)
+
+	def GetScaleForRangeX(self, xsubrange):
+		# Default graph 1000 pixels wide
+		dflt = 1000.0
+		r = xsubrange.hi - xsubrange.lo
+		return dflt / r
+
+	def GetScaleForRangeY(self, ysubrange):
+		# Default graph 50 pixels high
+		dflt = 50.0
+		r = ysubrange.hi - ysubrange.lo
+		return dflt / r
+
+	def GetScaleForRange(self, subrange):
+		# Default graph 1000 pixels wide, 50 pixels high
+		xscale = self.GetScaleForRangeX(subrange.x)
+		yscale = self.GetScaleForRangeY(subrange.y)
+		return XY(xscale, yscale)
+
+	def PointEvent(self, cpu, time_from, time_to, hregions):
+		text = "CPU: " + str(cpu)
+		time_from = time_from.quantize(Decimal(1))
+		rel_time_from = time_from - self.glb.StartTime(self.collection.machine_id)
+		text = text + " Time: " + str(time_from) + " (+" + ToTimeStr(rel_time_from) + ")"
+		self.point_label.setText(text)
+		self.legend.Highlight(hregions)
+
+	def RightClickEvent(self, cpu, hregion_times, pos):
+		if not IsSelectable(self.glb.db, "calls", "WHERE parent_id >= 0"):
+			return
+		menu = QMenu(self.view)
+		for hregion, time in hregion_times:
+			thread_at_time = (hregion.exec_comm_id, hregion.thread_id, time)
+			menu_text = "Show Call Tree for {} {}:{} at {}".format(hregion.comm, hregion.pid, hregion.tid, time)
+			menu.addAction(CreateAction(menu_text, "Show Call Tree", lambda a=None, args=thread_at_time: self.RightClickSelect(args), self.view))
+		menu.exec_(pos)
+
+	def RightClickSelect(self, args):
+		CallTreeWindow(self.glb, self.glb.mainwindow, thread_at_time=args)
+
+	def NoPointEvent(self):
+		self.point_label.setText("")
+		self.legend.Highlight({})
+
+	def RangeEvent(self, time_from, time_to):
+		time_from = time_from.quantize(Decimal(1))
+		time_to = time_to.quantize(Decimal(1))
+		if time_to <= time_from:
+			self.point_label.setText("")
+			return
+		rel_time_from = time_from - self.start_time
+		rel_time_to = time_to - self.start_time
+		text = " Time: " + str(time_from) + " (+" + ToTimeStr(rel_time_from) + ") to: " + str(time_to) + " (+" + ToTimeStr(rel_time_to) + ")"
+		text = text + " duration: " + ToTimeStr(time_to - time_from)
+		self.point_label.setText(text)
+
+	def BackState(self):
+		return (self.attrs.subrange, self.attrs.scale, self.selection_state, self.fwd_rect)
+
+	def PushBackState(self):
+		state = copy.deepcopy(self.BackState())
+		self.back_state.append(state)
+		self.back_button.setEnabled(True)
+
+	def PopBackState(self):
+		self.attrs.subrange, self.attrs.scale, self.selection_state, self.fwd_rect = self.back_state.pop()
+		self.attrs.Update()
+		if not self.back_state:
+			self.back_button.setDisabled(True)
+
+	def PushForwardState(self):
+		state = copy.deepcopy(self.BackState())
+		self.forward_state.append(state)
+		self.forward_button.setEnabled(True)
+
+	def PopForwardState(self):
+		self.attrs.subrange, self.attrs.scale, self.selection_state, self.fwd_rect = self.forward_state.pop()
+		self.attrs.Update()
+		if not self.forward_state:
+			self.forward_button.setDisabled(True)
+
+	def Title(self):
+		time_from = self.collection.xrangelo + Decimal(self.attrs.subrange.x.lo)
+		time_to = self.collection.xrangelo + Decimal(self.attrs.subrange.x.hi)
+		rel_time_from = time_from - self.start_time
+		rel_time_to = time_to - self.start_time
+		title = "+" + ToTimeStr(rel_time_from) + " to +" + ToTimeStr(rel_time_to)
+		title = title + " (" + ToTimeStr(time_to - time_from) + ")"
+		return title
+
+	def Update(self):
+		selected_subrange, selection_state = self.selection_state
+		self.item.SetSelection(selection_state)
+		self.item.SetBracket(self.fwd_rect)
+		self.zoom_button.setDisabled(selected_subrange is None)
+		self.GraphTitleChanged(self.Title())
+		self.item.update(self.item.boundingRect())
+
+	def Back(self):
+		if not self.back_state:
+			return
+		self.PushForwardState()
+		self.PopBackState()
+		self.Update()
+
+	def Forward(self):
+		if not self.forward_state:
+			return
+		self.PushBackState()
+		self.PopForwardState()
+		self.Update()
+
+	def SelectEvent(self, x0, x1, selection_state):
+		if selection_state is None:
+			selected_subrange = None
+		else:
+			if x1 - x0 < 1.0:
+				x1 += 1.0
+			selected_subrange = Subrange(x0, x1)
+		self.selection_state = (selected_subrange, selection_state)
+		self.zoom_button.setDisabled(selected_subrange is None)
+
+	def Zoom(self):
+		selected_subrange, selection_state = self.selection_state
+		if selected_subrange is None:
+			return
+		self.fwd_rect = selection_state
+		self.item.SetSelection(None)
+		self.PushBackState()
+		self.attrs.subrange.x = selected_subrange
+		self.forward_state = []
+		self.forward_button.setDisabled(True)
+		self.selection_state = (None, None)
+		self.fwd_rect = None
+		self.attrs.scale.x = self.GetScaleForRangeX(self.attrs.subrange.x)
+		self.attrs.Update()
+		self.Update()
+
+# Slow initialization - perform non-GUI initialization in a separate thread and put up a modal message box while waiting
+
+class SlowInitClass():
+
+	def __init__(self, glb, title, init_fn):
+		self.init_fn = init_fn
+		self.done = False
+		self.result = None
+
+		self.msg_box = QMessageBox(glb.mainwindow)
+		self.msg_box.setText("Initializing " + title + ". Please wait.")
+		self.msg_box.setWindowTitle("Initializing " + title)
+		self.msg_box.setWindowIcon(glb.mainwindow.style().standardIcon(QStyle.SP_MessageBoxInformation))
+
+		self.init_thread = Thread(self.ThreadFn, glb)
+		self.init_thread.done.connect(lambda: self.Done(), Qt.QueuedConnection)
+
+		self.init_thread.start()
+
+	def Done(self):
+		self.msg_box.done(0)
+
+	def ThreadFn(self, glb):
+		conn_name = "SlowInitClass" + str(os.getpid())
+		db, dbname = glb.dbref.Open(conn_name)
+		self.result = self.init_fn(db)
+		self.done = True
+		return (True, 0)
+
+	def Result(self):
+		while not self.done:
+			self.msg_box.exec_()
+		self.init_thread.wait()
+		return self.result
+
+def SlowInit(glb, title, init_fn):
+	init = SlowInitClass(glb, title, init_fn)
+	return init.Result()
+
+# Time chart by CPU window
+
+class TimeChartByCPUWindow(QMdiSubWindow):
+
+	def __init__(self, glb, parent=None):
+		super(TimeChartByCPUWindow, self).__init__(parent)
+
+		self.glb = glb
+		self.machine_id = glb.HostMachineId()
+		self.collection_name = "SwitchGraphDataCollection " + str(self.machine_id)
+
+		collection = LookupModel(self.collection_name)
+		if collection is None:
+			collection = SlowInit(glb, "Time Chart", self.Init)
+
+		self.widget = SwitchGraphWidget(glb, collection, self)
+		self.view = self.widget
+
+		self.base_title = "Time Chart by CPU"
+		self.setWindowTitle(self.base_title + self.widget.Title())
+		self.widget.graph_title_changed.connect(self.GraphTitleChanged)
+
+		self.setWidget(self.widget)
+
+		AddSubWindow(glb.mainwindow.mdi_area, self, self.windowTitle())
+
+	def Init(self, db):
+		return LookupCreateModel(self.collection_name, lambda : SwitchGraphDataCollection(self.glb, db, self.machine_id))
+
+	def GraphTitleChanged(self, title):
+		self.setWindowTitle(self.base_title + " : " + title)
 
 # Child data item  finder
 
@@ -1281,7 +2768,7 @@ class FetchMoreRecordsBar():
 		self.hbox.addWidget(self.close_button)
 
 		self.bar = QWidget()
-		self.bar.setLayout(self.hbox);
+		self.bar.setLayout(self.hbox)
 		self.bar.show()
 
 		self.in_progress = False
@@ -1355,11 +2842,11 @@ class FetchMoreRecordsBar():
 
 class BranchLevelTwoItem():
 
-	def __init__(self, row, text, parent_item):
+	def __init__(self, row, col, text, parent_item):
 		self.row = row
 		self.parent_item = parent_item
-		self.data = [""] * 8
-		self.data[7] = text
+		self.data = [""] * (col + 1)
+		self.data[col] = text
 		self.level = 2
 
 	def getParentItem(self):
@@ -1391,6 +2878,7 @@ class BranchLevelOneItem():
 		self.dbid = data[0]
 		self.level = 1
 		self.query_done = False
+		self.br_col = len(self.data) - 1
 
 	def getChildItem(self, row):
 		return self.child_items[row]
@@ -1471,7 +2959,7 @@ class BranchLevelOneItem():
 				while k < 15:
 					byte_str += "   "
 					k += 1
-				self.child_items.append(BranchLevelTwoItem(0, byte_str + " " + text, self))
+				self.child_items.append(BranchLevelTwoItem(0, self.br_col, byte_str + " " + text, self))
 				self.child_count += 1
 			else:
 				return
@@ -1522,16 +3010,37 @@ class BranchRootItem():
 	def getData(self, column):
 		return ""
 
+# Calculate instructions per cycle
+
+def CalcIPC(cyc_cnt, insn_cnt):
+	if cyc_cnt and insn_cnt:
+		ipc = Decimal(float(insn_cnt) / cyc_cnt)
+		ipc = str(ipc.quantize(Decimal(".01"), rounding=ROUND_HALF_UP))
+	else:
+		ipc = "0"
+	return ipc
+
 # Branch data preparation
+
+def BranchDataPrepBr(query, data):
+	data.append(tohex(query.value(8)).rjust(16) + " " + query.value(9) + offstr(query.value(10)) +
+			" (" + dsoname(query.value(11)) + ")" + " -> " +
+			tohex(query.value(12)) + " " + query.value(13) + offstr(query.value(14)) +
+			" (" + dsoname(query.value(15)) + ")")
+
+def BranchDataPrepIPC(query, data):
+	insn_cnt = query.value(16)
+	cyc_cnt = query.value(17)
+	ipc = CalcIPC(cyc_cnt, insn_cnt)
+	data.append(insn_cnt)
+	data.append(cyc_cnt)
+	data.append(ipc)
 
 def BranchDataPrep(query):
 	data = []
 	for i in xrange(0, 8):
 		data.append(query.value(i))
-	data.append(tohex(query.value(8)).rjust(16) + " " + query.value(9) + offstr(query.value(10)) +
-			" (" + dsoname(query.value(11)) + ")" + " -> " +
-			tohex(query.value(12)) + " " + query.value(13) + offstr(query.value(14)) +
-			" (" + dsoname(query.value(15)) + ")")
+	BranchDataPrepBr(query, data)
 	return data
 
 def BranchDataPrepWA(query):
@@ -1541,10 +3050,26 @@ def BranchDataPrepWA(query):
 	data.append("{:>19}".format(query.value(1)))
 	for i in xrange(2, 8):
 		data.append(query.value(i))
-	data.append(tohex(query.value(8)).rjust(16) + " " + query.value(9) + offstr(query.value(10)) +
-			" (" + dsoname(query.value(11)) + ")" + " -> " +
-			tohex(query.value(12)) + " " + query.value(13) + offstr(query.value(14)) +
-			" (" + dsoname(query.value(15)) + ")")
+	BranchDataPrepBr(query, data)
+	return data
+
+def BranchDataWithIPCPrep(query):
+	data = []
+	for i in xrange(0, 8):
+		data.append(query.value(i))
+	BranchDataPrepIPC(query, data)
+	BranchDataPrepBr(query, data)
+	return data
+
+def BranchDataWithIPCPrepWA(query):
+	data = []
+	data.append(query.value(0))
+	# Workaround pyside failing to handle large integers (i.e. time) in python3 by converting to a string
+	data.append("{:>19}".format(query.value(1)))
+	for i in xrange(2, 8):
+		data.append(query.value(i))
+	BranchDataPrepIPC(query, data)
+	BranchDataPrepBr(query, data)
 	return data
 
 # Branch data model
@@ -1554,14 +3079,24 @@ class BranchModel(TreeModel):
 	progress = Signal(object)
 
 	def __init__(self, glb, event_id, where_clause, parent=None):
-		super(BranchModel, self).__init__(glb, parent)
+		super(BranchModel, self).__init__(glb, None, parent)
 		self.event_id = event_id
 		self.more = True
 		self.populated = 0
+		self.have_ipc = IsSelectable(glb.db, "samples", columns = "insn_count, cyc_count")
+		if self.have_ipc:
+			select_ipc = ", insn_count, cyc_count"
+			prep_fn = BranchDataWithIPCPrep
+			prep_wa_fn = BranchDataWithIPCPrepWA
+		else:
+			select_ipc = ""
+			prep_fn = BranchDataPrep
+			prep_wa_fn = BranchDataPrepWA
 		sql = ("SELECT samples.id, time, cpu, comm, pid, tid, branch_types.name,"
 			" CASE WHEN in_tx = '0' THEN 'No' ELSE 'Yes' END,"
 			" ip, symbols.name, sym_offset, dsos.short_name,"
 			" to_ip, to_symbols.name, to_sym_offset, to_dsos.short_name"
+			+ select_ipc +
 			" FROM samples"
 			" INNER JOIN comms ON comm_id = comms.id"
 			" INNER JOIN threads ON thread_id = threads.id"
@@ -1575,9 +3110,9 @@ class BranchModel(TreeModel):
 			" ORDER BY samples.id"
 			" LIMIT " + str(glb_chunk_sz))
 		if pyside_version_1 and sys.version_info[0] == 3:
-			prep = BranchDataPrepWA
+			prep = prep_fn
 		else:
-			prep = BranchDataPrep
+			prep = prep_wa_fn
 		self.fetcher = SQLFetcher(glb, sql, prep, self.AddSample)
 		self.fetcher.done.connect(self.Update)
 		self.fetcher.Fetch(glb_chunk_sz)
@@ -1586,13 +3121,23 @@ class BranchModel(TreeModel):
 		return BranchRootItem()
 
 	def columnCount(self, parent=None):
-		return 8
+		if self.have_ipc:
+			return 11
+		else:
+			return 8
 
 	def columnHeader(self, column):
-		return ("Time", "CPU", "Command", "PID", "TID", "Branch Type", "In Tx", "Branch")[column]
+		if self.have_ipc:
+			return ("Time", "CPU", "Command", "PID", "TID", "Branch Type", "In Tx", "Insn Cnt", "Cyc Cnt", "IPC", "Branch")[column]
+		else:
+			return ("Time", "CPU", "Command", "PID", "TID", "Branch Type", "In Tx", "Branch")[column]
 
 	def columnFont(self, column):
-		if column != 7:
+		if self.have_ipc:
+			br_col = 10
+		else:
+			br_col = 7
+		if column != br_col:
 			return None
 		return QFont("Monospace")
 
@@ -1884,10 +3429,8 @@ class SampleTimeRangesDataItem(LineEditDataItem):
 		QueryExec(query, "SELECT id, time FROM samples ORDER BY id DESC LIMIT 1")
 		if query.next():
 			self.last_id = int(query.value(0))
-			self.last_time = int(query.value(1))
-		QueryExec(query, "SELECT time FROM samples WHERE time != 0 ORDER BY id LIMIT 1")
-		if query.next():
-			self.first_time = int(query.value(0))
+		self.first_time = int(glb.HostStartTime())
+		self.last_time = int(glb.HostFinishTime())
 		if placeholder_text:
 			placeholder_text += ", between " + str(self.first_time) + " and " + str(self.last_time)
 
@@ -2038,7 +3581,7 @@ class ReportDialogBase(QDialog):
 		self.vbox.addLayout(self.grid)
 		self.vbox.addLayout(self.hbox)
 
-		self.setLayout(self.vbox);
+		self.setLayout(self.vbox)
 
 	def Ok(self):
 		vars = self.report_vars
@@ -2100,10 +3643,10 @@ def GetEventList(db):
 
 # Is a table selectable
 
-def IsSelectable(db, table, sql = ""):
+def IsSelectable(db, table, sql = "", columns = "*"):
 	query = QSqlQuery(db)
 	try:
-		QueryExec(query, "SELECT * FROM " + table + " " + sql + " LIMIT 1")
+		QueryExec(query, "SELECT " + columns + " FROM " + table + " " + sql + " LIMIT 1")
 	except:
 		return False
 	return True
@@ -2754,7 +4297,7 @@ class WindowMenu():
 			action = self.window_menu.addAction(label)
 			action.setCheckable(True)
 			action.setChecked(sub_window == self.mdi_area.activeSubWindow())
-			action.triggered.connect(lambda x=nr: self.setActiveSubWindow(x))
+			action.triggered.connect(lambda a=None,x=nr: self.setActiveSubWindow(x))
 			self.window_menu.addAction(action)
 			nr += 1
 
@@ -2780,7 +4323,9 @@ p.c2 {
 <p class=c2><a href=#allbranches>1.3 All branches</a></p>
 <p class=c2><a href=#selectedbranches>1.4 Selected branches</a></p>
 <p class=c2><a href=#topcallsbyelapsedtime>1.5 Top calls by elapsed time</a></p>
-<p class=c1><a href=#tables>2. Tables</a></p>
+<p class=c1><a href=#charts>2. Charts</a></p>
+<p class=c2><a href=#timechartbycpu>2.1 Time chart by CPU</a></p>
+<p class=c1><a href=#tables>3. Tables</a></p>
 <h1 id=reports>1. Reports</h1>
 <h2 id=callgraph>1.1 Context-Sensitive Call Graph</h2>
 The result is a GUI window with a tree representing a context-sensitive
@@ -2840,6 +4385,12 @@ cd xed
 sudo ./mfile.py --prefix=/usr/local install
 sudo ldconfig
 </pre>
+<h3>Instructions per Cycle (IPC)</h3>
+If available, IPC information is displayed in columns 'insn_cnt', 'cyc_cnt' and 'IPC'.
+<p><b>Intel PT note:</b> The information applies to the blocks of code ending with, and including, that branch.
+Due to the granularity of timing information, the number of cycles for some code blocks will not be known.
+In that case, 'insn_cnt', 'cyc_cnt' and 'IPC' are zero, but when 'IPC' is displayed it covers the period
+since the previous displayed 'IPC'.
 <h3>Find</h3>
 Ctrl-F displays a Find bar which finds substrings by either an exact match or a regular expression match.
 Refer to Python documentation for the regular expression syntax.
@@ -2862,7 +4413,29 @@ N.B. Due to the granularity of timestamps, there could be no branches in any giv
 The Top calls by elapsed time report displays calls in descending order of time elapsed between when the function was called and when it returned.
 The data is reduced by various selection criteria. A dialog box displays available criteria which are AND'ed together.
 If not all data is fetched, a Fetch bar is provided. Ctrl-F displays a Find bar.
-<h1 id=tables>2. Tables</h1>
+<h1 id=charts>2. Charts</h1>
+<h2 id=timechartbycpu>2.1 Time chart by CPU</h2>
+This chart displays context switch information when that data is available. Refer to context_switches_view on the Tables menu.
+<h3>Features</h3>
+<ol>
+<li>Mouse over to highight the task and show the time</li>
+<li>Drag the mouse to select a region and zoom by pushing the Zoom button</li>
+<li>Go back and forward by pressing the arrow buttons</li>
+<li>If call information is available, right-click to show a call tree opened to that task and time.
+Note, the call tree may take some time to appear, and there may not be call information for the task or time selected.
+</li>
+</ol>
+<h3>Important</h3>
+The graph can be misleading in the following respects:
+<ol>
+<li>The graph shows the first task on each CPU as running from the beginning of the time range.
+Because tracing might start on different CPUs at different times, that is not necessarily the case.
+Refer to context_switches_view on the Tables menu to understand what data the graph is based upon.</li>
+<li>Similarly, the last task on each CPU can be showing running longer than it really was.
+Again, refer to context_switches_view on the Tables menu to understand what data the graph is based upon.</li>
+<li>When the mouse is over a task, the highlighted task might not be visible on the legend without scrolling if the legend does not fit fully in the window</li>
+</ol>
+<h1 id=tables>3. Tables</h1>
 The Tables menu shows all tables and views in the database. Most tables have an associated view
 which displays the information in a more friendly way. Not all data for large tables is fetched
 immediately. More records can be fetched using the Fetch bar provided. Columns can be sorted,
@@ -2965,7 +4538,7 @@ class AboutDialog(QDialog):
 		self.vbox = QVBoxLayout()
 		self.vbox.addWidget(self.text)
 
-		self.setLayout(self.vbox);
+		self.setLayout(self.vbox)
 
 # Font resize
 
@@ -3058,6 +4631,10 @@ class MainWindow(QMainWindow):
 		if IsSelectable(glb.db, "calls"):
 			reports_menu.addAction(CreateAction("&Top calls by elapsed time", "Create a new window displaying top calls by elapsed time", self.NewTopCalls, self))
 
+		if IsSelectable(glb.db, "context_switches"):
+			charts_menu = menu.addMenu("&Charts")
+			charts_menu.addAction(CreateAction("&Time chart by CPU", "Create a new window displaying time charts by CPU", self.TimeChartByCPU, self))
+
 		self.TableMenu(GetTableList(glb), menu)
 
 		self.window_menu = WindowMenu(self.mdi_area, menu)
@@ -3114,14 +4691,17 @@ class MainWindow(QMainWindow):
 			event = event.split(":")[0]
 			if event == "branches":
 				label = "All branches" if branches_events == 1 else "All branches " + "(id=" + dbid + ")"
-				reports_menu.addAction(CreateAction(label, "Create a new window displaying branch events", lambda x=dbid: self.NewBranchView(x), self))
+				reports_menu.addAction(CreateAction(label, "Create a new window displaying branch events", lambda a=None,x=dbid: self.NewBranchView(x), self))
 				label = "Selected branches" if branches_events == 1 else "Selected branches " + "(id=" + dbid + ")"
-				reports_menu.addAction(CreateAction(label, "Create a new window displaying branch events", lambda x=dbid: self.NewSelectedBranchView(x), self))
+				reports_menu.addAction(CreateAction(label, "Create a new window displaying branch events", lambda a=None,x=dbid: self.NewSelectedBranchView(x), self))
+
+	def TimeChartByCPU(self):
+		TimeChartByCPUWindow(self.glb, self)
 
 	def TableMenu(self, tables, menu):
 		table_menu = menu.addMenu("&Tables")
 		for table in tables:
-			table_menu.addAction(CreateAction(table, "Create a new window containing a table view", lambda t=table: self.NewTableView(t), self))
+			table_menu.addAction(CreateAction(table, "Create a new window containing a table view", lambda a=None,t=table: self.NewTableView(t), self))
 
 	def NewCallGraph(self):
 		CallGraphWindow(self.glb, self)
@@ -3290,6 +4870,9 @@ class Glb():
 			self.have_disassembler = True
 		except:
 			self.have_disassembler = False
+		self.host_machine_id = 0
+		self.host_start_time = 0
+		self.host_finish_time = 0
 
 	def FileFromBuildId(self, build_id):
 		file_name = self.buildid_dir + build_id[0:2] + "/" + build_id[2:] + "/elf"
@@ -3322,6 +4905,110 @@ class Glb():
 			except:
 				pass
 
+	def GetHostMachineId(self):
+		query = QSqlQuery(self.db)
+		QueryExec(query, "SELECT id FROM machines WHERE pid = -1")
+		if query.next():
+			self.host_machine_id = query.value(0)
+		else:
+			self.host_machine_id = 0
+		return self.host_machine_id
+
+	def HostMachineId(self):
+		if self.host_machine_id:
+			return self.host_machine_id
+		return self.GetHostMachineId()
+
+	def SelectValue(self, sql):
+		query = QSqlQuery(self.db)
+		try:
+			QueryExec(query, sql)
+		except:
+			return None
+		if query.next():
+			return Decimal(query.value(0))
+		return None
+
+	def SwitchesMinTime(self, machine_id):
+		return self.SelectValue("SELECT time"
+					" FROM context_switches"
+					" WHERE time != 0 AND machine_id = " + str(machine_id) +
+					" ORDER BY id LIMIT 1")
+
+	def SwitchesMaxTime(self, machine_id):
+		return self.SelectValue("SELECT time"
+					" FROM context_switches"
+					" WHERE time != 0 AND machine_id = " + str(machine_id) +
+					" ORDER BY id DESC LIMIT 1")
+
+	def SamplesMinTime(self, machine_id):
+		return self.SelectValue("SELECT time"
+					" FROM samples"
+					" WHERE time != 0 AND machine_id = " + str(machine_id) +
+					" ORDER BY id LIMIT 1")
+
+	def SamplesMaxTime(self, machine_id):
+		return self.SelectValue("SELECT time"
+					" FROM samples"
+					" WHERE time != 0 AND machine_id = " + str(machine_id) +
+					" ORDER BY id DESC LIMIT 1")
+
+	def CallsMinTime(self, machine_id):
+		return self.SelectValue("SELECT calls.call_time"
+					" FROM calls"
+					" INNER JOIN threads ON threads.thread_id = calls.thread_id"
+					" WHERE calls.call_time != 0 AND threads.machine_id = " + str(machine_id) +
+					" ORDER BY calls.id LIMIT 1")
+
+	def CallsMaxTime(self, machine_id):
+		return self.SelectValue("SELECT calls.return_time"
+					" FROM calls"
+					" INNER JOIN threads ON threads.thread_id = calls.thread_id"
+					" WHERE calls.return_time != 0 AND threads.machine_id = " + str(machine_id) +
+					" ORDER BY calls.return_time DESC LIMIT 1")
+
+	def GetStartTime(self, machine_id):
+		t0 = self.SwitchesMinTime(machine_id)
+		t1 = self.SamplesMinTime(machine_id)
+		t2 = self.CallsMinTime(machine_id)
+		if t0 is None or (not(t1 is None) and t1 < t0):
+			t0 = t1
+		if t0 is None or (not(t2 is None) and t2 < t0):
+			t0 = t2
+		return t0
+
+	def GetFinishTime(self, machine_id):
+		t0 = self.SwitchesMaxTime(machine_id)
+		t1 = self.SamplesMaxTime(machine_id)
+		t2 = self.CallsMaxTime(machine_id)
+		if t0 is None or (not(t1 is None) and t1 > t0):
+			t0 = t1
+		if t0 is None or (not(t2 is None) and t2 > t0):
+			t0 = t2
+		return t0
+
+	def HostStartTime(self):
+		if self.host_start_time:
+			return self.host_start_time
+		self.host_start_time = self.GetStartTime(self.HostMachineId())
+		return self.host_start_time
+
+	def HostFinishTime(self):
+		if self.host_finish_time:
+			return self.host_finish_time
+		self.host_finish_time = self.GetFinishTime(self.HostMachineId())
+		return self.host_finish_time
+
+	def StartTime(self, machine_id):
+		if machine_id == self.HostMachineId():
+			return self.HostStartTime()
+		return self.GetStartTime(machine_id)
+
+	def FinishTime(self, machine_id):
+		if machine_id == self.HostMachineId():
+			return self.HostFinishTime()
+		return self.GetFinishTime(machine_id)
+
 # Database reference
 
 class DBRef():
@@ -3329,6 +5016,12 @@ class DBRef():
 	def __init__(self, is_sqlite3, dbname):
 		self.is_sqlite3 = is_sqlite3
 		self.dbname = dbname
+		self.TRUE = "TRUE"
+		self.FALSE = "FALSE"
+		# SQLite prior to version 3.23 does not support TRUE and FALSE
+		if self.is_sqlite3:
+			self.TRUE = "1"
+			self.FALSE = "0"
 
 	def Open(self, connection_name):
 		dbname = self.dbname
@@ -3361,17 +5054,26 @@ class DBRef():
 # Main
 
 def Main():
-	if (len(sys.argv) < 2):
-		printerr("Usage is: exported-sql-viewer.py {<database name> | --help-only}");
-		raise Exception("Too few arguments")
+	usage_str =	"exported-sql-viewer.py [--pyside-version-1] <database name>\n" \
+			"   or: exported-sql-viewer.py --help-only"
+	ap = argparse.ArgumentParser(usage = usage_str, add_help = False)
+	ap.add_argument("--pyside-version-1", action='store_true')
+	ap.add_argument("dbname", nargs="?")
+	ap.add_argument("--help-only", action='store_true')
+	args = ap.parse_args()
 
-	dbname = sys.argv[1]
-	if dbname == "--help-only":
+	if args.help_only:
 		app = QApplication(sys.argv)
 		mainwindow = HelpOnlyWindow()
 		mainwindow.show()
 		err = app.exec_()
 		sys.exit(err)
+
+	dbname = args.dbname
+	if dbname is None:
+		ap.print_usage()
+		print("Too few arguments")
+		sys.exit(1)
 
 	is_sqlite3 = False
 	try:

@@ -2160,8 +2160,10 @@ enum sctp_disposition sctp_sf_do_5_2_4_dupcook(
 
 	/* Update socket peer label if first association. */
 	if (security_sctp_assoc_request((struct sctp_endpoint *)ep,
-					chunk->skb))
+					chunk->skb)) {
+		sctp_association_free(new_asoc);
 		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
+	}
 
 	/* Set temp so that it won't be added into hashtable */
 	new_asoc->temp = 1;
@@ -3721,7 +3723,8 @@ enum sctp_disposition sctp_sf_do_asconf(struct net *net,
 	 * is received unauthenticated it MUST be silently discarded as
 	 * described in [I-D.ietf-tsvwg-sctp-auth].
 	 */
-	if (!net->sctp.addip_noauth && !chunk->auth)
+	if (!asoc->peer.asconf_capable ||
+	    (!net->sctp.addip_noauth && !chunk->auth))
 		return sctp_sf_discard_chunk(net, ep, asoc, type, arg,
 					     commands);
 
@@ -3863,7 +3866,8 @@ enum sctp_disposition sctp_sf_do_asconf_ack(struct net *net,
 	 * is received unauthenticated it MUST be silently discarded as
 	 * described in [I-D.ietf-tsvwg-sctp-auth].
 	 */
-	if (!net->sctp.addip_noauth && !asconf_ack->auth)
+	if (!asoc->peer.asconf_capable ||
+	    (!net->sctp.addip_noauth && !asconf_ack->auth))
 		return sctp_sf_discard_chunk(net, ep, asoc, type, arg,
 					     commands);
 

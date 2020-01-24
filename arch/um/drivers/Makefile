@@ -1,6 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0
 # 
 # Copyright (C) 2000, 2002, 2003 Jeff Dike (jdike@karaya.com)
-# Licensed under the GPL
 #
 
 # pcap is broken in 2.5 because kbuild doesn't allow pcap.a to be linked
@@ -61,6 +61,7 @@ obj-$(CONFIG_XTERM_CHAN) += xterm.o xterm_kern.o
 obj-$(CONFIG_UML_WATCHDOG) += harddog.o
 obj-$(CONFIG_BLK_DEV_COW_COMMON) += cow_user.o
 obj-$(CONFIG_UML_RANDOM) += random.o
+obj-$(CONFIG_VIRTIO_UML) += virtio_uml.o
 
 # pcap_user.o must be added explicitly.
 USER_OBJS := fd.o null.o pty.o tty.o xterm.o slip_common.o pcap_user.o vde_user.o vector_user.o

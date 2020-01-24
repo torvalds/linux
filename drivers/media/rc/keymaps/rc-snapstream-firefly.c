@@ -12,16 +12,16 @@ static struct rc_map_table snapstream_firefly[] = {
 	{ 0x2c, KEY_ZOOM },       /* Maximize */
 	{ 0x02, KEY_CLOSE },
 
-	{ 0x0d, KEY_1 },
-	{ 0x0e, KEY_2 },
-	{ 0x0f, KEY_3 },
-	{ 0x10, KEY_4 },
-	{ 0x11, KEY_5 },
-	{ 0x12, KEY_6 },
-	{ 0x13, KEY_7 },
-	{ 0x14, KEY_8 },
-	{ 0x15, KEY_9 },
-	{ 0x17, KEY_0 },
+	{ 0x0d, KEY_NUMERIC_1 },
+	{ 0x0e, KEY_NUMERIC_2 },
+	{ 0x0f, KEY_NUMERIC_3 },
+	{ 0x10, KEY_NUMERIC_4 },
+	{ 0x11, KEY_NUMERIC_5 },
+	{ 0x12, KEY_NUMERIC_6 },
+	{ 0x13, KEY_NUMERIC_7 },
+	{ 0x14, KEY_NUMERIC_8 },
+	{ 0x15, KEY_NUMERIC_9 },
+	{ 0x17, KEY_NUMERIC_0 },
 	{ 0x16, KEY_BACK },
 	{ 0x18, KEY_KPENTER },    /* ent */
 

@@ -627,6 +627,12 @@ DEFINE_EVENT(/* event */
 	TP_ARGS(qp, index, flow)
 );
 
+DEFINE_EVENT(/* event */
+	hfi1_tid_flow_template, hfi1_tid_flow_read_kdeth_eflags,
+	TP_PROTO(struct rvt_qp *qp, int index, struct tid_rdma_flow *flow),
+	TP_ARGS(qp, index, flow)
+);
+
 DECLARE_EVENT_CLASS(/* tid_node */
 	hfi1_tid_node_template,
 	TP_PROTO(struct rvt_qp *qp, const char *msg, u32 index, u32 base,
@@ -851,6 +857,12 @@ DEFINE_EVENT(/* event */
 	TP_ARGS(qp, psn)
 );
 
+DEFINE_EVENT(/* event */
+	hfi1_responder_info_template, hfi1_rsp_read_kdeth_eflags,
+	TP_PROTO(struct rvt_qp *qp, u32 psn),
+	TP_ARGS(qp, psn)
+);
+
 DECLARE_EVENT_CLASS(/* sender_info */
 	hfi1_sender_info_template,
 	TP_PROTO(struct rvt_qp *qp),
@@ -955,6 +967,12 @@ DEFINE_EVENT(/* event */
 	TP_ARGS(qp)
 );
 
+DEFINE_EVENT(/* event */
+	hfi1_sender_info_template, hfi1_sender_read_kdeth_eflags,
+	TP_PROTO(struct rvt_qp *qp),
+	TP_ARGS(qp)
+);
+
 DECLARE_EVENT_CLASS(/* tid_read_sender */
 	hfi1_tid_read_sender_template,
 	TP_PROTO(struct rvt_qp *qp, char newreq),
@@ -1011,6 +1029,12 @@ DECLARE_EVENT_CLASS(/* tid_read_sender */
 
 DEFINE_EVENT(/* event */
 	hfi1_tid_read_sender_template, hfi1_tid_read_sender_make_req,
+	TP_PROTO(struct rvt_qp *qp, char newreq),
+	TP_ARGS(qp, newreq)
+);
+
+DEFINE_EVENT(/* event */
+	hfi1_tid_read_sender_template, hfi1_tid_read_sender_kdeth_eflags,
 	TP_PROTO(struct rvt_qp *qp, char newreq),
 	TP_ARGS(qp, newreq)
 );
@@ -1216,6 +1240,13 @@ DEFINE_EVENT(/* event */
 );
 
 DEFINE_EVENT(/* event */
+	hfi1_tid_rdma_request_template, hfi1_tid_req_read_kdeth_eflags,
+	TP_PROTO(struct rvt_qp *qp, char newreq, u8 opcode, u32 psn, u32 lpsn,
+		 struct tid_rdma_request *req),
+	TP_ARGS(qp, newreq, opcode, psn, lpsn, req)
+);
+
+DEFINE_EVENT(/* event */
 	hfi1_tid_rdma_request_template, hfi1_tid_req_make_rc_ack_write,
 	TP_PROTO(struct rvt_qp *qp, char newreq, u8 opcode, u32 psn, u32 lpsn,
 		 struct tid_rdma_request *req),
@@ -1224,6 +1255,13 @@ DEFINE_EVENT(/* event */
 
 DEFINE_EVENT(/* event */
 	hfi1_tid_rdma_request_template, hfi1_tid_req_make_req_write,
+	TP_PROTO(struct rvt_qp *qp, char newreq, u8 opcode, u32 psn, u32 lpsn,
+		 struct tid_rdma_request *req),
+	TP_ARGS(qp, newreq, opcode, psn, lpsn, req)
+);
+
+DEFINE_EVENT(/* event */
+	hfi1_tid_rdma_request_template, hfi1_tid_req_update_num_rd_atomic,
 	TP_PROTO(struct rvt_qp *qp, char newreq, u8 opcode, u32 psn, u32 lpsn,
 		 struct tid_rdma_request *req),
 	TP_ARGS(qp, newreq, opcode, psn, lpsn, req)

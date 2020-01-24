@@ -520,7 +520,7 @@ int nf_hook_slow(struct sk_buff *skb, struct nf_hook_state *state,
 				ret = -EPERM;
 			return ret;
 		case NF_QUEUE:
-			ret = nf_queue(skb, state, e, s, verdict);
+			ret = nf_queue(skb, state, s, verdict);
 			if (ret == 1)
 				continue;
 			return ret;
@@ -536,27 +536,25 @@ int nf_hook_slow(struct sk_buff *skb, struct nf_hook_state *state,
 }
 EXPORT_SYMBOL(nf_hook_slow);
 
-
-int skb_make_writable(struct sk_buff *skb, unsigned int writable_len)
+void nf_hook_slow_list(struct list_head *head, struct nf_hook_state *state,
+		       const struct nf_hook_entries *e)
 {
-	if (writable_len > skb->len)
-		return 0;
+	struct sk_buff *skb, *next;
+	struct list_head sublist;
+	int ret;
 
-	/* Not exclusive use of packet?  Must copy. */
-	if (!skb_cloned(skb)) {
-		if (writable_len <= skb_headlen(skb))
-			return 1;
-	} else if (skb_clone_writable(skb, writable_len))
-		return 1;
+	INIT_LIST_HEAD(&sublist);
 
-	if (writable_len <= skb_headlen(skb))
-		writable_len = 0;
-	else
-		writable_len -= skb_headlen(skb);
-
-	return !!__pskb_pull_tail(skb, writable_len);
+	list_for_each_entry_safe(skb, next, head, list) {
+		skb_list_del_init(skb);
+		ret = nf_hook_slow(skb, state, e, 0);
+		if (ret == 1)
+			list_add_tail(&skb->list, &sublist);
+	}
+	/* Put passed packets back on main list */
+	list_splice(&sublist, head);
 }
-EXPORT_SYMBOL(skb_make_writable);
+EXPORT_SYMBOL(nf_hook_slow_list);
 
 /* This needs to be compiled in any case to avoid dependencies between the
  * nfnetlink_queue code and nf_conntrack.

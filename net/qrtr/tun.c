@@ -84,11 +84,14 @@ static ssize_t qrtr_tun_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (!kbuf)
 		return -ENOMEM;
 
-	if (!copy_from_iter_full(kbuf, len, from))
+	if (!copy_from_iter_full(kbuf, len, from)) {
+		kfree(kbuf);
 		return -EFAULT;
+	}
 
 	ret = qrtr_endpoint_post(&tun->ep, kbuf, len);
 
+	kfree(kbuf);
 	return ret < 0 ? ret : len;
 }
 
@@ -108,15 +111,11 @@ static __poll_t qrtr_tun_poll(struct file *filp, poll_table *wait)
 static int qrtr_tun_release(struct inode *inode, struct file *filp)
 {
 	struct qrtr_tun *tun = filp->private_data;
-	struct sk_buff *skb;
 
 	qrtr_endpoint_unregister(&tun->ep);
 
 	/* Discard all SKBs */
-	while (!skb_queue_empty(&tun->queue)) {
-		skb = skb_dequeue(&tun->queue);
-		kfree_skb(skb);
-	}
+	skb_queue_purge(&tun->queue);
 
 	kfree(tun);
 

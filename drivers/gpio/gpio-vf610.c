@@ -243,6 +243,7 @@ static int vf610_gpio_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node;
 	struct vf610_gpio_port *port;
 	struct gpio_chip *gc;
+	struct gpio_irq_chip *girq;
 	struct irq_chip *ic;
 	int i;
 	int ret;
@@ -265,7 +266,8 @@ static int vf610_gpio_probe(struct platform_device *pdev)
 		return port->irq;
 
 	port->clk_port = devm_clk_get(dev, "port");
-	if (!IS_ERR(port->clk_port)) {
+	ret = PTR_ERR_OR_ZERO(port->clk_port);
+	if (!ret) {
 		ret = clk_prepare_enable(port->clk_port);
 		if (ret)
 			return ret;
@@ -273,16 +275,17 @@ static int vf610_gpio_probe(struct platform_device *pdev)
 					       port->clk_port);
 		if (ret)
 			return ret;
-	} else if (port->clk_port == ERR_PTR(-EPROBE_DEFER)) {
+	} else if (ret == -EPROBE_DEFER) {
 		/*
 		 * Percolate deferrals, for anything else,
 		 * just live without the clocking.
 		 */
-		return PTR_ERR(port->clk_port);
+		return ret;
 	}
 
 	port->clk_gpio = devm_clk_get(dev, "gpio");
-	if (!IS_ERR(port->clk_gpio)) {
+	ret = PTR_ERR_OR_ZERO(port->clk_gpio);
+	if (!ret) {
 		ret = clk_prepare_enable(port->clk_gpio);
 		if (ret)
 			return ret;
@@ -290,8 +293,8 @@ static int vf610_gpio_probe(struct platform_device *pdev)
 					       port->clk_gpio);
 		if (ret)
 			return ret;
-	} else if (port->clk_gpio == ERR_PTR(-EPROBE_DEFER)) {
-		return PTR_ERR(port->clk_gpio);
+	} else if (ret == -EPROBE_DEFER) {
+		return ret;
 	}
 
 	gc = &port->gc;
@@ -316,10 +319,6 @@ static int vf610_gpio_probe(struct platform_device *pdev)
 	ic->irq_set_type = vf610_gpio_irq_set_type;
 	ic->irq_set_wake = vf610_gpio_irq_set_wake;
 
-	ret = devm_gpiochip_add_data(dev, gc, port);
-	if (ret < 0)
-		return ret;
-
 	/* Mask all GPIO interrupts */
 	for (i = 0; i < gc->ngpio; i++)
 		vf610_gpio_writel(0, port->base + PORT_PCR(i));
@@ -327,15 +326,20 @@ static int vf610_gpio_probe(struct platform_device *pdev)
 	/* Clear the interrupt status register for all GPIO's */
 	vf610_gpio_writel(~0, port->base + PORT_ISFR);
 
-	ret = gpiochip_irqchip_add(gc, ic, 0, handle_edge_irq, IRQ_TYPE_NONE);
-	if (ret) {
-		dev_err(dev, "failed to add irqchip\n");
-		return ret;
-	}
-	gpiochip_set_chained_irqchip(gc, ic, port->irq,
-				     vf610_gpio_irq_handler);
+	girq = &gc->irq;
+	girq->chip = ic;
+	girq->parent_handler = vf610_gpio_irq_handler;
+	girq->num_parents = 1;
+	girq->parents = devm_kcalloc(&pdev->dev, 1,
+				     sizeof(*girq->parents),
+				     GFP_KERNEL);
+	if (!girq->parents)
+		return -ENOMEM;
+	girq->parents[0] = port->irq;
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_edge_irq;
 
-	return 0;
+	return devm_gpiochip_add_data(dev, gc, port);
 }
 
 static struct platform_driver vf610_gpio_driver = {

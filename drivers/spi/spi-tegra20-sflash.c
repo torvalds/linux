@@ -341,10 +341,11 @@ static int tegra_sflash_transfer_one_message(struct spi_master *master,
 			goto exit;
 		}
 		msg->actual_length += xfer->len;
-		if (xfer->cs_change && xfer->delay_usecs) {
+		if (xfer->cs_change &&
+		    (xfer->delay_usecs || xfer->delay.value)) {
 			tegra_sflash_writel(tsd, tsd->def_command_reg,
 					SPI_COMMAND);
-			udelay(xfer->delay_usecs);
+			spi_transfer_delay_exec(xfer);
 		}
 	}
 	ret = 0;
@@ -419,7 +420,6 @@ static int tegra_sflash_probe(struct platform_device *pdev)
 {
 	struct spi_master	*master;
 	struct tegra_sflash_data	*tsd;
-	struct resource		*r;
 	int ret;
 	const struct of_device_id *match;
 
@@ -451,8 +451,7 @@ static int tegra_sflash_probe(struct platform_device *pdev)
 				 &master->max_speed_hz))
 		master->max_speed_hz = 25000000; /* 25MHz */
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	tsd->base = devm_ioremap_resource(&pdev->dev, r);
+	tsd->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(tsd->base)) {
 		ret = PTR_ERR(tsd->base);
 		goto exit_free_master;

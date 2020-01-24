@@ -12,6 +12,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
+#include <linux/pm_runtime.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
@@ -53,8 +54,7 @@ static int stm_gem_cma_dumb_create(struct drm_file *file,
 DEFINE_DRM_GEM_CMA_FOPS(drv_driver_fops);
 
 static struct drm_driver drv_driver = {
-	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME |
-			   DRIVER_ATOMIC,
+	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
 	.name = "stm",
 	.desc = "STMicroelectronics SoC DRM",
 	.date = "20170330",
@@ -67,8 +67,6 @@ static struct drm_driver drv_driver = {
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
-	.gem_prime_export = drm_gem_prime_export,
-	.gem_prime_import = drm_gem_prime_import,
 	.gem_prime_get_sg_table = drm_gem_cma_prime_get_sg_table,
 	.gem_prime_import_sg_table = drm_gem_cma_prime_import_sg_table,
 	.gem_prime_vmap = drm_gem_cma_prime_vmap,
@@ -135,14 +133,14 @@ static __maybe_unused int drv_suspend(struct device *dev)
 	struct ltdc_device *ldev = ddev->dev_private;
 	struct drm_atomic_state *state;
 
-	drm_kms_helper_poll_disable(ddev);
+	WARN_ON(ldev->suspend_state);
+
 	state = drm_atomic_helper_suspend(ddev);
-	if (IS_ERR(state)) {
-		drm_kms_helper_poll_enable(ddev);
+	if (IS_ERR(state))
 		return PTR_ERR(state);
-	}
+
 	ldev->suspend_state = state;
-	ltdc_suspend(ddev);
+	pm_runtime_force_suspend(dev);
 
 	return 0;
 }
@@ -151,16 +149,43 @@ static __maybe_unused int drv_resume(struct device *dev)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct ltdc_device *ldev = ddev->dev_private;
+	int ret;
 
-	ltdc_resume(ddev);
-	drm_atomic_helper_resume(ddev, ldev->suspend_state);
-	drm_kms_helper_poll_enable(ddev);
+	if (WARN_ON(!ldev->suspend_state))
+		return -ENOENT;
+
+	pm_runtime_force_resume(dev);
+	ret = drm_atomic_helper_resume(ddev, ldev->suspend_state);
+	if (ret)
+		pm_runtime_force_suspend(dev);
+
+	ldev->suspend_state = NULL;
+
+	return ret;
+}
+
+static __maybe_unused int drv_runtime_suspend(struct device *dev)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+
+	DRM_DEBUG_DRIVER("\n");
+	ltdc_suspend(ddev);
 
 	return 0;
 }
 
+static __maybe_unused int drv_runtime_resume(struct device *dev)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+
+	DRM_DEBUG_DRIVER("\n");
+	return ltdc_resume(ddev);
+}
+
 static const struct dev_pm_ops drv_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(drv_suspend, drv_resume)
+	SET_RUNTIME_PM_OPS(drv_runtime_suspend,
+			   drv_runtime_resume, NULL)
 };
 
 static int stm_drm_platform_probe(struct platform_device *pdev)

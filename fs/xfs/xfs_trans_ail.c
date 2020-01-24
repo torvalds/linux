@@ -6,6 +6,7 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
+#include "xfs_shared.h"
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
@@ -74,29 +75,29 @@ xfs_ail_check(
  * Return a pointer to the last item in the AIL.  If the AIL is empty, then
  * return NULL.
  */
-static xfs_log_item_t *
+static struct xfs_log_item *
 xfs_ail_max(
 	struct xfs_ail  *ailp)
 {
 	if (list_empty(&ailp->ail_head))
 		return NULL;
 
-	return list_entry(ailp->ail_head.prev, xfs_log_item_t, li_ail);
+	return list_entry(ailp->ail_head.prev, struct xfs_log_item, li_ail);
 }
 
 /*
  * Return a pointer to the item which follows the given item in the AIL.  If
  * the given item is the last item in the list, then return NULL.
  */
-static xfs_log_item_t *
+static struct xfs_log_item *
 xfs_ail_next(
-	struct xfs_ail  *ailp,
-	xfs_log_item_t  *lip)
+	struct xfs_ail		*ailp,
+	struct xfs_log_item	*lip)
 {
 	if (lip->li_ail.next == &ailp->ail_head)
 		return NULL;
 
-	return list_first_entry(&lip->li_ail, xfs_log_item_t, li_ail);
+	return list_first_entry(&lip->li_ail, struct xfs_log_item, li_ail);
 }
 
 /*
@@ -109,10 +110,10 @@ xfs_ail_next(
  */
 xfs_lsn_t
 xfs_ail_min_lsn(
-	struct xfs_ail	*ailp)
+	struct xfs_ail		*ailp)
 {
-	xfs_lsn_t	lsn = 0;
-	xfs_log_item_t	*lip;
+	xfs_lsn_t		lsn = 0;
+	struct xfs_log_item	*lip;
 
 	spin_lock(&ailp->ail_lock);
 	lip = xfs_ail_min(ailp);
@@ -128,10 +129,10 @@ xfs_ail_min_lsn(
  */
 static xfs_lsn_t
 xfs_ail_max_lsn(
-	struct xfs_ail  *ailp)
+	struct xfs_ail		*ailp)
 {
-	xfs_lsn_t       lsn = 0;
-	xfs_log_item_t  *lip;
+	xfs_lsn_t       	lsn = 0;
+	struct xfs_log_item	*lip;
 
 	spin_lock(&ailp->ail_lock);
 	lip = xfs_ail_max(ailp);
@@ -216,13 +217,13 @@ xfs_trans_ail_cursor_clear(
  * ascending traversal.  Pass a @lsn of zero to initialise the cursor to the
  * first item in the AIL. Returns NULL if the list is empty.
  */
-xfs_log_item_t *
+struct xfs_log_item *
 xfs_trans_ail_cursor_first(
 	struct xfs_ail		*ailp,
 	struct xfs_ail_cursor	*cur,
 	xfs_lsn_t		lsn)
 {
-	xfs_log_item_t		*lip;
+	struct xfs_log_item	*lip;
 
 	xfs_trans_ail_cursor_init(ailp, cur);
 
@@ -248,7 +249,7 @@ __xfs_trans_ail_cursor_last(
 	struct xfs_ail		*ailp,
 	xfs_lsn_t		lsn)
 {
-	xfs_log_item_t		*lip;
+	struct xfs_log_item	*lip;
 
 	list_for_each_entry_reverse(lip, &ailp->ail_head, li_ail) {
 		if (XFS_LSN_CMP(lip->li_lsn, lsn) <= 0)
@@ -327,8 +328,8 @@ xfs_ail_splice(
  */
 static void
 xfs_ail_delete(
-	struct xfs_ail  *ailp,
-	xfs_log_item_t  *lip)
+	struct xfs_ail		*ailp,
+	struct xfs_log_item	*lip)
 {
 	xfs_ail_check(ailp, lip);
 	list_del(&lip->li_ail);
@@ -347,6 +348,14 @@ xfsaild_push_item(
 	if (XFS_TEST_ERROR(false, ailp->ail_mount, XFS_ERRTAG_LOG_ITEM_PIN))
 		return XFS_ITEM_PINNED;
 
+	/*
+	 * Consider the item pinned if a push callback is not defined so the
+	 * caller will force the log. This should only happen for intent items
+	 * as they are unpinned once the associated done item is committed to
+	 * the on-disk log.
+	 */
+	if (!lip->li_ops->iop_push)
+		return XFS_ITEM_PINNED;
 	return lip->li_ops->iop_push(lip, &ailp->ail_buf_list);
 }
 
@@ -356,7 +365,7 @@ xfsaild_push(
 {
 	xfs_mount_t		*mp = ailp->ail_mount;
 	struct xfs_ail_cursor	cur;
-	xfs_log_item_t		*lip;
+	struct xfs_log_item	*lip;
 	xfs_lsn_t		lsn;
 	xfs_lsn_t		target;
 	long			tout;
@@ -418,15 +427,15 @@ xfsaild_push(
 
 		case XFS_ITEM_FLUSHING:
 			/*
-			 * The item or its backing buffer is already beeing
+			 * The item or its backing buffer is already being
 			 * flushed.  The typical reason for that is that an
 			 * inode buffer is locked because we already pushed the
 			 * updates to it as part of inode clustering.
 			 *
 			 * We do not want to to stop flushing just because lots
-			 * of items are already beeing flushed, but we need to
+			 * of items are already being flushed, but we need to
 			 * re-try the flushing relatively soon if most of the
-			 * AIL is beeing flushed.
+			 * AIL is being flushed.
 			 */
 			XFS_STATS_INC(mp, xs_push_ail_flushing);
 			trace_xfs_ail_flushing(lip);
@@ -603,7 +612,7 @@ xfsaild(
  * The push is run asynchronously in a workqueue, which means the caller needs
  * to handle waiting on the async flush for space to become available.
  * We don't want to interrupt any push that is in progress, hence we only queue
- * work if we set the pushing bit approriately.
+ * work if we set the pushing bit appropriately.
  *
  * We do this unlocked - we only need to know whether there is anything in the
  * AIL at the time we are called. We don't need to access the contents of
@@ -611,10 +620,10 @@ xfsaild(
  */
 void
 xfs_ail_push(
-	struct xfs_ail	*ailp,
-	xfs_lsn_t	threshold_lsn)
+	struct xfs_ail		*ailp,
+	xfs_lsn_t		threshold_lsn)
 {
-	xfs_log_item_t	*lip;
+	struct xfs_log_item	*lip;
 
 	lip = xfs_ail_min(ailp);
 	if (!lip || XFS_FORCED_SHUTDOWN(ailp->ail_mount) ||
@@ -699,7 +708,7 @@ xfs_trans_ail_update_bulk(
 	int			nr_items,
 	xfs_lsn_t		lsn) __releases(ailp->ail_lock)
 {
-	xfs_log_item_t		*mlip;
+	struct xfs_log_item	*mlip;
 	int			mlip_changed = 0;
 	int			i;
 	LIST_HEAD(tmp);
@@ -827,7 +836,7 @@ xfs_trans_ail_init(
 	init_waitqueue_head(&ailp->ail_empty);
 
 	ailp->ail_task = kthread_run(xfsaild, ailp, "xfsaild/%s",
-			ailp->ail_mount->m_fsname);
+			ailp->ail_mount->m_super->s_id);
 	if (IS_ERR(ailp->ail_task))
 		goto out_free_ailp;
 

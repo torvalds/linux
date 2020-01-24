@@ -11,20 +11,23 @@
  */
 #include <errno.h>
 #include <sys/param.h>
-#include "util.h"
 #include "cache.h"
 #include "callchain.h"
 #include <subcmd/exec-cmd.h>
 #include "util/event.h"  /* proc_map_timeout */
 #include "util/hist.h"  /* perf_hist_config */
 #include "util/llvm-utils.h"   /* perf_llvm_config */
+#include "build-id.h"
+#include "debug.h"
 #include "config.h"
+#include "debug.h"
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <linux/string.h>
-
-#include "sane_ctype.h"
+#include <linux/zalloc.h>
+#include <linux/ctype.h>
 
 #define MAXNAME (256)
 
@@ -739,11 +742,15 @@ int perf_config(config_fn_t fn, void *data)
 			if (ret < 0) {
 				pr_err("Error: wrong config key-value pair %s=%s\n",
 				       key, value);
-				break;
+				/*
+				 * Can't be just a 'break', as perf_config_set__for_each_entry()
+				 * expands to two nested for() loops.
+				 */
+				goto out;
 			}
 		}
 	}
-
+out:
 	return ret;
 }
 

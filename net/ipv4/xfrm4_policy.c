@@ -85,6 +85,7 @@ static int xfrm4_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
 	xdst->u.rt.rt_flags = rt->rt_flags & (RTCF_BROADCAST | RTCF_MULTICAST |
 					      RTCF_LOCAL);
 	xdst->u.rt.rt_type = rt->rt_type;
+	xdst->u.rt.rt_uses_gateway = rt->rt_uses_gateway;
 	xdst->u.rt.rt_gw_family = rt->rt_gw_family;
 	if (rt->rt_gw_family == AF_INET)
 		xdst->u.rt.rt_gw4 = rt->rt_gw4;
@@ -99,12 +100,13 @@ static int xfrm4_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
 }
 
 static void xfrm4_update_pmtu(struct dst_entry *dst, struct sock *sk,
-			      struct sk_buff *skb, u32 mtu)
+			      struct sk_buff *skb, u32 mtu,
+			      bool confirm_neigh)
 {
 	struct xfrm_dst *xdst = (struct xfrm_dst *)dst;
 	struct dst_entry *path = xdst->route;
 
-	path->ops->update_pmtu(path, sk, skb, mtu);
+	path->ops->update_pmtu(path, sk, skb, mtu, confirm_neigh);
 }
 
 static void xfrm4_redirect(struct dst_entry *dst, struct sock *sk,

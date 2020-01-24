@@ -235,6 +235,7 @@ static long ar7_wdt_ioctl(struct file *file,
 		ar7_wdt_update_margin(new_margin);
 		ar7_wdt_kick(1);
 		spin_unlock(&wdt_lock);
+		/* Fall through */
 
 	case WDIOC_GETTIMEOUT:
 		if (put_user(margin, (int *)arg))
@@ -249,6 +250,7 @@ static const struct file_operations ar7_wdt_fops = {
 	.owner		= THIS_MODULE,
 	.write		= ar7_wdt_write,
 	.unlocked_ioctl	= ar7_wdt_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= ar7_wdt_open,
 	.release	= ar7_wdt_release,
 	.llseek		= no_llseek,

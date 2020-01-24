@@ -97,10 +97,13 @@ static void tmio_stop_hc(struct platform_device *dev)
 	switch (ohci->num_ports) {
 		default:
 			dev_err(&dev->dev, "Unsupported amount of ports: %d\n", ohci->num_ports);
+			/* fall through */
 		case 3:
 			pm |= CCR_PM_USBPW3;
+			/* fall through */
 		case 2:
 			pm |= CCR_PM_USBPW2;
+			/* fall through */
 		case 1:
 			pm |= CCR_PM_USBPW1;
 	}
@@ -153,7 +156,7 @@ static const struct hc_driver ohci_tmio_hc_driver = {
 
 	/* generic hardware linkage */
 	.irq =			ohci_irq,
-	.flags =		HCD_USB11 | HCD_MEMORY | HCD_LOCAL_MEM,
+	.flags =		HCD_USB11 | HCD_MEMORY,
 
 	/* basic lifecycle operations */
 	.start =		ohci_tmio_start,
@@ -224,11 +227,6 @@ static int ohci_hcd_tmio_drv_probe(struct platform_device *dev)
 		goto err_ioremap_regs;
 	}
 
-	ret = dma_declare_coherent_memory(&dev->dev, sram->start, sram->start,
-				resource_size(sram));
-	if (ret)
-		goto err_dma_declare;
-
 	if (cell->enable) {
 		ret = cell->enable(dev);
 		if (ret)
@@ -238,6 +236,11 @@ static int ohci_hcd_tmio_drv_probe(struct platform_device *dev)
 	tmio_start_hc(dev);
 	ohci = hcd_to_ohci(hcd);
 	ohci_hcd_init(ohci);
+
+	ret = usb_hcd_setup_local_mem(hcd, sram->start, sram->start,
+				      resource_size(sram));
+	if (ret < 0)
+		goto err_enable;
 
 	ret = usb_add_hcd(hcd, irq, 0);
 	if (ret)
@@ -254,8 +257,6 @@ err_add_hcd:
 	if (cell->disable)
 		cell->disable(dev);
 err_enable:
-	dma_release_declared_memory(&dev->dev);
-err_dma_declare:
 	iounmap(hcd->regs);
 err_ioremap_regs:
 	iounmap(tmio->ccr);
@@ -276,7 +277,6 @@ static int ohci_hcd_tmio_drv_remove(struct platform_device *dev)
 	tmio_stop_hc(dev);
 	if (cell->disable)
 		cell->disable(dev);
-	dma_release_declared_memory(&dev->dev);
 	iounmap(hcd->regs);
 	iounmap(tmio->ccr);
 	usb_put_hcd(hcd);

@@ -27,8 +27,78 @@
 #include "core_types.h"
 #include "dc_types.h"
 #include "mod_shared.h"
+#include "mod_freesync.h"
+#include "dc.h"
 
 #define HDMI_INFOFRAME_TYPE_VENDOR 0x81
+#define HF_VSIF_VERSION 1
+
+// VTEM Byte Offset
+#define VTEM_PB0		0
+#define VTEM_PB1		1
+#define VTEM_PB2		2
+#define VTEM_PB3		3
+#define VTEM_PB4		4
+#define VTEM_PB5		5
+#define VTEM_PB6		6
+
+#define VTEM_MD0		7
+#define VTEM_MD1		8
+#define VTEM_MD2		9
+#define VTEM_MD3		10
+
+
+// VTEM Byte Masks
+//PB0
+#define MASK_VTEM_PB0__RESERVED0  0x01
+#define MASK_VTEM_PB0__SYNC       0x02
+#define MASK_VTEM_PB0__VFR        0x04
+#define MASK_VTEM_PB0__AFR        0x08
+#define MASK_VTEM_PB0__DS_TYPE    0x30
+	//0: Periodic pseudo-static EM Data Set
+	//1: Periodic dynamic EM Data Set
+	//2: Unique EM Data Set
+	//3: Reserved
+#define MASK_VTEM_PB0__END        0x40
+#define MASK_VTEM_PB0__NEW        0x80
+
+//PB1
+#define MASK_VTEM_PB1__RESERVED1 0xFF
+
+//PB2
+#define MASK_VTEM_PB2__ORGANIZATION_ID 0xFF
+	//0: This is a Vendor Specific EM Data Set
+	//1: This EM Data Set is defined by This Specification (HDMI 2.1 r102.clean)
+	//2: This EM Data Set is defined by CTA-861-G
+	//3: This EM Data Set is defined by VESA
+//PB3
+#define MASK_VTEM_PB3__DATA_SET_TAG_MSB    0xFF
+//PB4
+#define MASK_VTEM_PB4__DATA_SET_TAG_LSB    0xFF
+//PB5
+#define MASK_VTEM_PB5__DATA_SET_LENGTH_MSB 0xFF
+//PB6
+#define MASK_VTEM_PB6__DATA_SET_LENGTH_LSB 0xFF
+
+
+
+//PB7-27 (20 bytes):
+//PB7 = MD0
+#define MASK_VTEM_MD0__VRR_EN         0x01
+#define MASK_VTEM_MD0__M_CONST        0x02
+#define MASK_VTEM_MD0__RESERVED2      0x0C
+#define MASK_VTEM_MD0__FVA_FACTOR_M1  0xF0
+
+//MD1
+#define MASK_VTEM_MD1__BASE_VFRONT    0xFF
+
+//MD2
+#define MASK_VTEM_MD2__BASE_REFRESH_RATE_98  0x03
+#define MASK_VTEM_MD2__RB                    0x04
+#define MASK_VTEM_MD2__RESERVED3             0xF8
+
+//MD3
+#define MASK_VTEM_MD3__BASE_REFRESH_RATE_07  0xFF
 
 enum ColorimetryRGBDP {
 	ColorimetryRGB_DP_sRGB               = 0,
@@ -63,7 +133,9 @@ void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
 	if (stream->psr_version != 0)
 		vscPacketRevision = 2;
 
-	if (stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR420)
+	/* Update to revision 5 for extended colorimetry support for DPCD 1.4+ */
+	if (stream->link->dpcd_caps.dpcd_rev.raw >= 0x14 &&
+			stream->link->dpcd_caps.dprx_feature.bits.VSC_SDP_COLORIMETRY_SUPPORTED)
 		vscPacketRevision = 5;
 
 	/* VSC packet not needed based on the features
@@ -322,5 +394,102 @@ void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
 		info_packet->sb[18] = 0;
 	}
 
+}
+
+/**
+ *****************************************************************************
+ *  Function: mod_build_hf_vsif_infopacket
+ *
+ *  @brief
+ *     Prepare HDMI Vendor Specific info frame.
+ *     Follows HDMI Spec to build up Vendor Specific info frame
+ *
+ *  @param [in] stream: contains data we may need to construct VSIF (i.e. timing_3d_format, etc.)
+ *  @param [out] info_packet:   output structure where to store VSIF
+ *****************************************************************************
+ */
+void mod_build_hf_vsif_infopacket(const struct dc_stream_state *stream,
+		struct dc_info_packet *info_packet, int ALLMEnabled, int ALLMValue)
+{
+		unsigned int length = 5;
+		bool hdmi_vic_mode = false;
+		uint8_t checksum = 0;
+		uint32_t i = 0;
+		enum dc_timing_3d_format format;
+		bool bALLM = (bool)ALLMEnabled;
+		bool bALLMVal = (bool)ALLMValue;
+
+		info_packet->valid = false;
+		format = stream->timing.timing_3d_format;
+		if (stream->view_format == VIEW_3D_FORMAT_NONE)
+			format = TIMING_3D_FORMAT_NONE;
+
+		if (stream->timing.hdmi_vic != 0
+				&& stream->timing.h_total >= 3840
+				&& stream->timing.v_total >= 2160
+				&& format == TIMING_3D_FORMAT_NONE)
+			hdmi_vic_mode = true;
+
+		if ((format == TIMING_3D_FORMAT_NONE) && !hdmi_vic_mode && !bALLM)
+			return;
+
+		info_packet->sb[1] = 0x03;
+		info_packet->sb[2] = 0x0C;
+		info_packet->sb[3] = 0x00;
+
+		if (bALLM) {
+			info_packet->sb[1] = 0xD8;
+			info_packet->sb[2] = 0x5D;
+			info_packet->sb[3] = 0xC4;
+			info_packet->sb[4] = HF_VSIF_VERSION;
+		}
+
+		if (format != TIMING_3D_FORMAT_NONE)
+			info_packet->sb[4] = (2 << 5);
+
+		else if (hdmi_vic_mode)
+			info_packet->sb[4] = (1 << 5);
+
+		switch (format) {
+		case TIMING_3D_FORMAT_HW_FRAME_PACKING:
+		case TIMING_3D_FORMAT_SW_FRAME_PACKING:
+			info_packet->sb[5] = (0x0 << 4);
+			break;
+
+		case TIMING_3D_FORMAT_SIDE_BY_SIDE:
+		case TIMING_3D_FORMAT_SBS_SW_PACKED:
+			info_packet->sb[5] = (0x8 << 4);
+			length = 6;
+			break;
+
+		case TIMING_3D_FORMAT_TOP_AND_BOTTOM:
+		case TIMING_3D_FORMAT_TB_SW_PACKED:
+			info_packet->sb[5] = (0x6 << 4);
+			break;
+
+		default:
+			break;
+		}
+
+		if (hdmi_vic_mode)
+			info_packet->sb[5] = stream->timing.hdmi_vic;
+
+		info_packet->hb0 = HDMI_INFOFRAME_TYPE_VENDOR;
+		info_packet->hb1 = 0x01;
+		info_packet->hb2 = (uint8_t) (length);
+
+		if (bALLM)
+			info_packet->sb[5] = (info_packet->sb[5] & ~0x02) | (bALLMVal << 1);
+
+		checksum += info_packet->hb0;
+		checksum += info_packet->hb1;
+		checksum += info_packet->hb2;
+
+		for (i = 1; i <= length; i++)
+			checksum += info_packet->sb[i];
+
+		info_packet->sb[0] = (uint8_t) (0x100 - checksum);
+
+		info_packet->valid = true;
 }
 

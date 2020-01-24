@@ -13,17 +13,14 @@
 #ifndef _NF_CONNTRACK_H
 #define _NF_CONNTRACK_H
 
-#include <linux/netfilter/nf_conntrack_common.h>
-
 #include <linux/bitops.h>
 #include <linux/compiler.h>
-#include <linux/atomic.h>
 
+#include <linux/netfilter/nf_conntrack_common.h>
 #include <linux/netfilter/nf_conntrack_tcp.h>
 #include <linux/netfilter/nf_conntrack_dccp.h>
 #include <linux/netfilter/nf_conntrack_sctp.h>
 #include <linux/netfilter/nf_conntrack_proto_gre.h>
-#include <net/netfilter/ipv6/nf_conntrack_icmpv6.h>
 
 #include <net/netfilter/nf_conntrack_tuple.h>
 
@@ -49,6 +46,7 @@ union nf_conntrack_expect_proto {
 struct nf_conntrack_net {
 	unsigned int users4;
 	unsigned int users6;
+	unsigned int users_bridge;
 };
 
 #include <linux/types.h>
@@ -69,7 +67,8 @@ struct nf_conn {
 	struct nf_conntrack ct_general;
 
 	spinlock_t	lock;
-	u16		cpu;
+	/* jiffies32 when this ct is considered dead */
+	u32 timeout;
 
 #ifdef CONFIG_NF_CONNTRACK_ZONES
 	struct nf_conntrack_zone zone;
@@ -81,9 +80,7 @@ struct nf_conn {
 	/* Have we seen traffic both ways yet? (bitset) */
 	unsigned long status;
 
-	/* jiffies32 when this ct is considered dead */
-	u32 timeout;
-
+	u16		cpu;
 	possible_net_t ct_net;
 
 #if IS_ENABLED(CONFIG_NF_NAT)
@@ -148,16 +145,14 @@ void nf_conntrack_alter_reply(struct nf_conn *ct,
 int nf_conntrack_tuple_taken(const struct nf_conntrack_tuple *tuple,
 			     const struct nf_conn *ignored_conntrack);
 
-#define NFCT_INFOMASK	7UL
-#define NFCT_PTRMASK	~(NFCT_INFOMASK)
-
 /* Return conntrack_info and tuple hash for given skb. */
 static inline struct nf_conn *
 nf_ct_get(const struct sk_buff *skb, enum ip_conntrack_info *ctinfo)
 {
-	*ctinfo = skb->_nfct & NFCT_INFOMASK;
+	unsigned long nfct = skb_get_nfct(skb);
 
-	return (struct nf_conn *)(skb->_nfct & NFCT_PTRMASK);
+	*ctinfo = nfct & NFCT_INFOMASK;
+	return (struct nf_conn *)(nfct & NFCT_PTRMASK);
 }
 
 /* decrement reference count on a conntrack */
@@ -321,7 +316,7 @@ u32 nf_ct_get_id(const struct nf_conn *ct);
 static inline void
 nf_ct_set(struct sk_buff *skb, struct nf_conn *ct, enum ip_conntrack_info info)
 {
-	skb->_nfct = (unsigned long)ct | info;
+	skb_set_nfct(skb, (unsigned long)ct | info);
 }
 
 #define NF_CT_STAT_INC(net, count)	  __this_cpu_inc((net)->ct.stat->count)

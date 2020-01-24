@@ -34,8 +34,8 @@ enum dpu_core_perf_data_bus_id {
  * @core_clk_rate: core clock rate request
  */
 struct dpu_core_perf_params {
-	u64 max_per_pipe_ib[DPU_CORE_PERF_DATA_BUS_ID_MAX];
-	u64 bw_ctl[DPU_CORE_PERF_DATA_BUS_ID_MAX];
+	u64 max_per_pipe_ib;
+	u64 bw_ctl;
 	u64 core_clk_rate;
 };
 

@@ -422,7 +422,7 @@ static int atp867x_ata_pci_sff_init_host(struct ata_host *host)
 #ifdef	ATP867X_DEBUG
 	atp867x_check_res(pdev);
 
-	for (i = 0; i < PCI_ROM_RESOURCE; i++)
+	for (i = 0; i < PCI_STD_NUM_BARS; i++)
 		printk(KERN_DEBUG "ATP867X: iomap[%d]=0x%llx\n", i,
 			(unsigned long long)(host->iomap[i]));
 #endif
@@ -463,12 +463,7 @@ static int atp867x_ata_pci_sff_init_host(struct ata_host *host)
 
 	atp867x_fixup(host);
 
-	rc = dma_set_mask(&pdev->dev, ATA_DMA_MASK);
-	if (rc)
-		return rc;
-
-	rc = dma_set_coherent_mask(&pdev->dev, ATA_DMA_MASK);
-	return rc;
+	return dma_set_mask_and_coherent(&pdev->dev, ATA_DMA_MASK);
 }
 
 static int atp867x_init_one(struct pci_dev *pdev,

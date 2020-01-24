@@ -8,6 +8,7 @@
 #include "sec.h"
 #include "fw.h"
 #include "debug.h"
+#include "phy.h"
 
 #ifdef CONFIG_RTW88_DEBUGFS
 
@@ -76,7 +77,7 @@ static const struct file_operations file_ops_single_r = {
 	.open = rtw_debugfs_single_open_rw,
 	.read = seq_read,
 	.llseek = seq_lseek,
-	.release = seq_release,
+	.release = single_release,
 };
 
 static const struct file_operations file_ops_single_rw = {
@@ -460,6 +461,239 @@ static int rtw_debug_get_rf_dump(struct seq_file *m, void *v)
 	return 0;
 }
 
+static void rtw_print_cck_rate_txt(struct seq_file *m, u8 rate)
+{
+	static const char * const
+	cck_rate[] = {"1M", "2M", "5.5M", "11M"};
+	u8 idx = rate - DESC_RATE1M;
+
+	seq_printf(m, " CCK_%-5s", cck_rate[idx]);
+}
+
+static void rtw_print_ofdm_rate_txt(struct seq_file *m, u8 rate)
+{
+	static const char * const
+	ofdm_rate[] = {"6M", "9M", "12M", "18M", "24M", "36M", "48M", "54M"};
+	u8 idx = rate - DESC_RATE6M;
+
+	seq_printf(m, " OFDM_%-4s", ofdm_rate[idx]);
+}
+
+static void rtw_print_ht_rate_txt(struct seq_file *m, u8 rate)
+{
+	u8 mcs_n = rate - DESC_RATEMCS0;
+
+	seq_printf(m, " MCS%-6u", mcs_n);
+}
+
+static void rtw_print_vht_rate_txt(struct seq_file *m, u8 rate)
+{
+	u8 idx = rate - DESC_RATEVHT1SS_MCS0;
+	u8 n_ss, mcs_n;
+
+	/* n spatial stream */
+	n_ss = 1 + idx / 10;
+	/* MCS n */
+	mcs_n = idx % 10;
+	seq_printf(m, " VHT%uSMCS%u", n_ss, mcs_n);
+}
+
+static void rtw_print_rate(struct seq_file *m, u8 rate)
+{
+	switch (rate) {
+	case DESC_RATE1M...DESC_RATE11M:
+		rtw_print_cck_rate_txt(m, rate);
+		break;
+	case DESC_RATE6M...DESC_RATE54M:
+		rtw_print_ofdm_rate_txt(m, rate);
+		break;
+	case DESC_RATEMCS0...DESC_RATEMCS15:
+		rtw_print_ht_rate_txt(m, rate);
+		break;
+	case DESC_RATEVHT1SS_MCS0...DESC_RATEVHT2SS_MCS9:
+		rtw_print_vht_rate_txt(m, rate);
+		break;
+	default:
+		seq_printf(m, " Unknown rate=0x%x\n", rate);
+		break;
+	}
+}
+
+static int rtw_debugfs_get_tx_pwr_tbl(struct seq_file *m, void *v)
+{
+	struct rtw_debugfs_priv *debugfs_priv = m->private;
+	struct rtw_dev *rtwdev = debugfs_priv->rtwdev;
+	struct rtw_hal *hal = &rtwdev->hal;
+	u8 path, rate;
+	struct rtw_power_params pwr_param = {0};
+	u8 bw = hal->current_band_width;
+	u8 ch = hal->current_channel;
+	u8 regd = rtwdev->regd.txpwr_regd;
+
+	seq_printf(m, "%-4s %-10s %-3s%6s %-4s %4s (%-4s %-4s)\n",
+		   "path", "rate", "pwr", "", "base", "", "byr", "lmt");
+
+	mutex_lock(&hal->tx_power_mutex);
+	for (path = RF_PATH_A; path <= RF_PATH_B; path++) {
+		/* there is no CCK rates used in 5G */
+		if (hal->current_band_type == RTW_BAND_5G)
+			rate = DESC_RATE6M;
+		else
+			rate = DESC_RATE1M;
+
+		/* now, not support vht 3ss and vht 4ss*/
+		for (; rate <= DESC_RATEVHT2SS_MCS9; rate++) {
+			/* now, not support ht 3ss and ht 4ss*/
+			if (rate > DESC_RATEMCS15 &&
+			    rate < DESC_RATEVHT1SS_MCS0)
+				continue;
+
+			rtw_get_tx_power_params(rtwdev, path, rate, bw,
+						ch, regd, &pwr_param);
+
+			seq_printf(m, "%4c ", path + 'A');
+			rtw_print_rate(m, rate);
+			seq_printf(m, " %3u(0x%02x) %4u %4d (%4d %4d)\n",
+				   hal->tx_pwr_tbl[path][rate],
+				   hal->tx_pwr_tbl[path][rate],
+				   pwr_param.pwr_base,
+				   min_t(s8, pwr_param.pwr_offset,
+					 pwr_param.pwr_limit),
+				   pwr_param.pwr_offset, pwr_param.pwr_limit);
+		}
+	}
+
+	mutex_unlock(&hal->tx_power_mutex);
+
+	return 0;
+}
+
+static int rtw_debugfs_get_phy_info(struct seq_file *m, void *v)
+{
+	struct rtw_debugfs_priv *debugfs_priv = m->private;
+	struct rtw_dev *rtwdev = debugfs_priv->rtwdev;
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
+	struct rtw_traffic_stats *stats = &rtwdev->stats;
+	struct rtw_pkt_count *last_cnt = &dm_info->last_pkt_count;
+	struct rtw_efuse *efuse = &rtwdev->efuse;
+	struct ewma_evm *ewma_evm = dm_info->ewma_evm;
+	struct ewma_snr *ewma_snr = dm_info->ewma_snr;
+	u8 ss, rate_id;
+
+	seq_puts(m, "==========[Common Info]========\n");
+	seq_printf(m, "Is link = %c\n", rtw_is_assoc(rtwdev) ? 'Y' : 'N');
+	seq_printf(m, "Current CH(fc) = %u\n", rtwdev->hal.current_channel);
+	seq_printf(m, "Current BW = %u\n", rtwdev->hal.current_band_width);
+	seq_printf(m, "Current IGI = 0x%x\n", dm_info->igi_history[0]);
+	seq_printf(m, "TP {Tx, Rx} = {%u, %u}Mbps\n\n",
+		   stats->tx_throughput, stats->rx_throughput);
+
+	seq_puts(m, "==========[Tx Phy Info]========\n");
+	seq_puts(m, "[Tx Rate] = ");
+	rtw_print_rate(m, dm_info->tx_rate);
+	seq_printf(m, "(0x%x)\n\n", dm_info->tx_rate);
+
+	seq_puts(m, "==========[Rx Phy Info]========\n");
+	seq_printf(m, "[Rx Beacon Count] = %u\n", last_cnt->num_bcn_pkt);
+	seq_puts(m, "[Rx Rate] = ");
+	rtw_print_rate(m, dm_info->curr_rx_rate);
+	seq_printf(m, "(0x%x)\n", dm_info->curr_rx_rate);
+
+	seq_puts(m, "[Rx Rate Count]:\n");
+	seq_printf(m, " * CCK = {%u, %u, %u, %u}\n",
+		   last_cnt->num_qry_pkt[DESC_RATE1M],
+		   last_cnt->num_qry_pkt[DESC_RATE2M],
+		   last_cnt->num_qry_pkt[DESC_RATE5_5M],
+		   last_cnt->num_qry_pkt[DESC_RATE11M]);
+
+	seq_printf(m, " * OFDM = {%u, %u, %u, %u, %u, %u, %u, %u}\n",
+		   last_cnt->num_qry_pkt[DESC_RATE6M],
+		   last_cnt->num_qry_pkt[DESC_RATE9M],
+		   last_cnt->num_qry_pkt[DESC_RATE12M],
+		   last_cnt->num_qry_pkt[DESC_RATE18M],
+		   last_cnt->num_qry_pkt[DESC_RATE24M],
+		   last_cnt->num_qry_pkt[DESC_RATE36M],
+		   last_cnt->num_qry_pkt[DESC_RATE48M],
+		   last_cnt->num_qry_pkt[DESC_RATE54M]);
+
+	for (ss = 0; ss < efuse->hw_cap.nss; ss++) {
+		rate_id = DESC_RATEMCS0 + ss * 8;
+		seq_printf(m, " * HT_MCS[%u:%u] = {%u, %u, %u, %u, %u, %u, %u, %u}\n",
+			   ss * 8, ss * 8 + 7,
+			   last_cnt->num_qry_pkt[rate_id],
+			   last_cnt->num_qry_pkt[rate_id + 1],
+			   last_cnt->num_qry_pkt[rate_id + 2],
+			   last_cnt->num_qry_pkt[rate_id + 3],
+			   last_cnt->num_qry_pkt[rate_id + 4],
+			   last_cnt->num_qry_pkt[rate_id + 5],
+			   last_cnt->num_qry_pkt[rate_id + 6],
+			   last_cnt->num_qry_pkt[rate_id + 7]);
+	}
+
+	for (ss = 0; ss < efuse->hw_cap.nss; ss++) {
+		rate_id = DESC_RATEVHT1SS_MCS0 + ss * 10;
+		seq_printf(m, " * VHT_MCS-%uss MCS[0:9] = {%u, %u, %u, %u, %u, %u, %u, %u, %u, %u}\n",
+			   ss + 1,
+			   last_cnt->num_qry_pkt[rate_id],
+			   last_cnt->num_qry_pkt[rate_id + 1],
+			   last_cnt->num_qry_pkt[rate_id + 2],
+			   last_cnt->num_qry_pkt[rate_id + 3],
+			   last_cnt->num_qry_pkt[rate_id + 4],
+			   last_cnt->num_qry_pkt[rate_id + 5],
+			   last_cnt->num_qry_pkt[rate_id + 6],
+			   last_cnt->num_qry_pkt[rate_id + 7],
+			   last_cnt->num_qry_pkt[rate_id + 8],
+			   last_cnt->num_qry_pkt[rate_id + 9]);
+	}
+
+	seq_printf(m, "[RSSI(dBm)] = {%d, %d}\n",
+		   dm_info->rssi[RF_PATH_A] - 100,
+		   dm_info->rssi[RF_PATH_B] - 100);
+	seq_printf(m, "[Rx EVM(dB)] = {-%d, -%d}\n",
+		   dm_info->rx_evm_dbm[RF_PATH_A],
+		   dm_info->rx_evm_dbm[RF_PATH_B]);
+	seq_printf(m, "[Rx SNR] = {%d, %d}\n",
+		   dm_info->rx_snr[RF_PATH_A],
+		   dm_info->rx_snr[RF_PATH_B]);
+	seq_printf(m, "[CFO_tail(KHz)] = {%d, %d}\n",
+		   dm_info->cfo_tail[RF_PATH_A],
+		   dm_info->cfo_tail[RF_PATH_B]);
+
+	if (dm_info->curr_rx_rate >= DESC_RATE11M) {
+		seq_puts(m, "[Rx Average Status]:\n");
+		seq_printf(m, " * OFDM, EVM: {-%d}, SNR: {%d}\n",
+			   (u8)ewma_evm_read(&ewma_evm[RTW_EVM_OFDM]),
+			   (u8)ewma_snr_read(&ewma_snr[RTW_SNR_OFDM_A]));
+		seq_printf(m, " * 1SS, EVM: {-%d}, SNR: {%d}\n",
+			   (u8)ewma_evm_read(&ewma_evm[RTW_EVM_1SS]),
+			   (u8)ewma_snr_read(&ewma_snr[RTW_SNR_1SS_A]));
+		seq_printf(m, " * 2SS, EVM: {-%d, -%d}, SNR: {%d, %d}\n",
+			   (u8)ewma_evm_read(&ewma_evm[RTW_EVM_2SS_A]),
+			   (u8)ewma_evm_read(&ewma_evm[RTW_EVM_2SS_B]),
+			   (u8)ewma_snr_read(&ewma_snr[RTW_SNR_2SS_A]),
+			   (u8)ewma_snr_read(&ewma_snr[RTW_SNR_2SS_B]));
+	}
+
+	seq_puts(m, "[Rx Counter]:\n");
+	seq_printf(m, " * CCA (CCK, OFDM, Total) = (%u, %u, %u)\n",
+		   dm_info->cck_cca_cnt,
+		   dm_info->ofdm_cca_cnt,
+		   dm_info->total_cca_cnt);
+	seq_printf(m, " * False Alarm (CCK, OFDM, Total) = (%u, %u, %u)\n",
+		   dm_info->cck_fa_cnt,
+		   dm_info->ofdm_fa_cnt,
+		   dm_info->total_fa_cnt);
+	seq_printf(m, " * CCK cnt (ok, err) = (%u, %u)\n",
+		   dm_info->cck_ok_cnt, dm_info->cck_err_cnt);
+	seq_printf(m, " * OFDM cnt (ok, err) = (%u, %u)\n",
+		   dm_info->ofdm_ok_cnt, dm_info->ofdm_err_cnt);
+	seq_printf(m, " * HT cnt (ok, err) = (%u, %u)\n",
+		   dm_info->ht_ok_cnt, dm_info->ht_err_cnt);
+	seq_printf(m, " * VHT cnt (ok, err) = (%u, %u)\n",
+		   dm_info->vht_ok_cnt, dm_info->vht_err_cnt);
+	return 0;
+}
+
 #define rtw_debug_impl_mac(page, addr)				\
 static struct rtw_debugfs_priv rtw_debug_priv_mac_ ##page = {	\
 	.cb_read = rtw_debug_get_mac_page,			\
@@ -514,6 +748,10 @@ static struct rtw_debugfs_priv rtw_debug_priv_rf_dump = {
 	.cb_read = rtw_debug_get_rf_dump,
 };
 
+static struct rtw_debugfs_priv rtw_debug_priv_tx_pwr_tbl = {
+	.cb_read = rtw_debugfs_get_tx_pwr_tbl,
+};
+
 static struct rtw_debugfs_priv rtw_debug_priv_write_reg = {
 	.cb_write = rtw_debugfs_set_write_reg,
 };
@@ -542,6 +780,10 @@ static struct rtw_debugfs_priv rtw_debug_priv_rsvd_page = {
 	.cb_read = rtw_debugfs_get_rsvd_page,
 };
 
+static struct rtw_debugfs_priv rtw_debug_priv_phy_info = {
+	.cb_read = rtw_debugfs_get_phy_info,
+};
+
 #define rtw_debugfs_add_core(name, mode, fopname, parent)		\
 	do {								\
 		rtw_debug_priv_ ##name.rtwdev = rtwdev;			\
@@ -561,7 +803,7 @@ static struct rtw_debugfs_priv rtw_debug_priv_rsvd_page = {
 
 void rtw_debugfs_init(struct rtw_dev *rtwdev)
 {
-	struct dentry *debugfs_topdir = rtwdev->debugfs;
+	struct dentry *debugfs_topdir;
 
 	debugfs_topdir = debugfs_create_dir("rtw88",
 					    rtwdev->hw->wiphy->debugfsdir);
@@ -571,6 +813,7 @@ void rtw_debugfs_init(struct rtw_dev *rtwdev)
 	rtw_debugfs_add_rw(rf_read);
 	rtw_debugfs_add_rw(dump_cam);
 	rtw_debugfs_add_rw(rsvd_page);
+	rtw_debugfs_add_r(phy_info);
 	rtw_debugfs_add_r(mac_0);
 	rtw_debugfs_add_r(mac_1);
 	rtw_debugfs_add_r(mac_2);
@@ -610,6 +853,7 @@ void rtw_debugfs_init(struct rtw_dev *rtwdev)
 		rtw_debugfs_add_r(bb_41);
 	}
 	rtw_debugfs_add_r(rf_dump);
+	rtw_debugfs_add_r(tx_pwr_tbl);
 }
 
 #endif /* CONFIG_RTW88_DEBUGFS */

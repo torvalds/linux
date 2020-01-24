@@ -5,10 +5,12 @@
 #define __PANFROST_DEVFREQ_H__
 
 int panfrost_devfreq_init(struct panfrost_device *pfdev);
+void panfrost_devfreq_fini(struct panfrost_device *pfdev);
 
 void panfrost_devfreq_resume(struct panfrost_device *pfdev);
 void panfrost_devfreq_suspend(struct panfrost_device *pfdev);
 
-void panfrost_devfreq_record_transition(struct panfrost_device *pfdev, int slot);
+void panfrost_devfreq_record_busy(struct panfrost_device *pfdev);
+void panfrost_devfreq_record_idle(struct panfrost_device *pfdev);
 
 #endif /* __PANFROST_DEVFREQ_H__ */

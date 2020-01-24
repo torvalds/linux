@@ -18,17 +18,7 @@
 #include <net/dsa.h>
 #include <net/switchdev.h>
 
-#include "ksz_priv.h"
-
-void ksz_port_cleanup(struct ksz_device *dev, int port)
-{
-	/* Common code for port cleanup. */
-	mutex_lock(&dev->dev_mutex);
-	dev->on_ports &= ~(1 << port);
-	dev->live_ports &= ~(1 << port);
-	mutex_unlock(&dev->dev_mutex);
-}
-EXPORT_SYMBOL_GPL(ksz_port_cleanup);
+#include "ksz_common.h"
 
 void ksz_update_port_member(struct ksz_device *dev, int port)
 {
@@ -371,9 +361,13 @@ int ksz_enable_port(struct dsa_switch *ds, int port, struct phy_device *phy)
 {
 	struct ksz_device *dev = ds->priv;
 
+	if (!dsa_is_user_port(ds, port))
+		return 0;
+
 	/* setup slave port */
 	dev->dev_ops->port_setup(dev, port, false);
-	dev->dev_ops->phy_setup(dev, port, phy);
+	if (dev->dev_ops->phy_setup)
+		dev->dev_ops->phy_setup(dev, port, phy);
 
 	/* port_stp_state_set() will be called after to enable the port so
 	 * there is no need to do anything.
@@ -387,6 +381,9 @@ void ksz_disable_port(struct dsa_switch *ds, int port)
 {
 	struct ksz_device *dev = ds->priv;
 
+	if (!dsa_is_user_port(ds, port))
+		return;
+
 	dev->on_ports &= ~(1 << port);
 	dev->live_ports &= ~(1 << port);
 
@@ -396,16 +393,17 @@ void ksz_disable_port(struct dsa_switch *ds, int port)
 }
 EXPORT_SYMBOL_GPL(ksz_disable_port);
 
-struct ksz_device *ksz_switch_alloc(struct device *base,
-				    const struct ksz_io_ops *ops,
-				    void *priv)
+struct ksz_device *ksz_switch_alloc(struct device *base, void *priv)
 {
 	struct dsa_switch *ds;
 	struct ksz_device *swdev;
 
-	ds = dsa_switch_alloc(base, DSA_MAX_PORTS);
+	ds = devm_kzalloc(base, sizeof(*ds), GFP_KERNEL);
 	if (!ds)
 		return NULL;
+
+	ds->dev = base;
+	ds->num_ports = DSA_MAX_PORTS;
 
 	swdev = devm_kzalloc(base, sizeof(*swdev), GFP_KERNEL);
 	if (!swdev)
@@ -416,7 +414,6 @@ struct ksz_device *ksz_switch_alloc(struct device *base,
 
 	swdev->ds = ds;
 	swdev->priv = priv;
-	swdev->ops = ops;
 
 	return swdev;
 }
@@ -425,6 +422,7 @@ EXPORT_SYMBOL(ksz_switch_alloc);
 int ksz_switch_register(struct ksz_device *dev,
 			const struct ksz_dev_ops *ops)
 {
+	phy_interface_t interface;
 	int ret;
 
 	if (dev->pdata)
@@ -436,14 +434,13 @@ int ksz_switch_register(struct ksz_device *dev,
 		return PTR_ERR(dev->reset_gpio);
 
 	if (dev->reset_gpio) {
-		gpiod_set_value(dev->reset_gpio, 1);
+		gpiod_set_value_cansleep(dev->reset_gpio, 1);
 		mdelay(10);
-		gpiod_set_value(dev->reset_gpio, 0);
+		gpiod_set_value_cansleep(dev->reset_gpio, 0);
 	}
 
 	mutex_init(&dev->dev_mutex);
-	mutex_init(&dev->reg_mutex);
-	mutex_init(&dev->stats_mutex);
+	mutex_init(&dev->regmap_mutex);
 	mutex_init(&dev->alu_mutex);
 	mutex_init(&dev->vlan_mutex);
 
@@ -460,9 +457,11 @@ int ksz_switch_register(struct ksz_device *dev,
 	 * device tree.
 	 */
 	if (dev->dev->of_node) {
-		ret = of_get_phy_mode(dev->dev->of_node);
-		if (ret >= 0)
-			dev->interface = ret;
+		ret = of_get_phy_mode(dev->dev->of_node, &interface);
+		if (ret == 0)
+			dev->interface = interface;
+		dev->synclko_125 = of_property_read_bool(dev->dev->of_node,
+							 "microchip,synclko-125");
 	}
 
 	ret = dsa_register_switch(dev->ds);
@@ -487,7 +486,7 @@ void ksz_switch_remove(struct ksz_device *dev)
 	dsa_unregister_switch(dev->ds);
 
 	if (dev->reset_gpio)
-		gpiod_set_value(dev->reset_gpio, 1);
+		gpiod_set_value_cansleep(dev->reset_gpio, 1);
 
 }
 EXPORT_SYMBOL(ksz_switch_remove);

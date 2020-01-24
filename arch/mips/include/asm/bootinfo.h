@@ -61,7 +61,7 @@
 /*
  * Valid machtype for Loongson family
  */
-enum loongson_machine_type {
+enum loongson2ef_machine_type {
 	MACH_LOONGSON_UNKNOWN,
 	MACH_LEMOTE_FL2E,
 	MACH_LEMOTE_FL2F,
@@ -70,7 +70,6 @@ enum loongson_machine_type {
 	MACH_DEXXON_GDIUM2F10,
 	MACH_LEMOTE_NAS,
 	MACH_LEMOTE_LL2F,
-	MACH_LOONGSON_GENERIC,
 	MACH_LOONGSON_END
 };
 
@@ -81,39 +80,25 @@ enum loongson_machine_type {
 #define  MACH_INGENIC_JZ4740	1	/* JZ4740 SOC		*/
 #define  MACH_INGENIC_JZ4770	2	/* JZ4770 SOC		*/
 #define  MACH_INGENIC_JZ4780	3	/* JZ4780 SOC		*/
+#define  MACH_INGENIC_X1000		4	/* X1000 SOC		*/
 
 extern char *system_type;
 const char *get_system_type(void);
 
 extern unsigned long mips_machtype;
 
-#define BOOT_MEM_MAP_MAX	32
 #define BOOT_MEM_RAM		1
 #define BOOT_MEM_ROM_DATA	2
 #define BOOT_MEM_RESERVED	3
 #define BOOT_MEM_INIT_RAM	4
 #define BOOT_MEM_NOMAP		5
 
-/*
- * A memory map that's built upon what was determined
- * or specified on the command line.
- */
-struct boot_mem_map {
-	int nr_map;
-	struct boot_mem_map_entry {
-		phys_addr_t addr;	/* start of memory segment */
-		phys_addr_t size;	/* size of memory segment */
-		long type;		/* type of memory segment */
-	} map[BOOT_MEM_MAP_MAX];
-};
-
-extern struct boot_mem_map boot_mem_map;
-
 extern void add_memory_region(phys_addr_t start, phys_addr_t size, long type);
 extern void detect_memory_region(phys_addr_t start, phys_addr_t sz_min,  phys_addr_t sz_max);
 
 extern void prom_init(void);
 extern void prom_free_prom_memory(void);
+extern void prom_cleanup(void);
 
 extern void free_init_pages(const char *what,
 			    unsigned long begin, unsigned long end);

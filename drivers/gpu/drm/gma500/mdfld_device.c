@@ -5,13 +5,15 @@
  *
  **************************************************************************/
 
-#include "psb_drv.h"
-#include "mid_bios.h"
-#include "mdfld_output.h"
-#include "mdfld_dsi_output.h"
-#include "tc35876x-dsi-lvds.h"
+#include <linux/delay.h>
 
 #include <asm/intel_scu_ipc.h>
+
+#include "mdfld_dsi_output.h"
+#include "mdfld_output.h"
+#include "mid_bios.h"
+#include "psb_drv.h"
+#include "tc35876x-dsi-lvds.h"
 
 #ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
 
@@ -330,7 +332,7 @@ static int mdfld_restore_display_registers(struct drm_device *dev, int pipenum)
 
 	if (pipenum == 1) {
 		/* restore palette (gamma) */
-		/*DRM_UDELAY(50000); */
+		/* udelay(50000); */
 		for (i = 0; i < 256; i++)
 			PSB_WVDC32(pipe->palette[i], map->palette + (i << 2));
 
@@ -392,7 +394,7 @@ static int mdfld_restore_display_registers(struct drm_device *dev, int pipenum)
 	PSB_WVDC32(pipe->conf, map->conf);
 
 	/* restore palette (gamma) */
-	/*DRM_UDELAY(50000); */
+	/* udelay(50000); */
 	for (i = 0; i < 256; i++)
 		PSB_WVDC32(pipe->palette[i], map->palette + (i << 2));
 

@@ -1,7 +1,8 @@
 /* Broadcom NetXtreme-C/E network driver.
  *
  * Copyright (c) 2014-2016 Broadcom Corporation
- * Copyright (c) 2016-2019 Broadcom Limited
+ * Copyright (c) 2014-2018 Broadcom Limited
+ * Copyright (c) 2018-2019 Broadcom Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,15 +40,16 @@ struct hwrm_resp_hdr {
 #define TLV_TYPE_ROCE_SP_COMMAND                 0x3UL
 #define TLV_TYPE_QUERY_ROCE_CC_GEN1              0x4UL
 #define TLV_TYPE_MODIFY_ROCE_CC_GEN1             0x5UL
-#define TLV_TYPE_ENGINE_CKV_DEVICE_SERIAL_NUMBER 0x8001UL
-#define TLV_TYPE_ENGINE_CKV_NONCE                0x8002UL
+#define TLV_TYPE_ENGINE_CKV_ALIAS_ECC_PUBLIC_KEY 0x8001UL
 #define TLV_TYPE_ENGINE_CKV_IV                   0x8003UL
 #define TLV_TYPE_ENGINE_CKV_AUTH_TAG             0x8004UL
 #define TLV_TYPE_ENGINE_CKV_CIPHERTEXT           0x8005UL
-#define TLV_TYPE_ENGINE_CKV_ALGORITHMS           0x8006UL
-#define TLV_TYPE_ENGINE_CKV_ECC_PUBLIC_KEY       0x8007UL
+#define TLV_TYPE_ENGINE_CKV_HOST_ALGORITHMS      0x8006UL
+#define TLV_TYPE_ENGINE_CKV_HOST_ECC_PUBLIC_KEY  0x8007UL
 #define TLV_TYPE_ENGINE_CKV_ECDSA_SIGNATURE      0x8008UL
-#define TLV_TYPE_LAST                           TLV_TYPE_ENGINE_CKV_ECDSA_SIGNATURE
+#define TLV_TYPE_ENGINE_CKV_FW_ECC_PUBLIC_KEY    0x8009UL
+#define TLV_TYPE_ENGINE_CKV_FW_ALGORITHMS        0x800aUL
+#define TLV_TYPE_LAST                           TLV_TYPE_ENGINE_CKV_FW_ALGORITHMS
 
 
 /* tlv (size:64b/8B) */
@@ -174,6 +176,9 @@ struct cmd_nums {
 	#define HWRM_RESERVED6                            0x65UL
 	#define HWRM_VNIC_RSS_COS_LB_CTX_ALLOC            0x70UL
 	#define HWRM_VNIC_RSS_COS_LB_CTX_FREE             0x71UL
+	#define HWRM_QUEUE_MPLS_QCAPS                     0x80UL
+	#define HWRM_QUEUE_MPLSTC2PRI_QCFG                0x81UL
+	#define HWRM_QUEUE_MPLSTC2PRI_CFG                 0x82UL
 	#define HWRM_CFA_L2_FILTER_ALLOC                  0x90UL
 	#define HWRM_CFA_L2_FILTER_FREE                   0x91UL
 	#define HWRM_CFA_L2_FILTER_CFG                    0x92UL
@@ -200,10 +205,16 @@ struct cmd_nums {
 	#define HWRM_PORT_QSTATS_EXT                      0xb4UL
 	#define HWRM_PORT_PHY_MDIO_WRITE                  0xb5UL
 	#define HWRM_PORT_PHY_MDIO_READ                   0xb6UL
+	#define HWRM_PORT_PHY_MDIO_BUS_ACQUIRE            0xb7UL
+	#define HWRM_PORT_PHY_MDIO_BUS_RELEASE            0xb8UL
 	#define HWRM_FW_RESET                             0xc0UL
 	#define HWRM_FW_QSTATUS                           0xc1UL
 	#define HWRM_FW_HEALTH_CHECK                      0xc2UL
 	#define HWRM_FW_SYNC                              0xc3UL
+	#define HWRM_FW_STATE_QCAPS                       0xc4UL
+	#define HWRM_FW_STATE_QUIESCE                     0xc5UL
+	#define HWRM_FW_STATE_BACKUP                      0xc6UL
+	#define HWRM_FW_STATE_RESTORE                     0xc7UL
 	#define HWRM_FW_SET_TIME                          0xc8UL
 	#define HWRM_FW_GET_TIME                          0xc9UL
 	#define HWRM_FW_SET_STRUCTURED_DATA               0xcaUL
@@ -215,7 +226,13 @@ struct cmd_nums {
 	#define HWRM_FWD_ASYNC_EVENT_CMPL                 0xd3UL
 	#define HWRM_OEM_CMD                              0xd4UL
 	#define HWRM_PORT_PRBS_TEST                       0xd5UL
+	#define HWRM_PORT_SFP_SIDEBAND_CFG                0xd6UL
+	#define HWRM_PORT_SFP_SIDEBAND_QCFG               0xd7UL
+	#define HWRM_FW_STATE_UNQUIESCE                   0xd8UL
+	#define HWRM_PORT_DSC_DUMP                        0xd9UL
 	#define HWRM_TEMP_MONITOR_QUERY                   0xe0UL
+	#define HWRM_REG_POWER_QUERY                      0xe1UL
+	#define HWRM_CORE_FREQUENCY_QUERY                 0xe2UL
 	#define HWRM_WOL_FILTER_ALLOC                     0xf0UL
 	#define HWRM_WOL_FILTER_FREE                      0xf1UL
 	#define HWRM_WOL_FILTER_QCFG                      0xf2UL
@@ -267,7 +284,6 @@ struct cmd_nums {
 	#define HWRM_CFA_EEM_OP                           0x123UL
 	#define HWRM_CFA_ADV_FLOW_MGNT_QCAPS              0x124UL
 	#define HWRM_CFA_TFLIB                            0x125UL
-	#define HWRM_ENGINE_CKV_HELLO                     0x12dUL
 	#define HWRM_ENGINE_CKV_STATUS                    0x12eUL
 	#define HWRM_ENGINE_CKV_CKEK_ADD                  0x12fUL
 	#define HWRM_ENGINE_CKV_CKEK_DELETE               0x130UL
@@ -298,6 +314,7 @@ struct cmd_nums {
 	#define HWRM_ENGINE_STATS_CONFIG                  0x155UL
 	#define HWRM_ENGINE_STATS_CLEAR                   0x156UL
 	#define HWRM_ENGINE_STATS_QUERY                   0x157UL
+	#define HWRM_ENGINE_STATS_QUERY_CONTINUOUS_ERROR  0x158UL
 	#define HWRM_ENGINE_RQ_ALLOC                      0x15eUL
 	#define HWRM_ENGINE_RQ_FREE                       0x15fUL
 	#define HWRM_ENGINE_CQ_ALLOC                      0x160UL
@@ -313,6 +330,7 @@ struct cmd_nums {
 	#define HWRM_FUNC_BACKING_STORE_QCFG              0x194UL
 	#define HWRM_FUNC_VF_BW_CFG                       0x195UL
 	#define HWRM_FUNC_VF_BW_QCFG                      0x196UL
+	#define HWRM_FUNC_HOST_PF_IDS_QUERY               0x197UL
 	#define HWRM_SELFTEST_QLIST                       0x200UL
 	#define HWRM_SELFTEST_EXEC                        0x201UL
 	#define HWRM_SELFTEST_IRQ                         0x202UL
@@ -379,6 +397,7 @@ struct ret_codes {
 	#define HWRM_ERR_CODE_KEY_HASH_COLLISION           0xdUL
 	#define HWRM_ERR_CODE_KEY_ALREADY_EXISTS           0xeUL
 	#define HWRM_ERR_CODE_HWRM_ERROR                   0xfUL
+	#define HWRM_ERR_CODE_BUSY                         0x10UL
 	#define HWRM_ERR_CODE_TLV_ENCAPSULATED_RESPONSE    0x8000UL
 	#define HWRM_ERR_CODE_UNKNOWN_ERR                  0xfffeUL
 	#define HWRM_ERR_CODE_CMD_NOT_SUPPORTED            0xffffUL
@@ -409,9 +428,9 @@ struct hwrm_err_output {
 #define HWRM_TARGET_ID_TOOLS 0xFFFD
 #define HWRM_VERSION_MAJOR 1
 #define HWRM_VERSION_MINOR 10
-#define HWRM_VERSION_UPDATE 0
-#define HWRM_VERSION_RSVD 69
-#define HWRM_VERSION_STR "1.10.0.69"
+#define HWRM_VERSION_UPDATE 1
+#define HWRM_VERSION_RSVD 12
+#define HWRM_VERSION_STR "1.10.1.12"
 
 /* hwrm_ver_get_input (size:192b/24B) */
 struct hwrm_ver_get_input {
@@ -624,6 +643,10 @@ struct hwrm_async_event_cmpl {
 	#define ASYNC_EVENT_CMPL_EVENT_ID_TCP_FLAG_ACTION_CHANGE     0x3aUL
 	#define ASYNC_EVENT_CMPL_EVENT_ID_EEM_FLOW_ACTIVE            0x3bUL
 	#define ASYNC_EVENT_CMPL_EVENT_ID_EEM_CFG_CHANGE             0x3cUL
+	#define ASYNC_EVENT_CMPL_EVENT_ID_TFLIB_DEFAULT_VNIC_CHANGE  0x3dUL
+	#define ASYNC_EVENT_CMPL_EVENT_ID_TFLIB_LINK_STATUS_CHANGE   0x3eUL
+	#define ASYNC_EVENT_CMPL_EVENT_ID_QUIESCE_DONE               0x3fUL
+	#define ASYNC_EVENT_CMPL_EVENT_ID_DEFERRED_RESPONSE          0x40UL
 	#define ASYNC_EVENT_CMPL_EVENT_ID_FW_TRACE_MSG               0xfeUL
 	#define ASYNC_EVENT_CMPL_EVENT_ID_HWRM_ERROR                 0xffUL
 	#define ASYNC_EVENT_CMPL_EVENT_ID_LAST                      ASYNC_EVENT_CMPL_EVENT_ID_HWRM_ERROR
@@ -800,6 +823,37 @@ struct hwrm_async_event_cmpl_vf_cfg_change {
 	#define ASYNC_EVENT_CMPL_VF_CFG_CHANGE_EVENT_DATA1_DFLT_MAC_ADDR_CHANGE      0x4UL
 	#define ASYNC_EVENT_CMPL_VF_CFG_CHANGE_EVENT_DATA1_DFLT_VLAN_CHANGE          0x8UL
 	#define ASYNC_EVENT_CMPL_VF_CFG_CHANGE_EVENT_DATA1_TRUSTED_VF_CFG_CHANGE     0x10UL
+};
+
+/* hwrm_async_event_cmpl_default_vnic_change (size:128b/16B) */
+struct hwrm_async_event_cmpl_default_vnic_change {
+	__le16	type;
+	#define ASYNC_EVENT_CMPL_DEFAULT_VNIC_CHANGE_TYPE_MASK            0x3fUL
+	#define ASYNC_EVENT_CMPL_DEFAULT_VNIC_CHANGE_TYPE_SFT             0
+	#define ASYNC_EVENT_CMPL_DEFAULT_VNIC_CHANGE_TYPE_HWRM_ASYNC_EVENT  0x2eUL
+	#define ASYNC_EVENT_CMPL_DEFAULT_VNIC_CHANGE_TYPE_LAST             ASYNC_EVENT_CMPL_DEFAULT_VNIC_CHANGE_TYPE_HWRM_ASYNC_EVENT
+	#define ASYNC_EVENT_CMPL_DEFAULT_VNIC_CHANGE_UNUSED1_MASK         0xffc0UL
+	#define ASYNC_EVENT_CMPL_DEFAULT_VNIC_CHANGE_UNUSED1_SFT          6
+	__le16	event_id;
+	#define ASYNC_EVENT_CMPL_DEFAULT_VNIC_CHANGE_EVENT_ID_ALLOC_FREE_NOTIFICATION 0x35UL
+	#define ASYNC_EVENT_CMPL_DEFAULT_VNIC_CHANGE_EVENT_ID_LAST                   ASYNC_EVENT_CMPL_DEFAULT_VNIC_CHANGE_EVENT_ID_ALLOC_FREE_NOTIFICATION
+	__le32	event_data2;
+	u8	opaque_v;
+	#define ASYNC_EVENT_CMPL_DEFAULT_VNIC_CHANGE_V          0x1UL
+	#define ASYNC_EVENT_CMPL_DEFAULT_VNIC_CHANGE_OPAQUE_MASK 0xfeUL
+	#define ASYNC_EVENT_CMPL_DEFAULT_VNIC_CHANGE_OPAQUE_SFT 1
+	u8	timestamp_lo;
+	__le16	timestamp_hi;
+	__le32	event_data1;
+	#define ASYNC_EVENT_CMPL_DEFAULT_VNIC_CHANGE_EVENT_DATA1_DEF_VNIC_STATE_MASK          0x3UL
+	#define ASYNC_EVENT_CMPL_DEFAULT_VNIC_CHANGE_EVENT_DATA1_DEF_VNIC_STATE_SFT           0
+	#define ASYNC_EVENT_CMPL_DEFAULT_VNIC_CHANGE_EVENT_DATA1_DEF_VNIC_STATE_DEF_VNIC_ALLOC  0x1UL
+	#define ASYNC_EVENT_CMPL_DEFAULT_VNIC_CHANGE_EVENT_DATA1_DEF_VNIC_STATE_DEF_VNIC_FREE   0x2UL
+	#define ASYNC_EVENT_CMPL_DEFAULT_VNIC_CHANGE_EVENT_DATA1_DEF_VNIC_STATE_LAST           ASYNC_EVENT_CMPL_DEFAULT_VNIC_CHANGE_EVENT_DATA1_DEF_VNIC_STATE_DEF_VNIC_FREE
+	#define ASYNC_EVENT_CMPL_DEFAULT_VNIC_CHANGE_EVENT_DATA1_PF_ID_MASK                   0x3fcUL
+	#define ASYNC_EVENT_CMPL_DEFAULT_VNIC_CHANGE_EVENT_DATA1_PF_ID_SFT                    2
+	#define ASYNC_EVENT_CMPL_DEFAULT_VNIC_CHANGE_EVENT_DATA1_VF_ID_MASK                   0x3fffc00UL
+	#define ASYNC_EVENT_CMPL_DEFAULT_VNIC_CHANGE_EVENT_DATA1_VF_ID_SFT                    10
 };
 
 /* hwrm_async_event_cmpl_hw_flow_aged (size:128b/16B) */
@@ -1044,31 +1098,34 @@ struct hwrm_func_qcaps_output {
 	__le16	fid;
 	__le16	port_id;
 	__le32	flags;
-	#define FUNC_QCAPS_RESP_FLAGS_PUSH_MODE_SUPPORTED             0x1UL
-	#define FUNC_QCAPS_RESP_FLAGS_GLOBAL_MSIX_AUTOMASKING         0x2UL
-	#define FUNC_QCAPS_RESP_FLAGS_PTP_SUPPORTED                   0x4UL
-	#define FUNC_QCAPS_RESP_FLAGS_ROCE_V1_SUPPORTED               0x8UL
-	#define FUNC_QCAPS_RESP_FLAGS_ROCE_V2_SUPPORTED               0x10UL
-	#define FUNC_QCAPS_RESP_FLAGS_WOL_MAGICPKT_SUPPORTED          0x20UL
-	#define FUNC_QCAPS_RESP_FLAGS_WOL_BMP_SUPPORTED               0x40UL
-	#define FUNC_QCAPS_RESP_FLAGS_TX_RING_RL_SUPPORTED            0x80UL
-	#define FUNC_QCAPS_RESP_FLAGS_TX_BW_CFG_SUPPORTED             0x100UL
-	#define FUNC_QCAPS_RESP_FLAGS_VF_TX_RING_RL_SUPPORTED         0x200UL
-	#define FUNC_QCAPS_RESP_FLAGS_VF_BW_CFG_SUPPORTED             0x400UL
-	#define FUNC_QCAPS_RESP_FLAGS_STD_TX_RING_MODE_SUPPORTED      0x800UL
-	#define FUNC_QCAPS_RESP_FLAGS_GENEVE_TUN_FLAGS_SUPPORTED      0x1000UL
-	#define FUNC_QCAPS_RESP_FLAGS_NVGRE_TUN_FLAGS_SUPPORTED       0x2000UL
-	#define FUNC_QCAPS_RESP_FLAGS_GRE_TUN_FLAGS_SUPPORTED         0x4000UL
-	#define FUNC_QCAPS_RESP_FLAGS_MPLS_TUN_FLAGS_SUPPORTED        0x8000UL
-	#define FUNC_QCAPS_RESP_FLAGS_PCIE_STATS_SUPPORTED            0x10000UL
-	#define FUNC_QCAPS_RESP_FLAGS_ADOPTED_PF_SUPPORTED            0x20000UL
-	#define FUNC_QCAPS_RESP_FLAGS_ADMIN_PF_SUPPORTED              0x40000UL
-	#define FUNC_QCAPS_RESP_FLAGS_LINK_ADMIN_STATUS_SUPPORTED     0x80000UL
-	#define FUNC_QCAPS_RESP_FLAGS_WCB_PUSH_MODE                   0x100000UL
-	#define FUNC_QCAPS_RESP_FLAGS_DYNAMIC_TX_RING_ALLOC           0x200000UL
-	#define FUNC_QCAPS_RESP_FLAGS_HOT_RESET_CAPABLE               0x400000UL
-	#define FUNC_QCAPS_RESP_FLAGS_ERROR_RECOVERY_CAPABLE          0x800000UL
-	#define FUNC_QCAPS_RESP_FLAGS_EXT_STATS_SUPPORTED             0x1000000UL
+	#define FUNC_QCAPS_RESP_FLAGS_PUSH_MODE_SUPPORTED                   0x1UL
+	#define FUNC_QCAPS_RESP_FLAGS_GLOBAL_MSIX_AUTOMASKING               0x2UL
+	#define FUNC_QCAPS_RESP_FLAGS_PTP_SUPPORTED                         0x4UL
+	#define FUNC_QCAPS_RESP_FLAGS_ROCE_V1_SUPPORTED                     0x8UL
+	#define FUNC_QCAPS_RESP_FLAGS_ROCE_V2_SUPPORTED                     0x10UL
+	#define FUNC_QCAPS_RESP_FLAGS_WOL_MAGICPKT_SUPPORTED                0x20UL
+	#define FUNC_QCAPS_RESP_FLAGS_WOL_BMP_SUPPORTED                     0x40UL
+	#define FUNC_QCAPS_RESP_FLAGS_TX_RING_RL_SUPPORTED                  0x80UL
+	#define FUNC_QCAPS_RESP_FLAGS_TX_BW_CFG_SUPPORTED                   0x100UL
+	#define FUNC_QCAPS_RESP_FLAGS_VF_TX_RING_RL_SUPPORTED               0x200UL
+	#define FUNC_QCAPS_RESP_FLAGS_VF_BW_CFG_SUPPORTED                   0x400UL
+	#define FUNC_QCAPS_RESP_FLAGS_STD_TX_RING_MODE_SUPPORTED            0x800UL
+	#define FUNC_QCAPS_RESP_FLAGS_GENEVE_TUN_FLAGS_SUPPORTED            0x1000UL
+	#define FUNC_QCAPS_RESP_FLAGS_NVGRE_TUN_FLAGS_SUPPORTED             0x2000UL
+	#define FUNC_QCAPS_RESP_FLAGS_GRE_TUN_FLAGS_SUPPORTED               0x4000UL
+	#define FUNC_QCAPS_RESP_FLAGS_MPLS_TUN_FLAGS_SUPPORTED              0x8000UL
+	#define FUNC_QCAPS_RESP_FLAGS_PCIE_STATS_SUPPORTED                  0x10000UL
+	#define FUNC_QCAPS_RESP_FLAGS_ADOPTED_PF_SUPPORTED                  0x20000UL
+	#define FUNC_QCAPS_RESP_FLAGS_ADMIN_PF_SUPPORTED                    0x40000UL
+	#define FUNC_QCAPS_RESP_FLAGS_LINK_ADMIN_STATUS_SUPPORTED           0x80000UL
+	#define FUNC_QCAPS_RESP_FLAGS_WCB_PUSH_MODE                         0x100000UL
+	#define FUNC_QCAPS_RESP_FLAGS_DYNAMIC_TX_RING_ALLOC                 0x200000UL
+	#define FUNC_QCAPS_RESP_FLAGS_HOT_RESET_CAPABLE                     0x400000UL
+	#define FUNC_QCAPS_RESP_FLAGS_ERROR_RECOVERY_CAPABLE                0x800000UL
+	#define FUNC_QCAPS_RESP_FLAGS_EXT_STATS_SUPPORTED                   0x1000000UL
+	#define FUNC_QCAPS_RESP_FLAGS_ERR_RECOVER_RELOAD                    0x2000000UL
+	#define FUNC_QCAPS_RESP_FLAGS_NOTIFY_VF_DEF_VNIC_CHNG_SUPPORTED     0x4000000UL
+	#define FUNC_QCAPS_RESP_FLAGS_VLAN_ACCELERATION_TX_DISABLED         0x8000000UL
 	u8	mac_address[6];
 	__le16	max_rsscos_ctx;
 	__le16	max_cmpl_rings;
@@ -1122,6 +1179,7 @@ struct hwrm_func_qcfg_output {
 	#define FUNC_QCFG_RESP_FLAGS_MULTI_HOST                   0x20UL
 	#define FUNC_QCFG_RESP_FLAGS_TRUSTED_VF                   0x40UL
 	#define FUNC_QCFG_RESP_FLAGS_SECURE_MODE_ENABLED          0x80UL
+	#define FUNC_QCFG_RESP_FLAGS_PREBOOT_LEGACY_L2_RINGS      0x100UL
 	u8	mac_address[6];
 	__le16	pci_id;
 	__le16	alloc_rsscos_ctx;
@@ -1204,10 +1262,12 @@ struct hwrm_func_qcfg_output {
 	__le16	alloc_stat_ctx;
 	__le16	alloc_msix;
 	__le16	registered_vfs;
-	u8	unused_1[3];
+	__le16	l2_doorbell_bar_size_kb;
+	u8	unused_1;
 	u8	always_1;
 	__le32	reset_addr_poll;
-	u8	unused_2[3];
+	__le16	legacy_l2_db_size_kb;
+	u8	unused_2[1];
 	u8	valid;
 };
 
@@ -1241,6 +1301,7 @@ struct hwrm_func_cfg_input {
 	#define FUNC_CFG_REQ_FLAGS_DYNAMIC_TX_RING_ALLOC          0x400000UL
 	#define FUNC_CFG_REQ_FLAGS_NQ_ASSETS_TEST                 0x800000UL
 	#define FUNC_CFG_REQ_FLAGS_TRUSTED_VF_DISABLE             0x1000000UL
+	#define FUNC_CFG_REQ_FLAGS_PREBOOT_LEGACY_L2_RINGS        0x2000000UL
 	__le32	enables;
 	#define FUNC_CFG_REQ_ENABLES_MTU                     0x1UL
 	#define FUNC_CFG_REQ_ENABLES_MRU                     0x2UL
@@ -1358,7 +1419,11 @@ struct hwrm_func_qstats_input {
 	__le16	target_id;
 	__le64	resp_addr;
 	__le16	fid;
-	u8	unused_0[6];
+	u8	flags;
+	#define FUNC_QSTATS_REQ_FLAGS_UNUSED    0x0UL
+	#define FUNC_QSTATS_REQ_FLAGS_ROCE_ONLY 0x1UL
+	#define FUNC_QSTATS_REQ_FLAGS_LAST     FUNC_QSTATS_REQ_FLAGS_ROCE_ONLY
+	u8	unused_0[5];
 };
 
 /* hwrm_func_qstats_output (size:1408b/176B) */
@@ -1447,6 +1512,7 @@ struct hwrm_func_drv_rgtr_input {
 	#define FUNC_DRV_RGTR_REQ_FLAGS_FLOW_HANDLE_64BIT_MODE     0x8UL
 	#define FUNC_DRV_RGTR_REQ_FLAGS_HOT_RESET_SUPPORT          0x10UL
 	#define FUNC_DRV_RGTR_REQ_FLAGS_ERROR_RECOVERY_SUPPORT     0x20UL
+	#define FUNC_DRV_RGTR_REQ_FLAGS_MASTER_SUPPORT             0x40UL
 	__le32	enables;
 	#define FUNC_DRV_RGTR_REQ_ENABLES_OS_TYPE             0x1UL
 	#define FUNC_DRV_RGTR_REQ_ENABLES_VER                 0x2UL
@@ -1709,7 +1775,7 @@ struct hwrm_func_backing_store_qcaps_input {
 	__le64	resp_addr;
 };
 
-/* hwrm_func_backing_store_qcaps_output (size:576b/72B) */
+/* hwrm_func_backing_store_qcaps_output (size:640b/80B) */
 struct hwrm_func_backing_store_qcaps_output {
 	__le16	error_code;
 	__le16	req_type;
@@ -1739,6 +1805,10 @@ struct hwrm_func_backing_store_qcaps_output {
 	__le32	tim_max_entries;
 	__le16	mrav_num_entries_units;
 	u8	tqm_entries_multiple;
+	u8	ctx_kind_initializer;
+	__le32	rsvd;
+	__le16	rsvd1;
+	u8	rsvd2;
 	u8	valid;
 };
 
@@ -2471,6 +2541,7 @@ struct hwrm_port_phy_qcfg_output {
 	#define PORT_PHY_QCFG_RESP_MODULE_STATUS_WARNINGMSG    0x2UL
 	#define PORT_PHY_QCFG_RESP_MODULE_STATUS_PWRDOWN       0x3UL
 	#define PORT_PHY_QCFG_RESP_MODULE_STATUS_NOTINSERTED   0x4UL
+	#define PORT_PHY_QCFG_RESP_MODULE_STATUS_CURRENTFAULT  0x5UL
 	#define PORT_PHY_QCFG_RESP_MODULE_STATUS_NOTAPPLICABLE 0xffUL
 	#define PORT_PHY_QCFG_RESP_MODULE_STATUS_LAST         PORT_PHY_QCFG_RESP_MODULE_STATUS_NOTAPPLICABLE
 	__le32	preemphasis;
@@ -2708,8 +2779,8 @@ struct hwrm_port_mac_ptp_qcfg_output {
 	__le16	resp_len;
 	u8	flags;
 	#define PORT_MAC_PTP_QCFG_RESP_FLAGS_DIRECT_ACCESS      0x1UL
-	#define PORT_MAC_PTP_QCFG_RESP_FLAGS_HWRM_ACCESS        0x2UL
 	#define PORT_MAC_PTP_QCFG_RESP_FLAGS_ONE_STEP_TX_TS     0x4UL
+	#define PORT_MAC_PTP_QCFG_RESP_FLAGS_HWRM_ACCESS        0x8UL
 	u8	unused_0[3];
 	__le32	rx_ts_reg_off_lower;
 	__le32	rx_ts_reg_off_upper;
@@ -2916,7 +2987,7 @@ struct tx_port_stats_ext {
 	__le64	pfc_pri7_tx_transitions;
 };
 
-/* rx_port_stats_ext (size:2624b/328B) */
+/* rx_port_stats_ext (size:3648b/456B) */
 struct rx_port_stats_ext {
 	__le64	link_down_events;
 	__le64	continuous_pause_events;
@@ -2959,6 +3030,22 @@ struct rx_port_stats_ext {
 	__le64	rx_buffer_passed_threshold;
 	__le64	rx_pcs_symbol_err;
 	__le64	rx_corrected_bits;
+	__le64	rx_discard_bytes_cos0;
+	__le64	rx_discard_bytes_cos1;
+	__le64	rx_discard_bytes_cos2;
+	__le64	rx_discard_bytes_cos3;
+	__le64	rx_discard_bytes_cos4;
+	__le64	rx_discard_bytes_cos5;
+	__le64	rx_discard_bytes_cos6;
+	__le64	rx_discard_bytes_cos7;
+	__le64	rx_discard_packets_cos0;
+	__le64	rx_discard_packets_cos1;
+	__le64	rx_discard_packets_cos2;
+	__le64	rx_discard_packets_cos3;
+	__le64	rx_discard_packets_cos4;
+	__le64	rx_discard_packets_cos5;
+	__le64	rx_discard_packets_cos6;
+	__le64	rx_discard_packets_cos7;
 };
 
 /* hwrm_port_qstats_ext_input (size:320b/40B) */
@@ -3108,10 +3195,12 @@ struct hwrm_port_phy_qcaps_output {
 	__le16	seq_id;
 	__le16	resp_len;
 	u8	flags;
-	#define PORT_PHY_QCAPS_RESP_FLAGS_EEE_SUPPORTED               0x1UL
-	#define PORT_PHY_QCAPS_RESP_FLAGS_EXTERNAL_LPBK_SUPPORTED     0x2UL
-	#define PORT_PHY_QCAPS_RESP_FLAGS_RSVD1_MASK                  0xfcUL
-	#define PORT_PHY_QCAPS_RESP_FLAGS_RSVD1_SFT                   2
+	#define PORT_PHY_QCAPS_RESP_FLAGS_EEE_SUPPORTED                0x1UL
+	#define PORT_PHY_QCAPS_RESP_FLAGS_EXTERNAL_LPBK_SUPPORTED      0x2UL
+	#define PORT_PHY_QCAPS_RESP_FLAGS_AUTONEG_LPBK_SUPPORTED       0x4UL
+	#define PORT_PHY_QCAPS_RESP_FLAGS_SHARED_PHY_CFG_SUPPORTED     0x8UL
+	#define PORT_PHY_QCAPS_RESP_FLAGS_RSVD1_MASK                   0xf0UL
+	#define PORT_PHY_QCAPS_RESP_FLAGS_RSVD1_SFT                    4
 	u8	port_cnt;
 	#define PORT_PHY_QCAPS_RESP_PORT_CNT_UNKNOWN 0x0UL
 	#define PORT_PHY_QCAPS_RESP_PORT_CNT_1       0x1UL
@@ -4693,7 +4782,7 @@ struct hwrm_vnic_free_output {
 	u8	valid;
 };
 
-/* hwrm_vnic_cfg_input (size:320b/40B) */
+/* hwrm_vnic_cfg_input (size:384b/48B) */
 struct hwrm_vnic_cfg_input {
 	__le16	req_type;
 	__le16	cmpl_ring;
@@ -4716,6 +4805,7 @@ struct hwrm_vnic_cfg_input {
 	#define VNIC_CFG_REQ_ENABLES_MRU                      0x10UL
 	#define VNIC_CFG_REQ_ENABLES_DEFAULT_RX_RING_ID       0x20UL
 	#define VNIC_CFG_REQ_ENABLES_DEFAULT_CMPL_RING_ID     0x40UL
+	#define VNIC_CFG_REQ_ENABLES_QUEUE_ID                 0x80UL
 	__le16	vnic_id;
 	__le16	dflt_ring_grp;
 	__le16	rss_rule;
@@ -4724,6 +4814,8 @@ struct hwrm_vnic_cfg_input {
 	__le16	mru;
 	__le16	default_rx_ring_id;
 	__le16	default_cmpl_ring_id;
+	__le16	queue_id;
+	u8	unused0[6];
 };
 
 /* hwrm_vnic_cfg_output (size:128b/16B) */
@@ -4764,6 +4856,7 @@ struct hwrm_vnic_qcaps_output {
 	#define VNIC_QCAPS_RESP_FLAGS_RSS_DFLT_CR_CAP                     0x20UL
 	#define VNIC_QCAPS_RESP_FLAGS_ROCE_MIRRORING_CAPABLE_VNIC_CAP     0x40UL
 	#define VNIC_QCAPS_RESP_FLAGS_OUTERMOST_RSS_CAP                   0x80UL
+	#define VNIC_QCAPS_RESP_FLAGS_COS_ASSIGNMENT_CAP                  0x100UL
 	__le16	max_aggs_supported;
 	u8	unused_1[5];
 	u8	valid;
@@ -4905,6 +4998,15 @@ struct hwrm_vnic_rss_cfg_output {
 	__le16	resp_len;
 	u8	unused_0[7];
 	u8	valid;
+};
+
+/* hwrm_vnic_rss_cfg_cmd_err (size:64b/8B) */
+struct hwrm_vnic_rss_cfg_cmd_err {
+	u8	code;
+	#define VNIC_RSS_CFG_CMD_ERR_CODE_UNKNOWN             0x0UL
+	#define VNIC_RSS_CFG_CMD_ERR_CODE_INTERFACE_NOT_READY 0x1UL
+	#define VNIC_RSS_CFG_CMD_ERR_CODE_LAST               VNIC_RSS_CFG_CMD_ERR_CODE_INTERFACE_NOT_READY
+	u8	unused_0[7];
 };
 
 /* hwrm_vnic_plcmodes_cfg_input (size:320b/40B) */
@@ -5734,7 +5836,7 @@ struct hwrm_cfa_encap_record_free_output {
 	u8	valid;
 };
 
-/* hwrm_cfa_ntuple_filter_alloc_input (size:1088b/136B) */
+/* hwrm_cfa_ntuple_filter_alloc_input (size:1024b/128B) */
 struct hwrm_cfa_ntuple_filter_alloc_input {
 	__le16	req_type;
 	__le16	cmpl_ring;
@@ -5742,10 +5844,12 @@ struct hwrm_cfa_ntuple_filter_alloc_input {
 	__le16	target_id;
 	__le64	resp_addr;
 	__le32	flags;
-	#define CFA_NTUPLE_FILTER_ALLOC_REQ_FLAGS_LOOPBACK     0x1UL
-	#define CFA_NTUPLE_FILTER_ALLOC_REQ_FLAGS_DROP         0x2UL
-	#define CFA_NTUPLE_FILTER_ALLOC_REQ_FLAGS_METER        0x4UL
-	#define CFA_NTUPLE_FILTER_ALLOC_REQ_FLAGS_DEST_FID     0x8UL
+	#define CFA_NTUPLE_FILTER_ALLOC_REQ_FLAGS_LOOPBACK              0x1UL
+	#define CFA_NTUPLE_FILTER_ALLOC_REQ_FLAGS_DROP                  0x2UL
+	#define CFA_NTUPLE_FILTER_ALLOC_REQ_FLAGS_METER                 0x4UL
+	#define CFA_NTUPLE_FILTER_ALLOC_REQ_FLAGS_DEST_FID              0x8UL
+	#define CFA_NTUPLE_FILTER_ALLOC_REQ_FLAGS_ARP_REPLY             0x10UL
+	#define CFA_NTUPLE_FILTER_ALLOC_REQ_FLAGS_DEST_RFS_RING_IDX     0x20UL
 	__le32	enables;
 	#define CFA_NTUPLE_FILTER_ALLOC_REQ_ENABLES_L2_FILTER_ID         0x1UL
 	#define CFA_NTUPLE_FILTER_ALLOC_REQ_ENABLES_ETHERTYPE            0x2UL
@@ -5814,8 +5918,6 @@ struct hwrm_cfa_ntuple_filter_alloc_input {
 	__be16	dst_port;
 	__be16	dst_port_mask;
 	__le64	ntuple_filter_id_hint;
-	__le16	rfs_ring_tbl_idx;
-	u8	unused_0[6];
 };
 
 /* hwrm_cfa_ntuple_filter_alloc_output (size:192b/24B) */
@@ -5881,7 +5983,8 @@ struct hwrm_cfa_ntuple_filter_cfg_input {
 	#define CFA_NTUPLE_FILTER_CFG_REQ_ENABLES_NEW_MIRROR_VNIC_ID        0x2UL
 	#define CFA_NTUPLE_FILTER_CFG_REQ_ENABLES_NEW_METER_INSTANCE_ID     0x4UL
 	__le32	flags;
-	#define CFA_NTUPLE_FILTER_CFG_REQ_FLAGS_DEST_FID     0x1UL
+	#define CFA_NTUPLE_FILTER_CFG_REQ_FLAGS_DEST_FID              0x1UL
+	#define CFA_NTUPLE_FILTER_CFG_REQ_FLAGS_DEST_RFS_RING_IDX     0x2UL
 	__le64	ntuple_filter_id;
 	__le32	new_dst_id;
 	__le32	new_mirror_vnic_id;
@@ -6115,6 +6218,21 @@ struct hwrm_cfa_flow_alloc_output {
 	u8	valid;
 };
 
+/* hwrm_cfa_flow_alloc_cmd_err (size:64b/8B) */
+struct hwrm_cfa_flow_alloc_cmd_err {
+	u8	code;
+	#define CFA_FLOW_ALLOC_CMD_ERR_CODE_UNKNOWN         0x0UL
+	#define CFA_FLOW_ALLOC_CMD_ERR_CODE_L2_CONTEXT_TCAM 0x1UL
+	#define CFA_FLOW_ALLOC_CMD_ERR_CODE_ACTION_RECORD   0x2UL
+	#define CFA_FLOW_ALLOC_CMD_ERR_CODE_FLOW_COUNTER    0x3UL
+	#define CFA_FLOW_ALLOC_CMD_ERR_CODE_WILD_CARD_TCAM  0x4UL
+	#define CFA_FLOW_ALLOC_CMD_ERR_CODE_HASH_COLLISION  0x5UL
+	#define CFA_FLOW_ALLOC_CMD_ERR_CODE_KEY_EXISTS      0x6UL
+	#define CFA_FLOW_ALLOC_CMD_ERR_CODE_FLOW_CTXT_DB    0x7UL
+	#define CFA_FLOW_ALLOC_CMD_ERR_CODE_LAST           CFA_FLOW_ALLOC_CMD_ERR_CODE_FLOW_CTXT_DB
+	u8	unused_0[7];
+};
+
 /* hwrm_cfa_flow_free_input (size:256b/32B) */
 struct hwrm_cfa_flow_free_input {
 	__le16	req_type;
@@ -6305,7 +6423,7 @@ struct hwrm_cfa_eem_qcaps_input {
 	__le32	unused_0;
 };
 
-/* hwrm_cfa_eem_qcaps_output (size:256b/32B) */
+/* hwrm_cfa_eem_qcaps_output (size:320b/40B) */
 struct hwrm_cfa_eem_qcaps_output {
 	__le16	error_code;
 	__le16	req_type;
@@ -6322,15 +6440,17 @@ struct hwrm_cfa_eem_qcaps_output {
 	#define CFA_EEM_QCAPS_RESP_SUPPORTED_KEY1_TABLE                       0x2UL
 	#define CFA_EEM_QCAPS_RESP_SUPPORTED_EXTERNAL_RECORD_TABLE            0x4UL
 	#define CFA_EEM_QCAPS_RESP_SUPPORTED_EXTERNAL_FLOW_COUNTERS_TABLE     0x8UL
+	#define CFA_EEM_QCAPS_RESP_SUPPORTED_FID_TABLE                        0x10UL
 	__le32	max_entries_supported;
 	__le16	key_entry_size;
 	__le16	record_entry_size;
 	__le16	efc_entry_size;
-	u8	unused_1;
+	__le16	fid_entry_size;
+	u8	unused_1[7];
 	u8	valid;
 };
 
-/* hwrm_cfa_eem_cfg_input (size:320b/40B) */
+/* hwrm_cfa_eem_cfg_input (size:384b/48B) */
 struct hwrm_cfa_eem_cfg_input {
 	__le16	req_type;
 	__le16	cmpl_ring;
@@ -6350,6 +6470,9 @@ struct hwrm_cfa_eem_cfg_input {
 	__le16	key1_ctx_id;
 	__le16	record_ctx_id;
 	__le16	efc_ctx_id;
+	__le16	fid_ctx_id;
+	__le16	unused_2;
+	__le32	unused_3;
 };
 
 /* hwrm_cfa_eem_cfg_output (size:128b/16B) */
@@ -6375,7 +6498,7 @@ struct hwrm_cfa_eem_qcfg_input {
 	__le32	unused_0;
 };
 
-/* hwrm_cfa_eem_qcfg_output (size:192b/24B) */
+/* hwrm_cfa_eem_qcfg_output (size:256b/32B) */
 struct hwrm_cfa_eem_qcfg_output {
 	__le16	error_code;
 	__le16	req_type;
@@ -6386,7 +6509,12 @@ struct hwrm_cfa_eem_qcfg_output {
 	#define CFA_EEM_QCFG_RESP_FLAGS_PATH_RX               0x2UL
 	#define CFA_EEM_QCFG_RESP_FLAGS_PREFERRED_OFFLOAD     0x4UL
 	__le32	num_entries;
-	u8	unused_0[7];
+	__le16	key0_ctx_id;
+	__le16	key1_ctx_id;
+	__le16	record_ctx_id;
+	__le16	efc_ctx_id;
+	__le16	fid_ctx_id;
+	u8	unused_2[5];
 	u8	valid;
 };
 
@@ -6436,18 +6564,21 @@ struct hwrm_cfa_adv_flow_mgnt_qcaps_output {
 	__le16	seq_id;
 	__le16	resp_len;
 	__le32	flags;
-	#define CFA_ADV_FLOW_MGNT_QCAPS_RESP_FLAGS_FLOW_HND_16BIT_SUPPORTED              0x1UL
-	#define CFA_ADV_FLOW_MGNT_QCAPS_RESP_FLAGS_FLOW_HND_64BIT_SUPPORTED              0x2UL
-	#define CFA_ADV_FLOW_MGNT_QCAPS_RESP_FLAGS_FLOW_BATCH_DELETE_SUPPORTED           0x4UL
-	#define CFA_ADV_FLOW_MGNT_QCAPS_RESP_FLAGS_FLOW_RESET_ALL_SUPPORTED              0x8UL
-	#define CFA_ADV_FLOW_MGNT_QCAPS_RESP_FLAGS_NTUPLE_FLOW_DEST_FUNC_SUPPORTED       0x10UL
-	#define CFA_ADV_FLOW_MGNT_QCAPS_RESP_FLAGS_TX_EEM_FLOW_SUPPORTED                 0x20UL
-	#define CFA_ADV_FLOW_MGNT_QCAPS_RESP_FLAGS_RX_EEM_FLOW_SUPPORTED                 0x40UL
-	#define CFA_ADV_FLOW_MGNT_QCAPS_RESP_FLAGS_FLOW_COUNTER_ALLOC_SUPPORTED          0x80UL
-	#define CFA_ADV_FLOW_MGNT_QCAPS_RESP_FLAGS_RFS_RING_TBL_IDX_SUPPORTED            0x100UL
-	#define CFA_ADV_FLOW_MGNT_QCAPS_RESP_FLAGS_UNTAGGED_VLAN_SUPPORTED               0x200UL
-	#define CFA_ADV_FLOW_MGNT_QCAPS_RESP_FLAGS_XDP_SUPPORTED                         0x400UL
-	#define CFA_ADV_FLOW_MGNT_QCAPS_RESP_FLAGS_L2_HEADER_SOURCE_FIELDS_SUPPORTED     0x800UL
+	#define CFA_ADV_FLOW_MGNT_QCAPS_RESP_FLAGS_FLOW_HND_16BIT_SUPPORTED                  0x1UL
+	#define CFA_ADV_FLOW_MGNT_QCAPS_RESP_FLAGS_FLOW_HND_64BIT_SUPPORTED                  0x2UL
+	#define CFA_ADV_FLOW_MGNT_QCAPS_RESP_FLAGS_FLOW_BATCH_DELETE_SUPPORTED               0x4UL
+	#define CFA_ADV_FLOW_MGNT_QCAPS_RESP_FLAGS_FLOW_RESET_ALL_SUPPORTED                  0x8UL
+	#define CFA_ADV_FLOW_MGNT_QCAPS_RESP_FLAGS_NTUPLE_FLOW_DEST_FUNC_SUPPORTED           0x10UL
+	#define CFA_ADV_FLOW_MGNT_QCAPS_RESP_FLAGS_TX_EEM_FLOW_SUPPORTED                     0x20UL
+	#define CFA_ADV_FLOW_MGNT_QCAPS_RESP_FLAGS_RX_EEM_FLOW_SUPPORTED                     0x40UL
+	#define CFA_ADV_FLOW_MGNT_QCAPS_RESP_FLAGS_FLOW_COUNTER_ALLOC_SUPPORTED              0x80UL
+	#define CFA_ADV_FLOW_MGNT_QCAPS_RESP_FLAGS_RFS_RING_TBL_IDX_SUPPORTED                0x100UL
+	#define CFA_ADV_FLOW_MGNT_QCAPS_RESP_FLAGS_UNTAGGED_VLAN_SUPPORTED                   0x200UL
+	#define CFA_ADV_FLOW_MGNT_QCAPS_RESP_FLAGS_XDP_SUPPORTED                             0x400UL
+	#define CFA_ADV_FLOW_MGNT_QCAPS_RESP_FLAGS_L2_HEADER_SOURCE_FIELDS_SUPPORTED         0x800UL
+	#define CFA_ADV_FLOW_MGNT_QCAPS_RESP_FLAGS_NTUPLE_FLOW_RX_ARP_SUPPORTED              0x1000UL
+	#define CFA_ADV_FLOW_MGNT_QCAPS_RESP_FLAGS_RFS_RING_TBL_IDX_V2_SUPPORTED             0x2000UL
+	#define CFA_ADV_FLOW_MGNT_QCAPS_RESP_FLAGS_NTUPLE_FLOW_RX_ETHERTYPE_IP_SUPPORTED     0x4000UL
 	u8	unused_0[3];
 	u8	valid;
 };
@@ -6567,6 +6698,31 @@ struct ctx_hw_stats {
 	__le64	tpa_aborts;
 };
 
+/* ctx_hw_stats_ext (size:1344b/168B) */
+struct ctx_hw_stats_ext {
+	__le64	rx_ucast_pkts;
+	__le64	rx_mcast_pkts;
+	__le64	rx_bcast_pkts;
+	__le64	rx_discard_pkts;
+	__le64	rx_drop_pkts;
+	__le64	rx_ucast_bytes;
+	__le64	rx_mcast_bytes;
+	__le64	rx_bcast_bytes;
+	__le64	tx_ucast_pkts;
+	__le64	tx_mcast_pkts;
+	__le64	tx_bcast_pkts;
+	__le64	tx_discard_pkts;
+	__le64	tx_drop_pkts;
+	__le64	tx_ucast_bytes;
+	__le64	tx_mcast_bytes;
+	__le64	tx_bcast_bytes;
+	__le64	rx_tpa_eligible_pkt;
+	__le64	rx_tpa_eligible_bytes;
+	__le64	rx_tpa_pkt;
+	__le64	rx_tpa_bytes;
+	__le64	rx_tpa_errors;
+};
+
 /* hwrm_stat_ctx_alloc_input (size:256b/32B) */
 struct hwrm_stat_ctx_alloc_input {
 	__le16	req_type;
@@ -6578,7 +6734,8 @@ struct hwrm_stat_ctx_alloc_input {
 	__le32	update_period_ms;
 	u8	stat_ctx_flags;
 	#define STAT_CTX_ALLOC_REQ_STAT_CTX_FLAGS_ROCE     0x1UL
-	u8	unused_0[3];
+	u8	unused_0;
+	__le16	stats_dma_length;
 };
 
 /* hwrm_stat_ctx_alloc_output (size:128b/16B) */
@@ -6722,15 +6879,16 @@ struct hwrm_fw_reset_input {
 	__le16	target_id;
 	__le64	resp_addr;
 	u8	embedded_proc_type;
-	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_BOOT                 0x0UL
-	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_MGMT                 0x1UL
-	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_NETCTRL              0x2UL
-	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_ROCE                 0x3UL
-	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_HOST                 0x4UL
-	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_AP                   0x5UL
-	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_CHIP                 0x6UL
-	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_HOST_RESOURCE_REINIT 0x7UL
-	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_LAST                FW_RESET_REQ_EMBEDDED_PROC_TYPE_HOST_RESOURCE_REINIT
+	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_BOOT                  0x0UL
+	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_MGMT                  0x1UL
+	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_NETCTRL               0x2UL
+	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_ROCE                  0x3UL
+	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_HOST                  0x4UL
+	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_AP                    0x5UL
+	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_CHIP                  0x6UL
+	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_HOST_RESOURCE_REINIT  0x7UL
+	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_IMPACTLESS_ACTIVATION 0x8UL
+	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_LAST                 FW_RESET_REQ_EMBEDDED_PROC_TYPE_IMPACTLESS_ACTIVATION
 	u8	selfrst_status;
 	#define FW_RESET_REQ_SELFRST_STATUS_SELFRSTNONE      0x0UL
 	#define FW_RESET_REQ_SELFRST_STATUS_SELFRSTASAP      0x1UL
@@ -7053,7 +7211,14 @@ struct hwrm_temp_monitor_query_output {
 	__le16	seq_id;
 	__le16	resp_len;
 	u8	temp;
-	u8	unused_0[6];
+	u8	phy_temp;
+	u8	om_temp;
+	u8	flags;
+	#define TEMP_MONITOR_QUERY_RESP_FLAGS_TEMP_NOT_AVAILABLE         0x1UL
+	#define TEMP_MONITOR_QUERY_RESP_FLAGS_PHY_TEMP_NOT_AVAILABLE     0x2UL
+	#define TEMP_MONITOR_QUERY_RESP_FLAGS_OM_NOT_PRESENT             0x4UL
+	#define TEMP_MONITOR_QUERY_RESP_FLAGS_OM_TEMP_NOT_AVAILABLE      0x8UL
+	u8	unused_0[3];
 	u8	valid;
 };
 
@@ -7204,7 +7369,9 @@ struct coredump_segment_record {
 	u8	version_hi;
 	u8	version_low;
 	u8	seg_flags;
-	u8	unused_0[7];
+	u8	compress_flags;
+	#define SFLAG_COMPRESSED_ZLIB     0x1UL
+	u8	unused_0[6];
 };
 
 /* hwrm_dbg_coredump_list_input (size:256b/32B) */
@@ -7729,6 +7896,9 @@ struct hwrm_nvm_set_variable_input {
 	#define NVM_SET_VARIABLE_REQ_FLAGS_ENCRYPT_MODE_AES256          (0x2UL << 1)
 	#define NVM_SET_VARIABLE_REQ_FLAGS_ENCRYPT_MODE_HMAC_SHA1_AUTH  (0x3UL << 1)
 	#define NVM_SET_VARIABLE_REQ_FLAGS_ENCRYPT_MODE_LAST           NVM_SET_VARIABLE_REQ_FLAGS_ENCRYPT_MODE_HMAC_SHA1_AUTH
+	#define NVM_SET_VARIABLE_REQ_FLAGS_FLAGS_UNUSED_0_MASK        0x70UL
+	#define NVM_SET_VARIABLE_REQ_FLAGS_FLAGS_UNUSED_0_SFT         4
+	#define NVM_SET_VARIABLE_REQ_FLAGS_FACTORY_DEFAULT            0x80UL
 	u8	unused_0;
 };
 

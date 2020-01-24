@@ -192,6 +192,11 @@ struct hinic_rq_ctxt {
 	u32     wq_block_lo_pfn;
 };
 
+struct hinic_clean_queue_ctxt {
+	struct hinic_qp_ctxt_header	cmdq_hdr;
+	u32				ctxt_size;
+};
+
 struct hinic_sq_ctxt_block {
 	struct hinic_qp_ctxt_header hdr;
 	struct hinic_sq_ctxt sq_ctxt[HINIC_Q_CTXT_MAX];

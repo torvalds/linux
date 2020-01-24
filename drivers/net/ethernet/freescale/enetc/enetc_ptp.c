@@ -7,6 +7,9 @@
 
 #include "enetc.h"
 
+int enetc_phc_index = -1;
+EXPORT_SYMBOL(enetc_phc_index);
+
 static struct ptp_clock_info enetc_ptp_caps = {
 	.owner		= THIS_MODULE,
 	.name		= "ENETC PTP clock",
@@ -79,7 +82,7 @@ static int enetc_ptp_probe(struct pci_dev *pdev,
 	n = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSIX);
 	if (n != 1) {
 		err = -EPERM;
-		goto err_irq;
+		goto err_irq_vectors;
 	}
 
 	ptp_qoriq->irq = pci_irq_vector(pdev, 0);
@@ -96,6 +99,7 @@ static int enetc_ptp_probe(struct pci_dev *pdev,
 	if (err)
 		goto err_no_clock;
 
+	enetc_phc_index = ptp_qoriq->phc_index;
 	pci_set_drvdata(pdev, ptp_qoriq);
 
 	return 0;
@@ -103,6 +107,8 @@ static int enetc_ptp_probe(struct pci_dev *pdev,
 err_no_clock:
 	free_irq(ptp_qoriq->irq, ptp_qoriq);
 err_irq:
+	pci_free_irq_vectors(pdev);
+err_irq_vectors:
 	iounmap(base);
 err_ioremap:
 	kfree(ptp_qoriq);
@@ -119,7 +125,9 @@ static void enetc_ptp_remove(struct pci_dev *pdev)
 {
 	struct ptp_qoriq *ptp_qoriq = pci_get_drvdata(pdev);
 
+	enetc_phc_index = -1;
 	ptp_qoriq_free(ptp_qoriq);
+	pci_free_irq_vectors(pdev);
 	kfree(ptp_qoriq);
 
 	pci_release_mem_regions(pdev);

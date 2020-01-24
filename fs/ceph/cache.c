@@ -6,6 +6,9 @@
  *  Written by Milosz Tanski (milosz@adfin.com)
  */
 
+#include <linux/ceph/ceph_debug.h>
+
+#include <linux/fs_context.h>
 #include "super.h"
 #include "cache.h"
 
@@ -47,7 +50,7 @@ void ceph_fscache_unregister(void)
 	fscache_unregister_netfs(&ceph_cache_netfs);
 }
 
-int ceph_fscache_register_fs(struct ceph_fs_client* fsc)
+int ceph_fscache_register_fs(struct ceph_fs_client* fsc, struct fs_context *fc)
 {
 	const struct ceph_fsid *fsid = &fsc->client->fsid;
 	const char *fscache_uniq = fsc->mount_options->fscache_uniq;
@@ -64,8 +67,8 @@ int ceph_fscache_register_fs(struct ceph_fs_client* fsc)
 		if (uniq_len && memcmp(ent->uniquifier, fscache_uniq, uniq_len))
 			continue;
 
-		pr_err("fscache cookie already registered for fsid %pU\n", fsid);
-		pr_err("  use fsc=%%s mount option to specify a uniquifier\n");
+		errorf(fc, "ceph: fscache cookie already registered for fsid %pU, use fsc=<uniquifier> option",
+		       fsid);
 		err = -EBUSY;
 		goto out_unlock;
 	}
@@ -93,7 +96,7 @@ int ceph_fscache_register_fs(struct ceph_fs_client* fsc)
 		list_add_tail(&ent->list, &ceph_fscache_list);
 	} else {
 		kfree(ent);
-		pr_err("unable to register fscache cookie for fsid %pU\n",
+		errorf(fc, "ceph: unable to register fscache cookie for fsid %pU",
 		       fsid);
 		/* all other fs ignore this error */
 	}

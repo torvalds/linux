@@ -26,7 +26,6 @@ __be32 nfs4_callback_getattr(void *argp, void *resp,
 	struct cb_getattrargs *args = argp;
 	struct cb_getattrres *res = resp;
 	struct nfs_delegation *delegation;
-	struct nfs_inode *nfsi;
 	struct inode *inode;
 
 	res->status = htonl(NFS4ERR_OP_NOT_IN_SESSION);
@@ -47,17 +46,16 @@ __be32 nfs4_callback_getattr(void *argp, void *resp,
 				-ntohl(res->status));
 		goto out;
 	}
-	nfsi = NFS_I(inode);
 	rcu_read_lock();
-	delegation = rcu_dereference(nfsi->delegation);
+	delegation = nfs4_get_valid_delegation(inode);
 	if (delegation == NULL || (delegation->type & FMODE_WRITE) == 0)
 		goto out_iput;
 	res->size = i_size_read(inode);
 	res->change_attr = delegation->change_attr;
 	if (nfs_have_writebacks(inode))
 		res->change_attr++;
-	res->ctime = timespec64_to_timespec(inode->i_ctime);
-	res->mtime = timespec64_to_timespec(inode->i_mtime);
+	res->ctime = inode->i_ctime;
+	res->mtime = inode->i_mtime;
 	res->bitmap[0] = (FATTR4_WORD0_CHANGE|FATTR4_WORD0_SIZE) &
 		args->bitmap[0];
 	res->bitmap[1] = (FATTR4_WORD1_TIME_METADATA|FATTR4_WORD1_TIME_MODIFY) &
@@ -414,27 +412,39 @@ static __be32
 validate_seqid(const struct nfs4_slot_table *tbl, const struct nfs4_slot *slot,
 		const struct cb_sequenceargs * args)
 {
+	__be32 ret;
+
+	ret = cpu_to_be32(NFS4ERR_BADSLOT);
 	if (args->csa_slotid > tbl->server_highest_slotid)
-		return htonl(NFS4ERR_BADSLOT);
+		goto out_err;
 
 	/* Replay */
 	if (args->csa_sequenceid == slot->seq_nr) {
+		ret = cpu_to_be32(NFS4ERR_DELAY);
 		if (nfs4_test_locked_slot(tbl, slot->slot_nr))
-			return htonl(NFS4ERR_DELAY);
+			goto out_err;
+
 		/* Signal process_op to set this error on next op */
+		ret = cpu_to_be32(NFS4ERR_RETRY_UNCACHED_REP);
 		if (args->csa_cachethis == 0)
-			return htonl(NFS4ERR_RETRY_UNCACHED_REP);
+			goto out_err;
 
 		/* Liar! We never allowed you to set csa_cachethis != 0 */
-		return htonl(NFS4ERR_SEQ_FALSE_RETRY);
+		ret = cpu_to_be32(NFS4ERR_SEQ_FALSE_RETRY);
+		goto out_err;
 	}
 
 	/* Note: wraparound relies on seq_nr being of type u32 */
-	if (likely(args->csa_sequenceid == slot->seq_nr + 1))
-		return htonl(NFS4_OK);
-
 	/* Misordered request */
-	return htonl(NFS4ERR_SEQ_MISORDERED);
+	ret = cpu_to_be32(NFS4ERR_SEQ_MISORDERED);
+	if (args->csa_sequenceid != slot->seq_nr + 1)
+		goto out_err;
+
+	return cpu_to_be32(NFS4_OK);
+
+out_err:
+	trace_nfs4_cb_seqid_err(args, ret);
+	return ret;
 }
 
 /*

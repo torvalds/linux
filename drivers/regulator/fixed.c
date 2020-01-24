@@ -23,13 +23,62 @@
 #include <linux/gpio/consumer.h>
 #include <linux/slab.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/regulator/of_regulator.h>
 #include <linux/regulator/machine.h>
+#include <linux/clk.h>
+
 
 struct fixed_voltage_data {
 	struct regulator_desc desc;
 	struct regulator_dev *dev;
+
+	struct clk *enable_clock;
+	unsigned int clk_enable_counter;
 };
+
+struct fixed_dev_type {
+	bool has_enable_clock;
+};
+
+static const struct fixed_dev_type fixed_voltage_data = {
+	.has_enable_clock = false,
+};
+
+static const struct fixed_dev_type fixed_clkenable_data = {
+	.has_enable_clock = true,
+};
+
+static int reg_clock_enable(struct regulator_dev *rdev)
+{
+	struct fixed_voltage_data *priv = rdev_get_drvdata(rdev);
+	int ret = 0;
+
+	ret = clk_prepare_enable(priv->enable_clock);
+	if (ret)
+		return ret;
+
+	priv->clk_enable_counter++;
+
+	return ret;
+}
+
+static int reg_clock_disable(struct regulator_dev *rdev)
+{
+	struct fixed_voltage_data *priv = rdev_get_drvdata(rdev);
+
+	clk_disable_unprepare(priv->enable_clock);
+	priv->clk_enable_counter--;
+
+	return 0;
+}
+
+static int reg_clock_is_enabled(struct regulator_dev *rdev)
+{
+	struct fixed_voltage_data *priv = rdev_get_drvdata(rdev);
+
+	return priv->clk_enable_counter > 0;
+}
 
 
 /**
@@ -74,6 +123,7 @@ of_get_fixed_voltage_config(struct device *dev,
 		config->enabled_at_boot = true;
 
 	of_property_read_u32(np, "startup-delay-us", &config->startup_delay);
+	of_property_read_u32(np, "off-on-delay-us", &config->off_on_delay);
 
 	if (of_find_property(np, "vin-supply", NULL))
 		config->input_supply = "vin";
@@ -84,10 +134,18 @@ of_get_fixed_voltage_config(struct device *dev,
 static struct regulator_ops fixed_voltage_ops = {
 };
 
+static struct regulator_ops fixed_voltage_clkenabled_ops = {
+	.enable = reg_clock_enable,
+	.disable = reg_clock_disable,
+	.is_enabled = reg_clock_is_enabled,
+};
+
 static int reg_fixed_voltage_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct fixed_voltage_config *config;
 	struct fixed_voltage_data *drvdata;
+	const struct fixed_dev_type *drvtype = of_device_get_match_data(dev);
 	struct regulator_config cfg = { };
 	enum gpiod_flags gflags;
 	int ret;
@@ -118,9 +176,21 @@ static int reg_fixed_voltage_probe(struct platform_device *pdev)
 	}
 	drvdata->desc.type = REGULATOR_VOLTAGE;
 	drvdata->desc.owner = THIS_MODULE;
-	drvdata->desc.ops = &fixed_voltage_ops;
+
+	if (drvtype && drvtype->has_enable_clock) {
+		drvdata->desc.ops = &fixed_voltage_clkenabled_ops;
+
+		drvdata->enable_clock = devm_clk_get(dev, NULL);
+		if (IS_ERR(drvdata->enable_clock)) {
+			dev_err(dev, "Cant get enable-clock from devicetree\n");
+			return -ENOENT;
+		}
+	} else {
+		drvdata->desc.ops = &fixed_voltage_ops;
+	}
 
 	drvdata->desc.enable_time = config->startup_delay;
+	drvdata->desc.off_on_delay = config->off_on_delay;
 
 	if (config->input_supply) {
 		drvdata->desc.supply_name = devm_kstrdup(&pdev->dev,
@@ -191,8 +261,16 @@ static int reg_fixed_voltage_probe(struct platform_device *pdev)
 
 #if defined(CONFIG_OF)
 static const struct of_device_id fixed_of_match[] = {
-	{ .compatible = "regulator-fixed", },
-	{},
+	{
+		.compatible = "regulator-fixed",
+		.data = &fixed_voltage_data,
+	},
+	{
+		.compatible = "regulator-fixed-clock",
+		.data = &fixed_clkenable_data,
+	},
+	{
+	},
 };
 MODULE_DEVICE_TABLE(of, fixed_of_match);
 #endif

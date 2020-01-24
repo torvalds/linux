@@ -180,7 +180,7 @@ static struct bpf_align_test tests[] = {
 		},
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 		.matches = {
-			{7, "R0=pkt(id=0,off=8,r=8,imm=0)"},
+			{7, "R0_w=pkt(id=0,off=8,r=8,imm=0)"},
 			{7, "R3_w=inv(id=0,umax_value=255,var_off=(0x0; 0xff))"},
 			{8, "R3_w=inv(id=0,umax_value=510,var_off=(0x0; 0x1fe))"},
 			{9, "R3_w=inv(id=0,umax_value=1020,var_off=(0x0; 0x3fc))"},
@@ -315,7 +315,7 @@ static struct bpf_align_test tests[] = {
 			/* Calculated offset in R6 has unknown value, but known
 			 * alignment of 4.
 			 */
-			{8, "R2=pkt(id=0,off=0,r=8,imm=0)"},
+			{8, "R2_w=pkt(id=0,off=0,r=8,imm=0)"},
 			{8, "R6_w=inv(id=0,umax_value=1020,var_off=(0x0; 0x3fc))"},
 			/* Offset is added to packet pointer R5, resulting in
 			 * known fixed offset, and variable offset from R6.
@@ -405,7 +405,7 @@ static struct bpf_align_test tests[] = {
 			/* Calculated offset in R6 has unknown value, but known
 			 * alignment of 4.
 			 */
-			{8, "R2=pkt(id=0,off=0,r=8,imm=0)"},
+			{8, "R2_w=pkt(id=0,off=0,r=8,imm=0)"},
 			{8, "R6_w=inv(id=0,umax_value=1020,var_off=(0x0; 0x3fc))"},
 			/* Adding 14 makes R6 be (4n+2) */
 			{9, "R6_w=inv(id=0,umin_value=14,umax_value=1034,var_off=(0x2; 0x7fc))"},
@@ -473,12 +473,12 @@ static struct bpf_align_test tests[] = {
 			/* (4n) + 14 == (4n+2).  We blow our bounds, because
 			 * the add could overflow.
 			 */
-			{7, "R5=inv(id=0,var_off=(0x2; 0xfffffffffffffffc))"},
+			{7, "R5_w=inv(id=0,var_off=(0x2; 0xfffffffffffffffc))"},
 			/* Checked s>=0 */
 			{9, "R5=inv(id=0,umin_value=2,umax_value=9223372036854775806,var_off=(0x2; 0x7ffffffffffffffc))"},
 			/* packet pointer + nonnegative (4n+2) */
 			{11, "R6_w=pkt(id=1,off=0,r=0,umin_value=2,umax_value=9223372036854775806,var_off=(0x2; 0x7ffffffffffffffc))"},
-			{13, "R4=pkt(id=1,off=4,r=0,umin_value=2,umax_value=9223372036854775806,var_off=(0x2; 0x7ffffffffffffffc))"},
+			{13, "R4_w=pkt(id=1,off=4,r=0,umin_value=2,umax_value=9223372036854775806,var_off=(0x2; 0x7ffffffffffffffc))"},
 			/* NET_IP_ALIGN + (4n+2) == (4n), alignment is fine.
 			 * We checked the bounds, but it might have been able
 			 * to overflow if the packet pointer started in the
@@ -486,7 +486,7 @@ static struct bpf_align_test tests[] = {
 			 * So we did not get a 'range' on R6, and the access
 			 * attempt will fail.
 			 */
-			{15, "R6=pkt(id=1,off=0,r=0,umin_value=2,umax_value=9223372036854775806,var_off=(0x2; 0x7ffffffffffffffc))"},
+			{15, "R6_w=pkt(id=1,off=0,r=0,umin_value=2,umax_value=9223372036854775806,var_off=(0x2; 0x7ffffffffffffffc))"},
 		}
 	},
 	{
@@ -521,7 +521,7 @@ static struct bpf_align_test tests[] = {
 			/* Calculated offset in R6 has unknown value, but known
 			 * alignment of 4.
 			 */
-			{7, "R2=pkt(id=0,off=0,r=8,imm=0)"},
+			{7, "R2_w=pkt(id=0,off=0,r=8,imm=0)"},
 			{9, "R6_w=inv(id=0,umax_value=1020,var_off=(0x0; 0x3fc))"},
 			/* Adding 14 makes R6 be (4n+2) */
 			{10, "R6_w=inv(id=0,umin_value=14,umax_value=1034,var_off=(0x2; 0x7fc))"},
@@ -574,7 +574,7 @@ static struct bpf_align_test tests[] = {
 			/* Calculated offset in R6 has unknown value, but known
 			 * alignment of 4.
 			 */
-			{7, "R2=pkt(id=0,off=0,r=8,imm=0)"},
+			{7, "R2_w=pkt(id=0,off=0,r=8,imm=0)"},
 			{10, "R6_w=inv(id=0,umax_value=60,var_off=(0x0; 0x3c))"},
 			/* Adding 14 makes R6 be (4n+2) */
 			{11, "R6_w=inv(id=0,umin_value=14,umax_value=74,var_off=(0x2; 0x7c))"},

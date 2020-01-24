@@ -148,6 +148,7 @@ u32 optee_do_call_with_arg(struct tee_context *ctx, phys_addr_t parg)
 			 */
 			optee_cq_wait_for_completion(&optee->call_queue, &w);
 		} else if (OPTEE_SMC_RETURN_IS_RPC(res.a0)) {
+			might_sleep();
 			param.a0 = res.a0;
 			param.a1 = res.a1;
 			param.a2 = res.a2;
@@ -552,6 +553,13 @@ static int check_mem_type(unsigned long start, size_t num_pages)
 {
 	struct mm_struct *mm = current->mm;
 	int rc;
+
+	/*
+	 * Allow kernel address to register with OP-TEE as kernel
+	 * pages are configured as normal memory only.
+	 */
+	if (virt_addr_valid(start))
+		return 0;
 
 	down_read(&mm->mmap_sem);
 	rc = __check_mem_type(find_vma(mm, start),

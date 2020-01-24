@@ -42,8 +42,7 @@
  * Because of this, FIXADDR_TOP x86 integration was left as later work.
  */
 #ifdef CONFIG_X86_32
-/* used by vmalloc.c, vsyscall.lds.S.
- *
+/*
  * Leave one empty page between vmalloc'ed areas and
  * the start of the fixmap.
  */
@@ -120,7 +119,7 @@ enum fixed_addresses {
 	 * before ioremap() is functional.
 	 *
 	 * If necessary we round it up to the next 512 pages boundary so
-	 * that we can have a single pgd entry and a single pte table:
+	 * that we can have a single pmd entry and a single pte table:
 	 */
 #define NR_FIX_BTMAPS		64
 #define FIX_BTMAPS_SLOTS	8
@@ -157,7 +156,7 @@ extern pte_t *kmap_pte;
 extern pte_t *pkmap_page_table;
 
 void __native_set_fixmap(enum fixed_addresses idx, pte_t pte);
-void native_set_fixmap(enum fixed_addresses idx,
+void native_set_fixmap(unsigned /* enum fixed_addresses */ idx,
 		       phys_addr_t phys, pgprot_t flags);
 
 #ifndef CONFIG_PARAVIRT_XXL

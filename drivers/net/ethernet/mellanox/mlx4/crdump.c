@@ -99,8 +99,7 @@ static void mlx4_crdump_collect_crspace(struct mlx4_dev *dev,
 					readl(cr_space + offset);
 
 		err = devlink_region_snapshot_create(crdump->region_crspace,
-						     cr_res_size, crspace_data,
-						     id, &kvfree);
+						     crspace_data, id, &kvfree);
 		if (err) {
 			kvfree(crspace_data);
 			mlx4_warn(dev, "crdump: devlink create %s snapshot id %d err %d\n",
@@ -139,9 +138,7 @@ static void mlx4_crdump_collect_fw_health(struct mlx4_dev *dev,
 					readl(health_buf_start + offset);
 
 		err = devlink_region_snapshot_create(crdump->region_fw_health,
-						     HEALTH_BUFFER_SIZE,
-						     health_data,
-						     id, &kvfree);
+						     health_data, id, &kvfree);
 		if (err) {
 			kvfree(health_data);
 			mlx4_warn(dev, "crdump: devlink create %s snapshot id %d err %d\n",
@@ -185,7 +182,7 @@ int mlx4_crdump_collect(struct mlx4_dev *dev)
 	crdump_enable_crspace_access(dev, cr_space);
 
 	/* Get the available snapshot ID for the dumps */
-	id = devlink_region_shapshot_id_get(devlink);
+	id = devlink_region_snapshot_id_get(devlink);
 
 	/* Try to capture dumps */
 	mlx4_crdump_collect_crspace(dev, cr_space, id);

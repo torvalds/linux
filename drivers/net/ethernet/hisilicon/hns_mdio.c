@@ -148,11 +148,15 @@ static int mdio_sc_cfg_reg_write(struct hns_mdio_device *mdio_dev,
 {
 	u32 time_cnt;
 	u32 reg_value;
+	int ret;
 
 	regmap_write(mdio_dev->subctrl_vbase, cfg_reg, set_val);
 
 	for (time_cnt = MDIO_TIMEOUT; time_cnt; time_cnt--) {
-		regmap_read(mdio_dev->subctrl_vbase, st_reg, &reg_value);
+		ret = regmap_read(mdio_dev->subctrl_vbase, st_reg, &reg_value);
+		if (ret)
+			return ret;
+
 		reg_value &= st_msk;
 		if ((!!check_st) == (!!reg_value))
 			break;
@@ -417,7 +421,6 @@ static int hns_mdio_probe(struct platform_device *pdev)
 {
 	struct hns_mdio_device *mdio_dev;
 	struct mii_bus *new_bus;
-	struct resource *res;
 	int ret = -ENODEV;
 
 	if (!pdev) {
@@ -442,8 +445,7 @@ static int hns_mdio_probe(struct platform_device *pdev)
 	new_bus->priv = mdio_dev;
 	new_bus->parent = &pdev->dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mdio_dev->vbase = devm_ioremap_resource(&pdev->dev, res);
+	mdio_dev->vbase = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mdio_dev->vbase)) {
 		ret = PTR_ERR(mdio_dev->vbase);
 		return ret;

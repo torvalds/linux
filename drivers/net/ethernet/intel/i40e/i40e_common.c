@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright(c) 2013 - 2018 Intel Corporation. */
 
+#include "i40e.h"
 #include "i40e_type.h"
 #include "i40e_adminq.h"
 #include "i40e_prototype.h"
@@ -13,7 +14,7 @@
  * This function sets the mac type of the adapter based on the
  * vendor ID and device ID stored in the hw structure.
  **/
-static i40e_status i40e_set_mac_type(struct i40e_hw *hw)
+i40e_status i40e_set_mac_type(struct i40e_hw *hw)
 {
 	i40e_status status = 0;
 
@@ -28,6 +29,7 @@ static i40e_status i40e_set_mac_type(struct i40e_hw *hw)
 		case I40E_DEV_ID_QSFP_C:
 		case I40E_DEV_ID_10G_BASE_T:
 		case I40E_DEV_ID_10G_BASE_T4:
+		case I40E_DEV_ID_10G_BASE_T_BC:
 		case I40E_DEV_ID_10G_B:
 		case I40E_DEV_ID_10G_SFP:
 		case I40E_DEV_ID_20G_KR2:
@@ -281,47 +283,49 @@ void i40e_debug_aq(struct i40e_hw *hw, enum i40e_debug_mask mask, void *desc,
 		   void *buffer, u16 buf_len)
 {
 	struct i40e_aq_desc *aq_desc = (struct i40e_aq_desc *)desc;
+	u32 effective_mask = hw->debug_mask & mask;
+	char prefix[27];
 	u16 len;
 	u8 *buf = (u8 *)buffer;
 
-	if ((!(mask & hw->debug_mask)) || (desc == NULL))
+	if (!effective_mask || !desc)
 		return;
 
 	len = le16_to_cpu(aq_desc->datalen);
 
-	i40e_debug(hw, mask,
+	i40e_debug(hw, mask & I40E_DEBUG_AQ_DESCRIPTOR,
 		   "AQ CMD: opcode 0x%04X, flags 0x%04X, datalen 0x%04X, retval 0x%04X\n",
 		   le16_to_cpu(aq_desc->opcode),
 		   le16_to_cpu(aq_desc->flags),
 		   le16_to_cpu(aq_desc->datalen),
 		   le16_to_cpu(aq_desc->retval));
-	i40e_debug(hw, mask, "\tcookie (h,l) 0x%08X 0x%08X\n",
+	i40e_debug(hw, mask & I40E_DEBUG_AQ_DESCRIPTOR,
+		   "\tcookie (h,l) 0x%08X 0x%08X\n",
 		   le32_to_cpu(aq_desc->cookie_high),
 		   le32_to_cpu(aq_desc->cookie_low));
-	i40e_debug(hw, mask, "\tparam (0,1)  0x%08X 0x%08X\n",
+	i40e_debug(hw, mask & I40E_DEBUG_AQ_DESCRIPTOR,
+		   "\tparam (0,1)  0x%08X 0x%08X\n",
 		   le32_to_cpu(aq_desc->params.internal.param0),
 		   le32_to_cpu(aq_desc->params.internal.param1));
-	i40e_debug(hw, mask, "\taddr (h,l)   0x%08X 0x%08X\n",
+	i40e_debug(hw, mask & I40E_DEBUG_AQ_DESCRIPTOR,
+		   "\taddr (h,l)   0x%08X 0x%08X\n",
 		   le32_to_cpu(aq_desc->params.external.addr_high),
 		   le32_to_cpu(aq_desc->params.external.addr_low));
 
-	if ((buffer != NULL) && (aq_desc->datalen != 0)) {
+	if (buffer && buf_len != 0 && len != 0 &&
+	    (effective_mask & I40E_DEBUG_AQ_DESC_BUFFER)) {
 		i40e_debug(hw, mask, "AQ CMD Buffer:\n");
 		if (buf_len < len)
 			len = buf_len;
-		/* write the full 16-byte chunks */
-		if (hw->debug_mask & mask) {
-			char prefix[27];
 
-			snprintf(prefix, sizeof(prefix),
-				 "i40e %02x:%02x.%x: \t0x",
-				 hw->bus.bus_id,
-				 hw->bus.device,
-				 hw->bus.func);
+		snprintf(prefix, sizeof(prefix),
+			 "i40e %02x:%02x.%x: \t0x",
+			 hw->bus.bus_id,
+			 hw->bus.device,
+			 hw->bus.func);
 
-			print_hex_dump(KERN_INFO, prefix, DUMP_PREFIX_OFFSET,
-				       16, 1, buf, len, false);
-		}
+		print_hex_dump(KERN_INFO, prefix, DUMP_PREFIX_OFFSET,
+			       16, 1, buf, len, false);
 	}
 }
 
@@ -930,10 +934,6 @@ i40e_status i40e_init_shared_code(struct i40e_hw *hw)
 	else
 		hw->pf_id = (u8)(func_rid & 0x7);
 
-	if (hw->mac.type == I40E_MAC_X722)
-		hw->flags |= I40E_HW_FLAG_AQ_SRCTL_ACCESS_ENABLE |
-			     I40E_HW_FLAG_NVM_READ_REQUIRES_LOCK;
-
 	status = i40e_init_nvm(hw);
 	return status;
 }
@@ -1438,9 +1438,9 @@ static u32 i40e_led_is_mine(struct i40e_hw *hw, int idx)
 	u32 gpio_val = 0;
 	u32 port;
 
-	if (!hw->func_caps.led[idx])
+	if (!I40E_IS_X710TL_DEVICE(hw->device_id) &&
+	    !hw->func_caps.led[idx])
 		return 0;
-
 	gpio_val = rd32(hw, I40E_GLGEN_GPIO_CTL(idx));
 	port = (gpio_val & I40E_GLGEN_GPIO_CTL_PRT_NUM_MASK) >>
 		I40E_GLGEN_GPIO_CTL_PRT_NUM_SHIFT;
@@ -1459,7 +1459,14 @@ static u32 i40e_led_is_mine(struct i40e_hw *hw, int idx)
 #define I40E_FILTER_ACTIVITY 0xE
 #define I40E_LINK_ACTIVITY 0xC
 #define I40E_MAC_ACTIVITY 0xD
+#define I40E_FW_LED BIT(4)
+#define I40E_LED_MODE_VALID (I40E_GLGEN_GPIO_CTL_LED_MODE_MASK >> \
+			     I40E_GLGEN_GPIO_CTL_LED_MODE_SHIFT)
+
 #define I40E_LED0 22
+
+#define I40E_PIN_FUNC_SDP 0x0
+#define I40E_PIN_FUNC_LED 0x1
 
 /**
  * i40e_led_get - return current on/off mode
@@ -1505,8 +1512,10 @@ void i40e_led_set(struct i40e_hw *hw, u32 mode, bool blink)
 {
 	int i;
 
-	if (mode & 0xfffffff0)
+	if (mode & ~I40E_LED_MODE_VALID) {
 		hw_dbg(hw, "invalid mode passed in %X\n", mode);
+		return;
+	}
 
 	/* as per the documentation GPIO 22-29 are the LED
 	 * GPIO pins named LED0..LED7
@@ -1516,6 +1525,20 @@ void i40e_led_set(struct i40e_hw *hw, u32 mode, bool blink)
 
 		if (!gpio_val)
 			continue;
+
+		if (I40E_IS_X710TL_DEVICE(hw->device_id)) {
+			u32 pin_func = 0;
+
+			if (mode & I40E_FW_LED)
+				pin_func = I40E_PIN_FUNC_SDP;
+			else
+				pin_func = I40E_PIN_FUNC_LED;
+
+			gpio_val &= ~I40E_GLGEN_GPIO_CTL_PIN_FUNC_MASK;
+			gpio_val |= ((pin_func <<
+				     I40E_GLGEN_GPIO_CTL_PIN_FUNC_SHIFT) &
+				     I40E_GLGEN_GPIO_CTL_PIN_FUNC_MASK);
+		}
 		gpio_val &= ~I40E_GLGEN_GPIO_CTL_LED_MODE_MASK;
 		/* this & is a bit of paranoia, but serves as a range check */
 		gpio_val |= ((mode << I40E_GLGEN_GPIO_CTL_LED_MODE_SHIFT) &
@@ -1575,19 +1598,22 @@ i40e_status i40e_aq_get_phy_capabilities(struct i40e_hw *hw,
 		status = i40e_asq_send_command(hw, &desc, abilities,
 					       abilities_size, cmd_details);
 
-		if (status)
-			break;
-
-		if (hw->aq.asq_last_status == I40E_AQ_RC_EIO) {
+		switch (hw->aq.asq_last_status) {
+		case I40E_AQ_RC_EIO:
 			status = I40E_ERR_UNKNOWN_PHY;
 			break;
-		} else if (hw->aq.asq_last_status == I40E_AQ_RC_EAGAIN) {
+		case I40E_AQ_RC_EAGAIN:
 			usleep_range(1000, 2000);
 			total_delay++;
 			status = I40E_ERR_TIMEOUT;
+			break;
+		/* also covers I40E_AQ_RC_OK */
+		default:
+			break;
 		}
-	} while ((hw->aq.asq_last_status != I40E_AQ_RC_OK) &&
-		 (total_delay < max_delay));
+
+	} while ((hw->aq.asq_last_status == I40E_AQ_RC_EAGAIN) &&
+		(total_delay < max_delay));
 
 	if (status)
 		return status;
@@ -1641,24 +1667,14 @@ enum i40e_status_code i40e_aq_set_phy_config(struct i40e_hw *hw,
 	return status;
 }
 
-/**
- * i40e_set_fc
- * @hw: pointer to the hw struct
- * @aq_failures: buffer to return AdminQ failure information
- * @atomic_restart: whether to enable atomic link restart
- *
- * Set the requested flow control mode using set_phy_config.
- **/
-enum i40e_status_code i40e_set_fc(struct i40e_hw *hw, u8 *aq_failures,
-				  bool atomic_restart)
+static noinline_for_stack enum i40e_status_code
+i40e_set_fc_status(struct i40e_hw *hw,
+		   struct i40e_aq_get_phy_abilities_resp *abilities,
+		   bool atomic_restart)
 {
-	enum i40e_fc_mode fc_mode = hw->fc.requested_mode;
-	struct i40e_aq_get_phy_abilities_resp abilities;
 	struct i40e_aq_set_phy_config config;
-	enum i40e_status_code status;
+	enum i40e_fc_mode fc_mode = hw->fc.requested_mode;
 	u8 pause_mask = 0x0;
-
-	*aq_failures = 0x0;
 
 	switch (fc_mode) {
 	case I40E_FC_FULL:
@@ -1675,6 +1691,48 @@ enum i40e_status_code i40e_set_fc(struct i40e_hw *hw, u8 *aq_failures,
 		break;
 	}
 
+	memset(&config, 0, sizeof(struct i40e_aq_set_phy_config));
+	/* clear the old pause settings */
+	config.abilities = abilities->abilities & ~(I40E_AQ_PHY_FLAG_PAUSE_TX) &
+			   ~(I40E_AQ_PHY_FLAG_PAUSE_RX);
+	/* set the new abilities */
+	config.abilities |= pause_mask;
+	/* If the abilities have changed, then set the new config */
+	if (config.abilities == abilities->abilities)
+		return 0;
+
+	/* Auto restart link so settings take effect */
+	if (atomic_restart)
+		config.abilities |= I40E_AQ_PHY_ENABLE_ATOMIC_LINK;
+	/* Copy over all the old settings */
+	config.phy_type = abilities->phy_type;
+	config.phy_type_ext = abilities->phy_type_ext;
+	config.link_speed = abilities->link_speed;
+	config.eee_capability = abilities->eee_capability;
+	config.eeer = abilities->eeer_val;
+	config.low_power_ctrl = abilities->d3_lpan;
+	config.fec_config = abilities->fec_cfg_curr_mod_ext_info &
+			    I40E_AQ_PHY_FEC_CONFIG_MASK;
+
+	return i40e_aq_set_phy_config(hw, &config, NULL);
+}
+
+/**
+ * i40e_set_fc
+ * @hw: pointer to the hw struct
+ * @aq_failures: buffer to return AdminQ failure information
+ * @atomic_restart: whether to enable atomic link restart
+ *
+ * Set the requested flow control mode using set_phy_config.
+ **/
+enum i40e_status_code i40e_set_fc(struct i40e_hw *hw, u8 *aq_failures,
+				  bool atomic_restart)
+{
+	struct i40e_aq_get_phy_abilities_resp abilities;
+	enum i40e_status_code status;
+
+	*aq_failures = 0x0;
+
 	/* Get the current phy config */
 	status = i40e_aq_get_phy_capabilities(hw, false, false, &abilities,
 					      NULL);
@@ -1683,31 +1741,10 @@ enum i40e_status_code i40e_set_fc(struct i40e_hw *hw, u8 *aq_failures,
 		return status;
 	}
 
-	memset(&config, 0, sizeof(struct i40e_aq_set_phy_config));
-	/* clear the old pause settings */
-	config.abilities = abilities.abilities & ~(I40E_AQ_PHY_FLAG_PAUSE_TX) &
-			   ~(I40E_AQ_PHY_FLAG_PAUSE_RX);
-	/* set the new abilities */
-	config.abilities |= pause_mask;
-	/* If the abilities have changed, then set the new config */
-	if (config.abilities != abilities.abilities) {
-		/* Auto restart link so settings take effect */
-		if (atomic_restart)
-			config.abilities |= I40E_AQ_PHY_ENABLE_ATOMIC_LINK;
-		/* Copy over all the old settings */
-		config.phy_type = abilities.phy_type;
-		config.phy_type_ext = abilities.phy_type_ext;
-		config.link_speed = abilities.link_speed;
-		config.eee_capability = abilities.eee_capability;
-		config.eeer = abilities.eeer_val;
-		config.low_power_ctrl = abilities.d3_lpan;
-		config.fec_config = abilities.fec_cfg_curr_mod_ext_info &
-				    I40E_AQ_PHY_FEC_CONFIG_MASK;
-		status = i40e_aq_set_phy_config(hw, &config, NULL);
+	status = i40e_set_fc_status(hw, &abilities, atomic_restart);
+	if (status)
+		*aq_failures |= I40E_SET_FC_AQ_FAIL_SET;
 
-		if (status)
-			*aq_failures |= I40E_SET_FC_AQ_FAIL_SET;
-	}
 	/* Update the link info */
 	status = i40e_update_link_info(hw);
 	if (status) {
@@ -1859,8 +1896,8 @@ i40e_status i40e_aq_get_link_info(struct i40e_hw *hw,
 	     hw->aq.fw_min_ver < 40)) && hw_link_info->phy_type == 0xE)
 		hw_link_info->phy_type = I40E_PHY_TYPE_10GBASE_SFPP_CU;
 
-	if (hw->aq.api_maj_ver == I40E_FW_API_VERSION_MAJOR &&
-	    hw->aq.api_min_ver >= 7) {
+	if (hw->flags & I40E_HW_FLAG_AQ_PHY_ACCESS_CAPABLE &&
+	    hw->mac.type != I40E_MAC_X722) {
 		__le32 tmp;
 
 		memcpy(&tmp, resp->link_type, sizeof(tmp));
@@ -2536,7 +2573,7 @@ i40e_status i40e_get_link_status(struct i40e_hw *hw, bool *link_up)
  * i40e_updatelink_status - update status of the HW network link
  * @hw: pointer to the hw struct
  **/
-i40e_status i40e_update_link_info(struct i40e_hw *hw)
+noinline_for_stack i40e_status i40e_update_link_info(struct i40e_hw *hw)
 {
 	struct i40e_aq_get_phy_abilities_resp abilities;
 	i40e_status status = 0;
@@ -2554,9 +2591,16 @@ i40e_status i40e_update_link_info(struct i40e_hw *hw)
 		if (status)
 			return status;
 
-		hw->phy.link_info.req_fec_info =
-			abilities.fec_cfg_curr_mod_ext_info &
-			(I40E_AQ_REQUEST_FEC_KR | I40E_AQ_REQUEST_FEC_RS);
+		if (abilities.fec_cfg_curr_mod_ext_info &
+		    I40E_AQ_ENABLE_FEC_AUTO)
+			hw->phy.link_info.req_fec_info =
+				(I40E_AQ_REQUEST_FEC_KR |
+				 I40E_AQ_REQUEST_FEC_RS);
+		else
+			hw->phy.link_info.req_fec_info =
+				abilities.fec_cfg_curr_mod_ext_info &
+				(I40E_AQ_REQUEST_FEC_KR |
+				 I40E_AQ_REQUEST_FEC_RS);
 
 		memcpy(hw->phy.link_info.module_type, &abilities.module_type,
 		       sizeof(hw->phy.link_info.module_type));
@@ -4868,6 +4912,7 @@ i40e_status i40e_write_phy_register(struct i40e_hw *hw,
 		break;
 	case I40E_DEV_ID_10G_BASE_T:
 	case I40E_DEV_ID_10G_BASE_T4:
+	case I40E_DEV_ID_10G_BASE_T_BC:
 	case I40E_DEV_ID_10G_BASE_T_X722:
 	case I40E_DEV_ID_25G_B:
 	case I40E_DEV_ID_25G_SFP28:
@@ -5027,7 +5072,7 @@ static enum i40e_status_code i40e_led_get_reg(struct i40e_hw *hw, u16 led_addr,
 		status =
 		       i40e_aq_get_phy_register(hw,
 						I40E_AQ_PHY_REG_ACCESS_EXTERNAL,
-						I40E_PHY_COM_REG_PAGE,
+						I40E_PHY_COM_REG_PAGE, true,
 						I40E_PHY_LED_PROV_REG_1,
 						reg_val, NULL);
 	} else {
@@ -5060,7 +5105,7 @@ static enum i40e_status_code i40e_led_set_reg(struct i40e_hw *hw, u16 led_addr,
 		status =
 		       i40e_aq_set_phy_register(hw,
 						I40E_AQ_PHY_REG_ACCESS_EXTERNAL,
-						I40E_PHY_COM_REG_PAGE,
+						I40E_PHY_COM_REG_PAGE, true,
 						I40E_PHY_LED_PROV_REG_1,
 						reg_val, NULL);
 	} else {
@@ -5099,7 +5144,7 @@ i40e_status i40e_led_get_phy(struct i40e_hw *hw, u16 *led_addr,
 		status =
 		      i40e_aq_get_phy_register(hw,
 					       I40E_AQ_PHY_REG_ACCESS_EXTERNAL,
-					       I40E_PHY_COM_REG_PAGE,
+					       I40E_PHY_COM_REG_PAGE, true,
 					       I40E_PHY_LED_PROV_REG_1,
 					       &reg_val_aq, NULL);
 		if (status == I40E_SUCCESS)
@@ -5304,20 +5349,49 @@ do_retry:
 }
 
 /**
- * i40e_aq_set_phy_register
+ * i40e_mdio_if_number_selection - MDIO I/F number selection
+ * @hw: pointer to the hw struct
+ * @set_mdio: use MDIO I/F number specified by mdio_num
+ * @mdio_num: MDIO I/F number
+ * @cmd: pointer to PHY Register command structure
+ **/
+static void i40e_mdio_if_number_selection(struct i40e_hw *hw, bool set_mdio,
+					  u8 mdio_num,
+					  struct i40e_aqc_phy_register_access *cmd)
+{
+	if (set_mdio && cmd->phy_interface == I40E_AQ_PHY_REG_ACCESS_EXTERNAL) {
+		if (hw->flags & I40E_HW_FLAG_AQ_PHY_ACCESS_EXTENDED)
+			cmd->cmd_flags |=
+				I40E_AQ_PHY_REG_ACCESS_SET_MDIO_IF_NUMBER |
+				((mdio_num <<
+				I40E_AQ_PHY_REG_ACCESS_MDIO_IF_NUMBER_SHIFT) &
+				I40E_AQ_PHY_REG_ACCESS_MDIO_IF_NUMBER_MASK);
+		else
+			i40e_debug(hw, I40E_DEBUG_PHY,
+				   "MDIO I/F number selection not supported by current FW version.\n");
+	}
+}
+
+/**
+ * i40e_aq_set_phy_register_ext
  * @hw: pointer to the hw struct
  * @phy_select: select which phy should be accessed
  * @dev_addr: PHY device address
+ * @set_mdio: use MDIO I/F number specified by mdio_num
+ * @mdio_num: MDIO I/F number
  * @reg_addr: PHY register address
  * @reg_val: new register value
  * @cmd_details: pointer to command details structure or NULL
  *
  * Write the external PHY register.
+ * NOTE: In common cases MDIO I/F number should not be changed, thats why you
+ * may use simple wrapper i40e_aq_set_phy_register.
  **/
-i40e_status i40e_aq_set_phy_register(struct i40e_hw *hw,
-				     u8 phy_select, u8 dev_addr,
-				     u32 reg_addr, u32 reg_val,
-				     struct i40e_asq_cmd_details *cmd_details)
+enum i40e_status_code i40e_aq_set_phy_register_ext(struct i40e_hw *hw,
+			     u8 phy_select, u8 dev_addr, bool page_change,
+			     bool set_mdio, u8 mdio_num,
+			     u32 reg_addr, u32 reg_val,
+			     struct i40e_asq_cmd_details *cmd_details)
 {
 	struct i40e_aq_desc desc;
 	struct i40e_aqc_phy_register_access *cmd =
@@ -5332,26 +5406,36 @@ i40e_status i40e_aq_set_phy_register(struct i40e_hw *hw,
 	cmd->reg_address = cpu_to_le32(reg_addr);
 	cmd->reg_value = cpu_to_le32(reg_val);
 
+	i40e_mdio_if_number_selection(hw, set_mdio, mdio_num, cmd);
+
+	if (!page_change)
+		cmd->cmd_flags = I40E_AQ_PHY_REG_ACCESS_DONT_CHANGE_QSFP_PAGE;
+
 	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
 
 	return status;
 }
 
 /**
- * i40e_aq_get_phy_register
+ * i40e_aq_get_phy_register_ext
  * @hw: pointer to the hw struct
  * @phy_select: select which phy should be accessed
  * @dev_addr: PHY device address
+ * @set_mdio: use MDIO I/F number specified by mdio_num
+ * @mdio_num: MDIO I/F number
  * @reg_addr: PHY register address
  * @reg_val: read register value
  * @cmd_details: pointer to command details structure or NULL
  *
  * Read the external PHY register.
+ * NOTE: In common cases MDIO I/F number should not be changed, thats why you
+ * may use simple wrapper i40e_aq_get_phy_register.
  **/
-i40e_status i40e_aq_get_phy_register(struct i40e_hw *hw,
-				     u8 phy_select, u8 dev_addr,
-				     u32 reg_addr, u32 *reg_val,
-				     struct i40e_asq_cmd_details *cmd_details)
+enum i40e_status_code i40e_aq_get_phy_register_ext(struct i40e_hw *hw,
+			     u8 phy_select, u8 dev_addr, bool page_change,
+			     bool set_mdio, u8 mdio_num,
+			     u32 reg_addr, u32 *reg_val,
+			     struct i40e_asq_cmd_details *cmd_details)
 {
 	struct i40e_aq_desc desc;
 	struct i40e_aqc_phy_register_access *cmd =
@@ -5364,6 +5448,11 @@ i40e_status i40e_aq_get_phy_register(struct i40e_hw *hw,
 	cmd->phy_interface = phy_select;
 	cmd->dev_address = dev_addr;
 	cmd->reg_address = cpu_to_le32(reg_addr);
+
+	i40e_mdio_if_number_selection(hw, set_mdio, mdio_num, cmd);
+
+	if (!page_change)
+		cmd->cmd_flags = I40E_AQ_PHY_REG_ACCESS_DONT_CHANGE_QSFP_PAGE;
 
 	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
 	if (!status)

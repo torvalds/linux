@@ -11,8 +11,11 @@
 
 /* Status register flags */
 #define SR_SIE		_AC(0x00000002, UL) /* Supervisor Interrupt Enable */
+#define SR_MIE		_AC(0x00000008, UL) /* Machine Interrupt Enable */
 #define SR_SPIE		_AC(0x00000020, UL) /* Previous Supervisor IE */
+#define SR_MPIE		_AC(0x00000080, UL) /* Previous Machine IE */
 #define SR_SPP		_AC(0x00000100, UL) /* Previously Supervisor */
+#define SR_MPP		_AC(0x00001800, UL) /* Previously Machine */
 #define SR_SUM		_AC(0x00040000, UL) /* Supervisor User Memory Access */
 
 #define SR_FS		_AC(0x00006000, UL) /* Floating-point Status */
@@ -44,9 +47,10 @@
 #define SATP_MODE	SATP_MODE_39
 #endif
 
-/* SCAUSE */
-#define SCAUSE_IRQ_FLAG		(_AC(1, UL) << (__riscv_xlen - 1))
+/* Exception cause high bit - is an interrupt if set */
+#define CAUSE_IRQ_FLAG		(_AC(1, UL) << (__riscv_xlen - 1))
 
+/* Interrupt causes (minus the high bit) */
 #define IRQ_U_SOFT		0
 #define IRQ_S_SOFT		1
 #define IRQ_M_SOFT		3
@@ -57,6 +61,7 @@
 #define IRQ_S_EXT		9
 #define IRQ_M_EXT		11
 
+/* Exception causes */
 #define EXC_INST_MISALIGNED	0
 #define EXC_INST_ACCESS		1
 #define EXC_BREAKPOINT		3
@@ -67,14 +72,14 @@
 #define EXC_LOAD_PAGE_FAULT	13
 #define EXC_STORE_PAGE_FAULT	15
 
-/* SIE (Interrupt Enable) and SIP (Interrupt Pending) flags */
-#define SIE_SSIE		(_AC(0x1, UL) << IRQ_S_SOFT)
-#define SIE_STIE		(_AC(0x1, UL) << IRQ_S_TIMER)
-#define SIE_SEIE		(_AC(0x1, UL) << IRQ_S_EXT)
-
+/* symbolic CSR names: */
 #define CSR_CYCLE		0xc00
 #define CSR_TIME		0xc01
 #define CSR_INSTRET		0xc02
+#define CSR_CYCLEH		0xc80
+#define CSR_TIMEH		0xc81
+#define CSR_INSTRETH		0xc82
+
 #define CSR_SSTATUS		0x100
 #define CSR_SIE			0x104
 #define CSR_STVEC		0x105
@@ -85,9 +90,58 @@
 #define CSR_STVAL		0x143
 #define CSR_SIP			0x144
 #define CSR_SATP		0x180
-#define CSR_CYCLEH		0xc80
-#define CSR_TIMEH		0xc81
-#define CSR_INSTRETH		0xc82
+
+#define CSR_MSTATUS		0x300
+#define CSR_MISA		0x301
+#define CSR_MIE			0x304
+#define CSR_MTVEC		0x305
+#define CSR_MSCRATCH		0x340
+#define CSR_MEPC		0x341
+#define CSR_MCAUSE		0x342
+#define CSR_MTVAL		0x343
+#define CSR_MIP			0x344
+#define CSR_MHARTID		0xf14
+
+#ifdef CONFIG_RISCV_M_MODE
+# define CSR_STATUS	CSR_MSTATUS
+# define CSR_IE		CSR_MIE
+# define CSR_TVEC	CSR_MTVEC
+# define CSR_SCRATCH	CSR_MSCRATCH
+# define CSR_EPC	CSR_MEPC
+# define CSR_CAUSE	CSR_MCAUSE
+# define CSR_TVAL	CSR_MTVAL
+# define CSR_IP		CSR_MIP
+
+# define SR_IE		SR_MIE
+# define SR_PIE		SR_MPIE
+# define SR_PP		SR_MPP
+
+# define RV_IRQ_SOFT		IRQ_M_SOFT
+# define RV_IRQ_TIMER	IRQ_M_TIMER
+# define RV_IRQ_EXT		IRQ_M_EXT
+#else /* CONFIG_RISCV_M_MODE */
+# define CSR_STATUS	CSR_SSTATUS
+# define CSR_IE		CSR_SIE
+# define CSR_TVEC	CSR_STVEC
+# define CSR_SCRATCH	CSR_SSCRATCH
+# define CSR_EPC	CSR_SEPC
+# define CSR_CAUSE	CSR_SCAUSE
+# define CSR_TVAL	CSR_STVAL
+# define CSR_IP		CSR_SIP
+
+# define SR_IE		SR_SIE
+# define SR_PIE		SR_SPIE
+# define SR_PP		SR_SPP
+
+# define RV_IRQ_SOFT		IRQ_S_SOFT
+# define RV_IRQ_TIMER	IRQ_S_TIMER
+# define RV_IRQ_EXT		IRQ_S_EXT
+#endif /* CONFIG_RISCV_M_MODE */
+
+/* IE/IP (Supervisor/Machine Interrupt Enable/Pending) flags */
+#define IE_SIE		(_AC(0x1, UL) << RV_IRQ_SOFT)
+#define IE_TIE		(_AC(0x1, UL) << RV_IRQ_TIMER)
+#define IE_EIE		(_AC(0x1, UL) << RV_IRQ_EXT)
 
 #ifndef __ASSEMBLY__
 

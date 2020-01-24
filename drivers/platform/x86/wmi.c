@@ -129,6 +129,28 @@ static bool find_guid(const char *guid_string, struct wmi_block **out)
 	return false;
 }
 
+static const void *find_guid_context(struct wmi_block *wblock,
+				      struct wmi_driver *wdriver)
+{
+	const struct wmi_device_id *id;
+	uuid_le guid_input;
+
+	if (wblock == NULL || wdriver == NULL)
+		return NULL;
+	if (wdriver->id_table == NULL)
+		return NULL;
+
+	id = wdriver->id_table;
+	while (*id->guid_string) {
+		if (uuid_le_to_bin(id->guid_string, &guid_input))
+			continue;
+		if (!memcmp(wblock->gblock.guid, &guid_input, 16))
+			return id->context;
+		id++;
+	}
+	return NULL;
+}
+
 static int get_subobj_info(acpi_handle handle, const char *pathname,
 			   struct acpi_device_info **info)
 {
@@ -318,9 +340,7 @@ static acpi_status __query_block(struct wmi_block *wblock, u8 instance,
 		 * expensive, but have no corresponding WCxx method. So we
 		 * should not fail if this happens.
 		 */
-		if (acpi_has_method(handle, wc_method))
-			wc_status = acpi_execute_simple_method(handle,
-								wc_method, 1);
+		wc_status = acpi_execute_simple_method(handle, wc_method, 1);
 	}
 
 	strcpy(method, "WQ");
@@ -618,6 +638,25 @@ bool wmi_has_guid(const char *guid_string)
 }
 EXPORT_SYMBOL_GPL(wmi_has_guid);
 
+/**
+ * wmi_get_acpi_device_uid() - Get _UID name of ACPI device that defines GUID
+ * @guid_string: 36 char string of the form fa50ff2b-f2e8-45de-83fa-65417f2f49ba
+ *
+ * Find the _UID of ACPI device associated with this WMI GUID.
+ *
+ * Return: The ACPI _UID field value or NULL if the WMI GUID was not found
+ */
+char *wmi_get_acpi_device_uid(const char *guid_string)
+{
+	struct wmi_block *wblock = NULL;
+
+	if (!find_guid(guid_string, &wblock))
+		return NULL;
+
+	return acpi_device_uid(wblock->acpi_device);
+}
+EXPORT_SYMBOL_GPL(wmi_get_acpi_device_uid);
+
 static struct wmi_block *dev_to_wblock(struct device *dev)
 {
 	return container_of(dev, struct wmi_block, dev.dev);
@@ -872,7 +911,7 @@ static const struct file_operations wmi_fops = {
 	.read		= wmi_char_read,
 	.open		= wmi_char_open,
 	.unlocked_ioctl	= wmi_ioctl,
-	.compat_ioctl	= wmi_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 };
 
 static int wmi_dev_probe(struct device *dev)
@@ -887,7 +926,8 @@ static int wmi_dev_probe(struct device *dev)
 		dev_warn(dev, "failed to enable device -- probing anyway\n");
 
 	if (wdriver->probe) {
-		ret = wdriver->probe(dev_to_wdev(dev));
+		ret = wdriver->probe(dev_to_wdev(dev),
+				find_guid_context(wblock, wdriver));
 		if (ret != 0)
 			goto probe_failure;
 	}

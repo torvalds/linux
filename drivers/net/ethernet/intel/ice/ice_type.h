@@ -4,18 +4,30 @@
 #ifndef _ICE_TYPE_H_
 #define _ICE_TYPE_H_
 
+#define ICE_BYTES_PER_WORD	2
+#define ICE_BYTES_PER_DWORD	4
+
 #include "ice_status.h"
 #include "ice_hw_autogen.h"
 #include "ice_osdep.h"
 #include "ice_controlq.h"
 #include "ice_lan_tx_rx.h"
+#include "ice_flex_type.h"
 
-#define ICE_BYTES_PER_WORD	2
-#define ICE_BYTES_PER_DWORD	4
-
-static inline bool ice_is_tc_ena(u8 bitmap, u8 tc)
+static inline bool ice_is_tc_ena(unsigned long bitmap, u8 tc)
 {
-	return test_bit(tc, (unsigned long *)&bitmap);
+	return test_bit(tc, &bitmap);
+}
+
+static inline u64 round_up_64bit(u64 a, u32 b)
+{
+	return div64_long(((a) + (b) / 2), (b));
+}
+
+static inline u32 ice_round_to_num(u32 N, u32 R)
+{
+	return ((((N) % (R)) < ((R) / 2)) ? (((N) / (R)) * (R)) :
+		((((N) + (R) - 1) / (R)) * (R)));
 }
 
 /* Driver always calls main vsi_handle first */
@@ -23,6 +35,7 @@ static inline bool ice_is_tc_ena(u8 bitmap, u8 tc)
 
 /* debug masks - set these bits in hw->debug_mask to control output */
 #define ICE_DBG_INIT		BIT_ULL(1)
+#define ICE_DBG_FW_LOG		BIT_ULL(3)
 #define ICE_DBG_LINK		BIT_ULL(4)
 #define ICE_DBG_PHY		BIT_ULL(5)
 #define ICE_DBG_QCTX		BIT_ULL(6)
@@ -30,8 +43,11 @@ static inline bool ice_is_tc_ena(u8 bitmap, u8 tc)
 #define ICE_DBG_LAN		BIT_ULL(8)
 #define ICE_DBG_SW		BIT_ULL(13)
 #define ICE_DBG_SCHED		BIT_ULL(14)
+#define ICE_DBG_PKG		BIT_ULL(16)
 #define ICE_DBG_RES		BIT_ULL(17)
 #define ICE_DBG_AQ_MSG		BIT_ULL(24)
+#define ICE_DBG_AQ_DESC		BIT_ULL(25)
+#define ICE_DBG_AQ_DESC_BUF	BIT_ULL(26)
 #define ICE_DBG_AQ_CMD		BIT_ULL(27)
 #define ICE_DBG_USER		BIT_ULL(31)
 
@@ -52,6 +68,14 @@ enum ice_aq_res_access_type {
 	ICE_RES_WRITE
 };
 
+struct ice_driver_ver {
+	u8 major_ver;
+	u8 minor_ver;
+	u8 build_ver;
+	u8 subbuild_ver;
+	u8 driver_string[32];
+};
+
 enum ice_fc_mode {
 	ICE_FC_NONE = 0,
 	ICE_FC_RX_PAUSE,
@@ -59,6 +83,13 @@ enum ice_fc_mode {
 	ICE_FC_FULL,
 	ICE_FC_PFC,
 	ICE_FC_DFLT
+};
+
+enum ice_fec_mode {
+	ICE_FEC_NONE = 0,
+	ICE_FEC_RS,
+	ICE_FEC_BASER,
+	ICE_FEC_AUTO
 };
 
 enum ice_set_fc_aq_failures {
@@ -86,12 +117,14 @@ enum ice_media_type {
 enum ice_vsi_type {
 	ICE_VSI_PF = 0,
 	ICE_VSI_VF,
+	ICE_VSI_LB = 6,
 };
 
 struct ice_link_status {
 	/* Refer to ice_aq_phy_type for bits definition */
 	u64 phy_type_low;
 	u64 phy_type_high;
+	u8 topo_media_conflict;
 	u16 max_frame_size;
 	u16 link_speed;
 	u16 req_speeds;
@@ -99,6 +132,7 @@ struct ice_link_status {
 	u8 link_info;
 	u8 an_info;
 	u8 ext_info;
+	u8 fec_info;
 	u8 pacing;
 	/* Refer to #define from module_type[ICE_MODULE_TYPE_TOTAL_BYTE] of
 	 * ice_aqc_get_phy_caps structure
@@ -128,6 +162,9 @@ struct ice_phy_info {
 /* Common HW capabilities for SW use */
 struct ice_hw_common_caps {
 	u32 valid_functions;
+	/* DCB capabilities */
+	u32 active_tc_bitmap;
+	u32 maxtc;
 
 	/* Tx/Rx queues */
 	u16 num_rxq;		/* Number/Total Rx queues */
@@ -165,6 +202,7 @@ struct ice_hw_dev_caps {
 	struct ice_hw_common_caps common_cap;
 	u32 num_vfs_exposed;		/* Total number of VFs exposed */
 	u32 num_vsi_allocd_to_host;	/* Excluding EMP VSI */
+	u32 num_funcs;
 };
 
 /* MAC info */
@@ -208,6 +246,8 @@ struct ice_nvm_info {
 	u8 blank_nvm_mode;        /* is NVM empty (no FW present) */
 };
 
+#define ICE_NVM_VER_LEN	32
+
 /* Max number of port to queue branches w.r.t topology */
 #define ICE_MAX_TRAFFIC_CLASS 8
 #define ICE_TXSCHED_MAX_BRANCHES ICE_MAX_TRAFFIC_CLASS
@@ -246,10 +286,56 @@ enum ice_agg_type {
 	ICE_AGG_TYPE_QG
 };
 
-#define ICE_SCHED_DFLT_RL_PROF_ID	0
-#define ICE_SCHED_DFLT_BW_WT		1
+/* Rate limit types */
+enum ice_rl_type {
+	ICE_UNKNOWN_BW = 0,
+	ICE_MIN_BW,		/* for CIR profile */
+	ICE_MAX_BW,		/* for EIR profile */
+	ICE_SHARED_BW		/* for shared profile */
+};
 
-/* VSI type list entry to locate corresponding VSI/ag nodes */
+#define ICE_SCHED_MIN_BW		500		/* in Kbps */
+#define ICE_SCHED_MAX_BW		100000000	/* in Kbps */
+#define ICE_SCHED_DFLT_BW		0xFFFFFFFF	/* unlimited */
+#define ICE_SCHED_DFLT_RL_PROF_ID	0
+#define ICE_SCHED_NO_SHARED_RL_PROF_ID	0xFFFF
+#define ICE_SCHED_DFLT_BW_WT		1
+#define ICE_SCHED_INVAL_PROF_ID		0xFFFF
+#define ICE_SCHED_DFLT_BURST_SIZE	(15 * 1024)	/* in bytes (15k) */
+
+ /* Data structure for saving BW information */
+enum ice_bw_type {
+	ICE_BW_TYPE_PRIO,
+	ICE_BW_TYPE_CIR,
+	ICE_BW_TYPE_CIR_WT,
+	ICE_BW_TYPE_EIR,
+	ICE_BW_TYPE_EIR_WT,
+	ICE_BW_TYPE_SHARED,
+	ICE_BW_TYPE_CNT		/* This must be last */
+};
+
+struct ice_bw {
+	u32 bw;
+	u16 bw_alloc;
+};
+
+struct ice_bw_type_info {
+	DECLARE_BITMAP(bw_t_bitmap, ICE_BW_TYPE_CNT);
+	u8 generic;
+	struct ice_bw cir_bw;
+	struct ice_bw eir_bw;
+	u32 shared_bw;
+};
+
+/* VSI queue context structure for given TC */
+struct ice_q_ctx {
+	u16  q_handle;
+	u32  q_teid;
+	/* bw_t_info saves queue BW information */
+	struct ice_bw_type_info bw_t_info;
+};
+
+/* VSI type list entry to locate corresponding VSI/aggregator nodes */
 struct ice_sched_vsi_info {
 	struct ice_sched_node *vsi_node[ICE_MAX_TRAFFIC_CLASS];
 	struct ice_sched_node *ag_node[ICE_MAX_TRAFFIC_CLASS];
@@ -336,6 +422,10 @@ struct ice_port_info {
 	struct ice_mac_info mac;
 	struct ice_phy_info phy;
 	struct mutex sched_lock;	/* protect access to TXSched tree */
+	struct ice_sched_node *
+		sib_head[ICE_MAX_TRAFFIC_CLASS][ICE_AQC_TOPO_MAX_LEVEL_NUM];
+	/* List contain profile ID(s) and other params per layer */
+	struct list_head rl_prof_list[ICE_AQC_TOPO_MAX_LEVEL_NUM];
 	struct ice_dcbx_cfg local_dcbx_cfg;	/* Oper/Local Cfg */
 	/* DCBX info */
 	struct ice_dcbx_cfg remote_dcbx_cfg;	/* Peer Cfg */
@@ -387,6 +477,8 @@ struct ice_hw {
 
 	u8 pf_id;		/* device profile info */
 
+	u16 max_burst_size;	/* driver sets this value */
+
 	/* Tx Scheduler values */
 	u16 num_tx_sched_layers;
 	u16 num_tx_sched_phys_layers;
@@ -423,7 +515,7 @@ struct ice_hw {
 	struct ice_fw_log_cfg fw_log;
 
 /* Device max aggregate bandwidths corresponding to the GL_PWR_MODE_CTL
- * register. Used for determining the itr/intrl granularity during
+ * register. Used for determining the ITR/intrl granularity during
  * initialization.
  */
 #define ICE_MAX_AGG_BW_200G	0x0
@@ -443,6 +535,30 @@ struct ice_hw {
 
 	u8 ucast_shared;	/* true if VSIs can share unicast addr */
 
+	/* Active package version (currently active) */
+	struct ice_pkg_ver active_pkg_ver;
+	u8 active_pkg_name[ICE_PKG_NAME_SIZE];
+	u8 active_pkg_in_nvm;
+
+	enum ice_aq_err pkg_dwnld_status;
+
+	/* Driver's package ver - (from the Metadata seg) */
+	struct ice_pkg_ver pkg_ver;
+	u8 pkg_name[ICE_PKG_NAME_SIZE];
+
+	/* Driver's Ice package version (from the Ice seg) */
+	struct ice_pkg_ver ice_pkg_ver;
+	u8 ice_pkg_name[ICE_PKG_NAME_SIZE];
+
+	/* Pointer to the ice segment */
+	struct ice_seg *seg;
+
+	/* Pointer to allocated copy of pkg memory */
+	u8 *pkg_copy;
+	u32 pkg_size;
+
+	/* HW block tables */
+	struct ice_blk_info blk[ICE_BLK_COUNT];
 };
 
 /* Statistics collected by each port, VSI, VEB, and S-channel */
@@ -503,6 +619,8 @@ struct ice_hw_port_stats {
 };
 
 /* Checksum and Shadow RAM pointers */
+#define ICE_SR_BOOT_CFG_PTR		0x132
+#define ICE_NVM_OEM_VER_OFF		0x02
 #define ICE_SR_NVM_DEV_STARTER_VER	0x18
 #define ICE_SR_NVM_EETRACK_LO		0x2D
 #define ICE_SR_NVM_EETRACK_HI		0x2E
@@ -516,6 +634,7 @@ struct ice_hw_port_stats {
 #define ICE_OEM_VER_BUILD_MASK		(0xffff << ICE_OEM_VER_BUILD_SHIFT)
 #define ICE_OEM_VER_SHIFT		24
 #define ICE_OEM_VER_MASK		(0xff << ICE_OEM_VER_SHIFT)
+#define ICE_SR_PFA_PTR			0x40
 #define ICE_SR_SECTOR_SIZE_IN_WORDS	0x800
 #define ICE_SR_WORDS_IN_1KB		512
 

@@ -1365,10 +1365,6 @@ extern  u32 TxScalingTable_Jaguar[TXSCALE_TABLE_SIZE];
 #define SWAW_STEP_PEAK		0
 #define SWAW_STEP_DETERMINE	1
 
-/* Remove DIG by yuchen */
-
-void ODM_SetAntenna(PDM_ODM_T pDM_Odm, u8 Antenna);
-
 /* Remove BB power saving by Yuchen */
 
 #define dm_CheckTXPowerTracking ODM_TXPowerTrackingCheck

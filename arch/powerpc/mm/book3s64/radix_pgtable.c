@@ -7,11 +7,13 @@
 
 #define pr_fmt(fmt) "radix-mmu: " fmt
 
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/sched/mm.h>
 #include <linux/memblock.h>
 #include <linux/of_fdt.h>
 #include <linux/mm.h>
+#include <linux/hugetlb.h>
 #include <linux/string_helpers.h>
 #include <linux/stop_machine.h>
 
@@ -26,24 +28,12 @@
 #include <asm/sections.h>
 #include <asm/trace.h>
 #include <asm/uaccess.h>
+#include <asm/ultravisor.h>
 
 #include <trace/events/thp.h>
 
 unsigned int mmu_pid_bits;
 unsigned int mmu_base_pid;
-
-static int native_register_process_table(unsigned long base, unsigned long pg_sz,
-					 unsigned long table_size)
-{
-	unsigned long patb0, patb1;
-
-	patb0 = be64_to_cpu(partition_tb[0].patb0);
-	patb1 = base | table_size | PATB_GR;
-
-	mmu_partition_table_set_entry(0, patb0, patb1);
-
-	return 0;
-}
 
 static __ref void *early_alloc_pgtable(unsigned long size, int nid,
 			unsigned long region_start, unsigned long region_end)
@@ -198,14 +188,14 @@ void radix__change_memory_range(unsigned long start, unsigned long end,
 		pudp = pud_alloc(&init_mm, pgdp, idx);
 		if (!pudp)
 			continue;
-		if (pud_huge(*pudp)) {
+		if (pud_is_leaf(*pudp)) {
 			ptep = (pte_t *)pudp;
 			goto update_the_pte;
 		}
 		pmdp = pmd_alloc(&init_mm, pudp, idx);
 		if (!pmdp)
 			continue;
-		if (pmd_huge(*pmdp)) {
+		if (pmd_is_leaf(*pmdp)) {
 			ptep = pmdp_ptep(pmdp);
 			goto update_the_pte;
 		}
@@ -319,7 +309,7 @@ static int __meminit create_physical_mapping(unsigned long start,
 	return 0;
 }
 
-void __init radix_init_pgtable(void)
+static void __init radix_init_pgtable(void)
 {
 	unsigned long rts_field;
 	struct memblock_region *reg;
@@ -379,18 +369,6 @@ void __init radix_init_pgtable(void)
 	 */
 	rts_field = radix__get_tree_size();
 	process_tb->prtb0 = cpu_to_be64(rts_field | __pa(init_mm.pgd) | RADIX_PGD_INDEX_SIZE);
-	/*
-	 * Fill in the partition table. We are suppose to use effective address
-	 * of process table here. But our linear mapping also enable us to use
-	 * physical address here.
-	 */
-	register_process_table(__pa(process_tb), 0, PRTB_SIZE_SHIFT - 12);
-	pr_info("Process table %p and radix root for kernel: %p\n", process_tb, init_mm.pgd);
-	asm volatile("ptesync" : : : "memory");
-	asm volatile(PPC_TLBIE_5(%0,%1,2,1,1) : :
-		     "r" (TLBIEL_INVAL_SET_LPID), "r" (0));
-	asm volatile("eieio; tlbsync; ptesync" : : : "memory");
-	trace_tlbie(0, 0, TLBIEL_INVAL_SET_LPID, 0, 2, 1, 1);
 
 	/*
 	 * The init_mm context is given the first available (non-zero) PID,
@@ -411,20 +389,15 @@ void __init radix_init_pgtable(void)
 
 static void __init radix_init_partition_table(void)
 {
-	unsigned long rts_field, dw0;
+	unsigned long rts_field, dw0, dw1;
 
 	mmu_partition_table_init();
 	rts_field = radix__get_tree_size();
 	dw0 = rts_field | __pa(init_mm.pgd) | RADIX_PGD_INDEX_SIZE | PATB_HR;
-	mmu_partition_table_set_entry(0, dw0, 0);
+	dw1 = __pa(process_tb) | (PRTB_SIZE_SHIFT - 12) | PATB_GR;
+	mmu_partition_table_set_entry(0, dw0, dw1, false);
 
 	pr_info("Initializing Radix MMU\n");
-	pr_info("Partition table %p\n", partition_tb);
-}
-
-void __init radix_init_native(void)
-{
-	register_process_table = native_register_process_table;
 }
 
 static int __init get_idx_from_shift(unsigned int shift)
@@ -515,14 +488,6 @@ void __init radix__early_init_devtree(void)
 	mmu_psize_defs[MMU_PAGE_64K].shift = 16;
 	mmu_psize_defs[MMU_PAGE_64K].ap = 0x5;
 found:
-#ifdef CONFIG_SPARSEMEM_VMEMMAP
-	if (mmu_psize_defs[MMU_PAGE_2M].shift) {
-		/*
-		 * map vmemmap using 2M if available
-		 */
-		mmu_vmemmap_psize = MMU_PAGE_2M;
-	}
-#endif /* CONFIG_SPARSEMEM_VMEMMAP */
 	return;
 }
 
@@ -587,7 +552,13 @@ void __init radix__early_init_mmu(void)
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 	/* vmemmap mapping */
-	mmu_vmemmap_psize = mmu_virtual_psize;
+	if (mmu_psize_defs[MMU_PAGE_2M].shift) {
+		/*
+		 * map vmemmap using 2M if available
+		 */
+		mmu_vmemmap_psize = MMU_PAGE_2M;
+	} else
+		mmu_vmemmap_psize = mmu_virtual_psize;
 #endif
 	/*
 	 * initialize page table size
@@ -622,8 +593,9 @@ void __init radix__early_init_mmu(void)
 	__pmd_frag_nr = RADIX_PMD_FRAG_NR;
 	__pmd_frag_size_shift = RADIX_PMD_FRAG_SIZE_SHIFT;
 
+	radix_init_pgtable();
+
 	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
-		radix_init_native();
 		lpcr = mfspr(SPRN_LPCR);
 		mtspr(SPRN_LPCR, lpcr | LPCR_UPRT | LPCR_HR);
 		radix_init_partition_table();
@@ -634,11 +606,9 @@ void __init radix__early_init_mmu(void)
 
 	memblock_set_current_limit(MEMBLOCK_ALLOC_ANYWHERE);
 
-	radix_init_pgtable();
 	/* Switch to the guard PID before turning on MMU */
 	radix__switch_mmu_context(NULL, &init_mm);
-	if (cpu_has_feature(CPU_FTR_HVMODE))
-		tlbiel_all();
+	tlbiel_all();
 }
 
 void radix__early_init_mmu_secondary(void)
@@ -651,14 +621,14 @@ void radix__early_init_mmu_secondary(void)
 		lpcr = mfspr(SPRN_LPCR);
 		mtspr(SPRN_LPCR, lpcr | LPCR_UPRT | LPCR_HR);
 
-		mtspr(SPRN_PTCR,
-		      __pa(partition_tb) | (PATB_SIZE_SHIFT - 12));
+		set_ptcr_when_no_uv(__pa(partition_tb) |
+				    (PATB_SIZE_SHIFT - 12));
+
 		radix_init_amor();
 	}
 
 	radix__switch_mmu_context(NULL, &init_mm);
-	if (cpu_has_feature(CPU_FTR_HVMODE))
-		tlbiel_all();
+	tlbiel_all();
 }
 
 void radix__mmu_cleanup_all(void)
@@ -668,7 +638,7 @@ void radix__mmu_cleanup_all(void)
 	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
 		lpcr = mfspr(SPRN_LPCR);
 		mtspr(SPRN_LPCR, lpcr & ~LPCR_UPRT);
-		mtspr(SPRN_PTCR, 0);
+		set_ptcr_when_no_uv(0);
 		powernv_set_nmmu_ptcr(0);
 		radix__flush_tlb_all();
 	}
@@ -738,8 +708,8 @@ static int __meminit stop_machine_change_mapping(void *data)
 
 	spin_unlock(&init_mm.page_table_lock);
 	pte_clear(&init_mm, params->aligned_start, params->pte);
-	create_physical_mapping(params->aligned_start, params->start, -1);
-	create_physical_mapping(params->end, params->aligned_end, -1);
+	create_physical_mapping(__pa(params->aligned_start), __pa(params->start), -1);
+	create_physical_mapping(__pa(params->end), __pa(params->aligned_end), -1);
 	spin_lock(&init_mm.page_table_lock);
 	return 0;
 }
@@ -832,7 +802,7 @@ static void remove_pmd_table(pmd_t *pmd_start, unsigned long addr,
 		if (!pmd_present(*pmd))
 			continue;
 
-		if (pmd_huge(*pmd)) {
+		if (pmd_is_leaf(*pmd)) {
 			split_kernel_mapping(addr, end, PMD_SIZE, (pte_t *)pmd);
 			continue;
 		}
@@ -857,7 +827,7 @@ static void remove_pud_table(pud_t *pud_start, unsigned long addr,
 		if (!pud_present(*pud))
 			continue;
 
-		if (pud_huge(*pud)) {
+		if (pud_is_leaf(*pud)) {
 			split_kernel_mapping(addr, end, PUD_SIZE, (pte_t *)pud);
 			continue;
 		}
@@ -883,7 +853,7 @@ static void __meminit remove_pagetable(unsigned long start, unsigned long end)
 		if (!pgd_present(*pgd))
 			continue;
 
-		if (pgd_huge(*pgd)) {
+		if (pgd_is_leaf(*pgd)) {
 			split_kernel_mapping(addr, end, PGDIR_SIZE, (pte_t *)pgd);
 			continue;
 		}
@@ -903,7 +873,7 @@ int __meminit radix__create_section_mapping(unsigned long start, unsigned long e
 		return -1;
 	}
 
-	return create_physical_mapping(start, end, nid);
+	return create_physical_mapping(__pa(start), __pa(end), nid);
 }
 
 int __meminit radix__remove_section_mapping(unsigned long start, unsigned long end)
@@ -1058,13 +1028,6 @@ pmd_t radix__pmdp_huge_get_and_clear(struct mm_struct *mm,
 	return old_pmd;
 }
 
-int radix__has_transparent_hugepage(void)
-{
-	/* For radix 2M at PMD level means thp */
-	if (mmu_psize_defs[MMU_PAGE_2M].shift == PMD_SHIFT)
-		return 1;
-	return 0;
-}
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 void radix__ptep_set_access_flags(struct vm_area_struct *vma, pte_t *ptep,
@@ -1117,4 +1080,109 @@ void radix__ptep_modify_prot_commit(struct vm_area_struct *vma,
 		radix__flush_tlb_page(vma, addr);
 
 	set_pte_at(mm, addr, ptep, pte);
+}
+
+int __init arch_ioremap_pud_supported(void)
+{
+	/* HPT does not cope with large pages in the vmalloc area */
+	return radix_enabled();
+}
+
+int __init arch_ioremap_pmd_supported(void)
+{
+	return radix_enabled();
+}
+
+int p4d_free_pud_page(p4d_t *p4d, unsigned long addr)
+{
+	return 0;
+}
+
+int pud_set_huge(pud_t *pud, phys_addr_t addr, pgprot_t prot)
+{
+	pte_t *ptep = (pte_t *)pud;
+	pte_t new_pud = pfn_pte(__phys_to_pfn(addr), prot);
+
+	if (!radix_enabled())
+		return 0;
+
+	set_pte_at(&init_mm, 0 /* radix unused */, ptep, new_pud);
+
+	return 1;
+}
+
+int pud_clear_huge(pud_t *pud)
+{
+	if (pud_huge(*pud)) {
+		pud_clear(pud);
+		return 1;
+	}
+
+	return 0;
+}
+
+int pud_free_pmd_page(pud_t *pud, unsigned long addr)
+{
+	pmd_t *pmd;
+	int i;
+
+	pmd = (pmd_t *)pud_page_vaddr(*pud);
+	pud_clear(pud);
+
+	flush_tlb_kernel_range(addr, addr + PUD_SIZE);
+
+	for (i = 0; i < PTRS_PER_PMD; i++) {
+		if (!pmd_none(pmd[i])) {
+			pte_t *pte;
+			pte = (pte_t *)pmd_page_vaddr(pmd[i]);
+
+			pte_free_kernel(&init_mm, pte);
+		}
+	}
+
+	pmd_free(&init_mm, pmd);
+
+	return 1;
+}
+
+int pmd_set_huge(pmd_t *pmd, phys_addr_t addr, pgprot_t prot)
+{
+	pte_t *ptep = (pte_t *)pmd;
+	pte_t new_pmd = pfn_pte(__phys_to_pfn(addr), prot);
+
+	if (!radix_enabled())
+		return 0;
+
+	set_pte_at(&init_mm, 0 /* radix unused */, ptep, new_pmd);
+
+	return 1;
+}
+
+int pmd_clear_huge(pmd_t *pmd)
+{
+	if (pmd_huge(*pmd)) {
+		pmd_clear(pmd);
+		return 1;
+	}
+
+	return 0;
+}
+
+int pmd_free_pte_page(pmd_t *pmd, unsigned long addr)
+{
+	pte_t *pte;
+
+	pte = (pte_t *)pmd_page_vaddr(*pmd);
+	pmd_clear(pmd);
+
+	flush_tlb_kernel_range(addr, addr + PMD_SIZE);
+
+	pte_free_kernel(&init_mm, pte);
+
+	return 1;
+}
+
+int __init arch_ioremap_p4d_supported(void)
+{
+	return 0;
 }

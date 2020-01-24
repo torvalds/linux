@@ -333,10 +333,7 @@ void rtw_dynamic_check_timer_handlder(struct timer_list *t);
 
 void rtw_free_mlme_priv_ie_data(struct mlme_priv *pmlmepriv);
 
-struct wlan_network *_rtw_alloc_network(struct mlme_priv *pmlmepriv);
-
-void _rtw_free_network_nolock(struct mlme_priv *pmlmepriv,
-			      struct wlan_network *pnetwork);
+struct wlan_network *rtw_alloc_network(struct mlme_priv *pmlmepriv);
 
 int rtw_if_up(struct adapter *padapter);
 

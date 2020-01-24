@@ -108,7 +108,7 @@ acpi_status acpi_enable_gpe(acpi_handle gpe_device, u32 gpe_number)
 	if (gpe_event_info) {
 		if (ACPI_GPE_DISPATCH_TYPE(gpe_event_info->flags) !=
 		    ACPI_GPE_DISPATCH_NONE) {
-			status = acpi_ev_add_gpe_reference(gpe_event_info);
+			status = acpi_ev_add_gpe_reference(gpe_event_info, TRUE);
 			if (ACPI_SUCCESS(status) &&
 			    ACPI_GPE_IS_POLLING_NEEDED(gpe_event_info)) {
 
@@ -644,17 +644,17 @@ ACPI_EXPORT_SYMBOL(acpi_get_gpe_status)
  * PARAMETERS:  gpe_device          - Parent GPE Device. NULL for GPE0/GPE1
  *              gpe_number          - GPE level within the GPE block
  *
- * RETURN:      None
+ * RETURN:      INTERRUPT_HANDLED or INTERRUPT_NOT_HANDLED
  *
  * DESCRIPTION: Detect and dispatch a General Purpose Event to either a function
  *              (e.g. EC) or method (e.g. _Lxx/_Exx) handler.
  *
  ******************************************************************************/
-void acpi_dispatch_gpe(acpi_handle gpe_device, u32 gpe_number)
+u32 acpi_dispatch_gpe(acpi_handle gpe_device, u32 gpe_number)
 {
 	ACPI_FUNCTION_TRACE(acpi_dispatch_gpe);
 
-	acpi_ev_detect_gpe(gpe_device, NULL, gpe_number);
+	return acpi_ev_detect_gpe(gpe_device, NULL, gpe_number);
 }
 
 ACPI_EXPORT_SYMBOL(acpi_dispatch_gpe)

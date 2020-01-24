@@ -1226,7 +1226,6 @@ fail:
 static int wl3501_close(struct net_device *dev)
 {
 	struct wl3501_card *this = netdev_priv(dev);
-	int rc = -ENODEV;
 	unsigned long flags;
 	struct pcmcia_device *link;
 	link = this->p_dev;
@@ -1241,10 +1240,9 @@ static int wl3501_close(struct net_device *dev)
 	/* Mask interrupts from the SUTRO */
 	wl3501_block_interrupt(this);
 
-	rc = 0;
 	printk(KERN_INFO "%s: WL3501 closed\n", dev->name);
 	spin_unlock_irqrestore(&this->lock, flags);
-	return rc;
+	return 0;
 }
 
 /**

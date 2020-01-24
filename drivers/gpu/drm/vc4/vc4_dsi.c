@@ -18,22 +18,26 @@
  * hopefully present.
  */
 
-#include <drm/drm_atomic_helper.h>
-#include <drm/drm_edid.h>
-#include <drm/drm_mipi_dsi.h>
-#include <drm/drm_of.h>
-#include <drm/drm_panel.h>
-#include <drm/drm_probe_helper.h>
-#include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include <linux/clk.h>
 #include <linux/completion.h>
 #include <linux/component.h>
+#include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 #include <linux/i2c.h>
 #include <linux/io.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/pm_runtime.h>
+
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_bridge.h>
+#include <drm/drm_edid.h>
+#include <drm/drm_mipi_dsi.h>
+#include <drm/drm_of.h>
+#include <drm/drm_panel.h>
+#include <drm/drm_probe_helper.h>
+
 #include "vc4_drv.h"
 #include "vc4_regs.h"
 
@@ -1572,8 +1576,8 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 	}
 
 	if (panel) {
-		dsi->bridge = devm_drm_panel_bridge_add(dev, panel,
-							DRM_MODE_CONNECTOR_DSI);
+		dsi->bridge = devm_drm_panel_bridge_add_typed(dev, panel,
+							      DRM_MODE_CONNECTOR_DSI);
 		if (IS_ERR(dsi->bridge))
 			return PTR_ERR(dsi->bridge);
 	}

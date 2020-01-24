@@ -133,6 +133,7 @@ phy_tunable_strings[__ETHTOOL_PHY_TUNABLE_COUNT][ETH_GSTRING_LEN] = {
 	[ETHTOOL_ID_UNSPEC]     = "Unspec",
 	[ETHTOOL_PHY_DOWNSHIFT]	= "phy-downshift",
 	[ETHTOOL_PHY_FAST_LINK_DOWN] = "phy-fast-link-down",
+	[ETHTOOL_PHY_EDPD]	= "phy-energy-detect-power-down",
 };
 
 static int ethtool_get_features(struct net_device *dev, void __user *useraddr)
@@ -1395,11 +1396,13 @@ static int ethtool_reset(struct net_device *dev, char __user *useraddr)
 
 static int ethtool_get_wol(struct net_device *dev, char __user *useraddr)
 {
-	struct ethtool_wolinfo wol = { .cmd = ETHTOOL_GWOL };
+	struct ethtool_wolinfo wol;
 
 	if (!dev->ethtool_ops->get_wol)
 		return -EOPNOTSUPP;
 
+	memset(&wol, 0, sizeof(struct ethtool_wolinfo));
+	wol.cmd = ETHTOOL_GWOL;
 	dev->ethtool_ops->get_wol(dev, &wol);
 
 	if (copy_to_user(useraddr, &wol, sizeof(wol)))
@@ -2451,6 +2454,11 @@ static int ethtool_phy_tunable_valid(const struct ethtool_tunable *tuna)
 		    tuna->type_id != ETHTOOL_TUNABLE_U8)
 			return -EINVAL;
 		break;
+	case ETHTOOL_PHY_EDPD:
+		if (tuna->len != sizeof(u16) ||
+		    tuna->type_id != ETHTOOL_TUNABLE_U16)
+			return -EINVAL;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -2883,6 +2891,30 @@ ethtool_rx_flow_rule_create(const struct ethtool_rx_flow_spec_input *input)
 	match->mask.basic.n_proto = htons(0xffff);
 
 	switch (fs->flow_type & ~(FLOW_EXT | FLOW_MAC_EXT | FLOW_RSS)) {
+	case ETHER_FLOW: {
+		const struct ethhdr *ether_spec, *ether_m_spec;
+
+		ether_spec = &fs->h_u.ether_spec;
+		ether_m_spec = &fs->m_u.ether_spec;
+
+		if (!is_zero_ether_addr(ether_m_spec->h_source)) {
+			ether_addr_copy(match->key.eth_addrs.src,
+					ether_spec->h_source);
+			ether_addr_copy(match->mask.eth_addrs.src,
+					ether_m_spec->h_source);
+		}
+		if (!is_zero_ether_addr(ether_m_spec->h_dest)) {
+			ether_addr_copy(match->key.eth_addrs.dst,
+					ether_spec->h_dest);
+			ether_addr_copy(match->mask.eth_addrs.dst,
+					ether_m_spec->h_dest);
+		}
+		if (ether_m_spec->h_proto) {
+			match->key.basic.n_proto = ether_spec->h_proto;
+			match->mask.basic.n_proto = ether_m_spec->h_proto;
+		}
+		}
+		break;
 	case TCP_V4_FLOW:
 	case UDP_V4_FLOW: {
 		const struct ethtool_tcpip4_spec *v4_spec, *v4_m_spec;

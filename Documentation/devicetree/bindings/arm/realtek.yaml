@@ -1,0 +1,36 @@
+# SPDX-License-Identifier: GPL-2.0-or-later OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/realtek.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Realtek platforms device tree bindings
+
+maintainers:
+  - Andreas Färber <afaerber@suse.de>
+
+properties:
+  $nodename:
+    const: '/'
+  compatible:
+    oneOf:
+      # RTD1293 SoC based boards
+      - items:
+          - enum:
+              - synology,ds418j # Synology DiskStation DS418j
+          - const: realtek,rtd1293
+
+      # RTD1295 SoC based boards
+      - items:
+          - enum:
+              - mele,v9 # MeLE V9
+              - probox2,ava # ProBox2 AVA
+              - zidoo,x9s # Zidoo X9S
+          - const: realtek,rtd1295
+
+      # RTD1296 SoC based boards
+      - items:
+          - enum:
+              - synology,ds418 # Synology DiskStation DS418
+          - const: realtek,rtd1296
+...

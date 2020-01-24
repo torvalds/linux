@@ -13,6 +13,8 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
 
+#include <asm-generic/pgalloc.h>	/* for pte_{alloc,free}_one */
+
 static inline void pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmd,
 	pte_t *pte)
 {
@@ -50,40 +52,9 @@ static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 	free_pages((unsigned long)pgd, PGD_ORDER);
 }
 
-static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm)
-{
-	return (pte_t *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, PTE_ORDER);
-}
-
-static inline struct page *pte_alloc_one(struct mm_struct *mm)
-{
-	struct page *pte;
-
-	pte = alloc_pages(GFP_KERNEL, PTE_ORDER);
-	if (!pte)
-		return NULL;
-	clear_highpage(pte);
-	if (!pgtable_page_ctor(pte)) {
-		__free_page(pte);
-		return NULL;
-	}
-	return pte;
-}
-
-static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
-{
-	free_pages((unsigned long)pte, PTE_ORDER);
-}
-
-static inline void pte_free(struct mm_struct *mm, pgtable_t pte)
-{
-	pgtable_page_dtor(pte);
-	__free_pages(pte, PTE_ORDER);
-}
-
 #define __pte_free_tlb(tlb,pte,address)			\
 do {							\
-	pgtable_page_dtor(pte);				\
+	pgtable_pte_page_dtor(pte);			\
 	tlb_remove_page((tlb), pte);			\
 } while (0)
 
@@ -125,16 +96,14 @@ static inline void pud_free(struct mm_struct *mm, pud_t *pud)
 	free_pages((unsigned long)pud, PUD_ORDER);
 }
 
-static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, pud_t *pud)
+static inline void p4d_populate(struct mm_struct *mm, p4d_t *p4d, pud_t *pud)
 {
-	set_pgd(pgd, __pgd((unsigned long)pud));
+	set_p4d(p4d, __p4d((unsigned long)pud));
 }
 
 #define __pud_free_tlb(tlb, x, addr)	pud_free((tlb)->mm, x)
 
 #endif /* __PAGETABLE_PUD_FOLDED */
-
-#define check_pgt_cache()	do { } while (0)
 
 extern void pagetable_init(void);
 

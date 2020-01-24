@@ -1549,7 +1549,7 @@ emac_start_xmit_sg(struct sk_buff *skb, struct net_device *ndev)
 				       ctrl);
 	/* skb fragments */
 	for (i = 0; i < nr_frags; ++i) {
-		struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[i];
+		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 		len = skb_frag_size(frag);
 
 		if (unlikely(dev->tx_cnt + mal_tx_chunks(len) >= NUM_TX_BUFF))
@@ -2849,6 +2849,7 @@ static int emac_init_config(struct emac_instance *dev)
 {
 	struct device_node *np = dev->ofdev->dev.of_node;
 	const void *p;
+	int err;
 
 	/* Read config from device-tree */
 	if (emac_read_uint_prop(np, "mal-device", &dev->mal_ph, 1))
@@ -2897,8 +2898,8 @@ static int emac_init_config(struct emac_instance *dev)
 		dev->mal_burst_size = 256;
 
 	/* PHY mode needs some decoding */
-	dev->phy_mode = of_get_phy_mode(np);
-	if (dev->phy_mode < 0)
+	err = of_get_phy_mode(np, &dev->phy_mode);
+	if (err)
 		dev->phy_mode = PHY_INTERFACE_MODE_NA;
 
 	/* Check EMAC version */

@@ -3,21 +3,13 @@
  * Renesas USB driver
  *
  * Copyright (C) 2011 Renesas Solutions Corp.
+ * Copyright (C) 2019 Renesas Electronics Corporation
  * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
  */
 #include <linux/interrupt.h>
 
 #include "common.h"
 #include "mod.h"
-
-#define usbhs_priv_to_modinfo(priv) (&priv->mod_info)
-#define usbhs_mod_info_call(priv, func, param...)	\
-({						\
-	struct usbhs_mod_info *info;		\
-	info = usbhs_priv_to_modinfo(priv);	\
-	!info->func ? 0 :			\
-	 info->func(param);			\
-})
 
 /*
  *		autonomy
@@ -41,7 +33,7 @@ static int usbhsm_autonomy_irq_vbus(struct usbhs_priv *priv,
 {
 	struct platform_device *pdev = usbhs_priv_to_pdev(priv);
 
-	renesas_usbhs_call_notify_hotplug(pdev);
+	usbhsc_schedule_notify_hotplug(pdev);
 
 	return 0;
 }
@@ -50,10 +42,17 @@ void usbhs_mod_autonomy_mode(struct usbhs_priv *priv)
 {
 	struct usbhs_mod_info *info = usbhs_priv_to_modinfo(priv);
 
-	info->irq_vbus		= usbhsm_autonomy_irq_vbus;
-	priv->pfunc.get_vbus	= usbhsm_autonomy_get_vbus;
+	info->irq_vbus = usbhsm_autonomy_irq_vbus;
+	info->get_vbus = usbhsm_autonomy_get_vbus;
 
 	usbhs_irq_callback_update(priv, NULL);
+}
+
+void usbhs_mod_non_autonomy_mode(struct usbhs_priv *priv)
+{
+	struct usbhs_mod_info *info = usbhs_priv_to_modinfo(priv);
+
+	info->get_vbus = priv->pfunc->get_vbus;
 }
 
 /*
@@ -170,17 +169,7 @@ void usbhs_mod_remove(struct usbhs_priv *priv)
  */
 int usbhs_status_get_device_state(struct usbhs_irq_state *irq_state)
 {
-	int state = irq_state->intsts0 & DVSQ_MASK;
-
-	switch (state) {
-	case POWER_STATE:
-	case DEFAULT_STATE:
-	case ADDRESS_STATE:
-	case CONFIGURATION_STATE:
-		return state;
-	}
-
-	return -EIO;
+	return (int)irq_state->intsts0 & DVSQ_MASK;
 }
 
 int usbhs_status_get_ctrl_stage(struct usbhs_irq_state *irq_state)
@@ -349,10 +338,6 @@ void usbhs_irq_callback_update(struct usbhs_priv *priv, struct usbhs_mod *mod)
 	 *	usbhs_interrupt
 	 */
 
-	/*
-	 * it don't enable DVSE (intenb0) here
-	 * but "mod->irq_dev_state" will be called.
-	 */
 	if (info->irq_vbus)
 		intenb0 |= VBSE;
 
@@ -362,6 +347,9 @@ void usbhs_irq_callback_update(struct usbhs_priv *priv, struct usbhs_mod *mod)
 		 */
 		if (mod->irq_ctrl_stage)
 			intenb0 |= CTRE;
+
+		if (mod->irq_dev_state)
+			intenb0 |= DVSE;
 
 		if (mod->irq_empty && mod->irq_bempsts) {
 			usbhs_write(priv, BEMPENB, mod->irq_bempsts);

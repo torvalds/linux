@@ -23,6 +23,8 @@
  *
  */
 
+#include <linux/slab.h>
+
 #include "dm_services.h"
 
 #include "atom.h"
@@ -2541,7 +2543,6 @@ static enum bp_result construct_integrated_info(
 
 	/* Sort voltage table from low to high*/
 	if (result == BP_RESULT_OK) {
-		struct clock_voltage_caps temp = {0, 0};
 		uint32_t i;
 		uint32_t j;
 
@@ -2551,10 +2552,8 @@ static enum bp_result construct_integrated_info(
 						info->disp_clk_voltage[j].max_supported_clk <
 						info->disp_clk_voltage[j-1].max_supported_clk) {
 					/* swap j and j - 1*/
-					temp = info->disp_clk_voltage[j-1];
-					info->disp_clk_voltage[j-1] =
-							info->disp_clk_voltage[j];
-					info->disp_clk_voltage[j] = temp;
+					swap(info->disp_clk_voltage[j - 1],
+					     info->disp_clk_voltage[j]);
 				}
 			}
 		}
@@ -2794,8 +2793,6 @@ static const struct dc_vbios_funcs vbios_funcs = {
 
 	.get_device_tag = bios_parser_get_device_tag,
 
-	.get_firmware_info = bios_parser_get_firmware_info,
-
 	.get_spread_spectrum_info = bios_parser_get_spread_spectrum_info,
 
 	.get_ss_entry_number = bios_parser_get_ss_entry_number,
@@ -2920,6 +2917,7 @@ static bool bios_parser_construct(
 	dal_bios_parser_init_cmd_tbl_helper(&bp->cmd_helper, dce_version);
 
 	bp->base.integrated_info = bios_parser_create_integrated_info(&bp->base);
+	bp->base.fw_info_valid = bios_parser_get_firmware_info(&bp->base, &bp->base.fw_info) == BP_RESULT_OK;
 
 	return true;
 }

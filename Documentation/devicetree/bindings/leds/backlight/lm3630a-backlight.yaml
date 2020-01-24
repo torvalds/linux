@@ -23,16 +23,21 @@ properties:
   reg:
     maxItems: 1
 
-  ti,linear-mapping-mode:
-    description: |
-      Enable linear mapping mode. If disabled, then it will use exponential
-      mapping mode in which the ramp up/down appears to have a more uniform
-      transition to the human eye.
-    type: boolean
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
+
+  enable-gpios:
+    description: GPIO to use to enable/disable the backlight (HWEN pin).
+    maxItems: 1
 
 required:
   - compatible
   - reg
+  - '#address-cells'
+  - '#size-cells'
 
 patternProperties:
   "^led@[01]$":
@@ -48,7 +53,6 @@ patternProperties:
           in this property. The two current sinks can be controlled
           independently with both banks, or bank A can be configured to control
           both sinks with the led-sources property.
-        maxItems: 1
         minimum: 0
         maximum: 1
 
@@ -73,6 +77,13 @@ patternProperties:
         minimum: 0
         maximum: 255
 
+      ti,linear-mapping-mode:
+        description: |
+          Enable linear mapping mode. If disabled, then it will use exponential
+          mapping mode in which the ramp up/down appears to have a more uniform
+          transition to the human eye.
+        type: boolean
+
     required:
       - reg
 
@@ -82,6 +93,7 @@ additionalProperties: false
 
 examples:
   - |
+    #include <dt-bindings/gpio/gpio.h>
     i2c {
         #address-cells = <1>;
         #size-cells = <0>;
@@ -89,6 +101,7 @@ examples:
         led-controller@38 {
                 compatible = "ti,lm3630a";
                 reg = <0x38>;
+                enable-gpios = <&gpio2 5 GPIO_ACTIVE_HIGH>;
 
                 #address-cells = <1>;
                 #size-cells = <0>;

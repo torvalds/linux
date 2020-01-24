@@ -411,12 +411,9 @@ static int p54_conf_tx(struct ieee80211_hw *dev,
 	int ret;
 
 	mutex_lock(&priv->conf_mutex);
-	if (queue < dev->queues) {
-		P54_SET_QUEUE(priv->qos_params[queue], params->aifs,
-			params->cw_min, params->cw_max, params->txop);
-		ret = p54_set_edcf(priv);
-	} else
-		ret = -EINVAL;
+	P54_SET_QUEUE(priv->qos_params[queue], params->aifs,
+		      params->cw_min, params->cw_max, params->txop);
+	ret = p54_set_edcf(priv);
 	mutex_unlock(&priv->conf_mutex);
 	return ret;
 }

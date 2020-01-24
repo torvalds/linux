@@ -13,20 +13,18 @@
 #include <linux/refcount.h>
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
+#include <linux/rwsem.h>
+#include <linux/atomic.h>
+#include <linux/hashtable.h>
 #include <net/gen_stats.h>
 #include <net/rtnetlink.h>
+#include <net/flow_offload.h>
 
 struct Qdisc_ops;
 struct qdisc_walker;
 struct tcf_walker;
 struct module;
 struct bpf_flow_keys;
-
-typedef int tc_setup_cb_t(enum tc_setup_type type,
-			  void *type_data, void *cb_priv);
-
-typedef int tc_indr_block_bind_cb_t(struct net_device *dev, void *cb_priv,
-				    enum tc_setup_type type, void *type_data);
 
 struct qdisc_rate_table {
 	struct tc_ratespec rate;
@@ -151,8 +149,8 @@ static inline bool qdisc_is_percpu_stats(const struct Qdisc *q)
 static inline bool qdisc_is_empty(const struct Qdisc *qdisc)
 {
 	if (qdisc_is_percpu_stats(qdisc))
-		return qdisc->empty;
-	return !qdisc->q.qlen;
+		return READ_ONCE(qdisc->empty);
+	return !READ_ONCE(qdisc->q.qlen);
 }
 
 static inline bool qdisc_run_begin(struct Qdisc *qdisc)
@@ -160,7 +158,7 @@ static inline bool qdisc_run_begin(struct Qdisc *qdisc)
 	if (qdisc->flags & TCQ_F_NOLOCK) {
 		if (!spin_trylock(&qdisc->seqlock))
 			return false;
-		qdisc->empty = false;
+		WRITE_ONCE(qdisc->empty, false);
 	} else if (qdisc_is_running(qdisc)) {
 		return false;
 	}
@@ -279,7 +277,7 @@ struct tcf_result {
 		};
 		const struct tcf_proto *goto_tp;
 
-		/* used by the TC_ACT_REINSERT action */
+		/* used in the skb_tc_reinsert function */
 		struct {
 			bool		ingress;
 			struct gnet_stats_queue *qstats;
@@ -310,11 +308,16 @@ struct tcf_proto_ops {
 	int			(*delete)(struct tcf_proto *tp, void *arg,
 					  bool *last, bool rtnl_held,
 					  struct netlink_ext_ack *);
+	bool			(*delete_empty)(struct tcf_proto *tp);
 	void			(*walk)(struct tcf_proto *tp,
 					struct tcf_walker *arg, bool rtnl_held);
 	int			(*reoffload)(struct tcf_proto *tp, bool add,
-					     tc_setup_cb_t *cb, void *cb_priv,
+					     flow_setup_cb_t *cb, void *cb_priv,
 					     struct netlink_ext_ack *extack);
+	void			(*hw_add)(struct tcf_proto *tp,
+					  void *type_data);
+	void			(*hw_del)(struct tcf_proto *tp,
+					  void *type_data);
 	void			(*bind_class)(void *, u32, unsigned long);
 	void *			(*tmplt_create)(struct net *net,
 						struct tcf_chain *chain,
@@ -334,6 +337,10 @@ struct tcf_proto_ops {
 	int			flags;
 };
 
+/* Classifiers setting TCF_PROTO_OPS_DOIT_UNLOCKED in tcf_proto_ops->flags
+ * are expected to implement tcf_proto_ops->delete_empty(), otherwise race
+ * conditions can occur when filters are inserted/deleted simultaneously.
+ */
 enum tcf_proto_ops_flags {
 	TCF_PROTO_OPS_DOIT_UNLOCKED = 1,
 };
@@ -361,6 +368,7 @@ struct tcf_proto {
 	bool			deleting;
 	refcount_t		refcnt;
 	struct rcu_head		rcu;
+	struct hlist_node	destroy_ht_node;
 };
 
 struct qdisc_skb_cb {
@@ -401,16 +409,20 @@ struct tcf_block {
 	refcount_t refcnt;
 	struct net *net;
 	struct Qdisc *q;
-	struct list_head cb_list;
+	struct rw_semaphore cb_lock; /* protects cb_list and offload counters */
+	struct flow_block flow_block;
 	struct list_head owner_list;
 	bool keep_dst;
-	unsigned int offloadcnt; /* Number of oddloaded filters */
+	atomic_t offloadcnt; /* Number of oddloaded filters */
 	unsigned int nooffloaddevcnt; /* Number of devs unable to do offload */
+	unsigned int lockeddevcnt; /* Number of devs that require rtnl lock. */
 	struct {
 		struct tcf_chain *chain;
 		struct list_head filter_chain_list;
 	} chain0;
 	struct rcu_head rcu;
+	DECLARE_HASHTABLE(proto_destroy_ht, 7);
+	struct mutex proto_destroy_lock; /* Lock for proto_destroy hashtable. */
 };
 
 #ifdef CONFIG_PROVE_LOCKING
@@ -440,37 +452,6 @@ static inline bool lockdep_tcf_proto_is_locked(struct tcf_proto *tp)
 
 #define tcf_proto_dereference(p, tp)					\
 	rcu_dereference_protected(p, lockdep_tcf_proto_is_locked(tp))
-
-static inline void tcf_block_offload_inc(struct tcf_block *block, u32 *flags)
-{
-	if (*flags & TCA_CLS_FLAGS_IN_HW)
-		return;
-	*flags |= TCA_CLS_FLAGS_IN_HW;
-	block->offloadcnt++;
-}
-
-static inline void tcf_block_offload_dec(struct tcf_block *block, u32 *flags)
-{
-	if (!(*flags & TCA_CLS_FLAGS_IN_HW))
-		return;
-	*flags &= ~TCA_CLS_FLAGS_IN_HW;
-	block->offloadcnt--;
-}
-
-static inline void
-tc_cls_offload_cnt_update(struct tcf_block *block, u32 *cnt,
-			  u32 *flags, bool add)
-{
-	if (add) {
-		if (!*cnt)
-			tcf_block_offload_inc(block, flags);
-		(*cnt)++;
-	} else {
-		(*cnt)--;
-		if (!*cnt)
-			tcf_block_offload_dec(block, flags);
-	}
-}
 
 static inline void qdisc_cb_private_validate(const struct sk_buff *skb, int sz)
 {
@@ -520,6 +501,11 @@ static inline struct Qdisc *qdisc_root(const struct Qdisc *qdisc)
 	struct Qdisc *q = rcu_dereference_rtnl(qdisc->dev_queue->qdisc);
 
 	return q;
+}
+
+static inline struct Qdisc *qdisc_root_bh(const struct Qdisc *qdisc)
+{
+	return rcu_dereference_bh(qdisc->dev_queue->qdisc);
 }
 
 static inline struct Qdisc *qdisc_root_sleeping(const struct Qdisc *qdisc)
@@ -1309,17 +1295,9 @@ void mini_qdisc_pair_swap(struct mini_Qdisc_pair *miniqp,
 void mini_qdisc_pair_init(struct mini_Qdisc_pair *miniqp, struct Qdisc *qdisc,
 			  struct mini_Qdisc __rcu **p_miniq);
 
-static inline void skb_tc_reinsert(struct sk_buff *skb, struct tcf_result *res)
+static inline int skb_tc_reinsert(struct sk_buff *skb, struct tcf_result *res)
 {
-	struct gnet_stats_queue *stats = res->qstats;
-	int ret;
-
-	if (res->ingress)
-		ret = netif_receive_skb(skb);
-	else
-		ret = dev_queue_xmit(skb);
-	if (ret && stats)
-		qstats_overlimit_inc(res->qstats);
+	return res->ingress ? netif_receive_skb(skb) : dev_queue_xmit(skb);
 }
 
 #endif

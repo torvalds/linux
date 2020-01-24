@@ -119,61 +119,76 @@ static void bnxt_re_get_sriov_func_type(struct bnxt_re_dev *rdev)
  * reserved for the function. The driver may choose to allocate fewer
  * resources than the firmware maximum.
  */
+static void bnxt_re_limit_pf_res(struct bnxt_re_dev *rdev)
+{
+	struct bnxt_qplib_dev_attr *attr;
+	struct bnxt_qplib_ctx *ctx;
+	int i;
+
+	attr = &rdev->dev_attr;
+	ctx = &rdev->qplib_ctx;
+
+	ctx->qpc_count = min_t(u32, BNXT_RE_MAX_QPC_COUNT,
+			       attr->max_qp);
+	ctx->mrw_count = BNXT_RE_MAX_MRW_COUNT_256K;
+	/* Use max_mr from fw since max_mrw does not get set */
+	ctx->mrw_count = min_t(u32, ctx->mrw_count, attr->max_mr);
+	ctx->srqc_count = min_t(u32, BNXT_RE_MAX_SRQC_COUNT,
+				attr->max_srq);
+	ctx->cq_count = min_t(u32, BNXT_RE_MAX_CQ_COUNT, attr->max_cq);
+	if (!bnxt_qplib_is_chip_gen_p5(&rdev->chip_ctx))
+		for (i = 0; i < MAX_TQM_ALLOC_REQ; i++)
+			rdev->qplib_ctx.tqm_count[i] =
+			rdev->dev_attr.tqm_alloc_reqs[i];
+}
+
+static void bnxt_re_limit_vf_res(struct bnxt_qplib_ctx *qplib_ctx, u32 num_vf)
+{
+	struct bnxt_qplib_vf_res *vf_res;
+	u32 mrws = 0;
+	u32 vf_pct;
+	u32 nvfs;
+
+	vf_res = &qplib_ctx->vf_res;
+	/*
+	 * Reserve a set of resources for the PF. Divide the remaining
+	 * resources among the VFs
+	 */
+	vf_pct = 100 - BNXT_RE_PCT_RSVD_FOR_PF;
+	nvfs = num_vf;
+	num_vf = 100 * num_vf;
+	vf_res->max_qp_per_vf = (qplib_ctx->qpc_count * vf_pct) / num_vf;
+	vf_res->max_srq_per_vf = (qplib_ctx->srqc_count * vf_pct) / num_vf;
+	vf_res->max_cq_per_vf = (qplib_ctx->cq_count * vf_pct) / num_vf;
+	/*
+	 * The driver allows many more MRs than other resources. If the
+	 * firmware does also, then reserve a fixed amount for the PF and
+	 * divide the rest among VFs. VFs may use many MRs for NFS
+	 * mounts, ISER, NVME applications, etc. If the firmware severely
+	 * restricts the number of MRs, then let PF have half and divide
+	 * the rest among VFs, as for the other resource types.
+	 */
+	if (qplib_ctx->mrw_count < BNXT_RE_MAX_MRW_COUNT_64K) {
+		mrws = qplib_ctx->mrw_count * vf_pct;
+		nvfs = num_vf;
+	} else {
+		mrws = qplib_ctx->mrw_count - BNXT_RE_RESVD_MR_FOR_PF;
+	}
+	vf_res->max_mrw_per_vf = (mrws / nvfs);
+	vf_res->max_gid_per_vf = BNXT_RE_MAX_GID_PER_VF;
+}
+
 static void bnxt_re_set_resource_limits(struct bnxt_re_dev *rdev)
 {
-	u32 vf_qps = 0, vf_srqs = 0, vf_cqs = 0, vf_mrws = 0, vf_gids = 0;
-	u32 i;
-	u32 vf_pct;
 	u32 num_vfs;
-	struct bnxt_qplib_dev_attr *dev_attr = &rdev->dev_attr;
 
-	rdev->qplib_ctx.qpc_count = min_t(u32, BNXT_RE_MAX_QPC_COUNT,
-					  dev_attr->max_qp);
+	memset(&rdev->qplib_ctx.vf_res, 0, sizeof(struct bnxt_qplib_vf_res));
+	bnxt_re_limit_pf_res(rdev);
 
-	rdev->qplib_ctx.mrw_count = BNXT_RE_MAX_MRW_COUNT_256K;
-	/* Use max_mr from fw since max_mrw does not get set */
-	rdev->qplib_ctx.mrw_count = min_t(u32, rdev->qplib_ctx.mrw_count,
-					  dev_attr->max_mr);
-	rdev->qplib_ctx.srqc_count = min_t(u32, BNXT_RE_MAX_SRQC_COUNT,
-					   dev_attr->max_srq);
-	rdev->qplib_ctx.cq_count = min_t(u32, BNXT_RE_MAX_CQ_COUNT,
-					 dev_attr->max_cq);
-
-	for (i = 0; i < MAX_TQM_ALLOC_REQ; i++)
-		rdev->qplib_ctx.tqm_count[i] =
-		rdev->dev_attr.tqm_alloc_reqs[i];
-
-	if (rdev->num_vfs) {
-		/*
-		 * Reserve a set of resources for the PF. Divide the remaining
-		 * resources among the VFs
-		 */
-		vf_pct = 100 - BNXT_RE_PCT_RSVD_FOR_PF;
-		num_vfs = 100 * rdev->num_vfs;
-		vf_qps = (rdev->qplib_ctx.qpc_count * vf_pct) / num_vfs;
-		vf_srqs = (rdev->qplib_ctx.srqc_count * vf_pct) / num_vfs;
-		vf_cqs = (rdev->qplib_ctx.cq_count * vf_pct) / num_vfs;
-		/*
-		 * The driver allows many more MRs than other resources. If the
-		 * firmware does also, then reserve a fixed amount for the PF
-		 * and divide the rest among VFs. VFs may use many MRs for NFS
-		 * mounts, ISER, NVME applications, etc. If the firmware
-		 * severely restricts the number of MRs, then let PF have
-		 * half and divide the rest among VFs, as for the other
-		 * resource types.
-		 */
-		if (rdev->qplib_ctx.mrw_count < BNXT_RE_MAX_MRW_COUNT_64K)
-			vf_mrws = rdev->qplib_ctx.mrw_count * vf_pct / num_vfs;
-		else
-			vf_mrws = (rdev->qplib_ctx.mrw_count -
-				   BNXT_RE_RESVD_MR_FOR_PF) / rdev->num_vfs;
-		vf_gids = BNXT_RE_MAX_GID_PER_VF;
-	}
-	rdev->qplib_ctx.vf_res.max_mrw_per_vf = vf_mrws;
-	rdev->qplib_ctx.vf_res.max_gid_per_vf = vf_gids;
-	rdev->qplib_ctx.vf_res.max_qp_per_vf = vf_qps;
-	rdev->qplib_ctx.vf_res.max_srq_per_vf = vf_srqs;
-	rdev->qplib_ctx.vf_res.max_cq_per_vf = vf_cqs;
+	num_vfs =  bnxt_qplib_is_chip_gen_p5(&rdev->chip_ctx) ?
+			BNXT_RE_GEN_P5_MAX_VF : rdev->num_vfs;
+	if (num_vfs)
+		bnxt_re_limit_vf_res(&rdev->qplib_ctx, num_vfs);
 }
 
 /* for handling bnxt_en callbacks later */
@@ -193,9 +208,11 @@ static void bnxt_re_sriov_config(void *p, int num_vfs)
 		return;
 
 	rdev->num_vfs = num_vfs;
-	bnxt_re_set_resource_limits(rdev);
-	bnxt_qplib_set_func_resources(&rdev->qplib_res, &rdev->rcfw,
-				      &rdev->qplib_ctx);
+	if (!bnxt_qplib_is_chip_gen_p5(&rdev->chip_ctx)) {
+		bnxt_re_set_resource_limits(rdev);
+		bnxt_qplib_set_func_resources(&rdev->qplib_res, &rdev->rcfw,
+					      &rdev->qplib_ctx);
+	}
 }
 
 static void bnxt_re_shutdown(void *p)
@@ -477,6 +494,7 @@ static int bnxt_re_net_stats_ctx_alloc(struct bnxt_re_dev *rdev,
 	bnxt_re_init_hwrm_hdr(rdev, (void *)&req, HWRM_STAT_CTX_ALLOC, -1, -1);
 	req.update_period_ms = cpu_to_le32(1000);
 	req.stats_dma_addr = cpu_to_le64(dma_map);
+	req.stats_dma_length = cpu_to_le16(sizeof(struct ctx_hw_stats_ext));
 	req.stat_ctx_flags = STAT_CTX_ALLOC_REQ_STAT_CTX_FLAGS_ROCE;
 	bnxt_re_fill_fw_msg(&fw_msg, (void *)&req, sizeof(req), (void *)&resp,
 			    sizeof(resp), DFLT_HWRM_CMD_TIMEOUT);
@@ -596,6 +614,10 @@ static void bnxt_re_unregister_ib(struct bnxt_re_dev *rdev)
 }
 
 static const struct ib_device_ops bnxt_re_dev_ops = {
+	.owner = THIS_MODULE,
+	.driver_id = RDMA_DRIVER_BNXT_RE,
+	.uverbs_abi_ver = BNXT_RE_ABI_VERSION,
+
 	.add_gid = bnxt_re_add_gid,
 	.alloc_hw_stats = bnxt_re_ib_alloc_hw_stats,
 	.alloc_mr = bnxt_re_alloc_mr,
@@ -621,7 +643,6 @@ static const struct ib_device_ops bnxt_re_dev_ops = {
 	.map_mr_sg = bnxt_re_map_mr_sg,
 	.mmap = bnxt_re_mmap,
 	.modify_ah = bnxt_re_modify_ah,
-	.modify_device = bnxt_re_modify_device,
 	.modify_qp = bnxt_re_modify_qp,
 	.modify_srq = bnxt_re_modify_srq,
 	.poll_cq = bnxt_re_poll_cq,
@@ -637,6 +658,7 @@ static const struct ib_device_ops bnxt_re_dev_ops = {
 	.reg_user_mr = bnxt_re_reg_user_mr,
 	.req_notify_cq = bnxt_re_req_notify_cq,
 	INIT_RDMA_OBJ_SIZE(ib_ah, bnxt_re_ah, ib_ah),
+	INIT_RDMA_OBJ_SIZE(ib_cq, bnxt_re_cq, ib_cq),
 	INIT_RDMA_OBJ_SIZE(ib_pd, bnxt_re_pd, ib_pd),
 	INIT_RDMA_OBJ_SIZE(ib_srq, bnxt_re_srq, ib_srq),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, bnxt_re_ucontext, ib_uctx),
@@ -648,7 +670,6 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 	int ret;
 
 	/* ib device init */
-	ibdev->owner = THIS_MODULE;
 	ibdev->node_type = RDMA_NODE_IB_CA;
 	strlcpy(ibdev->node_desc, BNXT_RE_DESC " HCA",
 		strlen(BNXT_RE_DESC) + 5);
@@ -661,7 +682,6 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 	ibdev->local_dma_lkey = BNXT_QPLIB_RSVD_LKEY;
 
 	/* User space */
-	ibdev->uverbs_abi_ver = BNXT_RE_ABI_VERSION;
 	ibdev->uverbs_cmd_mask =
 			(1ull << IB_USER_VERBS_CMD_GET_CONTEXT)		|
 			(1ull << IB_USER_VERBS_CMD_QUERY_DEVICE)	|
@@ -691,7 +711,6 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 
 
 	rdma_set_device_sysfs_group(ibdev, &bnxt_re_dev_attr_group);
-	ibdev->driver_id = RDMA_DRIVER_BNXT_RE;
 	ib_set_device_ops(ibdev, &bnxt_re_dev_ops);
 	ret = ib_device_set_netdev(&rdev->ibdev, rdev->netdev, 1);
 	if (ret)
@@ -893,10 +912,14 @@ static int bnxt_re_cqn_handler(struct bnxt_qplib_nq *nq,
 	return 0;
 }
 
+#define BNXT_RE_GEN_P5_PF_NQ_DB		0x10000
+#define BNXT_RE_GEN_P5_VF_NQ_DB		0x4000
 static u32 bnxt_re_get_nqdb_offset(struct bnxt_re_dev *rdev, u16 indx)
 {
 	return bnxt_qplib_is_chip_gen_p5(&rdev->chip_ctx) ?
-				0x10000 : rdev->msix_entries[indx].db_offset;
+		(rdev->is_virtfn ? BNXT_RE_GEN_P5_VF_NQ_DB :
+				   BNXT_RE_GEN_P5_PF_NQ_DB) :
+				   rdev->msix_entries[indx].db_offset;
 }
 
 static void bnxt_re_cleanup_res(struct bnxt_re_dev *rdev)
@@ -1268,10 +1291,10 @@ static void bnxt_re_query_hwrm_intf_version(struct bnxt_re_dev *rdev)
 		return;
 	}
 	rdev->qplib_ctx.hwrm_intf_ver =
-		(u64)resp.hwrm_intf_major << 48 |
-		(u64)resp.hwrm_intf_minor << 32 |
-		(u64)resp.hwrm_intf_build << 16 |
-		resp.hwrm_intf_patch;
+		(u64)le16_to_cpu(resp.hwrm_intf_major) << 48 |
+		(u64)le16_to_cpu(resp.hwrm_intf_minor) << 32 |
+		(u64)le16_to_cpu(resp.hwrm_intf_build) << 16 |
+		le16_to_cpu(resp.hwrm_intf_patch);
 }
 
 static void bnxt_re_ib_unreg(struct bnxt_re_dev *rdev)
@@ -1406,8 +1429,8 @@ static int bnxt_re_ib_reg(struct bnxt_re_dev *rdev)
 				     rdev->is_virtfn);
 	if (rc)
 		goto disable_rcfw;
-	if (!rdev->is_virtfn)
-		bnxt_re_set_resource_limits(rdev);
+
+	bnxt_re_set_resource_limits(rdev);
 
 	rc = bnxt_qplib_alloc_ctx(rdev->en_dev->pdev, &rdev->qplib_ctx, 0,
 				  bnxt_qplib_is_chip_gen_p5(&rdev->chip_ctx));
@@ -1471,7 +1494,6 @@ static int bnxt_re_ib_reg(struct bnxt_re_dev *rdev)
 			 &rdev->active_width);
 	set_bit(BNXT_RE_FLAG_ISSUE_ROCE_STATS, &rdev->flags);
 	bnxt_re_dispatch_event(&rdev->ibdev, NULL, 1, IB_EVENT_PORT_ACTIVE);
-	bnxt_re_dispatch_event(&rdev->ibdev, NULL, 1, IB_EVENT_GID_CHANGE);
 
 	return 0;
 free_sctx:

@@ -59,8 +59,7 @@ struct snd_motu {
 	struct amdtp_stream rx_stream;
 	struct fw_iso_resources tx_resources;
 	struct fw_iso_resources rx_resources;
-	unsigned int capture_substreams;
-	unsigned int playback_substreams;
+	unsigned int substreams_counter;
 
 	/* For notification. */
 	struct fw_address_handler async_handler;
@@ -70,6 +69,8 @@ struct snd_motu {
 	int dev_lock_count;
 	bool dev_lock_changed;
 	wait_queue_head_t hwdep_wait;
+
+	struct amdtp_domain domain;
 };
 
 enum snd_motu_spec_flags {
@@ -85,7 +86,7 @@ enum snd_motu_spec_flags {
 	SND_MOTU_SPEC_RX_MIDI_3RD_Q	= 0x0200,
 	SND_MOTU_SPEC_TX_MIDI_2ND_Q	= 0x0400,
 	SND_MOTU_SPEC_TX_MIDI_3RD_Q	= 0x0800,
-	SND_MOTU_SPEC_RX_SEPARETED_MAIN	= 0x1000,
+	SND_MOTU_SPEC_RX_SEPARATED_MAIN	= 0x1000,
 };
 
 #define SND_MOTU_CLOCK_RATE_COUNT	6
@@ -103,6 +104,7 @@ enum snd_motu_clock_source {
 	SND_MOTU_CLOCK_SOURCE_SPDIF_ON_COAX,
 	SND_MOTU_CLOCK_SOURCE_AESEBU_ON_XLR,
 	SND_MOTU_CLOCK_SOURCE_WORD_ON_BNC,
+	SND_MOTU_CLOCK_SOURCE_SPH,
 	SND_MOTU_CLOCK_SOURCE_UNKNOWN,
 };
 
@@ -128,8 +130,7 @@ struct snd_motu_spec {
 extern const struct snd_motu_protocol snd_motu_protocol_v2;
 extern const struct snd_motu_protocol snd_motu_protocol_v3;
 
-extern const struct snd_motu_spec snd_motu_spec_traveler;
-extern const struct snd_motu_spec snd_motu_spec_8pre;
+extern const struct snd_motu_spec snd_motu_spec_828mk2;
 
 int amdtp_motu_init(struct amdtp_stream *s, struct fw_unit *unit,
 		    enum amdtp_stream_direction dir,
@@ -153,7 +154,10 @@ void snd_motu_transaction_unregister(struct snd_motu *motu);
 int snd_motu_stream_init_duplex(struct snd_motu *motu);
 void snd_motu_stream_destroy_duplex(struct snd_motu *motu);
 int snd_motu_stream_cache_packet_formats(struct snd_motu *motu);
-int snd_motu_stream_start_duplex(struct snd_motu *motu, unsigned int rate);
+int snd_motu_stream_reserve_duplex(struct snd_motu *motu, unsigned int rate,
+				   unsigned int frames_per_period,
+				   unsigned int frames_per_buffer);
+int snd_motu_stream_start_duplex(struct snd_motu *motu);
 void snd_motu_stream_stop_duplex(struct snd_motu *motu);
 int snd_motu_stream_lock_try(struct snd_motu *motu);
 void snd_motu_stream_lock_release(struct snd_motu *motu);

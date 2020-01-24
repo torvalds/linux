@@ -1073,6 +1073,9 @@ static int vim2m_start_streaming(struct vb2_queue *q, unsigned int count)
 	if (!q_data)
 		return -EINVAL;
 
+	if (V4L2_TYPE_IS_OUTPUT(q->type))
+		ctx->aborting = 0;
+
 	q_data->sequence = 0;
 	return 0;
 }
@@ -1272,6 +1275,9 @@ static void vim2m_device_release(struct video_device *vdev)
 
 	v4l2_device_unregister(&dev->v4l2_dev);
 	v4l2_m2m_release(dev->m2m_dev);
+#ifdef CONFIG_MEDIA_CONTROLLER
+	media_device_cleanup(&dev->mdev);
+#endif
 	kfree(dev);
 }
 
@@ -1343,6 +1349,7 @@ static int vim2m_probe(struct platform_device *pdev)
 	if (IS_ERR(dev->m2m_dev)) {
 		v4l2_err(&dev->v4l2_dev, "Failed to init mem2mem device\n");
 		ret = PTR_ERR(dev->m2m_dev);
+		dev->m2m_dev = NULL;
 		goto error_dev;
 	}
 
@@ -1359,7 +1366,7 @@ static int vim2m_probe(struct platform_device *pdev)
 						 MEDIA_ENT_F_PROC_VIDEO_SCALER);
 	if (ret) {
 		v4l2_err(&dev->v4l2_dev, "Failed to init mem2mem media controller\n");
-		goto error_m2m;
+		goto error_dev;
 	}
 
 	ret = media_device_register(&dev->mdev);
@@ -1373,11 +1380,11 @@ static int vim2m_probe(struct platform_device *pdev)
 #ifdef CONFIG_MEDIA_CONTROLLER
 error_m2m_mc:
 	v4l2_m2m_unregister_media_controller(dev->m2m_dev);
-error_m2m:
-	v4l2_m2m_release(dev->m2m_dev);
 #endif
 error_dev:
 	video_unregister_device(&dev->vfd);
+	/* vim2m_device_release called by video_unregister_device to release various objects */
+	return ret;
 error_v4l2:
 	v4l2_device_unregister(&dev->v4l2_dev);
 error_free:
@@ -1395,7 +1402,6 @@ static int vim2m_remove(struct platform_device *pdev)
 #ifdef CONFIG_MEDIA_CONTROLLER
 	media_device_unregister(&dev->mdev);
 	v4l2_m2m_unregister_media_controller(dev->m2m_dev);
-	media_device_cleanup(&dev->mdev);
 #endif
 	video_unregister_device(&dev->vfd);
 

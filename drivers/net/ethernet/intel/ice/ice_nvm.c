@@ -119,7 +119,7 @@ ice_read_sr_word_aq(struct ice_hw *hw, u16 offset, u16 *data)
 
 	status = ice_read_sr_aq(hw, offset, 1, data, true);
 	if (!status)
-		*data = le16_to_cpu(*(__le16 *)data);
+		*data = le16_to_cpu(*(__force __le16 *)data);
 
 	return status;
 }
@@ -174,7 +174,7 @@ ice_read_sr_buf_aq(struct ice_hw *hw, u16 offset, u16 *words, u16 *data)
 	} while (words_read < *words);
 
 	for (i = 0; i < *words; i++)
-		data[i] = le16_to_cpu(((__le16 *)data)[i]);
+		data[i] = le16_to_cpu(((__force __le16 *)data)[i]);
 
 read_nvm_buf_aq_exit:
 	*words = words_read;
@@ -219,8 +219,7 @@ static void ice_release_nvm(struct ice_hw *hw)
  *
  * Reads one 16 bit word from the Shadow RAM using the ice_read_sr_word_aq.
  */
-static enum ice_status
-ice_read_sr_word(struct ice_hw *hw, u16 offset, u16 *data)
+enum ice_status ice_read_sr_word(struct ice_hw *hw, u16 offset, u16 *data)
 {
 	enum ice_status status;
 
@@ -242,9 +241,10 @@ ice_read_sr_word(struct ice_hw *hw, u16 offset, u16 *data)
  */
 enum ice_status ice_init_nvm(struct ice_hw *hw)
 {
+	u16 oem_hi, oem_lo, boot_cfg_tlv, boot_cfg_tlv_len;
 	struct ice_nvm_info *nvm = &hw->nvm;
 	u16 eetrack_lo, eetrack_hi;
-	enum ice_status status = 0;
+	enum ice_status status;
 	u32 fla, gens_stat;
 	u8 sr_size;
 
@@ -261,15 +261,15 @@ enum ice_status ice_init_nvm(struct ice_hw *hw)
 	fla = rd32(hw, GLNVM_FLA);
 	if (fla & GLNVM_FLA_LOCKED_M) { /* Normal programming mode */
 		nvm->blank_nvm_mode = false;
-	} else { /* Blank programming mode */
+	} else {
+		/* Blank programming mode */
 		nvm->blank_nvm_mode = true;
-		status = ICE_ERR_NVM_BLANK_MODE;
 		ice_debug(hw, ICE_DBG_NVM,
 			  "NVM init error: unsupported blank mode.\n");
-		return status;
+		return ICE_ERR_NVM_BLANK_MODE;
 	}
 
-	status = ice_read_sr_word(hw, ICE_SR_NVM_DEV_STARTER_VER, &hw->nvm.ver);
+	status = ice_read_sr_word(hw, ICE_SR_NVM_DEV_STARTER_VER, &nvm->ver);
 	if (status) {
 		ice_debug(hw, ICE_DBG_INIT,
 			  "Failed to read DEV starter version.\n");
@@ -287,9 +287,42 @@ enum ice_status ice_init_nvm(struct ice_hw *hw)
 		return status;
 	}
 
-	hw->nvm.eetrack = (eetrack_hi << 16) | eetrack_lo;
+	nvm->eetrack = (eetrack_hi << 16) | eetrack_lo;
 
-	return status;
+	status = ice_get_pfa_module_tlv(hw, &boot_cfg_tlv, &boot_cfg_tlv_len,
+					ICE_SR_BOOT_CFG_PTR);
+	if (status) {
+		ice_debug(hw, ICE_DBG_INIT,
+			  "Failed to read Boot Configuration Block TLV.\n");
+		return status;
+	}
+
+	/* Boot Configuration Block must have length at least 2 words
+	 * (Combo Image Version High and Combo Image Version Low)
+	 */
+	if (boot_cfg_tlv_len < 2) {
+		ice_debug(hw, ICE_DBG_INIT,
+			  "Invalid Boot Configuration Block TLV size.\n");
+		return ICE_ERR_INVAL_SIZE;
+	}
+
+	status = ice_read_sr_word(hw, (boot_cfg_tlv + ICE_NVM_OEM_VER_OFF),
+				  &oem_hi);
+	if (status) {
+		ice_debug(hw, ICE_DBG_INIT, "Failed to read OEM_VER hi.\n");
+		return status;
+	}
+
+	status = ice_read_sr_word(hw, (boot_cfg_tlv + ICE_NVM_OEM_VER_OFF + 1),
+				  &oem_lo);
+	if (status) {
+		ice_debug(hw, ICE_DBG_INIT, "Failed to read OEM_VER lo.\n");
+		return status;
+	}
+
+	nvm->oem_ver = ((u32)oem_hi << 16) | oem_lo;
+
+	return 0;
 }
 
 /**
@@ -313,6 +346,37 @@ ice_read_sr_buf(struct ice_hw *hw, u16 offset, u16 *words, u16 *data)
 		status = ice_read_sr_buf_aq(hw, offset, words, data);
 		ice_release_nvm(hw);
 	}
+
+	return status;
+}
+
+/**
+ * ice_nvm_validate_checksum
+ * @hw: pointer to the HW struct
+ *
+ * Verify NVM PFA checksum validity (0x0706)
+ */
+enum ice_status ice_nvm_validate_checksum(struct ice_hw *hw)
+{
+	struct ice_aqc_nvm_checksum *cmd;
+	struct ice_aq_desc desc;
+	enum ice_status status;
+
+	status = ice_acquire_nvm(hw, ICE_RES_READ);
+	if (status)
+		return status;
+
+	cmd = &desc.params.nvm_checksum;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_nvm_checksum);
+	cmd->flags = ICE_AQC_NVM_CHECKSUM_VERIFY;
+
+	status = ice_aq_send_cmd(hw, &desc, NULL, 0, NULL);
+	ice_release_nvm(hw);
+
+	if (!status)
+		if (le16_to_cpu(cmd->checksum) != ICE_AQC_NVM_CHECKSUM_CORRECT)
+			status = ICE_ERR_NVM_CHECKSUM;
 
 	return status;
 }

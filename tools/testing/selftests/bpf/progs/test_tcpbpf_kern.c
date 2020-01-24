@@ -14,19 +14,19 @@
 #include "bpf_endian.h"
 #include "test_tcpbpf.h"
 
-struct bpf_map_def SEC("maps") global_map = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(struct tcpbpf_globals),
-	.max_entries = 4,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 4);
+	__type(key, __u32);
+	__type(value, struct tcpbpf_globals);
+} global_map SEC(".maps");
 
-struct bpf_map_def SEC("maps") sockopt_results = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(int),
-	.max_entries = 2,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 2);
+	__type(key, __u32);
+	__type(value, int);
+} sockopt_results SEC(".maps");
 
 static inline void update_event_map(int event)
 {
@@ -131,6 +131,7 @@ int bpf_testcb(struct bpf_sock_ops *skops)
 				g.bytes_received = skops->bytes_received;
 				g.bytes_acked = skops->bytes_acked;
 			}
+			g.num_close_events++;
 			bpf_map_update_elem(&global_map, &key, &g,
 					    BPF_ANY);
 		}

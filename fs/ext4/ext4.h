@@ -41,6 +41,7 @@
 #endif
 
 #include <linux/fscrypt.h>
+#include <linux/fsverity.h>
 
 #include <linux/compiler.h>
 
@@ -185,9 +186,23 @@ struct ext4_map_blocks {
 };
 
 /*
+ * Block validity checking, system zone rbtree.
+ */
+struct ext4_system_blocks {
+	struct rb_root root;
+	struct rcu_head rcu;
+};
+
+/*
  * Flags for ext4_io_end->flags
  */
 #define	EXT4_IO_END_UNWRITTEN	0x0001
+
+struct ext4_io_end_vec {
+	struct list_head list;		/* list of io_end_vec */
+	loff_t offset;			/* offset in the file */
+	ssize_t size;			/* size of the extent */
+};
 
 /*
  * For converting unwritten extents on a work queue. 'handle' is used for
@@ -202,8 +217,7 @@ typedef struct ext4_io_end {
 						 * bios covering the extent */
 	unsigned int		flag;		/* unwritten or not */
 	atomic_t		count;		/* reference counter */
-	loff_t			offset;		/* offset in the file */
-	ssize_t			size;		/* size of the extent */
+	struct list_head	list_vec;	/* list of ext4_io_end_vec */
 } ext4_io_end_t;
 
 struct ext4_io_submit {
@@ -284,6 +298,9 @@ struct ext4_io_submit {
 				  ~((ext4_fsblk_t) (s)->s_cluster_ratio - 1))
 #define EXT4_LBLK_CMASK(s, lblk) ((lblk) &				\
 				  ~((ext4_lblk_t) (s)->s_cluster_ratio - 1))
+/* Fill in the low bits to get the last block of the cluster */
+#define EXT4_LBLK_CFILL(sbi, lblk) ((lblk) |				\
+				    ((ext4_lblk_t) (sbi)->s_cluster_ratio - 1))
 /* Get the cluster offset */
 #define EXT4_PBLK_COFF(s, pblk) ((pblk) &				\
 				 ((ext4_fsblk_t) (s)->s_cluster_ratio - 1))
@@ -395,6 +412,7 @@ struct flex_groups {
 #define EXT4_TOPDIR_FL			0x00020000 /* Top of directory hierarchies*/
 #define EXT4_HUGE_FILE_FL               0x00040000 /* Set to each huge file */
 #define EXT4_EXTENTS_FL			0x00080000 /* Inode uses extents */
+#define EXT4_VERITY_FL			0x00100000 /* Verity protected inode */
 #define EXT4_EA_INODE_FL	        0x00200000 /* Inode used for large EA */
 #define EXT4_EOFBLOCKS_FL		0x00400000 /* Blocks allocated beyond EOF */
 #define EXT4_INLINE_DATA_FL		0x10000000 /* Inode has inline data. */
@@ -402,7 +420,7 @@ struct flex_groups {
 #define EXT4_CASEFOLD_FL		0x40000000 /* Casefolded file */
 #define EXT4_RESERVED_FL		0x80000000 /* reserved for ext4 lib */
 
-#define EXT4_FL_USER_VISIBLE		0x704BDFFF /* User visible flags */
+#define EXT4_FL_USER_VISIBLE		0x705BDFFF /* User visible flags */
 #define EXT4_FL_USER_MODIFIABLE		0x604BC0FF /* User modifiable flags */
 
 /* Flags we can manipulate with through EXT4_IOC_FSSETXATTR */
@@ -421,7 +439,8 @@ struct flex_groups {
 			   EXT4_PROJINHERIT_FL | EXT4_CASEFOLD_FL)
 
 /* Flags that are appropriate for regular files (all but dir-specific ones). */
-#define EXT4_REG_FLMASK (~(EXT4_DIRSYNC_FL | EXT4_TOPDIR_FL | EXT4_CASEFOLD_FL))
+#define EXT4_REG_FLMASK (~(EXT4_DIRSYNC_FL | EXT4_TOPDIR_FL | EXT4_CASEFOLD_FL |\
+			   EXT4_PROJINHERIT_FL))
 
 /* Flags that are appropriate for non-directories/regular files. */
 #define EXT4_OTHER_FLMASK (EXT4_NODUMP_FL | EXT4_NOATIME_FL)
@@ -466,6 +485,7 @@ enum {
 	EXT4_INODE_TOPDIR	= 17,	/* Top of directory hierarchies*/
 	EXT4_INODE_HUGE_FILE	= 18,	/* Set to each huge file */
 	EXT4_INODE_EXTENTS	= 19,	/* Inode uses extents */
+	EXT4_INODE_VERITY	= 20,	/* Verity protected inode */
 	EXT4_INODE_EA_INODE	= 21,	/* Inode used for large EA */
 	EXT4_INODE_EOFBLOCKS	= 22,	/* Blocks allocated beyond EOF */
 	EXT4_INODE_INLINE_DATA	= 28,	/* Data in inode. */
@@ -511,6 +531,7 @@ static inline void ext4_check_flag_values(void)
 	CHECK_FLAG_VALUE(TOPDIR);
 	CHECK_FLAG_VALUE(HUGE_FILE);
 	CHECK_FLAG_VALUE(EXTENTS);
+	CHECK_FLAG_VALUE(VERITY);
 	CHECK_FLAG_VALUE(EA_INODE);
 	CHECK_FLAG_VALUE(EOFBLOCKS);
 	CHECK_FLAG_VALUE(INLINE_DATA);
@@ -648,6 +669,10 @@ enum {
 #define EXT4_IOC_SET_ENCRYPTION_POLICY	FS_IOC_SET_ENCRYPTION_POLICY
 #define EXT4_IOC_GET_ENCRYPTION_PWSALT	FS_IOC_GET_ENCRYPTION_PWSALT
 #define EXT4_IOC_GET_ENCRYPTION_POLICY	FS_IOC_GET_ENCRYPTION_POLICY
+/* ioctl codes 19--39 are reserved for fscrypt */
+#define EXT4_IOC_CLEAR_ES_CACHE		_IO('f', 40)
+#define EXT4_IOC_GETSTATE		_IOW('f', 41, __u32)
+#define EXT4_IOC_GET_ES_CACHE		_IOWR('f', 42, struct fiemap)
 
 #define EXT4_IOC_FSGETXATTR		FS_IOC_FSGETXATTR
 #define EXT4_IOC_FSSETXATTR		FS_IOC_FSSETXATTR
@@ -661,6 +686,16 @@ enum {
 #define EXT4_GOING_FLAGS_LOGFLUSH		0x1	/* flush log but not data */
 #define EXT4_GOING_FLAGS_NOLOGFLUSH		0x2	/* don't flush log nor data */
 
+/*
+ * Flags returned by EXT4_IOC_GETSTATE
+ *
+ * We only expose to userspace a subset of the state flags in
+ * i_state_flags
+ */
+#define EXT4_STATE_FLAG_EXT_PRECACHED	0x00000001
+#define EXT4_STATE_FLAG_NEW		0x00000002
+#define EXT4_STATE_FLAG_NEWENTRY	0x00000004
+#define EXT4_STATE_FLAG_DA_ALLOC_CLOSE	0x00000008
 
 #if defined(__KERNEL__) && defined(CONFIG_COMPAT)
 /*
@@ -677,6 +712,12 @@ enum {
 #define EXT4_IOC32_GETVERSION_OLD	FS_IOC32_GETVERSION
 #define EXT4_IOC32_SETVERSION_OLD	FS_IOC32_SETVERSION
 #endif
+
+/*
+ * Returned by EXT4_IOC_GET_ES_CACHE as an additional possible flag.
+ * It indicates that the entry in extent status cache is for a hole.
+ */
+#define EXT4_FIEMAP_EXTENT_HOLE		0x08000000
 
 /* Max physical block we can address w/o extents */
 #define EXT4_MAX_BLOCK_FILE_PHYS	0xFFFFFFFF
@@ -807,31 +848,20 @@ static inline __le32 ext4_encode_extra_time(struct timespec64 *time)
 static inline void ext4_decode_extra_time(struct timespec64 *time,
 					  __le32 extra)
 {
-	if (unlikely(extra & cpu_to_le32(EXT4_EPOCH_MASK))) {
-
-#if 1
-		/* Handle legacy encoding of pre-1970 dates with epoch
-		 * bits 1,1. (This backwards compatibility may be removed
-		 * at the discretion of the ext4 developers.)
-		 */
-		u64 extra_bits = le32_to_cpu(extra) & EXT4_EPOCH_MASK;
-		if (extra_bits == 3 && ((time->tv_sec) & 0x80000000) != 0)
-			extra_bits = 0;
-		time->tv_sec += extra_bits << 32;
-#else
+	if (unlikely(extra & cpu_to_le32(EXT4_EPOCH_MASK)))
 		time->tv_sec += (u64)(le32_to_cpu(extra) & EXT4_EPOCH_MASK) << 32;
-#endif
-	}
 	time->tv_nsec = (le32_to_cpu(extra) & EXT4_NSEC_MASK) >> EXT4_EPOCH_BITS;
 }
 
 #define EXT4_INODE_SET_XTIME(xtime, inode, raw_inode)				\
 do {										\
-	(raw_inode)->xtime = cpu_to_le32((inode)->xtime.tv_sec);		\
 	if (EXT4_FITS_IN_INODE(raw_inode, EXT4_I(inode), xtime ## _extra))     {\
+		(raw_inode)->xtime = cpu_to_le32((inode)->xtime.tv_sec);	\
 		(raw_inode)->xtime ## _extra =					\
 				ext4_encode_extra_time(&(inode)->xtime);	\
 		}								\
+	else	\
+		(raw_inode)->xtime = cpu_to_le32(clamp_t(int32_t, (inode)->xtime.tv_sec, S32_MIN, S32_MAX));	\
 } while (0)
 
 #define EXT4_EINODE_SET_XTIME(xtime, einode, raw_inode)			       \
@@ -1420,7 +1450,7 @@ struct ext4_sb_info {
 	int s_jquota_fmt;			/* Format of quota to use */
 #endif
 	unsigned int s_want_extra_isize; /* New inodes should reserve # bytes */
-	struct rb_root system_blks;
+	struct ext4_system_blocks __rcu *system_blks;
 
 #ifdef EXTENTS_STATS
 	/* ext4 extents stats */
@@ -1554,11 +1584,11 @@ enum {
 	EXT4_STATE_NO_EXPAND,		/* No space for expansion */
 	EXT4_STATE_DA_ALLOC_CLOSE,	/* Alloc DA blks on close */
 	EXT4_STATE_EXT_MIGRATE,		/* Inode is migrating */
-	EXT4_STATE_DIO_UNWRITTEN,	/* need convert on dio done*/
 	EXT4_STATE_NEWENTRY,		/* File just added to dir */
 	EXT4_STATE_MAY_INLINE_DATA,	/* may have in-inode data */
 	EXT4_STATE_EXT_PRECACHED,	/* extents have been precached */
 	EXT4_STATE_LUSTRE_EA_INODE,	/* Lustre-style ea_inode */
+	EXT4_STATE_VERITY_IN_PROGRESS,	/* building fs-verity Merkle tree */
 };
 
 #define EXT4_INODE_BIT_FNS(name, field, offset)				\
@@ -1609,6 +1639,12 @@ static inline void ext4_clear_state_flags(struct ext4_inode_info *ei)
 #define EXT4_SB(sb)	(sb)
 #endif
 
+static inline bool ext4_verity_in_progress(struct inode *inode)
+{
+	return IS_ENABLED(CONFIG_FS_VERITY) &&
+	       ext4_test_inode_state(inode, EXT4_STATE_VERITY_IN_PROGRESS);
+}
+
 #define NEXT_ORPHAN(inode) EXT4_I(inode)->i_dtime
 
 /*
@@ -1631,6 +1667,10 @@ static inline void ext4_clear_state_flags(struct ext4_inode_info *ei)
 
 #define EXT4_GOOD_OLD_INODE_SIZE 128
 
+#define EXT4_EXTRA_TIMESTAMP_MAX	(((s64)1 << 34) - 1  + S32_MIN)
+#define EXT4_NON_EXTRA_TIMESTAMP_MAX	S32_MAX
+#define EXT4_TIMESTAMP_MIN		S32_MIN
+
 /*
  * Feature set definitions
  */
@@ -1642,6 +1682,7 @@ static inline void ext4_clear_state_flags(struct ext4_inode_info *ei)
 #define EXT4_FEATURE_COMPAT_RESIZE_INODE	0x0010
 #define EXT4_FEATURE_COMPAT_DIR_INDEX		0x0020
 #define EXT4_FEATURE_COMPAT_SPARSE_SUPER2	0x0200
+#define EXT4_FEATURE_COMPAT_STABLE_INODES	0x0800
 
 #define EXT4_FEATURE_RO_COMPAT_SPARSE_SUPER	0x0001
 #define EXT4_FEATURE_RO_COMPAT_LARGE_FILE	0x0002
@@ -1661,6 +1702,7 @@ static inline void ext4_clear_state_flags(struct ext4_inode_info *ei)
 #define EXT4_FEATURE_RO_COMPAT_METADATA_CSUM	0x0400
 #define EXT4_FEATURE_RO_COMPAT_READONLY		0x1000
 #define EXT4_FEATURE_RO_COMPAT_PROJECT		0x2000
+#define EXT4_FEATURE_RO_COMPAT_VERITY		0x8000
 
 #define EXT4_FEATURE_INCOMPAT_COMPRESSION	0x0001
 #define EXT4_FEATURE_INCOMPAT_FILETYPE		0x0002
@@ -1742,6 +1784,7 @@ EXT4_FEATURE_COMPAT_FUNCS(xattr,		EXT_ATTR)
 EXT4_FEATURE_COMPAT_FUNCS(resize_inode,		RESIZE_INODE)
 EXT4_FEATURE_COMPAT_FUNCS(dir_index,		DIR_INDEX)
 EXT4_FEATURE_COMPAT_FUNCS(sparse_super2,	SPARSE_SUPER2)
+EXT4_FEATURE_COMPAT_FUNCS(stable_inodes,	STABLE_INODES)
 
 EXT4_FEATURE_RO_COMPAT_FUNCS(sparse_super,	SPARSE_SUPER)
 EXT4_FEATURE_RO_COMPAT_FUNCS(large_file,	LARGE_FILE)
@@ -1755,6 +1798,7 @@ EXT4_FEATURE_RO_COMPAT_FUNCS(bigalloc,		BIGALLOC)
 EXT4_FEATURE_RO_COMPAT_FUNCS(metadata_csum,	METADATA_CSUM)
 EXT4_FEATURE_RO_COMPAT_FUNCS(readonly,		READONLY)
 EXT4_FEATURE_RO_COMPAT_FUNCS(project,		PROJECT)
+EXT4_FEATURE_RO_COMPAT_FUNCS(verity,		VERITY)
 
 EXT4_FEATURE_INCOMPAT_FUNCS(compression,	COMPRESSION)
 EXT4_FEATURE_INCOMPAT_FUNCS(filetype,		FILETYPE)
@@ -1812,7 +1856,8 @@ EXT4_FEATURE_INCOMPAT_FUNCS(casefold,		CASEFOLD)
 					 EXT4_FEATURE_RO_COMPAT_BIGALLOC |\
 					 EXT4_FEATURE_RO_COMPAT_METADATA_CSUM|\
 					 EXT4_FEATURE_RO_COMPAT_QUOTA |\
-					 EXT4_FEATURE_RO_COMPAT_PROJECT)
+					 EXT4_FEATURE_RO_COMPAT_PROJECT |\
+					 EXT4_FEATURE_RO_COMPAT_VERITY)
 
 #define EXTN_FEATURE_FUNCS(ver) \
 static inline bool ext4_has_unknown_ext##ver##_compat_features(struct super_block *sb) \
@@ -2077,6 +2122,9 @@ struct ext4_filename {
 #ifdef CONFIG_FS_ENCRYPTION
 	struct fscrypt_str crypto_buf;
 #endif
+#ifdef CONFIG_UNICODE
+	struct fscrypt_str cf_name;
+#endif
 };
 
 #define fname_name(p) ((p)->disk_name.name)
@@ -2302,6 +2350,12 @@ extern unsigned ext4_free_clusters_after_init(struct super_block *sb,
 					      struct ext4_group_desc *gdp);
 ext4_fsblk_t ext4_inode_to_goal_block(struct inode *);
 
+#ifdef CONFIG_UNICODE
+extern void ext4_fname_setup_ci_filename(struct inode *dir,
+					 const struct qstr *iname,
+					 struct fscrypt_str *fname);
+#endif
+
 #ifdef CONFIG_FS_ENCRYPTION
 static inline void ext4_fname_from_fscrypt_name(struct ext4_filename *dst,
 						const struct fscrypt_name *src)
@@ -2328,6 +2382,10 @@ static inline int ext4_fname_setup_filename(struct inode *dir,
 		return err;
 
 	ext4_fname_from_fscrypt_name(fname, &name);
+
+#ifdef CONFIG_UNICODE
+	ext4_fname_setup_ci_filename(dir, iname, &fname->cf_name);
+#endif
 	return 0;
 }
 
@@ -2343,6 +2401,10 @@ static inline int ext4_fname_prepare_lookup(struct inode *dir,
 		return err;
 
 	ext4_fname_from_fscrypt_name(fname, &name);
+
+#ifdef CONFIG_UNICODE
+	ext4_fname_setup_ci_filename(dir, &dentry->d_name, &fname->cf_name);
+#endif
 	return 0;
 }
 
@@ -2356,6 +2418,11 @@ static inline void ext4_fname_free_filename(struct ext4_filename *fname)
 	fname->crypto_buf.name = NULL;
 	fname->usr_fname = NULL;
 	fname->disk_name.name = NULL;
+
+#ifdef CONFIG_UNICODE
+	kfree(fname->cf_name.name);
+	fname->cf_name.name = NULL;
+#endif
 }
 #else /* !CONFIG_FS_ENCRYPTION */
 static inline int ext4_fname_setup_filename(struct inode *dir,
@@ -2366,6 +2433,11 @@ static inline int ext4_fname_setup_filename(struct inode *dir,
 	fname->usr_fname = iname;
 	fname->disk_name.name = (unsigned char *) iname->name;
 	fname->disk_name.len = iname->len;
+
+#ifdef CONFIG_UNICODE
+	ext4_fname_setup_ci_filename(dir, iname, &fname->cf_name);
+#endif
+
 	return 0;
 }
 
@@ -2376,7 +2448,13 @@ static inline int ext4_fname_prepare_lookup(struct inode *dir,
 	return ext4_fname_setup_filename(dir, &dentry->d_name, 1, fname);
 }
 
-static inline void ext4_fname_free_filename(struct ext4_filename *fname) { }
+static inline void ext4_fname_free_filename(struct ext4_filename *fname)
+{
+#ifdef CONFIG_UNICODE
+	kfree(fname->cf_name.name);
+	fname->cf_name.name = NULL;
+#endif
+}
 #endif /* !CONFIG_FS_ENCRYPTION */
 
 /* dir.c */
@@ -2488,8 +2566,6 @@ int ext4_get_block_unwritten(struct inode *inode, sector_t iblock,
 			     struct buffer_head *bh_result, int create);
 int ext4_get_block(struct inode *inode, sector_t iblock,
 		   struct buffer_head *bh_result, int create);
-int ext4_dio_get_block(struct inode *inode, sector_t iblock,
-		       struct buffer_head *bh_result, int create);
 int ext4_da_get_block_prep(struct inode *inode, sector_t iblock,
 			   struct buffer_head *bh, int create);
 int ext4_walk_page_buffers(handle_t *handle,
@@ -2532,7 +2608,6 @@ extern int ext4_can_truncate(struct inode *inode);
 extern int ext4_truncate(struct inode *);
 extern int ext4_break_layouts(struct inode *);
 extern int ext4_punch_hole(struct inode *inode, loff_t offset, loff_t length);
-extern int ext4_truncate_restart_trans(handle_t *, struct inode *, int nblocks);
 extern void ext4_set_inode_flags(struct inode *);
 extern int ext4_alloc_da_blocks(struct inode *inode);
 extern void ext4_set_aops(struct inode *inode);
@@ -2568,8 +2643,8 @@ extern int ext4_ext_migrate(struct inode *);
 extern int ext4_ind_migrate(struct inode *inode);
 
 /* namei.c */
-extern int ext4_dirent_csum_verify(struct inode *inode,
-				   struct ext4_dir_entry *dirent);
+extern int ext4_dirblock_csum_verify(struct inode *inode,
+				     struct buffer_head *bh);
 extern int ext4_orphan_add(handle_t *, struct inode *);
 extern int ext4_orphan_del(handle_t *, struct inode *);
 extern int ext4_htree_fill_tree(struct file *dir_file, __u32 start_hash,
@@ -3070,11 +3145,11 @@ extern int ext4_try_create_inline_dir(handle_t *handle,
 extern int ext4_read_inline_dir(struct file *filp,
 				struct dir_context *ctx,
 				int *has_inline_data);
-extern int htree_inlinedir_to_tree(struct file *dir_file,
-				   struct inode *dir, ext4_lblk_t block,
-				   struct dx_hash_info *hinfo,
-				   __u32 start_hash, __u32 start_minor_hash,
-				   int *has_inline_data);
+extern int ext4_inlinedir_to_tree(struct file *dir_file,
+				  struct inode *dir, ext4_lblk_t block,
+				  struct dx_hash_info *hinfo,
+				  __u32 start_hash, __u32 start_minor_hash,
+				  int *has_inline_data);
 extern struct buffer_head *ext4_find_inline_entry(struct inode *dir,
 					struct ext4_filename *fname,
 					struct ext4_dir_entry_2 **res_dir,
@@ -3113,14 +3188,13 @@ extern struct ext4_dir_entry_2 *ext4_init_dot_dotdot(struct inode *inode,
 				 struct ext4_dir_entry_2 *de,
 				 int blocksize, int csum_size,
 				 unsigned int parent_ino, int dotdot_real_len);
-extern void initialize_dirent_tail(struct ext4_dir_entry_tail *t,
-				   unsigned int blocksize);
-extern int ext4_handle_dirty_dirent_node(handle_t *handle,
-					 struct inode *inode,
-					 struct buffer_head *bh);
+extern void ext4_initialize_dirent_tail(struct buffer_head *bh,
+					unsigned int blocksize);
+extern int ext4_handle_dirty_dirblock(handle_t *handle, struct inode *inode,
+				      struct buffer_head *bh);
 extern int ext4_ci_compare(const struct inode *parent,
-			   const struct qstr *name,
-			   const struct qstr *entry);
+			   const struct qstr *fname,
+			   const struct qstr *entry, bool quick);
 
 #define S_SHIFT 12
 static const unsigned char ext4_type_by_mode[(S_IFMT >> S_SHIFT) + 1] = {
@@ -3144,6 +3218,8 @@ static inline void ext4_set_de_type(struct super_block *sb,
 extern int ext4_mpage_readpages(struct address_space *mapping,
 				struct list_head *pages, struct page *page,
 				unsigned nr_pages, bool is_readahead);
+extern int __init ext4_init_post_read_processing(void);
+extern void ext4_exit_post_read_processing(void);
 
 /* symlink.c */
 extern const struct inode_operations ext4_encrypted_symlink_inode_operations;
@@ -3191,6 +3267,8 @@ extern long ext4_fallocate(struct file *file, int mode, loff_t offset,
 			  loff_t len);
 extern int ext4_convert_unwritten_extents(handle_t *handle, struct inode *inode,
 					  loff_t offset, ssize_t len);
+extern int ext4_convert_unwritten_io_end_vec(handle_t *handle,
+					     ext4_io_end_t *io_end);
 extern int ext4_map_blocks(handle_t *handle, struct inode *inode,
 			   struct ext4_map_blocks *map, int flags);
 extern int ext4_ext_calc_metadata_amount(struct inode *inode,
@@ -3212,6 +3290,9 @@ extern int ext4_ext_check_inode(struct inode *inode);
 extern ext4_lblk_t ext4_ext_next_allocated_block(struct ext4_ext_path *path);
 extern int ext4_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 			__u64 start, __u64 len);
+extern int ext4_get_es_cache(struct inode *inode,
+			     struct fiemap_extent_info *fieinfo,
+			     __u64 start, __u64 len);
 extern int ext4_ext_precache(struct inode *inode);
 extern int ext4_collapse_range(struct inode *inode, loff_t offset, loff_t len);
 extern int ext4_insert_range(struct inode *inode, loff_t offset, loff_t len);
@@ -3220,6 +3301,10 @@ extern int ext4_swap_extents(handle_t *handle, struct inode *inode1,
 			     ext4_lblk_t lblk2,  ext4_lblk_t count,
 			     int mark_unwritten,int *err);
 extern int ext4_clu_mapped(struct inode *inode, ext4_lblk_t lclu);
+extern int ext4_datasem_ensure_credits(handle_t *handle, struct inode *inode,
+				       int check_cred, int restart_cred,
+				       int revoke_cred);
+
 
 /* move_extent.c */
 extern void ext4_double_down_write_data_sem(struct inode *first,
@@ -3246,9 +3331,14 @@ extern int ext4_bio_write_page(struct ext4_io_submit *io,
 			       int len,
 			       struct writeback_control *wbc,
 			       bool keep_towrite);
+extern struct ext4_io_end_vec *ext4_alloc_io_end_vec(ext4_io_end_t *io_end);
+extern struct ext4_io_end_vec *ext4_last_io_end_vec(ext4_io_end_t *io_end);
 
 /* mmp.c */
 extern int ext4_multi_mount_protect(struct super_block *, ext4_fsblk_t);
+
+/* verity.c */
+extern const struct fsverity_operations ext4_verityops;
 
 /*
  * Add new method to test whether block and inode bitmaps are properly
@@ -3300,6 +3390,20 @@ static inline void ext4_clear_io_unwritten_flag(ext4_io_end_t *io_end)
 }
 
 extern const struct iomap_ops ext4_iomap_ops;
+extern const struct iomap_ops ext4_iomap_report_ops;
+
+static inline int ext4_buffer_uptodate(struct buffer_head *bh)
+{
+	/*
+	 * If the buffer has the write error flag, we have failed
+	 * to write out data in the block.  In this  case, we don't
+	 * have to read the block because we may read the old data
+	 * successfully.
+	 */
+	if (!buffer_uptodate(bh) && buffer_write_io_error(bh))
+		set_buffer_uptodate(bh);
+	return buffer_uptodate(bh);
+}
 
 #endif	/* __KERNEL__ */
 

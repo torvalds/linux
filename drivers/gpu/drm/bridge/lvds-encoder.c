@@ -3,12 +3,14 @@
  * Copyright (C) 2016 Laurent Pinchart <laurent.pinchart@ideasonboard.com>
  */
 
-#include <drm/drmP.h>
+#include <linux/gpio/consumer.h>
+#include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_graph.h>
+#include <linux/platform_device.h>
+
 #include <drm/drm_bridge.h>
 #include <drm/drm_panel.h>
-
-#include <linux/gpio/consumer.h>
-#include <linux/of_graph.h>
 
 struct lvds_encoder {
 	struct drm_bridge bridge;
@@ -104,7 +106,8 @@ static int lvds_encoder_probe(struct platform_device *pdev)
 	}
 
 	lvds_encoder->panel_bridge =
-		devm_drm_panel_bridge_add(dev, panel, DRM_MODE_CONNECTOR_LVDS);
+		devm_drm_panel_bridge_add_typed(dev, panel,
+						DRM_MODE_CONNECTOR_LVDS);
 	if (IS_ERR(lvds_encoder->panel_bridge))
 		return PTR_ERR(lvds_encoder->panel_bridge);
 

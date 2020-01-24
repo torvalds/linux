@@ -239,7 +239,7 @@ rdinit=<executable file>
   A description of the process of mounting the root file system can be
   found in:
 
-    Documentation/early-userspace/README
+    Documentation/driver-api/early-userspace/early_userspace_support.rst
 
 
 

@@ -159,9 +159,9 @@ static struct ti_sci_inta_vint_desc *ti_sci_inta_alloc_parent_irq(struct irq_dom
 	parent_fwspec.param[1] = vint_desc->vint_id;
 
 	parent_virq = irq_create_fwspec_mapping(&parent_fwspec);
-	if (parent_virq <= 0) {
+	if (parent_virq == 0) {
 		kfree(vint_desc);
-		return ERR_PTR(parent_virq);
+		return ERR_PTR(-EINVAL);
 	}
 	vint_desc->parent_virq = parent_virq;
 
@@ -246,8 +246,8 @@ static struct ti_sci_inta_event_desc *ti_sci_inta_alloc_irq(struct irq_domain *d
 	/* No free bits available. Allocate a new vint */
 	vint_desc = ti_sci_inta_alloc_parent_irq(domain);
 	if (IS_ERR(vint_desc)) {
-		mutex_unlock(&inta->vint_mutex);
-		return ERR_PTR(PTR_ERR(vint_desc));
+		event_desc = ERR_CAST(vint_desc);
+		goto unlock;
 	}
 
 	free_bit = find_first_zero_bit(vint_desc->event_map,
@@ -259,6 +259,7 @@ alloc_event:
 	if (IS_ERR(event_desc))
 		clear_bit(free_bit, vint_desc->event_map);
 
+unlock:
 	mutex_unlock(&inta->vint_mutex);
 	return event_desc;
 }

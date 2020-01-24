@@ -26,7 +26,13 @@ menuconfig BLOCK
 
 if BLOCK
 
+config BLK_RQ_ALLOC_TIME
+	bool
+
 config BLK_SCSI_REQUEST
+	bool
+
+config BLK_CGROUP_RWSTAT
 	bool
 
 config BLK_DEV_BSG
@@ -83,13 +89,14 @@ config BLK_DEV_ZONED
 config BLK_DEV_THROTTLING
 	bool "Block layer bio throttling support"
 	depends on BLK_CGROUP=y
+	select BLK_CGROUP_RWSTAT
 	---help---
 	Block layer bio throttling support. It can be used to limit
 	the IO rate to a device. IO rate policies are per cgroup and
 	one needs to mount and use blkio cgroup controller for creating
 	cgroups and specifying per device IO rate policies.
 
-	See Documentation/cgroup-v1/blkio-controller.txt for more information.
+	See Documentation/admin-guide/cgroup-v1/blkio-controller.rst for more information.
 
 config BLK_DEV_THROTTLING_LOW
 	bool "Block throttling .low limit interface support (EXPERIMENTAL)"
@@ -110,7 +117,7 @@ config BLK_CMDLINE_PARSER
 	which don't otherwise have any standardized method for listing the
 	partitions on a block device.
 
-	See Documentation/block/cmdline-partition.txt for more information.
+	See Documentation/block/cmdline-partition.rst for more information.
 
 config BLK_WBT
 	bool "Enable support for block device writeback throttling"
@@ -131,6 +138,16 @@ config BLK_CGROUP_IOLATENCY
 	target than the victimized group.
 
 	Note, this is an experimental interface and could be changed someday.
+
+config BLK_CGROUP_IOCOST
+	bool "Enable support for cost model based cgroup IO controller"
+	depends on BLK_CGROUP=y
+	select BLK_RQ_ALLOC_TIME
+	---help---
+	Enabling this option enables the .weight interface for cost
+	model based proportional IO control.  The IO controller
+	distributes IO capacity between different groups based on
+	their share of the overall weight distribution.
 
 config BLK_WBT_MQ
 	bool "Multiqueue writeback throttling"

@@ -319,7 +319,7 @@
 		182 = /dev/perfctr	Performance-monitoring counters
 		183 = /dev/hwrng	Generic random number generator
 		184 = /dev/cpu/microcode CPU microcode update interface
-		186 = /dev/atomicps	Atomic shapshot of process state data
+		186 = /dev/atomicps	Atomic snapshot of process state data
 		187 = /dev/irnet	IrNET device
 		188 = /dev/smbusbios	SMBus BIOS
 		189 = /dev/ussp_ctl	User space serial port control
@@ -1647,8 +1647,17 @@
 		  0 = /dev/comedi0	First comedi device
 		  1 = /dev/comedi1	Second comedi device
 		    ...
+		 47 = /dev/comedi47	48th comedi device
 
-		See http://stm.lbl.gov/comedi.
+		Minors 48 to 255 are reserved for comedi subdevices with
+		pathnames of the form "/dev/comediX_subdY", where "X" is the
+		minor number of the associated comedi device and "Y" is the
+		subdevice number.  These subdevice minors are assigned
+		dynamically, so there is no fixed mapping from subdevice
+		pathnames to minor numbers.
+
+		See http://www.comedi.org/ for information about the Comedi
+		project.
 
   98 block	User-mode virtual block device
 		  0 = /dev/ubda		First user-mode block device
@@ -2693,8 +2702,8 @@
 		 41 = /dev/ttySMX0		Motorola i.MX - port 0
 		 42 = /dev/ttySMX1		Motorola i.MX - port 1
 		 43 = /dev/ttySMX2		Motorola i.MX - port 2
-		 44 = /dev/ttyMM0		Marvell MPSC - port 0
-		 45 = /dev/ttyMM1		Marvell MPSC - port 1
+		 44 = /dev/ttyMM0		Marvell MPSC - port 0 (obsolete unused)
+		 45 = /dev/ttyMM1		Marvell MPSC - port 1 (obsolete unused)
 		 46 = /dev/ttyCPM0		PPC CPM (SCC or SMC) - port 0
 		    ...
 		 47 = /dev/ttyCPM5		PPC CPM (SCC or SMC) - port 5

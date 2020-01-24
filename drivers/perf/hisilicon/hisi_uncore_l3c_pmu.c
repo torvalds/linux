@@ -206,10 +206,8 @@ static int hisi_l3c_pmu_init_irq(struct hisi_pmu *l3c_pmu,
 
 	/* Read and init IRQ */
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "L3C PMU get irq fail; irq:%d\n", irq);
+	if (irq < 0)
 		return irq;
-	}
 
 	ret = devm_request_irq(&pdev->dev, irq, hisi_l3c_pmu_isr,
 			       IRQF_NOBALANCING | IRQF_NO_THREAD,
@@ -235,7 +233,6 @@ static int hisi_l3c_pmu_init_data(struct platform_device *pdev,
 				  struct hisi_pmu *l3c_pmu)
 {
 	unsigned long long id;
-	struct resource *res;
 	acpi_status status;
 
 	status = acpi_evaluate_integer(ACPI_HANDLE(&pdev->dev),
@@ -261,8 +258,7 @@ static int hisi_l3c_pmu_init_data(struct platform_device *pdev,
 		return -EINVAL;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	l3c_pmu->base = devm_ioremap_resource(&pdev->dev, res);
+	l3c_pmu->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(l3c_pmu->base)) {
 		dev_err(&pdev->dev, "ioremap failed for l3c_pmu resource\n");
 		return PTR_ERR(l3c_pmu->base);

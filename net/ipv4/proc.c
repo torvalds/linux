@@ -68,8 +68,8 @@ static int sockstat_seq_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "RAW: inuse %d\n",
 		   sock_prot_inuse_get(net, &raw_prot));
 	seq_printf(seq,  "FRAG: inuse %u memory %lu\n",
-		   atomic_read(&net->ipv4.frags.rhashtable.nelems),
-		   frag_mem_limit(&net->ipv4.frags));
+		   atomic_read(&net->ipv4.fqdir->rhashtable.nelems),
+		   frag_mem_limit(net->ipv4.fqdir));
 	return 0;
 }
 
@@ -288,6 +288,7 @@ static const struct snmp_mib snmp4_net_list[] = {
 	SNMP_MIB_ITEM("TCPZeroWindowDrop", LINUX_MIB_TCPZEROWINDOWDROP),
 	SNMP_MIB_ITEM("TCPRcvQDrop", LINUX_MIB_TCPRCVQDROP),
 	SNMP_MIB_ITEM("TCPWqueueTooBig", LINUX_MIB_TCPWQUEUETOOBIG),
+	SNMP_MIB_ITEM("TCPFastOpenPassiveAltKey", LINUX_MIB_TCPFASTOPENPASSIVEALTKEY),
 	SNMP_MIB_SENTINEL
 };
 

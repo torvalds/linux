@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NOUVEAU_BO_H__
 #define __NOUVEAU_BO_H__
 
@@ -34,11 +34,6 @@ struct nouveau_bo {
 	unsigned mode;
 
 	struct nouveau_drm_tile *tile;
-
-	/* Only valid if allocated via nouveau_gem_new() and iff you hold a
-	 * gem reference to it! For debugging, use gem.filp != NULL to test
-	 * whether it is valid. */
-	struct drm_gem_object gem;
 
 	/* protect by the ttm reservation lock */
 	int pin_refcnt;
@@ -76,9 +71,13 @@ nouveau_bo_ref(struct nouveau_bo *ref, struct nouveau_bo **pnvbo)
 extern struct ttm_bo_driver nouveau_bo_driver;
 
 void nouveau_bo_move_init(struct nouveau_drm *);
+struct nouveau_bo *nouveau_bo_alloc(struct nouveau_cli *, u64 *size, int *align,
+				    u32 flags, u32 tile_mode, u32 tile_flags);
+int  nouveau_bo_init(struct nouveau_bo *, u64 size, int align, u32 flags,
+		     struct sg_table *sg, struct dma_resv *robj);
 int  nouveau_bo_new(struct nouveau_cli *, u64 size, int align, u32 flags,
 		    u32 tile_mode, u32 tile_flags, struct sg_table *sg,
-		    struct reservation_object *robj,
+		    struct dma_resv *robj,
 		    struct nouveau_bo **);
 int  nouveau_bo_pin(struct nouveau_bo *, u32 flags, bool contig);
 int  nouveau_bo_unpin(struct nouveau_bo *);

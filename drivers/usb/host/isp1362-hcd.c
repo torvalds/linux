@@ -2627,7 +2627,7 @@ static int isp1362_probe(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd;
 	struct isp1362_hcd *isp1362_hcd;
-	struct resource *addr, *data, *irq_res;
+	struct resource *data, *irq_res;
 	void __iomem *addr_reg;
 	void __iomem *data_reg;
 	int irq;
@@ -2645,19 +2645,13 @@ static int isp1362_probe(struct platform_device *pdev)
 	if (pdev->num_resources < 3)
 		return -ENODEV;
 
-	if (pdev->dev.dma_mask) {
-		DBG(1, "won't do DMA");
-		return -ENODEV;
-	}
-
 	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!irq_res)
 		return -ENODEV;
 
 	irq = irq_res->start;
 
-	addr = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	addr_reg = devm_ioremap_resource(&pdev->dev, addr);
+	addr_reg = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(addr_reg))
 		return PTR_ERR(addr_reg);
 

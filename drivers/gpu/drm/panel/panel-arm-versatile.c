@@ -25,19 +25,21 @@
  * Epson QCIF display.
  *
  */
-#include <drm/drmP.h>
-#include <drm/drm_panel.h>
 
 #include <linux/bitops.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/mfd/syscon.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 
 #include <video/of_videomode.h>
 #include <video/videomode.h>
+
+#include <drm/drm_modes.h>
+#include <drm/drm_panel.h>
 
 /*
  * This configuration register in the Versatile and RealView
@@ -348,9 +350,8 @@ static int versatile_panel_probe(struct platform_device *pdev)
 			dev_info(dev, "panel mounted on IB2 daughterboard\n");
 	}
 
-	drm_panel_init(&vpanel->panel);
-	vpanel->panel.dev = dev;
-	vpanel->panel.funcs = &versatile_panel_drm_funcs;
+	drm_panel_init(&vpanel->panel, dev, &versatile_panel_drm_funcs,
+		       DRM_MODE_CONNECTOR_DPI);
 
 	return drm_panel_add(&vpanel->panel);
 }

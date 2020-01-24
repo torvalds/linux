@@ -12,6 +12,7 @@
 #include <linux/termios.h>
 #include <linux/serial_core.h>
 #include <linux/module.h>
+#include <linux/property.h>
 
 #include "serial_mctrl_gpio.h"
 
@@ -26,15 +27,20 @@ struct mctrl_gpios {
 static const struct {
 	const char *name;
 	unsigned int mctrl;
-	bool dir_out;
+	enum gpiod_flags flags;
 } mctrl_gpios_desc[UART_GPIO_MAX] = {
-	{ "cts", TIOCM_CTS, false, },
-	{ "dsr", TIOCM_DSR, false, },
-	{ "dcd", TIOCM_CD, false, },
-	{ "rng", TIOCM_RNG, false, },
-	{ "rts", TIOCM_RTS, true, },
-	{ "dtr", TIOCM_DTR, true, },
+	{ "cts", TIOCM_CTS, GPIOD_IN, },
+	{ "dsr", TIOCM_DSR, GPIOD_IN, },
+	{ "dcd", TIOCM_CD,  GPIOD_IN, },
+	{ "rng", TIOCM_RNG, GPIOD_IN, },
+	{ "rts", TIOCM_RTS, GPIOD_OUT_LOW, },
+	{ "dtr", TIOCM_DTR, GPIOD_OUT_LOW, },
 };
+
+static bool mctrl_gpio_flags_is_dir_out(unsigned int idx)
+{
+	return mctrl_gpios_desc[idx].flags & GPIOD_FLAGS_BIT_DIR_OUT;
+}
 
 void mctrl_gpio_set(struct mctrl_gpios *gpios, unsigned int mctrl)
 {
@@ -47,7 +53,7 @@ void mctrl_gpio_set(struct mctrl_gpios *gpios, unsigned int mctrl)
 		return;
 
 	for (i = 0; i < UART_GPIO_MAX; i++)
-		if (gpios->gpio[i] && mctrl_gpios_desc[i].dir_out) {
+		if (gpios->gpio[i] && mctrl_gpio_flags_is_dir_out(i)) {
 			desc_array[count] = gpios->gpio[i];
 			__assign_bit(count, values,
 				     mctrl & mctrl_gpios_desc[i].mctrl);
@@ -60,6 +66,9 @@ EXPORT_SYMBOL_GPL(mctrl_gpio_set);
 struct gpio_desc *mctrl_gpio_to_gpiod(struct mctrl_gpios *gpios,
 				      enum mctrl_gpio_idx gidx)
 {
+	if (gpios == NULL)
+		return NULL;
+
 	return gpios->gpio[gidx];
 }
 EXPORT_SYMBOL_GPL(mctrl_gpio_to_gpiod);
@@ -72,7 +81,7 @@ unsigned int mctrl_gpio_get(struct mctrl_gpios *gpios, unsigned int *mctrl)
 		return *mctrl;
 
 	for (i = 0; i < UART_GPIO_MAX; i++) {
-		if (gpios->gpio[i] && !mctrl_gpios_desc[i].dir_out) {
+		if (gpios->gpio[i] && !mctrl_gpio_flags_is_dir_out(i)) {
 			if (gpiod_get_value(gpios->gpio[i]))
 				*mctrl |= mctrl_gpios_desc[i].mctrl;
 			else
@@ -93,7 +102,7 @@ mctrl_gpio_get_outputs(struct mctrl_gpios *gpios, unsigned int *mctrl)
 		return *mctrl;
 
 	for (i = 0; i < UART_GPIO_MAX; i++) {
-		if (gpios->gpio[i] && mctrl_gpios_desc[i].dir_out) {
+		if (gpios->gpio[i] && mctrl_gpio_flags_is_dir_out(i)) {
 			if (gpiod_get_value(gpios->gpio[i]))
 				*mctrl |= mctrl_gpios_desc[i].mctrl;
 			else
@@ -115,17 +124,25 @@ struct mctrl_gpios *mctrl_gpio_init_noauto(struct device *dev, unsigned int idx)
 		return ERR_PTR(-ENOMEM);
 
 	for (i = 0; i < UART_GPIO_MAX; i++) {
-		enum gpiod_flags flags;
+		char *gpio_str;
+		bool present;
 
-		if (mctrl_gpios_desc[i].dir_out)
-			flags = GPIOD_OUT_LOW;
-		else
-			flags = GPIOD_IN;
+		/* Check if GPIO property exists and continue if not */
+		gpio_str = kasprintf(GFP_KERNEL, "%s-gpios",
+				     mctrl_gpios_desc[i].name);
+		if (!gpio_str)
+			continue;
+
+		present = device_property_present(dev, gpio_str);
+		kfree(gpio_str);
+		if (!present)
+			continue;
 
 		gpios->gpio[i] =
 			devm_gpiod_get_index_optional(dev,
 						      mctrl_gpios_desc[i].name,
-						      idx, flags);
+						      idx,
+						      mctrl_gpios_desc[i].flags);
 
 		if (IS_ERR(gpios->gpio[i]))
 			return ERR_CAST(gpios->gpio[i]);
@@ -186,7 +203,7 @@ struct mctrl_gpios *mctrl_gpio_init(struct uart_port *port, unsigned int idx)
 	for (i = 0; i < UART_GPIO_MAX; ++i) {
 		int ret;
 
-		if (!gpios->gpio[i] || mctrl_gpios_desc[i].dir_out)
+		if (!gpios->gpio[i] || mctrl_gpio_flags_is_dir_out(i))
 			continue;
 
 		ret = gpiod_to_irq(gpios->gpio[i]);

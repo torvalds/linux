@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *	ICP Wafer 5823 Single Board Computer WDT driver
  *	http://www.icpamerica.com/wafer_5823.php
@@ -12,11 +13,6 @@
  *
  *	(c) Copyright 1996-1997 Alan Cox <alan@lxorguk.ukuu.org.uk>,
  *						All Rights Reserved.
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  *
  *	Neither Alan Cox nor CymruNet Ltd. admit liability nor provide
  *	warranty for any of this software. This material is provided
@@ -234,6 +230,7 @@ static const struct file_operations wafwdt_fops = {
 	.llseek		= no_llseek,
 	.write		= wafwdt_write,
 	.unlocked_ioctl	= wafwdt_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= wafwdt_open,
 	.release	= wafwdt_close,
 };

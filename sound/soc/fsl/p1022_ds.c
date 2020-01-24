@@ -199,6 +199,7 @@ static int p1022_ds_probe(struct platform_device *pdev)
 	struct device_node *np = ssi_pdev->dev.of_node;
 	struct device_node *codec_np = NULL;
 	struct machine_data *mdata;
+	struct snd_soc_dai_link_component *comp;
 	int ret = -ENODEV;
 	const char *sprop;
 	const u32 *iprop;
@@ -216,11 +217,34 @@ static int p1022_ds_probe(struct platform_device *pdev)
 		goto error_put;
 	}
 
-	mdata->dai[0].cpu_dai_name = dev_name(&ssi_pdev->dev);
+	comp = devm_kzalloc(&pdev->dev, 6 * sizeof(*comp), GFP_KERNEL);
+	if (!comp) {
+		ret = -ENOMEM;
+		goto error_put;
+	}
+
+	mdata->dai[0].cpus	= &comp[0];
+	mdata->dai[0].codecs	= &comp[1];
+	mdata->dai[0].platforms	= &comp[2];
+
+	mdata->dai[0].num_cpus		= 1;
+	mdata->dai[0].num_codecs	= 1;
+	mdata->dai[0].num_platforms	= 1;
+
+	mdata->dai[1].cpus	= &comp[3];
+	mdata->dai[1].codecs	= &comp[4];
+	mdata->dai[1].platforms	= &comp[5];
+
+	mdata->dai[1].num_cpus		= 1;
+	mdata->dai[1].num_codecs	= 1;
+	mdata->dai[1].num_platforms	= 1;
+
+
+	mdata->dai[0].cpus->dai_name = dev_name(&ssi_pdev->dev);
 	mdata->dai[0].ops = &p1022_ds_ops;
 
 	/* ASoC core can match codec with device node */
-	mdata->dai[0].codec_of_node = codec_np;
+	mdata->dai[0].codecs->of_node = codec_np;
 
 	/* We register two DAIs per SSI, one for playback and the other for
 	 * capture.  We support codecs that have separate DAIs for both playback
@@ -229,8 +253,8 @@ static int p1022_ds_probe(struct platform_device *pdev)
 	memcpy(&mdata->dai[1], &mdata->dai[0], sizeof(struct snd_soc_dai_link));
 
 	/* The DAI names from the codec (snd_soc_dai_driver.name) */
-	mdata->dai[0].codec_dai_name = "wm8776-hifi-playback";
-	mdata->dai[1].codec_dai_name = "wm8776-hifi-capture";
+	mdata->dai[0].codecs->dai_name = "wm8776-hifi-playback";
+	mdata->dai[1].codecs->dai_name = "wm8776-hifi-capture";
 
 	/* Get the device ID */
 	iprop = of_get_property(np, "cell-index", NULL);
@@ -316,7 +340,7 @@ static int p1022_ds_probe(struct platform_device *pdev)
 	}
 
 	/* Find the playback DMA channel to use. */
-	mdata->dai[0].platform_name = mdata->platform_name[0];
+	mdata->dai[0].platforms->name = mdata->platform_name[0];
 	ret = fsl_asoc_get_dma_channel(np, "fsl,playback-dma", &mdata->dai[0],
 				       &mdata->dma_channel_id[0],
 				       &mdata->dma_id[0]);
@@ -326,7 +350,7 @@ static int p1022_ds_probe(struct platform_device *pdev)
 	}
 
 	/* Find the capture DMA channel to use. */
-	mdata->dai[1].platform_name = mdata->platform_name[1];
+	mdata->dai[1].platforms->name = mdata->platform_name[1];
 	ret = fsl_asoc_get_dma_channel(np, "fsl,capture-dma", &mdata->dai[1],
 				       &mdata->dma_channel_id[1],
 				       &mdata->dma_id[1]);

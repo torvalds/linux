@@ -28,12 +28,22 @@
 
 #include "gpio_types.h"
 
+
+union gpio_hw_container {
+	struct hw_ddc *ddc;
+	struct hw_generic *generic;
+	struct hw_hpd *hpd;
+};
+
 struct gpio {
 	struct gpio_service *service;
 	struct hw_gpio_pin *pin;
 	enum gpio_id id;
 	uint32_t en;
+
+	union gpio_hw_container hw_container;
 	enum gpio_mode mode;
+
 	/* when GPIO comes from VBIOS, it has defined output state */
 	enum gpio_pin_output_state output_state;
 };

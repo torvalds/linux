@@ -5,8 +5,10 @@
 #include <linux/uaccess.h>
 #include <linux/ptrace.h>
 
-static int align_enable = 1;
-static int align_count;
+static int align_kern_enable = 1;
+static int align_usr_enable = 1;
+static int align_kern_count = 0;
+static int align_usr_count = 0;
 
 static inline uint32_t get_ptreg(struct pt_regs *regs, uint32_t rx)
 {
@@ -31,9 +33,6 @@ static int ldb_asm(uint32_t addr, uint32_t *valp)
 {
 	uint32_t val;
 	int err;
-
-	if (!access_ok((void *)addr, 1))
-		return 1;
 
 	asm volatile (
 		"movi	%0, 0\n"
@@ -66,9 +65,6 @@ static int ldb_asm(uint32_t addr, uint32_t *valp)
 static int stb_asm(uint32_t addr, uint32_t val)
 {
 	int err;
-
-	if (!access_ok((void *)addr, 1))
-		return 1;
 
 	asm volatile (
 		"movi	%0, 0\n"
@@ -203,8 +199,6 @@ static int stw_c(struct pt_regs *regs, uint32_t rz, uint32_t addr)
 	if (stb_asm(addr, byte3))
 		return 1;
 
-	align_count++;
-
 	return 0;
 }
 
@@ -226,7 +220,14 @@ void csky_alignment(struct pt_regs *regs)
 	uint32_t addr   = 0;
 
 	if (!user_mode(regs))
+		goto kernel_area;
+
+	if (!align_usr_enable) {
+		pr_err("%s user disabled.\n", __func__);
 		goto bad_area;
+	}
+
+	align_usr_count++;
 
 	ret = get_user(tmp, (uint16_t *)instruction_pointer(regs));
 	if (ret) {
@@ -234,6 +235,19 @@ void csky_alignment(struct pt_regs *regs)
 		goto bad_area;
 	}
 
+	goto good_area;
+
+kernel_area:
+	if (!align_kern_enable) {
+		pr_err("%s kernel disabled.\n", __func__);
+		goto bad_area;
+	}
+
+	align_kern_count++;
+
+	tmp = *(uint16_t *)instruction_pointer(regs);
+
+good_area:
 	opcode = (uint32_t)tmp;
 
 	rx  = opcode & 0xf;
@@ -283,21 +297,35 @@ bad_area:
 		do_exit(SIGKILL);
 	}
 
-	force_sig_fault(SIGBUS, BUS_ADRALN, (void __user *)addr, current);
+	force_sig_fault(SIGBUS, BUS_ADRALN, (void __user *)addr);
 }
 
-static struct ctl_table alignment_tbl[4] = {
+static struct ctl_table alignment_tbl[5] = {
 	{
-		.procname = "enable",
-		.data = &align_enable,
-		.maxlen = sizeof(align_enable),
+		.procname = "kernel_enable",
+		.data = &align_kern_enable,
+		.maxlen = sizeof(align_kern_enable),
 		.mode = 0666,
 		.proc_handler = &proc_dointvec
 	},
 	{
-		.procname = "count",
-		.data = &align_count,
-		.maxlen = sizeof(align_count),
+		.procname = "user_enable",
+		.data = &align_usr_enable,
+		.maxlen = sizeof(align_usr_enable),
+		.mode = 0666,
+		.proc_handler = &proc_dointvec
+	},
+	{
+		.procname = "kernel_count",
+		.data = &align_kern_count,
+		.maxlen = sizeof(align_kern_count),
+		.mode = 0666,
+		.proc_handler = &proc_dointvec
+	},
+	{
+		.procname = "user_count",
+		.data = &align_usr_count,
+		.maxlen = sizeof(align_usr_count),
 		.mode = 0666,
 		.proc_handler = &proc_dointvec
 	},

@@ -26,15 +26,23 @@ config IOSCHED_BFQ
 	regardless of the device parameters and with any workload. It
 	also guarantees a low latency to interactive and soft
 	real-time applications.  Details in
-	Documentation/block/bfq-iosched.txt
+	Documentation/block/bfq-iosched.rst
 
 config BFQ_GROUP_IOSCHED
        bool "BFQ hierarchical scheduling support"
        depends on IOSCHED_BFQ && BLK_CGROUP
+       select BLK_CGROUP_RWSTAT
        ---help---
 
        Enable hierarchical scheduling in BFQ, using the blkio
        (cgroups-v1) or io (cgroups-v2) controller.
+
+config BFQ_CGROUP_DEBUG
+	bool "BFQ IO controller debugging"
+	depends on BFQ_GROUP_IOSCHED
+	---help---
+	Enable some debugging help. Currently it exports additional stat
+	files in a cgroup which can be useful for debugging.
 
 endmenu
 

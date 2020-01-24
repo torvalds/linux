@@ -45,11 +45,6 @@
 #include "lapic.h"
 #include "irq.h"
 
-#if 0
-#define ioapic_debug(fmt,arg...) printk(KERN_WARNING fmt,##arg)
-#else
-#define ioapic_debug(fmt, arg...)
-#endif
 static int ioapic_service(struct kvm_ioapic *vioapic, int irq,
 		bool line_status);
 
@@ -276,8 +271,9 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 {
 	unsigned index;
 	bool mask_before, mask_after;
-	int old_remote_irr, old_delivery_status;
 	union kvm_ioapic_redirect_entry *e;
+	unsigned long vcpu_bitmap;
+	int old_remote_irr, old_delivery_status, old_dest_id, old_dest_mode;
 
 	switch (ioapic->ioregsel) {
 	case IOAPIC_REG_VERSION:
@@ -294,7 +290,6 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 	default:
 		index = (ioapic->ioregsel - 0x10) >> 1;
 
-		ioapic_debug("change redir index %x val %x\n", index, val);
 		if (index >= IOAPIC_NUM_PINS)
 			return;
 		e = &ioapic->redirtbl[index];
@@ -302,6 +297,8 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 		/* Preserve read-only fields */
 		old_remote_irr = e->fields.remote_irr;
 		old_delivery_status = e->fields.delivery_status;
+		old_dest_id = e->fields.dest_id;
+		old_dest_mode = e->fields.dest_mode;
 		if (ioapic->ioregsel & 1) {
 			e->bits &= 0xffffffff;
 			e->bits |= (u64) val << 32;
@@ -327,7 +324,34 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 		if (e->fields.trig_mode == IOAPIC_LEVEL_TRIG
 		    && ioapic->irr & (1 << index))
 			ioapic_service(ioapic, index, false);
-		kvm_make_scan_ioapic_request(ioapic->kvm);
+		if (e->fields.delivery_mode == APIC_DM_FIXED) {
+			struct kvm_lapic_irq irq;
+
+			irq.shorthand = 0;
+			irq.vector = e->fields.vector;
+			irq.delivery_mode = e->fields.delivery_mode << 8;
+			irq.dest_id = e->fields.dest_id;
+			irq.dest_mode = e->fields.dest_mode;
+			bitmap_zero(&vcpu_bitmap, 16);
+			kvm_bitmap_or_dest_vcpus(ioapic->kvm, &irq,
+						 &vcpu_bitmap);
+			if (old_dest_mode != e->fields.dest_mode ||
+			    old_dest_id != e->fields.dest_id) {
+				/*
+				 * Update vcpu_bitmap with vcpus specified in
+				 * the previous request as well. This is done to
+				 * keep ioapic_handled_vectors synchronized.
+				 */
+				irq.dest_id = old_dest_id;
+				irq.dest_mode = old_dest_mode;
+				kvm_bitmap_or_dest_vcpus(ioapic->kvm, &irq,
+							 &vcpu_bitmap);
+			}
+			kvm_make_scan_ioapic_request_mask(ioapic->kvm,
+							  &vcpu_bitmap);
+		} else {
+			kvm_make_scan_ioapic_request(ioapic->kvm);
+		}
 		break;
 	}
 }
@@ -342,12 +366,6 @@ static int ioapic_service(struct kvm_ioapic *ioapic, int irq, bool line_status)
 	    (entry->fields.trig_mode == IOAPIC_LEVEL_TRIG &&
 	    entry->fields.remote_irr))
 		return -1;
-
-	ioapic_debug("dest=%x dest_mode=%x delivery_mode=%x "
-		     "vector=%x trig_mode=%x\n",
-		     entry->fields.dest_id, entry->fields.dest_mode,
-		     entry->fields.delivery_mode, entry->fields.vector,
-		     entry->fields.trig_mode);
 
 	irqe.dest_id = entry->fields.dest_id;
 	irqe.vector = entry->fields.vector;
@@ -515,7 +533,6 @@ static int ioapic_mmio_read(struct kvm_vcpu *vcpu, struct kvm_io_device *this,
 	if (!ioapic_in_range(ioapic, addr))
 		return -EOPNOTSUPP;
 
-	ioapic_debug("addr %lx\n", (unsigned long)addr);
 	ASSERT(!(addr & 0xf));	/* check alignment */
 
 	addr &= 0xff;
@@ -558,8 +575,6 @@ static int ioapic_mmio_write(struct kvm_vcpu *vcpu, struct kvm_io_device *this,
 	if (!ioapic_in_range(ioapic, addr))
 		return -EOPNOTSUPP;
 
-	ioapic_debug("ioapic_mmio_write addr=%p len=%d val=%p\n",
-		     (void*)addr, len, val);
 	ASSERT(!(addr & 0xf));	/* check alignment */
 
 	switch (len) {

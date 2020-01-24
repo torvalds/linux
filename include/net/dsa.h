@@ -18,6 +18,7 @@
 #include <linux/net_tstamp.h>
 #include <linux/phy.h>
 #include <linux/platform_data/dsa.h>
+#include <linux/phylink.h>
 #include <net/devlink.h>
 #include <net/switchdev.h>
 
@@ -40,6 +41,8 @@ struct phylink_link_state;
 #define DSA_TAG_PROTO_TRAILER_VALUE		11
 #define DSA_TAG_PROTO_8021Q_VALUE		12
 #define DSA_TAG_PROTO_SJA1105_VALUE		13
+#define DSA_TAG_PROTO_KSZ8795_VALUE		14
+#define DSA_TAG_PROTO_OCELOT_VALUE		15
 
 enum dsa_tag_protocol {
 	DSA_TAG_PROTO_NONE		= DSA_TAG_PROTO_NONE_VALUE,
@@ -56,6 +59,8 @@ enum dsa_tag_protocol {
 	DSA_TAG_PROTO_TRAILER		= DSA_TAG_PROTO_TRAILER_VALUE,
 	DSA_TAG_PROTO_8021Q		= DSA_TAG_PROTO_8021Q_VALUE,
 	DSA_TAG_PROTO_SJA1105		= DSA_TAG_PROTO_SJA1105_VALUE,
+	DSA_TAG_PROTO_KSZ8795		= DSA_TAG_PROTO_KSZ8795_VALUE,
+	DSA_TAG_PROTO_OCELOT		= DSA_TAG_PROTO_OCELOT_VALUE,
 };
 
 struct packet_type;
@@ -91,8 +96,6 @@ struct __dsa_skb_cb {
 	u8 priv[48 - sizeof(struct dsa_skb_cb)];
 };
 
-#define __DSA_SKB_CB(skb) ((struct __dsa_skb_cb *)((skb)->cb))
-
 #define DSA_SKB_CB(skb) ((struct dsa_skb_cb *)((skb)->cb))
 
 #define DSA_SKB_CB_PRIV(skb)			\
@@ -119,15 +122,11 @@ struct dsa_switch_tree {
 	 */
 	struct dsa_platform_data	*pd;
 
-	/*
-	 * The switch port to which the CPU is attached.
-	 */
-	struct dsa_port		*cpu_dp;
+	/* List of switch ports */
+	struct list_head ports;
 
-	/*
-	 * Data for the individual switch chips.
-	 */
-	struct dsa_switch	*ds[DSA_MAX_SWITCHES];
+	/* List of DSA links composing the routing table */
+	struct list_head rtable;
 };
 
 /* TC matchall action types, only mirroring for now */
@@ -180,7 +179,7 @@ struct dsa_port {
 	struct dsa_switch	*ds;
 	unsigned int		index;
 	const char		*name;
-	const struct dsa_port	*cpu_dp;
+	struct dsa_port		*cpu_dp;
 	const char		*mac;
 	struct device_node	*dn;
 	unsigned int		ageing_time;
@@ -189,9 +188,12 @@ struct dsa_port {
 	struct net_device	*bridge_dev;
 	struct devlink_port	devlink_port;
 	struct phylink		*pl;
+	struct phylink_config	pl_config;
 
 	struct work_struct	xmit_work;
 	struct sk_buff_head	xmit_queue;
+
+	struct list_head list;
 
 	/*
 	 * Give the switch driver somewhere to hang its per-port private data
@@ -208,9 +210,24 @@ struct dsa_port {
 	 * Original copy of the master netdev net_device_ops
 	 */
 	const struct net_device_ops *orig_ndo_ops;
+
+	bool setup;
+};
+
+/* TODO: ideally DSA ports would have a single dp->link_dp member,
+ * and no dst->rtable nor this struct dsa_link would be needed,
+ * but this would require some more complex tree walking,
+ * so keep it stupid at the moment and list them all.
+ */
+struct dsa_link {
+	struct dsa_port *dp;
+	struct dsa_port *link_dp;
+	struct list_head list;
 };
 
 struct dsa_switch {
+	bool setup;
+
 	struct device *dev;
 
 	/*
@@ -239,13 +256,6 @@ struct dsa_switch {
 	const struct dsa_switch_ops	*ops;
 
 	/*
-	 * An array of which element [a] indicates which port on this
-	 * switch should be used to send packets to that are destined
-	 * for switch a. Can be NULL if there is only one switch chip.
-	 */
-	s8		rtable[DSA_MAX_SWITCHES];
-
-	/*
 	 * Slave mii_bus and devices for the individual ports.
 	 */
 	u32			phys_mii_mask;
@@ -271,17 +281,19 @@ struct dsa_switch {
 	 */
 	bool			vlan_filtering;
 
-	unsigned long		*bitmap;
-	unsigned long		_bitmap;
-
-	/* Dynamically allocated ports, keep last */
 	size_t num_ports;
-	struct dsa_port ports[];
 };
 
-static inline const struct dsa_port *dsa_to_port(struct dsa_switch *ds, int p)
+static inline struct dsa_port *dsa_to_port(struct dsa_switch *ds, int p)
 {
-	return &ds->ports[p];
+	struct dsa_switch_tree *dst = ds->dst;
+	struct dsa_port *dp;
+
+	list_for_each_entry(dp, &dst->ports, list)
+		if (dp->ds == ds && dp->index == p)
+			return dp;
+
+	return NULL;
 }
 
 static inline bool dsa_is_unused_port(struct dsa_switch *ds, int p)
@@ -316,6 +328,19 @@ static inline u32 dsa_user_ports(struct dsa_switch *ds)
 	return mask;
 }
 
+/* Return the local port used to reach an arbitrary switch device */
+static inline unsigned int dsa_routing_port(struct dsa_switch *ds, int device)
+{
+	struct dsa_switch_tree *dst = ds->dst;
+	struct dsa_link *dl;
+
+	list_for_each_entry(dl, &dst->rtable, list)
+		if (dl->dp->ds == ds && dl->link_dp->ds->index == device)
+			return dl->dp->index;
+
+	return ds->num_ports;
+}
+
 /* Return the local port used to reach an arbitrary switch port */
 static inline unsigned int dsa_towards_port(struct dsa_switch *ds, int device,
 					    int port)
@@ -323,7 +348,7 @@ static inline unsigned int dsa_towards_port(struct dsa_switch *ds, int device,
 	if (device == ds->index)
 		return port;
 	else
-		return ds->rtable[device];
+		return dsa_routing_port(ds, device);
 }
 
 /* Return the local port used to reach the dedicated CPU port */
@@ -355,6 +380,7 @@ struct dsa_switch_ops {
 						  int port);
 
 	int	(*setup)(struct dsa_switch *ds);
+	void	(*teardown)(struct dsa_switch *ds);
 	u32	(*get_phy_flags)(struct dsa_switch *ds, int port);
 
 	/*
@@ -513,6 +539,8 @@ struct dsa_switch_ops {
 				   bool ingress);
 	void	(*port_mirror_del)(struct dsa_switch *ds, int port,
 				   struct dsa_mall_mirror_tc_entry *mirror);
+	int	(*port_setup_tc)(struct dsa_switch *ds, int port,
+				 enum tc_setup_type type, void *type_data);
 
 	/*
 	 * Cross-chip operations
@@ -539,6 +567,45 @@ struct dsa_switch_ops {
 	 */
 	netdev_tx_t (*port_deferred_xmit)(struct dsa_switch *ds, int port,
 					  struct sk_buff *skb);
+	/* Devlink parameters */
+	int	(*devlink_param_get)(struct dsa_switch *ds, u32 id,
+				     struct devlink_param_gset_ctx *ctx);
+	int	(*devlink_param_set)(struct dsa_switch *ds, u32 id,
+				     struct devlink_param_gset_ctx *ctx);
+};
+
+#define DSA_DEVLINK_PARAM_DRIVER(_id, _name, _type, _cmodes)		\
+	DEVLINK_PARAM_DRIVER(_id, _name, _type, _cmodes,		\
+			     dsa_devlink_param_get, dsa_devlink_param_set, NULL)
+
+int dsa_devlink_param_get(struct devlink *dl, u32 id,
+			  struct devlink_param_gset_ctx *ctx);
+int dsa_devlink_param_set(struct devlink *dl, u32 id,
+			  struct devlink_param_gset_ctx *ctx);
+int dsa_devlink_params_register(struct dsa_switch *ds,
+				const struct devlink_param *params,
+				size_t params_count);
+void dsa_devlink_params_unregister(struct dsa_switch *ds,
+				   const struct devlink_param *params,
+				   size_t params_count);
+int dsa_devlink_resource_register(struct dsa_switch *ds,
+				  const char *resource_name,
+				  u64 resource_size,
+				  u64 resource_id,
+				  u64 parent_resource_id,
+				  const struct devlink_resource_size_params *size_params);
+
+void dsa_devlink_resources_unregister(struct dsa_switch *ds);
+
+void dsa_devlink_resource_occ_get_register(struct dsa_switch *ds,
+					   u64 resource_id,
+					   devlink_resource_occ_get_t *occ_get,
+					   void *occ_get_priv);
+void dsa_devlink_resource_occ_get_unregister(struct dsa_switch *ds,
+					     u64 resource_id);
+
+struct dsa_devlink_priv {
+	struct dsa_switch *ds;
 };
 
 struct dsa_switch_driver {
@@ -566,7 +633,6 @@ static inline bool dsa_can_decode(const struct sk_buff *skb,
 	return false;
 }
 
-struct dsa_switch *dsa_switch_alloc(struct device *dev, size_t n);
 void dsa_unregister_switch(struct dsa_switch *ds);
 int dsa_register_switch(struct dsa_switch *ds);
 #ifdef CONFIG_PM_SLEEP

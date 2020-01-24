@@ -123,7 +123,9 @@ static int i10nm_get_all_munits(void)
 }
 
 static const struct x86_cpu_id i10nm_cpuids[] = {
-	{ X86_VENDOR_INTEL, 6, INTEL_FAM6_ATOM_TREMONT_X, 0, 0 },
+	{ X86_VENDOR_INTEL, 6, INTEL_FAM6_ATOM_TREMONT_D, 0, 0 },
+	{ X86_VENDOR_INTEL, 6, INTEL_FAM6_ICELAKE_X, 0, 0 },
+	{ X86_VENDOR_INTEL, 6, INTEL_FAM6_ICELAKE_D, 0, 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(x86cpu, i10nm_cpuids);
@@ -152,8 +154,7 @@ static int i10nm_get_dimm_config(struct mem_ctl_info *mci)
 
 		ndimms = 0;
 		for (j = 0; j < I10NM_NUM_DIMMS; j++) {
-			dimm = EDAC_DIMM_PTR(mci->layers, mci->dimms,
-					     mci->n_layers, i, j, 0);
+			dimm = edac_get_dimm(mci, i, j, 0);
 			mtr = I10NM_GET_DIMMMTR(imc, i, j);
 			mcddrtcfg = I10NM_GET_MCDDRTCFG(imc, i, j);
 			edac_dbg(1, "dimmmtr 0x%x mcddrtcfg 0x%x (mc%d ch%d dimm%d)\n",
@@ -166,9 +167,9 @@ static int i10nm_get_dimm_config(struct mem_ctl_info *mci)
 				ndimms += skx_get_nvdimm_info(dimm, imc, i, j,
 							      EDAC_MOD_STR);
 		}
-		if (ndimms && !i10nm_check_ecc(imc, 0)) {
-			i10nm_printk(KERN_ERR, "ECC is disabled on imc %d\n",
-				     imc->mc);
+		if (ndimms && !i10nm_check_ecc(imc, i)) {
+			i10nm_printk(KERN_ERR, "ECC is disabled on imc %d channel %d\n",
+				     imc->mc, i);
 			return -ENODEV;
 		}
 	}
@@ -265,7 +266,7 @@ static int __init i10nm_init(void)
 		goto fail;
 
 	list_for_each_entry(d, i10nm_edac_list, list) {
-		rc = skx_get_src_id(d, &src_id);
+		rc = skx_get_src_id(d, 0xf8, &src_id);
 		if (rc < 0)
 			goto fail;
 

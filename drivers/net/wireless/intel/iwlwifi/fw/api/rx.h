@@ -260,6 +260,11 @@ enum iwl_rx_mpdu_amsdu_info {
 	IWL_RX_MPDU_AMSDU_LAST_SUBFRAME		= 0x80,
 };
 
+#define RX_MPDU_BAND_POS 6
+#define RX_MPDU_BAND_MASK 0xC0
+#define BAND_IN_RX_STATUS(_val) \
+	(((_val) & RX_MPDU_BAND_MASK) >> RX_MPDU_BAND_POS)
+
 enum iwl_rx_l3_proto_values {
 	IWL_RX_L3_TYPE_NONE,
 	IWL_RX_L3_TYPE_IPV4,
@@ -746,6 +751,38 @@ struct iwl_frame_release {
 	__le16 nssn;
 };
 
+/**
+ * enum iwl_bar_frame_release_sta_tid - STA/TID information for BAR release
+ * @IWL_BAR_FRAME_RELEASE_TID_MASK: TID mask
+ * @IWL_BAR_FRAME_RELEASE_STA_MASK: STA mask
+ */
+enum iwl_bar_frame_release_sta_tid {
+	IWL_BAR_FRAME_RELEASE_TID_MASK = 0x0000000f,
+	IWL_BAR_FRAME_RELEASE_STA_MASK = 0x000001f0,
+};
+
+/**
+ * enum iwl_bar_frame_release_ba_info - BA information for BAR release
+ * @IWL_BAR_FRAME_RELEASE_NSSN_MASK: NSSN mask
+ * @IWL_BAR_FRAME_RELEASE_SN_MASK: SN mask (ignored by driver)
+ * @IWL_BAR_FRAME_RELEASE_BAID_MASK: BAID mask
+ */
+enum iwl_bar_frame_release_ba_info {
+	IWL_BAR_FRAME_RELEASE_NSSN_MASK	= 0x00000fff,
+	IWL_BAR_FRAME_RELEASE_SN_MASK	= 0x00fff000,
+	IWL_BAR_FRAME_RELEASE_BAID_MASK	= 0x3f000000,
+};
+
+/**
+ * struct iwl_bar_frame_release - frame release from BAR info
+ * @sta_tid: STA & TID information, see &enum iwl_bar_frame_release_sta_tid.
+ * @ba_info: BA information, see &enum iwl_bar_frame_release_ba_info.
+ */
+struct iwl_bar_frame_release {
+	__le32 sta_tid;
+	__le32 ba_info;
+} __packed; /* RX_BAR_TO_FRAME_RELEASE_API_S_VER_1 */
+
 enum iwl_rss_hash_func_en {
 	IWL_RSS_HASH_TYPE_IPV4_TCP,
 	IWL_RSS_HASH_TYPE_IPV4_UDP,
@@ -776,7 +813,6 @@ struct iwl_rss_config_cmd {
 	u8 indirection_table[IWL_RSS_INDIRECTION_TABLE_SIZE];
 } __packed; /* RSS_CONFIG_CMD_API_S_VER_1 */
 
-#define IWL_MULTI_QUEUE_SYNC_MSG_MAX_SIZE 128
 #define IWL_MULTI_QUEUE_SYNC_SENDER_POS 0
 #define IWL_MULTI_QUEUE_SYNC_SENDER_MSK 0xf
 
@@ -812,10 +848,12 @@ struct iwl_rxq_sync_notification {
  *
  * @IWL_MVM_RXQ_EMPTY: empty sync notification
  * @IWL_MVM_RXQ_NOTIF_DEL_BA: notify RSS queues of delBA
+ * @IWL_MVM_RXQ_NSSN_SYNC: notify all the RSS queues with the new NSSN
  */
 enum iwl_mvm_rxq_notif_type {
 	IWL_MVM_RXQ_EMPTY,
 	IWL_MVM_RXQ_NOTIF_DEL_BA,
+	IWL_MVM_RXQ_NSSN_SYNC,
 };
 
 /**

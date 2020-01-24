@@ -1790,6 +1790,8 @@ void md_bitmap_destroy(struct mddev *mddev)
 		return;
 
 	md_bitmap_wait_behind_writes(mddev);
+	mempool_destroy(mddev->wb_info_pool);
+	mddev->wb_info_pool = NULL;
 
 	mutex_lock(&mddev->bitmap_info.mutex);
 	spin_lock(&mddev->lock);
@@ -1900,9 +1902,13 @@ int md_bitmap_load(struct mddev *mddev)
 	sector_t start = 0;
 	sector_t sector = 0;
 	struct bitmap *bitmap = mddev->bitmap;
+	struct md_rdev *rdev;
 
 	if (!bitmap)
 		goto out;
+
+	rdev_for_each(rdev, mddev)
+		mddev_create_wb_pool(mddev, rdev, true);
 
 	if (mddev_is_clustered(mddev))
 		md_cluster_ops->load_bitmaps(mddev, mddev->bitmap_info.nodes);
@@ -2133,6 +2139,7 @@ int md_bitmap_resize(struct bitmap *bitmap, sector_t blocks,
 		memcpy(page_address(store.sb_page),
 		       page_address(bitmap->storage.sb_page),
 		       sizeof(bitmap_super_t));
+	spin_lock_irq(&bitmap->counts.lock);
 	md_bitmap_file_unmap(&bitmap->storage);
 	bitmap->storage = store;
 
@@ -2148,7 +2155,6 @@ int md_bitmap_resize(struct bitmap *bitmap, sector_t blocks,
 	blocks = min(old_counts.chunks << old_counts.chunkshift,
 		     chunks << chunkshift);
 
-	spin_lock_irq(&bitmap->counts.lock);
 	/* For cluster raid, need to pre-allocate bitmap */
 	if (mddev_is_clustered(bitmap->mddev)) {
 		unsigned long page;
@@ -2462,12 +2468,26 @@ static ssize_t
 backlog_store(struct mddev *mddev, const char *buf, size_t len)
 {
 	unsigned long backlog;
+	unsigned long old_mwb = mddev->bitmap_info.max_write_behind;
 	int rv = kstrtoul(buf, 10, &backlog);
 	if (rv)
 		return rv;
 	if (backlog > COUNTER_MAX)
 		return -EINVAL;
 	mddev->bitmap_info.max_write_behind = backlog;
+	if (!backlog && mddev->wb_info_pool) {
+		/* wb_info_pool is not needed if backlog is zero */
+		mempool_destroy(mddev->wb_info_pool);
+		mddev->wb_info_pool = NULL;
+	} else if (backlog && !mddev->wb_info_pool) {
+		/* wb_info_pool is needed since backlog is not zero */
+		struct md_rdev *rdev;
+
+		rdev_for_each(rdev, mddev)
+			mddev_create_wb_pool(mddev, rdev, false);
+	}
+	if (old_mwb != backlog)
+		md_bitmap_update_sb(mddev->bitmap);
 	return len;
 }
 

@@ -246,7 +246,7 @@ struct orangefs_read_options {
 extern struct orangefs_stats orangefs_stats;
 
 /*
- * NOTE: See Documentation/filesystems/porting for information
+ * NOTE: See Documentation/filesystems/porting.rst for information
  * on implementing FOO_I and properly accessing fs private data
  */
 static inline struct orangefs_inode_s *ORANGEFS_I(struct inode *inode)
@@ -398,7 +398,8 @@ bool __is_daemon_in_service(void);
  */
 int orangefs_revalidate_mapping(struct inode *);
 ssize_t wait_for_direct_io(enum ORANGEFS_io_type, struct inode *, loff_t *,
-    struct iov_iter *, size_t, loff_t, struct orangefs_write_range *, int *);
+    struct iov_iter *, size_t, loff_t, struct orangefs_write_range *, int *,
+    struct file *);
 ssize_t do_readv_writev(enum ORANGEFS_io_type, struct file *, loff_t *,
     struct iov_iter *);
 

@@ -104,3 +104,11 @@
 &pcie0 {
 	status = "okay";
 };
+
+&rtc {
+	/*
+	 * There is a s35390a available on the i2c bus, the internal rtc isn't
+	 * working (probably no crystal assembled).
+	 */
+	status = "disabled";
+};

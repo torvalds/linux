@@ -8,17 +8,18 @@
  * Author: Oleksandr Andrushchenko <oleksandr_andrushchenko@epam.com>
  */
 
-#include "xen_drm_front_kms.h"
-
-#include <drm/drmP.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_vblank.h>
 
 #include "xen_drm_front.h"
 #include "xen_drm_front_conn.h"
+#include "xen_drm_front_kms.h"
 
 /*
  * Timeout in ms to wait for frame done event from the backend:
@@ -45,7 +46,7 @@ static void fb_destroy(struct drm_framebuffer *fb)
 	drm_gem_fb_destroy(fb);
 }
 
-static struct drm_framebuffer_funcs fb_funcs = {
+static const struct drm_framebuffer_funcs fb_funcs = {
 	.destroy = fb_destroy,
 };
 
@@ -269,11 +270,12 @@ static void display_update(struct drm_simple_display_pipe *pipe,
 }
 
 static enum drm_mode_status
-display_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode)
+display_mode_valid(struct drm_simple_display_pipe *pipe,
+		   const struct drm_display_mode *mode)
 {
 	struct xen_drm_front_drm_pipeline *pipeline =
-			container_of(crtc, struct xen_drm_front_drm_pipeline,
-				     pipe.crtc);
+			container_of(pipe, struct xen_drm_front_drm_pipeline,
+				     pipe);
 
 	if (mode->hdisplay != pipeline->width)
 		return MODE_ERROR;

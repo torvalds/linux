@@ -7,7 +7,6 @@
 #ifndef __QLA_NVME_H
 #define __QLA_NVME_H
 
-#include <linux/blk-mq.h>
 #include <uapi/scsi/fc/fc_fs.h>
 #include <uapi/scsi/fc/fc_els.h>
 #include <linux/nvme-fc-driver.h>
@@ -34,10 +33,10 @@ struct nvme_private {
 	struct work_struct ls_work;
 	struct work_struct abort_work;
 	int comp_status;
+	spinlock_t cmd_lock;
 };
 
 struct qla_nvme_rport {
-	struct list_head list;
 	struct fc_port *fcport;
 };
 
@@ -119,7 +118,7 @@ struct pt_ls4_rx_unsol {
 	uint32_t exchange_address;
 	uint8_t d_id[3];
 	uint8_t r_ctl;
-	uint8_t s_id[3];
+	be_id_t s_id;
 	uint8_t cs_ctl;
 	uint8_t f_ctl[3];
 	uint8_t type;
@@ -144,5 +143,5 @@ int  qla_nvme_register_remote(struct scsi_qla_host *, struct fc_port *);
 void qla_nvme_delete(struct scsi_qla_host *);
 void qla24xx_nvme_ls4_iocb(struct scsi_qla_host *, struct pt_ls4_request *,
     struct req_que *);
-void qla24xx_async_gffid_sp_done(void *, int);
+void qla24xx_async_gffid_sp_done(struct srb *sp, int);
 #endif

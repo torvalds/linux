@@ -36,7 +36,7 @@
 #include <asm/export.h>
 
 	.text
-ENTRY(__get_user_1)
+SYM_FUNC_START(__get_user_1)
 	mov PER_CPU_VAR(current_task), %_ASM_DX
 	cmp TASK_addr_limit(%_ASM_DX),%_ASM_AX
 	jae bad_get_user
@@ -47,10 +47,10 @@ ENTRY(__get_user_1)
 	xor %eax,%eax
 	ASM_CLAC
 	ret
-ENDPROC(__get_user_1)
+SYM_FUNC_END(__get_user_1)
 EXPORT_SYMBOL(__get_user_1)
 
-ENTRY(__get_user_2)
+SYM_FUNC_START(__get_user_2)
 	add $1,%_ASM_AX
 	jc bad_get_user
 	mov PER_CPU_VAR(current_task), %_ASM_DX
@@ -63,10 +63,10 @@ ENTRY(__get_user_2)
 	xor %eax,%eax
 	ASM_CLAC
 	ret
-ENDPROC(__get_user_2)
+SYM_FUNC_END(__get_user_2)
 EXPORT_SYMBOL(__get_user_2)
 
-ENTRY(__get_user_4)
+SYM_FUNC_START(__get_user_4)
 	add $3,%_ASM_AX
 	jc bad_get_user
 	mov PER_CPU_VAR(current_task), %_ASM_DX
@@ -79,10 +79,10 @@ ENTRY(__get_user_4)
 	xor %eax,%eax
 	ASM_CLAC
 	ret
-ENDPROC(__get_user_4)
+SYM_FUNC_END(__get_user_4)
 EXPORT_SYMBOL(__get_user_4)
 
-ENTRY(__get_user_8)
+SYM_FUNC_START(__get_user_8)
 #ifdef CONFIG_X86_64
 	add $7,%_ASM_AX
 	jc bad_get_user
@@ -111,33 +111,35 @@ ENTRY(__get_user_8)
 	ASM_CLAC
 	ret
 #endif
-ENDPROC(__get_user_8)
+SYM_FUNC_END(__get_user_8)
 EXPORT_SYMBOL(__get_user_8)
 
 
+SYM_CODE_START_LOCAL(.Lbad_get_user_clac)
+	ASM_CLAC
 bad_get_user:
 	xor %edx,%edx
 	mov $(-EFAULT),%_ASM_AX
-	ASM_CLAC
 	ret
-END(bad_get_user)
+SYM_CODE_END(.Lbad_get_user_clac)
 
 #ifdef CONFIG_X86_32
+SYM_CODE_START_LOCAL(.Lbad_get_user_8_clac)
+	ASM_CLAC
 bad_get_user_8:
 	xor %edx,%edx
 	xor %ecx,%ecx
 	mov $(-EFAULT),%_ASM_AX
-	ASM_CLAC
 	ret
-END(bad_get_user_8)
+SYM_CODE_END(.Lbad_get_user_8_clac)
 #endif
 
-	_ASM_EXTABLE_UA(1b, bad_get_user)
-	_ASM_EXTABLE_UA(2b, bad_get_user)
-	_ASM_EXTABLE_UA(3b, bad_get_user)
+	_ASM_EXTABLE_UA(1b, .Lbad_get_user_clac)
+	_ASM_EXTABLE_UA(2b, .Lbad_get_user_clac)
+	_ASM_EXTABLE_UA(3b, .Lbad_get_user_clac)
 #ifdef CONFIG_X86_64
-	_ASM_EXTABLE_UA(4b, bad_get_user)
+	_ASM_EXTABLE_UA(4b, .Lbad_get_user_clac)
 #else
-	_ASM_EXTABLE_UA(4b, bad_get_user_8)
-	_ASM_EXTABLE_UA(5b, bad_get_user_8)
+	_ASM_EXTABLE_UA(4b, .Lbad_get_user_8_clac)
+	_ASM_EXTABLE_UA(5b, .Lbad_get_user_8_clac)
 #endif

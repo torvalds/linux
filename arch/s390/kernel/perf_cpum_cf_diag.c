@@ -34,7 +34,7 @@ struct cf_diag_csd {		/* Counter set data per CPU */
 	unsigned char start[PAGE_SIZE];	/* Counter set at event start */
 	unsigned char data[PAGE_SIZE];	/* Counter set at event delete */
 };
-DEFINE_PER_CPU(struct cf_diag_csd, cf_diag_csd);
+static DEFINE_PER_CPU(struct cf_diag_csd, cf_diag_csd);
 
 /* Counter sets are stored as data stream in a page sized memory buffer and
  * exported to user space via raw data attached to the event sample data.
@@ -243,13 +243,13 @@ static int cf_diag_event_init(struct perf_event *event)
 	int err = -ENOENT;
 
 	debug_sprintf_event(cf_diag_dbg, 5,
-			    "%s event %p cpu %d config %#llx "
+			    "%s event %p cpu %d config %#llx type:%u "
 			    "sample_type %#llx cf_diag_events %d\n", __func__,
-			    event, event->cpu, attr->config, attr->sample_type,
-			    atomic_read(&cf_diag_events));
+			    event, event->cpu, attr->config, event->pmu->type,
+			    attr->sample_type, atomic_read(&cf_diag_events));
 
 	if (event->attr.config != PERF_EVENT_CPUM_CF_DIAG ||
-	    event->attr.type != PERF_TYPE_RAW)
+	    event->attr.type != event->pmu->type)
 		goto out;
 
 	/* Raw events are used to access counters directly,
@@ -390,7 +390,7 @@ static size_t cf_diag_getctrset(struct cf_ctrset_entry *ctrdata, int ctrset,
 
 	debug_sprintf_event(cf_diag_dbg, 6,
 			    "%s ctrset %d ctrset_size %zu cfvn %d csvn %d"
-			    " need %zd rc:%d\n",
+			    " need %zd rc %d\n",
 			    __func__, ctrset, ctrset_size, cpuhw->info.cfvn,
 			    cpuhw->info.csvn, need, rc);
 	return need;
@@ -567,7 +567,7 @@ static int cf_diag_add(struct perf_event *event, int flags)
 	int err = 0;
 
 	debug_sprintf_event(cf_diag_dbg, 5,
-			    "%s event %p cpu %d flags %#x cpuhw:%p\n",
+			    "%s event %p cpu %d flags %#x cpuhw %p\n",
 			    __func__, event, event->cpu, flags, cpuhw);
 
 	if (cpuhw->flags & PMU_F_IN_USE) {
@@ -693,7 +693,7 @@ static int __init cf_diag_init(void)
 	}
 	debug_register_view(cf_diag_dbg, &debug_sprintf_view);
 
-	rc = perf_pmu_register(&cf_diag, "cpum_cf_diag", PERF_TYPE_RAW);
+	rc = perf_pmu_register(&cf_diag, "cpum_cf_diag", -1);
 	if (rc) {
 		debug_unregister_view(cf_diag_dbg, &debug_sprintf_view);
 		debug_unregister(cf_diag_dbg);

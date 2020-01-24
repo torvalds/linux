@@ -60,22 +60,6 @@ void __init mem_init(void)
 	mem_init_print_info(NULL);
 }
 
-#ifdef CONFIG_BLK_DEV_INITRD
-void free_initrd_mem(unsigned long start, unsigned long end)
-{
-	if (start < end)
-		pr_info("Freeing initrd memory: %ldk freed\n",
-			(end - start) >> 10);
-
-	for (; start < end; start += PAGE_SIZE) {
-		ClearPageReserved(virt_to_page(start));
-		init_page_count(virt_to_page(start));
-		free_page(start);
-		totalram_pages_inc();
-	}
-}
-#endif
-
 extern char __init_begin[], __init_end[];
 
 void free_initmem(void)
@@ -113,8 +97,6 @@ void __init pre_mmu_init(void)
 	pgd_init((unsigned long *)swapper_pg_dir);
 	TLBMISS_HANDLER_SETUP_PGD(swapper_pg_dir);
 	TLBMISS_HANDLER_SETUP_PGD_KERNEL(swapper_pg_dir);
-
-	asid_cache(smp_processor_id()) = ASID_FIRST_VERSION;
 
 	/* Setup page mask to 4k */
 	write_mmu_pagemask(0);

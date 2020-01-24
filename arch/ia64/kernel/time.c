@@ -25,7 +25,6 @@
 #include <linux/platform_device.h>
 #include <linux/sched/cputime.h>
 
-#include <asm/machvec.h>
 #include <asm/delay.h>
 #include <asm/hw_irq.h>
 #include <asm/ptrace.h>
@@ -133,7 +132,7 @@ static __u64 vtime_delta(struct task_struct *tsk)
 	return delta_stime;
 }
 
-void vtime_account_system(struct task_struct *tsk)
+void vtime_account_kernel(struct task_struct *tsk)
 {
 	struct thread_info *ti = task_thread_info(tsk);
 	__u64 stime = vtime_delta(tsk);
@@ -147,7 +146,7 @@ void vtime_account_system(struct task_struct *tsk)
 	else
 		ti->stime += stime;
 }
-EXPORT_SYMBOL_GPL(vtime_account_system);
+EXPORT_SYMBOL_GPL(vtime_account_kernel);
 
 void vtime_account_idle(struct task_struct *tsk)
 {
@@ -166,8 +165,6 @@ timer_interrupt (int irq, void *dev_id)
 	if (cpu_is_offline(smp_processor_id())) {
 		return IRQ_HANDLED;
 	}
-
-	platform_timer_interrupt(irq, dev_id);
 
 	new_itm = local_cpu_data->itm_next;
 

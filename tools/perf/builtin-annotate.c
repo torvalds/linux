@@ -8,11 +8,11 @@
  */
 #include "builtin.h"
 
-#include "util/util.h"
 #include "util/color.h"
 #include <linux/list.h>
 #include "util/cache.h"
 #include <linux/rbtree.h>
+#include <linux/zalloc.h>
 #include "util/symbol.h"
 
 #include "perf.h"
@@ -24,19 +24,23 @@
 #include "util/event.h"
 #include <subcmd/parse-options.h>
 #include "util/parse-events.h"
-#include "util/thread.h"
 #include "util/sort.h"
 #include "util/hist.h"
+#include "util/dso.h"
+#include "util/machine.h"
 #include "util/map.h"
 #include "util/session.h"
 #include "util/tool.h"
 #include "util/data.h"
 #include "arch/common.h"
 #include "util/block-range.h"
+#include "util/map_symbol.h"
+#include "util/branch.h"
 
 #include <dlfcn.h>
 #include <errno.h>
 #include <linux/bitmap.h>
+#include <linux/err.h>
 
 struct perf_annotate {
 	struct perf_tool tool;
@@ -79,7 +83,7 @@ static void process_basic_block(struct addr_map_symbol *start,
 				struct addr_map_symbol *end,
 				struct branch_flags *flags)
 {
-	struct symbol *sym = start->sym;
+	struct symbol *sym = start->ms.sym;
 	struct annotation *notes = sym ? symbol__annotation(sym) : NULL;
 	struct block_range_iter iter;
 	struct block_range *entry;
@@ -156,7 +160,7 @@ static int hist_iter__branch_callback(struct hist_entry_iter *iter,
 	struct hist_entry *he = iter->he;
 	struct branch_info *bi;
 	struct perf_sample *sample = iter->sample;
-	struct perf_evsel *evsel = iter->evsel;
+	struct evsel *evsel = iter->evsel;
 	int err;
 
 	bi = he->branch_info;
@@ -171,7 +175,7 @@ out:
 	return err;
 }
 
-static int process_branch_callback(struct perf_evsel *evsel,
+static int process_branch_callback(struct evsel *evsel,
 				   struct perf_sample *sample,
 				   struct addr_location *al __maybe_unused,
 				   struct perf_annotate *ann,
@@ -197,7 +201,7 @@ static int process_branch_callback(struct perf_evsel *evsel,
 	if (a.map != NULL)
 		a.map->dso->hit = 1;
 
-	hist__account_cycles(sample->branch_stack, al, sample, false);
+	hist__account_cycles(sample->branch_stack, al, sample, false, NULL);
 
 	ret = hist_entry_iter__add(&iter, &a, PERF_MAX_STACK_DEPTH, ann);
 	return ret;
@@ -208,7 +212,7 @@ static bool has_annotation(struct perf_annotate *ann)
 	return ui__has_annotation() || ann->use_stdio2;
 }
 
-static int perf_evsel__add_sample(struct perf_evsel *evsel,
+static int perf_evsel__add_sample(struct evsel *evsel,
 				  struct perf_sample *sample,
 				  struct addr_location *al,
 				  struct perf_annotate *ann,
@@ -257,7 +261,7 @@ static int perf_evsel__add_sample(struct perf_evsel *evsel,
 static int process_sample_event(struct perf_tool *tool,
 				union perf_event *event,
 				struct perf_sample *sample,
-				struct perf_evsel *evsel,
+				struct evsel *evsel,
 				struct machine *machine)
 {
 	struct perf_annotate *ann = container_of(tool, struct perf_annotate, tool);
@@ -293,17 +297,17 @@ static int process_feature_event(struct perf_session *session,
 }
 
 static int hist_entry__tty_annotate(struct hist_entry *he,
-				    struct perf_evsel *evsel,
+				    struct evsel *evsel,
 				    struct perf_annotate *ann)
 {
 	if (!ann->use_stdio2)
-		return symbol__tty_annotate(he->ms.sym, he->ms.map, evsel, &ann->opts);
+		return symbol__tty_annotate(&he->ms, evsel, &ann->opts);
 
-	return symbol__tty_annotate2(he->ms.sym, he->ms.map, evsel, &ann->opts);
+	return symbol__tty_annotate2(&he->ms, evsel, &ann->opts);
 }
 
 static void hists__find_annotations(struct hists *hists,
-				    struct perf_evsel *evsel,
+				    struct evsel *evsel,
 				    struct perf_annotate *ann)
 {
 	struct rb_node *nd = rb_first_cached(&hists->entries), *next;
@@ -333,7 +337,7 @@ find_next:
 		if (use_browser == 2) {
 			int ret;
 			int (*annotate)(struct hist_entry *he,
-					struct perf_evsel *evsel,
+					struct evsel *evsel,
 					struct hist_browser_timer *hbt);
 
 			annotate = dlsym(perf_gtk_handle,
@@ -387,7 +391,7 @@ static int __cmd_annotate(struct perf_annotate *ann)
 {
 	int ret;
 	struct perf_session *session = ann->session;
-	struct perf_evsel *pos;
+	struct evsel *pos;
 	u64 total_nr_samples;
 
 	if (ann->cpu_list) {
@@ -581,8 +585,8 @@ int cmd_annotate(int argc, const char **argv)
 	data.path = input_name;
 
 	annotate.session = perf_session__new(&data, false, &annotate.tool);
-	if (annotate.session == NULL)
-		return -1;
+	if (IS_ERR(annotate.session))
+		return PTR_ERR(annotate.session);
 
 	annotate.has_br_stack = perf_header__has_feat(&annotate.session->header,
 						      HEADER_BRANCH_STACK);

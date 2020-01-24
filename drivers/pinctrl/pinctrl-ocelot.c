@@ -396,7 +396,7 @@ static int ocelot_pin_function_idx(struct ocelot_pinctrl *info,
 	return -1;
 }
 
-#define REG(r, info, p) ((r) * (info)->stride + (4 * ((p) / 32)))
+#define REG_ALT(msb, info, p) (OCELOT_GPIO_ALT0 * (info)->stride + 4 * ((msb) + ((info)->stride * ((p) / 32))))
 
 static int ocelot_pinmux_set_mux(struct pinctrl_dev *pctldev,
 				 unsigned int selector, unsigned int group)
@@ -412,18 +412,20 @@ static int ocelot_pinmux_set_mux(struct pinctrl_dev *pctldev,
 
 	/*
 	 * f is encoded on two bits.
-	 * bit 0 of f goes in BIT(pin) of ALT0, bit 1 of f goes in BIT(pin) of
-	 * ALT1
+	 * bit 0 of f goes in BIT(pin) of ALT[0], bit 1 of f goes in BIT(pin) of
+	 * ALT[1]
 	 * This is racy because both registers can't be updated at the same time
 	 * but it doesn't matter much for now.
 	 */
-	regmap_update_bits(info->map, REG(OCELOT_GPIO_ALT0, info, pin->pin),
+	regmap_update_bits(info->map, REG_ALT(0, info, pin->pin),
 			   BIT(p), f << p);
-	regmap_update_bits(info->map, REG(OCELOT_GPIO_ALT1, info, pin->pin),
+	regmap_update_bits(info->map, REG_ALT(1, info, pin->pin),
 			   BIT(p), f << (p - 1));
 
 	return 0;
 }
+
+#define REG(r, info, p) ((r) * (info)->stride + (4 * ((p) / 32)))
 
 static int ocelot_gpio_set_direction(struct pinctrl_dev *pctldev,
 				     struct pinctrl_gpio_range *range,
@@ -432,7 +434,7 @@ static int ocelot_gpio_set_direction(struct pinctrl_dev *pctldev,
 	struct ocelot_pinctrl *info = pinctrl_dev_get_drvdata(pctldev);
 	unsigned int p = pin % 32;
 
-	regmap_update_bits(info->map, REG(OCELOT_GPIO_OE, info, p), BIT(p),
+	regmap_update_bits(info->map, REG(OCELOT_GPIO_OE, info, pin), BIT(p),
 			   input ? 0 : BIT(p));
 
 	return 0;
@@ -445,9 +447,9 @@ static int ocelot_gpio_request_enable(struct pinctrl_dev *pctldev,
 	struct ocelot_pinctrl *info = pinctrl_dev_get_drvdata(pctldev);
 	unsigned int p = offset % 32;
 
-	regmap_update_bits(info->map, REG(OCELOT_GPIO_ALT0, info, offset),
+	regmap_update_bits(info->map, REG_ALT(0, info, offset),
 			   BIT(p), 0);
-	regmap_update_bits(info->map, REG(OCELOT_GPIO_ALT1, info, offset),
+	regmap_update_bits(info->map, REG_ALT(1, info, offset),
 			   BIT(p), 0);
 
 	return 0;
@@ -734,6 +736,7 @@ static int ocelot_gpiochip_register(struct platform_device *pdev,
 				    struct ocelot_pinctrl *info)
 {
 	struct gpio_chip *gc;
+	struct gpio_irq_chip *girq;
 	int ret, irq;
 
 	info->gpio_chip = ocelot_gpiolib_chip;
@@ -745,21 +748,25 @@ static int ocelot_gpiochip_register(struct platform_device *pdev,
 	gc->of_node = info->dev->of_node;
 	gc->label = "ocelot-gpio";
 
-	ret = devm_gpiochip_add_data(&pdev->dev, gc, info);
-	if (ret)
-		return ret;
-
 	irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
 	if (irq <= 0)
 		return irq;
 
-	ret = gpiochip_irqchip_add(gc, &ocelot_irqchip, 0, handle_edge_irq,
-				   IRQ_TYPE_NONE);
+	girq = &gc->irq;
+	girq->chip = &ocelot_irqchip;
+	girq->parent_handler = ocelot_irq_handler;
+	girq->num_parents = 1;
+	girq->parents = devm_kcalloc(&pdev->dev, 1, sizeof(*girq->parents),
+				     GFP_KERNEL);
+	if (!girq->parents)
+		return -ENOMEM;
+	girq->parents[0] = irq;
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_edge_irq;
+
+	ret = devm_gpiochip_add_data(&pdev->dev, gc, info);
 	if (ret)
 		return ret;
-
-	gpiochip_set_chained_irqchip(gc, &ocelot_irqchip, irq,
-				     ocelot_irq_handler);
 
 	return 0;
 }

@@ -163,6 +163,7 @@ static const struct wiphy_vendor_command wlcore_vendor_commands[] = {
 		.flags = WIPHY_VENDOR_CMD_NEED_NETDEV |
 			 WIPHY_VENDOR_CMD_NEED_RUNNING,
 		.doit = wlcore_vendor_cmd_smart_config_start,
+		.policy = wlcore_vendor_attr_policy,
 	},
 	{
 		.info = {
@@ -172,6 +173,7 @@ static const struct wiphy_vendor_command wlcore_vendor_commands[] = {
 		.flags = WIPHY_VENDOR_CMD_NEED_NETDEV |
 			 WIPHY_VENDOR_CMD_NEED_RUNNING,
 		.doit = wlcore_vendor_cmd_smart_config_stop,
+		.policy = wlcore_vendor_attr_policy,
 	},
 	{
 		.info = {
@@ -181,6 +183,7 @@ static const struct wiphy_vendor_command wlcore_vendor_commands[] = {
 		.flags = WIPHY_VENDOR_CMD_NEED_NETDEV |
 			 WIPHY_VENDOR_CMD_NEED_RUNNING,
 		.doit = wlcore_vendor_cmd_smart_config_set_group_key,
+		.policy = wlcore_vendor_attr_policy,
 	},
 };
 

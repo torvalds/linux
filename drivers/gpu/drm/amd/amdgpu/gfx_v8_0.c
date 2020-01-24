@@ -20,9 +20,13 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+
+#include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/firmware.h>
-#include <drm/drmP.h>
+#include <linux/module.h>
+#include <linux/pci.h>
+
 #include "amdgpu.h"
 #include "amdgpu_gfx.h"
 #include "vi.h"
@@ -855,7 +859,7 @@ static int gfx_v8_0_ring_test_ring(struct amdgpu_ring *ring)
 		tmp = RREG32(scratch);
 		if (tmp == 0xDEADBEEF)
 			break;
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 
 	if (i >= adev->usec_timeout)
@@ -2005,7 +2009,7 @@ static int gfx_v8_0_sw_init(void *handle)
 		}
 
 		r = amdgpu_ring_init(adev, ring, 1024, &adev->gfx.eop_irq,
-				     AMDGPU_CP_IRQ_GFX_EOP);
+				     AMDGPU_CP_IRQ_GFX_ME0_PIPE0_EOP);
 		if (r)
 			return r;
 	}
@@ -2042,7 +2046,7 @@ static int gfx_v8_0_sw_init(void *handle)
 		return r;
 
 	/* create MQD for all compute queues as well as KIQ for SRIOV case */
-	r = amdgpu_gfx_compute_mqd_sw_init(adev, sizeof(struct vi_mqd_allocation));
+	r = amdgpu_gfx_mqd_sw_init(adev, sizeof(struct vi_mqd_allocation));
 	if (r)
 		return r;
 
@@ -2057,20 +2061,16 @@ static int gfx_v8_0_sw_init(void *handle)
 
 static int gfx_v8_0_sw_fini(void *handle)
 {
-	int i;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	amdgpu_bo_free_kernel(&adev->gds.oa_gfx_bo, NULL, NULL);
-	amdgpu_bo_free_kernel(&adev->gds.gws_gfx_bo, NULL, NULL);
-	amdgpu_bo_free_kernel(&adev->gds.gds_gfx_bo, NULL, NULL);
+	int i;
 
 	for (i = 0; i < adev->gfx.num_gfx_rings; i++)
 		amdgpu_ring_fini(&adev->gfx.gfx_ring[i]);
 	for (i = 0; i < adev->gfx.num_compute_rings; i++)
 		amdgpu_ring_fini(&adev->gfx.compute_ring[i]);
 
-	amdgpu_gfx_compute_mqd_sw_fini(adev);
-	amdgpu_gfx_kiq_free_ring(&adev->gfx.kiq.ring, &adev->gfx.kiq.irq);
+	amdgpu_gfx_mqd_sw_fini(adev);
+	amdgpu_gfx_kiq_free_ring(&adev->gfx.kiq.ring);
 	amdgpu_gfx_kiq_fini(adev);
 
 	gfx_v8_0_mec_fini(adev);
@@ -3436,9 +3436,9 @@ static void gfx_v8_0_select_se_sh(struct amdgpu_device *adev,
 }
 
 static void gfx_v8_0_select_me_pipe_q(struct amdgpu_device *adev,
-				  u32 me, u32 pipe, u32 q)
+				  u32 me, u32 pipe, u32 q, u32 vm)
 {
-	vi_srbm_select(adev, me, pipe, q, 0);
+	vi_srbm_select(adev, me, pipe, q, vm);
 }
 
 static u32 gfx_v8_0_get_rb_active_bitmap(struct amdgpu_device *adev)
@@ -3706,6 +3706,33 @@ static void gfx_v8_0_init_compute_vmid(struct amdgpu_device *adev)
 	}
 	vi_srbm_select(adev, 0, 0, 0, 0);
 	mutex_unlock(&adev->srbm_mutex);
+
+	/* Initialize all compute VMIDs to have no GDS, GWS, or OA
+	   acccess. These should be enabled by FW for target VMIDs. */
+	for (i = FIRST_COMPUTE_VMID; i < LAST_COMPUTE_VMID; i++) {
+		WREG32(amdgpu_gds_reg_offset[i].mem_base, 0);
+		WREG32(amdgpu_gds_reg_offset[i].mem_size, 0);
+		WREG32(amdgpu_gds_reg_offset[i].gws, 0);
+		WREG32(amdgpu_gds_reg_offset[i].oa, 0);
+	}
+}
+
+static void gfx_v8_0_init_gds_vmid(struct amdgpu_device *adev)
+{
+	int vmid;
+
+	/*
+	 * Initialize all compute and user-gfx VMIDs to have no GDS, GWS, or OA
+	 * access. Compute VMIDs should be enabled by FW for target VMIDs,
+	 * the driver can enable them for graphics. VMID0 should maintain
+	 * access so that HWS firmware can save/restore entries.
+	 */
+	for (vmid = 1; vmid < 16; vmid++) {
+		WREG32(amdgpu_gds_reg_offset[vmid].mem_base, 0);
+		WREG32(amdgpu_gds_reg_offset[vmid].mem_size, 0);
+		WREG32(amdgpu_gds_reg_offset[vmid].gws, 0);
+		WREG32(amdgpu_gds_reg_offset[vmid].oa, 0);
+	}
 }
 
 static void gfx_v8_0_config_init(struct amdgpu_device *adev)
@@ -3774,6 +3801,7 @@ static void gfx_v8_0_constants_init(struct amdgpu_device *adev)
 	mutex_unlock(&adev->srbm_mutex);
 
 	gfx_v8_0_init_compute_vmid(adev);
+	gfx_v8_0_init_gds_vmid(adev);
 
 	mutex_lock(&adev->grbm_idx_mutex);
 	/*
@@ -3856,6 +3884,7 @@ static void gfx_v8_0_enable_gui_idle_interrupt(struct amdgpu_device *adev,
 
 static void gfx_v8_0_init_csb(struct amdgpu_device *adev)
 {
+	adev->gfx.rlc.funcs->get_csb_buffer(adev, adev->gfx.rlc.cs_ptr);
 	/* csib */
 	WREG32(mmRLC_CSIB_ADDR_HI,
 			adev->gfx.rlc.clear_state_gpu_addr >> 32);
@@ -3925,11 +3954,10 @@ static int gfx_v8_0_init_save_restore_list(struct amdgpu_device *adev)
 
 	int list_size;
 	unsigned int *register_list_format =
-		kmalloc(adev->gfx.rlc.reg_list_format_size_bytes, GFP_KERNEL);
+		kmemdup(adev->gfx.rlc.register_list_format,
+			adev->gfx.rlc.reg_list_format_size_bytes, GFP_KERNEL);
 	if (!register_list_format)
 		return -ENOMEM;
-	memcpy(register_list_format, adev->gfx.rlc.register_list_format,
-			adev->gfx.rlc.reg_list_format_size_bytes);
 
 	gfx_v8_0_parse_ind_reg_list(register_list_format,
 				RLC_FormatDirectRegListLength,
@@ -4893,6 +4921,7 @@ static int gfx_v8_0_hw_fini(void *handle)
 	else
 		pr_err("rlc is busy, skip halt rlc\n");
 	amdgpu_gfx_rlc_exit_safe_mode(adev);
+
 	return 0;
 }
 
@@ -6117,7 +6146,23 @@ static void gfx_v8_0_ring_emit_fence_gfx(struct amdgpu_ring *ring, u64 addr,
 	bool write64bit = flags & AMDGPU_FENCE_FLAG_64BIT;
 	bool int_sel = flags & AMDGPU_FENCE_FLAG_INT;
 
-	/* EVENT_WRITE_EOP - flush caches, send int */
+	/* Workaround for cache flush problems. First send a dummy EOP
+	 * event down the pipe with seq one below.
+	 */
+	amdgpu_ring_write(ring, PACKET3(PACKET3_EVENT_WRITE_EOP, 4));
+	amdgpu_ring_write(ring, (EOP_TCL1_ACTION_EN |
+				 EOP_TC_ACTION_EN |
+				 EOP_TC_WB_ACTION_EN |
+				 EVENT_TYPE(CACHE_FLUSH_AND_INV_TS_EVENT) |
+				 EVENT_INDEX(5)));
+	amdgpu_ring_write(ring, addr & 0xfffffffc);
+	amdgpu_ring_write(ring, (upper_32_bits(addr) & 0xffff) |
+				DATA_SEL(1) | INT_SEL(0));
+	amdgpu_ring_write(ring, lower_32_bits(seq - 1));
+	amdgpu_ring_write(ring, upper_32_bits(seq - 1));
+
+	/* Then send the real EOP event down the pipe:
+	 * EVENT_WRITE_EOP - flush caches, send int */
 	amdgpu_ring_write(ring, PACKET3(PACKET3_EVENT_WRITE_EOP, 4));
 	amdgpu_ring_write(ring, (EOP_TCL1_ACTION_EN |
 				 EOP_TC_ACTION_EN |
@@ -6217,7 +6262,7 @@ static void gfx_v8_0_pipe_reserve_resources(struct amdgpu_device *adev,
 	struct amdgpu_ring *iring;
 
 	mutex_lock(&adev->gfx.pipe_reserve_mutex);
-	pipe = amdgpu_gfx_queue_to_bit(adev, ring->me, ring->pipe, 0);
+	pipe = amdgpu_gfx_mec_queue_to_bit(adev, ring->me, ring->pipe, 0);
 	if (acquire)
 		set_bit(pipe, adev->gfx.pipe_reserve_bitmap);
 	else
@@ -6236,20 +6281,20 @@ static void gfx_v8_0_pipe_reserve_resources(struct amdgpu_device *adev,
 		/* Lower all pipes without a current reservation */
 		for (i = 0; i < adev->gfx.num_gfx_rings; ++i) {
 			iring = &adev->gfx.gfx_ring[i];
-			pipe = amdgpu_gfx_queue_to_bit(adev,
-						       iring->me,
-						       iring->pipe,
-						       0);
+			pipe = amdgpu_gfx_mec_queue_to_bit(adev,
+							   iring->me,
+							   iring->pipe,
+							   0);
 			reserve = test_bit(pipe, adev->gfx.pipe_reserve_bitmap);
 			gfx_v8_0_ring_set_pipe_percent(iring, reserve);
 		}
 
 		for (i = 0; i < adev->gfx.num_compute_rings; ++i) {
 			iring = &adev->gfx.compute_ring[i];
-			pipe = amdgpu_gfx_queue_to_bit(adev,
-						       iring->me,
-						       iring->pipe,
-						       0);
+			pipe = amdgpu_gfx_mec_queue_to_bit(adev,
+							   iring->me,
+							   iring->pipe,
+							   0);
 			reserve = test_bit(pipe, adev->gfx.pipe_reserve_bitmap);
 			gfx_v8_0_ring_set_pipe_percent(iring, reserve);
 		}
@@ -6537,7 +6582,7 @@ static int gfx_v8_0_set_eop_interrupt_state(struct amdgpu_device *adev,
 					    enum amdgpu_interrupt_state state)
 {
 	switch (type) {
-	case AMDGPU_CP_IRQ_GFX_EOP:
+	case AMDGPU_CP_IRQ_GFX_ME0_PIPE0_EOP:
 		gfx_v8_0_set_gfx_eop_interrupt_state(adev, state);
 		break;
 	case AMDGPU_CP_IRQ_COMPUTE_MEC1_PIPE0_EOP:
@@ -6859,7 +6904,7 @@ static const struct amdgpu_ring_funcs gfx_v8_0_ring_funcs_gfx = {
 		5 +  /* COND_EXEC */
 		7 +  /* PIPELINE_SYNC */
 		VI_FLUSH_GPU_TLB_NUM_WREG * 5 + 9 + /* VM_FLUSH */
-		8 +  /* FENCE for VM_FLUSH */
+		12 +  /* FENCE for VM_FLUSH */
 		20 + /* GDS switch */
 		4 + /* double SWITCH_BUFFER,
 		       the first COND_EXEC jump to the place just
@@ -6871,7 +6916,7 @@ static const struct amdgpu_ring_funcs gfx_v8_0_ring_funcs_gfx = {
 		31 + /*	DE_META */
 		3 + /* CNTX_CTRL */
 		5 + /* HDP_INVL */
-		8 + 8 + /* FENCE x2 */
+		12 + 12 + /* FENCE x2 */
 		2, /* SWITCH_BUFFER */
 	.emit_ib_size =	4, /* gfx_v8_0_ring_emit_ib_gfx */
 	.emit_ib = gfx_v8_0_ring_emit_ib_gfx,
@@ -7010,30 +7055,10 @@ static void gfx_v8_0_set_rlc_funcs(struct amdgpu_device *adev)
 static void gfx_v8_0_set_gds_init(struct amdgpu_device *adev)
 {
 	/* init asci gds info */
-	adev->gds.mem.total_size = RREG32(mmGDS_VMID0_SIZE);
-	adev->gds.gws.total_size = 64;
-	adev->gds.oa.total_size = 16;
+	adev->gds.gds_size = RREG32(mmGDS_VMID0_SIZE);
+	adev->gds.gws_size = 64;
+	adev->gds.oa_size = 16;
 	adev->gds.gds_compute_max_wave_id = RREG32(mmGDS_COMPUTE_MAX_WAVE_ID);
-
-	if (adev->gds.mem.total_size == 64 * 1024) {
-		adev->gds.mem.gfx_partition_size = 4096;
-		adev->gds.mem.cs_partition_size = 4096;
-
-		adev->gds.gws.gfx_partition_size = 4;
-		adev->gds.gws.cs_partition_size = 4;
-
-		adev->gds.oa.gfx_partition_size = 4;
-		adev->gds.oa.cs_partition_size = 1;
-	} else {
-		adev->gds.mem.gfx_partition_size = 1024;
-		adev->gds.mem.cs_partition_size = 1024;
-
-		adev->gds.gws.gfx_partition_size = 16;
-		adev->gds.gws.cs_partition_size = 16;
-
-		adev->gds.oa.gfx_partition_size = 4;
-		adev->gds.oa.cs_partition_size = 4;
-	}
 }
 
 static void gfx_v8_0_set_user_cu_inactive_bitmap(struct amdgpu_device *adev,

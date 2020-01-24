@@ -1038,10 +1038,8 @@ static int ssi_port_irq(struct hsi_port *port, struct platform_device *pd)
 	int err;
 
 	err = platform_get_irq(pd, 0);
-	if (err < 0) {
-		dev_err(&port->device, "Port IRQ resource missing\n");
+	if (err < 0)
 		return err;
-	}
 	omap_port->irq = err;
 	err = devm_request_threaded_irq(&port->device, omap_port->irq, NULL,
 				ssi_pio_thread, IRQF_ONESHOT, "SSI PORT", port);

@@ -95,6 +95,8 @@ int ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 
 	info = IEEE80211_SKB_CB(msdu);
 	memset(&info->status, 0, sizeof(info->status));
+	info->status.rates[0].idx = -1;
+
 	trace_ath10k_txrx_tx_unref(ar, tx_done->msdu_id);
 
 	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK))
@@ -149,6 +151,9 @@ struct ath10k_peer *ath10k_peer_find(struct ath10k *ar, int vdev_id,
 struct ath10k_peer *ath10k_peer_find_by_id(struct ath10k *ar, int peer_id)
 {
 	struct ath10k_peer *peer;
+
+	if (peer_id >= BITS_PER_TYPE(peer->peer_ids))
+		return NULL;
 
 	lockdep_assert_held(&ar->data_lock);
 

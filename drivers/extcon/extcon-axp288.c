@@ -121,7 +121,6 @@ static const char * const axp288_pwr_up_down_info[] = {
 	"Last shutdown caused by PMIC UVLO threshold",
 	"Last shutdown caused by SOC initiated cold off",
 	"Last shutdown caused by user pressing the power button",
-	NULL,
 };
 
 /*
@@ -130,17 +129,20 @@ static const char * const axp288_pwr_up_down_info[] = {
  */
 static void axp288_extcon_log_rsi(struct axp288_extcon_info *info)
 {
-	const char * const *rsi;
 	unsigned int val, i, clear_mask = 0;
+	unsigned long bits;
 	int ret;
 
 	ret = regmap_read(info->regmap, AXP288_PS_BOOT_REASON_REG, &val);
-	for (i = 0, rsi = axp288_pwr_up_down_info; *rsi; rsi++, i++) {
-		if (val & BIT(i)) {
-			dev_dbg(info->dev, "%s\n", *rsi);
-			clear_mask |= BIT(i);
-		}
+	if (ret < 0) {
+		dev_err(info->dev, "failed to read reset source indicator\n");
+		return;
 	}
+
+	bits = val & GENMASK(ARRAY_SIZE(axp288_pwr_up_down_info) - 1, 0);
+	for_each_set_bit(i, &bits, ARRAY_SIZE(axp288_pwr_up_down_info))
+		dev_dbg(info->dev, "%s\n", axp288_pwr_up_down_info[i]);
+	clear_mask = bits;
 
 	/* Clear the register value for next reboot (write 1 to clear bit) */
 	regmap_write(info->regmap, AXP288_PS_BOOT_REASON_REG, clear_mask);
@@ -320,6 +322,25 @@ static void axp288_put_role_sw(void *data)
 	usb_role_switch_put(info->role_sw);
 }
 
+static int axp288_extcon_find_role_sw(struct axp288_extcon_info *info)
+{
+	const struct software_node *swnode;
+	struct fwnode_handle *fwnode;
+
+	if (!x86_match_cpu(cherry_trail_cpu_ids))
+		return 0;
+
+	swnode = software_node_find_by_name(NULL, "intel-xhci-usb-sw");
+	if (!swnode)
+		return -EPROBE_DEFER;
+
+	fwnode = software_node_fwnode(swnode);
+	info->role_sw = usb_role_switch_find_by_fwnode(fwnode);
+	fwnode_handle_put(fwnode);
+
+	return info->role_sw ? 0 : -EPROBE_DEFER;
+}
+
 static int axp288_extcon_probe(struct platform_device *pdev)
 {
 	struct axp288_extcon_info *info;
@@ -341,9 +362,10 @@ static int axp288_extcon_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, info);
 
-	info->role_sw = usb_role_switch_get(dev);
-	if (IS_ERR(info->role_sw))
-		return PTR_ERR(info->role_sw);
+	ret = axp288_extcon_find_role_sw(info);
+	if (ret)
+		return ret;
+
 	if (info->role_sw) {
 		ret = devm_add_action_or_reset(dev, axp288_put_role_sw, info);
 		if (ret)
@@ -438,26 +460,14 @@ static struct platform_driver axp288_extcon_driver = {
 	},
 };
 
-static struct device_connection axp288_extcon_role_sw_conn = {
-	.endpoint[0] = "axp288_extcon",
-	.endpoint[1] = "intel_xhci_usb_sw-role-switch",
-	.id = "usb-role-switch",
-};
-
 static int __init axp288_extcon_init(void)
 {
-	if (x86_match_cpu(cherry_trail_cpu_ids))
-		device_connection_add(&axp288_extcon_role_sw_conn);
-
 	return platform_driver_register(&axp288_extcon_driver);
 }
 module_init(axp288_extcon_init);
 
 static void __exit axp288_extcon_exit(void)
 {
-	if (x86_match_cpu(cherry_trail_cpu_ids))
-		device_connection_remove(&axp288_extcon_role_sw_conn);
-
 	platform_driver_unregister(&axp288_extcon_driver);
 }
 module_exit(axp288_extcon_exit);

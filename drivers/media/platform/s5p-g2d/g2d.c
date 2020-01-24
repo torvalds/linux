@@ -29,31 +29,26 @@
 
 static struct g2d_fmt formats[] = {
 	{
-		.name	= "XRGB_8888",
 		.fourcc	= V4L2_PIX_FMT_RGB32,
 		.depth	= 32,
 		.hw	= COLOR_MODE(ORDER_XRGB, MODE_XRGB_8888),
 	},
 	{
-		.name	= "RGB_565",
 		.fourcc	= V4L2_PIX_FMT_RGB565X,
 		.depth	= 16,
 		.hw	= COLOR_MODE(ORDER_XRGB, MODE_RGB_565),
 	},
 	{
-		.name	= "XRGB_1555",
 		.fourcc	= V4L2_PIX_FMT_RGB555X,
 		.depth	= 16,
 		.hw	= COLOR_MODE(ORDER_XRGB, MODE_XRGB_1555),
 	},
 	{
-		.name	= "XRGB_4444",
 		.fourcc	= V4L2_PIX_FMT_RGB444,
 		.depth	= 16,
 		.hw	= COLOR_MODE(ORDER_XRGB, MODE_XRGB_4444),
 	},
 	{
-		.name	= "PACKED_RGB_888",
 		.fourcc	= V4L2_PIX_FMT_RGB24,
 		.depth	= 24,
 		.hw	= COLOR_MODE(ORDER_XRGB, MODE_PACKED_RGB_888),
@@ -296,19 +291,14 @@ static int vidioc_querycap(struct file *file, void *priv,
 	strscpy(cap->driver, G2D_NAME, sizeof(cap->driver));
 	strscpy(cap->card, G2D_NAME, sizeof(cap->card));
 	cap->bus_info[0] = 0;
-	cap->device_caps = V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
 static int vidioc_enum_fmt(struct file *file, void *prv, struct v4l2_fmtdesc *f)
 {
-	struct g2d_fmt *fmt;
 	if (f->index >= NUM_FORMATS)
 		return -EINVAL;
-	fmt = &formats[f->index];
-	f->pixelformat = fmt->fourcc;
-	strscpy(f->description, fmt->name, sizeof(f->description));
+	f->pixelformat = formats[f->index].fourcc;
 	return 0;
 }
 
@@ -704,6 +694,7 @@ static int g2d_probe(struct platform_device *pdev)
 	set_bit(V4L2_FL_QUIRK_INVERTED_CROP, &vfd->flags);
 	vfd->lock = &dev->mutex;
 	vfd->v4l2_dev = &dev->v4l2_dev;
+	vfd->device_caps = V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING;
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, 0);
 	if (ret) {
 		v4l2_err(&dev->v4l2_dev, "Failed to register video device\n");

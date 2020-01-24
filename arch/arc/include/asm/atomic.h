@@ -321,14 +321,14 @@ ATOMIC_OPS(xor, ^=, CTOP_INST_AXOR_DI_R2_R2_R3)
  */
 
 typedef struct {
-	aligned_u64 counter;
+	s64 __aligned(8) counter;
 } atomic64_t;
 
 #define ATOMIC64_INIT(a) { (a) }
 
-static inline long long atomic64_read(const atomic64_t *v)
+static inline s64 atomic64_read(const atomic64_t *v)
 {
-	unsigned long long val;
+	s64 val;
 
 	__asm__ __volatile__(
 	"	ldd   %0, [%1]	\n"
@@ -338,7 +338,7 @@ static inline long long atomic64_read(const atomic64_t *v)
 	return val;
 }
 
-static inline void atomic64_set(atomic64_t *v, long long a)
+static inline void atomic64_set(atomic64_t *v, s64 a)
 {
 	/*
 	 * This could have been a simple assignment in "C" but would need
@@ -359,9 +359,9 @@ static inline void atomic64_set(atomic64_t *v, long long a)
 }
 
 #define ATOMIC64_OP(op, op1, op2)					\
-static inline void atomic64_##op(long long a, atomic64_t *v)		\
+static inline void atomic64_##op(s64 a, atomic64_t *v)			\
 {									\
-	unsigned long long val;						\
+	s64 val;							\
 									\
 	__asm__ __volatile__(						\
 	"1:				\n"				\
@@ -372,13 +372,13 @@ static inline void atomic64_##op(long long a, atomic64_t *v)		\
 	"	bnz     1b		\n"				\
 	: "=&r"(val)							\
 	: "r"(&v->counter), "ir"(a)					\
-	: "cc");						\
+	: "cc");							\
 }									\
 
 #define ATOMIC64_OP_RETURN(op, op1, op2)		        	\
-static inline long long atomic64_##op##_return(long long a, atomic64_t *v)	\
+static inline s64 atomic64_##op##_return(s64 a, atomic64_t *v)		\
 {									\
-	unsigned long long val;						\
+	s64 val;							\
 									\
 	smp_mb();							\
 									\
@@ -399,9 +399,9 @@ static inline long long atomic64_##op##_return(long long a, atomic64_t *v)	\
 }
 
 #define ATOMIC64_FETCH_OP(op, op1, op2)		        		\
-static inline long long atomic64_fetch_##op(long long a, atomic64_t *v)	\
+static inline s64 atomic64_fetch_##op(s64 a, atomic64_t *v)		\
 {									\
-	unsigned long long val, orig;					\
+	s64 val, orig;							\
 									\
 	smp_mb();							\
 									\
@@ -441,10 +441,10 @@ ATOMIC64_OPS(xor, xor, xor)
 #undef ATOMIC64_OP_RETURN
 #undef ATOMIC64_OP
 
-static inline long long
-atomic64_cmpxchg(atomic64_t *ptr, long long expected, long long new)
+static inline s64
+atomic64_cmpxchg(atomic64_t *ptr, s64 expected, s64 new)
 {
-	long long prev;
+	s64 prev;
 
 	smp_mb();
 
@@ -464,9 +464,9 @@ atomic64_cmpxchg(atomic64_t *ptr, long long expected, long long new)
 	return prev;
 }
 
-static inline long long atomic64_xchg(atomic64_t *ptr, long long new)
+static inline s64 atomic64_xchg(atomic64_t *ptr, s64 new)
 {
-	long long prev;
+	s64 prev;
 
 	smp_mb();
 
@@ -492,9 +492,9 @@ static inline long long atomic64_xchg(atomic64_t *ptr, long long new)
  * the atomic variable, v, was not decremented.
  */
 
-static inline long long atomic64_dec_if_positive(atomic64_t *v)
+static inline s64 atomic64_dec_if_positive(atomic64_t *v)
 {
-	long long val;
+	s64 val;
 
 	smp_mb();
 
@@ -525,10 +525,9 @@ static inline long long atomic64_dec_if_positive(atomic64_t *v)
  * Atomically adds @a to @v, if it was not @u.
  * Returns the old value of @v
  */
-static inline long long atomic64_fetch_add_unless(atomic64_t *v, long long a,
-						  long long u)
+static inline s64 atomic64_fetch_add_unless(atomic64_t *v, s64 a, s64 u)
 {
-	long long old, temp;
+	s64 old, temp;
 
 	smp_mb();
 

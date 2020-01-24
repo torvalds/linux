@@ -21,7 +21,9 @@ struct enetc_tx_swbd {
 	struct sk_buff *skb;
 	dma_addr_t dma;
 	u16 len;
-	u16 is_dma_page;
+	u8 is_dma_page:1;
+	u8 check_wb:1;
+	u8 do_tstamp:1;
 };
 
 #define ENETC_RX_MAXFRM_SIZE	ENETC_MAC_MAXFRM_SIZE
@@ -116,6 +118,8 @@ enum enetc_errata {
 	ENETC_ERR_UCMCSWP	= BIT(2),
 };
 
+#define ENETC_SI_F_QBV BIT(0)
+
 /* PCI IEP device data */
 struct enetc_si {
 	struct pci_dev *pdev;
@@ -131,6 +135,7 @@ struct enetc_si {
 	int num_fs_entries;
 	int num_rss; /* number of RSS buckets */
 	unsigned short pad;
+	int hw_features;
 };
 
 #define ENETC_SI_ALIGN	32
@@ -167,6 +172,13 @@ struct enetc_cls_rule {
 
 #define ENETC_MAX_BDR_INT	2 /* fixed to max # of available cpus */
 
+/* TODO: more hardware offloads */
+enum enetc_active_offloads {
+	ENETC_F_RX_TSTAMP	= BIT(0),
+	ENETC_F_TX_TSTAMP	= BIT(1),
+	ENETC_F_QBV             = BIT(2),
+};
+
 struct enetc_ndev_priv {
 	struct net_device *ndev;
 	struct device *dev; /* dma-mapping device */
@@ -178,6 +190,9 @@ struct enetc_ndev_priv {
 	u16 rx_bd_count, tx_bd_count;
 
 	u16 msg_enable;
+	int active_offloads;
+
+	u32 speed; /* store speed for compare update pspeed */
 
 	struct enetc_bdr *tx_ring[16];
 	struct enetc_bdr *rx_ring[16];
@@ -200,6 +215,9 @@ struct enetc_msg_cmd_set_primary_mac {
 
 #define ENETC_CBDR_TIMEOUT	1000 /* usecs */
 
+/* PTP driver exports */
+extern int enetc_phc_index;
+
 /* SI common */
 int enetc_pci_probe(struct pci_dev *pdev, const char *name, int sizeof_priv);
 void enetc_pci_remove(struct pci_dev *pdev);
@@ -216,6 +234,10 @@ netdev_tx_t enetc_xmit(struct sk_buff *skb, struct net_device *ndev);
 struct net_device_stats *enetc_get_stats(struct net_device *ndev);
 int enetc_set_features(struct net_device *ndev,
 		       netdev_features_t features);
+int enetc_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd);
+int enetc_setup_tc(struct net_device *ndev, enum tc_setup_type type,
+		   void *type_data);
+
 /* ethtool */
 void enetc_set_ethtool_ops(struct net_device *ndev);
 
@@ -228,3 +250,14 @@ int enetc_set_fs_entry(struct enetc_si *si, struct enetc_cmd_rfse *rfse,
 void enetc_set_rss_key(struct enetc_hw *hw, const u8 *bytes);
 int enetc_get_rss_table(struct enetc_si *si, u32 *table, int count);
 int enetc_set_rss_table(struct enetc_si *si, const u32 *table, int count);
+int enetc_send_cmd(struct enetc_si *si, struct enetc_cbd *cbd);
+
+#ifdef CONFIG_FSL_ENETC_QOS
+int enetc_setup_tc_taprio(struct net_device *ndev, void *type_data);
+void enetc_sched_speed_set(struct net_device *ndev);
+int enetc_setup_tc_cbs(struct net_device *ndev, void *type_data);
+#else
+#define enetc_setup_tc_taprio(ndev, type_data) -EOPNOTSUPP
+#define enetc_sched_speed_set(ndev) (void)0
+#define enetc_setup_tc_cbs(ndev, type_data) -EOPNOTSUPP
+#endif

@@ -26,10 +26,11 @@
 #include <memory.h>
 #include <unistd.h>
 #include <asm/unistd.h>
+#include <errno.h>
 #include <linux/bpf.h>
 #include "bpf.h"
 #include "libbpf.h"
-#include <errno.h>
+#include "libbpf_internal.h"
 
 /*
  * When building perf, unistd.h is overridden. __NR_bpf is
@@ -51,10 +52,6 @@
 # else
 #  error __NR_bpf not defined. libbpf does not support your arch.
 # endif
-#endif
-
-#ifndef min
-#define min(x, y) ((x) < (y) ? (x) : (y))
 #endif
 
 static inline __u64 ptr_to_u64(const void *ptr)
@@ -192,7 +189,7 @@ static void *
 alloc_zero_tailing_info(const void *orecord, __u32 cnt,
 			__u32 actual_rec_size, __u32 expected_rec_size)
 {
-	__u64 info_len = actual_rec_size * cnt;
+	__u64 info_len = (__u64)actual_rec_size * cnt;
 	void *info, *nrecord;
 	int i;
 
@@ -231,6 +228,13 @@ int bpf_load_program_xattr(const struct bpf_load_program_attr *load_attr,
 	memset(&attr, 0, sizeof(attr));
 	attr.prog_type = load_attr->prog_type;
 	attr.expected_attach_type = load_attr->expected_attach_type;
+	if (attr.prog_type == BPF_PROG_TYPE_TRACING) {
+		attr.attach_btf_id = load_attr->attach_btf_id;
+		attr.attach_prog_fd = load_attr->attach_prog_fd;
+	} else {
+		attr.prog_ifindex = load_attr->prog_ifindex;
+		attr.kern_version = load_attr->kern_version;
+	}
 	attr.insn_cnt = (__u32)load_attr->insns_cnt;
 	attr.insns = ptr_to_u64(load_attr->insns);
 	attr.license = ptr_to_u64(load_attr->license);
@@ -244,8 +248,6 @@ int bpf_load_program_xattr(const struct bpf_load_program_attr *load_attr,
 		attr.log_size = 0;
 	}
 
-	attr.kern_version = load_attr->kern_version;
-	attr.prog_ifindex = load_attr->prog_ifindex;
 	attr.prog_btf_fd = load_attr->prog_btf_fd;
 	attr.func_info_rec_size = load_attr->func_info_rec_size;
 	attr.func_info_cnt = load_attr->func_info_cnt;
@@ -256,6 +258,7 @@ int bpf_load_program_xattr(const struct bpf_load_program_attr *load_attr,
 	if (load_attr->name)
 		memcpy(attr.prog_name, load_attr->name,
 		       min(strlen(load_attr->name), BPF_OBJ_NAME_LEN - 1));
+	attr.prog_flags = load_attr->prog_flags;
 
 	fd = sys_bpf_prog_load(&attr, sizeof(attr));
 	if (fd >= 0)
@@ -570,7 +573,7 @@ int bpf_prog_test_run_xattr(struct bpf_prog_test_run_attr *test_attr)
 	return ret;
 }
 
-int bpf_prog_get_next_id(__u32 start_id, __u32 *next_id)
+static int bpf_obj_get_next_id(__u32 start_id, __u32 *next_id, int cmd)
 {
 	union bpf_attr attr;
 	int err;
@@ -578,26 +581,26 @@ int bpf_prog_get_next_id(__u32 start_id, __u32 *next_id)
 	memset(&attr, 0, sizeof(attr));
 	attr.start_id = start_id;
 
-	err = sys_bpf(BPF_PROG_GET_NEXT_ID, &attr, sizeof(attr));
+	err = sys_bpf(cmd, &attr, sizeof(attr));
 	if (!err)
 		*next_id = attr.next_id;
 
 	return err;
 }
 
+int bpf_prog_get_next_id(__u32 start_id, __u32 *next_id)
+{
+	return bpf_obj_get_next_id(start_id, next_id, BPF_PROG_GET_NEXT_ID);
+}
+
 int bpf_map_get_next_id(__u32 start_id, __u32 *next_id)
 {
-	union bpf_attr attr;
-	int err;
+	return bpf_obj_get_next_id(start_id, next_id, BPF_MAP_GET_NEXT_ID);
+}
 
-	memset(&attr, 0, sizeof(attr));
-	attr.start_id = start_id;
-
-	err = sys_bpf(BPF_MAP_GET_NEXT_ID, &attr, sizeof(attr));
-	if (!err)
-		*next_id = attr.next_id;
-
-	return err;
+int bpf_btf_get_next_id(__u32 start_id, __u32 *next_id)
+{
+	return bpf_obj_get_next_id(start_id, next_id, BPF_BTF_GET_NEXT_ID);
 }
 
 int bpf_prog_get_fd_by_id(__u32 id)

@@ -56,7 +56,7 @@ static int anysee_ctrl_msg(struct dvb_usb_device *d,
 	/* TODO FIXME: dvb_usb_generic_rw() fails rarely with error code -32
 	 * (EPIPE, Broken pipe). Function supports currently msleep() as a
 	 * parameter but I would not like to use it, since according to
-	 * Documentation/timers/timers-howto.txt it should not be used such
+	 * Documentation/timers/timers-howto.rst it should not be used such
 	 * short, under < 20ms, sleeps. Repeating failed message would be
 	 * better choice as not to add unwanted delays...
 	 * Fixing that correctly is one of those or both;

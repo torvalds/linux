@@ -31,13 +31,13 @@ Description:
 				or output
 
 		dbr_size	configure DBR data buffer size (this is used
-				for MediaLB communiction only)
+				for MediaLB communication only)
 
 		packets_per_xact
 				configure the number of packets that will be
 				collected from the network before being
 				transmitted via USB (this is used for USB
-				communiction only)
+				communication only)
 
 		device		name of the device the link is to be attached to
 
@@ -75,13 +75,13 @@ Description:
 				or output
 
 		dbr_size	configure DBR data buffer size (this is used
-				for MediaLB communiction only)
+				for MediaLB communication only)
 
 		packets_per_xact
 				configure the number of packets that will be
 				collected from the network before being
 				transmitted via USB (this is used for USB
-				communiction only)
+				communication only)
 
 		device		name of the device the link is to be attached to
 
@@ -119,13 +119,13 @@ Description:
 				or output
 
 		dbr_size	configure DBR data buffer size (this is used
-				for MediaLB communiction only)
+				for MediaLB communication only)
 
 		packets_per_xact
 				configure the number of packets that will be
 				collected from the network before being
 				transmitted via USB (this is used for USB
-				communiction only)
+				communication only)
 
 		device		name of the device the link is to be attached to
 
@@ -173,13 +173,13 @@ Description:
 				or output
 
 		dbr_size	configure DBR data buffer size (this is used
-				for MediaLB communiction only)
+				for MediaLB communication only)
 
 		packets_per_xact
 				configure the number of packets that will be
 				collected from the network before being
 				transmitted via USB (this is used for USB
-				communiction only)
+				communication only)
 
 		device		name of the device the link is to be attached to
 

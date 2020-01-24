@@ -18,13 +18,15 @@
 #include <stdlib.h>
 #include <linux/compiler.h>
 #include <linux/kernel.h>
+#include <linux/zalloc.h>
 #include <sys/time.h>
+#include <internal/cpumap.h>
+#include <perf/cpumap.h>
 
 #include "../util/stat.h"
 #include <subcmd/parse-options.h>
 #include "bench.h"
 #include "futex.h"
-#include "cpumap.h"
 
 #include <err.h>
 
@@ -123,7 +125,7 @@ int bench_futex_hash(int argc, const char **argv)
 	unsigned int i;
 	pthread_attr_t thread_attr;
 	struct worker *worker = NULL;
-	struct cpu_map *cpu;
+	struct perf_cpu_map *cpu;
 
 	argc = parse_options(argc, argv, options, bench_futex_hash_usage, 0);
 	if (argc) {
@@ -131,7 +133,7 @@ int bench_futex_hash(int argc, const char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	cpu = cpu_map__new(NULL);
+	cpu = perf_cpu_map__new(NULL);
 	if (!cpu)
 		goto errmem;
 
@@ -214,7 +216,7 @@ int bench_futex_hash(int argc, const char **argv)
 				       &worker[i].futex[nfutexes-1], t);
 		}
 
-		free(worker[i].futex);
+		zfree(&worker[i].futex);
 	}
 
 	print_summary();

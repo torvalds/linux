@@ -1,13 +1,14 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config DVB_AV7110_IR
 	bool
+	depends on RC_CORE=y || RC_CORE = DVB_AV7110
+	default DVB_AV7110
 
 config DVB_AV7110
 	tristate "AV7110 cards"
 	depends on DVB_CORE && PCI && I2C
 	select TTPCI_EEPROM
 	select VIDEO_SAA7146_VV
-	select DVB_AV7110_IR if INPUT_EVDEV=y || INPUT_EVDEV=DVB_AV7110
 	depends on VIDEO_DEV	# dependencies of VIDEO_SAA7146_VV
 	select DVB_VES1820 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_VES1X93 if MEDIA_SUBDRV_AUTOSELECT

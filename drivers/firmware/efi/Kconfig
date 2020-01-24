@@ -75,6 +75,27 @@ config EFI_MAX_FAKE_MEM
 	  Ranges can be set up to this value using comma-separated list.
 	  The default value is 8.
 
+config EFI_SOFT_RESERVE
+	bool "Reserve EFI Specific Purpose Memory"
+	depends on EFI && EFI_STUB && ACPI_HMAT
+	default ACPI_HMAT
+	help
+	  On systems that have mixed performance classes of memory EFI
+	  may indicate specific purpose memory with an attribute (See
+	  EFI_MEMORY_SP in UEFI 2.8). A memory range tagged with this
+	  attribute may have unique performance characteristics compared
+	  to the system's general purpose "System RAM" pool. On the
+	  expectation that such memory has application specific usage,
+	  and its base EFI memory type is "conventional" answer Y to
+	  arrange for the kernel to reserve it as a "Soft Reserved"
+	  resource, and set aside for direct-access (device-dax) by
+	  default. The memory range can later be optionally assigned to
+	  the page allocator by system administrator policy via the
+	  device-dax kmem facility. Say N to have the kernel treat this
+	  memory as "System RAM" by default.
+
+	  If unsure, say Y.
+
 config EFI_PARAMS_FROM_FDT
 	bool
 	help
@@ -179,6 +200,20 @@ config RESET_ATTACK_MITIGATION
 	  clear the MemoryOverwriteRequest flag on clean shutdown after secrets
 	  have been evicted, since otherwise it will trigger even on clean
 	  reboots.
+
+config EFI_RCI2_TABLE
+	bool "EFI Runtime Configuration Interface Table Version 2 Support"
+	depends on X86 || COMPILE_TEST
+	help
+	  Displays the content of the Runtime Configuration Interface
+	  Table version 2 on Dell EMC PowerEdge systems as a binary
+	  attribute 'rci2' under /sys/firmware/efi/tables directory.
+
+	  RCI2 table contains BIOS HII in XML format and is used to populate
+	  BIOS setup page in Dell EMC OpenManage Server Administrator tool.
+	  The BIOS setup page contains BIOS tokens which can be configured.
+
+	  Say Y here for Dell EMC PowerEdge systems.
 
 endmenu
 

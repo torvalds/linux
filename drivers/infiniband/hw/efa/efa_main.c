@@ -30,15 +30,6 @@ MODULE_DEVICE_TABLE(pci, efa_pci_tbl);
 	(BIT(EFA_ADMIN_FATAL_ERROR) | BIT(EFA_ADMIN_WARNING) | \
 	 BIT(EFA_ADMIN_NOTIFICATION) | BIT(EFA_ADMIN_KEEP_ALIVE))
 
-static void efa_update_network_attr(struct efa_dev *dev,
-				    struct efa_com_get_network_attr_result *network_attr)
-{
-	memcpy(dev->addr, network_attr->addr, sizeof(network_attr->addr));
-	dev->mtu = network_attr->mtu;
-
-	dev_dbg(&dev->pdev->dev, "Full address %pI6\n", dev->addr);
-}
-
 /* This handler will called for unknown event group or unimplemented handlers */
 static void unimplemented_aenq_handler(void *data,
 				       struct efa_admin_aenq_entry *aenq_e)
@@ -100,7 +91,7 @@ static int efa_request_mgmnt_irq(struct efa_dev *dev)
 		nr_cpumask_bits, &irq->affinity_hint_mask, irq->vector);
 	irq_set_affinity_hint(irq->vector, &irq->affinity_hint_mask);
 
-	return err;
+	return 0;
 }
 
 static void efa_setup_mgmnt_irq(struct efa_dev *dev)
@@ -197,6 +188,11 @@ static void efa_stats_init(struct efa_dev *dev)
 }
 
 static const struct ib_device_ops efa_dev_ops = {
+	.owner = THIS_MODULE,
+	.driver_id = RDMA_DRIVER_EFA,
+	.uverbs_abi_ver = EFA_UVERBS_ABI_VERSION,
+
+	.alloc_hw_stats = efa_alloc_hw_stats,
 	.alloc_pd = efa_alloc_pd,
 	.alloc_ucontext = efa_alloc_ucontext,
 	.create_ah = efa_create_ah,
@@ -208,9 +204,11 @@ static const struct ib_device_ops efa_dev_ops = {
 	.destroy_ah = efa_destroy_ah,
 	.destroy_cq = efa_destroy_cq,
 	.destroy_qp = efa_destroy_qp,
+	.get_hw_stats = efa_get_hw_stats,
 	.get_link_layer = efa_port_link_layer,
 	.get_port_immutable = efa_get_port_immutable,
 	.mmap = efa_mmap,
+	.mmap_free = efa_mmap_free,
 	.modify_qp = efa_modify_qp,
 	.query_device = efa_query_device,
 	.query_gid = efa_query_gid,
@@ -220,13 +218,13 @@ static const struct ib_device_ops efa_dev_ops = {
 	.reg_user_mr = efa_reg_mr,
 
 	INIT_RDMA_OBJ_SIZE(ib_ah, efa_ah, ibah),
+	INIT_RDMA_OBJ_SIZE(ib_cq, efa_cq, ibcq),
 	INIT_RDMA_OBJ_SIZE(ib_pd, efa_pd, ibpd),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, efa_ucontext, ibucontext),
 };
 
 static int efa_ib_device_add(struct efa_dev *dev)
 {
-	struct efa_com_get_network_attr_result network_attr;
 	struct efa_com_get_hw_hints_result hw_hints;
 	struct pci_dev *pdev = dev->pdev;
 	int err;
@@ -242,12 +240,6 @@ static int efa_ib_device_add(struct efa_dev *dev)
 	if (err)
 		return err;
 
-	err = efa_com_get_network_attr(&dev->edev, &network_attr);
-	if (err)
-		goto err_release_doorbell_bar;
-
-	efa_update_network_attr(dev, &network_attr);
-
 	err = efa_com_get_hw_hints(&dev->edev, &hw_hints);
 	if (err)
 		goto err_release_doorbell_bar;
@@ -259,12 +251,10 @@ static int efa_ib_device_add(struct efa_dev *dev)
 	if (err)
 		goto err_release_doorbell_bar;
 
-	dev->ibdev.owner = THIS_MODULE;
 	dev->ibdev.node_type = RDMA_NODE_UNSPECIFIED;
 	dev->ibdev.phys_port_cnt = 1;
 	dev->ibdev.num_comp_vectors = 1;
 	dev->ibdev.dev.parent = &pdev->dev;
-	dev->ibdev.uverbs_abi_ver = EFA_UVERBS_ABI_VERSION;
 
 	dev->ibdev.uverbs_cmd_mask =
 		(1ull << IB_USER_VERBS_CMD_GET_CONTEXT) |
@@ -287,7 +277,6 @@ static int efa_ib_device_add(struct efa_dev *dev)
 	dev->ibdev.uverbs_ex_cmd_mask =
 		(1ull << IB_USER_VERBS_EX_CMD_QUERY_DEVICE);
 
-	dev->ibdev.driver_id = RDMA_DRIVER_EFA;
 	ib_set_device_ops(&dev->ibdev, &efa_dev_ops);
 
 	err = ib_register_device(&dev->ibdev, "efa_%d");

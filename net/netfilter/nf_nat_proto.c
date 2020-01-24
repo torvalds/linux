@@ -70,7 +70,7 @@ static bool udp_manip_pkt(struct sk_buff *skb,
 	struct udphdr *hdr;
 	bool do_csum;
 
-	if (!skb_make_writable(skb, hdroff + sizeof(*hdr)))
+	if (skb_ensure_writable(skb, hdroff + sizeof(*hdr)))
 		return false;
 
 	hdr = (struct udphdr *)(skb->data + hdroff);
@@ -88,7 +88,7 @@ static bool udplite_manip_pkt(struct sk_buff *skb,
 #ifdef CONFIG_NF_CT_PROTO_UDPLITE
 	struct udphdr *hdr;
 
-	if (!skb_make_writable(skb, hdroff + sizeof(*hdr)))
+	if (skb_ensure_writable(skb, hdroff + sizeof(*hdr)))
 		return false;
 
 	hdr = (struct udphdr *)(skb->data + hdroff);
@@ -114,7 +114,7 @@ sctp_manip_pkt(struct sk_buff *skb,
 	if (skb->len >= hdroff + sizeof(*hdr))
 		hdrsize = sizeof(*hdr);
 
-	if (!skb_make_writable(skb, hdroff + hdrsize))
+	if (skb_ensure_writable(skb, hdroff + hdrsize))
 		return false;
 
 	hdr = (struct sctphdr *)(skb->data + hdroff);
@@ -155,7 +155,7 @@ tcp_manip_pkt(struct sk_buff *skb,
 	if (skb->len >= hdroff + sizeof(struct tcphdr))
 		hdrsize = sizeof(struct tcphdr);
 
-	if (!skb_make_writable(skb, hdroff + hdrsize))
+	if (skb_ensure_writable(skb, hdroff + hdrsize))
 		return false;
 
 	hdr = (struct tcphdr *)(skb->data + hdroff);
@@ -195,7 +195,7 @@ dccp_manip_pkt(struct sk_buff *skb,
 	if (skb->len >= hdroff + sizeof(struct dccp_hdr))
 		hdrsize = sizeof(struct dccp_hdr);
 
-	if (!skb_make_writable(skb, hdroff + hdrsize))
+	if (skb_ensure_writable(skb, hdroff + hdrsize))
 		return false;
 
 	hdr = (struct dccp_hdr *)(skb->data + hdroff);
@@ -229,10 +229,23 @@ icmp_manip_pkt(struct sk_buff *skb,
 {
 	struct icmphdr *hdr;
 
-	if (!skb_make_writable(skb, hdroff + sizeof(*hdr)))
+	if (skb_ensure_writable(skb, hdroff + sizeof(*hdr)))
 		return false;
 
 	hdr = (struct icmphdr *)(skb->data + hdroff);
+	switch (hdr->type) {
+	case ICMP_ECHO:
+	case ICMP_ECHOREPLY:
+	case ICMP_TIMESTAMP:
+	case ICMP_TIMESTAMPREPLY:
+	case ICMP_INFO_REQUEST:
+	case ICMP_INFO_REPLY:
+	case ICMP_ADDRESS:
+	case ICMP_ADDRESSREPLY:
+		break;
+	default:
+		return true;
+	}
 	inet_proto_csum_replace2(&hdr->checksum, skb,
 				 hdr->un.echo.id, tuple->src.u.icmp.id, false);
 	hdr->un.echo.id = tuple->src.u.icmp.id;
@@ -247,7 +260,7 @@ icmpv6_manip_pkt(struct sk_buff *skb,
 {
 	struct icmp6hdr *hdr;
 
-	if (!skb_make_writable(skb, hdroff + sizeof(*hdr)))
+	if (skb_ensure_writable(skb, hdroff + sizeof(*hdr)))
 		return false;
 
 	hdr = (struct icmp6hdr *)(skb->data + hdroff);
@@ -275,7 +288,7 @@ gre_manip_pkt(struct sk_buff *skb,
 
 	/* pgreh includes two optional 32bit fields which are not required
 	 * to be there.  That's where the magic '8' comes from */
-	if (!skb_make_writable(skb, hdroff + sizeof(*pgreh) - 8))
+	if (skb_ensure_writable(skb, hdroff + sizeof(*pgreh) - 8))
 		return false;
 
 	greh = (void *)skb->data + hdroff;
@@ -347,7 +360,7 @@ static bool nf_nat_ipv4_manip_pkt(struct sk_buff *skb,
 	struct iphdr *iph;
 	unsigned int hdroff;
 
-	if (!skb_make_writable(skb, iphdroff + sizeof(*iph)))
+	if (skb_ensure_writable(skb, iphdroff + sizeof(*iph)))
 		return false;
 
 	iph = (void *)skb->data + iphdroff;
@@ -378,7 +391,7 @@ static bool nf_nat_ipv6_manip_pkt(struct sk_buff *skb,
 	int hdroff;
 	u8 nexthdr;
 
-	if (!skb_make_writable(skb, iphdroff + sizeof(*ipv6h)))
+	if (skb_ensure_writable(skb, iphdroff + sizeof(*ipv6h)))
 		return false;
 
 	ipv6h = (void *)skb->data + iphdroff;
@@ -562,9 +575,9 @@ int nf_nat_icmp_reply_translation(struct sk_buff *skb,
 
 	WARN_ON(ctinfo != IP_CT_RELATED && ctinfo != IP_CT_RELATED_REPLY);
 
-	if (!skb_make_writable(skb, hdrlen + sizeof(*inside)))
+	if (skb_ensure_writable(skb, hdrlen + sizeof(*inside)))
 		return 0;
-	if (nf_ip_checksum(skb, hooknum, hdrlen, 0))
+	if (nf_ip_checksum(skb, hooknum, hdrlen, IPPROTO_ICMP))
 		return 0;
 
 	inside = (void *)skb->data + hdrlen;
@@ -722,7 +735,7 @@ nf_nat_ipv4_local_fn(void *priv, struct sk_buff *skb,
 	return ret;
 }
 
-const struct nf_hook_ops nf_nat_ipv4_ops[] = {
+static const struct nf_hook_ops nf_nat_ipv4_ops[] = {
 	/* Before packet filtering, change destination */
 	{
 		.hook		= nf_nat_ipv4_in,
@@ -784,7 +797,7 @@ int nf_nat_icmpv6_reply_translation(struct sk_buff *skb,
 
 	WARN_ON(ctinfo != IP_CT_RELATED && ctinfo != IP_CT_RELATED_REPLY);
 
-	if (!skb_make_writable(skb, hdrlen + sizeof(*inside)))
+	if (skb_ensure_writable(skb, hdrlen + sizeof(*inside)))
 		return 0;
 	if (nf_ip6_checksum(skb, hooknum, hdrlen, IPPROTO_ICMPV6))
 		return 0;
@@ -961,7 +974,7 @@ nf_nat_ipv6_local_fn(void *priv, struct sk_buff *skb,
 	return ret;
 }
 
-const struct nf_hook_ops nf_nat_ipv6_ops[] = {
+static const struct nf_hook_ops nf_nat_ipv6_ops[] = {
 	/* Before packet filtering, change destination */
 	{
 		.hook		= nf_nat_ipv6_in,

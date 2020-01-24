@@ -54,9 +54,7 @@ static void __ib_umem_release(struct ib_device *dev, struct ib_umem *umem, int d
 
 	for_each_sg_page(umem->sg_head.sgl, &sg_iter, umem->sg_nents, 0) {
 		page = sg_page_iter_page(&sg_iter);
-		if (!PageDirty(page) && umem->writable && dirty)
-			set_page_dirty_lock(page);
-		put_page(page);
+		put_user_pages_dirty_lock(&page, 1, umem->writable && dirty);
 	}
 
 	sg_free_table(&umem->sg_head);
@@ -183,17 +181,13 @@ EXPORT_SYMBOL(ib_umem_find_best_pgsz);
 /**
  * ib_umem_get - Pin and DMA map userspace memory.
  *
- * If access flags indicate ODP memory, avoid pinning. Instead, stores
- * the mm for future page fault handling in conjunction with MMU notifiers.
- *
  * @udata: userspace context to pin memory for
  * @addr: userspace virtual address to start at
  * @size: length of region to pin
  * @access: IB_ACCESS_xxx flags for memory being pinned
- * @dmasync: flush in-flight DMA when the memory region is written
  */
 struct ib_umem *ib_umem_get(struct ib_udata *udata, unsigned long addr,
-			    size_t size, int access, int dmasync)
+			    size_t size, int access)
 {
 	struct ib_ucontext *context;
 	struct ib_umem *umem;
@@ -204,7 +198,6 @@ struct ib_umem *ib_umem_get(struct ib_udata *udata, unsigned long addr,
 	struct mm_struct *mm;
 	unsigned long npages;
 	int ret;
-	unsigned long dma_attrs = 0;
 	struct scatterlist *sg;
 	unsigned int gup_flags = FOLL_WRITE;
 
@@ -215,9 +208,6 @@ struct ib_umem *ib_umem_get(struct ib_udata *udata, unsigned long addr,
 			  ->context;
 	if (!context)
 		return ERR_PTR(-EIO);
-
-	if (dmasync)
-		dma_attrs |= DMA_ATTR_WRITE_BARRIER;
 
 	/*
 	 * If the combination of the addr and size requested for this memory
@@ -230,36 +220,18 @@ struct ib_umem *ib_umem_get(struct ib_udata *udata, unsigned long addr,
 	if (!can_do_mlock())
 		return ERR_PTR(-EPERM);
 
-	if (access & IB_ACCESS_ON_DEMAND) {
-		umem = kzalloc(sizeof(struct ib_umem_odp), GFP_KERNEL);
-		if (!umem)
-			return ERR_PTR(-ENOMEM);
-		umem->is_odp = 1;
-	} else {
-		umem = kzalloc(sizeof(*umem), GFP_KERNEL);
-		if (!umem)
-			return ERR_PTR(-ENOMEM);
-	}
+	if (access & IB_ACCESS_ON_DEMAND)
+		return ERR_PTR(-EOPNOTSUPP);
 
-	umem->context    = context;
+	umem = kzalloc(sizeof(*umem), GFP_KERNEL);
+	if (!umem)
+		return ERR_PTR(-ENOMEM);
+	umem->ibdev = context->device;
 	umem->length     = size;
 	umem->address    = addr;
-	umem->page_shift = PAGE_SHIFT;
 	umem->writable   = ib_access_writable(access);
 	umem->owning_mm = mm = current->mm;
 	mmgrab(mm);
-
-	if (access & IB_ACCESS_ON_DEMAND) {
-		if (WARN_ON_ONCE(!context->invalidate_range)) {
-			ret = -EINVAL;
-			goto umem_kfree;
-		}
-
-		ret = ib_umem_odp_get(to_ib_umem_odp(umem), access);
-		if (ret)
-			goto umem_kfree;
-		return umem;
-	}
 
 	page_list = (struct page **) __get_free_page(GFP_KERNEL);
 	if (!page_list) {
@@ -317,11 +289,10 @@ struct ib_umem *ib_umem_get(struct ib_udata *udata, unsigned long addr,
 
 	sg_mark_end(sg);
 
-	umem->nmap = ib_dma_map_sg_attrs(context->device,
+	umem->nmap = ib_dma_map_sg(context->device,
 				  umem->sg_head.sgl,
 				  umem->sg_nents,
-				  DMA_BIDIRECTIONAL,
-				  dma_attrs);
+				  DMA_BIDIRECTIONAL);
 
 	if (!umem->nmap) {
 		ret = -ENOMEM;
@@ -346,46 +317,32 @@ umem_kfree:
 }
 EXPORT_SYMBOL(ib_umem_get);
 
-static void __ib_umem_release_tail(struct ib_umem *umem)
-{
-	mmdrop(umem->owning_mm);
-	if (umem->is_odp)
-		kfree(to_ib_umem_odp(umem));
-	else
-		kfree(umem);
-}
-
 /**
  * ib_umem_release - release memory pinned with ib_umem_get
  * @umem: umem struct to release
  */
 void ib_umem_release(struct ib_umem *umem)
 {
-	if (umem->is_odp) {
-		ib_umem_odp_release(to_ib_umem_odp(umem));
-		__ib_umem_release_tail(umem);
+	if (!umem)
 		return;
-	}
+	if (umem->is_odp)
+		return ib_umem_odp_release(to_ib_umem_odp(umem));
 
-	__ib_umem_release(umem->context->device, umem, 1);
+	__ib_umem_release(umem->ibdev, umem, 1);
 
 	atomic64_sub(ib_umem_num_pages(umem), &umem->owning_mm->pinned_vm);
-	__ib_umem_release_tail(umem);
+	mmdrop(umem->owning_mm);
+	kfree(umem);
 }
 EXPORT_SYMBOL(ib_umem_release);
 
 int ib_umem_page_count(struct ib_umem *umem)
 {
-	int i;
-	int n;
+	int i, n = 0;
 	struct scatterlist *sg;
 
-	if (umem->is_odp)
-		return ib_umem_num_pages(umem);
-
-	n = 0;
 	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, i)
-		n += sg_dma_len(sg) >> umem->page_shift;
+		n += sg_dma_len(sg) >> PAGE_SHIFT;
 
 	return n;
 }

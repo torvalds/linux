@@ -437,7 +437,7 @@ static int m10v_clk_divider_set_rate(struct clk_hw *hw, unsigned long rate,
 		if (readl_poll_timeout(divider->write_valid_reg, val,
 			!val, M10V_UPOLL_RATE, M10V_UTIMEOUT))
 			pr_err("%s:%s couldn't stabilize\n",
-				__func__, divider->hw.init->name);
+				__func__, clk_hw_get_name(hw));
 	}
 
 	if (divider->lock)

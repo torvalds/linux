@@ -126,6 +126,16 @@ static const int *mlxsw_sp_packet_type_sfgc_types[] = {
 	[MLXSW_SP_FLOOD_TYPE_MC]	= mlxsw_sp_sfgc_mc_packet_types,
 };
 
+bool mlxsw_sp_fid_is_dummy(struct mlxsw_sp *mlxsw_sp, u16 fid_index)
+{
+	enum mlxsw_sp_fid_type fid_type = MLXSW_SP_FID_TYPE_DUMMY;
+	struct mlxsw_sp_fid_family *fid_family;
+
+	fid_family = mlxsw_sp->fid_core->fid_family_arr[fid_type];
+
+	return fid_family->start_index == fid_index;
+}
+
 bool mlxsw_sp_fid_lag_vid_valid(const struct mlxsw_sp_fid *fid)
 {
 	return fid->fid_family->lag_vid_valid;

@@ -209,7 +209,7 @@ __attribute_const__ int ib_rate_to_mbps(enum ib_rate rate)
 EXPORT_SYMBOL(ib_rate_to_mbps);
 
 __attribute_const__ enum rdma_transport_type
-rdma_node_get_transport(enum rdma_node_type node_type)
+rdma_node_get_transport(unsigned int node_type)
 {
 
 	if (node_type == RDMA_NODE_USNIC)
@@ -244,6 +244,8 @@ EXPORT_SYMBOL(rdma_port_get_link_layer);
 /**
  * ib_alloc_pd - Allocates an unused protection domain.
  * @device: The device on which to allocate the protection domain.
+ * @flags: protection domain flags
+ * @caller: caller's build-time module name
  *
  * A protection domain object provides an association between QPs, shared
  * receive queues, address handles, memory regions, and memory windows.
@@ -299,6 +301,7 @@ struct ib_pd *__ib_alloc_pd(struct ib_device *device, unsigned int flags,
 
 		mr->device	= pd->device;
 		mr->pd		= pd;
+		mr->type        = IB_MR_TYPE_DMA;
 		mr->uobject	= NULL;
 		mr->need_inval	= false;
 
@@ -316,7 +319,7 @@ struct ib_pd *__ib_alloc_pd(struct ib_device *device, unsigned int flags,
 EXPORT_SYMBOL(__ib_alloc_pd);
 
 /**
- * ib_dealloc_pd - Deallocates a protection domain.
+ * ib_dealloc_pd_user - Deallocates a protection domain.
  * @pd: The protection domain to deallocate.
  * @udata: Valid user data or NULL for kernel object
  *
@@ -661,16 +664,17 @@ static bool find_gid_index(const union ib_gid *gid,
 			   void *context)
 {
 	struct find_gid_index_context *ctx = context;
+	u16 vlan_id = 0xffff;
+	int ret;
 
 	if (ctx->gid_type != gid_attr->gid_type)
 		return false;
 
-	if ((!!(ctx->vlan_id != 0xffff) == !is_vlan_dev(gid_attr->ndev)) ||
-	    (is_vlan_dev(gid_attr->ndev) &&
-	     vlan_dev_vlan_id(gid_attr->ndev) != ctx->vlan_id))
+	ret = rdma_read_gid_l2_fields(gid_attr, &vlan_id, NULL);
+	if (ret)
 		return false;
 
-	return true;
+	return ctx->vlan_id == vlan_id;
 }
 
 static const struct ib_gid_attr *
@@ -1157,6 +1161,10 @@ struct ib_qp *ib_create_qp_user(struct ib_pd *pd,
 	    qp_init_attr->cap.max_recv_sge))
 		return ERR_PTR(-EINVAL);
 
+	if ((qp_init_attr->create_flags & IB_QP_CREATE_INTEGRITY_EN) &&
+	    !(device->attrs.device_cap_flags & IB_DEVICE_INTEGRITY_HANDOVER))
+		return ERR_PTR(-EINVAL);
+
 	/*
 	 * If the callers is using the RDMA API calculate the resources
 	 * needed for the RDMA READ/WRITE operations.
@@ -1232,6 +1240,8 @@ struct ib_qp *ib_create_qp_user(struct ib_pd *pd,
 	qp->max_write_sge = qp_init_attr->cap.max_send_sge;
 	qp->max_read_sge = min_t(u32, qp_init_attr->cap.max_send_sge,
 				 device->attrs.max_sge_rd);
+	if (qp_init_attr->create_flags & IB_QP_CREATE_INTEGRITY_EN)
+		qp->integrity_en = true;
 
 	return qp;
 
@@ -1683,6 +1693,14 @@ static int _ib_modify_qp(struct ib_qp *qp, struct ib_qp_attr *attr,
 		}
 	}
 
+	/*
+	 * Bind this qp to a counter automatically based on the rdma counter
+	 * rules. This only set in RST2INIT with port specified
+	 */
+	if (!qp->counter && (attr_mask & IB_QP_PORT) &&
+	    ((attr_mask & IB_QP_STATE) && attr->qp_state == IB_QPS_INIT))
+		rdma_counter_bind_qp_auto(qp, attr->port_num);
+
 	ret = ib_security_modify_qp(qp, attr, attr_mask, udata);
 	if (ret)
 		goto out;
@@ -1878,6 +1896,7 @@ int ib_destroy_qp_user(struct ib_qp *qp, struct ib_udata *udata)
 	if (!qp->uobject)
 		rdma_rw_cleanup_mrs(qp);
 
+	rdma_counter_unbind_qp(qp, true);
 	rdma_restrack_del(&qp->res);
 	ret = qp->device->ops.destroy_qp(qp, udata);
 	if (!ret) {
@@ -1916,21 +1935,28 @@ struct ib_cq *__ib_create_cq(struct ib_device *device,
 			     const char *caller)
 {
 	struct ib_cq *cq;
+	int ret;
 
-	cq = device->ops.create_cq(device, cq_attr, NULL);
+	cq = rdma_zalloc_drv_obj(device, ib_cq);
+	if (!cq)
+		return ERR_PTR(-ENOMEM);
 
-	if (!IS_ERR(cq)) {
-		cq->device        = device;
-		cq->uobject       = NULL;
-		cq->comp_handler  = comp_handler;
-		cq->event_handler = event_handler;
-		cq->cq_context    = cq_context;
-		atomic_set(&cq->usecnt, 0);
-		cq->res.type = RDMA_RESTRACK_CQ;
-		rdma_restrack_set_task(&cq->res, caller);
-		rdma_restrack_kadd(&cq->res);
+	cq->device = device;
+	cq->uobject = NULL;
+	cq->comp_handler = comp_handler;
+	cq->event_handler = event_handler;
+	cq->cq_context = cq_context;
+	atomic_set(&cq->usecnt, 0);
+	cq->res.type = RDMA_RESTRACK_CQ;
+	rdma_restrack_set_task(&cq->res, caller);
+
+	ret = device->ops.create_cq(cq, cq_attr, NULL);
+	if (ret) {
+		kfree(cq);
+		return ERR_PTR(ret);
 	}
 
+	rdma_restrack_kadd(&cq->res);
 	return cq;
 }
 EXPORT_SYMBOL(__ib_create_cq);
@@ -1949,7 +1975,9 @@ int ib_destroy_cq_user(struct ib_cq *cq, struct ib_udata *udata)
 		return -EBUSY;
 
 	rdma_restrack_del(&cq->res);
-	return cq->device->ops.destroy_cq(cq, udata);
+	cq->device->ops.destroy_cq(cq, udata);
+	kfree(cq);
+	return 0;
 }
 EXPORT_SYMBOL(ib_destroy_cq_user);
 
@@ -1966,6 +1994,7 @@ int ib_dereg_mr_user(struct ib_mr *mr, struct ib_udata *udata)
 {
 	struct ib_pd *pd = mr->pd;
 	struct ib_dm *dm = mr->dm;
+	struct ib_sig_attrs *sig_attrs = mr->sig_attrs;
 	int ret;
 
 	rdma_restrack_del(&mr->res);
@@ -1974,6 +2003,7 @@ int ib_dereg_mr_user(struct ib_mr *mr, struct ib_udata *udata)
 		atomic_dec(&pd->usecnt);
 		if (dm)
 			atomic_dec(&dm->usecnt);
+		kfree(sig_attrs);
 	}
 
 	return ret;
@@ -1981,7 +2011,7 @@ int ib_dereg_mr_user(struct ib_mr *mr, struct ib_udata *udata)
 EXPORT_SYMBOL(ib_dereg_mr_user);
 
 /**
- * ib_alloc_mr() - Allocates a memory region
+ * ib_alloc_mr_user() - Allocates a memory region
  * @pd:            protection domain associated with the region
  * @mr_type:       memory region type
  * @max_num_sg:    maximum sg entries available for registration.
@@ -2001,6 +2031,9 @@ struct ib_mr *ib_alloc_mr_user(struct ib_pd *pd, enum ib_mr_type mr_type,
 	if (!pd->device->ops.alloc_mr)
 		return ERR_PTR(-EOPNOTSUPP);
 
+	if (WARN_ON_ONCE(mr_type == IB_MR_TYPE_INTEGRITY))
+		return ERR_PTR(-EINVAL);
+
 	mr = pd->device->ops.alloc_mr(pd, mr_type, max_num_sg, udata);
 	if (!IS_ERR(mr)) {
 		mr->device  = pd->device;
@@ -2011,11 +2044,65 @@ struct ib_mr *ib_alloc_mr_user(struct ib_pd *pd, enum ib_mr_type mr_type,
 		mr->need_inval = false;
 		mr->res.type = RDMA_RESTRACK_MR;
 		rdma_restrack_kadd(&mr->res);
+		mr->type = mr_type;
+		mr->sig_attrs = NULL;
 	}
 
 	return mr;
 }
 EXPORT_SYMBOL(ib_alloc_mr_user);
+
+/**
+ * ib_alloc_mr_integrity() - Allocates an integrity memory region
+ * @pd:                      protection domain associated with the region
+ * @max_num_data_sg:         maximum data sg entries available for registration
+ * @max_num_meta_sg:         maximum metadata sg entries available for
+ *                           registration
+ *
+ * Notes:
+ * Memory registration page/sg lists must not exceed max_num_sg,
+ * also the integrity page/sg lists must not exceed max_num_meta_sg.
+ *
+ */
+struct ib_mr *ib_alloc_mr_integrity(struct ib_pd *pd,
+				    u32 max_num_data_sg,
+				    u32 max_num_meta_sg)
+{
+	struct ib_mr *mr;
+	struct ib_sig_attrs *sig_attrs;
+
+	if (!pd->device->ops.alloc_mr_integrity ||
+	    !pd->device->ops.map_mr_sg_pi)
+		return ERR_PTR(-EOPNOTSUPP);
+
+	if (!max_num_meta_sg)
+		return ERR_PTR(-EINVAL);
+
+	sig_attrs = kzalloc(sizeof(struct ib_sig_attrs), GFP_KERNEL);
+	if (!sig_attrs)
+		return ERR_PTR(-ENOMEM);
+
+	mr = pd->device->ops.alloc_mr_integrity(pd, max_num_data_sg,
+						max_num_meta_sg);
+	if (IS_ERR(mr)) {
+		kfree(sig_attrs);
+		return mr;
+	}
+
+	mr->device = pd->device;
+	mr->pd = pd;
+	mr->dm = NULL;
+	mr->uobject = NULL;
+	atomic_inc(&pd->usecnt);
+	mr->need_inval = false;
+	mr->res.type = RDMA_RESTRACK_MR;
+	rdma_restrack_kadd(&mr->res);
+	mr->type = IB_MR_TYPE_INTEGRITY;
+	mr->sig_attrs = sig_attrs;
+
+	return mr;
+}
+EXPORT_SYMBOL(ib_alloc_mr_integrity);
 
 /* "Fast" memory regions */
 
@@ -2175,6 +2262,7 @@ int ib_dealloc_xrcd(struct ib_xrcd *xrcd, struct ib_udata *udata)
 		if (ret)
 			return ret;
 	}
+	mutex_destroy(&xrcd->tgt_qp_mutex);
 
 	return xrcd->device->ops.dealloc_xrcd(xrcd, udata);
 }
@@ -2226,19 +2314,17 @@ EXPORT_SYMBOL(ib_create_wq);
  */
 int ib_destroy_wq(struct ib_wq *wq, struct ib_udata *udata)
 {
-	int err;
 	struct ib_cq *cq = wq->cq;
 	struct ib_pd *pd = wq->pd;
 
 	if (atomic_read(&wq->usecnt))
 		return -EBUSY;
 
-	err = wq->device->ops.destroy_wq(wq, udata);
-	if (!err) {
-		atomic_dec(&pd->usecnt);
-		atomic_dec(&cq->usecnt);
-	}
-	return err;
+	wq->device->ops.destroy_wq(wq, udata);
+	atomic_dec(&pd->usecnt);
+	atomic_dec(&cq->usecnt);
+
+	return 0;
 }
 EXPORT_SYMBOL(ib_destroy_wq);
 
@@ -2374,6 +2460,53 @@ int ib_set_vf_guid(struct ib_device *device, int vf, u8 port, u64 guid,
 	return device->ops.set_vf_guid(device, vf, port, guid, type);
 }
 EXPORT_SYMBOL(ib_set_vf_guid);
+
+int ib_get_vf_guid(struct ib_device *device, int vf, u8 port,
+		   struct ifla_vf_guid *node_guid,
+		   struct ifla_vf_guid *port_guid)
+{
+	if (!device->ops.get_vf_guid)
+		return -EOPNOTSUPP;
+
+	return device->ops.get_vf_guid(device, vf, port, node_guid, port_guid);
+}
+EXPORT_SYMBOL(ib_get_vf_guid);
+/**
+ * ib_map_mr_sg_pi() - Map the dma mapped SG lists for PI (protection
+ *     information) and set an appropriate memory region for registration.
+ * @mr:             memory region
+ * @data_sg:        dma mapped scatterlist for data
+ * @data_sg_nents:  number of entries in data_sg
+ * @data_sg_offset: offset in bytes into data_sg
+ * @meta_sg:        dma mapped scatterlist for metadata
+ * @meta_sg_nents:  number of entries in meta_sg
+ * @meta_sg_offset: offset in bytes into meta_sg
+ * @page_size:      page vector desired page size
+ *
+ * Constraints:
+ * - The MR must be allocated with type IB_MR_TYPE_INTEGRITY.
+ *
+ * Return: 0 on success.
+ *
+ * After this completes successfully, the  memory region
+ * is ready for registration.
+ */
+int ib_map_mr_sg_pi(struct ib_mr *mr, struct scatterlist *data_sg,
+		    int data_sg_nents, unsigned int *data_sg_offset,
+		    struct scatterlist *meta_sg, int meta_sg_nents,
+		    unsigned int *meta_sg_offset, unsigned int page_size)
+{
+	if (unlikely(!mr->device->ops.map_mr_sg_pi ||
+		     WARN_ON_ONCE(mr->type != IB_MR_TYPE_INTEGRITY)))
+		return -EOPNOTSUPP;
+
+	mr->page_size = page_size;
+
+	return mr->device->ops.map_mr_sg_pi(mr, data_sg, data_sg_nents,
+					    data_sg_offset, meta_sg,
+					    meta_sg_nents, meta_sg_offset);
+}
+EXPORT_SYMBOL(ib_map_mr_sg_pi);
 
 /**
  * ib_map_mr_sg() - Map the largest prefix of a dma mapped SG list

@@ -80,9 +80,10 @@ int get_compat_msghdr(struct msghdr *kmsg,
 
 	kmsg->msg_iocb = NULL;
 
-	return compat_import_iovec(save_addr ? READ : WRITE,
+	err = compat_import_iovec(save_addr ? READ : WRITE,
 				   compat_ptr(msg.msg_iov), msg.msg_iovlen,
 				   UIO_FASTIOV, iov, &kmsg->msg_iter);
+	return err < 0 ? err : 0;
 }
 
 /* Bleech... */
@@ -231,7 +232,7 @@ int put_cmsg_compat(struct msghdr *kmsg, int level, int type, int len, void *dat
 		    (type == SO_TIMESTAMPNS_OLD || type == SO_TIMESTAMPING_OLD)) {
 			int count = type == SO_TIMESTAMPNS_OLD ? 1 : 3;
 			int i;
-			struct timespec *ts = (struct timespec *)data;
+			struct __kernel_old_timespec *ts = data;
 			for (i = 0; i < count; i++) {
 				cts[i].tv_sec = ts[i].tv_sec;
 				cts[i].tv_nsec = ts[i].tv_nsec;

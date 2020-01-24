@@ -440,7 +440,7 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 	this_cpu_write(cpu_tlbstate.loaded_mm_asid, new_asid);
 
 	if (next != real_prev) {
-		load_mm_cr4(next);
+		load_mm_cr4_irqsoff(next);
 		switch_ldt(real_prev, next);
 	}
 }
@@ -712,7 +712,7 @@ void native_flush_tlb_others(const struct cpumask *cpumask,
 }
 
 /*
- * See Documentation/x86/tlb.txt for details.  We choose 33
+ * See Documentation/x86/tlb.rst for details.  We choose 33
  * because it is large enough to cover the vast majority (at
  * least 95%) of allocations, and is small enough that we are
  * confident it will not cause too much overhead.  Each single

@@ -11,7 +11,8 @@
  */
 
 #include <linux/bitops.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
+#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/pinctrl/pinmux.h>
@@ -115,7 +116,7 @@ static void rza2_pin_to_gpio(void __iomem *pfc_base, unsigned int offset,
 	mask16 = RZA2_PDR_MASK << (pin * 2);
 	reg16 &= ~mask16;
 
-	if (dir == GPIOF_DIR_IN)
+	if (dir)
 		reg16 |= RZA2_PDR_INPUT << (pin * 2);	/* pin as input */
 	else
 		reg16 |= RZA2_PDR_OUTPUT << (pin * 2);	/* pin as output */
@@ -134,18 +135,18 @@ static int rza2_chip_get_direction(struct gpio_chip *chip, unsigned int offset)
 	reg16 = (reg16 >> (pin * 2)) & RZA2_PDR_MASK;
 
 	if (reg16 == RZA2_PDR_OUTPUT)
-		return GPIOF_DIR_OUT;
+		return 0;
 
 	if (reg16 == RZA2_PDR_INPUT)
-		return GPIOF_DIR_IN;
+		return 1;
 
 	/*
 	 * This GPIO controller has a default Hi-Z state that is not input or
 	 * output, so force the pin to input now.
 	 */
-	rza2_pin_to_gpio(priv->base, offset, GPIOF_DIR_IN);
+	rza2_pin_to_gpio(priv->base, offset, 1);
 
-	return GPIOF_DIR_IN;
+	return 1;
 }
 
 static int rza2_chip_direction_input(struct gpio_chip *chip,
@@ -153,7 +154,7 @@ static int rza2_chip_direction_input(struct gpio_chip *chip,
 {
 	struct rza2_pinctrl_priv *priv = gpiochip_get_data(chip);
 
-	rza2_pin_to_gpio(priv->base, offset, GPIOF_DIR_IN);
+	rza2_pin_to_gpio(priv->base, offset, 1);
 
 	return 0;
 }
@@ -191,7 +192,7 @@ static int rza2_chip_direction_output(struct gpio_chip *chip,
 	struct rza2_pinctrl_priv *priv = gpiochip_get_data(chip);
 
 	rza2_chip_set(chip, offset, val);
-	rza2_pin_to_gpio(priv->base, offset, GPIOF_DIR_OUT);
+	rza2_pin_to_gpio(priv->base, offset, 0);
 
 	return 0;
 }
@@ -212,8 +213,8 @@ static const char * const rza2_gpio_names[] = {
 	"PC_0", "PC_1", "PC_2", "PC_3", "PC_4", "PC_5", "PC_6", "PC_7",
 	"PD_0", "PD_1", "PD_2", "PD_3", "PD_4", "PD_5", "PD_6", "PD_7",
 	"PE_0", "PE_1", "PE_2", "PE_3", "PE_4", "PE_5", "PE_6", "PE_7",
-	"PF_0", "PF_1", "PF_2", "PF_3", "P0_4", "PF_5", "PF_6", "PF_7",
-	"PG_0", "PG_1", "PG_2", "P0_3", "PG_4", "PG_5", "PG_6", "PG_7",
+	"PF_0", "PF_1", "PF_2", "PF_3", "PF_4", "PF_5", "PF_6", "PF_7",
+	"PG_0", "PG_1", "PG_2", "PG_3", "PG_4", "PG_5", "PG_6", "PG_7",
 	"PH_0", "PH_1", "PH_2", "PH_3", "PH_4", "PH_5", "PH_6", "PH_7",
 	/* port I does not exist */
 	"PJ_0", "PJ_1", "PJ_2", "PJ_3", "PJ_4", "PJ_5", "PJ_6", "PJ_7",
@@ -461,7 +462,6 @@ static const struct pinmux_ops rza2_pinmux_ops = {
 static int rza2_pinctrl_probe(struct platform_device *pdev)
 {
 	struct rza2_pinctrl_priv *priv;
-	struct resource *res;
 	int ret;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
@@ -470,8 +470,7 @@ static int rza2_pinctrl_probe(struct platform_device *pdev)
 
 	priv->dev = &pdev->dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->base = devm_ioremap_resource(&pdev->dev, res);
+	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
