@@ -39,6 +39,7 @@
 
 #define XIVE_ESB_VAL_P		0x2
 #define XIVE_ESB_VAL_Q		0x1
+#define XIVE_ESB_INVALID	0xFF
 
 /*
  * Thread Management (aka "TM") registers
