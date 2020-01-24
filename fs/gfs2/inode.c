@@ -144,7 +144,7 @@ struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned int type,
 
 		error = gfs2_glock_get(sdp, no_addr, &gfs2_iopen_glops, CREATE, &io_gl);
 		if (unlikely(error))
-			goto fail_put;
+			goto fail;
 
 		if (type == DT_UNKNOWN || blktype != GFS2_BLKST_FREE) {
 			/*
@@ -155,13 +155,13 @@ struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned int type,
 			error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE,
 						   GL_SKIP, &i_gh);
 			if (error)
-				goto fail_put;
+				goto fail;
 
 			if (blktype != GFS2_BLKST_FREE) {
 				error = gfs2_check_blk_type(sdp, no_addr,
 							    blktype);
 				if (error)
-					goto fail_put;
+					goto fail;
 			}
 		}
 
@@ -169,7 +169,7 @@ struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned int type,
 		set_bit(GIF_INVALID, &ip->i_flags);
 		error = gfs2_glock_nq_init(io_gl, LM_ST_SHARED, GL_EXACT, &ip->i_iopen_gh);
 		if (unlikely(error))
-			goto fail_put;
+			goto fail;
 		glock_set_object(ip->i_iopen_gh.gh_gl, ip);
 		gfs2_glock_put(io_gl);
 		io_gl = NULL;
@@ -182,7 +182,7 @@ struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned int type,
 			/* Inode glock must be locked already */
 			error = gfs2_inode_refresh(GFS2_I(inode));
 			if (error)
-				goto fail_refresh;
+				goto fail;
 		} else {
 			ip->i_no_formal_ino = no_formal_ino;
 			inode->i_mode = DT2IF(type);
@@ -197,17 +197,11 @@ struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned int type,
 		gfs2_glock_dq_uninit(&i_gh);
 	return inode;
 
-fail_refresh:
-	ip->i_iopen_gh.gh_flags |= GL_NOCACHE;
-	glock_clear_object(ip->i_iopen_gh.gh_gl, ip);
-	gfs2_glock_dq_uninit(&ip->i_iopen_gh);
-fail_put:
+fail:
 	if (io_gl)
 		gfs2_glock_put(io_gl);
-	glock_clear_object(ip->i_gl, ip);
 	if (gfs2_holder_initialized(&i_gh))
 		gfs2_glock_dq_uninit(&i_gh);
-fail:
 	iget_failed(inode);
 	return ERR_PTR(error);
 }
