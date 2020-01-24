@@ -2,6 +2,10 @@
 #ifndef _ASM_POWERPC_KUP_H_
 #define _ASM_POWERPC_KUP_H_
 
+#define KUAP_READ	1
+#define KUAP_WRITE	2
+#define KUAP_READ_WRITE	(KUAP_READ | KUAP_WRITE)
+
 #ifdef CONFIG_PPC64
 #include <asm/book3s/64/kup-radix.h>
 #endif
@@ -42,9 +46,9 @@ void setup_kuap(bool disabled);
 #else
 static inline void setup_kuap(bool disabled) { }
 static inline void allow_user_access(void __user *to, const void __user *from,
-				     unsigned long size) { }
+				     unsigned long size, unsigned long dir) { }
 static inline void prevent_user_access(void __user *to, const void __user *from,
-				       unsigned long size) { }
+				       unsigned long size, unsigned long dir) { }
 static inline bool
 bad_kuap_fault(struct pt_regs *regs, unsigned long address, bool is_write)
 {
@@ -54,24 +58,36 @@ bad_kuap_fault(struct pt_regs *regs, unsigned long address, bool is_write)
 
 static inline void allow_read_from_user(const void __user *from, unsigned long size)
 {
-	allow_user_access(NULL, from, size);
+	allow_user_access(NULL, from, size, KUAP_READ);
 }
 
 static inline void allow_write_to_user(void __user *to, unsigned long size)
 {
-	allow_user_access(to, NULL, size);
+	allow_user_access(to, NULL, size, KUAP_WRITE);
+}
+
+static inline void allow_read_write_user(void __user *to, const void __user *from,
+					 unsigned long size)
+{
+	allow_user_access(to, from, size, KUAP_READ_WRITE);
 }
 
 static inline void prevent_read_from_user(const void __user *from, unsigned long size)
 {
-	prevent_user_access(NULL, from, size);
+	prevent_user_access(NULL, from, size, KUAP_READ);
 }
 
 static inline void prevent_write_to_user(void __user *to, unsigned long size)
 {
-	prevent_user_access(to, NULL, size);
+	prevent_user_access(to, NULL, size, KUAP_WRITE);
+}
+
+static inline void prevent_read_write_user(void __user *to, const void __user *from,
+					   unsigned long size)
+{
+	prevent_user_access(to, from, size, KUAP_READ_WRITE);
 }
 
 #endif /* !__ASSEMBLY__ */
 
-#endif /* _ASM_POWERPC_KUP_H_ */
+#endif /* _ASM_POWERPC_KUAP_H_ */

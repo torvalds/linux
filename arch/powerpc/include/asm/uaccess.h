@@ -313,9 +313,9 @@ raw_copy_in_user(void __user *to, const void __user *from, unsigned long n)
 	unsigned long ret;
 
 	barrier_nospec();
-	allow_user_access(to, from, n);
+	allow_read_write_user(to, from, n);
 	ret = __copy_tofrom_user(to, from, n);
-	prevent_user_access(to, from, n);
+	prevent_read_write_user(to, from, n);
 	return ret;
 }
 #endif /* __powerpc64__ */

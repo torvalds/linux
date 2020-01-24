@@ -102,11 +102,13 @@ static inline void kuap_update_sr(u32 sr, u32 addr, u32 end)
 	isync();	/* Context sync required after mtsrin() */
 }
 
-static inline void allow_user_access(void __user *to, const void __user *from, u32 size)
+static __always_inline void allow_user_access(void __user *to, const void __user *from,
+					      u32 size, unsigned long dir)
 {
 	u32 addr, end;
 
-	if (__builtin_constant_p(to) && to == NULL)
+	BUILD_BUG_ON(!__builtin_constant_p(dir));
+	if (!(dir & KUAP_WRITE))
 		return;
 
 	addr = (__force u32)to;
@@ -119,10 +121,15 @@ static inline void allow_user_access(void __user *to, const void __user *from, u
 	kuap_update_sr(mfsrin(addr) & ~SR_KS, addr, end);	/* Clear Ks */
 }
 
-static inline void prevent_user_access(void __user *to, const void __user *from, u32 size)
+static __always_inline void prevent_user_access(void __user *to, const void __user *from,
+						u32 size, unsigned long dir)
 {
 	u32 addr = (__force u32)to;
 	u32 end = min(addr + size, TASK_SIZE);
+
+	BUILD_BUG_ON(!__builtin_constant_p(dir));
+	if (!(dir & KUAP_WRITE))
+		return;
 
 	if (!addr || addr >= TASK_SIZE || !size)
 		return;
