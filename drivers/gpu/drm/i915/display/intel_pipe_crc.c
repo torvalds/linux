@@ -172,7 +172,7 @@ static int vlv_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 	 *   - DisplayPort scrambling: used for EMI reduction
 	 */
 	if (need_stable_symbols) {
-		u32 tmp = I915_READ(PORT_DFT2_G4X);
+		u32 tmp = intel_de_read(dev_priv, PORT_DFT2_G4X);
 
 		tmp |= DC_BALANCE_RESET_VLV;
 		switch (pipe) {
@@ -188,7 +188,7 @@ static int vlv_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 		default:
 			return -EINVAL;
 		}
-		I915_WRITE(PORT_DFT2_G4X, tmp);
+		intel_de_write(dev_priv, PORT_DFT2_G4X, tmp);
 	}
 
 	return 0;
@@ -237,7 +237,7 @@ static int i9xx_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 static void vlv_undo_pipe_scramble_reset(struct drm_i915_private *dev_priv,
 					 enum pipe pipe)
 {
-	u32 tmp = I915_READ(PORT_DFT2_G4X);
+	u32 tmp = intel_de_read(dev_priv, PORT_DFT2_G4X);
 
 	switch (pipe) {
 	case PIPE_A:
@@ -254,7 +254,7 @@ static void vlv_undo_pipe_scramble_reset(struct drm_i915_private *dev_priv,
 	}
 	if (!(tmp & PIPE_SCRAMBLE_RESET_MASK))
 		tmp &= ~DC_BALANCE_RESET_VLV;
-	I915_WRITE(PORT_DFT2_G4X, tmp);
+	intel_de_write(dev_priv, PORT_DFT2_G4X, tmp);
 }
 
 static int ilk_pipe_crc_ctl_reg(enum intel_pipe_crc_source *source,
@@ -615,8 +615,8 @@ int intel_crtc_set_crc_source(struct drm_crtc *crtc, const char *source_name)
 		goto out;
 
 	pipe_crc->source = source;
-	I915_WRITE(PIPE_CRC_CTL(crtc->index), val);
-	POSTING_READ(PIPE_CRC_CTL(crtc->index));
+	intel_de_write(dev_priv, PIPE_CRC_CTL(crtc->index), val);
+	intel_de_posting_read(dev_priv, PIPE_CRC_CTL(crtc->index));
 
 	if (!source) {
 		if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
@@ -650,8 +650,8 @@ void intel_crtc_enable_pipe_crc(struct intel_crtc *intel_crtc)
 	/* Don't need pipe_crc->lock here, IRQs are not generated. */
 	pipe_crc->skipped = 0;
 
-	I915_WRITE(PIPE_CRC_CTL(crtc->index), val);
-	POSTING_READ(PIPE_CRC_CTL(crtc->index));
+	intel_de_write(dev_priv, PIPE_CRC_CTL(crtc->index), val);
+	intel_de_posting_read(dev_priv, PIPE_CRC_CTL(crtc->index));
 }
 
 void intel_crtc_disable_pipe_crc(struct intel_crtc *intel_crtc)
@@ -665,7 +665,7 @@ void intel_crtc_disable_pipe_crc(struct intel_crtc *intel_crtc)
 	pipe_crc->skipped = INT_MIN;
 	spin_unlock_irq(&pipe_crc->lock);
 
-	I915_WRITE(PIPE_CRC_CTL(crtc->index), 0);
-	POSTING_READ(PIPE_CRC_CTL(crtc->index));
+	intel_de_write(dev_priv, PIPE_CRC_CTL(crtc->index), 0);
+	intel_de_posting_read(dev_priv, PIPE_CRC_CTL(crtc->index));
 	intel_synchronize_irq(dev_priv);
 }
