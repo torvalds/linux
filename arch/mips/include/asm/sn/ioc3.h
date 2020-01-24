@@ -598,5 +598,9 @@ struct ioc3_etxd {
 #define	IOC3_SUBSYS_IP30_SYSBOARD	0xc304
 #define	IOC3_SUBSYS_MENET		0xc305
 #define	IOC3_SUBSYS_MENET4		0xc306
+#define	IOC3_SUBSYS_IO7			0xc307
+#define	IOC3_SUBSYS_IO8			0xc308
+#define	IOC3_SUBSYS_IO9			0xc309
+#define	IOC3_SUBSYS_IP34_SYSBOARD	0xc30A
 
 #endif /* MIPS_SN_IOC3_H */

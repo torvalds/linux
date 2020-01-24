@@ -499,6 +499,26 @@ static void bridge_setup_menet(struct bridge_controller *bc)
 	bc->ioc3_sid[3] = IOC3_SID(IOC3_SUBSYS_MENET4);
 }
 
+static void bridge_setup_io7(struct bridge_controller *bc)
+{
+	bc->ioc3_sid[4] = IOC3_SID(IOC3_SUBSYS_IO7);
+}
+
+static void bridge_setup_io8(struct bridge_controller *bc)
+{
+	bc->ioc3_sid[4] = IOC3_SID(IOC3_SUBSYS_IO8);
+}
+
+static void bridge_setup_io9(struct bridge_controller *bc)
+{
+	bc->ioc3_sid[1] = IOC3_SID(IOC3_SUBSYS_IO9);
+}
+
+static void bridge_setup_ip34_fuel_sysboard(struct bridge_controller *bc)
+{
+	bc->ioc3_sid[4] = IOC3_SID(IOC3_SUBSYS_IP34_SYSBOARD);
+}
+
 #define BRIDGE_BOARD_SETUP(_partno, _setup)	\
 	{ .match = _partno, .setup = _setup }
 
@@ -516,6 +536,10 @@ static const struct {
 	BRIDGE_BOARD_SETUP("030-0887-", bridge_setup_ip30_sysboard),
 	BRIDGE_BOARD_SETUP("030-1467-", bridge_setup_ip30_sysboard),
 	BRIDGE_BOARD_SETUP("030-0873-", bridge_setup_menet),
+	BRIDGE_BOARD_SETUP("030-1557-", bridge_setup_io7),
+	BRIDGE_BOARD_SETUP("030-1673-", bridge_setup_io8),
+	BRIDGE_BOARD_SETUP("030-1771-", bridge_setup_io9),
+	BRIDGE_BOARD_SETUP("030-1707-", bridge_setup_ip34_fuel_sysboard),
 };
 
 static void bridge_setup_board(struct bridge_controller *bc, char *partnum)
