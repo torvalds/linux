@@ -77,6 +77,20 @@ static const char *btf_var_linkage_str(__u32 linkage)
 	}
 }
 
+static const char *btf_func_linkage_str(const struct btf_type *t)
+{
+	switch (btf_vlen(t)) {
+	case BTF_FUNC_STATIC:
+		return "static";
+	case BTF_FUNC_GLOBAL:
+		return "global";
+	case BTF_FUNC_EXTERN:
+		return "extern";
+	default:
+		return "(unknown)";
+	}
+}
+
 static const char *btf_str(const struct btf *btf, __u32 off)
 {
 	if (!off)
@@ -231,12 +245,17 @@ static int dump_btf_type(const struct btf *btf, __u32 id,
 			printf(" fwd_kind=%s", fwd_kind);
 		break;
 	}
-	case BTF_KIND_FUNC:
-		if (json_output)
+	case BTF_KIND_FUNC: {
+		const char *linkage = btf_func_linkage_str(t);
+
+		if (json_output) {
 			jsonw_uint_field(w, "type_id", t->type);
-		else
-			printf(" type_id=%u", t->type);
+			jsonw_string_field(w, "linkage", linkage);
+		} else {
+			printf(" type_id=%u linkage=%s", t->type, linkage);
+		}
 		break;
+	}
 	case BTF_KIND_FUNC_PROTO: {
 		const struct btf_param *p = (const void *)(t + 1);
 		__u16 vlen = BTF_INFO_VLEN(t->info);
