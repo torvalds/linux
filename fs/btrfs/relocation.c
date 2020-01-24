@@ -659,6 +659,7 @@ static struct btrfs_root *read_fs_root(struct btrfs_fs_info *fs_info,
 					u64 root_objectid)
 {
 	struct btrfs_key key;
+	struct btrfs_root *root;
 
 	key.objectid = root_objectid;
 	key.type = BTRFS_ROOT_ITEM_KEY;
@@ -667,7 +668,12 @@ static struct btrfs_root *read_fs_root(struct btrfs_fs_info *fs_info,
 	else
 		key.offset = (u64)-1;
 
-	return btrfs_get_fs_root(fs_info, &key, false);
+	root = btrfs_get_fs_root(fs_info, &key, false);
+	if (IS_ERR(root))
+		return root;
+	if (!btrfs_grab_fs_root(root))
+		return ERR_PTR(-ENOENT);
+	return root;
 }
 
 static noinline_for_stack
@@ -937,10 +943,6 @@ again:
 		root = read_fs_root(rc->extent_root->fs_info, key.offset);
 		if (IS_ERR(root)) {
 			err = PTR_ERR(root);
-			goto out;
-		}
-		if (!btrfs_grab_fs_root(root)) {
-			err = -ENOENT;
 			goto out;
 		}
 
@@ -2521,7 +2523,6 @@ again:
 
 		root = read_fs_root(fs_info, reloc_root->root_key.offset);
 		BUG_ON(IS_ERR(root));
-		BUG_ON(!btrfs_grab_fs_root(root));
 		BUG_ON(root->reloc_root != reloc_root);
 
 		/*
@@ -2592,7 +2593,6 @@ again:
 			root = read_fs_root(fs_info,
 					    reloc_root->root_key.offset);
 			BUG_ON(IS_ERR(root));
-			BUG_ON(!btrfs_grab_fs_root(root));
 			BUG_ON(root->reloc_root != reloc_root);
 
 			ret = merge_reloc_root(rc, root);
@@ -2655,7 +2655,6 @@ static int record_reloc_root_in_trans(struct btrfs_trans_handle *trans,
 
 	root = read_fs_root(fs_info, reloc_root->root_key.offset);
 	BUG_ON(IS_ERR(root));
-	BUG_ON(!btrfs_grab_fs_root(root));
 	BUG_ON(root->reloc_root != reloc_root);
 	ret = btrfs_record_root_in_trans(trans, root);
 	btrfs_put_fs_root(root);
@@ -3753,10 +3752,6 @@ static int find_data_references(struct reloc_control *rc,
 		err = PTR_ERR(root);
 		goto out_free;
 	}
-	if (!btrfs_grab_fs_root(root)) {
-		err = -ENOENT;
-		goto out_free;
-	}
 
 	key.objectid = ref_objectid;
 	key.type = BTRFS_EXTENT_DATA_KEY;
@@ -4351,8 +4346,6 @@ struct inode *create_reloc_inode(struct btrfs_fs_info *fs_info,
 	root = read_fs_root(fs_info, BTRFS_DATA_RELOC_TREE_OBJECTID);
 	if (IS_ERR(root))
 		return ERR_CAST(root);
-	if (!btrfs_grab_fs_root(root))
-		return ERR_PTR(-ENOENT);
 
 	trans = btrfs_start_transaction(root, 6);
 	if (IS_ERR(trans)) {
@@ -4648,10 +4641,6 @@ int btrfs_recover_relocation(struct btrfs_root *root)
 					goto out;
 				}
 			} else {
-				if (!btrfs_grab_fs_root(fs_root)) {
-					err = -ENOENT;
-					goto out;
-				}
 				btrfs_put_fs_root(fs_root);
 			}
 		}
@@ -4702,10 +4691,6 @@ int btrfs_recover_relocation(struct btrfs_root *root)
 			list_add_tail(&reloc_root->root_list, &reloc_roots);
 			goto out_free;
 		}
-		if (!btrfs_grab_fs_root(fs_root)) {
-			err = -ENOENT;
-			goto out_free;
-		}
 
 		err = __add_reloc_root(reloc_root);
 		BUG_ON(err < 0); /* -ENOMEM or logic error */
@@ -4745,10 +4730,8 @@ out:
 		if (IS_ERR(fs_root)) {
 			err = PTR_ERR(fs_root);
 		} else {
-			if (btrfs_grab_fs_root(fs_root)) {
-				err = btrfs_orphan_cleanup(fs_root);
-				btrfs_put_fs_root(fs_root);
-			}
+			err = btrfs_orphan_cleanup(fs_root);
+			btrfs_put_fs_root(fs_root);
 		}
 	}
 	return err;
