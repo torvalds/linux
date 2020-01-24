@@ -1522,14 +1522,17 @@ static struct dentry *btrfs_mount_root(struct file_system_type *fs_type,
 	/*
 	 * Setup a dummy root and fs_info for test/set super.  This is because
 	 * we don't actually fill this stuff out until open_ctree, but we need
-	 * it for searching for existing supers, so this lets us do that and
-	 * then open_ctree will properly initialize everything later.
+	 * then open_ctree will properly initialize the file system specific
+	 * settings later.  btrfs_init_fs_info initializes the static elements
+	 * of the fs_info (locks and such) to make cleanup easier if we find a
+	 * superblock with our given fs_devices later on at sget() time.
 	 */
 	fs_info = kvzalloc(sizeof(struct btrfs_fs_info), GFP_KERNEL);
 	if (!fs_info) {
 		error = -ENOMEM;
 		goto error_sec_opts;
 	}
+	btrfs_init_fs_info(fs_info);
 
 	fs_info->super_copy = kzalloc(BTRFS_SUPER_INFO_SIZE, GFP_KERNEL);
 	fs_info->super_for_commit = kzalloc(BTRFS_SUPER_INFO_SIZE, GFP_KERNEL);
