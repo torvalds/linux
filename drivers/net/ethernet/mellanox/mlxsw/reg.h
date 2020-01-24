@@ -3563,8 +3563,8 @@ MLXSW_ITEM32(reg, qeec, min_shaper_rate, 0x0C, 0, 28);
  */
 MLXSW_ITEM32(reg, qeec, mase, 0x10, 31, 1);
 
-/* A large max rate will disable the max shaper. */
-#define MLXSW_REG_QEEC_MAS_DIS	200000000	/* Kbps */
+/* The largest max shaper value possible to disable the shaper. */
+#define MLXSW_REG_QEEC_MAS_DIS	((1u << 31) - 1)	/* Kbps */
 
 /* reg_qeec_max_shaper_rate
  * Max shaper information rate.
