@@ -3993,6 +3993,13 @@ cea_db_tag(const u8 *db)
 static int
 cea_revision(const u8 *cea)
 {
+	/*
+	 * FIXME is this correct for the DispID variant?
+	 * The DispID spec doesn't really specify whether
+	 * this is the revision of the CEA extension or
+	 * the DispID CEA data block. And the only value
+	 * given as an example is 0.
+	 */
 	return cea[1];
 }
 
