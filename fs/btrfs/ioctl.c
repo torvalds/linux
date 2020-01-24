@@ -666,7 +666,7 @@ static noinline int create_subvol(struct inode *dir,
 		goto fail;
 
 	key.offset = (u64)-1;
-	new_root = btrfs_read_fs_root_no_name(fs_info, &key);
+	new_root = btrfs_get_fs_root(fs_info, &key, true);
 	if (IS_ERR(new_root)) {
 		ret = PTR_ERR(new_root);
 		btrfs_abort_transaction(trans, ret);
@@ -2179,7 +2179,7 @@ static noinline int search_ioctl(struct inode *inode,
 		key.objectid = sk->tree_id;
 		key.type = BTRFS_ROOT_ITEM_KEY;
 		key.offset = (u64)-1;
-		root = btrfs_read_fs_root_no_name(info, &key);
+		root = btrfs_get_fs_root(info, &key, true);
 		if (IS_ERR(root)) {
 			btrfs_free_path(path);
 			return PTR_ERR(root);
@@ -2314,7 +2314,7 @@ static noinline int btrfs_search_path_in_tree(struct btrfs_fs_info *info,
 	key.objectid = tree_id;
 	key.type = BTRFS_ROOT_ITEM_KEY;
 	key.offset = (u64)-1;
-	root = btrfs_read_fs_root_no_name(info, &key);
+	root = btrfs_get_fs_root(info, &key, true);
 	if (IS_ERR(root)) {
 		ret = PTR_ERR(root);
 		goto out;
@@ -2408,7 +2408,7 @@ static int btrfs_search_path_in_tree_user(struct inode *inode,
 		key.objectid = treeid;
 		key.type = BTRFS_ROOT_ITEM_KEY;
 		key.offset = (u64)-1;
-		root = btrfs_read_fs_root_no_name(fs_info, &key);
+		root = btrfs_get_fs_root(fs_info, &key, true);
 		if (IS_ERR(root)) {
 			ret = PTR_ERR(root);
 			goto out;
@@ -2653,7 +2653,7 @@ static int btrfs_ioctl_get_subvol_info(struct file *file, void __user *argp)
 	key.objectid = BTRFS_I(inode)->root->root_key.objectid;
 	key.type = BTRFS_ROOT_ITEM_KEY;
 	key.offset = (u64)-1;
-	root = btrfs_read_fs_root_no_name(fs_info, &key);
+	root = btrfs_get_fs_root(fs_info, &key, true);
 	if (IS_ERR(root)) {
 		ret = PTR_ERR(root);
 		goto out;
@@ -3983,7 +3983,7 @@ static long btrfs_ioctl_default_subvol(struct file *file, void __user *argp)
 	location.type = BTRFS_ROOT_ITEM_KEY;
 	location.offset = (u64)-1;
 
-	new_root = btrfs_read_fs_root_no_name(fs_info, &location);
+	new_root = btrfs_get_fs_root(fs_info, &location, true);
 	if (IS_ERR(new_root)) {
 		ret = PTR_ERR(new_root);
 		goto out;

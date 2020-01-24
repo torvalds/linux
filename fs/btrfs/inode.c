@@ -5153,7 +5153,7 @@ static int fixup_tree_root_location(struct btrfs_fs_info *fs_info,
 
 	btrfs_release_path(path);
 
-	new_root = btrfs_read_fs_root_no_name(fs_info, location);
+	new_root = btrfs_get_fs_root(fs_info, location, true);
 	if (IS_ERR(new_root)) {
 		err = PTR_ERR(new_root);
 		goto out;

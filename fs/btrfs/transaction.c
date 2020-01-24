@@ -1633,7 +1633,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	}
 
 	key.offset = (u64)-1;
-	pending->snap = btrfs_read_fs_root_no_name(fs_info, &key);
+	pending->snap = btrfs_get_fs_root(fs_info, &key, true);
 	if (IS_ERR(pending->snap)) {
 		ret = PTR_ERR(pending->snap);
 		btrfs_abort_transaction(trans, ret);

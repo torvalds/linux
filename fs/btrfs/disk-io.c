@@ -3178,7 +3178,7 @@ int __cold open_ctree(struct super_block *sb,
 	location.type = BTRFS_ROOT_ITEM_KEY;
 	location.offset = 0;
 
-	fs_info->fs_root = btrfs_read_fs_root_no_name(fs_info, &location);
+	fs_info->fs_root = btrfs_get_fs_root(fs_info, &location, true);
 	if (IS_ERR(fs_info->fs_root)) {
 		err = PTR_ERR(fs_info->fs_root);
 		btrfs_warn(fs_info, "failed to read fs tree: %d", err);

@@ -653,7 +653,7 @@ static int scrub_print_warning_inode(u64 inum, u64 offset, u64 root,
 	root_key.objectid = root;
 	root_key.type = BTRFS_ROOT_ITEM_KEY;
 	root_key.offset = (u64)-1;
-	local_root = btrfs_read_fs_root_no_name(fs_info, &root_key);
+	local_root = btrfs_get_fs_root(fs_info, &root_key, true);
 	if (IS_ERR(local_root)) {
 		ret = PTR_ERR(local_root);
 		goto err;

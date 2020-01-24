@@ -6162,7 +6162,7 @@ again:
 		tmp_key.type = BTRFS_ROOT_ITEM_KEY;
 		tmp_key.offset = (u64)-1;
 
-		wc.replay_dest = btrfs_read_fs_root_no_name(fs_info, &tmp_key);
+		wc.replay_dest = btrfs_get_fs_root(fs_info, &tmp_key, true);
 		if (IS_ERR(wc.replay_dest)) {
 			ret = PTR_ERR(wc.replay_dest);
 
