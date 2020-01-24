@@ -3577,7 +3577,7 @@ int mlxsw_sp_port_ets_set(struct mlxsw_sp_port *mlxsw_sp_port,
 
 int mlxsw_sp_port_ets_maxrate_set(struct mlxsw_sp_port *mlxsw_sp_port,
 				  enum mlxsw_reg_qeec_hr hr, u8 index,
-				  u8 next_index, u32 maxrate)
+				  u8 next_index, u32 maxrate, u8 burst_size)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	char qeec_pl[MLXSW_REG_QEEC_LEN];
@@ -3586,6 +3586,7 @@ int mlxsw_sp_port_ets_maxrate_set(struct mlxsw_sp_port *mlxsw_sp_port,
 			    next_index);
 	mlxsw_reg_qeec_mase_set(qeec_pl, true);
 	mlxsw_reg_qeec_max_shaper_rate_set(qeec_pl, maxrate);
+	mlxsw_reg_qeec_max_shaper_bs_set(qeec_pl, burst_size);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(qeec), qeec_pl);
 }
 
@@ -3654,14 +3655,14 @@ static int mlxsw_sp_port_ets_init(struct mlxsw_sp_port *mlxsw_sp_port)
 	 */
 	err = mlxsw_sp_port_ets_maxrate_set(mlxsw_sp_port,
 					    MLXSW_REG_QEEC_HR_PORT, 0, 0,
-					    MLXSW_REG_QEEC_MAS_DIS);
+					    MLXSW_REG_QEEC_MAS_DIS, 0);
 	if (err)
 		return err;
 	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
 		err = mlxsw_sp_port_ets_maxrate_set(mlxsw_sp_port,
 						    MLXSW_REG_QEEC_HR_SUBGROUP,
 						    i, 0,
-						    MLXSW_REG_QEEC_MAS_DIS);
+						    MLXSW_REG_QEEC_MAS_DIS, 0);
 		if (err)
 			return err;
 	}
@@ -3669,14 +3670,14 @@ static int mlxsw_sp_port_ets_init(struct mlxsw_sp_port *mlxsw_sp_port)
 		err = mlxsw_sp_port_ets_maxrate_set(mlxsw_sp_port,
 						    MLXSW_REG_QEEC_HR_TC,
 						    i, i,
-						    MLXSW_REG_QEEC_MAS_DIS);
+						    MLXSW_REG_QEEC_MAS_DIS, 0);
 		if (err)
 			return err;
 
 		err = mlxsw_sp_port_ets_maxrate_set(mlxsw_sp_port,
 						    MLXSW_REG_QEEC_HR_TC,
 						    i + 8, i,
-						    MLXSW_REG_QEEC_MAS_DIS);
+						    MLXSW_REG_QEEC_MAS_DIS, 0);
 		if (err)
 			return err;
 	}
