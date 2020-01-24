@@ -248,6 +248,24 @@ busywait()
 	done
 }
 
+until_counter_is()
+{
+	local value=$1; shift
+	local current=$("$@")
+
+	echo $((current))
+	((current >= value))
+}
+
+busywait_for_counter()
+{
+	local timeout=$1; shift
+	local delta=$1; shift
+
+	local base=$("$@")
+	busywait "$timeout" until_counter_is $((base + delta)) "$@"
+}
+
 setup_wait_dev()
 {
 	local dev=$1; shift
