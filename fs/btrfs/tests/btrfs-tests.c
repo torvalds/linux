@@ -193,6 +193,7 @@ void btrfs_free_dummy_fs_info(struct btrfs_fs_info *fs_info)
 	btrfs_free_fs_roots(fs_info);
 	cleanup_srcu_struct(&fs_info->subvol_srcu);
 	kfree(fs_info->super_copy);
+	btrfs_check_leaked_roots(fs_info);
 	kfree(fs_info->fs_devices);
 	kfree(fs_info);
 }
