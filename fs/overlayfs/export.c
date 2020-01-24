@@ -358,7 +358,7 @@ static struct dentry *ovl_dentry_real_at(struct dentry *dentry, int idx)
  */
 static struct dentry *ovl_lookup_real_one(struct dentry *connected,
 					  struct dentry *real,
-					  struct ovl_layer *layer)
+					  const struct ovl_layer *layer)
 {
 	struct inode *dir = d_inode(connected);
 	struct dentry *this, *parent = NULL;
@@ -414,14 +414,14 @@ fail:
 
 static struct dentry *ovl_lookup_real(struct super_block *sb,
 				      struct dentry *real,
-				      struct ovl_layer *layer);
+				      const struct ovl_layer *layer);
 
 /*
  * Lookup an indexed or hashed overlay dentry by real inode.
  */
 static struct dentry *ovl_lookup_real_inode(struct super_block *sb,
 					    struct dentry *real,
-					    struct ovl_layer *layer)
+					    const struct ovl_layer *layer)
 {
 	struct ovl_fs *ofs = sb->s_fs_info;
 	struct dentry *index = NULL;
@@ -486,7 +486,7 @@ static struct dentry *ovl_lookup_real_inode(struct super_block *sb,
  */
 static struct dentry *ovl_lookup_real_ancestor(struct super_block *sb,
 					       struct dentry *real,
-					       struct ovl_layer *layer)
+					       const struct ovl_layer *layer)
 {
 	struct dentry *next, *parent = NULL;
 	struct dentry *ancestor = ERR_PTR(-EIO);
@@ -539,7 +539,7 @@ static struct dentry *ovl_lookup_real_ancestor(struct super_block *sb,
  */
 static struct dentry *ovl_lookup_real(struct super_block *sb,
 				      struct dentry *real,
-				      struct ovl_layer *layer)
+				      const struct ovl_layer *layer)
 {
 	struct dentry *connected;
 	int err = 0;
@@ -645,7 +645,7 @@ static struct dentry *ovl_get_dentry(struct super_block *sb,
 				     struct dentry *index)
 {
 	struct ovl_fs *ofs = sb->s_fs_info;
-	struct ovl_layer *layer = upper ? &ofs->layers[0] : lowerpath->layer;
+	const struct ovl_layer *layer = upper ? &ofs->layers[0] : lowerpath->layer;
 	struct dentry *real = upper ?: (index ?: lowerpath->dentry);
 
 	/*

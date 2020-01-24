@@ -40,7 +40,7 @@ struct ovl_layer {
 };
 
 struct ovl_path {
-	struct ovl_layer *layer;
+	const struct ovl_layer *layer;
 	struct dentry *dentry;
 };
 
@@ -50,7 +50,7 @@ struct ovl_fs {
 	unsigned int numlayer;
 	/* Number of unique fs among layers including upper fs */
 	unsigned int numfs;
-	struct ovl_layer *layers;
+	const struct ovl_layer *layers;
 	struct ovl_sb *fs;
 	/* workbasedir is the path at workdir= mount option */
 	struct dentry *workbasedir;

@@ -1320,12 +1320,13 @@ static int ovl_get_layers(struct super_block *sb, struct ovl_fs *ofs,
 {
 	int err;
 	unsigned int i;
+	struct ovl_layer *layers;
 
 	err = -ENOMEM;
-	ofs->layers = kcalloc(numlower + 1, sizeof(struct ovl_layer),
-			      GFP_KERNEL);
-	if (ofs->layers == NULL)
+	layers = kcalloc(numlower + 1, sizeof(struct ovl_layer), GFP_KERNEL);
+	if (!layers)
 		goto out;
+	ofs->layers = layers;
 
 	ofs->fs = kcalloc(numlower + 1, sizeof(struct ovl_sb), GFP_KERNEL);
 	if (ofs->fs == NULL)
@@ -1334,9 +1335,9 @@ static int ovl_get_layers(struct super_block *sb, struct ovl_fs *ofs,
 	/* idx/fsid 0 are reserved for upper fs even with lower only overlay */
 	ofs->numfs++;
 
-	ofs->layers[0].mnt = ofs->upper_mnt;
-	ofs->layers[0].idx = 0;
-	ofs->layers[0].fsid = 0;
+	layers[0].mnt = ofs->upper_mnt;
+	layers[0].idx = 0;
+	layers[0].fsid = 0;
 	ofs->numlayer = 1;
 
 	/*
@@ -1389,11 +1390,11 @@ static int ovl_get_layers(struct super_block *sb, struct ovl_fs *ofs,
 		 */
 		mnt->mnt_flags |= MNT_READONLY | MNT_NOATIME;
 
-		ofs->layers[ofs->numlayer].trap = trap;
-		ofs->layers[ofs->numlayer].mnt = mnt;
-		ofs->layers[ofs->numlayer].idx = ofs->numlayer;
-		ofs->layers[ofs->numlayer].fsid = fsid;
-		ofs->layers[ofs->numlayer].fs = &ofs->fs[fsid];
+		layers[ofs->numlayer].trap = trap;
+		layers[ofs->numlayer].mnt = mnt;
+		layers[ofs->numlayer].idx = ofs->numlayer;
+		layers[ofs->numlayer].fsid = fsid;
+		layers[ofs->numlayer].fs = &ofs->fs[fsid];
 		ofs->numlayer++;
 		ofs->fs[fsid].is_lower = true;
 	}
