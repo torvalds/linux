@@ -386,6 +386,8 @@ struct tcp_sock {
 #define BPF_SOCK_OPS_TEST_FLAG(TP, ARG) 0
 #endif
 
+	u16 timeout_rehash;	/* Timeout-triggered rehash attempts */
+
 	u32 rcv_ooopack; /* Received out-of-order packets, for tcpinfo */
 
 /* Receiver side RTT estimation */
