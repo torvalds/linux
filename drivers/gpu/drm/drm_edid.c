@@ -2218,6 +2218,11 @@ static bool is_display_descriptor(const u8 d[18], u8 tag)
 		d[2] == 0x00 && d[3] == tag;
 }
 
+static bool is_detailed_timing_descriptor(const u8 d[18])
+{
+	return d[0] != 0x00 || d[1] != 0x00;
+}
+
 typedef void detailed_cb(struct detailed_timing *timing, void *closure);
 
 static void
@@ -3117,27 +3122,28 @@ do_detailed_mode(struct detailed_timing *timing, void *c)
 	struct detailed_mode_closure *closure = c;
 	struct drm_display_mode *newmode;
 
-	if (timing->pixel_clock) {
-		newmode = drm_mode_detailed(closure->connector->dev,
-					    closure->edid, timing,
-					    closure->quirks);
-		if (!newmode)
-			return;
+	if (!is_detailed_timing_descriptor((const u8 *)timing))
+		return;
 
-		if (closure->preferred)
-			newmode->type |= DRM_MODE_TYPE_PREFERRED;
+	newmode = drm_mode_detailed(closure->connector->dev,
+				    closure->edid, timing,
+				    closure->quirks);
+	if (!newmode)
+		return;
 
-		/*
-		 * Detailed modes are limited to 10kHz pixel clock resolution,
-		 * so fix up anything that looks like CEA/HDMI mode, but the clock
-		 * is just slightly off.
-		 */
-		fixup_detailed_cea_mode_clock(newmode);
+	if (closure->preferred)
+		newmode->type |= DRM_MODE_TYPE_PREFERRED;
 
-		drm_mode_probed_add(closure->connector, newmode);
-		closure->modes++;
-		closure->preferred = false;
-	}
+	/*
+	 * Detailed modes are limited to 10kHz pixel clock resolution,
+	 * so fix up anything that looks like CEA/HDMI mode, but the clock
+	 * is just slightly off.
+	 */
+	fixup_detailed_cea_mode_clock(newmode);
+
+	drm_mode_probed_add(closure->connector, newmode);
+	closure->modes++;
+	closure->preferred = false;
 }
 
 /*
