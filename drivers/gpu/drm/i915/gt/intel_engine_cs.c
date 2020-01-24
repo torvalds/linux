@@ -408,6 +408,7 @@ void intel_engines_release(struct intel_gt *gt)
 
 	/* Decouple the backend; but keep the layout for late GPU resets */
 	for_each_engine(engine, gt, id) {
+		intel_wakeref_wait_for_idle(&engine->wakeref);
 		GEM_BUG_ON(intel_engine_pm_is_awake(engine));
 
 		if (!engine->release)
