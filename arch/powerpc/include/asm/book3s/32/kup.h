@@ -153,6 +153,29 @@ static __always_inline void prevent_user_access(void __user *to, const void __us
 	kuap_update_sr(mfsrin(addr) | SR_KS, addr, end);	/* set Ks */
 }
 
+static inline unsigned long prevent_user_access_return(void)
+{
+	unsigned long flags = current->thread.kuap;
+	unsigned long addr = flags & 0xf0000000;
+	unsigned long end = flags << 28;
+	void __user *to = (__force void __user *)addr;
+
+	if (flags)
+		prevent_user_access(to, to, end - addr, KUAP_READ_WRITE);
+
+	return flags;
+}
+
+static inline void restore_user_access(unsigned long flags)
+{
+	unsigned long addr = flags & 0xf0000000;
+	unsigned long end = flags << 28;
+	void __user *to = (__force void __user *)addr;
+
+	if (flags)
+		allow_user_access(to, to, end - addr, KUAP_READ_WRITE);
+}
+
 static inline bool
 bad_kuap_fault(struct pt_regs *regs, unsigned long address, bool is_write)
 {

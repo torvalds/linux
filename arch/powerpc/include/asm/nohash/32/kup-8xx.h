@@ -46,6 +46,20 @@ static inline void prevent_user_access(void __user *to, const void __user *from,
 	mtspr(SPRN_MD_AP, MD_APG_KUAP);
 }
 
+static inline unsigned long prevent_user_access_return(void)
+{
+	unsigned long flags = mfspr(SPRN_MD_AP);
+
+	mtspr(SPRN_MD_AP, MD_APG_KUAP);
+
+	return flags;
+}
+
+static inline void restore_user_access(unsigned long flags)
+{
+	mtspr(SPRN_MD_AP, flags);
+}
+
 static inline bool
 bad_kuap_fault(struct pt_regs *regs, unsigned long address, bool is_write)
 {

@@ -465,9 +465,8 @@ static __must_check inline bool user_access_begin(const void __user *ptr, size_t
 }
 #define user_access_begin	user_access_begin
 #define user_access_end		prevent_current_access_user
-
-static inline unsigned long user_access_save(void) { return 0UL; }
-static inline void user_access_restore(unsigned long flags) { }
+#define user_access_save	prevent_user_access_return
+#define user_access_restore	restore_user_access
 
 #define unsafe_op_wrap(op, err) do { if (unlikely(op)) goto err; } while (0)
 #define unsafe_get_user(x, p, e) unsafe_op_wrap(__get_user_allowed(x, p), e)
