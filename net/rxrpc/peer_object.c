@@ -349,7 +349,7 @@ struct rxrpc_peer *rxrpc_lookup_peer(struct rxrpc_sock *rx,
 			return NULL;
 		}
 
-		spin_lock_bh(&rxnet->peer_hash_lock);
+		spin_lock(&rxnet->peer_hash_lock);
 
 		/* Need to check that we aren't racing with someone else */
 		peer = __rxrpc_lookup_peer_rcu(local, srx, hash_key);
@@ -362,7 +362,7 @@ struct rxrpc_peer *rxrpc_lookup_peer(struct rxrpc_sock *rx,
 				      &rxnet->peer_keepalive_new);
 		}
 
-		spin_unlock_bh(&rxnet->peer_hash_lock);
+		spin_unlock(&rxnet->peer_hash_lock);
 
 		if (peer)
 			rxrpc_free_peer(candidate);
@@ -412,10 +412,10 @@ static void __rxrpc_put_peer(struct rxrpc_peer *peer)
 
 	ASSERT(hlist_empty(&peer->error_targets));
 
-	spin_lock_bh(&rxnet->peer_hash_lock);
+	spin_lock(&rxnet->peer_hash_lock);
 	hash_del_rcu(&peer->hash_link);
 	list_del_init(&peer->keepalive_link);
-	spin_unlock_bh(&rxnet->peer_hash_lock);
+	spin_unlock(&rxnet->peer_hash_lock);
 
 	rxrpc_free_peer(peer);
 }

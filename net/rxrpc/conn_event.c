@@ -198,9 +198,9 @@ static int rxrpc_abort_connection(struct rxrpc_connection *conn,
 	_enter("%d,,%u,%u", conn->debug_id, error, abort_code);
 
 	/* generate a connection-level abort */
-	spin_lock_bh(&conn->state_lock);
+	spin_lock(&conn->state_lock);
 	if (conn->state >= RXRPC_CONN_REMOTELY_ABORTED) {
-		spin_unlock_bh(&conn->state_lock);
+		spin_unlock(&conn->state_lock);
 		_leave(" = 0 [already dead]");
 		return 0;
 	}
@@ -209,7 +209,7 @@ static int rxrpc_abort_connection(struct rxrpc_connection *conn,
 	conn->abort_code = abort_code;
 	conn->state = RXRPC_CONN_LOCALLY_ABORTED;
 	set_bit(RXRPC_CONN_DONT_REUSE, &conn->flags);
-	spin_unlock_bh(&conn->state_lock);
+	spin_unlock(&conn->state_lock);
 
 	msg.msg_name	= &conn->peer->srx.transport;
 	msg.msg_namelen	= conn->peer->srx.transport_len;
@@ -265,12 +265,12 @@ static void rxrpc_call_is_secure(struct rxrpc_call *call)
 {
 	_enter("%p", call);
 	if (call) {
-		write_lock_bh(&call->state_lock);
+		write_lock(&call->state_lock);
 		if (call->state == RXRPC_CALL_SERVER_SECURING) {
 			call->state = RXRPC_CALL_SERVER_RECV_REQUEST;
 			rxrpc_notify_socket(call);
 		}
-		write_unlock_bh(&call->state_lock);
+		write_unlock(&call->state_lock);
 	}
 }
 
@@ -325,18 +325,18 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 			return ret;
 
 		spin_lock(&conn->bundle->channel_lock);
-		spin_lock_bh(&conn->state_lock);
+		spin_lock(&conn->state_lock);
 
 		if (conn->state == RXRPC_CONN_SERVICE_CHALLENGING) {
 			conn->state = RXRPC_CONN_SERVICE;
-			spin_unlock_bh(&conn->state_lock);
+			spin_unlock(&conn->state_lock);
 			for (loop = 0; loop < RXRPC_MAXCALLS; loop++)
 				rxrpc_call_is_secure(
 					rcu_dereference_protected(
 						conn->channels[loop].call,
 						lockdep_is_held(&conn->bundle->channel_lock)));
 		} else {
-			spin_unlock_bh(&conn->state_lock);
+			spin_unlock(&conn->state_lock);
 		}
 
 		spin_unlock(&conn->bundle->channel_lock);

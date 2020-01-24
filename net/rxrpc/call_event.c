@@ -101,9 +101,9 @@ void rxrpc_send_ACK(struct rxrpc_call *call, u8 ack_reason,
 		return;
 	}
 
-	spin_lock_bh(&local->ack_tx_lock);
+	spin_lock(&local->ack_tx_lock);
 	list_add_tail(&txb->tx_link, &local->ack_tx_queue);
-	spin_unlock_bh(&local->ack_tx_lock);
+	spin_unlock(&local->ack_tx_lock);
 	trace_rxrpc_send_ack(call, why, ack_reason, serial);
 
 	rxrpc_wake_up_io_thread(local);

@@ -73,7 +73,7 @@ static void rxrpc_publish_service_conn(struct rxrpc_peer *peer,
 	struct rxrpc_conn_proto k = conn->proto;
 	struct rb_node **pp, *parent;
 
-	write_seqlock_bh(&peer->service_conn_lock);
+	write_seqlock(&peer->service_conn_lock);
 
 	pp = &peer->service_conns.rb_node;
 	parent = NULL;
@@ -94,14 +94,14 @@ static void rxrpc_publish_service_conn(struct rxrpc_peer *peer,
 	rb_insert_color(&conn->service_node, &peer->service_conns);
 conn_published:
 	set_bit(RXRPC_CONN_IN_SERVICE_CONNS, &conn->flags);
-	write_sequnlock_bh(&peer->service_conn_lock);
+	write_sequnlock(&peer->service_conn_lock);
 	_leave(" = %d [new]", conn->debug_id);
 	return;
 
 found_extant_conn:
 	if (refcount_read(&cursor->ref) == 0)
 		goto replace_old_connection;
-	write_sequnlock_bh(&peer->service_conn_lock);
+	write_sequnlock(&peer->service_conn_lock);
 	/* We should not be able to get here.  rxrpc_incoming_connection() is
 	 * called in a non-reentrant context, so there can't be a race to
 	 * insert a new connection.
@@ -195,8 +195,8 @@ void rxrpc_unpublish_service_conn(struct rxrpc_connection *conn)
 {
 	struct rxrpc_peer *peer = conn->peer;
 
-	write_seqlock_bh(&peer->service_conn_lock);
+	write_seqlock(&peer->service_conn_lock);
 	if (test_and_clear_bit(RXRPC_CONN_IN_SERVICE_CONNS, &conn->flags))
 		rb_erase(&conn->service_node, &peer->service_conns);
-	write_sequnlock_bh(&peer->service_conn_lock);
+	write_sequnlock(&peer->service_conn_lock);
 }

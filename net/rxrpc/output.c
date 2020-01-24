@@ -286,9 +286,9 @@ void rxrpc_transmit_ack_packets(struct rxrpc_local *local)
 	if (list_empty(&local->ack_tx_queue))
 		return;
 
-	spin_lock_bh(&local->ack_tx_lock);
+	spin_lock(&local->ack_tx_lock);
 	list_splice_tail_init(&local->ack_tx_queue, &queue);
-	spin_unlock_bh(&local->ack_tx_lock);
+	spin_unlock(&local->ack_tx_lock);
 
 	while (!list_empty(&queue)) {
 		struct rxrpc_txbuf *txb =
@@ -296,9 +296,9 @@ void rxrpc_transmit_ack_packets(struct rxrpc_local *local)
 
 		ret = rxrpc_send_ack_packet(local, txb);
 		if (ret < 0 && ret != -ECONNRESET) {
-			spin_lock_bh(&local->ack_tx_lock);
+			spin_lock(&local->ack_tx_lock);
 			list_splice_init(&queue, &local->ack_tx_queue);
-			spin_unlock_bh(&local->ack_tx_lock);
+			spin_unlock(&local->ack_tx_lock);
 			break;
 		}
 

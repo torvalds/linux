@@ -36,16 +36,16 @@ void rxrpc_notify_socket(struct rxrpc_call *call)
 	sk = &rx->sk;
 	if (rx && sk->sk_state < RXRPC_CLOSE) {
 		if (call->notify_rx) {
-			spin_lock_bh(&call->notify_lock);
+			spin_lock(&call->notify_lock);
 			call->notify_rx(sk, call, call->user_call_ID);
-			spin_unlock_bh(&call->notify_lock);
+			spin_unlock(&call->notify_lock);
 		} else {
-			write_lock_bh(&rx->recvmsg_lock);
+			write_lock(&rx->recvmsg_lock);
 			if (list_empty(&call->recvmsg_link)) {
 				rxrpc_get_call(call, rxrpc_call_get_notify_socket);
 				list_add_tail(&call->recvmsg_link, &rx->recvmsg_q);
 			}
-			write_unlock_bh(&rx->recvmsg_lock);
+			write_unlock(&rx->recvmsg_lock);
 
 			if (!sock_flag(sk, SOCK_DEAD)) {
 				_debug("call %ps", sk->sk_data_ready);
@@ -87,9 +87,9 @@ bool rxrpc_set_call_completion(struct rxrpc_call *call,
 	bool ret = false;
 
 	if (call->state < RXRPC_CALL_COMPLETE) {
-		write_lock_bh(&call->state_lock);
+		write_lock(&call->state_lock);
 		ret = __rxrpc_set_call_completion(call, compl, abort_code, error);
-		write_unlock_bh(&call->state_lock);
+		write_unlock(&call->state_lock);
 	}
 	return ret;
 }
@@ -107,9 +107,9 @@ bool rxrpc_call_completed(struct rxrpc_call *call)
 	bool ret = false;
 
 	if (call->state < RXRPC_CALL_COMPLETE) {
-		write_lock_bh(&call->state_lock);
+		write_lock(&call->state_lock);
 		ret = __rxrpc_call_completed(call);
-		write_unlock_bh(&call->state_lock);
+		write_unlock(&call->state_lock);
 	}
 	return ret;
 }
@@ -131,9 +131,9 @@ bool rxrpc_abort_call(const char *why, struct rxrpc_call *call,
 {
 	bool ret;
 
-	write_lock_bh(&call->state_lock);
+	write_lock(&call->state_lock);
 	ret = __rxrpc_abort_call(why, call, seq, abort_code, error);
-	write_unlock_bh(&call->state_lock);
+	write_unlock(&call->state_lock);
 	return ret;
 }
 
@@ -193,23 +193,23 @@ static void rxrpc_end_rx_phase(struct rxrpc_call *call, rxrpc_serial_t serial)
 	if (call->state == RXRPC_CALL_CLIENT_RECV_REPLY)
 		rxrpc_propose_delay_ACK(call, serial, rxrpc_propose_ack_terminal_ack);
 
-	write_lock_bh(&call->state_lock);
+	write_lock(&call->state_lock);
 
 	switch (call->state) {
 	case RXRPC_CALL_CLIENT_RECV_REPLY:
 		__rxrpc_call_completed(call);
-		write_unlock_bh(&call->state_lock);
+		write_unlock(&call->state_lock);
 		break;
 
 	case RXRPC_CALL_SERVER_RECV_REQUEST:
 		call->state = RXRPC_CALL_SERVER_ACK_REQUEST;
 		call->expect_req_by = jiffies + MAX_JIFFY_OFFSET;
-		write_unlock_bh(&call->state_lock);
+		write_unlock(&call->state_lock);
 		rxrpc_propose_delay_ACK(call, serial,
 					rxrpc_propose_ack_processing_op);
 		break;
 	default:
-		write_unlock_bh(&call->state_lock);
+		write_unlock(&call->state_lock);
 		break;
 	}
 }
@@ -442,14 +442,14 @@ try_again:
 	/* Find the next call and dequeue it if we're not just peeking.  If we
 	 * do dequeue it, that comes with a ref that we will need to release.
 	 */
-	write_lock_bh(&rx->recvmsg_lock);
+	write_lock(&rx->recvmsg_lock);
 	l = rx->recvmsg_q.next;
 	call = list_entry(l, struct rxrpc_call, recvmsg_link);
 	if (!(flags & MSG_PEEK))
 		list_del_init(&call->recvmsg_link);
 	else
 		rxrpc_get_call(call, rxrpc_call_get_recvmsg);
-	write_unlock_bh(&rx->recvmsg_lock);
+	write_unlock(&rx->recvmsg_lock);
 
 	trace_rxrpc_recvmsg(call, rxrpc_recvmsg_dequeue, 0);
 
@@ -538,9 +538,9 @@ error_unlock_call:
 
 error_requeue_call:
 	if (!(flags & MSG_PEEK)) {
-		write_lock_bh(&rx->recvmsg_lock);
+		write_lock(&rx->recvmsg_lock);
 		list_add(&call->recvmsg_link, &rx->recvmsg_q);
-		write_unlock_bh(&rx->recvmsg_lock);
+		write_unlock(&rx->recvmsg_lock);
 		trace_rxrpc_recvmsg(call, rxrpc_recvmsg_requeue, 0);
 	} else {
 		rxrpc_put_call(call, rxrpc_call_put_recvmsg);

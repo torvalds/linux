@@ -669,10 +669,10 @@ static void rxrpc_input_ackinfo(struct rxrpc_call *call, struct sk_buff *skb,
 
 	peer = call->peer;
 	if (mtu < peer->maxdata) {
-		spin_lock_bh(&peer->lock);
+		spin_lock(&peer->lock);
 		peer->maxdata = mtu;
 		peer->mtu = mtu + peer->hdrsize;
-		spin_unlock_bh(&peer->lock);
+		spin_unlock(&peer->lock);
 	}
 
 	if (wake)

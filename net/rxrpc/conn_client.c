@@ -557,9 +557,9 @@ static void rxrpc_activate_one_channel(struct rxrpc_connection *conn,
 
 	trace_rxrpc_connect_call(call);
 
-	write_lock_bh(&call->state_lock);
+	write_lock(&call->state_lock);
 	call->state = RXRPC_CALL_CLIENT_SEND_REQUEST;
-	write_unlock_bh(&call->state_lock);
+	write_unlock(&call->state_lock);
 
 	/* Paired with the read barrier in rxrpc_connect_call().  This orders
 	 * cid and epoch in the connection wrt to call_id without the need to

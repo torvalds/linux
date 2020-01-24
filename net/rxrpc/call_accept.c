@@ -138,9 +138,9 @@ static int rxrpc_service_prealloc_one(struct rxrpc_sock *rx,
 	write_unlock(&rx->call_lock);
 
 	rxnet = call->rxnet;
-	spin_lock_bh(&rxnet->call_lock);
+	spin_lock(&rxnet->call_lock);
 	list_add_tail_rcu(&call->link, &rxnet->calls);
-	spin_unlock_bh(&rxnet->call_lock);
+	spin_unlock(&rxnet->call_lock);
 
 	b->call_backlog[call_head] = call;
 	smp_store_release(&b->call_backlog_head, (call_head + 1) & (size - 1));
@@ -188,8 +188,8 @@ void rxrpc_discard_prealloc(struct rxrpc_sock *rx)
 	/* Make sure that there aren't any incoming calls in progress before we
 	 * clear the preallocation buffers.
 	 */
-	spin_lock_bh(&rx->incoming_lock);
-	spin_unlock_bh(&rx->incoming_lock);
+	spin_lock(&rx->incoming_lock);
+	spin_unlock(&rx->incoming_lock);
 
 	head = b->peer_backlog_head;
 	tail = b->peer_backlog_tail;
