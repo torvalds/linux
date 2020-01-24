@@ -635,8 +635,6 @@ static void pulse8_cec_adap_free(struct cec_adapter *adap)
 	cancel_delayed_work_sync(&pulse8->ping_eeprom_work);
 	cancel_work_sync(&pulse8->irq_work);
 	cancel_work_sync(&pulse8->tx_work);
-	serio_close(pulse8->serio);
-	serio_set_drvdata(pulse8->serio, NULL);
 	kfree(pulse8);
 }
 
@@ -652,6 +650,9 @@ static void pulse8_disconnect(struct serio *serio)
 	struct pulse8 *pulse8 = serio_get_drvdata(serio);
 
 	cec_unregister_adapter(pulse8->adap);
+	pulse8->serio = NULL;
+	serio_set_drvdata(serio, NULL);
+	serio_close(serio);
 }
 
 static int pulse8_setup(struct pulse8 *pulse8, struct serio *serio,
@@ -872,10 +873,11 @@ static int pulse8_connect(struct serio *serio, struct serio_driver *drv)
 	return 0;
 
 close_serio:
+	pulse8->serio = NULL;
+	serio_set_drvdata(serio, NULL);
 	serio_close(serio);
 delete_adap:
 	cec_delete_adapter(pulse8->adap);
-	serio_set_drvdata(serio, NULL);
 free_device:
 	kfree(pulse8);
 	return err;
