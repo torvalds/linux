@@ -194,10 +194,9 @@ struct xfs_buf *xfs_buf_incore(struct xfs_buftarg *target,
 
 int xfs_buf_get_map(struct xfs_buftarg *target, struct xfs_buf_map *map,
 		int nmaps, xfs_buf_flags_t flags, struct xfs_buf **bpp);
-struct xfs_buf *xfs_buf_read_map(struct xfs_buftarg *target,
-			       struct xfs_buf_map *map, int nmaps,
-			       xfs_buf_flags_t flags,
-			       const struct xfs_buf_ops *ops);
+int xfs_buf_read_map(struct xfs_buftarg *target, struct xfs_buf_map *map,
+		int nmaps, xfs_buf_flags_t flags, struct xfs_buf **bpp,
+		const struct xfs_buf_ops *ops);
 void xfs_buf_readahead_map(struct xfs_buftarg *target,
 			       struct xfs_buf_map *map, int nmaps,
 			       const struct xfs_buf_ops *ops);
@@ -226,8 +225,14 @@ xfs_buf_read(
 	xfs_buf_flags_t		flags,
 	const struct xfs_buf_ops *ops)
 {
+	struct xfs_buf		*bp;
+	int			error;
 	DEFINE_SINGLE_BUF_MAP(map, blkno, numblks);
-	return xfs_buf_read_map(target, &map, 1, flags, ops);
+
+	error = xfs_buf_read_map(target, &map, 1, flags, &bp, ops);
+	if (error)
+		return NULL;
+	return bp;
 }
 
 static inline void

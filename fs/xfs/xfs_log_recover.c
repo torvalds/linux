@@ -2749,11 +2749,6 @@ xlog_recover_buffer_pass2(
 			  buf_flags, NULL);
 	if (!bp)
 		return -ENOMEM;
-	error = bp->b_error;
-	if (error) {
-		xfs_buf_ioerror_alert(bp, "xlog_recover_do..(read#1)");
-		goto out_release;
-	}
 
 	/*
 	 * Recover the buffer only if we get an LSN from it and it's less than
@@ -2955,11 +2950,6 @@ xlog_recover_inode_pass2(
 	if (!bp) {
 		error = -ENOMEM;
 		goto error;
-	}
-	error = bp->b_error;
-	if (error) {
-		xfs_buf_ioerror_alert(bp, "xlog_recover_do..(read#2)");
-		goto out_release;
 	}
 	ASSERT(in_f->ilf_fields & XFS_ILOG_CORE);
 	dip = xfs_buf_offset(bp, in_f->ilf_boffset);
