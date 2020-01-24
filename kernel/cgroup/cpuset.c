@@ -3101,7 +3101,7 @@ update_tasks:
 }
 
 /**
- * cpuset_hotplug_workfn - handle CPU/memory hotunplug for a cpuset
+ * cpuset_hotplug - handle CPU/memory hotunplug for a cpuset
  *
  * This function is called after either CPU or memory configuration has
  * changed and updates cpuset accordingly.  The top_cpuset is always
@@ -3116,7 +3116,7 @@ update_tasks:
  * Note that CPU offlining during suspend is ignored.  We don't modify
  * cpusets across suspend/resume cycles at all.
  */
-static void cpuset_hotplug_workfn(struct work_struct *work)
+static void cpuset_hotplug(bool use_cpu_hp_lock)
 {
 	static cpumask_t new_cpus;
 	static nodemask_t new_mems;
@@ -3201,25 +3201,32 @@ static void cpuset_hotplug_workfn(struct work_struct *work)
 	/* rebuild sched domains if cpus_allowed has changed */
 	if (cpus_updated || force_rebuild) {
 		force_rebuild = false;
-		rebuild_sched_domains();
+		if (use_cpu_hp_lock)
+			rebuild_sched_domains();
+		else {
+			/* Acquiring cpu_hotplug_lock is not required.
+			 * When cpuset_hotplug() is called in hotplug path,
+			 * cpu_hotplug_lock is held by the hotplug context
+			 * which is waiting for cpuhp_thread_fun to indicate
+			 * completion of callback.
+			*/
+			percpu_down_write(&cpuset_rwsem);
+			rebuild_sched_domains_locked();
+			percpu_up_write(&cpuset_rwsem);
+		}
 	}
 
 	free_cpumasks(NULL, ptmp);
 }
 
-void cpuset_update_active_cpus(void)
+static void cpuset_hotplug_workfn(struct work_struct *work)
 {
-	/*
-	 * We're inside cpu hotplug critical region which usually nests
-	 * inside cgroup synchronization.  Bounce actual hotplug processing
-	 * to a work item to avoid reverse locking order.
-	 */
-	schedule_work(&cpuset_hotplug_work);
+	cpuset_hotplug(true);
 }
 
-void cpuset_wait_for_hotplug(void)
+void cpuset_update_active_cpus(void)
 {
-	flush_work(&cpuset_hotplug_work);
+	cpuset_hotplug(false);
 }
 
 /*
