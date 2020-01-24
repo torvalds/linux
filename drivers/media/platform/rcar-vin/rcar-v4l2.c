@@ -842,7 +842,7 @@ static int rvin_open(struct file *file)
 		goto err_unlock;
 
 	if (vin->info->use_mc)
-		ret = v4l2_pipeline_pm_use(&vin->vdev.entity, 1);
+		ret = v4l2_pipeline_pm_get(&vin->vdev.entity);
 	else if (v4l2_fh_is_singular_file(file))
 		ret = rvin_power_parallel(vin, true);
 
@@ -858,7 +858,7 @@ static int rvin_open(struct file *file)
 	return 0;
 err_power:
 	if (vin->info->use_mc)
-		v4l2_pipeline_pm_use(&vin->vdev.entity, 0);
+		v4l2_pipeline_pm_put(&vin->vdev.entity);
 	else if (v4l2_fh_is_singular_file(file))
 		rvin_power_parallel(vin, false);
 err_open:
@@ -886,7 +886,7 @@ static int rvin_release(struct file *file)
 	ret = _vb2_fop_release(file, NULL);
 
 	if (vin->info->use_mc) {
-		v4l2_pipeline_pm_use(&vin->vdev.entity, 0);
+		v4l2_pipeline_pm_put(&vin->vdev.entity);
 	} else {
 		if (fh_singular)
 			rvin_power_parallel(vin, false);

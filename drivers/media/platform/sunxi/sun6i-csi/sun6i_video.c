@@ -474,7 +474,7 @@ static int sun6i_video_open(struct file *file)
 	if (ret < 0)
 		goto unlock;
 
-	ret = v4l2_pipeline_pm_use(&video->vdev.entity, 1);
+	ret = v4l2_pipeline_pm_get(&video->vdev.entity);
 	if (ret < 0)
 		goto fh_release;
 
@@ -507,7 +507,7 @@ static int sun6i_video_close(struct file *file)
 
 	_vb2_fop_release(file, NULL);
 
-	v4l2_pipeline_pm_use(&video->vdev.entity, 0);
+	v4l2_pipeline_pm_put(&video->vdev.entity);
 
 	if (last_fh)
 		sun6i_csi_set_power(video->csi, false);

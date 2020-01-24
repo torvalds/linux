@@ -643,7 +643,7 @@ static int capture_open(struct file *file)
 	if (ret)
 		v4l2_err(priv->src_sd, "v4l2_fh_open failed\n");
 
-	ret = v4l2_pipeline_pm_use(&vfd->entity, 1);
+	ret = v4l2_pipeline_pm_get(&vfd->entity);
 	if (ret)
 		v4l2_fh_release(file);
 
@@ -664,7 +664,7 @@ static int capture_release(struct file *file)
 		vq->owner = NULL;
 	}
 
-	v4l2_pipeline_pm_use(&vfd->entity, 0);
+	v4l2_pipeline_pm_put(&vfd->entity);
 
 	v4l2_fh_release(file);
 	mutex_unlock(&priv->mutex);

@@ -745,7 +745,7 @@ static int video_open(struct file *file)
 
 	file->private_data = vfh;
 
-	ret = v4l2_pipeline_pm_use(&vdev->entity, 1);
+	ret = v4l2_pipeline_pm_get(&vdev->entity);
 	if (ret < 0) {
 		dev_err(video->camss->dev, "Failed to power up pipeline: %d\n",
 			ret);
@@ -771,7 +771,7 @@ static int video_release(struct file *file)
 
 	vb2_fop_release(file);
 
-	v4l2_pipeline_pm_use(&vdev->entity, 0);
+	v4l2_pipeline_pm_put(&vdev->entity);
 
 	file->private_data = NULL;
 

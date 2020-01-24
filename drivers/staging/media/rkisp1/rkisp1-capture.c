@@ -937,10 +937,7 @@ static void rkisp1_vb2_stop_streaming(struct vb2_queue *queue)
 
 	rkisp1_return_all_buffers(cap, VB2_BUF_STATE_ERROR);
 
-	ret = v4l2_pipeline_pm_use(&node->vdev.entity, 0);
-	if (ret)
-		dev_err(rkisp1->dev, "pipeline close failed error:%d\n", ret);
-
+	v4l2_pipeline_pm_put(&node->vdev.entity);
 	ret = pm_runtime_put(rkisp1->dev);
 	if (ret)
 		dev_err(rkisp1->dev, "power down failed error:%d\n", ret);
@@ -999,7 +996,7 @@ rkisp1_vb2_start_streaming(struct vb2_queue *queue, unsigned int count)
 		dev_err(cap->rkisp1->dev, "power up failed %d\n", ret);
 		goto err_destroy_dummy;
 	}
-	ret = v4l2_pipeline_pm_use(entity, 1);
+	ret = v4l2_pipeline_pm_get(entity);
 	if (ret) {
 		dev_err(cap->rkisp1->dev, "open cif pipeline failed %d\n", ret);
 		goto err_pipe_pm_put;
@@ -1025,7 +1022,7 @@ err_pipe_disable:
 	rkisp1_pipeline_sink_walk(entity, NULL, rkisp1_pipeline_disable_cb);
 err_stop_stream:
 	rkisp1_stream_stop(cap);
-	v4l2_pipeline_pm_use(entity, 0);
+	v4l2_pipeline_pm_put(entity);
 err_pipe_pm_put:
 	pm_runtime_put(cap->rkisp1->dev);
 err_destroy_dummy:
