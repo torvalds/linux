@@ -6071,7 +6071,8 @@ int skl_update_scaler_crtc(struct intel_crtc_state *state)
 	const struct drm_display_mode *adjusted_mode = &state->hw.adjusted_mode;
 	bool need_scaler = false;
 
-	if (state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420)
+	if (state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420 ||
+	    state->pch_pfit.enabled)
 		need_scaler = true;
 
 	return skl_update_scaler(state, !state->hw.active, SKL_CRTC_INDEX,
