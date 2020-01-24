@@ -2681,6 +2681,10 @@ static int btrfs_ioctl_get_subvol_info(struct file *file, void __user *argp)
 	root = btrfs_get_fs_root(fs_info, &key, true);
 	if (IS_ERR(root)) {
 		ret = PTR_ERR(root);
+		goto out_free;
+	}
+	if (!btrfs_grab_fs_root(root)) {
+		ret = -ENOENT;
 		goto out;
 	}
 	root_item = &root->root_item;
@@ -2714,16 +2718,14 @@ static int btrfs_ioctl_get_subvol_info(struct file *file, void __user *argp)
 
 	if (key.objectid != BTRFS_FS_TREE_OBJECTID) {
 		/* Search root tree for ROOT_BACKREF of this subvolume */
-		root = fs_info->tree_root;
-
 		key.type = BTRFS_ROOT_BACKREF_KEY;
 		key.offset = 0;
-		ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
+		ret = btrfs_search_slot(NULL, fs_info->tree_root, &key, path, 0, 0);
 		if (ret < 0) {
 			goto out;
 		} else if (path->slots[0] >=
 			   btrfs_header_nritems(path->nodes[0])) {
-			ret = btrfs_next_leaf(root, path);
+			ret = btrfs_next_leaf(fs_info->tree_root, path);
 			if (ret < 0) {
 				goto out;
 			} else if (ret > 0) {
@@ -2758,6 +2760,8 @@ static int btrfs_ioctl_get_subvol_info(struct file *file, void __user *argp)
 		ret = -EFAULT;
 
 out:
+	btrfs_put_fs_root(root);
+out_free:
 	btrfs_free_path(path);
 	kzfree(subvol_info);
 	return ret;
