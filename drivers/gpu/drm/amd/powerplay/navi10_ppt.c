@@ -949,6 +949,8 @@ static int navi10_get_clock_by_type_with_latency(struct smu_context *smu,
 	case SMU_GFXCLK:
 	case SMU_DCEFCLK:
 	case SMU_SOCCLK:
+	case SMU_MCLK:
+	case SMU_UCLK:
 		ret = smu_get_dpm_level_count(smu, clk_type, &level_count);
 		if (ret)
 			return ret;
