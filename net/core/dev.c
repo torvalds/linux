@@ -1764,7 +1764,6 @@ EXPORT_SYMBOL(register_netdevice_notifier);
 
 int unregister_netdevice_notifier(struct notifier_block *nb)
 {
-	struct net_device *dev;
 	struct net *net;
 	int err;
 
@@ -1775,16 +1774,9 @@ int unregister_netdevice_notifier(struct notifier_block *nb)
 	if (err)
 		goto unlock;
 
-	for_each_net(net) {
-		for_each_netdev(net, dev) {
-			if (dev->flags & IFF_UP) {
-				call_netdevice_notifier(nb, NETDEV_GOING_DOWN,
-							dev);
-				call_netdevice_notifier(nb, NETDEV_DOWN, dev);
-			}
-			call_netdevice_notifier(nb, NETDEV_UNREGISTER, dev);
-		}
-	}
+	for_each_net(net)
+		call_netdevice_unregister_net_notifiers(nb, net);
+
 unlock:
 	rtnl_unlock();
 	up_write(&pernet_ops_rwsem);
