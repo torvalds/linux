@@ -113,7 +113,7 @@ static void bpf_dispatcher_update(struct bpf_dispatcher *d, int prev_num_progs)
 		noff = 0;
 	} else {
 		old = d->image + d->image_off;
-		noff = d->image_off ^ (PAGE_SIZE / 2);
+		noff = d->image_off ^ (BPF_IMAGE_SIZE / 2);
 	}
 
 	new = d->num_progs ? d->image + noff : NULL;
@@ -140,7 +140,7 @@ void bpf_dispatcher_change_prog(struct bpf_dispatcher *d, struct bpf_prog *from,
 
 	mutex_lock(&d->mutex);
 	if (!d->image) {
-		d->image = bpf_jit_alloc_exec_page();
+		d->image = bpf_image_alloc();
 		if (!d->image)
 			goto out;
 	}
