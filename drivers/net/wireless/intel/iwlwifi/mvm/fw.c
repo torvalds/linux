@@ -841,9 +841,13 @@ int iwl_mvm_ppag_send_cmd(struct iwl_mvm *mvm)
 		return 0;
 	}
 
+	if (!mvm->fwrt.ppag_table.enabled) {
+		IWL_DEBUG_RADIO(mvm,
+				"PPAG not enabled, command not sent.\n");
+		return 0;
+	}
+
 	IWL_DEBUG_RADIO(mvm, "Sending PER_PLATFORM_ANT_GAIN_CMD\n");
-	IWL_DEBUG_RADIO(mvm, "PPAG is %s\n",
-			mvm->fwrt.ppag_table.enabled ? "enabled" : "disabled");
 
 	for (i = 0; i < ACPI_PPAG_NUM_CHAINS; i++) {
 		for (j = 0; j < ACPI_PPAG_NUM_SUB_BANDS; j++) {
