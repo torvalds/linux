@@ -3373,94 +3373,6 @@ static const struct file_operations force_bredr_smp_fops = {
 	.llseek		= default_llseek,
 };
 
-static ssize_t le_min_key_size_read(struct file *file,
-				     char __user *user_buf,
-				     size_t count, loff_t *ppos)
-{
-	struct hci_dev *hdev = file->private_data;
-	char buf[4];
-
-	snprintf(buf, sizeof(buf), "%2u\n", hdev->le_min_key_size);
-
-	return simple_read_from_buffer(user_buf, count, ppos, buf, strlen(buf));
-}
-
-static ssize_t le_min_key_size_write(struct file *file,
-				      const char __user *user_buf,
-				      size_t count, loff_t *ppos)
-{
-	struct hci_dev *hdev = file->private_data;
-	char buf[32];
-	size_t buf_size = min(count, (sizeof(buf) - 1));
-	u8 key_size;
-
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
-
-	buf[buf_size] = '\0';
-
-	sscanf(buf, "%hhu", &key_size);
-
-	if (key_size > hdev->le_max_key_size ||
-	    key_size < SMP_MIN_ENC_KEY_SIZE)
-		return -EINVAL;
-
-	hdev->le_min_key_size = key_size;
-
-	return count;
-}
-
-static const struct file_operations le_min_key_size_fops = {
-	.open		= simple_open,
-	.read		= le_min_key_size_read,
-	.write		= le_min_key_size_write,
-	.llseek		= default_llseek,
-};
-
-static ssize_t le_max_key_size_read(struct file *file,
-				     char __user *user_buf,
-				     size_t count, loff_t *ppos)
-{
-	struct hci_dev *hdev = file->private_data;
-	char buf[4];
-
-	snprintf(buf, sizeof(buf), "%2u\n", hdev->le_max_key_size);
-
-	return simple_read_from_buffer(user_buf, count, ppos, buf, strlen(buf));
-}
-
-static ssize_t le_max_key_size_write(struct file *file,
-				      const char __user *user_buf,
-				      size_t count, loff_t *ppos)
-{
-	struct hci_dev *hdev = file->private_data;
-	char buf[32];
-	size_t buf_size = min(count, (sizeof(buf) - 1));
-	u8 key_size;
-
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
-
-	buf[buf_size] = '\0';
-
-	sscanf(buf, "%hhu", &key_size);
-
-	if (key_size > SMP_MAX_ENC_KEY_SIZE ||
-	    key_size < hdev->le_min_key_size)
-		return -EINVAL;
-
-	hdev->le_max_key_size = key_size;
-
-	return count;
-}
-
-static const struct file_operations le_max_key_size_fops = {
-	.open		= simple_open,
-	.read		= le_max_key_size_read,
-	.write		= le_max_key_size_write,
-	.llseek		= default_llseek,
-};
-
 int smp_register(struct hci_dev *hdev)
 {
 	struct l2cap_chan *chan;
@@ -3484,11 +3396,6 @@ int smp_register(struct hci_dev *hdev)
 		return PTR_ERR(chan);
 
 	hdev->smp_data = chan;
-
-	debugfs_create_file("le_min_key_size", 0644, hdev->debugfs, hdev,
-			    &le_min_key_size_fops);
-	debugfs_create_file("le_max_key_size", 0644, hdev->debugfs, hdev,
-			    &le_max_key_size_fops);
 
 	/* If the controller does not support BR/EDR Secure Connections
 	 * feature, then the BR/EDR SMP channel shall not be present.
