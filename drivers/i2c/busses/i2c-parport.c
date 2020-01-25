@@ -129,7 +129,7 @@ static int parport[MAX_DEVICE] = {0, -1, -1, -1};
 module_param_array(parport, int, NULL, 0);
 MODULE_PARM_DESC(parport,
 		 "List of parallel ports to bind to, by index.\n"
-		 " Atmost " __stringify(MAX_DEVICE) " devices are supported.\n"
+		 " At most " __stringify(MAX_DEVICE) " devices are supported.\n"
 		 " Default is one device connected to parport0.\n"
 );
 
