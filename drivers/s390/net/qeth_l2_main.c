@@ -728,6 +728,24 @@ static void qeth_l2_trace_features(struct qeth_card *card)
 		      sizeof(card->options.vnicc.sup_chars));
 }
 
+static void qeth_l2_setup_bridgeport_attrs(struct qeth_card *card)
+{
+	if (!card->options.sbp.reflect_promisc &&
+	    card->options.sbp.role != QETH_SBP_ROLE_NONE) {
+		/* Conditional to avoid spurious error messages */
+		qeth_bridgeport_setrole(card, card->options.sbp.role);
+		/* Let the callback function refresh the stored role value. */
+		qeth_bridgeport_query_ports(card, &card->options.sbp.role,
+					    NULL);
+	}
+	if (card->options.sbp.hostnotification) {
+		if (qeth_bridgeport_an_set(card, 1))
+			card->options.sbp.hostnotification = 0;
+	} else {
+		qeth_bridgeport_an_set(card, 0);
+	}
+}
+
 static int qeth_l2_set_online(struct ccwgroup_device *gdev)
 {
 	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
@@ -748,9 +766,11 @@ static int qeth_l2_set_online(struct ccwgroup_device *gdev)
 
 	mutex_lock(&card->sbp_lock);
 	qeth_bridgeport_query_support(card);
-	if (card->options.sbp.supported_funcs)
+	if (card->options.sbp.supported_funcs) {
+		qeth_l2_setup_bridgeport_attrs(card);
 		dev_info(&card->gdev->dev,
-		"The device represents a Bridge Capable Port\n");
+			 "The device represents a Bridge Capable Port\n");
+	}
 	mutex_unlock(&card->sbp_lock);
 
 	qeth_l2_register_dev_addr(card);
@@ -760,8 +780,6 @@ static int qeth_l2_set_online(struct ccwgroup_device *gdev)
 
 	qeth_trace_features(card);
 	qeth_l2_trace_features(card);
-
-	qeth_l2_setup_bridgeport_attrs(card);
 
 	card->state = CARD_STATE_HARDSETUP;
 	qeth_print_status_message(card);
