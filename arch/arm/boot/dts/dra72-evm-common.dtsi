@@ -6,7 +6,7 @@
 
 #include "dra72x.dtsi"
 #include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/clk/ti-dra7-atl.h>
+#include <dt-bindings/clock/ti-dra7-atl.h>
 
 / {
 	compatible = "ti,dra72-evm", "ti,dra722", "ti,dra72", "ti,dra7";
