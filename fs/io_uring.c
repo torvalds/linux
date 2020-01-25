@@ -2112,8 +2112,7 @@ static int io_setup_async_rw(struct io_kiocb *req, ssize_t io_size,
 			     struct iovec *iovec, struct iovec *fast_iov,
 			     struct iov_iter *iter)
 {
-	if (req->opcode == IORING_OP_READ_FIXED ||
-	    req->opcode == IORING_OP_WRITE_FIXED)
+	if (!io_op_defs[req->opcode].async_ctx)
 		return 0;
 	if (!req->io && io_alloc_async_ctx(req))
 		return -ENOMEM;
