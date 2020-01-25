@@ -121,6 +121,8 @@ static struct smu_11_0_cmn2aisc_mapping navi10_message_map[SMU_MSG_MAX_COUNT] = 
 	MSG_MAP(ArmD3,			PPSMC_MSG_ArmD3),
 	MSG_MAP(DAL_DISABLE_DUMMY_PSTATE_CHANGE,PPSMC_MSG_DALDisableDummyPstateChange),
 	MSG_MAP(DAL_ENABLE_DUMMY_PSTATE_CHANGE,	PPSMC_MSG_DALEnableDummyPstateChange),
+	MSG_MAP(GetVoltageByDpm,		     PPSMC_MSG_GetVoltageByDpm),
+	MSG_MAP(GetVoltageByDpmOverdrive,	     PPSMC_MSG_GetVoltageByDpmOverdrive),
 };
 
 static struct smu_11_0_cmn2aisc_mapping navi10_clk_map[SMU_CLK_COUNT] = {
@@ -1934,6 +1936,28 @@ static int navi10_od_setting_check_range(struct smu_11_0_overdrive_table *od_tab
 	return 0;
 }
 
+static int navi10_overdrive_get_gfx_clk_base_voltage(struct smu_context *smu,
+						     uint16_t *voltage,
+						     uint32_t freq)
+{
+	uint32_t param = (freq & 0xFFFF) | (PPCLK_GFXCLK << 16);
+	uint32_t value = 0;
+	int ret;
+
+	ret = smu_send_smc_msg_with_param(smu,
+					  SMU_MSG_GetVoltageByDpm,
+					  param);
+	if (ret) {
+		pr_err("[GetBaseVoltage] failed to get GFXCLK AVFS voltage from SMU!");
+		return ret;
+	}
+
+	smu_read_smc_arg(smu, &value);
+	*voltage = (uint16_t)value;
+
+	return 0;
+}
+
 static int navi10_setup_od_limits(struct smu_context *smu) {
 	struct smu_11_0_overdrive_table *overdrive_table = NULL;
 	struct smu_11_0_powerplay_table *powerplay_table = NULL;
@@ -1960,16 +1984,40 @@ static int navi10_set_default_od_settings(struct smu_context *smu, bool initiali
 	if (ret)
 		return ret;
 
+	od_table = (OverDriveTable_t *)smu->smu_table.overdrive_table;
 	if (initialize) {
 		ret = navi10_setup_od_limits(smu);
 		if (ret) {
 			pr_err("Failed to retrieve board OD limits\n");
 			return ret;
 		}
+		if (od_table) {
+			if (!od_table->GfxclkVolt1) {
+				ret = navi10_overdrive_get_gfx_clk_base_voltage(smu,
+										&od_table->GfxclkVolt1,
+										od_table->GfxclkFreq1);
+				if (ret)
+					od_table->GfxclkVolt1 = 0;
+			}
 
+			if (!od_table->GfxclkVolt2) {
+				ret = navi10_overdrive_get_gfx_clk_base_voltage(smu,
+										&od_table->GfxclkVolt2,
+										od_table->GfxclkFreq2);
+				if (ret)
+					od_table->GfxclkVolt2 = 0;
+			}
+
+			if (!od_table->GfxclkVolt3) {
+				ret = navi10_overdrive_get_gfx_clk_base_voltage(smu,
+										&od_table->GfxclkVolt3,
+										od_table->GfxclkFreq3);
+				if (ret)
+					od_table->GfxclkVolt3 = 0;
+			}
+		}
 	}
 
-	od_table = (OverDriveTable_t *)smu->smu_table.overdrive_table;
 	if (od_table) {
 		navi10_dump_od_table(od_table);
 	}
