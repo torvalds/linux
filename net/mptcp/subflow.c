@@ -592,7 +592,7 @@ void mptcp_handle_ipv6_mapped(struct sock *sk, bool mapped)
 	target = mapped ? &subflow_v6m_specific : subflow_default_af_ops(sk);
 
 	pr_debug("subflow=%p family=%d ops=%p target=%p mapped=%d",
-	         subflow, sk->sk_family, icsk->icsk_af_ops, target, mapped);
+		 subflow, sk->sk_family, icsk->icsk_af_ops, target, mapped);
 
 	if (likely(icsk->icsk_af_ops == target))
 		return;
@@ -773,7 +773,7 @@ static void subflow_ulp_clone(const struct request_sock *req,
 	}
 
 	new_ctx = subflow_create_ctx(newsk, priority);
-	if (new_ctx == NULL) {
+	if (!new_ctx) {
 		subflow_ulp_fallback(newsk, old_ctx);
 		return;
 	}

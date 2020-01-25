@@ -26,7 +26,7 @@
 
 static void __mptcp_close(struct sock *sk, long timeout);
 
-static const struct proto_ops * tcp_proto_ops(struct sock *sk)
+static const struct proto_ops *tcp_proto_ops(struct sock *sk)
 {
 #if IS_ENABLED(CONFIG_IPV6)
 	if (sk->sk_family == AF_INET6)
