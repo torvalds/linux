@@ -5459,7 +5459,7 @@ static void __init set_ftrace_early_graph(char *buf, int enable)
 	struct ftrace_hash *hash;
 
 	hash = alloc_ftrace_hash(FTRACE_HASH_DEFAULT_BITS);
-	if (WARN_ON(!hash))
+	if (MEM_FAIL(!hash, "Failed to allocate hash\n"))
 		return;
 
 	while (buf) {
@@ -6591,7 +6591,7 @@ static void add_to_clear_hash_list(struct list_head *clear_list,
 
 	func = kmalloc(sizeof(*func), GFP_KERNEL);
 	if (!func) {
-		WARN_ONCE(1, "alloc failure, ftrace filter could be stale\n");
+		MEM_FAIL(1, "alloc failure, ftrace filter could be stale\n");
 		return;
 	}
 

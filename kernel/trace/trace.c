@@ -3126,7 +3126,7 @@ static int alloc_percpu_trace_buffer(void)
 	struct trace_buffer_struct *buffers;
 
 	buffers = alloc_percpu(struct trace_buffer_struct);
-	if (WARN(!buffers, "Could not allocate percpu trace_printk buffer"))
+	if (MEM_FAIL(!buffers, "Could not allocate percpu trace_printk buffer"))
 		return -ENOMEM;
 
 	trace_percpu_buffer = buffers;
@@ -7932,7 +7932,7 @@ static struct dentry *tracing_dentry_percpu(struct trace_array *tr, int cpu)
 
 	tr->percpu_dir = tracefs_create_dir("per_cpu", d_tracer);
 
-	WARN_ONCE(!tr->percpu_dir,
+	MEM_FAIL(!tr->percpu_dir,
 		  "Could not create tracefs directory 'per_cpu/%d'\n", cpu);
 
 	return tr->percpu_dir;
@@ -8253,7 +8253,7 @@ create_trace_option_files(struct trace_array *tr, struct tracer *tracer)
 	for (cnt = 0; opts[cnt].name; cnt++) {
 		create_trace_option_file(tr, &topts[cnt], flags,
 					 &opts[cnt]);
-		WARN_ONCE(topts[cnt].entry == NULL,
+		MEM_FAIL(topts[cnt].entry == NULL,
 			  "Failed to create trace option: %s",
 			  opts[cnt].name);
 	}
@@ -8437,7 +8437,7 @@ static int allocate_trace_buffers(struct trace_array *tr, int size)
 #ifdef CONFIG_TRACER_MAX_TRACE
 	ret = allocate_trace_buffer(tr, &tr->max_buffer,
 				    allocate_snapshot ? size : 1);
-	if (WARN_ON(ret)) {
+	if (MEM_FAIL(ret, "Failed to allocate trace buffer\n")) {
 		ring_buffer_free(tr->array_buffer.buffer);
 		tr->array_buffer.buffer = NULL;
 		free_percpu(tr->array_buffer.data);
@@ -8726,7 +8726,7 @@ static __init void create_trace_instances(struct dentry *d_tracer)
 	trace_instance_dir = tracefs_create_instance_dir("instances", d_tracer,
 							 instance_mkdir,
 							 instance_rmdir);
-	if (WARN_ON(!trace_instance_dir))
+	if (MEM_FAIL(!trace_instance_dir, "Failed to create instances directory\n"))
 		return;
 }
 
@@ -8796,7 +8796,7 @@ init_tracer_tracefs(struct trace_array *tr, struct dentry *d_tracer)
 #endif
 
 	if (ftrace_create_function_files(tr, d_tracer))
-		WARN(1, "Could not allocate function filter files");
+		MEM_FAIL(1, "Could not allocate function filter files");
 
 #ifdef CONFIG_TRACER_SNAPSHOT
 	trace_create_file("snapshot", 0644, d_tracer,
@@ -9348,8 +9348,7 @@ __init static int tracer_alloc_buffers(void)
 
 	/* TODO: make the number of buffers hot pluggable with CPUS */
 	if (allocate_trace_buffers(&global_trace, ring_buf_size) < 0) {
-		printk(KERN_ERR "tracer: failed to allocate ring buffer!\n");
-		WARN_ON(1);
+		MEM_FAIL(1, "tracer: failed to allocate ring buffer!\n");
 		goto out_free_savedcmd;
 	}
 
@@ -9422,7 +9421,8 @@ void __init early_trace_init(void)
 	if (tracepoint_printk) {
 		tracepoint_print_iter =
 			kmalloc(sizeof(*tracepoint_print_iter), GFP_KERNEL);
-		if (WARN_ON(!tracepoint_print_iter))
+		if (MEM_FAIL(!tracepoint_print_iter,
+			     "Failed to allocate trace iterator\n"))
 			tracepoint_printk = 0;
 		else
 			static_key_enable(&tracepoint_printk_key.key);
