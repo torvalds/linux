@@ -4830,8 +4830,11 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr,
 			break;
 	}
 
-	if (submitted != nr)
-		percpu_ref_put_many(&ctx->refs, nr - submitted);
+	if (unlikely(submitted != nr)) {
+		int ref_used = (submitted == -EAGAIN) ? 0 : submitted;
+
+		percpu_ref_put_many(&ctx->refs, nr - ref_used);
+	}
 	if (link)
 		io_queue_link_head(link);
 	if (statep)
