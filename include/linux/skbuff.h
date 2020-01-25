@@ -592,6 +592,8 @@ enum {
 	SKB_GSO_UDP = 1 << 16,
 
 	SKB_GSO_UDP_L4 = 1 << 17,
+
+	SKB_GSO_FRAGLIST = 1 << 18,
 };
 
 #if BITS_PER_LONG > 32
