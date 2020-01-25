@@ -15,6 +15,7 @@
 #include <linux/skbuff.h>
 #include <net/netlink.h>
 #include <net/sch_generic.h>
+#include <net/pkt_cls.h>
 #include <net/pkt_sched.h>
 
 
@@ -135,6 +136,52 @@ static u64 psched_ns_t2l(const struct psched_ratecfg *r,
 		len = 0;
 
 	return len;
+}
+
+static void tbf_offload_change(struct Qdisc *sch)
+{
+	struct tbf_sched_data *q = qdisc_priv(sch);
+	struct net_device *dev = qdisc_dev(sch);
+	struct tc_tbf_qopt_offload qopt;
+
+	if (!tc_can_offload(dev) || !dev->netdev_ops->ndo_setup_tc)
+		return;
+
+	qopt.command = TC_TBF_REPLACE;
+	qopt.handle = sch->handle;
+	qopt.parent = sch->parent;
+	qopt.replace_params.rate = q->rate;
+	qopt.replace_params.max_size = q->max_size;
+	qopt.replace_params.qstats = &sch->qstats;
+
+	dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_QDISC_TBF, &qopt);
+}
+
+static void tbf_offload_destroy(struct Qdisc *sch)
+{
+	struct net_device *dev = qdisc_dev(sch);
+	struct tc_tbf_qopt_offload qopt;
+
+	if (!tc_can_offload(dev) || !dev->netdev_ops->ndo_setup_tc)
+		return;
+
+	qopt.command = TC_TBF_DESTROY;
+	qopt.handle = sch->handle;
+	qopt.parent = sch->parent;
+	dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_QDISC_TBF, &qopt);
+}
+
+static int tbf_offload_dump(struct Qdisc *sch)
+{
+	struct tc_tbf_qopt_offload qopt;
+
+	qopt.command = TC_TBF_STATS;
+	qopt.handle = sch->handle;
+	qopt.parent = sch->parent;
+	qopt.stats.bstats = &sch->bstats;
+	qopt.stats.qstats = &sch->qstats;
+
+	return qdisc_offload_dump_helper(sch, TC_SETUP_QDISC_TBF, &qopt);
 }
 
 /* GSO packet is too big, segment it so that tbf can transmit
@@ -407,6 +454,8 @@ static int tbf_change(struct Qdisc *sch, struct nlattr *opt,
 
 	sch_tree_unlock(sch);
 	err = 0;
+
+	tbf_offload_change(sch);
 done:
 	return err;
 }
@@ -432,6 +481,7 @@ static void tbf_destroy(struct Qdisc *sch)
 	struct tbf_sched_data *q = qdisc_priv(sch);
 
 	qdisc_watchdog_cancel(&q->watchdog);
+	tbf_offload_destroy(sch);
 	qdisc_put(q->qdisc);
 }
 
@@ -440,8 +490,12 @@ static int tbf_dump(struct Qdisc *sch, struct sk_buff *skb)
 	struct tbf_sched_data *q = qdisc_priv(sch);
 	struct nlattr *nest;
 	struct tc_tbf_qopt opt;
+	int err;
 
-	sch->qstats.backlog = q->qdisc->qstats.backlog;
+	err = tbf_offload_dump(sch);
+	if (err)
+		return err;
+
 	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
