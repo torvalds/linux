@@ -327,6 +327,7 @@ trace_boot_init_instances(struct xbc_node *node)
 			continue;
 		}
 		trace_boot_init_one_instance(tr, inode);
+		trace_array_put(tr);
 	}
 }
 

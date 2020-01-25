@@ -8602,6 +8602,10 @@ out_unlock:
  * NOTE: This function increments the reference counter associated with the
  * trace array returned. This makes sure it cannot be freed while in use.
  * Use trace_array_put() once the trace array is no longer needed.
+ * If the trace_array is to be freed, trace_array_destroy() needs to
+ * be called after the trace_array_put(), or simply let user space delete
+ * it from the tracefs instances directory. But until the
+ * trace_array_put() is called, user space can not delete it.
  *
  */
 struct trace_array *trace_array_get_by_name(const char *name)
