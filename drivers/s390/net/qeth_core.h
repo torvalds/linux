@@ -994,7 +994,6 @@ int qeth_core_hardsetup_card(struct qeth_card *card, bool *carrier_ok);
 int qeth_stop_channel(struct qeth_channel *channel);
 
 void qeth_print_status_message(struct qeth_card *);
-int qeth_init_qdio_queues(struct qeth_card *);
 int qeth_send_ipa_cmd(struct qeth_card *, struct qeth_cmd_buffer *,
 		  int (*reply_cb)
 		  (struct qeth_card *, struct qeth_reply *, unsigned long),
