@@ -4226,6 +4226,12 @@ static int mvneta_xdp_setup(struct net_device *dev, struct bpf_prog *prog,
 		return -EOPNOTSUPP;
 	}
 
+	if (pp->bm_priv) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Hardware Buffer Management not supported on XDP");
+		return -EOPNOTSUPP;
+	}
+
 	need_update = !!pp->xdp_prog != !!prog;
 	if (running && need_update)
 		mvneta_stop(dev);
