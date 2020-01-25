@@ -4251,7 +4251,10 @@ int mlx5e_tc_nic_init(struct mlx5e_priv *priv)
 		return err;
 
 	tc->netdevice_nb.notifier_call = mlx5e_tc_netdev_event;
-	if (register_netdevice_notifier(&tc->netdevice_nb)) {
+	err = register_netdevice_notifier_dev_net(priv->netdev,
+						  &tc->netdevice_nb,
+						  &tc->netdevice_nn);
+	if (err) {
 		tc->netdevice_nb.notifier_call = NULL;
 		mlx5_core_warn(priv->mdev, "Failed to register netdev notifier\n");
 	}
@@ -4273,7 +4276,9 @@ void mlx5e_tc_nic_cleanup(struct mlx5e_priv *priv)
 	struct mlx5e_tc_table *tc = &priv->fs.tc;
 
 	if (tc->netdevice_nb.notifier_call)
-		unregister_netdevice_notifier(&tc->netdevice_nb);
+		unregister_netdevice_notifier_dev_net(priv->netdev,
+						      &tc->netdevice_nb,
+						      &tc->netdevice_nn);
 
 	mutex_destroy(&tc->mod_hdr.lock);
 	mutex_destroy(&tc->hairpin_tbl_lock);

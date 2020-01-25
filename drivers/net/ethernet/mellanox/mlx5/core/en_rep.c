@@ -1731,7 +1731,9 @@ static int mlx5e_init_uplink_rep_tx(struct mlx5e_rep_priv *rpriv)
 	/* init indirect block notifications */
 	INIT_LIST_HEAD(&uplink_priv->tc_indr_block_priv_list);
 	uplink_priv->netdevice_nb.notifier_call = mlx5e_nic_rep_netdevice_event;
-	err = register_netdevice_notifier(&uplink_priv->netdevice_nb);
+	err = register_netdevice_notifier_dev_net(rpriv->netdev,
+						  &uplink_priv->netdevice_nb,
+						  &uplink_priv->netdevice_nn);
 	if (err) {
 		mlx5_core_err(priv->mdev, "Failed to register netdev notifier\n");
 		goto tc_esw_cleanup;
@@ -1770,8 +1772,12 @@ destroy_tises:
 
 static void mlx5e_cleanup_uplink_rep_tx(struct mlx5e_rep_priv *rpriv)
 {
+	struct mlx5_rep_uplink_priv *uplink_priv = &rpriv->uplink_priv;
+
 	/* clean indirect TC block notifications */
-	unregister_netdevice_notifier(&rpriv->uplink_priv.netdevice_nb);
+	unregister_netdevice_notifier_dev_net(rpriv->netdev,
+					      &uplink_priv->netdevice_nb,
+					      &uplink_priv->netdevice_nn);
 	mlx5e_rep_indr_clean_block_privs(rpriv);
 
 	/* delete shared tc flow table */
@@ -1855,6 +1861,7 @@ static void mlx5e_uplink_rep_enable(struct mlx5e_priv *priv)
 
 static void mlx5e_uplink_rep_disable(struct mlx5e_priv *priv)
 {
+	struct net_device *netdev = priv->netdev;
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 
@@ -1863,7 +1870,7 @@ static void mlx5e_uplink_rep_disable(struct mlx5e_priv *priv)
 #endif
 	mlx5_notifier_unregister(mdev, &priv->events_nb);
 	cancel_work_sync(&rpriv->uplink_priv.reoffload_flows_work);
-	mlx5_lag_remove(mdev);
+	mlx5_lag_remove(mdev, netdev);
 }
 
 static MLX5E_DEFINE_STATS_GRP(sw_rep, 0);
