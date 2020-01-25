@@ -145,13 +145,18 @@ Alignment:
 	li	r6, RPN_PATTERN
 	mtspr	SPRN_DAR, r6	/* Tag DAR, to be used in DTLB Error */
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	EXC_XFER_STD(0x600, alignment_exception)
+	b	.Lalignment_exception_ool
 
 /* Program check exception */
 	EXCEPTION(0x700, ProgramCheck, program_check_exception, EXC_XFER_STD)
 
 /* Decrementer */
 	EXCEPTION(0x900, Decrementer, timer_interrupt, EXC_XFER_LITE)
+
+	/* With VMAP_STACK there's not enough room for this at 0x600 */
+	. = 0xa00
+.Lalignment_exception_ool:
+	EXC_XFER_STD(0x600, alignment_exception)
 
 /* System call */
 	. = 0xc00
