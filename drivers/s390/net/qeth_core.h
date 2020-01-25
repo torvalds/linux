@@ -608,6 +608,8 @@ struct qeth_cmd_buffer {
 	long timeout;
 	unsigned char *data;
 	void (*finalize)(struct qeth_card *card, struct qeth_cmd_buffer *iob);
+	bool (*match)(struct qeth_cmd_buffer *iob,
+		      struct qeth_cmd_buffer *reply);
 	void (*callback)(struct qeth_card *card, struct qeth_cmd_buffer *iob,
 			 unsigned int data_length);
 	int rc;
@@ -616,6 +618,14 @@ struct qeth_cmd_buffer {
 static inline void qeth_get_cmd(struct qeth_cmd_buffer *iob)
 {
 	refcount_inc(&iob->ref_count);
+}
+
+static inline struct qeth_ipa_cmd *__ipa_reply(struct qeth_cmd_buffer *iob)
+{
+	if (!IS_IPA(iob->data))
+		return NULL;
+
+	return (struct qeth_ipa_cmd *) PDU_ENCAPSULATION(iob->data);
 }
 
 static inline struct qeth_ipa_cmd *__ipa_cmd(struct qeth_cmd_buffer *iob)
@@ -1023,7 +1033,9 @@ void qeth_setadp_promisc_mode(struct qeth_card *card, bool enable);
 int qeth_setadpparms_change_macaddr(struct qeth_card *);
 void qeth_tx_timeout(struct net_device *, unsigned int txqueue);
 void qeth_prepare_ipa_cmd(struct qeth_card *card, struct qeth_cmd_buffer *iob,
-			  u16 cmd_length);
+			  u16 cmd_length,
+			  bool (*match)(struct qeth_cmd_buffer *iob,
+					struct qeth_cmd_buffer *reply));
 int qeth_query_switch_attributes(struct qeth_card *card,
 				  struct qeth_switch_info *sw_info);
 int qeth_query_card_info(struct qeth_card *card,

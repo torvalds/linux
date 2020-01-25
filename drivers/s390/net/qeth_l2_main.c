@@ -896,7 +896,8 @@ int qeth_osn_assist(struct net_device *dev, void *data, int data_len)
 	if (!iob)
 		return -ENOMEM;
 
-	qeth_prepare_ipa_cmd(card, iob, (u16) data_len);
+	qeth_prepare_ipa_cmd(card, iob, (u16) data_len, NULL);
+
 	memcpy(__ipa_cmd(iob), data, data_len);
 	iob->callback = qeth_osn_assist_cb;
 	return qeth_send_ipa_cmd(card, iob, NULL, NULL);
