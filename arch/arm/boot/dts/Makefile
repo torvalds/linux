@@ -691,6 +691,7 @@ dtb-$(CONFIG_ARCH_OMAP3) += \
 	omap3-devkit8000.dtb \
 	omap3-devkit8000-lcd43.dtb \
 	omap3-devkit8000-lcd70.dtb \
+	omap3-echo.dtb \
 	omap3-evm.dtb \
 	omap3-evm-37xx.dtb \
 	omap3-gta04a3.dtb \
