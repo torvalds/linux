@@ -558,7 +558,6 @@ enum qeth_channel_states {
  */
 enum qeth_card_states {
 	CARD_STATE_DOWN,
-	CARD_STATE_HARDSETUP,
 	CARD_STATE_SOFTSETUP,
 };
 

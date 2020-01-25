@@ -901,7 +901,7 @@ out:
 	return rc;
 }
 
-static int qeth_l3_start_ipassists(struct qeth_card *card)
+static void qeth_l3_start_ipassists(struct qeth_card *card)
 {
 	QETH_CARD_TEXT(card, 3, "strtipas");
 
@@ -911,7 +911,6 @@ static int qeth_l3_start_ipassists(struct qeth_card *card)
 	qeth_l3_start_ipa_multicast(card);		/* go on*/
 	qeth_l3_start_ipa_ipv6(card);		/* go on*/
 	qeth_l3_start_ipa_broadcast(card);		/* go on*/
-	return 0;
 }
 
 static int qeth_l3_iqd_read_initial_mac_cb(struct qeth_card *card,
@@ -1178,9 +1177,6 @@ static void qeth_l3_stop_card(struct qeth_card *card)
 	if (card->state == CARD_STATE_SOFTSETUP) {
 		qeth_l3_clear_ip_htable(card, 1);
 		qeth_clear_ipacmd_list(card);
-		card->state = CARD_STATE_HARDSETUP;
-	}
-	if (card->state == CARD_STATE_HARDSETUP) {
 		qeth_drain_output_queues(card);
 		card->state = CARD_STATE_DOWN;
 	}
@@ -2068,7 +2064,6 @@ static int qeth_l3_set_online(struct qeth_card *card)
 		goto out_remove;
 	}
 
-	card->state = CARD_STATE_HARDSETUP;
 	qeth_print_status_message(card);
 
 	/* softsetup */
@@ -2078,11 +2073,8 @@ static int qeth_l3_set_online(struct qeth_card *card)
 	if (rc)
 		QETH_CARD_TEXT_(card, 2, "2err%04x", rc);
 	if (!card->options.sniffer) {
-		rc = qeth_l3_start_ipassists(card);
-		if (rc) {
-			QETH_CARD_TEXT_(card, 2, "3err%d", rc);
-			goto out_remove;
-		}
+		qeth_l3_start_ipassists(card);
+
 		rc = qeth_l3_setrouting_v4(card);
 		if (rc)
 			QETH_CARD_TEXT_(card, 2, "4err%04x", rc);

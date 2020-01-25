@@ -283,9 +283,6 @@ static void qeth_l2_stop_card(struct qeth_card *card)
 
 	if (card->state == CARD_STATE_SOFTSETUP) {
 		qeth_clear_ipacmd_list(card);
-		card->state = CARD_STATE_HARDSETUP;
-	}
-	if (card->state == CARD_STATE_HARDSETUP) {
 		qeth_drain_output_queues(card);
 		card->state = CARD_STATE_DOWN;
 	}
@@ -776,7 +773,6 @@ static int qeth_l2_set_online(struct qeth_card *card)
 	qeth_trace_features(card);
 	qeth_l2_trace_features(card);
 
-	card->state = CARD_STATE_HARDSETUP;
 	qeth_print_status_message(card);
 
 	/* softsetup */
