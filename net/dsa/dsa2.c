@@ -849,6 +849,19 @@ static int dsa_switch_parse(struct dsa_switch *ds, struct dsa_chip_data *cd)
 	return dsa_switch_parse_ports(ds, cd);
 }
 
+static void dsa_switch_release_ports(struct dsa_switch *ds)
+{
+	struct dsa_switch_tree *dst = ds->dst;
+	struct dsa_port *dp, *next;
+
+	list_for_each_entry_safe(dp, next, &dst->ports, list) {
+		if (dp->ds != ds)
+			continue;
+		list_del(&dp->list);
+		kfree(dp);
+	}
+}
+
 static int dsa_switch_probe(struct dsa_switch *ds)
 {
 	struct dsa_switch_tree *dst;
@@ -865,12 +878,17 @@ static int dsa_switch_probe(struct dsa_switch *ds)
 	if (!ds->num_ports)
 		return -EINVAL;
 
-	if (np)
+	if (np) {
 		err = dsa_switch_parse_of(ds, np);
-	else if (pdata)
+		if (err)
+			dsa_switch_release_ports(ds);
+	} else if (pdata) {
 		err = dsa_switch_parse(ds, pdata);
-	else
+		if (err)
+			dsa_switch_release_ports(ds);
+	} else {
 		err = -ENODEV;
+	}
 
 	if (err)
 		return err;
@@ -878,8 +896,10 @@ static int dsa_switch_probe(struct dsa_switch *ds)
 	dst = ds->dst;
 	dsa_tree_get(dst);
 	err = dsa_tree_setup(dst);
-	if (err)
+	if (err) {
+		dsa_switch_release_ports(ds);
 		dsa_tree_put(dst);
+	}
 
 	return err;
 }
@@ -900,15 +920,9 @@ EXPORT_SYMBOL_GPL(dsa_register_switch);
 static void dsa_switch_remove(struct dsa_switch *ds)
 {
 	struct dsa_switch_tree *dst = ds->dst;
-	struct dsa_port *dp, *next;
 
 	dsa_tree_teardown(dst);
-
-	list_for_each_entry_safe(dp, next, &dst->ports, list) {
-		list_del(&dp->list);
-		kfree(dp);
-	}
-
+	dsa_switch_release_ports(ds);
 	dsa_tree_put(dst);
 }
 
