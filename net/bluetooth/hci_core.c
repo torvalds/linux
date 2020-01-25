@@ -3565,7 +3565,8 @@ int hci_recv_frame(struct hci_dev *hdev, struct sk_buff *skb)
 
 	if (hci_skb_pkt_type(skb) != HCI_EVENT_PKT &&
 	    hci_skb_pkt_type(skb) != HCI_ACLDATA_PKT &&
-	    hci_skb_pkt_type(skb) != HCI_SCODATA_PKT) {
+	    hci_skb_pkt_type(skb) != HCI_SCODATA_PKT &&
+	    hci_skb_pkt_type(skb) != HCI_ISODATA_PKT) {
 		kfree_skb(skb);
 		return -EINVAL;
 	}
@@ -4543,6 +4544,7 @@ static void hci_rx_work(struct work_struct *work)
 			switch (hci_skb_pkt_type(skb)) {
 			case HCI_ACLDATA_PKT:
 			case HCI_SCODATA_PKT:
+			case HCI_ISODATA_PKT:
 				kfree_skb(skb);
 				continue;
 			}
