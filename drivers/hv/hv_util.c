@@ -25,7 +25,9 @@
 #define SD_MAJOR	3
 #define SD_MINOR	0
 #define SD_MINOR_1	1
+#define SD_MINOR_2	2
 #define SD_VERSION_3_1	(SD_MAJOR << 16 | SD_MINOR_1)
+#define SD_VERSION_3_2	(SD_MAJOR << 16 | SD_MINOR_2)
 #define SD_VERSION	(SD_MAJOR << 16 | SD_MINOR)
 
 #define SD_MAJOR_1	1
@@ -52,8 +54,9 @@ static int sd_srv_version;
 static int ts_srv_version;
 static int hb_srv_version;
 
-#define SD_VER_COUNT 3
+#define SD_VER_COUNT 4
 static const int sd_versions[] = {
+	SD_VERSION_3_2,
 	SD_VERSION_3_1,
 	SD_VERSION,
 	SD_VERSION_1
@@ -78,9 +81,45 @@ static const int fw_versions[] = {
 	UTIL_WS2K8_FW_VERSION
 };
 
+/*
+ * Send the "hibernate" udev event in a thread context.
+ */
+struct hibernate_work_context {
+	struct work_struct work;
+	struct hv_device *dev;
+};
+
+static struct hibernate_work_context hibernate_context;
+static bool hibernation_supported;
+
+static void send_hibernate_uevent(struct work_struct *work)
+{
+	char *uevent_env[2] = { "EVENT=hibernate", NULL };
+	struct hibernate_work_context *ctx;
+
+	ctx = container_of(work, struct hibernate_work_context, work);
+
+	kobject_uevent_env(&ctx->dev->device.kobj, KOBJ_CHANGE, uevent_env);
+
+	pr_info("Sent hibernation uevent\n");
+}
+
+static int hv_shutdown_init(struct hv_util_service *srv)
+{
+	struct vmbus_channel *channel = srv->channel;
+
+	INIT_WORK(&hibernate_context.work, send_hibernate_uevent);
+	hibernate_context.dev = channel->device_obj;
+
+	hibernation_supported = hv_is_hibernation_supported();
+
+	return 0;
+}
+
 static void shutdown_onchannelcallback(void *context);
 static struct hv_util_service util_shutdown = {
 	.util_cb = shutdown_onchannelcallback,
+	.util_init = hv_shutdown_init,
 };
 
 static int hv_timesync_init(struct hv_util_service *srv);
@@ -190,6 +229,14 @@ static void shutdown_onchannelcallback(void *context)
 				work = &restart_work;
 				pr_info("Restart request received -"
 					    " graceful restart initiated\n");
+				break;
+			case 4:
+			case 5:
+				pr_info("Hibernation request received\n");
+				icmsghdrp->status = hibernation_supported ?
+					HV_S_OK : HV_E_FAIL;
+				if (hibernation_supported)
+					work = &hibernate_context.work;
 				break;
 			default:
 				icmsghdrp->status = HV_E_FAIL;
