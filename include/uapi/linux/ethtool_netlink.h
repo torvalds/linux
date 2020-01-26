@@ -23,6 +23,7 @@ enum {
 	ETHTOOL_MSG_DEBUG_GET,
 	ETHTOOL_MSG_DEBUG_SET,
 	ETHTOOL_MSG_WOL_GET,
+	ETHTOOL_MSG_WOL_SET,
 
 	/* add new constants above here */
 	__ETHTOOL_MSG_USER_CNT,

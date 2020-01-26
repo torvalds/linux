@@ -188,6 +188,7 @@ Userspace to kernel:
   ``ETHTOOL_MSG_DEBUG_GET``             get debugging settings
   ``ETHTOOL_MSG_DEBUG_SET``             set debugging settings
   ``ETHTOOL_MSG_WOL_GET``               get wake-on-lan settings
+  ``ETHTOOL_MSG_WOL_SET``               set wake-on-lan settings
   ===================================== ================================
 
 Kernel to userspace:
@@ -502,6 +503,23 @@ device, value of modes which are enabled. ``ETHTOOL_A_WOL_SOPASS`` is only
 included in reply if ``WAKE_MAGICSECURE`` mode is supported.
 
 
+WOL_SET
+=======
+
+Set or update wake-on-lan settings.
+
+Request contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_WOL_HEADER``              nested  request header
+  ``ETHTOOL_A_WOL_MODES``               bitset  enabled WoL modes
+  ``ETHTOOL_A_WOL_SOPASS``              binary  SecureOn(tm) password
+  ====================================  ======  ==========================
+
+``ETHTOOL_A_WOL_SOPASS`` is only allowed for devices supporting
+``WAKE_MAGICSECURE`` mode.
+
+
 Request translation
 ===================
 
@@ -519,7 +537,7 @@ have their netlink replacement yet.
   ``ETHTOOL_GDRVINFO``                n/a
   ``ETHTOOL_GREGS``                   n/a
   ``ETHTOOL_GWOL``                    ``ETHTOOL_MSG_WOL_GET``
-  ``ETHTOOL_SWOL``                    n/a
+  ``ETHTOOL_SWOL``                    ``ETHTOOL_MSG_WOL_SET``
   ``ETHTOOL_GMSGLVL``                 ``ETHTOOL_MSG_DEBUG_GET``
   ``ETHTOOL_SMSGLVL``                 ``ETHTOOL_MSG_DEBUG_SET``
   ``ETHTOOL_NWAY_RST``                n/a
