@@ -134,11 +134,12 @@ nla_put_failure:
 
 /**
  * ethnl_reply_init() - Create skb for a reply and fill device identification
- * @payload: payload length (without netlink and genetlink header)
- * @dev:     device the reply is about (may be null)
- * @cmd:     ETHTOOL_MSG_* message type for reply
- * @info:    genetlink info of the received packet we respond to
- * @ehdrp:   place to store payload pointer returned by genlmsg_new()
+ * @payload:      payload length (without netlink and genetlink header)
+ * @dev:          device the reply is about (may be null)
+ * @cmd:          ETHTOOL_MSG_* message type for reply
+ * @hdr_attrtype: attribute type for common header
+ * @info:         genetlink info of the received packet we respond to
+ * @ehdrp:        place to store payload pointer returned by genlmsg_new()
  *
  * Return: pointer to allocated skb on success, NULL on error
  */
@@ -188,10 +189,11 @@ static int ethnl_multicast(struct sk_buff *skb, struct net_device *dev)
 
 /**
  * struct ethnl_dump_ctx - context structure for generic dumpit() callback
- * @ops:      request ops of currently processed message type
- * @req_info: parsed request header of processed request
- * @pos_hash: saved iteration position - hashbucket
- * @pos_idx:  saved iteration position - index
+ * @ops:        request ops of currently processed message type
+ * @req_info:   parsed request header of processed request
+ * @reply_data: data needed to compose the reply
+ * @pos_hash:   saved iteration position - hashbucket
+ * @pos_idx:    saved iteration position - index
  *
  * These parameters are kept in struct netlink_callback as context preserved
  * between iterations. They are initialized by ethnl_default_start() and used
@@ -268,9 +270,9 @@ out:
 
 /**
  * ethnl_init_reply_data() - Initialize reply data for GET request
- * @req_info: pointer to embedded struct ethnl_req_info
- * @ops:      instance of struct ethnl_request_ops describing the layout
- * @dev:      network device to initialize the reply for
+ * @reply_data: pointer to embedded struct ethnl_reply_data
+ * @ops:        instance of struct ethnl_request_ops describing the layout
+ * @dev:        network device to initialize the reply for
  *
  * Fills the reply data part with zeros and sets the dev member. Must be called
  * before calling the ->fill_reply() callback (for each iteration when handling

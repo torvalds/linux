@@ -85,6 +85,7 @@ get_stringset_policy[ETHTOOL_A_STRINGSET_MAX + 1] = {
 
 /**
  * strset_include() - test if a string set should be included in reply
+ * @info: parsed client request
  * @data: pointer to request data structure
  * @id:   id of string set to check (ETH_SS_* constants)
  */
