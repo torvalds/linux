@@ -3191,10 +3191,13 @@ static const char *do_last(struct nameidata *nd,
 	else
 		inode_unlock_shared(dir->d_inode);
 
-	if (IS_ERR(dentry)) {
-		error = PTR_ERR(dentry);
-		goto out;
+	if (got_write) {
+		mnt_drop_write(nd->path.mnt);
+		got_write = false;
 	}
+
+	if (IS_ERR(dentry))
+		return ERR_CAST(dentry);
 
 	if (file->f_mode & FMODE_OPENED) {
 		if (file->f_mode & FMODE_CREATED) {
@@ -3220,16 +3223,6 @@ static const char *do_last(struct nameidata *nd,
 		goto finish_open_created;
 	}
 
-	/*
-	 * If atomic_open() acquired write access it is dropped now due to
-	 * possible mount and symlink following (this might be optimized away if
-	 * necessary...)
-	 */
-	if (got_write) {
-		mnt_drop_write(nd->path.mnt);
-		got_write = false;
-	}
-
 finish_lookup:
 	if (nd->depth)
 		put_link(nd);
@@ -3250,27 +3243,25 @@ finish_open:
 		return ERR_PTR(error);
 	audit_inode(nd->name, nd->path.dentry, 0);
 	if (open_flag & O_CREAT) {
-		error = -EISDIR;
 		if (d_is_dir(nd->path.dentry))
-			goto out;
+			return ERR_PTR(-EISDIR);
 		error = may_create_in_sticky(dir_mode, dir_uid,
 					     d_backing_inode(nd->path.dentry));
 		if (unlikely(error))
-			goto out;
+			return ERR_PTR(error);
 	}
-	error = -ENOTDIR;
 	if ((nd->flags & LOOKUP_DIRECTORY) && !d_can_lookup(nd->path.dentry))
-		goto out;
+		return ERR_PTR(-ENOTDIR);
 	if (!d_is_reg(nd->path.dentry))
 		will_truncate = false;
 
+finish_open_created:
 	if (will_truncate) {
 		error = mnt_want_write(nd->path.mnt);
 		if (error)
-			goto out;
+			return ERR_PTR(error);
 		got_write = true;
 	}
-finish_open_created:
 	error = may_open(&nd->path, acc_mode, open_flag);
 	if (error)
 		goto out;
