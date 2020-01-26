@@ -1061,7 +1061,7 @@ struct nfs_open_context *nfs_find_open_context(struct inode *inode, const struct
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(pos, &nfsi->open_files, list) {
-		if (cred != NULL && pos->cred != cred)
+		if (cred != NULL && cred_fscmp(pos->cred, cred) != 0)
 			continue;
 		if ((pos->mode & (FMODE_READ|FMODE_WRITE)) != mode)
 			continue;
