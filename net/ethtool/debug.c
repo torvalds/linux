@@ -123,6 +123,7 @@ int ethnl_set_debug(struct sk_buff *skb, struct genl_info *info)
 		goto out_ops;
 
 	dev->ethtool_ops->set_msglevel(dev, msg_mask);
+	ethtool_notify(dev, ETHTOOL_MSG_DEBUG_NTF, NULL);
 
 out_ops:
 	ethnl_ops_complete(dev);
