@@ -76,7 +76,7 @@ enum {
 	DNS
 };
 
-static int in_hand_shake = 1;
+static int in_hand_shake;
 
 static char *os_name = "";
 static char *os_major = "";
@@ -1360,7 +1360,7 @@ void print_usage(char *argv[])
 
 int main(int argc, char *argv[])
 {
-	int kvp_fd, len;
+	int kvp_fd = -1, len;
 	int error;
 	struct pollfd pfd;
 	char    *p;
@@ -1400,14 +1400,6 @@ int main(int argc, char *argv[])
 	openlog("KVP", 0, LOG_USER);
 	syslog(LOG_INFO, "KVP starting; pid is:%d", getpid());
 
-	kvp_fd = open("/dev/vmbus/hv_kvp", O_RDWR | O_CLOEXEC);
-
-	if (kvp_fd < 0) {
-		syslog(LOG_ERR, "open /dev/vmbus/hv_kvp failed; error: %d %s",
-			errno, strerror(errno));
-		exit(EXIT_FAILURE);
-	}
-
 	/*
 	 * Retrieve OS release information.
 	 */
@@ -1420,6 +1412,18 @@ int main(int argc, char *argv[])
 
 	if (kvp_file_init()) {
 		syslog(LOG_ERR, "Failed to initialize the pools");
+		exit(EXIT_FAILURE);
+	}
+
+reopen_kvp_fd:
+	if (kvp_fd != -1)
+		close(kvp_fd);
+	in_hand_shake = 1;
+	kvp_fd = open("/dev/vmbus/hv_kvp", O_RDWR | O_CLOEXEC);
+
+	if (kvp_fd < 0) {
+		syslog(LOG_ERR, "open /dev/vmbus/hv_kvp failed; error: %d %s",
+		       errno, strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 
@@ -1456,9 +1460,7 @@ int main(int argc, char *argv[])
 		if (len != sizeof(struct hv_kvp_msg)) {
 			syslog(LOG_ERR, "read failed; error:%d %s",
 			       errno, strerror(errno));
-
-			close(kvp_fd);
-			return EXIT_FAILURE;
+			goto reopen_kvp_fd;
 		}
 
 		/*
@@ -1617,13 +1619,17 @@ int main(int argc, char *argv[])
 			break;
 		}
 
-		/* Send the value back to the kernel. */
+		/*
+		 * Send the value back to the kernel. Note: the write() may
+		 * return an error due to hibernation; we can ignore the error
+		 * by resetting the dev file, i.e. closing and re-opening it.
+		 */
 kvp_done:
 		len = write(kvp_fd, hv_msg, sizeof(struct hv_kvp_msg));
 		if (len != sizeof(struct hv_kvp_msg)) {
 			syslog(LOG_ERR, "write failed; error: %d %s", errno,
 			       strerror(errno));
-			exit(EXIT_FAILURE);
+			goto reopen_kvp_fd;
 		}
 	}
 
