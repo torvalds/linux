@@ -247,9 +247,15 @@ enum {
 	CMA_OPTION_AFONLY,
 };
 
-void cma_ref_dev(struct cma_device *cma_dev)
+void cma_dev_get(struct cma_device *cma_dev)
 {
 	atomic_inc(&cma_dev->refcount);
+}
+
+void cma_dev_put(struct cma_device *cma_dev)
+{
+	if (atomic_dec_and_test(&cma_dev->refcount))
+		complete(&cma_dev->comp);
 }
 
 struct cma_device *cma_enum_devices_by_ibdev(cma_device_filter	filter,
@@ -267,7 +273,7 @@ struct cma_device *cma_enum_devices_by_ibdev(cma_device_filter	filter,
 		}
 
 	if (found_cma_dev)
-		cma_ref_dev(found_cma_dev);
+		cma_dev_get(found_cma_dev);
 	mutex_unlock(&lock);
 	return found_cma_dev;
 }
@@ -463,7 +469,7 @@ static int cma_igmp_send(struct net_device *ndev, union ib_gid *mgid, bool join)
 static void _cma_attach_to_dev(struct rdma_id_private *id_priv,
 			       struct cma_device *cma_dev)
 {
-	cma_ref_dev(cma_dev);
+	cma_dev_get(cma_dev);
 	id_priv->cma_dev = cma_dev;
 	id_priv->id.device = cma_dev->device;
 	id_priv->id.route.addr.dev_addr.transport =
@@ -484,12 +490,6 @@ static void cma_attach_to_dev(struct rdma_id_private *id_priv,
 					  rdma_start_port(cma_dev->device)];
 }
 
-void cma_deref_dev(struct cma_device *cma_dev)
-{
-	if (atomic_dec_and_test(&cma_dev->refcount))
-		complete(&cma_dev->comp);
-}
-
 static inline void release_mc(struct kref *kref)
 {
 	struct cma_multicast *mc = container_of(kref, struct cma_multicast, mcref);
@@ -502,7 +502,7 @@ static void cma_release_dev(struct rdma_id_private *id_priv)
 {
 	mutex_lock(&lock);
 	list_del(&id_priv->list);
-	cma_deref_dev(id_priv->cma_dev);
+	cma_dev_put(id_priv->cma_dev);
 	id_priv->cma_dev = NULL;
 	mutex_unlock(&lock);
 }
@@ -4728,7 +4728,7 @@ static void cma_process_remove(struct cma_device *cma_dev)
 	}
 	mutex_unlock(&lock);
 
-	cma_deref_dev(cma_dev);
+	cma_dev_put(cma_dev);
 	wait_for_completion(&cma_dev->comp);
 }
 
