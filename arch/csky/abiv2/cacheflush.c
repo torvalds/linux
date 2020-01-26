@@ -9,20 +9,22 @@
 void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 		      pte_t *pte)
 {
-	unsigned long addr, pfn;
+	unsigned long addr;
 	struct page *page;
 
-	pfn = pte_pfn(*pte);
-	if (unlikely(!pfn_valid(pfn)))
+	page = pfn_to_page(pte_pfn(*pte));
+	if (page == ZERO_PAGE(0))
 		return;
 
-	page = pfn_to_page(pfn);
-	if (page == ZERO_PAGE(0))
+	if (test_and_set_bit(PG_dcache_clean, &page->flags))
 		return;
 
 	addr = (unsigned long) kmap_atomic(page);
 
-	cache_wbinv_range(addr, addr + PAGE_SIZE);
+	dcache_wb_range(addr, addr + PAGE_SIZE);
+
+	if (vma->vm_flags & VM_EXEC)
+		icache_inv_range(addr, addr + PAGE_SIZE);
 
 	kunmap_atomic((void *) addr);
 }
