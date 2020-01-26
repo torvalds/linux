@@ -85,7 +85,6 @@
 #define RTL_R16(tp, reg)		readw(tp->mmio_addr + (reg))
 #define RTL_R32(tp, reg)		readl(tp->mmio_addr + (reg))
 
-#define JUMBO_1K	ETH_DATA_LEN
 #define JUMBO_4K	(4*1024 - ETH_HLEN - 2)
 #define JUMBO_6K	(6*1024 - ETH_HLEN - 2)
 #define JUMBO_7K	(7*1024 - ETH_HLEN - 2)
@@ -1494,7 +1493,7 @@ static netdev_features_t rtl8169_fix_features(struct net_device *dev,
 	if (dev->mtu > TD_MSS_MAX)
 		features &= ~NETIF_F_ALL_TSO;
 
-	if (dev->mtu > JUMBO_1K &&
+	if (dev->mtu > ETH_DATA_LEN &&
 	    tp->mac_version > RTL_GIGA_MAC_VER_06)
 		features &= ~(NETIF_F_CSUM_MASK | NETIF_F_ALL_TSO);
 
@@ -5360,7 +5359,7 @@ static int rtl_jumbo_max(struct rtl8169_private *tp)
 {
 	/* Non-GBit versions don't support jumbo frames */
 	if (!tp->supports_gmii)
-		return JUMBO_1K;
+		return 0;
 
 	switch (tp->mac_version) {
 	/* RTL8169 */
@@ -5591,10 +5590,9 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->hw_features |= NETIF_F_RXALL;
 	dev->hw_features |= NETIF_F_RXFCS;
 
-	/* MTU range: 60 - hw-specific max */
-	dev->min_mtu = ETH_ZLEN;
 	jumbo_max = rtl_jumbo_max(tp);
-	dev->max_mtu = jumbo_max;
+	if (jumbo_max)
+		dev->max_mtu = jumbo_max;
 
 	rtl_set_irq_mask(tp);
 
@@ -5624,7 +5622,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		   (RTL_R32(tp, TxConfig) >> 20) & 0xfcf,
 		   pci_irq_vector(pdev, 0));
 
-	if (jumbo_max > JUMBO_1K)
+	if (jumbo_max)
 		netif_info(tp, probe, dev,
 			   "jumbo features [frames: %d bytes, tx checksumming: %s]\n",
 			   jumbo_max, tp->mac_version <= RTL_GIGA_MAC_VER_06 ?
