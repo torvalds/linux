@@ -3200,13 +3200,6 @@ static const char *do_last(struct nameidata *nd,
 		return ERR_CAST(dentry);
 
 	if (file->f_mode & FMODE_OPENED) {
-		if (file->f_mode & FMODE_CREATED) {
-			open_flag &= ~O_TRUNC;
-			will_truncate = false;
-			acc_mode = 0;
-		} else if (!S_ISREG(file_inode(file)->i_mode))
-			will_truncate = false;
-
 		audit_inode(nd->name, file->f_path.dentry, 0);
 		dput(nd->path.dentry);
 		nd->path.dentry = dentry;
@@ -3214,10 +3207,6 @@ static const char *do_last(struct nameidata *nd,
 	}
 
 	if (file->f_mode & FMODE_CREATED) {
-		/* Don't check for write permission, don't truncate */
-		open_flag &= ~O_TRUNC;
-		will_truncate = false;
-		acc_mode = 0;
 		dput(nd->path.dentry);
 		nd->path.dentry = dentry;
 		goto finish_open_created;
@@ -3252,10 +3241,16 @@ finish_open:
 	}
 	if ((nd->flags & LOOKUP_DIRECTORY) && !d_can_lookup(nd->path.dentry))
 		return ERR_PTR(-ENOTDIR);
-	if (!d_is_reg(nd->path.dentry))
-		will_truncate = false;
 
 finish_open_created:
+	if (file->f_mode & FMODE_CREATED) {
+		/* Don't check for write permission, don't truncate */
+		open_flag &= ~O_TRUNC;
+		will_truncate = false;
+		acc_mode = 0;
+	} else if (!d_is_reg(nd->path.dentry)) {
+		will_truncate = false;
+	}
 	if (will_truncate) {
 		error = mnt_want_write(nd->path.mnt);
 		if (error)
