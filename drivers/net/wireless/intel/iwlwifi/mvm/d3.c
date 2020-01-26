@@ -989,6 +989,8 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 
+	set_bit(IWL_MVM_STATUS_IN_D3, &mvm->status);
+
 	vif = iwl_mvm_get_bss_vif(mvm);
 	if (IS_ERR_OR_NULL(vif)) {
 		ret = 1;
@@ -1083,6 +1085,8 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 				ieee80211_restart_hw(mvm->hw);
 			}
 		}
+
+		clear_bit(IWL_MVM_STATUS_IN_D3, &mvm->status);
 	}
  out_noreset:
 	mutex_unlock(&mvm->mutex);
@@ -1928,6 +1932,8 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 				      IWL_UCODE_TLV_CAPA_D0I3_END_FIRST);
 
 	mutex_lock(&mvm->mutex);
+
+	clear_bit(IWL_MVM_STATUS_IN_D3, &mvm->status);
 
 	/* get the BSS vif pointer again */
 	vif = iwl_mvm_get_bss_vif(mvm);
