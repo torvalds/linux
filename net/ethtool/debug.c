@@ -78,3 +78,56 @@ const struct ethnl_request_ops ethnl_debug_request_ops = {
 	.reply_size		= debug_reply_size,
 	.fill_reply		= debug_fill_reply,
 };
+
+/* DEBUG_SET */
+
+static const struct nla_policy
+debug_set_policy[ETHTOOL_A_DEBUG_MAX + 1] = {
+	[ETHTOOL_A_DEBUG_UNSPEC]	= { .type = NLA_REJECT },
+	[ETHTOOL_A_DEBUG_HEADER]	= { .type = NLA_NESTED },
+	[ETHTOOL_A_DEBUG_MSGMASK]	= { .type = NLA_NESTED },
+};
+
+int ethnl_set_debug(struct sk_buff *skb, struct genl_info *info)
+{
+	struct nlattr *tb[ETHTOOL_A_DEBUG_MAX + 1];
+	struct ethnl_req_info req_info = {};
+	struct net_device *dev;
+	bool mod = false;
+	u32 msg_mask;
+	int ret;
+
+	ret = nlmsg_parse(info->nlhdr, GENL_HDRLEN, tb,
+			  ETHTOOL_A_DEBUG_MAX, debug_set_policy,
+			  info->extack);
+	if (ret < 0)
+		return ret;
+	ret = ethnl_parse_header(&req_info, tb[ETHTOOL_A_DEBUG_HEADER],
+				 genl_info_net(info), info->extack, true);
+	if (ret < 0)
+		return ret;
+	dev = req_info.dev;
+	if (!dev->ethtool_ops->get_msglevel || !dev->ethtool_ops->set_msglevel)
+		return -EOPNOTSUPP;
+
+	rtnl_lock();
+	ret = ethnl_ops_begin(dev);
+	if (ret < 0)
+		goto out_rtnl;
+
+	msg_mask = dev->ethtool_ops->get_msglevel(dev);
+	ret = ethnl_update_bitset32(&msg_mask, NETIF_MSG_CLASS_COUNT,
+				    tb[ETHTOOL_A_DEBUG_MSGMASK],
+				    netif_msg_class_names, info->extack, &mod);
+	if (ret < 0 || !mod)
+		goto out_ops;
+
+	dev->ethtool_ops->set_msglevel(dev, msg_mask);
+
+out_ops:
+	ethnl_ops_complete(dev);
+out_rtnl:
+	rtnl_unlock();
+	dev_put(dev);
+	return ret;
+}

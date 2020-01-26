@@ -186,6 +186,7 @@ Userspace to kernel:
   ``ETHTOOL_MSG_LINKMODES_SET``         set link modes info
   ``ETHTOOL_MSG_LINKSTATE_GET``         get link state
   ``ETHTOOL_MSG_DEBUG_GET``             get debugging settings
+  ``ETHTOOL_MSG_DEBUG_SET``             set debugging settings
   ===================================== ================================
 
 Kernel to userspace:
@@ -455,6 +456,23 @@ interface follows its actual use in practice.
 devices supporting the request).
 
 
+DEBUG_SET
+=========
+
+Set or update debugging settings of a device. At the moment, only message mask
+is supported.
+
+Request contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_DEBUG_HEADER``            nested  request header
+  ``ETHTOOL_A_DEBUG_MSGMASK``           bitset  message mask
+  ====================================  ======  ==========================
+
+``ETHTOOL_A_DEBUG_MSGMASK`` bit set allows setting or modifying mask of
+enabled debugging message types for the device.
+
+
 Request translation
 ===================
 
@@ -474,7 +492,7 @@ have their netlink replacement yet.
   ``ETHTOOL_GWOL``                    n/a
   ``ETHTOOL_SWOL``                    n/a
   ``ETHTOOL_GMSGLVL``                 ``ETHTOOL_MSG_DEBUG_GET``
-  ``ETHTOOL_SMSGLVL``                 n/a
+  ``ETHTOOL_SMSGLVL``                 ``ETHTOOL_MSG_DEBUG_SET``
   ``ETHTOOL_NWAY_RST``                n/a
   ``ETHTOOL_GLINK``                   ``ETHTOOL_MSG_LINKSTATE_GET``
   ``ETHTOOL_GEEPROM``                 n/a
