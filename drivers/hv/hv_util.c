@@ -24,6 +24,8 @@
 
 #define SD_MAJOR	3
 #define SD_MINOR	0
+#define SD_MINOR_1	1
+#define SD_VERSION_3_1	(SD_MAJOR << 16 | SD_MINOR_1)
 #define SD_VERSION	(SD_MAJOR << 16 | SD_MINOR)
 
 #define SD_MAJOR_1	1
@@ -50,8 +52,9 @@ static int sd_srv_version;
 static int ts_srv_version;
 static int hb_srv_version;
 
-#define SD_VER_COUNT 2
+#define SD_VER_COUNT 3
 static const int sd_versions[] = {
+	SD_VERSION_3_1,
 	SD_VERSION,
 	SD_VERSION_1
 };
@@ -118,17 +121,27 @@ static void perform_shutdown(struct work_struct *dummy)
 	orderly_poweroff(true);
 }
 
+static void perform_restart(struct work_struct *dummy)
+{
+	orderly_reboot();
+}
+
 /*
  * Perform the shutdown operation in a thread context.
  */
 static DECLARE_WORK(shutdown_work, perform_shutdown);
 
+/*
+ * Perform the restart operation in a thread context.
+ */
+static DECLARE_WORK(restart_work, perform_restart);
+
 static void shutdown_onchannelcallback(void *context)
 {
 	struct vmbus_channel *channel = context;
+	struct work_struct *work = NULL;
 	u32 recvlen;
 	u64 requestid;
-	bool execute_shutdown = false;
 	u8  *shut_txf_buf = util_shutdown.recv_buffer;
 
 	struct shutdown_msg_data *shutdown_msg;
@@ -157,19 +170,29 @@ static void shutdown_onchannelcallback(void *context)
 					sizeof(struct vmbuspipe_hdr) +
 					sizeof(struct icmsg_hdr)];
 
+			/*
+			 * shutdown_msg->flags can be 0(shut down), 2(reboot),
+			 * or 4(hibernate). It may bitwise-OR 1, which means
+			 * performing the request by force. Linux always tries
+			 * to perform the request by force.
+			 */
 			switch (shutdown_msg->flags) {
 			case 0:
 			case 1:
 				icmsghdrp->status = HV_S_OK;
-				execute_shutdown = true;
-
+				work = &shutdown_work;
 				pr_info("Shutdown request received -"
 					    " graceful shutdown initiated\n");
 				break;
+			case 2:
+			case 3:
+				icmsghdrp->status = HV_S_OK;
+				work = &restart_work;
+				pr_info("Restart request received -"
+					    " graceful restart initiated\n");
+				break;
 			default:
 				icmsghdrp->status = HV_E_FAIL;
-				execute_shutdown = false;
-
 				pr_info("Shutdown request received -"
 					    " Invalid request\n");
 				break;
@@ -184,8 +207,8 @@ static void shutdown_onchannelcallback(void *context)
 				       VM_PKT_DATA_INBAND, 0);
 	}
 
-	if (execute_shutdown == true)
-		schedule_work(&shutdown_work);
+	if (work)
+		schedule_work(work);
 }
 
 /*
