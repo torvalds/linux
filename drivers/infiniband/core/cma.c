@@ -842,12 +842,12 @@ found:
 
 static void cma_id_get(struct rdma_id_private *id_priv)
 {
-	atomic_inc(&id_priv->refcount);
+	refcount_inc(&id_priv->refcount);
 }
 
 static void cma_id_put(struct rdma_id_private *id_priv)
 {
-	if (atomic_dec_and_test(&id_priv->refcount))
+	if (refcount_dec_and_test(&id_priv->refcount))
 		complete(&id_priv->comp);
 }
 
@@ -875,7 +875,7 @@ struct rdma_cm_id *__rdma_create_id(struct net *net,
 	spin_lock_init(&id_priv->lock);
 	mutex_init(&id_priv->qp_mutex);
 	init_completion(&id_priv->comp);
-	atomic_set(&id_priv->refcount, 1);
+	refcount_set(&id_priv->refcount, 1);
 	mutex_init(&id_priv->handler_mutex);
 	INIT_LIST_HEAD(&id_priv->listen_list);
 	INIT_LIST_HEAD(&id_priv->mc_list);

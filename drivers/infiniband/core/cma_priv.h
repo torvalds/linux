@@ -66,7 +66,7 @@ struct rdma_id_private {
 	struct mutex		qp_mutex;
 
 	struct completion	comp;
-	atomic_t		refcount;
+	refcount_t refcount;
 	struct mutex		handler_mutex;
 
 	int			backlog;
