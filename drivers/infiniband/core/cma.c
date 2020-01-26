@@ -2687,14 +2687,18 @@ static void cma_init_resolve_route_work(struct cma_work *work,
 	work->event.event = RDMA_CM_EVENT_ROUTE_RESOLVED;
 }
 
-static void cma_init_resolve_addr_work(struct cma_work *work,
-				       struct rdma_id_private *id_priv)
+static void enqueue_resolve_addr_work(struct cma_work *work,
+				      struct rdma_id_private *id_priv)
 {
+	atomic_inc(&id_priv->refcount);
+
 	work->id = id_priv;
 	INIT_WORK(&work->work, cma_work_handler);
 	work->old_state = RDMA_CM_ADDR_QUERY;
 	work->new_state = RDMA_CM_ADDR_RESOLVED;
 	work->event.event = RDMA_CM_EVENT_ADDR_RESOLVED;
+
+	queue_work(cma_wq, &work->work);
 }
 
 static int cma_resolve_ib_route(struct rdma_id_private *id_priv,
@@ -3148,9 +3152,7 @@ static int cma_resolve_loopback(struct rdma_id_private *id_priv)
 	rdma_addr_get_sgid(&id_priv->id.route.addr.dev_addr, &gid);
 	rdma_addr_set_dgid(&id_priv->id.route.addr.dev_addr, &gid);
 
-	atomic_inc(&id_priv->refcount);
-	cma_init_resolve_addr_work(work, id_priv);
-	queue_work(cma_wq, &work->work);
+	enqueue_resolve_addr_work(work, id_priv);
 	return 0;
 err:
 	kfree(work);
@@ -3175,9 +3177,7 @@ static int cma_resolve_ib_addr(struct rdma_id_private *id_priv)
 	rdma_addr_set_dgid(&id_priv->id.route.addr.dev_addr, (union ib_gid *)
 		&(((struct sockaddr_ib *) &id_priv->id.route.addr.dst_addr)->sib_addr));
 
-	atomic_inc(&id_priv->refcount);
-	cma_init_resolve_addr_work(work, id_priv);
-	queue_work(cma_wq, &work->work);
+	enqueue_resolve_addr_work(work, id_priv);
 	return 0;
 err:
 	kfree(work);
