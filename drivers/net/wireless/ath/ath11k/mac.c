@@ -3520,8 +3520,8 @@ static int ath11k_mac_copy_he_cap(struct ath11k *ar,
 static void ath11k_mac_setup_he_cap(struct ath11k *ar,
 				    struct ath11k_pdev_cap *cap)
 {
-	struct ieee80211_supported_band *band = NULL;
-	int count = 0;
+	struct ieee80211_supported_band *band;
+	int count;
 
 	if (cap->supported_bands & WMI_HOST_WLAN_2G_CAP) {
 		count = ath11k_mac_copy_he_cap(ar, cap,
@@ -3529,6 +3529,7 @@ static void ath11k_mac_setup_he_cap(struct ath11k *ar,
 					       NL80211_BAND_2GHZ);
 		band = &ar->mac.sbands[NL80211_BAND_2GHZ];
 		band->iftype_data = ar->mac.iftype[NL80211_BAND_2GHZ];
+		band->n_iftype_data = count;
 	}
 
 	if (cap->supported_bands & WMI_HOST_WLAN_5G_CAP) {
@@ -3537,9 +3538,8 @@ static void ath11k_mac_setup_he_cap(struct ath11k *ar,
 					       NL80211_BAND_5GHZ);
 		band = &ar->mac.sbands[NL80211_BAND_5GHZ];
 		band->iftype_data = ar->mac.iftype[NL80211_BAND_5GHZ];
+		band->n_iftype_data = count;
 	}
-
-	band->n_iftype_data = count;
 }
 
 static int __ath11k_set_antenna(struct ath11k *ar, u32 tx_ant, u32 rx_ant)
@@ -4212,12 +4212,6 @@ static int ath11k_mac_op_add_interface(struct ieee80211_hw *hw,
 			    arvif->vdev_id, ret);
 	}
 
-	ret = ath11k_mac_set_txbf_conf(arvif);
-	if (ret) {
-		ath11k_warn(ar->ab, "failed to set txbf conf for vdev %d: %d\n",
-			    arvif->vdev_id, ret);
-	}
-
 	ath11k_dp_vdev_tx_attach(ar, arvif);
 
 	mutex_unlock(&ar->conf_mutex);
@@ -4566,6 +4560,11 @@ ath11k_mac_vdev_start_restart(struct ath11k_vif *arvif,
 			   "CAC Started in chan_freq %d for vdev %d\n",
 			   arg.channel.freq, arg.vdev_id);
 	}
+
+	ret = ath11k_mac_set_txbf_conf(arvif);
+	if (ret)
+		ath11k_warn(ab, "failed to set txbf conf for vdev %d: %d\n",
+			    arvif->vdev_id, ret);
 
 	return 0;
 }
@@ -5468,7 +5467,7 @@ static const struct ieee80211_ops ath11k_ops = {
 	.flush				= ath11k_mac_op_flush,
 	.sta_statistics			= ath11k_mac_op_sta_statistics,
 	CFG80211_TESTMODE_CMD(ath11k_tm_cmd)
-#ifdef CONFIG_MAC80211_DEBUGFS
+#ifdef CONFIG_ATH11K_DEBUGFS
 	.sta_add_debugfs		= ath11k_sta_add_debugfs,
 #endif
 };

@@ -762,7 +762,7 @@ int wil_priv_init(struct wil6210_priv *wil)
 	 */
 	wil->rx_buff_id_count = WIL_RX_BUFF_ARR_SIZE_DEFAULT;
 
-	wil->amsdu_en = 1;
+	wil->amsdu_en = true;
 
 	return 0;
 
