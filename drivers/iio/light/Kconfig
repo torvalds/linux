@@ -159,6 +159,17 @@ config IIO_CROS_EC_LIGHT_PROX
 	  To compile this driver as a module, choose M here:
 	  the module will be called cros_ec_light_prox.
 
+config GP2AP002
+	tristate "Sharp GP2AP002 Proximity/ALS sensor"
+	depends on I2C
+	select REGMAP
+	help
+	  Say Y here if you have a Sharp GP2AP002 proximity/ALS combo-chip
+	  hooked to an I2C bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gp2ap002.
+
 config GP2AP020A00F
 	tristate "Sharp GP2AP020A00F Proximity/ALS sensor"
 	depends on I2C

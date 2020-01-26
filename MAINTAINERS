@@ -15060,6 +15060,14 @@ W:	http://www.ibm.com/developerworks/linux/linux390/
 S:	Supported
 F:	net/smc/
 
+SHARP GP2AP002A00F/GP2AP002S00F SENSOR DRIVER
+M:	Linus Walleij <linus.walleij@linaro.org>
+L:	linux-iio@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jic23/iio.git
+S:	Maintained
+F:	drivers/iio/light/gp2ap002.c
+F:	Documentation/devicetree/bindings/iio/light/sharp,gp2ap002.yaml
+
 SHARP RJ54N1CB0C SENSOR DRIVER
 M:	Jacopo Mondi <jacopo@jmondi.org>
 L:	linux-media@vger.kernel.org
