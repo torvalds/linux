@@ -123,12 +123,14 @@ static struct hv_util_service util_shutdown = {
 };
 
 static int hv_timesync_init(struct hv_util_service *srv);
+static int hv_timesync_pre_suspend(void);
 static void hv_timesync_deinit(void);
 
 static void timesync_onchannelcallback(void *context);
 static struct hv_util_service util_timesynch = {
 	.util_cb = timesync_onchannelcallback,
 	.util_init = hv_timesync_init,
+	.util_pre_suspend = hv_timesync_pre_suspend,
 	.util_deinit = hv_timesync_deinit,
 };
 
@@ -140,18 +142,24 @@ static struct hv_util_service util_heartbeat = {
 static struct hv_util_service util_kvp = {
 	.util_cb = hv_kvp_onchannelcallback,
 	.util_init = hv_kvp_init,
+	.util_pre_suspend = hv_kvp_pre_suspend,
+	.util_pre_resume = hv_kvp_pre_resume,
 	.util_deinit = hv_kvp_deinit,
 };
 
 static struct hv_util_service util_vss = {
 	.util_cb = hv_vss_onchannelcallback,
 	.util_init = hv_vss_init,
+	.util_pre_suspend = hv_vss_pre_suspend,
+	.util_pre_resume = hv_vss_pre_resume,
 	.util_deinit = hv_vss_deinit,
 };
 
 static struct hv_util_service util_fcopy = {
 	.util_cb = hv_fcopy_onchannelcallback,
 	.util_init = hv_fcopy_init,
+	.util_pre_suspend = hv_fcopy_pre_suspend,
+	.util_pre_resume = hv_fcopy_pre_resume,
 	.util_deinit = hv_fcopy_deinit,
 };
 
@@ -511,6 +519,44 @@ static int util_remove(struct hv_device *dev)
 	return 0;
 }
 
+/*
+ * When we're in util_suspend(), all the userspace processes have been frozen
+ * (refer to hibernate() -> freeze_processes()). The userspace is thawed only
+ * after the whole resume procedure, including util_resume(), finishes.
+ */
+static int util_suspend(struct hv_device *dev)
+{
+	struct hv_util_service *srv = hv_get_drvdata(dev);
+	int ret = 0;
+
+	if (srv->util_pre_suspend) {
+		ret = srv->util_pre_suspend();
+		if (ret)
+			return ret;
+	}
+
+	vmbus_close(dev->channel);
+
+	return 0;
+}
+
+static int util_resume(struct hv_device *dev)
+{
+	struct hv_util_service *srv = hv_get_drvdata(dev);
+	int ret = 0;
+
+	if (srv->util_pre_resume) {
+		ret = srv->util_pre_resume();
+		if (ret)
+			return ret;
+	}
+
+	ret = vmbus_open(dev->channel, 4 * HV_HYP_PAGE_SIZE,
+			 4 * HV_HYP_PAGE_SIZE, NULL, 0, srv->util_cb,
+			 dev->channel);
+	return ret;
+}
+
 static const struct hv_vmbus_device_id id_table[] = {
 	/* Shutdown guid */
 	{ HV_SHUTDOWN_GUID,
@@ -547,6 +593,8 @@ static  struct hv_driver util_drv = {
 	.id_table = id_table,
 	.probe =  util_probe,
 	.remove =  util_remove,
+	.suspend = util_suspend,
+	.resume =  util_resume,
 	.driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
@@ -616,11 +664,23 @@ static int hv_timesync_init(struct hv_util_service *srv)
 	return 0;
 }
 
+static void hv_timesync_cancel_work(void)
+{
+	cancel_work_sync(&adj_time_work);
+}
+
+static int hv_timesync_pre_suspend(void)
+{
+	hv_timesync_cancel_work();
+	return 0;
+}
+
 static void hv_timesync_deinit(void)
 {
 	if (hv_ptp_clock)
 		ptp_clock_unregister(hv_ptp_clock);
-	cancel_work_sync(&adj_time_work);
+
+	hv_timesync_cancel_work();
 }
 
 static int __init init_hyperv_utils(void)

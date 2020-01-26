@@ -1435,6 +1435,8 @@ struct hv_util_service {
 	void (*util_cb)(void *);
 	int (*util_init)(struct hv_util_service *);
 	void (*util_deinit)(void);
+	int (*util_pre_suspend)(void);
+	int (*util_pre_resume)(void);
 };
 
 struct vmbuspipe_hdr {

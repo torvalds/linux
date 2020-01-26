@@ -758,11 +758,50 @@ hv_kvp_init(struct hv_util_service *srv)
 	return 0;
 }
 
-void hv_kvp_deinit(void)
+static void hv_kvp_cancel_work(void)
 {
-	kvp_transaction.state = HVUTIL_DEVICE_DYING;
 	cancel_delayed_work_sync(&kvp_host_handshake_work);
 	cancel_delayed_work_sync(&kvp_timeout_work);
 	cancel_work_sync(&kvp_sendkey_work);
+}
+
+int hv_kvp_pre_suspend(void)
+{
+	struct vmbus_channel *channel = kvp_transaction.recv_channel;
+
+	tasklet_disable(&channel->callback_event);
+
+	/*
+	 * If there is a pending transtion, it's unnecessary to tell the host
+	 * that the transaction will fail, because that is implied when
+	 * util_suspend() calls vmbus_close() later.
+	 */
+	hv_kvp_cancel_work();
+
+	/*
+	 * Forece the state to READY to handle the ICMSGTYPE_NEGOTIATE message
+	 * later. The user space daemon may go out of order and its write()
+	 * may fail with EINVAL: this doesn't matter since the daemon will
+	 * reset the device by closing and re-opening it.
+	 */
+	kvp_transaction.state = HVUTIL_READY;
+	return 0;
+}
+
+int hv_kvp_pre_resume(void)
+{
+	struct vmbus_channel *channel = kvp_transaction.recv_channel;
+
+	tasklet_enable(&channel->callback_event);
+
+	return 0;
+}
+
+void hv_kvp_deinit(void)
+{
+	kvp_transaction.state = HVUTIL_DEVICE_DYING;
+
+	hv_kvp_cancel_work();
+
 	hvutil_transport_destroy(hvt);
 }
