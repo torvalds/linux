@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 // TI LM3532 LED driver
 // Copyright (C) 2019 Texas Instruments Incorporated - http://www.ti.com/
+// http://www.ti.com/lit/ds/symlink/lm3532.pdf
 
 #include <linux/i2c.h>
 #include <linux/leds.h>
@@ -623,7 +624,7 @@ static int lm3532_parse_node(struct lm3532_data *priv)
 
 		led->num_leds = fwnode_property_count_u32(child, "led-sources");
 		if (led->num_leds > LM3532_MAX_LED_STRINGS) {
-			dev_err(&priv->client->dev, "To many LED string defined\n");
+			dev_err(&priv->client->dev, "Too many LED string defined\n");
 			continue;
 		}
 

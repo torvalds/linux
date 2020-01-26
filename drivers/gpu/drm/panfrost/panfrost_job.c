@@ -268,9 +268,20 @@ static void panfrost_job_cleanup(struct kref *ref)
 	dma_fence_put(job->done_fence);
 	dma_fence_put(job->render_done_fence);
 
-	if (job->bos) {
+	if (job->mappings) {
 		for (i = 0; i < job->bo_count; i++)
+			panfrost_gem_mapping_put(job->mappings[i]);
+		kvfree(job->mappings);
+	}
+
+	if (job->bos) {
+		struct panfrost_gem_object *bo;
+
+		for (i = 0; i < job->bo_count; i++) {
+			bo = to_panfrost_bo(job->bos[i]);
 			drm_gem_object_put_unlocked(job->bos[i]);
+		}
+
 		kvfree(job->bos);
 	}
 
