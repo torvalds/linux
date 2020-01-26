@@ -137,6 +137,24 @@ static struct platform_driver bcm2835aux_serial_driver = {
 };
 module_platform_driver(bcm2835aux_serial_driver);
 
+#ifdef CONFIG_SERIAL_8250_CONSOLE
+
+static int __init early_bcm2835aux_setup(struct earlycon_device *device,
+					const char *options)
+{
+	if (!device->port.membase)
+		return -ENODEV;
+
+	device->port.iotype = UPIO_MEM32;
+	device->port.regshift = 2;
+
+	return early_serial8250_setup(device, NULL);
+}
+
+OF_EARLYCON_DECLARE(bcm2835aux, "brcm,bcm2835-aux-uart",
+		    early_bcm2835aux_setup);
+#endif
+
 MODULE_DESCRIPTION("BCM2835 auxiliar UART driver");
 MODULE_AUTHOR("Martin Sperl <kernel@martin.sperl.org>");
 MODULE_LICENSE("GPL v2");
