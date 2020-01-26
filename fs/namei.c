@@ -3112,19 +3112,12 @@ out_dput:
 	return ERR_PTR(error);
 }
 
-/*
- * Handle the last step of open()
- */
-static const char *do_last(struct nameidata *nd,
+static const char *open_last_lookups(struct nameidata *nd,
 		   struct file *file, const struct open_flags *op)
 {
 	struct dentry *dir = nd->path.dentry;
-	kuid_t dir_uid = nd->inode->i_uid;
-	umode_t dir_mode = nd->inode->i_mode;
 	int open_flag = op->open_flag;
-	bool do_truncate;
 	bool got_write = false;
-	int acc_mode;
 	unsigned seq;
 	struct inode *inode;
 	struct dentry *dentry;
@@ -3137,9 +3130,9 @@ static const char *do_last(struct nameidata *nd,
 		if (nd->depth)
 			put_link(nd);
 		error = handle_dots(nd, nd->last_type);
-		if (unlikely(error))
-			return ERR_PTR(error);
-		goto finish_open;
+		if (likely(!error))
+			error = complete_walk(nd);
+		return ERR_PTR(error);
 	}
 
 	if (!(open_flag & O_CREAT)) {
@@ -3152,7 +3145,6 @@ static const char *do_last(struct nameidata *nd,
 		if (likely(dentry))
 			goto finish_lookup;
 
-		BUG_ON(nd->inode != dir->d_inode);
 		BUG_ON(nd->flags & LOOKUP_RCU);
 	} else {
 		/* create side of things */
@@ -3162,7 +3154,7 @@ static const char *do_last(struct nameidata *nd,
 		 * about to look up
 		 */
 		error = complete_walk(nd);
-		if (error)
+		if (unlikely(error))
 			return ERR_PTR(error);
 
 		audit_inode(nd->name, dir, AUDIT_INODE_PARENT);
@@ -3191,10 +3183,8 @@ static const char *do_last(struct nameidata *nd,
 	else
 		inode_unlock_shared(dir->d_inode);
 
-	if (got_write) {
+	if (got_write)
 		mnt_drop_write(nd->path.mnt);
-		got_write = false;
-	}
 
 	if (IS_ERR(dentry))
 		return ERR_CAST(dentry);
@@ -3202,7 +3192,7 @@ static const char *do_last(struct nameidata *nd,
 	if (file->f_mode & (FMODE_OPENED | FMODE_CREATED)) {
 		dput(nd->path.dentry);
 		nd->path.dentry = dentry;
-		goto finish_open_created;
+		return NULL;
 	}
 
 finish_lookup:
@@ -3218,12 +3208,29 @@ finish_lookup:
 		audit_inode(nd->name, nd->path.dentry, 0);
 		return ERR_PTR(-EEXIST);
 	}
-finish_open:
+
 	/* Why this, you ask?  _Now_ we might have grown LOOKUP_JUMPED... */
-	error = complete_walk(nd);
-	if (error)
-		return ERR_PTR(error);
-finish_open_created:
+	return ERR_PTR(complete_walk(nd));
+}
+
+/*
+ * Handle the last step of open()
+ */
+static const char *do_last(struct nameidata *nd,
+		   struct file *file, const struct open_flags *op)
+{
+	kuid_t dir_uid = nd->inode->i_uid;
+	umode_t dir_mode = nd->inode->i_mode;
+	int open_flag = op->open_flag;
+	bool do_truncate;
+	int acc_mode;
+	const char *link;
+	int error;
+
+	link = open_last_lookups(nd, file, op);
+	if (unlikely(link))
+		return link;
+
 	if (!(file->f_mode & FMODE_CREATED))
 		audit_inode(nd->name, nd->path.dentry, 0);
 	if (open_flag & O_CREAT) {
