@@ -2360,7 +2360,7 @@ static int nfs_access_get_cached_rcu(struct inode *inode, const struct cred *cre
 	lh = rcu_dereference(nfsi->access_cache_entry_lru.prev);
 	cache = list_entry(lh, struct nfs_access_entry, lru);
 	if (lh == &nfsi->access_cache_entry_lru ||
-	    cred != cache->cred)
+	    cred_fscmp(cred, cache->cred) != 0)
 		cache = NULL;
 	if (cache == NULL)
 		goto out;
