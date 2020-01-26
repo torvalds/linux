@@ -762,14 +762,8 @@ struct hns_roce_eq {
 	int				eqe_ba_pg_sz;
 	int				eqe_buf_pg_sz;
 	int				hop_num;
-	u64				*bt_l0;	/* Base address table for L0 */
-	u64				**bt_l1; /* Base address table for L1 */
-	u64				**buf;
-	dma_addr_t			l0_dma;
-	dma_addr_t			*l1_dma;
-	dma_addr_t			*buf_dma;
-	u32				l0_last_num; /* L0 last chunk num */
-	u32				l1_last_num; /* L1 last chunk num */
+	struct hns_roce_mtr		mtr;
+	struct hns_roce_buf		buf;
 	int				eq_max_cnt;
 	int				eq_period;
 	int				shift;
