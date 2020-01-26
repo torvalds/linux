@@ -15861,7 +15861,7 @@ static void fb_obj_bump_render_priority(struct drm_i915_gem_object *obj)
 
 /**
  * intel_prepare_plane_fb - Prepare fb for usage on plane
- * @plane: drm plane to prepare for
+ * @_plane: drm plane to prepare for
  * @_new_plane_state: the plane state being prepared
  *
  * Prepares a framebuffer for usage on a display plane.  Generally this
