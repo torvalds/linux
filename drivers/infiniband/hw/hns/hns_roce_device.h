@@ -881,7 +881,7 @@ struct hns_roce_caps {
 	u32		cqc_timer_ba_pg_sz;
 	u32		cqc_timer_buf_pg_sz;
 	u32		cqc_timer_hop_num;
-	u32		cqe_ba_pg_sz;
+	u32             cqe_ba_pg_sz;	/* page_size = 4K*(2^cqe_ba_pg_sz) */
 	u32		cqe_buf_pg_sz;
 	u32		cqe_hop_num;
 	u32		srqwqe_ba_pg_sz;

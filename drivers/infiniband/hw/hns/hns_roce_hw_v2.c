@@ -1999,7 +1999,7 @@ static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 		return ret;
 	}
 
-	if (hr_dev->pci_dev->revision == 0x21) {
+	if (hr_dev->pci_dev->revision == PCI_REVISION_ID_HIP08_B) {
 		ret = hns_roce_query_pf_timer_resource(hr_dev);
 		if (ret) {
 			dev_err(hr_dev->dev,
@@ -2016,7 +2016,7 @@ static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 		return ret;
 	}
 
-	if (hr_dev->pci_dev->revision == 0x21) {
+	if (hr_dev->pci_dev->revision == PCI_REVISION_ID_HIP08_B) {
 		ret = hns_roce_set_vf_switch_param(hr_dev, 0);
 		if (ret) {
 			dev_err(hr_dev->dev,
@@ -2298,7 +2298,7 @@ static void hns_roce_v2_exit(struct hns_roce_dev *hr_dev)
 {
 	struct hns_roce_v2_priv *priv = hr_dev->priv;
 
-	if (hr_dev->pci_dev->revision == 0x21)
+	if (hr_dev->pci_dev->revision == PCI_REVISION_ID_HIP08_B)
 		hns_roce_function_clear(hr_dev);
 
 	hns_roce_free_link_table(hr_dev, &priv->tpq);
@@ -2757,7 +2757,7 @@ static void hns_roce_free_srq_wqe(struct hns_roce_srq *srq, int wqe_index)
 
 static void hns_roce_v2_cq_set_ci(struct hns_roce_cq *hr_cq, u32 cons_index)
 {
-	*hr_cq->set_ci_db = cons_index & 0xffffff;
+	*hr_cq->set_ci_db = cons_index & V2_CQ_DB_PARAMETER_CONS_IDX_M;
 }
 
 static void __hns_roce_v2_cq_clean(struct hns_roce_cq *hr_cq, u32 qpn,
@@ -4475,7 +4475,7 @@ static int hns_roce_v2_set_path(struct ib_qp *ibqp,
 	roce_set_field(qpc_mask->byte_24_mtu_tc, V2_QPC_BYTE_24_HOP_LIMIT_M,
 		       V2_QPC_BYTE_24_HOP_LIMIT_S, 0);
 
-	if (hr_dev->pci_dev->revision == 0x21 && is_udp)
+	if (hr_dev->pci_dev->revision == PCI_REVISION_ID_HIP08_B && is_udp)
 		roce_set_field(context->byte_24_mtu_tc, V2_QPC_BYTE_24_TC_M,
 			       V2_QPC_BYTE_24_TC_S, grh->traffic_class >> 2);
 	else
