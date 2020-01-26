@@ -2958,15 +2958,16 @@ static void sd_read_block_characteristics(struct scsi_disk *sdkp)
 		q->limits.zoned = BLK_ZONED_HM;
 	} else {
 		sdkp->zoned = (buffer[8] >> 4) & 3;
-		if (sdkp->zoned == 1)
+		if (sdkp->zoned == 1 && !disk_has_partitions(sdkp->disk)) {
 			/* Host-aware */
 			q->limits.zoned = BLK_ZONED_HA;
-		else
+		} else {
 			/*
-			 * Treat drive-managed devices as
-			 * regular block devices.
+			 * Treat drive-managed devices and host-aware devices
+			 * with partitions as regular block devices.
 			 */
 			q->limits.zoned = BLK_ZONED_NONE;
+		}
 	}
 	if (blk_queue_is_zoned(q) && sdkp->first_scan)
 		sd_printk(KERN_NOTICE, sdkp, "Host-%s zoned block device\n",
