@@ -199,7 +199,7 @@ struct cma_device {
 	struct list_head	list;
 	struct ib_device	*device;
 	struct completion	comp;
-	atomic_t		refcount;
+	refcount_t refcount;
 	struct list_head	id_list;
 	enum ib_gid_type	*default_gid_type;
 	u8			*default_roce_tos;
@@ -249,12 +249,12 @@ enum {
 
 void cma_dev_get(struct cma_device *cma_dev)
 {
-	atomic_inc(&cma_dev->refcount);
+	refcount_inc(&cma_dev->refcount);
 }
 
 void cma_dev_put(struct cma_device *cma_dev)
 {
-	if (atomic_dec_and_test(&cma_dev->refcount))
+	if (refcount_dec_and_test(&cma_dev->refcount))
 		complete(&cma_dev->comp);
 }
 
@@ -754,7 +754,6 @@ static int cma_iw_acquire_dev(struct rdma_id_private *id_priv,
 
 	list_for_each_entry(cma_dev, &dev_list, list) {
 		rdma_for_each_port (cma_dev->device, port) {
-
 			if (listen_id_priv->cma_dev == cma_dev &&
 			    listen_id_priv->id.port_num == port)
 				continue;
@@ -4657,7 +4656,7 @@ static void cma_add_one(struct ib_device *device)
 	}
 
 	init_completion(&cma_dev->comp);
-	atomic_set(&cma_dev->refcount, 1);
+	refcount_set(&cma_dev->refcount, 1);
 	INIT_LIST_HEAD(&cma_dev->id_list);
 	ib_set_client_data(device, &cma_client, cma_dev);
 
