@@ -3122,9 +3122,9 @@ static const char *do_last(struct nameidata *nd,
 	kuid_t dir_uid = nd->inode->i_uid;
 	umode_t dir_mode = nd->inode->i_mode;
 	int open_flag = op->open_flag;
-	bool will_truncate = (open_flag & O_TRUNC) != 0;
+	bool do_truncate;
 	bool got_write = false;
-	int acc_mode = op->acc_mode;
+	int acc_mode;
 	unsigned seq;
 	struct inode *inode;
 	struct dentry *dentry;
@@ -3243,36 +3243,30 @@ finish_open:
 		return ERR_PTR(-ENOTDIR);
 
 finish_open_created:
+	do_truncate = false;
+	acc_mode = op->acc_mode;
 	if (file->f_mode & FMODE_CREATED) {
 		/* Don't check for write permission, don't truncate */
 		open_flag &= ~O_TRUNC;
-		will_truncate = false;
 		acc_mode = 0;
-	} else if (!d_is_reg(nd->path.dentry)) {
-		will_truncate = false;
-	}
-	if (will_truncate) {
+	} else if (d_is_reg(nd->path.dentry) && open_flag & O_TRUNC) {
 		error = mnt_want_write(nd->path.mnt);
 		if (error)
 			return ERR_PTR(error);
-		got_write = true;
+		do_truncate = true;
 	}
 	error = may_open(&nd->path, acc_mode, open_flag);
-	if (error)
-		goto out;
-	if (!(file->f_mode & FMODE_OPENED))
+	if (!error && !(file->f_mode & FMODE_OPENED))
 		error = vfs_open(&nd->path, file);
-	if (error)
-		goto out;
-	error = ima_file_check(file, op->acc_mode);
-	if (!error && will_truncate)
+	if (!error)
+		error = ima_file_check(file, op->acc_mode);
+	if (!error && do_truncate)
 		error = handle_truncate(file);
-out:
 	if (unlikely(error > 0)) {
 		WARN_ON(1);
 		error = -EINVAL;
 	}
-	if (got_write)
+	if (do_truncate)
 		mnt_drop_write(nd->path.mnt);
 	return ERR_PTR(error);
 }
