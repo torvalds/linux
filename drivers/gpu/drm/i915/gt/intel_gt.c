@@ -538,6 +538,10 @@ static int __engines_verify_workarounds(struct intel_gt *gt)
 			err = -EIO;
 	}
 
+	/* Flush and restore the kernel context for safety */
+	if (intel_gt_wait_for_idle(gt, I915_GEM_IDLE_TIMEOUT) == -ETIME)
+		err = -EIO;
+
 	return err;
 }
 
