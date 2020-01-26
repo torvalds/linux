@@ -41,7 +41,8 @@ static int wol_prepare_data(const struct ethnl_req_info *req_base,
 		return ret;
 	dev->ethtool_ops->get_wol(dev, &data->wol);
 	ethnl_ops_complete(dev);
-	data->show_sopass = data->wol.supported & WAKE_MAGICSECURE;
+	/* do not include password in notifications */
+	data->show_sopass = info && (data->wol.supported & WAKE_MAGICSECURE);
 
 	return 0;
 }
@@ -165,6 +166,7 @@ int ethnl_set_wol(struct sk_buff *skb, struct genl_info *info)
 	if (ret)
 		goto out_ops;
 	dev->wol_enabled = !!wol.wolopts;
+	ethtool_notify(dev, ETHTOOL_MSG_WOL_NTF, NULL);
 
 out_ops:
 	ethnl_ops_complete(dev);

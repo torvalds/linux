@@ -193,7 +193,7 @@ Userspace to kernel:
 
 Kernel to userspace:
 
-  ===================================== ================================
+  ===================================== =================================
   ``ETHTOOL_MSG_STRSET_GET_REPLY``      string set contents
   ``ETHTOOL_MSG_LINKINFO_GET_REPLY``    link settings
   ``ETHTOOL_MSG_LINKINFO_NTF``          link settings notification
@@ -203,7 +203,8 @@ Kernel to userspace:
   ``ETHTOOL_MSG_DEBUG_GET_REPLY``       debugging settings
   ``ETHTOOL_MSG_DEBUG_NTF``             debugging settings notification
   ``ETHTOOL_MSG_WOL_GET_REPLY``         wake-on-lan settings
-  ===================================== ================================
+  ``ETHTOOL_MSG_WOL_NTF``               wake-on-lan settings notification
+  ===================================== =================================
 
 ``GET`` requests are sent by userspace applications to retrieve device
 information. They usually do not contain any message specific attributes.
