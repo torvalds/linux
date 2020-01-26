@@ -558,7 +558,6 @@ enum qeth_channel_states {
  */
 enum qeth_card_states {
 	CARD_STATE_DOWN,
-	CARD_STATE_HARDSETUP,
 	CARD_STATE_SOFTSETUP,
 };
 
@@ -608,6 +607,8 @@ struct qeth_cmd_buffer {
 	long timeout;
 	unsigned char *data;
 	void (*finalize)(struct qeth_card *card, struct qeth_cmd_buffer *iob);
+	bool (*match)(struct qeth_cmd_buffer *iob,
+		      struct qeth_cmd_buffer *reply);
 	void (*callback)(struct qeth_card *card, struct qeth_cmd_buffer *iob,
 			 unsigned int data_length);
 	int rc;
@@ -616,6 +617,14 @@ struct qeth_cmd_buffer {
 static inline void qeth_get_cmd(struct qeth_cmd_buffer *iob)
 {
 	refcount_inc(&iob->ref_count);
+}
+
+static inline struct qeth_ipa_cmd *__ipa_reply(struct qeth_cmd_buffer *iob)
+{
+	if (!IS_IPA(iob->data))
+		return NULL;
+
+	return (struct qeth_ipa_cmd *) PDU_ENCAPSULATION(iob->data);
 }
 
 static inline struct qeth_ipa_cmd *__ipa_cmd(struct qeth_cmd_buffer *iob)
@@ -727,11 +736,10 @@ struct qeth_osn_info {
 
 struct qeth_discipline {
 	const struct device_type *devtype;
-	int (*recover)(void *ptr);
 	int (*setup) (struct ccwgroup_device *);
 	void (*remove) (struct ccwgroup_device *);
-	int (*set_online) (struct ccwgroup_device *);
-	int (*set_offline) (struct ccwgroup_device *);
+	int (*set_online)(struct qeth_card *card);
+	void (*set_offline)(struct qeth_card *card);
 	int (*do_ioctl)(struct net_device *dev, struct ifreq *rq, int cmd);
 	int (*control_event_handler)(struct qeth_card *card,
 					struct qeth_ipa_cmd *cmd);
@@ -987,14 +995,11 @@ struct net_device *qeth_clone_netdev(struct net_device *orig);
 struct qeth_card *qeth_get_card_by_busid(char *bus_id);
 void qeth_set_allowed_threads(struct qeth_card *, unsigned long , int);
 int qeth_threads_running(struct qeth_card *, unsigned long);
-int qeth_do_run_thread(struct qeth_card *, unsigned long);
-void qeth_clear_thread_start_bit(struct qeth_card *, unsigned long);
-void qeth_clear_thread_running_bit(struct qeth_card *, unsigned long);
 int qeth_core_hardsetup_card(struct qeth_card *card, bool *carrier_ok);
 int qeth_stop_channel(struct qeth_channel *channel);
+int qeth_set_offline(struct qeth_card *card, bool resetting);
 
 void qeth_print_status_message(struct qeth_card *);
-int qeth_init_qdio_queues(struct qeth_card *);
 int qeth_send_ipa_cmd(struct qeth_card *, struct qeth_cmd_buffer *,
 		  int (*reply_cb)
 		  (struct qeth_card *, struct qeth_reply *, unsigned long),
@@ -1027,7 +1032,9 @@ void qeth_setadp_promisc_mode(struct qeth_card *card, bool enable);
 int qeth_setadpparms_change_macaddr(struct qeth_card *);
 void qeth_tx_timeout(struct net_device *, unsigned int txqueue);
 void qeth_prepare_ipa_cmd(struct qeth_card *card, struct qeth_cmd_buffer *iob,
-			  u16 cmd_length);
+			  u16 cmd_length,
+			  bool (*match)(struct qeth_cmd_buffer *iob,
+					struct qeth_cmd_buffer *reply));
 int qeth_query_switch_attributes(struct qeth_card *card,
 				  struct qeth_switch_info *sw_info);
 int qeth_query_card_info(struct qeth_card *card,
