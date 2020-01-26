@@ -594,6 +594,7 @@ struct ethtool_pauseparam {
  * @ETH_SS_PHY_STATS: Statistic names, for use with %ETHTOOL_GPHYSTATS
  * @ETH_SS_PHY_TUNABLES: PHY tunable names
  * @ETH_SS_LINK_MODES: link mode names
+ * @ETH_SS_MSG_CLASSES: debug message class names
  */
 enum ethtool_stringset {
 	ETH_SS_TEST		= 0,
@@ -606,6 +607,7 @@ enum ethtool_stringset {
 	ETH_SS_PHY_STATS,
 	ETH_SS_PHY_TUNABLES,
 	ETH_SS_LINK_MODES,
+	ETH_SS_MSG_CLASSES,
 
 	/* add new constants above here */
 	ETH_SS_COUNT

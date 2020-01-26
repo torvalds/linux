@@ -50,6 +50,11 @@ static const struct strset_info info_template[] = {
 		.count		= __ETHTOOL_LINK_MODE_MASK_NBITS,
 		.strings	= link_mode_names,
 	},
+	[ETH_SS_MSG_CLASSES] = {
+		.per_dev	= false,
+		.count		= NETIF_MSG_CLASS_COUNT,
+		.strings	= netif_msg_class_names,
+	},
 };
 
 struct strset_req_info {

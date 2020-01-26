@@ -171,6 +171,25 @@ const char link_mode_names[][ETH_GSTRING_LEN] = {
 };
 static_assert(ARRAY_SIZE(link_mode_names) == __ETHTOOL_LINK_MODE_MASK_NBITS);
 
+const char netif_msg_class_names[][ETH_GSTRING_LEN] = {
+	[NETIF_MSG_DRV_BIT]		= "drv",
+	[NETIF_MSG_PROBE_BIT]		= "probe",
+	[NETIF_MSG_LINK_BIT]		= "link",
+	[NETIF_MSG_TIMER_BIT]		= "timer",
+	[NETIF_MSG_IFDOWN_BIT]		= "ifdown",
+	[NETIF_MSG_IFUP_BIT]		= "ifup",
+	[NETIF_MSG_RX_ERR_BIT]		= "rx_err",
+	[NETIF_MSG_TX_ERR_BIT]		= "tx_err",
+	[NETIF_MSG_TX_QUEUED_BIT]	= "tx_queued",
+	[NETIF_MSG_INTR_BIT]		= "intr",
+	[NETIF_MSG_TX_DONE_BIT]		= "tx_done",
+	[NETIF_MSG_RX_STATUS_BIT]	= "rx_status",
+	[NETIF_MSG_PKTDATA_BIT]		= "pktdata",
+	[NETIF_MSG_HW_BIT]		= "hw",
+	[NETIF_MSG_WOL_BIT]		= "wol",
+};
+static_assert(ARRAY_SIZE(netif_msg_class_names) == NETIF_MSG_CLASS_COUNT);
+
 /* return false if legacy contained non-0 deprecated fields
  * maxtxpkt/maxrxpkt. rest of ksettings always updated
  */

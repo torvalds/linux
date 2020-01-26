@@ -185,6 +185,7 @@ Userspace to kernel:
   ``ETHTOOL_MSG_LINKMODES_GET``         get link modes info
   ``ETHTOOL_MSG_LINKMODES_SET``         set link modes info
   ``ETHTOOL_MSG_LINKSTATE_GET``         get link state
+  ``ETHTOOL_MSG_DEBUG_GET``             get debugging settings
   ===================================== ================================
 
 Kernel to userspace:
@@ -196,6 +197,7 @@ Kernel to userspace:
   ``ETHTOOL_MSG_LINKMODES_GET_REPLY``   link modes info
   ``ETHTOOL_MSG_LINKMODES_NTF``         link modes notification
   ``ETHTOOL_MSG_LINKSTATE_GET_REPLY``   link state info
+  ``ETHTOOL_MSG_DEBUG_GET_REPLY``       debugging settings
   ===================================== ================================
 
 ``GET`` requests are sent by userspace applications to retrieve device
@@ -423,6 +425,36 @@ define their own handler.
 devices supporting the request).
 
 
+DEBUG_GET
+=========
+
+Requests debugging settings of a device. At the moment, only message mask is
+provided.
+
+Request contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_DEBUG_HEADER``            nested  request header
+  ====================================  ======  ==========================
+
+Kernel response contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_DEBUG_HEADER``            nested  reply header
+  ``ETHTOOL_A_DEBUG_MSGMASK``           bitset  message mask
+  ====================================  ======  ==========================
+
+The message mask (``ETHTOOL_A_DEBUG_MSGMASK``) is equal to message level as
+provided by ``ETHTOOL_GMSGLVL`` and set by ``ETHTOOL_SMSGLVL`` in ioctl
+interface. While it is called message level there for historical reasons, most
+drivers and almost all newer drivers use it as a mask of enabled message
+classes (represented by ``NETIF_MSG_*`` constants); therefore netlink
+interface follows its actual use in practice.
+
+``DEBUG_GET`` allows dump requests (kernel returns reply messages for all
+devices supporting the request).
+
+
 Request translation
 ===================
 
@@ -441,7 +473,7 @@ have their netlink replacement yet.
   ``ETHTOOL_GREGS``                   n/a
   ``ETHTOOL_GWOL``                    n/a
   ``ETHTOOL_SWOL``                    n/a
-  ``ETHTOOL_GMSGLVL``                 n/a
+  ``ETHTOOL_GMSGLVL``                 ``ETHTOOL_MSG_DEBUG_GET``
   ``ETHTOOL_SMSGLVL``                 n/a
   ``ETHTOOL_NWAY_RST``                n/a
   ``ETHTOOL_GLINK``                   ``ETHTOOL_MSG_LINKSTATE_GET``
