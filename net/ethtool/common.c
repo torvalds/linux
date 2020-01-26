@@ -190,6 +190,18 @@ const char netif_msg_class_names[][ETH_GSTRING_LEN] = {
 };
 static_assert(ARRAY_SIZE(netif_msg_class_names) == NETIF_MSG_CLASS_COUNT);
 
+const char wol_mode_names[][ETH_GSTRING_LEN] = {
+	[const_ilog2(WAKE_PHY)]		= "phy",
+	[const_ilog2(WAKE_UCAST)]	= "ucast",
+	[const_ilog2(WAKE_MCAST)]	= "mcast",
+	[const_ilog2(WAKE_BCAST)]	= "bcast",
+	[const_ilog2(WAKE_ARP)]		= "arp",
+	[const_ilog2(WAKE_MAGIC)]	= "magic",
+	[const_ilog2(WAKE_MAGICSECURE)]	= "magicsecure",
+	[const_ilog2(WAKE_FILTER)]	= "filter",
+};
+static_assert(ARRAY_SIZE(wol_mode_names) == WOL_MODE_COUNT);
+
 /* return false if legacy contained non-0 deprecated fields
  * maxtxpkt/maxrxpkt. rest of ksettings always updated
  */

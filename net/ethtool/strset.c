@@ -55,6 +55,11 @@ static const struct strset_info info_template[] = {
 		.count		= NETIF_MSG_CLASS_COUNT,
 		.strings	= netif_msg_class_names,
 	},
+	[ETH_SS_WOL_MODES] = {
+		.per_dev	= false,
+		.count		= WOL_MODE_COUNT,
+		.strings	= wol_mode_names,
+	},
 };
 
 struct strset_req_info {

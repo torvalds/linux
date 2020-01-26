@@ -187,6 +187,7 @@ Userspace to kernel:
   ``ETHTOOL_MSG_LINKSTATE_GET``         get link state
   ``ETHTOOL_MSG_DEBUG_GET``             get debugging settings
   ``ETHTOOL_MSG_DEBUG_SET``             set debugging settings
+  ``ETHTOOL_MSG_WOL_GET``               get wake-on-lan settings
   ===================================== ================================
 
 Kernel to userspace:
@@ -200,6 +201,7 @@ Kernel to userspace:
   ``ETHTOOL_MSG_LINKSTATE_GET_REPLY``   link state info
   ``ETHTOOL_MSG_DEBUG_GET_REPLY``       debugging settings
   ``ETHTOOL_MSG_DEBUG_NTF``             debugging settings notification
+  ``ETHTOOL_MSG_WOL_GET_REPLY``         wake-on-lan settings
   ===================================== ================================
 
 ``GET`` requests are sent by userspace applications to retrieve device
@@ -474,6 +476,32 @@ Request contents:
 enabled debugging message types for the device.
 
 
+WOL_GET
+=======
+
+Query device wake-on-lan settings. Unlike most "GET" type requests,
+``ETHTOOL_MSG_WOL_GET`` requires (netns) ``CAP_NET_ADMIN`` privileges as it
+(potentially) provides SecureOn(tm) password which is confidential.
+
+Request contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_WOL_HEADER``              nested  request header
+  ====================================  ======  ==========================
+
+Kernel response contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_WOL_HEADER``              nested  reply header
+  ``ETHTOOL_A_WOL_MODES``               bitset  mask of enabled WoL modes
+  ``ETHTOOL_A_WOL_SOPASS``              binary  SecureOn(tm) password
+  ====================================  ======  ==========================
+
+In reply, ``ETHTOOL_A_WOL_MODES`` mask consists of modes supported by the
+device, value of modes which are enabled. ``ETHTOOL_A_WOL_SOPASS`` is only
+included in reply if ``WAKE_MAGICSECURE`` mode is supported.
+
+
 Request translation
 ===================
 
@@ -490,7 +518,7 @@ have their netlink replacement yet.
                                       ``ETHTOOL_MSG_LINKMODES_SET``
   ``ETHTOOL_GDRVINFO``                n/a
   ``ETHTOOL_GREGS``                   n/a
-  ``ETHTOOL_GWOL``                    n/a
+  ``ETHTOOL_GWOL``                    ``ETHTOOL_MSG_WOL_GET``
   ``ETHTOOL_SWOL``                    n/a
   ``ETHTOOL_GMSGLVL``                 ``ETHTOOL_MSG_DEBUG_GET``
   ``ETHTOOL_SMSGLVL``                 ``ETHTOOL_MSG_DEBUG_SET``
