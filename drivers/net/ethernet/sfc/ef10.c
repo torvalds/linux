@@ -13,6 +13,7 @@
 #include "mcdi_port_common.h"
 #include "mcdi_functions.h"
 #include "nic.h"
+#include "mcdi_filters.h"
 #include "workarounds.h"
 #include "selftest.h"
 #include "ef10_sriov.h"
@@ -32,24 +33,7 @@ enum {
 /* TODO: this should really be from the mcdi protocol export */
 #define EFX_EF10_MAX_SHARED_RSS_CONTEXT_SIZE 64UL
 
-/* The filter table(s) are managed by firmware and we have write-only
- * access.  When removing filters we must identify them to the
- * firmware by a 64-bit handle, but this is too wide for Linux kernel
- * interfaces (32-bit for RX NFC, 16-bit for RFS).  Also, we need to
- * be able to tell in advance whether a requested insertion will
- * replace an existing filter.  Therefore we maintain a software hash
- * table, which should be at least as large as the hardware hash
- * table.
- *
- * Huntington has a single 8K filter table shared between all filter
- * types and both ports.
- */
-#define EFX_MCDI_FILTER_TBL_ROWS 8192
-
 #define EFX_EF10_FILTER_ID_INVALID 0xffff
-
-#define EFX_EF10_FILTER_DEV_UC_MAX	32
-#define EFX_EF10_FILTER_DEV_MC_MAX	256
 
 /* VLAN list entry */
 struct efx_ef10_vlan {
@@ -57,77 +41,11 @@ struct efx_ef10_vlan {
 	u16 vid;
 };
 
-enum efx_mcdi_filter_default_filters {
-	EFX_EF10_BCAST,
-	EFX_EF10_UCDEF,
-	EFX_EF10_MCDEF,
-	EFX_EF10_VXLAN4_UCDEF,
-	EFX_EF10_VXLAN4_MCDEF,
-	EFX_EF10_VXLAN6_UCDEF,
-	EFX_EF10_VXLAN6_MCDEF,
-	EFX_EF10_NVGRE4_UCDEF,
-	EFX_EF10_NVGRE4_MCDEF,
-	EFX_EF10_NVGRE6_UCDEF,
-	EFX_EF10_NVGRE6_MCDEF,
-	EFX_EF10_GENEVE4_UCDEF,
-	EFX_EF10_GENEVE4_MCDEF,
-	EFX_EF10_GENEVE6_UCDEF,
-	EFX_EF10_GENEVE6_MCDEF,
-
-	EFX_EF10_NUM_DEFAULT_FILTERS
-};
-
-/* Per-VLAN filters information */
-struct efx_mcdi_filter_vlan {
-	struct list_head list;
-	u16 vid;
-	u16 uc[EFX_EF10_FILTER_DEV_UC_MAX];
-	u16 mc[EFX_EF10_FILTER_DEV_MC_MAX];
-	u16 default_filters[EFX_EF10_NUM_DEFAULT_FILTERS];
-};
-
-struct efx_mcdi_dev_addr {
-	u8 addr[ETH_ALEN];
-};
-
-struct efx_mcdi_filter_table {
-/* The MCDI match masks supported by this fw & hw, in order of priority */
-	u32 rx_match_mcdi_flags[
-		MC_CMD_GET_PARSER_DISP_INFO_OUT_SUPPORTED_MATCHES_MAXNUM * 2];
-	unsigned int rx_match_count;
-
-	struct rw_semaphore lock; /* Protects entries */
-	struct {
-		unsigned long spec;	/* pointer to spec plus flag bits */
-/* AUTO_OLD is used to mark and sweep MAC filters for the device address lists. */
-/* unused flag	1UL */
-#define EFX_EF10_FILTER_FLAG_AUTO_OLD	2UL
-#define EFX_EF10_FILTER_FLAGS		3UL
-		u64 handle;		/* firmware handle */
-	} *entry;
-/* Shadow of net_device address lists, guarded by mac_lock */
-	struct efx_mcdi_dev_addr dev_uc_list[EFX_EF10_FILTER_DEV_UC_MAX];
-	struct efx_mcdi_dev_addr dev_mc_list[EFX_EF10_FILTER_DEV_MC_MAX];
-	int dev_uc_count;
-	int dev_mc_count;
-	bool uc_promisc;
-	bool mc_promisc;
-/* Whether in multicast promiscuous mode when last changed */
-	bool mc_promisc_last;
-	bool mc_overflow; /* Too many MC addrs; should always imply mc_promisc */
-	bool vlan_filter;
-	struct list_head vlan_list;
-};
-
 /* An arbitrary search limit for the software hash table */
 #define EFX_EF10_FILTER_SEARCH_LIMIT 200
 
-static void efx_mcdi_rx_free_indir_table(struct efx_nic *efx);
-static void efx_mcdi_filter_table_remove(struct efx_nic *efx);
-static int efx_mcdi_filter_add_vlan(struct efx_nic *efx, u16 vid);
 static void efx_mcdi_filter_del_vlan_internal(struct efx_nic *efx,
 					      struct efx_mcdi_filter_vlan *vlan);
-static void efx_mcdi_filter_del_vlan(struct efx_nic *efx, u16 vid);
 static int efx_ef10_set_udp_tnl_ports(struct efx_nic *efx, bool unloading);
 
 static u32 efx_ef10_filter_get_unsafe_id(u32 filter_id)
@@ -2512,8 +2430,7 @@ static void efx_ef10_tx_write(struct efx_tx_queue *tx_queue)
 					 RSS_MODE_HASH_ADDRS << MC_CMD_RSS_CONTEXT_GET_FLAGS_OUT_UDP_IPV6_RSS_MODE_LBN |\
 					 RSS_MODE_HASH_ADDRS << MC_CMD_RSS_CONTEXT_GET_FLAGS_OUT_OTHER_IPV6_RSS_MODE_LBN)
 
-static int efx_mcdi_get_rss_context_flags(struct efx_nic *efx, u32 context,
-					  u32 *flags)
+int efx_mcdi_get_rss_context_flags(struct efx_nic *efx, u32 context, u32 *flags)
 {
 	/* Firmware had a bug (sfc bug 61952) where it would not actually
 	 * fill in the flags field in the response to MC_CMD_RSS_CONTEXT_GET_FLAGS.
@@ -2559,8 +2476,8 @@ static int efx_mcdi_get_rss_context_flags(struct efx_nic *efx, u32 context,
  * Defaults are 4-tuple for TCP and 2-tuple for UDP and other-IP, so we
  * just need to set the UDP ports flags (for both IP versions).
  */
-static void efx_mcdi_set_rss_context_flags(struct efx_nic *efx,
-					   struct efx_rss_context *ctx)
+void efx_mcdi_set_rss_context_flags(struct efx_nic *efx,
+				    struct efx_rss_context *ctx)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_RSS_CONTEXT_SET_FLAGS_IN_LEN);
 	u32 flags;
@@ -2681,7 +2598,7 @@ static int efx_mcdi_filter_populate_rss_table(struct efx_nic *efx, u32 context,
 			    sizeof(keybuf), NULL, 0, NULL);
 }
 
-static void efx_mcdi_rx_free_indir_table(struct efx_nic *efx)
+void efx_mcdi_rx_free_indir_table(struct efx_nic *efx)
 {
 	int rc;
 
@@ -2757,10 +2674,10 @@ fail1:
 	return rc;
 }
 
-static int efx_mcdi_rx_push_rss_context_config(struct efx_nic *efx,
-					       struct efx_rss_context *ctx,
-					       const u32 *rx_indir_table,
-					       const u8 *key)
+int efx_mcdi_rx_push_rss_context_config(struct efx_nic *efx,
+					struct efx_rss_context *ctx,
+					const u32 *rx_indir_table,
+					const u8 *key)
 {
 	int rc;
 
@@ -2787,8 +2704,8 @@ static int efx_mcdi_rx_push_rss_context_config(struct efx_nic *efx,
 	return 0;
 }
 
-static int efx_mcdi_rx_pull_rss_context_config(struct efx_nic *efx,
-					       struct efx_rss_context *ctx)
+int efx_mcdi_rx_pull_rss_context_config(struct efx_nic *efx,
+					struct efx_rss_context *ctx)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_RSS_CONTEXT_GET_TABLE_IN_LEN);
 	MCDI_DECLARE_BUF(tablebuf, MC_CMD_RSS_CONTEXT_GET_TABLE_OUT_LEN);
@@ -2839,7 +2756,7 @@ static int efx_mcdi_rx_pull_rss_context_config(struct efx_nic *efx,
 	return 0;
 }
 
-static int efx_mcdi_rx_pull_rss_config(struct efx_nic *efx)
+int efx_mcdi_rx_pull_rss_config(struct efx_nic *efx)
 {
 	int rc;
 
@@ -2849,7 +2766,7 @@ static int efx_mcdi_rx_pull_rss_config(struct efx_nic *efx)
 	return rc;
 }
 
-static void efx_mcdi_rx_restore_rss_contexts(struct efx_nic *efx)
+void efx_mcdi_rx_restore_rss_contexts(struct efx_nic *efx)
 {
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	struct efx_rss_context *ctx;
@@ -2876,9 +2793,9 @@ static void efx_mcdi_rx_restore_rss_contexts(struct efx_nic *efx)
 	nic_data->must_restore_rss_contexts = false;
 }
 
-static int efx_mcdi_pf_rx_push_rss_config(struct efx_nic *efx, bool user,
-					  const u32 *rx_indir_table,
-					  const u8 *key)
+int efx_mcdi_pf_rx_push_rss_config(struct efx_nic *efx, bool user,
+				   const u32 *rx_indir_table,
+				   const u8 *key)
 {
 	int rc;
 
@@ -2926,11 +2843,11 @@ static int efx_mcdi_pf_rx_push_rss_config(struct efx_nic *efx, bool user,
 	return rc;
 }
 
-static int efx_mcdi_vf_rx_push_rss_config(struct efx_nic *efx, bool user,
-					  const u32 *rx_indir_table
-					  __attribute__ ((unused)),
-					  const u8 *key
-					  __attribute__ ((unused)))
+int efx_mcdi_vf_rx_push_rss_config(struct efx_nic *efx, bool user,
+				   const u32 *rx_indir_table
+				   __attribute__ ((unused)),
+				   const u8 *key
+				   __attribute__ ((unused)))
 {
 	if (user)
 		return -EOPNOTSUPP;
@@ -4196,9 +4113,9 @@ out_unlock:
 	return rc;
 }
 
-static s32 efx_mcdi_filter_insert(struct efx_nic *efx,
-				  struct efx_filter_spec *spec,
-				  bool replace_equal)
+s32 efx_mcdi_filter_insert(struct efx_nic *efx,
+			   struct efx_filter_spec *spec,
+			   bool replace_equal)
 {
 	s32 ret;
 
@@ -4207,11 +4124,6 @@ static s32 efx_mcdi_filter_insert(struct efx_nic *efx,
 	up_read(&efx->filter_sem);
 
 	return ret;
-}
-
-static void efx_mcdi_update_rx_scatter(struct efx_nic *efx)
-{
-	/* no need to do anything here on EF10 */
 }
 
 /* Remove a filter.
@@ -4296,9 +4208,9 @@ static int efx_mcdi_filter_remove_internal(struct efx_nic *efx,
 	return rc;
 }
 
-static int efx_mcdi_filter_remove_safe(struct efx_nic *efx,
-				       enum efx_filter_priority priority,
-				       u32 filter_id)
+int efx_mcdi_filter_remove_safe(struct efx_nic *efx,
+				enum efx_filter_priority priority,
+				u32 filter_id)
 {
 	struct efx_mcdi_filter_table *table;
 	int rc;
@@ -4329,9 +4241,9 @@ static void efx_mcdi_filter_remove_unsafe(struct efx_nic *efx,
 	up_write(&table->lock);
 }
 
-static int efx_mcdi_filter_get_safe(struct efx_nic *efx,
-				    enum efx_filter_priority priority,
-				    u32 filter_id, struct efx_filter_spec *spec)
+int efx_mcdi_filter_get_safe(struct efx_nic *efx,
+			     enum efx_filter_priority priority,
+			     u32 filter_id, struct efx_filter_spec *spec)
 {
 	unsigned int filter_idx = efx_ef10_filter_get_unsafe_id(filter_id);
 	const struct efx_filter_spec *saved_spec;
@@ -4355,8 +4267,8 @@ static int efx_mcdi_filter_get_safe(struct efx_nic *efx,
 	return rc;
 }
 
-static int efx_mcdi_filter_clear_rx(struct efx_nic *efx,
-				    enum efx_filter_priority priority)
+int efx_mcdi_filter_clear_rx(struct efx_nic *efx,
+			     enum efx_filter_priority priority)
 {
 	struct efx_mcdi_filter_table *table;
 	unsigned int priority_mask;
@@ -4382,8 +4294,8 @@ static int efx_mcdi_filter_clear_rx(struct efx_nic *efx,
 	return rc;
 }
 
-static u32 efx_mcdi_filter_count_rx_used(struct efx_nic *efx,
-					 enum efx_filter_priority priority)
+u32 efx_mcdi_filter_count_rx_used(struct efx_nic *efx,
+				  enum efx_filter_priority priority)
 {
 	struct efx_mcdi_filter_table *table;
 	unsigned int filter_idx;
@@ -4403,16 +4315,16 @@ static u32 efx_mcdi_filter_count_rx_used(struct efx_nic *efx,
 	return count;
 }
 
-static u32 efx_mcdi_filter_get_rx_id_limit(struct efx_nic *efx)
+u32 efx_mcdi_filter_get_rx_id_limit(struct efx_nic *efx)
 {
 	struct efx_mcdi_filter_table *table = efx->filter_state;
 
 	return table->rx_match_count * EFX_MCDI_FILTER_TBL_ROWS * 2;
 }
 
-static s32 efx_mcdi_filter_get_rx_ids(struct efx_nic *efx,
-				      enum efx_filter_priority priority,
-				      u32 *buf, u32 size)
+s32 efx_mcdi_filter_get_rx_ids(struct efx_nic *efx,
+			       enum efx_filter_priority priority,
+			       u32 *buf, u32 size)
 {
 	struct efx_mcdi_filter_table *table;
 	struct efx_filter_spec *spec;
@@ -4443,8 +4355,8 @@ static s32 efx_mcdi_filter_get_rx_ids(struct efx_nic *efx,
 
 #ifdef CONFIG_RFS_ACCEL
 
-static bool efx_mcdi_filter_rfs_expire_one(struct efx_nic *efx, u32 flow_id,
-					   unsigned int filter_idx)
+bool efx_mcdi_filter_rfs_expire_one(struct efx_nic *efx, u32 flow_id,
+				    unsigned int filter_idx)
 {
 	struct efx_filter_spec *spec, saved_spec;
 	struct efx_mcdi_filter_table *table;
@@ -4568,7 +4480,7 @@ static int efx_mcdi_filter_match_flags_from_mcdi(bool encap, u32 mcdi_flags)
 	return match_flags;
 }
 
-static void efx_mcdi_filter_cleanup_vlans(struct efx_nic *efx)
+void efx_mcdi_filter_cleanup_vlans(struct efx_nic *efx)
 {
 	struct efx_mcdi_filter_table *table = efx->filter_state;
 	struct efx_mcdi_filter_vlan *vlan, *next_vlan;
@@ -4584,9 +4496,9 @@ static void efx_mcdi_filter_cleanup_vlans(struct efx_nic *efx)
 		efx_mcdi_filter_del_vlan_internal(efx, vlan);
 }
 
-static bool efx_mcdi_filter_match_supported(struct efx_mcdi_filter_table *table,
-					    bool encap,
-					    enum efx_filter_match_flags match_flags)
+bool efx_mcdi_filter_match_supported(struct efx_mcdi_filter_table *table,
+				     bool encap,
+				     enum efx_filter_match_flags match_flags)
 {
 	unsigned int match_pri;
 	int mf;
@@ -4652,7 +4564,7 @@ efx_mcdi_filter_table_probe_matches(struct efx_nic *efx,
 	return 0;
 }
 
-static int efx_mcdi_filter_table_probe(struct efx_nic *efx)
+int efx_mcdi_filter_table_probe(struct efx_nic *efx)
 {
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	struct net_device *net_dev = efx->net_dev;
@@ -4725,7 +4637,7 @@ fail:
 /* Caller must hold efx->filter_sem for read if race against
  * efx_mcdi_filter_table_remove() is possible
  */
-static void efx_mcdi_filter_table_restore(struct efx_nic *efx)
+void efx_mcdi_filter_table_restore(struct efx_nic *efx)
 {
 	struct efx_mcdi_filter_table *table = efx->filter_state;
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
@@ -4821,7 +4733,7 @@ not_restored:
 		nic_data->must_restore_filters = false;
 }
 
-static void efx_mcdi_filter_table_remove(struct efx_nic *efx)
+void efx_mcdi_filter_table_remove(struct efx_nic *efx)
 {
 	struct efx_mcdi_filter_table *table = efx->filter_state;
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_FILTER_OP_EXT_IN_LEN);
@@ -5403,7 +5315,7 @@ static void efx_mcdi_filter_vlan_sync_rx_mode(struct efx_nic *efx,
 /* Caller must hold efx->filter_sem for read if race against
  * efx_mcdi_filter_table_remove() is possible
  */
-static void efx_mcdi_filter_sync_rx_mode(struct efx_nic *efx)
+void efx_mcdi_filter_sync_rx_mode(struct efx_nic *efx)
 {
 	struct efx_mcdi_filter_table *table = efx->filter_state;
 	struct net_device *net_dev = efx->net_dev;
@@ -5443,7 +5355,8 @@ static void efx_mcdi_filter_sync_rx_mode(struct efx_nic *efx)
 	table->mc_promisc_last = table->mc_promisc;
 }
 
-static struct efx_mcdi_filter_vlan *efx_mcdi_filter_find_vlan(struct efx_nic *efx, u16 vid)
+struct efx_mcdi_filter_vlan *efx_mcdi_filter_find_vlan(struct efx_nic *efx,
+						       u16 vid)
 {
 	struct efx_mcdi_filter_table *table = efx->filter_state;
 	struct efx_mcdi_filter_vlan *vlan;
@@ -5458,7 +5371,7 @@ static struct efx_mcdi_filter_vlan *efx_mcdi_filter_find_vlan(struct efx_nic *ef
 	return NULL;
 }
 
-static int efx_mcdi_filter_add_vlan(struct efx_nic *efx, u16 vid)
+int efx_mcdi_filter_add_vlan(struct efx_nic *efx, u16 vid)
 {
 	struct efx_mcdi_filter_table *table = efx->filter_state;
 	struct efx_mcdi_filter_vlan *vlan;
@@ -5520,7 +5433,7 @@ static void efx_mcdi_filter_del_vlan_internal(struct efx_nic *efx,
 	kfree(vlan);
 }
 
-static void efx_mcdi_filter_del_vlan(struct efx_nic *efx, u16 vid)
+void efx_mcdi_filter_del_vlan(struct efx_nic *efx, u16 vid)
 {
 	struct efx_mcdi_filter_vlan *vlan;
 
