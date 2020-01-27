@@ -1059,8 +1059,7 @@ struct kvm_x86_ops {
 	bool (*has_emulated_msr)(int index);
 	void (*cpuid_update)(struct kvm_vcpu *vcpu);
 
-	struct kvm *(*vm_alloc)(void);
-	void (*vm_free)(struct kvm *);
+	unsigned int vm_size;
 	int (*vm_init)(struct kvm *kvm);
 	void (*vm_destroy)(struct kvm *kvm);
 
@@ -1278,13 +1277,10 @@ extern struct kmem_cache *x86_fpu_cache;
 #define __KVM_HAVE_ARCH_VM_ALLOC
 static inline struct kvm *kvm_arch_alloc_vm(void)
 {
-	return kvm_x86_ops->vm_alloc();
+	return __vmalloc(kvm_x86_ops->vm_size,
+			 GFP_KERNEL_ACCOUNT | __GFP_ZERO, PAGE_KERNEL);
 }
-
-static inline void kvm_arch_free_vm(struct kvm *kvm)
-{
-	return kvm_x86_ops->vm_free(kvm);
-}
+void kvm_arch_free_vm(struct kvm *kvm);
 
 #define __KVM_HAVE_ARCH_FLUSH_REMOTE_TLB
 static inline int kvm_arch_flush_remote_tlb(struct kvm *kvm)

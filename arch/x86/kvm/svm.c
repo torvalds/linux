@@ -1944,19 +1944,6 @@ static void __unregister_enc_region_locked(struct kvm *kvm,
 	kfree(region);
 }
 
-static struct kvm *svm_vm_alloc(void)
-{
-	BUILD_BUG_ON(offsetof(struct kvm_svm, kvm) != 0);
-
-	return __vmalloc(sizeof(struct kvm_svm),
-			 GFP_KERNEL_ACCOUNT | __GFP_ZERO, PAGE_KERNEL);
-}
-
-static void svm_vm_free(struct kvm *kvm)
-{
-	vfree(kvm);
-}
-
 static void sev_vm_destroy(struct kvm *kvm)
 {
 	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
@@ -7395,8 +7382,7 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.vcpu_free = svm_free_vcpu,
 	.vcpu_reset = svm_vcpu_reset,
 
-	.vm_alloc = svm_vm_alloc,
-	.vm_free = svm_vm_free,
+	.vm_size = sizeof(struct kvm_svm),
 	.vm_init = svm_vm_init,
 	.vm_destroy = svm_vm_destroy,
 

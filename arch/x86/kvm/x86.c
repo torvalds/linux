@@ -9622,6 +9622,13 @@ void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu)
 	kvm_x86_ops->sched_in(vcpu, cpu);
 }
 
+void kvm_arch_free_vm(struct kvm *kvm)
+{
+	kfree(kvm->arch.hyperv.hv_pa_pg);
+	vfree(kvm);
+}
+
+
 int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 {
 	if (type)

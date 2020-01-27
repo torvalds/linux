@@ -6679,20 +6679,6 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
 	vmx_complete_interrupts(vmx);
 }
 
-static struct kvm *vmx_vm_alloc(void)
-{
-	BUILD_BUG_ON(offsetof(struct kvm_vmx, kvm) != 0);
-
-	return __vmalloc(sizeof(struct kvm_vmx),
-			 GFP_KERNEL_ACCOUNT | __GFP_ZERO, PAGE_KERNEL);
-}
-
-static void vmx_vm_free(struct kvm *kvm)
-{
-	kfree(kvm->arch.hyperv.hv_pa_pg);
-	vfree(kvm);
-}
-
 static void vmx_free_vcpu(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
@@ -7835,9 +7821,8 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 	.cpu_has_accelerated_tpr = report_flexpriority,
 	.has_emulated_msr = vmx_has_emulated_msr,
 
+	.vm_size = sizeof(struct kvm_vmx),
 	.vm_init = vmx_vm_init,
-	.vm_alloc = vmx_vm_alloc,
-	.vm_free = vmx_vm_free,
 
 	.vcpu_create = vmx_create_vcpu,
 	.vcpu_free = vmx_free_vcpu,
