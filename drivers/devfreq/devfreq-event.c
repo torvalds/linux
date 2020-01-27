@@ -346,9 +346,9 @@ EXPORT_SYMBOL_GPL(devfreq_event_add_edev);
 
 /**
  * devfreq_event_remove_edev() - Remove the devfreq-event device registered.
- * @dev		: the devfreq-event device
+ * @edev	: the devfreq-event device
  *
- * Note that this function remove the registered devfreq-event device.
+ * Note that this function removes the registered devfreq-event device.
  */
 int devfreq_event_remove_edev(struct devfreq_event_dev *edev)
 {

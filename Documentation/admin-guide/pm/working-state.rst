@@ -8,6 +8,7 @@ Working-State Power Management
    :maxdepth: 2
 
    cpuidle
+   intel_idle
    cpufreq
    intel_pstate
    intel_epb

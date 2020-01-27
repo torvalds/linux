@@ -8,7 +8,7 @@
  * Copyright (C) 2006 Rafael J. Wysocki <rjw@sisk.pl>
  */
 
-#define pr_fmt(fmt) "PM: " fmt
+#define pr_fmt(fmt) "PM: hibernation: " fmt
 
 #include <linux/version.h>
 #include <linux/module.h>
@@ -1566,9 +1566,7 @@ static unsigned long preallocate_image_highmem(unsigned long nr_pages)
  */
 static unsigned long __fraction(u64 x, u64 multiplier, u64 base)
 {
-	x *= multiplier;
-	do_div(x, base);
-	return (unsigned long)x;
+	return div64_u64(x * multiplier, base);
 }
 
 static unsigned long preallocate_highmem_fraction(unsigned long nr_pages,
@@ -1705,16 +1703,20 @@ int hibernate_preallocate_memory(void)
 	ktime_t start, stop;
 	int error;
 
-	pr_info("Preallocating image memory... ");
+	pr_info("Preallocating image memory\n");
 	start = ktime_get();
 
 	error = memory_bm_create(&orig_bm, GFP_IMAGE, PG_ANY);
-	if (error)
+	if (error) {
+		pr_err("Cannot allocate original bitmap\n");
 		goto err_out;
+	}
 
 	error = memory_bm_create(&copy_bm, GFP_IMAGE, PG_ANY);
-	if (error)
+	if (error) {
+		pr_err("Cannot allocate copy bitmap\n");
 		goto err_out;
+	}
 
 	alloc_normal = 0;
 	alloc_highmem = 0;
@@ -1804,8 +1806,11 @@ int hibernate_preallocate_memory(void)
 		alloc -= pages;
 		pages += pages_highmem;
 		pages_highmem = preallocate_image_highmem(alloc);
-		if (pages_highmem < alloc)
+		if (pages_highmem < alloc) {
+			pr_err("Image allocation is %lu pages short\n",
+				alloc - pages_highmem);
 			goto err_out;
+		}
 		pages += pages_highmem;
 		/*
 		 * size is the desired number of saveable pages to leave in
@@ -1836,13 +1841,12 @@ int hibernate_preallocate_memory(void)
 
  out:
 	stop = ktime_get();
-	pr_cont("done (allocated %lu pages)\n", pages);
+	pr_info("Allocated %lu pages for snapshot\n", pages);
 	swsusp_show_speed(start, stop, pages, "Allocated");
 
 	return 0;
 
  err_out:
-	pr_cont("\n");
 	swsusp_free();
 	return -ENOMEM;
 }
@@ -1976,7 +1980,7 @@ asmlinkage __visible int swsusp_save(void)
 {
 	unsigned int nr_pages, nr_highmem;
 
-	pr_info("Creating hibernation image:\n");
+	pr_info("Creating image:\n");
 
 	drain_local_pages(NULL);
 	nr_pages = count_data_pages();
@@ -2010,7 +2014,7 @@ asmlinkage __visible int swsusp_save(void)
 	nr_copy_pages = nr_pages;
 	nr_meta_pages = DIV_ROUND_UP(nr_pages * sizeof(long), PAGE_SIZE);
 
-	pr_info("Hibernation image created (%d pages copied)\n", nr_pages);
+	pr_info("Image created (%d pages copied)\n", nr_pages);
 
 	return 0;
 }
