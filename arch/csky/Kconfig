@@ -58,6 +58,11 @@ config CSKY
 	select TIMER_OF
 	select USB_ARCH_HAS_EHCI
 	select USB_ARCH_HAS_OHCI
+	select GENERIC_PCI_IOMAP
+	select HAVE_PCI
+	select PCI_DOMAINS_GENERIC if PCI
+	select PCI_SYSCALL if PCI
+	select PCI_MSI if PCI
 
 config CPU_HAS_CACHEV2
 	bool
