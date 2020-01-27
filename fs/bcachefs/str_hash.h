@@ -319,13 +319,16 @@ int bch2_hash_delete(struct btree_trans *trans,
 		     u64 inode, const void *key)
 {
 	struct btree_iter *iter;
+	int ret;
 
 	iter = bch2_hash_lookup(trans, desc, info, inode, key,
 				BTREE_ITER_INTENT);
 	if (IS_ERR(iter))
 		return PTR_ERR(iter);
 
-	return bch2_hash_delete_at(trans, desc, info, iter);
+	ret = bch2_hash_delete_at(trans, desc, info, iter);
+	bch2_trans_iter_put(trans, iter);
+	return ret;
 }
 
 #endif /* _BCACHEFS_STR_HASH_H */
