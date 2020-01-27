@@ -154,6 +154,13 @@ ret:
 	return iova;
 }
 
+void otx2_tx_timeout(struct net_device *netdev, unsigned int txq)
+{
+	struct otx2_nic *pfvf = netdev_priv(netdev);
+
+	schedule_work(&pfvf->reset_task);
+}
+
 void otx2_get_mac_from_af(struct net_device *netdev)
 {
 	struct otx2_nic *pfvf = netdev_priv(netdev);
@@ -362,6 +369,7 @@ static int otx2_rq_init(struct otx2_nic *pfvf, u16 qidx, u16 lpb_aura)
 	aq->rq.lpb_sizem1 = (DMA_BUFFER_LEN(pfvf->rbsize) / 8) - 1;
 	aq->rq.xqe_imm_size = 0; /* Copying of packet to CQE not needed */
 	aq->rq.flow_tagw = 32; /* Copy full 32bit flow_tag to CQE header */
+	aq->rq.qint_idx = 0;
 	aq->rq.lpb_drop_ena = 1; /* Enable RED dropping for AURA */
 	aq->rq.xqe_drop_ena = 1; /* Enable RED dropping for CQ/SSO */
 	aq->rq.xqe_pass = RQ_PASS_LVL_CQ(pfvf->hw.rq_skid, qset->rqe_cnt);
@@ -424,6 +432,8 @@ static int otx2_sq_init(struct otx2_nic *pfvf, u16 qidx, u16 sqb_aura)
 	aq->sq.default_chan = pfvf->hw.tx_chan_base;
 	aq->sq.sqe_stype = NIX_STYPE_STF; /* Cache SQB */
 	aq->sq.sqb_aura = sqb_aura;
+	aq->sq.sq_int_ena = NIX_SQINT_BITS;
+	aq->sq.qint_idx = 0;
 	/* Due pipelining impact minimum 2000 unused SQ CQE's
 	 * need to maintain to avoid CQ overflow.
 	 */
@@ -470,6 +480,7 @@ static int otx2_cq_init(struct otx2_nic *pfvf, u16 qidx)
 	pool_id = ((cq->cq_type == CQ_RX) &&
 		   (pfvf->hw.rqpool_cnt != pfvf->hw.rx_queues)) ? 0 : qidx;
 	cq->rbpool = &qset->pool[pool_id];
+	cq->refill_task_sched = false;
 
 	/* Get memory to put this msg */
 	aq = otx2_mbox_alloc_msg_nix_aq_enq(&pfvf->mbox);
@@ -481,6 +492,8 @@ static int otx2_cq_init(struct otx2_nic *pfvf, u16 qidx)
 	aq->cq.caching = 1;
 	aq->cq.base = cq->cqe->iova;
 	aq->cq.cint_idx = cq->cint_idx;
+	aq->cq.cq_err_int_ena = NIX_CQERRINT_BITS;
+	aq->cq.qint_idx = 0;
 	aq->cq.avg_level = 255;
 
 	if (qidx < pfvf->hw.rx_queues) {
@@ -494,6 +507,45 @@ static int otx2_cq_init(struct otx2_nic *pfvf, u16 qidx)
 	aq->op = NIX_AQ_INSTOP_INIT;
 
 	return otx2_sync_mbox_msg(&pfvf->mbox);
+}
+
+static void otx2_pool_refill_task(struct work_struct *work)
+{
+	struct otx2_cq_queue *cq;
+	struct otx2_pool *rbpool;
+	struct refill_work *wrk;
+	int qidx, free_ptrs = 0;
+	struct otx2_nic *pfvf;
+	s64 bufptr;
+
+	wrk = container_of(work, struct refill_work, pool_refill_work.work);
+	pfvf = wrk->pf;
+	qidx = wrk - pfvf->refill_wrk;
+	cq = &pfvf->qset.cq[qidx];
+	rbpool = cq->rbpool;
+	free_ptrs = cq->pool_ptrs;
+
+	while (cq->pool_ptrs) {
+		bufptr = otx2_alloc_rbuf(pfvf, rbpool, GFP_KERNEL);
+		if (bufptr <= 0) {
+			/* Schedule a WQ if we fails to free atleast half of the
+			 * pointers else enable napi for this RQ.
+			 */
+			if (!((free_ptrs - cq->pool_ptrs) > free_ptrs / 2)) {
+				struct delayed_work *dwork;
+
+				dwork = &wrk->pool_refill_work;
+				schedule_delayed_work(dwork,
+						      msecs_to_jiffies(100));
+			} else {
+				cq->refill_task_sched = false;
+			}
+			return;
+		}
+		otx2_aura_freeptr(pfvf, qidx, bufptr + OTX2_HEAD_ROOM);
+		cq->pool_ptrs--;
+	}
+	cq->refill_task_sched = false;
 }
 
 int otx2_config_nix_queues(struct otx2_nic *pfvf)
@@ -525,6 +577,17 @@ int otx2_config_nix_queues(struct otx2_nic *pfvf)
 			return err;
 	}
 
+	/* Initialize work queue for receive buffer refill */
+	pfvf->refill_wrk = devm_kcalloc(pfvf->dev, pfvf->qset.cq_cnt,
+					sizeof(struct refill_work), GFP_KERNEL);
+	if (!pfvf->refill_wrk)
+		return -ENOMEM;
+
+	for (qidx = 0; qidx < pfvf->qset.cq_cnt; qidx++) {
+		pfvf->refill_wrk[qidx].pf = pfvf;
+		INIT_DELAYED_WORK(&pfvf->refill_wrk[qidx].pool_refill_work,
+				  otx2_pool_refill_task);
+	}
 	return 0;
 }
 

@@ -245,4 +245,32 @@ struct nix_sqe_mem_s {
 	u64 addr; /* W1 */
 };
 
+enum nix_cqerrint_e {
+	NIX_CQERRINT_DOOR_ERR = 0,
+	NIX_CQERRINT_WR_FULL = 1,
+	NIX_CQERRINT_CQE_FAULT = 2,
+};
+
+#define NIX_CQERRINT_BITS (BIT_ULL(NIX_CQERRINT_DOOR_ERR) | \
+			   BIT_ULL(NIX_CQERRINT_CQE_FAULT))
+
+enum nix_rqint_e {
+	NIX_RQINT_DROP = 0,
+	NIX_RQINT_RED = 1,
+};
+
+#define NIX_RQINT_BITS (BIT_ULL(NIX_RQINT_DROP) | BIT_ULL(NIX_RQINT_RED))
+
+enum nix_sqint_e {
+	NIX_SQINT_LMT_ERR = 0,
+	NIX_SQINT_MNQ_ERR = 1,
+	NIX_SQINT_SEND_ERR = 2,
+	NIX_SQINT_SQB_ALLOC_FAIL = 3,
+};
+
+#define NIX_SQINT_BITS (BIT_ULL(NIX_SQINT_LMT_ERR) | \
+			BIT_ULL(NIX_SQINT_MNQ_ERR) | \
+			BIT_ULL(NIX_SQINT_SEND_ERR) | \
+			BIT_ULL(NIX_SQINT_SQB_ALLOC_FAIL))
+
 #endif /* OTX2_STRUCT_H */

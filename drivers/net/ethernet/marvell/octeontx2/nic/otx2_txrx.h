@@ -112,6 +112,7 @@ struct otx2_cq_queue {
 	u8			cq_idx;
 	u8			cq_type;
 	u8			cint_idx; /* CQ interrupt id */
+	u8			refill_task_sched;
 	u16			cqe_size;
 	u16			pool_ptrs;
 	u32			cqe_cnt;

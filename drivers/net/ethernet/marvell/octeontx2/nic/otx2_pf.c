@@ -478,6 +478,85 @@ static int otx2_set_real_num_queues(struct net_device *netdev,
 	return err;
 }
 
+static irqreturn_t otx2_q_intr_handler(int irq, void *data)
+{
+	struct otx2_nic *pf = data;
+	u64 val, *ptr;
+	u64 qidx = 0;
+
+	/* CQ */
+	for (qidx = 0; qidx < pf->qset.cq_cnt; qidx++) {
+		ptr = otx2_get_regaddr(pf, NIX_LF_CQ_OP_INT);
+		val = otx2_atomic64_add((qidx << 44), ptr);
+
+		otx2_write64(pf, NIX_LF_CQ_OP_INT, (qidx << 44) |
+			     (val & NIX_CQERRINT_BITS));
+		if (!(val & (NIX_CQERRINT_BITS | BIT_ULL(42))))
+			continue;
+
+		if (val & BIT_ULL(42)) {
+			netdev_err(pf->netdev, "CQ%lld: error reading NIX_LF_CQ_OP_INT, NIX_LF_ERR_INT 0x%llx\n",
+				   qidx, otx2_read64(pf, NIX_LF_ERR_INT));
+		} else {
+			if (val & BIT_ULL(NIX_CQERRINT_DOOR_ERR))
+				netdev_err(pf->netdev, "CQ%lld: Doorbell error",
+					   qidx);
+			if (val & BIT_ULL(NIX_CQERRINT_CQE_FAULT))
+				netdev_err(pf->netdev, "CQ%lld: Memory fault on CQE write to LLC/DRAM",
+					   qidx);
+		}
+
+		schedule_work(&pf->reset_task);
+	}
+
+	/* SQ */
+	for (qidx = 0; qidx < pf->hw.tx_queues; qidx++) {
+		ptr = otx2_get_regaddr(pf, NIX_LF_SQ_OP_INT);
+		val = otx2_atomic64_add((qidx << 44), ptr);
+		otx2_write64(pf, NIX_LF_SQ_OP_INT, (qidx << 44) |
+			     (val & NIX_SQINT_BITS));
+
+		if (!(val & (NIX_SQINT_BITS | BIT_ULL(42))))
+			continue;
+
+		if (val & BIT_ULL(42)) {
+			netdev_err(pf->netdev, "SQ%lld: error reading NIX_LF_SQ_OP_INT, NIX_LF_ERR_INT 0x%llx\n",
+				   qidx, otx2_read64(pf, NIX_LF_ERR_INT));
+		} else {
+			if (val & BIT_ULL(NIX_SQINT_LMT_ERR)) {
+				netdev_err(pf->netdev, "SQ%lld: LMT store error NIX_LF_SQ_OP_ERR_DBG:0x%llx",
+					   qidx,
+					   otx2_read64(pf,
+						       NIX_LF_SQ_OP_ERR_DBG));
+				otx2_write64(pf, NIX_LF_SQ_OP_ERR_DBG,
+					     BIT_ULL(44));
+			}
+			if (val & BIT_ULL(NIX_SQINT_MNQ_ERR)) {
+				netdev_err(pf->netdev, "SQ%lld: Meta-descriptor enqueue error NIX_LF_MNQ_ERR_DGB:0x%llx\n",
+					   qidx,
+					   otx2_read64(pf, NIX_LF_MNQ_ERR_DBG));
+				otx2_write64(pf, NIX_LF_MNQ_ERR_DBG,
+					     BIT_ULL(44));
+			}
+			if (val & BIT_ULL(NIX_SQINT_SEND_ERR)) {
+				netdev_err(pf->netdev, "SQ%lld: Send error, NIX_LF_SEND_ERR_DBG 0x%llx",
+					   qidx,
+					   otx2_read64(pf,
+						       NIX_LF_SEND_ERR_DBG));
+				otx2_write64(pf, NIX_LF_SEND_ERR_DBG,
+					     BIT_ULL(44));
+			}
+			if (val & BIT_ULL(NIX_SQINT_SQB_ALLOC_FAIL))
+				netdev_err(pf->netdev, "SQ%lld: SQB allocation failed",
+					   qidx);
+		}
+
+		schedule_work(&pf->reset_task);
+	}
+
+	return IRQ_HANDLED;
+}
+
 static irqreturn_t otx2_cq_intr_handler(int irq, void *cq_irq)
 {
 	struct otx2_cq_poll *cq_poll = (struct otx2_cq_poll *)cq_irq;
@@ -759,6 +838,24 @@ int otx2_open(struct net_device *netdev)
 	if (err)
 		goto err_disable_napi;
 
+	/* Register Queue IRQ handlers */
+	vec = pf->hw.nix_msixoff + NIX_LF_QINT_VEC_START;
+	irq_name = &pf->hw.irq_name[vec * NAME_SIZE];
+
+	snprintf(irq_name, NAME_SIZE, "%s-qerr", pf->netdev->name);
+
+	err = request_irq(pci_irq_vector(pf->pdev, vec),
+			  otx2_q_intr_handler, 0, irq_name, pf);
+	if (err) {
+		dev_err(pf->dev,
+			"RVUPF%d: IRQ registration failed for QERR\n",
+			rvu_get_pf(pf->pcifunc));
+		goto err_disable_napi;
+	}
+
+	/* Enable QINT IRQ */
+	otx2_write64(pf, NIX_LF_QINTX_ENA_W1S(0), BIT_ULL(0));
+
 	/* Register CQ IRQ handlers */
 	vec = pf->hw.nix_msixoff + NIX_LF_CINT_VEC_START;
 	for (qidx = 0; qidx < pf->hw.cint_cnt; qidx++) {
@@ -803,6 +900,11 @@ int otx2_open(struct net_device *netdev)
 
 err_free_cints:
 	otx2_free_cints(pf, qidx);
+	vec = pci_irq_vector(pf->pdev,
+			     pf->hw.nix_msixoff + NIX_LF_QINT_VEC_START);
+	otx2_write64(pf, NIX_LF_QINTX_ENA_W1C(0), BIT_ULL(0));
+	synchronize_irq(vec);
+	free_irq(vec, pf);
 err_disable_napi:
 	otx2_disable_napi(pf);
 	otx2_free_hw_resources(pf);
@@ -818,7 +920,7 @@ int otx2_stop(struct net_device *netdev)
 	struct otx2_nic *pf = netdev_priv(netdev);
 	struct otx2_cq_poll *cq_poll = NULL;
 	struct otx2_qset *qset = &pf->qset;
-	int qidx, vec;
+	int qidx, vec, wrk;
 
 	netif_carrier_off(netdev);
 	netif_tx_stop_all_queues(netdev);
@@ -829,6 +931,13 @@ int otx2_stop(struct net_device *netdev)
 
 	/* First stop packet Rx/Tx */
 	otx2_rxtx_enable(pf, false);
+
+	/* Cleanup Queue IRQ */
+	vec = pci_irq_vector(pf->pdev,
+			     pf->hw.nix_msixoff + NIX_LF_QINT_VEC_START);
+	otx2_write64(pf, NIX_LF_QINTX_ENA_W1C(0), BIT_ULL(0));
+	synchronize_irq(vec);
+	free_irq(vec, pf);
 
 	/* Cleanup CQ NAPI and IRQ */
 	vec = pf->hw.nix_msixoff + NIX_LF_CINT_VEC_START;
@@ -851,6 +960,10 @@ int otx2_stop(struct net_device *netdev)
 
 	for (qidx = 0; qidx < netdev->num_tx_queues; qidx++)
 		netdev_tx_reset_queue(netdev_get_tx_queue(netdev, qidx));
+
+	for (wrk = 0; wrk < pf->qset.cq_cnt; wrk++)
+		cancel_delayed_work_sync(&pf->refill_wrk[wrk].pool_refill_work);
+	devm_kfree(pf->dev, pf->refill_wrk);
 
 	kfree(qset->sq);
 	kfree(qset->cq);
@@ -931,6 +1044,19 @@ static int otx2_set_features(struct net_device *netdev,
 	return 0;
 }
 
+static void otx2_reset_task(struct work_struct *work)
+{
+	struct otx2_nic *pf = container_of(work, struct otx2_nic, reset_task);
+
+	if (!netif_running(pf->netdev))
+		return;
+
+	otx2_stop(pf->netdev);
+	pf->reset_count++;
+	otx2_open(pf->netdev);
+	netif_trans_update(pf->netdev);
+}
+
 static const struct net_device_ops otx2_netdev_ops = {
 	.ndo_open		= otx2_open,
 	.ndo_stop		= otx2_stop,
@@ -939,6 +1065,7 @@ static const struct net_device_ops otx2_netdev_ops = {
 	.ndo_change_mtu		= otx2_change_mtu,
 	.ndo_set_rx_mode	= otx2_set_rx_mode,
 	.ndo_set_features	= otx2_set_features,
+	.ndo_tx_timeout		= otx2_tx_timeout,
 };
 
 static int otx2_check_pf_usable(struct otx2_nic *nic)
@@ -1115,11 +1242,15 @@ static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	netdev->hw_features |= NETIF_F_LOOPBACK | NETIF_F_RXALL;
 
+	netdev->watchdog_timeo = OTX2_TX_TIMEOUT;
+
 	netdev->netdev_ops = &otx2_netdev_ops;
 
 	/* MTU range: 64 - 9190 */
 	netdev->min_mtu = OTX2_MIN_MTU;
 	netdev->max_mtu = OTX2_MAX_MTU;
+
+	INIT_WORK(&pf->reset_task, otx2_reset_task);
 
 	err = register_netdev(netdev);
 	if (err) {

@@ -237,12 +237,23 @@ static int otx2_rx_napi_handler(struct otx2_nic *pfvf,
 	/* Refill pool with new buffers */
 	while (cq->pool_ptrs) {
 		bufptr = otx2_alloc_rbuf(pfvf, cq->rbpool, GFP_ATOMIC);
-		if (unlikely(bufptr <= 0))
+		if (unlikely(bufptr <= 0)) {
+			struct refill_work *work;
+			struct delayed_work *dwork;
+
+			work = &pfvf->refill_wrk[cq->cq_idx];
+			dwork = &work->pool_refill_work;
+			/* Schedule a task if no other task is running */
+			if (!cq->refill_task_sched) {
+				cq->refill_task_sched = true;
+				schedule_delayed_work(dwork,
+						      msecs_to_jiffies(100));
+			}
 			break;
+		}
 		otx2_aura_freeptr(pfvf, cq->cq_idx, bufptr + OTX2_HEAD_ROOM);
 		cq->pool_ptrs--;
 	}
-	otx2_get_page(cq->rbpool);
 
 	return processed_cqe;
 }
@@ -304,6 +315,11 @@ int otx2_napi_handler(struct napi_struct *napi, int budget)
 			continue;
 		cq = &qset->cq[cq_idx];
 		if (cq->cq_type == CQ_RX) {
+			/* If the RQ refill WQ task is running, skip napi
+			 * scheduler for this queue.
+			 */
+			if (cq->refill_task_sched)
+				continue;
 			workdone += otx2_rx_napi_handler(pfvf, napi,
 							 cq, budget);
 		} else {

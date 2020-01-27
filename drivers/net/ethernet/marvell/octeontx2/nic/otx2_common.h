@@ -129,6 +129,11 @@ struct otx2_hw {
 	struct otx2_drv_stats	drv_stats;
 };
 
+struct refill_work {
+	struct delayed_work pool_refill_work;
+	struct otx2_nic *pf;
+};
+
 struct otx2_nic {
 	void __iomem		*reg_base;
 	struct net_device	*netdev;
@@ -150,6 +155,10 @@ struct otx2_nic {
 
 	u16			pcifunc; /* RVU PF_FUNC */
 	struct cgx_link_user_info linfo;
+
+	u64			reset_count;
+	struct work_struct	reset_task;
+	struct refill_work	*refill_wrk;
 
 	/* Block address of NIX either BLKADDR_NIX0 or BLKADDR_NIX1 */
 	int			nix_blkaddr;
@@ -435,6 +444,9 @@ otx2_mbox_up_handler_ ## _fn_name(struct otx2_nic *pfvf,		\
 MBOX_UP_CGX_MESSAGES
 #undef M
 
+/* Time to wait before watchdog kicks off */
+#define OTX2_TX_TIMEOUT		(100 * HZ)
+
 #define	RVU_PFVF_PF_SHIFT	10
 #define	RVU_PFVF_PF_MASK	0x3F
 #define	RVU_PFVF_FUNC_SHIFT	0
@@ -472,6 +484,7 @@ void otx2_free_cints(struct otx2_nic *pfvf, int n);
 void otx2_set_cints_affinity(struct otx2_nic *pfvf);
 int otx2_set_mac_address(struct net_device *netdev, void *p);
 int otx2_hw_set_mtu(struct otx2_nic *pfvf, int mtu);
+void otx2_tx_timeout(struct net_device *netdev, unsigned int txq);
 void otx2_get_mac_from_af(struct net_device *netdev);
 void otx2_config_irq_coalescing(struct otx2_nic *pfvf, int qidx);
 
