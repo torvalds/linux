@@ -485,6 +485,38 @@ static const struct devlink_param bnxt_dl_params[] = {
 static const struct devlink_param bnxt_dl_port_params[] = {
 };
 
+static int bnxt_dl_params_register(struct bnxt *bp)
+{
+	int rc;
+
+	rc = devlink_params_register(bp->dl, bnxt_dl_params,
+				     ARRAY_SIZE(bnxt_dl_params));
+	if (rc) {
+		netdev_warn(bp->dev, "devlink_params_register failed. rc=%d",
+			    rc);
+		return rc;
+	}
+	rc = devlink_port_params_register(&bp->dl_port, bnxt_dl_port_params,
+					  ARRAY_SIZE(bnxt_dl_port_params));
+	if (rc) {
+		netdev_err(bp->dev, "devlink_port_params_register failed");
+		devlink_params_unregister(bp->dl, bnxt_dl_params,
+					  ARRAY_SIZE(bnxt_dl_params));
+		return rc;
+	}
+	devlink_params_publish(bp->dl);
+
+	return 0;
+}
+
+static void bnxt_dl_params_unregister(struct bnxt *bp)
+{
+	devlink_params_unregister(bp->dl, bnxt_dl_params,
+				  ARRAY_SIZE(bnxt_dl_params));
+	devlink_port_params_unregister(&bp->dl_port, bnxt_dl_port_params,
+				       ARRAY_SIZE(bnxt_dl_port_params));
+}
+
 int bnxt_dl_register(struct bnxt *bp)
 {
 	struct devlink *dl;
@@ -520,40 +552,24 @@ int bnxt_dl_register(struct bnxt *bp)
 	if (!BNXT_PF(bp))
 		return 0;
 
-	rc = devlink_params_register(dl, bnxt_dl_params,
-				     ARRAY_SIZE(bnxt_dl_params));
-	if (rc) {
-		netdev_warn(bp->dev, "devlink_params_register failed. rc=%d",
-			    rc);
-		goto err_dl_unreg;
-	}
-
 	devlink_port_attrs_set(&bp->dl_port, DEVLINK_PORT_FLAVOUR_PHYSICAL,
 			       bp->pf.port_id, false, 0,
 			       bp->switch_id, sizeof(bp->switch_id));
 	rc = devlink_port_register(dl, &bp->dl_port, bp->pf.port_id);
 	if (rc) {
 		netdev_err(bp->dev, "devlink_port_register failed");
-		goto err_dl_param_unreg;
+		goto err_dl_unreg;
 	}
 	devlink_port_type_eth_set(&bp->dl_port, bp->dev);
 
-	rc = devlink_port_params_register(&bp->dl_port, bnxt_dl_port_params,
-					  ARRAY_SIZE(bnxt_dl_port_params));
-	if (rc) {
-		netdev_err(bp->dev, "devlink_port_params_register failed");
+	rc = bnxt_dl_params_register(bp);
+	if (rc)
 		goto err_dl_port_unreg;
-	}
-
-	devlink_params_publish(dl);
 
 	return 0;
 
 err_dl_port_unreg:
 	devlink_port_unregister(&bp->dl_port);
-err_dl_param_unreg:
-	devlink_params_unregister(dl, bnxt_dl_params,
-				  ARRAY_SIZE(bnxt_dl_params));
 err_dl_unreg:
 	devlink_unregister(dl);
 err_dl_free:
@@ -570,12 +586,8 @@ void bnxt_dl_unregister(struct bnxt *bp)
 		return;
 
 	if (BNXT_PF(bp)) {
-		devlink_port_params_unregister(&bp->dl_port,
-					       bnxt_dl_port_params,
-					       ARRAY_SIZE(bnxt_dl_port_params));
+		bnxt_dl_params_unregister(bp);
 		devlink_port_unregister(&bp->dl_port);
-		devlink_params_unregister(dl, bnxt_dl_params,
-					  ARRAY_SIZE(bnxt_dl_params));
 	}
 	devlink_unregister(dl);
 	devlink_free(dl);
