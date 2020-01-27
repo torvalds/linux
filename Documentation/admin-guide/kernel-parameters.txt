@@ -511,7 +511,7 @@
 			1 -- check protection requested by application.
 			Default value is set via a kernel config option.
 			Value can be changed at runtime via
-				/selinux/checkreqprot.
+				/sys/fs/selinux/checkreqprot.
 
 	cio_ignore=	[S390]
 			See Documentation/s390/common_io.rst for details.
@@ -1245,7 +1245,8 @@
 			0 -- permissive (log only, no denials).
 			1 -- enforcing (deny and log).
 			Default value is 0.
-			Value can be changed at runtime via /selinux/enforce.
+			Value can be changed at runtime via
+			/sys/fs/selinux/enforce.
 
 	erst_disable	[ACPI]
 			Disable Error Record Serialization Table (ERST)
@@ -4348,9 +4349,7 @@
 			See security/selinux/Kconfig help text.
 			0 -- disable.
 			1 -- enable.
-			Default value is set via kernel config option.
-			If enabled at boot time, /selinux/disable can be used
-			later to disable prior to initial policy load.
+			Default value is 1.
 
 	apparmor=	[APPARMOR] Disable or enable AppArmor at boot time
 			Format: { "0" | "1" }
