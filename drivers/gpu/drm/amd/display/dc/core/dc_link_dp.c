@@ -4179,25 +4179,32 @@ void dp_set_fec_enable(struct dc_link *link, bool enable)
 
 void dpcd_set_source_specific_data(struct dc_link *link)
 {
-	struct dpcd_amd_signature amd_signature;
 	const uint32_t post_oui_delay = 30; // 30ms
 
-	amd_signature.AMD_IEEE_TxSignature_byte1 = 0x0;
-	amd_signature.AMD_IEEE_TxSignature_byte2 = 0x0;
-	amd_signature.AMD_IEEE_TxSignature_byte3 = 0x1A;
-	amd_signature.device_id_byte1 =
-			(uint8_t)(link->ctx->asic_id.chip_id);
-	amd_signature.device_id_byte2 =
-			(uint8_t)(link->ctx->asic_id.chip_id >> 8);
-	memset(&amd_signature.zero, 0, 4);
-	amd_signature.dce_version =
-			(uint8_t)(link->ctx->dce_version);
-	amd_signature.dal_version_byte1 = 0x0; // needed? where to get?
-	amd_signature.dal_version_byte2 = 0x0; // needed? where to get?
+	if (!link->dc->vendor_signature.is_valid) {
+		struct dpcd_amd_signature amd_signature;
+		amd_signature.AMD_IEEE_TxSignature_byte1 = 0x0;
+		amd_signature.AMD_IEEE_TxSignature_byte2 = 0x0;
+		amd_signature.AMD_IEEE_TxSignature_byte3 = 0x1A;
+		amd_signature.device_id_byte1 =
+				(uint8_t)(link->ctx->asic_id.chip_id);
+		amd_signature.device_id_byte2 =
+				(uint8_t)(link->ctx->asic_id.chip_id >> 8);
+		memset(&amd_signature.zero, 0, 4);
+		amd_signature.dce_version =
+				(uint8_t)(link->ctx->dce_version);
+		amd_signature.dal_version_byte1 = 0x0; // needed? where to get?
+		amd_signature.dal_version_byte2 = 0x0; // needed? where to get?
 
-	core_link_write_dpcd(link, DP_SOURCE_OUI,
-			(uint8_t *)(&amd_signature),
-			sizeof(amd_signature));
+		core_link_write_dpcd(link, DP_SOURCE_OUI,
+				(uint8_t *)(&amd_signature),
+				sizeof(amd_signature));
+
+	} else {
+		core_link_write_dpcd(link, DP_SOURCE_OUI,
+				link->dc->vendor_signature.data.raw,
+				sizeof(link->dc->vendor_signature.data.raw));
+	}
 
 	// Sink may need to configure internals based on vendor, so allow some
 	// time before proceeding with possibly vendor specific transactions

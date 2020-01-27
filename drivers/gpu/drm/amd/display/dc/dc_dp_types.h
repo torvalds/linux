@@ -432,6 +432,20 @@ struct dp_sink_hw_fw_revision {
 	uint8_t ieee_fw_rev[2];
 };
 
+struct dpcd_vendor_signature {
+	bool is_valid;
+
+	union dpcd_ieee_vendor_signature {
+		struct {
+			uint8_t ieee_oui[3];/*24-bit IEEE OUI*/
+			uint8_t ieee_device_id[6];/*usually 6-byte ASCII name*/
+			uint8_t ieee_hw_rev;
+			uint8_t ieee_fw_rev[2];
+		};
+		uint8_t raw[12];
+	} data;
+};
+
 struct dpcd_amd_signature {
 	uint8_t AMD_IEEE_TxSignature_byte1;
 	uint8_t AMD_IEEE_TxSignature_byte2;

@@ -701,7 +701,7 @@ static bool dc_construct(struct dc *dc,
 		dc_ctx->created_bios = true;
 	}
 
-
+	dc->vendor_signature = init_params->vendor_signature;
 
 	/* Create GPIO service */
 	dc_ctx->gpio_service = dal_gpio_service_create(

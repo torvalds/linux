@@ -527,6 +527,7 @@ struct dc {
 	struct compressor *fbc_compressor;
 
 	struct dc_debug_data debug_data;
+	struct dpcd_vendor_signature vendor_signature;
 
 	const char *build_id;
 	struct vm_helper *vm_helper;
@@ -573,6 +574,7 @@ struct dc_init_data {
 	 * available in FW
 	 */
 	const struct gpu_info_soc_bounding_box_v1_0 *soc_bounding_box;
+	struct dpcd_vendor_signature vendor_signature;
 };
 
 struct dc_callback_init {
