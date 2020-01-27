@@ -417,10 +417,14 @@ err:
 
 /* Journalling */
 
+#define nr_to_fifo_front(p, front_p, mask)	(((p) - (front_p)) & (mask))
+
 static void btree_flush_write(struct cache_set *c)
 {
 	struct btree *b, *t, *btree_nodes[BTREE_FLUSH_NR];
-	unsigned int i, n;
+	unsigned int i, nr, ref_nr;
+	atomic_t *fifo_front_p, *now_fifo_front_p;
+	size_t mask;
 
 	if (c->journal.btree_flushing)
 		return;
@@ -433,12 +437,50 @@ static void btree_flush_write(struct cache_set *c)
 	c->journal.btree_flushing = true;
 	spin_unlock(&c->journal.flush_write_lock);
 
+	/* get the oldest journal entry and check its refcount */
+	spin_lock(&c->journal.lock);
+	fifo_front_p = &fifo_front(&c->journal.pin);
+	ref_nr = atomic_read(fifo_front_p);
+	if (ref_nr <= 0) {
+		/*
+		 * do nothing if no btree node references
+		 * the oldest journal entry
+		 */
+		spin_unlock(&c->journal.lock);
+		goto out;
+	}
+	spin_unlock(&c->journal.lock);
+
+	mask = c->journal.pin.mask;
+	nr = 0;
 	atomic_long_inc(&c->flush_write);
 	memset(btree_nodes, 0, sizeof(btree_nodes));
-	n = 0;
 
 	mutex_lock(&c->bucket_lock);
 	list_for_each_entry_safe_reverse(b, t, &c->btree_cache, list) {
+		/*
+		 * It is safe to get now_fifo_front_p without holding
+		 * c->journal.lock here, because we don't need to know
+		 * the exactly accurate value, just check whether the
+		 * front pointer of c->journal.pin is changed.
+		 */
+		now_fifo_front_p = &fifo_front(&c->journal.pin);
+		/*
+		 * If the oldest journal entry is reclaimed and front
+		 * pointer of c->journal.pin changes, it is unnecessary
+		 * to scan c->btree_cache anymore, just quit the loop and
+		 * flush out what we have already.
+		 */
+		if (now_fifo_front_p != fifo_front_p)
+			break;
+		/*
+		 * quit this loop if all matching btree nodes are
+		 * scanned and record in btree_nodes[] already.
+		 */
+		ref_nr = atomic_read(fifo_front_p);
+		if (nr >= ref_nr)
+			break;
+
 		if (btree_node_journal_flush(b))
 			pr_err("BUG: flush_write bit should not be set here!");
 
@@ -454,17 +496,44 @@ static void btree_flush_write(struct cache_set *c)
 			continue;
 		}
 
+		/*
+		 * Only select the btree node which exactly references
+		 * the oldest journal entry.
+		 *
+		 * If the journal entry pointed by fifo_front_p is
+		 * reclaimed in parallel, don't worry:
+		 * - the list_for_each_xxx loop will quit when checking
+		 *   next now_fifo_front_p.
+		 * - If there are matched nodes recorded in btree_nodes[],
+		 *   they are clean now (this is why and how the oldest
+		 *   journal entry can be reclaimed). These selected nodes
+		 *   will be ignored and skipped in the folowing for-loop.
+		 */
+		if (nr_to_fifo_front(btree_current_write(b)->journal,
+				     fifo_front_p,
+				     mask) != 0) {
+			mutex_unlock(&b->write_lock);
+			continue;
+		}
+
 		set_btree_node_journal_flush(b);
 
 		mutex_unlock(&b->write_lock);
 
-		btree_nodes[n++] = b;
-		if (n == BTREE_FLUSH_NR)
+		btree_nodes[nr++] = b;
+		/*
+		 * To avoid holding c->bucket_lock too long time,
+		 * only scan for BTREE_FLUSH_NR matched btree nodes
+		 * at most. If there are more btree nodes reference
+		 * the oldest journal entry, try to flush them next
+		 * time when btree_flush_write() is called.
+		 */
+		if (nr == BTREE_FLUSH_NR)
 			break;
 	}
 	mutex_unlock(&c->bucket_lock);
 
-	for (i = 0; i < n; i++) {
+	for (i = 0; i < nr; i++) {
 		b = btree_nodes[i];
 		if (!b) {
 			pr_err("BUG: btree_nodes[%d] is NULL", i);
@@ -497,6 +566,7 @@ static void btree_flush_write(struct cache_set *c)
 		mutex_unlock(&b->write_lock);
 	}
 
+out:
 	spin_lock(&c->journal.flush_write_lock);
 	c->journal.btree_flushing = false;
 	spin_unlock(&c->journal.flush_write_lock);
