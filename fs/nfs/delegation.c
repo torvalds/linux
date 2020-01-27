@@ -378,6 +378,18 @@ nfs_inode_detach_delegation(struct inode *inode)
 }
 
 static void
+nfs_update_delegation_cred(struct nfs_delegation *delegation,
+		const struct cred *cred)
+{
+	const struct cred *old;
+
+	if (cred_fscmp(delegation->cred, cred) != 0) {
+		old = xchg(&delegation->cred, get_cred(cred));
+		put_cred(old);
+	}
+}
+
+static void
 nfs_update_inplace_delegation(struct nfs_delegation *delegation,
 		const struct nfs_delegation *update)
 {
@@ -385,8 +397,14 @@ nfs_update_inplace_delegation(struct nfs_delegation *delegation,
 		delegation->stateid.seqid = update->stateid.seqid;
 		smp_wmb();
 		delegation->type = update->type;
-		if (test_and_clear_bit(NFS_DELEGATION_REVOKED, &delegation->flags))
+		delegation->pagemod_limit = update->pagemod_limit;
+		if (test_bit(NFS_DELEGATION_REVOKED, &delegation->flags)) {
+			delegation->change_attr = update->change_attr;
+			nfs_update_delegation_cred(delegation, update->cred);
+			/* smp_mb__before_atomic() is implicit due to xchg() */
+			clear_bit(NFS_DELEGATION_REVOKED, &delegation->flags);
 			atomic_long_inc(&nfs_active_delegations);
+		}
 	}
 }
 
