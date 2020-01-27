@@ -1946,19 +1946,15 @@ static void __unregister_enc_region_locked(struct kvm *kvm,
 
 static struct kvm *svm_vm_alloc(void)
 {
-	struct kvm_svm *kvm_svm = __vmalloc(sizeof(struct kvm_svm),
-					    GFP_KERNEL_ACCOUNT | __GFP_ZERO,
-					    PAGE_KERNEL);
+	BUILD_BUG_ON(offsetof(struct kvm_svm, kvm) != 0);
 
-	if (!kvm_svm)
-		return NULL;
-
-	return &kvm_svm->kvm;
+	return __vmalloc(sizeof(struct kvm_svm),
+			 GFP_KERNEL_ACCOUNT | __GFP_ZERO, PAGE_KERNEL);
 }
 
 static void svm_vm_free(struct kvm *kvm)
 {
-	vfree(to_kvm_svm(kvm));
+	vfree(kvm);
 }
 
 static void sev_vm_destroy(struct kvm *kvm)

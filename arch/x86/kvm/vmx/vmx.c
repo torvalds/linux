@@ -6681,20 +6681,16 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
 
 static struct kvm *vmx_vm_alloc(void)
 {
-	struct kvm_vmx *kvm_vmx = __vmalloc(sizeof(struct kvm_vmx),
-					    GFP_KERNEL_ACCOUNT | __GFP_ZERO,
-					    PAGE_KERNEL);
+	BUILD_BUG_ON(offsetof(struct kvm_vmx, kvm) != 0);
 
-	if (!kvm_vmx)
-		return NULL;
-
-	return &kvm_vmx->kvm;
+	return __vmalloc(sizeof(struct kvm_vmx),
+			 GFP_KERNEL_ACCOUNT | __GFP_ZERO, PAGE_KERNEL);
 }
 
 static void vmx_vm_free(struct kvm *kvm)
 {
 	kfree(kvm->arch.hyperv.hv_pa_pg);
-	vfree(to_kvm_vmx(kvm));
+	vfree(kvm);
 }
 
 static void vmx_free_vcpu(struct kvm_vcpu *vcpu)
