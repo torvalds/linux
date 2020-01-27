@@ -180,7 +180,7 @@ transfer_to_handler:
 2:	/* if from kernel, check interrupted DOZE/NAP mode and
          * check for stack overflow
          */
-	kuap_save_and_lock r11, r12, r9, r2, r0
+	kuap_save_and_lock r11, r12, r9, r2, r6
 	addi	r2, r12, -THREAD
 #ifndef CONFIG_VMAP_STACK
 	lwz	r9,KSP_LIMIT(r12)
@@ -288,6 +288,7 @@ reenable_mmu:
 	rlwinm	r9,r9,0,~MSR_EE
 	lwz	r12,_LINK(r11)		/* and return to address in LR */
 	kuap_restore r11, r2, r3, r4, r5
+	lwz	r2, GPR2(r11)
 	b	fast_exception_return
 #endif
 
