@@ -98,6 +98,7 @@ enum core_event_opcode {
 	CORE_EVENT_RX_QUEUE_STOP,
 	CORE_EVENT_RX_QUEUE_FLUSH,
 	CORE_EVENT_TX_QUEUE_UPDATE,
+	CORE_EVENT_QUEUE_STATS_QUERY,
 	MAX_CORE_EVENT_OPCODE
 };
 
@@ -116,7 +117,7 @@ struct core_ll2_port_stats {
 	struct regpair gsi_crcchksm_error;
 };
 
-/* Ethernet TX Per Queue Stats */
+/* LL2 TX Per Queue Stats */
 struct core_ll2_pstorm_per_queue_stat {
 	struct regpair sent_ucast_bytes;
 	struct regpair sent_mcast_bytes;
@@ -124,13 +125,13 @@ struct core_ll2_pstorm_per_queue_stat {
 	struct regpair sent_ucast_pkts;
 	struct regpair sent_mcast_pkts;
 	struct regpair sent_bcast_pkts;
+	struct regpair error_drop_pkts;
 };
 
 /* Light-L2 RX Producers in Tstorm RAM */
 struct core_ll2_rx_prod {
 	__le16 bd_prod;
 	__le16 cqe_prod;
-	__le32 reserved;
 };
 
 struct core_ll2_tstorm_per_queue_stat {
@@ -147,6 +148,18 @@ struct core_ll2_ustorm_per_queue_stat {
 	struct regpair rcv_bcast_pkts;
 };
 
+/* Structure for doorbell data, in PWM mode, for RX producers update. */
+struct core_pwm_prod_update_data {
+	__le16 icid; /* internal CID */
+	u8 reserved0;
+	u8 params;
+#define CORE_PWM_PROD_UPDATE_DATA_AGG_CMD_MASK	  0x3
+#define CORE_PWM_PROD_UPDATE_DATA_AGG_CMD_SHIFT   0
+#define CORE_PWM_PROD_UPDATE_DATA_RESERVED1_MASK  0x3F	/* Set 0 */
+#define CORE_PWM_PROD_UPDATE_DATA_RESERVED1_SHIFT 2
+	struct core_ll2_rx_prod prod; /* Producers */
+};
+
 /* Core Ramrod Command IDs (light L2) */
 enum core_ramrod_cmd_id {
 	CORE_RAMROD_UNUSED,
@@ -156,6 +169,7 @@ enum core_ramrod_cmd_id {
 	CORE_RAMROD_TX_QUEUE_STOP,
 	CORE_RAMROD_RX_QUEUE_FLUSH,
 	CORE_RAMROD_TX_QUEUE_UPDATE,
+	CORE_RAMROD_QUEUE_STATS_QUERY,
 	MAX_CORE_RAMROD_CMD_ID
 };
 
@@ -274,8 +288,11 @@ struct core_rx_start_ramrod_data {
 	u8 mf_si_mcast_accept_all;
 	struct core_rx_action_on_error action_on_error;
 	u8 gsi_offload_flag;
+	u8 vport_id_valid;
+	u8 vport_id;
+	u8 zero_prod_flg;
 	u8 wipe_inner_vlan_pri_en;
-	u8 reserved[5];
+	u8 reserved[2];
 };
 
 /* Ramrod data for rx queue stop ramrod */
@@ -352,8 +369,11 @@ struct core_tx_start_ramrod_data {
 	__le16 pbl_size;
 	__le16 qm_pq_id;
 	u8 gsi_offload_flag;
+	u8 ctx_stats_en;
+	u8 vport_id_valid;
 	u8 vport_id;
-	u8 resrved[2];
+	u8 enforce_security_flag;
+	u8 reserved[7];
 };
 
 /* Ramrod data for tx queue stop ramrod */
@@ -761,7 +781,7 @@ struct e4_tstorm_core_conn_ag_ctx {
 	__le16 word1;
 	__le16 word2;
 	__le16 word3;
-	__le32 reg9;
+	__le32 ll2_rx_prod;
 	__le32 reg10;
 };
 
@@ -844,6 +864,11 @@ struct ustorm_core_conn_st_ctx {
 	__le32 reserved[4];
 };
 
+/* The core storm context for the Tstorm */
+struct tstorm_core_conn_st_ctx {
+	__le32 reserved[4];
+};
+
 /* core connection context */
 struct e4_core_conn_context {
 	struct ystorm_core_conn_st_ctx ystorm_st_context;
@@ -857,6 +882,8 @@ struct e4_core_conn_context {
 	struct mstorm_core_conn_st_ctx mstorm_st_context;
 	struct ustorm_core_conn_st_ctx ustorm_st_context;
 	struct regpair ustorm_st_padding[2];
+	struct tstorm_core_conn_st_ctx tstorm_st_context;
+	struct regpair tstorm_st_padding[2];
 };
 
 struct eth_mstorm_per_pf_stat {
@@ -12483,6 +12510,11 @@ enum resource_id_enum {
 	RESOURCE_LL2_QUEUE_E = 15,
 	RESOURCE_RDMA_STATS_QUEUE_E = 16,
 	RESOURCE_BDQ_E = 17,
+	RESOURCE_QCN_E = 18,
+	RESOURCE_LLH_FILTER_E = 19,
+	RESOURCE_VF_MAC_ADDR = 20,
+	RESOURCE_LL2_CQS_E = 21,
+	RESOURCE_VF_CNQS = 22,
 	RESOURCE_MAX_NUM,
 	RESOURCE_NUM_INVALID = 0xFFFFFFFF
 };

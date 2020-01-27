@@ -3565,8 +3565,10 @@ const char *qed_hw_get_resc_name(enum qed_resources res_id)
 		return "RDMA_CNQ_RAM";
 	case QED_ILT:
 		return "ILT";
-	case QED_LL2_QUEUE:
-		return "LL2_QUEUE";
+	case QED_LL2_RAM_QUEUE:
+		return "LL2_RAM_QUEUE";
+	case QED_LL2_CTX_QUEUE:
+		return "LL2_CTX_QUEUE";
 	case QED_CMDQS_CQS:
 		return "CMDQS_CQS";
 	case QED_RDMA_STATS_QUEUE:
@@ -3615,8 +3617,11 @@ qed_hw_set_soft_resc_size(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 
 	for (res_id = 0; res_id < QED_MAX_RESC; res_id++) {
 		switch (res_id) {
-		case QED_LL2_QUEUE:
-			resc_max_val = MAX_NUM_LL2_RX_QUEUES;
+		case QED_LL2_RAM_QUEUE:
+			resc_max_val = MAX_NUM_LL2_RX_RAM_QUEUES;
+			break;
+		case QED_LL2_CTX_QUEUE:
+			resc_max_val = MAX_NUM_LL2_RX_CTX_QUEUES;
 			break;
 		case QED_RDMA_CNQ_RAM:
 			/* No need for a case for QED_CMDQS_CQS since
@@ -3691,8 +3696,11 @@ int qed_hw_get_dflt_resc(struct qed_hwfn *p_hwfn,
 		*p_resc_num = (b_ah ? PXP_NUM_ILT_RECORDS_K2 :
 			       PXP_NUM_ILT_RECORDS_BB) / num_funcs;
 		break;
-	case QED_LL2_QUEUE:
-		*p_resc_num = MAX_NUM_LL2_RX_QUEUES / num_funcs;
+	case QED_LL2_RAM_QUEUE:
+		*p_resc_num = MAX_NUM_LL2_RX_RAM_QUEUES / num_funcs;
+		break;
+	case QED_LL2_CTX_QUEUE:
+		*p_resc_num = MAX_NUM_LL2_RX_CTX_QUEUES / num_funcs;
 		break;
 	case QED_RDMA_CNQ_RAM:
 	case QED_CMDQS_CQS:

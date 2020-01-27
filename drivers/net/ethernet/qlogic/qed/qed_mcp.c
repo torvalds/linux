@@ -3261,8 +3261,11 @@ static enum resource_id_enum qed_mcp_get_mfw_res_id(enum qed_resources res_id)
 	case QED_ILT:
 		mfw_res_id = RESOURCE_ILT_E;
 		break;
-	case QED_LL2_QUEUE:
+	case QED_LL2_RAM_QUEUE:
 		mfw_res_id = RESOURCE_LL2_QUEUE_E;
+		break;
+	case QED_LL2_CTX_QUEUE:
+		mfw_res_id = RESOURCE_LL2_CQS_E;
 		break;
 	case QED_RDMA_CNQ_RAM:
 	case QED_CMDQS_CQS:

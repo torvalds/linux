@@ -463,7 +463,7 @@ enum qed_db_rec_space {
 
 #define DIRECT_REG_RD(reg_addr) readl((void __iomem *)(reg_addr))
 
-#define DIRECT_REG_WR64(reg_addr, val) writeq((u32)val,	\
+#define DIRECT_REG_WR64(reg_addr, val) writeq((u64)val,	\
 					      (void __iomem *)(reg_addr))
 
 #define QED_COALESCE_MAX 0x1FF
@@ -1176,6 +1176,8 @@ struct qed_common_ops {
 
 #define GET_FIELD(value, name) \
 	(((value) >> (name ## _SHIFT)) & name ## _MASK)
+
+#define DB_ADDR_SHIFT(addr) ((addr) << DB_PWM_ADDR_OFFSET_SHIFT)
 
 /* Debug print definitions */
 #define DP_ERR(cdev, fmt, ...)					\
