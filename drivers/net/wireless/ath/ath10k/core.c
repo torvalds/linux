@@ -2119,6 +2119,40 @@ done:
 	return 0;
 }
 
+static void ath10k_core_fetch_btcoex_dt(struct ath10k *ar)
+{
+	struct device_node *node;
+	u8 coex_support = 0;
+	int ret;
+
+	node = ar->dev->of_node;
+	if (!node)
+		goto out;
+
+	ret = of_property_read_u8(node, "qcom,coexist-support", &coex_support);
+	if (ret) {
+		ar->coex_support = true;
+		goto out;
+	}
+
+	if (coex_support) {
+		ar->coex_support = true;
+	} else {
+		ar->coex_support = false;
+		ar->coex_gpio_pin = -1;
+		goto out;
+	}
+
+	ret = of_property_read_u32(node, "qcom,coexist-gpio-pin",
+				   &ar->coex_gpio_pin);
+	if (ret)
+		ar->coex_gpio_pin = -1;
+
+out:
+	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot coex_support %d coex_gpio_pin %d\n",
+		   ar->coex_support, ar->coex_gpio_pin);
+}
+
 static int ath10k_init_uart(struct ath10k *ar)
 {
 	int ret;
@@ -2696,14 +2730,22 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 		if (test_bit(WMI_SERVICE_BSS_CHANNEL_INFO_64, ar->wmi.svc_map))
 			val |= WMI_10_4_BSS_CHANNEL_INFO_64;
 
+		ath10k_core_fetch_btcoex_dt(ar);
+
 		/* 10.4 firmware supports BT-Coex without reloading firmware
 		 * via pdev param. To support Bluetooth coexistence pdev param,
 		 * WMI_COEX_GPIO_SUPPORT of extended resource config should be
 		 * enabled always.
+		 *
+		 * We can still enable BTCOEX if firmware has the support
+		 * eventhough btceox_support value is
+		 * ATH10K_DT_BTCOEX_NOT_FOUND
 		 */
+
 		if (test_bit(WMI_SERVICE_COEX_GPIO, ar->wmi.svc_map) &&
 		    test_bit(ATH10K_FW_FEATURE_BTCOEX_PARAM,
-			     ar->running_fw->fw_file.fw_features))
+			     ar->running_fw->fw_file.fw_features) &&
+		    ar->coex_support)
 			val |= WMI_10_4_COEX_GPIO_SUPPORT;
 
 		if (test_bit(WMI_SERVICE_TDLS_EXPLICIT_MODE_ONLY,
