@@ -148,6 +148,9 @@ static void otx2_process_pfaf_mbox_msg(struct otx2_nic *pf,
 		mbox_handler_nix_txsch_alloc(pf,
 					     (struct nix_txsch_alloc_rsp *)msg);
 		break;
+	case MBOX_MSG_CGX_STATS:
+		mbox_handler_cgx_stats(pf, (struct cgx_stats_rsp *)msg);
+		break;
 	default:
 		if (msg->rc)
 			dev_err(pf->dev,
@@ -459,8 +462,8 @@ static int otx2_cgx_config_loopback(struct otx2_nic *pf, bool enable)
 	return err;
 }
 
-static int otx2_set_real_num_queues(struct net_device *netdev,
-				    int tx_queues, int rx_queues)
+int otx2_set_real_num_queues(struct net_device *netdev,
+			     int tx_queues, int rx_queues)
 {
 	int err;
 
@@ -812,6 +815,11 @@ int otx2_open(struct net_device *netdev)
 	if (!qset->sq)
 		goto err_free_mem;
 
+	qset->rq = kcalloc(pf->hw.rx_queues,
+			   sizeof(struct otx2_rcv_queue), GFP_KERNEL);
+	if (!qset->rq)
+		goto err_free_mem;
+
 	err = otx2_init_hw_resources(pf);
 	if (err)
 		goto err_free_mem;
@@ -917,6 +925,7 @@ err_disable_napi:
 err_free_mem:
 	kfree(qset->sq);
 	kfree(qset->cq);
+	kfree(qset->rq);
 	kfree(qset->napi);
 	return err;
 }
@@ -973,6 +982,7 @@ int otx2_stop(struct net_device *netdev)
 
 	kfree(qset->sq);
 	kfree(qset->cq);
+	kfree(qset->rq);
 	kfree(qset->napi);
 	/* Do not clear RQ/SQ ringsize settings */
 	memset((void *)qset + offsetof(struct otx2_qset, sqe_cnt), 0,
@@ -1267,6 +1277,8 @@ static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		dev_err(dev, "Failed to register netdevice\n");
 		goto err_detach_rsrc;
 	}
+
+	otx2_set_ethtool_ops(netdev);
 
 	/* Enable link notifications */
 	otx2_cgx_config_linkevents(pf, true);

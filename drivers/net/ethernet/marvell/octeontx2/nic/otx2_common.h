@@ -187,6 +187,8 @@ struct otx2_hw {
 	/* Stats */
 	struct otx2_dev_stats	dev_stats;
 	struct otx2_drv_stats	drv_stats;
+	u64			cgx_rx_stats[CGX_RX_STATS_COUNT];
+	u64			cgx_tx_stats[CGX_TX_STATS_COUNT];
 };
 
 struct refill_work {
@@ -588,12 +590,20 @@ void mbox_handler_nix_lf_alloc(struct otx2_nic *pfvf,
 			       struct nix_lf_alloc_rsp *rsp);
 void mbox_handler_nix_txsch_alloc(struct otx2_nic *pf,
 				  struct nix_txsch_alloc_rsp *rsp);
+void mbox_handler_cgx_stats(struct otx2_nic *pfvf,
+			    struct cgx_stats_rsp *rsp);
 
 /* Device stats APIs */
 void otx2_get_dev_stats(struct otx2_nic *pfvf);
 void otx2_get_stats64(struct net_device *netdev,
 		      struct rtnl_link_stats64 *stats);
+void otx2_update_lmac_stats(struct otx2_nic *pfvf);
+int otx2_update_rq_stats(struct otx2_nic *pfvf, int qidx);
+int otx2_update_sq_stats(struct otx2_nic *pfvf, int qidx);
+void otx2_set_ethtool_ops(struct net_device *netdev);
 
 int otx2_open(struct net_device *netdev);
 int otx2_stop(struct net_device *netdev);
+int otx2_set_real_num_queues(struct net_device *netdev,
+			     int tx_queues, int rx_queues);
 #endif /* OTX2_COMMON_H */

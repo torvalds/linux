@@ -60,6 +60,15 @@
  */
 #define CQ_QCOUNT_DEFAULT	1
 
+struct queue_stats {
+	u64	bytes;
+	u64	pkts;
+};
+
+struct otx2_rcv_queue {
+	struct queue_stats	stats;
+};
+
 struct sg_list {
 	u16	num_segs;
 	u64	skb;
@@ -82,6 +91,7 @@ struct otx2_snd_queue {
 	struct qmem		*sqe;
 	struct qmem		*tso_hdrs;
 	struct sg_list		*sg;
+	struct queue_stats	stats;
 	u16			sqb_count;
 	u64			*sqb_ptrs;
 } ____cacheline_aligned_in_smp;
@@ -134,6 +144,7 @@ struct otx2_qset {
 	struct otx2_cq_poll	*napi;
 	struct otx2_cq_queue	*cq;
 	struct otx2_snd_queue	*sq;
+	struct otx2_rcv_queue	*rq;
 };
 
 /* Translate IOVA to physical address */
