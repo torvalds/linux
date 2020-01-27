@@ -273,7 +273,6 @@ struct stm32_mdma_device {
 	void __iomem *base;
 	struct clk *clk;
 	int irq;
-	struct reset_control *rst;
 	u32 nr_channels;
 	u32 nr_requests;
 	u32 nr_ahb_addr_masks;
@@ -1532,6 +1531,7 @@ static int stm32_mdma_probe(struct platform_device *pdev)
 	struct dma_device *dd;
 	struct device_node *of_node;
 	struct resource *res;
+	struct reset_control *rst;
 	u32 nr_channels, nr_requests;
 	int i, count, ret;
 
@@ -1590,11 +1590,11 @@ static int stm32_mdma_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	dmadev->rst = devm_reset_control_get(&pdev->dev, NULL);
-	if (!IS_ERR(dmadev->rst)) {
-		reset_control_assert(dmadev->rst);
+	rst = devm_reset_control_get(&pdev->dev, NULL);
+	if (!IS_ERR(rst)) {
+		reset_control_assert(rst);
 		udelay(2);
-		reset_control_deassert(dmadev->rst);
+		reset_control_deassert(rst);
 	}
 
 	dd = &dmadev->ddev;
