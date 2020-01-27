@@ -21,6 +21,7 @@ bnxt_dl_flash_update(struct devlink *dl, const char *filename,
 		     const char *region, struct netlink_ext_ack *extack)
 {
 	struct bnxt *bp = bnxt_get_bp_from_dl(dl);
+	int rc;
 
 	if (region)
 		return -EOPNOTSUPP;
@@ -31,7 +32,18 @@ bnxt_dl_flash_update(struct devlink *dl, const char *filename,
 		return -EPERM;
 	}
 
-	return bnxt_flash_package_from_file(bp->dev, filename, 0);
+	devlink_flash_update_begin_notify(dl);
+	devlink_flash_update_status_notify(dl, "Preparing to flash", region, 0,
+					   0);
+	rc = bnxt_flash_package_from_file(bp->dev, filename, 0);
+	if (!rc)
+		devlink_flash_update_status_notify(dl, "Flashing done", region,
+						   0, 0);
+	else
+		devlink_flash_update_status_notify(dl, "Flashing failed",
+						   region, 0, 0);
+	devlink_flash_update_end_notify(dl);
+	return rc;
 }
 
 static int bnxt_fw_reporter_diagnose(struct devlink_health_reporter *reporter,
