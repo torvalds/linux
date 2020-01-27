@@ -766,6 +766,7 @@ void nfs4_put_open_state(struct nfs4_state *state)
 	list_del(&state->open_states);
 	spin_unlock(&inode->i_lock);
 	spin_unlock(&owner->so_lock);
+	nfs4_inode_return_delegation_on_close(inode);
 	iput(inode);
 	nfs4_free_open_state(state);
 	nfs4_put_state_owner(owner);
