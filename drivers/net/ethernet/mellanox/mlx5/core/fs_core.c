@@ -469,6 +469,7 @@ static void del_hw_fte(struct fs_node *node)
 			mlx5_core_warn(dev,
 				       "flow steering can't delete fte in index %d of flow group id %d\n",
 				       fte->index, fg->id);
+		node->active = 0;
 	}
 }
 
@@ -1594,6 +1595,11 @@ lookup_fte_locked(struct mlx5_flow_group *g,
 	fte_tmp = rhashtable_lookup_fast(&g->ftes_hash, match_value,
 					 rhash_fte);
 	if (!fte_tmp || !tree_get_node(&fte_tmp->node)) {
+		fte_tmp = NULL;
+		goto out;
+	}
+	if (!fte_tmp->node.active) {
+		tree_put_node(&fte_tmp->node);
 		fte_tmp = NULL;
 		goto out;
 	}

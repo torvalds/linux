@@ -220,6 +220,7 @@ static unsigned long *alloc_thread_stack_node(struct task_struct *tsk, int node)
 		memset(s->addr, 0, THREAD_SIZE);
 
 		tsk->stack_vm_area = s;
+		tsk->stack = s->addr;
 		return s->addr;
 	}
 
@@ -234,14 +235,20 @@ static unsigned long *alloc_thread_stack_node(struct task_struct *tsk, int node)
 	 * free_thread_stack() can be called in interrupt context,
 	 * so cache the vm_struct.
 	 */
-	if (stack)
+	if (stack) {
 		tsk->stack_vm_area = find_vm_area(stack);
+		tsk->stack = stack;
+	}
 	return stack;
 #else
 	struct page *page = alloc_pages_node(node, THREADINFO_GFP,
 					     THREAD_SIZE_ORDER);
 
-	return page ? page_address(page) : NULL;
+	if (likely(page)) {
+		tsk->stack = page_address(page);
+		return tsk->stack;
+	}
+	return NULL;
 #endif
 }
 
@@ -272,7 +279,10 @@ static struct kmem_cache *thread_stack_cache;
 static unsigned long *alloc_thread_stack_node(struct task_struct *tsk,
 						  int node)
 {
-	return kmem_cache_alloc_node(thread_stack_cache, THREADINFO_GFP, node);
+	unsigned long *stack;
+	stack = kmem_cache_alloc_node(thread_stack_cache, THREADINFO_GFP, node);
+	tsk->stack = stack;
+	return stack;
 }
 
 static void free_thread_stack(struct task_struct *tsk)

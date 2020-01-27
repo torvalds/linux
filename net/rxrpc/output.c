@@ -524,6 +524,9 @@ send_fragmentable:
 		}
 		break;
 #endif
+
+	default:
+		BUG();
 	}
 
 	if (ret < 0)

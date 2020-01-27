@@ -25,7 +25,7 @@ static void shutdown_umh(struct umh_info *info)
 		return;
 	tsk = get_pid_task(find_vpid(info->pid), PIDTYPE_PID);
 	if (tsk) {
-		force_sig(SIGKILL, tsk);
+		send_sig(SIGKILL, tsk, 1);
 		put_task_struct(tsk);
 	}
 	fput(info->pipe_to_umh);

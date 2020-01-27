@@ -262,7 +262,6 @@ void hns_roce_qp_free(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 			hns_roce_table_put(hr_dev, &qp_table->trrl_table,
 					   hr_qp->qpn);
 		hns_roce_table_put(hr_dev, &qp_table->irrl_table, hr_qp->qpn);
-		hns_roce_table_put(hr_dev, &qp_table->qp_table, hr_qp->qpn);
 	}
 }
 EXPORT_SYMBOL_GPL(hns_roce_qp_free);

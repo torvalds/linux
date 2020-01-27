@@ -146,17 +146,20 @@ int aa_af_perm(struct aa_label *label, const char *op, u32 request, u16 family,
 static int aa_label_sk_perm(struct aa_label *label, const char *op, u32 request,
 			    struct sock *sk)
 {
-	struct aa_profile *profile;
-	DEFINE_AUDIT_SK(sa, op, sk);
+	int error = 0;
 
 	AA_BUG(!label);
 	AA_BUG(!sk);
 
-	if (unconfined(label))
-		return 0;
+	if (!unconfined(label)) {
+		struct aa_profile *profile;
+		DEFINE_AUDIT_SK(sa, op, sk);
 
-	return fn_for_each_confined(label, profile,
-			aa_profile_af_sk_perm(profile, &sa, request, sk));
+		error = fn_for_each_confined(label, profile,
+			    aa_profile_af_sk_perm(profile, &sa, request, sk));
+	}
+
+	return error;
 }
 
 int aa_sk_perm(const char *op, u32 request, struct sock *sk)

@@ -467,8 +467,11 @@ static int acpi_button_resume(struct device *dev)
 	struct acpi_button *button = acpi_driver_data(device);
 
 	button->suspended = false;
-	if (button->type == ACPI_BUTTON_TYPE_LID && button->input->users)
+	if (button->type == ACPI_BUTTON_TYPE_LID && button->input->users) {
+		button->last_state = !!acpi_lid_evaluate_state(device);
+		button->last_time = ktime_get();
 		acpi_lid_initialize_state(device);
+	}
 	return 0;
 }
 #endif

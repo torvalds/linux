@@ -1297,15 +1297,21 @@ static void packet_sock_destruct(struct sock *sk)
 
 static bool fanout_flow_is_huge(struct packet_sock *po, struct sk_buff *skb)
 {
-	u32 rxhash;
+	u32 *history = po->rollover->history;
+	u32 victim, rxhash;
 	int i, count = 0;
 
 	rxhash = skb_get_hash(skb);
 	for (i = 0; i < ROLLOVER_HLEN; i++)
-		if (po->rollover->history[i] == rxhash)
+		if (READ_ONCE(history[i]) == rxhash)
 			count++;
 
-	po->rollover->history[prandom_u32() % ROLLOVER_HLEN] = rxhash;
+	victim = prandom_u32() % ROLLOVER_HLEN;
+
+	/* Avoid dirtying the cache line if possible */
+	if (READ_ONCE(history[victim]) != rxhash)
+		WRITE_ONCE(history[victim], rxhash);
+
 	return count > (ROLLOVER_HLEN >> 1);
 }
 
@@ -3371,20 +3377,29 @@ static int packet_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 	sock_recv_ts_and_drops(msg, sk, skb);
 
 	if (msg->msg_name) {
+		int copy_len;
+
 		/* If the address length field is there to be filled
 		 * in, we fill it in now.
 		 */
 		if (sock->type == SOCK_PACKET) {
 			__sockaddr_check_size(sizeof(struct sockaddr_pkt));
 			msg->msg_namelen = sizeof(struct sockaddr_pkt);
+			copy_len = msg->msg_namelen;
 		} else {
 			struct sockaddr_ll *sll = &PACKET_SKB_CB(skb)->sa.ll;
 
 			msg->msg_namelen = sll->sll_halen +
 				offsetof(struct sockaddr_ll, sll_addr);
+			copy_len = msg->msg_namelen;
+			if (msg->msg_namelen < sizeof(struct sockaddr_ll)) {
+				memset(msg->msg_name +
+				       offsetof(struct sockaddr_ll, sll_addr),
+				       0, sizeof(sll->sll_addr));
+				msg->msg_namelen = sizeof(struct sockaddr_ll);
+			}
 		}
-		memcpy(msg->msg_name, &PACKET_SKB_CB(skb)->sa,
-		       msg->msg_namelen);
+		memcpy(msg->msg_name, &PACKET_SKB_CB(skb)->sa, copy_len);
 	}
 
 	if (pkt_sk(sk)->auxdata) {

@@ -491,14 +491,17 @@ EXPORT_SYMBOL_GPL(nf_flow_table_init);
 static void nf_flow_table_do_cleanup(struct flow_offload *flow, void *data)
 {
 	struct net_device *dev = data;
+	struct flow_offload_entry *e;
+
+	e = container_of(flow, struct flow_offload_entry, flow);
 
 	if (!dev) {
 		flow_offload_teardown(flow);
 		return;
 	}
-
-	if (flow->tuplehash[0].tuple.iifidx == dev->ifindex ||
-	    flow->tuplehash[1].tuple.iifidx == dev->ifindex)
+	if (net_eq(nf_ct_net(e->ct), dev_net(dev)) &&
+	    (flow->tuplehash[0].tuple.iifidx == dev->ifindex ||
+	     flow->tuplehash[1].tuple.iifidx == dev->ifindex))
 		flow_offload_dead(flow);
 }
 

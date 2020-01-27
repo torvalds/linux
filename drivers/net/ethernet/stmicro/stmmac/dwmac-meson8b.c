@@ -355,7 +355,7 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 
 	dwmac->dev = &pdev->dev;
 	dwmac->phy_mode = of_get_phy_mode(pdev->dev.of_node);
-	if (dwmac->phy_mode < 0) {
+	if ((int)dwmac->phy_mode < 0) {
 		dev_err(&pdev->dev, "missing phy-mode property\n");
 		ret = -EINVAL;
 		goto err_remove_config_dt;

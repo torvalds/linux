@@ -10580,12 +10580,29 @@ void set_link_down_reason(struct hfi1_pportdata *ppd, u8 lcl_reason,
 	}
 }
 
-/*
- * Verify if BCT for data VLs is non-zero.
+/**
+ * data_vls_operational() - Verify if data VL BCT credits and MTU
+ *			    are both set.
+ * @ppd: pointer to hfi1_pportdata structure
+ *
+ * Return: true - Ok, false -otherwise.
  */
 static inline bool data_vls_operational(struct hfi1_pportdata *ppd)
 {
-	return !!ppd->actual_vls_operational;
+	int i;
+	u64 reg;
+
+	if (!ppd->actual_vls_operational)
+		return false;
+
+	for (i = 0; i < ppd->vls_supported; i++) {
+		reg = read_csr(ppd->dd, SEND_CM_CREDIT_VL + (8 * i));
+		if ((reg && !ppd->dd->vld[i].mtu) ||
+		    (!reg && ppd->dd->vld[i].mtu))
+			return false;
+	}
+
+	return true;
 }
 
 /*
@@ -10698,7 +10715,8 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 
 		if (!data_vls_operational(ppd)) {
 			dd_dev_err(dd,
-				   "%s: data VLs not operational\n", __func__);
+				   "%s: Invalid data VL credits or mtu\n",
+				   __func__);
 			ret = -EINVAL;
 			break;
 		}

@@ -218,6 +218,9 @@ static int xsk_generic_xmit(struct sock *sk, struct msghdr *m,
 
 	mutex_lock(&xs->mutex);
 
+	if (xs->queue_id >= xs->dev->real_num_tx_queues)
+		goto out;
+
 	while (xskq_peek_desc(xs->tx, &desc)) {
 		char *buffer;
 		u64 addr;
@@ -227,12 +230,6 @@ static int xsk_generic_xmit(struct sock *sk, struct msghdr *m,
 			err = -EAGAIN;
 			goto out;
 		}
-
-		if (xskq_reserve_addr(xs->umem->cq))
-			goto out;
-
-		if (xs->queue_id >= xs->dev->real_num_tx_queues)
-			goto out;
 
 		len = desc.len;
 		skb = sock_alloc_send_skb(sk, len, 1, &err);
@@ -245,7 +242,7 @@ static int xsk_generic_xmit(struct sock *sk, struct msghdr *m,
 		addr = desc.addr;
 		buffer = xdp_umem_get_data(xs->umem, addr);
 		err = skb_store_bits(skb, 0, buffer, len);
-		if (unlikely(err)) {
+		if (unlikely(err) || xskq_reserve_addr(xs->umem->cq)) {
 			kfree_skb(skb);
 			goto out;
 		}
@@ -323,7 +320,7 @@ static int xsk_init_queue(u32 entries, struct xsk_queue **queue,
 
 	/* Make sure queue is ready before it can be seen by others */
 	smp_wmb();
-	*queue = q;
+	WRITE_ONCE(*queue, q);
 	return 0;
 }
 
@@ -457,7 +454,7 @@ static int xsk_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 		}
 
 		xdp_get_umem(umem_xs->umem);
-		xs->umem = umem_xs->umem;
+		WRITE_ONCE(xs->umem, umem_xs->umem);
 		sockfd_put(sock);
 	} else if (!xs->umem || !xdp_umem_validate_queues(xs->umem)) {
 		err = -EINVAL;
@@ -537,7 +534,7 @@ static int xsk_setsockopt(struct socket *sock, int level, int optname,
 
 		/* Make sure umem is ready before it can be seen by others */
 		smp_wmb();
-		xs->umem = umem;
+		WRITE_ONCE(xs->umem, umem);
 		mutex_unlock(&xs->mutex);
 		return 0;
 	}
@@ -661,6 +658,8 @@ static int xsk_mmap(struct file *file, struct socket *sock,
 		if (!umem)
 			return -EINVAL;
 
+		/* Matches the smp_wmb() in XDP_UMEM_REG */
+		smp_rmb();
 		if (offset == XDP_UMEM_PGOFF_FILL_RING)
 			q = READ_ONCE(umem->fq);
 		else if (offset == XDP_UMEM_PGOFF_COMPLETION_RING)
@@ -670,6 +669,8 @@ static int xsk_mmap(struct file *file, struct socket *sock,
 	if (!q)
 		return -EINVAL;
 
+	/* Matches the smp_wmb() in xsk_init_queue */
+	smp_rmb();
 	qpg = virt_to_head_page(q->ring);
 	if (size > (PAGE_SIZE << compound_order(qpg)))
 		return -EINVAL;
