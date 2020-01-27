@@ -84,8 +84,6 @@ static inline int apei_clear_mce(u64 record_id)
 }
 #endif
 
-void mce_inject_log(struct mce *m);
-
 /*
  * We consider records to be equivalent if bank+status+addr+misc all match.
  * This is only used when the system is going down because of a fatal error
