@@ -561,7 +561,6 @@ int bnxt_dl_register(struct bnxt *bp)
 		netdev_err(bp->dev, "devlink_port_register failed");
 		goto err_dl_unreg;
 	}
-	devlink_port_type_eth_set(&bp->dl_port, bp->dev);
 
 	rc = bnxt_dl_params_register(bp);
 	if (rc)
