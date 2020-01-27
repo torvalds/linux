@@ -834,10 +834,12 @@ static int rockchip_pcie_cfg_atu(struct rockchip_pcie *rockchip)
 	if (!entry)
 		return -ENODEV;
 
+	/* store the register number offset to program RC io outbound ATU */
+	offset = size >> 20;
+
 	size = resource_size(entry->res);
 	pci_addr = entry->res->start - entry->offset;
 
-	offset = size >> 20;
 	for (reg_no = 0; reg_no < (size >> 20); reg_no++) {
 		err = rockchip_pcie_prog_ob_atu(rockchip,
 						reg_no + 1 + offset,

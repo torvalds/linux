@@ -1447,8 +1447,9 @@ st_lsm6dsx_set_odr(struct st_lsm6dsx_sensor *sensor, u32 req_odr)
 	return st_lsm6dsx_update_bits_locked(hw, reg->addr, reg->mask, data);
 }
 
-int st_lsm6dsx_sensor_set_enable(struct st_lsm6dsx_sensor *sensor,
-				 bool enable)
+static int
+__st_lsm6dsx_sensor_set_enable(struct st_lsm6dsx_sensor *sensor,
+			       bool enable)
 {
 	struct st_lsm6dsx_hw *hw = sensor->hw;
 	u32 odr = enable ? sensor->odr : 0;
@@ -1464,6 +1465,26 @@ int st_lsm6dsx_sensor_set_enable(struct st_lsm6dsx_sensor *sensor,
 		hw->enable_mask &= ~BIT(sensor->id);
 
 	return 0;
+}
+
+static int
+st_lsm6dsx_check_events(struct st_lsm6dsx_sensor *sensor, bool enable)
+{
+	struct st_lsm6dsx_hw *hw = sensor->hw;
+
+	if (sensor->id == ST_LSM6DSX_ID_GYRO || enable)
+		return 0;
+
+	return hw->enable_event;
+}
+
+int st_lsm6dsx_sensor_set_enable(struct st_lsm6dsx_sensor *sensor,
+				 bool enable)
+{
+	if (st_lsm6dsx_check_events(sensor, enable))
+		return 0;
+
+	return __st_lsm6dsx_sensor_set_enable(sensor, enable);
 }
 
 static int st_lsm6dsx_read_oneshot(struct st_lsm6dsx_sensor *sensor,
@@ -1661,7 +1682,7 @@ st_lsm6dsx_write_event_config(struct iio_dev *iio_dev,
 	struct st_lsm6dsx_sensor *sensor = iio_priv(iio_dev);
 	struct st_lsm6dsx_hw *hw = sensor->hw;
 	u8 enable_event;
-	int err = 0;
+	int err;
 
 	if (type != IIO_EV_TYPE_THRESH)
 		return -EINVAL;
@@ -1689,7 +1710,8 @@ st_lsm6dsx_write_event_config(struct iio_dev *iio_dev,
 		return err;
 
 	mutex_lock(&hw->conf_lock);
-	err = st_lsm6dsx_sensor_set_enable(sensor, state);
+	if (enable_event || !(hw->fifo_mask & BIT(sensor->id)))
+		err = __st_lsm6dsx_sensor_set_enable(sensor, state);
 	mutex_unlock(&hw->conf_lock);
 	if (err < 0)
 		return err;
@@ -2300,7 +2322,7 @@ static int __maybe_unused st_lsm6dsx_suspend(struct device *dev)
 		hw->suspend_mask |= BIT(sensor->id);
 	}
 
-	if (hw->fifo_mode != ST_LSM6DSX_FIFO_BYPASS)
+	if (hw->fifo_mask)
 		err = st_lsm6dsx_flush_fifo(hw);
 
 	return err;
@@ -2336,7 +2358,7 @@ static int __maybe_unused st_lsm6dsx_resume(struct device *dev)
 		hw->suspend_mask &= ~BIT(sensor->id);
 	}
 
-	if (hw->enable_mask)
+	if (hw->fifo_mask)
 		err = st_lsm6dsx_set_fifo_mode(hw, ST_LSM6DSX_FIFO_CONT);
 
 	return err;

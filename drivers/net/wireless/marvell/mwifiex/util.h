@@ -36,11 +36,11 @@ struct mwifiex_cb {
 };
 
 /* size/addr for mwifiex_debug_info */
-#define item_size(n)		(FIELD_SIZEOF(struct mwifiex_debug_info, n))
+#define item_size(n)		(sizeof_field(struct mwifiex_debug_info, n))
 #define item_addr(n)		(offsetof(struct mwifiex_debug_info, n))
 
 /* size/addr for struct mwifiex_adapter */
-#define adapter_item_size(n)	(FIELD_SIZEOF(struct mwifiex_adapter, n))
+#define adapter_item_size(n)	(sizeof_field(struct mwifiex_adapter, n))
 #define adapter_item_addr(n)	(offsetof(struct mwifiex_adapter, n))
 
 struct mwifiex_debug_data {

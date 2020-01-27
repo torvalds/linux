@@ -86,7 +86,7 @@ static inline int share(unsigned long addr, u16 cmd)
 	};
 
 	if (!is_prot_virt_guest())
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	/*
 	 * Sharing is page wise, if we encounter addresses that are
 	 * not page aligned, we assume something went wrong. If

@@ -30,14 +30,26 @@
 		enable-active-high;
 	};
 
-	reg_sensors: regulator-sensors {
+	reg_peri_3v3: regulator-peri-3v3 {
 		compatible = "regulator-fixed";
 		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_sensors_reg>;
-		regulator-name = "sensors-supply";
+		pinctrl-0 = <&pinctrl_peri_3v3>;
+		regulator-name = "VPERI_3V3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		gpio = <&gpio5 2 GPIO_ACTIVE_LOW>;
+		/*
+		 * If you want to want to make this dynamic please
+		 * check schematics and test all affected peripherals:
+		 *
+		 * - sensors
+		 * - ethernet phy
+		 * - can
+		 * - bluetooth
+		 * - wm8960 audio codec
+		 * - ov5640 camera
+		 */
+		regulator-always-on;
 	};
 
 	reg_can_3v3: regulator-can-3v3 {
@@ -140,6 +152,7 @@
 	pinctrl-0 = <&pinctrl_enet1>;
 	phy-mode = "rmii";
 	phy-handle = <&ethphy0>;
+	phy-supply = <&reg_peri_3v3>;
 	status = "okay";
 };
 
@@ -148,6 +161,7 @@
 	pinctrl-0 = <&pinctrl_enet2>;
 	phy-mode = "rmii";
 	phy-handle = <&ethphy1>;
+	phy-supply = <&reg_peri_3v3>;
 	status = "okay";
 
 	mdio {
@@ -193,8 +207,8 @@
 	magnetometer@e {
 		compatible = "fsl,mag3110";
 		reg = <0x0e>;
-		vdd-supply = <&reg_sensors>;
-		vddio-supply = <&reg_sensors>;
+		vdd-supply = <&reg_peri_3v3>;
+		vddio-supply = <&reg_peri_3v3>;
 	};
 };
 
@@ -227,7 +241,7 @@
 	flash0: n25q256a@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "micron,n25q256a";
+		compatible = "micron,n25q256a", "jedec,spi-nor";
 		spi-max-frequency = <29000000>;
 		spi-rx-bus-width = <4>;
 		spi-tx-bus-width = <4>;
@@ -462,7 +476,7 @@
 		>;
 	};
 
-	pinctrl_sensors_reg: sensorsreggrp {
+	pinctrl_peri_3v3: peri3v3grp {
 		fsl,pins = <
 			MX6UL_PAD_SNVS_TAMPER2__GPIO5_IO02	0x1b0b0
 		>;

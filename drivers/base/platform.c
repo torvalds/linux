@@ -1325,9 +1325,13 @@ struct device *platform_find_device_by_driver(struct device *start,
 }
 EXPORT_SYMBOL_GPL(platform_find_device_by_driver);
 
+void __weak __init early_platform_cleanup(void) { }
+
 int __init platform_bus_init(void)
 {
 	int error;
+
+	early_platform_cleanup();
 
 	error = device_register(&platform_bus);
 	if (error) {
