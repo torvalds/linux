@@ -1535,15 +1535,8 @@ int pinctrl_init_done(struct device *dev)
 	return ret;
 }
 
-#ifdef CONFIG_PM
-
-/**
- * pinctrl_pm_select_state() - select pinctrl state for PM
- * @dev: device to select default state for
- * @state: state to set
- */
-static int pinctrl_pm_select_state(struct device *dev,
-				   struct pinctrl_state *state)
+static int pinctrl_select_bound_state(struct device *dev,
+				      struct pinctrl_state *state)
 {
 	struct dev_pin_info *pins = dev->pins;
 	int ret;
@@ -1558,15 +1551,27 @@ static int pinctrl_pm_select_state(struct device *dev,
 }
 
 /**
+ * pinctrl_select_default_state() - select default pinctrl state
+ * @dev: device to select default state for
+ */
+int pinctrl_select_default_state(struct device *dev)
+{
+	if (!dev->pins)
+		return 0;
+
+	return pinctrl_select_bound_state(dev, dev->pins->default_state);
+}
+EXPORT_SYMBOL_GPL(pinctrl_select_default_state);
+
+#ifdef CONFIG_PM
+
+/**
  * pinctrl_pm_select_default_state() - select default pinctrl state for PM
  * @dev: device to select default state for
  */
 int pinctrl_pm_select_default_state(struct device *dev)
 {
-	if (!dev->pins)
-		return 0;
-
-	return pinctrl_pm_select_state(dev, dev->pins->default_state);
+	return pinctrl_select_default_state(dev);
 }
 EXPORT_SYMBOL_GPL(pinctrl_pm_select_default_state);
 
@@ -1579,7 +1584,7 @@ int pinctrl_pm_select_sleep_state(struct device *dev)
 	if (!dev->pins)
 		return 0;
 
-	return pinctrl_pm_select_state(dev, dev->pins->sleep_state);
+	return pinctrl_select_bound_state(dev, dev->pins->sleep_state);
 }
 EXPORT_SYMBOL_GPL(pinctrl_pm_select_sleep_state);
 
@@ -1592,7 +1597,7 @@ int pinctrl_pm_select_idle_state(struct device *dev)
 	if (!dev->pins)
 		return 0;
 
-	return pinctrl_pm_select_state(dev, dev->pins->idle_state);
+	return pinctrl_select_bound_state(dev, dev->pins->idle_state);
 }
 EXPORT_SYMBOL_GPL(pinctrl_pm_select_idle_state);
 #endif

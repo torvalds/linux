@@ -505,7 +505,6 @@ static int sdhci_am654_probe(struct platform_device *pdev)
 	struct sdhci_am654_data *sdhci_am654;
 	const struct of_device_id *match;
 	struct sdhci_host *host;
-	struct resource *res;
 	struct clk *clk_xin;
 	struct device *dev = &pdev->dev;
 	void __iomem *base;
@@ -538,8 +537,7 @@ static int sdhci_am654_probe(struct platform_device *pdev)
 		goto pm_runtime_disable;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	base = devm_ioremap_resource(dev, res);
+	base = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(base)) {
 		ret = PTR_ERR(base);
 		goto pm_runtime_put;
