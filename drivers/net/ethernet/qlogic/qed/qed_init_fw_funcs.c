@@ -1000,7 +1000,6 @@ bool qed_send_qm_stop_cmd(struct qed_hwfn *p_hwfn,
 	return true;
 }
 
-
 #define SET_TUNNEL_TYPE_ENABLE_BIT(var, offset, enable) \
 	do { \
 		typeof(var) *__p_var = &(var); \
@@ -1008,8 +1007,9 @@ bool qed_send_qm_stop_cmd(struct qed_hwfn *p_hwfn,
 		*__p_var = (*__p_var & ~BIT(__offset)) | \
 			   ((enable) ? BIT(__offset) : 0); \
 	} while (0)
-#define PRS_ETH_TUNN_OUTPUT_FORMAT        -188897008
-#define PRS_ETH_OUTPUT_FORMAT             -46832
+
+#define PRS_ETH_TUNN_OUTPUT_FORMAT     0xF4DAB910
+#define PRS_ETH_OUTPUT_FORMAT          0xFFFF4910
 
 void qed_set_vxlan_dest_port(struct qed_hwfn *p_hwfn,
 			     struct qed_ptt *p_ptt, u16 dest_port)
@@ -1153,8 +1153,8 @@ void qed_set_geneve_enable(struct qed_hwfn *p_hwfn,
 	       ip_geneve_enable ? 1 : 0);
 }
 
-#define PRS_ETH_VXLAN_NO_L2_ENABLE_OFFSET   4
-#define PRS_ETH_VXLAN_NO_L2_OUTPUT_FORMAT      -927094512
+#define PRS_ETH_VXLAN_NO_L2_ENABLE_OFFSET      3
+#define PRS_ETH_VXLAN_NO_L2_OUTPUT_FORMAT   -925189872
 
 void qed_set_vxlan_no_l2_enable(struct qed_hwfn *p_hwfn,
 				struct qed_ptt *p_ptt, bool enable)
@@ -1219,7 +1219,8 @@ void qed_gft_config(struct qed_hwfn *p_hwfn,
 		    bool udp,
 		    bool ipv4, bool ipv6, enum gft_profile_type profile_type)
 {
-	u32 reg_val, cam_line, ram_line_lo, ram_line_hi, search_non_ip_as_gft;
+	u32 reg_val, cam_line, search_non_ip_as_gft;
+	struct regpair ram_line = { };
 
 	if (!ipv6 && !ipv4)
 		DP_NOTICE(p_hwfn,
@@ -1285,35 +1286,33 @@ void qed_gft_config(struct qed_hwfn *p_hwfn,
 	    qed_rd(p_hwfn, p_ptt, PRS_REG_GFT_CAM + CAM_LINE_SIZE * pf_id);
 
 	/* Write line to RAM - compare to filter 4 tuple */
-	ram_line_lo = 0;
-	ram_line_hi = 0;
 
 	/* Search no IP as GFT */
 	search_non_ip_as_gft = 0;
 
 	/* Tunnel type */
-	SET_FIELD(ram_line_lo, GFT_RAM_LINE_TUNNEL_DST_PORT, 1);
-	SET_FIELD(ram_line_lo, GFT_RAM_LINE_TUNNEL_OVER_IP_PROTOCOL, 1);
+	SET_FIELD(ram_line.lo, GFT_RAM_LINE_TUNNEL_DST_PORT, 1);
+	SET_FIELD(ram_line.lo, GFT_RAM_LINE_TUNNEL_OVER_IP_PROTOCOL, 1);
 
 	if (profile_type == GFT_PROFILE_TYPE_4_TUPLE) {
-		SET_FIELD(ram_line_hi, GFT_RAM_LINE_DST_IP, 1);
-		SET_FIELD(ram_line_hi, GFT_RAM_LINE_SRC_IP, 1);
-		SET_FIELD(ram_line_hi, GFT_RAM_LINE_OVER_IP_PROTOCOL, 1);
-		SET_FIELD(ram_line_lo, GFT_RAM_LINE_ETHERTYPE, 1);
-		SET_FIELD(ram_line_lo, GFT_RAM_LINE_SRC_PORT, 1);
-		SET_FIELD(ram_line_lo, GFT_RAM_LINE_DST_PORT, 1);
+		SET_FIELD(ram_line.hi, GFT_RAM_LINE_DST_IP, 1);
+		SET_FIELD(ram_line.hi, GFT_RAM_LINE_SRC_IP, 1);
+		SET_FIELD(ram_line.hi, GFT_RAM_LINE_OVER_IP_PROTOCOL, 1);
+		SET_FIELD(ram_line.lo, GFT_RAM_LINE_ETHERTYPE, 1);
+		SET_FIELD(ram_line.lo, GFT_RAM_LINE_SRC_PORT, 1);
+		SET_FIELD(ram_line.lo, GFT_RAM_LINE_DST_PORT, 1);
 	} else if (profile_type == GFT_PROFILE_TYPE_L4_DST_PORT) {
-		SET_FIELD(ram_line_hi, GFT_RAM_LINE_OVER_IP_PROTOCOL, 1);
-		SET_FIELD(ram_line_lo, GFT_RAM_LINE_ETHERTYPE, 1);
-		SET_FIELD(ram_line_lo, GFT_RAM_LINE_DST_PORT, 1);
+		SET_FIELD(ram_line.hi, GFT_RAM_LINE_OVER_IP_PROTOCOL, 1);
+		SET_FIELD(ram_line.lo, GFT_RAM_LINE_ETHERTYPE, 1);
+		SET_FIELD(ram_line.lo, GFT_RAM_LINE_DST_PORT, 1);
 	} else if (profile_type == GFT_PROFILE_TYPE_IP_DST_ADDR) {
-		SET_FIELD(ram_line_hi, GFT_RAM_LINE_DST_IP, 1);
-		SET_FIELD(ram_line_lo, GFT_RAM_LINE_ETHERTYPE, 1);
+		SET_FIELD(ram_line.hi, GFT_RAM_LINE_DST_IP, 1);
+		SET_FIELD(ram_line.lo, GFT_RAM_LINE_ETHERTYPE, 1);
 	} else if (profile_type == GFT_PROFILE_TYPE_IP_SRC_ADDR) {
-		SET_FIELD(ram_line_hi, GFT_RAM_LINE_SRC_IP, 1);
-		SET_FIELD(ram_line_lo, GFT_RAM_LINE_ETHERTYPE, 1);
+		SET_FIELD(ram_line.hi, GFT_RAM_LINE_SRC_IP, 1);
+		SET_FIELD(ram_line.lo, GFT_RAM_LINE_ETHERTYPE, 1);
 	} else if (profile_type == GFT_PROFILE_TYPE_TUNNEL_TYPE) {
-		SET_FIELD(ram_line_lo, GFT_RAM_LINE_TUNNEL_ETHERTYPE, 1);
+		SET_FIELD(ram_line.lo, GFT_RAM_LINE_TUNNEL_ETHERTYPE, 1);
 
 		/* Allow tunneled traffic without inner IP */
 		search_non_ip_as_gft = 1;
@@ -1324,11 +1323,11 @@ void qed_gft_config(struct qed_hwfn *p_hwfn,
 	qed_wr(p_hwfn,
 	       p_ptt,
 	       PRS_REG_GFT_PROFILE_MASK_RAM + RAM_LINE_SIZE * pf_id,
-	       ram_line_lo);
+	       ram_line.lo);
 	qed_wr(p_hwfn,
 	       p_ptt,
 	       PRS_REG_GFT_PROFILE_MASK_RAM + RAM_LINE_SIZE * pf_id + REG_SIZE,
-	       ram_line_hi);
+	       ram_line.hi);
 
 	/* Set default profile so that no filter match will happen */
 	qed_wr(p_hwfn,
