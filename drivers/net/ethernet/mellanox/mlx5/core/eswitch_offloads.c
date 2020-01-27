@@ -2021,6 +2021,18 @@ esw_check_vport_match_metadata_supported(const struct mlx5_eswitch *esw)
 	return true;
 }
 
+static bool
+esw_check_vport_match_metadata_mandatory(const struct mlx5_eswitch *esw)
+{
+	return mlx5_core_mp_enabled(esw->dev);
+}
+
+static bool esw_use_vport_metadata(const struct mlx5_eswitch *esw)
+{
+	return esw_check_vport_match_metadata_mandatory(esw) &&
+	       esw_check_vport_match_metadata_supported(esw);
+}
+
 int
 esw_vport_create_offloads_acl_tables(struct mlx5_eswitch *esw,
 				     struct mlx5_vport *vport)
@@ -2059,7 +2071,7 @@ static int esw_create_uplink_offloads_acl_tables(struct mlx5_eswitch *esw)
 	struct mlx5_vport *vport;
 	int err;
 
-	if (esw_check_vport_match_metadata_supported(esw))
+	if (esw_use_vport_metadata(esw))
 		esw->flags |= MLX5_ESWITCH_VPORT_MATCH_METADATA;
 
 	vport = mlx5_eswitch_get_vport(esw, MLX5_VPORT_UPLINK);
