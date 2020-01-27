@@ -51,6 +51,7 @@ config RESET_BRCMSTB
 
 config RESET_BRCMSTB_RESCAL
 	bool "Broadcom STB RESCAL reset controller"
+	depends on HAS_IOMEM
 	default ARCH_BRCMSTB || COMPILE_TEST
 	help
 	  This enables the RESCAL reset controller for SATA, PCIe0, or PCIe1 on
