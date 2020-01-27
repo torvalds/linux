@@ -74,15 +74,6 @@ void qed_init_iro_array(struct qed_dev *cdev)
 	cdev->iro_arr = iro_arr;
 }
 
-/* Runtime configuration helpers */
-void qed_init_clear_rt_data(struct qed_hwfn *p_hwfn)
-{
-	int i;
-
-	for (i = 0; i < RUNTIME_ARRAY_SIZE; i++)
-		p_hwfn->rt_data.b_valid[i] = false;
-}
-
 void qed_init_store_rt_reg(struct qed_hwfn *p_hwfn, u32 rt_offset, u32 val)
 {
 	p_hwfn->rt_data.init_val[rt_offset] = val;
@@ -106,7 +97,7 @@ static int qed_init_rt(struct qed_hwfn	*p_hwfn,
 {
 	u32 *p_init_val = &p_hwfn->rt_data.init_val[rt_offset];
 	bool *p_valid = &p_hwfn->rt_data.b_valid[rt_offset];
-	u16 i, segment;
+	u16 i, j, segment;
 	int rc = 0;
 
 	/* Since not all RT entries are initialized, go over the RT and
@@ -121,6 +112,7 @@ static int qed_init_rt(struct qed_hwfn	*p_hwfn,
 		 */
 		if (!b_must_dmae) {
 			qed_wr(p_hwfn, p_ptt, addr + (i << 2), p_init_val[i]);
+			p_valid[i] = false;
 			continue;
 		}
 
@@ -134,6 +126,10 @@ static int qed_init_rt(struct qed_hwfn	*p_hwfn,
 				       addr + (i << 2), segment, NULL);
 		if (rc)
 			return rc;
+
+		/* invalidate after writing */
+		for (j = i; j < i + segment; j++)
+			p_valid[j] = false;
 
 		/* Jump over the entire segment, including invalid entry */
 		i += segment;

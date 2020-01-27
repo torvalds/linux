@@ -2106,9 +2106,6 @@ int qed_qm_reconf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	if (!b_rc)
 		return -EINVAL;
 
-	/* clear the QM_PF runtime phase leftovers from previous init */
-	qed_init_clear_rt_data(p_hwfn);
-
 	/* prepare QM portion of runtime array */
 	qed_qm_init_pf(p_hwfn, p_ptt, false);
 
