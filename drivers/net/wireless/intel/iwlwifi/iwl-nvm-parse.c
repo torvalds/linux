@@ -829,12 +829,8 @@ static void iwl_flip_hw_address(__le32 mac_addr0, __le32 mac_addr1, u8 *dest)
 static void iwl_set_hw_address_from_csr(struct iwl_trans *trans,
 					struct iwl_nvm_data *data)
 {
-	__le32 mac_addr0 =
-		cpu_to_le32(iwl_read32(trans,
-				       trans->trans_cfg->csr->mac_addr0_strap));
-	__le32 mac_addr1 =
-		cpu_to_le32(iwl_read32(trans,
-				       trans->trans_cfg->csr->mac_addr1_strap));
+	__le32 mac_addr0 = cpu_to_le32(iwl_read32(trans, CSR_MAC_ADDR0_STRAP));
+	__le32 mac_addr1 = cpu_to_le32(iwl_read32(trans, CSR_MAC_ADDR1_STRAP));
 
 	iwl_flip_hw_address(mac_addr0, mac_addr1, data->hw_addr);
 	/*
@@ -844,10 +840,8 @@ static void iwl_set_hw_address_from_csr(struct iwl_trans *trans,
 	if (is_valid_ether_addr(data->hw_addr))
 		return;
 
-	mac_addr0 = cpu_to_le32(iwl_read32(trans,
-					trans->trans_cfg->csr->mac_addr0_otp));
-	mac_addr1 = cpu_to_le32(iwl_read32(trans,
-					trans->trans_cfg->csr->mac_addr1_otp));
+	mac_addr0 = cpu_to_le32(iwl_read32(trans, CSR_MAC_ADDR0_OTP));
+	mac_addr1 = cpu_to_le32(iwl_read32(trans, CSR_MAC_ADDR1_OTP));
 
 	iwl_flip_hw_address(mac_addr0, mac_addr1, data->hw_addr);
 }

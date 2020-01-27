@@ -365,7 +365,7 @@ brcmf_msgbuf_get_pktid(struct device *dev, struct brcmf_msgbuf_pktids *pktids,
 	struct brcmf_msgbuf_pktid *pktid;
 	struct sk_buff *skb;
 
-	if (idx < 0 || idx >= pktids->array_size) {
+	if (idx >= pktids->array_size) {
 		brcmf_err("Invalid packet id %d (max %d)\n", idx,
 			  pktids->array_size);
 		return NULL;

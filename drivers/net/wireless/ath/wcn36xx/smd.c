@@ -1620,7 +1620,7 @@ int wcn36xx_smd_send_beacon(struct wcn36xx *wcn, struct ieee80211_vif *vif,
 	msg_body.beacon_length6 = msg_body.beacon_length + 6;
 
 	if (msg_body.beacon_length > BEACON_TEMPLATE_SIZE) {
-		wcn36xx_err("Beacon is to big: beacon size=%d\n",
+		wcn36xx_err("Beacon is too big: beacon size=%d\n",
 			      msg_body.beacon_length);
 		ret = -ENOMEM;
 		goto out;

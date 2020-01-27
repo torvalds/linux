@@ -206,7 +206,7 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 	ctxt_info_gen3->mtr_size =
 		cpu_to_le16(TFD_QUEUE_CB_SIZE(cmdq_size));
 	ctxt_info_gen3->mcr_size =
-		cpu_to_le16(RX_QUEUE_CB_SIZE(MQ_RX_TABLE_SIZE));
+		cpu_to_le16(RX_QUEUE_CB_SIZE(trans->cfg->num_rbds));
 
 	trans_pcie->ctxt_info_gen3 = ctxt_info_gen3;
 	trans_pcie->prph_info = prph_info;

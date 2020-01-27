@@ -6,6 +6,7 @@
 #include <linux/pci.h>
 #include "main.h"
 #include "pci.h"
+#include "reg.h"
 #include "tx.h"
 #include "rx.h"
 #include "fw.h"
@@ -486,13 +487,6 @@ static void rtw_pci_disable_interrupt(struct rtw_dev *rtwdev,
 	rtwpci->irq_enabled = false;
 }
 
-static int rtw_pci_setup(struct rtw_dev *rtwdev)
-{
-	rtw_pci_reset_trx_ring(rtwdev);
-
-	return 0;
-}
-
 static void rtw_pci_dma_reset(struct rtw_dev *rtwdev, struct rtw_pci *rtwpci)
 {
 	/* reset dma and rx tag */
@@ -501,11 +495,22 @@ static void rtw_pci_dma_reset(struct rtw_dev *rtwdev, struct rtw_pci *rtwpci)
 	rtwpci->rx_tag = 0;
 }
 
+static int rtw_pci_setup(struct rtw_dev *rtwdev)
+{
+	struct rtw_pci *rtwpci = (struct rtw_pci *)rtwdev->priv;
+
+	rtw_pci_reset_trx_ring(rtwdev);
+	rtw_pci_dma_reset(rtwdev, rtwpci);
+
+	return 0;
+}
+
 static void rtw_pci_dma_release(struct rtw_dev *rtwdev, struct rtw_pci *rtwpci)
 {
 	struct rtw_pci_tx_ring *tx_ring;
 	u8 queue;
 
+	rtw_pci_reset_trx_ring(rtwdev);
 	for (queue = 0; queue < RTK_MAX_TX_QUEUE_NUM; queue++) {
 		tx_ring = &rtwpci->tx_rings[queue];
 		rtw_pci_free_tx_ring_skbs(rtwdev, tx_ring);
@@ -516,8 +521,6 @@ static int rtw_pci_start(struct rtw_dev *rtwdev)
 {
 	struct rtw_pci *rtwpci = (struct rtw_pci *)rtwdev->priv;
 	unsigned long flags;
-
-	rtw_pci_dma_reset(rtwdev, rtwpci);
 
 	spin_lock_irqsave(&rtwpci->irq_lock, flags);
 	rtw_pci_enable_interrupt(rtwdev, rtwpci);
@@ -832,6 +835,11 @@ static void rtw_pci_tx_isr(struct rtw_dev *rtwdev, struct rtw_pci *rtwpci,
 
 	while (count--) {
 		skb = skb_dequeue(&ring->queue);
+		if (!skb) {
+			rtw_err(rtwdev, "failed to dequeue %d skb TX queue %d, BD=0x%08x, rp %d -> %d\n",
+				count, hw_queue, bd_idx, ring->r.rp, cur_rp);
+			break;
+		}
 		tx_data = rtw_pci_get_tx_data(skb);
 		pci_unmap_single(rtwpci->pdev, tx_data->dma, skb->len,
 				 PCI_DMA_TODEVICE);
@@ -1222,6 +1230,21 @@ static void rtw_pci_link_cfg(struct rtw_dev *rtwdev)
 	rtwpci->link_ctrl = link_ctrl;
 }
 
+static void rtw_pci_interface_cfg(struct rtw_dev *rtwdev)
+{
+	struct rtw_chip_info *chip = rtwdev->chip;
+
+	switch (chip->id) {
+	case RTW_CHIP_TYPE_8822C:
+		if (rtwdev->hal.cut_version >= RTW_CHIP_VER_CUT_D)
+			rtw_write32_mask(rtwdev, REG_HCI_MIX_CFG,
+					 BIT_PCIE_EMAC_PDN_AUX_TO_FAST_CLK, 1);
+		break;
+	default:
+		break;
+	}
+}
+
 static void rtw_pci_phy_cfg(struct rtw_dev *rtwdev)
 {
 	struct rtw_chip_info *chip = rtwdev->chip;
@@ -1263,6 +1286,23 @@ static void rtw_pci_phy_cfg(struct rtw_dev *rtwdev)
 
 	rtw_pci_link_cfg(rtwdev);
 }
+
+#ifdef CONFIG_PM
+static int rtw_pci_suspend(struct device *dev)
+{
+	return 0;
+}
+
+static int rtw_pci_resume(struct device *dev)
+{
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(rtw_pm_ops, rtw_pci_suspend, rtw_pci_resume);
+#define RTW_PM_OPS (&rtw_pm_ops)
+#else
+#define RTW_PM_OPS NULL
+#endif
 
 static int rtw_pci_claim(struct rtw_dev *rtwdev, struct pci_dev *pdev)
 {
@@ -1330,6 +1370,7 @@ static struct rtw_hci_ops rtw_pci_ops = {
 	.stop = rtw_pci_stop,
 	.deep_ps = rtw_pci_deep_ps,
 	.link_ps = rtw_pci_link_ps,
+	.interface_cfg = rtw_pci_interface_cfg,
 
 	.read8 = rtw_pci_read8,
 	.read16 = rtw_pci_read16,
@@ -1489,6 +1530,7 @@ static struct pci_driver rtw_pci_driver = {
 	.id_table = rtw_pci_id_table,
 	.probe = rtw_pci_probe,
 	.remove = rtw_pci_remove,
+	.driver.pm = RTW_PM_OPS,
 };
 module_pci_driver(rtw_pci_driver);
 

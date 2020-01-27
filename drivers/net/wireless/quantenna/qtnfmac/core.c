@@ -21,7 +21,21 @@ static bool slave_radar = true;
 module_param(slave_radar, bool, 0644);
 MODULE_PARM_DESC(slave_radar, "set 0 to disable radar detection in slave mode");
 
+static bool dfs_offload;
+module_param(dfs_offload, bool, 0644);
+MODULE_PARM_DESC(dfs_offload, "set 1 to enable DFS offload to firmware");
+
 static struct dentry *qtnf_debugfs_dir;
+
+bool qtnf_slave_radar_get(void)
+{
+	return slave_radar;
+}
+
+bool qtnf_dfs_offload_get(void)
+{
+	return dfs_offload;
+}
 
 struct qtnf_wmac *qtnf_core_get_mac(const struct qtnf_bus *bus, u8 macid)
 {
@@ -210,9 +224,6 @@ static int qtnf_netdev_port_parent_id(struct net_device *ndev,
 {
 	const struct qtnf_vif *vif = qtnf_netdev_get_priv(ndev);
 	const struct qtnf_bus *bus = vif->mac->bus;
-
-	if (!(bus->hw_info.hw_capab & QLINK_HW_CAPAB_HW_BRIDGE))
-		return -EOPNOTSUPP;
 
 	ppid->id_len = sizeof(bus->hw_id);
 	memcpy(&ppid->id, bus->hw_id, ppid->id_len);
@@ -456,11 +467,6 @@ static struct qtnf_wmac *qtnf_core_mac_alloc(struct qtnf_bus *bus,
 	return mac;
 }
 
-bool qtnf_mac_slave_radar_get(struct wiphy *wiphy)
-{
-	return slave_radar;
-}
-
 static const struct ethtool_ops qtnf_ethtool_ops = {
 	.get_drvinfo = cfg80211_get_drvinfo,
 };
@@ -656,12 +662,24 @@ bool qtnf_netdev_is_qtn(const struct net_device *ndev)
 	return ndev->netdev_ops == &qtnf_netdev_ops;
 }
 
+static int qtnf_check_br_ports(struct net_device *dev, void *data)
+{
+	struct net_device *ndev = data;
+
+	if (dev != ndev && netdev_port_same_parent_id(dev, ndev))
+		return -ENOTSUPP;
+
+	return 0;
+}
+
 static int qtnf_core_netdevice_event(struct notifier_block *nb,
 				     unsigned long event, void *ptr)
 {
 	struct net_device *ndev = netdev_notifier_info_to_dev(ptr);
 	const struct netdev_notifier_changeupper_info *info;
+	struct net_device *brdev;
 	struct qtnf_vif *vif;
+	struct qtnf_bus *bus;
 	int br_domain;
 	int ret = 0;
 
@@ -672,25 +690,34 @@ static int qtnf_core_netdevice_event(struct notifier_block *nb,
 		return NOTIFY_OK;
 
 	vif = qtnf_netdev_get_priv(ndev);
+	bus = vif->mac->bus;
 
 	switch (event) {
 	case NETDEV_CHANGEUPPER:
 		info = ptr;
+		brdev = info->upper_dev;
 
-		if (!netif_is_bridge_master(info->upper_dev))
+		if (!netif_is_bridge_master(brdev))
 			break;
 
 		pr_debug("[VIF%u.%u] change bridge: %s %s\n",
-			 vif->mac->macid, vif->vifid,
-			 netdev_name(info->upper_dev),
+			 vif->mac->macid, vif->vifid, netdev_name(brdev),
 			 info->linking ? "add" : "del");
 
-		if (info->linking)
-			br_domain = info->upper_dev->ifindex;
-		else
-			br_domain = ndev->ifindex;
+		if (IS_ENABLED(CONFIG_NET_SWITCHDEV) &&
+		    (bus->hw_info.hw_capab & QLINK_HW_CAPAB_HW_BRIDGE)) {
+			if (info->linking)
+				br_domain = brdev->ifindex;
+			else
+				br_domain = ndev->ifindex;
 
-		ret = qtnf_cmd_netdev_changeupper(vif, br_domain);
+			ret = qtnf_cmd_netdev_changeupper(vif, br_domain);
+		} else {
+			ret = netdev_walk_all_lower_dev(brdev,
+							qtnf_check_br_ports,
+							ndev);
+		}
+
 		break;
 	default:
 		break;
@@ -763,13 +790,11 @@ int qtnf_core_attach(struct qtnf_bus *bus)
 		}
 	}
 
-	if (bus->hw_info.hw_capab & QLINK_HW_CAPAB_HW_BRIDGE) {
-		bus->netdev_nb.notifier_call = qtnf_core_netdevice_event;
-		ret = register_netdevice_notifier(&bus->netdev_nb);
-		if (ret) {
-			pr_err("failed to register netdev notifier: %d\n", ret);
-			goto error;
-		}
+	bus->netdev_nb.notifier_call = qtnf_core_netdevice_event;
+	ret = register_netdevice_notifier(&bus->netdev_nb);
+	if (ret) {
+		pr_err("failed to register netdev notifier: %d\n", ret);
+		goto error;
 	}
 
 	bus->fw_state = QTNF_FW_STATE_RUNNING;

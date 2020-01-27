@@ -1513,14 +1513,14 @@ static void wmi_link_stats_parse(struct wil6210_vif *vif, u64 tsf,
 			if (vif->fw_stats_ready) {
 				/* clean old statistics */
 				vif->fw_stats_tsf = 0;
-				vif->fw_stats_ready = 0;
+				vif->fw_stats_ready = false;
 			}
 
 			wil_link_stats_store_basic(vif, payload + hdr_size);
 
 			if (!has_next) {
 				vif->fw_stats_tsf = tsf;
-				vif->fw_stats_ready = 1;
+				vif->fw_stats_ready = true;
 			}
 
 			break;
@@ -1535,14 +1535,14 @@ static void wmi_link_stats_parse(struct wil6210_vif *vif, u64 tsf,
 			if (wil->fw_stats_global.ready) {
 				/* clean old statistics */
 				wil->fw_stats_global.tsf = 0;
-				wil->fw_stats_global.ready = 0;
+				wil->fw_stats_global.ready = false;
 			}
 
 			wil_link_stats_store_global(vif, payload + hdr_size);
 
 			if (!has_next) {
 				wil->fw_stats_global.tsf = tsf;
-				wil->fw_stats_global.ready = 1;
+				wil->fw_stats_global.ready = true;
 			}
 
 			break;

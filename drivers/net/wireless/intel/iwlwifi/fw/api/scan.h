@@ -922,21 +922,6 @@ struct iwl_scan_probe_params_v4 {
 #define SCAN_MAX_NUM_CHANS_V3 67
 
 /**
- * struct iwl_scan_channel_params_v3
- * @flags: channel flags &enum iwl_scan_channel_flags
- * @count: num of channels in scan request
- * @reserved: for future use and alignment
- * @channel_config: array of explicit channel configurations
- *                  for 2.4Ghz and 5.2Ghz bands
- */
-struct iwl_scan_channel_params_v3 {
-	u8 flags;
-	u8 count;
-	__le16 reserved;
-	struct iwl_scan_channel_cfg_umac channel_config[SCAN_MAX_NUM_CHANS_V3];
-} __packed; /* SCAN_CHANNEL_PARAMS_API_S_VER_3 */
-
-/**
  * struct iwl_scan_channel_params_v4
  * @flags: channel flags &enum iwl_scan_channel_flags
  * @count: num of channels in scan request
@@ -1011,20 +996,6 @@ struct iwl_scan_periodic_parms_v1 {
 } __packed; /* SCAN_PERIODIC_PARAMS_API_S_VER_1 */
 
 /**
- * struct iwl_scan_req_params_v11
- * @general_params: &struct iwl_scan_general_params_v10
- * @channel_params: &struct iwl_scan_channel_params_v3
- * @periodic_params: &struct iwl_scan_periodic_parms_v1
- * @probe_params: &struct iwl_scan_probe_params_v3
- */
-struct iwl_scan_req_params_v11 {
-	struct iwl_scan_general_params_v10 general_params;
-	struct iwl_scan_channel_params_v3 channel_params;
-	struct iwl_scan_periodic_parms_v1 periodic_params;
-	struct iwl_scan_probe_params_v3 probe_params;
-} __packed; /* SCAN_REQUEST_PARAMS_API_S_VER_11 */
-
-/**
  * struct iwl_scan_req_params_v12
  * @general_params: &struct iwl_scan_general_params_v10
  * @channel_params: &struct iwl_scan_channel_params_v4
@@ -1051,18 +1022,6 @@ struct iwl_scan_req_params_v13 {
 	struct iwl_scan_periodic_parms_v1 periodic_params;
 	struct iwl_scan_probe_params_v4 probe_params;
 } __packed; /* SCAN_REQUEST_PARAMS_API_S_VER_13 */
-
-/**
- * struct iwl_scan_req_umac_v11
- * @uid: scan id, &enum iwl_umac_scan_uid_offsets
- * @ooc_priority: out of channel priority - &enum iwl_scan_priority
- * @scan_params: scan parameters
- */
-struct iwl_scan_req_umac_v11 {
-	__le32 uid;
-	__le32 ooc_priority;
-	struct iwl_scan_req_params_v11 scan_params;
-} __packed; /* SCAN_REQUEST_CMD_UMAC_API_S_VER_11 */
 
 /**
  * struct iwl_scan_req_umac_v12

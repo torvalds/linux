@@ -4243,6 +4243,12 @@ static void brcmf_sdio_firmware_callback(struct device *dev, int err,
 	}
 
 	if (err == 0) {
+		/* Assign bus interface call back */
+		sdiod->bus_if->dev = sdiod->dev;
+		sdiod->bus_if->ops = &brcmf_sdio_bus_ops;
+		sdiod->bus_if->chip = bus->ci->chip;
+		sdiod->bus_if->chiprev = bus->ci->chiprev;
+
 		/* Allow full data communication using DPC from now on. */
 		brcmf_sdiod_change_state(bus->sdiodev, BRCMF_SDIOD_DATA);
 
@@ -4258,12 +4264,6 @@ static void brcmf_sdio_firmware_callback(struct device *dev, int err,
 	}
 
 	sdio_release_host(sdiod->func1);
-
-	/* Assign bus interface call back */
-	sdiod->bus_if->dev = sdiod->dev;
-	sdiod->bus_if->ops = &brcmf_sdio_bus_ops;
-	sdiod->bus_if->chip = bus->ci->chip;
-	sdiod->bus_if->chiprev = bus->ci->chiprev;
 
 	err = brcmf_alloc(sdiod->dev, sdiod->settings);
 	if (err) {
