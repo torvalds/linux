@@ -271,7 +271,7 @@ static int snd_aw2_create(struct snd_card *card,
 	}
 	chip->iobase_phys = pci_resource_start(pci, 0);
 	chip->iobase_virt =
-		ioremap_nocache(chip->iobase_phys,
+		ioremap(chip->iobase_phys,
 				pci_resource_len(pci, 0));
 
 	if (chip->iobase_virt == NULL) {

@@ -1560,7 +1560,7 @@ static int nsp_cs_config_check(struct pcmcia_device *p_dev, void *priv_data)
 			goto next_entry;
 
 		data->MmioAddress = (unsigned long)
-			ioremap_nocache(p_dev->resource[2]->start,
+			ioremap(p_dev->resource[2]->start,
 					resource_size(p_dev->resource[2]));
 		data->MmioLength  = resource_size(p_dev->resource[2]);
 	}

@@ -2766,7 +2766,7 @@ static int serial8250_request_std_resource(struct uart_8250_port *up)
 		}
 
 		if (port->flags & UPF_IOREMAP) {
-			port->membase = ioremap_nocache(port->mapbase, size);
+			port->membase = ioremap(port->mapbase, size);
 			if (!port->membase) {
 				release_mem_region(port->mapbase, size);
 				ret = -ENOMEM;

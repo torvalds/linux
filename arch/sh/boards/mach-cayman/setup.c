@@ -99,7 +99,7 @@ static int __init smsc_superio_setup(void)
 {
 	unsigned char devid, devrev;
 
-	smsc_superio_virt = (unsigned long)ioremap_nocache(SMSC_SUPERIO_BASE, 1024);
+	smsc_superio_virt = (unsigned long)ioremap(SMSC_SUPERIO_BASE, 1024);
 	if (!smsc_superio_virt) {
 		panic("Unable to remap SMSC SuperIO\n");
 	}

@@ -357,7 +357,7 @@ static void __iomem *ie31200_map_mchbar(struct pci_dev *pdev)
 		return NULL;
 	}
 
-	window = ioremap_nocache(u.mchbar, IE31200_MMR_WINDOW_SIZE);
+	window = ioremap(u.mchbar, IE31200_MMR_WINDOW_SIZE);
 	if (!window)
 		ie31200_printk(KERN_ERR, "Cannot map mmio space at 0x%llx\n",
 			       (unsigned long long)u.mchbar);

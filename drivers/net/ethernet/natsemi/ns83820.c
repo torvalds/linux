@@ -1937,7 +1937,7 @@ static int ns83820_init_one(struct pci_dev *pci_dev,
 
 	pci_set_master(pci_dev);
 	addr = pci_resource_start(pci_dev, 1);
-	dev->base = ioremap_nocache(addr, PAGE_SIZE);
+	dev->base = ioremap(addr, PAGE_SIZE);
 	dev->tx_descs = pci_alloc_consistent(pci_dev,
 			4 * DESC_SIZE * NR_TX_DESC, &dev->tx_phy_descs);
 	dev->rx_info.descs = pci_alloc_consistent(pci_dev,

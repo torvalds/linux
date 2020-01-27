@@ -275,7 +275,7 @@ static int pci_plx9050_init(struct pci_dev *dev)
 	/*
 	 * enable/disable interrupts
 	 */
-	p = ioremap_nocache(pci_resource_start(dev, 0), 0x80);
+	p = ioremap(pci_resource_start(dev, 0), 0x80);
 	if (p == NULL)
 		return -ENOMEM;
 	writel(irq_config, p + 0x4c);
@@ -299,7 +299,7 @@ static void pci_plx9050_exit(struct pci_dev *dev)
 	/*
 	 * disable interrupts
 	 */
-	p = ioremap_nocache(pci_resource_start(dev, 0), 0x80);
+	p = ioremap(pci_resource_start(dev, 0), 0x80);
 	if (p != NULL) {
 		writel(0, p + 0x4c);
 
@@ -475,7 +475,7 @@ static int pci_siig10x_init(struct pci_dev *dev)
 		break;
 	}
 
-	p = ioremap_nocache(pci_resource_start(dev, 0), 0x80);
+	p = ioremap(pci_resource_start(dev, 0), 0x80);
 	if (p == NULL)
 		return -ENOMEM;
 

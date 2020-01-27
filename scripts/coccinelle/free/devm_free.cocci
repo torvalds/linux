@@ -52,8 +52,6 @@ expression x;
 |
  x = devm_ioremap(...)
 |
- x = devm_ioremap_nocache(...)
-|
  x = devm_ioport_map(...)
 )
 
@@ -84,8 +82,6 @@ position p;
  x = request_irq(...)
 |
  x = ioremap(...)
-|
- x = ioremap_nocache(...)
 |
  x = ioport_map(...)
 )

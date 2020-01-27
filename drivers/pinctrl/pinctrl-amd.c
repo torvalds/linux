@@ -866,7 +866,7 @@ static int amd_gpio_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	gpio_dev->base = devm_ioremap_nocache(&pdev->dev, res->start,
+	gpio_dev->base = devm_ioremap(&pdev->dev, res->start,
 						resource_size(res));
 	if (!gpio_dev->base)
 		return -ENOMEM;

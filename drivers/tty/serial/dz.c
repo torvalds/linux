@@ -677,7 +677,7 @@ static void dz_release_port(struct uart_port *uport)
 static int dz_map_port(struct uart_port *uport)
 {
 	if (!uport->membase)
-		uport->membase = ioremap_nocache(uport->mapbase,
+		uport->membase = ioremap(uport->mapbase,
 						 dec_kn_slot_size);
 	if (!uport->membase) {
 		printk(KERN_ERR "dz: Cannot map MMIO\n");

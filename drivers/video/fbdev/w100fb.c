@@ -648,12 +648,12 @@ int w100fb_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	/* Remap the chip base address */
-	remapped_base = ioremap_nocache(mem->start+W100_CFG_BASE, W100_CFG_LEN);
+	remapped_base = ioremap(mem->start+W100_CFG_BASE, W100_CFG_LEN);
 	if (remapped_base == NULL)
 		goto out;
 
 	/* Map the register space */
-	remapped_regs = ioremap_nocache(mem->start+W100_REG_BASE, W100_REG_LEN);
+	remapped_regs = ioremap(mem->start+W100_REG_BASE, W100_REG_LEN);
 	if (remapped_regs == NULL)
 		goto out;
 
@@ -672,7 +672,7 @@ int w100fb_probe(struct platform_device *pdev)
 	printk(" at 0x%08lx.\n", (unsigned long) mem->start+W100_CFG_BASE);
 
 	/* Remap the framebuffer */
-	remapped_fbuf = ioremap_nocache(mem->start+MEM_WINDOW_BASE, MEM_WINDOW_SIZE);
+	remapped_fbuf = ioremap(mem->start+MEM_WINDOW_BASE, MEM_WINDOW_SIZE);
 	if (remapped_fbuf == NULL)
 		goto out;
 

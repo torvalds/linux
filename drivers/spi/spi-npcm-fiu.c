@@ -603,7 +603,7 @@ static int npcm_fiu_dirmap_create(struct spi_mem_dirmap_desc *desc)
 
 	if (!chip->flash_region_mapped_ptr) {
 		chip->flash_region_mapped_ptr =
-			devm_ioremap_nocache(fiu->dev, (fiu->res_mem->start +
+			devm_ioremap(fiu->dev, (fiu->res_mem->start +
 							(fiu->info->max_map_size *
 						    desc->mem->spi->chip_select)),
 					     (u32)desc->info.length);

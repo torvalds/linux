@@ -357,7 +357,7 @@ static void octeon_write_lcd(const char *s)
 {
 	if (octeon_bootinfo->led_display_base_addr) {
 		void __iomem *lcd_address =
-			ioremap_nocache(octeon_bootinfo->led_display_base_addr,
+			ioremap(octeon_bootinfo->led_display_base_addr,
 					8);
 		int i;
 		for (i = 0; i < 8; i++, s++) {

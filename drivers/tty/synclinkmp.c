@@ -3559,7 +3559,7 @@ static int claim_resources(SLMP_INFO *info)
 	else
 		info->sca_statctrl_requested = true;
 
-	info->memory_base = ioremap_nocache(info->phys_memory_base,
+	info->memory_base = ioremap(info->phys_memory_base,
 								SCA_MEM_SIZE);
 	if (!info->memory_base) {
 		printk( "%s(%d):%s Can't map shared memory, MemAddr=%08X\n",
@@ -3568,7 +3568,7 @@ static int claim_resources(SLMP_INFO *info)
 		goto errout;
 	}
 
-	info->lcr_base = ioremap_nocache(info->phys_lcr_base, PAGE_SIZE);
+	info->lcr_base = ioremap(info->phys_lcr_base, PAGE_SIZE);
 	if (!info->lcr_base) {
 		printk( "%s(%d):%s Can't map LCR memory, MemAddr=%08X\n",
 			__FILE__,__LINE__,info->device_name, info->phys_lcr_base );
@@ -3577,7 +3577,7 @@ static int claim_resources(SLMP_INFO *info)
 	}
 	info->lcr_base += info->lcr_offset;
 
-	info->sca_base = ioremap_nocache(info->phys_sca_base, PAGE_SIZE);
+	info->sca_base = ioremap(info->phys_sca_base, PAGE_SIZE);
 	if (!info->sca_base) {
 		printk( "%s(%d):%s Can't map SCA memory, MemAddr=%08X\n",
 			__FILE__,__LINE__,info->device_name, info->phys_sca_base );
@@ -3586,7 +3586,7 @@ static int claim_resources(SLMP_INFO *info)
 	}
 	info->sca_base += info->sca_offset;
 
-	info->statctrl_base = ioremap_nocache(info->phys_statctrl_base,
+	info->statctrl_base = ioremap(info->phys_statctrl_base,
 								PAGE_SIZE);
 	if (!info->statctrl_base) {
 		printk( "%s(%d):%s Can't map SCA Status/Control memory, MemAddr=%08X\n",

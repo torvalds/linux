@@ -1161,7 +1161,7 @@ static int au1000_probe(struct platform_device *pdev)
 
 	/* aup->mac is the base address of the MAC's registers */
 	aup->mac = (struct mac_reg *)
-			ioremap_nocache(base->start, resource_size(base));
+			ioremap(base->start, resource_size(base));
 	if (!aup->mac) {
 		dev_err(&pdev->dev, "failed to ioremap MAC registers\n");
 		err = -ENXIO;
@@ -1169,7 +1169,7 @@ static int au1000_probe(struct platform_device *pdev)
 	}
 
 	/* Setup some variables for quick register address access */
-	aup->enable = (u32 *)ioremap_nocache(macen->start,
+	aup->enable = (u32 *)ioremap(macen->start,
 						resource_size(macen));
 	if (!aup->enable) {
 		dev_err(&pdev->dev, "failed to ioremap MAC enable register\n");
@@ -1178,7 +1178,7 @@ static int au1000_probe(struct platform_device *pdev)
 	}
 	aup->mac_id = pdev->id;
 
-	aup->macdma = ioremap_nocache(macdma->start, resource_size(macdma));
+	aup->macdma = ioremap(macdma->start, resource_size(macdma));
 	if (!aup->macdma) {
 		dev_err(&pdev->dev, "failed to ioremap MACDMA registers\n");
 		err = -ENXIO;

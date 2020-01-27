@@ -55,7 +55,7 @@ static int vmic_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/* Map registers in BAR 0 */
-	vmic_base = ioremap_nocache(pci_resource_start(pdev, 0), 16);
+	vmic_base = ioremap(pci_resource_start(pdev, 0), 16);
 	if (!vmic_base) {
 		dev_err(&pdev->dev, "Unable to remap CRG region\n");
 		retval = -EIO;

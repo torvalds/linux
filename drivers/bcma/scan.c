@@ -425,11 +425,11 @@ static int bcma_get_next_core(struct bcma_bus *bus, u32 __iomem **eromptr,
 		}
 	}
 	if (bus->hosttype == BCMA_HOSTTYPE_SOC) {
-		core->io_addr = ioremap_nocache(core->addr, BCMA_CORE_SIZE);
+		core->io_addr = ioremap(core->addr, BCMA_CORE_SIZE);
 		if (!core->io_addr)
 			return -ENOMEM;
 		if (core->wrap) {
-			core->io_wrap = ioremap_nocache(core->wrap,
+			core->io_wrap = ioremap(core->wrap,
 							BCMA_CORE_SIZE);
 			if (!core->io_wrap) {
 				iounmap(core->io_addr);
@@ -472,7 +472,7 @@ int bcma_bus_scan(struct bcma_bus *bus)
 
 	erombase = bcma_scan_read32(bus, 0, BCMA_CC_EROM);
 	if (bus->hosttype == BCMA_HOSTTYPE_SOC) {
-		eromptr = ioremap_nocache(erombase, BCMA_CORE_SIZE);
+		eromptr = ioremap(erombase, BCMA_CORE_SIZE);
 		if (!eromptr)
 			return -ENOMEM;
 	} else {

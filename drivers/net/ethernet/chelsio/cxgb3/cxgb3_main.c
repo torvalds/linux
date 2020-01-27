@@ -3267,7 +3267,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_free_adapter;
 	}
 
-	adapter->regs = ioremap_nocache(mmio_start, mmio_len);
+	adapter->regs = ioremap(mmio_start, mmio_len);
 	if (!adapter->regs) {
 		dev_err(&pdev->dev, "cannot map device registers\n");
 		err = -ENOMEM;

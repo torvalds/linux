@@ -1363,14 +1363,14 @@ static int sstfb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto fail_fb_mem;
 	}
 
-	par->mmio_vbase = ioremap_nocache(fix->mmio_start,
+	par->mmio_vbase = ioremap(fix->mmio_start,
 					fix->mmio_len);
 	if (!par->mmio_vbase) {
 		printk(KERN_ERR "sstfb: cannot remap register area %#lx\n",
 		        fix->mmio_start);
 		goto fail_mmio_remap;
 	}
-	info->screen_base = ioremap_nocache(fix->smem_start, 0x400000);
+	info->screen_base = ioremap(fix->smem_start, 0x400000);
 	if (!info->screen_base) {
 		printk(KERN_ERR "sstfb: cannot remap framebuffer %#lx\n",
 		        fix->smem_start);

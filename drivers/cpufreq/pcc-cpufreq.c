@@ -445,7 +445,7 @@ static int __init pcc_cpufreq_probe(void)
 		goto out_free;
 	}
 
-	pcch_virt_addr = ioremap_nocache(mem_resource->minimum,
+	pcch_virt_addr = ioremap(mem_resource->minimum,
 					mem_resource->address_length);
 	if (pcch_virt_addr == NULL) {
 		pr_debug("probe: could not map shared mem region\n");

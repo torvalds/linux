@@ -443,7 +443,7 @@ static int radeon_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_
 					   mem->bus.size);
 		else
 			mem->bus.addr =
-				ioremap_nocache(mem->bus.base + mem->bus.offset,
+				ioremap(mem->bus.base + mem->bus.offset,
 						mem->bus.size);
 		if (!mem->bus.addr)
 			return -ENOMEM;

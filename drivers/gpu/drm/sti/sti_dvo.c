@@ -534,7 +534,7 @@ static int sti_dvo_probe(struct platform_device *pdev)
 		DRM_ERROR("Invalid dvo resource\n");
 		return -ENOMEM;
 	}
-	dvo->regs = devm_ioremap_nocache(dev, res->start,
+	dvo->regs = devm_ioremap(dev, res->start,
 			resource_size(res));
 	if (!dvo->regs)
 		return -ENOMEM;

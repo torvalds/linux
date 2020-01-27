@@ -1008,7 +1008,7 @@ static void __init magician_init(void)
 	pxa_set_udc_info(&magician_udc_info);
 
 	/* Check LCD type we have */
-	cpld = ioremap_nocache(PXA_CS3_PHYS, 0x1000);
+	cpld = ioremap(PXA_CS3_PHYS, 0x1000);
 	if (cpld) {
 		u8 board_id = __raw_readb(cpld + 0x14);
 

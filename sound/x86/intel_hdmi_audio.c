@@ -1755,7 +1755,7 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 		__func__, (unsigned int)res_mmio->start,
 		(unsigned int)res_mmio->end);
 
-	card_ctx->mmio_start = ioremap_nocache(res_mmio->start,
+	card_ctx->mmio_start = ioremap(res_mmio->start,
 					       (size_t)(resource_size(res_mmio)));
 	if (!card_ctx->mmio_start) {
 		dev_err(&pdev->dev, "Could not get ioremap\n");

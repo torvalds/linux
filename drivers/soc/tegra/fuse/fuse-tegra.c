@@ -408,7 +408,7 @@ static int __init tegra_init_fuse(void)
 		}
 	}
 
-	fuse->base = ioremap_nocache(regs.start, resource_size(&regs));
+	fuse->base = ioremap(regs.start, resource_size(&regs));
 	if (!fuse->base) {
 		pr_err("failed to map FUSE registers\n");
 		return -ENXIO;

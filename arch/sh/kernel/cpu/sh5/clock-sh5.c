@@ -68,7 +68,7 @@ static struct sh_clk_ops *sh5_clk_ops[] = {
 
 void __init arch_init_clk_ops(struct sh_clk_ops **ops, int idx)
 {
-	cprc_base = (unsigned long)ioremap_nocache(CPRC_BASE, 1024);
+	cprc_base = (unsigned long)ioremap(CPRC_BASE, 1024);
 	BUG_ON(!cprc_base);
 
 	if (idx < ARRAY_SIZE(sh5_clk_ops))

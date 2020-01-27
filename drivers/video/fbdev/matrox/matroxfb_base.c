@@ -1710,7 +1710,7 @@ static int initMatrox2(struct matrox_fb_info *minfo, struct board *b)
 		memsize = mem;
 	err = -ENOMEM;
 
-	minfo->mmio.vbase.vaddr = ioremap_nocache(ctrlptr_phys, 16384);
+	minfo->mmio.vbase.vaddr = ioremap(ctrlptr_phys, 16384);
 	if (!minfo->mmio.vbase.vaddr) {
 		printk(KERN_ERR "matroxfb: cannot ioremap(%lX, 16384), matroxfb disabled\n", ctrlptr_phys);
 		goto failVideoMR;
