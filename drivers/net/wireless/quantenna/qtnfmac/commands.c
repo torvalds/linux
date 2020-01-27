@@ -900,7 +900,6 @@ qtnf_cmd_resp_proc_hw_info(struct qtnf_bus *bus,
 	hwinfo->num_mac = resp->num_mac;
 	hwinfo->mac_bitmap = resp->mac_bitmap;
 	hwinfo->fw_ver = le32_to_cpu(resp->fw_ver);
-	hwinfo->ql_proto_ver = le16_to_cpu(resp->ql_proto_ver);
 	hwinfo->total_tx_chain = resp->total_tx_chain;
 	hwinfo->total_rx_chain = resp->total_rx_chain;
 	hwinfo->hw_capab = le32_to_cpu(resp->hw_capab);
@@ -954,25 +953,29 @@ qtnf_cmd_resp_proc_hw_info(struct qtnf_bus *bus,
 		tlv = (struct qlink_tlv_hdr *)(tlv->val + tlv_value_len);
 	}
 
-	pr_info("fw_version=%d, MACs map %#x, chains Tx=%u Rx=%u, capab=0x%x\n",
-		hwinfo->fw_ver, hwinfo->mac_bitmap,
-		hwinfo->total_tx_chain, hwinfo->total_rx_chain,
-		hwinfo->hw_capab);
-
-	pr_info("\nBuild name:            %s"  \
-		"\nBuild revision:        %s"  \
-		"\nBuild type:            %s"  \
-		"\nBuild label:           %s"  \
-		"\nBuild timestamp:       %lu" \
-		"\nPlatform ID:           %lu" \
-		"\nHardware ID:           %s"  \
-		"\nCalibration version:   %s"  \
-		"\nU-Boot version:        %s"  \
-		"\nHardware version:      0x%08x\n",
+	pr_info("\nBuild name:            %s\n"
+		"Build revision:        %s\n"
+		"Build type:            %s\n"
+		"Build label:           %s\n"
+		"Build timestamp:       %lu\n"
+		"Platform ID:           %lu\n"
+		"Hardware ID:           %s\n"
+		"Calibration version:   %s\n"
+		"U-Boot version:        %s\n"
+		"Hardware version:      0x%08x\n"
+		"Qlink ver:             %u.%u\n"
+		"MACs map:              %#x\n"
+		"Chains Rx-Tx:          %ux%u\n"
+		"FW version:            0x%x\n",
 		bld_name, bld_rev, bld_type, bld_label,
 		(unsigned long)bld_tmstamp,
 		(unsigned long)plat_id,
-		hw_id, calibration_ver, uboot_ver, hw_ver);
+		hw_id, calibration_ver, uboot_ver, hw_ver,
+		QLINK_VER_MAJOR(bus->hw_info.ql_proto_ver),
+		QLINK_VER_MINOR(bus->hw_info.ql_proto_ver),
+		hwinfo->mac_bitmap,
+		hwinfo->total_rx_chain, hwinfo->total_tx_chain,
+		hwinfo->fw_ver);
 
 	strlcpy(hwinfo->fw_version, bld_label, sizeof(hwinfo->fw_version));
 	hwinfo->hw_version = hw_ver;
@@ -1866,23 +1869,35 @@ out:
 
 int qtnf_cmd_send_init_fw(struct qtnf_bus *bus)
 {
+	struct sk_buff *resp_skb = NULL;
+	struct qlink_resp_init_fw *resp;
+	struct qlink_cmd_init_fw *cmd;
 	struct sk_buff *cmd_skb;
-	int ret = 0;
+	size_t info_len = 0;
+	int ret;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(QLINK_MACID_RSVD, QLINK_VIFID_RSVD,
 					    QLINK_CMD_FW_INIT,
-					    sizeof(struct qlink_cmd));
+					    sizeof(*cmd));
 	if (!cmd_skb)
 		return -ENOMEM;
 
+	cmd = (struct qlink_cmd_init_fw *)cmd_skb->data;
+	cmd->qlink_proto_ver = cpu_to_le32(QLINK_PROTO_VER);
+
 	qtnf_bus_lock(bus);
-	ret = qtnf_cmd_send(bus, cmd_skb);
+	ret = qtnf_cmd_send_with_reply(bus, cmd_skb, &resp_skb,
+				       sizeof(*resp), &info_len);
+	qtnf_bus_unlock(bus);
+
 	if (ret)
 		goto out;
 
-out:
-	qtnf_bus_unlock(bus);
+	resp = (struct qlink_resp_init_fw *)resp_skb->data;
+	bus->hw_info.ql_proto_ver = le32_to_cpu(resp->qlink_proto_ver);
 
+out:
+	consume_skb(resp_skb);
 	return ret;
 }
 

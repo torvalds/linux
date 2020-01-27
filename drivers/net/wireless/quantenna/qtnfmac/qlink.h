@@ -6,7 +6,18 @@
 
 #include <linux/ieee80211.h>
 
-#define QLINK_PROTO_VER		16
+#define QLINK_PROTO_VER_MAJOR_M		0xFFFF
+#define QLINK_PROTO_VER_MAJOR_S		16
+#define QLINK_PROTO_VER_MINOR_M		0xFFFF
+#define QLINK_VER_MINOR(_ver)	((_ver) & QLINK_PROTO_VER_MINOR_M)
+#define QLINK_VER_MAJOR(_ver)	\
+	(((_ver) >> QLINK_PROTO_VER_MAJOR_S) & QLINK_PROTO_VER_MAJOR_M)
+#define QLINK_VER(_maj, _min)	(((_maj) << QLINK_PROTO_VER_MAJOR_S) | (_min))
+
+#define QLINK_PROTO_VER_MAJOR		18
+#define QLINK_PROTO_VER_MINOR		0
+#define QLINK_PROTO_VER		\
+	QLINK_VER(QLINK_PROTO_VER_MAJOR, QLINK_PROTO_VER_MINOR)
 
 #define QLINK_MACID_RSVD		0xFF
 #define QLINK_VIFID_RSVD		0xFF
@@ -324,6 +335,23 @@ struct qlink_cmd {
 	u8 rsvd[2];
 	u8 macid;
 	u8 vifid;
+} __packed;
+
+/**
+ * struct qlink_cmd_init_fw - data for QLINK_CMD_FW_INIT
+ *
+ * Initialize firmware based on specified host configuration. This is the first
+ * command sent to wifi card and it's fixed part should never be changed, any
+ * additions must be done by appending TLVs.
+ * If wifi card can not operate with a specified parameters it will return
+ * error.
+ *
+ * @qlink_proto_ver: QLINK protocol version used by host driver.
+ */
+struct qlink_cmd_init_fw {
+	struct qlink_cmd chdr;
+	__le32 qlink_proto_ver;
+	u8 var_info[0];
 } __packed;
 
 /**
@@ -896,6 +924,16 @@ struct qlink_resp {
 } __packed;
 
 /**
+ * struct qlink_resp_init_fw - response for QLINK_CMD_FW_INIT
+ *
+ * @qlink_proto_ver: QLINK protocol version used by wifi card firmware.
+ */
+struct qlink_resp_init_fw {
+	struct qlink_resp rhdr;
+	__le32 qlink_proto_ver;
+} __packed;
+
+/**
  * enum qlink_dfs_regions - regulatory DFS regions
  *
  * Corresponds to &enum nl80211_dfs_regions.
@@ -953,7 +991,6 @@ struct qlink_resp_get_mac_info {
  *
  * @fw_ver: wireless hardware firmware version.
  * @hw_capab: Bitmap of capabilities supported by firmware.
- * @ql_proto_ver: Version of QLINK protocol used by firmware.
  * @num_mac: Number of separate physical radio devices provided by hardware.
  * @mac_bitmap: Bitmap of MAC IDs that are active and can be used in firmware.
  * @total_tx_chains: total number of transmit chains used by device.
@@ -967,7 +1004,6 @@ struct qlink_resp_get_hw_info {
 	__le32 bld_tmstamp;
 	__le32 plat_id;
 	__le32 hw_ver;
-	__le16 ql_proto_ver;
 	u8 num_mac;
 	u8 mac_bitmap;
 	u8 total_tx_chain;

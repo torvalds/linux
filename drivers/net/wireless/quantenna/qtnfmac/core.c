@@ -756,17 +756,19 @@ int qtnf_core_attach(struct qtnf_bus *bus)
 		goto error;
 	}
 
+	if (QLINK_VER_MAJOR(bus->hw_info.ql_proto_ver) !=
+	    QLINK_PROTO_VER_MAJOR) {
+		pr_err("qlink driver vs FW version mismatch: %u vs %u\n",
+		       QLINK_PROTO_VER_MAJOR,
+		       QLINK_VER_MAJOR(bus->hw_info.ql_proto_ver));
+		ret = -EPROTONOSUPPORT;
+		goto error;
+	}
+
 	bus->fw_state = QTNF_FW_STATE_ACTIVE;
 	ret = qtnf_cmd_get_hw_info(bus);
 	if (ret) {
 		pr_err("failed to get HW info: %d\n", ret);
-		goto error;
-	}
-
-	if (bus->hw_info.ql_proto_ver != QLINK_PROTO_VER) {
-		pr_err("qlink version mismatch %u != %u\n",
-		       QLINK_PROTO_VER, bus->hw_info.ql_proto_ver);
-		ret = -EPROTONOSUPPORT;
 		goto error;
 	}
 

@@ -117,7 +117,7 @@ struct qtnf_wmac {
 };
 
 struct qtnf_hw_info {
-	u16 ql_proto_ver;
+	u32 ql_proto_ver;
 	u8 num_mac;
 	u8 mac_bitmap;
 	u32 fw_ver;
