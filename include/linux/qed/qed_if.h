@@ -1178,6 +1178,15 @@ struct qed_common_ops {
 #define GET_FIELD(value, name) \
 	(((value) >> (name ## _SHIFT)) & name ## _MASK)
 
+#define GET_MFW_FIELD(name, field) \
+	(((name) & (field ## _MASK)) >> (field ## _OFFSET))
+
+#define SET_MFW_FIELD(name, field, value)				 \
+	do {								 \
+		(name) &= ~(field ## _MASK);				 \
+		(name) |= (((value) << (field ## _OFFSET)) & (field ## _MASK));\
+	} while (0)
+
 #define DB_ADDR_SHIFT(addr) ((addr) << DB_PWM_ADDR_OFFSET_SHIFT)
 
 /* Debug print definitions */

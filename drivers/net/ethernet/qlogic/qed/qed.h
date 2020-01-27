@@ -666,6 +666,7 @@ struct qed_hwfn {
 
 	struct dbg_tools_data		dbg_info;
 	void				*dbg_user_info;
+	struct virt_mem_desc		dbg_arrays[MAX_BIN_DBG_BUFFER_TYPE];
 
 	/* PWM region specific data */
 	u16				wid_count;
@@ -877,6 +878,7 @@ struct qed_dev {
 	struct qed_cb_ll2_info		*ll2;
 	u8				ll2_mac_address[ETH_ALEN];
 #endif
+	struct qed_dbg_feature dbg_features[DBG_FEATURE_NUM];
 	bool disable_ilt_dump;
 	DECLARE_HASHTABLE(connections, 10);
 	const struct firmware		*firmware;

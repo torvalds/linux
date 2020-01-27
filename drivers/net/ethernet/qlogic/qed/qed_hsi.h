@@ -1860,98 +1860,6 @@ struct virt_mem_desc {
 /* Debug Tools HSI constants and macros */
 /****************************************/
 
-enum block_addr {
-	GRCBASE_GRC = 0x50000,
-	GRCBASE_MISCS = 0x9000,
-	GRCBASE_MISC = 0x8000,
-	GRCBASE_DBU = 0xa000,
-	GRCBASE_PGLUE_B = 0x2a8000,
-	GRCBASE_CNIG = 0x218000,
-	GRCBASE_CPMU = 0x30000,
-	GRCBASE_NCSI = 0x40000,
-	GRCBASE_OPTE = 0x53000,
-	GRCBASE_BMB = 0x540000,
-	GRCBASE_PCIE = 0x54000,
-	GRCBASE_MCP = 0xe00000,
-	GRCBASE_MCP2 = 0x52000,
-	GRCBASE_PSWHST = 0x2a0000,
-	GRCBASE_PSWHST2 = 0x29e000,
-	GRCBASE_PSWRD = 0x29c000,
-	GRCBASE_PSWRD2 = 0x29d000,
-	GRCBASE_PSWWR = 0x29a000,
-	GRCBASE_PSWWR2 = 0x29b000,
-	GRCBASE_PSWRQ = 0x280000,
-	GRCBASE_PSWRQ2 = 0x240000,
-	GRCBASE_PGLCS = 0x0,
-	GRCBASE_DMAE = 0xc000,
-	GRCBASE_PTU = 0x560000,
-	GRCBASE_TCM = 0x1180000,
-	GRCBASE_MCM = 0x1200000,
-	GRCBASE_UCM = 0x1280000,
-	GRCBASE_XCM = 0x1000000,
-	GRCBASE_YCM = 0x1080000,
-	GRCBASE_PCM = 0x1100000,
-	GRCBASE_QM = 0x2f0000,
-	GRCBASE_TM = 0x2c0000,
-	GRCBASE_DORQ = 0x100000,
-	GRCBASE_BRB = 0x340000,
-	GRCBASE_SRC = 0x238000,
-	GRCBASE_PRS = 0x1f0000,
-	GRCBASE_TSDM = 0xfb0000,
-	GRCBASE_MSDM = 0xfc0000,
-	GRCBASE_USDM = 0xfd0000,
-	GRCBASE_XSDM = 0xf80000,
-	GRCBASE_YSDM = 0xf90000,
-	GRCBASE_PSDM = 0xfa0000,
-	GRCBASE_TSEM = 0x1700000,
-	GRCBASE_MSEM = 0x1800000,
-	GRCBASE_USEM = 0x1900000,
-	GRCBASE_XSEM = 0x1400000,
-	GRCBASE_YSEM = 0x1500000,
-	GRCBASE_PSEM = 0x1600000,
-	GRCBASE_RSS = 0x238800,
-	GRCBASE_TMLD = 0x4d0000,
-	GRCBASE_MULD = 0x4e0000,
-	GRCBASE_YULD = 0x4c8000,
-	GRCBASE_XYLD = 0x4c0000,
-	GRCBASE_PTLD = 0x5a0000,
-	GRCBASE_YPLD = 0x5c0000,
-	GRCBASE_PRM = 0x230000,
-	GRCBASE_PBF_PB1 = 0xda0000,
-	GRCBASE_PBF_PB2 = 0xda4000,
-	GRCBASE_RPB = 0x23c000,
-	GRCBASE_BTB = 0xdb0000,
-	GRCBASE_PBF = 0xd80000,
-	GRCBASE_RDIF = 0x300000,
-	GRCBASE_TDIF = 0x310000,
-	GRCBASE_CDU = 0x580000,
-	GRCBASE_CCFC = 0x2e0000,
-	GRCBASE_TCFC = 0x2d0000,
-	GRCBASE_IGU = 0x180000,
-	GRCBASE_CAU = 0x1c0000,
-	GRCBASE_RGFS = 0xf00000,
-	GRCBASE_RGSRC = 0x320000,
-	GRCBASE_TGFS = 0xd00000,
-	GRCBASE_TGSRC = 0x322000,
-	GRCBASE_UMAC = 0x51000,
-	GRCBASE_XMAC = 0x210000,
-	GRCBASE_DBG = 0x10000,
-	GRCBASE_NIG = 0x500000,
-	GRCBASE_WOL = 0x600000,
-	GRCBASE_BMBN = 0x610000,
-	GRCBASE_IPC = 0x20000,
-	GRCBASE_NWM = 0x800000,
-	GRCBASE_NWS = 0x700000,
-	GRCBASE_MS = 0x6a0000,
-	GRCBASE_PHY_PCIE = 0x620000,
-	GRCBASE_LED = 0x6b8000,
-	GRCBASE_AVS_WRAP = 0x6b0000,
-	GRCBASE_PXPREQBUS = 0x56000,
-	GRCBASE_MISC_AEU = 0x8000,
-	GRCBASE_BAR0_MAP = 0x1c00000,
-	MAX_BLOCK_ADDR
-};
-
 enum block_id {
 	BLOCK_GRC,
 	BLOCK_MISCS,
@@ -2006,8 +1914,6 @@ enum block_id {
 	BLOCK_MULD,
 	BLOCK_YULD,
 	BLOCK_XYLD,
-	BLOCK_PTLD,
-	BLOCK_YPLD,
 	BLOCK_PRM,
 	BLOCK_PBF_PB1,
 	BLOCK_PBF_PB2,
@@ -2021,12 +1927,9 @@ enum block_id {
 	BLOCK_TCFC,
 	BLOCK_IGU,
 	BLOCK_CAU,
-	BLOCK_RGFS,
-	BLOCK_RGSRC,
-	BLOCK_TGFS,
-	BLOCK_TGSRC,
 	BLOCK_UMAC,
 	BLOCK_XMAC,
+	BLOCK_MSTAT,
 	BLOCK_DBG,
 	BLOCK_NIG,
 	BLOCK_WOL,
@@ -2039,8 +1942,17 @@ enum block_id {
 	BLOCK_LED,
 	BLOCK_AVS_WRAP,
 	BLOCK_PXPREQBUS,
-	BLOCK_MISC_AEU,
 	BLOCK_BAR0_MAP,
+	BLOCK_MCP_FIO,
+	BLOCK_LAST_INIT,
+	BLOCK_PRS_FC,
+	BLOCK_PBF_FC,
+	BLOCK_NIG_LB_FC,
+	BLOCK_NIG_LB_FC_PLLH,
+	BLOCK_NIG_TX_FC_PLLH,
+	BLOCK_NIG_TX_FC,
+	BLOCK_NIG_RX_FC_PLLH,
+	BLOCK_NIG_RX_FC,
 	MAX_BLOCK_ID
 };
 
@@ -2057,10 +1969,13 @@ enum bin_dbg_buffer_type {
 	BIN_BUF_DBG_ATTN_REGS,
 	BIN_BUF_DBG_ATTN_INDEXES,
 	BIN_BUF_DBG_ATTN_NAME_OFFSETS,
-	BIN_BUF_DBG_BUS_BLOCKS,
+	BIN_BUF_DBG_BLOCKS,
+	BIN_BUF_DBG_BLOCKS_CHIP_DATA,
 	BIN_BUF_DBG_BUS_LINES,
-	BIN_BUF_DBG_BUS_BLOCKS_USER_DATA,
+	BIN_BUF_DBG_BLOCKS_USER_DATA,
+	BIN_BUF_DBG_BLOCKS_CHIP_USER_DATA,
 	BIN_BUF_DBG_BUS_LINE_NAME_OFFSETS,
+	BIN_BUF_DBG_RESET_REGS,
 	BIN_BUF_DBG_PARSING_STRINGS,
 	MAX_BIN_DBG_BUFFER_TYPE
 };
@@ -2144,18 +2059,52 @@ enum dbg_attn_type {
 	MAX_DBG_ATTN_TYPE
 };
 
-/* Debug Bus block data */
-struct dbg_bus_block {
-	u8 num_of_lines;
-	u8 has_latency_events;
-	u16 lines_offset;
+/* Block debug data */
+struct dbg_block {
+	u8 name[15];
+	u8 associated_storm_letter;
 };
 
-/* Debug Bus block user data */
-struct dbg_bus_block_user_data {
-	u8 num_of_lines;
+/* Chip-specific block debug data */
+struct dbg_block_chip {
+	u8 flags;
+#define DBG_BLOCK_CHIP_IS_REMOVED_MASK		 0x1
+#define DBG_BLOCK_CHIP_IS_REMOVED_SHIFT		 0
+#define DBG_BLOCK_CHIP_HAS_RESET_REG_MASK	 0x1
+#define DBG_BLOCK_CHIP_HAS_RESET_REG_SHIFT	 1
+#define DBG_BLOCK_CHIP_UNRESET_BEFORE_DUMP_MASK  0x1
+#define DBG_BLOCK_CHIP_UNRESET_BEFORE_DUMP_SHIFT 2
+#define DBG_BLOCK_CHIP_HAS_DBG_BUS_MASK		 0x1
+#define DBG_BLOCK_CHIP_HAS_DBG_BUS_SHIFT	 3
+#define DBG_BLOCK_CHIP_HAS_LATENCY_EVENTS_MASK	 0x1
+#define DBG_BLOCK_CHIP_HAS_LATENCY_EVENTS_SHIFT  4
+#define DBG_BLOCK_CHIP_RESERVED0_MASK		 0x7
+#define DBG_BLOCK_CHIP_RESERVED0_SHIFT		 5
+	u8 dbg_client_id;
+	u8 reset_reg_id;
+	u8 reset_reg_bit_offset;
+	struct dbg_mode_hdr dbg_bus_mode;
+	u16 reserved1;
+	u8 reserved2;
+	u8 num_of_dbg_bus_lines;
+	u16 dbg_bus_lines_offset;
+	u32 dbg_select_reg_addr;
+	u32 dbg_dword_enable_reg_addr;
+	u32 dbg_shift_reg_addr;
+	u32 dbg_force_valid_reg_addr;
+	u32 dbg_force_frame_reg_addr;
+};
+
+/* Chip-specific block user debug data */
+struct dbg_block_chip_user {
+	u8 num_of_dbg_bus_lines;
 	u8 has_latency_events;
 	u16 names_offset;
+};
+
+/* Block user debug data */
+struct dbg_block_user {
+	u8 name[16];
 };
 
 /* Block Debug line data */
@@ -2310,22 +2259,33 @@ enum dbg_idle_chk_severity_types {
 	MAX_DBG_IDLE_CHK_SEVERITY_TYPES
 };
 
-/* Debug Bus block data */
-struct dbg_bus_block_data {
-	u16 data;
-#define DBG_BUS_BLOCK_DATA_ENABLE_MASK_MASK		0xF
-#define DBG_BUS_BLOCK_DATA_ENABLE_MASK_SHIFT		0
-#define DBG_BUS_BLOCK_DATA_RIGHT_SHIFT_MASK		0xF
-#define DBG_BUS_BLOCK_DATA_RIGHT_SHIFT_SHIFT		4
-#define DBG_BUS_BLOCK_DATA_FORCE_VALID_MASK_MASK	0xF
-#define DBG_BUS_BLOCK_DATA_FORCE_VALID_MASK_SHIFT	8
-#define DBG_BUS_BLOCK_DATA_FORCE_FRAME_MASK_MASK	0xF
-#define DBG_BUS_BLOCK_DATA_FORCE_FRAME_MASK_SHIFT	12
-	u8 line_num;
-	u8 hw_id;
+/* Reset register */
+struct dbg_reset_reg {
+	u32 data;
+#define DBG_RESET_REG_ADDR_MASK        0xFFFFFF
+#define DBG_RESET_REG_ADDR_SHIFT       0
+#define DBG_RESET_REG_IS_REMOVED_MASK  0x1
+#define DBG_RESET_REG_IS_REMOVED_SHIFT 24
+#define DBG_RESET_REG_RESERVED_MASK    0x7F
+#define DBG_RESET_REG_RESERVED_SHIFT   25
 };
 
-/* Debug Bus Clients */
+/* Debug Bus block data */
+struct dbg_bus_block_data {
+	u8 enable_mask;
+	u8 right_shift;
+	u8 force_valid_mask;
+	u8 force_frame_mask;
+	u8 dword_mask;
+	u8 line_num;
+	u8 hw_id;
+	u8 flags;
+#define DBG_BUS_BLOCK_DATA_IS_256B_LINE_MASK  0x1
+#define DBG_BUS_BLOCK_DATA_IS_256B_LINE_SHIFT 0
+#define DBG_BUS_BLOCK_DATA_RESERVED_MASK      0x7F
+#define DBG_BUS_BLOCK_DATA_RESERVED_SHIFT     1
+};
+
 enum dbg_bus_clients {
 	DBG_BUS_CLIENT_RBCN,
 	DBG_BUS_CLIENT_RBCP,
@@ -2366,11 +2326,10 @@ enum dbg_bus_constraint_ops {
 
 /* Debug Bus trigger state data */
 struct dbg_bus_trigger_state_data {
-	u8 data;
-#define DBG_BUS_TRIGGER_STATE_DATA_BLOCK_SHIFTED_ENABLE_MASK_MASK	0xF
-#define DBG_BUS_TRIGGER_STATE_DATA_BLOCK_SHIFTED_ENABLE_MASK_SHIFT	0
-#define DBG_BUS_TRIGGER_STATE_DATA_CONSTRAINT_DWORD_MASK_MASK		0xF
-#define DBG_BUS_TRIGGER_STATE_DATA_CONSTRAINT_DWORD_MASK_SHIFT		4
+	u8 msg_len;
+	u8 constraint_dword_mask;
+	u8 storm_id;
+	u8 reserved;
 };
 
 /* Debug Bus memory address */
@@ -2420,8 +2379,7 @@ struct dbg_bus_storm_data {
 struct dbg_bus_data {
 	u32 app_version;
 	u8 state;
-	u8 hw_dwords;
-	u16 hw_id_mask;
+	u8 mode_256b_en;
 	u8 num_enabled_blocks;
 	u8 num_enabled_storms;
 	u8 target;
@@ -2432,65 +2390,19 @@ struct dbg_bus_data {
 	u8 adding_filter;
 	u8 filter_pre_trigger;
 	u8 filter_post_trigger;
-	u16 reserved;
 	u8 trigger_en;
-	struct dbg_bus_trigger_state_data trigger_states[3];
+	u8 filter_constraint_dword_mask;
 	u8 next_trigger_state;
 	u8 next_constraint_id;
-	u8 unify_inputs;
+	struct dbg_bus_trigger_state_data trigger_states[3];
+	u8 filter_msg_len;
 	u8 rcv_from_other_engine;
+	u8 blocks_dword_mask;
+	u8 blocks_dword_overlap;
+	u32 hw_id_mask;
 	struct dbg_bus_pci_buf_data pci_buf;
-	struct dbg_bus_block_data blocks[88];
+	struct dbg_bus_block_data blocks[132];
 	struct dbg_bus_storm_data storms[6];
-};
-
-/* Debug bus filter types */
-enum dbg_bus_filter_types {
-	DBG_BUS_FILTER_TYPE_OFF,
-	DBG_BUS_FILTER_TYPE_PRE,
-	DBG_BUS_FILTER_TYPE_POST,
-	DBG_BUS_FILTER_TYPE_ON,
-	MAX_DBG_BUS_FILTER_TYPES
-};
-
-/* Debug bus frame modes */
-enum dbg_bus_frame_modes {
-	DBG_BUS_FRAME_MODE_0HW_4ST = 0, /* 0 HW dwords, 4 Storm dwords */
-	DBG_BUS_FRAME_MODE_4HW_0ST = 3, /* 4 HW dwords, 0 Storm dwords */
-	DBG_BUS_FRAME_MODE_8HW_0ST = 4, /* 8 HW dwords, 0 Storm dwords */
-	MAX_DBG_BUS_FRAME_MODES
-};
-
-/* Debug bus other engine mode */
-enum dbg_bus_other_engine_modes {
-	DBG_BUS_OTHER_ENGINE_MODE_NONE,
-	DBG_BUS_OTHER_ENGINE_MODE_DOUBLE_BW_TX,
-	DBG_BUS_OTHER_ENGINE_MODE_DOUBLE_BW_RX,
-	DBG_BUS_OTHER_ENGINE_MODE_CROSS_ENGINE_TX,
-	DBG_BUS_OTHER_ENGINE_MODE_CROSS_ENGINE_RX,
-	MAX_DBG_BUS_OTHER_ENGINE_MODES
-};
-
-/* Debug bus post-trigger recording types */
-enum dbg_bus_post_trigger_types {
-	DBG_BUS_POST_TRIGGER_RECORD,
-	DBG_BUS_POST_TRIGGER_DROP,
-	MAX_DBG_BUS_POST_TRIGGER_TYPES
-};
-
-/* Debug bus pre-trigger recording types */
-enum dbg_bus_pre_trigger_types {
-	DBG_BUS_PRE_TRIGGER_START_FROM_ZERO,
-	DBG_BUS_PRE_TRIGGER_NUM_CHUNKS,
-	DBG_BUS_PRE_TRIGGER_DROP,
-	MAX_DBG_BUS_PRE_TRIGGER_TYPES
-};
-
-/* Debug bus SEMI frame modes */
-enum dbg_bus_semi_frame_modes {
-	DBG_BUS_SEMI_FRAME_MODE_0SLOW_4FAST = 0,
-	DBG_BUS_SEMI_FRAME_MODE_4SLOW_0FAST = 3,
-	MAX_DBG_BUS_SEMI_FRAME_MODES
 };
 
 /* Debug bus states */
@@ -2510,7 +2422,9 @@ enum dbg_bus_storm_modes {
 	DBG_BUS_STORM_MODE_DRA_W,
 	DBG_BUS_STORM_MODE_LD_ST_ADDR,
 	DBG_BUS_STORM_MODE_DRA_FSM,
+	DBG_BUS_STORM_MODE_FAST_DBGMUX,
 	DBG_BUS_STORM_MODE_RH,
+	DBG_BUS_STORM_MODE_RH_WITH_STORE,
 	DBG_BUS_STORM_MODE_FOC,
 	DBG_BUS_STORM_MODE_EXT_STORE,
 	MAX_DBG_BUS_STORM_MODES
@@ -2551,13 +2465,13 @@ enum dbg_grc_params {
 	DBG_GRC_PARAM_DUMP_CAU,
 	DBG_GRC_PARAM_DUMP_QM,
 	DBG_GRC_PARAM_DUMP_MCP,
-	DBG_GRC_PARAM_MCP_TRACE_META_SIZE,
+	DBG_GRC_PARAM_DUMP_DORQ,
 	DBG_GRC_PARAM_DUMP_CFC,
 	DBG_GRC_PARAM_DUMP_IGU,
 	DBG_GRC_PARAM_DUMP_BRB,
 	DBG_GRC_PARAM_DUMP_BTB,
 	DBG_GRC_PARAM_DUMP_BMB,
-	DBG_GRC_PARAM_DUMP_NIG,
+	DBG_GRC_PARAM_RESERVD1,
 	DBG_GRC_PARAM_DUMP_MULD,
 	DBG_GRC_PARAM_DUMP_PRS,
 	DBG_GRC_PARAM_DUMP_DMAE,
@@ -2566,8 +2480,8 @@ enum dbg_grc_params {
 	DBG_GRC_PARAM_DUMP_DIF,
 	DBG_GRC_PARAM_DUMP_STATIC,
 	DBG_GRC_PARAM_UNSTALL,
-	DBG_GRC_PARAM_NUM_LCIDS,
-	DBG_GRC_PARAM_NUM_LTIDS,
+	DBG_GRC_PARAM_RESERVED2,
+	DBG_GRC_PARAM_MCP_TRACE_META_SIZE,
 	DBG_GRC_PARAM_EXCLUDE_ALL,
 	DBG_GRC_PARAM_CRASH,
 	DBG_GRC_PARAM_PARITY_SAFE,
@@ -2583,19 +2497,6 @@ enum dbg_grc_params {
 	MAX_DBG_GRC_PARAMS
 };
 
-/* Debug reset registers */
-enum dbg_reset_regs {
-	DBG_RESET_REG_MISCS_PL_UA,
-	DBG_RESET_REG_MISCS_PL_HV,
-	DBG_RESET_REG_MISCS_PL_HV_2,
-	DBG_RESET_REG_MISC_PL_UA,
-	DBG_RESET_REG_MISC_PL_HV,
-	DBG_RESET_REG_MISC_PL_PDA_VMAIN_1,
-	DBG_RESET_REG_MISC_PL_PDA_VMAIN_2,
-	DBG_RESET_REG_MISC_PL_PDA_VAUX,
-	MAX_DBG_RESET_REGS
-};
-
 /* Debug status codes */
 enum dbg_status {
 	DBG_STATUS_OK,
@@ -2607,15 +2508,15 @@ enum dbg_status {
 	DBG_STATUS_INVALID_PCI_BUF_SIZE,
 	DBG_STATUS_PCI_BUF_ALLOC_FAILED,
 	DBG_STATUS_PCI_BUF_NOT_ALLOCATED,
-	DBG_STATUS_TOO_MANY_INPUTS,
-	DBG_STATUS_INPUT_OVERLAP,
-	DBG_STATUS_HW_ONLY_RECORDING,
+	DBG_STATUS_INVALID_FILTER_TRIGGER_DWORDS,
+	DBG_STATUS_NO_MATCHING_FRAMING_MODE,
+	DBG_STATUS_VFC_READ_ERROR,
 	DBG_STATUS_STORM_ALREADY_ENABLED,
 	DBG_STATUS_STORM_NOT_ENABLED,
 	DBG_STATUS_BLOCK_ALREADY_ENABLED,
 	DBG_STATUS_BLOCK_NOT_ENABLED,
 	DBG_STATUS_NO_INPUT_ENABLED,
-	DBG_STATUS_NO_FILTER_TRIGGER_64B,
+	DBG_STATUS_NO_FILTER_TRIGGER_256B,
 	DBG_STATUS_FILTER_ALREADY_ENABLED,
 	DBG_STATUS_TRIGGER_ALREADY_ENABLED,
 	DBG_STATUS_TRIGGER_NOT_ENABLED,
@@ -2640,7 +2541,7 @@ enum dbg_status {
 	DBG_STATUS_MCP_TRACE_NO_META,
 	DBG_STATUS_MCP_COULD_NOT_HALT,
 	DBG_STATUS_MCP_COULD_NOT_RESUME,
-	DBG_STATUS_RESERVED2,
+	DBG_STATUS_RESERVED0,
 	DBG_STATUS_SEMI_FIFO_NOT_EMPTY,
 	DBG_STATUS_IGU_FIFO_BAD_DATA,
 	DBG_STATUS_MCP_COULD_NOT_MASK_PRTY,
@@ -2648,10 +2549,15 @@ enum dbg_status {
 	DBG_STATUS_REG_FIFO_BAD_DATA,
 	DBG_STATUS_PROTECTION_OVERRIDE_BAD_DATA,
 	DBG_STATUS_DBG_ARRAY_NOT_SET,
-	DBG_STATUS_FILTER_BUG,
+	DBG_STATUS_RESERVED1,
 	DBG_STATUS_NON_MATCHING_LINES,
-	DBG_STATUS_INVALID_TRIGGER_DWORD_OFFSET,
+	DBG_STATUS_INSUFFICIENT_HW_IDS,
 	DBG_STATUS_DBG_BUS_IN_USE,
+	DBG_STATUS_INVALID_STORM_DBG_MODE,
+	DBG_STATUS_OTHER_ENGINE_BB_ONLY,
+	DBG_STATUS_FILTER_SINGLE_HW_ID,
+	DBG_STATUS_TRIGGER_SINGLE_HW_ID,
+	DBG_STATUS_MISSING_TRIGGER_STATE_STORM,
 	MAX_DBG_STATUS
 };
 
@@ -2687,9 +2593,9 @@ struct dbg_tools_data {
 	struct dbg_bus_data bus;
 	struct idle_chk_data idle_chk;
 	u8 mode_enable[40];
-	u8 block_in_reset[88];
+	u8 block_in_reset[132];
 	u8 chip_id;
-	u8 platform_id;
+	u8 hw_type;
 	u8 num_ports;
 	u8 num_pfs_per_port;
 	u8 num_vfs;
@@ -2808,7 +2714,6 @@ struct init_qm_vport_params {
 enum chip_ids {
 	CHIP_BB,
 	CHIP_K2,
-	CHIP_RESERVED,
 	MAX_CHIP_IDS
 };
 
@@ -3135,9 +3040,11 @@ struct iro {
  * @brief qed_dbg_set_bin_ptr - Sets a pointer to the binary data with debug
  *	arrays.
  *
+ * @param p_hwfn -	    HW device data
  * @param bin_ptr - a pointer to the binary data with debug arrays.
  */
-enum dbg_status qed_dbg_set_bin_ptr(const u8 * const bin_ptr);
+enum dbg_status qed_dbg_set_bin_ptr(struct qed_hwfn *p_hwfn,
+				    const u8 * const bin_ptr);
 
 /**
  * @brief qed_read_regs - Reads registers into a buffer (using GRC).
@@ -3181,7 +3088,6 @@ bool qed_read_fw_info(struct qed_hwfn *p_hwfn,
  *	- val is outside the allowed boundaries
  */
 enum dbg_status qed_dbg_grc_config(struct qed_hwfn *p_hwfn,
-				   struct qed_ptt *p_ptt,
 				   enum dbg_grc_params grc_param, u32 val);
 
 /**
@@ -3502,18 +3408,34 @@ enum dbg_status qed_dbg_print_attn(struct qed_hwfn *p_hwfn,
 struct mcp_trace_format {
 	u32 data;
 #define MCP_TRACE_FORMAT_MODULE_MASK	0x0000ffff
-#define MCP_TRACE_FORMAT_MODULE_SHIFT	0
+#define MCP_TRACE_FORMAT_MODULE_OFFSET	0
 #define MCP_TRACE_FORMAT_LEVEL_MASK	0x00030000
-#define MCP_TRACE_FORMAT_LEVEL_SHIFT	16
+#define MCP_TRACE_FORMAT_LEVEL_OFFSET	16
 #define MCP_TRACE_FORMAT_P1_SIZE_MASK	0x000c0000
-#define MCP_TRACE_FORMAT_P1_SIZE_SHIFT	18
+#define MCP_TRACE_FORMAT_P1_SIZE_OFFSET 18
 #define MCP_TRACE_FORMAT_P2_SIZE_MASK	0x00300000
-#define MCP_TRACE_FORMAT_P2_SIZE_SHIFT	20
+#define MCP_TRACE_FORMAT_P2_SIZE_OFFSET 20
 #define MCP_TRACE_FORMAT_P3_SIZE_MASK	0x00c00000
-#define MCP_TRACE_FORMAT_P3_SIZE_SHIFT	22
+#define MCP_TRACE_FORMAT_P3_SIZE_OFFSET 22
 #define MCP_TRACE_FORMAT_LEN_MASK	0xff000000
-#define MCP_TRACE_FORMAT_LEN_SHIFT	24
+#define MCP_TRACE_FORMAT_LEN_OFFSET	24
+
 	char *format_str;
+};
+
+/* MCP Trace Meta data structure */
+struct mcp_trace_meta {
+	u32 modules_num;
+	char **modules;
+	u32 formats_num;
+	struct mcp_trace_format *formats;
+	bool is_allocated;
+};
+
+/* Debug Tools user data */
+struct dbg_tools_user_data {
+	struct mcp_trace_meta mcp_trace_meta;
+	const u32 *mcp_trace_user_meta_buf;
 };
 
 /******************************** Constants **********************************/
@@ -3526,16 +3448,20 @@ struct mcp_trace_format {
  * @brief qed_dbg_user_set_bin_ptr - Sets a pointer to the binary data with
  *	debug arrays.
  *
+ * @param p_hwfn - HW device data
  * @param bin_ptr - a pointer to the binary data with debug arrays.
  */
-enum dbg_status qed_dbg_user_set_bin_ptr(const u8 * const bin_ptr);
+enum dbg_status qed_dbg_user_set_bin_ptr(struct qed_hwfn *p_hwfn,
+					 const u8 * const bin_ptr);
 
 /**
  * @brief qed_dbg_alloc_user_data - Allocates user debug data.
  *
  * @param p_hwfn -		 HW device data
+ * @param user_data_ptr - OUT: a pointer to the allocated memory.
  */
-enum dbg_status qed_dbg_alloc_user_data(struct qed_hwfn *p_hwfn);
+enum dbg_status qed_dbg_alloc_user_data(struct qed_hwfn *p_hwfn,
+					void **user_data_ptr);
 
 /**
  * @brief qed_dbg_get_status_str - Returns a string for the specified status.
@@ -3808,271 +3734,6 @@ enum dbg_status qed_print_fw_asserts_results(struct qed_hwfn *p_hwfn,
 enum dbg_status qed_dbg_parse_attn(struct qed_hwfn *p_hwfn,
 				   struct dbg_attn_block_result *results);
 
-/* Debug Bus blocks */
-static const u32 dbg_bus_blocks[] = {
-	0x0000000f,		/* grc, bb, 15 lines */
-	0x0000000f,		/* grc, k2, 15 lines */
-	0x00000000,
-	0x00000000,		/* miscs, bb, 0 lines */
-	0x00000000,		/* miscs, k2, 0 lines */
-	0x00000000,
-	0x00000000,		/* misc, bb, 0 lines */
-	0x00000000,		/* misc, k2, 0 lines */
-	0x00000000,
-	0x00000000,		/* dbu, bb, 0 lines */
-	0x00000000,		/* dbu, k2, 0 lines */
-	0x00000000,
-	0x000f0127,		/* pglue_b, bb, 39 lines */
-	0x0036012a,		/* pglue_b, k2, 42 lines */
-	0x00000000,
-	0x00000000,		/* cnig, bb, 0 lines */
-	0x00120102,		/* cnig, k2, 2 lines */
-	0x00000000,
-	0x00000000,		/* cpmu, bb, 0 lines */
-	0x00000000,		/* cpmu, k2, 0 lines */
-	0x00000000,
-	0x00000001,		/* ncsi, bb, 1 lines */
-	0x00000001,		/* ncsi, k2, 1 lines */
-	0x00000000,
-	0x00000000,		/* opte, bb, 0 lines */
-	0x00000000,		/* opte, k2, 0 lines */
-	0x00000000,
-	0x00600085,		/* bmb, bb, 133 lines */
-	0x00600085,		/* bmb, k2, 133 lines */
-	0x00000000,
-	0x00000000,		/* pcie, bb, 0 lines */
-	0x00e50033,		/* pcie, k2, 51 lines */
-	0x00000000,
-	0x00000000,		/* mcp, bb, 0 lines */
-	0x00000000,		/* mcp, k2, 0 lines */
-	0x00000000,
-	0x01180009,		/* mcp2, bb, 9 lines */
-	0x01180009,		/* mcp2, k2, 9 lines */
-	0x00000000,
-	0x01210104,		/* pswhst, bb, 4 lines */
-	0x01210104,		/* pswhst, k2, 4 lines */
-	0x00000000,
-	0x01250103,		/* pswhst2, bb, 3 lines */
-	0x01250103,		/* pswhst2, k2, 3 lines */
-	0x00000000,
-	0x00340101,		/* pswrd, bb, 1 lines */
-	0x00340101,		/* pswrd, k2, 1 lines */
-	0x00000000,
-	0x01280119,		/* pswrd2, bb, 25 lines */
-	0x01280119,		/* pswrd2, k2, 25 lines */
-	0x00000000,
-	0x01410109,		/* pswwr, bb, 9 lines */
-	0x01410109,		/* pswwr, k2, 9 lines */
-	0x00000000,
-	0x00000000,		/* pswwr2, bb, 0 lines */
-	0x00000000,		/* pswwr2, k2, 0 lines */
-	0x00000000,
-	0x001c0001,		/* pswrq, bb, 1 lines */
-	0x001c0001,		/* pswrq, k2, 1 lines */
-	0x00000000,
-	0x014a0015,		/* pswrq2, bb, 21 lines */
-	0x014a0015,		/* pswrq2, k2, 21 lines */
-	0x00000000,
-	0x00000000,		/* pglcs, bb, 0 lines */
-	0x00120006,		/* pglcs, k2, 6 lines */
-	0x00000000,
-	0x00100001,		/* dmae, bb, 1 lines */
-	0x00100001,		/* dmae, k2, 1 lines */
-	0x00000000,
-	0x015f0105,		/* ptu, bb, 5 lines */
-	0x015f0105,		/* ptu, k2, 5 lines */
-	0x00000000,
-	0x01640120,		/* tcm, bb, 32 lines */
-	0x01640120,		/* tcm, k2, 32 lines */
-	0x00000000,
-	0x01640120,		/* mcm, bb, 32 lines */
-	0x01640120,		/* mcm, k2, 32 lines */
-	0x00000000,
-	0x01640120,		/* ucm, bb, 32 lines */
-	0x01640120,		/* ucm, k2, 32 lines */
-	0x00000000,
-	0x01640120,		/* xcm, bb, 32 lines */
-	0x01640120,		/* xcm, k2, 32 lines */
-	0x00000000,
-	0x01640120,		/* ycm, bb, 32 lines */
-	0x01640120,		/* ycm, k2, 32 lines */
-	0x00000000,
-	0x01640120,		/* pcm, bb, 32 lines */
-	0x01640120,		/* pcm, k2, 32 lines */
-	0x00000000,
-	0x01840062,		/* qm, bb, 98 lines */
-	0x01840062,		/* qm, k2, 98 lines */
-	0x00000000,
-	0x01e60021,		/* tm, bb, 33 lines */
-	0x01e60021,		/* tm, k2, 33 lines */
-	0x00000000,
-	0x02070107,		/* dorq, bb, 7 lines */
-	0x02070107,		/* dorq, k2, 7 lines */
-	0x00000000,
-	0x00600185,		/* brb, bb, 133 lines */
-	0x00600185,		/* brb, k2, 133 lines */
-	0x00000000,
-	0x020e0019,		/* src, bb, 25 lines */
-	0x020c001a,		/* src, k2, 26 lines */
-	0x00000000,
-	0x02270104,		/* prs, bb, 4 lines */
-	0x02270104,		/* prs, k2, 4 lines */
-	0x00000000,
-	0x022b0133,		/* tsdm, bb, 51 lines */
-	0x022b0133,		/* tsdm, k2, 51 lines */
-	0x00000000,
-	0x022b0133,		/* msdm, bb, 51 lines */
-	0x022b0133,		/* msdm, k2, 51 lines */
-	0x00000000,
-	0x022b0133,		/* usdm, bb, 51 lines */
-	0x022b0133,		/* usdm, k2, 51 lines */
-	0x00000000,
-	0x022b0133,		/* xsdm, bb, 51 lines */
-	0x022b0133,		/* xsdm, k2, 51 lines */
-	0x00000000,
-	0x022b0133,		/* ysdm, bb, 51 lines */
-	0x022b0133,		/* ysdm, k2, 51 lines */
-	0x00000000,
-	0x022b0133,		/* psdm, bb, 51 lines */
-	0x022b0133,		/* psdm, k2, 51 lines */
-	0x00000000,
-	0x025e010c,		/* tsem, bb, 12 lines */
-	0x025e010c,		/* tsem, k2, 12 lines */
-	0x00000000,
-	0x025e010c,		/* msem, bb, 12 lines */
-	0x025e010c,		/* msem, k2, 12 lines */
-	0x00000000,
-	0x025e010c,		/* usem, bb, 12 lines */
-	0x025e010c,		/* usem, k2, 12 lines */
-	0x00000000,
-	0x025e010c,		/* xsem, bb, 12 lines */
-	0x025e010c,		/* xsem, k2, 12 lines */
-	0x00000000,
-	0x025e010c,		/* ysem, bb, 12 lines */
-	0x025e010c,		/* ysem, k2, 12 lines */
-	0x00000000,
-	0x025e010c,		/* psem, bb, 12 lines */
-	0x025e010c,		/* psem, k2, 12 lines */
-	0x00000000,
-	0x026a000d,		/* rss, bb, 13 lines */
-	0x026a000d,		/* rss, k2, 13 lines */
-	0x00000000,
-	0x02770106,		/* tmld, bb, 6 lines */
-	0x02770106,		/* tmld, k2, 6 lines */
-	0x00000000,
-	0x027d0106,		/* muld, bb, 6 lines */
-	0x027d0106,		/* muld, k2, 6 lines */
-	0x00000000,
-	0x02770005,		/* yuld, bb, 5 lines */
-	0x02770005,		/* yuld, k2, 5 lines */
-	0x00000000,
-	0x02830107,		/* xyld, bb, 7 lines */
-	0x027d0107,		/* xyld, k2, 7 lines */
-	0x00000000,
-	0x00000000,		/* ptld, bb, 0 lines */
-	0x00000000,		/* ptld, k2, 0 lines */
-	0x00000000,
-	0x00000000,		/* ypld, bb, 0 lines */
-	0x00000000,		/* ypld, k2, 0 lines */
-	0x00000000,
-	0x028a010e,		/* prm, bb, 14 lines */
-	0x02980110,		/* prm, k2, 16 lines */
-	0x00000000,
-	0x02a8000d,		/* pbf_pb1, bb, 13 lines */
-	0x02a8000d,		/* pbf_pb1, k2, 13 lines */
-	0x00000000,
-	0x02a8000d,		/* pbf_pb2, bb, 13 lines */
-	0x02a8000d,		/* pbf_pb2, k2, 13 lines */
-	0x00000000,
-	0x02a8000d,		/* rpb, bb, 13 lines */
-	0x02a8000d,		/* rpb, k2, 13 lines */
-	0x00000000,
-	0x00600185,		/* btb, bb, 133 lines */
-	0x00600185,		/* btb, k2, 133 lines */
-	0x00000000,
-	0x02b50117,		/* pbf, bb, 23 lines */
-	0x02b50117,		/* pbf, k2, 23 lines */
-	0x00000000,
-	0x02cc0006,		/* rdif, bb, 6 lines */
-	0x02cc0006,		/* rdif, k2, 6 lines */
-	0x00000000,
-	0x02d20006,		/* tdif, bb, 6 lines */
-	0x02d20006,		/* tdif, k2, 6 lines */
-	0x00000000,
-	0x02d80003,		/* cdu, bb, 3 lines */
-	0x02db000e,		/* cdu, k2, 14 lines */
-	0x00000000,
-	0x02e9010d,		/* ccfc, bb, 13 lines */
-	0x02f60117,		/* ccfc, k2, 23 lines */
-	0x00000000,
-	0x02e9010d,		/* tcfc, bb, 13 lines */
-	0x02f60117,		/* tcfc, k2, 23 lines */
-	0x00000000,
-	0x030d0133,		/* igu, bb, 51 lines */
-	0x030d0133,		/* igu, k2, 51 lines */
-	0x00000000,
-	0x03400106,		/* cau, bb, 6 lines */
-	0x03400106,		/* cau, k2, 6 lines */
-	0x00000000,
-	0x00000000,		/* rgfs, bb, 0 lines */
-	0x00000000,		/* rgfs, k2, 0 lines */
-	0x00000000,
-	0x00000000,		/* rgsrc, bb, 0 lines */
-	0x00000000,		/* rgsrc, k2, 0 lines */
-	0x00000000,
-	0x00000000,		/* tgfs, bb, 0 lines */
-	0x00000000,		/* tgfs, k2, 0 lines */
-	0x00000000,
-	0x00000000,		/* tgsrc, bb, 0 lines */
-	0x00000000,		/* tgsrc, k2, 0 lines */
-	0x00000000,
-	0x00000000,		/* umac, bb, 0 lines */
-	0x00120006,		/* umac, k2, 6 lines */
-	0x00000000,
-	0x00000000,		/* xmac, bb, 0 lines */
-	0x00000000,		/* xmac, k2, 0 lines */
-	0x00000000,
-	0x00000000,		/* dbg, bb, 0 lines */
-	0x00000000,		/* dbg, k2, 0 lines */
-	0x00000000,
-	0x0346012b,		/* nig, bb, 43 lines */
-	0x0346011d,		/* nig, k2, 29 lines */
-	0x00000000,
-	0x00000000,		/* wol, bb, 0 lines */
-	0x001c0002,		/* wol, k2, 2 lines */
-	0x00000000,
-	0x00000000,		/* bmbn, bb, 0 lines */
-	0x00210008,		/* bmbn, k2, 8 lines */
-	0x00000000,
-	0x00000000,		/* ipc, bb, 0 lines */
-	0x00000000,		/* ipc, k2, 0 lines */
-	0x00000000,
-	0x00000000,		/* nwm, bb, 0 lines */
-	0x0371000b,		/* nwm, k2, 11 lines */
-	0x00000000,
-	0x00000000,		/* nws, bb, 0 lines */
-	0x037c0009,		/* nws, k2, 9 lines */
-	0x00000000,
-	0x00000000,		/* ms, bb, 0 lines */
-	0x00120004,		/* ms, k2, 4 lines */
-	0x00000000,
-	0x00000000,		/* phy_pcie, bb, 0 lines */
-	0x00e5001a,		/* phy_pcie, k2, 26 lines */
-	0x00000000,
-	0x00000000,		/* led, bb, 0 lines */
-	0x00000000,		/* led, k2, 0 lines */
-	0x00000000,
-	0x00000000,		/* avs_wrap, bb, 0 lines */
-	0x00000000,		/* avs_wrap, k2, 0 lines */
-	0x00000000,
-	0x00000000,		/* bar0_map, bb, 0 lines */
-	0x00000000,		/* bar0_map, k2, 0 lines */
-	0x00000000,
-	0x00000000,		/* bar0_map, bb, 0 lines */
-	0x00000000,		/* bar0_map, k2, 0 lines */
-	0x00000000,
-};
-
 /* Win 2 */
 #define GTT_BAR0_MAP_REG_IGU_CMD	0x00f000UL
 
@@ -4086,22 +3747,28 @@ static const u32 dbg_bus_blocks[] = {
 #define GTT_BAR0_MAP_REG_MSDM_RAM_1024	0x012000UL
 
 /* Win 6 */
-#define GTT_BAR0_MAP_REG_USDM_RAM	0x013000UL
+#define GTT_BAR0_MAP_REG_MSDM_RAM_2048	0x013000UL
 
 /* Win 7 */
-#define GTT_BAR0_MAP_REG_USDM_RAM_1024	0x014000UL
+#define GTT_BAR0_MAP_REG_USDM_RAM	0x014000UL
 
 /* Win 8 */
-#define GTT_BAR0_MAP_REG_USDM_RAM_2048	0x015000UL
+#define GTT_BAR0_MAP_REG_USDM_RAM_1024	0x015000UL
 
 /* Win 9 */
-#define GTT_BAR0_MAP_REG_XSDM_RAM	0x016000UL
+#define GTT_BAR0_MAP_REG_USDM_RAM_2048	0x016000UL
 
 /* Win 10 */
-#define GTT_BAR0_MAP_REG_YSDM_RAM	0x017000UL
+#define GTT_BAR0_MAP_REG_XSDM_RAM	0x017000UL
 
 /* Win 11 */
-#define GTT_BAR0_MAP_REG_PSDM_RAM	0x018000UL
+#define GTT_BAR0_MAP_REG_XSDM_RAM_1024	0x018000UL
+
+/* Win 12 */
+#define GTT_BAR0_MAP_REG_YSDM_RAM	0x019000UL
+
+/* Win 13 */
+#define GTT_BAR0_MAP_REG_PSDM_RAM	0x01a000UL
 
 /**
  * @brief qed_qm_pf_mem_size - prepare QM ILT sizes
@@ -11913,7 +11580,7 @@ struct e4_ystorm_iscsi_conn_ag_ctx {
 /* The trace in the buffer */
 #define MFW_TRACE_EVENTID_MASK          0x00ffff
 #define MFW_TRACE_PRM_SIZE_MASK         0x0f0000
-#define MFW_TRACE_PRM_SIZE_SHIFT        16
+#define MFW_TRACE_PRM_SIZE_OFFSET	16
 #define MFW_TRACE_ENTRY_SIZE            3
 
 struct mcp_trace {
@@ -12866,7 +12533,10 @@ struct public_drv_mb {
 #define DRV_MB_PARAM_DCBX_NOTIFY_SHIFT		3
 
 #define DRV_MB_PARAM_NVM_PUT_FILE_BEGIN_MBI     0x3
+#define DRV_MB_PARAM_NVM_OFFSET_OFFSET          0
+#define DRV_MB_PARAM_NVM_OFFSET_MASK            0x00FFFFFF
 #define DRV_MB_PARAM_NVM_LEN_OFFSET		24
+#define DRV_MB_PARAM_NVM_LEN_MASK               0xFF000000
 
 #define DRV_MB_PARAM_CFG_VF_MSIX_VF_ID_SHIFT	0
 #define DRV_MB_PARAM_CFG_VF_MSIX_VF_ID_MASK	0x000000FF
@@ -13627,6 +13297,21 @@ enum nvm_image_type {
 	NVM_TYPE_FCOE_CFG = 0x1f,
 	NVM_TYPE_ETH_PHY_FW1 = 0x20,
 	NVM_TYPE_ETH_PHY_FW2 = 0x21,
+	NVM_TYPE_BDN = 0x22,
+	NVM_TYPE_8485X_PHY_FW = 0x23,
+	NVM_TYPE_PUB_KEY = 0x24,
+	NVM_TYPE_RECOVERY = 0x25,
+	NVM_TYPE_PLDM = 0x26,
+	NVM_TYPE_UPK1 = 0x27,
+	NVM_TYPE_UPK2 = 0x28,
+	NVM_TYPE_MASTER_KC = 0x29,
+	NVM_TYPE_BACKUP_KC = 0x2a,
+	NVM_TYPE_HW_DUMP = 0x2b,
+	NVM_TYPE_HW_DUMP_OUT = 0x2c,
+	NVM_TYPE_BIN_NVM_META = 0x30,
+	NVM_TYPE_ROM_TEST = 0xf0,
+	NVM_TYPE_88X33X0_PHY_FW = 0x31,
+	NVM_TYPE_88X33X0_PHY_SLAVE_FW = 0x32,
 	NVM_TYPE_MAX,
 };
 
