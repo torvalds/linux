@@ -84,6 +84,7 @@ struct qtnf_mac_info {
 	u8 sretry_limit;
 	u8 coverage_class;
 	u8 radar_detect_widths;
+	u8 max_scan_ssids;
 	u16 max_acl_mac_addrs;
 	struct ieee80211_ht_cap ht_cap_mod_mask;
 	struct ieee80211_vht_cap vht_cap_mod_mask;
@@ -117,7 +118,6 @@ struct qtnf_hw_info {
 	u8 total_rx_chain;
 	char fw_version[ETHTOOL_FWVERS_LEN];
 	u32 hw_version;
-	u8 max_scan_ssids;
 	u8 hw_capab[QLINK_HW_CAPAB_NUM / BITS_PER_BYTE + 1];
 };
 

@@ -941,9 +941,6 @@ qtnf_cmd_resp_proc_hw_info(struct qtnf_bus *bus,
 		case QTN_TLV_ID_UBOOT_VER:
 			uboot_ver = (const void *)tlv->val;
 			break;
-		case QTN_TLV_ID_MAX_SCAN_SSIDS:
-			hwinfo->max_scan_ssids = *tlv->val;
-			break;
 		case QTN_TLV_ID_BITMAP:
 			memcpy(hwinfo->hw_capab, tlv->val,
 			       min(sizeof(hwinfo->hw_capab), (size_t)tlv_len));
@@ -1272,6 +1269,7 @@ qtnf_cmd_resp_proc_mac_info(struct qtnf_wmac *mac,
 	mac_info->sretry_limit = resp_info->retry_short;
 	mac_info->lretry_limit = resp_info->retry_long;
 	mac_info->coverage_class = resp_info->coverage_class;
+	mac_info->max_scan_ssids = resp_info->max_scan_ssids;
 
 	memcpy(&mac_info->ht_cap_mod_mask, &resp_info->ht_cap_mod_mask,
 	       sizeof(mac_info->ht_cap_mod_mask));

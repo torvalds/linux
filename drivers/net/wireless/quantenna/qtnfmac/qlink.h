@@ -965,6 +965,7 @@ enum qlink_dfs_regions {
  * @num_rx_chain: Number of receive chains used by WMAC.
  * @vht_cap_mod_mask: mask specifying which VHT capabilities can be altered.
  * @ht_cap_mod_mask: mask specifying which HT capabilities can be altered.
+ * @max_scan_ssids: maximum number of SSIDs the device can scan for in any scan.
  * @bands_cap: wireless bands WMAC can operate in, bitmap of &enum qlink_band.
  * @max_ap_assoc_sta: Maximum number of associations supported by WMAC.
  * @radar_detect_widths: bitmask of channels BW for which WMAC can detect radar.
@@ -1378,8 +1379,6 @@ struct qlink_event_mic_failure {
  * @QTN_TLV_ID_STA_STATS: per-STA statistics as defined by
  *	&struct qlink_sta_stats. Valid values are marked as such in a bitmap
  *	carried by QTN_TLV_ID_BITMAP.
- * @QTN_TLV_ID_MAX_SCAN_SSIDS: maximum number of SSIDs the device can scan
- *	for in any given scan.
  * @QTN_TLV_ID_SCAN_DWELL_ACTIVE: time spent on a single channel for an active
  *	scan.
  * @QTN_TLV_ID_SCAN_DWELL_PASSIVE: time spent on a single channel for a passive
@@ -1415,7 +1414,6 @@ enum qlink_tlv_id {
 	QTN_TLV_ID_CALIBRATION_VER	= 0x0406,
 	QTN_TLV_ID_UBOOT_VER		= 0x0407,
 	QTN_TLV_ID_RANDOM_MAC_ADDR	= 0x0408,
-	QTN_TLV_ID_MAX_SCAN_SSIDS	= 0x0409,
 	QTN_TLV_ID_WOWLAN_CAPAB		= 0x0410,
 	QTN_TLV_ID_WOWLAN_PATTERN	= 0x0411,
 	QTN_TLV_ID_SCAN_FLUSH		= 0x0412,
