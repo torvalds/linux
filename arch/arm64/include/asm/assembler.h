@@ -40,12 +40,6 @@
 	msr	daif, \flags
 	.endm
 
-	/* Only on aarch64 pstate, PSR_D_BIT is different for aarch32 */
-	.macro	inherit_daif, pstate:req, tmp:req
-	and	\tmp, \pstate, #(PSR_D_BIT | PSR_A_BIT | PSR_I_BIT | PSR_F_BIT)
-	msr	daif, \tmp
-	.endm
-
 	/* IRQ is the lowest priority flag, unconditionally unmask the rest. */
 	.macro enable_da_f
 	msr	daifclr, #(8 | 4 | 1)
@@ -83,13 +77,6 @@
 	orr	\tmp, \tmp, #DBG_MDSCR_SS
 	msr	mdscr_el1, \tmp
 9990:
-	.endm
-
-/*
- * SMP data memory barrier
- */
-	.macro	smp_dmb, opt
-	dmb	\opt
 	.endm
 
 /*
@@ -460,17 +447,6 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
 	tst	\src, #(PAGE_SIZE - 1)
 	b.ne	9998b
 	.endm
-
-/*
- * Annotate a function as position independent, i.e., safe to be called before
- * the kernel virtual mapping is activated.
- */
-#define ENDPIPROC(x)			\
-	.globl	__pi_##x;		\
-	.type 	__pi_##x, %function;	\
-	.set	__pi_##x, x;		\
-	.size	__pi_##x, . - x;	\
-	ENDPROC(x)
 
 /*
  * Annotate a function as being unsuitable for kprobes.
