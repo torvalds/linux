@@ -2398,7 +2398,9 @@ int main(int argc, char *argv[])
 	};
 #undef MAKE_TEST
 
-	ksft_set_plan(ARRAY_SIZE(cases));
+	/* Bring back for kernel 5.x */
+	/* ksft_set_plan(ARRAY_SIZE(cases)); */
+
 	for (i = 0; i < ARRAY_SIZE(cases); ++i) {
 		ksft_print_msg("Running %s\n", cases[i].name);
 		if (cases[i].pfunc(mount_dir) == TEST_SUCCESS)
