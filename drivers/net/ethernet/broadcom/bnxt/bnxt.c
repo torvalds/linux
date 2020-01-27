@@ -11100,6 +11100,7 @@ static int bnxt_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 	struct ethhdr *eth = (struct ethhdr *)skb_mac_header(skb);
 	int rc = 0, idx, bit_id, l2_idx = 0;
 	struct hlist_head *head;
+	u32 flags;
 
 	if (!ether_addr_equal(dev->dev_addr, eth->h_dest)) {
 		struct bnxt_vnic_info *vnic = &bp->vnic_info[0];
@@ -11139,8 +11140,9 @@ static int bnxt_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 		rc = -EPROTONOSUPPORT;
 		goto err_free;
 	}
-	if ((fkeys->control.flags & FLOW_DIS_ENCAPSULATION) &&
-	    bp->hwrm_spec_code < 0x10601) {
+	flags = fkeys->control.flags;
+	if (((flags & FLOW_DIS_ENCAPSULATION) &&
+	     bp->hwrm_spec_code < 0x10601) || (flags & FLOW_DIS_IS_FRAGMENT)) {
 		rc = -EPROTONOSUPPORT;
 		goto err_free;
 	}
