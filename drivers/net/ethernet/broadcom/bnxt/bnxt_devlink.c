@@ -489,6 +489,9 @@ static int bnxt_dl_params_register(struct bnxt *bp)
 {
 	int rc;
 
+	if (bp->hwrm_spec_code < 0x10600)
+		return 0;
+
 	rc = devlink_params_register(bp->dl, bnxt_dl_params,
 				     ARRAY_SIZE(bnxt_dl_params));
 	if (rc) {
@@ -511,6 +514,9 @@ static int bnxt_dl_params_register(struct bnxt *bp)
 
 static void bnxt_dl_params_unregister(struct bnxt *bp)
 {
+	if (bp->hwrm_spec_code < 0x10600)
+		return;
+
 	devlink_params_unregister(bp->dl, bnxt_dl_params,
 				  ARRAY_SIZE(bnxt_dl_params));
 	devlink_port_params_unregister(&bp->dl_port, bnxt_dl_port_params,
@@ -521,11 +527,6 @@ int bnxt_dl_register(struct bnxt *bp)
 {
 	struct devlink *dl;
 	int rc;
-
-	if (bp->hwrm_spec_code < 0x10600) {
-		netdev_warn(bp->dev, "Firmware does not support NVM params");
-		return -ENOTSUPP;
-	}
 
 	if (BNXT_PF(bp))
 		dl = devlink_alloc(&bnxt_dl_ops, sizeof(struct bnxt_dl));
