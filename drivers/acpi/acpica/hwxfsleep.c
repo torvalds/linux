@@ -3,7 +3,7 @@
  *
  * Name: hwxfsleep.c - ACPI Hardware Sleep/Wake External Interfaces
  *
- * Copyright (C) 2000 - 2019, Intel Corp.
+ * Copyright (C) 2000 - 2020, Intel Corp.
  *
  *****************************************************************************/
 
