@@ -134,11 +134,12 @@ nla_put_failure:
 
 /**
  * ethnl_reply_init() - Create skb for a reply and fill device identification
- * @payload: payload length (without netlink and genetlink header)
- * @dev:     device the reply is about (may be null)
- * @cmd:     ETHTOOL_MSG_* message type for reply
- * @info:    genetlink info of the received packet we respond to
- * @ehdrp:   place to store payload pointer returned by genlmsg_new()
+ * @payload:      payload length (without netlink and genetlink header)
+ * @dev:          device the reply is about (may be null)
+ * @cmd:          ETHTOOL_MSG_* message type for reply
+ * @hdr_attrtype: attribute type for common header
+ * @info:         genetlink info of the received packet we respond to
+ * @ehdrp:        place to store payload pointer returned by genlmsg_new()
  *
  * Return: pointer to allocated skb on success, NULL on error
  */
@@ -188,10 +189,11 @@ static int ethnl_multicast(struct sk_buff *skb, struct net_device *dev)
 
 /**
  * struct ethnl_dump_ctx - context structure for generic dumpit() callback
- * @ops:      request ops of currently processed message type
- * @req_info: parsed request header of processed request
- * @pos_hash: saved iteration position - hashbucket
- * @pos_idx:  saved iteration position - index
+ * @ops:        request ops of currently processed message type
+ * @req_info:   parsed request header of processed request
+ * @reply_data: data needed to compose the reply
+ * @pos_hash:   saved iteration position - hashbucket
+ * @pos_idx:    saved iteration position - index
  *
  * These parameters are kept in struct netlink_callback as context preserved
  * between iterations. They are initialized by ethnl_default_start() and used
@@ -211,6 +213,8 @@ ethnl_default_requests[__ETHTOOL_MSG_USER_CNT] = {
 	[ETHTOOL_MSG_LINKINFO_GET]	= &ethnl_linkinfo_request_ops,
 	[ETHTOOL_MSG_LINKMODES_GET]	= &ethnl_linkmodes_request_ops,
 	[ETHTOOL_MSG_LINKSTATE_GET]	= &ethnl_linkstate_request_ops,
+	[ETHTOOL_MSG_DEBUG_GET]		= &ethnl_debug_request_ops,
+	[ETHTOOL_MSG_WOL_GET]		= &ethnl_wol_request_ops,
 };
 
 static struct ethnl_dump_ctx *ethnl_dump_context(struct netlink_callback *cb)
@@ -268,9 +272,9 @@ out:
 
 /**
  * ethnl_init_reply_data() - Initialize reply data for GET request
- * @req_info: pointer to embedded struct ethnl_req_info
- * @ops:      instance of struct ethnl_request_ops describing the layout
- * @dev:      network device to initialize the reply for
+ * @reply_data: pointer to embedded struct ethnl_reply_data
+ * @ops:        instance of struct ethnl_request_ops describing the layout
+ * @dev:        network device to initialize the reply for
  *
  * Fills the reply data part with zeros and sets the dev member. Must be called
  * before calling the ->fill_reply() callback (for each iteration when handling
@@ -521,6 +525,8 @@ static const struct ethnl_request_ops *
 ethnl_default_notify_ops[ETHTOOL_MSG_KERNEL_MAX + 1] = {
 	[ETHTOOL_MSG_LINKINFO_NTF]	= &ethnl_linkinfo_request_ops,
 	[ETHTOOL_MSG_LINKMODES_NTF]	= &ethnl_linkmodes_request_ops,
+	[ETHTOOL_MSG_DEBUG_NTF]		= &ethnl_debug_request_ops,
+	[ETHTOOL_MSG_WOL_NTF]		= &ethnl_wol_request_ops,
 };
 
 /* default notification handler */
@@ -604,6 +610,8 @@ typedef void (*ethnl_notify_handler_t)(struct net_device *dev, unsigned int cmd,
 static const ethnl_notify_handler_t ethnl_notify_handlers[] = {
 	[ETHTOOL_MSG_LINKINFO_NTF]	= ethnl_default_notify,
 	[ETHTOOL_MSG_LINKMODES_NTF]	= ethnl_default_notify,
+	[ETHTOOL_MSG_DEBUG_NTF]		= ethnl_default_notify,
+	[ETHTOOL_MSG_WOL_NTF]		= ethnl_default_notify,
 };
 
 void ethtool_notify(struct net_device *dev, unsigned int cmd, const void *data)
@@ -661,6 +669,31 @@ static const struct genl_ops ethtool_genl_ops[] = {
 		.start	= ethnl_default_start,
 		.dumpit	= ethnl_default_dumpit,
 		.done	= ethnl_default_done,
+	},
+	{
+		.cmd	= ETHTOOL_MSG_DEBUG_GET,
+		.doit	= ethnl_default_doit,
+		.start	= ethnl_default_start,
+		.dumpit	= ethnl_default_dumpit,
+		.done	= ethnl_default_done,
+	},
+	{
+		.cmd	= ETHTOOL_MSG_DEBUG_SET,
+		.flags	= GENL_UNS_ADMIN_PERM,
+		.doit	= ethnl_set_debug,
+	},
+	{
+		.cmd	= ETHTOOL_MSG_WOL_GET,
+		.flags	= GENL_UNS_ADMIN_PERM,
+		.doit	= ethnl_default_doit,
+		.start	= ethnl_default_start,
+		.dumpit	= ethnl_default_dumpit,
+		.done	= ethnl_default_done,
+	},
+	{
+		.cmd	= ETHTOOL_MSG_WOL_SET,
+		.flags	= GENL_UNS_ADMIN_PERM,
+		.doit	= ethnl_set_wol,
 	},
 };
 

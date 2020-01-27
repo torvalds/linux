@@ -185,18 +185,26 @@ Userspace to kernel:
   ``ETHTOOL_MSG_LINKMODES_GET``         get link modes info
   ``ETHTOOL_MSG_LINKMODES_SET``         set link modes info
   ``ETHTOOL_MSG_LINKSTATE_GET``         get link state
+  ``ETHTOOL_MSG_DEBUG_GET``             get debugging settings
+  ``ETHTOOL_MSG_DEBUG_SET``             set debugging settings
+  ``ETHTOOL_MSG_WOL_GET``               get wake-on-lan settings
+  ``ETHTOOL_MSG_WOL_SET``               set wake-on-lan settings
   ===================================== ================================
 
 Kernel to userspace:
 
-  ===================================== ================================
+  ===================================== =================================
   ``ETHTOOL_MSG_STRSET_GET_REPLY``      string set contents
   ``ETHTOOL_MSG_LINKINFO_GET_REPLY``    link settings
   ``ETHTOOL_MSG_LINKINFO_NTF``          link settings notification
   ``ETHTOOL_MSG_LINKMODES_GET_REPLY``   link modes info
   ``ETHTOOL_MSG_LINKMODES_NTF``         link modes notification
   ``ETHTOOL_MSG_LINKSTATE_GET_REPLY``   link state info
-  ===================================== ================================
+  ``ETHTOOL_MSG_DEBUG_GET_REPLY``       debugging settings
+  ``ETHTOOL_MSG_DEBUG_NTF``             debugging settings notification
+  ``ETHTOOL_MSG_WOL_GET_REPLY``         wake-on-lan settings
+  ``ETHTOOL_MSG_WOL_NTF``               wake-on-lan settings notification
+  ===================================== =================================
 
 ``GET`` requests are sent by userspace applications to retrieve device
 information. They usually do not contain any message specific attributes.
@@ -423,6 +431,96 @@ define their own handler.
 devices supporting the request).
 
 
+DEBUG_GET
+=========
+
+Requests debugging settings of a device. At the moment, only message mask is
+provided.
+
+Request contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_DEBUG_HEADER``            nested  request header
+  ====================================  ======  ==========================
+
+Kernel response contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_DEBUG_HEADER``            nested  reply header
+  ``ETHTOOL_A_DEBUG_MSGMASK``           bitset  message mask
+  ====================================  ======  ==========================
+
+The message mask (``ETHTOOL_A_DEBUG_MSGMASK``) is equal to message level as
+provided by ``ETHTOOL_GMSGLVL`` and set by ``ETHTOOL_SMSGLVL`` in ioctl
+interface. While it is called message level there for historical reasons, most
+drivers and almost all newer drivers use it as a mask of enabled message
+classes (represented by ``NETIF_MSG_*`` constants); therefore netlink
+interface follows its actual use in practice.
+
+``DEBUG_GET`` allows dump requests (kernel returns reply messages for all
+devices supporting the request).
+
+
+DEBUG_SET
+=========
+
+Set or update debugging settings of a device. At the moment, only message mask
+is supported.
+
+Request contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_DEBUG_HEADER``            nested  request header
+  ``ETHTOOL_A_DEBUG_MSGMASK``           bitset  message mask
+  ====================================  ======  ==========================
+
+``ETHTOOL_A_DEBUG_MSGMASK`` bit set allows setting or modifying mask of
+enabled debugging message types for the device.
+
+
+WOL_GET
+=======
+
+Query device wake-on-lan settings. Unlike most "GET" type requests,
+``ETHTOOL_MSG_WOL_GET`` requires (netns) ``CAP_NET_ADMIN`` privileges as it
+(potentially) provides SecureOn(tm) password which is confidential.
+
+Request contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_WOL_HEADER``              nested  request header
+  ====================================  ======  ==========================
+
+Kernel response contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_WOL_HEADER``              nested  reply header
+  ``ETHTOOL_A_WOL_MODES``               bitset  mask of enabled WoL modes
+  ``ETHTOOL_A_WOL_SOPASS``              binary  SecureOn(tm) password
+  ====================================  ======  ==========================
+
+In reply, ``ETHTOOL_A_WOL_MODES`` mask consists of modes supported by the
+device, value of modes which are enabled. ``ETHTOOL_A_WOL_SOPASS`` is only
+included in reply if ``WAKE_MAGICSECURE`` mode is supported.
+
+
+WOL_SET
+=======
+
+Set or update wake-on-lan settings.
+
+Request contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_WOL_HEADER``              nested  request header
+  ``ETHTOOL_A_WOL_MODES``               bitset  enabled WoL modes
+  ``ETHTOOL_A_WOL_SOPASS``              binary  SecureOn(tm) password
+  ====================================  ======  ==========================
+
+``ETHTOOL_A_WOL_SOPASS`` is only allowed for devices supporting
+``WAKE_MAGICSECURE`` mode.
+
+
 Request translation
 ===================
 
@@ -439,10 +537,10 @@ have their netlink replacement yet.
                                       ``ETHTOOL_MSG_LINKMODES_SET``
   ``ETHTOOL_GDRVINFO``                n/a
   ``ETHTOOL_GREGS``                   n/a
-  ``ETHTOOL_GWOL``                    n/a
-  ``ETHTOOL_SWOL``                    n/a
-  ``ETHTOOL_GMSGLVL``                 n/a
-  ``ETHTOOL_SMSGLVL``                 n/a
+  ``ETHTOOL_GWOL``                    ``ETHTOOL_MSG_WOL_GET``
+  ``ETHTOOL_SWOL``                    ``ETHTOOL_MSG_WOL_SET``
+  ``ETHTOOL_GMSGLVL``                 ``ETHTOOL_MSG_DEBUG_GET``
+  ``ETHTOOL_SMSGLVL``                 ``ETHTOOL_MSG_DEBUG_SET``
   ``ETHTOOL_NWAY_RST``                n/a
   ``ETHTOOL_GLINK``                   ``ETHTOOL_MSG_LINKSTATE_GET``
   ``ETHTOOL_GEEPROM``                 n/a

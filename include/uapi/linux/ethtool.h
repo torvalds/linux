@@ -594,6 +594,8 @@ struct ethtool_pauseparam {
  * @ETH_SS_PHY_STATS: Statistic names, for use with %ETHTOOL_GPHYSTATS
  * @ETH_SS_PHY_TUNABLES: PHY tunable names
  * @ETH_SS_LINK_MODES: link mode names
+ * @ETH_SS_MSG_CLASSES: debug message class names
+ * @ETH_SS_WOL_MODES: wake-on-lan modes
  */
 enum ethtool_stringset {
 	ETH_SS_TEST		= 0,
@@ -606,6 +608,8 @@ enum ethtool_stringset {
 	ETH_SS_PHY_STATS,
 	ETH_SS_PHY_TUNABLES,
 	ETH_SS_LINK_MODES,
+	ETH_SS_MSG_CLASSES,
+	ETH_SS_WOL_MODES,
 
 	/* add new constants above here */
 	ETH_SS_COUNT
@@ -1692,6 +1696,8 @@ static inline int ethtool_validate_duplex(__u8 duplex)
 #define WAKE_MAGIC		(1 << 5)
 #define WAKE_MAGICSECURE	(1 << 6) /* only meaningful if WAKE_MAGIC */
 #define WAKE_FILTER		(1 << 7)
+
+#define WOL_MODE_COUNT		8
 
 /* L2-L4 network traffic flow types */
 #define	TCP_V4_FLOW	0x01	/* hash or spec (tcp_ip4_spec) */
