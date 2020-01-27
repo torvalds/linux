@@ -1529,13 +1529,13 @@ out:
 
 	napi = &rxq->napi;
 	if (napi->poll) {
+		napi_gro_flush(napi, false);
+
 		if (napi->rx_count) {
 			netif_receive_skb_list(&napi->rx_list);
 			INIT_LIST_HEAD(&napi->rx_list);
 			napi->rx_count = 0;
 		}
-
-		napi_gro_flush(napi, false);
 	}
 
 	iwl_pcie_rxq_restock(trans, rxq);

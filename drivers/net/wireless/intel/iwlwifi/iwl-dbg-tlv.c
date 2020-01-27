@@ -480,7 +480,14 @@ static int iwl_dbg_tlv_alloc_fragment(struct iwl_fw_runtime *fwrt,
 	if (!frag || frag->size || !pages)
 		return -EIO;
 
-	while (pages) {
+	/*
+	 * We try to allocate as many pages as we can, starting with
+	 * the requested amount and going down until we can allocate
+	 * something.  Because of DIV_ROUND_UP(), pages will never go
+	 * down to 0 and stop the loop, so stop when pages reaches 1,
+	 * which is too small anyway.
+	 */
+	while (pages > 1) {
 		block = dma_alloc_coherent(fwrt->dev, pages * PAGE_SIZE,
 					   &physical,
 					   GFP_KERNEL | __GFP_NOWARN);

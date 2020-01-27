@@ -4463,13 +4463,15 @@ static int io_sqe_files_update(struct io_ring_ctx *ctx, void __user *arg,
 		return -EINVAL;
 	if (copy_from_user(&up, arg, sizeof(up)))
 		return -EFAULT;
+	if (up.resv)
+		return -EINVAL;
 	if (check_add_overflow(up.offset, nr_args, &done))
 		return -EOVERFLOW;
 	if (done > ctx->nr_user_files)
 		return -EINVAL;
 
 	done = 0;
-	fds = (__s32 __user *) up.fds;
+	fds = u64_to_user_ptr(up.fds);
 	while (nr_args) {
 		struct fixed_file_table *table;
 		unsigned index;
@@ -5042,10 +5044,6 @@ static int io_uring_flush(struct file *file, void *data)
 	struct io_ring_ctx *ctx = file->private_data;
 
 	io_uring_cancel_files(ctx, data);
-	if (fatal_signal_pending(current) || (current->flags & PF_EXITING)) {
-		io_cqring_overflow_flush(ctx, true);
-		io_wq_cancel_all(ctx->io_wq);
-	}
 	return 0;
 }
 
@@ -5158,12 +5156,6 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 		submitted = to_submit;
 	} else if (to_submit) {
 		struct mm_struct *cur_mm;
-
-		if (current->mm != ctx->sqo_mm ||
-		    current_cred() != ctx->creds) {
-			ret = -EPERM;
-			goto out;
-		}
 
 		to_submit = min(to_submit, ctx->sq_entries);
 		mutex_lock(&ctx->uring_lock);

@@ -102,10 +102,14 @@ EXPORT_SYMBOL(iterate_dir);
  * filename length, and the above "soft error" worry means
  * that it's probably better left alone until we have that
  * issue clarified.
+ *
+ * Note the PATH_MAX check - it's arbitrary but the real
+ * kernel limit on a possible path component, not NAME_MAX,
+ * which is the technical standard limit.
  */
 static int verify_dirent_name(const char *name, int len)
 {
-	if (!len)
+	if (len <= 0 || len >= PATH_MAX)
 		return -EIO;
 	if (memchr(name, '/', len))
 		return -EIO;
@@ -206,7 +210,7 @@ struct linux_dirent {
 struct getdents_callback {
 	struct dir_context ctx;
 	struct linux_dirent __user * current_dir;
-	struct linux_dirent __user * previous;
+	int prev_reclen;
 	int count;
 	int error;
 };
@@ -214,12 +218,13 @@ struct getdents_callback {
 static int filldir(struct dir_context *ctx, const char *name, int namlen,
 		   loff_t offset, u64 ino, unsigned int d_type)
 {
-	struct linux_dirent __user * dirent;
+	struct linux_dirent __user *dirent, *prev;
 	struct getdents_callback *buf =
 		container_of(ctx, struct getdents_callback, ctx);
 	unsigned long d_ino;
 	int reclen = ALIGN(offsetof(struct linux_dirent, d_name) + namlen + 2,
 		sizeof(long));
+	int prev_reclen;
 
 	buf->error = verify_dirent_name(name, namlen);
 	if (unlikely(buf->error))
@@ -232,28 +237,24 @@ static int filldir(struct dir_context *ctx, const char *name, int namlen,
 		buf->error = -EOVERFLOW;
 		return -EOVERFLOW;
 	}
-	dirent = buf->previous;
-	if (dirent && signal_pending(current))
+	prev_reclen = buf->prev_reclen;
+	if (prev_reclen && signal_pending(current))
 		return -EINTR;
-
-	/*
-	 * Note! This range-checks 'previous' (which may be NULL).
-	 * The real range was checked in getdents
-	 */
-	if (!user_access_begin(dirent, sizeof(*dirent)))
-		goto efault;
-	if (dirent)
-		unsafe_put_user(offset, &dirent->d_off, efault_end);
 	dirent = buf->current_dir;
+	prev = (void __user *) dirent - prev_reclen;
+	if (!user_access_begin(prev, reclen + prev_reclen))
+		goto efault;
+
+	/* This might be 'dirent->d_off', but if so it will get overwritten */
+	unsafe_put_user(offset, &prev->d_off, efault_end);
 	unsafe_put_user(d_ino, &dirent->d_ino, efault_end);
 	unsafe_put_user(reclen, &dirent->d_reclen, efault_end);
 	unsafe_put_user(d_type, (char __user *) dirent + reclen - 1, efault_end);
 	unsafe_copy_dirent_name(dirent->d_name, name, namlen, efault_end);
 	user_access_end();
 
-	buf->previous = dirent;
-	dirent = (void __user *)dirent + reclen;
-	buf->current_dir = dirent;
+	buf->current_dir = (void __user *)dirent + reclen;
+	buf->prev_reclen = reclen;
 	buf->count -= reclen;
 	return 0;
 efault_end:
@@ -267,7 +268,6 @@ SYSCALL_DEFINE3(getdents, unsigned int, fd,
 		struct linux_dirent __user *, dirent, unsigned int, count)
 {
 	struct fd f;
-	struct linux_dirent __user * lastdirent;
 	struct getdents_callback buf = {
 		.ctx.actor = filldir,
 		.count = count,
@@ -285,8 +285,10 @@ SYSCALL_DEFINE3(getdents, unsigned int, fd,
 	error = iterate_dir(f.file, &buf.ctx);
 	if (error >= 0)
 		error = buf.error;
-	lastdirent = buf.previous;
-	if (lastdirent) {
+	if (buf.prev_reclen) {
+		struct linux_dirent __user * lastdirent;
+		lastdirent = (void __user *)buf.current_dir - buf.prev_reclen;
+
 		if (put_user(buf.ctx.pos, &lastdirent->d_off))
 			error = -EFAULT;
 		else
@@ -299,7 +301,7 @@ SYSCALL_DEFINE3(getdents, unsigned int, fd,
 struct getdents_callback64 {
 	struct dir_context ctx;
 	struct linux_dirent64 __user * current_dir;
-	struct linux_dirent64 __user * previous;
+	int prev_reclen;
 	int count;
 	int error;
 };
@@ -307,11 +309,12 @@ struct getdents_callback64 {
 static int filldir64(struct dir_context *ctx, const char *name, int namlen,
 		     loff_t offset, u64 ino, unsigned int d_type)
 {
-	struct linux_dirent64 __user *dirent;
+	struct linux_dirent64 __user *dirent, *prev;
 	struct getdents_callback64 *buf =
 		container_of(ctx, struct getdents_callback64, ctx);
 	int reclen = ALIGN(offsetof(struct linux_dirent64, d_name) + namlen + 1,
 		sizeof(u64));
+	int prev_reclen;
 
 	buf->error = verify_dirent_name(name, namlen);
 	if (unlikely(buf->error))
@@ -319,30 +322,27 @@ static int filldir64(struct dir_context *ctx, const char *name, int namlen,
 	buf->error = -EINVAL;	/* only used if we fail.. */
 	if (reclen > buf->count)
 		return -EINVAL;
-	dirent = buf->previous;
-	if (dirent && signal_pending(current))
+	prev_reclen = buf->prev_reclen;
+	if (prev_reclen && signal_pending(current))
 		return -EINTR;
-
-	/*
-	 * Note! This range-checks 'previous' (which may be NULL).
-	 * The real range was checked in getdents
-	 */
-	if (!user_access_begin(dirent, sizeof(*dirent)))
-		goto efault;
-	if (dirent)
-		unsafe_put_user(offset, &dirent->d_off, efault_end);
 	dirent = buf->current_dir;
+	prev = (void __user *)dirent - prev_reclen;
+	if (!user_access_begin(prev, reclen + prev_reclen))
+		goto efault;
+
+	/* This might be 'dirent->d_off', but if so it will get overwritten */
+	unsafe_put_user(offset, &prev->d_off, efault_end);
 	unsafe_put_user(ino, &dirent->d_ino, efault_end);
 	unsafe_put_user(reclen, &dirent->d_reclen, efault_end);
 	unsafe_put_user(d_type, &dirent->d_type, efault_end);
 	unsafe_copy_dirent_name(dirent->d_name, name, namlen, efault_end);
 	user_access_end();
 
-	buf->previous = dirent;
-	dirent = (void __user *)dirent + reclen;
-	buf->current_dir = dirent;
+	buf->prev_reclen = reclen;
+	buf->current_dir = (void __user *)dirent + reclen;
 	buf->count -= reclen;
 	return 0;
+
 efault_end:
 	user_access_end();
 efault:
@@ -354,7 +354,6 @@ int ksys_getdents64(unsigned int fd, struct linux_dirent64 __user *dirent,
 		    unsigned int count)
 {
 	struct fd f;
-	struct linux_dirent64 __user * lastdirent;
 	struct getdents_callback64 buf = {
 		.ctx.actor = filldir64,
 		.count = count,
@@ -372,9 +371,11 @@ int ksys_getdents64(unsigned int fd, struct linux_dirent64 __user *dirent,
 	error = iterate_dir(f.file, &buf.ctx);
 	if (error >= 0)
 		error = buf.error;
-	lastdirent = buf.previous;
-	if (lastdirent) {
+	if (buf.prev_reclen) {
+		struct linux_dirent64 __user * lastdirent;
 		typeof(lastdirent->d_off) d_off = buf.ctx.pos;
+
+		lastdirent = (void __user *) buf.current_dir - buf.prev_reclen;
 		if (__put_user(d_off, &lastdirent->d_off))
 			error = -EFAULT;
 		else
