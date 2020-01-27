@@ -168,6 +168,72 @@ void __bitmap_shift_left(unsigned long *dst, const unsigned long *src,
 }
 EXPORT_SYMBOL(__bitmap_shift_left);
 
+/**
+ * bitmap_cut() - remove bit region from bitmap and right shift remaining bits
+ * @dst: destination bitmap, might overlap with src
+ * @src: source bitmap
+ * @first: start bit of region to be removed
+ * @cut: number of bits to remove
+ * @nbits: bitmap size, in bits
+ *
+ * Set the n-th bit of @dst iff the n-th bit of @src is set and
+ * n is less than @first, or the m-th bit of @src is set for any
+ * m such that @first <= n < nbits, and m = n + @cut.
+ *
+ * In pictures, example for a big-endian 32-bit architecture:
+ *
+ * @src:
+ * 31                                   63
+ * |                                    |
+ * 10000000 11000001 11110010 00010101  10000000 11000001 01110010 00010101
+ *                 |  |              |                                    |
+ *                16  14             0                                   32
+ *
+ * if @cut is 3, and @first is 14, bits 14-16 in @src are cut and @dst is:
+ *
+ * 31                                   63
+ * |                                    |
+ * 10110000 00011000 00110010 00010101  00010000 00011000 00101110 01000010
+ *                    |              |                                    |
+ *                    14 (bit 17     0                                   32
+ *                        from @src)
+ *
+ * Note that @dst and @src might overlap partially or entirely.
+ *
+ * This is implemented in the obvious way, with a shift and carry
+ * step for each moved bit. Optimisation is left as an exercise
+ * for the compiler.
+ */
+void bitmap_cut(unsigned long *dst, const unsigned long *src,
+		unsigned int first, unsigned int cut, unsigned int nbits)
+{
+	unsigned int len = BITS_TO_LONGS(nbits);
+	unsigned long keep = 0, carry;
+	int i;
+
+	memmove(dst, src, len * sizeof(*dst));
+
+	if (first % BITS_PER_LONG) {
+		keep = src[first / BITS_PER_LONG] &
+		       (~0UL >> (BITS_PER_LONG - first % BITS_PER_LONG));
+	}
+
+	while (cut--) {
+		for (i = first / BITS_PER_LONG; i < len; i++) {
+			if (i < len - 1)
+				carry = dst[i + 1] & 1UL;
+			else
+				carry = 0;
+
+			dst[i] = (dst[i] >> 1) | (carry << (BITS_PER_LONG - 1));
+		}
+	}
+
+	dst[first / BITS_PER_LONG] &= ~0UL << (first % BITS_PER_LONG);
+	dst[first / BITS_PER_LONG] |= keep;
+}
+EXPORT_SYMBOL(bitmap_cut);
+
 int __bitmap_and(unsigned long *dst, const unsigned long *bitmap1,
 				const unsigned long *bitmap2, unsigned int bits)
 {
