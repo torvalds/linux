@@ -195,6 +195,7 @@ struct io_uring_params {
 #define IORING_FEAT_NODROP		(1U << 1)
 #define IORING_FEAT_SUBMIT_STABLE	(1U << 2)
 #define IORING_FEAT_RW_CUR_POS		(1U << 3)
+#define IORING_FEAT_CUR_PERSONALITY	(1U << 4)
 
 /*
  * io_uring_register(2) opcodes and arguments

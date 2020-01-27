@@ -56,7 +56,8 @@ struct io_worker {
 
 	struct rcu_head rcu;
 	struct mm_struct *mm;
-	const struct cred *creds;
+	const struct cred *cur_creds;
+	const struct cred *saved_creds;
 	struct files_struct *restore_files;
 };
 
@@ -109,8 +110,6 @@ struct io_wq {
 
 	struct task_struct *manager;
 	struct user_struct *user;
-	const struct cred *creds;
-	struct mm_struct *mm;
 	refcount_t refs;
 	struct completion done;
 
@@ -137,9 +136,9 @@ static bool __io_worker_unuse(struct io_wqe *wqe, struct io_worker *worker)
 {
 	bool dropped_lock = false;
 
-	if (worker->creds) {
-		revert_creds(worker->creds);
-		worker->creds = NULL;
+	if (worker->saved_creds) {
+		revert_creds(worker->saved_creds);
+		worker->cur_creds = worker->saved_creds = NULL;
 	}
 
 	if (current->files != worker->restore_files) {
@@ -398,6 +397,43 @@ static struct io_wq_work *io_get_next_work(struct io_wqe *wqe, unsigned *hash)
 	return NULL;
 }
 
+static void io_wq_switch_mm(struct io_worker *worker, struct io_wq_work *work)
+{
+	if (worker->mm) {
+		unuse_mm(worker->mm);
+		mmput(worker->mm);
+		worker->mm = NULL;
+	}
+	if (!work->mm) {
+		set_fs(KERNEL_DS);
+		return;
+	}
+	if (mmget_not_zero(work->mm)) {
+		use_mm(work->mm);
+		if (!worker->mm)
+			set_fs(USER_DS);
+		worker->mm = work->mm;
+		/* hang on to this mm */
+		work->mm = NULL;
+		return;
+	}
+
+	/* failed grabbing mm, ensure work gets cancelled */
+	work->flags |= IO_WQ_WORK_CANCEL;
+}
+
+static void io_wq_switch_creds(struct io_worker *worker,
+			       struct io_wq_work *work)
+{
+	const struct cred *old_creds = override_creds(work->creds);
+
+	worker->cur_creds = work->creds;
+	if (worker->saved_creds)
+		put_cred(old_creds); /* creds set by previous switch */
+	else
+		worker->saved_creds = old_creds;
+}
+
 static void io_worker_handle_work(struct io_worker *worker)
 	__releases(wqe->lock)
 {
@@ -446,18 +482,10 @@ next:
 			current->files = work->files;
 			task_unlock(current);
 		}
-		if ((work->flags & IO_WQ_WORK_NEEDS_USER) && !worker->mm &&
-		    wq->mm) {
-			if (mmget_not_zero(wq->mm)) {
-				use_mm(wq->mm);
-				set_fs(USER_DS);
-				worker->mm = wq->mm;
-			} else {
-				work->flags |= IO_WQ_WORK_CANCEL;
-			}
-		}
-		if (!worker->creds)
-			worker->creds = override_creds(wq->creds);
+		if (work->mm != worker->mm)
+			io_wq_switch_mm(worker, work);
+		if (worker->cur_creds != work->creds)
+			io_wq_switch_creds(worker, work);
 		/*
 		 * OK to set IO_WQ_WORK_CANCEL even for uncancellable work,
 		 * the worker function will do the right thing.
@@ -1037,7 +1065,6 @@ struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data)
 
 	/* caller must already hold a reference to this */
 	wq->user = data->user;
-	wq->creds = data->creds;
 
 	for_each_node(node) {
 		struct io_wqe *wqe;
@@ -1063,9 +1090,6 @@ struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data)
 	}
 
 	init_completion(&wq->done);
-
-	/* caller must have already done mmgrab() on this mm */
-	wq->mm = data->mm;
 
 	wq->manager = kthread_create(io_wq_manager, wq, "io_wq_manager");
 	if (!IS_ERR(wq->manager)) {

@@ -875,6 +875,29 @@ static void __io_commit_cqring(struct io_ring_ctx *ctx)
 	}
 }
 
+static inline void io_req_work_grab_env(struct io_kiocb *req,
+					const struct io_op_def *def)
+{
+	if (!req->work.mm && def->needs_mm) {
+		mmgrab(current->mm);
+		req->work.mm = current->mm;
+	}
+	if (!req->work.creds)
+		req->work.creds = get_current_cred();
+}
+
+static inline void io_req_work_drop_env(struct io_kiocb *req)
+{
+	if (req->work.mm) {
+		mmdrop(req->work.mm);
+		req->work.mm = NULL;
+	}
+	if (req->work.creds) {
+		put_cred(req->work.creds);
+		req->work.creds = NULL;
+	}
+}
+
 static inline bool io_prep_async_work(struct io_kiocb *req,
 				      struct io_kiocb **link)
 {
@@ -888,8 +911,8 @@ static inline bool io_prep_async_work(struct io_kiocb *req,
 		if (def->unbound_nonreg_file)
 			req->work.flags |= IO_WQ_WORK_UNBOUND;
 	}
-	if (def->needs_mm)
-		req->work.flags |= IO_WQ_WORK_NEEDS_USER;
+
+	io_req_work_grab_env(req, def);
 
 	*link = io_prep_linked_timeout(req);
 	return do_hashed;
@@ -1180,6 +1203,8 @@ static void __io_req_aux_free(struct io_kiocb *req)
 		else
 			fput(req->file);
 	}
+
+	io_req_work_drop_env(req);
 }
 
 static void __io_free_req(struct io_kiocb *req)
@@ -3963,6 +3988,8 @@ static int io_req_defer_prep(struct io_kiocb *req,
 {
 	ssize_t ret = 0;
 
+	io_req_work_grab_env(req, &io_op_defs[req->opcode]);
+
 	switch (req->opcode) {
 	case IORING_OP_NOP:
 		break;
@@ -5725,9 +5752,7 @@ static int io_sq_offload_start(struct io_ring_ctx *ctx,
 		goto err;
 	}
 
-	data.mm = ctx->sqo_mm;
 	data.user = ctx->user;
-	data.creds = ctx->creds;
 	data.get_work = io_get_work;
 	data.put_work = io_put_work;
 
@@ -6535,7 +6560,8 @@ static int io_uring_create(unsigned entries, struct io_uring_params *p)
 		goto err;
 
 	p->features = IORING_FEAT_SINGLE_MMAP | IORING_FEAT_NODROP |
-			IORING_FEAT_SUBMIT_STABLE | IORING_FEAT_RW_CUR_POS;
+			IORING_FEAT_SUBMIT_STABLE | IORING_FEAT_RW_CUR_POS |
+			IORING_FEAT_CUR_PERSONALITY;
 	trace_io_uring_create(ret, ctx, p->sq_entries, p->cq_entries, p->flags);
 	return ret;
 err:

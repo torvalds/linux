@@ -7,7 +7,6 @@ enum {
 	IO_WQ_WORK_CANCEL	= 1,
 	IO_WQ_WORK_HAS_MM	= 2,
 	IO_WQ_WORK_HASHED	= 4,
-	IO_WQ_WORK_NEEDS_USER	= 8,
 	IO_WQ_WORK_NEEDS_FILES	= 16,
 	IO_WQ_WORK_UNBOUND	= 32,
 	IO_WQ_WORK_INTERNAL	= 64,
@@ -74,6 +73,8 @@ struct io_wq_work {
 	};
 	void (*func)(struct io_wq_work **);
 	struct files_struct *files;
+	struct mm_struct *mm;
+	const struct cred *creds;
 	unsigned flags;
 };
 
@@ -83,15 +84,15 @@ struct io_wq_work {
 		(work)->func = _func;			\
 		(work)->flags = 0;			\
 		(work)->files = NULL;			\
+		(work)->mm = NULL;			\
+		(work)->creds = NULL;			\
 	} while (0)					\
 
 typedef void (get_work_fn)(struct io_wq_work *);
 typedef void (put_work_fn)(struct io_wq_work *);
 
 struct io_wq_data {
-	struct mm_struct *mm;
 	struct user_struct *user;
-	const struct cred *creds;
 
 	get_work_fn *get_work;
 	put_work_fn *put_work;
