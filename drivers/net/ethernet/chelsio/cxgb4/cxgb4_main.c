@@ -3135,9 +3135,9 @@ static int cxgb_set_tx_maxrate(struct net_device *dev, int index, u32 rate)
 {
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adap = pi->adapter;
+	struct ch_sched_queue qe = { 0 };
+	struct ch_sched_params p = { 0 };
 	struct sched_class *e;
-	struct ch_sched_params p;
-	struct ch_sched_queue qe;
 	u32 req_rate;
 	int err = 0;
 
@@ -3152,6 +3152,15 @@ static int cxgb_set_tx_maxrate(struct net_device *dev, int index, u32 rate)
 			"Failed to rate limit on queue %d. Link Down?\n",
 			index);
 		return -EINVAL;
+	}
+
+	qe.queue = index;
+	e = cxgb4_sched_queue_lookup(dev, &qe);
+	if (e && e->info.u.params.level != SCHED_CLASS_LEVEL_CL_RL) {
+		dev_err(adap->pdev_dev,
+			"Queue %u already bound to class %u of type: %u\n",
+			index, e->idx, e->info.u.params.level);
+		return -EBUSY;
 	}
 
 	/* Convert from Mbps to Kbps */
@@ -3183,7 +3192,6 @@ static int cxgb_set_tx_maxrate(struct net_device *dev, int index, u32 rate)
 		return 0;
 
 	/* Fetch any available unused or matching scheduling class */
-	memset(&p, 0, sizeof(p));
 	p.type = SCHED_CLASS_TYPE_PACKET;
 	p.u.params.level    = SCHED_CLASS_LEVEL_CL_RL;
 	p.u.params.mode     = SCHED_CLASS_MODE_CLASS;

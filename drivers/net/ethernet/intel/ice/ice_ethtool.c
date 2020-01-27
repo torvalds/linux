@@ -15,7 +15,7 @@ struct ice_stats {
 
 #define ICE_STAT(_type, _name, _stat) { \
 	.stat_string = _name, \
-	.sizeof_stat = FIELD_SIZEOF(_type, _stat), \
+	.sizeof_stat = sizeof_field(_type, _stat), \
 	.stat_offset = offsetof(_type, _stat) \
 }
 
@@ -36,10 +36,10 @@ static int ice_q_stats_len(struct net_device *netdev)
 #define ICE_VSI_STATS_LEN	ARRAY_SIZE(ice_gstrings_vsi_stats)
 
 #define ICE_PFC_STATS_LEN ( \
-		(FIELD_SIZEOF(struct ice_pf, stats.priority_xoff_rx) + \
-		 FIELD_SIZEOF(struct ice_pf, stats.priority_xon_rx) + \
-		 FIELD_SIZEOF(struct ice_pf, stats.priority_xoff_tx) + \
-		 FIELD_SIZEOF(struct ice_pf, stats.priority_xon_tx)) \
+		(sizeof_field(struct ice_pf, stats.priority_xoff_rx) + \
+		 sizeof_field(struct ice_pf, stats.priority_xon_rx) + \
+		 sizeof_field(struct ice_pf, stats.priority_xoff_tx) + \
+		 sizeof_field(struct ice_pf, stats.priority_xon_tx)) \
 		 / sizeof(u64))
 #define ICE_ALL_STATS_LEN(n)	(ICE_PF_STATS_LEN + ICE_PFC_STATS_LEN + \
 				 ICE_VSI_STATS_LEN + ice_q_stats_len(n))

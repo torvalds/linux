@@ -77,7 +77,6 @@ static int dummy_dma_open(struct snd_soc_component *component,
 
 static const struct snd_soc_component_driver dummy_platform = {
 	.open		= dummy_dma_open,
-	.ioctl		= snd_soc_pcm_lib_ioctl,
 };
 
 static const struct snd_soc_component_driver dummy_codec = {

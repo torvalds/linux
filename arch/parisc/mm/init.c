@@ -401,7 +401,7 @@ static void __init map_pages(unsigned long start_vaddr,
 			pmd = (pmd_t *) __pa(pmd);
 		}
 
-		pgd_populate(NULL, pg_dir, __va(pmd));
+		pud_populate(NULL, (pud_t *)pg_dir, __va(pmd));
 #endif
 		pg_dir++;
 

@@ -103,7 +103,7 @@ static void mmu_patch_addis(s32 *site, long simm)
 	patch_instruction_site(site, instr);
 }
 
-void __init mmu_mapin_ram_chunk(unsigned long offset, unsigned long top, pgprot_t prot)
+static void mmu_mapin_ram_chunk(unsigned long offset, unsigned long top, pgprot_t prot)
 {
 	unsigned long s = offset;
 	unsigned long v = PAGE_OFFSET + s;

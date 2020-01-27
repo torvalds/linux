@@ -913,7 +913,7 @@ static int fbtft_init_display_from_property(struct fbtft_par *par)
 	if (count == 0)
 		return -EINVAL;
 
-	values = kmalloc_array(count, sizeof(*values), GFP_KERNEL);
+	values = kmalloc_array(count + 1, sizeof(*values), GFP_KERNEL);
 	if (!values)
 		return -ENOMEM;
 
@@ -926,9 +926,9 @@ static int fbtft_init_display_from_property(struct fbtft_par *par)
 		gpiod_set_value(par->gpio.cs, 0);  /* Activate chip */
 
 	index = -1;
-	while (index < count) {
-		val = values[++index];
+	val = values[++index];
 
+	while (index < count) {
 		if (val & FBTFT_OF_INIT_CMD) {
 			val &= 0xFFFF;
 			i = 0;

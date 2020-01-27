@@ -61,7 +61,7 @@ const struct btrfs_raid_attr btrfs_raid_array[BTRFS_NR_RAID_TYPES] = {
 	[BTRFS_RAID_RAID1C3] = {
 		.sub_stripes	= 1,
 		.dev_stripes	= 1,
-		.devs_max	= 0,
+		.devs_max	= 3,
 		.devs_min	= 3,
 		.tolerated_failures = 2,
 		.devs_increment	= 3,
@@ -73,7 +73,7 @@ const struct btrfs_raid_attr btrfs_raid_array[BTRFS_NR_RAID_TYPES] = {
 	[BTRFS_RAID_RAID1C4] = {
 		.sub_stripes	= 1,
 		.dev_stripes	= 1,
-		.devs_max	= 0,
+		.devs_max	= 4,
 		.devs_min	= 4,
 		.tolerated_failures = 3,
 		.devs_increment	= 4,
@@ -3881,7 +3881,11 @@ int btrfs_balance(struct btrfs_fs_info *fs_info,
 		}
 	}
 
-	num_devices = btrfs_num_devices(fs_info);
+	/*
+	 * rw_devices will not change at the moment, device add/delete/replace
+	 * are excluded by EXCL_OP
+	 */
+	num_devices = fs_info->fs_devices->rw_devices;
 
 	/*
 	 * SINGLE profile on-disk has no profile bit, but in-memory we have a

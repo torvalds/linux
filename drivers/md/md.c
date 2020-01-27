@@ -1159,6 +1159,7 @@ static int super_90_load(struct md_rdev *rdev, struct md_rdev *refdev, int minor
 	/* not spare disk, or LEVEL_MULTIPATH */
 	if (sb->level == LEVEL_MULTIPATH ||
 		(rdev->desc_nr >= 0 &&
+		 rdev->desc_nr < MD_SB_DISKS &&
 		 sb->disks[rdev->desc_nr].state &
 		 ((1<<MD_DISK_SYNC) | (1 << MD_DISK_ACTIVE))))
 		spare_disk = false;

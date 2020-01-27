@@ -28,7 +28,7 @@ config SND_SOC_SOF_ACPI
 	select IOSF_MBI if X86 && PCI
 	help
 	  This adds support for ACPI enumeration. This option is required
-	  to enable Intel Haswell/Broadwell/Baytrail/Cherrytrail devices
+	  to enable Intel Broadwell/Baytrail/Cherrytrail devices
 	  Say Y if you need this option
 	  If unsure select "N".
 

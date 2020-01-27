@@ -420,24 +420,36 @@ int uniphier_aio_dai_remove(struct snd_soc_dai *dai)
 }
 EXPORT_SYMBOL_GPL(uniphier_aio_dai_remove);
 
-int uniphier_aio_dai_suspend(struct snd_soc_dai *dai)
+static void uniphier_aio_dai_suspend(struct snd_soc_dai *dai)
 {
 	struct uniphier_aio *aio = uniphier_priv(dai);
+
+	if (!dai->active)
+		return;
 
 	aio->chip->num_wup_aios--;
 	if (!aio->chip->num_wup_aios) {
 		reset_control_assert(aio->chip->rst);
 		clk_disable_unprepare(aio->chip->clk);
 	}
+}
 
+static int uniphier_aio_suspend(struct snd_soc_component *component)
+{
+	struct snd_soc_dai *dai;
+
+	for_each_component_dais(component, dai)
+		uniphier_aio_dai_suspend(dai);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(uniphier_aio_dai_suspend);
 
-int uniphier_aio_dai_resume(struct snd_soc_dai *dai)
+static int uniphier_aio_dai_resume(struct snd_soc_dai *dai)
 {
 	struct uniphier_aio *aio = uniphier_priv(dai);
 	int ret, i;
+
+	if (!dai->active)
+		return 0;
 
 	if (!aio->chip->active)
 		return 0;
@@ -484,7 +496,16 @@ err_out_clock:
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(uniphier_aio_dai_resume);
+
+static int uniphier_aio_resume(struct snd_soc_component *component)
+{
+	struct snd_soc_dai *dai;
+	int ret = 0;
+
+	for_each_component_dais(component, dai)
+		ret |= uniphier_aio_dai_resume(dai);
+	return ret;
+}
 
 static int uniphier_aio_vol_info(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_info *uinfo)
@@ -596,6 +617,8 @@ static const struct snd_soc_component_driver uniphier_aio_component = {
 	.name = "uniphier-aio",
 	.controls = uniphier_aio_controls,
 	.num_controls = ARRAY_SIZE(uniphier_aio_controls),
+	.suspend = uniphier_aio_suspend,
+	.resume  = uniphier_aio_resume,
 };
 
 int uniphier_aio_probe(struct platform_device *pdev)

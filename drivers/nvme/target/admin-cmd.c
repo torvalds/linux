@@ -24,6 +24,16 @@ u32 nvmet_get_log_page_len(struct nvme_command *cmd)
 	return len;
 }
 
+static u32 nvmet_feat_data_len(struct nvmet_req *req, u32 cdw10)
+{
+	switch (cdw10 & 0xff) {
+	case NVME_FEAT_HOST_ID:
+		return sizeof(req->sq->ctrl->hostid);
+	default:
+		return 0;
+	}
+}
+
 u64 nvmet_get_log_page_offset(struct nvme_command *cmd)
 {
 	return le64_to_cpu(cmd->get_log_page.lpo);
@@ -778,7 +788,7 @@ static void nvmet_execute_get_features(struct nvmet_req *req)
 	u32 cdw10 = le32_to_cpu(req->cmd->common.cdw10);
 	u16 status = 0;
 
-	if (!nvmet_check_data_len(req, 0))
+	if (!nvmet_check_data_len(req, nvmet_feat_data_len(req, cdw10)))
 		return;
 
 	switch (cdw10 & 0xff) {

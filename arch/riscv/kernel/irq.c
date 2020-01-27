@@ -23,11 +23,11 @@ asmlinkage __visible void __irq_entry do_IRQ(struct pt_regs *regs)
 
 	irq_enter();
 	switch (regs->cause & ~CAUSE_IRQ_FLAG) {
-	case IRQ_TIMER:
+	case RV_IRQ_TIMER:
 		riscv_timer_interrupt();
 		break;
 #ifdef CONFIG_SMP
-	case IRQ_SOFT:
+	case RV_IRQ_SOFT:
 		/*
 		 * We only use software interrupts to pass IPIs, so if a non-SMP
 		 * system gets one, then we don't know what to do.
@@ -35,7 +35,7 @@ asmlinkage __visible void __irq_entry do_IRQ(struct pt_regs *regs)
 		riscv_software_interrupt();
 		break;
 #endif
-	case IRQ_EXT:
+	case RV_IRQ_EXT:
 		handle_arch_irq(regs);
 		break;
 	default:

@@ -40,7 +40,7 @@ struct sec_req {
 	int req_id;
 
 	/* Status of the SEC request */
-	int fake_busy;
+	atomic_t fake_busy;
 };
 
 /**
@@ -132,8 +132,8 @@ struct sec_debug_file {
 };
 
 struct sec_dfx {
-	u64 send_cnt;
-	u64 recv_cnt;
+	atomic64_t send_cnt;
+	atomic64_t recv_cnt;
 };
 
 struct sec_debug {

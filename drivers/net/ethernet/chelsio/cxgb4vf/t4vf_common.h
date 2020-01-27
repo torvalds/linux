@@ -135,6 +135,7 @@ struct link_config {
 
 	enum cc_pause	requested_fc;	/* flow control user has requested */
 	enum cc_pause	fc;		/* actual link flow control */
+	enum cc_pause   advertised_fc;  /* actual advertised flow control */
 
 	enum cc_fec	auto_fec;	/* Forward Error Correction: */
 	enum cc_fec	requested_fec;	/*   "automatic" (IEEE 802.3), */

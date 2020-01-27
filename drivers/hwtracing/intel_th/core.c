@@ -834,9 +834,6 @@ static irqreturn_t intel_th_irq(int irq, void *data)
 			ret |= d->irq(th->thdev[i]);
 	}
 
-	if (ret == IRQ_NONE)
-		pr_warn_ratelimited("nobody cared for irq\n");
-
 	return ret;
 }
 
@@ -887,6 +884,7 @@ intel_th_alloc(struct device *dev, struct intel_th_drvdata *drvdata,
 
 			if (th->irq == -1)
 				th->irq = devres[r].start;
+			th->num_irqs++;
 			break;
 		default:
 			dev_warn(dev, "Unknown resource type %lx\n",
@@ -939,6 +937,9 @@ void intel_th_free(struct intel_th *th)
 	}
 
 	th->num_thdevs = 0;
+
+	for (i = 0; i < th->num_irqs; i++)
+		devm_free_irq(th->dev, th->irq + i, th);
 
 	pm_runtime_get_sync(th->dev);
 	pm_runtime_forbid(th->dev);

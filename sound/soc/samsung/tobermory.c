@@ -22,7 +22,7 @@ static int tobermory_set_bias_level(struct snd_soc_card *card,
 	struct snd_soc_dai *codec_dai;
 	int ret;
 
-	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[0].name);
+	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[0]);
 	codec_dai = rtd->codec_dai;
 
 	if (dapm->dev != codec_dai->dev)
@@ -65,7 +65,7 @@ static int tobermory_set_bias_level_post(struct snd_soc_card *card,
 	struct snd_soc_dai *codec_dai;
 	int ret;
 
-	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[0].name);
+	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[0]);
 	codec_dai = rtd->codec_dai;
 
 	if (dapm->dev != codec_dai->dev)
@@ -180,7 +180,7 @@ static int tobermory_late_probe(struct snd_soc_card *card)
 	struct snd_soc_dai *codec_dai;
 	int ret;
 
-	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[0].name);
+	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[0]);
 	component = rtd->codec_dai->component;
 	codec_dai = rtd->codec_dai;
 

@@ -204,21 +204,6 @@ static __init void detect_diag9c(void)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_DIAG9C;
 }
 
-static __init void detect_diag44(void)
-{
-	int rc;
-
-	diag_stat_inc(DIAG_STAT_X044);
-	asm volatile(
-		"	diag	0,0,0x44\n"
-		"0:	la	%0,0\n"
-		"1:\n"
-		EX_TABLE(0b,1b)
-		: "=d" (rc) : "0" (-EOPNOTSUPP) : "cc");
-	if (!rc)
-		S390_lowcore.machine_flags |= MACHINE_FLAG_DIAG44;
-}
-
 static __init void detect_machine_facilities(void)
 {
 	if (test_facility(8)) {
@@ -331,7 +316,6 @@ void __init startup_init(void)
 	setup_arch_string();
 	setup_boot_command_line();
 	detect_diag9c();
-	detect_diag44();
 	detect_machine_facilities();
 	save_vector_registers();
 	setup_topology();

@@ -356,7 +356,7 @@
 
 			twsi1: i2c@d4011000 {
 				compatible = "mrvl,mmp-twsi";
-				reg = <0xd4011000 0x1000>;
+				reg = <0xd4011000 0x70>;
 				interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&soc_clocks MMP2_CLK_TWSI0>;
 				resets = <&soc_clocks MMP2_CLK_TWSI0>;
@@ -368,7 +368,7 @@
 
 			twsi2: i2c@d4031000 {
 				compatible = "mrvl,mmp-twsi";
-				reg = <0xd4031000 0x1000>;
+				reg = <0xd4031000 0x70>;
 				interrupt-parent = <&twsi_mux>;
 				interrupts = <0>;
 				clocks = <&soc_clocks MMP2_CLK_TWSI1>;
@@ -380,7 +380,7 @@
 
 			twsi3: i2c@d4032000 {
 				compatible = "mrvl,mmp-twsi";
-				reg = <0xd4032000 0x1000>;
+				reg = <0xd4032000 0x70>;
 				interrupt-parent = <&twsi_mux>;
 				interrupts = <1>;
 				clocks = <&soc_clocks MMP2_CLK_TWSI2>;
@@ -392,7 +392,7 @@
 
 			twsi4: i2c@d4033000 {
 				compatible = "mrvl,mmp-twsi";
-				reg = <0xd4033000 0x1000>;
+				reg = <0xd4033000 0x70>;
 				interrupt-parent = <&twsi_mux>;
 				interrupts = <2>;
 				clocks = <&soc_clocks MMP2_CLK_TWSI3>;
@@ -405,7 +405,7 @@
 
 			twsi5: i2c@d4033800 {
 				compatible = "mrvl,mmp-twsi";
-				reg = <0xd4033800 0x1000>;
+				reg = <0xd4033800 0x70>;
 				interrupt-parent = <&twsi_mux>;
 				interrupts = <3>;
 				clocks = <&soc_clocks MMP2_CLK_TWSI4>;
@@ -417,7 +417,7 @@
 
 			twsi6: i2c@d4034000 {
 				compatible = "mrvl,mmp-twsi";
-				reg = <0xd4034000 0x1000>;
+				reg = <0xd4034000 0x70>;
 				interrupt-parent = <&twsi_mux>;
 				interrupts = <4>;
 				clocks = <&soc_clocks MMP2_CLK_TWSI5>;

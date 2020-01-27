@@ -110,6 +110,9 @@ static int tsens_register(struct tsens_priv *priv)
 	irq = platform_get_irq_byname(pdev, "uplow");
 	if (irq < 0) {
 		ret = irq;
+		/* For old DTs with no IRQ defined */
+		if (irq == -ENXIO)
+			ret = 0;
 		goto err_put_device;
 	}
 
