@@ -334,6 +334,7 @@ static int otx2_cq_init(struct otx2_nic *pfvf, u16 qidx)
 	cq->cq_idx = qidx;
 	if (qidx < pfvf->hw.rx_queues) {
 		cq->cq_type = CQ_RX;
+		cq->cint_idx = qidx;
 		cq->cqe_cnt = qset->rqe_cnt;
 	} else {
 		cq->cq_type = CQ_TX;
@@ -364,6 +365,7 @@ static int otx2_cq_init(struct otx2_nic *pfvf, u16 qidx)
 	aq->cq.qsize = Q_SIZE(cq->cqe_cnt, 4);
 	aq->cq.caching = 1;
 	aq->cq.base = cq->cqe->iova;
+	aq->cq.cint_idx = cq->cint_idx;
 	aq->cq.avg_level = 255;
 
 	if (qidx < pfvf->hw.rx_queues) {

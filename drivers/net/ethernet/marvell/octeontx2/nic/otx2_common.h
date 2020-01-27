@@ -41,6 +41,46 @@ enum arua_mapped_qtypes {
 #define NIX_LF_ERR_VEC				0x81
 #define NIX_LF_POISON_VEC			0x82
 
+/* NIX (or NPC) RX errors */
+enum otx2_errlvl {
+	NPC_ERRLVL_RE,
+	NPC_ERRLVL_LID_LA,
+	NPC_ERRLVL_LID_LB,
+	NPC_ERRLVL_LID_LC,
+	NPC_ERRLVL_LID_LD,
+	NPC_ERRLVL_LID_LE,
+	NPC_ERRLVL_LID_LF,
+	NPC_ERRLVL_LID_LG,
+	NPC_ERRLVL_LID_LH,
+	NPC_ERRLVL_NIX = 0x0F,
+};
+
+enum otx2_errcodes_re {
+	/* NPC_ERRLVL_RE errcodes */
+	ERRCODE_FCS = 0x7,
+	ERRCODE_FCS_RCV = 0x8,
+	ERRCODE_UNDERSIZE = 0x10,
+	ERRCODE_OVERSIZE = 0x11,
+	ERRCODE_OL2_LEN_MISMATCH = 0x12,
+	/* NPC_ERRLVL_NIX errcodes */
+	ERRCODE_OL3_LEN = 0x10,
+	ERRCODE_OL4_LEN = 0x11,
+	ERRCODE_OL4_CSUM = 0x12,
+	ERRCODE_IL3_LEN = 0x20,
+	ERRCODE_IL4_LEN = 0x21,
+	ERRCODE_IL4_CSUM = 0x22,
+};
+
+/* Driver counted stats */
+struct otx2_drv_stats {
+	atomic_t rx_fcs_errs;
+	atomic_t rx_oversize_errs;
+	atomic_t rx_undersize_errs;
+	atomic_t rx_csum_errs;
+	atomic_t rx_len_errs;
+	atomic_t rx_other_errs;
+};
+
 struct mbox {
 	struct otx2_mbox	mbox;
 	struct work_struct	mbox_wrk;
@@ -84,6 +124,9 @@ struct otx2_hw {
 	u16			nix_msixoff; /* Offset of NIX vectors */
 	char			*irq_name;
 	cpumask_var_t           *affinity_mask;
+
+	/* Stats */
+	struct otx2_drv_stats	drv_stats;
 };
 
 struct otx2_nic {
@@ -431,6 +474,7 @@ void otx2_sqb_flush(struct otx2_nic *pfvf);
 dma_addr_t otx2_alloc_rbuf(struct otx2_nic *pfvf, struct otx2_pool *pool,
 			   gfp_t gfp);
 void otx2_ctx_disable(struct mbox *mbox, int type, bool npa);
+void otx2_cleanup_rx_cqes(struct otx2_nic *pfvf, struct otx2_cq_queue *cq);
 
 /* Mbox handlers */
 void mbox_handler_msix_offset(struct otx2_nic *pfvf,

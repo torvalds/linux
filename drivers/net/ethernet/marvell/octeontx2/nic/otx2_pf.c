@@ -547,9 +547,11 @@ exit:
 
 static void otx2_free_hw_resources(struct otx2_nic *pf)
 {
+	struct otx2_qset *qset = &pf->qset;
 	struct mbox *mbox = &pf->mbox;
+	struct otx2_cq_queue *cq;
 	struct msg_req *req;
-	int err;
+	int qidx, err;
 
 	/* Ensure all SQE are processed */
 	otx2_sqb_flush(pf);
@@ -561,6 +563,13 @@ static void otx2_free_hw_resources(struct otx2_nic *pf)
 
 	/* Disable RQs */
 	otx2_ctx_disable(mbox, NIX_AQ_CTYPE_RQ, false);
+
+	/*Dequeue all CQEs */
+	for (qidx = 0; qidx < qset->cq_cnt; qidx++) {
+		cq = &qset->cq[qidx];
+		if (cq->cq_type == CQ_RX)
+			otx2_cleanup_rx_cqes(pf, cq);
+	}
 
 	otx2_free_sq_res(pf);
 
@@ -900,6 +909,11 @@ static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 * walking through the translation tables.
 	 */
 	pf->iommu_domain = iommu_get_domain_for_dev(dev);
+
+	netdev->hw_features = NETIF_F_RXCSUM;
+	netdev->features |= netdev->hw_features;
+
+	netdev->hw_features |= NETIF_F_RXALL;
 
 	netdev->netdev_ops = &otx2_netdev_ops;
 
