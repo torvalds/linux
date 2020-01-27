@@ -35,6 +35,322 @@ MODULE_LICENSE("GPL v2");
 MODULE_VERSION(DRV_VERSION);
 MODULE_DEVICE_TABLE(pci, otx2_pf_id_table);
 
+enum {
+	TYPE_PFAF,
+	TYPE_PFVF,
+};
+
+static void otx2_queue_work(struct mbox *mw, struct workqueue_struct *mbox_wq,
+			    int first, int mdevs, u64 intr, int type)
+{
+	struct otx2_mbox_dev *mdev;
+	struct otx2_mbox *mbox;
+	struct mbox_hdr *hdr;
+	int i;
+
+	for (i = first; i < mdevs; i++) {
+		/* start from 0 */
+		if (!(intr & BIT_ULL(i - first)))
+			continue;
+
+		mbox = &mw->mbox;
+		mdev = &mbox->dev[i];
+		if (type == TYPE_PFAF)
+			otx2_sync_mbox_bbuf(mbox, i);
+		hdr = mdev->mbase + mbox->rx_start;
+		/* The hdr->num_msgs is set to zero immediately in the interrupt
+		 * handler to  ensure that it holds a correct value next time
+		 * when the interrupt handler is called.
+		 * pf->mbox.num_msgs holds the data for use in pfaf_mbox_handler
+		 * pf>mbox.up_num_msgs holds the data for use in
+		 * pfaf_mbox_up_handler.
+		 */
+		if (hdr->num_msgs) {
+			mw[i].num_msgs = hdr->num_msgs;
+			hdr->num_msgs = 0;
+			if (type == TYPE_PFAF)
+				memset(mbox->hwbase + mbox->rx_start, 0,
+				       ALIGN(sizeof(struct mbox_hdr),
+					     sizeof(u64)));
+
+			queue_work(mbox_wq, &mw[i].mbox_wrk);
+		}
+
+		mbox = &mw->mbox_up;
+		mdev = &mbox->dev[i];
+		if (type == TYPE_PFAF)
+			otx2_sync_mbox_bbuf(mbox, i);
+		hdr = mdev->mbase + mbox->rx_start;
+		if (hdr->num_msgs) {
+			mw[i].up_num_msgs = hdr->num_msgs;
+			hdr->num_msgs = 0;
+			if (type == TYPE_PFAF)
+				memset(mbox->hwbase + mbox->rx_start, 0,
+				       ALIGN(sizeof(struct mbox_hdr),
+					     sizeof(u64)));
+
+			queue_work(mbox_wq, &mw[i].mbox_up_wrk);
+		}
+	}
+}
+
+static void otx2_process_pfaf_mbox_msg(struct otx2_nic *pf,
+				       struct mbox_msghdr *msg)
+{
+	if (msg->id >= MBOX_MSG_MAX) {
+		dev_err(pf->dev,
+			"Mbox msg with unknown ID 0x%x\n", msg->id);
+		return;
+	}
+
+	if (msg->sig != OTX2_MBOX_RSP_SIG) {
+		dev_err(pf->dev,
+			"Mbox msg with wrong signature %x, ID 0x%x\n",
+			 msg->sig, msg->id);
+		return;
+	}
+
+	switch (msg->id) {
+	case MBOX_MSG_READY:
+		pf->pcifunc = msg->pcifunc;
+		break;
+	default:
+		if (msg->rc)
+			dev_err(pf->dev,
+				"Mbox msg response has err %d, ID 0x%x\n",
+				msg->rc, msg->id);
+		break;
+	}
+}
+
+static void otx2_pfaf_mbox_handler(struct work_struct *work)
+{
+	struct otx2_mbox_dev *mdev;
+	struct mbox_hdr *rsp_hdr;
+	struct mbox_msghdr *msg;
+	struct otx2_mbox *mbox;
+	struct mbox *af_mbox;
+	struct otx2_nic *pf;
+	int offset, id;
+
+	af_mbox = container_of(work, struct mbox, mbox_wrk);
+	mbox = &af_mbox->mbox;
+	mdev = &mbox->dev[0];
+	rsp_hdr = (struct mbox_hdr *)(mdev->mbase + mbox->rx_start);
+
+	offset = mbox->rx_start + ALIGN(sizeof(*rsp_hdr), MBOX_MSG_ALIGN);
+	pf = af_mbox->pfvf;
+
+	for (id = 0; id < af_mbox->num_msgs; id++) {
+		msg = (struct mbox_msghdr *)(mdev->mbase + offset);
+		otx2_process_pfaf_mbox_msg(pf, msg);
+		offset = mbox->rx_start + msg->next_msgoff;
+		mdev->msgs_acked++;
+	}
+
+	otx2_mbox_reset(mbox, 0);
+}
+
+static int otx2_process_mbox_msg_up(struct otx2_nic *pf,
+				    struct mbox_msghdr *req)
+{
+	/* Check if valid, if not reply with a invalid msg */
+	if (req->sig != OTX2_MBOX_REQ_SIG) {
+		otx2_reply_invalid_msg(&pf->mbox.mbox_up, 0, 0, req->id);
+		return -ENODEV;
+	}
+
+	switch (req->id) {
+#define M(_name, _id, _fn_name, _req_type, _rsp_type)			\
+	case _id: {							\
+		struct _rsp_type *rsp;					\
+		int err;						\
+									\
+		rsp = (struct _rsp_type *)otx2_mbox_alloc_msg(		\
+			&pf->mbox.mbox_up, 0,				\
+			sizeof(struct _rsp_type));			\
+		if (!rsp)						\
+			return -ENOMEM;					\
+									\
+		rsp->hdr.id = _id;					\
+		rsp->hdr.sig = OTX2_MBOX_RSP_SIG;			\
+		rsp->hdr.pcifunc = 0;					\
+		rsp->hdr.rc = 0;					\
+									\
+		err = otx2_mbox_up_handler_ ## _fn_name(		\
+			pf, (struct _req_type *)req, rsp);		\
+		return err;						\
+	}
+MBOX_UP_CGX_MESSAGES
+#undef M
+		break;
+	default:
+		otx2_reply_invalid_msg(&pf->mbox.mbox_up, 0, 0, req->id);
+		return -ENODEV;
+	}
+	return 0;
+}
+
+static void otx2_pfaf_mbox_up_handler(struct work_struct *work)
+{
+	struct mbox *af_mbox = container_of(work, struct mbox, mbox_up_wrk);
+	struct otx2_mbox *mbox = &af_mbox->mbox_up;
+	struct otx2_mbox_dev *mdev = &mbox->dev[0];
+	struct otx2_nic *pf = af_mbox->pfvf;
+	int offset, id, devid = 0;
+	struct mbox_hdr *rsp_hdr;
+	struct mbox_msghdr *msg;
+
+	rsp_hdr = (struct mbox_hdr *)(mdev->mbase + mbox->rx_start);
+
+	offset = mbox->rx_start + ALIGN(sizeof(*rsp_hdr), MBOX_MSG_ALIGN);
+
+	for (id = 0; id < af_mbox->up_num_msgs; id++) {
+		msg = (struct mbox_msghdr *)(mdev->mbase + offset);
+
+		devid = msg->pcifunc & RVU_PFVF_FUNC_MASK;
+		/* Skip processing VF's messages */
+		if (!devid)
+			otx2_process_mbox_msg_up(pf, msg);
+		offset = mbox->rx_start + msg->next_msgoff;
+	}
+
+	otx2_mbox_msg_send(mbox, 0);
+}
+
+static irqreturn_t otx2_pfaf_mbox_intr_handler(int irq, void *pf_irq)
+{
+	struct otx2_nic *pf = (struct otx2_nic *)pf_irq;
+	struct mbox *mbox;
+
+	/* Clear the IRQ */
+	otx2_write64(pf, RVU_PF_INT, BIT_ULL(0));
+
+	mbox = &pf->mbox;
+	otx2_queue_work(mbox, pf->mbox_wq, 0, 1, 1, TYPE_PFAF);
+
+	return IRQ_HANDLED;
+}
+
+static void otx2_disable_mbox_intr(struct otx2_nic *pf)
+{
+	int vector = pci_irq_vector(pf->pdev, RVU_PF_INT_VEC_AFPF_MBOX);
+
+	/* Disable AF => PF mailbox IRQ */
+	otx2_write64(pf, RVU_PF_INT_ENA_W1C, BIT_ULL(0));
+	free_irq(vector, pf);
+}
+
+static int otx2_register_mbox_intr(struct otx2_nic *pf, bool probe_af)
+{
+	struct otx2_hw *hw = &pf->hw;
+	struct msg_req *req;
+	char *irq_name;
+	int err;
+
+	/* Register mailbox interrupt handler */
+	irq_name = &hw->irq_name[RVU_PF_INT_VEC_AFPF_MBOX * NAME_SIZE];
+	snprintf(irq_name, NAME_SIZE, "RVUPFAF Mbox");
+	err = request_irq(pci_irq_vector(pf->pdev, RVU_PF_INT_VEC_AFPF_MBOX),
+			  otx2_pfaf_mbox_intr_handler, 0, irq_name, pf);
+	if (err) {
+		dev_err(pf->dev,
+			"RVUPF: IRQ registration failed for PFAF mbox irq\n");
+		return err;
+	}
+
+	/* Enable mailbox interrupt for msgs coming from AF.
+	 * First clear to avoid spurious interrupts, if any.
+	 */
+	otx2_write64(pf, RVU_PF_INT, BIT_ULL(0));
+	otx2_write64(pf, RVU_PF_INT_ENA_W1S, BIT_ULL(0));
+
+	if (!probe_af)
+		return 0;
+
+	/* Check mailbox communication with AF */
+	req = otx2_mbox_alloc_msg_ready(&pf->mbox);
+	if (!req) {
+		otx2_disable_mbox_intr(pf);
+		return -ENOMEM;
+	}
+	err = otx2_sync_mbox_msg(&pf->mbox);
+	if (err) {
+		dev_warn(pf->dev,
+			 "AF not responding to mailbox, deferring probe\n");
+		otx2_disable_mbox_intr(pf);
+		return -EPROBE_DEFER;
+	}
+
+	return 0;
+}
+
+static void otx2_pfaf_mbox_destroy(struct otx2_nic *pf)
+{
+	struct mbox *mbox = &pf->mbox;
+
+	if (pf->mbox_wq) {
+		flush_workqueue(pf->mbox_wq);
+		destroy_workqueue(pf->mbox_wq);
+		pf->mbox_wq = NULL;
+	}
+
+	if (mbox->mbox.hwbase)
+		iounmap((void __iomem *)mbox->mbox.hwbase);
+
+	otx2_mbox_destroy(&mbox->mbox);
+	otx2_mbox_destroy(&mbox->mbox_up);
+}
+
+static int otx2_pfaf_mbox_init(struct otx2_nic *pf)
+{
+	struct mbox *mbox = &pf->mbox;
+	void __iomem *hwbase;
+	int err;
+
+	mbox->pfvf = pf;
+	pf->mbox_wq = alloc_workqueue("otx2_pfaf_mailbox",
+				      WQ_UNBOUND | WQ_HIGHPRI |
+				      WQ_MEM_RECLAIM, 1);
+	if (!pf->mbox_wq)
+		return -ENOMEM;
+
+	/* Mailbox is a reserved memory (in RAM) region shared between
+	 * admin function (i.e AF) and this PF, shouldn't be mapped as
+	 * device memory to allow unaligned accesses.
+	 */
+	hwbase = ioremap_wc(pci_resource_start(pf->pdev, PCI_MBOX_BAR_NUM),
+			    pci_resource_len(pf->pdev, PCI_MBOX_BAR_NUM));
+	if (!hwbase) {
+		dev_err(pf->dev, "Unable to map PFAF mailbox region\n");
+		err = -ENOMEM;
+		goto exit;
+	}
+
+	err = otx2_mbox_init(&mbox->mbox, hwbase, pf->pdev, pf->reg_base,
+			     MBOX_DIR_PFAF, 1);
+	if (err)
+		goto exit;
+
+	err = otx2_mbox_init(&mbox->mbox_up, hwbase, pf->pdev, pf->reg_base,
+			     MBOX_DIR_PFAF_UP, 1);
+	if (err)
+		goto exit;
+
+	err = otx2_mbox_bbuf_init(mbox, pf->pdev);
+	if (err)
+		goto exit;
+
+	INIT_WORK(&mbox->mbox_wrk, otx2_pfaf_mbox_handler);
+	INIT_WORK(&mbox->mbox_up_wrk, otx2_pfaf_mbox_up_handler);
+	otx2_mbox_lock_init(&pf->mbox);
+
+	return 0;
+exit:
+	otx2_pfaf_mbox_destroy(pf);
+	return err;
+}
+
 static int otx2_set_real_num_queues(struct net_device *netdev,
 				    int tx_queues, int rx_queues)
 {
@@ -96,6 +412,7 @@ static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct otx2_nic *pf;
 	struct otx2_hw *hw;
 	int err, qcount;
+	int num_vec;
 
 	err = pcim_enable_device(pdev);
 	if (err) {
@@ -139,6 +456,17 @@ static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	hw->tx_queues = qcount;
 	hw->max_queues = qcount;
 
+	num_vec = pci_msix_vec_count(pdev);
+	hw->irq_name = devm_kmalloc_array(&hw->pdev->dev, num_vec, NAME_SIZE,
+					  GFP_KERNEL);
+	if (!hw->irq_name)
+		goto err_free_netdev;
+
+	hw->affinity_mask = devm_kcalloc(&hw->pdev->dev, num_vec,
+					 sizeof(cpumask_var_t), GFP_KERNEL);
+	if (!hw->affinity_mask)
+		goto err_free_netdev;
+
 	/* Map CSRs */
 	pf->reg_base = pcim_iomap(pdev, PCI_CFG_REG_BAR_NUM, 0);
 	if (!pf->reg_base) {
@@ -151,20 +479,44 @@ static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err)
 		goto err_free_netdev;
 
+	err = pci_alloc_irq_vectors(hw->pdev, RVU_PF_INT_VEC_CNT,
+				    RVU_PF_INT_VEC_CNT, PCI_IRQ_MSIX);
+	if (err < 0) {
+		dev_err(dev, "%s: Failed to alloc %d IRQ vectors\n",
+			__func__, num_vec);
+		goto err_free_netdev;
+	}
+
+	/* Init PF <=> AF mailbox stuff */
+	err = otx2_pfaf_mbox_init(pf);
+	if (err)
+		goto err_free_irq_vectors;
+
+	/* Register mailbox interrupt */
+	err = otx2_register_mbox_intr(pf, true);
+	if (err)
+		goto err_mbox_destroy;
+
 	err = otx2_set_real_num_queues(netdev, hw->tx_queues, hw->rx_queues);
 	if (err)
-		goto err_free_netdev;
+		goto err_disable_mbox_intr;
 
 	netdev->netdev_ops = &otx2_netdev_ops;
 
 	err = register_netdev(netdev);
 	if (err) {
 		dev_err(dev, "Failed to register netdevice\n");
-		goto err_free_netdev;
+		goto err_disable_mbox_intr;
 	}
 
 	return 0;
 
+err_disable_mbox_intr:
+	otx2_disable_mbox_intr(pf);
+err_mbox_destroy:
+	otx2_pfaf_mbox_destroy(pf);
+err_free_irq_vectors:
+	pci_free_irq_vectors(hw->pdev);
 err_free_netdev:
 	pci_set_drvdata(pdev, NULL);
 	free_netdev(netdev);
@@ -184,9 +536,12 @@ static void otx2_remove(struct pci_dev *pdev)
 	pf = netdev_priv(netdev);
 
 	unregister_netdev(netdev);
+	otx2_disable_mbox_intr(pf);
+	otx2_pfaf_mbox_destroy(pf);
 	pci_free_irq_vectors(pf->pdev);
 	pci_set_drvdata(pdev, NULL);
 	free_netdev(netdev);
+
 	pci_release_regions(pdev);
 }
 
