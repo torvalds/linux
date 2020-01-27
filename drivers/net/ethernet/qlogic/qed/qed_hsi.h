@@ -2575,6 +2575,11 @@ enum dbg_grc_params {
 	DBG_GRC_PARAM_DUMP_PHY,
 	DBG_GRC_PARAM_NO_MCP,
 	DBG_GRC_PARAM_NO_FW_VER,
+	DBG_GRC_PARAM_RESERVED3,
+	DBG_GRC_PARAM_DUMP_MCP_HW_DUMP,
+	DBG_GRC_PARAM_DUMP_ILT_CDUC,
+	DBG_GRC_PARAM_DUMP_ILT_CDUT,
+	DBG_GRC_PARAM_DUMP_CAU_EXT,
 	MAX_DBG_GRC_PARAMS
 };
 
@@ -2693,6 +2698,19 @@ struct dbg_tools_data {
 	u8 reserved;
 	struct pretend_params pretend;
 	u32 num_regs_read;
+};
+
+/* ILT Clients */
+enum ilt_clients {
+	ILT_CLI_CDUC,
+	ILT_CLI_CDUT,
+	ILT_CLI_QM,
+	ILT_CLI_TM,
+	ILT_CLI_SRC,
+	ILT_CLI_TSDM,
+	ILT_CLI_RGFS,
+	ILT_CLI_TGFS,
+	MAX_ILT_CLIENTS
 };
 
 /********************************/

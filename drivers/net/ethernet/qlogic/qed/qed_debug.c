@@ -7,6 +7,7 @@
 #include <linux/vmalloc.h>
 #include <linux/crc32.h>
 #include "qed.h"
+#include "qed_cxt.h"
 #include "qed_hsi.h"
 #include "qed_hw.h"
 #include "qed_mcp.h"
@@ -183,6 +184,7 @@ enum platform_ids {
 /* Chip constant definitions */
 struct chip_defs {
 	const char *name;
+	u32 num_ilt_pages;
 };
 
 /* Platform constant definitions */
@@ -380,6 +382,9 @@ struct split_type_defs {
 #define IDLE_CHK_RESULT_REG_HDR_DWORDS \
 	BYTES_TO_DWORDS(sizeof(struct dbg_idle_chk_result_reg_hdr))
 
+#define PAGE_MEM_DESC_SIZE_DWORDS \
+	BYTES_TO_DWORDS(sizeof(struct phys_mem_desc))
+
 #define IDLE_CHK_MAX_ENTRIES_SIZE	32
 
 /* The sizes and offsets below are specified in bits */
@@ -464,9 +469,8 @@ static struct dbg_array s_dbg_arrays[MAX_BIN_DBG_BUFFER_TYPE] = { {NULL} };
 
 /* Chip constant definitions array */
 static struct chip_defs s_chip_defs[MAX_CHIP_IDS] = {
-	{"bb"},
-	{"ah"},
-	{"reserved"},
+	{"bb", PSWRQ2_REG_ILT_MEMORY_SIZE_BB / 2},
+	{"ah", PSWRQ2_REG_ILT_MEMORY_SIZE_K2 / 2}
 };
 
 /* Storm constant definitions array */
@@ -1627,7 +1631,22 @@ static struct grc_param_defs s_grc_param_defs[] = {
 	{{0, 0, 0}, 0, 1, false, false, 0, 0},
 
 	/* DBG_GRC_PARAM_NO_FW_VER */
-	{{0, 0, 0}, 0, 1, false, false, 0, 0}
+	{{0, 0, 0}, 0, 1, false, false, 0, 0},
+
+	/* DBG_GRC_PARAM_RESERVED3 */
+	{{0, 0, 0}, 0, 1, false, false, 0, 0},
+
+	/* DBG_GRC_PARAM_DUMP_MCP_HW_DUMP */
+	{{0, 1, 1}, 0, 1, false, false, 0, 0},
+
+	/* DBG_GRC_PARAM_DUMP_ILT_CDUC */
+	{{1, 1, 1}, 0, 1, false, false, 0, 0},
+
+	/* DBG_GRC_PARAM_DUMP_ILT_CDUT */
+	{{1, 1, 1}, 0, 1, false, false, 0, 0},
+
+	/* DBG_GRC_PARAM_DUMP_CAU_EXT */
+	{{0, 0, 0}, 0, 1, false, false, 0, 1}
 };
 
 static struct rss_mem_defs s_rss_mem_defs[] = {
@@ -4992,16 +5011,18 @@ static enum dbg_status qed_protection_override_dump(struct qed_hwfn *p_hwfn,
 	override_window_dwords =
 		qed_rd(p_hwfn, p_ptt, GRC_REG_NUMBER_VALID_OVERRIDE_WINDOW) *
 		PROTECTION_OVERRIDE_ELEMENT_DWORDS;
-	addr = BYTES_TO_DWORDS(GRC_REG_PROTECTION_OVERRIDE_WINDOW);
-	offset += qed_grc_dump_addr_range(p_hwfn,
-					  p_ptt,
-					  dump_buf + offset,
-					  true,
-					  addr,
-					  override_window_dwords,
-					  true, SPLIT_TYPE_NONE, 0);
-	qed_dump_num_param(dump_buf + size_param_offset, dump, "size",
-			   override_window_dwords);
+	if (override_window_dwords) {
+		addr = BYTES_TO_DWORDS(GRC_REG_PROTECTION_OVERRIDE_WINDOW);
+		offset += qed_grc_dump_addr_range(p_hwfn,
+						  p_ptt,
+						  dump_buf + offset,
+						  true,
+						  addr,
+						  override_window_dwords,
+						  true, SPLIT_TYPE_NONE, 0);
+		qed_dump_num_param(dump_buf + size_param_offset, dump, "size",
+				   override_window_dwords);
+	}
 out:
 	/* Dump last section */
 	offset += qed_dump_last_section(dump_buf, offset, dump);
@@ -5081,6 +5102,348 @@ static u32 qed_fw_asserts_dump(struct qed_hwfn *p_hwfn,
 					    asserts->list_element_dword_size,
 						  false, SPLIT_TYPE_NONE, 0);
 	}
+
+	/* Dump last section */
+	offset += qed_dump_last_section(dump_buf, offset, dump);
+
+	return offset;
+}
+
+/* Dumps the specified ILT pages to the specified buffer.
+ * Returns the dumped size in dwords.
+ */
+static u32 qed_ilt_dump_pages_range(u32 *dump_buf,
+				    bool dump,
+				    u32 start_page_id,
+				    u32 num_pages,
+				    struct phys_mem_desc *ilt_pages,
+				    bool dump_page_ids)
+{
+	u32 page_id, end_page_id, offset = 0;
+
+	if (num_pages == 0)
+		return offset;
+
+	end_page_id = start_page_id + num_pages - 1;
+
+	for (page_id = start_page_id; page_id <= end_page_id; page_id++) {
+		struct phys_mem_desc *mem_desc = &ilt_pages[page_id];
+
+		/**
+		 *
+		 * if (page_id >= ->p_cxt_mngr->ilt_shadow_size)
+		 *     break;
+		 */
+
+		if (!ilt_pages[page_id].virt_addr)
+			continue;
+
+		if (dump_page_ids) {
+			/* Copy page ID to dump buffer */
+			if (dump)
+				*(dump_buf + offset) = page_id;
+			offset++;
+		} else {
+			/* Copy page memory to dump buffer */
+			if (dump)
+				memcpy(dump_buf + offset,
+				       mem_desc->virt_addr, mem_desc->size);
+			offset += BYTES_TO_DWORDS(mem_desc->size);
+		}
+	}
+
+	return offset;
+}
+
+/* Dumps a section containing the dumped ILT pages.
+ * Returns the dumped size in dwords.
+ */
+static u32 qed_ilt_dump_pages_section(struct qed_hwfn *p_hwfn,
+				      u32 *dump_buf,
+				      bool dump,
+				      u32 valid_conn_pf_pages,
+				      u32 valid_conn_vf_pages,
+				      struct phys_mem_desc *ilt_pages,
+				      bool dump_page_ids)
+{
+	struct qed_ilt_client_cfg *clients = p_hwfn->p_cxt_mngr->clients;
+	u32 pf_start_line, start_page_id, offset = 0;
+	u32 cdut_pf_init_pages, cdut_vf_init_pages;
+	u32 cdut_pf_work_pages, cdut_vf_work_pages;
+	u32 base_data_offset, size_param_offset;
+	u32 cdut_pf_pages, cdut_vf_pages;
+	const char *section_name;
+	u8 i;
+
+	section_name = dump_page_ids ? "ilt_page_ids" : "ilt_page_mem";
+	cdut_pf_init_pages = qed_get_cdut_num_pf_init_pages(p_hwfn);
+	cdut_vf_init_pages = qed_get_cdut_num_vf_init_pages(p_hwfn);
+	cdut_pf_work_pages = qed_get_cdut_num_pf_work_pages(p_hwfn);
+	cdut_vf_work_pages = qed_get_cdut_num_vf_work_pages(p_hwfn);
+	cdut_pf_pages = cdut_pf_init_pages + cdut_pf_work_pages;
+	cdut_vf_pages = cdut_vf_init_pages + cdut_vf_work_pages;
+	pf_start_line = p_hwfn->p_cxt_mngr->pf_start_line;
+
+	offset +=
+	    qed_dump_section_hdr(dump_buf + offset, dump, section_name, 1);
+
+	/* Dump size parameter (0 for now, overwritten with real size later) */
+	size_param_offset = offset;
+	offset += qed_dump_num_param(dump_buf + offset, dump, "size", 0);
+	base_data_offset = offset;
+
+	/* CDUC pages are ordered as follows:
+	 * - PF pages - valid section (included in PF connection type mapping)
+	 * - PF pages - invalid section (not dumped)
+	 * - For each VF in the PF:
+	 *   - VF pages - valid section (included in VF connection type mapping)
+	 *   - VF pages - invalid section (not dumped)
+	 */
+	if (qed_grc_get_param(p_hwfn, DBG_GRC_PARAM_DUMP_ILT_CDUC)) {
+		/* Dump connection PF pages */
+		start_page_id = clients[ILT_CLI_CDUC].first.val - pf_start_line;
+		offset += qed_ilt_dump_pages_range(dump_buf + offset,
+						   dump,
+						   start_page_id,
+						   valid_conn_pf_pages,
+						   ilt_pages, dump_page_ids);
+
+		/* Dump connection VF pages */
+		start_page_id += clients[ILT_CLI_CDUC].pf_total_lines;
+		for (i = 0; i < p_hwfn->p_cxt_mngr->vf_count;
+		     i++, start_page_id += clients[ILT_CLI_CDUC].vf_total_lines)
+			offset += qed_ilt_dump_pages_range(dump_buf + offset,
+							   dump,
+							   start_page_id,
+							   valid_conn_vf_pages,
+							   ilt_pages,
+							   dump_page_ids);
+	}
+
+	/* CDUT pages are ordered as follows:
+	 * - PF init pages (not dumped)
+	 * - PF work pages
+	 * - For each VF in the PF:
+	 *   - VF init pages (not dumped)
+	 *   - VF work pages
+	 */
+	if (qed_grc_get_param(p_hwfn, DBG_GRC_PARAM_DUMP_ILT_CDUT)) {
+		/* Dump task PF pages */
+		start_page_id = clients[ILT_CLI_CDUT].first.val +
+		    cdut_pf_init_pages - pf_start_line;
+		offset += qed_ilt_dump_pages_range(dump_buf + offset,
+						   dump,
+						   start_page_id,
+						   cdut_pf_work_pages,
+						   ilt_pages, dump_page_ids);
+
+		/* Dump task VF pages */
+		start_page_id = clients[ILT_CLI_CDUT].first.val +
+		    cdut_pf_pages + cdut_vf_init_pages - pf_start_line;
+		for (i = 0; i < p_hwfn->p_cxt_mngr->vf_count;
+		     i++, start_page_id += cdut_vf_pages)
+			offset += qed_ilt_dump_pages_range(dump_buf + offset,
+							   dump,
+							   start_page_id,
+							   cdut_vf_work_pages,
+							   ilt_pages,
+							   dump_page_ids);
+	}
+
+	/* Overwrite size param */
+	if (dump)
+		qed_dump_num_param(dump_buf + size_param_offset,
+				   dump, "size", offset - base_data_offset);
+
+	return offset;
+}
+
+/* Performs ILT Dump to the specified buffer.
+ * Returns the dumped size in dwords.
+ */
+static u32 qed_ilt_dump(struct qed_hwfn *p_hwfn,
+			struct qed_ptt *p_ptt, u32 *dump_buf, bool dump)
+{
+	struct qed_ilt_client_cfg *clients = p_hwfn->p_cxt_mngr->clients;
+	u32 valid_conn_vf_cids, valid_conn_vf_pages, offset = 0;
+	u32 valid_conn_pf_cids, valid_conn_pf_pages, num_pages;
+	u32 num_cids_per_page, conn_ctx_size;
+	u32 cduc_page_size, cdut_page_size;
+	struct phys_mem_desc *ilt_pages;
+	u8 conn_type;
+
+	cduc_page_size = 1 <<
+	    (clients[ILT_CLI_CDUC].p_size.val + PXP_ILT_PAGE_SIZE_NUM_BITS_MIN);
+	cdut_page_size = 1 <<
+	    (clients[ILT_CLI_CDUT].p_size.val + PXP_ILT_PAGE_SIZE_NUM_BITS_MIN);
+	conn_ctx_size = p_hwfn->p_cxt_mngr->conn_ctx_size;
+	num_cids_per_page = (int)(cduc_page_size / conn_ctx_size);
+	ilt_pages = p_hwfn->p_cxt_mngr->ilt_shadow;
+
+	/* Dump global params - 22 must match number of params below */
+	offset += qed_dump_common_global_params(p_hwfn, p_ptt,
+						dump_buf + offset, dump, 22);
+	offset += qed_dump_str_param(dump_buf + offset,
+				     dump, "dump-type", "ilt-dump");
+	offset += qed_dump_num_param(dump_buf + offset,
+				     dump,
+				     "cduc-page-size", cduc_page_size);
+	offset += qed_dump_num_param(dump_buf + offset,
+				     dump,
+				     "cduc-first-page-id",
+				     clients[ILT_CLI_CDUC].first.val);
+	offset += qed_dump_num_param(dump_buf + offset,
+				     dump,
+				     "cduc-last-page-id",
+				     clients[ILT_CLI_CDUC].last.val);
+	offset += qed_dump_num_param(dump_buf + offset,
+				     dump,
+				     "cduc-num-pf-pages",
+				     clients
+				     [ILT_CLI_CDUC].pf_total_lines);
+	offset += qed_dump_num_param(dump_buf + offset,
+				     dump,
+				     "cduc-num-vf-pages",
+				     clients
+				     [ILT_CLI_CDUC].vf_total_lines);
+	offset += qed_dump_num_param(dump_buf + offset,
+				     dump,
+				     "max-conn-ctx-size",
+				     conn_ctx_size);
+	offset += qed_dump_num_param(dump_buf + offset,
+				     dump,
+				     "cdut-page-size", cdut_page_size);
+	offset += qed_dump_num_param(dump_buf + offset,
+				     dump,
+				     "cdut-first-page-id",
+				     clients[ILT_CLI_CDUT].first.val);
+	offset += qed_dump_num_param(dump_buf + offset,
+				     dump,
+				     "cdut-last-page-id",
+				     clients[ILT_CLI_CDUT].last.val);
+	offset += qed_dump_num_param(dump_buf + offset,
+				     dump,
+				     "cdut-num-pf-init-pages",
+				     qed_get_cdut_num_pf_init_pages(p_hwfn));
+	offset += qed_dump_num_param(dump_buf + offset,
+				     dump,
+				     "cdut-num-vf-init-pages",
+				     qed_get_cdut_num_vf_init_pages(p_hwfn));
+	offset += qed_dump_num_param(dump_buf + offset,
+				     dump,
+				     "cdut-num-pf-work-pages",
+				     qed_get_cdut_num_pf_work_pages(p_hwfn));
+	offset += qed_dump_num_param(dump_buf + offset,
+				     dump,
+				     "cdut-num-vf-work-pages",
+				     qed_get_cdut_num_vf_work_pages(p_hwfn));
+	offset += qed_dump_num_param(dump_buf + offset,
+				     dump,
+				     "max-task-ctx-size",
+				     p_hwfn->p_cxt_mngr->task_ctx_size);
+	offset += qed_dump_num_param(dump_buf + offset,
+				     dump,
+				     "task-type-id",
+				     p_hwfn->p_cxt_mngr->task_type_id);
+	offset += qed_dump_num_param(dump_buf + offset,
+				     dump,
+				     "first-vf-id-in-pf",
+				     p_hwfn->p_cxt_mngr->first_vf_in_pf);
+	offset += /* 18 */ qed_dump_num_param(dump_buf + offset,
+					      dump,
+					      "num-vfs-in-pf",
+					      p_hwfn->p_cxt_mngr->vf_count);
+	offset += qed_dump_num_param(dump_buf + offset,
+				     dump,
+				     "ptr-size-bytes", sizeof(void *));
+	offset += qed_dump_num_param(dump_buf + offset,
+				     dump,
+				     "pf-start-line",
+				     p_hwfn->p_cxt_mngr->pf_start_line);
+	offset += qed_dump_num_param(dump_buf + offset,
+				     dump,
+				     "page-mem-desc-size-dwords",
+				     PAGE_MEM_DESC_SIZE_DWORDS);
+	offset += qed_dump_num_param(dump_buf + offset,
+				     dump,
+				     "ilt-shadow-size",
+				     p_hwfn->p_cxt_mngr->ilt_shadow_size);
+	/* Additional/Less parameters require matching of number in call to
+	 * dump_common_global_params()
+	 */
+
+	/* Dump section containing number of PF CIDs per connection type */
+	offset += qed_dump_section_hdr(dump_buf + offset,
+				       dump, "num_pf_cids_per_conn_type", 1);
+	offset += qed_dump_num_param(dump_buf + offset,
+				     dump, "size", NUM_OF_CONNECTION_TYPES_E4);
+	for (conn_type = 0, valid_conn_pf_cids = 0;
+	     conn_type < NUM_OF_CONNECTION_TYPES_E4; conn_type++, offset++) {
+		u32 num_pf_cids =
+		    p_hwfn->p_cxt_mngr->conn_cfg[conn_type].cid_count;
+
+		if (dump)
+			*(dump_buf + offset) = num_pf_cids;
+		valid_conn_pf_cids += num_pf_cids;
+	}
+
+	/* Dump section containing number of VF CIDs per connection type */
+	offset += qed_dump_section_hdr(dump_buf + offset,
+				       dump, "num_vf_cids_per_conn_type", 1);
+	offset += qed_dump_num_param(dump_buf + offset,
+				     dump, "size", NUM_OF_CONNECTION_TYPES_E4);
+	for (conn_type = 0, valid_conn_vf_cids = 0;
+	     conn_type < NUM_OF_CONNECTION_TYPES_E4; conn_type++, offset++) {
+		u32 num_vf_cids =
+		    p_hwfn->p_cxt_mngr->conn_cfg[conn_type].cids_per_vf;
+
+		if (dump)
+			*(dump_buf + offset) = num_vf_cids;
+		valid_conn_vf_cids += num_vf_cids;
+	}
+
+	/* Dump section containing physical memory descs for each ILT page */
+	num_pages = p_hwfn->p_cxt_mngr->ilt_shadow_size;
+	offset += qed_dump_section_hdr(dump_buf + offset,
+				       dump, "ilt_page_desc", 1);
+	offset += qed_dump_num_param(dump_buf + offset,
+				     dump,
+				     "size",
+				     num_pages * PAGE_MEM_DESC_SIZE_DWORDS);
+
+	/* Copy memory descriptors to dump buffer */
+	if (dump) {
+		u32 page_id;
+
+		for (page_id = 0; page_id < num_pages;
+		     page_id++, offset += PAGE_MEM_DESC_SIZE_DWORDS)
+			memcpy(dump_buf + offset,
+			       &ilt_pages[page_id],
+			       DWORDS_TO_BYTES(PAGE_MEM_DESC_SIZE_DWORDS));
+	} else {
+		offset += num_pages * PAGE_MEM_DESC_SIZE_DWORDS;
+	}
+
+	valid_conn_pf_pages = DIV_ROUND_UP(valid_conn_pf_cids,
+					   num_cids_per_page);
+	valid_conn_vf_pages = DIV_ROUND_UP(valid_conn_vf_cids,
+					   num_cids_per_page);
+
+	/* Dump ILT pages IDs */
+	offset += qed_ilt_dump_pages_section(p_hwfn,
+					     dump_buf + offset,
+					     dump,
+					     valid_conn_pf_pages,
+					     valid_conn_vf_pages,
+					     ilt_pages, true);
+
+	/* Dump ILT pages memory */
+	offset += qed_ilt_dump_pages_section(p_hwfn,
+					     dump_buf + offset,
+					     dump,
+					     valid_conn_pf_pages,
+					     valid_conn_vf_pages,
+					     ilt_pages, false);
 
 	/* Dump last section */
 	offset += qed_dump_last_section(dump_buf, offset, dump);
@@ -5549,6 +5912,50 @@ enum dbg_status qed_dbg_fw_asserts_dump(struct qed_hwfn *p_hwfn,
 	*num_dumped_dwords = qed_fw_asserts_dump(p_hwfn, p_ptt, dump_buf, true);
 
 	/* Revert GRC params to their default */
+	qed_dbg_grc_set_params_default(p_hwfn);
+
+	return DBG_STATUS_OK;
+}
+
+static enum dbg_status qed_dbg_ilt_get_dump_buf_size(struct qed_hwfn *p_hwfn,
+						     struct qed_ptt *p_ptt,
+						     u32 *buf_size)
+{
+	enum dbg_status status = qed_dbg_dev_init(p_hwfn, p_ptt);
+
+	*buf_size = 0;
+
+	if (status != DBG_STATUS_OK)
+		return status;
+
+	*buf_size = qed_ilt_dump(p_hwfn, p_ptt, NULL, false);
+
+	return DBG_STATUS_OK;
+}
+
+static enum dbg_status qed_dbg_ilt_dump(struct qed_hwfn *p_hwfn,
+					struct qed_ptt *p_ptt,
+					u32 *dump_buf,
+					u32 buf_size_in_dwords,
+					u32 *num_dumped_dwords)
+{
+	u32 needed_buf_size_in_dwords;
+	enum dbg_status status;
+
+	*num_dumped_dwords = 0;
+
+	status = qed_dbg_ilt_get_dump_buf_size(p_hwfn,
+					       p_ptt,
+					       &needed_buf_size_in_dwords);
+	if (status != DBG_STATUS_OK)
+		return status;
+
+	if (buf_size_in_dwords < needed_buf_size_in_dwords)
+		return DBG_STATUS_DUMP_BUF_TOO_SMALL;
+
+	*num_dumped_dwords = qed_ilt_dump(p_hwfn, p_ptt, dump_buf, true);
+
+	/* Reveret GRC params to their default */
 	qed_dbg_grc_set_params_default(p_hwfn);
 
 	return DBG_STATUS_OK;
@@ -7763,7 +8170,10 @@ static struct {
 		    qed_dbg_fw_asserts_get_dump_buf_size,
 		    qed_dbg_fw_asserts_dump,
 		    qed_print_fw_asserts_results,
-		    qed_get_fw_asserts_results_buf_size},};
+		    qed_get_fw_asserts_results_buf_size}, {
+	"ilt",
+		    qed_dbg_ilt_get_dump_buf_size,
+		    qed_dbg_ilt_dump, NULL, NULL},};
 
 static void qed_dbg_print_feature(u8 *p_text_buf, u32 text_size)
 {
@@ -7845,6 +8255,8 @@ static enum dbg_status format_feature(struct qed_hwfn *p_hwfn,
 	feature->dumped_dwords = text_size_bytes / 4;
 	return rc;
 }
+
+#define MAX_DBG_FEATURE_SIZE_DWORDS	0x3FFFFFFF
 
 /* Generic function for performing the dump of a debug feature. */
 static enum dbg_status qed_dbg_dump(struct qed_hwfn *p_hwfn,
@@ -8021,6 +8433,16 @@ int qed_dbg_fw_asserts_size(struct qed_dev *cdev)
 	return qed_dbg_feature_size(cdev, DBG_FEATURE_FW_ASSERTS);
 }
 
+int qed_dbg_ilt(struct qed_dev *cdev, void *buffer, u32 *num_dumped_bytes)
+{
+	return qed_dbg_feature(cdev, buffer, DBG_FEATURE_ILT, num_dumped_bytes);
+}
+
+int qed_dbg_ilt_size(struct qed_dev *cdev)
+{
+	return qed_dbg_feature_size(cdev, DBG_FEATURE_ILT);
+}
+
 int qed_dbg_mcp_trace(struct qed_dev *cdev, void *buffer,
 		      u32 *num_dumped_bytes)
 {
@@ -8037,9 +8459,17 @@ int qed_dbg_mcp_trace_size(struct qed_dev *cdev)
  * feature buffer.
  */
 #define REGDUMP_HEADER_SIZE			sizeof(u32)
+#define REGDUMP_HEADER_SIZE_SHIFT		0
+#define REGDUMP_HEADER_SIZE_MASK		0xffffff
 #define REGDUMP_HEADER_FEATURE_SHIFT		24
-#define REGDUMP_HEADER_ENGINE_SHIFT		31
+#define REGDUMP_HEADER_FEATURE_MASK		0x3f
 #define REGDUMP_HEADER_OMIT_ENGINE_SHIFT	30
+#define REGDUMP_HEADER_OMIT_ENGINE_MASK		0x1
+#define REGDUMP_HEADER_ENGINE_SHIFT		31
+#define REGDUMP_HEADER_ENGINE_MASK		0x1
+#define REGDUMP_MAX_SIZE			0x1000000
+#define ILT_DUMP_MAX_SIZE			(1024 * 1024 * 15)
+
 enum debug_print_features {
 	OLD_MODE = 0,
 	IDLE_CHK = 1,
@@ -8053,6 +8483,8 @@ enum debug_print_features {
 	NVM_CFG1 = 9,
 	DEFAULT_CFG = 10,
 	NVM_META = 11,
+	MDUMP = 12,
+	ILT_DUMP = 13,
 };
 
 static u32 qed_calc_regdump_header(enum debug_print_features feature,
@@ -8166,8 +8598,23 @@ int qed_dbg_all_data(struct qed_dev *cdev, void *buffer)
 			       rc);
 		}
 
-		for (i = 0; i < MAX_DBG_GRC_PARAMS; i++)
-			dev_data->grc.param_val[i] = grc_params[i];
+		feature_size = qed_dbg_ilt_size(cdev);
+		if (!cdev->disable_ilt_dump &&
+		    feature_size < ILT_DUMP_MAX_SIZE) {
+			rc = qed_dbg_ilt(cdev, (u8 *)buffer + offset +
+					 REGDUMP_HEADER_SIZE, &feature_size);
+			if (!rc) {
+				*(u32 *)((u8 *)buffer + offset) =
+				    qed_calc_regdump_header(ILT_DUMP,
+							    cur_engine,
+							    feature_size,
+							    omit_engine);
+				offset += feature_size + REGDUMP_HEADER_SIZE;
+			} else {
+				DP_ERR(cdev, "qed_dbg_ilt failed. rc = %d\n",
+				       rc);
+			}
+		}
 
 		/* GRC dump - must be last because when mcp stuck it will
 		 * clutter idle_chk, reg_fifo, ...
@@ -8243,6 +8690,21 @@ int qed_dbg_all_data(struct qed_dev *cdev, void *buffer)
 		       QED_NVM_IMAGE_NVM_META, "QED_NVM_IMAGE_NVM_META", rc);
 	}
 
+	/* nvm mdump */
+	rc = qed_dbg_nvm_image(cdev, (u8 *)buffer + offset +
+			       REGDUMP_HEADER_SIZE, &feature_size,
+			       QED_NVM_IMAGE_MDUMP);
+	if (!rc) {
+		*(u32 *)((u8 *)buffer + offset) =
+			qed_calc_regdump_header(MDUMP, cur_engine,
+						feature_size, omit_engine);
+		offset += (feature_size + REGDUMP_HEADER_SIZE);
+	} else if (rc != -ENOENT) {
+		DP_ERR(cdev,
+		       "qed_dbg_nvm_image failed for image %d (%s), rc = %d\n",
+		       QED_NVM_IMAGE_MDUMP, "QED_NVM_IMAGE_MDUMP", rc);
+	}
+
 	return 0;
 }
 
@@ -8250,7 +8712,7 @@ int qed_dbg_all_data_size(struct qed_dev *cdev)
 {
 	struct qed_hwfn *p_hwfn =
 		&cdev->hwfns[cdev->dbg_params.engine_for_debug];
-	u32 regs_len = 0, image_len = 0;
+	u32 regs_len = 0, image_len = 0, ilt_len = 0, total_ilt_len = 0;
 	u8 cur_engine, org_engine;
 
 	org_engine = qed_get_debug_engine(cdev);
@@ -8267,6 +8729,12 @@ int qed_dbg_all_data_size(struct qed_dev *cdev)
 			    REGDUMP_HEADER_SIZE +
 			    qed_dbg_protection_override_size(cdev) +
 			    REGDUMP_HEADER_SIZE + qed_dbg_fw_asserts_size(cdev);
+
+		ilt_len = REGDUMP_HEADER_SIZE + qed_dbg_ilt_size(cdev);
+		if (ilt_len < ILT_DUMP_MAX_SIZE) {
+			total_ilt_len += ilt_len;
+			regs_len += ilt_len;
+		}
 	}
 
 	qed_set_debug_engine(cdev, org_engine);
@@ -8282,6 +8750,17 @@ int qed_dbg_all_data_size(struct qed_dev *cdev)
 	qed_dbg_nvm_image_length(p_hwfn, QED_NVM_IMAGE_NVM_META, &image_len);
 	if (image_len)
 		regs_len += REGDUMP_HEADER_SIZE + image_len;
+	qed_dbg_nvm_image_length(p_hwfn, QED_NVM_IMAGE_MDUMP, &image_len);
+	if (image_len)
+		regs_len += REGDUMP_HEADER_SIZE + image_len;
+
+	if (regs_len > REGDUMP_MAX_SIZE) {
+		DP_VERBOSE(cdev, QED_MSG_DEBUG,
+			   "Dump exceeds max size 0x%x, disable ILT dump\n",
+			   REGDUMP_MAX_SIZE);
+		cdev->disable_ilt_dump = true;
+		regs_len -= total_ilt_len;
+	}
 
 	return regs_len;
 }
@@ -8339,6 +8818,10 @@ int qed_dbg_feature_size(struct qed_dev *cdev, enum qed_dbg_features feature)
 	rc = qed_features_lookup[feature].get_size(p_hwfn, p_ptt,
 						   &buf_size_dwords);
 	if (rc != DBG_STATUS_OK)
+		buf_size_dwords = 0;
+
+	/* Feature will not be dumped if it exceeds maximum size */
+	if (buf_size_dwords > MAX_DBG_FEATURE_SIZE_DWORDS)
 		buf_size_dwords = 0;
 
 	qed_ptt_release(p_hwfn, p_ptt);
