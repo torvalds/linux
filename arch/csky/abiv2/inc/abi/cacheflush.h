@@ -37,7 +37,9 @@ static inline void flush_dcache_page(struct page *page)
 #define copy_to_user_page(vma, page, vaddr, dst, src, len) \
 do { \
 	memcpy(dst, src, len); \
-	cache_wbinv_range((unsigned long)dst, (unsigned long)dst + len); \
+	if (vma->vm_flags & VM_EXEC) \
+		cache_wbinv_range((unsigned long)dst, \
+				  (unsigned long)dst + len); \
 } while (0)
 #define copy_from_user_page(vma, page, vaddr, dst, src, len) \
 	memcpy(dst, src, len)
