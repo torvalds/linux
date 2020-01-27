@@ -25,7 +25,10 @@
 #include "internal.h"
 #include "nfs4trace.h"
 
+#define NFS_DEFAULT_DELEGATION_WATERMARK (5000U)
+
 static atomic_long_t nfs_active_delegations;
+static unsigned nfs_delegation_watermark = NFS_DEFAULT_DELEGATION_WATERMARK;
 
 static void __nfs_free_delegation(struct nfs_delegation *delegation)
 {
@@ -676,7 +679,8 @@ void nfs4_inode_return_delegation_on_close(struct inode *inode)
 	delegation = nfs4_get_valid_delegation(inode);
 	if (!delegation)
 		goto out;
-	if (test_bit(NFS_DELEGATION_RETURN_IF_CLOSED, &delegation->flags)) {
+	if (test_bit(NFS_DELEGATION_RETURN_IF_CLOSED, &delegation->flags) ||
+	    atomic_long_read(&nfs_active_delegations) >= nfs_delegation_watermark) {
 		spin_lock(&delegation->lock);
 		if (delegation->inode &&
 		    list_empty(&NFS_I(inode)->open_files) &&
@@ -1365,3 +1369,5 @@ out:
 	rcu_read_unlock();
 	return ret;
 }
+
+module_param_named(delegation_watermark, nfs_delegation_watermark, uint, 0644);
