@@ -22,7 +22,6 @@ static const struct snd_soc_component_driver pxa2xx_soc_platform = {
 	.pcm_destruct	= pxa2xx_soc_pcm_free,
 	.open		= pxa2xx_soc_pcm_open,
 	.close		= pxa2xx_soc_pcm_close,
-	.ioctl		= snd_soc_pcm_lib_ioctl,
 	.hw_params	= pxa2xx_soc_pcm_hw_params,
 	.hw_free	= pxa2xx_soc_pcm_hw_free,
 	.prepare	= pxa2xx_soc_pcm_prepare,

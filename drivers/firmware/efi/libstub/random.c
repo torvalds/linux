@@ -33,7 +33,7 @@ efi_status_t efi_get_random_bytes(efi_system_table_t *sys_table_arg,
 {
 	efi_guid_t rng_proto = EFI_RNG_PROTOCOL_GUID;
 	efi_status_t status;
-	struct efi_rng_protocol *rng;
+	struct efi_rng_protocol *rng = NULL;
 
 	status = efi_call_early(locate_protocol, &rng_proto, NULL,
 				(void **)&rng);
@@ -162,8 +162,8 @@ efi_status_t efi_random_get_seed(efi_system_table_t *sys_table_arg)
 	efi_guid_t rng_proto = EFI_RNG_PROTOCOL_GUID;
 	efi_guid_t rng_algo_raw = EFI_RNG_ALGORITHM_RAW;
 	efi_guid_t rng_table_guid = LINUX_EFI_RANDOM_SEED_TABLE_GUID;
-	struct efi_rng_protocol *rng;
-	struct linux_efi_random_seed *seed;
+	struct efi_rng_protocol *rng = NULL;
+	struct linux_efi_random_seed *seed = NULL;
 	efi_status_t status;
 
 	status = efi_call_early(locate_protocol, &rng_proto, NULL,

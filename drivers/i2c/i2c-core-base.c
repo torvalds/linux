@@ -186,10 +186,11 @@ int i2c_generic_scl_recovery(struct i2c_adapter *adap)
 	 * If we can set SDA, we will always create a STOP to ensure additional
 	 * pulses will do no harm. This is achieved by letting SDA follow SCL
 	 * half a cycle later. Check the 'incomplete_write_byte' fault injector
-	 * for details.
+	 * for details. Note that we must honour tsu:sto, 4us, but lets use 5us
+	 * here for simplicity.
 	 */
 	bri->set_scl(adap, scl);
-	ndelay(RECOVERY_NDELAY / 2);
+	ndelay(RECOVERY_NDELAY);
 	if (bri->set_sda)
 		bri->set_sda(adap, scl);
 	ndelay(RECOVERY_NDELAY / 2);
@@ -211,7 +212,13 @@ int i2c_generic_scl_recovery(struct i2c_adapter *adap)
 		scl = !scl;
 		bri->set_scl(adap, scl);
 		/* Creating STOP again, see above */
-		ndelay(RECOVERY_NDELAY / 2);
+		if (scl)  {
+			/* Honour minimum tsu:sto */
+			ndelay(RECOVERY_NDELAY);
+		} else {
+			/* Honour minimum tf and thd:dat */
+			ndelay(RECOVERY_NDELAY / 2);
+		}
 		if (bri->set_sda)
 			bri->set_sda(adap, scl);
 		ndelay(RECOVERY_NDELAY / 2);
@@ -895,29 +902,6 @@ struct i2c_client *i2c_new_dummy_device(struct i2c_adapter *adapter, u16 address
 	return i2c_new_client_device(adapter, &info);
 }
 EXPORT_SYMBOL_GPL(i2c_new_dummy_device);
-
-/**
- * i2c_new_dummy - return a new i2c device bound to a dummy driver
- * @adapter: the adapter managing the device
- * @address: seven bit address to be used
- * Context: can sleep
- *
- * This deprecated function has the same functionality as @i2c_new_dummy_device,
- * it just returns NULL instead of an ERR_PTR in case of an error for
- * compatibility with current I2C API. It will be removed once all users are
- * converted.
- *
- * This returns the new i2c client, which should be saved for later use with
- * i2c_unregister_device(); or NULL to indicate an error.
- */
-struct i2c_client *i2c_new_dummy(struct i2c_adapter *adapter, u16 address)
-{
-	struct i2c_client *ret;
-
-	ret = i2c_new_dummy_device(adapter, address);
-	return IS_ERR(ret) ? NULL : ret;
-}
-EXPORT_SYMBOL_GPL(i2c_new_dummy);
 
 struct i2c_dummy_devres {
 	struct i2c_client *client;

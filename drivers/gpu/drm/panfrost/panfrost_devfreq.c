@@ -18,14 +18,17 @@ static void panfrost_devfreq_update_utilization(struct panfrost_device *pfdev);
 static int panfrost_devfreq_target(struct device *dev, unsigned long *freq,
 				   u32 flags)
 {
-	struct panfrost_device *pfdev = dev_get_drvdata(dev);
+	struct dev_pm_opp *opp;
 	int err;
+
+	opp = devfreq_recommended_opp(dev, freq, flags);
+	if (IS_ERR(opp))
+		return PTR_ERR(opp);
+	dev_pm_opp_put(opp);
 
 	err = dev_pm_opp_set_rate(dev, *freq);
 	if (err)
 		return err;
-
-	*freq = clk_get_rate(pfdev->clock);
 
 	return 0;
 }
@@ -60,20 +63,10 @@ static int panfrost_devfreq_get_dev_status(struct device *dev,
 	return 0;
 }
 
-static int panfrost_devfreq_get_cur_freq(struct device *dev, unsigned long *freq)
-{
-	struct panfrost_device *pfdev = platform_get_drvdata(to_platform_device(dev));
-
-	*freq = clk_get_rate(pfdev->clock);
-
-	return 0;
-}
-
 static struct devfreq_dev_profile panfrost_devfreq_profile = {
 	.polling_ms = 50, /* ~3 frames */
 	.target = panfrost_devfreq_target,
 	.get_dev_status = panfrost_devfreq_get_dev_status,
-	.get_cur_freq = panfrost_devfreq_get_cur_freq,
 };
 
 int panfrost_devfreq_init(struct panfrost_device *pfdev)

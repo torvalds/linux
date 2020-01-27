@@ -261,7 +261,8 @@ static int asus_event(struct hid_device *hdev, struct hid_field *field,
 		      struct hid_usage *usage, __s32 value)
 {
 	if ((usage->hid & HID_USAGE_PAGE) == 0xff310000 &&
-	    (usage->hid & HID_USAGE) != 0x00 && !usage->type) {
+	    (usage->hid & HID_USAGE) != 0x00 &&
+	    (usage->hid & HID_USAGE) != 0xff && !usage->type) {
 		hid_warn(hdev, "Unmapped Asus vendor usagepage code 0x%02x\n",
 			 usage->hid & HID_USAGE);
 	}

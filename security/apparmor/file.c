@@ -618,8 +618,7 @@ int aa_file_perm(const char *op, struct aa_label *label, struct file *file,
 	fctx = file_ctx(file);
 
 	rcu_read_lock();
-	flabel  = aa_get_newest_label(rcu_dereference(fctx->label));
-	rcu_read_unlock();
+	flabel  = rcu_dereference(fctx->label);
 	AA_BUG(!flabel);
 
 	/* revalidate access, if task is unconfined, or the cached cred
@@ -631,9 +630,13 @@ int aa_file_perm(const char *op, struct aa_label *label, struct file *file,
 	 */
 	denied = request & ~fctx->allow;
 	if (unconfined(label) || unconfined(flabel) ||
-	    (!denied && aa_label_is_subset(flabel, label)))
+	    (!denied && aa_label_is_subset(flabel, label))) {
+		rcu_read_unlock();
 		goto done;
+	}
 
+	flabel  = aa_get_newest_label(flabel);
+	rcu_read_unlock();
 	/* TODO: label cross check */
 
 	if (file->f_path.mnt && path_mediated_fs(file->f_path.dentry))
@@ -643,8 +646,9 @@ int aa_file_perm(const char *op, struct aa_label *label, struct file *file,
 	else if (S_ISSOCK(file_inode(file)->i_mode))
 		error = __file_sock_perm(op, label, flabel, file, request,
 					 denied);
-done:
 	aa_put_label(flabel);
+
+done:
 	return error;
 }
 

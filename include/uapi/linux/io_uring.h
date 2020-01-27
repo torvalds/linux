@@ -48,6 +48,7 @@ struct io_uring_sqe {
 #define IOSQE_FIXED_FILE	(1U << 0)	/* use fixed fileset */
 #define IOSQE_IO_DRAIN		(1U << 1)	/* issue after inflight IO */
 #define IOSQE_IO_LINK		(1U << 2)	/* links next sqe */
+#define IOSQE_IO_HARDLINK	(1U << 3)	/* like LINK, but stronger */
 
 /*
  * io_uring_setup() flags
@@ -57,23 +58,28 @@ struct io_uring_sqe {
 #define IORING_SETUP_SQ_AFF	(1U << 2)	/* sq_thread_cpu is valid */
 #define IORING_SETUP_CQSIZE	(1U << 3)	/* app defines CQ size */
 
-#define IORING_OP_NOP		0
-#define IORING_OP_READV		1
-#define IORING_OP_WRITEV	2
-#define IORING_OP_FSYNC		3
-#define IORING_OP_READ_FIXED	4
-#define IORING_OP_WRITE_FIXED	5
-#define IORING_OP_POLL_ADD	6
-#define IORING_OP_POLL_REMOVE	7
-#define IORING_OP_SYNC_FILE_RANGE	8
-#define IORING_OP_SENDMSG	9
-#define IORING_OP_RECVMSG	10
-#define IORING_OP_TIMEOUT	11
-#define IORING_OP_TIMEOUT_REMOVE	12
-#define IORING_OP_ACCEPT	13
-#define IORING_OP_ASYNC_CANCEL	14
-#define IORING_OP_LINK_TIMEOUT	15
-#define IORING_OP_CONNECT	16
+enum {
+	IORING_OP_NOP,
+	IORING_OP_READV,
+	IORING_OP_WRITEV,
+	IORING_OP_FSYNC,
+	IORING_OP_READ_FIXED,
+	IORING_OP_WRITE_FIXED,
+	IORING_OP_POLL_ADD,
+	IORING_OP_POLL_REMOVE,
+	IORING_OP_SYNC_FILE_RANGE,
+	IORING_OP_SENDMSG,
+	IORING_OP_RECVMSG,
+	IORING_OP_TIMEOUT,
+	IORING_OP_TIMEOUT_REMOVE,
+	IORING_OP_ACCEPT,
+	IORING_OP_ASYNC_CANCEL,
+	IORING_OP_LINK_TIMEOUT,
+	IORING_OP_CONNECT,
+
+	/* this goes last, obviously */
+	IORING_OP_LAST,
+};
 
 /*
  * sqe->fsync_flags

@@ -2707,7 +2707,7 @@ static const struct block_device_operations pktcdvd_ops = {
 	.release =		pkt_close,
 	.ioctl =		pkt_ioctl,
 #ifdef CONFIG_COMPAT
-	.ioctl =		pkt_compat_ioctl,
+	.compat_ioctl =		pkt_compat_ioctl,
 #endif
 	.check_events =		pkt_check_events,
 };

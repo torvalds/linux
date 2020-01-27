@@ -78,7 +78,13 @@ static void imx_sc_check_for_events(struct work_struct *work)
 		return;
 	}
 
-	state = (bool)msg.state;
+	/*
+	 * The response data from SCU firmware is 4 bytes,
+	 * but ONLY the first byte is the key state, other
+	 * 3 bytes could be some dirty data, so we should
+	 * ONLY take the first byte as key state.
+	 */
+	state = (bool)(msg.state & 0xff);
 
 	if (state ^ priv->keystate) {
 		priv->keystate = state;

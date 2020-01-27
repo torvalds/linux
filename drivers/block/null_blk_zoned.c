@@ -129,11 +129,13 @@ static blk_status_t null_zone_write(struct nullb_cmd *cmd, sector_t sector,
 		return BLK_STS_IOERR;
 	case BLK_ZONE_COND_EMPTY:
 	case BLK_ZONE_COND_IMP_OPEN:
+	case BLK_ZONE_COND_EXP_OPEN:
+	case BLK_ZONE_COND_CLOSED:
 		/* Writes must be at the write pointer position */
 		if (sector != zone->wp)
 			return BLK_STS_IOERR;
 
-		if (zone->cond == BLK_ZONE_COND_EMPTY)
+		if (zone->cond != BLK_ZONE_COND_EXP_OPEN)
 			zone->cond = BLK_ZONE_COND_IMP_OPEN;
 
 		zone->wp += nr_sectors;
@@ -186,7 +188,10 @@ static blk_status_t null_zone_mgmt(struct nullb_cmd *cmd, enum req_opf op,
 		if (zone->cond == BLK_ZONE_COND_FULL)
 			return BLK_STS_IOERR;
 
-		zone->cond = BLK_ZONE_COND_CLOSED;
+		if (zone->wp == zone->start)
+			zone->cond = BLK_ZONE_COND_EMPTY;
+		else
+			zone->cond = BLK_ZONE_COND_CLOSED;
 		break;
 	case REQ_OP_ZONE_FINISH:
 		if (zone->type == BLK_ZONE_TYPE_CONVENTIONAL)

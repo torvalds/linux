@@ -103,6 +103,8 @@ static inline bool valid_class_id(struct net_device *dev, u8 class_id)
 	return true;
 }
 
+struct sched_class *cxgb4_sched_queue_lookup(struct net_device *dev,
+					     struct ch_sched_queue *p);
 int cxgb4_sched_class_bind(struct net_device *dev, void *arg,
 			   enum sched_bind_type type);
 int cxgb4_sched_class_unbind(struct net_device *dev, void *arg,

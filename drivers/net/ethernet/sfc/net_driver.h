@@ -1533,9 +1533,7 @@ static inline bool efx_channel_is_xdp_tx(struct efx_channel *channel)
 
 static inline bool efx_channel_has_tx_queues(struct efx_channel *channel)
 {
-	return efx_channel_is_xdp_tx(channel) ||
-	       (channel->type && channel->type->want_txqs &&
-		channel->type->want_txqs(channel));
+	return true;
 }
 
 static inline struct efx_tx_queue *

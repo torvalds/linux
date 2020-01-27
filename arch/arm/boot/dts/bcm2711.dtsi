@@ -43,7 +43,7 @@
 			 <0x7c000000  0x0 0xfc000000  0x02000000>,
 			 <0x40000000  0x0 0xff800000  0x00800000>;
 		/* Emulate a contiguous 30-bit address range for DMA */
-		dma-ranges = <0xc0000000  0x0 0x00000000  0x3c000000>;
+		dma-ranges = <0xc0000000  0x0 0x00000000  0x40000000>;
 
 		/*
 		 * This node is the provider for the enable-method for

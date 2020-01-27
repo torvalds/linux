@@ -508,7 +508,6 @@ static const struct snd_soc_component_driver sprd_soc_component = {
 	.name		= DRV_NAME,
 	.open		= sprd_pcm_open,
 	.close		= sprd_pcm_close,
-	.ioctl		= snd_soc_pcm_lib_ioctl,
 	.hw_params	= sprd_pcm_hw_params,
 	.hw_free	= sprd_pcm_hw_free,
 	.trigger	= sprd_pcm_trigger,
