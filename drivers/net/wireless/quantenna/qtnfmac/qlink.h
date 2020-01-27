@@ -632,11 +632,11 @@ struct qlink_cmd_band_info_get {
 /**
  * struct qlink_cmd_get_chan_stats - data for QLINK_CMD_CHAN_STATS command
  *
- * @channel: channel number according to 802.11 17.3.8.3.2 and Annex J
+ * @channel_freq: channel center frequency
  */
 struct qlink_cmd_get_chan_stats {
 	struct qlink_cmd chdr;
-	__le16 channel;
+	__le32 channel_freq;
 } __packed;
 
 /**
@@ -1077,8 +1077,6 @@ enum qlink_sta_info_rate_flags {
  *
  * Response data containing statistics for specified STA.
  *
- * @filled: a bitmask of &enum qlink_sta_info, specifies which info in response
- *	is valid.
  * @sta_addr: MAC address of STA the response carries statistic for.
  * @info: variable statistics for specified STA.
  */
@@ -1109,10 +1107,12 @@ struct qlink_resp_band_info_get {
 /**
  * struct qlink_resp_get_chan_stats - response for QLINK_CMD_CHAN_STATS cmd
  *
+ * @chan_freq: center frequency for a channel the report is sent for.
  * @info: variable-length channel info.
  */
 struct qlink_resp_get_chan_stats {
-	struct qlink_cmd rhdr;
+	struct qlink_resp rhdr;
+	__le32 chan_freq;
 	u8 info[0];
 } __packed;
 
@@ -1373,6 +1373,8 @@ struct qlink_event_mic_failure {
  *	QTN_TLV_ID_STA_STATS is valid.
  *	&enum qlink_hw_capab listing wireless card capabilities.
  *	&enum qlink_driver_capab listing driver/host system capabilities.
+ *	&enum qlink_chan_stat used to indicate which statistic carried in
+ *	QTN_TLV_ID_CHANNEL_STATS is valid.
  * @QTN_TLV_ID_STA_STATS: per-STA statistics as defined by
  *	&struct qlink_sta_stats. Valid values are marked as such in a bitmap
  *	carried by QTN_TLV_ID_BITMAP.
@@ -1596,13 +1598,57 @@ struct qlink_tlv_iftype_data {
 	struct qlink_sband_iftype_data iftype_data[0];
 } __packed;
 
+/**
+ * enum qlink_chan_stat - channel statistics bitmap
+ *
+ * Used to indicate which statistics values in &struct qlink_chan_stats
+ * are valid. Individual values are used to fill a bitmap carried in a
+ * payload of QTN_TLV_ID_BITMAP.
+ *
+ * @QLINK_CHAN_STAT_TIME_ON: time_on value is valid.
+ * @QLINK_CHAN_STAT_TIME_TX: time_tx value is valid.
+ * @QLINK_CHAN_STAT_TIME_RX: time_rx value is valid.
+ * @QLINK_CHAN_STAT_CCA_BUSY: cca_busy value is valid.
+ * @QLINK_CHAN_STAT_CCA_BUSY_EXT: cca_busy_ext value is valid.
+ * @QLINK_CHAN_STAT_TIME_SCAN: time_scan value is valid.
+ * @QLINK_CHAN_STAT_CHAN_NOISE: chan_noise value is valid.
+ */
+enum qlink_chan_stat {
+	QLINK_CHAN_STAT_TIME_ON,
+	QLINK_CHAN_STAT_TIME_TX,
+	QLINK_CHAN_STAT_TIME_RX,
+	QLINK_CHAN_STAT_CCA_BUSY,
+	QLINK_CHAN_STAT_CCA_BUSY_EXT,
+	QLINK_CHAN_STAT_TIME_SCAN,
+	QLINK_CHAN_STAT_CHAN_NOISE,
+	QLINK_CHAN_STAT_NUM,
+};
+
+/**
+ * struct qlink_chan_stats - data for QTN_TLV_ID_CHANNEL_STATS
+ *
+ * Carries a per-channel statistics. Not all fields may be filled with
+ * valid values. Valid fields should be indicated as such using a bitmap of
+ * &enum qlink_chan_stat. Bitmap is carried separately in a payload of
+ * QTN_TLV_ID_BITMAP.
+ *
+ * @time_on: amount of time radio operated on that channel.
+ * @time_tx: amount of time radio spent transmitting on the channel.
+ * @time_rx: amount of time radio spent receiving on the channel.
+ * @cca_busy: amount of time the the primary channel was busy.
+ * @cca_busy_ext: amount of time the the secondary channel was busy.
+ * @time_scan: amount of radio spent scanning on the channel.
+ * @chan_noise: channel noise.
+ */
 struct qlink_chan_stats {
-	__le32 chan_num;
-	__le32 cca_tx;
-	__le32 cca_rx;
-	__le32 cca_busy;
-	__le32 cca_try;
+	__le64 time_on;
+	__le64 time_tx;
+	__le64 time_rx;
+	__le64 cca_busy;
+	__le64 cca_busy_ext;
+	__le64 time_scan;
 	s8 chan_noise;
+	u8 rsvd[3];
 } __packed;
 
 /**

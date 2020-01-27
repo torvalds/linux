@@ -1566,62 +1566,6 @@ error_ret:
 	return ret;
 }
 
-static int
-qtnf_cmd_resp_proc_chan_stat_info(struct qtnf_chan_stats *stats,
-				  const u8 *payload, size_t payload_len)
-{
-	struct qlink_chan_stats *qlink_stats;
-	const struct qlink_tlv_hdr *tlv;
-	size_t tlv_full_len;
-	u16 tlv_value_len;
-	u16 tlv_type;
-
-	tlv = (struct qlink_tlv_hdr *)payload;
-	while (payload_len >= sizeof(struct qlink_tlv_hdr)) {
-		tlv_type = le16_to_cpu(tlv->type);
-		tlv_value_len = le16_to_cpu(tlv->len);
-		tlv_full_len = tlv_value_len + sizeof(struct qlink_tlv_hdr);
-		if (tlv_full_len > payload_len) {
-			pr_warn("malformed TLV 0x%.2X; LEN: %u\n",
-				tlv_type, tlv_value_len);
-			return -EINVAL;
-		}
-		switch (tlv_type) {
-		case QTN_TLV_ID_CHANNEL_STATS:
-			if (unlikely(tlv_value_len != sizeof(*qlink_stats))) {
-				pr_err("invalid CHANNEL_STATS entry size\n");
-				return -EINVAL;
-			}
-
-			qlink_stats = (void *)tlv->val;
-
-			stats->chan_num = le32_to_cpu(qlink_stats->chan_num);
-			stats->cca_tx = le32_to_cpu(qlink_stats->cca_tx);
-			stats->cca_rx = le32_to_cpu(qlink_stats->cca_rx);
-			stats->cca_busy = le32_to_cpu(qlink_stats->cca_busy);
-			stats->cca_try = le32_to_cpu(qlink_stats->cca_try);
-			stats->chan_noise = qlink_stats->chan_noise;
-
-			pr_debug("chan(%u) try(%u) busy(%u) noise(%d)\n",
-				 stats->chan_num, stats->cca_try,
-				 stats->cca_busy, stats->chan_noise);
-			break;
-		default:
-			pr_warn("Unknown TLV type: %#x\n",
-				le16_to_cpu(tlv->type));
-		}
-		payload_len -= tlv_full_len;
-		tlv = (struct qlink_tlv_hdr *)(tlv->val + tlv_value_len);
-	}
-
-	if (payload_len) {
-		pr_warn("malformed TLV buf; bytes left: %zu\n", payload_len);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 int qtnf_cmd_get_mac_info(struct qtnf_wmac *mac)
 {
 	struct sk_buff *cmd_skb, *resp_skb = NULL;
@@ -2468,8 +2412,104 @@ int qtnf_cmd_reg_notify(struct qtnf_wmac *mac, struct regulatory_request *req,
 	return ret;
 }
 
-int qtnf_cmd_get_chan_stats(struct qtnf_wmac *mac, u16 channel,
-			    struct qtnf_chan_stats *stats)
+static int
+qtnf_cmd_resp_proc_chan_stat_info(struct survey_info *survey,
+				  const u8 *payload, size_t payload_len)
+{
+	const struct qlink_chan_stats *stats = NULL;
+	const struct qlink_tlv_hdr *tlv;
+	size_t tlv_full_len;
+	u16 tlv_value_len;
+	u16 tlv_type;
+	const u8 *map = NULL;
+	unsigned int map_len = 0;
+	unsigned int stats_len = 0;
+
+	tlv = (struct qlink_tlv_hdr *)payload;
+
+	while (payload_len >= sizeof(*tlv)) {
+		tlv_type = le16_to_cpu(tlv->type);
+		tlv_value_len = le16_to_cpu(tlv->len);
+		tlv_full_len = tlv_value_len + sizeof(*tlv);
+
+		if (tlv_full_len > payload_len) {
+			pr_warn("malformed TLV 0x%.2X; LEN: %u\n",
+				tlv_type, tlv_value_len);
+			return -ENOSPC;
+		}
+
+		switch (tlv_type) {
+		case QTN_TLV_ID_BITMAP:
+			map = tlv->val;
+			map_len = tlv_value_len;
+			break;
+		case QTN_TLV_ID_CHANNEL_STATS:
+			stats = (struct qlink_chan_stats *)tlv->val;
+			stats_len = tlv_value_len;
+			break;
+		default:
+			pr_info("Unknown TLV type: %#x\n", tlv_type);
+			break;
+		}
+
+		payload_len -= tlv_full_len;
+		tlv = (struct qlink_tlv_hdr *)(tlv->val + tlv_value_len);
+	}
+
+	if (payload_len) {
+		pr_warn("malformed TLV buf; bytes left: %zu\n", payload_len);
+		return -EINVAL;
+	}
+
+	if (!map || !stats)
+		return 0;
+
+#define qtnf_chan_stat_avail(stat_name, bitn)	\
+	(qtnf_utils_is_bit_set(map, bitn, map_len) && \
+	 (offsetofend(struct qlink_chan_stats, stat_name) <= stats_len))
+
+	if (qtnf_chan_stat_avail(time_on, QLINK_CHAN_STAT_TIME_ON)) {
+		survey->filled |= SURVEY_INFO_TIME;
+		survey->time = le64_to_cpu(stats->time_on);
+	}
+
+	if (qtnf_chan_stat_avail(time_tx, QLINK_CHAN_STAT_TIME_TX)) {
+		survey->filled |= SURVEY_INFO_TIME_TX;
+		survey->time_tx = le64_to_cpu(stats->time_tx);
+	}
+
+	if (qtnf_chan_stat_avail(time_rx, QLINK_CHAN_STAT_TIME_RX)) {
+		survey->filled |= SURVEY_INFO_TIME_RX;
+		survey->time_rx = le64_to_cpu(stats->time_rx);
+	}
+
+	if (qtnf_chan_stat_avail(cca_busy, QLINK_CHAN_STAT_CCA_BUSY)) {
+		survey->filled |= SURVEY_INFO_TIME_BUSY;
+		survey->time_busy = le64_to_cpu(stats->cca_busy);
+	}
+
+	if (qtnf_chan_stat_avail(cca_busy_ext, QLINK_CHAN_STAT_CCA_BUSY_EXT)) {
+		survey->filled |= SURVEY_INFO_TIME_EXT_BUSY;
+		survey->time_ext_busy = le64_to_cpu(stats->cca_busy_ext);
+	}
+
+	if (qtnf_chan_stat_avail(time_scan, QLINK_CHAN_STAT_TIME_SCAN)) {
+		survey->filled |= SURVEY_INFO_TIME_SCAN;
+		survey->time_scan = le64_to_cpu(stats->time_scan);
+	}
+
+	if (qtnf_chan_stat_avail(chan_noise, QLINK_CHAN_STAT_CHAN_NOISE)) {
+		survey->filled |= SURVEY_INFO_NOISE_DBM;
+		survey->noise = stats->chan_noise;
+	}
+
+#undef qtnf_chan_stat_avail
+
+	return 0;
+}
+
+int qtnf_cmd_get_chan_stats(struct qtnf_wmac *mac, u32 chan_freq,
+			    struct survey_info *survey)
 {
 	struct sk_buff *cmd_skb, *resp_skb = NULL;
 	struct qlink_cmd_get_chan_stats *cmd;
@@ -2483,22 +2523,30 @@ int qtnf_cmd_get_chan_stats(struct qtnf_wmac *mac, u16 channel,
 	if (!cmd_skb)
 		return -ENOMEM;
 
-	qtnf_bus_lock(mac->bus);
-
 	cmd = (struct qlink_cmd_get_chan_stats *)cmd_skb->data;
-	cmd->channel = cpu_to_le16(channel);
+	cmd->channel_freq = cpu_to_le32(chan_freq);
 
+	qtnf_bus_lock(mac->bus);
 	ret = qtnf_cmd_send_with_reply(mac->bus, cmd_skb, &resp_skb,
 				       sizeof(*resp), &var_data_len);
+	qtnf_bus_unlock(mac->bus);
+
 	if (ret)
 		goto out;
 
 	resp = (struct qlink_resp_get_chan_stats *)resp_skb->data;
-	ret = qtnf_cmd_resp_proc_chan_stat_info(stats, resp->info,
+
+	if (le32_to_cpu(resp->chan_freq) != chan_freq) {
+		pr_err("[MAC%u] channel stats freq %u != requested %u\n",
+		       mac->macid, le32_to_cpu(resp->chan_freq), chan_freq);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = qtnf_cmd_resp_proc_chan_stat_info(survey, resp->info,
 						var_data_len);
 
 out:
-	qtnf_bus_unlock(mac->bus);
 	consume_skb(resp_skb);
 
 	return ret;

@@ -739,7 +739,6 @@ qtnf_dump_survey(struct wiphy *wiphy, struct net_device *dev,
 	struct ieee80211_supported_band *sband;
 	const struct cfg80211_chan_def *chandef = &wdev->chandef;
 	struct ieee80211_channel *chan;
-	struct qtnf_chan_stats stats;
 	int ret;
 
 	sband = wiphy->bands[NL80211_BAND_2GHZ];
@@ -755,49 +754,16 @@ qtnf_dump_survey(struct wiphy *wiphy, struct net_device *dev,
 		return -ENOENT;
 
 	chan = &sband->channels[idx];
-	memset(&stats, 0, sizeof(stats));
-
 	survey->channel = chan;
 	survey->filled = 0x0;
 
-	if (chandef->chan) {
-		if (chan->hw_value == chandef->chan->hw_value)
-			survey->filled = SURVEY_INFO_IN_USE;
-	}
+	if (chan == chandef->chan)
+		survey->filled = SURVEY_INFO_IN_USE;
 
-	ret = qtnf_cmd_get_chan_stats(mac, chan->hw_value, &stats);
-	switch (ret) {
-	case 0:
-		if (unlikely(stats.chan_num != chan->hw_value)) {
-			pr_err("received stats for channel %d instead of %d\n",
-			       stats.chan_num, chan->hw_value);
-			ret = -EINVAL;
-			break;
-		}
-
-		survey->filled |= SURVEY_INFO_TIME |
-				 SURVEY_INFO_TIME_SCAN |
-				 SURVEY_INFO_TIME_BUSY |
-				 SURVEY_INFO_TIME_RX |
-				 SURVEY_INFO_TIME_TX |
-				 SURVEY_INFO_NOISE_DBM;
-
-		survey->time_scan = stats.cca_try;
-		survey->time = stats.cca_try;
-		survey->time_tx = stats.cca_tx;
-		survey->time_rx = stats.cca_rx;
-		survey->time_busy = stats.cca_busy;
-		survey->noise = stats.chan_noise;
-		break;
-	case -ENOENT:
-		pr_debug("no stats for channel %u\n", chan->hw_value);
-		ret = 0;
-		break;
-	default:
+	ret = qtnf_cmd_get_chan_stats(mac, chan->center_freq, survey);
+	if (ret)
 		pr_debug("failed to get chan(%d) stats from card\n",
 			 chan->hw_value);
-		break;
-	}
 
 	return ret;
 }
