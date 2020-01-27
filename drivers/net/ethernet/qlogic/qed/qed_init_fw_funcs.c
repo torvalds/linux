@@ -44,9 +44,9 @@
 #define CDU_VALIDATION_DEFAULT_CFG	61
 
 static u16 con_region_offsets[3][NUM_OF_CONNECTION_TYPES_E4] = {
-	{400, 336, 352, 304, 304, 384, 416, 352},	/* region 3 offsets */
-	{528, 496, 416, 448, 448, 512, 544, 480},	/* region 4 offsets */
-	{608, 544, 496, 512, 576, 592, 624, 560}	/* region 5 offsets */
+	{400, 336, 352, 368, 304, 384, 416, 352},	/* region 3 offsets */
+	{528, 496, 416, 512, 448, 512, 544, 480},	/* region 4 offsets */
+	{608, 544, 496, 576, 576, 592, 624, 560}	/* region 5 offsets */
 };
 
 static u16 task_region_offsets[1][NUM_OF_CONNECTION_TYPES_E4] = {
@@ -228,9 +228,6 @@ static void qed_enable_pf_rl(struct qed_hwfn *p_hwfn, bool pf_rl_en)
 		STORE_RT_REG(p_hwfn,
 			     QM_REG_RLPFVOQENABLE_RT_OFFSET,
 			     (u32)voq_bit_mask);
-		if (num_ext_voqs >= 32)
-			STORE_RT_REG(p_hwfn, QM_REG_RLPFVOQENABLE_MSB_RT_OFFSET,
-				     (u32)(voq_bit_mask >> 32));
 
 		/* Write RL period */
 		STORE_RT_REG(p_hwfn,
