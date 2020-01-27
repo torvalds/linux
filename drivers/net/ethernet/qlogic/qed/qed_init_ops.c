@@ -490,10 +490,10 @@ static u32 qed_init_cmd_phase(struct qed_hwfn *p_hwfn,
 int qed_init_run(struct qed_hwfn *p_hwfn,
 		 struct qed_ptt *p_ptt, int phase, int phase_id, int modes)
 {
+	bool b_dmae = (phase != PHASE_ENGINE);
 	struct qed_dev *cdev = p_hwfn->cdev;
 	u32 cmd_num, num_init_ops;
 	union init_op *init_ops;
-	bool b_dmae = false;
 	int rc = 0;
 
 	num_init_ops = cdev->fw_data->init_ops_size;
@@ -522,7 +522,6 @@ int qed_init_run(struct qed_hwfn *p_hwfn,
 		case INIT_OP_IF_PHASE:
 			cmd_num += qed_init_cmd_phase(p_hwfn, &cmd->if_phase,
 						      phase, phase_id);
-			b_dmae = GET_FIELD(data, INIT_IF_PHASE_OP_DMAE_ENABLE);
 			break;
 		case INIT_OP_DELAY:
 			/* qed_init_run is always invoked from
@@ -533,6 +532,9 @@ int qed_init_run(struct qed_hwfn *p_hwfn,
 
 		case INIT_OP_CALLBACK:
 			rc = qed_init_cmd_cb(p_hwfn, p_ptt, &cmd->callback);
+			if (phase == PHASE_ENGINE &&
+			    cmd->callback.callback_id == DMAE_READY_CB)
+				b_dmae = true;
 			break;
 		}
 

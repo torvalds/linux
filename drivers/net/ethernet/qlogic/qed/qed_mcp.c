@@ -48,6 +48,8 @@
 #include "qed_reg_addr.h"
 #include "qed_sriov.h"
 
+#define GRCBASE_MCP     0xe00000
+
 #define QED_MCP_RESP_ITER_US	10
 
 #define QED_DRV_MB_MAX_RETRIES	(500 * 1000)	/* Account for 5 sec */

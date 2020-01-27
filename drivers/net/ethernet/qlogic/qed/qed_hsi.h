@@ -250,7 +250,8 @@ struct core_rx_gsi_offload_cqe {
 	__le16 src_mac_addrlo;
 	__le16 qp_id;
 	__le32 src_qp;
-	__le32 reserved[3];
+	struct core_rx_cqe_opaque_data opaque_data;
+	__le32 reserved;
 };
 
 /* Core RX CQE for Light L2 */
@@ -405,7 +406,7 @@ struct ystorm_core_conn_st_ctx {
 
 /* The core storm context for the Pstorm */
 struct pstorm_core_conn_st_ctx {
-	__le32 reserved[4];
+	__le32 reserved[20];
 };
 
 /* Core Slowpath Connection storm context of Xstorm */
@@ -856,12 +857,12 @@ struct e4_ustorm_core_conn_ag_ctx {
 
 /* The core storm context for the Mstorm */
 struct mstorm_core_conn_st_ctx {
-	__le32 reserved[24];
+	__le32 reserved[40];
 };
 
 /* The core storm context for the Ustorm */
 struct ustorm_core_conn_st_ctx {
-	__le32 reserved[4];
+	__le32 reserved[20];
 };
 
 /* The core storm context for the Tstorm */
@@ -915,12 +916,21 @@ struct eth_pstorm_per_pf_stat {
 	struct regpair sent_gre_bytes;
 	struct regpair sent_vxlan_bytes;
 	struct regpair sent_geneve_bytes;
+	struct regpair sent_mpls_bytes;
+	struct regpair sent_gre_mpls_bytes;
+	struct regpair sent_udp_mpls_bytes;
 	struct regpair sent_gre_pkts;
 	struct regpair sent_vxlan_pkts;
 	struct regpair sent_geneve_pkts;
+	struct regpair sent_mpls_pkts;
+	struct regpair sent_gre_mpls_pkts;
+	struct regpair sent_udp_mpls_pkts;
 	struct regpair gre_drop_pkts;
 	struct regpair vxlan_drop_pkts;
 	struct regpair geneve_drop_pkts;
+	struct regpair mpls_drop_pkts;
+	struct regpair gre_mpls_drop_pkts;
+	struct regpair udp_mpls_drop_pkts;
 };
 
 /* Ethernet TX Per Queue Stats */
@@ -1010,7 +1020,8 @@ union event_ring_data {
 struct event_ring_entry {
 	u8 protocol_id;
 	u8 opcode;
-	__le16 reserved0;
+	u8 reserved0;
+	u8 vf_id;
 	__le16 echo;
 	u8 fw_return_code;
 	u8 flags;
@@ -1088,7 +1099,20 @@ enum malicious_vf_error_id {
 	ETH_CONTROL_PACKET_VIOLATION,
 	ETH_ANTI_SPOOFING_ERR,
 	ETH_PACKET_SIZE_TOO_LARGE,
-	MAX_MALICIOUS_VF_ERROR_ID
+	CORE_ILLEGAL_VLAN_MODE,
+	CORE_ILLEGAL_NBDS,
+	CORE_FIRST_BD_WO_SOP,
+	CORE_INSUFFICIENT_BDS,
+	CORE_PACKET_TOO_SMALL,
+	CORE_ILLEGAL_INBAND_TAGS,
+	CORE_VLAN_INSERT_AND_INBAND_VLAN,
+	CORE_MTU_VIOLATION,
+	CORE_CONTROL_PACKET_VIOLATION,
+	CORE_ANTI_SPOOFING_ERR,
+	CORE_PACKET_SIZE_TOO_LARGE,
+	CORE_ILLEGAL_BD_FLAGS,
+	CORE_GSI_PACKET_VIOLATION,
+	MAX_MALICIOUS_VF_ERROR_ID,
 };
 
 /* Mstorm non-triggering VF zone */
@@ -1392,6 +1416,16 @@ enum vf_zone_size_mode {
 	VF_ZONE_SIZE_MODE_DOUBLE,
 	VF_ZONE_SIZE_MODE_QUAD,
 	MAX_VF_ZONE_SIZE_MODE
+};
+
+/* Xstorm non-triggering VF zone */
+struct xstorm_non_trigger_vf_zone {
+	struct regpair non_edpm_ack_pkts;
+};
+
+/* Tstorm VF zone */
+struct xstorm_vf_zone {
+	struct xstorm_non_trigger_vf_zone non_trigger;
 };
 
 /* Attentions status block */
@@ -2748,8 +2782,8 @@ enum chip_ids {
 };
 
 struct fw_asserts_ram_section {
-	u16 section_ram_line_offset;
-	u16 section_ram_line_size;
+	__le16 section_ram_line_offset;
+	__le16 section_ram_line_size;
 	u8 list_dword_offset;
 	u8 list_element_dword_size;
 	u8 list_num_elements;
@@ -2799,6 +2833,7 @@ enum init_modes {
 	MODE_PORTS_PER_ENG_4,
 	MODE_100G,
 	MODE_RESERVED6,
+	MODE_RESERVED7,
 	MAX_INIT_MODES
 };
 
@@ -2833,6 +2868,7 @@ enum bin_init_buffer_type {
 	BIN_BUF_INIT_VAL,
 	BIN_BUF_INIT_MODE_TREE,
 	BIN_BUF_INIT_IRO,
+	BIN_BUF_INIT_OVERLAYS,
 	MAX_BIN_INIT_BUFFER_TYPE
 };
 
@@ -2929,10 +2965,8 @@ struct init_if_phase_op {
 	u32 op_data;
 #define INIT_IF_PHASE_OP_OP_MASK		0xF
 #define INIT_IF_PHASE_OP_OP_SHIFT		0
-#define INIT_IF_PHASE_OP_DMAE_ENABLE_MASK	0x1
-#define INIT_IF_PHASE_OP_DMAE_ENABLE_SHIFT	4
-#define INIT_IF_PHASE_OP_RESERVED1_MASK		0x7FF
-#define INIT_IF_PHASE_OP_RESERVED1_SHIFT	5
+#define INIT_IF_PHASE_OP_RESERVED1_MASK		0xFFF
+#define INIT_IF_PHASE_OP_RESERVED1_SHIFT	4
 #define INIT_IF_PHASE_OP_CMD_OFFSET_MASK	0xFFFF
 #define INIT_IF_PHASE_OP_CMD_OFFSET_SHIFT	16
 	u32 phase_data;
@@ -4226,7 +4260,7 @@ void qed_gft_disable(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt, u16 pf_id);
 /**
  * @brief qed_gft_config - Enable and configure HW for GFT
  *
- * @param p_hwfn
+ * @param p_hwfn - HW device data
  * @param p_ptt - ptt window used for writing the registers.
  * @param pf_id - pf on which to enable GFT.
  * @param tcp - set profile tcp packets.
@@ -5673,9 +5707,9 @@ struct e4_eth_conn_context {
 	struct pstorm_eth_conn_st_ctx pstorm_st_context;
 	struct xstorm_eth_conn_st_ctx xstorm_st_context;
 	struct e4_xstorm_eth_conn_ag_ctx xstorm_ag_context;
+	struct e4_tstorm_eth_conn_ag_ctx tstorm_ag_context;
 	struct ystorm_eth_conn_st_ctx ystorm_st_context;
 	struct e4_ystorm_eth_conn_ag_ctx ystorm_ag_context;
-	struct e4_tstorm_eth_conn_ag_ctx tstorm_ag_context;
 	struct e4_ustorm_eth_conn_ag_ctx ustorm_ag_context;
 	struct ustorm_eth_conn_st_ctx ustorm_st_context;
 	struct mstorm_eth_conn_st_ctx mstorm_st_context;
@@ -5705,6 +5739,16 @@ enum eth_error_code {
 	ETH_FILTERS_VNI_ADD_FAIL_FULL,
 	ETH_FILTERS_VNI_ADD_FAIL_DUP,
 	ETH_FILTERS_GFT_UPDATE_FAIL,
+	ETH_RX_QUEUE_FAIL_LOAD_VF_DATA,
+	ETH_FILTERS_GFS_ADD_FILTER_FAIL_MAX_HOPS,
+	ETH_FILTERS_GFS_ADD_FILTER_FAIL_NO_FREE_ENRTY,
+	ETH_FILTERS_GFS_ADD_FILTER_FAIL_ALREADY_EXISTS,
+	ETH_FILTERS_GFS_ADD_FILTER_FAIL_PCI_ERROR,
+	ETH_FILTERS_GFS_ADD_FINLER_FAIL_MAGIC_NUM_ERROR,
+	ETH_FILTERS_GFS_DEL_FILTER_FAIL_MAX_HOPS,
+	ETH_FILTERS_GFS_DEL_FILTER_FAIL_NO_MATCH_ENRTY,
+	ETH_FILTERS_GFS_DEL_FILTER_FAIL_PCI_ERROR,
+	ETH_FILTERS_GFS_DEL_FILTER_FAIL_MAGIC_NUM_ERROR,
 	MAX_ETH_ERROR_CODE
 };
 
@@ -5728,6 +5772,11 @@ enum eth_event_opcode {
 	ETH_EVENT_RX_CREATE_GFT_ACTION,
 	ETH_EVENT_RX_GFT_UPDATE_FILTER,
 	ETH_EVENT_TX_QUEUE_UPDATE,
+	ETH_EVENT_RGFS_ADD_FILTER,
+	ETH_EVENT_RGFS_DEL_FILTER,
+	ETH_EVENT_TGFS_ADD_FILTER,
+	ETH_EVENT_TGFS_DEL_FILTER,
+	ETH_EVENT_GFS_COUNTERS_REPORT_REQUEST,
 	MAX_ETH_EVENT_OPCODE
 };
 
@@ -5820,18 +5869,31 @@ enum eth_ramrod_cmd_id {
 	ETH_RAMROD_RX_CREATE_GFT_ACTION,
 	ETH_RAMROD_GFT_UPDATE_FILTER,
 	ETH_RAMROD_TX_QUEUE_UPDATE,
+	ETH_RAMROD_RGFS_FILTER_ADD,
+	ETH_RAMROD_RGFS_FILTER_DEL,
+	ETH_RAMROD_TGFS_FILTER_ADD,
+	ETH_RAMROD_TGFS_FILTER_DEL,
+	ETH_RAMROD_GFS_COUNTERS_REPORT_REQUEST,
 	MAX_ETH_RAMROD_CMD_ID
 };
 
 /* Return code from eth sp ramrods */
 struct eth_return_code {
 	u8 value;
-#define ETH_RETURN_CODE_ERR_CODE_MASK	0x1F
-#define ETH_RETURN_CODE_ERR_CODE_SHIFT	0
-#define ETH_RETURN_CODE_RESERVED_MASK	0x3
-#define ETH_RETURN_CODE_RESERVED_SHIFT	5
-#define ETH_RETURN_CODE_RX_TX_MASK	0x1
-#define ETH_RETURN_CODE_RX_TX_SHIFT	7
+#define ETH_RETURN_CODE_ERR_CODE_MASK  0x3F
+#define ETH_RETURN_CODE_ERR_CODE_SHIFT 0
+#define ETH_RETURN_CODE_RESERVED_MASK  0x1
+#define ETH_RETURN_CODE_RESERVED_SHIFT 6
+#define ETH_RETURN_CODE_RX_TX_MASK     0x1
+#define ETH_RETURN_CODE_RX_TX_SHIFT    7
+};
+
+/* tx destination enum */
+enum eth_tx_dst_mode_config_enum {
+	ETH_TX_DST_MODE_CONFIG_DISABLE,
+	ETH_TX_DST_MODE_CONFIG_FORWARD_DATA_IN_BD,
+	ETH_TX_DST_MODE_CONFIG_FORWARD_DATA_IN_VPORT,
+	MAX_ETH_TX_DST_MODE_CONFIG_ENUM
 };
 
 /* What to do in case an error occurs */
@@ -5858,8 +5920,10 @@ struct eth_tx_err_vals {
 #define ETH_TX_ERR_VALS_MTU_VIOLATION_SHIFT			5
 #define ETH_TX_ERR_VALS_ILLEGAL_CONTROL_FRAME_MASK		0x1
 #define ETH_TX_ERR_VALS_ILLEGAL_CONTROL_FRAME_SHIFT		6
-#define ETH_TX_ERR_VALS_RESERVED_MASK				0x1FF
-#define ETH_TX_ERR_VALS_RESERVED_SHIFT				7
+#define ETH_TX_ERR_VALS_ILLEGAL_BD_FLAGS_MASK			0x1
+#define ETH_TX_ERR_VALS_ILLEGAL_BD_FLAGS_SHIFT			7
+#define ETH_TX_ERR_VALS_RESERVED_MASK				0xFF
+#define ETH_TX_ERR_VALS_RESERVED_SHIFT				8
 };
 
 /* vport rss configuration data */
@@ -5889,7 +5953,6 @@ struct eth_vport_rss_config {
 	u8 tbl_size;
 	__le32 reserved2[2];
 	__le16 indirection_table[ETH_RSS_IND_TABLE_ENTRIES_NUM];
-
 	__le32 rss_key[ETH_RSS_KEY_SIZE_REGS];
 	__le32 reserved3[2];
 };
@@ -6091,7 +6154,7 @@ struct rx_update_gft_filter_data {
 	u8 inner_vlan_removal_en;
 };
 
-/* Ramrod data for rx queue start ramrod */
+/* Ramrod data for tx queue start ramrod */
 struct tx_queue_start_ramrod_data {
 	__le16 sb_id;
 	u8 sb_index;
@@ -6104,16 +6167,14 @@ struct tx_queue_start_ramrod_data {
 #define TX_QUEUE_START_RAMROD_DATA_DISABLE_OPPORTUNISTIC_SHIFT	0
 #define TX_QUEUE_START_RAMROD_DATA_TEST_MODE_PKT_DUP_MASK	0x1
 #define TX_QUEUE_START_RAMROD_DATA_TEST_MODE_PKT_DUP_SHIFT	1
-#define TX_QUEUE_START_RAMROD_DATA_TEST_MODE_TX_DEST_MASK	0x1
-#define TX_QUEUE_START_RAMROD_DATA_TEST_MODE_TX_DEST_SHIFT	2
 #define TX_QUEUE_START_RAMROD_DATA_PMD_MODE_MASK		0x1
-#define TX_QUEUE_START_RAMROD_DATA_PMD_MODE_SHIFT		3
+#define TX_QUEUE_START_RAMROD_DATA_PMD_MODE_SHIFT		2
 #define TX_QUEUE_START_RAMROD_DATA_NOTIFY_EN_MASK		0x1
-#define TX_QUEUE_START_RAMROD_DATA_NOTIFY_EN_SHIFT		4
+#define TX_QUEUE_START_RAMROD_DATA_NOTIFY_EN_SHIFT		3
 #define TX_QUEUE_START_RAMROD_DATA_PIN_CONTEXT_MASK		0x1
-#define TX_QUEUE_START_RAMROD_DATA_PIN_CONTEXT_SHIFT		5
-#define TX_QUEUE_START_RAMROD_DATA_RESERVED1_MASK		0x3
-#define TX_QUEUE_START_RAMROD_DATA_RESERVED1_SHIFT		6
+#define TX_QUEUE_START_RAMROD_DATA_PIN_CONTEXT_SHIFT		4
+#define TX_QUEUE_START_RAMROD_DATA_RESERVED1_MASK		0x7
+#define TX_QUEUE_START_RAMROD_DATA_RESERVED1_SHIFT		5
 	u8 pxp_st_hint;
 	u8 pxp_tph_valid_bd;
 	u8 pxp_tph_valid_pkt;
@@ -6169,18 +6230,22 @@ struct vport_start_ramrod_data {
 	__le16 default_vlan;
 	u8 tx_switching_en;
 	u8 anti_spoofing_en;
-
 	u8 default_vlan_en;
-
 	u8 handle_ptp_pkts;
 	u8 silent_vlan_removal_en;
 	u8 untagged;
 	struct eth_tx_err_vals tx_err_behav;
-
 	u8 zero_placement_offset;
 	u8 ctl_frame_mac_check_en;
 	u8 ctl_frame_ethtype_check_en;
+	u8 reserved0;
+	u8 reserved1;
+	u8 tx_dst_port_mode_config;
+	u8 dst_vport_id;
+	u8 tx_dst_port_mode;
+	u8 dst_vport_id_valid;
 	u8 wipe_inner_vlan_pri_en;
+	u8 reserved2[2];
 	struct eth_in_to_in_pri_map_cfg in_to_in_vlan_pri_map_cfg;
 };
 
@@ -6740,19 +6805,6 @@ struct e4_xstorm_eth_hw_conn_ag_ctx {
 	__le16 conn_dpi;
 };
 
-/* GFT CAM line struct */
-struct gft_cam_line {
-	__le32 camline;
-#define GFT_CAM_LINE_VALID_MASK		0x1
-#define GFT_CAM_LINE_VALID_SHIFT	0
-#define GFT_CAM_LINE_DATA_MASK		0x3FFF
-#define GFT_CAM_LINE_DATA_SHIFT		1
-#define GFT_CAM_LINE_MASK_BITS_MASK	0x3FFF
-#define GFT_CAM_LINE_MASK_BITS_SHIFT	15
-#define GFT_CAM_LINE_RESERVED1_MASK	0x7
-#define GFT_CAM_LINE_RESERVED1_SHIFT	29
-};
-
 /* GFT CAM line struct with fields breakout */
 struct gft_cam_line_mapped {
 	__le32 camline;
@@ -6782,10 +6834,6 @@ struct gft_cam_line_mapped {
 #define GFT_CAM_LINE_MAPPED_RESERVED1_SHIFT			29
 };
 
-union gft_cam_line_union {
-	struct gft_cam_line cam_line;
-	struct gft_cam_line_mapped cam_line_mapped;
-};
 
 /* Used in gft_profile_key: Indication for ip version */
 enum gft_profile_ip_version {
@@ -7064,6 +7112,11 @@ struct mstorm_rdma_task_st_ctx {
 	struct regpair temp[4];
 };
 
+/* The roce task context of Ustorm */
+struct ustorm_rdma_task_st_ctx {
+	struct regpair temp[6];
+};
+
 struct e4_ustorm_rdma_task_ag_ctx {
 	u8 reserved;
 	u8 state;
@@ -7073,8 +7126,8 @@ struct e4_ustorm_rdma_task_ag_ctx {
 #define E4_USTORM_RDMA_TASK_AG_CTX_CONNECTION_TYPE_SHIFT	0
 #define E4_USTORM_RDMA_TASK_AG_CTX_EXIST_IN_QM0_MASK		0x1
 #define E4_USTORM_RDMA_TASK_AG_CTX_EXIST_IN_QM0_SHIFT		4
-#define E4_USTORM_RDMA_TASK_AG_CTX_DIF_RUNT_VALID_MASK		0x1
-#define E4_USTORM_RDMA_TASK_AG_CTX_DIF_RUNT_VALID_SHIFT		5
+#define E4_USTORM_RDMA_TASK_AG_CTX_BIT1_MASK			0x1
+#define E4_USTORM_RDMA_TASK_AG_CTX_BIT1_SHIFT			5
 #define E4_USTORM_RDMA_TASK_AG_CTX_DIF_WRITE_RESULT_CF_MASK	0x3
 #define E4_USTORM_RDMA_TASK_AG_CTX_DIF_WRITE_RESULT_CF_SHIFT	6
 	u8 flags1;
@@ -7104,29 +7157,29 @@ struct e4_ustorm_rdma_task_ag_ctx {
 #define E4_USTORM_RDMA_TASK_AG_CTX_RULE2EN_MASK			0x1
 #define E4_USTORM_RDMA_TASK_AG_CTX_RULE2EN_SHIFT		7
 	u8 flags3;
-#define E4_USTORM_RDMA_TASK_AG_CTX_RULE3EN_MASK		0x1
-#define E4_USTORM_RDMA_TASK_AG_CTX_RULE3EN_SHIFT	0
-#define E4_USTORM_RDMA_TASK_AG_CTX_RULE4EN_MASK		0x1
-#define E4_USTORM_RDMA_TASK_AG_CTX_RULE4EN_SHIFT	1
-#define E4_USTORM_RDMA_TASK_AG_CTX_RULE5EN_MASK		0x1
-#define E4_USTORM_RDMA_TASK_AG_CTX_RULE5EN_SHIFT	2
-#define E4_USTORM_RDMA_TASK_AG_CTX_RULE6EN_MASK		0x1
-#define E4_USTORM_RDMA_TASK_AG_CTX_RULE6EN_SHIFT	3
-#define E4_USTORM_RDMA_TASK_AG_CTX_DIF_ERROR_TYPE_MASK	0xF
-#define E4_USTORM_RDMA_TASK_AG_CTX_DIF_ERROR_TYPE_SHIFT	4
+#define E4_USTORM_RDMA_TASK_AG_CTX_DIF_RXMIT_PROD_CONS_EN_MASK	0x1
+#define E4_USTORM_RDMA_TASK_AG_CTX_DIF_RXMIT_PROD_CONS_EN_SHIFT	0
+#define E4_USTORM_RDMA_TASK_AG_CTX_RULE4EN_MASK			0x1
+#define E4_USTORM_RDMA_TASK_AG_CTX_RULE4EN_SHIFT		1
+#define E4_USTORM_RDMA_TASK_AG_CTX_DIF_WRITE_PROD_CONS_EN_MASK	0x1
+#define E4_USTORM_RDMA_TASK_AG_CTX_DIF_WRITE_PROD_CONS_EN_SHIFT	2
+#define E4_USTORM_RDMA_TASK_AG_CTX_RULE6EN_MASK			0x1
+#define E4_USTORM_RDMA_TASK_AG_CTX_RULE6EN_SHIFT		3
+#define E4_USTORM_RDMA_TASK_AG_CTX_DIF_ERROR_TYPE_MASK		0xF
+#define E4_USTORM_RDMA_TASK_AG_CTX_DIF_ERROR_TYPE_SHIFT		4
 	__le32 dif_err_intervals;
 	__le32 dif_error_1st_interval;
-	__le32 sq_cons;
-	__le32 dif_runt_value;
+	__le32 dif_rxmit_cons;
+	__le32 dif_rxmit_prod;
 	__le32 sge_index;
-	__le32 reg5;
+	__le32 sq_cons;
 	u8 byte2;
 	u8 byte3;
-	__le16 word1;
-	__le16 word2;
+	__le16 dif_write_cons;
+	__le16 dif_write_prod;
 	__le16 word3;
-	__le32 reg6;
-	__le32 reg7;
+	__le32 dif_error_buffer_address_lo;
+	__le32 dif_error_buffer_address_hi;
 };
 
 /* RDMA task context */
@@ -7137,6 +7190,8 @@ struct e4_rdma_task_context {
 	struct e4_mstorm_rdma_task_ag_ctx mstorm_ag_context;
 	struct mstorm_rdma_task_st_ctx mstorm_st_context;
 	struct rdif_task_context rdif_context;
+	struct ustorm_rdma_task_st_ctx ustorm_st_context;
+	struct regpair ustorm_st_padding[2];
 	struct e4_ustorm_rdma_task_ag_ctx ustorm_ag_context;
 };
 
@@ -7172,7 +7227,12 @@ struct rdma_create_cq_ramrod_data {
 	u8 pbl_log_page_size;
 	u8 toggle_bit;
 	__le16 int_timeout;
-	__le16 reserved1;
+	u8 vf_id;
+	u8 flags;
+#define RDMA_CREATE_CQ_RAMROD_DATA_VF_ID_VALID_MASK  0x1
+#define RDMA_CREATE_CQ_RAMROD_DATA_VF_ID_VALID_SHIFT 0
+#define RDMA_CREATE_CQ_RAMROD_DATA_RESERVED1_MASK    0x7F
+#define RDMA_CREATE_CQ_RAMROD_DATA_RESERVED1_SHIFT   1
 };
 
 /* rdma deregister tid ramrod data */
@@ -7216,6 +7276,7 @@ enum rdma_fw_return_code {
 	RDMA_RETURN_DEREGISTER_MR_BAD_STATE_ERR,
 	RDMA_RETURN_RESIZE_CQ_ERR,
 	RDMA_RETURN_NIG_DRAIN_REQ,
+	RDMA_RETURN_GENERAL_ERR,
 	MAX_RDMA_FW_RETURN_CODE
 };
 
@@ -7229,7 +7290,10 @@ struct rdma_init_func_hdr {
 	u8 relaxed_ordering;
 	__le16 first_reg_srq_id;
 	__le32 reg_srq_base_addr;
-	__le32 reserved;
+	u8 searcher_mode;
+	u8 pvrdma_mode;
+	u8 max_num_ns_log;
+	u8 reserved;
 };
 
 /* rdma function init ramrod data */
@@ -7319,16 +7383,20 @@ struct rdma_resize_cq_ramrod_data {
 #define RDMA_RESIZE_CQ_RAMROD_DATA_TOGGLE_BIT_SHIFT		0
 #define RDMA_RESIZE_CQ_RAMROD_DATA_IS_TWO_LEVEL_PBL_MASK	0x1
 #define RDMA_RESIZE_CQ_RAMROD_DATA_IS_TWO_LEVEL_PBL_SHIFT	1
-#define RDMA_RESIZE_CQ_RAMROD_DATA_RESERVED_MASK		0x3F
-#define RDMA_RESIZE_CQ_RAMROD_DATA_RESERVED_SHIFT		2
+#define RDMA_RESIZE_CQ_RAMROD_DATA_VF_ID_VALID_MASK		0x1
+#define RDMA_RESIZE_CQ_RAMROD_DATA_VF_ID_VALID_SHIFT		2
+#define RDMA_RESIZE_CQ_RAMROD_DATA_RESERVED_MASK		0x1F
+#define RDMA_RESIZE_CQ_RAMROD_DATA_RESERVED_SHIFT		3
 	u8 pbl_log_page_size;
 	__le16 pbl_num_pages;
 	__le32 max_cqes;
 	struct regpair pbl_addr;
 	struct regpair output_params_addr;
+	u8 vf_id;
+	u8 reserved1[7];
 };
 
-/* The rdma storm context of Mstorm */
+/* The rdma SRQ context */
 struct rdma_srq_context {
 	struct regpair temp[8];
 };
@@ -7375,6 +7443,7 @@ enum rdma_tid_type {
 	MAX_RDMA_TID_TYPE
 };
 
+/* The rdma XRC SRQ context */
 struct rdma_xrc_srq_context {
 	struct regpair temp[9];
 };
@@ -7556,12 +7625,12 @@ struct e4_xstorm_roce_conn_ag_ctx {
 #define E4_XSTORM_ROCE_CONN_AG_CTX_BIT10_SHIFT            2
 #define E4_XSTORM_ROCE_CONN_AG_CTX_BIT11_MASK             0x1
 #define E4_XSTORM_ROCE_CONN_AG_CTX_BIT11_SHIFT            3
-#define E4_XSTORM_ROCE_CONN_AG_CTX_BIT12_MASK             0x1
-#define E4_XSTORM_ROCE_CONN_AG_CTX_BIT12_SHIFT            4
+#define E4_XSTORM_ROCE_CONN_AG_CTX_MSDM_FLUSH_MASK        0x1
+#define E4_XSTORM_ROCE_CONN_AG_CTX_MSDM_FLUSH_SHIFT       4
 #define E4_XSTORM_ROCE_CONN_AG_CTX_MSEM_FLUSH_MASK        0x1
 #define E4_XSTORM_ROCE_CONN_AG_CTX_MSEM_FLUSH_SHIFT       5
-#define E4_XSTORM_ROCE_CONN_AG_CTX_MSDM_FLUSH_MASK        0x1
-#define E4_XSTORM_ROCE_CONN_AG_CTX_MSDM_FLUSH_SHIFT       6
+#define E4_XSTORM_ROCE_CONN_AG_CTX_BIT14_MASK	       0x1
+#define E4_XSTORM_ROCE_CONN_AG_CTX_BIT14_SHIFT	       6
 #define E4_XSTORM_ROCE_CONN_AG_CTX_YSTORM_FLUSH_MASK      0x1
 #define E4_XSTORM_ROCE_CONN_AG_CTX_YSTORM_FLUSH_SHIFT     7
 	u8 flags2;
@@ -7885,9 +7954,9 @@ struct mstorm_roce_conn_st_ctx {
 	struct regpair temp[6];
 };
 
-/* The roce storm context of Ystorm */
+/* The roce storm context of Ustorm */
 struct ustorm_roce_conn_st_ctx {
-	struct regpair temp[12];
+	struct regpair temp[14];
 };
 
 /* roce connection context */
@@ -7905,6 +7974,7 @@ struct e4_roce_conn_context {
 	struct mstorm_roce_conn_st_ctx mstorm_st_context;
 	struct regpair mstorm_st_padding[2];
 	struct ustorm_roce_conn_st_ctx ustorm_st_context;
+	struct regpair ustorm_st_padding[2];
 };
 
 /* roce cqes statistics */
@@ -7959,12 +8029,17 @@ struct roce_create_qp_req_ramrod_data {
 	struct regpair qp_handle_for_cqe;
 	struct regpair qp_handle_for_async;
 	u8 stats_counter_id;
-	u8 reserved3[6];
+	u8 vf_id;
+	u8 vport_id;
 	u8 flags2;
 #define ROCE_CREATE_QP_REQ_RAMROD_DATA_EDPM_MODE_MASK			0x1
 #define ROCE_CREATE_QP_REQ_RAMROD_DATA_EDPM_MODE_SHIFT			0
-#define ROCE_CREATE_QP_REQ_RAMROD_DATA_RESERVED_MASK			0x7F
-#define ROCE_CREATE_QP_REQ_RAMROD_DATA_RESERVED_SHIFT			1
+#define ROCE_CREATE_QP_REQ_RAMROD_DATA_VF_ID_VALID_MASK			0x1
+#define ROCE_CREATE_QP_REQ_RAMROD_DATA_VF_ID_VALID_SHIFT		1
+#define ROCE_CREATE_QP_REQ_RAMROD_DATA_RESERVED_MASK			0x3F
+#define ROCE_CREATE_QP_REQ_RAMROD_DATA_RESERVED_SHIFT			2
+	u8 name_space;
+	u8 reserved3[3];
 	__le16 regular_latency_phy_queue;
 	__le16 dpi;
 };
@@ -7992,8 +8067,10 @@ struct roce_create_qp_resp_ramrod_data {
 #define ROCE_CREATE_QP_RESP_RAMROD_DATA_MIN_RNR_NAK_TIMER_SHIFT		11
 #define ROCE_CREATE_QP_RESP_RAMROD_DATA_XRC_FLAG_MASK             0x1
 #define ROCE_CREATE_QP_RESP_RAMROD_DATA_XRC_FLAG_SHIFT            16
-#define ROCE_CREATE_QP_RESP_RAMROD_DATA_RESERVED_MASK             0x7FFF
-#define ROCE_CREATE_QP_RESP_RAMROD_DATA_RESERVED_SHIFT            17
+#define ROCE_CREATE_QP_RESP_RAMROD_DATA_VF_ID_VALID_MASK	0x1
+#define ROCE_CREATE_QP_RESP_RAMROD_DATA_VF_ID_VALID_SHIFT	17
+#define ROCE_CREATE_QP_RESP_RAMROD_DATA_RESERVED_MASK		0x3FFF
+#define ROCE_CREATE_QP_RESP_RAMROD_DATA_RESERVED_SHIFT		18
 	__le16 xrc_domain;
 	u8 max_ird;
 	u8 traffic_class;
@@ -8020,10 +8097,14 @@ struct roce_create_qp_resp_ramrod_data {
 	struct regpair qp_handle_for_cqe;
 	struct regpair qp_handle_for_async;
 	__le16 low_latency_phy_queue;
-	u8 reserved2[2];
+	u8 vf_id;
+	u8 vport_id;
 	__le32 cq_cid;
 	__le16 regular_latency_phy_queue;
 	__le16 dpi;
+	__le32 src_qp_id;
+	u8 name_space;
+	u8 reserved3[3];
 };
 
 /* roce DCQCN received statistics */
@@ -8057,6 +8138,8 @@ struct roce_destroy_qp_resp_output_params {
 /* RoCE destroy qp responder ramrod data */
 struct roce_destroy_qp_resp_ramrod_data {
 	struct regpair output_params_addr;
+	__le32 src_qp_id;
+	__le32 reserved;
 };
 
 /* roce error statistics */
@@ -8140,8 +8223,8 @@ struct roce_modify_qp_req_ramrod_data {
 #define ROCE_MODIFY_QP_REQ_RAMROD_DATA_PRI_FLG_SHIFT			9
 #define ROCE_MODIFY_QP_REQ_RAMROD_DATA_PRI_MASK				0x7
 #define ROCE_MODIFY_QP_REQ_RAMROD_DATA_PRI_SHIFT			10
-#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_PHYSICAL_QUEUES_FLG_MASK		0x1
-#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_PHYSICAL_QUEUES_FLG_SHIFT	13
+#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_PHYSICAL_QUEUE_FLG_MASK		0x1
+#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_PHYSICAL_QUEUE_FLG_SHIFT		13
 #define ROCE_MODIFY_QP_REQ_RAMROD_DATA_RESERVED1_MASK			0x3
 #define ROCE_MODIFY_QP_REQ_RAMROD_DATA_RESERVED1_SHIFT			14
 	u8 fields;
@@ -8187,8 +8270,8 @@ struct roce_modify_qp_resp_ramrod_data {
 #define ROCE_MODIFY_QP_RESP_RAMROD_DATA_MIN_RNR_NAK_TIMER_FLG_SHIFT	8
 #define ROCE_MODIFY_QP_RESP_RAMROD_DATA_RDMA_OPS_EN_FLG_MASK		0x1
 #define ROCE_MODIFY_QP_RESP_RAMROD_DATA_RDMA_OPS_EN_FLG_SHIFT		9
-#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_PHYSICAL_QUEUES_FLG_MASK	0x1
-#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_PHYSICAL_QUEUES_FLG_SHIFT	10
+#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_PHYSICAL_QUEUE_FLG_MASK		0x1
+#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_PHYSICAL_QUEUE_FLG_SHIFT	10
 #define ROCE_MODIFY_QP_RESP_RAMROD_DATA_RESERVED1_MASK			0x1F
 #define ROCE_MODIFY_QP_RESP_RAMROD_DATA_RESERVED1_SHIFT			11
 	u8 fields;
@@ -8229,7 +8312,7 @@ struct roce_query_qp_req_ramrod_data {
 /* RoCE query qp responder output params */
 struct roce_query_qp_resp_output_params {
 	__le32 psn;
-	__le32 err_flag;
+	__le32 flags;
 #define ROCE_QUERY_QP_RESP_OUTPUT_PARAMS_ERROR_FLG_MASK  0x1
 #define ROCE_QUERY_QP_RESP_OUTPUT_PARAMS_ERROR_FLG_SHIFT 0
 #define ROCE_QUERY_QP_RESP_OUTPUT_PARAMS_RESERVED0_MASK  0x7FFFFFFF
@@ -8296,12 +8379,12 @@ struct e4_xstorm_roce_conn_ag_ctx_dq_ext_ld_part {
 #define E4XSTORMROCECONNAGCTXDQEXTLDPART_BIT10_SHIFT		2
 #define E4XSTORMROCECONNAGCTXDQEXTLDPART_BIT11_MASK		0x1
 #define E4XSTORMROCECONNAGCTXDQEXTLDPART_BIT11_SHIFT		3
-#define E4XSTORMROCECONNAGCTXDQEXTLDPART_BIT12_MASK		0x1
-#define E4XSTORMROCECONNAGCTXDQEXTLDPART_BIT12_SHIFT		4
-#define E4XSTORMROCECONNAGCTXDQEXTLDPART_MSEM_FLUSH_MASK        0x1
-#define E4XSTORMROCECONNAGCTXDQEXTLDPART_MSEM_FLUSH_SHIFT       5
-#define E4XSTORMROCECONNAGCTXDQEXTLDPART_MSDM_FLUSH_MASK        0x1
-#define E4XSTORMROCECONNAGCTXDQEXTLDPART_MSDM_FLUSH_SHIFT       6
+#define E4XSTORMROCECONNAGCTXDQEXTLDPART_MSDM_FLUSH_MASK	0x1
+#define E4XSTORMROCECONNAGCTXDQEXTLDPART_MSDM_FLUSH_SHIFT	4
+#define E4XSTORMROCECONNAGCTXDQEXTLDPART_MSEM_FLUSH_MASK	0x1
+#define E4XSTORMROCECONNAGCTXDQEXTLDPART_MSEM_FLUSH_SHIFT	5
+#define E4XSTORMROCECONNAGCTXDQEXTLDPART_BIT14_MASK		0x1
+#define E4XSTORMROCECONNAGCTXDQEXTLDPART_BIT14_SHIFT		6
 #define E4XSTORMROCECONNAGCTXDQEXTLDPART_YSTORM_FLUSH_MASK	0x1
 #define E4XSTORMROCECONNAGCTXDQEXTLDPART_YSTORM_FLUSH_SHIFT	7
 	u8 flags2;
@@ -8674,8 +8757,8 @@ struct e4_tstorm_roce_req_conn_ag_ctx {
 	u8 flags5;
 #define E4_TSTORM_ROCE_REQ_CONN_AG_CTX_RULE1EN_MASK		0x1
 #define E4_TSTORM_ROCE_REQ_CONN_AG_CTX_RULE1EN_SHIFT		0
-#define E4_TSTORM_ROCE_REQ_CONN_AG_CTX_RULE2EN_MASK		0x1
-#define E4_TSTORM_ROCE_REQ_CONN_AG_CTX_RULE2EN_SHIFT		1
+#define E4_TSTORM_ROCE_REQ_CONN_AG_CTX_DIF_CNT_EN_MASK		0x1
+#define E4_TSTORM_ROCE_REQ_CONN_AG_CTX_DIF_CNT_EN_SHIFT		1
 #define E4_TSTORM_ROCE_REQ_CONN_AG_CTX_RULE3EN_MASK		0x1
 #define E4_TSTORM_ROCE_REQ_CONN_AG_CTX_RULE3EN_SHIFT		2
 #define E4_TSTORM_ROCE_REQ_CONN_AG_CTX_RULE4EN_MASK		0x1
@@ -8688,13 +8771,13 @@ struct e4_tstorm_roce_req_conn_ag_ctx {
 #define E4_TSTORM_ROCE_REQ_CONN_AG_CTX_RULE7EN_SHIFT		6
 #define E4_TSTORM_ROCE_REQ_CONN_AG_CTX_RULE8EN_MASK		0x1
 #define E4_TSTORM_ROCE_REQ_CONN_AG_CTX_RULE8EN_SHIFT		7
-	__le32 reg0;
+	__le32 dif_rxmit_cnt;
 	__le32 snd_nxt_psn;
 	__le32 snd_max_psn;
 	__le32 orq_prod;
 	__le32 reg4;
-	__le32 reg5;
-	__le32 reg6;
+	__le32 dif_acked_cnt;
+	__le32 dif_cnt;
 	__le32 reg7;
 	__le32 reg8;
 	u8 tx_cqe_error_type;
@@ -8705,7 +8788,7 @@ struct e4_tstorm_roce_req_conn_ag_ctx {
 	__le16 snd_sq_cons;
 	__le16 conn_dpi;
 	__le16 force_comp_cons;
-	__le32 reg9;
+	__le32 dif_rxmit_acked_cnt;
 	__le32 reg10;
 };
 
@@ -8980,10 +9063,10 @@ struct e4_xstorm_roce_req_conn_ag_ctx {
 #define E4_XSTORM_ROCE_REQ_CONN_AG_CTX_BIT10_SHIFT		2
 #define E4_XSTORM_ROCE_REQ_CONN_AG_CTX_BIT11_MASK		0x1
 #define E4_XSTORM_ROCE_REQ_CONN_AG_CTX_BIT11_SHIFT		3
-#define E4_XSTORM_ROCE_REQ_CONN_AG_CTX_BIT12_MASK		0x1
-#define E4_XSTORM_ROCE_REQ_CONN_AG_CTX_BIT12_SHIFT		4
-#define E4_XSTORM_ROCE_REQ_CONN_AG_CTX_BIT13_MASK		0x1
-#define E4_XSTORM_ROCE_REQ_CONN_AG_CTX_BIT13_SHIFT		5
+#define E4_XSTORM_ROCE_REQ_CONN_AG_CTX_MSDM_FLUSH_MASK		0x1
+#define E4_XSTORM_ROCE_REQ_CONN_AG_CTX_MSDM_FLUSH_SHIFT		4
+#define E4_XSTORM_ROCE_REQ_CONN_AG_CTX_MSEM_FLUSH_MASK		0x1
+#define E4_XSTORM_ROCE_REQ_CONN_AG_CTX_MSEM_FLUSH_SHIFT		5
 #define E4_XSTORM_ROCE_REQ_CONN_AG_CTX_ERROR_STATE_MASK		0x1
 #define E4_XSTORM_ROCE_REQ_CONN_AG_CTX_ERROR_STATE_SHIFT	6
 #define E4_XSTORM_ROCE_REQ_CONN_AG_CTX_YSTORM_FLUSH_MASK	0x1
@@ -9209,10 +9292,10 @@ struct e4_xstorm_roce_resp_conn_ag_ctx {
 #define E4_XSTORM_ROCE_RESP_CONN_AG_CTX_BIT10_SHIFT		2
 #define E4_XSTORM_ROCE_RESP_CONN_AG_CTX_BIT11_MASK		0x1
 #define E4_XSTORM_ROCE_RESP_CONN_AG_CTX_BIT11_SHIFT		3
-#define E4_XSTORM_ROCE_RESP_CONN_AG_CTX_BIT12_MASK		0x1
-#define E4_XSTORM_ROCE_RESP_CONN_AG_CTX_BIT12_SHIFT		4
-#define E4_XSTORM_ROCE_RESP_CONN_AG_CTX_BIT13_MASK		0x1
-#define E4_XSTORM_ROCE_RESP_CONN_AG_CTX_BIT13_SHIFT		5
+#define E4_XSTORM_ROCE_RESP_CONN_AG_CTX_MSDM_FLUSH_MASK		0x1
+#define E4_XSTORM_ROCE_RESP_CONN_AG_CTX_MSDM_FLUSH_SHIFT	4
+#define E4_XSTORM_ROCE_RESP_CONN_AG_CTX_MSEM_FLUSH_MASK		0x1
+#define E4_XSTORM_ROCE_RESP_CONN_AG_CTX_MSEM_FLUSH_SHIFT	5
 #define E4_XSTORM_ROCE_RESP_CONN_AG_CTX_ERROR_STATE_MASK	0x1
 #define E4_XSTORM_ROCE_RESP_CONN_AG_CTX_ERROR_STATE_SHIFT	6
 #define E4_XSTORM_ROCE_RESP_CONN_AG_CTX_YSTORM_FLUSH_MASK	0x1
@@ -9939,7 +10022,7 @@ struct mstorm_iwarp_conn_st_ctx {
 
 /* The iwarp storm context of Ustorm */
 struct ustorm_iwarp_conn_st_ctx {
-	__le32 reserved[24];
+	struct regpair reserved[14];
 };
 
 /* iwarp connection context */
@@ -9957,6 +10040,7 @@ struct e4_iwarp_conn_context {
 	struct regpair tstorm_st_padding[2];
 	struct mstorm_iwarp_conn_st_ctx mstorm_st_context;
 	struct ustorm_iwarp_conn_st_ctx ustorm_st_context;
+	struct regpair ustorm_st_padding[2];
 };
 
 /* iWARP create QP params passed by driver to FW in CreateQP Request Ramrod */
@@ -10009,7 +10093,8 @@ enum iwarp_eqe_async_opcode {
 
 struct iwarp_eqe_data_mpa_async_completion {
 	__le16 ulp_data_len;
-	u8 reserved[6];
+	u8 rtr_type_sent;
+	u8 reserved[5];
 };
 
 struct iwarp_eqe_data_tcp_async_completion {
@@ -10034,7 +10119,7 @@ enum iwarp_eqe_sync_opcode {
 
 /* iWARP EQE completion status */
 enum iwarp_fw_return_code {
-	IWARP_CONN_ERROR_TCP_CONNECT_INVALID_PACKET = 5,
+	IWARP_CONN_ERROR_TCP_CONNECT_INVALID_PACKET = 6,
 	IWARP_CONN_ERROR_TCP_CONNECTION_RST,
 	IWARP_CONN_ERROR_TCP_CONNECT_TIMEOUT,
 	IWARP_CONN_ERROR_MPA_ERROR_REJECT,
@@ -10203,8 +10288,8 @@ struct iwarp_rxmit_stats_drv {
  * offload ramrod.
  */
 struct iwarp_tcp_offload_ramrod_data {
-	struct iwarp_offload_params iwarp;
 	struct tcp_offload_params_opt2 tcp;
+	struct iwarp_offload_params iwarp;
 };
 
 /* iWARP MPA negotiation types */

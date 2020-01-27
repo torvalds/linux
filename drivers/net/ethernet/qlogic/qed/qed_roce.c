@@ -900,7 +900,7 @@ int qed_roce_query_qp(struct qed_hwfn *p_hwfn,
 		goto err_resp;
 
 	out_params->rq_psn = le32_to_cpu(p_resp_ramrod_res->psn);
-	rq_err_state = GET_FIELD(le32_to_cpu(p_resp_ramrod_res->err_flag),
+	rq_err_state = GET_FIELD(le32_to_cpu(p_resp_ramrod_res->flags),
 				 ROCE_QUERY_QP_RESP_OUTPUT_PARAMS_ERROR_FLG);
 
 	dma_free_coherent(&p_hwfn->cdev->pdev->dev, sizeof(*p_resp_ramrod_res),
