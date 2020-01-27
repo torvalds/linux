@@ -1142,28 +1142,14 @@ static const struct bd718xx_regulator_data bd71837_regulators[] = {
 	},
 };
 
-struct bd718xx_pmic_inits {
-	const struct bd718xx_regulator_data *r_datas;
-	unsigned int r_amount;
-};
-
 static int bd718xx_probe(struct platform_device *pdev)
 {
 	struct bd718xx *mfd;
 	struct regulator_config config = { 0 };
-	struct bd718xx_pmic_inits pmic_regulators[ROHM_CHIP_TYPE_AMOUNT] = {
-		[ROHM_CHIP_TYPE_BD71837] = {
-			.r_datas = bd71837_regulators,
-			.r_amount = ARRAY_SIZE(bd71837_regulators),
-		},
-		[ROHM_CHIP_TYPE_BD71847] = {
-			.r_datas = bd71847_regulators,
-			.r_amount = ARRAY_SIZE(bd71847_regulators),
-		},
-	};
-
 	int i, j, err;
 	bool use_snvs;
+	const struct bd718xx_regulator_data *reg_data;
+	unsigned int num_reg_data;
 
 	mfd = dev_get_drvdata(pdev->dev.parent);
 	if (!mfd) {
@@ -1172,8 +1158,16 @@ static int bd718xx_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	if (mfd->chip.chip_type >= ROHM_CHIP_TYPE_AMOUNT ||
-	    !pmic_regulators[mfd->chip.chip_type].r_datas) {
+	switch (mfd->chip.chip_type) {
+	case ROHM_CHIP_TYPE_BD71837:
+		reg_data = bd71837_regulators;
+		num_reg_data = ARRAY_SIZE(bd71837_regulators);
+		break;
+	case ROHM_CHIP_TYPE_BD71847:
+		reg_data = bd71847_regulators;
+		num_reg_data = ARRAY_SIZE(bd71847_regulators);
+		break;
+	default:
 		dev_err(&pdev->dev, "Unsupported chip type\n");
 		err = -EINVAL;
 		goto err;
@@ -1215,13 +1209,13 @@ static int bd718xx_probe(struct platform_device *pdev)
 		}
 	}
 
-	for (i = 0; i < pmic_regulators[mfd->chip.chip_type].r_amount; i++) {
+	for (i = 0; i < num_reg_data; i++) {
 
 		const struct regulator_desc *desc;
 		struct regulator_dev *rdev;
 		const struct bd718xx_regulator_data *r;
 
-		r = &pmic_regulators[mfd->chip.chip_type].r_datas[i];
+		r = &reg_data[i];
 		desc = &r->desc;
 
 		config.dev = pdev->dev.parent;
