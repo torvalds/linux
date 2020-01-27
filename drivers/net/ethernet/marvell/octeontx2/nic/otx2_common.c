@@ -15,6 +15,97 @@
 #include "otx2_common.h"
 #include "otx2_struct.h"
 
+/* Sync MAC address with RVU AF */
+static int otx2_hw_set_mac_addr(struct otx2_nic *pfvf, u8 *mac)
+{
+	struct nix_set_mac_addr *req;
+	int err;
+
+	otx2_mbox_lock(&pfvf->mbox);
+	req = otx2_mbox_alloc_msg_nix_set_mac_addr(&pfvf->mbox);
+	if (!req) {
+		otx2_mbox_unlock(&pfvf->mbox);
+		return -ENOMEM;
+	}
+
+	ether_addr_copy(req->mac_addr, mac);
+
+	err = otx2_sync_mbox_msg(&pfvf->mbox);
+	otx2_mbox_unlock(&pfvf->mbox);
+	return err;
+}
+
+static int otx2_hw_get_mac_addr(struct otx2_nic *pfvf,
+				struct net_device *netdev)
+{
+	struct nix_get_mac_addr_rsp *rsp;
+	struct mbox_msghdr *msghdr;
+	struct msg_req *req;
+	int err;
+
+	otx2_mbox_lock(&pfvf->mbox);
+	req = otx2_mbox_alloc_msg_nix_get_mac_addr(&pfvf->mbox);
+	if (!req) {
+		otx2_mbox_unlock(&pfvf->mbox);
+		return -ENOMEM;
+	}
+
+	err = otx2_sync_mbox_msg(&pfvf->mbox);
+	if (err) {
+		otx2_mbox_unlock(&pfvf->mbox);
+		return err;
+	}
+
+	msghdr = otx2_mbox_get_rsp(&pfvf->mbox.mbox, 0, &req->hdr);
+	if (!msghdr) {
+		otx2_mbox_unlock(&pfvf->mbox);
+		return -ENOMEM;
+	}
+	rsp = (struct nix_get_mac_addr_rsp *)msghdr;
+	ether_addr_copy(netdev->dev_addr, rsp->mac_addr);
+	otx2_mbox_unlock(&pfvf->mbox);
+
+	return 0;
+}
+
+int otx2_set_mac_address(struct net_device *netdev, void *p)
+{
+	struct otx2_nic *pfvf = netdev_priv(netdev);
+	struct sockaddr *addr = p;
+
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EADDRNOTAVAIL;
+
+	if (!otx2_hw_set_mac_addr(pfvf, addr->sa_data))
+		memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
+	else
+		return -EPERM;
+
+	return 0;
+}
+
+int otx2_hw_set_mtu(struct otx2_nic *pfvf, int mtu)
+{
+	struct nix_frs_cfg *req;
+	int err;
+
+	otx2_mbox_lock(&pfvf->mbox);
+	req = otx2_mbox_alloc_msg_nix_set_hw_frs(&pfvf->mbox);
+	if (!req) {
+		otx2_mbox_unlock(&pfvf->mbox);
+		return -ENOMEM;
+	}
+
+	/* SMQ config limits maximum pkt size that can be transmitted */
+	req->update_smq = true;
+	pfvf->max_frs = mtu +  OTX2_ETH_HLEN;
+	req->maxlen = pfvf->max_frs;
+
+	err = otx2_sync_mbox_msg(&pfvf->mbox);
+	otx2_mbox_unlock(&pfvf->mbox);
+	return err;
+}
+
 void otx2_config_irq_coalescing(struct otx2_nic *pfvf, int qidx)
 {
 	/* Configure CQE interrupt coalescing parameters
@@ -63,6 +154,20 @@ ret:
 	return iova;
 }
 
+void otx2_get_mac_from_af(struct net_device *netdev)
+{
+	struct otx2_nic *pfvf = netdev_priv(netdev);
+	int err;
+
+	err = otx2_hw_get_mac_addr(pfvf, netdev);
+	if (err)
+		dev_warn(pfvf->dev, "Failed to read mac from hardware\n");
+
+	/* If AF doesn't provide a valid MAC, generate a random one */
+	if (!is_valid_ether_addr(netdev->dev_addr))
+		eth_hw_addr_random(netdev);
+}
+
 static int otx2_get_link(struct otx2_nic *pfvf)
 {
 	int link = 0;
@@ -97,6 +202,9 @@ int otx2_txschq_config(struct otx2_nic *pfvf, int lvl)
 	/* Set topology e.t.c configuration */
 	if (lvl == NIX_TXSCH_LVL_SMQ) {
 		req->reg[0] = NIX_AF_SMQX_CFG(schq);
+		req->regval[0] = ((pfvf->netdev->mtu  + OTX2_ETH_HLEN) << 8) |
+				   OTX2_MIN_MTU;
+
 		req->regval[0] |= (0x20ULL << 51) | (0x80ULL << 39) |
 				  (0x2ULL << 36);
 		req->num_regs++;

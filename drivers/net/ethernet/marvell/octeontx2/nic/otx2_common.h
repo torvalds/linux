@@ -133,6 +133,7 @@ struct otx2_nic {
 	void __iomem		*reg_base;
 	struct net_device	*netdev;
 	void			*iommu_domain;
+	u16			max_frs;
 	u16			rbsize; /* Receive buffer size */
 
 #define OTX2_FLAG_INTF_DOWN			BIT_ULL(2)
@@ -469,7 +470,9 @@ static inline void otx2_dma_unmap_page(struct otx2_nic *pfvf,
 /* MSI-X APIs */
 void otx2_free_cints(struct otx2_nic *pfvf, int n);
 void otx2_set_cints_affinity(struct otx2_nic *pfvf);
-
+int otx2_set_mac_address(struct net_device *netdev, void *p);
+int otx2_hw_set_mtu(struct otx2_nic *pfvf, int mtu);
+void otx2_get_mac_from_af(struct net_device *netdev);
 void otx2_config_irq_coalescing(struct otx2_nic *pfvf, int qidx);
 
 /* RVU block related APIs */
@@ -503,4 +506,7 @@ void mbox_handler_nix_lf_alloc(struct otx2_nic *pfvf,
 			       struct nix_lf_alloc_rsp *rsp);
 void mbox_handler_nix_txsch_alloc(struct otx2_nic *pf,
 				  struct nix_txsch_alloc_rsp *rsp);
+
+int otx2_open(struct net_device *netdev);
+int otx2_stop(struct net_device *netdev);
 #endif /* OTX2_COMMON_H */

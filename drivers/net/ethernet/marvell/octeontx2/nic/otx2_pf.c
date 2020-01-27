@@ -43,6 +43,24 @@ enum {
 	TYPE_PFVF,
 };
 
+static int otx2_change_mtu(struct net_device *netdev, int new_mtu)
+{
+	bool if_up = netif_running(netdev);
+	int err = 0;
+
+	if (if_up)
+		otx2_stop(netdev);
+
+	netdev_info(netdev, "Changing MTU from %d to %d\n",
+		    netdev->mtu, new_mtu);
+	netdev->mtu = new_mtu;
+
+	if (if_up)
+		err = otx2_open(netdev);
+
+	return err;
+}
+
 static void otx2_queue_work(struct mbox *mw, struct workqueue_struct *mbox_wq,
 			    int first, int mdevs, u64 intr, int type)
 {
@@ -420,6 +438,27 @@ static int otx2_cgx_config_linkevents(struct otx2_nic *pf, bool enable)
 	return err;
 }
 
+static int otx2_cgx_config_loopback(struct otx2_nic *pf, bool enable)
+{
+	struct msg_req *msg;
+	int err;
+
+	otx2_mbox_lock(&pf->mbox);
+	if (enable)
+		msg = otx2_mbox_alloc_msg_cgx_intlbk_enable(&pf->mbox);
+	else
+		msg = otx2_mbox_alloc_msg_cgx_intlbk_disable(&pf->mbox);
+
+	if (!msg) {
+		otx2_mbox_unlock(&pf->mbox);
+		return -ENOMEM;
+	}
+
+	err = otx2_sync_mbox_msg(&pf->mbox);
+	otx2_mbox_unlock(&pf->mbox);
+	return err;
+}
+
 static int otx2_set_real_num_queues(struct net_device *netdev,
 				    int tx_queues, int rx_queues)
 {
@@ -519,7 +558,7 @@ static int otx2_init_hw_resources(struct otx2_nic *pf)
 	hw->pool_cnt = hw->rqpool_cnt + hw->sqpool_cnt;
 
 	/* Get the size of receive buffers to allocate */
-	pf->rbsize = RCV_FRAG_LEN(pf->netdev->mtu);
+	pf->rbsize = RCV_FRAG_LEN(pf->netdev->mtu + OTX2_ETH_HLEN);
 
 	otx2_mbox_lock(mbox);
 	/* NPA init */
@@ -658,7 +697,7 @@ static void otx2_free_hw_resources(struct otx2_nic *pf)
 	otx2_mbox_unlock(mbox);
 }
 
-static int otx2_open(struct net_device *netdev)
+int otx2_open(struct net_device *netdev)
 {
 	struct otx2_nic *pf = netdev_priv(netdev);
 	struct otx2_cq_poll *cq_poll = NULL;
@@ -715,6 +754,11 @@ static int otx2_open(struct net_device *netdev)
 		napi_enable(&cq_poll->napi);
 	}
 
+	/* Set maximum frame size allowed in HW */
+	err = otx2_hw_set_mtu(pf, netdev->mtu);
+	if (err)
+		goto err_disable_napi;
+
 	/* Register CQ IRQ handlers */
 	vec = pf->hw.nix_msixoff + NIX_LF_CINT_VEC_START;
 	for (qidx = 0; qidx < pf->hw.cint_cnt; qidx++) {
@@ -759,6 +803,7 @@ static int otx2_open(struct net_device *netdev)
 
 err_free_cints:
 	otx2_free_cints(pf, qidx);
+err_disable_napi:
 	otx2_disable_napi(pf);
 	otx2_free_hw_resources(pf);
 err_free_mem:
@@ -768,7 +813,7 @@ err_free_mem:
 	return err;
 }
 
-static int otx2_stop(struct net_device *netdev)
+int otx2_stop(struct net_device *netdev)
 {
 	struct otx2_nic *pf = netdev_priv(netdev);
 	struct otx2_cq_poll *cq_poll = NULL;
@@ -847,10 +892,53 @@ static netdev_tx_t otx2_xmit(struct sk_buff *skb, struct net_device *netdev)
 	return NETDEV_TX_OK;
 }
 
+static void otx2_set_rx_mode(struct net_device *netdev)
+{
+	struct otx2_nic *pf = netdev_priv(netdev);
+	struct nix_rx_mode *req;
+
+	if (!(netdev->flags & IFF_UP))
+		return;
+
+	otx2_mbox_lock(&pf->mbox);
+	req = otx2_mbox_alloc_msg_nix_set_rx_mode(&pf->mbox);
+	if (!req) {
+		otx2_mbox_unlock(&pf->mbox);
+		return;
+	}
+
+	req->mode = NIX_RX_MODE_UCAST;
+
+	/* We don't support MAC address filtering yet */
+	if (netdev->flags & IFF_PROMISC)
+		req->mode |= NIX_RX_MODE_PROMISC;
+	else if (netdev->flags & (IFF_ALLMULTI | IFF_MULTICAST))
+		req->mode |= NIX_RX_MODE_ALLMULTI;
+
+	otx2_sync_mbox_msg(&pf->mbox);
+	otx2_mbox_unlock(&pf->mbox);
+}
+
+static int otx2_set_features(struct net_device *netdev,
+			     netdev_features_t features)
+{
+	netdev_features_t changed = features ^ netdev->features;
+	struct otx2_nic *pf = netdev_priv(netdev);
+
+	if ((changed & NETIF_F_LOOPBACK) && netif_running(netdev))
+		return otx2_cgx_config_loopback(pf,
+						features & NETIF_F_LOOPBACK);
+	return 0;
+}
+
 static const struct net_device_ops otx2_netdev_ops = {
 	.ndo_open		= otx2_open,
 	.ndo_stop		= otx2_stop,
 	.ndo_start_xmit		= otx2_xmit,
+	.ndo_set_mac_address    = otx2_set_mac_address,
+	.ndo_change_mtu		= otx2_change_mtu,
+	.ndo_set_rx_mode	= otx2_set_rx_mode,
+	.ndo_set_features	= otx2_set_features,
 };
 
 static int otx2_check_pf_usable(struct otx2_nic *nic)
@@ -1005,6 +1093,9 @@ static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	otx2_setup_dev_hw_settings(pf);
 
+	/* Assign default mac address */
+	otx2_get_mac_from_af(netdev);
+
 	/* NPA's pool is a stack to which SW frees buffer pointers via Aura.
 	 * HW allocates buffer pointer from stack and uses it for DMA'ing
 	 * ingress packet. In some scenarios HW can free back allocated buffer
@@ -1022,9 +1113,13 @@ static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			       NETIF_F_IPV6_CSUM | NETIF_F_SG);
 	netdev->features |= netdev->hw_features;
 
-	netdev->hw_features |= NETIF_F_RXALL;
+	netdev->hw_features |= NETIF_F_LOOPBACK | NETIF_F_RXALL;
 
 	netdev->netdev_ops = &otx2_netdev_ops;
+
+	/* MTU range: 64 - 9190 */
+	netdev->min_mtu = OTX2_MIN_MTU;
+	netdev->max_mtu = OTX2_MAX_MTU;
 
 	err = register_netdev(netdev);
 	if (err) {

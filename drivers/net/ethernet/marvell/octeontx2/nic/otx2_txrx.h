@@ -22,6 +22,10 @@
 #define OTX2_DATA_ALIGN(X)	ALIGN(X, OTX2_ALIGN)
 #define OTX2_HEAD_ROOM		OTX2_ALIGN
 
+#define	OTX2_ETH_HLEN		(VLAN_ETH_HLEN + VLAN_HLEN)
+#define	OTX2_MIN_MTU		64
+#define	OTX2_MAX_MTU		(9212 - OTX2_ETH_HLEN)
+
 #define OTX2_MAX_FRAGS_IN_SQE	9
 
 /* Rx buffer size should be in multiples of 128bytes */
