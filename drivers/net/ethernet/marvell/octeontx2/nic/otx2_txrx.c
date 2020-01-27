@@ -84,7 +84,7 @@ static void otx2_snd_pkt_handler(struct otx2_nic *pfvf,
 	struct sk_buff *skb = NULL;
 	struct sg_list *sg;
 
-	if (unlikely(snd_comp->status))
+	if (unlikely(snd_comp->status) && netif_msg_tx_err(pfvf))
 		net_err_ratelimited("%s: TX%d: Error in send CQ status:%x\n",
 				    pfvf->netdev->name, cq->cint_idx,
 				    snd_comp->status);
@@ -143,6 +143,11 @@ static bool otx2_check_rcv_errors(struct otx2_nic *pfvf,
 {
 	struct otx2_drv_stats *stats = &pfvf->hw.drv_stats;
 	struct nix_rx_parse_s *parse = &cqe->parse;
+
+	if (netif_msg_rx_err(pfvf))
+		netdev_err(pfvf->netdev,
+			   "RQ%d: Error pkt with errlev:0x%x errcode:0x%x\n",
+			   qidx, parse->errlev, parse->errcode);
 
 	if (parse->errlev == NPC_ERRLVL_RE) {
 		switch (parse->errcode) {
