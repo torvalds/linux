@@ -323,10 +323,6 @@ struct pktgen_dev {
 	struct in6_addr max_in6_daddr;
 	struct in6_addr min_in6_saddr;
 	struct in6_addr max_in6_saddr;
-	u64  max_in6_h;
-	u64  max_in6_l;
-	u64  min_in6_h;
-	u64  min_in6_l;
 
 	/* If we're doing ranges, random or incremental, then this
 	 * defines the min/max for those ranges.
@@ -1359,59 +1355,6 @@ static ssize_t pktgen_if_write(struct file *file,
 		sprintf(pg_result, "OK: dst6_max=%s", buf);
 		return count;
 	}
-	if (!strcmp(name, "src6_min")) {
-		len = strn_len(&user_buffer[i], sizeof(buf) - 1);
-		if (len < 0)
-			return len;
-
-		pkt_dev->flags |= F_IPV6;
-
-		if (copy_from_user(buf, &user_buffer[i], len))
-			return -EFAULT;
-		buf[len] = 0;
-
-		in6_pton(buf, -1, pkt_dev->min_in6_saddr.s6_addr, -1, NULL);
-		snprintf(buf, sizeof(buf), "%pI6c", &pkt_dev->min_in6_saddr);
-
-		memcpy(&pkt_dev->min_in6_h, pkt_dev->min_in6_saddr.s6_addr, 8);
-		memcpy(&pkt_dev->min_in6_l, pkt_dev->min_in6_saddr.s6_addr + 8, 8);
-		pkt_dev->min_in6_h = be64_to_cpu(pkt_dev->min_in6_h);
-		pkt_dev->min_in6_l = be64_to_cpu(pkt_dev->min_in6_l);
-
-		pkt_dev->cur_in6_saddr = pkt_dev->min_in6_saddr;
-		if (debug)
-			pr_debug("src6_min set to: %s\n", buf);
-
-		i += len;
-		sprintf(pg_result, "OK: src6_min=%s", buf);
-		return count;
-	}
-	if (!strcmp(name, "src6_max")) {
-		len = strn_len(&user_buffer[i], sizeof(buf) - 1);
-		if (len < 0)
-			return len;
-
-		pkt_dev->flags |= F_IPV6;
-
-		if (copy_from_user(buf, &user_buffer[i], len))
-			return -EFAULT;
-		buf[len] = 0;
-
-		in6_pton(buf, -1, pkt_dev->max_in6_saddr.s6_addr, -1, NULL);
-		snprintf(buf, sizeof(buf), "%pI6c", &pkt_dev->max_in6_saddr);
-
-		memcpy(&pkt_dev->max_in6_h, pkt_dev->max_in6_saddr.s6_addr, 8);
-		memcpy(&pkt_dev->max_in6_l, pkt_dev->max_in6_saddr.s6_addr + 8, 8);
-		pkt_dev->max_in6_h = be64_to_cpu(pkt_dev->max_in6_h);
-		pkt_dev->max_in6_l = be64_to_cpu(pkt_dev->max_in6_l);
-
-		if (debug)
-			pr_debug("src6_max set to: %s\n", buf);
-
-		i += len;
-		sprintf(pg_result, "OK: src6_max=%s", buf);
-		return count;
-	}
 	if (!strcmp(name, "src6")) {
 		len = strn_len(&user_buffer[i], sizeof(buf) - 1);
 		if (len < 0)
@@ -2343,45 +2286,6 @@ static void set_cur_queue_map(struct pktgen_dev *pkt_dev)
 	pkt_dev->cur_queue_map  = pkt_dev->cur_queue_map % pkt_dev->odev->real_num_tx_queues;
 }
 
-/* generate ipv6 source addr */
-static void set_src_in6_addr(struct pktgen_dev *pkt_dev)
-{
-	u64 min6, max6, rand, i;
-	struct in6_addr addr6;
-	__be64 addr_l, *t;
-
-	min6 = pkt_dev->min_in6_l;
-	max6 = pkt_dev->max_in6_l;
-
-	/* only generate source address in least significant 64 bits range
-	 * most significant 64 bits must be equal
-	 */
-	if (pkt_dev->max_in6_h != pkt_dev->min_in6_h || min6 >= max6)
-		return;
-
-	addr6 = pkt_dev->min_in6_saddr;
-	t = (__be64 *)addr6.s6_addr + 1;
-
-	if (pkt_dev->flags & F_IPSRC_RND) {
-		do {
-			prandom_bytes(&rand, sizeof(rand));
-			rand = rand % (max6 - min6) + min6;
-			addr_l = cpu_to_be64(rand);
-			memcpy(t, &addr_l, 8);
-		} while (ipv6_addr_loopback(&addr6) ||
-			 ipv6_addr_v4mapped(&addr6) ||
-			 ipv6_addr_is_multicast(&addr6));
-	} else {
-		addr6 = pkt_dev->cur_in6_saddr;
-		i = be64_to_cpu(*t);
-		if (++i > max6)
-			i = min6;
-		addr_l = cpu_to_be64(i);
-		memcpy(t, &addr_l, 8);
-	}
-	pkt_dev->cur_in6_saddr = addr6;
-}
-
 /* Increment/randomize headers according to flags and current values
  * for IP src/dest, UDP src/dst port, MAC-Addr src/dst
  */
@@ -2549,8 +2453,6 @@ static void mod_cur_headers(struct pktgen_dev *pkt_dev)
 			}
 		}
 	} else {		/* IPV6 * */
-
-		set_src_in6_addr(pkt_dev);
 
 		if (!ipv6_addr_any(&pkt_dev->min_in6_daddr)) {
 			int i;
