@@ -61,6 +61,9 @@ static u16 task_region_offsets[1][NUM_OF_CONNECTION_TYPES_E4] = {
 								0x100) - 1 : 0)
 #define QM_INVALID_PQ_ID		0xffff
 
+/* Max link speed (in Mbps) */
+#define QM_MAX_LINK_SPEED               100000
+
 /* Feature enable */
 #define QM_BYPASS_EN	1
 #define QM_BYTE_CRD_EN	1
@@ -128,8 +131,6 @@ static u16 task_region_offsets[1][NUM_OF_CONNECTION_TYPES_E4] = {
 /* Pure LB CmdQ lines (+spare) */
 #define PBF_CMDQ_PURE_LB_LINES	150
 
-#define PBF_CMDQ_LINES_E5_RSVD_RATIO	8
-
 #define PBF_CMDQ_LINES_RT_OFFSET(ext_voq) \
 	(PBF_REG_YCMD_QS_NUM_LINES_VOQ0_RT_OFFSET + \
 	 (ext_voq) * (PBF_REG_YCMD_QS_NUM_LINES_VOQ1_RT_OFFSET - \
@@ -140,6 +141,9 @@ static u16 task_region_offsets[1][NUM_OF_CONNECTION_TYPES_E4] = {
 	 (ext_voq) * (PBF_REG_BTB_GUARANTEED_VOQ1_RT_OFFSET - \
 		PBF_REG_BTB_GUARANTEED_VOQ0_RT_OFFSET))
 
+/* Returns the VOQ line credit for the specified number of PBF command lines.
+ * PBF lines are specified in 256b units.
+ */
 #define QM_VOQ_LINE_CRD(pbf_cmd_lines) \
 	((((pbf_cmd_lines) - 4) * 2) | QM_LINE_CRD_REG_SIGN_BIT)
 
@@ -178,14 +182,14 @@ static u16 task_region_offsets[1][NUM_OF_CONNECTION_TYPES_E4] = {
 		  cmd ## _ ## field, \
 		  value)
 
-#define QM_INIT_TX_PQ_MAP(p_hwfn, map, chip, pq_id, rl_valid, vp_pq_id, rl_id, \
+#define QM_INIT_TX_PQ_MAP(p_hwfn, map, chip, pq_id, vp_pq_id, rl_valid, rl_id, \
 			  ext_voq, wrr) \
 	do { \
 		typeof(map) __map; \
 		memset(&__map, 0, sizeof(__map)); \
 		SET_FIELD(__map.reg, QM_RF_PQ_MAP_ ## chip ## _PQ_VALID, 1); \
 		SET_FIELD(__map.reg, QM_RF_PQ_MAP_ ## chip ## _RL_VALID, \
-			  rl_valid); \
+			  rl_valid ? 1 : 0);\
 		SET_FIELD(__map.reg, QM_RF_PQ_MAP_ ## chip ## _VP_PQ_ID, \
 			  vp_pq_id); \
 		SET_FIELD(__map.reg, QM_RF_PQ_MAP_ ## chip ## _RL_ID, rl_id); \
@@ -200,9 +204,12 @@ static u16 task_region_offsets[1][NUM_OF_CONNECTION_TYPES_E4] = {
 #define WRITE_PQ_INFO_TO_RAM	1
 #define PQ_INFO_ELEMENT(vp, pf, tc, port, rl_valid, rl) \
 	(((vp) << 0) | ((pf) << 12) | ((tc) << 16) | ((port) << 20) | \
-	((rl_valid) << 22) | ((rl) << 24))
+	((rl_valid ? 1 : 0) << 22) | (((rl) & 255) << 24) | \
+	(((rl) >> 8) << 9))
+
 #define PQ_INFO_RAM_GRC_ADDRESS(pq_id) \
-	(XSEM_REG_FAST_MEMORY + SEM_FAST_REG_INT_RAM + 21776 + (pq_id) * 4)
+	XSEM_REG_FAST_MEMORY + SEM_FAST_REG_INT_RAM + \
+	XSTORM_PQ_INFO_OFFSET(pq_id)
 
 /******************** INTERNAL IMPLEMENTATION *********************/
 
@@ -256,12 +263,12 @@ static void qed_enable_pf_wfq(struct qed_hwfn *p_hwfn, bool pf_wfq_en)
 			     QM_WFQ_UPPER_BOUND);
 }
 
-/* Prepare VPORT RL enable/disable runtime init values */
-static void qed_enable_vport_rl(struct qed_hwfn *p_hwfn, bool vport_rl_en)
+/* Prepare global RL enable/disable runtime init values */
+static void qed_enable_global_rl(struct qed_hwfn *p_hwfn, bool global_rl_en)
 {
 	STORE_RT_REG(p_hwfn, QM_REG_RLGLBLENABLE_RT_OFFSET,
-		     vport_rl_en ? 1 : 0);
-	if (vport_rl_en) {
+		     global_rl_en ? 1 : 0);
+	if (global_rl_en) {
 		/* Write RL period (use timer 0 only) */
 		STORE_RT_REG(p_hwfn,
 			     QM_REG_RLGLBLPERIOD_0_RT_OFFSET,
@@ -328,8 +335,7 @@ static void qed_cmdq_lines_rt_init(
 			continue;
 
 		/* Find number of command queue lines to divide between the
-		 * active physical TCs. In E5, 1/8 of the lines are reserved.
-		 * the lines for pure LB TC are subtracted.
+		 * active physical TCs.
 		 */
 		phys_lines = port_params[port_id].num_pbf_cmd_lines;
 		phys_lines -= PBF_CMDQ_PURE_LB_LINES;
@@ -358,11 +364,30 @@ static void qed_cmdq_lines_rt_init(
 		ext_voq = qed_get_ext_voq(p_hwfn,
 					  port_id,
 					  PURE_LB_TC, max_phys_tcs_per_port);
-		qed_cmdq_lines_voq_rt_init(p_hwfn,
-					   ext_voq, PBF_CMDQ_PURE_LB_LINES);
+		qed_cmdq_lines_voq_rt_init(p_hwfn, ext_voq,
+					   PBF_CMDQ_PURE_LB_LINES);
 	}
 }
 
+/* Prepare runtime init values to allocate guaranteed BTB blocks for the
+ * specified port. The guaranteed BTB space is divided between the TCs as
+ * follows (shared space Is currently not used):
+ * 1. Parameters:
+ *    B - BTB blocks for this port
+ *    C - Number of physical TCs for this port
+ * 2. Calculation:
+ *    a. 38 blocks (9700B jumbo frame) are allocated for global per port
+ *	 headroom.
+ *    b. B = B - 38 (remainder after global headroom allocation).
+ *    c. MAX(38,B/(C+0.7)) blocks are allocated for the pure LB VOQ.
+ *    d. B = B - MAX(38, B/(C+0.7)) (remainder after pure LB allocation).
+ *    e. B/C blocks are allocated for each physical TC.
+ * Assumptions:
+ * - MTU is up to 9700 bytes (38 blocks)
+ * - All TCs are considered symmetrical (same rate and packet size)
+ * - No optimization for lossy TC (all are considered lossless). Shared space
+ *   is not enabled and allocated for each TC.
+ */
 static void qed_btb_blocks_rt_init(
 	struct qed_hwfn *p_hwfn,
 	u8 max_ports_per_engine,
@@ -421,6 +446,34 @@ static void qed_btb_blocks_rt_init(
 	}
 }
 
+/* Prepare runtime init values for the specified RL.
+ * Set max link speed (100Gbps) per rate limiter.
+ * Return -1 on error.
+ */
+static int qed_global_rl_rt_init(struct qed_hwfn *p_hwfn)
+{
+	u32 upper_bound = QM_VP_RL_UPPER_BOUND(QM_MAX_LINK_SPEED) |
+			  (u32)QM_RL_CRD_REG_SIGN_BIT;
+	u32 inc_val;
+	u16 rl_id;
+
+	/* Go over all global RLs */
+	for (rl_id = 0; rl_id < MAX_QM_GLOBAL_RLS; rl_id++) {
+		inc_val = QM_RL_INC_VAL(QM_MAX_LINK_SPEED);
+
+		STORE_RT_REG(p_hwfn,
+			     QM_REG_RLGLBLCRD_RT_OFFSET + rl_id,
+			     (u32)QM_RL_CRD_REG_SIGN_BIT);
+		STORE_RT_REG(p_hwfn,
+			     QM_REG_RLGLBLUPPERBOUND_RT_OFFSET + rl_id,
+			     upper_bound);
+		STORE_RT_REG(p_hwfn,
+			     QM_REG_RLGLBLINCVAL_RT_OFFSET + rl_id, inc_val);
+	}
+
+	return 0;
+}
+
 /* Prepare Tx PQ mapping runtime init values for the specified PF */
 static void qed_tx_pq_map_rt_init(struct qed_hwfn *p_hwfn,
 				  struct qed_ptt *p_ptt,
@@ -457,18 +510,17 @@ static void qed_tx_pq_map_rt_init(struct qed_hwfn *p_hwfn,
 
 	/* Go over all Tx PQs */
 	for (i = 0, pq_id = p_params->start_pq; i < num_pqs; i++, pq_id++) {
-		u8 ext_voq, vport_id_in_pf, tc_id = pq_params[i].tc_id;
-		u32 max_qm_global_rls = MAX_QM_GLOBAL_RLS;
+		u16 *p_first_tx_pq_id, vport_id_in_pf;
 		struct qm_rf_pq_map_e4 tx_pq_map;
-		bool is_vf_pq, rl_valid;
-		u16 *p_first_tx_pq_id;
+		u8 tc_id = pq_params[i].tc_id;
+		bool is_vf_pq;
+		u8 ext_voq;
 
 		ext_voq = qed_get_ext_voq(p_hwfn,
 					  pq_params[i].port_id,
 					  tc_id,
 					  p_params->max_phys_tcs_per_port);
 		is_vf_pq = (i >= p_params->num_pf_pqs);
-		rl_valid = pq_params[i].rl_valid > 0;
 
 		/* Update first Tx PQ of VPORT/TC */
 		vport_id_in_pf = pq_params[i].vport_id - p_params->start_vport;
@@ -489,21 +541,14 @@ static void qed_tx_pq_map_rt_init(struct qed_hwfn *p_hwfn,
 				     map_val);
 		}
 
-		/* Check RL ID */
-		if (rl_valid && pq_params[i].vport_id >= max_qm_global_rls) {
-			DP_NOTICE(p_hwfn,
-				  "Invalid VPORT ID for rate limiter configuration\n");
-			rl_valid = false;
-		}
-
 		/* Prepare PQ map entry */
 		QM_INIT_TX_PQ_MAP(p_hwfn,
 				  tx_pq_map,
 				  E4,
 				  pq_id,
-				  rl_valid ? 1 : 0,
 				  *p_first_tx_pq_id,
-				  rl_valid ? pq_params[i].vport_id : 0,
+				  pq_params[i].rl_valid,
+				  pq_params[i].rl_id,
 				  ext_voq, pq_params[i].wrr_group);
 
 		/* Set PQ base address */
@@ -526,9 +571,8 @@ static void qed_tx_pq_map_rt_init(struct qed_hwfn *p_hwfn,
 						  p_params->pf_id,
 						  tc_id,
 						  pq_params[i].port_id,
-						  rl_valid ? 1 : 0,
-						  rl_valid ?
-						  pq_params[i].vport_id : 0);
+						  pq_params[i].rl_valid,
+						  pq_params[i].rl_id);
 			qed_wr(p_hwfn, p_ptt, PQ_INFO_RAM_GRC_ADDRESS(pq_id),
 			       pq_info);
 		}
@@ -666,19 +710,19 @@ static int qed_pf_rl_rt_init(struct qed_hwfn *p_hwfn, u8 pf_id, u32 pf_rl)
  * Return -1 on error.
  */
 static int qed_vp_wfq_rt_init(struct qed_hwfn *p_hwfn,
-			      u8 num_vports,
+			      u16 num_vports,
 			      struct init_qm_vport_params *vport_params)
 {
-	u16 vport_pq_id;
+	u16 vport_pq_id, i;
 	u32 inc_val;
-	u8 tc, i;
+	u8 tc;
 
 	/* Go over all PF VPORTs */
 	for (i = 0; i < num_vports; i++) {
-		if (!vport_params[i].vport_wfq)
+		if (!vport_params[i].wfq)
 			continue;
 
-		inc_val = QM_WFQ_INC_VAL(vport_params[i].vport_wfq);
+		inc_val = QM_WFQ_INC_VAL(vport_params[i].wfq);
 		if (inc_val > QM_WFQ_MAX_INC_VAL) {
 			DP_NOTICE(p_hwfn,
 				  "Invalid VPORT WFQ weight configuration\n");
@@ -698,48 +742,6 @@ static int qed_vp_wfq_rt_init(struct qed_hwfn *p_hwfn,
 					     vport_pq_id, inc_val);
 			}
 		}
-	}
-
-	return 0;
-}
-
-/* Prepare VPORT RL runtime init values for the specified VPORTs.
- * Return -1 on error.
- */
-static int qed_vport_rl_rt_init(struct qed_hwfn *p_hwfn,
-				u8 start_vport,
-				u8 num_vports,
-				u32 link_speed,
-				struct init_qm_vport_params *vport_params)
-{
-	u8 i, vport_id;
-	u32 inc_val;
-
-	if (start_vport + num_vports >= MAX_QM_GLOBAL_RLS) {
-		DP_NOTICE(p_hwfn,
-			  "Invalid VPORT ID for rate limiter configuration\n");
-		return -1;
-	}
-
-	/* Go over all PF VPORTs */
-	for (i = 0, vport_id = start_vport; i < num_vports; i++, vport_id++) {
-		inc_val = QM_RL_INC_VAL(vport_params[i].vport_rl ?
-			  vport_params[i].vport_rl :
-			  link_speed);
-		if (inc_val > QM_VP_RL_MAX_INC_VAL(link_speed)) {
-			DP_NOTICE(p_hwfn,
-				  "Invalid VPORT rate-limit configuration\n");
-			return -1;
-		}
-
-		STORE_RT_REG(p_hwfn, QM_REG_RLGLBLCRD_RT_OFFSET + vport_id,
-			     (u32)QM_RL_CRD_REG_SIGN_BIT);
-		STORE_RT_REG(p_hwfn,
-			     QM_REG_RLGLBLUPPERBOUND_RT_OFFSET + vport_id,
-			     QM_VP_RL_UPPER_BOUND(link_speed) |
-			     (u32)QM_RL_CRD_REG_SIGN_BIT);
-		STORE_RT_REG(p_hwfn, QM_REG_RLGLBLINCVAL_RT_OFFSET + vport_id,
-			     inc_val);
 	}
 
 	return 0;
@@ -796,23 +798,20 @@ u32 qed_qm_pf_mem_size(u32 num_pf_cids,
 int qed_qm_common_rt_init(struct qed_hwfn *p_hwfn,
 			  struct qed_qm_common_rt_init_params *p_params)
 {
-	/* Init AFullOprtnstcCrdMask */
-	u32 mask = (QM_OPPOR_LINE_VOQ_DEF <<
-		    QM_RF_OPPORTUNISTIC_MASK_LINEVOQ_SHIFT) |
-		   (QM_BYTE_CRD_EN << QM_RF_OPPORTUNISTIC_MASK_BYTEVOQ_SHIFT) |
-		   (p_params->pf_wfq_en <<
-		    QM_RF_OPPORTUNISTIC_MASK_PFWFQ_SHIFT) |
-		   (p_params->vport_wfq_en <<
-		    QM_RF_OPPORTUNISTIC_MASK_VPWFQ_SHIFT) |
-		   (p_params->pf_rl_en <<
-		    QM_RF_OPPORTUNISTIC_MASK_PFRL_SHIFT) |
-		   (p_params->vport_rl_en <<
-		    QM_RF_OPPORTUNISTIC_MASK_VPQCNRL_SHIFT) |
-		   (QM_OPPOR_FW_STOP_DEF <<
-		    QM_RF_OPPORTUNISTIC_MASK_FWPAUSE_SHIFT) |
-		   (QM_OPPOR_PQ_EMPTY_DEF <<
-		    QM_RF_OPPORTUNISTIC_MASK_QUEUEEMPTY_SHIFT);
+	u32 mask = 0;
 
+	/* Init AFullOprtnstcCrdMask */
+	SET_FIELD(mask, QM_RF_OPPORTUNISTIC_MASK_LINEVOQ,
+		  QM_OPPOR_LINE_VOQ_DEF);
+	SET_FIELD(mask, QM_RF_OPPORTUNISTIC_MASK_BYTEVOQ, QM_BYTE_CRD_EN);
+	SET_FIELD(mask, QM_RF_OPPORTUNISTIC_MASK_PFWFQ, p_params->pf_wfq_en);
+	SET_FIELD(mask, QM_RF_OPPORTUNISTIC_MASK_VPWFQ, p_params->vport_wfq_en);
+	SET_FIELD(mask, QM_RF_OPPORTUNISTIC_MASK_PFRL, p_params->pf_rl_en);
+	SET_FIELD(mask, QM_RF_OPPORTUNISTIC_MASK_VPQCNRL,
+		  p_params->global_rl_en);
+	SET_FIELD(mask, QM_RF_OPPORTUNISTIC_MASK_FWPAUSE, QM_OPPOR_FW_STOP_DEF);
+	SET_FIELD(mask,
+		  QM_RF_OPPORTUNISTIC_MASK_QUEUEEMPTY, QM_OPPOR_PQ_EMPTY_DEF);
 	STORE_RT_REG(p_hwfn, QM_REG_AFULLOPRTNSTCCRDMASK_RT_OFFSET, mask);
 
 	/* Enable/disable PF RL */
@@ -821,8 +820,8 @@ int qed_qm_common_rt_init(struct qed_hwfn *p_hwfn,
 	/* Enable/disable PF WFQ */
 	qed_enable_pf_wfq(p_hwfn, p_params->pf_wfq_en);
 
-	/* Enable/disable VPORT RL */
-	qed_enable_vport_rl(p_hwfn, p_params->vport_rl_en);
+	/* Enable/disable global RL */
+	qed_enable_global_rl(p_hwfn, p_params->global_rl_en);
 
 	/* Enable/disable VPORT WFQ */
 	qed_enable_vport_wfq(p_hwfn, p_params->vport_wfq_en);
@@ -839,6 +838,8 @@ int qed_qm_common_rt_init(struct qed_hwfn *p_hwfn,
 			       p_params->max_phys_tcs_per_port,
 			       p_params->port_params);
 
+	qed_global_rl_rt_init(p_hwfn);
+
 	return 0;
 }
 
@@ -850,7 +851,9 @@ int qed_qm_pf_rt_init(struct qed_hwfn *p_hwfn,
 	u32 other_mem_size_4kb = QM_PQ_MEM_4KB(p_params->num_pf_cids +
 					       p_params->num_tids) *
 				 QM_OTHER_PQS_PER_PF;
-	u8 tc, i;
+	u16 i;
+	u8 tc;
+
 
 	/* Clear first Tx PQ ID array for each VPORT */
 	for (i = 0; i < p_params->num_vports; i++)
@@ -875,14 +878,8 @@ int qed_qm_pf_rt_init(struct qed_hwfn *p_hwfn,
 	if (qed_pf_rl_rt_init(p_hwfn, p_params->pf_id, p_params->pf_rl))
 		return -1;
 
-	/* Set VPORT WFQ */
+	/* Init VPORT WFQ */
 	if (qed_vp_wfq_rt_init(p_hwfn, p_params->num_vports, vport_params))
-		return -1;
-
-	/* Set VPORT RL */
-	if (qed_vport_rl_rt_init(p_hwfn, p_params->start_vport,
-				 p_params->num_vports, p_params->link_speed,
-				 vport_params))
 		return -1;
 
 	return 0;
@@ -922,18 +919,19 @@ int qed_init_pf_rl(struct qed_hwfn *p_hwfn,
 
 int qed_init_vport_wfq(struct qed_hwfn *p_hwfn,
 		       struct qed_ptt *p_ptt,
-		       u16 first_tx_pq_id[NUM_OF_TCS], u16 vport_wfq)
+		       u16 first_tx_pq_id[NUM_OF_TCS], u16 wfq)
 {
 	u16 vport_pq_id;
 	u32 inc_val;
 	u8 tc;
 
-	inc_val = QM_WFQ_INC_VAL(vport_wfq);
+	inc_val = QM_WFQ_INC_VAL(wfq);
 	if (!inc_val || inc_val > QM_WFQ_MAX_INC_VAL) {
-		DP_NOTICE(p_hwfn, "Invalid VPORT WFQ weight configuration\n");
+		DP_NOTICE(p_hwfn, "Invalid VPORT WFQ configuration.\n");
 		return -1;
 	}
 
+	/* A VPORT can have several VPORT PQ IDs for various TCs */
 	for (tc = 0; tc < NUM_OF_TCS; tc++) {
 		vport_pq_id = first_tx_pq_id[tc];
 		if (vport_pq_id != QM_INVALID_PQ_ID)
@@ -945,28 +943,20 @@ int qed_init_vport_wfq(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
-int qed_init_vport_rl(struct qed_hwfn *p_hwfn,
-		      struct qed_ptt *p_ptt,
-		      u8 vport_id, u32 vport_rl, u32 link_speed)
+int qed_init_global_rl(struct qed_hwfn *p_hwfn,
+		       struct qed_ptt *p_ptt, u16 rl_id, u32 rate_limit)
 {
-	u32 inc_val, max_qm_global_rls = MAX_QM_GLOBAL_RLS;
+	u32 inc_val;
 
-	if (vport_id >= max_qm_global_rls) {
-		DP_NOTICE(p_hwfn,
-			  "Invalid VPORT ID for rate limiter configuration\n");
+	inc_val = QM_RL_INC_VAL(rate_limit);
+	if (inc_val > QM_VP_RL_MAX_INC_VAL(rate_limit)) {
+		DP_NOTICE(p_hwfn, "Invalid rate limit configuration.\n");
 		return -1;
 	}
 
-	inc_val = QM_RL_INC_VAL(vport_rl ? vport_rl : link_speed);
-	if (inc_val > QM_VP_RL_MAX_INC_VAL(link_speed)) {
-		DP_NOTICE(p_hwfn, "Invalid VPORT rate-limit configuration\n");
-		return -1;
-	}
-
-	qed_wr(p_hwfn,
-	       p_ptt,
-	       QM_REG_RLGLBLCRD + vport_id * 4, (u32)QM_RL_CRD_REG_SIGN_BIT);
-	qed_wr(p_hwfn, p_ptt, QM_REG_RLGLBLINCVAL + vport_id * 4, inc_val);
+	qed_wr(p_hwfn, p_ptt,
+	       QM_REG_RLGLBLCRD + rl_id * 4, (u32)QM_RL_CRD_REG_SIGN_BIT);
+	qed_wr(p_hwfn, p_ptt, QM_REG_RLGLBLINCVAL + rl_id * 4, inc_val);
 
 	return 0;
 }

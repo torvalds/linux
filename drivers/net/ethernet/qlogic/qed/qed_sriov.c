@@ -4354,9 +4354,9 @@ qed_iov_bulletin_get_forced_vlan(struct qed_hwfn *p_hwfn, u16 rel_vf_id)
 static int qed_iov_configure_tx_rate(struct qed_hwfn *p_hwfn,
 				     struct qed_ptt *p_ptt, int vfid, int val)
 {
-	struct qed_mcp_link_state *p_link;
 	struct qed_vf_info *vf;
 	u8 abs_vp_id = 0;
+	u16 rl_id;
 	int rc;
 
 	vf = qed_iov_get_vf_info(p_hwfn, (u16)vfid, true);
@@ -4367,10 +4367,8 @@ static int qed_iov_configure_tx_rate(struct qed_hwfn *p_hwfn,
 	if (rc)
 		return rc;
 
-	p_link = &QED_LEADING_HWFN(p_hwfn->cdev)->mcp_info->link_output;
-
-	return qed_init_vport_rl(p_hwfn, p_ptt, abs_vp_id, (u32)val,
-				 p_link->speed);
+	rl_id = abs_vp_id;	/* The "rl_id" is set as the "vport_id" */
+	return qed_init_global_rl(p_hwfn, p_ptt, rl_id, (u32)val);
 }
 
 static int

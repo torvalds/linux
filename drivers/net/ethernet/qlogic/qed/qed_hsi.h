@@ -2630,13 +2630,18 @@ struct init_nig_pri_tc_map_req {
 	struct init_nig_pri_tc_map_entry pri[NUM_OF_VLAN_PRIORITIES];
 };
 
+/* QM per global RL init parameters */
+struct init_qm_global_rl_params {
+	u32 rate_limit;
+};
+
 /* QM per-port init parameters */
 struct init_qm_port_params {
-	u8 active;
-	u8 active_phys_tcs;
+	u16 active_phys_tcs;
 	u16 num_pbf_cmd_lines;
 	u16 num_btb_blocks;
-	u16 reserved;
+	u8 active;
+	u8 reserved;
 };
 
 /* QM per-PQ init parameters */
@@ -2645,15 +2650,14 @@ struct init_qm_pq_params {
 	u8 tc_id;
 	u8 wrr_group;
 	u8 rl_valid;
+	u16 rl_id;
 	u8 port_id;
-	u8 reserved0;
-	u16 reserved1;
+	u8 reserved;
 };
 
 /* QM per-vport init parameters */
 struct init_qm_vport_params {
-	u32 vport_rl;
-	u16 vport_wfq;
+	u16 wfq;
 	u16 first_tx_pq_id[NUM_OF_TCS];
 };
 
@@ -3982,7 +3986,7 @@ struct qed_qm_common_rt_init_params {
 	u8 max_phys_tcs_per_port;
 	bool pf_rl_en;
 	bool pf_wfq_en;
-	bool vport_rl_en;
+	bool global_rl_en;
 	bool vport_wfq_en;
 	struct init_qm_port_params *port_params;
 };
@@ -4001,11 +4005,10 @@ struct qed_qm_pf_rt_init_params {
 	u16 start_pq;
 	u16 num_pf_pqs;
 	u16 num_vf_pqs;
-	u8 start_vport;
-	u8 num_vports;
+	u16 start_vport;
+	u16 num_vports;
 	u16 pf_wfq;
 	u32 pf_rl;
-	u32 link_speed;
 	struct init_qm_pq_params *pq_params;
 	struct init_qm_vport_params *vport_params;
 };
@@ -4054,22 +4057,22 @@ int qed_init_pf_rl(struct qed_hwfn *p_hwfn,
  */
 int qed_init_vport_wfq(struct qed_hwfn *p_hwfn,
 		       struct qed_ptt *p_ptt,
-		       u16 first_tx_pq_id[NUM_OF_TCS], u16 vport_wfq);
+		       u16 first_tx_pq_id[NUM_OF_TCS], u16 wfq);
 
 /**
- * @brief qed_init_vport_rl - Initializes the rate limit of the specified VPORT
+ * @brief qed_init_global_rl - Initializes the rate limit of the specified
+ * rate limiter
  *
  * @param p_hwfn
  * @param p_ptt - ptt window used for writing the registers
- * @param vport_id - VPORT ID
- * @param vport_rl - rate limit in Mb/sec units
- * @param link_speed - link speed in Mbps.
+ * @param rl_id - RL ID
+ * @param rate_limit - rate limit in Mb/sec units
  *
  * @return 0 on success, -1 on error.
  */
-int qed_init_vport_rl(struct qed_hwfn *p_hwfn,
-		      struct qed_ptt *p_ptt,
-		      u8 vport_id, u32 vport_rl, u32 link_speed);
+int qed_init_global_rl(struct qed_hwfn *p_hwfn,
+		       struct qed_ptt *p_ptt,
+		       u16 rl_id, u32 rate_limit);
 
 /**
  * @brief qed_send_qm_stop_cmd  Sends a stop command to the QM

@@ -1571,7 +1571,7 @@ static void qed_init_qm_vport_params(struct qed_hwfn *p_hwfn)
 
 	/* all vports participate in weighted fair queueing */
 	for (i = 0; i < qed_init_qm_get_num_vports(p_hwfn); i++)
-		qm_info->qm_vport_params[i].vport_wfq = 1;
+		qm_info->qm_vport_params[i].wfq = 1;
 }
 
 /* initialize qm port params */
@@ -2034,9 +2034,8 @@ static void qed_dp_init_qm_params(struct qed_hwfn *p_hwfn)
 		vport = &(qm_info->qm_vport_params[i]);
 		DP_VERBOSE(p_hwfn,
 			   NETIF_MSG_HW,
-			   "vport idx %d, vport_rl %d, wfq %d, first_tx_pq_id [ ",
-			   qm_info->start_vport + i,
-			   vport->vport_rl, vport->vport_wfq);
+			   "vport idx %d, wfq %d, first_tx_pq_id [ ",
+			   qm_info->start_vport + i, vport->wfq);
 		for (tc = 0; tc < NUM_OF_TCS; tc++)
 			DP_VERBOSE(p_hwfn,
 				   NETIF_MSG_HW,
@@ -2049,11 +2048,11 @@ static void qed_dp_init_qm_params(struct qed_hwfn *p_hwfn)
 		pq = &(qm_info->qm_pq_params[i]);
 		DP_VERBOSE(p_hwfn,
 			   NETIF_MSG_HW,
-			   "pq idx %d, port %d, vport_id %d, tc %d, wrr_grp %d, rl_valid %d\n",
+			   "pq idx %d, port %d, vport_id %d, tc %d, wrr_grp %d, rl_valid %d rl_id %d\n",
 			   qm_info->start_pq + i,
 			   pq->port_id,
 			   pq->vport_id,
-			   pq->tc_id, pq->wrr_group, pq->rl_valid);
+			   pq->tc_id, pq->wrr_group, pq->rl_valid, pq->rl_id);
 	}
 }
 
@@ -2623,7 +2622,7 @@ static int qed_hw_init_common(struct qed_hwfn *p_hwfn,
 	params.max_phys_tcs_per_port = qm_info->max_phys_tcs_per_port;
 	params.pf_rl_en = qm_info->pf_rl_en;
 	params.pf_wfq_en = qm_info->pf_wfq_en;
-	params.vport_rl_en = qm_info->vport_rl_en;
+	params.global_rl_en = qm_info->vport_rl_en;
 	params.vport_wfq_en = qm_info->vport_wfq_en;
 	params.port_params = qm_info->qm_port_params;
 
@@ -5087,11 +5086,11 @@ static void qed_configure_wfq_for_all_vports(struct qed_hwfn *p_hwfn,
 	for (i = 0; i < p_hwfn->qm_info.num_vports; i++) {
 		u32 wfq_speed = p_hwfn->qm_info.wfq_data[i].min_speed;
 
-		vport_params[i].vport_wfq = (wfq_speed * QED_WFQ_UNIT) /
+		vport_params[i].wfq = (wfq_speed * QED_WFQ_UNIT) /
 						min_pf_rate;
 		qed_init_vport_wfq(p_hwfn, p_ptt,
 				   vport_params[i].first_tx_pq_id,
-				   vport_params[i].vport_wfq);
+				   vport_params[i].wfq);
 	}
 }
 
@@ -5102,7 +5101,7 @@ static void qed_init_wfq_default_param(struct qed_hwfn *p_hwfn,
 	int i;
 
 	for (i = 0; i < p_hwfn->qm_info.num_vports; i++)
-		p_hwfn->qm_info.qm_vport_params[i].vport_wfq = 1;
+		p_hwfn->qm_info.qm_vport_params[i].wfq = 1;
 }
 
 static void qed_disable_wfq_for_all_vports(struct qed_hwfn *p_hwfn,
@@ -5118,7 +5117,7 @@ static void qed_disable_wfq_for_all_vports(struct qed_hwfn *p_hwfn,
 		qed_init_wfq_default_param(p_hwfn, min_pf_rate);
 		qed_init_vport_wfq(p_hwfn, p_ptt,
 				   vport_params[i].first_tx_pq_id,
-				   vport_params[i].vport_wfq);
+				   vport_params[i].wfq);
 	}
 }
 

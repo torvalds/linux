@@ -1522,7 +1522,6 @@ void qed_qm_init_pf(struct qed_hwfn *p_hwfn,
 	params.num_vports = qm_info->num_vports;
 	params.pf_wfq = qm_info->pf_wfq;
 	params.pf_rl = qm_info->pf_rl;
-	params.link_speed = p_link->speed;
 	params.pq_params = qm_info->qm_pq_params;
 	params.vport_params = qm_info->qm_vport_params;
 
