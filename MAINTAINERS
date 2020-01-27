@@ -7851,10 +7851,10 @@ F:	Documentation/devicetree/bindings/i3c/snps,dw-i3c-master.txt
 F:	drivers/i3c/master/dw*
 
 I3C DRIVER FOR CADENCE I3C MASTER IP
-M:      Przemysław Gaj <pgaj@cadence.com>
-S:      Maintained
-F:      Documentation/devicetree/bindings/i3c/cdns,i3c-master.txt
-F:      drivers/i3c/master/i3c-master-cdns.c
+M:	Przemysław Gaj <pgaj@cadence.com>
+S:	Maintained
+F:	Documentation/devicetree/bindings/i3c/cdns,i3c-master.txt
+F:	drivers/i3c/master/i3c-master-cdns.c
 
 IA64 (Itanium) PLATFORM
 M:	Tony Luck <tony.luck@intel.com>
