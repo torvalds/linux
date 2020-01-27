@@ -289,7 +289,6 @@ enum qlink_cmd_type {
 	QLINK_CMD_REGISTER_MGMT		= 0x0003,
 	QLINK_CMD_SEND_FRAME		= 0x0004,
 	QLINK_CMD_MGMT_SET_APPIE	= 0x0005,
-	QLINK_CMD_PHY_PARAMS_GET	= 0x0011,
 	QLINK_CMD_PHY_PARAMS_SET	= 0x0012,
 	QLINK_CMD_GET_HW_INFO		= 0x0013,
 	QLINK_CMD_MAC_INFO		= 0x0014,
@@ -982,14 +981,48 @@ struct qlink_resp_get_mac_info {
 	u8 num_rx_chain;
 	struct ieee80211_vht_cap vht_cap_mod_mask;
 	struct ieee80211_ht_cap ht_cap_mod_mask;
+
 	__le16 max_ap_assoc_sta;
+	__le32 hw_version;
+	__le32 probe_resp_offload;
+	__le32 bss_select_support;
+	__le16 n_addresses;
 	__le16 radar_detect_widths;
-	__le32 max_acl_mac_addrs;
+	__le16 max_remain_on_channel_duration;
+	__le16 max_acl_mac_addrs;
+
+	__le32 frag_threshold;
+	__le32 rts_threshold;
+	u8 retry_short;
+	u8 retry_long;
+	u8 coverage_class;
+
+	u8 max_scan_ssids;
+	u8 max_sched_scan_reqs;
+	u8 max_sched_scan_ssids;
+	u8 max_match_sets;
+	u8 max_adj_channel_rssi_comp;
+
+	__le16 max_scan_ie_len;
+	__le16 max_sched_scan_ie_len;
+	__le32 max_sched_scan_plans;
+	__le32 max_sched_scan_plan_interval;
+	__le32 max_sched_scan_plan_iterations;
+
+	u8 n_cipher_suites;
+	u8 n_akm_suites;
+	u8 max_num_pmkids;
+	u8 num_iftype_ext_capab;
+	u8 extended_capabilities_len;
+	u8 max_data_retry_count;
+	u8 n_iface_combinations;
+	u8 max_num_csa_counters;
+
 	u8 bands_cap;
 	u8 alpha2[2];
 	u8 n_reg_rules;
 	u8 dfs_region;
-	u8 rsvd[1];
+	u8 rsvd[3];
 	u8 var_info[0];
 } __packed;
 
@@ -1070,16 +1103,6 @@ struct qlink_resp_band_info_get {
 	u8 num_chans;
 	u8 num_bitrates;
 	u8 rsvd[1];
-	u8 info[0];
-} __packed;
-
-/**
- * struct qlink_resp_phy_params - response for QLINK_CMD_PHY_PARAMS_GET command
- *
- * @info: variable-length array of PHY params.
- */
-struct qlink_resp_phy_params {
-	struct qlink_resp rhdr;
 	u8 info[0];
 } __packed;
 
@@ -1424,21 +1447,6 @@ struct qlink_iface_limit_record {
 } __packed;
 
 #define QLINK_RSSI_OFFSET	120
-
-struct qlink_tlv_frag_rts_thr {
-	struct qlink_tlv_hdr hdr;
-	__le32 thr;
-} __packed;
-
-struct qlink_tlv_rlimit {
-	struct qlink_tlv_hdr hdr;
-	u8 rlimit;
-} __packed;
-
-struct qlink_tlv_cclass {
-	struct qlink_tlv_hdr hdr;
-	u8 cclass;
-} __packed;
 
 /**
  * enum qlink_reg_rule_flags - regulatory rule flags

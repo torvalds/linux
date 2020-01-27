@@ -1291,7 +1291,12 @@ qtnf_cmd_resp_proc_mac_info(struct qtnf_wmac *mac,
 	mac_info->radar_detect_widths =
 			qlink_chan_width_mask_to_nl(le16_to_cpu(
 					resp_info->radar_detect_widths));
-	mac_info->max_acl_mac_addrs = le32_to_cpu(resp_info->max_acl_mac_addrs);
+	mac_info->max_acl_mac_addrs = le16_to_cpu(resp_info->max_acl_mac_addrs);
+	mac_info->frag_thr = le32_to_cpu(resp_info->frag_threshold);
+	mac_info->rts_thr = le32_to_cpu(resp_info->rts_threshold);
+	mac_info->sretry_limit = resp_info->retry_short;
+	mac_info->lretry_limit = resp_info->retry_long;
+	mac_info->coverage_class = resp_info->coverage_class;
 
 	memcpy(&mac_info->ht_cap_mod_mask, &resp_info->ht_cap_mod_mask,
 	       sizeof(mac_info->ht_cap_mod_mask));
@@ -1576,72 +1581,6 @@ error_ret:
 	return ret;
 }
 
-static int qtnf_cmd_resp_proc_phy_params(struct qtnf_wmac *mac,
-					 const u8 *payload, size_t payload_len)
-{
-	struct qtnf_mac_info *mac_info;
-	struct qlink_tlv_frag_rts_thr *phy_thr;
-	struct qlink_tlv_rlimit *limit;
-	struct qlink_tlv_cclass *class;
-	u16 tlv_type;
-	u16 tlv_value_len;
-	size_t tlv_full_len;
-	const struct qlink_tlv_hdr *tlv;
-
-	mac_info = &mac->macinfo;
-
-	tlv = (struct qlink_tlv_hdr *)payload;
-	while (payload_len >= sizeof(struct qlink_tlv_hdr)) {
-		tlv_type = le16_to_cpu(tlv->type);
-		tlv_value_len = le16_to_cpu(tlv->len);
-		tlv_full_len = tlv_value_len + sizeof(struct qlink_tlv_hdr);
-
-		if (tlv_full_len > payload_len) {
-			pr_warn("MAC%u: malformed TLV 0x%.2X; LEN: %u\n",
-				mac->macid, tlv_type, tlv_value_len);
-			return -EINVAL;
-		}
-
-		switch (tlv_type) {
-		case QTN_TLV_ID_FRAG_THRESH:
-			phy_thr = (void *)tlv;
-			mac_info->frag_thr = le32_to_cpu(phy_thr->thr);
-			break;
-		case QTN_TLV_ID_RTS_THRESH:
-			phy_thr = (void *)tlv;
-			mac_info->rts_thr = le32_to_cpu(phy_thr->thr);
-			break;
-		case QTN_TLV_ID_SRETRY_LIMIT:
-			limit = (void *)tlv;
-			mac_info->sretry_limit = limit->rlimit;
-			break;
-		case QTN_TLV_ID_LRETRY_LIMIT:
-			limit = (void *)tlv;
-			mac_info->lretry_limit = limit->rlimit;
-			break;
-		case QTN_TLV_ID_COVERAGE_CLASS:
-			class = (void *)tlv;
-			mac_info->coverage_class = class->cclass;
-			break;
-		default:
-			pr_err("MAC%u: Unknown TLV type: %#x\n", mac->macid,
-			       le16_to_cpu(tlv->type));
-			break;
-		}
-
-		payload_len -= tlv_full_len;
-		tlv = (struct qlink_tlv_hdr *)(tlv->val + tlv_value_len);
-	}
-
-	if (payload_len) {
-		pr_warn("MAC%u: malformed TLV buf; bytes left: %zu\n",
-			mac->macid, payload_len);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static int
 qtnf_cmd_resp_proc_chan_stat_info(struct qtnf_chan_stats *stats,
 				  const u8 *payload, size_t payload_len)
@@ -1791,35 +1730,6 @@ int qtnf_cmd_band_info_get(struct qtnf_wmac *mac,
 	}
 
 	ret = qtnf_cmd_resp_fill_band_info(band, resp, info_len);
-
-out:
-	qtnf_bus_unlock(mac->bus);
-	consume_skb(resp_skb);
-
-	return ret;
-}
-
-int qtnf_cmd_send_get_phy_params(struct qtnf_wmac *mac)
-{
-	struct sk_buff *cmd_skb, *resp_skb = NULL;
-	struct qlink_resp_phy_params *resp;
-	size_t response_size = 0;
-	int ret = 0;
-
-	cmd_skb = qtnf_cmd_alloc_new_cmdskb(mac->macid, 0,
-					    QLINK_CMD_PHY_PARAMS_GET,
-					    sizeof(struct qlink_cmd));
-	if (!cmd_skb)
-		return -ENOMEM;
-
-	qtnf_bus_lock(mac->bus);
-	ret = qtnf_cmd_send_with_reply(mac->bus, cmd_skb, &resp_skb,
-				       sizeof(*resp), &response_size);
-	if (ret)
-		goto out;
-
-	resp = (struct qlink_resp_phy_params *)resp_skb->data;
-	ret = qtnf_cmd_resp_proc_phy_params(mac, resp->info, response_size);
 
 out:
 	qtnf_bus_unlock(mac->bus);

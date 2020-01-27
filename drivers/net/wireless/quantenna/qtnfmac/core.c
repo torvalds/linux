@@ -585,16 +585,6 @@ static int qtnf_core_mac_attach(struct qtnf_bus *bus, unsigned int macid)
 		return PTR_ERR(mac);
 	}
 
-	ret = qtnf_cmd_get_mac_info(mac);
-	if (ret) {
-		pr_err("MAC%u: failed to get info\n", macid);
-		goto error;
-	}
-
-	/* Use MAC address of the first active radio as a unique device ID */
-	if (is_zero_ether_addr(mac->bus->hw_id))
-		ether_addr_copy(mac->bus->hw_id, mac->macaddr);
-
 	vif = qtnf_mac_get_base_vif(mac);
 	if (!vif) {
 		pr_err("MAC%u: primary VIF is not ready\n", macid);
@@ -609,11 +599,15 @@ static int qtnf_core_mac_attach(struct qtnf_bus *bus, unsigned int macid)
 		goto error;
 	}
 
-	ret = qtnf_cmd_send_get_phy_params(mac);
+	ret = qtnf_cmd_get_mac_info(mac);
 	if (ret) {
-		pr_err("MAC%u: failed to get PHY settings\n", macid);
+		pr_err("MAC%u: failed to get MAC info\n", macid);
 		goto error_del_vif;
 	}
+
+	/* Use MAC address of the first active radio as a unique device ID */
+	if (is_zero_ether_addr(mac->bus->hw_id))
+		ether_addr_copy(mac->bus->hw_id, mac->macaddr);
 
 	ret = qtnf_mac_init_bands(mac);
 	if (ret) {
