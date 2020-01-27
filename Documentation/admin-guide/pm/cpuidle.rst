@@ -506,6 +506,9 @@ object corresponding to it, as follows:
 ``disable``
 	Whether or not this idle state is disabled.
 
+``default_status``
+	The default status of this state, "enabled" or "disabled".
+
 ``latency``
 	Exit latency of the idle state in microseconds.
 
