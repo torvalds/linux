@@ -1145,7 +1145,7 @@ static void sc_generate_link_key(struct smp_chan *smp)
 		return;
 
 	if (test_bit(SMP_FLAG_CT2, &smp->flags)) {
-		/* SALT = 0x00000000000000000000000000000000746D7031 */
+		/* SALT = 0x000000000000000000000000746D7031 */
 		const u8 salt[16] = { 0x31, 0x70, 0x6d, 0x74 };
 
 		if (smp_h7(smp->tfm_cmac, smp->tk, salt, smp->link_key)) {
@@ -1203,7 +1203,7 @@ static void sc_generate_ltk(struct smp_chan *smp)
 		set_bit(SMP_FLAG_DEBUG_KEY, &smp->flags);
 
 	if (test_bit(SMP_FLAG_CT2, &smp->flags)) {
-		/* SALT = 0x00000000000000000000000000000000746D7032 */
+		/* SALT = 0x000000000000000000000000746D7032 */
 		const u8 salt[16] = { 0x32, 0x70, 0x6d, 0x74 };
 
 		if (smp_h7(smp->tfm_cmac, key->val, salt, smp->tk))
