@@ -286,59 +286,49 @@ void gen6_gt_irq_handler(struct intel_gt *gt, u32 gt_iir)
 		gen7_parity_error_irq_handler(gt, gt_iir);
 }
 
-void gen8_gt_irq_ack(struct intel_gt *gt, u32 master_ctl, u32 gt_iir[4])
+void gen8_gt_irq_handler(struct intel_gt *gt, u32 master_ctl)
 {
 	void __iomem * const regs = gt->uncore->regs;
+	u32 iir;
 
 	if (master_ctl & (GEN8_GT_RCS_IRQ | GEN8_GT_BCS_IRQ)) {
-		gt_iir[0] = raw_reg_read(regs, GEN8_GT_IIR(0));
-		if (likely(gt_iir[0]))
-			raw_reg_write(regs, GEN8_GT_IIR(0), gt_iir[0]);
+		iir = raw_reg_read(regs, GEN8_GT_IIR(0));
+		if (likely(iir)) {
+			cs_irq_handler(gt->engine_class[RENDER_CLASS][0],
+				       iir >> GEN8_RCS_IRQ_SHIFT);
+			cs_irq_handler(gt->engine_class[COPY_ENGINE_CLASS][0],
+				       iir >> GEN8_BCS_IRQ_SHIFT);
+			raw_reg_write(regs, GEN8_GT_IIR(0), iir);
+		}
 	}
 
 	if (master_ctl & (GEN8_GT_VCS0_IRQ | GEN8_GT_VCS1_IRQ)) {
-		gt_iir[1] = raw_reg_read(regs, GEN8_GT_IIR(1));
-		if (likely(gt_iir[1]))
-			raw_reg_write(regs, GEN8_GT_IIR(1), gt_iir[1]);
-	}
-
-	if (master_ctl & (GEN8_GT_PM_IRQ | GEN8_GT_GUC_IRQ)) {
-		gt_iir[2] = raw_reg_read(regs, GEN8_GT_IIR(2));
-		if (likely(gt_iir[2]))
-			raw_reg_write(regs, GEN8_GT_IIR(2), gt_iir[2]);
-	}
-
-	if (master_ctl & GEN8_GT_VECS_IRQ) {
-		gt_iir[3] = raw_reg_read(regs, GEN8_GT_IIR(3));
-		if (likely(gt_iir[3]))
-			raw_reg_write(regs, GEN8_GT_IIR(3), gt_iir[3]);
-	}
-}
-
-void gen8_gt_irq_handler(struct intel_gt *gt, u32 master_ctl, u32 gt_iir[4])
-{
-	if (master_ctl & (GEN8_GT_RCS_IRQ | GEN8_GT_BCS_IRQ)) {
-		cs_irq_handler(gt->engine_class[RENDER_CLASS][0],
-			       gt_iir[0] >> GEN8_RCS_IRQ_SHIFT);
-		cs_irq_handler(gt->engine_class[COPY_ENGINE_CLASS][0],
-			       gt_iir[0] >> GEN8_BCS_IRQ_SHIFT);
-	}
-
-	if (master_ctl & (GEN8_GT_VCS0_IRQ | GEN8_GT_VCS1_IRQ)) {
-		cs_irq_handler(gt->engine_class[VIDEO_DECODE_CLASS][0],
-			       gt_iir[1] >> GEN8_VCS0_IRQ_SHIFT);
-		cs_irq_handler(gt->engine_class[VIDEO_DECODE_CLASS][1],
-			       gt_iir[1] >> GEN8_VCS1_IRQ_SHIFT);
+		iir = raw_reg_read(regs, GEN8_GT_IIR(1));
+		if (likely(iir)) {
+			cs_irq_handler(gt->engine_class[VIDEO_DECODE_CLASS][0],
+				       iir >> GEN8_VCS0_IRQ_SHIFT);
+			cs_irq_handler(gt->engine_class[VIDEO_DECODE_CLASS][1],
+				       iir >> GEN8_VCS1_IRQ_SHIFT);
+			raw_reg_write(regs, GEN8_GT_IIR(1), iir);
+		}
 	}
 
 	if (master_ctl & GEN8_GT_VECS_IRQ) {
-		cs_irq_handler(gt->engine_class[VIDEO_ENHANCEMENT_CLASS][0],
-			       gt_iir[3] >> GEN8_VECS_IRQ_SHIFT);
+		iir = raw_reg_read(regs, GEN8_GT_IIR(3));
+		if (likely(iir)) {
+			cs_irq_handler(gt->engine_class[VIDEO_ENHANCEMENT_CLASS][0],
+				       iir >> GEN8_VECS_IRQ_SHIFT);
+			raw_reg_write(regs, GEN8_GT_IIR(3), iir);
+		}
 	}
 
 	if (master_ctl & (GEN8_GT_PM_IRQ | GEN8_GT_GUC_IRQ)) {
-		gen6_rps_irq_handler(&gt->rps, gt_iir[2]);
-		guc_irq_handler(&gt->uc.guc, gt_iir[2] >> 16);
+		iir = raw_reg_read(regs, GEN8_GT_IIR(2));
+		if (likely(iir)) {
+			gen6_rps_irq_handler(&gt->rps, iir);
+			guc_irq_handler(&gt->uc.guc, iir >> 16);
+			raw_reg_write(regs, GEN8_GT_IIR(2), iir);
+		}
 	}
 }
 
