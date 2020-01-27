@@ -39,3 +39,36 @@ parameters.
      - Generic Routing Encapsulation (GRE) version check will be enabled in
        the device. If disabled, the device will skip the version check for
        incoming packets.
+
+Info versions
+=============
+
+The ``bnxt_en`` driver reports the following versions
+
+.. list-table:: devlink info versions implemented
+      :widths: 5 5 90
+
+   * - Name
+     - Type
+     - Description
+   * - ``asic.id``
+     - fixed
+     - ASIC design identifier
+   * - ``asic.rev``
+     - fixed
+     - ASIC design revision
+   * - ``fw.psid``
+     - stored, running
+     - Firmware parameter set version of the board
+   * - ``fw``
+     - stored, running
+     - Overall board firmware version
+   * - ``fw.app``
+     - stored, running
+     - Data path firmware version
+   * - ``fw.mgmt``
+     - stored, running
+     - Management firmware version
+   * - ``fw.roce``
+     - stored, running
+     - RoCE management firmware version
