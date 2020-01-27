@@ -445,6 +445,7 @@ static void otx2_free_sq_res(struct otx2_nic *pf)
 	for (qidx = 0; qidx < pf->hw.tx_queues; qidx++) {
 		sq = &qset->sq[qidx];
 		qmem_free(pf->dev, sq->sqe);
+		kfree(sq->sg);
 		kfree(sq->sqb_ptrs);
 	}
 }
@@ -569,6 +570,8 @@ static void otx2_free_hw_resources(struct otx2_nic *pf)
 		cq = &qset->cq[qidx];
 		if (cq->cq_type == CQ_RX)
 			otx2_cleanup_rx_cqes(pf, cq);
+		else
+			otx2_cleanup_tx_cqes(pf, cq);
 	}
 
 	otx2_free_sq_res(pf);
@@ -741,9 +744,41 @@ static int otx2_stop(struct net_device *netdev)
 	return 0;
 }
 
+static netdev_tx_t otx2_xmit(struct sk_buff *skb, struct net_device *netdev)
+{
+	struct otx2_nic *pf = netdev_priv(netdev);
+	int qidx = skb_get_queue_mapping(skb);
+	struct otx2_snd_queue *sq;
+	struct netdev_queue *txq;
+
+	/* Check for minimum packet length */
+	if (skb->len <= ETH_HLEN) {
+		dev_kfree_skb(skb);
+		return NETDEV_TX_OK;
+	}
+
+	sq = &pf->qset.sq[qidx];
+	txq = netdev_get_tx_queue(netdev, qidx);
+
+	if (!otx2_sq_append_skb(netdev, sq, skb, qidx)) {
+		netif_tx_stop_queue(txq);
+
+		/* Check again, incase SQBs got freed up */
+		smp_mb();
+		if (((sq->num_sqbs - *sq->aura_fc_addr) * sq->sqe_per_sqb)
+							> sq->sqe_thresh)
+			netif_tx_wake_queue(txq);
+
+		return NETDEV_TX_BUSY;
+	}
+
+	return NETDEV_TX_OK;
+}
+
 static const struct net_device_ops otx2_netdev_ops = {
 	.ndo_open		= otx2_open,
 	.ndo_stop		= otx2_stop,
+	.ndo_start_xmit		= otx2_xmit,
 };
 
 static int otx2_check_pf_usable(struct otx2_nic *nic)
@@ -910,7 +945,8 @@ static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 */
 	pf->iommu_domain = iommu_get_domain_for_dev(dev);
 
-	netdev->hw_features = NETIF_F_RXCSUM;
+	netdev->hw_features = (NETIF_F_RXCSUM | NETIF_F_IP_CSUM |
+			       NETIF_F_IPV6_CSUM | NETIF_F_SG);
 	netdev->features |= netdev->hw_features;
 
 	netdev->hw_features |= NETIF_F_RXALL;
