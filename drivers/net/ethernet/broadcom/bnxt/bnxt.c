@@ -7288,6 +7288,7 @@ static int bnxt_hwrm_ver_get(struct bnxt *bp)
 		bp->hwrm_max_ext_req_len = HWRM_MAX_REQ_LEN;
 
 	bp->chip_num = le16_to_cpu(resp->chip_num);
+	bp->chip_rev = resp->chip_rev;
 	if (bp->chip_num == CHIP_NUM_58700 && !resp->chip_rev &&
 	    !resp->chip_metal)
 		bp->flags |= BNXT_FLAG_CHIP_NITRO_A0;
@@ -10057,7 +10058,8 @@ static void bnxt_timer(struct timer_list *t)
 		}
 	}
 
-	if ((bp->flags & BNXT_FLAG_CHIP_P5) && netif_carrier_ok(dev)) {
+	if ((bp->flags & BNXT_FLAG_CHIP_P5) && !bp->chip_rev &&
+	    netif_carrier_ok(dev)) {
 		set_bit(BNXT_RING_COAL_NOW_SP_EVENT, &bp->sp_event);
 		bnxt_queue_sp_work(bp);
 	}
