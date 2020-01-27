@@ -26,6 +26,7 @@
 #define	OTX2_MIN_MTU		64
 #define	OTX2_MAX_MTU		(9212 - OTX2_ETH_HLEN)
 
+#define OTX2_MAX_GSO_SEGS	255
 #define OTX2_MAX_FRAGS_IN_SQE	9
 
 /* Rx buffer size should be in multiples of 128bytes */
@@ -79,6 +80,7 @@ struct otx2_snd_queue {
 	u64			*lmt_addr;
 	void			*sqe_base;
 	struct qmem		*sqe;
+	struct qmem		*tso_hdrs;
 	struct sg_list		*sg;
 	u16			sqb_count;
 	u64			*sqb_ptrs;

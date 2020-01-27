@@ -10,6 +10,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/pci.h>
+#include <net/tso.h>
 
 #include "otx2_reg.h"
 #include "otx2_common.h"
@@ -519,6 +520,11 @@ static int otx2_sq_init(struct otx2_nic *pfvf, u16 qidx, u16 sqb_aura)
 	sq->sqe_cnt = qset->sqe_cnt;
 
 	err = qmem_alloc(pfvf->dev, &sq->sqe, 1, sq->sqe_size);
+	if (err)
+		return err;
+
+	err = qmem_alloc(pfvf->dev, &sq->tso_hdrs, qset->sqe_cnt,
+			 TSO_HEADER_SIZE);
 	if (err)
 		return err;
 
@@ -1211,6 +1217,8 @@ void mbox_handler_nix_lf_alloc(struct otx2_nic *pfvf,
 	pfvf->hw.sqb_size = rsp->sqb_size;
 	pfvf->hw.rx_chan_base = rsp->rx_chan_base;
 	pfvf->hw.tx_chan_base = rsp->tx_chan_base;
+	pfvf->hw.lso_tsov4_idx = rsp->lso_tsov4_idx;
+	pfvf->hw.lso_tsov6_idx = rsp->lso_tsov6_idx;
 }
 
 void mbox_handler_msix_offset(struct otx2_nic *pfvf,
