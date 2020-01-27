@@ -36,6 +36,8 @@ static const unsigned char luma_q_table[] = {
 	0x48, 0x5c, 0x5f, 0x62, 0x70, 0x64, 0x67, 0x63
 };
 
+static unsigned char luma_q_table_reordered[ARRAY_SIZE(luma_q_table)];
+
 static const unsigned char chroma_q_table[] = {
 	0x11, 0x12, 0x18, 0x2f, 0x63, 0x63, 0x63, 0x63,
 	0x12, 0x15, 0x1a, 0x42, 0x63, 0x63, 0x63, 0x63,
@@ -45,6 +47,30 @@ static const unsigned char chroma_q_table[] = {
 	0x63, 0x63, 0x63, 0x63, 0x63, 0x63, 0x63, 0x63,
 	0x63, 0x63, 0x63, 0x63, 0x63, 0x63, 0x63, 0x63,
 	0x63, 0x63, 0x63, 0x63, 0x63, 0x63, 0x63, 0x63
+};
+
+static unsigned char chroma_q_table_reordered[ARRAY_SIZE(chroma_q_table)];
+
+static const unsigned char zigzag[64] = {
+	 0,  1,  8, 16,  9,  2,  3, 10,
+	17, 24, 32, 25, 18, 11,  4,  5,
+	12, 19, 26, 33, 40, 48, 41, 34,
+	27, 20, 13,  6,  7, 14, 21, 28,
+	35, 42, 49, 56, 57, 50, 43, 36,
+	29, 22, 15, 23, 30, 37, 44, 51,
+	58, 59, 52, 45, 38, 31, 39, 46,
+	53, 60, 61, 54, 47, 55, 62, 63
+};
+
+static const u32 hw_reorder[64] = {
+	 0,  8, 16, 24,  1,  9, 17, 25,
+	32, 40, 48, 56, 33, 41, 49, 57,
+	 2, 10, 18, 26,  3, 11, 19, 27,
+	34, 42, 50, 58, 35, 43, 51, 59,
+	 4, 12, 20, 28,  5, 13, 21, 29,
+	36, 44, 52, 60, 37, 45, 53, 61,
+	 6, 14, 22, 30,  7, 15, 23, 31,
+	38, 46, 54, 62, 39, 47, 55, 63
 };
 
 /* Huffman tables are shared with CODA */
@@ -225,20 +251,29 @@ static const unsigned char hantro_jpeg_header[JPEG_HEADER_SIZE] = {
 	0x11, 0x03, 0x11, 0x00, 0x3f, 0x00,
 };
 
-static void
-jpeg_scale_quant_table(unsigned char *q_tab,
-		       const unsigned char *tab, int scale)
+static unsigned char jpeg_scale_qp(const unsigned char qp, int scale)
 {
 	unsigned int temp;
+
+	temp = DIV_ROUND_CLOSEST((unsigned int)qp * scale, 100);
+	if (temp <= 0)
+		temp = 1;
+	if (temp > 255)
+		temp = 255;
+
+	return (unsigned char)temp;
+}
+
+static void
+jpeg_scale_quant_table(unsigned char *file_q_tab,
+		       unsigned char *reordered_q_tab,
+		       const unsigned char *tab, int scale)
+{
 	int i;
 
 	for (i = 0; i < 64; i++) {
-		temp = DIV_ROUND_CLOSEST((unsigned int)tab[i] * scale, 100);
-		if (temp <= 0)
-			temp = 1;
-		if (temp > 255)
-			temp = 255;
-		q_tab[i] = (unsigned char)temp;
+		file_q_tab[i] = jpeg_scale_qp(tab[zigzag[i]], scale);
+		reordered_q_tab[i] = jpeg_scale_qp(tab[hw_reorder[i]], scale);
 	}
 }
 
@@ -256,17 +291,18 @@ static void jpeg_set_quality(unsigned char *buffer, int quality)
 		scale = 200 - 2 * quality;
 
 	jpeg_scale_quant_table(buffer + LUMA_QUANT_OFF,
+			       luma_q_table_reordered,
 			       luma_q_table, scale);
 	jpeg_scale_quant_table(buffer + CHROMA_QUANT_OFF,
+			       chroma_q_table_reordered,
 			       chroma_q_table, scale);
 }
 
-unsigned char *
-hantro_jpeg_get_qtable(struct hantro_jpeg_ctx *ctx, int index)
+unsigned char *hantro_jpeg_get_qtable(int index)
 {
 	if (index == 0)
-		return ctx->buffer + LUMA_QUANT_OFF;
-	return ctx->buffer + CHROMA_QUANT_OFF;
+		return luma_q_table_reordered;
+	return chroma_q_table_reordered;
 }
 
 void hantro_jpeg_header_assemble(struct hantro_jpeg_ctx *ctx)

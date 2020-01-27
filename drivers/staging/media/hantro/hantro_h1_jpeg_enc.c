@@ -108,8 +108,8 @@ void hantro_h1_jpeg_enc_run(struct hantro_ctx *ctx)
 	hantro_h1_set_src_img_ctrl(vpu, ctx);
 	hantro_h1_jpeg_enc_set_buffers(vpu, ctx, &src_buf->vb2_buf);
 	hantro_h1_jpeg_enc_set_qtable(vpu,
-				      hantro_jpeg_get_qtable(&jpeg_ctx, 0),
-				      hantro_jpeg_get_qtable(&jpeg_ctx, 1));
+				      hantro_jpeg_get_qtable(0),
+				      hantro_jpeg_get_qtable(1));
 
 	reg = H1_REG_AXI_CTRL_OUTPUT_SWAP16
 		| H1_REG_AXI_CTRL_INPUT_SWAP16

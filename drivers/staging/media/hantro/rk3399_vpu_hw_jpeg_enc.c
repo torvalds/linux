@@ -18,9 +18,8 @@
  *
  * Quantization luma table values are written to registers
  * VEPU_swreg_0-VEPU_swreg_15, and chroma table values to
- * VEPU_swreg_16-VEPU_swreg_31.
- *
- * JPEG zigzag order is expected on the quantization tables.
+ * VEPU_swreg_16-VEPU_swreg_31. A special order is needed, neither
+ * zigzag, nor linear.
  */
 
 #include <asm/unaligned.h>
@@ -139,8 +138,8 @@ void rk3399_vpu_jpeg_enc_run(struct hantro_ctx *ctx)
 	rk3399_vpu_set_src_img_ctrl(vpu, ctx);
 	rk3399_vpu_jpeg_enc_set_buffers(vpu, ctx, &src_buf->vb2_buf);
 	rk3399_vpu_jpeg_enc_set_qtable(vpu,
-				       hantro_jpeg_get_qtable(&jpeg_ctx, 0),
-				       hantro_jpeg_get_qtable(&jpeg_ctx, 1));
+				       hantro_jpeg_get_qtable(0),
+				       hantro_jpeg_get_qtable(1));
 
 	reg = VEPU_REG_OUTPUT_SWAP32
 		| VEPU_REG_OUTPUT_SWAP16
