@@ -208,8 +208,8 @@ arch_initcall(parisc_idle_init);
  * Copy architecture-specific thread state
  */
 int
-copy_thread(unsigned long clone_flags, unsigned long usp,
-	    unsigned long kthread_arg, struct task_struct *p)
+copy_thread_tls(unsigned long clone_flags, unsigned long usp,
+	    unsigned long kthread_arg, struct task_struct *p, unsigned long tls)
 {
 	struct pt_regs *cregs = &(p->thread.regs);
 	void *stack = task_stack_page(p);
@@ -254,9 +254,9 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 		cregs->ksp = (unsigned long)stack + THREAD_SZ_ALGN + FRAME_SIZE;
 		cregs->kpc = (unsigned long) &child_return;
 
-		/* Setup thread TLS area from the 4th parameter in clone */
+		/* Setup thread TLS area */
 		if (clone_flags & CLONE_SETTLS)
-			cregs->cr27 = cregs->gr[23];
+			cregs->cr27 = tls;
 	}
 
 	return 0;
