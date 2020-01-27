@@ -1023,10 +1023,9 @@ qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
 			     size_t tlv_buf_size)
 {
 	const u8 *tlv_buf = resp->var_info;
-	struct ieee80211_iface_combination *comb = NULL;
+	struct ieee80211_iface_combination *comb = mac->macinfo.if_comb;
 	size_t n_comb = 0;
 	struct ieee80211_iface_limit *limits;
-	const struct qlink_iface_comb_num *comb_num;
 	const struct qlink_iface_limit_record *rec;
 	const struct qlink_iface_limit *lim;
 	const struct qlink_wowlan_capab_data *wowlan;
@@ -1084,32 +1083,6 @@ qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
 		}
 
 		switch (tlv_type) {
-		case QTN_TLV_ID_NUM_IFACE_COMB:
-			if (tlv_value_len != sizeof(*comb_num))
-				return -EINVAL;
-
-			comb_num = (void *)tlv->val;
-
-			/* free earlier iface comb memory */
-			qtnf_mac_iface_comb_free(mac);
-
-			mac->macinfo.n_if_comb =
-				le32_to_cpu(comb_num->iface_comb_num);
-
-			mac->macinfo.if_comb =
-				kcalloc(mac->macinfo.n_if_comb,
-					sizeof(*mac->macinfo.if_comb),
-					GFP_KERNEL);
-
-			if (!mac->macinfo.if_comb)
-				return -ENOMEM;
-
-			comb = mac->macinfo.if_comb;
-
-			pr_debug("MAC%u: %zu iface combinations\n",
-				 mac->macid, mac->macinfo.n_if_comb);
-
-			break;
 		case QTN_TLV_ID_IFACE_LIMIT:
 			if (unlikely(!comb)) {
 				pr_warn("MAC%u: no combinations advertised\n",
@@ -1266,12 +1239,14 @@ qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
 	return 0;
 }
 
-static void
+static int
 qtnf_cmd_resp_proc_mac_info(struct qtnf_wmac *mac,
 			    const struct qlink_resp_get_mac_info *resp_info)
 {
 	struct qtnf_mac_info *mac_info;
 	struct qtnf_vif *vif;
+
+	qtnf_mac_iface_comb_free(mac);
 
 	mac_info = &mac->macinfo;
 
@@ -1302,6 +1277,16 @@ qtnf_cmd_resp_proc_mac_info(struct qtnf_wmac *mac,
 	       sizeof(mac_info->ht_cap_mod_mask));
 	memcpy(&mac_info->vht_cap_mod_mask, &resp_info->vht_cap_mod_mask,
 	       sizeof(mac_info->vht_cap_mod_mask));
+
+	mac_info->n_if_comb = resp_info->n_iface_combinations;
+	mac_info->if_comb = kcalloc(mac->macinfo.n_if_comb,
+				    sizeof(*mac->macinfo.if_comb),
+				    GFP_KERNEL);
+
+	if (!mac->macinfo.if_comb)
+		return -ENOMEM;
+
+	return 0;
 }
 
 static void qtnf_cmd_resp_band_fill_htcap(const u8 *info,
@@ -1657,7 +1642,10 @@ int qtnf_cmd_get_mac_info(struct qtnf_wmac *mac)
 		goto out;
 
 	resp = (const struct qlink_resp_get_mac_info *)resp_skb->data;
-	qtnf_cmd_resp_proc_mac_info(mac, resp);
+	ret = qtnf_cmd_resp_proc_mac_info(mac, resp);
+	if (ret)
+		goto out;
+
 	ret = qtnf_parse_variable_mac_info(mac, resp, var_data_len);
 
 out:

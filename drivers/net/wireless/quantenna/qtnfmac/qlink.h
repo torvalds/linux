@@ -1399,7 +1399,6 @@ enum qlink_tlv_id {
 	QTN_TLV_ID_STA_STATS		= 0x0212,
 	QTN_TLV_ID_COVERAGE_CLASS	= 0x0213,
 	QTN_TLV_ID_IFACE_LIMIT		= 0x0214,
-	QTN_TLV_ID_NUM_IFACE_COMB	= 0x0215,
 	QTN_TLV_ID_CHANNEL_STATS	= 0x0216,
 	QTN_TLV_ID_KEY			= 0x0302,
 	QTN_TLV_ID_SEQ			= 0x0303,
@@ -1428,10 +1427,6 @@ struct qlink_tlv_hdr {
 	__le16 type;
 	__le16 len;
 	u8 val[0];
-} __packed;
-
-struct qlink_iface_comb_num {
-	__le32 iface_comb_num;
 } __packed;
 
 struct qlink_iface_limit {
