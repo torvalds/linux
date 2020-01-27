@@ -2,5 +2,3 @@
 . ${ROOT_DIR}/common/build.config.aarch64
 . ${ROOT_DIR}/common/build.config.gki
 
-ABI_DEFINITION=abi_gki_aarch64.xml
-KMI_WHITELIST=abi_gki_aarch64_whitelist
