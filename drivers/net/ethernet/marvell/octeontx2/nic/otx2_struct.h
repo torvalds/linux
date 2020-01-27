@@ -17,4 +17,15 @@ enum nix_cqesz_e {
 	NIX_XQESZ_W16 = 0x1,
 };
 
+enum nix_sqes_e {
+	NIX_SQESZ_W16 = 0x0,
+	NIX_SQESZ_W8 = 0x1,
+};
+
+enum nix_send_ldtype {
+	NIX_SEND_LDTYPE_LDD  = 0x0,
+	NIX_SEND_LDTYPE_LDT  = 0x1,
+	NIX_SEND_LDTYPE_LDWB = 0x2,
+};
+
 #endif /* OTX2_STRUCT_H */

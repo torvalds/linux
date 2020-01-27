@@ -12,9 +12,11 @@
 #define OTX2_COMMON_H
 
 #include <linux/pci.h>
+#include <linux/iommu.h>
 
 #include <mbox.h>
 #include "otx2_reg.h"
+#include "otx2_txrx.h"
 
 /* PCI device IDs */
 #define PCI_DEVID_OCTEONTX2_RVU_PF              0xA063
@@ -25,15 +27,9 @@
 
 #define NAME_SIZE                               32
 
-struct otx2_pool {
-	struct qmem		*stack;
-};
-
-struct otx2_qset {
-#define OTX2_MAX_CQ_CNT		64
-	u16			cq_cnt;
-	u16			xqe_size; /* Size of CQE i.e 128 or 512 bytes */
-	struct otx2_pool	*pool;
+enum arua_mapped_qtypes {
+	AURA_NIX_RQ,
+	AURA_NIX_SQ,
 };
 
 struct mbox {
@@ -54,14 +50,21 @@ struct otx2_hw {
 	u16                     tx_queues;
 	u16			max_queues;
 	u16			pool_cnt;
+	u16			rqpool_cnt;
+	u16			sqpool_cnt;
 
 	/* NPA */
 	u32			stack_pg_ptrs;  /* No of ptrs per stack page */
 	u32			stack_pg_bytes; /* Size of stack page */
 	u16			sqb_size;
 
+	/* NIX */
+	u16		txschq_list[NIX_TXSCH_LVL_CNT][MAX_TXSCHQ_PER_FUNC];
+
+	/* HW settings, coalescing etc */
 	u16			rx_chan_base;
 	u16			tx_chan_base;
+	u16			rq_skid;
 
 	/* MSI-X */
 	u16			npa_msixoff; /* Offset of NPA vectors */
@@ -73,6 +76,8 @@ struct otx2_hw {
 struct otx2_nic {
 	void __iomem		*reg_base;
 	struct net_device	*netdev;
+	void			*iommu_domain;
+	u16			rbsize; /* Receive buffer size */
 
 	struct otx2_qset	qset;
 	struct otx2_hw		hw;
@@ -84,6 +89,9 @@ struct otx2_nic {
 	struct workqueue_struct *mbox_wq;
 
 	u16			pcifunc; /* RVU PF_FUNC */
+
+	/* Block address of NIX either BLKADDR_NIX0 or BLKADDR_NIX1 */
+	int			nix_blkaddr;
 };
 
 /* Register read/write APIs */
@@ -93,7 +101,7 @@ static inline void __iomem *otx2_get_regaddr(struct otx2_nic *nic, u64 offset)
 
 	switch ((offset >> RVU_FUNC_BLKADDR_SHIFT) & RVU_FUNC_BLKADDR_MASK) {
 	case BLKTYPE_NIX:
-		blkaddr = BLKADDR_NIX0;
+		blkaddr = nic->nix_blkaddr;
 		break;
 	case BLKTYPE_NPA:
 		blkaddr = BLKADDR_NPA;
@@ -184,6 +192,72 @@ static inline void otx2_mbox_unlock(struct mbox *mbox)
 	mutex_unlock(&mbox->lock);
 }
 
+/* With the absence of API for 128-bit IO memory access for arm64,
+ * implement required operations at place.
+ */
+#if defined(CONFIG_ARM64)
+static inline void otx2_write128(u64 lo, u64 hi, void __iomem *addr)
+{
+	__asm__ volatile("stp %x[x0], %x[x1], [%x[p1],#0]!"
+			 ::[x0]"r"(lo), [x1]"r"(hi), [p1]"r"(addr));
+}
+
+static inline u64 otx2_atomic64_add(u64 incr, u64 *ptr)
+{
+	u64 result;
+
+	__asm__ volatile(".cpu   generic+lse\n"
+			 "ldadd %x[i], %x[r], [%[b]]"
+			 : [r]"=r"(result), "+m"(*ptr)
+			 : [i]"r"(incr), [b]"r"(ptr)
+			 : "memory");
+	return result;
+}
+
+#else
+#define otx2_write128(lo, hi, addr)
+#define otx2_atomic64_add(incr, ptr)		({ *ptr += incr; })
+#endif
+
+/* Alloc pointer from pool/aura */
+static inline u64 otx2_aura_allocptr(struct otx2_nic *pfvf, int aura)
+{
+	u64 *ptr = (u64 *)otx2_get_regaddr(pfvf,
+			   NPA_LF_AURA_OP_ALLOCX(0));
+	u64 incr = (u64)aura | BIT_ULL(63);
+
+	return otx2_atomic64_add(incr, ptr);
+}
+
+/* Free pointer to a pool/aura */
+static inline void otx2_aura_freeptr(struct otx2_nic *pfvf,
+				     int aura, s64 buf)
+{
+	otx2_write128((u64)buf, (u64)aura | BIT_ULL(63),
+		      otx2_get_regaddr(pfvf, NPA_LF_AURA_OP_FREE0));
+}
+
+/* Update page ref count */
+static inline void otx2_get_page(struct otx2_pool *pool)
+{
+	if (!pool->page)
+		return;
+
+	if (pool->pageref)
+		page_ref_add(pool->page, pool->pageref);
+	pool->pageref = 0;
+	pool->page = NULL;
+}
+
+static inline int otx2_get_pool_idx(struct otx2_nic *pfvf, int type, int idx)
+{
+	if (type == AURA_NIX_SQ)
+		return pfvf->hw.rqpool_cnt + idx;
+
+	 /* AURA_NIX_RQ */
+	return idx;
+}
+
 /* Mbox APIs */
 static inline int otx2_sync_mbox_msg(struct mbox *mbox)
 {
@@ -263,11 +337,46 @@ MBOX_UP_CGX_MESSAGES
 #define	RVU_PFVF_FUNC_SHIFT	0
 #define	RVU_PFVF_FUNC_MASK	0x3FF
 
+static inline dma_addr_t otx2_dma_map_page(struct otx2_nic *pfvf,
+					   struct page *page,
+					   size_t offset, size_t size,
+					   enum dma_data_direction dir)
+{
+	dma_addr_t iova;
+
+	iova = dma_map_page_attrs(pfvf->dev, page,
+				  offset, size, dir, DMA_ATTR_SKIP_CPU_SYNC);
+	if (unlikely(dma_mapping_error(pfvf->dev, iova)))
+		return (dma_addr_t)NULL;
+	return iova;
+}
+
+static inline void otx2_dma_unmap_page(struct otx2_nic *pfvf,
+				       dma_addr_t addr, size_t size,
+				       enum dma_data_direction dir)
+{
+	dma_unmap_page_attrs(pfvf->dev, addr, size,
+			     dir, DMA_ATTR_SKIP_CPU_SYNC);
+}
+
 /* RVU block related APIs */
 int otx2_attach_npa_nix(struct otx2_nic *pfvf);
 int otx2_detach_resources(struct mbox *mbox);
 int otx2_config_npa(struct otx2_nic *pfvf);
+int otx2_sq_aura_pool_init(struct otx2_nic *pfvf);
+int otx2_rq_aura_pool_init(struct otx2_nic *pfvf);
+void otx2_aura_pool_free(struct otx2_nic *pfvf);
+void otx2_free_aura_ptr(struct otx2_nic *pfvf, int type);
+void otx2_sq_free_sqbs(struct otx2_nic *pfvf);
 int otx2_config_nix(struct otx2_nic *pfvf);
+int otx2_config_nix_queues(struct otx2_nic *pfvf);
+int otx2_txschq_config(struct otx2_nic *pfvf, int lvl);
+int otx2_txsch_alloc(struct otx2_nic *pfvf);
+int otx2_txschq_stop(struct otx2_nic *pfvf);
+void otx2_sqb_flush(struct otx2_nic *pfvf);
+dma_addr_t otx2_alloc_rbuf(struct otx2_nic *pfvf, struct otx2_pool *pool,
+			   gfp_t gfp);
+void otx2_ctx_disable(struct mbox *mbox, int type, bool npa);
 
 /* Mbox handlers */
 void mbox_handler_msix_offset(struct otx2_nic *pfvf,
@@ -276,4 +385,6 @@ void mbox_handler_npa_lf_alloc(struct otx2_nic *pfvf,
 			       struct npa_lf_alloc_rsp *rsp);
 void mbox_handler_nix_lf_alloc(struct otx2_nic *pfvf,
 			       struct nix_lf_alloc_rsp *rsp);
+void mbox_handler_nix_txsch_alloc(struct otx2_nic *pf,
+				  struct nix_txsch_alloc_rsp *rsp);
 #endif /* OTX2_COMMON_H */

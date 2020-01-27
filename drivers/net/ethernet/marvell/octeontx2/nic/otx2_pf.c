@@ -17,7 +17,10 @@
 #include <linux/iommu.h>
 #include <net/ip.h>
 
+#include "otx2_reg.h"
 #include "otx2_common.h"
+#include "otx2_txrx.h"
+#include "otx2_struct.h"
 
 #define DRV_NAME	"octeontx2-nicpf"
 #define DRV_STRING	"Marvell OcteonTX2 NIC Physical Function Driver"
@@ -122,6 +125,10 @@ static void otx2_process_pfaf_mbox_msg(struct otx2_nic *pf,
 		break;
 	case MBOX_MSG_NIX_LF_ALLOC:
 		mbox_handler_nix_lf_alloc(pf, (struct nix_lf_alloc_rsp *)msg);
+		break;
+	case MBOX_MSG_NIX_TXSCH_ALLOC:
+		mbox_handler_nix_txsch_alloc(pf,
+					     (struct nix_txsch_alloc_rsp *)msg);
 		break;
 	default:
 		if (msg->rc)
@@ -379,26 +386,231 @@ static int otx2_set_real_num_queues(struct net_device *netdev,
 	return err;
 }
 
+static void otx2_free_cq_res(struct otx2_nic *pf)
+{
+	struct otx2_qset *qset = &pf->qset;
+	struct otx2_cq_queue *cq;
+	int qidx;
+
+	/* Disable CQs */
+	otx2_ctx_disable(&pf->mbox, NIX_AQ_CTYPE_CQ, false);
+	for (qidx = 0; qidx < qset->cq_cnt; qidx++) {
+		cq = &qset->cq[qidx];
+		qmem_free(pf->dev, cq->cqe);
+	}
+}
+
+static void otx2_free_sq_res(struct otx2_nic *pf)
+{
+	struct otx2_qset *qset = &pf->qset;
+	struct otx2_snd_queue *sq;
+	int qidx;
+
+	/* Disable SQs */
+	otx2_ctx_disable(&pf->mbox, NIX_AQ_CTYPE_SQ, false);
+	/* Free SQB pointers */
+	otx2_sq_free_sqbs(pf);
+	for (qidx = 0; qidx < pf->hw.tx_queues; qidx++) {
+		sq = &qset->sq[qidx];
+		qmem_free(pf->dev, sq->sqe);
+		kfree(sq->sqb_ptrs);
+	}
+}
+
+static int otx2_init_hw_resources(struct otx2_nic *pf)
+{
+	struct mbox *mbox = &pf->mbox;
+	struct otx2_hw *hw = &pf->hw;
+	struct msg_req *req;
+	int err = 0, lvl;
+
+	/* Set required NPA LF's pool counts
+	 * Auras and Pools are used in a 1:1 mapping,
+	 * so, aura count = pool count.
+	 */
+	hw->rqpool_cnt = hw->rx_queues;
+	hw->sqpool_cnt = hw->tx_queues;
+	hw->pool_cnt = hw->rqpool_cnt + hw->sqpool_cnt;
+
+	/* Get the size of receive buffers to allocate */
+	pf->rbsize = RCV_FRAG_LEN(pf->netdev->mtu);
+
+	otx2_mbox_lock(mbox);
+	/* NPA init */
+	err = otx2_config_npa(pf);
+	if (err)
+		goto exit;
+
+	/* NIX init */
+	err = otx2_config_nix(pf);
+	if (err)
+		goto err_free_npa_lf;
+
+	/* Init Auras and pools used by NIX RQ, for free buffer ptrs */
+	err = otx2_rq_aura_pool_init(pf);
+	if (err) {
+		otx2_mbox_unlock(mbox);
+		goto err_free_nix_lf;
+	}
+	/* Init Auras and pools used by NIX SQ, for queueing SQEs */
+	err = otx2_sq_aura_pool_init(pf);
+	if (err) {
+		otx2_mbox_unlock(mbox);
+		goto err_free_rq_ptrs;
+	}
+
+	err = otx2_txsch_alloc(pf);
+	if (err) {
+		otx2_mbox_unlock(mbox);
+		goto err_free_sq_ptrs;
+	}
+
+	err = otx2_config_nix_queues(pf);
+	if (err) {
+		otx2_mbox_unlock(mbox);
+		goto err_free_txsch;
+	}
+	for (lvl = 0; lvl < NIX_TXSCH_LVL_CNT; lvl++) {
+		err = otx2_txschq_config(pf, lvl);
+		if (err) {
+			otx2_mbox_unlock(mbox);
+			goto err_free_nix_queues;
+		}
+	}
+	otx2_mbox_unlock(mbox);
+	return err;
+
+err_free_nix_queues:
+	otx2_free_sq_res(pf);
+	otx2_free_cq_res(pf);
+	otx2_ctx_disable(mbox, NIX_AQ_CTYPE_RQ, false);
+err_free_txsch:
+	if (otx2_txschq_stop(pf))
+		dev_err(pf->dev, "%s failed to stop TX schedulers\n", __func__);
+err_free_sq_ptrs:
+	otx2_sq_free_sqbs(pf);
+err_free_rq_ptrs:
+	otx2_free_aura_ptr(pf, AURA_NIX_RQ);
+	otx2_ctx_disable(mbox, NPA_AQ_CTYPE_POOL, true);
+	otx2_ctx_disable(mbox, NPA_AQ_CTYPE_AURA, true);
+	otx2_aura_pool_free(pf);
+err_free_nix_lf:
+	otx2_mbox_lock(mbox);
+	req = otx2_mbox_alloc_msg_nix_lf_free(mbox);
+	if (req) {
+		if (otx2_sync_mbox_msg(mbox))
+			dev_err(pf->dev, "%s failed to free nixlf\n", __func__);
+	}
+err_free_npa_lf:
+	/* Reset NPA LF */
+	req = otx2_mbox_alloc_msg_npa_lf_free(mbox);
+	if (req) {
+		if (otx2_sync_mbox_msg(mbox))
+			dev_err(pf->dev, "%s failed to free npalf\n", __func__);
+	}
+exit:
+	otx2_mbox_unlock(mbox);
+	return err;
+}
+
+static void otx2_free_hw_resources(struct otx2_nic *pf)
+{
+	struct mbox *mbox = &pf->mbox;
+	struct msg_req *req;
+	int err;
+
+	/* Ensure all SQE are processed */
+	otx2_sqb_flush(pf);
+
+	/* Stop transmission */
+	err = otx2_txschq_stop(pf);
+	if (err)
+		dev_err(pf->dev, "RVUPF: Failed to stop/free TX schedulers\n");
+
+	/* Disable RQs */
+	otx2_ctx_disable(mbox, NIX_AQ_CTYPE_RQ, false);
+
+	otx2_free_sq_res(pf);
+
+	/* Free RQ buffer pointers*/
+	otx2_free_aura_ptr(pf, AURA_NIX_RQ);
+
+	otx2_free_cq_res(pf);
+
+	otx2_mbox_lock(mbox);
+	/* Reset NIX LF */
+	req = otx2_mbox_alloc_msg_nix_lf_free(mbox);
+	if (req) {
+		if (otx2_sync_mbox_msg(mbox))
+			dev_err(pf->dev, "%s failed to free nixlf\n", __func__);
+	}
+	otx2_mbox_unlock(mbox);
+
+	/* Disable NPA Pool and Aura hw context */
+	otx2_ctx_disable(mbox, NPA_AQ_CTYPE_POOL, true);
+	otx2_ctx_disable(mbox, NPA_AQ_CTYPE_AURA, true);
+	otx2_aura_pool_free(pf);
+
+	otx2_mbox_lock(mbox);
+	/* Reset NPA LF */
+	req = otx2_mbox_alloc_msg_npa_lf_free(mbox);
+	if (req) {
+		if (otx2_sync_mbox_msg(mbox))
+			dev_err(pf->dev, "%s failed to free npalf\n", __func__);
+	}
+	otx2_mbox_unlock(mbox);
+}
+
 static int otx2_open(struct net_device *netdev)
 {
 	struct otx2_nic *pf = netdev_priv(netdev);
+	struct otx2_qset *qset = &pf->qset;
 	int err = 0;
 
 	netif_carrier_off(netdev);
 
 	pf->qset.cq_cnt = pf->hw.rx_queues + pf->hw.tx_queues;
 
-	/* NPA init */
-	err = otx2_config_npa(pf);
-	if (err)
-		return err;
+	/* CQ size of RQ */
+	qset->rqe_cnt = qset->rqe_cnt ? qset->rqe_cnt : Q_COUNT(Q_SIZE_256);
+	/* CQ size of SQ */
+	qset->sqe_cnt = qset->sqe_cnt ? qset->sqe_cnt : Q_COUNT(Q_SIZE_4K);
 
-	/* NIX init */
-	return otx2_config_nix(pf);
+	err = -ENOMEM;
+	qset->cq = kcalloc(pf->qset.cq_cnt,
+			   sizeof(struct otx2_cq_queue), GFP_KERNEL);
+	if (!qset->cq)
+		goto err_free_mem;
+
+	qset->sq = kcalloc(pf->hw.tx_queues,
+			   sizeof(struct otx2_snd_queue), GFP_KERNEL);
+	if (!qset->sq)
+		goto err_free_mem;
+
+	err = otx2_init_hw_resources(pf);
+	if (err)
+		goto err_free_mem;
+
+	return 0;
+err_free_mem:
+	kfree(qset->sq);
+	kfree(qset->cq);
+	return err;
 }
 
 static int otx2_stop(struct net_device *netdev)
 {
+	struct otx2_nic *pf = netdev_priv(netdev);
+	struct otx2_qset *qset = &pf->qset;
+
+	otx2_free_hw_resources(pf);
+
+	kfree(qset->sq);
+	kfree(qset->cq);
+
+	/* Do not clear RQ/SQ ringsize settings */
+	memset((void *)qset + offsetof(struct otx2_qset, sqe_cnt), 0,
+	       sizeof(*qset) - offsetof(struct otx2_qset, sqe_cnt));
 	return 0;
 }
 
@@ -556,6 +768,19 @@ static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	err = otx2_set_real_num_queues(netdev, hw->tx_queues, hw->rx_queues);
 	if (err)
 		goto err_detach_rsrc;
+
+	/* NPA's pool is a stack to which SW frees buffer pointers via Aura.
+	 * HW allocates buffer pointer from stack and uses it for DMA'ing
+	 * ingress packet. In some scenarios HW can free back allocated buffer
+	 * pointers to pool. This makes it impossible for SW to maintain a
+	 * parallel list where physical addresses of buffer pointers (IOVAs)
+	 * given to HW can be saved for later reference.
+	 *
+	 * So the only way to convert Rx packet's buffer address is to use
+	 * IOMMU's iova_to_phys() handler which translates the address by
+	 * walking through the translation tables.
+	 */
+	pf->iommu_domain = iommu_get_domain_for_dev(dev);
 
 	netdev->netdev_ops = &otx2_netdev_ops;
 
