@@ -589,5 +589,10 @@ int qed_init_fw_data(struct qed_dev *cdev, const u8 *data)
 	len = buf_hdr[BIN_BUF_INIT_CMD].length;
 	fw->init_ops_size = len / sizeof(struct init_raw_op);
 
+	offset = buf_hdr[BIN_BUF_INIT_OVERLAYS].offset;
+	fw->fw_overlays = (u32 *)(data + offset);
+	len = buf_hdr[BIN_BUF_INIT_OVERLAYS].length;
+	fw->fw_overlays_len = len;
+
 	return 0;
 }

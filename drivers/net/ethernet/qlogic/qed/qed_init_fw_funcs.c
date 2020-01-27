@@ -1572,3 +1572,144 @@ void qed_set_rdma_error_level(struct qed_hwfn *p_hwfn,
 		qed_wr(p_hwfn, p_ptt, ram_addr, assert_level[storm_id]);
 	}
 }
+
+#define PHYS_ADDR_DWORDS        DIV_ROUND_UP(sizeof(dma_addr_t), 4)
+#define OVERLAY_HDR_SIZE_DWORDS (sizeof(struct fw_overlay_buf_hdr) / 4)
+
+static u32 qed_get_overlay_addr_ram_addr(struct qed_hwfn *p_hwfn, u8 storm_id)
+{
+	switch (storm_id) {
+	case 0:
+		return TSEM_REG_FAST_MEMORY + SEM_FAST_REG_INT_RAM +
+		    TSTORM_OVERLAY_BUF_ADDR_OFFSET;
+	case 1:
+		return MSEM_REG_FAST_MEMORY + SEM_FAST_REG_INT_RAM +
+		    MSTORM_OVERLAY_BUF_ADDR_OFFSET;
+	case 2:
+		return USEM_REG_FAST_MEMORY + SEM_FAST_REG_INT_RAM +
+		    USTORM_OVERLAY_BUF_ADDR_OFFSET;
+	case 3:
+		return XSEM_REG_FAST_MEMORY + SEM_FAST_REG_INT_RAM +
+		    XSTORM_OVERLAY_BUF_ADDR_OFFSET;
+	case 4:
+		return YSEM_REG_FAST_MEMORY + SEM_FAST_REG_INT_RAM +
+		    YSTORM_OVERLAY_BUF_ADDR_OFFSET;
+	case 5:
+		return PSEM_REG_FAST_MEMORY + SEM_FAST_REG_INT_RAM +
+		    PSTORM_OVERLAY_BUF_ADDR_OFFSET;
+
+	default:
+		return 0;
+	}
+}
+
+struct phys_mem_desc *qed_fw_overlay_mem_alloc(struct qed_hwfn *p_hwfn,
+					       const u32 * const
+					       fw_overlay_in_buf,
+					       u32 buf_size_in_bytes)
+{
+	u32 buf_size = buf_size_in_bytes / sizeof(u32), buf_offset = 0;
+	struct phys_mem_desc *allocated_mem;
+
+	if (!buf_size)
+		return NULL;
+
+	allocated_mem = kcalloc(NUM_STORMS, sizeof(struct phys_mem_desc),
+				GFP_KERNEL);
+	if (!allocated_mem)
+		return NULL;
+
+	memset(allocated_mem, 0, NUM_STORMS * sizeof(struct phys_mem_desc));
+
+	/* For each Storm, set physical address in RAM */
+	while (buf_offset < buf_size) {
+		struct phys_mem_desc *storm_mem_desc;
+		struct fw_overlay_buf_hdr *hdr;
+		u32 storm_buf_size;
+		u8 storm_id;
+
+		hdr =
+		    (struct fw_overlay_buf_hdr *)&fw_overlay_in_buf[buf_offset];
+		storm_buf_size = GET_FIELD(hdr->data,
+					   FW_OVERLAY_BUF_HDR_BUF_SIZE);
+		storm_id = GET_FIELD(hdr->data, FW_OVERLAY_BUF_HDR_STORM_ID);
+		storm_mem_desc = allocated_mem + storm_id;
+		storm_mem_desc->size = storm_buf_size * sizeof(u32);
+
+		/* Allocate physical memory for Storm's overlays buffer */
+		storm_mem_desc->virt_addr =
+		    dma_alloc_coherent(&p_hwfn->cdev->pdev->dev,
+				       storm_mem_desc->size,
+				       &storm_mem_desc->phys_addr, GFP_KERNEL);
+		if (!storm_mem_desc->virt_addr)
+			break;
+
+		/* Skip overlays buffer header */
+		buf_offset += OVERLAY_HDR_SIZE_DWORDS;
+
+		/* Copy Storm's overlays buffer to allocated memory */
+		memcpy(storm_mem_desc->virt_addr,
+		       &fw_overlay_in_buf[buf_offset], storm_mem_desc->size);
+
+		/* Advance to next Storm */
+		buf_offset += storm_buf_size;
+	}
+
+	/* If memory allocation has failed, free all allocated memory */
+	if (buf_offset < buf_size) {
+		qed_fw_overlay_mem_free(p_hwfn, allocated_mem);
+		return NULL;
+	}
+
+	return allocated_mem;
+}
+
+void qed_fw_overlay_init_ram(struct qed_hwfn *p_hwfn,
+			     struct qed_ptt *p_ptt,
+			     struct phys_mem_desc *fw_overlay_mem)
+{
+	u8 storm_id;
+
+	for (storm_id = 0; storm_id < NUM_STORMS; storm_id++) {
+		struct phys_mem_desc *storm_mem_desc =
+		    (struct phys_mem_desc *)fw_overlay_mem + storm_id;
+		u32 ram_addr, i;
+
+		/* Skip Storms with no FW overlays */
+		if (!storm_mem_desc->virt_addr)
+			continue;
+
+		/* Calculate overlay RAM GRC address of current PF */
+		ram_addr = qed_get_overlay_addr_ram_addr(p_hwfn, storm_id) +
+			   sizeof(dma_addr_t) * p_hwfn->rel_pf_id;
+
+		/* Write Storm's overlay physical address to RAM */
+		for (i = 0; i < PHYS_ADDR_DWORDS; i++, ram_addr += sizeof(u32))
+			qed_wr(p_hwfn, p_ptt, ram_addr,
+			       ((u32 *)&storm_mem_desc->phys_addr)[i]);
+	}
+}
+
+void qed_fw_overlay_mem_free(struct qed_hwfn *p_hwfn,
+			     struct phys_mem_desc *fw_overlay_mem)
+{
+	u8 storm_id;
+
+	if (!fw_overlay_mem)
+		return;
+
+	for (storm_id = 0; storm_id < NUM_STORMS; storm_id++) {
+		struct phys_mem_desc *storm_mem_desc =
+		    (struct phys_mem_desc *)fw_overlay_mem + storm_id;
+
+		/* Free Storm's physical memory */
+		if (storm_mem_desc->virt_addr)
+			dma_free_coherent(&p_hwfn->cdev->pdev->dev,
+					  storm_mem_desc->size,
+					  storm_mem_desc->virt_addr,
+					  storm_mem_desc->phys_addr);
+	}
+
+	/* Free allocated virtual memory */
+	kfree(fw_overlay_mem);
+}

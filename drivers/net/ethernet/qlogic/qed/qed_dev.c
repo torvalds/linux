@@ -1412,6 +1412,7 @@ void qed_resc_free(struct qed_dev *cdev)
 		qed_dmae_info_free(p_hwfn);
 		qed_dcbx_info_free(p_hwfn);
 		qed_dbg_user_data_free(p_hwfn);
+		qed_fw_overlay_mem_free(p_hwfn, p_hwfn->fw_overlay_mem);
 
 		/* Destroy doorbell recovery mechanism */
 		qed_db_recovery_teardown(p_hwfn);
@@ -2893,6 +2894,8 @@ static int qed_hw_init_pf(struct qed_hwfn *p_hwfn,
 	if (rc)
 		return rc;
 
+	qed_fw_overlay_init_ram(p_hwfn, p_ptt, p_hwfn->fw_overlay_mem);
+
 	/* Pure runtime initializations - directly to the HW  */
 	qed_int_igu_init_pure_rt(p_hwfn, p_ptt, true, true);
 
@@ -3002,8 +3005,10 @@ int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 	u32 load_code, resp, param, drv_mb_param;
 	bool b_default_mtu = true;
 	struct qed_hwfn *p_hwfn;
-	int rc = 0, i;
+	const u32 *fw_overlays;
+	u32 fw_overlays_len;
 	u16 ether_type;
+	int rc = 0, i;
 
 	if ((p_params->int_mode == QED_INT_MODE_MSI) && (cdev->num_hwfns > 1)) {
 		DP_NOTICE(cdev, "MSI mode is not supported for CMT devices\n");
@@ -3103,6 +3108,17 @@ int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 		 * indication to be set again.
 		 */
 		qed_pglueb_clear_err(p_hwfn, p_hwfn->p_main_ptt);
+
+		fw_overlays = cdev->fw_data->fw_overlays;
+		fw_overlays_len = cdev->fw_data->fw_overlays_len;
+		p_hwfn->fw_overlay_mem =
+		    qed_fw_overlay_mem_alloc(p_hwfn, fw_overlays,
+					     fw_overlays_len);
+		if (!p_hwfn->fw_overlay_mem) {
+			DP_NOTICE(p_hwfn,
+				  "Failed to allocate fw overlay memory\n");
+			goto load_err;
+		}
 
 		switch (load_code) {
 		case FW_MSG_CODE_DRV_LOAD_ENGINE:

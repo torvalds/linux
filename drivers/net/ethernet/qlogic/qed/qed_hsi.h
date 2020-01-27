@@ -1843,6 +1843,19 @@ struct sdm_op_gen {
 #define SDM_OP_GEN_RESERVED_SHIFT	20
 };
 
+/* Physical memory descriptor */
+struct phys_mem_desc {
+	dma_addr_t phys_addr;
+	void *virt_addr;
+	u32 size;		/* In bytes */
+};
+
+/* Virtual memory descriptor */
+struct virt_mem_desc {
+	void *ptr;
+	u32 size;		/* In bytes */
+};
+
 /****************************************/
 /* Debug Tools HSI constants and macros */
 /****************************************/
@@ -2870,6 +2883,15 @@ enum bin_init_buffer_type {
 	BIN_BUF_INIT_IRO,
 	BIN_BUF_INIT_OVERLAYS,
 	MAX_BIN_INIT_BUFFER_TYPE
+};
+
+/* FW overlay buffer header */
+struct fw_overlay_buf_hdr {
+	u32 data;
+#define FW_OVERLAY_BUF_HDR_STORM_ID_MASK  0xFF
+#define FW_OVERLAY_BUF_HDR_STORM_ID_SHIFT 0
+#define FW_OVERLAY_BUF_HDR_BUF_SIZE_MASK  0xFFFFFF
+#define FW_OVERLAY_BUF_HDR_BUF_SIZE_SHIFT 8
 };
 
 /* init array header: raw */
@@ -4345,6 +4367,42 @@ void qed_memset_task_ctx(void *p_ctx_mem, u32 ctx_size, u8 ctx_type);
 void qed_set_rdma_error_level(struct qed_hwfn *p_hwfn,
 			      struct qed_ptt *p_ptt,
 			      u8 assert_level[NUM_STORMS]);
+/**
+ * @brief qed_fw_overlay_mem_alloc - Allocates and fills the FW overlay memory.
+ *
+ * @param p_hwfn - HW device data
+ * @param fw_overlay_in_buf - the input FW overlay buffer.
+ * @param buf_size - the size of the input FW overlay buffer in bytes.
+ *		     must be aligned to dwords.
+ * @param fw_overlay_out_mem - OUT: a pointer to the allocated overlays memory.
+ *
+ * @return a pointer to the allocated overlays memory,
+ * or NULL in case of failures.
+ */
+struct phys_mem_desc *
+qed_fw_overlay_mem_alloc(struct qed_hwfn *p_hwfn,
+			 const u32 * const fw_overlay_in_buf,
+			 u32 buf_size_in_bytes);
+
+/**
+ * @brief qed_fw_overlay_init_ram - Initializes the FW overlay RAM.
+ *
+ * @param p_hwfn - HW device data.
+ * @param p_ptt - ptt window used for writing the registers.
+ * @param fw_overlay_mem - the allocated FW overlay memory.
+ */
+void qed_fw_overlay_init_ram(struct qed_hwfn *p_hwfn,
+			     struct qed_ptt *p_ptt,
+			     struct phys_mem_desc *fw_overlay_mem);
+
+/**
+ * @brief qed_fw_overlay_mem_free - Frees the FW overlay memory.
+ *
+ * @param p_hwfn - HW device data.
+ * @param fw_overlay_mem - the allocated FW overlay memory to free.
+ */
+void qed_fw_overlay_mem_free(struct qed_hwfn *p_hwfn,
+			     struct phys_mem_desc *fw_overlay_mem);
 
 /* Ystorm flow control mode. Use enum fw_flow_ctrl_mode */
 #define YSTORM_FLOW_CONTROL_MODE_OFFSET			(IRO[0].base)

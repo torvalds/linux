@@ -462,6 +462,8 @@ struct qed_fw_data {
 	const u8		*modes_tree_buf;
 	union init_op		*init_ops;
 	const u32		*arr_data;
+	const u32		*fw_overlays;
+	u32			fw_overlays_len;
 	u32			init_ops_size;
 };
 
@@ -686,6 +688,7 @@ struct qed_hwfn {
 	/* Nvm images number and attributes */
 	struct qed_nvm_image_info nvm_info;
 
+	struct phys_mem_desc *fw_overlay_mem;
 	struct qed_ptt *p_arfs_ptt;
 
 	struct qed_simd_fp_handler	simd_proto_handler[64];
