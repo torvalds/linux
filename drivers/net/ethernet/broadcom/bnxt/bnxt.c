@@ -9064,7 +9064,7 @@ static int bnxt_update_phy_setting(struct bnxt *bp)
 	/* The last close may have shutdown the link, so need to call
 	 * PHY_CFG to bring it back up.
 	 */
-	if (!netif_carrier_ok(bp->dev))
+	if (!bp->link_info.link_up)
 		update_link = true;
 
 	if (!bnxt_eee_config_ok(bp))
