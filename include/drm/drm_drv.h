@@ -458,20 +458,6 @@ struct drm_driver {
 	void (*irq_uninstall) (struct drm_device *dev);
 
 	/**
-	 * @master_create:
-	 *
-	 * Called whenever a new master is created. Only used by vmwgfx.
-	 */
-	int (*master_create)(struct drm_device *dev, struct drm_master *master);
-
-	/**
-	 * @master_destroy:
-	 *
-	 * Called whenever a master is destroyed. Only used by vmwgfx.
-	 */
-	void (*master_destroy)(struct drm_device *dev, struct drm_master *master);
-
-	/**
 	 * @master_set:
 	 *
 	 * Called whenever the minor master is set. Only used by vmwgfx.
