@@ -386,6 +386,38 @@ static int otx2_set_real_num_queues(struct net_device *netdev,
 	return err;
 }
 
+static irqreturn_t otx2_cq_intr_handler(int irq, void *cq_irq)
+{
+	struct otx2_cq_poll *cq_poll = (struct otx2_cq_poll *)cq_irq;
+	struct otx2_nic *pf = (struct otx2_nic *)cq_poll->dev;
+	int qidx = cq_poll->cint_idx;
+
+	/* Disable interrupts.
+	 *
+	 * Completion interrupts behave in a level-triggered interrupt
+	 * fashion, and hence have to be cleared only after it is serviced.
+	 */
+	otx2_write64(pf, NIX_LF_CINTX_ENA_W1C(qidx), BIT_ULL(0));
+
+	/* Schedule NAPI */
+	napi_schedule_irqoff(&cq_poll->napi);
+
+	return IRQ_HANDLED;
+}
+
+static void otx2_disable_napi(struct otx2_nic *pf)
+{
+	struct otx2_qset *qset = &pf->qset;
+	struct otx2_cq_poll *cq_poll;
+	int qidx;
+
+	for (qidx = 0; qidx < pf->hw.cint_cnt; qidx++) {
+		cq_poll = &qset->napi[qidx];
+		napi_disable(&cq_poll->napi);
+		netif_napi_del(&cq_poll->napi);
+	}
+}
+
 static void otx2_free_cq_res(struct otx2_nic *pf)
 {
 	struct otx2_qset *qset = &pf->qset;
@@ -564,12 +596,21 @@ static void otx2_free_hw_resources(struct otx2_nic *pf)
 static int otx2_open(struct net_device *netdev)
 {
 	struct otx2_nic *pf = netdev_priv(netdev);
+	struct otx2_cq_poll *cq_poll = NULL;
 	struct otx2_qset *qset = &pf->qset;
-	int err = 0;
+	int err = 0, qidx, vec;
+	char *irq_name;
 
 	netif_carrier_off(netdev);
 
 	pf->qset.cq_cnt = pf->hw.rx_queues + pf->hw.tx_queues;
+	/* RQ and SQs are mapped to different CQs,
+	 * so find out max CQ IRQs (i.e CINTs) needed.
+	 */
+	pf->hw.cint_cnt = max(pf->hw.rx_queues, pf->hw.tx_queues);
+	qset->napi = kcalloc(pf->hw.cint_cnt, sizeof(*cq_poll), GFP_KERNEL);
+	if (!qset->napi)
+		return -ENOMEM;
 
 	/* CQ size of RQ */
 	qset->rqe_cnt = qset->rqe_cnt ? qset->rqe_cnt : Q_COUNT(Q_SIZE_256);
@@ -591,23 +632,100 @@ static int otx2_open(struct net_device *netdev)
 	if (err)
 		goto err_free_mem;
 
+	/* Register NAPI handler */
+	for (qidx = 0; qidx < pf->hw.cint_cnt; qidx++) {
+		cq_poll = &qset->napi[qidx];
+		cq_poll->cint_idx = qidx;
+		/* RQ0 & SQ0 are mapped to CINT0 and so on..
+		 * 'cq_ids[0]' points to RQ's CQ and
+		 * 'cq_ids[1]' points to SQ's CQ and
+		 */
+		cq_poll->cq_ids[CQ_RX] =
+			(qidx <  pf->hw.rx_queues) ? qidx : CINT_INVALID_CQ;
+		cq_poll->cq_ids[CQ_TX] = (qidx < pf->hw.tx_queues) ?
+				      qidx + pf->hw.rx_queues : CINT_INVALID_CQ;
+		cq_poll->dev = (void *)pf;
+		netif_napi_add(netdev, &cq_poll->napi,
+			       otx2_napi_handler, NAPI_POLL_WEIGHT);
+		napi_enable(&cq_poll->napi);
+	}
+
+	/* Register CQ IRQ handlers */
+	vec = pf->hw.nix_msixoff + NIX_LF_CINT_VEC_START;
+	for (qidx = 0; qidx < pf->hw.cint_cnt; qidx++) {
+		irq_name = &pf->hw.irq_name[vec * NAME_SIZE];
+
+		snprintf(irq_name, NAME_SIZE, "%s-rxtx-%d", pf->netdev->name,
+			 qidx);
+
+		err = request_irq(pci_irq_vector(pf->pdev, vec),
+				  otx2_cq_intr_handler, 0, irq_name,
+				  &qset->napi[qidx]);
+		if (err) {
+			dev_err(pf->dev,
+				"RVUPF%d: IRQ registration failed for CQ%d\n",
+				rvu_get_pf(pf->pcifunc), qidx);
+			goto err_free_cints;
+		}
+		vec++;
+
+		otx2_config_irq_coalescing(pf, qidx);
+
+		/* Enable CQ IRQ */
+		otx2_write64(pf, NIX_LF_CINTX_INT(qidx), BIT_ULL(0));
+		otx2_write64(pf, NIX_LF_CINTX_ENA_W1S(qidx), BIT_ULL(0));
+	}
+
+	otx2_set_cints_affinity(pf);
+
 	return 0;
+
+err_free_cints:
+	otx2_free_cints(pf, qidx);
+	otx2_disable_napi(pf);
+	otx2_free_hw_resources(pf);
 err_free_mem:
 	kfree(qset->sq);
 	kfree(qset->cq);
+	kfree(qset->napi);
 	return err;
 }
 
 static int otx2_stop(struct net_device *netdev)
 {
 	struct otx2_nic *pf = netdev_priv(netdev);
+	struct otx2_cq_poll *cq_poll = NULL;
 	struct otx2_qset *qset = &pf->qset;
+	int qidx, vec;
+
+	netif_carrier_off(netdev);
+	netif_tx_stop_all_queues(netdev);
+
+	/* Cleanup CQ NAPI and IRQ */
+	vec = pf->hw.nix_msixoff + NIX_LF_CINT_VEC_START;
+	for (qidx = 0; qidx < pf->hw.cint_cnt; qidx++) {
+		/* Disable interrupt */
+		otx2_write64(pf, NIX_LF_CINTX_ENA_W1C(qidx), BIT_ULL(0));
+
+		synchronize_irq(pci_irq_vector(pf->pdev, vec));
+
+		cq_poll = &qset->napi[qidx];
+		napi_synchronize(&cq_poll->napi);
+		vec++;
+	}
+
+	netif_tx_disable(netdev);
 
 	otx2_free_hw_resources(pf);
+	otx2_free_cints(pf, pf->hw.cint_cnt);
+	otx2_disable_napi(pf);
+
+	for (qidx = 0; qidx < netdev->num_tx_queues; qidx++)
+		netdev_tx_reset_queue(netdev_get_tx_queue(netdev, qidx));
 
 	kfree(qset->sq);
 	kfree(qset->cq);
-
+	kfree(qset->napi);
 	/* Do not clear RQ/SQ ringsize settings */
 	memset((void *)qset + offsetof(struct otx2_qset, sqe_cnt), 0,
 	       sizeof(*qset) - offsetof(struct otx2_qset, sqe_cnt));
@@ -646,7 +764,6 @@ static int otx2_realloc_msix_vectors(struct otx2_nic *pf)
 	 * upto NIX vector offset.
 	 */
 	num_vec = hw->nix_msixoff;
-#define NIX_LF_CINT_VEC_START			0x40
 	num_vec += NIX_LF_CINT_VEC_START + hw->max_queues;
 
 	otx2_disable_mbox_intr(pf);
@@ -768,6 +885,8 @@ static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	err = otx2_set_real_num_queues(netdev, hw->tx_queues, hw->rx_queues);
 	if (err)
 		goto err_detach_rsrc;
+
+	otx2_setup_dev_hw_settings(pf);
 
 	/* NPA's pool is a stack to which SW frees buffer pointers via Aura.
 	 * HW allocates buffer pointer from stack and uses it for DMA'ing

@@ -37,6 +37,22 @@
 		((x) - OTX2_HEAD_ROOM - \
 		OTX2_DATA_ALIGN(sizeof(struct skb_shared_info)))
 
+/* IRQ triggered when NIX_LF_CINTX_CNT[ECOUNT]
+ * is equal to this value.
+ */
+#define CQ_CQE_THRESH_DEFAULT	10
+
+/* IRQ triggered when NIX_LF_CINTX_CNT[ECOUNT]
+ * is nonzero and this much time elapses after that.
+ */
+#define CQ_TIMER_THRESH_DEFAULT	1  /* 1 usec */
+#define CQ_TIMER_THRESH_MAX     25 /* 25 usec */
+
+/* Min number of CQs (of the ones mapped to this CINT)
+ * with valid CQEs.
+ */
+#define CQ_QCOUNT_DEFAULT	1
+
 struct otx2_snd_queue {
 	u8			aura_id;
 	u16			sqe_size;
@@ -52,6 +68,20 @@ struct otx2_snd_queue {
 	u64			*sqb_ptrs;
 } ____cacheline_aligned_in_smp;
 
+enum cq_type {
+	CQ_RX,
+	CQ_TX,
+	CQS_PER_CINT = 2, /* RQ + SQ */
+};
+
+struct otx2_cq_poll {
+	void			*dev;
+#define CINT_INVALID_CQ		255
+	u8			cint_idx;
+	u8			cq_ids[CQS_PER_CINT];
+	struct napi_struct	napi;
+};
+
 struct otx2_pool {
 	struct qmem		*stack;
 	struct qmem		*fc_addr;
@@ -60,12 +90,6 @@ struct otx2_pool {
 	u32			page_offset;
 	u16			pageref;
 	struct page		*page;
-};
-
-enum cq_type {
-	CQ_RX,
-	CQ_TX,
-	CQS_PER_CINT = 2, /* RQ + SQ */
 };
 
 struct otx2_cq_queue {
@@ -86,6 +110,7 @@ struct otx2_qset {
 	u16			cq_cnt;
 	u16			xqe_size;
 	struct otx2_pool	*pool;
+	struct otx2_cq_poll	*napi;
 	struct otx2_cq_queue	*cq;
 	struct otx2_snd_queue	*sq;
 };
@@ -99,4 +124,5 @@ static inline u64 otx2_iova_to_phys(void *iommu_domain, dma_addr_t dma_addr)
 	return dma_addr;
 }
 
+int otx2_napi_handler(struct napi_struct *napi, int budget);
 #endif /* OTX2_TXRX_H */

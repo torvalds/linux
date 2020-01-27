@@ -21,6 +21,8 @@
 /* PCI device IDs */
 #define PCI_DEVID_OCTEONTX2_RVU_PF              0xA063
 
+#define PCI_SUBSYS_DEVID_96XX_RVU_PFVF		0xB200
+
 /* PCI BAR nos */
 #define PCI_CFG_REG_BAR_NUM                     2
 #define PCI_MBOX_BAR_NUM                        4
@@ -31,6 +33,13 @@ enum arua_mapped_qtypes {
 	AURA_NIX_RQ,
 	AURA_NIX_SQ,
 };
+
+/* NIX LF interrupts range*/
+#define NIX_LF_QINT_VEC_START			0x00
+#define NIX_LF_CINT_VEC_START			0x40
+#define NIX_LF_GINT_VEC				0x80
+#define NIX_LF_ERR_VEC				0x81
+#define NIX_LF_POISON_VEC			0x82
 
 struct mbox {
 	struct otx2_mbox	mbox;
@@ -64,9 +73,13 @@ struct otx2_hw {
 	/* HW settings, coalescing etc */
 	u16			rx_chan_base;
 	u16			tx_chan_base;
+	u16			cq_qcount_wait;
+	u16			cq_ecount_wait;
 	u16			rq_skid;
+	u8			cq_time_wait;
 
 	/* MSI-X */
+	u8			cint_cnt; /* CQ interrupt count */
 	u16			npa_msixoff; /* Offset of NPA vectors */
 	u16			nix_msixoff; /* Offset of NIX vectors */
 	char			*irq_name;
@@ -93,6 +106,36 @@ struct otx2_nic {
 	/* Block address of NIX either BLKADDR_NIX0 or BLKADDR_NIX1 */
 	int			nix_blkaddr;
 };
+
+static inline bool is_96xx_A0(struct pci_dev *pdev)
+{
+	return (pdev->revision == 0x00) &&
+		(pdev->subsystem_device == PCI_SUBSYS_DEVID_96XX_RVU_PFVF);
+}
+
+static inline bool is_96xx_B0(struct pci_dev *pdev)
+{
+	return (pdev->revision == 0x01) &&
+		(pdev->subsystem_device == PCI_SUBSYS_DEVID_96XX_RVU_PFVF);
+}
+
+static inline void otx2_setup_dev_hw_settings(struct otx2_nic *pfvf)
+{
+	pfvf->hw.cq_time_wait = CQ_TIMER_THRESH_DEFAULT;
+	pfvf->hw.cq_ecount_wait = CQ_CQE_THRESH_DEFAULT;
+	pfvf->hw.cq_qcount_wait = CQ_QCOUNT_DEFAULT;
+
+	if (is_96xx_A0(pfvf->pdev)) {
+		/* Time based irq coalescing is not supported */
+		pfvf->hw.cq_qcount_wait = 0x0;
+
+		/* Due to HW issue previous silicons required minimum
+		 * 600 unused CQE to avoid CQ overflow.
+		 */
+		pfvf->hw.rq_skid = 600;
+		pfvf->qset.rqe_cnt = Q_COUNT(Q_SIZE_1K);
+	}
+}
 
 /* Register read/write APIs */
 static inline void __iomem *otx2_get_regaddr(struct otx2_nic *nic, u64 offset)
@@ -337,6 +380,11 @@ MBOX_UP_CGX_MESSAGES
 #define	RVU_PFVF_FUNC_SHIFT	0
 #define	RVU_PFVF_FUNC_MASK	0x3FF
 
+static inline int rvu_get_pf(u16 pcifunc)
+{
+	return (pcifunc >> RVU_PFVF_PF_SHIFT) & RVU_PFVF_PF_MASK;
+}
+
 static inline dma_addr_t otx2_dma_map_page(struct otx2_nic *pfvf,
 					   struct page *page,
 					   size_t offset, size_t size,
@@ -358,6 +406,12 @@ static inline void otx2_dma_unmap_page(struct otx2_nic *pfvf,
 	dma_unmap_page_attrs(pfvf->dev, addr, size,
 			     dir, DMA_ATTR_SKIP_CPU_SYNC);
 }
+
+/* MSI-X APIs */
+void otx2_free_cints(struct otx2_nic *pfvf, int n);
+void otx2_set_cints_affinity(struct otx2_nic *pfvf);
+
+void otx2_config_irq_coalescing(struct otx2_nic *pfvf, int qidx);
 
 /* RVU block related APIs */
 int otx2_attach_npa_nix(struct otx2_nic *pfvf);

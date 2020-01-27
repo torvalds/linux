@@ -15,6 +15,20 @@
 #include "otx2_common.h"
 #include "otx2_struct.h"
 
+void otx2_config_irq_coalescing(struct otx2_nic *pfvf, int qidx)
+{
+	/* Configure CQE interrupt coalescing parameters
+	 *
+	 * HW triggers an irq when ECOUNT > cq_ecount_wait, hence
+	 * set 1 less than cq_ecount_wait. And cq_time_wait is in
+	 * usecs, convert that to 100ns count.
+	 */
+	otx2_write64(pfvf, NIX_LF_CINTX_WAIT(qidx),
+		     ((u64)(pfvf->hw.cq_time_wait * 10) << 48) |
+		     ((u64)pfvf->hw.cq_qcount_wait << 32) |
+		     (pfvf->hw.cq_ecount_wait - 1));
+}
+
 dma_addr_t otx2_alloc_rbuf(struct otx2_nic *pfvf, struct otx2_pool *pool,
 			   gfp_t gfp)
 {
@@ -902,6 +916,47 @@ void mbox_handler_msix_offset(struct otx2_nic *pfvf,
 {
 	pfvf->hw.npa_msixoff = rsp->npa_msixoff;
 	pfvf->hw.nix_msixoff = rsp->nix_msixoff;
+}
+
+void otx2_free_cints(struct otx2_nic *pfvf, int n)
+{
+	struct otx2_qset *qset = &pfvf->qset;
+	struct otx2_hw *hw = &pfvf->hw;
+	int irq, qidx;
+
+	for (qidx = 0, irq = hw->nix_msixoff + NIX_LF_CINT_VEC_START;
+	     qidx < n;
+	     qidx++, irq++) {
+		int vector = pci_irq_vector(pfvf->pdev, irq);
+
+		irq_set_affinity_hint(vector, NULL);
+		free_cpumask_var(hw->affinity_mask[irq]);
+		free_irq(vector, &qset->napi[qidx]);
+	}
+}
+
+void otx2_set_cints_affinity(struct otx2_nic *pfvf)
+{
+	struct otx2_hw *hw = &pfvf->hw;
+	int vec, cpu, irq, cint;
+
+	vec = hw->nix_msixoff + NIX_LF_CINT_VEC_START;
+	cpu = cpumask_first(cpu_online_mask);
+
+	/* CQ interrupts */
+	for (cint = 0; cint < pfvf->hw.cint_cnt; cint++, vec++) {
+		if (!alloc_cpumask_var(&hw->affinity_mask[vec], GFP_KERNEL))
+			return;
+
+		cpumask_set_cpu(cpu, hw->affinity_mask[vec]);
+
+		irq = pci_irq_vector(pfvf->pdev, vec);
+		irq_set_affinity_hint(irq, hw->affinity_mask[vec]);
+
+		cpu = cpumask_next(cpu, cpu_online_mask);
+		if (unlikely(cpu >= nr_cpu_ids))
+			cpu = 0;
+	}
 }
 
 #define M(_name, _id, _fn_name, _req_type, _rsp_type)			\

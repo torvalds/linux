@@ -5,6 +5,6 @@
 
 obj-$(CONFIG_OCTEONTX2_PF) += octeontx2_nicpf.o
 
-octeontx2_nicpf-y := otx2_pf.o otx2_common.o
+octeontx2_nicpf-y := otx2_pf.o otx2_common.o otx2_txrx.o
 
 ccflags-y += -I$(srctree)/drivers/net/ethernet/marvell/octeontx2/af
