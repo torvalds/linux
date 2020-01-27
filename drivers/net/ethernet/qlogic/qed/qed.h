@@ -532,6 +532,23 @@ struct qed_nvm_image_info {
 	bool valid;
 };
 
+enum qed_hsi_def_type {
+	QED_HSI_DEF_MAX_NUM_VFS,
+	QED_HSI_DEF_MAX_NUM_L2_QUEUES,
+	QED_HSI_DEF_MAX_NUM_PORTS,
+	QED_HSI_DEF_MAX_SB_PER_PATH,
+	QED_HSI_DEF_MAX_NUM_PFS,
+	QED_HSI_DEF_MAX_NUM_VPORTS,
+	QED_HSI_DEF_NUM_ETH_RSS_ENGINE,
+	QED_HSI_DEF_MAX_QM_TX_QUEUES,
+	QED_HSI_DEF_NUM_PXP_ILT_RECORDS,
+	QED_HSI_DEF_NUM_RDMA_STATISTIC_COUNTERS,
+	QED_HSI_DEF_MAX_QM_GLOBAL_RLS,
+	QED_HSI_DEF_MAX_PBF_CMD_LINES,
+	QED_HSI_DEF_MAX_BTB_BLOCKS,
+	QED_NUM_HSI_DEFS
+};
+
 #define DRV_MODULE_VERSION		      \
 	__stringify(QED_MAJOR_VERSION) "."    \
 	__stringify(QED_MINOR_VERSION) "."    \
@@ -869,16 +886,35 @@ struct qed_dev {
 	bool				iwarp_cmt;
 };
 
-#define NUM_OF_VFS(dev)         (QED_IS_BB(dev) ? MAX_NUM_VFS_BB \
-						: MAX_NUM_VFS_K2)
-#define NUM_OF_L2_QUEUES(dev)   (QED_IS_BB(dev) ? MAX_NUM_L2_QUEUES_BB \
-						: MAX_NUM_L2_QUEUES_K2)
-#define NUM_OF_PORTS(dev)       (QED_IS_BB(dev) ? MAX_NUM_PORTS_BB \
-						: MAX_NUM_PORTS_K2)
-#define NUM_OF_SBS(dev)         (QED_IS_BB(dev) ? MAX_SB_PER_PATH_BB \
-						: MAX_SB_PER_PATH_K2)
-#define NUM_OF_ENG_PFS(dev)     (QED_IS_BB(dev) ? MAX_NUM_PFS_BB \
-						: MAX_NUM_PFS_K2)
+u32 qed_get_hsi_def_val(struct qed_dev *cdev, enum qed_hsi_def_type type);
+
+#define NUM_OF_VFS(dev)	\
+	qed_get_hsi_def_val(dev, QED_HSI_DEF_MAX_NUM_VFS)
+#define NUM_OF_L2_QUEUES(dev) \
+	qed_get_hsi_def_val(dev, QED_HSI_DEF_MAX_NUM_L2_QUEUES)
+#define NUM_OF_PORTS(dev) \
+	qed_get_hsi_def_val(dev, QED_HSI_DEF_MAX_NUM_PORTS)
+#define NUM_OF_SBS(dev)	\
+	qed_get_hsi_def_val(dev, QED_HSI_DEF_MAX_SB_PER_PATH)
+#define NUM_OF_ENG_PFS(dev) \
+	qed_get_hsi_def_val(dev, QED_HSI_DEF_MAX_NUM_PFS)
+#define NUM_OF_VPORTS(dev) \
+	qed_get_hsi_def_val(dev, QED_HSI_DEF_MAX_NUM_VPORTS)
+#define NUM_OF_RSS_ENGINES(dev)	\
+	qed_get_hsi_def_val(dev, QED_HSI_DEF_NUM_ETH_RSS_ENGINE)
+#define NUM_OF_QM_TX_QUEUES(dev) \
+	qed_get_hsi_def_val(dev, QED_HSI_DEF_MAX_QM_TX_QUEUES)
+#define NUM_OF_PXP_ILT_RECORDS(dev) \
+	qed_get_hsi_def_val(dev, QED_HSI_DEF_NUM_PXP_ILT_RECORDS)
+#define NUM_OF_RDMA_STATISTIC_COUNTERS(dev) \
+	qed_get_hsi_def_val(dev, QED_HSI_DEF_NUM_RDMA_STATISTIC_COUNTERS)
+#define NUM_OF_QM_GLOBAL_RLS(dev) \
+	qed_get_hsi_def_val(dev, QED_HSI_DEF_MAX_QM_GLOBAL_RLS)
+#define NUM_OF_PBF_CMD_LINES(dev) \
+	qed_get_hsi_def_val(dev, QED_HSI_DEF_MAX_PBF_CMD_LINES)
+#define NUM_OF_BTB_BLOCKS(dev) \
+	qed_get_hsi_def_val(dev, QED_HSI_DEF_MAX_BTB_BLOCKS)
+
 
 /**
  * @brief qed_concrete_to_sw_fid - get the sw function id from

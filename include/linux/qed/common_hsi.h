@@ -663,8 +663,8 @@
 #define PBF_MAX_CMD_LINES	3328
 
 /* Number of BTB blocks. Each block is 256B. */
-#define BTB_MAX_BLOCKS		1440
-
+#define BTB_MAX_BLOCKS_BB 1440
+#define BTB_MAX_BLOCKS_K2 1840
 /*****************/
 /* PRS CONSTANTS */
 /*****************/

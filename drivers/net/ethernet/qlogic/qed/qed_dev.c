@@ -1579,6 +1579,7 @@ static void qed_init_qm_port_params(struct qed_hwfn *p_hwfn)
 {
 	/* Initialize qm port parameters */
 	u8 i, active_phys_tcs, num_ports = p_hwfn->cdev->num_ports_in_engine;
+	struct qed_dev *cdev = p_hwfn->cdev;
 
 	/* indicate how ooo and high pri traffic is dealt with */
 	active_phys_tcs = num_ports == MAX_NUM_PORTS_K2 ?
@@ -1588,11 +1589,13 @@ static void qed_init_qm_port_params(struct qed_hwfn *p_hwfn)
 	for (i = 0; i < num_ports; i++) {
 		struct init_qm_port_params *p_qm_port =
 		    &p_hwfn->qm_info.qm_port_params[i];
+		u16 pbf_max_cmd_lines;
 
 		p_qm_port->active = 1;
 		p_qm_port->active_phys_tcs = active_phys_tcs;
-		p_qm_port->num_pbf_cmd_lines = PBF_MAX_CMD_LINES / num_ports;
-		p_qm_port->num_btb_blocks = BTB_MAX_BLOCKS / num_ports;
+		pbf_max_cmd_lines = (u16)NUM_OF_PBF_CMD_LINES(cdev);
+		p_qm_port->num_pbf_cmd_lines = pbf_max_cmd_lines / num_ports;
+		p_qm_port->num_btb_blocks = NUM_OF_BTB_BLOCKS(cdev) / num_ports;
 	}
 }
 
@@ -3607,14 +3610,39 @@ __qed_hw_set_soft_resc_size(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
+static u32 qed_hsi_def_val[][MAX_CHIP_IDS] = {
+	{MAX_NUM_VFS_BB, MAX_NUM_VFS_K2},
+	{MAX_NUM_L2_QUEUES_BB, MAX_NUM_L2_QUEUES_K2},
+	{MAX_NUM_PORTS_BB, MAX_NUM_PORTS_K2},
+	{MAX_SB_PER_PATH_BB, MAX_SB_PER_PATH_K2,},
+	{MAX_NUM_PFS_BB, MAX_NUM_PFS_K2},
+	{MAX_NUM_VPORTS_BB, MAX_NUM_VPORTS_K2},
+	{ETH_RSS_ENGINE_NUM_BB, ETH_RSS_ENGINE_NUM_K2},
+	{MAX_QM_TX_QUEUES_BB, MAX_QM_TX_QUEUES_K2},
+	{PXP_NUM_ILT_RECORDS_BB, PXP_NUM_ILT_RECORDS_K2},
+	{RDMA_NUM_STATISTIC_COUNTERS_BB, RDMA_NUM_STATISTIC_COUNTERS_K2},
+	{MAX_QM_GLOBAL_RLS, MAX_QM_GLOBAL_RLS},
+	{PBF_MAX_CMD_LINES, PBF_MAX_CMD_LINES},
+	{BTB_MAX_BLOCKS_BB, BTB_MAX_BLOCKS_K2},
+};
+
+u32 qed_get_hsi_def_val(struct qed_dev *cdev, enum qed_hsi_def_type type)
+{
+	enum chip_ids chip_id = QED_IS_BB(cdev) ? CHIP_BB : CHIP_K2;
+
+	if (type >= QED_NUM_HSI_DEFS) {
+		DP_ERR(cdev, "Unexpected HSI definition type [%d]\n", type);
+		return 0;
+	}
+
+	return qed_hsi_def_val[type][chip_id];
+}
 static int
 qed_hw_set_soft_resc_size(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
-	bool b_ah = QED_IS_AH(p_hwfn->cdev);
 	u32 resc_max_val, mcp_resp;
 	u8 res_id;
 	int rc;
-
 	for (res_id = 0; res_id < QED_MAX_RESC; res_id++) {
 		switch (res_id) {
 		case QED_LL2_RAM_QUEUE:
@@ -3630,8 +3658,8 @@ qed_hw_set_soft_resc_size(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 			resc_max_val = NUM_OF_GLOBAL_QUEUES;
 			break;
 		case QED_RDMA_STATS_QUEUE:
-			resc_max_val = b_ah ? RDMA_NUM_STATISTIC_COUNTERS_K2
-			    : RDMA_NUM_STATISTIC_COUNTERS_BB;
+			resc_max_val =
+			    NUM_OF_RDMA_STATISTIC_COUNTERS(p_hwfn->cdev);
 			break;
 		case QED_BDQ:
 			resc_max_val = BDQ_NUM_RESOURCES;
@@ -3664,28 +3692,24 @@ int qed_hw_get_dflt_resc(struct qed_hwfn *p_hwfn,
 			 u32 *p_resc_num, u32 *p_resc_start)
 {
 	u8 num_funcs = p_hwfn->num_funcs_on_engine;
-	bool b_ah = QED_IS_AH(p_hwfn->cdev);
+	struct qed_dev *cdev = p_hwfn->cdev;
 
 	switch (res_id) {
 	case QED_L2_QUEUE:
-		*p_resc_num = (b_ah ? MAX_NUM_L2_QUEUES_K2 :
-			       MAX_NUM_L2_QUEUES_BB) / num_funcs;
+		*p_resc_num = NUM_OF_L2_QUEUES(cdev) / num_funcs;
 		break;
 	case QED_VPORT:
-		*p_resc_num = (b_ah ? MAX_NUM_VPORTS_K2 :
-			       MAX_NUM_VPORTS_BB) / num_funcs;
+		*p_resc_num = NUM_OF_VPORTS(cdev) / num_funcs;
 		break;
 	case QED_RSS_ENG:
-		*p_resc_num = (b_ah ? ETH_RSS_ENGINE_NUM_K2 :
-			       ETH_RSS_ENGINE_NUM_BB) / num_funcs;
+		*p_resc_num = NUM_OF_RSS_ENGINES(cdev) / num_funcs;
 		break;
 	case QED_PQ:
-		*p_resc_num = (b_ah ? MAX_QM_TX_QUEUES_K2 :
-			       MAX_QM_TX_QUEUES_BB) / num_funcs;
+		*p_resc_num = NUM_OF_QM_TX_QUEUES(cdev) / num_funcs;
 		*p_resc_num &= ~0x7;	/* The granularity of the PQs is 8 */
 		break;
 	case QED_RL:
-		*p_resc_num = MAX_QM_GLOBAL_RLS / num_funcs;
+		*p_resc_num = NUM_OF_QM_GLOBAL_RLS(cdev) / num_funcs;
 		break;
 	case QED_MAC:
 	case QED_VLAN:
@@ -3693,8 +3717,7 @@ int qed_hw_get_dflt_resc(struct qed_hwfn *p_hwfn,
 		*p_resc_num = ETH_NUM_MAC_FILTERS / num_funcs;
 		break;
 	case QED_ILT:
-		*p_resc_num = (b_ah ? PXP_NUM_ILT_RECORDS_K2 :
-			       PXP_NUM_ILT_RECORDS_BB) / num_funcs;
+		*p_resc_num = NUM_OF_PXP_ILT_RECORDS(cdev) / num_funcs;
 		break;
 	case QED_LL2_RAM_QUEUE:
 		*p_resc_num = MAX_NUM_LL2_RX_RAM_QUEUES / num_funcs;
@@ -3708,8 +3731,7 @@ int qed_hw_get_dflt_resc(struct qed_hwfn *p_hwfn,
 		*p_resc_num = NUM_OF_GLOBAL_QUEUES / num_funcs;
 		break;
 	case QED_RDMA_STATS_QUEUE:
-		*p_resc_num = (b_ah ? RDMA_NUM_STATISTIC_COUNTERS_K2 :
-			       RDMA_NUM_STATISTIC_COUNTERS_BB) / num_funcs;
+		*p_resc_num = NUM_OF_RDMA_STATISTIC_COUNTERS(cdev) / num_funcs;
 		break;
 	case QED_BDQ:
 		if (p_hwfn->hw_info.personality != QED_PCI_ISCSI &&
