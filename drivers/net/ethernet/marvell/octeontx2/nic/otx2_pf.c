@@ -114,6 +114,15 @@ static void otx2_process_pfaf_mbox_msg(struct otx2_nic *pf,
 	case MBOX_MSG_READY:
 		pf->pcifunc = msg->pcifunc;
 		break;
+	case MBOX_MSG_MSIX_OFFSET:
+		mbox_handler_msix_offset(pf, (struct msix_offset_rsp *)msg);
+		break;
+	case MBOX_MSG_NPA_LF_ALLOC:
+		mbox_handler_npa_lf_alloc(pf, (struct npa_lf_alloc_rsp *)msg);
+		break;
+	case MBOX_MSG_NIX_LF_ALLOC:
+		mbox_handler_nix_lf_alloc(pf, (struct nix_lf_alloc_rsp *)msg);
+		break;
 	default:
 		if (msg->rc)
 			dev_err(pf->dev,
@@ -372,9 +381,20 @@ static int otx2_set_real_num_queues(struct net_device *netdev,
 
 static int otx2_open(struct net_device *netdev)
 {
+	struct otx2_nic *pf = netdev_priv(netdev);
+	int err = 0;
+
 	netif_carrier_off(netdev);
 
-	return 0;
+	pf->qset.cq_cnt = pf->hw.rx_queues + pf->hw.tx_queues;
+
+	/* NPA init */
+	err = otx2_config_npa(pf);
+	if (err)
+		return err;
+
+	/* NIX init */
+	return otx2_config_nix(pf);
 }
 
 static int otx2_stop(struct net_device *netdev)
@@ -403,6 +423,31 @@ static int otx2_check_pf_usable(struct otx2_nic *nic)
 		return -EPROBE_DEFER;
 	}
 	return 0;
+}
+
+static int otx2_realloc_msix_vectors(struct otx2_nic *pf)
+{
+	struct otx2_hw *hw = &pf->hw;
+	int num_vec, err;
+
+	/* NPA interrupts are inot registered, so alloc only
+	 * upto NIX vector offset.
+	 */
+	num_vec = hw->nix_msixoff;
+#define NIX_LF_CINT_VEC_START			0x40
+	num_vec += NIX_LF_CINT_VEC_START + hw->max_queues;
+
+	otx2_disable_mbox_intr(pf);
+	pci_free_irq_vectors(hw->pdev);
+	pci_free_irq_vectors(hw->pdev);
+	err = pci_alloc_irq_vectors(hw->pdev, num_vec, num_vec, PCI_IRQ_MSIX);
+	if (err < 0) {
+		dev_err(pf->dev, "%s: Failed to realloc %d IRQ vectors\n",
+			__func__, num_vec);
+		return err;
+	}
+
+	return otx2_register_mbox_intr(pf, false);
 }
 
 static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
@@ -435,7 +480,7 @@ static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pci_set_master(pdev);
 
 	/* Set number of queues */
-	qcount = min_t(int, num_online_cpus(), num_online_cpus());
+	qcount = min_t(int, num_online_cpus(), OTX2_MAX_CQ_CNT);
 
 	netdev = alloc_etherdev_mqs(sizeof(*pf), qcount, qcount);
 	if (!netdev) {
@@ -497,20 +542,33 @@ static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err)
 		goto err_mbox_destroy;
 
-	err = otx2_set_real_num_queues(netdev, hw->tx_queues, hw->rx_queues);
+	/* Request AF to attach NPA and NIX LFs to this PF.
+	 * NIX and NPA LFs are needed for this PF to function as a NIC.
+	 */
+	err = otx2_attach_npa_nix(pf);
 	if (err)
 		goto err_disable_mbox_intr;
+
+	err = otx2_realloc_msix_vectors(pf);
+	if (err)
+		goto err_detach_rsrc;
+
+	err = otx2_set_real_num_queues(netdev, hw->tx_queues, hw->rx_queues);
+	if (err)
+		goto err_detach_rsrc;
 
 	netdev->netdev_ops = &otx2_netdev_ops;
 
 	err = register_netdev(netdev);
 	if (err) {
 		dev_err(dev, "Failed to register netdevice\n");
-		goto err_disable_mbox_intr;
+		goto err_detach_rsrc;
 	}
 
 	return 0;
 
+err_detach_rsrc:
+	otx2_detach_resources(&pf->mbox);
 err_disable_mbox_intr:
 	otx2_disable_mbox_intr(pf);
 err_mbox_destroy:
@@ -536,6 +594,7 @@ static void otx2_remove(struct pci_dev *pdev)
 	pf = netdev_priv(netdev);
 
 	unregister_netdev(netdev);
+	otx2_detach_resources(&pf->mbox);
 	otx2_disable_mbox_intr(pf);
 	otx2_pfaf_mbox_destroy(pf);
 	pci_free_irq_vectors(pf->pdev);
