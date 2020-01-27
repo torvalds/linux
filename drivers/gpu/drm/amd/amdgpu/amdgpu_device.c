@@ -3760,6 +3760,7 @@ bool amdgpu_device_should_recover_gpu(struct amdgpu_device *adev)
 		case CHIP_VEGA12:
 		case CHIP_RAVEN:
 		case CHIP_ARCTURUS:
+		case CHIP_RENOIR:
 		case CHIP_NAVI10:
 		case CHIP_NAVI14:
 		case CHIP_NAVI12:
