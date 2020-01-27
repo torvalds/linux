@@ -11,6 +11,7 @@ Required properties:
 
  - compatible: should contain one of the following:
    * "brcm,bcm20702a1"
+   * "brcm,bcm4329-bt"
    * "brcm,bcm4330-bt"
    * "brcm,bcm43438-bt"
    * "brcm,bcm4345c5"
@@ -22,7 +23,9 @@ Optional properties:
  - max-speed: see Documentation/devicetree/bindings/serial/slave-device.txt
  - shutdown-gpios: GPIO specifier, used to enable the BT module
  - device-wakeup-gpios: GPIO specifier, used to wakeup the controller
- - host-wakeup-gpios: GPIO specifier, used to wakeup the host processor
+ - host-wakeup-gpios: GPIO specifier, used to wakeup the host processor.
+                      deprecated, replaced by interrupts and
+                      "host-wakeup" interrupt-names
  - clocks: 1 or 2 clocks as defined in clock-names below, in that order
  - clock-names: names for clock inputs, matching the clocks given
    - "extclk": deprecated, replaced by "txco"
@@ -36,7 +39,8 @@ Optional properties:
     - pcm-frame-type: short, long
     - pcm-sync-mode: slave, master
     - pcm-clock-mode: slave, master
-
+ - interrupts: must be one, used to wakeup the host processor
+ - interrupt-names: must be "host-wakeup"
 
 Example:
 

@@ -78,13 +78,13 @@ static inline int btbcm_set_bdaddr(struct hci_dev *hdev, const bdaddr_t *bdaddr)
 	return -EOPNOTSUPP;
 }
 
-int btbcm_read_pcm_int_params(struct hci_dev *hdev,
+static inline int btbcm_read_pcm_int_params(struct hci_dev *hdev,
 			      struct bcm_set_pcm_int_params *params)
 {
 	return -EOPNOTSUPP;
 }
 
-int btbcm_write_pcm_int_params(struct hci_dev *hdev,
+static inline int btbcm_write_pcm_int_params(struct hci_dev *hdev,
 			       const struct bcm_set_pcm_int_params *params)
 {
 	return -EOPNOTSUPP;
