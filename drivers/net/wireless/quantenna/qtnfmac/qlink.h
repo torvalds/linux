@@ -920,6 +920,46 @@ struct qlink_cmd_ndev_changeupper {
 	u8 rsvd[1];
 } __packed;
 
+/**
+ * enum qlink_scan_flags -  scan request control flags
+ *
+ * Scan flags are used to control QLINK_CMD_SCAN behavior.
+ *
+ * @QLINK_SCAN_FLAG_FLUSH: flush cache before scanning.
+ */
+enum qlink_scan_flags {
+	QLINK_SCAN_FLAG_FLUSH = BIT(0),
+	QLINK_SCAN_FLAG_DURATION_MANDATORY = BIT(1),
+};
+
+/**
+ * struct qlink_cmd_scan - data for QLINK_CMD_SCAN command
+ *
+ * @flags: scan flags, a bitmap of &enum qlink_scan_flags.
+ * @n_ssids: number of WLAN_EID_SSID TLVs expected in variable portion of the
+ *	command.
+ * @n_channels: number of QTN_TLV_ID_CHANNEL TLVs expected in variable payload.
+ * @active_dwell: time spent on a single channel for an active scan.
+ * @passive_dwell: time spent on a single channel for a passive scan.
+ * @sample_duration: total duration of sampling a single channel during a scan
+ *	including off-channel dwell time and operating channel time.
+ * @bssid: specific BSSID to scan for or a broadcast BSSID.
+ * @scan_width: channel width to use, one of &enum qlink_channel_width.
+ */
+struct qlink_cmd_scan {
+	struct qlink_cmd chdr;
+	__le64 flags;
+	__le16 n_ssids;
+	__le16 n_channels;
+	__le16 active_dwell;
+	__le16 passive_dwell;
+	__le16 sample_duration;
+	u8 bssid[ETH_ALEN];
+	u8 scan_width;
+	u8 rsvd[3];
+	u8 var_info[0];
+} __packed;
+
 /* QLINK Command Responses messages related definitions
  */
 
@@ -1407,13 +1447,6 @@ struct qlink_event_mic_failure {
  * @QTN_TLV_ID_STA_STATS: per-STA statistics as defined by
  *	&struct qlink_sta_stats. Valid values are marked as such in a bitmap
  *	carried by QTN_TLV_ID_BITMAP.
- * @QTN_TLV_ID_SCAN_DWELL_ACTIVE: time spent on a single channel for an active
- *	scan.
- * @QTN_TLV_ID_SCAN_DWELL_PASSIVE: time spent on a single channel for a passive
- *	scan.
- * @QTN_TLV_ID_SCAN_SAMPLE_DURATION: total duration of sampling a single channel
- *	during a scan including off-channel dwell time and operating channel
- *	time.
  * @QTN_TLV_ID_IFTYPE_DATA: supported band data.
  */
 enum qlink_tlv_id {
@@ -1444,10 +1477,6 @@ enum qlink_tlv_id {
 	QTN_TLV_ID_RANDOM_MAC_ADDR	= 0x0408,
 	QTN_TLV_ID_WOWLAN_CAPAB		= 0x0410,
 	QTN_TLV_ID_WOWLAN_PATTERN	= 0x0411,
-	QTN_TLV_ID_SCAN_FLUSH		= 0x0412,
-	QTN_TLV_ID_SCAN_DWELL_ACTIVE	= 0x0413,
-	QTN_TLV_ID_SCAN_DWELL_PASSIVE	= 0x0416,
-	QTN_TLV_ID_SCAN_SAMPLE_DURATION	= 0x0417,
 	QTN_TLV_ID_IFTYPE_DATA		= 0x0418,
 };
 

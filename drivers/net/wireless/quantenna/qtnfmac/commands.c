@@ -11,11 +11,11 @@
 #include "bus.h"
 #include "commands.h"
 
+/* Let device itself to select best values for current conditions */
 #define QTNF_SCAN_TIME_AUTO	0
 
-/* Let device itself to select best values for current conditions */
-#define QTNF_SCAN_DWELL_ACTIVE_DEFAULT		QTNF_SCAN_TIME_AUTO
-#define QTNF_SCAN_DWELL_PASSIVE_DEFAULT		QTNF_SCAN_TIME_AUTO
+#define QTNF_SCAN_DWELL_ACTIVE_DEFAULT		90
+#define QTNF_SCAN_DWELL_PASSIVE_DEFAULT		100
 #define QTNF_SCAN_SAMPLE_DURATION_DEFAULT	QTNF_SCAN_TIME_AUTO
 
 static int qtnf_cmd_check_reply_header(const struct qlink_resp *resp,
@@ -2011,108 +2011,90 @@ static void qtnf_cmd_randmac_tlv_add(struct sk_buff *cmd_skb,
 	memcpy(randmac->mac_addr_mask, mac_addr_mask, ETH_ALEN);
 }
 
-static void qtnf_cmd_scan_set_dwell(struct qtnf_wmac *mac,
-				    struct sk_buff *cmd_skb)
-{
-	struct cfg80211_scan_request *scan_req = mac->scan_req;
-	u16 dwell_active = QTNF_SCAN_DWELL_ACTIVE_DEFAULT;
-	u16 dwell_passive = QTNF_SCAN_DWELL_PASSIVE_DEFAULT;
-	u16 duration = QTNF_SCAN_SAMPLE_DURATION_DEFAULT;
-
-	if (scan_req->duration) {
-		dwell_active = scan_req->duration;
-		dwell_passive = scan_req->duration;
-	}
-
-	pr_debug("MAC%u: %s scan dwell active=%u, passive=%u, duration=%u\n",
-		 mac->macid,
-		 scan_req->duration_mandatory ? "mandatory" : "max",
-		 dwell_active, dwell_passive, duration);
-
-	qtnf_cmd_skb_put_tlv_u32(cmd_skb,
-				 QTN_TLV_ID_SCAN_DWELL_ACTIVE,
-				 dwell_active);
-	qtnf_cmd_skb_put_tlv_u32(cmd_skb,
-				 QTN_TLV_ID_SCAN_DWELL_PASSIVE,
-				 dwell_passive);
-	qtnf_cmd_skb_put_tlv_u32(cmd_skb,
-				 QTN_TLV_ID_SCAN_SAMPLE_DURATION,
-				 duration);
-}
-
 int qtnf_cmd_send_scan(struct qtnf_wmac *mac)
 {
-	struct sk_buff *cmd_skb;
-	struct ieee80211_channel *sc;
 	struct cfg80211_scan_request *scan_req = mac->scan_req;
-	int n_channels;
-	int count = 0;
+	u16 dwell_passive = QTNF_SCAN_DWELL_PASSIVE_DEFAULT;
+	u16 dwell_active = QTNF_SCAN_DWELL_ACTIVE_DEFAULT;
+	struct wireless_dev *wdev = scan_req->wdev;
+	struct ieee80211_channel *sc;
+	struct qlink_cmd_scan *cmd;
+	struct sk_buff *cmd_skb;
+	int n_channels = 0;
+	u64 flags = 0;
+	int count;
 	int ret;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(mac->macid, QLINK_VIFID_RSVD,
 					    QLINK_CMD_SCAN,
-					    sizeof(struct qlink_cmd));
+					    sizeof(*cmd));
 	if (!cmd_skb)
 		return -ENOMEM;
 
-	qtnf_bus_lock(mac->bus);
+	cmd = (struct qlink_cmd_scan *)cmd_skb->data;
 
-	if (scan_req->n_ssids != 0) {
-		while (count < scan_req->n_ssids) {
-			qtnf_cmd_skb_put_tlv_arr(cmd_skb, WLAN_EID_SSID,
-				scan_req->ssids[count].ssid,
-				scan_req->ssids[count].ssid_len);
-			count++;
-		}
+	if (scan_req->duration) {
+		dwell_active = scan_req->duration;
+		dwell_passive = scan_req->duration;
+	} else if (wdev->iftype == NL80211_IFTYPE_STATION &&
+		   wdev->current_bss) {
+		/* let device select dwell based on traffic conditions */
+		dwell_active = QTNF_SCAN_TIME_AUTO;
+		dwell_passive = QTNF_SCAN_TIME_AUTO;
+	}
+
+	cmd->n_ssids = cpu_to_le16(scan_req->n_ssids);
+	for (count = 0; count < scan_req->n_ssids; ++count) {
+		qtnf_cmd_skb_put_tlv_arr(cmd_skb, WLAN_EID_SSID,
+					 scan_req->ssids[count].ssid,
+					 scan_req->ssids[count].ssid_len);
 	}
 
 	if (scan_req->ie_len != 0)
 		qtnf_cmd_tlv_ie_set_add(cmd_skb, QLINK_IE_SET_PROBE_REQ,
 					scan_req->ie, scan_req->ie_len);
 
-	if (scan_req->n_channels) {
-		n_channels = scan_req->n_channels;
-		count = 0;
+	for (count = 0; count < scan_req->n_channels; ++count) {
+		sc = scan_req->channels[count];
+		if (sc->flags & IEEE80211_CHAN_DISABLED)
+			continue;
 
-		while (n_channels != 0) {
-			sc = scan_req->channels[count];
-			if (sc->flags & IEEE80211_CHAN_DISABLED) {
-				n_channels--;
-				continue;
-			}
+		pr_debug("[MAC%u] scan chan=%d, freq=%d, flags=%#x\n",
+			 mac->macid, sc->hw_value, sc->center_freq,
+			 sc->flags);
 
-			pr_debug("MAC%u: scan chan=%d, freq=%d, flags=%#x\n",
-				 mac->macid, sc->hw_value, sc->center_freq,
-				 sc->flags);
-
-			qtnf_cmd_channel_tlv_add(cmd_skb, sc);
-			n_channels--;
-			count++;
-		}
+		qtnf_cmd_channel_tlv_add(cmd_skb, sc);
+		++n_channels;
 	}
 
-	qtnf_cmd_scan_set_dwell(mac, cmd_skb);
+	if (scan_req->flags & NL80211_SCAN_FLAG_FLUSH)
+		flags |= QLINK_SCAN_FLAG_FLUSH;
+
+	if (scan_req->duration_mandatory)
+		flags |= QLINK_SCAN_FLAG_DURATION_MANDATORY;
+
+	cmd->n_channels = cpu_to_le16(n_channels);
+	cmd->active_dwell = cpu_to_le16(dwell_active);
+	cmd->passive_dwell = cpu_to_le16(dwell_passive);
+	cmd->sample_duration = cpu_to_le16(QTNF_SCAN_SAMPLE_DURATION_DEFAULT);
+	cmd->flags = cpu_to_le64(flags);
+
+	pr_debug("[MAC%u] %s scan dwell active=%u passive=%u duration=%u\n",
+		 mac->macid,
+		 scan_req->duration_mandatory ? "mandatory" : "max",
+		 dwell_active, dwell_passive,
+		 QTNF_SCAN_SAMPLE_DURATION_DEFAULT);
 
 	if (scan_req->flags & NL80211_SCAN_FLAG_RANDOM_ADDR) {
-		pr_debug("MAC%u: scan with random addr=%pM, mask=%pM\n",
+		pr_debug("[MAC%u] scan with random addr=%pM, mask=%pM\n",
 			 mac->macid,
 			 scan_req->mac_addr, scan_req->mac_addr_mask);
-
 		qtnf_cmd_randmac_tlv_add(cmd_skb, scan_req->mac_addr,
 					 scan_req->mac_addr_mask);
 	}
 
-	if (scan_req->flags & NL80211_SCAN_FLAG_FLUSH) {
-		pr_debug("MAC%u: flush cache before scan\n", mac->macid);
-
-		qtnf_cmd_skb_put_tlv_tag(cmd_skb, QTN_TLV_ID_SCAN_FLUSH);
-	}
-
+	qtnf_bus_lock(mac->bus);
 	ret = qtnf_cmd_send(mac->bus, cmd_skb);
-	if (ret)
-		goto out;
-
-out:
 	qtnf_bus_unlock(mac->bus);
 
 	return ret;
