@@ -701,18 +701,31 @@ struct qlink_cmd_reg_notify {
 } __packed;
 
 /**
+ * enum qlink_chan_sw_flags - channel switch control flags
+ *
+ * @QLINK_CHAN_SW_RADAR_REQUIRED: whether radar detection is required on a new
+ *	channel.
+ * @QLINK_CHAN_SW_BLOCK_TX: whether transmissions should be blocked while
+ *	changing a channel.
+ */
+enum qlink_chan_sw_flags {
+	QLINK_CHAN_SW_RADAR_REQUIRED = BIT(0),
+	QLINK_CHAN_SW_BLOCK_TX = BIT(1),
+};
+
+/**
  * struct qlink_cmd_chan_switch - data for QLINK_CMD_CHAN_SWITCH command
  *
- * @channel: channel number according to 802.11 17.3.8.3.2 and Annex J
- * @radar_required: whether radar detection is required on the new channel
- * @block_tx: whether transmissions should be blocked while changing
+ * @channel: channel to switch to.
+ * @flags: flags to control channel switch, bitmap of &enum qlink_chan_sw_flags.
  * @beacon_count: number of beacons until switch
  */
 struct qlink_cmd_chan_switch {
 	struct qlink_cmd chdr;
-	__le16 channel;
-	u8 radar_required;
-	u8 block_tx;
+	struct qlink_chandef channel;
+	__le64 flags;
+	__le32 n_counter_offsets_beacon;
+	__le32 n_counter_offsets_presp;
 	u8 beacon_count;
 	u8 rsvd[3];
 } __packed;

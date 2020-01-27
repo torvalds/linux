@@ -2519,6 +2519,7 @@ int qtnf_cmd_send_chan_switch(struct qtnf_vif *vif,
 	struct qlink_cmd_chan_switch *cmd;
 	struct sk_buff *cmd_skb;
 	int ret;
+	u64 flags = 0;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(mac->macid, vif->vifid,
 					    QLINK_CMD_CHAN_SWITCH,
@@ -2526,19 +2527,19 @@ int qtnf_cmd_send_chan_switch(struct qtnf_vif *vif,
 	if (!cmd_skb)
 		return -ENOMEM;
 
-	qtnf_bus_lock(mac->bus);
+	if (params->radar_required)
+		flags |= QLINK_CHAN_SW_RADAR_REQUIRED;
+
+	if (params->block_tx)
+		flags |= QLINK_CHAN_SW_BLOCK_TX;
 
 	cmd = (struct qlink_cmd_chan_switch *)cmd_skb->data;
-	cmd->channel = cpu_to_le16(params->chandef.chan->hw_value);
-	cmd->radar_required = params->radar_required;
-	cmd->block_tx = params->block_tx;
+	qlink_chandef_cfg2q(&params->chandef, &cmd->channel);
+	cmd->flags = cpu_to_le64(flags);
 	cmd->beacon_count = params->count;
 
+	qtnf_bus_lock(mac->bus);
 	ret = qtnf_cmd_send(mac->bus, cmd_skb);
-	if (ret)
-		goto out;
-
-out:
 	qtnf_bus_unlock(mac->bus);
 
 	return ret;
