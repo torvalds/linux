@@ -345,7 +345,6 @@ struct bpf_object {
 
 	bool loaded;
 	bool has_pseudo_calls;
-	bool relaxed_core_relocs;
 
 	/*
 	 * Information when doing elf related work. Only valid if fd
@@ -3870,7 +3869,9 @@ static struct ids_vec *bpf_core_find_cands(const struct btf *local_btf,
 		if (strncmp(local_name, targ_name, local_essent_len) == 0) {
 			pr_debug("[%d] %s: found candidate [%d] %s\n",
 				 local_type_id, local_name, i, targ_name);
-			new_ids = realloc(cand_ids->data, cand_ids->len + 1);
+			new_ids = reallocarray(cand_ids->data,
+					       cand_ids->len + 1,
+					       sizeof(*cand_ids->data));
 			if (!new_ids) {
 				err = -ENOMEM;
 				goto err_out;
@@ -4238,25 +4239,38 @@ static int bpf_core_calc_field_relo(const struct bpf_program *prog,
  */
 static int bpf_core_reloc_insn(struct bpf_program *prog,
 			       const struct bpf_field_reloc *relo,
+			       int relo_idx,
 			       const struct bpf_core_spec *local_spec,
 			       const struct bpf_core_spec *targ_spec)
 {
-	bool failed = false, validate = true;
 	__u32 orig_val, new_val;
 	struct bpf_insn *insn;
+	bool validate = true;
 	int insn_idx, err;
 	__u8 class;
 
 	if (relo->insn_off % sizeof(struct bpf_insn))
 		return -EINVAL;
 	insn_idx = relo->insn_off / sizeof(struct bpf_insn);
+	insn = &prog->insns[insn_idx];
+	class = BPF_CLASS(insn->code);
 
 	if (relo->kind == BPF_FIELD_EXISTS) {
 		orig_val = 1; /* can't generate EXISTS relo w/o local field */
 		new_val = targ_spec ? 1 : 0;
 	} else if (!targ_spec) {
-		failed = true;
-		new_val = (__u32)-1;
+		pr_debug("prog '%s': relo #%d: substituting insn #%d w/ invalid insn\n",
+			 bpf_program__title(prog, false), relo_idx, insn_idx);
+		insn->code = BPF_JMP | BPF_CALL;
+		insn->dst_reg = 0;
+		insn->src_reg = 0;
+		insn->off = 0;
+		/* if this instruction is reachable (not a dead code),
+		 * verifier will complain with the following message:
+		 * invalid func unknown#195896080
+		 */
+		insn->imm = 195896080; /* => 0xbad2310 => "bad relo" */
+		return 0;
 	} else {
 		err = bpf_core_calc_field_relo(prog, relo, local_spec,
 					       &orig_val, &validate);
@@ -4268,50 +4282,47 @@ static int bpf_core_reloc_insn(struct bpf_program *prog,
 			return err;
 	}
 
-	insn = &prog->insns[insn_idx];
-	class = BPF_CLASS(insn->code);
-
 	switch (class) {
 	case BPF_ALU:
 	case BPF_ALU64:
 		if (BPF_SRC(insn->code) != BPF_K)
 			return -EINVAL;
-		if (!failed && validate && insn->imm != orig_val) {
-			pr_warn("prog '%s': unexpected insn #%d (ALU/ALU64) value: got %u, exp %u -> %u\n",
-				bpf_program__title(prog, false), insn_idx,
-				insn->imm, orig_val, new_val);
+		if (validate && insn->imm != orig_val) {
+			pr_warn("prog '%s': relo #%d: unexpected insn #%d (ALU/ALU64) value: got %u, exp %u -> %u\n",
+				bpf_program__title(prog, false), relo_idx,
+				insn_idx, insn->imm, orig_val, new_val);
 			return -EINVAL;
 		}
 		orig_val = insn->imm;
 		insn->imm = new_val;
-		pr_debug("prog '%s': patched insn #%d (ALU/ALU64)%s imm %u -> %u\n",
-			 bpf_program__title(prog, false), insn_idx,
-			 failed ? " w/ failed reloc" : "", orig_val, new_val);
+		pr_debug("prog '%s': relo #%d: patched insn #%d (ALU/ALU64) imm %u -> %u\n",
+			 bpf_program__title(prog, false), relo_idx, insn_idx,
+			 orig_val, new_val);
 		break;
 	case BPF_LDX:
 	case BPF_ST:
 	case BPF_STX:
-		if (!failed && validate && insn->off != orig_val) {
-			pr_warn("prog '%s': unexpected insn #%d (LD/LDX/ST/STX) value: got %u, exp %u -> %u\n",
-				bpf_program__title(prog, false), insn_idx,
-				insn->off, orig_val, new_val);
+		if (validate && insn->off != orig_val) {
+			pr_warn("prog '%s': relo #%d: unexpected insn #%d (LD/LDX/ST/STX) value: got %u, exp %u -> %u\n",
+				bpf_program__title(prog, false), relo_idx,
+				insn_idx, insn->off, orig_val, new_val);
 			return -EINVAL;
 		}
 		if (new_val > SHRT_MAX) {
-			pr_warn("prog '%s': insn #%d (LD/LDX/ST/STX) value too big: %u\n",
-				bpf_program__title(prog, false), insn_idx,
-				new_val);
+			pr_warn("prog '%s': relo #%d: insn #%d (LDX/ST/STX) value too big: %u\n",
+				bpf_program__title(prog, false), relo_idx,
+				insn_idx, new_val);
 			return -ERANGE;
 		}
 		orig_val = insn->off;
 		insn->off = new_val;
-		pr_debug("prog '%s': patched insn #%d (LD/LDX/ST/STX)%s off %u -> %u\n",
-			 bpf_program__title(prog, false), insn_idx,
-			 failed ? " w/ failed reloc" : "", orig_val, new_val);
+		pr_debug("prog '%s': relo #%d: patched insn #%d (LDX/ST/STX) off %u -> %u\n",
+			 bpf_program__title(prog, false), relo_idx, insn_idx,
+			 orig_val, new_val);
 		break;
 	default:
-		pr_warn("prog '%s': trying to relocate unrecognized insn #%d, code:%x, src:%x, dst:%x, off:%x, imm:%x\n",
-			bpf_program__title(prog, false),
+		pr_warn("prog '%s': relo #%d: trying to relocate unrecognized insn #%d, code:%x, src:%x, dst:%x, off:%x, imm:%x\n",
+			bpf_program__title(prog, false), relo_idx,
 			insn_idx, insn->code, insn->src_reg, insn->dst_reg,
 			insn->off, insn->imm);
 		return -EINVAL;
@@ -4510,24 +4521,33 @@ static int bpf_core_reloc_field(struct bpf_program *prog,
 	}
 
 	/*
-	 * For BPF_FIELD_EXISTS relo or when relaxed CO-RE reloc mode is
-	 * requested, it's expected that we might not find any candidates.
-	 * In this case, if field wasn't found in any candidate, the list of
-	 * candidates shouldn't change at all, we'll just handle relocating
-	 * appropriately, depending on relo's kind.
+	 * For BPF_FIELD_EXISTS relo or when used BPF program has field
+	 * existence checks or kernel version/config checks, it's expected
+	 * that we might not find any candidates. In this case, if field
+	 * wasn't found in any candidate, the list of candidates shouldn't
+	 * change at all, we'll just handle relocating appropriately,
+	 * depending on relo's kind.
 	 */
 	if (j > 0)
 		cand_ids->len = j;
 
-	if (j == 0 && !prog->obj->relaxed_core_relocs &&
-	    relo->kind != BPF_FIELD_EXISTS) {
-		pr_warn("prog '%s': relo #%d: no matching targets found for [%d] %s + %s\n",
-			prog_name, relo_idx, local_id, local_name, spec_str);
-		return -ESRCH;
-	}
+	/*
+	 * If no candidates were found, it might be both a programmer error,
+	 * as well as expected case, depending whether instruction w/
+	 * relocation is guarded in some way that makes it unreachable (dead
+	 * code) if relocation can't be resolved. This is handled in
+	 * bpf_core_reloc_insn() uniformly by replacing that instruction with
+	 * BPF helper call insn (using invalid helper ID). If that instruction
+	 * is indeed unreachable, then it will be ignored and eliminated by
+	 * verifier. If it was an error, then verifier will complain and point
+	 * to a specific instruction number in its log.
+	 */
+	if (j == 0)
+		pr_debug("prog '%s': relo #%d: no matching targets found for [%d] %s + %s\n",
+			 prog_name, relo_idx, local_id, local_name, spec_str);
 
 	/* bpf_core_reloc_insn should know how to handle missing targ_spec */
-	err = bpf_core_reloc_insn(prog, relo, &local_spec,
+	err = bpf_core_reloc_insn(prog, relo, relo_idx, &local_spec,
 				  j ? &targ_spec : NULL);
 	if (err) {
 		pr_warn("prog '%s': relo #%d: failed to patch insn at offset %d: %d\n",
@@ -5057,7 +5077,6 @@ __bpf_object__open(const char *path, const void *obj_buf, size_t obj_buf_sz,
 	if (IS_ERR(obj))
 		return obj;
 
-	obj->relaxed_core_relocs = OPTS_GET(opts, relaxed_core_relocs, false);
 	kconfig = OPTS_GET(opts, kconfig, NULL);
 	if (kconfig) {
 		obj->kconfig = strdup(kconfig);

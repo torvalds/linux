@@ -3669,6 +3669,19 @@ struct btf *bpf_prog_get_target_btf(const struct bpf_prog *prog)
 	}
 }
 
+static bool is_string_ptr(struct btf *btf, const struct btf_type *t)
+{
+	/* t comes in already as a pointer */
+	t = btf_type_by_id(btf, t->type);
+
+	/* allow const */
+	if (BTF_INFO_KIND(t->info) == BTF_KIND_CONST)
+		t = btf_type_by_id(btf, t->type);
+
+	/* char, signed char, unsigned char */
+	return btf_type_is_int(t) && t->size == 1;
+}
+
 bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 		    const struct bpf_prog *prog,
 		    struct bpf_insn_access_aux *info)
@@ -3733,6 +3746,9 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 		 * It is the same as scalar from the verifier safety pov.
 		 * No further pointer walking is allowed.
 		 */
+		return true;
+
+	if (is_string_ptr(btf, t))
 		return true;
 
 	/* this is a pointer to another type */

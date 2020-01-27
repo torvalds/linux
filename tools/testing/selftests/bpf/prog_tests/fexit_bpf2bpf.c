@@ -11,7 +11,7 @@ static void test_fexit_bpf2bpf_common(const char *obj_file,
 	int err, pkt_fd, i;
 	struct bpf_link **link = NULL;
 	struct bpf_program **prog = NULL;
-	__u32 duration, retval;
+	__u32 duration = 0, retval;
 	struct bpf_map *data_map;
 	const int zero = 0;
 	u64 *result = NULL;
