@@ -4,6 +4,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/if_ether.h>
+#include <linux/nospec.h>
 
 #include "core.h"
 #include "bus.h"
@@ -41,11 +42,12 @@ struct qtnf_wmac *qtnf_core_get_mac(const struct qtnf_bus *bus, u8 macid)
 {
 	struct qtnf_wmac *mac = NULL;
 
-	if (unlikely(macid >= QTNF_MAX_MAC)) {
+	if (macid >= QTNF_MAX_MAC) {
 		pr_err("invalid MAC index %u\n", macid);
 		return NULL;
 	}
 
+	macid = array_index_nospec(macid, QTNF_MAX_MAC);
 	mac = bus->mac[macid];
 
 	if (unlikely(!mac)) {

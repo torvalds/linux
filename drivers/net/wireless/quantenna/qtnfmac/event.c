@@ -4,6 +4,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/nospec.h>
 
 #include "cfg80211.h"
 #include "core.h"
@@ -632,17 +633,19 @@ static int qtnf_event_parse(struct qtnf_wmac *mac,
 	int ret = -1;
 	u16 event_id;
 	u16 event_len;
+	u8 vifid;
 
 	event = (const struct qlink_event *)event_skb->data;
 	event_id = le16_to_cpu(event->event_id);
 	event_len = le16_to_cpu(event->mhdr.len);
 
-	if (likely(event->vifid < QTNF_MAX_INTF)) {
-		vif = &mac->iflist[event->vifid];
-	} else {
+	if (event->vifid >= QTNF_MAX_INTF) {
 		pr_err("invalid vif(%u)\n", event->vifid);
 		return -EINVAL;
 	}
+
+	vifid = array_index_nospec(event->vifid, QTNF_MAX_INTF);
+	vif = &mac->iflist[vifid];
 
 	switch (event_id) {
 	case QLINK_EVENT_STA_ASSOCIATED:
