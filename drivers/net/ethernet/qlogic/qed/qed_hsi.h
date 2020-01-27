@@ -1435,7 +1435,11 @@ struct dmae_cmd {
 	__le16 crc16;
 	__le16 crc16_c;
 	__le16 crc10;
-	__le16 reserved;
+	__le16 error_bit_reserved;
+#define DMAE_CMD_ERROR_BIT_MASK        0x1
+#define DMAE_CMD_ERROR_BIT_SHIFT       0
+#define DMAE_CMD_RESERVED_MASK	       0x7FFF
+#define DMAE_CMD_RESERVED_SHIFT        1
 	__le16 xsum16;
 	__le16 xsum8;
 };
@@ -1564,6 +1568,41 @@ struct e4_ystorm_core_conn_ag_ctx {
 	__le16 word4;
 	__le32 reg2;
 	__le32 reg3;
+};
+
+/* DMAE parameters */
+struct qed_dmae_params {
+	u32 flags;
+/* If QED_DMAE_PARAMS_RW_REPL_SRC flag is set and the
+ * source is a block of length DMAE_MAX_RW_SIZE and the
+ * destination is larger, the source block will be duplicated as
+ * many times as required to fill the destination block. This is
+ * used mostly to write a zeroed buffer to destination address
+ * using DMA
+ */
+#define QED_DMAE_PARAMS_RW_REPL_SRC_MASK	0x1
+#define QED_DMAE_PARAMS_RW_REPL_SRC_SHIFT	0
+#define QED_DMAE_PARAMS_SRC_VF_VALID_MASK	0x1
+#define QED_DMAE_PARAMS_SRC_VF_VALID_SHIFT	1
+#define QED_DMAE_PARAMS_DST_VF_VALID_MASK	0x1
+#define QED_DMAE_PARAMS_DST_VF_VALID_SHIFT	2
+#define QED_DMAE_PARAMS_COMPLETION_DST_MASK	0x1
+#define QED_DMAE_PARAMS_COMPLETION_DST_SHIFT	3
+#define QED_DMAE_PARAMS_PORT_VALID_MASK		0x1
+#define QED_DMAE_PARAMS_PORT_VALID_SHIFT	4
+#define QED_DMAE_PARAMS_SRC_PF_VALID_MASK	0x1
+#define QED_DMAE_PARAMS_SRC_PF_VALID_SHIFT	5
+#define QED_DMAE_PARAMS_DST_PF_VALID_MASK	0x1
+#define QED_DMAE_PARAMS_DST_PF_VALID_SHIFT	6
+#define QED_DMAE_PARAMS_RESERVED_MASK		0x1FFFFFF
+#define QED_DMAE_PARAMS_RESERVED_SHIFT		7
+	u8 src_vfid;
+	u8 dst_vfid;
+	u8 port_id;
+	u8 src_pfid;
+	u8 dst_pfid;
+	u8 reserved1;
+	__le16 reserved2;
 };
 
 /* IGU cleanup command */

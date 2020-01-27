@@ -1011,6 +1011,56 @@ bool qed_send_qm_stop_cmd(struct qed_hwfn *p_hwfn,
 #define PRS_ETH_TUNN_OUTPUT_FORMAT     0xF4DAB910
 #define PRS_ETH_OUTPUT_FORMAT          0xFFFF4910
 
+#define ARR_REG_WR(dev, ptt, addr, arr,	arr_size) \
+	do { \
+		u32 i; \
+		\
+		for (i = 0; i < (arr_size); i++) \
+			qed_wr(dev, ptt, \
+			       ((addr) + (4 * i)), \
+			       ((u32 *)&(arr))[i]); \
+	} while (0)
+
+/**
+ * @brief qed_dmae_to_grc - is an internal function - writes from host to
+ * wide-bus registers (split registers are not supported yet)
+ *
+ * @param p_hwfn - HW device data
+ * @param p_ptt - ptt window used for writing the registers.
+ * @param p_data - pointer to source data.
+ * @param addr - Destination register address.
+ * @param len_in_dwords - data length in DWARDS (u32)
+ */
+static int qed_dmae_to_grc(struct qed_hwfn *p_hwfn,
+			   struct qed_ptt *p_ptt,
+			   u32 *p_data, u32 addr, u32 len_in_dwords)
+{
+	struct qed_dmae_params params = {};
+	int rc;
+
+	if (!p_data)
+		return -1;
+
+	/* Set DMAE params */
+	SET_FIELD(params.flags, QED_DMAE_PARAMS_COMPLETION_DST, 1);
+
+	/* Execute DMAE command */
+	rc = qed_dmae_host2grc(p_hwfn, p_ptt,
+			       (u64)(uintptr_t)(p_data),
+			       addr, len_in_dwords, &params);
+
+	/* If not read using DMAE, read using GRC */
+	if (rc) {
+		DP_VERBOSE(p_hwfn,
+			   QED_MSG_DEBUG,
+			   "Failed writing to chip using DMAE, using GRC instead\n");
+		/* write to registers using GRC */
+		ARR_REG_WR(p_hwfn, p_ptt, addr, p_data, len_in_dwords);
+	}
+
+	return len_in_dwords;
+}
+
 void qed_set_vxlan_dest_port(struct qed_hwfn *p_hwfn,
 			     struct qed_ptt *p_ptt, u16 dest_port)
 {
@@ -1195,6 +1245,8 @@ void qed_set_vxlan_no_l2_enable(struct qed_hwfn *p_hwfn,
 
 void qed_gft_disable(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt, u16 pf_id)
 {
+	struct regpair ram_line = { };
+
 	/* Disable gft search for PF */
 	qed_wr(p_hwfn, p_ptt, PRS_REG_SEARCH_GFT, 0);
 
@@ -1204,12 +1256,9 @@ void qed_gft_disable(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt, u16 pf_id)
 	qed_wr(p_hwfn, p_ptt, PRS_REG_GFT_CAM + CAM_LINE_SIZE * pf_id, 0);
 
 	/* Zero ramline */
-	qed_wr(p_hwfn,
-	       p_ptt, PRS_REG_GFT_PROFILE_MASK_RAM + RAM_LINE_SIZE * pf_id, 0);
-	qed_wr(p_hwfn,
-	       p_ptt,
-	       PRS_REG_GFT_PROFILE_MASK_RAM + RAM_LINE_SIZE * pf_id + REG_SIZE,
-	       0);
+	qed_dmae_to_grc(p_hwfn, p_ptt, (u32 *)&ram_line,
+			PRS_REG_GFT_PROFILE_MASK_RAM + RAM_LINE_SIZE * pf_id,
+			sizeof(ram_line) / REG_SIZE);
 }
 
 void qed_gft_config(struct qed_hwfn *p_hwfn,
@@ -1320,24 +1369,17 @@ void qed_gft_config(struct qed_hwfn *p_hwfn,
 
 	qed_wr(p_hwfn,
 	       p_ptt, PRS_REG_SEARCH_NON_IP_AS_GFT, search_non_ip_as_gft);
-	qed_wr(p_hwfn,
-	       p_ptt,
-	       PRS_REG_GFT_PROFILE_MASK_RAM + RAM_LINE_SIZE * pf_id,
-	       ram_line.lo);
-	qed_wr(p_hwfn,
-	       p_ptt,
-	       PRS_REG_GFT_PROFILE_MASK_RAM + RAM_LINE_SIZE * pf_id + REG_SIZE,
-	       ram_line.hi);
+	qed_dmae_to_grc(p_hwfn, p_ptt, (u32 *)&ram_line,
+			PRS_REG_GFT_PROFILE_MASK_RAM + RAM_LINE_SIZE * pf_id,
+			sizeof(ram_line) / REG_SIZE);
 
 	/* Set default profile so that no filter match will happen */
-	qed_wr(p_hwfn,
-	       p_ptt,
-	       PRS_REG_GFT_PROFILE_MASK_RAM + RAM_LINE_SIZE *
-	       PRS_GFT_CAM_LINES_NO_MATCH, 0xffffffff);
-	qed_wr(p_hwfn,
-	       p_ptt,
-	       PRS_REG_GFT_PROFILE_MASK_RAM + RAM_LINE_SIZE *
-	       PRS_GFT_CAM_LINES_NO_MATCH + REG_SIZE, 0x3ff);
+	ram_line.lo = 0xffffffff;
+	ram_line.hi = 0x3ff;
+	qed_dmae_to_grc(p_hwfn, p_ptt, (u32 *)&ram_line,
+			PRS_REG_GFT_PROFILE_MASK_RAM + RAM_LINE_SIZE *
+			PRS_GFT_CAM_LINES_NO_MATCH,
+			sizeof(ram_line) / REG_SIZE);
 
 	/* Enable gft search */
 	qed_wr(p_hwfn, p_ptt, PRS_REG_SEARCH_GFT, 1);

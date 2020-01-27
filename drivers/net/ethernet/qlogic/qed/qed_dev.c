@@ -907,7 +907,7 @@ qed_llh_access_filter(struct qed_hwfn *p_hwfn,
 	/* Filter value */
 	addr = NIG_REG_LLH_FUNC_FILTER_VALUE + 2 * filter_idx * 0x4;
 
-	params.flags = QED_DMAE_FLAG_PF_DST;
+	SET_FIELD(params.flags, QED_DMAE_PARAMS_DST_PF_VALID, 0x1);
 	params.dst_pfid = pfid;
 	rc = qed_dmae_host2grc(p_hwfn,
 			       p_ptt,
