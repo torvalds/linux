@@ -800,13 +800,6 @@ static void __intel_gt_set_wedged(struct intel_gt *gt)
 	if (test_bit(I915_WEDGED, &gt->reset.flags))
 		return;
 
-	if (GEM_SHOW_DEBUG() && !intel_engines_are_idle(gt)) {
-		struct drm_printer p = drm_debug_printer(__func__);
-
-		for_each_engine(engine, gt, id)
-			intel_engine_dump(engine, &p, "%s\n", engine->name);
-	}
-
 	GT_TRACE(gt, "start\n");
 
 	/*
@@ -845,10 +838,30 @@ void intel_gt_set_wedged(struct intel_gt *gt)
 {
 	intel_wakeref_t wakeref;
 
+	if (test_bit(I915_WEDGED, &gt->reset.flags))
+		return;
+
+	wakeref = intel_runtime_pm_get(gt->uncore->rpm);
 	mutex_lock(&gt->reset.mutex);
-	with_intel_runtime_pm(gt->uncore->rpm, wakeref)
-		__intel_gt_set_wedged(gt);
+
+	if (GEM_SHOW_DEBUG()) {
+		struct drm_printer p = drm_debug_printer(__func__);
+		struct intel_engine_cs *engine;
+		enum intel_engine_id id;
+
+		drm_printf(&p, "called from %pS\n", (void *)_RET_IP_);
+		for_each_engine(engine, gt, id) {
+			if (intel_engine_is_idle(engine))
+				continue;
+
+			intel_engine_dump(engine, &p, "%s\n", engine->name);
+		}
+	}
+
+	__intel_gt_set_wedged(gt);
+
 	mutex_unlock(&gt->reset.mutex);
+	intel_runtime_pm_put(gt->uncore->rpm, wakeref);
 }
 
 static bool __intel_gt_unset_wedged(struct intel_gt *gt)
