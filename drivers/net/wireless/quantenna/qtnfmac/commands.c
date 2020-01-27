@@ -175,7 +175,8 @@ static void qtnf_cmd_tlv_ie_set_add(struct sk_buff *cmd_skb, u8 frame_type,
 {
 	struct qlink_tlv_ie_set *tlv;
 
-	tlv = (struct qlink_tlv_ie_set *)skb_put(cmd_skb, sizeof(*tlv) + len);
+	tlv = (struct qlink_tlv_ie_set *)skb_put(cmd_skb, sizeof(*tlv) +
+						 round_up(len, QLINK_ALIGN));
 	tlv->hdr.type = cpu_to_le16(QTN_TLV_ID_IE_SET);
 	tlv->hdr.len = cpu_to_le16(len + sizeof(*tlv) - sizeof(tlv->hdr));
 	tlv->type = frame_type;
@@ -190,20 +191,24 @@ static bool qtnf_cmd_start_ap_can_fit(const struct qtnf_vif *vif,
 {
 	unsigned int len = sizeof(struct qlink_cmd_start_ap);
 
-	len += s->ssid_len;
-	len += s->beacon.head_len;
-	len += s->beacon.tail_len;
-	len += s->beacon.beacon_ies_len;
-	len += s->beacon.proberesp_ies_len;
-	len += s->beacon.assocresp_ies_len;
-	len += s->beacon.probe_resp_len;
+	len += round_up(s->ssid_len, QLINK_ALIGN);
+	len += round_up(s->beacon.head_len, QLINK_ALIGN);
+	len += round_up(s->beacon.tail_len, QLINK_ALIGN);
+	len += round_up(s->beacon.beacon_ies_len, QLINK_ALIGN);
+	len += round_up(s->beacon.proberesp_ies_len, QLINK_ALIGN);
+	len += round_up(s->beacon.assocresp_ies_len, QLINK_ALIGN);
+	len += round_up(s->beacon.probe_resp_len, QLINK_ALIGN);
 
 	if (cfg80211_chandef_valid(&s->chandef))
 		len += sizeof(struct qlink_tlv_chandef);
 
-	if (s->acl)
+	if (s->acl) {
+		unsigned int acl_len = struct_size(s->acl, mac_addrs,
+						   s->acl->n_acl_entries);
+
 		len += sizeof(struct qlink_tlv_hdr) +
-		       struct_size(s->acl, mac_addrs, s->acl->n_acl_entries);
+			round_up(acl_len, QLINK_ALIGN);
+	}
 
 	if (len > (sizeof(struct qlink_cmd) + QTNF_MAX_CMD_BUF_SIZE)) {
 		pr_err("VIF%u.%u: can not fit AP settings: %u\n",
@@ -315,7 +320,8 @@ int qtnf_cmd_send_start_ap(struct qtnf_vif *vif,
 
 	if (s->ht_cap) {
 		struct qlink_tlv_hdr *tlv = (struct qlink_tlv_hdr *)
-			skb_put(cmd_skb, sizeof(*tlv) + sizeof(*s->ht_cap));
+			skb_put(cmd_skb, sizeof(*tlv) +
+				round_up(sizeof(*s->ht_cap), QLINK_ALIGN));
 
 		tlv->type = cpu_to_le16(WLAN_EID_HT_CAPABILITY);
 		tlv->len = cpu_to_le16(sizeof(*s->ht_cap));
@@ -339,7 +345,8 @@ int qtnf_cmd_send_start_ap(struct qtnf_vif *vif,
 		size_t acl_size = struct_size(s->acl, mac_addrs,
 					      s->acl->n_acl_entries);
 		struct qlink_tlv_hdr *tlv =
-			skb_put(cmd_skb, sizeof(*tlv) + acl_size);
+			skb_put(cmd_skb,
+				sizeof(*tlv) + round_up(acl_size, QLINK_ALIGN));
 
 		tlv->type = cpu_to_le16(QTN_TLV_ID_ACL_DATA);
 		tlv->len = cpu_to_le16(acl_size);
@@ -581,10 +588,10 @@ qtnf_sta_info_parse_flags(struct nl80211_sta_flag_update *dst,
 }
 
 static void
-qtnf_cmd_sta_info_parse(struct station_info *sinfo,
-			const struct qlink_tlv_hdr *tlv,
+qtnf_cmd_sta_info_parse(struct station_info *sinfo, const u8 *data,
 			size_t resp_size)
 {
+	const struct qlink_tlv_hdr *tlv;
 	const struct qlink_sta_stats *stats = NULL;
 	const u8 *map = NULL;
 	unsigned int map_len = 0;
@@ -595,7 +602,7 @@ qtnf_cmd_sta_info_parse(struct station_info *sinfo,
 	(qtnf_utils_is_bit_set(map, bitn, map_len) && \
 	 (offsetofend(struct qlink_sta_stats, stat_name) <= stats_len))
 
-	while (resp_size >= sizeof(*tlv)) {
+	qlink_for_each_tlv(tlv, data, resp_size) {
 		tlv_len = le16_to_cpu(tlv->len);
 
 		switch (le16_to_cpu(tlv->type)) {
@@ -610,9 +617,11 @@ qtnf_cmd_sta_info_parse(struct station_info *sinfo,
 		default:
 			break;
 		}
+	}
 
-		resp_size -= tlv_len + sizeof(*tlv);
-		tlv = (const struct qlink_tlv_hdr *)(tlv->val + tlv_len);
+	if (!qlink_tlv_parsing_ok(tlv, data, resp_size)) {
+		pr_err("Malformed TLV buffer\n");
+		return;
 	}
 
 	if (!map || !stats)
@@ -736,9 +745,7 @@ int qtnf_cmd_get_sta_info(struct qtnf_vif *vif, const u8 *sta_mac,
 		goto out;
 	}
 
-	qtnf_cmd_sta_info_parse(sinfo,
-				(const struct qlink_tlv_hdr *)resp->info,
-				var_resp_len);
+	qtnf_cmd_sta_info_parse(sinfo, resp->info, var_resp_len);
 
 out:
 	qtnf_bus_unlock(vif->mac->bus);
@@ -907,17 +914,9 @@ qtnf_cmd_resp_proc_hw_info(struct qtnf_bus *bus,
 	plat_id = le32_to_cpu(resp->plat_id);
 	hw_ver = le32_to_cpu(resp->hw_ver);
 
-	tlv = (const struct qlink_tlv_hdr *)resp->info;
-
-	while (info_len >= sizeof(*tlv)) {
+	qlink_for_each_tlv(tlv, resp->info, info_len) {
 		tlv_type = le16_to_cpu(tlv->type);
 		tlv_len = le16_to_cpu(tlv->len);
-
-		if (tlv_len + sizeof(*tlv) > info_len) {
-			pr_warn("malformed TLV 0x%.2X; LEN: %u\n",
-				tlv_type, tlv_len);
-			return -EINVAL;
-		}
 
 		switch (tlv_type) {
 		case QTN_TLV_ID_BUILD_NAME:
@@ -948,9 +947,11 @@ qtnf_cmd_resp_proc_hw_info(struct qtnf_bus *bus,
 		default:
 			break;
 		}
+	}
 
-		info_len -= tlv_len + sizeof(*tlv);
-		tlv = (struct qlink_tlv_hdr *)(tlv->val + tlv_len);
+	if (!qlink_tlv_parsing_ok(tlv, resp->info, info_len)) {
+		pr_err("Malformed TLV buffer\n");
+		return -EINVAL;
 	}
 
 	pr_info("\nBuild name:            %s\n"
@@ -1019,7 +1020,6 @@ qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
 			     const struct qlink_resp_get_mac_info *resp,
 			     size_t tlv_buf_size)
 {
-	const u8 *tlv_buf = resp->var_info;
 	struct ieee80211_iface_combination *comb = mac->macinfo.if_comb;
 	size_t n_comb = 0;
 	struct ieee80211_iface_limit *limits;
@@ -1029,7 +1029,6 @@ qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
 	u16 rec_len;
 	u16 tlv_type;
 	u16 tlv_value_len;
-	size_t tlv_full_len;
 	const struct qlink_tlv_hdr *tlv;
 	u8 *ext_capa = NULL;
 	u8 *ext_capa_mask = NULL;
@@ -1068,16 +1067,9 @@ qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
 		break;
 	}
 
-	tlv = (const struct qlink_tlv_hdr *)tlv_buf;
-	while (tlv_buf_size >= sizeof(struct qlink_tlv_hdr)) {
+	qlink_for_each_tlv(tlv, resp->var_info, tlv_buf_size) {
 		tlv_type = le16_to_cpu(tlv->type);
 		tlv_value_len = le16_to_cpu(tlv->len);
-		tlv_full_len = tlv_value_len + sizeof(struct qlink_tlv_hdr);
-		if (tlv_full_len > tlv_buf_size) {
-			pr_warn("MAC%u: malformed TLV 0x%.2X; LEN: %u\n",
-				mac->macid, tlv_type, tlv_value_len);
-			return -EINVAL;
-		}
 
 		switch (tlv_type) {
 		case QTN_TLV_ID_IFACE_LIMIT:
@@ -1183,14 +1175,10 @@ qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
 				mac->macid, tlv_type);
 			break;
 		}
-
-		tlv_buf_size -= tlv_full_len;
-		tlv = (struct qlink_tlv_hdr *)(tlv->val + tlv_value_len);
 	}
 
-	if (tlv_buf_size) {
-		pr_warn("MAC%u: malformed TLV buf; bytes left: %zu\n",
-			mac->macid, tlv_buf_size);
+	if (!qlink_tlv_parsing_ok(tlv, resp->var_info, tlv_buf_size)) {
+		pr_err("Malformed TLV buffer\n");
 		return -EINVAL;
 	}
 
@@ -1383,7 +1371,6 @@ qtnf_cmd_resp_fill_band_info(struct ieee80211_supported_band *band,
 			     size_t payload_len)
 {
 	u16 tlv_type;
-	size_t tlv_len;
 	size_t tlv_dlen;
 	const struct qlink_tlv_hdr *tlv;
 	const struct qlink_channel *qchan;
@@ -1418,24 +1405,15 @@ qtnf_cmd_resp_fill_band_info(struct ieee80211_supported_band *band,
 		return -ENOMEM;
 	}
 
-	tlv = (struct qlink_tlv_hdr *)resp->info;
-
-	while (payload_len >= sizeof(*tlv)) {
+	qlink_for_each_tlv(tlv, resp->info, payload_len) {
 		tlv_type = le16_to_cpu(tlv->type);
 		tlv_dlen = le16_to_cpu(tlv->len);
-		tlv_len = tlv_dlen + sizeof(*tlv);
-
-		if (tlv_len > payload_len) {
-			pr_warn("malformed TLV 0x%.2X; LEN: %zu\n",
-				tlv_type, tlv_len);
-			goto error_ret;
-		}
 
 		switch (tlv_type) {
 		case QTN_TLV_ID_CHANNEL:
 			if (unlikely(tlv_dlen != sizeof(*qchan))) {
 				pr_err("invalid channel TLV len %zu\n",
-				       tlv_len);
+				       tlv_dlen);
 				goto error_ret;
 			}
 
@@ -1538,13 +1516,10 @@ qtnf_cmd_resp_fill_band_info(struct ieee80211_supported_band *band,
 			pr_warn("unknown TLV type: %#x\n", tlv_type);
 			break;
 		}
-
-		payload_len -= tlv_len;
-		tlv = (struct qlink_tlv_hdr *)(tlv->val + tlv_dlen);
 	}
 
-	if (payload_len) {
-		pr_err("malformed TLV buf; bytes left: %zu\n", payload_len);
+	if (!qlink_tlv_parsing_ok(tlv, resp->info, payload_len)) {
+		pr_err("Malformed TLV buffer\n");
 		goto error_ret;
 	}
 
@@ -1689,16 +1664,16 @@ int qtnf_cmd_send_update_phy_params(struct qtnf_wmac *mac, u32 changed)
 		qtnf_cmd_skb_put_tlv_u32(cmd_skb, QTN_TLV_ID_RTS_THRESH,
 					 wiphy->rts_threshold);
 	if (changed & WIPHY_PARAM_COVERAGE_CLASS)
-		qtnf_cmd_skb_put_tlv_u8(cmd_skb, QTN_TLV_ID_COVERAGE_CLASS,
-					wiphy->coverage_class);
+		qtnf_cmd_skb_put_tlv_u32(cmd_skb, QTN_TLV_ID_COVERAGE_CLASS,
+					 wiphy->coverage_class);
 
 	if (changed & WIPHY_PARAM_RETRY_LONG)
-		qtnf_cmd_skb_put_tlv_u8(cmd_skb, QTN_TLV_ID_LRETRY_LIMIT,
-					wiphy->retry_long);
+		qtnf_cmd_skb_put_tlv_u32(cmd_skb, QTN_TLV_ID_LRETRY_LIMIT,
+					 wiphy->retry_long);
 
 	if (changed & WIPHY_PARAM_RETRY_SHORT)
-		qtnf_cmd_skb_put_tlv_u8(cmd_skb, QTN_TLV_ID_SRETRY_LIMIT,
-					wiphy->retry_short);
+		qtnf_cmd_skb_put_tlv_u32(cmd_skb, QTN_TLV_ID_SRETRY_LIMIT,
+					 wiphy->retry_short);
 
 	ret = qtnf_cmd_send(mac->bus, cmd_skb);
 	if (ret)
@@ -2054,13 +2029,13 @@ static void qtnf_cmd_scan_set_dwell(struct qtnf_wmac *mac,
 		 scan_req->duration_mandatory ? "mandatory" : "max",
 		 dwell_active, dwell_passive, duration);
 
-	qtnf_cmd_skb_put_tlv_u16(cmd_skb,
+	qtnf_cmd_skb_put_tlv_u32(cmd_skb,
 				 QTN_TLV_ID_SCAN_DWELL_ACTIVE,
 				 dwell_active);
-	qtnf_cmd_skb_put_tlv_u16(cmd_skb,
+	qtnf_cmd_skb_put_tlv_u32(cmd_skb,
 				 QTN_TLV_ID_SCAN_DWELL_PASSIVE,
 				 dwell_passive);
-	qtnf_cmd_skb_put_tlv_u16(cmd_skb,
+	qtnf_cmd_skb_put_tlv_u32(cmd_skb,
 				 QTN_TLV_ID_SCAN_SAMPLE_DURATION,
 				 duration);
 }
@@ -2416,25 +2391,15 @@ qtnf_cmd_resp_proc_chan_stat_info(struct survey_info *survey,
 {
 	const struct qlink_chan_stats *stats = NULL;
 	const struct qlink_tlv_hdr *tlv;
-	size_t tlv_full_len;
 	u16 tlv_value_len;
 	u16 tlv_type;
 	const u8 *map = NULL;
 	unsigned int map_len = 0;
 	unsigned int stats_len = 0;
 
-	tlv = (struct qlink_tlv_hdr *)payload;
-
-	while (payload_len >= sizeof(*tlv)) {
+	qlink_for_each_tlv(tlv, payload, payload_len) {
 		tlv_type = le16_to_cpu(tlv->type);
 		tlv_value_len = le16_to_cpu(tlv->len);
-		tlv_full_len = tlv_value_len + sizeof(*tlv);
-
-		if (tlv_full_len > payload_len) {
-			pr_warn("malformed TLV 0x%.2X; LEN: %u\n",
-				tlv_type, tlv_value_len);
-			return -ENOSPC;
-		}
 
 		switch (tlv_type) {
 		case QTN_TLV_ID_BITMAP:
@@ -2449,13 +2414,10 @@ qtnf_cmd_resp_proc_chan_stat_info(struct survey_info *survey,
 			pr_info("Unknown TLV type: %#x\n", tlv_type);
 			break;
 		}
-
-		payload_len -= tlv_full_len;
-		tlv = (struct qlink_tlv_hdr *)(tlv->val + tlv_value_len);
 	}
 
-	if (payload_len) {
-		pr_warn("malformed TLV buf; bytes left: %zu\n", payload_len);
+	if (!qlink_tlv_parsing_ok(tlv, payload, payload_len)) {
+		pr_err("Malformed TLV buffer\n");
 		return -EINVAL;
 	}
 
@@ -2657,7 +2619,7 @@ int qtnf_cmd_set_mac_acl(const struct qtnf_vif *vif,
 	if (!cmd_skb)
 		return -ENOMEM;
 
-	tlv = skb_put(cmd_skb, sizeof(*tlv) + acl_size);
+	tlv = skb_put(cmd_skb, sizeof(*tlv) + round_up(acl_size, QLINK_ALIGN));
 	tlv->type = cpu_to_le16(QTN_TLV_ID_ACL_DATA);
 	tlv->len = cpu_to_le16(acl_size);
 	qlink_acl_data_cfg2q(params, (struct qlink_acl_data *)tlv->val);

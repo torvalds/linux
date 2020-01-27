@@ -19,6 +19,8 @@
 #define QLINK_PROTO_VER		\
 	QLINK_VER(QLINK_PROTO_VER_MAJOR, QLINK_PROTO_VER_MINOR)
 
+#define QLINK_ALIGN	4
+
 #define QLINK_MACID_RSVD		0xFF
 #define QLINK_VIFID_RSVD		0xFF
 
@@ -184,7 +186,7 @@ struct qlink_chandef {
 	__le16 center_freq1;
 	__le16 center_freq2;
 	u8 width;
-	u8 rsvd;
+	u8 rsvd[3];
 } __packed;
 
 #define QLINK_MAX_NR_CIPHER_SUITES            5
@@ -340,9 +342,9 @@ struct qlink_cmd {
 	struct qlink_msg_header mhdr;
 	__le16 cmd_id;
 	__le16 seq_num;
-	u8 rsvd[2];
 	u8 macid;
 	u8 vifid;
+	u8 rsvd[2];
 } __packed;
 
 /**
@@ -404,6 +406,7 @@ struct qlink_cmd_mgmt_frame_register {
 	struct qlink_cmd chdr;
 	__le16 frame_type;
 	u8 do_register;
+	u8 rsvd[1];
 } __packed;
 
 /**
@@ -441,6 +444,7 @@ struct qlink_cmd_frame_tx {
 struct qlink_cmd_get_sta_info {
 	struct qlink_cmd chdr;
 	u8 sta_addr[ETH_ALEN];
+	u8 rsvd[2];
 } __packed;
 
 /**
@@ -460,6 +464,7 @@ struct qlink_cmd_add_key {
 	u8 addr[ETH_ALEN];
 	__le32 cipher;
 	__le16 vlanid;
+	u8 rsvd[2];
 	u8 key_data[0];
 } __packed;
 
@@ -489,6 +494,7 @@ struct qlink_cmd_set_def_key {
 	u8 key_index;
 	u8 unicast;
 	u8 multicast;
+	u8 rsvd[1];
 } __packed;
 
 /**
@@ -499,6 +505,7 @@ struct qlink_cmd_set_def_key {
 struct qlink_cmd_set_def_mgmt_key {
 	struct qlink_cmd chdr;
 	u8 key_index;
+	u8 rsvd[3];
 } __packed;
 
 /**
@@ -515,6 +522,7 @@ struct qlink_cmd_change_sta {
 	__le16 if_type;
 	__le16 vlanid;
 	u8 sta_addr[ETH_ALEN];
+	u8 rsvd[2];
 } __packed;
 
 /**
@@ -525,8 +533,9 @@ struct qlink_cmd_change_sta {
 struct qlink_cmd_del_sta {
 	struct qlink_cmd chdr;
 	__le16 reason_code;
-	u8 subtype;
 	u8 sta_addr[ETH_ALEN];
+	u8 subtype;
+	u8 rsvd[3];
 } __packed;
 
 enum qlink_sta_connect_flags {
@@ -593,6 +602,7 @@ struct qlink_cmd_external_auth {
 struct qlink_cmd_disconnect {
 	struct qlink_cmd chdr;
 	__le16 reason;
+	u8 rsvd[2];
 } __packed;
 
 /**
@@ -604,6 +614,7 @@ struct qlink_cmd_disconnect {
 struct qlink_cmd_updown {
 	struct qlink_cmd chdr;
 	u8 if_up;
+	u8 rsvd[3];
 } __packed;
 
 /**
@@ -627,6 +638,7 @@ enum qlink_band {
 struct qlink_cmd_band_info_get {
 	struct qlink_cmd chdr;
 	u8 band;
+	u8 rsvd[3];
 } __packed;
 
 /**
@@ -702,6 +714,7 @@ struct qlink_cmd_chan_switch {
 	u8 radar_required;
 	u8 block_tx;
 	u8 beacon_count;
+	u8 rsvd[3];
 } __packed;
 
 /**
@@ -805,6 +818,7 @@ struct qlink_cmd_pm_set {
 	struct qlink_cmd chdr;
 	__le32 pm_standby_timer;
 	u8 pm_mode;
+	u8 rsvd[3];
 } __packed;
 
 /**
@@ -1225,6 +1239,7 @@ struct qlink_event_bss_join {
 struct qlink_event_bss_leave {
 	struct qlink_event ehdr;
 	__le16 reason;
+	u8 rsvd[2];
 } __packed;
 
 /**
@@ -1341,10 +1356,10 @@ struct qlink_event_radar {
  */
 struct qlink_event_external_auth {
 	struct qlink_event ehdr;
-	u8 ssid[IEEE80211_MAX_SSID_LEN];
-	u8 ssid_len;
-	u8 bssid[ETH_ALEN];
 	__le32 akm_suite;
+	u8 ssid[IEEE80211_MAX_SSID_LEN];
+	u8 bssid[ETH_ALEN];
+	u8 ssid_len;
 	u8 action;
 } __packed;
 
@@ -1560,6 +1575,7 @@ struct qlink_tlv_ie_set {
 	struct qlink_tlv_hdr hdr;
 	u8 type;
 	u8 flags;
+	u8 rsvd[2];
 	u8 ie_data[0];
 } __packed;
 
@@ -1572,6 +1588,7 @@ struct qlink_tlv_ie_set {
 struct qlink_tlv_ext_ie {
 	struct qlink_tlv_hdr hdr;
 	u8 eid_ext;
+	u8 rsvd[3];
 	u8 ie_data[0];
 } __packed;
 
