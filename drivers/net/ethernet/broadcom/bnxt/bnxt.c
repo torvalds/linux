@@ -6998,7 +6998,6 @@ static int __bnxt_hwrm_func_qcaps(struct bnxt *bp)
 
 		pf->fw_fid = le16_to_cpu(resp->fid);
 		pf->port_id = le16_to_cpu(resp->port_id);
-		bp->dev->dev_port = pf->port_id;
 		memcpy(pf->mac_addr, resp->mac_address, ETH_ALEN);
 		pf->first_vf_id = le16_to_cpu(resp->first_vf_id);
 		pf->max_vfs = le16_to_cpu(resp->max_vfs);
@@ -7289,6 +7288,7 @@ static int bnxt_hwrm_ver_get(struct bnxt *bp)
 		bp->hwrm_max_ext_req_len = HWRM_MAX_REQ_LEN;
 
 	bp->chip_num = le16_to_cpu(resp->chip_num);
+	bp->chip_rev = resp->chip_rev;
 	if (bp->chip_num == CHIP_NUM_58700 && !resp->chip_rev &&
 	    !resp->chip_metal)
 		bp->flags |= BNXT_FLAG_CHIP_NITRO_A0;
@@ -9064,7 +9064,7 @@ static int bnxt_update_phy_setting(struct bnxt *bp)
 	/* The last close may have shutdown the link, so need to call
 	 * PHY_CFG to bring it back up.
 	 */
-	if (!netif_carrier_ok(bp->dev))
+	if (!bp->link_info.link_up)
 		update_link = true;
 
 	if (!bnxt_eee_config_ok(bp))
@@ -10041,6 +10041,13 @@ static void bnxt_timer(struct timer_list *t)
 		bnxt_queue_sp_work(bp);
 	}
 
+#ifdef CONFIG_RFS_ACCEL
+	if ((bp->flags & BNXT_FLAG_RFS) && bp->ntp_fltr_count) {
+		set_bit(BNXT_RX_NTP_FLTR_SP_EVENT, &bp->sp_event);
+		bnxt_queue_sp_work(bp);
+	}
+#endif /*CONFIG_RFS_ACCEL*/
+
 	if (bp->link_info.phy_retry) {
 		if (time_after(jiffies, bp->link_info.phy_retry_expires)) {
 			bp->link_info.phy_retry = false;
@@ -10051,7 +10058,8 @@ static void bnxt_timer(struct timer_list *t)
 		}
 	}
 
-	if ((bp->flags & BNXT_FLAG_CHIP_P5) && netif_carrier_ok(dev)) {
+	if ((bp->flags & BNXT_FLAG_CHIP_P5) && !bp->chip_rev &&
+	    netif_carrier_ok(dev)) {
 		set_bit(BNXT_RING_COAL_NOW_SP_EVENT, &bp->sp_event);
 		bnxt_queue_sp_work(bp);
 	}
@@ -10569,7 +10577,7 @@ static void bnxt_set_dflt_rss_hash_type(struct bnxt *bp)
 			   VNIC_RSS_CFG_REQ_HASH_TYPE_TCP_IPV4 |
 			   VNIC_RSS_CFG_REQ_HASH_TYPE_IPV6 |
 			   VNIC_RSS_CFG_REQ_HASH_TYPE_TCP_IPV6;
-	if (BNXT_CHIP_P4(bp) && bp->hwrm_spec_code >= 0x10501) {
+	if (BNXT_CHIP_P4_PLUS(bp) && bp->hwrm_spec_code >= 0x10501) {
 		bp->flags |= BNXT_FLAG_UDP_RSS_CAP;
 		bp->rss_hash_cfg |= VNIC_RSS_CFG_REQ_HASH_TYPE_UDP_IPV4 |
 				    VNIC_RSS_CFG_REQ_HASH_TYPE_UDP_IPV6;
@@ -11101,6 +11109,7 @@ static int bnxt_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 	struct ethhdr *eth = (struct ethhdr *)skb_mac_header(skb);
 	int rc = 0, idx, bit_id, l2_idx = 0;
 	struct hlist_head *head;
+	u32 flags;
 
 	if (!ether_addr_equal(dev->dev_addr, eth->h_dest)) {
 		struct bnxt_vnic_info *vnic = &bp->vnic_info[0];
@@ -11140,8 +11149,9 @@ static int bnxt_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 		rc = -EPROTONOSUPPORT;
 		goto err_free;
 	}
-	if ((fkeys->control.flags & FLOW_DIS_ENCAPSULATION) &&
-	    bp->hwrm_spec_code < 0x10601) {
+	flags = fkeys->control.flags;
+	if (((flags & FLOW_DIS_ENCAPSULATION) &&
+	     bp->hwrm_spec_code < 0x10601) || (flags & FLOW_DIS_IS_FRAGMENT)) {
 		rc = -EPROTONOSUPPORT;
 		goto err_free;
 	}
@@ -11378,8 +11388,8 @@ int bnxt_get_port_parent_id(struct net_device *dev,
 	if (!BNXT_PF(bp) || !(bp->flags & BNXT_FLAG_DSN_VALID))
 		return -EOPNOTSUPP;
 
-	ppid->id_len = sizeof(bp->switch_id);
-	memcpy(ppid->id, bp->switch_id, ppid->id_len);
+	ppid->id_len = sizeof(bp->dsn);
+	memcpy(ppid->id, bp->dsn, ppid->id_len);
 
 	return 0;
 }
@@ -11435,9 +11445,9 @@ static void bnxt_remove_one(struct pci_dev *pdev)
 		bnxt_sriov_disable(bp);
 
 	bnxt_dl_fw_reporters_destroy(bp, true);
-	bnxt_dl_unregister(bp);
 	pci_disable_pcie_error_reporting(pdev);
 	unregister_netdev(dev);
+	bnxt_dl_unregister(bp);
 	bnxt_shutdown_tc(bp);
 	bnxt_cancel_sp_work(bp);
 	bp->sp_event = 0;
@@ -11471,6 +11481,9 @@ static int bnxt_probe_phy(struct bnxt *bp, bool fw_dflt)
 			   rc);
 		return rc;
 	}
+	if (!fw_dflt)
+		return 0;
+
 	rc = bnxt_update_link(bp, false);
 	if (rc) {
 		netdev_err(bp->dev, "Probe phy can't update link (rc: %x)\n",
@@ -11483,9 +11496,6 @@ static int bnxt_probe_phy(struct bnxt *bp, bool fw_dflt)
 	 */
 	if (link_info->auto_link_speeds && !link_info->support_auto_speeds)
 		link_info->support_auto_speeds = link_info->support_speeds;
-
-	if (!fw_dflt)
-		return 0;
 
 	bnxt_init_ethtool_link_settings(bp);
 	return 0;
@@ -11860,7 +11870,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (BNXT_PF(bp)) {
 		/* Read the adapter's DSN to use as the eswitch switch_id */
-		bnxt_pcie_dsn_get(bp, bp->switch_id);
+		rc = bnxt_pcie_dsn_get(bp, bp->dsn);
 	}
 
 	/* MTU range: 60 - FW defined max */
@@ -11907,11 +11917,14 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		bnxt_init_tc(bp);
 	}
 
+	bnxt_dl_register(bp);
+
 	rc = register_netdev(dev);
 	if (rc)
-		goto init_err_cleanup_tc;
+		goto init_err_cleanup;
 
-	bnxt_dl_register(bp);
+	if (BNXT_PF(bp))
+		devlink_port_type_eth_set(&bp->dl_port, bp->dev);
 	bnxt_dl_fw_reporters_create(bp);
 
 	netdev_info(dev, "%s found at mem %lx, node addr %pM\n",
@@ -11921,7 +11934,8 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	return 0;
 
-init_err_cleanup_tc:
+init_err_cleanup:
+	bnxt_dl_unregister(bp);
 	bnxt_shutdown_tc(bp);
 	bnxt_clear_int_mode(bp);
 
