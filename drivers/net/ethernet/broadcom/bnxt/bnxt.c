@@ -11471,6 +11471,9 @@ static int bnxt_probe_phy(struct bnxt *bp, bool fw_dflt)
 			   rc);
 		return rc;
 	}
+	if (!fw_dflt)
+		return 0;
+
 	rc = bnxt_update_link(bp, false);
 	if (rc) {
 		netdev_err(bp->dev, "Probe phy can't update link (rc: %x)\n",
@@ -11483,9 +11486,6 @@ static int bnxt_probe_phy(struct bnxt *bp, bool fw_dflt)
 	 */
 	if (link_info->auto_link_speeds && !link_info->support_auto_speeds)
 		link_info->support_auto_speeds = link_info->support_speeds;
-
-	if (!fw_dflt)
-		return 0;
 
 	bnxt_init_ethtool_link_settings(bp);
 	return 0;
