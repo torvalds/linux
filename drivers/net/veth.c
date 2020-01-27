@@ -377,6 +377,7 @@ static int veth_xdp_xmit(struct net_device *dev, int n,
 	unsigned int max_len;
 	struct veth_rq *rq;
 
+	rcu_read_lock();
 	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK)) {
 		ret = -EINVAL;
 		goto drop;
@@ -418,11 +419,14 @@ static int veth_xdp_xmit(struct net_device *dev, int n,
 	if (flags & XDP_XMIT_FLUSH)
 		__veth_xdp_flush(rq);
 
-	if (likely(!drops))
+	if (likely(!drops)) {
+		rcu_read_unlock();
 		return n;
+	}
 
 	ret = n - drops;
 drop:
+	rcu_read_unlock();
 	atomic64_add(drops, &priv->dropped);
 
 	return ret;
