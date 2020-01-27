@@ -599,7 +599,7 @@ qtnf_cmd_sta_info_parse(struct station_info *sinfo,
 		tlv_len = le16_to_cpu(tlv->len);
 
 		switch (le16_to_cpu(tlv->type)) {
-		case QTN_TLV_ID_STA_STATS_MAP:
+		case QTN_TLV_ID_BITMAP:
 			map_len = tlv_len;
 			map = tlv->val;
 			break;
@@ -895,14 +895,13 @@ qtnf_cmd_resp_proc_hw_info(struct qtnf_bus *bus,
 	const char *uboot_ver = NULL;
 	u32 hw_ver = 0;
 	u16 tlv_type;
-	u16 tlv_value_len;
+	u16 tlv_len;
 
 	hwinfo->num_mac = resp->num_mac;
 	hwinfo->mac_bitmap = resp->mac_bitmap;
 	hwinfo->fw_ver = le32_to_cpu(resp->fw_ver);
 	hwinfo->total_tx_chain = resp->total_tx_chain;
 	hwinfo->total_rx_chain = resp->total_rx_chain;
-	hwinfo->hw_capab = le32_to_cpu(resp->hw_capab);
 
 	bld_tmstamp = le32_to_cpu(resp->bld_tmstamp);
 	plat_id = le32_to_cpu(resp->plat_id);
@@ -912,11 +911,11 @@ qtnf_cmd_resp_proc_hw_info(struct qtnf_bus *bus,
 
 	while (info_len >= sizeof(*tlv)) {
 		tlv_type = le16_to_cpu(tlv->type);
-		tlv_value_len = le16_to_cpu(tlv->len);
+		tlv_len = le16_to_cpu(tlv->len);
 
-		if (tlv_value_len + sizeof(*tlv) > info_len) {
+		if (tlv_len + sizeof(*tlv) > info_len) {
 			pr_warn("malformed TLV 0x%.2X; LEN: %u\n",
-				tlv_type, tlv_value_len);
+				tlv_type, tlv_len);
 			return -EINVAL;
 		}
 
@@ -945,12 +944,16 @@ qtnf_cmd_resp_proc_hw_info(struct qtnf_bus *bus,
 		case QTN_TLV_ID_MAX_SCAN_SSIDS:
 			hwinfo->max_scan_ssids = *tlv->val;
 			break;
+		case QTN_TLV_ID_BITMAP:
+			memcpy(hwinfo->hw_capab, tlv->val,
+			       min(sizeof(hwinfo->hw_capab), (size_t)tlv_len));
+			break;
 		default:
 			break;
 		}
 
-		info_len -= tlv_value_len + sizeof(*tlv);
-		tlv = (struct qlink_tlv_hdr *)(tlv->val + tlv_value_len);
+		info_len -= tlv_len + sizeof(*tlv);
+		tlv = (struct qlink_tlv_hdr *)(tlv->val + tlv_len);
 	}
 
 	pr_info("\nBuild name:            %s\n"

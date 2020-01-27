@@ -23,6 +23,7 @@
 
 #include "qlink.h"
 #include "trans.h"
+#include "qlink_util.h"
 
 #undef pr_fmt
 #define pr_fmt(fmt)	KBUILD_MODNAME ": %s: " fmt, __func__
@@ -121,12 +122,12 @@ struct qtnf_hw_info {
 	u8 num_mac;
 	u8 mac_bitmap;
 	u32 fw_ver;
-	u32 hw_capab;
 	u8 total_tx_chain;
 	u8 total_rx_chain;
 	char fw_version[ETHTOOL_FWVERS_LEN];
 	u32 hw_version;
 	u8 max_scan_ssids;
+	u8 hw_capab[QLINK_HW_CAPAB_NUM / BITS_PER_BYTE + 1];
 };
 
 struct qtnf_vif *qtnf_mac_get_free_vif(struct qtnf_wmac *mac);
@@ -158,6 +159,13 @@ bool qtnf_netdev_is_qtn(const struct net_device *ndev);
 static inline struct qtnf_vif *qtnf_netdev_get_priv(struct net_device *dev)
 {
 	return *((void **)netdev_priv(dev));
+}
+
+static inline bool qtnf_hwcap_is_set(const struct qtnf_hw_info *info,
+				     unsigned int bit)
+{
+	return qtnf_utils_is_bit_set(info->hw_capab, bit,
+				     sizeof(info->hw_capab));
 }
 
 #endif /* _QTN_FMAC_CORE_H_ */

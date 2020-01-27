@@ -73,15 +73,24 @@ struct qlink_msg_header {
  * @QLINK_HW_CAPAB_HW_BRIDGE: device has hardware switch capabilities.
  */
 enum qlink_hw_capab {
-	QLINK_HW_CAPAB_REG_UPDATE		= BIT(0),
-	QLINK_HW_CAPAB_STA_INACT_TIMEOUT	= BIT(1),
-	QLINK_HW_CAPAB_DFS_OFFLOAD		= BIT(2),
-	QLINK_HW_CAPAB_SCAN_RANDOM_MAC_ADDR	= BIT(3),
-	QLINK_HW_CAPAB_PWR_MGMT			= BIT(4),
-	QLINK_HW_CAPAB_OBSS_SCAN		= BIT(5),
-	QLINK_HW_CAPAB_SCAN_DWELL		= BIT(6),
-	QLINK_HW_CAPAB_SAE			= BIT(8),
-	QLINK_HW_CAPAB_HW_BRIDGE		= BIT(9),
+	QLINK_HW_CAPAB_REG_UPDATE = 0,
+	QLINK_HW_CAPAB_STA_INACT_TIMEOUT,
+	QLINK_HW_CAPAB_DFS_OFFLOAD,
+	QLINK_HW_CAPAB_SCAN_RANDOM_MAC_ADDR,
+	QLINK_HW_CAPAB_PWR_MGMT,
+	QLINK_HW_CAPAB_OBSS_SCAN,
+	QLINK_HW_CAPAB_SCAN_DWELL,
+	QLINK_HW_CAPAB_SAE,
+	QLINK_HW_CAPAB_HW_BRIDGE,
+	QLINK_HW_CAPAB_NUM
+};
+
+/**
+ * enum qlink_driver_capab - host driver capabilities.
+ *
+ */
+enum qlink_driver_capab {
+	QLINK_DRV_CAPAB_NUM = 0
 };
 
 enum qlink_iface_type {
@@ -990,7 +999,6 @@ struct qlink_resp_get_mac_info {
  * Description of wireless hardware capabilities and features.
  *
  * @fw_ver: wireless hardware firmware version.
- * @hw_capab: Bitmap of capabilities supported by firmware.
  * @num_mac: Number of separate physical radio devices provided by hardware.
  * @mac_bitmap: Bitmap of MAC IDs that are active and can be used in firmware.
  * @total_tx_chains: total number of transmit chains used by device.
@@ -1000,7 +1008,6 @@ struct qlink_resp_get_mac_info {
 struct qlink_resp_get_hw_info {
 	struct qlink_resp rhdr;
 	__le32 fw_ver;
-	__le32 hw_capab;
 	__le32 bld_tmstamp;
 	__le32 plat_id;
 	__le32 hw_ver;
@@ -1337,11 +1344,15 @@ struct qlink_event_mic_failure {
 /**
  * enum qlink_tlv_id - list of TLVs that Qlink messages can carry
  *
- * @QTN_TLV_ID_STA_STATS_MAP: a bitmap of &enum qlink_sta_info, used to
- *	indicate which statistic carried in QTN_TLV_ID_STA_STATS is valid.
+ * @QTN_TLV_ID_BITMAP: a data representing a bitmap that is used together with
+ *	other TLVs:
+ *	&enum qlink_sta_info used to indicate which statistic carried in
+ *	QTN_TLV_ID_STA_STATS is valid.
+ *	&enum qlink_hw_capab listing wireless card capabilities.
+ *	&enum qlink_driver_capab listing driver/host system capabilities.
  * @QTN_TLV_ID_STA_STATS: per-STA statistics as defined by
  *	&struct qlink_sta_stats. Valid values are marked as such in a bitmap
- *	carried by QTN_TLV_ID_STA_STATS_MAP.
+ *	carried by QTN_TLV_ID_BITMAP.
  * @QTN_TLV_ID_MAX_SCAN_SSIDS: maximum number of SSIDs the device can scan
  *	for in any given scan.
  * @QTN_TLV_ID_SCAN_DWELL_ACTIVE: time spent on a single channel for an active
@@ -1361,7 +1372,7 @@ enum qlink_tlv_id {
 	QTN_TLV_ID_REG_RULE		= 0x0207,
 	QTN_TLV_ID_CHANNEL		= 0x020F,
 	QTN_TLV_ID_CHANDEF		= 0x0210,
-	QTN_TLV_ID_STA_STATS_MAP	= 0x0211,
+	QTN_TLV_ID_BITMAP		= 0x0211,
 	QTN_TLV_ID_STA_STATS		= 0x0212,
 	QTN_TLV_ID_COVERAGE_CLASS	= 0x0213,
 	QTN_TLV_ID_IFACE_LIMIT		= 0x0214,
@@ -1596,7 +1607,7 @@ struct qlink_chan_stats {
  *
  * Used to indicate which statistics values in &struct qlink_sta_stats
  * are valid. Individual values are used to fill a bitmap carried in a
- * payload of QTN_TLV_ID_STA_STATS_MAP.
+ * payload of QTN_TLV_ID_BITMAP.
  *
  * @QLINK_STA_INFO_CONNECTED_TIME: connected_time value is valid.
  * @QLINK_STA_INFO_INACTIVE_TIME: inactive_time value is valid.
@@ -1660,7 +1671,7 @@ struct qlink_sta_info_rate {
  * Carries statistics of a STA. Not all fields may be filled with
  * valid values. Valid fields should be indicated as such using a bitmap of
  * &enum qlink_sta_info. Bitmap is carried separately in a payload of
- * QTN_TLV_ID_STA_STATS_MAP.
+ * QTN_TLV_ID_BITMAP.
  */
 struct qlink_sta_stats {
 	__le64 rx_bytes;

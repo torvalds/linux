@@ -248,7 +248,7 @@ static struct wireless_dev *qtnf_add_virtual_intf(struct wiphy *wiphy,
 		goto error_del_vif;
 	}
 
-	if (mac->bus->hw_info.hw_capab & QLINK_HW_CAPAB_HW_BRIDGE) {
+	if (qtnf_hwcap_is_set(&mac->bus->hw_info, QLINK_HW_CAPAB_HW_BRIDGE)) {
 		ret = qtnf_cmd_netdev_changeupper(vif, vif->netdev->ifindex);
 		if (ret) {
 			unregister_netdevice(vif->netdev);
@@ -1080,10 +1080,10 @@ struct wiphy *qtnf_wiphy_allocate(struct qtnf_bus *bus)
 	struct wiphy *wiphy;
 
 	if (qtnf_dfs_offload_get() &&
-	    (bus->hw_info.hw_capab & QLINK_HW_CAPAB_DFS_OFFLOAD))
+	    qtnf_hwcap_is_set(&bus->hw_info, QLINK_HW_CAPAB_DFS_OFFLOAD))
 		qtn_cfg80211_ops.start_radar_detection = NULL;
 
-	if (!(bus->hw_info.hw_capab & QLINK_HW_CAPAB_PWR_MGMT))
+	if (!qtnf_hwcap_is_set(&bus->hw_info, QLINK_HW_CAPAB_PWR_MGMT))
 		qtn_cfg80211_ops.set_power_mgmt	= NULL;
 
 	wiphy = wiphy_new(&qtn_cfg80211_ops, sizeof(struct qtnf_wmac));
@@ -1166,10 +1166,10 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 	wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 
 	if (qtnf_dfs_offload_get() &&
-	    (hw_info->hw_capab & QLINK_HW_CAPAB_DFS_OFFLOAD))
+	    qtnf_hwcap_is_set(hw_info, QLINK_HW_CAPAB_DFS_OFFLOAD))
 		wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_DFS_OFFLOAD);
 
-	if (hw_info->hw_capab & QLINK_HW_CAPAB_SCAN_DWELL)
+	if (qtnf_hwcap_is_set(hw_info, QLINK_HW_CAPAB_SCAN_DWELL))
 		wiphy_ext_feature_set(wiphy,
 				      NL80211_EXT_FEATURE_SET_SCAN_DWELL);
 
@@ -1185,16 +1185,16 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 
 	ether_addr_copy(wiphy->perm_addr, mac->macaddr);
 
-	if (hw_info->hw_capab & QLINK_HW_CAPAB_STA_INACT_TIMEOUT)
+	if (qtnf_hwcap_is_set(hw_info, QLINK_HW_CAPAB_STA_INACT_TIMEOUT))
 		wiphy->features |= NL80211_FEATURE_INACTIVITY_TIMER;
 
-	if (hw_info->hw_capab & QLINK_HW_CAPAB_SCAN_RANDOM_MAC_ADDR)
+	if (qtnf_hwcap_is_set(hw_info, QLINK_HW_CAPAB_SCAN_RANDOM_MAC_ADDR))
 		wiphy->features |= NL80211_FEATURE_SCAN_RANDOM_MAC_ADDR;
 
-	if (!(hw_info->hw_capab & QLINK_HW_CAPAB_OBSS_SCAN))
+	if (!qtnf_hwcap_is_set(hw_info, QLINK_HW_CAPAB_OBSS_SCAN))
 		wiphy->features |= NL80211_FEATURE_NEED_OBSS_SCAN;
 
-	if (hw_info->hw_capab & QLINK_HW_CAPAB_SAE)
+	if (qtnf_hwcap_is_set(hw_info, QLINK_HW_CAPAB_SAE))
 		wiphy->features |= NL80211_FEATURE_SAE;
 
 #ifdef CONFIG_PM
@@ -1205,7 +1205,7 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 	regdomain_is_known = isalpha(mac->rd->alpha2[0]) &&
 				isalpha(mac->rd->alpha2[1]);
 
-	if (hw_info->hw_capab & QLINK_HW_CAPAB_REG_UPDATE) {
+	if (qtnf_hwcap_is_set(hw_info, QLINK_HW_CAPAB_REG_UPDATE)) {
 		wiphy->reg_notifier = qtnf_cfg80211_reg_notifier;
 
 		if (mac->rd->alpha2[0] == '9' && mac->rd->alpha2[1] == '9') {

@@ -497,7 +497,7 @@ int qtnf_core_net_attach(struct qtnf_wmac *mac, struct qtnf_vif *vif,
 	dev->tx_queue_len = 100;
 	dev->ethtool_ops = &qtnf_ethtool_ops;
 
-	if (mac->bus->hw_info.hw_capab & QLINK_HW_CAPAB_HW_BRIDGE)
+	if (qtnf_hwcap_is_set(&mac->bus->hw_info, QLINK_HW_CAPAB_HW_BRIDGE))
 		dev->needed_tailroom = sizeof(struct qtnf_frame_meta_info);
 
 	qdev_vif = netdev_priv(dev);
@@ -639,7 +639,7 @@ static int qtnf_core_mac_attach(struct qtnf_bus *bus, unsigned int macid)
 		goto error_del_vif;
 	}
 
-	if (bus->hw_info.hw_capab & QLINK_HW_CAPAB_HW_BRIDGE) {
+	if (qtnf_hwcap_is_set(&bus->hw_info, QLINK_HW_CAPAB_HW_BRIDGE)) {
 		ret = qtnf_cmd_netdev_changeupper(vif, vif->netdev->ifindex);
 		if (ret)
 			goto error;
@@ -705,7 +705,8 @@ static int qtnf_core_netdevice_event(struct notifier_block *nb,
 			 info->linking ? "add" : "del");
 
 		if (IS_ENABLED(CONFIG_NET_SWITCHDEV) &&
-		    (bus->hw_info.hw_capab & QLINK_HW_CAPAB_HW_BRIDGE)) {
+		    qtnf_hwcap_is_set(&bus->hw_info,
+				      QLINK_HW_CAPAB_HW_BRIDGE)) {
 			if (info->linking)
 				br_domain = brdev->ifindex;
 			else
@@ -772,7 +773,7 @@ int qtnf_core_attach(struct qtnf_bus *bus)
 		goto error;
 	}
 
-	if ((bus->hw_info.hw_capab & QLINK_HW_CAPAB_HW_BRIDGE) &&
+	if (qtnf_hwcap_is_set(&bus->hw_info, QLINK_HW_CAPAB_HW_BRIDGE) &&
 	    bus->bus_ops->data_tx_use_meta_set)
 		bus->bus_ops->data_tx_use_meta_set(bus, true);
 
