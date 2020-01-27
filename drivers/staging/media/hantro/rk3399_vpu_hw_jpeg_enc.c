@@ -103,10 +103,16 @@ rk3399_vpu_jpeg_enc_set_qtable(struct hantro_dev *vpu,
 	luma_qtable_p = (__be32 *)luma_qtable;
 	chroma_qtable_p = (__be32 *)chroma_qtable;
 
+	/*
+	 * Quantization table registers must be written in contiguous blocks.
+	 * DO NOT collapse the below two "for" loops into one.
+	 */
 	for (i = 0; i < VEPU_JPEG_QUANT_TABLE_COUNT; i++) {
 		reg = get_unaligned_be32(&luma_qtable_p[i]);
 		vepu_write_relaxed(vpu, reg, VEPU_REG_JPEG_LUMA_QUAT(i));
+	}
 
+	for (i = 0; i < VEPU_JPEG_QUANT_TABLE_COUNT; i++) {
 		reg = get_unaligned_be32(&chroma_qtable_p[i]);
 		vepu_write_relaxed(vpu, reg, VEPU_REG_JPEG_CHROMA_QUAT(i));
 	}
