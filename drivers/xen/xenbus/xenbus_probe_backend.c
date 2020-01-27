@@ -250,12 +250,18 @@ static int backend_probe_and_watch(struct notifier_block *notifier,
 static int backend_reclaim_memory(struct device *dev, void *data)
 {
 	const struct xenbus_driver *drv;
+	struct xenbus_device *xdev;
 
 	if (!dev->driver)
 		return 0;
 	drv = to_xenbus_driver(dev->driver);
-	if (drv && drv->reclaim_memory)
-		drv->reclaim_memory(to_xenbus_device(dev));
+	if (drv && drv->reclaim_memory) {
+		xdev = to_xenbus_device(dev);
+		if (!spin_trylock(&xdev->reclaim_lock))
+			return 0;
+		drv->reclaim_memory(xdev);
+		spin_unlock(&xdev->reclaim_lock);
+	}
 	return 0;
 }
 
