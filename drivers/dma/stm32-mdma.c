@@ -1637,25 +1637,27 @@ static int stm32_mdma_probe(struct platform_device *pdev)
 	}
 
 	dmadev->irq = platform_get_irq(pdev, 0);
-	if (dmadev->irq < 0)
-		return dmadev->irq;
+	if (dmadev->irq < 0) {
+		ret = dmadev->irq;
+		goto err_clk;
+	}
 
 	ret = devm_request_irq(&pdev->dev, dmadev->irq, stm32_mdma_irq_handler,
 			       0, dev_name(&pdev->dev), dmadev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to request IRQ\n");
-		return ret;
+		goto err_clk;
 	}
 
 	ret = dmaenginem_async_device_register(dd);
 	if (ret)
-		return ret;
+		goto err_clk;
 
 	ret = of_dma_controller_register(of_node, stm32_mdma_of_xlate, dmadev);
 	if (ret < 0) {
 		dev_err(&pdev->dev,
 			"STM32 MDMA DMA OF registration failed %d\n", ret);
-		goto err_unregister;
+		goto err_clk;
 	}
 
 	platform_set_drvdata(pdev, dmadev);
@@ -1668,7 +1670,9 @@ static int stm32_mdma_probe(struct platform_device *pdev)
 
 	return 0;
 
-err_unregister:
+err_clk:
+	clk_disable_unprepare(dmadev->clk);
+
 	return ret;
 }
 
