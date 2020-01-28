@@ -35,7 +35,6 @@ struct stm32_dmamux {
 struct stm32_dmamux_data {
 	struct dma_router dmarouter;
 	struct clk *clk;
-	struct reset_control *rst;
 	void __iomem *iomem;
 	u32 dma_requests; /* Number of DMA requests connected to DMAMUX */
 	u32 dmamux_requests; /* Number of DMA requests routed toward DMAs */
@@ -182,6 +181,7 @@ static int stm32_dmamux_probe(struct platform_device *pdev)
 	struct stm32_dmamux_data *stm32_dmamux;
 	struct resource *res;
 	void __iomem *iomem;
+	struct reset_control *rst;
 	int i, count, ret;
 	u32 dma_req;
 
@@ -265,11 +265,11 @@ static int stm32_dmamux_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	stm32_dmamux->rst = devm_reset_control_get(&pdev->dev, NULL);
-	if (!IS_ERR(stm32_dmamux->rst)) {
-		reset_control_assert(stm32_dmamux->rst);
+	rst = devm_reset_control_get(&pdev->dev, NULL);
+	if (!IS_ERR(rst)) {
+		reset_control_assert(rst);
 		udelay(2);
-		reset_control_deassert(stm32_dmamux->rst);
+		reset_control_deassert(rst);
 	}
 
 	stm32_dmamux->iomem = iomem;
