@@ -35,7 +35,7 @@ struct sifive_gpio {
 	void __iomem		*base;
 	struct gpio_chip	gc;
 	struct regmap		*regs;
-	u32			irq_state;
+	unsigned long		irq_state;
 	unsigned int		trigger[SIFIVE_GPIO_MAX];
 	unsigned int		irq_parent[SIFIVE_GPIO_MAX];
 };
@@ -94,7 +94,7 @@ static void sifive_gpio_irq_enable(struct irq_data *d)
 	spin_unlock_irqrestore(&gc->bgpio_lock, flags);
 
 	/* Enable interrupts */
-	assign_bit(offset, (unsigned long *)&chip->irq_state, 1);
+	assign_bit(offset, &chip->irq_state, 1);
 	sifive_gpio_set_ie(chip, offset);
 }
 
@@ -104,7 +104,7 @@ static void sifive_gpio_irq_disable(struct irq_data *d)
 	struct sifive_gpio *chip = gpiochip_get_data(gc);
 	int offset = irqd_to_hwirq(d) % SIFIVE_GPIO_MAX;
 
-	assign_bit(offset, (unsigned long *)&chip->irq_state, 0);
+	assign_bit(offset, &chip->irq_state, 0);
 	sifive_gpio_set_ie(chip, offset);
 	irq_chip_disable_parent(d);
 }
