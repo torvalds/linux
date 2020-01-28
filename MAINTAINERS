@@ -349,13 +349,13 @@ M:	Erik Kaneda <erik.kaneda@intel.com>
 M:	"Rafael J. Wysocki" <rafael.j.wysocki@intel.com>
 L:	linux-acpi@vger.kernel.org
 L:	devel@acpica.org
+S:	Supported
 W:	https://acpica.org/
 W:	https://github.com/acpica/acpica/
-Q:	https://patchwork.kernel.org/project/linux-acpi/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm
+Q:	https://patchwork.kernel.org/project/linux-acpi/list/
 B:	https://bugzilla.kernel.org
 B:	https://bugs.acpica.org
-S:	Supported
 F:	drivers/acpi/acpica/
 F:	include/acpi/
 F:	tools/power/acpi/
