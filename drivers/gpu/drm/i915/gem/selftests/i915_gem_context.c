@@ -1465,9 +1465,12 @@ out_file:
 
 static int check_scratch(struct i915_address_space *vm, u64 offset)
 {
-	struct drm_mm_node *node =
-		__drm_mm_interval_first(&vm->mm,
-					offset, offset + sizeof(u32) - 1);
+	struct drm_mm_node *node;
+
+	mutex_lock(&vm->mutex);
+	node = __drm_mm_interval_first(&vm->mm,
+				       offset, offset + sizeof(u32) - 1);
+	mutex_unlock(&vm->mutex);
 	if (!node || node->start > offset)
 		return 0;
 
