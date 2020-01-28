@@ -1873,6 +1873,7 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
 	unsigned int normal_bridges = 0, hotplug_bridges = 0;
 	struct resource *io_res, *mmio_res, *mmio_pref_res;
 	struct pci_dev *dev, *bridge = bus->self;
+	resource_size_t io_per_hp, mmio_per_hp, mmio_pref_per_hp;
 
 	io_res = &bridge->resource[PCI_BRIDGE_RESOURCES + 0];
 	mmio_res = &bridge->resource[PCI_BRIDGE_RESOURCES + 1];
@@ -1956,7 +1957,7 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
 	 * resource space between hotplug bridges.
 	 */
 	for_each_pci_bridge(dev, bus) {
-		resource_size_t align, io, mmio, mmio_pref;
+		resource_size_t align;
 		struct pci_bus *b;
 
 		b = dev->subordinate;
@@ -1969,22 +1970,25 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
 		 * account.
 		 */
 		align = pci_resource_alignment(bridge, io_res);
-		io = div64_ul(available_io, hotplug_bridges);
-		io = min(ALIGN(io, align), remaining_io);
-		remaining_io -= io;
+		io_per_hp = div64_ul(available_io, hotplug_bridges);
+		io_per_hp = min(ALIGN(io_per_hp, align), remaining_io);
+		remaining_io -= io_per_hp;
 
 		align = pci_resource_alignment(bridge, mmio_res);
-		mmio = div64_ul(available_mmio, hotplug_bridges);
-		mmio = min(ALIGN(mmio, align), remaining_mmio);
-		remaining_mmio -= mmio;
+		mmio_per_hp = div64_ul(available_mmio, hotplug_bridges);
+		mmio_per_hp = min(ALIGN(mmio_per_hp, align), remaining_mmio);
+		remaining_mmio -= mmio_per_hp;
 
 		align = pci_resource_alignment(bridge, mmio_pref_res);
-		mmio_pref = div64_ul(available_mmio_pref, hotplug_bridges);
-		mmio_pref = min(ALIGN(mmio_pref, align), remaining_mmio_pref);
-		remaining_mmio_pref -= mmio_pref;
+		mmio_pref_per_hp = div64_ul(available_mmio_pref,
+					    hotplug_bridges);
+		mmio_pref_per_hp = min(ALIGN(mmio_pref_per_hp, align),
+				       remaining_mmio_pref);
+		remaining_mmio_pref -= mmio_pref_per_hp;
 
-		pci_bus_distribute_available_resources(b, add_list, io, mmio,
-						       mmio_pref);
+		pci_bus_distribute_available_resources(b, add_list, io_per_hp,
+						       mmio_per_hp,
+						       mmio_pref_per_hp);
 	}
 }
 
