@@ -3536,3 +3536,44 @@ fail:
 	return ret;
 }
 EXPORT_SYMBOL(drm_atomic_helper_legacy_gamma_set);
+
+/**
+ * drm_atomic_helper_bridge_propagate_bus_fmt() - Propagate output format to
+ *						  the input end of a bridge
+ * @bridge: bridge control structure
+ * @bridge_state: new bridge state
+ * @crtc_state: new CRTC state
+ * @conn_state: new connector state
+ * @output_fmt: tested output bus format
+ * @num_input_fmts: will contain the size of the returned array
+ *
+ * This helper is a pluggable implementation of the
+ * &drm_bridge_funcs.atomic_get_input_bus_fmts operation for bridges that don't
+ * modify the bus configuration between their input and their output. It
+ * returns an array of input formats with a single element set to @output_fmt.
+ *
+ * RETURNS:
+ * a valid format array of size @num_input_fmts, or NULL if the allocation
+ * failed
+ */
+u32 *
+drm_atomic_helper_bridge_propagate_bus_fmt(struct drm_bridge *bridge,
+					struct drm_bridge_state *bridge_state,
+					struct drm_crtc_state *crtc_state,
+					struct drm_connector_state *conn_state,
+					u32 output_fmt,
+					unsigned int *num_input_fmts)
+{
+	u32 *input_fmts;
+
+	input_fmts = kzalloc(sizeof(*input_fmts), GFP_KERNEL);
+	if (!input_fmts) {
+		*num_input_fmts = 0;
+		return NULL;
+	}
+
+	*num_input_fmts = 1;
+	input_fmts[0] = output_fmt;
+	return input_fmts;
+}
+EXPORT_SYMBOL(drm_atomic_helper_bridge_propagate_bus_fmt);
