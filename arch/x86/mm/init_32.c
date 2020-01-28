@@ -52,6 +52,7 @@
 #include <asm/page_types.h>
 #include <asm/cpu_entry_area.h>
 #include <asm/init.h>
+#include <asm/pgtable_areas.h>
 
 #include "mm_internal.h"
 

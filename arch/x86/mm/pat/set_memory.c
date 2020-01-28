@@ -24,10 +24,10 @@
 #include <linux/uaccess.h>
 #include <asm/pgalloc.h>
 #include <asm/proto.h>
-#include <asm/pat.h>
+#include <asm/memtype.h>
 #include <asm/set_memory.h>
 
-#include "mm_internal.h"
+#include "../mm_internal.h"
 
 /*
  * The current flushing context - we pass it instead of 5 arguments:
@@ -331,7 +331,7 @@ static void cpa_flush_all(unsigned long cache)
 	on_each_cpu(__cpa_flush_all, (void *) cache, 1);
 }
 
-void __cpa_flush_tlb(void *data)
+static void __cpa_flush_tlb(void *data)
 {
 	struct cpa_data *cpa = data;
 	unsigned int i;
@@ -1801,7 +1801,7 @@ int set_memory_uc(unsigned long addr, int numpages)
 	/*
 	 * for now UC MINUS. see comments in ioremap()
 	 */
-	ret = reserve_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE,
+	ret = memtype_reserve(__pa(addr), __pa(addr) + numpages * PAGE_SIZE,
 			      _PAGE_CACHE_MODE_UC_MINUS, NULL);
 	if (ret)
 		goto out_err;
@@ -1813,7 +1813,7 @@ int set_memory_uc(unsigned long addr, int numpages)
 	return 0;
 
 out_free:
-	free_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE);
+	memtype_free(__pa(addr), __pa(addr) + numpages * PAGE_SIZE);
 out_err:
 	return ret;
 }
@@ -1839,14 +1839,14 @@ int set_memory_wc(unsigned long addr, int numpages)
 {
 	int ret;
 
-	ret = reserve_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE,
+	ret = memtype_reserve(__pa(addr), __pa(addr) + numpages * PAGE_SIZE,
 		_PAGE_CACHE_MODE_WC, NULL);
 	if (ret)
 		return ret;
 
 	ret = _set_memory_wc(addr, numpages);
 	if (ret)
-		free_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE);
+		memtype_free(__pa(addr), __pa(addr) + numpages * PAGE_SIZE);
 
 	return ret;
 }
@@ -1873,7 +1873,7 @@ int set_memory_wb(unsigned long addr, int numpages)
 	if (ret)
 		return ret;
 
-	free_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE);
+	memtype_free(__pa(addr), __pa(addr) + numpages * PAGE_SIZE);
 	return 0;
 }
 EXPORT_SYMBOL(set_memory_wb);
@@ -2014,7 +2014,7 @@ static int _set_pages_array(struct page **pages, int numpages,
 			continue;
 		start = page_to_pfn(pages[i]) << PAGE_SHIFT;
 		end = start + PAGE_SIZE;
-		if (reserve_memtype(start, end, new_type, NULL))
+		if (memtype_reserve(start, end, new_type, NULL))
 			goto err_out;
 	}
 
@@ -2040,7 +2040,7 @@ err_out:
 			continue;
 		start = page_to_pfn(pages[i]) << PAGE_SHIFT;
 		end = start + PAGE_SIZE;
-		free_memtype(start, end);
+		memtype_free(start, end);
 	}
 	return -EINVAL;
 }
@@ -2089,7 +2089,7 @@ int set_pages_array_wb(struct page **pages, int numpages)
 			continue;
 		start = page_to_pfn(pages[i]) << PAGE_SHIFT;
 		end = start + PAGE_SIZE;
-		free_memtype(start, end);
+		memtype_free(start, end);
 	}
 
 	return 0;
@@ -2215,7 +2215,7 @@ int __init kernel_map_pages_in_pgd(pgd_t *pgd, u64 pfn, unsigned long address,
 		.pgd = pgd,
 		.numpages = numpages,
 		.mask_set = __pgprot(0),
-		.mask_clr = __pgprot(0),
+		.mask_clr = __pgprot(~page_flags & (_PAGE_NX|_PAGE_RW)),
 		.flags = 0,
 	};
 
@@ -2223,12 +2223,6 @@ int __init kernel_map_pages_in_pgd(pgd_t *pgd, u64 pfn, unsigned long address,
 
 	if (!(__supported_pte_mask & _PAGE_NX))
 		goto out;
-
-	if (!(page_flags & _PAGE_NX))
-		cpa.mask_clr = __pgprot(_PAGE_NX);
-
-	if (!(page_flags & _PAGE_RW))
-		cpa.mask_clr = __pgprot(_PAGE_RW);
 
 	if (!(page_flags & _PAGE_ENC))
 		cpa.mask_clr = pgprot_encrypted(cpa.mask_clr);
@@ -2281,5 +2275,5 @@ int __init kernel_unmap_pages_in_pgd(pgd_t *pgd, unsigned long address,
  * be exposed to the rest of the kernel. Include these directly here.
  */
 #ifdef CONFIG_CPA_DEBUG
-#include "pageattr-test.c"
+#include "cpa-test.c"
 #endif

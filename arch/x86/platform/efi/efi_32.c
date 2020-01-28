@@ -66,9 +66,17 @@ void __init efi_map_region(efi_memory_desc_t *md)
 void __init efi_map_region_fixed(efi_memory_desc_t *md) {}
 void __init parse_efi_setup(u64 phys_addr, u32 data_len) {}
 
-pgd_t * __init efi_call_phys_prolog(void)
+efi_status_t efi_call_svam(efi_set_virtual_address_map_t *__efiapi *,
+			   u32, u32, u32, void *);
+
+efi_status_t __init efi_set_virtual_address_map(unsigned long memory_map_size,
+						unsigned long descriptor_size,
+						u32 descriptor_version,
+						efi_memory_desc_t *virtual_map)
 {
 	struct desc_ptr gdt_descr;
+	efi_status_t status;
+	unsigned long flags;
 	pgd_t *save_pgd;
 
 	/* Current pgd is swapper_pg_dir, we'll restore it later: */
@@ -80,14 +88,18 @@ pgd_t * __init efi_call_phys_prolog(void)
 	gdt_descr.size = GDT_SIZE - 1;
 	load_gdt(&gdt_descr);
 
-	return save_pgd;
-}
+	/* Disable interrupts around EFI calls: */
+	local_irq_save(flags);
+	status = efi_call_svam(&efi.systab->runtime->set_virtual_address_map,
+			       memory_map_size, descriptor_size,
+			       descriptor_version, virtual_map);
+	local_irq_restore(flags);
 
-void __init efi_call_phys_epilog(pgd_t *save_pgd)
-{
 	load_fixmap_gdt(0);
 	load_cr3(save_pgd);
 	__flush_tlb_all();
+
+	return status;
 }
 
 void __init efi_runtime_update_mappings(void)

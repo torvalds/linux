@@ -9,7 +9,7 @@
 #include <linux/scatterlist.h>
 #include <linux/numa.h>
 #include <asm/io.h>
-#include <asm/pat.h>
+#include <asm/memtype.h>
 #include <asm/x86_init.h>
 
 struct pci_sysdata {

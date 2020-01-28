@@ -42,6 +42,7 @@
 #include <asm/proto.h>
 #include <asm/unwind.h>
 #include <asm/vsyscall.h>
+#include <linux/vmalloc.h>
 
 /*
  * max_low_pfn_mapped: highest directly mapped pfn < 4 GB
