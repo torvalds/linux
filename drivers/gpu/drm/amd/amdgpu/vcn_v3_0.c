@@ -712,6 +712,15 @@ static int vcn_v3_0_start(struct amdgpu_device *adev)
 		WREG32_P(SOC15_REG_OFFSET(VCN, i, mmUVD_MASTINT_EN), 0,
 			~UVD_MASTINT_EN__VCPU_EN_MASK);
 
+		/* enable LMI MC and UMC channels */
+		WREG32_P(SOC15_REG_OFFSET(VCN, i, mmUVD_LMI_CTRL2), 0,
+			~UVD_LMI_CTRL2__STALL_ARB_UMC_MASK);
+
+		tmp = RREG32_SOC15(VCN, i, mmUVD_SOFT_RESET);
+		tmp &= ~UVD_SOFT_RESET__LMI_SOFT_RESET_MASK;
+		tmp &= ~UVD_SOFT_RESET__LMI_UMC_SOFT_RESET_MASK;
+		WREG32_SOC15(VCN, i, mmUVD_SOFT_RESET, tmp);
+
 		/* setup mmUVD_LMI_CTRL */
 		tmp = RREG32_SOC15(VCN, i, mmUVD_LMI_CTRL);
 		WREG32_SOC15(VCN, i, mmUVD_LMI_CTRL, tmp |
@@ -751,15 +760,6 @@ static int vcn_v3_0_start(struct amdgpu_device *adev)
 		/* VCN global tiling registers */
 		WREG32_SOC15(VCN, i, mmUVD_GFX10_ADDR_CONFIG,
 			adev->gfx.config.gb_addr_config);
-
-		/* enable LMI MC and UMC channels */
-		WREG32_P(SOC15_REG_OFFSET(VCN, i, mmUVD_LMI_CTRL2), 0,
-			~UVD_LMI_CTRL2__STALL_ARB_UMC_MASK);
-
-		tmp = RREG32_SOC15(VCN, i, mmUVD_SOFT_RESET);
-		tmp &= ~UVD_SOFT_RESET__LMI_SOFT_RESET_MASK;
-		tmp &= ~UVD_SOFT_RESET__LMI_UMC_SOFT_RESET_MASK;
-		WREG32_SOC15(VCN, i, mmUVD_SOFT_RESET, tmp);
 
 		/* unblock VCPU register access */
 		WREG32_P(SOC15_REG_OFFSET(VCN, i, mmUVD_RB_ARB_CTRL), 0,
