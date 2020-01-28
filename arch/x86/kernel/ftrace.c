@@ -23,6 +23,7 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/memory.h>
+#include <linux/vmalloc.h>
 
 #include <trace/syscall.h>
 
