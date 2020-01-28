@@ -116,6 +116,10 @@ void dmub_dcn20_reset(struct dmub_srv *dmub)
 				break;
 		}
 
+		/* Clear the GPINT command manually so we don't reset again. */
+		cmd.all = 0;
+		dmub->hw_funcs.set_gpint(dmub, cmd);
+
 		/* Force reset in case we timed out, DMCUB is likely hung. */
 	}
 
@@ -124,6 +128,7 @@ void dmub_dcn20_reset(struct dmub_srv *dmub)
 	REG_UPDATE(MMHUBBUB_SOFT_RESET, DMUIF_SOFT_RESET, 1);
 	REG_WRITE(DMCUB_INBOX1_RPTR, 0);
 	REG_WRITE(DMCUB_INBOX1_WPTR, 0);
+	REG_WRITE(DMCUB_SCRATCH0, 0);
 }
 
 void dmub_dcn20_reset_release(struct dmub_srv *dmub)
