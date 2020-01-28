@@ -1933,6 +1933,8 @@ static int mmci_probe(struct amba_device *dev,
 
 	host = mmc_priv(mmc);
 	host->mmc = mmc;
+	host->mmc_ops = &mmci_ops;
+	mmc->ops = &mmci_ops;
 
 	/*
 	 * Some variant (STM32) doesn't have opendrain bit, nevertheless
@@ -2071,8 +2073,6 @@ static int mmci_probe(struct amba_device *dev,
 	host->stop_abort.opcode = MMC_STOP_TRANSMISSION;
 	host->stop_abort.arg = 0;
 	host->stop_abort.flags = MMC_RSP_R1B | MMC_CMD_AC;
-
-	mmc->ops = &mmci_ops;
 
 	/* We support these PM capabilities. */
 	mmc->pm_caps |= MMC_PM_KEEP_POWER;
