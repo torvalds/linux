@@ -26,6 +26,9 @@
  *
  * See Documentation/admin-guide/dell_rbu.rst for more info.
  */
+
+#define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
+
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -61,13 +64,11 @@ static struct _rbu_data {
 
 static char image_type[MAX_IMAGE_LENGTH + 1] = "mono";
 module_param_string(image_type, image_type, sizeof (image_type), 0);
-MODULE_PARM_DESC(image_type,
-	"BIOS image type. choose- mono or packet or init");
+MODULE_PARM_DESC(image_type, "BIOS image type. choose- mono or packet or init");
 
 static unsigned long allocation_floor = 0x100000;
 module_param(allocation_floor, ulong, 0644);
-MODULE_PARM_DESC(allocation_floor,
-    "Minimum address for allocations when using Packet mode");
+MODULE_PARM_DESC(allocation_floor, "Minimum address for allocations when using Packet mode");
 
 struct packet_data {
 	struct list_head list;
@@ -100,10 +101,10 @@ static int create_packet(void *data, size_t length)
 	void *packet_data_temp_buf = NULL;
 	unsigned int idx = 0;
 
-	pr_debug("create_packet: entry \n");
+	pr_debug("entry\n");
 
 	if (!rbu_data.packetsize) {
-		pr_debug("create_packet: packetsize not specified\n");
+		pr_debug("packetsize not specified\n");
 		retval = -EINVAL;
 		goto out_noalloc;
 	}
@@ -113,9 +114,7 @@ static int create_packet(void *data, size_t length)
 	newpacket = kzalloc(sizeof (struct packet_data), GFP_KERNEL);
 
 	if (!newpacket) {
-		printk(KERN_WARNING
-			"dell_rbu:%s: failed to allocate new "
-			"packet\n", __func__);
+		pr_warn("failed to allocate new packet\n");
 		retval = -ENOMEM;
 		spin_lock(&rbu_data.lock);
 		goto out_noalloc;
@@ -139,10 +138,7 @@ static int create_packet(void *data, size_t length)
 						GFP_KERNEL);
 
 	if (!invalid_addr_packet_array) {
-		printk(KERN_WARNING
-			"dell_rbu:%s: failed to allocate "
-			"invalid_addr_packet_array \n",
-			__func__);
+		pr_warn("failed to allocate invalid_addr_packet_array\n");
 		retval = -ENOMEM;
 		spin_lock(&rbu_data.lock);
 		goto out_alloc_packet;
@@ -152,9 +148,7 @@ static int create_packet(void *data, size_t length)
 		packet_data_temp_buf = (unsigned char *)
 			__get_free_pages(GFP_KERNEL, ordernum);
 		if (!packet_data_temp_buf) {
-			printk(KERN_WARNING
-				"dell_rbu:%s: failed to allocate new "
-				"packet\n", __func__);
+			pr_warn("failed to allocate new packet\n");
 			retval = -ENOMEM;
 			spin_lock(&rbu_data.lock);
 			goto out_alloc_packet_array;
@@ -162,7 +156,7 @@ static int create_packet(void *data, size_t length)
 
 		if ((unsigned long)virt_to_phys(packet_data_temp_buf)
 				< allocation_floor) {
-			pr_debug("packet 0x%lx below floor at 0x%lx.\n",
+			pr_debug("packet 0x%lx below floor at 0x%lx\n",
 					(unsigned long)virt_to_phys(
 						packet_data_temp_buf),
 					allocation_floor);
@@ -179,7 +173,7 @@ static int create_packet(void *data, size_t length)
 
 	newpacket->data = packet_data_temp_buf;
 
-	pr_debug("create_packet: newpacket at physical addr %lx\n",
+	pr_debug("newpacket at physical addr %lx\n",
 		(unsigned long)virt_to_phys(newpacket->data));
 
 	/* packets may not have fixed size */
@@ -193,12 +187,12 @@ static int create_packet(void *data, size_t length)
 
 	memcpy(newpacket->data, data, length);
 
-	pr_debug("create_packet: exit \n");
+	pr_debug("exit\n");
 
 out_alloc_packet_array:
 	/* always free packet array */
 	while (idx--) {
-		pr_debug("freeing unused packet below floor 0x%lx.\n",
+		pr_debug("freeing unused packet below floor 0x%lx\n",
 			(unsigned long)virt_to_phys(invalid_addr_packet_array[idx]));
 		free_pages((unsigned long)invalid_addr_packet_array[idx], ordernum);
 	}
@@ -220,10 +214,9 @@ static int packetize_data(const u8 *data, size_t length)
 	int packet_length;
 	u8 *temp;
 	u8 *end = (u8 *) data + length;
-	pr_debug("packetize_data: data length %zd\n", length);
+	pr_debug("data length %zd\n", length);
 	if (!rbu_data.packetsize) {
-		printk(KERN_WARNING
-			"dell_rbu: packetsize not specified\n");
+		pr_warn("packetsize not specified\n");
 		return -EIO;
 	}
 
@@ -392,8 +385,7 @@ static int img_update_realloc(unsigned long size)
 		 * check for corruption
 		 */
 		if ((size != 0) && (rbu_data.image_update_buffer == NULL)) {
-			printk(KERN_ERR "dell_rbu:%s: corruption "
-				"check failed\n", __func__);
+			pr_err("corruption check failed\n");
 			return -EINVAL;
 		}
 		/*
@@ -415,8 +407,7 @@ static int img_update_realloc(unsigned long size)
 		(unsigned char *)__get_free_pages(GFP_DMA32, ordernum);
 	spin_lock(&rbu_data.lock);
 	if (!image_update_buffer) {
-		pr_debug("Not enough memory for image update:"
-			"size = %ld\n", size);
+		pr_debug("Not enough memory for image update: size = %ld\n", size);
 		return -ENOMEM;
 	}
 
@@ -440,15 +431,14 @@ static ssize_t read_packet_data(char *buffer, loff_t pos, size_t count)
 
 	/* check to see if we have something to return */
 	if (rbu_data.num_packets == 0) {
-		pr_debug("read_packet_data: no packets written\n");
+		pr_debug("no packets written\n");
 		retval = -ENOMEM;
 		goto read_rbu_data_exit;
 	}
 
 	if (pos > rbu_data.imagesize) {
 		retval = 0;
-		printk(KERN_WARNING "dell_rbu:read_packet_data: "
-			"data underrun\n");
+		pr_warn("data underrun\n");
 		goto read_rbu_data_exit;
 	}
 
@@ -474,8 +464,7 @@ static ssize_t read_rbu_mono_data(char *buffer, loff_t pos, size_t count)
 	/* check to see if we have something to return */
 	if ((rbu_data.image_update_buffer == NULL) ||
 		(rbu_data.bios_image_size == 0)) {
-		pr_debug("read_rbu_data_mono: image_update_buffer %p ,"
-			"bios_image_size %lu\n",
+		pr_debug("image_update_buffer %p, bios_image_size %lu\n",
 			rbu_data.image_update_buffer,
 			rbu_data.bios_image_size);
 		return -ENOMEM;
@@ -498,7 +487,7 @@ static ssize_t data_read(struct file *filp, struct kobject *kobj,
 	else if (!strcmp(image_type, "packet"))
 		ret_count = read_packet_data(buffer, pos, count);
 	else
-		pr_debug("read_rbu_data: invalid image type specified\n");
+		pr_debug("invalid image type specified\n");
 
 	spin_unlock(&rbu_data.lock);
 	return ret_count;
@@ -534,7 +523,7 @@ static void callbackfn_rbu(const struct firmware *fw, void *context)
 			 */
 			packet_empty_list();
 	} else
-		pr_debug("invalid image type specified.\n");
+		pr_debug("invalid image type specified\n");
 	spin_unlock(&rbu_data.lock);
  out:
 	release_firmware(fw);
@@ -588,9 +577,7 @@ static ssize_t image_type_write(struct file *filp, struct kobject *kobj,
 				&rbu_device->dev, GFP_KERNEL, &context,
 				callbackfn_rbu);
 			if (req_firm_rc) {
-				printk(KERN_ERR
-					"dell_rbu:%s request_firmware_nowait"
-					" failed %d\n", __func__, rc);
+				pr_err("request_firmware_nowait failed %d\n", rc);
 				rc = -EIO;
 			} else
 				rbu_data.entry_created = 1;
@@ -598,7 +585,7 @@ static ssize_t image_type_write(struct file *filp, struct kobject *kobj,
 			spin_lock(&rbu_data.lock);
 		}
 	} else {
-		printk(KERN_WARNING "dell_rbu: image_type is invalid\n");
+		pr_warn("image_type is invalid\n");
 		spin_unlock(&rbu_data.lock);
 		return -EINVAL;
 	}
@@ -660,9 +647,7 @@ static int __init dcdrbu_init(void)
 	init_packet_head();
 	rbu_device = platform_device_register_simple("dell_rbu", -1, NULL, 0);
 	if (IS_ERR(rbu_device)) {
-		printk(KERN_ERR
-			"dell_rbu:%s:platform_device_register_simple "
-			"failed\n", __func__);
+		pr_err("platform_device_register_simple failed\n");
 		return PTR_ERR(rbu_device);
 	}
 
