@@ -354,7 +354,7 @@ static void get_dsi_io_power_domains(struct drm_i915_private *dev_priv,
 	enum port port;
 
 	for_each_dsi_port(port, intel_dsi->ports) {
-		WARN_ON(intel_dsi->io_wakeref[port]);
+		drm_WARN_ON(&dev_priv->drm, intel_dsi->io_wakeref[port]);
 		intel_dsi->io_wakeref[port] =
 			intel_display_power_get(dev_priv,
 						port == PORT_A ?
@@ -1396,11 +1396,13 @@ static int gen11_dsi_dsc_compute_config(struct intel_encoder *encoder,
 		return ret;
 
 	/* DSI specific sanity checks on the common code */
-	WARN_ON(vdsc_cfg->vbr_enable);
-	WARN_ON(vdsc_cfg->simple_422);
-	WARN_ON(vdsc_cfg->pic_width % vdsc_cfg->slice_width);
-	WARN_ON(vdsc_cfg->slice_height < 8);
-	WARN_ON(vdsc_cfg->pic_height % vdsc_cfg->slice_height);
+	drm_WARN_ON(&dev_priv->drm, vdsc_cfg->vbr_enable);
+	drm_WARN_ON(&dev_priv->drm, vdsc_cfg->simple_422);
+	drm_WARN_ON(&dev_priv->drm,
+		    vdsc_cfg->pic_width % vdsc_cfg->slice_width);
+	drm_WARN_ON(&dev_priv->drm, vdsc_cfg->slice_height < 8);
+	drm_WARN_ON(&dev_priv->drm,
+		    vdsc_cfg->pic_height % vdsc_cfg->slice_height);
 
 	ret = drm_dsc_compute_rc_parameters(vdsc_cfg);
 	if (ret)
