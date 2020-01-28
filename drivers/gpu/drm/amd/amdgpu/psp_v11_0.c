@@ -22,6 +22,7 @@
 
 #include <linux/firmware.h>
 #include <linux/module.h>
+#include <linux/vmalloc.h>
 
 #include "amdgpu.h"
 #include "amdgpu_psp.h"
