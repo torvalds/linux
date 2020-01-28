@@ -198,16 +198,16 @@ static void gen6_check_faults(struct intel_gt *gt)
 	for_each_engine(engine, gt, id) {
 		fault = GEN6_RING_FAULT_REG_READ(engine);
 		if (fault & RING_FAULT_VALID) {
-			DRM_DEBUG_DRIVER("Unexpected fault\n"
-					 "\tAddr: 0x%08lx\n"
-					 "\tAddress space: %s\n"
-					 "\tSource ID: %d\n"
-					 "\tType: %d\n",
-					 fault & PAGE_MASK,
-					 fault & RING_FAULT_GTTSEL_MASK ?
-					 "GGTT" : "PPGTT",
-					 RING_FAULT_SRCID(fault),
-					 RING_FAULT_FAULT_TYPE(fault));
+			drm_dbg(&engine->i915->drm, "Unexpected fault\n"
+				"\tAddr: 0x%08lx\n"
+				"\tAddress space: %s\n"
+				"\tSource ID: %d\n"
+				"\tType: %d\n",
+				fault & PAGE_MASK,
+				fault & RING_FAULT_GTTSEL_MASK ?
+				"GGTT" : "PPGTT",
+				RING_FAULT_SRCID(fault),
+				RING_FAULT_FAULT_TYPE(fault));
 		}
 	}
 }
@@ -239,18 +239,17 @@ static void gen8_check_faults(struct intel_gt *gt)
 		fault_addr = ((u64)(fault_data1 & FAULT_VA_HIGH_BITS) << 44) |
 			     ((u64)fault_data0 << 12);
 
-		DRM_DEBUG_DRIVER("Unexpected fault\n"
-				 "\tAddr: 0x%08x_%08x\n"
-				 "\tAddress space: %s\n"
-				 "\tEngine ID: %d\n"
-				 "\tSource ID: %d\n"
-				 "\tType: %d\n",
-				 upper_32_bits(fault_addr),
-				 lower_32_bits(fault_addr),
-				 fault_data1 & FAULT_GTT_SEL ? "GGTT" : "PPGTT",
-				 GEN8_RING_FAULT_ENGINE_ID(fault),
-				 RING_FAULT_SRCID(fault),
-				 RING_FAULT_FAULT_TYPE(fault));
+		drm_dbg(&uncore->i915->drm, "Unexpected fault\n"
+			"\tAddr: 0x%08x_%08x\n"
+			"\tAddress space: %s\n"
+			"\tEngine ID: %d\n"
+			"\tSource ID: %d\n"
+			"\tType: %d\n",
+			upper_32_bits(fault_addr), lower_32_bits(fault_addr),
+			fault_data1 & FAULT_GTT_SEL ? "GGTT" : "PPGTT",
+			GEN8_RING_FAULT_ENGINE_ID(fault),
+			RING_FAULT_SRCID(fault),
+			RING_FAULT_FAULT_TYPE(fault));
 	}
 }
 
