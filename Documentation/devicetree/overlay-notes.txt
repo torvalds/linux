@@ -19,6 +19,7 @@ Lets take an example where we have a foo board with the following base tree:
 
 ---- foo.dts -----------------------------------------------------------------
 	/* FOO platform */
+	/dts-v1/;
 	/ {
 		compatible = "corp,foo";
 
@@ -30,30 +31,25 @@ Lets take an example where we have a foo board with the following base tree:
 		ocp: ocp {
 			/* peripherals that are always instantiated */
 			peripheral1 { ... };
-		}
+		};
 	};
 ---- foo.dts -----------------------------------------------------------------
 
-The overlay bar.dts, when loaded (and resolved as described in [1]) should
+The overlay bar.dts,
 
----- bar.dts -----------------------------------------------------------------
-/plugin/;	/* allow undefined label references and record them */
-/ {
-	....	/* various properties for loader use; i.e. part id etc. */
-	fragment@0 {
-		target = <&ocp>;
-		__overlay__ {
-			/* bar peripheral */
-			bar {
-				compatible = "corp,bar";
-				... /* various properties and child nodes */
-			}
+---- bar.dts - overlay target location by label ------------------------------
+	/dts-v1/;
+	/plugin/;
+	&ocp {
+		/* bar peripheral */
+		bar {
+			compatible = "corp,bar";
+			... /* various properties and child nodes */
 		};
 	};
-};
 ---- bar.dts -----------------------------------------------------------------
 
-result in foo+bar.dts
+when loaded (and resolved as described in [1]) should result in foo+bar.dts
 
 ---- foo+bar.dts -------------------------------------------------------------
 	/* FOO platform + bar peripheral */
@@ -73,14 +69,35 @@ result in foo+bar.dts
 			bar {
 				compatible = "corp,bar";
 				... /* various properties and child nodes */
-			}
-		}
+			};
+		};
 	};
 ---- foo+bar.dts -------------------------------------------------------------
 
 As a result of the overlay, a new device node (bar) has been created
 so a bar platform device will be registered and if a matching device driver
 is loaded the device will be created as expected.
+
+If the base DT was not compiled with the -@ option then the "&ocp" label
+will not be available to resolve the overlay node(s) to the proper location
+in the base DT. In this case, the target path can be provided. The target
+location by label syntax is preferred because the overlay can be applied to
+any base DT containing the label, no matter where the label occurs in the DT.
+
+The above bar.dts example modified to use target path syntax is:
+
+---- bar.dts - overlay target location by explicit path ----------------------
+	/dts-v1/;
+	/plugin/;
+	&{/ocp} {
+		/* bar peripheral */
+		bar {
+			compatible = "corp,bar";
+			... /* various properties and child nodes */
+		}
+	};
+---- bar.dts -----------------------------------------------------------------
+
 
 Overlay in-kernel API
 --------------------------------
@@ -105,35 +122,3 @@ enum of_overlay_notify_action for details.
 Note that a notifier callback is not supposed to store pointers to a device
 tree node or its content beyond OF_OVERLAY_POST_REMOVE corresponding to the
 respective node it received.
-
-Overlay DTS Format
-------------------
-
-The DTS of an overlay should have the following format:
-
-{
-	/* ignored properties by the overlay */
-
-	fragment@0 {	/* first child node */
-
-		target=<phandle>;	/* phandle target of the overlay */
-	or
-		target-path="/path";	/* target path of the overlay */
-
-		__overlay__ {
-			property-a;	/* add property-a to the target */
-			node-a {	/* add to an existing, or create a node-a */
-				...
-			};
-		};
-	}
-	fragment@1 {	/* second child node */
-		...
-	};
-	/* more fragments follow */
-}
-
-Using the non-phandle based target method allows one to use a base DT which does
-not contain a __symbols__ node, i.e. it was not compiled with the -@ option.
-The __symbols__ node is only required for the target=<phandle> method, since it
-contains the information required to map from a phandle to a tree location.
