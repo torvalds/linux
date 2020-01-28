@@ -597,7 +597,6 @@ struct fc_vft_header {
 #define ELS_CMD_ADISC     0x52000000
 #define ELS_CMD_FARP      0x54000000
 #define ELS_CMD_FARPR     0x55000000
-#define ELS_CMD_RPS       0x56000000
 #define ELS_CMD_RPL       0x57000000
 #define ELS_CMD_FAN       0x60000000
 #define ELS_CMD_RSCN      0x61040000
@@ -639,7 +638,6 @@ struct fc_vft_header {
 #define ELS_CMD_ADISC     0x52
 #define ELS_CMD_FARP      0x54
 #define ELS_CMD_FARPR     0x55
-#define ELS_CMD_RPS       0x56
 #define ELS_CMD_RPL       0x57
 #define ELS_CMD_FAN       0x60
 #define ELS_CMD_RSCN      0x0461
@@ -918,24 +916,6 @@ typedef struct _RNID {		/* Structure is in Big Endian format */
 		RNID_TOP_DISC topologyDisc;	/* topology disc (0xdf) */
 	} un;
 } __packed RNID;
-
-typedef struct  _RPS {		/* Structure is in Big Endian format */
-	union {
-		uint32_t portNum;
-		struct lpfc_name portName;
-	} un;
-} RPS;
-
-typedef struct  _RPS_RSP {	/* Structure is in Big Endian format */
-	uint16_t rsvd1;
-	uint16_t portStatus;
-	uint32_t linkFailureCnt;
-	uint32_t lossSyncCnt;
-	uint32_t lossSignalCnt;
-	uint32_t primSeqErrCnt;
-	uint32_t invalidXmitWord;
-	uint32_t crcCnt;
-} RPS_RSP;
 
 struct RLS {			/* Structure is in Big Endian format */
 	uint32_t rls;
