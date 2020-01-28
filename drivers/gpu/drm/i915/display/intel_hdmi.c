@@ -2275,11 +2275,6 @@ static bool hdmi_deep_color_possible(const struct intel_crtc_state *crtc_state,
 		}
 	}
 
-	/* Display WA #1139: glk */
-	if (bpc == 12 && IS_GLK_REVID(dev_priv, 0, GLK_REVID_A1) &&
-	    adjusted_mode->htotal > 5460)
-		return false;
-
 	/* Display Wa_1405510057:icl */
 	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420 &&
 	    bpc == 10 && INTEL_GEN(dev_priv) >= 11 &&
