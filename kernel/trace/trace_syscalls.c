@@ -274,7 +274,8 @@ static int __init syscall_enter_define_fields(struct trace_event_call *call)
 	struct syscall_trace_enter trace;
 	struct syscall_metadata *meta = call->data;
 	int offset = offsetof(typeof(trace), args);
-	int ret, i;
+	int ret = 0;
+	int i;
 
 	for (i = 0; i < meta->nb_args; i++) {
 		ret = trace_define_field(call, meta->types[i],
