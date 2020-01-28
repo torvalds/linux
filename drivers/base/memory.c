@@ -691,7 +691,7 @@ static int add_memory_block(int base_section_nr)
 	int i, ret, section_count = 0, section_nr;
 
 	for (i = base_section_nr;
-	     (i < base_section_nr + sections_per_block) && i < NR_MEM_SECTIONS;
+	     i < base_section_nr + sections_per_block;
 	     i++) {
 		if (!present_section_nr(i))
 			continue;
