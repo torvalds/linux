@@ -200,10 +200,10 @@ u32 intel_engine_context_size(struct intel_gt *gt, u8 class)
 			 * out in the wash.
 			 */
 			cxt_size = intel_uncore_read(uncore, CXT_SIZE) + 1;
-			DRM_DEBUG_DRIVER("gen%d CXT_SIZE = %d bytes [0x%08x]\n",
-					 INTEL_GEN(gt->i915),
-					 cxt_size * 64,
-					 cxt_size - 1);
+			drm_dbg(&gt->i915->drm,
+				"gen%d CXT_SIZE = %d bytes [0x%08x]\n",
+				INTEL_GEN(gt->i915), cxt_size * 64,
+				cxt_size - 1);
 			return round_up(cxt_size * 64, PAGE_SIZE);
 		case 3:
 		case 2:
@@ -563,7 +563,8 @@ static int init_status_page(struct intel_engine_cs *engine)
 	 */
 	obj = i915_gem_object_create_internal(engine->i915, PAGE_SIZE);
 	if (IS_ERR(obj)) {
-		DRM_ERROR("Failed to allocate status page\n");
+		drm_err(&engine->i915->drm,
+			"Failed to allocate status page\n");
 		return PTR_ERR(obj);
 	}
 
