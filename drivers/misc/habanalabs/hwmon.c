@@ -127,6 +127,7 @@ static int hl_read(struct device *dev, enum hwmon_sensor_types type,
 		case hwmon_temp_max_hyst:
 		case hwmon_temp_crit_hyst:
 		case hwmon_temp_offset:
+		case hwmon_temp_highest:
 			break;
 		default:
 			return -EINVAL;
@@ -139,6 +140,7 @@ static int hl_read(struct device *dev, enum hwmon_sensor_types type,
 		case hwmon_in_input:
 		case hwmon_in_min:
 		case hwmon_in_max:
+		case hwmon_in_highest:
 			break;
 		default:
 			return -EINVAL;
@@ -151,6 +153,7 @@ static int hl_read(struct device *dev, enum hwmon_sensor_types type,
 		case hwmon_curr_input:
 		case hwmon_curr_min:
 		case hwmon_curr_max:
+		case hwmon_curr_highest:
 			break;
 		default:
 			return -EINVAL;
@@ -230,6 +233,7 @@ static umode_t hl_is_visible(const void *data, enum hwmon_sensor_types type,
 		case hwmon_temp_max_hyst:
 		case hwmon_temp_crit:
 		case hwmon_temp_crit_hyst:
+		case hwmon_temp_highest:
 			return 0444;
 		case hwmon_temp_offset:
 			return 0644;
@@ -240,6 +244,7 @@ static umode_t hl_is_visible(const void *data, enum hwmon_sensor_types type,
 		case hwmon_in_input:
 		case hwmon_in_min:
 		case hwmon_in_max:
+		case hwmon_in_highest:
 			return 0444;
 		}
 		break;
@@ -248,6 +253,7 @@ static umode_t hl_is_visible(const void *data, enum hwmon_sensor_types type,
 		case hwmon_curr_input:
 		case hwmon_curr_min:
 		case hwmon_curr_max:
+		case hwmon_curr_highest:
 			return 0444;
 		}
 		break;

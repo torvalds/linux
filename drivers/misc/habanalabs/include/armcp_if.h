@@ -287,19 +287,22 @@ enum armcp_temp_type {
 	armcp_temp_max_hyst,
 	armcp_temp_crit,
 	armcp_temp_crit_hyst,
-	armcp_temp_offset = 19
+	armcp_temp_offset = 19,
+	armcp_temp_highest = 22
 };
 
 enum armcp_in_attributes {
 	armcp_in_input,
 	armcp_in_min,
-	armcp_in_max
+	armcp_in_max,
+	armcp_in_highest = 7
 };
 
 enum armcp_curr_attributes {
 	armcp_curr_input,
 	armcp_curr_min,
-	armcp_curr_max
+	armcp_curr_max,
+	armcp_curr_highest = 7
 };
 
 enum armcp_fan_attributes {
