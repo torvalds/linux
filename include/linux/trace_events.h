@@ -192,6 +192,22 @@ enum trace_reg {
 
 struct trace_event_call;
 
+#define TRACE_FUNCTION_TYPE ((const char *)~0UL)
+
+struct trace_event_fields {
+	const char *type;
+	union {
+		struct {
+			const char *name;
+			const int  size;
+			const int  align;
+			const int  is_signed;
+			const int  filter_type;
+		};
+		int (*define_fields)(struct trace_event_call *);
+	};
+};
+
 struct trace_event_class {
 	const char		*system;
 	void			*probe;
@@ -200,7 +216,7 @@ struct trace_event_class {
 #endif
 	int			(*reg)(struct trace_event_call *event,
 				       enum trace_reg type, void *data);
-	int			(*define_fields)(struct trace_event_call *);
+	struct trace_event_fields *fields_array;
 	struct list_head	*(*get_fields)(struct trace_event_call *);
 	struct list_head	fields;
 	int			(*raw_init)(struct trace_event_call *);

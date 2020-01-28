@@ -203,11 +203,10 @@ print_syscall_exit(struct trace_iterator *iter, int flags,
 
 extern char *__bad_type_size(void);
 
-#define SYSCALL_FIELD(type, field, name)				\
-	sizeof(type) != sizeof(trace.field) ?				\
-		__bad_type_size() :					\
-		#type, #name, offsetof(typeof(trace), field),		\
-		sizeof(trace.field), is_signed_type(type)
+#define SYSCALL_FIELD(_type, _name) {					\
+	.type = #_type, .name = #_name,					\
+	.size = sizeof(_type), .align = __alignof__(_type),		\
+	.is_signed = is_signed_type(_type), .filter_type = FILTER_OTHER }
 
 static int __init
 __set_enter_print_fmt(struct syscall_metadata *entry, char *buf, int len)
@@ -274,38 +273,19 @@ static int __init syscall_enter_define_fields(struct trace_event_call *call)
 {
 	struct syscall_trace_enter trace;
 	struct syscall_metadata *meta = call->data;
-	int ret;
-	int i;
 	int offset = offsetof(typeof(trace), args);
-
-	ret = trace_define_field(call, SYSCALL_FIELD(int, nr, __syscall_nr),
-				 FILTER_OTHER);
-	if (ret)
-		return ret;
+	int ret = 0;
+	int i;
 
 	for (i = 0; i < meta->nb_args; i++) {
 		ret = trace_define_field(call, meta->types[i],
 					 meta->args[i], offset,
 					 sizeof(unsigned long), 0,
 					 FILTER_OTHER);
+		if (ret)
+			break;
 		offset += sizeof(unsigned long);
 	}
-
-	return ret;
-}
-
-static int __init syscall_exit_define_fields(struct trace_event_call *call)
-{
-	struct syscall_trace_exit trace;
-	int ret;
-
-	ret = trace_define_field(call, SYSCALL_FIELD(int, nr, __syscall_nr),
-				 FILTER_OTHER);
-	if (ret)
-		return ret;
-
-	ret = trace_define_field(call, SYSCALL_FIELD(long, ret, ret),
-				 FILTER_OTHER);
 
 	return ret;
 }
@@ -507,6 +487,13 @@ static int __init init_syscall_trace(struct trace_event_call *call)
 	return id;
 }
 
+static struct trace_event_fields __refdata syscall_enter_fields_array[] = {
+	SYSCALL_FIELD(int, __syscall_nr),
+	{ .type = TRACE_FUNCTION_TYPE,
+	  .define_fields = syscall_enter_define_fields },
+	{}
+};
+
 struct trace_event_functions enter_syscall_print_funcs = {
 	.trace		= print_syscall_enter,
 };
@@ -518,7 +505,7 @@ struct trace_event_functions exit_syscall_print_funcs = {
 struct trace_event_class __refdata event_class_syscall_enter = {
 	.system		= "syscalls",
 	.reg		= syscall_enter_register,
-	.define_fields	= syscall_enter_define_fields,
+	.fields_array	= syscall_enter_fields_array,
 	.get_fields	= syscall_get_enter_fields,
 	.raw_init	= init_syscall_trace,
 };
@@ -526,7 +513,11 @@ struct trace_event_class __refdata event_class_syscall_enter = {
 struct trace_event_class __refdata event_class_syscall_exit = {
 	.system		= "syscalls",
 	.reg		= syscall_exit_register,
-	.define_fields	= syscall_exit_define_fields,
+	.fields_array	= (struct trace_event_fields[]){
+		SYSCALL_FIELD(int, __syscall_nr),
+		SYSCALL_FIELD(long, ret),
+		{}
+	},
 	.fields		= LIST_HEAD_INIT(event_class_syscall_exit.fields),
 	.raw_init	= init_syscall_trace,
 };

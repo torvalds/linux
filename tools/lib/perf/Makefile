@@ -60,7 +60,7 @@ else
 endif
 
 INCLUDES = \
--I$(srctree)/tools/perf/lib/include \
+-I$(srctree)/tools/lib/perf/include \
 -I$(srctree)/tools/lib/ \
 -I$(srctree)/tools/include \
 -I$(srctree)/tools/arch/$(SRCARCH)/include/ \
@@ -181,7 +181,10 @@ install_pkgconfig: $(LIBPERF_PC)
 	$(call QUIET_INSTALL, $(LIBPERF_PC)) \
 		$(call do_install,$(LIBPERF_PC),$(libdir_SQ)/pkgconfig,644)
 
-install: install_lib install_headers install_pkgconfig
+install_doc:
+	$(Q)$(MAKE) -C Documentation install-man install-html install-examples
+
+install: install_lib install_headers install_pkgconfig install_doc
 
 FORCE:
 
