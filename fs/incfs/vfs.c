@@ -18,7 +18,6 @@
 
 #include <uapi/linux/incrementalfs.h>
 
-#include "compat.h"
 #include "data_mgmt.h"
 #include "format.h"
 #include "integrity.h"
@@ -30,6 +29,9 @@
 #define READ_FILE_MODE 0444
 #define READ_EXEC_FILE_MODE 0555
 #define READ_WRITE_FILE_MODE 0666
+
+/* Needed for kernel 4.14 - remove for later kernels */
+typedef unsigned int __poll_t;
 
 static int incfs_remount_fs(struct super_block *sb, int *flags, char *data);
 
@@ -85,16 +87,12 @@ static const struct super_operations incfs_super_ops = {
 	.show_options = show_options
 };
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 9, 0)
-#define dir_rename_wrap dir_rename
-#else
 static int dir_rename_wrap(struct inode *old_dir, struct dentry *old_dentry,
 		struct inode *new_dir, struct dentry *new_dentry,
 		unsigned int flags)
 {
 	return dir_rename(old_dir, old_dentry, new_dir, new_dentry);
 }
-#endif
 
 static const struct inode_operations incfs_dir_inode_ops = {
 	.lookup = dir_lookup,
@@ -157,17 +155,6 @@ static const struct file_operations incfs_log_file_ops = {
 	.compat_ioctl = dispatch_ioctl
 };
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4,9,0)
-
-static const struct inode_operations incfs_file_inode_ops = {
-	.setattr = simple_setattr,
-	.getattr = simple_getattr,
-	.getxattr = incfs_getxattr,
-	.listxattr = incfs_listxattr
-};
-
-#else
-
 static const struct inode_operations incfs_file_inode_ops = {
 	.setattr = simple_setattr,
 	.getattr = simple_getattr,
@@ -190,9 +177,6 @@ const struct xattr_handler *incfs_xattr_ops[] = {
 	&incfs_xattr_handler,
 	NULL,
 };
-
-
-#endif
 
 /* State of an open .pending_reads file, unique for each file descriptor. */
 struct pending_reads_state {
@@ -1645,12 +1629,8 @@ static int dir_unlink(struct inode *dir, struct dentry *dentry)
 		goto out;
 	}
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0)
-	err = vfs_getattr(&backing_path, &stat);
-#else
 	err = vfs_getattr(&backing_path, &stat, STATX_NLINK,
 			  AT_STATX_SYNC_AS_STAT);
-#endif
 	if (err)
 		goto out;
 
@@ -2076,9 +2056,7 @@ struct dentry *incfs_mount_fs(struct file_system_type *type, int flags,
 	sb->s_time_gran = 1;
 	sb->s_blocksize = INCFS_DATA_FILE_BLOCK_SIZE;
 	sb->s_blocksize_bits = blksize_bits(sb->s_blocksize);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,9,0)
 	sb->s_xattr = incfs_xattr_ops;
-#endif
 
 	BUILD_BUG_ON(PAGE_SIZE != INCFS_DATA_FILE_BLOCK_SIZE);
 

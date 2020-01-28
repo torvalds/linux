@@ -456,12 +456,8 @@ static struct pending_read *add_pending_read(struct data_file *df,
 	struct data_file_segment *segment = NULL;
 	struct mount_info *mi = NULL;
 
-	WARN_ON(!df);
 	segment = get_file_segment(df, block_index);
 	mi = df->df_mount_info;
-
-	WARN_ON(!segment);
-	WARN_ON(!mi);
 
 	result = kzalloc(sizeof(*result), GFP_NOFS);
 	if (!result)
@@ -545,8 +541,6 @@ static int wait_for_data_block(struct data_file *df, int block_index,
 		return -ENODATA;
 
 	segment = get_file_segment(df, block_index);
-	WARN_ON(!segment);
-
 	error = mutex_lock_interruptible(&segment->blockmap_mutex);
 	if (error)
 		return error;
@@ -596,10 +590,10 @@ static int wait_for_data_block(struct data_file *df, int block_index,
 		return -ETIME;
 	}
 	if (wait_res < 0) {
-	/*
-	 * Only ERESTARTSYS is really expected here when a signal
-	 * comes while we wait.
-	 */
+		/*
+		 * Only ERESTARTSYS is really expected here when a signal
+		 * comes while we wait.
+		 */
 		return wait_res;
 	}
 

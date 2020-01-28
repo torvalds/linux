@@ -26,11 +26,7 @@ int incfs_validate_pkcs7_signature(struct mem_range pkcs7_blob,
 		return PTR_ERR(pkcs7);
 	}
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 7, 0)
-	err = pkcs7_get_content_data(pkcs7, &data, &data_len, false);
-#else
 	err = pkcs7_get_content_data(pkcs7, &data, &data_len, NULL);
-#endif
 	if (err || data_len == 0 || data == NULL) {
 		pr_debug("PKCS#7 message does not contain data\n");
 		err = -EBADMSG;
