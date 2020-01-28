@@ -255,15 +255,13 @@ static int packetize_data(const u8 *data, size_t length)
 	return rc;
 }
 
-static int do_packet_read(char *data, struct list_head *ptemp_list,
+static int do_packet_read(char *data, struct packet_data *newpacket,
 	int length, int bytes_read, int *list_read_count)
 {
 	void *ptemp_buf;
-	struct packet_data *newpacket = NULL;
 	int bytes_copied = 0;
 	int j = 0;
 
-	newpacket = list_entry(ptemp_list, struct packet_data, list);
 	*list_read_count += newpacket->length;
 
 	if (*list_read_count > bytes_read) {
@@ -291,7 +289,7 @@ static int do_packet_read(char *data, struct list_head *ptemp_list,
 
 static int packet_read_list(char *data, size_t * pread_length)
 {
-	struct list_head *ptemp_list;
+	struct packet_data *newpacket;
 	int temp_count = 0;
 	int bytes_copied = 0;
 	int bytes_read = 0;
@@ -305,9 +303,8 @@ static int packet_read_list(char *data, size_t * pread_length)
 	remaining_bytes = *pread_length;
 	bytes_read = rbu_data.packet_read_count;
 
-	ptemp_list = (&packet_data_head.list)->next;
-	while (!list_empty(ptemp_list)) {
-		bytes_copied = do_packet_read(pdest, ptemp_list,
+	list_for_each_entry(newpacket, (&packet_data_head.list)->next, list) {
+		bytes_copied = do_packet_read(pdest, newpacket,
 			remaining_bytes, bytes_read, &temp_count);
 		remaining_bytes -= bytes_copied;
 		bytes_read += bytes_copied;
@@ -318,8 +315,6 @@ static int packet_read_list(char *data, size_t * pread_length)
 		 */
 		if (remaining_bytes == 0)
 			break;
-
-		ptemp_list = ptemp_list->next;
 	}
 	/*finally set the bytes read */
 	*pread_length = bytes_read - rbu_data.packet_read_count;
@@ -329,17 +324,11 @@ static int packet_read_list(char *data, size_t * pread_length)
 
 static void packet_empty_list(void)
 {
-	struct list_head *ptemp_list;
-	struct list_head *pnext_list;
-	struct packet_data *newpacket;
+	struct packet_data *newpacket, *tmp;
 
-	ptemp_list = (&packet_data_head.list)->next;
-	while (!list_empty(ptemp_list)) {
-		newpacket =
-			list_entry(ptemp_list, struct packet_data, list);
-		pnext_list = ptemp_list->next;
-		list_del(ptemp_list);
-		ptemp_list = pnext_list;
+	list_for_each_entry_safe(newpacket, tmp, (&packet_data_head.list)->next, list) {
+		list_del(&newpacket->list);
+
 		/*
 		 * zero out the RBU packet memory before freeing
 		 * to make sure there are no stale RBU packets left in memory
