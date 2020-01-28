@@ -32,6 +32,7 @@
 #define DLYB_CFGR_UNIT_MAX	127
 
 #define DLYB_LNG_TIMEOUT_US	1000
+#define SDMMC_VSWEND_TIMEOUT_US 10000
 
 struct sdmmc_lli_desc {
 	u32 idmalar;
@@ -265,6 +266,7 @@ static void mmci_sdmmc_set_pwrreg(struct mmci_host *host, unsigned int pwr)
 	struct mmc_ios ios = host->mmc->ios;
 	struct sdmmc_dlyb *dlyb = host->variant_priv;
 
+	/* adds OF options */
 	pwr = host->pwr_reg_add;
 
 	sdmmc_dlyb_input_ck(dlyb);
@@ -290,6 +292,10 @@ static void mmci_sdmmc_set_pwrreg(struct mmci_host *host, unsigned int pwr)
 		 */
 		writel(MCI_IRQENABLE | host->variant->start_err,
 		       host->base + MMCIMASK0);
+
+		/* preserves voltage switch bits */
+		pwr |= host->pwr_reg & (MCI_STM32_VSWITCHEN |
+					MCI_STM32_VSWITCH);
 
 		/*
 		 * After a power-cycle state, we must set the SDMMC in
@@ -456,6 +462,41 @@ static int sdmmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	return sdmmc_dlyb_phase_tuning(host, opcode);
 }
 
+static void sdmmc_pre_sig_volt_vswitch(struct mmci_host *host)
+{
+	/* clear the voltage switch completion flag */
+	writel_relaxed(MCI_STM32_VSWENDC, host->base + MMCICLEAR);
+	/* enable Voltage switch procedure */
+	mmci_write_pwrreg(host, host->pwr_reg | MCI_STM32_VSWITCHEN);
+}
+
+static int sdmmc_post_sig_volt_switch(struct mmci_host *host,
+				      struct mmc_ios *ios)
+{
+	unsigned long flags;
+	u32 status;
+	int ret = 0;
+
+	if (ios->signal_voltage == MMC_SIGNAL_VOLTAGE_180) {
+		spin_lock_irqsave(&host->lock, flags);
+		mmci_write_pwrreg(host, host->pwr_reg | MCI_STM32_VSWITCH);
+		spin_unlock_irqrestore(&host->lock, flags);
+
+		/* wait voltage switch completion while 10ms */
+		ret = readl_relaxed_poll_timeout(host->base + MMCISTATUS,
+						 status,
+						 (status & MCI_STM32_VSWEND),
+						 10, SDMMC_VSWEND_TIMEOUT_US);
+
+		writel_relaxed(MCI_STM32_VSWENDC | MCI_STM32_CKSTOPC,
+			       host->base + MMCICLEAR);
+		mmci_write_pwrreg(host, host->pwr_reg &
+				  ~(MCI_STM32_VSWITCHEN | MCI_STM32_VSWITCH));
+	}
+
+	return ret;
+}
+
 static struct mmci_host_ops sdmmc_variant_ops = {
 	.validate_data = sdmmc_idma_validate_data,
 	.prep_data = sdmmc_idma_prep_data,
@@ -467,6 +508,8 @@ static struct mmci_host_ops sdmmc_variant_ops = {
 	.set_clkreg = mmci_sdmmc_set_clkreg,
 	.set_pwrreg = mmci_sdmmc_set_pwrreg,
 	.busy_complete = sdmmc_busy_complete,
+	.pre_sig_volt_switch = sdmmc_pre_sig_volt_vswitch,
+	.post_sig_volt_switch = sdmmc_post_sig_volt_switch,
 };
 
 void sdmmc_variant_init(struct mmci_host *host)
