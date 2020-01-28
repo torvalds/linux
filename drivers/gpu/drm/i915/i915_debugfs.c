@@ -2921,16 +2921,7 @@ static void drrs_status_per_crtc(struct seq_file *m,
 	}
 	drm_connector_list_iter_end(&conn_iter);
 
-	if (dev_priv->vbt.drrs_type == STATIC_DRRS_SUPPORT)
-		seq_puts(m, "\tVBT: DRRS_type: Static");
-	else if (dev_priv->vbt.drrs_type == SEAMLESS_DRRS_SUPPORT)
-		seq_puts(m, "\tVBT: DRRS_type: Seamless");
-	else if (dev_priv->vbt.drrs_type == DRRS_NOT_SUPPORTED)
-		seq_puts(m, "\tVBT: DRRS_type: None");
-	else
-		seq_puts(m, "\tVBT: DRRS_type: FIXME: Unrecognized Value");
-
-	seq_puts(m, "\n\n");
+	seq_puts(m, "\n");
 
 	if (to_intel_crtc_state(intel_crtc->base.state)->has_drrs) {
 		struct intel_panel *panel;
