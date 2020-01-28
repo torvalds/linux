@@ -2613,13 +2613,13 @@ static bool execlists_capture(struct intel_engine_cs *engine)
 	if (!cap)
 		return true;
 
+	spin_lock_irq(&engine->active.lock);
 	cap->rq = execlists_active(&engine->execlists);
-	GEM_BUG_ON(!cap->rq);
-
-	rcu_read_lock();
-	cap->rq = active_request(cap->rq->context->timeline, cap->rq);
-	cap->rq = i915_request_get_rcu(cap->rq);
-	rcu_read_unlock();
+	if (cap->rq) {
+		cap->rq = active_request(cap->rq->context->timeline, cap->rq);
+		cap->rq = i915_request_get_rcu(cap->rq);
+	}
+	spin_unlock_irq(&engine->active.lock);
 	if (!cap->rq)
 		goto err_free;
 
@@ -2658,27 +2658,25 @@ err_free:
 	return false;
 }
 
-static noinline void preempt_reset(struct intel_engine_cs *engine)
+static void execlists_reset(struct intel_engine_cs *engine, const char *msg)
 {
 	const unsigned int bit = I915_RESET_ENGINE + engine->id;
 	unsigned long *lock = &engine->gt->reset.flags;
 
-	if (i915_modparams.reset < 3)
+	if (!intel_has_reset_engine(engine->gt))
 		return;
 
 	if (test_and_set_bit(bit, lock))
 		return;
 
+	ENGINE_TRACE(engine, "reset for %s\n", msg);
+
 	/* Mark this tasklet as disabled to avoid waiting for it to complete */
 	tasklet_disable_nosync(&engine->execlists.tasklet);
 
-	ENGINE_TRACE(engine, "preempt timeout %lu+%ums\n",
-		     READ_ONCE(engine->props.preempt_timeout_ms),
-		     jiffies_to_msecs(jiffies - engine->execlists.preempt.expires));
-
 	ring_set_paused(engine, 1); /* Freeze the current request in place */
 	if (execlists_capture(engine))
-		intel_engine_reset(engine, "preemption time out");
+		intel_engine_reset(engine, msg);
 	else
 		ring_set_paused(engine, 0);
 
@@ -2709,6 +2707,13 @@ static void execlists_submission_tasklet(unsigned long data)
 	bool timeout = preempt_timeout(engine);
 
 	process_csb(engine);
+
+	if (unlikely(READ_ONCE(engine->execlists.error_interrupt))) {
+		engine->execlists.error_interrupt = 0;
+		if (ENGINE_READ(engine, RING_ESR)) /* confirm the error */
+			execlists_reset(engine, "CS error");
+	}
+
 	if (!READ_ONCE(engine->execlists.pending[0]) || timeout) {
 		unsigned long flags;
 
@@ -2717,8 +2722,8 @@ static void execlists_submission_tasklet(unsigned long data)
 		spin_unlock_irqrestore(&engine->active.lock, flags);
 
 		/* Recheck after serialising with direct-submission */
-		if (timeout && preempt_timeout(engine))
-			preempt_reset(engine);
+		if (unlikely(timeout && preempt_timeout(engine)))
+			execlists_reset(engine, "preemption time out");
 	}
 }
 
@@ -3335,6 +3340,49 @@ static int intel_init_workaround_bb(struct intel_engine_cs *engine)
 	return ret;
 }
 
+static void enable_error_interrupt(struct intel_engine_cs *engine)
+{
+	u32 status;
+
+	engine->execlists.error_interrupt = 0;
+	ENGINE_WRITE(engine, RING_EMR, ~0u);
+	ENGINE_WRITE(engine, RING_EIR, ~0u); /* clear all existing errors */
+
+	status = ENGINE_READ(engine, RING_ESR);
+	if (unlikely(status)) {
+		dev_err(engine->i915->drm.dev,
+			"engine '%s' resumed still in error: %08x\n",
+			engine->name, status);
+		__intel_gt_reset(engine->gt, engine->mask);
+	}
+
+	/*
+	 * On current gen8+, we have 2 signals to play with
+	 *
+	 * - I915_ERROR_INSTUCTION (bit 0)
+	 *
+	 *    Generate an error if the command parser encounters an invalid
+	 *    instruction
+	 *
+	 *    This is a fatal error.
+	 *
+	 * - CP_PRIV (bit 2)
+	 *
+	 *    Generate an error on privilege violation (where the CP replaces
+	 *    the instruction with a no-op). This also fires for writes into
+	 *    read-only scratch pages.
+	 *
+	 *    This is a non-fatal error, parsing continues.
+	 *
+	 * * there are a few others defined for odd HW that we do not use
+	 *
+	 * Since CP_PRIV fires for cases where we have chosen to ignore the
+	 * error (as the HW is validating and suppressing the mistakes), we
+	 * only unmask the instruction error bit.
+	 */
+	ENGINE_WRITE(engine, RING_EMR, ~I915_ERROR_INSTRUCTION);
+}
+
 static void enable_execlists(struct intel_engine_cs *engine)
 {
 	u32 mode;
@@ -3355,6 +3403,8 @@ static void enable_execlists(struct intel_engine_cs *engine)
 			RING_HWS_PGA,
 			i915_ggtt_offset(engine->status_page.vma));
 	ENGINE_POSTING_READ(engine, RING_HWS_PGA);
+
+	enable_error_interrupt(engine);
 
 	engine->context_tag = 0;
 }
@@ -4282,6 +4332,7 @@ logical_ring_default_irqs(struct intel_engine_cs *engine)
 
 	engine->irq_enable_mask = GT_RENDER_USER_INTERRUPT << shift;
 	engine->irq_keep_mask = GT_CONTEXT_SWITCH_INTERRUPT << shift;
+	engine->irq_keep_mask |= GT_CS_MASTER_ERROR_INTERRUPT << shift;
 }
 
 static void rcs_submission_override(struct intel_engine_cs *engine)

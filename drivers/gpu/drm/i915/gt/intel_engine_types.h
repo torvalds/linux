@@ -157,6 +157,16 @@ struct intel_engine_execlists {
 	struct i915_priolist default_priolist;
 
 	/**
+	 * @error_interrupt: CS Master EIR
+	 *
+	 * The CS generates an interrupt when it detects an error. We capture
+	 * the first error interrupt, record the EIR and schedule the tasklet.
+	 * In the tasklet, we process the pending CS events to ensure we have
+	 * the guilty request, and then reset the engine.
+	 */
+	u32 error_interrupt;
+
+	/**
 	 * @no_priolist: priority lists disabled
 	 */
 	bool no_priolist;
