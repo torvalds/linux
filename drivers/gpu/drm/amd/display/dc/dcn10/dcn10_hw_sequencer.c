@@ -48,8 +48,8 @@
 #include "dc_link_dp.h"
 #include "dccg.h"
 #include "clk_mgr.h"
-
-
+#include "link_hwss.h"
+#include "dpcd_defs.h"
 #include "dsc.h"
 
 #define DC_LOGGER_INIT(logger)
@@ -1321,6 +1321,24 @@ void dcn10_init_hw(struct dc *dc)
 	for (i = 0; i < res_pool->res_cap->num_dsc; i++)
 		if (hws->funcs.dsc_pg_control != NULL)
 			hws->funcs.dsc_pg_control(hws, res_pool->dscs[i]->inst, false);
+
+	/* we want to turn off all dp displays before doing detection */
+	if (dc->config.power_down_display_on_boot) {
+		uint8_t dpcd_power_state = '\0';
+		enum dc_status status = DC_ERROR_UNEXPECTED;
+
+		for (i = 0; i < dc->link_count; i++) {
+			if (dc->links[i]->connector_signal != SIGNAL_TYPE_DISPLAY_PORT) {
+				continue;
+			}
+			/* if any of the displays are lit up turn them off */
+			status = core_link_read_dpcd(dc->links[i], DP_SET_POWER,
+						     &dpcd_power_state, sizeof(dpcd_power_state));
+			if (status == DC_OK && dpcd_power_state == DP_POWER_STATE_D0) {
+				dp_receiver_power_ctrl(dc->links[i], false);
+			}
+		}
+	}
 
 	/* If taking control over from VBIOS, we may want to optimize our first
 	 * mode set, so we need to skip powering down pipes until we know which
