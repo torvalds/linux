@@ -339,22 +339,6 @@ static inline unsigned long regs_get_kernel_argument(struct pt_regs *regs,
 
 #define ARCH_HAS_USER_SINGLE_STEP_REPORT
 
-/*
- * When hitting ptrace_stop(), we cannot return using SYSRET because
- * that does not restore the full CPU state, only a minimal set.  The
- * ptracer can change arbitrary register values, which is usually okay
- * because the usual ptrace stops run off the signal delivery path which
- * forces IRET; however, ptrace_event() stops happen in arbitrary places
- * in the kernel and don't force IRET path.
- *
- * So force IRET path after a ptrace stop.
- */
-#define arch_ptrace_stop_needed(code, info)				\
-({									\
-	force_iret();							\
-	false;								\
-})
-
 struct user_desc;
 extern int do_get_thread_area(struct task_struct *p, int idx,
 			      struct user_desc __user *info);
