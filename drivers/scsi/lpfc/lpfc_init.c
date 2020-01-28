@@ -512,21 +512,12 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 	lpfc_sli_read_link_ste(phba);
 
 	/* Reset the DFT_HBA_Q_DEPTH to the max xri  */
-	i = (mb->un.varRdConfig.max_xri + 1);
-	if (phba->cfg_hba_queue_depth > i) {
+	if (phba->cfg_hba_queue_depth > mb->un.varRdConfig.max_xri) {
 		lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
 				"3359 HBA queue depth changed from %d to %d\n",
-				phba->cfg_hba_queue_depth, i);
-		phba->cfg_hba_queue_depth = i;
-	}
-
-	/* Reset the DFT_LUN_Q_DEPTH to (max xri >> 3)  */
-	i = (mb->un.varRdConfig.max_xri >> 3);
-	if (phba->pport->cfg_lun_queue_depth > i) {
-		lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
-				"3360 LUN queue depth changed from %d to %d\n",
-				phba->pport->cfg_lun_queue_depth, i);
-		phba->pport->cfg_lun_queue_depth = i;
+				phba->cfg_hba_queue_depth,
+				mb->un.varRdConfig.max_xri);
+		phba->cfg_hba_queue_depth = mb->un.varRdConfig.max_xri;
 	}
 
 	phba->lmt = mb->un.varRdConfig.lmt;

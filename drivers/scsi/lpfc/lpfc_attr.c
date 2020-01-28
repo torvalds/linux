@@ -3869,9 +3869,6 @@ LPFC_VPORT_ATTR_R(enable_da_id, 1, 0, 1,
 /*
 # lun_queue_depth:  This parameter is used to limit the number of outstanding
 # commands per FCP LUN. Value range is [1,512]. Default value is 30.
-# If this parameter value is greater than 1/8th the maximum number of exchanges
-# supported by the HBA port, then the lun queue depth will be reduced to
-# 1/8th the maximum number of exchanges.
 */
 LPFC_VPORT_ATTR_R(lun_queue_depth, 30, 1, 512,
 		  "Max number of FCP commands we can queue to a specific LUN");
