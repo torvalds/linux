@@ -254,8 +254,8 @@ static int stm32_dmamux_probe(struct platform_device *pdev)
 	stm32_dmamux->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(stm32_dmamux->clk)) {
 		ret = PTR_ERR(stm32_dmamux->clk);
-		if (ret == -EPROBE_DEFER)
-			dev_info(&pdev->dev, "Missing controller clock\n");
+		if (ret != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "Missing clock controller\n");
 		return ret;
 	}
 
@@ -266,7 +266,11 @@ static int stm32_dmamux_probe(struct platform_device *pdev)
 	}
 
 	rst = devm_reset_control_get(&pdev->dev, NULL);
-	if (!IS_ERR(rst)) {
+	if (IS_ERR(rst)) {
+		ret = PTR_ERR(rst);
+		if (ret == -EPROBE_DEFER)
+			goto err_clk;
+	} else {
 		reset_control_assert(rst);
 		udelay(2);
 		reset_control_deassert(rst);
@@ -291,7 +295,12 @@ static int stm32_dmamux_probe(struct platform_device *pdev)
 	ret = of_dma_router_register(node, stm32_dmamux_route_allocate,
 				     &stm32_dmamux->dmarouter);
 	if (ret)
-		clk_disable_unprepare(stm32_dmamux->clk);
+		goto err_clk;
+
+	return 0;
+
+err_clk:
+	clk_disable_unprepare(stm32_dmamux->clk);
 
 	return ret;
 }
