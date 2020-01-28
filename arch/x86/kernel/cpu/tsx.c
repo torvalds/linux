@@ -14,6 +14,9 @@
 
 #include "cpu.h"
 
+#undef pr_fmt
+#define pr_fmt(fmt) "tsx: " fmt
+
 enum tsx_ctrl_states tsx_ctrl_state __ro_after_init = TSX_CTRL_NOT_SUPPORTED;
 
 void tsx_disable(void)
@@ -99,7 +102,7 @@ void __init tsx_init(void)
 			tsx_ctrl_state = x86_get_tsx_auto_mode();
 		} else {
 			tsx_ctrl_state = TSX_CTRL_DISABLE;
-			pr_err("tsx: invalid option, defaulting to off\n");
+			pr_err("invalid option, defaulting to off\n");
 		}
 	} else {
 		/* tsx= not provided */
