@@ -652,8 +652,8 @@ static int pxa_gpio_probe(struct platform_device *pdev)
 	if (!pchip->irqdomain)
 		return -ENOMEM;
 
-	irq0 = platform_get_irq_byname(pdev, "gpio0");
-	irq1 = platform_get_irq_byname(pdev, "gpio1");
+	irq0 = platform_get_irq_byname_optional(pdev, "gpio0");
+	irq1 = platform_get_irq_byname_optional(pdev, "gpio1");
 	irq_mux = platform_get_irq_byname(pdev, "gpio_mux");
 	if ((irq0 > 0 && irq1 <= 0) || (irq0 <= 0 && irq1 > 0)
 		|| (irq_mux <= 0))
