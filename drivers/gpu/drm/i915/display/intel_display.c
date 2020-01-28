@@ -6977,9 +6977,6 @@ static void hsw_crtc_enable(struct intel_atomic_state *state,
 
 	intel_encoders_pre_enable(state, crtc);
 
-	if (intel_crtc_has_dp_encoder(new_crtc_state))
-		intel_dp_set_m_n(new_crtc_state, M1_N1);
-
 	if (!transcoder_is_dsi(cpu_transcoder))
 		intel_set_pipe_timings(new_crtc_state);
 
