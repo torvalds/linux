@@ -440,8 +440,8 @@ config X86_MPPARSE
 	  (esp with 64bit cpus) with acpi support, MADT and DSDT will override it
 
 config GOLDFISH
-       def_bool y
-       depends on X86_GOLDFISH
+	def_bool y
+	depends on X86_GOLDFISH
 
 config RETPOLINE
 	bool "Avoid speculative indirect branches in kernel"
@@ -479,7 +479,7 @@ config X86_BIGSMP
 	bool "Support for big SMP systems with more than 8 CPUs"
 	depends on SMP
 	---help---
-	  This option is needed for the systems that have more than 8 CPUs
+	  This option is needed for the systems that have more than 8 CPUs.
 
 config X86_EXTENDED_PLATFORM
 	bool "Support for extended (non-PC) x86 platforms"
@@ -563,9 +563,9 @@ config X86_UV
 # Please maintain the alphabetic order if and when there are additions
 
 config X86_GOLDFISH
-       bool "Goldfish (Virtual Platform)"
-       depends on X86_EXTENDED_PLATFORM
-       ---help---
+	bool "Goldfish (Virtual Platform)"
+	depends on X86_EXTENDED_PLATFORM
+	---help---
 	 Enable support for the Goldfish virtual platform used primarily
 	 for Android development. Unless you are building for the Android
 	 Goldfish emulator say N here.
@@ -808,9 +808,9 @@ config KVM_GUEST
 	  timing infrastructure such as time of day, and system time
 
 config ARCH_CPUIDLE_HALTPOLL
-        def_bool n
-        prompt "Disable host haltpoll when loading haltpoll driver"
-        help
+	def_bool n
+	prompt "Disable host haltpoll when loading haltpoll driver"
+	help
 	  If virtualized under KVM, disable host haltpoll.
 
 config PVH
@@ -889,16 +889,16 @@ config HPET_EMULATE_RTC
 	depends on HPET_TIMER && (RTC=y || RTC=m || RTC_DRV_CMOS=m || RTC_DRV_CMOS=y)
 
 config APB_TIMER
-       def_bool y if X86_INTEL_MID
-       prompt "Intel MID APB Timer Support" if X86_INTEL_MID
-       select DW_APB_TIMER
-       depends on X86_INTEL_MID && SFI
-       help
-         APB timer is the replacement for 8254, HPET on X86 MID platforms.
-         The APBT provides a stable time base on SMP
-         systems, unlike the TSC, but it is more expensive to access,
-         as it is off-chip. APB timers are always running regardless of CPU
-         C states, they are used as per CPU clockevent device when possible.
+	def_bool y if X86_INTEL_MID
+	prompt "Intel MID APB Timer Support" if X86_INTEL_MID
+	select DW_APB_TIMER
+	depends on X86_INTEL_MID && SFI
+	help
+	 APB timer is the replacement for 8254, HPET on X86 MID platforms.
+	 The APBT provides a stable time base on SMP
+	 systems, unlike the TSC, but it is more expensive to access,
+	 as it is off-chip. APB timers are always running regardless of CPU
+	 C states, they are used as per CPU clockevent device when possible.
 
 # Mark as expert because too many people got it wrong.
 # The code disables itself when not needed.
@@ -1037,8 +1037,8 @@ config SCHED_MC_PRIO
 	  If unsure say Y here.
 
 config UP_LATE_INIT
-       def_bool y
-       depends on !SMP && X86_LOCAL_APIC
+	def_bool y
+	depends on !SMP && X86_LOCAL_APIC
 
 config X86_UP_APIC
 	bool "Local APIC support on uniprocessors" if !PCI_MSI
@@ -1187,8 +1187,8 @@ config X86_LEGACY_VM86
 	  If unsure, say N here.
 
 config VM86
-       bool
-       default X86_LEGACY_VM86
+	bool
+	default X86_LEGACY_VM86
 
 config X86_16BIT
 	bool "Enable support for 16-bit segments" if EXPERT
@@ -1209,10 +1209,10 @@ config X86_ESPFIX64
 	depends on X86_16BIT && X86_64
 
 config X86_VSYSCALL_EMULATION
-       bool "Enable vsyscall emulation" if EXPERT
-       default y
-       depends on X86_64
-       ---help---
+	bool "Enable vsyscall emulation" if EXPERT
+	default y
+	depends on X86_64
+	---help---
 	 This enables emulation of the legacy vsyscall page.  Disabling
 	 it is roughly equivalent to booting with vsyscall=none, except
 	 that it will also disable the helpful warning if a program
@@ -1545,12 +1545,12 @@ config AMD_MEM_ENCRYPT_ACTIVE_BY_DEFAULT
 
 # Common NUMA Features
 config NUMA
-	bool "Numa Memory Allocation and Scheduler Support"
+	bool "NUMA Memory Allocation and Scheduler Support"
 	depends on SMP
 	depends on X86_64 || (X86_32 && HIGHMEM64G && X86_BIGSMP)
 	default y if X86_BIGSMP
 	---help---
-	  Enable NUMA (Non Uniform Memory Access) support.
+	  Enable NUMA (Non-Uniform Memory Access) support.
 
 	  The kernel will try to allocate memory used by a CPU on the
 	  local memory controller of the CPU and add some more
@@ -1650,9 +1650,9 @@ config ARCH_PROC_KCORE_TEXT
 	depends on X86_64 && PROC_KCORE
 
 config ILLEGAL_POINTER_VALUE
-       hex
-       default 0 if X86_32
-       default 0xdead000000000000 if X86_64
+	hex
+	default 0 if X86_32
+	default 0xdead000000000000 if X86_64
 
 config X86_PMEM_LEGACY_DEVICE
 	bool

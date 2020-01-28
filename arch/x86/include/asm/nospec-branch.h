@@ -37,7 +37,6 @@
  */
 
 #define RSB_CLEAR_LOOPS		32	/* To forcibly overwrite all entries */
-#define RSB_FILL_LOOPS		16	/* To avoid underflow */
 
 /*
  * Google experimented with loop-unrolling and this turned out to be
