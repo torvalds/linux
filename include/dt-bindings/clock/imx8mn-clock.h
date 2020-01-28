@@ -229,7 +229,9 @@
 #define IMX8MN_SYS_PLL2_500M_CG			210
 
 #define IMX8MN_CLK_SNVS_ROOT			211
+#define IMX8MN_CLK_GPU_CORE			212
+#define IMX8MN_CLK_GPU_SHADER			213
 
-#define IMX8MN_CLK_END				212
+#define IMX8MN_CLK_END				214
 
 #endif
