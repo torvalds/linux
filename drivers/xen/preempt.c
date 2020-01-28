@@ -8,7 +8,7 @@
 #include <linux/sched.h>
 #include <xen/xen-ops.h>
 
-#ifndef CONFIG_PREEMPT
+#ifndef CONFIG_PREEMPTION
 
 /*
  * Some hypercalls issued by the toolstack can take many 10s of
@@ -37,4 +37,4 @@ asmlinkage __visible void xen_maybe_preempt_hcall(void)
 		__this_cpu_write(xen_in_preemptible_hcall, true);
 	}
 }
-#endif /* CONFIG_PREEMPT */
+#endif /* CONFIG_PREEMPTION */

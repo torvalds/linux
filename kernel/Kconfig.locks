@@ -101,7 +101,7 @@ config UNINLINE_SPIN_UNLOCK
 # unlock and unlock_irq functions are inlined when:
 #   - DEBUG_SPINLOCK=n and ARCH_INLINE_*LOCK=y
 #  or
-#   - DEBUG_SPINLOCK=n and PREEMPT=n
+#   - DEBUG_SPINLOCK=n and PREEMPTION=n
 #
 # unlock_bh and unlock_irqrestore functions are inlined when:
 #   - DEBUG_SPINLOCK=n and ARCH_INLINE_*LOCK=y
@@ -139,7 +139,7 @@ config INLINE_SPIN_UNLOCK_BH
 
 config INLINE_SPIN_UNLOCK_IRQ
 	def_bool y
-	depends on !PREEMPT || ARCH_INLINE_SPIN_UNLOCK_IRQ
+	depends on !PREEMPTION || ARCH_INLINE_SPIN_UNLOCK_IRQ
 
 config INLINE_SPIN_UNLOCK_IRQRESTORE
 	def_bool y
@@ -168,7 +168,7 @@ config INLINE_READ_LOCK_IRQSAVE
 
 config INLINE_READ_UNLOCK
 	def_bool y
-	depends on !PREEMPT || ARCH_INLINE_READ_UNLOCK
+	depends on !PREEMPTION || ARCH_INLINE_READ_UNLOCK
 
 config INLINE_READ_UNLOCK_BH
 	def_bool y
@@ -176,7 +176,7 @@ config INLINE_READ_UNLOCK_BH
 
 config INLINE_READ_UNLOCK_IRQ
 	def_bool y
-	depends on !PREEMPT || ARCH_INLINE_READ_UNLOCK_IRQ
+	depends on !PREEMPTION || ARCH_INLINE_READ_UNLOCK_IRQ
 
 config INLINE_READ_UNLOCK_IRQRESTORE
 	def_bool y
@@ -205,7 +205,7 @@ config INLINE_WRITE_LOCK_IRQSAVE
 
 config INLINE_WRITE_UNLOCK
 	def_bool y
-	depends on !PREEMPT || ARCH_INLINE_WRITE_UNLOCK
+	depends on !PREEMPTION || ARCH_INLINE_WRITE_UNLOCK
 
 config INLINE_WRITE_UNLOCK_BH
 	def_bool y
@@ -213,7 +213,7 @@ config INLINE_WRITE_UNLOCK_BH
 
 config INLINE_WRITE_UNLOCK_IRQ
 	def_bool y
-	depends on !PREEMPT || ARCH_INLINE_WRITE_UNLOCK_IRQ
+	depends on !PREEMPTION || ARCH_INLINE_WRITE_UNLOCK_IRQ
 
 config INLINE_WRITE_UNLOCK_IRQRESTORE
 	def_bool y

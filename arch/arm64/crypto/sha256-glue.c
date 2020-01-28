@@ -97,7 +97,7 @@ static int sha256_update_neon(struct shash_desc *desc, const u8 *data,
 		 * input when running on a preemptible kernel, but process the
 		 * data block by block instead.
 		 */
-		if (IS_ENABLED(CONFIG_PREEMPT) &&
+		if (IS_ENABLED(CONFIG_PREEMPTION) &&
 		    chunk + sctx->count % SHA256_BLOCK_SIZE > SHA256_BLOCK_SIZE)
 			chunk = SHA256_BLOCK_SIZE -
 				sctx->count % SHA256_BLOCK_SIZE;
