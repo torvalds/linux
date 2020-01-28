@@ -139,7 +139,6 @@ int __ref arch_add_memory(int nid, u64 start, u64 size, struct vmem_altmap *altm
 	return __add_pages(nid, start_pfn, nr_pages, altmap, want_memblock);
 }
 
-#ifdef CONFIG_MEMORY_HOTREMOVE
 void __ref arch_remove_memory(int nid, u64 start, u64 size,
 			     struct vmem_altmap *altmap)
 {
@@ -172,7 +171,6 @@ void __ref arch_remove_memory(int nid, u64 start, u64 size,
 	resize_hpt_for_hotplug(memblock_phys_mem_size());
 }
 #endif
-#endif /* CONFIG_MEMORY_HOTPLUG */
 
 /*
  * walk_memory_resource() needs to make sure there is no holes in a given
