@@ -850,6 +850,15 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder,
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_ON);
 }
 
+static void bxt_dsi_enable(struct intel_encoder *encoder,
+			   const struct intel_crtc_state *crtc_state,
+			   const struct drm_connector_state *conn_state)
+{
+	WARN_ON(crtc_state->has_pch_encoder);
+
+	intel_crtc_vblank_on(crtc_state);
+}
+
 /*
  * DSI port disable has to be done after pipe and plane disable, so we do it in
  * the post_disable hook.
@@ -1864,6 +1873,8 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 
 	intel_encoder->compute_config = intel_dsi_compute_config;
 	intel_encoder->pre_enable = intel_dsi_pre_enable;
+	if (IS_GEN9_LP(dev_priv))
+		intel_encoder->enable = bxt_dsi_enable;
 	intel_encoder->disable = intel_dsi_disable;
 	intel_encoder->post_disable = intel_dsi_post_disable;
 	intel_encoder->get_hw_state = intel_dsi_get_hw_state;

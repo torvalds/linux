@@ -301,6 +301,12 @@ static void hsw_enable_crt(struct intel_encoder *encoder,
 
 	WARN_ON(!crtc_state->has_pch_encoder);
 
+	intel_enable_pipe(crtc_state);
+
+	lpt_pch_enable(crtc_state);
+
+	intel_crtc_vblank_on(crtc_state);
+
 	intel_crt_set_dpms(encoder, crtc_state, DRM_MODE_DPMS_ON);
 
 	intel_wait_for_vblank(dev_priv, pipe);

@@ -1814,7 +1814,7 @@ static u32 intel_crtc_max_vblank_count(const struct intel_crtc_state *crtc_state
 		return 0; /* Gen2 doesn't have a hardware frame counter */
 }
 
-static void intel_crtc_vblank_on(const struct intel_crtc_state *crtc_state)
+void intel_crtc_vblank_on(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
@@ -1832,7 +1832,7 @@ void intel_crtc_vblank_off(const struct intel_crtc_state *crtc_state)
 	assert_vblank_disabled(&crtc->base);
 }
 
-static void intel_enable_pipe(const struct intel_crtc_state *new_crtc_state)
+void intel_enable_pipe(const struct intel_crtc_state *new_crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -5864,8 +5864,7 @@ static void ilk_pch_enable(const struct intel_atomic_state *state,
 	ilk_enable_pch_transcoder(crtc_state);
 }
 
-static void lpt_pch_enable(const struct intel_atomic_state *state,
-			   const struct intel_crtc_state *crtc_state)
+void lpt_pch_enable(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -7040,15 +7039,6 @@ static void hsw_crtc_enable(struct intel_atomic_state *state,
 
 	if (INTEL_GEN(dev_priv) >= 11)
 		icl_pipe_mbus_enable(crtc);
-
-	/* XXX: Do the pipe assertions at the right place for BXT DSI. */
-	if (!transcoder_is_dsi(cpu_transcoder))
-		intel_enable_pipe(new_crtc_state);
-
-	if (new_crtc_state->has_pch_encoder)
-		lpt_pch_enable(state, new_crtc_state);
-
-	intel_crtc_vblank_on(new_crtc_state);
 
 	intel_encoders_enable(state, crtc);
 

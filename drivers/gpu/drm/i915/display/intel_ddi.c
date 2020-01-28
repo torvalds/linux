@@ -3993,6 +3993,12 @@ static void intel_enable_ddi(struct intel_encoder *encoder,
 			     const struct intel_crtc_state *crtc_state,
 			     const struct drm_connector_state *conn_state)
 {
+	WARN_ON(crtc_state->has_pch_encoder);
+
+	intel_enable_pipe(crtc_state);
+
+	intel_crtc_vblank_on(crtc_state);
+
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
 		intel_enable_ddi_hdmi(encoder, crtc_state, conn_state);
 	else

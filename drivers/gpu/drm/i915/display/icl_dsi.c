@@ -1127,6 +1127,15 @@ static void gen11_dsi_pre_enable(struct intel_encoder *encoder,
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_ON);
 }
 
+static void gen11_dsi_enable(struct intel_encoder *encoder,
+			     const struct intel_crtc_state *crtc_state,
+			     const struct drm_connector_state *conn_state)
+{
+	WARN_ON(crtc_state->has_pch_encoder);
+
+	intel_crtc_vblank_on(crtc_state);
+}
+
 static void gen11_dsi_disable_transcoder(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
@@ -1747,6 +1756,7 @@ void icl_dsi_init(struct drm_i915_private *dev_priv)
 
 	encoder->pre_pll_enable = gen11_dsi_pre_pll_enable;
 	encoder->pre_enable = gen11_dsi_pre_enable;
+	encoder->enable = gen11_dsi_enable;
 	encoder->disable = gen11_dsi_disable;
 	encoder->post_disable = gen11_dsi_post_disable;
 	encoder->port = port;
