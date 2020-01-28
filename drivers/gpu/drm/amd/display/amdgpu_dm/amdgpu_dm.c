@@ -1207,16 +1207,20 @@ static int dm_dmub_sw_init(struct amdgpu_device *adev)
 	}
 
 	hdr = (const struct dmcub_firmware_header_v1_0 *)adev->dm.dmub_fw->data;
-	adev->firmware.ucode[AMDGPU_UCODE_ID_DMCUB].ucode_id =
-		AMDGPU_UCODE_ID_DMCUB;
-	adev->firmware.ucode[AMDGPU_UCODE_ID_DMCUB].fw = adev->dm.dmub_fw;
-	adev->firmware.fw_size +=
-		ALIGN(le32_to_cpu(hdr->inst_const_bytes), PAGE_SIZE);
+
+	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
+		adev->firmware.ucode[AMDGPU_UCODE_ID_DMCUB].ucode_id =
+			AMDGPU_UCODE_ID_DMCUB;
+		adev->firmware.ucode[AMDGPU_UCODE_ID_DMCUB].fw =
+			adev->dm.dmub_fw;
+		adev->firmware.fw_size +=
+			ALIGN(le32_to_cpu(hdr->inst_const_bytes), PAGE_SIZE);
+
+		DRM_INFO("Loading DMUB firmware via PSP: version=0x%08X\n",
+			 adev->dm.dmcub_fw_version);
+	}
 
 	adev->dm.dmcub_fw_version = le32_to_cpu(hdr->header.ucode_version);
-
-	DRM_INFO("Loading DMUB firmware via PSP: version=0x%08X\n",
-		 adev->dm.dmcub_fw_version);
 
 	adev->dm.dmub_srv = kzalloc(sizeof(*adev->dm.dmub_srv), GFP_KERNEL);
 	dmub_srv = adev->dm.dmub_srv;
