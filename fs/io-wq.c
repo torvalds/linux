@@ -1114,6 +1114,14 @@ err:
 	return ERR_PTR(ret);
 }
 
+bool io_wq_get(struct io_wq *wq, struct io_wq_data *data)
+{
+	if (data->get_work != wq->get_work || data->put_work != wq->put_work)
+		return false;
+
+	return refcount_inc_not_zero(&wq->use_refs);
+}
+
 static bool io_wq_worker_wake(struct io_worker *worker, void *data)
 {
 	wake_up_process(worker->task);
