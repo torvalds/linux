@@ -2275,9 +2275,9 @@ static bool hdmi_deep_color_possible(const struct intel_crtc_state *crtc_state,
 		}
 	}
 
-	/* Display Wa_1405510057:icl */
+	/* Display Wa_1405510057:icl,ehl */
 	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420 &&
-	    bpc == 10 && INTEL_GEN(dev_priv) >= 11 &&
+	    bpc == 10 && IS_GEN(dev_priv, 11) &&
 	    (adjusted_mode->crtc_hblank_end -
 	     adjusted_mode->crtc_hblank_start) % 8 == 2)
 		return false;
