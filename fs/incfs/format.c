@@ -12,7 +12,6 @@
 #include <linux/crc32.h>
 #include <linux/kernel.h>
 
-#include "compat.h"
 #include "format.h"
 
 struct backing_file_context *incfs_alloc_bfc(struct file *backing_file)
@@ -679,18 +678,10 @@ int incfs_read_next_metadata_record(struct backing_file_context *bfc,
 
 ssize_t incfs_kread(struct file *f, void *buf, size_t size, loff_t pos)
 {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0)
-	return kernel_read(f, pos, (char *)buf, size);
-#else
 	return kernel_read(f, buf, size, &pos);
-#endif
 }
 
 ssize_t incfs_kwrite(struct file *f, const void *buf, size_t size, loff_t pos)
 {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0)
-	return kernel_write(f, buf, size, pos);
-#else
 	return kernel_write(f, buf, size, &pos);
-#endif
 }
