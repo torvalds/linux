@@ -39,6 +39,11 @@ static inline int base_memory_block_id(int section_nr)
 	return section_nr / sections_per_block;
 }
 
+static inline int pfn_to_block_id(unsigned long pfn)
+{
+	return base_memory_block_id(pfn_to_section_nr(pfn));
+}
+
 static int memory_subsys_online(struct device *dev);
 static int memory_subsys_offline(struct device *dev);
 
@@ -591,10 +596,9 @@ int __weak arch_get_memory_phys_device(unsigned long start_pfn)
  * A reference for the returned object is held and the reference for the
  * hinted object is released.
  */
-struct memory_block *find_memory_block_hinted(struct mem_section *section,
-					      struct memory_block *hint)
+static struct memory_block *find_memory_block_by_id(int block_id,
+						    struct memory_block *hint)
 {
-	int block_id = base_memory_block_id(__section_nr(section));
 	struct device *hintdev = hint ? &hint->dev : NULL;
 	struct device *dev;
 
@@ -604,6 +608,14 @@ struct memory_block *find_memory_block_hinted(struct mem_section *section,
 	if (!dev)
 		return NULL;
 	return to_memory_block(dev);
+}
+
+struct memory_block *find_memory_block_hinted(struct mem_section *section,
+					      struct memory_block *hint)
+{
+	int block_id = base_memory_block_id(__section_nr(section));
+
+	return find_memory_block_by_id(block_id, hint);
 }
 
 /*
@@ -667,6 +679,11 @@ static int init_memory_block(struct memory_block **memory, int block_id,
 	unsigned long start_pfn;
 	int ret = 0;
 
+	mem = find_memory_block_by_id(block_id, NULL);
+	if (mem) {
+		put_device(&mem->dev);
+		return -EEXIST;
+	}
 	mem = kzalloc(sizeof(*mem), GFP_KERNEL);
 	if (!mem)
 		return -ENOMEM;
@@ -704,42 +721,51 @@ static int add_memory_block(int base_section_nr)
 	return 0;
 }
 
-/*
- * need an interface for the VM to add new memory regions,
- * but without onlining it.
- */
-int hotplug_memory_register(int nid, struct mem_section *section)
+static void unregister_memory(struct memory_block *memory)
 {
-	int block_id = base_memory_block_id(__section_nr(section));
-	int ret = 0;
-	struct memory_block *mem;
-
-	mutex_lock(&mem_sysfs_mutex);
-
-	mem = find_memory_block(section);
-	if (mem) {
-		mem->section_count++;
-		put_device(&mem->dev);
-	} else {
-		ret = init_memory_block(&mem, block_id, MEM_OFFLINE);
-		if (ret)
-			goto out;
-		mem->section_count++;
-	}
-
-out:
-	mutex_unlock(&mem_sysfs_mutex);
-	return ret;
-}
-
-static void
-unregister_memory(struct memory_block *memory)
-{
-	BUG_ON(memory->dev.bus != &memory_subsys);
+	if (WARN_ON_ONCE(memory->dev.bus != &memory_subsys))
+		return;
 
 	/* drop the ref. we got via find_memory_block() */
 	put_device(&memory->dev);
 	device_unregister(&memory->dev);
+}
+
+/*
+ * Create memory block devices for the given memory area. Start and size
+ * have to be aligned to memory block granularity. Memory block devices
+ * will be initialized as offline.
+ */
+int create_memory_block_devices(unsigned long start, unsigned long size)
+{
+	const int start_block_id = pfn_to_block_id(PFN_DOWN(start));
+	int end_block_id = pfn_to_block_id(PFN_DOWN(start + size));
+	struct memory_block *mem;
+	unsigned long block_id;
+	int ret = 0;
+
+	if (WARN_ON_ONCE(!IS_ALIGNED(start, memory_block_size_bytes()) ||
+			 !IS_ALIGNED(size, memory_block_size_bytes())))
+		return -EINVAL;
+
+	mutex_lock(&mem_sysfs_mutex);
+	for (block_id = start_block_id; block_id != end_block_id; block_id++) {
+		ret = init_memory_block(&mem, block_id, MEM_OFFLINE);
+		if (ret)
+			break;
+		mem->section_count = sections_per_block;
+	}
+	if (ret) {
+		end_block_id = block_id;
+		for (block_id = start_block_id; block_id != end_block_id;
+		     block_id++) {
+			mem = find_memory_block_by_id(block_id, NULL);
+			mem->section_count = 0;
+			unregister_memory(mem);
+		}
+	}
+	mutex_unlock(&mem_sysfs_mutex);
+	return ret;
 }
 
 void unregister_memory_section(struct mem_section *section)
