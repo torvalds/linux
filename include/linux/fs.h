@@ -3411,6 +3411,8 @@ static inline bool needs_casefold(const struct inode *dir)
 	return 0;
 }
 #endif
+extern void generic_set_encrypted_ci_d_ops(struct inode *dir,
+					   struct dentry *dentry);
 
 #ifdef CONFIG_MIGRATION
 extern int buffer_migrate_page(struct address_space *,
