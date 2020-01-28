@@ -317,7 +317,7 @@ void btrfs_print_leaf(struct extent_buffer *l)
 			print_uuid_item(l, btrfs_item_ptr_offset(l, i),
 					btrfs_item_size_nr(l, i));
 			break;
-		};
+		}
 	}
 }
 

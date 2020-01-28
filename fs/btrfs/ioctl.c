@@ -1128,7 +1128,7 @@ static struct extent_map *defrag_lookup_extent(struct inode *inode, u64 start)
 
 		/* get the big lock and read metadata off disk */
 		lock_extent_bits(io_tree, start, end, &cached);
-		em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, start, len, 0);
+		em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, start, len);
 		unlock_extent_cached(io_tree, start, end, &cached);
 
 		if (IS_ERR(em))
