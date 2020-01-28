@@ -500,9 +500,9 @@ static ssize_t read_rbu_mono_data(char *buffer, loff_t pos, size_t count)
 			rbu_data.image_update_buffer, rbu_data.bios_image_size);
 }
 
-static ssize_t read_rbu_data(struct file *filp, struct kobject *kobj,
-			     struct bin_attribute *bin_attr,
-			     char *buffer, loff_t pos, size_t count)
+static ssize_t data_read(struct file *filp, struct kobject *kobj,
+			 struct bin_attribute *bin_attr,
+			 char *buffer, loff_t pos, size_t count)
 {
 	ssize_t ret_count = 0;
 
@@ -518,6 +518,7 @@ static ssize_t read_rbu_data(struct file *filp, struct kobject *kobj,
 	spin_unlock(&rbu_data.lock);
 	return ret_count;
 }
+static BIN_ATTR_RO(data, 0);
 
 static void callbackfn_rbu(const struct firmware *fw, void *context)
 {
@@ -554,9 +555,9 @@ static void callbackfn_rbu(const struct firmware *fw, void *context)
 	release_firmware(fw);
 }
 
-static ssize_t read_rbu_image_type(struct file *filp, struct kobject *kobj,
-				   struct bin_attribute *bin_attr,
-				   char *buffer, loff_t pos, size_t count)
+static ssize_t image_type_read(struct file *filp, struct kobject *kobj,
+			       struct bin_attribute *bin_attr,
+			       char *buffer, loff_t pos, size_t count)
 {
 	int size = 0;
 	if (!pos)
@@ -564,9 +565,9 @@ static ssize_t read_rbu_image_type(struct file *filp, struct kobject *kobj,
 	return size;
 }
 
-static ssize_t write_rbu_image_type(struct file *filp, struct kobject *kobj,
-				    struct bin_attribute *bin_attr,
-				    char *buffer, loff_t pos, size_t count)
+static ssize_t image_type_write(struct file *filp, struct kobject *kobj,
+				struct bin_attribute *bin_attr,
+				char *buffer, loff_t pos, size_t count)
 {
 	int rc = count;
 	int req_firm_rc = 0;
@@ -624,10 +625,11 @@ static ssize_t write_rbu_image_type(struct file *filp, struct kobject *kobj,
 
 	return rc;
 }
+static BIN_ATTR_RW(image_type, 0);
 
-static ssize_t read_rbu_packet_size(struct file *filp, struct kobject *kobj,
-				    struct bin_attribute *bin_attr,
-				    char *buffer, loff_t pos, size_t count)
+static ssize_t packet_size_read(struct file *filp, struct kobject *kobj,
+				struct bin_attribute *bin_attr,
+				char *buffer, loff_t pos, size_t count)
 {
 	int size = 0;
 	if (!pos) {
@@ -638,9 +640,9 @@ static ssize_t read_rbu_packet_size(struct file *filp, struct kobject *kobj,
 	return size;
 }
 
-static ssize_t write_rbu_packet_size(struct file *filp, struct kobject *kobj,
-				     struct bin_attribute *bin_attr,
-				     char *buffer, loff_t pos, size_t count)
+static ssize_t packet_size_write(struct file *filp, struct kobject *kobj,
+				 struct bin_attribute *bin_attr,
+				 char *buffer, loff_t pos, size_t count)
 {
 	unsigned long temp;
 	spin_lock(&rbu_data.lock);
@@ -652,22 +654,17 @@ static ssize_t write_rbu_packet_size(struct file *filp, struct kobject *kobj,
 	spin_unlock(&rbu_data.lock);
 	return count;
 }
+static BIN_ATTR_RW(packet_size, 0);
 
-static struct bin_attribute rbu_data_attr = {
-	.attr = {.name = "data", .mode = 0444},
-	.read = read_rbu_data,
+static struct bin_attribute *rbu_bin_attrs[] = {
+	&bin_attr_data,
+	&bin_attr_image_type,
+	&bin_attr_packet_size,
+	NULL
 };
 
-static struct bin_attribute rbu_image_type_attr = {
-	.attr = {.name = "image_type", .mode = 0644},
-	.read = read_rbu_image_type,
-	.write = write_rbu_image_type,
-};
-
-static struct bin_attribute rbu_packet_size_attr = {
-	.attr = {.name = "packet_size", .mode = 0644},
-	.read = read_rbu_packet_size,
-	.write = write_rbu_packet_size,
+static const struct attribute_group rbu_group = {
+	.bin_attrs = rbu_bin_attrs,
 };
 
 static int __init dcdrbu_init(void)
@@ -684,24 +681,13 @@ static int __init dcdrbu_init(void)
 		return PTR_ERR(rbu_device);
 	}
 
-	rc = sysfs_create_bin_file(&rbu_device->dev.kobj, &rbu_data_attr);
+	rc = sysfs_create_group(&rbu_device->dev.kobj, &rbu_group);
 	if (rc)
 		goto out_devreg;
-	rc = sysfs_create_bin_file(&rbu_device->dev.kobj, &rbu_image_type_attr);
-	if (rc)
-		goto out_data;
-	rc = sysfs_create_bin_file(&rbu_device->dev.kobj,
-		&rbu_packet_size_attr);
-	if (rc)
-		goto out_imtype;
 
 	rbu_data.entry_created = 0;
 	return 0;
 
-out_imtype:
-	sysfs_remove_bin_file(&rbu_device->dev.kobj, &rbu_image_type_attr);
-out_data:
-	sysfs_remove_bin_file(&rbu_device->dev.kobj, &rbu_data_attr);
 out_devreg:
 	platform_device_unregister(rbu_device);
 	return rc;
@@ -713,6 +699,7 @@ static __exit void dcdrbu_exit(void)
 	packet_empty_list();
 	img_update_free();
 	spin_unlock(&rbu_data.lock);
+	sysfs_remove_group(&rbu_device->dev.kobj, &rbu_group);
 	platform_device_unregister(rbu_device);
 }
 
