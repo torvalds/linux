@@ -22,26 +22,26 @@
 #define ST5(x...) x
 #endif
 
-aes_encrypt_block4x:
+SYM_FUNC_START_LOCAL(aes_encrypt_block4x)
 	encrypt_block4x	v0, v1, v2, v3, w3, x2, x8, w7
 	ret
-ENDPROC(aes_encrypt_block4x)
+SYM_FUNC_END(aes_encrypt_block4x)
 
-aes_decrypt_block4x:
+SYM_FUNC_START_LOCAL(aes_decrypt_block4x)
 	decrypt_block4x	v0, v1, v2, v3, w3, x2, x8, w7
 	ret
-ENDPROC(aes_decrypt_block4x)
+SYM_FUNC_END(aes_decrypt_block4x)
 
 #if MAX_STRIDE == 5
-aes_encrypt_block5x:
+SYM_FUNC_START_LOCAL(aes_encrypt_block5x)
 	encrypt_block5x	v0, v1, v2, v3, v4, w3, x2, x8, w7
 	ret
-ENDPROC(aes_encrypt_block5x)
+SYM_FUNC_END(aes_encrypt_block5x)
 
-aes_decrypt_block5x:
+SYM_FUNC_START_LOCAL(aes_decrypt_block5x)
 	decrypt_block5x	v0, v1, v2, v3, v4, w3, x2, x8, w7
 	ret
-ENDPROC(aes_decrypt_block5x)
+SYM_FUNC_END(aes_decrypt_block5x)
 #endif
 
 	/*

@@ -200,10 +200,8 @@ static int nitrox_aes_setkey(struct crypto_skcipher *cipher, const u8 *key,
 	int aes_keylen;
 
 	aes_keylen = flexi_aes_keylen(keylen);
-	if (aes_keylen < 0) {
-		crypto_skcipher_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (aes_keylen < 0)
 		return -EINVAL;
-	}
 	return nitrox_skcipher_setkey(cipher, aes_keylen, key, keylen);
 }
 
@@ -351,10 +349,8 @@ static int nitrox_aes_xts_setkey(struct crypto_skcipher *cipher,
 	keylen /= 2;
 
 	aes_keylen = flexi_aes_keylen(keylen);
-	if (aes_keylen < 0) {
-		crypto_skcipher_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (aes_keylen < 0)
 		return -EINVAL;
-	}
 
 	fctx = nctx->u.fctx;
 	/* copy KEY2 */
@@ -382,10 +378,8 @@ static int nitrox_aes_ctr_rfc3686_setkey(struct crypto_skcipher *cipher,
 	keylen -= CTR_RFC3686_NONCE_SIZE;
 
 	aes_keylen = flexi_aes_keylen(keylen);
-	if (aes_keylen < 0) {
-		crypto_skcipher_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (aes_keylen < 0)
 		return -EINVAL;
-	}
 	return nitrox_skcipher_setkey(cipher, aes_keylen, key, keylen);
 }
 

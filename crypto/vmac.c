@@ -435,10 +435,8 @@ static int vmac_setkey(struct crypto_shash *tfm,
 	unsigned int i;
 	int err;
 
-	if (keylen != VMAC_KEY_LEN) {
-		crypto_shash_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (keylen != VMAC_KEY_LEN)
 		return -EINVAL;
-	}
 
 	err = crypto_cipher_setkey(tctx->cipher, key, keylen);
 	if (err)
@@ -598,7 +596,7 @@ static int vmac_final(struct shash_desc *desc, u8 *out)
 static int vmac_init_tfm(struct crypto_tfm *tfm)
 {
 	struct crypto_instance *inst = crypto_tfm_alg_instance(tfm);
-	struct crypto_spawn *spawn = crypto_instance_ctx(inst);
+	struct crypto_cipher_spawn *spawn = crypto_instance_ctx(inst);
 	struct vmac_tfm_ctx *tctx = crypto_tfm_ctx(tfm);
 	struct crypto_cipher *cipher;
 
@@ -620,6 +618,7 @@ static void vmac_exit_tfm(struct crypto_tfm *tfm)
 static int vmac_create(struct crypto_template *tmpl, struct rtattr **tb)
 {
 	struct shash_instance *inst;
+	struct crypto_cipher_spawn *spawn;
 	struct crypto_alg *alg;
 	int err;
 
@@ -627,25 +626,24 @@ static int vmac_create(struct crypto_template *tmpl, struct rtattr **tb)
 	if (err)
 		return err;
 
-	alg = crypto_get_attr_alg(tb, CRYPTO_ALG_TYPE_CIPHER,
-			CRYPTO_ALG_TYPE_MASK);
-	if (IS_ERR(alg))
-		return PTR_ERR(alg);
+	inst = kzalloc(sizeof(*inst) + sizeof(*spawn), GFP_KERNEL);
+	if (!inst)
+		return -ENOMEM;
+	spawn = shash_instance_ctx(inst);
+
+	err = crypto_grab_cipher(spawn, shash_crypto_instance(inst),
+				 crypto_attr_alg_name(tb[1]), 0, 0);
+	if (err)
+		goto err_free_inst;
+	alg = crypto_spawn_cipher_alg(spawn);
 
 	err = -EINVAL;
 	if (alg->cra_blocksize != VMAC_NONCEBYTES)
-		goto out_put_alg;
+		goto err_free_inst;
 
-	inst = shash_alloc_instance(tmpl->name, alg);
-	err = PTR_ERR(inst);
-	if (IS_ERR(inst))
-		goto out_put_alg;
-
-	err = crypto_init_spawn(shash_instance_ctx(inst), alg,
-			shash_crypto_instance(inst),
-			CRYPTO_ALG_TYPE_MASK);
+	err = crypto_inst_setname(shash_crypto_instance(inst), tmpl->name, alg);
 	if (err)
-		goto out_free_inst;
+		goto err_free_inst;
 
 	inst->alg.base.cra_priority = alg->cra_priority;
 	inst->alg.base.cra_blocksize = alg->cra_blocksize;
@@ -662,21 +660,19 @@ static int vmac_create(struct crypto_template *tmpl, struct rtattr **tb)
 	inst->alg.final = vmac_final;
 	inst->alg.setkey = vmac_setkey;
 
+	inst->free = shash_free_singlespawn_instance;
+
 	err = shash_register_instance(tmpl, inst);
 	if (err) {
-out_free_inst:
-		shash_free_instance(shash_crypto_instance(inst));
+err_free_inst:
+		shash_free_singlespawn_instance(inst);
 	}
-
-out_put_alg:
-	crypto_mod_put(alg);
 	return err;
 }
 
 static struct crypto_template vmac64_tmpl = {
 	.name = "vmac64",
 	.create = vmac_create,
-	.free = shash_free_instance,
 	.module = THIS_MODULE,
 };
 

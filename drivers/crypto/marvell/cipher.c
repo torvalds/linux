@@ -255,10 +255,8 @@ static int mv_cesa_aes_setkey(struct crypto_skcipher *cipher, const u8 *key,
 	int i;
 
 	ret = aes_expandkey(&ctx->aes, key, len);
-	if (ret) {
-		crypto_skcipher_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (ret)
 		return ret;
-	}
 
 	remaining = (ctx->aes.key_length - 16) / 4;
 	offset = ctx->aes.key_length + 24 - remaining;

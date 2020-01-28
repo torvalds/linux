@@ -131,12 +131,8 @@ struct ce_task {
  * @engine:	ptr to the crypto_engine for this flow
  * @bounce_iv:	buffer which contain the IV
  * @ivlen:	size of bounce_iv
- * @keylen:	keylen for this flow operation
  * @complete:	completion for the current task on this flow
  * @status:	set to 1 by interrupt if task is done
- * @method:	current method for flow
- * @op_dir:	direction (encrypt vs decrypt) of this flow
- * @op_mode:	op_mode for this flow
  * @t_phy:	Physical address of task
  * @tl:		pointer to the current ce_task for this flow
  * @stat_req:	number of request done by this flow
@@ -145,12 +141,8 @@ struct sun8i_ce_flow {
 	struct crypto_engine *engine;
 	void *bounce_iv;
 	unsigned int ivlen;
-	unsigned int keylen;
 	struct completion complete;
 	int status;
-	u32 method;
-	u32 op_dir;
-	u32 op_mode;
 	dma_addr_t t_phy;
 	int timeout;
 	struct ce_task *tl;
