@@ -1663,7 +1663,8 @@ static void gen6_bsd_submit_request(struct i915_request *request)
 					 GEN6_BSD_SLEEP_INDICATOR,
 					 0,
 					 1000, 0, NULL))
-		DRM_ERROR("timed out waiting for the BSD ring to wake up\n");
+		drm_err(&uncore->i915->drm,
+			"timed out waiting for the BSD ring to wake up\n");
 
 	/* Now that the ring is fully powered up, update the tail */
 	i9xx_submit_request(request);
