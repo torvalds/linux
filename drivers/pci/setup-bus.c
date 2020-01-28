@@ -1886,14 +1886,10 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
 	 * calculated in __pci_bus_size_bridges() which covers all the
 	 * devices currently connected to the port and below.
 	 */
-	available_io = resource_size(&io);
-	available_mmio = resource_size(&mmio);
-	available_mmio_pref = resource_size(&mmio_pref);
-
-	extend_bridge_window(bridge, io_res, add_list, available_io);
-	extend_bridge_window(bridge, mmio_res, add_list, available_mmio);
+	extend_bridge_window(bridge, io_res, add_list, resource_size(&io));
+	extend_bridge_window(bridge, mmio_res, add_list, resource_size(&mmio));
 	extend_bridge_window(bridge, mmio_pref_res, add_list,
-			     available_mmio_pref);
+			     resource_size(&mmio_pref));
 
 	/*
 	 * Calculate how many hotplug bridges and normal bridges there
@@ -1929,9 +1925,9 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
 	 * extra space reduced by the minimal required space for the
 	 * non-hotplug bridges.
 	 */
-	remaining_io = available_io;
-	remaining_mmio = available_mmio;
-	remaining_mmio_pref = available_mmio_pref;
+	remaining_io = available_io = resource_size(&io);
+	remaining_mmio = available_mmio = resource_size(&mmio);
+	remaining_mmio_pref = available_mmio_pref = resource_size(&mmio_pref);
 
 	for_each_pci_bridge(dev, bus) {
 		const struct resource *res;
