@@ -20,14 +20,6 @@
 
 #define DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE   0x50
 
-#define DP_SOURCE_TABLE_REVISION	    0x310
-#define DP_SOURCE_PAYLOAD_SIZE		    0x311
-#define DP_SOURCE_SINK_CAP		    0x317
-#define DP_SOURCE_BACKLIGHT_LEVEL	    0x320
-#define DP_SOURCE_BACKLIGHT_CURRENT_PEAK    0x326
-#define DP_SOURCE_BACKLIGHT_CONTROL	    0x32E
-#define DP_SOURCE_BACKLIGHT_ENABLE	    0x32F
-
 /* maximum pre emphasis level allowed for each voltage swing level*/
 static const enum dc_pre_emphasis voltage_swing_to_pre_emphasis[] = {
 		PRE_EMPHASIS_LEVEL3,
