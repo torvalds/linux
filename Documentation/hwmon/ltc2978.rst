@@ -9,7 +9,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: http://www.linear.com/product/ltc2974
+    Datasheet: https://www.analog.com/en/products/ltc2974
 
   * Linear Technology LTC2975
 
@@ -17,7 +17,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: http://www.linear.com/product/ltc2975
+    Datasheet: https://www.analog.com/en/products/ltc2975
 
   * Linear Technology LTC2977
 
@@ -25,7 +25,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: http://www.linear.com/product/ltc2977
+    Datasheet: https://www.analog.com/en/products/ltc2977
 
   * Linear Technology LTC2978, LTC2978A
 
@@ -33,9 +33,9 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: http://www.linear.com/product/ltc2978
+    Datasheet: https://www.analog.com/en/products/ltc2978
 
-	       http://www.linear.com/product/ltc2978a
+	       https://www.analog.com/en/products/ltc2978a
 
   * Linear Technology LTC2980
 
@@ -43,7 +43,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: http://www.linear.com/product/ltc2980
+    Datasheet: https://www.analog.com/en/products/ltc2980
 
   * Linear Technology LTC3880
 
@@ -51,7 +51,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: http://www.linear.com/product/ltc3880
+    Datasheet: https://www.analog.com/en/products/ltc3880
 
   * Linear Technology LTC3882
 
@@ -59,7 +59,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: http://www.linear.com/product/ltc3882
+    Datasheet: https://www.analog.com/en/products/ltc3882
 
   * Linear Technology LTC3883
 
@@ -67,7 +67,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: http://www.linear.com/product/ltc3883
+    Datasheet: https://www.analog.com/en/products/ltc3883
 
   * Linear Technology LTC3886
 
@@ -75,7 +75,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: http://www.linear.com/product/ltc3886
+    Datasheet: https://www.analog.com/en/products/ltc3886
 
   * Linear Technology LTC3887
 
@@ -83,7 +83,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: http://www.linear.com/product/ltc3887
+    Datasheet: https://www.analog.com/en/products/ltc3887
 
   * Linear Technology LTM2987
 
@@ -91,7 +91,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: http://www.linear.com/product/ltm2987
+    Datasheet: https://www.analog.com/en/products/ltm2987
 
   * Linear Technology LTM4675
 
@@ -99,7 +99,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: http://www.linear.com/product/ltm4675
+    Datasheet: https://www.analog.com/en/products/ltm4675
 
   * Linear Technology LTM4676
 
@@ -107,7 +107,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: http://www.linear.com/product/ltm4676
+    Datasheet: https://www.analog.com/en/products/ltm4676
 
   * Analog Devices LTM4686
 
