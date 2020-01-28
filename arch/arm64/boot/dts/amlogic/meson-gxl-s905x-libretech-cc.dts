@@ -12,8 +12,9 @@
 #include "meson-gxl-s905x.dtsi"
 
 / {
-	compatible = "libretech,cc", "amlogic,s905x", "amlogic,meson-gxl";
-	model = "Libre Computer Board AML-S905X-CC";
+	compatible = "libretech,aml-s905x-cc", "amlogic,s905x",
+		     "amlogic,meson-gxl";
+	model = "Libre Computer AML-S905X-CC";
 
 	aliases {
 		serial0 = &uart_AO;
@@ -84,35 +85,6 @@
 		regulator-always-on;
 	};
 
-	sound {
-		compatible = "simple-audio-card";
-		simple-audio-card,name = "meson-gx-audio";
-
-		assigned-clocks = <&clkc CLKID_MPLL2>,
-				  <&clkc CLKID_MPLL0>,
-				  <&clkc CLKID_MPLL1>;
-		assigned-clock-parents = <0>, <0>, <0>;
-		assigned-clock-rates = <294912000>,
-				       <270950400>,
-				       <393216000>;
-
-		simple-audio-card,dai-link@0 {
-			/* HDMI Output */
-			format = "i2s";
-			mclk-fs = <256>;
-			bitclock-master = <&aiu_i2s>;
-			frame-master = <&aiu_i2s>;
-
-			cpu {
-				sound-dai = <&aiu_i2s>;
-			};
-
-			codec {
-				sound-dai = <&hdmi_tx>;
-			};
-		};
-	};
-
 	vcc_3v3: regulator-vcc_3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "VCC_3V3";
@@ -144,12 +116,47 @@
 		regulator-max-microvolt = <1800000>;
 	};
 
+	/* This is provided by LDOs on the eMMC daugther card */
 	vddio_boot: regulator-vddio_boot {
 		compatible = "regulator-fixed";
 		regulator-name = "VDDIO_BOOT";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&vcc_3v3>;
 	};
+
+	sound {
+		compatible = "amlogic,gx-sound-card";
+		model = "GXL-LIBRETECH-S905X-CC";
+		audio-routing = "I2S ENCODER Playback", "I2S FIFO Playback";
+
+		assigned-clocks = <&clkc CLKID_MPLL2>,
+				  <&clkc CLKID_MPLL0>,
+				  <&clkc CLKID_MPLL1>;
+		assigned-clock-parents = <0>, <0>, <0>;
+		assigned-clock-rates = <294912000>,
+				       <270950400>,
+				       <393216000>;
+		status = "okay";
+
+		dai-link-0 {
+			sound-dai = <&i2s_fifo>;
+		};
+
+		dai-link-1 {
+			sound-dai = <&i2s_encoder>;
+			dai-format = "i2s";
+			mclk-fs = <256>;
+
+			codec-0 {
+				sound-dai = <&hdmi_tx>;
+			};
+		};
+	};
+};
+
+&aiu {
+	status = "okay";
 };
 
 &cec_AO {
@@ -157,14 +164,6 @@
 	pinctrl-0 = <&ao_cec_pins>;
 	pinctrl-names = "default";
 	hdmi-phandle = <&hdmi_tx>;
-};
-
-&audio {
-	status = "okay";
-};
-
-&aiu_i2s {
-	status = "okay";
 };
 
 &cvbs_vdac_port {
@@ -186,6 +185,14 @@
 	status = "okay";
 	pinctrl-0 = <&remote_input_ao_pins>;
 	pinctrl-names = "default";
+};
+
+&i2s_fifo {
+	status = "okay";
+};
+
+&i2s_encoder {
+	status = "okay";
 };
 
 &hdmi_tx {
@@ -272,7 +279,7 @@
 
 	bus-width = <4>;
 	cap-sd-highspeed;
-	max-frequency = <100000000>;
+	max-frequency = <50000000>;
 	disable-wp;
 
 	cd-gpios = <&gpio CARD_6 GPIO_ACTIVE_LOW>;
@@ -290,9 +297,9 @@
 
 	bus-width = <8>;
 	cap-mmc-highspeed;
-	mmc-ddr-3_3v;
-	max-frequency = <50000000>;
-	non-removable;
+	mmc-ddr-1_8v;
+	mmc-hs200-1_8v;
+	max-frequency = <200000000>;
 	disable-wp;
 
 	mmc-pwrseq = <&emmc_pwrseq>;

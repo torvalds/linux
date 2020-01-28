@@ -208,26 +208,13 @@ DEFINE_SHOW_ATTRIBUTE(component_list);
 
 static void soc_init_card_debugfs(struct snd_soc_card *card)
 {
-	if (!snd_soc_debugfs_root)
-		return;
-
 	card->debugfs_card_root = debugfs_create_dir(card->name,
 						     snd_soc_debugfs_root);
-	if (IS_ERR(card->debugfs_card_root)) {
-		dev_warn(card->dev,
-			 "ASoC: Failed to create card debugfs directory: %ld\n",
-			 PTR_ERR(card->debugfs_card_root));
-		card->debugfs_card_root = NULL;
-		return;
-	}
 
-	card->debugfs_pop_time = debugfs_create_u32("dapm_pop_time", 0644,
-						    card->debugfs_card_root,
-						    &card->pop_time);
-	if (IS_ERR(card->debugfs_pop_time))
-		dev_warn(card->dev,
-			 "ASoC: Failed to create pop time debugfs file: %ld\n",
-			 PTR_ERR(card->debugfs_pop_time));
+	debugfs_create_u32("dapm_pop_time", 0644, card->debugfs_card_root,
+			   &card->pop_time);
+
+	snd_soc_dapm_debugfs_init(&card->dapm, card->debugfs_card_root);
 }
 
 static void soc_cleanup_card_debugfs(struct snd_soc_card *card)

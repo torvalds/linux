@@ -46,6 +46,8 @@ static int meson_acore_init_clocks(struct device *dev)
 					acore_clock_names[i]);
 			return PTR_ERR(clock);
 		}
+		dev_err(dev, "Success getting %s clock\n",
+					acore_clock_names[i]);
 
 		ret = clk_prepare_enable(clock);
 		if (ret) {

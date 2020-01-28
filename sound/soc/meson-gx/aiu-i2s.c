@@ -36,6 +36,7 @@
 struct meson_aiu_i2s {
 	struct meson_audio_core_data *core;
 	struct clk *mclk;
+	struct clk *cts_mclk;
 	struct clk *bclks;
 	struct clk *iface;
 	struct clk *fast;
@@ -704,7 +705,7 @@ static const struct snd_soc_component_driver meson_aiu_i2s_component = {
 static int meson_aiu_i2s_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct meson_aiu_i2s *priv;
+	struct meson_aiu_i2s *priv = NULL;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -719,6 +720,7 @@ static int meson_aiu_i2s_probe(struct platform_device *pdev)
 			dev_err(dev, "Can't get the i2s fast domain clock\n");
 		return PTR_ERR(priv->fast);
 	}
+	dev_dbg(dev, "Success getting fast clock\n");
 
 	priv->iface = devm_clk_get(dev, "iface");
 	if (IS_ERR(priv->iface)) {
@@ -739,6 +741,13 @@ static int meson_aiu_i2s_probe(struct platform_device *pdev)
 		if (PTR_ERR(priv->mclk) != -EPROBE_DEFER)
 			dev_err(dev, "failed to get the i2s master clock\n");
 		return PTR_ERR(priv->mclk);
+	}
+
+	priv->cts_mclk = devm_clk_get(dev, "cts_mclk");
+	if (IS_ERR(priv->cts_mclk)) {
+		if (PTR_ERR(priv->cts_mclk) != -EPROBE_DEFER)
+			dev_err(dev, "failed to get the i2s master clock\n");
+		return PTR_ERR(priv->cts_mclk);
 	}
 
 	priv->irq = platform_get_irq(pdev, 0);

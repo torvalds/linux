@@ -14,6 +14,13 @@
 		ethernet0 = &ethmac;
 	};
 
+	spdif_dit: audio-codec-0 {
+		#sound-dai-cells = <0>;
+		compatible = "linux,spdif-dit";
+		status = "okay";
+		sound-name-prefix = "DIT";
+	};
+
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
@@ -104,8 +111,11 @@
 	};
 
 	sound {
-		compatible = "simple-audio-card";
-		simple-audio-card,name = "meson-gx-audio";
+		compatible = "amlogic,gx-sound-card";
+		model = "GX-P230-Q200";
+		audio-routing = "I2S ENCODER I2S IN", "I2S FIFO Playback",
+				"I2S ENCODER SPDIF IN", "SPDIF FIFO Playback",
+				"SPDIF ENCODER Playback", "I2S ENCODER SPDIF OUT";
 
 		assigned-clocks = <&clkc CLKID_MPLL2>,
 				  <&clkc CLKID_MPLL0>,
@@ -114,23 +124,38 @@
 		assigned-clock-rates = <294912000>,
 				       <270950400>,
 				       <393216000>;
+		status = "okay";
 
-		simple-audio-card,dai-link@0 {
-			/* HDMI Output */
-			format = "i2s";
+		dai-link-0 {
+			sound-dai = <&i2s_fifo>;
+		};
+
+		dai-link-1 {
+			sound-dai = <&spdif_fifo>;
+		};
+
+		dai-link-2 {
+			sound-dai = <&i2s_encoder>;
+			dai-format = "i2s";
 			mclk-fs = <256>;
-			bitclock-master = <&aiu_i2s>;
-			frame-master = <&aiu_i2s>;
 
-			cpu {
-				sound-dai = <&aiu_i2s>;
-			};
-
-			codec {
+			codec-0 {
 				sound-dai = <&hdmi_tx>;
 			};
 		};
+
+		dai-link-3 {
+			sound-dai = <&spdif_encoder>;
+
+			codec-0 {
+				sound-dai = <&spdif_dit>;
+			};
+		};
 	};
+};
+
+&aiu {
+	status = "okay";
 };
 
 &cec_AO {
@@ -138,14 +163,6 @@
 	pinctrl-0 = <&ao_cec_pins>;
 	pinctrl-names = "default";
 	hdmi-phandle = <&hdmi_tx>;
-};
-
-&audio {
-	status = "okay";
-};
-
-&aiu_i2s {
-	status = "okay";
 };
 
 &cvbs_vdac_port {
@@ -177,6 +194,14 @@
 	pinctrl-names = "default";
 };
 
+&i2s_fifo {
+	status = "okay";
+};
+
+&i2s_encoder {
+	status = "okay";
+};
+
 &pwm_ef {
 	status = "okay";
 	pinctrl-0 = <&pwm_e_pins>;
@@ -201,10 +226,13 @@
 
 	bus-width = <4>;
 	cap-sd-highspeed;
-	max-frequency = <100000000>;
+	max-frequency = <50000000>;
 
 	non-removable;
 	disable-wp;
+
+	/* WiFi firmware requires power to be kept while in suspend */
+	keep-power-in-suspend;
 
 	mmc-pwrseq = <&sdio_pwrseq>;
 
@@ -221,7 +249,7 @@
 
 	bus-width = <4>;
 	cap-sd-highspeed;
-	max-frequency = <100000000>;
+	max-frequency = <50000000>;
 	disable-wp;
 
 	cd-gpios = <&gpio CARD_6 GPIO_ACTIVE_LOW>;
@@ -248,6 +276,16 @@
 	mmc-pwrseq = <&emmc_pwrseq>;
 	vmmc-supply = <&vcc_3v3>;
 	vqmmc-supply = <&vddio_boot>;
+};
+
+&spdif_fifo {
+	status = "okay";
+};
+
+&spdif_encoder {
+	status = "okay";
+	pinctrl-0 = <&spdif_out_h_pins>;
+	pinctrl-names = "default";
 };
 
 /* This UART is brought out to the DB9 connector */

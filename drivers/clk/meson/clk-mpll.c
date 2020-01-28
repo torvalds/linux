@@ -151,6 +151,8 @@ static void mpll_init(struct clk_hw *hw)
 	/* Set the magic misc bit if required */
 	if (MESON_PARM_APPLICABLE(&mpll->misc))
 		meson_parm_write(clk->map, &mpll->misc, 1);
+
+//	return 0;
 }
 
 const struct clk_ops meson_clk_mpll_ro_ops = {

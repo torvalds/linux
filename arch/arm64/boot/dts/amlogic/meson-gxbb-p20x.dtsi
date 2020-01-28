@@ -114,6 +114,24 @@
 		};
 	};
 
+	i2s_codec: external-codec {
+		#sound-dai-cells = <0>;
+		compatible = "everest,es7134";
+		status = "okay";
+	};
+
+	amp: analog-amplifier {
+		compatible = "dioo,dio2125";
+		enable-gpios = <&gpio GPIOH_3 0>;
+		status = "okay";
+	};
+
+	spdif_out: spdif-out {
+		#sound-dai-cells = <0>;
+		compatible = "linux,spdif-dit";
+		status = "okay";
+	};
+
 	sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "meson-gx-audio";
@@ -156,6 +174,15 @@
 };
 
 &aiu_i2s {
+	pinctrl-0 = <&i2s_am_clk_pins>, <&i2s_out_ao_clk_pins>,
+		    <&i2s_out_lr_clk_pins>, <&i2s_out_ch01_ao_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&aiu_spdif {
+	pinctrl-0 = <&spdif_out_ao_6_pins>;
+	pinctrl-names = "default";
 	status = "okay";
 };
 

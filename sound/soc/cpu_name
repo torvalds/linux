@@ -1,0 +1,487 @@
+./soc-pcm.c:	if (!rtd->pmdown_time || rtd->dai_link->ignore_pmdown_time)
+./soc-pcm.c:				be->dai_link->name, event, dir);
+./soc-pcm.c:				rtd->dai_link->symmetric_rates)) {
+./soc-pcm.c:				rtd->dai_link->symmetric_channels)) {
+./soc-pcm.c:				rtd->dai_link->symmetric_samplebits)) {
+./soc-pcm.c:		rtd->dai_link->symmetric_rates;
+./soc-pcm.c:		rtd->dai_link->symmetric_channels;
+./soc-pcm.c:		rtd->dai_link->symmetric_samplebits;
+./soc-pcm.c:	if (rtd->dai_link->ops->startup) {
+./soc-pcm.c:		ret = rtd->dai_link->ops->startup(substream);
+./soc-pcm.c:			       rtd->dai_link->name, ret);
+./soc-pcm.c:	if (rtd->dai_link->dynamic || rtd->dai_link->no_pcm)
+./soc-pcm.c:	if (rtd->dai_link->ops->shutdown)
+./soc-pcm.c:		rtd->dai_link->ops->shutdown(substream);
+./soc-pcm.c:	if (rtd->dai_link->ops->shutdown)
+./soc-pcm.c:		rtd->dai_link->ops->shutdown(substream);
+./soc-pcm.c:	if (rtd->dai_link->ops->prepare) {
+./soc-pcm.c:		ret = rtd->dai_link->ops->prepare(substream);
+./soc-pcm.c:	if (rtd->dai_link->ops->hw_params) {
+./soc-pcm.c:		ret = rtd->dai_link->ops->hw_params(substream, params);
+./soc-pcm.c:	if (rtd->dai_link->ops->hw_free)
+./soc-pcm.c:		rtd->dai_link->ops->hw_free(substream);
+./soc-pcm.c:	if (rtd->dai_link->ops->hw_free)
+./soc-pcm.c:		rtd->dai_link->ops->hw_free(substream);
+./soc-pcm.c:	if (rtd->dai_link->ops->trigger) {
+./soc-pcm.c:		ret = rtd->dai_link->ops->trigger(substream, cmd);
+./soc-pcm.c:			stream ? "capture" : "playback",  fe->dai_link->name,
+./soc-pcm.c:			stream ? "<-" : "->", be->dai_link->name);
+./soc-pcm.c:		dpcm->debugfs_state = debugfs_create_u32(be->dai_link->name, 0644,
+./soc-pcm.c:			dpcm->fe->dai_link->name,
+./soc-pcm.c:			stream ? "<-" : "->", dpcm->be->dai_link->name);
+./soc-pcm.c:				dpcm->be->dai_link->name);
+./soc-pcm.c:			stream ? "capture" : "playback", fe->dai_link->name,
+./soc-pcm.c:			stream ? "<-" : "->", dpcm->be->dai_link->name);
+./soc-pcm.c:			if (!be->dai_link->no_pcm)
+./soc-pcm.c:			if (!be->dai_link->no_pcm)
+./soc-pcm.c:			if (!rtd->dai_link->no_pcm)
+./soc-pcm.c:			if (!rtd->dai_link->no_pcm)
+./soc-pcm.c:			dpcm->be->dai_link->name, fe->dai_link->name);
+./soc-pcm.c:		if (!be->dai_link->no_pcm)
+./soc-pcm.c:			stream ? "capture" : "playback", be->dai_link->name);
+./soc-pcm.c:	if (!fe->dai_link->dpcm_merged_format)
+./soc-pcm.c:	if (!fe->dai_link->dpcm_merged_chan)
+./soc-pcm.c:	if (!fe->dai_link->dpcm_merged_rate)
+./soc-pcm.c:		if (rtd->dai_link->be_hw_params_fixup)
+./soc-pcm.c:	dev_dbg(fe->dev, "ASoC: open FE %s\n", fe->dai_link->name);
+./soc-pcm.c:			be->dai_link->name);
+./soc-pcm.c:	dev_dbg(fe->dev, "ASoC: close FE %s\n", fe->dai_link->name);
+./soc-pcm.c:			be->dai_link->name);
+./soc-pcm.c:	dev_dbg(fe->dev, "ASoC: hw_free FE %s\n", fe->dai_link->name);
+./soc-pcm.c:			fe->dai_link->name);
+./soc-pcm.c:		if (be->dai_link->be_hw_params_fixup) {
+./soc-pcm.c:			ret = be->dai_link->be_hw_params_fixup(be,
+./soc-pcm.c:			be->dai_link->name);
+./soc-pcm.c:			fe->dai_link->name, params_rate(params),
+./soc-pcm.c:			dpcm->be->dai_link->name, cmd);
+./soc-pcm.c:	enum snd_soc_dpcm_trigger trigger = fe->dai_link->trigger[stream];
+./soc-pcm.c:				fe->dai_link->name, cmd);
+./soc-pcm.c:				fe->dai_link->name, cmd);
+./soc-pcm.c:				fe->dai_link->name, cmd);
+./soc-pcm.c:				fe->dai_link->name);
+./soc-pcm.c:			be->dai_link->name);
+./soc-pcm.c:	dev_dbg(fe->dev, "ASoC: prepare FE %s\n", fe->dai_link->name);
+./soc-pcm.c:				fe->dai_link->name);
+./soc-pcm.c:			fe->dai_link->name);
+./soc-pcm.c:	enum snd_soc_dpcm_trigger trigger = fe->dai_link->trigger[stream];
+./soc-pcm.c:			stream ? "capture" : "playback", fe->dai_link->name);
+./soc-pcm.c:				fe->dai_link->name);
+./soc-pcm.c:			fe->dai_link->name);
+./soc-pcm.c:	enum snd_soc_dpcm_trigger trigger = fe->dai_link->trigger[stream];
+./soc-pcm.c:			stream ? "capture" : "playback", fe->dai_link->name);
+./soc-pcm.c:				fe->dai_link->name);
+./soc-pcm.c:			fe->dai_link->name);
+./soc-pcm.c:	if (!fe->dai_link->dynamic)
+./soc-pcm.c:		new ? "new" : "old", fe->dai_link->name);
+./soc-pcm.c:			 fe->dai_link->name,  "playback");
+./soc-pcm.c:			 fe->dai_link->name,  "capture");
+./soc-pcm.c:		if (be->dai_link->ignore_suspend)
+./soc-pcm.c:					 be->dai_link->name);
+./soc-pcm.c:			fe->dai_link->name, stream ? "capture" : "playback");
+./soc-pcm.c:	if (rtd->dai_link->dynamic || rtd->dai_link->no_pcm) {
+./soc-pcm.c:		playback = rtd->dai_link->dpcm_playback;
+./soc-pcm.c:		capture = rtd->dai_link->dpcm_capture;
+./soc-pcm.c:		struct snd_soc_pcm_stream *cpu_capture = rtd->dai_link->params ?
+./soc-pcm.c:		struct snd_soc_pcm_stream *cpu_playback = rtd->dai_link->params ?
+./soc-pcm.c:	if (rtd->dai_link->playback_only) {
+./soc-pcm.c:	if (rtd->dai_link->capture_only) {
+./soc-pcm.c:	if (rtd->dai_link->params) {
+./soc-pcm.c:			 rtd->dai_link->stream_name);
+./soc-pcm.c:	} else if (rtd->dai_link->no_pcm) {
+./soc-pcm.c:			rtd->dai_link->stream_name);
+./soc-pcm.c:		if (rtd->dai_link->dynamic)
+./soc-pcm.c:				rtd->dai_link->stream_name);
+./soc-pcm.c:				rtd->dai_link->stream_name,
+./soc-pcm.c:			rtd->dai_link->name);
+./soc-pcm.c:	if (rtd->dai_link->params)
+./soc-pcm.c:	pcm->nonatomic = rtd->dai_link->nonatomic;
+./soc-pcm.c:	if (rtd->dai_link->no_pcm || rtd->dai_link->params) {
+./soc-pcm.c:	if (rtd->dai_link->dynamic) {
+./soc-pcm.c:			"[%s - %s]\n", fe->dai_link->name,
+./soc-pcm.c:				"- %s\n", be->dai_link->name);
+./soc-pcm.c:	rtd->debugfs_dpcm_root = debugfs_create_dir(rtd->dai_link->name,
+./soc-pcm.c:			 rtd->dai_link->name);
+./samsung/s3c24xx_simtec.c:	card->dai_link->ops = &simtec_snd_ops;
+./samsung/s3c24xx_simtec.c:	card->dai_link->dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+./samsung/tm2_wm5110.c:		dai_link->cpu_name = NULL;
+./samsung/tm2_wm5110.c:		dai_link->platform_name = NULL;
+./samsung/tm2_wm5110.c:		dai_link->codec_of_node = codec_dai_node[dai_index];
+./samsung/tm2_wm5110.c:		dai_link->cpu_of_node = cpu_dai_node[dai_index];
+./samsung/tm2_wm5110.c:		dai_link->platform_of_node = cpu_dai_node[dai_index];
+./qcom/apq8016_sbc.c:	for (i = 0 ; i < dai_link->num_codecs; i++) {
+./qcom/qdsp6/q6asm-dai.c:		q6routing_stream_close(soc_prtd->dai_link->id,
+./qcom/qdsp6/q6asm-dai.c:	ret = q6routing_stream_open(soc_prtd->dai_link->id, LEGACY_PCM_MODE,
+./qcom/qdsp6/q6asm-dai.c:	q6routing_stream_close(soc_prtd->dai_link->id,
+./qcom/qdsp6/q6asm-dai.c:	q6routing_stream_close(rtd->dai_link->id, stream->direction);
+./qcom/qdsp6/q6asm-dai.c:	ret = q6routing_stream_open(rtd->dai_link->id, LEGACY_PCM_MODE,
+./qcom/storm.c:	dai_link->cpu_of_node = of_parse_phandle(np, "cpu", 0);
+./qcom/storm.c:	if (!dai_link->cpu_of_node) {
+./qcom/storm.c:	dai_link->platform_of_node = dai_link->cpu_of_node;
+./qcom/storm.c:	dai_link->codec_of_node = of_parse_phandle(np, "codec", 0);
+./qcom/storm.c:	if (!dai_link->codec_of_node) {
+./intel/boards/sof_rt5682.c:	pcm->device = rtd->dai_link->id;
+./intel/boards/kbl_rt5663_rt5514_max98927.c:	if (!strcmp(fe_dai_link->name, "Kbl Audio Port") ||
+./intel/boards/kbl_rt5663_rt5514_max98927.c:	    !strcmp(fe_dai_link->name, "Kbl Audio Headset Playback") ||
+./intel/boards/kbl_rt5663_rt5514_max98927.c:	    !strcmp(fe_dai_link->name, "Kbl Audio Capture Port")) {
+./intel/boards/kbl_rt5663_rt5514_max98927.c:	} else if (!strcmp(fe_dai_link->name, "Kbl Audio DMIC cap")) {
+./intel/boards/kbl_rt5663_rt5514_max98927.c:	if (!strcmp(be_dai_link->name, "SSP0-Codec"))
+./intel/boards/skl_hda_dsp_generic.c:		dai_link->platform_name = mach_params->platform;
+./intel/boards/kbl_rt5663_max98927.c:	if (!strcmp(fe_dai_link->name, "Kbl Audio Port") ||
+./intel/boards/kbl_rt5663_max98927.c:	    !strcmp(fe_dai_link->name, "Kbl Audio Headset Playback") ||
+./intel/boards/kbl_rt5663_max98927.c:	    !strcmp(fe_dai_link->name, "Kbl Audio Capture Port")) {
+./intel/boards/kbl_rt5663_max98927.c:	if (!strcmp(be_dai_link->name, "SSP0-Codec"))
+./intel/boards/kbl_da7219_max98927.c:	if (!strcmp(fe_dai_link->name, "Kbl Audio Port") ||
+./intel/boards/kbl_da7219_max98927.c:	    !strcmp(fe_dai_link->name, "Kbl Audio Headset Playback") ||
+./intel/boards/kbl_da7219_max98927.c:	    !strcmp(fe_dai_link->name, "Kbl Audio Capture Port")) {
+./intel/boards/kbl_da7219_max98927.c:	if (!strcmp(be_dai_link->name, "SSP0-Codec"))
+./intel/skylake/skl-pcm.c:					dai_link->cpu_dai_name);
+./soc-core.c:		if (rtd->dai_link->no_pcm &&
+./soc-core.c:			!strcmp(rtd->dai_link->name, dai_link))
+./soc-core.c:	if (!rtd->dai_link->ops)
+./soc-core.c:		rtd->dai_link->ops = &null_snd_soc_ops;
+./soc-core.c:	rtd->codec_dais = kcalloc(dai_link->num_codecs,
+./soc-core.c:		if (!strcmp(rtd->dai_link->name, dai_link))
+./soc-core.c:		if (rtd->dai_link->ignore_suspend)
+./soc-core.c:		if (rtd->dai_link->ignore_suspend)
+./soc-core.c:		if (rtd->dai_link->ignore_suspend)
+./soc-core.c:		if (rtd->dai_link->ignore_suspend)
+./soc-core.c:		if (rtd->dai_link->ignore_suspend)
+./soc-core.c:		if (rtd->dai_link->ignore_suspend)
+./soc-core.c:		if (rtd->dai_link->ignore_suspend)
+./soc-core.c:		if (rtd->dai_link->ignore_suspend)
+./soc-core.c:		if (rtd->dai_link->ignore_suspend)
+./soc-core.c:	if (dai_link->ignore)
+./soc-core.c:	dev_dbg(card->dev, "ASoC: binding %s\n", dai_link->name);
+./soc-core.c:			dai_link->name);
+./soc-core.c:	cpu_dai_component.name = dai_link->cpu_name;
+./soc-core.c:	cpu_dai_component.of_node = dai_link->cpu_of_node;
+./soc-core.c:	cpu_dai_component.dai_name = dai_link->cpu_dai_name;
+./soc-core.c:			 dai_link->cpu_dai_name);
+./soc-core.c:	rtd->num_codecs = dai_link->num_codecs;
+./soc-core.c:		if (!snd_soc_is_matching_component(dai_link->platforms,
+./soc-core.c:	struct snd_soc_dai_link_component *platform = dai_link->platforms;
+./soc-core.c:		dai_link->platforms	  = platform;
+./soc-core.c:		dai_link->num_platforms	  = 1;
+./soc-core.c:		dai_link->legacy_platform = 1;
+./soc-core.c:		platform->name		  = dai_link->platform_name;
+./soc-core.c:		platform->of_node	  = dai_link->platform_of_node;
+./soc-core.c:	if (dai_link->codec_name || dai_link->codec_of_node ||
+./soc-core.c:	    dai_link->codec_dai_name) {
+./soc-core.c:		dai_link->num_codecs = 1;
+./soc-core.c:		dai_link->codecs = devm_kzalloc(card->dev,
+./soc-core.c:		if (!dai_link->codecs)
+./soc-core.c:		dai_link->codecs[0].name = dai_link->codec_name;
+./soc-core.c:		dai_link->codecs[0].of_node = dai_link->codec_of_node;
+./soc-core.c:		dai_link->codecs[0].dai_name = dai_link->codec_dai_name;
+./soc-core.c:	if (!dai_link->codecs) {
+./soc-core.c:	if (dai_link->dobj.type
+./soc-core.c:	    && dai_link->dobj.type != SND_SOC_DOBJ_DAI_LINK) {
+./soc-core.c:			dai_link->dobj.type);
+./soc-core.c:	if (dai_link->dobj.type && card->add_dai_link)
+./soc-core.c:	list_add_tail(&dai_link->list, &card->dai_link_list);
+./soc-core.c:	if (dai_link->dobj.type
+./soc-core.c:	    && dai_link->dobj.type != SND_SOC_DOBJ_DAI_LINK) {
+./soc-core.c:			dai_link->dobj.type);
+./soc-core.c:	if (dai_link->dobj.type && card->remove_dai_link)
+./soc-core.c:	if (dai_link->init) {
+./soc-core.c:		ret = dai_link->init(rtd);
+./soc-core.c:				dai_link->name, ret);
+./soc-core.c:	if (dai_link->dai_fmt) {
+./soc-core.c:		ret = snd_soc_runtime_set_dai_fmt(rtd, dai_link->dai_fmt);
+./soc-core.c:	ret = soc_post_component_init(rtd, dai_link->name);
+./soc-core.c:	if (dai_link->dynamic)
+./soc-core.c:		if (rtd->dai_link->no_pcm)
+./soc-core.c:			num = rtd->dai_link->id;
+./soc-core.c:					 dai_link->stream_name);
+./soc-core.c:			dai_link->stream_name, ret);
+./soc-core.c:			if (dai_link->dynamic) {
+./soc-core.c:				dai_link->ignore = true;
+./soc-core.c:			dai_link->platforms->name = component->name;
+./soc-core.c:			dai_link->no_pcm = 1;
+./soc-core.c:			dai_link->be_hw_params_fixup =
+./soc-core.c:			if (!dai_link->stream_name)
+./soc-core.c:				dai_link->stream_name = dai_link->name;
+./soc-core.c:				dai_link->name, ret);
+./soc-core.c:	dai_link->codecs = component;
+./soc-core.c:	dai_link->num_codecs = num_codecs;
+./soc-core.c:	dai_link->codecs = NULL;
+./soc-core.c:	dai_link->num_codecs = 0;
+./soc-dapm.c:	if (rtd->dai_link->num_params <= 1)
+./soc-dapm.c:	config = rtd->dai_link->params + rtd->params_select;
+./soc-dapm.c:	if (ucontrol->value.enumerated.item[0] >= rtd->dai_link->num_params)
+./soc-dapm.c:				   rtd->dai_link->name, id);
+./soc-dapm.c:	if (rtd->dai_link->num_params > 1) {
+./soc-dapm.c:					    rtd->dai_link->num_params,
+./soc-dapm.c:						rtd->dai_link->params,
+./soc-dapm.c:						rtd->dai_link->num_params,
+./soc-dapm.c:				   rtd->dai_link->num_params, w_param_text);
+./soc-dapm.c:	if (rtd->dai_link->params) {
+./soc-dapm.c:		if (rtd->dai_link->dynamic)
+./atmel/atmel-pdmic.c:	dai_link->name			= "PDMIC";
+./atmel/atmel-pdmic.c:	dai_link->stream_name		= "PDMIC PCM";
+./atmel/atmel-pdmic.c:	dai_link->codec_dai_name	= ATMEL_PDMIC_CODEC_DAI_NAME;
+./atmel/atmel-pdmic.c:	dai_link->cpu_dai_name		= dev_name(dev);
+./atmel/atmel-pdmic.c:	dai_link->codec_name		= dev_name(dev);
+./atmel/atmel-pdmic.c:	dai_link->platform_name		= dev_name(dev);
+./atmel/atmel-classd.c:	dai_link->name			= "CLASSD";
+./atmel/atmel-classd.c:	dai_link->stream_name		= "CLASSD PCM";
+./atmel/atmel-classd.c:	dai_link->codec_dai_name	= ATMEL_CLASSD_CODEC_DAI_NAME;
+./atmel/atmel-classd.c:	dai_link->cpu_dai_name		= dev_name(dev);
+./atmel/atmel-classd.c:	dai_link->codec_name		= dev_name(dev);
+./atmel/atmel-classd.c:	dai_link->platform_name		= dev_name(dev);
+./generic/audio-graph-card.c:	struct snd_soc_dai_link_component *codecs = dai_link->codecs;
+./generic/audio-graph-card.c:		dai_link->dynamic		= 1;
+./generic/audio-graph-card.c:		dai_link->dpcm_merged_format	= 1;
+./generic/audio-graph-card.c:						   dai_link->cpu_dai_name);
+./generic/audio-graph-card.c:		dai_link->cpu_of_node		= NULL;
+./generic/audio-graph-card.c:		dai_link->cpu_dai_name		= "snd-soc-dummy-dai";
+./generic/audio-graph-card.c:		dai_link->cpu_name		= "snd-soc-dummy";
+./generic/audio-graph-card.c:		dai_link->no_pcm		= 1;
+./generic/audio-graph-card.c:		dai_link->be_hw_params_fixup	= asoc_simple_be_hw_params_fixup;
+./generic/audio-graph-card.c:				       NULL, &dai_link->dai_fmt);
+./generic/audio-graph-card.c:	dai_link->dpcm_playback		= 1;
+./generic/audio-graph-card.c:	dai_link->dpcm_capture		= 1;
+./generic/audio-graph-card.c:	dai_link->ops			= &graph_ops;
+./generic/audio-graph-card.c:	dai_link->init			= asoc_simple_dai_init;
+./generic/audio-graph-card.c:				       NULL, &dai_link->dai_fmt);
+./generic/audio-graph-card.c:					   dai_link->cpu_dai_name,
+./generic/audio-graph-card.c:					   dai_link->codecs->dai_name);
+./generic/audio-graph-card.c:	dai_link->ops = &graph_ops;
+./generic/audio-graph-card.c:	dai_link->init = asoc_simple_dai_init;
+./generic/simple-card-utils.c:		dai_link->name		= name;
+./generic/simple-card-utils.c:		dai_link->stream_name	= name;
+./generic/simple-card-utils.c:		card->name = card->dai_link->name;
+./generic/simple-card-utils.c:	if (!dai_link->platforms->of_node)
+./generic/simple-card-utils.c:		dai_link->platforms->of_node = dai_link->cpu_of_node;
+./generic/simple-card-utils.c:		dai_link->cpu_dai_name = NULL;
+./generic/simple-card-utils.c:		of_node_put(dai_link->cpu_of_node);
+./generic/simple-card-utils.c:		of_node_put(dai_link->codecs->of_node);
+./generic/simple-card.c:	struct snd_soc_dai_link_component *codecs = dai_link->codecs;
+./generic/simple-card.c:		dai_link->dynamic		= 1;
+./generic/simple-card.c:		dai_link->dpcm_merged_format	= 1;
+./generic/simple-card.c:						   dai_link->cpu_dai_name);
+./generic/simple-card.c:		dai_link->cpu_of_node		= NULL;
+./generic/simple-card.c:		dai_link->cpu_dai_name		= "snd-soc-dummy-dai";
+./generic/simple-card.c:		dai_link->cpu_name		= "snd-soc-dummy";
+./generic/simple-card.c:		dai_link->no_pcm		= 1;
+./generic/simple-card.c:		dai_link->be_hw_params_fixup	= asoc_simple_be_hw_params_fixup;
+./generic/simple-card.c:				       prefix, &dai_link->dai_fmt);
+./generic/simple-card.c:	dai_link->dpcm_playback		= 1;
+./generic/simple-card.c:	dai_link->dpcm_capture		= 1;
+./generic/simple-card.c:	dai_link->ops			= &simple_ops;
+./generic/simple-card.c:	dai_link->init			= asoc_simple_dai_init;
+./generic/simple-card.c:				       prefix, &dai_link->dai_fmt);
+./generic/simple-card.c:					   dai_link->cpu_dai_name,
+./generic/simple-card.c:					   dai_link->codecs->dai_name);
+./generic/simple-card.c:	dai_link->ops = &simple_ops;
+./generic/simple-card.c:	dai_link->init = asoc_simple_dai_init;
+./generic/simple-card.c:		codecs			= dai_link->codecs;
+./generic/simple-card.c:		platform		= dai_link->platforms;
+./generic/simple-card.c:		dai_link->name		= cinfo->name;
+./generic/simple-card.c:		dai_link->stream_name	= cinfo->name;
+./generic/simple-card.c:		dai_link->cpu_dai_name	= cinfo->cpu_dai.name;
+./generic/simple-card.c:		dai_link->dai_fmt	= cinfo->daifmt;
+./generic/simple-card.c:		dai_link->init		= asoc_simple_dai_init;
+./fsl/pcm030-audio-fabric.c:		dai_link->platform_of_node = platform_np;
+./soc-compress.c:	if (rtd->dai_link->compr_ops && rtd->dai_link->compr_ops->startup) {
+./soc-compress.c:		ret = rtd->dai_link->compr_ops->startup(cstream);
+./soc-compress.c:				rtd->dai_link->name, ret);
+./soc-compress.c:			fe->dai_link->name, stream ? "capture" : "playback");
+./soc-compress.c:	if (fe->dai_link->compr_ops && fe->dai_link->compr_ops->startup) {
+./soc-compress.c:		ret = fe->dai_link->compr_ops->startup(cstream);
+./soc-compress.c:			       fe->dai_link->name, ret);
+./soc-compress.c:	if (rtd->dai_link->compr_ops && rtd->dai_link->compr_ops->shutdown)
+./soc-compress.c:		rtd->dai_link->compr_ops->shutdown(cstream);
+./soc-compress.c:	if (fe->dai_link->compr_ops && fe->dai_link->compr_ops->shutdown)
+./soc-compress.c:		fe->dai_link->compr_ops->shutdown(cstream);
+./soc-compress.c:	if (rtd->dai_link->compr_ops && rtd->dai_link->compr_ops->set_params) {
+./soc-compress.c:		ret = rtd->dai_link->compr_ops->set_params(cstream);
+./soc-compress.c:	if (fe->dai_link->compr_ops && fe->dai_link->compr_ops->set_params) {
+./soc-compress.c:		ret = fe->dai_link->compr_ops->set_params(cstream);
+./soc-compress.c:	if (rtd->dai_link->dynamic) {
+./soc-compress.c:			rtd->dai_link->stream_name);
+./soc-compress.c:				rtd->dai_link->dpcm_playback,
+./soc-compress.c:				rtd->dai_link->dpcm_capture, &be_pcm);
+./soc-compress.c:				rtd->dai_link->name, ret);
+./soc-compress.c:		if (rtd->dai_link->dpcm_playback)
+./soc-compress.c:		else if (rtd->dai_link->dpcm_capture)
+./soc-compress.c:			rtd->dai_link->stream_name, codec_dai->name, num);
+./meson/gx-card.c://	dai_link->cpus = cpu;
+./meson/gx-card.c://	dai_link->num_cpus = 1;
+./meson/gx-card.c://	dai_link->ops = &gx_card_i2s_be_ops;	// added 18/01/2020
+./meson/gx-card.c:	ret = meson_card_parse_dai(card, np, &dai_link->cpu_of_node,
+./meson/gx-card.c:				 &dai_link->cpu_dai_name);
+./meson/gx-card.c:	if (gx_card_cpu_is_playback_fe(dai_link->cpu_of_node))
+./meson/gx-card.c:	if (gx_card_cpu_is_i2s_encoder(dai_link->cpu_of_node))
+./meson/gx-card.c:	else if (gx_card_cpu_is_codec(dai_link->cpu_of_node))
+./meson/gx-card.c:		dai_link->params = &codec_params;
+./meson/meson-codec-glue.c:	if (WARN_ON(!rtd->dai_link->params)) {
+./meson/meson-codec-glue.c:	rtd->dai_link->params = &in_data->params;
+./meson/axg-card.c:	ret = axg_card_parse_dai(card, np, &dai_link->cpu_of_node,
+./meson/axg-card.c:				 &dai_link->cpu_dai_name);
+./meson/axg-card.c:	if (axg_card_cpu_is_playback_fe(dai_link->cpu_of_node))
+./meson/axg-card.c:	else if (axg_card_cpu_is_capture_fe(dai_link->cpu_of_node))
+./meson/axg-card.c:	if (axg_card_cpu_is_tdm_iface(dai_link->cpu_of_node))
+./meson/axg-card.c:	else if (axg_card_cpu_is_codec(dai_link->cpu_of_node))
+./meson/axg-card.c:		dai_link->params = &codec_params;
+./rockchip/rockchip_i2s.c:	if (dai->driver->symmetric_rates && rtd->dai_link->symmetric_rates)
+./ti/omap-hdmi.c:	card->dai_link->name = card->name;
+./ti/omap-hdmi.c:	card->dai_link->stream_name = card->name;
+./ti/omap-hdmi.c:	card->dai_link->cpu_dai_name = dev_name(ad->dssdev);
+./ti/omap-hdmi.c:	card->dai_link->platform_name = dev_name(ad->dssdev);
+./ti/omap-hdmi.c:	card->dai_link->codec_name = "snd-soc-dummy";
+./ti/omap-hdmi.c:	card->dai_link->codec_dai_name = "snd-soc-dummy-dai";
+./sof/intel/hda-pcm.c:				     rtd->dai_link->id);
+./sof/sof-priv.h:		if (le32_to_cpu(spcm->pcm.dai_id) == rtd->dai_link->id)
+./sof/topology.c:			 w->name,  w->sname, rtd->dai_link->stream_name);
+./sof/topology.c:		if (!w->sname || !rtd->dai_link->stream_name)
+./sof/topology.c:		if (strcmp(w->sname, rtd->dai_link->stream_name))
+./sof/topology.c:			dai->name = rtd->dai_link->name;
+./sof/topology.c:				w->name, rtd->dai_link->name);
+./sof/topology.c:			dai->name = rtd->dai_link->name;
+./sof/topology.c:				w->name, rtd->dai_link->name);
+./sof/pcm.c:	if (rtd->dai_link->no_pcm)
+./sof/pcm.c:	if (rtd->dai_link->no_pcm)
+./sof/pcm.c:	if (rtd->dai_link->no_pcm)
+./sof/pcm.c:	if (rtd->dai_link->no_pcm)
+./sof/pcm.c:	if (rtd->dai_link->no_pcm)
+./sof/pcm.c:	if (rtd->dai_link->no_pcm)
+./sof/pcm.c:	if (rtd->dai_link->no_pcm)
+./sof/pcm.c:			 rtd->dai_link->id);
+./sof/pcm.c:		snd_sof_find_dai(sdev, (char *)rtd->dai_link->name);
+./sof/pcm.c:			 rtd->dai_link->name);
+./soc-dai.c:	if (rtd->dai_link->be_hw_params_fixup) {
+./soc-dai.c:		ret = rtd->dai_link->be_hw_params_fixup(rtd, params);
+./mediatek/mt6797/mt6797-mt6351.c:		if (dai_link->platform_name)
+./mediatek/mt6797/mt6797-mt6351.c:		dai_link->platform_of_node = platform_node;
+./mediatek/mt6797/mt6797-mt6351.c:		if (dai_link->codec_name)
+./mediatek/mt6797/mt6797-mt6351.c:		dai_link->codec_of_node = codec_node;
+./mediatek/mt8183/mt8183-da7219-max98357.c:		dai_link->platforms = NULL;
+./mediatek/mt8183/mt8183-da7219-max98357.c:		if (dai_link->platform_name)
+./mediatek/mt8183/mt8183-da7219-max98357.c:		dai_link->platform_of_node = platform_node;
+./mediatek/mt8183/mt8183-mt6358-ts3a227-max98357.c:		dai_link->platforms = NULL;
+./mediatek/mt8183/mt8183-mt6358-ts3a227-max98357.c:		if (dai_link->platform_name)
+./mediatek/mt8183/mt8183-mt6358-ts3a227-max98357.c:		dai_link->platform_of_node = platform_node;
+./mediatek/mt2701/mt2701-wm8960.c:		if (dai_link->platform_name)
+./mediatek/mt2701/mt2701-wm8960.c:		dai_link->platform_of_node = platform_node;
+./mediatek/mt2701/mt2701-wm8960.c:		if (dai_link->codec_name)
+./mediatek/mt2701/mt2701-wm8960.c:		dai_link->codec_of_node = codec_node;
+./mediatek/mt2701/mt2701-cs42448.c:		if (dai_link->platform_name)
+./mediatek/mt2701/mt2701-cs42448.c:		dai_link->platform_of_node = platform_node;
+./mediatek/mt2701/mt2701-cs42448.c:		if (dai_link->codec_name)
+./mediatek/mt2701/mt2701-cs42448.c:		dai_link->codec_of_node = codec_node;
+./mediatek/mt8173/mt8173-rt5650.c:		if (dai_link->platform_name)
+./mediatek/mt8173/mt8173-rt5650.c:		dai_link->platform_of_node = platform_node;
+./mediatek/mt8173/mt8173-rt5650-rt5676.c:		if (dai_link->platform_name)
+./mediatek/mt8173/mt8173-rt5650-rt5676.c:		dai_link->platform_of_node = platform_node;
+./mediatek/mt8173/mt8173-rt5650-rt5514.c:		if (dai_link->platform_name)
+./mediatek/mt8173/mt8173-rt5650-rt5514.c:		dai_link->platform_of_node = platform_node;
+./mediatek/mt8173/mt8173-max98090.c:		if (dai_link->platform_name)
+./mediatek/mt8173/mt8173-max98090.c:		dai_link->platform_of_node = platform_node;
+./mediatek/mt8173/mt8173-max98090.c:		if (dai_link->codec_name)
+./mediatek/mt8173/mt8173-max98090.c:		dai_link->codec_of_node = codec_node;
+./sh/rcar/core.c:	if (fe->dai_link->dynamic) {
+./soc-pcm.c-v5.6:	if (!rtd->pmdown_time || rtd->dai_link->ignore_pmdown_time)
+./soc-pcm.c-v5.6:				be->dai_link->name, event, dir);
+./soc-pcm.c-v5.6:				rtd->dai_link->symmetric_rates)) {
+./soc-pcm.c-v5.6:				rtd->dai_link->symmetric_channels)) {
+./soc-pcm.c-v5.6:				rtd->dai_link->symmetric_samplebits)) {
+./soc-pcm.c-v5.6:		rtd->dai_link->symmetric_rates;
+./soc-pcm.c-v5.6:		rtd->dai_link->symmetric_channels;
+./soc-pcm.c-v5.6:		rtd->dai_link->symmetric_samplebits;
+./soc-pcm.c-v5.6:	if (rtd->dai_link->ops->startup) {
+./soc-pcm.c-v5.6:		ret = rtd->dai_link->ops->startup(substream);
+./soc-pcm.c-v5.6:			       rtd->dai_link->name, ret);
+./soc-pcm.c-v5.6:	if (rtd->dai_link->dynamic || rtd->dai_link->no_pcm)
+./soc-pcm.c-v5.6:	if (rtd->dai_link->ops->shutdown)
+./soc-pcm.c-v5.6:		rtd->dai_link->ops->shutdown(substream);
+./soc-pcm.c-v5.6:	if (rtd->dai_link->ops->shutdown)
+./soc-pcm.c-v5.6:		rtd->dai_link->ops->shutdown(substream);
+./soc-pcm.c-v5.6:	if (rtd->dai_link->ops->prepare) {
+./soc-pcm.c-v5.6:		ret = rtd->dai_link->ops->prepare(substream);
+./soc-pcm.c-v5.6:	if (rtd->dai_link->ops->hw_params) {
+./soc-pcm.c-v5.6:		ret = rtd->dai_link->ops->hw_params(substream, params);
+./soc-pcm.c-v5.6:	if (rtd->dai_link->ops->hw_free)
+./soc-pcm.c-v5.6:		rtd->dai_link->ops->hw_free(substream);
+./soc-pcm.c-v5.6:	if (rtd->dai_link->ops->hw_free)
+./soc-pcm.c-v5.6:		rtd->dai_link->ops->hw_free(substream);
+./soc-pcm.c-v5.6:	if (rtd->dai_link->ops->trigger) {
+./soc-pcm.c-v5.6:		ret = rtd->dai_link->ops->trigger(substream, cmd);
+./soc-pcm.c-v5.6:			stream ? "capture" : "playback",  fe->dai_link->name,
+./soc-pcm.c-v5.6:			stream ? "<-" : "->", be->dai_link->name);
+./soc-pcm.c-v5.6:	dpcm->debugfs_state = debugfs_create_dir(be->dai_link->name,
+./soc-pcm.c-v5.6:			dpcm->fe->dai_link->name,
+./soc-pcm.c-v5.6:			stream ? "<-" : "->", dpcm->be->dai_link->name);
+./soc-pcm.c-v5.6:				dpcm->be->dai_link->name);
+./soc-pcm.c-v5.6:			stream ? "capture" : "playback", fe->dai_link->name,
+./soc-pcm.c-v5.6:			stream ? "<-" : "->", dpcm->be->dai_link->name);
+./soc-pcm.c-v5.6:			if (!be->dai_link->no_pcm)
+./soc-pcm.c-v5.6:			if (!be->dai_link->no_pcm)
+./soc-pcm.c-v5.6:			if (!rtd->dai_link->no_pcm)
+./soc-pcm.c-v5.6:			if (!rtd->dai_link->no_pcm)
+./soc-pcm.c-v5.6:			dpcm->be->dai_link->name, fe->dai_link->name);
+./soc-pcm.c-v5.6:		if (!be->dai_link->no_pcm)
+./soc-pcm.c-v5.6:			stream ? "capture" : "playback", be->dai_link->name);
+./soc-pcm.c-v5.6:	if (!fe->dai_link->dpcm_merged_format)
+./soc-pcm.c-v5.6:	if (!fe->dai_link->dpcm_merged_chan)
+./soc-pcm.c-v5.6:	if (!fe->dai_link->dpcm_merged_rate)
+./soc-pcm.c-v5.6:		if (rtd->dai_link->be_hw_params_fixup)
+./soc-pcm.c-v5.6:	dev_dbg(fe->dev, "ASoC: open FE %s\n", fe->dai_link->name);
+./soc-pcm.c-v5.6:			be->dai_link->name);
+./soc-pcm.c-v5.6:	dev_dbg(fe->dev, "ASoC: close FE %s\n", fe->dai_link->name);
+./soc-pcm.c-v5.6:			be->dai_link->name);
+./soc-pcm.c-v5.6:	dev_dbg(fe->dev, "ASoC: hw_free FE %s\n", fe->dai_link->name);
+./soc-pcm.c-v5.6:			fe->dai_link->name);
+./soc-pcm.c-v5.6:		if (be->dai_link->be_hw_params_fixup) {
+./soc-pcm.c-v5.6:			ret = be->dai_link->be_hw_params_fixup(be,
+./soc-pcm.c-v5.6:			be->dai_link->name);
+./soc-pcm.c-v5.6:			fe->dai_link->name, params_rate(params),
+./soc-pcm.c-v5.6:			dpcm->be->dai_link->name, cmd);
+./soc-pcm.c-v5.6:	enum snd_soc_dpcm_trigger trigger = fe->dai_link->trigger[stream];
+./soc-pcm.c-v5.6:				fe->dai_link->name, cmd);
+./soc-pcm.c-v5.6:				fe->dai_link->name, cmd);
+./soc-pcm.c-v5.6:				fe->dai_link->name, cmd);
+./soc-pcm.c-v5.6:				fe->dai_link->name);
+./soc-pcm.c-v5.6:			be->dai_link->name);
+./soc-pcm.c-v5.6:	dev_dbg(fe->dev, "ASoC: prepare FE %s\n", fe->dai_link->name);
+./soc-pcm.c-v5.6:				fe->dai_link->name);
+./soc-pcm.c-v5.6:			fe->dai_link->name);
+./soc-pcm.c-v5.6:	enum snd_soc_dpcm_trigger trigger = fe->dai_link->trigger[stream];
+./soc-pcm.c-v5.6:			stream ? "capture" : "playback", fe->dai_link->name);
+./soc-pcm.c-v5.6:				fe->dai_link->name);
+./soc-pcm.c-v5.6:			fe->dai_link->name);
+./soc-pcm.c-v5.6:	enum snd_soc_dpcm_trigger trigger = fe->dai_link->trigger[stream];
+./soc-pcm.c-v5.6:			stream ? "capture" : "playback", fe->dai_link->name);
+./soc-pcm.c-v5.6:				fe->dai_link->name);
+./soc-pcm.c-v5.6:			fe->dai_link->name);
+./soc-pcm.c-v5.6:	if (!fe->dai_link->dynamic)
+./soc-pcm.c-v5.6:		new ? "new" : "old", fe->dai_link->name);
+./soc-pcm.c-v5.6:			 fe->dai_link->name,  "playback");
+./soc-pcm.c-v5.6:			 fe->dai_link->name,  "capture");
+./soc-pcm.c-v5.6:		if (be->dai_link->ignore_suspend)
+./soc-pcm.c-v5.6:					 be->dai_link->name);
+./soc-pcm.c-v5.6:			fe->dai_link->name, stream ? "capture" : "playback");
+./soc-pcm.c-v5.6:	if (rtd->dai_link->dynamic || rtd->dai_link->no_pcm) {
+./soc-pcm.c-v5.6:		playback = rtd->dai_link->dpcm_playback;
+./soc-pcm.c-v5.6:		capture = rtd->dai_link->dpcm_capture;
+./soc-pcm.c-v5.6:		struct snd_soc_pcm_stream *cpu_capture = rtd->dai_link->params ?
+./soc-pcm.c-v5.6:		struct snd_soc_pcm_stream *cpu_playback = rtd->dai_link->params ?
+./soc-pcm.c-v5.6:	if (rtd->dai_link->playback_only) {
+./soc-pcm.c-v5.6:	if (rtd->dai_link->capture_only) {
+./soc-pcm.c-v5.6:	if (rtd->dai_link->params) {
+./soc-pcm.c-v5.6:			 rtd->dai_link->stream_name);
+./soc-pcm.c-v5.6:	} else if (rtd->dai_link->no_pcm) {
+./soc-pcm.c-v5.6:			rtd->dai_link->stream_name);
+./soc-pcm.c-v5.6:		if (rtd->dai_link->dynamic)
+./soc-pcm.c-v5.6:				rtd->dai_link->stream_name);
+./soc-pcm.c-v5.6:				rtd->dai_link->stream_name,
+./soc-pcm.c-v5.6:			rtd->dai_link->name);
+./soc-pcm.c-v5.6:	if (rtd->dai_link->params)
+./soc-pcm.c-v5.6:	pcm->nonatomic = rtd->dai_link->nonatomic;
+./soc-pcm.c-v5.6:	if (rtd->dai_link->no_pcm || rtd->dai_link->params) {
+./soc-pcm.c-v5.6:	if (rtd->dai_link->dynamic) {
+./soc-pcm.c-v5.6:			"[%s - %s]\n", fe->dai_link->name,
+./soc-pcm.c-v5.6:				"- %s\n", be->dai_link->name);
+./soc-pcm.c-v5.6:	if (!rtd->dai_link->dynamic)
+./soc-pcm.c-v5.6:	rtd->debugfs_dpcm_root = debugfs_create_dir(rtd->dai_link->name,
+./soc-utils.c:	if (!rtd->dai_link->no_pcm)

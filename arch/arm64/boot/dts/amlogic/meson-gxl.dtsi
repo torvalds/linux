@@ -39,6 +39,13 @@
 	};
 };
 
+&aiu {
+	clocks = <&clkc CLKID_AIU>,
+     	       	 <&clkc CLKID_AIU_GLUE>;
+	clock-names = "top", "glue";
+	resets = <&reset RESET_AIU>;
+};
+
 &apb {
 	usb2_phy0: phy@78000 {
 		compatible = "amlogic,meson-gxl-usb2-phy";
@@ -80,9 +87,6 @@
 };
 
 &ethmac {
-	reg = <0x0 0xc9410000 0x0 0x10000
-	       0x0 0xc8834540 0x0 0x4>;
-
 	clocks = <&clkc CLKID_ETH>,
 		 <&clkc CLKID_FCLK_DIV2>,
 		 <&clkc CLKID_MPLL2>;
@@ -280,7 +284,6 @@
 		 <&clkc CLKID_CLK81>,
 		 <&clkc CLKID_GCLK_VENCI_INT0>;
 	clock-names = "isfr", "iahb", "venci";
-	#sound-dai-cells = <0>;
 };
 
 &sysctrl {
@@ -308,6 +311,17 @@
 	clocks = <&clkc CLKID_I2C>;
 };
 
+&i2s_fifo {
+	clocks = <&clkc CLKID_I2S_OUT>;
+};
+
+&i2s_encoder {
+	clocks = <&clkc CLKID_MIXER_IFACE>,
+	       	 <&clkc CLKID_AOCLK_GATE>,
+		 <&clkc CLKID_CTS_AMCLK>;
+	clock-names = "pclk", "aoclk", "mclk";
+};
+
 &periphs {
 	pinctrl_periphs: pinctrl@4b0 {
 		compatible = "amlogic,meson-gxl-periphs-pinctrl";
@@ -327,10 +341,15 @@
 		};
 
 		emmc_pins: emmc {
-			mux {
+			mux-0 {
 				groups = "emmc_nand_d07",
-				       "emmc_cmd",
-				       "emmc_clk";
+				       "emmc_cmd";
+				function = "emmc";
+				bias-pull-up;
+			};
+
+			mux-1 {
+				groups = "emmc_clk";
 				function = "emmc";
 				bias-disable;
 			};
@@ -340,7 +359,7 @@
 			mux {
 				groups = "emmc_ds";
 				function = "emmc";
-				bias-disable;
+				bias-pull-down;
 			};
 		};
 
@@ -382,13 +401,18 @@
 		};
 
 		sdcard_pins: sdcard {
-			mux {
+			mux-0 {
 				groups = "sdcard_d0",
 				       "sdcard_d1",
 				       "sdcard_d2",
 				       "sdcard_d3",
-				       "sdcard_cmd",
-				       "sdcard_clk";
+				       "sdcard_cmd";
+				function = "sdcard";
+				bias-pull-up;
+			};
+
+			mux-1 {
+				groups = "sdcard_clk";
 				function = "sdcard";
 				bias-disable;
 			};
@@ -403,13 +427,18 @@
 		};
 
 		sdio_pins: sdio {
-			mux {
+			mux-0 {
 				groups = "sdio_d0",
 				       "sdio_d1",
 				       "sdio_d2",
 				       "sdio_d3",
-				       "sdio_cmd",
-				       "sdio_clk";
+				       "sdio_cmd";
+				function = "sdio";
+				bias-pull-up;
+			};
+
+			mux-1 {
+				groups = "sdio_clk";
 				function = "sdio";
 				bias-disable;
 			};
@@ -698,7 +727,7 @@
 			#size-cells = <0>;
 
 			internal_phy: ethernet-phy@8 {
-				compatible = "ethernet-phy-id0181.4400", "ethernet-phy-ieee802.3-c22";
+				compatible = "ethernet-phy-id0181.4400";
 				interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
 				reg = <8>;
 				max-speed = <100>;
@@ -711,24 +740,6 @@
 			#size-cells = <0>;
 		};
 	};
-};
-
-&audio {
-	clocks = <&clkc CLKID_AIU>,
-		 <&clkc CLKID_AIU_GLUE>,
-		 <&clkc CLKID_I2S_SPDIF>;
-	clock-names = "aiu_top", "aiu_glue", "audin";
-	resets = <&reset RESET_AIU>,
-		 <&reset RESET_AUDIN>;
-	reset-names = "aiu", "audin";
-};
-
-&aiu_i2s {
-	clocks = <&clkc CLKID_I2S_OUT>,
-		 <&clkc CLKID_MIXER_IFACE>,
-		 <&clkc CLKID_AOCLK_GATE>,
-		 <&clkc CLKID_CTS_AMCLK>;
-	clock-names = "fast", "iface", "bclks", "mclk";
 };
 
 &pwrc_vpu {
@@ -812,20 +823,23 @@
 		 <&clkc CLKID_GCLK_VENCI_INT0>;
 };
 
+&spdif_fifo {
+	clocks = <&clkc CLKID_IEC958>;
+};
+
+&spdif_encoder {
+	clocks = <&clkc CLKID_IEC958_GATE>,
+	       	 <&clkc CLKID_CTS_MCLK_I958>,
+		 <&clkc CLKID_CTS_AMCLK>,
+		 <&clkc CLKID_CTS_I958>;
+	clock-names = "pclk", "mclk_i958", "mclk_i2s", "mclk";
+};
+
 &spicc {
 	clocks = <&clkc CLKID_SPICC>;
 	clock-names = "core";
 	resets = <&reset RESET_PERIPHS_SPICC>;
 	num-cs = <1>;
-};
-
-&aiu_spdif {
-	clocks = <&clkc CLKID_IEC958>,
-		 <&clkc CLKID_IEC958_GATE>,
-		 <&clkc CLKID_CTS_MCLK_I958>,
-		 <&clkc CLKID_CTS_AMCLK>,
-		 <&clkc CLKID_CTS_I958>;
-	clock-names = "fast", "iface", "mclk_i958", "mclk_i2s", "mclk";
 };
 
 &spifc {
@@ -863,7 +877,7 @@
 };
 
 &vdec {
-	compatible = "amlogic,gxl-vdec";
+	compatible = "amlogic,gxl-vdec", "amlogic,gx-vdec";
 	clocks = <&clkc CLKID_DOS_PARSER>,
 		 <&clkc CLKID_DOS>,
 		 <&clkc CLKID_VDEC_1>,

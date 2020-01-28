@@ -4,10 +4,10 @@
  */
 
 #include "meson-gx.dtsi"
-#include <dt-bindings/gpio/meson-gxbb-gpio.h>
-#include <dt-bindings/reset/amlogic,meson-gxbb-reset.h>
 #include <dt-bindings/clock/gxbb-clkc.h>
 #include <dt-bindings/clock/gxbb-aoclkc.h>
+#include <dt-bindings/gpio/meson-gxbb-gpio.h>
+#include <dt-bindings/reset/amlogic,meson-gxbb-reset.h>
 #include <dt-bindings/reset/gxbb-aoclkc.h>
 
 / {
@@ -322,6 +322,12 @@
 	clock-names = "stmmaceth", "clkin0", "clkin1";
 };
 
+&clkc_AO {
+	compatible = "amlogic,meson-gxl-aoclkc", "amlogic,meson-gx-aoclkc";
+	clocks = <&xtal>, <&clkc CLKID_CLK81>;
+	clock-names = "xtal", "mpeg-clk";
+};
+
 &gpio_intc {
 	compatible = "amlogic,meson-gpio-intc",
 		     "amlogic,meson-gxbb-gpio-intc";
@@ -371,6 +377,20 @@
 	clocks = <&clkc CLKID_I2C>;
 };
 
+&i2s_fifo {
+	clocks = <&clkc CLKID_I2S_OUT>;
+};
+
+&i2s_encoder {
+	clocks = <&clkc CLKID_MIXER_IFACE>,
+	       	 <&clkc CLKID_AOCLK_GATE>,
+		 <&clkc CLKID_CTS_AMCLK>,
+		 <&clkc CLKID_AMCLK>,
+		 <&clkc CLKID_I2S_OUT>;
+	clock-names = "pclk", "aoclk", "mclk","amclk", "clk_i2s";
+};
+
+
 &periphs {
 	pinctrl_periphs: pinctrl@4b0 {
 		compatible = "amlogic,meson-gxbb-periphs-pinctrl";
@@ -389,7 +409,7 @@
 			gpio-ranges = <&pinctrl_periphs 0 0 119>;
 		};
 
-		emmc_pins: emmc {
+		emmc_pins: emmc {  // mux-0, mux-1 on meson-gxl.dtsi
 			mux {
 				groups = "emmc_nand_d07",
 				       "emmc_cmd",
@@ -444,7 +464,7 @@
 			};
 		};
 
-		sdcard_pins: sdcard {
+		sdcard_pins: sdcard {  // mux-0, mux-1 on meson-gxl.dtsi
 			mux {
 				groups = "sdcard_d0",
 				       "sdcard_d1",
@@ -465,7 +485,7 @@
 			};
 		};
 
-		sdio_pins: sdio {
+		sdio_pins: sdio {  // mux-0, mux-1 on meson-gxl.dtsi
 			mux {
 				groups = "sdio_d0",
 				       "sdio_d1",
@@ -718,11 +738,13 @@
 	};
 };
 
+/*
 &audio {
 	clocks = <&clkc CLKID_AIU>,
+		 <&clkc CLKID_ABUF>,
 		 <&clkc CLKID_AIU_GLUE>,
 		 <&clkc CLKID_I2S_SPDIF>;
-	clock-names = "aiu_top", "aiu_glue", "audin";
+	clock-names = "aiu_top", "abuf", "aiu_glue", "audin";
 	resets = <&reset RESET_AIU>,
 		 <&reset RESET_AUDIN>;
 	reset-names = "aiu", "audin";
@@ -732,8 +754,27 @@
 	clocks = <&clkc CLKID_I2S_OUT>,
 		 <&clkc CLKID_MIXER_IFACE>,
 		 <&clkc CLKID_AOCLK_GATE>,
+		 <&clkc CLKID_AMCLK>;
 		 <&clkc CLKID_CTS_AMCLK>;
-	clock-names = "fast", "iface", "bclks", "mclk";
+	clock-names = "fast", "iface", "bclks", "mclk", "cts_amclk";
+};
+*/
+&aiu {
+	clocks = <&clkc CLKID_AIU>,		// aiu
+     	       	 <&clkc CLKID_AIU_GLUE>,	// aiu_glue
+		 <&clkc CLKID_ABUF>,  		// abuf
+		 <&clkc CLKID_I2S_SPDIF>,	// i2s_spdif
+		 <&clkc CLKID_AOCLK_GATE>,	// aoclk_gate
+		 <&clkc CLKID_IEC958_GATE>,	// iec958_gate
+		 <&clkc CLKID_I2S_OUT>,		// i2s_out / fast
+		 <&clkc CLKID_AMCLK>,		// amclk
+		 <&clkc CLKID_AIFIFO2>,		// aififo2
+		 <&clkc CLKID_MIXER>,		// mixer
+		 <&clkc CLKID_MIXER_IFACE>,	// mixer_iface
+		 <&clkc CLKID_ADC>;		// adc
+
+	clock-names = "top", "glue", "abuf", "i2s_spdif", "aoclk", "mclk_i958", "clk_i2s", "amclk", "aififo2", "mixer", "iface", "adc";
+	resets = <&reset RESET_AIU>;
 };
 
 &pwrc_vpu {
@@ -817,6 +858,19 @@
 		 <&clkc CLKID_GCLK_VENCI_INT0>;
 };
 
+&spdif_fifo {
+	clocks = <&clkc CLKID_IEC958>;
+};
+
+&spdif_encoder {
+	clocks = <&clkc CLKID_IEC958>,
+		 <&clkc CLKID_IEC958_GATE>,
+		 <&clkc CLKID_CTS_MCLK_I958>,
+		 <&clkc CLKID_CTS_AMCLK>,
+		 <&clkc CLKID_CTS_I958>;
+	clock-names = "pclk", "aoclk", "mclk_i958", "mclk_i2s", "mclk";
+};
+
 &spicc {
 	clocks = <&clkc CLKID_SPICC>;
 	clock-names = "core";
@@ -824,6 +878,7 @@
 	num-cs = <1>;
 };
 
+/*
 &aiu_spdif {
 	clocks = <&clkc CLKID_IEC958>,
 		 <&clkc CLKID_IEC958_GATE>,
@@ -832,6 +887,7 @@
 		 <&clkc CLKID_CTS_I958>;
 	clock-names = "fast", "iface", "mclk_i958", "mclk_i2s", "mclk";
 };
+*/
 
 &spifc {
 	clocks = <&clkc CLKID_SPI>;

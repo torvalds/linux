@@ -231,6 +231,8 @@ static void sclk_div_init(struct clk_hw *hw)
 		sclk->cached_div = val + 1;
 
 	sclk_div_get_duty_cycle(hw, &sclk->cached_duty);
+
+//	return 0;
 }
 
 const struct clk_ops meson_sclk_div_ops = {

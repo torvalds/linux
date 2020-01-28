@@ -192,8 +192,14 @@ struct clk_duty {
  *
  * @init:	Perform platform-specific initialization magic.
  *		This is not not used by any of the basic clock types.
- *		Please consider other ways of solving initialization problems
- *		before using this callback, as its use is discouraged.
+ *		This callback exist for HW which needs to perform some
+ *		initialisation magic for CCF to get an accurate view of the
+ *		clock. It may also be used dynamic resource allocation is
+ *		required. It shall not used to deal with clock parameters,
+ *		such as rate or parents.
+ *		Returns 0 on success, -EERROR otherwise.
+ *
+ * @terminate:  Free any resource allocated by init.
  *
  * @debug_init:	Set up type-specific debugfs entries for this clock.  This
  *		is called once, after the debugfs directory entry for this
@@ -246,6 +252,7 @@ struct clk_ops {
 	int		(*set_duty_cycle)(struct clk_hw *hw,
 					  struct clk_duty *duty);
 	void		(*init)(struct clk_hw *hw);
+	void		(*terminate)(struct clk_hw *hw);
 	void		(*debug_init)(struct clk_hw *hw, struct dentry *dentry);
 };
 

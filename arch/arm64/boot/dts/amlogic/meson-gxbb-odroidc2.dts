@@ -114,18 +114,28 @@
 // github.com/hardkernel/linux/blob/odroidc2-v3.16y/arch/arm64/boot/dts/meson64-odroidc2.dts
 
 	sound {
-		compatible = "amlogic,meson-aiu-i2s";
-//		simple-audio-card,name = "meson-aiu-i2s";
-
+		compatible = "amlogic,gx-sound-card";
+		model = "Hardkernel ODROID-C2";
+		audio-routing = "I2S ENCODER Playback", "I2S FIFO Playback";
+/*
+		widgets = 
+			"Line", "Analog Left Output",
+			"Line", "Analog Right Output";
+		gx-sound-card,routing = 
+			"Analog Left Output", "OUTL",
+			"Analog Right Output", "OUTR",
+			"INL", "AOUTL",
+			"INR", "AOUTR";
+*/
 		assigned-clocks = <&clkc CLKID_MPLL2>,
 				  <&clkc CLKID_MPLL0>,
 				  <&clkc CLKID_MPLL1>;
-//				  <&clkc CLKID_AMCLK>; //libreelec
 		assigned-clock-parents = <0>, <0>, <0>;
 		assigned-clock-rates = <294912000>,
 				       <270950400>,
 				       <393216000>;
-
+		status = "okay";
+/*
 		gpios = <&gpio GPIOX_3 0>,	//LOWA
 			<&gpio GPIOX_1 1>,	//MIDA
 			<&gpio GPIOX_7 0>,	//LOWB
@@ -139,25 +149,25 @@
 			<&gpio GPIOX_0 0>,	//HP_CLK
 			<&gpio GPIOY_8 1>,	//HP_ENA
 			<&gpio GPIOX_6 0>;	//HP_UP_DN
-
-
-		dai-link@0 {
-			/* I2S Output */
-			format = "i2s";
+*/
+		dai-link-0 {
+			sound-dai = <&i2s_fifo>;
+		};
+		dai-link-1 {
+			sound-dai = <&i2s_encoder>;
+			dai-format = "i2s";
 			mclk-fs = <256>;
-			bitclock-master = <&aiu_i2s>;
-			frame-master = <&aiu_i2s>;
+//			bitclock-master = <&i2s_encoder>;
+//			frame-master = <&i2s_encoder>;
 
-			cpu {
-				sound-dai = <&aiu_i2s>;
-			};
-
-			codec {
+			codec-0 {
 				sound-dai = <&cs4245>;
 			};
 		};
-	};	
+	};
+
 	cs4245: cs4245@4c {
+		status = "okay";
 		#sound-dai-cells = <0>;
 		compatible = "cirrus,cs4245";
 		reg = <0x4c>;
@@ -168,19 +178,15 @@
 	};
 };
 
+&aiu {
+	status = "okay";
+};
+
 &cec_AO {
 	status = "okay";
 	pinctrl-0 = <&ao_cec_pins>;
 	pinctrl-names = "default";
 	hdmi-phandle = <&hdmi_tx>;
-};
-
-&audio {
-	status = "okay";
-};
-
-&aiu_i2s {
-	status = "okay";
 };
 
 &ethmac {
@@ -224,6 +230,14 @@
 		output-high;
 		line-name = "usb-hub-reset";
 	};
+};
+
+&i2s_fifo {
+	status = "okay";
+};
+
+&i2s_encoder {
+	status = "okay";
 };
 
 &hdmi_tx {
@@ -319,7 +333,8 @@
 
 	bus-width = <4>;
 	cap-sd-highspeed;
-	max-frequency = <100000000>;
+	// 100000000 => 50000000 changed on meson-gxl-s905x-libretech-cc.dts
+	max-frequency = <50000000>;  
 	disable-wp;
 
 	cd-gpios = <&gpio CARD_6 GPIO_ACTIVE_LOW>;
@@ -336,7 +351,7 @@
 	pinctrl-names = "default", "clk-gate";
 
 	bus-width = <8>;
-	max-frequency = <100000000>;
+	max-frequency = <100000000>;  	//200000000 on meson-gxl-s905x-libretech-cc.dts
 	non-removable;
 	disable-wp;
 	cap-mmc-highspeed;

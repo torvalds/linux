@@ -80,12 +80,8 @@ struct soc_tplg {
 
 static int soc_tplg_process_headers(struct soc_tplg *tplg);
 static void soc_tplg_complete(struct soc_tplg *tplg);
-struct snd_soc_dapm_widget *
-snd_soc_dapm_new_control_unlocked(struct snd_soc_dapm_context *dapm,
-			 const struct snd_soc_dapm_widget *widget);
-struct snd_soc_dapm_widget *
-snd_soc_dapm_new_control(struct snd_soc_dapm_context *dapm,
-			 const struct snd_soc_dapm_widget *widget);
+static void soc_tplg_denum_remove_texts(struct soc_enum *se);
+static void soc_tplg_denum_remove_values(struct soc_enum *se);
 
 /* check we dont overflow the data for this control chunk */
 static int soc_tplg_check_elem_count(struct soc_tplg *tplg, size_t elem_size,
@@ -398,7 +394,6 @@ static void remove_enum(struct snd_soc_component *comp,
 {
 	struct snd_card *card = comp->card->snd_card;
 	struct soc_enum *se = container_of(dobj, struct soc_enum, dobj);
-	int i;
 
 	if (pass != SOC_TPLG_PASS_MIXER)
 		return;
@@ -409,10 +404,8 @@ static void remove_enum(struct snd_soc_component *comp,
 	snd_ctl_remove(card, dobj->control.kcontrol);
 	list_del(&dobj->list);
 
-	kfree(dobj->control.dvalues);
-	for (i = 0; i < se->items; i++)
-		kfree(dobj->control.dtexts[i]);
-	kfree(dobj->control.dtexts);
+	soc_tplg_denum_remove_values(se);
+	soc_tplg_denum_remove_texts(se);
 	kfree(se);
 }
 
@@ -480,15 +473,12 @@ static void remove_widget(struct snd_soc_component *comp,
 			struct snd_kcontrol *kcontrol = w->kcontrols[i];
 			struct soc_enum *se =
 				(struct soc_enum *)kcontrol->private_value;
-			int j;
 
 			snd_ctl_remove(card, kcontrol);
 
 			/* free enum kcontrol's dvalues and dtexts */
-			kfree(se->dobj.control.dvalues);
-			for (j = 0; j < se->items; j++)
-				kfree(se->dobj.control.dtexts[j]);
-			kfree(se->dobj.control.dtexts);
+			soc_tplg_denum_remove_values(se);
+			soc_tplg_denum_remove_texts(se);
 
 			kfree(se);
 			kfree(w->kcontrol_news[i].name);
@@ -534,7 +524,7 @@ static void remove_dai(struct snd_soc_component *comp,
 	if (dobj->ops && dobj->ops->dai_unload)
 		dobj->ops->dai_unload(comp, dobj);
 
-	list_for_each_entry(dai, &comp->dai_list, list)
+	for_each_component_dais(comp, dai)
 		if (dai->driver == dai_drv)
 			dai->driver = NULL;
 
@@ -558,12 +548,13 @@ static void remove_link(struct snd_soc_component *comp,
 	if (dobj->ops && dobj->ops->link_unload)
 		dobj->ops->link_unload(comp, dobj);
 
+	list_del(&dobj->list);
+	snd_soc_remove_pcm_runtime(comp->card,
+			snd_soc_get_pcm_runtime(comp->card, link));
+
 	kfree(link->name);
 	kfree(link->stream_name);
-	kfree(link->cpu_dai_name);
-
-	list_del(&dobj->list);
-	snd_soc_remove_dai_link(comp->card, link);
+	kfree(link->cpus->dai_name);
 	kfree(link);
 }
 
@@ -614,9 +605,11 @@ static int soc_tplg_kcontrol_bind_io(struct snd_soc_tplg_ctl_hdr *hdr,
 		ext_ops = tplg->bytes_ext_ops;
 		num_ops = tplg->bytes_ext_ops_count;
 		for (i = 0; i < num_ops; i++) {
-			if (!sbe->put && ext_ops[i].id == be->ext_ops.put)
+			if (!sbe->put &&
+			    ext_ops[i].id == le32_to_cpu(be->ext_ops.put))
 				sbe->put = ext_ops[i].put;
-			if (!sbe->get && ext_ops[i].id == be->ext_ops.get)
+			if (!sbe->get &&
+			    ext_ops[i].id == le32_to_cpu(be->ext_ops.get))
 				sbe->get = ext_ops[i].get;
 		}
 
@@ -631,11 +624,11 @@ static int soc_tplg_kcontrol_bind_io(struct snd_soc_tplg_ctl_hdr *hdr,
 	num_ops = tplg->io_ops_count;
 	for (i = 0; i < num_ops; i++) {
 
-		if (k->put == NULL && ops[i].id == hdr->ops.put)
+		if (k->put == NULL && ops[i].id == le32_to_cpu(hdr->ops.put))
 			k->put = ops[i].put;
-		if (k->get == NULL && ops[i].id == hdr->ops.get)
+		if (k->get == NULL && ops[i].id == le32_to_cpu(hdr->ops.get))
 			k->get = ops[i].get;
-		if (k->info == NULL && ops[i].id == hdr->ops.info)
+		if (k->info == NULL && ops[i].id == le32_to_cpu(hdr->ops.info))
 			k->info = ops[i].info;
 	}
 
@@ -648,11 +641,11 @@ static int soc_tplg_kcontrol_bind_io(struct snd_soc_tplg_ctl_hdr *hdr,
 	num_ops = ARRAY_SIZE(io_ops);
 	for (i = 0; i < num_ops; i++) {
 
-		if (k->put == NULL && ops[i].id == hdr->ops.put)
+		if (k->put == NULL && ops[i].id == le32_to_cpu(hdr->ops.put))
 			k->put = ops[i].put;
-		if (k->get == NULL && ops[i].id == hdr->ops.get)
+		if (k->get == NULL && ops[i].id == le32_to_cpu(hdr->ops.get))
 			k->get = ops[i].get;
-		if (k->info == NULL && ops[i].id == hdr->ops.info)
+		if (k->info == NULL && ops[i].id == le32_to_cpu(hdr->ops.info))
 			k->info = ops[i].info;
 	}
 
@@ -941,7 +934,7 @@ static int soc_tplg_denum_create_texts(struct soc_enum *se,
 	if (se->dobj.control.dtexts == NULL)
 		return -ENOMEM;
 
-	for (i = 0; i < ec->items; i++) {
+	for (i = 0; i < le32_to_cpu(ec->items); i++) {
 
 		if (strnlen(ec->texts[i], SNDRV_CTL_ELEM_ID_NAME_MAXLEN) ==
 			SNDRV_CTL_ELEM_ID_NAME_MAXLEN) {
@@ -956,14 +949,23 @@ static int soc_tplg_denum_create_texts(struct soc_enum *se,
 		}
 	}
 
+	se->items = le32_to_cpu(ec->items);
 	se->texts = (const char * const *)se->dobj.control.dtexts;
 	return 0;
 
 err:
+	se->items = i;
+	soc_tplg_denum_remove_texts(se);
+	return ret;
+}
+
+static inline void soc_tplg_denum_remove_texts(struct soc_enum *se)
+{
+	int i = se->items;
+
 	for (--i; i >= 0; i--)
 		kfree(se->dobj.control.dtexts[i]);
 	kfree(se->dobj.control.dtexts);
-	return ret;
 }
 
 static int soc_tplg_denum_create_values(struct soc_enum *se,
@@ -986,6 +988,11 @@ static int soc_tplg_denum_create_values(struct soc_enum *se,
 	}
 
 	return 0;
+}
+
+static inline void soc_tplg_denum_remove_values(struct soc_enum *se)
+{
+	kfree(se->dobj.control.dvalues);
 }
 
 static int soc_tplg_denum_create(struct soc_tplg *tplg, unsigned int count,
@@ -1035,7 +1042,6 @@ static int soc_tplg_denum_create(struct soc_tplg *tplg, unsigned int count,
 		se->shift_r = tplc_chan_get_shift(tplg, ec->channel,
 			SNDRV_CHMAP_FL);
 
-		se->items = le32_to_cpu(ec->items);
 		se->mask = le32_to_cpu(ec->mask);
 		se->dobj.index = tplg->index;
 		se->dobj.type = SND_SOC_DOBJ_ENUM;
@@ -1301,14 +1307,15 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_dmixer_create(
 
 	for (i = 0; i < num_kcontrols; i++) {
 		mc = (struct snd_soc_tplg_mixer_control *)tplg->pos;
-		sm = kzalloc(sizeof(*sm), GFP_KERNEL);
-		if (sm == NULL)
-			goto err;
 
 		/* validate kcontrol */
 		if (strnlen(mc->hdr.name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) ==
 			SNDRV_CTL_ELEM_ID_NAME_MAXLEN)
-			goto err_str;
+			goto err_sm;
+
+		sm = kzalloc(sizeof(*sm), GFP_KERNEL);
+		if (sm == NULL)
+			goto err_sm;
 
 		tplg->pos += (sizeof(struct snd_soc_tplg_mixer_control) +
 			      le32_to_cpu(mc->priv.size));
@@ -1316,12 +1323,12 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_dmixer_create(
 		dev_dbg(tplg->dev, " adding DAPM widget mixer control %s at %d\n",
 			mc->hdr.name, i);
 
+		kc[i].private_value = (long)sm;
 		kc[i].name = kstrdup(mc->hdr.name, GFP_KERNEL);
 		if (kc[i].name == NULL)
-			goto err_str;
-		kc[i].private_value = (long)sm;
+			goto err_sm;
 		kc[i].iface = SNDRV_CTL_ELEM_IFACE_MIXER;
-		kc[i].access = mc->hdr.access;
+		kc[i].access = le32_to_cpu(mc->hdr.access);
 
 		/* we only support FL/FR channel mapping atm */
 		sm->reg = tplc_chan_get_reg(tplg, mc->channel,
@@ -1333,10 +1340,10 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_dmixer_create(
 		sm->rshift = tplc_chan_get_shift(tplg, mc->channel,
 			SNDRV_CHMAP_FR);
 
-		sm->max = mc->max;
-		sm->min = mc->min;
-		sm->invert = mc->invert;
-		sm->platform_max = mc->platform_max;
+		sm->max = le32_to_cpu(mc->max);
+		sm->min = le32_to_cpu(mc->min);
+		sm->invert = le32_to_cpu(mc->invert);
+		sm->platform_max = le32_to_cpu(mc->platform_max);
 		sm->dobj.index = tplg->index;
 		INIT_LIST_HEAD(&sm->dobj.list);
 
@@ -1344,8 +1351,7 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_dmixer_create(
 		err = soc_tplg_kcontrol_bind_io(&mc->hdr, &kc[i], tplg);
 		if (err) {
 			soc_control_err(tplg, &mc->hdr, mc->hdr.name);
-			kfree(sm);
-			continue;
+			goto err_sm;
 		}
 
 		/* create any TLV data */
@@ -1358,20 +1364,19 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_dmixer_create(
 			dev_err(tplg->dev, "ASoC: failed to init %s\n",
 				mc->hdr.name);
 			soc_tplg_free_tlv(tplg, &kc[i]);
-			kfree(sm);
-			continue;
+			goto err_sm;
 		}
 	}
 	return kc;
 
-err_str:
-	kfree(sm);
-err:
-	for (--i; i >= 0; i--) {
-		kfree((void *)kc[i].private_value);
+err_sm:
+	for (; i >= 0; i--) {
+		sm = (struct soc_mixer_control *)kc[i].private_value;
+		kfree(sm);
 		kfree(kc[i].name);
 	}
 	kfree(kc);
+
 	return NULL;
 }
 
@@ -1381,7 +1386,7 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_denum_create(
 	struct snd_kcontrol_new *kc;
 	struct snd_soc_tplg_enum_control *ec;
 	struct soc_enum *se;
-	int i, j, err;
+	int i, err;
 
 	kc = kcalloc(num_kcontrols, sizeof(*kc), GFP_KERNEL);
 	if (kc == NULL)
@@ -1392,26 +1397,24 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_denum_create(
 		/* validate kcontrol */
 		if (strnlen(ec->hdr.name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) ==
 			    SNDRV_CTL_ELEM_ID_NAME_MAXLEN)
-			goto err;
+			goto err_se;
 
 		se = kzalloc(sizeof(*se), GFP_KERNEL);
 		if (se == NULL)
-			goto err;
+			goto err_se;
 
 		tplg->pos += (sizeof(struct snd_soc_tplg_enum_control) +
-				ec->priv.size);
+			      le32_to_cpu(ec->priv.size));
 
 		dev_dbg(tplg->dev, " adding DAPM widget enum control %s\n",
 			ec->hdr.name);
 
-		kc[i].name = kstrdup(ec->hdr.name, GFP_KERNEL);
-		if (kc[i].name == NULL) {
-			kfree(se);
-			goto err_se;
-		}
 		kc[i].private_value = (long)se;
+		kc[i].name = kstrdup(ec->hdr.name, GFP_KERNEL);
+		if (kc[i].name == NULL)
+			goto err_se;
 		kc[i].iface = SNDRV_CTL_ELEM_IFACE_MIXER;
-		kc[i].access = ec->hdr.access;
+		kc[i].access = le32_to_cpu(ec->hdr.access);
 
 		/* we only support FL/FR channel mapping atm */
 		se->reg = tplc_chan_get_reg(tplg, ec->channel, SNDRV_CHMAP_FL);
@@ -1420,8 +1423,8 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_denum_create(
 		se->shift_r = tplc_chan_get_shift(tplg, ec->channel,
 						  SNDRV_CHMAP_FR);
 
-		se->items = ec->items;
-		se->mask = ec->mask;
+		se->items = le32_to_cpu(ec->items);
+		se->mask = le32_to_cpu(ec->mask);
 		se->dobj.index = tplg->index;
 
 		switch (le32_to_cpu(ec->hdr.ops.info)) {
@@ -1473,46 +1476,43 @@ err_se:
 	for (; i >= 0; i--) {
 		/* free values and texts */
 		se = (struct soc_enum *)kc[i].private_value;
-		if (!se)
-			continue;
 
-		kfree(se->dobj.control.dvalues);
-		for (j = 0; j < ec->items; j++)
-			kfree(se->dobj.control.dtexts[j]);
-		kfree(se->dobj.control.dtexts);
+		if (se) {
+			soc_tplg_denum_remove_values(se);
+			soc_tplg_denum_remove_texts(se);
+		}
 
 		kfree(se);
 		kfree(kc[i].name);
 	}
-err:
 	kfree(kc);
 
 	return NULL;
 }
 
 static struct snd_kcontrol_new *soc_tplg_dapm_widget_dbytes_create(
-	struct soc_tplg *tplg, int count)
+	struct soc_tplg *tplg, int num_kcontrols)
 {
 	struct snd_soc_tplg_bytes_control *be;
-	struct soc_bytes_ext  *sbe;
+	struct soc_bytes_ext *sbe;
 	struct snd_kcontrol_new *kc;
 	int i, err;
 
-	kc = kcalloc(count, sizeof(*kc), GFP_KERNEL);
+	kc = kcalloc(num_kcontrols, sizeof(*kc), GFP_KERNEL);
 	if (!kc)
 		return NULL;
 
-	for (i = 0; i < count; i++) {
+	for (i = 0; i < num_kcontrols; i++) {
 		be = (struct snd_soc_tplg_bytes_control *)tplg->pos;
 
 		/* validate kcontrol */
 		if (strnlen(be->hdr.name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) ==
 			SNDRV_CTL_ELEM_ID_NAME_MAXLEN)
-			goto err;
+			goto err_sbe;
 
 		sbe = kzalloc(sizeof(*sbe), GFP_KERNEL);
 		if (sbe == NULL)
-			goto err;
+			goto err_sbe;
 
 		tplg->pos += (sizeof(struct snd_soc_tplg_bytes_control) +
 			      le32_to_cpu(be->priv.size));
@@ -1521,24 +1521,21 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_dbytes_create(
 			"ASoC: adding bytes kcontrol %s with access 0x%x\n",
 			be->hdr.name, be->hdr.access);
 
-		kc[i].name = kstrdup(be->hdr.name, GFP_KERNEL);
-		if (kc[i].name == NULL) {
-			kfree(sbe);
-			goto err;
-		}
 		kc[i].private_value = (long)sbe;
+		kc[i].name = kstrdup(be->hdr.name, GFP_KERNEL);
+		if (kc[i].name == NULL)
+			goto err_sbe;
 		kc[i].iface = SNDRV_CTL_ELEM_IFACE_MIXER;
-		kc[i].access = be->hdr.access;
+		kc[i].access = le32_to_cpu(be->hdr.access);
 
-		sbe->max = be->max;
+		sbe->max = le32_to_cpu(be->max);
 		INIT_LIST_HEAD(&sbe->dobj.list);
 
 		/* map standard io handlers and check for external handlers */
 		err = soc_tplg_kcontrol_bind_io(&be->hdr, &kc[i], tplg);
 		if (err) {
 			soc_control_err(tplg, &be->hdr, be->hdr.name);
-			kfree(sbe);
-			continue;
+			goto err_sbe;
 		}
 
 		/* pass control to driver for optional further init */
@@ -1547,20 +1544,20 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_dbytes_create(
 		if (err < 0) {
 			dev_err(tplg->dev, "ASoC: failed to init %s\n",
 				be->hdr.name);
-			kfree(sbe);
-			continue;
+			goto err_sbe;
 		}
 	}
 
 	return kc;
 
-err:
-	for (--i; i >= 0; i--) {
-		kfree((void *)kc[i].private_value);
+err_sbe:
+	for (; i >= 0; i--) {
+		sbe = (struct soc_bytes_ext *)kc[i].private_value;
+		kfree(sbe);
 		kfree(kc[i].name);
 	}
-
 	kfree(kc);
+
 	return NULL;
 }
 
@@ -1588,7 +1585,7 @@ static int soc_tplg_dapm_widget_create(struct soc_tplg *tplg,
 
 	/* map user to kernel widget ID */
 	template.id = get_widget_id(le32_to_cpu(w->id));
-	if (template.id < 0)
+	if ((int)template.id < 0)
 		return template.id;
 
 	/* strings are allocated here, but used and freed by the widget */
@@ -1806,6 +1803,9 @@ static int soc_tplg_dai_create(struct soc_tplg *tplg,
 	struct snd_soc_dai_driver *dai_drv;
 	struct snd_soc_pcm_stream *stream;
 	struct snd_soc_tplg_stream_caps *caps;
+	struct snd_soc_dai *dai;
+	struct snd_soc_dapm_context *dapm =
+		snd_soc_component_get_dapm(tplg->comp);
 	int ret;
 
 	dai_drv = kzalloc(sizeof(struct snd_soc_dai_driver), GFP_KERNEL);
@@ -1848,7 +1848,19 @@ static int soc_tplg_dai_create(struct soc_tplg *tplg,
 	list_add(&dai_drv->dobj.list, &tplg->comp->dobj_list);
 
 	/* register the DAI to the component */
-	return snd_soc_register_dai(tplg->comp, dai_drv);
+	dai = snd_soc_register_dai(tplg->comp, dai_drv, false);
+	if (!dai)
+		return -ENOMEM;
+
+	/* Create the DAI widgets here */
+	ret = snd_soc_dapm_new_dai_widgets(dapm, dai);
+	if (ret != 0) {
+		dev_err(dai->dev, "Failed to create DAI widgets %d\n", ret);
+		snd_soc_unregister_dai(dai);
+		return ret;
+	}
+
+	return ret;
 }
 
 static void set_link_flags(struct snd_soc_dai_link *link,
@@ -1879,11 +1891,23 @@ static int soc_tplg_fe_link_create(struct soc_tplg *tplg,
 	struct snd_soc_tplg_pcm *pcm)
 {
 	struct snd_soc_dai_link *link;
+	struct snd_soc_dai_link_component *dlc;
 	int ret;
 
-	link = kzalloc(sizeof(struct snd_soc_dai_link), GFP_KERNEL);
+	/* link + cpu + codec + platform */
+	link = kzalloc(sizeof(*link) + (3 * sizeof(*dlc)), GFP_KERNEL);
 	if (link == NULL)
 		return -ENOMEM;
+
+	dlc = (struct snd_soc_dai_link_component *)(link + 1);
+
+	link->cpus	= &dlc[0];
+	link->codecs	= &dlc[1];
+	link->platforms	= &dlc[2];
+
+	link->num_cpus	 = 1;
+	link->num_codecs = 1;
+	link->num_platforms = 1;
 
 	if (strlen(pcm->pcm_name)) {
 		link->name = kstrdup(pcm->pcm_name, GFP_KERNEL);
@@ -1892,10 +1916,12 @@ static int soc_tplg_fe_link_create(struct soc_tplg *tplg,
 	link->id = le32_to_cpu(pcm->pcm_id);
 
 	if (strlen(pcm->dai_name))
-		link->cpu_dai_name = kstrdup(pcm->dai_name, GFP_KERNEL);
+		link->cpus->dai_name = kstrdup(pcm->dai_name, GFP_KERNEL);
 
-	link->codec_name = "snd-soc-dummy";
-	link->codec_dai_name = "snd-soc-dummy-dai";
+	link->codecs->name = "snd-soc-dummy";
+	link->codecs->dai_name = "snd-soc-dummy-dai";
+
+	link->platforms->name = "snd-soc-dummy";
 
 	/* enable DPCM */
 	link->dynamic = 1;
@@ -1910,11 +1936,13 @@ static int soc_tplg_fe_link_create(struct soc_tplg *tplg,
 	ret = soc_tplg_dai_link_load(tplg, link, NULL);
 	if (ret < 0) {
 		dev_err(tplg->comp->dev, "ASoC: FE link loading failed\n");
-		kfree(link->name);
-		kfree(link->stream_name);
-		kfree(link->cpu_dai_name);
-		kfree(link);
-		return ret;
+		goto err;
+	}
+
+	ret = snd_soc_add_pcm_runtime(tplg->comp->card, link);
+	if (ret < 0) {
+		dev_err(tplg->comp->dev, "ASoC: adding FE link failed\n");
+		goto err;
 	}
 
 	link->dobj.index = tplg->index;
@@ -1922,8 +1950,13 @@ static int soc_tplg_fe_link_create(struct soc_tplg *tplg,
 	link->dobj.type = SND_SOC_DOBJ_DAI_LINK;
 	list_add(&link->dobj.list, &tplg->comp->dobj_list);
 
-	snd_soc_add_dai_link(tplg->comp->card, link);
 	return 0;
+err:
+	kfree(link->name);
+	kfree(link->stream_name);
+	kfree(link->cpus->dai_name);
+	kfree(link);
+	return ret;
 }
 
 /* create a FE DAI and DAI link from the PCM object */
@@ -2016,6 +2049,7 @@ static int soc_tplg_pcm_elems_load(struct soc_tplg *tplg,
 	int size;
 	int i;
 	bool abi_match;
+	int ret;
 
 	count = le32_to_cpu(hdr->count);
 
@@ -2057,7 +2091,12 @@ static int soc_tplg_pcm_elems_load(struct soc_tplg *tplg,
 		}
 
 		/* create the FE DAIs and DAI links */
-		soc_tplg_pcm_create(tplg, _pcm);
+		ret = soc_tplg_pcm_create(tplg, _pcm);
+		if (ret < 0) {
+			if (!abi_match)
+				kfree(_pcm);
+			return ret;
+		}
 
 		/* offset by version-specific struct size and
 		 * real priv data size
@@ -2182,6 +2221,47 @@ static int link_new_ver(struct soc_tplg *tplg,
 
 	*link = dest;
 	return 0;
+}
+
+/**
+ * snd_soc_find_dai_link - Find a DAI link
+ *
+ * @card: soc card
+ * @id: DAI link ID to match
+ * @name: DAI link name to match, optional
+ * @stream_name: DAI link stream name to match, optional
+ *
+ * This function will search all existing DAI links of the soc card to
+ * find the link of the same ID. Since DAI links may not have their
+ * unique ID, so name and stream name should also match if being
+ * specified.
+ *
+ * Return: pointer of DAI link, or NULL if not found.
+ */
+static struct snd_soc_dai_link *snd_soc_find_dai_link(struct snd_soc_card *card,
+						      int id, const char *name,
+						      const char *stream_name)
+{
+	struct snd_soc_pcm_runtime *rtd;
+	struct snd_soc_dai_link *link;
+
+	for_each_card_rtds(card, rtd) {
+		link = rtd->dai_link;
+
+		if (link->id != id)
+			continue;
+
+		if (name && (!link->name || strcmp(name, link->name)))
+			continue;
+
+		if (stream_name && (!link->stream_name
+				    || strcmp(stream_name, link->stream_name)))
+			continue;
+
+		return link;
+	}
+
+	return NULL;
 }
 
 /* Find and configure an existing physical DAI link */

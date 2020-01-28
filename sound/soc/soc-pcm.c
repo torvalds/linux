@@ -2849,13 +2849,31 @@ static void soc_pcm_private_free(struct snd_pcm *pcm)
 
 	/* need to sync the delayed work before releasing resources */
 	flush_delayed_work(&rtd->delayed_work);
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
-		if (component->driver->pcm_free)
-			component->driver->pcm_free(pcm);
-	}
+	for_each_rtdcom(rtd, rtdcom)
+		if (component->driver->pcm_destruct)
+			component->driver->pcm_destruct(component, rtd->pcm);
 }
+//{
+//	struct snd_soc_pcm_runtime *rtd = pcm->private_data;
+//
+//	/* need to sync the delayed work before releasing resources */
+//	flush_delayed_work(&rtd->delayed_work);
+//	snd_soc_pcm_component_free(pcm);
+//}
+//{
+//	struct snd_soc_pcm_runtime *rtd = pcm->private_data;
+//	struct snd_soc_rtdcom_list *rtdcom;
+//	struct snd_soc_component *component;
+//
+//	/* need to sync the delayed work before releasing resources */
+//	flush_delayed_work(&rtd->delayed_work);
+//	for_each_rtdcom(rtd, rtdcom) {
+//		component = rtdcom->component;
+//
+//		if (component->driver->pcm_free)
+//			component->driver->pcm_free(pcm);
+//	}
+//}
 
 static int soc_rtdcom_ack(struct snd_pcm_substream *substream)
 {
@@ -3133,13 +3151,20 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 	if (capture)
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &rtd->ops);
 
+//	ret = snd_soc_pcm_component_new(rtd);
+//	if (ret < 0) {
+//		dev_err(rtd->dev, "ASoC: pcm constructor failed: %d\n", ret);
+//		return ret;
+//	}
+
 	for_each_rtdcom(rtd, rtdcom) {
 		component = rtdcom->component;
 
-		if (!component->driver->pcm_new)
-			continue;
-
-		ret = component->driver->pcm_new(rtd);
+		if (component->driver->pcm_construct) {
+			ret = component->driver->pcm_construct(component, rtd);
+			if(ret < 0)
+				return ret;
+		}
 		if (ret < 0) {
 			dev_err(component->dev,
 				"ASoC: pcm constructor failed: %d\n",

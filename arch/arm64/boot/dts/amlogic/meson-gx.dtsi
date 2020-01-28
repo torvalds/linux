@@ -41,6 +41,11 @@
 			no-map;
 		};
 
+		secos: secmon@5300000 {
+			reg = <0x0 0x05300000 0x0 0x2000000>;
+			no-map;
+		};
+
 		linux,cma {
 			compatible = "shared-dma-pool";
 			reusable;
@@ -161,6 +166,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		read-only;
+		secure-monitor = <&sm>;
 
 		sn: sn@14 {
 			reg = <0x14 0x10>;
@@ -220,32 +226,43 @@
 			};
 
 			reset: reset-controller@4404 {
-				compatible = "amlogic,meson-gx-reset", "amlogic,meson-gxbb-reset";
+				compatible = "amlogic,meson-gxbb-reset";
 				reg = <0x0 0x04404 0x0 0x9c>;
 				#reset-cells = <1>;
 			};
 
-			audio: audio@5400 {
-				compatible = "amlogic,meson-gx-audio-core";
-				reg = <0x0 0x5400 0x0 0x2ac>,
-				      <0x0 0xa000 0x0 0x304>;
-				reg-names = "aiu", "audin";
+			aiu: bus@5400 {
+				compatible = "amlogic,aiu-bus", "syscon";
+				reg = <0x0 0x5400 0x0 0x2ac>;
 				status = "disabled";
 
-				aiu_i2s: audio-controller-0 {
-					#sound-dai-cells = <0>;
-					compatible = "amlogic,meson-aiu-i2s";
+				i2s_fifo: audio-controller-0 {
+					compatible = "amlogic,aiu-i2s-fifo",
+						     "amlogic,aiu-fifo";
+					sound-name-prefix = "I2S FIFO";
 					interrupts = <GIC_SPI 48 IRQ_TYPE_EDGE_RISING>;
-					status = "disabled";
-				};
-
-				aiu_spdif: audio-controller-1 {
 					#sound-dai-cells = <0>;
-					compatible = "amlogic,meson-aiu-spdif";
-					interrupts = <GIC_SPI 50 IRQ_TYPE_EDGE_RISING>;
-					status = "disabled";
 				};
 
+				spdif_fifo: audio-controller-1 {
+					compatible = "amlogic,aiu-spdif-fifo",
+						     "amlogic,aiu-fifo";
+					sound-name-prefix = "SPDIF FIFO";
+					interrupts = <GIC_SPI 50 IRQ_TYPE_EDGE_RISING>;
+					#sound-dai-cells = <0>;
+				};
+
+				i2s_encoder: audio-controller-2 {
+					compatible = "amlogic,aiu-i2s-encode";
+					sound-name-prefix = "I2S ENCODER";
+					#sound-dai-cells = <0>;
+				};
+
+				spdif_encoder: audio-controller-3 {
+					compatible = "amlogic,aiu-spdif-encode";
+					sound-name-prefix = "SPDIF ENCODER";
+					#sound-dai-cells = <0>;
+				};
 			};
 
 			uart_A: serial@84c0 {
@@ -340,7 +357,7 @@
 			};
 
 			spifc: spi@8c80 {
-				compatible = "amlogic,meson-gx-spifc", "amlogic,meson-gxbb-spifc";
+				compatible = "amlogic,meson-gxbb-spifc";
 				reg = <0x0 0x08c80 0x0 0x80>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -348,7 +365,7 @@
 			};
 
 			watchdog@98d0 {
-				compatible = "amlogic,meson-gx-wdt", "amlogic,meson-gxbb-wdt";
+				compatible = "amlogic,meson-gxbb-wdt";
 				reg = <0x0 0x098d0 0x0 0x10>;
 				clocks = <&xtal>;
 			};
@@ -460,7 +477,7 @@
 			};
 		};
 
-		vdec: video-decoder@c8820000 {
+		vdec: video-codec@c8820000 {
 			compatible = "amlogic,gx-vdec";
 			reg = <0x0 0xc8820000 0x0 0x10000>,
 			      <0x0 0xc110a580 0x0 0xe4>;
@@ -474,7 +491,7 @@
 			amlogic,canvas = <&canvas>;
 		};
 
-		periphs: periphs@c8834000 {
+		periphs: bus@c8834000 {
 			compatible = "simple-bus";
 			reg = <0x0 0xc8834000 0x0 0x2000>;
 			#address-cells = <2>;
@@ -513,7 +530,7 @@
 			};
 
 			mailbox: mailbox@404 {
-				compatible = "amlogic,meson-gx-mhu", "amlogic,meson-gxbb-mhu";
+				compatible = "amlogic,meson-gxbb-mhu";
 				reg = <0 0x404 0 0x4c>;
 				interrupts = <GIC_SPI 208 IRQ_TYPE_EDGE_RISING>,
 					     <GIC_SPI 209 IRQ_TYPE_EDGE_RISING>,
@@ -523,9 +540,11 @@
 		};
 
 		ethmac: ethernet@c9410000 {
-			compatible = "amlogic,meson-gxbb-dwmac", "snps,dwmac-3.710", "snps,dwmac";
-			reg = <0x0 0xc9410000 0x0 0x10000
-			       0x0 0xc8834540 0x0 0x4>;
+			compatible = "amlogic,meson-gxbb-dwmac",
+				     "snps,dwmac-3.70a",
+				     "snps,dwmac";
+			reg = <0x0 0xc9410000 0x0 0x10000>,
+			      <0x0 0xc8834540 0x0 0x4>;
 			interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq";
 			rx-fifo-depth = <4096>;
@@ -565,9 +584,8 @@
 		vpu: vpu@d0100000 {
 			compatible = "amlogic,meson-gx-vpu";
 			reg = <0x0 0xd0100000 0x0 0x100000>,
-			      <0x0 0xc883c000 0x0 0x1000>,
-			      <0x0 0xc8838000 0x0 0x1000>;
-			reg-names = "vpu", "hhi", "dmc";
+			      <0x0 0xc883c000 0x0 0x1000>;
+			reg-names = "vpu", "hhi";
 			interrupts = <GIC_SPI 3 IRQ_TYPE_EDGE_RISING>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -594,6 +612,7 @@
 			interrupts = <GIC_SPI 57 IRQ_TYPE_EDGE_RISING>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			#sound-dai-cells = <0>;
 			status = "disabled";
 
 			/* VPU VENC Input */

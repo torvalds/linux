@@ -293,8 +293,6 @@ struct snd_soc_dai_driver {
 	/* Optional Callback used at pcm creation*/
 	int (*pcm_new)(struct snd_soc_pcm_runtime *rtd,
 		       struct snd_soc_dai *dai);
-	/* DAI is also used for the control bus */
-	bool bus_control;
 
 	/* ops */
 	const struct snd_soc_dai_ops *ops;
@@ -306,6 +304,7 @@ struct snd_soc_dai_driver {
 	unsigned int symmetric_rates:1;
 	unsigned int symmetric_channels:1;
 	unsigned int symmetric_samplebits:1;
+	unsigned int bus_control:1; /* DAI is also used for the control bus */
 
 	/* probe ordering - for components with runtime dependencies */
 	int probe_order;

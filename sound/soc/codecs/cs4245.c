@@ -50,8 +50,6 @@ static const struct reg_default cs4245_reg_defaults[] = {
 	{ CS4245_DAC_CHA_VOL, 0x00 },
 	{ CS4245_DAC_CHB_VOL, 0x00 },
 	{ CS4245_DAC_CTL2, 0xC0 },
-	{ CS4245_SPDIF_CTL1, 0x00 },
-	{ CS4245_SPDIF_CTL2, 0x00 },
 	{ CS4245_INT_MASK, 0x00 },
 	{ CS4245_STATUS_MODE_MSB, 0x00 },
 	{ CS4245_STATUS_MODE_LSB, 0x00 },
@@ -107,7 +105,7 @@ static const struct snd_kcontrol_new aux_analog_output_mux =
 	SOC_DAPM_ENUM("AUX Analog Output Mux", aux_analog_output_mux_enum);
 
 static const char * const mic_linein_text[] = {
-	MIC", "LINEIN1", "LINEIN2", "LINEIN3", "LINEIN4", "LINEIN5", "LINEIN6", "RSV"
+	"MIC", "LINEIN1", "LINEIN2", "LINEIN3", "LINEIN4", "LINEIN5", "LINEIN6", "RSV"
 };
 
 static SOC_ENUM_SINGLE_DECL(mic_linein_enum, CS4245_ADC_CTL2, 0,

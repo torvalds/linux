@@ -51,6 +51,12 @@
 			};
 		};
 	};
+
+	spdif_out: spdif-out {
+		#sound-dai-cells = <0>;
+		compatible = "linux,spdif-dit";
+		status = "okay";
+	};
 };
 
 &cec_AO {
@@ -86,7 +92,6 @@
 		max-speed = <1000>;
 		interrupt-parent = <&gpio_intc>;
 		interrupts = <29 IRQ_TYPE_LEVEL_LOW>;
-		eee-broken-1000t;
 	};
 };
 
@@ -107,4 +112,14 @@
 		reg = <1>;
 		compatible = "brcm,bcm4329-fmac";
 	};
+};
+
+&audio {
+	status = "okay";
+};
+
+&aiu_spdif {
+	pinctrl-0 = <&spdif_out_h_pins>;
+	pinctrl-names = "default";
+	status = "okay";
 };
