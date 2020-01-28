@@ -83,6 +83,8 @@ live_context(struct drm_i915_private *i915, struct file *file)
 	if (IS_ERR(ctx))
 		return ctx;
 
+	i915_gem_context_set_no_error_capture(ctx);
+
 	err = gem_context_register(ctx, to_drm_file(file)->driver_priv, &id);
 	if (err < 0)
 		goto err_ctx;
