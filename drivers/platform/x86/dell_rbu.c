@@ -134,9 +134,7 @@ static int create_packet(void *data, size_t length)
 	 *       due to BIOS errata. This shouldn't be used for higher floors
 	 *       or you will run out of mem trying to allocate the array.
 	 */
-	packet_array_size = max(
-	       		(unsigned int)(allocation_floor / rbu_data.packetsize),
-			(unsigned int)1);
+	packet_array_size = max_t(unsigned int, allocation_floor / rbu_data.packetsize, 1);
 	invalid_addr_packet_array = kcalloc(packet_array_size, sizeof(void *),
 						GFP_KERNEL);
 
