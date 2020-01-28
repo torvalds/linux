@@ -120,6 +120,7 @@ static void devm_memremap_pages_release(void *data)
 	struct device *dev = pgmap->dev;
 	struct resource *res = &pgmap->res;
 	resource_size_t align_start, align_size;
+	struct page *first_page;
 	unsigned long pfn;
 	int nid;
 
@@ -132,13 +133,16 @@ static void devm_memremap_pages_release(void *data)
 	align_size = ALIGN(res->start + resource_size(res), SECTION_SIZE)
 		- align_start;
 
-	nid = page_to_nid(pfn_to_page(align_start >> PAGE_SHIFT));
+	/* make sure to access a memmap that was actually initialized */
+	first_page = pfn_to_page(pfn_first(pgmap));
+
+	nid = page_to_nid(first_page);
 
 	mem_hotplug_begin();
 	if (pgmap->type == MEMORY_DEVICE_PRIVATE) {
 		pfn = align_start >> PAGE_SHIFT;
-		__remove_pages(page_zone(pfn_to_page(pfn)), pfn,
-				align_size >> PAGE_SHIFT, NULL);
+		__remove_pages(page_zone(first_page), pfn,
+			       align_size >> PAGE_SHIFT, NULL);
 	} else {
 		arch_remove_memory(nid, align_start, align_size,
 				pgmap->altmap_valid ? &pgmap->altmap : NULL);
