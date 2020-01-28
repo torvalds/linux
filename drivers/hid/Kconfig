@@ -1145,6 +1145,16 @@ config HID_ALPS
 	Say Y here if you have a Alps touchpads over i2c-hid or usbhid
 	and want support for its special functionalities.
 
+config HID_MCP2221
+	tristate "Microchip MCP2221 HID USB-to-I2C/SMbus host support"
+	depends on USB_HID && I2C
+	---help---
+	Provides I2C and SMBUS host adapter functionality over USB-HID
+	through MCP2221 device.
+
+	To compile this driver as a module, choose M here: the module
+	will be called hid-mcp2221.ko.
+
 endmenu
 
 endif # HID
