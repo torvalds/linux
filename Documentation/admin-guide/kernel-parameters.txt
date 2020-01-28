@@ -1934,9 +1934,31 @@
 			  <cpu number> begins at 0 and the maximum value is
 			  "number of CPUs in system - 1".
 
+			managed_irq
+
+			  Isolate from being targeted by managed interrupts
+			  which have an interrupt mask containing isolated
+			  CPUs. The affinity of managed interrupts is
+			  handled by the kernel and cannot be changed via
+			  the /proc/irq/* interfaces.
+
+			  This isolation is best effort and only effective
+			  if the automatically assigned interrupt mask of a
+			  device queue contains isolated and housekeeping
+			  CPUs. If housekeeping CPUs are online then such
+			  interrupts are directed to the housekeeping CPU
+			  so that IO submitted on the housekeeping CPU
+			  cannot disturb the isolated CPU.
+
+			  If a queue's affinity mask contains only isolated
+			  CPUs then this parameter has no effect on the
+			  interrupt routing decision, though interrupts are
+			  only delivered when tasks running on those
+			  isolated CPUs submit IO. IO submitted on
+			  housekeeping CPUs has no influence on those
+			  queues.
+
 			The format of <cpu-list> is described above.
-
-
 
 	iucv=		[HW,NET]
 
