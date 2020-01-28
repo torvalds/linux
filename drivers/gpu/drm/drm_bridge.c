@@ -25,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 
+#include <drm/drm_atomic_state_helper.h>
 #include <drm/drm_bridge.h>
 #include <drm/drm_encoder.h>
 
@@ -89,6 +90,31 @@ void drm_bridge_remove(struct drm_bridge *bridge)
 }
 EXPORT_SYMBOL(drm_bridge_remove);
 
+static struct drm_private_state *
+drm_bridge_atomic_duplicate_priv_state(struct drm_private_obj *obj)
+{
+	struct drm_bridge *bridge = drm_priv_to_bridge(obj);
+	struct drm_bridge_state *state;
+
+	state = bridge->funcs->atomic_duplicate_state(bridge);
+	return state ? &state->base : NULL;
+}
+
+static void
+drm_bridge_atomic_destroy_priv_state(struct drm_private_obj *obj,
+				     struct drm_private_state *s)
+{
+	struct drm_bridge_state *state = drm_priv_to_bridge_state(s);
+	struct drm_bridge *bridge = drm_priv_to_bridge(obj);
+
+	bridge->funcs->atomic_destroy_state(bridge, state);
+}
+
+static const struct drm_private_state_funcs drm_bridge_priv_state_funcs = {
+	.atomic_duplicate_state = drm_bridge_atomic_duplicate_priv_state,
+	.atomic_destroy_state = drm_bridge_atomic_destroy_priv_state,
+};
+
 /**
  * drm_bridge_attach - attach the bridge to an encoder's chain
  *
@@ -135,15 +161,35 @@ int drm_bridge_attach(struct drm_encoder *encoder, struct drm_bridge *bridge,
 
 	if (bridge->funcs->attach) {
 		ret = bridge->funcs->attach(bridge);
-		if (ret < 0) {
-			list_del(&bridge->chain_node);
-			bridge->dev = NULL;
-			bridge->encoder = NULL;
-			return ret;
+		if (ret < 0)
+			goto err_reset_bridge;
+	}
+
+	if (bridge->funcs->atomic_reset) {
+		struct drm_bridge_state *state;
+
+		state = bridge->funcs->atomic_reset(bridge);
+		if (IS_ERR(state)) {
+			ret = PTR_ERR(state);
+			goto err_detach_bridge;
 		}
+
+		drm_atomic_private_obj_init(bridge->dev, &bridge->base,
+					    &state->base,
+					    &drm_bridge_priv_state_funcs);
 	}
 
 	return 0;
+
+err_detach_bridge:
+	if (bridge->funcs->detach)
+		bridge->funcs->detach(bridge);
+
+err_reset_bridge:
+	bridge->dev = NULL;
+	bridge->encoder = NULL;
+	list_del(&bridge->chain_node);
+	return ret;
 }
 EXPORT_SYMBOL(drm_bridge_attach);
 
@@ -154,6 +200,9 @@ void drm_bridge_detach(struct drm_bridge *bridge)
 
 	if (WARN_ON(!bridge->dev))
 		return;
+
+	if (bridge->funcs->atomic_reset)
+		drm_atomic_private_obj_fini(&bridge->base);
 
 	if (bridge->funcs->detach)
 		bridge->funcs->detach(bridge);

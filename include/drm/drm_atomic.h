@@ -670,6 +670,9 @@ __drm_atomic_get_current_plane_state(struct drm_atomic_state *state,
 }
 
 int __must_check
+drm_atomic_add_encoder_bridges(struct drm_atomic_state *state,
+			       struct drm_encoder *encoder);
+int __must_check
 drm_atomic_add_affected_connectors(struct drm_atomic_state *state,
 				   struct drm_crtc *crtc);
 int __must_check
@@ -991,5 +994,36 @@ drm_atomic_crtc_effectively_active(const struct drm_crtc_state *state)
 {
 	return state->active || state->self_refresh_active;
 }
+
+/**
+ * struct drm_bridge_state - Atomic bridge state object
+ */
+struct drm_bridge_state {
+	/**
+	 * @base: inherit from &drm_private_state
+	 */
+	struct drm_private_state base;
+
+	/**
+	 * @bridge: the bridge this state refers to
+	 */
+	struct drm_bridge *bridge;
+};
+
+static inline struct drm_bridge_state *
+drm_priv_to_bridge_state(struct drm_private_state *priv)
+{
+	return container_of(priv, struct drm_bridge_state, base);
+}
+
+struct drm_bridge_state *
+drm_atomic_get_bridge_state(struct drm_atomic_state *state,
+			    struct drm_bridge *bridge);
+struct drm_bridge_state *
+drm_atomic_get_old_bridge_state(struct drm_atomic_state *state,
+				struct drm_bridge *bridge);
+struct drm_bridge_state *
+drm_atomic_get_new_bridge_state(struct drm_atomic_state *state,
+				struct drm_bridge *bridge);
 
 #endif /* DRM_ATOMIC_H_ */
