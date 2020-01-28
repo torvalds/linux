@@ -2050,6 +2050,46 @@ int intel_hdcp_disable(struct intel_connector *connector)
 	return ret;
 }
 
+void intel_hdcp_update_pipe(struct intel_encoder *encoder,
+			    const struct intel_crtc_state *crtc_state,
+			    const struct drm_connector_state *conn_state)
+{
+	struct intel_connector *connector =
+				to_intel_connector(conn_state->connector);
+	struct intel_hdcp *hdcp = &connector->hdcp;
+	bool content_protection_type_changed =
+		(conn_state->hdcp_content_type != hdcp->content_type &&
+		 conn_state->content_protection !=
+		 DRM_MODE_CONTENT_PROTECTION_UNDESIRED);
+
+	/*
+	 * During the HDCP encryption session if Type change is requested,
+	 * disable the HDCP and reenable it with new TYPE value.
+	 */
+	if (conn_state->content_protection ==
+	    DRM_MODE_CONTENT_PROTECTION_UNDESIRED ||
+	    content_protection_type_changed)
+		intel_hdcp_disable(connector);
+
+	/*
+	 * Mark the hdcp state as DESIRED after the hdcp disable of type
+	 * change procedure.
+	 */
+	if (content_protection_type_changed) {
+		mutex_lock(&hdcp->mutex);
+		hdcp->value = DRM_MODE_CONTENT_PROTECTION_DESIRED;
+		schedule_work(&hdcp->prop_work);
+		mutex_unlock(&hdcp->mutex);
+	}
+
+	if (conn_state->content_protection ==
+	    DRM_MODE_CONTENT_PROTECTION_DESIRED ||
+	    content_protection_type_changed)
+		intel_hdcp_enable(connector,
+				  crtc_state->cpu_transcoder,
+				  (u8)conn_state->hdcp_content_type);
+}
+
 void intel_hdcp_component_fini(struct drm_i915_private *dev_priv)
 {
 	mutex_lock(&dev_priv->hdcp_comp_mutex);
