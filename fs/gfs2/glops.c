@@ -29,6 +29,8 @@
 
 struct workqueue_struct *gfs2_freeze_wq;
 
+extern struct workqueue_struct *gfs2_control_wq;
+
 static void gfs2_ail_error(struct gfs2_glock *gl, const struct buffer_head *bh)
 {
 	fs_err(gl->gl_name.ln_sbd,
@@ -496,13 +498,17 @@ static void freeze_go_sync(struct gfs2_glock *gl)
 	int error = 0;
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 
-	if (gl->gl_state == LM_ST_SHARED &&
+	if (gl->gl_state == LM_ST_SHARED && !gfs2_withdrawn(sdp) &&
 	    test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags)) {
 		atomic_set(&sdp->sd_freeze_state, SFS_STARTING_FREEZE);
 		error = freeze_super(sdp->sd_vfs);
 		if (error) {
 			fs_info(sdp, "GFS2: couldn't freeze filesystem: %d\n",
 				error);
+			if (gfs2_withdrawn(sdp)) {
+				atomic_set(&sdp->sd_freeze_state, SFS_UNFROZEN);
+				return;
+			}
 			gfs2_assert_withdraw(sdp, 0);
 		}
 		queue_work(gfs2_freeze_wq, &sdp->sd_freeze_work);
@@ -577,6 +583,73 @@ static void iopen_go_callback(struct gfs2_glock *gl, bool remote)
 	}
 }
 
+/**
+ * inode_go_free - wake up anyone waiting for dlm's unlock ast to free it
+ * @gl: glock being freed
+ *
+ * For now, this is only used for the journal inode glock. In withdraw
+ * situations, we need to wait for the glock to be freed so that we know
+ * other nodes may proceed with recovery / journal replay.
+ */
+static void inode_go_free(struct gfs2_glock *gl)
+{
+	/* Note that we cannot reference gl_object because it's already set
+	 * to NULL by this point in its lifecycle. */
+	if (!test_bit(GLF_FREEING, &gl->gl_flags))
+		return;
+	clear_bit_unlock(GLF_FREEING, &gl->gl_flags);
+	wake_up_bit(&gl->gl_flags, GLF_FREEING);
+}
+
+/**
+ * nondisk_go_callback - used to signal when a node did a withdraw
+ * @gl: the nondisk glock
+ * @remote: true if this came from a different cluster node
+ *
+ */
+static void nondisk_go_callback(struct gfs2_glock *gl, bool remote)
+{
+	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
+
+	/* Ignore the callback unless it's from another node, and it's the
+	   live lock. */
+	if (!remote || gl->gl_name.ln_number != GFS2_LIVE_LOCK)
+		return;
+
+	/* First order of business is to cancel the demote request. We don't
+	 * really want to demote a nondisk glock. At best it's just to inform
+	 * us of another node's withdraw. We'll keep it in SH mode. */
+	clear_bit(GLF_DEMOTE, &gl->gl_flags);
+	clear_bit(GLF_PENDING_DEMOTE, &gl->gl_flags);
+
+	/* Ignore the unlock if we're withdrawn, unmounting, or in recovery. */
+	if (test_bit(SDF_NORECOVERY, &sdp->sd_flags) ||
+	    test_bit(SDF_WITHDRAWN, &sdp->sd_flags) ||
+	    test_bit(SDF_REMOTE_WITHDRAW, &sdp->sd_flags))
+		return;
+
+	/* We only care when a node wants us to unlock, because that means
+	 * they want a journal recovered. */
+	if (gl->gl_demote_state != LM_ST_UNLOCKED)
+		return;
+
+	if (sdp->sd_args.ar_spectator) {
+		fs_warn(sdp, "Spectator node cannot recover journals.\n");
+		return;
+	}
+
+	fs_warn(sdp, "Some node has withdrawn; checking for recovery.\n");
+	set_bit(SDF_REMOTE_WITHDRAW, &sdp->sd_flags);
+	/*
+	 * We can't call remote_withdraw directly here or gfs2_recover_journal
+	 * because this is called from the glock unlock function and the
+	 * remote_withdraw needs to enqueue and dequeue the same "live" glock
+	 * we were called from. So we queue it to the control work queue in
+	 * lock_dlm.
+	 */
+	queue_delayed_work(gfs2_control_wq, &sdp->sd_control_work, 0);
+}
+
 const struct gfs2_glock_operations gfs2_meta_glops = {
 	.go_type = LM_TYPE_META,
 	.go_flags = GLOF_NONDISK,
@@ -590,6 +663,7 @@ const struct gfs2_glock_operations gfs2_inode_glops = {
 	.go_dump = inode_go_dump,
 	.go_type = LM_TYPE_INODE,
 	.go_flags = GLOF_ASPACE | GLOF_LRU,
+	.go_free = inode_go_free,
 };
 
 const struct gfs2_glock_operations gfs2_rgrp_glops = {
@@ -623,6 +697,7 @@ const struct gfs2_glock_operations gfs2_flock_glops = {
 const struct gfs2_glock_operations gfs2_nondisk_glops = {
 	.go_type = LM_TYPE_NONDISK,
 	.go_flags = GLOF_NONDISK,
+	.go_callback = nondisk_go_callback,
 };
 
 const struct gfs2_glock_operations gfs2_quota_glops = {

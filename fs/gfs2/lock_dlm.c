@@ -16,6 +16,8 @@
 
 #include "incore.h"
 #include "glock.h"
+#include "glops.h"
+#include "recovery.h"
 #include "util.h"
 #include "sys.h"
 #include "trace_gfs2.h"
@@ -124,6 +126,8 @@ static void gdlm_ast(void *arg)
 
 	switch (gl->gl_lksb.sb_status) {
 	case -DLM_EUNLOCK: /* Unlocked, so glock can be freed */
+		if (gl->gl_ops->go_free)
+			gl->gl_ops->go_free(gl);
 		gfs2_glock_free(gl);
 		return;
 	case -DLM_ECANCEL: /* Cancel while getting lock */
@@ -323,6 +327,7 @@ static void gdlm_cancel(struct gfs2_glock *gl)
 /*
  * dlm/gfs2 recovery coordination using dlm_recover callbacks
  *
+ *  0. gfs2 checks for another cluster node withdraw, needing journal replay
  *  1. dlm_controld sees lockspace members change
  *  2. dlm_controld blocks dlm-kernel locking activity
  *  3. dlm_controld within dlm-kernel notifies gfs2 (recover_prep)
@@ -571,6 +576,28 @@ static int control_lock(struct gfs2_sbd *sdp, int mode, uint32_t flags)
 			 &ls->ls_control_lksb, "control_lock");
 }
 
+/**
+ * remote_withdraw - react to a node withdrawing from the file system
+ * @sdp: The superblock
+ */
+static void remote_withdraw(struct gfs2_sbd *sdp)
+{
+	struct gfs2_jdesc *jd;
+	int ret = 0, count = 0;
+
+	list_for_each_entry(jd, &sdp->sd_jindex_list, jd_list) {
+		if (jd->jd_jid == sdp->sd_lockstruct.ls_jid)
+			continue;
+		ret = gfs2_recover_journal(jd, true);
+		if (ret)
+			break;
+		count++;
+	}
+
+	/* Now drop the additional reference we acquired */
+	fs_err(sdp, "Journals checked: %d, ret = %d.\n", count, ret);
+}
+
 static void gfs2_control_func(struct work_struct *work)
 {
 	struct gfs2_sbd *sdp = container_of(work, struct gfs2_sbd, sd_control_work.work);
@@ -580,6 +607,13 @@ static void gfs2_control_func(struct work_struct *work)
 	int write_lvb = 0;
 	int recover_size;
 	int i, error;
+
+	/* First check for other nodes that may have done a withdraw. */
+	if (test_bit(SDF_REMOTE_WITHDRAW, &sdp->sd_flags)) {
+		remote_withdraw(sdp);
+		clear_bit(SDF_REMOTE_WITHDRAW, &sdp->sd_flags);
+		return;
+	}
 
 	spin_lock(&ls->ls_recover_spin);
 	/*

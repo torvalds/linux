@@ -1541,6 +1541,8 @@ int gfs2_quotad(void *data)
 
 	while (!kthread_should_stop()) {
 
+		if (gfs2_withdrawn(sdp))
+			goto bypass;
 		/* Update the master statfs file */
 		if (sdp->sd_statfs_force_sync) {
 			int error = gfs2_statfs_sync(sdp->sd_vfs, 0);
@@ -1561,6 +1563,7 @@ int gfs2_quotad(void *data)
 
 		try_to_freeze();
 
+bypass:
 		t = min(quotad_timeo, statfs_timeo);
 
 		prepare_to_wait(&sdp->sd_quota_wait, &wait, TASK_INTERRUPTIBLE);

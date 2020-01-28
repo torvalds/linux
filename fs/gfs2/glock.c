@@ -271,7 +271,7 @@ static void __gfs2_glock_put(struct gfs2_glock *gl)
 	gfs2_glock_remove_from_lru(gl);
 	spin_unlock(&gl->gl_lockref.lock);
 	GLOCK_BUG_ON(gl, !list_empty(&gl->gl_holders));
-	GLOCK_BUG_ON(gl, mapping && mapping->nrpages);
+	GLOCK_BUG_ON(gl, mapping && mapping->nrpages && !gfs2_withdrawn(sdp));
 	trace_gfs2_glock_put(gl);
 	sdp->sd_lockstruct.ls_ops->lm_put_lock(gl);
 }
@@ -576,7 +576,8 @@ __acquires(&gl->gl_lockref.lock)
 	unsigned int lck_flags = (unsigned int)(gh ? gh->gh_flags : 0);
 	int ret;
 
-	if (target != LM_ST_UNLOCKED && glock_blocked_by_withdraw(gl))
+	if (target != LM_ST_UNLOCKED && glock_blocked_by_withdraw(gl) &&
+	    gh && !(gh->gh_flags & LM_FLAG_NOEXP))
 		return;
 	lck_flags &= (LM_FLAG_TRY | LM_FLAG_TRY_1CB | LM_FLAG_NOEXP |
 		      LM_FLAG_PRIORITY);
@@ -1222,7 +1223,7 @@ int gfs2_glock_nq(struct gfs2_holder *gh)
 	struct gfs2_glock *gl = gh->gh_gl;
 	int error = 0;
 
-	if (glock_blocked_by_withdraw(gl))
+	if (glock_blocked_by_withdraw(gl) && !(gh->gh_flags & LM_FLAG_NOEXP))
 		return -EIO;
 
 	if (test_bit(GLF_LRU, &gl->gl_flags))
@@ -1266,10 +1267,26 @@ int gfs2_glock_poll(struct gfs2_holder *gh)
 void gfs2_glock_dq(struct gfs2_holder *gh)
 {
 	struct gfs2_glock *gl = gh->gh_gl;
+	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	unsigned delay = 0;
 	int fast_path = 0;
 
 	spin_lock(&gl->gl_lockref.lock);
+	/*
+	 * If we're in the process of file system withdraw, we cannot just
+	 * dequeue any glocks until our journal is recovered, lest we
+	 * introduce file system corruption. We need two exceptions to this
+	 * rule: We need to allow unlocking of nondisk glocks and the glock
+	 * for our own journal that needs recovery.
+	 */
+	if (test_bit(SDF_WITHDRAW_RECOVERY, &sdp->sd_flags) &&
+	    glock_blocked_by_withdraw(gl) &&
+	    gh->gh_gl != sdp->sd_jinode_gl) {
+		sdp->sd_glock_dqs_held++;
+		might_sleep();
+		wait_on_bit(&sdp->sd_flags, SDF_WITHDRAW_RECOVERY,
+			    TASK_UNINTERRUPTIBLE);
+	}
 	if (gh->gh_flags & GL_NOCACHE)
 		handle_callback(gl, LM_ST_UNLOCKED, 0, false);
 

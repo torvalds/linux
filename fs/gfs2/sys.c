@@ -435,6 +435,8 @@ int gfs2_recover_set(struct gfs2_sbd *sdp, unsigned jid)
 	 * never clear the DFL_BLOCK_LOCKS flag, so all our locks would
 	 * permanently stop working.
 	 */
+	if (!sdp->sd_jdesc)
+		goto out;
 	if (sdp->sd_jdesc->jd_jid == jid && !sdp->sd_args.ar_spectator)
 		goto out;
 	rv = -ENOENT;
