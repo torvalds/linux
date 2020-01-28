@@ -204,7 +204,8 @@ static void intel_lvds_pps_init_hw(struct drm_i915_private *dev_priv,
 	u32 val;
 
 	val = intel_de_read(dev_priv, PP_CONTROL(0));
-	WARN_ON((val & PANEL_UNLOCK_MASK) != PANEL_UNLOCK_REGS);
+	drm_WARN_ON(&dev_priv->drm,
+		    (val & PANEL_UNLOCK_MASK) != PANEL_UNLOCK_REGS);
 	if (pps->powerdown_on_reset)
 		val |= PANEL_POWER_RESET;
 	intel_de_write(dev_priv, PP_CONTROL(0), val);
@@ -826,8 +827,8 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 
 	/* Skip init on machines we know falsely report LVDS */
 	if (dmi_check_system(intel_no_lvds)) {
-		WARN(!dev_priv->vbt.int_lvds_support,
-		     "Useless DMI match. Internal LVDS support disabled by VBT\n");
+		drm_WARN(dev, !dev_priv->vbt.int_lvds_support,
+			 "Useless DMI match. Internal LVDS support disabled by VBT\n");
 		return;
 	}
 

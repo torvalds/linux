@@ -1030,7 +1030,7 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 			tmp &= BXT_PIPE_SELECT_MASK;
 			tmp >>= BXT_PIPE_SELECT_SHIFT;
 
-			if (WARN_ON(tmp > PIPE_C))
+			if (drm_WARN_ON(&dev_priv->drm, tmp > PIPE_C))
 				continue;
 
 			*pipe = tmp;

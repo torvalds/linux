@@ -228,7 +228,7 @@ parse_panel_options(struct drm_i915_private *dev_priv,
 
 	ret = intel_opregion_get_panel_type(dev_priv);
 	if (ret >= 0) {
-		WARN_ON(ret > 0xf);
+		drm_WARN_ON(&dev_priv->drm, ret > 0xf);
 		panel_type = ret;
 		drm_dbg_kms(&dev_priv->drm, "Panel type: %d (OpRegion)\n",
 			    panel_type);
@@ -1248,7 +1248,8 @@ static int get_init_otp_deassert_fragment_len(struct drm_i915_private *dev_priv)
 	const u8 *data = dev_priv->vbt.dsi.sequence[MIPI_SEQ_INIT_OTP];
 	int index, len;
 
-	if (WARN_ON(!data || dev_priv->vbt.dsi.seq_version != 1))
+	if (drm_WARN_ON(&dev_priv->drm,
+			!data || dev_priv->vbt.dsi.seq_version != 1))
 		return 0;
 
 	/* index = 1 to skip sequence byte */
@@ -2305,7 +2306,8 @@ bool intel_bios_is_port_present(struct drm_i915_private *dev_priv, enum port por
 	}
 
 	/* FIXME maybe deal with port A as well? */
-	if (WARN_ON(port == PORT_A) || port >= ARRAY_SIZE(port_mapping))
+	if (drm_WARN_ON(&dev_priv->drm,
+			port == PORT_A) || port >= ARRAY_SIZE(port_mapping))
 		return false;
 
 	list_for_each_entry(devdata, &dev_priv->vbt.display_devices, node) {
@@ -2555,7 +2557,7 @@ intel_bios_is_port_hpd_inverted(const struct drm_i915_private *i915,
 	const struct child_device_config *child =
 		i915->vbt.ddi_port_info[port].child;
 
-	if (WARN_ON_ONCE(!IS_GEN9_LP(i915)))
+	if (drm_WARN_ON_ONCE(&i915->drm, !IS_GEN9_LP(i915)))
 		return false;
 
 	return child && child->hpd_invert;

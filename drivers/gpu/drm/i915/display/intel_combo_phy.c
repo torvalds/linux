@@ -256,7 +256,7 @@ void intel_combo_phy_power_up_lanes(struct drm_i915_private *dev_priv,
 	u32 val;
 
 	if (is_dsi) {
-		WARN_ON(lane_reversal);
+		drm_WARN_ON(&dev_priv->drm, lane_reversal);
 
 		switch (lane_count) {
 		case 1:
