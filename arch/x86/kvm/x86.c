@@ -898,6 +898,8 @@ EXPORT_SYMBOL_GPL(kvm_set_xcr);
 		__reserved_bits |= X86_CR4_PKE;		\
 	if (!__cpu_has(__c, X86_FEATURE_LA57))		\
 		__reserved_bits |= X86_CR4_LA57;	\
+	if (!__cpu_has(__c, X86_FEATURE_UMIP))		\
+		__reserved_bits |= X86_CR4_UMIP;	\
 	__reserved_bits;				\
 })
 
