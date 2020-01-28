@@ -728,7 +728,6 @@ static int at91_adc_configure_trigger(struct iio_trigger *trig, bool state)
 	struct iio_dev *indio = iio_trigger_get_drvdata(trig);
 	struct at91_adc_state *st = iio_priv(indio);
 	u32 status = at91_adc_readl(st, AT91_SAMA5D2_TRGR);
-	u8 bit;
 
 	/* clear TRGMOD */
 	status &= ~AT91_SAMA5D2_TRGR_TRGMOD_MASK;
@@ -738,48 +737,6 @@ static int at91_adc_configure_trigger(struct iio_trigger *trig, bool state)
 
 	/* set/unset hw trigger */
 	at91_adc_writel(st, AT91_SAMA5D2_TRGR, status);
-
-	for_each_set_bit(bit, indio->active_scan_mask, indio->num_channels) {
-		struct iio_chan_spec const *chan = at91_adc_chan_get(indio, bit);
-		u32 cor;
-
-		if (!chan)
-			continue;
-		/* these channel types cannot be handled by this trigger */
-		if (chan->type == IIO_POSITIONRELATIVE ||
-		    chan->type == IIO_PRESSURE)
-			continue;
-
-		if (state) {
-			cor = at91_adc_readl(st, AT91_SAMA5D2_COR);
-
-			if (chan->differential)
-				cor |= (BIT(chan->channel) |
-					BIT(chan->channel2)) <<
-					AT91_SAMA5D2_COR_DIFF_OFFSET;
-			else
-				cor &= ~(BIT(chan->channel) <<
-				       AT91_SAMA5D2_COR_DIFF_OFFSET);
-
-			at91_adc_writel(st, AT91_SAMA5D2_COR, cor);
-		}
-
-		if (state)
-			at91_adc_writel(st, AT91_SAMA5D2_CHER,
-					BIT(chan->channel));
-		else
-			at91_adc_writel(st, AT91_SAMA5D2_CHDR,
-					BIT(chan->channel));
-	}
-
-	/* Nothing to do if using DMA */
-	if (st->dma_st.dma_chan)
-		return 0;
-
-	if (state)
-		at91_adc_writel(st, AT91_SAMA5D2_IER, AT91_SAMA5D2_IER_DRDY);
-	else
-		at91_adc_writel(st, AT91_SAMA5D2_IDR, AT91_SAMA5D2_IER_DRDY);
 
 	return 0;
 }
@@ -905,9 +862,22 @@ static int at91_adc_dma_start(struct iio_dev *indio_dev)
 	return 0;
 }
 
+static bool at91_adc_buffer_check_use_irq(struct iio_dev *indio,
+					  struct at91_adc_state *st)
+{
+	/* if using DMA, we do not use our own IRQ (we use DMA-controller) */
+	if (st->dma_st.dma_chan)
+		return false;
+	/* if the trigger is not ours, then it has its own IRQ */
+	if (iio_trigger_validate_own_device(indio->trig, indio))
+		return false;
+	return true;
+}
+
 static int at91_adc_buffer_postenable(struct iio_dev *indio_dev)
 {
 	int ret;
+	u8 bit;
 	struct at91_adc_state *st = iio_priv(indio_dev);
 
 	/* check if we are enabling triggered buffer or the touchscreen */
@@ -927,6 +897,36 @@ static int at91_adc_buffer_postenable(struct iio_dev *indio_dev)
 		dev_err(&indio_dev->dev, "buffer postenable failed\n");
 		return ret;
 	}
+
+	for_each_set_bit(bit, indio_dev->active_scan_mask,
+			 indio_dev->num_channels) {
+		struct iio_chan_spec const *chan =
+					at91_adc_chan_get(indio_dev, bit);
+		u32 cor;
+
+		if (!chan)
+			continue;
+		/* these channel types cannot be handled by this trigger */
+		if (chan->type == IIO_POSITIONRELATIVE ||
+		    chan->type == IIO_PRESSURE)
+			continue;
+
+		cor = at91_adc_readl(st, AT91_SAMA5D2_COR);
+
+		if (chan->differential)
+			cor |= (BIT(chan->channel) | BIT(chan->channel2)) <<
+				AT91_SAMA5D2_COR_DIFF_OFFSET;
+		else
+			cor &= ~(BIT(chan->channel) <<
+			       AT91_SAMA5D2_COR_DIFF_OFFSET);
+
+		at91_adc_writel(st, AT91_SAMA5D2_COR, cor);
+
+		at91_adc_writel(st, AT91_SAMA5D2_CHER, BIT(chan->channel));
+	}
+
+	if (at91_adc_buffer_check_use_irq(indio_dev, st))
+		at91_adc_writel(st, AT91_SAMA5D2_IER, AT91_SAMA5D2_IER_DRDY);
 
 	return iio_triggered_buffer_postenable(indio_dev);
 }
@@ -948,21 +948,11 @@ static int at91_adc_buffer_predisable(struct iio_dev *indio_dev)
 	if (!(indio_dev->currentmode & INDIO_ALL_TRIGGERED_MODES))
 		return -EINVAL;
 
-	/* continue with the triggered buffer */
-	ret = iio_triggered_buffer_predisable(indio_dev);
-	if (ret < 0)
-		dev_err(&indio_dev->dev, "buffer predisable failed\n");
-
-	if (!st->dma_st.dma_chan)
-		return ret;
-
-	/* if we are using DMA we must clear registers and end DMA */
-	dmaengine_terminate_sync(st->dma_st.dma_chan);
-
 	/*
-	 * For each enabled channel we must read the last converted value
+	 * For each enable channel we must disable it in hardware.
+	 * In the case of DMA, we must read the last converted value
 	 * to clear EOC status and not get a possible interrupt later.
-	 * This value is being read by DMA from LCDR anyway
+	 * This value is being read by DMA from LCDR anyway, so it's not lost.
 	 */
 	for_each_set_bit(bit, indio_dev->active_scan_mask,
 			 indio_dev->num_channels) {
@@ -975,12 +965,28 @@ static int at91_adc_buffer_predisable(struct iio_dev *indio_dev)
 		if (chan->type == IIO_POSITIONRELATIVE ||
 		    chan->type == IIO_PRESSURE)
 			continue;
+
+		at91_adc_writel(st, AT91_SAMA5D2_CHDR, BIT(chan->channel));
+
 		if (st->dma_st.dma_chan)
 			at91_adc_readl(st, chan->address);
 	}
 
+	if (at91_adc_buffer_check_use_irq(indio_dev, st))
+		at91_adc_writel(st, AT91_SAMA5D2_IDR, AT91_SAMA5D2_IER_DRDY);
+
 	/* read overflow register to clear possible overflow status */
 	at91_adc_readl(st, AT91_SAMA5D2_OVER);
+
+	/* continue with the triggered buffer */
+	ret = iio_triggered_buffer_predisable(indio_dev);
+	if (ret < 0)
+		dev_err(&indio_dev->dev, "buffer predisable failed\n");
+
+	/* if we are using DMA we must clear registers and end DMA */
+	if (st->dma_st.dma_chan)
+		dmaengine_terminate_sync(st->dma_st.dma_chan);
+
 	return ret;
 }
 
@@ -1135,6 +1141,13 @@ static irqreturn_t at91_adc_trigger_handler(int irq, void *p)
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct at91_adc_state *st = iio_priv(indio_dev);
 
+	/*
+	 * If it's not our trigger, start a conversion now, as we are
+	 * actually polling the trigger now.
+	 */
+	if (iio_trigger_validate_own_device(indio_dev->trig, indio_dev))
+		at91_adc_writel(st, AT91_SAMA5D2_CR, AT91_SAMA5D2_CR_START);
+
 	if (st->dma_st.dma_chan)
 		at91_adc_trigger_handler_dma(indio_dev);
 	else
@@ -1147,20 +1160,9 @@ static irqreturn_t at91_adc_trigger_handler(int irq, void *p)
 
 static int at91_adc_buffer_init(struct iio_dev *indio)
 {
-	struct at91_adc_state *st = iio_priv(indio);
-
-	if (st->selected_trig->hw_trig) {
-		return devm_iio_triggered_buffer_setup(&indio->dev, indio,
-			&iio_pollfunc_store_time,
-			&at91_adc_trigger_handler, &at91_buffer_setup_ops);
-	}
-	/*
-	 * we need to prepare the buffer ops in case we will get
-	 * another buffer attached (like a callback buffer for the touchscreen)
-	 */
-	indio->setup_ops = &at91_buffer_setup_ops;
-
-	return 0;
+	return devm_iio_triggered_buffer_setup(&indio->dev, indio,
+		&iio_pollfunc_store_time,
+		&at91_adc_trigger_handler, &at91_buffer_setup_ops);
 }
 
 static unsigned at91_adc_startup_time(unsigned startup_time_min,
