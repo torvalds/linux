@@ -208,6 +208,7 @@ static int dbg_check_name(const struct ubifs_info *c,
 	return 0;
 }
 
+static void ubifs_set_d_ops(struct inode *dir, struct dentry *dentry);
 static struct dentry *ubifs_lookup(struct inode *dir, struct dentry *dentry,
 				   unsigned int flags)
 {
@@ -221,6 +222,7 @@ static struct dentry *ubifs_lookup(struct inode *dir, struct dentry *dentry,
 	dbg_gen("'%pd' in dir ino %lu", dentry, dir->i_ino);
 
 	err = fscrypt_prepare_lookup(dir, dentry, &nm);
+	ubifs_set_d_ops(dir, dentry);
 	if (err == -ENOENT)
 		return d_splice_alias(NULL, dentry);
 	if (err)
@@ -1668,3 +1670,19 @@ const struct file_operations ubifs_dir_operations = {
 	.compat_ioctl   = ubifs_compat_ioctl,
 #endif
 };
+
+#ifdef CONFIG_FS_ENCRYPTION
+static const struct dentry_operations ubifs_encrypted_dentry_ops = {
+	.d_revalidate = fscrypt_d_revalidate,
+};
+#endif
+
+static void ubifs_set_d_ops(struct inode *dir, struct dentry *dentry)
+{
+#ifdef CONFIG_FS_ENCRYPTION
+	if (dentry->d_flags & DCACHE_ENCRYPTED_NAME) {
+		d_set_d_op(dentry, &ubifs_encrypted_dentry_ops);
+		return;
+	}
+#endif
+}
