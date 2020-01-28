@@ -151,8 +151,8 @@ The details of these operations are:
      Note that callbacks will always be invoked from the DMA
      engines tasklet, never from interrupt context.
 
-  Optional: per descriptor metadata
-  ---------------------------------
+Optional: per descriptor metadata
+---------------------------------
   DMAengine provides two ways for metadata support.
 
   DESC_METADATA_CLIENT
