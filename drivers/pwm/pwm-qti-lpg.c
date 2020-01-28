@@ -1242,81 +1242,14 @@ static int qpnp_get_lpg_channels(struct qpnp_lpg_chip *chip, u32 *base)
 	return 0;
 }
 
-static int qpnp_lpg_parse_dt(struct qpnp_lpg_chip *chip)
+static int qpnp_lpg_parse_pattern_dt(struct qpnp_lpg_chip *chip,
+					u32 max_count)
 {
 	struct device_node *child;
 	struct qpnp_lpg_channel *lpg;
 	struct lpg_ramp_config *ramp;
 	int rc = 0, i;
-	u32 base, length, lpg_chan_id, tmp, max_count;
-	const __be32 *addr;
-
-	rc = qpnp_get_lpg_channels(chip, &base);
-	if (rc < 0)
-		return rc;
-
-	chip->lpgs = devm_kcalloc(chip->dev, chip->num_lpgs,
-			sizeof(*chip->lpgs), GFP_KERNEL);
-	if (!chip->lpgs)
-		return -ENOMEM;
-
-	for (i = 0; i < chip->num_lpgs; i++) {
-		chip->lpgs[i].chip = chip;
-		chip->lpgs[i].lpg_idx = i;
-		chip->lpgs[i].reg_base = base + i * REG_SIZE_PER_LPG;
-		chip->lpgs[i].src_sel = PWM_VALUE;
-		rc = qpnp_lpg_read(&chip->lpgs[i], REG_LPG_PERPH_SUBTYPE,
-				&chip->lpgs[i].subtype);
-		if (rc < 0) {
-			dev_err(chip->dev, "Read subtype failed, rc=%d\n", rc);
-			return rc;
-		}
-	}
-
-	chip->lut = devm_kmalloc(chip->dev, sizeof(*chip->lut), GFP_KERNEL);
-	if (!chip->lut)
-		return -ENOMEM;
-
-	if (of_find_property(chip->dev->of_node, "nvmem", NULL)) {
-		chip->sdam_nvmem = devm_nvmem_device_get(chip->dev, "ppg_sdam");
-		if (IS_ERR_OR_NULL(chip->sdam_nvmem)) {
-			rc = PTR_ERR(chip->sdam_nvmem);
-			if (rc != -EPROBE_DEFER)
-				dev_err(chip->dev, "Read nvmem device failed, rc=%d\n",
-					rc);
-			return rc;
-		}
-
-		chip->use_sdam = true;
-		chip->pbs_dev_node = of_parse_phandle(chip->dev->of_node,
-				"qcom,pbs-client", 0);
-		if (!chip->pbs_dev_node) {
-			dev_err(chip->dev, "Missing qcom,pbs-client property\n");
-			return -EINVAL;
-		}
-
-		rc = of_property_read_u32(chip->dev->of_node,
-				"qcom,lut-sdam-base",
-				&chip->lut->reg_base);
-		if (rc < 0) {
-			dev_err(chip->dev, "Read qcom,lut-sdam-base failed, rc=%d\n",
-					rc);
-			return rc;
-		}
-
-		max_count = SDAM_LUT_COUNT_MAX;
-	} else {
-		addr = of_get_address(chip->dev->of_node, 1, NULL, NULL);
-		if (!addr) {
-			pr_debug("NO LUT address assigned\n");
-			devm_kfree(chip->dev, chip->lut);
-			chip->lut = NULL;
-			return 0;
-		}
-
-		chip->lut->reg_base = be32_to_cpu(*addr);
-		max_count = LPG_LUT_COUNT_MAX;
-	}
+	u32 length, lpg_chan_id, tmp;
 
 	chip->lut->chip = chip;
 	mutex_init(&chip->lut->lock);
@@ -1503,6 +1436,91 @@ static int qpnp_lpg_parse_dt(struct qpnp_lpg_chip *chip)
 		lpg = &chip->lpgs[chip->lpg_group[i] - 1];
 		memcpy(&lpg->ramp_config, ramp, sizeof(struct lpg_ramp_config));
 	}
+
+	return 0;
+}
+
+static bool lut_is_defined(struct qpnp_lpg_chip *chip, const __be32 **addr)
+{
+	*addr = of_get_address(chip->dev->of_node, 1, NULL, NULL);
+	if (*addr == NULL)
+		return false;
+
+	return true;
+}
+
+static int qpnp_lpg_parse_dt(struct qpnp_lpg_chip *chip)
+{
+	int rc = 0, i;
+	u32 base;
+	const __be32 *addr;
+
+	rc = qpnp_get_lpg_channels(chip, &base);
+	if (rc < 0)
+		return rc;
+
+	chip->lpgs = devm_kcalloc(chip->dev, chip->num_lpgs,
+			sizeof(*chip->lpgs), GFP_KERNEL);
+	if (!chip->lpgs)
+		return -ENOMEM;
+
+	for (i = 0; i < chip->num_lpgs; i++) {
+		chip->lpgs[i].chip = chip;
+		chip->lpgs[i].lpg_idx = i;
+		chip->lpgs[i].reg_base = base + i * REG_SIZE_PER_LPG;
+		chip->lpgs[i].src_sel = PWM_VALUE;
+		rc = qpnp_lpg_read(&chip->lpgs[i], REG_LPG_PERPH_SUBTYPE,
+				&chip->lpgs[i].subtype);
+		if (rc < 0) {
+			dev_err(chip->dev, "Read subtype failed, rc=%d\n", rc);
+			return rc;
+		}
+	}
+
+	chip->lut = devm_kmalloc(chip->dev, sizeof(*chip->lut), GFP_KERNEL);
+	if (!chip->lut)
+		return -ENOMEM;
+
+	if (of_find_property(chip->dev->of_node, "nvmem", NULL)) {
+		chip->sdam_nvmem = devm_nvmem_device_get(chip->dev, "ppg_sdam");
+		if (IS_ERR_OR_NULL(chip->sdam_nvmem)) {
+			rc = PTR_ERR(chip->sdam_nvmem);
+			if (rc != -EPROBE_DEFER)
+				dev_err(chip->dev, "Failed to get nvmem device, rc=%d\n",
+					rc);
+			return rc;
+		}
+
+		chip->use_sdam = true;
+		chip->pbs_dev_node = of_parse_phandle(chip->dev->of_node,
+				"qcom,pbs-client", 0);
+		if (!chip->pbs_dev_node) {
+			dev_err(chip->dev, "Missing qcom,pbs-client property\n");
+			return -EINVAL;
+		}
+
+		rc = of_property_read_u32(chip->dev->of_node,
+				"qcom,lut-sdam-base", &chip->lut->reg_base);
+		if (rc < 0) {
+			dev_err(chip->dev, "Read qcom,lut-sdam-base failed, rc=%d\n",
+					rc);
+			of_node_put(chip->pbs_dev_node);
+			return rc;
+		}
+
+		rc = qpnp_lpg_parse_pattern_dt(chip, SDAM_LUT_COUNT_MAX);
+		if (rc < 0) {
+			of_node_put(chip->pbs_dev_node);
+			return rc;
+		}
+	} else if (lut_is_defined(chip, &addr)) {
+		chip->lut->reg_base = be32_to_cpu(*addr);
+		return qpnp_lpg_parse_pattern_dt(chip, LPG_LUT_COUNT_MAX);
+	}
+
+	pr_debug("Neither SDAM nor LUT specified\n");
+	devm_kfree(chip->dev, chip->lut);
+	chip->lut = NULL;
 
 	return 0;
 }
