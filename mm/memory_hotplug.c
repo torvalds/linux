@@ -481,8 +481,6 @@ static void __remove_section(struct zone *zone, struct mem_section *ms,
 	if (WARN_ON_ONCE(!valid_section(ms)))
 		return;
 
-	unregister_memory_section(ms);
-
 	scn_nr = __section_nr(ms);
 	start_pfn = section_nr_to_pfn((unsigned long)scn_nr);
 	__remove_zone(zone, start_pfn);
@@ -1913,6 +1911,9 @@ void __ref __remove_memory(int nid, u64 start, u64 size)
 	firmware_map_remove(start, start + size, "System RAM");
 	memblock_free(start, size);
 	memblock_remove(start, size);
+
+	/* remove memory block devices before removing memory */
+	remove_memory_block_devices(start, size);
 
 	arch_remove_memory(nid, start, size, NULL);
 	__release_memory_resource(start, size);
