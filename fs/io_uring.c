@@ -273,6 +273,8 @@ struct io_ring_ctx {
 	struct socket		*ring_sock;
 #endif
 
+	struct idr		personality_idr;
+
 	struct {
 		unsigned		cached_cq_tail;
 		unsigned		cq_entries;
@@ -796,6 +798,7 @@ static struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	INIT_LIST_HEAD(&ctx->cq_overflow_list);
 	init_completion(&ctx->completions[0]);
 	init_completion(&ctx->completions[1]);
+	idr_init(&ctx->personality_idr);
 	mutex_init(&ctx->uring_lock);
 	init_waitqueue_head(&ctx->wait);
 	spin_lock_init(&ctx->completion_lock);
@@ -6177,6 +6180,17 @@ static int io_uring_fasync(int fd, struct file *file, int on)
 	return fasync_helper(fd, file, on, &ctx->cq_fasync);
 }
 
+static int io_remove_personalities(int id, void *p, void *data)
+{
+	struct io_ring_ctx *ctx = data;
+	const struct cred *cred;
+
+	cred = idr_remove(&ctx->personality_idr, id);
+	if (cred)
+		put_cred(cred);
+	return 0;
+}
+
 static void io_ring_ctx_wait_and_kill(struct io_ring_ctx *ctx)
 {
 	mutex_lock(&ctx->uring_lock);
@@ -6193,6 +6207,7 @@ static void io_ring_ctx_wait_and_kill(struct io_ring_ctx *ctx)
 	/* if we failed setting up the ctx, we might not have any rings */
 	if (ctx->rings)
 		io_cqring_overflow_flush(ctx, true);
+	idr_for_each(&ctx->personality_idr, io_remove_personalities, ctx);
 	wait_for_completion(&ctx->completions[0]);
 	io_ring_ctx_free(ctx);
 }
@@ -6683,6 +6698,45 @@ out:
 	return ret;
 }
 
+static int io_register_personality(struct io_ring_ctx *ctx)
+{
+	const struct cred *creds = get_current_cred();
+	int id;
+
+	id = idr_alloc_cyclic(&ctx->personality_idr, (void *) creds, 1,
+				USHRT_MAX, GFP_KERNEL);
+	if (id < 0)
+		put_cred(creds);
+	return id;
+}
+
+static int io_unregister_personality(struct io_ring_ctx *ctx, unsigned id)
+{
+	const struct cred *old_creds;
+
+	old_creds = idr_remove(&ctx->personality_idr, id);
+	if (old_creds) {
+		put_cred(old_creds);
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
+static bool io_register_op_must_quiesce(int op)
+{
+	switch (op) {
+	case IORING_UNREGISTER_FILES:
+	case IORING_REGISTER_FILES_UPDATE:
+	case IORING_REGISTER_PROBE:
+	case IORING_REGISTER_PERSONALITY:
+	case IORING_UNREGISTER_PERSONALITY:
+		return false;
+	default:
+		return true;
+	}
+}
+
 static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 			       void __user *arg, unsigned nr_args)
 	__releases(ctx->uring_lock)
@@ -6698,9 +6752,7 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 	if (percpu_ref_is_dying(&ctx->refs))
 		return -ENXIO;
 
-	if (opcode != IORING_UNREGISTER_FILES &&
-	    opcode != IORING_REGISTER_FILES_UPDATE &&
-	    opcode != IORING_REGISTER_PROBE) {
+	if (io_register_op_must_quiesce(opcode)) {
 		percpu_ref_kill(&ctx->refs);
 
 		/*
@@ -6768,15 +6820,24 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 			break;
 		ret = io_probe(ctx, arg, nr_args);
 		break;
+	case IORING_REGISTER_PERSONALITY:
+		ret = -EINVAL;
+		if (arg || nr_args)
+			break;
+		ret = io_register_personality(ctx);
+		break;
+	case IORING_UNREGISTER_PERSONALITY:
+		ret = -EINVAL;
+		if (arg)
+			break;
+		ret = io_unregister_personality(ctx, nr_args);
+		break;
 	default:
 		ret = -EINVAL;
 		break;
 	}
 
-
-	if (opcode != IORING_UNREGISTER_FILES &&
-	    opcode != IORING_REGISTER_FILES_UPDATE &&
-	    opcode != IORING_REGISTER_PROBE) {
+	if (io_register_op_must_quiesce(opcode)) {
 		/* bring the ctx back to life */
 		percpu_ref_reinit(&ctx->refs);
 out:
