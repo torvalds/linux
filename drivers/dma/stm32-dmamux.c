@@ -259,6 +259,12 @@ static int stm32_dmamux_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	ret = clk_prepare_enable(stm32_dmamux->clk);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "clk_prep_enable error: %d\n", ret);
+		return ret;
+	}
+
 	stm32_dmamux->rst = devm_reset_control_get(&pdev->dev, NULL);
 	if (!IS_ERR(stm32_dmamux->rst)) {
 		reset_control_assert(stm32_dmamux->rst);
@@ -274,14 +280,6 @@ static int stm32_dmamux_probe(struct platform_device *pdev)
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
-	if (!IS_ERR(stm32_dmamux->clk)) {
-		ret = clk_prepare_enable(stm32_dmamux->clk);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "clk_prep_enable error: %d\n", ret);
-			return ret;
-		}
-	}
-
 	pm_runtime_get_noresume(&pdev->dev);
 
 	/* Reset the dmamux */
@@ -290,8 +288,12 @@ static int stm32_dmamux_probe(struct platform_device *pdev)
 
 	pm_runtime_put(&pdev->dev);
 
-	return of_dma_router_register(node, stm32_dmamux_route_allocate,
+	ret = of_dma_router_register(node, stm32_dmamux_route_allocate,
 				     &stm32_dmamux->dmarouter);
+	if (ret)
+		clk_disable_unprepare(stm32_dmamux->clk);
+
+	return ret;
 }
 
 #ifdef CONFIG_PM
