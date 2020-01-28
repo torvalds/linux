@@ -572,7 +572,7 @@ static void ilk_audio_codec_disable(struct intel_encoder *encoder,
 		     encoder->base.base.id, encoder->base.name,
 		     pipe_name(pipe));
 
-	if (WARN_ON(port == PORT_A))
+	if (drm_WARN_ON(&dev_priv->drm, port == PORT_A))
 		return;
 
 	if (HAS_PCH_IBX(dev_priv)) {
@@ -623,7 +623,7 @@ static void ilk_audio_codec_enable(struct intel_encoder *encoder,
 		    encoder->base.base.id, encoder->base.name,
 		    pipe_name(pipe), drm_eld_size(eld));
 
-	if (WARN_ON(port == PORT_A))
+	if (drm_WARN_ON(&dev_priv->drm, port == PORT_A))
 		return;
 
 	/*
@@ -847,7 +847,7 @@ static void glk_force_audio_cdclk(struct drm_i915_private *dev_priv,
 
 	drm_modeset_acquire_init(&ctx, 0);
 	state = drm_atomic_state_alloc(&dev_priv->drm);
-	if (WARN_ON(!state))
+	if (drm_WARN_ON(&dev_priv->drm, !state))
 		return;
 
 	state->acquire_ctx = &ctx;
@@ -860,7 +860,7 @@ retry:
 		goto retry;
 	}
 
-	WARN_ON(ret);
+	drm_WARN_ON(&dev_priv->drm, ret);
 
 	drm_atomic_state_put(state);
 
@@ -948,7 +948,7 @@ static int i915_audio_component_get_cdclk_freq(struct device *kdev)
 {
 	struct drm_i915_private *dev_priv = kdev_to_i915(kdev);
 
-	if (WARN_ON_ONCE(!HAS_DDI(dev_priv)))
+	if (drm_WARN_ON_ONCE(&dev_priv->drm, !HAS_DDI(dev_priv)))
 		return -ENODEV;
 
 	return dev_priv->cdclk.hw.cdclk;
@@ -971,7 +971,8 @@ static struct intel_encoder *get_saved_enc(struct drm_i915_private *dev_priv,
 
 	/* MST */
 	if (pipe >= 0) {
-		if (WARN_ON(pipe >= ARRAY_SIZE(dev_priv->av_enc_map)))
+		if (drm_WARN_ON(&dev_priv->drm,
+				pipe >= ARRAY_SIZE(dev_priv->av_enc_map)))
 			return NULL;
 
 		encoder = dev_priv->av_enc_map[pipe];
@@ -1090,10 +1091,12 @@ static int i915_audio_component_bind(struct device *i915_kdev,
 	struct drm_i915_private *dev_priv = kdev_to_i915(i915_kdev);
 	int i;
 
-	if (WARN_ON(acomp->base.ops || acomp->base.dev))
+	if (drm_WARN_ON(&dev_priv->drm, acomp->base.ops || acomp->base.dev))
 		return -EEXIST;
 
-	if (WARN_ON(!device_link_add(hda_kdev, i915_kdev, DL_FLAG_STATELESS)))
+	if (drm_WARN_ON(&dev_priv->drm,
+			!device_link_add(hda_kdev, i915_kdev,
+					 DL_FLAG_STATELESS)))
 		return -ENOMEM;
 
 	drm_modeset_lock_all(&dev_priv->drm);
