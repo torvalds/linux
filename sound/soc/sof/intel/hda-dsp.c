@@ -17,6 +17,7 @@
 
 #include <sound/hdaudio_ext.h>
 #include <sound/hda_register.h>
+#include "../sof-audio.h"
 #include "../ops.h"
 #include "hda.h"
 #include "hda-ipc.h"
@@ -334,8 +335,9 @@ static int hda_dsp_send_pm_gate_ipc(struct snd_sof_dev *sdev, u32 flags)
 	pm_gate.flags = flags;
 
 	/* send pm_gate ipc to dsp */
-	return sof_ipc_tx_message(sdev->ipc, pm_gate.hdr.cmd, &pm_gate,
-				  sizeof(pm_gate), &reply, sizeof(reply));
+	return sof_ipc_tx_message_no_pm(sdev->ipc, pm_gate.hdr.cmd,
+					&pm_gate, sizeof(pm_gate), &reply,
+					sizeof(reply));
 }
 
 static int hda_dsp_update_d0i3c_register(struct snd_sof_dev *sdev, u8 value)
@@ -706,6 +708,9 @@ int hda_dsp_suspend(struct snd_sof_dev *sdev, u32 target_state)
 	};
 	int ret;
 
+	/* cancel any attempt for DSP D0I3 */
+	cancel_delayed_work_sync(&hda->d0i3_work);
+
 	if (target_state == SOF_DSP_PM_D0) {
 		/* Set DSP power state */
 		ret = hda_dsp_set_power_state(sdev, &target_dsp_state);
@@ -779,4 +784,34 @@ int hda_dsp_set_hw_params_upon_resume(struct snd_sof_dev *sdev)
 	}
 #endif
 	return 0;
+}
+
+void hda_dsp_d0i3_work(struct work_struct *work)
+{
+	struct sof_intel_hda_dev *hdev = container_of(work,
+						      struct sof_intel_hda_dev,
+						      d0i3_work.work);
+	struct hdac_bus *bus = &hdev->hbus.core;
+	struct snd_sof_dev *sdev = dev_get_drvdata(bus->dev);
+	struct sof_dsp_power_state target_state;
+	int ret;
+
+	target_state.state = SOF_DSP_PM_D0;
+
+	/* DSP can enter D0I3 iff only D0I3-compatible streams are active */
+	if (snd_sof_dsp_only_d0i3_compatible_stream_active(sdev))
+		target_state.substate = SOF_HDA_DSP_PM_D0I3;
+	else
+		target_state.substate = SOF_HDA_DSP_PM_D0I0;
+
+	/* remain in D0I0 */
+	if (target_state.substate == SOF_HDA_DSP_PM_D0I0)
+		return;
+
+	/* This can fail but error cannot be propagated */
+	ret = hda_dsp_set_power_state(sdev, &target_state);
+	if (ret < 0)
+		dev_err_ratelimited(sdev->dev,
+				    "error: failed to set DSP state %d substate %d\n",
+				    target_state.state, target_state.substate);
 }

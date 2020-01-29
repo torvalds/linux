@@ -268,7 +268,6 @@ static int sof_ipc_tx_message_unlocked(struct snd_sof_ipc *ipc, u32 header,
 	spin_unlock_irq(&sdev->ipc_lock);
 
 	if (ret < 0) {
-		/* So far IPC TX never fails, consider making the above void */
 		dev_err_ratelimited(sdev->dev,
 				    "error: ipc tx failed with error %d\n",
 				    ret);
@@ -289,6 +288,32 @@ int sof_ipc_tx_message(struct snd_sof_ipc *ipc, u32 header,
 		       void *msg_data, size_t msg_bytes, void *reply_data,
 		       size_t reply_bytes)
 {
+	const struct sof_dsp_power_state target_state = {
+		.state = SOF_DSP_PM_D0,
+	};
+	int ret;
+
+	/* ensure the DSP is in D0 before sending a new IPC */
+	ret = snd_sof_dsp_set_power_state(ipc->sdev, &target_state);
+	if (ret < 0) {
+		dev_err(ipc->sdev->dev, "error: resuming DSP %d\n", ret);
+		return ret;
+	}
+
+	return sof_ipc_tx_message_no_pm(ipc, header, msg_data, msg_bytes,
+					reply_data, reply_bytes);
+}
+EXPORT_SYMBOL(sof_ipc_tx_message);
+
+/*
+ * send IPC message from host to DSP without modifying the DSP state.
+ * This will be used for IPC's that can be handled by the DSP
+ * even in a low-power D0 substate.
+ */
+int sof_ipc_tx_message_no_pm(struct snd_sof_ipc *ipc, u32 header,
+			     void *msg_data, size_t msg_bytes,
+			     void *reply_data, size_t reply_bytes)
+{
 	int ret;
 
 	if (msg_bytes > SOF_IPC_MSG_MAX_SIZE ||
@@ -305,7 +330,7 @@ int sof_ipc_tx_message(struct snd_sof_ipc *ipc, u32 header,
 
 	return ret;
 }
-EXPORT_SYMBOL(sof_ipc_tx_message);
+EXPORT_SYMBOL(sof_ipc_tx_message_no_pm);
 
 /* handle reply message from DSP */
 int snd_sof_ipc_reply(struct snd_sof_dev *sdev, u32 msg_id)
