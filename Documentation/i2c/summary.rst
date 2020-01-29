@@ -1,6 +1,6 @@
-=============
-I2C and SMBus
-=============
+=============================
+Introduction to I2C and SMBus
+=============================
 
 I²C (pronounce: I squared C and written I2C in the kernel documentation) is
 a protocol developed by Philips. It is a slow two-wire protocol (variable

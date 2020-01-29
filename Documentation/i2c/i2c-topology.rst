@@ -1,6 +1,6 @@
-============
-I2C topology
-============
+================================
+I2C muxes and complex topologies
+================================
 
 There are a couple of reasons for building more complex I2C topologies
 than a straight-forward I2C bus with one adapter and one or more devices.

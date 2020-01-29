@@ -1,6 +1,6 @@
-=================================================
-I2C device driver binding control from user-space
-=================================================
+================================================================
+I2C device driver binding control from user-space in old kernels
+================================================================
 
 .. NOTE::
    Note: this section is only relevant if you are handling some old code

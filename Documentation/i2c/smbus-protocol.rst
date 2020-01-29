@@ -1,6 +1,6 @@
-======================
-SMBus Protocol Summary
-======================
+==================
+The SMBus Protocol
+==================
 
 The following is a summary of the SMBus protocol. It applies to
 all revisions of the protocol (1.0, 1.1, and 2.0).

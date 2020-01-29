@@ -1,6 +1,6 @@
-===================
-Writing I2C Clients
-===================
+===============================
+Implementing I2C device drivers
+===============================
 
 This is a small guide for those who want to write kernel drivers for I2C
 or SMBus devices, using Linux as the protocol host/master (not slave).

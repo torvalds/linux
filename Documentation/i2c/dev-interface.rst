@@ -1,6 +1,6 @@
-====================
-I2C Device Interface
-====================
+============================================
+Implementing I2C device drivers in userspace
+============================================
 
 Usually, I2C devices are controlled by a kernel driver. But it is also
 possible to access all devices on an adapter from userspace, through

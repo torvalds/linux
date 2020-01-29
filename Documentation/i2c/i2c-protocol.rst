@@ -1,6 +1,6 @@
-============
-I2C Protocol
-============
+================
+The I2C Protocol
+================
 
 This document describes the I2C protocol. Or will, when it is finished :-)
 
