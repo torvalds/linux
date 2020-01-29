@@ -499,9 +499,9 @@ static int renesas_sdhi_execute_tuning(struct tmio_mmc_host *host, u32 opcode)
 		return 0; /* Tuning is not supported */
 
 	if (host->tap_num * 2 >= sizeof(host->taps) * BITS_PER_BYTE) {
-		dev_warn_once(&host->pdev->dev,
-			"Too many taps, skipping tuning. Please consider updating size of taps field of tmio_mmc_host\n");
-		return 0;
+		dev_err(&host->pdev->dev,
+			"Too many taps, please update 'taps' in tmio_mmc_host!\n");
+		return -EINVAL;
 	}
 
 	priv->doing_tune = true;
