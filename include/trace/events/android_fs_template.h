@@ -8,13 +8,13 @@ DECLARE_EVENT_CLASS(android_fs_data_start_template,
 		 pid_t pid, char *pathname, char *command),
 	TP_ARGS(inode, offset, bytes, pid, pathname, command),
 	TP_STRUCT__entry(
-		__string(pathbuf, pathname);
-		__field(loff_t,	offset);
-		__field(int,	bytes);
-		__field(loff_t,	i_size);
-		__string(cmdline, command);
-		__field(pid_t,	pid);
-		__field(ino_t,	ino);
+		__string(pathbuf, pathname)
+		__field(loff_t,	offset)
+		__field(int,	bytes)
+		__field(loff_t,	i_size)
+		__string(cmdline, command)
+		__field(pid_t,	pid)
+		__field(ino_t,	ino)
 	),
 	TP_fast_assign(
 		{
@@ -45,9 +45,9 @@ DECLARE_EVENT_CLASS(android_fs_data_end_template,
 	TP_PROTO(struct inode *inode, loff_t offset, int bytes),
 	TP_ARGS(inode, offset, bytes),
 	TP_STRUCT__entry(
-		__field(ino_t,	ino);
-		__field(loff_t,	offset);
-		__field(int,	bytes);
+		__field(ino_t,	ino)
+		__field(loff_t,	offset)
+		__field(int,	bytes)
 	),
 	TP_fast_assign(
 		{
