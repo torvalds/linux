@@ -135,6 +135,7 @@ struct dc_link {
 		bool dp_keep_receiver_powered;
 		bool dp_skip_DID2;
 		bool dp_skip_reset_segment;
+		bool dp_early_cr_pattern;
 	} wa_flags;
 	struct link_mst_stream_allocation_table mst_stream_alloc_table;
 

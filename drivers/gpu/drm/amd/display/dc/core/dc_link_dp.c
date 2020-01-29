@@ -945,6 +945,17 @@ static enum link_training_result perform_channel_equalization_sequence(
 }
 #define TRAINING_AUX_RD_INTERVAL 100 //us
 
+static void start_clock_recovery_pattern_early(struct dc_link *link,
+		struct link_training_settings *lt_settings,
+		uint32_t offset)
+{
+	DC_LOG_HW_LINK_TRAINING("%s\n GPU sends TPS1. Wait 400us.\n",
+			__func__);
+	dp_set_hw_training_pattern(link, DP_TRAINING_PATTERN_SEQUENCE_1, offset);
+	dp_set_hw_lane_settings(link, lt_settings, offset);
+	udelay(400);
+}
+
 static enum link_training_result perform_clock_recovery_sequence(
 	struct dc_link *link,
 	struct link_training_settings *lt_settings,
@@ -962,7 +973,8 @@ static enum link_training_result perform_clock_recovery_sequence(
 	retries_cr = 0;
 	retry_count = 0;
 
-	dp_set_hw_training_pattern(link, tr_pattern, offset);
+	if (!link->wa_flags.dp_early_cr_pattern)
+		dp_set_hw_training_pattern(link, tr_pattern, offset);
 
 	/* najeeb - The synaptics MST hub can put the LT in
 	* infinite loop by switching the VS
@@ -1434,6 +1446,9 @@ enum link_training_result dc_link_dp_perform_link_training(
 			&link->preferred_training_settings,
 			&lt_settings);
 
+	if (link->wa_flags.dp_early_cr_pattern)
+		start_clock_recovery_pattern_early(link, &lt_settings, DPRX);
+
 	/* 1. set link rate, lane count and spread. */
 	dpcd_set_link_settings(link, &lt_settings);
 
@@ -1654,6 +1669,8 @@ enum link_training_result dc_link_dp_sync_lt_attempt(
 	dp_set_panel_mode(link, panel_mode);
 
 	/* Attempt to train with given link training settings */
+	if (link->wa_flags.dp_early_cr_pattern)
+		start_clock_recovery_pattern_early(link, &lt_settings, DPRX);
 
 	/* Set link rate, lane count and spread. */
 	dpcd_set_link_settings(link, &lt_settings);
