@@ -781,15 +781,12 @@ static void mptcp_destroy(struct sock *sk)
 }
 
 static int mptcp_setsockopt(struct sock *sk, int level, int optname,
-			    char __user *uoptval, unsigned int optlen)
+			    char __user *optval, unsigned int optlen)
 {
 	struct mptcp_sock *msk = mptcp_sk(sk);
-	char __kernel *optval;
 	int ret = -EOPNOTSUPP;
 	struct socket *ssock;
-
-	/* will be treated as __user in tcp_setsockopt */
-	optval = (char __kernel __force *)uoptval;
+	struct sock *ssk;
 
 	pr_debug("msk=%p", msk);
 
@@ -798,27 +795,28 @@ static int mptcp_setsockopt(struct sock *sk, int level, int optname,
 	 */
 	lock_sock(sk);
 	ssock = __mptcp_socket_create(msk, MPTCP_SAME_STATE);
-	if (!IS_ERR(ssock)) {
-		pr_debug("subflow=%p", ssock->sk);
-		ret = kernel_setsockopt(ssock, level, optname, optval, optlen);
+	if (IS_ERR(ssock)) {
+		release_sock(sk);
+		return ret;
 	}
+
+	ssk = ssock->sk;
+	sock_hold(ssk);
 	release_sock(sk);
+
+	ret = tcp_setsockopt(ssk, level, optname, optval, optlen);
+	sock_put(ssk);
 
 	return ret;
 }
 
 static int mptcp_getsockopt(struct sock *sk, int level, int optname,
-			    char __user *uoptval, int __user *uoption)
+			    char __user *optval, int __user *option)
 {
 	struct mptcp_sock *msk = mptcp_sk(sk);
-	char __kernel *optval;
 	int ret = -EOPNOTSUPP;
-	int __kernel *option;
 	struct socket *ssock;
-
-	/* will be treated as __user in tcp_getsockopt */
-	optval = (char __kernel __force *)uoptval;
-	option = (int __kernel __force *)uoption;
+	struct sock *ssk;
 
 	pr_debug("msk=%p", msk);
 
@@ -827,11 +825,17 @@ static int mptcp_getsockopt(struct sock *sk, int level, int optname,
 	 */
 	lock_sock(sk);
 	ssock = __mptcp_socket_create(msk, MPTCP_SAME_STATE);
-	if (!IS_ERR(ssock)) {
-		pr_debug("subflow=%p", ssock->sk);
-		ret = kernel_getsockopt(ssock, level, optname, optval, option);
+	if (IS_ERR(ssock)) {
+		release_sock(sk);
+		return ret;
 	}
+
+	ssk = ssock->sk;
+	sock_hold(ssk);
 	release_sock(sk);
+
+	ret = tcp_getsockopt(ssk, level, optname, optval, option);
+	sock_put(ssk);
 
 	return ret;
 }
