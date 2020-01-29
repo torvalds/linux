@@ -1389,6 +1389,12 @@ trace_ports(const struct intel_engine_execlists *execlists,
 		     ports[1] ? ports[1]->fence.seqno : 0);
 }
 
+static inline bool
+reset_in_progress(const struct intel_engine_execlists *execlists)
+{
+	return unlikely(!__tasklet_is_enabled(&execlists->tasklet));
+}
+
 static __maybe_unused bool
 assert_pending_valid(const struct intel_engine_execlists *execlists,
 		     const char *msg)
@@ -1397,6 +1403,10 @@ assert_pending_valid(const struct intel_engine_execlists *execlists,
 	struct intel_context *ce = NULL;
 
 	trace_ports(execlists, msg, execlists->pending);
+
+	/* We may be messing around with the lists during reset, lalala */
+	if (reset_in_progress(execlists))
+		return true;
 
 	if (!execlists->pending[0]) {
 		GEM_TRACE_ERR("Nothing pending for promotion!\n");
@@ -2140,12 +2150,6 @@ invalidate_csb_entries(const u32 *first, const u32 *last)
 {
 	clflush((void *)first);
 	clflush((void *)last);
-}
-
-static inline bool
-reset_in_progress(const struct intel_engine_execlists *execlists)
-{
-	return unlikely(!__tasklet_is_enabled(&execlists->tasklet));
 }
 
 /*
