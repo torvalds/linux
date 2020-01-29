@@ -50,6 +50,7 @@ static void sof_cache_debugfs(struct snd_sof_dev *sdev)
 static int sof_resume(struct device *dev, bool runtime_resume)
 {
 	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
+	enum sof_d0_substate old_d0_substate = sdev->d0_substate;
 	int ret;
 
 	/* do nothing if dsp resume callbacks are not set */
@@ -59,6 +60,17 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 	/* DSP was never successfully started, nothing to resume */
 	if (sdev->first_boot)
 		return 0;
+
+	/* resume from D0I3 */
+	if (!runtime_resume && old_d0_substate == SOF_DSP_D0I3) {
+		ret = snd_sof_set_d0_substate(sdev, SOF_DSP_D0I0);
+		if (ret < 0 && ret != -ENOTSUPP) {
+			dev_err(sdev->dev,
+				"error: failed to resume from D0I3 %d\n",
+				ret);
+			return ret;
+		}
+	}
 
 	/*
 	 * if the runtime_resume flag is set, call the runtime_resume routine
@@ -73,6 +85,10 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 			"error: failed to power up DSP after resume\n");
 		return ret;
 	}
+
+	/* Nothing further to do if resuming from D0I3 */
+	if (!runtime_resume && old_d0_substate == SOF_DSP_D0I3)
+		return 0;
 
 	sdev->fw_state = SOF_FW_BOOT_PREPARE;
 
@@ -140,10 +156,7 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 		return 0;
 
 	if (sdev->fw_state != SOF_FW_BOOT_COMPLETE)
-		goto power_down;
-
-	/* release trace */
-	snd_sof_release_trace(sdev);
+		goto suspend;
 
 	/* set restore_stream for all streams during system suspend */
 	if (!runtime_suspend) {
@@ -155,6 +168,22 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 			return ret;
 		}
 	}
+
+	if (snd_sof_dsp_d0i3_on_suspend(sdev)) {
+		/* suspend to D0i3 */
+		ret = snd_sof_set_d0_substate(sdev, SOF_DSP_D0I3);
+		if (ret < 0) {
+			dev_err(sdev->dev, "error: failed to enter D0I3, %d\n",
+				ret);
+			return ret;
+		}
+
+		/* Skip to platform-specific suspend if DSP is entering D0I3 */
+		goto suspend;
+	}
+
+	/* release trace */
+	snd_sof_release_trace(sdev);
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_ENABLE_DEBUGFS_CACHE)
 	/* cache debugfs contents during runtime suspend */
@@ -179,13 +208,13 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 			 ret);
 	}
 
-power_down:
+suspend:
 
 	/* return if the DSP was not probed successfully */
 	if (sdev->fw_state == SOF_FW_BOOT_NOT_STARTED)
 		return 0;
 
-	/* power down all DSP cores */
+	/* platform-specific suspend */
 	if (runtime_suspend)
 		ret = snd_sof_dsp_runtime_suspend(sdev);
 	else
@@ -194,6 +223,10 @@ power_down:
 		dev_err(sdev->dev,
 			"error: failed to power down DSP during suspend %d\n",
 			ret);
+
+	/* Do not reset FW state if DSP is in D0I3 */
+	if (sdev->d0_substate == SOF_DSP_D0I3)
+		return ret;
 
 	/* reset FW state */
 	sdev->fw_state = SOF_FW_BOOT_NOT_STARTED;
@@ -275,58 +308,12 @@ EXPORT_SYMBOL(snd_sof_set_d0_substate);
 
 int snd_sof_resume(struct device *dev)
 {
-	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
-	int ret;
-
-	if (snd_sof_dsp_d0i3_on_suspend(sdev)) {
-		/* resume from D0I3 */
-		dev_dbg(sdev->dev, "DSP will exit from D0i3...\n");
-		ret = snd_sof_set_d0_substate(sdev, SOF_DSP_D0I0);
-		if (ret == -ENOTSUPP) {
-			/* fallback to resume from D3 */
-			dev_dbg(sdev->dev, "D0i3 not supported, fall back to resume from D3...\n");
-			goto d3_resume;
-		} else if (ret < 0) {
-			dev_err(sdev->dev, "error: failed to exit from D0I3 %d\n",
-				ret);
-			return ret;
-		}
-
-		/* platform-specific resume from D0i3 */
-		return snd_sof_dsp_resume(sdev);
-	}
-
-d3_resume:
-	/* resume from D3 */
 	return sof_resume(dev, false);
 }
 EXPORT_SYMBOL(snd_sof_resume);
 
 int snd_sof_suspend(struct device *dev)
 {
-	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
-	int ret;
-
-	if (snd_sof_dsp_d0i3_on_suspend(sdev)) {
-		/* suspend to D0i3 */
-		dev_dbg(sdev->dev, "DSP is trying to enter D0i3...\n");
-		ret = snd_sof_set_d0_substate(sdev, SOF_DSP_D0I3);
-		if (ret == -ENOTSUPP) {
-			/* fallback to D3 suspend */
-			dev_dbg(sdev->dev, "D0i3 not supported, fall back to D3...\n");
-			goto d3_suspend;
-		} else if (ret < 0) {
-			dev_err(sdev->dev, "error: failed to enter D0I3, %d\n",
-				ret);
-			return ret;
-		}
-
-		/* platform-specific suspend to D0i3 */
-		return snd_sof_dsp_suspend(sdev);
-	}
-
-d3_suspend:
-	/* suspend to D3 */
 	return sof_suspend(dev, false);
 }
 EXPORT_SYMBOL(snd_sof_suspend);
