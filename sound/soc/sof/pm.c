@@ -323,10 +323,13 @@ int snd_sof_prepare(struct device *dev)
 	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
 
 #if defined(CONFIG_ACPI)
-	sdev->s0_suspend = acpi_target_system_state() == ACPI_STATE_S0;
+	if (acpi_target_system_state() == ACPI_STATE_S0)
+		sdev->system_suspend_target = SOF_SUSPEND_S0IX;
+	else
+		sdev->system_suspend_target = SOF_SUSPEND_S3;
 #else
 	/* will suspend to S3 by default */
-	sdev->s0_suspend = false;
+	sdev->system_suspend_target = SOF_SUSPEND_S3;
 #endif
 
 	return 0;
@@ -337,6 +340,6 @@ void snd_sof_complete(struct device *dev)
 {
 	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
 
-	sdev->s0_suspend = false;
+	sdev->system_suspend_target = SOF_SUSPEND_NONE;
 }
 EXPORT_SYMBOL(snd_sof_complete);

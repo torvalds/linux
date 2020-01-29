@@ -60,6 +60,13 @@ enum sof_d0_substate {
 	SOF_DSP_D0I3,		/* DSP D0i3(low power) substate*/
 };
 
+/* System suspend target state */
+enum sof_system_suspend_state {
+	SOF_SUSPEND_NONE = 0,
+	SOF_SUSPEND_S0IX,
+	SOF_SUSPEND_S3,
+};
+
 struct snd_sof_dev;
 struct snd_sof_ipc_msg;
 struct snd_sof_ipc;
@@ -325,8 +332,9 @@ struct snd_sof_dev {
 
 	/* power states related */
 	enum sof_d0_substate d0_substate;
-	/* flag to track if the intended power target of suspend is S0ix */
-	bool s0_suspend;
+
+	/* Intended power target of system suspend */
+	enum sof_system_suspend_state system_suspend_target;
 
 	/* DSP firmware boot */
 	wait_queue_head_t boot_wait;
