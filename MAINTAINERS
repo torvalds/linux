@@ -17511,7 +17511,7 @@ F:	drivers/mtd/nand/raw/vf610_nfc.c
 VFAT/FAT/MSDOS FILESYSTEM
 M:	OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>
 S:	Maintained
-F:	Documentation/filesystems/vfat.txt
+F:	Documentation/filesystems/vfat.rst
 F:	fs/fat/
 
 VFIO DRIVER

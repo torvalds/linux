@@ -9,7 +9,7 @@ also be requested by userspace.
 IN-KERNEL AUTOMOUNTING
 ======================
 
-See section "Mount Traps" of  Documentation/filesystems/autofs.txt
+See section "Mount Traps" of  Documentation/filesystems/autofs.rst
 
 Then from userspace, you can just do something like:
 
