@@ -654,8 +654,6 @@ static void __mptcp_close(struct sock *sk, long timeout)
 		__mptcp_close_ssk(sk, ssk, subflow, timeout);
 	}
 
-	if (msk->cached_ext)
-		__skb_ext_put(msk->cached_ext);
 	release_sock(sk);
 	sk_common_release(sk);
 }
@@ -776,6 +774,10 @@ static struct sock *mptcp_accept(struct sock *sk, int flags, int *err,
 
 static void mptcp_destroy(struct sock *sk)
 {
+	struct mptcp_sock *msk = mptcp_sk(sk);
+
+	if (msk->cached_ext)
+		__skb_ext_put(msk->cached_ext);
 }
 
 static int mptcp_setsockopt(struct sock *sk, int level, int optname,
