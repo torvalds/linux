@@ -489,7 +489,7 @@ struct bpf_dispatcher {
 	u32 image_off;
 };
 
-static __always_inline unsigned int bpf_dispatcher_nopfunc(
+static __always_inline __nocfi unsigned int bpf_dispatcher_nopfunc(
 	const void *ctx,
 	const struct bpf_insn *insnsi,
 	unsigned int (*bpf_func)(const void *,
@@ -513,7 +513,7 @@ void *bpf_jit_alloc_exec_page(void);
 }
 
 #define DEFINE_BPF_DISPATCHER(name)					\
-	noinline unsigned int name##func(				\
+	noinline __nocfi unsigned int name##func(			\
 		const void *ctx,					\
 		const struct bpf_insn *insnsi,				\
 		unsigned int (*bpf_func)(const void *,			\
