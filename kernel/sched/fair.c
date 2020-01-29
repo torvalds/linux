@@ -5946,19 +5946,6 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
 	return target;
 }
 
-static unsigned int uclamp_task_util(struct task_struct *p)
-{
-#ifdef CONFIG_UCLAMP_TASK
-	unsigned int min_util = uclamp_eff_value(p, UCLAMP_MIN);
-	unsigned int max_util = uclamp_eff_value(p, UCLAMP_MAX);
-	unsigned int est_util = task_util_est(p);
-
-	return clamp(est_util, min_util, max_util);
-#else
-	return task_util_est(p);
-#endif
-}
-
 /**
  * Amount of capacity of a CPU that is (estimated to be) used by CFS tasks
  * @cpu: the CPU to get the utilization of
@@ -6326,10 +6313,6 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, int sy
 			 */
 			util = uclamp_rq_util_with(cpu_rq(cpu), util, p);
 			if (!fits_capacity(util, cpu_cap))
-				continue;
-
-			/* Skip CPUs which do not fit task requirements */
-			if (cpu_cap < uclamp_task_util(p))
 				continue;
 
 			/* Always use prev_cpu as a candidate. */
