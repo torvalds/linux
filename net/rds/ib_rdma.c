@@ -37,8 +37,15 @@
 
 #include "rds_single_path.h"
 #include "ib_mr.h"
+#include "rds.h"
 
 struct workqueue_struct *rds_ib_mr_wq;
+struct rds_ib_dereg_odp_mr {
+	struct work_struct work;
+	struct ib_mr *mr;
+};
+
+static void rds_ib_odp_mr_worker(struct work_struct *work);
 
 static struct rds_ib_device *rds_ib_get_device(__be32 ipaddr)
 {
@@ -212,6 +219,9 @@ void rds_ib_sync_mr(void *trans_private, int direction)
 {
 	struct rds_ib_mr *ibmr = trans_private;
 	struct rds_ib_device *rds_ibdev = ibmr->device;
+
+	if (ibmr->odp)
+		return;
 
 	switch (direction) {
 	case DMA_FROM_DEVICE:
@@ -482,6 +492,16 @@ void rds_ib_free_mr(void *trans_private, int invalidate)
 
 	rdsdebug("RDS/IB: free_mr nents %u\n", ibmr->sg_len);
 
+	if (ibmr->odp) {
+		/* A MR created and marked as use_once. We use delayed work,
+		 * because there is a change that we are in interrupt and can't
+		 * call to ib_dereg_mr() directly.
+		 */
+		INIT_DELAYED_WORK(&ibmr->work, rds_ib_odp_mr_worker);
+		queue_delayed_work(rds_ib_mr_wq, &ibmr->work, 0);
+		return;
+	}
+
 	/* Return it to the pool's free list */
 	if (rds_ibdev->use_fastreg)
 		rds_ib_free_frmr_list(ibmr);
@@ -526,9 +546,17 @@ void rds_ib_flush_mrs(void)
 	up_read(&rds_ib_devices_lock);
 }
 
+u32 rds_ib_get_lkey(void *trans_private)
+{
+	struct rds_ib_mr *ibmr = trans_private;
+
+	return ibmr->u.mr->lkey;
+}
+
 void *rds_ib_get_mr(struct scatterlist *sg, unsigned long nents,
 		    struct rds_sock *rs, u32 *key_ret,
-		    struct rds_connection *conn)
+		    struct rds_connection *conn,
+		    u64 start, u64 length, int need_odp)
 {
 	struct rds_ib_device *rds_ibdev;
 	struct rds_ib_mr *ibmr = NULL;
@@ -539,6 +567,51 @@ void *rds_ib_get_mr(struct scatterlist *sg, unsigned long nents,
 	if (!rds_ibdev) {
 		ret = -ENODEV;
 		goto out;
+	}
+
+	if (need_odp == ODP_ZEROBASED || need_odp == ODP_VIRTUAL) {
+		u64 virt_addr = need_odp == ODP_ZEROBASED ? 0 : start;
+		int access_flags =
+			(IB_ACCESS_LOCAL_WRITE | IB_ACCESS_REMOTE_READ |
+			 IB_ACCESS_REMOTE_WRITE | IB_ACCESS_REMOTE_ATOMIC |
+			 IB_ACCESS_ON_DEMAND);
+		struct ib_sge sge = {};
+		struct ib_mr *ib_mr;
+
+		if (!rds_ibdev->odp_capable) {
+			ret = -EOPNOTSUPP;
+			goto out;
+		}
+
+		ib_mr = ib_reg_user_mr(rds_ibdev->pd, start, length, virt_addr,
+				       access_flags);
+
+		if (IS_ERR(ib_mr)) {
+			rdsdebug("rds_ib_get_user_mr returned %d\n",
+				 IS_ERR(ib_mr));
+			ret = PTR_ERR(ib_mr);
+			goto out;
+		}
+		if (key_ret)
+			*key_ret = ib_mr->rkey;
+
+		ibmr = kzalloc(sizeof(*ibmr), GFP_KERNEL);
+		if (!ibmr) {
+			ib_dereg_mr(ib_mr);
+			ret = -ENOMEM;
+			goto out;
+		}
+		ibmr->u.mr = ib_mr;
+		ibmr->odp = 1;
+
+		sge.addr = virt_addr;
+		sge.length = length;
+		sge.lkey = ib_mr->lkey;
+
+		ib_advise_mr(rds_ibdev->pd,
+			     IB_UVERBS_ADVISE_MR_ADVICE_PREFETCH_WRITE,
+			     IB_UVERBS_ADVISE_MR_FLAG_FLUSH, &sge, 1);
+		return ibmr;
 	}
 
 	if (conn)
@@ -628,4 +701,13 @@ int rds_ib_mr_init(void)
 void rds_ib_mr_exit(void)
 {
 	destroy_workqueue(rds_ib_mr_wq);
+}
+
+static void rds_ib_odp_mr_worker(struct work_struct  *work)
+{
+	struct rds_ib_mr *ibmr;
+
+	ibmr = container_of(work, struct rds_ib_mr, work.work);
+	ib_dereg_mr(ibmr->u.mr);
+	kfree(ibmr);
 }

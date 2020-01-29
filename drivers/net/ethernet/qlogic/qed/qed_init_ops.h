@@ -81,14 +81,6 @@ int qed_init_alloc(struct qed_hwfn *p_hwfn);
 void qed_init_free(struct qed_hwfn *p_hwfn);
 
 /**
- * @brief qed_init_clear_rt_data - Clears the runtime init array.
- *
- *
- * @param p_hwfn
- */
-void qed_init_clear_rt_data(struct qed_hwfn *p_hwfn);
-
-/**
  * @brief qed_init_store_rt_reg - Store a configuration value in the RT array.
  *
  *

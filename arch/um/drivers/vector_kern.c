@@ -1332,7 +1332,7 @@ static void vector_net_set_multicast_list(struct net_device *dev)
 	return;
 }
 
-static void vector_net_tx_timeout(struct net_device *dev)
+static void vector_net_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct vector_private *vp = netdev_priv(dev);
 

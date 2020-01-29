@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include <linux/bpf.h>
 #include <linux/pkt_cls.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 /* It is a dumb bpf program such that it must have no
  * issue to be loaded since testing the verifier is

@@ -257,6 +257,14 @@ int qtnf_cmd_send_start_ap(struct qtnf_vif *vif,
 	cmd->pbss = s->pbss;
 	cmd->ht_required = s->ht_required;
 	cmd->vht_required = s->vht_required;
+	cmd->twt_responder = s->twt_responder;
+	if (s->he_obss_pd.enable) {
+		cmd->sr_params.sr_control |= QLINK_SR_SRG_INFORMATION_PRESENT;
+		cmd->sr_params.srg_obss_pd_min_offset =
+			s->he_obss_pd.min_offset;
+		cmd->sr_params.srg_obss_pd_max_offset =
+			s->he_obss_pd.max_offset;
+	}
 
 	aen = &cmd->aen;
 	aen->auth_type = s->auth_type;
@@ -510,6 +518,8 @@ qtnf_sta_info_parse_rate(struct rate_info *rate_dst,
 		rate_dst->flags |= RATE_INFO_FLAGS_MCS;
 	else if (rate_src->flags & QLINK_STA_INFO_RATE_FLAG_VHT_MCS)
 		rate_dst->flags |= RATE_INFO_FLAGS_VHT_MCS;
+	else if (rate_src->flags & QLINK_STA_INFO_RATE_FLAG_HE_MCS)
+		rate_dst->flags |= RATE_INFO_FLAGS_HE_MCS;
 
 	if (rate_src->flags & QLINK_STA_INFO_RATE_FLAG_SHORT_GI)
 		rate_dst->flags |= RATE_INFO_FLAGS_SHORT_GI;
@@ -2454,7 +2464,7 @@ out:
 }
 
 int qtnf_cmd_reg_notify(struct qtnf_wmac *mac, struct regulatory_request *req,
-			bool slave_radar)
+			bool slave_radar, bool dfs_offload)
 {
 	struct wiphy *wiphy = priv_to_wiphy(mac);
 	struct qtnf_bus *bus = mac->bus;
@@ -2517,6 +2527,7 @@ int qtnf_cmd_reg_notify(struct qtnf_wmac *mac, struct regulatory_request *req,
 	}
 
 	cmd->slave_radar = slave_radar;
+	cmd->dfs_offload = dfs_offload;
 	cmd->num_channels = 0;
 
 	for (band = 0; band < NUM_NL80211_BANDS; band++) {

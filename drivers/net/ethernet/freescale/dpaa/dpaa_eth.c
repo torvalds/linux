@@ -288,7 +288,7 @@ static int dpaa_stop(struct net_device *net_dev)
 	return err;
 }
 
-static void dpaa_tx_timeout(struct net_device *net_dev)
+static void dpaa_tx_timeout(struct net_device *net_dev, unsigned int txqueue)
 {
 	struct dpaa_percpu_priv *percpu_priv;
 	const struct dpaa_priv	*priv;

@@ -184,7 +184,7 @@ static int sonic_close(struct net_device *dev)
 	return 0;
 }
 
-static void sonic_tx_timeout(struct net_device *dev)
+static void sonic_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct sonic_local *lp = netdev_priv(dev);
 	int i;

@@ -1227,7 +1227,7 @@ static bool xgbe_phy_sfp_verify_eeprom(u8 cc_in, u8 *buf, unsigned int len)
 	for (cc = 0; len; buf++, len--)
 		cc += *buf;
 
-	return (cc == cc_in) ? true : false;
+	return cc == cc_in;
 }
 
 static int xgbe_phy_sfp_read_eeprom(struct xgbe_prv_data *pdata)

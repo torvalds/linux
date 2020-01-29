@@ -13,8 +13,8 @@
 #include <linux/icmpv6.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
-#include "bpf_helpers.h"
-#include "bpf_endian.h"
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_endian.h>
 
 static __u32 rol32(__u32 word, unsigned int shift)
 {
@@ -86,7 +86,7 @@ u32 jhash(const void *key, u32 length, u32 initval)
 	return c;
 }
 
-static __attribute__ ((noinline))
+__attribute__ ((noinline))
 u32 __jhash_nwords(u32 a, u32 b, u32 c, u32 initval)
 {
 	a += initval;
@@ -96,7 +96,7 @@ u32 __jhash_nwords(u32 a, u32 b, u32 c, u32 initval)
 	return c;
 }
 
-static __attribute__ ((noinline))
+__attribute__ ((noinline))
 u32 jhash_2words(u32 a, u32 b, u32 initval)
 {
 	return __jhash_nwords(a, b, 0, initval + JHASH_INITVAL + (2 << 2));

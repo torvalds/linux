@@ -158,8 +158,6 @@ class HeaderParser(object):
                 break
 
         self.reader.close()
-        print('Parsed description of %d helper function(s)' % len(self.helpers),
-              file=sys.stderr)
 
 ###############################################################################
 

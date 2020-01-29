@@ -251,7 +251,7 @@ static int __ei_close(struct net_device *dev)
  * completed (or failed) - i.e. never posted a Tx related interrupt.
  */
 
-static void __ei_tx_timeout(struct net_device *dev)
+static void __ei_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	unsigned long e8390_base = dev->base_addr;
 	struct ei_device *ei_local = netdev_priv(dev);

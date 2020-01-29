@@ -1145,7 +1145,7 @@ struct ib_mr *hns_roce_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
-	mr->umem = ib_umem_get(udata, start, length, access_flags);
+	mr->umem = ib_umem_get(pd->device, start, length, access_flags);
 	if (IS_ERR(mr->umem)) {
 		ret = PTR_ERR(mr->umem);
 		goto err_free;
@@ -1230,7 +1230,7 @@ static int rereg_mr_trans(struct ib_mr *ibmr, int flags,
 	}
 	ib_umem_release(mr->umem);
 
-	mr->umem = ib_umem_get(udata, start, length, mr_access_flags);
+	mr->umem = ib_umem_get(ibmr->device, start, length, mr_access_flags);
 	if (IS_ERR(mr->umem)) {
 		ret = PTR_ERR(mr->umem);
 		mr->umem = NULL;

@@ -24,8 +24,6 @@ static ssize_t qeth_dev_state_show(struct device *dev,
 	switch (card->state) {
 	case CARD_STATE_DOWN:
 		return sprintf(buf, "DOWN\n");
-	case CARD_STATE_HARDSETUP:
-		return sprintf(buf, "HARDSETUP\n");
 	case CARD_STATE_SOFTSETUP:
 		if (card->dev->flags & IFF_UP)
 			return sprintf(buf, "UP (LAN %s)\n",

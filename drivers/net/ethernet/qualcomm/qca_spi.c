@@ -785,7 +785,7 @@ qcaspi_netdev_xmit(struct sk_buff *skb, struct net_device *dev)
 }
 
 static void
-qcaspi_netdev_tx_timeout(struct net_device *dev)
+qcaspi_netdev_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct qcaspi *qca = netdev_priv(dev);
 

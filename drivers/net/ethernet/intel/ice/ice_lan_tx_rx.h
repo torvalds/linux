@@ -199,6 +199,14 @@ enum ice_rxdid {
 /* Receive Flex Descriptor Rx opcode values */
 #define ICE_RX_OPC_MDID		0x01
 
+/* Receive Descriptor MDID values that access packet flags */
+enum ice_flex_mdid_pkt_flags {
+	ICE_RX_MDID_PKT_FLAGS_15_0	= 20,
+	ICE_RX_MDID_PKT_FLAGS_31_16,
+	ICE_RX_MDID_PKT_FLAGS_47_32,
+	ICE_RX_MDID_PKT_FLAGS_63_48,
+};
+
 /* Receive Descriptor MDID values */
 enum ice_flex_rx_mdid {
 	ICE_RX_MDID_FLOW_ID_LOWER	= 5,

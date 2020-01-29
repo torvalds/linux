@@ -243,6 +243,7 @@
 			       NET_IP_ALIGN)
 #define NETSEC_RX_BUF_NON_DATA (NETSEC_RXBUF_HEADROOM + \
 				SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
+#define NETSEC_RX_BUF_SIZE	(PAGE_SIZE - NETSEC_RX_BUF_NON_DATA)
 
 #define DESC_SZ	sizeof(struct netsec_de)
 
@@ -719,7 +720,6 @@ static void *netsec_alloc_rx_data(struct netsec_priv *priv,
 {
 
 	struct netsec_desc_ring *dring = &priv->desc_ring[NETSEC_RING_RX];
-	enum dma_data_direction dma_dir;
 	struct page *page;
 
 	page = page_pool_dev_alloc_pages(dring->page_pool);
@@ -734,9 +734,7 @@ static void *netsec_alloc_rx_data(struct netsec_priv *priv,
 	/* Make sure the incoming payload fits in the page for XDP and non-XDP
 	 * cases and reserve enough space for headroom + skb_shared_info
 	 */
-	*desc_len = PAGE_SIZE - NETSEC_RX_BUF_NON_DATA;
-	dma_dir = page_pool_get_dma_dir(dring->page_pool);
-	dma_sync_single_for_device(priv->dev, *dma_handle, *desc_len, dma_dir);
+	*desc_len = NETSEC_RX_BUF_SIZE;
 
 	return page_address(page);
 }
@@ -883,6 +881,8 @@ static u32 netsec_xdp_xmit_back(struct netsec_priv *priv, struct xdp_buff *xdp)
 static u32 netsec_run_xdp(struct netsec_priv *priv, struct bpf_prog *prog,
 			  struct xdp_buff *xdp)
 {
+	struct netsec_desc_ring *dring = &priv->desc_ring[NETSEC_RING_RX];
+	unsigned int len = xdp->data_end - xdp->data;
 	u32 ret = NETSEC_XDP_PASS;
 	int err;
 	u32 act;
@@ -896,7 +896,9 @@ static u32 netsec_run_xdp(struct netsec_priv *priv, struct bpf_prog *prog,
 	case XDP_TX:
 		ret = netsec_xdp_xmit_back(priv, xdp);
 		if (ret != NETSEC_XDP_TX)
-			xdp_return_buff(xdp);
+			__page_pool_put_page(dring->page_pool,
+					     virt_to_head_page(xdp->data),
+					     len, true);
 		break;
 	case XDP_REDIRECT:
 		err = xdp_do_redirect(priv->ndev, xdp, prog);
@@ -904,7 +906,9 @@ static u32 netsec_run_xdp(struct netsec_priv *priv, struct bpf_prog *prog,
 			ret = NETSEC_XDP_REDIR;
 		} else {
 			ret = NETSEC_XDP_CONSUMED;
-			xdp_return_buff(xdp);
+			__page_pool_put_page(dring->page_pool,
+					     virt_to_head_page(xdp->data),
+					     len, true);
 		}
 		break;
 	default:
@@ -915,7 +919,9 @@ static u32 netsec_run_xdp(struct netsec_priv *priv, struct bpf_prog *prog,
 		/* fall through -- handle aborts by dropping packet */
 	case XDP_DROP:
 		ret = NETSEC_XDP_CONSUMED;
-		xdp_return_buff(xdp);
+		__page_pool_put_page(dring->page_pool,
+				     virt_to_head_page(xdp->data),
+				     len, true);
 		break;
 	}
 
@@ -929,7 +935,6 @@ static int netsec_process_rx(struct netsec_priv *priv, int budget)
 	struct netsec_rx_pkt_info rx_info;
 	enum dma_data_direction dma_dir;
 	struct bpf_prog *xdp_prog;
-	struct sk_buff *skb = NULL;
 	u16 xdp_xmit = 0;
 	u32 xdp_act = 0;
 	int done = 0;
@@ -943,7 +948,8 @@ static int netsec_process_rx(struct netsec_priv *priv, int budget)
 		struct netsec_de *de = dring->vaddr + (DESC_SZ * idx);
 		struct netsec_desc *desc = &dring->desc[idx];
 		struct page *page = virt_to_page(desc->addr);
-		u32 xdp_result = XDP_PASS;
+		u32 xdp_result = NETSEC_XDP_PASS;
+		struct sk_buff *skb = NULL;
 		u16 pkt_len, desc_len;
 		dma_addr_t dma_handle;
 		struct xdp_buff xdp;
@@ -1014,7 +1020,8 @@ static int netsec_process_rx(struct netsec_priv *priv, int budget)
 			 * cache state. Since we paid the allocation cost if
 			 * building an skb fails try to put the page into cache
 			 */
-			page_pool_recycle_direct(dring->page_pool, page);
+			__page_pool_put_page(dring->page_pool, page,
+					     pkt_len, true);
 			netif_err(priv, drv, priv->ndev,
 				  "rx failed to build skb\n");
 			break;
@@ -1272,16 +1279,18 @@ static int netsec_setup_rx_dring(struct netsec_priv *priv)
 {
 	struct netsec_desc_ring *dring = &priv->desc_ring[NETSEC_RING_RX];
 	struct bpf_prog *xdp_prog = READ_ONCE(priv->xdp_prog);
-	struct page_pool_params pp_params = { 0 };
+	struct page_pool_params pp_params = {
+		.order = 0,
+		/* internal DMA mapping in page_pool */
+		.flags = PP_FLAG_DMA_MAP | PP_FLAG_DMA_SYNC_DEV,
+		.pool_size = DESC_NUM,
+		.nid = NUMA_NO_NODE,
+		.dev = priv->dev,
+		.dma_dir = xdp_prog ? DMA_BIDIRECTIONAL : DMA_FROM_DEVICE,
+		.offset = NETSEC_RXBUF_HEADROOM,
+		.max_len = NETSEC_RX_BUF_SIZE,
+	};
 	int i, err;
-
-	pp_params.order = 0;
-	/* internal DMA mapping in page_pool */
-	pp_params.flags = PP_FLAG_DMA_MAP;
-	pp_params.pool_size = DESC_NUM;
-	pp_params.nid = cpu_to_node(0);
-	pp_params.dev = priv->dev;
-	pp_params.dma_dir = xdp_prog ? DMA_BIDIRECTIONAL : DMA_FROM_DEVICE;
 
 	dring->page_pool = page_pool_create(&pp_params);
 	if (IS_ERR(dring->page_pool)) {
@@ -1731,12 +1740,6 @@ static int netsec_netdev_set_features(struct net_device *ndev,
 	return 0;
 }
 
-static int netsec_netdev_ioctl(struct net_device *ndev, struct ifreq *ifr,
-			       int cmd)
-{
-	return phy_mii_ioctl(ndev->phydev, ifr, cmd);
-}
-
 static int netsec_xdp_xmit(struct net_device *ndev, int n,
 			   struct xdp_frame **frames, u32 flags)
 {
@@ -1821,7 +1824,7 @@ static const struct net_device_ops netsec_netdev_ops = {
 	.ndo_set_features	= netsec_netdev_set_features,
 	.ndo_set_mac_address    = eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_do_ioctl		= netsec_netdev_ioctl,
+	.ndo_do_ioctl		= phy_do_ioctl,
 	.ndo_xdp_xmit		= netsec_xdp_xmit,
 	.ndo_bpf		= netsec_xdp,
 };

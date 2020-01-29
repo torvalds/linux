@@ -122,8 +122,6 @@ static inline struct l2tp_tunnel *l2tp_tunnel(struct sock *sk)
 
 static inline struct l2tp_net *l2tp_pernet(const struct net *net)
 {
-	BUG_ON(!net);
-
 	return net_generic(net, l2tp_net_id);
 }
 

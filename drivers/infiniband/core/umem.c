@@ -181,15 +181,14 @@ EXPORT_SYMBOL(ib_umem_find_best_pgsz);
 /**
  * ib_umem_get - Pin and DMA map userspace memory.
  *
- * @udata: userspace context to pin memory for
+ * @device: IB device to connect UMEM
  * @addr: userspace virtual address to start at
  * @size: length of region to pin
  * @access: IB_ACCESS_xxx flags for memory being pinned
  */
-struct ib_umem *ib_umem_get(struct ib_udata *udata, unsigned long addr,
+struct ib_umem *ib_umem_get(struct ib_device *device, unsigned long addr,
 			    size_t size, int access)
 {
-	struct ib_ucontext *context;
 	struct ib_umem *umem;
 	struct page **page_list;
 	unsigned long lock_limit;
@@ -200,14 +199,6 @@ struct ib_umem *ib_umem_get(struct ib_udata *udata, unsigned long addr,
 	int ret;
 	struct scatterlist *sg;
 	unsigned int gup_flags = FOLL_WRITE;
-
-	if (!udata)
-		return ERR_PTR(-EIO);
-
-	context = container_of(udata, struct uverbs_attr_bundle, driver_udata)
-			  ->context;
-	if (!context)
-		return ERR_PTR(-EIO);
 
 	/*
 	 * If the combination of the addr and size requested for this memory
@@ -226,7 +217,7 @@ struct ib_umem *ib_umem_get(struct ib_udata *udata, unsigned long addr,
 	umem = kzalloc(sizeof(*umem), GFP_KERNEL);
 	if (!umem)
 		return ERR_PTR(-ENOMEM);
-	umem->ibdev = context->device;
+	umem->ibdev      = device;
 	umem->length     = size;
 	umem->address    = addr;
 	umem->writable   = ib_access_writable(access);
@@ -281,7 +272,7 @@ struct ib_umem *ib_umem_get(struct ib_udata *udata, unsigned long addr,
 		npages   -= ret;
 
 		sg = ib_umem_add_sg_table(sg, page_list, ret,
-			dma_get_max_seg_size(context->device->dma_device),
+			dma_get_max_seg_size(device->dma_device),
 			&umem->sg_nents);
 
 		up_read(&mm->mmap_sem);
@@ -289,10 +280,10 @@ struct ib_umem *ib_umem_get(struct ib_udata *udata, unsigned long addr,
 
 	sg_mark_end(sg);
 
-	umem->nmap = ib_dma_map_sg(context->device,
-				  umem->sg_head.sgl,
-				  umem->sg_nents,
-				  DMA_BIDIRECTIONAL);
+	umem->nmap = ib_dma_map_sg(device,
+				   umem->sg_head.sgl,
+				   umem->sg_nents,
+				   DMA_BIDIRECTIONAL);
 
 	if (!umem->nmap) {
 		ret = -ENOMEM;
@@ -303,7 +294,7 @@ struct ib_umem *ib_umem_get(struct ib_udata *udata, unsigned long addr,
 	goto out;
 
 umem_release:
-	__ib_umem_release(context->device, umem, 0);
+	__ib_umem_release(device, umem, 0);
 vma:
 	atomic64_sub(ib_umem_num_pages(umem), &mm->pinned_vm);
 out:

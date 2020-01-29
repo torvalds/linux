@@ -50,12 +50,6 @@
 #include "qed_reg_addr.h"
 #include "qed_sriov.h"
 
-/* Max number of connection types in HW (DQ/CDU etc.) */
-#define MAX_CONN_TYPES		PROTOCOLID_COMMON
-#define NUM_TASK_TYPES		2
-#define NUM_TASK_PF_SEGMENTS	4
-#define NUM_TASK_VF_SEGMENTS	1
-
 /* QM constants */
 #define QM_PQ_ELEMENT_SIZE	4 /* in bytes */
 
@@ -123,126 +117,6 @@ struct src_ent {
 /* Alignment is inherent to the type1_task_context structure */
 #define TYPE1_TASK_CXT_SIZE(p_hwfn) sizeof(union type1_task_context)
 
-/* PF per protocl configuration object */
-#define TASK_SEGMENTS   (NUM_TASK_PF_SEGMENTS + NUM_TASK_VF_SEGMENTS)
-#define TASK_SEGMENT_VF (NUM_TASK_PF_SEGMENTS)
-
-struct qed_tid_seg {
-	u32 count;
-	u8 type;
-	bool has_fl_mem;
-};
-
-struct qed_conn_type_cfg {
-	u32 cid_count;
-	u32 cids_per_vf;
-	struct qed_tid_seg tid_seg[TASK_SEGMENTS];
-};
-
-/* ILT Client configuration, Per connection type (protocol) resources. */
-#define ILT_CLI_PF_BLOCKS	(1 + NUM_TASK_PF_SEGMENTS * 2)
-#define ILT_CLI_VF_BLOCKS       (1 + NUM_TASK_VF_SEGMENTS * 2)
-#define CDUC_BLK		(0)
-#define SRQ_BLK                 (0)
-#define CDUT_SEG_BLK(n)         (1 + (u8)(n))
-#define CDUT_FL_SEG_BLK(n, X)   (1 + (n) + NUM_TASK_ ## X ## _SEGMENTS)
-
-enum ilt_clients {
-	ILT_CLI_CDUC,
-	ILT_CLI_CDUT,
-	ILT_CLI_QM,
-	ILT_CLI_TM,
-	ILT_CLI_SRC,
-	ILT_CLI_TSDM,
-	ILT_CLI_MAX
-};
-
-struct ilt_cfg_pair {
-	u32 reg;
-	u32 val;
-};
-
-struct qed_ilt_cli_blk {
-	u32 total_size; /* 0 means not active */
-	u32 real_size_in_page;
-	u32 start_line;
-	u32 dynamic_line_cnt;
-};
-
-struct qed_ilt_client_cfg {
-	bool active;
-
-	/* ILT boundaries */
-	struct ilt_cfg_pair first;
-	struct ilt_cfg_pair last;
-	struct ilt_cfg_pair p_size;
-
-	/* ILT client blocks for PF */
-	struct qed_ilt_cli_blk pf_blks[ILT_CLI_PF_BLOCKS];
-	u32 pf_total_lines;
-
-	/* ILT client blocks for VFs */
-	struct qed_ilt_cli_blk vf_blks[ILT_CLI_VF_BLOCKS];
-	u32 vf_total_lines;
-};
-
-/* Per Path -
- *      ILT shadow table
- *      Protocol acquired CID lists
- *      PF start line in ILT
- */
-struct qed_dma_mem {
-	dma_addr_t p_phys;
-	void *p_virt;
-	size_t size;
-};
-
-struct qed_cid_acquired_map {
-	u32		start_cid;
-	u32		max_count;
-	unsigned long	*cid_map;
-};
-
-struct qed_cxt_mngr {
-	/* Per protocl configuration */
-	struct qed_conn_type_cfg	conn_cfg[MAX_CONN_TYPES];
-
-	/* computed ILT structure */
-	struct qed_ilt_client_cfg	clients[ILT_CLI_MAX];
-
-	/* Task type sizes */
-	u32 task_type_size[NUM_TASK_TYPES];
-
-	/* total number of VFs for this hwfn -
-	 * ALL VFs are symmetric in terms of HW resources
-	 */
-	u32				vf_count;
-
-	/* Acquired CIDs */
-	struct qed_cid_acquired_map	acquired[MAX_CONN_TYPES];
-
-	struct qed_cid_acquired_map
-	acquired_vf[MAX_CONN_TYPES][MAX_NUM_VFS];
-
-	/* ILT  shadow table */
-	struct qed_dma_mem		*ilt_shadow;
-	u32				pf_start_line;
-
-	/* Mutex for a dynamic ILT allocation */
-	struct mutex mutex;
-
-	/* SRC T2 */
-	struct qed_dma_mem *t2;
-	u32 t2_num_pages;
-	u64 first_free;
-	u64 last_free;
-
-	/* total number of SRQ's for this hwfn */
-	u32 srq_count;
-
-	/* Maximal number of L2 steering filters */
-	u32 arfs_count;
-};
 static bool src_proto(enum protocol_type type)
 {
 	return type == PROTOCOLID_ISCSI ||
@@ -880,30 +754,60 @@ u32 qed_cxt_cfg_ilt_compute_excess(struct qed_hwfn *p_hwfn, u32 used_lines)
 
 static void qed_cxt_src_t2_free(struct qed_hwfn *p_hwfn)
 {
-	struct qed_cxt_mngr *p_mngr = p_hwfn->p_cxt_mngr;
+	struct qed_src_t2 *p_t2 = &p_hwfn->p_cxt_mngr->src_t2;
 	u32 i;
 
-	if (!p_mngr->t2)
+	if (!p_t2 || !p_t2->dma_mem)
 		return;
 
-	for (i = 0; i < p_mngr->t2_num_pages; i++)
-		if (p_mngr->t2[i].p_virt)
+	for (i = 0; i < p_t2->num_pages; i++)
+		if (p_t2->dma_mem[i].virt_addr)
 			dma_free_coherent(&p_hwfn->cdev->pdev->dev,
-					  p_mngr->t2[i].size,
-					  p_mngr->t2[i].p_virt,
-					  p_mngr->t2[i].p_phys);
+					  p_t2->dma_mem[i].size,
+					  p_t2->dma_mem[i].virt_addr,
+					  p_t2->dma_mem[i].phys_addr);
 
-	kfree(p_mngr->t2);
-	p_mngr->t2 = NULL;
+	kfree(p_t2->dma_mem);
+	p_t2->dma_mem = NULL;
+}
+
+static int
+qed_cxt_t2_alloc_pages(struct qed_hwfn *p_hwfn,
+		       struct qed_src_t2 *p_t2, u32 total_size, u32 page_size)
+{
+	void **p_virt;
+	u32 size, i;
+
+	if (!p_t2 || !p_t2->dma_mem)
+		return -EINVAL;
+
+	for (i = 0; i < p_t2->num_pages; i++) {
+		size = min_t(u32, total_size, page_size);
+		p_virt = &p_t2->dma_mem[i].virt_addr;
+
+		*p_virt = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev,
+					     size,
+					     &p_t2->dma_mem[i].phys_addr,
+					     GFP_KERNEL);
+		if (!p_t2->dma_mem[i].virt_addr)
+			return -ENOMEM;
+
+		memset(*p_virt, 0, size);
+		p_t2->dma_mem[i].size = size;
+		total_size -= size;
+	}
+
+	return 0;
 }
 
 static int qed_cxt_src_t2_alloc(struct qed_hwfn *p_hwfn)
 {
 	struct qed_cxt_mngr *p_mngr = p_hwfn->p_cxt_mngr;
 	u32 conn_num, total_size, ent_per_page, psz, i;
+	struct phys_mem_desc *p_t2_last_page;
 	struct qed_ilt_client_cfg *p_src;
 	struct qed_src_iids src_iids;
-	struct qed_dma_mem *p_t2;
+	struct qed_src_t2 *p_t2;
 	int rc;
 
 	memset(&src_iids, 0, sizeof(src_iids));
@@ -921,49 +825,39 @@ static int qed_cxt_src_t2_alloc(struct qed_hwfn *p_hwfn)
 
 	/* use the same page size as the SRC ILT client */
 	psz = ILT_PAGE_IN_BYTES(p_src->p_size.val);
-	p_mngr->t2_num_pages = DIV_ROUND_UP(total_size, psz);
+	p_t2 = &p_mngr->src_t2;
+	p_t2->num_pages = DIV_ROUND_UP(total_size, psz);
 
 	/* allocate t2 */
-	p_mngr->t2 = kcalloc(p_mngr->t2_num_pages, sizeof(struct qed_dma_mem),
-			     GFP_KERNEL);
-	if (!p_mngr->t2) {
+	p_t2->dma_mem = kcalloc(p_t2->num_pages, sizeof(struct phys_mem_desc),
+				GFP_KERNEL);
+	if (!p_t2->dma_mem) {
+		DP_NOTICE(p_hwfn, "Failed to allocate t2 table\n");
 		rc = -ENOMEM;
 		goto t2_fail;
 	}
 
-	/* allocate t2 pages */
-	for (i = 0; i < p_mngr->t2_num_pages; i++) {
-		u32 size = min_t(u32, total_size, psz);
-		void **p_virt = &p_mngr->t2[i].p_virt;
-
-		*p_virt = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev, size,
-					     &p_mngr->t2[i].p_phys,
-					     GFP_KERNEL);
-		if (!p_mngr->t2[i].p_virt) {
-			rc = -ENOMEM;
-			goto t2_fail;
-		}
-		p_mngr->t2[i].size = size;
-		total_size -= size;
-	}
+	rc = qed_cxt_t2_alloc_pages(p_hwfn, p_t2, total_size, psz);
+	if (rc)
+		goto t2_fail;
 
 	/* Set the t2 pointers */
 
 	/* entries per page - must be a power of two */
 	ent_per_page = psz / sizeof(struct src_ent);
 
-	p_mngr->first_free = (u64) p_mngr->t2[0].p_phys;
+	p_t2->first_free = (u64)p_t2->dma_mem[0].phys_addr;
 
-	p_t2 = &p_mngr->t2[(conn_num - 1) / ent_per_page];
-	p_mngr->last_free = (u64) p_t2->p_phys +
+	p_t2_last_page = &p_t2->dma_mem[(conn_num - 1) / ent_per_page];
+	p_t2->last_free = (u64)p_t2_last_page->phys_addr +
 	    ((conn_num - 1) & (ent_per_page - 1)) * sizeof(struct src_ent);
 
-	for (i = 0; i < p_mngr->t2_num_pages; i++) {
+	for (i = 0; i < p_t2->num_pages; i++) {
 		u32 ent_num = min_t(u32,
 				    ent_per_page,
 				    conn_num);
-		struct src_ent *entries = p_mngr->t2[i].p_virt;
-		u64 p_ent_phys = (u64) p_mngr->t2[i].p_phys, val;
+		struct src_ent *entries = p_t2->dma_mem[i].virt_addr;
+		u64 p_ent_phys = (u64)p_t2->dma_mem[i].phys_addr, val;
 		u32 j;
 
 		for (j = 0; j < ent_num - 1; j++) {
@@ -971,8 +865,8 @@ static int qed_cxt_src_t2_alloc(struct qed_hwfn *p_hwfn)
 			entries[j].next = cpu_to_be64(val);
 		}
 
-		if (i < p_mngr->t2_num_pages - 1)
-			val = (u64) p_mngr->t2[i + 1].p_phys;
+		if (i < p_t2->num_pages - 1)
+			val = (u64)p_t2->dma_mem[i + 1].phys_addr;
 		else
 			val = 0;
 		entries[j].next = cpu_to_be64(val);
@@ -988,7 +882,7 @@ t2_fail:
 }
 
 #define for_each_ilt_valid_client(pos, clients)	\
-	for (pos = 0; pos < ILT_CLI_MAX; pos++)	\
+	for (pos = 0; pos < MAX_ILT_CLIENTS; pos++)	\
 		if (!clients[pos].active) {	\
 			continue;		\
 		} else				\
@@ -1014,13 +908,13 @@ static void qed_ilt_shadow_free(struct qed_hwfn *p_hwfn)
 	ilt_size = qed_cxt_ilt_shadow_size(p_cli);
 
 	for (i = 0; p_mngr->ilt_shadow && i < ilt_size; i++) {
-		struct qed_dma_mem *p_dma = &p_mngr->ilt_shadow[i];
+		struct phys_mem_desc *p_dma = &p_mngr->ilt_shadow[i];
 
-		if (p_dma->p_virt)
+		if (p_dma->virt_addr)
 			dma_free_coherent(&p_hwfn->cdev->pdev->dev,
-					  p_dma->size, p_dma->p_virt,
-					  p_dma->p_phys);
-		p_dma->p_virt = NULL;
+					  p_dma->size, p_dma->virt_addr,
+					  p_dma->phys_addr);
+		p_dma->virt_addr = NULL;
 	}
 	kfree(p_mngr->ilt_shadow);
 }
@@ -1030,7 +924,7 @@ static int qed_ilt_blk_alloc(struct qed_hwfn *p_hwfn,
 			     enum ilt_clients ilt_client,
 			     u32 start_line_offset)
 {
-	struct qed_dma_mem *ilt_shadow = p_hwfn->p_cxt_mngr->ilt_shadow;
+	struct phys_mem_desc *ilt_shadow = p_hwfn->p_cxt_mngr->ilt_shadow;
 	u32 lines, line, sz_left, lines_to_skip = 0;
 
 	/* Special handling for RoCE that supports dynamic allocation */
@@ -1059,8 +953,8 @@ static int qed_ilt_blk_alloc(struct qed_hwfn *p_hwfn,
 		if (!p_virt)
 			return -ENOMEM;
 
-		ilt_shadow[line].p_phys = p_phys;
-		ilt_shadow[line].p_virt = p_virt;
+		ilt_shadow[line].phys_addr = p_phys;
+		ilt_shadow[line].virt_addr = p_virt;
 		ilt_shadow[line].size = size;
 
 		DP_VERBOSE(p_hwfn, QED_MSG_ILT,
@@ -1083,7 +977,7 @@ static int qed_ilt_shadow_alloc(struct qed_hwfn *p_hwfn)
 	int rc;
 
 	size = qed_cxt_ilt_shadow_size(clients);
-	p_mngr->ilt_shadow = kcalloc(size, sizeof(struct qed_dma_mem),
+	p_mngr->ilt_shadow = kcalloc(size, sizeof(struct phys_mem_desc),
 				     GFP_KERNEL);
 	if (!p_mngr->ilt_shadow) {
 		rc = -ENOMEM;
@@ -1092,7 +986,7 @@ static int qed_ilt_shadow_alloc(struct qed_hwfn *p_hwfn)
 
 	DP_VERBOSE(p_hwfn, QED_MSG_ILT,
 		   "Allocated 0x%x bytes for ilt shadow\n",
-		   (u32)(size * sizeof(struct qed_dma_mem)));
+		   (u32)(size * sizeof(struct phys_mem_desc)));
 
 	for_each_ilt_valid_client(i, clients) {
 		for (j = 0; j < ILT_CLI_PF_BLOCKS; j++) {
@@ -1238,15 +1132,20 @@ int qed_cxt_mngr_alloc(struct qed_hwfn *p_hwfn)
 	clients[ILT_CLI_TSDM].last.reg = ILT_CFG_REG(TSDM, LAST_ILT);
 	clients[ILT_CLI_TSDM].p_size.reg = ILT_CFG_REG(TSDM, P_SIZE);
 	/* default ILT page size for all clients is 64K */
-	for (i = 0; i < ILT_CLI_MAX; i++)
+	for (i = 0; i < MAX_ILT_CLIENTS; i++)
 		p_mngr->clients[i].p_size.val = ILT_DEFAULT_HW_P_SIZE;
+
+	p_mngr->conn_ctx_size = CONN_CXT_SIZE(p_hwfn);
 
 	/* Initialize task sizes */
 	p_mngr->task_type_size[0] = TYPE0_TASK_CXT_SIZE(p_hwfn);
 	p_mngr->task_type_size[1] = TYPE1_TASK_CXT_SIZE(p_hwfn);
 
-	if (p_hwfn->cdev->p_iov_info)
+	if (p_hwfn->cdev->p_iov_info) {
 		p_mngr->vf_count = p_hwfn->cdev->p_iov_info->total_vfs;
+		p_mngr->first_vf_in_pf =
+			p_hwfn->cdev->p_iov_info->first_vf_in_pf;
+	}
 	/* Initialize the dynamic ILT allocation mutex */
 	mutex_init(&p_mngr->mutex);
 
@@ -1522,7 +1421,6 @@ void qed_qm_init_pf(struct qed_hwfn *p_hwfn,
 	params.num_vports = qm_info->num_vports;
 	params.pf_wfq = qm_info->pf_wfq;
 	params.pf_rl = qm_info->pf_rl;
-	params.link_speed = p_link->speed;
 	params.pq_params = qm_info->qm_pq_params;
 	params.vport_params = qm_info->qm_vport_params;
 
@@ -1674,7 +1572,7 @@ static void qed_ilt_init_pf(struct qed_hwfn *p_hwfn)
 {
 	struct qed_ilt_client_cfg *clients;
 	struct qed_cxt_mngr *p_mngr;
-	struct qed_dma_mem *p_shdw;
+	struct phys_mem_desc *p_shdw;
 	u32 line, rt_offst, i;
 
 	qed_ilt_bounds_init(p_hwfn);
@@ -1699,15 +1597,15 @@ static void qed_ilt_init_pf(struct qed_hwfn *p_hwfn)
 			/** p_virt could be NULL incase of dynamic
 			 *  allocation
 			 */
-			if (p_shdw[line].p_virt) {
+			if (p_shdw[line].virt_addr) {
 				SET_FIELD(ilt_hw_entry, ILT_ENTRY_VALID, 1ULL);
 				SET_FIELD(ilt_hw_entry, ILT_ENTRY_PHY_ADDR,
-					  (p_shdw[line].p_phys >> 12));
+					  (p_shdw[line].phys_addr >> 12));
 
 				DP_VERBOSE(p_hwfn, QED_MSG_ILT,
 					   "Setting RT[0x%08x] from ILT[0x%08x] [Client is %d] to Physical addr: 0x%llx\n",
 					   rt_offst, line, i,
-					   (u64)(p_shdw[line].p_phys >> 12));
+					   (u64)(p_shdw[line].phys_addr >> 12));
 			}
 
 			STORE_RT_REG_AGG(p_hwfn, rt_offst, ilt_hw_entry);
@@ -2050,10 +1948,10 @@ int qed_cxt_get_cid_info(struct qed_hwfn *p_hwfn, struct qed_cxt_info *p_info)
 	line = p_info->iid / cxts_per_p;
 
 	/* Make sure context is allocated (dynamic allocation) */
-	if (!p_mngr->ilt_shadow[line].p_virt)
+	if (!p_mngr->ilt_shadow[line].virt_addr)
 		return -EINVAL;
 
-	p_info->p_cxt = p_mngr->ilt_shadow[line].p_virt +
+	p_info->p_cxt = p_mngr->ilt_shadow[line].virt_addr +
 			p_info->iid % cxts_per_p * conn_cxt_size;
 
 	DP_VERBOSE(p_hwfn, (QED_MSG_ILT | QED_MSG_CXT),
@@ -2234,7 +2132,7 @@ int qed_cxt_get_tid_mem_info(struct qed_hwfn *p_hwfn,
 	for (i = 0; i < total_lines; i++) {
 		shadow_line = i + p_fl_seg->start_line -
 		    p_hwfn->p_cxt_mngr->pf_start_line;
-		p_info->blocks[i] = p_mngr->ilt_shadow[shadow_line].p_virt;
+		p_info->blocks[i] = p_mngr->ilt_shadow[shadow_line].virt_addr;
 	}
 	p_info->waste = ILT_PAGE_IN_BYTES(p_cli->p_size.val) -
 	    p_fl_seg->real_size_in_page;
@@ -2296,7 +2194,7 @@ qed_cxt_dynamic_ilt_alloc(struct qed_hwfn *p_hwfn,
 
 	mutex_lock(&p_hwfn->p_cxt_mngr->mutex);
 
-	if (p_hwfn->p_cxt_mngr->ilt_shadow[shadow_line].p_virt)
+	if (p_hwfn->p_cxt_mngr->ilt_shadow[shadow_line].virt_addr)
 		goto out0;
 
 	p_ptt = qed_ptt_acquire(p_hwfn);
@@ -2334,8 +2232,8 @@ qed_cxt_dynamic_ilt_alloc(struct qed_hwfn *p_hwfn,
 		}
 	}
 
-	p_hwfn->p_cxt_mngr->ilt_shadow[shadow_line].p_virt = p_virt;
-	p_hwfn->p_cxt_mngr->ilt_shadow[shadow_line].p_phys = p_phys;
+	p_hwfn->p_cxt_mngr->ilt_shadow[shadow_line].virt_addr = p_virt;
+	p_hwfn->p_cxt_mngr->ilt_shadow[shadow_line].phys_addr = p_phys;
 	p_hwfn->p_cxt_mngr->ilt_shadow[shadow_line].size =
 	    p_blk->real_size_in_page;
 
@@ -2345,9 +2243,9 @@ qed_cxt_dynamic_ilt_alloc(struct qed_hwfn *p_hwfn,
 
 	ilt_hw_entry = 0;
 	SET_FIELD(ilt_hw_entry, ILT_ENTRY_VALID, 1ULL);
-	SET_FIELD(ilt_hw_entry,
-		  ILT_ENTRY_PHY_ADDR,
-		  (p_hwfn->p_cxt_mngr->ilt_shadow[shadow_line].p_phys >> 12));
+	SET_FIELD(ilt_hw_entry, ILT_ENTRY_PHY_ADDR,
+		  (p_hwfn->p_cxt_mngr->ilt_shadow[shadow_line].phys_addr
+		   >> 12));
 
 	/* Write via DMAE since the PSWRQ2_REG_ILT_MEMORY line is a wide-bus */
 	qed_dmae_host2grc(p_hwfn, p_ptt, (u64) (uintptr_t)&ilt_hw_entry,
@@ -2434,16 +2332,16 @@ qed_cxt_free_ilt_range(struct qed_hwfn *p_hwfn,
 	}
 
 	for (i = shadow_start_line; i < shadow_end_line; i++) {
-		if (!p_hwfn->p_cxt_mngr->ilt_shadow[i].p_virt)
+		if (!p_hwfn->p_cxt_mngr->ilt_shadow[i].virt_addr)
 			continue;
 
 		dma_free_coherent(&p_hwfn->cdev->pdev->dev,
 				  p_hwfn->p_cxt_mngr->ilt_shadow[i].size,
-				  p_hwfn->p_cxt_mngr->ilt_shadow[i].p_virt,
-				  p_hwfn->p_cxt_mngr->ilt_shadow[i].p_phys);
+				  p_hwfn->p_cxt_mngr->ilt_shadow[i].virt_addr,
+				  p_hwfn->p_cxt_mngr->ilt_shadow[i].phys_addr);
 
-		p_hwfn->p_cxt_mngr->ilt_shadow[i].p_virt = NULL;
-		p_hwfn->p_cxt_mngr->ilt_shadow[i].p_phys = 0;
+		p_hwfn->p_cxt_mngr->ilt_shadow[i].virt_addr = NULL;
+		p_hwfn->p_cxt_mngr->ilt_shadow[i].phys_addr = 0;
 		p_hwfn->p_cxt_mngr->ilt_shadow[i].size = 0;
 
 		/* compute absolute offset */
@@ -2547,8 +2445,76 @@ int qed_cxt_get_task_ctx(struct qed_hwfn *p_hwfn,
 
 	ilt_idx = tid / num_tids_per_block + p_seg->start_line -
 		  p_mngr->pf_start_line;
-	*pp_task_ctx = (u8 *)p_mngr->ilt_shadow[ilt_idx].p_virt +
+	*pp_task_ctx = (u8 *)p_mngr->ilt_shadow[ilt_idx].virt_addr +
 		       (tid % num_tids_per_block) * tid_size;
 
 	return 0;
+}
+
+static u16 qed_blk_calculate_pages(struct qed_ilt_cli_blk *p_blk)
+{
+	if (p_blk->real_size_in_page == 0)
+		return 0;
+
+	return DIV_ROUND_UP(p_blk->total_size, p_blk->real_size_in_page);
+}
+
+u16 qed_get_cdut_num_pf_init_pages(struct qed_hwfn *p_hwfn)
+{
+	struct qed_ilt_client_cfg *p_cli;
+	struct qed_ilt_cli_blk *p_blk;
+	u16 i, pages = 0;
+
+	p_cli = &p_hwfn->p_cxt_mngr->clients[ILT_CLI_CDUT];
+	for (i = 0; i < NUM_TASK_PF_SEGMENTS; i++) {
+		p_blk = &p_cli->pf_blks[CDUT_FL_SEG_BLK(i, PF)];
+		pages += qed_blk_calculate_pages(p_blk);
+	}
+
+	return pages;
+}
+
+u16 qed_get_cdut_num_vf_init_pages(struct qed_hwfn *p_hwfn)
+{
+	struct qed_ilt_client_cfg *p_cli;
+	struct qed_ilt_cli_blk *p_blk;
+	u16 i, pages = 0;
+
+	p_cli = &p_hwfn->p_cxt_mngr->clients[ILT_CLI_CDUT];
+	for (i = 0; i < NUM_TASK_VF_SEGMENTS; i++) {
+		p_blk = &p_cli->vf_blks[CDUT_FL_SEG_BLK(i, VF)];
+		pages += qed_blk_calculate_pages(p_blk);
+	}
+
+	return pages;
+}
+
+u16 qed_get_cdut_num_pf_work_pages(struct qed_hwfn *p_hwfn)
+{
+	struct qed_ilt_client_cfg *p_cli;
+	struct qed_ilt_cli_blk *p_blk;
+	u16 i, pages = 0;
+
+	p_cli = &p_hwfn->p_cxt_mngr->clients[ILT_CLI_CDUT];
+	for (i = 0; i < NUM_TASK_PF_SEGMENTS; i++) {
+		p_blk = &p_cli->pf_blks[CDUT_SEG_BLK(i)];
+		pages += qed_blk_calculate_pages(p_blk);
+	}
+
+	return pages;
+}
+
+u16 qed_get_cdut_num_vf_work_pages(struct qed_hwfn *p_hwfn)
+{
+	struct qed_ilt_client_cfg *p_cli;
+	struct qed_ilt_cli_blk *p_blk;
+	u16 pages = 0, i;
+
+	p_cli = &p_hwfn->p_cxt_mngr->clients[ILT_CLI_CDUT];
+	for (i = 0; i < NUM_TASK_VF_SEGMENTS; i++) {
+		p_blk = &p_cli->vf_blks[CDUT_SEG_BLK(i)];
+		pages += qed_blk_calculate_pages(p_blk);
+	}
+
+	return pages;
 }

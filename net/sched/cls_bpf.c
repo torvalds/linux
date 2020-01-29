@@ -631,12 +631,17 @@ nla_put_failure:
 	return -1;
 }
 
-static void cls_bpf_bind_class(void *fh, u32 classid, unsigned long cl)
+static void cls_bpf_bind_class(void *fh, u32 classid, unsigned long cl,
+			       void *q, unsigned long base)
 {
 	struct cls_bpf_prog *prog = fh;
 
-	if (prog && prog->res.classid == classid)
-		prog->res.class = cl;
+	if (prog && prog->res.classid == classid) {
+		if (cl)
+			__tcf_bind_filter(q, &prog->res, base);
+		else
+			__tcf_unbind_filter(q, &prog->res);
+	}
 }
 
 static void cls_bpf_walk(struct tcf_proto *tp, struct tcf_walker *arg,

@@ -9,6 +9,20 @@
 #include "reg.h"
 #include "spectrum.h"
 
+/* All driver-specific traps must be documented in
+ * Documentation/networking/devlink/mlxsw.rst
+ */
+enum {
+	DEVLINK_MLXSW_TRAP_ID_BASE = DEVLINK_TRAP_GENERIC_ID_MAX,
+	DEVLINK_MLXSW_TRAP_ID_IRIF_DISABLED,
+	DEVLINK_MLXSW_TRAP_ID_ERIF_DISABLED,
+};
+
+#define DEVLINK_MLXSW_TRAP_NAME_IRIF_DISABLED \
+	"irif_disabled"
+#define DEVLINK_MLXSW_TRAP_NAME_ERIF_DISABLED \
+	"erif_disabled"
+
 #define MLXSW_SP_TRAP_METADATA DEVLINK_TRAP_METADATA_TYPE_F_IN_PORT
 
 static void mlxsw_sp_rx_drop_listener(struct sk_buff *skb, u8 local_port,
@@ -20,6 +34,12 @@ static void mlxsw_sp_rx_exception_listener(struct sk_buff *skb, u8 local_port,
 	DEVLINK_TRAP_GENERIC(DROP, DROP, _id,				      \
 			     DEVLINK_TRAP_GROUP_GENERIC(_group_id),	      \
 			     MLXSW_SP_TRAP_METADATA)
+
+#define MLXSW_SP_TRAP_DRIVER_DROP(_id, _group_id)			      \
+	DEVLINK_TRAP_DRIVER(DROP, DROP, DEVLINK_MLXSW_TRAP_ID_##_id,	      \
+			    DEVLINK_MLXSW_TRAP_NAME_##_id,		      \
+			    DEVLINK_TRAP_GROUP_GENERIC(_group_id),	      \
+			    MLXSW_SP_TRAP_METADATA)
 
 #define MLXSW_SP_TRAP_EXCEPTION(_id, _group_id)		      \
 	DEVLINK_TRAP_GENERIC(EXCEPTION, TRAP, _id,			      \
@@ -58,6 +78,11 @@ static struct devlink_trap mlxsw_sp_traps_arr[] = {
 	MLXSW_SP_TRAP_EXCEPTION(UNRESOLVED_NEIGH, L3_DROPS),
 	MLXSW_SP_TRAP_EXCEPTION(IPV4_LPM_UNICAST_MISS, L3_DROPS),
 	MLXSW_SP_TRAP_EXCEPTION(IPV6_LPM_UNICAST_MISS, L3_DROPS),
+	MLXSW_SP_TRAP_DRIVER_DROP(IRIF_DISABLED, L3_DROPS),
+	MLXSW_SP_TRAP_DRIVER_DROP(ERIF_DISABLED, L3_DROPS),
+	MLXSW_SP_TRAP_DROP(NON_ROUTABLE, L3_DROPS),
+	MLXSW_SP_TRAP_EXCEPTION(DECAP_ERROR, TUNNEL_DROPS),
+	MLXSW_SP_TRAP_DROP(OVERLAY_SMAC_MC, TUNNEL_DROPS),
 };
 
 static struct mlxsw_listener mlxsw_sp_listeners_arr[] = {
@@ -90,6 +115,15 @@ static struct mlxsw_listener mlxsw_sp_listeners_arr[] = {
 			       TRAP_EXCEPTION_TO_CPU),
 	MLXSW_SP_RXL_EXCEPTION(DISCARD_ROUTER_LPM6, ROUTER_EXP,
 			       TRAP_EXCEPTION_TO_CPU),
+	MLXSW_SP_RXL_DISCARD(ROUTER_IRIF_EN, L3_DISCARDS),
+	MLXSW_SP_RXL_DISCARD(ROUTER_ERIF_EN, L3_DISCARDS),
+	MLXSW_SP_RXL_DISCARD(NON_ROUTABLE, L3_DISCARDS),
+	MLXSW_SP_RXL_EXCEPTION(DECAP_ECN0, ROUTER_EXP, TRAP_EXCEPTION_TO_CPU),
+	MLXSW_SP_RXL_EXCEPTION(IPIP_DECAP_ERROR, ROUTER_EXP,
+			       TRAP_EXCEPTION_TO_CPU),
+	MLXSW_SP_RXL_EXCEPTION(DISCARD_DEC_PKT, TUNNEL_DISCARDS,
+			       TRAP_EXCEPTION_TO_CPU),
+	MLXSW_SP_RXL_DISCARD(OVERLAY_SMAC_MC, TUNNEL_DISCARDS),
 };
 
 /* Mapping between hardware trap and devlink trap. Multiple hardware traps can
@@ -123,6 +157,13 @@ static u16 mlxsw_sp_listener_devlink_map[] = {
 	DEVLINK_TRAP_GENERIC_ID_UNRESOLVED_NEIGH,
 	DEVLINK_TRAP_GENERIC_ID_IPV4_LPM_UNICAST_MISS,
 	DEVLINK_TRAP_GENERIC_ID_IPV6_LPM_UNICAST_MISS,
+	DEVLINK_MLXSW_TRAP_ID_IRIF_DISABLED,
+	DEVLINK_MLXSW_TRAP_ID_ERIF_DISABLED,
+	DEVLINK_TRAP_GENERIC_ID_NON_ROUTABLE,
+	DEVLINK_TRAP_GENERIC_ID_DECAP_ERROR,
+	DEVLINK_TRAP_GENERIC_ID_DECAP_ERROR,
+	DEVLINK_TRAP_GENERIC_ID_DECAP_ERROR,
+	DEVLINK_TRAP_GENERIC_ID_OVERLAY_SMAC_MC,
 };
 
 static int mlxsw_sp_rx_listener(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
@@ -304,8 +345,9 @@ mlxsw_sp_trap_group_policer_init(struct mlxsw_sp *mlxsw_sp,
 	u32 rate;
 
 	switch (group->id) {
-	case DEVLINK_TRAP_GROUP_GENERIC_ID_L3_DROPS:/* fall through */
-	case DEVLINK_TRAP_GROUP_GENERIC_ID_L2_DROPS:
+	case DEVLINK_TRAP_GROUP_GENERIC_ID_L2_DROPS: /* fall through */
+	case DEVLINK_TRAP_GROUP_GENERIC_ID_L3_DROPS: /* fall through */
+	case DEVLINK_TRAP_GROUP_GENERIC_ID_TUNNEL_DROPS:
 		policer_id = MLXSW_SP_DISCARD_POLICER_ID;
 		ir_units = MLXSW_REG_QPCR_IR_UNITS_M;
 		is_bytes = false;
@@ -338,6 +380,12 @@ __mlxsw_sp_trap_group_init(struct mlxsw_sp *mlxsw_sp,
 		break;
 	case DEVLINK_TRAP_GROUP_GENERIC_ID_L3_DROPS:
 		group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_L3_DISCARDS;
+		policer_id = MLXSW_SP_DISCARD_POLICER_ID;
+		priority = 0;
+		tc = 1;
+		break;
+	case DEVLINK_TRAP_GROUP_GENERIC_ID_TUNNEL_DROPS:
+		group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_TUNNEL_DISCARDS;
 		policer_id = MLXSW_SP_DISCARD_POLICER_ID;
 		priority = 0;
 		tc = 1;

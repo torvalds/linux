@@ -396,6 +396,12 @@ dcb_error:
 	prev_cfg->etscfg.tcbwtable[0] = ICE_TC_MAX_BW;
 	prev_cfg->etscfg.tsatable[0] = ICE_IEEE_TSA_ETS;
 	memcpy(&prev_cfg->etsrec, &prev_cfg->etscfg, sizeof(prev_cfg->etsrec));
+	/* Coverity warns the return code of ice_pf_dcb_cfg() is not checked
+	 * here as is done for other calls to that function. That check is
+	 * not necessary since this is in this function's error cleanup path.
+	 * Suppress the Coverity warning with the following comment...
+	 */
+	/* coverity[check_return] */
 	ice_pf_dcb_cfg(pf, prev_cfg, false);
 	kfree(prev_cfg);
 }

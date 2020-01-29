@@ -327,6 +327,7 @@ struct core_reloc_arrays_output {
 	char b123;
 	int c1c;
 	int d00d;
+	int f10c;
 };
 
 struct core_reloc_arrays_substruct {
@@ -339,6 +340,7 @@ struct core_reloc_arrays {
 	char b[2][3][4];
 	struct core_reloc_arrays_substruct c[3];
 	struct core_reloc_arrays_substruct d[1][2];
+	struct core_reloc_arrays_substruct f[][2];
 };
 
 /* bigger array dimensions */
@@ -347,6 +349,7 @@ struct core_reloc_arrays___diff_arr_dim {
 	char b[3][4][5];
 	struct core_reloc_arrays_substruct c[4];
 	struct core_reloc_arrays_substruct d[2][3];
+	struct core_reloc_arrays_substruct f[1][3];
 };
 
 /* different size of array's value (struct) */
@@ -363,6 +366,29 @@ struct core_reloc_arrays___diff_arr_val_sz {
 		int d;
 		int __padding2;
 	} d[1][2];
+	struct {
+		int __padding1;
+		int c;
+		int __padding2;
+	} f[][2];
+};
+
+struct core_reloc_arrays___equiv_zero_sz_arr {
+	int a[5];
+	char b[2][3][4];
+	struct core_reloc_arrays_substruct c[3];
+	struct core_reloc_arrays_substruct d[1][2];
+	/* equivalent to flexible array */
+	struct core_reloc_arrays_substruct f[0][2];
+};
+
+struct core_reloc_arrays___fixed_arr {
+	int a[5];
+	char b[2][3][4];
+	struct core_reloc_arrays_substruct c[3];
+	struct core_reloc_arrays_substruct d[1][2];
+	/* not a flexible array anymore, but within access bounds */
+	struct core_reloc_arrays_substruct f[1][2];
 };
 
 struct core_reloc_arrays___err_too_small {
@@ -370,6 +396,7 @@ struct core_reloc_arrays___err_too_small {
 	char b[2][3][4];
 	struct core_reloc_arrays_substruct c[3];
 	struct core_reloc_arrays_substruct d[1][2];
+	struct core_reloc_arrays_substruct f[][2];
 };
 
 struct core_reloc_arrays___err_too_shallow {
@@ -377,6 +404,7 @@ struct core_reloc_arrays___err_too_shallow {
 	char b[2][3]; /* this one lacks one dimension */
 	struct core_reloc_arrays_substruct c[3];
 	struct core_reloc_arrays_substruct d[1][2];
+	struct core_reloc_arrays_substruct f[][2];
 };
 
 struct core_reloc_arrays___err_non_array {
@@ -384,12 +412,23 @@ struct core_reloc_arrays___err_non_array {
 	char b[2][3][4];
 	struct core_reloc_arrays_substruct c[3];
 	struct core_reloc_arrays_substruct d[1][2];
+	struct core_reloc_arrays_substruct f[][2];
 };
 
 struct core_reloc_arrays___err_wrong_val_type {
 	int a[5];
 	char b[2][3][4];
 	int c[3]; /* value is not a struct */
+	struct core_reloc_arrays_substruct d[1][2];
+	struct core_reloc_arrays_substruct f[][2];
+};
+
+struct core_reloc_arrays___err_bad_zero_sz_arr {
+	/* zero-sized array, but not at the end */
+	struct core_reloc_arrays_substruct f[0][2];
+	int a[5];
+	char b[2][3][4];
+	struct core_reloc_arrays_substruct c[3];
 	struct core_reloc_arrays_substruct d[1][2];
 };
 
