@@ -1,6 +1,8 @@
-
+============================
 Kernel NFS Server Statistics
 ============================
+
+:Authors: Greg Banks <gnb@sgi.com> - 26 Mar 2009
 
 This document describes the format and semantics of the statistics
 which the kernel NFS server makes available to userspace.  These
@@ -18,7 +20,7 @@ by parsing routines.  All other lines contain a sequence of fields
 separated by whitespace.
 
 /proc/fs/nfsd/pool_stats
-------------------------
+========================
 
 This file is available in kernels from 2.6.30 onwards, if the
 /proc/fs/nfsd filesystem is mounted (it almost always should be).
@@ -109,15 +111,12 @@ this case), or the transport can be enqueued for later attention
 (sockets-enqueued counts this case), or the packet can be temporarily
 deferred because the transport is currently being used by an nfsd
 thread.  This last case is not very interesting and is not explicitly
-counted, but can be inferred from the other counters thus:
+counted, but can be inferred from the other counters thus::
 
-packets-deferred = packets-arrived - ( sockets-enqueued + threads-woken )
+	packets-deferred = packets-arrived - ( sockets-enqueued + threads-woken )
 
 
 More
-----
+====
+
 Descriptions of the other statistics file should go here.
-
-
-Greg Banks <gnb@sgi.com>
-26 Mar 2009

@@ -10,3 +10,4 @@ NFS
    rpc-cache
    rpc-server-gss
    nfs41-server
+   knfsd-stats
