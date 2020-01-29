@@ -6,9 +6,16 @@
 
 #define pr_fmt(fmt)	"trace_boot: " fmt
 
+#include <linux/bootconfig.h>
+#include <linux/cpumask.h>
 #include <linux/ftrace.h>
 #include <linux/init.h>
-#include <linux/bootconfig.h>
+#include <linux/kernel.h>
+#include <linux/mutex.h>
+#include <linux/string.h>
+#include <linux/slab.h>
+#include <linux/trace.h>
+#include <linux/trace_events.h>
 
 #include "trace.h"
 
