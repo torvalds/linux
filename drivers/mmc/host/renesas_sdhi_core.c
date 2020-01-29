@@ -321,17 +321,6 @@ static unsigned int renesas_sdhi_init_tuning(struct tmio_mmc_host *host)
 		SH_MOBILE_SDHI_SCC_DTCNTL_TAPNUM_MASK;
 }
 
-static void renesas_sdhi_prepare_tuning(struct tmio_mmc_host *host,
-					unsigned long tap)
-{
-	struct renesas_sdhi *priv = host_to_priv(host);
-
-	priv->doing_tune = true;
-
-	/* Set sampling clock position */
-	sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_TAPSET, tap);
-}
-
 static void renesas_sdhi_hs400_complete(struct tmio_mmc_host *host)
 {
 	struct renesas_sdhi *priv = host_to_priv(host);
@@ -498,6 +487,37 @@ static int renesas_sdhi_select_tuning(struct tmio_mmc_host *host)
 		       sd_scc_read32(host, priv, SH_MOBILE_SDHI_SCC_RVSCNTL));
 
 	return 0;
+}
+
+static int renesas_sdhi_execute_tuning(struct tmio_mmc_host *host, u32 opcode)
+{
+	struct renesas_sdhi *priv = host_to_priv(host);
+	int i, ret;
+
+	host->tap_num = renesas_sdhi_init_tuning(host);
+	if (!host->tap_num)
+		return 0; /* Tuning is not supported */
+
+	if (host->tap_num * 2 >= sizeof(host->taps) * BITS_PER_BYTE) {
+		dev_warn_once(&host->pdev->dev,
+			"Too many taps, skipping tuning. Please consider updating size of taps field of tmio_mmc_host\n");
+		return 0;
+	}
+
+	priv->doing_tune = true;
+	bitmap_zero(host->taps, host->tap_num * 2);
+
+	/* Issue CMD19 twice for each tap */
+	for (i = 0; i < 2 * host->tap_num; i++) {
+		/* Set sampling clock position */
+		sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_TAPSET, i % host->tap_num);
+
+		ret = mmc_send_tuning(host->mmc, opcode, NULL);
+		if (ret == 0)
+			set_bit(i, host->taps);
+	}
+
+	return renesas_sdhi_select_tuning(host);
 }
 
 static bool renesas_sdhi_manual_correction(struct tmio_mmc_host *host, bool use_4tap)
@@ -877,8 +897,7 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 		if (!hit)
 			dev_warn(&host->pdev->dev, "Unknown clock rate for tuning\n");
 
-		host->init_tuning = renesas_sdhi_init_tuning;
-		host->prepare_tuning = renesas_sdhi_prepare_tuning;
+		host->execute_tuning = renesas_sdhi_execute_tuning;
 		host->select_tuning = renesas_sdhi_select_tuning;
 		host->check_scc_error = renesas_sdhi_check_scc_error;
 		host->prepare_hs400_tuning =

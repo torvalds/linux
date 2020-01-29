@@ -718,38 +718,13 @@ static int tmio_mmc_start_data(struct tmio_mmc_host *host,
 static int tmio_mmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 {
 	struct tmio_mmc_host *host = mmc_priv(mmc);
-	int i, ret = 0;
+	int ret;
 
-	if (!host->init_tuning || !host->select_tuning)
-		/* Tuning is not supported */
-		goto out;
+	if (!host->execute_tuning)
+		return 0;
 
-	host->tap_num = host->init_tuning(host);
-	if (!host->tap_num)
-		/* Tuning is not supported */
-		goto out;
+	ret = host->execute_tuning(host, opcode);
 
-	if (host->tap_num * 2 >= sizeof(host->taps) * BITS_PER_BYTE) {
-		dev_warn_once(&host->pdev->dev,
-			"Too many taps, skipping tuning. Please consider updating size of taps field of tmio_mmc_host\n");
-		goto out;
-	}
-
-	bitmap_zero(host->taps, host->tap_num * 2);
-
-	/* Issue CMD19 twice for each tap */
-	for (i = 0; i < 2 * host->tap_num; i++) {
-		if (host->prepare_tuning)
-			host->prepare_tuning(host, i % host->tap_num);
-
-		ret = mmc_send_tuning(mmc, opcode, NULL);
-		if (ret == 0)
-			set_bit(i, host->taps);
-	}
-
-	ret = host->select_tuning(host);
-
-out:
 	if (ret < 0) {
 		dev_warn(&host->pdev->dev, "Tuning procedure failed\n");
 		tmio_mmc_hw_reset(mmc);
