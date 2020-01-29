@@ -774,6 +774,19 @@ config PREEMPTIRQ_DELAY_TEST
 
 	  If unsure, say N
 
+config SYNTH_EVENT_GEN_TEST
+	tristate "Test module for in-kernel synthetic event generation"
+	depends on HIST_TRIGGERS
+	help
+          This option creates a test module to check the base
+          functionality of in-kernel synthetic event definition and
+          generation.
+
+          To test, insert the module, and then check the trace buffer
+	  for the generated sample events.
+
+	  If unsure, say N.
+
 config TRACE_EVAL_MAP_FILE
        bool "Show eval mappings for trace events"
        depends on TRACING
