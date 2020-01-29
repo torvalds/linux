@@ -7,3 +7,4 @@ NFS
    :maxdepth: 1
 
    pnfs
+   rpc-cache
