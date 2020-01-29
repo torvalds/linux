@@ -899,7 +899,7 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 
 		host->execute_tuning = renesas_sdhi_execute_tuning;
 		host->select_tuning = renesas_sdhi_select_tuning;
-		host->check_scc_error = renesas_sdhi_check_scc_error;
+		host->check_retune = renesas_sdhi_check_scc_error;
 		host->prepare_hs400_tuning =
 			renesas_sdhi_prepare_hs400_tuning;
 		host->hs400_downgrade = renesas_sdhi_disable_scc;

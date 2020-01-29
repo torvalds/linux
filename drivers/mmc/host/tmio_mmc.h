@@ -176,7 +176,7 @@ struct tmio_mmc_host {
 	int (*write16_hook)(struct tmio_mmc_host *host, int addr);
 	void (*reset)(struct tmio_mmc_host *host);
 	void (*hw_reset)(struct tmio_mmc_host *host);
-	bool (*check_scc_error)(struct tmio_mmc_host *host);
+	bool (*check_retune)(struct tmio_mmc_host *host);
 
 	/*
 	 * Mandatory callback for tuning to occur which is optional for SDR50
