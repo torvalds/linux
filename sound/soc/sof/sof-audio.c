@@ -11,6 +11,39 @@
 #include "sof-audio.h"
 #include "ops.h"
 
+/*
+ * helper to determine if there are only D0i3 compatible
+ * streams active
+ */
+bool snd_sof_dsp_only_d0i3_compatible_stream_active(struct snd_sof_dev *sdev)
+{
+	struct snd_pcm_substream *substream;
+	struct snd_sof_pcm *spcm;
+	bool d0i3_compatible_active = false;
+	int dir;
+
+	list_for_each_entry(spcm, &sdev->pcm_list, list) {
+		for (dir = 0; dir <= SNDRV_PCM_STREAM_CAPTURE; dir++) {
+			substream = spcm->stream[dir].substream;
+			if (!substream || !substream->runtime)
+				continue;
+
+			/*
+			 * substream->runtime being not NULL indicates that
+			 * that the stream is open. No need to check the
+			 * stream state.
+			 */
+			if (!spcm->stream[dir].d0i3_compatible)
+				return false;
+
+			d0i3_compatible_active = true;
+		}
+	}
+
+	return d0i3_compatible_active;
+}
+EXPORT_SYMBOL(snd_sof_dsp_only_d0i3_compatible_stream_active);
+
 bool snd_sof_stream_suspend_ignored(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_pcm *spcm;
