@@ -308,9 +308,9 @@ int sti_uniperiph_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	return 0;
 }
 
-static int sti_uniperiph_dai_suspend(struct snd_soc_dai *dai)
+static int sti_uniperiph_suspend(struct snd_soc_component *component)
 {
-	struct sti_uniperiph_data *priv = snd_soc_dai_get_drvdata(dai);
+	struct sti_uniperiph_data *priv = snd_soc_component_get_drvdata(component);
 	struct uniperif *uni = priv->dai_data.uni;
 	int ret;
 
@@ -330,9 +330,9 @@ static int sti_uniperiph_dai_suspend(struct snd_soc_dai *dai)
 	return ret;
 }
 
-static int sti_uniperiph_dai_resume(struct snd_soc_dai *dai)
+static int sti_uniperiph_resume(struct snd_soc_component *component)
 {
-	struct sti_uniperiph_data *priv = snd_soc_dai_get_drvdata(dai);
+	struct sti_uniperiph_data *priv = snd_soc_component_get_drvdata(component);
 	struct uniperif *uni = priv->dai_data.uni;
 	int ret;
 
@@ -370,12 +370,12 @@ static int sti_uniperiph_dai_probe(struct snd_soc_dai *dai)
 
 static const struct snd_soc_dai_driver sti_uniperiph_dai_template = {
 	.probe = sti_uniperiph_dai_probe,
-	.suspend = sti_uniperiph_dai_suspend,
-	.resume = sti_uniperiph_dai_resume
 };
 
 static const struct snd_soc_component_driver sti_uniperiph_dai_component = {
 	.name = "sti_cpu_dai",
+	.suspend = sti_uniperiph_suspend,
+	.resume = sti_uniperiph_resume
 };
 
 static int sti_uniperiph_cpu_dai_of(struct device_node *node,

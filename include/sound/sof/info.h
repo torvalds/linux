@@ -30,6 +30,7 @@
 enum sof_ipc_ext_data {
 	SOF_IPC_EXT_DMA_BUFFER = 0,
 	SOF_IPC_EXT_WINDOW,
+	SOF_IPC_EXT_CC_INFO,
 };
 
 /* FW version - SOF_IPC_GLB_VERSION */
@@ -114,5 +115,19 @@ struct sof_ipc_window {
 	uint32_t num_windows;
 	struct sof_ipc_window_elem window[];
 }  __packed;
+
+struct sof_ipc_cc_version {
+	struct sof_ipc_ext_data_hdr ext_hdr;
+	uint32_t major;
+	uint32_t minor;
+	uint32_t micro;
+
+	/* reserved for future use */
+	uint32_t reserved[4];
+
+	char name[16]; /* null terminated compiler name */
+	char optim[4]; /* null terminated compiler -O flag value */
+	char desc[]; /* null terminated compiler description */
+} __packed;
 
 #endif

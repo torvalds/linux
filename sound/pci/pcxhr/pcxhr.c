@@ -136,7 +136,7 @@ struct board_parameters {
 	short fw_file_set;
 	short firmware_num;
 };
-static struct board_parameters pcxhr_board_params[] = {
+static const struct board_parameters pcxhr_board_params[] = {
 [PCI_ID_VX882HR] =      { "VX882HR",      4, 4, 0, 41 },
 [PCI_ID_PCX882HR] =     { "PCX882HR",     4, 4, 0, 41 },
 [PCI_ID_VX881HR] =      { "VX881HR",      4, 4, 0, 41 },
@@ -940,32 +940,16 @@ static int pcxhr_hw_params(struct snd_pcm_substream *subs,
 	struct snd_pcxhr *chip = snd_pcm_substream_chip(subs);
 	struct pcxhr_mgr *mgr = chip->mgr;
 	struct pcxhr_stream *stream = subs->runtime->private_data;
-	snd_pcm_format_t format;
-	int err;
-	int channels;
-
-	/* set up channels */
-	channels = params_channels(hw);
-
-	/*  set up format for the stream */
-	format = params_format(hw);
 
 	mutex_lock(&mgr->setup_mutex);
 
-	stream->channels = channels;
-	stream->format = format;
-
-	/* allocate buffer */
-	err = snd_pcm_lib_malloc_pages(subs, params_buffer_bytes(hw));
+	/* set up channels */
+	stream->channels = params_channels(hw);
+	/* set up format for the stream */
+	stream->format = params_format(hw);
 
 	mutex_unlock(&mgr->setup_mutex);
 
-	return err;
-}
-
-static int pcxhr_hw_free(struct snd_pcm_substream *subs)
-{
-	snd_pcm_lib_free_pages(subs);
 	return 0;
 }
 
@@ -1136,10 +1120,8 @@ static snd_pcm_uframes_t pcxhr_stream_pointer(struct snd_pcm_substream *subs)
 static const struct snd_pcm_ops pcxhr_ops = {
 	.open      = pcxhr_open,
 	.close     = pcxhr_close,
-	.ioctl     = snd_pcm_lib_ioctl,
 	.prepare   = pcxhr_prepare,
 	.hw_params = pcxhr_hw_params,
-	.hw_free   = pcxhr_hw_free,
 	.trigger   = pcxhr_trigger,
 	.pointer   = pcxhr_stream_pointer,
 };
@@ -1170,9 +1152,9 @@ int pcxhr_create_pcm(struct snd_pcxhr *chip)
 	pcm->nonatomic = true;
 	strcpy(pcm->name, name);
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      &chip->mgr->pci->dev,
-					      32*1024, 32*1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+				       &chip->mgr->pci->dev,
+				       32*1024, 32*1024);
 	chip->pcm = pcm;
 	return 0;
 }
@@ -1197,7 +1179,7 @@ static int pcxhr_create(struct pcxhr_mgr *mgr,
 {
 	int err;
 	struct snd_pcxhr *chip;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free = pcxhr_chip_dev_free,
 	};
 
@@ -1208,6 +1190,7 @@ static int pcxhr_create(struct pcxhr_mgr *mgr,
 	chip->card = card;
 	chip->chip_idx = idx;
 	chip->mgr = mgr;
+	card->sync_irq = mgr->irq;
 
 	if (idx < mgr->playback_chips)
 		/* stereo or mono streams */

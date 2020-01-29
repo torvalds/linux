@@ -66,7 +66,7 @@ struct snd_ca0106_category_str {
 	const char *name;
 };
 
-static struct snd_ca0106_category_str snd_ca0106_con_category[] = {
+static const struct snd_ca0106_category_str snd_ca0106_con_category[] = {
 	{ IEC958_AES1_CON_DAT, "DAT" },
 	{ IEC958_AES1_CON_VCR, "VCR" },
 	{ IEC958_AES1_CON_MICROPHONE, "microphone" },

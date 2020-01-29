@@ -59,7 +59,7 @@ static int bells_set_bias_level(struct snd_soc_card *card,
 	struct bells_drvdata *bells = card->drvdata;
 	int ret;
 
-	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[DAI_DSP_CODEC].name);
+	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[DAI_DSP_CODEC]);
 	codec_dai = rtd->codec_dai;
 	component = codec_dai->component;
 
@@ -105,7 +105,7 @@ static int bells_set_bias_level_post(struct snd_soc_card *card,
 	struct bells_drvdata *bells = card->drvdata;
 	int ret;
 
-	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[DAI_DSP_CODEC].name);
+	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[DAI_DSP_CODEC]);
 	codec_dai = rtd->codec_dai;
 	component = codec_dai->component;
 
@@ -151,10 +151,10 @@ static int bells_late_probe(struct snd_soc_card *card)
 	struct snd_soc_dai *wm9081_dai;
 	int ret;
 
-	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[DAI_AP_DSP].name);
+	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[DAI_AP_DSP]);
 	wm0010 = rtd->codec_dai->component;
 
-	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[DAI_DSP_CODEC].name);
+	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[DAI_DSP_CODEC]);
 	component = rtd->codec_dai->component;
 	aif1_dai = rtd->codec_dai;
 
@@ -194,7 +194,7 @@ static int bells_late_probe(struct snd_soc_card *card)
 		return ret;
 	}
 
-	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[DAI_CODEC_CP].name);
+	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[DAI_CODEC_CP]);
 	aif2_dai = rtd->cpu_dai;
 
 	ret = snd_soc_dai_set_sysclk(aif2_dai, ARIZONA_CLK_ASYNCCLK, 0, 0);
@@ -206,7 +206,7 @@ static int bells_late_probe(struct snd_soc_card *card)
 	if (card->num_rtd == DAI_CODEC_SUB)
 		return 0;
 
-	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[DAI_CODEC_SUB].name);
+	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[DAI_CODEC_SUB]);
 	aif3_dai = rtd->cpu_dai;
 	wm9081_dai = rtd->codec_dai;
 
@@ -381,7 +381,7 @@ static struct snd_soc_dai_link bells_dai_wm5110[] = {
 
 static struct snd_soc_codec_conf bells_codec_conf[] = {
 	{
-		.dev_name = "wm9081.1-006c",
+		.dlc = COMP_CODEC_CONF("wm9081.1-006c"),
 		.name_prefix = "Sub",
 	},
 };

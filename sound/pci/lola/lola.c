@@ -559,7 +559,7 @@ static int lola_create(struct snd_card *card, struct pci_dev *pci,
 	struct lola *chip;
 	int err;
 	unsigned int dever;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free = lola_dev_free,
 	};
 
@@ -638,7 +638,7 @@ static int lola_create(struct snd_card *card, struct pci_dev *pci,
 		goto errout;
 	}
 	chip->irq = pci->irq;
-	synchronize_irq(chip->irq);
+	card->sync_irq = chip->irq;
 
 	dever = lola_readl(chip, BAR1, DEVER);
 	chip->pcm[CAPT].num_streams = (dever >> 0) & 0x3ff;

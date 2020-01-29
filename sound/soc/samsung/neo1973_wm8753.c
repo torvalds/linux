@@ -303,7 +303,7 @@ static struct snd_soc_aux_dev neo1973_aux_devs[] = {
 
 static struct snd_soc_codec_conf neo1973_codec_conf[] = {
 	{
-		.dev_name = "lm4857.0-007c",
+		.dlc = COMP_CODEC_CONF("lm4857.0-007c"),
 		.name_prefix = "Amp",
 	},
 };

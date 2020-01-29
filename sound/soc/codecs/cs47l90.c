@@ -744,15 +744,18 @@ static const struct snd_kcontrol_new cs47l90_output_anc_src[] = {
 static const struct snd_soc_dapm_widget cs47l90_dapm_widgets[] = {
 SND_SOC_DAPM_SUPPLY("SYSCLK", MADERA_SYSTEM_CLOCK_1, MADERA_SYSCLK_ENA_SHIFT,
 		    0, madera_sysclk_ev,
-		    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
+		    SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
 SND_SOC_DAPM_SUPPLY("ASYNCCLK", MADERA_ASYNC_CLOCK_1,
-		    MADERA_ASYNC_CLK_ENA_SHIFT, 0, NULL, 0),
+		    MADERA_ASYNC_CLK_ENA_SHIFT, 0, madera_clk_ev,
+		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 SND_SOC_DAPM_SUPPLY("OPCLK", MADERA_OUTPUT_SYSTEM_CLOCK,
 		    MADERA_OPCLK_ENA_SHIFT, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY("ASYNCOPCLK", MADERA_OUTPUT_ASYNC_CLOCK,
 		    MADERA_OPCLK_ASYNC_ENA_SHIFT, 0, NULL, 0),
-SND_SOC_DAPM_SUPPLY("DSPCLK", MADERA_DSP_CLOCK_1,
-		    MADERA_DSP_CLK_ENA_SHIFT, 0, NULL, 0),
+SND_SOC_DAPM_SUPPLY("DSPCLK", MADERA_DSP_CLOCK_1, MADERA_DSP_CLK_ENA_SHIFT,
+		    0, madera_clk_ev,
+		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
 SND_SOC_DAPM_REGULATOR_SUPPLY("DBVDD2", 0, 0),
 SND_SOC_DAPM_REGULATOR_SUPPLY("DBVDD3", 0, 0),
@@ -1935,12 +1938,18 @@ static const struct snd_soc_dapm_route cs47l90_dapm_routes[] = {
 	{ "IN2R", NULL, "IN2R Mode" },
 
 	{ "IN3L", NULL, "DMICCLK3" },
+	{ "IN3L", NULL, "DMICDAT3" },
+	{ "IN3R", NULL, "DMICCLK3" },
 	{ "IN3R", NULL, "DMICDAT3" },
 
 	{ "IN4L", NULL, "DMICCLK4" },
+	{ "IN4L", NULL, "DMICDAT4" },
+	{ "IN4R", NULL, "DMICCLK4" },
 	{ "IN4R", NULL, "DMICDAT4" },
 
 	{ "IN5L", NULL, "DMICCLK5" },
+	{ "IN5L", NULL, "DMICDAT5" },
+	{ "IN5R", NULL, "DMICCLK5" },
 	{ "IN5R", NULL, "DMICDAT5" },
 
 	MADERA_MIXER_ROUTES("OUT1L", "HPOUT1L"),
@@ -2418,7 +2427,8 @@ static int cs47l90_component_probe(struct snd_soc_component *component)
 	if (ret)
 		return ret;
 
-	ret = madera_init_outputs(component, CS47L90_MONO_OUTPUTS);
+	ret = madera_init_outputs(component, NULL, CS47L90_MONO_OUTPUTS,
+				  CS47L90_MONO_OUTPUTS);
 	if (ret)
 		return ret;
 
