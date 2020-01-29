@@ -52,7 +52,7 @@ void mlx5e_ipsec_set_iv_esn(struct sk_buff *skb, struct xfrm_state *x,
 			    struct xfrm_offload *xo);
 void mlx5e_ipsec_set_iv(struct sk_buff *skb, struct xfrm_state *x,
 			struct xfrm_offload *xo);
-bool mlx5e_ipsec_handle_tx_skb(struct net_device *netdev,
+bool mlx5e_ipsec_handle_tx_skb(struct mlx5e_priv *priv,
 			       struct mlx5_wqe_eth_seg *eseg,
 			       struct sk_buff *skb);
 

@@ -414,7 +414,8 @@ err_out:
 }
 
 bool mlx5e_ktls_handle_tx_skb(struct tls_context *tls_ctx, struct mlx5e_txqsq *sq,
-			      struct sk_buff *skb, u32 *tisn, int datalen)
+			      struct sk_buff *skb, int datalen,
+			      struct mlx5e_accel_tx_tls_state *state)
 {
 	struct mlx5e_ktls_offload_context_tx *priv_tx;
 	struct mlx5e_sq_stats *stats = sq->stats;
@@ -447,7 +448,7 @@ bool mlx5e_ktls_handle_tx_skb(struct tls_context *tls_ctx, struct mlx5e_txqsq *s
 
 	priv_tx->expected_seq = seq + datalen;
 
-	*tisn = priv_tx->tisn;
+	state->tls_tisn = priv_tx->tisn;
 
 	stats->tls_encrypted_packets += skb_is_gso(skb) ? skb_shinfo(skb)->gso_segs : 1;
 	stats->tls_encrypted_bytes   += datalen;

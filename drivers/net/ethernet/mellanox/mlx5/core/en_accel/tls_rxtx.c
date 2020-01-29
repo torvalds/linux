@@ -258,7 +258,7 @@ err_out:
 }
 
 bool mlx5e_tls_handle_tx_skb(struct net_device *netdev, struct mlx5e_txqsq *sq,
-			     struct sk_buff *skb, u32 *tisn)
+			     struct sk_buff *skb, struct mlx5e_accel_tx_tls_state *state)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct mlx5e_tls_offload_context_tx *context;
@@ -279,7 +279,7 @@ bool mlx5e_tls_handle_tx_skb(struct net_device *netdev, struct mlx5e_txqsq *sq,
 		goto err_out;
 
 	if (MLX5_CAP_GEN(sq->channel->mdev, tls_tx))
-		return mlx5e_ktls_handle_tx_skb(tls_ctx, sq, skb, tisn, datalen);
+		return mlx5e_ktls_handle_tx_skb(tls_ctx, sq, skb, datalen, state);
 
 	skb_seq = ntohl(tcp_hdr(skb)->seq);
 	context = mlx5e_get_tls_tx_context(tls_ctx);
@@ -300,6 +300,12 @@ bool mlx5e_tls_handle_tx_skb(struct net_device *netdev, struct mlx5e_txqsq *sq,
 err_out:
 	dev_kfree_skb_any(skb);
 	return false;
+}
+
+void mlx5e_tls_handle_tx_wqe(struct mlx5e_txqsq *sq, struct mlx5_wqe_ctrl_seg *cseg,
+			     struct mlx5e_accel_tx_tls_state *state)
+{
+	cseg->tisn = cpu_to_be32(state->tls_tisn << 8);
 }
 
 static int tls_update_resync_sn(struct net_device *netdev,

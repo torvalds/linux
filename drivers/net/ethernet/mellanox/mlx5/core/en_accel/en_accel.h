@@ -102,35 +102,44 @@ mlx5e_udp_gso_handle_tx_skb(struct sk_buff *skb)
 	udp_hdr(skb)->len = htons(payload_len);
 }
 
-static inline bool mlx5e_accel_handle_tx(struct sk_buff *skb,
-					 struct mlx5e_txqsq *sq,
-					 struct net_device *dev,
-					 struct mlx5e_tx_wqe **wqe,
-					 u16 *pi)
-{
+struct mlx5e_accel_tx_state {
 #ifdef CONFIG_MLX5_EN_TLS
-	u32 tls_tisn = 0;
+	struct mlx5e_accel_tx_tls_state tls;
 #endif
+};
 
+static inline bool mlx5e_accel_tx_begin(struct net_device *dev,
+					struct mlx5e_txqsq *sq,
+					struct sk_buff *skb,
+					struct mlx5e_accel_tx_state *state)
+{
 	if (skb_is_gso(skb) && skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4)
 		mlx5e_udp_gso_handle_tx_skb(skb);
 
 #ifdef CONFIG_MLX5_EN_TLS
 	if (test_bit(MLX5E_SQ_STATE_TLS, &sq->state)) {
 		/* May send SKBs and WQEs. */
-		if (unlikely(!mlx5e_tls_handle_tx_skb(dev, sq, skb, &tls_tisn)))
+		if (unlikely(!mlx5e_tls_handle_tx_skb(dev, sq, skb, &state->tls)))
 			return false;
 	}
+#endif
 
-	*pi = mlx5_wq_cyc_ctr2ix(&sq->wq, sq->pc);
-	*wqe = MLX5E_TX_FETCH_WQE(sq, *pi);
+	return true;
+}
 
-	(*wqe)->ctrl.tisn = cpu_to_be32(tls_tisn << 8);
+static inline bool mlx5e_accel_tx_finish(struct mlx5e_priv *priv,
+					 struct mlx5e_txqsq *sq,
+					 struct sk_buff *skb,
+					 struct mlx5e_tx_wqe *wqe,
+					 struct mlx5e_accel_tx_state *state)
+{
+#ifdef CONFIG_MLX5_EN_TLS
+	mlx5e_tls_handle_tx_wqe(sq, &wqe->ctrl, &state->tls);
 #endif
 
 #ifdef CONFIG_MLX5_EN_IPSEC
 	if (test_bit(MLX5E_SQ_STATE_IPSEC, &sq->state)) {
-		if (unlikely(!mlx5e_ipsec_handle_tx_skb(dev, &(*wqe)->eth, skb)))
+		if (unlikely(!mlx5e_ipsec_handle_tx_skb(priv, &wqe->eth, skb)))
 			return false;
 	}
 #endif

@@ -233,11 +233,10 @@ static void mlx5e_ipsec_set_metadata(struct sk_buff *skb,
 		   ntohs(mdata->content.tx.seq));
 }
 
-bool mlx5e_ipsec_handle_tx_skb(struct net_device *netdev,
+bool mlx5e_ipsec_handle_tx_skb(struct mlx5e_priv *priv,
 			       struct mlx5_wqe_eth_seg *eseg,
 			       struct sk_buff *skb)
 {
-	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct xfrm_offload *xo = xfrm_offload(skb);
 	struct mlx5e_ipsec_metadata *mdata;
 	struct mlx5e_ipsec_sa_entry *sa_entry;
