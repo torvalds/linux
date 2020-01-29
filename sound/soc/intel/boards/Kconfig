@@ -457,6 +457,20 @@ config SND_SOC_INTEL_SOF_RT5682_MACH
 	   with rt5682 codec.
 	   Say Y if you have such a device.
 	   If unsure select "N".
+
+config SND_SOC_INTEL_SOF_PCM512x_MACH
+	tristate "SOF with TI PCM512x codec"
+	depends on I2C && ACPI
+	depends on (SND_SOC_SOF_HDA_AUDIO_CODEC && (MFD_INTEL_LPSS || COMPILE_TEST)) ||\
+		   (SND_SOC_SOF_BAYTRAIL && (X86_INTEL_LPSS || COMPILE_TEST))
+	select SND_SOC_PCM512x_I2C
+	select SND_HDA_CODEC_HDMI if SND_SOC_SOF_HDA_AUDIO_CODEC
+	help
+	  This adds support for ASoC machine driver for SOF platforms
+	  with TI PCM512x I2S audio codec.
+	  Say Y or m if you have such a device.
+	  If unsure select "N".
+
 endif ## SND_SOC_SOF_HDA_LINK || SND_SOC_SOF_BAYTRAIL
 
 if (SND_SOC_SOF_COMETLAKE_LP && SND_SOC_SOF_HDA_LINK)
