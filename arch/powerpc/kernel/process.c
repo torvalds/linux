@@ -1634,11 +1634,9 @@ int copy_thread_tls(unsigned long clone_flags, unsigned long usp,
 		p->thread.regs = childregs;
 		childregs->gpr[3] = 0;  /* Result from fork() */
 		if (clone_flags & CLONE_SETTLS) {
-#ifdef CONFIG_PPC64
 			if (!is_32bit_task())
 				childregs->gpr[13] = tls;
 			else
-#endif
 				childregs->gpr[2] = tls;
 		}
 
