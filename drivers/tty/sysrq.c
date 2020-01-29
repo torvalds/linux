@@ -967,8 +967,6 @@ static struct input_handler sysrq_handler = {
 	.id_table	= sysrq_ids,
 };
 
-static bool sysrq_handler_registered;
-
 static inline void sysrq_register_handler(void)
 {
 	int error;
@@ -978,16 +976,11 @@ static inline void sysrq_register_handler(void)
 	error = input_register_handler(&sysrq_handler);
 	if (error)
 		pr_err("Failed to register input handler, error %d", error);
-	else
-		sysrq_handler_registered = true;
 }
 
 static inline void sysrq_unregister_handler(void)
 {
-	if (sysrq_handler_registered) {
-		input_unregister_handler(&sysrq_handler);
-		sysrq_handler_registered = false;
-	}
+	input_unregister_handler(&sysrq_handler);
 }
 
 static int sysrq_reset_seq_param_set(const char *buffer,

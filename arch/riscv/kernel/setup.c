@@ -78,9 +78,5 @@ void __init setup_arch(char **cmdline_p)
 	setup_smp();
 #endif
 
-#ifdef CONFIG_DUMMY_CONSOLE
-	conswitchp = &dummy_con;
-#endif
-
 	riscv_fill_hwcap();
 }

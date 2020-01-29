@@ -161,11 +161,6 @@ struct uart_port {
 	struct uart_icount	icount;			/* statistics */
 
 	struct console		*cons;			/* struct console, if any */
-#if defined(CONFIG_SERIAL_CORE_CONSOLE) || defined(SUPPORT_SYSRQ)
-	unsigned long		sysrq;			/* sysrq timeout */
-	unsigned int		sysrq_ch;		/* char for sysrq */
-#endif
-
 	/* flags must be updated while holding port mutex */
 	upf_t			flags;
 
@@ -244,9 +239,13 @@ struct uart_port {
 	resource_size_t		mapbase;		/* for ioremap */
 	resource_size_t		mapsize;
 	struct device		*dev;			/* parent device */
+
+	unsigned long		sysrq;			/* sysrq timeout */
+	unsigned int		sysrq_ch;		/* char for sysrq */
+	unsigned char		has_sysrq;
+
 	unsigned char		hub6;			/* this should be in the 8250 driver */
 	unsigned char		suspended;
-	unsigned char		unused[2];
 	const char		*name;			/* port name */
 	struct attribute_group	*attr_group;		/* port specific attributes */
 	const struct attribute_group **tty_groups;	/* all attributes (serial core use only) */
@@ -460,81 +459,11 @@ extern void uart_handle_cts_change(struct uart_port *uport,
 extern void uart_insert_char(struct uart_port *port, unsigned int status,
 		 unsigned int overrun, unsigned int ch, unsigned int flag);
 
-#if defined(SUPPORT_SYSRQ) && defined(CONFIG_MAGIC_SYSRQ_SERIAL)
-static inline int
-uart_handle_sysrq_char(struct uart_port *port, unsigned int ch)
-{
-	if (port->sysrq) {
-		if (ch && time_before(jiffies, port->sysrq)) {
-			handle_sysrq(ch);
-			port->sysrq = 0;
-			return 1;
-		}
-		port->sysrq = 0;
-	}
-	return 0;
-}
-static inline int
-uart_prepare_sysrq_char(struct uart_port *port, unsigned int ch)
-{
-	if (port->sysrq) {
-		if (ch && time_before(jiffies, port->sysrq)) {
-			port->sysrq_ch = ch;
-			port->sysrq = 0;
-			return 1;
-		}
-		port->sysrq = 0;
-	}
-	return 0;
-}
-static inline void
-uart_unlock_and_check_sysrq(struct uart_port *port, unsigned long irqflags)
-{
-	int sysrq_ch;
-
-	sysrq_ch = port->sysrq_ch;
-	port->sysrq_ch = 0;
-
-	spin_unlock_irqrestore(&port->lock, irqflags);
-
-	if (sysrq_ch)
-		handle_sysrq(sysrq_ch);
-}
-#else
-static inline int
-uart_handle_sysrq_char(struct uart_port *port, unsigned int ch) { return 0; }
-static inline int
-uart_prepare_sysrq_char(struct uart_port *port, unsigned int ch) { return 0; }
-static inline void
-uart_unlock_and_check_sysrq(struct uart_port *port, unsigned long irqflags)
-{
-	spin_unlock_irqrestore(&port->lock, irqflags);
-}
-#endif
-
-/*
- * We do the SysRQ and SAK checking like this...
- */
-static inline int uart_handle_break(struct uart_port *port)
-{
-	struct uart_state *state = port->state;
-
-	if (port->handle_break)
-		port->handle_break(port);
-
-#ifdef SUPPORT_SYSRQ
-	if (port->cons && port->cons->index == port->line) {
-		if (!port->sysrq) {
-			port->sysrq = jiffies + HZ*5;
-			return 1;
-		}
-		port->sysrq = 0;
-	}
-#endif
-	if (port->flags & UPF_SAK)
-		do_SAK(state->port.tty);
-	return 0;
-}
+extern int uart_handle_sysrq_char(struct uart_port *port, unsigned int ch);
+extern int uart_prepare_sysrq_char(struct uart_port *port, unsigned int ch);
+extern void uart_unlock_and_check_sysrq(struct uart_port *port,
+					unsigned long irqflags);
+extern int uart_handle_break(struct uart_port *port);
 
 /*
  *	UART_ENABLE_MS - determine if port should enable modem status irqs

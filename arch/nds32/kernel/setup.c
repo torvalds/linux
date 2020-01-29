@@ -317,11 +317,6 @@ void __init setup_arch(char **cmdline_p)
 
 	unflatten_and_copy_device_tree();
 
-	if(IS_ENABLED(CONFIG_VT)) {
-		if(IS_ENABLED(CONFIG_DUMMY_CONSOLE))
-			conswitchp = &dummy_con;
-	}
-
 	*cmdline_p = boot_command_line;
 	early_trap_init();
 }
