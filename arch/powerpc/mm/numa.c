@@ -1191,23 +1191,30 @@ static long vphn_get_associativity(unsigned long cpu,
 				VPHN_FLAG_VCPU, associativity);
 
 	switch (rc) {
-	case H_FUNCTION:
-		printk_once(KERN_INFO
-			"VPHN is not supported. Disabling polling...\n");
-		stop_topology_update();
-		break;
-	case H_HARDWARE:
-		printk(KERN_ERR
-			"hcall_vphn() experienced a hardware fault "
-			"preventing VPHN. Disabling polling...\n");
-		stop_topology_update();
-		break;
 	case H_SUCCESS:
 		dbg("VPHN hcall succeeded. Reset polling...\n");
 		timed_topology_update(0);
+		goto out;
+
+	case H_FUNCTION:
+		pr_err_ratelimited("VPHN unsupported. Disabling polling...\n");
+		break;
+	case H_HARDWARE:
+		pr_err_ratelimited("hcall_vphn() experienced a hardware fault "
+			"preventing VPHN. Disabling polling...\n");
+		break;
+	case H_PARAMETER:
+		pr_err_ratelimited("hcall_vphn() was passed an invalid parameter. "
+			"Disabling polling...\n");
+		break;
+	default:
+		pr_err_ratelimited("hcall_vphn() returned %ld. Disabling polling...\n"
+			, rc);
 		break;
 	}
 
+	stop_topology_update();
+out:
 	return rc;
 }
 
