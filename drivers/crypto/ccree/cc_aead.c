@@ -2628,6 +2628,7 @@ static struct cc_crypto_alg *cc_create_aead_alg(struct cc_alg_template *tmpl,
 
 	alg->base.cra_ctxsize = sizeof(struct cc_aead_ctx);
 	alg->base.cra_flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_KERN_DRIVER_ONLY;
+	alg->base.cra_blocksize = tmpl->blocksize;
 	alg->init = cc_aead_init;
 	alg->exit = cc_aead_exit;
 
