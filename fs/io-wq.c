@@ -476,8 +476,7 @@ next:
 		if (work->flags & IO_WQ_WORK_CB)
 			work->func(&work);
 
-		if ((work->flags & IO_WQ_WORK_NEEDS_FILES) &&
-		    current->files != work->files) {
+		if (work->files && current->files != work->files) {
 			task_lock(current);
 			current->files = work->files;
 			task_unlock(current);

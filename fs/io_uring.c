@@ -603,6 +603,8 @@ struct io_op_def {
 	unsigned		unbound_nonreg_file : 1;
 	/* opcode is not supported by this kernel */
 	unsigned		not_supported : 1;
+	/* needs file table */
+	unsigned		file_table : 1;
 };
 
 static const struct io_op_def io_op_defs[] = {
@@ -661,6 +663,7 @@ static const struct io_op_def io_op_defs[] = {
 		.needs_mm		= 1,
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
+		.file_table		= 1,
 	},
 	[IORING_OP_ASYNC_CANCEL] = {},
 	[IORING_OP_LINK_TIMEOUT] = {
@@ -679,12 +682,15 @@ static const struct io_op_def io_op_defs[] = {
 	[IORING_OP_OPENAT] = {
 		.needs_file		= 1,
 		.fd_non_neg		= 1,
+		.file_table		= 1,
 	},
 	[IORING_OP_CLOSE] = {
 		.needs_file		= 1,
+		.file_table		= 1,
 	},
 	[IORING_OP_FILES_UPDATE] = {
 		.needs_mm		= 1,
+		.file_table		= 1,
 	},
 	[IORING_OP_STATX] = {
 		.needs_mm		= 1,
@@ -720,6 +726,7 @@ static const struct io_op_def io_op_defs[] = {
 	[IORING_OP_OPENAT2] = {
 		.needs_file		= 1,
 		.fd_non_neg		= 1,
+		.file_table		= 1,
 	},
 };
 
@@ -732,6 +739,7 @@ static void io_queue_linked_timeout(struct io_kiocb *req);
 static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 				 struct io_uring_files_update *ip,
 				 unsigned nr_args);
+static int io_grab_files(struct io_kiocb *req);
 
 static struct kmem_cache *req_cachep;
 
@@ -2568,10 +2576,8 @@ static int io_openat2(struct io_kiocb *req, struct io_kiocb **nxt,
 	struct file *file;
 	int ret;
 
-	if (force_nonblock) {
-		req->work.flags |= IO_WQ_WORK_NEEDS_FILES;
+	if (force_nonblock)
 		return -EAGAIN;
-	}
 
 	ret = build_open_flags(&req->open.how, &op);
 	if (ret)
@@ -2797,10 +2803,8 @@ static int io_close(struct io_kiocb *req, struct io_kiocb **nxt,
 		return ret;
 
 	/* if the file has a flush method, be safe and punt to async */
-	if (req->close.put_file->f_op->flush && !io_wq_current_is_worker()) {
-		req->work.flags |= IO_WQ_WORK_NEEDS_FILES;
+	if (req->close.put_file->f_op->flush && !io_wq_current_is_worker())
 		goto eagain;
-	}
 
 	/*
 	 * No ->flush(), safely close from here and just punt the
@@ -3244,7 +3248,6 @@ static int io_accept(struct io_kiocb *req, struct io_kiocb **nxt,
 	ret = __io_accept(req, nxt, force_nonblock);
 	if (ret == -EAGAIN && force_nonblock) {
 		req->work.func = io_accept_finish;
-		req->work.flags |= IO_WQ_WORK_NEEDS_FILES;
 		io_put_req(req);
 		return -EAGAIN;
 	}
@@ -3967,10 +3970,8 @@ static int io_files_update(struct io_kiocb *req, bool force_nonblock)
 	struct io_uring_files_update up;
 	int ret;
 
-	if (force_nonblock) {
-		req->work.flags |= IO_WQ_WORK_NEEDS_FILES;
+	if (force_nonblock)
 		return -EAGAIN;
-	}
 
 	up.offset = req->files_update.offset;
 	up.fds = req->files_update.arg;
@@ -3990,6 +3991,12 @@ static int io_req_defer_prep(struct io_kiocb *req,
 			     const struct io_uring_sqe *sqe)
 {
 	ssize_t ret = 0;
+
+	if (io_op_defs[req->opcode].file_table) {
+		ret = io_grab_files(req);
+		if (unlikely(ret))
+			return ret;
+	}
 
 	io_req_work_grab_env(req, &io_op_defs[req->opcode]);
 
@@ -4424,6 +4431,8 @@ static int io_grab_files(struct io_kiocb *req)
 	int ret = -EBADF;
 	struct io_ring_ctx *ctx = req->ctx;
 
+	if (req->work.files)
+		return 0;
 	if (!ctx->ring_file)
 		return -EBADF;
 
@@ -4542,7 +4551,7 @@ again:
 	if (ret == -EAGAIN && (!(req->flags & REQ_F_NOWAIT) ||
 	    (req->flags & REQ_F_MUST_PUNT))) {
 punt:
-		if (req->work.flags & IO_WQ_WORK_NEEDS_FILES) {
+		if (io_op_defs[req->opcode].file_table) {
 			ret = io_grab_files(req);
 			if (ret)
 				goto err;
