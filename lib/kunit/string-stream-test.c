@@ -6,9 +6,10 @@
  * Author: Brendan Higgins <brendanhiggins@google.com>
  */
 
-#include <kunit/string-stream.h>
 #include <kunit/test.h>
 #include <linux/slab.h>
+
+#include "string-stream.h"
 
 static void string_stream_test_empty_on_creation(struct kunit *test)
 {
@@ -49,4 +50,4 @@ static struct kunit_suite string_stream_test_suite = {
 	.name = "string-stream-test",
 	.test_cases = string_stream_test_cases
 };
-kunit_test_suite(string_stream_test_suite);
+kunit_test_suites(&string_stream_test_suite);
