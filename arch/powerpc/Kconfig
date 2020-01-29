@@ -483,7 +483,7 @@ config MPROFILE_KERNEL
 config HOTPLUG_CPU
 	bool "Support for enabling/disabling CPUs"
 	depends on SMP && (PPC_PSERIES || \
-	PPC_PMAC || PPC_POWERNV || FSL_SOC_BOOKE)
+		PPC_PMAC || PPC_POWERNV || FSL_SOC_BOOKE)
 	help
 	  Say Y here to be able to disable and re-enable individual
 	  CPUs at runtime on SMP machines.
