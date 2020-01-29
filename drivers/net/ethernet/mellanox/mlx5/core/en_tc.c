@@ -2073,6 +2073,20 @@ static int mlx5e_flower_parse_meta(struct net_device *filter_dev,
 	return 0;
 }
 
+static bool skip_key_basic(struct net_device *filter_dev,
+			   struct flow_cls_offload *f)
+{
+	/* When doing mpls over udp decap, the user needs to provide
+	 * MPLS_UC as the protocol in order to be able to match on mpls
+	 * label fields.  However, the actual ethertype is IP so we want to
+	 * avoid matching on this, otherwise we'll fail the match.
+	 */
+	if (netif_is_bareudp(filter_dev) && f->common.chain_index == 0)
+		return true;
+
+	return false;
+}
+
 static int __parse_cls_flower(struct mlx5e_priv *priv,
 			      struct mlx5e_tc_flow *flow,
 			      struct mlx5_flow_spec *spec,
@@ -2117,7 +2131,8 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 	      BIT(FLOW_DISSECTOR_KEY_IP)  |
 	      BIT(FLOW_DISSECTOR_KEY_CT) |
 	      BIT(FLOW_DISSECTOR_KEY_ENC_IP) |
-	      BIT(FLOW_DISSECTOR_KEY_ENC_OPTS))) {
+	      BIT(FLOW_DISSECTOR_KEY_ENC_OPTS) |
+	      BIT(FLOW_DISSECTOR_KEY_MPLS))) {
 		NL_SET_ERR_MSG_MOD(extack, "Unsupported key");
 		netdev_warn(priv->netdev, "Unsupported key used: 0x%x\n",
 			    dissector->used_keys);
@@ -2147,7 +2162,8 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 	if (err)
 		return err;
 
-	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_BASIC)) {
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_BASIC) &&
+	    !skip_key_basic(filter_dev, f)) {
 		struct flow_match_basic match;
 
 		flow_rule_match_basic(rule, &match);

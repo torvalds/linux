@@ -73,6 +73,55 @@ static int parse_tunnel(struct mlx5e_priv *priv,
 			void *headers_c,
 			void *headers_v)
 {
+	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
+	struct flow_match_enc_keyid enc_keyid;
+	struct flow_match_mpls match;
+	void *misc2_c;
+	void *misc2_v;
+
+	misc2_c = MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
+			       misc_parameters_2);
+	misc2_v = MLX5_ADDR_OF(fte_match_param, spec->match_value,
+			       misc_parameters_2);
+
+	if (!flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_MPLS))
+		return 0;
+
+	if (!flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_KEYID))
+		return 0;
+
+	flow_rule_match_enc_keyid(rule, &enc_keyid);
+
+	if (!enc_keyid.mask->keyid)
+		return 0;
+
+	if (!(MLX5_CAP_GEN(priv->mdev, flex_parser_protocols) &
+	      MLX5_FLEX_PROTO_CW_MPLS_UDP))
+		return -EOPNOTSUPP;
+
+	flow_rule_match_mpls(rule, &match);
+
+	MLX5_SET(fte_match_set_misc2, misc2_c,
+		 outer_first_mpls_over_udp.mpls_label, match.mask->mpls_label);
+	MLX5_SET(fte_match_set_misc2, misc2_v,
+		 outer_first_mpls_over_udp.mpls_label, match.key->mpls_label);
+
+	MLX5_SET(fte_match_set_misc2, misc2_c,
+		 outer_first_mpls_over_udp.mpls_exp, match.mask->mpls_tc);
+	MLX5_SET(fte_match_set_misc2, misc2_v,
+		 outer_first_mpls_over_udp.mpls_exp, match.key->mpls_tc);
+
+	MLX5_SET(fte_match_set_misc2, misc2_c,
+		 outer_first_mpls_over_udp.mpls_s_bos, match.mask->mpls_bos);
+	MLX5_SET(fte_match_set_misc2, misc2_v,
+		 outer_first_mpls_over_udp.mpls_s_bos, match.key->mpls_bos);
+
+	MLX5_SET(fte_match_set_misc2, misc2_c,
+		 outer_first_mpls_over_udp.mpls_ttl, match.mask->mpls_ttl);
+	MLX5_SET(fte_match_set_misc2, misc2_v,
+		 outer_first_mpls_over_udp.mpls_ttl, match.key->mpls_ttl);
+	spec->match_criteria_enable |= MLX5_MATCH_MISC_PARAMETERS_2;
+
 	return 0;
 }
 
