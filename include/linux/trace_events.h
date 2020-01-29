@@ -354,6 +354,29 @@ extern struct trace_event_file *trace_get_event_file(const char *instance,
 						     const char *event);
 extern void trace_put_event_file(struct trace_event_file *file);
 
+#define MAX_DYNEVENT_CMD_LEN	(2048)
+
+enum dynevent_type {
+	DYNEVENT_TYPE_NONE,
+};
+
+struct dynevent_cmd;
+
+typedef int (*dynevent_create_fn_t)(struct dynevent_cmd *cmd);
+
+struct dynevent_cmd {
+	char			*buf;
+	const char		*event_name;
+	int			maxlen;
+	int			remaining;
+	unsigned int		n_fields;
+	enum dynevent_type	type;
+	dynevent_create_fn_t	run_command;
+	void			*private_data;
+};
+
+extern int dynevent_create(struct dynevent_cmd *cmd);
+
 extern int synth_event_delete(const char *name);
 
 /*
