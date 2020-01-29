@@ -353,6 +353,19 @@ config HWLAT_TRACER
 	 file. Every time a latency is greater than tracing_thresh, it will
 	 be recorded into the ring buffer.
 
+config MMIOTRACE
+	bool "Memory mapped IO tracing"
+	depends on HAVE_MMIOTRACE_SUPPORT && PCI
+	select GENERIC_TRACER
+	help
+	  Mmiotrace traces Memory Mapped I/O access and is meant for
+	  debugging and reverse engineering. It is called from the ioremap
+	  implementation and works via page faults. Tracing is disabled by
+	  default and can be enabled at run-time.
+
+	  See Documentation/trace/mmiotrace.rst.
+	  If you are not helping to develop drivers, say N.
+
 config ENABLE_DEFAULT_TRACERS
 	bool "Trace process context switches and events"
 	depends on !GENERIC_TRACER
@@ -626,19 +639,6 @@ config EVENT_TRACE_TEST_SYSCALLS
 
 	 TBD - enable a way to actually call the syscalls as we test their
 	       events
-
-config MMIOTRACE
-	bool "Memory mapped IO tracing"
-	depends on HAVE_MMIOTRACE_SUPPORT && PCI
-	select GENERIC_TRACER
-	help
-	  Mmiotrace traces Memory Mapped I/O access and is meant for
-	  debugging and reverse engineering. It is called from the ioremap
-	  implementation and works via page faults. Tracing is disabled by
-	  default and can be enabled at run-time.
-
-	  See Documentation/trace/mmiotrace.rst.
-	  If you are not helping to develop drivers, say N.
 
 config TRACING_MAP
 	bool
