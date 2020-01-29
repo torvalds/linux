@@ -146,7 +146,7 @@ Implemented by i2c_smbus_write_word_data()
 
 This is the opposite of the Read Word operation. 16 bits
 of data are written to a device, to the designated register that is
-specified through the Comm byte.::
+specified through the Comm byte::
 
   S Addr Wr [A] Comm [A] DataLow [A] DataHigh [A] P
 
