@@ -141,6 +141,15 @@ menuconfig FTRACE
 
 if FTRACE
 
+config BOOTTIME_TRACING
+	bool "Boot-time Tracing support"
+	depends on BOOT_CONFIG && TRACING
+	default y
+	help
+	  Enable developer to setup ftrace subsystem via supplemental
+	  kernel cmdline at boot time for debugging (tracing) driver
+	  initialization and boot process.
+
 config FUNCTION_TRACER
 	bool "Kernel Function Tracer"
 	depends on HAVE_FUNCTION_TRACER
@@ -605,41 +614,6 @@ config FTRACE_MCOUNT_RECORD
 	depends on DYNAMIC_FTRACE
 	depends on HAVE_FTRACE_MCOUNT_RECORD
 
-config FTRACE_SELFTEST
-	bool
-
-config FTRACE_STARTUP_TEST
-	bool "Perform a startup test on ftrace"
-	depends on GENERIC_TRACER
-	select FTRACE_SELFTEST
-	help
-	  This option performs a series of startup tests on ftrace. On bootup
-	  a series of tests are made to verify that the tracer is
-	  functioning properly. It will do tests on all the configured
-	  tracers of ftrace.
-
-config EVENT_TRACE_STARTUP_TEST
-	bool "Run selftest on trace events"
-	depends on FTRACE_STARTUP_TEST
-	default y
-	help
-	  This option performs a test on all trace events in the system.
-	  It basically just enables each event and runs some code that
-	  will trigger events (not necessarily the event it enables)
-	  This may take some time run as there are a lot of events.
-
-config EVENT_TRACE_TEST_SYSCALLS
-	bool "Run selftest on syscall events"
-	depends on EVENT_TRACE_STARTUP_TEST
-	help
-	 This option will also enable testing every syscall event.
-	 It only enables the event and disables it and runs various loads
-	 with the event enabled. This adds a bit more time for kernel boot
-	 up since it runs this on every system call defined.
-
-	 TBD - enable a way to actually call the syscalls as we test their
-	       events
-
 config TRACING_MAP
 	bool
 	depends on ARCH_HAVE_NMI_SAFE_CMPXCHG
@@ -726,6 +700,81 @@ config RING_BUFFER_BENCHMARK
 
 	  If unsure, say N.
 
+config TRACE_EVAL_MAP_FILE
+       bool "Show eval mappings for trace events"
+       depends on TRACING
+       help
+	The "print fmt" of the trace events will show the enum/sizeof names
+	instead of their values. This can cause problems for user space tools
+	that use this string to parse the raw data as user space does not know
+	how to convert the string to its value.
+
+	To fix this, there's a special macro in the kernel that can be used
+	to convert an enum/sizeof into its value. If this macro is used, then
+	the print fmt strings will be converted to their values.
+
+	If something does not get converted properly, this option can be
+	used to show what enums/sizeof the kernel tried to convert.
+
+	This option is for debugging the conversions. A file is created
+	in the tracing directory called "eval_map" that will show the
+	names matched with their values and what trace event system they
+	belong too.
+
+	Normally, the mapping of the strings to values will be freed after
+	boot up or module load. With this option, they will not be freed, as
+	they are needed for the "eval_map" file. Enabling this option will
+	increase the memory footprint of the running kernel.
+
+	If unsure, say N.
+
+config GCOV_PROFILE_FTRACE
+	bool "Enable GCOV profiling on ftrace subsystem"
+	depends on GCOV_KERNEL
+	help
+	  Enable GCOV profiling on ftrace subsystem for checking
+	  which functions/lines are tested.
+
+	  If unsure, say N.
+
+	  Note that on a kernel compiled with this config, ftrace will
+	  run significantly slower.
+
+config FTRACE_SELFTEST
+	bool
+
+config FTRACE_STARTUP_TEST
+	bool "Perform a startup test on ftrace"
+	depends on GENERIC_TRACER
+	select FTRACE_SELFTEST
+	help
+	  This option performs a series of startup tests on ftrace. On bootup
+	  a series of tests are made to verify that the tracer is
+	  functioning properly. It will do tests on all the configured
+	  tracers of ftrace.
+
+config EVENT_TRACE_STARTUP_TEST
+	bool "Run selftest on trace events"
+	depends on FTRACE_STARTUP_TEST
+	default y
+	help
+	  This option performs a test on all trace events in the system.
+	  It basically just enables each event and runs some code that
+	  will trigger events (not necessarily the event it enables)
+	  This may take some time run as there are a lot of events.
+
+config EVENT_TRACE_TEST_SYSCALLS
+	bool "Run selftest on syscall events"
+	depends on EVENT_TRACE_STARTUP_TEST
+	help
+	 This option will also enable testing every syscall event.
+	 It only enables the event and disables it and runs various loads
+	 with the event enabled. This adds a bit more time for kernel boot
+	 up since it runs this on every system call defined.
+
+	 TBD - enable a way to actually call the syscalls as we test their
+	       events
+
 config RING_BUFFER_STARTUP_TEST
        bool "Ring buffer startup self test"
        depends on RING_BUFFER
@@ -798,55 +847,6 @@ config KPROBE_EVENT_GEN_TEST
 	  for the generated kprobe events.
 
 	  If unsure, say N.
-
-config TRACE_EVAL_MAP_FILE
-       bool "Show eval mappings for trace events"
-       depends on TRACING
-       help
-	The "print fmt" of the trace events will show the enum/sizeof names
-	instead of their values. This can cause problems for user space tools
-	that use this string to parse the raw data as user space does not know
-	how to convert the string to its value.
-
-	To fix this, there's a special macro in the kernel that can be used
-	to convert an enum/sizeof into its value. If this macro is used, then
-	the print fmt strings will be converted to their values.
-
-	If something does not get converted properly, this option can be
-	used to show what enums/sizeof the kernel tried to convert.
-
-	This option is for debugging the conversions. A file is created
-	in the tracing directory called "eval_map" that will show the
-	names matched with their values and what trace event system they
-	belong too.
-
-	Normally, the mapping of the strings to values will be freed after
-	boot up or module load. With this option, they will not be freed, as
-	they are needed for the "eval_map" file. Enabling this option will
-	increase the memory footprint of the running kernel.
-
-	If unsure, say N.
-
-config GCOV_PROFILE_FTRACE
-	bool "Enable GCOV profiling on ftrace subsystem"
-	depends on GCOV_KERNEL
-	help
-	  Enable GCOV profiling on ftrace subsystem for checking
-	  which functions/lines are tested.
-
-	  If unsure, say N.
-
-	  Note that on a kernel compiled with this config, ftrace will
-	  run significantly slower.
-
-config BOOTTIME_TRACING
-	bool "Boot-time Tracing support"
-	depends on BOOT_CONFIG && TRACING
-	default y
-	help
-	  Enable developer to setup ftrace subsystem via supplemental
-	  kernel cmdline at boot time for debugging (tracing) driver
-	  initialization and boot process.
 
 endif # FTRACE
 
