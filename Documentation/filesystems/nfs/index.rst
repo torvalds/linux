@@ -9,3 +9,4 @@ NFS
    pnfs
    rpc-cache
    rpc-server-gss
+   nfs41-server
