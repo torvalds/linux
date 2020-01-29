@@ -424,11 +424,12 @@ void pci_restore_pasid_state(struct pci_dev *pdev)
 int pci_pasid_features(struct pci_dev *pdev)
 {
 	u16 supported;
-	int pasid = pdev->pasid_cap;
+	int pasid;
 
 	if (pdev->is_virtfn)
 		pdev = pci_physfn(pdev);
 
+	pasid = pdev->pasid_cap;
 	if (!pasid)
 		return -EINVAL;
 
@@ -451,11 +452,12 @@ int pci_pasid_features(struct pci_dev *pdev)
 int pci_max_pasids(struct pci_dev *pdev)
 {
 	u16 supported;
-	int pasid = pdev->pasid_cap;
+	int pasid;
 
 	if (pdev->is_virtfn)
 		pdev = pci_physfn(pdev);
 
+	pasid = pdev->pasid_cap;
 	if (!pasid)
 		return -EINVAL;
 
