@@ -423,7 +423,7 @@ static struct dentry *__debugfs_create_file(const char *name, umode_t mode,
  * This function will return a pointer to a dentry if it succeeds.  This
  * pointer must be passed to the debugfs_remove() function when the file is
  * to be removed (no automatic cleanup happens if your module is unloaded,
- * you are responsible here.)  If an error occurs, %ERR_PTR(-ERROR) will be
+ * you are responsible here.)  If an error occurs, ERR_PTR(-ERROR) will be
  * returned.
  *
  * If debugfs is not enabled in the kernel, the value -%ENODEV will be
@@ -502,7 +502,7 @@ EXPORT_SYMBOL_GPL(debugfs_create_file_unsafe);
  * This function will return a pointer to a dentry if it succeeds.  This
  * pointer must be passed to the debugfs_remove() function when the file is
  * to be removed (no automatic cleanup happens if your module is unloaded,
- * you are responsible here.)  If an error occurs, %ERR_PTR(-ERROR) will be
+ * you are responsible here.)  If an error occurs, ERR_PTR(-ERROR) will be
  * returned.
  *
  * If debugfs is not enabled in the kernel, the value -%ENODEV will be
@@ -534,7 +534,7 @@ EXPORT_SYMBOL_GPL(debugfs_create_file_size);
  * This function will return a pointer to a dentry if it succeeds.  This
  * pointer must be passed to the debugfs_remove() function when the file is
  * to be removed (no automatic cleanup happens if your module is unloaded,
- * you are responsible here.)  If an error occurs, %ERR_PTR(-ERROR) will be
+ * you are responsible here.)  If an error occurs, ERR_PTR(-ERROR) will be
  * returned.
  *
  * If debugfs is not enabled in the kernel, the value -%ENODEV will be
@@ -627,7 +627,7 @@ EXPORT_SYMBOL(debugfs_create_automount);
  * This function will return a pointer to a dentry if it succeeds.  This
  * pointer must be passed to the debugfs_remove() function when the symbolic
  * link is to be removed (no automatic cleanup happens if your module is
- * unloaded, you are responsible here.)  If an error occurs, %ERR_PTR(-ERROR)
+ * unloaded, you are responsible here.)  If an error occurs, ERR_PTR(-ERROR)
  * will be returned.
  *
  * If debugfs is not enabled in the kernel, the value -%ENODEV will be
@@ -906,4 +906,3 @@ static int __init debugfs_init(void)
 	return retval;
 }
 core_initcall(debugfs_init);
-

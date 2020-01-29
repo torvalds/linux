@@ -27,16 +27,16 @@
  *	firmware file lookup on storage is avoided. Used for calls where the
  *	file may be too big, or where the driver takes charge of its own
  *	firmware caching mechanism.
- * @FW_OPT_NOFALLBACK: Disable the fallback mechanism. Takes precedence over
- *	&FW_OPT_UEVENT and &FW_OPT_USERHELPER.
+ * @FW_OPT_NOFALLBACK_SYSFS: Disable the sysfs fallback mechanism. Takes
+ *	precedence over &FW_OPT_UEVENT and &FW_OPT_USERHELPER.
  */
 enum fw_opt {
-	FW_OPT_UEVENT =         BIT(0),
-	FW_OPT_NOWAIT =         BIT(1),
-	FW_OPT_USERHELPER =     BIT(2),
-	FW_OPT_NO_WARN =        BIT(3),
-	FW_OPT_NOCACHE =        BIT(4),
-	FW_OPT_NOFALLBACK =     BIT(5),
+	FW_OPT_UEVENT			= BIT(0),
+	FW_OPT_NOWAIT			= BIT(1),
+	FW_OPT_USERHELPER		= BIT(2),
+	FW_OPT_NO_WARN			= BIT(3),
+	FW_OPT_NOCACHE			= BIT(4),
+	FW_OPT_NOFALLBACK_SYSFS		= BIT(5),
 };
 
 enum fw_status {

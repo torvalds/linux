@@ -63,7 +63,7 @@
 #include <linux/lockdep.h>
 #include <linux/kmemleak.h>
 #include <linux/pid_namespace.h>
-#include <linux/device.h>
+#include <linux/device/driver.h>
 #include <linux/kthread.h>
 #include <linux/sched.h>
 #include <linux/sched/init.h>
