@@ -178,7 +178,7 @@ static int append_md_to_backing_file(struct backing_file_context *bfc,
 
 	record_size = le16_to_cpu(record->h_record_size);
 	file_pos = incfs_get_end_offset(bfc->bc_file);
-	record->h_prev_md_offset = bfc->bc_last_md_record_offset;
+	record->h_prev_md_offset = cpu_to_le64(bfc->bc_last_md_record_offset);
 	record->h_next_md_offset = 0;
 	record->h_record_crc = cpu_to_le32(calc_md_crc(record));
 
@@ -281,7 +281,7 @@ int incfs_write_file_attr_to_backing_file(struct backing_file_context *bfc,
 	file_attr.fa_header.h_next_md_offset = cpu_to_le64(0);
 	file_attr.fa_size = cpu_to_le16((u16)value.len);
 	file_attr.fa_offset = cpu_to_le64(value_offset);
-	file_attr.fa_crc = cpu_to_le64(crc);
+	file_attr.fa_crc = cpu_to_le32(crc);
 
 	result = write_to_bf(bfc, value.data, value.len, value_offset, true);
 	if (result)
