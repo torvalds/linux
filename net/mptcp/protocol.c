@@ -28,7 +28,7 @@ static void __mptcp_close(struct sock *sk, long timeout);
 
 static const struct proto_ops *tcp_proto_ops(struct sock *sk)
 {
-#if IS_ENABLED(CONFIG_IPV6)
+#if IS_ENABLED(CONFIG_MPTCP_IPV6)
 	if (sk->sk_family == AF_INET6)
 		return &inet6_stream_ops;
 #endif
