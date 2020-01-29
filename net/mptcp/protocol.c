@@ -644,17 +644,21 @@ static void __mptcp_close(struct sock *sk, long timeout)
 {
 	struct mptcp_subflow_context *subflow, *tmp;
 	struct mptcp_sock *msk = mptcp_sk(sk);
+	LIST_HEAD(conn_list);
 
 	mptcp_token_destroy(msk->token);
 	inet_sk_state_store(sk, TCP_CLOSE);
 
-	list_for_each_entry_safe(subflow, tmp, &msk->conn_list, node) {
+	list_splice_init(&msk->conn_list, &conn_list);
+
+	release_sock(sk);
+
+	list_for_each_entry_safe(subflow, tmp, &conn_list, node) {
 		struct sock *ssk = mptcp_subflow_tcp_sock(subflow);
 
 		__mptcp_close_ssk(sk, ssk, subflow, timeout);
 	}
 
-	release_sock(sk);
 	sk_common_release(sk);
 }
 
