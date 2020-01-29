@@ -192,37 +192,15 @@ static const struct seq_operations seq_applstats_ops = {
 
 // ---------------------------------------------------------------------------
 
-static void *capi_driver_start(struct seq_file *seq, loff_t *pos)
-	__acquires(&capi_drivers_lock)
+/* /proc/capi/drivers is always empty */
+static ssize_t empty_read(struct file *file, char __user *buf,
+			  size_t size, loff_t *off)
 {
-	mutex_lock(&capi_drivers_lock);
-	return seq_list_start(&capi_drivers, *pos);
-}
-
-static void *capi_driver_next(struct seq_file *seq, void *v, loff_t *pos)
-{
-	return seq_list_next(v, &capi_drivers, pos);
-}
-
-static void capi_driver_stop(struct seq_file *seq, void *v)
-	__releases(&capi_drivers_lock)
-{
-	mutex_unlock(&capi_drivers_lock);
-}
-
-static int capi_driver_show(struct seq_file *seq, void *v)
-{
-	struct capi_driver *drv = list_entry(v, struct capi_driver, list);
-
-	seq_printf(seq, "%-32s %s\n", drv->name, drv->revision);
 	return 0;
 }
 
-static const struct seq_operations seq_capi_driver_ops = {
-	.start	= capi_driver_start,
-	.next	= capi_driver_next,
-	.stop	= capi_driver_stop,
-	.show	= capi_driver_show,
+static const struct file_operations empty_fops = {
+	.read	= empty_read,
 };
 
 // ---------------------------------------------------------------------------
@@ -236,10 +214,10 @@ kcapi_proc_init(void)
 	proc_create_seq("capi/contrstats",   0, NULL, &seq_contrstats_ops);
 	proc_create_seq("capi/applications", 0, NULL, &seq_applications_ops);
 	proc_create_seq("capi/applstats",    0, NULL, &seq_applstats_ops);
-	proc_create_seq("capi/driver",       0, NULL, &seq_capi_driver_ops);
+	proc_create("capi/driver",           0, NULL, &empty_fops);
 }
 
-void __exit
+void
 kcapi_proc_exit(void)
 {
 	remove_proc_entry("capi/driver",       NULL);

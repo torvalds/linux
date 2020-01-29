@@ -21,7 +21,7 @@
 #include <linux/sched.h>
 #include <linux/kthread.h>
 
-#include "most/core.h"
+#include "../most.h"
 #include "hal.h"
 #include "errors.h"
 #include "sysfs.h"
@@ -854,8 +854,9 @@ static int dim2_probe(struct platform_device *pdev)
 	dev->most_iface.poison_channel = poison_channel;
 	dev->most_iface.request_netinfo = request_netinfo;
 	dev->most_iface.driver_dev = &pdev->dev;
+	dev->most_iface.dev = &dev->dev;
 	dev->dev.init_name = "dim2_state";
-	dev->dev.parent = &dev->most_iface.dev;
+	dev->dev.parent = &pdev->dev;
 
 	ret = most_register_interface(&dev->most_iface);
 	if (ret) {

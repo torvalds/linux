@@ -109,6 +109,8 @@ patternProperties:
     description: Artesyn Embedded Technologies Inc.
   "^asahi-kasei,.*":
     description: Asahi Kasei Corp.
+  "^asc,.*":
+    description: All Sensors Corporation
   "^aspeed,.*":
     description: ASPEED Technology Inc.
   "^asus,.*":
@@ -717,6 +719,8 @@ patternProperties:
     description: Panasonic Corporation
   "^parade,.*":
     description: Parade Technologies Inc.
+  "^parallax,.*":
+    description: Parallax Inc.
   "^pda,.*":
     description: Precision Design Associates, Inc.
   "^pericom,.*":
