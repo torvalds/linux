@@ -680,16 +680,6 @@ config TRACE_EVENT_INJECT
 
 	  If unsure, say N.
 
-config MMIOTRACE_TEST
-	tristate "Test module for mmiotrace"
-	depends on MMIOTRACE && m
-	help
-	  This is a dumb module for testing mmiotrace. It is very dangerous
-	  as it will write garbage to IO memory starting at a given address.
-	  However, it should be safe to use on e.g. unused portion of VRAM.
-
-	  Say N, unless you absolutely know what you are doing.
-
 config TRACEPOINT_BENCHMARK
 	bool "Add tracepoint that benchmarks tracepoints"
 	help
@@ -759,8 +749,18 @@ config RING_BUFFER_STARTUP_TEST
 
 	 If unsure, say N
 
+config MMIOTRACE_TEST
+	tristate "Test module for mmiotrace"
+	depends on MMIOTRACE && m
+	help
+	  This is a dumb module for testing mmiotrace. It is very dangerous
+	  as it will write garbage to IO memory starting at a given address.
+	  However, it should be safe to use on e.g. unused portion of VRAM.
+
+	  Say N, unless you absolutely know what you are doing.
+
 config PREEMPTIRQ_DELAY_TEST
-	tristate "Preempt / IRQ disable delay thread to test latency tracers"
+	tristate "Test module to create a preempt / IRQ disable delay thread to test latency tracers"
 	depends on m
 	help
 	  Select this option to build a test module that can help test latency
