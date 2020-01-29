@@ -2,14 +2,14 @@
 I2C device driver binding control from user-space
 =================================================
 
-Up to kernel 2.6.32, many i2c drivers used helper macros provided by
+Up to kernel 2.6.32, many I2C drivers used helper macros provided by
 <linux/i2c.h> which created standard module parameters to let the user
-control how the driver would probe i2c buses and attach to devices. These
+control how the driver would probe I2C buses and attach to devices. These
 parameters were known as "probe" (to let the driver probe for an extra
 address), "force" (to forcibly attach the driver to a given device) and
 "ignore" (to prevent a driver from probing a given address).
 
-With the conversion of the i2c subsystem to the standard device driver
+With the conversion of the I2C subsystem to the standard device driver
 binding model, it became clear that these per-module parameters were no
 longer needed, and that a centralized implementation was possible. The new,
 sysfs-based interface is described in the documentation file

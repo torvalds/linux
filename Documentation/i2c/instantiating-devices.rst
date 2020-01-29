@@ -188,7 +188,7 @@ destroyed automatically when the driver which detected them is removed,
 or when the underlying I2C bus is itself destroyed, whichever happens
 first.
 
-Those of you familiar with the i2c subsystem of 2.4 kernels and early 2.6
+Those of you familiar with the I2C subsystem of 2.4 kernels and early 2.6
 kernels will find out that this method 3 is essentially similar to what
 was done there. Two significant differences are:
 
