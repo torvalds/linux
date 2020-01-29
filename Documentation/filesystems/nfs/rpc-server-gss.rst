@@ -1,4 +1,4 @@
-
+=========================================
 rpcsec_gss support for kernel RPC servers
 =========================================
 
@@ -9,14 +9,17 @@ NFSv4.1 and higher don't require the client to act as a server for the
 purposes of authentication.)
 
 RPCGSS is specified in a few IETF documents:
+
  - RFC2203 v1: http://tools.ietf.org/rfc/rfc2203.txt
  - RFC5403 v2: http://tools.ietf.org/rfc/rfc5403.txt
+
 and there is a 3rd version  being proposed:
+
  - http://tools.ietf.org/id/draft-williams-rpcsecgssv3.txt
    (At draft n. 02 at the time of writing)
 
 Background
-----------
+==========
 
 The RPCGSS Authentication method describes a way to perform GSSAPI
 Authentication for NFS.  Although GSSAPI is itself completely mechanism
@@ -29,6 +32,7 @@ depends on GSSAPI extensions that are KRB5 specific.
 GSSAPI is a complex library, and implementing it completely in kernel is
 unwarranted. However GSSAPI operations are fundementally separable in 2
 parts:
+
 - initial context establishment
 - integrity/privacy protection (signing and encrypting of individual
   packets)
@@ -41,7 +45,7 @@ kernel, but leave the initial context establishment to userspace.  We
 need upcalls to request userspace to perform context establishment.
 
 NFS Server Legacy Upcall Mechanism
-----------------------------------
+==================================
 
 The classic upcall mechanism uses a custom text based upcall mechanism
 to talk to a custom daemon called rpc.svcgssd that is provide by the
@@ -62,21 +66,20 @@ groups) due to limitation on the size of the buffer that can be send
 back to the kernel (4KiB).
 
 NFS Server New RPC Upcall Mechanism
------------------------------------
+===================================
 
 The newer upcall mechanism uses RPC over a unix socket to a daemon
 called gss-proxy, implemented by a userspace program called Gssproxy.
 
-The gss_proxy RPC protocol is currently documented here:
-
-	https://fedorahosted.org/gss-proxy/wiki/ProtocolDocumentation
+The gss_proxy RPC protocol is currently documented `here
+<https://fedorahosted.org/gss-proxy/wiki/ProtocolDocumentation>`_.
 
 This upcall mechanism uses the kernel rpc client and connects to the gssproxy
 userspace program over a regular unix socket. The gssproxy protocol does not
 suffer from the size limitations of the legacy protocol.
 
 Negotiating Upcall Mechanisms
------------------------------
+=============================
 
 To provide backward compatibility, the kernel defaults to using the
 legacy mechanism.  To switch to the new mechanism, gss-proxy must bind
