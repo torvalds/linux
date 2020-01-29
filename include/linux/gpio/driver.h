@@ -582,11 +582,6 @@ int gpiochip_irq_domain_activate(struct irq_domain *domain,
 void gpiochip_irq_domain_deactivate(struct irq_domain *domain,
 				    struct irq_data *data);
 
-void gpiochip_set_chained_irqchip(struct gpio_chip *gpiochip,
-		struct irq_chip *irqchip,
-		unsigned int parent_irq,
-		irq_flow_handler_t parent_handler);
-
 void gpiochip_set_nested_irqchip(struct gpio_chip *gpiochip,
 		struct irq_chip *irqchip,
 		unsigned int parent_irq);

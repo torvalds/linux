@@ -1800,7 +1800,7 @@ EXPORT_SYMBOL_GPL(gpiochip_irqchip_irq_valid);
  * gpiochip_set_cascaded_irqchip() - connects a cascaded irqchip to a gpiochip
  * @gc: the gpiochip to set the irqchip chain to
  * @parent_irq: the irq number corresponding to the parent IRQ for this
- * chained irqchip
+ * cascaded irqchip
  * @parent_handler: the parent interrupt handler for the accumulated IRQ
  * coming out of the gpiochip. If the interrupt is nested rather than
  * cascaded, pass NULL in this handler argument
@@ -1841,29 +1841,6 @@ static void gpiochip_set_cascaded_irqchip(struct gpio_chip *gc,
 						 gc);
 	}
 }
-
-/**
- * gpiochip_set_chained_irqchip() - connects a chained irqchip to a gpiochip
- * @gpiochip: the gpiochip to set the irqchip chain to
- * @irqchip: the irqchip to chain to the gpiochip
- * @parent_irq: the irq number corresponding to the parent IRQ for this
- * chained irqchip
- * @parent_handler: the parent interrupt handler for the accumulated IRQ
- * coming out of the gpiochip.
- */
-void gpiochip_set_chained_irqchip(struct gpio_chip *gpiochip,
-				  struct irq_chip *irqchip,
-				  unsigned int parent_irq,
-				  irq_flow_handler_t parent_handler)
-{
-	if (gpiochip->irq.threaded) {
-		chip_err(gpiochip, "tried to chain a threaded gpiochip\n");
-		return;
-	}
-
-	gpiochip_set_cascaded_irqchip(gpiochip, parent_irq, parent_handler);
-}
-EXPORT_SYMBOL_GPL(gpiochip_set_chained_irqchip);
 
 /**
  * gpiochip_set_nested_irqchip() - connects a nested irqchip to a gpiochip

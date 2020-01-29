@@ -560,7 +560,6 @@ static void __maybe_unused madera_pin_dbg_show(struct pinctrl_dev *pctldev,
 		seq_puts(s, " SCHMITT");
 }
 
-
 static const struct pinctrl_ops madera_pin_group_ops = {
 	.get_groups_count = madera_get_groups_count,
 	.get_group_name = madera_get_group_name,
