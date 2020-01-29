@@ -8,8 +8,8 @@ Key to symbols
 ==============
 
 =============== =============================================================
-S     (1 bit) : Start bit
-P     (1 bit) : Stop bit
+S             : Start condition
+P             : Stop condition
 Rd/Wr (1 bit) : Read/Write bit. Rd equals 1, Wr equals 0.
 A, NA (1 bit) : Accept and reverse accept bit.
 Addr  (7 bits): I2C 7 bit address. Note that this can be expanded as usual to
@@ -46,9 +46,9 @@ Combined transactions
 
 This corresponds to i2c_transfer().
 
-They are just like the above transactions, but instead of a stop bit P
-a start bit S is sent and the transaction continues. An example of
-a byte read, followed by a byte write::
+They are just like the above transactions, but instead of a stop
+condition P a start condition S is sent and the transaction continues.
+An example of a byte read, followed by a byte write::
 
   S Addr Rd [A] [Data] NA S Addr Wr [A] Data [A] P
 
@@ -77,8 +77,9 @@ I2C_M_NOSTART:
       S Addr Rd [A] [Data] NA Data [A] P
 
     If you set the I2C_M_NOSTART variable for the first partial message,
-    we do not generate Addr, but we do generate the startbit S. This will
-    probably confuse all other clients on your bus, so don't try this.
+    we do not generate Addr, but we do generate the start condition S.
+    This will probably confuse all other clients on your bus, so don't
+    try this.
 
     This is often used to gather transmits from multiple data buffers in
     system memory into something that appears as a single transfer to the
