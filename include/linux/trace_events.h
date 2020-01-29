@@ -357,6 +357,7 @@ extern void trace_put_event_file(struct trace_event_file *file);
 #define MAX_DYNEVENT_CMD_LEN	(2048)
 
 enum dynevent_type {
+	DYNEVENT_TYPE_SYNTH = 1,
 	DYNEVENT_TYPE_NONE,
 };
 
@@ -378,6 +379,42 @@ struct dynevent_cmd {
 extern int dynevent_create(struct dynevent_cmd *cmd);
 
 extern int synth_event_delete(const char *name);
+
+extern void synth_event_cmd_init(struct dynevent_cmd *cmd,
+				 char *buf, int maxlen);
+
+extern int __synth_event_gen_cmd_start(struct dynevent_cmd *cmd,
+				       const char *name,
+				       struct module *mod, ...);
+
+#define synth_event_gen_cmd_start(cmd, name, mod, ...)	\
+	__synth_event_gen_cmd_start(cmd, name, mod, ## __VA_ARGS__, NULL)
+
+struct synth_field_desc {
+	const char *type;
+	const char *name;
+};
+
+extern int synth_event_gen_cmd_array_start(struct dynevent_cmd *cmd,
+					   const char *name,
+					   struct module *mod,
+					   struct synth_field_desc *fields,
+					   unsigned int n_fields);
+extern int synth_event_create(const char *name,
+			      struct synth_field_desc *fields,
+			      unsigned int n_fields, struct module *mod);
+
+extern int synth_event_add_field(struct dynevent_cmd *cmd,
+				 const char *type,
+				 const char *name);
+extern int synth_event_add_field_str(struct dynevent_cmd *cmd,
+				     const char *type_name);
+extern int synth_event_add_fields(struct dynevent_cmd *cmd,
+				  struct synth_field_desc *fields,
+				  unsigned int n_fields);
+
+#define synth_event_gen_cmd_end(cmd)	\
+	dynevent_create(cmd)
 
 /*
  * Event file flags:
