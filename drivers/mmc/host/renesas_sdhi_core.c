@@ -898,7 +898,6 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 			dev_warn(&host->pdev->dev, "Unknown clock rate for tuning\n");
 
 		host->execute_tuning = renesas_sdhi_execute_tuning;
-		host->select_tuning = renesas_sdhi_select_tuning;
 		host->check_retune = renesas_sdhi_check_scc_error;
 		host->prepare_hs400_tuning =
 			renesas_sdhi_prepare_hs400_tuning;

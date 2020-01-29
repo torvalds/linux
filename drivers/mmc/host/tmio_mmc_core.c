@@ -1300,11 +1300,6 @@ int tmio_mmc_host_runtime_suspend(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(tmio_mmc_host_runtime_suspend);
 
-static bool tmio_mmc_can_retune(struct tmio_mmc_host *host)
-{
-	return host->tap_num && mmc_can_retune(host->mmc);
-}
-
 int tmio_mmc_host_runtime_resume(struct device *dev)
 {
 	struct tmio_mmc_host *host = dev_get_drvdata(dev);
@@ -1321,8 +1316,7 @@ int tmio_mmc_host_runtime_resume(struct device *dev)
 
 	tmio_mmc_enable_dma(host, true);
 
-	if (tmio_mmc_can_retune(host) && host->select_tuning(host))
-		dev_warn(&host->pdev->dev, "Tuning selection failed\n");
+	mmc_retune_needed(host->mmc);
 
 	return 0;
 }

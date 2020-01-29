@@ -183,7 +183,6 @@ struct tmio_mmc_host {
 	 * and mandatory for SDR104.
 	 */
 	int (*execute_tuning)(struct tmio_mmc_host *host, u32 opcode);
-	int (*select_tuning)(struct tmio_mmc_host *host);
 
 	/* Tuning values: 1 for success, 0 for failure */
 	DECLARE_BITMAP(taps, BITS_PER_BYTE * sizeof(long));
