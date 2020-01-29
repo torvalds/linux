@@ -151,6 +151,26 @@ static void show_cpu_summary(struct seq_file *m, void *v)
 	}
 }
 
+static void show_cpu_topology(struct seq_file *m, unsigned long n)
+{
+#ifdef CONFIG_SCHED_TOPOLOGY
+	seq_printf(m, "physical id     : %d\n", topology_physical_package_id(n));
+	seq_printf(m, "core id         : %d\n", topology_core_id(n));
+	seq_printf(m, "book id         : %d\n", topology_book_id(n));
+	seq_printf(m, "drawer id       : %d\n", topology_drawer_id(n));
+	seq_printf(m, "dedicated       : %d\n", topology_cpu_dedicated(n));
+#endif /* CONFIG_SCHED_TOPOLOGY */
+}
+
+static void show_cpu_ids(struct seq_file *m, unsigned long n)
+{
+	struct cpuid *id = &per_cpu(cpu_info.cpu_id, n);
+
+	seq_printf(m, "version         : %02X\n", id->version);
+	seq_printf(m, "identification  : %06X\n", id->ident);
+	seq_printf(m, "machine         : %04X\n", id->machine);
+}
+
 static void show_cpu_mhz(struct seq_file *m, unsigned long n)
 {
 	struct cpu_info *c = per_cpu_ptr(&cpu_info, n);
@@ -171,6 +191,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	if (!machine_has_cpu_mhz)
 		return 0;
 	seq_printf(m, "\ncpu number      : %ld\n", n);
+	show_cpu_topology(m, n);
+	show_cpu_ids(m, n);
 	show_cpu_mhz(m, n);
 	return 0;
 }
