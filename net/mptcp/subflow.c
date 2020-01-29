@@ -186,6 +186,9 @@ static struct sock *subflow_syn_recv_sock(const struct sock *sk,
 
 	pr_debug("listener=%p, req=%p, conn=%p", listener, req, listener->conn);
 
+	if (tcp_rsk(req)->is_mptcp == 0)
+		goto create_child;
+
 	/* if the sk is MP_CAPABLE, we try to fetch the client key */
 	subflow_req = mptcp_subflow_rsk(req);
 	if (subflow_req->mp_capable) {
@@ -769,7 +772,7 @@ static void subflow_ulp_clone(const struct request_sock *req,
 	struct mptcp_subflow_context *old_ctx = mptcp_subflow_ctx(newsk);
 	struct mptcp_subflow_context *new_ctx;
 
-	if (!subflow_req->mp_capable) {
+	if (!tcp_rsk(req)->is_mptcp || !subflow_req->mp_capable) {
 		subflow_ulp_fallback(newsk, old_ctx);
 		return;
 	}

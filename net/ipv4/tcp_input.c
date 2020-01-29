@@ -6637,6 +6637,9 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 
 	af_ops->init_req(req, sk, skb);
 
+	if (IS_ENABLED(CONFIG_MPTCP) && want_cookie)
+		tcp_rsk(req)->is_mptcp = 0;
+
 	if (security_inet_conn_request(sk, skb, req))
 		goto drop_and_free;
 
