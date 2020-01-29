@@ -25,6 +25,7 @@ enum cc_sg_cpy_direct {
 
 struct cc_mlli {
 	cc_sram_addr_t sram_addr;
+	unsigned int mapped_nents;
 	unsigned int nents; //sg nents
 	unsigned int mlli_nents; //mlli nents might be different than the above
 };
