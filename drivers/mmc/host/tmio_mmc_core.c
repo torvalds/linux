@@ -997,34 +997,7 @@ static int tmio_multi_io_quirk(struct mmc_card *card,
 	return blk_size;
 }
 
-static int tmio_mmc_prepare_hs400_tuning(struct mmc_host *mmc,
-					 struct mmc_ios *ios)
-{
-	struct tmio_mmc_host *host = mmc_priv(mmc);
-
-	if (host->prepare_hs400_tuning)
-		host->prepare_hs400_tuning(host);
-
-	return 0;
-}
-
-static void tmio_mmc_hs400_downgrade(struct mmc_host *mmc)
-{
-	struct tmio_mmc_host *host = mmc_priv(mmc);
-
-	if (host->hs400_downgrade)
-		host->hs400_downgrade(host);
-}
-
-static void tmio_mmc_hs400_complete(struct mmc_host *mmc)
-{
-	struct tmio_mmc_host *host = mmc_priv(mmc);
-
-	if (host->hs400_complete)
-		host->hs400_complete(host);
-}
-
-static const struct mmc_host_ops tmio_mmc_ops = {
+static struct mmc_host_ops tmio_mmc_ops = {
 	.request	= tmio_mmc_request,
 	.set_ios	= tmio_mmc_set_ios,
 	.get_ro         = tmio_mmc_get_ro,
@@ -1033,9 +1006,6 @@ static const struct mmc_host_ops tmio_mmc_ops = {
 	.multi_io_quirk	= tmio_multi_io_quirk,
 	.hw_reset	= tmio_mmc_hw_reset,
 	.execute_tuning = tmio_mmc_execute_tuning,
-	.prepare_hs400_tuning = tmio_mmc_prepare_hs400_tuning,
-	.hs400_downgrade = tmio_mmc_hs400_downgrade,
-	.hs400_complete	= tmio_mmc_hs400_complete,
 };
 
 static int tmio_mmc_init_ocr(struct tmio_mmc_host *host)

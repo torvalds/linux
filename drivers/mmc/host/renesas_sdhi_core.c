@@ -321,8 +321,9 @@ static unsigned int renesas_sdhi_init_tuning(struct tmio_mmc_host *host)
 		SH_MOBILE_SDHI_SCC_DTCNTL_TAPNUM_MASK;
 }
 
-static void renesas_sdhi_hs400_complete(struct tmio_mmc_host *host)
+static void renesas_sdhi_hs400_complete(struct mmc_host *mmc)
 {
+	struct tmio_mmc_host *host = mmc_priv(mmc);
 	struct renesas_sdhi *priv = host_to_priv(host);
 
 	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, ~CLK_CTL_SCLKEN &
@@ -376,8 +377,9 @@ static void renesas_sdhi_reset_scc(struct tmio_mmc_host *host,
 				     SH_MOBILE_SDHI_SCC_CKSEL));
 }
 
-static void renesas_sdhi_disable_scc(struct tmio_mmc_host *host)
+static void renesas_sdhi_disable_scc(struct mmc_host *mmc)
 {
+	struct tmio_mmc_host *host = mmc_priv(mmc);
 	struct renesas_sdhi *priv = host_to_priv(host);
 
 	renesas_sdhi_reset_scc(host, priv);
@@ -412,9 +414,12 @@ static void renesas_sdhi_reset_hs400_mode(struct tmio_mmc_host *host,
 			sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
 }
 
-static void renesas_sdhi_prepare_hs400_tuning(struct tmio_mmc_host *host)
+static int renesas_sdhi_prepare_hs400_tuning(struct mmc_host *mmc, struct mmc_ios *ios)
 {
+	struct tmio_mmc_host *host = mmc_priv(mmc);
+
 	renesas_sdhi_reset_hs400_mode(host, host_to_priv(host));
+	return 0;
 }
 
 #define SH_MOBILE_SDHI_MAX_TAP 3
@@ -899,10 +904,9 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 
 		host->execute_tuning = renesas_sdhi_execute_tuning;
 		host->check_retune = renesas_sdhi_check_scc_error;
-		host->prepare_hs400_tuning =
-			renesas_sdhi_prepare_hs400_tuning;
-		host->hs400_downgrade = renesas_sdhi_disable_scc;
-		host->hs400_complete = renesas_sdhi_hs400_complete;
+		host->ops.prepare_hs400_tuning = renesas_sdhi_prepare_hs400_tuning;
+		host->ops.hs400_downgrade = renesas_sdhi_disable_scc;
+		host->ops.hs400_complete = renesas_sdhi_hs400_complete;
 	}
 
 	num_irqs = platform_irq_count(pdev);
