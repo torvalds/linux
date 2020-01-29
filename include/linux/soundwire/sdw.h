@@ -546,7 +546,8 @@ struct sdw_slave_ops {
  * @debugfs: Slave debugfs
  * @node: node for bus list
  * @port_ready: Port ready completion flag for each Slave port
- * @dev_num: Device Number assigned by Bus
+ * @dev_num: Current Device Number, values can be 0 or dev_num_sticky
+ * @dev_num_sticky: one-time static Device Number assigned by Bus
  * @probed: boolean tracking driver state
  * @probe_complete: completion utility to control potential races
  * on startup between driver probe/initialization and SoundWire
@@ -575,6 +576,7 @@ struct sdw_slave {
 	struct list_head node;
 	struct completion *port_ready;
 	u16 dev_num;
+	u16 dev_num_sticky;
 	bool probed;
 	struct completion probe_complete;
 	struct completion enumeration_complete;

@@ -2,7 +2,7 @@ Freescale i.MX6 On-Chip OTP Controller (OCOTP) device tree bindings
 
 This binding represents the on-chip eFuse OTP controller found on
 i.MX6Q/D, i.MX6DL/S, i.MX6SL, i.MX6SX, i.MX6UL, i.MX6ULL/ULZ, i.MX6SLL,
-i.MX7D/S, i.MX7ULP, i.MX8MQ, i.MX8MM and i.MX8MN SoCs.
+i.MX7D/S, i.MX7ULP, i.MX8MQ, i.MX8MM, i.MX8MN and i.MX8MP SoCs.
 
 Required properties:
 - compatible: should be one of
@@ -17,6 +17,7 @@ Required properties:
 	"fsl,imx8mq-ocotp" (i.MX8MQ),
 	"fsl,imx8mm-ocotp" (i.MX8MM),
 	"fsl,imx8mn-ocotp" (i.MX8MN),
+	"fsl,imx8mp-ocotp" (i.MX8MP),
 	followed by "syscon".
 - #address-cells : Should be 1
 - #size-cells : Should be 1
