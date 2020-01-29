@@ -1755,12 +1755,7 @@ static int create_or_delete_synth_event(int argc, char **argv)
 	return ret == -ECANCELED ? -EINVAL : ret;
 }
 
-int synth_event_run_command(const char *command)
-{
-	return trace_run_command(command, create_or_delete_synth_event);
-}
-
-static int synth_event_run_cmd(struct dynevent_cmd *cmd)
+static int synth_event_run_command(struct dynevent_cmd *cmd)
 {
 	struct synth_event *se;
 	int ret;
@@ -1790,7 +1785,7 @@ static int synth_event_run_cmd(struct dynevent_cmd *cmd)
 void synth_event_cmd_init(struct dynevent_cmd *cmd, char *buf, int maxlen)
 {
 	dynevent_cmd_init(cmd, buf, maxlen, DYNEVENT_TYPE_SYNTH,
-			  synth_event_run_cmd);
+			  synth_event_run_command);
 }
 EXPORT_SYMBOL_GPL(synth_event_cmd_init);
 

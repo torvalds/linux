@@ -125,37 +125,30 @@ trace_boot_add_kprobe_event(struct xbc_node *node, const char *event)
 #endif
 
 #ifdef CONFIG_HIST_TRIGGERS
-extern int synth_event_run_command(const char *command);
-
 static int __init
 trace_boot_add_synth_event(struct xbc_node *node, const char *event)
 {
+	struct dynevent_cmd cmd;
 	struct xbc_node *anode;
-	char buf[MAX_BUF_LEN], *q;
+	char buf[MAX_BUF_LEN];
 	const char *p;
-	int len, delta, ret;
+	int ret;
 
-	len = ARRAY_SIZE(buf);
-	delta = snprintf(buf, len, "%s", event);
-	if (delta >= len) {
-		pr_err("Event name is too long: %s\n", event);
-		return -E2BIG;
-	}
-	len -= delta; q = buf + delta;
+	synth_event_cmd_init(&cmd, buf, MAX_BUF_LEN);
+
+	ret = synth_event_gen_cmd_start(&cmd, event, NULL);
+	if (ret)
+		return ret;
 
 	xbc_node_for_each_array_value(node, "fields", anode, p) {
-		delta = snprintf(q, len, " %s;", p);
-		if (delta >= len) {
-			pr_err("fields string is too long: %s\n", p);
-			return -E2BIG;
-		}
-		len -= delta; q += delta;
+		ret = synth_event_add_field_str(&cmd, p);
+		if (ret)
+			return ret;
 	}
 
-	ret = synth_event_run_command(buf);
+	ret = synth_event_gen_cmd_end(&cmd);
 	if (ret < 0)
 		pr_err("Failed to add synthetic event: %s\n", buf);
-
 
 	return ret;
 }
