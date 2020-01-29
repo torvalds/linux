@@ -999,6 +999,12 @@ void intel_engine_get_instdone(const struct intel_engine_cs *engine,
 
 		instdone->slice_common =
 			intel_uncore_read(uncore, GEN7_SC_INSTDONE);
+		if (INTEL_GEN(i915) >= 12) {
+			instdone->slice_common_extra[0] =
+				intel_uncore_read(uncore, GEN12_SC_INSTDONE_EXTRA);
+			instdone->slice_common_extra[1] =
+				intel_uncore_read(uncore, GEN12_SC_INSTDONE_EXTRA2);
+		}
 		for_each_instdone_slice_subslice(i915, sseu, slice, subslice) {
 			instdone->sampler[slice][subslice] =
 				read_subslice_reg(engine, slice, subslice,

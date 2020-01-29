@@ -450,6 +450,14 @@ static void error_print_instdone(struct drm_i915_error_state_buf *m,
 		err_printf(m, "  ROW_INSTDONE[%d][%d]: 0x%08x\n",
 			   slice, subslice,
 			   ee->instdone.row[slice][subslice]);
+
+	if (INTEL_GEN(m->i915) < 12)
+		return;
+
+	err_printf(m, "  SC_INSTDONE_EXTRA: 0x%08x\n",
+		   ee->instdone.slice_common_extra[0]);
+	err_printf(m, "  SC_INSTDONE_EXTRA2: 0x%08x\n",
+		   ee->instdone.slice_common_extra[1]);
 }
 
 static void error_print_request(struct drm_i915_error_state_buf *m,

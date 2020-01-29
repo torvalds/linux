@@ -75,6 +75,7 @@ struct intel_instdone {
 	u32 instdone;
 	/* The following exist only in the RCS engine */
 	u32 slice_common;
+	u32 slice_common_extra[2];
 	u32 sampler[I915_MAX_SLICES][I915_MAX_SUBSLICES];
 	u32 row[I915_MAX_SLICES][I915_MAX_SUBSLICES];
 };
