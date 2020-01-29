@@ -111,7 +111,7 @@ static void mlx5e_ipsec_sadb_rx_del(struct mlx5e_ipsec_sa_entry *sa_entry)
 static bool mlx5e_ipsec_update_esn_state(struct mlx5e_ipsec_sa_entry *sa_entry)
 {
 	struct xfrm_replay_state_esn *replay_esn;
-	u32 seq_bottom;
+	u32 seq_bottom = 0;
 	u8 overlap;
 	u32 *esn;
 
@@ -121,7 +121,9 @@ static bool mlx5e_ipsec_update_esn_state(struct mlx5e_ipsec_sa_entry *sa_entry)
 	}
 
 	replay_esn = sa_entry->x->replay_esn;
-	seq_bottom = replay_esn->seq - replay_esn->replay_window + 1;
+	if (replay_esn->seq >= replay_esn->replay_window)
+		seq_bottom = replay_esn->seq - replay_esn->replay_window + 1;
+
 	overlap = sa_entry->esn_state.overlap;
 
 	sa_entry->esn_state.esn = xfrm_replay_seqhi(sa_entry->x,
