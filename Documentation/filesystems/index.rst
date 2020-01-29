@@ -47,4 +47,5 @@ Documentation for filesystem implementations.
    :maxdepth: 2
 
    autofs
+   fuse
    virtiofs
