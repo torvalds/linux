@@ -51,3 +51,4 @@ Documentation for filesystem implementations.
    overlayfs
    virtiofs
    vfat
+   nfs/index
