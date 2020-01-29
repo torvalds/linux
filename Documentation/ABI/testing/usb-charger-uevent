@@ -1,0 +1,46 @@
+What:		Raise a uevent when a USB charger is inserted or removed
+Date:		2020-01-14
+KernelVersion:	5.6
+Contact:	linux-usb@vger.kernel.org
+Description:	There are two USB charger states:
+		USB_CHARGER_ABSENT
+		USB_CHARGER_PRESENT
+		There are five USB charger types:
+		USB_CHARGER_UNKNOWN_TYPE: Charger type is unknown
+		USB_CHARGER_SDP_TYPE: Standard Downstream Port
+		USB_CHARGER_CDP_TYPE: Charging Downstream Port
+		USB_CHARGER_DCP_TYPE: Dedicated Charging Port
+		USB_CHARGER_ACA_TYPE: Accessory Charging Adapter
+		https://www.usb.org/document-library/battery-charging-v12-spec-and-adopters-agreement
+
+		Here are two examples taken using udevadm monitor -p when
+		USB charger is online:
+		UDEV  change   /devices/soc0/usbphynop1 (platform)
+		ACTION=change
+		DEVPATH=/devices/soc0/usbphynop1
+		DRIVER=usb_phy_generic
+		MODALIAS=of:Nusbphynop1T(null)Cusb-nop-xceiv
+		OF_COMPATIBLE_0=usb-nop-xceiv
+		OF_COMPATIBLE_N=1
+		OF_FULLNAME=/usbphynop1
+		OF_NAME=usbphynop1
+		SEQNUM=2493
+		SUBSYSTEM=platform
+		USB_CHARGER_STATE=USB_CHARGER_PRESENT
+		USB_CHARGER_TYPE=USB_CHARGER_SDP_TYPE
+		USEC_INITIALIZED=227422826
+
+		USB charger is offline:
+		KERNEL change   /devices/soc0/usbphynop1 (platform)
+		ACTION=change
+		DEVPATH=/devices/soc0/usbphynop1
+		DRIVER=usb_phy_generic
+		MODALIAS=of:Nusbphynop1T(null)Cusb-nop-xceiv
+		OF_COMPATIBLE_0=usb-nop-xceiv
+		OF_COMPATIBLE_N=1
+		OF_FULLNAME=/usbphynop1
+		OF_NAME=usbphynop1
+		SEQNUM=2494
+		SUBSYSTEM=platform
+		USB_CHARGER_STATE=USB_CHARGER_ABSENT
+		USB_CHARGER_TYPE=USB_CHARGER_UNKNOWN_TYPE

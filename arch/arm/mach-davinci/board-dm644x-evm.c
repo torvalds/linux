@@ -823,6 +823,17 @@ static int davinci_phy_fixup(struct phy_device *phydev)
 
 #define HAS_NAND	IS_ENABLED(CONFIG_MTD_NAND_DAVINCI)
 
+#define GPIO_nVBUS_DRV		160
+
+static struct gpiod_lookup_table dm644evm_usb_gpio_table = {
+	.dev_id = "musb-davinci",
+	.table = {
+		GPIO_LOOKUP("davinci_gpio", GPIO_nVBUS_DRV, NULL,
+			    GPIO_ACTIVE_HIGH),
+		{ }
+	},
+};
+
 static __init void davinci_evm_init(void)
 {
 	int ret;
@@ -875,6 +886,7 @@ static __init void davinci_evm_init(void)
 	dm644x_init_asp();
 
 	/* irlml6401 switches over 1A, in under 8 msec */
+	gpiod_add_lookup_table(&dm644evm_usb_gpio_table);
 	davinci_setup_usb(1000, 8);
 
 	if (IS_BUILTIN(CONFIG_PHYLIB)) {

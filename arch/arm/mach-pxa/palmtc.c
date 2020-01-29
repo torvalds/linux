@@ -23,7 +23,6 @@
 #include <linux/power_supply.h>
 #include <linux/gpio_keys.h>
 #include <linux/mtd/physmap.h>
-#include <linux/usb/gpio_vbus.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -319,22 +318,25 @@ static inline void palmtc_mkp_init(void) {}
  * UDC
  ******************************************************************************/
 #if defined(CONFIG_USB_PXA25X)||defined(CONFIG_USB_PXA25X_MODULE)
-static struct gpio_vbus_mach_info palmtc_udc_info = {
-	.gpio_vbus		= GPIO_NR_PALMTC_USB_DETECT_N,
-	.gpio_vbus_inverted	= 1,
-	.gpio_pullup		= GPIO_NR_PALMTC_USB_POWER,
+static struct gpiod_lookup_table palmtc_udc_gpiod_table = {
+	.dev_id = "gpio-vbus",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", GPIO_NR_PALMTC_USB_DETECT_N,
+			    "vbus", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", GPIO_NR_PALMTC_USB_POWER,
+			    "pullup", GPIO_ACTIVE_HIGH),
+		{ },
+	},
 };
 
 static struct platform_device palmtc_gpio_vbus = {
 	.name	= "gpio-vbus",
 	.id	= -1,
-	.dev	= {
-		.platform_data	= &palmtc_udc_info,
-	},
 };
 
 static void __init palmtc_udc_init(void)
 {
+	gpiod_add_lookup_table(&palmtc_udc_gpiod_table);
 	platform_device_register(&palmtc_gpio_vbus);
 };
 #else

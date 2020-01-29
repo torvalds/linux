@@ -188,7 +188,7 @@ static void dp_altmode_work(struct work_struct *work)
 
 	switch (dp->state) {
 	case DP_STATE_ENTER:
-		ret = typec_altmode_enter(dp->alt);
+		ret = typec_altmode_enter(dp->alt, NULL);
 		if (ret)
 			dev_err(&dp->alt->dev, "failed to enter mode\n");
 		break;
@@ -306,7 +306,8 @@ err_unlock:
 
 static int dp_altmode_activate(struct typec_altmode *alt, int activate)
 {
-	return activate ? typec_altmode_enter(alt) : typec_altmode_exit(alt);
+	return activate ? typec_altmode_enter(alt, NULL) :
+			  typec_altmode_exit(alt);
 }
 
 static const struct typec_altmode_ops dp_altmode_ops = {

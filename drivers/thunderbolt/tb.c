@@ -111,6 +111,10 @@ static void tb_discover_tunnels(struct tb_switch *sw)
 			tunnel = tb_tunnel_discover_pci(tb, port);
 			break;
 
+		case TB_TYPE_USB3_DOWN:
+			tunnel = tb_tunnel_discover_usb3(tb, port);
+			break;
+
 		default:
 			break;
 		}
@@ -156,6 +160,137 @@ static void tb_scan_xdomain(struct tb_port *port)
 		tb_port_at(route, sw)->xdomain = xd;
 		tb_xdomain_add(xd);
 	}
+}
+
+static int tb_enable_tmu(struct tb_switch *sw)
+{
+	int ret;
+
+	/* If it is already enabled in correct mode, don't touch it */
+	if (tb_switch_tmu_is_enabled(sw))
+		return 0;
+
+	ret = tb_switch_tmu_disable(sw);
+	if (ret)
+		return ret;
+
+	ret = tb_switch_tmu_post_time(sw);
+	if (ret)
+		return ret;
+
+	return tb_switch_tmu_enable(sw);
+}
+
+/**
+ * tb_find_unused_port() - return the first inactive port on @sw
+ * @sw: Switch to find the port on
+ * @type: Port type to look for
+ */
+static struct tb_port *tb_find_unused_port(struct tb_switch *sw,
+					   enum tb_port_type type)
+{
+	struct tb_port *port;
+
+	tb_switch_for_each_port(sw, port) {
+		if (tb_is_upstream_port(port))
+			continue;
+		if (port->config.type != type)
+			continue;
+		if (!port->cap_adap)
+			continue;
+		if (tb_port_is_enabled(port))
+			continue;
+		return port;
+	}
+	return NULL;
+}
+
+static struct tb_port *tb_find_usb3_down(struct tb_switch *sw,
+					const struct tb_port *port)
+{
+	struct tb_port *down;
+
+	down = usb4_switch_map_usb3_down(sw, port);
+	if (down) {
+		if (WARN_ON(!tb_port_is_usb3_down(down)))
+			goto out;
+		if (WARN_ON(tb_usb3_port_is_enabled(down)))
+			goto out;
+
+		return down;
+	}
+
+out:
+	return tb_find_unused_port(sw, TB_TYPE_USB3_DOWN);
+}
+
+static int tb_tunnel_usb3(struct tb *tb, struct tb_switch *sw)
+{
+	struct tb_switch *parent = tb_switch_parent(sw);
+	struct tb_port *up, *down, *port;
+	struct tb_cm *tcm = tb_priv(tb);
+	struct tb_tunnel *tunnel;
+
+	up = tb_switch_find_port(sw, TB_TYPE_USB3_UP);
+	if (!up)
+		return 0;
+
+	/*
+	 * Look up available down port. Since we are chaining it should
+	 * be found right above this switch.
+	 */
+	port = tb_port_at(tb_route(sw), parent);
+	down = tb_find_usb3_down(parent, port);
+	if (!down)
+		return 0;
+
+	if (tb_route(parent)) {
+		struct tb_port *parent_up;
+		/*
+		 * Check first that the parent switch has its upstream USB3
+		 * port enabled. Otherwise the chain is not complete and
+		 * there is no point setting up a new tunnel.
+		 */
+		parent_up = tb_switch_find_port(parent, TB_TYPE_USB3_UP);
+		if (!parent_up || !tb_port_is_enabled(parent_up))
+			return 0;
+	}
+
+	tunnel = tb_tunnel_alloc_usb3(tb, up, down);
+	if (!tunnel)
+		return -ENOMEM;
+
+	if (tb_tunnel_activate(tunnel)) {
+		tb_port_info(up,
+			     "USB3 tunnel activation failed, aborting\n");
+		tb_tunnel_free(tunnel);
+		return -EIO;
+	}
+
+	list_add_tail(&tunnel->list, &tcm->tunnel_list);
+	return 0;
+}
+
+static int tb_create_usb3_tunnels(struct tb_switch *sw)
+{
+	struct tb_port *port;
+	int ret;
+
+	if (tb_route(sw)) {
+		ret = tb_tunnel_usb3(sw->tb, sw);
+		if (ret)
+			return ret;
+	}
+
+	tb_switch_for_each_port(sw, port) {
+		if (!tb_port_has_remote(port))
+			continue;
+		ret = tb_create_usb3_tunnels(port->remote->sw);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static void tb_scan_port(struct tb_port *port);
@@ -257,6 +392,18 @@ static void tb_scan_port(struct tb_port *port)
 	if (tb_switch_lane_bonding_enable(sw))
 		tb_sw_warn(sw, "failed to enable lane bonding\n");
 
+	if (tb_enable_tmu(sw))
+		tb_sw_warn(sw, "failed to enable TMU\n");
+
+	/*
+	 * Create USB 3.x tunnels only when the switch is plugged to the
+	 * domain. This is because we scan the domain also during discovery
+	 * and want to discover existing USB 3.x tunnels before we create
+	 * any new.
+	 */
+	if (tcm->hotplug_active && tb_tunnel_usb3(sw->tb, sw))
+		tb_sw_warn(sw, "USB3 tunnel creation failed\n");
+
 	tb_scan_switch(sw);
 }
 
@@ -338,57 +485,18 @@ static void tb_free_unplugged_children(struct tb_switch *sw)
 	}
 }
 
-/**
- * tb_find_port() - return the first port of @type on @sw or NULL
- * @sw: Switch to find the port from
- * @type: Port type to look for
- */
-static struct tb_port *tb_find_port(struct tb_switch *sw,
-				    enum tb_port_type type)
-{
-	struct tb_port *port;
-
-	tb_switch_for_each_port(sw, port) {
-		if (port->config.type == type)
-			return port;
-	}
-
-	return NULL;
-}
-
-/**
- * tb_find_unused_port() - return the first inactive port on @sw
- * @sw: Switch to find the port on
- * @type: Port type to look for
- */
-static struct tb_port *tb_find_unused_port(struct tb_switch *sw,
-					   enum tb_port_type type)
-{
-	struct tb_port *port;
-
-	tb_switch_for_each_port(sw, port) {
-		if (tb_is_upstream_port(port))
-			continue;
-		if (port->config.type != type)
-			continue;
-		if (port->cap_adap)
-			continue;
-		if (tb_port_is_enabled(port))
-			continue;
-		return port;
-	}
-	return NULL;
-}
-
 static struct tb_port *tb_find_pcie_down(struct tb_switch *sw,
 					 const struct tb_port *port)
 {
+	struct tb_port *down = NULL;
+
 	/*
 	 * To keep plugging devices consistently in the same PCIe
-	 * hierarchy, do mapping here for root switch downstream PCIe
-	 * ports.
+	 * hierarchy, do mapping here for switch downstream PCIe ports.
 	 */
-	if (!tb_route(sw)) {
+	if (tb_switch_is_usb4(sw)) {
+		down = usb4_switch_map_pcie_down(sw, port);
+	} else if (!tb_route(sw)) {
 		int phy_port = tb_phy_port_from_link(port->port);
 		int index;
 
@@ -409,12 +517,17 @@ static struct tb_port *tb_find_pcie_down(struct tb_switch *sw,
 		/* Validate the hard-coding */
 		if (WARN_ON(index > sw->config.max_port_number))
 			goto out;
-		if (WARN_ON(!tb_port_is_pcie_down(&sw->ports[index])))
+
+		down = &sw->ports[index];
+	}
+
+	if (down) {
+		if (WARN_ON(!tb_port_is_pcie_down(down)))
 			goto out;
-		if (WARN_ON(tb_pci_port_is_enabled(&sw->ports[index])))
+		if (WARN_ON(tb_pci_port_is_enabled(down)))
 			goto out;
 
-		return &sw->ports[index];
+		return down;
 	}
 
 out:
@@ -586,7 +699,7 @@ static int tb_tunnel_pci(struct tb *tb, struct tb_switch *sw)
 	struct tb_switch *parent_sw;
 	struct tb_tunnel *tunnel;
 
-	up = tb_find_port(sw, TB_TYPE_PCIE_UP);
+	up = tb_switch_find_port(sw, TB_TYPE_PCIE_UP);
 	if (!up)
 		return 0;
 
@@ -624,7 +737,7 @@ static int tb_approve_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
 
 	sw = tb_to_switch(xd->dev.parent);
 	dst_port = tb_port_at(xd->route, sw);
-	nhi_port = tb_find_port(tb->root_switch, TB_TYPE_NHI);
+	nhi_port = tb_switch_find_port(tb->root_switch, TB_TYPE_NHI);
 
 	mutex_lock(&tb->lock);
 	tunnel = tb_tunnel_alloc_dma(tb, nhi_port, dst_port, xd->transmit_ring,
@@ -719,6 +832,7 @@ static void tb_handle_hotplug(struct work_struct *work)
 			tb_sw_set_unplugged(port->remote->sw);
 			tb_free_invalid_tunnels(tb);
 			tb_remove_dp_resources(port->remote->sw);
+			tb_switch_tmu_disable(port->remote->sw);
 			tb_switch_lane_bonding_disable(port->remote->sw);
 			tb_switch_remove(port->remote->sw);
 			port->remote = NULL;
@@ -786,8 +900,7 @@ static void tb_handle_event(struct tb *tb, enum tb_cfg_pkg_type type,
 
 	route = tb_cfg_get_route(&pkg->header);
 
-	if (tb_cfg_error(tb->ctl, route, pkg->port,
-			 TB_CFG_ERROR_ACK_PLUG_EVENT)) {
+	if (tb_cfg_ack_plug(tb->ctl, route, pkg->port, pkg->unplug)) {
 		tb_warn(tb, "could not ack plug event on %llx:%x\n", route,
 			pkg->port);
 	}
@@ -866,10 +979,17 @@ static int tb_start(struct tb *tb)
 		return ret;
 	}
 
+	/* Enable TMU if it is off */
+	tb_switch_tmu_enable(tb->root_switch);
 	/* Full scan to discover devices added before the driver was loaded. */
 	tb_scan_switch(tb->root_switch);
 	/* Find out tunnels created by the boot firmware */
 	tb_discover_tunnels(tb->root_switch);
+	/*
+	 * If the boot firmware did not create USB 3.x tunnels create them
+	 * now for the whole topology.
+	 */
+	tb_create_usb3_tunnels(tb->root_switch);
 	/* Add DP IN resources for the root switch */
 	tb_add_dp_resources(tb->root_switch);
 	/* Make the discovered switches available to the userspace */
@@ -896,6 +1016,9 @@ static int tb_suspend_noirq(struct tb *tb)
 static void tb_restore_children(struct tb_switch *sw)
 {
 	struct tb_port *port;
+
+	if (tb_enable_tmu(sw))
+		tb_sw_warn(sw, "failed to restore TMU configuration\n");
 
 	tb_switch_for_each_port(sw, port) {
 		if (!tb_port_has_remote(port))

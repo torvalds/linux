@@ -77,6 +77,6 @@ obj-$(CONFIG_NTB_NETDEV) += ntb_netdev.o
 obj-$(CONFIG_FUJITSU_ES) += fjes/
 
 thunderbolt-net-y += thunderbolt.o
-obj-$(CONFIG_THUNDERBOLT_NET) += thunderbolt-net.o
+obj-$(CONFIG_USB4_NET) += thunderbolt-net.o
 obj-$(CONFIG_NETDEVSIM) += netdevsim/
 obj-$(CONFIG_NET_FAILOVER) += net_failover.o
