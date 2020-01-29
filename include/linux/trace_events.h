@@ -416,6 +416,32 @@ extern int synth_event_add_fields(struct dynevent_cmd *cmd,
 #define synth_event_gen_cmd_end(cmd)	\
 	dynevent_create(cmd)
 
+struct synth_event;
+
+struct synth_event_trace_state {
+	struct trace_event_buffer fbuffer;
+	struct synth_trace_event *entry;
+	struct trace_buffer *buffer;
+	struct synth_event *event;
+	unsigned int cur_field;
+	unsigned int n_u64;
+	bool enabled;
+	bool add_next;
+	bool add_name;
+};
+
+extern int synth_event_trace(struct trace_event_file *file,
+			     unsigned int n_vals, ...);
+extern int synth_event_trace_array(struct trace_event_file *file, u64 *vals,
+				   unsigned int n_vals);
+extern int synth_event_trace_start(struct trace_event_file *file,
+				   struct synth_event_trace_state *trace_state);
+extern int synth_event_add_next_val(u64 val,
+				    struct synth_event_trace_state *trace_state);
+extern int synth_event_add_val(const char *field_name, u64 val,
+			       struct synth_event_trace_state *trace_state);
+extern int synth_event_trace_end(struct synth_event_trace_state *trace_state);
+
 /*
  * Event file flags:
  *  ENABLED	  - The event is enabled
