@@ -7,7 +7,6 @@
 #include <linux/console.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/delay.h>
 #include <linux/serial_core.h>
 #include <linux/serial_reg.h>
 #include <linux/of_address.h>
@@ -25,28 +24,6 @@ struct of_serial_info {
 	int type;
 	int line;
 };
-
-#ifdef CONFIG_ARCH_TEGRA
-static void tegra_serial_handle_break(struct uart_port *p)
-{
-	unsigned int status, tmout = 10000;
-
-	do {
-		status = p->serial_in(p, UART_LSR);
-		if (status & (UART_LSR_FIFOE | UART_LSR_BRK_ERROR_BITS))
-			status = p->serial_in(p, UART_RX);
-		else
-			break;
-		if (--tmout == 0)
-			break;
-		udelay(1);
-	} while (1);
-}
-#else
-static inline void tegra_serial_handle_break(struct uart_port *port)
-{
-}
-#endif
 
 static int of_8250_rs485_config(struct uart_port *port,
 				  struct serial_rs485 *rs485)
@@ -211,10 +188,6 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 	port->rs485_config = of_8250_rs485_config;
 
 	switch (type) {
-	case PORT_TEGRA:
-		port->handle_break = tegra_serial_handle_break;
-		break;
-
 	case PORT_RT2880:
 		port->iotype = UPIO_AU;
 		break;
@@ -359,7 +332,6 @@ static const struct of_device_id of_platform_serial_table[] = {
 	{ .compatible = "ns16550",  .data = (void *)PORT_16550, },
 	{ .compatible = "ns16750",  .data = (void *)PORT_16750, },
 	{ .compatible = "ns16850",  .data = (void *)PORT_16850, },
-	{ .compatible = "nvidia,tegra20-uart", .data = (void *)PORT_TEGRA, },
 	{ .compatible = "nxp,lpc3220-uart", .data = (void *)PORT_LPC3220, },
 	{ .compatible = "ralink,rt2880-uart", .data = (void *)PORT_RT2880, },
 	{ .compatible = "intel,xscale-uart", .data = (void *)PORT_XSCALE, },
