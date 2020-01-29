@@ -18,6 +18,7 @@
 
 #include <uapi/linux/incrementalfs.h>
 
+#include "vfs.h"
 #include "data_mgmt.h"
 #include "format.h"
 #include "integrity.h"
@@ -173,7 +174,7 @@ static const struct xattr_handler incfs_xattr_handler = {
 	.get = incfs_handler_getxattr,
 };
 
-const struct xattr_handler *incfs_xattr_ops[] = {
+static const struct xattr_handler *incfs_xattr_ops[] = {
 	&incfs_xattr_handler,
 	NULL,
 };
@@ -933,11 +934,11 @@ static int init_new_file(struct mount_info *mi, struct dentry *dentry,
 	struct path path = {};
 	struct file *new_file;
 	int error = 0;
-	struct backing_file_context *bfc = 0;
+	struct backing_file_context *bfc = NULL;
 	u32 block_count;
-	struct mem_range mem_range = {0};
-	struct signature_info *si = 0;
-	struct mtree *hash_tree = 0;
+	struct mem_range mem_range = {NULL};
+	struct signature_info *si = NULL;
+	struct mtree *hash_tree = NULL;
 
 	if (!mi || !dentry || !uuid)
 		return -EFAULT;

@@ -12,7 +12,7 @@
 
 #define INCFS_NODE_FEATURES "features"
 
-struct file_system_type incfs_fs_type = {
+static struct file_system_type incfs_fs_type = {
 	.owner = THIS_MODULE,
 	.name = INCFS_NAME,
 	.mount = incfs_mount_fs,
