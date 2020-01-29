@@ -354,6 +354,8 @@ extern struct trace_event_file *trace_get_event_file(const char *instance,
 						     const char *event);
 extern void trace_put_event_file(struct trace_event_file *file);
 
+extern int synth_event_delete(const char *name);
+
 /*
  * Event file flags:
  *  ENABLED	  - The event is enabled
