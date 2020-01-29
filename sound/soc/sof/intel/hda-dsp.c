@@ -488,33 +488,31 @@ int hda_dsp_set_power_state(struct snd_sof_dev *sdev,
 /*
  * Audio DSP states may transform as below:-
  *
- *                                         D0I3 compatible stream
- *     Runtime    +---------------------+   opened only, timeout
+ *                                         Opportunistic D0I3 in S0
+ *     Runtime    +---------------------+  Delayed D0i3 work timeout
  *     suspend    |                     +--------------------+
- *   +------------+       D0(active)    |                    |
+ *   +------------+       D0I0(active)  |                    |
  *   |            |                     <---------------+    |
- *   |   +-------->                     |               |    |
- *   |   |Runtime +--^--+---------^--+--+ The last      |    |
- *   |   |resume     |  |         |  |    opened D0I3   |    |
- *   |   |           |  |         |  |    compatible    |    |
- *   |   |     resume|  |         |  |    stream closed |    |
- *   |   |      from |  | D3      |  |                  |    |
- *   |   |       D3  |  |suspend  |  | d0i3             |    |
+ *   |   +-------->                     |    New IPC	|    |
+ *   |   |Runtime +--^--+---------^--+--+ (via mailbox)	|    |
+ *   |   |resume     |  |         |  |			|    |
+ *   |   |           |  |         |  |			|    |
+ *   |   |     System|  |         |  |			|    |
+ *   |   |     resume|  | S3/S0IX |  |                  |    |
+ *   |   |	     |  | suspend |  | S0IX             |    |
  *   |   |           |  |         |  |suspend           |    |
  *   |   |           |  |         |  |                  |    |
  *   |   |           |  |         |  |                  |    |
  * +-v---+-----------+--v-------+ |  |           +------+----v----+
  * |                            | |  +----------->                |
- * |       D3 (suspended)       | |              |      D0I3      +-----+
- * |                            | +--------------+                |     |
- * |                            |  resume from   |                |     |
- * +-------------------^--------+  d0i3 suspend  +----------------+     |
- *                     |                                                |
- *                     |                       D3 suspend               |
- *                     +------------------------------------------------+
+ * |       D3 (suspended)       | |              |      D0I3      |
+ * |                            | +--------------+                |
+ * |                            |  System resume |                |
+ * +----------------------------+		 +----------------+
  *
- * d0i3_suspend = s0_suspend && D0I3 stream opened,
- * D3 suspend = !d0i3_suspend,
+ * S0IX suspend: The DSP is in D0I3 if any D0I3-compatible streams
+ *		 ignored the suspend trigger. Otherwise the DSP
+ *		 is in D3.
  */
 
 static int hda_suspend(struct snd_sof_dev *sdev, bool runtime_suspend)
