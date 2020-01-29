@@ -119,14 +119,15 @@ void dcn20_set_mcif_arb_params(
 		display_e2e_pipe_params_st *pipes,
 		int pipe_cnt);
 bool dcn20_validate_bandwidth(struct dc *dc, struct dc_state *context, bool fast_validate);
-void dcn20_merge_pipes_for_validate(
-		struct dc *dc,
-		struct dc_state *context);
 int dcn20_validate_apply_pipe_split_flags(
 		struct dc *dc,
 		struct dc_state *context,
 		int vlevel,
-		bool *split);
+		bool *split,
+		bool *merge);
+void dcn20_release_dsc(struct resource_context *res_ctx,
+			const struct resource_pool *pool,
+			struct display_stream_compressor **dsc);
 bool dcn20_validate_dsc(struct dc *dc, struct dc_state *new_ctx);
 void dcn20_split_stream_for_mpc(
 		struct resource_context *res_ctx,
