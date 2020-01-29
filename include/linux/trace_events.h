@@ -358,6 +358,7 @@ extern void trace_put_event_file(struct trace_event_file *file);
 
 enum dynevent_type {
 	DYNEVENT_TYPE_SYNTH = 1,
+	DYNEVENT_TYPE_KPROBE,
 	DYNEVENT_TYPE_NONE,
 };
 
@@ -441,6 +442,36 @@ extern int synth_event_add_next_val(u64 val,
 extern int synth_event_add_val(const char *field_name, u64 val,
 			       struct synth_event_trace_state *trace_state);
 extern int synth_event_trace_end(struct synth_event_trace_state *trace_state);
+
+extern int kprobe_event_delete(const char *name);
+
+extern void kprobe_event_cmd_init(struct dynevent_cmd *cmd,
+				  char *buf, int maxlen);
+
+#define kprobe_event_gen_cmd_start(cmd, name, loc, ...)			\
+	__kprobe_event_gen_cmd_start(cmd, false, name, loc, ## __VA_ARGS__, NULL)
+
+#define kretprobe_event_gen_cmd_start(cmd, name, loc, ...)		\
+	__kprobe_event_gen_cmd_start(cmd, true, name, loc, ## __VA_ARGS__, NULL)
+
+extern int __kprobe_event_gen_cmd_start(struct dynevent_cmd *cmd,
+					bool kretprobe,
+					const char *name,
+					const char *loc, ...);
+
+#define kprobe_event_add_fields(cmd, ...)	\
+	__kprobe_event_add_fields(cmd, ## __VA_ARGS__, NULL)
+
+#define kprobe_event_add_field(cmd, field)	\
+	__kprobe_event_add_fields(cmd, field, NULL)
+
+extern int __kprobe_event_add_fields(struct dynevent_cmd *cmd, ...);
+
+#define kprobe_event_gen_cmd_end(cmd)		\
+	dynevent_create(cmd)
+
+#define kretprobe_event_gen_cmd_end(cmd)	\
+	dynevent_create(cmd)
 
 /*
  * Event file flags:
