@@ -39,6 +39,13 @@ int sof_set_hw_params_upon_resume(struct device *dev)
 	 */
 	list_for_each_entry(spcm, &sdev->pcm_list, list) {
 		for (dir = 0; dir <= SNDRV_PCM_STREAM_CAPTURE; dir++) {
+			/*
+			 * do not reset hw_params upon resume for streams that
+			 * were kept running during suspend
+			 */
+			if (spcm->stream[dir].suspend_ignored)
+				continue;
+
 			substream = spcm->stream[dir].substream;
 			if (!substream || !substream->runtime)
 				continue;
