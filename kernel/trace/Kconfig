@@ -787,6 +787,18 @@ config SYNTH_EVENT_GEN_TEST
 
 	  If unsure, say N.
 
+config KPROBE_EVENT_GEN_TEST
+	tristate "Test module for in-kernel kprobe event generation"
+	depends on KPROBE_EVENTS
+	help
+          This option creates a test module to check the base
+          functionality of in-kernel kprobe event definition.
+
+          To test, insert the module, and then check the trace buffer
+	  for the generated kprobe events.
+
+	  If unsure, say N.
+
 config TRACE_EVAL_MAP_FILE
        bool "Show eval mappings for trace events"
        depends on TRACING
