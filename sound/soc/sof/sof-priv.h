@@ -54,6 +54,16 @@ extern int sof_core_debug;
 	(IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_ENABLE_DEBUGFS_CACHE) || \
 	 IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_IPC_FLOOD_TEST))
 
+/* DSP power state */
+enum sof_dsp_power_states {
+	SOF_DSP_PM_D0,
+	SOF_DSP_PM_D1,
+	SOF_DSP_PM_D2,
+	SOF_DSP_PM_D3_HOT,
+	SOF_DSP_PM_D3,
+	SOF_DSP_PM_D3_COLD,
+};
+
 /* DSP D0ix sub-state */
 enum sof_d0_substate {
 	SOF_DSP_D0I0 = 0,	/* DSP default D0 substate */

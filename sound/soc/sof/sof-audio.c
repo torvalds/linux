@@ -11,7 +11,7 @@
 #include "sof-audio.h"
 #include "ops.h"
 
-bool snd_sof_dsp_d0i3_on_suspend(struct snd_sof_dev *sdev)
+bool snd_sof_stream_suspend_ignored(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_pcm *spcm;
 
