@@ -21,6 +21,22 @@ config GKI_HIDDEN_REGMAP_CONFIGS
 	  These are normally selected implicitely when a module
 	  that relies on it is configured.
 
+config GKI_HIDDEN_CRYPTO_CONFIGS
+	bool "Hidden CRYPTo configs needed for GKI"
+	select CRYPTO_ENGINE
+	help
+	  Dummy config option used to enable hidden SNDconfigs.
+	  These are normally selected implicitely when a module
+	  that relies on it is configured.
+
+config GKI_HIDDEN_SND_CONFIGS
+	bool "Hidden SND configs needed for GKI"
+	select SND_VMASTER
+	help
+	  Dummy config option used to enable hidden SND configs.
+	  These are normally selected implicitely when a module
+	  that relies on it is configured.
+
 config GKI_HIDDEN_SND_SOC_CONFIGS
 	bool "Hidden SND_SOC configs needed for GKI"
 	select SND_SOC_GENERIC_DMAENGINE_PCM if (SND_SOC && SND)
@@ -107,8 +123,10 @@ config GKI_LEGACY_WEXT_ALLCONFIG
 #
 config GKI_HACKS_TO_FIX
 	bool "GKI Dummy config options"
+	select GKI_HIDDEN_CRYPTO_CONFIGS
 	select GKI_HIDDEN_DRM_CONFIGS
 	select GKI_HIDDEN_REGMAP_CONFIGS
+	select GKI_HIDDEN_SND_CONFIGS
 	select GKI_HIDDEN_SND_SOC_CONFIGS
 	select GKI_HIDDEN_MMC_CONFIGS
 	select GKI_HIDDEN_GPIO_CONFIGS
