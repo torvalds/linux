@@ -88,37 +88,32 @@ trace_boot_enable_events(struct trace_array *tr, struct xbc_node *node)
 }
 
 #ifdef CONFIG_KPROBE_EVENTS
-extern int trace_kprobe_run_command(const char *command);
-
 static int __init
 trace_boot_add_kprobe_event(struct xbc_node *node, const char *event)
 {
+	struct dynevent_cmd cmd;
 	struct xbc_node *anode;
 	char buf[MAX_BUF_LEN];
 	const char *val;
-	char *p;
-	int len;
+	int ret;
 
-	len = snprintf(buf, ARRAY_SIZE(buf) - 1, "p:kprobes/%s ", event);
-	if (len >= ARRAY_SIZE(buf)) {
-		pr_err("Event name is too long: %s\n", event);
-		return -E2BIG;
-	}
-	p = buf + len;
-	len = ARRAY_SIZE(buf) - len;
+	kprobe_event_cmd_init(&cmd, buf, MAX_BUF_LEN);
+
+	ret = kprobe_event_gen_cmd_start(&cmd, event, NULL);
+	if (ret)
+		return ret;
 
 	xbc_node_for_each_array_value(node, "probes", anode, val) {
-		if (strlcpy(p, val, len) >= len) {
-			pr_err("Probe definition is too long: %s\n", val);
-			return -E2BIG;
-		}
-		if (trace_kprobe_run_command(buf) < 0) {
-			pr_err("Failed to add probe: %s\n", buf);
-			return -EINVAL;
-		}
+		ret = kprobe_event_add_field(&cmd, val);
+		if (ret)
+			return ret;
 	}
 
-	return 0;
+	ret = kprobe_event_gen_cmd_end(&cmd);
+	if (ret)
+		pr_err("Failed to add probe: %s\n", buf);
+
+	return ret;
 }
 #else
 static inline int __init

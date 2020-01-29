@@ -901,12 +901,7 @@ static int create_or_delete_trace_kprobe(int argc, char **argv)
 	return ret == -ECANCELED ? -EINVAL : ret;
 }
 
-int trace_kprobe_run_command(const char *command)
-{
-	return trace_run_command(command, create_or_delete_trace_kprobe);
-}
-
-static int trace_kprobe_run_cmd(struct dynevent_cmd *cmd)
+static int trace_kprobe_run_command(struct dynevent_cmd *cmd)
 {
 	return trace_run_command(cmd->buf, create_or_delete_trace_kprobe);
 }
@@ -923,7 +918,7 @@ static int trace_kprobe_run_cmd(struct dynevent_cmd *cmd)
 void kprobe_event_cmd_init(struct dynevent_cmd *cmd, char *buf, int maxlen)
 {
 	dynevent_cmd_init(cmd, buf, maxlen, DYNEVENT_TYPE_KPROBE,
-			  trace_kprobe_run_cmd);
+			  trace_kprobe_run_command);
 }
 EXPORT_SYMBOL_GPL(kprobe_event_cmd_init);
 
