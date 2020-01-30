@@ -231,11 +231,6 @@ struct date_time_t {
 	u16      MilliSecond;
 };
 
-struct dev_info_t {
-	u32      SecSize;    /* sector size in bytes */
-	u32      DevSize;    /* block device size in sectors */
-};
-
 struct vol_info_t {
 	u32      FatType;
 	u32      ClusterSize;
