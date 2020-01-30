@@ -180,7 +180,7 @@ struct device_queue_manager {
 	struct list_head	queues;
 	unsigned int		saved_flags;
 	unsigned int		processes_count;
-	unsigned int		queue_count;
+	unsigned int		active_queue_count;
 	unsigned int		sdma_queue_count;
 	unsigned int		xgmi_sdma_queue_count;
 	unsigned int		total_queue_count;

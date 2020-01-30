@@ -47,7 +47,7 @@ static void pm_calc_rlib_size(struct packet_manager *pm,
 	struct kfd_dev *dev = pm->dqm->dev;
 
 	process_count = pm->dqm->processes_count;
-	queue_count = pm->dqm->queue_count;
+	queue_count = pm->dqm->active_queue_count;
 	compute_queue_count = queue_count - pm->dqm->sdma_queue_count -
 				pm->dqm->xgmi_sdma_queue_count;
 
@@ -141,7 +141,7 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 	pm->ib_size_bytes = alloc_size_bytes;
 
 	pr_debug("Building runlist ib process count: %d queues count %d\n",
-		pm->dqm->processes_count, pm->dqm->queue_count);
+		pm->dqm->processes_count, pm->dqm->active_queue_count);
 
 	/* build the run list ib packet */
 	list_for_each_entry(cur, queues, list) {
