@@ -1934,6 +1934,12 @@ xlog_recover_buffer_pass1(
 	struct list_head	*bucket;
 	struct xfs_buf_cancel	*bcp;
 
+	if (!xfs_buf_log_check_iovec(&item->ri_buf[0])) {
+		xfs_err(log->l_mp, "bad buffer log item size (%d)",
+				item->ri_buf[0].i_len);
+		return -EFSCORRUPTED;
+	}
+
 	/*
 	 * If this isn't a cancel buffer item, then just return.
 	 */
