@@ -775,7 +775,7 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	debug = current->thread.debug;
 	current->thread.debug = vcpu->arch.dbg_reg;
 
-	vcpu->arch.pgdir = current->mm->pgd;
+	vcpu->arch.pgdir = vcpu->kvm->mm->pgd;
 	kvmppc_fix_ee_before_entry();
 
 	ret = __kvmppc_vcpu_run(kvm_run, vcpu);

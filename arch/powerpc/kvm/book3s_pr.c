@@ -2017,6 +2017,7 @@ static int kvm_vm_ioctl_get_smmu_info_pr(struct kvm *kvm,
 {
 	/* We should not get called */
 	BUG();
+	return 0;
 }
 #endif /* CONFIG_PPC64 */
 
