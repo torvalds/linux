@@ -174,15 +174,12 @@ static inline bool mptcp_skb_can_collapse(const struct sk_buff *to,
 
 #endif /* CONFIG_MPTCP */
 
-void mptcp_handle_ipv6_mapped(struct sock *sk, bool mapped);
-
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
 int mptcpv6_init(void);
+void mptcpv6_handle_mapped(struct sock *sk, bool mapped);
 #elif IS_ENABLED(CONFIG_IPV6)
-static inline int mptcpv6_init(void)
-{
-	return 0;
-}
+static inline int mptcpv6_init(void) { return 0; }
+static inline void mptcpv6_handle_mapped(struct sock *sk, bool mapped) { }
 #endif
 
 #endif /* __NET_MPTCP_H */

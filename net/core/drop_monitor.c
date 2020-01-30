@@ -802,16 +802,12 @@ net_dm_hw_metadata_clone(const struct net_dm_hw_metadata *hw_metadata)
 	if (!n_hw_metadata)
 		return NULL;
 
-	trap_group_name = kmemdup(hw_metadata->trap_group_name,
-				  strlen(hw_metadata->trap_group_name) + 1,
-				  GFP_ATOMIC | __GFP_ZERO);
+	trap_group_name = kstrdup(hw_metadata->trap_group_name, GFP_ATOMIC);
 	if (!trap_group_name)
 		goto free_hw_metadata;
 	n_hw_metadata->trap_group_name = trap_group_name;
 
-	trap_name = kmemdup(hw_metadata->trap_name,
-			    strlen(hw_metadata->trap_name) + 1,
-			    GFP_ATOMIC | __GFP_ZERO);
+	trap_name = kstrdup(hw_metadata->trap_name, GFP_ATOMIC);
 	if (!trap_name)
 		goto free_trap_group;
 	n_hw_metadata->trap_name = trap_name;
