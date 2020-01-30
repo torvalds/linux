@@ -642,7 +642,9 @@ out_unlock:
 EXPORT_SYMBOL(__close_fd); /* for ksys_close() */
 
 /*
- * variant of __close_fd that gets a ref on the file for later fput
+ * variant of __close_fd that gets a ref on the file for later fput.
+ * The caller must ensure that filp_close() called on the file, and then
+ * an fput().
  */
 int __close_fd_get_file(unsigned int fd, struct file **res)
 {
@@ -662,7 +664,7 @@ int __close_fd_get_file(unsigned int fd, struct file **res)
 	spin_unlock(&files->file_lock);
 	get_file(file);
 	*res = file;
-	return filp_close(file, files);
+	return 0;
 
 out_unlock:
 	spin_unlock(&files->file_lock);

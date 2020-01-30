@@ -958,7 +958,7 @@ EXPORT_SYMBOL(open_with_fake_path);
 #define WILL_CREATE(flags)	(flags & (O_CREAT | __O_TMPFILE))
 #define O_PATH_FLAGS		(O_DIRECTORY | O_NOFOLLOW | O_PATH | O_CLOEXEC)
 
-static inline struct open_how build_open_how(int flags, umode_t mode)
+inline struct open_how build_open_how(int flags, umode_t mode)
 {
 	struct open_how how = {
 		.flags = flags & VALID_OPEN_FLAGS,
@@ -974,8 +974,7 @@ static inline struct open_how build_open_how(int flags, umode_t mode)
 	return how;
 }
 
-static inline int build_open_flags(const struct open_how *how,
-				   struct open_flags *op)
+inline int build_open_flags(const struct open_how *how, struct open_flags *op)
 {
 	int flags = how->flags;
 	int lookup_flags = 0;
