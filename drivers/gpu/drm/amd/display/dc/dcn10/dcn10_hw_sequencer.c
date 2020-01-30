@@ -2932,6 +2932,7 @@ void dcn10_update_pending_status(struct pipe_ctx *pipe_ctx)
 	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	struct timing_generator *tg = pipe_ctx->stream_res.tg;
 	bool flip_pending;
+	struct dc *dc = plane_state->ctx->dc;
 
 	if (plane_state == NULL)
 		return;
@@ -2948,6 +2949,19 @@ void dcn10_update_pending_status(struct pipe_ctx *pipe_ctx)
 			tg->funcs->is_stereo_left_eye) {
 		plane_state->status.is_right_eye =
 				!tg->funcs->is_stereo_left_eye(pipe_ctx->stream_res.tg);
+	}
+
+	if (dc->hwseq->wa_state.disallow_self_refresh_during_multi_plane_transition_applied) {
+		struct dce_hwseq *hwseq = dc->hwseq;
+		struct timing_generator *tg = dc->res_pool->timing_generators[0];
+		unsigned int cur_frame = tg->funcs->get_frame_count(tg);
+
+		if (cur_frame != hwseq->wa_state.disallow_self_refresh_during_multi_plane_transition_applied_on_frame) {
+			struct hubbub *hubbub = dc->res_pool->hubbub;
+
+			hubbub->funcs->allow_self_refresh_control(hubbub, !dc->debug.disable_stutter);
+			hwseq->wa_state.disallow_self_refresh_during_multi_plane_transition_applied = false;
+		}
 	}
 }
 

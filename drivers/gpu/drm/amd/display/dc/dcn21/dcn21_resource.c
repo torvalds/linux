@@ -1564,6 +1564,7 @@ static struct dce_hwseq *dcn21_hwseq_create(
 		hws->shifts = &hwseq_shift;
 		hws->masks = &hwseq_mask;
 		hws->wa.DEGVIDCN21 = true;
+		hws->wa.disallow_self_refresh_during_multi_plane_transition = true;
 	}
 	return hws;
 }

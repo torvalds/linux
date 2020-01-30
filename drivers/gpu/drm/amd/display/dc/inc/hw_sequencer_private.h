@@ -40,10 +40,13 @@ struct dce_hwseq_wa {
 	bool false_optc_underflow;
 	bool DEGVIDCN10_254;
 	bool DEGVIDCN21;
+	bool disallow_self_refresh_during_multi_plane_transition;
 };
 
 struct hwseq_wa_state {
 	bool DEGVIDCN10_253_applied;
+	bool disallow_self_refresh_during_multi_plane_transition_applied;
+	unsigned int disallow_self_refresh_during_multi_plane_transition_applied_on_frame;
 };
 
 struct pipe_ctx;

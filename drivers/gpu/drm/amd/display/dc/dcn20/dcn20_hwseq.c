@@ -1584,6 +1584,7 @@ void dcn20_post_unlock_program_front_end(
 {
 	int i;
 	const unsigned int TIMEOUT_FOR_PIPE_ENABLE_MS = 100;
+	struct dce_hwseq *hwseq = dc->hwseq;
 
 	DC_LOGGER_INIT(dc->ctx->logger);
 
@@ -1611,8 +1612,24 @@ void dcn20_post_unlock_program_front_end(
 	}
 
 	/* WA to apply WM setting*/
-	if (dc->hwseq->wa.DEGVIDCN21)
+	if (hwseq->wa.DEGVIDCN21)
 		dc->res_pool->hubbub->funcs->apply_DEDCN21_147_wa(dc->res_pool->hubbub);
+
+
+	/* WA for stutter underflow during MPO transitions when adding 2nd plane */
+	if (hwseq->wa.disallow_self_refresh_during_multi_plane_transition) {
+
+		if (dc->current_state->stream_status[0].plane_count == 1 &&
+				context->stream_status[0].plane_count > 1) {
+
+			struct timing_generator *tg = dc->res_pool->timing_generators[0];
+
+			dc->res_pool->hubbub->funcs->allow_self_refresh_control(dc->res_pool->hubbub, false);
+
+			hwseq->wa_state.disallow_self_refresh_during_multi_plane_transition_applied = true;
+			hwseq->wa_state.disallow_self_refresh_during_multi_plane_transition_applied_on_frame = tg->funcs->get_frame_count(tg);
+		}
+	}
 }
 
 void dcn20_prepare_bandwidth(
