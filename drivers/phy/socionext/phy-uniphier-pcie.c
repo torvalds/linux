@@ -19,6 +19,10 @@
 #include <linux/resource.h>
 
 /* PHY */
+#define PCL_PHY_CLKCTRL		0x0000
+#define PORT_SEL_MASK		GENMASK(11, 9)
+#define PORT_SEL_1		FIELD_PREP(PORT_SEL_MASK, 1)
+
 #define PCL_PHY_TEST_I		0x2000
 #define PCL_PHY_TEST_O		0x2004
 #define TESTI_DAT_MASK		GENMASK(13, 6)
@@ -45,13 +49,14 @@
 struct uniphier_pciephy_priv {
 	void __iomem *base;
 	struct device *dev;
-	struct clk *clk;
-	struct reset_control *rst;
+	struct clk *clk, *clk_gio;
+	struct reset_control *rst, *rst_gio;
 	const struct uniphier_pciephy_soc_data *data;
 };
 
 struct uniphier_pciephy_soc_data {
 	bool has_syscon;
+	bool is_legacy;
 };
 
 static void uniphier_pciephy_testio_write(struct uniphier_pciephy_priv *priv,
@@ -111,15 +116,34 @@ static void uniphier_pciephy_deassert(struct uniphier_pciephy_priv *priv)
 static int uniphier_pciephy_init(struct phy *phy)
 {
 	struct uniphier_pciephy_priv *priv = phy_get_drvdata(phy);
+	u32 val;
 	int ret;
 
 	ret = clk_prepare_enable(priv->clk);
 	if (ret)
 		return ret;
 
-	ret = reset_control_deassert(priv->rst);
+	ret = clk_prepare_enable(priv->clk_gio);
 	if (ret)
 		goto out_clk_disable;
+
+	ret = reset_control_deassert(priv->rst);
+	if (ret)
+		goto out_clk_gio_disable;
+
+	ret = reset_control_deassert(priv->rst_gio);
+	if (ret)
+		goto out_rst_assert;
+
+	/* support only 1 port */
+	val = readl(priv->base + PCL_PHY_CLKCTRL);
+	val &= ~PORT_SEL_MASK;
+	val |= PORT_SEL_1;
+	writel(val, priv->base + PCL_PHY_CLKCTRL);
+
+	/* legacy controller doesn't have phy_reset and parameters */
+	if (priv->data->is_legacy)
+		return 0;
 
 	uniphier_pciephy_set_param(priv, PCL_PHY_R00,
 				   RX_EQ_ADJ_EN, RX_EQ_ADJ_EN);
@@ -134,6 +158,10 @@ static int uniphier_pciephy_init(struct phy *phy)
 
 	return 0;
 
+out_rst_assert:
+	reset_control_assert(priv->rst);
+out_clk_gio_disable:
+	clk_disable_unprepare(priv->clk_gio);
 out_clk_disable:
 	clk_disable_unprepare(priv->clk);
 
@@ -144,8 +172,11 @@ static int uniphier_pciephy_exit(struct phy *phy)
 {
 	struct uniphier_pciephy_priv *priv = phy_get_drvdata(phy);
 
-	uniphier_pciephy_assert(priv);
+	if (!priv->data->is_legacy)
+		uniphier_pciephy_assert(priv);
+	reset_control_assert(priv->rst_gio);
 	reset_control_assert(priv->rst);
+	clk_disable_unprepare(priv->clk_gio);
 	clk_disable_unprepare(priv->clk);
 
 	return 0;
@@ -179,13 +210,32 @@ static int uniphier_pciephy_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
-	priv->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(priv->clk))
-		return PTR_ERR(priv->clk);
+	if (priv->data->is_legacy) {
+		priv->clk_gio = devm_clk_get(dev, "gio");
+		if (IS_ERR(priv->clk_gio))
+			return PTR_ERR(priv->clk_gio);
 
-	priv->rst = devm_reset_control_get_shared(dev, NULL);
-	if (IS_ERR(priv->rst))
-		return PTR_ERR(priv->rst);
+		priv->rst_gio =
+			devm_reset_control_get_shared(dev, "gio");
+		if (IS_ERR(priv->rst_gio))
+			return PTR_ERR(priv->rst_gio);
+
+		priv->clk = devm_clk_get(dev, "link");
+		if (IS_ERR(priv->clk))
+			return PTR_ERR(priv->clk);
+
+		priv->rst = devm_reset_control_get_shared(dev, "link");
+		if (IS_ERR(priv->rst))
+			return PTR_ERR(priv->rst);
+	} else {
+		priv->clk = devm_clk_get(dev, NULL);
+		if (IS_ERR(priv->clk))
+			return PTR_ERR(priv->clk);
+
+		priv->rst = devm_reset_control_get_shared(dev, NULL);
+		if (IS_ERR(priv->rst))
+			return PTR_ERR(priv->rst);
+	}
 
 	phy = devm_phy_create(dev, dev->of_node, &uniphier_pciephy_ops);
 	if (IS_ERR(phy))
@@ -203,15 +253,26 @@ static int uniphier_pciephy_probe(struct platform_device *pdev)
 	return PTR_ERR_OR_ZERO(phy_provider);
 }
 
+static const struct uniphier_pciephy_soc_data uniphier_pro5_data = {
+	.has_syscon = false,
+	.is_legacy = true,
+};
+
 static const struct uniphier_pciephy_soc_data uniphier_ld20_data = {
 	.has_syscon = true,
+	.is_legacy = false,
 };
 
 static const struct uniphier_pciephy_soc_data uniphier_pxs3_data = {
 	.has_syscon = false,
+	.is_legacy = false,
 };
 
 static const struct of_device_id uniphier_pciephy_match[] = {
+	{
+		.compatible = "socionext,uniphier-pro5-pcie-phy",
+		.data = &uniphier_pro5_data,
+	},
 	{
 		.compatible = "socionext,uniphier-ld20-pcie-phy",
 		.data = &uniphier_ld20_data,
