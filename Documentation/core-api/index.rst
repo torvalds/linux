@@ -40,6 +40,7 @@ Core utilities
    gcc-plugins
    symbol-namespaces
    padata
+   ioctl
 
 
 Interfaces for kernel debugging
