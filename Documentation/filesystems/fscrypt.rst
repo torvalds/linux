@@ -1016,9 +1016,9 @@ astute users may notice some differences in behavior:
 - Direct I/O is not supported on encrypted files.  Attempts to use
   direct I/O on such files will fall back to buffered I/O.
 
-- The fallocate operations FALLOC_FL_COLLAPSE_RANGE,
-  FALLOC_FL_INSERT_RANGE, and FALLOC_FL_ZERO_RANGE are not supported
-  on encrypted files and will fail with EOPNOTSUPP.
+- The fallocate operations FALLOC_FL_COLLAPSE_RANGE and
+  FALLOC_FL_INSERT_RANGE are not supported on encrypted files and will
+  fail with EOPNOTSUPP.
 
 - Online defragmentation of encrypted files is not supported.  The
   EXT4_IOC_MOVE_EXT and F2FS_IOC_MOVE_RANGE ioctls will fail with

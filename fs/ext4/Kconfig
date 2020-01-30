@@ -4,12 +4,7 @@
 # kernels after the removal of ext3 driver.
 config EXT3_FS
 	tristate "The Extended 3 (ext3) filesystem"
-	# These must match EXT4_FS selects...
 	select EXT4_FS
-	select JBD2
-	select CRC16
-	select CRYPTO
-	select CRYPTO_CRC32C
 	help
 	  This config option is here only for backward compatibility. ext3
 	  filesystem is now handled by the ext4 driver.
@@ -33,7 +28,6 @@ config EXT3_FS_SECURITY
 
 config EXT4_FS
 	tristate "The Extended 4 (ext4) filesystem"
-	# Please update EXT3_FS selects when changing these
 	select JBD2
 	select CRC16
 	select CRYPTO
