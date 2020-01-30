@@ -176,7 +176,7 @@ TRACE_EVENT(generic_add_lease,
 	TP_STRUCT__entry(
 		__field(unsigned long, i_ino)
 		__field(int, wcount)
-		__field(int, dcount)
+		__field(int, rcount)
 		__field(int, icount)
 		__field(dev_t, s_dev)
 		__field(fl_owner_t, fl_owner)
@@ -188,16 +188,16 @@ TRACE_EVENT(generic_add_lease,
 		__entry->s_dev = inode->i_sb->s_dev;
 		__entry->i_ino = inode->i_ino;
 		__entry->wcount = atomic_read(&inode->i_writecount);
-		__entry->dcount = d_count(fl->fl_file->f_path.dentry);
+		__entry->rcount = atomic_read(&inode->i_readcount);
 		__entry->icount = atomic_read(&inode->i_count);
-		__entry->fl_owner = fl ? fl->fl_owner : NULL;
-		__entry->fl_flags = fl ? fl->fl_flags : 0;
-		__entry->fl_type = fl ? fl->fl_type : 0;
+		__entry->fl_owner = fl->fl_owner;
+		__entry->fl_flags = fl->fl_flags;
+		__entry->fl_type = fl->fl_type;
 	),
 
-	TP_printk("dev=0x%x:0x%x ino=0x%lx wcount=%d dcount=%d icount=%d fl_owner=0x%p fl_flags=%s fl_type=%s",
+	TP_printk("dev=0x%x:0x%x ino=0x%lx wcount=%d rcount=%d icount=%d fl_owner=0x%p fl_flags=%s fl_type=%s",
 		MAJOR(__entry->s_dev), MINOR(__entry->s_dev),
-		__entry->i_ino, __entry->wcount, __entry->dcount,
+		__entry->i_ino, __entry->wcount, __entry->rcount,
 		__entry->icount, __entry->fl_owner,
 		show_fl_flags(__entry->fl_flags),
 		show_fl_type(__entry->fl_type))

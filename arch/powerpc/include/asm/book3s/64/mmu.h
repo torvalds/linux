@@ -206,7 +206,6 @@ extern int mmu_io_psize;
 void mmu_early_init_devtree(void);
 void hash__early_init_devtree(void);
 void radix__early_init_devtree(void);
-extern void radix_init_native(void);
 extern void hash__early_init_mmu(void);
 extern void radix__early_init_mmu(void);
 static inline void early_init_mmu(void)
@@ -237,9 +236,6 @@ static inline void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 	return hash__setup_initial_memory_limit(first_memblock_base,
 					   first_memblock_size);
 }
-
-extern int (*register_process_table)(unsigned long base, unsigned long page_size,
-				     unsigned long tbl_size);
 
 #ifdef CONFIG_PPC_PSERIES
 extern void radix_init_pseries(void);

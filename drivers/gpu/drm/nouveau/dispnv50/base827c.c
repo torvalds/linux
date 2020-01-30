@@ -25,12 +25,21 @@ static void
 base827c_image_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
 	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 10))) {
+	if ((push = evo_wait(&wndw->wndw, 13))) {
 		evo_mthd(push, 0x0084, 1);
 		evo_data(push, asyw->image.mode << 8 |
 			       asyw->image.interval << 4);
 		evo_mthd(push, 0x00c0, 1);
 		evo_data(push, asyw->image.handle[0]);
+		if (asyw->image.format == 0xca) {
+			evo_mthd(push, 0x0110, 2);
+			evo_data(push, 1);
+			evo_data(push, 0x6400);
+		} else {
+			evo_mthd(push, 0x0110, 2);
+			evo_data(push, 0);
+			evo_data(push, 0);
+		}
 		evo_mthd(push, 0x0800, 5);
 		evo_data(push, asyw->image.offset[0] >> 8);
 		evo_data(push, 0x00000000);

@@ -39,4 +39,10 @@ file handle is visible through another file handle).
 One of the most common memory-to-memory device is the codec. Codecs
 are more complicated than most and require additional setup for
 their codec parameters. This is done through codec controls.
-See :ref:`mpeg-controls`.
+See :ref:`mpeg-controls`. More details on how to use codec memory-to-memory
+devices are given in the following sections.
+
+.. toctree::
+    :maxdepth: 1
+
+    dev-decoder

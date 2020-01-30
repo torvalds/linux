@@ -27,6 +27,7 @@
 
 #include "dm_services.h"
 
+#include "include/gpio_interface.h"
 #include "include/gpio_types.h"
 #include "hw_gpio.h"
 #include "hw_hpd.h"
@@ -42,6 +43,8 @@
 	hpd->base.base.ctx
 #define REG(reg)\
 	(hpd->regs->reg)
+
+struct gpio;
 
 static void dal_hw_hpd_construct(
 	struct hw_hpd *pin,
@@ -136,29 +139,29 @@ static void construct(
 	hpd->base.base.funcs = &funcs;
 }
 
-struct hw_gpio_pin *dal_hw_hpd_create(
+void dal_hw_hpd_init(
+	struct hw_hpd **hw_hpd,
 	struct dc_context *ctx,
 	enum gpio_id id,
 	uint32_t en)
 {
-	struct hw_hpd *hpd;
-
-	if (id != GPIO_ID_HPD) {
+	if ((en < GPIO_DDC_LINE_MIN) || (en > GPIO_DDC_LINE_MAX)) {
 		ASSERT_CRITICAL(false);
-		return NULL;
+		*hw_hpd = NULL;
 	}
 
-	if ((en < GPIO_HPD_MIN) || (en > GPIO_HPD_MAX)) {
+	*hw_hpd = kzalloc(sizeof(struct hw_hpd), GFP_KERNEL);
+	if (!*hw_hpd) {
 		ASSERT_CRITICAL(false);
-		return NULL;
+		return;
 	}
 
-	hpd = kzalloc(sizeof(struct hw_hpd), GFP_KERNEL);
-	if (!hpd) {
-		ASSERT_CRITICAL(false);
-		return NULL;
-	}
+	construct(*hw_hpd, id, en, ctx);
+}
 
-	construct(hpd, id, en, ctx);
-	return &hpd->base.base;
+struct hw_gpio_pin *dal_hw_hpd_get_pin(struct gpio *gpio)
+{
+	struct hw_hpd *hw_hpd = dal_gpio_get_hpd(gpio);
+
+	return &hw_hpd->base.base;
 }

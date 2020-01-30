@@ -73,8 +73,6 @@ atomic_t rdma_stat_rq_prod;
 atomic_t rdma_stat_sq_poll;
 atomic_t rdma_stat_sq_prod;
 
-struct workqueue_struct *svc_rdma_wq;
-
 /*
  * This function implements reading and resetting an atomic_t stat
  * variable through read/write to a proc file. Any write to the file
@@ -230,7 +228,6 @@ static struct ctl_table svcrdma_root_table[] = {
 void svc_rdma_cleanup(void)
 {
 	dprintk("SVCRDMA Module Removed, deregister RPC RDMA transport\n");
-	destroy_workqueue(svc_rdma_wq);
 	if (svcrdma_table_header) {
 		unregister_sysctl_table(svcrdma_table_header);
 		svcrdma_table_header = NULL;
@@ -245,10 +242,6 @@ int svc_rdma_init(void)
 	dprintk("\tmax_requests     : %u\n", svcrdma_max_requests);
 	dprintk("\tmax_bc_requests  : %u\n", svcrdma_max_bc_requests);
 	dprintk("\tmax_inline       : %d\n", svcrdma_max_req_size);
-
-	svc_rdma_wq = alloc_workqueue("svc_rdma", 0, 0);
-	if (!svc_rdma_wq)
-		return -ENOMEM;
 
 	if (!svcrdma_table_header)
 		svcrdma_table_header =

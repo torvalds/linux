@@ -68,4 +68,7 @@ void virt_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent);
 void regs_dump(FILE *stream, struct kvm_regs *regs, uint8_t indent);
 void sregs_dump(FILE *stream, struct kvm_sregs *sregs, uint8_t indent);
 
+struct userspace_mem_region *
+memslot2region(struct kvm_vm *vm, uint32_t memslot);
+
 #endif /* SELFTEST_KVM_UTIL_INTERNAL_H */

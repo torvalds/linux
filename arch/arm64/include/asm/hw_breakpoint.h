@@ -10,8 +10,6 @@
 #include <asm/sysreg.h>
 #include <asm/virt.h>
 
-#ifdef __KERNEL__
-
 struct arch_hw_breakpoint_ctrl {
 	u32 __reserved	: 19,
 	len		: 8,
@@ -156,5 +154,4 @@ static inline int get_num_wrps(void)
 						ID_AA64DFR0_WRPS_SHIFT);
 }
 
-#endif	/* __KERNEL__ */
 #endif	/* __ASM_BREAKPOINT_H */

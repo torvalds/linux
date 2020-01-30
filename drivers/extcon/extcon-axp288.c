@@ -121,7 +121,6 @@ static const char * const axp288_pwr_up_down_info[] = {
 	"Last shutdown caused by PMIC UVLO threshold",
 	"Last shutdown caused by SOC initiated cold off",
 	"Last shutdown caused by user pressing the power button",
-	NULL,
 };
 
 /*
@@ -130,17 +129,20 @@ static const char * const axp288_pwr_up_down_info[] = {
  */
 static void axp288_extcon_log_rsi(struct axp288_extcon_info *info)
 {
-	const char * const *rsi;
 	unsigned int val, i, clear_mask = 0;
+	unsigned long bits;
 	int ret;
 
 	ret = regmap_read(info->regmap, AXP288_PS_BOOT_REASON_REG, &val);
-	for (i = 0, rsi = axp288_pwr_up_down_info; *rsi; rsi++, i++) {
-		if (val & BIT(i)) {
-			dev_dbg(info->dev, "%s\n", *rsi);
-			clear_mask |= BIT(i);
-		}
+	if (ret < 0) {
+		dev_err(info->dev, "failed to read reset source indicator\n");
+		return;
 	}
+
+	bits = val & GENMASK(ARRAY_SIZE(axp288_pwr_up_down_info) - 1, 0);
+	for_each_set_bit(i, &bits, ARRAY_SIZE(axp288_pwr_up_down_info))
+		dev_dbg(info->dev, "%s\n", axp288_pwr_up_down_info[i]);
+	clear_mask = bits;
 
 	/* Clear the register value for next reboot (write 1 to clear bit) */
 	regmap_write(info->regmap, AXP288_PS_BOOT_REASON_REG, clear_mask);

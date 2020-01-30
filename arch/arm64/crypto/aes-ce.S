@@ -21,6 +21,9 @@
 	.macro		xts_reload_mask, tmp
 	.endm
 
+	.macro		xts_cts_skip_tw, reg, lbl
+	.endm
+
 	/* preload all round keys */
 	.macro		load_round_keys, rounds, rk
 	cmp		\rounds, #12

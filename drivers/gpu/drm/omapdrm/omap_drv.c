@@ -4,15 +4,21 @@
  * Author: Rob Clark <rob@ti.com>
  */
 
-#include <linux/of.h>
+#include <linux/dma-mapping.h>
+#include <linux/platform_device.h>
 #include <linux/sort.h>
 #include <linux/sys_soc.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_fb_helper.h>
-#include <drm/drm_probe_helper.h>
+#include <drm/drm_file.h>
+#include <drm/drm_ioctl.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_prime.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_vblank.h>
 
 #include "omap_dmm_tiler.h"
 #include "omap_drv.h"
@@ -466,19 +472,19 @@ static int ioctl_gem_info(struct drm_device *dev, void *data,
 
 static const struct drm_ioctl_desc ioctls[DRM_COMMAND_END - DRM_COMMAND_BASE] = {
 	DRM_IOCTL_DEF_DRV(OMAP_GET_PARAM, ioctl_get_param,
-			  DRM_AUTH | DRM_RENDER_ALLOW),
+			  DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(OMAP_SET_PARAM, drm_invalid_op,
 			  DRM_AUTH | DRM_MASTER | DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF_DRV(OMAP_GEM_NEW, ioctl_gem_new,
-			  DRM_AUTH | DRM_RENDER_ALLOW),
+			  DRM_RENDER_ALLOW),
 	/* Deprecated, to be removed. */
 	DRM_IOCTL_DEF_DRV(OMAP_GEM_CPU_PREP, drm_noop,
-			  DRM_AUTH | DRM_RENDER_ALLOW),
+			  DRM_RENDER_ALLOW),
 	/* Deprecated, to be removed. */
 	DRM_IOCTL_DEF_DRV(OMAP_GEM_CPU_FINI, drm_noop,
-			  DRM_AUTH | DRM_RENDER_ALLOW),
+			  DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(OMAP_GEM_INFO, ioctl_gem_info,
-			  DRM_AUTH | DRM_RENDER_ALLOW),
+			  DRM_RENDER_ALLOW),
 };
 
 /*
@@ -513,7 +519,7 @@ static const struct file_operations omapdriver_fops = {
 };
 
 static struct drm_driver omap_drm_driver = {
-	.driver_features = DRIVER_MODESET | DRIVER_GEM  | DRIVER_PRIME |
+	.driver_features = DRIVER_MODESET | DRIVER_GEM  |
 		DRIVER_ATOMIC | DRIVER_RENDER,
 	.open = dev_open,
 	.lastclose = drm_fb_helper_lastclose,

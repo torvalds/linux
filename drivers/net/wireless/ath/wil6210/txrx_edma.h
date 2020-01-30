@@ -366,6 +366,12 @@ static inline u8 wil_rx_status_get_mcs(void *msg)
 			    16, 21);
 }
 
+static inline u8 wil_rx_status_get_cb_mode(void *msg)
+{
+	return WIL_GET_BITS(((struct wil_rx_status_compressed *)msg)->d1,
+			    22, 23);
+}
+
 static inline u16 wil_rx_status_get_flow_id(void *msg)
 {
 	return WIL_GET_BITS(((struct wil_rx_status_compressed *)msg)->d0,
@@ -413,12 +419,6 @@ static inline u8 wil_rx_status_get_tid(void *msg)
 	else
 		/* TID is in bits 0..3 */
 		return val & WIL_RX_EDMA_DLPF_LU_MISS_CID_TID_MASK;
-}
-
-static inline int wil_rx_status_get_desc_rdy_bit(void *msg)
-{
-	return WIL_GET_BITS(((struct wil_rx_status_compressed *)msg)->d0,
-			    31, 31);
 }
 
 static inline int wil_rx_status_get_eop(void *msg) /* EoP = End of Packet */

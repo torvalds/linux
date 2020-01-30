@@ -31,6 +31,8 @@
 #include <linux/types.h>
 #include <linux/workqueue.h>
 
+struct drm_i915_private;
+
 #undef WARN_ON
 /* Many gcc seem to no see through this and fall over :( */
 #if 0
@@ -48,6 +50,34 @@
 
 #define MISSING_CASE(x) WARN(1, "Missing case (%s == %ld)\n", \
 			     __stringify(x), (long)(x))
+
+void __printf(3, 4)
+__i915_printk(struct drm_i915_private *dev_priv, const char *level,
+	      const char *fmt, ...);
+
+#define i915_report_error(dev_priv, fmt, ...)				   \
+	__i915_printk(dev_priv, KERN_ERR, fmt, ##__VA_ARGS__)
+
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG)
+
+int __i915_inject_load_error(struct drm_i915_private *i915, int err,
+			     const char *func, int line);
+#define i915_inject_load_error(_i915, _err) \
+	__i915_inject_load_error((_i915), (_err), __func__, __LINE__)
+bool i915_error_injected(void);
+
+#else
+
+#define i915_inject_load_error(_i915, _err) 0
+#define i915_error_injected() false
+
+#endif
+
+#define i915_inject_probe_failure(i915) i915_inject_load_error((i915), -ENODEV)
+
+#define i915_probe_error(i915, fmt, ...)				   \
+	__i915_printk(i915, i915_error_injected() ? KERN_DEBUG : KERN_ERR, \
+		      fmt, ##__VA_ARGS__)
 
 #if defined(GCC_VERSION) && GCC_VERSION >= 70000
 #define add_overflows_t(T, A, B) \
@@ -129,6 +159,16 @@ __check_struct_size(size_t base, size_t arr, size_t count, size_t *size)
 	unsigned long __bits = (bits);					\
 	GEM_BUG_ON(__bits & -BIT(n));					\
 	((typeof(ptr))((unsigned long)(ptr) | __bits));			\
+})
+
+#define ptr_dec(ptr) ({							\
+	unsigned long __v = (unsigned long)(ptr);			\
+	(typeof(ptr))(__v - 1);						\
+})
+
+#define ptr_inc(ptr) ({							\
+	unsigned long __v = (unsigned long)(ptr);			\
+	(typeof(ptr))(__v + 1);						\
 })
 
 #define page_mask_bits(ptr) ptr_mask_bits(ptr, PAGE_SHIFT)
@@ -368,6 +408,17 @@ static inline const char *onoff(bool v)
 static inline const char *enableddisabled(bool v)
 {
 	return v ? "enabled" : "disabled";
+}
+
+static inline void add_taint_for_CI(unsigned int taint)
+{
+	/*
+	 * The system is "ok", just about surviving for the user, but
+	 * CI results are now unreliable as the HW is very suspect.
+	 * CI checks the taint state after every test and will reboot
+	 * the machine if the kernel is tainted.
+	 */
+	add_taint(taint, LOCKDEP_STILL_OK);
 }
 
 #endif /* !__I915_UTILS_H */

@@ -334,6 +334,10 @@ struct intel_gvt {
 	struct {
 		struct engine_mmio *mmio;
 		int ctx_mmio_count[I915_NUM_ENGINES];
+		u32 *tlb_mmio_offset_list;
+		u32 tlb_mmio_offset_list_cnt;
+		u32 *mocs_mmio_offset_list;
+		u32 mocs_mmio_offset_list_cnt;
 	} engine_mmio_list;
 
 	struct dentry *debugfs_root;
@@ -682,9 +686,9 @@ static inline void intel_gvt_mmio_set_in_ctx(
 	gvt->mmio.mmio_attribute[offset >> 2] |= F_IN_CTX;
 }
 
-int intel_gvt_debugfs_add_vgpu(struct intel_vgpu *vgpu);
+void intel_gvt_debugfs_add_vgpu(struct intel_vgpu *vgpu);
 void intel_gvt_debugfs_remove_vgpu(struct intel_vgpu *vgpu);
-int intel_gvt_debugfs_init(struct intel_gvt *gvt);
+void intel_gvt_debugfs_init(struct intel_gvt *gvt);
 void intel_gvt_debugfs_clean(struct intel_gvt *gvt);
 
 

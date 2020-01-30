@@ -273,7 +273,7 @@ static inline bool lbr_from_signext_quirk_needed(void)
 	return !tsx_support && (lbr_desc[lbr_format] & LBR_TSX);
 }
 
-DEFINE_STATIC_KEY_FALSE(lbr_from_quirk_key);
+static DEFINE_STATIC_KEY_FALSE(lbr_from_quirk_key);
 
 /* If quirk is enabled, ensure sign extension is 63 bits: */
 inline u64 lbr_from_signext_quirk_wr(u64 val)

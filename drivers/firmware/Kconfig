@@ -216,6 +216,24 @@ config INTEL_STRATIX10_SERVICE
 
 	  Say Y here if you want Stratix10 service layer support.
 
+config INTEL_STRATIX10_RSU
+	tristate "Intel Stratix10 Remote System Update"
+	depends on INTEL_STRATIX10_SERVICE
+	help
+	  The Intel Remote System Update (RSU) driver exposes interfaces
+	  access through the Intel Service Layer to user space via sysfs
+	  device attribute nodes. The RSU interfaces report/control some of
+	  the optional RSU features of the Stratix 10 SoC FPGA.
+
+	  The RSU provides a way for customers to update the boot
+	  configuration of a Stratix 10 SoC device with significantly reduced
+	  risk of corrupting the bitstream storage and bricking the system.
+
+	  Enable RSU support if you are using an Intel SoC FPGA with the RSU
+	  feature enabled and you want Linux user space control.
+
+	  Say Y here if you want Intel RSU support.
+
 config QCOM_SCM
 	bool
 	depends on ARM || ARM64
@@ -270,6 +288,20 @@ config TRUSTED_FOUNDATIONS
 	  bindings for "tlm,trusted-foundations" for details on how to use it.
 
 	  Choose N if you don't know what this is about.
+
+config TURRIS_MOX_RWTM
+	tristate "Turris Mox rWTM secure firmware driver"
+	depends on ARCH_MVEBU || COMPILE_TEST
+	depends on HAS_DMA && OF
+	depends on MAILBOX
+	select HW_RANDOM
+	select ARMADA_37XX_RWTM_MBOX
+	help
+	  This driver communicates with the firmware on the Cortex-M3 secure
+	  processor of the Turris Mox router. Enable if you are building for
+	  Turris Mox, and you will be able to read the device serial number and
+	  other manufacturing data and also utilize the Entropy Bit Generator
+	  for hardware random number generation.
 
 config HAVE_ARM_SMCCC
 	bool

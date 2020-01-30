@@ -312,12 +312,110 @@ static int pqi_sas_get_linkerrors(struct sas_phy *phy)
 static int pqi_sas_get_enclosure_identifier(struct sas_rphy *rphy,
 	u64 *identifier)
 {
-	return 0;
+
+	int rc;
+	unsigned long flags;
+	struct Scsi_Host *shost;
+	struct pqi_ctrl_info *ctrl_info;
+	struct pqi_scsi_dev *found_device;
+	struct pqi_scsi_dev *device;
+
+	if (!rphy)
+		return -ENODEV;
+
+	shost = rphy_to_shost(rphy);
+	ctrl_info = shost_to_hba(shost);
+	spin_lock_irqsave(&ctrl_info->scsi_device_list_lock, flags);
+	found_device = pqi_find_device_by_sas_rphy(ctrl_info, rphy);
+
+	if (!found_device) {
+		rc = -ENODEV;
+		goto out;
+	}
+
+	if (found_device->devtype == TYPE_ENCLOSURE) {
+		*identifier = get_unaligned_be64(&found_device->wwid);
+		rc = 0;
+		goto out;
+	}
+
+	if (found_device->box_index == 0xff ||
+		found_device->phys_box_on_bus == 0 ||
+		found_device->bay == 0xff) {
+		rc = -EINVAL;
+		goto out;
+	}
+
+	list_for_each_entry(device, &ctrl_info->scsi_device_list,
+		scsi_device_list_entry) {
+		if (device->devtype == TYPE_ENCLOSURE &&
+			device->box_index == found_device->box_index &&
+			device->phys_box_on_bus ==
+				found_device->phys_box_on_bus &&
+			memcmp(device->phys_connector,
+				found_device->phys_connector, 2) == 0) {
+			*identifier =
+				get_unaligned_be64(&device->wwid);
+			rc = 0;
+			goto out;
+		}
+	}
+
+	if (found_device->phy_connected_dev_type != SA_CONTROLLER_DEVICE) {
+		rc = -EINVAL;
+		goto out;
+	}
+
+	list_for_each_entry(device, &ctrl_info->scsi_device_list,
+		scsi_device_list_entry) {
+		if (device->devtype == TYPE_ENCLOSURE &&
+			CISS_GET_DRIVE_NUMBER(device->scsi3addr) ==
+				PQI_VSEP_CISS_BTL) {
+			*identifier = get_unaligned_be64(&device->wwid);
+			rc = 0;
+			goto out;
+		}
+	}
+
+	rc = -EINVAL;
+out:
+	spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
+
+	return rc;
+
 }
 
 static int pqi_sas_get_bay_identifier(struct sas_rphy *rphy)
 {
-	return -ENXIO;
+
+	int rc;
+	unsigned long flags;
+	struct pqi_ctrl_info *ctrl_info;
+	struct pqi_scsi_dev *device;
+	struct Scsi_Host *shost;
+
+	if (!rphy)
+		return -ENODEV;
+
+	shost = rphy_to_shost(rphy);
+	ctrl_info = shost_to_hba(shost);
+	spin_lock_irqsave(&ctrl_info->scsi_device_list_lock, flags);
+	device = pqi_find_device_by_sas_rphy(ctrl_info, rphy);
+
+	if (!device) {
+		rc = -ENODEV;
+		goto out;
+	}
+
+	if (device->bay == 0xff)
+		rc = -EINVAL;
+	else
+		rc = device->bay;
+
+out:
+	spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
+
+	return rc;
 }
 
 static int pqi_sas_phy_reset(struct sas_phy *phy, int hard_reset)

@@ -195,13 +195,13 @@ static int ee1004_probe(struct i2c_client *client,
 	mutex_lock(&ee1004_bus_lock);
 	if (++ee1004_dev_count == 1) {
 		for (cnr = 0; cnr < 2; cnr++) {
-			ee1004_set_page[cnr] = i2c_new_dummy(client->adapter,
+			ee1004_set_page[cnr] = i2c_new_dummy_device(client->adapter,
 						EE1004_ADDR_SET_PAGE + cnr);
-			if (!ee1004_set_page[cnr]) {
+			if (IS_ERR(ee1004_set_page[cnr])) {
 				dev_err(&client->dev,
 					"address 0x%02x unavailable\n",
 					EE1004_ADDR_SET_PAGE + cnr);
-				err = -EADDRINUSE;
+				err = PTR_ERR(ee1004_set_page[cnr]);
 				goto err_clients;
 			}
 		}

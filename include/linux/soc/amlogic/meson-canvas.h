@@ -20,6 +20,7 @@
 #define MESON_CANVAS_ENDIAN_SWAP64	0x7
 #define MESON_CANVAS_ENDIAN_SWAP128	0xf
 
+struct device;
 struct meson_canvas;
 
 /**

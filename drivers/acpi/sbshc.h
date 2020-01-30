@@ -15,8 +15,6 @@ enum acpi_smb_protocol {
 	SMBUS_BLOCK_PROCESS_CALL = 0xd,
 };
 
-static const u8 SMBUS_PEC = 0x80;
-
 enum acpi_sbs_device_addr {
 	ACPI_SBS_CHARGER = 0x9,
 	ACPI_SBS_MANAGER = 0xa,

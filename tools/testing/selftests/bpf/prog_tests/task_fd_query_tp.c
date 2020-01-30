@@ -62,14 +62,9 @@ static void test_task_fd_query_tp_core(const char *probe_name,
 		  fd_type, buf))
 		goto close_pmu;
 
-	close(pmu_fd);
-	goto close_prog_noerr;
-
 close_pmu:
 	close(pmu_fd);
 close_prog:
-	error_cnt++;
-close_prog_noerr:
 	bpf_object__close(obj);
 }
 

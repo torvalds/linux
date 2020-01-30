@@ -45,4 +45,9 @@ void dcn20_clk_mgr_construct(struct dc_context *ctx,
 
 uint32_t dentist_get_did_from_divider(int divider);
 
+void dcn2_get_clock(struct clk_mgr *clk_mgr,
+		struct dc_state *context,
+			enum dc_clock_type clock_type,
+			struct dc_clock_config *clock_cfg);
+
 #endif //__DCN20_CLK_MGR_H__

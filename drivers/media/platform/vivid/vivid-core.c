@@ -792,7 +792,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	if (no_error_inj && ccs_cap == -1)
 		ccs_cap = 7;
 
-	/* if ccs_cap == -1, then the use can select it using controls */
+	/* if ccs_cap == -1, then the user can select it using controls */
 	if (ccs_cap != -1) {
 		dev->has_crop_cap = ccs_cap & 1;
 		dev->has_compose_cap = ccs_cap & 2;
@@ -807,7 +807,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	if (no_error_inj && ccs_out == -1)
 		ccs_out = 7;
 
-	/* if ccs_out == -1, then the use can select it using controls */
+	/* if ccs_out == -1, then the user can select it using controls */
 	if (ccs_out != -1) {
 		dev->has_crop_out = ccs_out & 1;
 		dev->has_compose_out = ccs_out & 2;

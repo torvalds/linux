@@ -308,10 +308,8 @@ static int pic32_rtc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, pdata);
 
 	pdata->alarm_irq = platform_get_irq(pdev, 0);
-	if (pdata->alarm_irq < 0) {
-		dev_err(&pdev->dev, "no irq for alarm\n");
+	if (pdata->alarm_irq < 0)
 		return pdata->alarm_irq;
-	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	pdata->reg_base = devm_ioremap_resource(&pdev->dev, res);

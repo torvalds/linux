@@ -83,7 +83,7 @@ Usage Notes
 -----------
 
 This driver does not auto-detect devices. You will have to instantiate the
-devices explicitly. Please see Documentation/i2c/instantiating-devices for
+devices explicitly. Please see Documentation/i2c/instantiating-devices.rst for
 details.
 
 For MAX34446, the value of the currX_crit attribute determines if current or

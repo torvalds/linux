@@ -60,6 +60,12 @@
 #include <linux/rhashtable.h>
 #include <net/genetlink.h>
 
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 struct tipc_node;
 struct tipc_bearer;
 struct tipc_bc_base;
@@ -125,6 +131,9 @@ struct tipc_net {
 
 	/* Cluster capabilities */
 	u16 capabilities;
+
+	/* Tracing of node internal messages */
+	struct packet_type loopback_pt;
 };
 
 static inline struct tipc_net *tipc_net(struct net *net)

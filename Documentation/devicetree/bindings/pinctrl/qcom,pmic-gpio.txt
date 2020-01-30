@@ -21,6 +21,8 @@ PMIC's from Qualcomm.
 		    "qcom,pmi8994-gpio"
 		    "qcom,pmi8998-gpio"
 		    "qcom,pms405-gpio"
+		    "qcom,pm8150-gpio"
+		    "qcom,pm8150b-gpio"
 
 		    And must contain either "qcom,spmi-gpio" or "qcom,ssbi-gpio"
 		    if the device is on an spmi bus or an ssbi bus respectively
@@ -94,6 +96,10 @@ to specify in a pin configuration subnode:
 		    gpio1-gpio22 for pma8084
 		    gpio1-gpio10 for pmi8994
 		    gpio1-gpio12 for pms405 (holes on gpio1, gpio9 and gpio10)
+		    gpio1-gpio10 for pm8150 (holes on gpio2, gpio5, gpio7
+					     and gpio8)
+		    gpio1-gpio12 for pm8150b (holes on gpio3, gpio4, gpio7)
+		    gpio1-gpio12 for pm8150l (hole on gpio7)
 
 - function:
 	Usage: required

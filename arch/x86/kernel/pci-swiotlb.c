@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Glue code to lib/swiotlb.c */
 
 #include <linux/pci.h>
 #include <linux/cache.h>

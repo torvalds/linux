@@ -156,14 +156,6 @@ bool regulatory_indoor_allowed(void);
 #define REG_PRE_CAC_EXPIRY_GRACE_MS 2000
 
 /**
- * regulatory_pre_cac_allowed - if pre-CAC allowed in the current dfs domain
- * @wiphy: wiphy for which pre-CAC capability is checked.
-
- * Pre-CAC is allowed only in ETSI domain.
- */
-bool regulatory_pre_cac_allowed(struct wiphy *wiphy);
-
-/**
  * regulatory_propagate_dfs_state - Propagate DFS channel state to other wiphys
  * @wiphy - wiphy on which radar is detected and the event will be propagated
  *	to other available wiphys having the same DFS domain

@@ -503,7 +503,7 @@ static int xlgmac_map_tx_skb(struct xlgmac_channel *channel,
 	struct xlgmac_desc_data *desc_data;
 	unsigned int offset, datalen, len;
 	struct xlgmac_pkt_info *pkt_info;
-	struct skb_frag_struct *frag;
+	skb_frag_t *frag;
 	unsigned int tso, vlan;
 	dma_addr_t skb_dma;
 	unsigned int i;

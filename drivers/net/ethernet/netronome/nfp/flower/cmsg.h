@@ -68,8 +68,11 @@
 #define NFP_FL_ACTION_OPCODE_OUTPUT		0
 #define NFP_FL_ACTION_OPCODE_PUSH_VLAN		1
 #define NFP_FL_ACTION_OPCODE_POP_VLAN		2
+#define NFP_FL_ACTION_OPCODE_PUSH_MPLS		3
+#define NFP_FL_ACTION_OPCODE_POP_MPLS		4
 #define NFP_FL_ACTION_OPCODE_SET_IPV4_TUNNEL	6
 #define NFP_FL_ACTION_OPCODE_SET_ETHERNET	7
+#define NFP_FL_ACTION_OPCODE_SET_MPLS		8
 #define NFP_FL_ACTION_OPCODE_SET_IPV4_ADDRS	9
 #define NFP_FL_ACTION_OPCODE_SET_IPV4_TTL_TOS	10
 #define NFP_FL_ACTION_OPCODE_SET_IPV6_SRC	11
@@ -217,7 +220,8 @@ struct nfp_fl_set_ipv4_tun {
 	__be16 tun_flags;
 	u8 ttl;
 	u8 tos;
-	__be32 extra;
+	__be16 outer_vlan_tpid;
+	__be16 outer_vlan_tci;
 	u8 tun_len;
 	u8 res2;
 	__be16 tun_proto;
@@ -230,6 +234,24 @@ struct nfp_fl_push_geneve {
 	u8 type;
 	u8 length;
 	u8 opt_data[];
+};
+
+struct nfp_fl_push_mpls {
+	struct nfp_fl_act_head head;
+	__be16 ethtype;
+	__be32 lse;
+};
+
+struct nfp_fl_pop_mpls {
+	struct nfp_fl_act_head head;
+	__be16 ethtype;
+};
+
+struct nfp_fl_set_mpls {
+	struct nfp_fl_act_head head;
+	__be16 reserved;
+	__be32 lse_mask;
+	__be32 lse;
 };
 
 /* Metadata with L2 (1W/4B)
@@ -462,6 +484,7 @@ enum nfp_flower_cmsg_type_port {
 	NFP_FLOWER_CMSG_TYPE_QOS_MOD =		18,
 	NFP_FLOWER_CMSG_TYPE_QOS_DEL =		19,
 	NFP_FLOWER_CMSG_TYPE_QOS_STATS =	20,
+	NFP_FLOWER_CMSG_TYPE_PRE_TUN_RULE =	21,
 	NFP_FLOWER_CMSG_TYPE_MAX =		32,
 };
 

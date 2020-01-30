@@ -1,3 +1,5 @@
+firmware.c
+real2.S
 sizes.h
 vmlinux
 vmlinux.lds

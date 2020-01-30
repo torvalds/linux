@@ -6,13 +6,10 @@
  * Copyright (C) 2014 Endless Mobile
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <drm/drmP.h>
+#include <linux/export.h>
+
 #include "meson_drv.h"
 #include "meson_viu.h"
-#include "meson_vpp.h"
-#include "meson_venc.h"
 #include "meson_registers.h"
 
 /**
@@ -323,9 +320,9 @@ void meson_viu_osd1_reset(struct meson_drm *priv)
 				priv->io_base + _REG(VIU_OSD1_CTRL_STAT2));
 
 	/* Reset OSD1 */
-	writel_bits_relaxed(BIT(0), BIT(0),
+	writel_bits_relaxed(VIU_SW_RESET_OSD1, VIU_SW_RESET_OSD1,
 			    priv->io_base + _REG(VIU_SW_RESET));
-	writel_bits_relaxed(BIT(0), 0,
+	writel_bits_relaxed(VIU_SW_RESET_OSD1, 0,
 			    priv->io_base + _REG(VIU_SW_RESET));
 
 	/* Rewrite these registers state lost in the reset */
@@ -338,38 +335,43 @@ void meson_viu_osd1_reset(struct meson_drm *priv)
 	meson_viu_load_matrix(priv);
 }
 
+static inline uint32_t meson_viu_osd_burst_length_reg(uint32_t length)
+{
+	uint32_t val = (((length & 0x80) % 24) / 12);
+
+	return (((val & 0x3) << 10) | (((val & 0x4) >> 2) << 31));
+}
+
 void meson_viu_init(struct meson_drm *priv)
 {
 	uint32_t reg;
 
 	/* Disable OSDs */
-	writel_bits_relaxed(BIT(0) | BIT(21), 0,
-			priv->io_base + _REG(VIU_OSD1_CTRL_STAT));
-	writel_bits_relaxed(BIT(0) | BIT(21), 0,
-			priv->io_base + _REG(VIU_OSD2_CTRL_STAT));
+	writel_bits_relaxed(VIU_OSD1_OSD_BLK_ENABLE | VIU_OSD1_OSD_ENABLE, 0,
+			    priv->io_base + _REG(VIU_OSD1_CTRL_STAT));
+	writel_bits_relaxed(VIU_OSD1_OSD_BLK_ENABLE | VIU_OSD1_OSD_ENABLE, 0,
+			    priv->io_base + _REG(VIU_OSD2_CTRL_STAT));
 
 	/* On GXL/GXM, Use the 10bit HDR conversion matrix */
-	if (meson_vpu_is_compatible(priv, "amlogic,meson-gxm-vpu") ||
-	    meson_vpu_is_compatible(priv, "amlogic,meson-gxl-vpu"))
+	if (meson_vpu_is_compatible(priv, VPU_COMPATIBLE_GXM) ||
+	    meson_vpu_is_compatible(priv, VPU_COMPATIBLE_GXL))
 		meson_viu_load_matrix(priv);
-	else if (meson_vpu_is_compatible(priv, "amlogic,meson-g12a-vpu"))
+	else if (meson_vpu_is_compatible(priv, VPU_COMPATIBLE_G12A))
 		meson_viu_set_g12a_osd1_matrix(priv, RGB709_to_YUV709l_coeff,
 					       true);
 
 	/* Initialize OSD1 fifo control register */
-	reg = BIT(0) |	/* Urgent DDR request priority */
-	      (4 << 5); /* hold_fifo_lines */
-	if (meson_vpu_is_compatible(priv, "amlogic,meson-g12a-vpu"))
-		reg |= (1 << 10) | /* burst length 32 */
-		       (32 << 12) | /* fifo_depth_val: 32*8=256 */
-		       (2 << 22) | /* 4 words in 1 burst */
-		       (2 << 24) |
-		       (1 << 31);
+	reg = VIU_OSD_DDR_PRIORITY_URGENT |
+		VIU_OSD_HOLD_FIFO_LINES(4) |
+		VIU_OSD_FIFO_DEPTH_VAL(32) | /* fifo_depth_val: 32*8=256 */
+		VIU_OSD_WORDS_PER_BURST(4) | /* 4 words in 1 burst */
+		VIU_OSD_FIFO_LIMITS(2);      /* fifo_lim: 2*16=32 */
+
+	if (meson_vpu_is_compatible(priv, VPU_COMPATIBLE_G12A))
+		reg |= meson_viu_osd_burst_length_reg(32);
 	else
-		reg |= (3 << 10) | /* burst length 64 */
-		       (32 << 12) | /* fifo_depth_val: 32*8=256 */
-		       (2 << 22) | /* 4 words in 1 burst */
-		       (2 << 24);
+		reg |= meson_viu_osd_burst_length_reg(64);
+
 	writel_relaxed(reg, priv->io_base + _REG(VIU_OSD1_FIFO_CTRL_STAT));
 	writel_relaxed(reg, priv->io_base + _REG(VIU_OSD2_FIFO_CTRL_STAT));
 
@@ -382,12 +384,9 @@ void meson_viu_init(struct meson_drm *priv)
 			    priv->io_base + _REG(VIU_OSD2_CTRL_STAT2));
 
 	/* Disable VD1 AFBC */
-	/* di_mif0_en=0 mif0_to_vpp_en=0 di_mad_en=0 */
-	writel_bits_relaxed(0x7 << 16, 0,
-			priv->io_base + _REG(VIU_MISC_CTRL0));
-	/* afbc vd1 set=0 */
-	writel_bits_relaxed(BIT(20), 0,
-			priv->io_base + _REG(VIU_MISC_CTRL0));
+	/* di_mif0_en=0 mif0_to_vpp_en=0 di_mad_en=0 and afbc vd1 set=0*/
+	writel_bits_relaxed(VIU_CTRL0_VD1_AFBC_MASK, 0,
+			    priv->io_base + _REG(VIU_MISC_CTRL0));
 	writel_relaxed(0, priv->io_base + _REG(AFBC_ENABLE));
 
 	writel_relaxed(0x00FF00C0,
@@ -395,28 +394,32 @@ void meson_viu_init(struct meson_drm *priv)
 	writel_relaxed(0x00FF00C0,
 			priv->io_base + _REG(VD2_IF0_LUMA_FIFO_SIZE));
 
-	if (meson_vpu_is_compatible(priv, "amlogic,meson-g12a-vpu")) {
-		writel_relaxed(4 << 29 |
-				1 << 27 |
-				1 << 26 | /* blend_din0 input to blend0 */
-				1 << 25 | /* blend1_dout to blend2 */
-				1 << 24 | /* blend1_din3 input to blend1 */
-				1 << 20 |
-				0 << 16 |
-				1,
-				priv->io_base + _REG(VIU_OSD_BLEND_CTRL));
-		writel_relaxed(1 << 20,
-				priv->io_base + _REG(OSD1_BLEND_SRC_CTRL));
-		writel_relaxed(1 << 20,
-				priv->io_base + _REG(OSD2_BLEND_SRC_CTRL));
+	if (meson_vpu_is_compatible(priv, VPU_COMPATIBLE_G12A)) {
+		writel_relaxed(VIU_OSD_BLEND_REORDER(0, 1) |
+			       VIU_OSD_BLEND_REORDER(1, 0) |
+			       VIU_OSD_BLEND_REORDER(2, 0) |
+			       VIU_OSD_BLEND_REORDER(3, 0) |
+			       VIU_OSD_BLEND_DIN_EN(1) |
+			       VIU_OSD_BLEND1_DIN3_BYPASS_TO_DOUT1 |
+			       VIU_OSD_BLEND1_DOUT_BYPASS_TO_BLEND2 |
+			       VIU_OSD_BLEND_DIN0_BYPASS_TO_DOUT0 |
+			       VIU_OSD_BLEND_BLEN2_PREMULT_EN(1) |
+			       VIU_OSD_BLEND_HOLD_LINES(4),
+			       priv->io_base + _REG(VIU_OSD_BLEND_CTRL));
+
+		writel_relaxed(OSD_BLEND_PATH_SEL_ENABLE,
+			       priv->io_base + _REG(OSD1_BLEND_SRC_CTRL));
+		writel_relaxed(OSD_BLEND_PATH_SEL_ENABLE,
+			       priv->io_base + _REG(OSD2_BLEND_SRC_CTRL));
 		writel_relaxed(0, priv->io_base + _REG(VD1_BLEND_SRC_CTRL));
 		writel_relaxed(0, priv->io_base + _REG(VD2_BLEND_SRC_CTRL));
 		writel_relaxed(0,
 				priv->io_base + _REG(VIU_OSD_BLEND_DUMMY_DATA0));
 		writel_relaxed(0,
 				priv->io_base + _REG(VIU_OSD_BLEND_DUMMY_ALPHA));
-		writel_bits_relaxed(0x3 << 2, 0x3 << 2,
-				priv->io_base + _REG(DOLBY_PATH_CTRL));
+
+		writel_bits_relaxed(DOLBY_BYPASS_EN(0xc), DOLBY_BYPASS_EN(0xc),
+				    priv->io_base + _REG(DOLBY_PATH_CTRL));
 	}
 
 	priv->viu.osd1_enabled = false;

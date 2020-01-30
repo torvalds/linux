@@ -30,12 +30,6 @@ static int ar8031_phy_fixup(struct phy_device *dev)
 	val &= ~(0x1 << 8);
 	phy_write(dev, 0xe, val);
 
-	/* introduce tx clock delay */
-	phy_write(dev, 0x1d, 0x5);
-	val = phy_read(dev, 0x1e);
-	val |= 0x0100;
-	phy_write(dev, 0x1e, val);
-
 	return 0;
 }
 

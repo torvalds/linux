@@ -148,7 +148,7 @@ static int zx_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 }
 
 static int zx_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
-			struct pwm_state *state)
+			const struct pwm_state *state)
 {
 	struct zx_pwm_chip *zpc = to_zx_pwm_chip(chip);
 	struct pwm_state cstate;

@@ -29,10 +29,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
 #include <linux/compat.h>
 
-#include <drm/drmP.h>
 #include <drm/r128_drm.h>
+
 #include "r128_drv.h"
 
 typedef struct drm_r128_init32 {

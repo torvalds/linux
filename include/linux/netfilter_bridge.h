@@ -5,6 +5,13 @@
 #include <uapi/linux/netfilter_bridge.h>
 #include <linux/skbuff.h>
 
+struct nf_bridge_frag_data {
+	char    mac[ETH_HLEN];
+	bool    vlan_present;
+	u16     vlan_tci;
+	__be16  vlan_proto;
+};
+
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 
 int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb);

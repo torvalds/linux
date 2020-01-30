@@ -39,6 +39,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/vfs.h>
+#include <sys/utsname.h>
 #include <tools/libc_compat.h>
 #include <libelf.h>
 #include <gelf.h>
@@ -48,6 +49,7 @@
 #include "btf.h"
 #include "str_error.h"
 #include "libbpf_internal.h"
+#include "hashmap.h"
 
 #ifndef EM_BPF
 #define EM_BPF 247
@@ -75,9 +77,12 @@ static int __base_pr(enum libbpf_print_level level, const char *format,
 
 static libbpf_print_fn_t __libbpf_pr = __base_pr;
 
-void libbpf_set_print(libbpf_print_fn_t fn)
+libbpf_print_fn_t libbpf_set_print(libbpf_print_fn_t fn)
 {
+	libbpf_print_fn_t old_print_fn = __libbpf_pr;
+
 	__libbpf_pr = fn;
+	return old_print_fn;
 }
 
 __printf(2, 3)
@@ -1010,23 +1015,21 @@ static int bpf_object__init_user_maps(struct bpf_object *obj, bool strict)
 	return 0;
 }
 
-static const struct btf_type *skip_mods_and_typedefs(const struct btf *btf,
-						     __u32 id)
+static const struct btf_type *
+skip_mods_and_typedefs(const struct btf *btf, __u32 id, __u32 *res_id)
 {
 	const struct btf_type *t = btf__type_by_id(btf, id);
 
-	while (true) {
-		switch (BTF_INFO_KIND(t->info)) {
-		case BTF_KIND_VOLATILE:
-		case BTF_KIND_CONST:
-		case BTF_KIND_RESTRICT:
-		case BTF_KIND_TYPEDEF:
-			t = btf__type_by_id(btf, t->type);
-			break;
-		default:
-			return t;
-		}
+	if (res_id)
+		*res_id = id;
+
+	while (btf_is_mod(t) || btf_is_typedef(t)) {
+		if (res_id)
+			*res_id = t->type;
+		t = btf__type_by_id(btf, t->type);
 	}
+
+	return t;
 }
 
 /*
@@ -1039,14 +1042,14 @@ static const struct btf_type *skip_mods_and_typedefs(const struct btf *btf,
 static bool get_map_field_int(const char *map_name, const struct btf *btf,
 			      const struct btf_type *def,
 			      const struct btf_member *m, __u32 *res) {
-	const struct btf_type *t = skip_mods_and_typedefs(btf, m->type);
+	const struct btf_type *t = skip_mods_and_typedefs(btf, m->type, NULL);
 	const char *name = btf__name_by_offset(btf, m->name_off);
 	const struct btf_array *arr_info;
 	const struct btf_type *arr_t;
 
-	if (BTF_INFO_KIND(t->info) != BTF_KIND_PTR) {
+	if (!btf_is_ptr(t)) {
 		pr_warning("map '%s': attr '%s': expected PTR, got %u.\n",
-			   map_name, name, BTF_INFO_KIND(t->info));
+			   map_name, name, btf_kind(t));
 		return false;
 	}
 
@@ -1056,12 +1059,12 @@ static bool get_map_field_int(const char *map_name, const struct btf *btf,
 			   map_name, name, t->type);
 		return false;
 	}
-	if (BTF_INFO_KIND(arr_t->info) != BTF_KIND_ARRAY) {
+	if (!btf_is_array(arr_t)) {
 		pr_warning("map '%s': attr '%s': expected ARRAY, got %u.\n",
-			   map_name, name, BTF_INFO_KIND(arr_t->info));
+			   map_name, name, btf_kind(arr_t));
 		return false;
 	}
-	arr_info = (const void *)(arr_t + 1);
+	arr_info = btf_array(arr_t);
 	*res = arr_info->nelems;
 	return true;
 }
@@ -1079,11 +1082,11 @@ static int bpf_object__init_user_btf_map(struct bpf_object *obj,
 	struct bpf_map *map;
 	int vlen, i;
 
-	vi = (const struct btf_var_secinfo *)(const void *)(sec + 1) + var_idx;
+	vi = btf_var_secinfos(sec) + var_idx;
 	var = btf__type_by_id(obj->btf, vi->type);
-	var_extra = (const void *)(var + 1);
+	var_extra = btf_var(var);
 	map_name = btf__name_by_offset(obj->btf, var->name_off);
-	vlen = BTF_INFO_VLEN(var->info);
+	vlen = btf_vlen(var);
 
 	if (map_name == NULL || map_name[0] == '\0') {
 		pr_warning("map #%d: empty name.\n", var_idx);
@@ -1093,9 +1096,9 @@ static int bpf_object__init_user_btf_map(struct bpf_object *obj,
 		pr_warning("map '%s' BTF data is corrupted.\n", map_name);
 		return -EINVAL;
 	}
-	if (BTF_INFO_KIND(var->info) != BTF_KIND_VAR) {
+	if (!btf_is_var(var)) {
 		pr_warning("map '%s': unexpected var kind %u.\n",
-			   map_name, BTF_INFO_KIND(var->info));
+			   map_name, btf_kind(var));
 		return -EINVAL;
 	}
 	if (var_extra->linkage != BTF_VAR_GLOBAL_ALLOCATED &&
@@ -1105,10 +1108,10 @@ static int bpf_object__init_user_btf_map(struct bpf_object *obj,
 		return -EOPNOTSUPP;
 	}
 
-	def = skip_mods_and_typedefs(obj->btf, var->type);
-	if (BTF_INFO_KIND(def->info) != BTF_KIND_STRUCT) {
+	def = skip_mods_and_typedefs(obj->btf, var->type, NULL);
+	if (!btf_is_struct(def)) {
 		pr_warning("map '%s': unexpected def kind %u.\n",
-			   map_name, BTF_INFO_KIND(var->info));
+			   map_name, btf_kind(var));
 		return -EINVAL;
 	}
 	if (def->size > vi->size) {
@@ -1131,8 +1134,8 @@ static int bpf_object__init_user_btf_map(struct bpf_object *obj,
 	pr_debug("map '%s': at sec_idx %d, offset %zu.\n",
 		 map_name, map->sec_idx, map->sec_offset);
 
-	vlen = BTF_INFO_VLEN(def->info);
-	m = (const void *)(def + 1);
+	vlen = btf_vlen(def);
+	m = btf_members(def);
 	for (i = 0; i < vlen; i++, m++) {
 		const char *name = btf__name_by_offset(obj->btf, m->name_off);
 
@@ -1182,9 +1185,9 @@ static int bpf_object__init_user_btf_map(struct bpf_object *obj,
 					   map_name, m->type);
 				return -EINVAL;
 			}
-			if (BTF_INFO_KIND(t->info) != BTF_KIND_PTR) {
+			if (!btf_is_ptr(t)) {
 				pr_warning("map '%s': key spec is not PTR: %u.\n",
-					   map_name, BTF_INFO_KIND(t->info));
+					   map_name, btf_kind(t));
 				return -EINVAL;
 			}
 			sz = btf__resolve_size(obj->btf, t->type);
@@ -1225,9 +1228,9 @@ static int bpf_object__init_user_btf_map(struct bpf_object *obj,
 					   map_name, m->type);
 				return -EINVAL;
 			}
-			if (BTF_INFO_KIND(t->info) != BTF_KIND_PTR) {
+			if (!btf_is_ptr(t)) {
 				pr_warning("map '%s': value spec is not PTR: %u.\n",
-					   map_name, BTF_INFO_KIND(t->info));
+					   map_name, btf_kind(t));
 				return -EINVAL;
 			}
 			sz = btf__resolve_size(obj->btf, t->type);
@@ -1288,7 +1291,7 @@ static int bpf_object__init_user_btf_maps(struct bpf_object *obj, bool strict)
 	nr_types = btf__get_nr_types(obj->btf);
 	for (i = 1; i <= nr_types; i++) {
 		t = btf__type_by_id(obj->btf, i);
-		if (BTF_INFO_KIND(t->info) != BTF_KIND_DATASEC)
+		if (!btf_is_datasec(t))
 			continue;
 		name = btf__name_by_offset(obj->btf, t->name_off);
 		if (strcmp(name, MAPS_ELF_SEC) == 0) {
@@ -1302,7 +1305,7 @@ static int bpf_object__init_user_btf_maps(struct bpf_object *obj, bool strict)
 		return -ENOENT;
 	}
 
-	vlen = BTF_INFO_VLEN(sec->info);
+	vlen = btf_vlen(sec);
 	for (i = 0; i < vlen; i++) {
 		err = bpf_object__init_user_btf_map(obj, sec, i,
 						    obj->efile.btf_maps_shndx,
@@ -1363,16 +1366,14 @@ static void bpf_object__sanitize_btf(struct bpf_object *obj)
 	struct btf *btf = obj->btf;
 	struct btf_type *t;
 	int i, j, vlen;
-	__u16 kind;
 
 	if (!obj->btf || (has_func && has_datasec))
 		return;
 
 	for (i = 1; i <= btf__get_nr_types(btf); i++) {
 		t = (struct btf_type *)btf__type_by_id(btf, i);
-		kind = BTF_INFO_KIND(t->info);
 
-		if (!has_datasec && kind == BTF_KIND_VAR) {
+		if (!has_datasec && btf_is_var(t)) {
 			/* replace VAR with INT */
 			t->info = BTF_INFO_ENC(BTF_KIND_INT, 0, 0);
 			/*
@@ -1381,11 +1382,11 @@ static void bpf_object__sanitize_btf(struct bpf_object *obj)
 			 * original variable took less than 4 bytes
 			 */
 			t->size = 1;
-			*(int *)(t+1) = BTF_INT_ENC(0, 0, 8);
-		} else if (!has_datasec && kind == BTF_KIND_DATASEC) {
+			*(int *)(t + 1) = BTF_INT_ENC(0, 0, 8);
+		} else if (!has_datasec && btf_is_datasec(t)) {
 			/* replace DATASEC with STRUCT */
-			struct btf_var_secinfo *v = (void *)(t + 1);
-			struct btf_member *m = (void *)(t + 1);
+			const struct btf_var_secinfo *v = btf_var_secinfos(t);
+			struct btf_member *m = btf_members(t);
 			struct btf_type *vt;
 			char *name;
 
@@ -1396,7 +1397,7 @@ static void bpf_object__sanitize_btf(struct bpf_object *obj)
 				name++;
 			}
 
-			vlen = BTF_INFO_VLEN(t->info);
+			vlen = btf_vlen(t);
 			t->info = BTF_INFO_ENC(BTF_KIND_STRUCT, 0, vlen);
 			for (j = 0; j < vlen; j++, v++, m++) {
 				/* order of field assignments is important */
@@ -1406,12 +1407,12 @@ static void bpf_object__sanitize_btf(struct bpf_object *obj)
 				vt = (void *)btf__type_by_id(btf, v->type);
 				m->name_off = vt->name_off;
 			}
-		} else if (!has_func && kind == BTF_KIND_FUNC_PROTO) {
+		} else if (!has_func && btf_is_func_proto(t)) {
 			/* replace FUNC_PROTO with ENUM */
-			vlen = BTF_INFO_VLEN(t->info);
+			vlen = btf_vlen(t);
 			t->info = BTF_INFO_ENC(BTF_KIND_ENUM, 0, vlen);
 			t->size = sizeof(__u32); /* kernel enforced */
-		} else if (!has_func && kind == BTF_KIND_FUNC) {
+		} else if (!has_func && btf_is_func(t)) {
 			/* replace FUNC with TYPEDEF */
 			t->info = BTF_INFO_ENC(BTF_KIND_TYPEDEF, 0, 0);
 		}
@@ -1769,14 +1770,21 @@ bpf_program__collect_reloc(struct bpf_program *prog, GElf_Shdr *shdr,
 			 (long long) sym.st_value, sym.st_name, name);
 
 		shdr_idx = sym.st_shndx;
+		insn_idx = rel.r_offset / sizeof(struct bpf_insn);
+		pr_debug("relocation: insn_idx=%u, shdr_idx=%u\n",
+			 insn_idx, shdr_idx);
+
+		if (shdr_idx >= SHN_LORESERVE) {
+			pr_warning("relocation: not yet supported relo for non-static global \'%s\' variable in special section (0x%x) found in insns[%d].code 0x%x\n",
+				   name, shdr_idx, insn_idx,
+				   insns[insn_idx].code);
+			return -LIBBPF_ERRNO__RELOC;
+		}
 		if (!bpf_object__relo_in_known_section(obj, shdr_idx)) {
 			pr_warning("Program '%s' contains unrecognized relo data pointing to section %u\n",
 				   prog->section_name, shdr_idx);
 			return -LIBBPF_ERRNO__RELOC;
 		}
-
-		insn_idx = rel.r_offset / sizeof(struct bpf_insn);
-		pr_debug("relocation: insn_idx=%u\n", insn_idx);
 
 		if (insns[insn_idx].code == (BPF_JMP | BPF_CALL)) {
 			if (insns[insn_idx].src_reg != BPF_PSEUDO_CALL) {
@@ -2288,6 +2296,894 @@ bpf_program_reloc_btf_ext(struct bpf_program *prog, struct bpf_object *obj,
 	return 0;
 }
 
+#define BPF_CORE_SPEC_MAX_LEN 64
+
+/* represents BPF CO-RE field or array element accessor */
+struct bpf_core_accessor {
+	__u32 type_id;		/* struct/union type or array element type */
+	__u32 idx;		/* field index or array index */
+	const char *name;	/* field name or NULL for array accessor */
+};
+
+struct bpf_core_spec {
+	const struct btf *btf;
+	/* high-level spec: named fields and array indices only */
+	struct bpf_core_accessor spec[BPF_CORE_SPEC_MAX_LEN];
+	/* high-level spec length */
+	int len;
+	/* raw, low-level spec: 1-to-1 with accessor spec string */
+	int raw_spec[BPF_CORE_SPEC_MAX_LEN];
+	/* raw spec length */
+	int raw_len;
+	/* field byte offset represented by spec */
+	__u32 offset;
+};
+
+static bool str_is_empty(const char *s)
+{
+	return !s || !s[0];
+}
+
+/*
+ * Turn bpf_offset_reloc into a low- and high-level spec representation,
+ * validating correctness along the way, as well as calculating resulting
+ * field offset (in bytes), specified by accessor string. Low-level spec
+ * captures every single level of nestedness, including traversing anonymous
+ * struct/union members. High-level one only captures semantically meaningful
+ * "turning points": named fields and array indicies.
+ * E.g., for this case:
+ *
+ *   struct sample {
+ *       int __unimportant;
+ *       struct {
+ *           int __1;
+ *           int __2;
+ *           int a[7];
+ *       };
+ *   };
+ *
+ *   struct sample *s = ...;
+ *
+ *   int x = &s->a[3]; // access string = '0:1:2:3'
+ *
+ * Low-level spec has 1:1 mapping with each element of access string (it's
+ * just a parsed access string representation): [0, 1, 2, 3].
+ *
+ * High-level spec will capture only 3 points:
+ *   - intial zero-index access by pointer (&s->... is the same as &s[0]...);
+ *   - field 'a' access (corresponds to '2' in low-level spec);
+ *   - array element #3 access (corresponds to '3' in low-level spec).
+ *
+ */
+static int bpf_core_spec_parse(const struct btf *btf,
+			       __u32 type_id,
+			       const char *spec_str,
+			       struct bpf_core_spec *spec)
+{
+	int access_idx, parsed_len, i;
+	const struct btf_type *t;
+	const char *name;
+	__u32 id;
+	__s64 sz;
+
+	if (str_is_empty(spec_str) || *spec_str == ':')
+		return -EINVAL;
+
+	memset(spec, 0, sizeof(*spec));
+	spec->btf = btf;
+
+	/* parse spec_str="0:1:2:3:4" into array raw_spec=[0, 1, 2, 3, 4] */
+	while (*spec_str) {
+		if (*spec_str == ':')
+			++spec_str;
+		if (sscanf(spec_str, "%d%n", &access_idx, &parsed_len) != 1)
+			return -EINVAL;
+		if (spec->raw_len == BPF_CORE_SPEC_MAX_LEN)
+			return -E2BIG;
+		spec_str += parsed_len;
+		spec->raw_spec[spec->raw_len++] = access_idx;
+	}
+
+	if (spec->raw_len == 0)
+		return -EINVAL;
+
+	/* first spec value is always reloc type array index */
+	t = skip_mods_and_typedefs(btf, type_id, &id);
+	if (!t)
+		return -EINVAL;
+
+	access_idx = spec->raw_spec[0];
+	spec->spec[0].type_id = id;
+	spec->spec[0].idx = access_idx;
+	spec->len++;
+
+	sz = btf__resolve_size(btf, id);
+	if (sz < 0)
+		return sz;
+	spec->offset = access_idx * sz;
+
+	for (i = 1; i < spec->raw_len; i++) {
+		t = skip_mods_and_typedefs(btf, id, &id);
+		if (!t)
+			return -EINVAL;
+
+		access_idx = spec->raw_spec[i];
+
+		if (btf_is_composite(t)) {
+			const struct btf_member *m;
+			__u32 offset;
+
+			if (access_idx >= btf_vlen(t))
+				return -EINVAL;
+			if (btf_member_bitfield_size(t, access_idx))
+				return -EINVAL;
+
+			offset = btf_member_bit_offset(t, access_idx);
+			if (offset % 8)
+				return -EINVAL;
+			spec->offset += offset / 8;
+
+			m = btf_members(t) + access_idx;
+			if (m->name_off) {
+				name = btf__name_by_offset(btf, m->name_off);
+				if (str_is_empty(name))
+					return -EINVAL;
+
+				spec->spec[spec->len].type_id = id;
+				spec->spec[spec->len].idx = access_idx;
+				spec->spec[spec->len].name = name;
+				spec->len++;
+			}
+
+			id = m->type;
+		} else if (btf_is_array(t)) {
+			const struct btf_array *a = btf_array(t);
+
+			t = skip_mods_and_typedefs(btf, a->type, &id);
+			if (!t || access_idx >= a->nelems)
+				return -EINVAL;
+
+			spec->spec[spec->len].type_id = id;
+			spec->spec[spec->len].idx = access_idx;
+			spec->len++;
+
+			sz = btf__resolve_size(btf, id);
+			if (sz < 0)
+				return sz;
+			spec->offset += access_idx * sz;
+		} else {
+			pr_warning("relo for [%u] %s (at idx %d) captures type [%d] of unexpected kind %d\n",
+				   type_id, spec_str, i, id, btf_kind(t));
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+static bool bpf_core_is_flavor_sep(const char *s)
+{
+	/* check X___Y name pattern, where X and Y are not underscores */
+	return s[0] != '_' &&				      /* X */
+	       s[1] == '_' && s[2] == '_' && s[3] == '_' &&   /* ___ */
+	       s[4] != '_';				      /* Y */
+}
+
+/* Given 'some_struct_name___with_flavor' return the length of a name prefix
+ * before last triple underscore. Struct name part after last triple
+ * underscore is ignored by BPF CO-RE relocation during relocation matching.
+ */
+static size_t bpf_core_essential_name_len(const char *name)
+{
+	size_t n = strlen(name);
+	int i;
+
+	for (i = n - 5; i >= 0; i--) {
+		if (bpf_core_is_flavor_sep(name + i))
+			return i + 1;
+	}
+	return n;
+}
+
+/* dynamically sized list of type IDs */
+struct ids_vec {
+	__u32 *data;
+	int len;
+};
+
+static void bpf_core_free_cands(struct ids_vec *cand_ids)
+{
+	free(cand_ids->data);
+	free(cand_ids);
+}
+
+static struct ids_vec *bpf_core_find_cands(const struct btf *local_btf,
+					   __u32 local_type_id,
+					   const struct btf *targ_btf)
+{
+	size_t local_essent_len, targ_essent_len;
+	const char *local_name, *targ_name;
+	const struct btf_type *t;
+	struct ids_vec *cand_ids;
+	__u32 *new_ids;
+	int i, err, n;
+
+	t = btf__type_by_id(local_btf, local_type_id);
+	if (!t)
+		return ERR_PTR(-EINVAL);
+
+	local_name = btf__name_by_offset(local_btf, t->name_off);
+	if (str_is_empty(local_name))
+		return ERR_PTR(-EINVAL);
+	local_essent_len = bpf_core_essential_name_len(local_name);
+
+	cand_ids = calloc(1, sizeof(*cand_ids));
+	if (!cand_ids)
+		return ERR_PTR(-ENOMEM);
+
+	n = btf__get_nr_types(targ_btf);
+	for (i = 1; i <= n; i++) {
+		t = btf__type_by_id(targ_btf, i);
+		targ_name = btf__name_by_offset(targ_btf, t->name_off);
+		if (str_is_empty(targ_name))
+			continue;
+
+		targ_essent_len = bpf_core_essential_name_len(targ_name);
+		if (targ_essent_len != local_essent_len)
+			continue;
+
+		if (strncmp(local_name, targ_name, local_essent_len) == 0) {
+			pr_debug("[%d] %s: found candidate [%d] %s\n",
+				 local_type_id, local_name, i, targ_name);
+			new_ids = realloc(cand_ids->data, cand_ids->len + 1);
+			if (!new_ids) {
+				err = -ENOMEM;
+				goto err_out;
+			}
+			cand_ids->data = new_ids;
+			cand_ids->data[cand_ids->len++] = i;
+		}
+	}
+	return cand_ids;
+err_out:
+	bpf_core_free_cands(cand_ids);
+	return ERR_PTR(err);
+}
+
+/* Check two types for compatibility, skipping const/volatile/restrict and
+ * typedefs, to ensure we are relocating offset to the compatible entities:
+ *   - any two STRUCTs/UNIONs are compatible and can be mixed;
+ *   - any two FWDs are compatible;
+ *   - any two PTRs are always compatible;
+ *   - for ENUMs, check sizes, names are ignored;
+ *   - for INT, size and bitness should match, signedness is ignored;
+ *   - for ARRAY, dimensionality is ignored, element types are checked for
+ *     compatibility recursively;
+ *   - everything else shouldn't be ever a target of relocation.
+ * These rules are not set in stone and probably will be adjusted as we get
+ * more experience with using BPF CO-RE relocations.
+ */
+static int bpf_core_fields_are_compat(const struct btf *local_btf,
+				      __u32 local_id,
+				      const struct btf *targ_btf,
+				      __u32 targ_id)
+{
+	const struct btf_type *local_type, *targ_type;
+
+recur:
+	local_type = skip_mods_and_typedefs(local_btf, local_id, &local_id);
+	targ_type = skip_mods_and_typedefs(targ_btf, targ_id, &targ_id);
+	if (!local_type || !targ_type)
+		return -EINVAL;
+
+	if (btf_is_composite(local_type) && btf_is_composite(targ_type))
+		return 1;
+	if (btf_kind(local_type) != btf_kind(targ_type))
+		return 0;
+
+	switch (btf_kind(local_type)) {
+	case BTF_KIND_FWD:
+	case BTF_KIND_PTR:
+		return 1;
+	case BTF_KIND_ENUM:
+		return local_type->size == targ_type->size;
+	case BTF_KIND_INT:
+		return btf_int_offset(local_type) == 0 &&
+		       btf_int_offset(targ_type) == 0 &&
+		       local_type->size == targ_type->size &&
+		       btf_int_bits(local_type) == btf_int_bits(targ_type);
+	case BTF_KIND_ARRAY:
+		local_id = btf_array(local_type)->type;
+		targ_id = btf_array(targ_type)->type;
+		goto recur;
+	default:
+		pr_warning("unexpected kind %d relocated, local [%d], target [%d]\n",
+			   btf_kind(local_type), local_id, targ_id);
+		return 0;
+	}
+}
+
+/*
+ * Given single high-level named field accessor in local type, find
+ * corresponding high-level accessor for a target type. Along the way,
+ * maintain low-level spec for target as well. Also keep updating target
+ * offset.
+ *
+ * Searching is performed through recursive exhaustive enumeration of all
+ * fields of a struct/union. If there are any anonymous (embedded)
+ * structs/unions, they are recursively searched as well. If field with
+ * desired name is found, check compatibility between local and target types,
+ * before returning result.
+ *
+ * 1 is returned, if field is found.
+ * 0 is returned if no compatible field is found.
+ * <0 is returned on error.
+ */
+static int bpf_core_match_member(const struct btf *local_btf,
+				 const struct bpf_core_accessor *local_acc,
+				 const struct btf *targ_btf,
+				 __u32 targ_id,
+				 struct bpf_core_spec *spec,
+				 __u32 *next_targ_id)
+{
+	const struct btf_type *local_type, *targ_type;
+	const struct btf_member *local_member, *m;
+	const char *local_name, *targ_name;
+	__u32 local_id;
+	int i, n, found;
+
+	targ_type = skip_mods_and_typedefs(targ_btf, targ_id, &targ_id);
+	if (!targ_type)
+		return -EINVAL;
+	if (!btf_is_composite(targ_type))
+		return 0;
+
+	local_id = local_acc->type_id;
+	local_type = btf__type_by_id(local_btf, local_id);
+	local_member = btf_members(local_type) + local_acc->idx;
+	local_name = btf__name_by_offset(local_btf, local_member->name_off);
+
+	n = btf_vlen(targ_type);
+	m = btf_members(targ_type);
+	for (i = 0; i < n; i++, m++) {
+		__u32 offset;
+
+		/* bitfield relocations not supported */
+		if (btf_member_bitfield_size(targ_type, i))
+			continue;
+		offset = btf_member_bit_offset(targ_type, i);
+		if (offset % 8)
+			continue;
+
+		/* too deep struct/union/array nesting */
+		if (spec->raw_len == BPF_CORE_SPEC_MAX_LEN)
+			return -E2BIG;
+
+		/* speculate this member will be the good one */
+		spec->offset += offset / 8;
+		spec->raw_spec[spec->raw_len++] = i;
+
+		targ_name = btf__name_by_offset(targ_btf, m->name_off);
+		if (str_is_empty(targ_name)) {
+			/* embedded struct/union, we need to go deeper */
+			found = bpf_core_match_member(local_btf, local_acc,
+						      targ_btf, m->type,
+						      spec, next_targ_id);
+			if (found) /* either found or error */
+				return found;
+		} else if (strcmp(local_name, targ_name) == 0) {
+			/* matching named field */
+			struct bpf_core_accessor *targ_acc;
+
+			targ_acc = &spec->spec[spec->len++];
+			targ_acc->type_id = targ_id;
+			targ_acc->idx = i;
+			targ_acc->name = targ_name;
+
+			*next_targ_id = m->type;
+			found = bpf_core_fields_are_compat(local_btf,
+							   local_member->type,
+							   targ_btf, m->type);
+			if (!found)
+				spec->len--; /* pop accessor */
+			return found;
+		}
+		/* member turned out not to be what we looked for */
+		spec->offset -= offset / 8;
+		spec->raw_len--;
+	}
+
+	return 0;
+}
+
+/*
+ * Try to match local spec to a target type and, if successful, produce full
+ * target spec (high-level, low-level + offset).
+ */
+static int bpf_core_spec_match(struct bpf_core_spec *local_spec,
+			       const struct btf *targ_btf, __u32 targ_id,
+			       struct bpf_core_spec *targ_spec)
+{
+	const struct btf_type *targ_type;
+	const struct bpf_core_accessor *local_acc;
+	struct bpf_core_accessor *targ_acc;
+	int i, sz, matched;
+
+	memset(targ_spec, 0, sizeof(*targ_spec));
+	targ_spec->btf = targ_btf;
+
+	local_acc = &local_spec->spec[0];
+	targ_acc = &targ_spec->spec[0];
+
+	for (i = 0; i < local_spec->len; i++, local_acc++, targ_acc++) {
+		targ_type = skip_mods_and_typedefs(targ_spec->btf, targ_id,
+						   &targ_id);
+		if (!targ_type)
+			return -EINVAL;
+
+		if (local_acc->name) {
+			matched = bpf_core_match_member(local_spec->btf,
+							local_acc,
+							targ_btf, targ_id,
+							targ_spec, &targ_id);
+			if (matched <= 0)
+				return matched;
+		} else {
+			/* for i=0, targ_id is already treated as array element
+			 * type (because it's the original struct), for others
+			 * we should find array element type first
+			 */
+			if (i > 0) {
+				const struct btf_array *a;
+
+				if (!btf_is_array(targ_type))
+					return 0;
+
+				a = btf_array(targ_type);
+				if (local_acc->idx >= a->nelems)
+					return 0;
+				if (!skip_mods_and_typedefs(targ_btf, a->type,
+							    &targ_id))
+					return -EINVAL;
+			}
+
+			/* too deep struct/union/array nesting */
+			if (targ_spec->raw_len == BPF_CORE_SPEC_MAX_LEN)
+				return -E2BIG;
+
+			targ_acc->type_id = targ_id;
+			targ_acc->idx = local_acc->idx;
+			targ_acc->name = NULL;
+			targ_spec->len++;
+			targ_spec->raw_spec[targ_spec->raw_len] = targ_acc->idx;
+			targ_spec->raw_len++;
+
+			sz = btf__resolve_size(targ_btf, targ_id);
+			if (sz < 0)
+				return sz;
+			targ_spec->offset += local_acc->idx * sz;
+		}
+	}
+
+	return 1;
+}
+
+/*
+ * Patch relocatable BPF instruction.
+ * Expected insn->imm value is provided for validation, as well as the new
+ * relocated value.
+ *
+ * Currently three kinds of BPF instructions are supported:
+ * 1. rX = <imm> (assignment with immediate operand);
+ * 2. rX += <imm> (arithmetic operations with immediate operand);
+ * 3. *(rX) = <imm> (indirect memory assignment with immediate operand).
+ *
+ * If actual insn->imm value is wrong, bail out.
+ */
+static int bpf_core_reloc_insn(struct bpf_program *prog, int insn_off,
+			       __u32 orig_off, __u32 new_off)
+{
+	struct bpf_insn *insn;
+	int insn_idx;
+	__u8 class;
+
+	if (insn_off % sizeof(struct bpf_insn))
+		return -EINVAL;
+	insn_idx = insn_off / sizeof(struct bpf_insn);
+
+	insn = &prog->insns[insn_idx];
+	class = BPF_CLASS(insn->code);
+
+	if (class == BPF_ALU || class == BPF_ALU64) {
+		if (BPF_SRC(insn->code) != BPF_K)
+			return -EINVAL;
+		if (insn->imm != orig_off)
+			return -EINVAL;
+		insn->imm = new_off;
+		pr_debug("prog '%s': patched insn #%d (ALU/ALU64) imm %d -> %d\n",
+			 bpf_program__title(prog, false),
+			 insn_idx, orig_off, new_off);
+	} else {
+		pr_warning("prog '%s': trying to relocate unrecognized insn #%d, code:%x, src:%x, dst:%x, off:%x, imm:%x\n",
+			   bpf_program__title(prog, false),
+			   insn_idx, insn->code, insn->src_reg, insn->dst_reg,
+			   insn->off, insn->imm);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static struct btf *btf_load_raw(const char *path)
+{
+	struct btf *btf;
+	size_t read_cnt;
+	struct stat st;
+	void *data;
+	FILE *f;
+
+	if (stat(path, &st))
+		return ERR_PTR(-errno);
+
+	data = malloc(st.st_size);
+	if (!data)
+		return ERR_PTR(-ENOMEM);
+
+	f = fopen(path, "rb");
+	if (!f) {
+		btf = ERR_PTR(-errno);
+		goto cleanup;
+	}
+
+	read_cnt = fread(data, 1, st.st_size, f);
+	fclose(f);
+	if (read_cnt < st.st_size) {
+		btf = ERR_PTR(-EBADF);
+		goto cleanup;
+	}
+
+	btf = btf__new(data, read_cnt);
+
+cleanup:
+	free(data);
+	return btf;
+}
+
+/*
+ * Probe few well-known locations for vmlinux kernel image and try to load BTF
+ * data out of it to use for target BTF.
+ */
+static struct btf *bpf_core_find_kernel_btf(void)
+{
+	struct {
+		const char *path_fmt;
+		bool raw_btf;
+	} locations[] = {
+		/* try canonical vmlinux BTF through sysfs first */
+		{ "/sys/kernel/btf/vmlinux", true /* raw BTF */ },
+		/* fall back to trying to find vmlinux ELF on disk otherwise */
+		{ "/boot/vmlinux-%1$s" },
+		{ "/lib/modules/%1$s/vmlinux-%1$s" },
+		{ "/lib/modules/%1$s/build/vmlinux" },
+		{ "/usr/lib/modules/%1$s/kernel/vmlinux" },
+		{ "/usr/lib/debug/boot/vmlinux-%1$s" },
+		{ "/usr/lib/debug/boot/vmlinux-%1$s.debug" },
+		{ "/usr/lib/debug/lib/modules/%1$s/vmlinux" },
+	};
+	char path[PATH_MAX + 1];
+	struct utsname buf;
+	struct btf *btf;
+	int i;
+
+	uname(&buf);
+
+	for (i = 0; i < ARRAY_SIZE(locations); i++) {
+		snprintf(path, PATH_MAX, locations[i].path_fmt, buf.release);
+
+		if (access(path, R_OK))
+			continue;
+
+		if (locations[i].raw_btf)
+			btf = btf_load_raw(path);
+		else
+			btf = btf__parse_elf(path, NULL);
+
+		pr_debug("loading kernel BTF '%s': %ld\n",
+			 path, IS_ERR(btf) ? PTR_ERR(btf) : 0);
+		if (IS_ERR(btf))
+			continue;
+
+		return btf;
+	}
+
+	pr_warning("failed to find valid kernel BTF\n");
+	return ERR_PTR(-ESRCH);
+}
+
+/* Output spec definition in the format:
+ * [<type-id>] (<type-name>) + <raw-spec> => <offset>@<spec>,
+ * where <spec> is a C-syntax view of recorded field access, e.g.: x.a[3].b
+ */
+static void bpf_core_dump_spec(int level, const struct bpf_core_spec *spec)
+{
+	const struct btf_type *t;
+	const char *s;
+	__u32 type_id;
+	int i;
+
+	type_id = spec->spec[0].type_id;
+	t = btf__type_by_id(spec->btf, type_id);
+	s = btf__name_by_offset(spec->btf, t->name_off);
+	libbpf_print(level, "[%u] %s + ", type_id, s);
+
+	for (i = 0; i < spec->raw_len; i++)
+		libbpf_print(level, "%d%s", spec->raw_spec[i],
+			     i == spec->raw_len - 1 ? " => " : ":");
+
+	libbpf_print(level, "%u @ &x", spec->offset);
+
+	for (i = 0; i < spec->len; i++) {
+		if (spec->spec[i].name)
+			libbpf_print(level, ".%s", spec->spec[i].name);
+		else
+			libbpf_print(level, "[%u]", spec->spec[i].idx);
+	}
+
+}
+
+static size_t bpf_core_hash_fn(const void *key, void *ctx)
+{
+	return (size_t)key;
+}
+
+static bool bpf_core_equal_fn(const void *k1, const void *k2, void *ctx)
+{
+	return k1 == k2;
+}
+
+static void *u32_as_hash_key(__u32 x)
+{
+	return (void *)(uintptr_t)x;
+}
+
+/*
+ * CO-RE relocate single instruction.
+ *
+ * The outline and important points of the algorithm:
+ * 1. For given local type, find corresponding candidate target types.
+ *    Candidate type is a type with the same "essential" name, ignoring
+ *    everything after last triple underscore (___). E.g., `sample`,
+ *    `sample___flavor_one`, `sample___flavor_another_one`, are all candidates
+ *    for each other. Names with triple underscore are referred to as
+ *    "flavors" and are useful, among other things, to allow to
+ *    specify/support incompatible variations of the same kernel struct, which
+ *    might differ between different kernel versions and/or build
+ *    configurations.
+ *
+ *    N.B. Struct "flavors" could be generated by bpftool's BTF-to-C
+ *    converter, when deduplicated BTF of a kernel still contains more than
+ *    one different types with the same name. In that case, ___2, ___3, etc
+ *    are appended starting from second name conflict. But start flavors are
+ *    also useful to be defined "locally", in BPF program, to extract same
+ *    data from incompatible changes between different kernel
+ *    versions/configurations. For instance, to handle field renames between
+ *    kernel versions, one can use two flavors of the struct name with the
+ *    same common name and use conditional relocations to extract that field,
+ *    depending on target kernel version.
+ * 2. For each candidate type, try to match local specification to this
+ *    candidate target type. Matching involves finding corresponding
+ *    high-level spec accessors, meaning that all named fields should match,
+ *    as well as all array accesses should be within the actual bounds. Also,
+ *    types should be compatible (see bpf_core_fields_are_compat for details).
+ * 3. It is supported and expected that there might be multiple flavors
+ *    matching the spec. As long as all the specs resolve to the same set of
+ *    offsets across all candidates, there is not error. If there is any
+ *    ambiguity, CO-RE relocation will fail. This is necessary to accomodate
+ *    imprefection of BTF deduplication, which can cause slight duplication of
+ *    the same BTF type, if some directly or indirectly referenced (by
+ *    pointer) type gets resolved to different actual types in different
+ *    object files. If such situation occurs, deduplicated BTF will end up
+ *    with two (or more) structurally identical types, which differ only in
+ *    types they refer to through pointer. This should be OK in most cases and
+ *    is not an error.
+ * 4. Candidate types search is performed by linearly scanning through all
+ *    types in target BTF. It is anticipated that this is overall more
+ *    efficient memory-wise and not significantly worse (if not better)
+ *    CPU-wise compared to prebuilding a map from all local type names to
+ *    a list of candidate type names. It's also sped up by caching resolved
+ *    list of matching candidates per each local "root" type ID, that has at
+ *    least one bpf_offset_reloc associated with it. This list is shared
+ *    between multiple relocations for the same type ID and is updated as some
+ *    of the candidates are pruned due to structural incompatibility.
+ */
+static int bpf_core_reloc_offset(struct bpf_program *prog,
+				 const struct bpf_offset_reloc *relo,
+				 int relo_idx,
+				 const struct btf *local_btf,
+				 const struct btf *targ_btf,
+				 struct hashmap *cand_cache)
+{
+	const char *prog_name = bpf_program__title(prog, false);
+	struct bpf_core_spec local_spec, cand_spec, targ_spec;
+	const void *type_key = u32_as_hash_key(relo->type_id);
+	const struct btf_type *local_type, *cand_type;
+	const char *local_name, *cand_name;
+	struct ids_vec *cand_ids;
+	__u32 local_id, cand_id;
+	const char *spec_str;
+	int i, j, err;
+
+	local_id = relo->type_id;
+	local_type = btf__type_by_id(local_btf, local_id);
+	if (!local_type)
+		return -EINVAL;
+
+	local_name = btf__name_by_offset(local_btf, local_type->name_off);
+	if (str_is_empty(local_name))
+		return -EINVAL;
+
+	spec_str = btf__name_by_offset(local_btf, relo->access_str_off);
+	if (str_is_empty(spec_str))
+		return -EINVAL;
+
+	err = bpf_core_spec_parse(local_btf, local_id, spec_str, &local_spec);
+	if (err) {
+		pr_warning("prog '%s': relo #%d: parsing [%d] %s + %s failed: %d\n",
+			   prog_name, relo_idx, local_id, local_name, spec_str,
+			   err);
+		return -EINVAL;
+	}
+
+	pr_debug("prog '%s': relo #%d: spec is ", prog_name, relo_idx);
+	bpf_core_dump_spec(LIBBPF_DEBUG, &local_spec);
+	libbpf_print(LIBBPF_DEBUG, "\n");
+
+	if (!hashmap__find(cand_cache, type_key, (void **)&cand_ids)) {
+		cand_ids = bpf_core_find_cands(local_btf, local_id, targ_btf);
+		if (IS_ERR(cand_ids)) {
+			pr_warning("prog '%s': relo #%d: target candidate search failed for [%d] %s: %ld",
+				   prog_name, relo_idx, local_id, local_name,
+				   PTR_ERR(cand_ids));
+			return PTR_ERR(cand_ids);
+		}
+		err = hashmap__set(cand_cache, type_key, cand_ids, NULL, NULL);
+		if (err) {
+			bpf_core_free_cands(cand_ids);
+			return err;
+		}
+	}
+
+	for (i = 0, j = 0; i < cand_ids->len; i++) {
+		cand_id = cand_ids->data[i];
+		cand_type = btf__type_by_id(targ_btf, cand_id);
+		cand_name = btf__name_by_offset(targ_btf, cand_type->name_off);
+
+		err = bpf_core_spec_match(&local_spec, targ_btf,
+					  cand_id, &cand_spec);
+		pr_debug("prog '%s': relo #%d: matching candidate #%d %s against spec ",
+			 prog_name, relo_idx, i, cand_name);
+		bpf_core_dump_spec(LIBBPF_DEBUG, &cand_spec);
+		libbpf_print(LIBBPF_DEBUG, ": %d\n", err);
+		if (err < 0) {
+			pr_warning("prog '%s': relo #%d: matching error: %d\n",
+				   prog_name, relo_idx, err);
+			return err;
+		}
+		if (err == 0)
+			continue;
+
+		if (j == 0) {
+			targ_spec = cand_spec;
+		} else if (cand_spec.offset != targ_spec.offset) {
+			/* if there are many candidates, they should all
+			 * resolve to the same offset
+			 */
+			pr_warning("prog '%s': relo #%d: offset ambiguity: %u != %u\n",
+				   prog_name, relo_idx, cand_spec.offset,
+				   targ_spec.offset);
+			return -EINVAL;
+		}
+
+		cand_ids->data[j++] = cand_spec.spec[0].type_id;
+	}
+
+	cand_ids->len = j;
+	if (cand_ids->len == 0) {
+		pr_warning("prog '%s': relo #%d: no matching targets found for [%d] %s + %s\n",
+			   prog_name, relo_idx, local_id, local_name, spec_str);
+		return -ESRCH;
+	}
+
+	err = bpf_core_reloc_insn(prog, relo->insn_off,
+				  local_spec.offset, targ_spec.offset);
+	if (err) {
+		pr_warning("prog '%s': relo #%d: failed to patch insn at offset %d: %d\n",
+			   prog_name, relo_idx, relo->insn_off, err);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int
+bpf_core_reloc_offsets(struct bpf_object *obj, const char *targ_btf_path)
+{
+	const struct btf_ext_info_sec *sec;
+	const struct bpf_offset_reloc *rec;
+	const struct btf_ext_info *seg;
+	struct hashmap_entry *entry;
+	struct hashmap *cand_cache = NULL;
+	struct bpf_program *prog;
+	struct btf *targ_btf;
+	const char *sec_name;
+	int i, err = 0;
+
+	if (targ_btf_path)
+		targ_btf = btf__parse_elf(targ_btf_path, NULL);
+	else
+		targ_btf = bpf_core_find_kernel_btf();
+	if (IS_ERR(targ_btf)) {
+		pr_warning("failed to get target BTF: %ld\n",
+			   PTR_ERR(targ_btf));
+		return PTR_ERR(targ_btf);
+	}
+
+	cand_cache = hashmap__new(bpf_core_hash_fn, bpf_core_equal_fn, NULL);
+	if (IS_ERR(cand_cache)) {
+		err = PTR_ERR(cand_cache);
+		goto out;
+	}
+
+	seg = &obj->btf_ext->offset_reloc_info;
+	for_each_btf_ext_sec(seg, sec) {
+		sec_name = btf__name_by_offset(obj->btf, sec->sec_name_off);
+		if (str_is_empty(sec_name)) {
+			err = -EINVAL;
+			goto out;
+		}
+		prog = bpf_object__find_program_by_title(obj, sec_name);
+		if (!prog) {
+			pr_warning("failed to find program '%s' for CO-RE offset relocation\n",
+				   sec_name);
+			err = -EINVAL;
+			goto out;
+		}
+
+		pr_debug("prog '%s': performing %d CO-RE offset relocs\n",
+			 sec_name, sec->num_info);
+
+		for_each_btf_ext_rec(seg, sec, i, rec) {
+			err = bpf_core_reloc_offset(prog, rec, i, obj->btf,
+						    targ_btf, cand_cache);
+			if (err) {
+				pr_warning("prog '%s': relo #%d: failed to relocate: %d\n",
+					   sec_name, i, err);
+				goto out;
+			}
+		}
+	}
+
+out:
+	btf__free(targ_btf);
+	if (!IS_ERR_OR_NULL(cand_cache)) {
+		hashmap__for_each_entry(cand_cache, entry, i) {
+			bpf_core_free_cands(entry->value);
+		}
+		hashmap__free(cand_cache);
+	}
+	return err;
+}
+
+static int
+bpf_object__relocate_core(struct bpf_object *obj, const char *targ_btf_path)
+{
+	int err = 0;
+
+	if (obj->btf_ext->offset_reloc_info.len)
+		err = bpf_core_reloc_offsets(obj, targ_btf_path);
+
+	return err;
+}
+
 static int
 bpf_program__reloc_text(struct bpf_program *prog, struct bpf_object *obj,
 			struct reloc_desc *relo)
@@ -2395,14 +3291,21 @@ bpf_program__relocate(struct bpf_program *prog, struct bpf_object *obj)
 	return 0;
 }
 
-
 static int
-bpf_object__relocate(struct bpf_object *obj)
+bpf_object__relocate(struct bpf_object *obj, const char *targ_btf_path)
 {
 	struct bpf_program *prog;
 	size_t i;
 	int err;
 
+	if (obj->btf_ext) {
+		err = bpf_object__relocate_core(obj, targ_btf_path);
+		if (err) {
+			pr_warning("failed to perform CO-RE relocations: %d\n",
+				   err);
+			return err;
+		}
+	}
 	for (i = 0; i < obj->nr_programs; i++) {
 		prog = &obj->programs[i];
 
@@ -2808,7 +3711,7 @@ int bpf_object__load_xattr(struct bpf_object_load_attr *attr)
 	obj->loaded = true;
 
 	CHECK_ERR(bpf_object__create_maps(obj), err, out);
-	CHECK_ERR(bpf_object__relocate(obj), err, out);
+	CHECK_ERR(bpf_object__relocate(obj, attr->target_btf_path), err, out);
 	CHECK_ERR(bpf_object__load_progs(obj, attr->log_level), err, out);
 
 	return 0;

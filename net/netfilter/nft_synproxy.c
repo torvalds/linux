@@ -24,15 +24,15 @@ static void nft_synproxy_tcp_options(struct synproxy_options *opts,
 				     const struct tcphdr *tcp,
 				     struct synproxy_net *snet,
 				     struct nf_synproxy_info *info,
-				     struct nft_synproxy *priv)
+				     const struct nft_synproxy *priv)
 {
 	this_cpu_inc(snet->stats->syn_received);
 	if (tcp->ece && tcp->cwr)
 		opts->options |= NF_SYNPROXY_OPT_ECN;
 
 	opts->options &= priv->info.options;
-	opts->mss_encode = opts->mss;
-	opts->mss = info->mss;
+	opts->mss_encode = opts->mss_option;
+	opts->mss_option = info->mss;
 	if (opts->options & NF_SYNPROXY_OPT_TIMESTAMP)
 		synproxy_init_timestamp_cookie(info, opts);
 	else
@@ -41,14 +41,13 @@ static void nft_synproxy_tcp_options(struct synproxy_options *opts,
 				   NF_SYNPROXY_OPT_ECN);
 }
 
-static void nft_synproxy_eval_v4(const struct nft_expr *expr,
+static void nft_synproxy_eval_v4(const struct nft_synproxy *priv,
 				 struct nft_regs *regs,
 				 const struct nft_pktinfo *pkt,
 				 const struct tcphdr *tcp,
 				 struct tcphdr *_tcph,
 				 struct synproxy_options *opts)
 {
-	struct nft_synproxy *priv = nft_expr_priv(expr);
 	struct nf_synproxy_info info = priv->info;
 	struct net *net = nft_net(pkt);
 	struct synproxy_net *snet = synproxy_pernet(net);
@@ -73,14 +72,13 @@ static void nft_synproxy_eval_v4(const struct nft_expr *expr,
 }
 
 #if IS_ENABLED(CONFIG_NF_TABLES_IPV6)
-static void nft_synproxy_eval_v6(const struct nft_expr *expr,
+static void nft_synproxy_eval_v6(const struct nft_synproxy *priv,
 				 struct nft_regs *regs,
 				 const struct nft_pktinfo *pkt,
 				 const struct tcphdr *tcp,
 				 struct tcphdr *_tcph,
 				 struct synproxy_options *opts)
 {
-	struct nft_synproxy *priv = nft_expr_priv(expr);
 	struct nf_synproxy_info info = priv->info;
 	struct net *net = nft_net(pkt);
 	struct synproxy_net *snet = synproxy_pernet(net);
@@ -105,9 +103,9 @@ static void nft_synproxy_eval_v6(const struct nft_expr *expr,
 }
 #endif /* CONFIG_NF_TABLES_IPV6*/
 
-static void nft_synproxy_eval(const struct nft_expr *expr,
-			      struct nft_regs *regs,
-			      const struct nft_pktinfo *pkt)
+static void nft_synproxy_do_eval(const struct nft_synproxy *priv,
+				 struct nft_regs *regs,
+				 const struct nft_pktinfo *pkt)
 {
 	struct synproxy_options opts = {};
 	struct sk_buff *skb = pkt->skb;
@@ -140,23 +138,22 @@ static void nft_synproxy_eval(const struct nft_expr *expr,
 
 	switch (skb->protocol) {
 	case htons(ETH_P_IP):
-		nft_synproxy_eval_v4(expr, regs, pkt, tcp, &_tcph, &opts);
+		nft_synproxy_eval_v4(priv, regs, pkt, tcp, &_tcph, &opts);
 		return;
 #if IS_ENABLED(CONFIG_NF_TABLES_IPV6)
 	case htons(ETH_P_IPV6):
-		nft_synproxy_eval_v6(expr, regs, pkt, tcp, &_tcph, &opts);
+		nft_synproxy_eval_v6(priv, regs, pkt, tcp, &_tcph, &opts);
 		return;
 #endif
 	}
 	regs->verdict.code = NFT_BREAK;
 }
 
-static int nft_synproxy_init(const struct nft_ctx *ctx,
-			     const struct nft_expr *expr,
-			     const struct nlattr * const tb[])
+static int nft_synproxy_do_init(const struct nft_ctx *ctx,
+				const struct nlattr * const tb[],
+				struct nft_synproxy *priv)
 {
 	struct synproxy_net *snet = synproxy_pernet(ctx->net);
-	struct nft_synproxy *priv = nft_expr_priv(expr);
 	u32 flags;
 	int err;
 
@@ -206,8 +203,7 @@ nf_ct_failure:
 	return err;
 }
 
-static void nft_synproxy_destroy(const struct nft_ctx *ctx,
-				 const struct nft_expr *expr)
+static void nft_synproxy_do_destroy(const struct nft_ctx *ctx)
 {
 	struct synproxy_net *snet = synproxy_pernet(ctx->net);
 
@@ -229,10 +225,8 @@ static void nft_synproxy_destroy(const struct nft_ctx *ctx,
 	nf_ct_netns_put(ctx->net, ctx->family);
 }
 
-static int nft_synproxy_dump(struct sk_buff *skb, const struct nft_expr *expr)
+static int nft_synproxy_do_dump(struct sk_buff *skb, struct nft_synproxy *priv)
 {
-	const struct nft_synproxy *priv = nft_expr_priv(expr);
-
 	if (nla_put_be16(skb, NFTA_SYNPROXY_MSS, htons(priv->info.mss)) ||
 	    nla_put_u8(skb, NFTA_SYNPROXY_WSCALE, priv->info.wscale) ||
 	    nla_put_be32(skb, NFTA_SYNPROXY_FLAGS, htonl(priv->info.options)))
@@ -244,12 +238,43 @@ nla_put_failure:
 	return -1;
 }
 
+static void nft_synproxy_eval(const struct nft_expr *expr,
+			      struct nft_regs *regs,
+			      const struct nft_pktinfo *pkt)
+{
+	const struct nft_synproxy *priv = nft_expr_priv(expr);
+
+	nft_synproxy_do_eval(priv, regs, pkt);
+}
+
 static int nft_synproxy_validate(const struct nft_ctx *ctx,
 				 const struct nft_expr *expr,
 				 const struct nft_data **data)
 {
 	return nft_chain_validate_hooks(ctx->chain, (1 << NF_INET_LOCAL_IN) |
 						    (1 << NF_INET_FORWARD));
+}
+
+static int nft_synproxy_init(const struct nft_ctx *ctx,
+			     const struct nft_expr *expr,
+			     const struct nlattr * const tb[])
+{
+	struct nft_synproxy *priv = nft_expr_priv(expr);
+
+	return nft_synproxy_do_init(ctx, tb, priv);
+}
+
+static void nft_synproxy_destroy(const struct nft_ctx *ctx,
+				 const struct nft_expr *expr)
+{
+	nft_synproxy_do_destroy(ctx);
+}
+
+static int nft_synproxy_dump(struct sk_buff *skb, const struct nft_expr *expr)
+{
+	struct nft_synproxy *priv = nft_expr_priv(expr);
+
+	return nft_synproxy_do_dump(skb, priv);
 }
 
 static struct nft_expr_type nft_synproxy_type;
@@ -271,14 +296,89 @@ static struct nft_expr_type nft_synproxy_type __read_mostly = {
 	.maxattr	= NFTA_SYNPROXY_MAX,
 };
 
+static int nft_synproxy_obj_init(const struct nft_ctx *ctx,
+				 const struct nlattr * const tb[],
+				 struct nft_object *obj)
+{
+	struct nft_synproxy *priv = nft_obj_data(obj);
+
+	return nft_synproxy_do_init(ctx, tb, priv);
+}
+
+static void nft_synproxy_obj_destroy(const struct nft_ctx *ctx,
+				     struct nft_object *obj)
+{
+	nft_synproxy_do_destroy(ctx);
+}
+
+static int nft_synproxy_obj_dump(struct sk_buff *skb,
+				 struct nft_object *obj, bool reset)
+{
+	struct nft_synproxy *priv = nft_obj_data(obj);
+
+	return nft_synproxy_do_dump(skb, priv);
+}
+
+static void nft_synproxy_obj_eval(struct nft_object *obj,
+				  struct nft_regs *regs,
+				  const struct nft_pktinfo *pkt)
+{
+	const struct nft_synproxy *priv = nft_obj_data(obj);
+
+	nft_synproxy_do_eval(priv, regs, pkt);
+}
+
+static void nft_synproxy_obj_update(struct nft_object *obj,
+				    struct nft_object *newobj)
+{
+	struct nft_synproxy *newpriv = nft_obj_data(newobj);
+	struct nft_synproxy *priv = nft_obj_data(obj);
+
+	priv->info = newpriv->info;
+}
+
+static struct nft_object_type nft_synproxy_obj_type;
+static const struct nft_object_ops nft_synproxy_obj_ops = {
+	.type		= &nft_synproxy_obj_type,
+	.size		= sizeof(struct nft_synproxy),
+	.init		= nft_synproxy_obj_init,
+	.destroy	= nft_synproxy_obj_destroy,
+	.dump		= nft_synproxy_obj_dump,
+	.eval		= nft_synproxy_obj_eval,
+	.update		= nft_synproxy_obj_update,
+};
+
+static struct nft_object_type nft_synproxy_obj_type __read_mostly = {
+	.type		= NFT_OBJECT_SYNPROXY,
+	.ops		= &nft_synproxy_obj_ops,
+	.maxattr	= NFTA_SYNPROXY_MAX,
+	.policy		= nft_synproxy_policy,
+	.owner		= THIS_MODULE,
+};
+
 static int __init nft_synproxy_module_init(void)
 {
-	return nft_register_expr(&nft_synproxy_type);
+	int err;
+
+	err = nft_register_obj(&nft_synproxy_obj_type);
+	if (err < 0)
+		return err;
+
+	err = nft_register_expr(&nft_synproxy_type);
+	if (err < 0)
+		goto err;
+
+	return 0;
+
+err:
+	nft_unregister_obj(&nft_synproxy_obj_type);
+	return err;
 }
 
 static void __exit nft_synproxy_module_exit(void)
 {
-	return nft_unregister_expr(&nft_synproxy_type);
+	nft_unregister_expr(&nft_synproxy_type);
+	nft_unregister_obj(&nft_synproxy_obj_type);
 }
 
 module_init(nft_synproxy_module_init);
@@ -287,3 +387,4 @@ module_exit(nft_synproxy_module_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Fernando Fernandez <ffmancera@riseup.net>");
 MODULE_ALIAS_NFT_EXPR("synproxy");
+MODULE_ALIAS_NFT_OBJ(NFT_OBJECT_SYNPROXY);

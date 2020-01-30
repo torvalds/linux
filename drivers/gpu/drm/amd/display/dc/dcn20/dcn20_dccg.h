@@ -97,7 +97,7 @@ struct dcn_dccg {
 	const struct dccg_mask *dccg_mask;
 };
 
-void dccg2_update_dpp_dto(struct dccg *dccg, int dpp_inst, int req_dppclk);
+void dccg2_update_dpp_dto(struct dccg *dccg, int dpp_inst, int req_dppclk, bool raise_divider_only);
 
 void dccg2_get_dccg_ref_freq(struct dccg *dccg,
 		unsigned int xtalin_freq_inKhz,

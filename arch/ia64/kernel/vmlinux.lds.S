@@ -141,16 +141,6 @@ SECTIONS {
 		__end___mckinley_e9_bundles = .;
 	}
 
-#if defined(CONFIG_IA64_GENERIC)
-	/* Machine Vector */
-	. = ALIGN(16);
-	.machvec : AT(ADDR(.machvec) - LOAD_OFFSET) {
-		machvec_start = .;
-		*(.machvec)
-		machvec_end = .;
-	}
-#endif
-
 #ifdef	CONFIG_SMP
 	. = ALIGN(PERCPU_PAGE_SIZE);
 	__cpu0_per_cpu = .;

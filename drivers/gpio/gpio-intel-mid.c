@@ -293,8 +293,9 @@ static void intel_mid_irq_handler(struct irq_desc *desc)
 	chip->irq_eoi(data);
 }
 
-static void intel_mid_irq_init_hw(struct intel_mid_gpio *priv)
+static int intel_mid_irq_init_hw(struct gpio_chip *chip)
 {
+	struct intel_mid_gpio *priv = gpiochip_get_data(chip);
 	void __iomem *reg;
 	unsigned base;
 
@@ -309,6 +310,8 @@ static void intel_mid_irq_init_hw(struct intel_mid_gpio *priv)
 		reg = gpio_reg(&priv->chip, base, GEDR);
 		writel(~0, reg);
 	}
+
+	return 0;
 }
 
 static int __maybe_unused intel_gpio_runtime_idle(struct device *dev)
@@ -329,6 +332,7 @@ static int intel_gpio_probe(struct pci_dev *pdev,
 	u32 gpio_base;
 	u32 irq_base;
 	int retval;
+	struct gpio_irq_chip *girq;
 	struct intel_mid_gpio_ddata *ddata =
 				(struct intel_mid_gpio_ddata *)id->driver_data;
 
@@ -369,30 +373,28 @@ static int intel_gpio_probe(struct pci_dev *pdev,
 
 	spin_lock_init(&priv->lock);
 
+	girq = &priv->chip.irq;
+	girq->chip = &intel_mid_irqchip;
+	girq->init_hw = intel_mid_irq_init_hw;
+	girq->parent_handler = intel_mid_irq_handler;
+	girq->num_parents = 1;
+	girq->parents = devm_kcalloc(&pdev->dev, girq->num_parents,
+				     sizeof(*girq->parents),
+				     GFP_KERNEL);
+	if (!girq->parents)
+		return -ENOMEM;
+	girq->parents[0] = pdev->irq;
+	girq->first = irq_base;
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_simple_irq;
+
 	pci_set_drvdata(pdev, priv);
+
 	retval = devm_gpiochip_add_data(&pdev->dev, &priv->chip, priv);
 	if (retval) {
 		dev_err(&pdev->dev, "gpiochip_add error %d\n", retval);
 		return retval;
 	}
-
-	retval = gpiochip_irqchip_add(&priv->chip,
-				      &intel_mid_irqchip,
-				      irq_base,
-				      handle_simple_irq,
-				      IRQ_TYPE_NONE);
-	if (retval) {
-		dev_err(&pdev->dev,
-			"could not connect irqchip to gpiochip\n");
-		return retval;
-	}
-
-	intel_mid_irq_init_hw(priv);
-
-	gpiochip_set_chained_irqchip(&priv->chip,
-				     &intel_mid_irqchip,
-				     pdev->irq,
-				     intel_mid_irq_handler);
 
 	pm_runtime_put_noidle(&pdev->dev);
 	pm_runtime_allow(&pdev->dev);

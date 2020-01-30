@@ -91,6 +91,8 @@ struct snd_ff {
 	int dev_lock_count;
 	bool dev_lock_changed;
 	wait_queue_head_t hwdep_wait;
+
+	struct amdtp_domain domain;
 };
 
 enum snd_ff_clock_src {

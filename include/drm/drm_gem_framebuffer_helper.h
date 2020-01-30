@@ -33,11 +33,4 @@ int drm_gem_fb_prepare_fb(struct drm_plane *plane,
 			  struct drm_plane_state *state);
 int drm_gem_fb_simple_display_pipe_prepare_fb(struct drm_simple_display_pipe *pipe,
 					      struct drm_plane_state *plane_state);
-
-struct drm_framebuffer *
-drm_gem_fbdev_fb_create(struct drm_device *dev,
-			struct drm_fb_helper_surface_size *sizes,
-			unsigned int pitch_align, struct drm_gem_object *obj,
-			const struct drm_framebuffer_funcs *funcs);
-
 #endif

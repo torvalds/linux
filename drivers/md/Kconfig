@@ -271,6 +271,7 @@ config DM_CRYPT
 	depends on BLK_DEV_DM
 	select CRYPTO
 	select CRYPTO_CBC
+	select CRYPTO_ESSIV
 	---help---
 	  This device-mapper target allows you to create a device that
 	  transparently encrypts the data on it. You'll need to activate
@@ -345,6 +346,20 @@ config DM_ERA
          dm-era tracks which parts of a block device are written to
          over time.  Useful for maintaining cache coherency when using
          vendor snapshots.
+
+config DM_CLONE
+       tristate "Clone target (EXPERIMENTAL)"
+       depends on BLK_DEV_DM
+       default n
+       select DM_PERSISTENT_DATA
+       ---help---
+         dm-clone produces a one-to-one copy of an existing, read-only source
+         device into a writable destination device. The cloned device is
+         visible/mountable immediately and the copy of the source device to the
+         destination device happens in the background, in parallel with user
+         I/O.
+
+         If unsure, say N.
 
 config DM_MIRROR
        tristate "Mirror target"
@@ -487,6 +502,18 @@ config DM_VERITY
 
 	  To compile this code as a module, choose M here: the module will
 	  be called dm-verity.
+
+	  If unsure, say N.
+
+config DM_VERITY_VERIFY_ROOTHASH_SIG
+	def_bool n
+	bool "Verity data device root hash signature verification support"
+	depends on DM_VERITY
+	select SYSTEM_DATA_VERIFICATION
+	  help
+	  Add ability for dm-verity device to be validated if the
+	  pre-generated tree of cryptographic checksums passed has a pkcs#7
+	  signature file that can validate the roothash of the tree.
 
 	  If unsure, say N.
 

@@ -25,21 +25,21 @@
 
 static const struct xvip_video_format xvip_video_formats[] = {
 	{ XVIP_VF_YUV_422, 8, NULL, MEDIA_BUS_FMT_UYVY8_1X16,
-	  2, V4L2_PIX_FMT_YUYV, "4:2:2, packed, YUYV" },
+	  2, V4L2_PIX_FMT_YUYV },
 	{ XVIP_VF_YUV_444, 8, NULL, MEDIA_BUS_FMT_VUY8_1X24,
-	  3, V4L2_PIX_FMT_YUV444, "4:4:4, packed, YUYV" },
+	  3, V4L2_PIX_FMT_YUV444 },
 	{ XVIP_VF_RBG, 8, NULL, MEDIA_BUS_FMT_RBG888_1X24,
-	  3, 0, NULL },
+	  3, 0 },
 	{ XVIP_VF_MONO_SENSOR, 8, "mono", MEDIA_BUS_FMT_Y8_1X8,
-	  1, V4L2_PIX_FMT_GREY, "Greyscale 8-bit" },
+	  1, V4L2_PIX_FMT_GREY },
 	{ XVIP_VF_MONO_SENSOR, 8, "rggb", MEDIA_BUS_FMT_SRGGB8_1X8,
-	  1, V4L2_PIX_FMT_SRGGB8, "Bayer 8-bit RGGB" },
+	  1, V4L2_PIX_FMT_SRGGB8 },
 	{ XVIP_VF_MONO_SENSOR, 8, "grbg", MEDIA_BUS_FMT_SGRBG8_1X8,
-	  1, V4L2_PIX_FMT_SGRBG8, "Bayer 8-bit GRBG" },
+	  1, V4L2_PIX_FMT_SGRBG8 },
 	{ XVIP_VF_MONO_SENSOR, 8, "gbrg", MEDIA_BUS_FMT_SGBRG8_1X8,
-	  1, V4L2_PIX_FMT_SGBRG8, "Bayer 8-bit GBRG" },
+	  1, V4L2_PIX_FMT_SGBRG8 },
 	{ XVIP_VF_MONO_SENSOR, 8, "bggr", MEDIA_BUS_FMT_SBGGR8_1X8,
-	  1, V4L2_PIX_FMT_SBGGR8, "Bayer 8-bit BGGR" },
+	  1, V4L2_PIX_FMT_SBGGR8 },
 };
 
 /**

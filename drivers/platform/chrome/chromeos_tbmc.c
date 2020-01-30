@@ -47,6 +47,7 @@ static __maybe_unused int chromeos_tbmc_resume(struct device *dev)
 
 static void chromeos_tbmc_notify(struct acpi_device *adev, u32 event)
 {
+	acpi_pm_wakeup_event(&adev->dev);
 	switch (event) {
 	case 0x80:
 		chromeos_tbmc_query_switch(adev, adev->driver_data);
@@ -90,6 +91,7 @@ static int chromeos_tbmc_add(struct acpi_device *adev)
 		dev_err(dev, "cannot register input device\n");
 		return ret;
 	}
+	device_init_wakeup(dev, true);
 	return 0;
 }
 

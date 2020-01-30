@@ -165,6 +165,7 @@ static void __init _register_dpll(void *user,
 	struct clk_hw_omap *clk_hw = to_clk_hw_omap(hw);
 	struct dpll_data *dd = clk_hw->dpll_data;
 	struct clk *clk;
+	const struct clk_init_data *init = hw->init;
 
 	clk = of_clk_get(node, 0);
 	if (IS_ERR(clk)) {
@@ -196,15 +197,15 @@ static void __init _register_dpll(void *user,
 
 	if (!IS_ERR(clk)) {
 		of_clk_add_provider(node, of_clk_src_simple_get, clk);
-		kfree(clk_hw->hw.init->parent_names);
-		kfree(clk_hw->hw.init);
+		kfree(init->parent_names);
+		kfree(init);
 		return;
 	}
 
 cleanup:
 	kfree(clk_hw->dpll_data);
-	kfree(clk_hw->hw.init->parent_names);
-	kfree(clk_hw->hw.init);
+	kfree(init->parent_names);
+	kfree(init);
 	kfree(clk_hw);
 }
 
@@ -291,13 +292,11 @@ static void __init of_ti_dpll_setup(struct device_node *node,
 	struct dpll_data *dd = NULL;
 	u8 dpll_mode = 0;
 
-	dd = kzalloc(sizeof(*dd), GFP_KERNEL);
+	dd = kmemdup(ddt, sizeof(*dd), GFP_KERNEL);
 	clk_hw = kzalloc(sizeof(*clk_hw), GFP_KERNEL);
 	init = kzalloc(sizeof(*init), GFP_KERNEL);
 	if (!dd || !clk_hw || !init)
 		goto cleanup;
-
-	memcpy(dd, ddt, sizeof(*dd));
 
 	clk_hw->dpll_data = dd;
 	clk_hw->ops = &clkhwops_omap3_dpll;

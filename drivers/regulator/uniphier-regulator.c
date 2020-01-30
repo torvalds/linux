@@ -186,6 +186,10 @@ static const struct of_device_id uniphier_regulator_match[] = {
 		.data = &uniphier_pro4_usb3_data,
 	},
 	{
+		.compatible = "socionext,uniphier-pro5-usb3-regulator",
+		.data = &uniphier_pro4_usb3_data,
+	},
+	{
 		.compatible = "socionext,uniphier-pxs2-usb3-regulator",
 		.data = &uniphier_pxs2_usb3_data,
 	},

@@ -42,7 +42,7 @@ Optional properties:
   This means that no unrelated I2C transactions are allowed on the parent I2C
   adapter for the complete multiplexed I2C transaction.
   The properties of mux-locked and parent-locked multiplexers are discussed
-  in more detail in Documentation/i2c/i2c-topology.
+  in more detail in Documentation/i2c/i2c-topology.rst.
 
 For each i2c child node, an I2C child bus will be created. They will
 be numbered based on their order in the device tree.

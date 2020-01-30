@@ -1283,7 +1283,7 @@ static const struct hc_driver usbhsh_driver = {
 	/*
 	 * generic hardware linkage
 	 */
-	.flags =		HCD_USB2,
+	.flags =		HCD_DMA | HCD_USB2,
 
 	.start =		usbhsh_host_start,
 	.stop =			usbhsh_host_stop,

@@ -128,6 +128,7 @@ static ssize_t sof_dfsentry_write(struct file *file, const char __user *buffer,
 	unsigned long ipc_duration_ms = 0;
 	bool flood_duration_test = false;
 	unsigned long ipc_count = 0;
+	struct dentry *dentry;
 	int err;
 #endif
 	size_t size;
@@ -149,11 +150,14 @@ static ssize_t sof_dfsentry_write(struct file *file, const char __user *buffer,
 	 * ipc_duration_ms test floods the DSP for the time specified
 	 * in the debugfs entry.
 	 */
-	if (strcmp(dfse->dfsentry->d_name.name, "ipc_flood_count") &&
-	    strcmp(dfse->dfsentry->d_name.name, "ipc_flood_duration_ms"))
-		return -EINVAL;
+	dentry = file->f_path.dentry;
+	if (strcmp(dentry->d_name.name, "ipc_flood_count") &&
+	    strcmp(dentry->d_name.name, "ipc_flood_duration_ms")) {
+		ret = -EINVAL;
+		goto out;
+	}
 
-	if (!strcmp(dfse->dfsentry->d_name.name, "ipc_flood_duration_ms"))
+	if (!strcmp(dentry->d_name.name, "ipc_flood_duration_ms"))
 		flood_duration_test = true;
 
 	/* test completion criterion */
@@ -226,8 +230,11 @@ static ssize_t sof_dfsentry_read(struct file *file, char __user *buffer,
 	u8 *buf;
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_IPC_FLOOD_TEST)
-	if ((!strcmp(dfse->dfsentry->d_name.name, "ipc_flood_count") ||
-	     !strcmp(dfse->dfsentry->d_name.name, "ipc_flood_duration_ms")) &&
+	struct dentry *dentry;
+
+	dentry = file->f_path.dentry;
+	if ((!strcmp(dentry->d_name.name, "ipc_flood_count") ||
+	     !strcmp(dentry->d_name.name, "ipc_flood_duration_ms")) &&
 	    dfse->cache_buf) {
 		if (*ppos)
 			return 0;
@@ -290,8 +297,7 @@ static ssize_t sof_dfsentry_read(struct file *file, char __user *buffer,
 		if (!pm_runtime_active(sdev->dev) &&
 		    dfse->access_type == SOF_DEBUGFS_ACCESS_D0_ONLY) {
 			dev_err(sdev->dev,
-				"error: debugfs entry %s cannot be read in DSP D3\n",
-				dfse->dfsentry->d_name.name);
+				"error: debugfs entry cannot be read in DSP D3\n");
 			kfree(buf);
 			return -EINVAL;
 		}
@@ -356,17 +362,11 @@ int snd_sof_debugfs_io_item(struct snd_sof_dev *sdev,
 	}
 #endif
 
-	dfse->dfsentry = debugfs_create_file(name, 0444, sdev->debugfs_root,
-					     dfse, &sof_dfs_fops);
-	if (!dfse->dfsentry) {
-		/* can't rely on debugfs, only log error and keep going */
-		dev_err(sdev->dev, "error: cannot create debugfs entry %s\n",
-			name);
-	} else {
-		/* add to dfsentry list */
-		list_add(&dfse->list, &sdev->dfsentry_list);
+	debugfs_create_file(name, 0444, sdev->debugfs_root, dfse,
+			    &sof_dfs_fops);
 
-	}
+	/* add to dfsentry list */
+	list_add(&dfse->list, &sdev->dfsentry_list);
 
 	return 0;
 }
@@ -402,16 +402,10 @@ int snd_sof_debugfs_buf_item(struct snd_sof_dev *sdev,
 		return -ENOMEM;
 #endif
 
-	dfse->dfsentry = debugfs_create_file(name, mode, sdev->debugfs_root,
-					     dfse, &sof_dfs_fops);
-	if (!dfse->dfsentry) {
-		/* can't rely on debugfs, only log error and keep going */
-		dev_err(sdev->dev, "error: cannot create debugfs entry %s\n",
-			name);
-	} else {
-		/* add to dfsentry list */
-		list_add(&dfse->list, &sdev->dfsentry_list);
-	}
+	debugfs_create_file(name, mode, sdev->debugfs_root, dfse,
+			    &sof_dfs_fops);
+	/* add to dfsentry list */
+	list_add(&dfse->list, &sdev->dfsentry_list);
 
 	return 0;
 }
@@ -426,10 +420,6 @@ int snd_sof_dbg_init(struct snd_sof_dev *sdev)
 
 	/* use "sof" as top level debugFS dir */
 	sdev->debugfs_root = debugfs_create_dir("sof", NULL);
-	if (IS_ERR_OR_NULL(sdev->debugfs_root)) {
-		dev_err(sdev->dev, "error: failed to create debugfs directory\n");
-		return 0;
-	}
 
 	/* init dfsentry list */
 	INIT_LIST_HEAD(&sdev->dfsentry_list);

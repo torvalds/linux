@@ -184,8 +184,9 @@ static void mxc_rtc_irq_enable(struct device *dev, unsigned int bit,
 	struct rtc_plat_data *pdata = dev_get_drvdata(dev);
 	void __iomem *ioaddr = pdata->ioaddr;
 	u32 reg;
+	unsigned long flags;
 
-	spin_lock_irq(&pdata->rtc->irq_lock);
+	spin_lock_irqsave(&pdata->rtc->irq_lock, flags);
 	reg = readw(ioaddr + RTC_RTCIENR);
 
 	if (enabled)
@@ -194,7 +195,7 @@ static void mxc_rtc_irq_enable(struct device *dev, unsigned int bit,
 		reg &= ~bit;
 
 	writew(reg, ioaddr + RTC_RTCIENR);
-	spin_unlock_irq(&pdata->rtc->irq_lock);
+	spin_unlock_irqrestore(&pdata->rtc->irq_lock, flags);
 }
 
 /* This function is the RTC interrupt service routine. */

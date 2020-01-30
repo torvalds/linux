@@ -227,7 +227,7 @@ then
 			must_continue=yes
 		fi
 		last_ts="`tail $resdir/console.log | grep '^\[ *[0-9]\+\.[0-9]\+]' | tail -1 | sed -e 's/^\[ *//' -e 's/\..*$//'`"
-		if test -z "last_ts"
+		if test -z "$last_ts"
 		then
 			last_ts=0
 		fi

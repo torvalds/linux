@@ -6,21 +6,12 @@
 #ifndef __ETNAVIV_DRV_H__
 #define __ETNAVIV_DRV_H__
 
-#include <linux/kernel.h>
-#include <linux/clk.h>
-#include <linux/cpufreq.h>
-#include <linux/module.h>
-#include <linux/platform_device.h>
-#include <linux/pm.h>
-#include <linux/pm_runtime.h>
-#include <linux/slab.h>
 #include <linux/list.h>
+#include <linux/mm_types.h>
+#include <linux/sizes.h>
 #include <linux/time64.h>
 #include <linux/types.h>
-#include <linux/sizes.h>
-#include <linux/mm_types.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem.h>
 #include <drm/etnaviv_drm.h>
@@ -31,12 +22,12 @@ struct etnaviv_gpu;
 struct etnaviv_mmu;
 struct etnaviv_gem_object;
 struct etnaviv_gem_submit;
+struct etnaviv_iommu_global;
+
+#define ETNAVIV_SOFTPIN_START_ADDRESS	SZ_4M /* must be >= SUBALLOC_SIZE */
 
 struct etnaviv_file_private {
-	/*
-	 * When per-context address spaces are supported we'd keep track of
-	 * the context's page-tables here.
-	 */
+	struct etnaviv_iommu_context	*mmu;
 	struct drm_sched_entity		sched_entity[ETNA_MAX_PIPES];
 };
 
@@ -44,6 +35,9 @@ struct etnaviv_drm_private {
 	int num_gpus;
 	struct device_dma_parameters dma_parms;
 	struct etnaviv_gpu *gpu[ETNA_MAX_PIPES];
+
+	struct etnaviv_cmdbuf_suballoc *cmdbuf_suballoc;
+	struct etnaviv_iommu_global *mmu_global;
 
 	/* list of GEM objects: */
 	struct mutex gem_lock;
@@ -76,10 +70,11 @@ int etnaviv_gem_new_userptr(struct drm_device *dev, struct drm_file *file,
 	uintptr_t ptr, u32 size, u32 flags, u32 *handle);
 u16 etnaviv_buffer_init(struct etnaviv_gpu *gpu);
 u16 etnaviv_buffer_config_mmuv2(struct etnaviv_gpu *gpu, u32 mtlb_addr, u32 safe_addr);
-u16 etnaviv_buffer_config_pta(struct etnaviv_gpu *gpu);
+u16 etnaviv_buffer_config_pta(struct etnaviv_gpu *gpu, unsigned short id);
 void etnaviv_buffer_end(struct etnaviv_gpu *gpu);
 void etnaviv_sync_point_queue(struct etnaviv_gpu *gpu, unsigned int event);
 void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, u32 exec_state,
+	struct etnaviv_iommu_context *mmu,
 	unsigned int event, struct etnaviv_cmdbuf *cmdbuf);
 void etnaviv_validate_init(void);
 bool etnaviv_cmd_validate_one(struct etnaviv_gpu *gpu,

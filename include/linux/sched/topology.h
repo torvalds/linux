@@ -150,6 +150,10 @@ static inline struct cpumask *sched_domain_span(struct sched_domain *sd)
 	return to_cpumask(sd->span);
 }
 
+extern void partition_sched_domains_locked(int ndoms_new,
+					   cpumask_var_t doms_new[],
+					   struct sched_domain_attr *dattr_new);
+
 extern void partition_sched_domains(int ndoms_new, cpumask_var_t doms_new[],
 				    struct sched_domain_attr *dattr_new);
 
@@ -193,6 +197,12 @@ extern void set_sched_topology(struct sched_domain_topology_level *tl);
 #else /* CONFIG_SMP */
 
 struct sched_domain_attr;
+
+static inline void
+partition_sched_domains_locked(int ndoms_new, cpumask_var_t doms_new[],
+			       struct sched_domain_attr *dattr_new)
+{
+}
 
 static inline void
 partition_sched_domains(int ndoms_new, cpumask_var_t doms_new[],

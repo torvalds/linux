@@ -210,6 +210,10 @@ int imx_media_register_ipu_internal_subdevs(struct imx_media_dev *imxmd,
 
 	mutex_lock(&imxmd->mutex);
 
+	/* record this IPU */
+	if (!imxmd->ipu[ipu_id])
+		imxmd->ipu[ipu_id] = ipu;
+
 	/* register the synchronous subdevs */
 	for (i = 0; i < NUM_IPU_SUBDEVS; i++) {
 		intsd = &int_subdev[i];

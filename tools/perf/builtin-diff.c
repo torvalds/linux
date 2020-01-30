@@ -6,6 +6,7 @@
  * DSOs and symbol information, sort them and produce a diff.
  */
 #include "builtin.h"
+#include "perf.h"
 
 #include "util/debug.h"
 #include "util/event.h"
@@ -15,13 +16,17 @@
 #include "util/session.h"
 #include "util/tool.h"
 #include "util/sort.h"
+#include "util/srcline.h"
 #include "util/symbol.h"
 #include "util/data.h"
 #include "util/config.h"
 #include "util/time-utils.h"
 #include "util/annotate.h"
 #include "util/map.h"
+#include <linux/err.h>
 #include <linux/zalloc.h>
+#include <subcmd/pager.h>
+#include <subcmd/parse-options.h>
 
 #include <errno.h>
 #include <inttypes.h>
@@ -376,7 +381,7 @@ struct hist_entry_ops block_hist_ops = {
 static int diff__process_sample_event(struct perf_tool *tool,
 				      union perf_event *event,
 				      struct perf_sample *sample,
-				      struct perf_evsel *evsel,
+				      struct evsel *evsel,
 				      struct machine *machine)
 {
 	struct perf_diff *pdiff = container_of(tool, struct perf_diff, tool);
@@ -448,10 +453,10 @@ static struct perf_diff pdiff = {
 	},
 };
 
-static struct perf_evsel *evsel_match(struct perf_evsel *evsel,
-				      struct perf_evlist *evlist)
+static struct evsel *evsel_match(struct evsel *evsel,
+				      struct evlist *evlist)
 {
-	struct perf_evsel *e;
+	struct evsel *e;
 
 	evlist__for_each_entry(evlist, e) {
 		if (perf_evsel__match2(evsel, e))
@@ -461,9 +466,9 @@ static struct perf_evsel *evsel_match(struct perf_evsel *evsel,
 	return NULL;
 }
 
-static void perf_evlist__collapse_resort(struct perf_evlist *evlist)
+static void perf_evlist__collapse_resort(struct evlist *evlist)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	evlist__for_each_entry(evlist, evsel) {
 		struct hists *hists = evsel__hists(evsel);
@@ -1009,8 +1014,8 @@ static void data__fprintf(void)
 
 static void data_process(void)
 {
-	struct perf_evlist *evlist_base = data__files[0].session->evlist;
-	struct perf_evsel *evsel_base;
+	struct evlist *evlist_base = data__files[0].session->evlist;
+	struct evsel *evsel_base;
 	bool first = true;
 
 	evlist__for_each_entry(evlist_base, evsel_base) {
@@ -1019,8 +1024,8 @@ static void data_process(void)
 		int i;
 
 		data__for_each_file_new(i, d) {
-			struct perf_evlist *evlist = d->session->evlist;
-			struct perf_evsel *evsel;
+			struct evlist *evlist = d->session->evlist;
+			struct evsel *evsel;
 			struct hists *hists;
 
 			evsel = evsel_match(evsel_base, evlist);
@@ -1149,9 +1154,9 @@ static int check_file_brstack(void)
 
 	data__for_each_file(i, d) {
 		d->session = perf_session__new(&d->data, false, &pdiff.tool);
-		if (!d->session) {
+		if (IS_ERR(d->session)) {
 			pr_err("Failed to open %s\n", d->data.path);
-			return -1;
+			return PTR_ERR(d->session);
 		}
 
 		has_br_stack = perf_header__has_feat(&d->session->header,
@@ -1181,9 +1186,9 @@ static int __cmd_diff(void)
 
 	data__for_each_file(i, d) {
 		d->session = perf_session__new(&d->data, false, &pdiff.tool);
-		if (!d->session) {
+		if (IS_ERR(d->session)) {
+			ret = PTR_ERR(d->session);
 			pr_err("Failed to open %s\n", d->data.path);
-			ret = -1;
 			goto out_delete;
 		}
 

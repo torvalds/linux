@@ -112,6 +112,8 @@ static const struct vmw_res_func vmw_legacy_surface_func = {
 	.res_type = vmw_res_surface,
 	.needs_backup = false,
 	.may_evict = true,
+	.prio = 1,
+	.dirty_prio = 1,
 	.type_name = "legacy surfaces",
 	.backup_placement = &vmw_srf_placement,
 	.create = &vmw_legacy_srf_create,
@@ -124,6 +126,8 @@ static const struct vmw_res_func vmw_gb_surface_func = {
 	.res_type = vmw_res_surface,
 	.needs_backup = true,
 	.may_evict = true,
+	.prio = 1,
+	.dirty_prio = 2,
 	.type_name = "guest backed surfaces",
 	.backup_placement = &vmw_mob_placement,
 	.create = vmw_gb_surface_create,
@@ -915,12 +919,6 @@ vmw_surface_handle_reference(struct vmw_private *dev_priv,
 		if (unlikely(drm_is_render_client(file_priv)))
 			require_exist = true;
 
-		if (READ_ONCE(vmw_fpriv(file_priv)->locked_master)) {
-			DRM_ERROR("Locked master refused legacy "
-				  "surface reference.\n");
-			return -EACCES;
-		}
-
 		handle = u_handle;
 	}
 
@@ -1669,7 +1667,7 @@ vmw_gb_surface_define_internal(struct drm_device *dev,
 	rep->backup_size = res->backup_size;
 	if (res->backup) {
 		rep->buffer_map_handle =
-			drm_vma_node_offset_addr(&res->backup->base.vma_node);
+			drm_vma_node_offset_addr(&res->backup->base.base.vma_node);
 		rep->buffer_size = res->backup->base.num_pages * PAGE_SIZE;
 		rep->buffer_handle = backup_handle;
 	} else {
@@ -1745,7 +1743,7 @@ vmw_gb_surface_reference_internal(struct drm_device *dev,
 	rep->crep.backup_size = srf->res.backup_size;
 	rep->crep.buffer_handle = backup_handle;
 	rep->crep.buffer_map_handle =
-		drm_vma_node_offset_addr(&srf->res.backup->base.vma_node);
+		drm_vma_node_offset_addr(&srf->res.backup->base.base.vma_node);
 	rep->crep.buffer_size = srf->res.backup->base.num_pages * PAGE_SIZE;
 
 	rep->creq.version = drm_vmw_gb_surface_v1;

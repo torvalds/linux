@@ -365,9 +365,18 @@ struct lpfc_io_buf {
 	/* Common fields */
 	struct list_head list;
 	void *data;
+
 	dma_addr_t dma_handle;
 	dma_addr_t dma_phys_sgl;
-	struct sli4_sge *dma_sgl;
+
+	struct sli4_sge *dma_sgl; /* initial segment chunk */
+
+	/* linked list of extra sli4_hybrid_sge */
+	struct list_head dma_sgl_xtra_list;
+
+	/* list head for fcp_cmd_rsp buf */
+	struct list_head dma_cmd_rsp_list;
+
 	struct lpfc_iocbq cur_iocbq;
 	struct lpfc_sli4_hdw_queue *hdwq;
 	uint16_t hdwq_no;

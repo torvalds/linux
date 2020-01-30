@@ -30,3 +30,4 @@ endif
 obj-$(CONFIG_CRYPTO_DEV_FSL_DPAA2_CAAM) += dpaa2_caam.o
 
 dpaa2_caam-y    := caamalg_qi2.o dpseci.o
+dpaa2_caam-$(CONFIG_DEBUG_FS) += dpseci-debugfs.o

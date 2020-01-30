@@ -102,37 +102,30 @@ MODULE_PARM_DESC(video_debug, "enable debug messages [video]");
 /* supported video standards */
 static struct em28xx_fmt format[] = {
 	{
-		.name     = "16 bpp YUY2, 4:2:2, packed",
 		.fourcc   = V4L2_PIX_FMT_YUYV,
 		.depth    = 16,
 		.reg	  = EM28XX_OUTFMT_YUV422_Y0UY1V,
 	}, {
-		.name     = "16 bpp RGB 565, LE",
 		.fourcc   = V4L2_PIX_FMT_RGB565,
 		.depth    = 16,
 		.reg      = EM28XX_OUTFMT_RGB_16_656,
 	}, {
-		.name     = "8 bpp Bayer RGRG..GBGB",
 		.fourcc   = V4L2_PIX_FMT_SRGGB8,
 		.depth    = 8,
 		.reg      = EM28XX_OUTFMT_RGB_8_RGRG,
 	}, {
-		.name     = "8 bpp Bayer BGBG..GRGR",
 		.fourcc   = V4L2_PIX_FMT_SBGGR8,
 		.depth    = 8,
 		.reg      = EM28XX_OUTFMT_RGB_8_BGBG,
 	}, {
-		.name     = "8 bpp Bayer GRGR..BGBG",
 		.fourcc   = V4L2_PIX_FMT_SGRBG8,
 		.depth    = 8,
 		.reg      = EM28XX_OUTFMT_RGB_8_GRGR,
 	}, {
-		.name     = "8 bpp Bayer GBGB..RGRG",
 		.fourcc   = V4L2_PIX_FMT_SGBRG8,
 		.depth    = 8,
 		.reg      = EM28XX_OUTFMT_RGB_8_GBGB,
 	}, {
-		.name     = "12 bpp YUV411",
 		.fourcc   = V4L2_PIX_FMT_YUV411P,
 		.depth    = 12,
 		.reg      = EM28XX_OUTFMT_YUV411,
@@ -1517,7 +1510,6 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	else
 		f->fmt.pix.field = v4l2->interlaced_fieldmode ?
 			   V4L2_FIELD_INTERLACED : V4L2_FIELD_TOP;
-	f->fmt.pix.priv = 0;
 
 	return 0;
 }
@@ -2011,7 +2003,6 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 	if (unlikely(f->index >= ARRAY_SIZE(format)))
 		return -EINVAL;
 
-	strscpy(f->description, format[f->index].name, sizeof(f->description));
 	f->pixelformat = format[f->index].fourcc;
 
 	return 0;
@@ -2208,7 +2199,7 @@ static int em28xx_v4l2_open(struct file *filp)
 /*
  * em28xx_v4l2_fini()
  * unregisters the v4l2,i2c and usb devices
- * called when the device gets disconected or at module unload
+ * called when the device gets disconnected or at module unload
  */
 static int em28xx_v4l2_fini(struct em28xx *dev)
 {

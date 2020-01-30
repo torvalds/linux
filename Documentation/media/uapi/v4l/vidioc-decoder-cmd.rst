@@ -56,14 +56,16 @@ The ``cmd`` field must contain the command code. Some commands use the
 
 A :ref:`write() <func-write>` or :ref:`VIDIOC_STREAMON`
 call sends an implicit START command to the decoder if it has not been
-started yet.
+started yet. Applies to both queues of mem2mem decoders.
 
 A :ref:`close() <func-close>` or :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>`
 call of a streaming file descriptor sends an implicit immediate STOP
-command to the decoder, and all buffered data is discarded.
+command to the decoder, and all buffered data is discarded. Applies to both
+queues of mem2mem decoders.
 
-These ioctls are optional, not all drivers may support them. They were
-introduced in Linux 3.3.
+In principle, these ioctls are optional, not all drivers may support them. They were
+introduced in Linux 3.3. They are, however, mandatory for stateful mem2mem decoders
+(as further documented in :ref:`decoder`).
 
 
 .. tabularcolumns:: |p{1.1cm}|p{2.4cm}|p{1.2cm}|p{1.6cm}|p{10.6cm}|
@@ -167,26 +169,32 @@ introduced in Linux 3.3.
 	``V4L2_DEC_CMD_RESUME`` for that. This command has one flag:
 	``V4L2_DEC_CMD_START_MUTE_AUDIO``. If set, then audio will be
 	muted when playing back at a non-standard speed.
+
+	For a device implementing the :ref:`decoder`, once the drain sequence
+	is initiated with the ``V4L2_DEC_CMD_STOP`` command, it must be driven
+	to completion before this command can be invoked.  Any attempt to
+	invoke the command while the drain sequence is in progress will trigger
+	an ``EBUSY`` error code.  The command may be also used to restart the
+	decoder in case of an implicit stop initiated by the decoder itself,
+	without the ``V4L2_DEC_CMD_STOP`` being called explicitly. See
+	:ref:`decoder` for more details.
     * - ``V4L2_DEC_CMD_STOP``
       - 1
       - Stop the decoder. When the decoder is already stopped, this
 	command does nothing. This command has two flags: if
 	``V4L2_DEC_CMD_STOP_TO_BLACK`` is set, then the decoder will set
 	the picture to black after it stopped decoding. Otherwise the last
-	image will repeat. mem2mem decoders will stop producing new frames
-	altogether. They will send a ``V4L2_EVENT_EOS`` event when the
-	last frame has been decoded and all frames are ready to be
-	dequeued and will set the ``V4L2_BUF_FLAG_LAST`` buffer flag on
-	the last buffer of the capture queue to indicate there will be no
-	new buffers produced to dequeue. This buffer may be empty,
-	indicated by the driver setting the ``bytesused`` field to 0. Once
-	the ``V4L2_BUF_FLAG_LAST`` flag was set, the
-	:ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl will not block anymore,
-	but return an ``EPIPE`` error code. If
+	image will repeat. If
 	``V4L2_DEC_CMD_STOP_IMMEDIATELY`` is set, then the decoder stops
 	immediately (ignoring the ``pts`` value), otherwise it will keep
 	decoding until timestamp >= pts or until the last of the pending
 	data from its internal buffers was decoded.
+
+	For a device implementing the :ref:`decoder`, the command will initiate
+	the drain sequence as documented in :ref:`decoder`.  No flags or other
+	arguments are accepted in this case. Any attempt to invoke the command
+	again before the sequence completes will trigger an ``EBUSY`` error
+	code.
     * - ``V4L2_DEC_CMD_PAUSE``
       - 2
       - Pause the decoder. When the decoder has not been started yet, the
@@ -208,6 +216,11 @@ Return Value
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
+
+EBUSY
+    A drain sequence of a device implementing the :ref:`decoder` is still in
+    progress. It is not allowed to issue another decoder command until it
+    completes.
 
 EINVAL
     The ``cmd`` field is invalid.

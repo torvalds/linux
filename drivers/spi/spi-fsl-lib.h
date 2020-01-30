@@ -91,9 +91,6 @@ static inline u32 mpc8xxx_spi_read_reg(__be32 __iomem *reg)
 
 struct mpc8xxx_spi_probe_info {
 	struct fsl_spi_platform_data pdata;
-	int ngpios;
-	int *gpios;
-	bool *alow_flags;
 	__be32 __iomem *immr_spi_cs;
 };
 

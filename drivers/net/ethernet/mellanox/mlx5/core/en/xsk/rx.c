@@ -24,7 +24,8 @@ int mlx5e_xsk_page_alloc_umem(struct mlx5e_rq *rq,
 	if (!xsk_umem_peek_addr_rq(umem, &handle))
 		return -ENOMEM;
 
-	dma_info->xsk.handle = handle + rq->buff.umem_headroom;
+	dma_info->xsk.handle = xsk_umem_adjust_offset(umem, handle,
+						      rq->buff.umem_headroom);
 	dma_info->xsk.data = xdp_umem_get_data(umem, dma_info->xsk.handle);
 
 	/* No need to add headroom to the DMA address. In striding RQ case, we
@@ -104,7 +105,7 @@ struct sk_buff *mlx5e_xsk_skb_from_cqe_mpwrq_linear(struct mlx5e_rq *rq,
 
 	/* head_offset is not used in this function, because di->xsk.data and
 	 * di->addr point directly to the necessary place. Furthermore, in the
-	 * current implementation, one page = one packet = one frame, so
+	 * current implementation, UMR pages are mapped to XSK frames, so
 	 * head_offset should always be 0.
 	 */
 	WARN_ON_ONCE(head_offset);

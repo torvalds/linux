@@ -691,10 +691,12 @@ static void rt5677_set_dsp_mode(struct snd_soc_component *component, bool on)
 	struct rt5677_priv *rt5677 = snd_soc_component_get_drvdata(component);
 
 	if (on) {
-		regmap_update_bits(rt5677->regmap, RT5677_PWR_DSP1, 0x2, 0x2);
+		regmap_update_bits(rt5677->regmap, RT5677_PWR_DSP1,
+			RT5677_PWR_DSP, RT5677_PWR_DSP);
 		rt5677->is_dsp_mode = true;
 	} else {
-		regmap_update_bits(rt5677->regmap, RT5677_PWR_DSP1, 0x2, 0x0);
+		regmap_update_bits(rt5677->regmap, RT5677_PWR_DSP1,
+			RT5677_PWR_DSP, 0x0);
 		rt5677->is_dsp_mode = false;
 	}
 }
@@ -4466,7 +4468,8 @@ static int rt5677_set_bias_level(struct snd_soc_component *component,
 
 			regmap_update_bits(rt5677->regmap, RT5677_PWR_ANLG1,
 				RT5677_LDO1_SEL_MASK | RT5677_LDO2_SEL_MASK,
-				0x0055);
+				5 << RT5677_LDO1_SEL_SFT |
+				5 << RT5677_LDO2_SEL_SFT);
 			regmap_update_bits(rt5677->regmap,
 				RT5677_PR_BASE + RT5677_BIAS_CUR4,
 				0x0f00, 0x0f00);
@@ -4490,9 +4493,11 @@ static int rt5677_set_bias_level(struct snd_soc_component *component,
 	case SND_SOC_BIAS_OFF:
 		regmap_update_bits(rt5677->regmap, RT5677_DIG_MISC, 0x1, 0x0);
 		regmap_write(rt5677->regmap, RT5677_PWR_DIG1, 0x0000);
-		regmap_write(rt5677->regmap, RT5677_PWR_DIG2, 0x0000);
-		regmap_write(rt5677->regmap, RT5677_PWR_ANLG1, 0x0022);
-		regmap_write(rt5677->regmap, RT5677_PWR_ANLG2, 0x0000);
+		regmap_write(rt5677->regmap, RT5677_PWR_ANLG1,
+			2 << RT5677_LDO1_SEL_SFT |
+			2 << RT5677_LDO2_SEL_SFT);
+		regmap_update_bits(rt5677->regmap, RT5677_PWR_ANLG2,
+			RT5677_PWR_CORE, 0);
 		regmap_update_bits(rt5677->regmap,
 			RT5677_PR_BASE + RT5677_BIAS_CUR4, 0x0f00, 0x0000);
 
@@ -4719,7 +4724,8 @@ static int rt5677_probe(struct snd_soc_component *component)
 
 	regmap_update_bits(rt5677->regmap, RT5677_DIG_MISC,
 			~RT5677_IRQ_DEBOUNCE_SEL_MASK, 0x0020);
-	regmap_write(rt5677->regmap, RT5677_PWR_DSP2, 0x0c00);
+	regmap_write(rt5677->regmap, RT5677_PWR_DSP2,
+			RT5677_PWR_SLIM_ISO | RT5677_PWR_CORE_ISO);
 
 	for (i = 0; i < RT5677_GPIO_NUM; i++)
 		rt5677_gpio_config(rt5677, i, rt5677->pdata.gpio_config[i]);

@@ -33,6 +33,9 @@
 #ifndef _IW_PORTMAP_H
 #define _IW_PORTMAP_H
 
+#include <linux/socket.h>
+#include <linux/netlink.h>
+
 #define IWPM_ULIBNAME_SIZE	32
 #define IWPM_DEVNAME_SIZE	32
 #define IWPM_IFNAME_SIZE	16

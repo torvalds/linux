@@ -7,6 +7,7 @@
 #ifndef _I915_GPU_ERROR_H_
 #define _I915_GPU_ERROR_H_
 
+#include <linux/atomic.h>
 #include <linux/kref.h>
 #include <linux/ktime.h>
 #include <linux/sched.h>
@@ -14,9 +15,9 @@
 #include <drm/drm_mm.h>
 
 #include "gt/intel_engine.h"
+#include "gt/uc/intel_uc_fw.h"
 
 #include "intel_device_info.h"
-#include "intel_uc_fw.h"
 
 #include "i915_gem.h"
 #include "i915_gem_gtt.h"
@@ -80,11 +81,11 @@ struct i915_gpu_state {
 	struct intel_display_error_state *display;
 
 	struct drm_i915_error_engine {
-		int engine_id;
+		const struct intel_engine_cs *engine;
+
 		/* Software tracked state */
 		bool idle;
 		unsigned long hangcheck_timestamp;
-		struct i915_address_space *vm;
 		int num_requests;
 		u32 reset_count;
 
@@ -158,34 +159,14 @@ struct i915_gpu_state {
 				u32 pp_dir_base;
 			};
 		} vm_info;
-	} engine[I915_NUM_ENGINES];
 
-	struct drm_i915_error_buffer {
-		u32 size;
-		u32 name;
-		u64 gtt_offset;
-		u32 read_domains;
-		u32 write_domain;
-		s32 fence_reg:I915_MAX_NUM_FENCE_BITS;
-		u32 tiling:2;
-		u32 dirty:1;
-		u32 purgeable:1;
-		u32 userptr:1;
-		u32 cache_level:3;
-	} *active_bo[I915_NUM_ENGINES], *pinned_bo;
-	u32 active_bo_count[I915_NUM_ENGINES], pinned_bo_count;
-	struct i915_address_space *active_vm[I915_NUM_ENGINES];
+		struct drm_i915_error_engine *next;
+	} *engine;
 
 	struct scatterlist *sgl, *fit;
 };
 
 struct i915_gpu_error {
-	/* For hangcheck timer */
-#define DRM_I915_HANGCHECK_PERIOD 1500 /* in ms */
-#define DRM_I915_HANGCHECK_JIFFIES msecs_to_jiffies(DRM_I915_HANGCHECK_PERIOD)
-
-	struct delayed_work hangcheck_work;
-
 	/* For reset and error_state handling. */
 	spinlock_t lock;
 	/* Protected by the above dev->gpu_error.lock. */
@@ -193,52 +174,11 @@ struct i915_gpu_error {
 
 	atomic_t pending_fb_pin;
 
-	/**
-	 * flags: Control various stages of the GPU reset
-	 *
-	 * #I915_RESET_BACKOFF - When we start a global reset, we need to
-	 * serialise with any other users attempting to do the same, and
-	 * any global resources that may be clobber by the reset (such as
-	 * FENCE registers).
-	 *
-	 * #I915_RESET_ENGINE[num_engines] - Since the driver doesn't need to
-	 * acquire the struct_mutex to reset an engine, we need an explicit
-	 * flag to prevent two concurrent reset attempts in the same engine.
-	 * As the number of engines continues to grow, allocate the flags from
-	 * the most significant bits.
-	 *
-	 * #I915_WEDGED - If reset fails and we can no longer use the GPU,
-	 * we set the #I915_WEDGED bit. Prior to command submission, e.g.
-	 * i915_request_alloc(), this bit is checked and the sequence
-	 * aborted (with -EIO reported to userspace) if set.
-	 */
-	unsigned long flags;
-#define I915_RESET_BACKOFF	0
-#define I915_RESET_MODESET	1
-#define I915_RESET_ENGINE	2
-#define I915_WEDGED		(BITS_PER_LONG - 1)
-
 	/** Number of times the device has been reset (global) */
-	u32 reset_count;
+	atomic_t reset_count;
 
 	/** Number of times an engine has been reset */
-	u32 reset_engine_count[I915_NUM_ENGINES];
-
-	struct mutex wedge_mutex; /* serialises wedging/unwedging */
-
-	/**
-	 * Waitqueue to signal when a hang is detected. Used to for waiters
-	 * to release the struct_mutex for the reset to procede.
-	 */
-	wait_queue_head_t wait_queue;
-
-	/**
-	 * Waitqueue to signal when the reset has completed. Used by clients
-	 * that wait for dev_priv->mm.wedged to settle.
-	 */
-	wait_queue_head_t reset_queue;
-
-	struct srcu_struct reset_backoff_srcu;
+	atomic_t reset_engine_count[I915_NUM_ENGINES];
 };
 
 struct drm_i915_error_state_buf {

@@ -90,7 +90,7 @@ struct amdgpu_bo_list_entry;
                                 | AMDGPU_PTE_WRITEABLE  \
                                 | AMDGPU_PTE_MTYPE_VG10(AMDGPU_MTYPE_CC))
 
-/* NAVI10 only */
+/* gfx10 */
 #define AMDGPU_PTE_MTYPE_NV10(a)       ((uint64_t)(a) << 48)
 #define AMDGPU_PTE_MTYPE_NV10_MASK     AMDGPU_PTE_MTYPE_NV10(7ULL)
 
@@ -100,9 +100,10 @@ struct amdgpu_bo_list_entry;
 #define AMDGPU_VM_FAULT_STOP_ALWAYS	2
 
 /* max number of VMHUB */
-#define AMDGPU_MAX_VMHUBS			2
-#define AMDGPU_GFXHUB				0
-#define AMDGPU_MMHUB				1
+#define AMDGPU_MAX_VMHUBS			3
+#define AMDGPU_GFXHUB_0				0
+#define AMDGPU_MMHUB_0				1
+#define AMDGPU_MMHUB_1				2
 
 /* hardcode that limit for now */
 #define AMDGPU_VA_RESERVED_SIZE			(1ULL << 20)

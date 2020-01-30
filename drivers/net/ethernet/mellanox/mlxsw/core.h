@@ -128,6 +128,9 @@ int mlxsw_core_trap_register(struct mlxsw_core *mlxsw_core,
 void mlxsw_core_trap_unregister(struct mlxsw_core *mlxsw_core,
 				const struct mlxsw_listener *listener,
 				void *priv);
+int mlxsw_core_trap_action_set(struct mlxsw_core *mlxsw_core,
+			       const struct mlxsw_listener *listener,
+			       enum mlxsw_reg_hpkt_action action);
 
 typedef void mlxsw_reg_trans_cb_t(struct mlxsw_core *mlxsw_core, char *payload,
 				  size_t payload_len, unsigned long cb_priv);
@@ -174,6 +177,11 @@ int mlxsw_core_port_init(struct mlxsw_core *mlxsw_core, u8 local_port,
 			 const unsigned char *switch_id,
 			 unsigned char switch_id_len);
 void mlxsw_core_port_fini(struct mlxsw_core *mlxsw_core, u8 local_port);
+int mlxsw_core_cpu_port_init(struct mlxsw_core *mlxsw_core,
+			     void *port_driver_priv,
+			     const unsigned char *switch_id,
+			     unsigned char switch_id_len);
+void mlxsw_core_cpu_port_fini(struct mlxsw_core *mlxsw_core);
 void mlxsw_core_port_eth_set(struct mlxsw_core *mlxsw_core, u8 local_port,
 			     void *port_driver_priv, struct net_device *dev);
 void mlxsw_core_port_ib_set(struct mlxsw_core *mlxsw_core, u8 local_port,
@@ -289,6 +297,15 @@ struct mlxsw_driver {
 	int (*flash_update)(struct mlxsw_core *mlxsw_core,
 			    const char *file_name, const char *component,
 			    struct netlink_ext_ack *extack);
+	int (*trap_init)(struct mlxsw_core *mlxsw_core,
+			 const struct devlink_trap *trap, void *trap_ctx);
+	void (*trap_fini)(struct mlxsw_core *mlxsw_core,
+			  const struct devlink_trap *trap, void *trap_ctx);
+	int (*trap_action_set)(struct mlxsw_core *mlxsw_core,
+			       const struct devlink_trap *trap,
+			       enum devlink_trap_action action);
+	int (*trap_group_init)(struct mlxsw_core *mlxsw_core,
+			       const struct devlink_trap_group *group);
 	void (*txhdr_construct)(struct sk_buff *skb,
 				const struct mlxsw_tx_info *tx_info);
 	int (*resources_register)(struct mlxsw_core *mlxsw_core);

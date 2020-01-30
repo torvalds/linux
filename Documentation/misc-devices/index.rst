@@ -20,3 +20,4 @@ fit into other categories.
    isl29003
    lis3lv02d
    max6875
+   xilinx_sdfec

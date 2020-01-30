@@ -69,7 +69,7 @@ extern int ptrauth_prctl_reset_keys(struct task_struct *tsk, unsigned long arg);
  * The EL0 pointer bits used by a pointer authentication code.
  * This is dependent on TBI0 being enabled, or bits 63:56 would also apply.
  */
-#define ptrauth_user_pac_mask()	GENMASK(54, vabits_user)
+#define ptrauth_user_pac_mask()	GENMASK(54, vabits_actual)
 
 /* Only valid for EL0 TTBR0 instruction pointers */
 static inline unsigned long ptrauth_strip_insn_pac(unsigned long ptr)

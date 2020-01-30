@@ -436,7 +436,7 @@ void batadv_interface_rx(struct net_device *soft_iface,
 	/* clean the netfilter state now that the batman-adv header has been
 	 * removed
 	 */
-	nf_reset(skb);
+	nf_reset_ct(skb);
 
 	if (unlikely(!pskb_may_pull(skb, ETH_HLEN)))
 		goto dropped;
@@ -740,36 +740,6 @@ static int batadv_interface_kill_vid(struct net_device *dev, __be16 proto,
 	return 0;
 }
 
-/* batman-adv network devices have devices nesting below it and are a special
- * "super class" of normal network devices; split their locks off into a
- * separate class since they always nest.
- */
-static struct lock_class_key batadv_netdev_xmit_lock_key;
-static struct lock_class_key batadv_netdev_addr_lock_key;
-
-/**
- * batadv_set_lockdep_class_one() - Set lockdep class for a single tx queue
- * @dev: device which owns the tx queue
- * @txq: tx queue to modify
- * @_unused: always NULL
- */
-static void batadv_set_lockdep_class_one(struct net_device *dev,
-					 struct netdev_queue *txq,
-					 void *_unused)
-{
-	lockdep_set_class(&txq->_xmit_lock, &batadv_netdev_xmit_lock_key);
-}
-
-/**
- * batadv_set_lockdep_class() - Set txq and addr_list lockdep class
- * @dev: network device to modify
- */
-static void batadv_set_lockdep_class(struct net_device *dev)
-{
-	lockdep_set_class(&dev->addr_list_lock, &batadv_netdev_addr_lock_key);
-	netdev_for_each_tx_queue(dev, batadv_set_lockdep_class_one, NULL);
-}
-
 /**
  * batadv_softif_init_late() - late stage initialization of soft interface
  * @dev: registered network device to modify
@@ -782,8 +752,6 @@ static int batadv_softif_init_late(struct net_device *dev)
 	u32 random_seqno;
 	int ret;
 	size_t cnt_len = sizeof(u64) * BATADV_CNT_NUM;
-
-	batadv_set_lockdep_class(dev);
 
 	bat_priv = netdev_priv(dev);
 	bat_priv->soft_iface = dev;
@@ -943,10 +911,10 @@ static const struct net_device_ops batadv_netdev_ops = {
 static void batadv_get_drvinfo(struct net_device *dev,
 			       struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, "B.A.T.M.A.N. advanced", sizeof(info->driver));
-	strlcpy(info->version, BATADV_SOURCE_VERSION, sizeof(info->version));
-	strlcpy(info->fw_version, "N/A", sizeof(info->fw_version));
-	strlcpy(info->bus_info, "batman", sizeof(info->bus_info));
+	strscpy(info->driver, "B.A.T.M.A.N. advanced", sizeof(info->driver));
+	strscpy(info->version, BATADV_SOURCE_VERSION, sizeof(info->version));
+	strscpy(info->fw_version, "N/A", sizeof(info->fw_version));
+	strscpy(info->bus_info, "batman", sizeof(info->bus_info));
 }
 
 /* Inspired by drivers/net/ethernet/dlink/sundance.c:1702

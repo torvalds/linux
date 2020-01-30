@@ -10,12 +10,14 @@
 #ifndef __SHMOB_DRM_CRTC_H__
 #define __SHMOB_DRM_CRTC_H__
 
-#include <drm/drmP.h>
 #include <drm/drm_crtc.h>
+#include <drm/drm_connector.h>
 #include <drm/drm_encoder.h>
 
 struct backlight_device;
+struct drm_pending_vblank_event;
 struct shmob_drm_device;
+struct shmob_drm_format_info;
 
 struct shmob_drm_crtc {
 	struct drm_crtc crtc;

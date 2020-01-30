@@ -9,11 +9,16 @@
  */
 
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/types.h>
 #include <linux/io.h>
-#include <drm/drmP.h>
+
 #include <video/videomode.h>
 #include <video/display_timing.h>
+
+#include <drm/drm_fourcc.h>
+#include <drm/drm_vblank.h>
+#include <drm/drm_print.h>
 
 #include "malidp_drv.h"
 #include "malidp_hw.h"
@@ -385,6 +390,7 @@ int malidp_format_get_bpp(u32 fmt)
 		switch (fmt) {
 		case DRM_FORMAT_VUY101010:
 			bpp = 30;
+			break;
 		case DRM_FORMAT_YUV420_10BIT:
 			bpp = 15;
 			break;
@@ -1309,7 +1315,7 @@ static irqreturn_t malidp_se_irq(int irq, void *arg)
 			break;
 		case MW_RESTART:
 			drm_writeback_signal_completion(&malidp->mw_connector, 0);
-			/* fall through to a new start */
+			/* fall through - to a new start */
 		case MW_START:
 			/* writeback started, need to emulate one-shot mode */
 			hw->disable_memwrite(hwdev);

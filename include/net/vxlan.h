@@ -197,6 +197,7 @@ struct vxlan_rdst {
 	u8			 offloaded:1;
 	__be32			 remote_vni;
 	u32			 remote_ifindex;
+	struct net_device	 *remote_dev;
 	struct list_head	 list;
 	struct rcu_head		 rcu;
 	struct dst_cache	 dst_cache;
@@ -391,7 +392,7 @@ static inline bool vxlan_addr_multicast(const union vxlan_addr *ipa)
 	if (ipa->sa.sa_family == AF_INET6)
 		return ipv6_addr_is_multicast(&ipa->sin6.sin6_addr);
 	else
-		return IN_MULTICAST(ntohl(ipa->sin.sin_addr.s_addr));
+		return ipv4_is_multicast(ipa->sin.sin_addr.s_addr);
 }
 
 #else /* !IS_ENABLED(CONFIG_IPV6) */
@@ -403,7 +404,7 @@ static inline bool vxlan_addr_any(const union vxlan_addr *ipa)
 
 static inline bool vxlan_addr_multicast(const union vxlan_addr *ipa)
 {
-	return IN_MULTICAST(ntohl(ipa->sin.sin_addr.s_addr));
+	return ipv4_is_multicast(ipa->sin.sin_addr.s_addr);
 }
 
 #endif /* IS_ENABLED(CONFIG_IPV6) */

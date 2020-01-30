@@ -840,7 +840,7 @@ static int s5p_mfc_set_enc_params(struct s5p_mfc_ctx *ctx)
 	if (p->pad) {
 		reg = 0;
 		/** enable */
-		reg |= (1 << 31);
+		reg |= (1UL << 31);
 		/** cr value */
 		reg |= ((p->pad_cr & 0xFF) << 16);
 		/** cb value */

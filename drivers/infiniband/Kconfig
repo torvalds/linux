@@ -55,6 +55,7 @@ config INFINIBAND_ON_DEMAND_PAGING
 	bool "InfiniBand on-demand paging support"
 	depends on INFINIBAND_USER_MEM
 	select MMU_NOTIFIER
+	select INTERVAL_TREE
 	default y
 	---help---
 	  On demand paging support for the InfiniBand subsystem.

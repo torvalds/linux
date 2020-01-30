@@ -12,7 +12,6 @@
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/types.h>
-#include <linux/mutex.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
 #include <linux/gpio.h>
@@ -470,28 +469,41 @@ static const struct iio_trigger_ops st_magn_trigger_ops = {
 #define ST_MAGN_TRIGGER_OPS NULL
 #endif
 
+/*
+ * st_magn_get_settings() - get sensor settings from device name
+ * @name: device name buffer reference.
+ *
+ * Return: valid reference on success, NULL otherwise.
+ */
+const struct st_sensor_settings *st_magn_get_settings(const char *name)
+{
+	int index = st_sensors_get_settings_index(name,
+					st_magn_sensors_settings,
+					ARRAY_SIZE(st_magn_sensors_settings));
+	if (index < 0)
+		return NULL;
+
+	return &st_magn_sensors_settings[index];
+}
+EXPORT_SYMBOL(st_magn_get_settings);
+
 int st_magn_common_probe(struct iio_dev *indio_dev)
 {
 	struct st_sensor_data *mdata = iio_priv(indio_dev);
-	int irq = mdata->get_irq_data_ready(indio_dev);
 	int err;
 
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &magn_info;
-	mutex_init(&mdata->tb.buf_lock);
 
 	err = st_sensors_power_enable(indio_dev);
 	if (err)
 		return err;
 
-	err = st_sensors_check_device_support(indio_dev,
-					ARRAY_SIZE(st_magn_sensors_settings),
-					st_magn_sensors_settings);
+	err = st_sensors_verify_id(indio_dev);
 	if (err < 0)
 		goto st_magn_power_off;
 
 	mdata->num_data_channels = ST_MAGN_NUMBER_DATA_CHANNELS;
-	mdata->multiread_bit = mdata->sensor_settings->multi_read_bit;
 	indio_dev->channels = mdata->sensor_settings->ch;
 	indio_dev->num_channels = ST_SENSORS_NUMBER_ALL_CHANNELS;
 
@@ -507,7 +519,7 @@ int st_magn_common_probe(struct iio_dev *indio_dev)
 	if (err < 0)
 		goto st_magn_power_off;
 
-	if (irq > 0) {
+	if (mdata->irq > 0) {
 		err = st_sensors_allocate_trigger(indio_dev,
 						ST_MAGN_TRIGGER_OPS);
 		if (err < 0)
@@ -524,7 +536,7 @@ int st_magn_common_probe(struct iio_dev *indio_dev)
 	return 0;
 
 st_magn_device_register_error:
-	if (irq > 0)
+	if (mdata->irq > 0)
 		st_sensors_deallocate_trigger(indio_dev);
 st_magn_probe_trigger_error:
 	st_magn_deallocate_ring(indio_dev);
@@ -542,7 +554,7 @@ void st_magn_common_remove(struct iio_dev *indio_dev)
 	st_sensors_power_disable(indio_dev);
 
 	iio_device_unregister(indio_dev);
-	if (mdata->get_irq_data_ready(indio_dev) > 0)
+	if (mdata->irq > 0)
 		st_sensors_deallocate_trigger(indio_dev);
 
 	st_magn_deallocate_ring(indio_dev);

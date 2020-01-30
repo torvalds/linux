@@ -372,6 +372,7 @@ static const struct of_device_id mmpcam_of_match[] = {
 	{ .compatible = "marvell,mmp2-ccic", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, mmpcam_of_match);
 
 static struct platform_driver mmpcam_driver = {
 	.probe		= mmpcam_probe,

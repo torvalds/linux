@@ -6,10 +6,11 @@
  */
 
 #include <linux/ktime.h>
-#include <linux/math64.h>
 #include <linux/mfd/cros_ec.h>
-#include <linux/mfd/cros_ec_commands.h>
+#include <linux/math64.h>
 #include <linux/module.h>
+#include <linux/platform_data/cros_ec_commands.h>
+#include <linux/platform_data/cros_ec_proto.h>
 #include <linux/platform_device.h>
 #include <linux/rtc.h>
 
@@ -209,6 +210,9 @@ static int cros_usbpd_logger_probe(struct platform_device *pd)
 	/* Retrieve PD event logs periodically */
 	INIT_DELAYED_WORK(&logger->log_work, cros_usbpd_log_check);
 	logger->log_workqueue =	create_singlethread_workqueue("cros_usbpd_log");
+	if (!logger->log_workqueue)
+		return -ENOMEM;
+
 	queue_delayed_work(logger->log_workqueue, &logger->log_work,
 			   CROS_USBPD_LOG_UPDATE_DELAY);
 

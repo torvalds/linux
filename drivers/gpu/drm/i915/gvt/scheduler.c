@@ -84,8 +84,8 @@ static void sr_oa_regs(struct intel_vgpu_workload *workload,
 		u32 *reg_state, bool save)
 {
 	struct drm_i915_private *dev_priv = workload->vgpu->gvt->dev_priv;
-	u32 ctx_oactxctrl = dev_priv->perf.oa.ctx_oactxctrl_offset;
-	u32 ctx_flexeu0 = dev_priv->perf.oa.ctx_flexeu0_offset;
+	u32 ctx_oactxctrl = dev_priv->perf.ctx_oactxctrl_offset;
+	u32 ctx_flexeu0 = dev_priv->perf.ctx_flexeu0_offset;
 	int i = 0;
 	u32 flex_mmio[] = {
 		i915_mmio_reg_offset(EU_PERF_CNTL0),
@@ -291,9 +291,6 @@ shadow_context_descriptor_update(struct intel_context *ce,
 	 * Update bits 0-11 of the context descriptor which includes flags
 	 * like GEN8_CTX_* cached in desc_template
 	 */
-	desc &= U64_MAX << 12;
-	desc |= ce->gem_context->desc_template & ((1ULL << 12) - 1);
-
 	desc &= ~(0x3 << GEN8_CTX_ADDRESSING_MODE_SHIFT);
 	desc |= workload->ctx_desc.addressing_mode <<
 		GEN8_CTX_ADDRESSING_MODE_SHIFT;
@@ -569,6 +566,16 @@ static int prepare_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 
 	update_wa_ctx_2_shadow_ctx(wa_ctx);
 	return 0;
+}
+
+static void update_vreg_in_ctx(struct intel_vgpu_workload *workload)
+{
+	struct intel_vgpu *vgpu = workload->vgpu;
+	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
+	u32 ring_base;
+
+	ring_base = dev_priv->engine[workload->ring_id]->mmio_base;
+	vgpu_vreg_t(vgpu, RING_START(ring_base)) = workload->rb_start;
 }
 
 static void release_shadow_batch_buffer(struct intel_vgpu_workload *workload)
@@ -1019,6 +1026,13 @@ static int workload_thread(void *priv)
 		if (need_force_wake)
 			intel_uncore_forcewake_get(&gvt->dev_priv->uncore,
 					FORCEWAKE_ALL);
+		/*
+		 * Update the vReg of the vGPU which submitted this
+		 * workload. The vGPU may use these registers for checking
+		 * the context state. The value comes from GPU commands
+		 * in this workload.
+		 */
+		update_vreg_in_ctx(workload);
 
 		ret = dispatch_workload(workload);
 
@@ -1157,7 +1171,7 @@ void intel_vgpu_clean_submission(struct intel_vgpu *vgpu)
 
 	intel_vgpu_select_submission_ops(vgpu, ALL_ENGINES, 0);
 
-	i915_context_ppgtt_root_restore(s, i915_vm_to_ppgtt(s->shadow[0]->gem_context->vm));
+	i915_context_ppgtt_root_restore(s, i915_vm_to_ppgtt(s->shadow[0]->vm));
 	for_each_engine(engine, vgpu->gvt->dev_priv, id)
 		intel_context_unpin(s->shadow[id]);
 
@@ -1215,28 +1229,41 @@ i915_context_ppgtt_root_save(struct intel_vgpu_submission *s,
  */
 int intel_vgpu_setup_submission(struct intel_vgpu *vgpu)
 {
+	struct drm_i915_private *i915 = vgpu->gvt->dev_priv;
 	struct intel_vgpu_submission *s = &vgpu->submission;
 	struct intel_engine_cs *engine;
 	struct i915_gem_context *ctx;
 	enum intel_engine_id i;
 	int ret;
 
-	ctx = i915_gem_context_create_gvt(&vgpu->gvt->dev_priv->drm);
-	if (IS_ERR(ctx))
-		return PTR_ERR(ctx);
+	mutex_lock(&i915->drm.struct_mutex);
+
+	ctx = i915_gem_context_create_kernel(i915, I915_PRIORITY_MAX);
+	if (IS_ERR(ctx)) {
+		ret = PTR_ERR(ctx);
+		goto out_unlock;
+	}
+
+	i915_gem_context_set_force_single_submission(ctx);
 
 	i915_context_ppgtt_root_save(s, i915_vm_to_ppgtt(ctx->vm));
 
-	for_each_engine(engine, vgpu->gvt->dev_priv, i) {
+	for_each_engine(engine, i915, i) {
 		struct intel_context *ce;
 
 		INIT_LIST_HEAD(&s->workload_q_head[i]);
 		s->shadow[i] = ERR_PTR(-EINVAL);
 
-		ce = i915_gem_context_get_engine(ctx, i);
+		ce = intel_context_create(ctx, engine);
 		if (IS_ERR(ce)) {
 			ret = PTR_ERR(ce);
 			goto out_shadow_ctx;
+		}
+
+		if (!USES_GUC_SUBMISSION(i915)) { /* Max ring buffer size */
+			const unsigned int ring_size = 512 * SZ_4K;
+
+			ce->ring = __intel_context_ring_size(ring_size);
 		}
 
 		ret = intel_context_pin(ce);
@@ -1265,17 +1292,21 @@ int intel_vgpu_setup_submission(struct intel_vgpu *vgpu)
 	bitmap_zero(s->tlb_handle_pending, I915_NUM_ENGINES);
 
 	i915_gem_context_put(ctx);
+	mutex_unlock(&i915->drm.struct_mutex);
 	return 0;
 
 out_shadow_ctx:
 	i915_context_ppgtt_root_restore(s, i915_vm_to_ppgtt(ctx->vm));
-	for_each_engine(engine, vgpu->gvt->dev_priv, i) {
+	for_each_engine(engine, i915, i) {
 		if (IS_ERR(s->shadow[i]))
 			break;
 
 		intel_context_unpin(s->shadow[i]);
+		intel_context_put(s->shadow[i]);
 	}
 	i915_gem_context_put(ctx);
+out_unlock:
+	mutex_unlock(&i915->drm.struct_mutex);
 	return ret;
 }
 
@@ -1424,9 +1455,6 @@ static int prepare_mm(struct intel_vgpu_workload *workload)
 #define same_context(a, b) (((a)->context_id == (b)->context_id) && \
 		((a)->lrca == (b)->lrca))
 
-#define get_last_workload(q) \
-	(list_empty(q) ? NULL : container_of(q->prev, \
-	struct intel_vgpu_workload, list))
 /**
  * intel_vgpu_create_workload - create a vGPU workload
  * @vgpu: a vGPU
@@ -1446,7 +1474,7 @@ intel_vgpu_create_workload(struct intel_vgpu *vgpu, int ring_id,
 {
 	struct intel_vgpu_submission *s = &vgpu->submission;
 	struct list_head *q = workload_q_head(vgpu, ring_id);
-	struct intel_vgpu_workload *last_workload = get_last_workload(q);
+	struct intel_vgpu_workload *last_workload = NULL;
 	struct intel_vgpu_workload *workload = NULL;
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	u64 ring_context_gpa;
@@ -1472,15 +1500,20 @@ intel_vgpu_create_workload(struct intel_vgpu *vgpu, int ring_id,
 	head &= RB_HEAD_OFF_MASK;
 	tail &= RB_TAIL_OFF_MASK;
 
-	if (last_workload && same_context(&last_workload->ctx_desc, desc)) {
-		gvt_dbg_el("ring id %d cur workload == last\n", ring_id);
-		gvt_dbg_el("ctx head %x real head %lx\n", head,
-				last_workload->rb_tail);
-		/*
-		 * cannot use guest context head pointer here,
-		 * as it might not be updated at this time
-		 */
-		head = last_workload->rb_tail;
+	list_for_each_entry_reverse(last_workload, q, list) {
+
+		if (same_context(&last_workload->ctx_desc, desc)) {
+			gvt_dbg_el("ring id %d cur workload == last\n",
+					ring_id);
+			gvt_dbg_el("ctx head %x real head %lx\n", head,
+					last_workload->rb_tail);
+			/*
+			 * cannot use guest context head pointer here,
+			 * as it might not be updated at this time
+			 */
+			head = last_workload->rb_tail;
+			break;
+		}
 	}
 
 	gvt_dbg_el("ring id %d begin a new workload\n", ring_id);

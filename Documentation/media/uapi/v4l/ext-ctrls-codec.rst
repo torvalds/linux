@@ -1748,6 +1748,14 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
       - ``size``
       -
     * - __u32
+      - ``start_byte_offset``
+        Offset (in bytes) from the beginning of the OUTPUT buffer to the start
+        of the slice. If the slice starts with a start code, then this is the
+        offset to such start code. When operating in slice-based decoding mode
+        (see :c:type:`v4l2_mpeg_video_h264_decode_mode`), this field should
+        be set to 0. When operating in frame-based decoding mode, this field
+        should be 0 for the first slice.
+    * - __u32
       - ``header_bit_size``
       -
     * - __u16
@@ -1930,19 +1938,13 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
       -
     * - __u16
       - ``num_slices``
-      - Number of slices needed to decode the current frame
+      - Number of slices needed to decode the current frame/field. When
+        operating in slice-based decoding mode (see
+        :c:type:`v4l2_mpeg_video_h264_decode_mode`), this field
+        should always be set to one.
     * - __u16
       - ``nal_ref_idc``
       - NAL reference ID value coming from the NAL Unit header
-    * - __u8
-      - ``ref_pic_list_p0[32]``
-      - Backward reference list used by P-frames in the original bitstream order
-    * - __u8
-      - ``ref_pic_list_b0[32]``
-      - Backward reference list used by B-frames in the original bitstream order
-    * - __u8
-      - ``ref_pic_list_b1[32]``
-      - Forward reference list used by B-frames in the original bitstream order
     * - __s32
       - ``top_field_order_cnt``
       - Picture Order Count for the coded top field
@@ -2020,6 +2022,83 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
     * - ``V4L2_H264_DPB_ENTRY_FLAG_LONG_TERM``
       - 0x00000004
       - The DPB entry is a long term reference frame
+
+``V4L2_CID_MPEG_VIDEO_H264_DECODE_MODE (enum)``
+    Specifies the decoding mode to use. Currently exposes slice-based and
+    frame-based decoding but new modes might be added later on.
+    This control is used as a modifier for V4L2_PIX_FMT_H264_SLICE
+    pixel format. Applications that support V4L2_PIX_FMT_H264_SLICE
+    are required to set this control in order to specify the decoding mode
+    that is expected for the buffer.
+    Drivers may expose a single or multiple decoding modes, depending
+    on what they can support.
+
+    .. note::
+
+       This menu control is not yet part of the public kernel API and
+       it is expected to change.
+
+.. c:type:: v4l2_mpeg_video_h264_decode_mode
+
+.. cssclass:: longtable
+
+.. flat-table::
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - ``V4L2_MPEG_VIDEO_H264_DECODE_MODE_SLICE_BASED``
+      - 0
+      - Decoding is done at the slice granularity.
+        In this mode, ``num_slices`` field in struct
+        :c:type:`v4l2_ctrl_h264_decode_params` should be set to 1,
+        and ``start_byte_offset`` in struct
+        :c:type:`v4l2_ctrl_h264_slice_params` should be set to 0.
+        The OUTPUT buffer must contain a single slice.
+    * - ``V4L2_MPEG_VIDEO_H264_DECODE_MODE_FRAME_BASED``
+      - 1
+      - Decoding is done at the frame granularity.
+        In this mode, ``num_slices`` field in struct
+        :c:type:`v4l2_ctrl_h264_decode_params` should be set to the number
+        of slices in the frame, and ``start_byte_offset`` in struct
+        :c:type:`v4l2_ctrl_h264_slice_params` should be set accordingly
+        for each slice. For the first slice, ``start_byte_offset`` should
+        be zero.
+        The OUTPUT buffer must contain all slices needed to decode the
+        frame. The OUTPUT buffer must also contain both fields.
+
+``V4L2_CID_MPEG_VIDEO_H264_START_CODE (enum)``
+    Specifies the H264 slice start code expected for each slice.
+    This control is used as a modifier for V4L2_PIX_FMT_H264_SLICE
+    pixel format. Applications that support V4L2_PIX_FMT_H264_SLICE
+    are required to set this control in order to specify the start code
+    that is expected for the buffer.
+    Drivers may expose a single or multiple start codes, depending
+    on what they can support.
+
+    .. note::
+
+       This menu control is not yet part of the public kernel API and
+       it is expected to change.
+
+.. c:type:: v4l2_mpeg_video_h264_start_code
+
+.. cssclass:: longtable
+
+.. flat-table::
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - ``V4L2_MPEG_VIDEO_H264_START_CODE_NONE``
+      - 0
+      - Selecting this value specifies that H264 slices are passed
+        to the driver without any start code.
+    * - ``V4L2_MPEG_VIDEO_H264_START_CODE_ANNEX_B``
+      - 1
+      - Selecting this value specifies that H264 slices are expected
+        to be prefixed by Annex B start codes. According to :ref:`h264`
+        valid start codes can be 3-bytes 0x000001 or 4-bytes 0x00000001.
 
 .. _v4l2-mpeg-mpeg2:
 
@@ -2233,6 +2312,329 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
 ``V4L2_CID_FWHT_P_FRAME_QP (integer)``
     Quantization parameter for a P frame for FWHT. Valid range: from 1
     to 31.
+
+.. _v4l2-mpeg-vp8:
+
+``V4L2_CID_MPEG_VIDEO_VP8_FRAME_HEADER (struct)``
+    Specifies the frame parameters for the associated VP8 parsed frame data.
+    This includes the necessary parameters for
+    configuring a stateless hardware decoding pipeline for VP8.
+    The bitstream parameters are defined according to :ref:`vp8`.
+
+    .. note::
+
+       This compound control is not yet part of the public kernel API and
+       it is expected to change.
+
+.. c:type:: v4l2_ctrl_vp8_frame_header
+
+.. cssclass:: longtable
+
+.. tabularcolumns:: |p{5.8cm}|p{4.8cm}|p{6.6cm}|
+
+.. flat-table:: struct v4l2_ctrl_vp8_frame_header
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - struct :c:type:`v4l2_vp8_segment_header`
+      - ``segment_header``
+      - Structure with segment-based adjustments metadata.
+    * - struct :c:type:`v4l2_vp8_loopfilter_header`
+      - ``loopfilter_header``
+      - Structure with loop filter level adjustments metadata.
+    * - struct :c:type:`v4l2_vp8_quantization_header`
+      - ``quant_header``
+      - Structure with VP8 dequantization indices metadata.
+    * - struct :c:type:`v4l2_vp8_entropy_header`
+      - ``entropy_header``
+      - Structure with VP8 entropy coder probabilities metadata.
+    * - struct :c:type:`v4l2_vp8_entropy_coder_state`
+      - ``coder_state``
+      - Structure with VP8 entropy coder state.
+    * - __u16
+      - ``width``
+      - The width of the frame. Must be set for all frames.
+    * - __u16
+      - ``height``
+      - The height of the frame. Must be set for all frames.
+    * - __u8
+      - ``horizontal_scale``
+      - Horizontal scaling factor.
+    * - __u8
+      - ``vertical_scaling factor``
+      - Vertical scale.
+    * - __u8
+      - ``version``
+      - Bitstream version.
+    * - __u8
+      - ``prob_skip_false``
+      - Indicates the probability that the macroblock is not skipped.
+    * - __u8
+      - ``prob_intra``
+      - Indicates the probability that a macroblock is intra-predicted.
+    * - __u8
+      - ``prob_last``
+      - Indicates the probability that the last reference frame is used
+        for inter-prediction
+    * - __u8
+      - ``prob_gf``
+      - Indicates the probability that the golden reference frame is used
+        for inter-prediction
+    * - __u8
+      - ``num_dct_parts``
+      - Number of DCT coefficients partitions. Must be one of: 1, 2, 4, or 8.
+    * - __u32
+      - ``first_part_size``
+      - Size of the first partition, i.e. the control partition.
+    * - __u32
+      - ``first_part_header_bits``
+      - Size in bits of the first partition header portion.
+    * - __u32
+      - ``dct_part_sizes[8]``
+      - DCT coefficients sizes.
+    * - __u64
+      - ``last_frame_ts``
+      - Timestamp for the V4L2 capture buffer to use as last reference frame, used
+        with inter-coded frames. The timestamp refers to the ``timestamp`` field in
+	struct :c:type:`v4l2_buffer`. Use the :c:func:`v4l2_timeval_to_ns()`
+	function to convert the struct :c:type:`timeval` in struct
+	:c:type:`v4l2_buffer` to a __u64.
+    * - __u64
+      - ``golden_frame_ts``
+      - Timestamp for the V4L2 capture buffer to use as last reference frame, used
+        with inter-coded frames. The timestamp refers to the ``timestamp`` field in
+	struct :c:type:`v4l2_buffer`. Use the :c:func:`v4l2_timeval_to_ns()`
+	function to convert the struct :c:type:`timeval` in struct
+	:c:type:`v4l2_buffer` to a __u64.
+    * - __u64
+      - ``alt_frame_ts``
+      - Timestamp for the V4L2 capture buffer to use as alternate reference frame, used
+        with inter-coded frames. The timestamp refers to the ``timestamp`` field in
+	struct :c:type:`v4l2_buffer`. Use the :c:func:`v4l2_timeval_to_ns()`
+	function to convert the struct :c:type:`timeval` in struct
+	:c:type:`v4l2_buffer` to a __u64.
+    * - __u64
+      - ``flags``
+      - See :ref:`Frame Header Flags <vp8_frame_header_flags>`
+
+.. _vp8_frame_header_flags:
+
+``Frame Header Flags``
+
+.. cssclass:: longtable
+
+.. flat-table::
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - ``V4L2_VP8_FRAME_HEADER_FLAG_KEY_FRAME``
+      - 0x01
+      - Indicates if the frame is a key frame.
+    * - ``V4L2_VP8_FRAME_HEADER_FLAG_EXPERIMENTAL``
+      - 0x02
+      - Experimental bitstream.
+    * - ``V4L2_VP8_FRAME_HEADER_FLAG_SHOW_FRAME``
+      - 0x04
+      - Show frame flag, indicates if the frame is for display.
+    * - ``V4L2_VP8_FRAME_HEADER_FLAG_MB_NO_SKIP_COEFF``
+      - 0x08
+      - Enable/disable skipping of macroblocks with no non-zero coefficients.
+    * - ``V4L2_VP8_FRAME_HEADER_FLAG_SIGN_BIAS_GOLDEN``
+      - 0x10
+      - Sign of motion vectors when the golden frame is referenced.
+    * - ``V4L2_VP8_FRAME_HEADER_FLAG_SIGN_BIAS_ALT``
+      - 0x20
+      - Sign of motion vectors when the alt frame is referenced.
+
+.. c:type:: v4l2_vp8_entropy_coder_state
+
+.. cssclass:: longtable
+
+.. tabularcolumns:: |p{1.5cm}|p{6.3cm}|p{9.4cm}|
+
+.. flat-table:: struct v4l2_vp8_entropy_coder_state
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - __u8
+      - ``range``
+      -
+    * - __u8
+      - ``value``
+      -
+    * - __u8
+      - ``bit_count``
+      -
+    * - __u8
+      - ``padding``
+      - Applications and drivers must set this to zero.
+
+.. c:type:: v4l2_vp8_segment_header
+
+.. cssclass:: longtable
+
+.. tabularcolumns:: |p{1.5cm}|p{6.3cm}|p{9.4cm}|
+
+.. flat-table:: struct v4l2_vp8_segment_header
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - __s8
+      - ``quant_update[4]``
+      - Signed quantizer value update.
+    * - __s8
+      - ``lf_update[4]``
+      - Signed loop filter level value update.
+    * - __u8
+      - ``segment_probs[3]``
+      - Segment probabilities.
+    * - __u8
+      - ``padding``
+      - Applications and drivers must set this to zero.
+    * - __u32
+      - ``flags``
+      - See :ref:`Segment Header Flags <vp8_segment_header_flags>`
+
+.. _vp8_segment_header_flags:
+
+``Segment Header Flags``
+
+.. cssclass:: longtable
+
+.. flat-table::
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - ``V4L2_VP8_SEGMENT_HEADER_FLAG_ENABLED``
+      - 0x01
+      - Enable/disable segment-based adjustments.
+    * - ``V4L2_VP8_SEGMENT_HEADER_FLAG_UPDATE_MAP``
+      - 0x02
+      - Indicates if the macroblock segmentation map is updated in this frame.
+    * - ``V4L2_VP8_SEGMENT_HEADER_FLAG_UPDATE_FEATURE_DATA``
+      - 0x04
+      - Indicates if the segment feature data is updated in this frame.
+    * - ``V4L2_VP8_SEGMENT_HEADER_FLAG_DELTA_VALUE_MODE``
+      - 0x08
+      - If is set, the segment feature data mode is delta-value.
+        If cleared, it's absolute-value.
+
+.. c:type:: v4l2_vp8_loopfilter_header
+
+.. cssclass:: longtable
+
+.. tabularcolumns:: |p{1.5cm}|p{6.3cm}|p{9.4cm}|
+
+.. flat-table:: struct v4l2_vp8_loopfilter_header
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - __s8
+      - ``ref_frm_delta[4]``
+      - Reference adjustment (signed) delta value.
+    * - __s8
+      - ``mb_mode_delta[4]``
+      - Macroblock prediction mode adjustment (signed) delta value.
+    * - __u8
+      - ``sharpness_level``
+      - Sharpness level
+    * - __u8
+      - ``level``
+      - Filter level
+    * - __u16
+      - ``padding``
+      - Applications and drivers must set this to zero.
+    * - __u32
+      - ``flags``
+      - See :ref:`Loopfilter Header Flags <vp8_loopfilter_header_flags>`
+
+.. _vp8_loopfilter_header_flags:
+
+``Loopfilter Header Flags``
+
+.. cssclass:: longtable
+
+.. flat-table::
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - ``V4L2_VP8_LF_HEADER_ADJ_ENABLE``
+      - 0x01
+      - Enable/disable macroblock-level loop filter adjustment.
+    * - ``V4L2_VP8_LF_HEADER_DELTA_UPDATE``
+      - 0x02
+      - Indicates if the delta values used in an adjustment are updated.
+    * - ``V4L2_VP8_LF_FILTER_TYPE_SIMPLE``
+      - 0x04
+      - If set, indicates the filter type is simple.
+        If cleared, the filter type is normal.
+
+.. c:type:: v4l2_vp8_quantization_header
+
+.. cssclass:: longtable
+
+.. tabularcolumns:: |p{1.5cm}|p{6.3cm}|p{9.4cm}|
+
+.. flat-table:: struct v4l2_vp8_quantization_header
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - __u8
+      - ``y_ac_qi``
+      - Luma AC coefficient table index.
+    * - __s8
+      - ``y_dc_delta``
+      - Luma DC delta vaue.
+    * - __s8
+      - ``y2_dc_delta``
+      - Y2 block DC delta value.
+    * - __s8
+      - ``y2_ac_delta``
+      - Y2 block AC delta value.
+    * - __s8
+      - ``uv_dc_delta``
+      - Chroma DC delta value.
+    * - __s8
+      - ``uv_ac_delta``
+      - Chroma AC delta value.
+    * - __u16
+      - ``padding``
+      - Applications and drivers must set this to zero.
+
+.. c:type:: v4l2_vp8_entropy_header
+
+.. cssclass:: longtable
+
+.. tabularcolumns:: |p{1.5cm}|p{6.3cm}|p{9.4cm}|
+
+.. flat-table:: struct v4l2_vp8_entropy_header
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - __u8
+      - ``coeff_probs[4][8][3][11]``
+      - Coefficient update probabilities.
+    * - __u8
+      - ``y_mode_probs[4]``
+      - Luma mode update probabilities.
+    * - __u8
+      - ``uv_mode_probs[3]``
+      - Chroma mode update probabilities.
+    * - __u8
+      - ``mv_probs[2][19]``
+      - MV decoding update probabilities.
+    * - __u8
+      - ``padding[3]``
+      - Applications and drivers must set this to zero.
 
 .. raw:: latex
 

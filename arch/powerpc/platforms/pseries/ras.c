@@ -76,6 +76,7 @@ struct pseries_mc_errorlog {
 #define MC_ERROR_TYPE_UE		0x00
 #define MC_ERROR_TYPE_SLB		0x01
 #define MC_ERROR_TYPE_ERAT		0x02
+#define MC_ERROR_TYPE_UNKNOWN		0x03
 #define MC_ERROR_TYPE_TLB		0x04
 #define MC_ERROR_TYPE_D_CACHE		0x05
 #define MC_ERROR_TYPE_I_CACHE		0x07
@@ -86,6 +87,9 @@ struct pseries_mc_errorlog {
 #define MC_ERROR_UE_PAGE_TABLE_WALK_IFETCH	2
 #define MC_ERROR_UE_LOAD_STORE			3
 #define MC_ERROR_UE_PAGE_TABLE_WALK_LOAD_STORE	4
+
+#define UE_EFFECTIVE_ADDR_PROVIDED		0x40
+#define UE_LOGICAL_ADDR_PROVIDED		0x20
 
 #define MC_ERROR_SLB_PARITY		0
 #define MC_ERROR_SLB_MULTIHIT		1
@@ -111,27 +115,6 @@ static inline u8 rtas_mc_error_sub_type(const struct pseries_mc_errorlog *mlog)
 	default:
 		return 0;
 	}
-}
-
-static
-inline u64 rtas_mc_get_effective_addr(const struct pseries_mc_errorlog *mlog)
-{
-	__be64 addr = 0;
-
-	switch (mlog->error_type) {
-	case	MC_ERROR_TYPE_UE:
-		if (mlog->sub_err_type & 0x40)
-			addr = mlog->effective_address;
-		break;
-	case	MC_ERROR_TYPE_SLB:
-	case	MC_ERROR_TYPE_ERAT:
-	case	MC_ERROR_TYPE_TLB:
-		if (mlog->sub_err_type & 0x80)
-			addr = mlog->effective_address;
-	default:
-		break;
-	}
-	return be64_to_cpu(addr);
 }
 
 /*
@@ -511,149 +494,55 @@ int pSeries_system_reset_exception(struct pt_regs *regs)
 	return 0; /* need to perform reset */
 }
 
-#define VAL_TO_STRING(ar, val)	\
-	(((val) < ARRAY_SIZE(ar)) ? ar[(val)] : "Unknown")
 
-static void pseries_print_mce_info(struct pt_regs *regs,
-				   struct rtas_error_log *errp)
+static int mce_handle_error(struct pt_regs *regs, struct rtas_error_log *errp)
 {
-	const char *level, *sevstr;
+	struct mce_error_info mce_err = { 0 };
+	unsigned long eaddr = 0, paddr = 0;
 	struct pseries_errorlog *pseries_log;
 	struct pseries_mc_errorlog *mce_log;
+	int disposition = rtas_error_disposition(errp);
+	int initiator = rtas_error_initiator(errp);
+	int severity = rtas_error_severity(errp);
 	u8 error_type, err_sub_type;
-	u64 addr;
-	u8 initiator = rtas_error_initiator(errp);
-	int disposition = rtas_error_disposition(errp);
 
-	static const char * const initiators[] = {
-		[0] = "Unknown",
-		[1] = "CPU",
-		[2] = "PCI",
-		[3] = "ISA",
-		[4] = "Memory",
-		[5] = "Power Mgmt",
-	};
-	static const char * const mc_err_types[] = {
-		[0] = "UE",
-		[1] = "SLB",
-		[2] = "ERAT",
-		[3] = "Unknown",
-		[4] = "TLB",
-		[5] = "D-Cache",
-		[6] = "Unknown",
-		[7] = "I-Cache",
-	};
-	static const char * const mc_ue_types[] = {
-		[0] = "Indeterminate",
-		[1] = "Instruction fetch",
-		[2] = "Page table walk ifetch",
-		[3] = "Load/Store",
-		[4] = "Page table walk Load/Store",
-	};
+	if (initiator == RTAS_INITIATOR_UNKNOWN)
+		mce_err.initiator = MCE_INITIATOR_UNKNOWN;
+	else if (initiator == RTAS_INITIATOR_CPU)
+		mce_err.initiator = MCE_INITIATOR_CPU;
+	else if (initiator == RTAS_INITIATOR_PCI)
+		mce_err.initiator = MCE_INITIATOR_PCI;
+	else if (initiator == RTAS_INITIATOR_ISA)
+		mce_err.initiator = MCE_INITIATOR_ISA;
+	else if (initiator == RTAS_INITIATOR_MEMORY)
+		mce_err.initiator = MCE_INITIATOR_MEMORY;
+	else if (initiator == RTAS_INITIATOR_POWERMGM)
+		mce_err.initiator = MCE_INITIATOR_POWERMGM;
+	else
+		mce_err.initiator = MCE_INITIATOR_UNKNOWN;
 
-	/* SLB sub errors valid values are 0x0, 0x1, 0x2 */
-	static const char * const mc_slb_types[] = {
-		[0] = "Parity",
-		[1] = "Multihit",
-		[2] = "Indeterminate",
-	};
+	if (severity == RTAS_SEVERITY_NO_ERROR)
+		mce_err.severity = MCE_SEV_NO_ERROR;
+	else if (severity == RTAS_SEVERITY_EVENT)
+		mce_err.severity = MCE_SEV_WARNING;
+	else if (severity == RTAS_SEVERITY_WARNING)
+		mce_err.severity = MCE_SEV_WARNING;
+	else if (severity == RTAS_SEVERITY_ERROR_SYNC)
+		mce_err.severity = MCE_SEV_SEVERE;
+	else if (severity == RTAS_SEVERITY_ERROR)
+		mce_err.severity = MCE_SEV_SEVERE;
+	else if (severity == RTAS_SEVERITY_FATAL)
+		mce_err.severity = MCE_SEV_FATAL;
+	else
+		mce_err.severity = MCE_SEV_FATAL;
 
-	/* TLB and ERAT sub errors valid values are 0x1, 0x2, 0x3 */
-	static const char * const mc_soft_types[] = {
-		[0] = "Unknown",
-		[1] = "Parity",
-		[2] = "Multihit",
-		[3] = "Indeterminate",
-	};
+	if (severity <= RTAS_SEVERITY_ERROR_SYNC)
+		mce_err.sync_error = true;
+	else
+		mce_err.sync_error = false;
 
-	if (!rtas_error_extended(errp)) {
-		pr_err("Machine check interrupt: Missing extended error log\n");
-		return;
-	}
-
-	pseries_log = get_pseries_errorlog(errp, PSERIES_ELOG_SECT_ID_MCE);
-	if (pseries_log == NULL)
-		return;
-
-	mce_log = (struct pseries_mc_errorlog *)pseries_log->data;
-
-	error_type = mce_log->error_type;
-	err_sub_type = rtas_mc_error_sub_type(mce_log);
-
-	switch (rtas_error_severity(errp)) {
-	case RTAS_SEVERITY_NO_ERROR:
-		level = KERN_INFO;
-		sevstr = "Harmless";
-		break;
-	case RTAS_SEVERITY_WARNING:
-		level = KERN_WARNING;
-		sevstr = "";
-		break;
-	case RTAS_SEVERITY_ERROR:
-	case RTAS_SEVERITY_ERROR_SYNC:
-		level = KERN_ERR;
-		sevstr = "Severe";
-		break;
-	case RTAS_SEVERITY_FATAL:
-	default:
-		level = KERN_ERR;
-		sevstr = "Fatal";
-		break;
-	}
-
-#ifdef CONFIG_PPC_BOOK3S_64
-	/* Display faulty slb contents for SLB errors. */
-	if (error_type == MC_ERROR_TYPE_SLB)
-		slb_dump_contents(local_paca->mce_faulty_slbs);
-#endif
-
-	printk("%s%s Machine check interrupt [%s]\n", level, sevstr,
-	       disposition == RTAS_DISP_FULLY_RECOVERED ?
-	       "Recovered" : "Not recovered");
-	if (user_mode(regs)) {
-		printk("%s  NIP: [%016lx] PID: %d Comm: %s\n", level,
-		       regs->nip, current->pid, current->comm);
-	} else {
-		printk("%s  NIP [%016lx]: %pS\n", level, regs->nip,
-		       (void *)regs->nip);
-	}
-	printk("%s  Initiator: %s\n", level,
-	       VAL_TO_STRING(initiators, initiator));
-
-	switch (error_type) {
-	case MC_ERROR_TYPE_UE:
-		printk("%s  Error type: %s [%s]\n", level,
-		       VAL_TO_STRING(mc_err_types, error_type),
-		       VAL_TO_STRING(mc_ue_types, err_sub_type));
-		break;
-	case MC_ERROR_TYPE_SLB:
-		printk("%s  Error type: %s [%s]\n", level,
-		       VAL_TO_STRING(mc_err_types, error_type),
-		       VAL_TO_STRING(mc_slb_types, err_sub_type));
-		break;
-	case MC_ERROR_TYPE_ERAT:
-	case MC_ERROR_TYPE_TLB:
-		printk("%s  Error type: %s [%s]\n", level,
-		       VAL_TO_STRING(mc_err_types, error_type),
-		       VAL_TO_STRING(mc_soft_types, err_sub_type));
-		break;
-	default:
-		printk("%s  Error type: %s\n", level,
-		       VAL_TO_STRING(mc_err_types, error_type));
-		break;
-	}
-
-	addr = rtas_mc_get_effective_addr(mce_log);
-	if (addr)
-		printk("%s    Effective address: %016llx\n", level, addr);
-}
-
-static int mce_handle_error(struct rtas_error_log *errp)
-{
-	struct pseries_errorlog *pseries_log;
-	struct pseries_mc_errorlog *mce_log;
-	int disposition = rtas_error_disposition(errp);
-	u8 error_type;
+	mce_err.error_type = MCE_ERROR_TYPE_UNKNOWN;
+	mce_err.error_class = MCE_ECLASS_UNKNOWN;
 
 	if (!rtas_error_extended(errp))
 		goto out;
@@ -664,6 +553,105 @@ static int mce_handle_error(struct rtas_error_log *errp)
 
 	mce_log = (struct pseries_mc_errorlog *)pseries_log->data;
 	error_type = mce_log->error_type;
+	err_sub_type = rtas_mc_error_sub_type(mce_log);
+
+	switch (mce_log->error_type) {
+	case MC_ERROR_TYPE_UE:
+		mce_err.error_type = MCE_ERROR_TYPE_UE;
+		switch (err_sub_type) {
+		case MC_ERROR_UE_IFETCH:
+			mce_err.u.ue_error_type = MCE_UE_ERROR_IFETCH;
+			break;
+		case MC_ERROR_UE_PAGE_TABLE_WALK_IFETCH:
+			mce_err.u.ue_error_type = MCE_UE_ERROR_PAGE_TABLE_WALK_IFETCH;
+			break;
+		case MC_ERROR_UE_LOAD_STORE:
+			mce_err.u.ue_error_type = MCE_UE_ERROR_LOAD_STORE;
+			break;
+		case MC_ERROR_UE_PAGE_TABLE_WALK_LOAD_STORE:
+			mce_err.u.ue_error_type = MCE_UE_ERROR_PAGE_TABLE_WALK_LOAD_STORE;
+			break;
+		case MC_ERROR_UE_INDETERMINATE:
+		default:
+			mce_err.u.ue_error_type = MCE_UE_ERROR_INDETERMINATE;
+			break;
+		}
+		if (mce_log->sub_err_type & UE_EFFECTIVE_ADDR_PROVIDED)
+			eaddr = be64_to_cpu(mce_log->effective_address);
+
+		if (mce_log->sub_err_type & UE_LOGICAL_ADDR_PROVIDED) {
+			paddr = be64_to_cpu(mce_log->logical_address);
+		} else if (mce_log->sub_err_type & UE_EFFECTIVE_ADDR_PROVIDED) {
+			unsigned long pfn;
+
+			pfn = addr_to_pfn(regs, eaddr);
+			if (pfn != ULONG_MAX)
+				paddr = pfn << PAGE_SHIFT;
+		}
+
+		break;
+	case MC_ERROR_TYPE_SLB:
+		mce_err.error_type = MCE_ERROR_TYPE_SLB;
+		switch (err_sub_type) {
+		case MC_ERROR_SLB_PARITY:
+			mce_err.u.slb_error_type = MCE_SLB_ERROR_PARITY;
+			break;
+		case MC_ERROR_SLB_MULTIHIT:
+			mce_err.u.slb_error_type = MCE_SLB_ERROR_MULTIHIT;
+			break;
+		case MC_ERROR_SLB_INDETERMINATE:
+		default:
+			mce_err.u.slb_error_type = MCE_SLB_ERROR_INDETERMINATE;
+			break;
+		}
+		if (mce_log->sub_err_type & 0x80)
+			eaddr = be64_to_cpu(mce_log->effective_address);
+		break;
+	case MC_ERROR_TYPE_ERAT:
+		mce_err.error_type = MCE_ERROR_TYPE_ERAT;
+		switch (err_sub_type) {
+		case MC_ERROR_ERAT_PARITY:
+			mce_err.u.erat_error_type = MCE_ERAT_ERROR_PARITY;
+			break;
+		case MC_ERROR_ERAT_MULTIHIT:
+			mce_err.u.erat_error_type = MCE_ERAT_ERROR_MULTIHIT;
+			break;
+		case MC_ERROR_ERAT_INDETERMINATE:
+		default:
+			mce_err.u.erat_error_type = MCE_ERAT_ERROR_INDETERMINATE;
+			break;
+		}
+		if (mce_log->sub_err_type & 0x80)
+			eaddr = be64_to_cpu(mce_log->effective_address);
+		break;
+	case MC_ERROR_TYPE_TLB:
+		mce_err.error_type = MCE_ERROR_TYPE_TLB;
+		switch (err_sub_type) {
+		case MC_ERROR_TLB_PARITY:
+			mce_err.u.tlb_error_type = MCE_TLB_ERROR_PARITY;
+			break;
+		case MC_ERROR_TLB_MULTIHIT:
+			mce_err.u.tlb_error_type = MCE_TLB_ERROR_MULTIHIT;
+			break;
+		case MC_ERROR_TLB_INDETERMINATE:
+		default:
+			mce_err.u.tlb_error_type = MCE_TLB_ERROR_INDETERMINATE;
+			break;
+		}
+		if (mce_log->sub_err_type & 0x80)
+			eaddr = be64_to_cpu(mce_log->effective_address);
+		break;
+	case MC_ERROR_TYPE_D_CACHE:
+		mce_err.error_type = MCE_ERROR_TYPE_DCACHE;
+		break;
+	case MC_ERROR_TYPE_I_CACHE:
+		mce_err.error_type = MCE_ERROR_TYPE_DCACHE;
+		break;
+	case MC_ERROR_TYPE_UNKNOWN:
+	default:
+		mce_err.error_type = MCE_ERROR_TYPE_UNKNOWN;
+		break;
+	}
 
 #ifdef CONFIG_PPC_BOOK3S_64
 	if (disposition == RTAS_DISP_NOT_RECOVERED) {
@@ -682,98 +670,24 @@ static int mce_handle_error(struct rtas_error_log *errp)
 				slb_save_contents(local_paca->mce_faulty_slbs);
 			flush_and_reload_slb();
 			disposition = RTAS_DISP_FULLY_RECOVERED;
-			rtas_set_disposition_recovered(errp);
 			break;
 		default:
 			break;
 		}
+	} else if (disposition == RTAS_DISP_LIMITED_RECOVERY) {
+		/* Platform corrected itself but could be degraded */
+		printk(KERN_ERR "MCE: limited recovery, system may "
+		       "be degraded\n");
+		disposition = RTAS_DISP_FULLY_RECOVERED;
 	}
 #endif
 
 out:
+	save_mce_event(regs, disposition == RTAS_DISP_FULLY_RECOVERED,
+			&mce_err, regs->nip, eaddr, paddr);
+
 	return disposition;
 }
-
-#ifdef CONFIG_MEMORY_FAILURE
-
-static DEFINE_PER_CPU(int, rtas_ue_count);
-static DEFINE_PER_CPU(unsigned long, rtas_ue_paddr[MAX_MC_EVT]);
-
-#define UE_EFFECTIVE_ADDR_PROVIDED	0x40
-#define UE_LOGICAL_ADDR_PROVIDED	0x20
-
-
-static void pseries_hwpoison_work_fn(struct work_struct *work)
-{
-	unsigned long paddr;
-	int index;
-
-	while (__this_cpu_read(rtas_ue_count) > 0) {
-		index = __this_cpu_read(rtas_ue_count) - 1;
-		paddr = __this_cpu_read(rtas_ue_paddr[index]);
-		memory_failure(paddr >> PAGE_SHIFT, 0);
-		__this_cpu_dec(rtas_ue_count);
-	}
-}
-
-static DECLARE_WORK(hwpoison_work, pseries_hwpoison_work_fn);
-
-static void queue_ue_paddr(unsigned long paddr)
-{
-	int index;
-
-	index = __this_cpu_inc_return(rtas_ue_count) - 1;
-	if (index >= MAX_MC_EVT) {
-		__this_cpu_dec(rtas_ue_count);
-		return;
-	}
-	this_cpu_write(rtas_ue_paddr[index], paddr);
-	schedule_work(&hwpoison_work);
-}
-
-static void pseries_do_memory_failure(struct pt_regs *regs,
-				      struct pseries_mc_errorlog *mce_log)
-{
-	unsigned long paddr;
-
-	if (mce_log->sub_err_type & UE_LOGICAL_ADDR_PROVIDED) {
-		paddr = be64_to_cpu(mce_log->logical_address);
-	} else if (mce_log->sub_err_type & UE_EFFECTIVE_ADDR_PROVIDED) {
-		unsigned long pfn;
-
-		pfn = addr_to_pfn(regs,
-				  be64_to_cpu(mce_log->effective_address));
-		if (pfn == ULONG_MAX)
-			return;
-		paddr = pfn << PAGE_SHIFT;
-	} else {
-		return;
-	}
-	queue_ue_paddr(paddr);
-}
-
-static void pseries_process_ue(struct pt_regs *regs,
-			       struct rtas_error_log *errp)
-{
-	struct pseries_errorlog *pseries_log;
-	struct pseries_mc_errorlog *mce_log;
-
-	if (!rtas_error_extended(errp))
-		return;
-
-	pseries_log = get_pseries_errorlog(errp, PSERIES_ELOG_SECT_ID_MCE);
-	if (!pseries_log)
-		return;
-
-	mce_log = (struct pseries_mc_errorlog *)pseries_log->data;
-
-	if (mce_log->error_type == MC_ERROR_TYPE_UE)
-		pseries_do_memory_failure(regs, mce_log);
-}
-#else
-static inline void pseries_process_ue(struct pt_regs *regs,
-				      struct rtas_error_log *errp) { }
-#endif /*CONFIG_MEMORY_FAILURE */
 
 /*
  * Process MCE rtas errlog event.
@@ -795,48 +709,50 @@ static void mce_process_errlog_event(struct irq_work *work)
  * Return 1 if corrected (or delivered a signal).
  * Return 0 if there is nothing we can do.
  */
-static int recover_mce(struct pt_regs *regs, struct rtas_error_log *err)
+static int recover_mce(struct pt_regs *regs, struct machine_check_event *evt)
 {
 	int recovered = 0;
-	int disposition = rtas_error_disposition(err);
-
-	pseries_print_mce_info(regs, err);
 
 	if (!(regs->msr & MSR_RI)) {
 		/* If MSR_RI isn't set, we cannot recover */
 		pr_err("Machine check interrupt unrecoverable: MSR(RI=0)\n");
 		recovered = 0;
-
-	} else if (disposition == RTAS_DISP_FULLY_RECOVERED) {
+	} else if (evt->disposition == MCE_DISPOSITION_RECOVERED) {
 		/* Platform corrected itself */
 		recovered = 1;
-
-	} else if (disposition == RTAS_DISP_LIMITED_RECOVERY) {
-		/* Platform corrected itself but could be degraded */
-		printk(KERN_ERR "MCE: limited recovery, system may "
-		       "be degraded\n");
-		recovered = 1;
-
-	} else if (user_mode(regs) && !is_global_init(current) &&
-		   rtas_error_severity(err) == RTAS_SEVERITY_ERROR_SYNC) {
-
-		/*
-		 * If we received a synchronous error when in userspace
-		 * kill the task. Firmware may report details of the fail
-		 * asynchronously, so we can't rely on the target and type
-		 * fields being valid here.
-		 */
-		printk(KERN_ERR "MCE: uncorrectable error, killing task "
-		       "%s:%d\n", current->comm, current->pid);
-
-		_exception(SIGBUS, regs, BUS_MCEERR_AR, regs->nip);
-		recovered = 1;
+	} else if (evt->severity == MCE_SEV_FATAL) {
+		/* Fatal machine check */
+		pr_err("Machine check interrupt is fatal\n");
+		recovered = 0;
 	}
 
-	pseries_process_ue(regs, err);
-
-	/* Queue irq work to log this rtas event later. */
-	irq_work_queue(&mce_errlog_process_work);
+	if (!recovered && evt->sync_error) {
+		/*
+		 * Try to kill processes if we get a synchronous machine check
+		 * (e.g., one caused by execution of this instruction). This
+		 * will devolve into a panic if we try to kill init or are in
+		 * an interrupt etc.
+		 *
+		 * TODO: Queue up this address for hwpoisioning later.
+		 * TODO: This is not quite right for d-side machine
+		 *       checks ->nip is not necessarily the important
+		 *       address.
+		 */
+		if ((user_mode(regs))) {
+			_exception(SIGBUS, regs, BUS_MCEERR_AR, regs->nip);
+			recovered = 1;
+		} else if (die_will_crash()) {
+			/*
+			 * die() would kill the kernel, so better to go via
+			 * the platform reboot code that will log the
+			 * machine check.
+			 */
+			recovered = 0;
+		} else {
+			die("Machine check", regs, SIGBUS);
+			recovered = 1;
+		}
+	}
 
 	return recovered;
 }
@@ -853,14 +769,21 @@ static int recover_mce(struct pt_regs *regs, struct rtas_error_log *err)
  */
 int pSeries_machine_check_exception(struct pt_regs *regs)
 {
-	struct rtas_error_log *errp;
+	struct machine_check_event evt;
 
-	if (fwnmi_active) {
-		fwnmi_release_errinfo();
-		errp = fwnmi_get_errlog();
-		if (errp && recover_mce(regs, errp))
-			return 1;
+	if (!get_mce_event(&evt, MCE_EVENT_RELEASE))
+		return 0;
+
+	/* Print things out */
+	if (evt.version != MCE_V1) {
+		pr_err("Machine Check Exception, Unknown event version %d !\n",
+		       evt.version);
+		return 0;
 	}
+	machine_check_print_event_info(&evt, user_mode(regs), false);
+
+	if (recover_mce(regs, &evt))
+		return 1;
 
 	return 0;
 }
@@ -877,7 +800,12 @@ long pseries_machine_check_realmode(struct pt_regs *regs)
 		 * to panic. Hence we will call it as soon as we go into
 		 * virtual mode.
 		 */
-		disposition = mce_handle_error(errp);
+		disposition = mce_handle_error(regs, errp);
+		fwnmi_release_errinfo();
+
+		/* Queue irq work to log this rtas event later. */
+		irq_work_queue(&mce_errlog_process_work);
+
 		if (disposition == RTAS_DISP_FULLY_RECOVERED)
 			return 1;
 	}

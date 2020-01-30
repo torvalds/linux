@@ -475,6 +475,13 @@ enum iwl_legacy_cmds {
 	REPLY_RX_MPDU_CMD = 0xc1,
 
 	/**
+	 * @BAR_FRAME_RELEASE: Frame release from BAR notification, used for
+	 *	multi-TID BAR (previously, the BAR frame itself was reported
+	 *	instead). Uses &struct iwl_bar_frame_release.
+	 */
+	BAR_FRAME_RELEASE = 0xc2,
+
+	/**
 	 * @FRAME_RELEASE:
 	 * Frame release (reorder helper) notification, uses
 	 * &struct iwl_frame_release

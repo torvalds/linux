@@ -651,6 +651,7 @@ static int meson_pinctrl_parse_dt(struct meson_pinctrl *pc,
 			continue;
 		if (gpio_np) {
 			dev_err(pc->dev, "multiple gpio nodes\n");
+			of_node_put(np);
 			return -EINVAL;
 		}
 		gpio_np = np;

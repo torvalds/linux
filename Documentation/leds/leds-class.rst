@@ -43,9 +43,73 @@ LED Device Naming
 
 Is currently of the form:
 
-	"devicename:colour:function"
+	"devicename:color:function"
 
-There have been calls for LED properties such as colour to be exported as
+- devicename:
+        it should refer to a unique identifier created by the kernel,
+        like e.g. phyN for network devices or inputN for input devices, rather
+        than to the hardware; the information related to the product and the bus
+        to which given device is hooked is available in sysfs and can be
+        retrieved using get_led_device_info.sh script from tools/leds; generally
+        this section is expected mostly for LEDs that are somehow associated with
+        other devices.
+
+- color:
+        one of LED_COLOR_ID_* definitions from the header
+        include/dt-bindings/leds/common.h.
+
+- function:
+        one of LED_FUNCTION_* definitions from the header
+        include/dt-bindings/leds/common.h.
+
+If required color or function is missing, please submit a patch
+to linux-leds@vger.kernel.org.
+
+It is possible that more than one LED with the same color and function will
+be required for given platform, differing only with an ordinal number.
+In this case it is preferable to just concatenate the predefined LED_FUNCTION_*
+name with required "-N" suffix in the driver. fwnode based drivers can use
+function-enumerator property for that and then the concatenation will be handled
+automatically by the LED core upon LED class device registration.
+
+LED subsystem has also a protection against name clash, that may occur
+when LED class device is created by a driver of hot-pluggable device and
+it doesn't provide unique devicename section. In this case numerical
+suffix (e.g. "_1", "_2", "_3" etc.) is added to the requested LED class
+device name.
+
+There might be still LED class drivers around using vendor or product name
+for devicename, but this approach is now deprecated as it doesn't convey
+any added value. Product information can be found in other places in sysfs
+(see tools/leds/get_led_device_info.sh).
+
+Examples of proper LED names:
+
+  - "red:disk"
+  - "white:flash"
+  - "red:indicator"
+  - "phy1:green:wlan"
+  - "phy3::wlan"
+  - ":kbd_backlight"
+  - "input5::kbd_backlight"
+  - "input3::numlock"
+  - "input3::scrolllock"
+  - "input3::capslock"
+  - "mmc1::status"
+  - "white:status"
+
+get_led_device_info.sh script can be used for verifying if the LED name
+meets the requirements pointed out here. It performs validation of the LED class
+devicename sections and gives hints on expected value for a section in case
+the validation fails for it. So far the script supports validation
+of associations between LEDs and following types of devices:
+
+        - input devices
+        - ieee80211 compliant USB devices
+
+The script is open to extensions.
+
+There have been calls for LED properties such as color to be exported as
 individual led class attributes. As a solution which doesn't incur as much
 overhead, I suggest these become part of the device name. The naming scheme
 above leaves scope for further attributes should they be needed. If sections

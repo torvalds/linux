@@ -30,22 +30,23 @@ static u8 socfpga_clk_get_parent(struct clk_hw *hwclk)
 {
 	u32 l4_src;
 	u32 perpll_src;
+	const char *name = clk_hw_get_name(hwclk);
 
-	if (streq(hwclk->init->name, SOCFPGA_L4_MP_CLK)) {
+	if (streq(name, SOCFPGA_L4_MP_CLK)) {
 		l4_src = readl(clk_mgr_base_addr + CLKMGR_L4SRC);
 		return l4_src &= 0x1;
 	}
-	if (streq(hwclk->init->name, SOCFPGA_L4_SP_CLK)) {
+	if (streq(name, SOCFPGA_L4_SP_CLK)) {
 		l4_src = readl(clk_mgr_base_addr + CLKMGR_L4SRC);
 		return !!(l4_src & 2);
 	}
 
 	perpll_src = readl(clk_mgr_base_addr + CLKMGR_PERPLL_SRC);
-	if (streq(hwclk->init->name, SOCFPGA_MMC_CLK))
+	if (streq(name, SOCFPGA_MMC_CLK))
 		return perpll_src &= 0x3;
-	if (streq(hwclk->init->name, SOCFPGA_NAND_CLK) ||
-			streq(hwclk->init->name, SOCFPGA_NAND_X_CLK))
-			return (perpll_src >> 2) & 3;
+	if (streq(name, SOCFPGA_NAND_CLK) ||
+	    streq(name, SOCFPGA_NAND_X_CLK))
+		return (perpll_src >> 2) & 3;
 
 	/* QSPI clock */
 	return (perpll_src >> 4) & 3;
@@ -55,24 +56,25 @@ static u8 socfpga_clk_get_parent(struct clk_hw *hwclk)
 static int socfpga_clk_set_parent(struct clk_hw *hwclk, u8 parent)
 {
 	u32 src_reg;
+	const char *name = clk_hw_get_name(hwclk);
 
-	if (streq(hwclk->init->name, SOCFPGA_L4_MP_CLK)) {
+	if (streq(name, SOCFPGA_L4_MP_CLK)) {
 		src_reg = readl(clk_mgr_base_addr + CLKMGR_L4SRC);
 		src_reg &= ~0x1;
 		src_reg |= parent;
 		writel(src_reg, clk_mgr_base_addr + CLKMGR_L4SRC);
-	} else if (streq(hwclk->init->name, SOCFPGA_L4_SP_CLK)) {
+	} else if (streq(name, SOCFPGA_L4_SP_CLK)) {
 		src_reg = readl(clk_mgr_base_addr + CLKMGR_L4SRC);
 		src_reg &= ~0x2;
 		src_reg |= (parent << 1);
 		writel(src_reg, clk_mgr_base_addr + CLKMGR_L4SRC);
 	} else {
 		src_reg = readl(clk_mgr_base_addr + CLKMGR_PERPLL_SRC);
-		if (streq(hwclk->init->name, SOCFPGA_MMC_CLK)) {
+		if (streq(name, SOCFPGA_MMC_CLK)) {
 			src_reg &= ~0x3;
 			src_reg |= parent;
-		} else if (streq(hwclk->init->name, SOCFPGA_NAND_CLK) ||
-			streq(hwclk->init->name, SOCFPGA_NAND_X_CLK)) {
+		} else if (streq(name, SOCFPGA_NAND_CLK) ||
+			streq(name, SOCFPGA_NAND_X_CLK)) {
 			src_reg &= ~0xC;
 			src_reg |= (parent << 2);
 		} else {/* QSPI clock */

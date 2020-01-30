@@ -50,10 +50,13 @@ void ast_vhub_dev_irq(struct ast_vhub_dev *d)
 
 static void ast_vhub_dev_enable(struct ast_vhub_dev *d)
 {
-	u32 reg, hmsk;
+	u32 reg, hmsk, i;
 
 	if (d->enabled)
 		return;
+
+	/* Cleanup EP0 state */
+	ast_vhub_reset_ep0(d);
 
 	/* Enable device and its EP0 interrupts */
 	reg = VHUB_DEV_EN_ENABLE_PORT |
@@ -73,6 +76,19 @@ static void ast_vhub_dev_enable(struct ast_vhub_dev *d)
 	/* Set EP0 DMA buffer address */
 	writel(d->ep0.buf_dma, d->regs + AST_VHUB_DEV_EP0_DATA);
 
+	/* Clear stall on all EPs */
+	for (i = 0; i < AST_VHUB_NUM_GEN_EPs; i++) {
+		struct ast_vhub_ep *ep = d->epns[i];
+
+		if (ep && (ep->epn.stalled || ep->epn.wedged)) {
+			ep->epn.stalled = false;
+			ep->epn.wedged = false;
+			ast_vhub_update_epn_stall(ep);
+		}
+	}
+
+	/* Additional cleanups */
+	d->wakeup_en = false;
 	d->enabled = true;
 }
 
@@ -93,7 +109,6 @@ static void ast_vhub_dev_disable(struct ast_vhub_dev *d)
 	writel(0, d->regs + AST_VHUB_DEV_EN_CTRL);
 	d->gadget.speed = USB_SPEED_UNKNOWN;
 	d->enabled = false;
-	d->suspended = false;
 }
 
 static int ast_vhub_dev_feature(struct ast_vhub_dev *d,
@@ -201,13 +216,18 @@ int ast_vhub_std_dev_request(struct ast_vhub_ep *ep,
 	u16 wValue, wIndex;
 
 	/* No driver, we shouldn't be enabled ... */
-	if (!d->driver || !d->enabled || d->suspended) {
+	if (!d->driver || !d->enabled) {
 		EPDBG(ep,
-		      "Device is wrong state driver=%p enabled=%d"
-		      " suspended=%d\n",
-		      d->driver, d->enabled, d->suspended);
+		      "Device is wrong state driver=%p enabled=%d\n",
+		      d->driver, d->enabled);
 		return std_req_stall;
 	}
+
+	/*
+	 * Note: we used to reject/stall requests while suspended,
+	 * we don't do that anymore as we seem to have cases of
+	 * mass storage getting very upset.
+	 */
 
 	/* First packet, grab speed */
 	if (d->gadget.speed == USB_SPEED_UNKNOWN) {
@@ -449,8 +469,7 @@ static const struct usb_gadget_ops ast_vhub_udc_ops = {
 
 void ast_vhub_dev_suspend(struct ast_vhub_dev *d)
 {
-	d->suspended = true;
-	if (d->driver) {
+	if (d->driver && d->driver->suspend) {
 		spin_unlock(&d->vhub->lock);
 		d->driver->suspend(&d->gadget);
 		spin_lock(&d->vhub->lock);
@@ -459,8 +478,7 @@ void ast_vhub_dev_suspend(struct ast_vhub_dev *d)
 
 void ast_vhub_dev_resume(struct ast_vhub_dev *d)
 {
-	d->suspended = false;
-	if (d->driver) {
+	if (d->driver && d->driver->resume) {
 		spin_unlock(&d->vhub->lock);
 		d->driver->resume(&d->gadget);
 		spin_lock(&d->vhub->lock);
@@ -469,46 +487,28 @@ void ast_vhub_dev_resume(struct ast_vhub_dev *d)
 
 void ast_vhub_dev_reset(struct ast_vhub_dev *d)
 {
-	/*
-	 * If speed is not set, we enable the port. If it is,
-	 * send reset to the gadget and reset "speed".
-	 *
-	 * Speed is an indication that we have got the first
-	 * setup packet to the device.
-	 */
-	if (d->gadget.speed == USB_SPEED_UNKNOWN && !d->enabled) {
-		DDBG(d, "Reset at unknown speed of disabled device, enabling...\n");
-		ast_vhub_dev_enable(d);
-		d->suspended = false;
+	/* No driver, just disable the device and return */
+	if (!d->driver) {
+		ast_vhub_dev_disable(d);
+		return;
 	}
-	if (d->gadget.speed != USB_SPEED_UNKNOWN && d->driver) {
-		unsigned int i;
 
-		DDBG(d, "Reset at known speed of bound device, resetting...\n");
+	/* If the port isn't enabled, just enable it */
+	if (!d->enabled) {
+		DDBG(d, "Reset of disabled device, enabling...\n");
+		ast_vhub_dev_enable(d);
+	} else {
+		DDBG(d, "Reset of enabled device, resetting...\n");
 		spin_unlock(&d->vhub->lock);
-		d->driver->reset(&d->gadget);
+		usb_gadget_udc_reset(&d->gadget, d->driver);
 		spin_lock(&d->vhub->lock);
 
 		/*
-		 * Disable/re-enable HW, this will clear the address
+		 * Disable and maybe re-enable HW, this will clear the address
 		 * and speed setting.
 		 */
 		ast_vhub_dev_disable(d);
 		ast_vhub_dev_enable(d);
-
-		/* Clear stall on all EPs */
-		for (i = 0; i < AST_VHUB_NUM_GEN_EPs; i++) {
-			struct ast_vhub_ep *ep = d->epns[i];
-
-			if (ep && ep->epn.stalled) {
-				ep->epn.stalled = false;
-				ast_vhub_update_epn_stall(ep);
-			}
-		}
-
-		/* Additional cleanups */
-		d->wakeup_en = false;
-		d->suspended = false;
 	}
 }
 

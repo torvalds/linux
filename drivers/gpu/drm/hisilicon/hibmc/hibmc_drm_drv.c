@@ -13,9 +13,16 @@
 
 #include <linux/console.h>
 #include <linux/module.h>
+#include <linux/pci.h>
 
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_gem_vram_helper.h>
+#include <drm/drm_irq.h>
+#include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_vblank.h>
+#include <drm/drm_vram_mm_helper.h>
 
 #include "hibmc_drm_drv.h"
 #include "hibmc_drm_regs.h"
@@ -51,25 +58,22 @@ static struct drm_driver hibmc_driver = {
 	.desc			= "hibmc drm driver",
 	.major			= 1,
 	.minor			= 0,
-	.gem_free_object_unlocked =
-		drm_gem_vram_driver_gem_free_object_unlocked,
 	.dumb_create            = hibmc_dumb_create,
 	.dumb_map_offset        = drm_gem_vram_driver_dumb_mmap_offset,
+	.gem_prime_mmap		= drm_gem_prime_mmap,
 	.irq_handler		= hibmc_drm_interrupt,
 };
 
 static int __maybe_unused hibmc_pm_suspend(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
 
 	return drm_mode_config_helper_suspend(drm_dev);
 }
 
 static int  __maybe_unused hibmc_pm_resume(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
 
 	return drm_mode_config_helper_resume(drm_dev);
 }
@@ -388,18 +392,7 @@ static struct pci_driver hibmc_pci_driver = {
 	.driver.pm =    &hibmc_pm_ops,
 };
 
-static int __init hibmc_init(void)
-{
-	return pci_register_driver(&hibmc_pci_driver);
-}
-
-static void __exit hibmc_exit(void)
-{
-	return pci_unregister_driver(&hibmc_pci_driver);
-}
-
-module_init(hibmc_init);
-module_exit(hibmc_exit);
+module_pci_driver(hibmc_pci_driver);
 
 MODULE_DEVICE_TABLE(pci, hibmc_pci_table);
 MODULE_AUTHOR("RongrongZou <zourongrong@huawei.com>");

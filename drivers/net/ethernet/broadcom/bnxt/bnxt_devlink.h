@@ -52,9 +52,11 @@ struct bnxt_dl_nvm_param {
 	u16 id;
 	u16 offset;
 	u16 dir_type;
-	u16 num_bits;
+	u16 nvm_num_bits;
+	u8 dl_num_bytes;
 };
 
+void bnxt_devlink_health_report(struct bnxt *bp, unsigned long event);
 int bnxt_dl_register(struct bnxt *bp);
 void bnxt_dl_unregister(struct bnxt *bp);
 

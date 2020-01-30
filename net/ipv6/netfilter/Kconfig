@@ -170,13 +170,13 @@ config IP6_NF_MATCH_RT
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 config IP6_NF_MATCH_SRH
-        tristate '"srh" Segment Routing header match support'
-        depends on NETFILTER_ADVANCED
-        help
-          srh matching allows you to match packets based on the segment
+	tristate '"srh" Segment Routing header match support'
+	depends on NETFILTER_ADVANCED
+	help
+	  srh matching allows you to match packets based on the segment
 	  routing header of the packet.
 
-          To compile it as a module, choose M here.  If unsure, say N.
+	  To compile it as a module, choose M here.  If unsure, say N.
 
 # The targets
 config IP6_NF_TARGET_HL
@@ -249,10 +249,10 @@ config IP6_NF_SECURITY
        depends on SECURITY
        depends on NETFILTER_ADVANCED
        help
-         This option adds a `security' table to iptables, for use
-         with Mandatory Access Control (MAC) policy.
+	 This option adds a `security' table to iptables, for use
+	 with Mandatory Access Control (MAC) policy.
 
-         If unsure, say N.
+	 If unsure, say N.
 
 config IP6_NF_NAT
 	tristate "ip6tables NAT support"

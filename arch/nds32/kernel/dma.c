@@ -80,9 +80,3 @@ void arch_dma_prep_coherent(struct page *page, size_t size)
 {
 	cache_op(page_to_phys(page), size, cpu_dma_wbinval_range);
 }
-
-static int __init atomic_pool_init(void)
-{
-	return dma_atomic_pool_init(GFP_KERNEL, pgprot_noncached(PAGE_KERNEL));
-}
-postcore_initcall(atomic_pool_init);

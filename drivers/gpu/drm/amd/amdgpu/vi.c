@@ -711,6 +711,12 @@ static int vi_asic_reset(struct amdgpu_device *adev)
 	return r;
 }
 
+static enum amd_reset_method
+vi_asic_reset_method(struct amdgpu_device *adev)
+{
+	return AMD_RESET_METHOD_LEGACY;
+}
+
 static u32 vi_get_config_memsize(struct amdgpu_device *adev)
 {
 	return RREG32(mmCONFIG_MEMSIZE);
@@ -1023,6 +1029,7 @@ static const struct amdgpu_asic_funcs vi_asic_funcs =
 	.read_bios_from_rom = &vi_read_bios_from_rom,
 	.read_register = &vi_read_register,
 	.reset = &vi_asic_reset,
+	.reset_method = &vi_asic_reset_method,
 	.set_vga_state = &vi_vga_set_state,
 	.get_xclk = &vi_get_xclk,
 	.set_uvd_clocks = &vi_set_uvd_clocks,

@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
-#include "perf.h"
 #include "util/debug.h"
+#include "util/event.h"
 #include <subcmd/parse-options.h>
 #include "util/parse-branch-options.h"
 #include <stdlib.h>
+#include <string.h>
 
 #define BRANCH_OPT(n, m) \
 	{ .name = n, .mode = (m) }
@@ -30,6 +31,7 @@ static const struct branch_mode branch_modes[] = {
 	BRANCH_OPT("ind_jmp", PERF_SAMPLE_BRANCH_IND_JUMP),
 	BRANCH_OPT("call", PERF_SAMPLE_BRANCH_CALL),
 	BRANCH_OPT("save_type", PERF_SAMPLE_BRANCH_TYPE_SAVE),
+	BRANCH_OPT("stack", PERF_SAMPLE_BRANCH_CALL_STACK),
 	BRANCH_END
 };
 

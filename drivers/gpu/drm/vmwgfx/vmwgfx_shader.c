@@ -95,6 +95,8 @@ static const struct vmw_res_func vmw_gb_shader_func = {
 	.res_type = vmw_res_shader,
 	.needs_backup = true,
 	.may_evict = true,
+	.prio = 3,
+	.dirty_prio = 3,
 	.type_name = "guest backed shaders",
 	.backup_placement = &vmw_mob_placement,
 	.create = vmw_gb_shader_create,
@@ -106,7 +108,9 @@ static const struct vmw_res_func vmw_gb_shader_func = {
 static const struct vmw_res_func vmw_dx_shader_func = {
 	.res_type = vmw_res_shader,
 	.needs_backup = true,
-	.may_evict = false,
+	.may_evict = true,
+	.prio = 3,
+	.dirty_prio = 3,
 	.type_name = "dx shaders",
 	.backup_placement = &vmw_mob_placement,
 	.create = vmw_dx_shader_create,
@@ -423,7 +427,7 @@ static int vmw_dx_shader_create(struct vmw_resource *res)
 
 	WARN_ON_ONCE(!shader->committed);
 
-	if (!list_empty(&res->mob_head)) {
+	if (vmw_resource_mob_attached(res)) {
 		mutex_lock(&dev_priv->binding_mutex);
 		ret = vmw_dx_shader_unscrub(res);
 		mutex_unlock(&dev_priv->binding_mutex);

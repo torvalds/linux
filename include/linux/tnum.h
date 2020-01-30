@@ -5,6 +5,10 @@
  * propagate the unknown bits such that the tnum result represents all the
  * possible results for possible values of the operands.
  */
+
+#ifndef _LINUX_TNUM_H
+#define _LINUX_TNUM_H
+
 #include <linux/types.h>
 
 struct tnum {
@@ -81,3 +85,5 @@ bool tnum_in(struct tnum a, struct tnum b);
 int tnum_strn(char *str, size_t size, struct tnum a);
 /* Format a tnum as tristate binary expansion */
 int tnum_sbin(char *str, size_t size, struct tnum a);
+
+#endif /* _LINUX_TNUM_H */

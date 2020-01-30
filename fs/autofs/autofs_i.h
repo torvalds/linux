@@ -58,7 +58,6 @@ struct autofs_info {
 	struct completion expire_complete;
 
 	struct list_head active;
-	int active_count;
 
 	struct list_head expiring;
 

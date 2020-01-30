@@ -26,6 +26,7 @@
  */
 
 #include <linux/dma-fence.h>
+#include <linux/ktime.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
@@ -1580,17 +1581,49 @@ static void commit_tail(struct drm_atomic_state *old_state)
 {
 	struct drm_device *dev = old_state->dev;
 	const struct drm_mode_config_helper_funcs *funcs;
+	struct drm_crtc_state *new_crtc_state;
+	struct drm_crtc *crtc;
+	ktime_t start;
+	s64 commit_time_ms;
+	unsigned int i, new_self_refresh_mask = 0;
 
 	funcs = dev->mode_config.helper_private;
+
+	/*
+	 * We're measuring the _entire_ commit, so the time will vary depending
+	 * on how many fences and objects are involved. For the purposes of self
+	 * refresh, this is desirable since it'll give us an idea of how
+	 * congested things are. This will inform our decision on how often we
+	 * should enter self refresh after idle.
+	 *
+	 * These times will be averaged out in the self refresh helpers to avoid
+	 * overreacting over one outlier frame
+	 */
+	start = ktime_get();
 
 	drm_atomic_helper_wait_for_fences(dev, old_state, false);
 
 	drm_atomic_helper_wait_for_dependencies(old_state);
 
+	/*
+	 * We cannot safely access new_crtc_state after
+	 * drm_atomic_helper_commit_hw_done() so figure out which crtc's have
+	 * self-refresh active beforehand:
+	 */
+	for_each_new_crtc_in_state(old_state, crtc, new_crtc_state, i)
+		if (new_crtc_state->self_refresh_active)
+			new_self_refresh_mask |= BIT(i);
+
 	if (funcs && funcs->atomic_commit_tail)
 		funcs->atomic_commit_tail(old_state);
 	else
 		drm_atomic_helper_commit_tail(old_state);
+
+	commit_time_ms = ktime_ms_delta(ktime_get(), start);
+	if (commit_time_ms > 0)
+		drm_self_refresh_helper_update_avg_times(old_state,
+						 (unsigned long)commit_time_ms,
+						 new_self_refresh_mask);
 
 	drm_atomic_helper_commit_cleanup_done(old_state);
 
@@ -3275,7 +3308,7 @@ static int page_flip_common(struct drm_atomic_state *state,
 		return PTR_ERR(crtc_state);
 
 	crtc_state->event = event;
-	crtc_state->pageflip_flags = flags;
+	crtc_state->async_flip = flags & DRM_MODE_PAGE_FLIP_ASYNC;
 
 	plane_state = drm_atomic_get_plane_state(state, plane);
 	if (IS_ERR(plane_state))

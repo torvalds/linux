@@ -123,8 +123,6 @@
 	phy-mode = "rgmii";
 	phy-supply = <&reg_gmac_3v3>;
 	status = "okay";
-	/delete-property/#address-cells;
-	/delete-property/#size-cells;
 
 	fixed-link {
 		speed = <1000>;

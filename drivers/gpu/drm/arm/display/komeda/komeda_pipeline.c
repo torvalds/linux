@@ -54,7 +54,8 @@ void komeda_pipeline_destroy(struct komeda_dev *mdev,
 
 	clk_put(pipe->pxlclk);
 
-	of_node_put(pipe->of_output_dev);
+	of_node_put(pipe->of_output_links[0]);
+	of_node_put(pipe->of_output_links[1]);
 	of_node_put(pipe->of_output_port);
 	of_node_put(pipe->of_node);
 
@@ -246,9 +247,15 @@ static void komeda_pipeline_dump(struct komeda_pipeline *pipe)
 	struct komeda_component *c;
 	int id;
 
-	DRM_INFO("Pipeline-%d: n_layers: %d, n_scalers: %d, output: %s\n",
+	DRM_INFO("Pipeline-%d: n_layers: %d, n_scalers: %d, output: %s.\n",
 		 pipe->id, pipe->n_layers, pipe->n_scalers,
-		 pipe->of_output_dev ? pipe->of_output_dev->full_name : "none");
+		 pipe->dual_link ? "dual-link" : "single-link");
+	DRM_INFO("	output_link[0]: %s.\n",
+		 pipe->of_output_links[0] ?
+		 pipe->of_output_links[0]->full_name : "none");
+	DRM_INFO("	output_link[1]: %s.\n",
+		 pipe->of_output_links[1] ?
+		 pipe->of_output_links[1]->full_name : "none");
 
 	dp_for_each_set_bit(id, pipe->avail_comps) {
 		c = komeda_pipeline_get_component(pipe, id);
@@ -304,6 +311,12 @@ static void komeda_pipeline_assemble(struct komeda_pipeline *pipe)
 		layer = pipe->layers[i];
 
 		layer->right = komeda_get_layer_split_right_layer(pipe, layer);
+	}
+
+	if (pipe->dual_link && !pipe->ctrlr->supports_dual_link) {
+		pipe->dual_link = false;
+		DRM_WARN("PIPE-%d doesn't support dual-link, ignore DT dual-link configuration.\n",
+			 pipe->id);
 	}
 }
 

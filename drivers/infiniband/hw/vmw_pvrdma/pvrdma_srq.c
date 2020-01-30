@@ -230,8 +230,6 @@ static void pvrdma_free_srq(struct pvrdma_dev *dev, struct pvrdma_srq *srq)
 
 	pvrdma_page_dir_cleanup(dev, &srq->pdir);
 
-	kfree(srq);
-
 	atomic_dec(&dev->num_srqs);
 }
 

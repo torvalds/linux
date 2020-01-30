@@ -30,13 +30,15 @@
  *    Gareth Hughes <gareth@valinux.com>
  */
 
+#include "i810_drv.h"
 #include <linux/module.h>
 
-#include <drm/drmP.h>
-#include <drm/i810_drm.h>
-#include "i810_drv.h"
-
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+#include <drm/drm_pci.h>
 #include <drm/drm_pciids.h>
+#include <drm/i810_drm.h>
+
 
 static struct pci_device_id pciidlist[] = {
 	i810_PCI_IDS

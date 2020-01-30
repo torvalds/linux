@@ -5,22 +5,12 @@
 /dts-v1/;
 
 #include "am33xx.dtsi"
+#include "am335x-osd335x-common.dtsi"
 #include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	model = "TI AM335x BeagleBone Blue";
 	compatible = "ti,am335x-bone-blue", "ti,am33xx";
-
-	cpus {
-		cpu@0 {
-			cpu0-supply = <&dcdc2_reg>;
-		};
-	};
-
-	memory@80000000 {
-		device_type = "memory";
-		reg = <0x80000000 0x20000000>; /* 512 MB */
-	};
 
 	chosen {
 		stdout-path = &uart0;
@@ -139,13 +129,6 @@
 			AM33XX_PADCONF(AM335X_PIN_GPMC_CSN0, PIN_OUTPUT, MUX_MODE7) /* (V6) gpmc_csn0.gpio1[29] - P8.26, BATT_LED_3 */
 			AM33XX_PADCONF(AM335X_PIN_GPMC_AD10, PIN_OUTPUT, MUX_MODE7) /* (T11) gpmc_ad10.gpio0[26] - P8.14, BATT_LED_4 */
 
-		>;
-	};
-
-	i2c0_pins: pinmux_i2c0_pins {
-		pinctrl-single,pins = <
-			AM33XX_PADCONF(AM335X_PIN_I2C0_SDA, PIN_INPUT_PULLUP, MUX_MODE0)	/* (C17) I2C0_SDA.I2C0_SDA */
-			AM33XX_PADCONF(AM335X_PIN_I2C0_SCL, PIN_INPUT_PULLUP, MUX_MODE0)	/* (C16) I2C0_SCL.I2C0_SCL */
 		>;
 	};
 
@@ -328,16 +311,6 @@
 };
 
 &i2c0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c0_pins>;
-
-	status = "okay";
-	clock-frequency = <400000>;
-
-	tps: tps@24 {
-		reg = <0x24>;
-	};
-
 	baseboard_eeprom: baseboard_eeprom@50 {
 		compatible = "atmel,24c256";
 		reg = <0x50>;
@@ -381,65 +354,12 @@
 /include/ "tps65217.dtsi"
 
 &tps {
-	interrupts = <7>; /* NMI */
-	interrupt-parent = <&intc>;
+	/delete-property/ ti,pmic-shutdown-controller;
 
 	charger {
 		interrupts = <0>, <1>;
 		interrupt-names = "USB", "AC";
 		status = "okay";
-	};
-
-	pwrbutton {
-		interrupts = <2>;
-		status = "okay";
-	};
-
-	regulators {
-		dcdc1_reg: regulator@0 {
-			regulator-name = "vdds_dpr";
-			regulator-always-on;
-		};
-
-		dcdc2_reg: regulator@1 {
-			/* VDD_MPU voltage limits 0.95V - 1.26V with +/-4% tolerance */
-			regulator-name = "vdd_mpu";
-			regulator-min-microvolt = <925000>;
-			regulator-max-microvolt = <1351500>;
-			regulator-boot-on;
-			regulator-always-on;
-		};
-
-		dcdc3_reg: regulator@2 {
-			/* VDD_CORE voltage limits 0.95V - 1.1V with +/-4% tolerance */
-			regulator-name = "vdd_core";
-			regulator-min-microvolt = <925000>;
-			regulator-max-microvolt = <1150000>;
-			regulator-boot-on;
-			regulator-always-on;
-		};
-
-		ldo1_reg: regulator@3 {
-			regulator-name = "vio,vrtc,vdds";
-			regulator-always-on;
-		};
-
-		ldo2_reg: regulator@4 {
-			regulator-name = "vdd_3v3aux";
-			regulator-always-on;
-		};
-
-		ldo3_reg: regulator@5 {
-			regulator-name = "vdd_1v8";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-			regulator-always-on;
-		};
-
-		ldo4_reg: regulator@6 {
-			regulator-name = "vdd_3v3a";
-			regulator-always-on;
-		};
 	};
 };
 
@@ -500,14 +420,6 @@
 		compatible = "ti,wl1835-st";
 		enable-gpios = <&gpio0 28 GPIO_ACTIVE_HIGH>;
 	};
-};
-
-&aes {
-	status = "okay";
-};
-
-&sham {
-	status = "okay";
 };
 
 &rtc {

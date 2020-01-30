@@ -44,7 +44,6 @@
 		regulator-name = "vwlan_fixed";
 		gpio = <&gpio0 20 GPIO_ACTIVE_HIGH>; /* gpio0_20 */
 		enable-active-high;
-		regulator-boot-off;
 	};
 
 	backlight {

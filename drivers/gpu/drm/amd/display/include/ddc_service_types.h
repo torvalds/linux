@@ -25,10 +25,12 @@
 #ifndef __DAL_DDC_SERVICE_TYPES_H__
 #define __DAL_DDC_SERVICE_TYPES_H__
 
-#define DP_BRANCH_DEVICE_ID_1 0x0010FA
-#define DP_BRANCH_DEVICE_ID_2 0x0022B9
-#define DP_BRANCH_DEVICE_ID_3 0x00001A
-#define DP_BRANCH_DEVICE_ID_4 0x0080e1
+/* 0010FA dongles (ST Micro) external converter chip id */
+#define DP_BRANCH_DEVICE_ID_0010FA 0x0010FA
+/* 0022B9 external converter chip id */
+#define DP_BRANCH_DEVICE_ID_0022B9 0x0022B9
+#define DP_BRANCH_DEVICE_ID_00001A 0x00001A
+#define DP_BRANCH_DEVICE_ID_0080E1 0x0080e1
 
 enum ddc_result {
 	DDC_RESULT_UNKNOWN = 0,

@@ -50,7 +50,7 @@
 #define MAX_INSNS	BPF_MAXINSNS
 #define MAX_TEST_INSNS	1000000
 #define MAX_FIXUPS	8
-#define MAX_NR_MAPS	18
+#define MAX_NR_MAPS	19
 #define MAX_TEST_RUNS	8
 #define POINTER_VALUE	0xcafe4all
 #define TEST_DATA_LEN	64
@@ -61,6 +61,7 @@
 #define UNPRIV_SYSCTL "kernel/unprivileged_bpf_disabled"
 static bool unpriv_disabled = false;
 static int skips;
+static bool verbose = false;
 
 struct bpf_test {
 	const char *descr;
@@ -84,6 +85,7 @@ struct bpf_test {
 	int fixup_map_array_wo[MAX_FIXUPS];
 	int fixup_map_array_small[MAX_FIXUPS];
 	int fixup_sk_storage_map[MAX_FIXUPS];
+	int fixup_map_event_output[MAX_FIXUPS];
 	const char *errstr;
 	const char *errstr_unpriv;
 	uint32_t insn_processed;
@@ -91,7 +93,8 @@ struct bpf_test {
 	enum {
 		UNDEF,
 		ACCEPT,
-		REJECT
+		REJECT,
+		VERBOSE_ACCEPT,
 	} result, result_unpriv;
 	enum bpf_prog_type prog_type;
 	uint8_t flags;
@@ -632,6 +635,7 @@ static void do_test_fixup(struct bpf_test *test, enum bpf_prog_type prog_type,
 	int *fixup_map_array_wo = test->fixup_map_array_wo;
 	int *fixup_map_array_small = test->fixup_map_array_small;
 	int *fixup_sk_storage_map = test->fixup_sk_storage_map;
+	int *fixup_map_event_output = test->fixup_map_event_output;
 
 	if (test->fill_helper) {
 		test->fill_insns = calloc(MAX_TEST_INSNS, sizeof(struct bpf_insn));
@@ -793,6 +797,14 @@ static void do_test_fixup(struct bpf_test *test, enum bpf_prog_type prog_type,
 			fixup_sk_storage_map++;
 		} while (*fixup_sk_storage_map);
 	}
+	if (*fixup_map_event_output) {
+		map_fds[18] = __create_map(BPF_MAP_TYPE_PERF_EVENT_ARRAY,
+					   sizeof(int), sizeof(int), 1, 0);
+		do {
+			prog[*fixup_map_event_output].imm = map_fds[18];
+			fixup_map_event_output++;
+		} while (*fixup_map_event_output);
+	}
 }
 
 static int set_admin(bool admin)
@@ -849,6 +861,36 @@ static int do_prog_test_run(int fd_prog, bool unpriv, uint32_t expected_val,
 	return 0;
 }
 
+static bool cmp_str_seq(const char *log, const char *exp)
+{
+	char needle[80];
+	const char *p, *q;
+	int len;
+
+	do {
+		p = strchr(exp, '\t');
+		if (!p)
+			p = exp + strlen(exp);
+
+		len = p - exp;
+		if (len >= sizeof(needle) || !len) {
+			printf("FAIL\nTestcase bug\n");
+			return false;
+		}
+		strncpy(needle, exp, len);
+		needle[len] = 0;
+		q = strstr(log, needle);
+		if (!q) {
+			printf("FAIL\nUnexpected verifier log in successful load!\n"
+			       "EXP: %s\nRES:\n", needle);
+			return false;
+		}
+		log = q + len;
+		exp = p + 1;
+	} while (*p);
+	return true;
+}
+
 static void do_test_single(struct bpf_test *test, bool unpriv,
 			   int *passes, int *errors)
 {
@@ -887,14 +929,20 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 		pflags |= BPF_F_STRICT_ALIGNMENT;
 	if (test->flags & F_NEEDS_EFFICIENT_UNALIGNED_ACCESS)
 		pflags |= BPF_F_ANY_ALIGNMENT;
+	if (test->flags & ~3)
+		pflags |= test->flags;
 
+	expected_ret = unpriv && test->result_unpriv != UNDEF ?
+		       test->result_unpriv : test->result;
+	expected_err = unpriv && test->errstr_unpriv ?
+		       test->errstr_unpriv : test->errstr;
 	memset(&attr, 0, sizeof(attr));
 	attr.prog_type = prog_type;
 	attr.expected_attach_type = test->expected_attach_type;
 	attr.insns = prog;
 	attr.insns_cnt = prog_len;
 	attr.license = "GPL";
-	attr.log_level = 4;
+	attr.log_level = verbose || expected_ret == VERBOSE_ACCEPT ? 1 : 4;
 	attr.prog_flags = pflags;
 
 	fd_prog = bpf_load_program_xattr(&attr, bpf_vlog, sizeof(bpf_vlog));
@@ -904,14 +952,9 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 		goto close_fds;
 	}
 
-	expected_ret = unpriv && test->result_unpriv != UNDEF ?
-		       test->result_unpriv : test->result;
-	expected_err = unpriv && test->errstr_unpriv ?
-		       test->errstr_unpriv : test->errstr;
-
 	alignment_prevented_execution = 0;
 
-	if (expected_ret == ACCEPT) {
+	if (expected_ret == ACCEPT || expected_ret == VERBOSE_ACCEPT) {
 		if (fd_prog < 0) {
 			printf("FAIL\nFailed to load prog '%s'!\n",
 			       strerror(errno));
@@ -922,6 +965,9 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 		    (test->flags & F_NEEDS_EFFICIENT_UNALIGNED_ACCESS))
 			alignment_prevented_execution = 1;
 #endif
+		if (expected_ret == VERBOSE_ACCEPT && !cmp_str_seq(bpf_vlog, expected_err)) {
+			goto fail_log;
+		}
 	} else {
 		if (fd_prog >= 0) {
 			printf("FAIL\nUnexpected success to load!\n");
@@ -946,6 +992,9 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 			goto fail_log;
 		}
 	}
+
+	if (verbose)
+		printf(", verifier log:\n%s", bpf_vlog);
 
 	run_errs = 0;
 	run_successes = 0;
@@ -1087,17 +1136,24 @@ int main(int argc, char **argv)
 {
 	unsigned int from = 0, to = ARRAY_SIZE(tests);
 	bool unpriv = !is_admin();
+	int arg = 1;
+
+	if (argc > 1 && strcmp(argv[1], "-v") == 0) {
+		arg++;
+		verbose = true;
+		argc--;
+	}
 
 	if (argc == 3) {
-		unsigned int l = atoi(argv[argc - 2]);
-		unsigned int u = atoi(argv[argc - 1]);
+		unsigned int l = atoi(argv[arg]);
+		unsigned int u = atoi(argv[arg + 1]);
 
 		if (l < to && u < to) {
 			from = l;
 			to   = u + 1;
 		}
 	} else if (argc == 2) {
-		unsigned int t = atoi(argv[argc - 1]);
+		unsigned int t = atoi(argv[arg]);
 
 		if (t < to) {
 			from = t;

@@ -6,7 +6,6 @@
 #ifndef TEGRA_HUB_H
 #define TEGRA_HUB_H 1
 
-#include <drm/drmP.h>
 #include <drm/drm_plane.h>
 
 #include "plane.h"

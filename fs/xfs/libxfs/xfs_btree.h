@@ -464,9 +464,13 @@ xfs_failaddr_t xfs_btree_lblock_verify(struct xfs_buf *bp,
 uint xfs_btree_compute_maxlevels(uint *limits, unsigned long len);
 unsigned long long xfs_btree_calc_size(uint *limits, unsigned long long len);
 
-/* return codes */
-#define XFS_BTREE_QUERY_RANGE_CONTINUE	(XFS_ITER_CONTINUE) /* keep iterating */
-#define XFS_BTREE_QUERY_RANGE_ABORT	(XFS_ITER_ABORT)    /* stop iterating */
+/*
+ * Return codes for the query range iterator function are 0 to continue
+ * iterating, and non-zero to stop iterating.  Any non-zero value will be
+ * passed up to the _query_range caller.  The special value -ECANCELED can be
+ * used to stop iteration, because _query_range never generates that error
+ * code on its own.
+ */
 typedef int (*xfs_btree_query_range_fn)(struct xfs_btree_cur *cur,
 		union xfs_btree_rec *rec, void *priv);
 

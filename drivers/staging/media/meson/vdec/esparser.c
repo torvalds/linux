@@ -301,10 +301,8 @@ int esparser_init(struct platform_device *pdev, struct amvdec_core *core)
 	int irq;
 
 	irq = platform_get_irq_byname(pdev, "esparser");
-	if (irq < 0) {
-		dev_err(dev, "Failed getting ESPARSER IRQ from dtb\n");
+	if (irq < 0)
 		return irq;
-	}
 
 	ret = devm_request_irq(dev, irq, esparser_isr, IRQF_SHARED,
 			       "esparserirq", core);

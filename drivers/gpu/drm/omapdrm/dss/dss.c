@@ -923,7 +923,6 @@ dss_debugfs_create_file(struct dss_device *dss, const char *name,
 			void *data)
 {
 	struct dss_debugfs_entry *entry;
-	struct dentry *d;
 
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
@@ -931,15 +930,9 @@ dss_debugfs_create_file(struct dss_device *dss, const char *name,
 
 	entry->show_fn = show_fn;
 	entry->data = data;
+	entry->dentry = debugfs_create_file(name, 0444, dss->debugfs.root,
+					    entry, &dss_debug_fops);
 
-	d = debugfs_create_file(name, 0444, dss->debugfs.root, entry,
-				&dss_debug_fops);
-	if (IS_ERR(d)) {
-		kfree(entry);
-		return ERR_CAST(d);
-	}
-
-	entry->dentry = d;
 	return entry;
 }
 
@@ -1090,7 +1083,7 @@ static const struct dss_features omap34xx_dss_feats = {
 
 static const struct dss_features omap3630_dss_feats = {
 	.model			=	DSS_MODEL_OMAP3,
-	.fck_div_max		=	32,
+	.fck_div_max		=	31,
 	.fck_freq_max		=	173000000,
 	.dss_fck_multiplier	=	1,
 	.parent_clk_name	=	"dpll4_ck",

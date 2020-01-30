@@ -36,6 +36,7 @@ MAP COMMANDS
 |	**bpftool** **map pop**        *MAP*
 |	**bpftool** **map enqueue**    *MAP* **value** *VALUE*
 |	**bpftool** **map dequeue**    *MAP*
+|	**bpftool** **map freeze**     *MAP*
 |	**bpftool** **map help**
 |
 |	*MAP* := { **id** *MAP_ID* | **pinned** *FILE* }
@@ -46,7 +47,7 @@ MAP COMMANDS
 |	*TYPE* := { **hash** | **array** | **prog_array** | **perf_event_array** | **percpu_hash**
 |		| **percpu_array** | **stack_trace** | **cgroup_array** | **lru_hash**
 |		| **lru_percpu_hash** | **lpm_trie** | **array_of_maps** | **hash_of_maps**
-|		| **devmap** | **sockmap** | **cpumap** | **xskmap** | **sockhash**
+|		| **devmap** | **devmap_hash** | **sockmap** | **cpumap** | **xskmap** | **sockhash**
 |		| **cgroup_storage** | **reuseport_sockarray** | **percpu_cgroup_storage**
 |		| **queue** | **stack** }
 
@@ -126,6 +127,14 @@ DESCRIPTION
 
 	**bpftool map dequeue**  *MAP*
 		  Dequeue and print **value** from the queue.
+
+	**bpftool map freeze**  *MAP*
+		  Freeze the map as read-only from user space. Entries from a
+		  frozen map can not longer be updated or deleted with the
+		  **bpf\ ()** system call. This operation is not reversible,
+		  and the map remains immutable from user space until its
+		  destruction. However, read and write permissions for BPF
+		  programs to the map remain unchanged.
 
 	**bpftool map help**
 		  Print short help message.

@@ -725,24 +725,198 @@ static void wil_get_netif_rx_params(struct sk_buff *skb, int *cid,
 }
 
 /*
+ * Check if skb is ptk eapol key message
+ *
+ * returns a pointer to the start of the eapol key structure, NULL
+ * if frame is not PTK eapol key
+ */
+static struct wil_eapol_key *wil_is_ptk_eapol_key(struct wil6210_priv *wil,
+						  struct sk_buff *skb)
+{
+	u8 *buf;
+	const struct wil_1x_hdr *hdr;
+	struct wil_eapol_key *key;
+	u16 key_info;
+	int len = skb->len;
+
+	if (!skb_mac_header_was_set(skb)) {
+		wil_err(wil, "mac header was not set\n");
+		return NULL;
+	}
+
+	len -= skb_mac_offset(skb);
+
+	if (len < sizeof(struct ethhdr) + sizeof(struct wil_1x_hdr) +
+	    sizeof(struct wil_eapol_key))
+		return NULL;
+
+	buf = skb_mac_header(skb) + sizeof(struct ethhdr);
+
+	hdr = (const struct wil_1x_hdr *)buf;
+	if (hdr->type != WIL_1X_TYPE_EAPOL_KEY)
+		return NULL;
+
+	key = (struct wil_eapol_key *)(buf + sizeof(struct wil_1x_hdr));
+	if (key->type != WIL_EAPOL_KEY_TYPE_WPA &&
+	    key->type != WIL_EAPOL_KEY_TYPE_RSN)
+		return NULL;
+
+	key_info = be16_to_cpu(key->key_info);
+	if (!(key_info & WIL_KEY_INFO_KEY_TYPE)) /* check if pairwise */
+		return NULL;
+
+	return key;
+}
+
+static bool wil_skb_is_eap_3(struct wil6210_priv *wil, struct sk_buff *skb)
+{
+	struct wil_eapol_key *key;
+	u16 key_info;
+
+	key = wil_is_ptk_eapol_key(wil, skb);
+	if (!key)
+		return false;
+
+	key_info = be16_to_cpu(key->key_info);
+	if (key_info & (WIL_KEY_INFO_MIC |
+			WIL_KEY_INFO_ENCR_KEY_DATA)) {
+		/* 3/4 of 4-Way Handshake */
+		wil_dbg_misc(wil, "EAPOL key message 3\n");
+		return true;
+	}
+	/* 1/4 of 4-Way Handshake */
+	wil_dbg_misc(wil, "EAPOL key message 1\n");
+
+	return false;
+}
+
+static bool wil_skb_is_eap_4(struct wil6210_priv *wil, struct sk_buff *skb)
+{
+	struct wil_eapol_key *key;
+	u32 *nonce, i;
+
+	key = wil_is_ptk_eapol_key(wil, skb);
+	if (!key)
+		return false;
+
+	nonce = (u32 *)key->key_nonce;
+	for (i = 0; i < WIL_EAP_NONCE_LEN / sizeof(u32); i++, nonce++) {
+		if (*nonce != 0) {
+			/* message 2/4 */
+			wil_dbg_misc(wil, "EAPOL key message 2\n");
+			return false;
+		}
+	}
+	wil_dbg_misc(wil, "EAPOL key message 4\n");
+
+	return true;
+}
+
+void wil_enable_tx_key_worker(struct work_struct *work)
+{
+	struct wil6210_vif *vif = container_of(work,
+			struct wil6210_vif, enable_tx_key_worker);
+	struct wil6210_priv *wil = vif_to_wil(vif);
+	int rc, cid;
+
+	rtnl_lock();
+	if (vif->ptk_rekey_state != WIL_REKEY_WAIT_M4_SENT) {
+		wil_dbg_misc(wil, "Invalid rekey state = %d\n",
+			     vif->ptk_rekey_state);
+		rtnl_unlock();
+		return;
+	}
+
+	cid =  wil_find_cid_by_idx(wil, vif->mid, 0);
+	if (!wil_cid_valid(wil, cid)) {
+		wil_err(wil, "Invalid cid = %d\n", cid);
+		rtnl_unlock();
+		return;
+	}
+
+	wil_dbg_misc(wil, "Apply PTK key after eapol was sent out\n");
+	rc = wmi_add_cipher_key(vif, 0, wil->sta[cid].addr, 0, NULL,
+				WMI_KEY_USE_APPLY_PTK);
+
+	vif->ptk_rekey_state = WIL_REKEY_IDLE;
+	rtnl_unlock();
+
+	if (rc)
+		wil_err(wil, "Apply PTK key failed %d\n", rc);
+}
+
+void wil_tx_complete_handle_eapol(struct wil6210_vif *vif, struct sk_buff *skb)
+{
+	struct wil6210_priv *wil = vif_to_wil(vif);
+	struct wireless_dev *wdev = vif_to_wdev(vif);
+	bool q = false;
+
+	if (wdev->iftype != NL80211_IFTYPE_STATION ||
+	    !test_bit(WMI_FW_CAPABILITY_SPLIT_REKEY, wil->fw_capabilities))
+		return;
+
+	/* check if skb is an EAP message 4/4 */
+	if (!wil_skb_is_eap_4(wil, skb))
+		return;
+
+	spin_lock_bh(&wil->eap_lock);
+	switch (vif->ptk_rekey_state) {
+	case WIL_REKEY_IDLE:
+		/* ignore idle state, can happen due to M4 retransmission */
+		break;
+	case WIL_REKEY_M3_RECEIVED:
+		vif->ptk_rekey_state = WIL_REKEY_IDLE;
+		break;
+	case WIL_REKEY_WAIT_M4_SENT:
+		q = true;
+		break;
+	default:
+		wil_err(wil, "Unknown rekey state = %d",
+			vif->ptk_rekey_state);
+	}
+	spin_unlock_bh(&wil->eap_lock);
+
+	if (q) {
+		q = queue_work(wil->wmi_wq, &vif->enable_tx_key_worker);
+		wil_dbg_misc(wil, "queue_work of enable_tx_key_worker -> %d\n",
+			     q);
+	}
+}
+
+static void wil_rx_handle_eapol(struct wil6210_vif *vif, struct sk_buff *skb)
+{
+	struct wil6210_priv *wil = vif_to_wil(vif);
+	struct wireless_dev *wdev = vif_to_wdev(vif);
+
+	if (wdev->iftype != NL80211_IFTYPE_STATION ||
+	    !test_bit(WMI_FW_CAPABILITY_SPLIT_REKEY, wil->fw_capabilities))
+		return;
+
+	/* check if skb is a EAP message 3/4 */
+	if (!wil_skb_is_eap_3(wil, skb))
+		return;
+
+	if (vif->ptk_rekey_state == WIL_REKEY_IDLE)
+		vif->ptk_rekey_state = WIL_REKEY_M3_RECEIVED;
+}
+
+/*
  * Pass Rx packet to the netif. Update statistics.
  * Called in softirq context (NAPI poll).
  */
-void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
+void wil_netif_rx(struct sk_buff *skb, struct net_device *ndev, int cid,
+		  struct wil_net_stats *stats, bool gro)
 {
 	gro_result_t rc = GRO_NORMAL;
 	struct wil6210_vif *vif = ndev_to_vif(ndev);
 	struct wil6210_priv *wil = ndev_to_wil(ndev);
 	struct wireless_dev *wdev = vif_to_wdev(vif);
 	unsigned int len = skb->len;
-	int cid;
-	int security;
 	u8 *sa, *da = wil_skb_get_da(skb);
 	/* here looking for DA, not A1, thus Rxdesc's 'mcast' indication
 	 * is not suitable, need to look at data
 	 */
 	int mcast = is_multicast_ether_addr(da);
-	struct wil_net_stats *stats;
 	struct sk_buff *xmit_skb = NULL;
 	static const char * const gro_res_str[] = {
 		[GRO_MERGED]		= "GRO_MERGED",
@@ -752,25 +926,6 @@ void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 		[GRO_DROP]		= "GRO_DROP",
 		[GRO_CONSUMED]		= "GRO_CONSUMED",
 	};
-
-	wil->txrx_ops.get_netif_rx_params(skb, &cid, &security);
-
-	stats = &wil->sta[cid].stats;
-
-	skb_orphan(skb);
-
-	if (security && (wil->txrx_ops.rx_crypto_check(wil, skb) != 0)) {
-		rc = GRO_DROP;
-		dev_kfree_skb(skb);
-		stats->rx_replay++;
-		goto stats;
-	}
-
-	/* check errors reported by HW and update statistics */
-	if (unlikely(wil->txrx_ops.rx_error_check(wil, skb, stats))) {
-		dev_kfree_skb(skb);
-		return;
-	}
 
 	if (wdev->iftype == NL80211_IFTYPE_STATION) {
 		sa = wil_skb_get_sa(skb);
@@ -817,7 +972,14 @@ void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 	if (skb) { /* deliver to local stack */
 		skb->protocol = eth_type_trans(skb, ndev);
 		skb->dev = ndev;
-		rc = napi_gro_receive(&wil->napi_rx, skb);
+
+		if (skb->protocol == cpu_to_be16(ETH_P_PAE))
+			wil_rx_handle_eapol(vif, skb);
+
+		if (gro)
+			rc = napi_gro_receive(&wil->napi_rx, skb);
+		else
+			netif_rx_ni(skb);
 		wil_dbg_txrx(wil, "Rx complete %d bytes => %s\n",
 			     len, gro_res_str[rc]);
 	}
@@ -835,6 +997,36 @@ stats:
 		if (mcast)
 			ndev->stats.multicast++;
 	}
+}
+
+void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
+{
+	int cid, security;
+	struct wil6210_priv *wil = ndev_to_wil(ndev);
+	struct wil_net_stats *stats;
+
+	wil->txrx_ops.get_netif_rx_params(skb, &cid, &security);
+
+	stats = &wil->sta[cid].stats;
+
+	skb_orphan(skb);
+
+	if (security && (wil->txrx_ops.rx_crypto_check(wil, skb) != 0)) {
+		wil_dbg_txrx(wil, "Rx drop %d bytes\n", skb->len);
+		dev_kfree_skb(skb);
+		ndev->stats.rx_dropped++;
+		stats->rx_replay++;
+		stats->rx_dropped++;
+		return;
+	}
+
+	/* check errors reported by HW and update statistics */
+	if (unlikely(wil->txrx_ops.rx_error_check(wil, skb, stats))) {
+		dev_kfree_skb(skb);
+		return;
+	}
+
+	wil_netif_rx(skb, ndev, cid, stats, true);
 }
 
 /**
@@ -1657,7 +1849,7 @@ static int __wil_tx_vring_tso(struct wil6210_priv *wil, struct wil6210_vif *vif,
 				     len);
 		} else {
 			frag = &skb_shinfo(skb)->frags[f];
-			len = frag->size;
+			len = skb_frag_size(frag);
 			wil_dbg_txrx(wil, "TSO: frag[%d]: len %u\n", f, len);
 		}
 
@@ -1678,8 +1870,8 @@ static int __wil_tx_vring_tso(struct wil6210_priv *wil, struct wil6210_vif *vif,
 
 			if (!headlen) {
 				pa = skb_frag_dma_map(dev, frag,
-						      frag->size - len, lenmss,
-						      DMA_TO_DEVICE);
+						      skb_frag_size(frag) - len,
+						      lenmss, DMA_TO_DEVICE);
 				vring->ctx[i].mapped_as = wil_mapped_as_page;
 			} else {
 				pa = dma_map_single(dev,
@@ -1900,8 +2092,7 @@ static int __wil_tx_ring(struct wil6210_priv *wil, struct wil6210_vif *vif,
 
 	/* middle segments */
 	for (; f < nr_frags; f++) {
-		const struct skb_frag_struct *frag =
-				&skb_shinfo(skb)->frags[f];
+		const skb_frag_t *frag = &skb_shinfo(skb)->frags[f];
 		int len = skb_frag_size(frag);
 
 		*_d = *d;
@@ -2321,6 +2512,10 @@ int wil_tx_complete(struct wil6210_vif *vif, int ringid)
 					if (stats)
 						stats->tx_errors++;
 				}
+
+				if (skb->protocol == cpu_to_be16(ETH_P_PAE))
+					wil_tx_complete_handle_eapol(vif, skb);
+
 				wil_consume_skb(skb, d->dma.error == 0);
 			}
 			memset(ctx, 0, sizeof(*ctx));

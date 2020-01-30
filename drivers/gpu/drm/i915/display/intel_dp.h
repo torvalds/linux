@@ -102,22 +102,18 @@ bool intel_dp_source_supports_hbr2(struct intel_dp *intel_dp);
 bool intel_dp_source_supports_hbr3(struct intel_dp *intel_dp);
 bool
 intel_dp_get_link_status(struct intel_dp *intel_dp, u8 *link_status);
-u16 intel_dp_dsc_get_output_bpp(int link_clock, u8 lane_count,
-				int mode_clock, int mode_hdisplay);
-u8 intel_dp_dsc_get_slice_count(struct intel_dp *intel_dp, int mode_clock,
-				int mode_hdisplay);
 
 bool intel_dp_read_dpcd(struct intel_dp *intel_dp);
 bool intel_dp_get_colorimetry_status(struct intel_dp *intel_dp);
 int intel_dp_link_required(int pixel_clock, int bpp);
 int intel_dp_max_data_rate(int max_link_clock, int max_lanes);
 bool intel_digital_port_connected(struct intel_encoder *encoder);
-void icl_tc_phy_disconnect(struct drm_i915_private *dev_priv,
-			   struct intel_digital_port *dig_port);
 
 static inline unsigned int intel_dp_unused_lane_mask(int lane_count)
 {
 	return ~((1 << lane_count) - 1) & 0xf;
 }
+
+u32 intel_dp_mode_to_fec_clock(u32 mode_clock);
 
 #endif /* __INTEL_DP_H__ */

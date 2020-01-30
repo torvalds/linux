@@ -205,10 +205,8 @@ static int pm8941_pwrkey_probe(struct platform_device *pdev)
 		return error;
 
 	pwrkey->irq = platform_get_irq(pdev, 0);
-	if (pwrkey->irq < 0) {
-		dev_err(&pdev->dev, "failed to get irq\n");
+	if (pwrkey->irq < 0)
 		return pwrkey->irq;
-	}
 
 	error = regmap_read(pwrkey->regmap, pwrkey->baseaddr + PON_REV2,
 			    &pwrkey->revision);

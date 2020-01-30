@@ -690,19 +690,16 @@ static int ds1305_probe(struct spi_device *spi)
 
 	/* register RTC ... from here on, ds1305->ctrl needs locking */
 	ds1305->rtc = devm_rtc_allocate_device(&spi->dev);
-	if (IS_ERR(ds1305->rtc)) {
+	if (IS_ERR(ds1305->rtc))
 		return PTR_ERR(ds1305->rtc);
-	}
 
 	ds1305->rtc->ops = &ds1305_ops;
 
 	ds1305_nvmem_cfg.priv = ds1305;
 	ds1305->rtc->nvram_old_abi = true;
 	status = rtc_register_device(ds1305->rtc);
-	if (status) {
-		dev_dbg(&spi->dev, "register rtc --> %d\n", status);
+	if (status)
 		return status;
-	}
 
 	rtc_nvmem_register(ds1305->rtc, &ds1305_nvmem_cfg);
 

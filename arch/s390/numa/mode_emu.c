@@ -558,9 +558,7 @@ static int __init early_parse_emu_nodes(char *p)
 {
 	int count;
 
-	if (kstrtoint(p, 0, &count) != 0 || count <= 0)
-		return 0;
-	if (count <= 0)
+	if (!p || kstrtoint(p, 0, &count) != 0 || count <= 0)
 		return 0;
 	emu_nodes = min(count, MAX_NUMNODES);
 	return 0;
@@ -572,7 +570,8 @@ early_param("emu_nodes", early_parse_emu_nodes);
  */
 static int __init early_parse_emu_size(char *p)
 {
-	emu_size = memparse(p, NULL);
+	if (p)
+		emu_size = memparse(p, NULL);
 	return 0;
 }
 early_param("emu_size", early_parse_emu_size);

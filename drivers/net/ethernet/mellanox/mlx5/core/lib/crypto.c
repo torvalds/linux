@@ -2,6 +2,7 @@
 // Copyright (c) 2019 Mellanox Technologies.
 
 #include "mlx5_core.h"
+#include "lib/mlx5.h"
 
 int mlx5_create_encryption_key(struct mlx5_core_dev *mdev,
 			       void *key, u32 sz_bytes,

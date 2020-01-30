@@ -57,6 +57,7 @@
 #define ASC_IRNCR_TIR		0x1
 #define ASC_IRNCR_RIR		0x2
 #define ASC_IRNCR_EIR		0x4
+#define ASC_IRNCR_MASK		GENMASK(2, 0)
 
 #define ASCOPT_CSIZE		0x3
 #define TXFIFO_FL		1
@@ -99,7 +100,12 @@
 static void lqasc_tx_chars(struct uart_port *port);
 static struct ltq_uart_port *lqasc_port[MAXPORTS];
 static struct uart_driver lqasc_reg;
-static DEFINE_SPINLOCK(ltq_asc_lock);
+
+struct ltq_soc_data {
+	int	(*fetch_irq)(struct device *dev, struct ltq_uart_port *ltq_port);
+	int	(*request_irq)(struct uart_port *port);
+	void	(*free_irq)(struct uart_port *port);
+};
 
 struct ltq_uart_port {
 	struct uart_port	port;
@@ -110,6 +116,10 @@ struct ltq_uart_port {
 	unsigned int		tx_irq;
 	unsigned int		rx_irq;
 	unsigned int		err_irq;
+	unsigned int		common_irq;
+	spinlock_t		lock; /* exclusive access for multi core */
+
+	const struct ltq_soc_data	*soc;
 };
 
 static inline void asc_update_bits(u32 clear, u32 set, void __iomem *reg)
@@ -135,9 +145,11 @@ static void
 lqasc_start_tx(struct uart_port *port)
 {
 	unsigned long flags;
-	spin_lock_irqsave(&ltq_asc_lock, flags);
+	struct ltq_uart_port *ltq_port = to_ltq_uart_port(port);
+
+	spin_lock_irqsave(&ltq_port->lock, flags);
 	lqasc_tx_chars(port);
-	spin_unlock_irqrestore(&ltq_asc_lock, flags);
+	spin_unlock_irqrestore(&ltq_port->lock, flags);
 	return;
 }
 
@@ -245,9 +257,11 @@ lqasc_tx_int(int irq, void *_port)
 {
 	unsigned long flags;
 	struct uart_port *port = (struct uart_port *)_port;
-	spin_lock_irqsave(&ltq_asc_lock, flags);
+	struct ltq_uart_port *ltq_port = to_ltq_uart_port(port);
+
+	spin_lock_irqsave(&ltq_port->lock, flags);
 	__raw_writel(ASC_IRNCR_TIR, port->membase + LTQ_ASC_IRNCR);
-	spin_unlock_irqrestore(&ltq_asc_lock, flags);
+	spin_unlock_irqrestore(&ltq_port->lock, flags);
 	lqasc_start_tx(port);
 	return IRQ_HANDLED;
 }
@@ -257,11 +271,13 @@ lqasc_err_int(int irq, void *_port)
 {
 	unsigned long flags;
 	struct uart_port *port = (struct uart_port *)_port;
-	spin_lock_irqsave(&ltq_asc_lock, flags);
+	struct ltq_uart_port *ltq_port = to_ltq_uart_port(port);
+
+	spin_lock_irqsave(&ltq_port->lock, flags);
 	/* clear any pending interrupts */
 	asc_update_bits(0, ASCWHBSTATE_CLRPE | ASCWHBSTATE_CLRFE |
 		ASCWHBSTATE_CLRROE, port->membase + LTQ_ASC_WHBSTATE);
-	spin_unlock_irqrestore(&ltq_asc_lock, flags);
+	spin_unlock_irqrestore(&ltq_port->lock, flags);
 	return IRQ_HANDLED;
 }
 
@@ -270,10 +286,37 @@ lqasc_rx_int(int irq, void *_port)
 {
 	unsigned long flags;
 	struct uart_port *port = (struct uart_port *)_port;
-	spin_lock_irqsave(&ltq_asc_lock, flags);
+	struct ltq_uart_port *ltq_port = to_ltq_uart_port(port);
+
+	spin_lock_irqsave(&ltq_port->lock, flags);
 	__raw_writel(ASC_IRNCR_RIR, port->membase + LTQ_ASC_IRNCR);
 	lqasc_rx_chars(port);
-	spin_unlock_irqrestore(&ltq_asc_lock, flags);
+	spin_unlock_irqrestore(&ltq_port->lock, flags);
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t lqasc_irq(int irq, void *p)
+{
+	unsigned long flags;
+	u32 stat;
+	struct uart_port *port = p;
+	struct ltq_uart_port *ltq_port = to_ltq_uart_port(port);
+
+	spin_lock_irqsave(&ltq_port->lock, flags);
+	stat = readl(port->membase + LTQ_ASC_IRNCR);
+	spin_unlock_irqrestore(&ltq_port->lock, flags);
+	if (!(stat & ASC_IRNCR_MASK))
+		return IRQ_NONE;
+
+	if (stat & ASC_IRNCR_TIR)
+		lqasc_tx_int(irq, p);
+
+	if (stat & ASC_IRNCR_RIR)
+		lqasc_rx_int(irq, p);
+
+	if (stat & ASC_IRNCR_EIR)
+		lqasc_err_int(irq, p);
+
 	return IRQ_HANDLED;
 }
 
@@ -307,11 +350,13 @@ lqasc_startup(struct uart_port *port)
 {
 	struct ltq_uart_port *ltq_port = to_ltq_uart_port(port);
 	int retval;
+	unsigned long flags;
 
 	if (!IS_ERR(ltq_port->clk))
 		clk_prepare_enable(ltq_port->clk);
 	port->uartclk = clk_get_rate(ltq_port->freqclk);
 
+	spin_lock_irqsave(&ltq_port->lock, flags);
 	asc_update_bits(ASCCLC_DISS | ASCCLC_RMCMASK, (1 << ASCCLC_RMCOFFSET),
 		port->membase + LTQ_ASC_CLC);
 
@@ -331,35 +376,14 @@ lqasc_startup(struct uart_port *port)
 	asc_update_bits(0, ASCCON_M_8ASYNC | ASCCON_FEN | ASCCON_TOEN |
 		ASCCON_ROEN, port->membase + LTQ_ASC_CON);
 
-	retval = request_irq(ltq_port->tx_irq, lqasc_tx_int,
-		0, "asc_tx", port);
-	if (retval) {
-		pr_err("failed to request lqasc_tx_int\n");
+	spin_unlock_irqrestore(&ltq_port->lock, flags);
+
+	retval = ltq_port->soc->request_irq(port);
+	if (retval)
 		return retval;
-	}
-
-	retval = request_irq(ltq_port->rx_irq, lqasc_rx_int,
-		0, "asc_rx", port);
-	if (retval) {
-		pr_err("failed to request lqasc_rx_int\n");
-		goto err1;
-	}
-
-	retval = request_irq(ltq_port->err_irq, lqasc_err_int,
-		0, "asc_err", port);
-	if (retval) {
-		pr_err("failed to request lqasc_err_int\n");
-		goto err2;
-	}
 
 	__raw_writel(ASC_IRNREN_RX | ASC_IRNREN_ERR | ASC_IRNREN_TX,
 		port->membase + LTQ_ASC_IRNREN);
-	return 0;
-
-err2:
-	free_irq(ltq_port->rx_irq, port);
-err1:
-	free_irq(ltq_port->tx_irq, port);
 	return retval;
 }
 
@@ -367,15 +391,17 @@ static void
 lqasc_shutdown(struct uart_port *port)
 {
 	struct ltq_uart_port *ltq_port = to_ltq_uart_port(port);
-	free_irq(ltq_port->tx_irq, port);
-	free_irq(ltq_port->rx_irq, port);
-	free_irq(ltq_port->err_irq, port);
+	unsigned long flags;
 
+	ltq_port->soc->free_irq(port);
+
+	spin_lock_irqsave(&ltq_port->lock, flags);
 	__raw_writel(0, port->membase + LTQ_ASC_CON);
 	asc_update_bits(ASCRXFCON_RXFEN, ASCRXFCON_RXFFLU,
 		port->membase + LTQ_ASC_RXFCON);
 	asc_update_bits(ASCTXFCON_TXFEN, ASCTXFCON_TXFFLU,
 		port->membase + LTQ_ASC_TXFCON);
+	spin_unlock_irqrestore(&ltq_port->lock, flags);
 	if (!IS_ERR(ltq_port->clk))
 		clk_disable_unprepare(ltq_port->clk);
 }
@@ -390,6 +416,7 @@ lqasc_set_termios(struct uart_port *port,
 	unsigned int baud;
 	unsigned int con = 0;
 	unsigned long flags;
+	struct ltq_uart_port *ltq_port = to_ltq_uart_port(port);
 
 	cflag = new->c_cflag;
 	iflag = new->c_iflag;
@@ -443,7 +470,7 @@ lqasc_set_termios(struct uart_port *port,
 	/* set error signals  - framing, parity  and overrun, enable receiver */
 	con |= ASCCON_FEN | ASCCON_TOEN | ASCCON_ROEN;
 
-	spin_lock_irqsave(&ltq_asc_lock, flags);
+	spin_lock_irqsave(&ltq_port->lock, flags);
 
 	/* set up CON */
 	asc_update_bits(0, con, port->membase + LTQ_ASC_CON);
@@ -471,7 +498,7 @@ lqasc_set_termios(struct uart_port *port,
 	/* enable rx */
 	__raw_writel(ASCWHBSTATE_SETREN, port->membase + LTQ_ASC_WHBSTATE);
 
-	spin_unlock_irqrestore(&ltq_asc_lock, flags);
+	spin_unlock_irqrestore(&ltq_port->lock, flags);
 
 	/* Don't rewrite B0 */
 	if (tty_termios_baud_rate(new))
@@ -589,17 +616,14 @@ lqasc_console_putchar(struct uart_port *port, int ch)
 static void lqasc_serial_port_write(struct uart_port *port, const char *s,
 				    u_int count)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&ltq_asc_lock, flags);
 	uart_console_write(port, s, count, lqasc_console_putchar);
-	spin_unlock_irqrestore(&ltq_asc_lock, flags);
 }
 
 static void
 lqasc_console_write(struct console *co, const char *s, u_int count)
 {
 	struct ltq_uart_port *ltq_port;
+	unsigned long flags;
 
 	if (co->index >= MAXPORTS)
 		return;
@@ -608,7 +632,9 @@ lqasc_console_write(struct console *co, const char *s, u_int count)
 	if (!ltq_port)
 		return;
 
+	spin_lock_irqsave(&ltq_port->lock, flags);
 	lqasc_serial_port_write(&ltq_port->port, s, count);
+	spin_unlock_irqrestore(&ltq_port->lock, flags);
 }
 
 static int __init
@@ -677,7 +703,8 @@ lqasc_serial_early_console_setup(struct earlycon_device *device,
 	device->con->write = lqasc_serial_early_console_write;
 	return 0;
 }
-OF_EARLYCON_DECLARE(lantiq, DRVNAME, lqasc_serial_early_console_setup);
+OF_EARLYCON_DECLARE(lantiq, "lantiq,asc", lqasc_serial_early_console_setup);
+OF_EARLYCON_DECLARE(lantiq, "intel,lgm-asc", lqasc_serial_early_console_setup);
 
 static struct uart_driver lqasc_reg = {
 	.owner =	THIS_MODULE,
@@ -689,23 +716,133 @@ static struct uart_driver lqasc_reg = {
 	.cons =		&lqasc_console,
 };
 
+static int fetch_irq_lantiq(struct device *dev, struct ltq_uart_port *ltq_port)
+{
+	struct uart_port *port = &ltq_port->port;
+	struct resource irqres[3];
+	int ret;
+
+	ret = of_irq_to_resource_table(dev->of_node, irqres, 3);
+	if (ret != 3) {
+		dev_err(dev,
+			"failed to get IRQs for serial port\n");
+		return -ENODEV;
+	}
+	ltq_port->tx_irq = irqres[0].start;
+	ltq_port->rx_irq = irqres[1].start;
+	ltq_port->err_irq = irqres[2].start;
+	port->irq = irqres[0].start;
+
+	return 0;
+}
+
+static int request_irq_lantiq(struct uart_port *port)
+{
+	struct ltq_uart_port *ltq_port = to_ltq_uart_port(port);
+	int retval;
+
+	retval = request_irq(ltq_port->tx_irq, lqasc_tx_int,
+			     0, "asc_tx", port);
+	if (retval) {
+		dev_err(port->dev, "failed to request asc_tx\n");
+		return retval;
+	}
+
+	retval = request_irq(ltq_port->rx_irq, lqasc_rx_int,
+			     0, "asc_rx", port);
+	if (retval) {
+		dev_err(port->dev, "failed to request asc_rx\n");
+		goto err1;
+	}
+
+	retval = request_irq(ltq_port->err_irq, lqasc_err_int,
+			     0, "asc_err", port);
+	if (retval) {
+		dev_err(port->dev, "failed to request asc_err\n");
+		goto err2;
+	}
+	return 0;
+
+err2:
+	free_irq(ltq_port->rx_irq, port);
+err1:
+	free_irq(ltq_port->tx_irq, port);
+	return retval;
+}
+
+static void free_irq_lantiq(struct uart_port *port)
+{
+	struct ltq_uart_port *ltq_port = to_ltq_uart_port(port);
+
+	free_irq(ltq_port->tx_irq, port);
+	free_irq(ltq_port->rx_irq, port);
+	free_irq(ltq_port->err_irq, port);
+}
+
+static int fetch_irq_intel(struct device *dev, struct ltq_uart_port *ltq_port)
+{
+	struct uart_port *port = &ltq_port->port;
+	int ret;
+
+	ret = of_irq_get(dev->of_node, 0);
+	if (ret < 0) {
+		dev_err(dev, "failed to fetch IRQ for serial port\n");
+		return ret;
+	}
+	ltq_port->common_irq = ret;
+	port->irq = ret;
+
+	return 0;
+}
+
+static int request_irq_intel(struct uart_port *port)
+{
+	struct ltq_uart_port *ltq_port = to_ltq_uart_port(port);
+	int retval;
+
+	retval = request_irq(ltq_port->common_irq, lqasc_irq, 0,
+			     "asc_irq", port);
+	if (retval)
+		dev_err(port->dev, "failed to request asc_irq\n");
+
+	return retval;
+}
+
+static void free_irq_intel(struct uart_port *port)
+{
+	struct ltq_uart_port *ltq_port = to_ltq_uart_port(port);
+
+	free_irq(ltq_port->common_irq, port);
+}
+
 static int __init
 lqasc_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
 	struct ltq_uart_port *ltq_port;
 	struct uart_port *port;
-	struct resource *mmres, irqres[3];
+	struct resource *mmres;
 	int line;
 	int ret;
 
 	mmres = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ret = of_irq_to_resource_table(node, irqres, 3);
-	if (!mmres || (ret != 3)) {
+	if (!mmres) {
 		dev_err(&pdev->dev,
-			"failed to get memory/irq for serial port\n");
+			"failed to get memory for serial port\n");
 		return -ENODEV;
 	}
+
+	ltq_port = devm_kzalloc(&pdev->dev, sizeof(struct ltq_uart_port),
+				GFP_KERNEL);
+	if (!ltq_port)
+		return -ENOMEM;
+
+	port = &ltq_port->port;
+
+	ltq_port->soc = of_device_get_match_data(&pdev->dev);
+	ret = ltq_port->soc->fetch_irq(&pdev->dev, ltq_port);
+	if (ret)
+		return ret;
 
 	/* get serial id */
 	line = of_alias_get_id(node, "serial");
@@ -727,13 +864,6 @@ lqasc_probe(struct platform_device *pdev)
 		return -EBUSY;
 	}
 
-	ltq_port = devm_kzalloc(&pdev->dev, sizeof(struct ltq_uart_port),
-			GFP_KERNEL);
-	if (!ltq_port)
-		return -ENOMEM;
-
-	port = &ltq_port->port;
-
 	port->iotype	= SERIAL_IO_MEM;
 	port->flags	= UPF_BOOT_AUTOCONF | UPF_IOREMAP;
 	port->ops	= &lqasc_pops;
@@ -742,7 +872,6 @@ lqasc_probe(struct platform_device *pdev)
 	port->line	= line;
 	port->dev	= &pdev->dev;
 	/* unused, just to be backward-compatible */
-	port->irq	= irqres[0].start;
 	port->mapbase	= mmres->start;
 
 	if (IS_ENABLED(CONFIG_LANTIQ) && !IS_ENABLED(CONFIG_COMMON_CLK))
@@ -762,10 +891,7 @@ lqasc_probe(struct platform_device *pdev)
 	else
 		ltq_port->clk = devm_clk_get(&pdev->dev, "asc");
 
-	ltq_port->tx_irq = irqres[0].start;
-	ltq_port->rx_irq = irqres[1].start;
-	ltq_port->err_irq = irqres[2].start;
-
+	spin_lock_init(&ltq_port->lock);
 	lqasc_port[line] = ltq_port;
 	platform_set_drvdata(pdev, ltq_port);
 
@@ -774,8 +900,21 @@ lqasc_probe(struct platform_device *pdev)
 	return ret;
 }
 
+static const struct ltq_soc_data soc_data_lantiq = {
+	.fetch_irq = fetch_irq_lantiq,
+	.request_irq = request_irq_lantiq,
+	.free_irq = free_irq_lantiq,
+};
+
+static const struct ltq_soc_data soc_data_intel = {
+	.fetch_irq = fetch_irq_intel,
+	.request_irq = request_irq_intel,
+	.free_irq = free_irq_intel,
+};
+
 static const struct of_device_id ltq_asc_match[] = {
-	{ .compatible = DRVNAME },
+	{ .compatible = "lantiq,asc", .data = &soc_data_lantiq },
+	{ .compatible = "intel,lgm-asc", .data = &soc_data_intel },
 	{},
 };
 

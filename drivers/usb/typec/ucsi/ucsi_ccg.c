@@ -195,7 +195,6 @@ struct ucsi_ccg {
 
 	/* fw build with vendor information */
 	u16 fw_build;
-	bool run_isr; /* flag to call ISR routine during resume */
 	struct work_struct pm_work;
 };
 
@@ -223,18 +222,6 @@ static int ccg_read(struct ucsi_ccg *uc, u16 rab, u8 *data, u32 len)
 	/* check any max_read_len limitation on i2c adapter */
 	if (quirks && quirks->max_read_len)
 		max_read_len = quirks->max_read_len;
-
-	if (uc->fw_build == CCG_FW_BUILD_NVIDIA &&
-	    uc->fw_version <= CCG_OLD_FW_VERSION) {
-		mutex_lock(&uc->lock);
-		/*
-		 * Do not schedule pm_work to run ISR in
-		 * ucsi_ccg_runtime_resume() after pm_runtime_get_sync()
-		 * since we are already in ISR path.
-		 */
-		uc->run_isr = false;
-		mutex_unlock(&uc->lock);
-	}
 
 	pm_runtime_get_sync(uc->dev);
 	while (rem_len > 0) {
@@ -277,18 +264,6 @@ static int ccg_write(struct ucsi_ccg *uc, u16 rab, u8 *data, u32 len)
 
 	msgs[0].len = len + sizeof(rab);
 	msgs[0].buf = buf;
-
-	if (uc->fw_build == CCG_FW_BUILD_NVIDIA &&
-	    uc->fw_version <= CCG_OLD_FW_VERSION) {
-		mutex_lock(&uc->lock);
-		/*
-		 * Do not schedule pm_work to run ISR in
-		 * ucsi_ccg_runtime_resume() after pm_runtime_get_sync()
-		 * since we are already in ISR path.
-		 */
-		uc->run_isr = false;
-		mutex_unlock(&uc->lock);
-	}
 
 	pm_runtime_get_sync(uc->dev);
 	status = i2c_transfer(client->adapter, msgs, ARRAY_SIZE(msgs));
@@ -1104,14 +1079,11 @@ static ssize_t do_flash_store(struct device *dev,
 
 static DEVICE_ATTR_WO(do_flash);
 
-static struct attribute *ucsi_ccg_sysfs_attrs[] = {
+static struct attribute *ucsi_ccg_attrs[] = {
 	&dev_attr_do_flash.attr,
 	NULL,
 };
-
-static struct attribute_group ucsi_ccg_attr_group = {
-	.attrs = ucsi_ccg_sysfs_attrs,
-};
+ATTRIBUTE_GROUPS(ucsi_ccg);
 
 static int ucsi_ccg_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
@@ -1133,7 +1105,6 @@ static int ucsi_ccg_probe(struct i2c_client *client,
 	uc->ppm.sync = ucsi_ccg_sync;
 	uc->dev = dev;
 	uc->client = client;
-	uc->run_isr = true;
 	mutex_init(&uc->lock);
 	INIT_WORK(&uc->work, ccg_update_firmware);
 	INIT_WORK(&uc->pm_work, ccg_pm_workaround_work);
@@ -1189,12 +1160,10 @@ static int ucsi_ccg_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, uc);
 
-	status = sysfs_create_group(&uc->dev->kobj, &ucsi_ccg_attr_group);
-	if (status)
-		dev_err(uc->dev, "cannot create sysfs group: %d\n", status);
-
 	pm_runtime_set_active(uc->dev);
 	pm_runtime_enable(uc->dev);
+	pm_runtime_use_autosuspend(uc->dev);
+	pm_runtime_set_autosuspend_delay(uc->dev, 5000);
 	pm_runtime_idle(uc->dev);
 
 	return 0;
@@ -1209,7 +1178,6 @@ static int ucsi_ccg_remove(struct i2c_client *client)
 	ucsi_unregister_ppm(uc->ucsi);
 	pm_runtime_disable(uc->dev);
 	free_irq(uc->irq, uc);
-	sysfs_remove_group(&uc->dev->kobj, &ucsi_ccg_attr_group);
 
 	return 0;
 }
@@ -1237,7 +1205,6 @@ static int ucsi_ccg_runtime_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct ucsi_ccg *uc = i2c_get_clientdata(client);
-	bool schedule = true;
 
 	/*
 	 * Firmware version 3.1.10 or earlier, built for NVIDIA has known issue
@@ -1245,17 +1212,8 @@ static int ucsi_ccg_runtime_resume(struct device *dev)
 	 * Schedule a work to call ISR as a workaround.
 	 */
 	if (uc->fw_build == CCG_FW_BUILD_NVIDIA &&
-	    uc->fw_version <= CCG_OLD_FW_VERSION) {
-		mutex_lock(&uc->lock);
-		if (!uc->run_isr) {
-			uc->run_isr = true;
-			schedule = false;
-		}
-		mutex_unlock(&uc->lock);
-
-		if (schedule)
-			schedule_work(&uc->pm_work);
-	}
+	    uc->fw_version <= CCG_OLD_FW_VERSION)
+		schedule_work(&uc->pm_work);
 
 	return 0;
 }
@@ -1270,6 +1228,7 @@ static struct i2c_driver ucsi_ccg_driver = {
 	.driver = {
 		.name = "ucsi_ccg",
 		.pm = &ucsi_ccg_pm,
+		.dev_groups = ucsi_ccg_groups,
 	},
 	.probe = ucsi_ccg_probe,
 	.remove = ucsi_ccg_remove,

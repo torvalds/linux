@@ -1,0 +1,12 @@
+exfat_core.c - ffsReadFile - the goto err_out seem to leak a brelse().
+same for ffsWriteFile.
+
+exfat_core.c - fs_sync(sb,0) all over the place looks fishy as hell.
+There's only one place that calls it with a non-zero argument.
+
+ffsTruncateFile -  if (old_size <= new_size) {
+That doesn't look right. How did it ever work? Are they relying on lazy
+block allocation when actual writes happen? If nothing else, it never
+does the 'fid->size = new_size' and do the inode update....
+
+ffsSetAttr() is just dangling in the breeze, not wired up at all...

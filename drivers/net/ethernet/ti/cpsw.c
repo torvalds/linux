@@ -2764,7 +2764,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	struct net_device		*ndev;
 	struct cpsw_priv		*priv;
 	void __iomem			*ss_regs;
-	struct resource			*res, *ss_res;
+	struct resource			*ss_res;
 	struct gpio_descs		*mode;
 	const struct soc_device_attribute *soc;
 	struct cpsw_common		*cpsw;
@@ -2799,8 +2799,7 @@ static int cpsw_probe(struct platform_device *pdev)
 		return PTR_ERR(ss_regs);
 	cpsw->regs = ss_regs;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	cpsw->wr_regs = devm_ioremap_resource(dev, res);
+	cpsw->wr_regs = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(cpsw->wr_regs))
 		return PTR_ERR(cpsw->wr_regs);
 

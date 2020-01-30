@@ -56,7 +56,7 @@ synproxy_parse_options(const struct sk_buff *skb, unsigned int doff,
 			switch (opcode) {
 			case TCPOPT_MSS:
 				if (opsize == TCPOLEN_MSS) {
-					opts->mss = get_unaligned_be16(ptr);
+					opts->mss_option = get_unaligned_be16(ptr);
 					opts->options |= NF_SYNPROXY_OPT_MSS;
 				}
 				break;
@@ -115,7 +115,7 @@ synproxy_build_options(struct tcphdr *th, const struct synproxy_options *opts)
 	if (options & NF_SYNPROXY_OPT_MSS)
 		*ptr++ = htonl((TCPOPT_MSS << 24) |
 			       (TCPOLEN_MSS << 16) |
-			       opts->mss);
+			       opts->mss_option);
 
 	if (options & NF_SYNPROXY_OPT_TIMESTAMP) {
 		if (options & NF_SYNPROXY_OPT_SACK_PERM)
@@ -642,7 +642,7 @@ synproxy_recv_client_ack(struct net *net,
 	}
 
 	this_cpu_inc(snet->stats->cookie_valid);
-	opts->mss = mss;
+	opts->mss_option = mss;
 	opts->options |= NF_SYNPROXY_OPT_MSS;
 
 	if (opts->options & NF_SYNPROXY_OPT_TIMESTAMP)
@@ -1060,7 +1060,7 @@ synproxy_recv_client_ack_ipv6(struct net *net,
 	}
 
 	this_cpu_inc(snet->stats->cookie_valid);
-	opts->mss = mss;
+	opts->mss_option = mss;
 	opts->options |= NF_SYNPROXY_OPT_MSS;
 
 	if (opts->options & NF_SYNPROXY_OPT_TIMESTAMP)

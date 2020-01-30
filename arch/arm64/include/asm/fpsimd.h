@@ -21,7 +21,7 @@
 #include <linux/stddef.h>
 #include <linux/types.h>
 
-#if defined(__KERNEL__) && defined(CONFIG_COMPAT)
+#ifdef CONFIG_COMPAT
 /* Masks for extracting the FPSR and FPCR from the FPSCR */
 #define VFP_FPSCR_STAT_MASK	0xf800009f
 #define VFP_FPSCR_CTRL_MASK	0x07f79f00

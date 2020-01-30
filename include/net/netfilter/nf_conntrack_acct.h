@@ -29,6 +29,7 @@ struct nf_conn_acct *nf_conn_acct_find(const struct nf_conn *ct)
 static inline
 struct nf_conn_acct *nf_ct_acct_ext_add(struct nf_conn *ct, gfp_t gfp)
 {
+#if IS_ENABLED(CONFIG_NF_CONNTRACK)
 	struct net *net = nf_ct_net(ct);
 	struct nf_conn_acct *acct;
 
@@ -41,22 +42,32 @@ struct nf_conn_acct *nf_ct_acct_ext_add(struct nf_conn *ct, gfp_t gfp)
 
 
 	return acct;
-};
+#else
+	return NULL;
+#endif
+}
 
 /* Check if connection tracking accounting is enabled */
 static inline bool nf_ct_acct_enabled(struct net *net)
 {
+#if IS_ENABLED(CONFIG_NF_CONNTRACK)
 	return net->ct.sysctl_acct != 0;
+#else
+	return false;
+#endif
 }
 
 /* Enable/disable connection tracking accounting */
 static inline void nf_ct_set_acct(struct net *net, bool enable)
 {
+#if IS_ENABLED(CONFIG_NF_CONNTRACK)
 	net->ct.sysctl_acct = enable;
+#endif
 }
 
 void nf_conntrack_acct_pernet_init(struct net *net);
 
 int nf_conntrack_acct_init(void);
 void nf_conntrack_acct_fini(void);
+
 #endif /* _NF_CONNTRACK_ACCT_H */

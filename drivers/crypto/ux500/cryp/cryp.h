@@ -241,12 +241,12 @@ struct cryp_device_data {
 	struct clk *clk;
 	struct regulator *pwr_regulator;
 	int power_status;
-	struct spinlock ctx_lock;
+	spinlock_t ctx_lock;
 	struct cryp_ctx *current_ctx;
 	struct klist_node list_node;
 	struct cryp_dma dma;
 	bool power_state;
-	struct spinlock power_state_spinlock;
+	spinlock_t power_state_spinlock;
 	bool restore_dev_ctx;
 };
 

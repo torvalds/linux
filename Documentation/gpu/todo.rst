@@ -162,7 +162,7 @@ Clean up mmap forwarding
 
 A lot of drivers forward gem mmap calls to dma-buf mmap for imported buffers.
 And also a lot of them forward dma-buf mmap to the gem mmap implementations.
-Would be great to refactor this all into a set of small common helpers.
+There's drm_gem_prime_mmap() for this now, but still needs to be rolled out.
 
 Contact: Daniel Vetter
 
@@ -196,15 +196,6 @@ Might be good to also have some igt testcases for this.
 
 Contact: Daniel Vetter, Noralf Tronnes
 
-Remove the ->gem_prime_res_obj callback
---------------------------------------------
-
-The ->gem_prime_res_obj callback can be removed from drivers by using the
-reservation_object in the drm_gem_object. It may also be possible to use the
-generic drm_gem_reservation_object_wait helper for waiting for a bo.
-
-Contact: Daniel Vetter
-
 idr_init_base()
 ---------------
 
@@ -215,22 +206,13 @@ efficient.
 
 Contact: Daniel Vetter
 
-Defaults for .gem_prime_import and export
------------------------------------------
-
-Most drivers don't need to set drm_driver->gem_prime_import and
-->gem_prime_export now that drm_gem_prime_import() and drm_gem_prime_export()
-are the default.
-
 struct drm_gem_object_funcs
 ---------------------------
 
 GEM objects can now have a function table instead of having the callbacks on the
 DRM driver struct. This is now the preferred way and drivers can be moved over.
 
-DRM_GEM_CMA_VMAP_DRIVER_OPS, DRM_GEM_SHMEM_DRIVER_OPS already support this, but
-DRM_GEM_VRAM_DRIVER_PRIME does not yet and needs to be aligned with the previous
-two. We also need a 2nd version of the CMA define that doesn't require the
+We also need a 2nd version of the CMA define that doesn't require the
 vmapping to be present (different hook for prime importing). Plus this needs to
 be rolled out to all drivers using their own implementations, too.
 
@@ -317,19 +299,6 @@ In the end no .c file should need to include ``drmP.h`` anymore.
 
 Contact: Daniel Vetter
 
-Add missing kerneldoc for exported functions
---------------------------------------------
-
-The DRM reference documentation is still lacking kerneldoc in a few areas. The
-task would be to clean up interfaces like moving functions around between
-files to better group them and improving the interfaces like dropping return
-values for functions that never fail. Then write kerneldoc for all exported
-functions and an overview section and integrate it all into the drm book.
-
-See https://dri.freedesktop.org/docs/drm/ for what's there already.
-
-Contact: Daniel Vetter
-
 Make panic handling work
 ------------------------
 
@@ -393,6 +362,9 @@ There's a bunch of issues with it:
   this (together with the drm_minor->drm_device move) would allow us to remove
   debugfs_init.
 
+- Drop the return code and error checking from all debugfs functions. Greg KH is
+  working on this already.
+
 Contact: Daniel Vetter
 
 KMS cleanups
@@ -440,38 +412,21 @@ fit the available time.
 
 Contact: Daniel Vetter
 
+Backlight Refactoring
+---------------------
+
+Backlight drivers have a triple enable/disable state, which is a bit overkill.
+Plan to fix this:
+
+1. Roll out backlight_enable() and backlight_disable() helpers everywhere. This
+   has started already.
+2. In all, only look at one of the three status bits set by the above helpers.
+3. Remove the other two status bits.
+
+Contact: Daniel Vetter
+
 Driver Specific
 ===============
-
-tinydrm
--------
-
-Tinydrm is the helper driver for really simple fb drivers. The goal is to make
-those drivers as simple as possible, so lots of room for refactoring:
-
-- backlight helpers, probably best to put them into a new drm_backlight.c.
-  This is because drivers/video is de-facto unmaintained. We could also
-  move drivers/video/backlight to drivers/gpu/backlight and take it all
-  over within drm-misc, but that's more work. Backlight helpers require a fair
-  bit of reworking and refactoring. A simple example is the enabling of a backlight.
-  Tinydrm has helpers for this. It would be good if other drivers can also use the
-  helper. However, there are various cases we need to consider i.e different
-  drivers seem to have different ways of enabling/disabling a backlight.
-  We also need to consider the backlight drivers (like gpio_backlight). The situation
-  is further complicated by the fact that the backlight is tied to fbdev
-  via fb_notifier_callback() which has complicated logic. For further details, refer
-  to the following discussion thread:
-  https://groups.google.com/forum/#!topic/outreachy-kernel/8rBe30lwtdA
-
-- spi helpers, probably best put into spi core/helper code. Thierry said
-  the spi maintainer is fast&reactive, so shouldn't be a big issue.
-
-- extract the mipi-dbi helper (well, the non-tinydrm specific parts at
-  least) into a separate helper, like we have for mipi-dsi already. Or follow
-  one of the ideas for having a shared dsi/dbi helper, abstracting away the
-  transport details more.
-
-Contact: Noralf Trønnes, Daniel Vetter
 
 AMD DC Display Driver
 ---------------------

@@ -71,6 +71,30 @@ int pinmux_validate_map(const struct pinctrl_map *map, int i)
 }
 
 /**
+ * pinmux_can_be_used_for_gpio() - check if a specific pin
+ *	is either muxed to a different function or used as gpio.
+ *
+ * @pin: the pin number in the global pin space
+ *
+ * Controllers not defined as strict will always return true,
+ * menaning that the gpio can be used.
+ */
+bool pinmux_can_be_used_for_gpio(struct pinctrl_dev *pctldev, unsigned pin)
+{
+	struct pin_desc *desc = pin_desc_get(pctldev, pin);
+	const struct pinmux_ops *ops = pctldev->desc->pmxops;
+
+	/* Can't inspect pin, assume it can be used */
+	if (!desc)
+		return true;
+
+	if (ops->strict && desc->mux_usecount)
+		return false;
+
+	return !(ops->strict && !!desc->gpio_owner);
+}
+
+/**
  * pin_request() - request a single pin to be muxed in, typically for GPIO
  * @pin: the pin number in the global pin space
  * @owner: a representation of the owner of this pin; typically the device

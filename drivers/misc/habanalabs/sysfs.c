@@ -21,12 +21,12 @@ long hl_get_frequency(struct hl_device *hdev, u32 pll_index, bool curr)
 	memset(&pkt, 0, sizeof(pkt));
 
 	if (curr)
-		pkt.ctl = __cpu_to_le32(ARMCP_PACKET_FREQUENCY_CURR_GET <<
+		pkt.ctl = cpu_to_le32(ARMCP_PACKET_FREQUENCY_CURR_GET <<
 						ARMCP_PKT_CTL_OPCODE_SHIFT);
 	else
-		pkt.ctl = __cpu_to_le32(ARMCP_PACKET_FREQUENCY_GET <<
+		pkt.ctl = cpu_to_le32(ARMCP_PACKET_FREQUENCY_GET <<
 						ARMCP_PKT_CTL_OPCODE_SHIFT);
-	pkt.pll_index = __cpu_to_le32(pll_index);
+	pkt.pll_index = cpu_to_le32(pll_index);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
 						SET_CLK_PKT_TIMEOUT, &result);
@@ -48,10 +48,10 @@ void hl_set_frequency(struct hl_device *hdev, u32 pll_index, u64 freq)
 
 	memset(&pkt, 0, sizeof(pkt));
 
-	pkt.ctl = __cpu_to_le32(ARMCP_PACKET_FREQUENCY_SET <<
+	pkt.ctl = cpu_to_le32(ARMCP_PACKET_FREQUENCY_SET <<
 					ARMCP_PKT_CTL_OPCODE_SHIFT);
-	pkt.pll_index = __cpu_to_le32(pll_index);
-	pkt.value = __cpu_to_le64(freq);
+	pkt.pll_index = cpu_to_le32(pll_index);
+	pkt.value = cpu_to_le64(freq);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
 					SET_CLK_PKT_TIMEOUT, NULL);
@@ -70,7 +70,7 @@ u64 hl_get_max_power(struct hl_device *hdev)
 
 	memset(&pkt, 0, sizeof(pkt));
 
-	pkt.ctl = __cpu_to_le32(ARMCP_PACKET_MAX_POWER_GET <<
+	pkt.ctl = cpu_to_le32(ARMCP_PACKET_MAX_POWER_GET <<
 				ARMCP_PKT_CTL_OPCODE_SHIFT);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
@@ -91,109 +91,15 @@ void hl_set_max_power(struct hl_device *hdev, u64 value)
 
 	memset(&pkt, 0, sizeof(pkt));
 
-	pkt.ctl = __cpu_to_le32(ARMCP_PACKET_MAX_POWER_SET <<
+	pkt.ctl = cpu_to_le32(ARMCP_PACKET_MAX_POWER_SET <<
 				ARMCP_PKT_CTL_OPCODE_SHIFT);
-	pkt.value = __cpu_to_le64(value);
+	pkt.value = cpu_to_le64(value);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
 					SET_PWR_PKT_TIMEOUT, NULL);
 
 	if (rc)
 		dev_err(hdev->dev, "Failed to set max power, error %d\n", rc);
-}
-
-static ssize_t pm_mng_profile_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct hl_device *hdev = dev_get_drvdata(dev);
-
-	if (hl_device_disabled_or_in_reset(hdev))
-		return -ENODEV;
-
-	return sprintf(buf, "%s\n",
-			(hdev->pm_mng_profile == PM_AUTO) ? "auto" :
-			(hdev->pm_mng_profile == PM_MANUAL) ? "manual" :
-			"unknown");
-}
-
-static ssize_t pm_mng_profile_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	struct hl_device *hdev = dev_get_drvdata(dev);
-
-	if (hl_device_disabled_or_in_reset(hdev)) {
-		count = -ENODEV;
-		goto out;
-	}
-
-	mutex_lock(&hdev->fd_open_cnt_lock);
-
-	if (atomic_read(&hdev->fd_open_cnt) > 0) {
-		dev_err(hdev->dev,
-			"Can't change PM profile while user process is opened on the device\n");
-		count = -EPERM;
-		goto unlock_mutex;
-	}
-
-	if (strncmp("auto", buf, strlen("auto")) == 0) {
-		/* Make sure we are in LOW PLL when changing modes */
-		if (hdev->pm_mng_profile == PM_MANUAL) {
-			atomic_set(&hdev->curr_pll_profile, PLL_HIGH);
-			hl_device_set_frequency(hdev, PLL_LOW);
-			hdev->pm_mng_profile = PM_AUTO;
-		}
-	} else if (strncmp("manual", buf, strlen("manual")) == 0) {
-		/* Make sure we are in LOW PLL when changing modes */
-		if (hdev->pm_mng_profile == PM_AUTO) {
-			flush_delayed_work(&hdev->work_freq);
-			hdev->pm_mng_profile = PM_MANUAL;
-		}
-	} else {
-		dev_err(hdev->dev, "value should be auto or manual\n");
-		count = -EINVAL;
-		goto unlock_mutex;
-	}
-
-unlock_mutex:
-	mutex_unlock(&hdev->fd_open_cnt_lock);
-out:
-	return count;
-}
-
-static ssize_t high_pll_show(struct device *dev, struct device_attribute *attr,
-				char *buf)
-{
-	struct hl_device *hdev = dev_get_drvdata(dev);
-
-	if (hl_device_disabled_or_in_reset(hdev))
-		return -ENODEV;
-
-	return sprintf(buf, "%u\n", hdev->high_pll);
-}
-
-static ssize_t high_pll_store(struct device *dev, struct device_attribute *attr,
-				const char *buf, size_t count)
-{
-	struct hl_device *hdev = dev_get_drvdata(dev);
-	long value;
-	int rc;
-
-	if (hl_device_disabled_or_in_reset(hdev)) {
-		count = -ENODEV;
-		goto out;
-	}
-
-	rc = kstrtoul(buf, 0, &value);
-
-	if (rc) {
-		count = -EINVAL;
-		goto out;
-	}
-
-	hdev->high_pll = value;
-
-out:
-	return count;
 }
 
 static ssize_t uboot_ver_show(struct device *dev, struct device_attribute *attr,
@@ -351,14 +257,6 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%s\n", str);
 }
 
-static ssize_t write_open_cnt_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct hl_device *hdev = dev_get_drvdata(dev);
-
-	return sprintf(buf, "%d\n", hdev->user_ctx ? 1 : 0);
-}
-
 static ssize_t soft_reset_cnt_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -450,18 +348,15 @@ static DEVICE_ATTR_RO(device_type);
 static DEVICE_ATTR_RO(fuse_ver);
 static DEVICE_ATTR_WO(hard_reset);
 static DEVICE_ATTR_RO(hard_reset_cnt);
-static DEVICE_ATTR_RW(high_pll);
 static DEVICE_ATTR_RO(infineon_ver);
 static DEVICE_ATTR_RW(max_power);
 static DEVICE_ATTR_RO(pci_addr);
-static DEVICE_ATTR_RW(pm_mng_profile);
 static DEVICE_ATTR_RO(preboot_btl_ver);
 static DEVICE_ATTR_WO(soft_reset);
 static DEVICE_ATTR_RO(soft_reset_cnt);
 static DEVICE_ATTR_RO(status);
 static DEVICE_ATTR_RO(thermal_ver);
 static DEVICE_ATTR_RO(uboot_ver);
-static DEVICE_ATTR_RO(write_open_cnt);
 
 static struct bin_attribute bin_attr_eeprom = {
 	.attr = {.name = "eeprom", .mode = (0444)},
@@ -477,18 +372,15 @@ static struct attribute *hl_dev_attrs[] = {
 	&dev_attr_fuse_ver.attr,
 	&dev_attr_hard_reset.attr,
 	&dev_attr_hard_reset_cnt.attr,
-	&dev_attr_high_pll.attr,
 	&dev_attr_infineon_ver.attr,
 	&dev_attr_max_power.attr,
 	&dev_attr_pci_addr.attr,
-	&dev_attr_pm_mng_profile.attr,
 	&dev_attr_preboot_btl_ver.attr,
 	&dev_attr_soft_reset.attr,
 	&dev_attr_soft_reset_cnt.attr,
 	&dev_attr_status.attr,
 	&dev_attr_thermal_ver.attr,
 	&dev_attr_uboot_ver.attr,
-	&dev_attr_write_open_cnt.attr,
 	NULL,
 };
 

@@ -3,7 +3,15 @@
 # Makefile for the linux kernel.
 #
 
-obj-y			:= irq.o
+obj-$(CONFIG_ARCH_IOP32X) += irq.o
+obj-$(CONFIG_ARCH_IOP32X) += i2c.o
+obj-$(CONFIG_ARCH_IOP32X) += pci.o
+obj-$(CONFIG_ARCH_IOP32X) += setup.o
+obj-$(CONFIG_ARCH_IOP32X) += time.o
+obj-$(CONFIG_ARCH_IOP32X) += cp6.o
+obj-$(CONFIG_ARCH_IOP32X) += adma.o
+obj-$(CONFIG_ARCH_IOP32X) += pmu.o
+obj-$(CONFIG_ARCH_IOP32X) += restart.o
 
 obj-$(CONFIG_MACH_GLANTANK) += glantank.o
 obj-$(CONFIG_ARCH_IQ80321) += iq80321.o

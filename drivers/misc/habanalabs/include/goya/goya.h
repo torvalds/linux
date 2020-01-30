@@ -38,4 +38,6 @@
 
 #define TPC_MAX_NUM		8
 
+#define MME_MAX_NUM		1
+
 #endif /* GOYA_H */

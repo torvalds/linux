@@ -6,7 +6,7 @@
  *  Copyright (C) 2008  Andy Walls <awalls@md.metrocast.net>
  */
 
-#include <stdarg.h>
+#include <linux/bitops.h>
 
 #include "cx18-driver.h"
 #include "cx18-io.h"

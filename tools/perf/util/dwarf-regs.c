@@ -5,7 +5,6 @@
  * Written by: Masami Hiramatsu <mhiramat@kernel.org>
  */
 
-#include <util.h>
 #include <debug.h>
 #include <dwarf-regs.h>
 #include <elf.h>

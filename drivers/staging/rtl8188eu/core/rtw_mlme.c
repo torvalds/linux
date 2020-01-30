@@ -104,7 +104,7 @@ void rtw_free_mlme_priv(struct mlme_priv *pmlmepriv)
 	}
 }
 
-struct wlan_network *_rtw_alloc_network(struct mlme_priv *pmlmepriv)
+struct wlan_network *rtw_alloc_network(struct mlme_priv *pmlmepriv)
 					/* _queue *free_queue) */
 {
 	struct wlan_network *pnetwork;
@@ -119,7 +119,7 @@ struct wlan_network *_rtw_alloc_network(struct mlme_priv *pmlmepriv)
 	list_del_init(&pnetwork->list);
 
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
-		 ("_rtw_alloc_network: ptr=%p\n", &pnetwork->list));
+		 ("rtw_alloc_network: ptr=%p\n", &pnetwork->list));
 	pnetwork->network_type = 0;
 	pnetwork->fixed = false;
 	pnetwork->last_scanned = jiffies;
@@ -270,11 +270,6 @@ u16 rtw_get_capability(struct wlan_bssid_ex *bss)
 u8 *rtw_get_beacon_interval_from_ie(u8 *ie)
 {
 	return ie + 8;
-}
-
-static struct wlan_network *rtw_alloc_network(struct mlme_priv *pmlmepriv)
-{
-	return _rtw_alloc_network(pmlmepriv);
 }
 
 int rtw_is_same_ibss(struct adapter *adapter, struct wlan_network *pnetwork)
@@ -827,7 +822,7 @@ void rtw_indicate_disconnect(struct adapter *padapter)
 
 inline void rtw_indicate_scan_done(struct adapter *padapter, bool aborted)
 {
-	rtw_os_indicate_scan_done(padapter, aborted);
+	indicate_wx_scan_complete_event(padapter);
 }
 
 static struct sta_info *rtw_joinbss_update_stainfo(struct adapter *padapter, struct wlan_network *pnetwork)

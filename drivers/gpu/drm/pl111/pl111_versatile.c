@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-only
+
 #include <linux/amba/clcd-regs.h>
+#include <linux/bitops.h>
 #include <linux/device.h>
+#include <linux/mfd/syscon.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/regmap.h>
-#include <linux/mfd/syscon.h>
-#include <linux/bitops.h>
-#include <linux/module.h>
-#include <drm/drmP.h>
+
 #include "pl111_versatile.h"
 #include "pl111_vexpress.h"
 #include "pl111_drm.h"

@@ -28,6 +28,23 @@
 #include "dsc.h"
 #include <drm/drm_dp_helper.h>
 
+struct dc_dsc_policy {
+	bool use_min_slices_h;
+	int max_slices_h; // Maximum available if 0
+	int min_sice_height; // Must not be less than 8
+	int max_target_bpp;
+	int min_target_bpp; // Minimum target bits per pixel
+};
+
+const struct dc_dsc_policy dsc_policy = {
+	.use_min_slices_h = true, // DSC Policy: Use minimum number of slices that fits the pixel clock
+	.max_slices_h = 0, // DSC Policy: Use max available slices (in our case 4 for or 8, depending on the mode)
+	.min_sice_height = 108, // DSC Policy: Use slice height recommended by VESA DSC Spreadsheet user guide
+	.max_target_bpp = 16,
+	.min_target_bpp = 8,
+};
+
+
 /* This module's internal functions */
 
 static bool dsc_buff_block_size_from_dpcd(int dpcd_buff_block_size, int *buff_block_size)
@@ -241,14 +258,6 @@ static bool intersect_dsc_caps(
 	return true;
 }
 
-struct dc_dsc_policy {
-	bool use_min_slices_h;
-	int max_slices_h; // Maximum available if 0
-	int num_slices_v;
-	int max_target_bpp;
-	int min_target_bpp; // Minimum target bits per pixel
-};
-
 static inline uint32_t dsc_div_by_10_round_up(uint32_t value)
 {
 	return (value + 9) / 10;
@@ -269,19 +278,6 @@ static inline uint32_t calc_dsc_bpp_x16(uint32_t stream_bandwidth_kbps, uint32_t
 
 	return dsc_target_bpp_x16;
 }
-
-const struct dc_dsc_policy dsc_policy = {
-	.use_min_slices_h = true, // DSC Policy: Use minimum number of slices that fits the pixel clock
-	.max_slices_h = 0, // DSC Policy: Use max available slices (in our case 4 for or 8, depending on the mode)
-	/* DSC Policy: Number of vertical slices set to 2 for no particular reason.
-	 * Seems small enough to not affect the quality too much, while still providing some error
-	 * propagation control (which may also help debugging).
-	 */
-	.num_slices_v = 16,
-	.max_target_bpp = 16,
-	.min_target_bpp = 8,
-};
-
 
 /* Get DSC bandwidth range based on [min_bpp, max_bpp] target bitrate range, and timing's pixel clock
  * and uncompressed bandwidth.
@@ -528,8 +524,8 @@ static bool setup_dsc_config(
 	int sink_per_slice_throughput_mps;
 	int branch_max_throughput_mps = 0;
 	bool is_dsc_possible = false;
-	int num_slices_v;
 	int pic_height;
+	int slice_height;
 
 	memset(dsc_cfg, 0, sizeof(struct dc_dsc_config));
 
@@ -615,7 +611,7 @@ static bool setup_dsc_config(
 	if (!is_dsc_possible)
 		goto done;
 
-	// DSC slicing
+	// Slice width (i.e. number of slices per line)
 	max_slices_h = get_max_dsc_slices(dsc_common_caps.slice_caps);
 
 	while (max_slices_h > 0) {
@@ -678,28 +674,25 @@ static bool setup_dsc_config(
 	dsc_cfg->num_slices_h = num_slices_h;
 	slice_width = pic_width / num_slices_h;
 
-	// Vertical number of slices: start from policy and pick the first one that height is divisible by.
-	// For 4:2:0 make sure the slice height is divisible by 2 as well.
-	num_slices_v = dsc_policy.num_slices_v;
-	if (num_slices_v < 1)
-		num_slices_v = 1;
-
-	while (num_slices_v >= 1) {
-		if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR420) {
-			int slice_height = pic_height / num_slices_v;
-			if (pic_height % num_slices_v == 0 && slice_height % 2 == 0)
-				break;
-		} else if (pic_height % num_slices_v == 0)
-			break;
-
-		num_slices_v--;
-	}
-
-	dsc_cfg->num_slices_v = num_slices_v;
-
 	is_dsc_possible = slice_width <= dsc_common_caps.max_slice_width;
 	if (!is_dsc_possible)
 		goto done;
+
+	// Slice height (i.e. number of slices per column): start with policy and pick the first one that height is divisible by.
+	// For 4:2:0 make sure the slice height is divisible by 2 as well.
+	slice_height = min(dsc_policy.min_sice_height, pic_height);
+
+	while (slice_height < pic_height && (pic_height % slice_height != 0 ||
+		(timing->pixel_encoding == PIXEL_ENCODING_YCBCR420 && slice_height % 2 != 0)))
+		slice_height++;
+
+	if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR420) // For the case when pic_height < dsc_policy.min_sice_height
+		is_dsc_possible = (slice_height % 2 == 0);
+
+	if (!is_dsc_possible)
+		goto done;
+
+	dsc_cfg->num_slices_v = pic_height/slice_height;
 
 	// Final decission: can we do DSC or not?
 	if (is_dsc_possible) {

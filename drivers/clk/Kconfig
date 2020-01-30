@@ -116,7 +116,6 @@ config COMMON_CLK_SI514
 	depends on OF
 	select REGMAP_I2C
 	help
-	---help---
 	  This driver supports the Silicon Labs 514 programmable clock
 	  generator.
 
@@ -125,7 +124,6 @@ config COMMON_CLK_SI544
 	depends on I2C
 	select REGMAP_I2C
 	help
-	---help---
 	  This driver supports the Silicon Labs 544 programmable clock
 	  generator.
 
@@ -135,7 +133,6 @@ config COMMON_CLK_SI570
 	depends on OF
 	select REGMAP_I2C
 	help
-	---help---
 	  This driver supports Silicon Labs 570/571/598/599 programmable
 	  clock generators.
 
@@ -153,7 +150,6 @@ config COMMON_CLK_CDCE925
 	depends on OF
 	select REGMAP_I2C
 	help
-	---help---
 	  This driver supports the TI CDCE913/925/937/949 programmable clock
 	  synthesizer. Each chip has different number of PLLs and outputs.
 	  For example, the CDCE925 contains two PLLs with spread-spectrum
@@ -212,7 +208,6 @@ config COMMON_CLK_AXI_CLKGEN
 	tristate "AXI clkgen driver"
 	depends on ARCH_ZYNQ || MICROBLAZE || COMPILE_TEST
 	help
-	---help---
 	  Support for the Analog Devices axi-clkgen pcore clock generator for Xilinx
 	  FPGAs. It is commonly used in Analog Devices' reference designs.
 
@@ -279,26 +274,22 @@ config COMMON_CLK_VC5
 	depends on OF
 	select REGMAP_I2C
 	help
-	---help---
 	  This driver supports the IDT VersaClock 5 and VersaClock 6
 	  programmable clock generators.
 
 config COMMON_CLK_STM32MP157
 	def_bool COMMON_CLK && MACH_STM32MP157
 	help
-	---help---
 	  Support for stm32mp157 SoC family clocks
 
 config COMMON_CLK_STM32F
 	def_bool COMMON_CLK && (MACH_STM32F429 || MACH_STM32F469 || MACH_STM32F746)
 	help
-	---help---
 	  Support for stm32f4 and stm32f7 SoC families clocks
 
 config COMMON_CLK_STM32H7
 	def_bool COMMON_CLK && MACH_STM32H743
 	help
-	---help---
 	  Support for stm32h7 SoC family clocks
 
 config COMMON_CLK_BD718XX

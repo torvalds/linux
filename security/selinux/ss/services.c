@@ -542,13 +542,13 @@ static void type_attribute_bounds_av(struct policydb *policydb,
 	struct type_datum *target;
 	u32 masked = 0;
 
-	source = policydb->type_val_to_struct_array[scontext->type - 1];
+	source = policydb->type_val_to_struct[scontext->type - 1];
 	BUG_ON(!source);
 
 	if (!source->bounds)
 		return;
 
-	target = policydb->type_val_to_struct_array[tcontext->type - 1];
+	target = policydb->type_val_to_struct[tcontext->type - 1];
 	BUG_ON(!target);
 
 	memset(&lo_avd, 0, sizeof(lo_avd));
@@ -891,7 +891,7 @@ int security_bounded_transition(struct selinux_state *state,
 
 	index = new_context->type;
 	while (true) {
-		type = policydb->type_val_to_struct_array[index - 1];
+		type = policydb->type_val_to_struct[index - 1];
 		BUG_ON(!type);
 
 		/* not bounded anymore */
@@ -1946,7 +1946,14 @@ static int convert_context(struct context *oldc, struct context *newc, void *p)
 		rc = string_to_context_struct(args->newp, NULL, s,
 					      newc, SECSID_NULL);
 		if (rc == -EINVAL) {
-			/* Retain string representation for later mapping. */
+			/*
+			 * Retain string representation for later mapping.
+			 *
+			 * IMPORTANT: We need to copy the contents of oldc->str
+			 * back into s again because string_to_context_struct()
+			 * may have garbled it.
+			 */
+			memcpy(s, oldc->str, oldc->len);
 			context_init(newc);
 			newc->str = s;
 			newc->len = oldc->len;

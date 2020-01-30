@@ -357,7 +357,6 @@ enum {
 	STRIPE_FULL_WRITE,	/* all blocks are set to be overwritten */
 	STRIPE_BIOFILL_RUN,
 	STRIPE_COMPUTE_RUN,
-	STRIPE_OPS_REQ_PENDING,
 	STRIPE_ON_UNPLUG_LIST,
 	STRIPE_DISCARD,
 	STRIPE_ON_RELEASE_LIST,
@@ -493,9 +492,7 @@ struct disk_info {
  */
 static inline struct bio *r5_next_bio(struct bio *bio, sector_t sector)
 {
-	int sectors = bio_sectors(bio);
-
-	if (bio->bi_iter.bi_sector + sectors < sector + STRIPE_SECTORS)
+	if (bio_end_sector(bio) < sector + STRIPE_SECTORS)
 		return bio->bi_next;
 	else
 		return NULL;

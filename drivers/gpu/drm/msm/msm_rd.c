@@ -31,10 +31,13 @@
 
 #ifdef CONFIG_DEBUG_FS
 
-#include <linux/kfifo.h>
-#include <linux/debugfs.h>
 #include <linux/circ_buf.h>
+#include <linux/debugfs.h>
+#include <linux/kfifo.h>
+#include <linux/uaccess.h>
 #include <linux/wait.h>
+
+#include <drm/drm_file.h>
 
 #include "msm_drv.h"
 #include "msm_gpu.h"

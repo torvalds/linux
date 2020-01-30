@@ -4,10 +4,10 @@
  * Author: Rob Clark <rob@ti.com>
  */
 
-#include <linux/seq_file.h>
+#include <linux/dma-mapping.h>
 
-#include <drm/drm_crtc.h>
 #include <drm/drm_modeset_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 
 #include "omap_dmm_tiler.h"

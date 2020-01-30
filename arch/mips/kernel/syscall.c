@@ -80,6 +80,7 @@ SYSCALL_DEFINE6(mips_mmap2, unsigned long, addr, unsigned long, len,
 
 save_static_function(sys_fork);
 save_static_function(sys_clone);
+save_static_function(sys_clone3);
 
 SYSCALL_DEFINE1(set_thread_area, unsigned long, addr)
 {
@@ -132,6 +133,7 @@ static inline int mips_atomic_set(unsigned long addr, unsigned long new)
 		  [efault] "i" (-EFAULT)
 		: "memory");
 	} else if (cpu_has_llsc) {
+		loongson_llsc_mb();
 		__asm__ __volatile__ (
 		"	.set	push					\n"
 		"	.set	"MIPS_ISA_ARCH_LEVEL"			\n"

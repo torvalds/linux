@@ -5,7 +5,6 @@
 #include <linux/clk.h>
 #include <linux/reset.h>
 #include <linux/platform_device.h>
-#include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 
 #include "panfrost_device.h"
@@ -90,12 +89,9 @@ static int panfrost_regulator_init(struct panfrost_device *pfdev)
 {
 	int ret;
 
-	pfdev->regulator = devm_regulator_get_optional(pfdev->dev, "mali");
+	pfdev->regulator = devm_regulator_get(pfdev->dev, "mali");
 	if (IS_ERR(pfdev->regulator)) {
 		ret = PTR_ERR(pfdev->regulator);
-		pfdev->regulator = NULL;
-		if (ret == -ENODEV)
-			return 0;
 		dev_err(pfdev->dev, "failed to get regulator: %d\n", ret);
 		return ret;
 	}
@@ -111,8 +107,7 @@ static int panfrost_regulator_init(struct panfrost_device *pfdev)
 
 static void panfrost_regulator_fini(struct panfrost_device *pfdev)
 {
-	if (pfdev->regulator)
-		regulator_disable(pfdev->regulator);
+	regulator_disable(pfdev->regulator);
 }
 
 int panfrost_device_init(struct panfrost_device *pfdev)
@@ -123,8 +118,9 @@ int panfrost_device_init(struct panfrost_device *pfdev)
 	mutex_init(&pfdev->sched_lock);
 	mutex_init(&pfdev->reset_lock);
 	INIT_LIST_HEAD(&pfdev->scheduled_jobs);
+	INIT_LIST_HEAD(&pfdev->as_lru_list);
 
-	spin_lock_init(&pfdev->hwaccess_lock);
+	spin_lock_init(&pfdev->as_lock);
 
 	err = panfrost_clk_init(pfdev);
 	if (err) {
@@ -163,14 +159,6 @@ int panfrost_device_init(struct panfrost_device *pfdev)
 	err = panfrost_job_init(pfdev);
 	if (err)
 		goto err_out4;
-
-	/* runtime PM will wake us up later */
-	panfrost_gpu_power_off(pfdev);
-
-	pm_runtime_set_active(pfdev->dev);
-	pm_runtime_get_sync(pfdev->dev);
-	pm_runtime_mark_last_busy(pfdev->dev);
-	pm_runtime_put_autosuspend(pfdev->dev);
 
 	err = panfrost_perfcnt_init(pfdev);
 	if (err)
@@ -254,18 +242,22 @@ const char *panfrost_exception_name(struct panfrost_device *pfdev, u32 exception
 	return "UNKNOWN";
 }
 
+void panfrost_device_reset(struct panfrost_device *pfdev)
+{
+	panfrost_gpu_soft_reset(pfdev);
+
+	panfrost_gpu_power_on(pfdev);
+	panfrost_mmu_reset(pfdev);
+	panfrost_job_enable_interrupts(pfdev);
+}
+
 #ifdef CONFIG_PM
 int panfrost_device_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct panfrost_device *pfdev = platform_get_drvdata(pdev);
 
-	panfrost_gpu_soft_reset(pfdev);
-
-	/* TODO: Re-enable all other address spaces */
-	panfrost_gpu_power_on(pfdev);
-	panfrost_mmu_enable(pfdev, 0);
-	panfrost_job_enable_interrupts(pfdev);
+	panfrost_device_reset(pfdev);
 	panfrost_devfreq_resume(pfdev);
 
 	return 0;

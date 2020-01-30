@@ -62,6 +62,9 @@ Optional LED child properties:
 	- label : see Documentation/devicetree/bindings/leds/common.txt
 	- linux,default-trigger :
 	   see Documentation/devicetree/bindings/leds/common.txt
+	- led-max-microamp : Defines the full scale current value for each control
+			  bank.  The range is from 5000uA-29800uA in increments
+			  of 800uA.
 
 Example:
 led-controller@38 {
@@ -85,6 +88,7 @@ led-controller@38 {
 		reg = <0>;
 		led-sources = <2>;
 		ti,led-mode = <1>;
+		led-max-microamp = <21800>;
 		label = ":backlight";
 		linux,default-trigger = "backlight";
 	};

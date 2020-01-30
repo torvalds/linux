@@ -1,4 +1,4 @@
-/**
+/*
  * \file drm_agpsupport.c
  * DRM support for AGP/GART backend
  *
@@ -465,46 +465,3 @@ void drm_legacy_agp_clear(struct drm_device *dev)
 	dev->agp->acquired = 0;
 	dev->agp->enabled = 0;
 }
-
-/**
- * Binds a collection of pages into AGP memory at the given offset, returning
- * the AGP memory structure containing them.
- *
- * No reference is held on the pages during this time -- it is up to the
- * caller to handle that.
- */
-struct agp_memory *
-drm_agp_bind_pages(struct drm_device *dev,
-		   struct page **pages,
-		   unsigned long num_pages,
-		   uint32_t gtt_offset,
-		   u32 type)
-{
-	struct agp_memory *mem;
-	int ret, i;
-
-	DRM_DEBUG("\n");
-
-	mem = agp_allocate_memory(dev->agp->bridge, num_pages,
-				      type);
-	if (mem == NULL) {
-		DRM_ERROR("Failed to allocate memory for %ld pages\n",
-			  num_pages);
-		return NULL;
-	}
-
-	for (i = 0; i < num_pages; i++)
-		mem->pages[i] = pages[i];
-	mem->page_count = num_pages;
-
-	mem->is_flushed = true;
-	ret = agp_bind_memory(mem, gtt_offset / PAGE_SIZE);
-	if (ret != 0) {
-		DRM_ERROR("Failed to bind AGP memory: %d\n", ret);
-		agp_free_memory(mem);
-		return NULL;
-	}
-
-	return mem;
-}
-EXPORT_SYMBOL(drm_agp_bind_pages);

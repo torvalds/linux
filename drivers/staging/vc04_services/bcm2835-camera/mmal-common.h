@@ -26,7 +26,6 @@ struct mmal_msg_context;
 
 /* mapping between v4l and mmal video modes */
 struct mmal_fmt {
-	char  *name;
 	u32   fourcc;          /* v4l2 format id */
 	int   flags;           /* v4l2 flags field */
 	u32   mmal;

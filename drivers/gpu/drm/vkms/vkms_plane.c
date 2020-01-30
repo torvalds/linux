@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0+
 
-#include "vkms_drv.h"
-#include <drm/drm_plane_helper.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_plane_helper.h>
+
+#include "vkms_drv.h"
 
 static const u32 vkms_formats[] = {
 	DRM_FORMAT_XRGB8888,
@@ -18,20 +20,20 @@ static struct drm_plane_state *
 vkms_plane_duplicate_state(struct drm_plane *plane)
 {
 	struct vkms_plane_state *vkms_state;
-	struct vkms_crc_data *crc_data;
+	struct vkms_composer *composer;
 
 	vkms_state = kzalloc(sizeof(*vkms_state), GFP_KERNEL);
 	if (!vkms_state)
 		return NULL;
 
-	crc_data = kzalloc(sizeof(*crc_data), GFP_KERNEL);
-	if (!crc_data) {
-		DRM_DEBUG_KMS("Couldn't allocate crc_data\n");
+	composer = kzalloc(sizeof(*composer), GFP_KERNEL);
+	if (!composer) {
+		DRM_DEBUG_KMS("Couldn't allocate composer\n");
 		kfree(vkms_state);
 		return NULL;
 	}
 
-	vkms_state->crc_data = crc_data;
+	vkms_state->composer = composer;
 
 	__drm_atomic_helper_plane_duplicate_state(plane,
 						  &vkms_state->base);
@@ -49,12 +51,12 @@ static void vkms_plane_destroy_state(struct drm_plane *plane,
 		/* dropping the reference we acquired in
 		 * vkms_primary_plane_update()
 		 */
-		if (drm_framebuffer_read_refcount(&vkms_state->crc_data->fb))
-			drm_framebuffer_put(&vkms_state->crc_data->fb);
+		if (drm_framebuffer_read_refcount(&vkms_state->composer->fb))
+			drm_framebuffer_put(&vkms_state->composer->fb);
 	}
 
-	kfree(vkms_state->crc_data);
-	vkms_state->crc_data = NULL;
+	kfree(vkms_state->composer);
+	vkms_state->composer = NULL;
 
 	__drm_atomic_helper_plane_destroy_state(old_state);
 	kfree(vkms_state);
@@ -91,21 +93,21 @@ static void vkms_plane_atomic_update(struct drm_plane *plane,
 {
 	struct vkms_plane_state *vkms_plane_state;
 	struct drm_framebuffer *fb = plane->state->fb;
-	struct vkms_crc_data *crc_data;
+	struct vkms_composer *composer;
 
 	if (!plane->state->crtc || !fb)
 		return;
 
 	vkms_plane_state = to_vkms_plane_state(plane->state);
 
-	crc_data = vkms_plane_state->crc_data;
-	memcpy(&crc_data->src, &plane->state->src, sizeof(struct drm_rect));
-	memcpy(&crc_data->dst, &plane->state->dst, sizeof(struct drm_rect));
-	memcpy(&crc_data->fb, fb, sizeof(struct drm_framebuffer));
-	drm_framebuffer_get(&crc_data->fb);
-	crc_data->offset = fb->offsets[0];
-	crc_data->pitch = fb->pitches[0];
-	crc_data->cpp = fb->format->cpp[0];
+	composer = vkms_plane_state->composer;
+	memcpy(&composer->src, &plane->state->src, sizeof(struct drm_rect));
+	memcpy(&composer->dst, &plane->state->dst, sizeof(struct drm_rect));
+	memcpy(&composer->fb, fb, sizeof(struct drm_framebuffer));
+	drm_framebuffer_get(&composer->fb);
+	composer->offset = fb->offsets[0];
+	composer->pitch = fb->pitches[0];
+	composer->cpp = fb->format->cpp[0];
 }
 
 static int vkms_plane_atomic_check(struct drm_plane *plane,
@@ -176,7 +178,7 @@ static const struct drm_plane_helper_funcs vkms_primary_helper_funcs = {
 };
 
 struct drm_plane *vkms_plane_init(struct vkms_device *vkmsdev,
-				  enum drm_plane_type type)
+				  enum drm_plane_type type, int index)
 {
 	struct drm_device *dev = &vkmsdev->drm;
 	const struct drm_plane_helper_funcs *funcs;
@@ -198,7 +200,7 @@ struct drm_plane *vkms_plane_init(struct vkms_device *vkmsdev,
 		funcs = &vkms_primary_helper_funcs;
 	}
 
-	ret = drm_universal_plane_init(dev, plane, 0,
+	ret = drm_universal_plane_init(dev, plane, 1 << index,
 				       &vkms_plane_funcs,
 				       formats, nformats,
 				       NULL, type, NULL);

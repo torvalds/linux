@@ -112,17 +112,11 @@ int mlx5_core_destroy_mkey(struct mlx5_core_dev *dev,
 	u32 out[MLX5_ST_SZ_DW(destroy_mkey_out)] = {0};
 	u32 in[MLX5_ST_SZ_DW(destroy_mkey_in)]   = {0};
 	struct xarray *mkeys = &dev->priv.mkey_table;
-	struct mlx5_core_mkey *deleted_mkey;
 	unsigned long flags;
 
 	xa_lock_irqsave(mkeys, flags);
-	deleted_mkey = __xa_erase(mkeys, mlx5_base_mkey(mkey->key));
+	__xa_erase(mkeys, mlx5_base_mkey(mkey->key));
 	xa_unlock_irqrestore(mkeys, flags);
-	if (!deleted_mkey) {
-		mlx5_core_dbg(dev, "failed xarray delete of mkey 0x%x\n",
-			      mlx5_base_mkey(mkey->key));
-		return -ENOENT;
-	}
 
 	MLX5_SET(destroy_mkey_in, in, opcode, MLX5_CMD_OP_DESTROY_MKEY);
 	MLX5_SET(destroy_mkey_in, in, mkey_index, mlx5_mkey_to_idx(mkey->key));

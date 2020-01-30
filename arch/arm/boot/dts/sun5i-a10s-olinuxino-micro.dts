@@ -98,7 +98,7 @@
 &emac {
 	pinctrl-names = "default";
 	pinctrl-0 = <&emac_pa_pins>;
-	phy = <&phy1>;
+	phy-handle = <&phy1>;
 	status = "okay";
 };
 

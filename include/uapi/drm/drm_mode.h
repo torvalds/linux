@@ -361,6 +361,7 @@ enum drm_mode_subconnector {
 #define DRM_MODE_CONNECTOR_DSI		16
 #define DRM_MODE_CONNECTOR_DPI		17
 #define DRM_MODE_CONNECTOR_WRITEBACK	18
+#define DRM_MODE_CONNECTOR_SPI		19
 
 struct drm_mode_get_connector {
 

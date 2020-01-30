@@ -1,8 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2015 Anton Ivanov (aivanov@{brocade.com,kot-begemot.co.uk})
  * Copyright (C) 2015 Thomas Meyer (thomas@m3y3r.de)
  * Copyright (C) 2002 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
- * Licensed under the GPL
  */
 
 #ifndef __OS_H__
@@ -35,6 +35,8 @@
 #else
 #define OS_LIB_PATH	"/usr/lib/"
 #endif
+
+#define OS_SENDMSG_MAX_FDS 8
 
 /*
  * types taken from stat_file() in hostfs_user.c
@@ -176,6 +178,9 @@ extern unsigned os_major(unsigned long long dev);
 extern unsigned os_minor(unsigned long long dev);
 extern unsigned long long os_makedev(unsigned major, unsigned minor);
 extern int os_falloc_punch(int fd, unsigned long long offset, int count);
+extern int os_eventfd(unsigned int initval, int flags);
+extern int os_sendmsg_fds(int fd, const void *buf, unsigned int len,
+			  const int *fds, unsigned int fds_num);
 
 /* start_up.c */
 extern void os_early_checks(void);
@@ -232,6 +237,7 @@ extern void block_signals(void);
 extern void unblock_signals(void);
 extern int get_signals(void);
 extern int set_signals(int enable);
+extern int set_signals_trace(int enable);
 extern int os_is_signal_stack(void);
 extern void deliver_alarm(void);
 
@@ -316,5 +322,11 @@ extern int get_pty(void);
 extern unsigned long os_get_top_address(void);
 
 long syscall(long number, ...);
+
+/* irqflags tracing */
+extern void block_signals_trace(void);
+extern void unblock_signals_trace(void);
+extern void um_trace_signals_on(void);
+extern void um_trace_signals_off(void);
 
 #endif

@@ -30,6 +30,7 @@ config CRYPTO_DEV_CCP_CRYPTO
 	select CRYPTO_BLKCIPHER
 	select CRYPTO_AUTHENC
 	select CRYPTO_RSA
+	select CRYPTO_LIB_AES
 	help
 	  Support for using the cryptographic API with the AMD Cryptographic
 	  Coprocessor. This module supports offload of SHA and AES algorithms.
@@ -45,3 +46,11 @@ config CRYPTO_DEV_SP_PSP
 	 management commands in Secure Encrypted Virtualization (SEV) mode,
 	 along with software-based Trusted Execution Environment (TEE) to
 	 enable third-party trusted applications.
+
+config CRYPTO_DEV_CCP_DEBUGFS
+	bool "Enable CCP Internals in DebugFS"
+	default n
+	depends on CRYPTO_DEV_SP_CCP
+	help
+	  Expose CCP device information such as operation statistics, feature
+	  information, and descriptor queue contents.

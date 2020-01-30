@@ -14,7 +14,6 @@
 #include <api/fs/fs.h>
 #include "trace-event.h"
 #include "machine.h"
-#include "util.h"
 
 /*
  * global trace_event object used by trace_event__tp_format

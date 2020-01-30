@@ -5,13 +5,14 @@
  *
  * ARM Mali DP Writeback connector implementation
  */
+
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_probe_helper.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_gem_cma_helper.h>
-#include <drm/drmP.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drm_writeback.h>
 
 #include "malidp_drv.h"
@@ -130,7 +131,7 @@ malidp_mw_encoder_atomic_check(struct drm_encoder *encoder,
 	struct drm_framebuffer *fb;
 	int i, n_planes;
 
-	if (!conn_state->writeback_job || !conn_state->writeback_job->fb)
+	if (!conn_state->writeback_job)
 		return 0;
 
 	fb = conn_state->writeback_job->fb;
@@ -247,7 +248,7 @@ void malidp_mw_atomic_commit(struct drm_device *drm,
 
 	mw_state = to_mw_state(conn_state);
 
-	if (conn_state->writeback_job && conn_state->writeback_job->fb) {
+	if (conn_state->writeback_job) {
 		struct drm_framebuffer *fb = conn_state->writeback_job->fb;
 
 		DRM_DEV_DEBUG_DRIVER(drm->dev,

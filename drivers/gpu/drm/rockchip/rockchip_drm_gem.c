@@ -4,13 +4,13 @@
  * Author:Mark Yao <mark.yao@rock-chips.com>
  */
 
-#include <drm/drm.h>
-#include <drm/drmP.h>
-#include <drm/drm_gem.h>
-#include <drm/drm_vma_manager.h>
-
 #include <linux/dma-buf.h>
 #include <linux/iommu.h>
+
+#include <drm/drm.h>
+#include <drm/drm_gem.h>
+#include <drm/drm_prime.h>
+#include <drm/drm_vma_manager.h>
 
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_gem.h"

@@ -61,6 +61,11 @@
 	 NFP_FLOWER_LAYER_IPV4 | \
 	 NFP_FLOWER_LAYER_IPV6)
 
+#define NFP_FLOWER_PRE_TUN_RULE_FIELDS \
+	(NFP_FLOWER_LAYER_PORT | \
+	 NFP_FLOWER_LAYER_MAC | \
+	 NFP_FLOWER_LAYER_IPV4)
+
 struct nfp_flower_merge_check {
 	union {
 		struct {
@@ -489,6 +494,7 @@ nfp_flower_allocate_new(struct nfp_fl_key_ls *key_layer)
 	flow_pay->meta.flags = 0;
 	INIT_LIST_HEAD(&flow_pay->linked_flows);
 	flow_pay->in_hw = false;
+	flow_pay->pre_tun_rule.dev = NULL;
 
 	return flow_pay;
 
@@ -732,20 +738,53 @@ nfp_flower_copy_pre_actions(char *act_dst, char *act_src, int len,
 	return act_off;
 }
 
-static int nfp_fl_verify_post_tun_acts(char *acts, int len)
+static int
+nfp_fl_verify_post_tun_acts(char *acts, int len, struct nfp_fl_push_vlan **vlan)
 {
 	struct nfp_fl_act_head *a;
 	unsigned int act_off = 0;
 
 	while (act_off < len) {
 		a = (struct nfp_fl_act_head *)&acts[act_off];
-		if (a->jump_id != NFP_FL_ACTION_OPCODE_OUTPUT)
+
+		if (a->jump_id == NFP_FL_ACTION_OPCODE_PUSH_VLAN && !act_off)
+			*vlan = (struct nfp_fl_push_vlan *)a;
+		else if (a->jump_id != NFP_FL_ACTION_OPCODE_OUTPUT)
 			return -EOPNOTSUPP;
 
 		act_off += a->len_lw << NFP_FL_LW_SIZ;
 	}
 
+	/* Ensure any VLAN push also has an egress action. */
+	if (*vlan && act_off <= sizeof(struct nfp_fl_push_vlan))
+		return -EOPNOTSUPP;
+
 	return 0;
+}
+
+static int
+nfp_fl_push_vlan_after_tun(char *acts, int len, struct nfp_fl_push_vlan *vlan)
+{
+	struct nfp_fl_set_ipv4_tun *tun;
+	struct nfp_fl_act_head *a;
+	unsigned int act_off = 0;
+
+	while (act_off < len) {
+		a = (struct nfp_fl_act_head *)&acts[act_off];
+
+		if (a->jump_id == NFP_FL_ACTION_OPCODE_SET_IPV4_TUNNEL) {
+			tun = (struct nfp_fl_set_ipv4_tun *)a;
+			tun->outer_vlan_tpid = vlan->vlan_tpid;
+			tun->outer_vlan_tci = vlan->vlan_tci;
+
+			return 0;
+		}
+
+		act_off += a->len_lw << NFP_FL_LW_SIZ;
+	}
+
+	/* Return error if no tunnel action is found. */
+	return -EOPNOTSUPP;
 }
 
 static int
@@ -754,6 +793,7 @@ nfp_flower_merge_action(struct nfp_fl_payload *sub_flow1,
 			struct nfp_fl_payload *merge_flow)
 {
 	unsigned int sub1_act_len, sub2_act_len, pre_off1, pre_off2;
+	struct nfp_fl_push_vlan *post_tun_push_vlan = NULL;
 	bool tunnel_act = false;
 	char *merge_act;
 	int err;
@@ -790,18 +830,36 @@ nfp_flower_merge_action(struct nfp_fl_payload *sub_flow1,
 	sub2_act_len -= pre_off2;
 
 	/* FW does a tunnel push when egressing, therefore, if sub_flow 1 pushes
-	 * a tunnel, sub_flow 2 can only have output actions for a valid merge.
+	 * a tunnel, there are restrictions on what sub_flow 2 actions lead to a
+	 * valid merge.
 	 */
 	if (tunnel_act) {
 		char *post_tun_acts = &sub_flow2->action_data[pre_off2];
 
-		err = nfp_fl_verify_post_tun_acts(post_tun_acts, sub2_act_len);
+		err = nfp_fl_verify_post_tun_acts(post_tun_acts, sub2_act_len,
+						  &post_tun_push_vlan);
 		if (err)
 			return err;
+
+		if (post_tun_push_vlan) {
+			pre_off2 += sizeof(*post_tun_push_vlan);
+			sub2_act_len -= sizeof(*post_tun_push_vlan);
+		}
 	}
 
 	/* Copy remaining actions from sub_flows 1 and 2. */
 	memcpy(merge_act, sub_flow1->action_data + pre_off1, sub1_act_len);
+
+	if (post_tun_push_vlan) {
+		/* Update tunnel action in merge to include VLAN push. */
+		err = nfp_fl_push_vlan_after_tun(merge_act, sub1_act_len,
+						 post_tun_push_vlan);
+		if (err)
+			return err;
+
+		merge_flow->meta.act_len -= sizeof(*post_tun_push_vlan);
+	}
+
 	merge_act += sub1_act_len;
 	memcpy(merge_act, sub_flow2->action_data + pre_off2, sub2_act_len);
 
@@ -945,6 +1003,106 @@ err_destroy_merge_flow:
 }
 
 /**
+ * nfp_flower_validate_pre_tun_rule()
+ * @app:	Pointer to the APP handle
+ * @flow:	Pointer to NFP flow representation of rule
+ * @extack:	Netlink extended ACK report
+ *
+ * Verifies the flow as a pre-tunnel rule.
+ *
+ * Return: negative value on error, 0 if verified.
+ */
+static int
+nfp_flower_validate_pre_tun_rule(struct nfp_app *app,
+				 struct nfp_fl_payload *flow,
+				 struct netlink_ext_ack *extack)
+{
+	struct nfp_flower_meta_tci *meta_tci;
+	struct nfp_flower_mac_mpls *mac;
+	struct nfp_fl_act_head *act;
+	u8 *mask = flow->mask_data;
+	bool vlan = false;
+	int act_offset;
+	u8 key_layer;
+
+	meta_tci = (struct nfp_flower_meta_tci *)flow->unmasked_data;
+	if (meta_tci->tci & cpu_to_be16(NFP_FLOWER_MASK_VLAN_PRESENT)) {
+		u16 vlan_tci = be16_to_cpu(meta_tci->tci);
+
+		vlan_tci &= ~NFP_FLOWER_MASK_VLAN_PRESENT;
+		flow->pre_tun_rule.vlan_tci = cpu_to_be16(vlan_tci);
+		vlan = true;
+	} else {
+		flow->pre_tun_rule.vlan_tci = cpu_to_be16(0xffff);
+	}
+
+	key_layer = meta_tci->nfp_flow_key_layer;
+	if (key_layer & ~NFP_FLOWER_PRE_TUN_RULE_FIELDS) {
+		NL_SET_ERR_MSG_MOD(extack, "unsupported pre-tunnel rule: too many match fields");
+		return -EOPNOTSUPP;
+	}
+
+	if (!(key_layer & NFP_FLOWER_LAYER_MAC)) {
+		NL_SET_ERR_MSG_MOD(extack, "unsupported pre-tunnel rule: MAC fields match required");
+		return -EOPNOTSUPP;
+	}
+
+	/* Skip fields known to exist. */
+	mask += sizeof(struct nfp_flower_meta_tci);
+	mask += sizeof(struct nfp_flower_in_port);
+
+	/* Ensure destination MAC address is fully matched. */
+	mac = (struct nfp_flower_mac_mpls *)mask;
+	if (!is_broadcast_ether_addr(&mac->mac_dst[0])) {
+		NL_SET_ERR_MSG_MOD(extack, "unsupported pre-tunnel rule: dest MAC field must not be masked");
+		return -EOPNOTSUPP;
+	}
+
+	if (key_layer & NFP_FLOWER_LAYER_IPV4) {
+		int ip_flags = offsetof(struct nfp_flower_ipv4, ip_ext.flags);
+		int ip_proto = offsetof(struct nfp_flower_ipv4, ip_ext.proto);
+		int i;
+
+		mask += sizeof(struct nfp_flower_mac_mpls);
+
+		/* Ensure proto and flags are the only IP layer fields. */
+		for (i = 0; i < sizeof(struct nfp_flower_ipv4); i++)
+			if (mask[i] && i != ip_flags && i != ip_proto) {
+				NL_SET_ERR_MSG_MOD(extack, "unsupported pre-tunnel rule: only flags and proto can be matched in ip header");
+				return -EOPNOTSUPP;
+			}
+	}
+
+	/* Action must be a single egress or pop_vlan and egress. */
+	act_offset = 0;
+	act = (struct nfp_fl_act_head *)&flow->action_data[act_offset];
+	if (vlan) {
+		if (act->jump_id != NFP_FL_ACTION_OPCODE_POP_VLAN) {
+			NL_SET_ERR_MSG_MOD(extack, "unsupported pre-tunnel rule: match on VLAN must have VLAN pop as first action");
+			return -EOPNOTSUPP;
+		}
+
+		act_offset += act->len_lw << NFP_FL_LW_SIZ;
+		act = (struct nfp_fl_act_head *)&flow->action_data[act_offset];
+	}
+
+	if (act->jump_id != NFP_FL_ACTION_OPCODE_OUTPUT) {
+		NL_SET_ERR_MSG_MOD(extack, "unsupported pre-tunnel rule: non egress action detected where egress was expected");
+		return -EOPNOTSUPP;
+	}
+
+	act_offset += act->len_lw << NFP_FL_LW_SIZ;
+
+	/* Ensure there are no more actions after egress. */
+	if (act_offset != flow->meta.act_len) {
+		NL_SET_ERR_MSG_MOD(extack, "unsupported pre-tunnel rule: egress is not the last action");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+/**
  * nfp_flower_add_offload() - Adds a new flow to hardware.
  * @app:	Pointer to the APP handle
  * @netdev:	netdev structure.
@@ -994,6 +1152,12 @@ nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 	if (err)
 		goto err_destroy_flow;
 
+	if (flow_pay->pre_tun_rule.dev) {
+		err = nfp_flower_validate_pre_tun_rule(app, flow_pay, extack);
+		if (err)
+			goto err_destroy_flow;
+	}
+
 	err = nfp_compile_flow_metadata(app, flow, flow_pay, netdev, extack);
 	if (err)
 		goto err_destroy_flow;
@@ -1006,8 +1170,11 @@ nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 		goto err_release_metadata;
 	}
 
-	err = nfp_flower_xmit_flow(app, flow_pay,
-				   NFP_FLOWER_CMSG_TYPE_FLOW_ADD);
+	if (flow_pay->pre_tun_rule.dev)
+		err = nfp_flower_xmit_pre_tun_flow(app, flow_pay);
+	else
+		err = nfp_flower_xmit_flow(app, flow_pay,
+					   NFP_FLOWER_CMSG_TYPE_FLOW_ADD);
 	if (err)
 		goto err_remove_rhash;
 
@@ -1149,8 +1316,11 @@ nfp_flower_del_offload(struct nfp_app *app, struct net_device *netdev,
 		goto err_free_merge_flow;
 	}
 
-	err = nfp_flower_xmit_flow(app, nfp_flow,
-				   NFP_FLOWER_CMSG_TYPE_FLOW_DEL);
+	if (nfp_flow->pre_tun_rule.dev)
+		err = nfp_flower_xmit_pre_tun_del_flow(app, nfp_flow);
+	else
+		err = nfp_flower_xmit_flow(app, nfp_flow,
+					   NFP_FLOWER_CMSG_TYPE_FLOW_DEL);
 	/* Fall through on error. */
 
 err_free_merge_flow:
@@ -1487,16 +1657,17 @@ int nfp_flower_reg_indir_block_handler(struct nfp_app *app,
 		return NOTIFY_OK;
 
 	if (event == NETDEV_REGISTER) {
-		err = __tc_indr_block_cb_register(netdev, app,
-						  nfp_flower_indr_setup_tc_cb,
-						  app);
+		err = __flow_indr_block_cb_register(netdev, app,
+						    nfp_flower_indr_setup_tc_cb,
+						    app);
 		if (err)
 			nfp_flower_cmsg_warn(app,
 					     "Indirect block reg failed - %s\n",
 					     netdev->name);
 	} else if (event == NETDEV_UNREGISTER) {
-		__tc_indr_block_cb_unregister(netdev,
-					      nfp_flower_indr_setup_tc_cb, app);
+		__flow_indr_block_cb_unregister(netdev,
+						nfp_flower_indr_setup_tc_cb,
+						app);
 	}
 
 	return NOTIFY_OK;

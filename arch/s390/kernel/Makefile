@@ -10,20 +10,12 @@ CFLAGS_REMOVE_ftrace.o		= $(CC_FLAGS_FTRACE)
 
 # Do not trace early setup code
 CFLAGS_REMOVE_early.o		= $(CC_FLAGS_FTRACE)
-CFLAGS_REMOVE_early_nobss.o	= $(CC_FLAGS_FTRACE)
 
 endif
 
 GCOV_PROFILE_early.o		:= n
-GCOV_PROFILE_early_nobss.o	:= n
-
 KCOV_INSTRUMENT_early.o		:= n
-KCOV_INSTRUMENT_early_nobss.o	:= n
-
 UBSAN_SANITIZE_early.o		:= n
-UBSAN_SANITIZE_early_nobss.o	:= n
-
-KASAN_SANITIZE_early_nobss.o	:= n
 KASAN_SANITIZE_ipl.o		:= n
 KASAN_SANITIZE_machine_kexec.o	:= n
 
@@ -48,7 +40,7 @@ CFLAGS_ptrace.o		+= -DUTS_MACHINE='"$(UTS_MACHINE)"'
 
 obj-y	:= traps.o time.o process.o base.o early.o setup.o idle.o vtime.o
 obj-y	+= processor.o sys_s390.o ptrace.o signal.o cpcmd.o ebcdic.o nmi.o
-obj-y	+= debug.o irq.o ipl.o dis.o diag.o vdso.o early_nobss.o
+obj-y	+= debug.o irq.o ipl.o dis.o diag.o vdso.o
 obj-y	+= sysinfo.o lgr.o os_info.o machine_kexec.o pgm_check.o
 obj-y	+= runtime_instr.o cache.o fpu.o dumpstack.o guarded_storage.o sthyi.o
 obj-y	+= entry.o reipl.o relocate_kernel.o kdebugfs.o alternative.o
@@ -90,6 +82,3 @@ obj-$(CONFIG_TRACEPOINTS)	+= trace.o
 # vdso
 obj-y				+= vdso64/
 obj-$(CONFIG_COMPAT_VDSO)	+= vdso32/
-
-chkbss := head64.o early_nobss.o
-include $(srctree)/arch/s390/scripts/Makefile.chkbss

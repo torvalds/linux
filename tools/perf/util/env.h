@@ -4,8 +4,9 @@
 
 #include <linux/types.h>
 #include <linux/rbtree.h>
-#include "cpumap.h"
 #include "rwsem.h"
+
+struct perf_cpu_map;
 
 struct cpu_topology_map {
 	int	socket_id;
@@ -27,7 +28,7 @@ struct numa_node {
 	u32		 node;
 	u64		 mem_total;
 	u64		 mem_free;
-	struct cpu_map	*map;
+	struct perf_cpu_map	*map;
 };
 
 struct memory_node {

@@ -630,6 +630,8 @@ static void
 mlxsw_sp1_ptp_ht_gc_collect(struct mlxsw_sp_ptp_state *ptp_state,
 			    struct mlxsw_sp1_ptp_unmatched *unmatched)
 {
+	struct mlxsw_sp_ptp_port_dir_stats *stats;
+	struct mlxsw_sp_port *mlxsw_sp_port;
 	int err;
 
 	/* If an unmatched entry has an SKB, it has to be handed over to the
@@ -649,6 +651,17 @@ mlxsw_sp1_ptp_ht_gc_collect(struct mlxsw_sp_ptp_state *ptp_state,
 	if (err)
 		/* The packet was matched with timestamp during the walk. */
 		goto out;
+
+	mlxsw_sp_port = ptp_state->mlxsw_sp->ports[unmatched->key.local_port];
+	if (mlxsw_sp_port) {
+		stats = unmatched->key.ingress ?
+			&mlxsw_sp_port->ptp.stats.rx_gcd :
+			&mlxsw_sp_port->ptp.stats.tx_gcd;
+		if (unmatched->skb)
+			stats->packets++;
+		else
+			stats->timestamps++;
+	}
 
 	/* mlxsw_sp1_ptp_unmatched_finish() invokes netif_receive_skb(). While
 	 * the comment at that function states that it can only be called in
@@ -1097,4 +1110,58 @@ int mlxsw_sp1_ptp_get_ts_info(struct mlxsw_sp *mlxsw_sp,
 			   BIT(HWTSTAMP_FILTER_ALL);
 
 	return 0;
+}
+
+struct mlxsw_sp_ptp_port_stat {
+	char str[ETH_GSTRING_LEN];
+	ptrdiff_t offset;
+};
+
+#define MLXSW_SP_PTP_PORT_STAT(NAME, FIELD)				\
+	{								\
+		.str = NAME,						\
+		.offset = offsetof(struct mlxsw_sp_ptp_port_stats,	\
+				    FIELD),				\
+	}
+
+static const struct mlxsw_sp_ptp_port_stat mlxsw_sp_ptp_port_stats[] = {
+	MLXSW_SP_PTP_PORT_STAT("ptp_rx_gcd_packets",    rx_gcd.packets),
+	MLXSW_SP_PTP_PORT_STAT("ptp_rx_gcd_timestamps", rx_gcd.timestamps),
+	MLXSW_SP_PTP_PORT_STAT("ptp_tx_gcd_packets",    tx_gcd.packets),
+	MLXSW_SP_PTP_PORT_STAT("ptp_tx_gcd_timestamps", tx_gcd.timestamps),
+};
+
+#undef MLXSW_SP_PTP_PORT_STAT
+
+#define MLXSW_SP_PTP_PORT_STATS_LEN \
+	ARRAY_SIZE(mlxsw_sp_ptp_port_stats)
+
+int mlxsw_sp1_get_stats_count(void)
+{
+	return MLXSW_SP_PTP_PORT_STATS_LEN;
+}
+
+void mlxsw_sp1_get_stats_strings(u8 **p)
+{
+	int i;
+
+	for (i = 0; i < MLXSW_SP_PTP_PORT_STATS_LEN; i++) {
+		memcpy(*p, mlxsw_sp_ptp_port_stats[i].str,
+		       ETH_GSTRING_LEN);
+		*p += ETH_GSTRING_LEN;
+	}
+}
+
+void mlxsw_sp1_get_stats(struct mlxsw_sp_port *mlxsw_sp_port,
+			 u64 *data, int data_index)
+{
+	void *stats = &mlxsw_sp_port->ptp.stats;
+	ptrdiff_t offset;
+	int i;
+
+	data += data_index;
+	for (i = 0; i < MLXSW_SP_PTP_PORT_STATS_LEN; i++) {
+		offset = mlxsw_sp_ptp_port_stats[i].offset;
+		*data++ = *(u64 *)(stats + offset);
+	}
 }

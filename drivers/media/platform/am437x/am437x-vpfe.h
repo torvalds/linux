@@ -65,12 +65,6 @@ struct vpfe_hw_if_param {
 #define VPFE_MAX_SUBDEV		1
 #define VPFE_MAX_INPUTS		1
 
-struct vpfe_pixel_format {
-	struct v4l2_fmtdesc fmtdesc;
-	/* bytes per pixel */
-	int bpp;
-};
-
 struct vpfe_std_info {
 	int active_pixels;
 	int active_lines;

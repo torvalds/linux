@@ -114,6 +114,9 @@ enum drm_ioctl_flags {
 	 * Whether &drm_ioctl_desc.func should be called with the DRM BKL held
 	 * or not. Enforced as the default for all modern drivers, hence there
 	 * should never be a need to set this flag.
+	 *
+	 * Do not use anywhere else than for the VBLANK_WAIT IOCTL, which is the
+	 * only legacy IOCTL which needs this.
 	 */
 	DRM_UNLOCKED		= BIT(4),
 	/**

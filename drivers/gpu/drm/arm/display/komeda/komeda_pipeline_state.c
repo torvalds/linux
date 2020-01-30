@@ -473,7 +473,7 @@ komeda_scaler_check_cfg(struct komeda_scaler *scaler,
 
 		err = pipe->funcs->downscaling_clk_check(pipe,
 					&kcrtc_st->base.adjusted_mode,
-					komeda_calc_aclk(kcrtc_st), dflow);
+					komeda_crtc_get_aclk(kcrtc_st), dflow);
 		if (err) {
 			DRM_DEBUG_ATOMIC("aclk can't satisfy the clock requirement of the downscaling\n");
 			return err;
@@ -564,8 +564,8 @@ komeda_splitter_validate(struct komeda_splitter *splitter,
 	}
 
 	if (!in_range(&splitter->vsize, dflow->in_h)) {
-		DRM_DEBUG_ATOMIC("split in_in: %d exceed the acceptable range.\n",
-				 dflow->in_w);
+		DRM_DEBUG_ATOMIC("split in_h: %d exceeds the acceptable range.\n",
+				 dflow->in_h);
 		return -EINVAL;
 	}
 

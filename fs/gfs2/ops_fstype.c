@@ -21,6 +21,7 @@
 #include <linux/lockdep.h>
 #include <linux/module.h>
 #include <linux/backing-dev.h>
+#include <linux/fs_parser.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -87,6 +88,7 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 	gfs2_tune_init(&sdp->sd_tune);
 
 	init_waitqueue_head(&sdp->sd_glock_wait);
+	init_waitqueue_head(&sdp->sd_async_glock_wait);
 	atomic_set(&sdp->sd_glock_disposal, 0);
 	init_completion(&sdp->sd_locking_init);
 	init_completion(&sdp->sd_wdack);
@@ -1030,16 +1032,17 @@ void gfs2_online_uevent(struct gfs2_sbd *sdp)
 }
 
 /**
- * fill_super - Read in superblock
+ * gfs2_fill_super - Read in superblock
  * @sb: The VFS superblock
- * @data: Mount options
+ * @args: Mount options
  * @silent: Don't complain if it's not a GFS2 filesystem
  *
- * Returns: errno
+ * Returns: -errno
  */
-
-static int fill_super(struct super_block *sb, struct gfs2_args *args, int silent)
+static int gfs2_fill_super(struct super_block *sb, struct fs_context *fc)
 {
+	struct gfs2_args *args = fc->fs_private;
+	int silent = fc->sb_flags & SB_SILENT;
 	struct gfs2_sbd *sdp;
 	struct gfs2_holder mount_gh;
 	int error;
@@ -1204,161 +1207,418 @@ fail_debug:
 	return error;
 }
 
-static int set_gfs2_super(struct super_block *s, void *data)
+/**
+ * gfs2_get_tree - Get the GFS2 superblock and root directory
+ * @fc: The filesystem context
+ *
+ * Returns: 0 or -errno on error
+ */
+static int gfs2_get_tree(struct fs_context *fc)
 {
-	s->s_bdev = data;
-	s->s_dev = s->s_bdev->bd_dev;
-	s->s_bdi = bdi_get(s->s_bdev->bd_bdi);
+	struct gfs2_args *args = fc->fs_private;
+	struct gfs2_sbd *sdp;
+	int error;
+
+	error = get_tree_bdev(fc, gfs2_fill_super);
+	if (error)
+		return error;
+
+	sdp = fc->root->d_sb->s_fs_info;
+	dput(fc->root);
+	if (args->ar_meta)
+		fc->root = dget(sdp->sd_master_dir);
+	else
+		fc->root = dget(sdp->sd_root_dir);
 	return 0;
 }
 
-static int test_gfs2_super(struct super_block *s, void *ptr)
+static void gfs2_fc_free(struct fs_context *fc)
 {
-	struct block_device *bdev = ptr;
-	return (bdev == s->s_bdev);
+	struct gfs2_args *args = fc->fs_private;
+
+	kfree(args);
 }
 
-/**
- * gfs2_mount - Get the GFS2 superblock
- * @fs_type: The GFS2 filesystem type
- * @flags: Mount flags
- * @dev_name: The name of the device
- * @data: The mount arguments
- *
- * Q. Why not use get_sb_bdev() ?
- * A. We need to select one of two root directories to mount, independent
- *    of whether this is the initial, or subsequent, mount of this sb
- *
- * Returns: 0 or -ve on error
- */
+enum gfs2_param {
+	Opt_lockproto,
+	Opt_locktable,
+	Opt_hostdata,
+	Opt_spectator,
+	Opt_ignore_local_fs,
+	Opt_localflocks,
+	Opt_localcaching,
+	Opt_debug,
+	Opt_upgrade,
+	Opt_acl,
+	Opt_quota,
+	Opt_suiddir,
+	Opt_data,
+	Opt_meta,
+	Opt_discard,
+	Opt_commit,
+	Opt_errors,
+	Opt_statfs_quantum,
+	Opt_statfs_percent,
+	Opt_quota_quantum,
+	Opt_barrier,
+	Opt_rgrplvb,
+	Opt_loccookie,
+};
 
-static struct dentry *gfs2_mount(struct file_system_type *fs_type, int flags,
-		       const char *dev_name, void *data)
+enum opt_quota {
+	Opt_quota_unset = 0,
+	Opt_quota_off,
+	Opt_quota_account,
+	Opt_quota_on,
+};
+
+static const unsigned int opt_quota_values[] = {
+	[Opt_quota_off]     = GFS2_QUOTA_OFF,
+	[Opt_quota_account] = GFS2_QUOTA_ACCOUNT,
+	[Opt_quota_on]      = GFS2_QUOTA_ON,
+};
+
+enum opt_data {
+	Opt_data_writeback = GFS2_DATA_WRITEBACK,
+	Opt_data_ordered   = GFS2_DATA_ORDERED,
+};
+
+enum opt_errors {
+	Opt_errors_withdraw = GFS2_ERRORS_WITHDRAW,
+	Opt_errors_panic    = GFS2_ERRORS_PANIC,
+};
+
+static const struct fs_parameter_spec gfs2_param_specs[] = {
+	fsparam_string ("lockproto",          Opt_lockproto),
+	fsparam_string ("locktable",          Opt_locktable),
+	fsparam_string ("hostdata",           Opt_hostdata),
+	fsparam_flag   ("spectator",          Opt_spectator),
+	fsparam_flag   ("norecovery",         Opt_spectator),
+	fsparam_flag   ("ignore_local_fs",    Opt_ignore_local_fs),
+	fsparam_flag   ("localflocks",        Opt_localflocks),
+	fsparam_flag   ("localcaching",       Opt_localcaching),
+	fsparam_flag_no("debug",              Opt_debug),
+	fsparam_flag   ("upgrade",            Opt_upgrade),
+	fsparam_flag_no("acl",                Opt_acl),
+	fsparam_flag_no("suiddir",            Opt_suiddir),
+	fsparam_enum   ("data",               Opt_data),
+	fsparam_flag   ("meta",               Opt_meta),
+	fsparam_flag_no("discard",            Opt_discard),
+	fsparam_s32    ("commit",             Opt_commit),
+	fsparam_enum   ("errors",             Opt_errors),
+	fsparam_s32    ("statfs_quantum",     Opt_statfs_quantum),
+	fsparam_s32    ("statfs_percent",     Opt_statfs_percent),
+	fsparam_s32    ("quota_quantum",      Opt_quota_quantum),
+	fsparam_flag_no("barrier",            Opt_barrier),
+	fsparam_flag_no("rgrplvb",            Opt_rgrplvb),
+	fsparam_flag_no("loccookie",          Opt_loccookie),
+	/* quota can be a flag or an enum so it gets special treatment */
+	__fsparam(fs_param_is_enum, "quota", Opt_quota, fs_param_neg_with_no|fs_param_v_optional),
+	{}
+};
+
+static const struct fs_parameter_enum gfs2_param_enums[] = {
+	{ Opt_quota,    "off",        Opt_quota_off },
+	{ Opt_quota,    "account",    Opt_quota_account },
+	{ Opt_quota,    "on",         Opt_quota_on },
+	{ Opt_data,     "writeback",  Opt_data_writeback },
+	{ Opt_data,     "ordered",    Opt_data_ordered },
+	{ Opt_errors,   "withdraw",   Opt_errors_withdraw },
+	{ Opt_errors,   "panic",      Opt_errors_panic },
+	{}
+};
+
+const struct fs_parameter_description gfs2_fs_parameters = {
+	.name = "gfs2",
+	.specs = gfs2_param_specs,
+	.enums = gfs2_param_enums,
+};
+
+/* Parse a single mount parameter */
+static int gfs2_parse_param(struct fs_context *fc, struct fs_parameter *param)
 {
-	struct block_device *bdev;
-	struct super_block *s;
-	fmode_t mode = FMODE_READ | FMODE_EXCL;
-	int error;
-	struct gfs2_args args;
-	struct gfs2_sbd *sdp;
+	struct gfs2_args *args = fc->fs_private;
+	struct fs_parse_result result;
+	int o;
 
-	if (!(flags & SB_RDONLY))
-		mode |= FMODE_WRITE;
+	o = fs_parse(fc, &gfs2_fs_parameters, param, &result);
+	if (o < 0)
+		return o;
 
-	bdev = blkdev_get_by_path(dev_name, mode, fs_type);
-	if (IS_ERR(bdev))
-		return ERR_CAST(bdev);
-
-	/*
-	 * once the super is inserted into the list by sget, s_umount
-	 * will protect the lockfs code from trying to start a snapshot
-	 * while we are mounting
-	 */
-	mutex_lock(&bdev->bd_fsfreeze_mutex);
-	if (bdev->bd_fsfreeze_count > 0) {
-		mutex_unlock(&bdev->bd_fsfreeze_mutex);
-		error = -EBUSY;
-		goto error_bdev;
+	switch (o) {
+	case Opt_lockproto:
+		strlcpy(args->ar_lockproto, param->string, GFS2_LOCKNAME_LEN);
+		break;
+	case Opt_locktable:
+		strlcpy(args->ar_locktable, param->string, GFS2_LOCKNAME_LEN);
+		break;
+	case Opt_hostdata:
+		strlcpy(args->ar_hostdata, param->string, GFS2_LOCKNAME_LEN);
+		break;
+	case Opt_spectator:
+		args->ar_spectator = 1;
+		break;
+	case Opt_ignore_local_fs:
+		/* Retained for backwards compat only */
+		break;
+	case Opt_localflocks:
+		args->ar_localflocks = 1;
+		break;
+	case Opt_localcaching:
+		/* Retained for backwards compat only */
+		break;
+	case Opt_debug:
+		if (result.boolean && args->ar_errors == GFS2_ERRORS_PANIC)
+			return invalf(fc, "gfs2: -o debug and -o errors=panic are mutually exclusive");
+		args->ar_debug = result.boolean;
+		break;
+	case Opt_upgrade:
+		/* Retained for backwards compat only */
+		break;
+	case Opt_acl:
+		args->ar_posix_acl = result.boolean;
+		break;
+	case Opt_quota:
+		/* The quota option can be a flag or an enum. A non-zero int_32
+		   result means that we have an enum index. Otherwise we have
+		   to rely on the 'negated' flag to tell us whether 'quota' or
+		   'noquota' was specified. */
+		if (result.negated)
+			args->ar_quota = GFS2_QUOTA_OFF;
+		else if (result.int_32 > 0)
+			args->ar_quota = opt_quota_values[result.int_32];
+		else
+			args->ar_quota = GFS2_QUOTA_ON;
+		break;
+	case Opt_suiddir:
+		args->ar_suiddir = result.boolean;
+		break;
+	case Opt_data:
+		/* The uint_32 result maps directly to GFS2_DATA_* */
+		args->ar_data = result.uint_32;
+		break;
+	case Opt_meta:
+		args->ar_meta = 1;
+		break;
+	case Opt_discard:
+		args->ar_discard = result.boolean;
+		break;
+	case Opt_commit:
+		if (result.int_32 <= 0)
+			return invalf(fc, "gfs2: commit mount option requires a positive numeric argument");
+		args->ar_commit = result.int_32;
+		break;
+	case Opt_statfs_quantum:
+		if (result.int_32 < 0)
+			return invalf(fc, "gfs2: statfs_quantum mount option requires a non-negative numeric argument");
+		args->ar_statfs_quantum = result.int_32;
+		break;
+	case Opt_quota_quantum:
+		if (result.int_32 <= 0)
+			return invalf(fc, "gfs2: quota_quantum mount option requires a positive numeric argument");
+		args->ar_quota_quantum = result.int_32;
+		break;
+	case Opt_statfs_percent:
+		if (result.int_32 < 0 || result.int_32 > 100)
+			return invalf(fc, "gfs2: statfs_percent mount option requires a numeric argument between 0 and 100");
+		args->ar_statfs_percent = result.int_32;
+		break;
+	case Opt_errors:
+		if (args->ar_debug && result.uint_32 == GFS2_ERRORS_PANIC)
+			return invalf(fc, "gfs2: -o debug and -o errors=panic are mutually exclusive");
+		args->ar_errors = result.uint_32;
+		break;
+	case Opt_barrier:
+		args->ar_nobarrier = result.boolean;
+		break;
+	case Opt_rgrplvb:
+		args->ar_rgrplvb = result.boolean;
+		break;
+	case Opt_loccookie:
+		args->ar_loccookie = result.boolean;
+		break;
+	default:
+		return invalf(fc, "gfs2: invalid mount option: %s", param->key);
 	}
-	s = sget(fs_type, test_gfs2_super, set_gfs2_super, flags, bdev);
-	mutex_unlock(&bdev->bd_fsfreeze_mutex);
-	error = PTR_ERR(s);
-	if (IS_ERR(s))
-		goto error_bdev;
+	return 0;
+}
 
-	if (s->s_root) {
-		/*
-		 * s_umount nests inside bd_mutex during
-		 * __invalidate_device().  blkdev_put() acquires
-		 * bd_mutex and can't be called under s_umount.  Drop
-		 * s_umount temporarily.  This is safe as we're
-		 * holding an active reference.
-		 */
-		up_write(&s->s_umount);
-		blkdev_put(bdev, mode);
-		down_write(&s->s_umount);
-	} else {
-		/* s_mode must be set before deactivate_locked_super calls */
-		s->s_mode = mode;
-	}
+static int gfs2_reconfigure(struct fs_context *fc)
+{
+	struct super_block *sb = fc->root->d_sb;
+	struct gfs2_sbd *sdp = sb->s_fs_info;
+	struct gfs2_args *oldargs = &sdp->sd_args;
+	struct gfs2_args *newargs = fc->fs_private;
+	struct gfs2_tune *gt = &sdp->sd_tune;
+	int error = 0;
 
-	memset(&args, 0, sizeof(args));
-	args.ar_quota = GFS2_QUOTA_DEFAULT;
-	args.ar_data = GFS2_DATA_DEFAULT;
-	args.ar_commit = 30;
-	args.ar_statfs_quantum = 30;
-	args.ar_quota_quantum = 60;
-	args.ar_errors = GFS2_ERRORS_DEFAULT;
+	sync_filesystem(sb);
 
-	error = gfs2_mount_args(&args, data);
-	if (error) {
-		pr_warn("can't parse mount arguments\n");
-		goto error_super;
-	}
-
-	if (s->s_root) {
-		error = -EBUSY;
-		if ((flags ^ s->s_flags) & SB_RDONLY)
-			goto error_super;
-	} else {
-		snprintf(s->s_id, sizeof(s->s_id), "%pg", bdev);
-		sb_set_blocksize(s, block_size(bdev));
-		error = fill_super(s, &args, flags & SB_SILENT ? 1 : 0);
-		if (error)
-			goto error_super;
-		s->s_flags |= SB_ACTIVE;
-		bdev->bd_super = s;
-	}
-
-	sdp = s->s_fs_info;
-	if (args.ar_meta)
-		return dget(sdp->sd_master_dir);
+	spin_lock(&gt->gt_spin);
+	oldargs->ar_commit = gt->gt_logd_secs;
+	oldargs->ar_quota_quantum = gt->gt_quota_quantum;
+	if (gt->gt_statfs_slow)
+		oldargs->ar_statfs_quantum = 0;
 	else
-		return dget(sdp->sd_root_dir);
+		oldargs->ar_statfs_quantum = gt->gt_statfs_quantum;
+	spin_unlock(&gt->gt_spin);
 
-error_super:
-	deactivate_locked_super(s);
-	return ERR_PTR(error);
-error_bdev:
-	blkdev_put(bdev, mode);
-	return ERR_PTR(error);
+	if (strcmp(newargs->ar_lockproto, oldargs->ar_lockproto)) {
+		errorf(fc, "gfs2: reconfiguration of locking protocol not allowed");
+		return -EINVAL;
+	}
+	if (strcmp(newargs->ar_locktable, oldargs->ar_locktable)) {
+		errorf(fc, "gfs2: reconfiguration of lock table not allowed");
+		return -EINVAL;
+	}
+	if (strcmp(newargs->ar_hostdata, oldargs->ar_hostdata)) {
+		errorf(fc, "gfs2: reconfiguration of host data not allowed");
+		return -EINVAL;
+	}
+	if (newargs->ar_spectator != oldargs->ar_spectator) {
+		errorf(fc, "gfs2: reconfiguration of spectator mode not allowed");
+		return -EINVAL;
+	}
+	if (newargs->ar_localflocks != oldargs->ar_localflocks) {
+		errorf(fc, "gfs2: reconfiguration of localflocks not allowed");
+		return -EINVAL;
+	}
+	if (newargs->ar_meta != oldargs->ar_meta) {
+		errorf(fc, "gfs2: switching between gfs2 and gfs2meta not allowed");
+		return -EINVAL;
+	}
+	if (oldargs->ar_spectator)
+		fc->sb_flags |= SB_RDONLY;
+
+	if ((sb->s_flags ^ fc->sb_flags) & SB_RDONLY) {
+		if (fc->sb_flags & SB_RDONLY) {
+			error = gfs2_make_fs_ro(sdp);
+			if (error)
+				errorf(fc, "gfs2: unable to remount read-only");
+		} else {
+			error = gfs2_make_fs_rw(sdp);
+			if (error)
+				errorf(fc, "gfs2: unable to remount read-write");
+		}
+	}
+	sdp->sd_args = *newargs;
+
+	if (sdp->sd_args.ar_posix_acl)
+		sb->s_flags |= SB_POSIXACL;
+	else
+		sb->s_flags &= ~SB_POSIXACL;
+	if (sdp->sd_args.ar_nobarrier)
+		set_bit(SDF_NOBARRIERS, &sdp->sd_flags);
+	else
+		clear_bit(SDF_NOBARRIERS, &sdp->sd_flags);
+	spin_lock(&gt->gt_spin);
+	gt->gt_logd_secs = newargs->ar_commit;
+	gt->gt_quota_quantum = newargs->ar_quota_quantum;
+	if (newargs->ar_statfs_quantum) {
+		gt->gt_statfs_slow = 0;
+		gt->gt_statfs_quantum = newargs->ar_statfs_quantum;
+	}
+	else {
+		gt->gt_statfs_slow = 1;
+		gt->gt_statfs_quantum = 30;
+	}
+	spin_unlock(&gt->gt_spin);
+
+	gfs2_online_uevent(sdp);
+	return error;
 }
 
-static int set_meta_super(struct super_block *s, void *ptr)
+static const struct fs_context_operations gfs2_context_ops = {
+	.free        = gfs2_fc_free,
+	.parse_param = gfs2_parse_param,
+	.get_tree    = gfs2_get_tree,
+	.reconfigure = gfs2_reconfigure,
+};
+
+/* Set up the filesystem mount context */
+static int gfs2_init_fs_context(struct fs_context *fc)
+{
+	struct gfs2_args *args;
+
+	args = kmalloc(sizeof(*args), GFP_KERNEL);
+	if (args == NULL)
+		return -ENOMEM;
+
+	if (fc->purpose == FS_CONTEXT_FOR_RECONFIGURE) {
+		struct gfs2_sbd *sdp = fc->root->d_sb->s_fs_info;
+
+		*args = sdp->sd_args;
+	} else {
+		memset(args, 0, sizeof(*args));
+		args->ar_quota = GFS2_QUOTA_DEFAULT;
+		args->ar_data = GFS2_DATA_DEFAULT;
+		args->ar_commit = 30;
+		args->ar_statfs_quantum = 30;
+		args->ar_quota_quantum = 60;
+		args->ar_errors = GFS2_ERRORS_DEFAULT;
+	}
+	fc->fs_private = args;
+	fc->ops = &gfs2_context_ops;
+	return 0;
+}
+
+static int set_meta_super(struct super_block *s, struct fs_context *fc)
 {
 	return -EINVAL;
 }
 
-static struct dentry *gfs2_mount_meta(struct file_system_type *fs_type,
-			int flags, const char *dev_name, void *data)
+static int test_meta_super(struct super_block *s, struct fs_context *fc)
+{
+	return (fc->sget_key == s->s_bdev);
+}
+
+static int gfs2_meta_get_tree(struct fs_context *fc)
 {
 	struct super_block *s;
 	struct gfs2_sbd *sdp;
 	struct path path;
 	int error;
 
-	if (!dev_name || !*dev_name)
-		return ERR_PTR(-EINVAL);
+	if (!fc->source || !*fc->source)
+		return -EINVAL;
 
-	error = kern_path(dev_name, LOOKUP_FOLLOW, &path);
+	error = kern_path(fc->source, LOOKUP_FOLLOW, &path);
 	if (error) {
 		pr_warn("path_lookup on %s returned error %d\n",
-			dev_name, error);
-		return ERR_PTR(error);
+		        fc->source, error);
+		return error;
 	}
-	s = sget(&gfs2_fs_type, test_gfs2_super, set_meta_super, flags,
-		 path.dentry->d_sb->s_bdev);
+	fc->fs_type = &gfs2_fs_type;
+	fc->sget_key = path.dentry->d_sb->s_bdev;
+	s = sget_fc(fc, test_meta_super, set_meta_super);
 	path_put(&path);
 	if (IS_ERR(s)) {
 		pr_warn("gfs2 mount does not exist\n");
-		return ERR_CAST(s);
+		return PTR_ERR(s);
 	}
-	if ((flags ^ s->s_flags) & SB_RDONLY) {
+	if ((fc->sb_flags ^ s->s_flags) & SB_RDONLY) {
 		deactivate_locked_super(s);
-		return ERR_PTR(-EBUSY);
+		return -EBUSY;
 	}
 	sdp = s->s_fs_info;
-	return dget(sdp->sd_master_dir);
+	fc->root = dget(sdp->sd_master_dir);
+	return 0;
+}
+
+static const struct fs_context_operations gfs2_meta_context_ops = {
+	.free        = gfs2_fc_free,
+	.get_tree    = gfs2_meta_get_tree,
+};
+
+static int gfs2_meta_init_fs_context(struct fs_context *fc)
+{
+	int ret = gfs2_init_fs_context(fc);
+
+	if (ret)
+		return ret;
+
+	fc->ops = &gfs2_meta_context_ops;
+	return 0;
 }
 
 static void gfs2_kill_sb(struct super_block *sb)
@@ -1382,7 +1642,8 @@ static void gfs2_kill_sb(struct super_block *sb)
 struct file_system_type gfs2_fs_type = {
 	.name = "gfs2",
 	.fs_flags = FS_REQUIRES_DEV,
-	.mount = gfs2_mount,
+	.init_fs_context = gfs2_init_fs_context,
+	.parameters = &gfs2_fs_parameters,
 	.kill_sb = gfs2_kill_sb,
 	.owner = THIS_MODULE,
 };
@@ -1391,7 +1652,7 @@ MODULE_ALIAS_FS("gfs2");
 struct file_system_type gfs2meta_fs_type = {
 	.name = "gfs2meta",
 	.fs_flags = FS_REQUIRES_DEV,
-	.mount = gfs2_mount_meta,
+	.init_fs_context = gfs2_meta_init_fs_context,
 	.owner = THIS_MODULE,
 };
 MODULE_ALIAS_FS("gfs2meta");

@@ -335,6 +335,7 @@ static int serdes_am654_clk_mux_set_parent(struct clk_hw *hw, u8 index)
 {
 	struct serdes_am654_clk_mux *mux = to_serdes_am654_clk_mux(hw);
 	struct regmap *regmap = mux->regmap;
+	const char *name = clk_hw_get_name(hw);
 	unsigned int reg = mux->reg;
 	int clk_id = mux->clk_id;
 	int parents[SERDES_NUM_CLOCKS];
@@ -374,8 +375,7 @@ static int serdes_am654_clk_mux_set_parent(struct clk_hw *hw, u8 index)
 		 * This can never happen, unless we missed
 		 * a valid combination in serdes_am654_mux_table.
 		 */
-		WARN(1, "Failed to find the parent of %s clock\n",
-		     hw->init->name);
+		WARN(1, "Failed to find the parent of %s clock\n", name);
 		return -EINVAL;
 	}
 
@@ -405,6 +405,7 @@ static int serdes_am654_clk_register(struct serdes_am654 *am654_phy,
 	const __be32 *addr;
 	unsigned int reg;
 	struct clk *clk;
+	int ret = 0;
 
 	mux = devm_kzalloc(dev, sizeof(*mux), GFP_KERNEL);
 	if (!mux)
@@ -413,34 +414,40 @@ static int serdes_am654_clk_register(struct serdes_am654 *am654_phy,
 	init = &mux->clk_data;
 
 	regmap_node = of_parse_phandle(node, "ti,serdes-clk", 0);
-	of_node_put(regmap_node);
 	if (!regmap_node) {
 		dev_err(dev, "Fail to get serdes-clk node\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto out_put_node;
 	}
 
 	regmap = syscon_node_to_regmap(regmap_node->parent);
 	if (IS_ERR(regmap)) {
 		dev_err(dev, "Fail to get Syscon regmap\n");
-		return PTR_ERR(regmap);
+		ret = PTR_ERR(regmap);
+		goto out_put_node;
 	}
 
 	num_parents = of_clk_get_parent_count(node);
 	if (num_parents < 2) {
 		dev_err(dev, "SERDES clock must have parents\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out_put_node;
 	}
 
 	parent_names = devm_kzalloc(dev, (sizeof(char *) * num_parents),
 				    GFP_KERNEL);
-	if (!parent_names)
-		return -ENOMEM;
+	if (!parent_names) {
+		ret = -ENOMEM;
+		goto out_put_node;
+	}
 
 	of_clk_parent_fill(node, parent_names, num_parents);
 
 	addr = of_get_address(regmap_node, 0, NULL, NULL);
-	if (!addr)
-		return -EINVAL;
+	if (!addr) {
+		ret = -EINVAL;
+		goto out_put_node;
+	}
 
 	reg = be32_to_cpu(*addr);
 
@@ -456,12 +463,16 @@ static int serdes_am654_clk_register(struct serdes_am654 *am654_phy,
 	mux->hw.init = init;
 
 	clk = devm_clk_register(dev, &mux->hw);
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
+	if (IS_ERR(clk)) {
+		ret = PTR_ERR(clk);
+		goto out_put_node;
+	}
 
 	am654_phy->clks[clock_num] = clk;
 
-	return 0;
+out_put_node:
+	of_node_put(regmap_node);
+	return ret;
 }
 
 static const struct of_device_id serdes_am654_id_table[] = {

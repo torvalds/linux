@@ -142,6 +142,7 @@ enum PP_FEATURE_MASK {
 
 enum DC_FEATURE_MASK {
 	DC_FBC_MASK = 0x1,
+	DC_MULTI_MON_PP_MCLK_SWITCH_MASK = 0x2,
 };
 
 enum amd_dpm_forced_level;

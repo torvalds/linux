@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/gcd.h>
 
@@ -602,6 +603,30 @@ of_clk_cdce925_get(struct of_phandle_args *clkspec, void *_data)
 	return &data->clk[idx].hw;
 }
 
+static void cdce925_regulator_disable(void *regulator)
+{
+	regulator_disable(regulator);
+}
+
+static int cdce925_regulator_enable(struct device *dev, const char *name)
+{
+	struct regulator *regulator;
+	int err;
+
+	regulator = devm_regulator_get(dev, name);
+	if (IS_ERR(regulator))
+		return PTR_ERR(regulator);
+
+	err = regulator_enable(regulator);
+	if (err) {
+		dev_err(dev, "Failed to enable %s: %d\n", name, err);
+		return err;
+	}
+
+	return devm_add_action_or_reset(dev, cdce925_regulator_disable,
+					regulator);
+}
+
 /* The CDCE925 uses a funky way to read/write registers. Bulk mode is
  * just weird, so just use the single byte mode exclusively. */
 static struct regmap_bus regmap_cdce925_bus = {
@@ -630,6 +655,15 @@ static int cdce925_probe(struct i2c_client *client,
 	};
 
 	dev_dbg(&client->dev, "%s\n", __func__);
+
+	err = cdce925_regulator_enable(&client->dev, "vdd");
+	if (err)
+		return err;
+
+	err = cdce925_regulator_enable(&client->dev, "vddout");
+	if (err)
+		return err;
+
 	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;

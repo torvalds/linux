@@ -3,21 +3,25 @@
 #define __PERF_TOP_H 1
 
 #include "tool.h"
+#include "evswitch.h"
 #include "annotate.h"
+#include "ordered-events.h"
+#include "record.h"
 #include <linux/types.h>
 #include <stddef.h>
 #include <stdbool.h>
 #include <sys/ioctl.h>
 
-struct perf_evlist;
-struct perf_evsel;
+struct evlist;
+struct evsel;
 struct perf_session;
 
 struct perf_top {
 	struct perf_tool   tool;
-	struct perf_evlist *evlist;
+	struct evlist *evlist;
 	struct record_opts record_opts;
 	struct annotation_options annotation_opts;
+	struct evswitch	   evswitch;
 	/*
 	 * Symbols will be added here in perf_event__process_sample and will
 	 * get out after decayed.
@@ -33,7 +37,7 @@ struct perf_top {
 	bool		   vmlinux_warned;
 	bool		   dump_symtab;
 	struct hist_entry  *sym_filter_entry;
-	struct perf_evsel  *sym_evsel;
+	struct evsel 	   *sym_evsel;
 	struct perf_session *session;
 	struct winsize	   winsize;
 	int		   realtime_prio;

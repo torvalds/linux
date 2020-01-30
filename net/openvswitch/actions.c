@@ -165,7 +165,8 @@ static int push_mpls(struct sk_buff *skb, struct sw_flow_key *key,
 {
 	int err;
 
-	err = skb_mpls_push(skb, mpls->mpls_lse, mpls->mpls_ethertype);
+	err = skb_mpls_push(skb, mpls->mpls_lse, mpls->mpls_ethertype,
+			    skb->mac_len);
 	if (err)
 		return err;
 
@@ -178,7 +179,7 @@ static int pop_mpls(struct sk_buff *skb, struct sw_flow_key *key,
 {
 	int err;
 
-	err = skb_mpls_pop(skb, ethertype);
+	err = skb_mpls_pop(skb, ethertype, skb->mac_len);
 	if (err)
 		return err;
 

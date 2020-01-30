@@ -186,20 +186,16 @@ void cobalt_pcie_status_show(struct cobalt *cobalt)
 {
 	struct pci_dev *pci_dev = cobalt->pci_dev;
 	struct pci_dev *pci_bus_dev = cobalt->pci_dev->bus->self;
-	int offset;
-	int bus_offset;
 	u32 capa;
 	u16 stat, ctrl;
 
-	offset = pci_find_capability(pci_dev, PCI_CAP_ID_EXP);
-	bus_offset = pci_find_capability(pci_bus_dev, PCI_CAP_ID_EXP);
-	if (!offset || !bus_offset)
+	if (!pci_is_pcie(pci_dev) || !pci_is_pcie(pci_bus_dev))
 		return;
 
 	/* Device */
-	pci_read_config_dword(pci_dev, offset + PCI_EXP_DEVCAP, &capa);
-	pci_read_config_word(pci_dev, offset + PCI_EXP_DEVCTL, &ctrl);
-	pci_read_config_word(pci_dev, offset + PCI_EXP_DEVSTA, &stat);
+	pcie_capability_read_dword(pci_dev, PCI_EXP_DEVCAP, &capa);
+	pcie_capability_read_word(pci_dev, PCI_EXP_DEVCTL, &ctrl);
+	pcie_capability_read_word(pci_dev, PCI_EXP_DEVSTA, &stat);
 	cobalt_info("PCIe device capability 0x%08x: Max payload %d\n",
 		    capa, get_payload_size(capa & PCI_EXP_DEVCAP_PAYLOAD));
 	cobalt_info("PCIe device control 0x%04x: Max payload %d. Max read request %d\n",
@@ -209,9 +205,9 @@ void cobalt_pcie_status_show(struct cobalt *cobalt)
 	cobalt_info("PCIe device status 0x%04x\n", stat);
 
 	/* Link */
-	pci_read_config_dword(pci_dev, offset + PCI_EXP_LNKCAP, &capa);
-	pci_read_config_word(pci_dev, offset + PCI_EXP_LNKCTL, &ctrl);
-	pci_read_config_word(pci_dev, offset + PCI_EXP_LNKSTA, &stat);
+	pcie_capability_read_dword(pci_dev, PCI_EXP_LNKCAP, &capa);
+	pcie_capability_read_word(pci_dev, PCI_EXP_LNKCTL, &ctrl);
+	pcie_capability_read_word(pci_dev, PCI_EXP_LNKSTA, &stat);
 	cobalt_info("PCIe link capability 0x%08x: %s per lane and %u lanes\n",
 			capa, get_link_speed(capa),
 			(capa & PCI_EXP_LNKCAP_MLW) >> 4);
@@ -221,15 +217,15 @@ void cobalt_pcie_status_show(struct cobalt *cobalt)
 		    (stat & PCI_EXP_LNKSTA_NLW) >> 4);
 
 	/* Bus */
-	pci_read_config_dword(pci_bus_dev, bus_offset + PCI_EXP_LNKCAP, &capa);
+	pcie_capability_read_dword(pci_bus_dev, PCI_EXP_LNKCAP, &capa);
 	cobalt_info("PCIe bus link capability 0x%08x: %s per lane and %u lanes\n",
 			capa, get_link_speed(capa),
 			(capa & PCI_EXP_LNKCAP_MLW) >> 4);
 
 	/* Slot */
-	pci_read_config_dword(pci_dev, offset + PCI_EXP_SLTCAP, &capa);
-	pci_read_config_word(pci_dev, offset + PCI_EXP_SLTCTL, &ctrl);
-	pci_read_config_word(pci_dev, offset + PCI_EXP_SLTSTA, &stat);
+	pcie_capability_read_dword(pci_dev, PCI_EXP_SLTCAP, &capa);
+	pcie_capability_read_word(pci_dev, PCI_EXP_SLTCTL, &ctrl);
+	pcie_capability_read_word(pci_dev, PCI_EXP_SLTSTA, &stat);
 	cobalt_info("PCIe slot capability 0x%08x\n", capa);
 	cobalt_info("PCIe slot control 0x%04x\n", ctrl);
 	cobalt_info("PCIe slot status 0x%04x\n", stat);
@@ -238,26 +234,22 @@ void cobalt_pcie_status_show(struct cobalt *cobalt)
 static unsigned pcie_link_get_lanes(struct cobalt *cobalt)
 {
 	struct pci_dev *pci_dev = cobalt->pci_dev;
-	unsigned offset;
 	u16 link;
 
-	offset = pci_find_capability(pci_dev, PCI_CAP_ID_EXP);
-	if (!offset)
+	if (!pci_is_pcie(pci_dev))
 		return 0;
-	pci_read_config_word(pci_dev, offset + PCI_EXP_LNKSTA, &link);
+	pcie_capability_read_word(pci_dev, PCI_EXP_LNKSTA, &link);
 	return (link & PCI_EXP_LNKSTA_NLW) >> 4;
 }
 
 static unsigned pcie_bus_link_get_lanes(struct cobalt *cobalt)
 {
 	struct pci_dev *pci_dev = cobalt->pci_dev->bus->self;
-	unsigned offset;
 	u32 link;
 
-	offset = pci_find_capability(pci_dev, PCI_CAP_ID_EXP);
-	if (!offset)
+	if (!pci_is_pcie(pci_dev))
 		return 0;
-	pci_read_config_dword(pci_dev, offset + PCI_EXP_LNKCAP, &link);
+	pcie_capability_read_dword(pci_dev, PCI_EXP_LNKCAP, &link);
 	return (link & PCI_EXP_LNKCAP_MLW) >> 4;
 }
 
@@ -592,7 +584,7 @@ static int cobalt_subdevs_hsma_init(struct cobalt *cobalt)
 		.cec_clk = 12000000,
 	};
 	static struct i2c_board_info adv7511_info = {
-		.type = "adv7511",
+		.type = "adv7511-v4l2",
 		.addr = 0x39, /* 0x39 or 0x3d */
 		.platform_data = &adv7511_pdata,
 	};

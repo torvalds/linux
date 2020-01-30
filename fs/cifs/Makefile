@@ -21,3 +21,5 @@ cifs-$(CONFIG_CIFS_DFS_UPCALL) += dns_resolve.o cifs_dfs_ref.o dfs_cache.o
 cifs-$(CONFIG_CIFS_FSCACHE) += fscache.o cache.o
 
 cifs-$(CONFIG_CIFS_SMB_DIRECT) += smbdirect.o
+
+cifs-$(CONFIG_CIFS_ROOT) += cifsroot.o

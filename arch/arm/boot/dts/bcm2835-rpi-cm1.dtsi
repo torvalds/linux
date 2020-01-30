@@ -10,6 +10,11 @@
 		};
 	};
 
+	memory@0 {
+		device_type = "memory";
+		reg = <0 0x20000000>;
+	};
+
 	reg_3v3: fixed-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "3V3";

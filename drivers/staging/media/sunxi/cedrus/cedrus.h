@@ -49,8 +49,7 @@ enum cedrus_h264_pic_type {
 };
 
 struct cedrus_control {
-	u32			id;
-	u32			elem_size;
+	struct v4l2_ctrl_config cfg;
 	enum cedrus_codec	codec;
 	unsigned char		required:1;
 };
@@ -99,8 +98,6 @@ struct cedrus_ctx {
 
 	struct v4l2_ctrl_handler	hdl;
 	struct v4l2_ctrl		**ctrls;
-
-	struct vb2_buffer		*dst_bufs[VIDEO_MAX_FRAME];
 
 	union {
 		struct {
@@ -187,7 +184,7 @@ static inline dma_addr_t cedrus_dst_buf_addr(struct cedrus_ctx *ctx,
 	if (index < 0)
 		return 0;
 
-	buf = ctx->dst_bufs[index];
+	buf = ctx->fh.m2m_ctx->cap_q_ctx.q.bufs[index];
 	return buf ? cedrus_buf_addr(buf, &ctx->dst_fmt, plane) : 0;
 }
 

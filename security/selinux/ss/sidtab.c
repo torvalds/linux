@@ -12,7 +12,7 @@
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
-#include <linux/atomic.h>
+#include <asm/barrier.h>
 #include "flask.h"
 #include "security.h"
 #include "sidtab.h"
@@ -23,14 +23,14 @@ int sidtab_init(struct sidtab *s)
 
 	memset(s->roots, 0, sizeof(s->roots));
 
+	/* max count is SIDTAB_MAX so valid index is always < SIDTAB_MAX */
 	for (i = 0; i < SIDTAB_RCACHE_SIZE; i++)
-		atomic_set(&s->rcache[i], -1);
+		s->rcache[i] = SIDTAB_MAX;
 
 	for (i = 0; i < SECINITSID_NUM; i++)
 		s->isids[i].set = 0;
 
-	atomic_set(&s->count, 0);
-
+	s->count = 0;
 	s->convert = NULL;
 
 	spin_lock_init(&s->lock);
@@ -130,13 +130,11 @@ static struct context *sidtab_do_lookup(struct sidtab *s, u32 index, int alloc)
 
 static struct context *sidtab_lookup(struct sidtab *s, u32 index)
 {
-	u32 count = (u32)atomic_read(&s->count);
+	/* read entries only after reading count */
+	u32 count = smp_load_acquire(&s->count);
 
 	if (index >= count)
 		return NULL;
-
-	/* read entries after reading count */
-	smp_rmb();
 
 	return sidtab_do_lookup(s, index, 0);
 }
@@ -210,10 +208,10 @@ static int sidtab_find_context(union sidtab_entry_inner entry,
 static void sidtab_rcache_update(struct sidtab *s, u32 index, u32 pos)
 {
 	while (pos > 0) {
-		atomic_set(&s->rcache[pos], atomic_read(&s->rcache[pos - 1]));
+		WRITE_ONCE(s->rcache[pos], READ_ONCE(s->rcache[pos - 1]));
 		--pos;
 	}
-	atomic_set(&s->rcache[0], (int)index);
+	WRITE_ONCE(s->rcache[0], index);
 }
 
 static void sidtab_rcache_push(struct sidtab *s, u32 index)
@@ -227,14 +225,14 @@ static int sidtab_rcache_search(struct sidtab *s, struct context *context,
 	u32 i;
 
 	for (i = 0; i < SIDTAB_RCACHE_SIZE; i++) {
-		int v = atomic_read(&s->rcache[i]);
+		u32 v = READ_ONCE(s->rcache[i]);
 
-		if (v < 0)
+		if (v >= SIDTAB_MAX)
 			continue;
 
-		if (context_cmp(sidtab_do_lookup(s, (u32)v, 0), context)) {
-			sidtab_rcache_update(s, (u32)v, i);
-			*index = (u32)v;
+		if (context_cmp(sidtab_do_lookup(s, v, 0), context)) {
+			sidtab_rcache_update(s, v, i);
+			*index = v;
 			return 0;
 		}
 	}
@@ -245,8 +243,7 @@ static int sidtab_reverse_lookup(struct sidtab *s, struct context *context,
 				 u32 *index)
 {
 	unsigned long flags;
-	u32 count = (u32)atomic_read(&s->count);
-	u32 count_locked, level, pos;
+	u32 count, count_locked, level, pos;
 	struct sidtab_convert_params *convert;
 	struct context *dst, *dst_convert;
 	int rc;
@@ -255,10 +252,9 @@ static int sidtab_reverse_lookup(struct sidtab *s, struct context *context,
 	if (rc == 0)
 		return 0;
 
+	/* read entries only after reading count */
+	count = smp_load_acquire(&s->count);
 	level = sidtab_level_from_count(count);
-
-	/* read entries after reading count */
-	smp_rmb();
 
 	pos = 0;
 	rc = sidtab_find_context(s->roots[level], &pos, count, level,
@@ -272,7 +268,7 @@ static int sidtab_reverse_lookup(struct sidtab *s, struct context *context,
 	spin_lock_irqsave(&s->lock, flags);
 
 	convert = s->convert;
-	count_locked = (u32)atomic_read(&s->count);
+	count_locked = s->count;
 	level = sidtab_level_from_count(count_locked);
 
 	/* if count has changed before we acquired the lock, then catch up */
@@ -320,7 +316,7 @@ static int sidtab_reverse_lookup(struct sidtab *s, struct context *context,
 		}
 
 		/* at this point we know the insert won't fail */
-		atomic_set(&convert->target->count, count + 1);
+		convert->target->count = count + 1;
 	}
 
 	if (context->len)
@@ -331,9 +327,7 @@ static int sidtab_reverse_lookup(struct sidtab *s, struct context *context,
 	*index = count;
 
 	/* write entries before writing new count */
-	smp_wmb();
-
-	atomic_set(&s->count, count + 1);
+	smp_store_release(&s->count, count + 1);
 
 	rc = 0;
 out_unlock:
@@ -423,7 +417,7 @@ int sidtab_convert(struct sidtab *s, struct sidtab_convert_params *params)
 		return -EBUSY;
 	}
 
-	count = (u32)atomic_read(&s->count);
+	count = s->count;
 	level = sidtab_level_from_count(count);
 
 	/* allocate last leaf in the new sidtab (to avoid race with
@@ -436,7 +430,7 @@ int sidtab_convert(struct sidtab *s, struct sidtab_convert_params *params)
 	}
 
 	/* set count in case no new entries are added during conversion */
-	atomic_set(&params->target->count, count);
+	params->target->count = count;
 
 	/* enable live convert of new entries */
 	s->convert = params;

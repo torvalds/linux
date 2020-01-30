@@ -136,7 +136,7 @@ static int tx_map_skb(struct hinic_dev *nic_dev, struct sk_buff *skb,
 	struct hinic_hwdev *hwdev = nic_dev->hwdev;
 	struct hinic_hwif *hwif = hwdev->hwif;
 	struct pci_dev *pdev = hwif->pdev;
-	struct skb_frag_struct *frag;
+	skb_frag_t *frag;
 	dma_addr_t dma_addr;
 	int i, j;
 

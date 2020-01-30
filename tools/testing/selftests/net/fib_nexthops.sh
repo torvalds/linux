@@ -940,6 +940,20 @@ basic()
 	run_cmd "$IP nexthop add id 104 group 1 dev veth1"
 	log_test $? 2 "Nexthop group and device"
 
+	# Tests to ensure that flushing works as expected.
+	run_cmd "$IP nexthop add id 105 blackhole proto 99"
+	run_cmd "$IP nexthop add id 106 blackhole proto 100"
+	run_cmd "$IP nexthop add id 107 blackhole proto 99"
+	run_cmd "$IP nexthop flush proto 99"
+	check_nexthop "id 105" ""
+	check_nexthop "id 106" "id 106 blackhole proto 100"
+	check_nexthop "id 107" ""
+	run_cmd "$IP nexthop flush proto 100"
+	check_nexthop "id 106" ""
+
+	run_cmd "$IP nexthop flush proto 100"
+	log_test $? 0 "Test proto flush"
+
 	run_cmd "$IP nexthop add id 104 group 1 blackhole"
 	log_test $? 2 "Nexthop group and blackhole"
 

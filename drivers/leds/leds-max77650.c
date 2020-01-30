@@ -62,7 +62,7 @@ static int max77650_led_brightness_set(struct led_classdev *cdev,
 
 static int max77650_led_probe(struct platform_device *pdev)
 {
-	struct device_node *of_node, *child;
+	struct fwnode_handle *child;
 	struct max77650_led *leds, *led;
 	struct device *dev;
 	struct regmap *map;
@@ -71,10 +71,6 @@ static int max77650_led_probe(struct platform_device *pdev)
 	u32 reg;
 
 	dev = &pdev->dev;
-	of_node = dev->of_node;
-
-	if (!of_node)
-		return -ENODEV;
 
 	leds = devm_kcalloc(dev, sizeof(*leds),
 			    MAX77650_LED_NUM_LEDS, GFP_KERNEL);
@@ -85,14 +81,16 @@ static int max77650_led_probe(struct platform_device *pdev)
 	if (!map)
 		return -ENODEV;
 
-	num_leds = of_get_child_count(of_node);
+	num_leds = device_get_child_node_count(dev);
 	if (!num_leds || num_leds > MAX77650_LED_NUM_LEDS)
 		return -ENODEV;
 
-	for_each_child_of_node(of_node, child) {
-		rv = of_property_read_u32(child, "reg", &reg);
-		if (rv || reg >= MAX77650_LED_NUM_LEDS)
-			return -EINVAL;
+	device_for_each_child_node(dev, child) {
+		rv = fwnode_property_read_u32(child, "reg", &reg);
+		if (rv || reg >= MAX77650_LED_NUM_LEDS) {
+			rv = -EINVAL;
+			goto err_node_put;
+		}
 
 		led = &leds[reg];
 		led->map = map;
@@ -101,35 +99,40 @@ static int max77650_led_probe(struct platform_device *pdev)
 		led->cdev.brightness_set_blocking = max77650_led_brightness_set;
 		led->cdev.max_brightness = MAX77650_LED_MAX_BRIGHTNESS;
 
-		label = of_get_property(child, "label", NULL);
-		if (!label) {
+		rv = fwnode_property_read_string(child, "label", &label);
+		if (rv) {
 			led->cdev.name = "max77650::";
 		} else {
 			led->cdev.name = devm_kasprintf(dev, GFP_KERNEL,
 							"max77650:%s", label);
-			if (!led->cdev.name)
-				return -ENOMEM;
+			if (!led->cdev.name) {
+				rv = -ENOMEM;
+				goto err_node_put;
+			}
 		}
 
-		of_property_read_string(child, "linux,default-trigger",
-					&led->cdev.default_trigger);
+		fwnode_property_read_string(child, "linux,default-trigger",
+					    &led->cdev.default_trigger);
 
-		rv = devm_of_led_classdev_register(dev, child, &led->cdev);
+		rv = devm_led_classdev_register(dev, &led->cdev);
 		if (rv)
-			return rv;
+			goto err_node_put;
 
 		rv = regmap_write(map, led->regA, MAX77650_LED_A_DEFAULT);
 		if (rv)
-			return rv;
+			goto err_node_put;
 
 		rv = regmap_write(map, led->regB, MAX77650_LED_B_DEFAULT);
 		if (rv)
-			return rv;
+			goto err_node_put;
 	}
 
 	return regmap_write(map,
 			    MAX77650_REG_CNFG_LED_TOP,
 			    MAX77650_LED_TOP_DEFAULT);
+err_node_put:
+	fwnode_handle_put(child);
+	return rv;
 }
 
 static struct platform_driver max77650_led_driver = {
@@ -143,3 +146,4 @@ module_platform_driver(max77650_led_driver);
 MODULE_DESCRIPTION("MAXIM 77650/77651 LED driver");
 MODULE_AUTHOR("Bartosz Golaszewski <bgolaszewski@baylibre.com>");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("platform:max77650-led");

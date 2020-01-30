@@ -1174,7 +1174,7 @@ out_cur:
 /*
  * Record a refcount intent for later processing.
  */
-static int
+static void
 __xfs_refcount_add(
 	struct xfs_trans		*tp,
 	enum xfs_refcount_intent_type	type,
@@ -1189,44 +1189,43 @@ __xfs_refcount_add(
 			blockcount);
 
 	ri = kmem_alloc(sizeof(struct xfs_refcount_intent),
-			KM_SLEEP | KM_NOFS);
+			KM_NOFS);
 	INIT_LIST_HEAD(&ri->ri_list);
 	ri->ri_type = type;
 	ri->ri_startblock = startblock;
 	ri->ri_blockcount = blockcount;
 
 	xfs_defer_add(tp, XFS_DEFER_OPS_TYPE_REFCOUNT, &ri->ri_list);
-	return 0;
 }
 
 /*
  * Increase the reference count of the blocks backing a file's extent.
  */
-int
+void
 xfs_refcount_increase_extent(
 	struct xfs_trans		*tp,
 	struct xfs_bmbt_irec		*PREV)
 {
 	if (!xfs_sb_version_hasreflink(&tp->t_mountp->m_sb))
-		return 0;
+		return;
 
-	return __xfs_refcount_add(tp, XFS_REFCOUNT_INCREASE,
-			PREV->br_startblock, PREV->br_blockcount);
+	__xfs_refcount_add(tp, XFS_REFCOUNT_INCREASE, PREV->br_startblock,
+			PREV->br_blockcount);
 }
 
 /*
  * Decrease the reference count of the blocks backing a file's extent.
  */
-int
+void
 xfs_refcount_decrease_extent(
 	struct xfs_trans		*tp,
 	struct xfs_bmbt_irec		*PREV)
 {
 	if (!xfs_sb_version_hasreflink(&tp->t_mountp->m_sb))
-		return 0;
+		return;
 
-	return __xfs_refcount_add(tp, XFS_REFCOUNT_DECREASE,
-			PREV->br_startblock, PREV->br_blockcount);
+	__xfs_refcount_add(tp, XFS_REFCOUNT_DECREASE, PREV->br_startblock,
+			PREV->br_blockcount);
 }
 
 /*
@@ -1541,47 +1540,40 @@ __xfs_refcount_cow_free(
 }
 
 /* Record a CoW staging extent in the refcount btree. */
-int
+void
 xfs_refcount_alloc_cow_extent(
 	struct xfs_trans		*tp,
 	xfs_fsblock_t			fsb,
 	xfs_extlen_t			len)
 {
 	struct xfs_mount		*mp = tp->t_mountp;
-	int				error;
 
 	if (!xfs_sb_version_hasreflink(&mp->m_sb))
-		return 0;
+		return;
 
-	error = __xfs_refcount_add(tp, XFS_REFCOUNT_ALLOC_COW, fsb, len);
-	if (error)
-		return error;
+	__xfs_refcount_add(tp, XFS_REFCOUNT_ALLOC_COW, fsb, len);
 
 	/* Add rmap entry */
-	return xfs_rmap_alloc_extent(tp, XFS_FSB_TO_AGNO(mp, fsb),
+	xfs_rmap_alloc_extent(tp, XFS_FSB_TO_AGNO(mp, fsb),
 			XFS_FSB_TO_AGBNO(mp, fsb), len, XFS_RMAP_OWN_COW);
 }
 
 /* Forget a CoW staging event in the refcount btree. */
-int
+void
 xfs_refcount_free_cow_extent(
 	struct xfs_trans		*tp,
 	xfs_fsblock_t			fsb,
 	xfs_extlen_t			len)
 {
 	struct xfs_mount		*mp = tp->t_mountp;
-	int				error;
 
 	if (!xfs_sb_version_hasreflink(&mp->m_sb))
-		return 0;
+		return;
 
 	/* Remove rmap entry */
-	error = xfs_rmap_free_extent(tp, XFS_FSB_TO_AGNO(mp, fsb),
+	xfs_rmap_free_extent(tp, XFS_FSB_TO_AGNO(mp, fsb),
 			XFS_FSB_TO_AGBNO(mp, fsb), len, XFS_RMAP_OWN_COW);
-	if (error)
-		return error;
-
-	return __xfs_refcount_add(tp, XFS_REFCOUNT_FREE_COW, fsb, len);
+	__xfs_refcount_add(tp, XFS_REFCOUNT_FREE_COW, fsb, len);
 }
 
 struct xfs_refcount_recovery {
@@ -1602,7 +1594,7 @@ xfs_refcount_recover_extent(
 	if (be32_to_cpu(rec->refc.rc_refcount) != 1)
 		return -EFSCORRUPTED;
 
-	rr = kmem_alloc(sizeof(struct xfs_refcount_recovery), KM_SLEEP);
+	rr = kmem_alloc(sizeof(struct xfs_refcount_recovery), 0);
 	xfs_refcount_btrec_to_irec(rec, &rr->rr_rrec);
 	list_add_tail(&rr->rr_list, debris);
 
@@ -1679,10 +1671,8 @@ xfs_refcount_recover_cow_leftovers(
 		/* Free the orphan record */
 		agbno = rr->rr_rrec.rc_startblock - XFS_REFC_COW_START;
 		fsb = XFS_AGB_TO_FSB(mp, agno, agbno);
-		error = xfs_refcount_free_cow_extent(tp, fsb,
+		xfs_refcount_free_cow_extent(tp, fsb,
 				rr->rr_rrec.rc_blockcount);
-		if (error)
-			goto out_trans;
 
 		/* Free the block. */
 		xfs_bmap_add_free(tp, fsb, rr->rr_rrec.rc_blockcount, NULL);

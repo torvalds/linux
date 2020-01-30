@@ -15,7 +15,9 @@
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/sizes.h>
 
+#include <drm/drm_fourcc.h>
 #include <drm/exynos_drm.h>
 
 #include "exynos_drm_drv.h"

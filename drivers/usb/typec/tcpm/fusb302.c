@@ -26,6 +26,7 @@
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/types.h>
+#include <linux/usb.h>
 #include <linux/usb/typec.h>
 #include <linux/usb/tcpm.h>
 #include <linux/usb/pd.h>
@@ -75,7 +76,6 @@ struct fusb302_chip {
 	struct i2c_client *i2c_client;
 	struct tcpm_port *tcpm_port;
 	struct tcpc_dev tcpc_dev;
-	struct tcpc_config tcpc_config;
 
 	struct regulator *vbus;
 
@@ -207,23 +207,19 @@ static int fusb302_debug_show(struct seq_file *s, void *v)
 }
 DEFINE_SHOW_ATTRIBUTE(fusb302_debug);
 
-static struct dentry *rootdir;
-
 static void fusb302_debugfs_init(struct fusb302_chip *chip)
 {
-	mutex_init(&chip->logbuffer_lock);
-	if (!rootdir)
-		rootdir = debugfs_create_dir("fusb302", NULL);
+	char name[NAME_MAX];
 
-	chip->dentry = debugfs_create_file(dev_name(chip->dev),
-					   S_IFREG | 0444, rootdir,
+	mutex_init(&chip->logbuffer_lock);
+	snprintf(name, NAME_MAX, "fusb302-%s", dev_name(chip->dev));
+	chip->dentry = debugfs_create_file(name, S_IFREG | 0444, usb_debug_root,
 					   chip, &fusb302_debug_fops);
 }
 
 static void fusb302_debugfs_exit(struct fusb302_chip *chip)
 {
 	debugfs_remove(chip->dentry);
-	debugfs_remove(rootdir);
 }
 
 #else
@@ -1110,23 +1106,6 @@ done:
 	mutex_unlock(&chip->lock);
 }
 
-#define PDO_FIXED_FLAGS \
-	(PDO_FIXED_DUAL_ROLE | PDO_FIXED_DATA_SWAP | PDO_FIXED_USB_COMM)
-
-static const u32 src_pdo[] = {
-	PDO_FIXED(5000, 400, PDO_FIXED_FLAGS),
-};
-
-static const struct tcpc_config fusb302_tcpc_config = {
-	.src_pdo = src_pdo,
-	.nr_src_pdo = ARRAY_SIZE(src_pdo),
-	.operating_snk_mw = 2500,
-	.type = TYPEC_PORT_DRP,
-	.data = TYPEC_PORT_DRD,
-	.default_role = TYPEC_SINK,
-	.alt_modes = NULL,
-};
-
 static void init_tcpc_dev(struct tcpc_dev *fusb302_tcpc_dev)
 {
 	fusb302_tcpc_dev->init = tcpm_init;
@@ -1670,27 +1649,36 @@ static int init_gpio(struct fusb302_chip *chip)
 	return 0;
 }
 
-static int fusb302_composite_snk_pdo_array(struct fusb302_chip *chip)
+#define PDO_FIXED_FLAGS \
+	(PDO_FIXED_DUAL_ROLE | PDO_FIXED_DATA_SWAP | PDO_FIXED_USB_COMM)
+
+static const u32 src_pdo[] = {
+	PDO_FIXED(5000, 400, PDO_FIXED_FLAGS)
+};
+
+static const u32 snk_pdo[] = {
+	PDO_FIXED(5000, 400, PDO_FIXED_FLAGS)
+};
+
+static const struct property_entry port_props[] = {
+	PROPERTY_ENTRY_STRING("data-role", "dual"),
+	PROPERTY_ENTRY_STRING("power-role", "dual"),
+	PROPERTY_ENTRY_STRING("try-power-role", "sink"),
+	PROPERTY_ENTRY_U32_ARRAY("source-pdos", src_pdo),
+	PROPERTY_ENTRY_U32_ARRAY("sink-pdos", snk_pdo),
+	PROPERTY_ENTRY_U32("op-sink-microwatt", 2500),
+	{ }
+};
+
+static struct fwnode_handle *fusb302_fwnode_get(struct device *dev)
 {
-	struct device *dev = chip->dev;
-	u32 max_uv, max_ua;
+	struct fwnode_handle *fwnode;
 
-	chip->snk_pdo[0] = PDO_FIXED(5000, 400, PDO_FIXED_FLAGS);
+	fwnode = device_get_named_child_node(dev, "connector");
+	if (!fwnode)
+		fwnode = fwnode_create_software_node(port_props, NULL);
 
-	/*
-	 * As max_snk_ma/mv/mw is not needed for tcpc_config,
-	 * those settings should be passed in via sink PDO, so
-	 * "fcs, max-sink-*" properties will be deprecated, to
-	 * perserve compatibility with existing users of them,
-	 * we read those properties to convert them to be a var
-	 * PDO.
-	 */
-	if (device_property_read_u32(dev, "fcs,max-sink-microvolt", &max_uv) ||
-		device_property_read_u32(dev, "fcs,max-sink-microamp", &max_ua))
-		return 1;
-
-	chip->snk_pdo[1] = PDO_VAR(5000, max_uv / 1000, max_ua / 1000);
-	return 2;
+	return fwnode;
 }
 
 static int fusb302_probe(struct i2c_client *client,
@@ -1701,7 +1689,6 @@ static int fusb302_probe(struct i2c_client *client,
 	struct device *dev = &client->dev;
 	const char *name;
 	int ret = 0;
-	u32 v;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_I2C_BLOCK)) {
 		dev_err(&client->dev,
@@ -1714,19 +1701,7 @@ static int fusb302_probe(struct i2c_client *client,
 
 	chip->i2c_client = client;
 	chip->dev = &client->dev;
-	chip->tcpc_config = fusb302_tcpc_config;
-	chip->tcpc_dev.config = &chip->tcpc_config;
 	mutex_init(&chip->lock);
-
-	chip->tcpc_dev.fwnode =
-		device_get_named_child_node(dev, "connector");
-
-	if (!device_property_read_u32(dev, "fcs,operating-sink-microwatt", &v))
-		chip->tcpc_config.operating_snk_mw = v / 1000;
-
-	/* Composite sink PDO */
-	chip->tcpc_config.nr_snk_pdo = fusb302_composite_snk_pdo_array(chip);
-	chip->tcpc_config.snk_pdo = chip->snk_pdo;
 
 	/*
 	 * Devicetree platforms should get extcon via phandle (not yet
@@ -1753,6 +1728,7 @@ static int fusb302_probe(struct i2c_client *client,
 	INIT_WORK(&chip->irq_work, fusb302_irq_work);
 	INIT_DELAYED_WORK(&chip->bc_lvl_handler, fusb302_bc_lvl_handler_work);
 	init_tcpc_dev(&chip->tcpc_dev);
+	fusb302_debugfs_init(chip);
 
 	if (client->irq) {
 		chip->gpio_int_n_irq = client->irq;
@@ -1762,8 +1738,15 @@ static int fusb302_probe(struct i2c_client *client,
 			goto destroy_workqueue;
 	}
 
+	chip->tcpc_dev.fwnode = fusb302_fwnode_get(dev);
+	if (IS_ERR(chip->tcpc_dev.fwnode)) {
+		ret = PTR_ERR(chip->tcpc_dev.fwnode);
+		goto destroy_workqueue;
+	}
+
 	chip->tcpm_port = tcpm_register_port(&client->dev, &chip->tcpc_dev);
 	if (IS_ERR(chip->tcpm_port)) {
+		fwnode_handle_put(chip->tcpc_dev.fwnode);
 		ret = PTR_ERR(chip->tcpm_port);
 		if (ret != -EPROBE_DEFER)
 			dev_err(dev, "cannot register tcpm port, ret=%d", ret);
@@ -1778,14 +1761,15 @@ static int fusb302_probe(struct i2c_client *client,
 		goto tcpm_unregister_port;
 	}
 	enable_irq_wake(chip->gpio_int_n_irq);
-	fusb302_debugfs_init(chip);
 	i2c_set_clientdata(client, chip);
 
 	return ret;
 
 tcpm_unregister_port:
 	tcpm_unregister_port(chip->tcpm_port);
+	fwnode_handle_put(chip->tcpc_dev.fwnode);
 destroy_workqueue:
+	fusb302_debugfs_exit(chip);
 	destroy_workqueue(chip->wq);
 
 	return ret;
@@ -1800,6 +1784,7 @@ static int fusb302_remove(struct i2c_client *client)
 	cancel_work_sync(&chip->irq_work);
 	cancel_delayed_work_sync(&chip->bc_lvl_handler);
 	tcpm_unregister_port(chip->tcpm_port);
+	fwnode_handle_put(chip->tcpc_dev.fwnode);
 	destroy_workqueue(chip->wq);
 	fusb302_debugfs_exit(chip);
 

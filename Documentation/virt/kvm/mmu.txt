@@ -294,7 +294,7 @@ Handling a page fault is performed as follows:
    - walk shadow page table
    - check for valid generation number in the spte (see "Fast invalidation of
      MMIO sptes" below)
-   - cache the information to vcpu->arch.mmio_gva, vcpu->arch.access and
+   - cache the information to vcpu->arch.mmio_gva, vcpu->arch.mmio_access and
      vcpu->arch.mmio_gfn, and call the emulator
  - If both P bit and R/W bit of error code are set, this could possibly
    be handled as a "fast page fault" (fixed without taking the MMU lock).  See
@@ -304,7 +304,7 @@ Handling a page fault is performed as follows:
    - if permissions are insufficient, reflect the fault back to the guest
  - determine the host page
    - if this is an mmio request, there is no host page; cache the info to
-     vcpu->arch.mmio_gva, vcpu->arch.access and vcpu->arch.mmio_gfn
+     vcpu->arch.mmio_gva, vcpu->arch.mmio_access and vcpu->arch.mmio_gfn
  - walk the shadow page table to find the spte for the translation,
    instantiating missing intermediate page tables as necessary
    - If this is an mmio request, cache the mmio info to the spte and set some

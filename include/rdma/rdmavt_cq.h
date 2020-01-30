@@ -53,6 +53,7 @@
 
 #include <linux/kthread.h>
 #include <rdma/ib_user_verbs.h>
+#include <rdma/ib_verbs.h>
 
 /*
  * Define an ib_cq_notify value that is not valid so we know when CQ

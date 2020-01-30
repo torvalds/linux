@@ -98,8 +98,8 @@ extern int bpf_flags;
 extern struct pinned_obj_table prog_table;
 extern struct pinned_obj_table map_table;
 
-void p_err(const char *fmt, ...);
-void p_info(const char *fmt, ...);
+void __printf(1, 2) p_err(const char *fmt, ...);
+void __printf(1, 2) p_info(const char *fmt, ...);
 
 bool is_prefix(const char *pfx, const char *str);
 int detect_common_prefix(const char *arg, ...);

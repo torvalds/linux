@@ -10,6 +10,7 @@
 #include <linux/netfilter.h>
 #include <linux/netfilter/nf_tables.h>
 #include <net/netfilter/nf_tables.h>
+#include <net/netfilter/nf_tables_offload.h>
 #include <net/netfilter/nf_dup_netdev.h>
 
 static void nf_do_netdev_egress(struct sk_buff *skb, struct net_device *dev)
@@ -49,6 +50,26 @@ void nf_dup_netdev_egress(const struct nft_pktinfo *pkt, int oif)
 		nf_do_netdev_egress(skb, dev);
 }
 EXPORT_SYMBOL_GPL(nf_dup_netdev_egress);
+
+int nft_fwd_dup_netdev_offload(struct nft_offload_ctx *ctx,
+			       struct nft_flow_rule *flow,
+			       enum flow_action_id id, int oif)
+{
+	struct flow_action_entry *entry;
+	struct net_device *dev;
+
+	/* nft_flow_rule_destroy() releases the reference on this device. */
+	dev = dev_get_by_index(ctx->net, oif);
+	if (!dev)
+		return -EOPNOTSUPP;
+
+	entry = &flow->rule->action.entries[ctx->num_actions++];
+	entry->id = id;
+	entry->dev = dev;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(nft_fwd_dup_netdev_offload);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Pablo Neira Ayuso <pablo@netfilter.org>");

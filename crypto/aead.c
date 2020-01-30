@@ -70,7 +70,8 @@ int crypto_aead_setauthsize(struct crypto_aead *tfm, unsigned int authsize)
 {
 	int err;
 
-	if (authsize > crypto_aead_maxauthsize(tfm))
+	if ((!authsize && crypto_aead_maxauthsize(tfm)) ||
+	    authsize > crypto_aead_maxauthsize(tfm))
 		return -EINVAL;
 
 	if (crypto_aead_alg(tfm)->setauthsize) {

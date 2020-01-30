@@ -32,9 +32,9 @@
 *.lzo
 *.mod
 *.mod.c
+*.ns_deps
 *.o
 *.o.*
-*.order
 *.patch
 *.s
 *.so
@@ -46,6 +46,7 @@
 *.xz
 Module.symvers
 modules.builtin
+modules.order
 
 #
 # Top-level generic files

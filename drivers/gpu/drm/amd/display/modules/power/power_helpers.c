@@ -66,6 +66,39 @@ static const unsigned char abm_config[abm_defines_max_config][abm_defines_max_le
 {       3,              6,              10,             12      },	/* Alt #3  - Super aggressiveness */
 };
 
+struct abm_parameters {
+	unsigned char min_reduction;
+	unsigned char max_reduction;
+	unsigned char bright_pos_gain;
+	unsigned char dark_pos_gain;
+	unsigned char brightness_gain;
+	unsigned char contrast_factor;
+	unsigned char deviation_gain;
+	unsigned char min_knee;
+	unsigned char max_knee;
+};
+
+static const struct abm_parameters abm_settings_config0[abm_defines_max_level] = {
+//  min_red  max_red  bright_pos  dark_pos  brightness_gain  contrast  deviation  min_knee  max_knee
+	{0xff,   0xbf,    0x20,       0x00,     0xff,            0x99,     0xb3,      0x40,     0xE0},
+	{0xff,   0x85,    0x20,       0x00,     0xff,            0x90,     0xa8,      0x40,     0xE0},
+	{0xff,   0x40,    0x20,       0x00,     0xff,            0x90,     0x68,      0x40,     0xE0},
+	{0x82,   0x4d,    0x20,       0x00,     0x00,            0x90,     0xb3,      0x70,     0x70},
+};
+
+static const struct abm_parameters abm_settings_config1[abm_defines_max_level] = {
+//  min_red  max_red  bright_pos  dark_pos  brightness_gain  contrast  deviation  min_knee  max_knee
+	{0xf0,   0xd9,    0x20,       0x00,     0x00,            0xa8,     0xb3,      0x70,     0x70},
+	{0xcd,   0xa5,    0x20,       0x00,     0x00,            0xa8,     0xb3,      0x70,     0x70},
+	{0x99,   0x65,    0x20,       0x00,     0x00,            0xa8,     0xb3,      0x70,     0x70},
+	{0x82,   0x4d,    0x20,       0x00,     0x00,            0xa8,     0xb3,      0x70,     0x70},
+};
+
+static const struct abm_parameters * const abm_settings[] = {
+	abm_settings_config0,
+	abm_settings_config1,
+};
+
 #define NUM_AMBI_LEVEL    5
 #define NUM_AGGR_LEVEL    4
 #define NUM_POWER_FN_SEGS 8
@@ -131,11 +164,13 @@ struct iram_table_v_2_2 {
 	uint8_t max_reduction[NUM_AMBI_LEVEL][NUM_AGGR_LEVEL];		/* 0x16 U0.8 */
 	uint8_t bright_pos_gain[NUM_AMBI_LEVEL][NUM_AGGR_LEVEL];	/* 0x2a U2.6 */
 	uint8_t dark_pos_gain[NUM_AMBI_LEVEL][NUM_AGGR_LEVEL];		/* 0x3e U2.6 */
-	uint8_t hybridFactor[NUM_AGGR_LEVEL];						/* 0x52 U0.8 */
-	uint8_t contrastFactor[NUM_AGGR_LEVEL];						/* 0x56 U0.8 */
+	uint8_t hybrid_factor[NUM_AGGR_LEVEL];						/* 0x52 U0.8 */
+	uint8_t contrast_factor[NUM_AGGR_LEVEL];					/* 0x56 U0.8 */
 	uint8_t deviation_gain[NUM_AGGR_LEVEL];						/* 0x5a U0.8 */
 	uint8_t iir_curve[NUM_AMBI_LEVEL];							/* 0x5e U0.8 */
-	uint8_t pad[29];											/* 0x63 U0.8 */
+	uint8_t min_knee[NUM_AGGR_LEVEL];							/* 0x63 U0.8 */
+	uint8_t max_knee[NUM_AGGR_LEVEL];							/* 0x67 U0.8 */
+	uint8_t pad[21];											/* 0x6b U0.8 */
 
 	/* parameters for crgb conversion */
 	uint16_t crgb_thresh[NUM_POWER_FN_SEGS];					/* 0x80 U3.13 */
@@ -501,15 +536,72 @@ void fill_iram_v_2_2(struct iram_table_v_2_2 *ram_table, struct dmcu_iram_parame
 	ram_table->dark_pos_gain[4][2] = 0x00;
 	ram_table->dark_pos_gain[4][3] = 0x00;
 
-	ram_table->hybridFactor[0] = 0xff;
-	ram_table->hybridFactor[1] = 0xff;
-	ram_table->hybridFactor[2] = 0xff;
-	ram_table->hybridFactor[3] = 0xc0;
+	ram_table->hybrid_factor[0] = 0xff;
+	ram_table->hybrid_factor[1] = 0xff;
+	ram_table->hybrid_factor[2] = 0xff;
+	ram_table->hybrid_factor[3] = 0xc0;
 
-	ram_table->contrastFactor[0] = 0x99;
-	ram_table->contrastFactor[1] = 0x99;
-	ram_table->contrastFactor[2] = 0x90;
-	ram_table->contrastFactor[3] = 0x80;
+	ram_table->contrast_factor[0] = 0x99;
+	ram_table->contrast_factor[1] = 0x99;
+	ram_table->contrast_factor[2] = 0x90;
+	ram_table->contrast_factor[3] = 0x80;
+
+	ram_table->iir_curve[0] = 0x65;
+	ram_table->iir_curve[1] = 0x65;
+	ram_table->iir_curve[2] = 0x65;
+	ram_table->iir_curve[3] = 0x65;
+	ram_table->iir_curve[4] = 0x65;
+
+	//Gamma 2.2
+	ram_table->crgb_thresh[0] = cpu_to_be16(0x127c);
+	ram_table->crgb_thresh[1] = cpu_to_be16(0x151b);
+	ram_table->crgb_thresh[2] = cpu_to_be16(0x17d5);
+	ram_table->crgb_thresh[3] = cpu_to_be16(0x1a56);
+	ram_table->crgb_thresh[4] = cpu_to_be16(0x1c83);
+	ram_table->crgb_thresh[5] = cpu_to_be16(0x1e72);
+	ram_table->crgb_thresh[6] = cpu_to_be16(0x20f0);
+	ram_table->crgb_thresh[7] = cpu_to_be16(0x232b);
+	ram_table->crgb_offset[0] = cpu_to_be16(0x2999);
+	ram_table->crgb_offset[1] = cpu_to_be16(0x3999);
+	ram_table->crgb_offset[2] = cpu_to_be16(0x4666);
+	ram_table->crgb_offset[3] = cpu_to_be16(0x5999);
+	ram_table->crgb_offset[4] = cpu_to_be16(0x6333);
+	ram_table->crgb_offset[5] = cpu_to_be16(0x7800);
+	ram_table->crgb_offset[6] = cpu_to_be16(0x8c00);
+	ram_table->crgb_offset[7] = cpu_to_be16(0xa000);
+	ram_table->crgb_slope[0]  = cpu_to_be16(0x3609);
+	ram_table->crgb_slope[1]  = cpu_to_be16(0x2dfa);
+	ram_table->crgb_slope[2]  = cpu_to_be16(0x27ea);
+	ram_table->crgb_slope[3]  = cpu_to_be16(0x235d);
+	ram_table->crgb_slope[4]  = cpu_to_be16(0x2042);
+	ram_table->crgb_slope[5]  = cpu_to_be16(0x1dc3);
+	ram_table->crgb_slope[6]  = cpu_to_be16(0x1b1a);
+	ram_table->crgb_slope[7]  = cpu_to_be16(0x1910);
+
+	fill_backlight_transform_table_v_2_2(
+			params, ram_table);
+}
+
+void fill_iram_v_2_3(struct iram_table_v_2_2 *ram_table, struct dmcu_iram_parameters params)
+{
+	unsigned int i, j;
+	unsigned int set = params.set;
+
+	ram_table->flags = 0x0;
+	for (i = 0; i < NUM_AGGR_LEVEL; i++) {
+		ram_table->hybrid_factor[i] = abm_settings[set][i].brightness_gain;
+		ram_table->contrast_factor[i] = abm_settings[set][i].contrast_factor;
+		ram_table->deviation_gain[i] = abm_settings[set][i].deviation_gain;
+		ram_table->min_knee[i] = abm_settings[set][i].min_knee;
+		ram_table->max_knee[i] = abm_settings[set][i].max_knee;
+
+		for (j = 0; j < NUM_AMBI_LEVEL; j++) {
+			ram_table->min_reduction[j][i] = abm_settings[set][i].min_reduction;
+			ram_table->max_reduction[j][i] = abm_settings[set][i].max_reduction;
+			ram_table->bright_pos_gain[j][i] = abm_settings[set][i].bright_pos_gain;
+			ram_table->dark_pos_gain[j][i] = abm_settings[set][i].dark_pos_gain;
+		}
+	}
 
 	ram_table->iir_curve[0] = 0x65;
 	ram_table->iir_curve[1] = 0x65;
@@ -561,7 +653,12 @@ bool dmcu_load_iram(struct dmcu *dmcu,
 
 	memset(&ram_table, 0, sizeof(ram_table));
 
-	if (dmcu->dmcu_version.abm_version == 0x22) {
+	if (dmcu->dmcu_version.abm_version == 0x23) {
+		fill_iram_v_2_3((struct iram_table_v_2_2 *)ram_table, params);
+
+		result = dmcu->funcs->load_iram(
+				dmcu, 0, (char *)(&ram_table), IRAM_RESERVE_AREA_START_V2_2);
+	} else if (dmcu->dmcu_version.abm_version == 0x22) {
 		fill_iram_v_2_2((struct iram_table_v_2_2 *)ram_table, params);
 
 		result = dmcu->funcs->load_iram(

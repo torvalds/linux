@@ -30,7 +30,6 @@
 
 #include <drm/drm_file.h>
 #include <drm/drm_modes.h>
-#include <uapi/drm/drm.h>
 
 struct drm_device;
 struct drm_crtc;

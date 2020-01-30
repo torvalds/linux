@@ -1,0 +1,11 @@
+Bindings for Synaptics AS370 PVT sensors
+
+Required properties:
+- compatible : "syna,as370-hwmon"
+- reg        : address and length of the register set.
+
+Example:
+	hwmon@ea0810 {
+		compatible = "syna,as370-hwmon";
+		reg = <0xea0810 0xc>;
+	};

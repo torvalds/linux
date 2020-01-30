@@ -54,23 +54,10 @@ static u64 get_subtree_max_end(struct rb_node *node)
 	return ret;
 }
 
-static u64 compute_subtree_max_end(struct memtype *data)
-{
-	u64 max_end = data->end, child_max_end;
+#define NODE_END(node) ((node)->end)
 
-	child_max_end = get_subtree_max_end(data->rb.rb_right);
-	if (child_max_end > max_end)
-		max_end = child_max_end;
-
-	child_max_end = get_subtree_max_end(data->rb.rb_left);
-	if (child_max_end > max_end)
-		max_end = child_max_end;
-
-	return max_end;
-}
-
-RB_DECLARE_CALLBACKS(static, memtype_rb_augment_cb, struct memtype, rb,
-		     u64, subtree_max_end, compute_subtree_max_end)
+RB_DECLARE_CALLBACKS_MAX(static, memtype_rb_augment_cb,
+			 struct memtype, rb, u64, subtree_max_end, NODE_END)
 
 /* Find the first (lowest start addr) overlapping range from rb tree */
 static struct memtype *memtype_rb_lowest_match(struct rb_root *root,

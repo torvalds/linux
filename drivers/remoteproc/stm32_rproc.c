@@ -383,9 +383,20 @@ static void stm32_rproc_add_coredump_trace(struct rproc *rproc)
 
 static int stm32_rproc_start(struct rproc *rproc)
 {
+	struct stm32_rproc *ddata = rproc->priv;
 	int err;
 
 	stm32_rproc_add_coredump_trace(rproc);
+
+	/* clear remote proc Deep Sleep */
+	if (ddata->pdds.map) {
+		err = regmap_update_bits(ddata->pdds.map, ddata->pdds.reg,
+					 ddata->pdds.mask, 0);
+		if (err) {
+			dev_err(&rproc->dev, "failed to clear pdds\n");
+			return err;
+		}
+	}
 
 	err = stm32_rproc_set_hold_boot(rproc, false);
 	if (err)
@@ -506,6 +517,9 @@ static int stm32_rproc_parse_dt(struct platform_device *pdev)
 	int err, irq;
 
 	irq = platform_get_irq(pdev, 0);
+	if (irq == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
+
 	if (irq > 0) {
 		err = devm_request_irq(dev, irq, stm32_rproc_wdg, 0,
 				       dev_name(dev), rproc);

@@ -362,7 +362,7 @@ static int inherit_props(struct btrfs_trans_handle *trans,
 		 * reservations if we do add more properties in the future.
 		 */
 		if (need_reserve) {
-			num_bytes = btrfs_calc_trans_metadata_size(fs_info, 1);
+			num_bytes = btrfs_calc_insert_metadata_size(fs_info, 1);
 			ret = btrfs_block_rsv_add(root, trans->block_rsv,
 					num_bytes, BTRFS_RESERVE_NO_FLUSH);
 			if (ret)

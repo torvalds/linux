@@ -149,7 +149,7 @@ static int bats_show_603(struct seq_file *m, void *v)
 
 static int bats_open(struct inode *inode, struct file *file)
 {
-	if (cpu_has_feature(CPU_FTR_601))
+	if (IS_ENABLED(CONFIG_PPC_BOOK3S_601))
 		return single_open(file, bats_show_601, NULL);
 
 	return single_open(file, bats_show_603, NULL);

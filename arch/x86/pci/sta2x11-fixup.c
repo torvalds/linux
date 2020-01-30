@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * arch/x86/pci/sta2x11-fixup.c
- * glue code for lib/swiotlb.c and DMA translation between STA2x11
- * AMBA memory mapping and the X86 memory mapping
+ * DMA translation between STA2x11 AMBA memory mapping and the x86 memory mapping
  *
  * ST Microelectronics ConneXt (STA2X11/STA2X10)
  *

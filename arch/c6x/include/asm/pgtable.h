@@ -60,11 +60,6 @@ extern unsigned long empty_zero_page;
 #define swapper_pg_dir ((pgd_t *) 0)
 
 /*
- * No page table caches to initialise
- */
-#define pgtable_cache_init()   do { } while (0)
-
-/*
  * c6x is !MMU, so define the simpliest implementation
  */
 #define pgprot_writecombine pgprot_noncached

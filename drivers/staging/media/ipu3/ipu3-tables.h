@@ -4,6 +4,8 @@
 #ifndef __IPU3_TABLES_H
 #define __IPU3_TABLES_H
 
+#include <linux/bitops.h>
+
 #include "ipu3-abi.h"
 
 #define IMGU_BDS_GRANULARITY		32	/* Downscaling granularity */
@@ -12,7 +14,7 @@
 
 #define IMGU_SCALER_DOWNSCALE_4TAPS_LEN	128
 #define IMGU_SCALER_DOWNSCALE_2TAPS_LEN	64
-#define IMGU_SCALER_FP			((u32)1 << 31) /* 1.0 in fixed point */
+#define IMGU_SCALER_FP			BIT(31) /* 1.0 in fixed point */
 
 #define IMGU_XNR3_VMEM_LUT_LEN		16
 
