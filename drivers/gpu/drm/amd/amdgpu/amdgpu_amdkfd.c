@@ -126,7 +126,7 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 		/* this is going to have a few of the MSBs set that we need to
 		 * clear
 		 */
-		bitmap_complement(gpu_resources.queue_bitmap,
+		bitmap_complement(gpu_resources.cp_queue_bitmap,
 				  adev->gfx.mec.queue_bitmap,
 				  KGD_MAX_QUEUES);
 
@@ -137,7 +137,7 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 				* adev->gfx.mec.num_pipe_per_mec
 				* adev->gfx.mec.num_queue_per_pipe;
 		for (i = last_valid_bit; i < KGD_MAX_QUEUES; ++i)
-			clear_bit(i, gpu_resources.queue_bitmap);
+			clear_bit(i, gpu_resources.cp_queue_bitmap);
 
 		amdgpu_doorbell_get_kfd_info(adev,
 				&gpu_resources.doorbell_physical_address,

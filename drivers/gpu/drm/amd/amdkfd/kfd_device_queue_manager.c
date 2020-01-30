@@ -78,14 +78,14 @@ static bool is_pipe_enabled(struct device_queue_manager *dqm, int mec, int pipe)
 	/* queue is available for KFD usage if bit is 1 */
 	for (i = 0; i <  dqm->dev->shared_resources.num_queue_per_pipe; ++i)
 		if (test_bit(pipe_offset + i,
-			      dqm->dev->shared_resources.queue_bitmap))
+			      dqm->dev->shared_resources.cp_queue_bitmap))
 			return true;
 	return false;
 }
 
-unsigned int get_queues_num(struct device_queue_manager *dqm)
+unsigned int get_cp_queues_num(struct device_queue_manager *dqm)
 {
-	return bitmap_weight(dqm->dev->shared_resources.queue_bitmap,
+	return bitmap_weight(dqm->dev->shared_resources.cp_queue_bitmap,
 				KGD_MAX_QUEUES);
 }
 
@@ -908,7 +908,7 @@ static int initialize_nocpsch(struct device_queue_manager *dqm)
 
 		for (queue = 0; queue < get_queues_per_pipe(dqm); queue++)
 			if (test_bit(pipe_offset + queue,
-				     dqm->dev->shared_resources.queue_bitmap))
+				     dqm->dev->shared_resources.cp_queue_bitmap))
 				dqm->allocated_queues[pipe] |= 1 << queue;
 	}
 
@@ -1029,7 +1029,7 @@ static int set_sched_resources(struct device_queue_manager *dqm)
 		mec = (i / dqm->dev->shared_resources.num_queue_per_pipe)
 			/ dqm->dev->shared_resources.num_pipe_per_mec;
 
-		if (!test_bit(i, dqm->dev->shared_resources.queue_bitmap))
+		if (!test_bit(i, dqm->dev->shared_resources.cp_queue_bitmap))
 			continue;
 
 		/* only acquire queues from the first MEC */
@@ -1979,7 +1979,7 @@ int dqm_debugfs_hqds(struct seq_file *m, void *data)
 
 		for (queue = 0; queue < get_queues_per_pipe(dqm); queue++) {
 			if (!test_bit(pipe_offset + queue,
-				      dqm->dev->shared_resources.queue_bitmap))
+				      dqm->dev->shared_resources.cp_queue_bitmap))
 				continue;
 
 			r = dqm->dev->kfd2kgd->hqd_dump(
