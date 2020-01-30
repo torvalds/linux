@@ -156,11 +156,10 @@ static const u16 iwl_uhb_nvm_channels[] = {
 	96, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 144,
 	149, 153, 157, 161, 165, 169, 173, 177, 181,
 	/* 6-7 GHz */
-	189, 193, 197, 201, 205, 209, 213, 217, 221, 225, 229, 233, 237, 241,
-	245, 249, 253, 257, 261, 265, 269, 273, 277, 281, 285, 289, 293, 297,
-	301, 305, 309, 313, 317, 321, 325, 329, 333, 337, 341, 345, 349, 353,
-	357, 361, 365, 369, 373, 377, 381, 385, 389, 393, 397, 401, 405, 409,
-	413, 417, 421
+	1, 5, 9, 13, 17, 21, 25, 29, 33, 37, 41, 45, 49, 53, 57, 61, 65, 69,
+	73, 77, 81, 85, 89, 93, 97, 101, 105, 109, 113, 117, 121, 125, 129,
+	133, 137, 141, 145, 149, 153, 157, 161, 165, 169, 173, 177, 181, 185,
+	189, 193, 197, 201, 205, 209, 213, 217, 221, 225, 229, 233
 };
 
 #define IWL_NVM_NUM_CHANNELS		ARRAY_SIZE(iwl_nvm_channels)
@@ -225,6 +224,34 @@ enum iwl_nvm_channel_flags {
 	NVM_CHANNEL_DC_HIGH		= BIT(12),
 };
 
+/**
+ * enum iwl_reg_capa_flags - global flags applied for the whole regulatory
+ * domain.
+ * @REG_CAPA_BF_CCD_LOW_BAND: Beam-forming or Cyclic Delay Diversity in the
+ *	2.4Ghz band is allowed.
+ * @REG_CAPA_BF_CCD_HIGH_BAND: Beam-forming or Cyclic Delay Diversity in the
+ *	5Ghz band is allowed.
+ * @REG_CAPA_160MHZ_ALLOWED: 11ac channel with a width of 160Mhz is allowed
+ *	for this regulatory domain (valid only in 5Ghz).
+ * @REG_CAPA_80MHZ_ALLOWED: 11ac channel with a width of 80Mhz is allowed
+ *	for this regulatory domain (valid only in 5Ghz).
+ * @REG_CAPA_MCS_8_ALLOWED: 11ac with MCS 8 is allowed.
+ * @REG_CAPA_MCS_9_ALLOWED: 11ac with MCS 9 is allowed.
+ * @REG_CAPA_40MHZ_FORBIDDEN: 11n channel with a width of 40Mhz is forbidden
+ *	for this regulatory domain (valid only in 5Ghz).
+ * @REG_CAPA_DC_HIGH_ENABLED: DC HIGH allowed.
+ */
+enum iwl_reg_capa_flags {
+	REG_CAPA_BF_CCD_LOW_BAND	= BIT(0),
+	REG_CAPA_BF_CCD_HIGH_BAND	= BIT(1),
+	REG_CAPA_160MHZ_ALLOWED		= BIT(2),
+	REG_CAPA_80MHZ_ALLOWED		= BIT(3),
+	REG_CAPA_MCS_8_ALLOWED		= BIT(4),
+	REG_CAPA_MCS_9_ALLOWED		= BIT(5),
+	REG_CAPA_40MHZ_FORBIDDEN	= BIT(7),
+	REG_CAPA_DC_HIGH_ENABLED	= BIT(9),
+};
+
 static inline void iwl_nvm_print_channel_flags(struct device *dev, u32 level,
 					       int chan, u32 flags)
 {
@@ -256,12 +283,12 @@ static inline void iwl_nvm_print_channel_flags(struct device *dev, u32 level,
 #undef CHECK_AND_PRINT_I
 }
 
-static u32 iwl_get_channel_flags(u8 ch_num, int ch_idx, bool is_5ghz,
+static u32 iwl_get_channel_flags(u8 ch_num, int ch_idx, enum nl80211_band band,
 				 u32 nvm_flags, const struct iwl_cfg *cfg)
 {
 	u32 flags = IEEE80211_CHAN_NO_HT40;
 
-	if (!is_5ghz && (nvm_flags & NVM_CHANNEL_40MHZ)) {
+	if (band == NL80211_BAND_2GHZ && (nvm_flags & NVM_CHANNEL_40MHZ)) {
 		if (ch_num <= LAST_2GHZ_HT_PLUS)
 			flags &= ~IEEE80211_CHAN_NO_HT40PLUS;
 		if (ch_num >= FIRST_2GHZ_HT_MINUS)
@@ -299,6 +326,13 @@ static u32 iwl_get_channel_flags(u8 ch_num, int ch_idx, bool is_5ghz,
 	return flags;
 }
 
+static enum nl80211_band iwl_nl80211_band_from_channel_idx(int ch_idx)
+{
+	if (ch_idx >= NUM_2GHZ_CHANNELS)
+		return NL80211_BAND_5GHZ;
+	return NL80211_BAND_2GHZ;
+}
+
 static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 				struct iwl_nvm_data *data,
 				const void * const nvm_ch_flags,
@@ -308,7 +342,7 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 	int n_channels = 0;
 	struct ieee80211_channel *channel;
 	u32 ch_flags;
-	int num_of_ch, num_2ghz_channels = NUM_2GHZ_CHANNELS;
+	int num_of_ch;
 	const u16 *nvm_chan;
 
 	if (cfg->uhb_supported) {
@@ -323,7 +357,8 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 	}
 
 	for (ch_idx = 0; ch_idx < num_of_ch; ch_idx++) {
-		bool is_5ghz = (ch_idx >= num_2ghz_channels);
+		enum nl80211_band band =
+			iwl_nl80211_band_from_channel_idx(ch_idx);
 
 		if (v4)
 			ch_flags =
@@ -332,12 +367,13 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 			ch_flags =
 				__le16_to_cpup((__le16 *)nvm_ch_flags + ch_idx);
 
-		if (is_5ghz && !data->sku_cap_band_52ghz_enable)
+		if (band == NL80211_BAND_5GHZ &&
+		    !data->sku_cap_band_52ghz_enable)
 			continue;
 
 		/* workaround to disable wide channels in 5GHz */
 		if ((sbands_flags & IWL_NVM_SBANDS_FLAGS_NO_WIDE_IN_5GHZ) &&
-		    is_5ghz) {
+		    band == NL80211_BAND_5GHZ) {
 			ch_flags &= ~(NVM_CHANNEL_40MHZ |
 				     NVM_CHANNEL_80MHZ |
 				     NVM_CHANNEL_160MHZ);
@@ -362,8 +398,7 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 		n_channels++;
 
 		channel->hw_value = nvm_chan[ch_idx];
-		channel->band = is_5ghz ?
-				NL80211_BAND_5GHZ : NL80211_BAND_2GHZ;
+		channel->band = band;
 		channel->center_freq =
 			ieee80211_channel_to_frequency(
 				channel->hw_value, channel->band);
@@ -379,7 +414,7 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 		/* don't put limitations in case we're using LAR */
 		if (!(sbands_flags & IWL_NVM_SBANDS_FLAGS_LAR))
 			channel->flags = iwl_get_channel_flags(nvm_chan[ch_idx],
-							       ch_idx, is_5ghz,
+							       ch_idx, band,
 							       ch_flags, cfg);
 		else
 			channel->flags = 0;
@@ -932,10 +967,11 @@ iwl_nvm_no_wide_in_5ghz(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 struct iwl_nvm_data *
 iwl_parse_nvm_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
+		   const struct iwl_fw *fw,
 		   const __be16 *nvm_hw, const __le16 *nvm_sw,
 		   const __le16 *nvm_calib, const __le16 *regulatory,
 		   const __le16 *mac_override, const __le16 *phy_sku,
-		   u8 tx_chains, u8 rx_chains, bool lar_fw_supported)
+		   u8 tx_chains, u8 rx_chains)
 {
 	struct iwl_nvm_data *data;
 	bool lar_enabled;
@@ -1015,7 +1051,8 @@ iwl_parse_nvm_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		return NULL;
 	}
 
-	if (lar_fw_supported && lar_enabled)
+	if (lar_enabled &&
+	    fw_has_capa(&fw->ucode_capa, IWL_UCODE_TLV_CAPA_LAR_SUPPORT))
 		sbands_flags |= IWL_NVM_SBANDS_FLAGS_LAR;
 
 	if (iwl_nvm_no_wide_in_5ghz(trans, cfg, nvm_hw))
@@ -1031,6 +1068,7 @@ IWL_EXPORT_SYMBOL(iwl_parse_nvm_data);
 
 static u32 iwl_nvm_get_regdom_bw_flags(const u16 *nvm_chan,
 				       int ch_idx, u16 nvm_flags,
+				       u16 cap_flags,
 				       const struct iwl_cfg *cfg)
 {
 	u32 flags = NL80211_RRF_NO_HT40;
@@ -1069,13 +1107,27 @@ static u32 iwl_nvm_get_regdom_bw_flags(const u16 *nvm_chan,
 	    (flags & NL80211_RRF_NO_IR))
 		flags |= NL80211_RRF_GO_CONCURRENT;
 
+	/*
+	 * cap_flags is per regulatory domain so apply it for every channel
+	 */
+	if (ch_idx >= NUM_2GHZ_CHANNELS) {
+		if (cap_flags & REG_CAPA_40MHZ_FORBIDDEN)
+			flags |= NL80211_RRF_NO_HT40;
+
+		if (!(cap_flags & REG_CAPA_80MHZ_ALLOWED))
+			flags |= NL80211_RRF_NO_80MHZ;
+
+		if (!(cap_flags & REG_CAPA_160MHZ_ALLOWED))
+			flags |= NL80211_RRF_NO_160MHZ;
+	}
+
 	return flags;
 }
 
 struct ieee80211_regdomain *
 iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 		       int num_of_ch, __le32 *channels, u16 fw_mcc,
-		       u16 geo_info)
+		       u16 geo_info, u16 cap)
 {
 	int ch_idx;
 	u16 ch_flags;
@@ -1133,7 +1185,8 @@ iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 		}
 
 		reg_rule_flags = iwl_nvm_get_regdom_bw_flags(nvm_chan, ch_idx,
-							     ch_flags, cfg);
+							     ch_flags, cap,
+							     cfg);
 
 		/* we can't continue the same rule */
 		if (ch_idx == 0 || prev_reg_rule_flags != reg_rule_flags ||
@@ -1398,9 +1451,6 @@ struct iwl_nvm_data *iwl_get_nvm(struct iwl_trans *trans,
 		.id = WIDE_ID(REGULATORY_AND_NVM_GROUP, NVM_GET_INFO)
 	};
 	int  ret;
-	bool lar_fw_supported = !iwlwifi_mod_params.lar_disable &&
-				fw_has_capa(&fw->ucode_capa,
-					    IWL_UCODE_TLV_CAPA_LAR_SUPPORT);
 	bool empty_otp;
 	u32 mac_flags;
 	u32 sbands_flags = 0;
@@ -1478,7 +1528,9 @@ struct iwl_nvm_data *iwl_get_nvm(struct iwl_trans *trans,
 	nvm->valid_tx_ant = (u8)le32_to_cpu(rsp->phy_sku.tx_chains);
 	nvm->valid_rx_ant = (u8)le32_to_cpu(rsp->phy_sku.rx_chains);
 
-	if (le32_to_cpu(rsp->regulatory.lar_enabled) && lar_fw_supported) {
+	if (le32_to_cpu(rsp->regulatory.lar_enabled) &&
+	    fw_has_capa(&fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_LAR_SUPPORT)) {
 		nvm->lar_enabled = true;
 		sbands_flags |= IWL_NVM_SBANDS_FLAGS_LAR;
 	}

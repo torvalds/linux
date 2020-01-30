@@ -111,6 +111,11 @@ void __stack_chk_fail(void)
 	error("stack-protector: Kernel stack is corrupted\n");
 }
 
+/* Needed because vmlinux.lds.h references this */
+void ftrace_stub(void)
+{
+}
+
 #ifdef CONFIG_SUPERH64
 #define stackalign	8
 #else

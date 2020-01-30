@@ -184,6 +184,10 @@ struct link_encoder_funcs {
 	bool (*fec_is_active)(struct link_encoder *enc);
 #endif
 	bool (*is_in_alt_mode) (struct link_encoder *enc);
+
+	void (*get_max_link_cap)(struct link_encoder *enc,
+		struct dc_link_settings *link_settings);
+
 	enum signal_type (*get_dig_mode)(
 		struct link_encoder *enc);
 };

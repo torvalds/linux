@@ -18,6 +18,7 @@
 #include <linux/stat.h>
 #include <linux/clk.h>
 #include <linux/cpu.h>
+#include <linux/cpu_pm.h>
 #include <linux/coresight.h>
 #include <linux/coresight-pmu.h>
 #include <linux/pm_wakeup.h>
@@ -26,6 +27,7 @@
 #include <linux/uaccess.h>
 #include <linux/perf_event.h>
 #include <linux/pm_runtime.h>
+#include <linux/property.h>
 #include <asm/sections.h>
 #include <asm/local.h>
 #include <asm/virt.h>
@@ -36,6 +38,15 @@
 static int boot_enable;
 module_param(boot_enable, int, 0444);
 MODULE_PARM_DESC(boot_enable, "Enable tracing on boot");
+
+#define PARAM_PM_SAVE_FIRMWARE	  0 /* save self-hosted state as per firmware */
+#define PARAM_PM_SAVE_NEVER	  1 /* never save any state */
+#define PARAM_PM_SAVE_SELF_HOSTED 2 /* save self-hosted state only */
+
+static int pm_save_enable = PARAM_PM_SAVE_FIRMWARE;
+module_param(pm_save_enable, int, 0444);
+MODULE_PARM_DESC(pm_save_enable,
+	"Save/restore state on power down: 1 = never, 2 = self-hosted");
 
 /* The number of ETMv4 currently registered */
 static int etm4_count;
@@ -51,6 +62,14 @@ static void etm4_os_unlock(struct etmv4_drvdata *drvdata)
 	/* Writing 0 to TRCOSLAR unlocks the trace registers */
 	writel_relaxed(0x0, drvdata->base + TRCOSLAR);
 	drvdata->os_unlock = true;
+	isb();
+}
+
+static void etm4_os_lock(struct etmv4_drvdata *drvdata)
+{
+	/* Writing 0x1 to TRCOSLAR locks the trace registers */
+	writel_relaxed(0x1, drvdata->base + TRCOSLAR);
+	drvdata->os_unlock = false;
 	isb();
 }
 
@@ -149,6 +168,9 @@ static int etm4_enable_hw(struct etmv4_drvdata *drvdata)
 			       drvdata->base + TRCRSCTLRn(i));
 
 	for (i = 0; i < drvdata->nr_ss_cmp; i++) {
+		/* always clear status bit on restart if using single-shot */
+		if (config->ss_ctrl[i] || config->ss_pe_cmp[i])
+			config->ss_status[i] &= ~BIT(31);
 		writel_relaxed(config->ss_ctrl[i],
 			       drvdata->base + TRCSSCCRn(i));
 		writel_relaxed(config->ss_status[i],
@@ -448,6 +470,9 @@ static void etm4_disable_hw(void *info)
 {
 	u32 control;
 	struct etmv4_drvdata *drvdata = info;
+	struct etmv4_config *config = &drvdata->config;
+	struct device *etm_dev = &drvdata->csdev->dev;
+	int i;
 
 	CS_UNLOCK(drvdata->base);
 
@@ -469,6 +494,18 @@ static void etm4_disable_hw(void *info)
 	dsb(sy);
 	isb();
 	writel_relaxed(control, drvdata->base + TRCPRGCTLR);
+
+	/* wait for TRCSTATR.PMSTABLE to go to '1' */
+	if (coresight_timeout(drvdata->base, TRCSTATR,
+			      TRCSTATR_PMSTABLE_BIT, 1))
+		dev_err(etm_dev,
+			"timeout while waiting for PM stable Trace Status\n");
+
+	/* read the status of the single shot comparators */
+	for (i = 0; i < drvdata->nr_ss_cmp; i++) {
+		config->ss_status[i] =
+			readl_relaxed(drvdata->base + TRCSSCSRn(i));
+	}
 
 	coresight_disclaim_device_unlocked(drvdata->base);
 
@@ -576,6 +613,7 @@ static void etm4_init_arch_data(void *info)
 	u32 etmidr4;
 	u32 etmidr5;
 	struct etmv4_drvdata *drvdata = info;
+	int i;
 
 	/* Make sure all registers are accessible */
 	etm4_os_unlock(drvdata);
@@ -629,6 +667,7 @@ static void etm4_init_arch_data(void *info)
 	 * TRCARCHMAJ, bits[11:8] architecture major versin number
 	 */
 	drvdata->arch = BMVAL(etmidr1, 4, 11);
+	drvdata->config.arch = drvdata->arch;
 
 	/* maximum size of resources */
 	etmidr2 = readl_relaxed(drvdata->base + TRCIDR2);
@@ -698,9 +737,14 @@ static void etm4_init_arch_data(void *info)
 	drvdata->nr_resource = BMVAL(etmidr4, 16, 19) + 1;
 	/*
 	 * NUMSSCC, bits[23:20] the number of single-shot
-	 * comparator control for tracing
+	 * comparator control for tracing. Read any status regs as these
+	 * also contain RO capability data.
 	 */
 	drvdata->nr_ss_cmp = BMVAL(etmidr4, 20, 23);
+	for (i = 0; i < drvdata->nr_ss_cmp; i++) {
+		drvdata->config.ss_status[i] =
+			readl_relaxed(drvdata->base + TRCSSCSRn(i));
+	}
 	/* NUMCIDC, bits[27:24] number of Context ID comparators for tracing */
 	drvdata->numcidc = BMVAL(etmidr4, 24, 27);
 	/* NUMVMIDC, bits[31:28] number of VMID comparators for tracing */
@@ -780,6 +824,7 @@ static u64 etm4_get_ns_access_type(struct etmv4_config *config)
 static u64 etm4_get_access_type(struct etmv4_config *config)
 {
 	u64 access_type = etm4_get_ns_access_type(config);
+	u64 s_hyp = (config->arch & 0x0f) >= 0x4 ? ETM_EXLEVEL_S_HYP : 0;
 
 	/*
 	 * EXLEVEL_S, bits[11:8], don't trace anything happening
@@ -787,7 +832,8 @@ static u64 etm4_get_access_type(struct etmv4_config *config)
 	 */
 	access_type |= (ETM_EXLEVEL_S_APP	|
 			ETM_EXLEVEL_S_OS	|
-			ETM_EXLEVEL_S_HYP);
+			s_hyp			|
+			ETM_EXLEVEL_S_MON);
 
 	return access_type;
 }
@@ -865,6 +911,7 @@ static void etm4_set_default_filter(struct etmv4_config *config)
 	 * in the started state
 	 */
 	config->vinst_ctrl |= BIT(9);
+	config->mode |= ETM_MODE_VIEWINST_STARTSTOP;
 
 	/* No start-stop filtering for ViewInst */
 	config->vissctlr = 0x0;
@@ -1085,6 +1132,287 @@ static void etm4_init_trace_id(struct etmv4_drvdata *drvdata)
 	drvdata->trcid = coresight_get_trace_id(drvdata->cpu);
 }
 
+static int etm4_cpu_save(struct etmv4_drvdata *drvdata)
+{
+	int i, ret = 0;
+	struct etmv4_save_state *state;
+	struct device *etm_dev = &drvdata->csdev->dev;
+
+	/*
+	 * As recommended by 3.4.1 ("The procedure when powering down the PE")
+	 * of ARM IHI 0064D
+	 */
+	dsb(sy);
+	isb();
+
+	CS_UNLOCK(drvdata->base);
+
+	/* Lock the OS lock to disable trace and external debugger access */
+	etm4_os_lock(drvdata);
+
+	/* wait for TRCSTATR.PMSTABLE to go up */
+	if (coresight_timeout(drvdata->base, TRCSTATR,
+			      TRCSTATR_PMSTABLE_BIT, 1)) {
+		dev_err(etm_dev,
+			"timeout while waiting for PM Stable Status\n");
+		etm4_os_unlock(drvdata);
+		ret = -EBUSY;
+		goto out;
+	}
+
+	state = drvdata->save_state;
+
+	state->trcprgctlr = readl(drvdata->base + TRCPRGCTLR);
+	state->trcprocselr = readl(drvdata->base + TRCPROCSELR);
+	state->trcconfigr = readl(drvdata->base + TRCCONFIGR);
+	state->trcauxctlr = readl(drvdata->base + TRCAUXCTLR);
+	state->trceventctl0r = readl(drvdata->base + TRCEVENTCTL0R);
+	state->trceventctl1r = readl(drvdata->base + TRCEVENTCTL1R);
+	state->trcstallctlr = readl(drvdata->base + TRCSTALLCTLR);
+	state->trctsctlr = readl(drvdata->base + TRCTSCTLR);
+	state->trcsyncpr = readl(drvdata->base + TRCSYNCPR);
+	state->trcccctlr = readl(drvdata->base + TRCCCCTLR);
+	state->trcbbctlr = readl(drvdata->base + TRCBBCTLR);
+	state->trctraceidr = readl(drvdata->base + TRCTRACEIDR);
+	state->trcqctlr = readl(drvdata->base + TRCQCTLR);
+
+	state->trcvictlr = readl(drvdata->base + TRCVICTLR);
+	state->trcviiectlr = readl(drvdata->base + TRCVIIECTLR);
+	state->trcvissctlr = readl(drvdata->base + TRCVISSCTLR);
+	state->trcvipcssctlr = readl(drvdata->base + TRCVIPCSSCTLR);
+	state->trcvdctlr = readl(drvdata->base + TRCVDCTLR);
+	state->trcvdsacctlr = readl(drvdata->base + TRCVDSACCTLR);
+	state->trcvdarcctlr = readl(drvdata->base + TRCVDARCCTLR);
+
+	for (i = 0; i < drvdata->nrseqstate; i++)
+		state->trcseqevr[i] = readl(drvdata->base + TRCSEQEVRn(i));
+
+	state->trcseqrstevr = readl(drvdata->base + TRCSEQRSTEVR);
+	state->trcseqstr = readl(drvdata->base + TRCSEQSTR);
+	state->trcextinselr = readl(drvdata->base + TRCEXTINSELR);
+
+	for (i = 0; i < drvdata->nr_cntr; i++) {
+		state->trccntrldvr[i] = readl(drvdata->base + TRCCNTRLDVRn(i));
+		state->trccntctlr[i] = readl(drvdata->base + TRCCNTCTLRn(i));
+		state->trccntvr[i] = readl(drvdata->base + TRCCNTVRn(i));
+	}
+
+	for (i = 0; i < drvdata->nr_resource * 2; i++)
+		state->trcrsctlr[i] = readl(drvdata->base + TRCRSCTLRn(i));
+
+	for (i = 0; i < drvdata->nr_ss_cmp; i++) {
+		state->trcssccr[i] = readl(drvdata->base + TRCSSCCRn(i));
+		state->trcsscsr[i] = readl(drvdata->base + TRCSSCSRn(i));
+		state->trcsspcicr[i] = readl(drvdata->base + TRCSSPCICRn(i));
+	}
+
+	for (i = 0; i < drvdata->nr_addr_cmp * 2; i++) {
+		state->trcacvr[i] = readl(drvdata->base + TRCACVRn(i));
+		state->trcacatr[i] = readl(drvdata->base + TRCACATRn(i));
+	}
+
+	/*
+	 * Data trace stream is architecturally prohibited for A profile cores
+	 * so we don't save (or later restore) trcdvcvr and trcdvcmr - As per
+	 * section 1.3.4 ("Possible functional configurations of an ETMv4 trace
+	 * unit") of ARM IHI 0064D.
+	 */
+
+	for (i = 0; i < drvdata->numcidc; i++)
+		state->trccidcvr[i] = readl(drvdata->base + TRCCIDCVRn(i));
+
+	for (i = 0; i < drvdata->numvmidc; i++)
+		state->trcvmidcvr[i] = readl(drvdata->base + TRCVMIDCVRn(i));
+
+	state->trccidcctlr0 = readl(drvdata->base + TRCCIDCCTLR0);
+	state->trccidcctlr1 = readl(drvdata->base + TRCCIDCCTLR1);
+
+	state->trcvmidcctlr0 = readl(drvdata->base + TRCVMIDCCTLR0);
+	state->trcvmidcctlr0 = readl(drvdata->base + TRCVMIDCCTLR1);
+
+	state->trcclaimset = readl(drvdata->base + TRCCLAIMCLR);
+
+	state->trcpdcr = readl(drvdata->base + TRCPDCR);
+
+	/* wait for TRCSTATR.IDLE to go up */
+	if (coresight_timeout(drvdata->base, TRCSTATR, TRCSTATR_IDLE_BIT, 1)) {
+		dev_err(etm_dev,
+			"timeout while waiting for Idle Trace Status\n");
+		etm4_os_unlock(drvdata);
+		ret = -EBUSY;
+		goto out;
+	}
+
+	drvdata->state_needs_restore = true;
+
+	/*
+	 * Power can be removed from the trace unit now. We do this to
+	 * potentially save power on systems that respect the TRCPDCR_PU
+	 * despite requesting software to save/restore state.
+	 */
+	writel_relaxed((state->trcpdcr & ~TRCPDCR_PU),
+			drvdata->base + TRCPDCR);
+
+out:
+	CS_LOCK(drvdata->base);
+	return ret;
+}
+
+static void etm4_cpu_restore(struct etmv4_drvdata *drvdata)
+{
+	int i;
+	struct etmv4_save_state *state = drvdata->save_state;
+
+	CS_UNLOCK(drvdata->base);
+
+	writel_relaxed(state->trcclaimset, drvdata->base + TRCCLAIMSET);
+
+	writel_relaxed(state->trcprgctlr, drvdata->base + TRCPRGCTLR);
+	writel_relaxed(state->trcprocselr, drvdata->base + TRCPROCSELR);
+	writel_relaxed(state->trcconfigr, drvdata->base + TRCCONFIGR);
+	writel_relaxed(state->trcauxctlr, drvdata->base + TRCAUXCTLR);
+	writel_relaxed(state->trceventctl0r, drvdata->base + TRCEVENTCTL0R);
+	writel_relaxed(state->trceventctl1r, drvdata->base + TRCEVENTCTL1R);
+	writel_relaxed(state->trcstallctlr, drvdata->base + TRCSTALLCTLR);
+	writel_relaxed(state->trctsctlr, drvdata->base + TRCTSCTLR);
+	writel_relaxed(state->trcsyncpr, drvdata->base + TRCSYNCPR);
+	writel_relaxed(state->trcccctlr, drvdata->base + TRCCCCTLR);
+	writel_relaxed(state->trcbbctlr, drvdata->base + TRCBBCTLR);
+	writel_relaxed(state->trctraceidr, drvdata->base + TRCTRACEIDR);
+	writel_relaxed(state->trcqctlr, drvdata->base + TRCQCTLR);
+
+	writel_relaxed(state->trcvictlr, drvdata->base + TRCVICTLR);
+	writel_relaxed(state->trcviiectlr, drvdata->base + TRCVIIECTLR);
+	writel_relaxed(state->trcvissctlr, drvdata->base + TRCVISSCTLR);
+	writel_relaxed(state->trcvipcssctlr, drvdata->base + TRCVIPCSSCTLR);
+	writel_relaxed(state->trcvdctlr, drvdata->base + TRCVDCTLR);
+	writel_relaxed(state->trcvdsacctlr, drvdata->base + TRCVDSACCTLR);
+	writel_relaxed(state->trcvdarcctlr, drvdata->base + TRCVDARCCTLR);
+
+	for (i = 0; i < drvdata->nrseqstate; i++)
+		writel_relaxed(state->trcseqevr[i],
+			       drvdata->base + TRCSEQEVRn(i));
+
+	writel_relaxed(state->trcseqrstevr, drvdata->base + TRCSEQRSTEVR);
+	writel_relaxed(state->trcseqstr, drvdata->base + TRCSEQSTR);
+	writel_relaxed(state->trcextinselr, drvdata->base + TRCEXTINSELR);
+
+	for (i = 0; i < drvdata->nr_cntr; i++) {
+		writel_relaxed(state->trccntrldvr[i],
+			       drvdata->base + TRCCNTRLDVRn(i));
+		writel_relaxed(state->trccntctlr[i],
+			       drvdata->base + TRCCNTCTLRn(i));
+		writel_relaxed(state->trccntvr[i],
+			       drvdata->base + TRCCNTVRn(i));
+	}
+
+	for (i = 0; i < drvdata->nr_resource * 2; i++)
+		writel_relaxed(state->trcrsctlr[i],
+			       drvdata->base + TRCRSCTLRn(i));
+
+	for (i = 0; i < drvdata->nr_ss_cmp; i++) {
+		writel_relaxed(state->trcssccr[i],
+			       drvdata->base + TRCSSCCRn(i));
+		writel_relaxed(state->trcsscsr[i],
+			       drvdata->base + TRCSSCSRn(i));
+		writel_relaxed(state->trcsspcicr[i],
+			       drvdata->base + TRCSSPCICRn(i));
+	}
+
+	for (i = 0; i < drvdata->nr_addr_cmp * 2; i++) {
+		writel_relaxed(state->trcacvr[i],
+			       drvdata->base + TRCACVRn(i));
+		writel_relaxed(state->trcacatr[i],
+			       drvdata->base + TRCACATRn(i));
+	}
+
+	for (i = 0; i < drvdata->numcidc; i++)
+		writel_relaxed(state->trccidcvr[i],
+			       drvdata->base + TRCCIDCVRn(i));
+
+	for (i = 0; i < drvdata->numvmidc; i++)
+		writel_relaxed(state->trcvmidcvr[i],
+			       drvdata->base + TRCVMIDCVRn(i));
+
+	writel_relaxed(state->trccidcctlr0, drvdata->base + TRCCIDCCTLR0);
+	writel_relaxed(state->trccidcctlr1, drvdata->base + TRCCIDCCTLR1);
+
+	writel_relaxed(state->trcvmidcctlr0, drvdata->base + TRCVMIDCCTLR0);
+	writel_relaxed(state->trcvmidcctlr0, drvdata->base + TRCVMIDCCTLR1);
+
+	writel_relaxed(state->trcclaimset, drvdata->base + TRCCLAIMSET);
+
+	writel_relaxed(state->trcpdcr, drvdata->base + TRCPDCR);
+
+	drvdata->state_needs_restore = false;
+
+	/*
+	 * As recommended by section 4.3.7 ("Synchronization when using the
+	 * memory-mapped interface") of ARM IHI 0064D
+	 */
+	dsb(sy);
+	isb();
+
+	/* Unlock the OS lock to re-enable trace and external debug access */
+	etm4_os_unlock(drvdata);
+	CS_LOCK(drvdata->base);
+}
+
+static int etm4_cpu_pm_notify(struct notifier_block *nb, unsigned long cmd,
+			      void *v)
+{
+	struct etmv4_drvdata *drvdata;
+	unsigned int cpu = smp_processor_id();
+
+	if (!etmdrvdata[cpu])
+		return NOTIFY_OK;
+
+	drvdata = etmdrvdata[cpu];
+
+	if (!drvdata->save_state)
+		return NOTIFY_OK;
+
+	if (WARN_ON_ONCE(drvdata->cpu != cpu))
+		return NOTIFY_BAD;
+
+	switch (cmd) {
+	case CPU_PM_ENTER:
+		/* save the state if self-hosted coresight is in use */
+		if (local_read(&drvdata->mode))
+			if (etm4_cpu_save(drvdata))
+				return NOTIFY_BAD;
+		break;
+	case CPU_PM_EXIT:
+		/* fallthrough */
+	case CPU_PM_ENTER_FAILED:
+		if (drvdata->state_needs_restore)
+			etm4_cpu_restore(drvdata);
+		break;
+	default:
+		return NOTIFY_DONE;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block etm4_cpu_pm_nb = {
+	.notifier_call = etm4_cpu_pm_notify,
+};
+
+static int etm4_cpu_pm_register(void)
+{
+	if (IS_ENABLED(CONFIG_CPU_PM))
+		return cpu_pm_register_notifier(&etm4_cpu_pm_nb);
+
+	return 0;
+}
+
+static void etm4_cpu_pm_unregister(void)
+{
+	if (IS_ENABLED(CONFIG_CPU_PM))
+		cpu_pm_unregister_notifier(&etm4_cpu_pm_nb);
+}
+
 static int etm4_probe(struct amba_device *adev, const struct amba_id *id)
 {
 	int ret;
@@ -1100,6 +1428,17 @@ static int etm4_probe(struct amba_device *adev, const struct amba_id *id)
 		return -ENOMEM;
 
 	dev_set_drvdata(dev, drvdata);
+
+	if (pm_save_enable == PARAM_PM_SAVE_FIRMWARE)
+		pm_save_enable = coresight_loses_context_with_cpu(dev) ?
+			       PARAM_PM_SAVE_SELF_HOSTED : PARAM_PM_SAVE_NEVER;
+
+	if (pm_save_enable != PARAM_PM_SAVE_NEVER) {
+		drvdata->save_state = devm_kmalloc(dev,
+				sizeof(struct etmv4_save_state), GFP_KERNEL);
+		if (!drvdata->save_state)
+			return -ENOMEM;
+	}
 
 	/* Validity for the resource is already checked by the AMBA core */
 	base = devm_ioremap_resource(dev, res);
@@ -1135,6 +1474,10 @@ static int etm4_probe(struct amba_device *adev, const struct amba_id *id)
 		if (ret < 0)
 			goto err_arch_supported;
 		hp_online = ret;
+
+		ret = etm4_cpu_pm_register();
+		if (ret)
+			goto err_arch_supported;
 	}
 
 	cpus_read_unlock();
@@ -1185,6 +1528,8 @@ static int etm4_probe(struct amba_device *adev, const struct amba_id *id)
 
 err_arch_supported:
 	if (--etm4_count == 0) {
+		etm4_cpu_pm_unregister();
+
 		cpuhp_remove_state_nocalls(CPUHP_AP_ARM_CORESIGHT_STARTING);
 		if (hp_online)
 			cpuhp_remove_state_nocalls(hp_online);
@@ -1211,6 +1556,7 @@ static const struct amba_id etm4_ids[] = {
 	CS_AMBA_UCI_ID(0x000f0211, uci_id_etm4),/* Qualcomm Kryo */
 	CS_AMBA_ID(0x000bb802),			/* Qualcomm Kryo 385 Cortex-A55 */
 	CS_AMBA_ID(0x000bb803),			/* Qualcomm Kryo 385 Cortex-A75 */
+	CS_AMBA_UCI_ID(0x000cc0af, uci_id_etm4),/* Marvell ThunderX2 */
 	{},
 };
 

@@ -128,7 +128,8 @@ struct intel_encoder {
 
 	enum intel_output_type type;
 	enum port port;
-	unsigned int cloneable;
+	u16 cloneable;
+	u8 pipe_mask;
 	enum intel_hotplug_state (*hotplug)(struct intel_encoder *encoder,
 					    struct intel_connector *connector,
 					    bool irq_received);
@@ -187,7 +188,6 @@ struct intel_encoder {
 	 * device interrupts are disabled.
 	 */
 	void (*suspend)(struct intel_encoder *);
-	int crtc_mask;
 	enum hpd_pin hpd_pin;
 	enum intel_display_power_domain power_domain;
 	/* for communication with audio component; protected by av_mutex */
@@ -388,6 +388,13 @@ struct intel_hdcp {
 	wait_queue_head_t cp_irq_queue;
 	atomic_t cp_irq_count;
 	int cp_irq_count_cached;
+
+	/*
+	 * HDCP register access for gen12+ need the transcoder associated.
+	 * Transcoder attached to the connector could be changed at modeset.
+	 * Hence caching the transcoder here.
+	 */
+	enum transcoder cpu_transcoder;
 };
 
 struct intel_connector {
@@ -481,9 +488,9 @@ struct intel_atomic_state {
 	 * but the converse is not necessarily true; simply changing a mode may
 	 * not flip the final active status of any CRTC's
 	 */
-	unsigned int active_pipe_changes;
+	u8 active_pipe_changes;
 
-	unsigned int active_crtcs;
+	u8 active_pipes;
 	/* minimum acceptable cdclk for each pipe */
 	int min_cdclk[I915_MAX_PIPES];
 	/* minimum acceptable voltage level for each pipe */
@@ -498,6 +505,14 @@ struct intel_atomic_state {
 	bool skip_intermediate_wm;
 
 	bool rps_interactive;
+
+	/*
+	 * active_pipes
+	 * min_cdclk[]
+	 * min_voltage_level[]
+	 * cdclk.*
+	 */
+	bool global_state_changed;
 
 	/* Gen9+ only */
 	struct skl_ddb_values wm_results;
@@ -552,24 +567,24 @@ struct intel_plane_state {
 	int scaler_id;
 
 	/*
-	 * linked_plane:
+	 * planar_linked_plane:
 	 *
 	 * ICL planar formats require 2 planes that are updated as pairs.
 	 * This member is used to make sure the other plane is also updated
 	 * when required, and for update_slave() to find the correct
 	 * plane_state to pass as argument.
 	 */
-	struct intel_plane *linked_plane;
+	struct intel_plane *planar_linked_plane;
 
 	/*
-	 * slave:
+	 * planar_slave:
 	 * If set don't update use the linked plane's state for updating
 	 * this plane during atomic commit with the update_slave() callback.
 	 *
 	 * It's also used by the watermark code to ignore wm calculations on
 	 * this plane. They're calculated by the linked plane's wm code.
 	 */
-	u32 slave;
+	u32 planar_slave;
 
 	struct drm_intel_sprite_colorkey ckey;
 };
@@ -759,7 +774,6 @@ struct intel_crtc_state {
 	bool update_pipe; /* can a fast modeset be performed? */
 	bool disable_cxsr;
 	bool update_wm_pre, update_wm_post; /* watermarks are updated */
-	bool fb_changed; /* fb on any of the planes is changed */
 	bool fifo_changed; /* FIFO split is changed */
 	bool preload_luts;
 
@@ -865,6 +879,7 @@ struct intel_crtc_state {
 
 	bool has_psr;
 	bool has_psr2;
+	u32 dc3co_exitline;
 
 	/*
 	 * Frequence the dpll for the port should run at. Differs from the
@@ -926,6 +941,8 @@ struct intel_crtc_state {
 
 	struct intel_crtc_wm_state wm;
 
+	int min_cdclk[I915_MAX_PLANES];
+
 	u32 data_rate[I915_MAX_PLANES];
 
 	/* Gamma mode programmed on the pipe */
@@ -980,11 +997,17 @@ struct intel_crtc_state {
 		bool dsc_split;
 		u16 compressed_bpp;
 		u8 slice_count;
-	} dsc_params;
-	struct drm_dsc_config dp_dsc_cfg;
+		struct drm_dsc_config config;
+	} dsc;
 
 	/* Forward Error correction State */
 	bool fec_enable;
+
+	/* Pointer to master transcoder in case of tiled displays */
+	enum transcoder master_transcoder;
+
+	/* Bitmask to indicate slaves attached */
+	u8 sync_mode_slaves_mask;
 };
 
 struct intel_crtc {
@@ -1027,6 +1050,9 @@ struct intel_crtc {
 
 	/* scalers available on this crtc */
 	int num_scalers;
+
+	/* per pipe DSB related info */
+	struct intel_dsb dsb;
 };
 
 struct intel_plane {
@@ -1062,6 +1088,8 @@ struct intel_plane {
 	bool (*get_hw_state)(struct intel_plane *plane, enum pipe *pipe);
 	int (*check_plane)(struct intel_crtc_state *crtc_state,
 			   struct intel_plane_state *plane_state);
+	int (*min_cdclk)(const struct intel_crtc_state *crtc_state,
+			 const struct intel_plane_state *plane_state);
 };
 
 struct intel_watermark_params {
@@ -1177,6 +1205,7 @@ struct intel_dp {
 	/* sink or branch descriptor */
 	struct drm_dp_desc desc;
 	struct drm_dp_aux aux;
+	u32 aux_busy_last_status;
 	u8 train_set[4];
 	int panel_power_up_delay;
 	int panel_power_down_delay;
@@ -1212,6 +1241,15 @@ struct intel_dp {
 	bool can_mst; /* this port supports mst */
 	bool is_mst;
 	int active_mst_links;
+
+	/*
+	 * DP_TP_* registers may be either on port or transcoder register space.
+	 */
+	struct {
+		i915_reg_t dp_tp_ctl;
+		i915_reg_t dp_tp_status;
+	} regs;
+
 	/* connector directly attached - won't be use for modeset in mst world */
 	struct intel_connector *attached_connector;
 
@@ -1270,6 +1308,7 @@ struct intel_digital_port {
 	char tc_port_name[8];
 	enum tc_port_mode tc_mode;
 	enum phy_fia tc_phy_fia;
+	u8 tc_phy_fia_idx;
 
 	void (*write_infoframe)(struct intel_encoder *encoder,
 				const struct intel_crtc_state *crtc_state,
@@ -1510,7 +1549,7 @@ intel_wait_for_vblank(struct drm_i915_private *dev_priv, enum pipe pipe)
 	drm_wait_one_vblank(&dev_priv->drm, pipe);
 }
 static inline void
-intel_wait_for_vblank_if_active(struct drm_i915_private *dev_priv, int pipe)
+intel_wait_for_vblank_if_active(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
 	const struct intel_crtc *crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
 

@@ -126,6 +126,34 @@ DEFINE_GSSAPI_EVENT(verify_mic);
 DEFINE_GSSAPI_EVENT(wrap);
 DEFINE_GSSAPI_EVENT(unwrap);
 
+TRACE_EVENT(rpcgss_accept_upcall,
+	TP_PROTO(
+		__be32 xid,
+		u32 major_status,
+		u32 minor_status
+	),
+
+	TP_ARGS(xid, major_status, minor_status),
+
+	TP_STRUCT__entry(
+		__field(u32, xid)
+		__field(u32, minor_status)
+		__field(unsigned long, major_status)
+	),
+
+	TP_fast_assign(
+		__entry->xid = be32_to_cpu(xid);
+		__entry->minor_status = minor_status;
+		__entry->major_status = major_status;
+	),
+
+	TP_printk("xid=0x%08x major_status=%s (0x%08lx) minor_status=%u",
+		__entry->xid, __entry->major_status == 0 ? "GSS_S_COMPLETE" :
+				show_gss_status(__entry->major_status),
+		__entry->major_status, __entry->minor_status
+	)
+);
+
 
 /**
  ** GSS auth unwrap failures
@@ -355,6 +383,23 @@ TRACE_EVENT(rpcgss_createauth,
 		show_pseudoflavor(__entry->flavor), __entry->error)
 );
 
+TRACE_EVENT(rpcgss_oid_to_mech,
+	TP_PROTO(
+		const char *oid
+	),
+
+	TP_ARGS(oid),
+
+	TP_STRUCT__entry(
+		__string(oid, oid)
+	),
+
+	TP_fast_assign(
+		__assign_str(oid, oid);
+	),
+
+	TP_printk("mech for oid %s was not found", __get_str(oid))
+);
 
 #endif	/* _TRACE_RPCGSS_H */
 

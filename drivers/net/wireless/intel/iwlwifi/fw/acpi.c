@@ -61,6 +61,7 @@
 #include "iwl-drv.h"
 #include "iwl-debug.h"
 #include "acpi.h"
+#include "fw/runtime.h"
 
 void *iwl_acpi_get_object(struct device *dev, acpi_string method)
 {
@@ -245,3 +246,289 @@ out_free:
 	return ret;
 }
 IWL_EXPORT_SYMBOL(iwl_acpi_get_eckv);
+
+int iwl_sar_set_profile(union acpi_object *table,
+			struct iwl_sar_profile *profile,
+			bool enabled)
+{
+	int i;
+
+	profile->enabled = enabled;
+
+	for (i = 0; i < ACPI_SAR_TABLE_SIZE; i++) {
+		if (table[i].type != ACPI_TYPE_INTEGER ||
+		    table[i].integer.value > U8_MAX)
+			return -EINVAL;
+
+		profile->table[i] = table[i].integer.value;
+	}
+
+	return 0;
+}
+IWL_EXPORT_SYMBOL(iwl_sar_set_profile);
+
+int iwl_sar_select_profile(struct iwl_fw_runtime *fwrt,
+			   __le16 per_chain_restriction[][IWL_NUM_SUB_BANDS],
+			   int prof_a, int prof_b)
+{
+	int i, j, idx;
+	int profs[ACPI_SAR_NUM_CHAIN_LIMITS] = { prof_a, prof_b };
+
+	BUILD_BUG_ON(ACPI_SAR_NUM_CHAIN_LIMITS < 2);
+	BUILD_BUG_ON(ACPI_SAR_NUM_CHAIN_LIMITS * ACPI_SAR_NUM_SUB_BANDS !=
+		     ACPI_SAR_TABLE_SIZE);
+
+	for (i = 0; i < ACPI_SAR_NUM_CHAIN_LIMITS; i++) {
+		struct iwl_sar_profile *prof;
+
+		/* don't allow SAR to be disabled (profile 0 means disable) */
+		if (profs[i] == 0)
+			return -EPERM;
+
+		/* we are off by one, so allow up to ACPI_SAR_PROFILE_NUM */
+		if (profs[i] > ACPI_SAR_PROFILE_NUM)
+			return -EINVAL;
+
+		/* profiles go from 1 to 4, so decrement to access the array */
+		prof = &fwrt->sar_profiles[profs[i] - 1];
+
+		/* if the profile is disabled, do nothing */
+		if (!prof->enabled) {
+			IWL_DEBUG_RADIO(fwrt, "SAR profile %d is disabled.\n",
+					profs[i]);
+			/* if one of the profiles is disabled, we fail all */
+			return -ENOENT;
+		}
+		IWL_DEBUG_INFO(fwrt,
+			       "SAR EWRD: chain %d profile index %d\n",
+			       i, profs[i]);
+		IWL_DEBUG_RADIO(fwrt, "  Chain[%d]:\n", i);
+		for (j = 0; j < ACPI_SAR_NUM_SUB_BANDS; j++) {
+			idx = (i * ACPI_SAR_NUM_SUB_BANDS) + j;
+			per_chain_restriction[i][j] =
+				cpu_to_le16(prof->table[idx]);
+			IWL_DEBUG_RADIO(fwrt, "    Band[%d] = %d * .125dBm\n",
+					j, prof->table[idx]);
+		}
+	}
+
+	return 0;
+}
+IWL_EXPORT_SYMBOL(iwl_sar_select_profile);
+
+int iwl_sar_get_wrds_table(struct iwl_fw_runtime *fwrt)
+{
+	union acpi_object *wifi_pkg, *table, *data;
+	bool enabled;
+	int ret, tbl_rev;
+
+	data = iwl_acpi_get_object(fwrt->dev, ACPI_WRDS_METHOD);
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
+	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
+					 ACPI_WRDS_WIFI_DATA_SIZE, &tbl_rev);
+	if (IS_ERR(wifi_pkg) || tbl_rev != 0) {
+		ret = PTR_ERR(wifi_pkg);
+		goto out_free;
+	}
+
+	if (wifi_pkg->package.elements[1].type != ACPI_TYPE_INTEGER) {
+		ret = -EINVAL;
+		goto out_free;
+	}
+
+	enabled = !!(wifi_pkg->package.elements[1].integer.value);
+
+	/* position of the actual table */
+	table = &wifi_pkg->package.elements[2];
+
+	/* The profile from WRDS is officially profile 1, but goes
+	 * into sar_profiles[0] (because we don't have a profile 0).
+	 */
+	ret = iwl_sar_set_profile(table, &fwrt->sar_profiles[0], enabled);
+out_free:
+	kfree(data);
+	return ret;
+}
+IWL_EXPORT_SYMBOL(iwl_sar_get_wrds_table);
+
+int iwl_sar_get_ewrd_table(struct iwl_fw_runtime *fwrt)
+{
+	union acpi_object *wifi_pkg, *data;
+	bool enabled;
+	int i, n_profiles, tbl_rev, pos;
+	int ret = 0;
+
+	data = iwl_acpi_get_object(fwrt->dev, ACPI_EWRD_METHOD);
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
+	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
+					 ACPI_EWRD_WIFI_DATA_SIZE, &tbl_rev);
+	if (IS_ERR(wifi_pkg) || tbl_rev != 0) {
+		ret = PTR_ERR(wifi_pkg);
+		goto out_free;
+	}
+
+	if (wifi_pkg->package.elements[1].type != ACPI_TYPE_INTEGER ||
+	    wifi_pkg->package.elements[2].type != ACPI_TYPE_INTEGER) {
+		ret = -EINVAL;
+		goto out_free;
+	}
+
+	enabled = !!(wifi_pkg->package.elements[1].integer.value);
+	n_profiles = wifi_pkg->package.elements[2].integer.value;
+
+	/*
+	 * Check the validity of n_profiles.  The EWRD profiles start
+	 * from index 1, so the maximum value allowed here is
+	 * ACPI_SAR_PROFILES_NUM - 1.
+	 */
+	if (n_profiles <= 0 || n_profiles >= ACPI_SAR_PROFILE_NUM) {
+		ret = -EINVAL;
+		goto out_free;
+	}
+
+	/* the tables start at element 3 */
+	pos = 3;
+
+	for (i = 0; i < n_profiles; i++) {
+		/* The EWRD profiles officially go from 2 to 4, but we
+		 * save them in sar_profiles[1-3] (because we don't
+		 * have profile 0).  So in the array we start from 1.
+		 */
+		ret = iwl_sar_set_profile(&wifi_pkg->package.elements[pos],
+					  &fwrt->sar_profiles[i + 1],
+					  enabled);
+		if (ret < 0)
+			break;
+
+		/* go to the next table */
+		pos += ACPI_SAR_TABLE_SIZE;
+	}
+
+out_free:
+	kfree(data);
+	return ret;
+}
+IWL_EXPORT_SYMBOL(iwl_sar_get_ewrd_table);
+
+int iwl_sar_get_wgds_table(struct iwl_fw_runtime *fwrt)
+{
+	union acpi_object *wifi_pkg, *data;
+	int i, j, ret, tbl_rev;
+	int idx = 1;
+
+	data = iwl_acpi_get_object(fwrt->dev, ACPI_WGDS_METHOD);
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
+	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
+					 ACPI_WGDS_WIFI_DATA_SIZE, &tbl_rev);
+	if (IS_ERR(wifi_pkg) || tbl_rev > 1) {
+		ret = PTR_ERR(wifi_pkg);
+		goto out_free;
+	}
+
+	fwrt->geo_rev = tbl_rev;
+	for (i = 0; i < ACPI_NUM_GEO_PROFILES; i++) {
+		for (j = 0; j < ACPI_GEO_TABLE_SIZE; j++) {
+			union acpi_object *entry;
+
+			entry = &wifi_pkg->package.elements[idx++];
+			if (entry->type != ACPI_TYPE_INTEGER ||
+			    entry->integer.value > U8_MAX) {
+				ret = -EINVAL;
+				goto out_free;
+			}
+
+			fwrt->geo_profiles[i].values[j] = entry->integer.value;
+		}
+	}
+	ret = 0;
+out_free:
+	kfree(data);
+	return ret;
+}
+IWL_EXPORT_SYMBOL(iwl_sar_get_wgds_table);
+
+bool iwl_sar_geo_support(struct iwl_fw_runtime *fwrt)
+{
+	/*
+	 * The GEO_TX_POWER_LIMIT command is not supported on earlier
+	 * firmware versions.  Unfortunately, we don't have a TLV API
+	 * flag to rely on, so rely on the major version which is in
+	 * the first byte of ucode_ver.  This was implemented
+	 * initially on version 38 and then backported to 17.  It was
+	 * also backported to 29, but only for 7265D devices.  The
+	 * intention was to have it in 36 as well, but not all 8000
+	 * family got this feature enabled.  The 8000 family is the
+	 * only one using version 36, so skip this version entirely.
+	 */
+	return IWL_UCODE_SERIAL(fwrt->fw->ucode_ver) >= 38 ||
+	       IWL_UCODE_SERIAL(fwrt->fw->ucode_ver) == 17 ||
+	       (IWL_UCODE_SERIAL(fwrt->fw->ucode_ver) == 29 &&
+		((fwrt->trans->hw_rev & CSR_HW_REV_TYPE_MSK) ==
+		 CSR_HW_REV_TYPE_7265D));
+}
+IWL_EXPORT_SYMBOL(iwl_sar_geo_support);
+
+int iwl_validate_sar_geo_profile(struct iwl_fw_runtime *fwrt,
+				 struct iwl_host_cmd *cmd)
+{
+	struct iwl_geo_tx_power_profiles_resp *resp;
+	int ret;
+
+	resp = (void *)cmd->resp_pkt->data;
+	ret = le32_to_cpu(resp->profile_idx);
+	if (WARN_ON(ret > ACPI_NUM_GEO_PROFILES)) {
+		ret = -EIO;
+		IWL_WARN(fwrt, "Invalid geographic profile idx (%d)\n", ret);
+	}
+
+	return ret;
+}
+IWL_EXPORT_SYMBOL(iwl_validate_sar_geo_profile);
+
+void iwl_sar_geo_init(struct iwl_fw_runtime *fwrt,
+		      struct iwl_per_chain_offset_group *table)
+{
+	int ret, i, j;
+
+	if (!iwl_sar_geo_support(fwrt))
+		return;
+
+	ret = iwl_sar_get_wgds_table(fwrt);
+	if (ret < 0) {
+		IWL_DEBUG_RADIO(fwrt,
+				"Geo SAR BIOS table invalid or unavailable. (%d)\n",
+				ret);
+		/* we don't fail if the table is not available */
+		return;
+	}
+
+	BUILD_BUG_ON(ACPI_NUM_GEO_PROFILES * ACPI_WGDS_NUM_BANDS *
+		     ACPI_WGDS_TABLE_SIZE + 1 !=  ACPI_WGDS_WIFI_DATA_SIZE);
+
+	BUILD_BUG_ON(ACPI_NUM_GEO_PROFILES > IWL_NUM_GEO_PROFILES);
+
+	for (i = 0; i < ACPI_NUM_GEO_PROFILES; i++) {
+		struct iwl_per_chain_offset *chain =
+			(struct iwl_per_chain_offset *)&table[i];
+
+		for (j = 0; j < ACPI_WGDS_NUM_BANDS; j++) {
+			u8 *value;
+
+			value = &fwrt->geo_profiles[i].values[j *
+				ACPI_GEO_PER_CHAIN_SIZE];
+			chain[j].max_tx_power = cpu_to_le16(value[0]);
+			chain[j].chain_a = value[1];
+			chain[j].chain_b = value[2];
+			IWL_DEBUG_RADIO(fwrt,
+					"SAR geographic profile[%d] Band[%d]: chain A = %d chain B = %d max_tx_power = %d\n",
+					i, j, value[1], value[2], value[0]);
+		}
+	}
+}
+IWL_EXPORT_SYMBOL(iwl_sar_geo_init);

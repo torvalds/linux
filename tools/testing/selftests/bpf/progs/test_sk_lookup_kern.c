@@ -53,7 +53,7 @@ static struct bpf_sock_tuple *get_tuple(void *data, __u64 nh_off,
 	return result;
 }
 
-SEC("sk_lookup_success")
+SEC("classifier/sk_lookup_success")
 int bpf_sk_lookup_test0(struct __sk_buff *skb)
 {
 	void *data_end = (void *)(long)skb->data_end;
@@ -78,7 +78,7 @@ int bpf_sk_lookup_test0(struct __sk_buff *skb)
 	return sk ? TC_ACT_OK : TC_ACT_UNSPEC;
 }
 
-SEC("sk_lookup_success_simple")
+SEC("classifier/sk_lookup_success_simple")
 int bpf_sk_lookup_test1(struct __sk_buff *skb)
 {
 	struct bpf_sock_tuple tuple = {};
@@ -90,7 +90,7 @@ int bpf_sk_lookup_test1(struct __sk_buff *skb)
 	return 0;
 }
 
-SEC("fail_use_after_free")
+SEC("classifier/fail_use_after_free")
 int bpf_sk_lookup_uaf(struct __sk_buff *skb)
 {
 	struct bpf_sock_tuple tuple = {};
@@ -105,7 +105,7 @@ int bpf_sk_lookup_uaf(struct __sk_buff *skb)
 	return family;
 }
 
-SEC("fail_modify_sk_pointer")
+SEC("classifier/fail_modify_sk_pointer")
 int bpf_sk_lookup_modptr(struct __sk_buff *skb)
 {
 	struct bpf_sock_tuple tuple = {};
@@ -120,7 +120,7 @@ int bpf_sk_lookup_modptr(struct __sk_buff *skb)
 	return 0;
 }
 
-SEC("fail_modify_sk_or_null_pointer")
+SEC("classifier/fail_modify_sk_or_null_pointer")
 int bpf_sk_lookup_modptr_or_null(struct __sk_buff *skb)
 {
 	struct bpf_sock_tuple tuple = {};
@@ -134,7 +134,7 @@ int bpf_sk_lookup_modptr_or_null(struct __sk_buff *skb)
 	return 0;
 }
 
-SEC("fail_no_release")
+SEC("classifier/fail_no_release")
 int bpf_sk_lookup_test2(struct __sk_buff *skb)
 {
 	struct bpf_sock_tuple tuple = {};
@@ -143,7 +143,7 @@ int bpf_sk_lookup_test2(struct __sk_buff *skb)
 	return 0;
 }
 
-SEC("fail_release_twice")
+SEC("classifier/fail_release_twice")
 int bpf_sk_lookup_test3(struct __sk_buff *skb)
 {
 	struct bpf_sock_tuple tuple = {};
@@ -155,7 +155,7 @@ int bpf_sk_lookup_test3(struct __sk_buff *skb)
 	return 0;
 }
 
-SEC("fail_release_unchecked")
+SEC("classifier/fail_release_unchecked")
 int bpf_sk_lookup_test4(struct __sk_buff *skb)
 {
 	struct bpf_sock_tuple tuple = {};
@@ -172,7 +172,7 @@ void lookup_no_release(struct __sk_buff *skb)
 	bpf_sk_lookup_tcp(skb, &tuple, sizeof(tuple), BPF_F_CURRENT_NETNS, 0);
 }
 
-SEC("fail_no_release_subcall")
+SEC("classifier/fail_no_release_subcall")
 int bpf_sk_lookup_test5(struct __sk_buff *skb)
 {
 	lookup_no_release(skb);

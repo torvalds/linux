@@ -326,9 +326,6 @@ mlx5dr_domain_create(struct mlx5_core_dev *mdev, enum mlx5dr_domain_type type)
 		goto uninit_resourses;
 	}
 
-	/* Init CRC table for htbl CRC calculation */
-	mlx5dr_crc32_init_table();
-
 	return dmn;
 
 uninit_resourses:

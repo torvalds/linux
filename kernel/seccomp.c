@@ -75,6 +75,7 @@ struct seccomp_knotif {
 	/* The return values, only valid when in SECCOMP_NOTIFY_REPLIED */
 	int error;
 	long val;
+	u32 flags;
 
 	/* Signals when this has entered SECCOMP_NOTIFY_REPLIED */
 	struct completion ready;
@@ -732,11 +733,12 @@ static u64 seccomp_next_notify_id(struct seccomp_filter *filter)
 	return filter->notif->next_id++;
 }
 
-static void seccomp_do_user_notification(int this_syscall,
-					 struct seccomp_filter *match,
-					 const struct seccomp_data *sd)
+static int seccomp_do_user_notification(int this_syscall,
+					struct seccomp_filter *match,
+					const struct seccomp_data *sd)
 {
 	int err;
+	u32 flags = 0;
 	long ret = 0;
 	struct seccomp_knotif n = {};
 
@@ -764,6 +766,7 @@ static void seccomp_do_user_notification(int this_syscall,
 	if (err == 0) {
 		ret = n.val;
 		err = n.error;
+		flags = n.flags;
 	}
 
 	/*
@@ -780,8 +783,14 @@ static void seccomp_do_user_notification(int this_syscall,
 		list_del(&n.list);
 out:
 	mutex_unlock(&match->notify_lock);
+
+	/* Userspace requests to continue the syscall. */
+	if (flags & SECCOMP_USER_NOTIF_FLAG_CONTINUE)
+		return 0;
+
 	syscall_set_return_value(current, task_pt_regs(current),
 				 err, ret);
+	return -1;
 }
 
 static int __seccomp_filter(int this_syscall, const struct seccomp_data *sd,
@@ -867,8 +876,10 @@ static int __seccomp_filter(int this_syscall, const struct seccomp_data *sd,
 		return 0;
 
 	case SECCOMP_RET_USER_NOTIF:
-		seccomp_do_user_notification(this_syscall, match, sd);
-		goto skip;
+		if (seccomp_do_user_notification(this_syscall, match, sd))
+			goto skip;
+
+		return 0;
 
 	case SECCOMP_RET_LOG:
 		seccomp_log(this_syscall, 0, action, true);
@@ -1015,6 +1026,13 @@ static long seccomp_notify_recv(struct seccomp_filter *filter,
 	struct seccomp_notif unotif;
 	ssize_t ret;
 
+	/* Verify that we're not given garbage to keep struct extensible. */
+	ret = check_zeroed_user(buf, sizeof(unotif));
+	if (ret < 0)
+		return ret;
+	if (!ret)
+		return -EINVAL;
+
 	memset(&unotif, 0, sizeof(unotif));
 
 	ret = down_interruptible(&filter->notif->request);
@@ -1087,7 +1105,11 @@ static long seccomp_notify_send(struct seccomp_filter *filter,
 	if (copy_from_user(&resp, buf, sizeof(resp)))
 		return -EFAULT;
 
-	if (resp.flags)
+	if (resp.flags & ~SECCOMP_USER_NOTIF_FLAG_CONTINUE)
+		return -EINVAL;
+
+	if ((resp.flags & SECCOMP_USER_NOTIF_FLAG_CONTINUE) &&
+	    (resp.error || resp.val))
 		return -EINVAL;
 
 	ret = mutex_lock_interruptible(&filter->notify_lock);
@@ -1116,6 +1138,7 @@ static long seccomp_notify_send(struct seccomp_filter *filter,
 	knotif->state = SECCOMP_NOTIFY_REPLIED;
 	knotif->error = resp.error;
 	knotif->val = resp.val;
+	knotif->flags = resp.flags;
 	complete(&knotif->ready);
 out:
 	mutex_unlock(&filter->notify_lock);

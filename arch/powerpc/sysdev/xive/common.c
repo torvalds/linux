@@ -972,12 +972,21 @@ static int xive_get_irqchip_state(struct irq_data *data,
 				  enum irqchip_irq_state which, bool *state)
 {
 	struct xive_irq_data *xd = irq_data_get_irq_handler_data(data);
+	u8 pq;
 
 	switch (which) {
 	case IRQCHIP_STATE_ACTIVE:
-		*state = !xd->stale_p &&
-			 (xd->saved_p ||
-			  !!(xive_esb_read(xd, XIVE_ESB_GET) & XIVE_ESB_VAL_P));
+		pq = xive_esb_read(xd, XIVE_ESB_GET);
+
+		/*
+		 * The esb value being all 1's means we couldn't get
+		 * the PQ state of the interrupt through mmio. It may
+		 * happen, for example when querying a PHB interrupt
+		 * while the PHB is in an error state. We consider the
+		 * interrupt to be inactive in that case.
+		 */
+		*state = (pq != XIVE_ESB_INVALID) && !xd->stale_p &&
+			(xd->saved_p || !!(pq & XIVE_ESB_VAL_P));
 		return 0;
 	default:
 		return -EINVAL;
@@ -1034,6 +1043,15 @@ static int xive_irq_alloc_data(unsigned int virq, irq_hw_number_t hw)
 	}
 	xd->target = XIVE_INVALID_TARGET;
 	irq_set_handler_data(virq, xd);
+
+	/*
+	 * Turn OFF by default the interrupt being mapped. A side
+	 * effect of this check is the mapping the ESB page of the
+	 * interrupt in the Linux address space. This prevents page
+	 * fault issues in the crash handler which masks all
+	 * interrupts.
+	 */
+	xive_esb_read(xd, XIVE_ESB_SET_PQ_01);
 
 	return 0;
 }

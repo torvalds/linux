@@ -500,11 +500,8 @@ static int btrfs_dev_replace_start(struct btrfs_fs_info *fs_info,
 			      &dev_replace->scrub_progress, 0, 1);
 
 	ret = btrfs_dev_replace_finishing(fs_info, ret);
-	if (ret == -EINPROGRESS) {
+	if (ret == -EINPROGRESS)
 		ret = BTRFS_IOCTL_DEV_REPLACE_RESULT_SCRUB_INPROGRESS;
-	} else if (ret != -ECANCELED) {
-		WARN_ON(ret);
-	}
 
 	return ret;
 
@@ -986,7 +983,7 @@ static int btrfs_dev_replace_kthread(void *data)
 	return 0;
 }
 
-int btrfs_dev_replace_is_ongoing(struct btrfs_dev_replace *dev_replace)
+int __pure btrfs_dev_replace_is_ongoing(struct btrfs_dev_replace *dev_replace)
 {
 	if (!dev_replace->is_valid)
 		return 0;

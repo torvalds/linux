@@ -162,6 +162,7 @@ out:
 
 /**
  * ufs_bsg_remove - detach and remove the added ufs-bsg node
+ * @hba: per adapter object
  *
  * Should be called when unloading the driver.
  */
@@ -202,7 +203,7 @@ int ufs_bsg_probe(struct ufs_hba *hba)
 	bsg_dev->parent = get_device(parent);
 	bsg_dev->release = ufs_bsg_node_release;
 
-	dev_set_name(bsg_dev, "ufs-bsg");
+	dev_set_name(bsg_dev, "ufs-bsg%u", shost->host_no);
 
 	ret = device_add(bsg_dev);
 	if (ret)

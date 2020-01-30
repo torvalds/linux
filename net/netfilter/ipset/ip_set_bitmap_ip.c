@@ -37,7 +37,7 @@ MODULE_ALIAS("ip_set_bitmap:ip");
 
 /* Type structure */
 struct bitmap_ip {
-	void *members;		/* the set members */
+	unsigned long *members;	/* the set members */
 	u32 first_ip;		/* host byte order, included in range */
 	u32 last_ip;		/* host byte order, included in range */
 	u32 elements;		/* number of max elements in the set */
@@ -55,7 +55,7 @@ struct bitmap_ip_adt_elem {
 	u16 id;
 };
 
-static inline u32
+static u32
 ip_to_id(const struct bitmap_ip *m, u32 ip)
 {
 	return ((ip & ip_set_hostmask(m->netmask)) - m->first_ip) / m->hosts;
@@ -63,33 +63,33 @@ ip_to_id(const struct bitmap_ip *m, u32 ip)
 
 /* Common functions */
 
-static inline int
+static int
 bitmap_ip_do_test(const struct bitmap_ip_adt_elem *e,
 		  struct bitmap_ip *map, size_t dsize)
 {
 	return !!test_bit(e->id, map->members);
 }
 
-static inline int
+static int
 bitmap_ip_gc_test(u16 id, const struct bitmap_ip *map, size_t dsize)
 {
 	return !!test_bit(id, map->members);
 }
 
-static inline int
+static int
 bitmap_ip_do_add(const struct bitmap_ip_adt_elem *e, struct bitmap_ip *map,
 		 u32 flags, size_t dsize)
 {
 	return !!test_bit(e->id, map->members);
 }
 
-static inline int
+static int
 bitmap_ip_do_del(const struct bitmap_ip_adt_elem *e, struct bitmap_ip *map)
 {
 	return !test_and_clear_bit(e->id, map->members);
 }
 
-static inline int
+static int
 bitmap_ip_do_list(struct sk_buff *skb, const struct bitmap_ip *map, u32 id,
 		  size_t dsize)
 {
@@ -97,7 +97,7 @@ bitmap_ip_do_list(struct sk_buff *skb, const struct bitmap_ip *map, u32 id,
 			htonl(map->first_ip + id * map->hosts));
 }
 
-static inline int
+static int
 bitmap_ip_do_head(struct sk_buff *skb, const struct bitmap_ip *map)
 {
 	return nla_put_ipaddr4(skb, IPSET_ATTR_IP, htonl(map->first_ip)) ||
@@ -220,7 +220,7 @@ init_map_ip(struct ip_set *set, struct bitmap_ip *map,
 	    u32 first_ip, u32 last_ip,
 	    u32 elements, u32 hosts, u8 netmask)
 {
-	map->members = ip_set_alloc(map->memsize);
+	map->members = bitmap_zalloc(elements, GFP_KERNEL | __GFP_NOWARN);
 	if (!map->members)
 		return false;
 	map->first_ip = first_ip;
@@ -235,6 +235,18 @@ init_map_ip(struct ip_set *set, struct bitmap_ip *map,
 	set->family = NFPROTO_IPV4;
 
 	return true;
+}
+
+static u32
+range_to_mask(u32 from, u32 to, u8 *bits)
+{
+	u32 mask = 0xFFFFFFFE;
+
+	*bits = 32;
+	while (--(*bits) > 0 && mask && (to & mask) != from)
+		mask <<= 1;
+
+	return mask;
 }
 
 static int
@@ -310,7 +322,7 @@ bitmap_ip_create(struct net *net, struct ip_set *set, struct nlattr *tb[],
 	if (!map)
 		return -ENOMEM;
 
-	map->memsize = bitmap_bytes(0, elements - 1);
+	map->memsize = BITS_TO_LONGS(elements) * sizeof(unsigned long);
 	set->variant = &bitmap_ip;
 	if (!init_map_ip(set, map, first_ip, last_ip,
 			 elements, hosts, netmask)) {

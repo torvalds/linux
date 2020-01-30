@@ -146,9 +146,13 @@ xfs_alloc_lookup_eq(
 	xfs_extlen_t		len,	/* length of extent */
 	int			*stat)	/* success/failure */
 {
+	int			error;
+
 	cur->bc_rec.a.ar_startblock = bno;
 	cur->bc_rec.a.ar_blockcount = len;
-	return xfs_btree_lookup(cur, XFS_LOOKUP_EQ, stat);
+	error = xfs_btree_lookup(cur, XFS_LOOKUP_EQ, stat);
+	cur->bc_private.a.priv.abt.active = (*stat == 1);
+	return error;
 }
 
 /*
@@ -162,9 +166,13 @@ xfs_alloc_lookup_ge(
 	xfs_extlen_t		len,	/* length of extent */
 	int			*stat)	/* success/failure */
 {
+	int			error;
+
 	cur->bc_rec.a.ar_startblock = bno;
 	cur->bc_rec.a.ar_blockcount = len;
-	return xfs_btree_lookup(cur, XFS_LOOKUP_GE, stat);
+	error = xfs_btree_lookup(cur, XFS_LOOKUP_GE, stat);
+	cur->bc_private.a.priv.abt.active = (*stat == 1);
+	return error;
 }
 
 /*
@@ -178,9 +186,19 @@ xfs_alloc_lookup_le(
 	xfs_extlen_t		len,	/* length of extent */
 	int			*stat)	/* success/failure */
 {
+	int			error;
 	cur->bc_rec.a.ar_startblock = bno;
 	cur->bc_rec.a.ar_blockcount = len;
-	return xfs_btree_lookup(cur, XFS_LOOKUP_LE, stat);
+	error = xfs_btree_lookup(cur, XFS_LOOKUP_LE, stat);
+	cur->bc_private.a.priv.abt.active = (*stat == 1);
+	return error;
+}
+
+static inline bool
+xfs_alloc_cur_active(
+	struct xfs_btree_cur	*cur)
+{
+	return cur && cur->bc_private.a.priv.abt.active;
 }
 
 /*
@@ -313,7 +331,7 @@ xfs_alloc_compute_diff(
 	xfs_extlen_t	newlen1=0;	/* length with newbno1 */
 	xfs_extlen_t	newlen2=0;	/* length with newbno2 */
 	xfs_agblock_t	wantend;	/* end of target extent */
-	bool		userdata = xfs_alloc_is_userdata(datatype);
+	bool		userdata = datatype & XFS_ALLOC_USERDATA;
 
 	ASSERT(freelen >= wantlen);
 	freeend = freebno + freelen;
@@ -433,13 +451,17 @@ xfs_alloc_fixup_trees(
 #ifdef DEBUG
 		if ((error = xfs_alloc_get_rec(cnt_cur, &nfbno1, &nflen1, &i)))
 			return error;
-		XFS_WANT_CORRUPTED_RETURN(mp,
-			i == 1 && nfbno1 == fbno && nflen1 == flen);
+		if (XFS_IS_CORRUPT(mp,
+				   i != 1 ||
+				   nfbno1 != fbno ||
+				   nflen1 != flen))
+			return -EFSCORRUPTED;
 #endif
 	} else {
 		if ((error = xfs_alloc_lookup_eq(cnt_cur, fbno, flen, &i)))
 			return error;
-		XFS_WANT_CORRUPTED_RETURN(mp, i == 1);
+		if (XFS_IS_CORRUPT(mp, i != 1))
+			return -EFSCORRUPTED;
 	}
 	/*
 	 * Look up the record in the by-block tree if necessary.
@@ -448,13 +470,17 @@ xfs_alloc_fixup_trees(
 #ifdef DEBUG
 		if ((error = xfs_alloc_get_rec(bno_cur, &nfbno1, &nflen1, &i)))
 			return error;
-		XFS_WANT_CORRUPTED_RETURN(mp,
-			i == 1 && nfbno1 == fbno && nflen1 == flen);
+		if (XFS_IS_CORRUPT(mp,
+				   i != 1 ||
+				   nfbno1 != fbno ||
+				   nflen1 != flen))
+			return -EFSCORRUPTED;
 #endif
 	} else {
 		if ((error = xfs_alloc_lookup_eq(bno_cur, fbno, flen, &i)))
 			return error;
-		XFS_WANT_CORRUPTED_RETURN(mp, i == 1);
+		if (XFS_IS_CORRUPT(mp, i != 1))
+			return -EFSCORRUPTED;
 	}
 
 #ifdef DEBUG
@@ -465,8 +491,10 @@ xfs_alloc_fixup_trees(
 		bnoblock = XFS_BUF_TO_BLOCK(bno_cur->bc_bufs[0]);
 		cntblock = XFS_BUF_TO_BLOCK(cnt_cur->bc_bufs[0]);
 
-		XFS_WANT_CORRUPTED_RETURN(mp,
-			bnoblock->bb_numrecs == cntblock->bb_numrecs);
+		if (XFS_IS_CORRUPT(mp,
+				   bnoblock->bb_numrecs !=
+				   cntblock->bb_numrecs))
+			return -EFSCORRUPTED;
 	}
 #endif
 
@@ -496,25 +524,30 @@ xfs_alloc_fixup_trees(
 	 */
 	if ((error = xfs_btree_delete(cnt_cur, &i)))
 		return error;
-	XFS_WANT_CORRUPTED_RETURN(mp, i == 1);
+	if (XFS_IS_CORRUPT(mp, i != 1))
+		return -EFSCORRUPTED;
 	/*
 	 * Add new by-size btree entry(s).
 	 */
 	if (nfbno1 != NULLAGBLOCK) {
 		if ((error = xfs_alloc_lookup_eq(cnt_cur, nfbno1, nflen1, &i)))
 			return error;
-		XFS_WANT_CORRUPTED_RETURN(mp, i == 0);
+		if (XFS_IS_CORRUPT(mp, i != 0))
+			return -EFSCORRUPTED;
 		if ((error = xfs_btree_insert(cnt_cur, &i)))
 			return error;
-		XFS_WANT_CORRUPTED_RETURN(mp, i == 1);
+		if (XFS_IS_CORRUPT(mp, i != 1))
+			return -EFSCORRUPTED;
 	}
 	if (nfbno2 != NULLAGBLOCK) {
 		if ((error = xfs_alloc_lookup_eq(cnt_cur, nfbno2, nflen2, &i)))
 			return error;
-		XFS_WANT_CORRUPTED_RETURN(mp, i == 0);
+		if (XFS_IS_CORRUPT(mp, i != 0))
+			return -EFSCORRUPTED;
 		if ((error = xfs_btree_insert(cnt_cur, &i)))
 			return error;
-		XFS_WANT_CORRUPTED_RETURN(mp, i == 1);
+		if (XFS_IS_CORRUPT(mp, i != 1))
+			return -EFSCORRUPTED;
 	}
 	/*
 	 * Fix up the by-block btree entry(s).
@@ -525,7 +558,8 @@ xfs_alloc_fixup_trees(
 		 */
 		if ((error = xfs_btree_delete(bno_cur, &i)))
 			return error;
-		XFS_WANT_CORRUPTED_RETURN(mp, i == 1);
+		if (XFS_IS_CORRUPT(mp, i != 1))
+			return -EFSCORRUPTED;
 	} else {
 		/*
 		 * Update the by-block entry to start later|be shorter.
@@ -539,10 +573,12 @@ xfs_alloc_fixup_trees(
 		 */
 		if ((error = xfs_alloc_lookup_eq(bno_cur, nfbno2, nflen2, &i)))
 			return error;
-		XFS_WANT_CORRUPTED_RETURN(mp, i == 0);
+		if (XFS_IS_CORRUPT(mp, i != 0))
+			return -EFSCORRUPTED;
 		if ((error = xfs_btree_insert(bno_cur, &i)))
 			return error;
-		XFS_WANT_CORRUPTED_RETURN(mp, i == 1);
+		if (XFS_IS_CORRUPT(mp, i != 1))
+			return -EFSCORRUPTED;
 	}
 	return 0;
 }
@@ -684,16 +720,298 @@ xfs_alloc_update_counters(
 
 	xfs_trans_agblocks_delta(tp, len);
 	if (unlikely(be32_to_cpu(agf->agf_freeblks) >
-		     be32_to_cpu(agf->agf_length)))
+		     be32_to_cpu(agf->agf_length))) {
+		xfs_buf_corruption_error(agbp);
 		return -EFSCORRUPTED;
+	}
 
 	xfs_alloc_log_agf(tp, agbp, XFS_AGF_FREEBLKS);
 	return 0;
 }
 
 /*
- * Allocation group level functions.
+ * Block allocation algorithm and data structures.
  */
+struct xfs_alloc_cur {
+	struct xfs_btree_cur		*cnt;	/* btree cursors */
+	struct xfs_btree_cur		*bnolt;
+	struct xfs_btree_cur		*bnogt;
+	xfs_extlen_t			cur_len;/* current search length */
+	xfs_agblock_t			rec_bno;/* extent startblock */
+	xfs_extlen_t			rec_len;/* extent length */
+	xfs_agblock_t			bno;	/* alloc bno */
+	xfs_extlen_t			len;	/* alloc len */
+	xfs_extlen_t			diff;	/* diff from search bno */
+	unsigned int			busy_gen;/* busy state */
+	bool				busy;
+};
+
+/*
+ * Set up cursors, etc. in the extent allocation cursor. This function can be
+ * called multiple times to reset an initialized structure without having to
+ * reallocate cursors.
+ */
+static int
+xfs_alloc_cur_setup(
+	struct xfs_alloc_arg	*args,
+	struct xfs_alloc_cur	*acur)
+{
+	int			error;
+	int			i;
+
+	ASSERT(args->alignment == 1 || args->type != XFS_ALLOCTYPE_THIS_BNO);
+
+	acur->cur_len = args->maxlen;
+	acur->rec_bno = 0;
+	acur->rec_len = 0;
+	acur->bno = 0;
+	acur->len = 0;
+	acur->diff = -1;
+	acur->busy = false;
+	acur->busy_gen = 0;
+
+	/*
+	 * Perform an initial cntbt lookup to check for availability of maxlen
+	 * extents. If this fails, we'll return -ENOSPC to signal the caller to
+	 * attempt a small allocation.
+	 */
+	if (!acur->cnt)
+		acur->cnt = xfs_allocbt_init_cursor(args->mp, args->tp,
+					args->agbp, args->agno, XFS_BTNUM_CNT);
+	error = xfs_alloc_lookup_ge(acur->cnt, 0, args->maxlen, &i);
+	if (error)
+		return error;
+
+	/*
+	 * Allocate the bnobt left and right search cursors.
+	 */
+	if (!acur->bnolt)
+		acur->bnolt = xfs_allocbt_init_cursor(args->mp, args->tp,
+					args->agbp, args->agno, XFS_BTNUM_BNO);
+	if (!acur->bnogt)
+		acur->bnogt = xfs_allocbt_init_cursor(args->mp, args->tp,
+					args->agbp, args->agno, XFS_BTNUM_BNO);
+	return i == 1 ? 0 : -ENOSPC;
+}
+
+static void
+xfs_alloc_cur_close(
+	struct xfs_alloc_cur	*acur,
+	bool			error)
+{
+	int			cur_error = XFS_BTREE_NOERROR;
+
+	if (error)
+		cur_error = XFS_BTREE_ERROR;
+
+	if (acur->cnt)
+		xfs_btree_del_cursor(acur->cnt, cur_error);
+	if (acur->bnolt)
+		xfs_btree_del_cursor(acur->bnolt, cur_error);
+	if (acur->bnogt)
+		xfs_btree_del_cursor(acur->bnogt, cur_error);
+	acur->cnt = acur->bnolt = acur->bnogt = NULL;
+}
+
+/*
+ * Check an extent for allocation and track the best available candidate in the
+ * allocation structure. The cursor is deactivated if it has entered an out of
+ * range state based on allocation arguments. Optionally return the extent
+ * extent geometry and allocation status if requested by the caller.
+ */
+static int
+xfs_alloc_cur_check(
+	struct xfs_alloc_arg	*args,
+	struct xfs_alloc_cur	*acur,
+	struct xfs_btree_cur	*cur,
+	int			*new)
+{
+	int			error, i;
+	xfs_agblock_t		bno, bnoa, bnew;
+	xfs_extlen_t		len, lena, diff = -1;
+	bool			busy;
+	unsigned		busy_gen = 0;
+	bool			deactivate = false;
+	bool			isbnobt = cur->bc_btnum == XFS_BTNUM_BNO;
+
+	*new = 0;
+
+	error = xfs_alloc_get_rec(cur, &bno, &len, &i);
+	if (error)
+		return error;
+	if (XFS_IS_CORRUPT(args->mp, i != 1))
+		return -EFSCORRUPTED;
+
+	/*
+	 * Check minlen and deactivate a cntbt cursor if out of acceptable size
+	 * range (i.e., walking backwards looking for a minlen extent).
+	 */
+	if (len < args->minlen) {
+		deactivate = !isbnobt;
+		goto out;
+	}
+
+	busy = xfs_alloc_compute_aligned(args, bno, len, &bnoa, &lena,
+					 &busy_gen);
+	acur->busy |= busy;
+	if (busy)
+		acur->busy_gen = busy_gen;
+	/* deactivate a bnobt cursor outside of locality range */
+	if (bnoa < args->min_agbno || bnoa > args->max_agbno) {
+		deactivate = isbnobt;
+		goto out;
+	}
+	if (lena < args->minlen)
+		goto out;
+
+	args->len = XFS_EXTLEN_MIN(lena, args->maxlen);
+	xfs_alloc_fix_len(args);
+	ASSERT(args->len >= args->minlen);
+	if (args->len < acur->len)
+		goto out;
+
+	/*
+	 * We have an aligned record that satisfies minlen and beats or matches
+	 * the candidate extent size. Compare locality for near allocation mode.
+	 */
+	ASSERT(args->type == XFS_ALLOCTYPE_NEAR_BNO);
+	diff = xfs_alloc_compute_diff(args->agbno, args->len,
+				      args->alignment, args->datatype,
+				      bnoa, lena, &bnew);
+	if (bnew == NULLAGBLOCK)
+		goto out;
+
+	/*
+	 * Deactivate a bnobt cursor with worse locality than the current best.
+	 */
+	if (diff > acur->diff) {
+		deactivate = isbnobt;
+		goto out;
+	}
+
+	ASSERT(args->len > acur->len ||
+	       (args->len == acur->len && diff <= acur->diff));
+	acur->rec_bno = bno;
+	acur->rec_len = len;
+	acur->bno = bnew;
+	acur->len = args->len;
+	acur->diff = diff;
+	*new = 1;
+
+	/*
+	 * We're done if we found a perfect allocation. This only deactivates
+	 * the current cursor, but this is just an optimization to terminate a
+	 * cntbt search that otherwise runs to the edge of the tree.
+	 */
+	if (acur->diff == 0 && acur->len == args->maxlen)
+		deactivate = true;
+out:
+	if (deactivate)
+		cur->bc_private.a.priv.abt.active = false;
+	trace_xfs_alloc_cur_check(args->mp, cur->bc_btnum, bno, len, diff,
+				  *new);
+	return 0;
+}
+
+/*
+ * Complete an allocation of a candidate extent. Remove the extent from both
+ * trees and update the args structure.
+ */
+STATIC int
+xfs_alloc_cur_finish(
+	struct xfs_alloc_arg	*args,
+	struct xfs_alloc_cur	*acur)
+{
+	int			error;
+
+	ASSERT(acur->cnt && acur->bnolt);
+	ASSERT(acur->bno >= acur->rec_bno);
+	ASSERT(acur->bno + acur->len <= acur->rec_bno + acur->rec_len);
+	ASSERT(acur->rec_bno + acur->rec_len <=
+	       be32_to_cpu(XFS_BUF_TO_AGF(args->agbp)->agf_length));
+
+	error = xfs_alloc_fixup_trees(acur->cnt, acur->bnolt, acur->rec_bno,
+				      acur->rec_len, acur->bno, acur->len, 0);
+	if (error)
+		return error;
+
+	args->agbno = acur->bno;
+	args->len = acur->len;
+	args->wasfromfl = 0;
+
+	trace_xfs_alloc_cur(args);
+	return 0;
+}
+
+/*
+ * Locality allocation lookup algorithm. This expects a cntbt cursor and uses
+ * bno optimized lookup to search for extents with ideal size and locality.
+ */
+STATIC int
+xfs_alloc_cntbt_iter(
+	struct xfs_alloc_arg		*args,
+	struct xfs_alloc_cur		*acur)
+{
+	struct xfs_btree_cur	*cur = acur->cnt;
+	xfs_agblock_t		bno;
+	xfs_extlen_t		len, cur_len;
+	int			error;
+	int			i;
+
+	if (!xfs_alloc_cur_active(cur))
+		return 0;
+
+	/* locality optimized lookup */
+	cur_len = acur->cur_len;
+	error = xfs_alloc_lookup_ge(cur, args->agbno, cur_len, &i);
+	if (error)
+		return error;
+	if (i == 0)
+		return 0;
+	error = xfs_alloc_get_rec(cur, &bno, &len, &i);
+	if (error)
+		return error;
+
+	/* check the current record and update search length from it */
+	error = xfs_alloc_cur_check(args, acur, cur, &i);
+	if (error)
+		return error;
+	ASSERT(len >= acur->cur_len);
+	acur->cur_len = len;
+
+	/*
+	 * We looked up the first record >= [agbno, len] above. The agbno is a
+	 * secondary key and so the current record may lie just before or after
+	 * agbno. If it is past agbno, check the previous record too so long as
+	 * the length matches as it may be closer. Don't check a smaller record
+	 * because that could deactivate our cursor.
+	 */
+	if (bno > args->agbno) {
+		error = xfs_btree_decrement(cur, 0, &i);
+		if (!error && i) {
+			error = xfs_alloc_get_rec(cur, &bno, &len, &i);
+			if (!error && i && len == acur->cur_len)
+				error = xfs_alloc_cur_check(args, acur, cur,
+							    &i);
+		}
+		if (error)
+			return error;
+	}
+
+	/*
+	 * Increment the search key until we find at least one allocation
+	 * candidate or if the extent we found was larger. Otherwise, double the
+	 * search key to optimize the search. Efficiency is more important here
+	 * than absolute best locality.
+	 */
+	cur_len <<= 1;
+	if (!acur->len || acur->cur_len >= cur_len)
+		acur->cur_len++;
+	else
+		acur->cur_len = cur_len;
+
+	return error;
+}
 
 /*
  * Deal with the case where only small freespaces remain. Either return the
@@ -727,7 +1045,10 @@ xfs_alloc_ag_vextent_small(
 		error = xfs_alloc_get_rec(ccur, &fbno, &flen, &i);
 		if (error)
 			goto error;
-		XFS_WANT_CORRUPTED_GOTO(args->mp, i == 1, error);
+		if (XFS_IS_CORRUPT(args->mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto error;
+		}
 		goto out;
 	}
 
@@ -744,13 +1065,13 @@ xfs_alloc_ag_vextent_small(
 		goto out;
 
 	xfs_extent_busy_reuse(args->mp, args->agno, fbno, 1,
-			      xfs_alloc_allow_busy_reuse(args->datatype));
+			      (args->datatype & XFS_ALLOC_NOBUSY));
 
-	if (xfs_alloc_is_userdata(args->datatype)) {
+	if (args->datatype & XFS_ALLOC_USERDATA) {
 		struct xfs_buf	*bp;
 
 		bp = xfs_btree_get_bufs(args->mp, args->tp, args->agno, fbno);
-		if (!bp) {
+		if (XFS_IS_CORRUPT(args->mp, !bp)) {
 			error = -EFSCORRUPTED;
 			goto error;
 		}
@@ -758,9 +1079,12 @@ xfs_alloc_ag_vextent_small(
 	}
 	*fbnop = args->agbno = fbno;
 	*flenp = args->len = 1;
-	XFS_WANT_CORRUPTED_GOTO(args->mp,
-		fbno < be32_to_cpu(XFS_BUF_TO_AGF(args->agbp)->agf_length),
-		error);
+	if (XFS_IS_CORRUPT(args->mp,
+			   fbno >= be32_to_cpu(
+				   XFS_BUF_TO_AGF(args->agbp)->agf_length))) {
+		error = -EFSCORRUPTED;
+		goto error;
+	}
 	args->wasfromfl = 1;
 	trace_xfs_alloc_small_freelist(args);
 
@@ -915,7 +1239,10 @@ xfs_alloc_ag_vextent_exact(
 	error = xfs_alloc_get_rec(bno_cur, &fbno, &flen, &i);
 	if (error)
 		goto error0;
-	XFS_WANT_CORRUPTED_GOTO(args->mp, i == 1, error0);
+	if (XFS_IS_CORRUPT(args->mp, i != 1)) {
+		error = -EFSCORRUPTED;
+		goto error0;
+	}
 	ASSERT(fbno <= args->agbno);
 
 	/*
@@ -984,98 +1311,243 @@ error0:
 }
 
 /*
- * Search the btree in a given direction via the search cursor and compare
- * the records found against the good extent we've already found.
+ * Search a given number of btree records in a given direction. Check each
+ * record against the good extent we've already found.
  */
 STATIC int
-xfs_alloc_find_best_extent(
-	struct xfs_alloc_arg	*args,	/* allocation argument structure */
-	struct xfs_btree_cur	**gcur,	/* good cursor */
-	struct xfs_btree_cur	**scur,	/* searching cursor */
-	xfs_agblock_t		gdiff,	/* difference for search comparison */
-	xfs_agblock_t		*sbno,	/* extent found by search */
-	xfs_extlen_t		*slen,	/* extent length */
-	xfs_agblock_t		*sbnoa,	/* aligned extent found by search */
-	xfs_extlen_t		*slena,	/* aligned extent length */
-	int			dir)	/* 0 = search right, 1 = search left */
+xfs_alloc_walk_iter(
+	struct xfs_alloc_arg	*args,
+	struct xfs_alloc_cur	*acur,
+	struct xfs_btree_cur	*cur,
+	bool			increment,
+	bool			find_one, /* quit on first candidate */
+	int			count,    /* rec count (-1 for infinite) */
+	int			*stat)
 {
-	xfs_agblock_t		new;
-	xfs_agblock_t		sdiff;
 	int			error;
 	int			i;
-	unsigned		busy_gen;
 
-	/* The good extent is perfect, no need to  search. */
-	if (!gdiff)
-		goto out_use_good;
+	*stat = 0;
 
 	/*
-	 * Look until we find a better one, run out of space or run off the end.
+	 * Search so long as the cursor is active or we find a better extent.
+	 * The cursor is deactivated if it extends beyond the range of the
+	 * current allocation candidate.
 	 */
-	do {
-		error = xfs_alloc_get_rec(*scur, sbno, slen, &i);
+	while (xfs_alloc_cur_active(cur) && count) {
+		error = xfs_alloc_cur_check(args, acur, cur, &i);
 		if (error)
-			goto error0;
-		XFS_WANT_CORRUPTED_GOTO(args->mp, i == 1, error0);
-		xfs_alloc_compute_aligned(args, *sbno, *slen,
-				sbnoa, slena, &busy_gen);
-
-		/*
-		 * The good extent is closer than this one.
-		 */
-		if (!dir) {
-			if (*sbnoa > args->max_agbno)
-				goto out_use_good;
-			if (*sbnoa >= args->agbno + gdiff)
-				goto out_use_good;
-		} else {
-			if (*sbnoa < args->min_agbno)
-				goto out_use_good;
-			if (*sbnoa <= args->agbno - gdiff)
-				goto out_use_good;
+			return error;
+		if (i == 1) {
+			*stat = 1;
+			if (find_one)
+				break;
 		}
+		if (!xfs_alloc_cur_active(cur))
+			break;
 
-		/*
-		 * Same distance, compare length and pick the best.
-		 */
-		if (*slena >= args->minlen) {
-			args->len = XFS_EXTLEN_MIN(*slena, args->maxlen);
-			xfs_alloc_fix_len(args);
-
-			sdiff = xfs_alloc_compute_diff(args->agbno, args->len,
-						       args->alignment,
-						       args->datatype, *sbnoa,
-						       *slena, &new);
-
-			/*
-			 * Choose closer size and invalidate other cursor.
-			 */
-			if (sdiff < gdiff)
-				goto out_use_search;
-			goto out_use_good;
-		}
-
-		if (!dir)
-			error = xfs_btree_increment(*scur, 0, &i);
+		if (increment)
+			error = xfs_btree_increment(cur, 0, &i);
 		else
-			error = xfs_btree_decrement(*scur, 0, &i);
+			error = xfs_btree_decrement(cur, 0, &i);
 		if (error)
-			goto error0;
-	} while (i);
+			return error;
+		if (i == 0)
+			cur->bc_private.a.priv.abt.active = false;
 
-out_use_good:
-	xfs_btree_del_cursor(*scur, XFS_BTREE_NOERROR);
-	*scur = NULL;
+		if (count > 0)
+			count--;
+	}
+
 	return 0;
+}
 
-out_use_search:
-	xfs_btree_del_cursor(*gcur, XFS_BTREE_NOERROR);
-	*gcur = NULL;
+/*
+ * Search the by-bno and by-size btrees in parallel in search of an extent with
+ * ideal locality based on the NEAR mode ->agbno locality hint.
+ */
+STATIC int
+xfs_alloc_ag_vextent_locality(
+	struct xfs_alloc_arg	*args,
+	struct xfs_alloc_cur	*acur,
+	int			*stat)
+{
+	struct xfs_btree_cur	*fbcur = NULL;
+	int			error;
+	int			i;
+	bool			fbinc;
+
+	ASSERT(acur->len == 0);
+	ASSERT(args->type == XFS_ALLOCTYPE_NEAR_BNO);
+
+	*stat = 0;
+
+	error = xfs_alloc_lookup_ge(acur->cnt, args->agbno, acur->cur_len, &i);
+	if (error)
+		return error;
+	error = xfs_alloc_lookup_le(acur->bnolt, args->agbno, 0, &i);
+	if (error)
+		return error;
+	error = xfs_alloc_lookup_ge(acur->bnogt, args->agbno, 0, &i);
+	if (error)
+		return error;
+
+	/*
+	 * Search the bnobt and cntbt in parallel. Search the bnobt left and
+	 * right and lookup the closest extent to the locality hint for each
+	 * extent size key in the cntbt. The entire search terminates
+	 * immediately on a bnobt hit because that means we've found best case
+	 * locality. Otherwise the search continues until the cntbt cursor runs
+	 * off the end of the tree. If no allocation candidate is found at this
+	 * point, give up on locality, walk backwards from the end of the cntbt
+	 * and take the first available extent.
+	 *
+	 * The parallel tree searches balance each other out to provide fairly
+	 * consistent performance for various situations. The bnobt search can
+	 * have pathological behavior in the worst case scenario of larger
+	 * allocation requests and fragmented free space. On the other hand, the
+	 * bnobt is able to satisfy most smaller allocation requests much more
+	 * quickly than the cntbt. The cntbt search can sift through fragmented
+	 * free space and sets of free extents for larger allocation requests
+	 * more quickly than the bnobt. Since the locality hint is just a hint
+	 * and we don't want to scan the entire bnobt for perfect locality, the
+	 * cntbt search essentially bounds the bnobt search such that we can
+	 * find good enough locality at reasonable performance in most cases.
+	 */
+	while (xfs_alloc_cur_active(acur->bnolt) ||
+	       xfs_alloc_cur_active(acur->bnogt) ||
+	       xfs_alloc_cur_active(acur->cnt)) {
+
+		trace_xfs_alloc_cur_lookup(args);
+
+		/*
+		 * Search the bnobt left and right. In the case of a hit, finish
+		 * the search in the opposite direction and we're done.
+		 */
+		error = xfs_alloc_walk_iter(args, acur, acur->bnolt, false,
+					    true, 1, &i);
+		if (error)
+			return error;
+		if (i == 1) {
+			trace_xfs_alloc_cur_left(args);
+			fbcur = acur->bnogt;
+			fbinc = true;
+			break;
+		}
+		error = xfs_alloc_walk_iter(args, acur, acur->bnogt, true, true,
+					    1, &i);
+		if (error)
+			return error;
+		if (i == 1) {
+			trace_xfs_alloc_cur_right(args);
+			fbcur = acur->bnolt;
+			fbinc = false;
+			break;
+		}
+
+		/*
+		 * Check the extent with best locality based on the current
+		 * extent size search key and keep track of the best candidate.
+		 */
+		error = xfs_alloc_cntbt_iter(args, acur);
+		if (error)
+			return error;
+		if (!xfs_alloc_cur_active(acur->cnt)) {
+			trace_xfs_alloc_cur_lookup_done(args);
+			break;
+		}
+	}
+
+	/*
+	 * If we failed to find anything due to busy extents, return empty
+	 * handed so the caller can flush and retry. If no busy extents were
+	 * found, walk backwards from the end of the cntbt as a last resort.
+	 */
+	if (!xfs_alloc_cur_active(acur->cnt) && !acur->len && !acur->busy) {
+		error = xfs_btree_decrement(acur->cnt, 0, &i);
+		if (error)
+			return error;
+		if (i) {
+			acur->cnt->bc_private.a.priv.abt.active = true;
+			fbcur = acur->cnt;
+			fbinc = false;
+		}
+	}
+
+	/*
+	 * Search in the opposite direction for a better entry in the case of
+	 * a bnobt hit or walk backwards from the end of the cntbt.
+	 */
+	if (fbcur) {
+		error = xfs_alloc_walk_iter(args, acur, fbcur, fbinc, true, -1,
+					    &i);
+		if (error)
+			return error;
+	}
+
+	if (acur->len)
+		*stat = 1;
+
 	return 0;
+}
 
-error0:
-	/* caller invalidates cursors */
-	return error;
+/* Check the last block of the cnt btree for allocations. */
+static int
+xfs_alloc_ag_vextent_lastblock(
+	struct xfs_alloc_arg	*args,
+	struct xfs_alloc_cur	*acur,
+	xfs_agblock_t		*bno,
+	xfs_extlen_t		*len,
+	bool			*allocated)
+{
+	int			error;
+	int			i;
+
+#ifdef DEBUG
+	/* Randomly don't execute the first algorithm. */
+	if (prandom_u32() & 1)
+		return 0;
+#endif
+
+	/*
+	 * Start from the entry that lookup found, sequence through all larger
+	 * free blocks.  If we're actually pointing at a record smaller than
+	 * maxlen, go to the start of this block, and skip all those smaller
+	 * than minlen.
+	 */
+	if (len || args->alignment > 1) {
+		acur->cnt->bc_ptrs[0] = 1;
+		do {
+			error = xfs_alloc_get_rec(acur->cnt, bno, len, &i);
+			if (error)
+				return error;
+			if (XFS_IS_CORRUPT(args->mp, i != 1))
+				return -EFSCORRUPTED;
+			if (*len >= args->minlen)
+				break;
+			error = xfs_btree_increment(acur->cnt, 0, &i);
+			if (error)
+				return error;
+		} while (i);
+		ASSERT(*len >= args->minlen);
+		if (!i)
+			return 0;
+	}
+
+	error = xfs_alloc_walk_iter(args, acur, acur->cnt, true, false, -1, &i);
+	if (error)
+		return error;
+
+	/*
+	 * It didn't work.  We COULD be in a case where there's a good record
+	 * somewhere, so try again.
+	 */
+	if (acur->len == 0)
+		return 0;
+
+	trace_xfs_alloc_near_first(args);
+	*allocated = true;
+	return 0;
 }
 
 /*
@@ -1084,41 +1556,17 @@ error0:
  * and of the form k * prod + mod unless there's nothing that large.
  * Return the starting a.g. block, or NULLAGBLOCK if we can't do it.
  */
-STATIC int				/* error */
+STATIC int
 xfs_alloc_ag_vextent_near(
-	xfs_alloc_arg_t	*args)		/* allocation argument structure */
+	struct xfs_alloc_arg	*args)
 {
-	xfs_btree_cur_t	*bno_cur_gt;	/* cursor for bno btree, right side */
-	xfs_btree_cur_t	*bno_cur_lt;	/* cursor for bno btree, left side */
-	xfs_btree_cur_t	*cnt_cur;	/* cursor for count btree */
-	xfs_agblock_t	gtbno;		/* start bno of right side entry */
-	xfs_agblock_t	gtbnoa;		/* aligned ... */
-	xfs_extlen_t	gtdiff;		/* difference to right side entry */
-	xfs_extlen_t	gtlen;		/* length of right side entry */
-	xfs_extlen_t	gtlena;		/* aligned ... */
-	xfs_agblock_t	gtnew;		/* useful start bno of right side */
-	int		error;		/* error code */
-	int		i;		/* result code, temporary */
-	int		j;		/* result code, temporary */
-	xfs_agblock_t	ltbno;		/* start bno of left side entry */
-	xfs_agblock_t	ltbnoa;		/* aligned ... */
-	xfs_extlen_t	ltdiff;		/* difference to left side entry */
-	xfs_extlen_t	ltlen;		/* length of left side entry */
-	xfs_extlen_t	ltlena;		/* aligned ... */
-	xfs_agblock_t	ltnew;		/* useful start bno of left side */
-	xfs_extlen_t	rlen;		/* length of returned extent */
-	bool		busy;
-	unsigned	busy_gen;
-#ifdef DEBUG
-	/*
-	 * Randomly don't execute the first algorithm.
-	 */
-	int		dofirst;	/* set to do first algorithm */
+	struct xfs_alloc_cur	acur = {};
+	int			error;		/* error code */
+	int			i;		/* result code, temporary */
+	xfs_agblock_t		bno;
+	xfs_extlen_t		len;
 
-	dofirst = prandom_u32() & 1;
-#endif
-
-	/* handle unitialized agbno range so caller doesn't have to */
+	/* handle uninitialized agbno range so caller doesn't have to */
 	if (!args->min_agbno && !args->max_agbno)
 		args->max_agbno = args->mp->m_sb.sb_agblocks - 1;
 	ASSERT(args->min_agbno <= args->max_agbno);
@@ -1130,40 +1578,27 @@ xfs_alloc_ag_vextent_near(
 		args->agbno = args->max_agbno;
 
 restart:
-	bno_cur_lt = NULL;
-	bno_cur_gt = NULL;
-	ltlen = 0;
-	gtlena = 0;
-	ltlena = 0;
-	busy = false;
+	len = 0;
 
 	/*
-	 * Get a cursor for the by-size btree.
+	 * Set up cursors and see if there are any free extents as big as
+	 * maxlen. If not, pick the last entry in the tree unless the tree is
+	 * empty.
 	 */
-	cnt_cur = xfs_allocbt_init_cursor(args->mp, args->tp, args->agbp,
-		args->agno, XFS_BTNUM_CNT);
-
-	/*
-	 * See if there are any free extents as big as maxlen.
-	 */
-	if ((error = xfs_alloc_lookup_ge(cnt_cur, 0, args->maxlen, &i)))
-		goto error0;
-	/*
-	 * If none, then pick up the last entry in the tree unless the
-	 * tree is empty.
-	 */
-	if (!i) {
-		if ((error = xfs_alloc_ag_vextent_small(args, cnt_cur, &ltbno,
-				&ltlen, &i)))
-			goto error0;
-		if (i == 0 || ltlen == 0) {
-			xfs_btree_del_cursor(cnt_cur, XFS_BTREE_NOERROR);
+	error = xfs_alloc_cur_setup(args, &acur);
+	if (error == -ENOSPC) {
+		error = xfs_alloc_ag_vextent_small(args, acur.cnt, &bno,
+				&len, &i);
+		if (error)
+			goto out;
+		if (i == 0 || len == 0) {
 			trace_xfs_alloc_near_noentry(args);
-			return 0;
+			goto out;
 		}
 		ASSERT(i == 1);
+	} else if (error) {
+		goto out;
 	}
-	args->wasfromfl = 0;
 
 	/*
 	 * First algorithm.
@@ -1172,311 +1607,47 @@ restart:
 	 * near the right edge of the tree.  If it's in the last btree leaf
 	 * block, then we just examine all the entries in that block
 	 * that are big enough, and pick the best one.
-	 * This is written as a while loop so we can break out of it,
-	 * but we never loop back to the top.
 	 */
-	while (xfs_btree_islastblock(cnt_cur, 0)) {
-		xfs_extlen_t	bdiff;
-		int		besti=0;
-		xfs_extlen_t	blen=0;
-		xfs_agblock_t	bnew=0;
+	if (xfs_btree_islastblock(acur.cnt, 0)) {
+		bool		allocated = false;
 
-#ifdef DEBUG
-		if (dofirst)
-			break;
-#endif
-		/*
-		 * Start from the entry that lookup found, sequence through
-		 * all larger free blocks.  If we're actually pointing at a
-		 * record smaller than maxlen, go to the start of this block,
-		 * and skip all those smaller than minlen.
-		 */
-		if (ltlen || args->alignment > 1) {
-			cnt_cur->bc_ptrs[0] = 1;
-			do {
-				if ((error = xfs_alloc_get_rec(cnt_cur, &ltbno,
-						&ltlen, &i)))
-					goto error0;
-				XFS_WANT_CORRUPTED_GOTO(args->mp, i == 1, error0);
-				if (ltlen >= args->minlen)
-					break;
-				if ((error = xfs_btree_increment(cnt_cur, 0, &i)))
-					goto error0;
-			} while (i);
-			ASSERT(ltlen >= args->minlen);
-			if (!i)
-				break;
-		}
-		i = cnt_cur->bc_ptrs[0];
-		for (j = 1, blen = 0, bdiff = 0;
-		     !error && j && (blen < args->maxlen || bdiff > 0);
-		     error = xfs_btree_increment(cnt_cur, 0, &j)) {
-			/*
-			 * For each entry, decide if it's better than
-			 * the previous best entry.
-			 */
-			if ((error = xfs_alloc_get_rec(cnt_cur, &ltbno, &ltlen, &i)))
-				goto error0;
-			XFS_WANT_CORRUPTED_GOTO(args->mp, i == 1, error0);
-			busy = xfs_alloc_compute_aligned(args, ltbno, ltlen,
-					&ltbnoa, &ltlena, &busy_gen);
-			if (ltlena < args->minlen)
-				continue;
-			if (ltbnoa < args->min_agbno || ltbnoa > args->max_agbno)
-				continue;
-			args->len = XFS_EXTLEN_MIN(ltlena, args->maxlen);
-			xfs_alloc_fix_len(args);
-			ASSERT(args->len >= args->minlen);
-			if (args->len < blen)
-				continue;
-			ltdiff = xfs_alloc_compute_diff(args->agbno, args->len,
-				args->alignment, args->datatype, ltbnoa,
-				ltlena, &ltnew);
-			if (ltnew != NULLAGBLOCK &&
-			    (args->len > blen || ltdiff < bdiff)) {
-				bdiff = ltdiff;
-				bnew = ltnew;
-				blen = args->len;
-				besti = cnt_cur->bc_ptrs[0];
-			}
-		}
-		/*
-		 * It didn't work.  We COULD be in a case where
-		 * there's a good record somewhere, so try again.
-		 */
-		if (blen == 0)
-			break;
-		/*
-		 * Point at the best entry, and retrieve it again.
-		 */
-		cnt_cur->bc_ptrs[0] = besti;
-		if ((error = xfs_alloc_get_rec(cnt_cur, &ltbno, &ltlen, &i)))
-			goto error0;
-		XFS_WANT_CORRUPTED_GOTO(args->mp, i == 1, error0);
-		ASSERT(ltbno + ltlen <= be32_to_cpu(XFS_BUF_TO_AGF(args->agbp)->agf_length));
-		args->len = blen;
-
-		/*
-		 * We are allocating starting at bnew for blen blocks.
-		 */
-		args->agbno = bnew;
-		ASSERT(bnew >= ltbno);
-		ASSERT(bnew + blen <= ltbno + ltlen);
-		/*
-		 * Set up a cursor for the by-bno tree.
-		 */
-		bno_cur_lt = xfs_allocbt_init_cursor(args->mp, args->tp,
-			args->agbp, args->agno, XFS_BTNUM_BNO);
-		/*
-		 * Fix up the btree entries.
-		 */
-		if ((error = xfs_alloc_fixup_trees(cnt_cur, bno_cur_lt, ltbno,
-				ltlen, bnew, blen, XFSA_FIXUP_CNT_OK)))
-			goto error0;
-		xfs_btree_del_cursor(cnt_cur, XFS_BTREE_NOERROR);
-		xfs_btree_del_cursor(bno_cur_lt, XFS_BTREE_NOERROR);
-
-		trace_xfs_alloc_near_first(args);
-		return 0;
-	}
-	/*
-	 * Second algorithm.
-	 * Search in the by-bno tree to the left and to the right
-	 * simultaneously, until in each case we find a space big enough,
-	 * or run into the edge of the tree.  When we run into the edge,
-	 * we deallocate that cursor.
-	 * If both searches succeed, we compare the two spaces and pick
-	 * the better one.
-	 * With alignment, it's possible for both to fail; the upper
-	 * level algorithm that picks allocation groups for allocations
-	 * is not supposed to do this.
-	 */
-	/*
-	 * Allocate and initialize the cursor for the leftward search.
-	 */
-	bno_cur_lt = xfs_allocbt_init_cursor(args->mp, args->tp, args->agbp,
-		args->agno, XFS_BTNUM_BNO);
-	/*
-	 * Lookup <= bno to find the leftward search's starting point.
-	 */
-	if ((error = xfs_alloc_lookup_le(bno_cur_lt, args->agbno, args->maxlen, &i)))
-		goto error0;
-	if (!i) {
-		/*
-		 * Didn't find anything; use this cursor for the rightward
-		 * search.
-		 */
-		bno_cur_gt = bno_cur_lt;
-		bno_cur_lt = NULL;
-	}
-	/*
-	 * Found something.  Duplicate the cursor for the rightward search.
-	 */
-	else if ((error = xfs_btree_dup_cursor(bno_cur_lt, &bno_cur_gt)))
-		goto error0;
-	/*
-	 * Increment the cursor, so we will point at the entry just right
-	 * of the leftward entry if any, or to the leftmost entry.
-	 */
-	if ((error = xfs_btree_increment(bno_cur_gt, 0, &i)))
-		goto error0;
-	if (!i) {
-		/*
-		 * It failed, there are no rightward entries.
-		 */
-		xfs_btree_del_cursor(bno_cur_gt, XFS_BTREE_NOERROR);
-		bno_cur_gt = NULL;
-	}
-	/*
-	 * Loop going left with the leftward cursor, right with the
-	 * rightward cursor, until either both directions give up or
-	 * we find an entry at least as big as minlen.
-	 */
-	do {
-		if (bno_cur_lt) {
-			if ((error = xfs_alloc_get_rec(bno_cur_lt, &ltbno, &ltlen, &i)))
-				goto error0;
-			XFS_WANT_CORRUPTED_GOTO(args->mp, i == 1, error0);
-			busy |= xfs_alloc_compute_aligned(args, ltbno, ltlen,
-					&ltbnoa, &ltlena, &busy_gen);
-			if (ltlena >= args->minlen && ltbnoa >= args->min_agbno)
-				break;
-			if ((error = xfs_btree_decrement(bno_cur_lt, 0, &i)))
-				goto error0;
-			if (!i || ltbnoa < args->min_agbno) {
-				xfs_btree_del_cursor(bno_cur_lt,
-						     XFS_BTREE_NOERROR);
-				bno_cur_lt = NULL;
-			}
-		}
-		if (bno_cur_gt) {
-			if ((error = xfs_alloc_get_rec(bno_cur_gt, &gtbno, &gtlen, &i)))
-				goto error0;
-			XFS_WANT_CORRUPTED_GOTO(args->mp, i == 1, error0);
-			busy |= xfs_alloc_compute_aligned(args, gtbno, gtlen,
-					&gtbnoa, &gtlena, &busy_gen);
-			if (gtlena >= args->minlen && gtbnoa <= args->max_agbno)
-				break;
-			if ((error = xfs_btree_increment(bno_cur_gt, 0, &i)))
-				goto error0;
-			if (!i || gtbnoa > args->max_agbno) {
-				xfs_btree_del_cursor(bno_cur_gt,
-						     XFS_BTREE_NOERROR);
-				bno_cur_gt = NULL;
-			}
-		}
-	} while (bno_cur_lt || bno_cur_gt);
-
-	/*
-	 * Got both cursors still active, need to find better entry.
-	 */
-	if (bno_cur_lt && bno_cur_gt) {
-		if (ltlena >= args->minlen) {
-			/*
-			 * Left side is good, look for a right side entry.
-			 */
-			args->len = XFS_EXTLEN_MIN(ltlena, args->maxlen);
-			xfs_alloc_fix_len(args);
-			ltdiff = xfs_alloc_compute_diff(args->agbno, args->len,
-				args->alignment, args->datatype, ltbnoa,
-				ltlena, &ltnew);
-
-			error = xfs_alloc_find_best_extent(args,
-						&bno_cur_lt, &bno_cur_gt,
-						ltdiff, &gtbno, &gtlen,
-						&gtbnoa, &gtlena,
-						0 /* search right */);
-		} else {
-			ASSERT(gtlena >= args->minlen);
-
-			/*
-			 * Right side is good, look for a left side entry.
-			 */
-			args->len = XFS_EXTLEN_MIN(gtlena, args->maxlen);
-			xfs_alloc_fix_len(args);
-			gtdiff = xfs_alloc_compute_diff(args->agbno, args->len,
-				args->alignment, args->datatype, gtbnoa,
-				gtlena, &gtnew);
-
-			error = xfs_alloc_find_best_extent(args,
-						&bno_cur_gt, &bno_cur_lt,
-						gtdiff, &ltbno, &ltlen,
-						&ltbnoa, &ltlena,
-						1 /* search left */);
-		}
-
+		error = xfs_alloc_ag_vextent_lastblock(args, &acur, &bno, &len,
+				&allocated);
 		if (error)
-			goto error0;
+			goto out;
+		if (allocated)
+			goto alloc_finish;
 	}
+
+	/*
+	 * Second algorithm. Combined cntbt and bnobt search to find ideal
+	 * locality.
+	 */
+	error = xfs_alloc_ag_vextent_locality(args, &acur, &i);
+	if (error)
+		goto out;
 
 	/*
 	 * If we couldn't get anything, give up.
 	 */
-	if (bno_cur_lt == NULL && bno_cur_gt == NULL) {
-		xfs_btree_del_cursor(cnt_cur, XFS_BTREE_NOERROR);
-
-		if (busy) {
+	if (!acur.len) {
+		if (acur.busy) {
 			trace_xfs_alloc_near_busy(args);
-			xfs_extent_busy_flush(args->mp, args->pag, busy_gen);
+			xfs_extent_busy_flush(args->mp, args->pag,
+					      acur.busy_gen);
 			goto restart;
 		}
 		trace_xfs_alloc_size_neither(args);
 		args->agbno = NULLAGBLOCK;
-		return 0;
+		goto out;
 	}
 
-	/*
-	 * At this point we have selected a freespace entry, either to the
-	 * left or to the right.  If it's on the right, copy all the
-	 * useful variables to the "left" set so we only have one
-	 * copy of this code.
-	 */
-	if (bno_cur_gt) {
-		bno_cur_lt = bno_cur_gt;
-		bno_cur_gt = NULL;
-		ltbno = gtbno;
-		ltbnoa = gtbnoa;
-		ltlen = gtlen;
-		ltlena = gtlena;
-		j = 1;
-	} else
-		j = 0;
+alloc_finish:
+	/* fix up btrees on a successful allocation */
+	error = xfs_alloc_cur_finish(args, &acur);
 
-	/*
-	 * Fix up the length and compute the useful address.
-	 */
-	args->len = XFS_EXTLEN_MIN(ltlena, args->maxlen);
-	xfs_alloc_fix_len(args);
-	rlen = args->len;
-	(void)xfs_alloc_compute_diff(args->agbno, rlen, args->alignment,
-				     args->datatype, ltbnoa, ltlena, &ltnew);
-	ASSERT(ltnew >= ltbno);
-	ASSERT(ltnew + rlen <= ltbnoa + ltlena);
-	ASSERT(ltnew + rlen <= be32_to_cpu(XFS_BUF_TO_AGF(args->agbp)->agf_length));
-	ASSERT(ltnew >= args->min_agbno && ltnew <= args->max_agbno);
-	args->agbno = ltnew;
-
-	if ((error = xfs_alloc_fixup_trees(cnt_cur, bno_cur_lt, ltbno, ltlen,
-			ltnew, rlen, XFSA_FIXUP_BNO_OK)))
-		goto error0;
-
-	if (j)
-		trace_xfs_alloc_near_greater(args);
-	else
-		trace_xfs_alloc_near_lesser(args);
-
-	xfs_btree_del_cursor(cnt_cur, XFS_BTREE_NOERROR);
-	xfs_btree_del_cursor(bno_cur_lt, XFS_BTREE_NOERROR);
-	return 0;
-
- error0:
-	trace_xfs_alloc_near_error(args);
-	if (cnt_cur != NULL)
-		xfs_btree_del_cursor(cnt_cur, XFS_BTREE_ERROR);
-	if (bno_cur_lt != NULL)
-		xfs_btree_del_cursor(bno_cur_lt, XFS_BTREE_ERROR);
-	if (bno_cur_gt != NULL)
-		xfs_btree_del_cursor(bno_cur_gt, XFS_BTREE_ERROR);
+out:
+	xfs_alloc_cur_close(&acur, error);
 	return error;
 }
 
@@ -1545,7 +1716,10 @@ restart:
 			error = xfs_alloc_get_rec(cnt_cur, &fbno, &flen, &i);
 			if (error)
 				goto error0;
-			XFS_WANT_CORRUPTED_GOTO(args->mp, i == 1, error0);
+			if (XFS_IS_CORRUPT(args->mp, i != 1)) {
+				error = -EFSCORRUPTED;
+				goto error0;
+			}
 
 			busy = xfs_alloc_compute_aligned(args, fbno, flen,
 					&rbno, &rlen, &busy_gen);
@@ -1579,8 +1753,13 @@ restart:
 	 * This can't happen in the second case above.
 	 */
 	rlen = XFS_EXTLEN_MIN(args->maxlen, rlen);
-	XFS_WANT_CORRUPTED_GOTO(args->mp, rlen == 0 ||
-			(rlen <= flen && rbno + rlen <= fbno + flen), error0);
+	if (XFS_IS_CORRUPT(args->mp,
+			   rlen != 0 &&
+			   (rlen > flen ||
+			    rbno + rlen > fbno + flen))) {
+		error = -EFSCORRUPTED;
+		goto error0;
+	}
 	if (rlen < args->maxlen) {
 		xfs_agblock_t	bestfbno;
 		xfs_extlen_t	bestflen;
@@ -1599,15 +1778,22 @@ restart:
 			if ((error = xfs_alloc_get_rec(cnt_cur, &fbno, &flen,
 					&i)))
 				goto error0;
-			XFS_WANT_CORRUPTED_GOTO(args->mp, i == 1, error0);
+			if (XFS_IS_CORRUPT(args->mp, i != 1)) {
+				error = -EFSCORRUPTED;
+				goto error0;
+			}
 			if (flen < bestrlen)
 				break;
 			busy = xfs_alloc_compute_aligned(args, fbno, flen,
 					&rbno, &rlen, &busy_gen);
 			rlen = XFS_EXTLEN_MIN(args->maxlen, rlen);
-			XFS_WANT_CORRUPTED_GOTO(args->mp, rlen == 0 ||
-				(rlen <= flen && rbno + rlen <= fbno + flen),
-				error0);
+			if (XFS_IS_CORRUPT(args->mp,
+					   rlen != 0 &&
+					   (rlen > flen ||
+					    rbno + rlen > fbno + flen))) {
+				error = -EFSCORRUPTED;
+				goto error0;
+			}
 			if (rlen > bestrlen) {
 				bestrlen = rlen;
 				bestrbno = rbno;
@@ -1620,7 +1806,10 @@ restart:
 		if ((error = xfs_alloc_lookup_eq(cnt_cur, bestfbno, bestflen,
 				&i)))
 			goto error0;
-		XFS_WANT_CORRUPTED_GOTO(args->mp, i == 1, error0);
+		if (XFS_IS_CORRUPT(args->mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto error0;
+		}
 		rlen = bestrlen;
 		rbno = bestrbno;
 		flen = bestflen;
@@ -1643,7 +1832,10 @@ restart:
 	xfs_alloc_fix_len(args);
 
 	rlen = args->len;
-	XFS_WANT_CORRUPTED_GOTO(args->mp, rlen <= flen, error0);
+	if (XFS_IS_CORRUPT(args->mp, rlen > flen)) {
+		error = -EFSCORRUPTED;
+		goto error0;
+	}
 	/*
 	 * Allocate and initialize a cursor for the by-block tree.
 	 */
@@ -1657,10 +1849,13 @@ restart:
 	cnt_cur = bno_cur = NULL;
 	args->len = rlen;
 	args->agbno = rbno;
-	XFS_WANT_CORRUPTED_GOTO(args->mp,
-		args->agbno + args->len <=
-			be32_to_cpu(XFS_BUF_TO_AGF(args->agbp)->agf_length),
-		error0);
+	if (XFS_IS_CORRUPT(args->mp,
+			   args->agbno + args->len >
+			   be32_to_cpu(
+				   XFS_BUF_TO_AGF(args->agbp)->agf_length))) {
+		error = -EFSCORRUPTED;
+		goto error0;
+	}
 	trace_xfs_alloc_size_done(args);
 	return 0;
 
@@ -1732,7 +1927,10 @@ xfs_free_ag_extent(
 		 */
 		if ((error = xfs_alloc_get_rec(bno_cur, &ltbno, &ltlen, &i)))
 			goto error0;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, error0);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto error0;
+		}
 		/*
 		 * It's not contiguous, though.
 		 */
@@ -1744,8 +1942,10 @@ xfs_free_ag_extent(
 			 * space was invalid, it's (partly) already free.
 			 * Very bad.
 			 */
-			XFS_WANT_CORRUPTED_GOTO(mp,
-						ltbno + ltlen <= bno, error0);
+			if (XFS_IS_CORRUPT(mp, ltbno + ltlen > bno)) {
+				error = -EFSCORRUPTED;
+				goto error0;
+			}
 		}
 	}
 	/*
@@ -1760,7 +1960,10 @@ xfs_free_ag_extent(
 		 */
 		if ((error = xfs_alloc_get_rec(bno_cur, &gtbno, &gtlen, &i)))
 			goto error0;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, error0);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto error0;
+		}
 		/*
 		 * It's not contiguous, though.
 		 */
@@ -1772,7 +1975,10 @@ xfs_free_ag_extent(
 			 * space was invalid, it's (partly) already free.
 			 * Very bad.
 			 */
-			XFS_WANT_CORRUPTED_GOTO(mp, gtbno >= bno + len, error0);
+			if (XFS_IS_CORRUPT(mp, bno + len > gtbno)) {
+				error = -EFSCORRUPTED;
+				goto error0;
+			}
 		}
 	}
 	/*
@@ -1789,31 +1995,49 @@ xfs_free_ag_extent(
 		 */
 		if ((error = xfs_alloc_lookup_eq(cnt_cur, ltbno, ltlen, &i)))
 			goto error0;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, error0);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto error0;
+		}
 		if ((error = xfs_btree_delete(cnt_cur, &i)))
 			goto error0;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, error0);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto error0;
+		}
 		/*
 		 * Delete the old by-size entry on the right.
 		 */
 		if ((error = xfs_alloc_lookup_eq(cnt_cur, gtbno, gtlen, &i)))
 			goto error0;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, error0);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto error0;
+		}
 		if ((error = xfs_btree_delete(cnt_cur, &i)))
 			goto error0;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, error0);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto error0;
+		}
 		/*
 		 * Delete the old by-block entry for the right block.
 		 */
 		if ((error = xfs_btree_delete(bno_cur, &i)))
 			goto error0;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, error0);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto error0;
+		}
 		/*
 		 * Move the by-block cursor back to the left neighbor.
 		 */
 		if ((error = xfs_btree_decrement(bno_cur, 0, &i)))
 			goto error0;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, error0);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto error0;
+		}
 #ifdef DEBUG
 		/*
 		 * Check that this is the right record: delete didn't
@@ -1826,9 +2050,13 @@ xfs_free_ag_extent(
 			if ((error = xfs_alloc_get_rec(bno_cur, &xxbno, &xxlen,
 					&i)))
 				goto error0;
-			XFS_WANT_CORRUPTED_GOTO(mp,
-				i == 1 && xxbno == ltbno && xxlen == ltlen,
-				error0);
+			if (XFS_IS_CORRUPT(mp,
+					   i != 1 ||
+					   xxbno != ltbno ||
+					   xxlen != ltlen)) {
+				error = -EFSCORRUPTED;
+				goto error0;
+			}
 		}
 #endif
 		/*
@@ -1849,17 +2077,26 @@ xfs_free_ag_extent(
 		 */
 		if ((error = xfs_alloc_lookup_eq(cnt_cur, ltbno, ltlen, &i)))
 			goto error0;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, error0);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto error0;
+		}
 		if ((error = xfs_btree_delete(cnt_cur, &i)))
 			goto error0;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, error0);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto error0;
+		}
 		/*
 		 * Back up the by-block cursor to the left neighbor, and
 		 * update its length.
 		 */
 		if ((error = xfs_btree_decrement(bno_cur, 0, &i)))
 			goto error0;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, error0);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto error0;
+		}
 		nbno = ltbno;
 		nlen = len + ltlen;
 		if ((error = xfs_alloc_update(bno_cur, nbno, nlen)))
@@ -1875,10 +2112,16 @@ xfs_free_ag_extent(
 		 */
 		if ((error = xfs_alloc_lookup_eq(cnt_cur, gtbno, gtlen, &i)))
 			goto error0;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, error0);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto error0;
+		}
 		if ((error = xfs_btree_delete(cnt_cur, &i)))
 			goto error0;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, error0);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto error0;
+		}
 		/*
 		 * Update the starting block and length of the right
 		 * neighbor in the by-block tree.
@@ -1897,7 +2140,10 @@ xfs_free_ag_extent(
 		nlen = len;
 		if ((error = xfs_btree_insert(bno_cur, &i)))
 			goto error0;
-		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, error0);
+		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			error = -EFSCORRUPTED;
+			goto error0;
+		}
 	}
 	xfs_btree_del_cursor(bno_cur, XFS_BTREE_NOERROR);
 	bno_cur = NULL;
@@ -1906,10 +2152,16 @@ xfs_free_ag_extent(
 	 */
 	if ((error = xfs_alloc_lookup_eq(cnt_cur, nbno, nlen, &i)))
 		goto error0;
-	XFS_WANT_CORRUPTED_GOTO(mp, i == 0, error0);
+	if (XFS_IS_CORRUPT(mp, i != 0)) {
+		error = -EFSCORRUPTED;
+		goto error0;
+	}
 	if ((error = xfs_btree_insert(cnt_cur, &i)))
 		goto error0;
-	XFS_WANT_CORRUPTED_GOTO(mp, i == 1, error0);
+	if (XFS_IS_CORRUPT(mp, i != 1)) {
+		error = -EFSCORRUPTED;
+		goto error0;
+	}
 	xfs_btree_del_cursor(cnt_cur, XFS_BTREE_NOERROR);
 	cnt_cur = NULL;
 
@@ -1989,30 +2241,39 @@ xfs_alloc_longest_free_extent(
 	 * reservations and AGFL rules in place, we can return this extent.
 	 */
 	if (pag->pagf_longest > delta)
-		return pag->pagf_longest - delta;
+		return min_t(xfs_extlen_t, pag->pag_mount->m_ag_max_usable,
+				pag->pagf_longest - delta);
 
 	/* Otherwise, let the caller try for 1 block if there's space. */
 	return pag->pagf_flcount > 0 || pag->pagf_longest > 0;
 }
 
+/*
+ * Compute the minimum length of the AGFL in the given AG.  If @pag is NULL,
+ * return the largest possible minimum length.
+ */
 unsigned int
 xfs_alloc_min_freelist(
 	struct xfs_mount	*mp,
 	struct xfs_perag	*pag)
 {
+	/* AG btrees have at least 1 level. */
+	static const uint8_t	fake_levels[XFS_BTNUM_AGF] = {1, 1, 1};
+	const uint8_t		*levels = pag ? pag->pagf_levels : fake_levels;
 	unsigned int		min_free;
 
+	ASSERT(mp->m_ag_maxlevels > 0);
+
 	/* space needed by-bno freespace btree */
-	min_free = min_t(unsigned int, pag->pagf_levels[XFS_BTNUM_BNOi] + 1,
+	min_free = min_t(unsigned int, levels[XFS_BTNUM_BNOi] + 1,
 				       mp->m_ag_maxlevels);
 	/* space needed by-size freespace btree */
-	min_free += min_t(unsigned int, pag->pagf_levels[XFS_BTNUM_CNTi] + 1,
+	min_free += min_t(unsigned int, levels[XFS_BTNUM_CNTi] + 1,
 				       mp->m_ag_maxlevels);
 	/* space needed reverse mapping used space btree */
 	if (xfs_sb_version_hasrmapbt(&mp->m_sb))
-		min_free += min_t(unsigned int,
-				  pag->pagf_levels[XFS_BTNUM_RMAPi] + 1,
-				  mp->m_rmap_maxlevels);
+		min_free += min_t(unsigned int, levels[XFS_BTNUM_RMAPi] + 1,
+						mp->m_rmap_maxlevels);
 
 	return min_free;
 }
@@ -2087,7 +2348,7 @@ xfs_free_agfl_block(
 		return error;
 
 	bp = xfs_btree_get_bufs(tp->t_mountp, tp, agno, agbno);
-	if (!bp)
+	if (XFS_IS_CORRUPT(tp->t_mountp, !bp))
 		return -EFSCORRUPTED;
 	xfs_trans_binval(tp, bp);
 
@@ -2253,7 +2514,7 @@ xfs_alloc_fix_freelist(
 	 * somewhere else if we are not being asked to try harder at this
 	 * point
 	 */
-	if (pag->pagf_metadata && xfs_alloc_is_userdata(args->datatype) &&
+	if (pag->pagf_metadata && (args->datatype & XFS_ALLOC_USERDATA) &&
 	    (flags & XFS_ALLOC_FLAG_TRYLOCK)) {
 		ASSERT(!(flags & XFS_ALLOC_FLAG_FREEING));
 		goto out_agbp_relse;
@@ -2956,13 +3217,6 @@ xfs_alloc_vextent(
 			args->len);
 #endif
 
-		/* Zero the extent if we were asked to do so */
-		if (args->datatype & XFS_ALLOC_USERDATA_ZERO) {
-			error = xfs_zero_extent(args->ip, args->fsbno, args->len);
-			if (error)
-				goto error0;
-		}
-
 	}
 	xfs_perag_put(args->pag);
 	return 0;
@@ -3038,12 +3292,18 @@ __xfs_free_extent(
 	if (error)
 		return error;
 
-	XFS_WANT_CORRUPTED_GOTO(mp, agbno < mp->m_sb.sb_agblocks, err);
+	if (XFS_IS_CORRUPT(mp, agbno >= mp->m_sb.sb_agblocks)) {
+		error = -EFSCORRUPTED;
+		goto err;
+	}
 
 	/* validate the extent size is legal now we have the agf locked */
-	XFS_WANT_CORRUPTED_GOTO(mp,
-		agbno + len <= be32_to_cpu(XFS_BUF_TO_AGF(agbp)->agf_length),
-				err);
+	if (XFS_IS_CORRUPT(mp,
+			   agbno + len >
+			   be32_to_cpu(XFS_BUF_TO_AGF(agbp)->agf_length))) {
+		error = -EFSCORRUPTED;
+		goto err;
+	}
 
 	error = xfs_free_ag_extent(tp, agbp, agno, agbno, len, oinfo, type);
 	if (error)

@@ -168,7 +168,10 @@ static void opp1_set_pixel_encoding(
 		REG_UPDATE(FMT_CONTROL, FMT_PIXEL_ENCODING, 0);
 		break;
 	case PIXEL_ENCODING_YCBCR422:
-		REG_UPDATE(FMT_CONTROL, FMT_PIXEL_ENCODING, 1);
+		REG_UPDATE_3(FMT_CONTROL,
+				FMT_PIXEL_ENCODING, 1,
+				FMT_SUBSAMPLING_MODE, 2,
+				FMT_CBCR_BIT_REDUCTION_BYPASS, 0);
 		break;
 	case PIXEL_ENCODING_YCBCR420:
 		REG_UPDATE(FMT_CONTROL, FMT_PIXEL_ENCODING, 2);
@@ -236,6 +239,9 @@ void opp1_set_dyn_expansion(
 	REG_UPDATE_2(FMT_DYNAMIC_EXP_CNTL,
 			FMT_DYNAMIC_EXP_EN, 0,
 			FMT_DYNAMIC_EXP_MODE, 0);
+
+	if (opp->dyn_expansion == DYN_EXPANSION_DISABLE)
+		return;
 
 	/*00 - 10-bit -> 12-bit dynamic expansion*/
 	/*01 - 8-bit  -> 12-bit dynamic expansion*/

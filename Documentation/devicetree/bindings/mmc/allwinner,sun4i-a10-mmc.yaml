@@ -11,7 +11,7 @@ allOf:
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>
-  - Maxime Ripard <maxime.ripard@bootlin.com>
+  - Maxime Ripard <mripard@kernel.org>
 
 properties:
   "#address-cells": true
@@ -85,6 +85,8 @@ required:
   - clocks
   - clock-names
 
+unevaluatedProperties: false
+
 examples:
   - |
     mmc0: mmc@1c0f000 {
@@ -96,9 +98,5 @@ examples:
         bus-width = <4>;
         cd-gpios = <&pio 7 1 0>;
     };
-
-# FIXME: We should set it, but it would report all the generic
-# properties as additional properties.
-# additionalProperties: false
 
 ...

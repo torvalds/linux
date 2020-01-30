@@ -379,7 +379,7 @@ enum {
 
 
 /* CSR GIO */
-#define CSR_GIO_REG_VAL_L0S_ENABLED	(0x00000002)
+#define CSR_GIO_REG_VAL_L0S_DISABLED	(0x00000002)
 
 /*
  * UCODE-DRIVER GP (general purpose) mailbox register 1
@@ -603,9 +603,7 @@ enum msix_fh_int_causes {
 enum msix_hw_int_causes {
 	MSIX_HW_INT_CAUSES_REG_ALIVE		= BIT(0),
 	MSIX_HW_INT_CAUSES_REG_WAKEUP		= BIT(1),
-	MSIX_HW_INT_CAUSES_REG_IPC		= BIT(1),
 	MSIX_HW_INT_CAUSES_REG_IML              = BIT(2),
-	MSIX_HW_INT_CAUSES_REG_SW_ERR_V2	= BIT(5),
 	MSIX_HW_INT_CAUSES_REG_CT_KILL		= BIT(6),
 	MSIX_HW_INT_CAUSES_REG_RF_KILL		= BIT(7),
 	MSIX_HW_INT_CAUSES_REG_PERIODIC		= BIT(8),

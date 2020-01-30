@@ -20,7 +20,7 @@ struct pch_gbe_stats {
 #define PCH_GBE_STAT(m)						\
 {								\
 	.string = #m,						\
-	.size = FIELD_SIZEOF(struct pch_gbe_hw_stats, m),	\
+	.size = sizeof_field(struct pch_gbe_hw_stats, m),	\
 	.offset = offsetof(struct pch_gbe_hw_stats, m),		\
 }
 

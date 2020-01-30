@@ -3,20 +3,20 @@
 # XFRM configuration
 #
 config XFRM
-       bool
-       depends on INET
-       select GRO_CELLS
-       select SKB_EXTENSIONS
+	bool
+	depends on INET
+	select GRO_CELLS
+	select SKB_EXTENSIONS
 
 config XFRM_OFFLOAD
-       bool
+	bool
 
 config XFRM_ALGO
 	tristate
 	select XFRM
 	select CRYPTO
 	select CRYPTO_HASH
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 
 if INET
 config XFRM_USER

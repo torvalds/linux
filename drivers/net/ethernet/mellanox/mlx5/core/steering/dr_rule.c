@@ -209,7 +209,7 @@ static void dr_rule_rehash_copy_ste_ctrl(struct mlx5dr_matcher *matcher,
 	/* We need to copy the refcount since this ste
 	 * may have been traversed several times
 	 */
-	refcount_set(&new_ste->refcount, refcount_read(&cur_ste->refcount));
+	new_ste->refcount = cur_ste->refcount;
 
 	/* Link old STEs rule_mem list to the new ste */
 	mlx5dr_rule_update_rule_member(cur_ste, new_ste);
@@ -638,6 +638,9 @@ static int dr_rule_add_member(struct mlx5dr_rule_rx_tx *nic_rule,
 	if (!rule_mem)
 		return -ENOMEM;
 
+	INIT_LIST_HEAD(&rule_mem->list);
+	INIT_LIST_HEAD(&rule_mem->use_ste_list);
+
 	rule_mem->ste = ste;
 	list_add_tail(&rule_mem->list, &nic_rule->rule_members_list);
 
@@ -969,12 +972,12 @@ static int dr_rule_destroy_rule(struct mlx5dr_rule *rule)
 	return 0;
 }
 
-static bool dr_rule_is_ipv6(struct mlx5dr_match_param *param)
+static enum mlx5dr_ipv dr_rule_get_ipv(struct mlx5dr_match_spec *spec)
 {
-	return (param->outer.ip_version == 6 ||
-		param->inner.ip_version == 6 ||
-		param->outer.ethertype == ETH_P_IPV6 ||
-		param->inner.ethertype == ETH_P_IPV6);
+	if (spec->ip_version == 6 || spec->ethertype == ETH_P_IPV6)
+		return DR_RULE_IPV6;
+
+	return DR_RULE_IPV4;
 }
 
 static bool dr_rule_skip(enum mlx5dr_domain_type domain,
@@ -1038,7 +1041,8 @@ dr_rule_create_rule_nic(struct mlx5dr_rule *rule,
 
 	ret = mlx5dr_matcher_select_builders(matcher,
 					     nic_matcher,
-					     dr_rule_is_ipv6(param));
+					     dr_rule_get_ipv(&param->outer),
+					     dr_rule_get_ipv(&param->inner));
 	if (ret)
 		goto out_err;
 

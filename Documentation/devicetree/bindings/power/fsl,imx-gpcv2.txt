@@ -17,7 +17,7 @@ Required properties:
 
 Power domains contained within GPC node are generic power domain
 providers, documented in
-Documentation/devicetree/bindings/power/power_domain.txt, which are
+Documentation/devicetree/bindings/power/power-domain.yaml, which are
 described as subnodes of the power gating controller 'pgc' node,
 which, in turn, is expected to contain the following:
 

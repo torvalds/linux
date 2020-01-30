@@ -48,7 +48,8 @@ struct ucsi_dp {
 static int ucsi_displayport_enter(struct typec_altmode *alt)
 {
 	struct ucsi_dp *dp = typec_altmode_get_drvdata(alt);
-	struct ucsi_control ctrl;
+	struct ucsi *ucsi = dp->con->ucsi;
+	u64 command;
 	u8 cur = 0;
 	int ret;
 
@@ -59,25 +60,21 @@ static int ucsi_displayport_enter(struct typec_altmode *alt)
 
 		dev_warn(&p->dev,
 			 "firmware doesn't support alternate mode overriding\n");
-		mutex_unlock(&dp->con->lock);
-		return -EOPNOTSUPP;
+		ret = -EOPNOTSUPP;
+		goto err_unlock;
 	}
 
-	UCSI_CMD_GET_CURRENT_CAM(ctrl, dp->con->num);
-	ret = ucsi_send_command(dp->con->ucsi, &ctrl, &cur, sizeof(cur));
+	command = UCSI_GET_CURRENT_CAM | UCSI_CONNECTOR_NUMBER(dp->con->num);
+	ret = ucsi_send_command(ucsi, command, &cur, sizeof(cur));
 	if (ret < 0) {
-		if (dp->con->ucsi->ppm->data->version > 0x0100) {
-			mutex_unlock(&dp->con->lock);
-			return ret;
-		}
+		if (ucsi->version > 0x0100)
+			goto err_unlock;
 		cur = 0xff;
 	}
 
 	if (cur != 0xff) {
-		mutex_unlock(&dp->con->lock);
-		if (dp->con->port_altmode[cur] == alt)
-			return 0;
-		return -EBUSY;
+		ret = dp->con->port_altmode[cur] == alt ? 0 : -EBUSY;
+		goto err_unlock;
 	}
 
 	/*
@@ -94,16 +91,17 @@ static int ucsi_displayport_enter(struct typec_altmode *alt)
 	dp->vdo_size = 1;
 
 	schedule_work(&dp->work);
-
+	ret = 0;
+err_unlock:
 	mutex_unlock(&dp->con->lock);
 
-	return 0;
+	return ret;
 }
 
 static int ucsi_displayport_exit(struct typec_altmode *alt)
 {
 	struct ucsi_dp *dp = typec_altmode_get_drvdata(alt);
-	struct ucsi_control ctrl;
+	u64 command;
 	int ret = 0;
 
 	mutex_lock(&dp->con->lock);
@@ -117,8 +115,8 @@ static int ucsi_displayport_exit(struct typec_altmode *alt)
 		goto out_unlock;
 	}
 
-	ctrl.raw_cmd = UCSI_CMD_SET_NEW_CAM(dp->con->num, 0, dp->offset, 0);
-	ret = ucsi_send_command(dp->con->ucsi, &ctrl, NULL, 0);
+	command = UCSI_CMD_SET_NEW_CAM(dp->con->num, 0, dp->offset, 0);
+	ret = ucsi_send_command(dp->con->ucsi, command, NULL, 0);
 	if (ret < 0)
 		goto out_unlock;
 
@@ -172,14 +170,14 @@ static int ucsi_displayport_status_update(struct ucsi_dp *dp)
 static int ucsi_displayport_configure(struct ucsi_dp *dp)
 {
 	u32 pins = DP_CONF_GET_PIN_ASSIGN(dp->data.conf);
-	struct ucsi_control ctrl;
+	u64 command;
 
 	if (!dp->override)
 		return 0;
 
-	ctrl.raw_cmd = UCSI_CMD_SET_NEW_CAM(dp->con->num, 1, dp->offset, pins);
+	command = UCSI_CMD_SET_NEW_CAM(dp->con->num, 1, dp->offset, pins);
 
-	return ucsi_send_command(dp->con->ucsi, &ctrl, NULL, 0);
+	return ucsi_send_command(dp->con->ucsi, command, NULL, 0);
 }
 
 static int ucsi_displayport_vdm(struct typec_altmode *alt,

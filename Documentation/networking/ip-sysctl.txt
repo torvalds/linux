@@ -603,7 +603,7 @@ tcp_synack_retries - INTEGER
 	with the current initial RTO of 1second. With this the final timeout
 	for a passive TCP connection will happen after 63seconds.
 
-tcp_syncookies - BOOLEAN
+tcp_syncookies - INTEGER
 	Only valid when the kernel was compiled with CONFIG_SYN_COOKIES
 	Send out syncookies when the syn backlog queue of a socket
 	overflows. This is to prevent against the common 'SYN flood attack'
@@ -904,8 +904,9 @@ ip_local_port_range - 2 INTEGERS
 	Defines the local port range that is used by TCP and UDP to
 	choose the local port. The first number is the first, the
 	second the last local port number.
-	If possible, it is better these numbers have different parity.
-	(one even and one odd values)
+	If possible, it is better these numbers have different parity
+	(one even and one odd value).
+	Must be greater than or equal to ip_unprivileged_port_start.
 	The default values are 32768 and 60999 respectively.
 
 ip_local_reserved_ports - list of comma separated ranges
@@ -943,8 +944,8 @@ ip_unprivileged_port_start - INTEGER
 	This is a per-namespace sysctl.  It defines the first
 	unprivileged port in the network namespace.  Privileged ports
 	require root or CAP_NET_BIND_SERVICE in order to bind to them.
-	To disable all privileged ports, set this to 0.  It may not
-	overlap with the ip_local_reserved_ports range.
+	To disable all privileged ports, set this to 0.  They must not
+	overlap with the ip_local_port_range.
 
 	Default: 1024
 
@@ -2091,6 +2092,28 @@ pf_enable - INTEGER
 
 	Default: 1
 
+pf_expose - INTEGER
+	Unset or enable/disable pf (pf is short for potentially failed) state
+	exposure.  Applications can control the exposure of the PF path state
+	in the SCTP_PEER_ADDR_CHANGE event and the SCTP_GET_PEER_ADDR_INFO
+	sockopt.   When it's unset, no SCTP_PEER_ADDR_CHANGE event with
+	SCTP_ADDR_PF state will be sent and a SCTP_PF-state transport info
+	can be got via SCTP_GET_PEER_ADDR_INFO sockopt;  When it's enabled,
+	a SCTP_PEER_ADDR_CHANGE event will be sent for a transport becoming
+	SCTP_PF state and a SCTP_PF-state transport info can be got via
+	SCTP_GET_PEER_ADDR_INFO sockopt;  When it's diabled, no
+	SCTP_PEER_ADDR_CHANGE event will be sent and it returns -EACCES when
+	trying to get a SCTP_PF-state transport info via SCTP_GET_PEER_ADDR_INFO
+	sockopt.
+
+	0: Unset pf state exposure, Compatible with old applications.
+
+	1: Disable pf state exposure.
+
+	2: Enable pf state exposure.
+
+	Default: 0
+
 addip_noauth_enable - BOOLEAN
 	Dynamic Address Reconfiguration (ADD-IP) requires the use of
 	authentication to protect the operations of adding or removing new
@@ -2172,6 +2195,18 @@ pf_retrans - INTEGER
 	disable pf state.
 
 	Default: 0
+
+ps_retrans - INTEGER
+	Primary.Switchover.Max.Retrans (PSMR), it's a tunable parameter coming
+	from section-5 "Primary Path Switchover" in rfc7829.  The primary path
+	will be changed to another active path when the path error counter on
+	the old primary path exceeds PSMR, so that "the SCTP sender is allowed
+	to continue data transmission on a new working path even when the old
+	primary destination address becomes active again".   Note this feature
+	is disabled by initializing 'ps_retrans' per netns as 0xffff by default,
+	and its value can't be less than 'pf_retrans' when changing by sysctl.
+
+	Default: 0xffff
 
 rto_initial - INTEGER
 	The initial round trip timeout value in milliseconds that will be used

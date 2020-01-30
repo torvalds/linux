@@ -389,8 +389,7 @@ static struct full_stripe_lock *search_full_stripe_lock(
  *
  * Caller must ensure @cache is a RAID56 block group.
  */
-static u64 get_full_stripe_logical(struct btrfs_block_group_cache *cache,
-				   u64 bytenr)
+static u64 get_full_stripe_logical(struct btrfs_block_group *cache, u64 bytenr)
 {
 	u64 ret;
 
@@ -404,8 +403,8 @@ static u64 get_full_stripe_logical(struct btrfs_block_group_cache *cache,
 	 * round_down() can only handle power of 2, while RAID56 full
 	 * stripe length can be 64KiB * n, so we need to manually round down.
 	 */
-	ret = div64_u64(bytenr - cache->key.objectid, cache->full_stripe_len) *
-		cache->full_stripe_len + cache->key.objectid;
+	ret = div64_u64(bytenr - cache->start, cache->full_stripe_len) *
+			cache->full_stripe_len + cache->start;
 	return ret;
 }
 
@@ -423,7 +422,7 @@ static u64 get_full_stripe_logical(struct btrfs_block_group_cache *cache,
 static int lock_full_stripe(struct btrfs_fs_info *fs_info, u64 bytenr,
 			    bool *locked_ret)
 {
-	struct btrfs_block_group_cache *bg_cache;
+	struct btrfs_block_group *bg_cache;
 	struct btrfs_full_stripe_locks_tree *locks_root;
 	struct full_stripe_lock *existing;
 	u64 fstripe_start;
@@ -470,7 +469,7 @@ out:
 static int unlock_full_stripe(struct btrfs_fs_info *fs_info, u64 bytenr,
 			      bool locked)
 {
-	struct btrfs_block_group_cache *bg_cache;
+	struct btrfs_block_group *bg_cache;
 	struct btrfs_full_stripe_locks_tree *locks_root;
 	struct full_stripe_lock *fstripe_lock;
 	u64 fstripe_start;
@@ -598,8 +597,8 @@ static noinline_for_stack struct scrub_ctx *scrub_setup_ctx(
 		sbio->index = i;
 		sbio->sctx = sctx;
 		sbio->page_count = 0;
-		btrfs_init_work(&sbio->work, btrfs_scrub_helper,
-				scrub_bio_end_io_worker, NULL, NULL);
+		btrfs_init_work(&sbio->work, scrub_bio_end_io_worker, NULL,
+				NULL);
 
 		if (i != SCRUB_BIOS_PER_SCTX - 1)
 			sctx->bios[i]->next_free = i + 1;
@@ -1720,8 +1719,7 @@ static void scrub_wr_bio_end_io(struct bio *bio)
 	sbio->status = bio->bi_status;
 	sbio->bio = bio;
 
-	btrfs_init_work(&sbio->work, btrfs_scrubwrc_helper,
-			 scrub_wr_bio_end_io_worker, NULL, NULL);
+	btrfs_init_work(&sbio->work, scrub_wr_bio_end_io_worker, NULL, NULL);
 	btrfs_queue_work(fs_info->scrub_wr_completion_workers, &sbio->work);
 }
 
@@ -2149,14 +2147,13 @@ static void scrub_missing_raid56_worker(struct btrfs_work *work)
 		scrub_write_block_to_dev_replace(sblock);
 	}
 
-	scrub_block_put(sblock);
-
 	if (sctx->is_dev_replace && sctx->flush_all_writes) {
 		mutex_lock(&sctx->wr_lock);
 		scrub_wr_submit(sctx);
 		mutex_unlock(&sctx->wr_lock);
 	}
 
+	scrub_block_put(sblock);
 	scrub_pending_bio_dec(sctx);
 }
 
@@ -2204,8 +2201,7 @@ static void scrub_missing_raid56_pages(struct scrub_block *sblock)
 		raid56_add_scrub_pages(rbio, spage->page, spage->logical);
 	}
 
-	btrfs_init_work(&sblock->work, btrfs_scrub_helper,
-			scrub_missing_raid56_worker, NULL, NULL);
+	btrfs_init_work(&sblock->work, scrub_missing_raid56_worker, NULL, NULL);
 	scrub_block_get(sblock);
 	scrub_pending_bio_inc(sctx);
 	raid56_submit_missing_rbio(rbio);
@@ -2743,8 +2739,8 @@ static void scrub_parity_bio_endio(struct bio *bio)
 
 	bio_put(bio);
 
-	btrfs_init_work(&sparity->work, btrfs_scrubparity_helper,
-			scrub_parity_bio_endio_worker, NULL, NULL);
+	btrfs_init_work(&sparity->work, scrub_parity_bio_endio_worker, NULL,
+			NULL);
 	btrfs_queue_work(fs_info->scrub_parity_workers, &sparity->work);
 }
 
@@ -3420,7 +3416,7 @@ static noinline_for_stack int scrub_chunk(struct scrub_ctx *sctx,
 					  struct btrfs_device *scrub_dev,
 					  u64 chunk_offset, u64 length,
 					  u64 dev_offset,
-					  struct btrfs_block_group_cache *cache)
+					  struct btrfs_block_group *cache)
 {
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
 	struct extent_map_tree *map_tree = &fs_info->mapping_tree;
@@ -3484,7 +3480,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 	struct extent_buffer *l;
 	struct btrfs_key key;
 	struct btrfs_key found_key;
-	struct btrfs_block_group_cache *cache;
+	struct btrfs_block_group *cache;
 	struct btrfs_dev_replace *dev_replace = &fs_info->dev_replace;
 
 	path = btrfs_alloc_path();
@@ -3563,55 +3559,45 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 		 * -> btrfs_scrub_pause()
 		 */
 		scrub_pause_on(fs_info);
-		ret = btrfs_inc_block_group_ro(cache);
-		if (!ret && sctx->is_dev_replace) {
-			/*
-			 * If we are doing a device replace wait for any tasks
-			 * that started delalloc right before we set the block
-			 * group to RO mode, as they might have just allocated
-			 * an extent from it or decided they could do a nocow
-			 * write. And if any such tasks did that, wait for their
-			 * ordered extents to complete and then commit the
-			 * current transaction, so that we can later see the new
-			 * extent items in the extent tree - the ordered extents
-			 * create delayed data references (for cow writes) when
-			 * they complete, which will be run and insert the
-			 * corresponding extent items into the extent tree when
-			 * we commit the transaction they used when running
-			 * inode.c:btrfs_finish_ordered_io(). We later use
-			 * the commit root of the extent tree to find extents
-			 * to copy from the srcdev into the tgtdev, and we don't
-			 * want to miss any new extents.
-			 */
-			btrfs_wait_block_group_reservations(cache);
-			btrfs_wait_nocow_writers(cache);
-			ret = btrfs_wait_ordered_roots(fs_info, U64_MAX,
-						       cache->key.objectid,
-						       cache->key.offset);
-			if (ret > 0) {
-				struct btrfs_trans_handle *trans;
 
-				trans = btrfs_join_transaction(root);
-				if (IS_ERR(trans))
-					ret = PTR_ERR(trans);
-				else
-					ret = btrfs_commit_transaction(trans);
-				if (ret) {
-					scrub_pause_off(fs_info);
-					btrfs_put_block_group(cache);
-					break;
-				}
-			}
-		}
-		scrub_pause_off(fs_info);
-
+		/*
+		 * Don't do chunk preallocation for scrub.
+		 *
+		 * This is especially important for SYSTEM bgs, or we can hit
+		 * -EFBIG from btrfs_finish_chunk_alloc() like:
+		 * 1. The only SYSTEM bg is marked RO.
+		 *    Since SYSTEM bg is small, that's pretty common.
+		 * 2. New SYSTEM bg will be allocated
+		 *    Due to regular version will allocate new chunk.
+		 * 3. New SYSTEM bg is empty and will get cleaned up
+		 *    Before cleanup really happens, it's marked RO again.
+		 * 4. Empty SYSTEM bg get scrubbed
+		 *    We go back to 2.
+		 *
+		 * This can easily boost the amount of SYSTEM chunks if cleaner
+		 * thread can't be triggered fast enough, and use up all space
+		 * of btrfs_super_block::sys_chunk_array
+		 *
+		 * While for dev replace, we need to try our best to mark block
+		 * group RO, to prevent race between:
+		 * - Write duplication
+		 *   Contains latest data
+		 * - Scrub copy
+		 *   Contains data from commit tree
+		 *
+		 * If target block group is not marked RO, nocow writes can
+		 * be overwritten by scrub copy, causing data corruption.
+		 * So for dev-replace, it's not allowed to continue if a block
+		 * group is not RO.
+		 */
+		ret = btrfs_inc_block_group_ro(cache, sctx->is_dev_replace);
 		if (ret == 0) {
 			ro_set = 1;
-		} else if (ret == -ENOSPC) {
+		} else if (ret == -ENOSPC && !sctx->is_dev_replace) {
 			/*
 			 * btrfs_inc_block_group_ro return -ENOSPC when it
 			 * failed in creating new chunk for metadata.
-			 * It is not a problem for scrub/replace, because
+			 * It is not a problem for scrub, because
 			 * metadata are always cowed, and our scrub paused
 			 * commit_transactions.
 			 */
@@ -3620,10 +3606,23 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 			btrfs_warn(fs_info,
 				   "failed setting block group ro: %d", ret);
 			btrfs_put_block_group(cache);
+			scrub_pause_off(fs_info);
 			break;
 		}
 
-		down_write(&fs_info->dev_replace.rwsem);
+		/*
+		 * Now the target block is marked RO, wait for nocow writes to
+		 * finish before dev-replace.
+		 * COW is fine, as COW never overwrites extents in commit tree.
+		 */
+		if (sctx->is_dev_replace) {
+			btrfs_wait_nocow_writers(cache);
+			btrfs_wait_ordered_roots(fs_info, U64_MAX, cache->start,
+					cache->length);
+		}
+
+		scrub_pause_off(fs_info);
+		down_write(&dev_replace->rwsem);
 		dev_replace->cursor_right = found_key.offset + length;
 		dev_replace->cursor_left = found_key.offset;
 		dev_replace->item_needs_writeback = 1;
@@ -3664,10 +3663,10 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 
 		scrub_pause_off(fs_info);
 
-		down_write(&fs_info->dev_replace.rwsem);
+		down_write(&dev_replace->rwsem);
 		dev_replace->cursor_left = dev_replace->cursor_right;
 		dev_replace->item_needs_writeback = 1;
-		up_write(&fs_info->dev_replace.rwsem);
+		up_write(&dev_replace->rwsem);
 
 		if (ro_set)
 			btrfs_dec_block_group_ro(cache);
@@ -3681,7 +3680,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 		 */
 		spin_lock(&cache->lock);
 		if (!cache->removed && !cache->ro && cache->reserved == 0 &&
-		    btrfs_block_group_used(&cache->item) == 0) {
+		    cache->used == 0) {
 			spin_unlock(&cache->lock);
 			btrfs_mark_bg_unused(cache);
 		} else {

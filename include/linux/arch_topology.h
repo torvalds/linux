@@ -57,6 +57,7 @@ const struct cpumask *cpu_coregroup_mask(int cpu);
 void update_siblings_masks(unsigned int cpu);
 void remove_cpu_topology(unsigned int cpuid);
 void reset_cpu_topology(void);
+int parse_acpi_topology(void);
 #endif
 
 #endif /* _LINUX_ARCH_TOPOLOGY_H_ */

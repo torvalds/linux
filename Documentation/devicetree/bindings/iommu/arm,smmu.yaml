@@ -1,0 +1,230 @@
+# SPDX-License-Identifier: GPL-2.0-only
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iommu/arm,smmu.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ARM System MMU Architecture Implementation
+
+maintainers:
+  - Will Deacon <will@kernel.org>
+  - Robin Murphy <Robin.Murphy@arm.com>
+
+description: |+
+  ARM SoCs may contain an implementation of the ARM System Memory
+  Management Unit Architecture, which can be used to provide 1 or 2 stages
+  of address translation to bus masters external to the CPU.
+
+  The SMMU may also raise interrupts in response to various fault
+  conditions.
+
+properties:
+  $nodename:
+    pattern: "^iommu@[0-9a-f]*"
+  compatible:
+    oneOf:
+      - description: Qcom SoCs implementing "arm,smmu-v2"
+        items:
+          - enum:
+              - qcom,msm8996-smmu-v2
+              - qcom,msm8998-smmu-v2
+              - qcom,sdm845-smmu-v2
+          - const: qcom,smmu-v2
+
+      - description: Qcom SoCs implementing "arm,mmu-500"
+        items:
+          - enum:
+              - qcom,sc7180-smmu-500
+              - qcom,sdm845-smmu-500
+          - const: arm,mmu-500
+      - items:
+          - const: arm,mmu-500
+          - const: arm,smmu-v2
+      - items:
+          - const: arm,mmu-401
+          - const: arm,smmu-v1
+      - enum:
+          - arm,smmu-v1
+          - arm,smmu-v2
+          - arm,mmu-400
+          - arm,mmu-401
+          - arm,mmu-500
+          - cavium,smmu-v2
+
+  reg:
+    maxItems: 1
+
+  '#global-interrupts':
+    description: The number of global interrupts exposed by the device.
+    allOf:
+      - $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 260   # 2 secure, 2 non-secure, and up to 256 perf counters
+
+  '#iommu-cells':
+    enum: [ 1, 2 ]
+    description: |
+      See Documentation/devicetree/bindings/iommu/iommu.txt for details. With a
+      value of 1, each IOMMU specifier represents a distinct stream ID emitted
+      by that device into the relevant SMMU.
+
+      SMMUs with stream matching support and complex masters may use a value of
+      2, where the second cell of the IOMMU specifier represents an SMR mask to
+      combine with the ID in the first cell.  Care must be taken to ensure the
+      set of matched IDs does not result in conflicts.
+
+  interrupts:
+    minItems: 1
+    maxItems: 388   # 260 plus 128 contexts
+    description: |
+      Interrupt list, with the first #global-interrupts entries corresponding to
+      the global interrupts and any following entries corresponding to context
+      interrupts, specified in order of their indexing by the SMMU.
+
+      For SMMUv2 implementations, there must be exactly one interrupt per
+      context bank. In the case of a single, combined interrupt, it must be
+      listed multiple times.
+
+  dma-coherent:
+    description: |
+      Present if page table walks made by the SMMU are cache coherent with the
+      CPU.
+
+      NOTE: this only applies to the SMMU itself, not masters connected
+      upstream of the SMMU.
+
+  calxeda,smmu-secure-config-access:
+    type: boolean
+    description:
+      Enable proper handling of buggy implementations that always use secure
+      access to SMMU configuration registers. In this case non-secure aliases of
+      secure registers have to be used during SMMU configuration.
+
+  stream-match-mask:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      For SMMUs supporting stream matching and using #iommu-cells = <1>,
+      specifies a mask of bits to ignore when matching stream IDs (e.g. this may
+      be programmed into the SMRn.MASK field of every stream match register
+      used). For cases where it is desirable to ignore some portion of every
+      Stream ID (e.g. for certain MMU-500 configurations given globally unique
+      input IDs). This property is not valid for SMMUs using stream indexing, or
+      using stream matching with #iommu-cells = <2>, and may be ignored if
+      present in such cases.
+
+  clock-names:
+    items:
+      - const: bus
+      - const: iface
+
+  clocks:
+    items:
+      - description: bus clock required for downstream bus access and for the
+          smmu ptw
+      - description: interface clock required to access smmu's registers
+          through the TCU's programming interface.
+
+  power-domains:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - '#global-interrupts'
+  - '#iommu-cells'
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |+
+    /* SMMU with stream matching or stream indexing */
+    smmu1: iommu@ba5e0000 {
+            compatible = "arm,smmu-v1";
+            reg = <0xba5e0000 0x10000>;
+            #global-interrupts = <2>;
+            interrupts = <0 32 4>,
+                         <0 33 4>,
+                         <0 34 4>, /* This is the first context interrupt */
+                         <0 35 4>,
+                         <0 36 4>,
+                         <0 37 4>;
+            #iommu-cells = <1>;
+    };
+
+    /* device with two stream IDs, 0 and 7 */
+    master1 {
+            iommus = <&smmu1 0>,
+                     <&smmu1 7>;
+    };
+
+
+    /* SMMU with stream matching */
+    smmu2: iommu@ba5f0000 {
+            compatible = "arm,smmu-v1";
+            reg = <0xba5f0000 0x10000>;
+            #global-interrupts = <2>;
+            interrupts = <0 38 4>,
+                         <0 39 4>,
+                         <0 40 4>, /* This is the first context interrupt */
+                         <0 41 4>,
+                         <0 42 4>,
+                         <0 43 4>;
+            #iommu-cells = <2>;
+    };
+
+    /* device with stream IDs 0 and 7 */
+    master2 {
+            iommus = <&smmu2 0 0>,
+                     <&smmu2 7 0>;
+    };
+
+    /* device with stream IDs 1, 17, 33 and 49 */
+    master3 {
+            iommus = <&smmu2 1 0x30>;
+    };
+
+
+    /* ARM MMU-500 with 10-bit stream ID input configuration */
+    smmu3: iommu@ba600000 {
+            compatible = "arm,mmu-500", "arm,smmu-v2";
+            reg = <0xba600000 0x10000>;
+            #global-interrupts = <2>;
+            interrupts = <0 44 4>,
+                         <0 45 4>,
+                         <0 46 4>, /* This is the first context interrupt */
+                         <0 47 4>,
+                         <0 48 4>,
+                         <0 49 4>;
+            #iommu-cells = <1>;
+            /* always ignore appended 5-bit TBU number */
+            stream-match-mask = <0x7c00>;
+    };
+
+    bus {
+            /* bus whose child devices emit one unique 10-bit stream
+               ID each, but may master through multiple SMMU TBUs */
+            iommu-map = <0 &smmu3 0 0x400>;
+
+
+    };
+
+  - |+
+    /* Qcom's arm,smmu-v2 implementation */
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    smmu4: iommu@d00000 {
+      compatible = "qcom,msm8996-smmu-v2", "qcom,smmu-v2";
+      reg = <0xd00000 0x10000>;
+
+      #global-interrupts = <1>;
+      interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>,
+             <GIC_SPI 320 IRQ_TYPE_LEVEL_HIGH>,
+             <GIC_SPI 321 IRQ_TYPE_LEVEL_HIGH>;
+      #iommu-cells = <1>;
+      power-domains = <&mmcc 0>;
+
+      clocks = <&mmcc 123>,
+        <&mmcc 124>;
+      clock-names = "bus", "iface";
+    };

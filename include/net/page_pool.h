@@ -34,8 +34,18 @@
 #include <linux/ptr_ring.h>
 #include <linux/dma-direction.h>
 
-#define PP_FLAG_DMA_MAP 1 /* Should page_pool do the DMA map/unmap */
-#define PP_FLAG_ALL	PP_FLAG_DMA_MAP
+#define PP_FLAG_DMA_MAP		BIT(0) /* Should page_pool do the DMA
+					* map/unmap
+					*/
+#define PP_FLAG_DMA_SYNC_DEV	BIT(1) /* If set all pages that the driver gets
+					* from page_pool will be
+					* DMA-synced-for-device according to
+					* the length provided by the device
+					* driver.
+					* Please note DMA-sync-for-CPU is still
+					* device driver responsibility
+					*/
+#define PP_FLAG_ALL		(PP_FLAG_DMA_MAP | PP_FLAG_DMA_SYNC_DEV)
 
 /*
  * Fast allocation side cache array/stack
@@ -65,12 +75,19 @@ struct page_pool_params {
 	int		nid;  /* Numa node id to allocate from pages from */
 	struct device	*dev; /* device, for DMA pre-mapping purposes */
 	enum dma_data_direction dma_dir; /* DMA mapping direction */
+	unsigned int	max_len; /* max DMA sync memory size */
+	unsigned int	offset;  /* DMA addr offset */
 };
 
 struct page_pool {
 	struct page_pool_params p;
 
-        u32 pages_state_hold_cnt;
+	struct delayed_work release_dw;
+	void (*disconnect)(void *);
+	unsigned long defer_start;
+	unsigned long defer_warn;
+
+	u32 pages_state_hold_cnt;
 
 	/*
 	 * Data structure for allocation side
@@ -107,6 +124,8 @@ struct page_pool {
 	 * refcnt serves purpose is to simplify drivers error handling.
 	 */
 	refcount_t user_cnt;
+
+	u64 destroy_cnt;
 };
 
 struct page *page_pool_alloc_pages(struct page_pool *pool, gfp_t gfp);
@@ -129,29 +148,23 @@ inline enum dma_data_direction page_pool_get_dma_dir(struct page_pool *pool)
 
 struct page_pool *page_pool_create(const struct page_pool_params *params);
 
-void __page_pool_free(struct page_pool *pool);
-static inline void page_pool_free(struct page_pool *pool)
-{
-	/* When page_pool isn't compiled-in, net/core/xdp.c doesn't
-	 * allow registering MEM_TYPE_PAGE_POOL, but shield linker.
-	 */
 #ifdef CONFIG_PAGE_POOL
-	__page_pool_free(pool);
-#endif
-}
-
-/* Drivers use this instead of page_pool_free */
+void page_pool_destroy(struct page_pool *pool);
+void page_pool_use_xdp_mem(struct page_pool *pool, void (*disconnect)(void *));
+#else
 static inline void page_pool_destroy(struct page_pool *pool)
 {
-	if (!pool)
-		return;
-
-	page_pool_free(pool);
 }
 
+static inline void page_pool_use_xdp_mem(struct page_pool *pool,
+					 void (*disconnect)(void *))
+{
+}
+#endif
+
 /* Never call this directly, use helpers below */
-void __page_pool_put_page(struct page_pool *pool,
-			  struct page *page, bool allow_direct);
+void __page_pool_put_page(struct page_pool *pool, struct page *page,
+			  unsigned int dma_sync_size, bool allow_direct);
 
 static inline void page_pool_put_page(struct page_pool *pool,
 				      struct page *page, bool allow_direct)
@@ -160,32 +173,14 @@ static inline void page_pool_put_page(struct page_pool *pool,
 	 * allow registering MEM_TYPE_PAGE_POOL, but shield linker.
 	 */
 #ifdef CONFIG_PAGE_POOL
-	__page_pool_put_page(pool, page, allow_direct);
+	__page_pool_put_page(pool, page, -1, allow_direct);
 #endif
 }
 /* Very limited use-cases allow recycle direct */
 static inline void page_pool_recycle_direct(struct page_pool *pool,
 					    struct page *page)
 {
-	__page_pool_put_page(pool, page, true);
-}
-
-/* API user MUST have disconnected alloc-side (not allowed to call
- * page_pool_alloc_pages()) before calling this.  The free-side can
- * still run concurrently, to handle in-flight packet-pages.
- *
- * A request to shutdown can fail (with false) if there are still
- * in-flight packet-pages.
- */
-bool __page_pool_request_shutdown(struct page_pool *pool);
-static inline bool page_pool_request_shutdown(struct page_pool *pool)
-{
-	bool safe_to_remove = false;
-
-#ifdef CONFIG_PAGE_POOL
-	safe_to_remove = __page_pool_request_shutdown(pool);
-#endif
-	return safe_to_remove;
+	__page_pool_put_page(pool, page, -1, true);
 }
 
 /* Disconnects a page (from a page_pool).  API users can have a need
@@ -216,14 +211,16 @@ static inline bool is_page_pool_compiled_in(void)
 #endif
 }
 
-static inline void page_pool_get(struct page_pool *pool)
-{
-	refcount_inc(&pool->user_cnt);
-}
-
 static inline bool page_pool_put(struct page_pool *pool)
 {
 	return refcount_dec_and_test(&pool->user_cnt);
 }
 
+/* Caller must provide appropriate safe context, e.g. NAPI. */
+void page_pool_update_nid(struct page_pool *pool, int new_nid);
+static inline void page_pool_nid_changed(struct page_pool *pool, int new_nid)
+{
+	if (unlikely(pool->p.nid != new_nid))
+		page_pool_update_nid(pool, new_nid);
+}
 #endif /* _NET_PAGE_POOL_H */

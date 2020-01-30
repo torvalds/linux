@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
+ * Copyright (C) 2014-2019 aQuantia Corporation. All rights reserved
  */
 
 /* File aq_nic.c: Definition of common code for NIC. */
@@ -12,6 +12,9 @@
 #include "aq_hw.h"
 #include "aq_pci_func.h"
 #include "aq_main.h"
+#include "aq_phy.h"
+#include "aq_ptp.h"
+#include "aq_filters.h"
 
 #include <linux/moduleparam.h>
 #include <linux/netdevice.h>
@@ -38,10 +41,6 @@ static void aq_nic_update_ndev_stats(struct aq_nic_s *self);
 
 static void aq_nic_rss_init(struct aq_nic_s *self, unsigned int num_rss_queues)
 {
-	struct aq_nic_cfg_s *cfg = &self->aq_nic_cfg;
-	struct aq_rss_parameters *rss_params = &cfg->aq_rss;
-	int i = 0;
-
 	static u8 rss_key[AQ_CFG_RSS_HASHKEY_SIZE] = {
 		0x1e, 0xad, 0x71, 0x87, 0x65, 0xfc, 0x26, 0x7d,
 		0x0d, 0x45, 0x67, 0x74, 0xcd, 0x06, 0x1a, 0x18,
@@ -49,6 +48,11 @@ static void aq_nic_rss_init(struct aq_nic_s *self, unsigned int num_rss_queues)
 		0x19, 0x13, 0x4b, 0xa9, 0xd0, 0x3e, 0xfe, 0x70,
 		0x25, 0x03, 0xab, 0x50, 0x6a, 0x8b, 0x82, 0x0c
 	};
+	struct aq_nic_cfg_s *cfg = &self->aq_nic_cfg;
+	struct aq_rss_parameters *rss_params;
+	int i = 0;
+
+	rss_params = &cfg->aq_rss;
 
 	rss_params->hash_secret_key_size = sizeof(rss_key);
 	memcpy(rss_params->hash_secret_key, rss_key, sizeof(rss_key));
@@ -75,7 +79,8 @@ void aq_nic_cfg_start(struct aq_nic_s *self)
 	cfg->is_rss = AQ_CFG_IS_RSS_DEF;
 	cfg->num_rss_queues = AQ_CFG_NUM_RSS_QUEUES_DEF;
 	cfg->aq_rss.base_cpu_number = AQ_CFG_RSS_BASE_CPU_NUM_DEF;
-	cfg->flow_control = AQ_CFG_FC_MODE;
+	cfg->fc.req = AQ_CFG_FC_MODE;
+	cfg->wol = AQ_CFG_WOL_MODES;
 
 	cfg->mtu = AQ_CFG_MTU_DEF;
 	cfg->link_speed_msk = AQ_CFG_SPEED_MSK;
@@ -139,18 +144,27 @@ static int aq_nic_update_link_status(struct aq_nic_s *self)
 	if (err)
 		return err;
 
+	if (self->aq_fw_ops->get_flow_control)
+		self->aq_fw_ops->get_flow_control(self->aq_hw, &fc);
+	self->aq_nic_cfg.fc.cur = fc;
+
 	if (self->link_status.mbps != self->aq_hw->aq_link_status.mbps) {
-		pr_info("%s: link change old %d new %d\n",
-			AQ_CFG_DRV_NAME, self->link_status.mbps,
-			self->aq_hw->aq_link_status.mbps);
+		netdev_info(self->ndev, "%s: link change old %d new %d\n",
+			    AQ_CFG_DRV_NAME, self->link_status.mbps,
+			    self->aq_hw->aq_link_status.mbps);
 		aq_nic_update_interrupt_moderation_settings(self);
+
+		if (self->aq_ptp) {
+			aq_ptp_clock_init(self);
+			aq_ptp_tm_offset_set(self,
+					     self->aq_hw->aq_link_status.mbps);
+			aq_ptp_link_change(self);
+		}
 
 		/* Driver has to update flow control settings on RX block
 		 * on any link event.
 		 * We should query FW whether it negotiated FC.
 		 */
-		if (self->aq_fw_ops->get_flow_control)
-			self->aq_fw_ops->get_flow_control(self->aq_hw, &fc);
 		if (self->aq_hw_ops->hw_set_fc)
 			self->aq_hw_ops->hw_set_fc(self->aq_hw, fc, 0);
 	}
@@ -169,6 +183,7 @@ static int aq_nic_update_link_status(struct aq_nic_s *self)
 		netif_tx_disable(self->ndev);
 		aq_utils_obj_set(&self->flags, AQ_NIC_LINK_DOWN);
 	}
+
 	return 0;
 }
 
@@ -183,6 +198,7 @@ static irqreturn_t aq_linkstate_threaded_isr(int irq, void *private)
 
 	self->aq_hw_ops->hw_irq_enable(self->aq_hw,
 				       BIT(self->aq_nic_cfg.link_irq_vec));
+
 	return IRQ_HANDLED;
 }
 
@@ -191,6 +207,8 @@ static void aq_nic_service_task(struct work_struct *work)
 	struct aq_nic_s *self = container_of(work, struct aq_nic_s,
 					     service_task);
 	int err;
+
+	aq_ptp_service_task(self);
 
 	if (aq_utils_obj_test(&self->flags, AQ_NIC_FLAGS_IS_NOT_READY))
 		return;
@@ -211,7 +229,8 @@ static void aq_nic_service_timer_cb(struct timer_list *t)
 {
 	struct aq_nic_s *self = from_timer(self, t, service_timer);
 
-	mod_timer(&self->service_timer, jiffies + AQ_CFG_SERVICE_TIMER_INTERVAL);
+	mod_timer(&self->service_timer,
+		  jiffies + AQ_CFG_SERVICE_TIMER_INTERVAL);
 
 	aq_ndev_schedule_work(&self->service_task);
 }
@@ -290,9 +309,11 @@ void aq_nic_ndev_init(struct aq_nic_s *self)
 	self->ndev->vlan_features |= NETIF_F_HW_CSUM | NETIF_F_RXCSUM |
 				     NETIF_F_RXHASH | NETIF_F_SG |
 				     NETIF_F_LRO | NETIF_F_TSO;
+	self->ndev->gso_partial_features = NETIF_F_GSO_UDP_L4;
 	self->ndev->priv_flags = aq_hw_caps->hw_priv_flags;
 	self->ndev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 
+	self->msg_enable = NETIF_MSG_DRV | NETIF_MSG_LINK;
 	self->ndev->mtu = aq_nic_cfg->mtu - ETH_HLEN;
 	self->ndev->max_mtu = aq_hw_caps->mtu - ETH_FCS_LEN - ETH_HLEN;
 
@@ -312,8 +333,8 @@ struct net_device *aq_nic_get_ndev(struct aq_nic_s *self)
 int aq_nic_init(struct aq_nic_s *self)
 {
 	struct aq_vec_s *aq_vec = NULL;
-	int err = 0;
 	unsigned int i = 0U;
+	int err = 0;
 
 	self->power_state = AQ_HW_POWER_STATE_D0;
 	mutex_lock(&self->fwreq_mutex);
@@ -327,9 +348,26 @@ int aq_nic_init(struct aq_nic_s *self)
 	if (err < 0)
 		goto err_exit;
 
+	if (self->aq_nic_cfg.aq_hw_caps->media_type == AQ_HW_MEDIA_TYPE_TP) {
+		self->aq_hw->phy_id = HW_ATL_PHY_ID_MAX;
+		err = aq_phy_init(self->aq_hw);
+	}
+
 	for (i = 0U, aq_vec = self->aq_vec[0];
 		self->aq_vecs > i; ++i, aq_vec = self->aq_vec[i])
 		aq_vec_init(aq_vec, self->aq_hw_ops, self->aq_hw);
+
+	err = aq_ptp_init(self, self->irqvecs - 1);
+	if (err < 0)
+		goto err_exit;
+
+	err = aq_ptp_ring_alloc(self);
+	if (err < 0)
+		goto err_exit;
+
+	err = aq_ptp_ring_init(self);
+	if (err < 0)
+		goto err_exit;
 
 	netif_carrier_off(self->ndev);
 
@@ -340,8 +378,8 @@ err_exit:
 int aq_nic_start(struct aq_nic_s *self)
 {
 	struct aq_vec_s *aq_vec = NULL;
-	int err = 0;
 	unsigned int i = 0U;
+	int err = 0;
 
 	err = self->aq_hw_ops->hw_multicast_list_set(self->aq_hw,
 						     self->mc_list.ar,
@@ -360,6 +398,12 @@ int aq_nic_start(struct aq_nic_s *self)
 		if (err < 0)
 			goto err_exit;
 	}
+
+	err = aq_ptp_ring_start(self);
+	if (err < 0)
+		goto err_exit;
+
+	aq_nic_set_loopback(self);
 
 	err = self->aq_hw_ops->hw_start(self->aq_hw);
 	if (err < 0)
@@ -387,6 +431,10 @@ int aq_nic_start(struct aq_nic_s *self)
 			if (err < 0)
 				goto err_exit;
 		}
+
+		err = aq_ptp_irq_alloc(self);
+		if (err < 0)
+			goto err_exit;
 
 		if (self->aq_nic_cfg.link_irq_vec) {
 			int irqvec = pci_irq_vector(self->pdev,
@@ -420,30 +468,48 @@ err_exit:
 	return err;
 }
 
-static unsigned int aq_nic_map_skb(struct aq_nic_s *self,
-				   struct sk_buff *skb,
-				   struct aq_ring_s *ring)
+unsigned int aq_nic_map_skb(struct aq_nic_s *self, struct sk_buff *skb,
+			    struct aq_ring_s *ring)
 {
-	unsigned int ret = 0U;
 	unsigned int nr_frags = skb_shinfo(skb)->nr_frags;
-	unsigned int frag_count = 0U;
-	unsigned int dx = ring->sw_tail;
 	struct aq_ring_buff_s *first = NULL;
-	struct aq_ring_buff_s *dx_buff = &ring->buff_ring[dx];
+	u8 ipver = ip_hdr(skb)->version;
+	struct aq_ring_buff_s *dx_buff;
 	bool need_context_tag = false;
+	unsigned int frag_count = 0U;
+	unsigned int ret = 0U;
+	unsigned int dx;
+	u8 l4proto = 0;
 
+	if (ipver == 4)
+		l4proto = ip_hdr(skb)->protocol;
+	else if (ipver == 6)
+		l4proto = ipv6_hdr(skb)->nexthdr;
+
+	dx = ring->sw_tail;
+	dx_buff = &ring->buff_ring[dx];
 	dx_buff->flags = 0U;
 
 	if (unlikely(skb_is_gso(skb))) {
 		dx_buff->mss = skb_shinfo(skb)->gso_size;
-		dx_buff->is_gso = 1U;
+		if (l4proto == IPPROTO_TCP) {
+			dx_buff->is_gso_tcp = 1U;
+			dx_buff->len_l4 = tcp_hdrlen(skb);
+		} else if (l4proto == IPPROTO_UDP) {
+			dx_buff->is_gso_udp = 1U;
+			dx_buff->len_l4 = sizeof(struct udphdr);
+			/* UDP GSO Hardware does not replace packet length. */
+			udp_hdr(skb)->len = htons(dx_buff->mss +
+						  dx_buff->len_l4);
+		} else {
+			WARN_ONCE(true, "Bad GSO mode");
+			goto exit;
+		}
 		dx_buff->len_pkt = skb->len;
 		dx_buff->len_l2 = ETH_HLEN;
-		dx_buff->len_l3 = ip_hdrlen(skb);
-		dx_buff->len_l4 = tcp_hdrlen(skb);
+		dx_buff->len_l3 = skb_network_header_len(skb);
 		dx_buff->eop_index = 0xffffU;
-		dx_buff->is_ipv6 =
-			(ip_hdr(skb)->version == 6) ? 1U : 0U;
+		dx_buff->is_ipv6 = (ipver == 6);
 		need_context_tag = true;
 	}
 
@@ -477,24 +543,9 @@ static unsigned int aq_nic_map_skb(struct aq_nic_s *self,
 	++ret;
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		dx_buff->is_ip_cso = (htons(ETH_P_IP) == skb->protocol) ?
-			1U : 0U;
-
-		if (ip_hdr(skb)->version == 4) {
-			dx_buff->is_tcp_cso =
-				(ip_hdr(skb)->protocol == IPPROTO_TCP) ?
-					1U : 0U;
-			dx_buff->is_udp_cso =
-				(ip_hdr(skb)->protocol == IPPROTO_UDP) ?
-					1U : 0U;
-		} else if (ip_hdr(skb)->version == 6) {
-			dx_buff->is_tcp_cso =
-				(ipv6_hdr(skb)->nexthdr == NEXTHDR_TCP) ?
-					1U : 0U;
-			dx_buff->is_udp_cso =
-				(ipv6_hdr(skb)->nexthdr == NEXTHDR_UDP) ?
-					1U : 0U;
-		}
+		dx_buff->is_ip_cso = (htons(ETH_P_IP) == skb->protocol);
+		dx_buff->is_tcp_cso = (l4proto == IPPROTO_TCP);
+		dx_buff->is_udp_cso = (l4proto == IPPROTO_UDP);
 	}
 
 	for (; nr_frags--; ++frag_count) {
@@ -549,7 +600,8 @@ mapping_error:
 	     --ret, dx = aq_ring_next_dx(ring, dx)) {
 		dx_buff = &ring->buff_ring[dx];
 
-		if (!dx_buff->is_gso && !dx_buff->is_vlan && dx_buff->pa) {
+		if (!(dx_buff->is_gso_tcp || dx_buff->is_gso_udp) &&
+		    !dx_buff->is_vlan && dx_buff->pa) {
 			if (unlikely(dx_buff->is_sop)) {
 				dma_unmap_single(aq_nic_get_dev(self),
 						 dx_buff->pa,
@@ -570,11 +622,11 @@ exit:
 
 int aq_nic_xmit(struct aq_nic_s *self, struct sk_buff *skb)
 {
+	unsigned int vec = skb->queue_mapping % self->aq_nic_cfg.vecs;
 	struct aq_ring_s *ring = NULL;
 	unsigned int frags = 0U;
-	unsigned int vec = skb->queue_mapping % self->aq_nic_cfg.vecs;
-	unsigned int tc = 0U;
 	int err = NETDEV_TX_OK;
+	unsigned int tc = 0U;
 
 	frags = skb_shinfo(skb)->nr_frags + 1;
 
@@ -586,6 +638,11 @@ int aq_nic_xmit(struct aq_nic_s *self, struct sk_buff *skb)
 	}
 
 	aq_ring_update_queue_state(ring);
+
+	if (self->aq_nic_cfg.priv_flags & BIT(AQ_HW_LOOPBACK_DMA_NET)) {
+		err = NETDEV_TX_BUSY;
+		goto err_exit;
+	}
 
 	/* Above status update may stop the queue. Check this. */
 	if (__netif_subqueue_stopped(self->ndev, ring->idx)) {
@@ -667,6 +724,7 @@ int aq_nic_set_multicast_list(struct aq_nic_s *self, struct net_device *ndev)
 		if (err < 0)
 			return err;
 	}
+
 	return aq_nic_set_packet_filter(self, packet_filter);
 }
 
@@ -711,10 +769,10 @@ int aq_nic_get_regs_count(struct aq_nic_s *self)
 
 void aq_nic_get_stats(struct aq_nic_s *self, u64 *data)
 {
-	unsigned int i = 0U;
-	unsigned int count = 0U;
 	struct aq_vec_s *aq_vec = NULL;
 	struct aq_stats_s *stats;
+	unsigned int count = 0U;
+	unsigned int i = 0U;
 
 	if (self->aq_fw_ops->update_stats) {
 		mutex_lock(&self->fwreq_mutex);
@@ -764,8 +822,8 @@ err_exit:;
 
 static void aq_nic_update_ndev_stats(struct aq_nic_s *self)
 {
-	struct net_device *ndev = self->ndev;
 	struct aq_stats_s *stats = self->aq_hw_ops->hw_get_hw_stats(self->aq_hw);
+	struct net_device *ndev = self->ndev;
 
 	ndev->stats.rx_packets = stats->dma_pkt_rc;
 	ndev->stats.rx_bytes = stats->dma_oct_rc;
@@ -810,9 +868,12 @@ void aq_nic_get_link_ksettings(struct aq_nic_s *self,
 		ethtool_link_ksettings_add_link_mode(cmd, supported,
 						     100baseT_Full);
 
-	if (self->aq_nic_cfg.aq_hw_caps->flow_control)
+	if (self->aq_nic_cfg.aq_hw_caps->flow_control) {
 		ethtool_link_ksettings_add_link_mode(cmd, supported,
 						     Pause);
+		ethtool_link_ksettings_add_link_mode(cmd, supported,
+						     Asym_Pause);
+	}
 
 	ethtool_link_ksettings_add_link_mode(cmd, supported, Autoneg);
 
@@ -846,13 +907,13 @@ void aq_nic_get_link_ksettings(struct aq_nic_s *self,
 		ethtool_link_ksettings_add_link_mode(cmd, advertising,
 						     100baseT_Full);
 
-	if (self->aq_nic_cfg.flow_control & AQ_NIC_FC_RX)
+	if (self->aq_nic_cfg.fc.cur & AQ_NIC_FC_RX)
 		ethtool_link_ksettings_add_link_mode(cmd, advertising,
 						     Pause);
 
 	/* Asym is when either RX or TX, but not both */
-	if (!!(self->aq_nic_cfg.flow_control & AQ_NIC_FC_TX) ^
-	    !!(self->aq_nic_cfg.flow_control & AQ_NIC_FC_RX))
+	if (!!(self->aq_nic_cfg.fc.cur & AQ_NIC_FC_TX) ^
+	    !!(self->aq_nic_cfg.fc.cur & AQ_NIC_FC_RX))
 		ethtool_link_ksettings_add_link_mode(cmd, advertising,
 						     Asym_Pause);
 
@@ -935,6 +996,44 @@ u32 aq_nic_get_fw_version(struct aq_nic_s *self)
 	return fw_version;
 }
 
+int aq_nic_set_loopback(struct aq_nic_s *self)
+{
+	struct aq_nic_cfg_s *cfg = &self->aq_nic_cfg;
+
+	if (!self->aq_hw_ops->hw_set_loopback ||
+	    !self->aq_fw_ops->set_phyloopback)
+		return -ENOTSUPP;
+
+	mutex_lock(&self->fwreq_mutex);
+	self->aq_hw_ops->hw_set_loopback(self->aq_hw,
+					 AQ_HW_LOOPBACK_DMA_SYS,
+					 !!(cfg->priv_flags &
+					    BIT(AQ_HW_LOOPBACK_DMA_SYS)));
+
+	self->aq_hw_ops->hw_set_loopback(self->aq_hw,
+					 AQ_HW_LOOPBACK_PKT_SYS,
+					 !!(cfg->priv_flags &
+					    BIT(AQ_HW_LOOPBACK_PKT_SYS)));
+
+	self->aq_hw_ops->hw_set_loopback(self->aq_hw,
+					 AQ_HW_LOOPBACK_DMA_NET,
+					 !!(cfg->priv_flags &
+					    BIT(AQ_HW_LOOPBACK_DMA_NET)));
+
+	self->aq_fw_ops->set_phyloopback(self->aq_hw,
+					 AQ_HW_LOOPBACK_PHYINT_SYS,
+					 !!(cfg->priv_flags &
+					    BIT(AQ_HW_LOOPBACK_PHYINT_SYS)));
+
+	self->aq_fw_ops->set_phyloopback(self->aq_hw,
+					 AQ_HW_LOOPBACK_PHYEXT_SYS,
+					 !!(cfg->priv_flags &
+					    BIT(AQ_HW_LOOPBACK_PHYEXT_SYS)));
+	mutex_unlock(&self->fwreq_mutex);
+
+	return 0;
+}
+
 int aq_nic_stop(struct aq_nic_s *self)
 {
 	struct aq_vec_s *aq_vec = NULL;
@@ -953,14 +1052,31 @@ int aq_nic_stop(struct aq_nic_s *self)
 	else
 		aq_pci_func_free_irqs(self);
 
+	aq_ptp_irq_free(self);
+
 	for (i = 0U, aq_vec = self->aq_vec[0];
 		self->aq_vecs > i; ++i, aq_vec = self->aq_vec[i])
 		aq_vec_stop(aq_vec);
 
+	aq_ptp_ring_stop(self);
+
 	return self->aq_hw_ops->hw_stop(self->aq_hw);
 }
 
-void aq_nic_deinit(struct aq_nic_s *self)
+void aq_nic_set_power(struct aq_nic_s *self)
+{
+	if (self->power_state != AQ_HW_POWER_STATE_D0 ||
+	    self->aq_hw->aq_nic_cfg->wol)
+		if (likely(self->aq_fw_ops->set_power)) {
+			mutex_lock(&self->fwreq_mutex);
+			self->aq_fw_ops->set_power(self->aq_hw,
+						   self->power_state,
+						   self->ndev->dev_addr);
+			mutex_unlock(&self->fwreq_mutex);
+		}
+}
+
+void aq_nic_deinit(struct aq_nic_s *self, bool link_down)
 {
 	struct aq_vec_s *aq_vec = NULL;
 	unsigned int i = 0U;
@@ -972,22 +1088,16 @@ void aq_nic_deinit(struct aq_nic_s *self)
 		self->aq_vecs > i; ++i, aq_vec = self->aq_vec[i])
 		aq_vec_deinit(aq_vec);
 
-	if (likely(self->aq_fw_ops->deinit)) {
+	aq_ptp_unregister(self);
+	aq_ptp_ring_deinit(self);
+	aq_ptp_ring_free(self);
+	aq_ptp_free(self);
+
+	if (likely(self->aq_fw_ops->deinit) && link_down) {
 		mutex_lock(&self->fwreq_mutex);
 		self->aq_fw_ops->deinit(self->aq_hw);
 		mutex_unlock(&self->fwreq_mutex);
 	}
-
-	if (self->power_state != AQ_HW_POWER_STATE_D0 ||
-	    self->aq_hw->aq_nic_cfg->wol)
-		if (likely(self->aq_fw_ops->set_power)) {
-			mutex_lock(&self->fwreq_mutex);
-			self->aq_fw_ops->set_power(self->aq_hw,
-						   self->power_state,
-						   self->ndev->dev_addr);
-			mutex_unlock(&self->fwreq_mutex);
-		}
-
 
 err_exit:;
 }
@@ -1009,44 +1119,6 @@ void aq_nic_free_vectors(struct aq_nic_s *self)
 err_exit:;
 }
 
-int aq_nic_change_pm_state(struct aq_nic_s *self, pm_message_t *pm_msg)
-{
-	int err = 0;
-
-	if (!netif_running(self->ndev)) {
-		err = 0;
-		goto out;
-	}
-	rtnl_lock();
-	if (pm_msg->event & PM_EVENT_SLEEP || pm_msg->event & PM_EVENT_FREEZE) {
-		self->power_state = AQ_HW_POWER_STATE_D3;
-		netif_device_detach(self->ndev);
-		netif_tx_stop_all_queues(self->ndev);
-
-		err = aq_nic_stop(self);
-		if (err < 0)
-			goto err_exit;
-
-		aq_nic_deinit(self);
-	} else {
-		err = aq_nic_init(self);
-		if (err < 0)
-			goto err_exit;
-
-		err = aq_nic_start(self);
-		if (err < 0)
-			goto err_exit;
-
-		netif_device_attach(self->ndev);
-		netif_tx_start_all_queues(self->ndev);
-	}
-
-err_exit:
-	rtnl_unlock();
-out:
-	return err;
-}
-
 void aq_nic_shutdown(struct aq_nic_s *self)
 {
 	int err = 0;
@@ -1063,8 +1135,52 @@ void aq_nic_shutdown(struct aq_nic_s *self)
 		if (err < 0)
 			goto err_exit;
 	}
-	aq_nic_deinit(self);
+	aq_nic_deinit(self, !self->aq_hw->aq_nic_cfg->wol);
+	aq_nic_set_power(self);
 
 err_exit:
 	rtnl_unlock();
+}
+
+u8 aq_nic_reserve_filter(struct aq_nic_s *self, enum aq_rx_filter_type type)
+{
+	u8 location = 0xFF;
+	u32 fltr_cnt;
+	u32 n_bit;
+
+	switch (type) {
+	case aq_rx_filter_ethertype:
+		location = AQ_RX_LAST_LOC_FETHERT - AQ_RX_FIRST_LOC_FETHERT -
+			   self->aq_hw_rx_fltrs.fet_reserved_count;
+		self->aq_hw_rx_fltrs.fet_reserved_count++;
+		break;
+	case aq_rx_filter_l3l4:
+		fltr_cnt = AQ_RX_LAST_LOC_FL3L4 - AQ_RX_FIRST_LOC_FL3L4;
+		n_bit = fltr_cnt - self->aq_hw_rx_fltrs.fl3l4.reserved_count;
+
+		self->aq_hw_rx_fltrs.fl3l4.active_ipv4 |= BIT(n_bit);
+		self->aq_hw_rx_fltrs.fl3l4.reserved_count++;
+		location = n_bit;
+		break;
+	default:
+		break;
+	}
+
+	return location;
+}
+
+void aq_nic_release_filter(struct aq_nic_s *self, enum aq_rx_filter_type type,
+			   u32 location)
+{
+	switch (type) {
+	case aq_rx_filter_ethertype:
+		self->aq_hw_rx_fltrs.fet_reserved_count--;
+		break;
+	case aq_rx_filter_l3l4:
+		self->aq_hw_rx_fltrs.fl3l4.reserved_count--;
+		self->aq_hw_rx_fltrs.fl3l4.active_ipv4 &= ~BIT(location);
+		break;
+	default:
+		break;
+	}
 }

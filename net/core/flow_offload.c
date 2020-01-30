@@ -283,7 +283,7 @@ int flow_block_cb_setup_simple(struct flow_block_offload *f,
 }
 EXPORT_SYMBOL(flow_block_cb_setup_simple);
 
-static LIST_HEAD(block_ing_cb_list);
+static LIST_HEAD(block_cb_list);
 
 static struct rhashtable indr_setup_block_ht;
 
@@ -391,20 +391,19 @@ static void flow_indr_block_cb_del(struct flow_indr_block_cb *indr_block_cb)
 	kfree(indr_block_cb);
 }
 
-static DEFINE_MUTEX(flow_indr_block_ing_cb_lock);
+static DEFINE_MUTEX(flow_indr_block_cb_lock);
 
-static void flow_block_ing_cmd(struct net_device *dev,
-			       flow_indr_block_bind_cb_t *cb,
-			       void *cb_priv,
-			       enum flow_block_command command)
+static void flow_block_cmd(struct net_device *dev,
+			   flow_indr_block_bind_cb_t *cb, void *cb_priv,
+			   enum flow_block_command command)
 {
-	struct flow_indr_block_ing_entry *entry;
+	struct flow_indr_block_entry *entry;
 
-	mutex_lock(&flow_indr_block_ing_cb_lock);
-	list_for_each_entry(entry, &block_ing_cb_list, list) {
+	mutex_lock(&flow_indr_block_cb_lock);
+	list_for_each_entry(entry, &block_cb_list, list) {
 		entry->cb(dev, cb, cb_priv, command);
 	}
-	mutex_unlock(&flow_indr_block_ing_cb_lock);
+	mutex_unlock(&flow_indr_block_cb_lock);
 }
 
 int __flow_indr_block_cb_register(struct net_device *dev, void *cb_priv,
@@ -424,8 +423,8 @@ int __flow_indr_block_cb_register(struct net_device *dev, void *cb_priv,
 	if (err)
 		goto err_dev_put;
 
-	flow_block_ing_cmd(dev, indr_block_cb->cb, indr_block_cb->cb_priv,
-			   FLOW_BLOCK_BIND);
+	flow_block_cmd(dev, indr_block_cb->cb, indr_block_cb->cb_priv,
+		       FLOW_BLOCK_BIND);
 
 	return 0;
 
@@ -464,8 +463,8 @@ void __flow_indr_block_cb_unregister(struct net_device *dev,
 	if (!indr_block_cb)
 		return;
 
-	flow_block_ing_cmd(dev, indr_block_cb->cb, indr_block_cb->cb_priv,
-			   FLOW_BLOCK_UNBIND);
+	flow_block_cmd(dev, indr_block_cb->cb, indr_block_cb->cb_priv,
+		       FLOW_BLOCK_UNBIND);
 
 	flow_indr_block_cb_del(indr_block_cb);
 	flow_indr_block_dev_put(indr_dev);
@@ -499,21 +498,21 @@ void flow_indr_block_call(struct net_device *dev,
 }
 EXPORT_SYMBOL_GPL(flow_indr_block_call);
 
-void flow_indr_add_block_ing_cb(struct flow_indr_block_ing_entry *entry)
+void flow_indr_add_block_cb(struct flow_indr_block_entry *entry)
 {
-	mutex_lock(&flow_indr_block_ing_cb_lock);
-	list_add_tail(&entry->list, &block_ing_cb_list);
-	mutex_unlock(&flow_indr_block_ing_cb_lock);
+	mutex_lock(&flow_indr_block_cb_lock);
+	list_add_tail(&entry->list, &block_cb_list);
+	mutex_unlock(&flow_indr_block_cb_lock);
 }
-EXPORT_SYMBOL_GPL(flow_indr_add_block_ing_cb);
+EXPORT_SYMBOL_GPL(flow_indr_add_block_cb);
 
-void flow_indr_del_block_ing_cb(struct flow_indr_block_ing_entry *entry)
+void flow_indr_del_block_cb(struct flow_indr_block_entry *entry)
 {
-	mutex_lock(&flow_indr_block_ing_cb_lock);
+	mutex_lock(&flow_indr_block_cb_lock);
 	list_del(&entry->list);
-	mutex_unlock(&flow_indr_block_ing_cb_lock);
+	mutex_unlock(&flow_indr_block_cb_lock);
 }
-EXPORT_SYMBOL_GPL(flow_indr_del_block_ing_cb);
+EXPORT_SYMBOL_GPL(flow_indr_del_block_cb);
 
 static int __init init_flow_indr_rhashtable(void)
 {

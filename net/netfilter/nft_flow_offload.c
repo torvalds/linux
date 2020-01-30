@@ -115,9 +115,12 @@ static void nft_flow_offload_eval(const struct nft_expr *expr,
 	if (nft_flow_route(pkt, ct, &route, dir) < 0)
 		goto err_flow_route;
 
-	flow = flow_offload_alloc(ct, &route);
+	flow = flow_offload_alloc(ct);
 	if (!flow)
 		goto err_flow_alloc;
+
+	if (flow_offload_route_init(flow, &route) < 0)
+		goto err_flow_add;
 
 	if (tcph) {
 		ct->proto.tcp.seen[0].flags |= IP_CT_TCP_FLAG_BE_LIBERAL;
@@ -197,9 +200,6 @@ static void nft_flow_offload_activate(const struct nft_ctx *ctx,
 static void nft_flow_offload_destroy(const struct nft_ctx *ctx,
 				     const struct nft_expr *expr)
 {
-	struct nft_flow_offload *priv = nft_expr_priv(expr);
-
-	priv->flowtable->use--;
 	nf_ct_netns_put(ctx->net, ctx->family);
 }
 

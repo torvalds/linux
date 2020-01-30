@@ -1564,27 +1564,10 @@ vgpu_id_show(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "\n");
 }
 
-static ssize_t
-hw_id_show(struct device *dev, struct device_attribute *attr,
-	   char *buf)
-{
-	struct mdev_device *mdev = mdev_from_dev(dev);
-
-	if (mdev) {
-		struct intel_vgpu *vgpu = (struct intel_vgpu *)
-			mdev_get_drvdata(mdev);
-		return sprintf(buf, "%u\n",
-			       vgpu->submission.shadow[0]->gem_context->hw_id);
-	}
-	return sprintf(buf, "\n");
-}
-
 static DEVICE_ATTR_RO(vgpu_id);
-static DEVICE_ATTR_RO(hw_id);
 
 static struct attribute *intel_vgpu_attrs[] = {
 	&dev_attr_vgpu_id.attr,
-	&dev_attr_hw_id.attr,
 	NULL
 };
 
@@ -1933,6 +1916,28 @@ err_unlock:
 	return ret;
 }
 
+static int kvmgt_dma_pin_guest_page(unsigned long handle, dma_addr_t dma_addr)
+{
+	struct kvmgt_guest_info *info;
+	struct gvt_dma *entry;
+	int ret = 0;
+
+	if (!handle_valid(handle))
+		return -ENODEV;
+
+	info = (struct kvmgt_guest_info *)handle;
+
+	mutex_lock(&info->vgpu->vdev.cache_lock);
+	entry = __gvt_cache_find_dma_addr(info->vgpu, dma_addr);
+	if (entry)
+		kref_get(&entry->ref);
+	else
+		ret = -ENOMEM;
+	mutex_unlock(&info->vgpu->vdev.cache_lock);
+
+	return ret;
+}
+
 static void __gvt_dma_release(struct kref *ref)
 {
 	struct gvt_dma *entry = container_of(ref, typeof(*entry), ref);
@@ -2044,6 +2049,7 @@ static struct intel_gvt_mpt kvmgt_mpt = {
 	.gfn_to_mfn = kvmgt_gfn_to_pfn,
 	.dma_map_guest_page = kvmgt_dma_map_guest_page,
 	.dma_unmap_guest_page = kvmgt_dma_unmap_guest_page,
+	.dma_pin_guest_page = kvmgt_dma_pin_guest_page,
 	.set_opregion = kvmgt_set_opregion,
 	.set_edid = kvmgt_set_edid,
 	.get_vfio_device = kvmgt_get_vfio_device,

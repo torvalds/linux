@@ -201,3 +201,27 @@ int mlx5_ib_set_vf_guid(struct ib_device *device, int vf, u8 port,
 
 	return -EINVAL;
 }
+
+int mlx5_ib_get_vf_guid(struct ib_device *device, int vf, u8 port,
+			struct ifla_vf_guid *node_guid,
+			struct ifla_vf_guid *port_guid)
+{
+	struct mlx5_ib_dev *dev = to_mdev(device);
+	struct mlx5_core_dev *mdev = dev->mdev;
+	struct mlx5_hca_vport_context *rep;
+	int err;
+
+	rep = kzalloc(sizeof(*rep), GFP_KERNEL);
+	if (!rep)
+		return -ENOMEM;
+
+	err = mlx5_query_hca_vport_context(mdev, 1, 1, vf+1, rep);
+	if (err)
+		goto ex;
+
+	port_guid->guid = rep->port_guid;
+	node_guid->guid = rep->node_guid;
+ex:
+	kfree(rep);
+	return err;
+}

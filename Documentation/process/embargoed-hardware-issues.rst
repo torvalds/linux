@@ -240,7 +240,7 @@ an involved disclosed party. The current ambassadors list:
 
   ============= ========================================================
   ARM
-  AMD
+  AMD		Tom Lendacky <tom.lendacky@amd.com>
   IBM
   Intel		Tony Luck <tony.luck@intel.com>
   Qualcomm	Trilok Soni <tsoni@codeaurora.org>
@@ -255,7 +255,7 @@ an involved disclosed party. The current ambassadors list:
   Red Hat	Josh Poimboeuf <jpoimboe@redhat.com>
   SUSE		Jiri Kosina <jkosina@suse.cz>
 
-  Amazon
+  Amazon	Peter Bowen <pzb@amzn.com>
   Google	Kees Cook <keescook@chromium.org>
   ============= ========================================================
 

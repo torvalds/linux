@@ -8,7 +8,7 @@ title: Allwinner A31 MIPI-DSI Controller Device Tree Bindings
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>
-  - Maxime Ripard <maxime.ripard@bootlin.com>
+  - Maxime Ripard <mripard@kernel.org>
 
 properties:
   "#address-cells": true
@@ -35,6 +35,9 @@ properties:
 
   resets:
     maxItems: 1
+
+  vcc-dsi-supply:
+    description: VCC-DSI power supply of the DSI encoder
 
   phys:
     maxItems: 1
@@ -64,6 +67,7 @@ required:
   - phys
   - phy-names
   - resets
+  - vcc-dsi-supply
   - port
 
 additionalProperties: false
@@ -79,6 +83,7 @@ examples:
         resets = <&ccu 4>;
         phys = <&dphy0>;
         phy-names = "dphy";
+        vcc-dsi-supply = <&reg_dcdc1>;
         #address-cells = <1>;
         #size-cells = <0>;
 

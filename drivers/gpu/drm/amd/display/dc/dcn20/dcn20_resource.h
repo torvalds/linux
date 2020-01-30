@@ -95,9 +95,12 @@ struct display_stream_compressor *dcn20_dsc_create(
 	struct dc_context *ctx, uint32_t inst);
 void dcn20_dsc_destroy(struct display_stream_compressor **dsc);
 
-struct pp_smu_funcs *dcn20_pp_smu_create(struct dc_context *ctx);
-void dcn20_pp_smu_destroy(struct pp_smu_funcs **pp_smu);
-
+void dcn20_patch_bounding_box(struct dc *dc, struct _vcs_dpi_soc_bounding_box_st *bb);
+void dcn20_cap_soc_clocks(
+		struct _vcs_dpi_soc_bounding_box_st *bb,
+		struct pp_smu_nv_clock_table max_clocks);
+void dcn20_update_bounding_box(struct dc *dc, struct _vcs_dpi_soc_bounding_box_st *bb,
+		struct pp_smu_nv_clock_table *max_clocks, unsigned int *uclk_states, unsigned int num_states);
 struct hubp *dcn20_hubp_create(
 	struct dc_context *ctx,
 	uint32_t inst);
@@ -116,6 +119,31 @@ void dcn20_set_mcif_arb_params(
 		display_e2e_pipe_params_st *pipes,
 		int pipe_cnt);
 bool dcn20_validate_bandwidth(struct dc *dc, struct dc_state *context, bool fast_validate);
+void dcn20_merge_pipes_for_validate(
+		struct dc *dc,
+		struct dc_state *context);
+int dcn20_validate_apply_pipe_split_flags(
+		struct dc *dc,
+		struct dc_state *context,
+		int vlevel,
+		bool *split);
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+bool dcn20_validate_dsc(struct dc *dc, struct dc_state *new_ctx);
+#endif
+void dcn20_split_stream_for_mpc(
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool,
+		struct pipe_ctx *primary_pipe,
+		struct pipe_ctx *secondary_pipe);
+bool dcn20_split_stream_for_odm(
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool,
+		struct pipe_ctx *prev_odm_pipe,
+		struct pipe_ctx *next_odm_pipe);
+struct pipe_ctx *dcn20_find_secondary_pipe(struct dc *dc,
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool,
+		const struct pipe_ctx *primary_pipe);
 bool dcn20_fast_validate_bw(
 		struct dc *dc,
 		struct dc_state *context,

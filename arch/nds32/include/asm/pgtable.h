@@ -4,41 +4,33 @@
 #ifndef _ASMNDS32_PGTABLE_H
 #define _ASMNDS32_PGTABLE_H
 
-#define __PAGETABLE_PMD_FOLDED 1
-#include <asm-generic/4level-fixup.h>
+#include <asm-generic/pgtable-nopmd.h>
 #include <linux/sizes.h>
 
 #include <asm/memory.h>
 #include <asm/nds32.h>
 #ifndef __ASSEMBLY__
 #include <asm/fixmap.h>
-#include <asm/io.h>
 #include <nds32_intrinsic.h>
 #endif
 
 #ifdef CONFIG_ANDES_PAGE_SIZE_4KB
 #define PGDIR_SHIFT      22
 #define PTRS_PER_PGD     1024
-#define PMD_SHIFT        22
-#define PTRS_PER_PMD     1
 #define PTRS_PER_PTE     1024
 #endif
 
 #ifdef CONFIG_ANDES_PAGE_SIZE_8KB
 #define PGDIR_SHIFT      24
 #define PTRS_PER_PGD     256
-#define PMD_SHIFT        24
-#define PTRS_PER_PMD     1
 #define PTRS_PER_PTE     2048
 #endif
 
 #ifndef __ASSEMBLY__
 extern void __pte_error(const char *file, int line, unsigned long val);
-extern void __pmd_error(const char *file, int line, unsigned long val);
 extern void __pgd_error(const char *file, int line, unsigned long val);
 
 #define pte_ERROR(pte)		__pte_error(__FILE__, __LINE__, pte_val(pte))
-#define pmd_ERROR(pmd)		__pmd_error(__FILE__, __LINE__, pmd_val(pmd))
 #define pgd_ERROR(pgd)		__pgd_error(__FILE__, __LINE__, pgd_val(pgd))
 #endif /* !__ASSEMBLY__ */
 
@@ -130,6 +122,9 @@ extern void __pgd_error(const char *file, int line, unsigned long val);
 #define _PAGE_CACHE		_PAGE_C_MEM_WB
 #endif
 
+#define _PAGE_IOREMAP \
+	(_PAGE_V | _PAGE_M_KRW | _PAGE_D | _PAGE_G | _PAGE_C_DEV)
+
 /*
  * + Level 1 descriptor (PMD)
  */
@@ -200,7 +195,7 @@ extern void paging_init(void);
 #define pte_unmap(pte)		do { } while (0)
 #define pte_unmap_nested(pte)	do { } while (0)
 
-#define pmd_off_k(address)	pmd_offset(pgd_offset_k(address), address)
+#define pmd_off_k(address)	pmd_offset(pud_offset(p4d_offset(pgd_offset_k(address), (address)), (address)), (address))
 
 #define set_pte_at(mm,addr,ptep,pteval) set_pte(ptep,pteval)
 /*
@@ -365,9 +360,6 @@ static inline pmd_t __mk_pmd(pte_t * ptep, unsigned long prot)
 #define pgd_offset(mm, address)	((mm)->pgd + pgd_index(address))
 /* to find an entry in a kernel page-table-directory */
 #define pgd_offset_k(addr)      pgd_offset(&init_mm, addr)
-
-/* Find an entry in the second-level page table.. */
-#define pmd_offset(dir, addr)	((pmd_t *)(dir))
 
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {

@@ -30,7 +30,8 @@ void intel_ddi_enable_transcoder_func(const struct intel_crtc_state *crtc_state)
 void intel_ddi_disable_transcoder_func(const struct intel_crtc_state *crtc_state);
 void intel_ddi_enable_pipe_clock(const struct intel_crtc_state *crtc_state);
 void intel_ddi_disable_pipe_clock(const  struct intel_crtc_state *crtc_state);
-void intel_ddi_set_pipe_settings(const struct intel_crtc_state *crtc_state);
+void intel_ddi_set_dp_msa(const struct intel_crtc_state *crtc_state,
+			  const struct drm_connector_state *conn_state);
 bool intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector);
 void intel_ddi_get_config(struct intel_encoder *encoder,
 			  struct intel_crtc_state *pipe_config);

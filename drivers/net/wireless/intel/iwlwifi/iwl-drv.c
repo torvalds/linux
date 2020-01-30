@@ -1560,6 +1560,8 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	IWL_INFO(drv, "loaded firmware version %s op_mode %s\n",
 		 drv->fw.fw_version, op->name);
 
+	iwl_dbg_tlv_load_bin(drv->trans->dev, drv->trans);
+
 	/* add this device to the list of devices using this op_mode */
 	list_add_tail(&drv->list, &op->drv);
 
@@ -1635,8 +1637,6 @@ struct iwl_drv *iwl_drv_start(struct iwl_trans *trans)
 
 	init_completion(&drv->request_firmware_complete);
 	INIT_LIST_HEAD(&drv->list);
-
-	iwl_dbg_tlv_load_bin(drv->trans->dev, drv->trans);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	/* Create the device debugfs entries. */
@@ -1804,7 +1804,7 @@ MODULE_PARM_DESC(11n_disable,
 	"disable 11n functionality, bitmap: 1: full, 2: disable agg TX, 4: disable agg RX, 8 enable agg TX");
 module_param_named(amsdu_size, iwlwifi_mod_params.amsdu_size, int, 0444);
 MODULE_PARM_DESC(amsdu_size,
-		 "amsdu size 0: 12K for multi Rx queue devices, 2K for 22560 devices, "
+		 "amsdu size 0: 12K for multi Rx queue devices, 2K for AX210 devices, "
 		 "4K for other devices 1:4K 2:8K 3:12K 4: 2K (default 0)");
 module_param_named(fw_restart, iwlwifi_mod_params.fw_restart, bool, 0444);
 MODULE_PARM_DESC(fw_restart, "restart firmware in case of error (default true)");
@@ -1816,9 +1816,6 @@ MODULE_PARM_DESC(antenna_coupling,
 
 module_param_named(nvm_file, iwlwifi_mod_params.nvm_file, charp, 0444);
 MODULE_PARM_DESC(nvm_file, "NVM file name");
-
-module_param_named(lar_disable, iwlwifi_mod_params.lar_disable, bool, 0444);
-MODULE_PARM_DESC(lar_disable, "disable LAR functionality (default: N)");
 
 module_param_named(uapsd_disable, iwlwifi_mod_params.uapsd_disable, uint, 0644);
 MODULE_PARM_DESC(uapsd_disable,

@@ -713,8 +713,10 @@ static ssize_t fuse_async_req_send(struct fuse_conn *fc,
 
 	ia->ap.args.end = fuse_aio_complete_req;
 	err = fuse_simple_background(fc, &ia->ap.args, GFP_KERNEL);
+	if (err)
+		fuse_aio_complete_req(fc, &ia->ap.args, err);
 
-	return err ?: num_bytes;
+	return num_bytes;
 }
 
 static ssize_t fuse_send_read(struct fuse_io_args *ia, loff_t pos, size_t count,
@@ -880,6 +882,7 @@ static void fuse_send_readpages(struct fuse_io_args *ia, struct file *file)
 	struct fuse_args_pages *ap = &ia->ap;
 	loff_t pos = page_offset(ap->pages[0]);
 	size_t count = ap->num_pages << PAGE_SHIFT;
+	ssize_t res;
 	int err;
 
 	ap->args.out_pages = true;
@@ -894,7 +897,8 @@ static void fuse_send_readpages(struct fuse_io_args *ia, struct file *file)
 		if (!err)
 			return;
 	} else {
-		err = fuse_simple_request(fc, &ap->args);
+		res = fuse_simple_request(fc, &ap->args);
+		err = res < 0 ? res : 0;
 	}
 	fuse_readpages_end(fc, &ap->args, err);
 }
@@ -1096,6 +1100,8 @@ static ssize_t fuse_send_write_pages(struct fuse_io_args *ia,
 	ia->write.in.flags = fuse_write_flags(iocb);
 
 	err = fuse_simple_request(fc, &ap->args);
+	if (!err && ia->write.out.size > count)
+		err = -EIO;
 
 	offset = ap->descs[0].offset;
 	count = ia->write.out.size;

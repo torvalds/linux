@@ -74,11 +74,13 @@
 #include <trace/events/fib.h>
 #include "fib_lookup.h"
 
-static int call_fib_entry_notifier(struct notifier_block *nb, struct net *net,
+static int call_fib_entry_notifier(struct notifier_block *nb,
 				   enum fib_event_type event_type, u32 dst,
-				   int dst_len, struct fib_alias *fa)
+				   int dst_len, struct fib_alias *fa,
+				   struct netlink_ext_ack *extack)
 {
 	struct fib_entry_notifier_info info = {
+		.info.extack = extack,
 		.dst = dst,
 		.dst_len = dst_len,
 		.fi = fa->fa_info,
@@ -86,7 +88,7 @@ static int call_fib_entry_notifier(struct notifier_block *nb, struct net *net,
 		.type = fa->fa_type,
 		.tb_id = fa->tb_id,
 	};
-	return call_fib4_notifier(nb, net, event_type, &info.info);
+	return call_fib4_notifier(nb, event_type, &info.info);
 }
 
 static int call_fib_entry_notifiers(struct net *net,
@@ -2015,10 +2017,12 @@ void fib_info_notify_update(struct net *net, struct nl_info *info)
 	}
 }
 
-static void fib_leaf_notify(struct net *net, struct key_vector *l,
-			    struct fib_table *tb, struct notifier_block *nb)
+static int fib_leaf_notify(struct key_vector *l, struct fib_table *tb,
+			   struct notifier_block *nb,
+			   struct netlink_ext_ack *extack)
 {
 	struct fib_alias *fa;
+	int err;
 
 	hlist_for_each_entry_rcu(fa, &l->leaf, fa_list) {
 		struct fib_info *fi = fa->fa_info;
@@ -2032,39 +2036,53 @@ static void fib_leaf_notify(struct net *net, struct key_vector *l,
 		if (tb->tb_id != fa->tb_id)
 			continue;
 
-		call_fib_entry_notifier(nb, net, FIB_EVENT_ENTRY_ADD, l->key,
-					KEYLENGTH - fa->fa_slen, fa);
+		err = call_fib_entry_notifier(nb, FIB_EVENT_ENTRY_ADD, l->key,
+					      KEYLENGTH - fa->fa_slen,
+					      fa, extack);
+		if (err)
+			return err;
 	}
+	return 0;
 }
 
-static void fib_table_notify(struct net *net, struct fib_table *tb,
-			     struct notifier_block *nb)
+static int fib_table_notify(struct fib_table *tb, struct notifier_block *nb,
+			    struct netlink_ext_ack *extack)
 {
 	struct trie *t = (struct trie *)tb->tb_data;
 	struct key_vector *l, *tp = t->kv;
 	t_key key = 0;
+	int err;
 
 	while ((l = leaf_walk_rcu(&tp, key)) != NULL) {
-		fib_leaf_notify(net, l, tb, nb);
+		err = fib_leaf_notify(l, tb, nb, extack);
+		if (err)
+			return err;
 
 		key = l->key + 1;
 		/* stop in case of wrap around */
 		if (key < l->key)
 			break;
 	}
+	return 0;
 }
 
-void fib_notify(struct net *net, struct notifier_block *nb)
+int fib_notify(struct net *net, struct notifier_block *nb,
+	       struct netlink_ext_ack *extack)
 {
 	unsigned int h;
+	int err;
 
 	for (h = 0; h < FIB_TABLE_HASHSZ; h++) {
 		struct hlist_head *head = &net->ipv4.fib_table_hash[h];
 		struct fib_table *tb;
 
-		hlist_for_each_entry_rcu(tb, head, tb_hlist)
-			fib_table_notify(net, tb, nb);
+		hlist_for_each_entry_rcu(tb, head, tb_hlist) {
+			err = fib_table_notify(tb, nb, extack);
+			if (err)
+				return err;
+		}
 	}
+	return 0;
 }
 
 static void __trie_free_rcu(struct rcu_head *head)
@@ -2174,6 +2192,12 @@ int fib_table_dump(struct fib_table *tb, struct sk_buff *skb,
 	 */
 	int count = cb->args[2];
 	t_key key = cb->args[3];
+
+	/* First time here, count and key are both always 0. Count > 0
+	 * and key == 0 means the dump has wrapped around and we are done.
+	 */
+	if (count && !key)
+		return skb->len;
 
 	while ((l = leaf_walk_rcu(&tp, key)) != NULL) {
 		int err;

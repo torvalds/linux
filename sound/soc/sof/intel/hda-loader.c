@@ -126,7 +126,8 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, const void *fwdata,
 					    HDA_DSP_INIT_TIMEOUT_US);
 
 	if (ret < 0) {
-		dev_err(sdev->dev, "error: waiting for HIPCIE done\n");
+		dev_err(sdev->dev, "error: %s: timeout for HIPCIE done\n",
+			__func__);
 		goto err;
 	}
 
@@ -151,6 +152,10 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, const void *fwdata,
 					USEC_PER_MSEC);
 	if (!ret)
 		return 0;
+
+	dev_err(sdev->dev,
+		"error: %s: timeout HDA_DSP_SRAM_REG_ROM_STATUS read\n",
+		__func__);
 
 err:
 	hda_dsp_dump(sdev, SOF_DBG_REGS | SOF_DBG_PCI | SOF_DBG_MBOX);
@@ -253,10 +258,22 @@ static int cl_copy_fw(struct snd_sof_dev *sdev, struct hdac_ext_stream *stream)
 					HDA_DSP_REG_POLL_INTERVAL_US,
 					HDA_DSP_BASEFW_TIMEOUT_US);
 
+	/*
+	 * even in case of errors we still need to stop the DMAs,
+	 * but we return the initial error should the DMA stop also fail
+	 */
+
+	if (status < 0) {
+		dev_err(sdev->dev,
+			"error: %s: timeout HDA_DSP_SRAM_REG_ROM_STATUS read\n",
+			__func__);
+	}
+
 	ret = cl_trigger(sdev, stream, SNDRV_PCM_TRIGGER_STOP);
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: DMA trigger stop failed\n");
-		return ret;
+		if (!status)
+			status = ret;
 	}
 
 	return status;
@@ -312,13 +329,13 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 		if (!ret)
 			break;
 
-		dev_err(sdev->dev, "error: Error code=0x%x: FW status=0x%x\n",
+		dev_dbg(sdev->dev, "iteration %d of Core En/ROM load failed: %d\n",
+			i, ret);
+		dev_dbg(sdev->dev, "Error code=0x%x: FW status=0x%x\n",
 			snd_sof_dsp_read(sdev, HDA_DSP_BAR,
 					 HDA_DSP_SRAM_REG_ROM_ERROR),
 			snd_sof_dsp_read(sdev, HDA_DSP_BAR,
 					 HDA_DSP_SRAM_REG_ROM_STATUS));
-		dev_err(sdev->dev, "error: iteration %d of Core En/ROM load failed: %d\n",
-			i, ret);
 	}
 
 	if (i == HDA_FW_BOOT_ATTEMPTS) {
@@ -341,13 +358,15 @@ cleanup:
 	/*
 	 * Perform codeloader stream cleanup.
 	 * This should be done even if firmware loading fails.
+	 * If the cleanup also fails, we return the initial error
 	 */
 	ret1 = cl_cleanup(sdev, &sdev->dmab, stream);
 	if (ret1 < 0) {
 		dev_err(sdev->dev, "error: Code loader DSP cleanup failed\n");
 
 		/* set return value to indicate cleanup failure */
-		ret = ret1;
+		if (!ret)
+			ret = ret1;
 	}
 
 	/*

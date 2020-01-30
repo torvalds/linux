@@ -47,13 +47,7 @@ static int vsockmon_close(struct net_device *dev)
 
 static netdev_tx_t vsockmon_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	int len = skb->len;
-	struct pcpu_lstats *stats = this_cpu_ptr(dev->lstats);
-
-	u64_stats_update_begin(&stats->syncp);
-	stats->bytes += len;
-	stats->packets++;
-	u64_stats_update_end(&stats->syncp);
+	dev_lstats_add(dev, skb->len);
 
 	dev_kfree_skb(skb);
 
@@ -63,30 +57,9 @@ static netdev_tx_t vsockmon_xmit(struct sk_buff *skb, struct net_device *dev)
 static void
 vsockmon_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 {
-	int i;
-	u64 bytes = 0, packets = 0;
+	dev_lstats_read(dev, &stats->rx_packets, &stats->rx_bytes);
 
-	for_each_possible_cpu(i) {
-		const struct pcpu_lstats *vstats;
-		u64 tbytes, tpackets;
-		unsigned int start;
-
-		vstats = per_cpu_ptr(dev->lstats, i);
-
-		do {
-			start = u64_stats_fetch_begin_irq(&vstats->syncp);
-			tbytes = vstats->bytes;
-			tpackets = vstats->packets;
-		} while (u64_stats_fetch_retry_irq(&vstats->syncp, start));
-
-		packets += tpackets;
-		bytes += tbytes;
-	}
-
-	stats->rx_packets = packets;
 	stats->tx_packets = 0;
-
-	stats->rx_bytes = bytes;
 	stats->tx_bytes = 0;
 }
 

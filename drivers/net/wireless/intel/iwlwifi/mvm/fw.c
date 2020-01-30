@@ -514,6 +514,19 @@ static int iwl_send_phy_cfg_cmd(struct iwl_mvm *mvm)
 	struct iwl_phy_cfg_cmd phy_cfg_cmd;
 	enum iwl_ucode_type ucode_type = mvm->fwrt.cur_fw_img;
 
+	if (iwl_mvm_has_unified_ucode(mvm) &&
+	    !mvm->trans->cfg->tx_with_siso_diversity)
+		return 0;
+
+	if (mvm->trans->cfg->tx_with_siso_diversity) {
+		/*
+		 * TODO: currently we don't set the antenna but letting the NIC
+		 * to decide which antenna to use. This should come from BIOS.
+		 */
+		phy_cfg_cmd.phy_cfg =
+			cpu_to_le32(FW_PHY_CFG_CHAIN_SAD_ENABLED);
+	}
+
 	/* Set parameters */
 	phy_cfg_cmd.phy_cfg = cpu_to_le32(iwl_mvm_get_phy_config(mvm));
 
@@ -665,181 +678,14 @@ static int iwl_mvm_config_ltr(struct iwl_mvm *mvm)
 }
 
 #ifdef CONFIG_ACPI
-static inline int iwl_mvm_sar_set_profile(struct iwl_mvm *mvm,
-					  union acpi_object *table,
-					  struct iwl_mvm_sar_profile *profile,
-					  bool enabled)
-{
-	int i;
-
-	profile->enabled = enabled;
-
-	for (i = 0; i < ACPI_SAR_TABLE_SIZE; i++) {
-		if ((table[i].type != ACPI_TYPE_INTEGER) ||
-		    (table[i].integer.value > U8_MAX))
-			return -EINVAL;
-
-		profile->table[i] = table[i].integer.value;
-	}
-
-	return 0;
-}
-
-static int iwl_mvm_sar_get_wrds_table(struct iwl_mvm *mvm)
-{
-	union acpi_object *wifi_pkg, *table, *data;
-	bool enabled;
-	int ret, tbl_rev;
-
-	data = iwl_acpi_get_object(mvm->dev, ACPI_WRDS_METHOD);
-	if (IS_ERR(data))
-		return PTR_ERR(data);
-
-	wifi_pkg = iwl_acpi_get_wifi_pkg(mvm->dev, data,
-					 ACPI_WRDS_WIFI_DATA_SIZE, &tbl_rev);
-	if (IS_ERR(wifi_pkg)) {
-		ret = PTR_ERR(wifi_pkg);
-		goto out_free;
-	}
-
-	if (wifi_pkg->package.elements[1].type != ACPI_TYPE_INTEGER ||
-	    tbl_rev != 0) {
-		ret = -EINVAL;
-		goto out_free;
-	}
-
-	enabled = !!(wifi_pkg->package.elements[1].integer.value);
-
-	/* position of the actual table */
-	table = &wifi_pkg->package.elements[2];
-
-	/* The profile from WRDS is officially profile 1, but goes
-	 * into sar_profiles[0] (because we don't have a profile 0).
-	 */
-	ret = iwl_mvm_sar_set_profile(mvm, table, &mvm->sar_profiles[0],
-				      enabled);
-out_free:
-	kfree(data);
-	return ret;
-}
-
-static int iwl_mvm_sar_get_ewrd_table(struct iwl_mvm *mvm)
-{
-	union acpi_object *wifi_pkg, *data;
-	bool enabled;
-	int i, n_profiles, ret, tbl_rev;
-
-	data = iwl_acpi_get_object(mvm->dev, ACPI_EWRD_METHOD);
-	if (IS_ERR(data))
-		return PTR_ERR(data);
-
-	wifi_pkg = iwl_acpi_get_wifi_pkg(mvm->dev, data,
-					 ACPI_EWRD_WIFI_DATA_SIZE, &tbl_rev);
-	if (IS_ERR(wifi_pkg)) {
-		ret = PTR_ERR(wifi_pkg);
-		goto out_free;
-	}
-
-	if ((wifi_pkg->package.elements[1].type != ACPI_TYPE_INTEGER) ||
-	    (wifi_pkg->package.elements[2].type != ACPI_TYPE_INTEGER) ||
-	    tbl_rev != 0) {
-		ret = -EINVAL;
-		goto out_free;
-	}
-
-	enabled = !!(wifi_pkg->package.elements[1].integer.value);
-	n_profiles = wifi_pkg->package.elements[2].integer.value;
-
-	/*
-	 * Check the validity of n_profiles.  The EWRD profiles start
-	 * from index 1, so the maximum value allowed here is
-	 * ACPI_SAR_PROFILES_NUM - 1.
-	 */
-	if (n_profiles <= 0 || n_profiles >= ACPI_SAR_PROFILE_NUM) {
-		ret = -EINVAL;
-		goto out_free;
-	}
-
-	for (i = 0; i < n_profiles; i++) {
-		/* the tables start at element 3 */
-		int pos = 3;
-
-		/* The EWRD profiles officially go from 2 to 4, but we
-		 * save them in sar_profiles[1-3] (because we don't
-		 * have profile 0).  So in the array we start from 1.
-		 */
-		ret = iwl_mvm_sar_set_profile(mvm,
-					      &wifi_pkg->package.elements[pos],
-					      &mvm->sar_profiles[i + 1],
-					      enabled);
-		if (ret < 0)
-			break;
-
-		/* go to the next table */
-		pos += ACPI_SAR_TABLE_SIZE;
-	}
-
-out_free:
-	kfree(data);
-	return ret;
-}
-
-static int iwl_mvm_sar_get_wgds_table(struct iwl_mvm *mvm)
-{
-	union acpi_object *wifi_pkg, *data;
-	int i, j, ret, tbl_rev;
-	int idx = 1;
-
-	data = iwl_acpi_get_object(mvm->dev, ACPI_WGDS_METHOD);
-	if (IS_ERR(data))
-		return PTR_ERR(data);
-
-	wifi_pkg = iwl_acpi_get_wifi_pkg(mvm->dev, data,
-					 ACPI_WGDS_WIFI_DATA_SIZE, &tbl_rev);
-	if (IS_ERR(wifi_pkg)) {
-		ret = PTR_ERR(wifi_pkg);
-		goto out_free;
-	}
-
-	if (tbl_rev != 0) {
-		ret = -EINVAL;
-		goto out_free;
-	}
-
-	mvm->geo_rev = tbl_rev;
-	for (i = 0; i < ACPI_NUM_GEO_PROFILES; i++) {
-		for (j = 0; j < ACPI_GEO_TABLE_SIZE; j++) {
-			union acpi_object *entry;
-
-			entry = &wifi_pkg->package.elements[idx++];
-			if ((entry->type != ACPI_TYPE_INTEGER) ||
-			    (entry->integer.value > U8_MAX)) {
-				ret = -EINVAL;
-				goto out_free;
-			}
-
-			mvm->geo_profiles[i].values[j] = entry->integer.value;
-		}
-	}
-	ret = 0;
-out_free:
-	kfree(data);
-	return ret;
-}
-
 int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
 {
 	union {
 		struct iwl_dev_tx_power_cmd v5;
 		struct iwl_dev_tx_power_cmd_v4 v4;
 	} cmd;
-	int i, j, idx;
-	int profs[ACPI_SAR_NUM_CHAIN_LIMITS] = { prof_a, prof_b };
-	int len;
 
-	BUILD_BUG_ON(ACPI_SAR_NUM_CHAIN_LIMITS < 2);
-	BUILD_BUG_ON(ACPI_SAR_NUM_CHAIN_LIMITS * ACPI_SAR_NUM_SUB_BANDS !=
-		     ACPI_SAR_TABLE_SIZE);
+	u16 len = 0;
 
 	cmd.v5.v3.set_mode = cpu_to_le32(IWL_TX_POWER_MODE_SET_CHAINS);
 
@@ -848,174 +694,76 @@ int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
 		len = sizeof(cmd.v5);
 	else if (fw_has_capa(&mvm->fw->ucode_capa,
 			     IWL_UCODE_TLV_CAPA_TX_POWER_ACK))
-		len = sizeof(cmd.v4);
+		len = sizeof(struct iwl_dev_tx_power_cmd_v4);
 	else
 		len = sizeof(cmd.v4.v3);
 
-	for (i = 0; i < ACPI_SAR_NUM_CHAIN_LIMITS; i++) {
-		struct iwl_mvm_sar_profile *prof;
 
-		/* don't allow SAR to be disabled (profile 0 means disable) */
-		if (profs[i] == 0)
-			return -EPERM;
-
-		/* we are off by one, so allow up to ACPI_SAR_PROFILE_NUM */
-		if (profs[i] > ACPI_SAR_PROFILE_NUM)
-			return -EINVAL;
-
-		/* profiles go from 1 to 4, so decrement to access the array */
-		prof = &mvm->sar_profiles[profs[i] - 1];
-
-		/* if the profile is disabled, do nothing */
-		if (!prof->enabled) {
-			IWL_DEBUG_RADIO(mvm, "SAR profile %d is disabled.\n",
-					profs[i]);
-			/* if one of the profiles is disabled, we fail all */
-			return -ENOENT;
-		}
-
-		IWL_DEBUG_INFO(mvm,
-			       "SAR EWRD: chain %d profile index %d\n",
-			       i, profs[i]);
-		IWL_DEBUG_RADIO(mvm, "  Chain[%d]:\n", i);
-		for (j = 0; j < ACPI_SAR_NUM_SUB_BANDS; j++) {
-			idx = (i * ACPI_SAR_NUM_SUB_BANDS) + j;
-			cmd.v5.v3.per_chain_restriction[i][j] =
-				cpu_to_le16(prof->table[idx]);
-			IWL_DEBUG_RADIO(mvm, "    Band[%d] = %d * .125dBm\n",
-					j, prof->table[idx]);
-		}
-	}
-
+	if (iwl_sar_select_profile(&mvm->fwrt, cmd.v5.v3.per_chain_restriction,
+				   prof_a, prof_b))
+		return -ENOENT;
 	IWL_DEBUG_RADIO(mvm, "Sending REDUCE_TX_POWER_CMD per chain\n");
-
 	return iwl_mvm_send_cmd_pdu(mvm, REDUCE_TX_POWER_CMD, 0, len, &cmd);
-}
-
-static bool iwl_mvm_sar_geo_support(struct iwl_mvm *mvm)
-{
-	/*
-	 * The GEO_TX_POWER_LIMIT command is not supported on earlier
-	 * firmware versions.  Unfortunately, we don't have a TLV API
-	 * flag to rely on, so rely on the major version which is in
-	 * the first byte of ucode_ver.  This was implemented
-	 * initially on version 38 and then backported to 17.  It was
-	 * also backported to 29, but only for 7265D devices.  The
-	 * intention was to have it in 36 as well, but not all 8000
-	 * family got this feature enabled.  The 8000 family is the
-	 * only one using version 36, so skip this version entirely.
-	 */
-	return IWL_UCODE_SERIAL(mvm->fw->ucode_ver) >= 38 ||
-	       IWL_UCODE_SERIAL(mvm->fw->ucode_ver) == 17 ||
-	       (IWL_UCODE_SERIAL(mvm->fw->ucode_ver) == 29 &&
-		((mvm->trans->hw_rev & CSR_HW_REV_TYPE_MSK) ==
-		 CSR_HW_REV_TYPE_7265D));
 }
 
 int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm)
 {
-	struct iwl_geo_tx_power_profiles_resp *resp;
-	int ret;
+	union geo_tx_power_profiles_cmd geo_tx_cmd;
 	u16 len;
-	void *data;
-	struct iwl_geo_tx_power_profiles_cmd geo_cmd;
-	struct iwl_geo_tx_power_profiles_cmd_v1 geo_cmd_v1;
+	int ret;
 	struct iwl_host_cmd cmd;
 
-	if (fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_SAR_TABLE_VER)) {
-		geo_cmd.ops =
+	if (fw_has_api(&mvm->fwrt.fw->ucode_capa,
+		       IWL_UCODE_TLV_API_SAR_TABLE_VER)) {
+		geo_tx_cmd.geo_cmd.ops =
 			cpu_to_le32(IWL_PER_CHAIN_OFFSET_GET_CURRENT_TABLE);
-		len = sizeof(geo_cmd);
-		data = &geo_cmd;
+		len = sizeof(geo_tx_cmd.geo_cmd);
 	} else {
-		geo_cmd_v1.ops =
+		geo_tx_cmd.geo_cmd_v1.ops =
 			cpu_to_le32(IWL_PER_CHAIN_OFFSET_GET_CURRENT_TABLE);
-		len = sizeof(geo_cmd_v1);
-		data = &geo_cmd_v1;
+		len = sizeof(geo_tx_cmd.geo_cmd_v1);
 	}
+
+	if (!iwl_sar_geo_support(&mvm->fwrt))
+		return -EOPNOTSUPP;
 
 	cmd = (struct iwl_host_cmd){
 		.id =  WIDE_ID(PHY_OPS_GROUP, GEO_TX_POWER_LIMIT),
 		.len = { len, },
 		.flags = CMD_WANT_SKB,
-		.data = { data },
+		.data = { &geo_tx_cmd },
 	};
-
-	if (!iwl_mvm_sar_geo_support(mvm))
-		return -EOPNOTSUPP;
 
 	ret = iwl_mvm_send_cmd(mvm, &cmd);
 	if (ret) {
 		IWL_ERR(mvm, "Failed to get geographic profile info %d\n", ret);
 		return ret;
 	}
-
-	resp = (void *)cmd.resp_pkt->data;
-	ret = le32_to_cpu(resp->profile_idx);
-	if (WARN_ON(ret > ACPI_NUM_GEO_PROFILES)) {
-		ret = -EIO;
-		IWL_WARN(mvm, "Invalid geographic profile idx (%d)\n", ret);
-	}
-
+	ret = iwl_validate_sar_geo_profile(&mvm->fwrt, &cmd);
 	iwl_free_resp(&cmd);
 	return ret;
 }
 
 static int iwl_mvm_sar_geo_init(struct iwl_mvm *mvm)
 {
-	struct iwl_geo_tx_power_profiles_cmd cmd = {
-		.ops = cpu_to_le32(IWL_PER_CHAIN_OFFSET_SET_TABLES),
-	};
-	int ret, i, j;
 	u16 cmd_wide_id =  WIDE_ID(PHY_OPS_GROUP, GEO_TX_POWER_LIMIT);
+	union geo_tx_power_profiles_cmd cmd;
+	u16 len;
 
-	if (!iwl_mvm_sar_geo_support(mvm))
-		return 0;
+	cmd.geo_cmd.ops = cpu_to_le32(IWL_PER_CHAIN_OFFSET_SET_TABLES);
 
-	ret = iwl_mvm_sar_get_wgds_table(mvm);
-	if (ret < 0) {
-		IWL_DEBUG_RADIO(mvm,
-				"Geo SAR BIOS table invalid or unavailable. (%d)\n",
-				ret);
-		/* we don't fail if the table is not available */
-		return 0;
+	iwl_sar_geo_init(&mvm->fwrt, cmd.geo_cmd.table);
+
+	cmd.geo_cmd.table_revision = cpu_to_le32(mvm->fwrt.geo_rev);
+
+	if (!fw_has_api(&mvm->fwrt.fw->ucode_capa,
+			IWL_UCODE_TLV_API_SAR_TABLE_VER)) {
+		len = sizeof(struct iwl_geo_tx_power_profiles_cmd_v1);
+	} else {
+		len =  sizeof(cmd.geo_cmd);
 	}
 
-	IWL_DEBUG_RADIO(mvm, "Sending GEO_TX_POWER_LIMIT\n");
-
-	BUILD_BUG_ON(ACPI_NUM_GEO_PROFILES * ACPI_WGDS_NUM_BANDS *
-		     ACPI_WGDS_TABLE_SIZE + 1 !=  ACPI_WGDS_WIFI_DATA_SIZE);
-
-	BUILD_BUG_ON(ACPI_NUM_GEO_PROFILES > IWL_NUM_GEO_PROFILES);
-
-	for (i = 0; i < ACPI_NUM_GEO_PROFILES; i++) {
-		struct iwl_per_chain_offset *chain =
-			(struct iwl_per_chain_offset *)&cmd.table[i];
-
-		for (j = 0; j < ACPI_WGDS_NUM_BANDS; j++) {
-			u8 *value;
-
-			value = &mvm->geo_profiles[i].values[j *
-				ACPI_GEO_PER_CHAIN_SIZE];
-			chain[j].max_tx_power = cpu_to_le16(value[0]);
-			chain[j].chain_a = value[1];
-			chain[j].chain_b = value[2];
-			IWL_DEBUG_RADIO(mvm,
-					"SAR geographic profile[%d] Band[%d]: chain A = %d chain B = %d max_tx_power = %d\n",
-					i, j, value[1], value[2], value[0]);
-		}
-	}
-
-	cmd.table_revision = cpu_to_le32(mvm->geo_rev);
-
-	if (!fw_has_api(&mvm->fw->ucode_capa,
-		       IWL_UCODE_TLV_API_SAR_TABLE_VER)) {
-		return iwl_mvm_send_cmd_pdu(mvm, cmd_wide_id, 0,
-				sizeof(struct iwl_geo_tx_power_profiles_cmd_v1),
-				&cmd);
-	}
-
-	return iwl_mvm_send_cmd_pdu(mvm, cmd_wide_id, 0, sizeof(cmd), &cmd);
+	return iwl_mvm_send_cmd_pdu(mvm, cmd_wide_id, 0, len, &cmd);
 }
 
 static int iwl_mvm_get_ppag_table(struct iwl_mvm *mvm)
@@ -1024,7 +772,7 @@ static int iwl_mvm_get_ppag_table(struct iwl_mvm *mvm)
 	int i, j, ret, tbl_rev;
 	int idx = 2;
 
-	mvm->ppag_table.enabled = cpu_to_le32(0);
+	mvm->fwrt.ppag_table.enabled = cpu_to_le32(0);
 	data = iwl_acpi_get_object(mvm->dev, ACPI_PPAG_METHOD);
 	if (IS_ERR(data))
 		return PTR_ERR(data);
@@ -1049,8 +797,8 @@ static int iwl_mvm_get_ppag_table(struct iwl_mvm *mvm)
 		goto out_free;
 	}
 
-	mvm->ppag_table.enabled = cpu_to_le32(enabled->integer.value);
-	if (!mvm->ppag_table.enabled) {
+	mvm->fwrt.ppag_table.enabled = cpu_to_le32(enabled->integer.value);
+	if (!mvm->fwrt.ppag_table.enabled) {
 		ret = 0;
 		goto out_free;
 	}
@@ -1070,11 +818,11 @@ static int iwl_mvm_get_ppag_table(struct iwl_mvm *mvm)
 			    (j == 0 && ent->integer.value < ACPI_PPAG_MIN_LB) ||
 			    (j != 0 && ent->integer.value > ACPI_PPAG_MAX_HB) ||
 			    (j != 0 && ent->integer.value < ACPI_PPAG_MIN_HB)) {
-				mvm->ppag_table.enabled = cpu_to_le32(0);
+				mvm->fwrt.ppag_table.enabled = cpu_to_le32(0);
 				ret = -EINVAL;
 				goto out_free;
 			}
-			mvm->ppag_table.gain[i][j] = ent->integer.value;
+			mvm->fwrt.ppag_table.gain[i][j] = ent->integer.value;
 		}
 	}
 	ret = 0;
@@ -1093,22 +841,26 @@ int iwl_mvm_ppag_send_cmd(struct iwl_mvm *mvm)
 		return 0;
 	}
 
+	if (!mvm->fwrt.ppag_table.enabled) {
+		IWL_DEBUG_RADIO(mvm,
+				"PPAG not enabled, command not sent.\n");
+		return 0;
+	}
+
 	IWL_DEBUG_RADIO(mvm, "Sending PER_PLATFORM_ANT_GAIN_CMD\n");
-	IWL_DEBUG_RADIO(mvm, "PPAG is %s\n",
-			mvm->ppag_table.enabled ? "enabled" : "disabled");
 
 	for (i = 0; i < ACPI_PPAG_NUM_CHAINS; i++) {
 		for (j = 0; j < ACPI_PPAG_NUM_SUB_BANDS; j++) {
 			IWL_DEBUG_RADIO(mvm,
 					"PPAG table: chain[%d] band[%d]: gain = %d\n",
-					i, j, mvm->ppag_table.gain[i][j]);
+					i, j, mvm->fwrt.ppag_table.gain[i][j]);
 		}
 	}
 
 	ret = iwl_mvm_send_cmd_pdu(mvm, WIDE_ID(PHY_OPS_GROUP,
 						PER_PLATFORM_ANT_GAIN_CMD),
-				   0, sizeof(mvm->ppag_table),
-				   &mvm->ppag_table);
+				   0, sizeof(mvm->fwrt.ppag_table),
+				   &mvm->fwrt.ppag_table);
 	if (ret < 0)
 		IWL_ERR(mvm, "failed to send PER_PLATFORM_ANT_GAIN_CMD (%d)\n",
 			ret);
@@ -1131,17 +883,14 @@ static int iwl_mvm_ppag_init(struct iwl_mvm *mvm)
 }
 
 #else /* CONFIG_ACPI */
-static int iwl_mvm_sar_get_wrds_table(struct iwl_mvm *mvm)
+
+inline int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm,
+				      int prof_a, int prof_b)
 {
 	return -ENOENT;
 }
 
-static int iwl_mvm_sar_get_ewrd_table(struct iwl_mvm *mvm)
-{
-	return -ENOENT;
-}
-
-static int iwl_mvm_sar_get_wgds_table(struct iwl_mvm *mvm)
+inline int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm)
 {
 	return -ENOENT;
 }
@@ -1151,17 +900,6 @@ static int iwl_mvm_sar_geo_init(struct iwl_mvm *mvm)
 	return 0;
 }
 
-int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a,
-			       int prof_b)
-{
-	return -ENOENT;
-}
-
-int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm)
-{
-	return -ENOENT;
-}
-
 int iwl_mvm_ppag_send_cmd(struct iwl_mvm *mvm)
 {
 	return -ENOENT;
@@ -1169,7 +907,7 @@ int iwl_mvm_ppag_send_cmd(struct iwl_mvm *mvm)
 
 static int iwl_mvm_ppag_init(struct iwl_mvm *mvm)
 {
-	return -ENOENT;
+	return 0;
 }
 #endif /* CONFIG_ACPI */
 
@@ -1228,7 +966,7 @@ static int iwl_mvm_sar_init(struct iwl_mvm *mvm)
 {
 	int ret;
 
-	ret = iwl_mvm_sar_get_wrds_table(mvm);
+	ret = iwl_sar_get_wrds_table(&mvm->fwrt);
 	if (ret < 0) {
 		IWL_DEBUG_RADIO(mvm,
 				"WRDS SAR BIOS table invalid or unavailable. (%d)\n",
@@ -1240,16 +978,14 @@ static int iwl_mvm_sar_init(struct iwl_mvm *mvm)
 		return 1;
 	}
 
-	ret = iwl_mvm_sar_get_ewrd_table(mvm);
+	ret = iwl_sar_get_ewrd_table(&mvm->fwrt);
 	/* if EWRD is not available, we can still use WRDS, so don't fail */
 	if (ret < 0)
 		IWL_DEBUG_RADIO(mvm,
 				"EWRD SAR BIOS table invalid or unavailable. (%d)\n",
 				ret);
 
-	/* choose profile 1 (WRDS) as default for both chains */
 	ret = iwl_mvm_sar_select_profile(mvm, 1, 1);
-
 	/*
 	 * If we don't have profile 0 from BIOS, just skip it.  This
 	 * means that SAR Geo will not be enabled either, even if we
@@ -1344,11 +1080,11 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 		ret = iwl_send_phy_db_data(mvm->phy_db);
 		if (ret)
 			goto error;
-
-		ret = iwl_send_phy_cfg_cmd(mvm);
-		if (ret)
-			goto error;
 	}
+
+	ret = iwl_send_phy_cfg_cmd(mvm);
+	if (ret)
+		goto error;
 
 	ret = iwl_mvm_send_bt_init_conf(mvm);
 	if (ret)
@@ -1480,7 +1216,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	ret = iwl_mvm_sar_init(mvm);
 	if (ret == 0) {
 		ret = iwl_mvm_sar_geo_init(mvm);
-	} else if (ret > 0 && !iwl_mvm_sar_get_wgds_table(mvm)) {
+	} else if (ret > 0 && !iwl_sar_get_wgds_table(&mvm->fwrt)) {
 		/*
 		 * If basic SAR is not available, we check for WGDS,
 		 * which should *not* be available either.  If it is

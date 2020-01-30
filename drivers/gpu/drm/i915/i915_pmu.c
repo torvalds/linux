@@ -11,6 +11,8 @@
 #include "gt/intel_engine_pm.h"
 #include "gt/intel_engine_user.h"
 #include "gt/intel_gt_pm.h"
+#include "gt/intel_rc6.h"
+#include "gt/intel_rps.h"
 
 #include "i915_drv.h"
 #include "i915_pmu.h"
@@ -116,21 +118,92 @@ static bool pmu_needs_timer(struct i915_pmu *pmu, bool gpu_active)
 	return enable;
 }
 
-void i915_pmu_gt_parked(struct drm_i915_private *i915)
+static u64 __get_rc6(struct intel_gt *gt)
+{
+	struct drm_i915_private *i915 = gt->i915;
+	u64 val;
+
+	val = intel_rc6_residency_ns(&gt->rc6,
+				     IS_VALLEYVIEW(i915) ?
+				     VLV_GT_RENDER_RC6 :
+				     GEN6_GT_GFX_RC6);
+
+	if (HAS_RC6p(i915))
+		val += intel_rc6_residency_ns(&gt->rc6, GEN6_GT_GFX_RC6p);
+
+	if (HAS_RC6pp(i915))
+		val += intel_rc6_residency_ns(&gt->rc6, GEN6_GT_GFX_RC6pp);
+
+	return val;
+}
+
+#if IS_ENABLED(CONFIG_PM)
+
+static inline s64 ktime_since(const ktime_t kt)
+{
+	return ktime_to_ns(ktime_sub(ktime_get(), kt));
+}
+
+static u64 get_rc6(struct intel_gt *gt)
+{
+	struct drm_i915_private *i915 = gt->i915;
+	struct i915_pmu *pmu = &i915->pmu;
+	unsigned long flags;
+	bool awake = false;
+	u64 val;
+
+	if (intel_gt_pm_get_if_awake(gt)) {
+		val = __get_rc6(gt);
+		intel_gt_pm_put_async(gt);
+		awake = true;
+	}
+
+	spin_lock_irqsave(&pmu->lock, flags);
+
+	if (awake) {
+		pmu->sample[__I915_SAMPLE_RC6].cur = val;
+	} else {
+		/*
+		 * We think we are runtime suspended.
+		 *
+		 * Report the delta from when the device was suspended to now,
+		 * on top of the last known real value, as the approximated RC6
+		 * counter value.
+		 */
+		val = ktime_since(pmu->sleep_last);
+		val += pmu->sample[__I915_SAMPLE_RC6].cur;
+	}
+
+	if (val < pmu->sample[__I915_SAMPLE_RC6_LAST_REPORTED].cur)
+		val = pmu->sample[__I915_SAMPLE_RC6_LAST_REPORTED].cur;
+	else
+		pmu->sample[__I915_SAMPLE_RC6_LAST_REPORTED].cur = val;
+
+	spin_unlock_irqrestore(&pmu->lock, flags);
+
+	return val;
+}
+
+static void park_rc6(struct drm_i915_private *i915)
 {
 	struct i915_pmu *pmu = &i915->pmu;
 
-	if (!pmu->base.event_init)
-		return;
+	if (pmu->enable & config_enabled_mask(I915_PMU_RC6_RESIDENCY))
+		pmu->sample[__I915_SAMPLE_RC6].cur = __get_rc6(&i915->gt);
 
-	spin_lock_irq(&pmu->lock);
-	/*
-	 * Signal sampling timer to stop if only engine events are enabled and
-	 * GPU went idle.
-	 */
-	pmu->timer_enabled = pmu_needs_timer(pmu, false);
-	spin_unlock_irq(&pmu->lock);
+	pmu->sleep_last = ktime_get();
 }
+
+#else
+
+static u64 get_rc6(struct intel_gt *gt)
+{
+	return __get_rc6(gt);
+}
+
+static void park_rc6(struct drm_i915_private *i915) {}
+
+#endif
 
 static void __i915_pmu_maybe_start_timer(struct i915_pmu *pmu)
 {
@@ -143,6 +216,26 @@ static void __i915_pmu_maybe_start_timer(struct i915_pmu *pmu)
 	}
 }
 
+void i915_pmu_gt_parked(struct drm_i915_private *i915)
+{
+	struct i915_pmu *pmu = &i915->pmu;
+
+	if (!pmu->base.event_init)
+		return;
+
+	spin_lock_irq(&pmu->lock);
+
+	park_rc6(i915);
+
+	/*
+	 * Signal sampling timer to stop if only engine events are enabled and
+	 * GPU went idle.
+	 */
+	pmu->timer_enabled = pmu_needs_timer(pmu, false);
+
+	spin_unlock_irq(&pmu->lock);
+}
+
 void i915_pmu_gt_unparked(struct drm_i915_private *i915)
 {
 	struct i915_pmu *pmu = &i915->pmu;
@@ -151,10 +244,12 @@ void i915_pmu_gt_unparked(struct drm_i915_private *i915)
 		return;
 
 	spin_lock_irq(&pmu->lock);
+
 	/*
 	 * Re-enable sampling timer when GPU goes active.
 	 */
 	__i915_pmu_maybe_start_timer(pmu);
+
 	spin_unlock_irq(&pmu->lock);
 }
 
@@ -174,7 +269,7 @@ engines_sample(struct intel_gt *gt, unsigned int period_ns)
 	if ((i915->pmu.enable & ENGINE_SAMPLE_MASK) == 0)
 		return;
 
-	for_each_engine(engine, i915, id) {
+	for_each_engine(engine, gt, id) {
 		struct intel_engine_pmu *pmu = &engine->pmu;
 		unsigned long flags;
 		bool busy;
@@ -194,6 +289,10 @@ engines_sample(struct intel_gt *gt, unsigned int period_ns)
 		if (val & RING_WAIT_SEMAPHORE)
 			add_sample(&pmu->sample[I915_SAMPLE_SEMA], period_ns);
 
+		/* No need to sample when busy stats are supported. */
+		if (intel_engine_supports_stats(engine))
+			goto skip;
+
 		/*
 		 * While waiting on a semaphore or event, MI_MODE reports the
 		 * ring as idle. However, previously using the seqno, and with
@@ -211,7 +310,7 @@ engines_sample(struct intel_gt *gt, unsigned int period_ns)
 
 skip:
 		spin_unlock_irqrestore(&engine->uncore->lock, flags);
-		intel_engine_pm_put(engine);
+		intel_engine_pm_put_async(engine);
 	}
 }
 
@@ -227,25 +326,26 @@ frequency_sample(struct intel_gt *gt, unsigned int period_ns)
 	struct drm_i915_private *i915 = gt->i915;
 	struct intel_uncore *uncore = gt->uncore;
 	struct i915_pmu *pmu = &i915->pmu;
+	struct intel_rps *rps = &gt->rps;
 
 	if (pmu->enable & config_enabled_mask(I915_PMU_ACTUAL_FREQUENCY)) {
 		u32 val;
 
-		val = i915->gt_pm.rps.cur_freq;
+		val = rps->cur_freq;
 		if (intel_gt_pm_get_if_awake(gt)) {
 			val = intel_uncore_read_notrace(uncore, GEN6_RPSTAT1);
-			val = intel_get_cagf(i915, val);
-			intel_gt_pm_put(gt);
+			val = intel_get_cagf(rps, val);
+			intel_gt_pm_put_async(gt);
 		}
 
 		add_sample_mult(&pmu->sample[__I915_SAMPLE_FREQ_ACT],
-				intel_gpu_freq(i915, val),
+				intel_gpu_freq(rps, val),
 				period_ns / 1000);
 	}
 
 	if (pmu->enable & config_enabled_mask(I915_PMU_REQUESTED_FREQUENCY)) {
 		add_sample_mult(&pmu->sample[__I915_SAMPLE_FREQ_REQ],
-				intel_gpu_freq(i915, i915->gt_pm.rps.cur_freq),
+				intel_gpu_freq(rps, rps->cur_freq),
 				period_ns / 1000);
 	}
 }
@@ -424,104 +524,6 @@ static int i915_pmu_event_init(struct perf_event *event)
 		event->destroy = i915_pmu_event_destroy;
 
 	return 0;
-}
-
-static u64 __get_rc6(struct intel_gt *gt)
-{
-	struct drm_i915_private *i915 = gt->i915;
-	u64 val;
-
-	val = intel_rc6_residency_ns(i915,
-				     IS_VALLEYVIEW(i915) ?
-				     VLV_GT_RENDER_RC6 :
-				     GEN6_GT_GFX_RC6);
-
-	if (HAS_RC6p(i915))
-		val += intel_rc6_residency_ns(i915, GEN6_GT_GFX_RC6p);
-
-	if (HAS_RC6pp(i915))
-		val += intel_rc6_residency_ns(i915, GEN6_GT_GFX_RC6pp);
-
-	return val;
-}
-
-static u64 get_rc6(struct intel_gt *gt)
-{
-#if IS_ENABLED(CONFIG_PM)
-	struct drm_i915_private *i915 = gt->i915;
-	struct intel_runtime_pm *rpm = &i915->runtime_pm;
-	struct i915_pmu *pmu = &i915->pmu;
-	intel_wakeref_t wakeref;
-	unsigned long flags;
-	u64 val;
-
-	wakeref = intel_runtime_pm_get_if_in_use(rpm);
-	if (wakeref) {
-		val = __get_rc6(gt);
-		intel_runtime_pm_put(rpm, wakeref);
-
-		/*
-		 * If we are coming back from being runtime suspended we must
-		 * be careful not to report a larger value than returned
-		 * previously.
-		 */
-
-		spin_lock_irqsave(&pmu->lock, flags);
-
-		if (val >= pmu->sample[__I915_SAMPLE_RC6_ESTIMATED].cur) {
-			pmu->sample[__I915_SAMPLE_RC6_ESTIMATED].cur = 0;
-			pmu->sample[__I915_SAMPLE_RC6].cur = val;
-		} else {
-			val = pmu->sample[__I915_SAMPLE_RC6_ESTIMATED].cur;
-		}
-
-		spin_unlock_irqrestore(&pmu->lock, flags);
-	} else {
-		struct device *kdev = rpm->kdev;
-
-		/*
-		 * We are runtime suspended.
-		 *
-		 * Report the delta from when the device was suspended to now,
-		 * on top of the last known real value, as the approximated RC6
-		 * counter value.
-		 */
-		spin_lock_irqsave(&pmu->lock, flags);
-
-		/*
-		 * After the above branch intel_runtime_pm_get_if_in_use failed
-		 * to get the runtime PM reference we cannot assume we are in
-		 * runtime suspend since we can either: a) race with coming out
-		 * of it before we took the power.lock, or b) there are other
-		 * states than suspended which can bring us here.
-		 *
-		 * We need to double-check that we are indeed currently runtime
-		 * suspended and if not we cannot do better than report the last
-		 * known RC6 value.
-		 */
-		if (pm_runtime_status_suspended(kdev)) {
-			val = pm_runtime_suspended_time(kdev);
-
-			if (!pmu->sample[__I915_SAMPLE_RC6_ESTIMATED].cur)
-				pmu->suspended_time_last = val;
-
-			val -= pmu->suspended_time_last;
-			val += pmu->sample[__I915_SAMPLE_RC6].cur;
-
-			pmu->sample[__I915_SAMPLE_RC6_ESTIMATED].cur = val;
-		} else if (pmu->sample[__I915_SAMPLE_RC6_ESTIMATED].cur) {
-			val = pmu->sample[__I915_SAMPLE_RC6_ESTIMATED].cur;
-		} else {
-			val = pmu->sample[__I915_SAMPLE_RC6].cur;
-		}
-
-		spin_unlock_irqrestore(&pmu->lock, flags);
-	}
-
-	return val;
-#else
-	return __get_rc6(gt);
-#endif
 }
 
 static u64 __i915_pmu_event_read(struct perf_event *event)
@@ -1047,21 +1049,48 @@ static void i915_pmu_unregister_cpuhp_state(struct i915_pmu *pmu)
 	cpuhp_remove_multi_state(cpuhp_slot);
 }
 
+static bool is_igp(struct drm_i915_private *i915)
+{
+	struct pci_dev *pdev = i915->drm.pdev;
+
+	/* IGP is 0000:00:02.0 */
+	return pci_domain_nr(pdev->bus) == 0 &&
+	       pdev->bus->number == 0 &&
+	       PCI_SLOT(pdev->devfn) == 2 &&
+	       PCI_FUNC(pdev->devfn) == 0;
+}
+
 void i915_pmu_register(struct drm_i915_private *i915)
 {
 	struct i915_pmu *pmu = &i915->pmu;
-	int ret;
+	int ret = -ENOMEM;
 
 	if (INTEL_GEN(i915) <= 2) {
 		dev_info(i915->drm.dev, "PMU not supported for this GPU.");
 		return;
 	}
 
-	i915_pmu_events_attr_group.attrs = create_event_attributes(pmu);
-	if (!i915_pmu_events_attr_group.attrs) {
-		ret = -ENOMEM;
-		goto err;
+	spin_lock_init(&pmu->lock);
+	hrtimer_init(&pmu->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	pmu->timer.function = i915_sample;
+
+	if (!is_igp(i915)) {
+		pmu->name = kasprintf(GFP_KERNEL,
+				      "i915_%s",
+				      dev_name(i915->drm.dev));
+		if (pmu->name) {
+			/* tools/perf reserves colons as special. */
+			strreplace((char *)pmu->name, ':', '_');
+		}
+	} else {
+		pmu->name = "i915";
 	}
+	if (!pmu->name)
+		goto err;
+
+	i915_pmu_events_attr_group.attrs = create_event_attributes(pmu);
+	if (!i915_pmu_events_attr_group.attrs)
+		goto err_name;
 
 	pmu->base.attr_groups	= i915_pmu_attr_groups;
 	pmu->base.task_ctx_nr	= perf_invalid_context;
@@ -1073,13 +1102,9 @@ void i915_pmu_register(struct drm_i915_private *i915)
 	pmu->base.read		= i915_pmu_event_read;
 	pmu->base.event_idx	= i915_pmu_event_event_idx;
 
-	spin_lock_init(&pmu->lock);
-	hrtimer_init(&pmu->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	pmu->timer.function = i915_sample;
-
-	ret = perf_pmu_register(&pmu->base, "i915", -1);
+	ret = perf_pmu_register(&pmu->base, pmu->name, -1);
 	if (ret)
-		goto err;
+		goto err_attr;
 
 	ret = i915_pmu_register_cpuhp_state(pmu);
 	if (ret)
@@ -1089,10 +1114,14 @@ void i915_pmu_register(struct drm_i915_private *i915)
 
 err_unreg:
 	perf_pmu_unregister(&pmu->base);
-err:
+err_attr:
 	pmu->base.event_init = NULL;
 	free_event_attributes(pmu);
-	DRM_NOTE("Failed to register PMU! (err=%d)\n", ret);
+err_name:
+	if (!is_igp(i915))
+		kfree(pmu->name);
+err:
+	dev_notice(i915->drm.dev, "Failed to register PMU!\n");
 }
 
 void i915_pmu_unregister(struct drm_i915_private *i915)
@@ -1110,5 +1139,7 @@ void i915_pmu_unregister(struct drm_i915_private *i915)
 
 	perf_pmu_unregister(&pmu->base);
 	pmu->base.event_init = NULL;
+	if (!is_igp(i915))
+		kfree(pmu->name);
 	free_event_attributes(pmu);
 }

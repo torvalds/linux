@@ -380,17 +380,6 @@ config BT_ATH3K
 	  Say Y here to compile support for "Atheros firmware download driver"
 	  into the kernel or say M to compile it as module (ath3k).
 
-config BT_WILINK
-	tristate "Texas Instruments WiLink7 driver"
-	depends on TI_ST
-	help
-	  This enables the Bluetooth driver for Texas Instrument's BT/FM/GPS
-	  combo devices. This makes use of shared transport line discipline
-	  core driver to communicate with the BT core of the combo chip.
-
-	  Say Y here to compile support for Texas Instrument's WiLink7 driver
-	  into the kernel or say M to compile it as module (btwilink).
-
 config BT_MTKSDIO
 	tristate "MediaTek HCI SDIO driver"
 	depends on MMC

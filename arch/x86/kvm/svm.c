@@ -38,6 +38,7 @@
 #include <linux/file.h>
 #include <linux/pagemap.h>
 #include <linux/swap.h>
+#include <linux/rwsem.h>
 
 #include <asm/apic.h>
 #include <asm/perf_event.h>
@@ -418,9 +419,13 @@ enum {
 
 #define VMCB_AVIC_APIC_BAR_MASK		0xFFFFFFFFFF000ULL
 
+static int sev_flush_asids(void);
+static DECLARE_RWSEM(sev_deactivate_lock);
+static DEFINE_MUTEX(sev_bitmap_lock);
 static unsigned int max_sev_asid;
 static unsigned int min_sev_asid;
 static unsigned long *sev_asid_bitmap;
+static unsigned long *sev_reclaim_asid_bitmap;
 #define __sme_page_pa(x) __sme_set(page_to_pfn(x) << PAGE_SHIFT)
 
 struct enc_region {
@@ -1235,9 +1240,13 @@ static __init int sev_hardware_setup(void)
 	/* Minimum ASID value that should be used for SEV guest */
 	min_sev_asid = cpuid_edx(0x8000001F);
 
-	/* Initialize SEV ASID bitmap */
+	/* Initialize SEV ASID bitmaps */
 	sev_asid_bitmap = bitmap_zalloc(max_sev_asid, GFP_KERNEL);
 	if (!sev_asid_bitmap)
+		return 1;
+
+	sev_reclaim_asid_bitmap = bitmap_zalloc(max_sev_asid, GFP_KERNEL);
+	if (!sev_reclaim_asid_bitmap)
 		return 1;
 
 	status = kmalloc(sizeof(*status), GFP_KERNEL);
@@ -1418,8 +1427,12 @@ static __exit void svm_hardware_unsetup(void)
 {
 	int cpu;
 
-	if (svm_sev_enabled())
+	if (svm_sev_enabled()) {
 		bitmap_free(sev_asid_bitmap);
+		bitmap_free(sev_reclaim_asid_bitmap);
+
+		sev_flush_asids();
+	}
 
 	for_each_possible_cpu(cpu)
 		svm_cpu_uninit(cpu);
@@ -1729,25 +1742,22 @@ static int avic_init_backing_page(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-static void __sev_asid_free(int asid)
+static void sev_asid_free(int asid)
 {
 	struct svm_cpu_data *sd;
 	int cpu, pos;
 
+	mutex_lock(&sev_bitmap_lock);
+
 	pos = asid - 1;
-	clear_bit(pos, sev_asid_bitmap);
+	__set_bit(pos, sev_reclaim_asid_bitmap);
 
 	for_each_possible_cpu(cpu) {
 		sd = per_cpu(svm_data, cpu);
 		sd->sev_vmcbs[pos] = NULL;
 	}
-}
 
-static void sev_asid_free(struct kvm *kvm)
-{
-	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
-
-	__sev_asid_free(sev->asid);
+	mutex_unlock(&sev_bitmap_lock);
 }
 
 static void sev_unbind_asid(struct kvm *kvm, unsigned int handle)
@@ -1764,10 +1774,12 @@ static void sev_unbind_asid(struct kvm *kvm, unsigned int handle)
 
 	/* deactivate handle */
 	data->handle = handle;
-	sev_guest_deactivate(data, NULL);
 
-	wbinvd_on_all_cpus();
-	sev_guest_df_flush(NULL);
+	/* Guard DEACTIVATE against WBINVD/DF_FLUSH used in ASID recycling */
+	down_read(&sev_deactivate_lock);
+	sev_guest_deactivate(data, NULL);
+	up_read(&sev_deactivate_lock);
+
 	kfree(data);
 
 	decommission = kzalloc(sizeof(*decommission), GFP_KERNEL);
@@ -1916,7 +1928,7 @@ static void sev_vm_destroy(struct kvm *kvm)
 	mutex_unlock(&kvm->lock);
 
 	sev_unbind_asid(kvm, sev->handle);
-	sev_asid_free(kvm);
+	sev_asid_free(sev->asid);
 }
 
 static void avic_vm_destroy(struct kvm *kvm)
@@ -2370,7 +2382,7 @@ static void svm_cache_reg(struct kvm_vcpu *vcpu, enum kvm_reg reg)
 		load_pdptrs(vcpu, vcpu->arch.walk_mmu, kvm_read_cr3(vcpu));
 		break;
 	default:
-		BUG();
+		WARN_ON_ONCE(1);
 	}
 }
 
@@ -2520,10 +2532,6 @@ static void svm_set_gdt(struct kvm_vcpu *vcpu, struct desc_ptr *dt)
 }
 
 static void svm_decache_cr0_guest_bits(struct kvm_vcpu *vcpu)
-{
-}
-
-static void svm_decache_cr3(struct kvm_vcpu *vcpu)
 {
 }
 
@@ -4997,6 +5005,18 @@ static int handle_exit(struct kvm_vcpu *vcpu)
 		return 0;
 	}
 
+#ifdef CONFIG_RETPOLINE
+	if (exit_code == SVM_EXIT_MSR)
+		return msr_interception(svm);
+	else if (exit_code == SVM_EXIT_VINTR)
+		return interrupt_window_interception(svm);
+	else if (exit_code == SVM_EXIT_INTR)
+		return intr_interception(svm);
+	else if (exit_code == SVM_EXIT_HLT)
+		return halt_interception(svm);
+	else if (exit_code == SVM_EXIT_NPF)
+		return npf_interception(svm);
+#endif
 	return svm_exit_handlers[exit_code](svm);
 }
 
@@ -5092,8 +5112,7 @@ static void update_cr8_intercept(struct kvm_vcpu *vcpu, int tpr, int irr)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
-	if (svm_nested_virtualize_tpr(vcpu) ||
-	    kvm_vcpu_apicv_active(vcpu))
+	if (svm_nested_virtualize_tpr(vcpu))
 		return;
 
 	clr_cr_intercept(svm, INTERCEPT_CR8_WRITE);
@@ -5110,9 +5129,9 @@ static void svm_set_virtual_apic_mode(struct kvm_vcpu *vcpu)
 	return;
 }
 
-static bool svm_get_enable_apicv(struct kvm_vcpu *vcpu)
+static bool svm_get_enable_apicv(struct kvm *kvm)
 {
-	return avic && irqchip_split(vcpu->kvm);
+	return avic && irqchip_split(kvm);
 }
 
 static void svm_hwapic_irr_update(struct kvm_vcpu *vcpu, int max_irr)
@@ -5634,7 +5653,7 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 	svm->vmcb->save.cr2 = vcpu->arch.cr2;
 
 	clgi();
-	kvm_load_guest_xcr0(vcpu);
+	kvm_load_guest_xsave_state(vcpu);
 
 	if (lapic_in_kernel(vcpu) &&
 		vcpu->arch.apic->lapic_timer.timer_advance_ns)
@@ -5784,7 +5803,7 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 	if (unlikely(svm->vmcb->control.exit_code == SVM_EXIT_NMI))
 		kvm_before_interrupt(&svm->vcpu);
 
-	kvm_put_guest_xcr0(vcpu);
+	kvm_load_host_xsave_state(vcpu);
 	stgi();
 
 	/* Any pending NMI will happen here */
@@ -5893,6 +5912,9 @@ static void svm_cpuid_update(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
+	vcpu->arch.xsaves_enabled = guest_cpuid_has(vcpu, X86_FEATURE_XSAVE) &&
+				    boot_cpu_has(X86_FEATURE_XSAVES);
+
 	/* Update nrips enabled cache */
 	svm->nrips_enabled = !!guest_cpuid_has(&svm->vcpu, X86_FEATURE_NRIPS);
 
@@ -5936,13 +5958,6 @@ static void svm_set_supported_cpuid(u32 func, struct kvm_cpuid_entry2 *entry)
 		if (npt_enabled)
 			entry->edx |= F(NPT);
 
-		break;
-	case 0x8000001F:
-		/* Support memory encryption cpuid if host supports it */
-		if (boot_cpu_has(X86_FEATURE_SEV))
-			cpuid(0x8000001f, &entry->eax, &entry->ebx,
-				&entry->ecx, &entry->edx);
-
 	}
 }
 
@@ -5968,7 +5983,7 @@ static bool svm_mpx_supported(void)
 
 static bool svm_xsaves_supported(void)
 {
-	return false;
+	return boot_cpu_has(X86_FEATURE_XSAVES);
 }
 
 static bool svm_umip_emulated(void)
@@ -6270,18 +6285,73 @@ static int enable_smi_window(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-static int sev_asid_new(void)
+static int sev_flush_asids(void)
+{
+	int ret, error;
+
+	/*
+	 * DEACTIVATE will clear the WBINVD indicator causing DF_FLUSH to fail,
+	 * so it must be guarded.
+	 */
+	down_write(&sev_deactivate_lock);
+
+	wbinvd_on_all_cpus();
+	ret = sev_guest_df_flush(&error);
+
+	up_write(&sev_deactivate_lock);
+
+	if (ret)
+		pr_err("SEV: DF_FLUSH failed, ret=%d, error=%#x\n", ret, error);
+
+	return ret;
+}
+
+/* Must be called with the sev_bitmap_lock held */
+static bool __sev_recycle_asids(void)
 {
 	int pos;
+
+	/* Check if there are any ASIDs to reclaim before performing a flush */
+	pos = find_next_bit(sev_reclaim_asid_bitmap,
+			    max_sev_asid, min_sev_asid - 1);
+	if (pos >= max_sev_asid)
+		return false;
+
+	if (sev_flush_asids())
+		return false;
+
+	bitmap_xor(sev_asid_bitmap, sev_asid_bitmap, sev_reclaim_asid_bitmap,
+		   max_sev_asid);
+	bitmap_zero(sev_reclaim_asid_bitmap, max_sev_asid);
+
+	return true;
+}
+
+static int sev_asid_new(void)
+{
+	bool retry = true;
+	int pos;
+
+	mutex_lock(&sev_bitmap_lock);
 
 	/*
 	 * SEV-enabled guest must use asid from min_sev_asid to max_sev_asid.
 	 */
+again:
 	pos = find_next_zero_bit(sev_asid_bitmap, max_sev_asid, min_sev_asid - 1);
-	if (pos >= max_sev_asid)
+	if (pos >= max_sev_asid) {
+		if (retry && __sev_recycle_asids()) {
+			retry = false;
+			goto again;
+		}
+		mutex_unlock(&sev_bitmap_lock);
 		return -EBUSY;
+	}
 
-	set_bit(pos, sev_asid_bitmap);
+	__set_bit(pos, sev_asid_bitmap);
+
+	mutex_unlock(&sev_bitmap_lock);
+
 	return pos + 1;
 }
 
@@ -6309,7 +6379,7 @@ static int sev_guest_init(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	return 0;
 
 e_free:
-	__sev_asid_free(asid);
+	sev_asid_free(asid);
 	return ret;
 }
 
@@ -6318,12 +6388,6 @@ static int sev_bind_asid(struct kvm *kvm, unsigned int handle, int *error)
 	struct sev_data_activate *data;
 	int asid = sev_get_asid(kvm);
 	int ret;
-
-	wbinvd_on_all_cpus();
-
-	ret = sev_guest_df_flush(error);
-	if (ret)
-		return ret;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL_ACCOUNT);
 	if (!data)
@@ -7214,7 +7278,6 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.get_cpl = svm_get_cpl,
 	.get_cs_db_l_bits = kvm_get_cs_db_l_bits,
 	.decache_cr0_guest_bits = svm_decache_cr0_guest_bits,
-	.decache_cr3 = svm_decache_cr3,
 	.decache_cr4_guest_bits = svm_decache_cr4_guest_bits,
 	.set_cr0 = svm_set_cr0,
 	.set_cr3 = svm_set_cr3,

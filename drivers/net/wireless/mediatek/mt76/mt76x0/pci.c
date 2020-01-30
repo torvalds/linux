@@ -51,19 +51,6 @@ static void mt76x0e_stop(struct ieee80211_hw *hw)
 	mt76x0e_stop_hw(dev);
 }
 
-static int
-mt76x0e_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
-		struct ieee80211_vif *vif, struct ieee80211_sta *sta,
-		struct ieee80211_key_conf *key)
-{
-	struct mt76x02_dev *dev = hw->priv;
-
-	if (is_mt7630(dev))
-		return -EOPNOTSUPP;
-
-	return mt76x02_set_key(hw, cmd, vif, sta, key);
-}
-
 static void
 mt76x0e_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	      u32 queues, bool drop)
@@ -80,7 +67,7 @@ static const struct ieee80211_ops mt76x0e_ops = {
 	.configure_filter = mt76x02_configure_filter,
 	.bss_info_changed = mt76x02_bss_info_changed,
 	.sta_state = mt76_sta_state,
-	.set_key = mt76x0e_set_key,
+	.set_key = mt76x02_set_key,
 	.conf_tx = mt76x02_conf_tx,
 	.sw_scan_start = mt76_sw_scan,
 	.sw_scan_complete = mt76x02_sw_scan_complete,
@@ -94,6 +81,7 @@ static const struct ieee80211_ops mt76x0e_ops = {
 	.release_buffered_frames = mt76_release_buffered_frames,
 	.set_coverage_class = mt76x02_set_coverage_class,
 	.set_rts_threshold = mt76x02_set_rts_threshold,
+	.get_antenna = mt76_get_antenna,
 };
 
 static int mt76x0e_register_device(struct mt76x02_dev *dev)
@@ -132,15 +120,6 @@ static int mt76x0e_register_device(struct mt76x02_dev *dev)
 	mt76_clear(dev, 0x110, BIT(9));
 	mt76_set(dev, MT_MAX_LEN_CFG, BIT(13));
 
-	mt76_wr(dev, MT_CH_TIME_CFG,
-		MT_CH_TIME_CFG_TIMER_EN |
-		MT_CH_TIME_CFG_TX_AS_BUSY |
-		MT_CH_TIME_CFG_RX_AS_BUSY |
-		MT_CH_TIME_CFG_NAV_AS_BUSY |
-		MT_CH_TIME_CFG_EIFS_AS_BUSY |
-		MT_CH_CCA_RC_EN |
-		FIELD_PREP(MT_CH_TIME_CFG_CH_TIMER_CLR, 1));
-
 	err = mt76x0_register_device(dev);
 	if (err < 0)
 		return err;
@@ -155,7 +134,9 @@ mt76x0e_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	static const struct mt76_driver_ops drv_ops = {
 		.txwi_size = sizeof(struct mt76x02_txwi),
-		.tx_aligned4_skbs = true,
+		.drv_flags = MT_DRV_TX_ALIGNED4_SKBS |
+			     MT_DRV_SW_RX_AIRTIME,
+		.survey_flags = SURVEY_INFO_TIME_TX,
 		.update_survey = mt76x02_update_channel,
 		.tx_prepare_skb = mt76x02_tx_prepare_skb,
 		.tx_complete_skb = mt76x02_tx_complete_skb,

@@ -13,6 +13,7 @@
 #include "intel_context.h"
 #include "intel_engine.h"
 #include "intel_engine_pm.h"
+#include "intel_ring.h"
 
 static struct i915_global_context {
 	struct i915_global base;
@@ -62,7 +63,7 @@ int __intel_context_do_pin(struct intel_context *ce)
 		}
 
 		err = 0;
-		with_intel_runtime_pm(&ce->engine->i915->runtime_pm, wakeref)
+		with_intel_runtime_pm(ce->engine->uncore->rpm, wakeref)
 			err = ce->ops->pin(ce);
 		if (err)
 			goto err;
@@ -122,6 +123,10 @@ static int __context_pin_state(struct i915_vma *vma)
 	if (err)
 		return err;
 
+	err = i915_active_acquire(&vma->active);
+	if (err)
+		goto err_unpin;
+
 	/*
 	 * And mark it as a globally pinned object to let the shrinker know
 	 * it cannot reclaim the object until we release it.
@@ -130,14 +135,45 @@ static int __context_pin_state(struct i915_vma *vma)
 	vma->obj->mm.dirty = true;
 
 	return 0;
+
+err_unpin:
+	i915_vma_unpin(vma);
+	return err;
 }
 
 static void __context_unpin_state(struct i915_vma *vma)
 {
-	__i915_vma_unpin(vma);
 	i915_vma_make_shrinkable(vma);
+	i915_active_release(&vma->active);
+	__i915_vma_unpin(vma);
 }
 
+static int __ring_active(struct intel_ring *ring)
+{
+	int err;
+
+	err = i915_active_acquire(&ring->vma->active);
+	if (err)
+		return err;
+
+	err = intel_ring_pin(ring);
+	if (err)
+		goto err_active;
+
+	return 0;
+
+err_active:
+	i915_active_release(&ring->vma->active);
+	return err;
+}
+
+static void __ring_retire(struct intel_ring *ring)
+{
+	intel_ring_unpin(ring);
+	i915_active_release(&ring->vma->active);
+}
+
+__i915_active_call
 static void __intel_context_retire(struct i915_active *active)
 {
 	struct intel_context *ce = container_of(active, typeof(*ce), active);
@@ -149,7 +185,8 @@ static void __intel_context_retire(struct i915_active *active)
 		__context_unpin_state(ce->state);
 
 	intel_timeline_unpin(ce->timeline);
-	intel_ring_unpin(ce->ring);
+	__ring_retire(ce->ring);
+
 	intel_context_put(ce);
 }
 
@@ -160,7 +197,7 @@ static int __intel_context_active(struct i915_active *active)
 
 	intel_context_get(ce);
 
-	err = intel_ring_pin(ce->ring);
+	err = __ring_active(ce->ring);
 	if (err)
 		goto err_put;
 
@@ -180,7 +217,7 @@ static int __intel_context_active(struct i915_active *active)
 err_timeline:
 	intel_timeline_unpin(ce->timeline);
 err_ring:
-	intel_ring_unpin(ce->ring);
+	__ring_retire(ce->ring);
 err_put:
 	intel_context_put(ce);
 	return err;
@@ -219,12 +256,20 @@ intel_context_init(struct intel_context *ce,
 		   struct i915_gem_context *ctx,
 		   struct intel_engine_cs *engine)
 {
+	struct i915_address_space *vm;
+
 	GEM_BUG_ON(!engine->cops);
 
 	kref_init(&ce->ref);
 
 	ce->gem_context = ctx;
-	ce->vm = i915_vm_get(ctx->vm ?: &engine->gt->ggtt->vm);
+	rcu_read_lock();
+	vm = rcu_dereference(ctx->vm);
+	if (vm)
+		ce->vm = i915_vm_get(vm);
+	else
+		ce->vm = i915_vm_get(&engine->gt->ggtt->vm);
+	rcu_read_unlock();
 	if (ctx->timeline)
 		ce->timeline = intel_timeline_get(ctx->timeline);
 
@@ -238,7 +283,7 @@ intel_context_init(struct intel_context *ce,
 
 	mutex_init(&ce->pin_mutex);
 
-	i915_active_init(ctx->i915, &ce->active,
+	i915_active_init(&ce->active,
 			 __intel_context_active, __intel_context_retire);
 }
 
@@ -298,14 +343,27 @@ int intel_context_prepare_remote_request(struct intel_context *ce,
 	/* Only suitable for use in remotely modifying this context */
 	GEM_BUG_ON(rq->hw_context == ce);
 
-	if (rq->timeline != tl) { /* beware timeline sharing */
-		err = mutex_lock_interruptible_nested(&tl->mutex,
-						      SINGLE_DEPTH_NESTING);
-		if (err)
-			return err;
+	if (rcu_access_pointer(rq->timeline) != tl) { /* timeline sharing! */
+		/*
+		 * Ideally, we just want to insert our foreign fence as
+		 * a barrier into the remove context, such that this operation
+		 * occurs after all current operations in that context, and
+		 * all future operations must occur after this.
+		 *
+		 * Currently, the timeline->last_request tracking is guarded
+		 * by its mutex and so we must obtain that to atomically
+		 * insert our barrier. However, since we already hold our
+		 * timeline->mutex, we must be careful against potential
+		 * inversion if we are the kernel_context as the remote context
+		 * will itself poke at the kernel_context when it needs to
+		 * unpin. Ergo, if already locked, we drop both locks and
+		 * try again (through the magic of userspace repeating EAGAIN).
+		 */
+		if (!mutex_trylock(&tl->mutex))
+			return -EAGAIN;
 
 		/* Queue this switch after current activity by this context. */
-		err = i915_active_request_set(&tl->last_request, rq);
+		err = i915_active_fence_set(&tl->last_request, rq);
 		mutex_unlock(&tl->mutex);
 		if (err)
 			return err;
@@ -319,7 +377,7 @@ int intel_context_prepare_remote_request(struct intel_context *ce,
 	 * words transfer the pinned ce object to tracked active request.
 	 */
 	GEM_BUG_ON(i915_active_is_idle(&ce->active));
-	return i915_active_ref(&ce->active, rq->timeline, rq);
+	return i915_active_add_request(&ce->active, rq);
 }
 
 struct i915_request *intel_context_create_request(struct intel_context *ce)

@@ -44,6 +44,7 @@
 #include <linux/netdevice.h>
 #include <linux/rcupdate.h>
 
+#include <net/net_namespace.h>
 #include <net/tcp.h>
 #include <net/strparser.h>
 #include <crypto/aead.h>
@@ -61,7 +62,6 @@
 #define TLS_RECORD_TYPE_DATA		0x17
 
 #define TLS_AAD_SPACE_SIZE		13
-#define TLS_DEVICE_NAME_MAX		32
 
 #define MAX_IV_SIZE			16
 #define TLS_MAX_REC_SEQ_SIZE		8
@@ -75,36 +75,14 @@
  */
 #define TLS_AES_CCM_IV_B0_BYTE		2
 
-/*
- * This structure defines the routines for Inline TLS driver.
- * The following routines are optional and filled with a
- * null pointer if not defined.
- *
- * @name: Its the name of registered Inline tls device
- * @dev_list: Inline tls device list
- * int (*feature)(struct tls_device *device);
- *     Called to return Inline TLS driver capability
- *
- * int (*hash)(struct tls_device *device, struct sock *sk);
- *     This function sets Inline driver for listen and program
- *     device specific functioanlity as required
- *
- * void (*unhash)(struct tls_device *device, struct sock *sk);
- *     This function cleans listen state set by Inline TLS driver
- *
- * void (*release)(struct kref *kref);
- *     Release the registered device and allocated resources
- * @kref: Number of reference to tls_device
- */
-struct tls_device {
-	char name[TLS_DEVICE_NAME_MAX];
-	struct list_head dev_list;
-	int  (*feature)(struct tls_device *device);
-	int  (*hash)(struct tls_device *device, struct sock *sk);
-	void (*unhash)(struct tls_device *device, struct sock *sk);
-	void (*release)(struct kref *kref);
-	struct kref kref;
-};
+#define __TLS_INC_STATS(net, field)				\
+	__SNMP_INC_STATS((net)->mib.tls_statistics, field)
+#define TLS_INC_STATS(net, field)				\
+	SNMP_INC_STATS((net)->mib.tls_statistics, field)
+#define __TLS_DEC_STATS(net, field)				\
+	__SNMP_DEC_STATS((net)->mib.tls_statistics, field)
+#define TLS_DEC_STATS(net, field)				\
+	SNMP_DEC_STATS((net)->mib.tls_statistics, field)
 
 enum {
 	TLS_BASE,
@@ -122,7 +100,6 @@ struct tls_rec {
 	struct list_head list;
 	int tx_ready;
 	int tx_flags;
-	int inplace_crypto;
 
 	struct sk_msg msg_plaintext;
 	struct sk_msg msg_encrypted;
@@ -159,7 +136,7 @@ struct tls_sw_context_tx {
 	struct list_head tx_list;
 	atomic_t encrypt_pending;
 	int async_notify;
-	int async_capable;
+	u8 async_capable:1;
 
 #define BIT_TX_SCHEDULED	0
 #define BIT_TX_CLOSING		1
@@ -175,8 +152,8 @@ struct tls_sw_context_rx {
 
 	struct sk_buff *recv_pkt;
 	u8 control;
-	int async_capable;
-	bool decrypted;
+	u8 async_capable:1;
+	u8 decrypted:1;
 	atomic_t decrypt_pending;
 	bool async_notify;
 };
@@ -345,7 +322,10 @@ struct tls_offload_context_rx {
 #define TLS_OFFLOAD_CONTEXT_SIZE_RX					\
 	(sizeof(struct tls_offload_context_rx) + TLS_DRIVER_STATE_SIZE_RX)
 
+struct tls_context *tls_ctx_create(struct sock *sk);
 void tls_ctx_free(struct sock *sk, struct tls_context *ctx);
+void update_sk_prot(struct sock *sk, struct tls_context *ctx);
+
 int wait_on_pending_writer(struct sock *sk, long *timeo);
 int tls_sk_query(struct sock *sk, int optname, char __user *optval,
 		int __user *optlen);
@@ -396,7 +376,7 @@ int tls_push_sg(struct sock *sk, struct tls_context *ctx,
 		int flags);
 int tls_push_partial_record(struct sock *sk, struct tls_context *ctx,
 			    int flags);
-bool tls_free_partial_record(struct sock *sk, struct tls_context *ctx);
+void tls_free_partial_record(struct sock *sk, struct tls_context *ctx);
 
 static inline struct tls_msg *tls_msg(struct sk_buff *skb)
 {
@@ -630,13 +610,6 @@ tls_offload_rx_resync_set_type(struct sock *sk, enum tls_offload_sync_type type)
 	tls_offload_ctx_rx(tls_ctx)->resync_type = type;
 }
 
-static inline void tls_offload_tx_resync_request(struct sock *sk)
-{
-	struct tls_context *tls_ctx = tls_get_ctx(sk);
-
-	WARN_ON(test_and_set_bit(TLS_TX_SYNC_SCHED, &tls_ctx->flags));
-}
-
 /* Driver's seq tracking has to be disabled until resync succeeded */
 static inline bool tls_offload_tx_resync_pending(struct sock *sk)
 {
@@ -648,10 +621,11 @@ static inline bool tls_offload_tx_resync_pending(struct sock *sk)
 	return ret;
 }
 
+int __net_init tls_proc_init(struct net *net);
+void __net_exit tls_proc_fini(struct net *net);
+
 int tls_proccess_cmsg(struct sock *sk, struct msghdr *msg,
 		      unsigned char *record_type);
-void tls_register_device(struct tls_device *device);
-void tls_unregister_device(struct tls_device *device);
 int decrypt_skb(struct sock *sk, struct sk_buff *skb,
 		struct scatterlist *sgout);
 struct sk_buff *tls_encrypt_skb(struct sk_buff *skb);
@@ -672,7 +646,9 @@ void tls_device_free_resources_tx(struct sock *sk);
 int tls_set_device_offload_rx(struct sock *sk, struct tls_context *ctx);
 void tls_device_offload_cleanup_rx(struct sock *sk);
 void tls_device_rx_resync_new_rec(struct sock *sk, u32 rcd_len, u32 seq);
-int tls_device_decrypted(struct sock *sk, struct sk_buff *skb);
+void tls_offload_tx_resync_request(struct sock *sk, u32 got_seq, u32 exp_seq);
+int tls_device_decrypted(struct sock *sk, struct tls_context *tls_ctx,
+			 struct sk_buff *skb, struct strp_msg *rxm);
 #else
 static inline void tls_device_init(void) {}
 static inline void tls_device_cleanup(void) {}
@@ -695,7 +671,9 @@ static inline void tls_device_offload_cleanup_rx(struct sock *sk) {}
 static inline void
 tls_device_rx_resync_new_rec(struct sock *sk, u32 rcd_len, u32 seq) {}
 
-static inline int tls_device_decrypted(struct sock *sk, struct sk_buff *skb)
+static inline int
+tls_device_decrypted(struct sock *sk, struct tls_context *tls_ctx,
+		     struct sk_buff *skb, struct strp_msg *rxm)
 {
 	return 0;
 }

@@ -68,7 +68,7 @@ static void bcm_sf2_imp_setup(struct dsa_switch *ds, int port)
 
 		/* Force link status for IMP port */
 		reg = core_readl(priv, offset);
-		reg |= (MII_SW_OR | LINK_STS);
+		reg |= (MII_SW_OR | LINK_STS | GMII_SPEED_UP_2G);
 		core_writel(priv, reg, offset);
 
 		/* Enable Broadcast, Multicast, Unicast forwarding to IMP port */
@@ -350,6 +350,18 @@ static int bcm_sf2_sw_rst(struct bcm_sf2_priv *priv)
 {
 	unsigned int timeout = 1000;
 	u32 reg;
+	int ret;
+
+	/* The watchdog reset does not work on 7278, we need to hit the
+	 * "external" reset line through the reset controller.
+	 */
+	if (priv->type == BCM7278_DEVICE_ID && !IS_ERR(priv->rcdev)) {
+		ret = reset_control_assert(priv->rcdev);
+		if (ret)
+			return ret;
+
+		return reset_control_deassert(priv->rcdev);
+	}
 
 	reg = core_readl(priv, CORE_WATCHDOG_CTRL);
 	reg |= SOFTWARE_RESET | EN_CHIP_RST | EN_SW_RESET;
@@ -381,8 +393,9 @@ static void bcm_sf2_identify_ports(struct bcm_sf2_priv *priv,
 				   struct device_node *dn)
 {
 	struct device_node *port;
-	int mode;
 	unsigned int port_num;
+	phy_interface_t mode;
+	int err;
 
 	priv->moca_port = -1;
 
@@ -395,8 +408,8 @@ static void bcm_sf2_identify_ports(struct bcm_sf2_priv *priv,
 		 * has completed, since they might be turned off at that
 		 * time
 		 */
-		mode = of_get_phy_mode(port);
-		if (mode < 0)
+		err = of_get_phy_mode(port, &mode);
+		if (err)
 			continue;
 
 		if (mode == PHY_INTERFACE_MODE_INTERNAL)
@@ -668,7 +681,7 @@ static void bcm_sf2_sw_fixed_state(struct dsa_switch *ds, int port,
 		 * state machine and make it go in PHY_FORCING state instead.
 		 */
 		if (!status->link)
-			netif_carrier_off(ds->ports[port].slave);
+			netif_carrier_off(dsa_to_port(ds, port)->slave);
 		status->duplex = DUPLEX_FULL;
 	} else {
 		status->link = true;
@@ -734,7 +747,7 @@ static int bcm_sf2_sw_resume(struct dsa_switch *ds)
 static void bcm_sf2_sw_get_wol(struct dsa_switch *ds, int port,
 			       struct ethtool_wolinfo *wol)
 {
-	struct net_device *p = ds->ports[port].cpu_dp->master;
+	struct net_device *p = dsa_to_port(ds, port)->cpu_dp->master;
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	struct ethtool_wolinfo pwol = { };
 
@@ -758,9 +771,9 @@ static void bcm_sf2_sw_get_wol(struct dsa_switch *ds, int port,
 static int bcm_sf2_sw_set_wol(struct dsa_switch *ds, int port,
 			      struct ethtool_wolinfo *wol)
 {
-	struct net_device *p = ds->ports[port].cpu_dp->master;
+	struct net_device *p = dsa_to_port(ds, port)->cpu_dp->master;
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
-	s8 cpu_port = ds->ports[port].cpu_dp->index;
+	s8 cpu_port = dsa_to_port(ds, port)->cpu_dp->index;
 	struct ethtool_wolinfo pwol =  { };
 
 	if (p->ethtool_ops->get_wol)
@@ -974,6 +987,9 @@ static const struct dsa_switch_ops bcm_sf2_ops = {
 	.set_rxnfc		= bcm_sf2_set_rxnfc,
 	.port_mirror_add	= b53_mirror_add,
 	.port_mirror_del	= b53_mirror_del,
+	.port_mdb_prepare	= b53_mdb_prepare,
+	.port_mdb_add		= b53_mdb_add,
+	.port_mdb_del		= b53_mdb_del,
 };
 
 struct bcm_sf2_of_data {
@@ -1087,6 +1103,11 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 	priv->reg_offsets = data->reg_offsets;
 	priv->core_reg_align = data->core_reg_align;
 	priv->num_cfp_rules = data->num_cfp_rules;
+
+	priv->rcdev = devm_reset_control_get_optional_exclusive(&pdev->dev,
+								"switch");
+	if (PTR_ERR(priv->rcdev) == -EPROBE_DEFER)
+		return PTR_ERR(priv->rcdev);
 
 	/* Auto-detection using standard registers will not work, so
 	 * provide an indication of what kind of device we are for
@@ -1220,6 +1241,8 @@ static int bcm_sf2_sw_remove(struct platform_device *pdev)
 	dsa_unregister_switch(priv->dev->ds);
 	bcm_sf2_cfp_exit(priv->dev->ds);
 	bcm_sf2_mdio_unregister(priv);
+	if (priv->type == BCM7278_DEVICE_ID && !IS_ERR(priv->rcdev))
+		reset_control_assert(priv->rcdev);
 
 	return 0;
 }

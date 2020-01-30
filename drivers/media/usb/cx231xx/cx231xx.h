@@ -20,7 +20,7 @@
 
 #include <media/drv-intf/cx2341x.h>
 
-#include <media/videobuf-vmalloc.h>
+#include <media/videobuf2-vmalloc.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-fh.h>
@@ -223,8 +223,8 @@ struct cx231xx_fmt {
 /* buffer for one video frame */
 struct cx231xx_buffer {
 	/* common v4l buffer stuff -- must be first */
-	struct videobuf_buffer vb;
-
+	struct vb2_v4l2_buffer vb;
+	struct list_head list;
 	struct list_head frame;
 	int top_field;
 	int receiving;
@@ -237,7 +237,6 @@ enum ps_package_head {
 
 struct cx231xx_dmaqueue {
 	struct list_head active;
-	struct list_head queued;
 
 	wait_queue_head_t wq;
 
@@ -251,6 +250,7 @@ struct cx231xx_dmaqueue {
 	u32 lines_completed;
 	u8 field1_done;
 	u32 lines_per_field;
+	u32 sequence;
 
 	/*Mpeg2 control buffer*/
 	u8 *p_left_data;
@@ -426,23 +426,6 @@ struct cx231xx_audio {
 };
 
 struct cx231xx;
-
-struct cx231xx_fh {
-	struct v4l2_fh fh;
-	struct cx231xx *dev;
-	unsigned int stream_on:1;	/* Locks streams */
-	enum v4l2_buf_type type;
-
-	struct videobuf_queue vb_vidq;
-
-	/* vbi capture */
-	struct videobuf_queue      vidq;
-	struct videobuf_queue      vbiq;
-
-	/* MPEG Encoder specifics ONLY */
-
-	atomic_t                   v4l_reading;
-};
 
 /*****************************************************************/
 /* set/get i2c */
@@ -634,6 +617,7 @@ struct cx231xx {
 	int width;		/* current frame width */
 	int height;		/* current frame height */
 	int interlaced;		/* 1=interlace fields, 0=just top fields */
+	unsigned int size;
 
 	struct cx231xx_audio adev;
 
@@ -656,6 +640,9 @@ struct cx231xx {
 	struct media_entity input_ent[MAX_CX231XX_INPUT];
 	struct media_pad input_pad[MAX_CX231XX_INPUT];
 #endif
+
+	struct vb2_queue vidq;
+	struct vb2_queue vbiq;
 
 	unsigned char eedata[256];
 
@@ -717,6 +704,7 @@ struct cx231xx {
 	u8 USE_ISO;
 	struct cx231xx_tvnorm      encodernorm;
 	struct cx231xx_tsport      ts1, ts2;
+	struct vb2_queue	   mpegq;
 	struct video_device        v4l_device;
 	atomic_t                   v4l_reader_count;
 	u32                        freq;

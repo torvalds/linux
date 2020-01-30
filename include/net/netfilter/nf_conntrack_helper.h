@@ -81,7 +81,7 @@ struct nf_conn_help {
 };
 
 #define NF_CT_HELPER_BUILD_BUG_ON(structsize) \
-	BUILD_BUG_ON((structsize) > FIELD_SIZEOF(struct nf_conn_help, data))
+	BUILD_BUG_ON((structsize) > sizeof_field(struct nf_conn_help, data))
 
 struct nf_conntrack_helper *__nf_conntrack_helper_find(const char *name,
 						       u16 l3num, u8 protonum);

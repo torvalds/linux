@@ -192,6 +192,16 @@ struct acpi_device_walk_info {
 	u32 num_INI;
 };
 
+/* Info used by Acpi  acpi_db_display_fields */
+
+struct acpi_region_walk_info {
+	u32 debug_level;
+	u32 count;
+	acpi_owner_id owner_id;
+	u8 display_type;
+	u32 address_space_id;
+};
+
 /* TBD: [Restructure] Merge with struct above */
 
 struct acpi_walk_info {

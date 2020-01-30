@@ -24,7 +24,7 @@ CTR8BL:	.octa 0x00000003000000020000000100000000
 
 .text
 
-ENTRY(chacha_2block_xor_avx512vl)
+SYM_FUNC_START(chacha_2block_xor_avx512vl)
 	# %rdi: Input state matrix, s
 	# %rsi: up to 2 data blocks output, o
 	# %rdx: up to 2 data blocks input, i
@@ -187,9 +187,9 @@ ENTRY(chacha_2block_xor_avx512vl)
 
 	jmp		.Ldone2
 
-ENDPROC(chacha_2block_xor_avx512vl)
+SYM_FUNC_END(chacha_2block_xor_avx512vl)
 
-ENTRY(chacha_4block_xor_avx512vl)
+SYM_FUNC_START(chacha_4block_xor_avx512vl)
 	# %rdi: Input state matrix, s
 	# %rsi: up to 4 data blocks output, o
 	# %rdx: up to 4 data blocks input, i
@@ -453,9 +453,9 @@ ENTRY(chacha_4block_xor_avx512vl)
 
 	jmp		.Ldone4
 
-ENDPROC(chacha_4block_xor_avx512vl)
+SYM_FUNC_END(chacha_4block_xor_avx512vl)
 
-ENTRY(chacha_8block_xor_avx512vl)
+SYM_FUNC_START(chacha_8block_xor_avx512vl)
 	# %rdi: Input state matrix, s
 	# %rsi: up to 8 data blocks output, o
 	# %rdx: up to 8 data blocks input, i
@@ -833,4 +833,4 @@ ENTRY(chacha_8block_xor_avx512vl)
 
 	jmp		.Ldone8
 
-ENDPROC(chacha_8block_xor_avx512vl)
+SYM_FUNC_END(chacha_8block_xor_avx512vl)

@@ -11,7 +11,7 @@
 
 #include "tilcdc_drv.h"
 
-static struct drm_plane_funcs tilcdc_plane_funcs = {
+static const struct drm_plane_funcs tilcdc_plane_funcs = {
 	.update_plane	= drm_atomic_helper_update_plane,
 	.disable_plane	= drm_atomic_helper_disable_plane,
 	.destroy	= drm_plane_cleanup,

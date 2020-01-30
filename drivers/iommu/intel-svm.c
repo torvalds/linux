@@ -104,11 +104,7 @@ static void intel_flush_svm_range_dev (struct intel_svm *svm, struct intel_svm_d
 {
 	struct qi_desc desc;
 
-	/*
-	 * Do PASID granu IOTLB invalidation if page selective capability is
-	 * not available.
-	 */
-	if (pages == -1 || !cap_pgsel_inv(svm->iommu->cap)) {
+	if (pages == -1) {
 		desc.qw0 = QI_EIOTLB_PASID(svm->pasid) |
 			QI_EIOTLB_DID(sdev->did) |
 			QI_EIOTLB_GRAN(QI_GRAN_NONG_PASID) |

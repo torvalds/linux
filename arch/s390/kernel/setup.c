@@ -355,7 +355,6 @@ early_initcall(async_stack_realloc);
 
 void __init arch_call_rest_init(void)
 {
-	struct stack_frame *frame;
 	unsigned long stack;
 
 	stack = stack_alloc();
@@ -368,13 +367,7 @@ void __init arch_call_rest_init(void)
 	set_task_stack_end_magic(current);
 	stack += STACK_INIT_OFFSET;
 	S390_lowcore.kernel_stack = stack;
-	frame = (struct stack_frame *) stack;
-	memset(frame, 0, sizeof(*frame));
-	/* Branch to rest_init on the new stack, never returns */
-	asm volatile(
-		"	la	15,0(%[_frame])\n"
-		"	jg	rest_init\n"
-		: : [_frame] "a" (frame));
+	CALL_ON_STACK_NORETURN(rest_init, stack);
 }
 
 static void __init setup_lowcore_dat_off(void)
@@ -1059,7 +1052,7 @@ static void __init log_component_list(void)
 
 	if (!early_ipl_comp_list_addr)
 		return;
-	if (ipl_block.hdr.flags & IPL_PL_FLAG_IPLSR)
+	if (ipl_block.hdr.flags & IPL_PL_FLAG_SIPL)
 		pr_info("Linux is running with Secure-IPL enabled\n");
 	else
 		pr_info("Linux is running with Secure-IPL disabled\n");

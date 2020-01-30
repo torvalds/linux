@@ -338,6 +338,62 @@ static void pseries_remove_processor(struct device_node *np)
 	cpu_maps_update_done();
 }
 
+static int dlpar_offline_cpu(struct device_node *dn)
+{
+	int rc = 0;
+	unsigned int cpu;
+	int len, nthreads, i;
+	const __be32 *intserv;
+	u32 thread;
+
+	intserv = of_get_property(dn, "ibm,ppc-interrupt-server#s", &len);
+	if (!intserv)
+		return -EINVAL;
+
+	nthreads = len / sizeof(u32);
+
+	cpu_maps_update_begin();
+	for (i = 0; i < nthreads; i++) {
+		thread = be32_to_cpu(intserv[i]);
+		for_each_present_cpu(cpu) {
+			if (get_hard_smp_processor_id(cpu) != thread)
+				continue;
+
+			if (get_cpu_current_state(cpu) == CPU_STATE_OFFLINE)
+				break;
+
+			if (get_cpu_current_state(cpu) == CPU_STATE_ONLINE) {
+				set_preferred_offline_state(cpu,
+							    CPU_STATE_OFFLINE);
+				cpu_maps_update_done();
+				timed_topology_update(1);
+				rc = device_offline(get_cpu_device(cpu));
+				if (rc)
+					goto out;
+				cpu_maps_update_begin();
+				break;
+			}
+
+			/*
+			 * The cpu is in CPU_STATE_INACTIVE.
+			 * Upgrade it's state to CPU_STATE_OFFLINE.
+			 */
+			set_preferred_offline_state(cpu, CPU_STATE_OFFLINE);
+			WARN_ON(plpar_hcall_norets(H_PROD, thread) != H_SUCCESS);
+			__cpu_die(cpu);
+			break;
+		}
+		if (cpu == num_possible_cpus()) {
+			pr_warn("Could not find cpu to offline with physical id 0x%x\n",
+				thread);
+		}
+	}
+	cpu_maps_update_done();
+
+out:
+	return rc;
+}
+
 static int dlpar_online_cpu(struct device_node *dn)
 {
 	int rc = 0;
@@ -364,8 +420,10 @@ static int dlpar_online_cpu(struct device_node *dn)
 			timed_topology_update(1);
 			find_and_online_cpu_nid(cpu);
 			rc = device_online(get_cpu_device(cpu));
-			if (rc)
+			if (rc) {
+				dlpar_offline_cpu(dn);
 				goto out;
+			}
 			cpu_maps_update_begin();
 
 			break;
@@ -407,17 +465,67 @@ static bool dlpar_cpu_exists(struct device_node *parent, u32 drc_index)
 	return found;
 }
 
+static bool drc_info_valid_index(struct device_node *parent, u32 drc_index)
+{
+	struct property *info;
+	struct of_drc_info drc;
+	const __be32 *value;
+	u32 index;
+	int count, i, j;
+
+	info = of_find_property(parent, "ibm,drc-info", NULL);
+	if (!info)
+		return false;
+
+	value = of_prop_next_u32(info, NULL, &count);
+
+	/* First value of ibm,drc-info is number of drc-info records */
+	if (value)
+		value++;
+	else
+		return false;
+
+	for (i = 0; i < count; i++) {
+		if (of_read_drc_info_cell(&info, &value, &drc))
+			return false;
+
+		if (strncmp(drc.drc_type, "CPU", 3))
+			break;
+
+		if (drc_index > drc.last_drc_index)
+			continue;
+
+		index = drc.drc_index_start;
+		for (j = 0; j < drc.num_sequential_elems; j++) {
+			if (drc_index == index)
+				return true;
+
+			index += drc.sequential_inc;
+		}
+	}
+
+	return false;
+}
+
 static bool valid_cpu_drc_index(struct device_node *parent, u32 drc_index)
 {
 	bool found = false;
 	int rc, index;
 
-	index = 0;
+	if (of_find_property(parent, "ibm,drc-info", NULL))
+		return drc_info_valid_index(parent, drc_index);
+
+	/* Note that the format of the ibm,drc-indexes array is
+	 * the number of entries in the array followed by the array
+	 * of drc values so we start looking at index = 1.
+	 */
+	index = 1;
 	while (!found) {
 		u32 drc;
 
 		rc = of_property_read_u32_index(parent, "ibm,drc-indexes",
 						index++, &drc);
+
 		if (rc)
 			break;
 
@@ -503,63 +611,6 @@ static ssize_t dlpar_cpu_add(u32 drc_index)
 	pr_debug("Successfully added CPU %pOFn, drc index: %x\n", dn,
 		 drc_index);
 	return rc;
-}
-
-static int dlpar_offline_cpu(struct device_node *dn)
-{
-	int rc = 0;
-	unsigned int cpu;
-	int len, nthreads, i;
-	const __be32 *intserv;
-	u32 thread;
-
-	intserv = of_get_property(dn, "ibm,ppc-interrupt-server#s", &len);
-	if (!intserv)
-		return -EINVAL;
-
-	nthreads = len / sizeof(u32);
-
-	cpu_maps_update_begin();
-	for (i = 0; i < nthreads; i++) {
-		thread = be32_to_cpu(intserv[i]);
-		for_each_present_cpu(cpu) {
-			if (get_hard_smp_processor_id(cpu) != thread)
-				continue;
-
-			if (get_cpu_current_state(cpu) == CPU_STATE_OFFLINE)
-				break;
-
-			if (get_cpu_current_state(cpu) == CPU_STATE_ONLINE) {
-				set_preferred_offline_state(cpu,
-							    CPU_STATE_OFFLINE);
-				cpu_maps_update_done();
-				timed_topology_update(1);
-				rc = device_offline(get_cpu_device(cpu));
-				if (rc)
-					goto out;
-				cpu_maps_update_begin();
-				break;
-
-			}
-
-			/*
-			 * The cpu is in CPU_STATE_INACTIVE.
-			 * Upgrade it's state to CPU_STATE_OFFLINE.
-			 */
-			set_preferred_offline_state(cpu, CPU_STATE_OFFLINE);
-			BUG_ON(plpar_hcall_norets(H_PROD, thread)
-								!= H_SUCCESS);
-			__cpu_die(cpu);
-			break;
-		}
-		if (cpu == num_possible_cpus())
-			printk(KERN_WARNING "Could not find cpu to offline with physical id 0x%x\n", thread);
-	}
-	cpu_maps_update_done();
-
-out:
-	return rc;
-
 }
 
 static ssize_t dlpar_cpu_remove(struct device_node *dn, u32 drc_index)
@@ -717,18 +768,51 @@ static int dlpar_cpu_remove_by_count(u32 cpus_to_remove)
 	return rc;
 }
 
-static int find_dlpar_cpus_to_add(u32 *cpu_drcs, u32 cpus_to_add)
+static int find_drc_info_cpus_to_add(struct device_node *cpus,
+				     struct property *info,
+				     u32 *cpu_drcs, u32 cpus_to_add)
 {
-	struct device_node *parent;
+	struct of_drc_info drc;
+	const __be32 *value;
+	u32 count, drc_index;
+	int cpus_found = 0;
+	int i, j;
+
+	if (!info)
+		return -1;
+
+	value = of_prop_next_u32(info, NULL, &count);
+	if (value)
+		value++;
+
+	for (i = 0; i < count; i++) {
+		of_read_drc_info_cell(&info, &value, &drc);
+		if (strncmp(drc.drc_type, "CPU", 3))
+			break;
+
+		drc_index = drc.drc_index_start;
+		for (j = 0; j < drc.num_sequential_elems; j++) {
+			if (dlpar_cpu_exists(cpus, drc_index))
+				continue;
+
+			cpu_drcs[cpus_found++] = drc_index;
+
+			if (cpus_found == cpus_to_add)
+				return cpus_found;
+
+			drc_index += drc.sequential_inc;
+		}
+	}
+
+	return cpus_found;
+}
+
+static int find_drc_index_cpus_to_add(struct device_node *cpus,
+				      u32 *cpu_drcs, u32 cpus_to_add)
+{
 	int cpus_found = 0;
 	int index, rc;
-
-	parent = of_find_node_by_path("/cpus");
-	if (!parent) {
-		pr_warn("Could not find CPU root node in device tree\n");
-		kfree(cpu_drcs);
-		return -1;
-	}
+	u32 drc_index;
 
 	/* Search the ibm,drc-indexes array for possible CPU drcs to
 	 * add. Note that the format of the ibm,drc-indexes array is
@@ -737,25 +821,25 @@ static int find_dlpar_cpus_to_add(u32 *cpu_drcs, u32 cpus_to_add)
 	 */
 	index = 1;
 	while (cpus_found < cpus_to_add) {
-		u32 drc;
+		rc = of_property_read_u32_index(cpus, "ibm,drc-indexes",
+						index++, &drc_index);
 
-		rc = of_property_read_u32_index(parent, "ibm,drc-indexes",
-						index++, &drc);
 		if (rc)
 			break;
 
-		if (dlpar_cpu_exists(parent, drc))
+		if (dlpar_cpu_exists(cpus, drc_index))
 			continue;
 
-		cpu_drcs[cpus_found++] = drc;
+		cpu_drcs[cpus_found++] = drc_index;
 	}
 
-	of_node_put(parent);
 	return cpus_found;
 }
 
 static int dlpar_cpu_add_by_count(u32 cpus_to_add)
 {
+	struct device_node *parent;
+	struct property *info;
 	u32 *cpu_drcs;
 	int cpus_added = 0;
 	int cpus_found;
@@ -767,7 +851,21 @@ static int dlpar_cpu_add_by_count(u32 cpus_to_add)
 	if (!cpu_drcs)
 		return -EINVAL;
 
-	cpus_found = find_dlpar_cpus_to_add(cpu_drcs, cpus_to_add);
+	parent = of_find_node_by_path("/cpus");
+	if (!parent) {
+		pr_warn("Could not find CPU root node in device tree\n");
+		kfree(cpu_drcs);
+		return -1;
+	}
+
+	info = of_find_property(parent, "ibm,drc-info", NULL);
+	if (info)
+		cpus_found = find_drc_info_cpus_to_add(parent, info, cpu_drcs, cpus_to_add);
+	else
+		cpus_found = find_drc_index_cpus_to_add(parent, cpu_drcs, cpus_to_add);
+
+	of_node_put(parent);
+
 	if (cpus_found < cpus_to_add) {
 		pr_warn("Failed to find enough CPUs (%d of %d) to add\n",
 			cpus_found, cpus_to_add);

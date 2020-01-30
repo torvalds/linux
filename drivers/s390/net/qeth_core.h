@@ -368,6 +368,7 @@ enum qeth_header_ids {
 	QETH_HEADER_TYPE_L3_TSO	= 0x03,
 	QETH_HEADER_TYPE_OSN    = 0x04,
 	QETH_HEADER_TYPE_L2_TSO	= 0x06,
+	QETH_HEADER_MASK_INVAL	= 0x80,
 };
 /* flags for qeth_hdr.ext_flags */
 #define QETH_HDR_EXT_VLAN_FRAME       0x01
@@ -477,12 +478,17 @@ struct qeth_card_stats {
 	u64 rx_sg_frags;
 	u64 rx_sg_alloc_page;
 
+	u64 rx_dropped_nomem;
+	u64 rx_dropped_notsupp;
+	u64 rx_dropped_runt;
+
 	/* rtnl_link_stats64 */
 	u64 rx_packets;
 	u64 rx_bytes;
-	u64 rx_errors;
-	u64 rx_dropped;
 	u64 rx_multicast;
+	u64 rx_length_errors;
+	u64 rx_frame_errors;
+	u64 rx_fifo_errors;
 };
 
 struct qeth_out_q_stats {
@@ -532,6 +538,8 @@ struct qeth_qdio_out_q {
 	struct timer_list timer;
 	struct qeth_hdr *prev_hdr;
 	u8 bulk_start;
+	u8 bulk_count;
+	u8 bulk_max;
 };
 
 #define qeth_for_each_output_queue(card, q, i)		\
@@ -620,6 +628,7 @@ struct qeth_ipato {
 
 struct qeth_channel {
 	struct ccw_device *ccwdev;
+	struct qeth_cmd_buffer *active_cmd;
 	enum qeth_channel_states state;
 	atomic_t irq_pending;
 };
@@ -817,7 +826,6 @@ struct qeth_card {
 	struct workqueue_struct *event_wq;
 	struct workqueue_struct *cmd_wq;
 	wait_queue_head_t wait_q;
-	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	DECLARE_HASHTABLE(mac_htable, 4);
 	DECLARE_HASHTABLE(ip_htable, 4);
 	struct mutex ip_lock;
@@ -877,6 +885,13 @@ static inline u16 qeth_iqd_translate_txq(struct net_device *dev, u16 txq)
 	if (txq == dev->num_tx_queues - 1)
 		return QETH_IQD_MCAST_TXQ;
 	return txq;
+}
+
+static inline bool qeth_iqd_is_mcast_queue(struct qeth_card *card,
+					   struct qeth_qdio_out_q *queue)
+{
+	return qeth_iqd_translate_txq(card->dev, queue->queue_no) ==
+	       QETH_IQD_MCAST_TXQ;
 }
 
 static inline void qeth_scrub_qdio_buffer(struct qdio_buffer *buf,
@@ -1024,6 +1039,8 @@ int qeth_do_run_thread(struct qeth_card *, unsigned long);
 void qeth_clear_thread_start_bit(struct qeth_card *, unsigned long);
 void qeth_clear_thread_running_bit(struct qeth_card *, unsigned long);
 int qeth_core_hardsetup_card(struct qeth_card *card, bool *carrier_ok);
+int qeth_stop_channel(struct qeth_channel *channel);
+
 void qeth_print_status_message(struct qeth_card *);
 int qeth_init_qdio_queues(struct qeth_card *);
 int qeth_send_ipa_cmd(struct qeth_card *, struct qeth_cmd_buffer *,

@@ -312,7 +312,7 @@ static void tcf_ct_act_set_labels(struct nf_conn *ct,
 				  u32 *labels_m)
 {
 #if IS_ENABLED(CONFIG_NF_CONNTRACK_LABELS)
-	size_t labels_sz = FIELD_SIZEOF(struct tcf_ct_params, labels);
+	size_t labels_sz = sizeof_field(struct tcf_ct_params, labels);
 
 	if (!memchr_inv(labels_m, 0, labels_sz))
 		return;
@@ -329,6 +329,7 @@ static int tcf_ct_act_nat(struct sk_buff *skb,
 			  bool commit)
 {
 #if IS_ENABLED(CONFIG_NF_NAT)
+	int err;
 	enum nf_nat_manip_type maniptype;
 
 	if (!(ct_action & TCA_CT_ACT_NAT))
@@ -359,7 +360,17 @@ static int tcf_ct_act_nat(struct sk_buff *skb,
 		return NF_ACCEPT;
 	}
 
-	return ct_nat_execute(skb, ct, ctinfo, range, maniptype);
+	err = ct_nat_execute(skb, ct, ctinfo, range, maniptype);
+	if (err == NF_ACCEPT &&
+	    ct->status & IPS_SRC_NAT && ct->status & IPS_DST_NAT) {
+		if (maniptype == NF_NAT_MANIP_SRC)
+			maniptype = NF_NAT_MANIP_DST;
+		else
+			maniptype = NF_NAT_MANIP_SRC;
+
+		err = ct_nat_execute(skb, ct, ctinfo, range, maniptype);
+	}
+	return err;
 #else
 	return NF_ACCEPT;
 #endif
@@ -465,16 +476,15 @@ out_push:
 	skb_push_rcsum(skb, nh_ofs);
 
 out:
-	bstats_cpu_update(this_cpu_ptr(a->cpu_bstats), skb);
+	tcf_action_update_bstats(&c->common, skb);
 	return retval;
 
 drop:
-	qstats_drop_inc(this_cpu_ptr(a->cpu_qstats));
+	tcf_action_inc_drop_qstats(&c->common);
 	return TC_ACT_SHOT;
 }
 
 static const struct nla_policy ct_policy[TCA_CT_MAX + 1] = {
-	[TCA_CT_UNSPEC] = { .strict_start_type = TCA_CT_UNSPEC + 1 },
 	[TCA_CT_ACTION] = { .type = NLA_U16 },
 	[TCA_CT_PARMS] = { .type = NLA_EXACT_LEN, .len = sizeof(struct tc_ct) },
 	[TCA_CT_ZONE] = { .type = NLA_U16 },
@@ -656,7 +666,7 @@ static int tcf_ct_fill_params(struct net *net,
 static int tcf_ct_init(struct net *net, struct nlattr *nla,
 		       struct nlattr *est, struct tc_action **a,
 		       int replace, int bind, bool rtnl_held,
-		       struct tcf_proto *tp,
+		       struct tcf_proto *tp, u32 flags,
 		       struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, ct_net_id);
@@ -688,8 +698,8 @@ static int tcf_ct_init(struct net *net, struct nlattr *nla,
 		return err;
 
 	if (!err) {
-		err = tcf_idr_create(tn, index, est, a,
-				     &act_ct_ops, bind, true);
+		err = tcf_idr_create_from_flags(tn, index, est, a,
+						&act_ct_ops, bind, flags);
 		if (err) {
 			tcf_idr_cleanup(tn, index);
 			return err;
@@ -722,7 +732,8 @@ static int tcf_ct_init(struct net *net, struct nlattr *nla,
 
 	spin_lock_bh(&c->tcf_lock);
 	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
-	rcu_swap_protected(c->params, params, lockdep_is_held(&c->tcf_lock));
+	params = rcu_replace_pointer(c->params, params,
+				     lockdep_is_held(&c->tcf_lock));
 	spin_unlock_bh(&c->tcf_lock);
 
 	if (goto_ch)
@@ -905,11 +916,7 @@ static void tcf_stats_update(struct tc_action *a, u64 bytes, u32 packets,
 {
 	struct tcf_ct *c = to_ct(a);
 
-	_bstats_cpu_update(this_cpu_ptr(a->cpu_bstats), bytes, packets);
-
-	if (hw)
-		_bstats_cpu_update(this_cpu_ptr(a->cpu_bstats_hw),
-				   bytes, packets);
+	tcf_action_update_stats(a, bytes, packets, false, hw);
 	c->tcf_tm.lastuse = max_t(u64, c->tcf_tm.lastuse, lastuse);
 }
 
@@ -929,7 +936,7 @@ static struct tc_action_ops act_ct_ops = {
 
 static __net_init int ct_init_net(struct net *net)
 {
-	unsigned int n_bits = FIELD_SIZEOF(struct tcf_ct_params, labels) * 8;
+	unsigned int n_bits = sizeof_field(struct tcf_ct_params, labels) * 8;
 	struct tc_ct_action_net *tn = net_generic(net, ct_net_id);
 
 	if (nf_connlabels_get(net, n_bits - 1)) {

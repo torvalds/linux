@@ -12,7 +12,6 @@
  * initialize the chip when the user-space is ready to extract the init code.
  */
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/completion.h>
 #include <linux/etherdevice.h>
 #include <linux/firmware.h>
@@ -84,7 +83,7 @@ static int ath9k_pci_fixup(struct pci_dev *pdev, const u16 *cal_data,
 			val = swahb32(val);
 		}
 
-		__raw_writel(val, mem + reg);
+		iowrite32(val, mem + reg);
 		usleep_range(100, 120);
 	}
 

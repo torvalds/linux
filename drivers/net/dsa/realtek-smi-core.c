@@ -444,9 +444,12 @@ static int realtek_smi_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	smi->ds = dsa_switch_alloc(dev, smi->num_ports);
+	smi->ds = devm_kzalloc(dev, sizeof(*smi->ds), GFP_KERNEL);
 	if (!smi->ds)
 		return -ENOMEM;
+
+	smi->ds->dev = dev;
+	smi->ds->num_ports = smi->num_ports;
 	smi->ds->priv = smi;
 
 	smi->ds->ops = var->ds_ops;

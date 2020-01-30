@@ -16,9 +16,6 @@ override c_flags = $(UAPI_CFLAGS) -Wp,-MD,$(depfile) -I$(objtree)/usr/include
 # Please consider to fix the header first.
 #
 # Sorted alphabetically.
-header-test- += asm/ipcbuf.h
-header-test- += asm/msgbuf.h
-header-test- += asm/sembuf.h
 header-test- += asm/shmbuf.h
 header-test- += asm/signal.h
 header-test- += asm/ucontext.h
@@ -26,8 +23,6 @@ header-test- += drm/vmwgfx_drm.h
 header-test- += linux/am437x-vpfe.h
 header-test- += linux/android/binder.h
 header-test- += linux/android/binderfs.h
-header-test-$(CONFIG_CPU_BIG_ENDIAN) += linux/byteorder/big_endian.h
-header-test-$(CONFIG_CPU_LITTLE_ENDIAN) += linux/byteorder/little_endian.h
 header-test- += linux/coda.h
 header-test- += linux/elfcore.h
 header-test- += linux/errqueue.h
@@ -36,15 +31,12 @@ header-test- += linux/hdlc/ioctl.h
 header-test- += linux/ivtv.h
 header-test- += linux/kexec.h
 header-test- += linux/matroxfb.h
-header-test- += linux/netfilter_ipv4/ipt_LOG.h
-header-test- += linux/netfilter_ipv6/ip6t_LOG.h
 header-test- += linux/nfc.h
 header-test- += linux/omap3isp.h
 header-test- += linux/omapfb.h
 header-test- += linux/patchkey.h
 header-test- += linux/phonet.h
 header-test- += linux/reiserfs_xattr.h
-header-test- += linux/scc.h
 header-test- += linux/sctp.h
 header-test- += linux/signal.h
 header-test- += linux/sysctl.h
@@ -99,9 +91,16 @@ endif
 # asm-generic/*.h is used by asm/*.h, and should not be included directly
 header-test- += asm-generic/%
 
-# The rest are compile-tested
-header-test-y += $(filter-out $(header-test-), \
-			$(patsubst $(obj)/%,%, $(wildcard \
-			$(addprefix $(obj)/, *.h */*.h */*/*.h */*/*/*.h))))
+extra-y := $(patsubst $(obj)/%.h,%.hdrtest, $(shell find $(obj) -name '*.h' 2>/dev/null))
+
+quiet_cmd_hdrtest = HDRTEST $<
+      cmd_hdrtest = \
+		$(CC) $(c_flags) -S -o /dev/null -x c /dev/null \
+			$(if $(filter-out $(header-test-), $*.h), -include $<); \
+		$(PERL) $(srctree)/scripts/headers_check.pl $(obj) $(SRCARCH) $<; \
+		touch $@
+
+$(obj)/%.hdrtest: $(obj)/%.h FORCE
+	$(call if_changed_dep,hdrtest)
 
 clean-files += $(filter-out Makefile, $(notdir $(wildcard $(obj)/*)))

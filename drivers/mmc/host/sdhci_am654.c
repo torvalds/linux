@@ -12,6 +12,7 @@
 #include <linux/property.h>
 #include <linux/regmap.h>
 
+#include "cqhci.h"
 #include "sdhci-pltfm.h"
 
 /* CTL_CFG Registers */
@@ -67,6 +68,9 @@
 #define DRIVER_STRENGTH_40_OHM	0x4
 
 #define CLOCK_TOO_SLOW_HZ	400000
+
+/* Command Queue Host Controller Interface Base address */
+#define SDHCI_AM654_CQE_BASE_ADDR 0x200
 
 static struct regmap_config sdhci_am654_regmap_config = {
 	.reg_bits = 32,
@@ -236,6 +240,35 @@ static void sdhci_am654_write_b(struct sdhci_host *host, u8 val, int reg)
 	writeb(val, host->ioaddr + reg);
 }
 
+static int sdhci_am654_execute_tuning(struct mmc_host *mmc, u32 opcode)
+{
+	struct sdhci_host *host = mmc_priv(mmc);
+	int err = sdhci_execute_tuning(mmc, opcode);
+
+	if (err)
+		return err;
+	/*
+	 * Tuning data remains in the buffer after tuning.
+	 * Do a command and data reset to get rid of it
+	 */
+	sdhci_reset(host, SDHCI_RESET_CMD | SDHCI_RESET_DATA);
+
+	return 0;
+}
+
+static u32 sdhci_am654_cqhci_irq(struct sdhci_host *host, u32 intmask)
+{
+	int cmd_error = 0;
+	int data_error = 0;
+
+	if (!sdhci_cqe_irq(host, intmask, &cmd_error, &data_error))
+		return intmask;
+
+	cqhci_irq(host->mmc, intmask, cmd_error, data_error);
+
+	return 0;
+}
+
 static struct sdhci_ops sdhci_am654_ops = {
 	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
 	.get_timeout_clock = sdhci_pltfm_clk_get_max_clock,
@@ -244,13 +277,13 @@ static struct sdhci_ops sdhci_am654_ops = {
 	.set_power = sdhci_am654_set_power,
 	.set_clock = sdhci_am654_set_clock,
 	.write_b = sdhci_am654_write_b,
+	.irq = sdhci_am654_cqhci_irq,
 	.reset = sdhci_reset,
 };
 
 static const struct sdhci_pltfm_data sdhci_am654_pdata = {
 	.ops = &sdhci_am654_ops,
-	.quirks = SDHCI_QUIRK_INVERTED_WRITE_PROTECT |
-		  SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12,
+	.quirks = SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12,
 	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
 };
 
@@ -267,13 +300,13 @@ static struct sdhci_ops sdhci_j721e_8bit_ops = {
 	.set_power = sdhci_am654_set_power,
 	.set_clock = sdhci_am654_set_clock,
 	.write_b = sdhci_am654_write_b,
+	.irq = sdhci_am654_cqhci_irq,
 	.reset = sdhci_reset,
 };
 
 static const struct sdhci_pltfm_data sdhci_j721e_8bit_pdata = {
 	.ops = &sdhci_j721e_8bit_ops,
-	.quirks = SDHCI_QUIRK_INVERTED_WRITE_PROTECT |
-		  SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12,
+	.quirks = SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12,
 	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
 };
 
@@ -290,13 +323,13 @@ static struct sdhci_ops sdhci_j721e_4bit_ops = {
 	.set_power = sdhci_am654_set_power,
 	.set_clock = sdhci_j721e_4bit_set_clock,
 	.write_b = sdhci_am654_write_b,
+	.irq = sdhci_am654_cqhci_irq,
 	.reset = sdhci_reset,
 };
 
 static const struct sdhci_pltfm_data sdhci_j721e_4bit_pdata = {
 	.ops = &sdhci_j721e_4bit_ops,
-	.quirks = SDHCI_QUIRK_INVERTED_WRITE_PROTECT |
-		  SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12,
+	.quirks = SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12,
 	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
 };
 
@@ -304,6 +337,40 @@ static const struct sdhci_am654_driver_data sdhci_j721e_4bit_drvdata = {
 	.pdata = &sdhci_j721e_4bit_pdata,
 	.flags = IOMUX_PRESENT,
 };
+
+static void sdhci_am654_dumpregs(struct mmc_host *mmc)
+{
+	sdhci_dumpregs(mmc_priv(mmc));
+}
+
+static const struct cqhci_host_ops sdhci_am654_cqhci_ops = {
+	.enable		= sdhci_cqe_enable,
+	.disable	= sdhci_cqe_disable,
+	.dumpregs	= sdhci_am654_dumpregs,
+};
+
+static int sdhci_am654_cqe_add_host(struct sdhci_host *host)
+{
+	struct cqhci_host *cq_host;
+	int ret;
+
+	cq_host = devm_kzalloc(host->mmc->parent, sizeof(struct cqhci_host),
+			       GFP_KERNEL);
+	if (!cq_host)
+		return -ENOMEM;
+
+	cq_host->mmio = host->ioaddr + SDHCI_AM654_CQE_BASE_ADDR;
+	cq_host->quirks |= CQHCI_QUIRK_SHORT_TXFR_DESC_SZ;
+	cq_host->caps |= CQHCI_TASK_DESC_SZ_128;
+	cq_host->ops = &sdhci_am654_cqhci_ops;
+
+	host->mmc->caps2 |= MMC_CAP2_CQE;
+
+	ret = cqhci_init(cq_host, host->mmc, 1);
+
+	return ret;
+}
+
 static int sdhci_am654_init(struct sdhci_host *host)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
@@ -344,7 +411,23 @@ static int sdhci_am654_init(struct sdhci_host *host)
 	regmap_update_bits(sdhci_am654->base, CTL_CFG_2, SLOTTYPE_MASK,
 			   ctl_cfg_2);
 
-	return sdhci_add_host(host);
+	ret = sdhci_setup_host(host);
+	if (ret)
+		return ret;
+
+	ret = sdhci_am654_cqe_add_host(host);
+	if (ret)
+		goto err_cleanup_host;
+
+	ret = __sdhci_add_host(host);
+	if (ret)
+		goto err_cleanup_host;
+
+	return 0;
+
+err_cleanup_host:
+	sdhci_cleanup_host(host);
+	return ret;
 }
 
 static int sdhci_am654_get_of_property(struct platform_device *pdev,
@@ -479,6 +562,8 @@ static int sdhci_am654_probe(struct platform_device *pdev)
 		dev_err(dev, "parsing dt failed (%d)\n", ret);
 		goto pm_runtime_put;
 	}
+
+	host->mmc_host_ops.execute_tuning = sdhci_am654_execute_tuning;
 
 	ret = sdhci_am654_init(host);
 	if (ret)

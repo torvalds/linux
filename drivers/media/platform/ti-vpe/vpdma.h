@@ -57,6 +57,7 @@ struct vpdma_data_format {
 						 * line stride of source and dest
 						 * buffers should be 16 byte aligned
 						 */
+#define VPDMA_MAX_STRIDE		65520	/* Max line stride 16 byte aligned */
 #define VPDMA_DTD_DESC_SIZE		32	/* 8 words */
 #define VPDMA_CFD_CTD_DESC_SIZE		16	/* 4 words */
 
@@ -71,6 +72,7 @@ enum vpdma_yuv_formats {
 	VPDMA_DATA_FMT_C444,
 	VPDMA_DATA_FMT_C422,
 	VPDMA_DATA_FMT_C420,
+	VPDMA_DATA_FMT_CB420,
 	VPDMA_DATA_FMT_YCR422,
 	VPDMA_DATA_FMT_YC444,
 	VPDMA_DATA_FMT_CRY422,

@@ -379,7 +379,6 @@ static const struct snd_pcm_ops ct_pcm_playback_ops = {
 	.prepare	= ct_pcm_playback_prepare,
 	.trigger	= ct_pcm_playback_trigger,
 	.pointer	= ct_pcm_playback_pointer,
-	.page		= snd_pcm_sgbuf_ops_page,
 };
 
 /* PCM operators for capture */
@@ -392,7 +391,6 @@ static const struct snd_pcm_ops ct_pcm_capture_ops = {
 	.prepare	= ct_pcm_capture_prepare,
 	.trigger	= ct_pcm_capture_trigger,
 	.pointer	= ct_pcm_capture_pointer,
-	.page		= snd_pcm_sgbuf_ops_page,
 };
 
 static const struct snd_pcm_chmap_elem surround_map[] = {
@@ -452,7 +450,8 @@ int ct_alsa_pcm_create(struct ct_atc *atc,
 				SNDRV_PCM_STREAM_CAPTURE, &ct_pcm_capture_ops);
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
-			snd_dma_pci_data(atc->pci), 128*1024, 128*1024);
+					      &atc->pci->dev,
+					      128*1024, 128*1024);
 
 	chs = 2;
 	switch (device) {

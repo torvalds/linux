@@ -3,9 +3,9 @@
  * Copyright (C) 2012 Regents of the University of California
  * Copyright (C) 2017 SiFive
  *
- * All RISC-V systems have a timer attached to every hart.  These timers can be
- * read from the "time" and "timeh" CSRs, and can use the SBI to setup
- * events.
+ * All RISC-V systems have a timer attached to every hart.  These timers can
+ * either be read from the "time" and "timeh" CSRs, and can use the SBI to
+ * setup events, or directly accessed using MMIO registers.
  */
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
@@ -13,14 +13,29 @@
 #include <linux/delay.h>
 #include <linux/irq.h>
 #include <linux/sched_clock.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
 #include <asm/smp.h>
 #include <asm/sbi.h>
+
+u64 __iomem *riscv_time_cmp;
+u64 __iomem *riscv_time_val;
+
+static inline void mmio_set_timer(u64 val)
+{
+	void __iomem *r;
+
+	r = riscv_time_cmp + cpuid_to_hartid_map(smp_processor_id());
+	writeq_relaxed(val, r);
+}
 
 static int riscv_clock_next_event(unsigned long delta,
 		struct clock_event_device *ce)
 {
-	csr_set(sie, SIE_STIE);
-	sbi_set_timer(get_cycles64() + delta);
+	csr_set(CSR_IE, IE_TIE);
+	if (IS_ENABLED(CONFIG_RISCV_SBI))
+		sbi_set_timer(get_cycles64() + delta);
+	else
+		mmio_set_timer(get_cycles64() + delta);
 	return 0;
 }
 
@@ -41,7 +56,7 @@ static unsigned long long riscv_clocksource_rdtime(struct clocksource *cs)
 	return get_cycles64();
 }
 
-static u64 riscv_sched_clock(void)
+static u64 notrace riscv_sched_clock(void)
 {
 	return get_cycles64();
 }
@@ -61,13 +76,13 @@ static int riscv_timer_starting_cpu(unsigned int cpu)
 	ce->cpumask = cpumask_of(cpu);
 	clockevents_config_and_register(ce, riscv_timebase, 100, 0x7fffffff);
 
-	csr_set(sie, SIE_STIE);
+	csr_set(CSR_IE, IE_TIE);
 	return 0;
 }
 
 static int riscv_timer_dying_cpu(unsigned int cpu)
 {
-	csr_clear(sie, SIE_STIE);
+	csr_clear(CSR_IE, IE_TIE);
 	return 0;
 }
 
@@ -76,7 +91,7 @@ void riscv_timer_interrupt(void)
 {
 	struct clock_event_device *evdev = this_cpu_ptr(&riscv_clock_event);
 
-	csr_clear(sie, SIE_STIE);
+	csr_clear(CSR_IE, IE_TIE);
 	evdev->event_handler(evdev);
 }
 

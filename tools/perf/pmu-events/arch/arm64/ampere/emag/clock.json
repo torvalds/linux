@@ -16,5 +16,5 @@
         "EventCode": "0x110",
         "EventName": "Wait_CYCLES",
         "BriefDescription": "Wait state cycle"
-    },
+    }
 ]

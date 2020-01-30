@@ -7,6 +7,7 @@
 /* Forward declaration, a strange C thing */
 struct task_struct;
 struct mm_struct;
+struct io_bitmap;
 struct vm86;
 
 #include <asm/math_emu.h>
@@ -93,7 +94,15 @@ struct cpuinfo_x86 {
 	__u32			extended_cpuid_level;
 	/* Maximum supported CPUID level, -1=no CPUID: */
 	int			cpuid_level;
-	__u32			x86_capability[NCAPINTS + NBUGINTS];
+	/*
+	 * Align to size of unsigned long because the x86_capability array
+	 * is passed to bitops which require the alignment. Use unnamed
+	 * union to enforce the array is aligned to size of unsigned long.
+	 */
+	union {
+		__u32		x86_capability[NCAPINTS + NBUGINTS];
+		unsigned long	x86_capability_alignment;
+	};
 	char			x86_vendor_id[16];
 	char			x86_model_id[64];
 	/* in KB - valid for CPUS which support this call: */
@@ -157,7 +166,6 @@ enum cpuid_regs_idx {
 extern struct cpuinfo_x86	boot_cpu_data;
 extern struct cpuinfo_x86	new_cpu_data;
 
-extern struct x86_hw_tss	doublefault_tss;
 extern __u32			cpu_caps_cleared[NCAPINTS + NBUGINTS];
 extern __u32			cpu_caps_set[NCAPINTS + NBUGINTS];
 
@@ -328,10 +336,32 @@ struct x86_hw_tss {
  * IO-bitmap sizes:
  */
 #define IO_BITMAP_BITS			65536
-#define IO_BITMAP_BYTES			(IO_BITMAP_BITS/8)
-#define IO_BITMAP_LONGS			(IO_BITMAP_BYTES/sizeof(long))
-#define IO_BITMAP_OFFSET		(offsetof(struct tss_struct, io_bitmap) - offsetof(struct tss_struct, x86_tss))
-#define INVALID_IO_BITMAP_OFFSET	0x8000
+#define IO_BITMAP_BYTES			(IO_BITMAP_BITS / BITS_PER_BYTE)
+#define IO_BITMAP_LONGS			(IO_BITMAP_BYTES / sizeof(long))
+
+#define IO_BITMAP_OFFSET_VALID_MAP				\
+	(offsetof(struct tss_struct, io_bitmap.bitmap) -	\
+	 offsetof(struct tss_struct, x86_tss))
+
+#define IO_BITMAP_OFFSET_VALID_ALL				\
+	(offsetof(struct tss_struct, io_bitmap.mapall) -	\
+	 offsetof(struct tss_struct, x86_tss))
+
+#ifdef CONFIG_X86_IOPL_IOPERM
+/*
+ * sizeof(unsigned long) coming from an extra "long" at the end of the
+ * iobitmap. The limit is inclusive, i.e. the last valid byte.
+ */
+# define __KERNEL_TSS_LIMIT	\
+	(IO_BITMAP_OFFSET_VALID_ALL + IO_BITMAP_BYTES + \
+	 sizeof(unsigned long) - 1)
+#else
+# define __KERNEL_TSS_LIMIT	\
+	(offsetof(struct tss_struct, x86_tss) + sizeof(struct x86_hw_tss) - 1)
+#endif
+
+/* Base offset outside of TSS_LIMIT so unpriviledged IO causes #GP */
+#define IO_BITMAP_OFFSET_INVALID	(__KERNEL_TSS_LIMIT + 1)
 
 struct entry_stack {
 	unsigned long		words[64];
@@ -341,6 +371,37 @@ struct entry_stack_page {
 	struct entry_stack stack;
 } __aligned(PAGE_SIZE);
 
+/*
+ * All IO bitmap related data stored in the TSS:
+ */
+struct x86_io_bitmap {
+	/* The sequence number of the last active bitmap. */
+	u64			prev_sequence;
+
+	/*
+	 * Store the dirty size of the last io bitmap offender. The next
+	 * one will have to do the cleanup as the switch out to a non io
+	 * bitmap user will just set x86_tss.io_bitmap_base to a value
+	 * outside of the TSS limit. So for sane tasks there is no need to
+	 * actually touch the io_bitmap at all.
+	 */
+	unsigned int		prev_max;
+
+	/*
+	 * The extra 1 is there because the CPU will access an
+	 * additional byte beyond the end of the IO permission
+	 * bitmap. The extra byte must be all 1 bits, and must
+	 * be within the limit.
+	 */
+	unsigned long		bitmap[IO_BITMAP_LONGS + 1];
+
+	/*
+	 * Special I/O bitmap to emulate IOPL(3). All bytes zero,
+	 * except the additional byte at the end.
+	 */
+	unsigned long		mapall[IO_BITMAP_LONGS + 1];
+};
+
 struct tss_struct {
 	/*
 	 * The fixed hardware portion.  This must not cross a page boundary
@@ -349,26 +410,10 @@ struct tss_struct {
 	 */
 	struct x86_hw_tss	x86_tss;
 
-	/*
-	 * The extra 1 is there because the CPU will access an
-	 * additional byte beyond the end of the IO permission
-	 * bitmap. The extra byte must be all 1 bits, and must
-	 * be within the limit.
-	 */
-	unsigned long		io_bitmap[IO_BITMAP_LONGS + 1];
+	struct x86_io_bitmap	io_bitmap;
 } __aligned(PAGE_SIZE);
 
 DECLARE_PER_CPU_PAGE_ALIGNED(struct tss_struct, cpu_tss_rw);
-
-/*
- * sizeof(unsigned long) coming from an extra "long" at the end
- * of the iobitmap.
- *
- * -1? seg base+limit should be pointing to the address of the
- * last valid byte
- */
-#define __KERNEL_TSS_LIMIT	\
-	(IO_BITMAP_OFFSET + IO_BITMAP_BYTES + sizeof(unsigned long) - 1)
 
 /* Per CPU interrupt stacks */
 struct irq_stack {
@@ -480,10 +525,14 @@ struct thread_struct {
 	struct vm86		*vm86;
 #endif
 	/* IO permissions: */
-	unsigned long		*io_bitmap_ptr;
-	unsigned long		iopl;
-	/* Max allowed port in the bitmap, in bytes: */
-	unsigned		io_bitmap_max;
+	struct io_bitmap	*io_bitmap;
+
+	/*
+	 * IOPL. Priviledge level dependent I/O permission which is
+	 * emulated via the I/O bitmap to prevent user space from disabling
+	 * interrupts.
+	 */
+	unsigned long		iopl_emul;
 
 	mm_segment_t		addr_limit;
 
@@ -514,25 +563,6 @@ static inline void arch_thread_struct_whitelist(unsigned long *offset,
  * have to worry about atomic accesses.
  */
 #define TS_COMPAT		0x0002	/* 32bit syscall active (64BIT)*/
-
-/*
- * Set IOPL bits in EFLAGS from given mask
- */
-static inline void native_set_iopl_mask(unsigned mask)
-{
-#ifdef CONFIG_X86_32
-	unsigned int reg;
-
-	asm volatile ("pushfl;"
-		      "popl %0;"
-		      "andl %1, %0;"
-		      "orl %2, %0;"
-		      "pushl %0;"
-		      "popfl"
-		      : "=&r" (reg)
-		      : "i" (~X86_EFLAGS_IOPL), "r" (mask));
-#endif
-}
 
 static inline void
 native_load_sp0(unsigned long sp0)
@@ -573,7 +603,6 @@ static inline void load_sp0(unsigned long sp0)
 	native_load_sp0(sp0);
 }
 
-#define set_iopl_mask native_set_iopl_mask
 #endif /* CONFIG_PARAVIRT_XXL */
 
 /* Free all resources held by a thread. */
@@ -841,7 +870,6 @@ static inline void spin_lock_prefetch(const void *x)
 #define INIT_THREAD  {							  \
 	.sp0			= TOP_OF_INIT_STACK,			  \
 	.sysenter_cs		= __KERNEL_CS,				  \
-	.io_bitmap_ptr		= NULL,					  \
 	.addr_limit		= KERNEL_DS,				  \
 }
 
@@ -958,7 +986,7 @@ static inline uint32_t hypervisor_cpuid_base(const char *sig, uint32_t leaves)
 
 extern unsigned long arch_align_stack(unsigned long sp);
 void free_init_pages(const char *what, unsigned long begin, unsigned long end);
-extern void free_kernel_image_pages(void *begin, void *end);
+extern void free_kernel_image_pages(const char *what, void *begin, void *end);
 
 void default_idle(void);
 #ifdef	CONFIG_XEN
@@ -968,7 +996,6 @@ bool xen_set_default_idle(void);
 #endif
 
 void stop_this_cpu(void *dummy);
-void df_debug(struct pt_regs *regs, long error_code);
 void microcode_check(void);
 
 enum l1tf_mitigations {

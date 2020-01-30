@@ -508,7 +508,7 @@ bool dal_ddc_service_query_ddc_data(
 	uint8_t *read_buf,
 	uint32_t read_size)
 {
-	bool ret;
+	bool ret = false;
 	uint32_t payload_size =
 		dal_ddc_service_is_in_aux_transaction_mode(ddc) ?
 			DEFAULT_AUX_MAX_DATA_SIZE : EDID_SEGMENT_SIZE;
@@ -527,34 +527,32 @@ bool dal_ddc_service_query_ddc_data(
 	/*TODO: len of payload data for i2c and aux is uint8!!!!,
 	 *  but we want to read 256 over i2c!!!!*/
 	if (dal_ddc_service_is_in_aux_transaction_mode(ddc)) {
-		struct aux_payload write_payload = {
-			.i2c_over_aux = true,
-			.write = true,
-			.mot = true,
-			.address = address,
-			.length = write_size,
-			.data = write_buf,
-			.reply = NULL,
-			.defer_delay = get_defer_delay(ddc),
-		};
+		struct aux_payload payload;
+		bool read_available = true;
 
-		struct aux_payload read_payload = {
-			.i2c_over_aux = true,
-			.write = false,
-			.mot = false,
-			.address = address,
-			.length = read_size,
-			.data = read_buf,
-			.reply = NULL,
-			.defer_delay = get_defer_delay(ddc),
-		};
+		payload.i2c_over_aux = true;
+		payload.address = address;
+		payload.reply = NULL;
+		payload.defer_delay = get_defer_delay(ddc);
 
-		ret = dc_link_aux_transfer_with_retries(ddc, &write_payload);
+		if (write_size != 0) {
+			payload.write = true;
+			payload.mot = false;
+			payload.length = write_size;
+			payload.data = write_buf;
 
-		if (!ret)
-			return false;
+			ret = dal_ddc_submit_aux_command(ddc, &payload);
+			read_available = ret;
+		}
 
-		ret = dc_link_aux_transfer_with_retries(ddc, &read_payload);
+		if (read_size != 0 && read_available) {
+			payload.write = false;
+			payload.mot = false;
+			payload.length = read_size;
+			payload.data = read_buf;
+
+			ret = dal_ddc_submit_aux_command(ddc, &payload);
+		}
 	} else {
 		struct i2c_payloads *payloads =
 			dal_ddc_i2c_payloads_create(ddc->ctx, payloads_num);
@@ -585,6 +583,41 @@ bool dal_ddc_service_query_ddc_data(
 	return ret;
 }
 
+bool dal_ddc_submit_aux_command(struct ddc_service *ddc,
+		struct aux_payload *payload)
+{
+	uint32_t retrieved = 0;
+	bool ret = 0;
+
+	if (!ddc)
+		return false;
+
+	if (!payload)
+		return false;
+
+	do {
+		struct aux_payload current_payload;
+		bool is_end_of_payload = (retrieved + DEFAULT_AUX_MAX_DATA_SIZE) >
+			payload->length ? true : false;
+
+		current_payload.address = payload->address;
+		current_payload.data = &payload->data[retrieved];
+		current_payload.defer_delay = payload->defer_delay;
+		current_payload.i2c_over_aux = payload->i2c_over_aux;
+		current_payload.length = is_end_of_payload ?
+			payload->length - retrieved : DEFAULT_AUX_MAX_DATA_SIZE;
+		current_payload.mot = !is_end_of_payload;
+		current_payload.reply = payload->reply;
+		current_payload.write = payload->write;
+
+		ret = dc_link_aux_transfer_with_retries(ddc, &current_payload);
+
+		retrieved += current_payload.length;
+	} while (retrieved < payload->length && ret == true);
+
+	return ret;
+}
+
 /* dc_link_aux_transfer_raw() - Attempt to transfer
  * the given aux payload.  This function does not perform
  * retries or handle error states.  The reply is returned
@@ -611,6 +644,20 @@ bool dc_link_aux_transfer_with_retries(struct ddc_service *ddc,
 		struct aux_payload *payload)
 {
 	return dce_aux_transfer_with_retries(ddc, payload);
+}
+
+
+enum dc_status dc_link_aux_configure_timeout(struct ddc_service *ddc,
+		uint32_t timeout)
+{
+	enum dc_status status = DC_OK;
+	struct ddc *ddc_pin = ddc->ddc_pin;
+
+	if (ddc->ctx->dc->res_pool->engines[ddc_pin->pin_data->en]->funcs->configure_timeout == NULL)
+		return DC_ERROR_UNEXPECTED;
+	if (!ddc->ctx->dc->res_pool->engines[ddc_pin->pin_data->en]->funcs->configure_timeout(ddc, timeout))
+		status = DC_ERROR_UNEXPECTED;
+	return status;
 }
 
 /*test only function*/

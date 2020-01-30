@@ -37,10 +37,10 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		cpu0: cpu@0 {
+		cpu0: cpu@f00 {
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
-			reg = <0>;
+			reg = <0xf00>;
 		};
 	};
 
@@ -84,13 +84,6 @@
 		compatible = "fixed-clock";
 		clock-frequency = <480000000>;
 		clock-output-names = "upll";
-		#clock-cells = <0>;
-	};
-
-	mpll: clock-mpll {
-		compatible = "fixed-clock";
-		clock-frequency = <480000000>;
-		clock-output-names = "mpll";
 		#clock-cells = <0>;
 	};
 
@@ -230,8 +223,6 @@
 				 <&scg1 IMX7ULP_CLK_NIC1_DIV>,
 				 <&pcc2 IMX7ULP_CLK_USDHC0>;
 			clock-names = "ipg", "ahb", "per";
-			assigned-clocks = <&pcc2 IMX7ULP_CLK_USDHC0>;
-			assigned-clock-parents = <&scg1 IMX7ULP_CLK_NIC1_DIV>;
 			bus-width = <4>;
 			fsl,tuning-start-tap = <20>;
 			fsl,tuning-step = <2>;
@@ -246,8 +237,6 @@
 				 <&scg1 IMX7ULP_CLK_NIC1_DIV>,
 				 <&pcc2 IMX7ULP_CLK_USDHC1>;
 			clock-names = "ipg", "ahb", "per";
-			assigned-clocks = <&pcc2 IMX7ULP_CLK_USDHC1>;
-			assigned-clock-parents = <&scg1 IMX7ULP_CLK_NIC1_DIV>;
 			bus-width = <4>;
 			fsl,tuning-start-tap = <20>;
 			fsl,tuning-step = <2>;
@@ -258,10 +247,20 @@
 			compatible = "fsl,imx7ulp-scg1";
 			reg = <0x403e0000 0x10000>;
 			clocks = <&rosc>, <&sosc>, <&sirc>,
-				 <&firc>, <&upll>, <&mpll>;
+				 <&firc>, <&upll>;
 			clock-names = "rosc", "sosc", "sirc",
-				      "firc", "upll", "mpll";
+				      "firc", "upll";
 			#clock-cells = <1>;
+		};
+
+		wdog1: watchdog@403d0000 {
+			compatible = "fsl,imx7ulp-wdt";
+			reg = <0x403d0000 0x10000>;
+			interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&pcc2 IMX7ULP_CLK_WDG1>;
+			assigned-clocks = <&pcc2 IMX7ULP_CLK_WDG1>;
+			assigned-clocks-parents = <&scg1 IMX7ULP_CLK_FIRC_BUS_CLK>;
+			timeout-sec = <40>;
 		};
 
 		pcc2: clock-controller@403f0000 {
@@ -276,13 +275,12 @@
 				 <&scg1 IMX7ULP_CLK_APLL_PFD0>,
 				 <&scg1 IMX7ULP_CLK_UPLL>,
 				 <&scg1 IMX7ULP_CLK_SOSC_BUS_CLK>,
-				 <&scg1 IMX7ULP_CLK_MIPI_PLL>,
 				 <&scg1 IMX7ULP_CLK_FIRC_BUS_CLK>,
 				 <&scg1 IMX7ULP_CLK_ROSC>,
 				 <&scg1 IMX7ULP_CLK_SPLL_BUS_CLK>;
 			clock-names = "nic1_bus_clk", "nic1_clk", "ddr_clk",
 				      "apll_pfd2", "apll_pfd1", "apll_pfd0",
-				      "upll", "sosc_bus_clk", "mpll",
+				      "upll", "sosc_bus_clk",
 				      "firc_bus_clk", "rosc", "spll_bus_clk";
 			assigned-clocks = <&pcc2 IMX7ULP_CLK_LPTPM5>;
 			assigned-clock-parents = <&scg1 IMX7ULP_CLK_SOSC_BUS_CLK>;
@@ -309,13 +307,12 @@
 				 <&scg1 IMX7ULP_CLK_APLL_PFD0>,
 				 <&scg1 IMX7ULP_CLK_UPLL>,
 				 <&scg1 IMX7ULP_CLK_SOSC_BUS_CLK>,
-				 <&scg1 IMX7ULP_CLK_MIPI_PLL>,
 				 <&scg1 IMX7ULP_CLK_FIRC_BUS_CLK>,
 				 <&scg1 IMX7ULP_CLK_ROSC>,
 				 <&scg1 IMX7ULP_CLK_SPLL_BUS_CLK>;
 			clock-names = "nic1_bus_clk", "nic1_clk", "ddr_clk",
 				      "apll_pfd2", "apll_pfd1", "apll_pfd0",
-				      "upll", "sosc_bus_clk", "mpll",
+				      "upll", "sosc_bus_clk",
 				      "firc_bus_clk", "rosc", "spll_bus_clk";
 		};
 	};

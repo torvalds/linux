@@ -30,7 +30,7 @@ MODULE_ALIAS("ip_set_bitmap:port");
 
 /* Type structure */
 struct bitmap_port {
-	void *members;		/* the set members */
+	unsigned long *members;	/* the set members */
 	u16 first_port;		/* host byte order, included in range */
 	u16 last_port;		/* host byte order, included in range */
 	u32 elements;		/* number of max elements in the set */
@@ -46,7 +46,7 @@ struct bitmap_port_adt_elem {
 	u16 id;
 };
 
-static inline u16
+static u16
 port_to_id(const struct bitmap_port *m, u16 port)
 {
 	return port - m->first_port;
@@ -54,34 +54,34 @@ port_to_id(const struct bitmap_port *m, u16 port)
 
 /* Common functions */
 
-static inline int
+static int
 bitmap_port_do_test(const struct bitmap_port_adt_elem *e,
 		    const struct bitmap_port *map, size_t dsize)
 {
 	return !!test_bit(e->id, map->members);
 }
 
-static inline int
+static int
 bitmap_port_gc_test(u16 id, const struct bitmap_port *map, size_t dsize)
 {
 	return !!test_bit(id, map->members);
 }
 
-static inline int
+static int
 bitmap_port_do_add(const struct bitmap_port_adt_elem *e,
 		   struct bitmap_port *map, u32 flags, size_t dsize)
 {
 	return !!test_bit(e->id, map->members);
 }
 
-static inline int
+static int
 bitmap_port_do_del(const struct bitmap_port_adt_elem *e,
 		   struct bitmap_port *map)
 {
 	return !test_and_clear_bit(e->id, map->members);
 }
 
-static inline int
+static int
 bitmap_port_do_list(struct sk_buff *skb, const struct bitmap_port *map, u32 id,
 		    size_t dsize)
 {
@@ -89,11 +89,38 @@ bitmap_port_do_list(struct sk_buff *skb, const struct bitmap_port *map, u32 id,
 			     htons(map->first_port + id));
 }
 
-static inline int
+static int
 bitmap_port_do_head(struct sk_buff *skb, const struct bitmap_port *map)
 {
 	return nla_put_net16(skb, IPSET_ATTR_PORT, htons(map->first_port)) ||
 	       nla_put_net16(skb, IPSET_ATTR_PORT_TO, htons(map->last_port));
+}
+
+static bool
+ip_set_get_ip_port(const struct sk_buff *skb, u8 pf, bool src, __be16 *port)
+{
+	bool ret;
+	u8 proto;
+
+	switch (pf) {
+	case NFPROTO_IPV4:
+		ret = ip_set_get_ip4_port(skb, src, port, &proto);
+		break;
+	case NFPROTO_IPV6:
+		ret = ip_set_get_ip6_port(skb, src, port, &proto);
+		break;
+	default:
+		return false;
+	}
+	if (!ret)
+		return ret;
+	switch (proto) {
+	case IPPROTO_TCP:
+	case IPPROTO_UDP:
+		return true;
+	default:
+		return false;
+	}
 }
 
 static int
@@ -204,7 +231,7 @@ static bool
 init_map_port(struct ip_set *set, struct bitmap_port *map,
 	      u16 first_port, u16 last_port)
 {
-	map->members = ip_set_alloc(map->memsize);
+	map->members = bitmap_zalloc(map->elements, GFP_KERNEL | __GFP_NOWARN);
 	if (!map->members)
 		return false;
 	map->first_port = first_port;
@@ -244,7 +271,7 @@ bitmap_port_create(struct net *net, struct ip_set *set, struct nlattr *tb[],
 		return -ENOMEM;
 
 	map->elements = elements;
-	map->memsize = bitmap_bytes(0, map->elements);
+	map->memsize = BITS_TO_LONGS(elements) * sizeof(unsigned long);
 	set->variant = &bitmap_port;
 	if (!init_map_port(set, map, first_port, last_port)) {
 		kfree(map);

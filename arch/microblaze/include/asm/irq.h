@@ -9,7 +9,6 @@
 #ifndef _ASM_MICROBLAZE_IRQ_H
 #define _ASM_MICROBLAZE_IRQ_H
 
-#define NR_IRQS		(32 + 1)
 #include <asm-generic/irq.h>
 
 struct pt_regs;

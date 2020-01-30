@@ -63,9 +63,6 @@ struct btrfs_inode {
 	/* held while logging the inode in tree-log.c */
 	struct mutex log_mutex;
 
-	/* held while doing delalloc reservations */
-	struct mutex delalloc_mutex;
-
 	/* used to order data wrt metadata */
 	struct btrfs_ordered_inode_tree ordered_tree;
 

@@ -13,6 +13,7 @@
 #include "i915_reg.h"
 
 enum pipe;
+enum port;
 struct drm_connector_state;
 struct drm_encoder;
 struct drm_i915_private;
@@ -107,6 +108,14 @@ bool intel_dp_read_dpcd(struct intel_dp *intel_dp);
 bool intel_dp_get_colorimetry_status(struct intel_dp *intel_dp);
 int intel_dp_link_required(int pixel_clock, int bpp);
 int intel_dp_max_data_rate(int max_link_clock, int max_lanes);
+bool intel_dp_needs_vsc_sdp(const struct intel_crtc_state *crtc_state,
+			    const struct drm_connector_state *conn_state);
+void intel_dp_vsc_enable(struct intel_dp *intel_dp,
+			 const struct intel_crtc_state *crtc_state,
+			 const struct drm_connector_state *conn_state);
+void intel_dp_hdr_metadata_enable(struct intel_dp *intel_dp,
+				  const struct intel_crtc_state *crtc_state,
+				  const struct drm_connector_state *conn_state);
 bool intel_digital_port_connected(struct intel_encoder *encoder);
 
 static inline unsigned int intel_dp_unused_lane_mask(int lane_count)

@@ -167,7 +167,7 @@ static int multi_reg_write(struct i2c_client *client,
 
 static int mt9m001_init(struct i2c_client *client)
 {
-	const struct mt9m001_reg init_regs[] = {
+	static const struct mt9m001_reg init_regs[] = {
 		/*
 		 * Issue a soft reset. This returns all registers to their
 		 * default values.
