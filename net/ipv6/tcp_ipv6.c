@@ -239,7 +239,7 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 
 		icsk->icsk_af_ops = &ipv6_mapped;
 		if (sk_is_mptcp(sk))
-			mptcp_handle_ipv6_mapped(sk, true);
+			mptcpv6_handle_mapped(sk, true);
 		sk->sk_backlog_rcv = tcp_v4_do_rcv;
 #ifdef CONFIG_TCP_MD5SIG
 		tp->af_specific = &tcp_sock_ipv6_mapped_specific;
@@ -251,7 +251,7 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 			icsk->icsk_ext_hdr_len = exthdrlen;
 			icsk->icsk_af_ops = &ipv6_specific;
 			if (sk_is_mptcp(sk))
-				mptcp_handle_ipv6_mapped(sk, false);
+				mptcpv6_handle_mapped(sk, false);
 			sk->sk_backlog_rcv = tcp_v6_do_rcv;
 #ifdef CONFIG_TCP_MD5SIG
 			tp->af_specific = &tcp_sock_ipv6_specific;
@@ -1208,7 +1208,7 @@ static struct sock *tcp_v6_syn_recv_sock(const struct sock *sk, struct sk_buff *
 
 		inet_csk(newsk)->icsk_af_ops = &ipv6_mapped;
 		if (sk_is_mptcp(newsk))
-			mptcp_handle_ipv6_mapped(newsk, true);
+			mptcpv6_handle_mapped(newsk, true);
 		newsk->sk_backlog_rcv = tcp_v4_do_rcv;
 #ifdef CONFIG_TCP_MD5SIG
 		newtp->af_specific = &tcp_sock_ipv6_mapped_specific;

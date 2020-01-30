@@ -585,9 +585,9 @@ subflow_default_af_ops(struct sock *sk)
 	return &subflow_specific;
 }
 
-void mptcp_handle_ipv6_mapped(struct sock *sk, bool mapped)
-{
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
+void mptcpv6_handle_mapped(struct sock *sk, bool mapped)
+{
 	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(sk);
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct inet_connection_sock_af_ops *target;
@@ -602,8 +602,8 @@ void mptcp_handle_ipv6_mapped(struct sock *sk, bool mapped)
 
 	subflow->icsk_af_ops = icsk->icsk_af_ops;
 	icsk->icsk_af_ops = target;
-#endif
 }
+#endif
 
 int mptcp_subflow_create_socket(struct sock *sk, struct socket **new_sock)
 {
