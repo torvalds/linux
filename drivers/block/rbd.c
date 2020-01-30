@@ -1366,18 +1366,15 @@ static void rbd_osd_submit(struct ceph_osd_request *osd_req)
 static void img_request_layered_set(struct rbd_img_request *img_request)
 {
 	set_bit(IMG_REQ_LAYERED, &img_request->flags);
-	smp_mb();
 }
 
 static void img_request_layered_clear(struct rbd_img_request *img_request)
 {
 	clear_bit(IMG_REQ_LAYERED, &img_request->flags);
-	smp_mb();
 }
 
 static bool img_request_layered_test(struct rbd_img_request *img_request)
 {
-	smp_mb();
 	return test_bit(IMG_REQ_LAYERED, &img_request->flags) != 0;
 }
 
