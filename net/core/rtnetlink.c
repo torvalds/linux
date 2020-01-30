@@ -1242,6 +1242,8 @@ static noinline_for_stack int rtnl_fill_vfinfo(struct sk_buff *skb,
 		return 0;
 
 	memset(&vf_vlan_info, 0, sizeof(vf_vlan_info));
+	memset(&node_guid, 0, sizeof(node_guid));
+	memset(&port_guid, 0, sizeof(port_guid));
 
 	vf_mac.vf =
 		vf_vlan.vf =
@@ -1290,8 +1292,6 @@ static noinline_for_stack int rtnl_fill_vfinfo(struct sk_buff *skb,
 		    sizeof(vf_trust), &vf_trust))
 		goto nla_put_vf_failure;
 
-	memset(&node_guid, 0, sizeof(node_guid));
-	memset(&port_guid, 0, sizeof(port_guid));
 	if (dev->netdev_ops->ndo_get_vf_guid &&
 	    !dev->netdev_ops->ndo_get_vf_guid(dev, vfs_num, &node_guid,
 					      &port_guid)) {
