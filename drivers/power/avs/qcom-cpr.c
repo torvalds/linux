@@ -517,7 +517,7 @@ static int cpr_scale(struct cpr_drv *drv, enum voltage_change_dir dir)
 		dev_dbg(drv->dev,
 			"UP: -> new_uV: %d last_uV: %d perf state: %u\n",
 			new_uV, last_uV, cpr_get_cur_perf_state(drv));
-	} else if (dir == DOWN) {
+	} else {
 		if (desc->clamp_timer_interval &&
 		    error_steps < desc->down_threshold) {
 			/*
@@ -567,7 +567,7 @@ static int cpr_scale(struct cpr_drv *drv, enum voltage_change_dir dir)
 		/* Disable auto nack down */
 		reg_mask = RBCPR_CTL_SW_AUTO_CONT_NACK_DN_EN;
 		val = 0;
-	} else if (dir == DOWN) {
+	} else {
 		/* Restore default threshold for UP */
 		reg_mask = RBCPR_CTL_UP_THRESHOLD_MASK;
 		reg_mask <<= RBCPR_CTL_UP_THRESHOLD_SHIFT;
