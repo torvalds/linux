@@ -182,8 +182,9 @@ static u32 tc_port_live_status_mask(struct intel_digital_port *dig_port)
 				PORT_TX_DFLEXDPSP(dig_port->tc_phy_fia));
 
 	if (val == 0xffffffff) {
-		DRM_DEBUG_KMS("Port %s: PHY in TCCOLD, nothing connected\n",
-			      dig_port->tc_port_name);
+		drm_dbg_kms(&i915->drm,
+			    "Port %s: PHY in TCCOLD, nothing connected\n",
+			    dig_port->tc_port_name);
 		return mask;
 	}
 
@@ -211,8 +212,9 @@ static bool icl_tc_phy_status_complete(struct intel_digital_port *dig_port)
 	val = intel_uncore_read(uncore,
 				PORT_TX_DFLEXDPPMS(dig_port->tc_phy_fia));
 	if (val == 0xffffffff) {
-		DRM_DEBUG_KMS("Port %s: PHY in TCCOLD, assuming not complete\n",
-			      dig_port->tc_port_name);
+		drm_dbg_kms(&i915->drm,
+			    "Port %s: PHY in TCCOLD, assuming not complete\n",
+			    dig_port->tc_port_name);
 		return false;
 	}
 
@@ -229,8 +231,9 @@ static bool icl_tc_phy_set_safe_mode(struct intel_digital_port *dig_port,
 	val = intel_uncore_read(uncore,
 				PORT_TX_DFLEXDPCSSS(dig_port->tc_phy_fia));
 	if (val == 0xffffffff) {
-		DRM_DEBUG_KMS("Port %s: PHY in TCCOLD, can't set safe-mode to %s\n",
-			      dig_port->tc_port_name,
+		drm_dbg_kms(&i915->drm,
+			    "Port %s: PHY in TCCOLD, can't set safe-mode to %s\n",
+			    dig_port->tc_port_name,
 			      enableddisabled(enable));
 
 		return false;
@@ -244,8 +247,9 @@ static bool icl_tc_phy_set_safe_mode(struct intel_digital_port *dig_port,
 			   PORT_TX_DFLEXDPCSSS(dig_port->tc_phy_fia), val);
 
 	if (enable && wait_for(!icl_tc_phy_status_complete(dig_port), 10))
-		DRM_DEBUG_KMS("Port %s: PHY complete clear timed out\n",
-			      dig_port->tc_port_name);
+		drm_dbg_kms(&i915->drm,
+			    "Port %s: PHY complete clear timed out\n",
+			    dig_port->tc_port_name);
 
 	return true;
 }
@@ -259,8 +263,9 @@ static bool icl_tc_phy_is_in_safe_mode(struct intel_digital_port *dig_port)
 	val = intel_uncore_read(uncore,
 				PORT_TX_DFLEXDPCSSS(dig_port->tc_phy_fia));
 	if (val == 0xffffffff) {
-		DRM_DEBUG_KMS("Port %s: PHY in TCCOLD, assume safe mode\n",
-			      dig_port->tc_port_name);
+		drm_dbg_kms(&i915->drm,
+			    "Port %s: PHY in TCCOLD, assume safe mode\n",
+			    dig_port->tc_port_name);
 		return true;
 	}
 
@@ -417,10 +422,10 @@ static void intel_tc_port_reset_mode(struct intel_digital_port *dig_port,
 	icl_tc_phy_disconnect(dig_port);
 	icl_tc_phy_connect(dig_port, required_lanes);
 
-	DRM_DEBUG_KMS("Port %s: TC port mode reset (%s -> %s)\n",
-		      dig_port->tc_port_name,
-		      tc_port_mode_name(old_tc_mode),
-		      tc_port_mode_name(dig_port->tc_mode));
+	drm_dbg_kms(&i915->drm, "Port %s: TC port mode reset (%s -> %s)\n",
+		    dig_port->tc_port_name,
+		    tc_port_mode_name(old_tc_mode),
+		    tc_port_mode_name(dig_port->tc_mode));
 }
 
 static void
