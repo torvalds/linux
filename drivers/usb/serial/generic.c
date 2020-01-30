@@ -417,7 +417,7 @@ void usb_serial_generic_read_bulk_callback(struct urb *urb)
 	/*
 	 * Make sure URB is marked as free before checking the throttled flag
 	 * to avoid racing with unthrottle() on another CPU. Matches the
-	 * smp_mb() in unthrottle().
+	 * smp_mb__after_atomic() in unthrottle().
 	 */
 	smp_mb__after_atomic();
 
@@ -489,7 +489,7 @@ void usb_serial_generic_unthrottle(struct tty_struct *tty)
 	 * Matches the smp_mb__after_atomic() in
 	 * usb_serial_generic_read_bulk_callback().
 	 */
-	smp_mb();
+	smp_mb__after_atomic();
 
 	usb_serial_generic_submit_read_urbs(port, GFP_KERNEL);
 }
