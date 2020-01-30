@@ -231,11 +231,6 @@ struct date_time_t {
 	u16      MilliSecond;
 };
 
-struct part_info_t {
-	u32      Offset;    /* start sector number of the partition */
-	u32      Size;      /* in sectors */
-};
-
 struct dev_info_t {
 	u32      SecSize;    /* sector size in bytes */
 	u32      DevSize;    /* block device size in sectors */
