@@ -136,7 +136,7 @@ void ath11k_update_per_peer_stats_from_txcompl(struct ath11k *ar,
 	struct ath11k_sta *arsta;
 	struct ieee80211_sta *sta;
 	u16 rate;
-	u8 rate_idx;
+	u8 rate_idx = 0;
 	int ret;
 	u8 mcs;
 
