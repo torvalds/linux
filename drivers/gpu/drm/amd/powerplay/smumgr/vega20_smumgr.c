@@ -189,7 +189,7 @@ static int vega20_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 			return ret);
 
 	/* flush hdp cache */
-	adev->nbio.funcs->hdp_flush(adev, NULL);
+	amdgpu_asic_flush_hdp(adev, NULL);
 
 	memcpy(table, priv->smu_tables.entry[table_id].table,
 			priv->smu_tables.entry[table_id].size);
@@ -207,6 +207,7 @@ static int vega20_copy_table_to_smc(struct pp_hwmgr *hwmgr,
 {
 	struct vega20_smumgr *priv =
 			(struct vega20_smumgr *)(hwmgr->smu_backend);
+	struct amdgpu_device *adev = hwmgr->adev;
 	int ret = 0;
 
 	PP_ASSERT_WITH_CODE(table_id < TABLE_COUNT,
@@ -218,6 +219,8 @@ static int vega20_copy_table_to_smc(struct pp_hwmgr *hwmgr,
 
 	memcpy(priv->smu_tables.entry[table_id].table, table,
 			priv->smu_tables.entry[table_id].size);
+
+	amdgpu_asic_flush_hdp(adev, NULL);
 
 	PP_ASSERT_WITH_CODE((ret = vega20_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrHigh,
@@ -242,10 +245,13 @@ int vega20_set_activity_monitor_coeff(struct pp_hwmgr *hwmgr,
 {
 	struct vega20_smumgr *priv =
 			(struct vega20_smumgr *)(hwmgr->smu_backend);
+	struct amdgpu_device *adev = hwmgr->adev;
 	int ret = 0;
 
 	memcpy(priv->smu_tables.entry[TABLE_ACTIVITY_MONITOR_COEFF].table, table,
 			priv->smu_tables.entry[TABLE_ACTIVITY_MONITOR_COEFF].size);
+
+	amdgpu_asic_flush_hdp(adev, NULL);
 
 	PP_ASSERT_WITH_CODE((ret = vega20_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrHigh,
@@ -290,7 +296,7 @@ int vega20_get_activity_monitor_coeff(struct pp_hwmgr *hwmgr,
 			return ret);
 
 	/* flush hdp cache */
-	adev->nbio.funcs->hdp_flush(adev, NULL);
+	amdgpu_asic_flush_hdp(adev, NULL);
 
 	memcpy(table, priv->smu_tables.entry[TABLE_ACTIVITY_MONITOR_COEFF].table,
 			priv->smu_tables.entry[TABLE_ACTIVITY_MONITOR_COEFF].size);

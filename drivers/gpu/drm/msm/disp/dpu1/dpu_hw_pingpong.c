@@ -28,8 +28,8 @@
 #define PP_FBC_BUDGET_CTL               0x038
 #define PP_FBC_LOSSY_MODE               0x03C
 
-static struct dpu_pingpong_cfg *_pingpong_offset(enum dpu_pingpong pp,
-		struct dpu_mdss_cfg *m,
+static const struct dpu_pingpong_cfg *_pingpong_offset(enum dpu_pingpong pp,
+		const struct dpu_mdss_cfg *m,
 		void __iomem *addr,
 		struct dpu_hw_blk_reg_map *b)
 {
@@ -195,10 +195,10 @@ static struct dpu_hw_blk_ops dpu_hw_ops;
 
 struct dpu_hw_pingpong *dpu_hw_pingpong_init(enum dpu_pingpong idx,
 		void __iomem *addr,
-		struct dpu_mdss_cfg *m)
+		const struct dpu_mdss_cfg *m)
 {
 	struct dpu_hw_pingpong *c;
-	struct dpu_pingpong_cfg *cfg;
+	const struct dpu_pingpong_cfg *cfg;
 
 	c = kzalloc(sizeof(*c), GFP_KERNEL);
 	if (!c)

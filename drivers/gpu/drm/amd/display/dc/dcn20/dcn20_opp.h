@@ -140,6 +140,7 @@ void dcn20_opp_construct(struct dcn20_opp *oppn20,
 void opp2_set_disp_pattern_generator(
 	struct output_pixel_processor *opp,
 	enum controller_dp_test_pattern test_pattern,
+	enum controller_dp_color_space color_space,
 	enum dc_color_depth color_depth,
 	const struct tg_color *solid_color,
 	int width,

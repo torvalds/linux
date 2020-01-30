@@ -22,6 +22,7 @@
 #include "priv.h"
 
 #include <subdev/mc.h>
+#include <subdev/top.h>
 
 void
 nvkm_falcon_load_imem(struct nvkm_falcon *falcon, void *data, u32 start,
@@ -134,6 +135,37 @@ nvkm_falcon_clear_interrupt(struct nvkm_falcon *falcon, u32 mask)
 	return falcon->func->clear_interrupt(falcon, mask);
 }
 
+static int
+nvkm_falcon_oneinit(struct nvkm_falcon *falcon)
+{
+	const struct nvkm_falcon_func *func = falcon->func;
+	const struct nvkm_subdev *subdev = falcon->owner;
+	u32 reg;
+
+	if (!falcon->addr) {
+		falcon->addr = nvkm_top_addr(subdev->device, subdev->index);
+		if (WARN_ON(!falcon->addr))
+			return -ENODEV;
+	}
+
+	reg = nvkm_falcon_rd32(falcon, 0x12c);
+	falcon->version = reg & 0xf;
+	falcon->secret = (reg >> 4) & 0x3;
+	falcon->code.ports = (reg >> 8) & 0xf;
+	falcon->data.ports = (reg >> 12) & 0xf;
+
+	reg = nvkm_falcon_rd32(falcon, 0x108);
+	falcon->code.limit = (reg & 0x1ff) << 8;
+	falcon->data.limit = (reg & 0x3fe00) >> 1;
+
+	if (func->debug) {
+		u32 val = nvkm_falcon_rd32(falcon, func->debug);
+		falcon->debug = (val >> 20) & 0x1;
+	}
+
+	return 0;
+}
+
 void
 nvkm_falcon_put(struct nvkm_falcon *falcon, const struct nvkm_subdev *user)
 {
@@ -151,6 +183,8 @@ nvkm_falcon_put(struct nvkm_falcon *falcon, const struct nvkm_subdev *user)
 int
 nvkm_falcon_get(struct nvkm_falcon *falcon, const struct nvkm_subdev *user)
 {
+	int ret = 0;
+
 	mutex_lock(&falcon->mutex);
 	if (falcon->user) {
 		nvkm_error(user, "%s falcon already acquired by %s!\n",
@@ -160,70 +194,37 @@ nvkm_falcon_get(struct nvkm_falcon *falcon, const struct nvkm_subdev *user)
 	}
 
 	nvkm_debug(user, "acquired %s falcon\n", falcon->name);
+	if (!falcon->oneinit)
+		ret = nvkm_falcon_oneinit(falcon);
 	falcon->user = user;
 	mutex_unlock(&falcon->mutex);
-	return 0;
+	return ret;
 }
 
 void
+nvkm_falcon_dtor(struct nvkm_falcon *falcon)
+{
+}
+
+int
 nvkm_falcon_ctor(const struct nvkm_falcon_func *func,
 		 struct nvkm_subdev *subdev, const char *name, u32 addr,
 		 struct nvkm_falcon *falcon)
 {
-	u32 debug_reg;
-	u32 reg;
-
 	falcon->func = func;
 	falcon->owner = subdev;
 	falcon->name = name;
 	falcon->addr = addr;
 	mutex_init(&falcon->mutex);
 	mutex_init(&falcon->dmem_mutex);
-
-	reg = nvkm_falcon_rd32(falcon, 0x12c);
-	falcon->version = reg & 0xf;
-	falcon->secret = (reg >> 4) & 0x3;
-	falcon->code.ports = (reg >> 8) & 0xf;
-	falcon->data.ports = (reg >> 12) & 0xf;
-
-	reg = nvkm_falcon_rd32(falcon, 0x108);
-	falcon->code.limit = (reg & 0x1ff) << 8;
-	falcon->data.limit = (reg & 0x3fe00) >> 1;
-
-	switch (subdev->index) {
-	case NVKM_ENGINE_GR:
-		debug_reg = 0x0;
-		break;
-	case NVKM_SUBDEV_PMU:
-		debug_reg = 0xc08;
-		break;
-	case NVKM_ENGINE_NVDEC0:
-		debug_reg = 0xd00;
-		break;
-	case NVKM_ENGINE_SEC2:
-		debug_reg = 0x408;
-		falcon->has_emem = true;
-		break;
-	case NVKM_SUBDEV_GSP:
-		debug_reg = 0x0; /*XXX*/
-		break;
-	default:
-		nvkm_warn(subdev, "unsupported falcon %s!\n",
-			  nvkm_subdev_name[subdev->index]);
-		debug_reg = 0;
-		break;
-	}
-
-	if (debug_reg) {
-		u32 val = nvkm_falcon_rd32(falcon, debug_reg);
-		falcon->debug = (val >> 20) & 0x1;
-	}
+	return 0;
 }
 
 void
 nvkm_falcon_del(struct nvkm_falcon **pfalcon)
 {
 	if (*pfalcon) {
+		nvkm_falcon_dtor(*pfalcon);
 		kfree(*pfalcon);
 		*pfalcon = NULL;
 	}

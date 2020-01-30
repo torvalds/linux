@@ -11,7 +11,9 @@
 struct drm_i915_private;
 
 void i915_memcpy_init_early(struct drm_i915_private *i915);
+
 bool i915_memcpy_from_wc(void *dst, const void *src, unsigned long len);
+void i915_unaligned_memcpy_from_wc(void *dst, void *src, unsigned long len);
 
 /* The movntdqa instructions used for memcpy-from-wc require 16-byte alignment,
  * as well as SSE4.1 support. i915_memcpy_from_wc() will report if it cannot

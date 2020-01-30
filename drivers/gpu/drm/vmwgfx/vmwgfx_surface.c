@@ -934,16 +934,12 @@ vmw_surface_handle_reference(struct vmw_private *dev_priv,
 	uint32_t handle;
 	struct ttm_base_object *base;
 	int ret;
-	bool require_exist = false;
 
 	if (handle_type == DRM_VMW_HANDLE_PRIME) {
 		ret = ttm_prime_fd_to_handle(tfile, u_handle, &handle);
 		if (unlikely(ret != 0))
 			return ret;
 	} else {
-		if (unlikely(drm_is_render_client(file_priv)))
-			require_exist = true;
-
 		handle = u_handle;
 	}
 
@@ -960,8 +956,17 @@ vmw_surface_handle_reference(struct vmw_private *dev_priv,
 	}
 
 	if (handle_type != DRM_VMW_HANDLE_PRIME) {
+		bool require_exist = false;
+
 		user_srf = container_of(base, struct vmw_user_surface,
 					prime.base);
+
+		/* Error out if we are unauthenticated primary */
+		if (drm_is_primary_client(file_priv) &&
+		    !file_priv->authenticated) {
+			ret = -EACCES;
+			goto out_bad_resource;
+		}
 
 		/*
 		 * Make sure the surface creator has the same
@@ -969,6 +974,9 @@ vmw_surface_handle_reference(struct vmw_private *dev_priv,
 		 */
 		if (drm_is_primary_client(file_priv) &&
 		    user_srf->master != file_priv->master)
+			require_exist = true;
+
+		if (unlikely(drm_is_render_client(file_priv)))
 			require_exist = true;
 
 		ret = ttm_ref_object_add(tfile, base, TTM_REF_USAGE, NULL,

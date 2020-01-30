@@ -68,7 +68,7 @@ static int fsl_dcu_drm_connector_get_modes(struct drm_connector *connector)
 	struct fsl_dcu_drm_connector *fsl_connector;
 
 	fsl_connector = to_fsl_dcu_connector(connector);
-	return drm_panel_get_modes(fsl_connector->panel);
+	return drm_panel_get_modes(fsl_connector->panel, connector);
 }
 
 static int fsl_dcu_drm_connector_mode_valid(struct drm_connector *connector,

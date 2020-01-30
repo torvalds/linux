@@ -22,6 +22,11 @@ static inline void intel_gt_pm_get(struct intel_gt *gt)
 	intel_wakeref_get(&gt->wakeref);
 }
 
+static inline void __intel_gt_pm_get(struct intel_gt *gt)
+{
+	__intel_wakeref_get(&gt->wakeref);
+}
+
 static inline bool intel_gt_pm_get_if_awake(struct intel_gt *gt)
 {
 	return intel_wakeref_get_if_active(&gt->wakeref);
@@ -45,8 +50,6 @@ static inline int intel_gt_pm_wait_for_idle(struct intel_gt *gt)
 void intel_gt_pm_init_early(struct intel_gt *gt);
 void intel_gt_pm_init(struct intel_gt *gt);
 void intel_gt_pm_fini(struct intel_gt *gt);
-
-void intel_gt_sanitize(struct intel_gt *gt, bool force);
 
 void intel_gt_suspend_prepare(struct intel_gt *gt);
 void intel_gt_suspend_late(struct intel_gt *gt);

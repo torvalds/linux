@@ -339,7 +339,7 @@ static int sti_dvo_connector_get_modes(struct drm_connector *connector)
 	struct sti_dvo *dvo = dvo_connector->dvo;
 
 	if (dvo->panel)
-		return drm_panel_get_modes(dvo->panel);
+		return drm_panel_get_modes(dvo->panel, connector);
 
 	return 0;
 }

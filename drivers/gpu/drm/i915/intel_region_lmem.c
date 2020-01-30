@@ -51,8 +51,10 @@ static int init_fake_lmem_bar(struct intel_memory_region *mem)
 
 static void release_fake_lmem_bar(struct intel_memory_region *mem)
 {
-	if (drm_mm_node_allocated(&mem->fake_mappable))
-		drm_mm_remove_node(&mem->fake_mappable);
+	if (!drm_mm_node_allocated(&mem->fake_mappable))
+		return;
+
+	drm_mm_remove_node(&mem->fake_mappable);
 
 	dma_unmap_resource(&mem->i915->drm.pdev->dev,
 			   mem->remap_addr,
@@ -88,6 +90,8 @@ region_lmem_init(struct intel_memory_region *mem)
 	if (ret)
 		io_mapping_fini(&mem->iomap);
 
+	intel_memory_region_set_name(mem, "local");
+
 	return ret;
 }
 
@@ -121,10 +125,12 @@ intel_setup_fake_lmem(struct drm_i915_private *i915)
 					 io_start,
 					 &intel_region_lmem_ops);
 	if (!IS_ERR(mem)) {
-		DRM_INFO("Intel graphics fake LMEM: %pR\n", &mem->region);
-		DRM_INFO("Intel graphics fake LMEM IO start: %llx\n",
-			 (u64)mem->io_start);
-		DRM_INFO("Intel graphics fake LMEM size: %llx\n",
+		drm_info(&i915->drm, "Intel graphics fake LMEM: %pR\n",
+			 &mem->region);
+		drm_info(&i915->drm,
+			 "Intel graphics fake LMEM IO start: %llx\n",
+			(u64)mem->io_start);
+		drm_info(&i915->drm, "Intel graphics fake LMEM size: %llx\n",
 			 (u64)resource_size(&mem->region));
 	}
 

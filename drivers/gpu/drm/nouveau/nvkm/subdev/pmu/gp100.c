@@ -25,12 +25,19 @@
 
 static const struct nvkm_pmu_func
 gp100_pmu = {
+	.flcn = &gt215_pmu_flcn,
 	.enabled = gf100_pmu_enabled,
 	.reset = gf100_pmu_reset,
+};
+
+static const struct nvkm_pmu_fwif
+gp100_pmu_fwif[] = {
+	{ -1, gf100_pmu_nofw, &gp100_pmu },
+	{}
 };
 
 int
 gp100_pmu_new(struct nvkm_device *device, int index, struct nvkm_pmu **ppmu)
 {
-	return nvkm_pmu_new_(&gp100_pmu, device, index, ppmu);
+	return nvkm_pmu_new_(gp100_pmu_fwif, device, index, ppmu);
 }

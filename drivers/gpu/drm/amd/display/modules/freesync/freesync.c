@@ -37,8 +37,8 @@
 #define STATIC_SCREEN_RAMP_DELTA_REFRESH_RATE_PER_FRAME ((1000 / 60) * 65)
 /* Number of elements in the render times cache array */
 #define RENDER_TIMES_MAX_COUNT 10
-/* Threshold to exit BTR (to avoid frequent enter-exits at the lower limit) */
-#define BTR_EXIT_MARGIN 2000
+/* Threshold to exit/exit BTR (to avoid frequent enter-exits at the lower limit) */
+#define BTR_MAX_MARGIN 2500
 /* Threshold to change BTR multiplier (to avoid frequent changes) */
 #define BTR_DRIFT_MARGIN 2000
 /*Threshold to exit fixed refresh rate*/
@@ -122,7 +122,7 @@ static unsigned int calc_v_total_from_refresh(
 		const struct dc_stream_state *stream,
 		unsigned int refresh_in_uhz)
 {
-	unsigned int v_total = stream->timing.v_total;
+	unsigned int v_total;
 	unsigned int frame_duration_in_ns;
 
 	frame_duration_in_ns =
@@ -254,24 +254,22 @@ static void apply_below_the_range(struct core_freesync *core_freesync,
 	unsigned int delta_from_mid_point_in_us_1 = 0xFFFFFFFF;
 	unsigned int delta_from_mid_point_in_us_2 = 0xFFFFFFFF;
 	unsigned int frames_to_insert = 0;
-	unsigned int min_frame_duration_in_ns = 0;
-	unsigned int max_render_time_in_us = in_out_vrr->max_duration_in_us;
 	unsigned int delta_from_mid_point_delta_in_us;
-
-	min_frame_duration_in_ns = ((unsigned int) (div64_u64(
-		(1000000000ULL * 1000000),
-		in_out_vrr->max_refresh_in_uhz)));
+	unsigned int max_render_time_in_us =
+			in_out_vrr->max_duration_in_us - in_out_vrr->btr.margin_in_us;
 
 	/* Program BTR */
-	if (last_render_time_in_us + BTR_EXIT_MARGIN < max_render_time_in_us) {
+	if ((last_render_time_in_us + in_out_vrr->btr.margin_in_us / 2) < max_render_time_in_us) {
 		/* Exit Below the Range */
 		if (in_out_vrr->btr.btr_active) {
 			in_out_vrr->btr.frame_counter = 0;
 			in_out_vrr->btr.btr_active = false;
 		}
-	} else if (last_render_time_in_us > max_render_time_in_us) {
+	} else if (last_render_time_in_us > (max_render_time_in_us + in_out_vrr->btr.margin_in_us / 2)) {
 		/* Enter Below the Range */
-		in_out_vrr->btr.btr_active = true;
+		if (!in_out_vrr->btr.btr_active) {
+			in_out_vrr->btr.btr_active = true;
+		}
 	}
 
 	/* BTR set to "not active" so disengage */
@@ -327,7 +325,9 @@ static void apply_below_the_range(struct core_freesync *core_freesync,
 		/* Choose number of frames to insert based on how close it
 		 * can get to the mid point of the variable range.
 		 */
-		if (delta_from_mid_point_in_us_1 < delta_from_mid_point_in_us_2) {
+		if ((frame_time_in_us / mid_point_frames_ceil) > in_out_vrr->min_duration_in_us &&
+				(delta_from_mid_point_in_us_1 < delta_from_mid_point_in_us_2 ||
+						mid_point_frames_floor < 2)) {
 			frames_to_insert = mid_point_frames_ceil;
 			delta_from_mid_point_delta_in_us = delta_from_mid_point_in_us_2 -
 					delta_from_mid_point_in_us_1;
@@ -343,7 +343,7 @@ static void apply_below_the_range(struct core_freesync *core_freesync,
 		if (in_out_vrr->btr.frames_to_insert != 0 &&
 				delta_from_mid_point_delta_in_us < BTR_DRIFT_MARGIN) {
 			if (((last_render_time_in_us / in_out_vrr->btr.frames_to_insert) <
-					in_out_vrr->max_duration_in_us) &&
+					max_render_time_in_us) &&
 				((last_render_time_in_us / in_out_vrr->btr.frames_to_insert) >
 					in_out_vrr->min_duration_in_us))
 				frames_to_insert = in_out_vrr->btr.frames_to_insert;
@@ -796,6 +796,11 @@ void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
 		refresh_range = in_out_vrr->max_refresh_in_uhz -
 				in_out_vrr->min_refresh_in_uhz;
 
+		in_out_vrr->btr.margin_in_us = in_out_vrr->max_duration_in_us -
+				2 * in_out_vrr->min_duration_in_us;
+		if (in_out_vrr->btr.margin_in_us > BTR_MAX_MARGIN)
+			in_out_vrr->btr.margin_in_us = BTR_MAX_MARGIN;
+
 		in_out_vrr->supported = true;
 	}
 
@@ -811,6 +816,9 @@ void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
 	in_out_vrr->btr.inserted_duration_in_us = 0;
 	in_out_vrr->btr.frames_to_insert = 0;
 	in_out_vrr->btr.frame_counter = 0;
+	in_out_vrr->fixed.fixed_active = false;
+	in_out_vrr->fixed.target_refresh_in_uhz = 0;
+
 	in_out_vrr->btr.mid_point_in_us =
 				(in_out_vrr->min_duration_in_us +
 				 in_out_vrr->max_duration_in_us) / 2;
@@ -826,6 +834,7 @@ void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
 		in_out_vrr->adjust.v_total_max = stream->timing.v_total;
 	} else if (in_out_vrr->state == VRR_STATE_ACTIVE_VARIABLE &&
 			refresh_range >= MIN_REFRESH_RANGE_IN_US) {
+
 		in_out_vrr->adjust.v_total_min =
 			calc_v_total_from_refresh(stream,
 				in_out_vrr->max_refresh_in_uhz);

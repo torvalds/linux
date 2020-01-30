@@ -52,6 +52,9 @@
 #define BIF_MMSCH1_DOORBELL_RANGE__OFFSET_MASK          0x00000FFCL
 #define BIF_MMSCH1_DOORBELL_RANGE__SIZE_MASK            0x001F0000L
 
+static void nbio_v7_4_query_ras_error_count(struct amdgpu_device *adev,
+					void *ras_error_status);
+
 static void nbio_v7_4_remap_hdp_registers(struct amdgpu_device *adev)
 {
 	WREG32_SOC15(NBIO, 0, mmREMAP_HDP_MEM_FLUSH_CNTL,
@@ -314,6 +317,7 @@ static void nbio_v7_4_init_registers(struct amdgpu_device *adev)
 static void nbio_v7_4_handle_ras_controller_intr_no_bifring(struct amdgpu_device *adev)
 {
 	uint32_t bif_doorbell_intr_cntl;
+	struct ras_manager *obj = amdgpu_ras_find_obj(adev, adev->nbio.ras_if);
 
 	bif_doorbell_intr_cntl = RREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL);
 	if (REG_GET_FIELD(bif_doorbell_intr_cntl,
@@ -324,7 +328,18 @@ static void nbio_v7_4_handle_ras_controller_intr_no_bifring(struct amdgpu_device
 						RAS_CNTLR_INTERRUPT_CLEAR, 1);
 		WREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL, bif_doorbell_intr_cntl);
 
-		amdgpu_ras_global_ras_isr(adev);
+		/*
+		 * clear error status after ras_controller_intr according to
+		 * hw team and count ue number for query
+		 */
+		nbio_v7_4_query_ras_error_count(adev, &obj->err_data);
+
+		DRM_WARN("RAS controller interrupt triggered by NBIF error\n");
+
+		/* ras_controller_int is dedicated for nbif ras error,
+		 * not the global interrupt for sync flood
+		 */
+		amdgpu_ras_reset_gpu(adev);
 	}
 }
 
@@ -441,10 +456,8 @@ static int nbio_v7_4_init_ras_controller_interrupt (struct amdgpu_device *adev)
 	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_BIF,
 			      NBIF_7_4__SRCID__RAS_CONTROLLER_INTERRUPT,
 			      &adev->nbio.ras_controller_irq);
-	if (r)
-		return r;
 
-	return 0;
+	return r;
 }
 
 static int nbio_v7_4_init_ras_err_event_athub_interrupt (struct amdgpu_device *adev)
@@ -461,16 +474,16 @@ static int nbio_v7_4_init_ras_err_event_athub_interrupt (struct amdgpu_device *a
 	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_BIF,
 			      NBIF_7_4__SRCID__ERREVENT_ATHUB_INTERRUPT,
 			      &adev->nbio.ras_err_event_athub_irq);
-	if (r)
-		return r;
 
-	return 0;
+	return r;
 }
+
+#define smnPARITY_ERROR_STATUS_UNCORR_GRP2	0x13a20030
 
 static void nbio_v7_4_query_ras_error_count(struct amdgpu_device *adev,
 					void *ras_error_status)
 {
-	uint32_t global_sts, central_sts, int_eoi;
+	uint32_t global_sts, central_sts, int_eoi, parity_sts;
 	uint32_t corr, fatal, non_fatal;
 	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
 
@@ -479,6 +492,7 @@ static void nbio_v7_4_query_ras_error_count(struct amdgpu_device *adev,
 	fatal = REG_GET_FIELD(global_sts, RAS_GLOBAL_STATUS_LO, ParityErrFatal);
 	non_fatal = REG_GET_FIELD(global_sts, RAS_GLOBAL_STATUS_LO,
 				ParityErrNonFatal);
+	parity_sts = RREG32_PCIE(smnPARITY_ERROR_STATUS_UNCORR_GRP2);
 
 	if (corr)
 		err_data->ce_count++;
@@ -489,6 +503,11 @@ static void nbio_v7_4_query_ras_error_count(struct amdgpu_device *adev,
 		central_sts = RREG32_PCIE(smnBIFL_RAS_CENTRAL_STATUS);
 		/* clear error status register */
 		WREG32_PCIE(smnRAS_GLOBAL_STATUS_LO, global_sts);
+
+		if (fatal)
+			/* clear parity fatal error indication field */
+			WREG32_PCIE(smnPARITY_ERROR_STATUS_UNCORR_GRP2,
+				    parity_sts);
 
 		if (REG_GET_FIELD(central_sts, BIFL_RAS_CENTRAL_STATUS,
 				BIFL_RasContller_Intr_Recv)) {

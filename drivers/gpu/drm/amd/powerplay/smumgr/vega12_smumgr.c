@@ -66,7 +66,7 @@ static int vega12_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 			return -EINVAL);
 
 	/* flush hdp cache */
-	adev->nbio.funcs->hdp_flush(adev, NULL);
+	amdgpu_asic_flush_hdp(adev, NULL);
 
 	memcpy(table, priv->smu_tables.entry[table_id].table,
 			priv->smu_tables.entry[table_id].size);
@@ -84,6 +84,7 @@ static int vega12_copy_table_to_smc(struct pp_hwmgr *hwmgr,
 {
 	struct vega12_smumgr *priv =
 			(struct vega12_smumgr *)(hwmgr->smu_backend);
+	struct amdgpu_device *adev = hwmgr->adev;
 
 	PP_ASSERT_WITH_CODE(table_id < TABLE_COUNT,
 			"Invalid SMU Table ID!", return -EINVAL);
@@ -94,6 +95,8 @@ static int vega12_copy_table_to_smc(struct pp_hwmgr *hwmgr,
 
 	memcpy(priv->smu_tables.entry[table_id].table, table,
 			priv->smu_tables.entry[table_id].size);
+
+	amdgpu_asic_flush_hdp(adev, NULL);
 
 	PP_ASSERT_WITH_CODE(smu9_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrHigh,

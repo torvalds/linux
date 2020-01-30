@@ -132,7 +132,7 @@ static int live_noa_delay(void *arg)
 	for (i = 0; i < 4; i++)
 		intel_write_status_page(stream->engine, 0x100 + i, 0);
 
-	rq = i915_request_create(stream->engine->kernel_context);
+	rq = intel_engine_create_kernel_request(stream->engine);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto out;

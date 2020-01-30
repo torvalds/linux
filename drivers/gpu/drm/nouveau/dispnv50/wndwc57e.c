@@ -156,19 +156,21 @@ wndwc57e_ilut_load(struct drm_color_lut *in, int size, void __iomem *mem)
 	writew(readw(mem - 4), mem + 4);
 }
 
-static void
-wndwc57e_ilut(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
+static bool
+wndwc57e_ilut(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw, int size)
 {
-	u16 size = asyw->ilut->length / sizeof(struct drm_color_lut);
+	if (size = size ? size : 1024, size != 256 && size != 1024)
+		return false;
+
 	if (size == 256) {
 		asyw->xlut.i.mode = 1; /* DIRECT8. */
 	} else {
 		asyw->xlut.i.mode = 2; /* DIRECT10. */
-		size = 1024;
 	}
 	asyw->xlut.i.size = 4 /* VSS header. */ + size + 1 /* Entries. */;
 	asyw->xlut.i.output_mode = 0; /* INTERPOLATE_DISABLE. */
 	asyw->xlut.i.load = wndwc57e_ilut_load;
+	return true;
 }
 
 static const struct nv50_wndw_func
@@ -183,6 +185,7 @@ wndwc57e = {
 	.ntfy_wait_begun = base507c_ntfy_wait_begun,
 	.ilut = wndwc57e_ilut,
 	.ilut_identity = true,
+	.ilut_size = 1024,
 	.xlut_set = wndwc57e_ilut_set,
 	.xlut_clr = wndwc57e_ilut_clr,
 	.csc = base907c_csc,

@@ -33,6 +33,14 @@
 #define DF_PIE_AON0_DfGlobalClkGater__MGCGMode__SHIFT							0x0
 #define DF_PIE_AON0_DfGlobalClkGater__MGCGMode_MASK							0x0000000FL
 
+/* DF_CS_UMC_AON0_DfGlobalCtrl */
+#define DF_CS_UMC_AON0_DfGlobalCtrl__GlbHashIntlvCtl64K__SHIFT						0x14
+#define DF_CS_UMC_AON0_DfGlobalCtrl__GlbHashIntlvCtl2M__SHIFT						0x15
+#define DF_CS_UMC_AON0_DfGlobalCtrl__GlbHashIntlvCtl1G__SHIFT						0x16
+#define DF_CS_UMC_AON0_DfGlobalCtrl__GlbHashIntlvCtl64K_MASK						0x00100000L
+#define DF_CS_UMC_AON0_DfGlobalCtrl__GlbHashIntlvCtl2M_MASK						0x00200000L
+#define DF_CS_UMC_AON0_DfGlobalCtrl__GlbHashIntlvCtl1G_MASK						0x00400000L
+
 /* DF_CS_AON0_DramBaseAddress0 */
 #define DF_CS_UMC_AON0_DramBaseAddress0__AddrRngVal__SHIFT						0x0
 #define DF_CS_UMC_AON0_DramBaseAddress0__LgcyMmioHoleEn__SHIFT						0x1

@@ -23,10 +23,10 @@
  */
 
 #include <linux/firmware.h>
-#include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/pci.h>
+#include <linux/slab.h>
 
-#include <drm/drm_pci.h>
 #include <drm/drm_vblank.h>
 
 #include "atom.h"
@@ -8137,7 +8137,7 @@ static void cik_uvd_init(struct radeon_device *rdev)
 		 * there. So it is pointless to try to go through that code
 		 * hence why we disable uvd here.
 		 */
-		rdev->has_uvd = 0;
+		rdev->has_uvd = false;
 		return;
 	}
 	rdev->ring[R600_RING_TYPE_UVD_INDEX].ring_obj = NULL;
@@ -8209,7 +8209,7 @@ static void cik_vce_init(struct radeon_device *rdev)
 		 * there. So it is pointless to try to go through that code
 		 * hence why we disable vce here.
 		 */
-		rdev->has_vce = 0;
+		rdev->has_vce = false;
 		return;
 	}
 	rdev->ring[TN_RING_TYPE_VCE1_INDEX].ring_obj = NULL;

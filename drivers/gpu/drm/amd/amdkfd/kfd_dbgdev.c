@@ -72,11 +72,11 @@ static int dbgdev_diq_submit_ib(struct kfd_dbgdev *dbgdev,
 	 * The receive packet buff will be sitting on the Indirect Buffer
 	 * and in the PQ we put the IB packet + sync packet(s).
 	 */
-	status = kq->ops.acquire_packet_buffer(kq,
+	status = kq_acquire_packet_buffer(kq,
 				pq_packets_size_in_bytes / sizeof(uint32_t),
 				&ib_packet_buff);
 	if (status) {
-		pr_err("acquire_packet_buffer failed\n");
+		pr_err("kq_acquire_packet_buffer failed\n");
 		return status;
 	}
 
@@ -115,7 +115,7 @@ static int dbgdev_diq_submit_ib(struct kfd_dbgdev *dbgdev,
 
 	if (status) {
 		pr_err("Failed to allocate GART memory\n");
-		kq->ops.rollback_packet(kq);
+		kq_rollback_packet(kq);
 		return status;
 	}
 
@@ -151,7 +151,7 @@ static int dbgdev_diq_submit_ib(struct kfd_dbgdev *dbgdev,
 
 	rm_packet->data_lo = QUEUESTATE__ACTIVE;
 
-	kq->ops.submit_packet(kq);
+	kq_submit_packet(kq);
 
 	/* Wait till CP writes sync code: */
 	status = amdkfd_fence_wait_timeout(
@@ -185,7 +185,7 @@ static int dbgdev_register_diq(struct kfd_dbgdev *dbgdev)
 	properties.type = KFD_QUEUE_TYPE_DIQ;
 
 	status = pqm_create_queue(dbgdev->pqm, dbgdev->dev, NULL,
-				&properties, &qid);
+				&properties, &qid, NULL);
 
 	if (status) {
 		pr_err("Failed to create DIQ\n");

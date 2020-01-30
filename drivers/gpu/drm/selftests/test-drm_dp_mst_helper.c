@@ -18,15 +18,19 @@ int igt_dp_mst_calc_pbn_mode(void *ignored)
 		int rate;
 		int bpp;
 		int expected;
+		bool dsc;
 	} test_params[] = {
-		{ 154000, 30, 689 },
-		{ 234000, 30, 1047 },
-		{ 297000, 24, 1063 },
+		{ 154000, 30, 689, false },
+		{ 234000, 30, 1047, false },
+		{ 297000, 24, 1063, false },
+		{ 332880, 24, 50, true },
+		{ 324540, 24, 49, true },
 	};
 
 	for (i = 0; i < ARRAY_SIZE(test_params); i++) {
 		pbn = drm_dp_calc_pbn_mode(test_params[i].rate,
-					   test_params[i].bpp);
+					   test_params[i].bpp,
+					   test_params[i].dsc);
 		FAIL(pbn != test_params[i].expected,
 		     "Expected PBN %d for clock %d bpp %d, got %d\n",
 		     test_params[i].expected, test_params[i].rate,

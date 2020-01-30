@@ -6,6 +6,7 @@
 
 #include "i915_drv.h"
 #include "intel_context.h"
+#include "intel_engine_pm.h"
 #include "intel_gt.h"
 #include "intel_ring.h"
 #include "intel_workarounds.h"
@@ -146,18 +147,24 @@ static void _wa_add(struct i915_wa_list *wal, const struct i915_wa *wa)
 	}
 }
 
-static void
-wa_write_masked_or(struct i915_wa_list *wal, i915_reg_t reg, u32 mask,
-		   u32 val)
+static void wa_add(struct i915_wa_list *wal, i915_reg_t reg, u32 mask,
+		   u32 val, u32 read_mask)
 {
 	struct i915_wa wa = {
 		.reg  = reg,
 		.mask = mask,
 		.val  = val,
-		.read = mask,
+		.read = read_mask,
 	};
 
 	_wa_add(wal, &wa);
+}
+
+static void
+wa_write_masked_or(struct i915_wa_list *wal, i915_reg_t reg, u32 mask,
+		   u32 val)
+{
+	wa_add(wal, reg, mask, val, mask);
 }
 
 static void
@@ -247,7 +254,7 @@ static void bdw_ctx_workarounds_init(struct intel_engine_cs *engine,
 
 	/* WaDisableDopClockGating:bdw
 	 *
-	 * Also see the related UCGTCL1 write in broadwell_init_clock_gating()
+	 * Also see the related UCGTCL1 write in bdw_init_clock_gating()
 	 * to disable EUTC clock gating.
 	 */
 	WA_SET_BIT_MASKED(GEN7_ROW_CHICKEN2,
@@ -568,9 +575,24 @@ static void icl_ctx_workarounds_init(struct intel_engine_cs *engine,
 static void tgl_ctx_workarounds_init(struct intel_engine_cs *engine,
 				     struct i915_wa_list *wal)
 {
+	u32 val;
+
 	/* Wa_1409142259:tgl */
 	WA_SET_BIT_MASKED(GEN11_COMMON_SLICE_CHICKEN3,
 			  GEN12_DISABLE_CPS_AWARE_COLOR_PIPE);
+
+	/* Wa_1604555607:tgl */
+	val = intel_uncore_read(engine->uncore, FF_MODE2);
+	val &= ~FF_MODE2_TDS_TIMER_MASK;
+	val |= FF_MODE2_TDS_TIMER_128;
+	/*
+	 * FIXME: FF_MODE2 register is not readable till TGL B0. We can
+	 * enable verification of WA from the later steppings, which enables
+	 * the read of FF_MODE2.
+	 */
+	wa_add(wal, FF_MODE2, FF_MODE2_TDS_TIMER_MASK, val,
+	       IS_TGL_REVID(engine->i915, TGL_REVID_A0, TGL_REVID_A0) ? 0 :
+			    FF_MODE2_TDS_TIMER_MASK);
 }
 
 static void
@@ -1315,6 +1337,14 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 			     GEN6_RC_SLEEP_PSMI_CONTROL,
 			     GEN12_WAIT_FOR_EVENT_POWER_DOWN_DISABLE |
 			     GEN8_RC_SEMA_IDLE_MSG_DISABLE);
+
+		/*
+		 * Wa_1606679103:tgl
+		 * (see also Wa_1606682166:icl)
+		 */
+		wa_write_or(wal,
+			    GEN7_SARCHKMD,
+			    GEN7_DISABLE_SAMPLER_PREFETCH);
 	}
 
 	if (IS_GEN(i915, 11)) {
@@ -1574,7 +1604,9 @@ static int engine_wa_list_verify(struct intel_context *ce,
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 
+	intel_engine_pm_get(ce->engine);
 	rq = intel_context_create_request(ce);
+	intel_engine_pm_put(ce->engine);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto err_vma;
@@ -1584,16 +1616,17 @@ static int engine_wa_list_verify(struct intel_context *ce,
 	if (err)
 		goto err_vma;
 
+	i915_request_get(rq);
 	i915_request_add(rq);
 	if (i915_request_wait(rq, 0, HZ / 5) < 0) {
 		err = -ETIME;
-		goto err_vma;
+		goto err_rq;
 	}
 
 	results = i915_gem_object_pin_map(vma->obj, I915_MAP_WB);
 	if (IS_ERR(results)) {
 		err = PTR_ERR(results);
-		goto err_vma;
+		goto err_rq;
 	}
 
 	err = 0;
@@ -1607,6 +1640,8 @@ static int engine_wa_list_verify(struct intel_context *ce,
 
 	i915_gem_object_unpin_map(vma->obj);
 
+err_rq:
+	i915_request_put(rq);
 err_vma:
 	i915_vma_unpin(vma);
 	i915_vma_put(vma);

@@ -13,7 +13,7 @@
 
 void i915_gem_suspend(struct drm_i915_private *i915)
 {
-	GEM_TRACE("\n");
+	GEM_TRACE("%s\n", dev_name(i915->drm.dev));
 
 	intel_wakeref_auto(&i915->ggtt.userfault_wakeref, 0);
 	flush_workqueue(i915->wq);
@@ -99,30 +99,12 @@ void i915_gem_suspend_late(struct drm_i915_private *i915)
 
 void i915_gem_resume(struct drm_i915_private *i915)
 {
-	GEM_TRACE("\n");
-
-	intel_uncore_forcewake_get(&i915->uncore, FORCEWAKE_ALL);
-
-	if (intel_gt_init_hw(&i915->gt))
-		goto err_wedged;
+	GEM_TRACE("%s\n", dev_name(i915->drm.dev));
 
 	/*
 	 * As we didn't flush the kernel context before suspend, we cannot
 	 * guarantee that the context image is complete. So let's just reset
 	 * it and start again.
 	 */
-	if (intel_gt_resume(&i915->gt))
-		goto err_wedged;
-
-out_unlock:
-	intel_uncore_forcewake_put(&i915->uncore, FORCEWAKE_ALL);
-	return;
-
-err_wedged:
-	if (!intel_gt_is_wedged(&i915->gt)) {
-		dev_err(i915->drm.dev,
-			"Failed to re-initialize GPU, declaring it wedged!\n");
-		intel_gt_set_wedged(&i915->gt);
-	}
-	goto out_unlock;
+	intel_gt_resume(&i915->gt);
 }

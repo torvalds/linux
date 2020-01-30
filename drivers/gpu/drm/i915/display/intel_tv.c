@@ -898,7 +898,7 @@ static struct intel_tv *enc_to_tv(struct intel_encoder *encoder)
 	return container_of(encoder, struct intel_tv, base);
 }
 
-static struct intel_tv *intel_attached_tv(struct drm_connector *connector)
+static struct intel_tv *intel_attached_tv(struct intel_connector *connector)
 {
 	return enc_to_tv(intel_attached_encoder(connector));
 }
@@ -924,7 +924,7 @@ intel_enable_tv(struct intel_encoder *encoder,
 
 	/* Prevents vblank waits from timing out in intel_tv_detect_type() */
 	intel_wait_for_vblank(dev_priv,
-			      to_intel_crtc(pipe_config->base.crtc)->pipe);
+			      to_intel_crtc(pipe_config->uapi.crtc)->pipe);
 
 	I915_WRITE(TV_CTL, I915_READ(TV_CTL) | TV_ENC_ENABLE);
 }
@@ -1085,7 +1085,7 @@ intel_tv_get_config(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct drm_display_mode *adjusted_mode =
-		&pipe_config->base.adjusted_mode;
+		&pipe_config->hw.adjusted_mode;
 	struct drm_display_mode mode = {};
 	u32 tv_ctl, hctl1, hctl3, vctl1, vctl2, tmp;
 	struct tv_mode tv_mode = {};
@@ -1188,7 +1188,7 @@ intel_tv_compute_config(struct intel_encoder *encoder,
 		to_intel_tv_connector_state(conn_state);
 	const struct tv_mode *tv_mode = intel_tv_mode_find(conn_state);
 	struct drm_display_mode *adjusted_mode =
-		&pipe_config->base.adjusted_mode;
+		&pipe_config->hw.adjusted_mode;
 	int hdisplay = adjusted_mode->crtc_hdisplay;
 	int vdisplay = adjusted_mode->crtc_vdisplay;
 
@@ -1417,7 +1417,7 @@ static void intel_tv_pre_enable(struct intel_encoder *encoder,
 				const struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(pipe_config->base.crtc);
+	struct intel_crtc *intel_crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	struct intel_tv *intel_tv = enc_to_tv(encoder);
 	const struct intel_tv_connector_state *tv_conn_state =
 		to_intel_tv_connector_state(conn_state);
@@ -1527,7 +1527,7 @@ static void intel_tv_pre_enable(struct intel_encoder *encoder,
 			   ((video_levels->black << TV_BLACK_LEVEL_SHIFT) |
 			    (video_levels->blank << TV_BLANK_LEVEL_SHIFT)));
 
-	assert_pipe_disabled(dev_priv, intel_crtc->pipe);
+	assert_pipe_disabled(dev_priv, pipe_config->cpu_transcoder);
 
 	/* Filter ctl must be set before TV_WIN_SIZE */
 	tv_filter_ctl = TV_AUTO_SCALE;
@@ -1662,7 +1662,7 @@ intel_tv_detect_type(struct intel_tv *intel_tv,
  */
 static void intel_tv_find_better_format(struct drm_connector *connector)
 {
-	struct intel_tv *intel_tv = intel_attached_tv(connector);
+	struct intel_tv *intel_tv = intel_attached_tv(to_intel_connector(connector));
 	const struct tv_mode *tv_mode = intel_tv_mode_find(connector->state);
 	int i;
 
@@ -1689,7 +1689,7 @@ intel_tv_detect(struct drm_connector *connector,
 		struct drm_modeset_acquire_ctx *ctx,
 		bool force)
 {
-	struct intel_tv *intel_tv = intel_attached_tv(connector);
+	struct intel_tv *intel_tv = intel_attached_tv(to_intel_connector(connector));
 	enum drm_connector_status status;
 	int type;
 

@@ -54,6 +54,9 @@ config DRM_DEBUG_MM
 
 	  If in doubt, say "N".
 
+config DRM_EXPORT_FOR_TESTS
+	bool
+
 config DRM_DEBUG_SELFTEST
 	tristate "kselftests for DRM"
 	depends on DRM
@@ -61,6 +64,7 @@ config DRM_DEBUG_SELFTEST
 	select PRIME_NUMBERS
 	select DRM_LIB_RANDOM
 	select DRM_KMS_HELPER
+	select DRM_EXPORT_FOR_TESTS if m
 	default n
 	help
 	  This option provides kernel modules that can be used to run
@@ -164,6 +168,7 @@ config DRM_LOAD_EDID_FIRMWARE
 
 config DRM_DP_CEC
 	bool "Enable DisplayPort CEC-Tunneling-over-AUX HDMI support"
+	depends on DRM
 	select CEC_CORE
 	help
 	  Choose this option if you want to enable HDMI CEC support for
@@ -294,9 +299,6 @@ config DRM_VKMS
 
 	  If M is selected the module will be called vkms.
 
-config DRM_ATI_PCIGART
-        bool
-
 source "drivers/gpu/drm/exynos/Kconfig"
 
 source "drivers/gpu/drm/rockchip/Kconfig"
@@ -393,7 +395,6 @@ menuconfig DRM_LEGACY
 	bool "Enable legacy drivers (DANGEROUS)"
 	depends on DRM && MMU
 	select DRM_VM
-	select DRM_ATI_PCIGART if PCI
 	help
 	  Enable legacy DRI1 drivers. Those drivers expose unsafe and dangerous
 	  APIs to user-space, which can be used to circumvent access

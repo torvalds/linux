@@ -341,7 +341,7 @@ static int sh7760fb_set_par(struct fb_info *info)
 	return 0;
 }
 
-static struct fb_ops sh7760fb_ops = {
+static const struct fb_ops sh7760fb_ops = {
 	.owner = THIS_MODULE,
 	.fb_blank = sh7760fb_blank,
 	.fb_check_var = sh7760fb_check_var,

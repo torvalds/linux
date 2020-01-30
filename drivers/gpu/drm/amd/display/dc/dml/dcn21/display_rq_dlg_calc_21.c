@@ -23,7 +23,6 @@
  *
  */
 
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 
 #include "../display_mode_lib.h"
 #include "../display_mode_vba.h"
@@ -83,10 +82,10 @@ static unsigned int get_bytes_per_element(enum source_format_class source_format
 
 static bool is_dual_plane(enum source_format_class source_format)
 {
-	bool ret_val = 0;
+	bool ret_val = false;
 
 	if ((source_format == dm_420_8) || (source_format == dm_420_10))
-		ret_val = 1;
+		ret_val = true;
 
 	return ret_val;
 }
@@ -223,8 +222,8 @@ static void handle_det_buf_split(
 	unsigned int swath_bytes_c = 0;
 	unsigned int full_swath_bytes_packed_l = 0;
 	unsigned int full_swath_bytes_packed_c = 0;
-	bool req128_l = 0;
-	bool req128_c = 0;
+	bool req128_l = false;
+	bool req128_c = false;
 	bool surf_linear = (pipe_src_param.sw_mode == dm_sw_linear);
 	bool surf_vert = (pipe_src_param.source_scan == dm_vert);
 	unsigned int log2_swath_height_l = 0;
@@ -249,13 +248,13 @@ static void handle_det_buf_split(
 		total_swath_bytes = 2 * full_swath_bytes_packed_l + 2 * full_swath_bytes_packed_c;
 
 		if (total_swath_bytes <= detile_buf_size_in_bytes) { //full 256b request
-			req128_l = 0;
-			req128_c = 0;
+			req128_l = false;
+			req128_c = false;
 			swath_bytes_l = full_swath_bytes_packed_l;
 			swath_bytes_c = full_swath_bytes_packed_c;
 		} else { //128b request (for luma only for yuv420 8bpc)
-			req128_l = 1;
-			req128_c = 0;
+			req128_l = true;
+			req128_c = false;
 			swath_bytes_l = full_swath_bytes_packed_l / 2;
 			swath_bytes_c = full_swath_bytes_packed_c;
 		}
@@ -265,9 +264,9 @@ static void handle_det_buf_split(
 		total_swath_bytes = 2 * full_swath_bytes_packed_l;
 
 		if (total_swath_bytes <= detile_buf_size_in_bytes)
-			req128_l = 0;
+			req128_l = false;
 		else
-			req128_l = 1;
+			req128_l = true;
 
 		swath_bytes_l = total_swath_bytes;
 		swath_bytes_c = 0;
@@ -680,7 +679,7 @@ static void get_surf_rq_param(
 		const display_pipe_params_st pipe_param,
 		bool is_chroma)
 {
-	bool mode_422 = 0;
+	bool mode_422 = false;
 	unsigned int vp_width = 0;
 	unsigned int vp_height = 0;
 	unsigned int data_pitch = 0;
@@ -1011,7 +1010,7 @@ static void dml_rq_dlg_get_dlg_params(
 	// Source
 	//             dcc_en              = src.dcc;
 	dual_plane = is_dual_plane((enum source_format_class) (src->source_format));
-	mode_422 = 0; // FIXME
+	mode_422 = false; // FIXME
 	access_dir = (src->source_scan == dm_vert); // vp access direction: horizontal or vertical accessed
 						    //      bytes_per_element_l = get_bytes_per_element(source_format_class(src.source_format), 0);
 						    //      bytes_per_element_c = get_bytes_per_element(source_format_class(src.source_format), 1);
@@ -1523,8 +1522,8 @@ static void dml_rq_dlg_get_dlg_params(
 
 	disp_dlg_regs->refcyc_per_vm_group_vblank   = get_refcyc_per_vm_group_vblank(mode_lib, e2e_pipe_param, num_pipes, pipe_idx) * refclk_freq_in_mhz;
 	disp_dlg_regs->refcyc_per_vm_group_flip     = get_refcyc_per_vm_group_flip(mode_lib, e2e_pipe_param, num_pipes, pipe_idx) * refclk_freq_in_mhz;
-	disp_dlg_regs->refcyc_per_vm_req_vblank     = get_refcyc_per_vm_req_vblank(mode_lib, e2e_pipe_param, num_pipes, pipe_idx) * refclk_freq_in_mhz;;
-	disp_dlg_regs->refcyc_per_vm_req_flip       = get_refcyc_per_vm_req_flip(mode_lib, e2e_pipe_param, num_pipes, pipe_idx) * refclk_freq_in_mhz;;
+	disp_dlg_regs->refcyc_per_vm_req_vblank     = get_refcyc_per_vm_req_vblank(mode_lib, e2e_pipe_param, num_pipes, pipe_idx) * refclk_freq_in_mhz;
+	disp_dlg_regs->refcyc_per_vm_req_flip       = get_refcyc_per_vm_req_flip(mode_lib, e2e_pipe_param, num_pipes, pipe_idx) * refclk_freq_in_mhz;
 
 	// Clamp to max for now
 	if (disp_dlg_regs->refcyc_per_vm_group_vblank >= (unsigned int)dml_pow(2, 23))
@@ -1820,4 +1819,3 @@ static void calculate_ttu_cursor(
 	}
 }
 
-#endif

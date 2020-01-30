@@ -526,15 +526,11 @@ panfrost_postclose(struct drm_device *dev, struct drm_file *file)
 	kfree(panfrost_priv);
 }
 
-/* DRM_AUTH is required on SUBMIT for now, while all clients share a single
- * address space.  Note that render nodes would be able to submit jobs that
- * could access BOs from clients authenticated with the master node.
- */
 static const struct drm_ioctl_desc panfrost_drm_driver_ioctls[] = {
 #define PANFROST_IOCTL(n, func, flags) \
 	DRM_IOCTL_DEF_DRV(PANFROST_##n, panfrost_ioctl_##func, flags)
 
-	PANFROST_IOCTL(SUBMIT,		submit,		DRM_RENDER_ALLOW | DRM_AUTH),
+	PANFROST_IOCTL(SUBMIT,		submit,		DRM_RENDER_ALLOW),
 	PANFROST_IOCTL(WAIT_BO,		wait_bo,	DRM_RENDER_ALLOW),
 	PANFROST_IOCTL(CREATE_BO,	create_bo,	DRM_RENDER_ALLOW),
 	PANFROST_IOCTL(MMAP_BO,		mmap_bo,	DRM_RENDER_ALLOW),

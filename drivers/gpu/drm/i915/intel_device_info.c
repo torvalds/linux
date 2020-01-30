@@ -73,9 +73,30 @@ const char *intel_platform_name(enum intel_platform platform)
 	return platform_names[platform];
 }
 
-void intel_device_info_dump_flags(const struct intel_device_info *info,
-				  struct drm_printer *p)
+static const char *iommu_name(void)
 {
+	const char *msg = "n/a";
+
+#ifdef CONFIG_INTEL_IOMMU
+	msg = enableddisabled(intel_iommu_gfx_mapped);
+#endif
+
+	return msg;
+}
+
+void intel_device_info_print_static(const struct intel_device_info *info,
+				    struct drm_printer *p)
+{
+	drm_printf(p, "engines: %x\n", info->engine_mask);
+	drm_printf(p, "gen: %d\n", info->gen);
+	drm_printf(p, "gt: %d\n", info->gt);
+	drm_printf(p, "iommu: %s\n", iommu_name());
+	drm_printf(p, "memory-regions: %x\n", info->memory_regions);
+	drm_printf(p, "page-sizes: %x\n", info->page_sizes);
+	drm_printf(p, "platform: %s\n", intel_platform_name(info->platform));
+	drm_printf(p, "ppgtt-size: %d\n", info->ppgtt_size);
+	drm_printf(p, "ppgtt-type: %d\n", info->ppgtt_type);
+
 #define PRINT_FLAG(name) drm_printf(p, "%s: %s\n", #name, yesno(info->name));
 	DEV_INFO_FOR_EACH_FLAG(PRINT_FLAG);
 #undef PRINT_FLAG
@@ -106,8 +127,8 @@ static void sseu_dump(const struct sseu_dev_info *sseu, struct drm_printer *p)
 	drm_printf(p, "has EU power gating: %s\n", yesno(sseu->has_eu_pg));
 }
 
-void intel_device_info_dump_runtime(const struct intel_runtime_info *info,
-				    struct drm_printer *p)
+void intel_device_info_print_runtime(const struct intel_runtime_info *info,
+				     struct drm_printer *p)
 {
 	sseu_dump(&info->sseu, p);
 
@@ -148,8 +169,8 @@ static void sseu_set_eus(struct sseu_dev_info *sseu, int slice, int subslice,
 	}
 }
 
-void intel_device_info_dump_topology(const struct sseu_dev_info *sseu,
-				     struct drm_printer *p)
+void intel_device_info_print_topology(const struct sseu_dev_info *sseu,
+				      struct drm_printer *p)
 {
 	int s, ss;
 
@@ -498,7 +519,7 @@ static void gen9_sseu_info_init(struct drm_i915_private *dev_priv)
 	}
 }
 
-static void broadwell_sseu_info_init(struct drm_i915_private *dev_priv)
+static void bdw_sseu_info_init(struct drm_i915_private *dev_priv)
 {
 	struct sseu_dev_info *sseu = &RUNTIME_INFO(dev_priv)->sseu;
 	int s, ss;
@@ -579,7 +600,7 @@ static void broadwell_sseu_info_init(struct drm_i915_private *dev_priv)
 	sseu->has_eu_pg = 0;
 }
 
-static void haswell_sseu_info_init(struct drm_i915_private *dev_priv)
+static void hsw_sseu_info_init(struct drm_i915_private *dev_priv)
 {
 	struct sseu_dev_info *sseu = &RUNTIME_INFO(dev_priv)->sseu;
 	u32 fuse1;
@@ -808,6 +829,8 @@ static const u16 subplatform_ult_ids[] = {
 	INTEL_WHL_U_GT1_IDS(0),
 	INTEL_WHL_U_GT2_IDS(0),
 	INTEL_WHL_U_GT3_IDS(0),
+	INTEL_CML_U_GT1_IDS(0),
+	INTEL_CML_U_GT2_IDS(0),
 };
 
 static const u16 subplatform_ulx_ids[] = {
@@ -998,11 +1021,11 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 
 	/* Initialize slice/subslice/EU info */
 	if (IS_HASWELL(dev_priv))
-		haswell_sseu_info_init(dev_priv);
+		hsw_sseu_info_init(dev_priv);
 	else if (IS_CHERRYVIEW(dev_priv))
 		cherryview_sseu_info_init(dev_priv);
 	else if (IS_BROADWELL(dev_priv))
-		broadwell_sseu_info_init(dev_priv);
+		bdw_sseu_info_init(dev_priv);
 	else if (IS_GEN(dev_priv, 9))
 		gen9_sseu_info_init(dev_priv);
 	else if (IS_GEN(dev_priv, 10))
@@ -1070,7 +1093,7 @@ void intel_device_info_init_mmio(struct drm_i915_private *dev_priv)
 		 * hooked up to an SFC (Scaler & Format Converter) unit.
 		 * In TGL each VDBOX has access to an SFC.
 		 */
-		if (IS_TIGERLAKE(dev_priv) || logical_vdbox++ % 2 == 0)
+		if (INTEL_GEN(dev_priv) >= 12 || logical_vdbox++ % 2 == 0)
 			RUNTIME_INFO(dev_priv)->vdbox_sfc_access |= BIT(i);
 	}
 	DRM_DEBUG_DRIVER("vdbox enable: %04x, instances: %04lx\n",

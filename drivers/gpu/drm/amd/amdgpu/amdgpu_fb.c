@@ -69,7 +69,7 @@ amdgpufb_release(struct fb_info *info, int user)
 	return 0;
 }
 
-static struct fb_ops amdgpufb_ops = {
+static const struct fb_ops amdgpufb_ops = {
 	.owner = THIS_MODULE,
 	DRM_FB_HELPER_DEFAULT_OPS,
 	.fb_open = amdgpufb_open,
