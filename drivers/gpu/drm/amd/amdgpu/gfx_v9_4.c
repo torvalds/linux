@@ -964,7 +964,7 @@ int gfx_v9_4_ras_error_inject(struct amdgpu_device *adev, void *inject_if)
 	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__GFX))
 		return -EINVAL;
 
-	block_info.block_id = info->head.block;
+	block_info.block_id = amdgpu_ras_block_to_ta(info->head.block);
 	block_info.sub_block_index = info->head.sub_block_index;
 	block_info.inject_error_type = amdgpu_ras_error_to_ta(info->head.type);
 	block_info.address = info->address;
