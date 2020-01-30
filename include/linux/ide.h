@@ -945,6 +945,10 @@ ide_devset_get(_name, _field); \
 ide_devset_set(_name, _field); \
 IDE_DEVSET(_name, DS_SYNC, get_##_name, set_##_name)
 
+#define ide_devset_ro_field(_name, _field) \
+ide_devset_get(_name, _field); \
+IDE_DEVSET(_name, 0, get_##_name, NULL)
+
 #define ide_devset_rw_flag(_name, _field) \
 ide_devset_get_flag(_name, _field); \
 ide_devset_set_flag(_name, _field); \
