@@ -92,6 +92,15 @@ MODULE_DEVICE_TABLE(usb, combined_id_table);
 #define F81534A_TRIGGER_MULTIPLE_4X	BIT(3)
 #define F81534A_FIFO_128BYTE		(BIT(1) | BIT(0))
 
+/* Serial port self GPIO control, 2bytes [control&output data][input data] */
+#define F81534A_GPIO_REG		0x10e
+#define F81534A_GPIO_MODE2_DIR		BIT(6) /* 1: input, 0: output */
+#define F81534A_GPIO_MODE1_DIR		BIT(5)
+#define F81534A_GPIO_MODE0_DIR		BIT(4)
+#define F81534A_GPIO_MODE2_OUTPUT	BIT(2)
+#define F81534A_GPIO_MODE1_OUTPUT	BIT(1)
+#define F81534A_GPIO_MODE0_OUTPUT	BIT(0)
+
 struct f81232_private {
 	struct mutex lock;
 	u8 modem_control;
@@ -859,6 +868,19 @@ static int f81232_port_probe(struct usb_serial_port *port)
 	return 0;
 }
 
+static int f81534a_port_probe(struct usb_serial_port *port)
+{
+	int status;
+
+	/* tri-state with pull-high, default RS232 Mode */
+	status = f81232_set_register(port, F81534A_GPIO_REG,
+					F81534A_GPIO_MODE2_DIR);
+	if (status)
+		return status;
+
+	return f81232_port_probe(port);
+}
+
 static int f81232_suspend(struct usb_serial *serial, pm_message_t message)
 {
 	struct usb_serial_port *port = serial->port[0];
@@ -942,7 +964,7 @@ static struct usb_serial_driver f81534a_device = {
 	.tx_empty =		f81232_tx_empty,
 	.process_read_urb =	f81534a_process_read_urb,
 	.read_int_callback =	f81232_read_int_callback,
-	.port_probe =		f81232_port_probe,
+	.port_probe =		f81534a_port_probe,
 	.suspend =		f81232_suspend,
 	.resume =		f81232_resume,
 };
