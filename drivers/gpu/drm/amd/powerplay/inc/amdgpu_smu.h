@@ -565,6 +565,7 @@ struct pptable_funcs {
 	int (*set_soft_freq_limited_range)(struct smu_context *smu, enum smu_clk_type clk_type, uint32_t min, uint32_t max);
 	int (*override_pcie_parameters)(struct smu_context *smu);
 	uint32_t (*get_pptable_power_limit)(struct smu_context *smu);
+	int (*disable_umc_cdr_12gbps_workaround)(struct smu_context *smu);
 };
 
 int smu_load_microcode(struct smu_context *smu);

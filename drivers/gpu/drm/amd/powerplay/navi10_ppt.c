@@ -119,6 +119,8 @@ static struct smu_11_0_cmn2aisc_mapping navi10_message_map[SMU_MSG_MAX_COUNT] = 
 	MSG_MAP(PowerDownJpeg,		PPSMC_MSG_PowerDownJpeg),
 	MSG_MAP(BacoAudioD3PME,		PPSMC_MSG_BacoAudioD3PME),
 	MSG_MAP(ArmD3,			PPSMC_MSG_ArmD3),
+	MSG_MAP(DAL_DISABLE_DUMMY_PSTATE_CHANGE,PPSMC_MSG_DALDisableDummyPstateChange),
+	MSG_MAP(DAL_ENABLE_DUMMY_PSTATE_CHANGE,	PPSMC_MSG_DALEnableDummyPstateChange),
 };
 
 static struct smu_11_0_cmn2aisc_mapping navi10_clk_map[SMU_CLK_COUNT] = {
@@ -2093,6 +2095,61 @@ static int navi10_run_btc(struct smu_context *smu)
 	return ret;
 }
 
+static int navi10_dummy_pstate_control(struct smu_context *smu, bool enable)
+{
+	int result = 0;
+
+	if (!enable)
+		result = smu_send_smc_msg(smu, SMU_MSG_DAL_DISABLE_DUMMY_PSTATE_CHANGE);
+	else
+		result = smu_send_smc_msg(smu, SMU_MSG_DAL_ENABLE_DUMMY_PSTATE_CHANGE);
+
+	return result;
+}
+
+static int navi10_disable_umc_cdr_12gbps_workaround(struct smu_context *smu)
+{
+	uint32_t uclk_count, uclk_min, uclk_max;
+	uint32_t smu_version;
+	int ret = 0;
+
+	ret = smu_get_smc_version(smu, NULL, &smu_version);
+	if (ret)
+		return ret;
+
+	/* This workaround is available only for 42.50 or later SMC firmwares */
+	if (smu_version < 0x2A3200)
+		return 0;
+
+	ret = smu_get_dpm_level_count(smu, SMU_UCLK, &uclk_count);
+	if (ret)
+		return ret;
+
+	ret = smu_get_dpm_freq_by_index(smu, SMU_UCLK, (uint16_t)0, &uclk_min);
+	if (ret)
+		return ret;
+
+	ret = smu_get_dpm_freq_by_index(smu, SMU_UCLK, (uint16_t)(uclk_count - 1), &uclk_max);
+	if (ret)
+		return ret;
+
+	/* Force UCLK out of the highest DPM */
+	ret = smu_set_hard_freq_range(smu, SMU_UCLK, 0, uclk_min);
+	if (ret)
+		return ret;
+
+	/* Revert the UCLK Hardmax */
+	ret = smu_set_hard_freq_range(smu, SMU_UCLK, 0, uclk_max);
+	if (ret)
+		return ret;
+
+	/*
+	 * In this case, SMU already disabled dummy pstate during enablement
+	 * of UCLK DPM, we have to re-enabled it.
+	 * */
+	return navi10_dummy_pstate_control(smu, true);
+}
+
 static const struct pptable_funcs navi10_ppt_funcs = {
 	.tables_init = navi10_tables_init,
 	.alloc_dpm_context = navi10_allocate_dpm_context,
@@ -2187,6 +2244,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.od_edit_dpm_table = navi10_od_edit_dpm_table,
 	.get_pptable_power_limit = navi10_get_pptable_power_limit,
 	.run_btc = navi10_run_btc,
+	.disable_umc_cdr_12gbps_workaround = navi10_disable_umc_cdr_12gbps_workaround,
 };
 
 void navi10_set_ppt_funcs(struct smu_context *smu)
