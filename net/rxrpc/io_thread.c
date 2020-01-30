@@ -447,11 +447,6 @@ int rxrpc_io_thread(void *data)
 			continue;
 		}
 
-		if (!list_empty(&local->ack_tx_queue)) {
-			rxrpc_transmit_ack_packets(local);
-			continue;
-		}
-
 		/* Process received packets and errors. */
 		if ((skb = __skb_dequeue(&rx_queue))) {
 			switch (skb->mark) {

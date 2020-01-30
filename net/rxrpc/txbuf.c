@@ -26,7 +26,6 @@ struct rxrpc_txbuf *rxrpc_alloc_txbuf(struct rxrpc_call *call, u8 packet_type,
 		INIT_LIST_HEAD(&txb->call_link);
 		INIT_LIST_HEAD(&txb->tx_link);
 		refcount_set(&txb->ref, 1);
-		txb->call		= call;
 		txb->call_debug_id	= call->debug_id;
 		txb->debug_id		= atomic_inc_return(&rxrpc_txbuf_debug_ids);
 		txb->space		= sizeof(txb->data);

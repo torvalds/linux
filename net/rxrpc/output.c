@@ -203,12 +203,11 @@ static void rxrpc_cancel_rtt_probe(struct rxrpc_call *call,
 }
 
 /*
- * Send an ACK call packet.
+ * Transmit an ACK packet.
  */
-static int rxrpc_send_ack_packet(struct rxrpc_local *local, struct rxrpc_txbuf *txb)
+int rxrpc_send_ack_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 {
 	struct rxrpc_connection *conn;
-	struct rxrpc_call *call = txb->call;
 	struct msghdr msg;
 	struct kvec iov[1];
 	rxrpc_serial_t serial;
@@ -269,43 +268,6 @@ static int rxrpc_send_ack_packet(struct rxrpc_local *local, struct rxrpc_txbuf *
 	}
 
 	return ret;
-}
-
-/*
- * ACK transmitter for a local endpoint.  The UDP socket locks around each
- * transmission, so we can only transmit one packet at a time, ACK, DATA or
- * otherwise.
- */
-void rxrpc_transmit_ack_packets(struct rxrpc_local *local)
-{
-	LIST_HEAD(queue);
-	int ret;
-
-	rxrpc_see_local(local, rxrpc_local_see_tx_ack);
-
-	if (list_empty(&local->ack_tx_queue))
-		return;
-
-	spin_lock(&local->ack_tx_lock);
-	list_splice_tail_init(&local->ack_tx_queue, &queue);
-	spin_unlock(&local->ack_tx_lock);
-
-	while (!list_empty(&queue)) {
-		struct rxrpc_txbuf *txb =
-			list_entry(queue.next, struct rxrpc_txbuf, tx_link);
-
-		ret = rxrpc_send_ack_packet(local, txb);
-		if (ret < 0 && ret != -ECONNRESET) {
-			spin_lock(&local->ack_tx_lock);
-			list_splice_init(&queue, &local->ack_tx_queue);
-			spin_unlock(&local->ack_tx_lock);
-			break;
-		}
-
-		list_del_init(&txb->tx_link);
-		rxrpc_put_call(txb->call, rxrpc_call_put_send_ack);
-		rxrpc_put_txbuf(txb, rxrpc_txbuf_put_ack_tx);
-	}
 }
 
 /*

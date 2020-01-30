@@ -276,8 +276,6 @@ reload:
 		rxrpc_see_txbuf(txb, rxrpc_txbuf_see_send_more);
 
 	do {
-		rxrpc_transmit_ack_packets(call->peer->local);
-
 		if (!txb) {
 			size_t remain, bufsize, chunk, offset;
 
