@@ -778,7 +778,6 @@ void apply_ctx_interdependent_lock(struct dc *dc, struct dc_state *context, stru
 				if (!pipe_ctx->top_pipe &&
 					(pipe_ctx->plane_state || old_pipe_ctx->plane_state))
 					dc->hwss.pipe_control_lock(dc, pipe_ctx, lock);
-				break;
 			}
 		}
 	}
