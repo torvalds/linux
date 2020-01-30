@@ -574,6 +574,7 @@ static int nf_flow_offload_tuple(struct nf_flowtable *flowtable,
 				 struct nf_flow_rule *flow_rule,
 				 enum flow_offload_tuple_dir dir,
 				 int priority, int cmd,
+				 struct flow_stats *stats,
 				 struct list_head *block_cb_list)
 {
 	struct flow_cls_offload cls_flow = {};
@@ -598,6 +599,9 @@ static int nf_flow_offload_tuple(struct nf_flowtable *flowtable,
 	}
 	mutex_unlock(&flowtable->flow_block_lock);
 
+	if (cmd == FLOW_CLS_STATS)
+		memcpy(stats, &cls_flow.stats, sizeof(*stats));
+
 	return i;
 }
 
@@ -607,7 +611,7 @@ static int flow_offload_tuple_add(struct flow_offload_work *offload,
 {
 	return nf_flow_offload_tuple(offload->flowtable, offload->flow,
 				     flow_rule, dir, offload->priority,
-				     FLOW_CLS_REPLACE,
+				     FLOW_CLS_REPLACE, NULL,
 				     &offload->flowtable->flow_block.cb_list);
 }
 
@@ -615,7 +619,7 @@ static void flow_offload_tuple_del(struct flow_offload_work *offload,
 				   enum flow_offload_tuple_dir dir)
 {
 	nf_flow_offload_tuple(offload->flowtable, offload->flow, NULL, dir,
-			      offload->priority, FLOW_CLS_DESTROY,
+			      offload->priority, FLOW_CLS_DESTROY, NULL,
 			      &offload->flowtable->flow_block.cb_list);
 }
 
@@ -661,21 +665,9 @@ static void flow_offload_tuple_stats(struct flow_offload_work *offload,
 				     enum flow_offload_tuple_dir dir,
 				     struct flow_stats *stats)
 {
-	struct nf_flowtable *flowtable = offload->flowtable;
-	struct flow_cls_offload cls_flow = {};
-	struct flow_block_cb *block_cb;
-	struct netlink_ext_ack extack;
-	__be16 proto = ETH_P_ALL;
-
-	nf_flow_offload_init(&cls_flow, proto, offload->priority,
-			     FLOW_CLS_STATS,
-			     &offload->flow->tuplehash[dir].tuple, &extack);
-
-	mutex_lock(&flowtable->flow_block_lock);
-	list_for_each_entry(block_cb, &flowtable->flow_block.cb_list, list)
-		block_cb->cb(TC_SETUP_CLSFLOWER, &cls_flow, block_cb->cb_priv);
-	mutex_unlock(&flowtable->flow_block_lock);
-	memcpy(stats, &cls_flow.stats, sizeof(*stats));
+	nf_flow_offload_tuple(offload->flowtable, offload->flow, NULL, dir,
+			      offload->priority, FLOW_CLS_STATS, stats,
+			      &offload->flowtable->flow_block.cb_list);
 }
 
 static void flow_offload_work_stats(struct flow_offload_work *offload)
