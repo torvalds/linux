@@ -527,7 +527,6 @@ static int pin_ggtt_status_page(struct intel_engine_cs *engine,
 {
 	unsigned int flags;
 
-	flags = PIN_GLOBAL;
 	if (!HAS_LLC(engine->i915) && i915_ggtt_has_aperture(engine->gt->ggtt))
 		/*
 		 * On g33, we cannot place HWS above 256MiB, so
@@ -540,11 +539,11 @@ static int pin_ggtt_status_page(struct intel_engine_cs *engine,
 		 * above the mappable region (even though we never
 		 * actually map it).
 		 */
-		flags |= PIN_MAPPABLE;
+		flags = PIN_MAPPABLE;
 	else
-		flags |= PIN_HIGH;
+		flags = PIN_HIGH;
 
-	return i915_vma_pin(vma, 0, 0, flags);
+	return i915_ggtt_pin(vma, 0, flags);
 }
 
 static int init_status_page(struct intel_engine_cs *engine)

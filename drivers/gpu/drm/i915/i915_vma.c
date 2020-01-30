@@ -294,6 +294,7 @@ struct i915_vma_work {
 	struct dma_fence_work base;
 	struct i915_vma *vma;
 	struct drm_i915_gem_object *pinned;
+	struct i915_sw_dma_fence_cb cb;
 	enum i915_cache_level cache_level;
 	unsigned int flags;
 };
@@ -337,6 +338,25 @@ struct i915_vma_work *i915_vma_work(void)
 	vw->base.dma.error = -EAGAIN; /* disable the worker by default */
 
 	return vw;
+}
+
+int i915_vma_wait_for_bind(struct i915_vma *vma)
+{
+	int err = 0;
+
+	if (rcu_access_pointer(vma->active.excl.fence)) {
+		struct dma_fence *fence;
+
+		rcu_read_lock();
+		fence = dma_fence_get_rcu_safe(&vma->active.excl.fence);
+		rcu_read_unlock();
+		if (fence) {
+			err = dma_fence_wait(fence, MAX_SCHEDULE_TIMEOUT);
+			dma_fence_put(fence);
+		}
+	}
+
+	return err;
 }
 
 /**
@@ -386,6 +406,8 @@ int i915_vma_bind(struct i915_vma *vma,
 
 	trace_i915_vma_bind(vma, bind_flags);
 	if (work && (bind_flags & ~vma_flags) & vma->vm->bind_async_flags) {
+		struct dma_fence *prev;
+
 		work->vma = vma;
 		work->cache_level = cache_level;
 		work->flags = bind_flags | I915_VMA_ALLOC;
@@ -399,8 +421,12 @@ int i915_vma_bind(struct i915_vma *vma,
 		 * part of the obj->resv->excl_fence as it only affects
 		 * execution and not content or object's backing store lifetime.
 		 */
-		GEM_BUG_ON(i915_active_has_exclusive(&vma->active));
-		i915_active_set_exclusive(&vma->active, &work->base.dma);
+		prev = i915_active_set_exclusive(&vma->active, &work->base.dma);
+		if (prev)
+			__i915_sw_fence_await_dma_fence(&work->base.chain,
+							prev,
+							&work->cb);
+
 		work->base.dma.error = 0; /* enable the queue_work() */
 
 		if (vma->obj) {
@@ -408,7 +434,6 @@ int i915_vma_bind(struct i915_vma *vma,
 			work->pinned = vma->obj;
 		}
 	} else {
-		GEM_BUG_ON((bind_flags & ~vma_flags) & vma->vm->bind_async_flags);
 		ret = vma->ops->bind_vma(vma, cache_level, bind_flags);
 		if (ret)
 			return ret;
@@ -977,8 +1002,14 @@ int i915_ggtt_pin(struct i915_vma *vma, u32 align, unsigned int flags)
 
 	do {
 		err = i915_vma_pin(vma, 0, align, flags | PIN_GLOBAL);
-		if (err != -ENOSPC)
+		if (err != -ENOSPC) {
+			if (!err) {
+				err = i915_vma_wait_for_bind(vma);
+				if (err)
+					i915_vma_unpin(vma);
+			}
 			return err;
+		}
 
 		/* Unlike i915_vma_pin, we don't take no for an answer! */
 		flush_idle_contexts(vm->gt);

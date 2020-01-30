@@ -106,6 +106,11 @@ static bool needs_idle_maps(struct drm_i915_private *i915)
 
 void i915_ggtt_suspend(struct i915_ggtt *ggtt)
 {
+	struct i915_vma *vma;
+
+	list_for_each_entry(vma, &ggtt->vm.bound_list, vm_link)
+		i915_vma_wait_for_bind(vma);
+
 	ggtt->vm.clear_range(&ggtt->vm, 0, ggtt->vm.total);
 	ggtt->invalidate(ggtt);
 
@@ -841,6 +846,7 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 	    IS_CHERRYVIEW(i915) /* fails with concurrent use/update */) {
 		ggtt->vm.insert_entries = bxt_vtd_ggtt_insert_entries__BKL;
 		ggtt->vm.insert_page    = bxt_vtd_ggtt_insert_page__BKL;
+		ggtt->vm.bind_async_flags = I915_VMA_GLOBAL_BIND;
 	}
 
 	ggtt->invalidate = gen8_ggtt_invalidate;

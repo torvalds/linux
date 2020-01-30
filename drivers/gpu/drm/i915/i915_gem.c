@@ -1009,6 +1009,12 @@ i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 	if (ret)
 		return ERR_PTR(ret);
 
+	ret = i915_vma_wait_for_bind(vma);
+	if (ret) {
+		i915_vma_unpin(vma);
+		return ERR_PTR(ret);
+	}
+
 	return vma;
 }
 

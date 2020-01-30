@@ -308,7 +308,7 @@ int intel_timeline_pin(struct intel_timeline *tl)
 	if (atomic_add_unless(&tl->pin_count, 1, 0))
 		return 0;
 
-	err = i915_vma_pin(tl->hwsp_ggtt, 0, 0, PIN_GLOBAL | PIN_HIGH);
+	err = i915_ggtt_pin(tl->hwsp_ggtt, 0, PIN_HIGH);
 	if (err)
 		return err;
 
@@ -431,7 +431,7 @@ __intel_timeline_get_seqno(struct intel_timeline *tl,
 		goto err_rollback;
 	}
 
-	err = i915_vma_pin(vma, 0, 0, PIN_GLOBAL | PIN_HIGH);
+	err = i915_ggtt_pin(vma, 0, PIN_HIGH);
 	if (err) {
 		__idle_hwsp_free(vma->private, cacheline);
 		goto err_rollback;
