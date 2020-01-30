@@ -322,6 +322,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 
 	if (q) {
 		pr_debug("PQM done creating queue\n");
+		kfd_procfs_add_queue(q);
 		print_queue_properties(&q->properties);
 	}
 
@@ -378,6 +379,7 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 	}
 
 	if (pqn->q) {
+		kfd_procfs_del_queue(pqn->q);
 		dqm = pqn->q->device->dqm;
 		retval = dqm->ops.destroy_queue(dqm, &pdd->qpd, pqn->q);
 		if (retval) {

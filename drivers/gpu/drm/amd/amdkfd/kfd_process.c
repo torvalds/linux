@@ -132,6 +132,88 @@ void kfd_procfs_shutdown(void)
 	}
 }
 
+static ssize_t kfd_procfs_queue_show(struct kobject *kobj,
+				     struct attribute *attr, char *buffer)
+{
+	struct queue *q = container_of(kobj, struct queue, kobj);
+
+	if (!strcmp(attr->name, "size"))
+		return snprintf(buffer, PAGE_SIZE, "%llu",
+				q->properties.queue_size);
+	else if (!strcmp(attr->name, "type"))
+		return snprintf(buffer, PAGE_SIZE, "%d", q->properties.type);
+	else if (!strcmp(attr->name, "gpuid"))
+		return snprintf(buffer, PAGE_SIZE, "%u", q->device->id);
+	else
+		pr_err("Invalid attribute");
+
+	return 0;
+}
+
+static struct attribute attr_queue_size = {
+	.name = "size",
+	.mode = KFD_SYSFS_FILE_MODE
+};
+
+static struct attribute attr_queue_type = {
+	.name = "type",
+	.mode = KFD_SYSFS_FILE_MODE
+};
+
+static struct attribute attr_queue_gpuid = {
+	.name = "gpuid",
+	.mode = KFD_SYSFS_FILE_MODE
+};
+
+static struct attribute *procfs_queue_attrs[] = {
+	&attr_queue_size,
+	&attr_queue_type,
+	&attr_queue_gpuid,
+	NULL
+};
+
+static const struct sysfs_ops procfs_queue_ops = {
+	.show = kfd_procfs_queue_show,
+};
+
+static struct kobj_type procfs_queue_type = {
+	.sysfs_ops = &procfs_queue_ops,
+	.default_attrs = procfs_queue_attrs,
+};
+
+int kfd_procfs_add_queue(struct queue *q)
+{
+	struct kfd_process *proc;
+	int ret;
+
+	if (!q || !q->process)
+		return -EINVAL;
+	proc = q->process;
+
+	/* Create proc/<pid>/queues/<queue id> folder */
+	if (!proc->kobj_queues)
+		return -EFAULT;
+	ret = kobject_init_and_add(&q->kobj, &procfs_queue_type,
+			proc->kobj_queues, "%u", q->properties.queue_id);
+	if (ret < 0) {
+		pr_warn("Creating proc/<pid>/queues/%u failed",
+			q->properties.queue_id);
+		kobject_put(&q->kobj);
+		return ret;
+	}
+
+	return 0;
+}
+
+void kfd_procfs_del_queue(struct queue *q)
+{
+	if (!q)
+		return;
+
+	kobject_del(&q->kobj);
+	kobject_put(&q->kobj);
+}
+
 int kfd_process_create_wq(void)
 {
 	if (!kfd_process_wq)
@@ -323,6 +405,11 @@ struct kfd_process *kfd_create_process(struct file *filep)
 		if (ret)
 			pr_warn("Creating pasid for pid %d failed",
 					(int)process->lead_thread->pid);
+
+		process->kobj_queues = kobject_create_and_add("queues",
+							process->kobj);
+		if (!process->kobj_queues)
+			pr_warn("Creating KFD proc/queues folder failed");
 	}
 out:
 	if (!IS_ERR(process))
@@ -457,6 +544,9 @@ static void kfd_process_wq_release(struct work_struct *work)
 	/* Remove the procfs files */
 	if (p->kobj) {
 		sysfs_remove_file(p->kobj, &p->attr_pasid);
+		kobject_del(p->kobj_queues);
+		kobject_put(p->kobj_queues);
+		p->kobj_queues = NULL;
 		kobject_del(p->kobj);
 		kobject_put(p->kobj);
 		p->kobj = NULL;
