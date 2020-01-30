@@ -512,8 +512,8 @@ int i915_ppgtt_init_hw(struct intel_gt *gt);
 
 struct i915_ppgtt *i915_ppgtt_create(struct intel_gt *gt);
 
-void i915_gem_suspend_gtt_mappings(struct drm_i915_private *i915);
-void i915_gem_restore_gtt_mappings(struct drm_i915_private *i915);
+void i915_ggtt_suspend(struct i915_ggtt *gtt);
+void i915_ggtt_resume(struct i915_ggtt *ggtt);
 
 u64 gen8_pte_encode(dma_addr_t addr,
 		    enum i915_cache_level level,

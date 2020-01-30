@@ -1719,7 +1719,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 
 	intel_suspend_hw(dev_priv);
 
-	i915_gem_suspend_gtt_mappings(dev_priv);
+	i915_ggtt_suspend(&dev_priv->ggtt);
 
 	i915_save_state(dev_priv);
 
@@ -1832,7 +1832,7 @@ static int i915_drm_resume(struct drm_device *dev)
 	if (ret)
 		DRM_ERROR("failed to re-enable GGTT\n");
 
-	i915_gem_restore_gtt_mappings(dev_priv);
+	i915_ggtt_resume(&dev_priv->ggtt);
 	i915_gem_restore_fences(&dev_priv->ggtt);
 
 	intel_csr_ucode_resume(dev_priv);
