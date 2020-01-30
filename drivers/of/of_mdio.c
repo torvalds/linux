@@ -81,13 +81,15 @@ static int of_mdiobus_register_phy(struct mii_bus *mdio,
 	else
 		phy = get_phy_device(mdio, addr, is_c45);
 	if (IS_ERR(phy)) {
-		unregister_mii_timestamper(mii_ts);
+		if (mii_ts)
+			unregister_mii_timestamper(mii_ts);
 		return PTR_ERR(phy);
 	}
 
 	rc = of_irq_get(child, 0);
 	if (rc == -EPROBE_DEFER) {
-		unregister_mii_timestamper(mii_ts);
+		if (mii_ts)
+			unregister_mii_timestamper(mii_ts);
 		phy_device_free(phy);
 		return rc;
 	}
@@ -116,7 +118,8 @@ static int of_mdiobus_register_phy(struct mii_bus *mdio,
 	 * register it */
 	rc = phy_device_register(phy);
 	if (rc) {
-		unregister_mii_timestamper(mii_ts);
+		if (mii_ts)
+			unregister_mii_timestamper(mii_ts);
 		phy_device_free(phy);
 		of_node_put(child);
 		return rc;
