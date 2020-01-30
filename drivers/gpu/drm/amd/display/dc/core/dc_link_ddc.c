@@ -686,6 +686,10 @@ void dal_ddc_service_write_scdc_data(struct ddc_service *ddc_service,
 	uint8_t write_buffer[2] = {0};
 	/*Lower than 340 Scramble bit from SCDC caps*/
 
+	if (ddc_service->link->local_sink &&
+		ddc_service->link->local_sink->edid_caps.panel_patch.skip_scdc_overwrite)
+		return;
+
 	dal_ddc_service_query_ddc_data(ddc_service, slave_address, &offset,
 			sizeof(offset), &sink_version, sizeof(sink_version));
 	if (sink_version == 1) {
@@ -714,6 +718,10 @@ void dal_ddc_service_read_scdc_data(struct ddc_service *ddc_service)
 	uint8_t slave_address = HDMI_SCDC_ADDRESS;
 	uint8_t offset = HDMI_SCDC_TMDS_CONFIG;
 	uint8_t tmds_config = 0;
+
+	if (ddc_service->link->local_sink &&
+		ddc_service->link->local_sink->edid_caps.panel_patch.skip_scdc_overwrite)
+		return;
 
 	dal_ddc_service_query_ddc_data(ddc_service, slave_address, &offset,
 			sizeof(offset), &tmds_config, sizeof(tmds_config));
