@@ -299,7 +299,7 @@ static bool rxrpc_receiving_reply(struct rxrpc_call *call)
 		now = jiffies;
 		timo = now + MAX_JIFFY_OFFSET;
 		WRITE_ONCE(call->resend_at, timo);
-		WRITE_ONCE(call->ack_at, timo);
+		WRITE_ONCE(call->delay_ack_at, timo);
 		trace_rxrpc_timer(call, rxrpc_timer_init_for_reply, now);
 	}
 
@@ -542,7 +542,7 @@ static void rxrpc_input_data(struct rxrpc_call *call, struct sk_buff *skb)
 			/* Send an immediate ACK if we fill in a hole */
 			if (!acked) {
 				rxrpc_send_ACK(call, RXRPC_ACK_DELAY, serial,
-					       rxrpc_propose_ack_input_data);
+					       rxrpc_propose_ack_input_data_hole);
 				acked = true;
 			}
 		}
@@ -584,8 +584,8 @@ unlock:
 		rxrpc_send_ACK(call, RXRPC_ACK_IDLE, ack_serial,
 			       rxrpc_propose_ack_input_data);
 	else
-		rxrpc_propose_ACK(call, RXRPC_ACK_DELAY, ack_serial,
-				  rxrpc_propose_ack_input_data);
+		rxrpc_propose_delay_ACK(call, ack_serial,
+					rxrpc_propose_ack_input_data);
 
 	trace_rxrpc_notify_socket(call->debug_id, serial);
 	rxrpc_notify_socket(call);

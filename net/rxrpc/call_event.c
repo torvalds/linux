@@ -29,70 +29,29 @@ void rxrpc_propose_ping(struct rxrpc_call *call, u32 serial,
 	spin_lock_bh(&call->lock);
 
 	if (time_before(ping_at, call->ping_at)) {
-		rxrpc_inc_stat(call->rxnet, stat_tx_acks[RXRPC_ACK_PING]);
 		WRITE_ONCE(call->ping_at, ping_at);
 		rxrpc_reduce_call_timer(call, ping_at, now,
 					rxrpc_timer_set_for_ping);
-		trace_rxrpc_propose_ack(call, why, RXRPC_ACK_PING, serial,
-					rxrpc_propose_ack_use);
+		trace_rxrpc_propose_ack(call, why, RXRPC_ACK_PING, serial);
 	}
 
 	spin_unlock_bh(&call->lock);
 }
 
 /*
- * propose an ACK be sent
+ * Propose a DELAY ACK be sent in the future.
  */
-static void __rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
-				u32 serial, enum rxrpc_propose_ack_trace why)
+static void __rxrpc_propose_delay_ACK(struct rxrpc_call *call,
+				      rxrpc_serial_t serial,
+				      enum rxrpc_propose_ack_trace why)
 {
-	enum rxrpc_propose_ack_outcome outcome = rxrpc_propose_ack_use;
 	unsigned long expiry = rxrpc_soft_ack_delay;
 	unsigned long now = jiffies, ack_at;
-	s8 prior = rxrpc_ack_priority[ack_reason];
 
-	rxrpc_inc_stat(call->rxnet, stat_tx_acks[ack_reason]);
+	call->ackr_serial = serial;
 
-	/* Update DELAY, IDLE, REQUESTED and PING_RESPONSE ACK serial
-	 * numbers, but we don't alter the timeout.
-	 */
-	_debug("prior %u %u vs %u %u",
-	       ack_reason, prior,
-	       call->ackr_reason, rxrpc_ack_priority[call->ackr_reason]);
-	if (ack_reason == call->ackr_reason) {
-		if (RXRPC_ACK_UPDATEABLE & (1 << ack_reason)) {
-			outcome = rxrpc_propose_ack_update;
-			call->ackr_serial = serial;
-		}
-	} else if (prior > rxrpc_ack_priority[call->ackr_reason]) {
-		call->ackr_reason = ack_reason;
-		call->ackr_serial = serial;
-	} else {
-		outcome = rxrpc_propose_ack_subsume;
-	}
-
-	switch (ack_reason) {
-	case RXRPC_ACK_REQUESTED:
-		if (rxrpc_requested_ack_delay < expiry)
-			expiry = rxrpc_requested_ack_delay;
-		break;
-
-	case RXRPC_ACK_DELAY:
-		if (rxrpc_soft_ack_delay < expiry)
-			expiry = rxrpc_soft_ack_delay;
-		break;
-
-	case RXRPC_ACK_IDLE:
-		if (rxrpc_idle_ack_delay < expiry)
-			expiry = rxrpc_idle_ack_delay;
-		break;
-
-	default:
-		WARN_ON(1);
-		return;
-	}
-
-
+	if (rxrpc_soft_ack_delay < expiry)
+		expiry = rxrpc_soft_ack_delay;
 	if (call->peer->srtt_us != 0)
 		ack_at = usecs_to_jiffies(call->peer->srtt_us >> 3);
 	else
@@ -100,23 +59,23 @@ static void __rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
 
 	ack_at += READ_ONCE(call->tx_backoff);
 	ack_at += now;
-	if (time_before(ack_at, call->ack_at)) {
-		WRITE_ONCE(call->ack_at, ack_at);
+	if (time_before(ack_at, call->delay_ack_at)) {
+		WRITE_ONCE(call->delay_ack_at, ack_at);
 		rxrpc_reduce_call_timer(call, ack_at, now,
 					rxrpc_timer_set_for_ack);
 	}
 
-	trace_rxrpc_propose_ack(call, why, ack_reason, serial, outcome);
+	trace_rxrpc_propose_ack(call, why, RXRPC_ACK_DELAY, serial);
 }
 
 /*
- * propose an ACK be sent, locking the call structure
+ * Propose a DELAY ACK be sent, locking the call structure
  */
-void rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason, u32 serial,
-		       enum rxrpc_propose_ack_trace why)
+void rxrpc_propose_delay_ACK(struct rxrpc_call *call, rxrpc_serial_t  serial,
+			     enum rxrpc_propose_ack_trace why)
 {
 	spin_lock_bh(&call->lock);
-	__rxrpc_propose_ACK(call, ack_reason, serial, why);
+	__rxrpc_propose_delay_ACK(call, serial, why);
 	spin_unlock_bh(&call->lock);
 }
 
@@ -131,6 +90,11 @@ void rxrpc_send_ACK(struct rxrpc_call *call, u8 ack_reason,
 
 	if (test_bit(RXRPC_CALL_DISCONNECTED, &call->flags))
 		return;
+	if (ack_reason == RXRPC_ACK_DELAY &&
+	    test_and_set_bit(RXRPC_CALL_DELAY_ACK_PENDING, &call->flags)) {
+		trace_rxrpc_drop_ack(call, why, ack_reason, serial, false);
+		return;
+	}
 
 	rxrpc_inc_stat(call->rxnet, stat_tx_acks[ack_reason]);
 
@@ -319,7 +283,6 @@ void rxrpc_process_call(struct work_struct *work)
 	unsigned long now, next, t;
 	unsigned int iterations = 0;
 	rxrpc_serial_t ackr_serial;
-	u8 ackr_reason;
 
 	rxrpc_see_call(call);
 
@@ -364,19 +327,13 @@ recheck_state:
 		set_bit(RXRPC_CALL_EV_EXPIRED, &call->events);
 	}
 
-	t = READ_ONCE(call->ack_at);
+	t = READ_ONCE(call->delay_ack_at);
 	if (time_after_eq(now, t)) {
 		trace_rxrpc_timer(call, rxrpc_timer_exp_ack, now);
-		cmpxchg(&call->ack_at, t, now + MAX_JIFFY_OFFSET);
-		spin_lock_bh(&call->lock);
-		ackr_reason = call->ackr_reason;
-		ackr_serial = call->ackr_serial;
-		call->ackr_reason = 0;
-		call->ackr_serial = 0;
-		spin_unlock_bh(&call->lock);
-		if (ackr_reason)
-			rxrpc_send_ACK(call, ackr_reason, ackr_serial,
-				       rxrpc_propose_ack_ping_for_lost_ack);
+		cmpxchg(&call->delay_ack_at, t, now + MAX_JIFFY_OFFSET);
+		ackr_serial = xchg(&call->ackr_serial, 0);
+		rxrpc_send_ACK(call, RXRPC_ACK_DELAY, ackr_serial,
+			       rxrpc_propose_ack_ping_for_lost_ack);
 	}
 
 	t = READ_ONCE(call->ack_lost_at);
@@ -441,7 +398,7 @@ recheck_state:
 
 	set(call->expect_req_by);
 	set(call->expect_term_by);
-	set(call->ack_at);
+	set(call->delay_ack_at);
 	set(call->ack_lost_at);
 	set(call->resend_at);
 	set(call->keepalive_at);

@@ -516,6 +516,8 @@ enum rxrpc_call_flag {
 	RXRPC_CALL_DISCONNECTED,	/* The call has been disconnected */
 	RXRPC_CALL_KERNEL,		/* The call was made by the kernel */
 	RXRPC_CALL_UPGRADE,		/* Service upgrade was requested for the call */
+	RXRPC_CALL_DELAY_ACK_PENDING,	/* DELAY ACK generation is pending */
+	RXRPC_CALL_IDLE_ACK_PENDING,	/* IDLE ACK generation is pending */
 };
 
 /*
@@ -582,7 +584,7 @@ struct rxrpc_call {
 	struct rxrpc_net	*rxnet;		/* Network namespace to which call belongs */
 	const struct rxrpc_security *security;	/* applied security module */
 	struct mutex		user_mutex;	/* User access mutex */
-	unsigned long		ack_at;		/* When deferred ACK needs to happen */
+	unsigned long		delay_ack_at;	/* When DELAY ACK needs to happen */
 	unsigned long		ack_lost_at;	/* When ACK is figured as lost */
 	unsigned long		resend_at;	/* When next resend needs to happen */
 	unsigned long		ping_at;	/* When next to send a ping */
@@ -834,7 +836,8 @@ int rxrpc_user_charge_accept(struct rxrpc_sock *, unsigned long);
 void rxrpc_propose_ping(struct rxrpc_call *call, u32 serial,
 			enum rxrpc_propose_ack_trace why);
 void rxrpc_send_ACK(struct rxrpc_call *, u8, rxrpc_serial_t, enum rxrpc_propose_ack_trace);
-void rxrpc_propose_ACK(struct rxrpc_call *, u8, u32, enum rxrpc_propose_ack_trace);
+void rxrpc_propose_delay_ACK(struct rxrpc_call *, rxrpc_serial_t,
+			     enum rxrpc_propose_ack_trace);
 void rxrpc_process_call(struct work_struct *);
 
 void rxrpc_reduce_call_timer(struct rxrpc_call *call,
@@ -1016,14 +1019,11 @@ static inline bool __rxrpc_use_local(struct rxrpc_local *local)
  * misc.c
  */
 extern unsigned int rxrpc_max_backlog __read_mostly;
-extern unsigned long rxrpc_requested_ack_delay;
 extern unsigned long rxrpc_soft_ack_delay;
 extern unsigned long rxrpc_idle_ack_delay;
 extern unsigned int rxrpc_rx_window_size;
 extern unsigned int rxrpc_rx_mtu;
 extern unsigned int rxrpc_rx_jumbo_max;
-
-extern const s8 rxrpc_ack_priority[];
 
 /*
  * net_ns.c

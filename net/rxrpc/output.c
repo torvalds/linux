@@ -115,6 +115,8 @@ static size_t rxrpc_fill_out_ack(struct rxrpc_connection *conn,
 				*ackp++ = RXRPC_ACK_TYPE_NACK;
 			seq++;
 		} while (before_eq(seq, top));
+	} else if (txb->ack.reason == RXRPC_ACK_DELAY) {
+		txb->ack.reason = RXRPC_ACK_IDLE;
 	}
 
 	mtu = conn->params.peer->if_mtu;
@@ -203,6 +205,11 @@ static int rxrpc_send_ack_packet(struct rxrpc_local *local, struct rxrpc_txbuf *
 
 	if (txb->ack.reason == RXRPC_ACK_PING)
 		txb->wire.flags |= RXRPC_REQUEST_ACK;
+
+	if (txb->ack.reason == RXRPC_ACK_DELAY)
+		clear_bit(RXRPC_CALL_DELAY_ACK_PENDING, &call->flags);
+	if (txb->ack.reason == RXRPC_ACK_IDLE)
+		clear_bit(RXRPC_CALL_IDLE_ACK_PENDING, &call->flags);
 
 	spin_lock_bh(&call->lock);
 	n = rxrpc_fill_out_ack(conn, call, txb, &hard_ack, &top);

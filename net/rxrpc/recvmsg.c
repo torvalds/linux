@@ -188,11 +188,8 @@ static void rxrpc_end_rx_phase(struct rxrpc_call *call, rxrpc_serial_t serial)
 	trace_rxrpc_receive(call, rxrpc_receive_end, 0, call->rx_top);
 	ASSERTCMP(call->rx_hard_ack, ==, call->rx_top);
 
-	if (call->state == RXRPC_CALL_CLIENT_RECV_REPLY) {
-		rxrpc_propose_ACK(call, RXRPC_ACK_IDLE, serial,
-				  rxrpc_propose_ack_terminal_ack);
-		//rxrpc_send_ack_packet(call, false, NULL);
-	}
+	if (call->state == RXRPC_CALL_CLIENT_RECV_REPLY)
+		rxrpc_propose_delay_ACK(call, serial, rxrpc_propose_ack_terminal_ack);
 
 	write_lock_bh(&call->state_lock);
 
@@ -206,8 +203,8 @@ static void rxrpc_end_rx_phase(struct rxrpc_call *call, rxrpc_serial_t serial)
 		call->state = RXRPC_CALL_SERVER_ACK_REQUEST;
 		call->expect_req_by = jiffies + MAX_JIFFY_OFFSET;
 		write_unlock_bh(&call->state_lock);
-		rxrpc_propose_ACK(call, RXRPC_ACK_DELAY, serial,
-				  rxrpc_propose_ack_processing_op);
+		rxrpc_propose_delay_ACK(call, serial,
+					rxrpc_propose_ack_processing_op);
 		break;
 	default:
 		write_unlock_bh(&call->state_lock);
@@ -259,7 +256,8 @@ static void rxrpc_rotate_rx_window(struct rxrpc_call *call)
 		rxrpc_end_rx_phase(call, serial);
 	} else {
 		/* Check to see if there's an ACK that needs sending. */
-		if (atomic_inc_return(&call->ackr_nr_consumed) > 2) {
+		if (atomic_inc_return(&call->ackr_nr_consumed) > 2 &&
+		    !test_and_set_bit(RXRPC_CALL_IDLE_ACK_PENDING, &call->flags)) {
 			rxrpc_send_ACK(call, RXRPC_ACK_IDLE, serial,
 				       rxrpc_propose_ack_rotate_rx);
 			rxrpc_transmit_ack_packets(call->peer->local);

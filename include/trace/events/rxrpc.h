@@ -158,6 +158,7 @@
 #define rxrpc_propose_ack_traces \
 	EM(rxrpc_propose_ack_client_tx_end,	"ClTxEnd") \
 	EM(rxrpc_propose_ack_input_data,	"DataIn ") \
+	EM(rxrpc_propose_ack_input_data_hole,	"DataInH") \
 	EM(rxrpc_propose_ack_ping_for_check_life, "ChkLife") \
 	EM(rxrpc_propose_ack_ping_for_keepalive, "KeepAlv") \
 	EM(rxrpc_propose_ack_ping_for_lost_ack,	"LostAck") \
@@ -169,11 +170,6 @@
 	EM(rxrpc_propose_ack_retry_tx,		"RetryTx") \
 	EM(rxrpc_propose_ack_rotate_rx,		"RxAck  ") \
 	E_(rxrpc_propose_ack_terminal_ack,	"ClTerm ")
-
-#define rxrpc_propose_ack_outcomes \
-	EM(rxrpc_propose_ack_subsume,		" Subsume") \
-	EM(rxrpc_propose_ack_update,		" Update") \
-	E_(rxrpc_propose_ack_use,		" New")
 
 #define rxrpc_congest_modes \
 	EM(RXRPC_CALL_CONGEST_AVOIDANCE,	"CongAvoid") \
@@ -313,7 +309,6 @@ rxrpc_congest_changes;
 rxrpc_congest_modes;
 rxrpc_conn_traces;
 rxrpc_local_traces;
-rxrpc_propose_ack_outcomes;
 rxrpc_propose_ack_traces;
 rxrpc_receive_traces;
 rxrpc_recvmsg_traces;
@@ -1012,7 +1007,7 @@ TRACE_EVENT(rxrpc_timer,
 		    __entry->call		= call->debug_id;
 		    __entry->why		= why;
 		    __entry->now		= now;
-		    __entry->ack_at		= call->ack_at;
+		    __entry->ack_at		= call->delay_ack_at;
 		    __entry->ack_lost_at	= call->ack_lost_at;
 		    __entry->resend_at		= call->resend_at;
 		    __entry->expect_rx_by	= call->expect_rx_by;
@@ -1054,7 +1049,7 @@ TRACE_EVENT(rxrpc_timer_expired,
 	    TP_fast_assign(
 		    __entry->call		= call->debug_id;
 		    __entry->now		= now;
-		    __entry->ack_at		= call->ack_at;
+		    __entry->ack_at		= call->delay_ack_at;
 		    __entry->ack_lost_at	= call->ack_lost_at;
 		    __entry->resend_at		= call->resend_at;
 		    __entry->expect_rx_by	= call->expect_rx_by;
@@ -1098,17 +1093,15 @@ TRACE_EVENT(rxrpc_rx_lose,
 
 TRACE_EVENT(rxrpc_propose_ack,
 	    TP_PROTO(struct rxrpc_call *call, enum rxrpc_propose_ack_trace why,
-		     u8 ack_reason, rxrpc_serial_t serial,
-		     enum rxrpc_propose_ack_outcome outcome),
+		     u8 ack_reason, rxrpc_serial_t serial),
 
-	    TP_ARGS(call, why, ack_reason, serial, outcome),
+	    TP_ARGS(call, why, ack_reason, serial),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,			call		)
 		    __field(enum rxrpc_propose_ack_trace,	why		)
 		    __field(rxrpc_serial_t,			serial		)
 		    __field(u8,					ack_reason	)
-		    __field(enum rxrpc_propose_ack_outcome,	outcome		)
 			     ),
 
 	    TP_fast_assign(
@@ -1116,15 +1109,13 @@ TRACE_EVENT(rxrpc_propose_ack,
 		    __entry->why	= why;
 		    __entry->serial	= serial;
 		    __entry->ack_reason	= ack_reason;
-		    __entry->outcome	= outcome;
 			   ),
 
-	    TP_printk("c=%08x %s %s r=%08x%s",
+	    TP_printk("c=%08x %s %s r=%08x",
 		      __entry->call,
 		      __print_symbolic(__entry->why, rxrpc_propose_ack_traces),
 		      __print_symbolic(__entry->ack_reason, rxrpc_ack_names),
-		      __entry->serial,
-		      __print_symbolic(__entry->outcome, rxrpc_propose_ack_outcomes))
+		      __entry->serial)
 	    );
 
 TRACE_EVENT(rxrpc_send_ack,
@@ -1152,6 +1143,35 @@ TRACE_EVENT(rxrpc_send_ack,
 		      __print_symbolic(__entry->why, rxrpc_propose_ack_traces),
 		      __print_symbolic(__entry->ack_reason, rxrpc_ack_names),
 		      __entry->serial)
+	    );
+
+TRACE_EVENT(rxrpc_drop_ack,
+	    TP_PROTO(struct rxrpc_call *call, enum rxrpc_propose_ack_trace why,
+		     u8 ack_reason, rxrpc_serial_t serial, bool nobuf),
+
+	    TP_ARGS(call, why, ack_reason, serial, nobuf),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,			call		)
+		    __field(enum rxrpc_propose_ack_trace,	why		)
+		    __field(rxrpc_serial_t,			serial		)
+		    __field(u8,					ack_reason	)
+		    __field(bool,				nobuf		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call	= call->debug_id;
+		    __entry->why	= why;
+		    __entry->serial	= serial;
+		    __entry->ack_reason	= ack_reason;
+		    __entry->nobuf	= nobuf;
+			   ),
+
+	    TP_printk("c=%08x %s %s r=%08x nbf=%u",
+		      __entry->call,
+		      __print_symbolic(__entry->why, rxrpc_propose_ack_traces),
+		      __print_symbolic(__entry->ack_reason, rxrpc_ack_names),
+		      __entry->serial, __entry->nobuf)
 	    );
 
 TRACE_EVENT(rxrpc_retransmit,

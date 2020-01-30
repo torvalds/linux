@@ -234,7 +234,7 @@ static int rxrpc_queue_packet(struct rxrpc_sock *rx, struct rxrpc_call *call,
 		case RXRPC_CALL_SERVER_ACK_REQUEST:
 			call->state = RXRPC_CALL_SERVER_SEND_REPLY;
 			now = jiffies;
-			WRITE_ONCE(call->ack_at, now + MAX_JIFFY_OFFSET);
+			WRITE_ONCE(call->delay_ack_at, now + MAX_JIFFY_OFFSET);
 			if (call->ackr_reason == RXRPC_ACK_DELAY)
 				call->ackr_reason = 0;
 			trace_rxrpc_timer(call, rxrpc_timer_init_for_send_reply, now);
