@@ -246,8 +246,9 @@ static int papr_scm_meta_set(struct papr_scm_priv *p,
 	return 0;
 }
 
-int papr_scm_ndctl(struct nvdimm_bus_descriptor *nd_desc, struct nvdimm *nvdimm,
-		unsigned int cmd, void *buf, unsigned int buf_len, int *cmd_rc)
+static int papr_scm_ndctl(struct nvdimm_bus_descriptor *nd_desc,
+			  struct nvdimm *nvdimm, unsigned int cmd, void *buf,
+			  unsigned int buf_len, int *cmd_rc)
 {
 	struct nd_cmd_get_config_size *get_size_hdr;
 	struct papr_scm_priv *p;
