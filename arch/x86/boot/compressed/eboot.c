@@ -315,7 +315,7 @@ free_handle:
 	return status;
 }
 
-void setup_graphics(struct boot_params *boot_params)
+static void setup_graphics(struct boot_params *boot_params)
 {
 	efi_guid_t graphics_proto = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
 	struct screen_info *si;
