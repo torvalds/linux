@@ -2540,6 +2540,12 @@ void dcn10_apply_ctx_for_surface(
 			dcn10_find_top_pipe_for_stream(dc, context, stream);
 	DC_LOGGER_INIT(dc->ctx->logger);
 
+	// Clear pipe_ctx flag
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+		pipe_ctx->update_flags.raw = 0;
+	}
+
 	if (!top_pipe_to_program)
 		return;
 
@@ -2569,8 +2575,6 @@ void dcn10_apply_ctx_for_surface(
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 		struct pipe_ctx *old_pipe_ctx =
 				&dc->current_state->res_ctx.pipe_ctx[i];
-
-		pipe_ctx->update_flags.raw = 0;
 
 		if ((!pipe_ctx->plane_state ||
 		     pipe_ctx->stream_res.tg != old_pipe_ctx->stream_res.tg) &&
