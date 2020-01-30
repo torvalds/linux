@@ -248,7 +248,7 @@ static unsigned short s3c_onenand_readw(void __iomem *addr)
 	}
 
 	/* BootRAM access control */
-	if ((unsigned int) addr < ONENAND_DATARAM && onenand->bootram_command) {
+	if ((unsigned long)addr < ONENAND_DATARAM && onenand->bootram_command) {
 		if (word_addr == 0)
 			return s3c_read_reg(MANUFACT_ID_OFFSET);
 		if (word_addr == 1)
@@ -289,7 +289,7 @@ static void s3c_onenand_writew(unsigned short value, void __iomem *addr)
 	}
 
 	/* BootRAM access control */
-	if ((unsigned int)addr < ONENAND_DATARAM) {
+	if ((unsigned long)addr < ONENAND_DATARAM) {
 		if (value == ONENAND_CMD_READID) {
 			onenand->bootram_command = 1;
 			return;
@@ -658,7 +658,7 @@ static int s5pc110_read_bufferram(struct mtd_info *mtd, int area,
 		dma_dst = dma_map_single(dev, buf, count, DMA_FROM_DEVICE);
 	}
 	if (dma_mapping_error(dev, dma_dst)) {
-		dev_err(dev, "Couldn't map a %d byte buffer for DMA\n", count);
+		dev_err(dev, "Couldn't map a %zu byte buffer for DMA\n", count);
 		goto normal;
 	}
 	err = s5pc110_dma_ops(dma_dst, dma_src,
@@ -728,13 +728,12 @@ static void s3c_onenand_check_lock_status(struct mtd_info *mtd)
 	struct onenand_chip *this = mtd->priv;
 	struct device *dev = &onenand->pdev->dev;
 	unsigned int block, end;
-	int tmp;
 
 	end = this->chipsize >> this->erase_shift;
 
 	for (block = 0; block < end; block++) {
 		unsigned int mem_addr = onenand->mem_addr(block, 0, 0);
-		tmp = s3c_read_cmd(CMD_MAP_01(onenand, mem_addr));
+		s3c_read_cmd(CMD_MAP_01(onenand, mem_addr));
 
 		if (s3c_read_reg(INT_ERR_STAT_OFFSET) & LOCKED_BLK) {
 			dev_err(dev, "block %d is write-protected!\n", block);
