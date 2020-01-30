@@ -189,7 +189,7 @@ static void rxrpc_end_rx_phase(struct rxrpc_call *call, rxrpc_serial_t serial)
 	ASSERTCMP(call->rx_hard_ack, ==, call->rx_top);
 
 	if (call->state == RXRPC_CALL_CLIENT_RECV_REPLY) {
-		rxrpc_propose_ACK(call, RXRPC_ACK_IDLE, serial, false, true,
+		rxrpc_propose_ACK(call, RXRPC_ACK_IDLE, serial,
 				  rxrpc_propose_ack_terminal_ack);
 		//rxrpc_send_ack_packet(call, false, NULL);
 	}
@@ -206,7 +206,7 @@ static void rxrpc_end_rx_phase(struct rxrpc_call *call, rxrpc_serial_t serial)
 		call->state = RXRPC_CALL_SERVER_ACK_REQUEST;
 		call->expect_req_by = jiffies + MAX_JIFFY_OFFSET;
 		write_unlock_bh(&call->state_lock);
-		rxrpc_propose_ACK(call, RXRPC_ACK_DELAY, serial, false, true,
+		rxrpc_propose_ACK(call, RXRPC_ACK_DELAY, serial,
 				  rxrpc_propose_ack_processing_op);
 		break;
 	default:
@@ -259,12 +259,11 @@ static void rxrpc_rotate_rx_window(struct rxrpc_call *call)
 		rxrpc_end_rx_phase(call, serial);
 	} else {
 		/* Check to see if there's an ACK that needs sending. */
-		if (atomic_inc_return(&call->ackr_nr_consumed) > 2)
-			rxrpc_propose_ACK(call, RXRPC_ACK_IDLE, serial,
-					  true, false,
-					  rxrpc_propose_ack_rotate_rx);
-		if (call->ackr_reason && call->ackr_reason != RXRPC_ACK_DELAY)
-			rxrpc_send_ack_packet(call, false, NULL);
+		if (atomic_inc_return(&call->ackr_nr_consumed) > 2) {
+			rxrpc_send_ACK(call, RXRPC_ACK_IDLE, serial,
+				       rxrpc_propose_ack_rotate_rx);
+			rxrpc_transmit_ack_packets(call->peer->local);
+		}
 	}
 }
 
@@ -363,10 +362,6 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 	unsigned int rx_pkt_offset, rx_pkt_len;
 	int ix, copy, ret = -EAGAIN, ret2;
 
-	if (test_and_clear_bit(RXRPC_CALL_RX_UNDERRUN, &call->flags) &&
-	    call->ackr_reason)
-		rxrpc_send_ack_packet(call, false, NULL);
-
 	rx_pkt_offset = call->rx_pkt_offset;
 	rx_pkt_len = call->rx_pkt_len;
 	rx_pkt_last = call->rx_pkt_last;
@@ -389,6 +384,7 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 		if (!skb) {
 			trace_rxrpc_recvmsg(call, rxrpc_recvmsg_hole, seq,
 					    rx_pkt_offset, rx_pkt_len, 0);
+			rxrpc_transmit_ack_packets(call->peer->local);
 			break;
 		}
 		smp_rmb();
@@ -604,6 +600,7 @@ try_again:
 		if (ret == -EAGAIN)
 			ret = 0;
 
+		rxrpc_transmit_ack_packets(call->peer->local);
 		if (after(call->rx_top, call->rx_hard_ack) &&
 		    call->rxtx_buffer[(call->rx_hard_ack + 1) & RXRPC_RXTX_BUFF_MASK])
 			rxrpc_notify_socket(call);
@@ -734,17 +731,7 @@ int rxrpc_kernel_recv_data(struct socket *sock, struct rxrpc_call *call,
 read_phase_complete:
 	ret = 1;
 out:
-	switch (call->ackr_reason) {
-	case RXRPC_ACK_IDLE:
-		break;
-	case RXRPC_ACK_DELAY:
-		if (ret != -EAGAIN)
-			break;
-		fallthrough;
-	default:
-		rxrpc_send_ack_packet(call, false, NULL);
-	}
-
+	rxrpc_transmit_ack_packets(call->peer->local);
 	if (_service)
 		*_service = call->service_id;
 	mutex_unlock(&call->user_mutex);

@@ -34,7 +34,8 @@
 	EM(rxrpc_local_new,			"NEW") \
 	EM(rxrpc_local_processing,		"PRO") \
 	EM(rxrpc_local_put,			"PUT") \
-	E_(rxrpc_local_queued,			"QUE")
+	EM(rxrpc_local_queued,			"QUE") \
+	E_(rxrpc_local_tx_ack,			"TAK")
 
 #define rxrpc_peer_traces \
 	EM(rxrpc_peer_got,			"GOT") \
@@ -258,7 +259,9 @@
 	EM(rxrpc_txbuf_free,			"FREE       ")	\
 	EM(rxrpc_txbuf_get_trans,		"GET TRANS  ")	\
 	EM(rxrpc_txbuf_get_retrans,		"GET RETRANS")	\
+	EM(rxrpc_txbuf_put_ack_tx,		"PUT ACK TX ")	\
 	EM(rxrpc_txbuf_put_cleaned,		"PUT CLEANED")	\
+	EM(rxrpc_txbuf_put_nomem,		"PUT NOMEM  ")	\
 	EM(rxrpc_txbuf_put_rotated,		"PUT ROTATED")	\
 	EM(rxrpc_txbuf_put_send_aborted,	"PUT SEND-X ")	\
 	EM(rxrpc_txbuf_see_send_more,		"SEE SEND+  ")	\
@@ -1095,19 +1098,16 @@ TRACE_EVENT(rxrpc_rx_lose,
 
 TRACE_EVENT(rxrpc_propose_ack,
 	    TP_PROTO(struct rxrpc_call *call, enum rxrpc_propose_ack_trace why,
-		     u8 ack_reason, rxrpc_serial_t serial, bool immediate,
-		     bool background, enum rxrpc_propose_ack_outcome outcome),
+		     u8 ack_reason, rxrpc_serial_t serial,
+		     enum rxrpc_propose_ack_outcome outcome),
 
-	    TP_ARGS(call, why, ack_reason, serial, immediate, background,
-		    outcome),
+	    TP_ARGS(call, why, ack_reason, serial, outcome),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,			call		)
 		    __field(enum rxrpc_propose_ack_trace,	why		)
 		    __field(rxrpc_serial_t,			serial		)
 		    __field(u8,					ack_reason	)
-		    __field(bool,				immediate	)
-		    __field(bool,				background	)
 		    __field(enum rxrpc_propose_ack_outcome,	outcome		)
 			     ),
 
@@ -1116,19 +1116,42 @@ TRACE_EVENT(rxrpc_propose_ack,
 		    __entry->why	= why;
 		    __entry->serial	= serial;
 		    __entry->ack_reason	= ack_reason;
-		    __entry->immediate	= immediate;
-		    __entry->background	= background;
 		    __entry->outcome	= outcome;
 			   ),
 
-	    TP_printk("c=%08x %s %s r=%08x i=%u b=%u%s",
+	    TP_printk("c=%08x %s %s r=%08x%s",
 		      __entry->call,
 		      __print_symbolic(__entry->why, rxrpc_propose_ack_traces),
 		      __print_symbolic(__entry->ack_reason, rxrpc_ack_names),
 		      __entry->serial,
-		      __entry->immediate,
-		      __entry->background,
 		      __print_symbolic(__entry->outcome, rxrpc_propose_ack_outcomes))
+	    );
+
+TRACE_EVENT(rxrpc_send_ack,
+	    TP_PROTO(struct rxrpc_call *call, enum rxrpc_propose_ack_trace why,
+		     u8 ack_reason, rxrpc_serial_t serial),
+
+	    TP_ARGS(call, why, ack_reason, serial),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,			call		)
+		    __field(enum rxrpc_propose_ack_trace,	why		)
+		    __field(rxrpc_serial_t,			serial		)
+		    __field(u8,					ack_reason	)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call	= call->debug_id;
+		    __entry->why	= why;
+		    __entry->serial	= serial;
+		    __entry->ack_reason	= ack_reason;
+			   ),
+
+	    TP_printk("c=%08x %s %s r=%08x",
+		      __entry->call,
+		      __print_symbolic(__entry->why, rxrpc_propose_ack_traces),
+		      __print_symbolic(__entry->ack_reason, rxrpc_ack_names),
+		      __entry->serial)
 	    );
 
 TRACE_EVENT(rxrpc_retransmit,
