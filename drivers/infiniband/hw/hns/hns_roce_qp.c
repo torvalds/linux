@@ -1261,7 +1261,7 @@ struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 	default:{
 		ibdev_err(ibdev, "not support QP type %d\n",
 			  init_attr->qp_type);
-		return ERR_PTR(-EINVAL);
+		return ERR_PTR(-EOPNOTSUPP);
 	}
 	}
 

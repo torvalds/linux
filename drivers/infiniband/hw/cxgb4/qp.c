@@ -2127,7 +2127,7 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	pr_debug("ib_pd %p\n", pd);
 
 	if (attrs->qp_type != IB_QPT_RC)
-		return ERR_PTR(-EINVAL);
+		return ERR_PTR(-EOPNOTSUPP);
 
 	php = to_c4iw_pd(pd);
 	rhp = php->rhp;

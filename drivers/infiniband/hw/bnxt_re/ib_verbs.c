@@ -1141,7 +1141,7 @@ static int bnxt_re_init_qp_type(struct bnxt_re_dev *rdev,
 	qptype = __from_ib_qp_type(init_attr->qp_type);
 	if (qptype == IB_QPT_MAX) {
 		ibdev_err(&rdev->ibdev, "QP type 0x%x not supported", qptype);
-		qptype = -EINVAL;
+		qptype = -EOPNOTSUPP;
 		goto out;
 	}
 

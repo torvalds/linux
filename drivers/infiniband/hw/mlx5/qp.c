@@ -2789,7 +2789,7 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 		mlx5_ib_dbg(dev, "unsupported qp type %d\n",
 			    init_attr->qp_type);
 		/* Don't support raw QPs */
-		return ERR_PTR(-EINVAL);
+		return ERR_PTR(-EOPNOTSUPP);
 	}
 
 	if (verbs_init_attr->qp_type == IB_QPT_DRIVER)

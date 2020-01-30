@@ -323,7 +323,7 @@ struct ib_qp *siw_create_qp(struct ib_pd *pd,
 	}
 	if (attrs->qp_type != IB_QPT_RC) {
 		siw_dbg(base_dev, "only RC QP's supported\n");
-		rv = -EINVAL;
+		rv = -EOPNOTSUPP;
 		goto err_out;
 	}
 	if ((attrs->cap.max_send_wr > SIW_MAX_QP_WR) ||

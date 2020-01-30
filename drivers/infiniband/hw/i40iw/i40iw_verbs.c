@@ -617,7 +617,7 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 	iwqp->ctx_info.qp_compl_ctx = (uintptr_t)qp;
 
 	if (init_attr->qp_type != IB_QPT_RC) {
-		err_code = -EINVAL;
+		err_code = -EOPNOTSUPP;
 		goto error;
 	}
 	if (iwdev->push_mode)
