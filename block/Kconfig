@@ -236,7 +236,7 @@ config BLK_MQ_PCI
 	default y
 
 config BLK_MQ_VIRTIO
-	bool
+	tristate
 	depends on BLOCK && VIRTIO
 	default y
 
