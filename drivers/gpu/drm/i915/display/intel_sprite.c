@@ -113,8 +113,9 @@ void intel_pipe_update_start(const struct intel_crtc_state *new_crtc_state)
 	 * re-entry as well.
 	 */
 	if (intel_psr_wait_for_idle(new_crtc_state, &psr_status))
-		DRM_ERROR("PSR idle timed out 0x%x, atomic update may fail\n",
-			  psr_status);
+		drm_err(&dev_priv->drm,
+			"PSR idle timed out 0x%x, atomic update may fail\n",
+			psr_status);
 
 	local_irq_disable();
 
@@ -135,8 +136,9 @@ void intel_pipe_update_start(const struct intel_crtc_state *new_crtc_state)
 			break;
 
 		if (!timeout) {
-			DRM_ERROR("Potential atomic update failure on pipe %c\n",
-				  pipe_name(crtc->pipe));
+			drm_err(&dev_priv->drm,
+				"Potential atomic update failure on pipe %c\n",
+				pipe_name(crtc->pipe));
 			break;
 		}
 
@@ -222,17 +224,20 @@ void intel_pipe_update_end(struct intel_crtc_state *new_crtc_state)
 
 	if (crtc->debug.start_vbl_count &&
 	    crtc->debug.start_vbl_count != end_vbl_count) {
-		DRM_ERROR("Atomic update failure on pipe %c (start=%u end=%u) time %lld us, min %d, max %d, scanline start %d, end %d\n",
-			  pipe_name(pipe), crtc->debug.start_vbl_count,
-			  end_vbl_count,
-			  ktime_us_delta(end_vbl_time, crtc->debug.start_vbl_time),
-			  crtc->debug.min_vbl, crtc->debug.max_vbl,
-			  crtc->debug.scanline_start, scanline_end);
+		drm_err(&dev_priv->drm,
+			"Atomic update failure on pipe %c (start=%u end=%u) time %lld us, min %d, max %d, scanline start %d, end %d\n",
+			pipe_name(pipe), crtc->debug.start_vbl_count,
+			end_vbl_count,
+			ktime_us_delta(end_vbl_time,
+				       crtc->debug.start_vbl_time),
+			crtc->debug.min_vbl, crtc->debug.max_vbl,
+			crtc->debug.scanline_start, scanline_end);
 	}
 #ifdef CONFIG_DRM_I915_DEBUG_VBLANK_EVADE
 	else if (ktime_us_delta(end_vbl_time, crtc->debug.start_vbl_time) >
 		 VBLANK_EVASION_TIME_US)
-		DRM_WARN("Atomic update on pipe (%c) took %lld us, max time under evasion is %u us\n",
+		drm_warn(&dev_priv->drm,
+			 "Atomic update on pipe (%c) took %lld us, max time under evasion is %u us\n",
 			 pipe_name(pipe),
 			 ktime_us_delta(end_vbl_time, crtc->debug.start_vbl_time),
 			 VBLANK_EVASION_TIME_US);
@@ -2030,7 +2035,8 @@ int chv_plane_check_rotation(const struct intel_plane_state *plane_state)
 	if (IS_CHERRYVIEW(dev_priv) &&
 	    rotation & DRM_MODE_ROTATE_180 &&
 	    rotation & DRM_MODE_REFLECT_X) {
-		DRM_DEBUG_KMS("Cannot rotate and reflect at the same time\n");
+		drm_dbg_kms(&dev_priv->drm,
+			    "Cannot rotate and reflect at the same time\n");
 		return -EINVAL;
 	}
 
@@ -2085,21 +2091,24 @@ static int skl_plane_check_fb(const struct intel_crtc_state *crtc_state,
 
 	if (rotation & ~(DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_180) &&
 	    is_ccs_modifier(fb->modifier)) {
-		DRM_DEBUG_KMS("RC support only with 0/180 degree rotation (%x)\n",
-			      rotation);
+		drm_dbg_kms(&dev_priv->drm,
+			    "RC support only with 0/180 degree rotation (%x)\n",
+			    rotation);
 		return -EINVAL;
 	}
 
 	if (rotation & DRM_MODE_REFLECT_X &&
 	    fb->modifier == DRM_FORMAT_MOD_LINEAR) {
-		DRM_DEBUG_KMS("horizontal flip is not supported with linear surface formats\n");
+		drm_dbg_kms(&dev_priv->drm,
+			    "horizontal flip is not supported with linear surface formats\n");
 		return -EINVAL;
 	}
 
 	if (drm_rotation_90_or_270(rotation)) {
 		if (fb->modifier != I915_FORMAT_MOD_Y_TILED &&
 		    fb->modifier != I915_FORMAT_MOD_Yf_TILED) {
-			DRM_DEBUG_KMS("Y/Yf tiling required for 90/270!\n");
+			drm_dbg_kms(&dev_priv->drm,
+				    "Y/Yf tiling required for 90/270!\n");
 			return -EINVAL;
 		}
 
@@ -2122,9 +2131,10 @@ static int skl_plane_check_fb(const struct intel_crtc_state *crtc_state,
 		case DRM_FORMAT_Y216:
 		case DRM_FORMAT_XVYU12_16161616:
 		case DRM_FORMAT_XVYU16161616:
-			DRM_DEBUG_KMS("Unsupported pixel format %s for 90/270!\n",
-				      drm_get_format_name(fb->format->format,
-							  &format_name));
+			drm_dbg_kms(&dev_priv->drm,
+				    "Unsupported pixel format %s for 90/270!\n",
+				    drm_get_format_name(fb->format->format,
+							&format_name));
 			return -EINVAL;
 		default:
 			break;
@@ -2140,7 +2150,8 @@ static int skl_plane_check_fb(const struct intel_crtc_state *crtc_state,
 	     fb->modifier == I915_FORMAT_MOD_Yf_TILED_CCS ||
 	     fb->modifier == I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS ||
 	     fb->modifier == I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS)) {
-		DRM_DEBUG_KMS("Y/Yf tiling not supported in IF-ID mode\n");
+		drm_dbg_kms(&dev_priv->drm,
+			    "Y/Yf tiling not supported in IF-ID mode\n");
 		return -EINVAL;
 	}
 
@@ -2167,10 +2178,11 @@ static int skl_plane_check_dst_coordinates(const struct intel_crtc_state *crtc_s
 	 */
 	if ((IS_GEMINILAKE(dev_priv) || IS_CANNONLAKE(dev_priv)) &&
 	    (crtc_x + crtc_w < 4 || crtc_x > pipe_src_w - 4)) {
-		DRM_DEBUG_KMS("requested plane X %s position %d invalid (valid range %d-%d)\n",
-			      crtc_x + crtc_w < 4 ? "end" : "start",
-			      crtc_x + crtc_w < 4 ? crtc_x + crtc_w : crtc_x,
-			      4, pipe_src_w - 4);
+		drm_dbg_kms(&dev_priv->drm,
+			    "requested plane X %s position %d invalid (valid range %d-%d)\n",
+			    crtc_x + crtc_w < 4 ? "end" : "start",
+			    crtc_x + crtc_w < 4 ? crtc_x + crtc_w : crtc_x,
+			    4, pipe_src_w - 4);
 		return -ERANGE;
 	}
 
