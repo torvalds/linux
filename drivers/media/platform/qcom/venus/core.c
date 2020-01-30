@@ -210,6 +210,8 @@ static int venus_probe(struct platform_device *pdev)
 	if (!core->res)
 		return -ENODEV;
 
+	mutex_init(&core->pm_lock);
+
 	core->pm_ops = venus_pm_get(core->res->hfi_version);
 	if (!core->pm_ops)
 		return -ENODEV;
@@ -336,6 +338,7 @@ static int venus_remove(struct platform_device *pdev)
 	icc_put(core->cpucfg_path);
 
 	v4l2_device_unregister(&core->v4l2_dev);
+	mutex_destroy(&core->pm_lock);
 
 	return ret;
 }

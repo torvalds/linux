@@ -545,6 +545,64 @@ static const struct v4l2_ioctl_ops vdec_ioctl_ops = {
 	.vidioc_decoder_cmd = vdec_decoder_cmd,
 };
 
+static int vdec_pm_get(struct venus_inst *inst)
+{
+	struct venus_core *core = inst->core;
+	struct device *dev = core->dev_dec;
+	int ret;
+
+	mutex_lock(&core->pm_lock);
+	ret = pm_runtime_get_sync(dev);
+	mutex_unlock(&core->pm_lock);
+
+	return ret < 0 ? ret : 0;
+}
+
+static int vdec_pm_put(struct venus_inst *inst, bool autosuspend)
+{
+	struct venus_core *core = inst->core;
+	struct device *dev = core->dev_dec;
+	int ret;
+
+	mutex_lock(&core->pm_lock);
+
+	if (autosuspend)
+		ret = pm_runtime_put_autosuspend(dev);
+	else
+		ret = pm_runtime_put_sync(dev);
+
+	mutex_unlock(&core->pm_lock);
+
+	return ret < 0 ? ret : 0;
+}
+
+static int vdec_pm_get_put(struct venus_inst *inst)
+{
+	struct venus_core *core = inst->core;
+	struct device *dev = core->dev_dec;
+	int ret = 0;
+
+	mutex_lock(&core->pm_lock);
+
+	if (pm_runtime_suspended(dev)) {
+		ret = pm_runtime_get_sync(dev);
+		if (ret < 0)
+			goto error;
+
+		ret = pm_runtime_put_autosuspend(dev);
+	}
+
+error:
+	mutex_unlock(&core->pm_lock);
+
+	return ret < 0 ? ret : 0;
+}
+
+static void vdec_pm_touch(struct venus_inst *inst)
+{
+	pm_runtime_mark_last_busy(inst->core->dev_dec);
+}
+
 static int vdec_set_properties(struct venus_inst *inst)
 {
 	struct vdec_controls *ctr = &inst->controls.dec;
@@ -746,11 +804,19 @@ static int vdec_queue_setup(struct vb2_queue *q,
 		return 0;
 	}
 
-	ret = vdec_session_init(inst);
+	ret = vdec_pm_get(inst);
 	if (ret)
 		return ret;
 
+	ret = vdec_session_init(inst);
+	if (ret)
+		goto put_power;
+
 	ret = vdec_num_buffers(inst, &in_num, &out_num);
+	if (ret)
+		goto put_power;
+
+	ret = vdec_pm_put(inst, false);
 	if (ret)
 		return ret;
 
@@ -785,6 +851,10 @@ static int vdec_queue_setup(struct vb2_queue *q,
 		break;
 	}
 
+	return ret;
+
+put_power:
+	vdec_pm_put(inst, false);
 	return ret;
 }
 
@@ -947,14 +1017,23 @@ static int vdec_start_streaming(struct vb2_queue *q, unsigned int count)
 
 	mutex_lock(&inst->lock);
 
-	ret = venus_pm_acquire_core(inst);
-	if (ret)
-		goto error;
-
-	if (q->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+	if (q->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
 		ret = vdec_start_capture(inst);
-	else
+	} else {
+		ret = vdec_pm_get(inst);
+		if (ret)
+			goto error;
+
+		ret = venus_pm_acquire_core(inst);
+		if (ret)
+			goto put_power;
+
+		ret = vdec_pm_put(inst, true);
+		if (ret)
+			goto error;
+
 		ret = vdec_start_output(inst);
+	}
 
 	if (ret)
 		goto error;
@@ -962,6 +1041,8 @@ static int vdec_start_streaming(struct vb2_queue *q, unsigned int count)
 	mutex_unlock(&inst->lock);
 	return 0;
 
+put_power:
+	vdec_pm_put(inst, false);
 error:
 	venus_helper_buffers_done(inst, VB2_BUF_STATE_QUEUED);
 	mutex_unlock(&inst->lock);
@@ -1055,8 +1136,9 @@ static void vdec_session_release(struct venus_inst *inst)
 	struct venus_core *core = inst->core;
 	int ret, abort = 0;
 
-	mutex_lock(&inst->lock);
+	vdec_pm_get(inst);
 
+	mutex_lock(&inst->lock);
 	inst->codec_state = VENUS_DEC_STATE_DEINIT;
 
 	ret = hfi_session_stop(inst);
@@ -1078,10 +1160,11 @@ static void vdec_session_release(struct venus_inst *inst)
 
 	venus_helper_free_dpb_bufs(inst);
 	venus_pm_load_scale(inst);
-	venus_pm_release_core(inst);
 	INIT_LIST_HEAD(&inst->registeredbufs);
-
 	mutex_unlock(&inst->lock);
+
+	venus_pm_release_core(inst);
+	vdec_pm_put(inst, false);
 }
 
 static int vdec_buf_init(struct vb2_buffer *vb)
@@ -1102,6 +1185,15 @@ static void vdec_buf_cleanup(struct vb2_buffer *vb)
 		vdec_session_release(inst);
 }
 
+static void vdec_vb2_buf_queue(struct vb2_buffer *vb)
+{
+	struct venus_inst *inst = vb2_get_drv_priv(vb->vb2_queue);
+
+	vdec_pm_get_put(inst);
+
+	venus_helper_vb2_buf_queue(vb);
+}
+
 static const struct vb2_ops vdec_vb2_ops = {
 	.queue_setup = vdec_queue_setup,
 	.buf_init = vdec_buf_init,
@@ -1109,7 +1201,7 @@ static const struct vb2_ops vdec_vb2_ops = {
 	.buf_prepare = venus_helper_vb2_buf_prepare,
 	.start_streaming = vdec_start_streaming,
 	.stop_streaming = vdec_stop_streaming,
-	.buf_queue = venus_helper_vb2_buf_queue,
+	.buf_queue = vdec_vb2_buf_queue,
 };
 
 static void vdec_buf_done(struct venus_inst *inst, unsigned int buf_type,
@@ -1120,6 +1212,8 @@ static void vdec_buf_done(struct venus_inst *inst, unsigned int buf_type,
 	struct vb2_v4l2_buffer *vbuf;
 	struct vb2_buffer *vb;
 	unsigned int type;
+
+	vdec_pm_touch(inst);
 
 	if (buf_type == HFI_BUFFER_INPUT)
 		type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
@@ -1226,6 +1320,8 @@ static void vdec_event_notify(struct venus_inst *inst, u32 event,
 {
 	struct venus_core *core = inst->core;
 	struct device *dev = core->dev_dec;
+
+	vdec_pm_touch(inst);
 
 	switch (event) {
 	case EVT_SESSION_ERROR:
@@ -1347,13 +1443,9 @@ static int vdec_open(struct file *file)
 	init_waitqueue_head(&inst->reconf_wait);
 	venus_helper_init_instance(inst);
 
-	ret = pm_runtime_get_sync(core->dev_dec);
-	if (ret < 0)
-		goto err_free_inst;
-
 	ret = vdec_ctrl_init(inst);
 	if (ret)
-		goto err_put_sync;
+		goto err_free;
 
 	ret = hfi_session_create(inst, &vdec_hfi_ops);
 	if (ret)
@@ -1392,9 +1484,7 @@ err_session_destroy:
 	hfi_session_destroy(inst);
 err_ctrl_deinit:
 	vdec_ctrl_deinit(inst);
-err_put_sync:
-	pm_runtime_put_sync(core->dev_dec);
-err_free_inst:
+err_free:
 	kfree(inst);
 	return ret;
 }
@@ -1402,6 +1492,8 @@ err_free_inst:
 static int vdec_close(struct file *file)
 {
 	struct venus_inst *inst = to_inst(file);
+
+	vdec_pm_get(inst);
 
 	v4l2_m2m_ctx_release(inst->m2m_ctx);
 	v4l2_m2m_release(inst->m2m_dev);
@@ -1411,7 +1503,7 @@ static int vdec_close(struct file *file)
 	v4l2_fh_del(&inst->fh);
 	v4l2_fh_exit(&inst->fh);
 
-	pm_runtime_put_sync(inst->core->dev_dec);
+	vdec_pm_put(inst, false);
 
 	kfree(inst);
 	return 0;
@@ -1468,6 +1560,8 @@ static int vdec_probe(struct platform_device *pdev)
 	core->dev_dec = dev;
 
 	video_set_drvdata(vdev, core);
+	pm_runtime_set_autosuspend_delay(dev, 2000);
+	pm_runtime_use_autosuspend(dev);
 	pm_runtime_enable(dev);
 
 	return 0;

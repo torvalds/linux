@@ -128,6 +128,7 @@ struct venus_caps {
  * @error:	an error returned during last HFI sync operations
  * @sys_error:	an error flag that signal system error event
  * @core_ops:	the core operations
+ * @pm_lock:	a lock for PM operations
  * @enc_codecs:	encoders supported by this core
  * @dec_codecs:	decoders supported by this core
  * @max_sessions_supported:	holds the maximum number of sessions
@@ -168,6 +169,7 @@ struct venus_core {
 	bool sys_error;
 	const struct hfi_core_ops *core_ops;
 	const struct venus_pm_ops *pm_ops;
+	struct mutex pm_lock;
 	unsigned long enc_codecs;
 	unsigned long dec_codecs;
 	unsigned int max_sessions_supported;
