@@ -58,6 +58,8 @@
 #include <drm/ttm/ttm_module.h>
 #include <drm/ttm/ttm_page_alloc.h>
 
+#include <drm/drm_audio_component.h>
+
 #include "uapi/drm/nouveau_drm.h"
 
 struct nouveau_channel;
@@ -211,6 +213,11 @@ struct nouveau_drm {
 	struct nouveau_svm *svm;
 
 	struct nouveau_dmem *dmem;
+
+	struct {
+		struct drm_audio_component *component;
+		bool component_registered;
+	} audio;
 };
 
 static inline struct nouveau_drm *

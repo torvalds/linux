@@ -120,8 +120,9 @@ gp102_fb_new_(const struct nvkm_fb_func *func, struct nvkm_device *device,
 	if (ret)
 		return ret;
 
-	return nvkm_firmware_load_blob(&(*pfb)->subdev, "nvdec/scrubber", "", 0,
-				       &(*pfb)->vpr_scrubber);
+	nvkm_firmware_load_blob(&(*pfb)->subdev, "nvdec/scrubber", "", 0,
+				&(*pfb)->vpr_scrubber);
+	return 0;
 }
 
 int

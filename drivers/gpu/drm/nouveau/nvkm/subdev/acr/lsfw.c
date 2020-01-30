@@ -58,8 +58,12 @@ struct nvkm_acr_lsfw *
 nvkm_acr_lsfw_add(const struct nvkm_acr_lsf_func *func, struct nvkm_acr *acr,
 		 struct nvkm_falcon *falcon, enum nvkm_acr_lsf_id id)
 {
-	struct nvkm_acr_lsfw *lsfw = nvkm_acr_lsfw_get(acr, id);
+	struct nvkm_acr_lsfw *lsfw;
 
+	if (!acr)
+		return ERR_PTR(-ENOSYS);
+
+	lsfw = nvkm_acr_lsfw_get(acr, id);
 	if (lsfw && lsfw->func) {
 		nvkm_error(&acr->subdev, "LSFW %d redefined\n", id);
 		return ERR_PTR(-EEXIST);
