@@ -919,12 +919,78 @@ out_unlock:
 }
 CONFIGFS_ATTR(nvmet_subsys_, attr_cntlid_max);
 
+static ssize_t nvmet_subsys_attr_model_show(struct config_item *item,
+					    char *page)
+{
+	struct nvmet_subsys *subsys = to_subsys(item);
+	struct nvmet_subsys_model *subsys_model;
+	char *model = NVMET_DEFAULT_CTRL_MODEL;
+	int ret;
+
+	rcu_read_lock();
+	subsys_model = rcu_dereference(subsys->model);
+	if (subsys_model)
+		model = subsys_model->number;
+	ret = snprintf(page, PAGE_SIZE, "%s\n", model);
+	rcu_read_unlock();
+
+	return ret;
+}
+
+/* See Section 1.5 of NVMe 1.4 */
+static bool nvmet_is_ascii(const char c)
+{
+	return c >= 0x20 && c <= 0x7e;
+}
+
+static ssize_t nvmet_subsys_attr_model_store(struct config_item *item,
+					     const char *page, size_t count)
+{
+	struct nvmet_subsys *subsys = to_subsys(item);
+	struct nvmet_subsys_model *new_model;
+	char *new_model_number;
+	int pos = 0, len;
+
+	len = strcspn(page, "\n");
+	if (!len)
+		return -EINVAL;
+
+	for (pos = 0; pos < len; pos++) {
+		if (!nvmet_is_ascii(page[pos]))
+			return -EINVAL;
+	}
+
+	new_model_number = kstrndup(page, len, GFP_KERNEL);
+	if (!new_model_number)
+		return -ENOMEM;
+
+	new_model = kzalloc(sizeof(*new_model) + len + 1, GFP_KERNEL);
+	if (!new_model) {
+		kfree(new_model_number);
+		return -ENOMEM;
+	}
+	memcpy(new_model->number, new_model_number, len);
+
+	down_write(&nvmet_config_sem);
+	mutex_lock(&subsys->lock);
+	new_model = rcu_replace_pointer(subsys->model, new_model,
+					mutex_is_locked(&subsys->lock));
+	mutex_unlock(&subsys->lock);
+	up_write(&nvmet_config_sem);
+
+	kfree_rcu(new_model, rcuhead);
+
+	return count;
+}
+CONFIGFS_ATTR(nvmet_subsys_, attr_model);
+
 static struct configfs_attribute *nvmet_subsys_attrs[] = {
 	&nvmet_subsys_attr_attr_allow_any_host,
 	&nvmet_subsys_attr_attr_version,
 	&nvmet_subsys_attr_attr_serial,
 	&nvmet_subsys_attr_attr_cntlid_min,
 	&nvmet_subsys_attr_attr_cntlid_max,
+	&nvmet_subsys_attr_attr_model,
 	NULL,
 };
 
