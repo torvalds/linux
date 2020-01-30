@@ -175,8 +175,6 @@ int mmc_of_parse(struct mmc_host *host)
 	struct device *dev = host->parent;
 	u32 bus_width, drv_type, cd_debounce_delay_ms;
 	int ret;
-	bool cd_cap_invert, cd_gpio_invert = false;
-	bool ro_cap_invert, ro_gpio_invert = false;
 
 	if (!dev || !dev_fwnode(dev))
 		return 0;
@@ -219,10 +217,12 @@ int mmc_of_parse(struct mmc_host *host)
 	 */
 
 	/* Parse Card Detection */
+
 	if (device_property_read_bool(dev, "non-removable")) {
 		host->caps |= MMC_CAP_NONREMOVABLE;
 	} else {
-		cd_cap_invert = device_property_read_bool(dev, "cd-inverted");
+		if (device_property_read_bool(dev, "cd-inverted"))
+			host->caps2 |= MMC_CAP2_CD_ACTIVE_HIGH;
 
 		if (device_property_read_u32(dev, "cd-debounce-delay-ms",
 					     &cd_debounce_delay_ms))
@@ -232,32 +232,19 @@ int mmc_of_parse(struct mmc_host *host)
 			host->caps |= MMC_CAP_NEEDS_POLL;
 
 		ret = mmc_gpiod_request_cd(host, "cd", 0, false,
-					   cd_debounce_delay_ms * 1000,
-					   &cd_gpio_invert);
+					   cd_debounce_delay_ms * 1000);
 		if (!ret)
 			dev_info(host->parent, "Got CD GPIO\n");
 		else if (ret != -ENOENT && ret != -ENOSYS)
 			return ret;
-
-		/*
-		 * There are two ways to flag that the CD line is inverted:
-		 * through the cd-inverted flag and by the GPIO line itself
-		 * being inverted from the GPIO subsystem. This is a leftover
-		 * from the times when the GPIO subsystem did not make it
-		 * possible to flag a line as inverted.
-		 *
-		 * If the capability on the host AND the GPIO line are
-		 * both inverted, the end result is that the CD line is
-		 * not inverted.
-		 */
-		if (cd_cap_invert ^ cd_gpio_invert)
-			host->caps2 |= MMC_CAP2_CD_ACTIVE_HIGH;
 	}
 
 	/* Parse Write Protection */
-	ro_cap_invert = device_property_read_bool(dev, "wp-inverted");
 
-	ret = mmc_gpiod_request_ro(host, "wp", 0, 0, &ro_gpio_invert);
+	if (device_property_read_bool(dev, "wp-inverted"))
+		host->caps2 |= MMC_CAP2_RO_ACTIVE_HIGH;
+
+	ret = mmc_gpiod_request_ro(host, "wp", 0, 0);
 	if (!ret)
 		dev_info(host->parent, "Got WP GPIO\n");
 	else if (ret != -ENOENT && ret != -ENOSYS)
@@ -265,10 +252,6 @@ int mmc_of_parse(struct mmc_host *host)
 
 	if (device_property_read_bool(dev, "disable-wp"))
 		host->caps2 |= MMC_CAP2_NO_WRITE_PROTECT;
-
-	/* See the comment on CD inversion above */
-	if (ro_cap_invert ^ ro_gpio_invert)
-		host->caps2 |= MMC_CAP2_RO_ACTIVE_HIGH;
 
 	if (device_property_read_bool(dev, "cap-sd-highspeed"))
 		host->caps |= MMC_CAP_SD_HIGHSPEED;

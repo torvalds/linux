@@ -246,6 +246,8 @@ struct security_class_mapping secclass_map[] = {
 	  { COMMON_SOCK_PERMS, NULL } },
 	{ "perf_event",
 	  {"open", "cpu", "kernel", "tracepoint", "read", "write"} },
+	{ "lockdown",
+	  { "integrity", "confidentiality", NULL } },
 	{ NULL }
   };
 

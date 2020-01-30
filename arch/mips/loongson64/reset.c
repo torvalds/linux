@@ -17,7 +17,7 @@
 
 static inline void loongson_reboot(void)
 {
-	((void (*)(void))ioremap_nocache(LOONGSON_BOOT_BASE, 4)) ();
+	((void (*)(void))ioremap(LOONGSON_BOOT_BASE, 4)) ();
 }
 
 static void loongson_restart(char *command)

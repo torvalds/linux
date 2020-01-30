@@ -2849,7 +2849,7 @@ static int ggtt_probe_common(struct i915_ggtt *ggtt, u64 size)
 	 * readback check when writing GTT PTE entries.
 	 */
 	if (IS_GEN9_LP(dev_priv) || INTEL_GEN(dev_priv) >= 10)
-		ggtt->gsm = ioremap_nocache(phys_addr, size);
+		ggtt->gsm = ioremap(phys_addr, size);
 	else
 		ggtt->gsm = ioremap_wc(phys_addr, size);
 	if (!ggtt->gsm) {

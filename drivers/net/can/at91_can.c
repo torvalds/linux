@@ -1302,7 +1302,7 @@ static int at91_can_probe(struct platform_device *pdev)
 		goto exit_put;
 	}
 
-	addr = ioremap_nocache(res->start, resource_size(res));
+	addr = ioremap(res->start, resource_size(res));
 	if (!addr) {
 		err = -ENOMEM;
 		goto exit_release;

@@ -1883,7 +1883,7 @@ static int i810_allocate_pci_resource(struct i810fb_par *par,
 	}
 	par->res_flags |= MMIO_REQ;
 
-	par->mmio_start_virtual = ioremap_nocache(par->mmio_start_phys, 
+	par->mmio_start_virtual = ioremap(par->mmio_start_phys, 
 						  MMIO_SIZE);
 	if (!par->mmio_start_virtual) {
 		printk("i810fb_init: cannot remap mmio region\n");

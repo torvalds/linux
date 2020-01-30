@@ -15,7 +15,7 @@ struct process_cmd_struct {
 	int arg;
 };
 
-static const char *version_str = "v1.1";
+static const char *version_str = "v1.2";
 static const int supported_api_ver = 1;
 static struct isst_if_platform_info isst_platform_info;
 static char *progname;
@@ -1384,14 +1384,10 @@ static void set_pbf_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 		goto disp_result;
 	}
 
-	if (auto_mode) {
-		if (status) {
-			ret = set_pbf_core_power(cpu);
-			if (ret)
-				goto disp_result;
-		} else {
-			isst_pm_qos_config(cpu, 0, 0);
-		}
+	if (auto_mode && status) {
+		ret = set_pbf_core_power(cpu);
+		if (ret)
+			goto disp_result;
 	}
 
 	ret = isst_set_pbf_fact_status(cpu, 1, status);
@@ -1407,6 +1403,9 @@ static void set_pbf_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 				set_scaling_min_to_cpuinfo_min(cpu);
 		}
 	}
+
+	if (auto_mode && !status)
+		isst_pm_qos_config(cpu, 0, 0);
 
 disp_result:
 	if (status)
@@ -1496,14 +1495,10 @@ static void set_fact_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 	int ret;
 	int status = *(int *)arg4;
 
-	if (auto_mode) {
-		if (status) {
-			ret = isst_pm_qos_config(cpu, 1, 1);
-			if (ret)
-				goto disp_results;
-		} else {
-			isst_pm_qos_config(cpu, 0, 0);
-		}
+	if (auto_mode && status) {
+		ret = isst_pm_qos_config(cpu, 1, 1);
+		if (ret)
+			goto disp_results;
 	}
 
 	ret = isst_set_pbf_fact_status(cpu, 0, status);
@@ -1523,6 +1518,9 @@ static void set_fact_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 		if (!ret)
 			ret = isst_set_trl(cpu, fact_trl);
 		if (ret && auto_mode)
+			isst_pm_qos_config(cpu, 0, 0);
+	} else {
+		if (auto_mode)
 			isst_pm_qos_config(cpu, 0, 0);
 	}
 
@@ -1638,7 +1636,7 @@ static void set_fact_enable(int arg)
 			if (ret)
 				goto error_disp;
 		}
-		isst_display_result(i, outf, "turbo-freq --auto", "enable", 0);
+		isst_display_result(-1, outf, "turbo-freq --auto", "enable", 0);
 	}
 
 	return;

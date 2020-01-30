@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * exynos-nocp.c - EXYNOS NoC (Network On Chip) Probe support
+ * exynos-nocp.c - Exynos NoC (Network On Chip) Probe support
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  * Author : Chanwoo Choi <cw00.choi@samsung.com>

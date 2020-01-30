@@ -1780,10 +1780,9 @@ static int remap_verify_area(struct file *file, loff_t pos, loff_t len,
  * else.  Assume that the offsets have already been checked for block
  * alignment.
  *
- * For deduplication we always scale down to the previous block because we
- * can't meaningfully compare post-EOF contents.
- *
- * For clone we only link a partial EOF block above the destination file's EOF.
+ * For clone we only link a partial EOF block above or at the destination file's
+ * EOF.  For deduplication we accept a partial EOF block only if it ends at the
+ * destination file's EOF (can not link it into the middle of a file).
  *
  * Shorten the request if possible.
  */
@@ -1799,8 +1798,7 @@ static int generic_remap_check_len(struct inode *inode_in,
 	if ((*len & blkmask) == 0)
 		return 0;
 
-	if ((remap_flags & REMAP_FILE_DEDUP) ||
-	    pos_out + *len < i_size_read(inode_out))
+	if (pos_out + *len < i_size_read(inode_out))
 		new_len &= ~blkmask;
 
 	if (new_len == *len)

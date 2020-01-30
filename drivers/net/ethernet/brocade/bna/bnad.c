@@ -3477,7 +3477,7 @@ bnad_init(struct bnad *bnad,
 	bnad->pcidev = pdev;
 	bnad->mmio_start = pci_resource_start(pdev, 0);
 	bnad->mmio_len = pci_resource_len(pdev, 0);
-	bnad->bar0 = ioremap_nocache(bnad->mmio_start, bnad->mmio_len);
+	bnad->bar0 = ioremap(bnad->mmio_start, bnad->mmio_len);
 	if (!bnad->bar0) {
 		dev_err(&pdev->dev, "ioremap for bar0 failed\n");
 		return -ENOMEM;

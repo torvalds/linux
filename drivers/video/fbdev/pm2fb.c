@@ -1563,7 +1563,7 @@ static int pm2fb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_exit_neither;
 	}
 	default_par->v_regs =
-		ioremap_nocache(pm2fb_fix.mmio_start, pm2fb_fix.mmio_len);
+		ioremap(pm2fb_fix.mmio_start, pm2fb_fix.mmio_len);
 	if (!default_par->v_regs) {
 		printk(KERN_WARNING "pm2fb: Can't remap %s register area.\n",
 		       pm2fb_fix.id);

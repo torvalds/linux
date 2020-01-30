@@ -1929,7 +1929,7 @@ static int snd_echo_create(struct snd_card *card,
 		return -EBUSY;
 	}
 	chip->dsp_registers = (volatile u32 __iomem *)
-		ioremap_nocache(chip->dsp_registers_phys, sz);
+		ioremap(chip->dsp_registers_phys, sz);
 	if (!chip->dsp_registers) {
 		dev_err(chip->card->dev, "ioremap failed\n");
 		snd_echo_free(chip);

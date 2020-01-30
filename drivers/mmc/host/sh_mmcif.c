@@ -432,8 +432,12 @@ static void sh_mmcif_request_dma(struct sh_mmcif_host *host)
 		host->chan_rx = sh_mmcif_request_dma_pdata(host,
 							pdata->slave_id_rx);
 	} else {
-		host->chan_tx = dma_request_slave_channel(dev, "tx");
-		host->chan_rx = dma_request_slave_channel(dev, "rx");
+		host->chan_tx = dma_request_chan(dev, "tx");
+		if (IS_ERR(host->chan_tx))
+			host->chan_tx = NULL;
+		host->chan_rx = dma_request_chan(dev, "rx");
+		if (IS_ERR(host->chan_rx))
+			host->chan_rx = NULL;
 	}
 	dev_dbg(dev, "%s: got channel TX %p RX %p\n", __func__, host->chan_tx,
 		host->chan_rx);
@@ -1388,7 +1392,6 @@ static int sh_mmcif_probe(struct platform_device *pdev)
 	struct sh_mmcif_host *host;
 	struct device *dev = &pdev->dev;
 	struct sh_mmcif_plat_data *pd = dev->platform_data;
-	struct resource *res;
 	void __iomem *reg;
 	const char *name;
 
@@ -1397,8 +1400,7 @@ static int sh_mmcif_probe(struct platform_device *pdev)
 	if (irq[0] < 0)
 		return -ENXIO;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	reg = devm_ioremap_resource(dev, res);
+	reg = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(reg))
 		return PTR_ERR(reg);
 

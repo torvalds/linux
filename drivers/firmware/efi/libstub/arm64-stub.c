@@ -21,7 +21,7 @@
 
 #include "efistub.h"
 
-efi_status_t check_platform_features(efi_system_table_t *sys_table_arg)
+efi_status_t check_platform_features(void)
 {
 	u64 tg;
 
@@ -32,16 +32,15 @@ efi_status_t check_platform_features(efi_system_table_t *sys_table_arg)
 	tg = (read_cpuid(ID_AA64MMFR0_EL1) >> ID_AA64MMFR0_TGRAN_SHIFT) & 0xf;
 	if (tg != ID_AA64MMFR0_TGRAN_SUPPORTED) {
 		if (IS_ENABLED(CONFIG_ARM64_64K_PAGES))
-			pr_efi_err(sys_table_arg, "This 64 KB granular kernel is not supported by your CPU\n");
+			pr_efi_err("This 64 KB granular kernel is not supported by your CPU\n");
 		else
-			pr_efi_err(sys_table_arg, "This 16 KB granular kernel is not supported by your CPU\n");
+			pr_efi_err("This 16 KB granular kernel is not supported by your CPU\n");
 		return EFI_UNSUPPORTED;
 	}
 	return EFI_SUCCESS;
 }
 
-efi_status_t handle_kernel_image(efi_system_table_t *sys_table_arg,
-				 unsigned long *image_addr,
+efi_status_t handle_kernel_image(unsigned long *image_addr,
 				 unsigned long *image_size,
 				 unsigned long *reserve_addr,
 				 unsigned long *reserve_size,
@@ -56,17 +55,16 @@ efi_status_t handle_kernel_image(efi_system_table_t *sys_table_arg,
 
 	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE)) {
 		if (!nokaslr()) {
-			status = efi_get_random_bytes(sys_table_arg,
-						      sizeof(phys_seed),
+			status = efi_get_random_bytes(sizeof(phys_seed),
 						      (u8 *)&phys_seed);
 			if (status == EFI_NOT_FOUND) {
-				pr_efi(sys_table_arg, "EFI_RNG_PROTOCOL unavailable, no randomness supplied\n");
+				pr_efi("EFI_RNG_PROTOCOL unavailable, no randomness supplied\n");
 			} else if (status != EFI_SUCCESS) {
-				pr_efi_err(sys_table_arg, "efi_get_random_bytes() failed\n");
+				pr_efi_err("efi_get_random_bytes() failed\n");
 				return status;
 			}
 		} else {
-			pr_efi(sys_table_arg, "KASLR disabled on kernel command line\n");
+			pr_efi("KASLR disabled on kernel command line\n");
 		}
 	}
 
@@ -108,7 +106,7 @@ efi_status_t handle_kernel_image(efi_system_table_t *sys_table_arg,
 		 * locate the kernel at a randomized offset in physical memory.
 		 */
 		*reserve_size = kernel_memsize + offset;
-		status = efi_random_alloc(sys_table_arg, *reserve_size,
+		status = efi_random_alloc(*reserve_size,
 					  MIN_KIMG_ALIGN, reserve_addr,
 					  (u32)phys_seed);
 
@@ -131,19 +129,19 @@ efi_status_t handle_kernel_image(efi_system_table_t *sys_table_arg,
 		*image_addr = *reserve_addr = preferred_offset;
 		*reserve_size = round_up(kernel_memsize, EFI_ALLOC_ALIGN);
 
-		status = efi_call_early(allocate_pages, EFI_ALLOCATE_ADDRESS,
-					EFI_LOADER_DATA,
-					*reserve_size / EFI_PAGE_SIZE,
-					(efi_physical_addr_t *)reserve_addr);
+		status = efi_bs_call(allocate_pages, EFI_ALLOCATE_ADDRESS,
+				     EFI_LOADER_DATA,
+				     *reserve_size / EFI_PAGE_SIZE,
+				     (efi_physical_addr_t *)reserve_addr);
 	}
 
 	if (status != EFI_SUCCESS) {
 		*reserve_size = kernel_memsize + TEXT_OFFSET;
-		status = efi_low_alloc(sys_table_arg, *reserve_size,
+		status = efi_low_alloc(*reserve_size,
 				       MIN_KIMG_ALIGN, reserve_addr);
 
 		if (status != EFI_SUCCESS) {
-			pr_efi_err(sys_table_arg, "Failed to relocate kernel\n");
+			pr_efi_err("Failed to relocate kernel\n");
 			*reserve_size = 0;
 			return status;
 		}

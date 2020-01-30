@@ -654,7 +654,7 @@ static int intelfb_pci_register(struct pci_dev *pdev,
 	}
 
 	dinfo->mmio_base =
-		(u8 __iomem *)ioremap_nocache(dinfo->mmio_base_phys,
+		(u8 __iomem *)ioremap(dinfo->mmio_base_phys,
 					      INTEL_REG_SIZE);
 	if (!dinfo->mmio_base) {
 		ERR_MSG("Cannot remap MMIO region.\n");

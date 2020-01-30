@@ -710,17 +710,19 @@ static int pxamci_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, mmc);
 
-	host->dma_chan_rx = dma_request_slave_channel(dev, "rx");
-	if (host->dma_chan_rx == NULL) {
+	host->dma_chan_rx = dma_request_chan(dev, "rx");
+	if (IS_ERR(host->dma_chan_rx)) {
 		dev_err(dev, "unable to request rx dma channel\n");
-		ret = -ENODEV;
+		ret = PTR_ERR(host->dma_chan_rx);
+		host->dma_chan_rx = NULL;
 		goto out;
 	}
 
-	host->dma_chan_tx = dma_request_slave_channel(dev, "tx");
-	if (host->dma_chan_tx == NULL) {
+	host->dma_chan_tx = dma_request_chan(dev, "tx");
+	if (IS_ERR(host->dma_chan_tx)) {
 		dev_err(dev, "unable to request tx dma channel\n");
-		ret = -ENODEV;
+		ret = PTR_ERR(host->dma_chan_tx);
+		host->dma_chan_tx = NULL;
 		goto out;
 	}
 
@@ -734,22 +736,22 @@ static int pxamci_probe(struct platform_device *pdev)
 		}
 
 		/* FIXME: should we pass detection delay to debounce? */
-		ret = mmc_gpiod_request_cd(mmc, "cd", 0, false, 0, NULL);
+		ret = mmc_gpiod_request_cd(mmc, "cd", 0, false, 0);
 		if (ret && ret != -ENOENT) {
 			dev_err(dev, "Failed requesting gpio_cd\n");
 			goto out;
 		}
 
-		ret = mmc_gpiod_request_ro(mmc, "wp", 0, 0, NULL);
+		if (!host->pdata->gpio_card_ro_invert)
+			mmc->caps2 |= MMC_CAP2_RO_ACTIVE_HIGH;
+
+		ret = mmc_gpiod_request_ro(mmc, "wp", 0, 0);
 		if (ret && ret != -ENOENT) {
 			dev_err(dev, "Failed requesting gpio_ro\n");
 			goto out;
 		}
-		if (!ret) {
+		if (!ret)
 			host->use_ro_gpio = true;
-			mmc->caps2 |= host->pdata->gpio_card_ro_invert ?
-				0 : MMC_CAP2_RO_ACTIVE_HIGH;
-		}
 
 		if (host->pdata->init)
 			host->pdata->init(dev, pxamci_detect_irq, mmc);

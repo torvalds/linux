@@ -2466,7 +2466,7 @@ static int snd_rme9652_create(struct snd_card *card,
 	if ((err = pci_request_regions(pci, "rme9652")) < 0)
 		return err;
 	rme9652->port = pci_resource_start(pci, 0);
-	rme9652->iobase = ioremap_nocache(rme9652->port, RME9652_IO_EXTENT);
+	rme9652->iobase = ioremap(rme9652->port, RME9652_IO_EXTENT);
 	if (rme9652->iobase == NULL) {
 		dev_err(card->dev, "unable to remap region 0x%lx-0x%lx\n",
 			rme9652->port, rme9652->port + RME9652_IO_EXTENT - 1);

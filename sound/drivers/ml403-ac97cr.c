@@ -1123,7 +1123,7 @@ snd_ml403_ac97cr_create(struct snd_card *card, struct platform_device *pfdev,
 	PDEBUG(INIT_INFO, "Trying to reserve resources now ...\n");
 	resource = platform_get_resource(pfdev, IORESOURCE_MEM, 0);
 	/* get "port" */
-	ml403_ac97cr->port = ioremap_nocache(resource->start,
+	ml403_ac97cr->port = ioremap(resource->start,
 					     (resource->end) -
 					     (resource->start) + 1);
 	if (ml403_ac97cr->port == NULL) {

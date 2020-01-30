@@ -390,8 +390,7 @@ static int pwm_fan_probe(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int pwm_fan_suspend(struct device *dev)
+static int pwm_fan_disable(struct device *dev)
 {
 	struct pwm_fan_ctx *ctx = dev_get_drvdata(dev);
 	struct pwm_args args;
@@ -416,6 +415,17 @@ static int pwm_fan_suspend(struct device *dev)
 	}
 
 	return 0;
+}
+
+static void pwm_fan_shutdown(struct platform_device *pdev)
+{
+	pwm_fan_disable(&pdev->dev);
+}
+
+#ifdef CONFIG_PM_SLEEP
+static int pwm_fan_suspend(struct device *dev)
+{
+	return pwm_fan_disable(dev);
 }
 
 static int pwm_fan_resume(struct device *dev)
@@ -455,6 +465,7 @@ MODULE_DEVICE_TABLE(of, of_pwm_fan_match);
 
 static struct platform_driver pwm_fan_driver = {
 	.probe		= pwm_fan_probe,
+	.shutdown	= pwm_fan_shutdown,
 	.driver	= {
 		.name		= "pwm-fan",
 		.pm		= &pwm_fan_pm,

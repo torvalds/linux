@@ -511,7 +511,7 @@
 			1 -- check protection requested by application.
 			Default value is set via a kernel config option.
 			Value can be changed at runtime via
-				/selinux/checkreqprot.
+				/sys/fs/selinux/checkreqprot.
 
 	cio_ignore=	[S390]
 			See Documentation/s390/common_io.rst for details.
@@ -1165,10 +1165,10 @@
 
 	efi=		[EFI]
 			Format: { "old_map", "nochunk", "noruntime", "debug",
-				  "nosoftreserve" }
+				  "nosoftreserve", "disable_early_pci_dma",
+				  "no_disable_early_pci_dma" }
 			old_map [X86-64]: switch to the old ioremap-based EFI
-			runtime services mapping. 32-bit still uses this one by
-			default.
+			runtime services mapping. [Needs CONFIG_X86_UV=y]
 			nochunk: disable reading files in "chunks" in the EFI
 			boot stub, as chunking can cause problems with some
 			firmware implementations.
@@ -1180,6 +1180,10 @@
 			claim. Specify efi=nosoftreserve to disable this
 			reservation and treat the memory by its base type
 			(i.e. EFI_CONVENTIONAL_MEMORY / "System RAM").
+			disable_early_pci_dma: Disable the busmaster bit on all
+			PCI bridges while in the EFI boot stub
+			no_disable_early_pci_dma: Leave the busmaster bit set
+			on all PCI bridges while in the EFI boot stub
 
 	efi_no_storage_paranoia [EFI; X86]
 			Using this parameter you can use more than 50% of
@@ -1245,7 +1249,8 @@
 			0 -- permissive (log only, no denials).
 			1 -- enforcing (deny and log).
 			Default value is 0.
-			Value can be changed at runtime via /selinux/enforce.
+			Value can be changed at runtime via
+			/sys/fs/selinux/enforce.
 
 	erst_disable	[ACPI]
 			Disable Error Record Serialization Table (ERST)
@@ -1933,9 +1938,31 @@
 			  <cpu number> begins at 0 and the maximum value is
 			  "number of CPUs in system - 1".
 
+			managed_irq
+
+			  Isolate from being targeted by managed interrupts
+			  which have an interrupt mask containing isolated
+			  CPUs. The affinity of managed interrupts is
+			  handled by the kernel and cannot be changed via
+			  the /proc/irq/* interfaces.
+
+			  This isolation is best effort and only effective
+			  if the automatically assigned interrupt mask of a
+			  device queue contains isolated and housekeeping
+			  CPUs. If housekeeping CPUs are online then such
+			  interrupts are directed to the housekeeping CPU
+			  so that IO submitted on the housekeeping CPU
+			  cannot disturb the isolated CPU.
+
+			  If a queue's affinity mask contains only isolated
+			  CPUs then this parameter has no effect on the
+			  interrupt routing decision, though interrupts are
+			  only delivered when tasks running on those
+			  isolated CPUs submit IO. IO submitted on
+			  housekeeping CPUs has no influence on those
+			  queues.
+
 			The format of <cpu-list> is described above.
-
-
 
 	iucv=		[HW,NET]
 
@@ -3978,6 +4005,19 @@
 			test until boot completes in order to avoid
 			interference.
 
+	rcuperf.kfree_rcu_test= [KNL]
+			Set to measure performance of kfree_rcu() flooding.
+
+	rcuperf.kfree_nthreads= [KNL]
+			The number of threads running loops of kfree_rcu().
+
+	rcuperf.kfree_alloc_num= [KNL]
+			Number of allocations and frees done in an iteration.
+
+	rcuperf.kfree_loops= [KNL]
+			Number of loops doing rcuperf.kfree_alloc_num number
+			of allocations and frees.
+
 	rcuperf.nreaders= [KNL]
 			Set number of RCU readers.  The value -1 selects
 			N, where N is the number of CPUs.  A value
@@ -4348,9 +4388,7 @@
 			See security/selinux/Kconfig help text.
 			0 -- disable.
 			1 -- enable.
-			Default value is set via kernel config option.
-			If enabled at boot time, /selinux/disable can be used
-			later to disable prior to initial policy load.
+			Default value is 1.
 
 	apparmor=	[APPARMOR] Disable or enable AppArmor at boot time
 			Format: { "0" | "1" }

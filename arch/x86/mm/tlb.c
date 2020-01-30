@@ -708,7 +708,7 @@ void native_flush_tlb_others(const struct cpumask *cpumask,
 			       (void *)info, 1);
 	else
 		on_each_cpu_cond_mask(tlb_is_not_lazy, flush_tlb_func_remote,
-				(void *)info, 1, GFP_ATOMIC, cpumask);
+				(void *)info, 1, cpumask);
 }
 
 /*

@@ -1157,6 +1157,9 @@ static void *wakeup_sources_stats_seq_next(struct seq_file *m,
 		break;
 	}
 
+	if (!next_ws)
+		print_wakeup_source_stats(m, &deleted_ws);
+
 	return next_ws;
 }
 

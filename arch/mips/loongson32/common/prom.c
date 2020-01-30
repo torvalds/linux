@@ -26,13 +26,13 @@ void __init prom_init(void)
 		memsize = DEFAULT_MEMSIZE;
 
 	if (strstr(arcs_cmdline, "console=ttyS3"))
-		uart_base = ioremap_nocache(LS1X_UART3_BASE, 0x0f);
+		uart_base = ioremap(LS1X_UART3_BASE, 0x0f);
 	else if (strstr(arcs_cmdline, "console=ttyS2"))
-		uart_base = ioremap_nocache(LS1X_UART2_BASE, 0x0f);
+		uart_base = ioremap(LS1X_UART2_BASE, 0x0f);
 	else if (strstr(arcs_cmdline, "console=ttyS1"))
-		uart_base = ioremap_nocache(LS1X_UART1_BASE, 0x0f);
+		uart_base = ioremap(LS1X_UART1_BASE, 0x0f);
 	else
-		uart_base = ioremap_nocache(LS1X_UART0_BASE, 0x0f);
+		uart_base = ioremap(LS1X_UART0_BASE, 0x0f);
 	setup_8250_early_printk_port((unsigned long)uart_base, 0, 0);
 }
 

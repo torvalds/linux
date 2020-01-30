@@ -1344,7 +1344,7 @@ static int snd_rme32_create(struct rme32 *rme32)
 		return err;
 	rme32->port = pci_resource_start(rme32->pci, 0);
 
-	rme32->iobase = ioremap_nocache(rme32->port, RME32_IO_SIZE);
+	rme32->iobase = ioremap(rme32->port, RME32_IO_SIZE);
 	if (!rme32->iobase) {
 		dev_err(rme32->card->dev,
 			"unable to remap memory region 0x%lx-0x%lx\n",

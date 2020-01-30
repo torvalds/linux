@@ -1155,6 +1155,12 @@ static struct synth_event *find_synth_event(const char *name)
 	return NULL;
 }
 
+static struct trace_event_fields synth_event_fields_array[] = {
+	{ .type = TRACE_FUNCTION_TYPE,
+	  .define_fields = synth_event_define_fields },
+	{}
+};
+
 static int register_synth_event(struct synth_event *event)
 {
 	struct trace_event_call *call = &event->call;
@@ -1176,7 +1182,7 @@ static int register_synth_event(struct synth_event *event)
 
 	INIT_LIST_HEAD(&call->class->fields);
 	call->event.funcs = &synth_event_funcs;
-	call->class->define_fields = synth_event_define_fields;
+	call->class->fields_array = synth_event_fields_array;
 
 	ret = register_trace_event(&call->event);
 	if (!ret) {

@@ -39,7 +39,7 @@
 static struct cppc_cpudata **all_cpu_data;
 
 struct cppc_workaround_oem_info {
-	char oem_id[ACPI_OEM_ID_SIZE +1];
+	char oem_id[ACPI_OEM_ID_SIZE + 1];
 	char oem_table_id[ACPI_OEM_TABLE_ID_SIZE + 1];
 	u32 oem_revision;
 };
@@ -93,9 +93,13 @@ static void cppc_check_hisi_workaround(void)
 	for (i = 0; i < ARRAY_SIZE(wa_info); i++) {
 		if (!memcmp(wa_info[i].oem_id, tbl->oem_id, ACPI_OEM_ID_SIZE) &&
 		    !memcmp(wa_info[i].oem_table_id, tbl->oem_table_id, ACPI_OEM_TABLE_ID_SIZE) &&
-		    wa_info[i].oem_revision == tbl->oem_revision)
+		    wa_info[i].oem_revision == tbl->oem_revision) {
 			apply_hisi_workaround = true;
+			break;
+		}
 	}
+
+	acpi_put_table(tbl);
 }
 
 /* Callback function used to retrieve the max frequency from DMI */

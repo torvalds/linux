@@ -1045,7 +1045,7 @@ static int isif_probe(struct platform_device *pdev)
 			status = -EBUSY;
 			goto fail_nobase_res;
 		}
-		addr = ioremap_nocache(res->start, resource_size(res));
+		addr = ioremap(res->start, resource_size(res));
 		if (!addr) {
 			status = -ENOMEM;
 			goto fail_base_iomap;

@@ -14,8 +14,8 @@
 
 struct renesas_sdhi_scc {
 	unsigned long clk_rate;	/* clock rate for SDR104 */
-	u32 tap;		/* sampling clock position for SDR104 */
-	u32 tap_hs400;		/* sampling clock position for HS400 */
+	u32 tap;		/* sampling clock position for SDR104/HS400 (8 TAP) */
+	u32 tap_hs400_4tap;	/* sampling clock position for HS400 (4 TAP) */
 };
 
 struct renesas_sdhi_of_data {
@@ -33,6 +33,11 @@ struct renesas_sdhi_of_data {
 	unsigned short max_segs;
 };
 
+struct renesas_sdhi_quirks {
+	bool hs400_disabled;
+	bool hs400_4taps;
+};
+
 struct tmio_mmc_dma {
 	enum dma_slave_buswidth dma_buswidth;
 	bool (*filter)(struct dma_chan *chan, void *arg);
@@ -46,6 +51,7 @@ struct renesas_sdhi {
 	struct clk *clk_cd;
 	struct tmio_mmc_data mmc_data;
 	struct tmio_mmc_dma dma_priv;
+	const struct renesas_sdhi_quirks *quirks;
 	struct pinctrl *pinctrl;
 	struct pinctrl_state *pins_default, *pins_uhs;
 	void __iomem *scc_ctl;

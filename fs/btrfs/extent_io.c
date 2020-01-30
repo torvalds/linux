@@ -3043,7 +3043,7 @@ __get_extent_map(struct inode *inode, struct page *page, size_t pg_offset,
 		*em_cached = NULL;
 	}
 
-	em = get_extent(BTRFS_I(inode), page, pg_offset, start, len, 0);
+	em = get_extent(BTRFS_I(inode), page, pg_offset, start, len);
 	if (em_cached && !IS_ERR_OR_NULL(em)) {
 		BUG_ON(*em_cached);
 		refcount_inc(&em->refs);
@@ -3455,11 +3455,6 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 	update_nr_written(wbc, nr_written + 1);
 
 	end = page_end;
-	if (i_size <= start) {
-		btrfs_writepage_endio_finish_ordered(page, start, page_end, 1);
-		goto done;
-	}
-
 	blocksize = inode->i_sb->s_blocksize;
 
 	while (cur <= end) {
@@ -3471,8 +3466,8 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 							     page_end, 1);
 			break;
 		}
-		em = btrfs_get_extent(BTRFS_I(inode), page, pg_offset, cur,
-				     end - cur + 1, 1);
+		em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, cur,
+				      end - cur + 1);
 		if (IS_ERR_OR_NULL(em)) {
 			SetPageError(page);
 			ret = PTR_ERR_OR_ZERO(em);
@@ -3497,22 +3492,11 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 		 */
 		if (compressed || block_start == EXTENT_MAP_HOLE ||
 		    block_start == EXTENT_MAP_INLINE) {
-			/*
-			 * end_io notification does not happen here for
-			 * compressed extents
-			 */
-			if (!compressed)
-				btrfs_writepage_endio_finish_ordered(page, cur,
-							    cur + iosize - 1,
-							    1);
-			else if (compressed) {
-				/* we don't want to end_page_writeback on
-				 * a compressed extent.  this happens
-				 * elsewhere
-				 */
+			if (compressed)
 				nr++;
-			}
-
+			else
+				btrfs_writepage_endio_finish_ordered(page, cur,
+							cur + iosize - 1, 1);
 			cur += iosize;
 			pg_offset += iosize;
 			continue;
@@ -3540,7 +3524,6 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 		pg_offset += iosize;
 		nr++;
 	}
-done:
 	*nr_ret = nr;
 	return ret;
 }
@@ -3562,7 +3545,7 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 	u64 page_end = start + PAGE_SIZE - 1;
 	int ret;
 	int nr = 0;
-	size_t pg_offset = 0;
+	size_t pg_offset;
 	loff_t i_size = i_size_read(inode);
 	unsigned long end_index = i_size >> PAGE_SHIFT;
 	unsigned long nr_written = 0;
@@ -3591,14 +3574,12 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 		flush_dcache_page(page);
 	}
 
-	pg_offset = 0;
-
 	set_page_extent_mapped(page);
 
 	if (!epd->extent_locked) {
 		ret = writepage_delalloc(inode, page, wbc, start, &nr_written);
 		if (ret == 1)
-			goto done_unlocked;
+			return 0;
 		if (ret)
 			goto done;
 	}
@@ -3606,7 +3587,7 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 	ret = __extent_writepage_io(inode, page, wbc, epd,
 				    i_size, nr_written, &nr);
 	if (ret == 1)
-		goto done_unlocked;
+		return 0;
 
 done:
 	if (nr == 0) {
@@ -3621,9 +3602,6 @@ done:
 	unlock_page(page);
 	ASSERT(ret <= 0);
 	return ret;
-
-done_unlocked:
-	return 0;
 }
 
 void wait_on_extent_buffer_writeback(struct extent_buffer *eb)
@@ -3941,6 +3919,11 @@ int btree_write_cache_pages(struct address_space *mapping,
 	if (wbc->range_cyclic) {
 		index = mapping->writeback_index; /* Start from prev offset */
 		end = -1;
+		/*
+		 * Start from the beginning does not need to cycle over the
+		 * range, mark it as scanned.
+		 */
+		scanned = (index == 0);
 	} else {
 		index = wbc->range_start >> PAGE_SHIFT;
 		end = wbc->range_end >> PAGE_SHIFT;
@@ -3958,7 +3941,6 @@ retry:
 			tag))) {
 		unsigned i;
 
-		scanned = 1;
 		for (i = 0; i < nr_pages; i++) {
 			struct page *page = pvec.pages[i];
 
@@ -4087,6 +4069,11 @@ static int extent_write_cache_pages(struct address_space *mapping,
 	if (wbc->range_cyclic) {
 		index = mapping->writeback_index; /* Start from prev offset */
 		end = -1;
+		/*
+		 * Start from the beginning does not need to cycle over the
+		 * range, mark it as scanned.
+		 */
+		scanned = (index == 0);
 	} else {
 		index = wbc->range_start >> PAGE_SHIFT;
 		end = wbc->range_end >> PAGE_SHIFT;
@@ -4120,7 +4107,6 @@ retry:
 						&index, end, tag))) {
 		unsigned i;
 
-		scanned = 1;
 		for (i = 0; i < nr_pages; i++) {
 			struct page *page = pvec.pages[i];
 

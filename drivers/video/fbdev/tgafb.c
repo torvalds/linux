@@ -1438,7 +1438,7 @@ static int tgafb_register(struct device *dev)
 	}
 
 	/* Map the framebuffer.  */
-	mem_base = ioremap_nocache(bar0_start, bar0_len);
+	mem_base = ioremap(bar0_start, bar0_len);
 	if (!mem_base) {
 		printk(KERN_ERR "tgafb: Cannot map MMIO\n");
 		goto err1;

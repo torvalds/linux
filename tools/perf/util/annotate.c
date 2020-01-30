@@ -1966,14 +1966,20 @@ static int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 	err = asprintf(&command,
 		 "%s %s%s --start-address=0x%016" PRIx64
 		 " --stop-address=0x%016" PRIx64
-		 " -l -d %s %s -C \"$1\"",
+		 " -l -d %s %s %s %c%s%c %s%s -C \"$1\"",
 		 opts->objdump_path ?: "objdump",
 		 opts->disassembler_style ? "-M " : "",
 		 opts->disassembler_style ?: "",
 		 map__rip_2objdump(map, sym->start),
 		 map__rip_2objdump(map, sym->end),
 		 opts->show_asm_raw ? "" : "--no-show-raw-insn",
-		 opts->annotate_src ? "-S" : "");
+		 opts->annotate_src ? "-S" : "",
+		 opts->prefix ? "--prefix " : "",
+		 opts->prefix ? '"' : ' ',
+		 opts->prefix ?: "",
+		 opts->prefix ? '"' : ' ',
+		 opts->prefix_strip ? "--prefix-strip=" : "",
+		 opts->prefix_strip ?: "");
 
 	if (err < 0) {
 		pr_err("Failure allocating memory for the command to run\n");
@@ -3203,4 +3209,13 @@ int annotate_parse_percent_type(const struct option *opt, const char *_str,
 out:
 	free(str1);
 	return err;
+}
+
+int annotate_check_args(struct annotation_options *args)
+{
+	if (args->prefix_strip && !args->prefix) {
+		pr_err("--prefix-strip requires --prefix\n");
+		return -1;
+	}
+	return 0;
 }

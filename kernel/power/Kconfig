@@ -27,7 +27,10 @@ config SUSPEND_SKIP_SYNC
 	  Skip the kernel sys_sync() before freezing user processes.
 	  Some systems prefer not to pay this cost on every invocation
 	  of suspend, or they are content with invoking sync() from
-	  user-space before invoking suspend.  Say Y if that's your case.
+	  user-space before invoking suspend.  There's a run-time switch
+	  at '/sys/power/sync_on_suspend' to configure this behaviour.
+	  This setting changes the default for the run-tim switch. Say Y
+	  to change the default to disable the kernel sys_sync().
 
 config HIBERNATE_CALLBACKS
 	bool

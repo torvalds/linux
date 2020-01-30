@@ -1791,7 +1791,7 @@ static int slic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	sdev->is_fiber = slic_is_fiber(pdev->subsystem_device);
 	sdev->pdev = pdev;
 	sdev->netdev = dev;
-	sdev->regs = ioremap_nocache(pci_resource_start(pdev, 0),
+	sdev->regs = ioremap(pci_resource_start(pdev, 0),
 				     pci_resource_len(pdev, 0));
 	if (!sdev->regs) {
 		dev_err(&pdev->dev, "failed to map registers\n");

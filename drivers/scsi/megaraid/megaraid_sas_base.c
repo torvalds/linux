@@ -5875,7 +5875,7 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	}
 
 	base_addr = pci_resource_start(instance->pdev, instance->bar);
-	instance->reg_set = ioremap_nocache(base_addr, 8192);
+	instance->reg_set = ioremap(base_addr, 8192);
 
 	if (!instance->reg_set) {
 		dev_printk(KERN_DEBUG, &instance->pdev->dev, "Failed to map IO mem\n");

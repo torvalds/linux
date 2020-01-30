@@ -1782,7 +1782,7 @@ static int goku_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 	dev->got_region = 1;
 
-	base = ioremap_nocache(resource, len);
+	base = ioremap(resource, len);
 	if (base == NULL) {
 		DBG(dev, "can't map memory\n");
 		retval = -EFAULT;

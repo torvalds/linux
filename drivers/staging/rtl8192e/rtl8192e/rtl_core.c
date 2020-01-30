@@ -2463,7 +2463,7 @@ static int _rtl92e_pci_probe(struct pci_dev *pdev,
 	}
 
 
-	ioaddr = (unsigned long)ioremap_nocache(pmem_start, pmem_len);
+	ioaddr = (unsigned long)ioremap(pmem_start, pmem_len);
 	if (ioaddr == (unsigned long)NULL) {
 		netdev_err(dev, "ioremap failed!");
 		goto err_rel_mem;

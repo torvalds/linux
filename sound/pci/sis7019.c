@@ -1334,7 +1334,7 @@ static int sis_chip_create(struct snd_card *card,
 	}
 
 	rc = -EIO;
-	sis->ioaddr = ioremap_nocache(pci_resource_start(pci, 1), 0x4000);
+	sis->ioaddr = ioremap(pci_resource_start(pci, 1), 0x4000);
 	if (!sis->ioaddr) {
 		dev_err(&pci->dev, "unable to remap MMIO, aborting\n");
 		goto error_out_cleanup;

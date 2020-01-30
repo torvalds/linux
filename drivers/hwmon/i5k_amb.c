@@ -528,7 +528,7 @@ static int i5k_amb_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	data->amb_mmio = ioremap_nocache(data->amb_base, data->amb_len);
+	data->amb_mmio = ioremap(data->amb_base, data->amb_len);
 	if (!data->amb_mmio) {
 		res = -EBUSY;
 		goto err_map_failed;

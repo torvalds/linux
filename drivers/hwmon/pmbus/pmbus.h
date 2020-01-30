@@ -22,6 +22,8 @@ enum pmbus_regs {
 	PMBUS_CLEAR_FAULTS		= 0x03,
 	PMBUS_PHASE			= 0x04,
 
+	PMBUS_WRITE_PROTECT		= 0x10,
+
 	PMBUS_CAPABILITY		= 0x19,
 	PMBUS_QUERY			= 0x1A,
 
@@ -226,6 +228,15 @@ enum pmbus_regs {
 #define PB_OPERATION_CONTROL_ON		BIT(7)
 
 /*
+ * WRITE_PROTECT
+ */
+#define PB_WP_ALL	BIT(7)	/* all but WRITE_PROTECT */
+#define PB_WP_OP	BIT(6)	/* all but WP, OPERATION, PAGE */
+#define PB_WP_VOUT	BIT(5)	/* all but WP, OPERATION, PAGE, VOUT, ON_OFF */
+
+#define PB_WP_ANY	(PB_WP_ALL | PB_WP_OP | PB_WP_VOUT)
+
+/*
  * CAPABILITY
  */
 #define PB_CAPABILITY_SMBALERT		BIT(4)
@@ -377,12 +388,12 @@ enum pmbus_sensor_classes {
 #define PMBUS_PAGE_VIRTUAL	BIT(31)
 
 enum pmbus_data_format { linear = 0, direct, vid };
-enum vrm_version { vr11 = 0, vr12, vr13 };
+enum vrm_version { vr11 = 0, vr12, vr13, imvp9, amd625mv };
 
 struct pmbus_driver_info {
 	int pages;		/* Total number of pages */
 	enum pmbus_data_format format[PSC_NUM_CLASSES];
-	enum vrm_version vrm_version;
+	enum vrm_version vrm_version[PMBUS_PAGES]; /* vrm version per page */
 	/*
 	 * Support one set of coefficients for each sensor type
 	 * Used for chips providing data in direct mode.

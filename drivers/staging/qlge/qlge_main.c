@@ -4455,7 +4455,7 @@ static int ql_init_device(struct pci_dev *pdev, struct net_device *ndev,
 	pdev->needs_freset = 1;
 	pci_save_state(pdev);
 	qdev->reg_base =
-	    ioremap_nocache(pci_resource_start(pdev, 1),
+	    ioremap(pci_resource_start(pdev, 1),
 			    pci_resource_len(pdev, 1));
 	if (!qdev->reg_base) {
 		dev_err(&pdev->dev, "Register mapping failed.\n");
@@ -4465,7 +4465,7 @@ static int ql_init_device(struct pci_dev *pdev, struct net_device *ndev,
 
 	qdev->doorbell_area_size = pci_resource_len(pdev, 3);
 	qdev->doorbell_area =
-	    ioremap_nocache(pci_resource_start(pdev, 3),
+	    ioremap(pci_resource_start(pdev, 3),
 			    pci_resource_len(pdev, 3));
 	if (!qdev->doorbell_area) {
 		dev_err(&pdev->dev, "Doorbell register mapping failed.\n");

@@ -42,7 +42,14 @@
 #define TCR_KASAN_FLAGS 0
 #endif
 
-#define MAIR(attr, mt)	((attr) << ((mt) * 8))
+/* Default MAIR_EL1 */
+#define MAIR_EL1_SET							\
+	(MAIR_ATTRIDX(MAIR_ATTR_DEVICE_nGnRnE, MT_DEVICE_nGnRnE) |	\
+	 MAIR_ATTRIDX(MAIR_ATTR_DEVICE_nGnRE, MT_DEVICE_nGnRE) |	\
+	 MAIR_ATTRIDX(MAIR_ATTR_DEVICE_GRE, MT_DEVICE_GRE) |		\
+	 MAIR_ATTRIDX(MAIR_ATTR_NORMAL_NC, MT_NORMAL_NC) |		\
+	 MAIR_ATTRIDX(MAIR_ATTR_NORMAL, MT_NORMAL) |			\
+	 MAIR_ATTRIDX(MAIR_ATTR_NORMAL_WT, MT_NORMAL_WT))
 
 #ifdef CONFIG_CPU_PM
 /**
@@ -52,7 +59,7 @@
  *
  * This must be kept in sync with struct cpu_suspend_ctx in <asm/suspend.h>.
  */
-ENTRY(cpu_do_suspend)
+SYM_FUNC_START(cpu_do_suspend)
 	mrs	x2, tpidr_el0
 	mrs	x3, tpidrro_el0
 	mrs	x4, contextidr_el1
@@ -81,7 +88,7 @@ alternative_endif
 	 */
 	str	x18, [x0, #96]
 	ret
-ENDPROC(cpu_do_suspend)
+SYM_FUNC_END(cpu_do_suspend)
 
 /**
  * cpu_do_resume - restore CPU register context
@@ -89,7 +96,7 @@ ENDPROC(cpu_do_suspend)
  * x0: Address of context pointer
  */
 	.pushsection ".idmap.text", "awx"
-ENTRY(cpu_do_resume)
+SYM_FUNC_START(cpu_do_resume)
 	ldp	x2, x3, [x0]
 	ldp	x4, x5, [x0, #16]
 	ldp	x6, x8, [x0, #32]
@@ -145,7 +152,7 @@ alternative_else_nop_endif
 
 	isb
 	ret
-ENDPROC(cpu_do_resume)
+SYM_FUNC_END(cpu_do_resume)
 	.popsection
 #endif
 
@@ -156,7 +163,7 @@ ENDPROC(cpu_do_resume)
  *
  *	- pgd_phys - physical address of new TTB
  */
-ENTRY(cpu_do_switch_mm)
+SYM_FUNC_START(cpu_do_switch_mm)
 	mrs	x2, ttbr1_el1
 	mmid	x1, x1				// get mm->context.id
 	phys_to_ttbr x3, x0
@@ -175,7 +182,7 @@ alternative_else_nop_endif
 	msr	ttbr0_el1, x3			// now update TTBR0
 	isb
 	b	post_ttbr_update_workaround	// Back to C code...
-ENDPROC(cpu_do_switch_mm)
+SYM_FUNC_END(cpu_do_switch_mm)
 
 	.pushsection ".idmap.text", "awx"
 
@@ -196,7 +203,7 @@ ENDPROC(cpu_do_switch_mm)
  * This is the low-level counterpart to cpu_replace_ttbr1, and should not be
  * called by anything else. It can only be executed from a TTBR0 mapping.
  */
-ENTRY(idmap_cpu_replace_ttbr1)
+SYM_FUNC_START(idmap_cpu_replace_ttbr1)
 	save_and_disable_daif flags=x2
 
 	__idmap_cpu_set_reserved_ttbr1 x1, x3
@@ -208,7 +215,7 @@ ENTRY(idmap_cpu_replace_ttbr1)
 	restore_daif x2
 
 	ret
-ENDPROC(idmap_cpu_replace_ttbr1)
+SYM_FUNC_END(idmap_cpu_replace_ttbr1)
 	.popsection
 
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
@@ -236,7 +243,7 @@ ENDPROC(idmap_cpu_replace_ttbr1)
  */
 __idmap_kpti_flag:
 	.long	1
-ENTRY(idmap_kpti_install_ng_mappings)
+SYM_FUNC_START(idmap_kpti_install_ng_mappings)
 	cpu		.req	w0
 	num_cpus	.req	w1
 	swapper_pa	.req	x2
@@ -408,7 +415,7 @@ __idmap_kpti_secondary:
 
 	.unreq	swapper_ttb
 	.unreq	flag_ptr
-ENDPROC(idmap_kpti_install_ng_mappings)
+SYM_FUNC_END(idmap_kpti_install_ng_mappings)
 	.popsection
 #endif
 
@@ -419,7 +426,7 @@ ENDPROC(idmap_kpti_install_ng_mappings)
  *	value of the SCTLR_EL1 register.
  */
 	.pushsection ".idmap.text", "awx"
-ENTRY(__cpu_setup)
+SYM_FUNC_START(__cpu_setup)
 	tlbi	vmalle1				// Invalidate local TLB
 	dsb	nsh
 
@@ -431,23 +438,9 @@ ENTRY(__cpu_setup)
 	enable_dbg				// since this is per-cpu
 	reset_pmuserenr_el0 x0			// Disable PMU access from EL0
 	/*
-	 * Memory region attributes for LPAE:
-	 *
-	 *   n = AttrIndx[2:0]
-	 *			n	MAIR
-	 *   DEVICE_nGnRnE	000	00000000
-	 *   DEVICE_nGnRE	001	00000100
-	 *   DEVICE_GRE		010	00001100
-	 *   NORMAL_NC		011	01000100
-	 *   NORMAL		100	11111111
-	 *   NORMAL_WT		101	10111011
+	 * Memory region attributes
 	 */
-	ldr	x5, =MAIR(0x00, MT_DEVICE_nGnRnE) | \
-		     MAIR(0x04, MT_DEVICE_nGnRE) | \
-		     MAIR(0x0c, MT_DEVICE_GRE) | \
-		     MAIR(0x44, MT_NORMAL_NC) | \
-		     MAIR(0xff, MT_NORMAL) | \
-		     MAIR(0xbb, MT_NORMAL_WT)
+	mov_q	x5, MAIR_EL1_SET
 	msr	mair_el1, x5
 	/*
 	 * Prepare SCTLR
@@ -490,4 +483,4 @@ ENTRY(__cpu_setup)
 #endif	/* CONFIG_ARM64_HW_AFDBM */
 	msr	tcr_el1, x10
 	ret					// return to head.S
-ENDPROC(__cpu_setup)
+SYM_FUNC_END(__cpu_setup)

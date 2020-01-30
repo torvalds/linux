@@ -31,12 +31,6 @@
 #include "suni.h"
 #include "eni.h"
 
-#if !defined(__i386__) && !defined(__x86_64__)
-#ifndef ioremap_nocache
-#define ioremap_nocache(X,Y) ioremap(X,Y)
-#endif 
-#endif
-
 /*
  * TODO:
  *
@@ -1725,7 +1719,7 @@ static int eni_do_init(struct atm_dev *dev)
 	}
 	printk(KERN_NOTICE DEV_LABEL "(itf %d): rev.%d,base=0x%lx,irq=%d,",
 	    dev->number,pci_dev->revision,real_base,eni_dev->irq);
-	if (!(base = ioremap_nocache(real_base,MAP_MAX_SIZE))) {
+	if (!(base = ioremap(real_base,MAP_MAX_SIZE))) {
 		printk("\n");
 		printk(KERN_ERR DEV_LABEL "(itf %d): can't set up page "
 		    "mapping\n",dev->number);

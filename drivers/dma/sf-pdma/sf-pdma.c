@@ -155,9 +155,9 @@ static void sf_pdma_free_chan_resources(struct dma_chan *dchan)
 	kfree(chan->desc);
 	chan->desc = NULL;
 	vchan_get_all_descriptors(&chan->vchan, &head);
-	vchan_dma_desc_free_list(&chan->vchan, &head);
 	sf_pdma_disclaim_chan(chan);
 	spin_unlock_irqrestore(&chan->vchan.lock, flags);
+	vchan_dma_desc_free_list(&chan->vchan, &head);
 }
 
 static size_t sf_pdma_desc_residue(struct sf_pdma_chan *chan,
@@ -220,8 +220,8 @@ static int sf_pdma_terminate_all(struct dma_chan *dchan)
 	chan->desc = NULL;
 	chan->xfer_err = false;
 	vchan_get_all_descriptors(&chan->vchan, &head);
-	vchan_dma_desc_free_list(&chan->vchan, &head);
 	spin_unlock_irqrestore(&chan->vchan.lock, flags);
+	vchan_dma_desc_free_list(&chan->vchan, &head);
 
 	return 0;
 }

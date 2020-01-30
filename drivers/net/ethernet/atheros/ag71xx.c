@@ -1687,8 +1687,7 @@ static int ag71xx_probe(struct platform_device *pdev)
 		goto err_free;
 	}
 
-	ag->mac_base = devm_ioremap_nocache(&pdev->dev, res->start,
-					    resource_size(res));
+	ag->mac_base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (!ag->mac_base) {
 		err = -ENOMEM;
 		goto err_free;

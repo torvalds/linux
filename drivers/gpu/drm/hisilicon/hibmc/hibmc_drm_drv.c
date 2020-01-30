@@ -211,7 +211,7 @@ static int hibmc_hw_map(struct hibmc_drm_private *priv)
 
 	ioaddr = pci_resource_start(pdev, 1);
 	iosize = pci_resource_len(pdev, 1);
-	priv->mmio = devm_ioremap_nocache(dev->dev, ioaddr, iosize);
+	priv->mmio = devm_ioremap(dev->dev, ioaddr, iosize);
 	if (!priv->mmio) {
 		DRM_ERROR("Cannot map mmio region\n");
 		return -ENOMEM;

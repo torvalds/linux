@@ -281,7 +281,7 @@ static int pmcmsptwi_probe(struct platform_device *pldev)
 	}
 
 	/* remap the memory */
-	pmcmsptwi_data.iobase = ioremap_nocache(res->start,
+	pmcmsptwi_data.iobase = ioremap(res->start,
 						resource_size(res));
 	if (!pmcmsptwi_data.iobase) {
 		dev_err(&pldev->dev,

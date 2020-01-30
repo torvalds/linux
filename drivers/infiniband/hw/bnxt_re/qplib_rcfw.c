@@ -717,7 +717,7 @@ int bnxt_qplib_enable_rcfw_channel(struct pci_dev *pdev,
 	if (!res_base)
 		return -ENOMEM;
 
-	rcfw->cmdq_bar_reg_iomem = ioremap_nocache(res_base +
+	rcfw->cmdq_bar_reg_iomem = ioremap(res_base +
 					      RCFW_COMM_BASE_OFFSET,
 					      RCFW_COMM_SIZE);
 	if (!rcfw->cmdq_bar_reg_iomem) {
@@ -739,7 +739,7 @@ int bnxt_qplib_enable_rcfw_channel(struct pci_dev *pdev,
 			"CREQ BAR region %d resc start is 0!\n",
 			rcfw->creq_bar_reg);
 	/* Unconditionally map 8 bytes to support 57500 series */
-	rcfw->creq_bar_reg_iomem = ioremap_nocache(res_base + cp_bar_reg_off,
+	rcfw->creq_bar_reg_iomem = ioremap(res_base + cp_bar_reg_off,
 						   8);
 	if (!rcfw->creq_bar_reg_iomem) {
 		dev_err(&rcfw->pdev->dev, "CREQ BAR region %d mapping failed\n",

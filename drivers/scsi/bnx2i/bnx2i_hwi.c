@@ -2715,7 +2715,7 @@ int bnx2i_map_ep_dbell_regs(struct bnx2i_endpoint *ep)
 		reg_base = pci_resource_start(ep->hba->pcidev,
 					      BNX2X_DOORBELL_PCI_BAR);
 		reg_off = (1 << BNX2X_DB_SHIFT) * (cid_num & 0x1FFFF);
-		ep->qp.ctx_base = ioremap_nocache(reg_base + reg_off, 4);
+		ep->qp.ctx_base = ioremap(reg_base + reg_off, 4);
 		if (!ep->qp.ctx_base)
 			return -ENOMEM;
 		goto arm_cq;
@@ -2736,7 +2736,7 @@ int bnx2i_map_ep_dbell_regs(struct bnx2i_endpoint *ep)
 		/* 5709 device in normal node and 5706/5708 devices */
 		reg_off = CTX_OFFSET + (MB_KERNEL_CTX_SIZE * cid_num);
 
-	ep->qp.ctx_base = ioremap_nocache(ep->hba->reg_base + reg_off,
+	ep->qp.ctx_base = ioremap(ep->hba->reg_base + reg_off,
 					  MB_KERNEL_CTX_SIZE);
 	if (!ep->qp.ctx_base)
 		return -ENOMEM;

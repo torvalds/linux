@@ -1964,7 +1964,7 @@ static void *get_partial(struct kmem_cache *s, gfp_t flags, int node,
 	return get_any_partial(s, flags, c);
 }
 
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPTION
 /*
  * Calculate the next globally unique transaction for disambiguiation
  * during cmpxchg. The transactions start with the cpu number and are then
@@ -2009,7 +2009,7 @@ static inline void note_cmpxchg_failure(const char *n,
 
 	pr_info("%s %s: cmpxchg redo ", n, s->name);
 
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPTION
 	if (tid_to_cpu(tid) != tid_to_cpu(actual_tid))
 		pr_warn("due to cpu change %d -> %d\n",
 			tid_to_cpu(tid), tid_to_cpu(actual_tid));
@@ -2341,7 +2341,7 @@ static bool has_cpu_slab(int cpu, void *info)
 
 static void flush_all(struct kmem_cache *s)
 {
-	on_each_cpu_cond(has_cpu_slab, flush_cpu_slab, s, 1, GFP_ATOMIC);
+	on_each_cpu_cond(has_cpu_slab, flush_cpu_slab, s, 1);
 }
 
 /*
@@ -2637,7 +2637,7 @@ static void *__slab_alloc(struct kmem_cache *s, gfp_t gfpflags, int node,
 	unsigned long flags;
 
 	local_irq_save(flags);
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPTION
 	/*
 	 * We may have been preempted and rescheduled on a different
 	 * cpu before disabling interrupts. Need to reload cpu area
@@ -2691,13 +2691,13 @@ redo:
 	 * as we end up on the original cpu again when doing the cmpxchg.
 	 *
 	 * We should guarantee that tid and kmem_cache are retrieved on
-	 * the same cpu. It could be different if CONFIG_PREEMPT so we need
+	 * the same cpu. It could be different if CONFIG_PREEMPTION so we need
 	 * to check if it is matched or not.
 	 */
 	do {
 		tid = this_cpu_read(s->cpu_slab->tid);
 		c = raw_cpu_ptr(s->cpu_slab);
-	} while (IS_ENABLED(CONFIG_PREEMPT) &&
+	} while (IS_ENABLED(CONFIG_PREEMPTION) &&
 		 unlikely(tid != READ_ONCE(c->tid)));
 
 	/*
@@ -2971,7 +2971,7 @@ redo:
 	do {
 		tid = this_cpu_read(s->cpu_slab->tid);
 		c = raw_cpu_ptr(s->cpu_slab);
-	} while (IS_ENABLED(CONFIG_PREEMPT) &&
+	} while (IS_ENABLED(CONFIG_PREEMPTION) &&
 		 unlikely(tid != READ_ONCE(c->tid)));
 
 	/* Same with comment on barrier() in slab_alloc_node() */

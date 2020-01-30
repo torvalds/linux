@@ -6,7 +6,7 @@ conmakehash
 kallsyms
 unifdef
 recordmcount
-sortextable
+sorttable
 asn1_compiler
 extract-cert
 sign-file

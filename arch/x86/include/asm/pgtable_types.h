@@ -110,11 +110,6 @@
 
 #define _PAGE_PROTNONE	(_AT(pteval_t, 1) << _PAGE_BIT_PROTNONE)
 
-#define _PAGE_TABLE_NOENC	(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER |\
-				 _PAGE_ACCESSED | _PAGE_DIRTY)
-#define _KERNPG_TABLE_NOENC	(_PAGE_PRESENT | _PAGE_RW |		\
-				 _PAGE_ACCESSED | _PAGE_DIRTY)
-
 /*
  * Set of bits not changed in pte_modify.  The pte's
  * protection key is treated like _PAGE_RW, for
@@ -136,80 +131,93 @@
  */
 #ifndef __ASSEMBLY__
 enum page_cache_mode {
-	_PAGE_CACHE_MODE_WB = 0,
-	_PAGE_CACHE_MODE_WC = 1,
+	_PAGE_CACHE_MODE_WB       = 0,
+	_PAGE_CACHE_MODE_WC       = 1,
 	_PAGE_CACHE_MODE_UC_MINUS = 2,
-	_PAGE_CACHE_MODE_UC = 3,
-	_PAGE_CACHE_MODE_WT = 4,
-	_PAGE_CACHE_MODE_WP = 5,
-	_PAGE_CACHE_MODE_NUM = 8
+	_PAGE_CACHE_MODE_UC       = 3,
+	_PAGE_CACHE_MODE_WT       = 4,
+	_PAGE_CACHE_MODE_WP       = 5,
+
+	_PAGE_CACHE_MODE_NUM      = 8
 };
 #endif
 
-#define _PAGE_CACHE_MASK	(_PAGE_PAT | _PAGE_PCD | _PAGE_PWT)
+#define _PAGE_ENC		(_AT(pteval_t, sme_me_mask))
+
+#define _PAGE_CACHE_MASK	(_PAGE_PWT | _PAGE_PCD | _PAGE_PAT)
+
 #define _PAGE_NOCACHE		(cachemode2protval(_PAGE_CACHE_MODE_UC))
 #define _PAGE_CACHE_WP		(cachemode2protval(_PAGE_CACHE_MODE_WP))
 
-#define PAGE_NONE	__pgprot(_PAGE_PROTNONE | _PAGE_ACCESSED)
-#define PAGE_SHARED	__pgprot(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER | \
-				 _PAGE_ACCESSED | _PAGE_NX)
+#define __PP _PAGE_PRESENT
+#define __RW _PAGE_RW
+#define _USR _PAGE_USER
+#define ___A _PAGE_ACCESSED
+#define ___D _PAGE_DIRTY
+#define ___G _PAGE_GLOBAL
+#define __NX _PAGE_NX
 
-#define PAGE_SHARED_EXEC	__pgprot(_PAGE_PRESENT | _PAGE_RW |	\
-					 _PAGE_USER | _PAGE_ACCESSED)
-#define PAGE_COPY_NOEXEC	__pgprot(_PAGE_PRESENT | _PAGE_USER |	\
-					 _PAGE_ACCESSED | _PAGE_NX)
-#define PAGE_COPY_EXEC		__pgprot(_PAGE_PRESENT | _PAGE_USER |	\
-					 _PAGE_ACCESSED)
-#define PAGE_COPY		PAGE_COPY_NOEXEC
-#define PAGE_READONLY		__pgprot(_PAGE_PRESENT | _PAGE_USER |	\
-					 _PAGE_ACCESSED | _PAGE_NX)
-#define PAGE_READONLY_EXEC	__pgprot(_PAGE_PRESENT | _PAGE_USER |	\
-					 _PAGE_ACCESSED)
+#define _ENC _PAGE_ENC
+#define __WP _PAGE_CACHE_WP
+#define __NC _PAGE_NOCACHE
+#define _PSE _PAGE_PSE
 
-#define __PAGE_KERNEL_EXEC						\
-	(_PAGE_PRESENT | _PAGE_RW | _PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_GLOBAL)
-#define __PAGE_KERNEL		(__PAGE_KERNEL_EXEC | _PAGE_NX)
+#define pgprot_val(x)		((x).pgprot)
+#define __pgprot(x)		((pgprot_t) { (x) } )
+#define __pg(x)			__pgprot(x)
 
-#define __PAGE_KERNEL_RO		(__PAGE_KERNEL & ~_PAGE_RW)
-#define __PAGE_KERNEL_RX		(__PAGE_KERNEL_EXEC & ~_PAGE_RW)
-#define __PAGE_KERNEL_NOCACHE		(__PAGE_KERNEL | _PAGE_NOCACHE)
-#define __PAGE_KERNEL_VVAR		(__PAGE_KERNEL_RO | _PAGE_USER)
-#define __PAGE_KERNEL_LARGE		(__PAGE_KERNEL | _PAGE_PSE)
-#define __PAGE_KERNEL_LARGE_EXEC	(__PAGE_KERNEL_EXEC | _PAGE_PSE)
-#define __PAGE_KERNEL_WP		(__PAGE_KERNEL | _PAGE_CACHE_WP)
+#define _PAGE_PAT_LARGE		(_AT(pteval_t, 1) << _PAGE_BIT_PAT_LARGE)
 
-#define __PAGE_KERNEL_IO		(__PAGE_KERNEL)
-#define __PAGE_KERNEL_IO_NOCACHE	(__PAGE_KERNEL_NOCACHE)
+#define PAGE_NONE	     __pg(   0|   0|   0|___A|   0|   0|   0|___G)
+#define PAGE_SHARED	     __pg(__PP|__RW|_USR|___A|__NX|   0|   0|   0)
+#define PAGE_SHARED_EXEC     __pg(__PP|__RW|_USR|___A|   0|   0|   0|   0)
+#define PAGE_COPY_NOEXEC     __pg(__PP|   0|_USR|___A|__NX|   0|   0|   0)
+#define PAGE_COPY_EXEC	     __pg(__PP|   0|_USR|___A|   0|   0|   0|   0)
+#define PAGE_COPY	     __pg(__PP|   0|_USR|___A|__NX|   0|   0|   0)
+#define PAGE_READONLY	     __pg(__PP|   0|_USR|___A|__NX|   0|   0|   0)
+#define PAGE_READONLY_EXEC   __pg(__PP|   0|_USR|___A|   0|   0|   0|   0)
+
+#define __PAGE_KERNEL		 (__PP|__RW|   0|___A|__NX|___D|   0|___G)
+#define __PAGE_KERNEL_EXEC	 (__PP|__RW|   0|___A|   0|___D|   0|___G)
+#define _KERNPG_TABLE_NOENC	 (__PP|__RW|   0|___A|   0|___D|   0|   0)
+#define _KERNPG_TABLE		 (__PP|__RW|   0|___A|   0|___D|   0|   0| _ENC)
+#define _PAGE_TABLE_NOENC	 (__PP|__RW|_USR|___A|   0|___D|   0|   0)
+#define _PAGE_TABLE		 (__PP|__RW|_USR|___A|   0|___D|   0|   0| _ENC)
+#define __PAGE_KERNEL_RO	 (__PP|   0|   0|___A|__NX|___D|   0|___G)
+#define __PAGE_KERNEL_RX	 (__PP|   0|   0|___A|   0|___D|   0|___G)
+#define __PAGE_KERNEL_NOCACHE	 (__PP|__RW|   0|___A|__NX|___D|   0|___G| __NC)
+#define __PAGE_KERNEL_VVAR	 (__PP|   0|_USR|___A|__NX|___D|   0|___G)
+#define __PAGE_KERNEL_LARGE	 (__PP|__RW|   0|___A|__NX|___D|_PSE|___G)
+#define __PAGE_KERNEL_LARGE_EXEC (__PP|__RW|   0|___A|   0|___D|_PSE|___G)
+#define __PAGE_KERNEL_WP	 (__PP|__RW|   0|___A|__NX|___D|   0|___G| __WP)
+
+
+#define __PAGE_KERNEL_IO		__PAGE_KERNEL
+#define __PAGE_KERNEL_IO_NOCACHE	__PAGE_KERNEL_NOCACHE
+
 
 #ifndef __ASSEMBLY__
 
-#define _PAGE_ENC	(_AT(pteval_t, sme_me_mask))
+#define __PAGE_KERNEL_ENC	(__PAGE_KERNEL    | _ENC)
+#define __PAGE_KERNEL_ENC_WP	(__PAGE_KERNEL_WP | _ENC)
+#define __PAGE_KERNEL_NOENC	(__PAGE_KERNEL    |    0)
+#define __PAGE_KERNEL_NOENC_WP	(__PAGE_KERNEL_WP |    0)
 
-#define _KERNPG_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_ACCESSED |	\
-			 _PAGE_DIRTY | _PAGE_ENC)
-#define _PAGE_TABLE	(_KERNPG_TABLE | _PAGE_USER)
+#define __pgprot_mask(x)	__pgprot((x) & __default_kernel_pte_mask)
 
-#define __PAGE_KERNEL_ENC	(__PAGE_KERNEL | _PAGE_ENC)
-#define __PAGE_KERNEL_ENC_WP	(__PAGE_KERNEL_WP | _PAGE_ENC)
+#define PAGE_KERNEL		__pgprot_mask(__PAGE_KERNEL            | _ENC)
+#define PAGE_KERNEL_NOENC	__pgprot_mask(__PAGE_KERNEL            |    0)
+#define PAGE_KERNEL_RO		__pgprot_mask(__PAGE_KERNEL_RO         | _ENC)
+#define PAGE_KERNEL_EXEC	__pgprot_mask(__PAGE_KERNEL_EXEC       | _ENC)
+#define PAGE_KERNEL_EXEC_NOENC	__pgprot_mask(__PAGE_KERNEL_EXEC       |    0)
+#define PAGE_KERNEL_RX		__pgprot_mask(__PAGE_KERNEL_RX         | _ENC)
+#define PAGE_KERNEL_NOCACHE	__pgprot_mask(__PAGE_KERNEL_NOCACHE    | _ENC)
+#define PAGE_KERNEL_LARGE	__pgprot_mask(__PAGE_KERNEL_LARGE      | _ENC)
+#define PAGE_KERNEL_LARGE_EXEC	__pgprot_mask(__PAGE_KERNEL_LARGE_EXEC | _ENC)
+#define PAGE_KERNEL_VVAR	__pgprot_mask(__PAGE_KERNEL_VVAR       | _ENC)
 
-#define __PAGE_KERNEL_NOENC	(__PAGE_KERNEL)
-#define __PAGE_KERNEL_NOENC_WP	(__PAGE_KERNEL_WP)
-
-#define default_pgprot(x)	__pgprot((x) & __default_kernel_pte_mask)
-
-#define PAGE_KERNEL		default_pgprot(__PAGE_KERNEL | _PAGE_ENC)
-#define PAGE_KERNEL_NOENC	default_pgprot(__PAGE_KERNEL)
-#define PAGE_KERNEL_RO		default_pgprot(__PAGE_KERNEL_RO | _PAGE_ENC)
-#define PAGE_KERNEL_EXEC	default_pgprot(__PAGE_KERNEL_EXEC | _PAGE_ENC)
-#define PAGE_KERNEL_EXEC_NOENC	default_pgprot(__PAGE_KERNEL_EXEC)
-#define PAGE_KERNEL_RX		default_pgprot(__PAGE_KERNEL_RX | _PAGE_ENC)
-#define PAGE_KERNEL_NOCACHE	default_pgprot(__PAGE_KERNEL_NOCACHE | _PAGE_ENC)
-#define PAGE_KERNEL_LARGE	default_pgprot(__PAGE_KERNEL_LARGE | _PAGE_ENC)
-#define PAGE_KERNEL_LARGE_EXEC	default_pgprot(__PAGE_KERNEL_LARGE_EXEC | _PAGE_ENC)
-#define PAGE_KERNEL_VVAR	default_pgprot(__PAGE_KERNEL_VVAR | _PAGE_ENC)
-
-#define PAGE_KERNEL_IO		default_pgprot(__PAGE_KERNEL_IO)
-#define PAGE_KERNEL_IO_NOCACHE	default_pgprot(__PAGE_KERNEL_IO_NOCACHE)
+#define PAGE_KERNEL_IO		__pgprot_mask(__PAGE_KERNEL_IO)
+#define PAGE_KERNEL_IO_NOCACHE	__pgprot_mask(__PAGE_KERNEL_IO_NOCACHE)
 
 #endif	/* __ASSEMBLY__ */
 
@@ -448,9 +456,6 @@ static inline pteval_t pte_flags(pte_t pte)
 {
 	return native_pte_val(pte) & PTE_FLAGS_MASK;
 }
-
-#define pgprot_val(x)	((x).pgprot)
-#define __pgprot(x)	((pgprot_t) { (x) } )
 
 extern uint16_t __cachemode2pte_tbl[_PAGE_CACHE_MODE_NUM];
 extern uint8_t __pte2cachemode_tbl[8];

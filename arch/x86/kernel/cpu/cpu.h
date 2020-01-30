@@ -80,4 +80,8 @@ extern void x86_spec_ctrl_setup_ap(void);
 
 extern u64 x86_read_arch_cap_msr(void);
 
+#ifdef CONFIG_IA32_FEAT_CTL
+void init_ia32_feat_ctl(struct cpuinfo_x86 *c);
+#endif
+
 #endif /* ARCH_X86_CPU_H */

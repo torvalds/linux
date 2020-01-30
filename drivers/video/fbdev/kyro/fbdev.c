@@ -683,7 +683,7 @@ static int kyrofb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	kyro_fix.mmio_len   = pci_resource_len(pdev, 1);
 
 	currentpar->regbase = deviceInfo.pSTGReg =
-		ioremap_nocache(kyro_fix.mmio_start, kyro_fix.mmio_len);
+		ioremap(kyro_fix.mmio_start, kyro_fix.mmio_len);
 	if (!currentpar->regbase)
 		goto out_free_fb;
 

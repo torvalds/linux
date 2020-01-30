@@ -90,7 +90,7 @@ static int _store_optimized_voltages(struct device *dev,
 		goto out_map;
 	}
 
-	base = ioremap_nocache(res->start, resource_size(res));
+	base = ioremap(res->start, resource_size(res));
 	if (!base) {
 		dev_err(dev, "Unable to map Efuse registers\n");
 		ret = -ENOMEM;

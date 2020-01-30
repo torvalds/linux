@@ -788,7 +788,7 @@ scif_node_add(struct scif_dev *scifdev, struct scifmsg *msg)
 			"failed to setup interrupts for %d\n", msg->src.node);
 		goto interrupt_setup_error;
 	}
-	newdev->mmio.va = ioremap_nocache(msg->payload[1], sdev->mmio->len);
+	newdev->mmio.va = ioremap(msg->payload[1], sdev->mmio->len);
 	if (!newdev->mmio.va) {
 		dev_err(&scifdev->sdev->dev,
 			"failed to map mmio for %d\n", msg->src.node);

@@ -938,7 +938,7 @@ static int cx18_probe(struct pci_dev *pci_dev,
 	/* map io memory */
 	CX18_DEBUG_INFO("attempting ioremap at 0x%llx len 0x%08x\n",
 		   (u64)cx->base_addr + CX18_MEM_OFFSET, CX18_MEM_SIZE);
-	cx->enc_mem = ioremap_nocache(cx->base_addr + CX18_MEM_OFFSET,
+	cx->enc_mem = ioremap(cx->base_addr + CX18_MEM_OFFSET,
 				       CX18_MEM_SIZE);
 	if (!cx->enc_mem) {
 		CX18_ERR("ioremap failed. Can't get a window into CX23418 memory and register space\n");

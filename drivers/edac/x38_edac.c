@@ -266,7 +266,7 @@ static void __iomem *x38_map_mchbar(struct pci_dev *pdev)
 		return NULL;
 	}
 
-	window = ioremap_nocache(u.mchbar, X38_MMR_WINDOW_SIZE);
+	window = ioremap(u.mchbar, X38_MMR_WINDOW_SIZE);
 	if (!window)
 		printk(KERN_ERR "x38: cannot map mmio space at 0x%llx\n",
 			(unsigned long long)u.mchbar);

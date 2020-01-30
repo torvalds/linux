@@ -54,13 +54,13 @@ static int vfio_platform_amdxgbe_reset(struct vfio_platform_device *vdev)
 
 	if (!xgmac_regs->ioaddr) {
 		xgmac_regs->ioaddr =
-			ioremap_nocache(xgmac_regs->addr, xgmac_regs->size);
+			ioremap(xgmac_regs->addr, xgmac_regs->size);
 		if (!xgmac_regs->ioaddr)
 			return -ENOMEM;
 	}
 	if (!xpcs_regs->ioaddr) {
 		xpcs_regs->ioaddr =
-			ioremap_nocache(xpcs_regs->addr, xpcs_regs->size);
+			ioremap(xpcs_regs->addr, xpcs_regs->size);
 		if (!xpcs_regs->ioaddr)
 			return -ENOMEM;
 	}

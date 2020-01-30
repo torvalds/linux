@@ -2019,7 +2019,7 @@ static int netcp_create_interface(struct netcp_device *netcp_device,
 			goto quit;
 		}
 
-		efuse = devm_ioremap_nocache(dev, res.start, size);
+		efuse = devm_ioremap(dev, res.start, size);
 		if (!efuse) {
 			dev_err(dev, "could not map resource\n");
 			devm_release_mem_region(dev, res.start, size);
