@@ -537,13 +537,15 @@ static void __intel_fbc_cleanup_cfb(struct drm_i915_private *dev_priv)
 {
 	struct intel_fbc *fbc = &dev_priv->fbc;
 
-	if (drm_mm_node_allocated(&fbc->compressed_fb))
-		i915_gem_stolen_remove_node(dev_priv, &fbc->compressed_fb);
+	if (!drm_mm_node_allocated(&fbc->compressed_fb))
+		return;
 
 	if (fbc->compressed_llb) {
 		i915_gem_stolen_remove_node(dev_priv, fbc->compressed_llb);
 		kfree(fbc->compressed_llb);
 	}
+
+	i915_gem_stolen_remove_node(dev_priv, &fbc->compressed_fb);
 }
 
 void intel_fbc_cleanup_cfb(struct drm_i915_private *dev_priv)
