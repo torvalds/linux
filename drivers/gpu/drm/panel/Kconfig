@@ -293,6 +293,12 @@ config DRM_PANEL_SAMSUNG_S6E63M0
 	  Say Y here if you want to enable support for Samsung S6E63M0
 	  AMOLED LCD panel.
 
+config DRM_PANEL_SAMSUNG_S6E88A0_AMS452EF01
+	tristate "Samsung AMS452EF01 panel with S6E88A0 DSI video mode controller"
+	depends on OF
+	select DRM_MIPI_DSI
+	select VIDEOMODE_HELPERS
+
 config DRM_PANEL_SAMSUNG_S6E8AA0
 	tristate "Samsung S6E8AA0 DSI video mode panel"
 	depends on OF
