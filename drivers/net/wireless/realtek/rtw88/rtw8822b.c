@@ -645,7 +645,7 @@ static void rtw8822b_set_channel_bb(struct rtw_dev *rtwdev, u8 channel, u8 bw,
 		rtw_write32_mask(rtwdev, REG_ADC160, BIT(30), 0x1);
 		break;
 	case RTW_CHANNEL_WIDTH_40:
-		if (primary_ch_idx == 1)
+		if (primary_ch_idx == RTW_SC_20_UPPER)
 			rtw_write32_set(rtwdev, REG_RXSB, BIT(4));
 		else
 			rtw_write32_clr(rtwdev, REG_RXSB, BIT(4));

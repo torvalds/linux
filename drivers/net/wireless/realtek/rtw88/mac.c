@@ -17,10 +17,10 @@ void rtw_set_channel_mac(struct rtw_dev *rtwdev, u8 channel, u8 bw,
 
 	txsc20 = primary_ch_idx;
 	if (bw == RTW_CHANNEL_WIDTH_80) {
-		if (txsc20 == 1 || txsc20 == 3)
-			txsc40 = 9;
+		if (txsc20 == RTW_SC_20_UPPER || txsc20 == RTW_SC_20_UPMOST)
+			txsc40 = RTW_SC_40_UPPER;
 		else
-			txsc40 = 10;
+			txsc40 = RTW_SC_40_LOWER;
 	}
 	rtw_write8(rtwdev, REG_DATA_SC,
 		   BIT_TXSC_20M(txsc20) | BIT_TXSC_40M(txsc40));

@@ -99,6 +99,16 @@ enum rtw_bandwidth {
 	RTW_CHANNEL_WIDTH_10	= 6,
 };
 
+enum rtw_sc_offset {
+	RTW_SC_DONT_CARE	= 0,
+	RTW_SC_20_UPPER		= 1,
+	RTW_SC_20_LOWER		= 2,
+	RTW_SC_20_UPMOST	= 3,
+	RTW_SC_20_LOWEST	= 4,
+	RTW_SC_40_UPPER		= 9,
+	RTW_SC_40_LOWER		= 10,
+};
+
 enum rtw_net_type {
 	RTW_NET_NO_LINK		= 0,
 	RTW_NET_AD_HOC		= 1,

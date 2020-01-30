@@ -317,15 +317,15 @@ void rtw_get_channel_params(struct cfg80211_chan_def *chandef,
 	case NL80211_CHAN_WIDTH_20_NOHT:
 	case NL80211_CHAN_WIDTH_20:
 		bandwidth = RTW_CHANNEL_WIDTH_20;
-		primary_chan_idx = 0;
+		primary_chan_idx = RTW_SC_DONT_CARE;
 		break;
 	case NL80211_CHAN_WIDTH_40:
 		bandwidth = RTW_CHANNEL_WIDTH_40;
 		if (primary_freq > center_freq) {
-			primary_chan_idx = 1;
+			primary_chan_idx = RTW_SC_20_UPPER;
 			center_chan -= 2;
 		} else {
-			primary_chan_idx = 2;
+			primary_chan_idx = RTW_SC_20_LOWER;
 			center_chan += 2;
 		}
 		break;
@@ -333,10 +333,10 @@ void rtw_get_channel_params(struct cfg80211_chan_def *chandef,
 		bandwidth = RTW_CHANNEL_WIDTH_80;
 		if (primary_freq > center_freq) {
 			if (primary_freq - center_freq == 10) {
-				primary_chan_idx = 1;
+				primary_chan_idx = RTW_SC_20_UPPER;
 				center_chan -= 2;
 			} else {
-				primary_chan_idx = 3;
+				primary_chan_idx = RTW_SC_20_UPMOST;
 				center_chan -= 6;
 			}
 			/* assign the center channel used
@@ -345,10 +345,10 @@ void rtw_get_channel_params(struct cfg80211_chan_def *chandef,
 			cch_by_bw[RTW_CHANNEL_WIDTH_40] = center_chan + 4;
 		} else {
 			if (center_freq - primary_freq == 10) {
-				primary_chan_idx = 2;
+				primary_chan_idx = RTW_SC_20_LOWER;
 				center_chan += 2;
 			} else {
-				primary_chan_idx = 4;
+				primary_chan_idx = RTW_SC_20_LOWEST;
 				center_chan += 6;
 			}
 			/* assign the center channel used

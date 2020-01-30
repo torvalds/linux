@@ -1482,7 +1482,7 @@ static void rtw8822c_set_channel_bb(struct rtw_dev *rtwdev, u8 channel, u8 bw,
 		break;
 	case RTW_CHANNEL_WIDTH_40:
 		rtw_write32_mask(rtwdev, REG_CCKSB, BIT(4),
-				 (primary_ch_idx == 1 ? 1 : 0));
+				 (primary_ch_idx == RTW_SC_20_UPPER ? 1 : 0));
 		rtw_write32_mask(rtwdev, REG_TXBWCTL, 0xf, 0x5);
 		rtw_write32_mask(rtwdev, REG_TXBWCTL, 0xc0, 0x0);
 		rtw_write32_mask(rtwdev, REG_TXBWCTL, 0xff00,
