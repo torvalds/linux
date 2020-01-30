@@ -807,60 +807,43 @@ int i915_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 	struct drm_vma_offset_node *node;
 	struct drm_file *priv = filp->private_data;
 	struct drm_device *dev = priv->minor->dev;
+	struct drm_i915_gem_object *obj = NULL;
 	struct i915_mmap_offset *mmo = NULL;
-	struct drm_gem_object *obj = NULL;
 	struct file *anon;
 
 	if (drm_dev_is_unplugged(dev))
 		return -ENODEV;
 
+	rcu_read_lock();
 	drm_vma_offset_lock_lookup(dev->vma_offset_manager);
 	node = drm_vma_offset_exact_lookup_locked(dev->vma_offset_manager,
 						  vma->vm_pgoff,
 						  vma_pages(vma));
-	if (likely(node)) {
-		mmo = container_of(node, struct i915_mmap_offset,
-				   vma_node);
-		/*
-		 * In our dependency chain, the drm_vma_offset_node
-		 * depends on the validity of the mmo, which depends on
-		 * the gem object. However the only reference we have
-		 * at this point is the mmo (as the parent of the node).
-		 * Try to check if the gem object was at least cleared.
-		 */
-		if (!mmo || !mmo->obj) {
-			drm_vma_offset_unlock_lookup(dev->vma_offset_manager);
-			return -EINVAL;
-		}
+	if (node && drm_vma_node_is_allowed(node, priv)) {
 		/*
 		 * Skip 0-refcnted objects as it is in the process of being
 		 * destroyed and will be invalid when the vma manager lock
 		 * is released.
 		 */
-		obj = &mmo->obj->base;
-		if (!kref_get_unless_zero(&obj->refcount))
-			obj = NULL;
+		mmo = container_of(node, struct i915_mmap_offset, vma_node);
+		obj = i915_gem_object_get_rcu(mmo->obj);
 	}
 	drm_vma_offset_unlock_lookup(dev->vma_offset_manager);
+	rcu_read_unlock();
 	if (!obj)
-		return -EINVAL;
+		return node ? -EACCES : -EINVAL;
 
-	if (!drm_vma_node_is_allowed(node, priv)) {
-		drm_gem_object_put_unlocked(obj);
-		return -EACCES;
-	}
-
-	if (i915_gem_object_is_readonly(to_intel_bo(obj))) {
+	if (i915_gem_object_is_readonly(obj)) {
 		if (vma->vm_flags & VM_WRITE) {
-			drm_gem_object_put_unlocked(obj);
+			i915_gem_object_put(obj);
 			return -EINVAL;
 		}
 		vma->vm_flags &= ~VM_MAYWRITE;
 	}
 
-	anon = mmap_singleton(to_i915(obj->dev));
+	anon = mmap_singleton(to_i915(dev));
 	if (IS_ERR(anon)) {
-		drm_gem_object_put_unlocked(obj);
+		i915_gem_object_put(obj);
 		return PTR_ERR(anon);
 	}
 
