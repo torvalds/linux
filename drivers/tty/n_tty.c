@@ -84,7 +84,7 @@
 #ifdef N_TTY_TRACE
 # define n_tty_trace(f, args...)	trace_printk(f, ##args)
 #else
-# define n_tty_trace(f, args...)
+# define n_tty_trace(f, args...)	no_printk(f, ##args)
 #endif
 
 struct n_tty_data {
