@@ -25,12 +25,20 @@
 #define BQ25895_ID			7
 #define BQ25896_ID			0
 
+enum bq25890_chip_version {
+	BQ25890,
+	BQ25892,
+	BQ25895,
+	BQ25896,
+};
+
 enum bq25890_fields {
 	F_EN_HIZ, F_EN_ILIM, F_IILIM,				     /* Reg00 */
 	F_BHOT, F_BCOLD, F_VINDPM_OFS,				     /* Reg01 */
 	F_CONV_START, F_CONV_RATE, F_BOOSTF, F_ICO_EN,
 	F_HVDCP_EN, F_MAXC_EN, F_FORCE_DPM, F_AUTO_DPDM_EN,	     /* Reg02 */
-	F_BAT_LOAD_EN, F_WD_RST, F_OTG_CFG, F_CHG_CFG, F_SYSVMIN,    /* Reg03 */
+	F_BAT_LOAD_EN, F_WD_RST, F_OTG_CFG, F_CHG_CFG, F_SYSVMIN,
+	F_MIN_VBAT_SEL,						     /* Reg03 */
 	F_PUMPX_EN, F_ICHG,					     /* Reg04 */
 	F_IPRECHG, F_ITERM,					     /* Reg05 */
 	F_VREG, F_BATLOWV, F_VRECHG,				     /* Reg06 */
@@ -39,8 +47,9 @@ enum bq25890_fields {
 	F_BATCMP, F_VCLAMP, F_TREG,				     /* Reg08 */
 	F_FORCE_ICO, F_TMR2X_EN, F_BATFET_DIS, F_JEITA_VSET,
 	F_BATFET_DLY, F_BATFET_RST_EN, F_PUMPX_UP, F_PUMPX_DN,	     /* Reg09 */
-	F_BOOSTV, F_BOOSTI,					     /* Reg0A */
-	F_VBUS_STAT, F_CHG_STAT, F_PG_STAT, F_SDP_STAT, F_VSYS_STAT, /* Reg0B */
+	F_BOOSTV, F_PFM_OTG_DIS, F_BOOSTI,			     /* Reg0A */
+	F_VBUS_STAT, F_CHG_STAT, F_PG_STAT, F_SDP_STAT, F_0B_RSVD,
+	F_VSYS_STAT,						     /* Reg0B */
 	F_WD_FAULT, F_BOOST_FAULT, F_CHG_FAULT, F_BAT_FAULT,
 	F_NTC_FAULT,						     /* Reg0C */
 	F_FORCE_VINDPM, F_VINDPM,				     /* Reg0D */
@@ -91,7 +100,7 @@ struct bq25890_device {
 	struct regmap *rmap;
 	struct regmap_field *rmap_fields[F_MAX_FIELDS];
 
-	int chip_id;
+	enum bq25890_chip_version chip_version;
 	struct bq25890_init_data init_data;
 	struct bq25890_state state;
 
@@ -111,8 +120,7 @@ static const struct regmap_access_table bq25890_writeable_regs = {
 static const struct regmap_range bq25890_volatile_reg_ranges[] = {
 	regmap_reg_range(0x00, 0x00),
 	regmap_reg_range(0x09, 0x09),
-	regmap_reg_range(0x0b, 0x0c),
-	regmap_reg_range(0x0e, 0x14),
+	regmap_reg_range(0x0b, 0x14),
 };
 
 static const struct regmap_access_table bq25890_volatile_regs = {
@@ -155,7 +163,7 @@ static const struct reg_field bq25890_reg_fields[] = {
 	[F_OTG_CFG]		= REG_FIELD(0x03, 5, 5),
 	[F_CHG_CFG]		= REG_FIELD(0x03, 4, 4),
 	[F_SYSVMIN]		= REG_FIELD(0x03, 1, 3),
-	/* MIN_VBAT_SEL on BQ25896 */
+	[F_MIN_VBAT_SEL]	= REG_FIELD(0x03, 0, 0), // BQ25896 only
 	/* REG04 */
 	[F_PUMPX_EN]		= REG_FIELD(0x04, 7, 7),
 	[F_ICHG]		= REG_FIELD(0x04, 0, 6),
@@ -188,8 +196,8 @@ static const struct reg_field bq25890_reg_fields[] = {
 	[F_PUMPX_DN]		= REG_FIELD(0x09, 0, 0),
 	/* REG0A */
 	[F_BOOSTV]		= REG_FIELD(0x0A, 4, 7),
-	/* PFM_OTG_DIS 3 on BQ25896 */
 	[F_BOOSTI]		= REG_FIELD(0x0A, 0, 2), // reserved on BQ25895
+	[F_PFM_OTG_DIS]		= REG_FIELD(0x0A, 3, 3), // BQ25896 only
 	/* REG0B */
 	[F_VBUS_STAT]		= REG_FIELD(0x0B, 5, 7),
 	[F_CHG_STAT]		= REG_FIELD(0x0B, 3, 4),
@@ -275,6 +283,7 @@ static const union {
 	struct bq25890_lookup lt;
 } bq25890_tables[] = {
 	/* range tables */
+	/* TODO: BQ25896 has max ICHG 3008 mA */
 	[TBL_ICHG] =	{ .rt = {0,	  5056000, 64000} },	 /* uA */
 	[TBL_ITERM] =	{ .rt = {64000,   1024000, 64000} },	 /* uA */
 	[TBL_VREG] =	{ .rt = {3840000, 4608000, 16000} },	 /* uV */
@@ -391,11 +400,13 @@ static int bq25890_power_supply_get_property(struct power_supply *psy,
 		break;
 
 	case POWER_SUPPLY_PROP_MODEL_NAME:
-		if (bq->chip_id == BQ25890_ID)
+		if (bq->chip_version == BQ25890)
 			val->strval = "BQ25890";
-		else if (bq->chip_id == BQ25895_ID)
+		else if (bq->chip_version == BQ25892)
+			val->strval = "BQ25892";
+		else if (bq->chip_version == BQ25895)
 			val->strval = "BQ25895";
-		else if (bq->chip_id == BQ25896_ID)
+		else if (bq->chip_version == BQ25896)
 			val->strval = "BQ25896";
 		else
 			val->strval = "UNKNOWN";
@@ -741,6 +752,56 @@ static int bq25890_usb_notifier(struct notifier_block *nb, unsigned long val,
 	return NOTIFY_OK;
 }
 
+static int bq25890_get_chip_version(struct bq25890_device *bq)
+{
+	int id, rev;
+
+	id = bq25890_field_read(bq, F_PN);
+	if (id < 0) {
+		dev_err(bq->dev, "Cannot read chip ID.\n");
+		return id;
+	}
+
+	rev = bq25890_field_read(bq, F_DEV_REV);
+	if (rev < 0) {
+		dev_err(bq->dev, "Cannot read chip revision.\n");
+		return rev;
+	}
+
+	switch (id) {
+	case BQ25890_ID:
+		bq->chip_version = BQ25890;
+		break;
+
+	/* BQ25892 and BQ25896 share same ID 0 */
+	case BQ25896_ID:
+		switch (rev) {
+		case 2:
+			bq->chip_version = BQ25896;
+			break;
+		case 1:
+			bq->chip_version = BQ25892;
+			break;
+		default:
+			dev_err(bq->dev,
+				"Unknown device revision %d, assume BQ25892\n",
+				rev);
+			bq->chip_version = BQ25892;
+		}
+		break;
+
+	case BQ25895_ID:
+		bq->chip_version = BQ25895;
+		break;
+
+	default:
+		dev_err(bq->dev, "Unknown chip ID %d\n", id);
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
 static int bq25890_irq_probe(struct bq25890_device *bq)
 {
 	struct gpio_desc *irq;
@@ -859,16 +920,10 @@ static int bq25890_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, bq);
 
-	bq->chip_id = bq25890_field_read(bq, F_PN);
-	if (bq->chip_id < 0) {
-		dev_err(dev, "Cannot read chip ID.\n");
-		return bq->chip_id;
-	}
-
-	if ((bq->chip_id != BQ25890_ID) && (bq->chip_id != BQ25895_ID)
-			&& (bq->chip_id != BQ25896_ID)) {
-		dev_err(dev, "Chip with ID=%d, not supported!\n", bq->chip_id);
-		return -ENODEV;
+	ret = bq25890_get_chip_version(bq);
+	if (ret) {
+		dev_err(dev, "Cannot read chip ID or unknown chip.\n");
+		return ret;
 	}
 
 	if (!dev->platform_data) {
@@ -986,12 +1041,18 @@ static const struct dev_pm_ops bq25890_pm = {
 
 static const struct i2c_device_id bq25890_i2c_ids[] = {
 	{ "bq25890", 0 },
+	{ "bq25892", 0 },
+	{ "bq25895", 0 },
+	{ "bq25896", 0 },
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, bq25890_i2c_ids);
 
 static const struct of_device_id bq25890_of_match[] = {
 	{ .compatible = "ti,bq25890", },
+	{ .compatible = "ti,bq25892", },
+	{ .compatible = "ti,bq25895", },
+	{ .compatible = "ti,bq25896", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, bq25890_of_match);
