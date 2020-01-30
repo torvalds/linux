@@ -192,37 +192,33 @@ static const struct iio_chan_spec_ext_info ltc2632_ext_info[] = {
 		LTC2632_CHANNEL(1, _bits), \
 	}
 
-static DECLARE_LTC2632_CHANNELS(ltc2632l12, 12);
-static DECLARE_LTC2632_CHANNELS(ltc2632l10, 10);
-static DECLARE_LTC2632_CHANNELS(ltc2632l8, 8);
-
-static DECLARE_LTC2632_CHANNELS(ltc2632h12, 12);
-static DECLARE_LTC2632_CHANNELS(ltc2632h10, 10);
-static DECLARE_LTC2632_CHANNELS(ltc2632h8, 8);
+static DECLARE_LTC2632_CHANNELS(ltc2632x12, 12);
+static DECLARE_LTC2632_CHANNELS(ltc2632x10, 10);
+static DECLARE_LTC2632_CHANNELS(ltc2632x8, 8);
 
 static const struct ltc2632_chip_info ltc2632_chip_info_tbl[] = {
 	[ID_LTC2632L12] = {
-		.channels	= ltc2632l12_channels,
+		.channels	= ltc2632x12_channels,
 		.vref_mv	= 2500,
 	},
 	[ID_LTC2632L10] = {
-		.channels	= ltc2632l10_channels,
+		.channels	= ltc2632x10_channels,
 		.vref_mv	= 2500,
 	},
 	[ID_LTC2632L8] =  {
-		.channels	= ltc2632l8_channels,
+		.channels	= ltc2632x8_channels,
 		.vref_mv	= 2500,
 	},
 	[ID_LTC2632H12] = {
-		.channels	= ltc2632h12_channels,
+		.channels	= ltc2632x12_channels,
 		.vref_mv	= 4096,
 	},
 	[ID_LTC2632H10] = {
-		.channels	= ltc2632h10_channels,
+		.channels	= ltc2632x10_channels,
 		.vref_mv	= 4096,
 	},
 	[ID_LTC2632H8] =  {
-		.channels	= ltc2632h8_channels,
+		.channels	= ltc2632x8_channels,
 		.vref_mv	= 4096,
 	},
 };
