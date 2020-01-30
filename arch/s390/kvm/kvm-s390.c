@@ -4516,6 +4516,13 @@ int kvm_s390_vcpu_start(struct kvm_vcpu *vcpu)
 
 	kvm_s390_clear_cpuflags(vcpu, CPUSTAT_STOPPED);
 	/*
+	 * The real PSW might have changed due to a RESTART interpreted by the
+	 * ultravisor. We block all interrupts and let the next sie exit
+	 * refresh our view.
+	 */
+	if (kvm_s390_pv_cpu_is_protected(vcpu))
+		vcpu->arch.sie_block->gpsw.mask &= ~PSW_INT_MASK;
+	/*
 	 * Another VCPU might have used IBS while we were offline.
 	 * Let's play safe and flush the VCPU at startup.
 	 */
