@@ -55,8 +55,8 @@ struct uniphier_pciephy_priv {
 };
 
 struct uniphier_pciephy_soc_data {
-	bool has_syscon;
 	bool is_legacy;
+	void (*set_phymode)(struct regmap *regmap);
 };
 
 static void uniphier_pciephy_testio_write(struct uniphier_pciephy_priv *priv,
@@ -243,9 +243,8 @@ static int uniphier_pciephy_probe(struct platform_device *pdev)
 
 	regmap = syscon_regmap_lookup_by_phandle(dev->of_node,
 						 "socionext,syscon");
-	if (!IS_ERR(regmap) && priv->data->has_syscon)
-		regmap_update_bits(regmap, SG_USBPCIESEL,
-				   SG_USBPCIESEL_PCIE, SG_USBPCIESEL_PCIE);
+	if (!IS_ERR(regmap) && priv->data->set_phymode)
+		priv->data->set_phymode(regmap);
 
 	phy_set_drvdata(phy, priv);
 	phy_provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
@@ -253,18 +252,22 @@ static int uniphier_pciephy_probe(struct platform_device *pdev)
 	return PTR_ERR_OR_ZERO(phy_provider);
 }
 
+static void uniphier_pciephy_ld20_setmode(struct regmap *regmap)
+{
+	regmap_update_bits(regmap, SG_USBPCIESEL,
+			   SG_USBPCIESEL_PCIE, SG_USBPCIESEL_PCIE);
+}
+
 static const struct uniphier_pciephy_soc_data uniphier_pro5_data = {
-	.has_syscon = false,
 	.is_legacy = true,
 };
 
 static const struct uniphier_pciephy_soc_data uniphier_ld20_data = {
-	.has_syscon = true,
 	.is_legacy = false,
+	.set_phymode = uniphier_pciephy_ld20_setmode,
 };
 
 static const struct uniphier_pciephy_soc_data uniphier_pxs3_data = {
-	.has_syscon = false,
 	.is_legacy = false,
 };
 
