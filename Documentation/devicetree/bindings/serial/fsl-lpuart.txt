@@ -10,6 +10,8 @@ Required properties:
     on i.MX7ULP SoC with 32-bit little-endian register organization
   - "fsl,imx8qxp-lpuart" for lpuart compatible with the one integrated
     on i.MX8QXP SoC with 32-bit little-endian register organization
+  - "fsl,imx8qm-lpuart" for lpuart compatible with the one integrated
+    on i.MX8QM SoC with 32-bit little-endian register organization
 - reg : Address and length of the register set for the device
 - interrupts : Should contain uart interrupt
 - clocks : phandle + clock specifier pairs, one for each entry in clock-names

@@ -10366,7 +10366,7 @@ L:	linux-media@vger.kernel.org
 L:	linux-renesas-soc@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
 S:	Supported
-F:	Documentation/devicetree/bindings/media/renesas,ceu.txt
+F:	Documentation/devicetree/bindings/media/renesas,ceu.yaml
 F:	drivers/media/platform/renesas-ceu.c
 F:	include/media/drv-intf/renesas-ceu.h
 
@@ -10404,7 +10404,7 @@ L:	linux-media@vger.kernel.org
 L:	linux-renesas-soc@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
 S:	Supported
-F:	Documentation/devicetree/bindings/media/renesas,csi2.txt
+F:	Documentation/devicetree/bindings/media/renesas,csi2.yaml
 F:	Documentation/devicetree/bindings/media/renesas,vin.txt
 F:	drivers/media/platform/rcar-vin/
 
@@ -12696,7 +12696,7 @@ M:	Rob Herring <robh@kernel.org>
 L:	linux-pci@vger.kernel.org
 L:	linux-arm-kernel@lists.infradead.org
 S:	Maintained
-F:	Documentation/devicetree/bindings/pci/versatile.txt
+F:	Documentation/devicetree/bindings/pci/versatile.yaml
 F:	drivers/pci/controller/pci-versatile.c
 
 PCI DRIVER FOR ARMADA 8K
@@ -12729,7 +12729,7 @@ M:	Will Deacon <will@kernel.org>
 L:	linux-pci@vger.kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
-F:	Documentation/devicetree/bindings/pci/host-generic-pci.txt
+F:	Documentation/devicetree/bindings/pci/host-generic-pci.yaml
 F:	drivers/pci/controller/pci-host-common.c
 F:	drivers/pci/controller/pci-host-generic.c
 
