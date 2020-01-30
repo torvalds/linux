@@ -124,7 +124,13 @@ static int of_mdiobus_register_phy(struct mii_bus *mdio,
 		of_node_put(child);
 		return rc;
 	}
-	phy->mii_ts = mii_ts;
+
+	/* phy->mii_ts may already be defined by the PHY driver. A
+	 * mii_timestamper probed via the device tree will still have
+	 * precedence.
+	 */
+	if (mii_ts)
+		phy->mii_ts = mii_ts;
 
 	dev_dbg(&mdio->dev, "registered phy %pOFn at address %i\n",
 		child, addr);
