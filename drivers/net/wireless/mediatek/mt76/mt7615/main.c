@@ -241,6 +241,7 @@ static int mt7615_set_channel(struct mt7615_phy *phy)
 	mt7615_mac_set_timing(phy);
 	ret = mt7615_dfs_init_radar_detector(phy);
 	mt7615_mac_cca_stats_reset(phy);
+	mt7615_mcu_set_sku_en(phy, true);
 
 	mt7615_mac_reset_counters(dev);
 	phy->noise = 0;
@@ -313,16 +314,14 @@ static int mt7615_config(struct ieee80211_hw *hw, u32 changed)
 	bool band = phy != &dev->phy;
 	int ret = 0;
 
-	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
+	if (changed & (IEEE80211_CONF_CHANGE_CHANNEL |
+		       IEEE80211_CONF_CHANGE_POWER)) {
 		ieee80211_stop_queues(hw);
 		ret = mt7615_set_channel(phy);
 		ieee80211_wake_queues(hw);
 	}
 
 	mutex_lock(&dev->mt76.mutex);
-
-	if (changed & IEEE80211_CONF_CHANGE_POWER)
-		ret = mt7615_mcu_set_tx_power(phy);
 
 	if (changed & IEEE80211_CONF_CHANGE_MONITOR) {
 		if (!(hw->conf.flags & IEEE80211_CONF_MONITOR))

@@ -1333,75 +1333,6 @@ int mt7615_mcu_set_bcn(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 				   &req, sizeof(req), true);
 }
 
-int mt7615_mcu_set_tx_power(struct mt7615_phy *phy)
-{
-	struct mt7615_dev *dev = phy->dev;
-	struct mt76_phy *mphy = phy->mt76;
-	int i, ret, n_chains = hweight8(mphy->antenna_mask);
-	struct cfg80211_chan_def *chandef = &mphy->chandef;
-	int freq = chandef->center_freq1, len, target_chains;
-	u8 *req, *data, *eep = (u8 *)dev->mt76.eeprom.data;
-	enum nl80211_band band = chandef->chan->band;
-	struct ieee80211_hw *hw = mphy->hw;
-	struct {
-		u8 center_chan;
-		u8 dbdc_idx;
-		u8 band;
-		u8 rsv;
-	} __packed req_hdr = {
-		.center_chan = ieee80211_frequency_to_channel(freq),
-		.band = band,
-		.dbdc_idx = phy != &dev->phy,
-	};
-	s8 tx_power;
-
-	len = sizeof(req_hdr) + MT7615_EE_MAX - MT_EE_NIC_CONF_0;
-	req = kzalloc(len, GFP_KERNEL);
-	if (!req)
-		return -ENOMEM;
-
-	memcpy(req, &req_hdr, sizeof(req_hdr));
-	data = req + sizeof(req_hdr);
-	memcpy(data, eep + MT_EE_NIC_CONF_0,
-	       MT7615_EE_MAX - MT_EE_NIC_CONF_0);
-
-	tx_power = hw->conf.power_level * 2;
-	switch (n_chains) {
-	case 4:
-		tx_power -= 12;
-		break;
-	case 3:
-		tx_power -= 8;
-		break;
-	case 2:
-		tx_power -= 6;
-		break;
-	default:
-		break;
-	}
-	tx_power = max_t(s8, tx_power, 0);
-	mphy->txpower_cur = tx_power;
-
-	target_chains = mt7615_ext_pa_enabled(dev, band) ? 1 : n_chains;
-	for (i = 0; i < target_chains; i++) {
-		int index = -MT_EE_NIC_CONF_0;
-
-		ret = mt7615_eeprom_get_power_index(dev, chandef->chan, i);
-		if (ret < 0)
-			goto out;
-
-		index += ret;
-		data[index] = min_t(u8, data[index], tx_power);
-	}
-
-	ret = __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_SET_TX_POWER_CTRL,
-				  req, len, true);
-out:
-	kfree(req);
-
-	return ret;
-}
-
 int mt7615_mcu_rdd_cmd(struct mt7615_dev *dev,
 		       enum mt7615_rdd_cmd cmd, u8 index,
 		       u8 rx_sel, u8 val)
@@ -1502,6 +1433,30 @@ int mt7615_mcu_rdd_send_pattern(struct mt7615_dev *dev)
 				   &req, sizeof(req), false);
 }
 
+static void mt7615_mcu_set_txpower_sku(struct mt7615_phy *phy, u8 *sku)
+{
+	static const u8 nss_delta[4] = { 0, 6, 8, 12 };
+	struct mt76_phy *mphy = phy->mt76;
+	struct ieee80211_hw *hw = mphy->hw;
+	int n_chains = hweight8(mphy->antenna_mask);
+	int tx_power;
+	int i;
+
+	tx_power = hw->conf.power_level * 2 - nss_delta[n_chains - 1];
+	mphy->txpower_cur = tx_power;
+
+	for (i = 0; i < MT_SKU_1SS_DELTA; i++)
+		sku[i] = tx_power;
+
+	for (i = 0; i < 4; i++) {
+		int delta = 0;
+
+		if (i < n_chains - 1)
+			delta = nss_delta[n_chains - 1] - nss_delta[i];
+		sku[MT_SKU_1SS_DELTA + i] = delta;
+	}
+}
+
 int mt7615_mcu_set_chan_info(struct mt7615_phy *phy, int cmd)
 {
 	struct mt7615_dev *dev = phy->dev;
@@ -1568,7 +1523,8 @@ int mt7615_mcu_set_chan_info(struct mt7615_phy *phy, int cmd)
 		req.bw = CMD_CBW_20MHZ;
 		break;
 	}
-	memset(req.txpower_sku, 0x3f, 49);
+
+	mt7615_mcu_set_txpower_sku(phy, req.txpower_sku);
 
 	return __mt76_mcu_send_msg(&dev->mt76, cmd, &req, sizeof(req), true);
 }
@@ -1835,5 +1791,23 @@ int mt7615_mcu_get_temperature(struct mt7615_dev *dev, int index)
 	};
 
 	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_GET_TEMP, &req,
+				   sizeof(req), true);
+}
+
+int mt7615_mcu_set_sku_en(struct mt7615_phy *phy, bool enable)
+{
+	struct mt7615_dev *dev = phy->dev;
+	struct {
+		u8 format_id;
+		u8 sku_enable;
+		u8 band_idx;
+		u8 rsv;
+	} req = {
+		.format_id = 0,
+		.band_idx = phy != &dev->phy,
+		.sku_enable = enable,
+	};
+
+	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_TX_POWER_FEATURE_CTRL, &req,
 				   sizeof(req), true);
 }
