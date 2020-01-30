@@ -18,6 +18,7 @@
 					 MT7615_MAX_INTERFACES)
 
 #define MT7615_WATCHDOG_TIME		(HZ / 10)
+#define MT7615_RESET_TIMEOUT		(30 * HZ)
 #define MT7615_RATE_RETRY		2
 
 #define MT7615_TX_RING_SIZE		1024
@@ -155,6 +156,10 @@ struct mt7615_dev {
 	struct regmap *infracfg;
 
 	struct work_struct mcu_work;
+
+	struct work_struct reset_work;
+	wait_queue_head_t reset_wait;
+	u32 reset_state;
 
 	struct list_head sta_poll_list;
 	spinlock_t sta_poll_lock;
@@ -352,6 +357,7 @@ void mt7615_mac_tx_free(struct mt7615_dev *dev, struct sk_buff *skb);
 int mt7615_mac_wtbl_set_key(struct mt7615_dev *dev, struct mt76_wcid *wcid,
 			    struct ieee80211_key_conf *key,
 			    enum set_key_cmd cmd);
+void mt7615_mac_reset_work(struct work_struct *work);
 
 int mt7615_mcu_set_dbdc(struct mt7615_dev *dev);
 int mt7615_mcu_set_eeprom(struct mt7615_dev *dev);

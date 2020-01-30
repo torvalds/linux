@@ -35,7 +35,8 @@ struct sk_buff *mt76_mcu_get_response(struct mt76_dev *dev,
 
 	timeout = expires - jiffies;
 	wait_event_timeout(dev->mmio.mcu.wait,
-			   !skb_queue_empty(&dev->mmio.mcu.res_q),
+			   (!skb_queue_empty(&dev->mmio.mcu.res_q) ||
+			    test_bit(MT76_MCU_RESET, &dev->phy.state)),
 			   timeout);
 	return skb_dequeue(&dev->mmio.mcu.res_q);
 }

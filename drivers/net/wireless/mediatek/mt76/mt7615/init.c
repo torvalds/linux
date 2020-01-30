@@ -447,6 +447,8 @@ int mt7615_register_device(struct mt7615_dev *dev)
 	INIT_DELAYED_WORK(&dev->mt76.mac_work, mt7615_mac_work);
 	INIT_LIST_HEAD(&dev->sta_poll_list);
 	spin_lock_init(&dev->sta_poll_lock);
+	init_waitqueue_head(&dev->reset_wait);
+	INIT_WORK(&dev->reset_work, mt7615_mac_reset_work);
 
 	ret = mt7622_wmac_init(dev);
 	if (ret)

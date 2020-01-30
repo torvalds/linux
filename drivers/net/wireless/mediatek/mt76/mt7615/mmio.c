@@ -53,6 +53,16 @@ static irqreturn_t mt7615_irq_handler(int irq, void *dev_instance)
 		napi_schedule(&dev->mt76.napi[1]);
 	}
 
+	if (intr & MT_INT_MCU_CMD) {
+		u32 val = mt76_rr(dev, MT_MCU_CMD);
+
+		if (val & MT_MCU_CMD_ERROR_MASK) {
+			dev->reset_state = val;
+			ieee80211_queue_work(mt76_hw(dev), &dev->reset_work);
+			wake_up(&dev->reset_wait);
+		}
+	}
+
 	return IRQ_HANDLED;
 }
 
