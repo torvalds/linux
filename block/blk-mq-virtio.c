@@ -44,3 +44,6 @@ fallback:
 	return blk_mq_map_queues(qmap);
 }
 EXPORT_SYMBOL_GPL(blk_mq_virtio_map_queues);
+
+MODULE_DESCRIPTION("Virtio Device Default Queue Mapping");
+MODULE_LICENSE("GPL v2");
