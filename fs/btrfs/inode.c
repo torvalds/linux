@@ -4726,16 +4726,16 @@ static int btrfs_setsize(struct inode *inode, struct iattr *attr)
 		 * truncation, it must capture all writes that happened before
 		 * this truncation.
 		 */
-		btrfs_wait_for_snapshot_creation(root);
+		btrfs_drew_write_lock(&root->snapshot_lock);
 		ret = btrfs_cont_expand(inode, oldsize, newsize);
 		if (ret) {
-			btrfs_end_write_no_snapshotting(root);
+			btrfs_drew_write_unlock(&root->snapshot_lock);
 			return ret;
 		}
 
 		trans = btrfs_start_transaction(root, 1);
 		if (IS_ERR(trans)) {
-			btrfs_end_write_no_snapshotting(root);
+			btrfs_drew_write_unlock(&root->snapshot_lock);
 			return PTR_ERR(trans);
 		}
 
@@ -4743,7 +4743,7 @@ static int btrfs_setsize(struct inode *inode, struct iattr *attr)
 		btrfs_inode_safe_disk_i_size_write(inode, 0);
 		pagecache_isize_extended(inode, oldsize, newsize);
 		ret = btrfs_update_inode(trans, root, inode);
-		btrfs_end_write_no_snapshotting(root);
+		btrfs_drew_write_unlock(&root->snapshot_lock);
 		btrfs_end_transaction(trans);
 	} else {
 
