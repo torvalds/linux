@@ -753,7 +753,7 @@ static int f81232_port_probe(struct usb_serial_port *port)
 {
 	struct f81232_private *priv;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(&port->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -765,16 +765,6 @@ static int f81232_port_probe(struct usb_serial_port *port)
 
 	port->port.drain_delay = 256;
 	priv->port = port;
-
-	return 0;
-}
-
-static int f81232_port_remove(struct usb_serial_port *port)
-{
-	struct f81232_private *priv;
-
-	priv = usb_get_serial_port_data(port);
-	kfree(priv);
 
 	return 0;
 }
@@ -838,7 +828,6 @@ static struct usb_serial_driver f81232_device = {
 	.process_read_urb =	f81232_process_read_urb,
 	.read_int_callback =	f81232_read_int_callback,
 	.port_probe =		f81232_port_probe,
-	.port_remove =		f81232_port_remove,
 	.suspend =		f81232_suspend,
 	.resume =		f81232_resume,
 };
