@@ -7660,9 +7660,8 @@ S:	Orphan
 F:	drivers/net/usb/hso.c
 
 HSR NETWORK PROTOCOL
-M:	Arvid Brodin <arvid.brodin@alten.se>
 L:	netdev@vger.kernel.org
-S:	Maintained
+S:	Orphan
 F:	net/hsr/
 
 HT16K33 LED CONTROLLER DRIVER
