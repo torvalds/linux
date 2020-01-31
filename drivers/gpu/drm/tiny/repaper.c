@@ -17,7 +17,7 @@
 #include <linux/dma-buf.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/property.h>
 #include <linux/sched/clock.h>
 #include <linux/spi/spi.h>
 #include <linux/thermal.h>
@@ -39,6 +39,7 @@
 #define REPAPER_RID_G2_COG_ID	0x12
 
 enum repaper_model {
+	/* 0 is reserved to avoid clashing with NULL */
 	E1144CS021 = 1,
 	E1190CS021,
 	E2200CS021,
@@ -986,21 +987,21 @@ static int repaper_probe(struct spi_device *spi)
 {
 	const struct drm_display_mode *mode;
 	const struct spi_device_id *spi_id;
-	const struct of_device_id *match;
 	struct device *dev = &spi->dev;
 	enum repaper_model model;
 	const char *thermal_zone;
 	struct repaper_epd *epd;
 	size_t line_buffer_size;
 	struct drm_device *drm;
+	const void *match;
 	int ret;
 
-	match = of_match_device(repaper_of_match, dev);
+	match = device_get_match_data(dev);
 	if (match) {
-		model = (enum repaper_model)match->data;
+		model = (enum repaper_model)match;
 	} else {
 		spi_id = spi_get_device_id(spi);
-		model = spi_id->driver_data;
+		model = (enum repaper_model)spi_id->driver_data;
 	}
 
 	/* The SPI device is used to allocate dma memory */
