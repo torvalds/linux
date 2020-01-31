@@ -1334,12 +1334,12 @@ int synth_event_add_field(struct dynevent_cmd *cmd, const char *type,
 	if (!type || !name)
 		return -EINVAL;
 
-	dynevent_arg_pair_init(&arg_pair, synth_event_check_arg_fn, 0, ';');
+	dynevent_arg_pair_init(&arg_pair, 0, ';');
 
 	arg_pair.lhs = type;
 	arg_pair.rhs = name;
 
-	ret = dynevent_arg_pair_add(cmd, &arg_pair);
+	ret = dynevent_arg_pair_add(cmd, &arg_pair, synth_event_check_arg_fn);
 	if (ret)
 		return ret;
 
@@ -1377,11 +1377,11 @@ int synth_event_add_field_str(struct dynevent_cmd *cmd, const char *type_name)
 	if (!type_name)
 		return -EINVAL;
 
-	dynevent_arg_init(&arg, NULL, ';');
+	dynevent_arg_init(&arg, ';');
 
 	arg.str = type_name;
 
-	ret = dynevent_arg_add(cmd, &arg);
+	ret = dynevent_arg_add(cmd, &arg, NULL);
 	if (ret)
 		return ret;
 
@@ -1472,9 +1472,9 @@ int __synth_event_gen_cmd_start(struct dynevent_cmd *cmd, const char *name,
 	if (cmd->type != DYNEVENT_TYPE_SYNTH)
 		return -EINVAL;
 
-	dynevent_arg_init(&arg, NULL, 0);
+	dynevent_arg_init(&arg, 0);
 	arg.str = name;
-	ret = dynevent_arg_add(cmd, &arg);
+	ret = dynevent_arg_add(cmd, &arg, NULL);
 	if (ret)
 		return ret;
 
@@ -1546,9 +1546,9 @@ int synth_event_gen_cmd_array_start(struct dynevent_cmd *cmd, const char *name,
 	if (n_fields > SYNTH_FIELDS_MAX)
 		return -EINVAL;
 
-	dynevent_arg_init(&arg, NULL, 0);
+	dynevent_arg_init(&arg, 0);
 	arg.str = name;
-	ret = dynevent_arg_add(cmd, &arg);
+	ret = dynevent_arg_add(cmd, &arg, NULL);
 	if (ret)
 		return ret;
 

@@ -126,28 +126,27 @@ typedef int (*dynevent_check_arg_fn_t)(void *data);
 struct dynevent_arg {
 	const char		*str;
 	char			separator; /* e.g. ';', ',', or nothing */
-	dynevent_check_arg_fn_t	check_arg;
 };
 
 extern void dynevent_arg_init(struct dynevent_arg *arg,
-			      dynevent_check_arg_fn_t check_arg,
 			      char separator);
 extern int dynevent_arg_add(struct dynevent_cmd *cmd,
-			    struct dynevent_arg *arg);
+			    struct dynevent_arg *arg,
+			    dynevent_check_arg_fn_t check_arg);
 
 struct dynevent_arg_pair {
 	const char		*lhs;
 	const char		*rhs;
 	char			operator; /* e.g. '=' or nothing */
 	char			separator; /* e.g. ';', ',', or nothing */
-	dynevent_check_arg_fn_t	check_arg;
 };
 
 extern void dynevent_arg_pair_init(struct dynevent_arg_pair *arg_pair,
-				   dynevent_check_arg_fn_t check_arg,
 				   char operator, char separator);
+
 extern int dynevent_arg_pair_add(struct dynevent_cmd *cmd,
-				 struct dynevent_arg_pair *arg_pair);
+				 struct dynevent_arg_pair *arg_pair,
+				 dynevent_check_arg_fn_t check_arg);
 extern int dynevent_str_add(struct dynevent_cmd *cmd, const char *str);
 
 #endif

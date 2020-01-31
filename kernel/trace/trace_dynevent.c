@@ -228,27 +228,30 @@ fs_initcall(init_dynamic_event);
  * dynevent_arg_add - Add an arg to a dynevent_cmd
  * @cmd: A pointer to the dynevent_cmd struct representing the new event cmd
  * @arg: The argument to append to the current cmd
+ * @check_arg: An (optional) pointer to a function checking arg sanity
  *
  * Append an argument to a dynevent_cmd.  The argument string will be
  * appended to the current cmd string, followed by a separator, if
- * applicable.  Before the argument is added, the check_arg()
- * function, if defined, is called.
+ * applicable.  Before the argument is added, the @check_arg function,
+ * if present, will be used to check the sanity of the current arg
+ * string.
  *
- * The cmd string, separator, and check_arg() function should be set
- * using the dynevent_arg_init() before any arguments are added using
- * this function.
+ * The cmd string and separator should be set using the
+ * dynevent_arg_init() before any arguments are added using this
+ * function.
  *
  * Return: 0 if successful, error otherwise.
  */
 int dynevent_arg_add(struct dynevent_cmd *cmd,
-		     struct dynevent_arg *arg)
+		     struct dynevent_arg *arg,
+		     dynevent_check_arg_fn_t check_arg)
 {
 	int ret = 0;
 	int delta;
 	char *q;
 
-	if (arg->check_arg) {
-		ret = arg->check_arg(arg);
+	if (check_arg) {
+		ret = check_arg(arg);
 		if (ret)
 			return ret;
 	}
@@ -269,6 +272,7 @@ int dynevent_arg_add(struct dynevent_cmd *cmd,
  * dynevent_arg_pair_add - Add an arg pair to a dynevent_cmd
  * @cmd: A pointer to the dynevent_cmd struct representing the new event cmd
  * @arg_pair: The argument pair to append to the current cmd
+ * @check_arg: An (optional) pointer to a function checking arg sanity
  *
  * Append an argument pair to a dynevent_cmd.  An argument pair
  * consists of a left-hand-side argument and a right-hand-side
@@ -278,24 +282,26 @@ int dynevent_arg_add(struct dynevent_cmd *cmd,
  *
  * The lhs argument string will be appended to the current cmd string,
  * followed by an operator, if applicable, followd by the rhs string,
- * followed finally by a separator, if applicable.  Before anything is
- * added, the check_arg() function, if defined, is called.
+ * followed finally by a separator, if applicable.  Before the
+ * argument is added, the @check_arg function, if present, will be
+ * used to check the sanity of the current arg strings.
  *
- * The cmd strings, operator, separator, and check_arg() function
- * should be set using the dynevent_arg_pair_init() before any arguments
- * are added using this function.
+ * The cmd strings, operator, and separator should be set using the
+ * dynevent_arg_pair_init() before any arguments are added using this
+ * function.
  *
  * Return: 0 if successful, error otherwise.
  */
 int dynevent_arg_pair_add(struct dynevent_cmd *cmd,
-			  struct dynevent_arg_pair *arg_pair)
+			  struct dynevent_arg_pair *arg_pair,
+			  dynevent_check_arg_fn_t check_arg)
 {
 	int ret = 0;
 	int delta;
 	char *q;
 
-	if (arg_pair->check_arg) {
-		ret = arg_pair->check_arg(arg_pair);
+	if (check_arg) {
+		ret = check_arg(arg_pair);
 		if (ret)
 			return ret;
 	}
@@ -385,20 +391,16 @@ void dynevent_cmd_init(struct dynevent_cmd *cmd, char *buf, int maxlen,
 /**
  * dynevent_arg_init - Initialize a dynevent_arg object
  * @arg: A pointer to the dynevent_arg struct representing the arg
- * @check_arg: An (optional) pointer to a function checking arg sanity
  * @separator: An (optional) separator, appended after adding the arg
  *
  * Initialize a dynevent_arg object.  A dynevent_arg represents an
  * object used to append single arguments to the current command
- * string.  The @check_arg function, if present, will be used to check
- * the sanity of the current arg string (which is directly set by the
- * caller).  After the arg string is successfully appended to the
+ * string.  After the arg string is successfully appended to the
  * command string, the optional @separator is appended.  If no
  * separator was specified when initializing the arg, a space will be
  * appended.
  */
 void dynevent_arg_init(struct dynevent_arg *arg,
-		       dynevent_check_arg_fn_t check_arg,
 		       char separator)
 {
 	memset(arg, '\0', sizeof(*arg));
@@ -406,14 +408,11 @@ void dynevent_arg_init(struct dynevent_arg *arg,
 	if (!separator)
 		separator = ' ';
 	arg->separator = separator;
-
-	arg->check_arg = check_arg;
 }
 
 /**
  * dynevent_arg_pair_init - Initialize a dynevent_arg_pair object
  * @arg_pair: A pointer to the dynevent_arg_pair struct representing the arg
- * @check_arg: An (optional) pointer to a function checking arg sanity
  * @operator: An (optional) operator, appended after adding the first arg
  * @separator: An (optional) separator, appended after adding the second arg
  *
@@ -422,16 +421,13 @@ void dynevent_arg_init(struct dynevent_arg *arg,
  * variable_name;' or 'x+y' to the current command string.  An
  * argument pair consists of a left-hand-side argument and a
  * right-hand-side argument separated by an operator, which can be
- * whitespace, all followed by a separator, if applicable. The
- * @check_arg function, if present, will be used to check the sanity
- * of the current arg strings (which is directly set by the caller).
- * After the first arg string is successfully appended to the command
- * string, the optional @operator is appended, followed by the second
- * arg and and optional @separator.  If no separator was specified
- * when initializing the arg, a space will be appended.
+ * whitespace, all followed by a separator, if applicable.  After the
+ * first arg string is successfully appended to the command string,
+ * the optional @operator is appended, followed by the second arg and
+ * and optional @separator.  If no separator was specified when
+ * initializing the arg, a space will be appended.
  */
 void dynevent_arg_pair_init(struct dynevent_arg_pair *arg_pair,
-			    dynevent_check_arg_fn_t check_arg,
 			    char operator, char separator)
 {
 	memset(arg_pair, '\0', sizeof(*arg_pair));
@@ -443,8 +439,6 @@ void dynevent_arg_pair_init(struct dynevent_arg_pair *arg_pair,
 	if (!separator)
 		separator = ' ';
 	arg_pair->separator = separator;
-
-	arg_pair->check_arg = check_arg;
 }
 
 /**
