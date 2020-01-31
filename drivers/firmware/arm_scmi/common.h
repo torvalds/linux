@@ -33,8 +33,8 @@ enum scmi_common_cmd {
 /**
  * struct scmi_msg_resp_prot_version - Response for a message
  *
- * @major_version: Major version of the ABI that firmware supports
  * @minor_version: Minor version of the ABI that firmware supports
+ * @major_version: Major version of the ABI that firmware supports
  *
  * In general, ABI version changes follow the rule that minor version increments
  * are backward compatible. Major revision changes in ABI may not be
@@ -88,7 +88,7 @@ struct scmi_msg {
  *	message. If request-ACK protocol is used, we can reuse the same
  *	buffer for the rx path as we use for the tx path.
  * @done: command message transmit completion event
- * @async: pointer to delayed response message received event completion
+ * @async_done: pointer to delayed response message received event completion
  */
 struct scmi_xfer {
 	int transfer_id;
