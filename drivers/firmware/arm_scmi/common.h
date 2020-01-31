@@ -153,3 +153,74 @@ void scmi_setup_protocol_implemented(const struct scmi_handle *handle,
 				     u8 *prot_imp);
 
 int scmi_base_protocol_init(struct scmi_handle *h);
+
+/* SCMI Transport */
+/**
+ * struct scmi_chan_info - Structure representing a SCMI channel information
+ *
+ * @dev: Reference to device in the SCMI hierarchy corresponding to this
+ *	 channel
+ * @handle: Pointer to SCMI entity handle
+ * @transport_info: Transport layer related information
+ */
+struct scmi_chan_info {
+	struct device *dev;
+	struct scmi_handle *handle;
+	void *transport_info;
+};
+
+/**
+ * struct scmi_transport_ops - Structure representing a SCMI transport ops
+ *
+ * @chan_available: Callback to check if channel is available or not
+ * @chan_setup: Callback to allocate and setup a channel
+ * @chan_free: Callback to free a channel
+ * @send_message: Callback to send a message
+ * @mark_txdone: Callback to mark tx as done
+ * @fetch_response: Callback to fetch response
+ * @poll_done: Callback to poll transfer status
+ */
+struct scmi_transport_ops {
+	bool (*chan_available)(struct device *dev, int idx);
+	int (*chan_setup)(struct scmi_chan_info *cinfo, struct device *dev,
+			  bool tx);
+	int (*chan_free)(int id, void *p, void *data);
+	int (*send_message)(struct scmi_chan_info *cinfo,
+			    struct scmi_xfer *xfer);
+	void (*mark_txdone)(struct scmi_chan_info *cinfo, int ret);
+	void (*fetch_response)(struct scmi_chan_info *cinfo,
+			       struct scmi_xfer *xfer);
+	bool (*poll_done)(struct scmi_chan_info *cinfo, struct scmi_xfer *xfer);
+};
+
+/**
+ * struct scmi_desc - Description of SoC integration
+ *
+ * @ops: Pointer to the transport specific ops structure
+ * @max_rx_timeout_ms: Timeout for communication with SoC (in Milliseconds)
+ * @max_msg: Maximum number of messages that can be pending
+ *	simultaneously in the system
+ * @max_msg_size: Maximum size of data per message that can be handled.
+ */
+struct scmi_desc {
+	struct scmi_transport_ops *ops;
+	int max_rx_timeout_ms;
+	int max_msg;
+	int max_msg_size;
+};
+
+extern const struct scmi_desc scmi_mailbox_desc;
+
+void scmi_rx_callback(struct scmi_chan_info *cinfo, u32 msg_hdr);
+void scmi_free_channel(struct scmi_chan_info *cinfo, struct idr *idr, int id);
+
+/* shmem related declarations */
+struct scmi_shared_mem;
+
+void shmem_tx_prepare(struct scmi_shared_mem __iomem *shmem,
+		      struct scmi_xfer *xfer);
+u32 shmem_read_header(struct scmi_shared_mem __iomem *shmem);
+void shmem_fetch_response(struct scmi_shared_mem __iomem *shmem,
+			  struct scmi_xfer *xfer);
+bool shmem_poll_done(struct scmi_shared_mem __iomem *shmem,
+		     struct scmi_xfer *xfer);
