@@ -50,20 +50,13 @@ int vchiq_susp_log_level = VCHIQ_LOG_ERROR;
 
 #define VC_SUSPEND_NUM_OFFSET 3 /* number of values before idle which are -ve */
 static const char *const suspend_state_names[] = {
-	"VC_SUSPEND_FORCE_CANCELED",
-	"VC_SUSPEND_REJECTED",
-	"VC_SUSPEND_FAILED",
 	"VC_SUSPEND_IDLE",
-	"VC_SUSPEND_REQUESTED",
 	"VC_SUSPEND_IN_PROGRESS",
-	"VC_SUSPEND_SUSPENDED"
 };
 #define VC_RESUME_NUM_OFFSET 1 /* number of values before idle which are -ve */
 static const char *const resume_state_names[] = {
-	"VC_RESUME_FAILED",
 	"VC_RESUME_IDLE",
 	"VC_RESUME_REQUESTED",
-	"VC_RESUME_IN_PROGRESS",
 	"VC_RESUME_RESUMED"
 };
 /* The number of times we allow force suspend to timeout before actually
@@ -2396,18 +2389,6 @@ vchiq_arm_init_state(struct vchiq_state *state,
 **			before resuming can occur.  We therefore also reset the
 **			resume state machine to VC_RESUME_IDLE in this state.
 **
-** VC_SUSPEND_SUSPENDED - Suspend has completed successfully. Also call
-**			complete_all on the suspend completion to notify
-**			anything waiting for suspend to happen.
-**
-** VC_SUSPEND_REJECTED - Videocore rejected suspend. Videocore will also
-**			initiate resume, so no need to alter resume state.
-**			We call complete_all on the suspend completion to notify
-**			of suspend rejection.
-**
-** VC_SUSPEND_FAILED - We failed to initiate videocore suspend.  We notify the
-**			suspend completion and reset the resume state machine.
-**
 ** VC_RESUME_IDLE - Initialise the resume completion at the same time.  The
 **			resume completion is in it's 'done' state whenever
 **			videcore is running.  Therefore, the VC_RESUME_IDLE
@@ -2415,13 +2396,6 @@ vchiq_arm_init_state(struct vchiq_state *state,
 **			Hence, any thread which needs to wait until videocore is
 **			running can wait on this completion - it will only block
 **			if videocore is suspended.
-**
-** VC_RESUME_RESUMED - Resume has completed successfully.  Videocore is running.
-**			Call complete_all on the resume completion to unblock
-**			any threads waiting for resume.	 Also reset the suspend
-**			state machine to it's idle state.
-**
-** VC_RESUME_FAILED - Currently unused - no mechanism to fail resume exists.
 */
 
 void
@@ -2433,22 +2407,10 @@ set_suspend_state(struct vchiq_arm_state *arm_state,
 
 	/* state specific additional actions */
 	switch (new_state) {
-	case VC_SUSPEND_FORCE_CANCELED:
-		break;
-	case VC_SUSPEND_REJECTED:
-		break;
-	case VC_SUSPEND_FAILED:
-		arm_state->vc_resume_state = VC_RESUME_RESUMED;
-		complete_all(&arm_state->vc_resume_complete);
-		break;
 	case VC_SUSPEND_IDLE:
-		break;
-	case VC_SUSPEND_REQUESTED:
 		break;
 	case VC_SUSPEND_IN_PROGRESS:
 		set_resume_state(arm_state, VC_RESUME_IDLE);
-		break;
-	case VC_SUSPEND_SUSPENDED:
 		break;
 	default:
 		BUG();
@@ -2465,14 +2427,10 @@ set_resume_state(struct vchiq_arm_state *arm_state,
 
 	/* state specific additional actions */
 	switch (new_state) {
-	case VC_RESUME_FAILED:
-		break;
 	case VC_RESUME_IDLE:
 		reinit_completion(&arm_state->vc_resume_complete);
 		break;
 	case VC_RESUME_REQUESTED:
-		break;
-	case VC_RESUME_IN_PROGRESS:
 		break;
 	case VC_RESUME_RESUMED:
 		complete_all(&arm_state->vc_resume_complete);
@@ -2502,12 +2460,6 @@ vchiq_platform_check_suspend(struct vchiq_state *state)
 		goto out;
 
 	vchiq_log_trace(vchiq_susp_log_level, "%s", __func__);
-
-	write_lock_bh(&arm_state->susp_res_lock);
-	if (arm_state->vc_suspend_state == VC_SUSPEND_REQUESTED &&
-			arm_state->vc_resume_state == VC_RESUME_RESUMED)
-		set_suspend_state(arm_state, VC_SUSPEND_IN_PROGRESS);
-	write_unlock_bh(&arm_state->susp_res_lock);
 
 out:
 	vchiq_log_trace(vchiq_susp_log_level, "%s exit", __func__);
@@ -2547,13 +2499,6 @@ vchiq_use_internal(struct vchiq_state *state, struct vchiq_service *service,
 	write_lock_bh(&arm_state->susp_res_lock);
 	local_uc = ++arm_state->videocore_use_count;
 	local_entity_uc = ++(*entity_uc);
-
-	/* If there's a pending request which hasn't yet been serviced then
-	 * just clear it.  If we're past VC_SUSPEND_REQUESTED state then
-	 * vc_resume_complete will block until we either resume or fail to
-	 * suspend */
-	if (arm_state->vc_suspend_state <= VC_SUSPEND_REQUESTED)
-		set_suspend_state(arm_state, VC_SUSPEND_IDLE);
 
 	if ((use_type != USE_TYPE_SERVICE_NO_RESUME) && need_resume(state)) {
 		set_resume_state(arm_state, VC_RESUME_REQUESTED);

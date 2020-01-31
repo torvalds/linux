@@ -15,20 +15,13 @@
 #include "vchiq_debugfs.h"
 
 enum vc_suspend_status {
-	VC_SUSPEND_FORCE_CANCELED = -3, /* Force suspend canceled, too busy */
-	VC_SUSPEND_REJECTED = -2,  /* Videocore rejected suspend request */
-	VC_SUSPEND_FAILED = -1,    /* Videocore suspend failed */
 	VC_SUSPEND_IDLE = 0,       /* VC active, no suspend actions */
-	VC_SUSPEND_REQUESTED,      /* User has requested suspend */
 	VC_SUSPEND_IN_PROGRESS,    /* Slot handler has recvd suspend request */
-	VC_SUSPEND_SUSPENDED       /* Videocore suspend succeeded */
 };
 
 enum vc_resume_status {
-	VC_RESUME_FAILED = -1, /* Videocore resume failed */
 	VC_RESUME_IDLE = 0,    /* VC suspended, no resume actions */
 	VC_RESUME_REQUESTED,   /* User has requested resume */
-	VC_RESUME_IN_PROGRESS, /* Slot handler has received resume request */
 	VC_RESUME_RESUMED      /* Videocore resumed successfully (active) */
 };
 
