@@ -2704,7 +2704,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
 {
 	struct page *head = compound_head(page);
 	struct pglist_data *pgdata = NODE_DATA(page_to_nid(head));
-	struct deferred_split *ds_queue = get_deferred_split_queue(page);
+	struct deferred_split *ds_queue = get_deferred_split_queue(head);
 	struct anon_vma *anon_vma = NULL;
 	struct address_space *mapping = NULL;
 	int count, mapcount, extra_pins, ret;
@@ -2713,10 +2713,10 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
 	pgoff_t end;
 
 	VM_BUG_ON_PAGE(is_huge_zero_page(head), head);
-	VM_BUG_ON_PAGE(!PageLocked(page), page);
-	VM_BUG_ON_PAGE(!PageCompound(page), page);
+	VM_BUG_ON_PAGE(!PageLocked(head), head);
+	VM_BUG_ON_PAGE(!PageCompound(head), head);
 
-	if (PageWriteback(page))
+	if (PageWriteback(head))
 		return -EBUSY;
 
 	if (PageAnon(head)) {
@@ -2767,7 +2767,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
 		goto out_unlock;
 	}
 
-	mlocked = PageMlocked(page);
+	mlocked = PageMlocked(head);
 	unmap_page(head);
 	VM_BUG_ON_PAGE(compound_mapcount(head), head);
 
@@ -2800,10 +2800,10 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
 			list_del(page_deferred_list(head));
 		}
 		if (mapping) {
-			if (PageSwapBacked(page))
-				__dec_node_page_state(page, NR_SHMEM_THPS);
+			if (PageSwapBacked(head))
+				__dec_node_page_state(head, NR_SHMEM_THPS);
 			else
-				__dec_node_page_state(page, NR_FILE_THPS);
+				__dec_node_page_state(head, NR_FILE_THPS);
 		}
 
 		spin_unlock(&ds_queue->split_queue_lock);
