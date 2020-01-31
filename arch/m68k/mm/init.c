@@ -120,7 +120,7 @@ void free_initmem(void)
 static inline void init_pointer_tables(void)
 {
 #if defined(CONFIG_MMU) && !defined(CONFIG_SUN3) && !defined(CONFIG_COLDFIRE)
-	int i;
+	int i, j;
 
 	/* insert pointer tables allocated so far into the tablelist */
 	init_pointer_table(kernel_pg_dir, TABLE_PGD);
@@ -133,6 +133,17 @@ static inline void init_pointer_tables(void)
 
 		pmd_dir = (pmd_t *)pgd_page_vaddr(kernel_pg_dir[i]);
 		init_pointer_table(pmd_dir, TABLE_PMD);
+
+		for (j = 0; j < PTRS_PER_PMD; j++) {
+			pmd_t *pmd = &pmd_dir[j];
+			pte_t *pte_dir;
+
+			if (!pmd_present(*pmd))
+				continue;
+
+			pte_dir = (pte_t *)__pmd_page(*pmd);
+			init_pointer_table(pte_dir, TABLE_PTE);
+		}
 	}
 #endif
 }
