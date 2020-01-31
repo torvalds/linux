@@ -171,7 +171,9 @@ void __init ti_dt_clocks_register(struct ti_dt_clk oclks[])
 		node = of_find_node_by_name(NULL, buf);
 		if (num_args && compat_mode) {
 			parent = node;
-			node = of_get_child_by_name(parent, "clk");
+			node = of_get_child_by_name(parent, "clock");
+			if (!node)
+				node = of_get_child_by_name(parent, "clk");
 			of_node_put(parent);
 		}
 
