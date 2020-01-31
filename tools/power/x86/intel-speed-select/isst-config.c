@@ -42,6 +42,7 @@ static int out_format_json;
 static int cmd_help;
 static int force_online_offline;
 static int auto_mode;
+static int fact_enable_fail;
 
 /* clos related */
 static int current_clos = -1;
@@ -1527,6 +1528,8 @@ static void set_fact_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 disp_results:
 	if (status) {
 		isst_display_result(cpu, outf, "turbo-freq", "enable", ret);
+		if (ret)
+			fact_enable_fail = ret;
 	} else {
 		/* Since we modified TRL during Fact enable, restore it */
 		isst_set_trl_from_current_tdp(cpu, fact_trl);
@@ -1568,7 +1571,7 @@ static void set_fact_enable(int arg)
 					       NULL, &enable);
 	isst_ctdp_display_information_end(outf);
 
-	if (enable && auto_mode) {
+	if (!fact_enable_fail && enable && auto_mode) {
 		/*
 		 * When we adjust CLOS param, we have to set for siblings also.
 		 * So for the each user specified CPU, also add the sibling
