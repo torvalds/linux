@@ -19,23 +19,18 @@
 #include <asm/pgtable.h>
 #include <asm/sgialib.h>
 #include <asm/time.h>
+#include <asm/sn/agent.h>
 #include <asm/sn/types.h>
-#include <asm/sn/sn0/addrs.h>
-#include <asm/sn/sn0/hubni.h>
-#include <asm/sn/sn0/hubio.h>
 #include <asm/sn/klconfig.h>
 #include <asm/sn/ioc3.h>
 #include <asm/mipsregs.h>
 #include <asm/sn/gda.h>
-#include <asm/sn/hub.h>
 #include <asm/sn/intr.h>
 #include <asm/current.h>
 #include <asm/processor.h>
 #include <asm/mmu_context.h>
 #include <asm/thread_info.h>
 #include <asm/sn/launch.h>
-#include <asm/sn/sn_private.h>
-#include <asm/sn/sn0/ip27.h>
 #include <asm/sn/mapped_kernel.h>
 
 #include "ip27-common.h"
@@ -77,18 +72,14 @@ static void per_hub_init(nasid_t nasid)
 void per_cpu_init(void)
 {
 	int cpu = smp_processor_id();
-	int slice = LOCAL_HUB_L(PI_CPU_NUM);
 	nasid_t nasid = get_nasid();
-	struct hub_data *hub = hub_data(nasid);
-
-	if (test_and_set_bit(slice, &hub->slice_map))
-		return;
 
 	clear_c0_status(ST0_IM);
 
 	per_hub_init(nasid);
 
-	cpu_time_init();
+	pr_info("CPU %d clock is %dMHz.\n", cpu, sn_cpu_info[cpu].p_speed);
+
 	install_ipi();
 
 	/* Install our NMI handler if symmon hasn't installed one. */
@@ -96,16 +87,6 @@ void per_cpu_init(void)
 
 	enable_percpu_irq(IP27_HUB_PEND0_IRQ, IRQ_TYPE_NONE);
 	enable_percpu_irq(IP27_HUB_PEND1_IRQ, IRQ_TYPE_NONE);
-}
-
-/*
- * get_nasid() returns the physical node id number of the caller.
- */
-nasid_t
-get_nasid(void)
-{
-	return (nasid_t)((LOCAL_HUB_L(NI_STATUS_REV_ID) & NSRI_NODEID_MASK)
-			 >> NSRI_NODEID_SHFT);
 }
 
 void __init plat_mem_setup(void)

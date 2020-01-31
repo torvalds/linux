@@ -555,6 +555,8 @@ patternProperties:
     description: Logic PD, Inc.
   "^longcheer,.*":
     description: Longcheer Technology (Shanghai) Co., Ltd.
+  "^loongson,.*":
+    description: Loongson Technology Corporation Limited
   "^lsi,.*":
     description: LSI Corp. (LSI Logic)
   "^lwn,.*":
@@ -1084,6 +1086,8 @@ patternProperties:
     description: Shenzhen Xunlong Software CO.,Limited
   "^xylon,.*":
     description: Xylon
+  "^yna,.*":
+    description: YSH & ATIL
   "^yones-toptech,.*":
     description: Yones Toptech Co., Ltd.
   "^ysoft,.*":

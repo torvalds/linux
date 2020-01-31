@@ -11116,7 +11116,6 @@ F:	drivers/usb/image/microtek.*
 MIPS
 M:	Ralf Baechle <ralf@linux-mips.org>
 M:	Paul Burton <paulburton@kernel.org>
-M:	James Hogan <jhogan@kernel.org>
 L:	linux-mips@vger.kernel.org
 W:	http://www.linux-mips.org/
 T:	git git://git.linux-mips.org/pub/scm/ralf/linux.git
