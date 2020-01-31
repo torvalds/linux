@@ -72,24 +72,35 @@ void mmu_page_dtor(void *page)
    arch/sparc/mm/srmmu.c ... */
 
 typedef struct list_head ptable_desc;
-static LIST_HEAD(ptable_list);
+
+static struct list_head ptable_list[2] = {
+	LIST_HEAD_INIT(ptable_list[0]),
+	LIST_HEAD_INIT(ptable_list[1]),
+};
 
 #define PD_PTABLE(page) ((ptable_desc *)&(virt_to_page(page)->lru))
 #define PD_PAGE(ptable) (list_entry(ptable, struct page, lru))
-#define PD_MARKBITS(dp) (*(unsigned char *)&PD_PAGE(dp)->index)
+#define PD_MARKBITS(dp) (*(unsigned int *)&PD_PAGE(dp)->index)
 
-#define PTABLE_SIZE (PTRS_PER_PMD * sizeof(pmd_t))
+static const int ptable_shift[2] = {
+	7+2, /* PGD, PMD */
+	6+2, /* PTE */
+};
 
-void __init init_pointer_table(unsigned long ptable)
+#define ptable_size(type) (1U << ptable_shift[type])
+#define ptable_mask(type) ((1U << (PAGE_SIZE / ptable_size(type))) - 1)
+
+void __init init_pointer_table(void *table, int type)
 {
 	ptable_desc *dp;
+	unsigned long ptable = (unsigned long)table;
 	unsigned long page = ptable & PAGE_MASK;
-	unsigned char mask = 1 << ((ptable - page)/PTABLE_SIZE);
+	unsigned int mask = 1U << ((ptable - page)/ptable_size(type));
 
 	dp = PD_PTABLE(page);
 	if (!(PD_MARKBITS(dp) & mask)) {
-		PD_MARKBITS(dp) = 0xff;
-		list_add(dp, &ptable_list);
+		PD_MARKBITS(dp) = ptable_mask(type);
+		list_add(dp, &ptable_list[type]);
 	}
 
 	PD_MARKBITS(dp) &= ~mask;
@@ -102,12 +113,11 @@ void __init init_pointer_table(unsigned long ptable)
 	return;
 }
 
-pmd_t *get_pointer_table (void)
+void *get_pointer_table(int type)
 {
-	ptable_desc *dp = ptable_list.next;
-	unsigned char mask = PD_MARKBITS (dp);
-	unsigned char tmp;
-	unsigned int off;
+	ptable_desc *dp = ptable_list[type].next;
+	unsigned int mask = list_empty(&ptable_list[type]) ? 0 : PD_MARKBITS(dp);
+	unsigned int tmp, off;
 
 	/*
 	 * For a pointer table for a user process address space, a
@@ -122,30 +132,39 @@ pmd_t *get_pointer_table (void)
 		if (!(page = (void *)get_zeroed_page(GFP_KERNEL)))
 			return NULL;
 
+		if (type == TABLE_PTE) {
+			/*
+			 * m68k doesn't have SPLIT_PTE_PTLOCKS for not having
+			 * SMP.
+			 */
+			pgtable_pte_page_ctor(virt_to_page(page));
+		}
+
 		mmu_page_ctor(page);
 
 		new = PD_PTABLE(page);
-		PD_MARKBITS(new) = 0xfe;
+		PD_MARKBITS(new) = ptable_mask(type) - 1;
 		list_add_tail(new, dp);
 
 		return (pmd_t *)page;
 	}
 
-	for (tmp = 1, off = 0; (mask & tmp) == 0; tmp <<= 1, off += PTABLE_SIZE)
+	for (tmp = 1, off = 0; (mask & tmp) == 0; tmp <<= 1, off += ptable_size(type))
 		;
 	PD_MARKBITS(dp) = mask & ~tmp;
 	if (!PD_MARKBITS(dp)) {
 		/* move to end of list */
-		list_move_tail(dp, &ptable_list);
+		list_move_tail(dp, &ptable_list[type]);
 	}
-	return (pmd_t *) (page_address(PD_PAGE(dp)) + off);
+	return page_address(PD_PAGE(dp)) + off;
 }
 
-int free_pointer_table (pmd_t *ptable)
+int free_pointer_table(void *table, int type)
 {
 	ptable_desc *dp;
-	unsigned long page = (unsigned long)ptable & PAGE_MASK;
-	unsigned char mask = 1 << (((unsigned long)ptable - page)/PTABLE_SIZE);
+	unsigned long ptable = (unsigned long)table;
+	unsigned long page = ptable & PAGE_MASK;
+	unsigned int mask = 1U << ((ptable - page)/ptable_size(type));
 
 	dp = PD_PTABLE(page);
 	if (PD_MARKBITS (dp) & mask)
@@ -153,18 +172,20 @@ int free_pointer_table (pmd_t *ptable)
 
 	PD_MARKBITS (dp) |= mask;
 
-	if (PD_MARKBITS(dp) == 0xff) {
+	if (PD_MARKBITS(dp) == ptable_mask(type)) {
 		/* all tables in page are free, free page */
 		list_del(dp);
 		mmu_page_dtor((void *)page);
+		if (type == TABLE_PTE)
+			pgtable_pte_page_dtor(virt_to_page(page));
 		free_page (page);
 		return 1;
-	} else if (ptable_list.next != dp) {
+	} else if (ptable_list[type].next != dp) {
 		/*
 		 * move this descriptor to the front of the list, since
 		 * it has one or more free tables.
 		 */
-		list_move(dp, &ptable_list);
+		list_move(dp, &ptable_list[type]);
 	}
 	return 0;
 }

@@ -40,10 +40,6 @@
 void *empty_zero_page;
 EXPORT_SYMBOL(empty_zero_page);
 
-#if !defined(CONFIG_SUN3) && !defined(CONFIG_COLDFIRE)
-extern void init_pointer_table(unsigned long ptable);
-#endif
-
 #ifdef CONFIG_MMU
 
 pg_data_t pg_data_map[MAX_NUMNODES];
@@ -127,12 +123,16 @@ static inline void init_pointer_tables(void)
 	int i;
 
 	/* insert pointer tables allocated so far into the tablelist */
-	init_pointer_table((unsigned long)kernel_pg_dir);
+	init_pointer_table(kernel_pg_dir, TABLE_PGD);
 	for (i = 0; i < PTRS_PER_PGD; i++) {
-		pud_t *pud = (pud_t *)(&kernel_pg_dir[i]);
+		pud_t *pud = (pud_t *)&kernel_pg_dir[i];
+		pmd_t *pmd_dir;
 
-		if (pud_present(*pud))
-			init_pointer_table(pgd_page_vaddr(kernel_pg_dir[i]));
+		if (!pud_present(*pud))
+			continue;
+
+		pmd_dir = (pmd_t *)pgd_page_vaddr(kernel_pg_dir[i]);
+		init_pointer_table(pmd_dir, TABLE_PMD);
 	}
 #endif
 }
