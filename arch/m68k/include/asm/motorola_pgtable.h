@@ -23,7 +23,18 @@
 #define _DESCTYPE_MASK	0x003
 
 #define _CACHEMASK040	(~0x060)
-#define _TABLE_MASK	(0xfffffe00)
+
+/*
+ * Currently set to the minimum alignment of table pointers (256 bytes).
+ * The hardware only uses the low 4 bits for state:
+ *
+ *    3 - Used
+ *    2 - Write Protected
+ *  0,1 - Descriptor Type
+ *
+ * and has the rest of the bits reserved.
+ */
+#define _TABLE_MASK	(0xffffff00)
 
 #define _PAGE_TABLE	(_PAGE_SHORT)
 #define _PAGE_CHG_MASK  (PAGE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY | _PAGE_NOCACHE)

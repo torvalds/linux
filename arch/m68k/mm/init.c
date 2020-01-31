@@ -42,7 +42,6 @@ EXPORT_SYMBOL(empty_zero_page);
 
 #if !defined(CONFIG_SUN3) && !defined(CONFIG_COLDFIRE)
 extern void init_pointer_table(unsigned long ptable);
-extern pmd_t *zero_pgtable;
 #endif
 
 #ifdef CONFIG_MMU
@@ -135,10 +134,6 @@ static inline void init_pointer_tables(void)
 		if (pud_present(*pud))
 			init_pointer_table(pgd_page_vaddr(kernel_pg_dir[i]));
 	}
-
-	/* insert also pointer table that we used to unmap the zero page */
-	if (zero_pgtable)
-		init_pointer_table((unsigned long)zero_pgtable);
 #endif
 }
 

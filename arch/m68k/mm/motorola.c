@@ -174,27 +174,35 @@ extern __initdata unsigned long m68k_init_mapped_size;
 
 extern unsigned long availmem;
 
+static pte_t *last_pte_table __initdata = NULL;
+
 static pte_t * __init kernel_page_table(void)
 {
-	pte_t *ptablep;
+	pte_t *pte_table = last_pte_table;
 
-	ptablep = (pte_t *)memblock_alloc_low(PAGE_SIZE, PAGE_SIZE);
-	if (!ptablep)
-		panic("%s: Failed to allocate %lu bytes align=%lx\n",
-		      __func__, PAGE_SIZE, PAGE_SIZE);
+	if (((unsigned long)last_pte_table & ~PAGE_MASK) == 0) {
+		pte_table = (pte_t *)memblock_alloc_low(PAGE_SIZE, PAGE_SIZE);
+		if (!pte_table) {
+			panic("%s: Failed to allocate %lu bytes align=%lx\n",
+					__func__, PAGE_SIZE, PAGE_SIZE);
+		}
 
-	clear_page(ptablep);
-	mmu_page_ctor(ptablep);
+		clear_page(pte_table);
+		mmu_page_ctor(pte_table);
 
-	return ptablep;
+		last_pte_table = pte_table;
+	}
+
+	last_pte_table += PTRS_PER_PTE;
+
+	return pte_table;
 }
 
-static pmd_t *last_pgtable __initdata = NULL;
-pmd_t *zero_pgtable __initdata = NULL;
+static pmd_t *last_pmd_table __initdata = NULL;
 
 static pmd_t * __init kernel_ptr_table(void)
 {
-	if (!last_pgtable) {
+	if (!last_pmd_table) {
 		unsigned long pmd, last;
 		int i;
 
@@ -213,25 +221,25 @@ static pmd_t * __init kernel_ptr_table(void)
 				last = pmd;
 		}
 
-		last_pgtable = (pmd_t *)last;
+		last_pmd_table = (pmd_t *)last;
 #ifdef DEBUG
-		printk("kernel_ptr_init: %p\n", last_pgtable);
+		printk("kernel_ptr_init: %p\n", last_pmd_table);
 #endif
 	}
 
-	last_pgtable += PTRS_PER_PMD;
-	if (((unsigned long)last_pgtable & ~PAGE_MASK) == 0) {
-		last_pgtable = (pmd_t *)memblock_alloc_low(PAGE_SIZE,
+	last_pmd_table += PTRS_PER_PMD;
+	if (((unsigned long)last_pmd_table & ~PAGE_MASK) == 0) {
+		last_pmd_table = (pmd_t *)memblock_alloc_low(PAGE_SIZE,
 							   PAGE_SIZE);
-		if (!last_pgtable)
+		if (!last_pmd_table)
 			panic("%s: Failed to allocate %lu bytes align=%lx\n",
 			      __func__, PAGE_SIZE, PAGE_SIZE);
 
-		clear_page(last_pgtable);
-		mmu_page_ctor(last_pgtable);
+		clear_page(last_pmd_table);
+		mmu_page_ctor(last_pmd_table);
 	}
 
-	return last_pgtable;
+	return last_pmd_table;
 }
 
 static void __init map_node(int node)
@@ -294,8 +302,7 @@ static void __init map_node(int node)
 #ifdef DEBUG
 				printk ("[zero map]");
 #endif
-				zero_pgtable = kernel_ptr_table();
-				pte_dir = (pte_t *)zero_pgtable;
+				pte_dir = kernel_page_table();
 				pmd_set(pmd_dir, pte_dir);
 
 				pte_val(*pte_dir++) = 0;
