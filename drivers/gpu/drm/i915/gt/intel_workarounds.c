@@ -116,17 +116,17 @@ static void _wa_add(struct i915_wa_list *wal, const struct i915_wa *wa)
 		} else {
 			wa_ = &wal->list[mid];
 
-			if ((wa->mask & ~wa_->mask) == 0) {
-				DRM_ERROR("Discarding overwritten w/a for reg %04x (mask: %08x, value: %08x)\n",
+			if ((wa->clr | wa_->clr) && !(wa->clr & ~wa_->clr)) {
+				DRM_ERROR("Discarding overwritten w/a for reg %04x (clear: %08x, set: %08x)\n",
 					  i915_mmio_reg_offset(wa_->reg),
-					  wa_->mask, wa_->val);
+					  wa_->clr, wa_->set);
 
-				wa_->val &= ~wa->mask;
+				wa_->set &= ~wa->clr;
 			}
 
 			wal->wa_count++;
-			wa_->val |= wa->val;
-			wa_->mask |= wa->mask;
+			wa_->set |= wa->set;
+			wa_->clr |= wa->clr;
 			wa_->read |= wa->read;
 			return;
 		}
@@ -147,13 +147,13 @@ static void _wa_add(struct i915_wa_list *wal, const struct i915_wa *wa)
 	}
 }
 
-static void wa_add(struct i915_wa_list *wal, i915_reg_t reg, u32 mask,
-		   u32 val, u32 read_mask)
+static void wa_add(struct i915_wa_list *wal, i915_reg_t reg,
+		   u32 clear, u32 set, u32 read_mask)
 {
 	struct i915_wa wa = {
 		.reg  = reg,
-		.mask = mask,
-		.val  = val,
+		.clr  = clear,
+		.set  = set,
 		.read = read_mask,
 	};
 
@@ -161,38 +161,43 @@ static void wa_add(struct i915_wa_list *wal, i915_reg_t reg, u32 mask,
 }
 
 static void
-wa_write_masked_or(struct i915_wa_list *wal, i915_reg_t reg, u32 mask,
-		   u32 val)
+wa_write_masked_or(struct i915_wa_list *wal, i915_reg_t reg, u32 clear, u32 set)
 {
-	wa_add(wal, reg, mask, val, mask);
+	wa_add(wal, reg, clear, set, clear);
+}
+
+static void
+wa_write(struct i915_wa_list *wal, i915_reg_t reg, u32 set)
+{
+	wa_write_masked_or(wal, reg, ~0, set);
+}
+
+static void
+wa_write_or(struct i915_wa_list *wal, i915_reg_t reg, u32 set)
+{
+	wa_write_masked_or(wal, reg, set, set);
 }
 
 static void
 wa_masked_en(struct i915_wa_list *wal, i915_reg_t reg, u32 val)
 {
-	wa_write_masked_or(wal, reg, val, _MASKED_BIT_ENABLE(val));
+	wa_add(wal, reg, 0, _MASKED_BIT_ENABLE(val), val);
 }
 
 static void
-wa_write(struct i915_wa_list *wal, i915_reg_t reg, u32 val)
+wa_masked_dis(struct i915_wa_list *wal, i915_reg_t reg, u32 val)
 {
-	wa_write_masked_or(wal, reg, ~0, val);
-}
-
-static void
-wa_write_or(struct i915_wa_list *wal, i915_reg_t reg, u32 val)
-{
-	wa_write_masked_or(wal, reg, val, val);
+	wa_add(wal, reg, 0, _MASKED_BIT_DISABLE(val), val);
 }
 
 #define WA_SET_BIT_MASKED(addr, mask) \
-	wa_write_masked_or(wal, (addr), (mask), _MASKED_BIT_ENABLE(mask))
+	wa_masked_en(wal, (addr), (mask))
 
 #define WA_CLR_BIT_MASKED(addr, mask) \
-	wa_write_masked_or(wal, (addr), (mask), _MASKED_BIT_DISABLE(mask))
+	wa_masked_dis(wal, (addr), (mask))
 
 #define WA_SET_FIELD_MASKED(addr, mask, value) \
-	wa_write_masked_or(wal, (addr), (mask), _MASKED_FIELD((mask), (value)))
+	wa_write_masked_or(wal, (addr), 0, _MASKED_FIELD((mask), (value)))
 
 static void gen8_ctx_workarounds_init(struct intel_engine_cs *engine,
 				      struct i915_wa_list *wal)
@@ -662,7 +667,7 @@ int intel_engine_emit_ctx_wa(struct i915_request *rq)
 	*cs++ = MI_LOAD_REGISTER_IMM(wal->count);
 	for (i = 0, wa = wal->list; i < wal->count; i++, wa++) {
 		*cs++ = i915_mmio_reg_offset(wa->reg);
-		*cs++ = wa->val;
+		*cs++ = wa->set;
 	}
 	*cs++ = MI_NOOP;
 
@@ -991,11 +996,10 @@ wal_get_fw_for_rmw(struct intel_uncore *uncore, const struct i915_wa_list *wal)
 static bool
 wa_verify(const struct i915_wa *wa, u32 cur, const char *name, const char *from)
 {
-	if ((cur ^ wa->val) & wa->read) {
-		DRM_ERROR("%s workaround lost on %s! (%x=%x/%x, expected %x, mask=%x)\n",
+	if ((cur ^ wa->set) & wa->read) {
+		DRM_ERROR("%s workaround lost on %s! (%x=%x/%x, expected %x)\n",
 			  name, from, i915_mmio_reg_offset(wa->reg),
-			  cur, cur & wa->read,
-			  wa->val, wa->mask);
+			  cur, cur & wa->read, wa->set);
 
 		return false;
 	}
@@ -1020,7 +1024,10 @@ wa_list_apply(struct intel_uncore *uncore, const struct i915_wa_list *wal)
 	intel_uncore_forcewake_get__locked(uncore, fw);
 
 	for (i = 0, wa = wal->list; i < wal->count; i++, wa++) {
-		intel_uncore_rmw_fw(uncore, wa->reg, wa->mask, wa->val);
+		if (wa->clr)
+			intel_uncore_rmw_fw(uncore, wa->reg, wa->clr, wa->set);
+		else
+			intel_uncore_write_fw(uncore, wa->reg, wa->set);
 		if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
 			wa_verify(wa,
 				  intel_uncore_read_fw(uncore, wa->reg),

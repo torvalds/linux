@@ -2803,7 +2803,7 @@ static int i915_wa_registers(struct seq_file *m, void *unused)
 		for (wa = wal->list; count--; wa++)
 			seq_printf(m, "0x%X: 0x%08X, mask: 0x%08X\n",
 				   i915_mmio_reg_offset(wa->reg),
-				   wa->val, wa->mask);
+				   wa->set, wa->clr);
 
 		seq_printf(m, "\n");
 	}
