@@ -171,9 +171,9 @@ static int otx2_hw_get_mac_addr(struct otx2_nic *pfvf,
 	}
 
 	msghdr = otx2_mbox_get_rsp(&pfvf->mbox.mbox, 0, &req->hdr);
-	if (!msghdr) {
+	if (IS_ERR(msghdr)) {
 		otx2_mbox_unlock(&pfvf->mbox);
-		return -ENOMEM;
+		return PTR_ERR(msghdr);
 	}
 	rsp = (struct nix_get_mac_addr_rsp *)msghdr;
 	ether_addr_copy(netdev->dev_addr, rsp->mac_addr);
