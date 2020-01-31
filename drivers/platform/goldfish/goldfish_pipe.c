@@ -274,7 +274,7 @@ static int goldfish_pin_pages(unsigned long first_page,
 		*iter_last_page_size = last_page_size;
 	}
 
-	ret = get_user_pages_fast(first_page, requested_pages,
+	ret = pin_user_pages_fast(first_page, requested_pages,
 				  !is_write ? FOLL_WRITE : 0,
 				  pages);
 	if (ret <= 0)
@@ -283,18 +283,6 @@ static int goldfish_pin_pages(unsigned long first_page,
 		*iter_last_page_size = PAGE_SIZE;
 
 	return ret;
-}
-
-static void release_user_pages(struct page **pages, int pages_count,
-			       int is_write, s32 consumed_size)
-{
-	int i;
-
-	for (i = 0; i < pages_count; i++) {
-		if (!is_write && consumed_size > 0)
-			set_page_dirty(pages[i]);
-		put_page(pages[i]);
-	}
 }
 
 /* Populate the call parameters, merging adjacent pages together */
@@ -372,7 +360,8 @@ static int transfer_max_buffers(struct goldfish_pipe *pipe,
 
 	*consumed_size = pipe->command_buffer->rw_params.consumed_size;
 
-	release_user_pages(pipe->pages, pages_count, is_write, *consumed_size);
+	put_user_pages_dirty_lock(pipe->pages, pages_count,
+				  !is_write && *consumed_size > 0);
 
 	mutex_unlock(&pipe->lock);
 	return 0;
