@@ -3114,6 +3114,7 @@ int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 		if (!p_hwfn->fw_overlay_mem) {
 			DP_NOTICE(p_hwfn,
 				  "Failed to allocate fw overlay memory\n");
+			rc = -ENOMEM;
 			goto load_err;
 		}
 
