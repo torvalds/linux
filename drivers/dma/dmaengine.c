@@ -962,6 +962,9 @@ static int __dma_async_device_channel_register(struct dma_device *device,
 
 	tchan = list_first_entry_or_null(&device->channels,
 					 struct dma_chan, device_node);
+	if (!tchan)
+		return -ENODEV;
+
 	if (tchan->dev) {
 		idr_ref = tchan->dev->idr_ref;
 	} else {
