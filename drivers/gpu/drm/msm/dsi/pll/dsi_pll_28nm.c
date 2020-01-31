@@ -554,9 +554,9 @@ static int pll_28nm_register(struct dsi_pll_28nm *pll_28nm)
 	snprintf(parent1, 32, "dsi%dvco_clk", pll_28nm->id);
 	snprintf(parent2, 32, "dsi%dindirect_path_div2_clk", pll_28nm->id);
 	clks[num++] = clk_register_mux(dev, clk_name,
-			(const char *[]){
+			((const char *[]){
 				parent1, parent2
-			}, 2, CLK_SET_RATE_PARENT, pll_28nm->mmio +
+			}), 2, CLK_SET_RATE_PARENT, pll_28nm->mmio +
 			REG_DSI_28nm_PHY_PLL_VREG_CFG, 1, 1, 0, NULL);
 
 	snprintf(clk_name, 32, "dsi%dpllbyte", pll_28nm->id);
