@@ -89,9 +89,6 @@ extern struct vchiq_state *
 vchiq_get_state(void);
 
 extern enum vchiq_status
-vchiq_arm_vcsuspend(struct vchiq_state *state);
-
-extern enum vchiq_status
 vchiq_arm_vcresume(struct vchiq_state *state);
 
 extern enum vchiq_status
