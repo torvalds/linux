@@ -1612,6 +1612,16 @@ static int engine_wa_list_verify(struct intel_context *ce,
 		goto err_vma;
 	}
 
+	i915_vma_lock(vma);
+	err = i915_request_await_object(rq, vma->obj, true);
+	if (err == 0)
+		err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
+	i915_vma_unlock(vma);
+	if (err) {
+		i915_request_add(rq);
+		goto err_vma;
+	}
+
 	err = wa_list_srm(rq, wal, vma);
 	if (err)
 		goto err_vma;

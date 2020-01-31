@@ -734,6 +734,10 @@ static int live_timeslice_preempt(void *arg)
 	if (err)
 		goto err_map;
 
+	err = i915_vma_sync(vma);
+	if (err)
+		goto err_pin;
+
 	for_each_prime_number_from(count, 1, 16) {
 		struct intel_engine_cs *engine;
 		enum intel_engine_id id;
@@ -827,6 +831,10 @@ static int live_timeslice_queue(void *arg)
 	if (err)
 		goto err_map;
 
+	err = i915_vma_sync(vma);
+	if (err)
+		goto err_pin;
+
 	for_each_engine(engine, gt, id) {
 		struct i915_sched_attr attr = {
 			.priority = I915_USER_PRIORITY(I915_PRIORITY_MAX),
@@ -913,6 +921,7 @@ err_heartbeat:
 			break;
 	}
 
+err_pin:
 	i915_vma_unpin(vma);
 err_map:
 	i915_gem_object_unpin_map(obj);
@@ -970,6 +979,10 @@ static int live_busywait_preempt(void *arg)
 	err = i915_vma_pin(vma, 0, 0, PIN_GLOBAL);
 	if (err)
 		goto err_map;
+
+	err = i915_vma_sync(vma);
+	if (err)
+		goto err_vma;
 
 	for_each_engine(engine, gt, id) {
 		struct i915_request *lo, *hi;
@@ -3194,6 +3207,10 @@ static int preserved_virtual_engine(struct intel_gt *gt,
 	if (IS_ERR(scratch))
 		return PTR_ERR(scratch);
 
+	err = i915_vma_sync(scratch);
+	if (err)
+		goto out_scratch;
+
 	ve = intel_execlists_create_virtual(siblings, nsibling);
 	if (IS_ERR(ve)) {
 		err = PTR_ERR(ve);
@@ -4020,8 +4037,16 @@ static int __live_lrc_state(struct intel_engine_cs *engine,
 	*cs++ = i915_ggtt_offset(scratch) + RING_TAIL_IDX * sizeof(u32);
 	*cs++ = 0;
 
+	i915_vma_lock(scratch);
+	err = i915_request_await_object(rq, scratch->obj, true);
+	if (!err)
+		err = i915_vma_move_to_active(scratch, rq, EXEC_OBJECT_WRITE);
+	i915_vma_unlock(scratch);
+
 	i915_request_get(rq);
 	i915_request_add(rq);
+	if (err)
+		goto err_rq;
 
 	intel_engine_flush_submission(engine);
 	expected[RING_TAIL_IDX] = ce->ring->tail;
@@ -4156,8 +4181,16 @@ static int __live_gpr_clear(struct intel_engine_cs *engine,
 		*cs++ = 0;
 	}
 
+	i915_vma_lock(scratch);
+	err = i915_request_await_object(rq, scratch->obj, true);
+	if (!err)
+		err = i915_vma_move_to_active(scratch, rq, EXEC_OBJECT_WRITE);
+	i915_vma_unlock(scratch);
+
 	i915_request_get(rq);
 	i915_request_add(rq);
+	if (err)
+		goto err_rq;
 
 	if (i915_request_wait(rq, 0, HZ / 5) < 0) {
 		err = -ETIME;
