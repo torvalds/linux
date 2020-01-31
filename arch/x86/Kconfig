@@ -1888,34 +1888,6 @@ config X86_UMIP
 	  specific cases in protected and virtual-8086 modes. Emulated
 	  results are dummy.
 
-config X86_INTEL_MPX
-	prompt "Intel MPX (Memory Protection Extensions)"
-	def_bool n
-	# Note: only available in 64-bit mode due to VMA flags shortage
-	depends on CPU_SUP_INTEL && X86_64
-	select ARCH_USES_HIGH_VMA_FLAGS
-	---help---
-	  MPX provides hardware features that can be used in
-	  conjunction with compiler-instrumented code to check
-	  memory references.  It is designed to detect buffer
-	  overflow or underflow bugs.
-
-	  This option enables running applications which are
-	  instrumented or otherwise use MPX.  It does not use MPX
-	  itself inside the kernel or to protect the kernel
-	  against bad memory references.
-
-	  Enabling this option will make the kernel larger:
-	  ~8k of kernel text and 36 bytes of data on a 64-bit
-	  defconfig.  It adds a long to the 'mm_struct' which
-	  will increase the kernel memory overhead of each
-	  process and adds some branches to paths used during
-	  exec() and munmap().
-
-	  For details, see Documentation/x86/intel_mpx.rst
-
-	  If unsure, say N.
-
 config X86_INTEL_MEMORY_PROTECTION_KEYS
 	prompt "Intel Memory Protection Keys"
 	def_bool y
