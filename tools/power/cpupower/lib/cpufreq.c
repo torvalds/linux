@@ -332,21 +332,18 @@ void cpufreq_put_available_governors(struct cpufreq_available_governors *any)
 }
 
 
-struct cpufreq_frequencies
-*cpufreq_get_frequencies(const char *type, unsigned int cpu)
+struct cpufreq_available_frequencies
+*cpufreq_get_available_frequencies(unsigned int cpu)
 {
-	struct cpufreq_frequencies *first = NULL;
-	struct cpufreq_frequencies *current = NULL;
+	struct cpufreq_available_frequencies *first = NULL;
+	struct cpufreq_available_frequencies *current = NULL;
 	char one_value[SYSFS_PATH_MAX];
 	char linebuf[MAX_LINE_LEN];
-	char fname[MAX_LINE_LEN];
 	unsigned int pos, i;
 	unsigned int len;
 
-	snprintf(fname, MAX_LINE_LEN, "scaling_%s_frequencies", type);
-
-	len = sysfs_cpufreq_read_file(cpu, fname,
-				linebuf, sizeof(linebuf));
+	len = sysfs_cpufreq_read_file(cpu, "scaling_available_frequencies",
+				      linebuf, sizeof(linebuf));
 	if (len == 0)
 		return NULL;
 
@@ -391,9 +388,65 @@ struct cpufreq_frequencies
 	return NULL;
 }
 
-void cpufreq_put_frequencies(struct cpufreq_frequencies *any)
+struct cpufreq_available_frequencies
+*cpufreq_get_boost_frequencies(unsigned int cpu)
 {
-	struct cpufreq_frequencies *tmp, *next;
+	struct cpufreq_available_frequencies *first = NULL;
+	struct cpufreq_available_frequencies *current = NULL;
+	char one_value[SYSFS_PATH_MAX];
+	char linebuf[MAX_LINE_LEN];
+	unsigned int pos, i;
+	unsigned int len;
+
+	len = sysfs_cpufreq_read_file(cpu, "scaling_boost_frequencies",
+				      linebuf, sizeof(linebuf));
+	if (len == 0)
+		return NULL;
+
+	pos = 0;
+	for (i = 0; i < len; i++) {
+		if (linebuf[i] == ' ' || linebuf[i] == '\n') {
+			if (i - pos < 2)
+				continue;
+			if (i - pos >= SYSFS_PATH_MAX)
+				goto error_out;
+			if (current) {
+				current->next = malloc(sizeof(*current));
+				if (!current->next)
+					goto error_out;
+				current = current->next;
+			} else {
+				first = malloc(sizeof(*first));
+				if (!first)
+					goto error_out;
+				current = first;
+			}
+			current->first = first;
+			current->next = NULL;
+
+			memcpy(one_value, linebuf + pos, i - pos);
+			one_value[i - pos] = '\0';
+			if (sscanf(one_value, "%lu", &current->frequency) != 1)
+				goto error_out;
+
+			pos = i + 1;
+		}
+	}
+
+	return first;
+
+ error_out:
+	while (first) {
+		current = first->next;
+		free(first);
+		first = current;
+	}
+	return NULL;
+}
+
+void cpufreq_put_available_frequencies(struct cpufreq_available_frequencies *any)
+{
+	struct cpufreq_available_frequencies *tmp, *next;
 
 	if (!any)
 		return;
@@ -404,6 +457,11 @@ void cpufreq_put_frequencies(struct cpufreq_frequencies *any)
 		free(tmp);
 		tmp = next;
 	}
+}
+
+void cpufreq_put_boost_frequencies(struct cpufreq_available_frequencies *any)
+{
+	cpufreq_put_available_frequencies(any);
 }
 
 static struct cpufreq_affected_cpus *sysfs_get_cpu_list(unsigned int cpu,
