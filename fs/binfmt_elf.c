@@ -2257,8 +2257,6 @@ static int elf_core_dump(struct coredump_params *cprm)
 
 	dataoff = offset = roundup(offset, ELF_EXEC_PAGESIZE);
 
-	if (segs - 1 > ULONG_MAX / sizeof(*vma_filesz))
-		goto end_coredump;
 	vma_filesz = kvmalloc(array_size(sizeof(*vma_filesz), (segs - 1)),
 			      GFP_KERNEL);
 	if (ZERO_OR_NULL_PTR(vma_filesz))
