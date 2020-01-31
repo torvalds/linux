@@ -14,6 +14,9 @@
 #include "kvm_util.h"
 
 #define VCPU_ID 3
+#define LOCAL_IRQS 32
+
+struct kvm_s390_irq buf[VCPU_ID + LOCAL_IRQS];
 
 struct kvm_vm *vm;
 struct kvm_run *run;
@@ -51,6 +54,23 @@ static void test_one_reg(uint64_t id, uint64_t value)
 	reg.id = id;
 	vcpu_get_reg(vm, VCPU_ID, &reg);
 	TEST_ASSERT(eval_reg == value, "value == %s", value);
+}
+
+static void assert_noirq(void)
+{
+	struct kvm_s390_irq_state irq_state;
+	int irqs;
+
+	irq_state.len = sizeof(buf);
+	irq_state.buf = (unsigned long)buf;
+	irqs = _vcpu_ioctl(vm, VCPU_ID, KVM_S390_GET_IRQ_STATE, &irq_state);
+	/*
+	 * irqs contains the number of retrieved interrupts. Any interrupt
+	 * (notably, the emergency call interrupt we have injected) should
+	 * be cleared by the resets, so this should be 0.
+	 */
+	TEST_ASSERT(irqs >= 0, "Could not fetch IRQs: errno %d\n", errno);
+	TEST_ASSERT(!irqs, "IRQ pending");
 }
 
 static void assert_clear(void)
@@ -94,6 +114,22 @@ static void assert_initial(void)
 static void assert_normal(void)
 {
 	test_one_reg(KVM_REG_S390_PFTOKEN, KVM_S390_PFAULT_TOKEN_INVALID);
+	assert_noirq();
+}
+
+static void inject_irq(int cpu_id)
+{
+	struct kvm_s390_irq_state irq_state;
+	struct kvm_s390_irq *irq = &buf[0];
+	int irqs;
+
+	/* Inject IRQ */
+	irq_state.len = sizeof(struct kvm_s390_irq);
+	irq_state.buf = (unsigned long)buf;
+	irq->type = KVM_S390_INT_EMERGENCY;
+	irq->u.emerg.code = cpu_id;
+	irqs = _vcpu_ioctl(vm, cpu_id, KVM_S390_SET_IRQ_STATE, &irq_state);
+	TEST_ASSERT(irqs >= 0, "Error injecting EMERGENCY IRQ errno %d\n", errno);
 }
 
 static void test_normal(void)
@@ -105,6 +141,8 @@ static void test_normal(void)
 	regs = &run->s.regs;
 
 	vcpu_run(vm, VCPU_ID);
+
+	inject_irq(VCPU_ID);
 
 	vcpu_ioctl(vm, VCPU_ID, KVM_S390_NORMAL_RESET, 0);
 	assert_normal();
@@ -120,6 +158,8 @@ static void test_initial(void)
 
 	vcpu_run(vm, VCPU_ID);
 
+	inject_irq(VCPU_ID);
+
 	vcpu_ioctl(vm, VCPU_ID, KVM_S390_INITIAL_RESET, 0);
 	assert_normal();
 	assert_initial();
@@ -134,6 +174,8 @@ static void test_clear(void)
 	regs = &run->s.regs;
 
 	vcpu_run(vm, VCPU_ID);
+
+	inject_irq(VCPU_ID);
 
 	vcpu_ioctl(vm, VCPU_ID, KVM_S390_CLEAR_RESET, 0);
 	assert_normal();
