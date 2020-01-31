@@ -276,7 +276,6 @@ static void st7735r_shutdown(struct spi_device *spi)
 static struct spi_driver st7735r_spi_driver = {
 	.driver = {
 		.name = "st7735r",
-		.owner = THIS_MODULE,
 		.of_match_table = st7735r_of_match,
 	},
 	.id_table = st7735r_id,
