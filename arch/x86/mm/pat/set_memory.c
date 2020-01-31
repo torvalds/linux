@@ -618,6 +618,17 @@ pte_t *lookup_address(unsigned long address, unsigned int *level)
 }
 EXPORT_SYMBOL_GPL(lookup_address);
 
+/*
+ * Lookup the page table entry for a virtual address in a given mm. Return a
+ * pointer to the entry and the level of the mapping.
+ */
+pte_t *lookup_address_in_mm(struct mm_struct *mm, unsigned long address,
+			    unsigned int *level)
+{
+	return lookup_address_in_pgd(pgd_offset(mm, address), address, level);
+}
+EXPORT_SYMBOL_GPL(lookup_address_in_mm);
+
 static pte_t *_lookup_address_cpa(struct cpa_data *cpa, unsigned long address,
 				  unsigned int *level)
 {

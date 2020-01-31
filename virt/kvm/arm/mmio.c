@@ -5,7 +5,6 @@
  */
 
 #include <linux/kvm_host.h>
-#include <asm/kvm_mmio.h>
 #include <asm/kvm_emulate.h>
 #include <trace/events/kvm.h>
 
@@ -92,23 +91,23 @@ int kvm_handle_mmio_return(struct kvm_vcpu *vcpu, struct kvm_run *run)
 
 	vcpu->mmio_needed = 0;
 
-	if (!run->mmio.is_write) {
-		len = run->mmio.len;
-		if (len > sizeof(unsigned long))
-			return -EINVAL;
-
+	if (!kvm_vcpu_dabt_iswrite(vcpu)) {
+		len = kvm_vcpu_dabt_get_as(vcpu);
 		data = kvm_mmio_read_buf(run->mmio.data, len);
 
-		if (vcpu->arch.mmio_decode.sign_extend &&
+		if (kvm_vcpu_dabt_issext(vcpu) &&
 		    len < sizeof(unsigned long)) {
 			mask = 1U << ((len * 8) - 1);
 			data = (data ^ mask) - mask;
 		}
 
+		if (!kvm_vcpu_dabt_issf(vcpu))
+			data = data & 0xffffffff;
+
 		trace_kvm_mmio(KVM_TRACE_MMIO_READ, len, run->mmio.phys_addr,
 			       &data);
 		data = vcpu_data_host_to_guest(vcpu, data, len);
-		vcpu_set_reg(vcpu, vcpu->arch.mmio_decode.rt, data);
+		vcpu_set_reg(vcpu, kvm_vcpu_dabt_get_rd(vcpu), data);
 	}
 
 	/*
@@ -116,33 +115,6 @@ int kvm_handle_mmio_return(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	 * in the guest.
 	 */
 	kvm_skip_instr(vcpu, kvm_vcpu_trap_il_is32bit(vcpu));
-
-	return 0;
-}
-
-static int decode_hsr(struct kvm_vcpu *vcpu, bool *is_write, int *len)
-{
-	unsigned long rt;
-	int access_size;
-	bool sign_extend;
-
-	if (kvm_vcpu_dabt_iss1tw(vcpu)) {
-		/* page table accesses IO mem: tell guest to fix its TTBR */
-		kvm_inject_dabt(vcpu, kvm_vcpu_get_hfar(vcpu));
-		return 1;
-	}
-
-	access_size = kvm_vcpu_dabt_get_as(vcpu);
-	if (unlikely(access_size < 0))
-		return access_size;
-
-	*is_write = kvm_vcpu_dabt_iswrite(vcpu);
-	sign_extend = kvm_vcpu_dabt_issext(vcpu);
-	rt = kvm_vcpu_dabt_get_rd(vcpu);
-
-	*len = access_size;
-	vcpu->arch.mmio_decode.sign_extend = sign_extend;
-	vcpu->arch.mmio_decode.rt = rt;
 
 	return 0;
 }
@@ -158,15 +130,10 @@ int io_mem_abort(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	u8 data_buf[8];
 
 	/*
-	 * Prepare MMIO operation. First decode the syndrome data we get
-	 * from the CPU. Then try if some in-kernel emulation feels
-	 * responsible, otherwise let user space do its magic.
+	 * No valid syndrome? Ask userspace for help if it has
+	 * voluntered to do so, and bail out otherwise.
 	 */
-	if (kvm_vcpu_dabt_isvalid(vcpu)) {
-		ret = decode_hsr(vcpu, &is_write, &len);
-		if (ret)
-			return ret;
-	} else {
+	if (!kvm_vcpu_dabt_isvalid(vcpu)) {
 		if (vcpu->kvm->arch.return_nisv_io_abort_to_user) {
 			run->exit_reason = KVM_EXIT_ARM_NISV;
 			run->arm_nisv.esr_iss = kvm_vcpu_dabt_iss_nisv_sanitized(vcpu);
@@ -178,7 +145,20 @@ int io_mem_abort(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		return -ENOSYS;
 	}
 
-	rt = vcpu->arch.mmio_decode.rt;
+	/* Page table accesses IO mem: tell guest to fix its TTBR */
+	if (kvm_vcpu_dabt_iss1tw(vcpu)) {
+		kvm_inject_dabt(vcpu, kvm_vcpu_get_hfar(vcpu));
+		return 1;
+	}
+
+	/*
+	 * Prepare MMIO operation. First decode the syndrome data we get
+	 * from the CPU. Then try if some in-kernel emulation feels
+	 * responsible, otherwise let user space do its magic.
+	 */
+	is_write = kvm_vcpu_dabt_iswrite(vcpu);
+	len = kvm_vcpu_dabt_get_as(vcpu);
+	rt = kvm_vcpu_dabt_get_rd(vcpu);
 
 	if (is_write) {
 		data = vcpu_data_guest_to_host(vcpu, vcpu_get_reg(vcpu, rt),

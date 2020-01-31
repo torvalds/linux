@@ -36,6 +36,7 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/export.h>
+#include <linux/nospec.h>
 #include <asm/processor.h>
 #include <asm/page.h>
 #include <asm/current.h>
@@ -68,13 +69,14 @@ static unsigned long ioapic_read_indirect(struct kvm_ioapic *ioapic,
 	default:
 		{
 			u32 redir_index = (ioapic->ioregsel - 0x10) >> 1;
-			u64 redir_content;
+			u64 redir_content = ~0ULL;
 
-			if (redir_index < IOAPIC_NUM_PINS)
-				redir_content =
-					ioapic->redirtbl[redir_index].bits;
-			else
-				redir_content = ~0ULL;
+			if (redir_index < IOAPIC_NUM_PINS) {
+				u32 index = array_index_nospec(
+					redir_index, IOAPIC_NUM_PINS);
+
+				redir_content = ioapic->redirtbl[index].bits;
+			}
 
 			result = (ioapic->ioregsel & 0x1) ?
 			    (redir_content >> 32) & 0xffffffff :
@@ -108,8 +110,9 @@ static void __rtc_irq_eoi_tracking_restore_one(struct kvm_vcpu *vcpu)
 	union kvm_ioapic_redirect_entry *e;
 
 	e = &ioapic->redirtbl[RTC_GSI];
-	if (!kvm_apic_match_dest(vcpu, NULL, 0,	e->fields.dest_id,
-				e->fields.dest_mode))
+	if (!kvm_apic_match_dest(vcpu, NULL, APIC_DEST_NOSHORT,
+				 e->fields.dest_id,
+				 kvm_lapic_irq_dest_mode(!!e->fields.dest_mode)))
 		return;
 
 	new_val = kvm_apic_pending_eoi(vcpu, e->fields.vector);
@@ -188,7 +191,7 @@ static int ioapic_set_irq(struct kvm_ioapic *ioapic, unsigned int irq,
 	/*
 	 * Return 0 for coalesced interrupts; for edge-triggered interrupts,
 	 * this only happens if a previous edge has not been delivered due
-	 * do masking.  For level interrupts, the remote_irr field tells
+	 * to masking.  For level interrupts, the remote_irr field tells
 	 * us if the interrupt is waiting for an EOI.
 	 *
 	 * RTC is special: it is edge-triggered, but userspace likes to know
@@ -250,8 +253,10 @@ void kvm_ioapic_scan_entry(struct kvm_vcpu *vcpu, ulong *ioapic_handled_vectors)
 		if (e->fields.trig_mode == IOAPIC_LEVEL_TRIG ||
 		    kvm_irq_has_notifier(ioapic->kvm, KVM_IRQCHIP_IOAPIC, index) ||
 		    index == RTC_GSI) {
-			if (kvm_apic_match_dest(vcpu, NULL, 0,
-			             e->fields.dest_id, e->fields.dest_mode) ||
+			u16 dm = kvm_lapic_irq_dest_mode(!!e->fields.dest_mode);
+
+			if (kvm_apic_match_dest(vcpu, NULL, APIC_DEST_NOSHORT,
+						e->fields.dest_id, dm) ||
 			    kvm_apic_pending_eoi(vcpu, e->fields.vector))
 				__set_bit(e->fields.vector,
 					  ioapic_handled_vectors);
@@ -292,6 +297,7 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 
 		if (index >= IOAPIC_NUM_PINS)
 			return;
+		index = array_index_nospec(index, IOAPIC_NUM_PINS);
 		e = &ioapic->redirtbl[index];
 		mask_before = e->fields.mask;
 		/* Preserve read-only fields */
@@ -327,11 +333,12 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 		if (e->fields.delivery_mode == APIC_DM_FIXED) {
 			struct kvm_lapic_irq irq;
 
-			irq.shorthand = 0;
+			irq.shorthand = APIC_DEST_NOSHORT;
 			irq.vector = e->fields.vector;
 			irq.delivery_mode = e->fields.delivery_mode << 8;
 			irq.dest_id = e->fields.dest_id;
-			irq.dest_mode = e->fields.dest_mode;
+			irq.dest_mode =
+			    kvm_lapic_irq_dest_mode(!!e->fields.dest_mode);
 			bitmap_zero(&vcpu_bitmap, 16);
 			kvm_bitmap_or_dest_vcpus(ioapic->kvm, &irq,
 						 &vcpu_bitmap);
@@ -343,7 +350,9 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 				 * keep ioapic_handled_vectors synchronized.
 				 */
 				irq.dest_id = old_dest_id;
-				irq.dest_mode = old_dest_mode;
+				irq.dest_mode =
+				    kvm_lapic_irq_dest_mode(
+					!!e->fields.dest_mode);
 				kvm_bitmap_or_dest_vcpus(ioapic->kvm, &irq,
 							 &vcpu_bitmap);
 			}
@@ -369,11 +378,11 @@ static int ioapic_service(struct kvm_ioapic *ioapic, int irq, bool line_status)
 
 	irqe.dest_id = entry->fields.dest_id;
 	irqe.vector = entry->fields.vector;
-	irqe.dest_mode = entry->fields.dest_mode;
+	irqe.dest_mode = kvm_lapic_irq_dest_mode(!!entry->fields.dest_mode);
 	irqe.trig_mode = entry->fields.trig_mode;
 	irqe.delivery_mode = entry->fields.delivery_mode << 8;
 	irqe.level = 1;
-	irqe.shorthand = 0;
+	irqe.shorthand = APIC_DEST_NOSHORT;
 	irqe.msi_redir_hint = false;
 
 	if (irqe.trig_mode == IOAPIC_EDGE_TRIG)
