@@ -2266,8 +2266,6 @@ vchiq_videocore_wanted(struct vchiq_state *state)
 	if (!arm_state)
 		/* autosuspend not supported - always return wanted */
 		return 1;
-	else if (arm_state->blocked_count)
-		return 1;
 	else if (!arm_state->videocore_use_count)
 		/* usage count zero - check for override unless we're forcing */
 		return vchiq_platform_videocore_wanted(state);

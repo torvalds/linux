@@ -70,8 +70,6 @@ struct vchiq_arm_state {
 	*/
 	int peer_use_count;
 
-	int blocked_count;
-
 	/* Flag to indicate that the first vchiq connect has made it through.
 	** This means that both sides should be fully ready, and we should
 	** be able to suspend after this point.
