@@ -164,8 +164,10 @@ static int set_vf_node_guid(struct ib_device *device, int vf, u8 port, u64 guid)
 	in->field_select = MLX5_HCA_VPORT_SEL_NODE_GUID;
 	in->node_guid = guid;
 	err = mlx5_core_modify_hca_vport_context(mdev, 1, 1, vf + 1, in);
-	if (!err)
+	if (!err) {
 		vfs_ctx[vf].node_guid = guid;
+		vfs_ctx[vf].node_guid_valid = 1;
+	}
 	kfree(in);
 	return err;
 }
@@ -185,8 +187,10 @@ static int set_vf_port_guid(struct ib_device *device, int vf, u8 port, u64 guid)
 	in->field_select = MLX5_HCA_VPORT_SEL_PORT_GUID;
 	in->port_guid = guid;
 	err = mlx5_core_modify_hca_vport_context(mdev, 1, 1, vf + 1, in);
-	if (!err)
+	if (!err) {
 		vfs_ctx[vf].port_guid = guid;
+		vfs_ctx[vf].port_guid_valid = 1;
+	}
 	kfree(in);
 	return err;
 }
@@ -208,20 +212,12 @@ int mlx5_ib_get_vf_guid(struct ib_device *device, int vf, u8 port,
 {
 	struct mlx5_ib_dev *dev = to_mdev(device);
 	struct mlx5_core_dev *mdev = dev->mdev;
-	struct mlx5_hca_vport_context *rep;
-	int err;
+	struct mlx5_vf_context *vfs_ctx = mdev->priv.sriov.vfs_ctx;
 
-	rep = kzalloc(sizeof(*rep), GFP_KERNEL);
-	if (!rep)
-		return -ENOMEM;
+	node_guid->guid =
+		vfs_ctx[vf].node_guid_valid ? vfs_ctx[vf].node_guid : 0;
+	port_guid->guid =
+		vfs_ctx[vf].port_guid_valid ? vfs_ctx[vf].port_guid : 0;
 
-	err = mlx5_query_hca_vport_context(mdev, 1, 1, vf+1, rep);
-	if (err)
-		goto ex;
-
-	port_guid->guid = rep->port_guid;
-	node_guid->guid = rep->node_guid;
-ex:
-	kfree(rep);
-	return err;
+	return 0;
 }
