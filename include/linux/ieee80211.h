@@ -2532,6 +2532,7 @@ enum ieee80211_eid {
 	WLAN_EID_FILS_INDICATION = 240,
 	WLAN_EID_DILS = 241,
 	WLAN_EID_FRAGMENT = 242,
+	WLAN_EID_RSNX = 244,
 	WLAN_EID_EXTENSION = 255
 };
 
@@ -3420,5 +3421,12 @@ static inline bool for_each_element_completed(const struct element *element,
 {
 	return (const u8 *)element == (const u8 *)data + datalen;
 }
+
+/**
+ * RSNX Capabilities:
+ * bits 0-3: Field length (n-1)
+ */
+#define WLAN_RSNX_CAPA_PROTECTED_TWT BIT(4)
+#define WLAN_RSNX_CAPA_SAE_H2E BIT(5)
 
 #endif /* LINUX_IEEE80211_H */
