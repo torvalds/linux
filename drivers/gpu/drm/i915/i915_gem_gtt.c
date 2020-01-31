@@ -63,7 +63,8 @@ void i915_gem_gtt_finish_pages(struct drm_i915_gem_object *obj,
 		/* XXX This does not prevent more requests being submitted! */
 		if (intel_gt_retire_requests_timeout(ggtt->vm.gt,
 						     -MAX_SCHEDULE_TIMEOUT)) {
-			DRM_ERROR("Failed to wait for idle; VT'd may hang.\n");
+			drm_err(&dev_priv->drm,
+				"Failed to wait for idle; VT'd may hang.\n");
 			/* Wait a bit, in hopes it avoids the hang */
 			udelay(10);
 		}

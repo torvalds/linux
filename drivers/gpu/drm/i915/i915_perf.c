@@ -1598,7 +1598,7 @@ static int alloc_oa_buffer(struct i915_perf_stream *stream)
 
 	bo = i915_gem_object_create_shmem(stream->perf->i915, OA_BUFFER_SIZE);
 	if (IS_ERR(bo)) {
-		DRM_ERROR("Failed to allocate OA buffer\n");
+		drm_err(&i915->drm, "Failed to allocate OA buffer\n");
 		return PTR_ERR(bo);
 	}
 
@@ -1680,7 +1680,8 @@ static int alloc_noa_wait(struct i915_perf_stream *stream)
 
 	bo = i915_gem_object_create_internal(i915, 4096);
 	if (IS_ERR(bo)) {
-		DRM_ERROR("Failed to allocate NOA wait batchbuffer\n");
+		drm_err(&i915->drm,
+			"Failed to allocate NOA wait batchbuffer\n");
 		return PTR_ERR(bo);
 	}
 

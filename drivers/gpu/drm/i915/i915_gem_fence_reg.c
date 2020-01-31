@@ -714,7 +714,7 @@ static void detect_bit_6_swizzle(struct i915_ggtt *ggtt)
 		}
 
 		if (dcc == 0xffffffff) {
-			DRM_ERROR("Couldn't read from MCHBAR.  "
+			drm_err(&i915->drm, "Couldn't read from MCHBAR.  "
 				  "Disabling tiling.\n");
 			swizzle_x = I915_BIT_6_SWIZZLE_UNKNOWN;
 			swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;

@@ -2161,7 +2161,7 @@ i915_edp_psr_debug_set(void *data, u64 val)
 	if (!CAN_PSR(dev_priv))
 		return -ENODEV;
 
-	DRM_DEBUG_KMS("Setting PSR debug to %llx\n", val);
+	drm_dbg_kms(&dev_priv->drm, "Setting PSR debug to %llx\n", val);
 
 	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 
@@ -3989,10 +3989,11 @@ static ssize_t i915_hpd_storm_ctl_write(struct file *file,
 		return -EINVAL;
 
 	if (new_threshold > 0)
-		DRM_DEBUG_KMS("Setting HPD storm detection threshold to %d\n",
-			      new_threshold);
+		drm_dbg_kms(&dev_priv->drm,
+			    "Setting HPD storm detection threshold to %d\n",
+			    new_threshold);
 	else
-		DRM_DEBUG_KMS("Disabling HPD storm detection\n");
+		drm_dbg_kms(&dev_priv->drm, "Disabling HPD storm detection\n");
 
 	spin_lock_irq(&dev_priv->irq_lock);
 	hotplug->hpd_storm_threshold = new_threshold;
@@ -4069,8 +4070,8 @@ static ssize_t i915_hpd_short_storm_ctl_write(struct file *file,
 	else if (kstrtobool(tmp, &new_state) != 0)
 		return -EINVAL;
 
-	DRM_DEBUG_KMS("%sabling HPD short storm detection\n",
-		      new_state ? "En" : "Dis");
+	drm_dbg_kms(&dev_priv->drm, "%sabling HPD short storm detection\n",
+		    new_state ? "En" : "Dis");
 
 	spin_lock_irq(&dev_priv->irq_lock);
 	hotplug->hpd_short_storm_enabled = new_state;
@@ -4140,8 +4141,9 @@ static int i915_drrs_ctl_set(void *data, u64 val)
 			if (encoder->type != INTEL_OUTPUT_EDP)
 				continue;
 
-			DRM_DEBUG_DRIVER("Manually %sabling DRRS. %llu\n",
-						val ? "en" : "dis", val);
+			drm_dbg(&dev_priv->drm,
+				"Manually %sabling DRRS. %llu\n",
+				val ? "en" : "dis", val);
 
 			intel_dp = enc_to_intel_dp(encoder);
 			if (val)
@@ -4199,8 +4201,9 @@ i915_fifo_underrun_reset_write(struct file *filp,
 		}
 
 		if (!ret && crtc_state->hw.active) {
-			DRM_DEBUG_KMS("Re-arming FIFO underruns on pipe %c\n",
-				      pipe_name(intel_crtc->pipe));
+			drm_dbg_kms(&dev_priv->drm,
+				    "Re-arming FIFO underruns on pipe %c\n",
+				    pipe_name(intel_crtc->pipe));
 
 			intel_crtc_arm_fifo_underrun(intel_crtc, crtc_state);
 		}
