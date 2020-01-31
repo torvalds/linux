@@ -970,7 +970,7 @@ void xas_pause(struct xa_state *xas)
 
 	xas->xa_node = XAS_RESTART;
 	if (node) {
-		unsigned int offset = xas->xa_offset;
+		unsigned long offset = xas->xa_offset;
 		while (++offset < XA_CHUNK_SIZE) {
 			if (!xa_is_sibling(xa_entry(xas->xa, node, offset)))
 				break;
