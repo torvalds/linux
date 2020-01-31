@@ -28,21 +28,22 @@ extern inline pmd_t *pmd_alloc_kernel(pgd_t *pgd, unsigned long address)
 	return (pmd_t *) pgd;
 }
 
-#define pmd_populate(mm, pmd, page) (pmd_val(*pmd) = \
-	(unsigned long)(page_address(page)))
+#define pmd_populate(mm, pmd, pte) (pmd_val(*pmd) = (unsigned long)(pte))
 
-#define pmd_populate_kernel(mm, pmd, pte) (pmd_val(*pmd) = (unsigned long)(pte))
+#define pmd_populate_kernel pmd_populate
 
-#define pmd_pgtable(pmd) pmd_page(pmd)
+#define pmd_pgtable(pmd) pfn_to_virt(pmd_val(pmd) >> PAGE_SHIFT)
 
-static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t page,
+static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t pgtable,
 				  unsigned long address)
 {
+	struct page *page = virt_to_page(pgtable);
+
 	pgtable_pte_page_dtor(page);
 	__free_page(page);
 }
 
-static inline struct page *pte_alloc_one(struct mm_struct *mm)
+static inline pgtable_t pte_alloc_one(struct mm_struct *mm)
 {
 	struct page *page = alloc_pages(GFP_DMA, 0);
 	pte_t *pte;
@@ -54,16 +55,16 @@ static inline struct page *pte_alloc_one(struct mm_struct *mm)
 		return NULL;
 	}
 
-	pte = kmap(page);
-	if (pte)
-		clear_page(pte);
-	kunmap(page);
+	pte = page_address(page);
+	clear_page(pte);
 
-	return page;
+	return pte;
 }
 
-static inline void pte_free(struct mm_struct *mm, struct page *page)
+static inline void pte_free(struct mm_struct *mm, pgtable_t pgtable)
 {
+	struct page *page = virt_to_page(pgtable);
+
 	pgtable_pte_page_dtor(page);
 	__free_page(page);
 }

@@ -31,7 +31,12 @@ typedef struct { unsigned long pte; } pte_t;
 typedef struct { unsigned long pgd; } pgd_t;
 typedef struct { unsigned long pgprot; } pgprot_t;
 
-#if defined(CONFIG_SUN3) || defined(CONFIG_COLDFIRE)
+#if defined(CONFIG_SUN3)
+/*
+ * Sun3 still uses the asm-generic/pgalloc.h code and thus needs this
+ * definition. It would be possible to unify Sun3 and ColdFire pgalloc and have
+ * all of m68k use the same type.
+ */
 typedef struct page *pgtable_t;
 #else
 typedef pte_t *pgtable_t;
