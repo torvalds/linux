@@ -12,7 +12,6 @@
 #include <linux/dma-buf.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/property.h>
 #include <linux/spi/spi.h>
 #include <video/mipi_display.h>
@@ -192,7 +191,7 @@ static int st7735r_probe(struct spi_device *spi)
 	u32 rotation = 0;
 	int ret;
 
-	cfg = of_device_get_match_data(&spi->dev);
+	cfg = device_get_match_data(&spi->dev);
 	if (!cfg)
 		cfg = (void *)spi_get_device_id(spi)->driver_data;
 
