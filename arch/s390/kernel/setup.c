@@ -759,14 +759,6 @@ static void __init free_mem_detect_info(void)
 		memblock_free(start, size);
 }
 
-static void __init memblock_physmem_add(phys_addr_t start, phys_addr_t size)
-{
-	memblock_dbg("memblock_physmem_add: [%#016llx-%#016llx]\n",
-		     start, start + size - 1);
-	memblock_add_range(&memblock.memory, start, size, 0, 0);
-	memblock_add_range(&memblock.physmem, start, size, 0, 0);
-}
-
 static const char * __init get_mem_info_source(void)
 {
 	switch (mem_detect.info_source) {
@@ -791,8 +783,10 @@ static void __init memblock_add_mem_detect_info(void)
 		     get_mem_info_source(), mem_detect.info_source);
 	/* keep memblock lists close to the kernel */
 	memblock_set_bottom_up(true);
-	for_each_mem_detect_block(i, &start, &end)
+	for_each_mem_detect_block(i, &start, &end) {
+		memblock_add(start, end - start);
 		memblock_physmem_add(start, end - start);
+	}
 	memblock_set_bottom_up(false);
 	memblock_dump_all();
 }
