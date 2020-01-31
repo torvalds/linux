@@ -74,7 +74,6 @@ struct vchiq_arm_state {
 	** ARM is suspending
 	*/
 	struct completion resume_blocker;
-	int resume_blocked;
 	struct completion blocked_blocker;
 	int blocked_count;
 
