@@ -99,6 +99,28 @@ DEFINE_DEBUGFS_ATTRIBUTE(fops_fw_debug, mt7615_fw_debug_get,
 			 mt7615_fw_debug_set, "%lld\n");
 
 static int
+mt7615_reset_test_set(void *data, u64 val)
+{
+	struct mt7615_dev *dev = data;
+	struct sk_buff *skb;
+
+	if (!mt7615_wait_for_mcu_init(dev))
+		return 0;
+
+	skb = alloc_skb(1, GFP_KERNEL);
+	if (!skb)
+		return -ENOMEM;
+
+	skb_put(skb, 1);
+	mt76_tx_queue_skb_raw(dev, 0, skb, 0);
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(fops_reset_test, NULL,
+			 mt7615_reset_test_set, "%lld\n");
+
+static int
 mt7615_ampdu_stat_read(struct seq_file *file, void *data)
 {
 	struct mt7615_dev *dev = file->private;
@@ -264,6 +286,8 @@ int mt7615_init_debugfs(struct mt7615_dev *dev)
 			   &dev->radar_pattern.power);
 	debugfs_create_file("radar_trigger", 0200, dir, dev,
 			    &fops_radar_pattern);
+	debugfs_create_file("reset_test", 0200, dir, dev,
+			    &fops_reset_test);
 	debugfs_create_devm_seqfile(dev->mt76.dev, "temperature", dir,
 				    mt7615_read_temperature);
 
