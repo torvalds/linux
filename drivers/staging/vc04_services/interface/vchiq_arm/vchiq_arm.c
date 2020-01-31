@@ -2386,11 +2386,6 @@ vchiq_arm_init_state(struct vchiq_state *state,
 		 * completion while videocore is suspended. */
 		set_resume_state(arm_state, VC_RESUME_RESUMED);
 
-		init_completion(&arm_state->resume_blocker);
-		/* Initialise to 'done' state.  We only want to block on this
-		 * completion while resume is blocked */
-		complete_all(&arm_state->resume_blocker);
-
 		init_completion(&arm_state->blocked_blocker);
 		/* Initialise to 'done' state.  We only want to block on this
 		 * completion while things are waiting on the resume blocker */
@@ -2558,12 +2553,6 @@ need_resume(struct vchiq_state *state)
 	return (arm_state->vc_suspend_state > VC_SUSPEND_IDLE) &&
 			(arm_state->vc_resume_state < VC_RESUME_REQUESTED) &&
 			vchiq_videocore_wanted(state);
-}
-
-static inline void
-unblock_resume(struct vchiq_arm_state *arm_state)
-{
-	complete_all(&arm_state->resume_blocker);
 }
 
 /* Initiate suspend via slot handler. Should be called with the write lock

@@ -70,10 +70,6 @@ struct vchiq_arm_state {
 	*/
 	int peer_use_count;
 
-	/* Flag to indicate whether resume is blocked.  This happens when the
-	** ARM is suspending
-	*/
-	struct completion resume_blocker;
 	struct completion blocked_blocker;
 	int blocked_count;
 
