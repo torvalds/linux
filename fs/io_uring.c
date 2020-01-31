@@ -2171,10 +2171,12 @@ static int io_setup_async_rw(struct io_kiocb *req, ssize_t io_size,
 {
 	if (!io_op_defs[req->opcode].async_ctx)
 		return 0;
-	if (!req->io && io_alloc_async_ctx(req))
-		return -ENOMEM;
+	if (!req->io) {
+		if (io_alloc_async_ctx(req))
+			return -ENOMEM;
 
-	io_req_map_rw(req, io_size, iovec, fast_iov, iter);
+		io_req_map_rw(req, io_size, iovec, fast_iov, iter);
+	}
 	req->work.func = io_rw_async;
 	return 0;
 }
