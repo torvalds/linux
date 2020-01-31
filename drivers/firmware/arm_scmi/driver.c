@@ -32,19 +32,6 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/scmi.h>
 
-#define MSG_ID_MASK		GENMASK(7, 0)
-#define MSG_XTRACT_ID(hdr)	FIELD_GET(MSG_ID_MASK, (hdr))
-#define MSG_TYPE_MASK		GENMASK(9, 8)
-#define MSG_XTRACT_TYPE(hdr)	FIELD_GET(MSG_TYPE_MASK, (hdr))
-#define MSG_TYPE_COMMAND	0
-#define MSG_TYPE_DELAYED_RESP	2
-#define MSG_TYPE_NOTIFICATION	3
-#define MSG_PROTOCOL_ID_MASK	GENMASK(17, 10)
-#define MSG_XTRACT_PROT_ID(hdr)	FIELD_GET(MSG_PROTOCOL_ID_MASK, (hdr))
-#define MSG_TOKEN_ID_MASK	GENMASK(27, 18)
-#define MSG_XTRACT_TOKEN(hdr)	FIELD_GET(MSG_TOKEN_ID_MASK, (hdr))
-#define MSG_TOKEN_MAX		(MSG_XTRACT_TOKEN(MSG_TOKEN_ID_MASK) + 1)
-
 enum scmi_error_codes {
 	SCMI_SUCCESS = 0,	/* Success */
 	SCMI_ERR_SUPPORT = -1,	/* Not supported */
@@ -208,33 +195,6 @@ static void scmi_fetch_response(struct scmi_xfer *xfer,
 
 	/* Take a copy to the rx buffer.. */
 	memcpy_fromio(xfer->rx.buf, mem->msg_payload + 4, xfer->rx.len);
-}
-
-/**
- * pack_scmi_header() - packs and returns 32-bit header
- *
- * @hdr: pointer to header containing all the information on message id,
- *	protocol id and sequence id.
- *
- * Return: 32-bit packed message header to be sent to the platform.
- */
-static inline u32 pack_scmi_header(struct scmi_msg_hdr *hdr)
-{
-	return FIELD_PREP(MSG_ID_MASK, hdr->id) |
-		FIELD_PREP(MSG_TOKEN_ID_MASK, hdr->seq) |
-		FIELD_PREP(MSG_PROTOCOL_ID_MASK, hdr->protocol_id);
-}
-
-/**
- * unpack_scmi_header() - unpacks and records message and protocol id
- *
- * @msg_hdr: 32-bit packed message header sent from the platform
- * @hdr: pointer to header to fetch message and protocol id.
- */
-static inline void unpack_scmi_header(u32 msg_hdr, struct scmi_msg_hdr *hdr)
-{
-	hdr->id = MSG_XTRACT_ID(msg_hdr);
-	hdr->protocol_id = MSG_XTRACT_PROT_ID(msg_hdr);
 }
 
 /**
