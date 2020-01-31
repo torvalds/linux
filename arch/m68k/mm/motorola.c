@@ -45,6 +45,28 @@ unsigned long mm_cachebits;
 EXPORT_SYMBOL(mm_cachebits);
 #endif
 
+
+/*
+ * Motorola 680x0 user's manual recommends using uncached memory for address
+ * translation tables.
+ *
+ * Seeing how the MMU can be external on (some of) these chips, that seems like
+ * a very important recommendation to follow. Provide some helpers to combat
+ * 'variation' amongst the users of this.
+ */
+
+void mmu_page_ctor(void *page)
+{
+	__flush_page_to_ram(page);
+	flush_tlb_kernel_page(page);
+	nocache_page(page);
+}
+
+void mmu_page_dtor(void *page)
+{
+	cache_page(page);
+}
+
 /* size of memory already mapped in head.S */
 extern __initdata unsigned long m68k_init_mapped_size;
 
@@ -60,9 +82,7 @@ static pte_t * __init kernel_page_table(void)
 		      __func__, PAGE_SIZE, PAGE_SIZE);
 
 	clear_page(ptablep);
-	__flush_page_to_ram(ptablep);
-	flush_tlb_kernel_page(ptablep);
-	nocache_page(ptablep);
+	mmu_page_ctor(ptablep);
 
 	return ptablep;
 }
@@ -106,9 +126,7 @@ static pmd_t * __init kernel_ptr_table(void)
 			      __func__, PAGE_SIZE, PAGE_SIZE);
 
 		clear_page(last_pgtable);
-		__flush_page_to_ram(last_pgtable);
-		flush_tlb_kernel_page(last_pgtable);
-		nocache_page(last_pgtable);
+		mmu_page_ctor(last_pgtable);
 	}
 
 	return last_pgtable;

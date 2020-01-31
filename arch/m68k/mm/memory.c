@@ -77,8 +77,7 @@ pmd_t *get_pointer_table (void)
 		if (!(page = (void *)get_zeroed_page(GFP_KERNEL)))
 			return NULL;
 
-		flush_tlb_kernel_page(page);
-		nocache_page(page);
+		mmu_page_ctor(page);
 
 		new = PD_PTABLE(page);
 		PD_MARKBITS(new) = 0xfe;
@@ -112,7 +111,7 @@ int free_pointer_table (pmd_t *ptable)
 	if (PD_MARKBITS(dp) == 0xff) {
 		/* all tables in page are free, free page */
 		list_del(dp);
-		cache_page((void *)page);
+		mmu_page_dtor((void *)page);
 		free_page (page);
 		return 1;
 	} else if (ptable_list.next != dp) {
