@@ -176,7 +176,7 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
 	unsigned char k_rand_bytes[16];
 	int items;
 	elf_addr_t *elf_info;
-	int ei_index = 0;
+	int ei_index;
 	const struct cred *cred = current_cred();
 	struct vm_area_struct *vma;
 
@@ -230,8 +230,8 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
 	/* update AT_VECTOR_SIZE_BASE if the number of NEW_AUX_ENT() changes */
 #define NEW_AUX_ENT(id, val) \
 	do { \
-		elf_info[ei_index++] = id; \
-		elf_info[ei_index++] = val; \
+		*elf_info++ = id; \
+		*elf_info++ = val; \
 	} while (0)
 
 #ifdef ARCH_DLINFO
@@ -275,12 +275,13 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
 	}
 #undef NEW_AUX_ENT
 	/* AT_NULL is zero; clear the rest too */
-	memset(&elf_info[ei_index], 0,
-	       sizeof current->mm->saved_auxv - ei_index * sizeof elf_info[0]);
+	memset(elf_info, 0, (char *)current->mm->saved_auxv +
+			sizeof(current->mm->saved_auxv) - (char *)elf_info);
 
 	/* And advance past the AT_NULL entry.  */
-	ei_index += 2;
+	elf_info += 2;
 
+	ei_index = elf_info - (elf_addr_t *)current->mm->saved_auxv;
 	sp = STACK_ADD(p, ei_index);
 
 	items = (argc + 1) + (envc + 1) + 1;
@@ -338,7 +339,7 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
 	current->mm->env_end = p;
 
 	/* Put the elf_info on the stack in the right place.  */
-	if (copy_to_user(sp, elf_info, ei_index * sizeof(elf_addr_t)))
+	if (copy_to_user(sp, current->mm->saved_auxv, ei_index * sizeof(elf_addr_t)))
 		return -EFAULT;
 	return 0;
 }
