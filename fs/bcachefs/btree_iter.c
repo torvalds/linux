@@ -1271,6 +1271,29 @@ static unsigned btree_iter_pos_changed(struct btree_iter *iter, int cmp)
 	return l;
 }
 
+void __bch2_btree_iter_set_pos(struct btree_iter *iter, struct bpos new_pos,
+			       bool strictly_greater)
+{
+	struct bpos old = btree_iter_search_key(iter);
+	unsigned l;
+	int cmp;
+
+	iter->flags &= ~BTREE_ITER_IS_EXTENTS;
+	iter->flags |= strictly_greater ? BTREE_ITER_IS_EXTENTS : 0;
+	iter->pos = new_pos;
+
+	cmp = bkey_cmp(btree_iter_search_key(iter), old);
+	if (!cmp)
+		return;
+
+	l = btree_iter_pos_changed(iter, cmp);
+
+	if (l != iter->level)
+		btree_iter_set_dirty(iter, BTREE_ITER_NEED_TRAVERSE);
+	else
+		btree_iter_set_dirty(iter, BTREE_ITER_NEED_PEEK);
+}
+
 void bch2_btree_iter_set_pos(struct btree_iter *iter, struct bpos new_pos)
 {
 	int cmp = bkey_cmp(new_pos, iter->pos);
@@ -1947,7 +1970,8 @@ struct btree_iter *bch2_trans_get_iter(struct btree_trans *trans,
 		__btree_trans_get_iter(trans, btree_id, pos, flags);
 
 	if (!IS_ERR(iter))
-		bch2_btree_iter_set_pos(iter, pos);
+		__bch2_btree_iter_set_pos(iter, pos,
+			btree_node_type_is_extents(btree_id));
 	return iter;
 }
 
