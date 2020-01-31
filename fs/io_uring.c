@@ -3090,7 +3090,8 @@ static int io_send(struct io_kiocb *req, struct io_kiocb **nxt,
 		else if (force_nonblock)
 			flags |= MSG_DONTWAIT;
 
-		ret = __sys_sendmsg_sock(sock, &msg, flags);
+		msg.msg_flags = flags;
+		ret = sock_sendmsg(sock, &msg);
 		if (force_nonblock && ret == -EAGAIN)
 			return -EAGAIN;
 		if (ret == -ERESTARTSYS)
@@ -3116,6 +3117,7 @@ static int io_recvmsg_prep(struct io_kiocb *req,
 
 	sr->msg_flags = READ_ONCE(sqe->msg_flags);
 	sr->msg = u64_to_user_ptr(READ_ONCE(sqe->addr));
+	sr->len = READ_ONCE(sqe->len);
 
 	if (!io || req->opcode == IORING_OP_RECV)
 		return 0;
@@ -3234,7 +3236,7 @@ static int io_recv(struct io_kiocb *req, struct io_kiocb **nxt,
 		else if (force_nonblock)
 			flags |= MSG_DONTWAIT;
 
-		ret = __sys_recvmsg_sock(sock, &msg, NULL, NULL, flags);
+		ret = sock_recvmsg(sock, &msg, flags);
 		if (force_nonblock && ret == -EAGAIN)
 			return -EAGAIN;
 		if (ret == -ERESTARTSYS)
