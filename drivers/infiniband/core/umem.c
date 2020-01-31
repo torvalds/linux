@@ -257,7 +257,7 @@ struct ib_umem *ib_umem_get(struct ib_device *device, unsigned long addr,
 	sg = umem->sg_head.sgl;
 
 	while (npages) {
-		ret = get_user_pages_fast(cur_base,
+		ret = pin_user_pages_fast(cur_base,
 					  min_t(unsigned long, npages,
 						PAGE_SIZE /
 						sizeof(struct page *)),
