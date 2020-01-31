@@ -639,9 +639,6 @@ vchiq_platform_conn_state_changed(struct vchiq_state *state,
 				  enum vchiq_connstate newstate);
 
 extern void
-vchiq_platform_handle_timeout(struct vchiq_state *state);
-
-extern void
 vchiq_set_conn_state(struct vchiq_state *state, enum vchiq_connstate newstate);
 
 extern void

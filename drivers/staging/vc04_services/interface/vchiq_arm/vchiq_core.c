@@ -1911,11 +1911,6 @@ slot_handler_func(void *v)
 						"message");
 				}
 				break;
-
-			case VCHIQ_CONNSTATE_PAUSE_TIMEOUT:
-			case VCHIQ_CONNSTATE_RESUME_TIMEOUT:
-				vchiq_platform_handle_timeout(state);
-				break;
 			default:
 				break;
 			}

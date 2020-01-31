@@ -257,11 +257,6 @@ int vchiq_dump_platform_state(void *dump_context)
 	return vchiq_dump(dump_context, buf, len + 1);
 }
 
-void
-vchiq_platform_handle_timeout(struct vchiq_state *state)
-{
-	(void)state;
-}
 /*
  * Local functions
  */
