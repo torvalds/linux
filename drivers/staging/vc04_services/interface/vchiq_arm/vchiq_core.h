@@ -590,9 +590,6 @@ vchiq_complete_bulk(struct vchiq_bulk *bulk);
 extern void
 remote_event_signal(struct remote_event *event);
 
-void
-vchiq_platform_check_suspend(struct vchiq_state *state);
-
 extern int
 vchiq_dump(void *dump_context, const char *str, int len);
 
