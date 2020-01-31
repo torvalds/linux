@@ -2554,8 +2554,6 @@ static int dlm_migrate_lockres(struct dlm_ctxt *dlm,
 	if (!dlm_grab(dlm))
 		return -EINVAL;
 
-	BUG_ON(target == O2NM_MAX_NODES);
-
 	name = res->lockname.name;
 	namelen = res->lockname.len;
 
