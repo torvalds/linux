@@ -846,7 +846,8 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 	    IS_CHERRYVIEW(i915) /* fails with concurrent use/update */) {
 		ggtt->vm.insert_entries = bxt_vtd_ggtt_insert_entries__BKL;
 		ggtt->vm.insert_page    = bxt_vtd_ggtt_insert_page__BKL;
-		ggtt->vm.bind_async_flags = I915_VMA_GLOBAL_BIND;
+		ggtt->vm.bind_async_flags =
+			I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND;
 	}
 
 	ggtt->invalidate = gen8_ggtt_invalidate;
