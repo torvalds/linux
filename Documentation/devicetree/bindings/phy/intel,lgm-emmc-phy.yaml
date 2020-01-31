@@ -45,8 +45,10 @@ examples:
     sysconf: chiptop@e0200000 {
       compatible = "intel,lgm-syscon", "syscon";
       reg = <0xe0200000 0x100>;
+      #address-cells = <1>;
+      #size-cells = <1>;
 
-      emmc-phy: emmc-phy@a8 {
+      emmc_phy: emmc-phy@a8 {
         compatible = "intel,lgm-emmc-phy";
         reg = <0x00a8 0x10>;
         clocks = <&emmc>;
