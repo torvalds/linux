@@ -1189,7 +1189,8 @@ void bch2_bset_insert(struct btree *b,
 	memcpy_u64s(bkeyp_val(f, where), &insert->v,
 		    bkeyp_val_u64s(f, src));
 
-	bch2_bset_fix_lookup_table(b, t, where, clobber_u64s, src->u64s);
+	if (src->u64s != clobber_u64s)
+		bch2_bset_fix_lookup_table(b, t, where, clobber_u64s, src->u64s);
 
 	bch2_verify_btree_nr_keys(b);
 }
