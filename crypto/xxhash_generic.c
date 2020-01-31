@@ -22,10 +22,8 @@ static int xxhash64_setkey(struct crypto_shash *tfm, const u8 *key,
 {
 	struct xxhash64_tfm_ctx *tctx = crypto_shash_ctx(tfm);
 
-	if (keylen != sizeof(tctx->seed)) {
-		crypto_shash_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (keylen != sizeof(tctx->seed))
 		return -EINVAL;
-	}
 	tctx->seed = get_unaligned_le64(key);
 	return 0;
 }

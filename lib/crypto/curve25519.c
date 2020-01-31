@@ -13,12 +13,22 @@
 #include <linux/module.h>
 #include <linux/init.h>
 
-const u8 curve25519_null_point[CURVE25519_KEY_SIZE] __aligned(32) = { 0 };
-const u8 curve25519_base_point[CURVE25519_KEY_SIZE] __aligned(32) = { 9 };
+bool curve25519_selftest(void);
 
-EXPORT_SYMBOL(curve25519_null_point);
-EXPORT_SYMBOL(curve25519_base_point);
-EXPORT_SYMBOL(curve25519_generic);
+static int __init mod_init(void)
+{
+	if (!IS_ENABLED(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS) &&
+	    WARN_ON(!curve25519_selftest()))
+		return -ENODEV;
+	return 0;
+}
+
+static void __exit mod_exit(void)
+{
+}
+
+module_init(mod_init);
+module_exit(mod_exit);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Curve25519 scalar multiplication");

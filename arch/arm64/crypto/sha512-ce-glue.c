@@ -32,7 +32,7 @@ asmlinkage void sha512_block_data_order(u64 *digest, u8 const *src, int blocks);
 static void __sha512_block_data_order(struct sha512_state *sst, u8 const *src,
 				      int blocks)
 {
-	return sha512_block_data_order(sst->state, src, blocks);
+	sha512_block_data_order(sst->state, src, blocks);
 }
 
 static int sha512_ce_update(struct shash_desc *desc, const u8 *data,

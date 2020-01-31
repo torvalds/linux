@@ -47,7 +47,13 @@ struct crypto_instance {
 	struct crypto_alg alg;
 
 	struct crypto_template *tmpl;
-	struct hlist_node list;
+
+	union {
+		/* Node in list of instances after registration. */
+		struct hlist_node list;
+		/* List of attached spawns before registration. */
+		struct crypto_spawn *spawns;
+	};
 
 	void *__ctx[] CRYPTO_MINALIGN_ATTR;
 };
@@ -57,8 +63,6 @@ struct crypto_template {
 	struct hlist_head instances;
 	struct module *module;
 
-	struct crypto_instance *(*alloc)(struct rtattr **tb);
-	void (*free)(struct crypto_instance *inst);
 	int (*create)(struct crypto_template *tmpl, struct rtattr **tb);
 
 	char name[CRYPTO_MAX_ALG_NAME];
@@ -67,9 +71,16 @@ struct crypto_template {
 struct crypto_spawn {
 	struct list_head list;
 	struct crypto_alg *alg;
-	struct crypto_instance *inst;
+	union {
+		/* Back pointer to instance after registration.*/
+		struct crypto_instance *inst;
+		/* Spawn list pointer prior to registration. */
+		struct crypto_spawn *next;
+	};
 	const struct crypto_type *frontend;
 	u32 mask;
+	bool dead;
+	bool registered;
 };
 
 struct crypto_queue {
@@ -95,45 +106,21 @@ struct crypto_template *crypto_lookup_template(const char *name);
 
 int crypto_register_instance(struct crypto_template *tmpl,
 			     struct crypto_instance *inst);
-int crypto_unregister_instance(struct crypto_instance *inst);
+void crypto_unregister_instance(struct crypto_instance *inst);
 
-int crypto_init_spawn(struct crypto_spawn *spawn, struct crypto_alg *alg,
-		      struct crypto_instance *inst, u32 mask);
-int crypto_init_spawn2(struct crypto_spawn *spawn, struct crypto_alg *alg,
-		       struct crypto_instance *inst,
-		       const struct crypto_type *frontend);
-int crypto_grab_spawn(struct crypto_spawn *spawn, const char *name,
-		      u32 type, u32 mask);
-
+int crypto_grab_spawn(struct crypto_spawn *spawn, struct crypto_instance *inst,
+		      const char *name, u32 type, u32 mask);
 void crypto_drop_spawn(struct crypto_spawn *spawn);
 struct crypto_tfm *crypto_spawn_tfm(struct crypto_spawn *spawn, u32 type,
 				    u32 mask);
 void *crypto_spawn_tfm2(struct crypto_spawn *spawn);
 
-static inline void crypto_set_spawn(struct crypto_spawn *spawn,
-				    struct crypto_instance *inst)
-{
-	spawn->inst = inst;
-}
-
 struct crypto_attr_type *crypto_get_attr_type(struct rtattr **tb);
 int crypto_check_attr_type(struct rtattr **tb, u32 type);
 const char *crypto_attr_alg_name(struct rtattr *rta);
-struct crypto_alg *crypto_attr_alg2(struct rtattr *rta,
-				    const struct crypto_type *frontend,
-				    u32 type, u32 mask);
-
-static inline struct crypto_alg *crypto_attr_alg(struct rtattr *rta,
-						 u32 type, u32 mask)
-{
-	return crypto_attr_alg2(rta, NULL, type, mask);
-}
-
 int crypto_attr_u32(struct rtattr *rta, u32 *num);
 int crypto_inst_setname(struct crypto_instance *inst, const char *name,
 			struct crypto_alg *alg);
-void *crypto_alloc_instance(const char *name, struct crypto_alg *alg,
-			    unsigned int head);
 
 void crypto_init_queue(struct crypto_queue *queue, unsigned int max_qlen);
 int crypto_enqueue_request(struct crypto_queue *queue,
@@ -200,13 +187,38 @@ static inline void *crypto_instance_ctx(struct crypto_instance *inst)
 	return inst->__ctx;
 }
 
+struct crypto_cipher_spawn {
+	struct crypto_spawn base;
+};
+
+static inline int crypto_grab_cipher(struct crypto_cipher_spawn *spawn,
+				     struct crypto_instance *inst,
+				     const char *name, u32 type, u32 mask)
+{
+	type &= ~CRYPTO_ALG_TYPE_MASK;
+	type |= CRYPTO_ALG_TYPE_CIPHER;
+	mask |= CRYPTO_ALG_TYPE_MASK;
+	return crypto_grab_spawn(&spawn->base, inst, name, type, mask);
+}
+
+static inline void crypto_drop_cipher(struct crypto_cipher_spawn *spawn)
+{
+	crypto_drop_spawn(&spawn->base);
+}
+
+static inline struct crypto_alg *crypto_spawn_cipher_alg(
+	struct crypto_cipher_spawn *spawn)
+{
+	return spawn->base.alg;
+}
+
 static inline struct crypto_cipher *crypto_spawn_cipher(
-	struct crypto_spawn *spawn)
+	struct crypto_cipher_spawn *spawn)
 {
 	u32 type = CRYPTO_ALG_TYPE_CIPHER;
 	u32 mask = CRYPTO_ALG_TYPE_MASK;
 
-	return __crypto_cipher_cast(crypto_spawn_tfm(spawn, type, mask));
+	return __crypto_cipher_cast(crypto_spawn_tfm(&spawn->base, type, mask));
 }
 
 static inline struct cipher_alg *crypto_cipher_alg(struct crypto_cipher *tfm)
@@ -219,12 +231,6 @@ static inline struct crypto_async_request *crypto_get_backlog(
 {
 	return queue->backlog == &queue->list ? NULL :
 	       container_of(queue->backlog, struct crypto_async_request, list);
-}
-
-static inline struct crypto_alg *crypto_get_attr_alg(struct rtattr **tb,
-						     u32 type, u32 mask)
-{
-	return crypto_attr_alg(tb[1], type, mask);
 }
 
 static inline int crypto_requires_off(u32 type, u32 mask, u32 off)

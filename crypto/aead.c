@@ -185,11 +185,6 @@ static void crypto_aead_free_instance(struct crypto_instance *inst)
 {
 	struct aead_instance *aead = aead_instance(inst);
 
-	if (!aead->free) {
-		inst->tmpl->free(inst);
-		return;
-	}
-
 	aead->free(aead);
 }
 
@@ -207,11 +202,12 @@ static const struct crypto_type crypto_aead_type = {
 	.tfmsize = offsetof(struct crypto_aead, base),
 };
 
-int crypto_grab_aead(struct crypto_aead_spawn *spawn, const char *name,
-		     u32 type, u32 mask)
+int crypto_grab_aead(struct crypto_aead_spawn *spawn,
+		     struct crypto_instance *inst,
+		     const char *name, u32 type, u32 mask)
 {
 	spawn->base.frontend = &crypto_aead_type;
-	return crypto_grab_spawn(&spawn->base, name, type, mask);
+	return crypto_grab_spawn(&spawn->base, inst, name, type, mask);
 }
 EXPORT_SYMBOL_GPL(crypto_grab_aead);
 
@@ -291,6 +287,9 @@ int aead_register_instance(struct crypto_template *tmpl,
 			   struct aead_instance *inst)
 {
 	int err;
+
+	if (WARN_ON(!inst->free))
+		return -EINVAL;
 
 	err = aead_prepare_alg(&inst->alg);
 	if (err)

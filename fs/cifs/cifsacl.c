@@ -802,6 +802,26 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
 	return;
 }
 
+unsigned int setup_authusers_ACE(struct cifs_ace *pntace)
+{
+	int i;
+	unsigned int ace_size = 20;
+
+	pntace->type = ACCESS_ALLOWED_ACE_TYPE;
+	pntace->flags = 0x0;
+	pntace->access_req = cpu_to_le32(GENERIC_ALL);
+	pntace->sid.num_subauth = 1;
+	pntace->sid.revision = 1;
+	for (i = 0; i < NUM_AUTHS; i++)
+		pntace->sid.authority[i] =  sid_authusers.authority[i];
+
+	pntace->sid.sub_auth[0] =  sid_authusers.sub_auth[0];
+
+	/* size = 1 + 1 + 2 + 4 + 1 + 1 + 6 + (psid->num_subauth*4) */
+	pntace->size = cpu_to_le16(ace_size);
+	return ace_size;
+}
+
 /*
  * Fill in the special SID based on the mode. See
  * http://technet.microsoft.com/en-us/library/hh509017(v=ws.10).aspx

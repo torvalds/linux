@@ -30,7 +30,7 @@ EXPORT_SYMBOL(sha256_block_data_order);
 static void __sha256_block_data_order(struct sha256_state *sst, u8 const *src,
 				      int blocks)
 {
-	return sha256_block_data_order(sst->state, src, blocks);
+	sha256_block_data_order(sst->state, src, blocks);
 }
 
 asmlinkage void sha256_block_neon(u32 *digest, const void *data,
@@ -39,7 +39,7 @@ asmlinkage void sha256_block_neon(u32 *digest, const void *data,
 static void __sha256_block_neon(struct sha256_state *sst, u8 const *src,
 				int blocks)
 {
-	return sha256_block_neon(sst->state, src, blocks);
+	sha256_block_neon(sst->state, src, blocks);
 }
 
 static int crypto_sha256_arm64_update(struct shash_desc *desc, const u8 *data,

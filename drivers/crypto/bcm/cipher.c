@@ -1846,7 +1846,6 @@ static int aes_setkey(struct crypto_skcipher *cipher, const u8 *key,
 		ctx->cipher_type = CIPHER_TYPE_AES256;
 		break;
 	default:
-		crypto_skcipher_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		return -EINVAL;
 	}
 	WARN_ON((ctx->max_payload != SPU_MAX_PAYLOAD_INF) &&
@@ -2894,13 +2893,8 @@ static int aead_authenc_setkey(struct crypto_aead *cipher,
 		ctx->fallback_cipher->base.crt_flags |=
 		    tfm->crt_flags & CRYPTO_TFM_REQ_MASK;
 		ret = crypto_aead_setkey(ctx->fallback_cipher, key, keylen);
-		if (ret) {
+		if (ret)
 			flow_log("  fallback setkey() returned:%d\n", ret);
-			tfm->crt_flags &= ~CRYPTO_TFM_RES_MASK;
-			tfm->crt_flags |=
-			    (ctx->fallback_cipher->base.crt_flags &
-			     CRYPTO_TFM_RES_MASK);
-		}
 	}
 
 	ctx->spu_resp_hdr_len = spu->spu_response_hdr_len(ctx->authkeylen,
@@ -2916,7 +2910,6 @@ badkey:
 	ctx->authkeylen = 0;
 	ctx->digestsize = 0;
 
-	crypto_aead_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
 	return -EINVAL;
 }
 
@@ -2967,13 +2960,8 @@ static int aead_gcm_ccm_setkey(struct crypto_aead *cipher,
 		    tfm->crt_flags & CRYPTO_TFM_REQ_MASK;
 		ret = crypto_aead_setkey(ctx->fallback_cipher, key,
 					 keylen + ctx->salt_len);
-		if (ret) {
+		if (ret)
 			flow_log("  fallback setkey() returned:%d\n", ret);
-			tfm->crt_flags &= ~CRYPTO_TFM_RES_MASK;
-			tfm->crt_flags |=
-			    (ctx->fallback_cipher->base.crt_flags &
-			     CRYPTO_TFM_RES_MASK);
-		}
 	}
 
 	ctx->spu_resp_hdr_len = spu->spu_response_hdr_len(ctx->authkeylen,
@@ -2992,7 +2980,6 @@ badkey:
 	ctx->authkeylen = 0;
 	ctx->digestsize = 0;
 
-	crypto_aead_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
 	return -EINVAL;
 }
 

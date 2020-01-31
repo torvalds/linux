@@ -598,6 +598,7 @@ static int pkcs1pad_create(struct crypto_template *tmpl, struct rtattr **tb)
 {
 	const struct rsa_asn1_template *digest_info;
 	struct crypto_attr_type *algt;
+	u32 mask;
 	struct akcipher_instance *inst;
 	struct pkcs1pad_inst_ctx *ctx;
 	struct crypto_akcipher_spawn *spawn;
@@ -612,6 +613,8 @@ static int pkcs1pad_create(struct crypto_template *tmpl, struct rtattr **tb)
 
 	if ((algt->type ^ CRYPTO_ALG_TYPE_AKCIPHER) & algt->mask)
 		return -EINVAL;
+
+	mask = crypto_requires_sync(algt->type, algt->mask);
 
 	rsa_alg_name = crypto_attr_alg_name(tb[1]);
 	if (IS_ERR(rsa_alg_name))
@@ -636,9 +639,8 @@ static int pkcs1pad_create(struct crypto_template *tmpl, struct rtattr **tb)
 	spawn = &ctx->spawn;
 	ctx->digest_info = digest_info;
 
-	crypto_set_spawn(&spawn->base, akcipher_crypto_instance(inst));
-	err = crypto_grab_akcipher(spawn, rsa_alg_name, 0,
-			crypto_requires_sync(algt->type, algt->mask));
+	err = crypto_grab_akcipher(spawn, akcipher_crypto_instance(inst),
+				   rsa_alg_name, 0, mask);
 	if (err)
 		goto out_free_inst;
 

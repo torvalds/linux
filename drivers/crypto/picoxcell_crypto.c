@@ -465,9 +465,6 @@ static int spacc_aead_setkey(struct crypto_aead *tfm, const u8 *key,
 	crypto_aead_set_flags(ctx->sw_cipher, crypto_aead_get_flags(tfm) &
 					      CRYPTO_TFM_REQ_MASK);
 	err = crypto_aead_setkey(ctx->sw_cipher, key, keylen);
-	crypto_aead_clear_flags(tfm, CRYPTO_TFM_RES_MASK);
-	crypto_aead_set_flags(tfm, crypto_aead_get_flags(ctx->sw_cipher) &
-				   CRYPTO_TFM_RES_MASK);
 	if (err)
 		return err;
 
@@ -490,7 +487,6 @@ static int spacc_aead_setkey(struct crypto_aead *tfm, const u8 *key,
 	return 0;
 
 badkey:
-	crypto_aead_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
 	memzero_explicit(&keys, sizeof(keys));
 	return -EINVAL;
 }
@@ -780,10 +776,8 @@ static int spacc_aes_setkey(struct crypto_skcipher *cipher, const u8 *key,
 	struct spacc_ablk_ctx *ctx = crypto_tfm_ctx(tfm);
 	int err = 0;
 
-	if (len > AES_MAX_KEY_SIZE) {
-		crypto_skcipher_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (len > AES_MAX_KEY_SIZE)
 		return -EINVAL;
-	}
 
 	/*
 	 * IPSec engine only supports 128 and 256 bit AES keys. If we get a
@@ -805,12 +799,6 @@ static int spacc_aes_setkey(struct crypto_skcipher *cipher, const u8 *key,
 					  CRYPTO_TFM_REQ_MASK);
 
 		err = crypto_sync_skcipher_setkey(ctx->sw_cipher, key, len);
-
-		tfm->crt_flags &= ~CRYPTO_TFM_RES_MASK;
-		tfm->crt_flags |=
-			crypto_sync_skcipher_get_flags(ctx->sw_cipher) &
-			CRYPTO_TFM_RES_MASK;
-
 		if (err)
 			goto sw_setkey_failed;
 	}
@@ -830,7 +818,6 @@ static int spacc_kasumi_f8_setkey(struct crypto_skcipher *cipher,
 	int err = 0;
 
 	if (len > AES_MAX_KEY_SIZE) {
-		crypto_skcipher_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		err = -EINVAL;
 		goto out;
 	}
@@ -1595,6 +1582,11 @@ static const struct of_device_id spacc_of_id_table[] = {
 MODULE_DEVICE_TABLE(of, spacc_of_id_table);
 #endif /* CONFIG_OF */
 
+static void spacc_tasklet_kill(void *data)
+{
+	tasklet_kill(data);
+}
+
 static int spacc_probe(struct platform_device *pdev)
 {
 	int i, err, ret;
@@ -1636,6 +1628,14 @@ static int spacc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "no memory/irq resource for engine\n");
 		return -ENXIO;
 	}
+
+	tasklet_init(&engine->complete, spacc_spacc_complete,
+		     (unsigned long)engine);
+
+	ret = devm_add_action(&pdev->dev, spacc_tasklet_kill,
+			      &engine->complete);
+	if (ret)
+		return ret;
 
 	if (devm_request_irq(&pdev->dev, irq->start, spacc_spacc_irq, 0,
 			     engine->name, engine)) {
@@ -1694,8 +1694,6 @@ static int spacc_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&engine->completed);
 	INIT_LIST_HEAD(&engine->in_progress);
 	engine->in_flight = 0;
-	tasklet_init(&engine->complete, spacc_spacc_complete,
-		     (unsigned long)engine);
 
 	platform_set_drvdata(pdev, engine);
 
