@@ -2845,7 +2845,8 @@ static ssize_t i915_ipc_status_write(struct file *file, const char __user *ubuf,
 
 	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref) {
 		if (!dev_priv->ipc_enabled && enable)
-			DRM_INFO("Enabling IPC: WM will be proper only after next commit\n");
+			drm_info(&dev_priv->drm,
+				 "Enabling IPC: WM will be proper only after next commit\n");
 		dev_priv->wm.distrust_bios_wm = true;
 		dev_priv->ipc_enabled = enable;
 		intel_enable_ipc(dev_priv);
@@ -3045,7 +3046,8 @@ static ssize_t i915_displayport_test_active_write(struct file *file,
 	if (IS_ERR(input_buffer))
 		return PTR_ERR(input_buffer);
 
-	DRM_DEBUG_DRIVER("Copied %d bytes from user\n", (unsigned int)len);
+	drm_dbg(&to_i915(dev)->drm,
+		"Copied %d bytes from user\n", (unsigned int)len);
 
 	drm_connector_list_iter_begin(dev, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
@@ -3064,7 +3066,8 @@ static ssize_t i915_displayport_test_active_write(struct file *file,
 			status = kstrtoint(input_buffer, 10, &val);
 			if (status < 0)
 				break;
-			DRM_DEBUG_DRIVER("Got %d for test active\n", val);
+			drm_dbg(&to_i915(dev)->drm,
+				"Got %d for test active\n", val);
 			/* To prevent erroneous activation of the compliance
 			 * testing code, only accept an actual value of 1 here
 			 */
@@ -3633,7 +3636,8 @@ i915_cache_sharing_set(void *data, u64 val)
 	if (val > 3)
 		return -EINVAL;
 
-	DRM_DEBUG_DRIVER("Manually setting uncore sharing to %llu\n", val);
+	drm_dbg(&dev_priv->drm,
+		"Manually setting uncore sharing to %llu\n", val);
 	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref) {
 		u32 snpcr;
 
@@ -4433,20 +4437,21 @@ static ssize_t i915_dsc_fec_support_write(struct file *file,
 	struct drm_connector *connector =
 		((struct seq_file *)file->private_data)->private;
 	struct intel_encoder *encoder = intel_attached_encoder(to_intel_connector(connector));
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
 	if (len == 0)
 		return 0;
 
-	DRM_DEBUG_DRIVER("Copied %zu bytes from user to force DSC\n",
-			 len);
+	drm_dbg(&i915->drm,
+		"Copied %zu bytes from user to force DSC\n", len);
 
 	ret = kstrtobool_from_user(ubuf, len, &dsc_enable);
 	if (ret < 0)
 		return ret;
 
-	DRM_DEBUG_DRIVER("Got %s for DSC Enable\n",
-			 (dsc_enable) ? "true" : "false");
+	drm_dbg(&i915->drm, "Got %s for DSC Enable\n",
+		(dsc_enable) ? "true" : "false");
 	intel_dp->force_dsc_en = dsc_enable;
 
 	*offp += len;
