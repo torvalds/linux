@@ -3921,15 +3921,16 @@ static int tegra_sor_probe(struct platform_device *pdev)
 	if (!sor->clk_pad) {
 		char *name;
 
-		err = host1x_client_resume(&sor->client);
-		if (err < 0) {
-			dev_err(sor->dev, "failed to resume: %d\n", err);
+		name = devm_kasprintf(sor->dev, GFP_KERNEL, "sor%u_pad_clkout",
+				      sor->index);
+		if (!name) {
+			err = -ENOMEM;
 			goto remove;
 		}
 
-		name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "sor%u_pad_clkout", sor->index);
-		if (!name) {
-			err = -ENOMEM;
+		err = host1x_client_resume(&sor->client);
+		if (err < 0) {
+			dev_err(sor->dev, "failed to resume: %d\n", err);
 			goto remove;
 		}
 
