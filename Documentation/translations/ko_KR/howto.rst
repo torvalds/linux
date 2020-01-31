@@ -328,7 +328,7 @@ Andrew Morton의 글이 있다.
 거쳐야 한다. 이런 목적으로, 모든 서브시스템 트리의 변경사항을 거의 매일
 받아가는 특수한 테스트 저장소가 존재한다:
 
-       https://git.kernel.org/?p=linux/kernel/git/sfr/linux-next.git
+       https://git.kernel.org/?p=linux/kernel/git/next/linux-next.git
 
 이런 식으로, linux-next 커널을 통해 다음 머지 기간에 메인라인 커널에 어떤
 변경이 가해질 것인지 간략히 알 수 있다. 모험심 강한 테스터라면 linux-next
