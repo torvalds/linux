@@ -3,8 +3,6 @@
 #define DFLTCC_UTIL_H
 
 #include <linux/zutil.h>
-#include <asm/facility.h>
-#include <asm/setup.h>
 
 /*
  * C wrapper for the DEFLATE CONVERSION CALL instruction.
@@ -24,7 +22,6 @@ typedef enum {
 #define HBT_CIRCULAR (1 << 7)
 #define HB_BITS 15
 #define HB_SIZE (1 << HB_BITS)
-#define DFLTCC_FACILITY 151
 
 static inline dfltcc_cc dfltcc(
     int fn,
@@ -99,12 +96,6 @@ static inline int dfltcc_are_params_ok(
     return (level_mask & (1 << level)) != 0 &&
         (window_bits == HB_BITS) &&
         (strategy == Z_DEFAULT_STRATEGY);
-}
-
-static inline int is_dfltcc_enabled(void)
-{
-    return (zlib_dfltcc_support != ZLIB_DFLTCC_DISABLED &&
-            test_facility(DFLTCC_FACILITY));
 }
 
 char *oesc_msg(char *buf, int oesc);
