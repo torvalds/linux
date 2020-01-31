@@ -981,6 +981,11 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		if (!supp_he)
 			supp_he = !!ieee80211_get_he_sta_cap(sband);
 
+		/* HT, VHT, HE require QoS, thus >= 4 queues */
+		if (WARN_ON(local->hw.queues < IEEE80211_NUM_ACS &&
+			    (supp_ht || supp_vht || supp_he)))
+			return -EINVAL;
+
 		if (!sband->ht_cap.ht_supported)
 			continue;
 
