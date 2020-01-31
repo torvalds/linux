@@ -780,7 +780,7 @@ int bch2_trans_update(struct btree_trans *trans, struct btree_iter *iter,
 
 	iter->flags |= BTREE_ITER_KEEP_UNTIL_COMMIT;
 
-	if (iter->flags & BTREE_ITER_IS_EXTENTS) {
+	if (btree_node_type_is_extents(iter->btree_id)) {
 		iter->pos_after_commit = k->k.p;
 		iter->flags |= BTREE_ITER_SET_POS_AFTER_COMMIT;
 	}
@@ -898,7 +898,7 @@ retry:
 		 */
 		delete.k.p = iter->pos;
 
-		if (iter->flags & BTREE_ITER_IS_EXTENTS) {
+		if (btree_node_type_is_extents(iter->btree_id)) {
 			unsigned max_sectors =
 				KEY_SIZE_MAX & (~0 << trans->c->block_bits);
 

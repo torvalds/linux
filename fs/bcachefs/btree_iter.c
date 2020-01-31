@@ -408,7 +408,7 @@ static void __bch2_btree_iter_verify(struct btree_iter *iter,
 	 * For extents, the iterator may have skipped past deleted keys (but not
 	 * whiteouts)
 	 */
-	k = b->c.level || iter->flags & BTREE_ITER_IS_EXTENTS
+	k = b->c.level || btree_node_type_is_extents(iter->btree_id)
 		? bch2_btree_node_iter_prev_filter(&tmp, b, KEY_TYPE_discard)
 		: bch2_btree_node_iter_prev_all(&tmp, b);
 	if (k && bkey_iter_pos_cmp(b, k, &pos) >= 0) {
@@ -563,7 +563,7 @@ fixup_done:
 	if (!bch2_btree_node_iter_end(node_iter) &&
 	    iter_current_key_modified &&
 	    (b->c.level ||
-	     (iter->flags & BTREE_ITER_IS_EXTENTS))) {
+	     btree_node_type_is_extents(iter->btree_id))) {
 		struct bset_tree *t;
 		struct bkey_packed *k, *k2, *p;
 
