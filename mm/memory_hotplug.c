@@ -1182,7 +1182,7 @@ static bool is_pageblock_removable_nolock(unsigned long pfn)
 	if (!zone_spans_pfn(zone, pfn))
 		return false;
 
-	return !has_unmovable_pages(zone, page, 0, MIGRATE_MOVABLE,
+	return !has_unmovable_pages(zone, page, MIGRATE_MOVABLE,
 				    MEMORY_OFFLINE);
 }
 

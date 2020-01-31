@@ -37,7 +37,7 @@ static int set_migratetype_isolate(struct page *page, int migratetype, int isol_
 	 * FIXME: Now, memory hotplug doesn't call shrink_slab() by itself.
 	 * We just check MOVABLE pages.
 	 */
-	if (!has_unmovable_pages(zone, page, 0, migratetype, isol_flags)) {
+	if (!has_unmovable_pages(zone, page, migratetype, isol_flags)) {
 		unsigned long nr_pages;
 		int mt = get_pageblock_migratetype(page);
 
