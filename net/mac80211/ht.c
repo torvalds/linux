@@ -550,19 +550,6 @@ void ieee80211_request_smps_mgd_work(struct work_struct *work)
 	sdata_unlock(sdata);
 }
 
-void ieee80211_request_smps_ap_work(struct work_struct *work)
-{
-	struct ieee80211_sub_if_data *sdata =
-		container_of(work, struct ieee80211_sub_if_data,
-			     u.ap.request_smps_work);
-
-	sdata_lock(sdata);
-	if (sdata_dereference(sdata->u.ap.beacon, sdata))
-		__ieee80211_request_smps_ap(sdata,
-					    sdata->u.ap.driver_smps_mode);
-	sdata_unlock(sdata);
-}
-
 void ieee80211_request_smps(struct ieee80211_vif *vif,
 			    enum ieee80211_smps_mode smps_mode)
 {
@@ -578,15 +565,6 @@ void ieee80211_request_smps(struct ieee80211_vif *vif,
 		sdata->u.mgd.driver_smps_mode = smps_mode;
 		ieee80211_queue_work(&sdata->local->hw,
 				     &sdata->u.mgd.request_smps_work);
-	} else {
-		/* AUTOMATIC is meaningless in AP mode */
-		if (WARN_ON_ONCE(smps_mode == IEEE80211_SMPS_AUTOMATIC))
-			return;
-		if (sdata->u.ap.driver_smps_mode == smps_mode)
-			return;
-		sdata->u.ap.driver_smps_mode = smps_mode;
-		ieee80211_queue_work(&sdata->local->hw,
-				     &sdata->u.ap.request_smps_work);
 	}
 }
 /* this might change ... don't want non-open drivers using it */
