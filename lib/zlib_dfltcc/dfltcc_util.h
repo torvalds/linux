@@ -4,6 +4,7 @@
 
 #include <linux/zutil.h>
 #include <asm/facility.h>
+#include <asm/setup.h>
 
 /*
  * C wrapper for the DEFLATE CONVERSION CALL instruction.
@@ -102,7 +103,8 @@ static inline int dfltcc_are_params_ok(
 
 static inline int is_dfltcc_enabled(void)
 {
-    return test_facility(DFLTCC_FACILITY);
+    return (zlib_dfltcc_support != ZLIB_DFLTCC_DISABLED &&
+            test_facility(DFLTCC_FACILITY));
 }
 
 char *oesc_msg(char *buf, int oesc);

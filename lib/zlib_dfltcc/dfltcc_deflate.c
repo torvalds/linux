@@ -3,6 +3,7 @@
 #include "../zlib_deflate/defutil.h"
 #include "dfltcc_util.h"
 #include "dfltcc.h"
+#include <asm/setup.h>
 #include <linux/zutil.h>
 
 /*
@@ -14,6 +15,11 @@ int dfltcc_can_deflate(
 {
     deflate_state *state = (deflate_state *)strm->state;
     struct dfltcc_state *dfltcc_state = GET_DFLTCC_STATE(state);
+
+    /* Check for kernel dfltcc command line parameter */
+    if (zlib_dfltcc_support == ZLIB_DFLTCC_DISABLED ||
+            zlib_dfltcc_support == ZLIB_DFLTCC_INFLATE_ONLY)
+        return 0;
 
     /* Unsupported compression settings */
     if (!dfltcc_are_params_ok(state->level, state->w_bits, state->strategy,
