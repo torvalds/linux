@@ -57,11 +57,11 @@ static int wcd_gpio_direction_output(struct gpio_chip *chip, unsigned int pin,
 static int wcd_gpio_get(struct gpio_chip *chip, unsigned int pin)
 {
 	struct wcd_gpio_data *data = gpiochip_get_data(chip);
-	int value;
+	unsigned int value;
 
 	regmap_read(data->map, WCD_REG_VAL_CTL_OFFSET, &value);
 
-	return !!(value && WCD_PIN_MASK(pin));
+	return !!(value & WCD_PIN_MASK(pin));
 }
 
 static void wcd_gpio_set(struct gpio_chip *chip, unsigned int pin, int val)
