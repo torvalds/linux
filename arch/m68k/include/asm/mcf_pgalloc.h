@@ -55,12 +55,8 @@ static inline struct page *pte_alloc_one(struct mm_struct *mm)
 	}
 
 	pte = kmap(page);
-	if (pte) {
+	if (pte)
 		clear_page(pte);
-		__flush_page_to_ram(pte);
-		flush_tlb_kernel_page(pte);
-		nocache_page(pte);
-	}
 	kunmap(page);
 
 	return page;
