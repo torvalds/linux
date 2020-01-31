@@ -593,14 +593,8 @@ remote_event_signal(struct remote_event *event);
 void
 vchiq_platform_check_suspend(struct vchiq_state *state);
 
-extern void
-vchiq_platform_paused(struct vchiq_state *state);
-
 extern enum vchiq_status
 vchiq_platform_resume(struct vchiq_state *state);
-
-extern void
-vchiq_platform_resumed(struct vchiq_state *state);
 
 extern int
 vchiq_dump(void *dump_context, const char *str, int len);
