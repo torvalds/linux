@@ -2186,7 +2186,7 @@ static int elf_core_dump(struct coredump_params *cprm)
 	int segs, i;
 	size_t vma_data_size = 0;
 	struct vm_area_struct *vma, *gate_vma;
-	struct elfhdr *elf = NULL;
+	struct elfhdr elf;
 	loff_t offset = 0, dataoff;
 	struct elf_note_info info = { };
 	struct elf_phdr *phdr4note = NULL;
@@ -2207,10 +2207,6 @@ static int elf_core_dump(struct coredump_params *cprm)
 	 * exists while dumping the mm->vm_next areas to the core file.
 	 */
   
-	/* alloc memory for large data structures: too large to be on stack */
-	elf = kmalloc(sizeof(*elf), GFP_KERNEL);
-	if (!elf)
-		goto out;
 	/*
 	 * The number of segs are recored into ELF header as 16bit value.
 	 * Please check DEFAULT_MAX_MAP_COUNT definition when you modify here.
@@ -2234,7 +2230,7 @@ static int elf_core_dump(struct coredump_params *cprm)
 	 * Collect all the non-memory information about the process for the
 	 * notes.  This also sets up the file header.
 	 */
-	if (!fill_note_info(elf, e_phnum, &info, cprm->siginfo, cprm->regs))
+	if (!fill_note_info(&elf, e_phnum, &info, cprm->siginfo, cprm->regs))
 		goto cleanup;
 
 	has_dumped = 1;
@@ -2242,7 +2238,7 @@ static int elf_core_dump(struct coredump_params *cprm)
 	fs = get_fs();
 	set_fs(KERNEL_DS);
 
-	offset += sizeof(*elf);				/* Elf header */
+	offset += sizeof(elf);				/* Elf header */
 	offset += segs * sizeof(struct elf_phdr);	/* Program headers */
 
 	/* Write notes phdr entry */
@@ -2285,12 +2281,12 @@ static int elf_core_dump(struct coredump_params *cprm)
 		shdr4extnum = kmalloc(sizeof(*shdr4extnum), GFP_KERNEL);
 		if (!shdr4extnum)
 			goto end_coredump;
-		fill_extnum_info(elf, shdr4extnum, e_shoff, segs);
+		fill_extnum_info(&elf, shdr4extnum, e_shoff, segs);
 	}
 
 	offset = dataoff;
 
-	if (!dump_emit(cprm, elf, sizeof(*elf)))
+	if (!dump_emit(cprm, &elf, sizeof(elf)))
 		goto end_coredump;
 
 	if (!dump_emit(cprm, phdr4note, sizeof(*phdr4note)))
@@ -2374,8 +2370,6 @@ cleanup:
 	kfree(shdr4extnum);
 	kvfree(vma_filesz);
 	kfree(phdr4note);
-	kfree(elf);
-out:
 	return has_dumped;
 }
 
