@@ -247,8 +247,6 @@ int dynevent_arg_add(struct dynevent_cmd *cmd,
 		     dynevent_check_arg_fn_t check_arg)
 {
 	int ret = 0;
-	int delta;
-	char *q;
 
 	if (check_arg) {
 		ret = check_arg(arg);
@@ -256,14 +254,11 @@ int dynevent_arg_add(struct dynevent_cmd *cmd,
 			return ret;
 	}
 
-	q = cmd->buf + (cmd->maxlen - cmd->remaining);
-
-	delta = snprintf(q, cmd->remaining, " %s%c", arg->str, arg->separator);
-	if (delta >= cmd->remaining) {
-		pr_err("String is too long: %s\n", arg->str);
+	ret = seq_buf_printf(&cmd->seq, " %s%c", arg->str, arg->separator);
+	if (ret) {
+		pr_err("String is too long: %s%c\n", arg->str, arg->separator);
 		return -E2BIG;
 	}
-	cmd->remaining -= delta;
 
 	return ret;
 }
@@ -297,8 +292,6 @@ int dynevent_arg_pair_add(struct dynevent_cmd *cmd,
 			  dynevent_check_arg_fn_t check_arg)
 {
 	int ret = 0;
-	int delta;
-	char *q;
 
 	if (check_arg) {
 		ret = check_arg(arg_pair);
@@ -306,23 +299,15 @@ int dynevent_arg_pair_add(struct dynevent_cmd *cmd,
 			return ret;
 	}
 
-	q = cmd->buf + (cmd->maxlen - cmd->remaining);
-
-	delta = snprintf(q, cmd->remaining, " %s%c", arg_pair->lhs,
-			 arg_pair->operator);
-	if (delta >= cmd->remaining) {
-		pr_err("field string is too long: %s\n", arg_pair->lhs);
+	ret = seq_buf_printf(&cmd->seq, " %s%c%s%c", arg_pair->lhs,
+			     arg_pair->operator, arg_pair->rhs,
+			     arg_pair->separator);
+	if (ret) {
+		pr_err("field string is too long: %s%c%s%c\n", arg_pair->lhs,
+		       arg_pair->operator, arg_pair->rhs,
+		       arg_pair->separator);
 		return -E2BIG;
 	}
-	cmd->remaining -= delta; q += delta;
-
-	delta = snprintf(q, cmd->remaining, "%s%c", arg_pair->rhs,
-			 arg_pair->separator);
-	if (delta >= cmd->remaining) {
-		pr_err("field string is too long: %s\n", arg_pair->rhs);
-		return -E2BIG;
-	}
-	cmd->remaining -= delta;
 
 	return ret;
 }
@@ -340,17 +325,12 @@ int dynevent_arg_pair_add(struct dynevent_cmd *cmd,
 int dynevent_str_add(struct dynevent_cmd *cmd, const char *str)
 {
 	int ret = 0;
-	int delta;
-	char *q;
 
-	q = cmd->buf + (cmd->maxlen - cmd->remaining);
-
-	delta = snprintf(q, cmd->remaining, "%s", str);
-	if (delta >= cmd->remaining) {
+	ret = seq_buf_puts(&cmd->seq, str);
+	if (ret) {
 		pr_err("String is too long: %s\n", str);
 		return -E2BIG;
 	}
-	cmd->remaining -= delta;
 
 	return ret;
 }
@@ -381,9 +361,7 @@ void dynevent_cmd_init(struct dynevent_cmd *cmd, char *buf, int maxlen,
 {
 	memset(cmd, '\0', sizeof(*cmd));
 
-	cmd->buf = buf;
-	cmd->maxlen = maxlen;
-	cmd->remaining = cmd->maxlen;
+	seq_buf_init(&cmd->seq, buf, maxlen);
 	cmd->type = type;
 	cmd->run_command = run_command;
 }

@@ -367,10 +367,8 @@ struct dynevent_cmd;
 typedef int (*dynevent_create_fn_t)(struct dynevent_cmd *cmd);
 
 struct dynevent_cmd {
-	char			*buf;
+	struct seq_buf		seq;
 	const char		*event_name;
-	int			maxlen;
-	int			remaining;
 	unsigned int		n_fields;
 	enum dynevent_type	type;
 	dynevent_create_fn_t	run_command;

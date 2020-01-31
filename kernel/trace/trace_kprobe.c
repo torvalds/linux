@@ -903,7 +903,7 @@ static int create_or_delete_trace_kprobe(int argc, char **argv)
 
 static int trace_kprobe_run_command(struct dynevent_cmd *cmd)
 {
-	return trace_run_command(cmd->buf, create_or_delete_trace_kprobe);
+	return trace_run_command(cmd->seq.buffer, create_or_delete_trace_kprobe);
 }
 
 /**

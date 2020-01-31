@@ -1762,7 +1762,7 @@ static int synth_event_run_command(struct dynevent_cmd *cmd)
 	struct synth_event *se;
 	int ret;
 
-	ret = trace_run_command(cmd->buf, create_or_delete_synth_event);
+	ret = trace_run_command(cmd->seq.buffer, create_or_delete_synth_event);
 	if (ret)
 		return ret;
 
