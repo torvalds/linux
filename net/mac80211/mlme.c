@@ -313,8 +313,8 @@ out:
 		ret |= ieee80211_chandef_downgrade(chandef);
 	}
 
-	if (!cfg80211_chandef_usable(sdata->wdev.wiphy, chandef,
-				     IEEE80211_CHAN_NO_HE))
+	if (!he_oper || !cfg80211_chandef_usable(sdata->wdev.wiphy, chandef,
+						 IEEE80211_CHAN_NO_HE))
 		ret |= IEEE80211_STA_DISABLE_HE;
 
 	if (chandef->width != vht_chandef.width && !tracking)
