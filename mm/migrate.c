@@ -986,7 +986,7 @@ static int move_to_new_page(struct page *newpage, struct page *page,
 		}
 
 		/*
-		 * Anonymous and movable page->mapping will be cleard by
+		 * Anonymous and movable page->mapping will be cleared by
 		 * free_pages_prepare so don't reset it here for keeping
 		 * the type to work PageAnon, for example.
 		 */
@@ -1199,8 +1199,7 @@ out:
 		/*
 		 * A page that has been migrated has all references
 		 * removed and will be freed. A page that has not been
-		 * migrated will have kepts its references and be
-		 * restored.
+		 * migrated will have kept its references and be restored.
 		 */
 		list_del(&page->lru);
 
@@ -2779,27 +2778,18 @@ static void migrate_vma_insert_page(struct migrate_vma *migrate,
 	if (pte_present(*ptep)) {
 		unsigned long pfn = pte_pfn(*ptep);
 
-		if (!is_zero_pfn(pfn)) {
-			pte_unmap_unlock(ptep, ptl);
-			mem_cgroup_cancel_charge(page, memcg, false);
-			goto abort;
-		}
+		if (!is_zero_pfn(pfn))
+			goto unlock_abort;
 		flush = true;
-	} else if (!pte_none(*ptep)) {
-		pte_unmap_unlock(ptep, ptl);
-		mem_cgroup_cancel_charge(page, memcg, false);
-		goto abort;
-	}
+	} else if (!pte_none(*ptep))
+		goto unlock_abort;
 
 	/*
-	 * Check for usefaultfd but do not deliver the fault. Instead,
+	 * Check for userfaultfd but do not deliver the fault. Instead,
 	 * just back off.
 	 */
-	if (userfaultfd_missing(vma)) {
-		pte_unmap_unlock(ptep, ptl);
-		mem_cgroup_cancel_charge(page, memcg, false);
-		goto abort;
-	}
+	if (userfaultfd_missing(vma))
+		goto unlock_abort;
 
 	inc_mm_counter(mm, MM_ANONPAGES);
 	page_add_new_anon_rmap(page, vma, addr, false);
@@ -2823,6 +2813,9 @@ static void migrate_vma_insert_page(struct migrate_vma *migrate,
 	*src = MIGRATE_PFN_MIGRATE;
 	return;
 
+unlock_abort:
+	pte_unmap_unlock(ptep, ptl);
+	mem_cgroup_cancel_charge(page, memcg, false);
 abort:
 	*src &= ~MIGRATE_PFN_MIGRATE;
 }
@@ -2855,9 +2848,8 @@ void migrate_vma_pages(struct migrate_vma *migrate)
 		}
 
 		if (!page) {
-			if (!(migrate->src[i] & MIGRATE_PFN_MIGRATE)) {
+			if (!(migrate->src[i] & MIGRATE_PFN_MIGRATE))
 				continue;
-			}
 			if (!notified) {
 				notified = true;
 
