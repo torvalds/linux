@@ -2053,24 +2053,72 @@ out:
 }
 EXPORT_SYMBOL_GPL(synth_event_trace_start);
 
-static int save_synth_val(struct synth_field *field, u64 val,
-			  struct synth_event_trace_state *trace_state)
+static int __synth_event_add_val(const char *field_name, u64 val,
+				 struct synth_event_trace_state *trace_state)
 {
-	struct synth_trace_event *entry = trace_state->entry;
+	struct synth_field *field = NULL;
+	struct synth_trace_event *entry;
+	struct synth_event *event;
+	int i, ret = 0;
 
+	if (!trace_state) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	/* can't mix add_next_synth_val() with add_synth_val() */
+	if (field_name) {
+		if (trace_state->add_next) {
+			ret = -EINVAL;
+			goto out;
+		}
+		trace_state->add_name = true;
+	} else {
+		if (trace_state->add_name) {
+			ret = -EINVAL;
+			goto out;
+		}
+		trace_state->add_next = true;
+	}
+
+	if (!trace_state->enabled)
+		goto out;
+
+	event = trace_state->event;
+	if (trace_state->add_name) {
+		for (i = 0; i < event->n_fields; i++) {
+			field = event->fields[i];
+			if (strcmp(field->name, field_name) == 0)
+				break;
+		}
+		if (!field) {
+			ret = -EINVAL;
+			goto out;
+		}
+	} else {
+		if (trace_state->cur_field >= event->n_fields) {
+			ret = -EINVAL;
+			goto out;
+		}
+		field = event->fields[trace_state->cur_field++];
+	}
+
+	entry = trace_state->entry;
 	if (field->is_string) {
 		char *str_val = (char *)(long)val;
 		char *str_field;
 
-		if (!str_val)
-			return -EINVAL;
+		if (!str_val) {
+			ret = -EINVAL;
+			goto out;
+		}
 
 		str_field = (char *)&entry->fields[field->offset];
 		strscpy(str_field, str_val, STR_VAR_LEN_MAX);
 	} else
 		entry->fields[field->offset] = val;
-
-	return 0;
+ out:
+	return ret;
 }
 
 /**
@@ -2104,53 +2152,9 @@ static int save_synth_val(struct synth_field *field, u64 val,
 int synth_event_add_next_val(u64 val,
 			     struct synth_event_trace_state *trace_state)
 {
-	struct synth_field *field;
-	struct synth_event *event;
-	int ret = 0;
-
-	if (!trace_state) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	/* can't mix add_next_synth_val() with add_synth_val() */
-	if (trace_state->add_name) {
-		ret = -EINVAL;
-		goto out;
-	}
-	trace_state->add_next = true;
-
-	if (!trace_state->enabled)
-		goto out;
-
-	event = trace_state->event;
-
-	if (trace_state->cur_field >= event->n_fields) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	field = event->fields[trace_state->cur_field++];
-	ret = save_synth_val(field, val, trace_state);
- out:
-	return ret;
+	return __synth_event_add_val(NULL, val, trace_state);
 }
 EXPORT_SYMBOL_GPL(synth_event_add_next_val);
-
-static struct synth_field *find_synth_field(struct synth_event *event,
-					    const char *field_name)
-{
-	struct synth_field *field = NULL;
-	unsigned int i;
-
-	for (i = 0; i < event->n_fields; i++) {
-		field = event->fields[i];
-		if (strcmp(field->name, field_name) == 0)
-			return field;
-	}
-
-	return NULL;
-}
 
 /**
  * synth_event_add_val - Add a named field's value to an open synth trace
@@ -2183,38 +2187,7 @@ static struct synth_field *find_synth_field(struct synth_event *event,
 int synth_event_add_val(const char *field_name, u64 val,
 			struct synth_event_trace_state *trace_state)
 {
-	struct synth_trace_event *entry;
-	struct synth_event *event;
-	struct synth_field *field;
-	int ret = 0;
-
-	if (!trace_state) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	/* can't mix add_next_synth_val() with add_synth_val() */
-	if (trace_state->add_next) {
-		ret = -EINVAL;
-		goto out;
-	}
-	trace_state->add_name = true;
-
-	if (!trace_state->enabled)
-		goto out;
-
-	event = trace_state->event;
-	entry = trace_state->entry;
-
-	field = find_synth_field(event, field_name);
-	if (!field) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	ret = save_synth_val(field, val, trace_state);
- out:
-	return ret;
+	return __synth_event_add_val(field_name, val, trace_state);
 }
 EXPORT_SYMBOL_GPL(synth_event_add_val);
 
