@@ -1914,7 +1914,7 @@ static int i915_guc_log_relay_open(struct inode *inode, struct file *file)
 	struct intel_guc *guc = &i915->gt.uc.guc;
 	struct intel_guc_log *log = &guc->log;
 
-	if (!intel_guc_is_running(guc))
+	if (!intel_guc_is_ready(guc))
 		return -ENODEV;
 
 	file->private_data = log;

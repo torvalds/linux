@@ -279,7 +279,7 @@ void intel_guc_ct_disable(struct intel_guc_ct *ct)
 
 	ct->enabled = false;
 
-	if (intel_guc_is_running(guc)) {
+	if (intel_guc_is_fw_running(guc)) {
 		ct_deregister_buffer(ct, INTEL_GUC_CT_BUFFER_TYPE_SEND);
 		ct_deregister_buffer(ct, INTEL_GUC_CT_BUFFER_TYPE_RECV);
 	}

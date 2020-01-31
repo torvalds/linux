@@ -148,9 +148,14 @@ static inline bool intel_guc_is_enabled(struct intel_guc *guc)
 	return intel_uc_fw_is_enabled(&guc->fw);
 }
 
-static inline bool intel_guc_is_running(struct intel_guc *guc)
+static inline bool intel_guc_is_fw_running(struct intel_guc *guc)
 {
 	return intel_uc_fw_is_running(&guc->fw);
+}
+
+static inline bool intel_guc_is_ready(struct intel_guc *guc)
+{
+	return intel_guc_is_fw_running(guc) && intel_guc_ct_enabled(&guc->ct);
 }
 
 static inline int intel_guc_sanitize(struct intel_guc *guc)
