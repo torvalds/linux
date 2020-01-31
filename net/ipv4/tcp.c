@@ -2643,6 +2643,8 @@ int tcp_disconnect(struct sock *sk, int flags)
 	tp->bytes_acked = 0;
 	tp->bytes_received = 0;
 	tp->bytes_retrans = 0;
+	tp->data_segs_in = 0;
+	tp->data_segs_out = 0;
 	tp->duplicate_sack[0].start_seq = 0;
 	tp->duplicate_sack[0].end_seq = 0;
 	tp->dsack_dups = 0;
