@@ -219,7 +219,7 @@ since the system was booted, via two new /proc/vmstat entries: ::
     /proc/vmstat/nr_foll_pin_requested
 
 Those are both going to show zero, unless CONFIG_DEBUG_VM is set. This is
-because there is a noticeable performance drop in put_user_page(), when they
+because there is a noticeable performance drop in unpin_user_page(), when they
 are activated.
 
 References

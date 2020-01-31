@@ -126,8 +126,8 @@ static int process_vm_rw_single_vec(unsigned long addr,
 		pa += pinned_pages * PAGE_SIZE;
 
 		/* If vm_write is set, the pages need to be made dirty: */
-		put_user_pages_dirty_lock(process_pages, pinned_pages,
-					  vm_write);
+		unpin_user_pages_dirty_lock(process_pages, pinned_pages,
+					    vm_write);
 	}
 
 	return rc;

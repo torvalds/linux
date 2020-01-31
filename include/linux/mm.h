@@ -1039,27 +1039,27 @@ static inline void put_page(struct page *page)
 }
 
 /**
- * put_user_page() - release a gup-pinned page
+ * unpin_user_page() - release a gup-pinned page
  * @page:            pointer to page to be released
  *
  * Pages that were pinned via pin_user_pages*() must be released via either
- * put_user_page(), or one of the put_user_pages*() routines. This is so that
- * eventually such pages can be separately tracked and uniquely handled. In
+ * unpin_user_page(), or one of the unpin_user_pages*() routines. This is so
+ * that eventually such pages can be separately tracked and uniquely handled. In
  * particular, interactions with RDMA and filesystems need special handling.
  *
- * put_user_page() and put_page() are not interchangeable, despite this early
- * implementation that makes them look the same. put_user_page() calls must
+ * unpin_user_page() and put_page() are not interchangeable, despite this early
+ * implementation that makes them look the same. unpin_user_page() calls must
  * be perfectly matched up with pin*() calls.
  */
-static inline void put_user_page(struct page *page)
+static inline void unpin_user_page(struct page *page)
 {
 	put_page(page);
 }
 
-void put_user_pages_dirty_lock(struct page **pages, unsigned long npages,
-			       bool make_dirty);
+void unpin_user_pages_dirty_lock(struct page **pages, unsigned long npages,
+				 bool make_dirty);
 
-void put_user_pages(struct page **pages, unsigned long npages);
+void unpin_user_pages(struct page **pages, unsigned long npages);
 
 #if defined(CONFIG_SPARSEMEM) && !defined(CONFIG_SPARSEMEM_VMEMMAP)
 #define SECTION_IN_PAGE_FLAGS
@@ -2590,7 +2590,7 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
 #define FOLL_ANON	0x8000	/* don't do file mappings */
 #define FOLL_LONGTERM	0x10000	/* mapping lifetime is indefinite: see below */
 #define FOLL_SPLIT_PMD	0x20000	/* split huge pmd before returning */
-#define FOLL_PIN	0x40000	/* pages must be released via put_user_page() */
+#define FOLL_PIN	0x40000	/* pages must be released via unpin_user_page */
 
 /*
  * FOLL_PIN and FOLL_LONGTERM may be used in various combinations with each
@@ -2625,7 +2625,7 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
  * Direct IO). This lets the filesystem know that some non-file-system entity is
  * potentially changing the pages' data. In contrast to FOLL_GET (whose pages
  * are released via put_page()), FOLL_PIN pages must be released, ultimately, by
- * a call to put_user_page().
+ * a call to unpin_user_page().
  *
  * FOLL_PIN is similar to FOLL_GET: both of these pin pages. They use different
  * and separate refcounting mechanisms, however, and that means that each has
@@ -2633,7 +2633,7 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
  *
  *     FOLL_GET: get_user_pages*() to acquire, and put_page() to release.
  *
- *     FOLL_PIN: pin_user_pages*() to acquire, and put_user_pages to release.
+ *     FOLL_PIN: pin_user_pages*() to acquire, and unpin_user_pages to release.
  *
  * FOLL_PIN and FOLL_GET are mutually exclusive for a given function call.
  * (The underlying pages may experience both FOLL_GET-based and FOLL_PIN-based
@@ -2643,7 +2643,7 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
  * FOLL_PIN should be set internally by the pin_user_pages*() APIs, never
  * directly by the caller. That's in order to help avoid mismatches when
  * releasing pages: get_user_pages*() pages must be released via put_page(),
- * while pin_user_pages*() pages must be released via put_user_page().
+ * while pin_user_pages*() pages must be released via unpin_user_page().
  *
  * Please see Documentation/vm/pin_user_pages.rst for more information.
  */
