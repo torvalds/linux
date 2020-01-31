@@ -48,16 +48,6 @@
 int vchiq_arm_log_level = VCHIQ_LOG_DEFAULT;
 int vchiq_susp_log_level = VCHIQ_LOG_ERROR;
 
-/* The number of times we allow force suspend to timeout before actually
-** _forcing_ suspend.  This is to cater for SW which fails to release vchiq
-** correctly - we don't want to prevent ARM suspend indefinitely in this case.
-*/
-#define FORCE_SUSPEND_FAIL_MAX 8
-
-/* The time in ms allowed for videocore to go idle when force suspend has been
- * requested */
-#define FORCE_SUSPEND_TIMEOUT_MS 200
-
 struct user_service {
 	struct vchiq_service *service;
 	void *userdata;
