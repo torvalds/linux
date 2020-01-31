@@ -35,6 +35,9 @@ int intel_context_alloc_state(struct intel_context *ce);
 
 void intel_context_free(struct intel_context *ce);
 
+int intel_context_reconfigure_sseu(struct intel_context *ce,
+				   const struct intel_sseu sseu);
+
 /**
  * intel_context_lock_pinned - Stablises the 'pinned' status of the HW context
  * @ce - the context
