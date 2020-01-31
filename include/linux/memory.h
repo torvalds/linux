@@ -55,19 +55,6 @@ struct memory_notify {
 	int status_change_nid;
 };
 
-/*
- * During pageblock isolation, count the number of pages within the
- * range [start_pfn, start_pfn + nr_pages) which are owned by code
- * in the notifier chain.
- */
-#define MEM_ISOLATE_COUNT	(1<<0)
-
-struct memory_isolate_notify {
-	unsigned long start_pfn;	/* Start of range to check */
-	unsigned int nr_pages;		/* # pages in range to check */
-	unsigned int pages_found;	/* # pages owned found by callbacks */
-};
-
 struct notifier_block;
 struct mem_section;
 
@@ -94,27 +81,13 @@ static inline int memory_notify(unsigned long val, void *v)
 {
 	return 0;
 }
-static inline int register_memory_isolate_notifier(struct notifier_block *nb)
-{
-	return 0;
-}
-static inline void unregister_memory_isolate_notifier(struct notifier_block *nb)
-{
-}
-static inline int memory_isolate_notify(unsigned long val, void *v)
-{
-	return 0;
-}
 #else
 extern int register_memory_notifier(struct notifier_block *nb);
 extern void unregister_memory_notifier(struct notifier_block *nb);
-extern int register_memory_isolate_notifier(struct notifier_block *nb);
-extern void unregister_memory_isolate_notifier(struct notifier_block *nb);
 int create_memory_block_devices(unsigned long start, unsigned long size);
 void remove_memory_block_devices(unsigned long start, unsigned long size);
 extern void memory_dev_init(void);
 extern int memory_notify(unsigned long val, void *v);
-extern int memory_isolate_notify(unsigned long val, void *v);
 extern struct memory_block *find_memory_block(struct mem_section *);
 typedef int (*walk_memory_blocks_func_t)(struct memory_block *, void *);
 extern int walk_memory_blocks(unsigned long start, unsigned long size,
