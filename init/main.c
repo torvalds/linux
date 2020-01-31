@@ -246,8 +246,7 @@ static int __init loglevel(char *str)
 early_param("loglevel", loglevel);
 
 /* Change NUL term back to "=", to make "param" the whole string. */
-static int __init repair_env_string(char *param, char *val,
-				    const char *unused, void *arg)
+static void __init repair_env_string(char *param, char *val)
 {
 	if (val) {
 		/* param=val or param="val"? */
@@ -260,7 +259,6 @@ static int __init repair_env_string(char *param, char *val,
 		} else
 			BUG();
 	}
-	return 0;
 }
 
 /* Anything after -- gets handed straight to init. */
@@ -272,7 +270,7 @@ static int __init set_init_arg(char *param, char *val,
 	if (panic_later)
 		return 0;
 
-	repair_env_string(param, val, unused, NULL);
+	repair_env_string(param, val);
 
 	for (i = 0; argv_init[i]; i++) {
 		if (i == MAX_INIT_ARGS) {
@@ -292,7 +290,7 @@ static int __init set_init_arg(char *param, char *val,
 static int __init unknown_bootoption(char *param, char *val,
 				     const char *unused, void *arg)
 {
-	repair_env_string(param, val, unused, NULL);
+	repair_env_string(param, val);
 
 	/* Handle obsolete-style parameters */
 	if (obsolete_checksetup(param))
@@ -991,6 +989,12 @@ static const char *initcall_level_names[] __initdata = {
 	"late",
 };
 
+static int __init ignore_unknown_bootoption(char *param, char *val,
+			       const char *unused, void *arg)
+{
+	return 0;
+}
+
 static void __init do_initcall_level(int level)
 {
 	initcall_entry_t *fn;
@@ -1000,7 +1004,7 @@ static void __init do_initcall_level(int level)
 		   initcall_command_line, __start___param,
 		   __stop___param - __start___param,
 		   level, level,
-		   NULL, &repair_env_string);
+		   NULL, ignore_unknown_bootoption);
 
 	trace_initcall_level(initcall_level_names[level]);
 	for (fn = initcall_levels[level]; fn < initcall_levels[level+1]; fn++)
