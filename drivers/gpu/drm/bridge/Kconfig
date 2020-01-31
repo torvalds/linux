@@ -133,6 +133,16 @@ config DRM_TOSHIBA_TC358767
 	---help---
 	  Toshiba TC358767 eDP bridge chip driver.
 
+config DRM_TOSHIBA_TC358768
+	tristate "Toshiba TC358768 MIPI DSI bridge"
+	depends on OF
+	select DRM_KMS_HELPER
+	select REGMAP_I2C
+	select DRM_PANEL
+	select DRM_MIPI_DSI
+	help
+	  Toshiba TC358768AXBG/TC358778XBG DSI bridge chip driver.
+
 config DRM_TI_TFP410
 	tristate "TI TFP410 DVI/HDMI bridge"
 	depends on OF
