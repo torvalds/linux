@@ -801,6 +801,7 @@ ireelevant||irrelevant
 irrelevent||irrelevant
 isnt||isn't
 isssue||issue
+issus||issues
 iternations||iterations
 itertation||iteration
 itslef||itself
