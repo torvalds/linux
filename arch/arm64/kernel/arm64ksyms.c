@@ -92,3 +92,4 @@ EXPORT_SYMBOL(__lshrti3);
 EXPORT_SYMBOL_GPL(__dma_inv_area);
 EXPORT_SYMBOL_GPL(__dma_clean_area);
 EXPORT_SYMBOL_GPL(__dma_flush_area);
+EXPORT_SYMBOL_GPL(__flush_dcache_area);
