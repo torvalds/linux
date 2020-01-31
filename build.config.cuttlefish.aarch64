@@ -2,6 +2,7 @@
 . ${ROOT_DIR}/common/build.config.aarch64
 . ${ROOT_DIR}/common/build.config.gki
 
+BUILD_INITRAMFS=1
 DEFCONFIG=cf_aarch_64_gki_defconfig
 PRE_DEFCONFIG_CMDS="cat ./common/arch/arm64/configs/gki_defconfig ./common/cuttlefish.fragment > ./common/arch/arm64/configs/${DEFCONFIG};"
 POST_DEFCONFIG_CMDS="rm ./common/arch/arm64/configs/${DEFCONFIG}"
