@@ -1978,6 +1978,29 @@ static int __gup_device_huge_pud(pud_t pud, pud_t *pudp, unsigned long addr,
 }
 #endif
 
+static int record_subpages(struct page *page, unsigned long addr,
+			   unsigned long end, struct page **pages)
+{
+	int nr;
+
+	for (nr = 0; addr != end; addr += PAGE_SIZE)
+		pages[nr++] = page++;
+
+	return nr;
+}
+
+static void put_compound_head(struct page *page, int refs)
+{
+	VM_BUG_ON_PAGE(page_ref_count(page) < refs, page);
+	/*
+	 * Calling put_page() for each ref is unnecessarily slow. Only the last
+	 * ref needs a put_page().
+	 */
+	if (refs > 1)
+		page_ref_sub(page, refs - 1);
+	put_page(page);
+}
+
 #ifdef CONFIG_ARCH_HAS_HUGEPD
 static unsigned long hugepte_addr_end(unsigned long addr, unsigned long end,
 				      unsigned long sz)
@@ -2007,32 +2030,20 @@ static int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long addr,
 	/* hugepages are never "special" */
 	VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
 
-	refs = 0;
 	head = pte_page(pte);
-
 	page = head + ((addr & (sz-1)) >> PAGE_SHIFT);
-	do {
-		VM_BUG_ON(compound_head(page) != head);
-		pages[*nr] = page;
-		(*nr)++;
-		page++;
-		refs++;
-	} while (addr += PAGE_SIZE, addr != end);
+	refs = record_subpages(page, addr, end, pages + *nr);
 
 	head = try_get_compound_head(head, refs);
-	if (!head) {
-		*nr -= refs;
+	if (!head)
 		return 0;
-	}
 
 	if (unlikely(pte_val(pte) != pte_val(*ptep))) {
-		/* Could be optimized better */
-		*nr -= refs;
-		while (refs--)
-			put_page(head);
+		put_compound_head(head, refs);
 		return 0;
 	}
 
+	*nr += refs;
 	SetPageReferenced(head);
 	return 1;
 }
@@ -2079,28 +2090,19 @@ static int gup_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
 		return __gup_device_huge_pmd(orig, pmdp, addr, end, pages, nr);
 	}
 
-	refs = 0;
 	page = pmd_page(orig) + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
-	do {
-		pages[*nr] = page;
-		(*nr)++;
-		page++;
-		refs++;
-	} while (addr += PAGE_SIZE, addr != end);
+	refs = record_subpages(page, addr, end, pages + *nr);
 
 	head = try_get_compound_head(pmd_page(orig), refs);
-	if (!head) {
-		*nr -= refs;
+	if (!head)
 		return 0;
-	}
 
 	if (unlikely(pmd_val(orig) != pmd_val(*pmdp))) {
-		*nr -= refs;
-		while (refs--)
-			put_page(head);
+		put_compound_head(head, refs);
 		return 0;
 	}
 
+	*nr += refs;
 	SetPageReferenced(head);
 	return 1;
 }
@@ -2120,28 +2122,19 @@ static int gup_huge_pud(pud_t orig, pud_t *pudp, unsigned long addr,
 		return __gup_device_huge_pud(orig, pudp, addr, end, pages, nr);
 	}
 
-	refs = 0;
 	page = pud_page(orig) + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
-	do {
-		pages[*nr] = page;
-		(*nr)++;
-		page++;
-		refs++;
-	} while (addr += PAGE_SIZE, addr != end);
+	refs = record_subpages(page, addr, end, pages + *nr);
 
 	head = try_get_compound_head(pud_page(orig), refs);
-	if (!head) {
-		*nr -= refs;
+	if (!head)
 		return 0;
-	}
 
 	if (unlikely(pud_val(orig) != pud_val(*pudp))) {
-		*nr -= refs;
-		while (refs--)
-			put_page(head);
+		put_compound_head(head, refs);
 		return 0;
 	}
 
+	*nr += refs;
 	SetPageReferenced(head);
 	return 1;
 }
@@ -2157,28 +2150,20 @@ static int gup_huge_pgd(pgd_t orig, pgd_t *pgdp, unsigned long addr,
 		return 0;
 
 	BUILD_BUG_ON(pgd_devmap(orig));
-	refs = 0;
+
 	page = pgd_page(orig) + ((addr & ~PGDIR_MASK) >> PAGE_SHIFT);
-	do {
-		pages[*nr] = page;
-		(*nr)++;
-		page++;
-		refs++;
-	} while (addr += PAGE_SIZE, addr != end);
+	refs = record_subpages(page, addr, end, pages + *nr);
 
 	head = try_get_compound_head(pgd_page(orig), refs);
-	if (!head) {
-		*nr -= refs;
+	if (!head)
 		return 0;
-	}
 
 	if (unlikely(pgd_val(orig) != pgd_val(*pgdp))) {
-		*nr -= refs;
-		while (refs--)
-			put_page(head);
+		put_compound_head(head, refs);
 		return 0;
 	}
 
+	*nr += refs;
 	SetPageReferenced(head);
 	return 1;
 }
