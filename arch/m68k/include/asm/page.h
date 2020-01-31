@@ -30,7 +30,12 @@ typedef struct { unsigned long pmd; } pmd_t;
 typedef struct { unsigned long pte; } pte_t;
 typedef struct { unsigned long pgd; } pgd_t;
 typedef struct { unsigned long pgprot; } pgprot_t;
+
+#if defined(CONFIG_SUN3) || defined(CONFIG_COLDFIRE)
 typedef struct page *pgtable_t;
+#else
+typedef pte_t *pgtable_t;
+#endif
 
 #define pte_val(x)	((x).pte)
 #define pgd_val(x)	((x).pgd)
