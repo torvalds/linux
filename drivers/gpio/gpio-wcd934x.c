@@ -66,7 +66,10 @@ static int wcd_gpio_get(struct gpio_chip *chip, unsigned int pin)
 
 static void wcd_gpio_set(struct gpio_chip *chip, unsigned int pin, int val)
 {
-	wcd_gpio_direction_output(chip, pin, val);
+	struct wcd_gpio_data *data = gpiochip_get_data(chip);
+
+	regmap_update_bits(data->map, WCD_REG_VAL_CTL_OFFSET,
+			   WCD_PIN_MASK(pin), val ? WCD_PIN_MASK(pin) : 0);
 }
 
 static int wcd_gpio_probe(struct platform_device *pdev)
