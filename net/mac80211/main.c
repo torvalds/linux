@@ -1185,10 +1185,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	if (!local->hw.weight_multiplier)
 		local->hw.weight_multiplier = 1;
 
-	result = ieee80211_wep_init(local);
-	if (result < 0)
-		wiphy_debug(local->hw.wiphy, "Failed to initialize wep: %d\n",
-			    result);
+	ieee80211_wep_init(local);
 
 	local->hw.conf.flags = IEEE80211_CONF_IDLE;
 
