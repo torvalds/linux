@@ -317,30 +317,30 @@ ACPI
 M:	"Rafael J. Wysocki" <rjw@rjwysocki.net>
 M:	Len Brown <lenb@kernel.org>
 L:	linux-acpi@vger.kernel.org
-W:	https://01.org/linux-acpi
-Q:	https://patchwork.kernel.org/project/linux-acpi/list/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm
-B:	https://bugzilla.kernel.org
 S:	Supported
+W:	https://01.org/linux-acpi
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm
+Q:	https://patchwork.kernel.org/project/linux-acpi/list/
+B:	https://bugzilla.kernel.org
+F:	Documentation/ABI/testing/configfs-acpi
+F:	Documentation/ABI/testing/sysfs-bus-acpi
+F:	Documentation/firmware-guide/acpi/
 F:	drivers/acpi/
+F:	drivers/pci/*/*acpi*
+F:	drivers/pci/*acpi*
 F:	drivers/pnp/pnpacpi/
+F:	include/acpi/
 F:	include/linux/acpi.h
 F:	include/linux/fwnode.h
-F:	include/acpi/
-F:	Documentation/firmware-guide/acpi/
-F:	Documentation/ABI/testing/sysfs-bus-acpi
-F:	Documentation/ABI/testing/configfs-acpi
-F:	drivers/pci/*acpi*
-F:	drivers/pci/*/*acpi*
 F:	tools/power/acpi/
 
 ACPI APEI
 M:	"Rafael J. Wysocki" <rjw@rjwysocki.net>
 M:	Len Brown <lenb@kernel.org>
-L:	linux-acpi@vger.kernel.org
 R:	James Morse <james.morse@arm.com>
 R:	Tony Luck <tony.luck@intel.com>
 R:	Borislav Petkov <bp@alien8.de>
+L:	linux-acpi@vger.kernel.org
 F:	drivers/acpi/apei/
 
 ACPI COMPONENT ARCHITECTURE (ACPICA)
@@ -349,13 +349,13 @@ M:	Erik Kaneda <erik.kaneda@intel.com>
 M:	"Rafael J. Wysocki" <rafael.j.wysocki@intel.com>
 L:	linux-acpi@vger.kernel.org
 L:	devel@acpica.org
+S:	Supported
 W:	https://acpica.org/
 W:	https://github.com/acpica/acpica/
-Q:	https://patchwork.kernel.org/project/linux-acpi/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm
+Q:	https://patchwork.kernel.org/project/linux-acpi/list/
 B:	https://bugzilla.kernel.org
 B:	https://bugs.acpica.org
-S:	Supported
 F:	drivers/acpi/acpica/
 F:	include/acpi/
 F:	tools/power/acpi/
@@ -363,9 +363,9 @@ F:	tools/power/acpi/
 ACPI FAN DRIVER
 M:	Zhang Rui <rui.zhang@intel.com>
 L:	linux-acpi@vger.kernel.org
+S:	Supported
 W:	https://01.org/linux-acpi
 B:	https://bugzilla.kernel.org
-S:	Supported
 F:	drivers/acpi/fan.c
 
 ACPI FOR ARM64 (ACPI/arm64)
@@ -389,26 +389,26 @@ M:	Len Brown <lenb@kernel.org>
 R:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
 R:	Mika Westerberg <mika.westerberg@linux.intel.com>
 L:	linux-acpi@vger.kernel.org
-Q:	https://patchwork.kernel.org/project/linux-acpi/list/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm
-B:	https://bugzilla.kernel.org
 S:	Supported
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm
+Q:	https://patchwork.kernel.org/project/linux-acpi/list/
+B:	https://bugzilla.kernel.org
 F:	drivers/acpi/pmic/
 
 ACPI THERMAL DRIVER
 M:	Zhang Rui <rui.zhang@intel.com>
 L:	linux-acpi@vger.kernel.org
+S:	Supported
 W:	https://01.org/linux-acpi
 B:	https://bugzilla.kernel.org
-S:	Supported
 F:	drivers/acpi/*thermal*
 
 ACPI VIDEO DRIVER
 M:	Zhang Rui <rui.zhang@intel.com>
 L:	linux-acpi@vger.kernel.org
+S:	Supported
 W:	https://01.org/linux-acpi
 B:	https://bugzilla.kernel.org
-S:	Supported
 F:	drivers/acpi/acpi_video.c
 
 ACPI WMI DRIVER
@@ -13340,17 +13340,17 @@ T:	git git://github.com/intel/pm-graph
 S:	Supported
 F:	tools/power/pm-graph
 
-PNP SUPPORT
-M:	"Rafael J. Wysocki" <rafael.j.wysocki@intel.com>
-S:	Maintained
-F:	drivers/pnp/
-
 PNI RM3100 IIO DRIVER
 M:	Song Qiang <songqiang1304521@gmail.com>
 L:	linux-iio@vger.kernel.org
 S:	Maintained
 F:	drivers/iio/magnetometer/rm3100*
 F:	Documentation/devicetree/bindings/iio/magnetometer/pni,rm3100.txt
+
+PNP SUPPORT
+M:	"Rafael J. Wysocki" <rafael.j.wysocki@intel.com>
+S:	Maintained
+F:	drivers/pnp/
 
 POSIX CLOCKS and TIMERS
 M:	Thomas Gleixner <tglx@linutronix.de>
@@ -18104,8 +18104,8 @@ F:	Documentation/core-api/workqueue.rst
 X-POWERS AXP288 PMIC DRIVERS
 M:	Hans de Goede <hdegoede@redhat.com>
 S:	Maintained
-N:	axp288
 F:	drivers/acpi/pmic/intel_pmic_xpower.c
+N:	axp288
 
 X-POWERS MULTIFUNCTION PMIC DEVICE DRIVERS
 M:	Chen-Yu Tsai <wens@csie.org>
