@@ -3427,9 +3427,6 @@ static bool unexpected_starting_state(struct intel_engine_cs *engine)
 
 static int execlists_resume(struct intel_engine_cs *engine)
 {
-	intel_engine_apply_workarounds(engine);
-	intel_engine_apply_whitelist(engine);
-
 	intel_mocs_init_engine(engine);
 
 	intel_engine_reset_breadcrumbs(engine);

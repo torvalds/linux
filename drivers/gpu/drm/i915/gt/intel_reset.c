@@ -986,7 +986,7 @@ static int resume(struct intel_gt *gt)
 	int ret;
 
 	for_each_engine(engine, gt, id) {
-		ret = engine->resume(engine);
+		ret = intel_engine_resume(engine);
 		if (ret)
 			return ret;
 	}
@@ -1161,7 +1161,7 @@ int intel_engine_reset(struct intel_engine_cs *engine, const char *msg)
 	 * have been reset to their default values. Follow the init_ring
 	 * process to program RING_MODE, HWSP and re-enable submission.
 	 */
-	ret = engine->resume(engine);
+	ret = intel_engine_resume(engine);
 
 out:
 	intel_engine_cancel_stop_cs(engine);

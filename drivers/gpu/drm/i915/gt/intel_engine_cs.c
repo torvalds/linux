@@ -841,6 +841,20 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 	intel_wa_list_free(&engine->whitelist);
 }
 
+/**
+ * intel_engine_resume - re-initializes the HW state of the engine
+ * @engine: Engine to resume.
+ *
+ * Returns zero on success or an error code on failure.
+ */
+int intel_engine_resume(struct intel_engine_cs *engine)
+{
+	intel_engine_apply_workarounds(engine);
+	intel_engine_apply_whitelist(engine);
+
+	return engine->resume(engine);
+}
+
 u64 intel_engine_get_active_head(const struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *i915 = engine->i915;
