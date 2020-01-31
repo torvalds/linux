@@ -206,7 +206,7 @@ static bool pages_correctly_probed(unsigned long start_pfn)
  */
 static int
 memory_block_action(unsigned long start_section_nr, unsigned long action,
-		    int online_type)
+		    int online_type, int nid)
 {
 	unsigned long start_pfn;
 	unsigned long nr_pages = PAGES_PER_SECTION * sections_per_block;
@@ -219,7 +219,7 @@ memory_block_action(unsigned long start_section_nr, unsigned long action,
 		if (!pages_correctly_probed(start_pfn))
 			return -EBUSY;
 
-		ret = online_pages(start_pfn, nr_pages, online_type);
+		ret = online_pages(start_pfn, nr_pages, online_type, nid);
 		break;
 	case MEM_OFFLINE:
 		ret = offline_pages(start_pfn, nr_pages);
@@ -245,7 +245,7 @@ static int memory_block_change_state(struct memory_block *mem,
 		mem->state = MEM_GOING_OFFLINE;
 
 	ret = memory_block_action(mem->start_section_nr, to_state,
-				mem->online_type);
+				  mem->online_type, mem->nid);
 
 	mem->state = ret ? from_state_req : to_state;
 
