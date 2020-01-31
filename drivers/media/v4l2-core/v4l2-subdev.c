@@ -331,8 +331,8 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	struct v4l2_fh *vfh = file->private_data;
 #if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
 	struct v4l2_subdev_fh *subdev_fh = to_v4l2_subdev_fh(vfh);
-	int rval;
 #endif
+	int rval;
 
 	switch (cmd) {
 	case VIDIOC_QUERYCTRL:
@@ -391,6 +391,30 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 			return -ENOIOCTLCMD;
 
 		return v4l2_event_dequeue(vfh, arg, file->f_flags & O_NONBLOCK);
+
+	case VIDIOC_DQEVENT_TIME32: {
+		struct v4l2_event_time32 *ev32 = arg;
+		struct v4l2_event ev = { };
+
+		if (!(sd->flags & V4L2_SUBDEV_FL_HAS_EVENTS))
+			return -ENOIOCTLCMD;
+
+		rval = v4l2_event_dequeue(vfh, &ev, file->f_flags & O_NONBLOCK);
+
+		*ev32 = (struct v4l2_event_time32) {
+			.type		= ev.type,
+			.pending	= ev.pending,
+			.sequence	= ev.sequence,
+			.timestamp.tv_sec  = ev.timestamp.tv_sec,
+			.timestamp.tv_nsec = ev.timestamp.tv_nsec,
+			.id		= ev.id,
+		};
+
+		memcpy(&ev32->u, &ev.u, sizeof(ev.u));
+		memcpy(&ev32->reserved, &ev.reserved, sizeof(ev.reserved));
+
+		return rval;
+	}
 
 	case VIDIOC_SUBSCRIBE_EVENT:
 		return v4l2_subdev_call(sd, core, subscribe_event, vfh, arg);

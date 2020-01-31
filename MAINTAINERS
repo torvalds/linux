@@ -4478,13 +4478,10 @@ F:	drivers/net/wireless/st/cw1200/
 
 CX18 VIDEO4LINUX DRIVER
 M:	Andy Walls <awalls@md.metrocast.net>
-L:	ivtv-devel@ivtvdriver.org (subscribers-only)
 L:	linux-media@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
 W:	https://linuxtv.org
-W:	http://www.ivtvdriver.org/index.php/Cx18
 S:	Maintained
-F:	Documentation/media/v4l-drivers/cx18*
 F:	drivers/media/pci/cx18/
 F:	include/uapi/linux/ivtv*
 
@@ -8200,8 +8197,7 @@ F:	Documentation/devicetree/bindings/auxdisplay/img-ascii-lcd.txt
 F:	drivers/auxdisplay/img-ascii-lcd.c
 
 IMGTEC IR DECODER DRIVER
-M:	James Hogan <jhogan@kernel.org>
-S:	Maintained
+S:	Orphan
 F:	drivers/media/rc/img-ir/
 
 IMON SOUNDGRAPH USB IR RECEIVER
@@ -8946,10 +8942,9 @@ F:	drivers/media/tuners/it913x*
 
 IVTV VIDEO4LINUX DRIVER
 M:	Andy Walls <awalls@md.metrocast.net>
-L:	ivtv-devel@ivtvdriver.org (subscribers-only)
 L:	linux-media@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
-W:	http://www.ivtvdriver.org
+W:	https://linuxtv.org
 S:	Maintained
 F:	Documentation/media/v4l-drivers/ivtv*
 F:	drivers/media/pci/ivtv/
@@ -14297,6 +14292,12 @@ F:	drivers/hid/hid-roccat*
 F:	include/linux/hid-roccat*
 F:	Documentation/ABI/*/sysfs-driver-hid-roccat*
 
+ROCKCHIP ISP V1 DRIVER
+M:	Helen Koike <helen.koike@collabora.com>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	drivers/staging/media/rkisp1/
+
 ROCKCHIP RASTER 2D GRAPHIC ACCELERATION UNIT DRIVER
 M:	Jacob Chen <jacob-chen@iotwrt.com>
 M:	Ezequiel Garcia <ezequiel@collabora.com>
@@ -16737,6 +16738,7 @@ Q:	http://patchwork.linuxtv.org/project/linux-media/list/
 S:	Maintained
 F:	drivers/media/platform/ti-vpe/
 F:	Documentation/devicetree/bindings/media/ti,vpe.yaml
+	Documentation/devicetree/bindings/media/ti,cal.yaml
 
 TI WILINK WIRELESS DRIVERS
 L:	linux-wireless@vger.kernel.org

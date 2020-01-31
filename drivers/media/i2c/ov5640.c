@@ -189,6 +189,7 @@ struct ov5640_mode_info {
 	u32 vtot;
 	const struct reg_value *reg_data;
 	u32 reg_data_size;
+	u32 max_fps;
 };
 
 struct ov5640_ctrls {
@@ -544,6 +545,7 @@ static const struct ov5640_mode_info ov5640_mode_init_data = {
 	0, SUBSAMPLING, 640, 1896, 480, 984,
 	ov5640_init_setting_30fps_VGA,
 	ARRAY_SIZE(ov5640_init_setting_30fps_VGA),
+	OV5640_30_FPS,
 };
 
 static const struct ov5640_mode_info
@@ -551,39 +553,48 @@ ov5640_mode_data[OV5640_NUM_MODES] = {
 	{OV5640_MODE_QCIF_176_144, SUBSAMPLING,
 	 176, 1896, 144, 984,
 	 ov5640_setting_QCIF_176_144,
-	 ARRAY_SIZE(ov5640_setting_QCIF_176_144)},
+	 ARRAY_SIZE(ov5640_setting_QCIF_176_144),
+	 OV5640_30_FPS},
 	{OV5640_MODE_QVGA_320_240, SUBSAMPLING,
 	 320, 1896, 240, 984,
 	 ov5640_setting_QVGA_320_240,
-	 ARRAY_SIZE(ov5640_setting_QVGA_320_240)},
+	 ARRAY_SIZE(ov5640_setting_QVGA_320_240),
+	 OV5640_30_FPS},
 	{OV5640_MODE_VGA_640_480, SUBSAMPLING,
 	 640, 1896, 480, 1080,
 	 ov5640_setting_VGA_640_480,
-	 ARRAY_SIZE(ov5640_setting_VGA_640_480)},
+	 ARRAY_SIZE(ov5640_setting_VGA_640_480),
+	 OV5640_60_FPS},
 	{OV5640_MODE_NTSC_720_480, SUBSAMPLING,
 	 720, 1896, 480, 984,
 	 ov5640_setting_NTSC_720_480,
-	 ARRAY_SIZE(ov5640_setting_NTSC_720_480)},
+	 ARRAY_SIZE(ov5640_setting_NTSC_720_480),
+	OV5640_30_FPS},
 	{OV5640_MODE_PAL_720_576, SUBSAMPLING,
 	 720, 1896, 576, 984,
 	 ov5640_setting_PAL_720_576,
-	 ARRAY_SIZE(ov5640_setting_PAL_720_576)},
+	 ARRAY_SIZE(ov5640_setting_PAL_720_576),
+	 OV5640_30_FPS},
 	{OV5640_MODE_XGA_1024_768, SUBSAMPLING,
 	 1024, 1896, 768, 1080,
 	 ov5640_setting_XGA_1024_768,
-	 ARRAY_SIZE(ov5640_setting_XGA_1024_768)},
+	 ARRAY_SIZE(ov5640_setting_XGA_1024_768),
+	 OV5640_30_FPS},
 	{OV5640_MODE_720P_1280_720, SUBSAMPLING,
 	 1280, 1892, 720, 740,
 	 ov5640_setting_720P_1280_720,
-	 ARRAY_SIZE(ov5640_setting_720P_1280_720)},
+	 ARRAY_SIZE(ov5640_setting_720P_1280_720),
+	 OV5640_30_FPS},
 	{OV5640_MODE_1080P_1920_1080, SCALING,
 	 1920, 2500, 1080, 1120,
 	 ov5640_setting_1080P_1920_1080,
-	 ARRAY_SIZE(ov5640_setting_1080P_1920_1080)},
+	 ARRAY_SIZE(ov5640_setting_1080P_1920_1080),
+	 OV5640_30_FPS},
 	{OV5640_MODE_QSXGA_2592_1944, SCALING,
 	 2592, 2844, 1944, 1968,
 	 ov5640_setting_QSXGA_2592_1944,
-	 ARRAY_SIZE(ov5640_setting_QSXGA_2592_1944)},
+	 ARRAY_SIZE(ov5640_setting_QSXGA_2592_1944),
+	 OV5640_15_FPS},
 };
 
 static int ov5640_init_slave_id(struct ov5640_dev *sensor)
@@ -874,7 +885,7 @@ static unsigned long ov5640_calc_sys_clk(struct ov5640_dev *sensor,
 			 * We have reached the maximum allowed PLL1 output,
 			 * increase sysdiv.
 			 */
-			if (!rate)
+			if (!_rate)
 				break;
 
 			/*
@@ -1606,14 +1617,8 @@ ov5640_find_mode(struct ov5640_dev *sensor, enum ov5640_frame_rate fr,
 	    (!nearest && (mode->hact != width || mode->vact != height)))
 		return NULL;
 
-	/* Only 640x480 can operate at 60fps (for now) */
-	if (fr == OV5640_60_FPS &&
-	    !(mode->hact == 640 && mode->vact == 480))
-		return NULL;
-
-	/* 2592x1944 only works at 15fps max */
-	if ((mode->hact == 2592 && mode->vact == 1944) &&
-	    fr > OV5640_15_FPS)
+	/* Check to see if the current mode exceeds the max frame rate */
+	if (ov5640_framerates[fr] > ov5640_framerates[mode->max_fps])
 		return NULL;
 
 	return mode;

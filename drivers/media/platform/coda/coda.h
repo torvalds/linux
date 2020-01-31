@@ -126,6 +126,7 @@ struct coda_params {
 	u8			jpeg_quality;
 	u8			jpeg_restart_interval;
 	u8			*jpeg_qmat_tab[3];
+	u32			*jpeg_huff_data;
 	int			codec_mode;
 	int			codec_mode_aux;
 	enum v4l2_mpeg_video_multi_slice_mode slice_mode;
@@ -366,7 +367,9 @@ void coda_set_jpeg_compression_quality(struct coda_ctx *ctx, int quality);
 
 extern const struct coda_context_ops coda_bit_encode_ops;
 extern const struct coda_context_ops coda_bit_decode_ops;
+extern const struct coda_context_ops coda9_jpeg_encode_ops;
 
 irqreturn_t coda_irq_handler(int irq, void *data);
+irqreturn_t coda9_jpeg_irq_handler(int irq, void *data);
 
 #endif /* __CODA_H__ */
