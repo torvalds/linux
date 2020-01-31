@@ -187,6 +187,32 @@ void amdgpu_device_vram_access(struct amdgpu_device *adev, loff_t pos,
 	uint32_t hi = ~0;
 	uint64_t last;
 
+
+#ifdef CONFIG_64BIT
+	last = min(pos + size, adev->gmc.visible_vram_size);
+	if (last > pos) {
+		void __iomem *addr = adev->mman.aper_base_kaddr + pos;
+		size_t count = last - pos;
+
+		if (write) {
+			memcpy_toio(addr, buf, count);
+			mb();
+			amdgpu_asic_flush_hdp(adev, NULL);
+		} else {
+			amdgpu_asic_invalidate_hdp(adev, NULL);
+			mb();
+			memcpy_fromio(buf, addr, count);
+		}
+
+		if (count == size)
+			return;
+
+		pos += count;
+		buf += count / 4;
+		size -= count;
+	}
+#endif
+
 	spin_lock_irqsave(&adev->mmio_idx_lock, flags);
 	for (last = pos + size; pos < last; pos += 4) {
 		uint32_t tmp = pos >> 31;
