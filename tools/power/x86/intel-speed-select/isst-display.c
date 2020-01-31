@@ -178,7 +178,7 @@ static void _isst_pbf_display_information(int cpu, FILE *outf, int level,
 	char header[256];
 	char value[256];
 
-	snprintf(header, sizeof(header), "speed-select-base-freq");
+	snprintf(header, sizeof(header), "speed-select-base-freq-properties");
 	format_and_print(outf, disp_level, header, NULL);
 
 	snprintf(header, sizeof(header), "high-priority-base-frequency(MHz)");
@@ -224,7 +224,7 @@ static void _isst_fact_display_information(int cpu, FILE *outf, int level,
 	char value[256];
 	int j;
 
-	snprintf(header, sizeof(header), "speed-select-turbo-freq");
+	snprintf(header, sizeof(header), "speed-select-turbo-freq-properties");
 	format_and_print(outf, base_level, header, NULL);
 	for (j = 0; j < ISST_FACT_MAX_BUCKETS; ++j) {
 		if (fact_bucket != 0xff && fact_bucket != j)
