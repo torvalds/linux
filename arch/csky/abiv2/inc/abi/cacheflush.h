@@ -31,15 +31,23 @@ static inline void flush_dcache_page(struct page *page)
 
 #define flush_icache_range(start, end)		cache_wbinv_range(start, end)
 
+void flush_icache_mm_range(struct mm_struct *mm,
+			unsigned long start, unsigned long end);
+void flush_icache_deferred(struct mm_struct *mm);
+
 #define flush_cache_vmap(start, end)		do { } while (0)
 #define flush_cache_vunmap(start, end)		do { } while (0)
 
 #define copy_to_user_page(vma, page, vaddr, dst, src, len) \
 do { \
 	memcpy(dst, src, len); \
-	if (vma->vm_flags & VM_EXEC) \
-		cache_wbinv_range((unsigned long)dst, \
-				  (unsigned long)dst + len); \
+	if (vma->vm_flags & VM_EXEC) { \
+		dcache_wb_range((unsigned long)dst, \
+				(unsigned long)dst + len); \
+		flush_icache_mm_range(current->mm, \
+				(unsigned long)dst, \
+				(unsigned long)dst + len); \
+		} \
 } while (0)
 #define copy_from_user_page(vma, page, vaddr, dst, src, len) \
 	memcpy(dst, src, len)
