@@ -1189,7 +1189,6 @@ static void repaper_shutdown(struct spi_device *spi)
 static struct spi_driver repaper_spi_driver = {
 	.driver = {
 		.name = "repaper",
-		.owner = THIS_MODULE,
 		.of_match_table = repaper_of_match,
 	},
 	.id_table = repaper_id,
