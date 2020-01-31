@@ -1756,12 +1756,15 @@ static struct ib_mr *i40iw_reg_user_mr(struct ib_pd *pd,
 	int ret;
 	int pg_shift;
 
+	if (!udata)
+		return ERR_PTR(-EOPNOTSUPP);
+
 	if (iwdev->closing)
 		return ERR_PTR(-ENODEV);
 
 	if (length > I40IW_MAX_MR_SIZE)
 		return ERR_PTR(-EINVAL);
-	region = ib_umem_get(udata, start, length, acc);
+	region = ib_umem_get(pd->device, start, length, acc);
 	if (IS_ERR(region))
 		return (struct ib_mr *)region;
 

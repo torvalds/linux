@@ -346,7 +346,7 @@ static int lance_rx( struct net_device *dev );
 static int lance_close( struct net_device *dev );
 static void set_multicast_list( struct net_device *dev );
 static int lance_set_mac_address( struct net_device *dev, void *addr );
-static void lance_tx_timeout (struct net_device *dev);
+static void lance_tx_timeout (struct net_device *dev, unsigned int txqueue);
 
 /************************* End of Prototypes **************************/
 
@@ -727,7 +727,7 @@ static void lance_init_ring( struct net_device *dev )
 /* XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX */
 
 
-static void lance_tx_timeout (struct net_device *dev)
+static void lance_tx_timeout (struct net_device *dev, unsigned int txqueue)
 {
 	struct lance_private *lp = netdev_priv(dev);
 	struct lance_ioreg	 *IO = lp->iobase;

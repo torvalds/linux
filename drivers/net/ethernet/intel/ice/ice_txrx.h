@@ -341,6 +341,12 @@ struct ice_ring_container {
 	u16 itr_setting;
 };
 
+struct ice_coalesce_stored {
+	u16 itr_tx;
+	u16 itr_rx;
+	u8 intrl;
+};
+
 /* iterator for handling rings in ring container */
 #define ice_for_each_ring(pos, head) \
 	for (pos = (head).ring; pos; pos = pos->next)

@@ -22,8 +22,8 @@
 #include <uapi/linux/pkt_cls.h>
 #include <net/ipv6.h>
 #include <net/inet_ecn.h>
-#include "bpf_endian.h"
-#include "bpf_helpers.h"
+#include <bpf/bpf_endian.h>
+#include <bpf/bpf_helpers.h>
 #include "hbm.h"
 
 #define DROP_PKT	0

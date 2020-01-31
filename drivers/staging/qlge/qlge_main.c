@@ -4274,7 +4274,7 @@ static int qlge_set_mac_address(struct net_device *ndev, void *p)
 	return status;
 }
 
-static void qlge_tx_timeout(struct net_device *ndev)
+static void qlge_tx_timeout(struct net_device *ndev, unsigned int txqueue)
 {
 	struct ql_adapter *qdev = netdev_priv(ndev);
 	ql_queue_asic_error(qdev);

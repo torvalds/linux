@@ -13,7 +13,7 @@
 #include <bpf/bpf.h>
 
 #include "cgroup_helpers.h"
-#include "bpf_endian.h"
+#include <bpf/bpf_endian.h>
 #include "bpf_rlimit.h"
 #include "bpf_util.h"
 

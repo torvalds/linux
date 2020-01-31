@@ -18,7 +18,7 @@
 #include <linux/if_vlan.h>
 #include <linux/ip.h>
 #include <linux/icmp.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 #define DEFAULT_TTL 64
 #define MAX_PCKT_SIZE 600

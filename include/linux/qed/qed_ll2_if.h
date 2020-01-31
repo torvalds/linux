@@ -52,6 +52,12 @@ enum qed_ll2_conn_type {
 	QED_LL2_TYPE_ROCE,
 	QED_LL2_TYPE_IWARP,
 	QED_LL2_TYPE_RESERVED3,
+	MAX_QED_LL2_CONN_TYPE
+};
+
+enum qed_ll2_rx_conn_type {
+	QED_LL2_RX_TYPE_LEGACY,
+	QED_LL2_RX_TYPE_CTX,
 	MAX_QED_LL2_RX_CONN_TYPE
 };
 
@@ -165,6 +171,7 @@ struct qed_ll2_cbs {
 };
 
 struct qed_ll2_acquire_data_inputs {
+	enum qed_ll2_rx_conn_type rx_conn_type;
 	enum qed_ll2_conn_type conn_type;
 	u16 mtu;
 	u16 rx_num_desc;

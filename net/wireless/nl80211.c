@@ -12901,8 +12901,7 @@ static int nl80211_vendor_check_policy(const struct wiphy_vendor_command *vcmd,
 		return -EINVAL;
 	}
 
-	return nl80211_validate_nested(attr, vcmd->maxattr, vcmd->policy,
-				       extack);
+	return nla_validate_nested(attr, vcmd->maxattr, vcmd->policy, extack);
 }
 
 static int nl80211_vendor_cmd(struct sk_buff *skb, struct genl_info *info)

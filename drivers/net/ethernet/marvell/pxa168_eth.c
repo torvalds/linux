@@ -742,7 +742,7 @@ txq_reclaim_end:
 	return released;
 }
 
-static void pxa168_eth_tx_timeout(struct net_device *dev)
+static void pxa168_eth_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct pxa168_eth_private *pep = netdev_priv(dev);
 
@@ -1344,15 +1344,6 @@ static int pxa168_smi_write(struct mii_bus *bus, int phy_addr, int regnum,
 	return 0;
 }
 
-static int pxa168_eth_do_ioctl(struct net_device *dev, struct ifreq *ifr,
-			       int cmd)
-{
-	if (dev->phydev)
-		return phy_mii_ioctl(dev->phydev, ifr, cmd);
-
-	return -EOPNOTSUPP;
-}
-
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void pxa168_eth_netpoll(struct net_device *dev)
 {
@@ -1387,7 +1378,7 @@ static const struct net_device_ops pxa168_eth_netdev_ops = {
 	.ndo_set_rx_mode	= pxa168_eth_set_rx_mode,
 	.ndo_set_mac_address	= pxa168_eth_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_do_ioctl		= pxa168_eth_do_ioctl,
+	.ndo_do_ioctl		= phy_do_ioctl,
 	.ndo_change_mtu		= pxa168_eth_change_mtu,
 	.ndo_tx_timeout		= pxa168_eth_tx_timeout,
 #ifdef CONFIG_NET_POLL_CONTROLLER

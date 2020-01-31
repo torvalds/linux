@@ -50,42 +50,6 @@ static const u8 dummy_eth_header[DUMMY_ETH_HDR_LEN] = { 0x2, 0, 0, 0, 0, 0,
 	 ((n) * sizeof(((struct ice_sw_rule_vsi_list *)0)->vsi)))
 
 /**
- * ice_aq_alloc_free_res - command to allocate/free resources
- * @hw: pointer to the HW struct
- * @num_entries: number of resource entries in buffer
- * @buf: Indirect buffer to hold data parameters and response
- * @buf_size: size of buffer for indirect commands
- * @opc: pass in the command opcode
- * @cd: pointer to command details structure or NULL
- *
- * Helper function to allocate/free resources using the admin queue commands
- */
-static enum ice_status
-ice_aq_alloc_free_res(struct ice_hw *hw, u16 num_entries,
-		      struct ice_aqc_alloc_free_res_elem *buf, u16 buf_size,
-		      enum ice_adminq_opc opc, struct ice_sq_cd *cd)
-{
-	struct ice_aqc_alloc_free_res_cmd *cmd;
-	struct ice_aq_desc desc;
-
-	cmd = &desc.params.sw_res_ctrl;
-
-	if (!buf)
-		return ICE_ERR_PARAM;
-
-	if (buf_size < (num_entries * sizeof(buf->elem[0])))
-		return ICE_ERR_PARAM;
-
-	ice_fill_dflt_direct_cmd_desc(&desc, opc);
-
-	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
-
-	cmd->num_entries = cpu_to_le16(num_entries);
-
-	return ice_aq_send_cmd(hw, &desc, buf, buf_size, cd);
-}
-
-/**
  * ice_init_def_sw_recp - initialize the recipe book keeping tables
  * @hw: pointer to the HW struct
  *

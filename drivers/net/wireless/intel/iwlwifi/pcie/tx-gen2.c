@@ -719,6 +719,10 @@ int iwl_trans_pcie_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	int idx;
 	void *tfd;
 
+	if (WARN_ONCE(txq_id >= IWL_MAX_TVQM_QUEUES,
+		      "queue %d out of range", txq_id))
+		return -EINVAL;
+
 	if (WARN_ONCE(!test_bit(txq_id, trans_pcie->queue_used),
 		      "TX on unused queue %d\n", txq_id))
 		return -EINVAL;
@@ -1233,8 +1237,14 @@ void iwl_pcie_gen2_txq_free_memory(struct iwl_trans *trans,
 static void iwl_pcie_gen2_txq_free(struct iwl_trans *trans, int txq_id)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_txq *txq = trans_pcie->txq[txq_id];
+	struct iwl_txq *txq;
 	int i;
+
+	if (WARN_ONCE(txq_id >= IWL_MAX_TVQM_QUEUES,
+		      "queue %d out of range", txq_id))
+		return;
+
+	txq = trans_pcie->txq[txq_id];
 
 	if (WARN_ON(!txq))
 		return;
@@ -1389,6 +1399,10 @@ error:
 void iwl_trans_pcie_dyn_txq_free(struct iwl_trans *trans, int queue)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	if (WARN(queue >= IWL_MAX_TVQM_QUEUES,
+		 "queue %d out of range", queue))
+		return;
 
 	/*
 	 * Upon HW Rfkill - we stop the device, and then stop the queues

@@ -15,7 +15,7 @@
 #include <sys/mman.h>
 #include <time.h>
 #include <signal.h>
-#include <libbpf.h>
+#include <bpf/libbpf.h>
 #include "bpf_load.h"
 #include "perf-sys.h"
 

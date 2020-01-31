@@ -550,3 +550,122 @@ int dwmac5_flex_pps_config(void __iomem *ioaddr, int index,
 	writel(val, ioaddr + MAC_PPS_CONTROL);
 	return 0;
 }
+
+static int dwmac5_est_write(void __iomem *ioaddr, u32 reg, u32 val, bool gcl)
+{
+	u32 ctrl;
+
+	writel(val, ioaddr + MTL_EST_GCL_DATA);
+
+	ctrl = (reg << ADDR_SHIFT);
+	ctrl |= gcl ? 0 : GCRR;
+
+	writel(ctrl, ioaddr + MTL_EST_GCL_CONTROL);
+
+	ctrl |= SRWO;
+	writel(ctrl, ioaddr + MTL_EST_GCL_CONTROL);
+
+	return readl_poll_timeout(ioaddr + MTL_EST_GCL_CONTROL,
+				  ctrl, !(ctrl & SRWO), 100, 5000);
+}
+
+int dwmac5_est_configure(void __iomem *ioaddr, struct stmmac_est *cfg,
+			 unsigned int ptp_rate)
+{
+	u32 speed, total_offset, offset, ctrl, ctr_low;
+	u32 extcfg = readl(ioaddr + GMAC_EXT_CONFIG);
+	u32 mac_cfg = readl(ioaddr + GMAC_CONFIG);
+	int i, ret = 0x0;
+	u64 total_ctr;
+
+	if (extcfg & GMAC_CONFIG_EIPG_EN) {
+		offset = (extcfg & GMAC_CONFIG_EIPG) >> GMAC_CONFIG_EIPG_SHIFT;
+		offset = 104 + (offset * 8);
+	} else {
+		offset = (mac_cfg & GMAC_CONFIG_IPG) >> GMAC_CONFIG_IPG_SHIFT;
+		offset = 96 - (offset * 8);
+	}
+
+	speed = mac_cfg & (GMAC_CONFIG_PS | GMAC_CONFIG_FES);
+	speed = speed >> GMAC_CONFIG_FES_SHIFT;
+
+	switch (speed) {
+	case 0x0:
+		offset = offset * 1000; /* 1G */
+		break;
+	case 0x1:
+		offset = offset * 400; /* 2.5G */
+		break;
+	case 0x2:
+		offset = offset * 100000; /* 10M */
+		break;
+	case 0x3:
+		offset = offset * 10000; /* 100M */
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	offset = offset / 1000;
+
+	ret |= dwmac5_est_write(ioaddr, BTR_LOW, cfg->btr[0], false);
+	ret |= dwmac5_est_write(ioaddr, BTR_HIGH, cfg->btr[1], false);
+	ret |= dwmac5_est_write(ioaddr, TER, cfg->ter, false);
+	ret |= dwmac5_est_write(ioaddr, LLR, cfg->gcl_size, false);
+	if (ret)
+		return ret;
+
+	total_offset = 0;
+	for (i = 0; i < cfg->gcl_size; i++) {
+		ret = dwmac5_est_write(ioaddr, i, cfg->gcl[i] + offset, true);
+		if (ret)
+			return ret;
+
+		total_offset += offset;
+	}
+
+	total_ctr = cfg->ctr[0] + cfg->ctr[1] * 1000000000;
+	total_ctr += total_offset;
+
+	ctr_low = do_div(total_ctr, 1000000000);
+
+	ret |= dwmac5_est_write(ioaddr, CTR_LOW, ctr_low, false);
+	ret |= dwmac5_est_write(ioaddr, CTR_HIGH, total_ctr, false);
+	if (ret)
+		return ret;
+
+	ctrl = readl(ioaddr + MTL_EST_CONTROL);
+	ctrl &= ~PTOV;
+	ctrl |= ((1000000000 / ptp_rate) * 6) << PTOV_SHIFT;
+	if (cfg->enable)
+		ctrl |= EEST | SSWL;
+	else
+		ctrl &= ~EEST;
+
+	writel(ctrl, ioaddr + MTL_EST_CONTROL);
+	return 0;
+}
+
+void dwmac5_fpe_configure(void __iomem *ioaddr, u32 num_txq, u32 num_rxq,
+			  bool enable)
+{
+	u32 value;
+
+	if (!enable) {
+		value = readl(ioaddr + MAC_FPE_CTRL_STS);
+
+		value &= ~EFPE;
+
+		writel(value, ioaddr + MAC_FPE_CTRL_STS);
+		return;
+	}
+
+	value = readl(ioaddr + GMAC_RXQ_CTRL1);
+	value &= ~GMAC_RXQCTRL_FPRQ;
+	value |= (num_rxq - 1) << GMAC_RXQCTRL_FPRQ_SHIFT;
+	writel(value, ioaddr + GMAC_RXQ_CTRL1);
+
+	value = readl(ioaddr + MAC_FPE_CTRL_STS);
+	value |= EFPE;
+	writel(value, ioaddr + MAC_FPE_CTRL_STS);
+}

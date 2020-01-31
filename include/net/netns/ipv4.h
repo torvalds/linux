@@ -154,6 +154,7 @@ struct netns_ipv4 {
 	int sysctl_tcp_adv_win_scale;
 	int sysctl_tcp_frto;
 	int sysctl_tcp_nometrics_save;
+	int sysctl_tcp_no_ssthresh_metrics_save;
 	int sysctl_tcp_moderate_rcvbuf;
 	int sysctl_tcp_tso_win_divisor;
 	int sysctl_tcp_workaround_signed_windows;

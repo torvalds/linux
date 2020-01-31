@@ -270,7 +270,7 @@ struct nsim_trap_data {
 };
 
 /* All driver-specific traps must be documented in
- * Documentation/networking/devlink-trap-netdevsim.rst
+ * Documentation/networking/devlink/netdevsim.rst
  */
 enum {
 	NSIM_TRAP_ID_BASE = DEVLINK_TRAP_GENERIC_ID_MAX,

@@ -3072,7 +3072,7 @@ static int mvneta_create_page_pool(struct mvneta_port *pp,
 		.order = 0,
 		.flags = PP_FLAG_DMA_MAP | PP_FLAG_DMA_SYNC_DEV,
 		.pool_size = size,
-		.nid = cpu_to_node(0),
+		.nid = NUMA_NO_NODE,
 		.dev = pp->dev->dev.parent,
 		.dma_dir = xdp_prog ? DMA_BIDIRECTIONAL : DMA_FROM_DEVICE,
 		.offset = pp->rx_offset_correction,
@@ -4223,6 +4223,12 @@ static int mvneta_xdp_setup(struct net_device *dev, struct bpf_prog *prog,
 
 	if (prog && dev->mtu > MVNETA_MAX_RX_BUF_SIZE) {
 		NL_SET_ERR_MSG_MOD(extack, "Jumbo frames not supported on XDP");
+		return -EOPNOTSUPP;
+	}
+
+	if (pp->bm_priv) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Hardware Buffer Management not supported on XDP");
 		return -EOPNOTSUPP;
 	}
 

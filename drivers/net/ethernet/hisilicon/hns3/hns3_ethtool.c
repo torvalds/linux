@@ -423,9 +423,8 @@ static void *hns3_update_strings(u8 *data, const struct hns3_stats *stats,
 			data[ETH_GSTRING_LEN - 1] = '\0';
 
 			/* first, prepend the prefix string */
-			n1 = snprintf(data, MAX_PREFIX_SIZE, "%s%d_",
-				      prefix, i);
-			n1 = min_t(uint, n1, MAX_PREFIX_SIZE - 1);
+			n1 = scnprintf(data, MAX_PREFIX_SIZE, "%s%d_",
+				       prefix, i);
 			size_left = (ETH_GSTRING_LEN - 1) - n1;
 
 			/* now, concatenate the stats string to it */

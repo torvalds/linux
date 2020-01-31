@@ -107,7 +107,6 @@ static struct sock_reuseport *reuseport_grow(struct sock_reuseport *reuse)
 	if (!more_reuse)
 		return NULL;
 
-	more_reuse->max_socks = more_socks_size;
 	more_reuse->num_socks = reuse->num_socks;
 	more_reuse->prog = reuse->prog;
 	more_reuse->reuseport_id = reuse->reuseport_id;

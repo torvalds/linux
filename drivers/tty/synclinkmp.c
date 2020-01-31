@@ -1807,7 +1807,7 @@ static int hdlcdev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
  *
  * dev  pointer to network device structure
  */
-static void hdlcdev_tx_timeout(struct net_device *dev)
+static void hdlcdev_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	SLMP_INFO *info = dev_to_port(dev);
 	unsigned long flags;

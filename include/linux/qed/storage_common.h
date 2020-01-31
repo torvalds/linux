@@ -107,8 +107,9 @@ struct scsi_drv_cmdq {
 struct scsi_init_func_params {
 	__le16 num_tasks;
 	u8 log_page_size;
+	u8 log_page_size_conn;
 	u8 debug_mode;
-	u8 reserved2[12];
+	u8 reserved2[11];
 };
 
 /* SCSI RQ/CQ/CMDQ firmware function init parameters */

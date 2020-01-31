@@ -290,9 +290,18 @@ void iwl_dbg_tlv_alloc(struct iwl_trans *trans, struct iwl_ucode_tlv *tlv,
 	struct iwl_fw_ini_header *hdr = (void *)&tlv->data[0];
 	u32 type = le32_to_cpu(tlv->type);
 	u32 tlv_idx = type - IWL_UCODE_TLV_DEBUG_BASE;
+	u32 domain = le32_to_cpu(hdr->domain);
 	enum iwl_ini_cfg_state *cfg_state = ext ?
 		&trans->dbg.external_ini_cfg : &trans->dbg.internal_ini_cfg;
 	int ret;
+
+	if (domain != IWL_FW_INI_DOMAIN_ALWAYS_ON &&
+	    !(domain & trans->dbg.domains_bitmap)) {
+		IWL_DEBUG_FW(trans,
+			     "WRT: Skipping TLV with disabled domain 0x%0x (0x%0x)\n",
+			     domain, trans->dbg.domains_bitmap);
+		return;
+	}
 
 	if (tlv_idx >= ARRAY_SIZE(dbg_tlv_alloc) || !dbg_tlv_alloc[tlv_idx]) {
 		IWL_ERR(trans, "WRT: Unsupported TLV type 0x%x\n", type);
@@ -667,17 +676,12 @@ static void iwl_dbg_tlv_send_hcmds(struct iwl_fw_runtime *fwrt,
 	list_for_each_entry(node, hcmd_list, list) {
 		struct iwl_fw_ini_hcmd_tlv *hcmd = (void *)node->tlv.data;
 		struct iwl_fw_ini_hcmd *hcmd_data = &hcmd->hcmd;
-		u32 domain = le32_to_cpu(hcmd->hdr.domain);
 		u16 hcmd_len = le32_to_cpu(node->tlv.length) - sizeof(*hcmd);
 		struct iwl_host_cmd cmd = {
 			.id = WIDE_ID(hcmd_data->group, hcmd_data->id),
 			.len = { hcmd_len, },
 			.data = { hcmd_data->data, },
 		};
-
-		if (domain != IWL_FW_INI_DOMAIN_ALWAYS_ON &&
-		    !(domain & fwrt->trans->dbg.domains_bitmap))
-			continue;
 
 		iwl_trans_send_cmd(fwrt->trans, &cmd);
 	}
@@ -898,53 +902,15 @@ static void
 iwl_dbg_tlv_gen_active_trig_list(struct iwl_fw_runtime *fwrt,
 				 struct iwl_dbg_tlv_time_point_data *tp)
 {
-	struct iwl_dbg_tlv_node *node, *tmp;
+	struct iwl_dbg_tlv_node *node;
 	struct list_head *trig_list = &tp->trig_list;
 	struct list_head *active_trig_list = &tp->active_trig_list;
 
-	list_for_each_entry_safe(node, tmp, active_trig_list, list) {
-		list_del(&node->list);
-		kfree(node);
-	}
-
 	list_for_each_entry(node, trig_list, list) {
 		struct iwl_ucode_tlv *tlv = &node->tlv;
-		struct iwl_fw_ini_trigger_tlv *trig = (void *)tlv->data;
-		u32 domain = le32_to_cpu(trig->hdr.domain);
-
-		if (domain != IWL_FW_INI_DOMAIN_ALWAYS_ON &&
-		    !(domain & fwrt->trans->dbg.domains_bitmap))
-			continue;
 
 		iwl_dbg_tlv_add_active_trigger(fwrt, active_trig_list, tlv);
 	}
-}
-
-int iwl_dbg_tlv_gen_active_trigs(struct iwl_fw_runtime *fwrt, u32 new_domain)
-{
-	int i;
-
-	if (test_and_set_bit(STATUS_GEN_ACTIVE_TRIGS, &fwrt->status))
-		return -EBUSY;
-
-	iwl_fw_flush_dumps(fwrt);
-
-	fwrt->trans->dbg.domains_bitmap = new_domain;
-
-	IWL_DEBUG_FW(fwrt,
-		     "WRT: Generating active triggers list, domain 0x%x\n",
-		     fwrt->trans->dbg.domains_bitmap);
-
-	for (i = 0; i < ARRAY_SIZE(fwrt->trans->dbg.time_point); i++) {
-		struct iwl_dbg_tlv_time_point_data *tp =
-			&fwrt->trans->dbg.time_point[i];
-
-		iwl_dbg_tlv_gen_active_trig_list(fwrt, tp);
-	}
-
-	clear_bit(STATUS_GEN_ACTIVE_TRIGS, &fwrt->status);
-
-	return 0;
 }
 
 static bool iwl_dbg_tlv_check_fw_pkt(struct iwl_fw_runtime *fwrt,
@@ -1020,7 +986,16 @@ static void iwl_dbg_tlv_init_cfg(struct iwl_fw_runtime *fwrt)
 	enum iwl_fw_ini_buffer_location *ini_dest = &fwrt->trans->dbg.ini_dest;
 	int ret, i;
 
-	iwl_dbg_tlv_gen_active_trigs(fwrt, IWL_FW_DBG_DOMAIN);
+	IWL_DEBUG_FW(fwrt,
+		     "WRT: Generating active triggers list, domain 0x%x\n",
+		     fwrt->trans->dbg.domains_bitmap);
+
+	for (i = 0; i < ARRAY_SIZE(fwrt->trans->dbg.time_point); i++) {
+		struct iwl_dbg_tlv_time_point_data *tp =
+			&fwrt->trans->dbg.time_point[i];
+
+		iwl_dbg_tlv_gen_active_trig_list(fwrt, tp);
+	}
 
 	*ini_dest = IWL_FW_INI_LOCATION_INVALID;
 	for (i = 0; i < IWL_FW_INI_ALLOCATION_NUM; i++) {

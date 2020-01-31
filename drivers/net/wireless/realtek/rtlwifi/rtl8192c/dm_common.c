@@ -8,11 +8,11 @@
 #include "../base.h"
 #include "../core.h"
 
-#define BT_RSSI_STATE_NORMAL_POWER	BIT_OFFSET_LEN_MASK_32(0, 1)
-#define BT_RSSI_STATE_AMDPU_OFF		BIT_OFFSET_LEN_MASK_32(1, 1)
-#define BT_RSSI_STATE_SPECIAL_LOW	BIT_OFFSET_LEN_MASK_32(2, 1)
-#define BT_RSSI_STATE_BG_EDCA_LOW	BIT_OFFSET_LEN_MASK_32(3, 1)
-#define BT_RSSI_STATE_TXPOWER_LOW	BIT_OFFSET_LEN_MASK_32(4, 1)
+#define BT_RSSI_STATE_NORMAL_POWER	BIT(0)
+#define BT_RSSI_STATE_AMDPU_OFF		BIT(1)
+#define BT_RSSI_STATE_SPECIAL_LOW	BIT(2)
+#define BT_RSSI_STATE_BG_EDCA_LOW	BIT(3)
+#define BT_RSSI_STATE_TXPOWER_LOW	BIT(4)
 #define BT_MASK				0x00ffffff
 
 #define RTLPRIV			(struct rtl_priv *)
@@ -1515,7 +1515,7 @@ static bool rtl92c_bt_state_change(struct ieee80211_hw *hw)
 	    polling == 0xffffffff && bt_state == 0xff)
 		return false;
 
-	bt_state &= BIT_OFFSET_LEN_MASK_32(0, 1);
+	bt_state &= BIT(0);
 	if (bt_state != rtlpriv->btcoexist.bt_cur_state) {
 		rtlpriv->btcoexist.bt_cur_state = bt_state;
 
@@ -1524,8 +1524,7 @@ static bool rtl92c_bt_state_change(struct ieee80211_hw *hw)
 
 			bt_state = bt_state |
 			  ((rtlpriv->btcoexist.bt_ant_isolation == 1) ?
-			  0 : BIT_OFFSET_LEN_MASK_32(1, 1)) |
-			  BIT_OFFSET_LEN_MASK_32(2, 1);
+			  0 : BIT(1)) | BIT(2);
 			rtl_write_byte(rtlpriv, 0x4fd, bt_state);
 		}
 		return true;
@@ -1555,9 +1554,9 @@ static bool rtl92c_bt_state_change(struct ieee80211_hw *hw)
 			rtlpriv->btcoexist.bt_service = cur_service_type;
 			bt_state = bt_state |
 			   ((rtlpriv->btcoexist.bt_ant_isolation == 1) ?
-			   0 : BIT_OFFSET_LEN_MASK_32(1, 1)) |
+			   0 : BIT(1)) |
 			   ((rtlpriv->btcoexist.bt_service != BT_IDLE) ?
-			   0 : BIT_OFFSET_LEN_MASK_32(2, 1));
+			   0 : BIT(2));
 
 			/* Add interrupt migration when bt is not ini
 			 * idle state (no traffic). */

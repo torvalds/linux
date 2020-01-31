@@ -109,6 +109,18 @@ struct stmmac_axi {
 	bool axi_rb;
 };
 
+#define EST_GCL		1024
+struct stmmac_est {
+	int enable;
+	u32 btr_offset[2];
+	u32 btr[2];
+	u32 ctr[2];
+	u32 ter;
+	u32 gcl_unaligned[EST_GCL];
+	u32 gcl[EST_GCL];
+	u32 gcl_size;
+};
+
 struct stmmac_rxq_cfg {
 	u8 mode_to_use;
 	u32 chan;
@@ -127,6 +139,7 @@ struct stmmac_txq_cfg {
 	u32 low_credit;
 	bool use_prio;
 	u32 prio;
+	int tbs_en;
 };
 
 struct plat_stmmacenet_data {
@@ -139,6 +152,7 @@ struct plat_stmmacenet_data {
 	struct device_node *phylink_node;
 	struct device_node *mdio_node;
 	struct stmmac_dma_cfg *dma_cfg;
+	struct stmmac_est *est;
 	int clk_csr;
 	int has_gmac;
 	int enh_desc;

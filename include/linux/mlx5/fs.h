@@ -48,6 +48,7 @@ enum {
 	MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT = BIT(0),
 	MLX5_FLOW_TABLE_TUNNEL_EN_DECAP = BIT(1),
 	MLX5_FLOW_TABLE_TERMINATION = BIT(2),
+	MLX5_FLOW_TABLE_UNMANAGED = BIT(3),
 };
 
 #define LEFTOVERS_RULE_NUM	 2
@@ -145,24 +146,26 @@ mlx5_get_flow_vport_acl_namespace(struct mlx5_core_dev *dev,
 				  enum mlx5_flow_namespace_type type,
 				  int vport);
 
-struct mlx5_flow_table *
-mlx5_create_auto_grouped_flow_table(struct mlx5_flow_namespace *ns,
-				    int prio,
-				    int num_flow_table_entries,
-				    int max_num_groups,
-				    u32 level,
-				    u32 flags);
-
 struct mlx5_flow_table_attr {
 	int prio;
 	int max_fte;
 	u32 level;
 	u32 flags;
+	struct mlx5_flow_table *next_ft;
+
+	struct {
+		int max_num_groups;
+		int num_reserved_entries;
+	} autogroup;
 };
 
 struct mlx5_flow_table *
 mlx5_create_flow_table(struct mlx5_flow_namespace *ns,
 		       struct mlx5_flow_table_attr *ft_attr);
+
+struct mlx5_flow_table *
+mlx5_create_auto_grouped_flow_table(struct mlx5_flow_namespace *ns,
+				    struct mlx5_flow_table_attr *ft_attr);
 
 struct mlx5_flow_table *
 mlx5_create_vport_flow_table(struct mlx5_flow_namespace *ns,
@@ -194,6 +197,7 @@ struct mlx5_fs_vlan {
 
 enum {
 	FLOW_ACT_NO_APPEND = BIT(0),
+	FLOW_ACT_IGNORE_FLOW_LEVEL = BIT(1),
 };
 
 struct mlx5_flow_act {

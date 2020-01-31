@@ -779,7 +779,7 @@ static int hip04_mac_stop(struct net_device *ndev)
 	return 0;
 }
 
-static void hip04_timeout(struct net_device *ndev)
+static void hip04_timeout(struct net_device *ndev, unsigned int txqueue)
 {
 	struct hip04_priv *priv = netdev_priv(ndev);
 

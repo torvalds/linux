@@ -830,7 +830,7 @@ static netdev_tx_t zd1201_hard_start_xmit(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 }
 
-static void zd1201_tx_timeout(struct net_device *dev)
+static void zd1201_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct zd1201 *zd = netdev_priv(dev);
 

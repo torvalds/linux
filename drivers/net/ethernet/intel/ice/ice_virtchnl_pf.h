@@ -40,6 +40,9 @@
 #define ICE_DFLT_INTR_PER_VF		(ICE_DFLT_QS_PER_VF + 1)
 #define ICE_MAX_VF_RESET_WAIT		15
 
+#define ice_for_each_vf(pf, i) \
+	for ((i) = 0; (i) < (pf)->num_alloc_vfs; (i)++)
+
 /* Specific VF states */
 enum ice_vf_states {
 	ICE_VF_STATE_INIT = 0,		/* PF is initializing VF */
@@ -91,7 +94,6 @@ struct ice_vf {
 	unsigned long vf_caps;		/* VF's adv. capabilities */
 	u8 num_req_qs;			/* num of queue pairs requested by VF */
 	u16 num_mac;
-	u16 num_vlan;
 	u16 num_vf_qs;			/* num of queue configured per VF */
 	u16 num_qs_ena;			/* total num of Tx/Rx queue enabled */
 };

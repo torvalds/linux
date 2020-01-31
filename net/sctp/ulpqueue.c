@@ -486,10 +486,9 @@ static struct sctp_ulpevent *sctp_ulpq_retrieve_reassembled(struct sctp_ulpq *ul
 		cevent = sctp_skb2event(pd_first);
 		pd_point = sctp_sk(asoc->base.sk)->pd_point;
 		if (pd_point && pd_point <= pd_len) {
-			retval = sctp_make_reassembled_event(sock_net(asoc->base.sk),
+			retval = sctp_make_reassembled_event(asoc->base.net,
 							     &ulpq->reasm,
-							     pd_first,
-							     pd_last);
+							     pd_first, pd_last);
 			if (retval)
 				sctp_ulpq_set_pd(ulpq);
 		}
@@ -497,7 +496,7 @@ static struct sctp_ulpevent *sctp_ulpq_retrieve_reassembled(struct sctp_ulpq *ul
 done:
 	return retval;
 found:
-	retval = sctp_make_reassembled_event(sock_net(ulpq->asoc->base.sk),
+	retval = sctp_make_reassembled_event(ulpq->asoc->base.net,
 					     &ulpq->reasm, first_frag, pos);
 	if (retval)
 		retval->msg_flags |= MSG_EOR;
@@ -563,8 +562,8 @@ static struct sctp_ulpevent *sctp_ulpq_retrieve_partial(struct sctp_ulpq *ulpq)
 	 * further.
 	 */
 done:
-	retval = sctp_make_reassembled_event(sock_net(ulpq->asoc->base.sk),
-					&ulpq->reasm, first_frag, last_frag);
+	retval = sctp_make_reassembled_event(ulpq->asoc->base.net, &ulpq->reasm,
+					     first_frag, last_frag);
 	if (retval && is_last)
 		retval->msg_flags |= MSG_EOR;
 
@@ -664,8 +663,8 @@ static struct sctp_ulpevent *sctp_ulpq_retrieve_first(struct sctp_ulpq *ulpq)
 	 * further.
 	 */
 done:
-	retval = sctp_make_reassembled_event(sock_net(ulpq->asoc->base.sk),
-					&ulpq->reasm, first_frag, last_frag);
+	retval = sctp_make_reassembled_event(ulpq->asoc->base.net, &ulpq->reasm,
+					     first_frag, last_frag);
 	return retval;
 }
 

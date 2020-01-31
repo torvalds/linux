@@ -1078,7 +1078,7 @@ static void sc92031_set_multicast_list(struct net_device *dev)
 	spin_unlock_bh(&priv->lock);
 }
 
-static void sc92031_tx_timeout(struct net_device *dev)
+static void sc92031_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct sc92031_priv *priv = netdev_priv(dev);
 

@@ -200,6 +200,7 @@ enum enetc_bdr_type {TX, RX};
 #define ENETC_PFPMR		0x1900
 #define ENETC_PFPMR_PMACE	BIT(1)
 #define ENETC_PFPMR_MWLM	BIT(0)
+#define ENETC_EMDIO_BASE	0x1c00
 #define ENETC_PSIUMHFR0(n, err)	(((err) ? 0x1d08 : 0x1d00) + (n) * 0x10)
 #define ENETC_PSIUMHFR1(n)	(0x1d04 + (n) * 0x10)
 #define ENETC_PSIMMHFR0(n, err)	(((err) ? 0x1d00 : 0x1d08) + (n) * 0x10)
@@ -358,6 +359,7 @@ union enetc_tx_bd {
 				u8 l4_csoff;
 				u8 flags;
 			}; /* default layout */
+			__le32 txstart;
 			__le32 lstatus;
 		};
 	};
@@ -378,11 +380,14 @@ union enetc_tx_bd {
 };
 
 #define ENETC_TXBD_FLAGS_L4CS	BIT(0)
+#define ENETC_TXBD_FLAGS_TSE	BIT(1)
 #define ENETC_TXBD_FLAGS_W	BIT(2)
 #define ENETC_TXBD_FLAGS_CSUM	BIT(3)
+#define ENETC_TXBD_FLAGS_TXSTART BIT(4)
 #define ENETC_TXBD_FLAGS_EX	BIT(6)
 #define ENETC_TXBD_FLAGS_F	BIT(7)
-
+#define ENETC_TXBD_TXSTART_MASK GENMASK(24, 0)
+#define ENETC_TXBD_FLAGS_OFFSET 24
 static inline void enetc_clear_tx_bd(union enetc_tx_bd *txbd)
 {
 	memset(txbd, 0, sizeof(*txbd));
@@ -615,3 +620,7 @@ struct enetc_cbd {
 /* Port time gating capability register */
 #define ENETC_QBV_PTGCAPR_OFFSET	0x11a08
 #define ENETC_QBV_MAX_GCL_LEN_MASK	GENMASK(15, 0)
+
+/* Port time specific departure */
+#define ENETC_PTCTSDR(n)	(0x1210 + 4 * (n))
+#define ENETC_TSDE		BIT(31)
