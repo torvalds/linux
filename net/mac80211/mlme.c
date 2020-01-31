@@ -671,6 +671,13 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	struct ieee80211_channel *chan;
 	u32 rates = 0;
+	struct element *ext_capa = NULL;
+
+	/* we know it's writable, cast away the const */
+	if (assoc_data->ie_len)
+		ext_capa = (void *)cfg80211_find_elem(WLAN_EID_EXT_CAPABILITY,
+						      assoc_data->ie,
+						      assoc_data->ie_len);
 
 	sdata_assert_lock(sdata);
 
@@ -821,7 +828,15 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 		*pos++ = ieee80211_chandef_max_power(&chanctx_conf->def);
 	}
 
-	if (capab & WLAN_CAPABILITY_SPECTRUM_MGMT) {
+	/*
+	 * Per spec, we shouldn't include the list of channels if we advertise
+	 * support for extended channel switching, but we've always done that;
+	 * (for now?) apply this restriction only on the (new) 6 GHz band.
+	 */
+	if (capab & WLAN_CAPABILITY_SPECTRUM_MGMT &&
+	    (sband->band != NL80211_BAND_6GHZ ||
+	     !ext_capa || ext_capa->datalen < 1 ||
+	     !(ext_capa->data[0] & WLAN_EXT_CAPA1_EXT_CHANNEL_SWITCHING))) {
 		/* TODO: get this in reg domain format */
 		pos = skb_put(skb, 2 * sband->n_channels + 2);
 		*pos++ = WLAN_EID_SUPPORTED_CHANNELS;
@@ -835,18 +850,9 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 
 	/* Set MBSSID support for HE AP if needed */
 	if (ieee80211_hw_check(&local->hw, SUPPORTS_ONLY_HE_MULTI_BSSID) &&
-	    !(ifmgd->flags & IEEE80211_STA_DISABLE_HE) && assoc_data->ie_len) {
-		struct element *elem;
-
-		/* we know it's writable, cast away the const */
-		elem = (void *)cfg80211_find_elem(WLAN_EID_EXT_CAPABILITY,
-						  assoc_data->ie,
-						  assoc_data->ie_len);
-
-		/* We can probably assume both always true */
-		if (elem && elem->datalen >= 3)
-			elem->data[2] |= WLAN_EXT_CAPA3_MULTI_BSSID_SUPPORT;
-	}
+	    !(ifmgd->flags & IEEE80211_STA_DISABLE_HE) && assoc_data->ie_len &&
+	    ext_capa && ext_capa->datalen >= 3)
+		ext_capa->data[2] |= WLAN_EXT_CAPA3_MULTI_BSSID_SUPPORT;
 
 	/* if present, add any custom IEs that go before HT */
 	if (assoc_data->ie_len) {
