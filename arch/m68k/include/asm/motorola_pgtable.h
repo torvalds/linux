@@ -108,13 +108,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 
 static inline void pmd_set(pmd_t *pmdp, pte_t *ptep)
 {
-	unsigned long ptbl = virt_to_phys(ptep) | _PAGE_TABLE | _PAGE_ACCESSED;
-	unsigned long *ptr = pmdp->pmd;
-	short i = 16;
-	while (--i >= 0) {
-		*ptr++ = ptbl;
-		ptbl += (sizeof(pte_t)*PTRS_PER_PTE/16);
-	}
+	pmd_val(*pmdp) = virt_to_phys(ptep) | _PAGE_TABLE | _PAGE_ACCESSED;
 }
 
 static inline void pud_set(pud_t *pudp, pmd_t *pmdp)
@@ -138,12 +132,7 @@ static inline void pud_set(pud_t *pudp, pmd_t *pmdp)
 #define pmd_none(pmd)		(!pmd_val(pmd))
 #define pmd_bad(pmd)		((pmd_val(pmd) & _DESCTYPE_MASK) != _PAGE_TABLE)
 #define pmd_present(pmd)	(pmd_val(pmd) & _PAGE_TABLE)
-#define pmd_clear(pmdp) ({			\
-	unsigned long *__ptr = pmdp->pmd;	\
-	short __i = 16;				\
-	while (--__i >= 0)			\
-		*__ptr++ = 0;			\
-})
+#define pmd_clear(pmdp)		({ pmd_val(*pmdp) = 0; })
 #define pmd_page(pmd)		virt_to_page(__va(pmd_val(pmd)))
 
 

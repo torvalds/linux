@@ -236,8 +236,6 @@ static pmd_t * __init kernel_ptr_table(void)
 
 static void __init map_node(int node)
 {
-#define PTRTREESIZE (256*1024)
-#define ROOTTREESIZE (32*1024*1024)
 	unsigned long physaddr, virtaddr, size;
 	pgd_t *pgd_dir;
 	p4d_t *p4d_dir;
@@ -255,21 +253,21 @@ static void __init map_node(int node)
 
 	while (size > 0) {
 #ifdef DEBUG
-		if (!(virtaddr & (PTRTREESIZE-1)))
+		if (!(virtaddr & (PMD_SIZE-1)))
 			printk ("\npa=%#lx va=%#lx ", physaddr & PAGE_MASK,
 				virtaddr);
 #endif
 		pgd_dir = pgd_offset_k(virtaddr);
 		if (virtaddr && CPU_IS_020_OR_030) {
-			if (!(virtaddr & (ROOTTREESIZE-1)) &&
-			    size >= ROOTTREESIZE) {
+			if (!(virtaddr & (PGDIR_SIZE-1)) &&
+			    size >= PGDIR_SIZE) {
 #ifdef DEBUG
 				printk ("[very early term]");
 #endif
 				pgd_val(*pgd_dir) = physaddr;
-				size -= ROOTTREESIZE;
-				virtaddr += ROOTTREESIZE;
-				physaddr += ROOTTREESIZE;
+				size -= PGDIR_SIZE;
+				virtaddr += PGDIR_SIZE;
+				physaddr += PGDIR_SIZE;
 				continue;
 			}
 		}
@@ -289,8 +287,8 @@ static void __init map_node(int node)
 #ifdef DEBUG
 				printk ("[early term]");
 #endif
-				pmd_dir->pmd[(virtaddr/PTRTREESIZE) & 15] = physaddr;
-				physaddr += PTRTREESIZE;
+				pmd_val(*pmd_dir) = physaddr;
+				physaddr += PMD_SIZE;
 			} else {
 				int i;
 #ifdef DEBUG
@@ -298,15 +296,15 @@ static void __init map_node(int node)
 #endif
 				zero_pgtable = kernel_ptr_table();
 				pte_dir = (pte_t *)zero_pgtable;
-				pmd_dir->pmd[0] = virt_to_phys(pte_dir) |
-					_PAGE_TABLE | _PAGE_ACCESSED;
+				pmd_set(pmd_dir, pte_dir);
+
 				pte_val(*pte_dir++) = 0;
 				physaddr += PAGE_SIZE;
-				for (i = 1; i < 64; physaddr += PAGE_SIZE, i++)
+				for (i = 1; i < PTRS_PER_PTE; physaddr += PAGE_SIZE, i++)
 					pte_val(*pte_dir++) = physaddr;
 			}
-			size -= PTRTREESIZE;
-			virtaddr += PTRTREESIZE;
+			size -= PMD_SIZE;
+			virtaddr += PMD_SIZE;
 		} else {
 			if (!pmd_present(*pmd_dir)) {
 #ifdef DEBUG
