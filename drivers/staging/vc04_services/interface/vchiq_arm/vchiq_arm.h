@@ -54,9 +54,6 @@ struct vchiq_arm_state {
 	enum vc_resume_status vc_resume_state;
 
 	struct vchiq_state *state;
-	struct timer_list suspend_timer;
-	int suspend_timer_timeout;
-	int suspend_timer_running;
 
 	/* Global use count for videocore.
 	** This is equal to the sum of the use counts for all services.  When
@@ -121,9 +118,6 @@ vchiq_platform_suspend(struct vchiq_state *state);
 extern int
 vchiq_platform_videocore_wanted(struct vchiq_state *state);
 
-extern int
-vchiq_platform_use_suspend_timer(void);
-
 extern void
 vchiq_dump_platform_use_state(struct vchiq_state *state);
 
@@ -165,8 +159,5 @@ set_suspend_state(struct vchiq_arm_state *arm_state,
 extern void
 set_resume_state(struct vchiq_arm_state *arm_state,
 		 enum vc_resume_status new_state);
-
-extern void
-start_suspend_timer(struct vchiq_arm_state *arm_state);
 
 #endif /* VCHIQ_ARM_H */
