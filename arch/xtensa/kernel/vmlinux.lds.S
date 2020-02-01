@@ -47,9 +47,15 @@ jiffies = jiffies_64;
 	LONG(sym ## _end);			\
 	LONG(LOADADDR(section))
 
+#if !defined(CONFIG_VECTORS_ADDR) && XCHAL_HAVE_VECBASE
+#define MERGED_VECTORS 1
+#else
+#define MERGED_VECTORS 0
+#endif
+
 /*
- * Macro to define a section for a vector. When CONFIG_VECTORS_OFFSET is
- * defined code for every vector is located with other init data. At startup
+ * Macro to define a section for a vector. When MERGED_VECTORS is 0
+ * code for every vector is located with other init data. At startup
  * time head.S copies code for every vector to its final position according
  * to description recorded in the corresponding RELOCATE_ENTRY.
  */
@@ -84,7 +90,7 @@ SECTIONS
     /* The HEAD_TEXT section must be the first section! */
     HEAD_TEXT
 
-#ifndef CONFIG_VECTORS_OFFSET
+#if MERGED_VECTORS
     . = ALIGN(PAGE_SIZE);
     _vecbase = .;
 
@@ -159,7 +165,7 @@ SECTIONS
     . = ALIGN(16);
     __boot_reloc_table_start = ABSOLUTE(.);
 
-#ifdef CONFIG_VECTORS_OFFSET
+#if !MERGED_VECTORS
     RELOCATE_ENTRY(_WindowVectors_text,
 		   .WindowVectors.text);
 #if XCHAL_EXCM_LEVEL >= 2
@@ -220,7 +226,7 @@ SECTIONS
 #undef LAST
 #define LAST	.dummy
 
-#ifdef CONFIG_VECTORS_OFFSET
+#if !MERGED_VECTORS
   /* The vectors are relocated to the real position at startup time */
 
   SECTION_VECTOR4 (_WindowVectors_text,
@@ -299,7 +305,7 @@ SECTIONS
 #define LAST .SecondaryResetVector.text
 
 #endif
-#ifdef CONFIG_VECTORS_OFFSET
+#if !MERGED_VECTORS
   SECTION_VECTOR4 (_exception_text,
 		  .exception.text,
 		  ,
@@ -310,6 +316,7 @@ SECTIONS
 #endif
   . = (LOADADDR(LAST) + SIZEOF(LAST) + 3) & ~ 3;
 
+  .dummy1 : AT(ADDR(.dummy1)) { LONG(0) }
   . = ALIGN(PAGE_SIZE);
 
 #ifndef CONFIG_XIP_KERNEL
@@ -327,7 +334,7 @@ SECTIONS
 
 #undef LOAD_OFFSET
 #define LOAD_OFFSET \
-  (CONFIG_XIP_DATA_ADDR - (LOADADDR(.dummy) + SIZEOF(.dummy) + 3) & ~ 3)
+  (CONFIG_XIP_DATA_ADDR - (LOADADDR(.dummy1) + SIZEOF(.dummy1) + 3) & ~ 3)
 
   _xip_data_start = .;
   _sdata = .;
