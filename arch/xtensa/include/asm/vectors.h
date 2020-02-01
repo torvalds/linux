@@ -40,7 +40,7 @@
 #define VECBASE_VADDR			_vecbase
 #endif
 
-#if defined(XCHAL_HAVE_VECBASE) && XCHAL_HAVE_VECBASE
+#if XCHAL_HAVE_VECBASE
 
 #define VECTOR_VADDR(offset)		(VECBASE_VADDR + offset)
 
