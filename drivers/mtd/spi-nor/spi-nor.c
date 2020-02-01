@@ -3598,8 +3598,7 @@ static int spi_nor_parse_bfpt(struct spi_nor *nor,
 		return err;
 
 	/* Fix endianness of the BFPT DWORDs. */
-	for (i = 0; i < BFPT_DWORD_MAX; i++)
-		bfpt.dwords[i] = le32_to_cpu(bfpt.dwords[i]);
+	le32_to_cpu_array(bfpt.dwords, BFPT_DWORD_MAX);
 
 	/* Number of address bytes. */
 	switch (bfpt.dwords[BFPT_DWORD(1)] & BFPT_DWORD1_ADDRESS_BYTES_MASK) {
@@ -4057,7 +4056,7 @@ static int spi_nor_parse_smpt(struct spi_nor *nor,
 	u32 *smpt;
 	size_t len;
 	u32 addr;
-	int i, ret;
+	int ret;
 
 	/* Read the Sector Map Parameter Table. */
 	len = smpt_header->length * sizeof(*smpt);
@@ -4071,8 +4070,7 @@ static int spi_nor_parse_smpt(struct spi_nor *nor,
 		goto out;
 
 	/* Fix endianness of the SMPT DWORDs. */
-	for (i = 0; i < smpt_header->length; i++)
-		smpt[i] = le32_to_cpu(smpt[i]);
+	le32_to_cpu_array(smpt, smpt_header->length);
 
 	sector_map = spi_nor_get_map_in_use(nor, smpt, smpt_header->length);
 	if (IS_ERR(sector_map)) {
@@ -4165,8 +4163,7 @@ static int spi_nor_parse_4bait(struct spi_nor *nor,
 		goto out;
 
 	/* Fix endianness of the 4BAIT DWORDs. */
-	for (i = 0; i < SFDP_4BAIT_DWORD_MAX; i++)
-		dwords[i] = le32_to_cpu(dwords[i]);
+	le32_to_cpu_array(dwords, SFDP_4BAIT_DWORD_MAX);
 
 	/*
 	 * Compute the subset of (Fast) Read commands for which the 4-byte
