@@ -585,8 +585,7 @@ struct io_submit_state {
 	 * io_kiocb alloc cache
 	 */
 	void			*reqs[IO_IOPOLL_BATCH];
-	unsigned		int free_reqs;
-	unsigned		int cur_req;
+	unsigned int		free_reqs;
 
 	/*
 	 * File reference cache
@@ -1190,12 +1189,10 @@ static struct io_kiocb *io_get_req(struct io_ring_ctx *ctx,
 			ret = 1;
 		}
 		state->free_reqs = ret - 1;
-		state->cur_req = 1;
-		req = state->reqs[0];
+		req = state->reqs[ret - 1];
 	} else {
-		req = state->reqs[state->cur_req];
 		state->free_reqs--;
-		state->cur_req++;
+		req = state->reqs[state->free_reqs];
 	}
 
 got_it:
@@ -4849,8 +4846,7 @@ static void io_submit_state_end(struct io_submit_state *state)
 	blk_finish_plug(&state->plug);
 	io_file_put(state);
 	if (state->free_reqs)
-		kmem_cache_free_bulk(req_cachep, state->free_reqs,
-					&state->reqs[state->cur_req]);
+		kmem_cache_free_bulk(req_cachep, state->free_reqs, state->reqs);
 }
 
 /*
