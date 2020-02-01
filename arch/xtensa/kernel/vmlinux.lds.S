@@ -110,6 +110,8 @@ SECTIONS
   SECTION_VECTOR (.KernelExceptionVector.text, KERNEL_VECTOR_VADDR)
   SECTION_VECTOR (.UserExceptionVector.text, USER_VECTOR_VADDR)
   SECTION_VECTOR (.DoubleExceptionVector.text, DOUBLEEXC_VECTOR_VADDR)
+
+  *(.exception.text)
 #endif
 
     IRQENTRY_TEXT
@@ -190,6 +192,8 @@ SECTIONS
 		   .DoubleExceptionVector.text);
     RELOCATE_ENTRY(_DebugInterruptVector_text,
 		   .DebugInterruptVector.text);
+    RELOCATE_ENTRY(_exception_text,
+		   .exception.text);
 #endif
 #ifdef CONFIG_XIP_KERNEL
     RELOCATE_ENTRY(_xip_data, .data);
@@ -282,8 +286,7 @@ SECTIONS
 		  .DoubleExceptionVector.text,
 		  DOUBLEEXC_VECTOR_VADDR,
 		  .UserExceptionVector.text)
-
-  . = (LOADADDR( .DoubleExceptionVector.text ) + SIZEOF( .DoubleExceptionVector.text ) + 3) & ~ 3;
+#define LAST .DoubleExceptionVector.text
 
 #endif
 #if !defined(CONFIG_XIP_KERNEL) && defined(CONFIG_SMP)
@@ -292,10 +295,20 @@ SECTIONS
 		  .SecondaryResetVector.text,
 		  RESET_VECTOR1_VADDR,
 		  .DoubleExceptionVector.text)
-
-  . = LOADADDR(.SecondaryResetVector.text)+SIZEOF(.SecondaryResetVector.text);
+#undef LAST
+#define LAST .SecondaryResetVector.text
 
 #endif
+#ifdef CONFIG_VECTORS_OFFSET
+  SECTION_VECTOR (_exception_text,
+		  .exception.text,
+		  ,
+		  LAST)
+#undef LAST
+#define LAST .exception.text
+
+#endif
+  . = (LOADADDR(LAST) + SIZEOF(LAST) + 3) & ~ 3;
 
   . = ALIGN(PAGE_SIZE);
 
