@@ -1,6 +1,7 @@
 config GKI_HIDDEN_DRM_CONFIGS
 	bool "Hidden DRM configs needed for GKI"
 	select DRM_KMS_HELPER if (HAS_IOMEM && DRM)
+	select DRM_GEM_SHMEM_HELPER if (DRM)
 	select DRM_GEM_CMA_HELPER
 	select DRM_KMS_CMA_HELPER
 	select DRM_MIPI_DSI
