@@ -2730,9 +2730,16 @@ static int io_fadvise(struct io_kiocb *req, struct io_kiocb **nxt,
 	struct io_fadvise *fa = &req->fadvise;
 	int ret;
 
-	/* DONTNEED may block, others _should_ not */
-	if (fa->advice == POSIX_FADV_DONTNEED && force_nonblock)
-		return -EAGAIN;
+	if (force_nonblock) {
+		switch (fa->advice) {
+		case POSIX_FADV_NORMAL:
+		case POSIX_FADV_RANDOM:
+		case POSIX_FADV_SEQUENTIAL:
+			break;
+		default:
+			return -EAGAIN;
+		}
+	}
 
 	ret = vfs_fadvise(req->file, fa->offset, fa->len, fa->advice);
 	if (ret < 0)
