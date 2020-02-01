@@ -79,11 +79,14 @@ static void flush_range(struct mm_struct *mm, unsigned long start,
 	int count;
 	unsigned int ctx = mm->context.id;
 
+	start &= PAGE_MASK;
 	if (!Hash) {
-		_tlbia();
+		if (end - start <= PAGE_SIZE)
+			_tlbie(start);
+		else
+			_tlbia();
 		return;
 	}
-	start &= PAGE_MASK;
 	if (start >= end)
 		return;
 	end = (end - 1) | ~PAGE_MASK;
