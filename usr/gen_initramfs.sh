@@ -5,8 +5,7 @@
 # Released under the terms of the GNU GPL
 #
 # Generate a cpio packed initramfs. It uses gen_init_cpio to generate
-# the cpio archive, and then compresses it.
-# The script may also be used to generate the inputfile used for gen_init_cpio
+# the cpio archive.
 # This script assumes that gen_init_cpio is located in usr/ directory
 
 # error out on errors
@@ -15,9 +14,9 @@ set -e
 usage() {
 cat << EOF
 Usage:
-$0 [-o <file>] [-u <uid>] [-g <gid>] {-d | <cpio_source>} ...
-	-o <file>      Create compressed initramfs file named <file> using
-		       gen_init_cpio and compressor depending on the extension
+$0 [-o <file>] [-l <dep_list>] [-u <uid>] [-g <gid>] {-d | <cpio_source>} ...
+	-o <file>      Create initramfs file named <file> by using gen_init_cpio
+	-l <dep_list>  Create dependency list named <dep_list>
 	-u <uid>       User ID to map to user ID 0 (root).
 		       <uid> is only meaningful if <cpio_source> is a
 		       directory.  "squash" forces all files to uid 0.
@@ -27,7 +26,6 @@ $0 [-o <file>] [-u <uid>] [-g <gid>] {-d | <cpio_source>} ...
 	<cpio_source>  File list or directory for cpio archive.
 		       If <cpio_source> is a .cpio file it will be used
 		       as direct input to initramfs.
-	-d             Output the default cpio list.
 
 All options except -o and -l may be repeated and are interpreted
 sequentially and immediately.  -u and -g states are preserved across
@@ -40,23 +38,6 @@ EOF
 # $1 - field number; rest is argument string
 field() {
 	shift $1 ; echo $1
-}
-
-list_default_initramfs() {
-	# echo usr/kinit/kinit
-	:
-}
-
-default_initramfs() {
-	cat <<-EOF >> ${output}
-		# This is a very simple, default initramfs
-
-		dir /dev 0755 0 0
-		nod /dev/console 0600 0 0 c 5 1
-		dir /root 0700 0 0
-		# file /kinit usr/kinit/kinit 0755 0 0
-		# slink /init kinit 0755 0 0
-	EOF
 }
 
 filetype() {
@@ -81,10 +62,6 @@ filetype() {
 	return 0
 }
 
-list_print_mtime() {
-	:
-}
-
 print_mtime() {
 	local my_mtime="0"
 
@@ -92,15 +69,15 @@ print_mtime() {
 		my_mtime=$(find "$1" -printf "%T@\n" | sort -r | head -n 1)
 	fi
 
-	echo "# Last modified: ${my_mtime}" >> ${output}
-	echo "" >> ${output}
+	echo "# Last modified: ${my_mtime}" >> $cpio_list
+	echo "" >> $cpio_list
 }
 
 list_parse() {
-	if [ -L "$1" ]; then
+	if [ -z "$dep_list" -o -L "$1" ]; then
 		return
 	fi
-	echo "$1" | sed 's/:/\\:/g; s/$/ \\/'
+	echo "$1" | sed 's/:/\\:/g; s/$/ \\/' >> $dep_list
 }
 
 # for each file print a line in following format
@@ -146,7 +123,7 @@ parse() {
 			;;
 	esac
 
-	echo "${str}" >> ${output}
+	echo "${str}" >> $cpio_list
 
 	return 0
 }
@@ -161,58 +138,47 @@ unknown_option() {
 	exit 1
 }
 
-list_header() {
-	:
-}
-
 header() {
-	printf "\n#####################\n# $1\n" >> ${output}
+	printf "\n#####################\n# $1\n" >> $cpio_list
 }
 
 # process one directory (incl sub-directories)
 dir_filelist() {
-	${dep_list}header "$1"
+	header "$1"
 
 	srcdir=$(echo "$1" | sed -e 's://*:/:g')
 	dirlist=$(find "${srcdir}" -printf "%p %m %U %G\n" | LANG=C sort)
 
 	# If $dirlist is only one line, then the directory is empty
 	if [  "$(echo "${dirlist}" | wc -l)" -gt 1 ]; then
-		${dep_list}print_mtime "$1"
+		print_mtime "$1"
 
 		echo "${dirlist}" | \
 		while read x; do
-			${dep_list}parse ${x}
+			list_parse $x
+			parse $x
 		done
 	fi
 }
 
-# if only one file is specified and it is .cpio file then use it direct as fs
-# if a directory is specified then add all files in given direcotry to fs
-# if a regular file is specified assume it is in gen_initramfs format
 input_file() {
 	source="$1"
 	if [ -f "$1" ]; then
-		${dep_list}header "$1"
-		is_cpio="$(echo "$1" | sed 's/^.*\.cpio\(\..*\)\{0,1\}/cpio/')"
-		if [ $2 -eq 0 -a ${is_cpio} = "cpio" ]; then
-			cpio_file=$1
-			echo "$1" | grep -q '^.*\.cpio\..*' && is_cpio_compressed="compressed"
-			[ ! -z ${dep_list} ] && echo "$1"
-			return 0
-		fi
-		if [ -z ${dep_list} ]; then
-			print_mtime "$1" >> ${output}
-			cat "$1"         >> ${output}
-		else
-		        echo "$1 \\"
+		# If a regular file is specified, assume it is in
+		# gen_init_cpio format
+		header "$1"
+		print_mtime "$1" >> $cpio_list
+		cat "$1"         >> $cpio_list
+		if [ -n "$dep_list" ]; then
+		        echo "$1 \\"  >> $dep_list
 			cat "$1" | while read type dir file perm ; do
 				if [ "$type" = "file" ]; then
-					echo "$file \\";
+					echo "$file \\" >> $dep_list
 				fi
 			done
 		fi
 	elif [ -d "$1" ]; then
+		# If a directory is specified then add all files in it to fs
 		dir_filelist "$1"
 	else
 		echo "  ${prog}: Cannot open '$1'" >&2
@@ -224,51 +190,24 @@ prog=$0
 root_uid=0
 root_gid=0
 dep_list=
-cpio_file=
-cpio_list=
+cpio_list=$(mktemp ${TMPDIR:-/tmp}/cpiolist.XXXXXX)
 output="/dev/stdout"
-output_file=""
-is_cpio_compressed=
-compr="gzip -n -9 -f"
 
-arg="$1"
-case "$arg" in
-	"-l")	# files included in initramfs - used by kbuild
-		dep_list="list_"
-		echo "deps_initramfs := $0 \\"
-		shift
-		;;
-	"-o")	# generate compressed cpio image named $1
-		shift
-		output_file="$1"
-		cpio_list="$(mktemp ${TMPDIR:-/tmp}/cpiolist.XXXXXX)"
-		output=${cpio_list}
-		echo "$output_file" | grep -q "\.gz$" \
-                && [ -x "`which gzip 2> /dev/null`" ] \
-                && compr="gzip -n -9 -f"
-		echo "$output_file" | grep -q "\.bz2$" \
-                && [ -x "`which bzip2 2> /dev/null`" ] \
-                && compr="bzip2 -9 -f"
-		echo "$output_file" | grep -q "\.lzma$" \
-                && [ -x "`which lzma 2> /dev/null`" ] \
-                && compr="lzma -9 -f"
-		echo "$output_file" | grep -q "\.xz$" \
-                && [ -x "`which xz 2> /dev/null`" ] \
-                && compr="xz --check=crc32 --lzma2=dict=1MiB"
-		echo "$output_file" | grep -q "\.lzo$" \
-                && [ -x "`which lzop 2> /dev/null`" ] \
-                && compr="lzop -9 -f"
-		echo "$output_file" | grep -q "\.lz4$" \
-                && [ -x "`which lz4 2> /dev/null`" ] \
-                && compr="lz4 -l -9 -f"
-		echo "$output_file" | grep -q "\.cpio$" && compr="cat"
-		shift
-		;;
-esac
+trap "rm -f $cpio_list" EXIT
+
 while [ $# -gt 0 ]; do
 	arg="$1"
 	shift
 	case "$arg" in
+		"-l")	# files included in initramfs - used by kbuild
+			dep_list="$1"
+			echo "deps_initramfs := \\" > $dep_list
+			shift
+			;;
+		"-o")	# generate cpio image named $1
+			output="$1"
+			shift
+			;;
 		"-u")	# map $1 to uid=0 (root)
 			root_uid="$1"
 			[ "$root_uid" = "-1" ] && root_uid=$(id -u || echo 0)
@@ -278,10 +217,6 @@ while [ $# -gt 0 ]; do
 			root_gid="$1"
 			[ "$root_gid" = "-1" ] && root_gid=$(id -g || echo 0)
 			shift
-			;;
-		"-d")	# display default initramfs list
-			default_list="$arg"
-			${dep_list}default_initramfs
 			;;
 		"-h")
 			usage
@@ -293,36 +228,20 @@ while [ $# -gt 0 ]; do
 					unknown_option
 					;;
 				*)	# input file/dir - process it
-					input_file "$arg" "$#"
+					input_file "$arg"
 					;;
 			esac
 			;;
 	esac
 done
 
-# If output_file is set we will generate cpio archive and compress it
+# If output_file is set we will generate cpio archive
 # we are careful to delete tmp files
-if [ ! -z ${output_file} ]; then
-	if [ -z ${cpio_file} ]; then
-		timestamp=
-		if test -n "$KBUILD_BUILD_TIMESTAMP"; then
-			timestamp="$(date -d"$KBUILD_BUILD_TIMESTAMP" +%s || :)"
-			if test -n "$timestamp"; then
-				timestamp="-t $timestamp"
-			fi
-		fi
-		cpio_tfile="$(mktemp ${TMPDIR:-/tmp}/cpiofile.XXXXXX)"
-		usr/gen_init_cpio $timestamp ${cpio_list} > ${cpio_tfile}
-	else
-		cpio_tfile=${cpio_file}
+timestamp=
+if test -n "$KBUILD_BUILD_TIMESTAMP"; then
+	timestamp="$(date -d"$KBUILD_BUILD_TIMESTAMP" +%s || :)"
+	if test -n "$timestamp"; then
+		timestamp="-t $timestamp"
 	fi
-	rm ${cpio_list}
-	if [ "${is_cpio_compressed}" = "compressed" ]; then
-		cat ${cpio_tfile} > ${output_file}
-	else
-		(cat ${cpio_tfile} | ${compr}  - > ${output_file}) \
-		|| (rm -f ${output_file} ; false)
-	fi
-	[ -z ${cpio_file} ] && rm ${cpio_tfile}
 fi
-exit 0
+usr/gen_init_cpio $timestamp $cpio_list > $output
