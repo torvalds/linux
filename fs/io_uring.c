@@ -2843,16 +2843,13 @@ static void io_close_finish(struct io_wq_work **workptr)
 		int ret;
 
 		ret = filp_close(req->close.put_file, req->work.files);
-		if (ret < 0) {
+		if (ret < 0)
 			req_set_fail_links(req);
-		}
 		io_cqring_add_event(req, ret);
 	}
 
 	fput(req->close.put_file);
 
-	/* we bypassed the re-issue, drop the submission reference */
-	io_put_req(req);
 	io_put_req_find_next(req, &nxt);
 	if (nxt)
 		io_wq_assign_next(workptr, nxt);
@@ -2894,7 +2891,13 @@ static int io_close(struct io_kiocb *req, struct io_kiocb **nxt,
 
 eagain:
 	req->work.func = io_close_finish;
-	return -EAGAIN;
+	/*
+	 * Do manual async queue here to avoid grabbing files - we don't
+	 * need the files, and it'll cause io_close_finish() to close
+	 * the file again and cause a double CQE entry for this request
+	 */
+	io_queue_async_work(req);
+	return 0;
 }
 
 static int io_prep_sfr(struct io_kiocb *req, const struct io_uring_sqe *sqe)
