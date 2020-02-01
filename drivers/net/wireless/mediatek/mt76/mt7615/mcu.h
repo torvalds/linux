@@ -565,9 +565,10 @@ struct sta_rec_ba {
 	__le16 winsize;
 } __packed;
 
-#define MT7615_STA_REC_UPDATE_MAX_SIZE (sizeof(struct sta_rec_basic) + \
-					sizeof(struct sta_rec_ht) + \
-					sizeof(struct sta_rec_vht))
+struct sta_rec_wtbl {
+	__le16 tag;
+	__le16 len;
+} __packed;
 
 enum {
 	STA_REC_BASIC,
@@ -582,6 +583,7 @@ enum {
 	STA_REC_HT,
 	STA_REC_VHT,
 	STA_REC_APPS,
+	STA_REC_WTBL = 13,
 	STA_REC_MAX_NUM
 };
 
