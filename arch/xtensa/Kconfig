@@ -180,11 +180,11 @@ config HAVE_SMP
 	depends on XTENSA_VARIANT_CUSTOM
 	select XTENSA_MX
 	help
-	  This option is use to indicate that the system-on-a-chip (SOC)
+	  This option is used to indicate that the system-on-a-chip (SOC)
 	  supports Multiprocessing. Multiprocessor support implemented above
 	  the CPU core definition and currently needs to be selected manually.
 
-	  Multiprocessor support in implemented with external cache and
+	  Multiprocessor support is implemented with external cache and
 	  interrupt controllers.
 
 	  The MX interrupt distributer adds Interprocessor Interrupts
