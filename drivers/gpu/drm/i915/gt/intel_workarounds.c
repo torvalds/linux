@@ -1464,6 +1464,52 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 			    GEN8_L3SQCREG4,
 			    GEN8_LQSC_FLUSH_COHERENT_LINES);
 	}
+
+	if (IS_GEN(i915, 7))
+		/* WaBCSVCSTlbInvalidationMode:ivb,vlv,hsw */
+		wa_masked_en(wal,
+			     GFX_MODE_GEN7,
+			     GFX_TLB_INVALIDATE_EXPLICIT | GFX_REPLAY_MODE);
+
+	if (IS_GEN_RANGE(i915, 6, 7))
+		/*
+		 * We need to disable the AsyncFlip performance optimisations in
+		 * order to use MI_WAIT_FOR_EVENT within the CS. It should
+		 * already be programmed to '1' on all products.
+		 *
+		 * WaDisableAsyncFlipPerfMode:snb,ivb,hsw,vlv
+		 */
+		wa_masked_en(wal,
+			     MI_MODE,
+			     ASYNC_FLIP_PERF_DISABLE);
+
+	if (IS_GEN(i915, 6)) {
+		/*
+		 * Required for the hardware to program scanline values for
+		 * waiting
+		 * WaEnableFlushTlbInvalidationMode:snb
+		 */
+		wa_masked_en(wal,
+			     GFX_MODE,
+			     GFX_TLB_INVALIDATE_EXPLICIT);
+
+		/*
+		 * From the Sandybridge PRM, volume 1 part 3, page 24:
+		 * "If this bit is set, STCunit will have LRA as replacement
+		 *  policy. [...] This bit must be reset. LRA replacement
+		 *  policy is not supported."
+		 */
+		wa_masked_dis(wal,
+			      CACHE_MODE_0,
+			      CM0_STC_EVICT_DISABLE_LRA_SNB);
+	}
+
+	if (IS_GEN_RANGE(i915, 4, 6))
+		/* WaTimedSingleVertexDispatch:cl,bw,ctg,elk,ilk,snb */
+		wa_add(wal, MI_MODE,
+		       0, _MASKED_BIT_ENABLE(VS_TIMER_DISPATCH),
+		       /* XXX bit doesn't stick on Broadwater */
+		       IS_I965G(i915) ? 0 : VS_TIMER_DISPATCH);
 }
 
 static void
@@ -1482,7 +1528,7 @@ xcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 static void
 engine_init_workarounds(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 {
-	if (I915_SELFTEST_ONLY(INTEL_GEN(engine->i915) < 8))
+	if (I915_SELFTEST_ONLY(INTEL_GEN(engine->i915) < 4))
 		return;
 
 	if (engine->class == RENDER_CLASS)
@@ -1495,7 +1541,7 @@ void intel_engine_init_workarounds(struct intel_engine_cs *engine)
 {
 	struct i915_wa_list *wal = &engine->wa_list;
 
-	if (INTEL_GEN(engine->i915) < 8)
+	if (INTEL_GEN(engine->i915) < 4)
 		return;
 
 	wa_init_start(wal, "engine", engine->name);

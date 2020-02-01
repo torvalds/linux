@@ -858,43 +858,6 @@ static int rcs_resume(struct intel_engine_cs *engine)
 		intel_uncore_write(uncore, ECOSKPD,
 			   _MASKED_BIT_ENABLE(ECO_CONSTANT_BUFFER_SR_DISABLE));
 
-	/* WaTimedSingleVertexDispatch:cl,bw,ctg,elk,ilk,snb */
-	if (IS_GEN_RANGE(i915, 4, 6))
-		intel_uncore_write(uncore, MI_MODE,
-				   _MASKED_BIT_ENABLE(VS_TIMER_DISPATCH));
-
-	/* We need to disable the AsyncFlip performance optimisations in order
-	 * to use MI_WAIT_FOR_EVENT within the CS. It should already be
-	 * programmed to '1' on all products.
-	 *
-	 * WaDisableAsyncFlipPerfMode:snb,ivb,hsw,vlv
-	 */
-	if (IS_GEN_RANGE(i915, 6, 7))
-		intel_uncore_write(uncore, MI_MODE,
-				   _MASKED_BIT_ENABLE(ASYNC_FLIP_PERF_DISABLE));
-
-	/* Required for the hardware to program scanline values for waiting */
-	/* WaEnableFlushTlbInvalidationMode:snb */
-	if (IS_GEN(i915, 6))
-		intel_uncore_write(uncore, GFX_MODE,
-			   _MASKED_BIT_ENABLE(GFX_TLB_INVALIDATE_EXPLICIT));
-
-	/* WaBCSVCSTlbInvalidationMode:ivb,vlv,hsw */
-	if (IS_GEN(i915, 7))
-		intel_uncore_write(uncore, GFX_MODE_GEN7,
-			   _MASKED_BIT_ENABLE(GFX_TLB_INVALIDATE_EXPLICIT) |
-			   _MASKED_BIT_ENABLE(GFX_REPLAY_MODE));
-
-	if (IS_GEN(i915, 6)) {
-		/* From the Sandybridge PRM, volume 1 part 3, page 24:
-		 * "If this bit is set, STCunit will have LRA as replacement
-		 *  policy. [...] This bit must be reset.  LRA replacement
-		 *  policy is not supported."
-		 */
-		intel_uncore_write(uncore, CACHE_MODE_0,
-			   _MASKED_BIT_DISABLE(CM0_STC_EVICT_DISABLE_LRA_SNB));
-	}
-
 	if (IS_GEN_RANGE(i915, 6, 7))
 		intel_uncore_write(uncore, INSTPM,
 				   _MASKED_BIT_ENABLE(INSTPM_FORCE_ORDERING));
