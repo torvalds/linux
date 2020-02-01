@@ -88,8 +88,11 @@ static int nsim_dev_debugfs_init(struct nsim_dev *nsim_dev)
 			   &nsim_dev->max_macs);
 	debugfs_create_bool("test1", 0600, nsim_dev->ddir,
 			    &nsim_dev->test1);
-	debugfs_create_file("take_snapshot", 0200, nsim_dev->ddir, nsim_dev,
-			    &nsim_dev_take_snapshot_fops);
+	nsim_dev->take_snapshot = debugfs_create_file("take_snapshot",
+						      0200,
+						      nsim_dev->ddir,
+						      nsim_dev,
+						&nsim_dev_take_snapshot_fops);
 	debugfs_create_bool("dont_allow_reload", 0600, nsim_dev->ddir,
 			    &nsim_dev->dont_allow_reload);
 	debugfs_create_bool("fail_reload", 0600, nsim_dev->ddir,
@@ -740,6 +743,11 @@ static int nsim_dev_reload_create(struct nsim_dev *nsim_dev,
 	if (err)
 		goto err_health_exit;
 
+	nsim_dev->take_snapshot = debugfs_create_file("take_snapshot",
+						      0200,
+						      nsim_dev->ddir,
+						      nsim_dev,
+						&nsim_dev_take_snapshot_fops);
 	return 0;
 
 err_health_exit:
@@ -853,6 +861,7 @@ static void nsim_dev_reload_destroy(struct nsim_dev *nsim_dev)
 
 	if (devlink_is_reload_failed(devlink))
 		return;
+	debugfs_remove(nsim_dev->take_snapshot);
 	nsim_dev_port_del_all(nsim_dev);
 	nsim_dev_health_exit(nsim_dev);
 	nsim_dev_traps_exit(devlink);
