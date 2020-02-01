@@ -54,8 +54,7 @@ jiffies = jiffies_64;
  * to description recorded in the corresponding RELOCATE_ENTRY.
  */
 
-#ifdef CONFIG_VECTORS_OFFSET
-#define SECTION_VECTOR(sym, section, addr, prevsec)                         \
+#define SECTION_VECTOR4(sym, section, addr, prevsec)			    \
   section addr : AT(((LOADADDR(prevsec) + SIZEOF(prevsec)) + 3) & ~ 3)      \
   {									    \
     . = ALIGN(4);							    \
@@ -63,11 +62,10 @@ jiffies = jiffies_64;
     *(section)								    \
     sym ## _end = ABSOLUTE(.);						    \
   }
-#else
-#define SECTION_VECTOR(section, addr)					    \
+
+#define SECTION_VECTOR2(section, addr)					    \
   . = addr;								    \
   *(section)
-#endif
 
 /*
  *  Mapping of input sections to output sections when linking.
@@ -87,31 +85,31 @@ SECTIONS
     HEAD_TEXT
 
 #ifndef CONFIG_VECTORS_OFFSET
-  . = ALIGN(PAGE_SIZE);
-  _vecbase = .;
+    . = ALIGN(PAGE_SIZE);
+    _vecbase = .;
 
-  SECTION_VECTOR (.WindowVectors.text, WINDOW_VECTORS_VADDR)
+    SECTION_VECTOR2 (.WindowVectors.text, WINDOW_VECTORS_VADDR)
 #if XCHAL_EXCM_LEVEL >= 2
-  SECTION_VECTOR (.Level2InterruptVector.text, INTLEVEL2_VECTOR_VADDR)
+    SECTION_VECTOR2 (.Level2InterruptVector.text, INTLEVEL2_VECTOR_VADDR)
 #endif
 #if XCHAL_EXCM_LEVEL >= 3
-  SECTION_VECTOR (.Level3InterruptVector.text, INTLEVEL3_VECTOR_VADDR)
+    SECTION_VECTOR2 (.Level3InterruptVector.text, INTLEVEL3_VECTOR_VADDR)
 #endif
 #if XCHAL_EXCM_LEVEL >= 4
-  SECTION_VECTOR (.Level4InterruptVector.text, INTLEVEL4_VECTOR_VADDR)
+    SECTION_VECTOR2 (.Level4InterruptVector.text, INTLEVEL4_VECTOR_VADDR)
 #endif
 #if XCHAL_EXCM_LEVEL >= 5
-  SECTION_VECTOR (.Level5InterruptVector.text, INTLEVEL5_VECTOR_VADDR)
+    SECTION_VECTOR2 (.Level5InterruptVector.text, INTLEVEL5_VECTOR_VADDR)
 #endif
 #if XCHAL_EXCM_LEVEL >= 6
-  SECTION_VECTOR (.Level6InterruptVector.text, INTLEVEL6_VECTOR_VADDR)
+    SECTION_VECTOR2 (.Level6InterruptVector.text, INTLEVEL6_VECTOR_VADDR)
 #endif
-  SECTION_VECTOR (.DebugInterruptVector.text, DEBUG_VECTOR_VADDR)
-  SECTION_VECTOR (.KernelExceptionVector.text, KERNEL_VECTOR_VADDR)
-  SECTION_VECTOR (.UserExceptionVector.text, USER_VECTOR_VADDR)
-  SECTION_VECTOR (.DoubleExceptionVector.text, DOUBLEEXC_VECTOR_VADDR)
+    SECTION_VECTOR2 (.DebugInterruptVector.text, DEBUG_VECTOR_VADDR)
+    SECTION_VECTOR2 (.KernelExceptionVector.text, KERNEL_VECTOR_VADDR)
+    SECTION_VECTOR2 (.UserExceptionVector.text, USER_VECTOR_VADDR)
+    SECTION_VECTOR2 (.DoubleExceptionVector.text, DOUBLEEXC_VECTOR_VADDR)
 
-  *(.exception.text)
+    *(.exception.text)
 #endif
 
     IRQENTRY_TEXT
@@ -198,11 +196,10 @@ SECTIONS
 #ifdef CONFIG_XIP_KERNEL
     RELOCATE_ENTRY(_xip_data, .data);
     RELOCATE_ENTRY(_xip_init_data, .init.data);
-#else
+#endif
 #if defined(CONFIG_SMP)
     RELOCATE_ENTRY(_SecondaryResetVector_text,
 		   .SecondaryResetVector.text);
-#endif
 #endif
 
     __boot_reloc_table_end = ABSOLUTE(.) ;
@@ -220,21 +217,24 @@ SECTIONS
   . = ALIGN(4);
   .dummy : { LONG(0) }
 
+#undef LAST
+#define LAST	.dummy
+
 #ifdef CONFIG_VECTORS_OFFSET
   /* The vectors are relocated to the real position at startup time */
 
-  SECTION_VECTOR (_WindowVectors_text,
+  SECTION_VECTOR4 (_WindowVectors_text,
 		  .WindowVectors.text,
 		  WINDOW_VECTORS_VADDR,
 		  .dummy)
-  SECTION_VECTOR (_DebugInterruptVector_text,
+  SECTION_VECTOR4 (_DebugInterruptVector_text,
 		  .DebugInterruptVector.text,
 		  DEBUG_VECTOR_VADDR,
 		  .WindowVectors.text)
 #undef LAST
 #define LAST	.DebugInterruptVector.text
 #if XCHAL_EXCM_LEVEL >= 2
-  SECTION_VECTOR (_Level2InterruptVector_text,
+  SECTION_VECTOR4 (_Level2InterruptVector_text,
 		  .Level2InterruptVector.text,
 		  INTLEVEL2_VECTOR_VADDR,
 		  LAST)
@@ -242,7 +242,7 @@ SECTIONS
 # define LAST	.Level2InterruptVector.text
 #endif
 #if XCHAL_EXCM_LEVEL >= 3
-  SECTION_VECTOR (_Level3InterruptVector_text,
+  SECTION_VECTOR4 (_Level3InterruptVector_text,
 		  .Level3InterruptVector.text,
 		  INTLEVEL3_VECTOR_VADDR,
 		  LAST)
@@ -250,7 +250,7 @@ SECTIONS
 # define LAST	.Level3InterruptVector.text
 #endif
 #if XCHAL_EXCM_LEVEL >= 4
-  SECTION_VECTOR (_Level4InterruptVector_text,
+  SECTION_VECTOR4 (_Level4InterruptVector_text,
 		  .Level4InterruptVector.text,
 		  INTLEVEL4_VECTOR_VADDR,
 		  LAST)
@@ -258,7 +258,7 @@ SECTIONS
 # define LAST	.Level4InterruptVector.text
 #endif
 #if XCHAL_EXCM_LEVEL >= 5
-  SECTION_VECTOR (_Level5InterruptVector_text,
+  SECTION_VECTOR4 (_Level5InterruptVector_text,
 		  .Level5InterruptVector.text,
 		  INTLEVEL5_VECTOR_VADDR,
 		  LAST)
@@ -266,41 +266,41 @@ SECTIONS
 # define LAST	.Level5InterruptVector.text
 #endif
 #if XCHAL_EXCM_LEVEL >= 6
-  SECTION_VECTOR (_Level6InterruptVector_text,
+  SECTION_VECTOR4 (_Level6InterruptVector_text,
 		  .Level6InterruptVector.text,
 		  INTLEVEL6_VECTOR_VADDR,
 		  LAST)
 # undef LAST
 # define LAST	.Level6InterruptVector.text
 #endif
-  SECTION_VECTOR (_KernelExceptionVector_text,
+  SECTION_VECTOR4 (_KernelExceptionVector_text,
 		  .KernelExceptionVector.text,
 		  KERNEL_VECTOR_VADDR,
 		  LAST)
 #undef LAST
-  SECTION_VECTOR (_UserExceptionVector_text,
+  SECTION_VECTOR4 (_UserExceptionVector_text,
 		  .UserExceptionVector.text,
 		  USER_VECTOR_VADDR,
 		  .KernelExceptionVector.text)
-  SECTION_VECTOR (_DoubleExceptionVector_text,
+  SECTION_VECTOR4 (_DoubleExceptionVector_text,
 		  .DoubleExceptionVector.text,
 		  DOUBLEEXC_VECTOR_VADDR,
 		  .UserExceptionVector.text)
 #define LAST .DoubleExceptionVector.text
 
 #endif
-#if !defined(CONFIG_XIP_KERNEL) && defined(CONFIG_SMP)
+#if defined(CONFIG_SMP)
 
-  SECTION_VECTOR (_SecondaryResetVector_text,
+  SECTION_VECTOR4 (_SecondaryResetVector_text,
 		  .SecondaryResetVector.text,
 		  RESET_VECTOR1_VADDR,
-		  .DoubleExceptionVector.text)
+		  LAST)
 #undef LAST
 #define LAST .SecondaryResetVector.text
 
 #endif
 #ifdef CONFIG_VECTORS_OFFSET
-  SECTION_VECTOR (_exception_text,
+  SECTION_VECTOR4 (_exception_text,
 		  .exception.text,
 		  ,
 		  LAST)
