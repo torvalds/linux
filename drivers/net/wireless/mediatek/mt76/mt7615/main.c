@@ -470,10 +470,7 @@ int mt7615_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	mt7615_mac_wtbl_update(dev, idx,
 			       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
 
-	mt7615_mcu_add_wtbl(dev, vif, sta);
-	mt7615_mcu_set_sta_rec(dev, vif, sta, 1);
-	if (sta->ht_cap.ht_supported)
-		mt7615_mcu_set_ht_cap(dev, vif, sta);
+	mt7615_mcu_set_sta(dev, vif, sta, 1);
 
 	return 0;
 }
@@ -484,9 +481,7 @@ void mt7615_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
 	struct mt7615_sta *msta = (struct mt7615_sta *)sta->drv_priv;
 
-	mt7615_mcu_set_sta_rec(dev, vif, sta, 0);
-	mt7615_mcu_del_wtbl(dev, sta);
-
+	mt7615_mcu_set_sta(dev, vif, sta, 0);
 	mt7615_mac_wtbl_update(dev, msta->wcid.idx,
 			       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
 
