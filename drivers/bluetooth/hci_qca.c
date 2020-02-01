@@ -43,7 +43,8 @@
 #define HCI_MAX_IBS_SIZE	10
 
 #define IBS_WAKE_RETRANS_TIMEOUT_MS	100
-#define IBS_TX_IDLE_TIMEOUT_MS		2000
+#define IBS_BTSOC_TX_IDLE_TIMEOUT_MS	40
+#define IBS_HOST_TX_IDLE_TIMEOUT_MS	2000
 #define CMD_TRANS_TIMEOUT_MS		100
 
 /* susclk rate */
@@ -55,6 +56,7 @@
 enum qca_flags {
 	QCA_IBS_ENABLED,
 	QCA_DROP_VENDOR_EVENT,
+	QCA_SUSPENDING,
 };
 
 /* HCI_IBS transmit side sleep protocol states */
@@ -100,6 +102,7 @@ struct qca_data {
 	struct work_struct ws_tx_vote_off;
 	unsigned long flags;
 	struct completion drop_ev_comp;
+	wait_queue_head_t suspend_wait_q;
 
 	/* For debugging purpose */
 	u64 ibs_sent_wacks;
@@ -130,8 +133,6 @@ enum qca_speed_type {
  */
 struct qca_vreg {
 	const char *name;
-	unsigned int min_uV;
-	unsigned int max_uV;
 	unsigned int load_uA;
 };
 
@@ -146,8 +147,8 @@ struct qca_vreg_data {
  */
 struct qca_power {
 	struct device *dev;
-	const struct qca_vreg_data *vreg_data;
 	struct regulator_bulk_data *vreg_bulk;
+	int num_vregs;
 	bool vregs_on;
 };
 
@@ -162,7 +163,8 @@ struct qca_serdev {
 	const char *firmware_name;
 };
 
-static int qca_power_setup(struct hci_uart *hu, bool on);
+static int qca_regulator_enable(struct qca_serdev *qcadev);
+static void qca_regulator_disable(struct qca_serdev *qcadev);
 static void qca_power_shutdown(struct hci_uart *hu);
 static int qca_power_off(struct hci_dev *hdev);
 
@@ -438,6 +440,12 @@ static void hci_ibs_wake_retrans_timeout(struct timer_list *t)
 	spin_lock_irqsave_nested(&qca->hci_ibs_lock,
 				 flags, SINGLE_DEPTH_NESTING);
 
+	/* Don't retransmit the HCI_IBS_WAKE_IND when suspending. */
+	if (test_bit(QCA_SUSPENDING, &qca->flags)) {
+		spin_unlock_irqrestore(&qca->hci_ibs_lock, flags);
+		return;
+	}
+
 	switch (qca->tx_ibs_state) {
 	case HCI_IBS_TX_WAKING:
 		/* No WAKE_ACK, retransmit WAKE */
@@ -497,6 +505,8 @@ static int qca_open(struct hci_uart *hu)
 	INIT_WORK(&qca->ws_rx_vote_off, qca_wq_serial_rx_clock_vote_off);
 	INIT_WORK(&qca->ws_tx_vote_off, qca_wq_serial_tx_clock_vote_off);
 
+	init_waitqueue_head(&qca->suspend_wait_q);
+
 	qca->hu = hu;
 	init_completion(&qca->drop_ev_comp);
 
@@ -518,7 +528,7 @@ static int qca_open(struct hci_uart *hu)
 		} else {
 			hu->init_speed = qcadev->init_speed;
 			hu->oper_speed = qcadev->oper_speed;
-			ret = qca_power_setup(hu, true);
+			ret = qca_regulator_enable(qcadev);
 			if (ret) {
 				destroy_workqueue(qca->workqueue);
 				kfree_skb(qca->rx_skb);
@@ -533,7 +543,7 @@ static int qca_open(struct hci_uart *hu)
 	qca->wake_retrans = IBS_WAKE_RETRANS_TIMEOUT_MS;
 
 	timer_setup(&qca->tx_idle_timer, hci_ibs_tx_idle_timeout, 0);
-	qca->tx_idle_delay = IBS_TX_IDLE_TIMEOUT_MS;
+	qca->tx_idle_delay = IBS_HOST_TX_IDLE_TIMEOUT_MS;
 
 	BT_DBG("HCI_UART_QCA open, tx_idle_delay=%u, wake_retrans=%u",
 	       qca->tx_idle_delay, qca->wake_retrans);
@@ -648,6 +658,12 @@ static void device_want_to_wakeup(struct hci_uart *hu)
 
 	qca->ibs_recv_wakes++;
 
+	/* Don't wake the rx up when suspending. */
+	if (test_bit(QCA_SUSPENDING, &qca->flags)) {
+		spin_unlock_irqrestore(&qca->hci_ibs_lock, flags);
+		return;
+	}
+
 	switch (qca->rx_ibs_state) {
 	case HCI_IBS_RX_ASLEEP:
 		/* Make sure clock is on - we may have turned clock off since
@@ -712,6 +728,8 @@ static void device_want_to_sleep(struct hci_uart *hu)
 		break;
 	}
 
+	wake_up_interruptible(&qca->suspend_wait_q);
+
 	spin_unlock_irqrestore(&qca->hci_ibs_lock, flags);
 }
 
@@ -728,6 +746,12 @@ static void device_woke_up(struct hci_uart *hu)
 	spin_lock_irqsave(&qca->hci_ibs_lock, flags);
 
 	qca->ibs_recv_wacks++;
+
+	/* Don't react to the wake-up-acknowledgment when suspending. */
+	if (test_bit(QCA_SUSPENDING, &qca->flags)) {
+		spin_unlock_irqrestore(&qca->hci_ibs_lock, flags);
+		return;
+	}
 
 	switch (qca->tx_ibs_state) {
 	case HCI_IBS_TX_AWAKE:
@@ -781,8 +805,10 @@ static int qca_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 
 	/* Don't go to sleep in middle of patch download or
 	 * Out-Of-Band(GPIOs control) sleep is selected.
+	 * Don't wake the device up when suspending.
 	 */
-	if (!test_bit(QCA_IBS_ENABLED, &qca->flags)) {
+	if (!test_bit(QCA_IBS_ENABLED, &qca->flags) ||
+	    test_bit(QCA_SUSPENDING, &qca->flags)) {
 		skb_queue_tail(&qca->txq, skb);
 		spin_unlock_irqrestore(&qca->hci_ibs_lock, flags);
 		return 0;
@@ -1188,7 +1214,7 @@ static int qca_wcn3990_init(struct hci_uart *hu)
 	qcadev = serdev_device_get_drvdata(hu->serdev);
 	if (!qcadev->bt_power->vregs_on) {
 		serdev_device_close(hu->serdev);
-		ret = qca_power_setup(hu, true);
+		ret = qca_regulator_enable(qcadev);
 		if (ret)
 			return ret;
 
@@ -1262,7 +1288,7 @@ static int qca_setup(struct hci_uart *hu)
 		if (ret)
 			return ret;
 
-		ret = qca_read_soc_version(hdev, &soc_ver);
+		ret = qca_read_soc_version(hdev, &soc_ver, soc_type);
 		if (ret)
 			return ret;
 	} else {
@@ -1282,7 +1308,7 @@ static int qca_setup(struct hci_uart *hu)
 
 	if (!qca_is_wcn399x(soc_type)) {
 		/* Get QCA version information */
-		ret = qca_read_soc_version(hdev, &soc_ver);
+		ret = qca_read_soc_version(hdev, &soc_ver, soc_type);
 		if (ret)
 			return ret;
 	}
@@ -1332,10 +1358,21 @@ static const struct hci_uart_proto qca_proto = {
 static const struct qca_vreg_data qca_soc_data_wcn3990 = {
 	.soc_type = QCA_WCN3990,
 	.vregs = (struct qca_vreg []) {
-		{ "vddio",   1800000, 1900000,  15000  },
-		{ "vddxo",   1800000, 1900000,  80000  },
-		{ "vddrf",   1300000, 1350000,  300000 },
-		{ "vddch0",  3300000, 3400000,  450000 },
+		{ "vddio", 15000  },
+		{ "vddxo", 80000  },
+		{ "vddrf", 300000 },
+		{ "vddch0", 450000 },
+	},
+	.num_vregs = 4,
+};
+
+static const struct qca_vreg_data qca_soc_data_wcn3991 = {
+	.soc_type = QCA_WCN3991,
+	.vregs = (struct qca_vreg []) {
+		{ "vddio", 15000  },
+		{ "vddxo", 80000  },
+		{ "vddrf", 300000 },
+		{ "vddch0", 450000 },
 	},
 	.num_vregs = 4,
 };
@@ -1343,18 +1380,21 @@ static const struct qca_vreg_data qca_soc_data_wcn3990 = {
 static const struct qca_vreg_data qca_soc_data_wcn3998 = {
 	.soc_type = QCA_WCN3998,
 	.vregs = (struct qca_vreg []) {
-		{ "vddio",   1800000, 1900000,  10000  },
-		{ "vddxo",   1800000, 1900000,  80000  },
-		{ "vddrf",   1300000, 1352000,  300000 },
-		{ "vddch0",  3300000, 3300000,  450000 },
+		{ "vddio", 10000  },
+		{ "vddxo", 80000  },
+		{ "vddrf", 300000 },
+		{ "vddch0", 450000 },
 	},
 	.num_vregs = 4,
 };
 
 static void qca_power_shutdown(struct hci_uart *hu)
 {
+	struct qca_serdev *qcadev;
 	struct qca_data *qca = hu->priv;
 	unsigned long flags;
+
+	qcadev = serdev_device_get_drvdata(hu->serdev);
 
 	/* From this point we go into power off state. But serial port is
 	 * still open, stop queueing the IBS data and flush all the buffered
@@ -1367,7 +1407,7 @@ static void qca_power_shutdown(struct hci_uart *hu)
 
 	host_set_baudrate(hu, 2400);
 	qca_send_power_pulse(hu, false);
-	qca_power_setup(hu, false);
+	qca_regulator_disable(qcadev);
 }
 
 static int qca_power_off(struct hci_dev *hdev)
@@ -1383,97 +1423,71 @@ static int qca_power_off(struct hci_dev *hdev)
 	return 0;
 }
 
-static int qca_enable_regulator(struct qca_vreg vregs,
-				struct regulator *regulator)
+static int qca_regulator_enable(struct qca_serdev *qcadev)
 {
+	struct qca_power *power = qcadev->bt_power;
 	int ret;
 
-	ret = regulator_set_voltage(regulator, vregs.min_uV,
-				    vregs.max_uV);
+	/* Already enabled */
+	if (power->vregs_on)
+		return 0;
+
+	BT_DBG("enabling %d regulators)", power->num_vregs);
+
+	ret = regulator_bulk_enable(power->num_vregs, power->vreg_bulk);
 	if (ret)
 		return ret;
 
-	if (vregs.load_uA)
-		ret = regulator_set_load(regulator,
-					 vregs.load_uA);
+	power->vregs_on = true;
 
-	if (ret)
-		return ret;
-
-	return regulator_enable(regulator);
-
+	return 0;
 }
 
-static void qca_disable_regulator(struct qca_vreg vregs,
-				  struct regulator *regulator)
+static void qca_regulator_disable(struct qca_serdev *qcadev)
 {
-	regulator_disable(regulator);
-	regulator_set_voltage(regulator, 0, vregs.max_uV);
-	if (vregs.load_uA)
-		regulator_set_load(regulator, 0);
+	struct qca_power *power;
 
-}
+	if (!qcadev)
+		return;
 
-static int qca_power_setup(struct hci_uart *hu, bool on)
-{
-	struct qca_vreg *vregs;
-	struct regulator_bulk_data *vreg_bulk;
-	struct qca_serdev *qcadev;
-	int i, num_vregs, ret = 0;
+	power = qcadev->bt_power;
 
-	qcadev = serdev_device_get_drvdata(hu->serdev);
-	if (!qcadev || !qcadev->bt_power || !qcadev->bt_power->vreg_data ||
-	    !qcadev->bt_power->vreg_bulk)
-		return -EINVAL;
+	/* Already disabled? */
+	if (!power->vregs_on)
+		return;
 
-	vregs = qcadev->bt_power->vreg_data->vregs;
-	vreg_bulk = qcadev->bt_power->vreg_bulk;
-	num_vregs = qcadev->bt_power->vreg_data->num_vregs;
-	BT_DBG("on: %d", on);
-	if (on && !qcadev->bt_power->vregs_on) {
-		for (i = 0; i < num_vregs; i++) {
-			ret = qca_enable_regulator(vregs[i],
-						   vreg_bulk[i].consumer);
-			if (ret)
-				break;
-		}
-
-		if (ret) {
-			BT_ERR("failed to enable regulator:%s", vregs[i].name);
-			/* turn off regulators which are enabled */
-			for (i = i - 1; i >= 0; i--)
-				qca_disable_regulator(vregs[i],
-						      vreg_bulk[i].consumer);
-		} else {
-			qcadev->bt_power->vregs_on = true;
-		}
-	} else if (!on && qcadev->bt_power->vregs_on) {
-		/* turn off regulator in reverse order */
-		i = qcadev->bt_power->vreg_data->num_vregs - 1;
-		for ( ; i >= 0; i--)
-			qca_disable_regulator(vregs[i], vreg_bulk[i].consumer);
-
-		qcadev->bt_power->vregs_on = false;
-	}
-
-	return ret;
+	regulator_bulk_disable(power->num_vregs, power->vreg_bulk);
+	power->vregs_on = false;
 }
 
 static int qca_init_regulators(struct qca_power *qca,
 				const struct qca_vreg *vregs, size_t num_vregs)
 {
+	struct regulator_bulk_data *bulk;
+	int ret;
 	int i;
 
-	qca->vreg_bulk = devm_kcalloc(qca->dev, num_vregs,
-				      sizeof(struct regulator_bulk_data),
-				      GFP_KERNEL);
-	if (!qca->vreg_bulk)
+	bulk = devm_kcalloc(qca->dev, num_vregs, sizeof(*bulk), GFP_KERNEL);
+	if (!bulk)
 		return -ENOMEM;
 
 	for (i = 0; i < num_vregs; i++)
-		qca->vreg_bulk[i].supply = vregs[i].name;
+		bulk[i].supply = vregs[i].name;
 
-	return devm_regulator_bulk_get(qca->dev, num_vregs, qca->vreg_bulk);
+	ret = devm_regulator_bulk_get(qca->dev, num_vregs, bulk);
+	if (ret < 0)
+		return ret;
+
+	for (i = 0; i < num_vregs; i++) {
+		ret = regulator_set_load(bulk[i].consumer, vregs[i].load_uA);
+		if (ret)
+			return ret;
+	}
+
+	qca->vreg_bulk = bulk;
+	qca->num_vregs = num_vregs;
+
+	return 0;
 }
 
 static int qca_serdev_probe(struct serdev_device *serdev)
@@ -1500,7 +1514,6 @@ static int qca_serdev_probe(struct serdev_device *serdev)
 			return -ENOMEM;
 
 		qcadev->bt_power->dev = &serdev->dev;
-		qcadev->bt_power->vreg_data = data;
 		err = qca_init_regulators(qcadev->bt_power, data->vregs,
 					  data->num_vregs);
 		if (err) {
@@ -1564,9 +1577,103 @@ static void qca_serdev_remove(struct serdev_device *serdev)
 	hci_uart_unregister_device(&qcadev->serdev_hu);
 }
 
+static int __maybe_unused qca_suspend(struct device *dev)
+{
+	struct hci_dev *hdev = container_of(dev, struct hci_dev, dev);
+	struct hci_uart *hu = hci_get_drvdata(hdev);
+	struct qca_data *qca = hu->priv;
+	unsigned long flags;
+	int ret = 0;
+	u8 cmd;
+
+	set_bit(QCA_SUSPENDING, &qca->flags);
+
+	/* Device is downloading patch or doesn't support in-band sleep. */
+	if (!test_bit(QCA_IBS_ENABLED, &qca->flags))
+		return 0;
+
+	cancel_work_sync(&qca->ws_awake_device);
+	cancel_work_sync(&qca->ws_awake_rx);
+
+	spin_lock_irqsave_nested(&qca->hci_ibs_lock,
+				 flags, SINGLE_DEPTH_NESTING);
+
+	switch (qca->tx_ibs_state) {
+	case HCI_IBS_TX_WAKING:
+		del_timer(&qca->wake_retrans_timer);
+		/* Fall through */
+	case HCI_IBS_TX_AWAKE:
+		del_timer(&qca->tx_idle_timer);
+
+		serdev_device_write_flush(hu->serdev);
+		cmd = HCI_IBS_SLEEP_IND;
+		ret = serdev_device_write_buf(hu->serdev, &cmd, sizeof(cmd));
+
+		if (ret < 0) {
+			BT_ERR("Failed to send SLEEP to device");
+			break;
+		}
+
+		qca->tx_ibs_state = HCI_IBS_TX_ASLEEP;
+		qca->ibs_sent_slps++;
+
+		qca_wq_serial_tx_clock_vote_off(&qca->ws_tx_vote_off);
+		break;
+
+	case HCI_IBS_TX_ASLEEP:
+		break;
+
+	default:
+		BT_ERR("Spurious tx state %d", qca->tx_ibs_state);
+		ret = -EINVAL;
+		break;
+	}
+
+	spin_unlock_irqrestore(&qca->hci_ibs_lock, flags);
+
+	if (ret < 0)
+		goto error;
+
+	serdev_device_wait_until_sent(hu->serdev,
+				      msecs_to_jiffies(CMD_TRANS_TIMEOUT_MS));
+
+	/* Wait for HCI_IBS_SLEEP_IND sent by device to indicate its Tx is going
+	 * to sleep, so that the packet does not wake the system later.
+	 */
+
+	ret = wait_event_interruptible_timeout(qca->suspend_wait_q,
+			qca->rx_ibs_state == HCI_IBS_RX_ASLEEP,
+			msecs_to_jiffies(IBS_BTSOC_TX_IDLE_TIMEOUT_MS));
+
+	if (ret > 0)
+		return 0;
+
+	if (ret == 0)
+		ret = -ETIMEDOUT;
+
+error:
+	clear_bit(QCA_SUSPENDING, &qca->flags);
+
+	return ret;
+}
+
+static int __maybe_unused qca_resume(struct device *dev)
+{
+	struct hci_dev *hdev = container_of(dev, struct hci_dev, dev);
+	struct hci_uart *hu = hci_get_drvdata(hdev);
+	struct qca_data *qca = hu->priv;
+
+	clear_bit(QCA_SUSPENDING, &qca->flags);
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(qca_pm_ops, qca_suspend, qca_resume);
+
 static const struct of_device_id qca_bluetooth_of_match[] = {
 	{ .compatible = "qcom,qca6174-bt" },
 	{ .compatible = "qcom,wcn3990-bt", .data = &qca_soc_data_wcn3990},
+	{ .compatible = "qcom,wcn3991-bt", .data = &qca_soc_data_wcn3991},
 	{ .compatible = "qcom,wcn3998-bt", .data = &qca_soc_data_wcn3998},
 	{ /* sentinel */ }
 };
@@ -1578,6 +1685,7 @@ static struct serdev_device_driver qca_serdev_driver = {
 	.driver = {
 		.name = "hci_uart_qca",
 		.of_match_table = qca_bluetooth_of_match,
+		.pm = &qca_pm_ops,
 	},
 };
 

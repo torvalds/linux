@@ -17,6 +17,8 @@
 #include <linux/iommu.h>
 #include <net/ip.h>
 #include <net/checksum.h>
+#include <net/xdp.h>
+#include <linux/bpf_trace.h>
 #include "net_driver.h"
 #include "efx.h"
 #include "filter.h"
@@ -26,6 +28,9 @@
 
 /* Preferred number of descriptors to fill at once */
 #define EFX_RX_PREFERRED_BATCH 8U
+
+/* Maximum rx prefix used by any architecture. */
+#define EFX_MAX_RX_PREFIX_SIZE 16
 
 /* Number of RX buffers to recycle pages for.  When creating the RX page recycle
  * ring, this number is divided by the number of buffers per page to calculate
@@ -91,11 +96,12 @@ static inline void efx_sync_rx_buffer(struct efx_nic *efx,
 
 void efx_rx_config_page_split(struct efx_nic *efx)
 {
-	efx->rx_page_buf_step = ALIGN(efx->rx_dma_len + efx->rx_ip_align,
+	efx->rx_page_buf_step = ALIGN(efx->rx_dma_len + efx->rx_ip_align +
+				      XDP_PACKET_HEADROOM,
 				      EFX_RX_BUF_ALIGNMENT);
 	efx->rx_bufs_per_page = efx->rx_buffer_order ? 1 :
 		((PAGE_SIZE - sizeof(struct efx_rx_page_state)) /
-		 efx->rx_page_buf_step);
+		efx->rx_page_buf_step);
 	efx->rx_buffer_truesize = (PAGE_SIZE << efx->rx_buffer_order) /
 		efx->rx_bufs_per_page;
 	efx->rx_pages_per_batch = DIV_ROUND_UP(EFX_RX_PREFERRED_BATCH,
@@ -187,9 +193,11 @@ static int efx_init_rx_buffers(struct efx_rx_queue *rx_queue, bool atomic)
 		do {
 			index = rx_queue->added_count & rx_queue->ptr_mask;
 			rx_buf = efx_rx_buffer(rx_queue, index);
-			rx_buf->dma_addr = dma_addr + efx->rx_ip_align;
+			rx_buf->dma_addr = dma_addr + efx->rx_ip_align +
+					   XDP_PACKET_HEADROOM;
 			rx_buf->page = page;
-			rx_buf->page_offset = page_offset + efx->rx_ip_align;
+			rx_buf->page_offset = page_offset + efx->rx_ip_align +
+					      XDP_PACKET_HEADROOM;
 			rx_buf->len = efx->rx_dma_len;
 			rx_buf->flags = 0;
 			++rx_queue->added_count;
@@ -635,6 +643,126 @@ static void efx_rx_deliver(struct efx_channel *channel, u8 *eh,
 		netif_receive_skb(skb);
 }
 
+/** efx_do_xdp: perform XDP processing on a received packet
+ *
+ * Returns true if packet should still be delivered.
+ */
+static bool efx_do_xdp(struct efx_nic *efx, struct efx_channel *channel,
+		       struct efx_rx_buffer *rx_buf, u8 **ehp)
+{
+	u8 rx_prefix[EFX_MAX_RX_PREFIX_SIZE];
+	struct efx_rx_queue *rx_queue;
+	struct bpf_prog *xdp_prog;
+	struct xdp_frame *xdpf;
+	struct xdp_buff xdp;
+	u32 xdp_act;
+	s16 offset;
+	int err;
+
+	rcu_read_lock();
+	xdp_prog = rcu_dereference(efx->xdp_prog);
+	if (!xdp_prog) {
+		rcu_read_unlock();
+		return true;
+	}
+
+	rx_queue = efx_channel_get_rx_queue(channel);
+
+	if (unlikely(channel->rx_pkt_n_frags > 1)) {
+		/* We can't do XDP on fragmented packets - drop. */
+		rcu_read_unlock();
+		efx_free_rx_buffers(rx_queue, rx_buf,
+				    channel->rx_pkt_n_frags);
+		if (net_ratelimit())
+			netif_err(efx, rx_err, efx->net_dev,
+				  "XDP is not possible with multiple receive fragments (%d)\n",
+				  channel->rx_pkt_n_frags);
+		channel->n_rx_xdp_bad_drops++;
+		return false;
+	}
+
+	dma_sync_single_for_cpu(&efx->pci_dev->dev, rx_buf->dma_addr,
+				rx_buf->len, DMA_FROM_DEVICE);
+
+	/* Save the rx prefix. */
+	EFX_WARN_ON_PARANOID(efx->rx_prefix_size > EFX_MAX_RX_PREFIX_SIZE);
+	memcpy(rx_prefix, *ehp - efx->rx_prefix_size,
+	       efx->rx_prefix_size);
+
+	xdp.data = *ehp;
+	xdp.data_hard_start = xdp.data - XDP_PACKET_HEADROOM;
+
+	/* No support yet for XDP metadata */
+	xdp_set_data_meta_invalid(&xdp);
+	xdp.data_end = xdp.data + rx_buf->len;
+	xdp.rxq = &rx_queue->xdp_rxq_info;
+
+	xdp_act = bpf_prog_run_xdp(xdp_prog, &xdp);
+	rcu_read_unlock();
+
+	offset = (u8 *)xdp.data - *ehp;
+
+	switch (xdp_act) {
+	case XDP_PASS:
+		/* Fix up rx prefix. */
+		if (offset) {
+			*ehp += offset;
+			rx_buf->page_offset += offset;
+			rx_buf->len -= offset;
+			memcpy(*ehp - efx->rx_prefix_size, rx_prefix,
+			       efx->rx_prefix_size);
+		}
+		break;
+
+	case XDP_TX:
+		/* Buffer ownership passes to tx on success. */
+		xdpf = convert_to_xdp_frame(&xdp);
+		err = efx_xdp_tx_buffers(efx, 1, &xdpf, true);
+		if (unlikely(err != 1)) {
+			efx_free_rx_buffers(rx_queue, rx_buf, 1);
+			if (net_ratelimit())
+				netif_err(efx, rx_err, efx->net_dev,
+					  "XDP TX failed (%d)\n", err);
+			channel->n_rx_xdp_bad_drops++;
+			trace_xdp_exception(efx->net_dev, xdp_prog, xdp_act);
+		} else {
+			channel->n_rx_xdp_tx++;
+		}
+		break;
+
+	case XDP_REDIRECT:
+		err = xdp_do_redirect(efx->net_dev, &xdp, xdp_prog);
+		if (unlikely(err)) {
+			efx_free_rx_buffers(rx_queue, rx_buf, 1);
+			if (net_ratelimit())
+				netif_err(efx, rx_err, efx->net_dev,
+					  "XDP redirect failed (%d)\n", err);
+			channel->n_rx_xdp_bad_drops++;
+			trace_xdp_exception(efx->net_dev, xdp_prog, xdp_act);
+		} else {
+			channel->n_rx_xdp_redirect++;
+		}
+		break;
+
+	default:
+		bpf_warn_invalid_xdp_action(xdp_act);
+		efx_free_rx_buffers(rx_queue, rx_buf, 1);
+		channel->n_rx_xdp_bad_drops++;
+		trace_xdp_exception(efx->net_dev, xdp_prog, xdp_act);
+		break;
+
+	case XDP_ABORTED:
+		trace_xdp_exception(efx->net_dev, xdp_prog, xdp_act);
+		/* Fall through */
+	case XDP_DROP:
+		efx_free_rx_buffers(rx_queue, rx_buf, 1);
+		channel->n_rx_xdp_drops++;
+		break;
+	}
+
+	return xdp_act == XDP_PASS;
+}
+
 /* Handle a received packet.  Second half: Touches packet payload. */
 void __efx_rx_packet(struct efx_channel *channel)
 {
@@ -662,6 +790,9 @@ void __efx_rx_packet(struct efx_channel *channel)
 				    channel->rx_pkt_n_frags);
 		goto out;
 	}
+
+	if (!efx_do_xdp(efx, channel, rx_buf, &eh))
+		goto out;
 
 	if (unlikely(!(efx->net_dev->features & NETIF_F_RXCSUM)))
 		rx_buf->flags &= ~EFX_RX_PKT_CSUMMED;
@@ -731,6 +862,7 @@ void efx_init_rx_queue(struct efx_rx_queue *rx_queue)
 {
 	struct efx_nic *efx = rx_queue->efx;
 	unsigned int max_fill, trigger, max_trigger;
+	int rc = 0;
 
 	netif_dbg(rx_queue->efx, drv, rx_queue->efx->net_dev,
 		  "initialising RX queue %d\n", efx_rx_queue_index(rx_queue));
@@ -763,6 +895,19 @@ void efx_init_rx_queue(struct efx_rx_queue *rx_queue)
 	rx_queue->max_fill = max_fill;
 	rx_queue->fast_fill_trigger = trigger;
 	rx_queue->refill_enabled = true;
+
+	/* Initialise XDP queue information */
+	rc = xdp_rxq_info_reg(&rx_queue->xdp_rxq_info, efx->net_dev,
+			      rx_queue->core_index);
+
+	if (rc) {
+		netif_err(efx, rx_err, efx->net_dev,
+			  "Failure to initialise XDP queue information rc=%d\n",
+			  rc);
+		efx->xdp_rxq_info_failed = true;
+	} else {
+		rx_queue->xdp_rxq_info_valid = true;
+	}
 
 	/* Set up RX descriptor ring */
 	efx_nic_init_rx(rx_queue);
@@ -805,6 +950,11 @@ void efx_fini_rx_queue(struct efx_rx_queue *rx_queue)
 	}
 	kfree(rx_queue->page_ring);
 	rx_queue->page_ring = NULL;
+
+	if (rx_queue->xdp_rxq_info_valid)
+		xdp_rxq_info_unreg(&rx_queue->xdp_rxq_info);
+
+	rx_queue->xdp_rxq_info_valid = false;
 }
 
 void efx_remove_rx_queue(struct efx_rx_queue *rx_queue)
@@ -838,6 +988,7 @@ static void efx_filter_rfs_work(struct work_struct *data)
 
 	rc = efx->type->filter_insert(efx, &req->spec, true);
 	if (rc >= 0)
+		/* Discard 'priority' part of EF10+ filter ID (mcdi_filters) */
 		rc %= efx->type->max_rx_ip_filters;
 	if (efx->rps_hash_table) {
 		spin_lock_bh(&efx->rps_hash_lock);
@@ -862,8 +1013,9 @@ static void efx_filter_rfs_work(struct work_struct *data)
 		 * later.
 		 */
 		mutex_lock(&efx->rps_mutex);
+		if (channel->rps_flow_id[rc] == RPS_FLOW_ID_INVALID)
+			channel->rfs_filter_count++;
 		channel->rps_flow_id[rc] = req->flow_id;
-		++channel->rfs_filters_added;
 		mutex_unlock(&efx->rps_mutex);
 
 		if (req->spec.ether_type == htons(ETH_P_IP))
@@ -880,6 +1032,28 @@ static void efx_filter_rfs_work(struct work_struct *data)
 				   req->spec.rem_host, ntohs(req->spec.rem_port),
 				   req->spec.loc_host, ntohs(req->spec.loc_port),
 				   req->rxq_index, req->flow_id, rc, arfs_id);
+		channel->n_rfs_succeeded++;
+	} else {
+		if (req->spec.ether_type == htons(ETH_P_IP))
+			netif_dbg(efx, rx_status, efx->net_dev,
+				  "failed to steer %s %pI4:%u:%pI4:%u to queue %u [flow %u rc %d id %u]\n",
+				  (req->spec.ip_proto == IPPROTO_TCP) ? "TCP" : "UDP",
+				  req->spec.rem_host, ntohs(req->spec.rem_port),
+				  req->spec.loc_host, ntohs(req->spec.loc_port),
+				  req->rxq_index, req->flow_id, rc, arfs_id);
+		else
+			netif_dbg(efx, rx_status, efx->net_dev,
+				  "failed to steer %s [%pI6]:%u:[%pI6]:%u to queue %u [flow %u rc %d id %u]\n",
+				  (req->spec.ip_proto == IPPROTO_TCP) ? "TCP" : "UDP",
+				  req->spec.rem_host, ntohs(req->spec.rem_port),
+				  req->spec.loc_host, ntohs(req->spec.loc_port),
+				  req->rxq_index, req->flow_id, rc, arfs_id);
+		channel->n_rfs_failed++;
+		/* We're overloading the NIC's filter tables, so let's do a
+		 * chunk of extra expiry work.
+		 */
+		__efx_filter_rfs_expire(channel, min(channel->rfs_filter_count,
+						     100u));
 	}
 
 	/* Release references */
@@ -989,38 +1163,44 @@ out_clear:
 	return rc;
 }
 
-bool __efx_filter_rfs_expire(struct efx_nic *efx, unsigned int quota)
+bool __efx_filter_rfs_expire(struct efx_channel *channel, unsigned int quota)
 {
 	bool (*expire_one)(struct efx_nic *efx, u32 flow_id, unsigned int index);
-	unsigned int channel_idx, index, size;
+	struct efx_nic *efx = channel->efx;
+	unsigned int index, size, start;
 	u32 flow_id;
 
 	if (!mutex_trylock(&efx->rps_mutex))
 		return false;
 	expire_one = efx->type->filter_rfs_expire_one;
-	channel_idx = efx->rps_expire_channel;
-	index = efx->rps_expire_index;
+	index = channel->rfs_expire_index;
+	start = index;
 	size = efx->type->max_rx_ip_filters;
-	while (quota--) {
-		struct efx_channel *channel = efx_get_channel(efx, channel_idx);
+	while (quota) {
 		flow_id = channel->rps_flow_id[index];
 
-		if (flow_id != RPS_FLOW_ID_INVALID &&
-		    expire_one(efx, flow_id, index)) {
-			netif_info(efx, rx_status, efx->net_dev,
-				   "expired filter %d [queue %u flow %u]\n",
-				   index, channel_idx, flow_id);
-			channel->rps_flow_id[index] = RPS_FLOW_ID_INVALID;
+		if (flow_id != RPS_FLOW_ID_INVALID) {
+			quota--;
+			if (expire_one(efx, flow_id, index)) {
+				netif_info(efx, rx_status, efx->net_dev,
+					   "expired filter %d [channel %u flow %u]\n",
+					   index, channel->channel, flow_id);
+				channel->rps_flow_id[index] = RPS_FLOW_ID_INVALID;
+				channel->rfs_filter_count--;
+			}
 		}
-		if (++index == size) {
-			if (++channel_idx == efx->n_channels)
-				channel_idx = 0;
+		if (++index == size)
 			index = 0;
-		}
+		/* If we were called with a quota that exceeds the total number
+		 * of filters in the table (which shouldn't happen, but could
+		 * if two callers race), ensure that we don't loop forever -
+		 * stop when we've examined every row of the table.
+		 */
+		if (index == start)
+			break;
 	}
-	efx->rps_expire_channel = channel_idx;
-	efx->rps_expire_index = index;
 
+	channel->rfs_expire_index = index;
 	mutex_unlock(&efx->rps_mutex);
 	return true;
 }

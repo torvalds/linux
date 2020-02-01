@@ -548,6 +548,30 @@ struct mlx5_ifc_ste_flex_parser_tnl_bits {
 	u8         reserved_at_40[0x40];
 };
 
+struct mlx5_ifc_ste_flex_parser_tnl_vxlan_gpe_bits {
+	u8         outer_vxlan_gpe_flags[0x8];
+	u8         reserved_at_8[0x10];
+	u8         outer_vxlan_gpe_next_protocol[0x8];
+
+	u8         outer_vxlan_gpe_vni[0x18];
+	u8         reserved_at_38[0x8];
+
+	u8         reserved_at_40[0x40];
+};
+
+struct mlx5_ifc_ste_flex_parser_tnl_geneve_bits {
+	u8         reserved_at_0[0x2];
+	u8         geneve_opt_len[0x6];
+	u8         geneve_oam[0x1];
+	u8         reserved_at_9[0x7];
+	u8         geneve_protocol_type[0x10];
+
+	u8         geneve_vni[0x18];
+	u8         reserved_at_38[0x8];
+
+	u8         reserved_at_40[0x40];
+};
+
 struct mlx5_ifc_ste_general_purpose_bits {
 	u8         general_purpose_lookup_field[0x20];
 

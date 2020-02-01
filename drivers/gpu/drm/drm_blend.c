@@ -130,7 +130,12 @@
  *	Z position is set up with drm_plane_create_zpos_immutable_property() and
  *	drm_plane_create_zpos_property(). It controls the visibility of overlapping
  *	planes. Without this property the primary plane is always below the cursor
- *	plane, and ordering between all other planes is undefined.
+ *	plane, and ordering between all other planes is undefined. The positive
+ *	Z axis points towards the user, i.e. planes with lower Z position values
+ *	are underneath planes with higher Z position values. Two planes with the
+ *	same Z position value have undefined ordering. Note that the Z position
+ *	value can also be immutable, to inform userspace about the hard-coded
+ *	stacking of planes, see drm_plane_create_zpos_immutable_property().
  *
  * pixel blend mode:
  *	Pixel blend mode is set up with drm_plane_create_blend_mode_property().

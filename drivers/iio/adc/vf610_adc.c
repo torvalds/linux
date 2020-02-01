@@ -802,7 +802,6 @@ static int vf610_adc_probe(struct platform_device *pdev)
 {
 	struct vf610_adc *info;
 	struct iio_dev *indio_dev;
-	struct resource *mem;
 	int irq;
 	int ret;
 
@@ -815,8 +814,7 @@ static int vf610_adc_probe(struct platform_device *pdev)
 	info = iio_priv(indio_dev);
 	info->dev = &pdev->dev;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	info->regs = devm_ioremap_resource(&pdev->dev, mem);
+	info->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(info->regs))
 		return PTR_ERR(info->regs);
 

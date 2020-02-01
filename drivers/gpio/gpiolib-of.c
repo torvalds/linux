@@ -23,17 +23,44 @@
 #include "gpiolib.h"
 #include "gpiolib-of.h"
 
+/**
+ * of_gpio_spi_cs_get_count() - special GPIO counting for SPI
+ * Some elder GPIO controllers need special quirks. Currently we handle
+ * the Freescale GPIO controller with bindings that doesn't use the
+ * established "cs-gpios" for chip selects but instead rely on
+ * "gpios" for the chip select lines. If we detect this, we redirect
+ * the counting of "cs-gpios" to count "gpios" transparent to the
+ * driver.
+ */
+static int of_gpio_spi_cs_get_count(struct device *dev, const char *con_id)
+{
+	struct device_node *np = dev->of_node;
+
+	if (!IS_ENABLED(CONFIG_SPI_MASTER))
+		return 0;
+	if (!con_id || strcmp(con_id, "cs"))
+		return 0;
+	if (!of_device_is_compatible(np, "fsl,spi") &&
+	    !of_device_is_compatible(np, "aeroflexgaisler,spictrl"))
+		return 0;
+	return of_gpio_named_count(np, "gpios");
+}
+
 /*
  * This is used by external users of of_gpio_count() from <linux/of_gpio.h>
  *
  * FIXME: get rid of those external users by converting them to GPIO
- * descriptors and let them all use gpiod_get_count()
+ * descriptors and let them all use gpiod_count()
  */
 int of_gpio_get_count(struct device *dev, const char *con_id)
 {
 	int ret;
 	char propname[32];
 	unsigned int i;
+
+	ret = of_gpio_spi_cs_get_count(dev, con_id);
+	if (ret > 0)
+		return ret;
 
 	for (i = 0; i < ARRAY_SIZE(gpio_suffixes); i++) {
 		if (con_id)
@@ -84,8 +111,9 @@ static struct gpio_desc *of_xlate_and_get_gpiod_flags(struct gpio_chip *chip,
 /**
  * of_gpio_need_valid_mask() - figure out if the OF GPIO driver needs
  * to set the .valid_mask
- * @dev: the device for the GPIO provider
- * @return: true if the valid mask needs to be set
+ * @gc: the target gpio_chip
+ *
+ * Return: true if the valid mask needs to be set
  */
 bool of_gpio_need_valid_mask(const struct gpio_chip *gc)
 {
@@ -134,18 +162,20 @@ static void of_gpio_flags_quirks(struct device_node *np,
 	     (!(strcmp(propname, "enable-gpio") &&
 		strcmp(propname, "enable-gpios")) &&
 	      of_device_is_compatible(np, "regulator-gpio")))) {
+		bool active_low = !of_property_read_bool(np,
+							 "enable-active-high");
 		/*
 		 * The regulator GPIO handles are specified such that the
 		 * presence or absence of "enable-active-high" solely controls
 		 * the polarity of the GPIO line. Any phandle flags must
 		 * be actively ignored.
 		 */
-		if (*flags & OF_GPIO_ACTIVE_LOW) {
+		if ((*flags & OF_GPIO_ACTIVE_LOW) && !active_low) {
 			pr_warn("%s GPIO handle specifies active low - ignored\n",
 				of_node_full_name(np));
 			*flags &= ~OF_GPIO_ACTIVE_LOW;
 		}
-		if (!of_property_read_bool(np, "enable-active-high"))
+		if (active_low)
 			*flags |= OF_GPIO_ACTIVE_LOW;
 	}
 	/*
@@ -882,16 +912,13 @@ int of_gpiochip_add(struct gpio_chip *chip)
 	of_node_get(chip->of_node);
 
 	ret = of_gpiochip_scan_gpios(chip);
-	if (ret) {
+	if (ret)
 		of_node_put(chip->of_node);
-		gpiochip_remove_pin_ranges(chip);
-	}
 
 	return ret;
 }
 
 void of_gpiochip_remove(struct gpio_chip *chip)
 {
-	gpiochip_remove_pin_ranges(chip);
 	of_node_put(chip->of_node);
 }

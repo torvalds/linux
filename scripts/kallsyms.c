@@ -18,15 +18,14 @@
  *
  */
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 #include <limits.h>
 
-#ifndef ARRAY_SIZE
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
-#endif
 
 #define KSYM_NAME_LEN		128
 
@@ -58,9 +57,9 @@ static struct addr_range percpu_range = {
 
 static struct sym_entry *table;
 static unsigned int table_size, table_cnt;
-static int all_symbols = 0;
-static int absolute_percpu = 0;
-static int base_relative = 0;
+static int all_symbols;
+static int absolute_percpu;
+static int base_relative;
 
 static int token_profit[0x10000];
 
@@ -76,18 +75,88 @@ static void usage(void)
 	exit(1);
 }
 
-/*
- * This ignores the intensely annoying "mapping symbols" found
- * in ARM ELF files: $a, $t and $d.
- */
-static int is_arm_mapping_symbol(const char *str)
+static char *sym_name(const struct sym_entry *s)
 {
-	return str[0] == '$' && strchr("axtd", str[1])
-	       && (str[2] == '\0' || str[2] == '.');
+	return (char *)s->sym + 1;
 }
 
-static int check_symbol_range(const char *sym, unsigned long long addr,
-			      struct addr_range *ranges, int entries)
+static bool is_ignored_symbol(const char *name, char type)
+{
+	static const char * const ignored_symbols[] = {
+		/*
+		 * Symbols which vary between passes. Passes 1 and 2 must have
+		 * identical symbol lists. The kallsyms_* symbols below are
+		 * only added after pass 1, they would be included in pass 2
+		 * when --all-symbols is specified so exclude them to get a
+		 * stable symbol list.
+		 */
+		"kallsyms_addresses",
+		"kallsyms_offsets",
+		"kallsyms_relative_base",
+		"kallsyms_num_syms",
+		"kallsyms_names",
+		"kallsyms_markers",
+		"kallsyms_token_table",
+		"kallsyms_token_index",
+		/* Exclude linker generated symbols which vary between passes */
+		"_SDA_BASE_",		/* ppc */
+		"_SDA2_BASE_",		/* ppc */
+		NULL
+	};
+
+	static const char * const ignored_prefixes[] = {
+		"$",			/* local symbols for ARM, MIPS, etc. */
+		".LASANPC",		/* s390 kasan local symbols */
+		"__crc_",		/* modversions */
+		"__efistub_",		/* arm64 EFI stub namespace */
+		NULL
+	};
+
+	static const char * const ignored_suffixes[] = {
+		"_from_arm",		/* arm */
+		"_from_thumb",		/* arm */
+		"_veneer",		/* arm */
+		NULL
+	};
+
+	const char * const *p;
+
+	/* Exclude symbols which vary between passes. */
+	for (p = ignored_symbols; *p; p++)
+		if (!strcmp(name, *p))
+			return true;
+
+	for (p = ignored_prefixes; *p; p++)
+		if (!strncmp(name, *p, strlen(*p)))
+			return true;
+
+	for (p = ignored_suffixes; *p; p++) {
+		int l = strlen(name) - strlen(*p);
+
+		if (l >= 0 && !strcmp(name + l, *p))
+			return true;
+	}
+
+	if (type == 'U' || type == 'u')
+		return true;
+	/* exclude debugging symbols */
+	if (type == 'N' || type == 'n')
+		return true;
+
+	if (toupper(type) == 'A') {
+		/* Keep these useful absolute symbols */
+		if (strcmp(name, "__kernel_syscall_via_break") &&
+		    strcmp(name, "__kernel_syscall_via_epc") &&
+		    strcmp(name, "__kernel_sigtramp") &&
+		    strcmp(name, "__gp"))
+			return true;
+	}
+
+	return false;
+}
+
+static void check_symbol_range(const char *sym, unsigned long long addr,
+			       struct addr_range *ranges, int entries)
 {
 	size_t i;
 	struct addr_range *ar;
@@ -97,14 +166,12 @@ static int check_symbol_range(const char *sym, unsigned long long addr,
 
 		if (strcmp(sym, ar->start_sym) == 0) {
 			ar->start = addr;
-			return 0;
+			return;
 		} else if (strcmp(sym, ar->end_sym) == 0) {
 			ar->end = addr;
-			return 0;
+			return;
 		}
 	}
-
-	return 1;
 }
 
 static int read_symbol(FILE *in, struct sym_entry *s)
@@ -125,34 +192,15 @@ static int read_symbol(FILE *in, struct sym_entry *s)
 		return -1;
 	}
 
+	if (is_ignored_symbol(sym, stype))
+		return -1;
+
 	/* Ignore most absolute/undefined (?) symbols. */
 	if (strcmp(sym, "_text") == 0)
 		_text = s->addr;
-	else if (check_symbol_range(sym, s->addr, text_ranges,
-				    ARRAY_SIZE(text_ranges)) == 0)
-		/* nothing to do */;
-	else if (toupper(stype) == 'A')
-	{
-		/* Keep these useful absolute symbols */
-		if (strcmp(sym, "__kernel_syscall_via_break") &&
-		    strcmp(sym, "__kernel_syscall_via_epc") &&
-		    strcmp(sym, "__kernel_sigtramp") &&
-		    strcmp(sym, "__gp"))
-			return -1;
 
-	}
-	else if (toupper(stype) == 'U' ||
-		 is_arm_mapping_symbol(sym))
-		return -1;
-	/* exclude also MIPS ELF local symbols ($L123 instead of .L123) */
-	else if (sym[0] == '$')
-		return -1;
-	/* exclude debugging symbols */
-	else if (stype == 'N' || stype == 'n')
-		return -1;
-	/* exclude s390 kasan local symbols */
-	else if (!strncmp(sym, ".LASANPC", 8))
-		return -1;
+	check_symbol_range(sym, s->addr, text_ranges, ARRAY_SIZE(text_ranges));
+	check_symbol_range(sym, s->addr, &percpu_range, 1);
 
 	/* include the type field in the symbol name, so that it gets
 	 * compressed together */
@@ -163,22 +211,19 @@ static int read_symbol(FILE *in, struct sym_entry *s)
 			"unable to allocate required amount of memory\n");
 		exit(EXIT_FAILURE);
 	}
-	strcpy((char *)s->sym + 1, sym);
+	strcpy(sym_name(s), sym);
 	s->sym[0] = stype;
 
 	s->percpu_absolute = 0;
 
-	/* Record if we've found __per_cpu_start/end. */
-	check_symbol_range(sym, s->addr, &percpu_range, 1);
-
 	return 0;
 }
 
-static int symbol_in_range(struct sym_entry *s, struct addr_range *ranges,
-			   int entries)
+static int symbol_in_range(const struct sym_entry *s,
+			   const struct addr_range *ranges, int entries)
 {
 	size_t i;
-	struct addr_range *ar;
+	const struct addr_range *ar;
 
 	for (i = 0; i < entries; ++i) {
 		ar = &ranges[i];
@@ -190,41 +235,9 @@ static int symbol_in_range(struct sym_entry *s, struct addr_range *ranges,
 	return 0;
 }
 
-static int symbol_valid(struct sym_entry *s)
+static int symbol_valid(const struct sym_entry *s)
 {
-	/* Symbols which vary between passes.  Passes 1 and 2 must have
-	 * identical symbol lists.  The kallsyms_* symbols below are only added
-	 * after pass 1, they would be included in pass 2 when --all-symbols is
-	 * specified so exclude them to get a stable symbol list.
-	 */
-	static char *special_symbols[] = {
-		"kallsyms_addresses",
-		"kallsyms_offsets",
-		"kallsyms_relative_base",
-		"kallsyms_num_syms",
-		"kallsyms_names",
-		"kallsyms_markers",
-		"kallsyms_token_table",
-		"kallsyms_token_index",
-
-	/* Exclude linker generated symbols which vary between passes */
-		"_SDA_BASE_",		/* ppc */
-		"_SDA2_BASE_",		/* ppc */
-		NULL };
-
-	static char *special_prefixes[] = {
-		"__crc_",		/* modversions */
-		"__efistub_",		/* arm64 EFI stub namespace */
-		NULL };
-
-	static char *special_suffixes[] = {
-		"_veneer",		/* arm */
-		"_from_arm",		/* arm */
-		"_from_thumb",		/* arm */
-		NULL };
-
-	int i;
-	char *sym_name = (char *)s->sym + 1;
+	const char *name = sym_name(s);
 
 	/* if --all-symbols is not specified, then symbols outside the text
 	 * and inittext sections are discarded */
@@ -239,35 +252,37 @@ static int symbol_valid(struct sym_entry *s)
 		 * rules.
 		 */
 		if ((s->addr == text_range_text->end &&
-				strcmp(sym_name,
-				       text_range_text->end_sym)) ||
+		     strcmp(name, text_range_text->end_sym)) ||
 		    (s->addr == text_range_inittext->end &&
-				strcmp(sym_name,
-				       text_range_inittext->end_sym)))
-			return 0;
-	}
-
-	/* Exclude symbols which vary between passes. */
-	for (i = 0; special_symbols[i]; i++)
-		if (strcmp(sym_name, special_symbols[i]) == 0)
-			return 0;
-
-	for (i = 0; special_prefixes[i]; i++) {
-		int l = strlen(special_prefixes[i]);
-
-		if (l <= strlen(sym_name) &&
-		    strncmp(sym_name, special_prefixes[i], l) == 0)
-			return 0;
-	}
-
-	for (i = 0; special_suffixes[i]; i++) {
-		int l = strlen(sym_name) - strlen(special_suffixes[i]);
-
-		if (l >= 0 && strcmp(sym_name + l, special_suffixes[i]) == 0)
+		     strcmp(name, text_range_inittext->end_sym)))
 			return 0;
 	}
 
 	return 1;
+}
+
+/* remove all the invalid symbols from the table */
+static void shrink_table(void)
+{
+	unsigned int i, pos;
+
+	pos = 0;
+	for (i = 0; i < table_cnt; i++) {
+		if (symbol_valid(&table[i])) {
+			if (pos != i)
+				table[pos] = table[i];
+			pos++;
+		} else {
+			free(table[i].sym);
+		}
+	}
+	table_cnt = pos;
+
+	/* When valid symbol is not registered, exit to error */
+	if (!table_cnt) {
+		fprintf(stderr, "No valid symbol.\n");
+		exit(1);
+	}
 }
 
 static void read_map(FILE *in)
@@ -288,16 +303,25 @@ static void read_map(FILE *in)
 	}
 }
 
-static void output_label(char *label)
+static void output_label(const char *label)
 {
 	printf(".globl %s\n", label);
 	printf("\tALGN\n");
 	printf("%s:\n", label);
 }
 
+/* Provide proper symbols relocatability by their '_text' relativeness. */
+static void output_address(unsigned long long addr)
+{
+	if (_text <= addr)
+		printf("\tPTR\t_text + %#llx\n", addr - _text);
+	else
+		printf("\tPTR\t_text - %#llx\n", _text - addr);
+}
+
 /* uncompress a compressed symbol. When this function is called, the best table
  * might still be compressed itself, so the function needs to be recursive */
-static int expand_symbol(unsigned char *data, int len, char *result)
+static int expand_symbol(const unsigned char *data, int len, char *result)
 {
 	int c, rlen, total=0;
 
@@ -322,7 +346,7 @@ static int expand_symbol(unsigned char *data, int len, char *result)
 	return total;
 }
 
-static int symbol_absolute(struct sym_entry *s)
+static int symbol_absolute(const struct sym_entry *s)
 {
 	return s->percpu_absolute;
 }
@@ -345,19 +369,6 @@ static void write_src(void)
 
 	printf("\t.section .rodata, \"a\"\n");
 
-	/* Provide proper symbols relocatability by their relativeness
-	 * to a fixed anchor point in the runtime image, either '_text'
-	 * for absolute address tables, in which case the linker will
-	 * emit the final addresses at build time. Otherwise, use the
-	 * offset relative to the lowest value encountered of all relative
-	 * symbols, and emit non-relocatable fixed offsets that will be fixed
-	 * up at runtime.
-	 *
-	 * The symbol names cannot be used to construct normal symbol
-	 * references as the list of symbols contains symbols that are
-	 * declared static and are private to their .o files.  This prevents
-	 * .tmp_kallsyms.o or any other object from referencing them.
-	 */
 	if (!base_relative)
 		output_label("kallsyms_addresses");
 	else
@@ -365,6 +376,13 @@ static void write_src(void)
 
 	for (i = 0; i < table_cnt; i++) {
 		if (base_relative) {
+			/*
+			 * Use the offset relative to the lowest value
+			 * encountered of all relative symbols, and emit
+			 * non-relocatable fixed offsets that will be fixed
+			 * up at runtime.
+			 */
+
 			long long offset;
 			int overflow;
 
@@ -387,12 +405,7 @@ static void write_src(void)
 			}
 			printf("\t.long\t%#x\n", (int)offset);
 		} else if (!symbol_absolute(&table[i])) {
-			if (_text <= table[i].addr)
-				printf("\tPTR\t_text + %#llx\n",
-					table[i].addr - _text);
-			else
-				printf("\tPTR\t_text - %#llx\n",
-					_text - table[i].addr);
+			output_address(table[i].addr);
 		} else {
 			printf("\tPTR\t%#llx\n", table[i].addr);
 		}
@@ -401,7 +414,7 @@ static void write_src(void)
 
 	if (base_relative) {
 		output_label("kallsyms_relative_base");
-		printf("\tPTR\t_text - %#llx\n", _text - relative_base);
+		output_address(relative_base);
 		printf("\n");
 	}
 
@@ -460,7 +473,7 @@ static void write_src(void)
 /* table lookup compression functions */
 
 /* count all the possible tokens in a symbol */
-static void learn_symbol(unsigned char *symbol, int len)
+static void learn_symbol(const unsigned char *symbol, int len)
 {
 	int i;
 
@@ -469,7 +482,7 @@ static void learn_symbol(unsigned char *symbol, int len)
 }
 
 /* decrease the count for all the possible tokens in a symbol */
-static void forget_symbol(unsigned char *symbol, int len)
+static void forget_symbol(const unsigned char *symbol, int len)
 {
 	int i;
 
@@ -477,24 +490,17 @@ static void forget_symbol(unsigned char *symbol, int len)
 		token_profit[ symbol[i] + (symbol[i + 1] << 8) ]--;
 }
 
-/* remove all the invalid symbols from the table and do the initial token count */
+/* do the initial token count */
 static void build_initial_tok_table(void)
 {
-	unsigned int i, pos;
+	unsigned int i;
 
-	pos = 0;
-	for (i = 0; i < table_cnt; i++) {
-		if ( symbol_valid(&table[i]) ) {
-			if (pos != i)
-				table[pos] = table[i];
-			learn_symbol(table[pos].sym, table[pos].len);
-			pos++;
-		}
-	}
-	table_cnt = pos;
+	for (i = 0; i < table_cnt; i++)
+		learn_symbol(table[i].sym, table[i].len);
 }
 
-static void *find_token(unsigned char *str, int len, unsigned char *token)
+static unsigned char *find_token(unsigned char *str, int len,
+				 const unsigned char *token)
 {
 	int i;
 
@@ -507,7 +513,7 @@ static void *find_token(unsigned char *str, int len, unsigned char *token)
 
 /* replace a given token in all the valid symbols. Use the sampled symbols
  * to update the counts */
-static void compress_symbols(unsigned char *str, int idx)
+static void compress_symbols(const unsigned char *str, int idx)
 {
 	unsigned int i, len, size;
 	unsigned char *p1, *p2;
@@ -614,19 +620,13 @@ static void optimize_token_table(void)
 
 	insert_real_symbols_in_table();
 
-	/* When valid symbol is not registered, exit to error */
-	if (!table_cnt) {
-		fprintf(stderr, "No valid symbol.\n");
-		exit(1);
-	}
-
 	optimize_result();
 }
 
 /* guess for "linker script provide" symbol */
 static int may_be_linker_script_provide_symbol(const struct sym_entry *se)
 {
-	const char *symbol = (char *)se->sym + 1;
+	const char *symbol = sym_name(se);
 	int len = se->len - 1;
 
 	if (len < 8)
@@ -658,16 +658,6 @@ static int may_be_linker_script_provide_symbol(const struct sym_entry *se)
 	return 0;
 }
 
-static int prefix_underscores_count(const char *str)
-{
-	const char *tail = str;
-
-	while (*tail == '_')
-		tail++;
-
-	return tail - str;
-}
-
 static int compare_symbols(const void *a, const void *b)
 {
 	const struct sym_entry *sa;
@@ -696,8 +686,8 @@ static int compare_symbols(const void *a, const void *b)
 		return wa - wb;
 
 	/* sort by the number of prefix underscores */
-	wa = prefix_underscores_count((const char *)sa->sym + 1);
-	wb = prefix_underscores_count((const char *)sb->sym + 1);
+	wa = strspn(sym_name(sa), "_");
+	wb = strspn(sym_name(sb), "_");
 	if (wa != wb)
 		return wa - wb;
 
@@ -731,11 +721,15 @@ static void record_relative_base(void)
 {
 	unsigned int i;
 
-	relative_base = -1ULL;
 	for (i = 0; i < table_cnt; i++)
-		if (!symbol_absolute(&table[i]) &&
-		    table[i].addr < relative_base)
+		if (!symbol_absolute(&table[i])) {
+			/*
+			 * The table is sorted by address.
+			 * Take the first non-absolute symbol value.
+			 */
 			relative_base = table[i].addr;
+			return;
+		}
 }
 
 int main(int argc, char **argv)
@@ -756,11 +750,12 @@ int main(int argc, char **argv)
 		usage();
 
 	read_map(stdin);
+	shrink_table();
 	if (absolute_percpu)
 		make_percpus_absolute();
+	sort_symbols();
 	if (base_relative)
 		record_relative_base();
-	sort_symbols();
 	optimize_token_table();
 	write_src();
 

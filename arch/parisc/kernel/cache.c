@@ -365,7 +365,7 @@ void flush_dcache_page(struct page *page)
 		if (old_addr == 0 || (old_addr & (SHM_COLOUR - 1))
 				      != (addr & (SHM_COLOUR - 1))) {
 			__flush_cache_page(mpnt, addr, page_to_phys(page));
-			if (old_addr)
+			if (parisc_requires_coherency() && old_addr)
 				printk(KERN_ERR "INEQUIVALENT ALIASES 0x%lx and 0x%lx in file %pD\n", old_addr, addr, mpnt->vm_file);
 			old_addr = addr;
 		}
@@ -534,11 +534,14 @@ static inline pte_t *get_ptep(pgd_t *pgd, unsigned long addr)
 	pte_t *ptep = NULL;
 
 	if (!pgd_none(*pgd)) {
-		pud_t *pud = pud_offset(pgd, addr);
-		if (!pud_none(*pud)) {
-			pmd_t *pmd = pmd_offset(pud, addr);
-			if (!pmd_none(*pmd))
-				ptep = pte_offset_map(pmd, addr);
+		p4d_t *p4d = p4d_offset(pgd, addr);
+		if (!p4d_none(*p4d)) {
+			pud_t *pud = pud_offset(p4d, addr);
+			if (!pud_none(*pud)) {
+				pmd_t *pmd = pmd_offset(pud, addr);
+				if (!pmd_none(*pmd))
+					ptep = pte_offset_map(pmd, addr);
+			}
 		}
 	}
 	return ptep;

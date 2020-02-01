@@ -119,4 +119,16 @@ config PTP_1588_CLOCK_KVM
 	  To compile this driver as a module, choose M here: the module
 	  will be called ptp_kvm.
 
+config PTP_1588_CLOCK_IDTCM
+	tristate "IDT CLOCKMATRIX as PTP clock"
+	depends on PTP_1588_CLOCK && I2C
+	default n
+	help
+	  This driver adds support for using IDT CLOCKMATRIX(TM) as a PTP
+	  clock. This clock is only useful if your time stamping MAC
+	  is connected to the IDT chip.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called ptp_clockmatrix.
+
 endmenu

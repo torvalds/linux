@@ -17,8 +17,7 @@ int vbox_mm_init(struct vbox_private *vbox)
 	struct drm_device *dev = &vbox->ddev;
 
 	vmm = drm_vram_helper_alloc_mm(dev, pci_resource_start(dev->pdev, 0),
-				       vbox->available_vram_size,
-				       &drm_gem_vram_mm_funcs);
+				       vbox->available_vram_size);
 	if (IS_ERR(vmm)) {
 		ret = PTR_ERR(vmm);
 		DRM_ERROR("Error initializing VRAM MM; %d\n", ret);

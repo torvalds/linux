@@ -439,8 +439,8 @@ config RAW_DRIVER
 	  Once bound, I/O against /dev/raw/rawN uses efficient zero-copy I/O.
 	  See the raw(8) manpage for more details.
 
-          Applications should preferably open the device (eg /dev/hda1)
-          with the O_DIRECT flag.
+	  Applications should preferably open the device (eg /dev/hda1)
+	  with the O_DIRECT flag.
 
 config MAX_RAW_DEVS
 	int "Maximum number of RAW devices to support (1-65536)"

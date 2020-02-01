@@ -17,8 +17,38 @@
 #define barrier() __asm__ __volatile__("": : :"memory")
 int _version SEC("version") = 1;
 
-SEC("test1")
-int process(struct __sk_buff *skb)
+/* llvm will optimize both subprograms into exactly the same BPF assembly
+ *
+ * Disassembly of section .text:
+ *
+ * 0000000000000000 test_pkt_access_subprog1:
+ * ; 	return skb->len * 2;
+ *        0:	61 10 00 00 00 00 00 00	r0 = *(u32 *)(r1 + 0)
+ *        1:	64 00 00 00 01 00 00 00	w0 <<= 1
+ *        2:	95 00 00 00 00 00 00 00	exit
+ *
+ * 0000000000000018 test_pkt_access_subprog2:
+ * ; 	return skb->len * val;
+ *        3:	61 10 00 00 00 00 00 00	r0 = *(u32 *)(r1 + 0)
+ *        4:	64 00 00 00 01 00 00 00	w0 <<= 1
+ *        5:	95 00 00 00 00 00 00 00	exit
+ *
+ * Which makes it an interesting test for BTF-enabled verifier.
+ */
+static __attribute__ ((noinline))
+int test_pkt_access_subprog1(volatile struct __sk_buff *skb)
+{
+	return skb->len * 2;
+}
+
+static __attribute__ ((noinline))
+int test_pkt_access_subprog2(int val, volatile struct __sk_buff *skb)
+{
+	return skb->len * val;
+}
+
+SEC("classifier/test_pkt_access")
+int test_pkt_access(struct __sk_buff *skb)
 {
 	void *data_end = (void *)(long)skb->data_end;
 	void *data = (void *)(long)skb->data;
@@ -48,6 +78,10 @@ int process(struct __sk_buff *skb)
 		tcp = (struct tcphdr *)((void *)(ip6h) + ihl_len);
 	}
 
+	if (test_pkt_access_subprog1(skb) != skb->len * 2)
+		return TC_ACT_SHOT;
+	if (test_pkt_access_subprog2(2, skb) != skb->len * 2)
+		return TC_ACT_SHOT;
 	if (tcp) {
 		if (((void *)(tcp) + 20) > data_end || proto != 6)
 			return TC_ACT_SHOT;

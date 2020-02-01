@@ -47,7 +47,7 @@ struct hash_net4_elem {
 
 /* Common functions */
 
-static inline bool
+static bool
 hash_net4_data_equal(const struct hash_net4_elem *ip1,
 		     const struct hash_net4_elem *ip2,
 		     u32 *multi)
@@ -56,25 +56,25 @@ hash_net4_data_equal(const struct hash_net4_elem *ip1,
 	       ip1->cidr == ip2->cidr;
 }
 
-static inline int
+static int
 hash_net4_do_data_match(const struct hash_net4_elem *elem)
 {
 	return elem->nomatch ? -ENOTEMPTY : 1;
 }
 
-static inline void
+static void
 hash_net4_data_set_flags(struct hash_net4_elem *elem, u32 flags)
 {
 	elem->nomatch = (flags >> 16) & IPSET_FLAG_NOMATCH;
 }
 
-static inline void
+static void
 hash_net4_data_reset_flags(struct hash_net4_elem *elem, u8 *flags)
 {
 	swap(*flags, elem->nomatch);
 }
 
-static inline void
+static void
 hash_net4_data_netmask(struct hash_net4_elem *elem, u8 cidr)
 {
 	elem->ip &= ip_set_netmask(cidr);
@@ -97,7 +97,7 @@ nla_put_failure:
 	return true;
 }
 
-static inline void
+static void
 hash_net4_data_next(struct hash_net4_elem *next,
 		    const struct hash_net4_elem *d)
 {
@@ -212,7 +212,7 @@ struct hash_net6_elem {
 
 /* Common functions */
 
-static inline bool
+static bool
 hash_net6_data_equal(const struct hash_net6_elem *ip1,
 		     const struct hash_net6_elem *ip2,
 		     u32 *multi)
@@ -221,25 +221,25 @@ hash_net6_data_equal(const struct hash_net6_elem *ip1,
 	       ip1->cidr == ip2->cidr;
 }
 
-static inline int
+static int
 hash_net6_do_data_match(const struct hash_net6_elem *elem)
 {
 	return elem->nomatch ? -ENOTEMPTY : 1;
 }
 
-static inline void
+static void
 hash_net6_data_set_flags(struct hash_net6_elem *elem, u32 flags)
 {
 	elem->nomatch = (flags >> 16) & IPSET_FLAG_NOMATCH;
 }
 
-static inline void
+static void
 hash_net6_data_reset_flags(struct hash_net6_elem *elem, u8 *flags)
 {
 	swap(*flags, elem->nomatch);
 }
 
-static inline void
+static void
 hash_net6_data_netmask(struct hash_net6_elem *elem, u8 cidr)
 {
 	ip6_netmask(&elem->ip, cidr);
@@ -262,7 +262,7 @@ nla_put_failure:
 	return true;
 }
 
-static inline void
+static void
 hash_net6_data_next(struct hash_net6_elem *next,
 		    const struct hash_net6_elem *d)
 {
@@ -368,6 +368,7 @@ static struct ip_set_type hash_net_type __read_mostly = {
 		[IPSET_ATTR_IP_TO]	= { .type = NLA_NESTED },
 		[IPSET_ATTR_CIDR]	= { .type = NLA_U8 },
 		[IPSET_ATTR_TIMEOUT]	= { .type = NLA_U32 },
+		[IPSET_ATTR_LINENO]	= { .type = NLA_U32 },
 		[IPSET_ATTR_CADT_FLAGS]	= { .type = NLA_U32 },
 		[IPSET_ATTR_BYTES]	= { .type = NLA_U64 },
 		[IPSET_ATTR_PACKETS]	= { .type = NLA_U64 },

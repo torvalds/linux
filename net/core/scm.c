@@ -268,8 +268,10 @@ void put_cmsg_scm_timestamping(struct msghdr *msg, struct scm_timestamping_inter
 	struct scm_timestamping tss;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(tss.ts); i++)
-		tss.ts[i] = timespec64_to_timespec(tss_internal->ts[i]);
+	for (i = 0; i < ARRAY_SIZE(tss.ts); i++) {
+		tss.ts[i].tv_sec = tss_internal->ts[i].tv_sec;
+		tss.ts[i].tv_nsec = tss_internal->ts[i].tv_nsec;
+	}
 
 	put_cmsg(msg, SOL_SOCKET, SO_TIMESTAMPING_OLD, sizeof(tss), &tss);
 }

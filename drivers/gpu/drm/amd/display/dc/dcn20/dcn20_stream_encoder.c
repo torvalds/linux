@@ -492,15 +492,23 @@ void enc2_stream_encoder_dp_unblank(
 				DP_VID_N_MUL, n_multiply);
 	}
 
-	/* set DIG_START to 0x1 to reset FIFO */
+	/* make sure stream is disabled before resetting steer fifo */
+	REG_UPDATE(DP_VID_STREAM_CNTL, DP_VID_STREAM_ENABLE, false);
+	REG_WAIT(DP_VID_STREAM_CNTL, DP_VID_STREAM_STATUS, 0, 10, 5000);
 
+	/* set DIG_START to 0x1 to reset FIFO */
 	REG_UPDATE(DIG_FE_CNTL, DIG_START, 1);
+	udelay(1);
 
 	/* write 0 to take the FIFO out of reset */
 
 	REG_UPDATE(DIG_FE_CNTL, DIG_START, 0);
 
-	/* switch DP encoder to CRTC data */
+	/* switch DP encoder to CRTC data, but reset it the fifo first. It may happen
+	 * that it overflows during mode transition, and sometimes doesn't recover.
+	 */
+	REG_UPDATE(DP_STEER_FIFO, DP_STEER_FIFO_RESET, 1);
+	udelay(10);
 
 	REG_UPDATE(DP_STEER_FIFO, DP_STEER_FIFO_RESET, 0);
 
@@ -578,6 +586,10 @@ static const struct stream_encoder_funcs dcn20_str_enc_funcs = {
 	.set_avmute = enc1_stream_encoder_set_avmute,
 	.dig_connect_to_otg  = enc1_dig_connect_to_otg,
 	.dig_source_otg = enc1_dig_source_otg,
+
+	.dp_get_pixel_format =
+		enc1_stream_encoder_dp_get_pixel_format,
+
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	.enc_read_state = enc2_read_state,
 	.dp_set_dsc_config = enc2_dp_set_dsc_config,

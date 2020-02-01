@@ -136,7 +136,7 @@ static void shutdown_onchannelcallback(void *context)
 	struct icmsg_hdr *icmsghdrp;
 
 	vmbus_recvpacket(channel, shut_txf_buf,
-			 PAGE_SIZE, &recvlen, &requestid);
+			 HV_HYP_PAGE_SIZE, &recvlen, &requestid);
 
 	if (recvlen > 0) {
 		icmsghdrp = (struct icmsg_hdr *)&shut_txf_buf[
@@ -284,7 +284,7 @@ static void timesync_onchannelcallback(void *context)
 	u8 *time_txf_buf = util_timesynch.recv_buffer;
 
 	vmbus_recvpacket(channel, time_txf_buf,
-			 PAGE_SIZE, &recvlen, &requestid);
+			 HV_HYP_PAGE_SIZE, &recvlen, &requestid);
 
 	if (recvlen > 0) {
 		icmsghdrp = (struct icmsg_hdr *)&time_txf_buf[
@@ -346,7 +346,7 @@ static void heartbeat_onchannelcallback(void *context)
 	while (1) {
 
 		vmbus_recvpacket(channel, hbeat_txf_buf,
-				 PAGE_SIZE, &recvlen, &requestid);
+				 HV_HYP_PAGE_SIZE, &recvlen, &requestid);
 
 		if (!recvlen)
 			break;
@@ -390,7 +390,7 @@ static int util_probe(struct hv_device *dev,
 		(struct hv_util_service *)dev_id->driver_data;
 	int ret;
 
-	srv->recv_buffer = kmalloc(PAGE_SIZE * 4, GFP_KERNEL);
+	srv->recv_buffer = kmalloc(HV_HYP_PAGE_SIZE * 4, GFP_KERNEL);
 	if (!srv->recv_buffer)
 		return -ENOMEM;
 	srv->channel = dev->channel;
@@ -413,8 +413,9 @@ static int util_probe(struct hv_device *dev,
 
 	hv_set_drvdata(dev, srv);
 
-	ret = vmbus_open(dev->channel, 4 * PAGE_SIZE, 4 * PAGE_SIZE, NULL, 0,
-			srv->util_cb, dev->channel);
+	ret = vmbus_open(dev->channel, 4 * HV_HYP_PAGE_SIZE,
+			 4 * HV_HYP_PAGE_SIZE, NULL, 0, srv->util_cb,
+			 dev->channel);
 	if (ret)
 		goto error;
 

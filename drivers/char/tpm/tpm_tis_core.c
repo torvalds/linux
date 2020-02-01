@@ -506,6 +506,84 @@ static int tpm_tis_send(struct tpm_chip *chip, u8 *buf, size_t len)
 	return rc;
 }
 
+struct tis_vendor_durations_override {
+	u32 did_vid;
+	struct tpm1_version version;
+	unsigned long durations[3];
+};
+
+static const struct  tis_vendor_durations_override vendor_dur_overrides[] = {
+	/* STMicroelectronics 0x104a */
+	{ 0x0000104a,
+	  { 1, 2, 8, 28 },
+	  { (2 * 60 * HZ), (2 * 60 * HZ), (2 * 60 * HZ) } },
+};
+
+static void tpm_tis_update_durations(struct tpm_chip *chip,
+				     unsigned long *duration_cap)
+{
+	struct tpm_tis_data *priv = dev_get_drvdata(&chip->dev);
+	struct tpm1_version *version;
+	u32 did_vid;
+	int i, rc;
+	cap_t cap;
+
+	chip->duration_adjusted = false;
+
+	if (chip->ops->clk_enable != NULL)
+		chip->ops->clk_enable(chip, true);
+
+	rc = tpm_tis_read32(priv, TPM_DID_VID(0), &did_vid);
+	if (rc < 0) {
+		dev_warn(&chip->dev, "%s: failed to read did_vid. %d\n",
+			 __func__, rc);
+		goto out;
+	}
+
+	/* Try to get a TPM version 1.2 or 1.1 TPM_CAP_VERSION_INFO */
+	rc = tpm1_getcap(chip, TPM_CAP_VERSION_1_2, &cap,
+			 "attempting to determine the 1.2 version",
+			 sizeof(cap.version2));
+	if (!rc) {
+		version = &cap.version2.version;
+	} else {
+		rc = tpm1_getcap(chip, TPM_CAP_VERSION_1_1, &cap,
+				 "attempting to determine the 1.1 version",
+				 sizeof(cap.version1));
+
+		if (rc)
+			goto out;
+
+		version = &cap.version1;
+	}
+
+	for (i = 0; i != ARRAY_SIZE(vendor_dur_overrides); i++) {
+		if (vendor_dur_overrides[i].did_vid != did_vid)
+			continue;
+
+		if ((version->major ==
+		     vendor_dur_overrides[i].version.major) &&
+		    (version->minor ==
+		     vendor_dur_overrides[i].version.minor) &&
+		    (version->rev_major ==
+		     vendor_dur_overrides[i].version.rev_major) &&
+		    (version->rev_minor ==
+		     vendor_dur_overrides[i].version.rev_minor)) {
+
+			memcpy(duration_cap,
+			       vendor_dur_overrides[i].durations,
+			       sizeof(vendor_dur_overrides[i].durations));
+
+			chip->duration_adjusted = true;
+			goto out;
+		}
+	}
+
+out:
+	if (chip->ops->clk_enable != NULL)
+		chip->ops->clk_enable(chip, false);
+}
+
 struct tis_vendor_timeout_override {
 	u32 did_vid;
 	unsigned long timeout_us[4];
@@ -842,6 +920,7 @@ static const struct tpm_class_ops tpm_tis = {
 	.send = tpm_tis_send,
 	.cancel = tpm_tis_ready,
 	.update_timeouts = tpm_tis_update_timeouts,
+	.update_durations = tpm_tis_update_durations,
 	.req_complete_mask = TPM_STS_DATA_AVAIL | TPM_STS_VALID,
 	.req_complete_val = TPM_STS_DATA_AVAIL | TPM_STS_VALID,
 	.req_canceled = tpm_tis_req_canceled,
@@ -899,13 +978,13 @@ int tpm_tis_core_init(struct device *dev, struct tpm_tis_data *priv, int irq,
 
 	if (wait_startup(chip, 0) != 0) {
 		rc = -ENODEV;
-		goto out_err;
+		goto err_start;
 	}
 
 	/* Take control of the TPM's interrupt hardware and shut it off */
 	rc = tpm_tis_read32(priv, TPM_INT_ENABLE(priv->locality), &intmask);
 	if (rc < 0)
-		goto out_err;
+		goto err_start;
 
 	intmask |= TPM_INTF_CMD_READY_INT | TPM_INTF_LOCALITY_CHANGE_INT |
 		   TPM_INTF_DATA_AVAIL_INT | TPM_INTF_STS_VALID_INT;
@@ -914,21 +993,21 @@ int tpm_tis_core_init(struct device *dev, struct tpm_tis_data *priv, int irq,
 
 	rc = tpm_chip_start(chip);
 	if (rc)
-		goto out_err;
+		goto err_start;
+
 	rc = tpm2_probe(chip);
-	tpm_chip_stop(chip);
 	if (rc)
-		goto out_err;
+		goto err_probe;
 
 	rc = tpm_tis_read32(priv, TPM_DID_VID(0), &vendor);
 	if (rc < 0)
-		goto out_err;
+		goto err_probe;
 
 	priv->manufacturer_id = vendor;
 
 	rc = tpm_tis_read8(priv, TPM_RID(0), &rid);
 	if (rc < 0)
-		goto out_err;
+		goto err_probe;
 
 	dev_info(dev, "%s TPM (device-id 0x%X, rev-id %d)\n",
 		 (chip->flags & TPM_CHIP_FLAG_TPM2) ? "2.0" : "1.2",
@@ -937,13 +1016,13 @@ int tpm_tis_core_init(struct device *dev, struct tpm_tis_data *priv, int irq,
 	probe = probe_itpm(chip);
 	if (probe < 0) {
 		rc = -ENODEV;
-		goto out_err;
+		goto err_probe;
 	}
 
 	/* Figure out the capabilities */
 	rc = tpm_tis_read32(priv, TPM_INTF_CAPS(priv->locality), &intfcaps);
 	if (rc < 0)
-		goto out_err;
+		goto err_probe;
 
 	dev_dbg(dev, "TPM interface capabilities (0x%x):\n",
 		intfcaps);
@@ -977,10 +1056,9 @@ int tpm_tis_core_init(struct device *dev, struct tpm_tis_data *priv, int irq,
 		if (tpm_get_timeouts(chip)) {
 			dev_err(dev, "Could not get TPM timeouts and durations\n");
 			rc = -ENODEV;
-			goto out_err;
+			goto err_probe;
 		}
 
-		tpm_chip_start(chip);
 		chip->flags |= TPM_CHIP_FLAG_IRQ;
 		if (irq) {
 			tpm_tis_probe_irq_single(chip, intmask, IRQF_SHARED,
@@ -991,18 +1069,20 @@ int tpm_tis_core_init(struct device *dev, struct tpm_tis_data *priv, int irq,
 		} else {
 			tpm_tis_probe_irq(chip, intmask);
 		}
-		tpm_chip_stop(chip);
 	}
+
+	tpm_chip_stop(chip);
 
 	rc = tpm_chip_register(chip);
 	if (rc)
-		goto out_err;
-
-	if (chip->ops->clk_enable != NULL)
-		chip->ops->clk_enable(chip, false);
+		goto err_start;
 
 	return 0;
-out_err:
+
+err_probe:
+	tpm_chip_stop(chip);
+
+err_start:
 	if ((chip->ops != NULL) && (chip->ops->clk_enable != NULL))
 		chip->ops->clk_enable(chip, false);
 

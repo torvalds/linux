@@ -78,7 +78,6 @@ static void j1939_jsk_add(struct j1939_priv *priv, struct j1939_sock *jsk)
 {
 	jsk->state |= J1939_SOCK_BOUND;
 	j1939_priv_get(priv);
-	jsk->priv = priv;
 
 	spin_lock_bh(&priv->j1939_socks_lock);
 	list_add_tail(&jsk->list, &priv->j1939_socks);
@@ -91,7 +90,6 @@ static void j1939_jsk_del(struct j1939_priv *priv, struct j1939_sock *jsk)
 	list_del_init(&jsk->list);
 	spin_unlock_bh(&priv->j1939_socks_lock);
 
-	jsk->priv = NULL;
 	j1939_priv_put(priv);
 	jsk->state &= ~J1939_SOCK_BOUND;
 }
@@ -349,6 +347,34 @@ void j1939_sk_recv(struct j1939_priv *priv, struct sk_buff *skb)
 	spin_unlock_bh(&priv->j1939_socks_lock);
 }
 
+static void j1939_sk_sock_destruct(struct sock *sk)
+{
+	struct j1939_sock *jsk = j1939_sk(sk);
+
+	/* This function will be call by the generic networking code, when then
+	 * the socket is ultimately closed (sk->sk_destruct).
+	 *
+	 * The race between
+	 * - processing a received CAN frame
+	 *   (can_receive -> j1939_can_recv)
+	 *   and accessing j1939_priv
+	 * ... and ...
+	 * - closing a socket
+	 *   (j1939_can_rx_unregister -> can_rx_unregister)
+	 *   and calling the final j1939_priv_put()
+	 *
+	 * is avoided by calling the final j1939_priv_put() from this
+	 * RCU deferred cleanup call.
+	 */
+	if (jsk->priv) {
+		j1939_priv_put(jsk->priv);
+		jsk->priv = NULL;
+	}
+
+	/* call generic CAN sock destruct */
+	can_sock_destruct(sk);
+}
+
 static int j1939_sk_init(struct sock *sk)
 {
 	struct j1939_sock *jsk = j1939_sk(sk);
@@ -371,6 +397,7 @@ static int j1939_sk_init(struct sock *sk)
 	atomic_set(&jsk->skb_pending, 0);
 	spin_lock_init(&jsk->sk_session_queue_lock);
 	INIT_LIST_HEAD(&jsk->sk_session_queue);
+	sk->sk_destruct = j1939_sk_sock_destruct;
 
 	return 0;
 }
@@ -396,9 +423,9 @@ static int j1939_sk_bind(struct socket *sock, struct sockaddr *uaddr, int len)
 {
 	struct sockaddr_can *addr = (struct sockaddr_can *)uaddr;
 	struct j1939_sock *jsk = j1939_sk(sock->sk);
-	struct j1939_priv *priv = jsk->priv;
-	struct sock *sk = sock->sk;
-	struct net *net = sock_net(sk);
+	struct j1939_priv *priv;
+	struct sock *sk;
+	struct net *net;
 	int ret = 0;
 
 	ret = j1939_sk_sanity_check(addr, len);
@@ -406,6 +433,10 @@ static int j1939_sk_bind(struct socket *sock, struct sockaddr *uaddr, int len)
 		return ret;
 
 	lock_sock(sock->sk);
+
+	priv = jsk->priv;
+	sk = sock->sk;
+	net = sock_net(sk);
 
 	/* Already bound to an interface? */
 	if (jsk->state & J1939_SOCK_BOUND) {
@@ -443,6 +474,12 @@ static int j1939_sk_bind(struct socket *sock, struct sockaddr *uaddr, int len)
 		}
 
 		jsk->ifindex = addr->can_ifindex;
+
+		/* the corresponding j1939_priv_put() is called via
+		 * sk->sk_destruct, which points to j1939_sk_sock_destruct()
+		 */
+		j1939_priv_get(priv);
+		jsk->priv = priv;
 	}
 
 	/* set default transmit pgn */
@@ -560,8 +597,8 @@ static int j1939_sk_release(struct socket *sock)
 	if (!sk)
 		return 0;
 
-	jsk = j1939_sk(sk);
 	lock_sock(sk);
+	jsk = j1939_sk(sk);
 
 	if (jsk->state & J1939_SOCK_BOUND) {
 		struct j1939_priv *priv = jsk->priv;
@@ -580,6 +617,7 @@ static int j1939_sk_release(struct socket *sock)
 		j1939_netdev_stop(priv);
 	}
 
+	kfree(jsk->filters);
 	sock_orphan(sk);
 	sock->sk = NULL;
 
@@ -909,8 +947,10 @@ void j1939_sk_errqueue(struct j1939_session *session,
 	memset(serr, 0, sizeof(*serr));
 	switch (type) {
 	case J1939_ERRQUEUE_ACK:
-		if (!(sk->sk_tsflags & SOF_TIMESTAMPING_TX_ACK))
+		if (!(sk->sk_tsflags & SOF_TIMESTAMPING_TX_ACK)) {
+			kfree_skb(skb);
 			return;
+		}
 
 		serr->ee.ee_errno = ENOMSG;
 		serr->ee.ee_origin = SO_EE_ORIGIN_TIMESTAMPING;
@@ -918,8 +958,10 @@ void j1939_sk_errqueue(struct j1939_session *session,
 		state = "ACK";
 		break;
 	case J1939_ERRQUEUE_SCHED:
-		if (!(sk->sk_tsflags & SOF_TIMESTAMPING_TX_SCHED))
+		if (!(sk->sk_tsflags & SOF_TIMESTAMPING_TX_SCHED)) {
+			kfree_skb(skb);
 			return;
+		}
 
 		serr->ee.ee_errno = ENOMSG;
 		serr->ee.ee_origin = SO_EE_ORIGIN_TIMESTAMPING;
@@ -1054,50 +1096,71 @@ static int j1939_sk_sendmsg(struct socket *sock, struct msghdr *msg,
 {
 	struct sock *sk = sock->sk;
 	struct j1939_sock *jsk = j1939_sk(sk);
-	struct j1939_priv *priv = jsk->priv;
+	struct j1939_priv *priv;
 	int ifindex;
 	int ret;
 
+	lock_sock(sock->sk);
 	/* various socket state tests */
-	if (!(jsk->state & J1939_SOCK_BOUND))
-		return -EBADFD;
+	if (!(jsk->state & J1939_SOCK_BOUND)) {
+		ret = -EBADFD;
+		goto sendmsg_done;
+	}
 
+	priv = jsk->priv;
 	ifindex = jsk->ifindex;
 
-	if (!jsk->addr.src_name && jsk->addr.sa == J1939_NO_ADDR)
+	if (!jsk->addr.src_name && jsk->addr.sa == J1939_NO_ADDR) {
 		/* no source address assigned yet */
-		return -EBADFD;
+		ret = -EBADFD;
+		goto sendmsg_done;
+	}
 
 	/* deal with provided destination address info */
 	if (msg->msg_name) {
 		struct sockaddr_can *addr = msg->msg_name;
 
-		if (msg->msg_namelen < J1939_MIN_NAMELEN)
-			return -EINVAL;
+		if (msg->msg_namelen < J1939_MIN_NAMELEN) {
+			ret = -EINVAL;
+			goto sendmsg_done;
+		}
 
-		if (addr->can_family != AF_CAN)
-			return -EINVAL;
+		if (addr->can_family != AF_CAN) {
+			ret = -EINVAL;
+			goto sendmsg_done;
+		}
 
-		if (addr->can_ifindex && addr->can_ifindex != ifindex)
-			return -EBADFD;
+		if (addr->can_ifindex && addr->can_ifindex != ifindex) {
+			ret = -EBADFD;
+			goto sendmsg_done;
+		}
 
 		if (j1939_pgn_is_valid(addr->can_addr.j1939.pgn) &&
-		    !j1939_pgn_is_clean_pdu(addr->can_addr.j1939.pgn))
-			return -EINVAL;
+		    !j1939_pgn_is_clean_pdu(addr->can_addr.j1939.pgn)) {
+			ret = -EINVAL;
+			goto sendmsg_done;
+		}
 
 		if (!addr->can_addr.j1939.name &&
 		    addr->can_addr.j1939.addr == J1939_NO_ADDR &&
-		    !sock_flag(sk, SOCK_BROADCAST))
+		    !sock_flag(sk, SOCK_BROADCAST)) {
 			/* broadcast, but SO_BROADCAST not set */
-			return -EACCES;
+			ret = -EACCES;
+			goto sendmsg_done;
+		}
 	} else {
 		if (!jsk->addr.dst_name && jsk->addr.da == J1939_NO_ADDR &&
-		    !sock_flag(sk, SOCK_BROADCAST))
+		    !sock_flag(sk, SOCK_BROADCAST)) {
 			/* broadcast, but SO_BROADCAST not set */
-			return -EACCES;
+			ret = -EACCES;
+			goto sendmsg_done;
+		}
 	}
 
 	ret = j1939_sk_send_loop(priv, sk, msg, size);
+
+sendmsg_done:
+	release_sock(sock->sk);
 
 	return ret;
 }

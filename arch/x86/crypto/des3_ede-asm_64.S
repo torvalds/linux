@@ -162,7 +162,7 @@
 	movl   left##d,   (io); \
 	movl   right##d, 4(io);
 
-ENTRY(des3_ede_x86_64_crypt_blk)
+SYM_FUNC_START(des3_ede_x86_64_crypt_blk)
 	/* input:
 	 *	%rdi: round keys, CTX
 	 *	%rsi: dst
@@ -244,7 +244,7 @@ ENTRY(des3_ede_x86_64_crypt_blk)
 	popq %rbx;
 
 	ret;
-ENDPROC(des3_ede_x86_64_crypt_blk)
+SYM_FUNC_END(des3_ede_x86_64_crypt_blk)
 
 /***********************************************************************
  * 3-way 3DES
@@ -418,7 +418,7 @@ ENDPROC(des3_ede_x86_64_crypt_blk)
 #define __movq(src, dst) \
 	movq src, dst;
 
-ENTRY(des3_ede_x86_64_crypt_blk_3way)
+SYM_FUNC_START(des3_ede_x86_64_crypt_blk_3way)
 	/* input:
 	 *	%rdi: ctx, round keys
 	 *	%rsi: dst (3 blocks)
@@ -529,7 +529,7 @@ ENTRY(des3_ede_x86_64_crypt_blk_3way)
 	popq %rbx;
 
 	ret;
-ENDPROC(des3_ede_x86_64_crypt_blk_3way)
+SYM_FUNC_END(des3_ede_x86_64_crypt_blk_3way)
 
 .section	.rodata, "a", @progbits
 .align 16

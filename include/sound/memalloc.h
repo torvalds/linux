@@ -21,7 +21,6 @@ struct snd_dma_device {
 	struct device *dev;		/* generic device */
 };
 
-#define snd_dma_pci_data(pci)	(&(pci)->dev)
 #define snd_dma_continuous_data(x)	((struct device *)(__force unsigned long)(x))
 
 
@@ -44,6 +43,7 @@ struct snd_dma_device {
 #else
 #define SNDRV_DMA_TYPE_DEV_IRAM	SNDRV_DMA_TYPE_DEV
 #endif
+#define SNDRV_DMA_TYPE_VMALLOC		7	/* vmalloc'ed buffer */
 
 /*
  * info for buffer allocation

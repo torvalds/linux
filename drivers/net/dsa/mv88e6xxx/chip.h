@@ -33,6 +33,11 @@ enum mv88e6xxx_egress_mode {
 	MV88E6XXX_EGRESS_MODE_ETHERTYPE,
 };
 
+enum mv88e6xxx_egress_direction {
+        MV88E6XXX_EGRESS_DIR_INGRESS,
+        MV88E6XXX_EGRESS_DIR_EGRESS,
+};
+
 enum mv88e6xxx_frame_mode {
 	MV88E6XXX_FRAME_MODE_NORMAL,
 	MV88E6XXX_FRAME_MODE_DSA,
@@ -94,6 +99,7 @@ struct mv88e6xxx_info {
 	u16 prod_num;
 	const char *name;
 	unsigned int num_databases;
+	unsigned int num_macs;
 	unsigned int num_ports;
 	unsigned int num_internal_phys;
 	unsigned int num_gpio;
@@ -227,6 +233,8 @@ struct mv88e6xxx_port {
 	u64 vtu_member_violation;
 	u64 vtu_miss_violation;
 	u8 cmode;
+	bool mirror_ingress;
+	bool mirror_egress;
 	unsigned int serdes_irq;
 };
 
@@ -309,6 +317,10 @@ struct mv88e6xxx_chip {
 	u16 trig_config;
 	u16 evcap_config;
 	u16 enable_count;
+
+	/* Current ingress and egress monitor ports */
+	int egress_dest_port;
+	int ingress_dest_port;
 
 	/* Per-port timestamping resources. */
 	struct mv88e6xxx_port_hwtstamp port_hwtstamp[DSA_MAX_PORTS];
@@ -464,7 +476,9 @@ struct mv88e6xxx_ops {
 	int (*stats_get_stats)(struct mv88e6xxx_chip *chip,  int port,
 			       uint64_t *data);
 	int (*set_cpu_port)(struct mv88e6xxx_chip *chip, int port);
-	int (*set_egress_port)(struct mv88e6xxx_chip *chip, int port);
+	int (*set_egress_port)(struct mv88e6xxx_chip *chip,
+			       enum mv88e6xxx_egress_direction direction,
+			       int port);
 
 #define MV88E6XXX_CASCADE_PORT_NONE		0xe
 #define MV88E6XXX_CASCADE_PORT_MULTIPLE		0xf
@@ -496,6 +510,10 @@ struct mv88e6xxx_ops {
 				  uint8_t *data);
 	int (*serdes_get_stats)(struct mv88e6xxx_chip *chip,  int port,
 				uint64_t *data);
+
+	/* Address Translation Unit operations */
+	int (*atu_get_hash)(struct mv88e6xxx_chip *chip, u8 *hash);
+	int (*atu_set_hash)(struct mv88e6xxx_chip *chip, u8 hash);
 
 	/* VLAN Translation Unit operations */
 	int (*vtu_getnext)(struct mv88e6xxx_chip *chip,
@@ -607,6 +625,11 @@ static inline bool mv88e6xxx_has_pvt(struct mv88e6xxx_chip *chip)
 static inline unsigned int mv88e6xxx_num_databases(struct mv88e6xxx_chip *chip)
 {
 	return chip->info->num_databases;
+}
+
+static inline unsigned int mv88e6xxx_num_macs(struct  mv88e6xxx_chip *chip)
+{
+	return chip->info->num_macs;
 }
 
 static inline unsigned int mv88e6xxx_num_ports(struct mv88e6xxx_chip *chip)

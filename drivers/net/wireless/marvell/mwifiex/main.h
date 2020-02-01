@@ -1017,6 +1017,7 @@ struct mwifiex_adapter {
 
 	/* For synchronizing FW initialization with device lifecycle. */
 	struct completion *fw_done;
+	bool is_up;
 
 	bool ext_scan;
 	u8 fw_api_ver;

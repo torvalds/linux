@@ -162,7 +162,10 @@ static int mrfld_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 {
 	void __iomem *gpdr = gpio_reg(chip, offset, GPDR);
 
-	return !(readl(gpdr) & BIT(offset % 32));
+	if (readl(gpdr) & BIT(offset % 32))
+		return GPIO_LINE_DIRECTION_OUT;
+
+	return GPIO_LINE_DIRECTION_IN;
 }
 
 static int mrfld_gpio_set_debounce(struct gpio_chip *chip, unsigned int offset,
@@ -396,15 +399,36 @@ static const char *mrfld_gpio_get_pinctrl_dev_name(struct mrfld_gpio *priv)
 	return name;
 }
 
-static int mrfld_gpio_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+static int mrfld_gpio_add_pin_ranges(struct gpio_chip *chip)
 {
+	struct mrfld_gpio *priv = gpiochip_get_data(chip);
 	const struct mrfld_gpio_pinrange *range;
 	const char *pinctrl_dev_name;
+	unsigned int i;
+	int retval;
+
+	pinctrl_dev_name = mrfld_gpio_get_pinctrl_dev_name(priv);
+	for (i = 0; i < ARRAY_SIZE(mrfld_gpio_ranges); i++) {
+		range = &mrfld_gpio_ranges[i];
+		retval = gpiochip_add_pin_range(&priv->chip, pinctrl_dev_name,
+						range->gpio_base,
+						range->pin_base,
+						range->npins);
+		if (retval) {
+			dev_err(priv->dev, "failed to add GPIO pin range\n");
+			return retval;
+		}
+	}
+
+	return 0;
+}
+
+static int mrfld_gpio_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+{
 	struct gpio_irq_chip *girq;
 	struct mrfld_gpio *priv;
 	u32 gpio_base, irq_base;
 	void __iomem *base;
-	unsigned int i;
 	int retval;
 
 	retval = pcim_enable_device(pdev);
@@ -445,6 +469,7 @@ static int mrfld_gpio_probe(struct pci_dev *pdev, const struct pci_device_id *id
 	priv->chip.base = gpio_base;
 	priv->chip.ngpio = MRFLD_NGPIO;
 	priv->chip.can_sleep = false;
+	priv->chip.add_pin_ranges = mrfld_gpio_add_pin_ranges;
 
 	raw_spin_lock_init(&priv->lock);
 
@@ -454,8 +479,7 @@ static int mrfld_gpio_probe(struct pci_dev *pdev, const struct pci_device_id *id
 	girq->parent_handler = mrfld_irq_handler;
 	girq->num_parents = 1;
 	girq->parents = devm_kcalloc(&pdev->dev, girq->num_parents,
-				     sizeof(*girq->parents),
-				     GFP_KERNEL);
+				     sizeof(*girq->parents), GFP_KERNEL);
 	if (!girq->parents)
 		return -ENOMEM;
 	girq->parents[0] = pdev->irq;
@@ -463,27 +487,13 @@ static int mrfld_gpio_probe(struct pci_dev *pdev, const struct pci_device_id *id
 	girq->default_type = IRQ_TYPE_NONE;
 	girq->handler = handle_bad_irq;
 
-	pci_set_drvdata(pdev, priv);
 	retval = devm_gpiochip_add_data(&pdev->dev, &priv->chip, priv);
 	if (retval) {
 		dev_err(&pdev->dev, "gpiochip_add error %d\n", retval);
 		return retval;
 	}
 
-	pinctrl_dev_name = mrfld_gpio_get_pinctrl_dev_name(priv);
-	for (i = 0; i < ARRAY_SIZE(mrfld_gpio_ranges); i++) {
-		range = &mrfld_gpio_ranges[i];
-		retval = gpiochip_add_pin_range(&priv->chip,
-						pinctrl_dev_name,
-						range->gpio_base,
-						range->pin_base,
-						range->npins);
-		if (retval) {
-			dev_err(&pdev->dev, "failed to add GPIO pin range\n");
-			return retval;
-		}
-	}
-
+	pci_set_drvdata(pdev, priv);
 	return 0;
 }
 

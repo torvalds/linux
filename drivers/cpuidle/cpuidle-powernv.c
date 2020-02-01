@@ -56,13 +56,10 @@ static u64 get_snooze_timeout(struct cpuidle_device *dev,
 		return default_snooze_timeout;
 
 	for (i = index + 1; i < drv->state_count; i++) {
-		struct cpuidle_state *s = &drv->states[i];
-		struct cpuidle_state_usage *su = &dev->states_usage[i];
-
-		if (s->disabled || su->disable)
+		if (dev->states_usage[i].disable)
 			continue;
 
-		return s->target_residency * tb_ticks_per_usec;
+		return drv->states[i].target_residency * tb_ticks_per_usec;
 	}
 
 	return default_snooze_timeout;

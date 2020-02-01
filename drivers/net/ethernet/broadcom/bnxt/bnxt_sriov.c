@@ -515,6 +515,7 @@ static int bnxt_hwrm_func_vf_resc_cfg(struct bnxt *bp, int num_vfs, bool reset)
 	struct bnxt_pf_info *pf = &bp->pf;
 	int i, rc = 0, min = 1;
 	u16 vf_msix = 0;
+	u16 vf_rss;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_VF_RESOURCE_CFG, -1, -1);
 
@@ -533,9 +534,9 @@ static int bnxt_hwrm_func_vf_resc_cfg(struct bnxt *bp, int num_vfs, bool reset)
 	vf_tx_rings = hw_resc->max_tx_rings - bp->tx_nr_rings;
 	vf_vnics = hw_resc->max_vnics - bp->nr_vnics;
 	vf_vnics = min_t(u16, vf_vnics, vf_rx_rings);
+	vf_rss = hw_resc->max_rsscos_ctxs - bp->rsscos_nr_ctxs;
 
 	req.min_rsscos_ctx = cpu_to_le16(BNXT_VF_MIN_RSS_CTX);
-	req.max_rsscos_ctx = cpu_to_le16(BNXT_VF_MAX_RSS_CTX);
 	if (pf->vf_resv_strategy == BNXT_VF_RESV_STRATEGY_MINIMAL_STATIC) {
 		min = 0;
 		req.min_rsscos_ctx = cpu_to_le16(min);
@@ -557,6 +558,7 @@ static int bnxt_hwrm_func_vf_resc_cfg(struct bnxt *bp, int num_vfs, bool reset)
 		vf_vnics /= num_vfs;
 		vf_stat_ctx /= num_vfs;
 		vf_ring_grps /= num_vfs;
+		vf_rss /= num_vfs;
 
 		req.min_cmpl_rings = cpu_to_le16(vf_cp_rings);
 		req.min_tx_rings = cpu_to_le16(vf_tx_rings);
@@ -565,6 +567,7 @@ static int bnxt_hwrm_func_vf_resc_cfg(struct bnxt *bp, int num_vfs, bool reset)
 		req.min_vnics = cpu_to_le16(vf_vnics);
 		req.min_stat_ctx = cpu_to_le16(vf_stat_ctx);
 		req.min_hw_ring_grps = cpu_to_le16(vf_ring_grps);
+		req.min_rsscos_ctx = cpu_to_le16(vf_rss);
 	}
 	req.max_cmpl_rings = cpu_to_le16(vf_cp_rings);
 	req.max_tx_rings = cpu_to_le16(vf_tx_rings);
@@ -573,6 +576,7 @@ static int bnxt_hwrm_func_vf_resc_cfg(struct bnxt *bp, int num_vfs, bool reset)
 	req.max_vnics = cpu_to_le16(vf_vnics);
 	req.max_stat_ctx = cpu_to_le16(vf_stat_ctx);
 	req.max_hw_ring_grps = cpu_to_le16(vf_ring_grps);
+	req.max_rsscos_ctx = cpu_to_le16(vf_rss);
 	if (bp->flags & BNXT_FLAG_CHIP_P5)
 		req.max_msix = cpu_to_le16(vf_msix / num_vfs);
 
@@ -598,7 +602,7 @@ static int bnxt_hwrm_func_vf_resc_cfg(struct bnxt *bp, int num_vfs, bool reset)
 		hw_resc->max_hw_ring_grps -= le16_to_cpu(req.min_hw_ring_grps) *
 					     n;
 		hw_resc->max_cp_rings -= le16_to_cpu(req.min_cmpl_rings) * n;
-		hw_resc->max_rsscos_ctxs -= pf->active_vfs;
+		hw_resc->max_rsscos_ctxs -= le16_to_cpu(req.min_rsscos_ctx) * n;
 		hw_resc->max_stat_ctxs -= le16_to_cpu(req.min_stat_ctx) * n;
 		hw_resc->max_vnics -= le16_to_cpu(req.min_vnics) * n;
 		if (bp->flags & BNXT_FLAG_CHIP_P5)

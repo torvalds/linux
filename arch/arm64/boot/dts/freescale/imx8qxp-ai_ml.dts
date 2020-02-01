@@ -133,6 +133,8 @@
 &usdhc1 {
 	#address-cells = <1>;
 	#size-cells = <0>;
+	assigned-clocks = <&clk IMX_CONN_SDHC0_CLK>;
+	assigned-clock-rates = <200000000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc1>;
 	bus-width = <4>;
@@ -149,6 +151,8 @@
 
 /* SD */
 &usdhc2 {
+	assigned-clocks = <&clk IMX_CONN_SDHC1_CLK>;
+	assigned-clock-rates = <200000000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc2>;
 	bus-width = <4>;

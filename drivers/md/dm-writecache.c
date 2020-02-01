@@ -1218,7 +1218,8 @@ bio_copy:
 			}
 		} while (bio->bi_iter.bi_size);
 
-		if (unlikely(wc->uncommitted_blocks >= wc->autocommit_blocks))
+		if (unlikely(bio->bi_opf & REQ_FUA ||
+			     wc->uncommitted_blocks >= wc->autocommit_blocks))
 			writecache_flush(wc);
 		else
 			writecache_schedule_autocommit(wc);
@@ -1561,7 +1562,7 @@ static void writecache_writeback(struct work_struct *work)
 {
 	struct dm_writecache *wc = container_of(work, struct dm_writecache, writeback_work);
 	struct blk_plug plug;
-	struct wc_entry *f, *g, *e = NULL;
+	struct wc_entry *f, *uninitialized_var(g), *e = NULL;
 	struct rb_node *node, *next_node;
 	struct list_head skipped;
 	struct writeback_list wbl;

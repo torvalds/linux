@@ -113,7 +113,7 @@ void __init s3c2416_map_io(void)
 	/* initialize device information early */
 	s3c2416_default_sdhci0();
 	s3c2416_default_sdhci1();
-	s3c64xx_spi_setname("s3c2443-spi");
+	s3c24xx_spi_setname("s3c2443-spi");
 
 	iotable_init(s3c2416_iodesc, ARRAY_SIZE(s3c2416_iodesc));
 }

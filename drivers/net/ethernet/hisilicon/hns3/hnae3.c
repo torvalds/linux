@@ -146,7 +146,7 @@ void hnae3_unregister_client(struct hnae3_client *client)
 		return;
 
 	mutex_lock(&hnae3_common_lock);
-
+	/* one system should only have one client for every type */
 	list_for_each_entry(client_tmp, &hnae3_client_list, node) {
 		if (client_tmp->type == client->type) {
 			existed = true;

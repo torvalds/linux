@@ -303,14 +303,17 @@ static int panfrost_ioctl_mmap_bo(struct drm_device *dev, void *data,
 	}
 
 	/* Don't allow mmapping of heap objects as pages are not pinned. */
-	if (to_panfrost_bo(gem_obj)->is_heap)
-		return -EINVAL;
+	if (to_panfrost_bo(gem_obj)->is_heap) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	ret = drm_gem_create_mmap_offset(gem_obj);
 	if (ret == 0)
 		args->offset = drm_vma_node_offset_addr(&gem_obj->vma_node);
-	drm_gem_object_put_unlocked(gem_obj);
 
+out:
+	drm_gem_object_put_unlocked(gem_obj);
 	return ret;
 }
 
@@ -347,20 +350,19 @@ static int panfrost_ioctl_madvise(struct drm_device *dev, void *data,
 		return -ENOENT;
 	}
 
+	mutex_lock(&pfdev->shrinker_lock);
 	args->retained = drm_gem_shmem_madvise(gem_obj, args->madv);
 
 	if (args->retained) {
 		struct panfrost_gem_object *bo = to_panfrost_bo(gem_obj);
 
-		mutex_lock(&pfdev->shrinker_lock);
-
 		if (args->madv == PANFROST_MADV_DONTNEED)
-			list_add_tail(&bo->base.madv_list, &pfdev->shrinker_list);
+			list_add_tail(&bo->base.madv_list,
+				      &pfdev->shrinker_list);
 		else if (args->madv == PANFROST_MADV_WILLNEED)
 			list_del_init(&bo->base.madv_list);
-
-		mutex_unlock(&pfdev->shrinker_lock);
 	}
+	mutex_unlock(&pfdev->shrinker_lock);
 
 	drm_gem_object_put_unlocked(gem_obj);
 	return 0;
@@ -443,7 +445,7 @@ panfrost_postclose(struct drm_device *dev, struct drm_file *file)
 {
 	struct panfrost_file_priv *panfrost_priv = file->driver_priv;
 
-	panfrost_perfcnt_close(panfrost_priv);
+	panfrost_perfcnt_close(file);
 	panfrost_job_close(panfrost_priv);
 
 	panfrost_mmu_pgtable_free(panfrost_priv);
@@ -470,7 +472,7 @@ static const struct drm_ioctl_desc panfrost_drm_driver_ioctls[] = {
 	PANFROST_IOCTL(MADVISE,		madvise,	DRM_RENDER_ALLOW),
 };
 
-DEFINE_DRM_GEM_SHMEM_FOPS(panfrost_drm_driver_fops);
+DEFINE_DRM_GEM_FOPS(panfrost_drm_driver_fops);
 
 /*
  * Panfrost driver version:
@@ -556,11 +558,11 @@ static int panfrost_probe(struct platform_device *pdev)
 	return 0;
 
 err_out2:
+	pm_runtime_disable(pfdev->dev);
 	panfrost_devfreq_fini(pfdev);
 err_out1:
 	panfrost_device_fini(pfdev);
 err_out0:
-	pm_runtime_disable(pfdev->dev);
 	drm_dev_put(ddev);
 	return err;
 }

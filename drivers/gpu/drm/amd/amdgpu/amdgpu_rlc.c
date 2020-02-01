@@ -124,13 +124,12 @@ int amdgpu_gfx_rlc_init_sr(struct amdgpu_device *adev, u32 dws)
  */
 int amdgpu_gfx_rlc_init_csb(struct amdgpu_device *adev)
 {
-	volatile u32 *dst_ptr;
 	u32 dws;
 	int r;
 
 	/* allocate clear state block */
 	adev->gfx.rlc.clear_state_size = dws = adev->gfx.rlc.funcs->get_csb_size(adev);
-	r = amdgpu_bo_create_reserved(adev, dws * 4, PAGE_SIZE,
+	r = amdgpu_bo_create_kernel(adev, dws * 4, PAGE_SIZE,
 				      AMDGPU_GEM_DOMAIN_VRAM,
 				      &adev->gfx.rlc.clear_state_obj,
 				      &adev->gfx.rlc.clear_state_gpu_addr,
@@ -140,13 +139,6 @@ int amdgpu_gfx_rlc_init_csb(struct amdgpu_device *adev)
 		amdgpu_gfx_rlc_fini(adev);
 		return r;
 	}
-
-	/* set up the cs buffer */
-	dst_ptr = adev->gfx.rlc.cs_ptr;
-	adev->gfx.rlc.funcs->get_csb_buffer(adev, dst_ptr);
-	amdgpu_bo_kunmap(adev->gfx.rlc.clear_state_obj);
-	amdgpu_bo_unpin(adev->gfx.rlc.clear_state_obj);
-	amdgpu_bo_unreserve(adev->gfx.rlc.clear_state_obj);
 
 	return 0;
 }

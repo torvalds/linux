@@ -21,6 +21,7 @@
 #include <linux/fs.h>
 #include <linux/fs_context.h>
 #include <linux/poll.h>
+#include <linux/zlib.h>
 #include <uapi/linux/major.h>
 #include <uapi/linux/magic.h>
 
@@ -64,6 +65,35 @@
 /*
  * support fns
  */
+
+struct rawdata_f_data {
+	struct aa_loaddata *loaddata;
+};
+
+#define RAWDATA_F_DATA_BUF(p) (char *)(p + 1)
+
+static void rawdata_f_data_free(struct rawdata_f_data *private)
+{
+	if (!private)
+		return;
+
+	aa_put_loaddata(private->loaddata);
+	kvfree(private);
+}
+
+static struct rawdata_f_data *rawdata_f_data_alloc(size_t size)
+{
+	struct rawdata_f_data *ret;
+
+	if (size > SIZE_MAX - sizeof(*ret))
+		return ERR_PTR(-EINVAL);
+
+	ret = kvzalloc(sizeof(*ret) + size, GFP_KERNEL);
+	if (!ret)
+		return ERR_PTR(-ENOMEM);
+
+	return ret;
+}
 
 /**
  * aa_mangle_name - mangle a profile name to std profile layout form
@@ -593,7 +623,7 @@ static __poll_t ns_revision_poll(struct file *file, poll_table *pt)
 
 void __aa_bump_ns_revision(struct aa_ns *ns)
 {
-	ns->revision++;
+	WRITE_ONCE(ns->revision, ns->revision + 1);
 	wake_up_interruptible(&ns->wait);
 }
 
@@ -1280,36 +1310,117 @@ static int seq_rawdata_hash_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
+static int seq_rawdata_compressed_size_show(struct seq_file *seq, void *v)
+{
+	struct aa_loaddata *data = seq->private;
+
+	seq_printf(seq, "%zu\n", data->compressed_size);
+
+	return 0;
+}
+
 SEQ_RAWDATA_FOPS(abi);
 SEQ_RAWDATA_FOPS(revision);
 SEQ_RAWDATA_FOPS(hash);
+SEQ_RAWDATA_FOPS(compressed_size);
+
+static int deflate_decompress(char *src, size_t slen, char *dst, size_t dlen)
+{
+	int error;
+	struct z_stream_s strm;
+
+	if (aa_g_rawdata_compression_level == 0) {
+		if (dlen < slen)
+			return -EINVAL;
+		memcpy(dst, src, slen);
+		return 0;
+	}
+
+	memset(&strm, 0, sizeof(strm));
+
+	strm.workspace = kvzalloc(zlib_inflate_workspacesize(), GFP_KERNEL);
+	if (!strm.workspace)
+		return -ENOMEM;
+
+	strm.next_in = src;
+	strm.avail_in = slen;
+
+	error = zlib_inflateInit(&strm);
+	if (error != Z_OK) {
+		error = -ENOMEM;
+		goto fail_inflate_init;
+	}
+
+	strm.next_out = dst;
+	strm.avail_out = dlen;
+
+	error = zlib_inflate(&strm, Z_FINISH);
+	if (error != Z_STREAM_END)
+		error = -EINVAL;
+	else
+		error = 0;
+
+	zlib_inflateEnd(&strm);
+fail_inflate_init:
+	kvfree(strm.workspace);
+	return error;
+}
 
 static ssize_t rawdata_read(struct file *file, char __user *buf, size_t size,
 			    loff_t *ppos)
 {
-	struct aa_loaddata *rawdata = file->private_data;
+	struct rawdata_f_data *private = file->private_data;
 
-	return simple_read_from_buffer(buf, size, ppos, rawdata->data,
-				       rawdata->size);
+	return simple_read_from_buffer(buf, size, ppos,
+				       RAWDATA_F_DATA_BUF(private),
+				       private->loaddata->size);
 }
 
 static int rawdata_release(struct inode *inode, struct file *file)
 {
-	aa_put_loaddata(file->private_data);
+	rawdata_f_data_free(file->private_data);
 
 	return 0;
 }
 
 static int rawdata_open(struct inode *inode, struct file *file)
 {
+	int error;
+	struct aa_loaddata *loaddata;
+	struct rawdata_f_data *private;
+
 	if (!policy_view_capable(NULL))
 		return -EACCES;
-	file->private_data = __aa_get_loaddata(inode->i_private);
-	if (!file->private_data)
+
+	loaddata = __aa_get_loaddata(inode->i_private);
+	if (!loaddata)
 		/* lost race: this entry is being reaped */
 		return -ENOENT;
 
+	private = rawdata_f_data_alloc(loaddata->size);
+	if (IS_ERR(private)) {
+		error = PTR_ERR(private);
+		goto fail_private_alloc;
+	}
+
+	private->loaddata = loaddata;
+
+	error = deflate_decompress(loaddata->data, loaddata->compressed_size,
+				   RAWDATA_F_DATA_BUF(private),
+				   loaddata->size);
+	if (error)
+		goto fail_decompress;
+
+	file->private_data = private;
 	return 0;
+
+fail_decompress:
+	rawdata_f_data_free(private);
+	return error;
+
+fail_private_alloc:
+	aa_put_loaddata(loaddata);
+	return error;
 }
 
 static const struct file_operations rawdata_fops = {
@@ -1387,6 +1498,13 @@ int __aa_fs_create_rawdata(struct aa_ns *ns, struct aa_loaddata *rawdata)
 			goto fail;
 		rawdata->dents[AAFS_LOADDATA_HASH] = dent;
 	}
+
+	dent = aafs_create_file("compressed_size", S_IFREG | 0444, dir,
+				rawdata,
+				&seq_rawdata_compressed_size_fops);
+	if (IS_ERR(dent))
+		goto fail;
+	rawdata->dents[AAFS_LOADDATA_COMPRESSED_SIZE] = dent;
 
 	dent = aafs_create_file("raw_data", S_IFREG | 0444,
 				      dir, rawdata, &rawdata_fops);

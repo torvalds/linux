@@ -12,6 +12,7 @@
 #include <linux/of.h>
 #include <linux/of_graph.h>
 
+#include <drm/drm_bridge.h>
 #include <drm/drm_panel.h>
 
 #include "dss.h"

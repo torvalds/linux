@@ -345,7 +345,7 @@ struct mlx5e_tx_wqe_info {
 	u8  num_wqebbs;
 	u8  num_dma;
 #ifdef CONFIG_MLX5_EN_TLS
-	skb_frag_t *resync_dump_frag;
+	struct page *resync_dump_frag_page;
 #endif
 };
 
@@ -410,6 +410,7 @@ struct mlx5e_txqsq {
 	struct device             *pdev;
 	__be32                     mkey_be;
 	unsigned long              state;
+	unsigned int               hw_mtu;
 	struct hwtstamp_config    *tstamp;
 	struct mlx5_clock         *clock;
 
@@ -759,7 +760,7 @@ enum {
 	MLX5E_STATE_OPENED,
 	MLX5E_STATE_DESTROYING,
 	MLX5E_STATE_XDP_TX_ENABLED,
-	MLX5E_STATE_XDP_OPEN,
+	MLX5E_STATE_XDP_ACTIVE,
 };
 
 struct mlx5e_rqt {
@@ -815,7 +816,7 @@ struct mlx5e_xsk {
 struct mlx5e_priv {
 	/* priv data path fields - start */
 	struct mlx5e_txqsq *txq2sq[MLX5E_MAX_NUM_CHANNELS * MLX5E_MAX_NUM_TC];
-	int channel_tc2txq[MLX5E_MAX_NUM_CHANNELS][MLX5E_MAX_NUM_TC];
+	int channel_tc2realtxq[MLX5E_MAX_NUM_CHANNELS][MLX5E_MAX_NUM_TC];
 #ifdef CONFIG_MLX5_CORE_EN_DCB
 	struct mlx5e_dcbx_dp       dcbx_dp;
 #endif

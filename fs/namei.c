@@ -925,7 +925,7 @@ static inline int may_follow_link(struct nameidata *nd)
 		return -ECHILD;
 
 	audit_inode(nd->name, nd->stack[0].link.dentry, 0);
-	audit_log_link_denied("follow_link");
+	audit_log_path_denied(AUDIT_ANOM_LINK, "follow_link");
 	return -EACCES;
 }
 
@@ -993,7 +993,7 @@ static int may_linkat(struct path *link)
 	if (safe_hardlink_source(inode) || inode_owner_or_capable(inode))
 		return 0;
 
-	audit_log_link_denied("linkat");
+	audit_log_path_denied(AUDIT_ANOM_LINK, "linkat");
 	return -EPERM;
 }
 
@@ -1031,6 +1031,10 @@ static int may_create_in_sticky(struct dentry * const dir,
 	    (dir->d_inode->i_mode & 0020 &&
 	     ((sysctl_protected_fifos >= 2 && S_ISFIFO(inode->i_mode)) ||
 	      (sysctl_protected_regular >= 2 && S_ISREG(inode->i_mode))))) {
+		const char *operation = S_ISFIFO(inode->i_mode) ?
+					"sticky_create_fifo" :
+					"sticky_create_regular";
+		audit_log_path_denied(AUDIT_ANOM_CREAT, operation);
 		return -EACCES;
 	}
 	return 0;
@@ -1206,25 +1210,25 @@ static int follow_automount(struct path *path, struct nameidata *nd,
  * - Flagged as automount point
  *
  * This may only be called in refwalk mode.
+ * On success path->dentry is known positive.
  *
  * Serialization is taken care of in namespace.c
  */
 static int follow_managed(struct path *path, struct nameidata *nd)
 {
 	struct vfsmount *mnt = path->mnt; /* held by caller, must be left alone */
-	unsigned managed;
+	unsigned flags;
 	bool need_mntput = false;
 	int ret = 0;
 
 	/* Given that we're not holding a lock here, we retain the value in a
 	 * local variable for each dentry as we look at it so that we don't see
 	 * the components of that value change under us */
-	while (managed = READ_ONCE(path->dentry->d_flags),
-	       managed &= DCACHE_MANAGED_DENTRY,
-	       unlikely(managed != 0)) {
+	while (flags = smp_load_acquire(&path->dentry->d_flags),
+	       unlikely(flags & DCACHE_MANAGED_DENTRY)) {
 		/* Allow the filesystem to manage the transit without i_mutex
 		 * being held. */
-		if (managed & DCACHE_MANAGE_TRANSIT) {
+		if (flags & DCACHE_MANAGE_TRANSIT) {
 			BUG_ON(!path->dentry->d_op);
 			BUG_ON(!path->dentry->d_op->d_manage);
 			ret = path->dentry->d_op->d_manage(path, false);
@@ -1233,7 +1237,7 @@ static int follow_managed(struct path *path, struct nameidata *nd)
 		}
 
 		/* Transit to a mounted filesystem. */
-		if (managed & DCACHE_MOUNTED) {
+		if (flags & DCACHE_MOUNTED) {
 			struct vfsmount *mounted = lookup_mnt(path);
 			if (mounted) {
 				dput(path->dentry);
@@ -1252,7 +1256,7 @@ static int follow_managed(struct path *path, struct nameidata *nd)
 		}
 
 		/* Handle an automount point */
-		if (managed & DCACHE_NEED_AUTOMOUNT) {
+		if (flags & DCACHE_NEED_AUTOMOUNT) {
 			ret = follow_automount(path, nd, &need_mntput);
 			if (ret < 0)
 				break;
@@ -1265,10 +1269,12 @@ static int follow_managed(struct path *path, struct nameidata *nd)
 
 	if (need_mntput && path->mnt == mnt)
 		mntput(path->mnt);
-	if (ret == -EISDIR || !ret)
-		ret = 1;
 	if (need_mntput)
 		nd->flags |= LOOKUP_JUMPED;
+	if (ret == -EISDIR || !ret)
+		ret = 1;
+	if (ret > 0 && unlikely(d_flags_negative(flags)))
+		ret = -ENOENT;
 	if (unlikely(ret < 0))
 		path_put_conditional(path, nd);
 	return ret;
@@ -1617,10 +1623,6 @@ static int lookup_fast(struct nameidata *nd,
 		dput(dentry);
 		return status;
 	}
-	if (unlikely(d_is_negative(dentry))) {
-		dput(dentry);
-		return -ENOENT;
-	}
 
 	path->mnt = mnt;
 	path->dentry = dentry;
@@ -1806,11 +1808,6 @@ static int walk_component(struct nameidata *nd, int flags)
 		err = follow_managed(&path, nd);
 		if (unlikely(err < 0))
 			return err;
-
-		if (unlikely(d_is_negative(path.dentry))) {
-			path_to_nameidata(&path, nd);
-			return -ENOENT;
-		}
 
 		seq = 0;	/* we are already out of RCU mode */
 		inode = d_backing_inode(path.dentry);
@@ -2564,6 +2561,26 @@ struct dentry *lookup_one_len_unlocked(const char *name,
 }
 EXPORT_SYMBOL(lookup_one_len_unlocked);
 
+/*
+ * Like lookup_one_len_unlocked(), except that it yields ERR_PTR(-ENOENT)
+ * on negatives.  Returns known positive or ERR_PTR(); that's what
+ * most of the users want.  Note that pinned negative with unlocked parent
+ * _can_ become positive at any time, so callers of lookup_one_len_unlocked()
+ * need to be very careful; pinned positives have ->d_inode stable, so
+ * this one avoids such problems.
+ */
+struct dentry *lookup_positive_unlocked(const char *name,
+				       struct dentry *base, int len)
+{
+	struct dentry *ret = lookup_one_len_unlocked(name, base, len);
+	if (!IS_ERR(ret) && d_flags_negative(smp_load_acquire(&ret->d_flags))) {
+		dput(ret);
+		ret = ERR_PTR(-ENOENT);
+	}
+	return ret;
+}
+EXPORT_SYMBOL(lookup_positive_unlocked);
+
 #ifdef CONFIG_UNIX98_PTYS
 int path_pts(struct path *path)
 {
@@ -2658,7 +2675,7 @@ mountpoint_last(struct nameidata *nd)
 				return PTR_ERR(path.dentry);
 		}
 	}
-	if (d_is_negative(path.dentry)) {
+	if (d_flags_negative(smp_load_acquire(&path.dentry->d_flags))) {
 		dput(path.dentry);
 		return -ENOENT;
 	}
@@ -3351,11 +3368,6 @@ static int do_last(struct nameidata *nd,
 	error = follow_managed(&path, nd);
 	if (unlikely(error < 0))
 		return error;
-
-	if (unlikely(d_is_negative(path.dentry))) {
-		path_to_nameidata(&path, nd);
-		return -ENOENT;
-	}
 
 	/*
 	 * create/update audit record if it already exists.

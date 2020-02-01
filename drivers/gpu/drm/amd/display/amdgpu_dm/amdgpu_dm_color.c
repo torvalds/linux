@@ -210,6 +210,8 @@ static int __set_legacy_tf(struct dc_transfer_func *func,
 	res = mod_color_calculate_regamma_params(func, gamma, true, has_rom,
 						 NULL);
 
+	dc_gamma_release(&gamma);
+
 	return res ? 0 : -ENOMEM;
 }
 

@@ -15,10 +15,8 @@
 /* Offset for the low 32-bit part of a field of long type */
 #ifdef CONFIG_PPC64
 #define LOPART	4
-#define TSPEC_TV_SEC	TSPC64_TV_SEC+LOPART
 #else
 #define LOPART	0
-#define TSPEC_TV_SEC	TSPC32_TV_SEC
 #endif
 
 	.text
@@ -156,12 +154,15 @@ V_FUNCTION_BEGIN(__kernel_clock_getres)
 	cror	cr0*4+eq,cr0*4+eq,cr1*4+eq
 	bne	cr0,99f
 
+	mflr	r12
+  .cfi_register lr,r12
+	bl	__get_datapage@local	/* get data page */
+	lwz	r5, CLOCK_HRTIMER_RES(r3)
+	mtlr	r12
 	li	r3,0
 	cmpli	cr0,r4,0
 	crclr	cr0*4+so
 	beqlr
-	lis	r5,CLOCK_REALTIME_RES@h
-	ori	r5,r5,CLOCK_REALTIME_RES@l
 	stw	r3,TSPC32_TV_SEC(r4)
 	stw	r5,TSPC32_TV_NSEC(r4)
 	blr
@@ -192,7 +193,7 @@ V_FUNCTION_BEGIN(__kernel_time)
 	bl	__get_datapage@local
 	mr	r9, r3			/* datapage ptr in r9 */
 
-	lwz	r3,STAMP_XTIME+TSPEC_TV_SEC(r9)
+	lwz	r3,STAMP_XTIME_SEC+LOPART(r9)
 
 	cmplwi	r11,0			/* check if t is NULL */
 	beq	2f
@@ -268,7 +269,7 @@ __do_get_tspec:
 	 * as a 32.32 fixed-point number in r3 and r4.
 	 * Load & add the xtime stamp.
 	 */
-	lwz	r5,STAMP_XTIME+TSPEC_TV_SEC(r9)
+	lwz	r5,STAMP_XTIME_SEC+LOPART(r9)
 	lwz	r6,STAMP_SEC_FRAC(r9)
 	addc	r4,r4,r6
 	adde	r3,r3,r5

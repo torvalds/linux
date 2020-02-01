@@ -272,7 +272,7 @@ void dev_pm_enable_wake_irq_check(struct device *dev,
 {
 	struct wake_irq *wirq = dev->power.wakeirq;
 
-	if (!wirq || !((wirq->status & WAKE_IRQ_DEDICATED_MASK)))
+	if (!wirq || !(wirq->status & WAKE_IRQ_DEDICATED_MASK))
 		return;
 
 	if (likely(wirq->status & WAKE_IRQ_DEDICATED_MANAGED)) {
@@ -299,7 +299,7 @@ void dev_pm_disable_wake_irq_check(struct device *dev)
 {
 	struct wake_irq *wirq = dev->power.wakeirq;
 
-	if (!wirq || !((wirq->status & WAKE_IRQ_DEDICATED_MASK)))
+	if (!wirq || !(wirq->status & WAKE_IRQ_DEDICATED_MASK))
 		return;
 
 	if (wirq->status & WAKE_IRQ_DEDICATED_MANAGED)

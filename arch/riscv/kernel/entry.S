@@ -26,14 +26,14 @@
 
 	/*
 	 * If coming from userspace, preserve the user thread pointer and load
-	 * the kernel thread pointer.  If we came from the kernel, sscratch
-	 * will contain 0, and we should continue on the current TP.
+	 * the kernel thread pointer.  If we came from the kernel, the scratch
+	 * register will contain 0, and we should continue on the current TP.
 	 */
-	csrrw tp, CSR_SSCRATCH, tp
+	csrrw tp, CSR_SCRATCH, tp
 	bnez tp, _save_context
 
 _restore_kernel_tpsp:
-	csrr tp, CSR_SSCRATCH
+	csrr tp, CSR_SCRATCH
 	REG_S sp, TASK_TI_KERNEL_SP(tp)
 _save_context:
 	REG_S sp, TASK_TI_USER_SP(tp)
@@ -79,16 +79,16 @@ _save_context:
 	li t0, SR_SUM | SR_FS
 
 	REG_L s0, TASK_TI_USER_SP(tp)
-	csrrc s1, CSR_SSTATUS, t0
-	csrr s2, CSR_SEPC
-	csrr s3, CSR_STVAL
-	csrr s4, CSR_SCAUSE
-	csrr s5, CSR_SSCRATCH
+	csrrc s1, CSR_STATUS, t0
+	csrr s2, CSR_EPC
+	csrr s3, CSR_TVAL
+	csrr s4, CSR_CAUSE
+	csrr s5, CSR_SCRATCH
 	REG_S s0, PT_SP(sp)
-	REG_S s1, PT_SSTATUS(sp)
-	REG_S s2, PT_SEPC(sp)
-	REG_S s3, PT_SBADADDR(sp)
-	REG_S s4, PT_SCAUSE(sp)
+	REG_S s1, PT_STATUS(sp)
+	REG_S s2, PT_EPC(sp)
+	REG_S s3, PT_BADADDR(sp)
+	REG_S s4, PT_CAUSE(sp)
 	REG_S s5, PT_TP(sp)
 	.endm
 
@@ -97,7 +97,7 @@ _save_context:
  * registers from the stack.
  */
 	.macro RESTORE_ALL
-	REG_L a0, PT_SSTATUS(sp)
+	REG_L a0, PT_STATUS(sp)
 	/*
 	 * The current load reservation is effectively part of the processor's
 	 * state, in the sense that load reservations cannot be shared between
@@ -115,11 +115,11 @@ _save_context:
 	 * completes, implementations are allowed to expand reservations to be
 	 * arbitrarily large.
 	 */
-	REG_L  a2, PT_SEPC(sp)
-	REG_SC x0, a2, PT_SEPC(sp)
+	REG_L  a2, PT_EPC(sp)
+	REG_SC x0, a2, PT_EPC(sp)
 
-	csrw CSR_SSTATUS, a0
-	csrw CSR_SEPC, a2
+	csrw CSR_STATUS, a0
+	csrw CSR_EPC, a2
 
 	REG_L x1,  PT_RA(sp)
 	REG_L x3,  PT_GP(sp)
@@ -163,10 +163,10 @@ ENTRY(handle_exception)
 	SAVE_ALL
 
 	/*
-	 * Set sscratch register to 0, so that if a recursive exception
+	 * Set the scratch register to 0, so that if a recursive exception
 	 * occurs, the exception vector knows it came from the kernel
 	 */
-	csrw CSR_SSCRATCH, x0
+	csrw CSR_SCRATCH, x0
 
 	/* Load the global pointer */
 .option push
@@ -185,11 +185,13 @@ ENTRY(handle_exception)
 	move a0, sp /* pt_regs */
 	tail do_IRQ
 1:
-	/* Exceptions run with interrupts enabled or disabled
-	   depending on the state of sstatus.SR_SPIE */
-	andi t0, s1, SR_SPIE
+	/*
+	 * Exceptions run with interrupts enabled or disabled depending on the
+	 * state of SR_PIE in m/sstatus.
+	 */
+	andi t0, s1, SR_PIE
 	beqz t0, 1f
-	csrs CSR_SSTATUS, SR_SIE
+	csrs CSR_STATUS, SR_IE
 
 1:
 	/* Handle syscalls */
@@ -217,7 +219,7 @@ handle_syscall:
 	 * scall instruction on sret
 	 */
 	addi s2, s2, 0x4
-	REG_S s2, PT_SEPC(sp)
+	REG_S s2, PT_EPC(sp)
 	/* Trace syscalls, but only if requested by the user. */
 	REG_L t0, TASK_TI_FLAGS(tp)
 	andi t0, t0, _TIF_SYSCALL_WORK
@@ -226,8 +228,26 @@ check_syscall_nr:
 	/* Check to make sure we don't jump to a bogus syscall number. */
 	li t0, __NR_syscalls
 	la s0, sys_ni_syscall
-	/* Syscall number held in a7 */
-	bgeu a7, t0, 1f
+	/*
+	 * The tracer can change syscall number to valid/invalid value.
+	 * We use syscall_set_nr helper in syscall_trace_enter thus we
+	 * cannot trust the current value in a7 and have to reload from
+	 * the current task pt_regs.
+	 */
+	REG_L a7, PT_A7(sp)
+	/*
+	 * Syscall number held in a7.
+	 * If syscall number is above allowed value, redirect to ni_syscall.
+	 */
+	bge a7, t0, 1f
+	/*
+	 * Check if syscall is rejected by tracer or seccomp, i.e., a7 == -1.
+	 * If yes, we pretend it was executed.
+	 */
+	li t1, -1
+	beq a7, t1, ret_from_syscall_rejected
+	blt a7, t1, 1f
+	/* Call syscall */
 	la s0, sys_call_table
 	slli t0, a7, RISCV_LGPTR
 	add s0, s0, t0
@@ -238,15 +258,27 @@ check_syscall_nr:
 ret_from_syscall:
 	/* Set user a0 to kernel a0 */
 	REG_S a0, PT_A0(sp)
+	/*
+	 * We didn't execute the actual syscall.
+	 * Seccomp already set return value for the current task pt_regs.
+	 * (If it was configured with SECCOMP_RET_ERRNO/TRACE)
+	 */
+ret_from_syscall_rejected:
 	/* Trace syscalls, but only if requested by the user. */
 	REG_L t0, TASK_TI_FLAGS(tp)
 	andi t0, t0, _TIF_SYSCALL_WORK
 	bnez t0, handle_syscall_trace_exit
 
 ret_from_exception:
-	REG_L s0, PT_SSTATUS(sp)
-	csrc CSR_SSTATUS, SR_SIE
+	REG_L s0, PT_STATUS(sp)
+	csrc CSR_STATUS, SR_IE
+#ifdef CONFIG_RISCV_M_MODE
+	/* the MPP value is too large to be used as an immediate arg for addi */
+	li t0, SR_MPP
+	and s0, s0, t0
+#else
 	andi s0, s0, SR_SPP
+#endif
 	bnez s0, resume_kernel
 
 resume_userspace:
@@ -260,14 +292,18 @@ resume_userspace:
 	REG_S s0, TASK_TI_KERNEL_SP(tp)
 
 	/*
-	 * Save TP into sscratch, so we can find the kernel data structures
-	 * again.
+	 * Save TP into the scratch register , so we can find the kernel data
+	 * structures again.
 	 */
-	csrw CSR_SSCRATCH, tp
+	csrw CSR_SCRATCH, tp
 
 restore_all:
 	RESTORE_ALL
+#ifdef CONFIG_RISCV_M_MODE
+	mret
+#else
 	sret
+#endif
 
 #if IS_ENABLED(CONFIG_PREEMPT)
 resume_kernel:
@@ -287,7 +323,7 @@ work_pending:
 	bnez s1, work_resched
 work_notifysig:
 	/* Handle pending signals and notify-resume requests */
-	csrs CSR_SSTATUS, SR_SIE /* Enable interrupts for do_notify_resume() */
+	csrs CSR_STATUS, SR_IE /* Enable interrupts for do_notify_resume() */
 	move a0, sp /* pt_regs */
 	move a1, s0 /* current_thread_info->flags */
 	tail do_notify_resume
@@ -386,6 +422,10 @@ ENTRY(__switch_to)
 	ret
 ENDPROC(__switch_to)
 
+#ifndef CONFIG_MMU
+#define do_page_fault do_trap_unknown
+#endif
+
 	.section ".rodata"
 	/* Exception vector table */
 ENTRY(excp_vect_table)
@@ -407,3 +447,10 @@ ENTRY(excp_vect_table)
 	RISCV_PTR do_page_fault   /* store page fault */
 excp_vect_table_end:
 END(excp_vect_table)
+
+#ifndef CONFIG_MMU
+ENTRY(__user_rt_sigreturn)
+	li a7, __NR_rt_sigreturn
+	scall
+END(__user_rt_sigreturn)
+#endif

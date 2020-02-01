@@ -57,6 +57,9 @@ static void fsnotify_unmount_inodes(struct super_block *sb)
 		 * doing an __iget/iput with SB_ACTIVE clear would actually
 		 * evict all inodes with zero i_count from icache which is
 		 * unnecessarily violent and may in fact be illegal to do.
+		 * However, we should have been called /after/ evict_inodes
+		 * removed all zero refcount inodes, in any case.  Test to
+		 * be sure.
 		 */
 		if (!atomic_read(&inode->i_count)) {
 			spin_unlock(&inode->i_lock);
@@ -77,6 +80,7 @@ static void fsnotify_unmount_inodes(struct super_block *sb)
 
 		iput_inode = inode;
 
+		cond_resched();
 		spin_lock(&sb->s_inode_list_lock);
 	}
 	spin_unlock(&sb->s_inode_list_lock);
@@ -380,8 +384,6 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(fsnotify);
-
-extern struct kmem_cache *fsnotify_mark_connector_cachep;
 
 static __init int fsnotify_init(void)
 {

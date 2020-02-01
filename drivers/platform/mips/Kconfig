@@ -17,8 +17,8 @@ menuconfig MIPS_PLATFORM_DEVICES
 if MIPS_PLATFORM_DEVICES
 
 config CPU_HWMON
-	tristate "Loongson CPU HWMon Driver"
-	depends on LOONGSON_MACH3X
+	tristate "Loongson-3 CPU HWMon Driver"
+	depends on MACH_LOONGSON64
 	select HWMON
 	default y
 	help

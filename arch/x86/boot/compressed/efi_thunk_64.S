@@ -23,7 +23,7 @@
 
 	.code64
 	.text
-ENTRY(efi64_thunk)
+SYM_FUNC_START(efi64_thunk)
 	push	%rbp
 	push	%rbx
 
@@ -97,14 +97,14 @@ ENTRY(efi64_thunk)
 	pop	%rbx
 	pop	%rbp
 	ret
-ENDPROC(efi64_thunk)
+SYM_FUNC_END(efi64_thunk)
 
-ENTRY(efi_exit32)
+SYM_FUNC_START_LOCAL(efi_exit32)
 	movq	func_rt_ptr(%rip), %rax
 	push	%rax
 	mov	%rdi, %rax
 	ret
-ENDPROC(efi_exit32)
+SYM_FUNC_END(efi_exit32)
 
 	.code32
 /*
@@ -112,7 +112,7 @@ ENDPROC(efi_exit32)
  *
  * The stack should represent the 32-bit calling convention.
  */
-ENTRY(efi_enter32)
+SYM_FUNC_START_LOCAL(efi_enter32)
 	movl	$__KERNEL_DS, %eax
 	movl	%eax, %ds
 	movl	%eax, %es
@@ -172,20 +172,23 @@ ENTRY(efi_enter32)
 	btsl	$X86_CR0_PG_BIT, %eax
 	movl	%eax, %cr0
 	lret
-ENDPROC(efi_enter32)
+SYM_FUNC_END(efi_enter32)
 
 	.data
 	.balign	8
-	.global	efi32_boot_gdt
-efi32_boot_gdt:	.word	0
-		.quad	0
+SYM_DATA_START(efi32_boot_gdt)
+	.word	0
+	.quad	0
+SYM_DATA_END(efi32_boot_gdt)
 
-save_gdt:	.word	0
-		.quad	0
-func_rt_ptr:	.quad	0
+SYM_DATA_START_LOCAL(save_gdt)
+	.word	0
+	.quad	0
+SYM_DATA_END(save_gdt)
 
-	.global efi_gdt64
-efi_gdt64:
+SYM_DATA_LOCAL(func_rt_ptr, .quad 0)
+
+SYM_DATA_START(efi_gdt64)
 	.word	efi_gdt64_end - efi_gdt64
 	.long	0			/* Filled out by user */
 	.word	0
@@ -194,4 +197,4 @@ efi_gdt64:
 	.quad	0x00cf92000000ffff	/* __KERNEL_DS */
 	.quad	0x0080890000000000	/* TS descriptor */
 	.quad   0x0000000000000000	/* TS continued */
-efi_gdt64_end:
+SYM_DATA_END_LABEL(efi_gdt64, SYM_L_LOCAL, efi_gdt64_end)

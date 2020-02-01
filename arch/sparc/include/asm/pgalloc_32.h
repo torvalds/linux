@@ -26,14 +26,14 @@ static inline void free_pgd_fast(pgd_t *pgd)
 #define pgd_free(mm, pgd)	free_pgd_fast(pgd)
 #define pgd_alloc(mm)	get_pgd_fast()
 
-static inline void pgd_set(pgd_t * pgdp, pmd_t * pmdp)
+static inline void pud_set(pud_t * pudp, pmd_t * pmdp)
 {
 	unsigned long pa = __nocache_pa(pmdp);
 
-	set_pte((pte_t *)pgdp, __pte((SRMMU_ET_PTD | (pa >> 4))));
+	set_pte((pte_t *)pudp, __pte((SRMMU_ET_PTD | (pa >> 4))));
 }
 
-#define pgd_populate(MM, PGD, PMD)      pgd_set(PGD, PMD)
+#define pud_populate(MM, PGD, PMD)      pud_set(PGD, PMD)
 
 static inline pmd_t *pmd_alloc_one(struct mm_struct *mm,
 				   unsigned long address)

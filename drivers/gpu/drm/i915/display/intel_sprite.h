@@ -17,7 +17,6 @@ struct drm_i915_private;
 struct intel_crtc_state;
 struct intel_plane_state;
 
-bool is_planar_yuv_format(u32 pixelformat);
 int intel_usecs_to_scanlines(const struct drm_display_mode *adjusted_mode,
 			     int usecs);
 struct intel_plane *intel_sprite_plane_create(struct drm_i915_private *dev_priv,
@@ -49,5 +48,12 @@ static inline u8 icl_hdr_plane_mask(void)
 }
 
 bool icl_is_hdr_plane(struct drm_i915_private *dev_priv, enum plane_id plane_id);
+
+int ivb_plane_min_cdclk(const struct intel_crtc_state *crtc_state,
+			const struct intel_plane_state *plane_state);
+int hsw_plane_min_cdclk(const struct intel_crtc_state *crtc_state,
+			const struct intel_plane_state *plane_state);
+int vlv_plane_min_cdclk(const struct intel_crtc_state *crtc_state,
+			const struct intel_plane_state *plane_state);
 
 #endif /* __INTEL_SPRITE_H__ */

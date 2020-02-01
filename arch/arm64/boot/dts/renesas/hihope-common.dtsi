@@ -86,7 +86,7 @@
 
 		label = "rcar-sound";
 
-		dais = <&rsnd_port0>;
+		dais = <&rsnd_port>;
 	};
 
 	vbus0_usb2: regulator-vbus0-usb2 {
@@ -142,14 +142,6 @@
 };
 
 &du {
-	clocks = <&cpg CPG_MOD 724>,
-		 <&cpg CPG_MOD 723>,
-		 <&cpg CPG_MOD 722>,
-		 <&versaclock5 1>,
-		 <&x302_clk>,
-		 <&versaclock5 2>;
-	clock-names = "du.0", "du.1", "du.2",
-		      "dclkin.0", "dclkin.1", "dclkin.2";
 	status = "okay";
 };
 
@@ -191,7 +183,7 @@
 		port@2 {
 			reg = <2>;
 			dw_hdmi0_snd_in: endpoint {
-				remote-endpoint = <&rsnd_endpoint0>;
+				remote-endpoint = <&rsnd_endpoint>;
 			};
 		};
 	};
@@ -327,17 +319,15 @@
 	/* Single DAI */
 	#sound-dai-cells = <0>;
 
-	ports {
-		rsnd_port0: port@0 {
-			rsnd_endpoint0: endpoint {
-				remote-endpoint = <&dw_hdmi0_snd_in>;
+	rsnd_port: port {
+		rsnd_endpoint: endpoint {
+			remote-endpoint = <&dw_hdmi0_snd_in>;
 
-				dai-format = "i2s";
-				bitclock-master = <&rsnd_endpoint0>;
-				frame-master = <&rsnd_endpoint0>;
+			dai-format = "i2s";
+			bitclock-master = <&rsnd_endpoint>;
+			frame-master = <&rsnd_endpoint>;
 
-				playback = <&ssi2>;
-			};
+			playback = <&ssi2>;
 		};
 	};
 };

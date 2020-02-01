@@ -32,4 +32,7 @@ extern void kvmppc_emulate_tabort(struct kvm_vcpu *vcpu, int ra_val);
 static inline void kvmppc_emulate_tabort(struct kvm_vcpu *vcpu, int ra_val) {}
 #endif
 
+extern void kvmppc_set_msr_hv(struct kvm_vcpu *vcpu, u64 msr);
+extern void kvmppc_inject_interrupt_hv(struct kvm_vcpu *vcpu, int vec, u64 srr1_flags);
+
 #endif

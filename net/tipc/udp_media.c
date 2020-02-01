@@ -195,10 +195,13 @@ static int tipc_udp_xmit(struct net *net, struct sk_buff *skb,
 				.saddr = src->ipv6,
 				.flowi6_proto = IPPROTO_UDP
 			};
-			err = ipv6_stub->ipv6_dst_lookup(net, ub->ubsock->sk,
-							 &ndst, &fl6);
-			if (err)
+			ndst = ipv6_stub->ipv6_dst_lookup_flow(net,
+							       ub->ubsock->sk,
+							       &fl6, NULL);
+			if (IS_ERR(ndst)) {
+				err = PTR_ERR(ndst);
 				goto tx_error;
+			}
 			dst_cache_set_ip6(cache, ndst, &fl6.saddr);
 		}
 		ttl = ip6_dst_hoplimit(ndst);
@@ -372,6 +375,7 @@ static int tipc_udp_recv(struct sock *sk, struct sk_buff *skb)
 		goto out;
 
 	if (b && test_bit(0, &b->up)) {
+		TIPC_SKB_CB(skb)->flags = 0;
 		tipc_rcv(sock_net(sk), skb, b);
 		return 0;
 	}
@@ -448,14 +452,10 @@ int tipc_udp_nl_dump_remoteip(struct sk_buff *skb, struct netlink_callback *cb)
 	int i;
 
 	if (!bid && !skip_cnt) {
+		struct nlattr **attrs = genl_dumpit_info(cb)->attrs;
 		struct net *net = sock_net(skb->sk);
 		struct nlattr *battrs[TIPC_NLA_BEARER_MAX + 1];
-		struct nlattr **attrs;
 		char *bname;
-
-		err = tipc_nlmsg_parse(cb->nlh, &attrs);
-		if (err)
-			return err;
 
 		if (!attrs[TIPC_NLA_BEARER])
 			return -EINVAL;

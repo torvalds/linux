@@ -248,7 +248,7 @@ qla2x00_ga_nxt(scsi_qla_host_t *vha, fc_port_t *fcport)
 		    WWN_SIZE);
 
 		fcport->fc4_type = (ct_rsp->rsp.ga_nxt.fc4_types[2] & BIT_0) ?
-		    FC4_TYPE_FCP_SCSI : FC4_TYPE_OTHER;
+		    FS_FC4TYPE_FCP : FC4_TYPE_OTHER;
 
 		if (ct_rsp->rsp.ga_nxt.port_type != NS_N_PORT_TYPE &&
 		    ct_rsp->rsp.ga_nxt.port_type != NS_NL_PORT_TYPE)
@@ -2887,7 +2887,7 @@ qla2x00_gff_id(scsi_qla_host_t *vha, sw_info_t *list)
 	struct ct_sns_req	*ct_req;
 	struct ct_sns_rsp	*ct_rsp;
 	struct qla_hw_data *ha = vha->hw;
-	uint8_t fcp_scsi_features = 0;
+	uint8_t fcp_scsi_features = 0, nvme_features = 0;
 	struct ct_arg arg;
 
 	for (i = 0; i < ha->max_fibre_devices; i++) {
@@ -2933,14 +2933,19 @@ qla2x00_gff_id(scsi_qla_host_t *vha, sw_info_t *list)
 			   ct_rsp->rsp.gff_id.fc4_features[GFF_FCP_SCSI_OFFSET];
 			fcp_scsi_features &= 0x0f;
 
-			if (fcp_scsi_features)
-				list[i].fc4_type = FC4_TYPE_FCP_SCSI;
-			else
-				list[i].fc4_type = FC4_TYPE_OTHER;
+			if (fcp_scsi_features) {
+				list[i].fc4_type = FS_FC4TYPE_FCP;
+				list[i].fc4_features = fcp_scsi_features;
+			}
 
-			list[i].fc4f_nvme =
+			nvme_features =
 			    ct_rsp->rsp.gff_id.fc4_features[GFF_NVME_OFFSET];
-			list[i].fc4f_nvme &= 0xf;
+			nvme_features &= 0xf;
+
+			if (nvme_features) {
+				list[i].fc4_type |= FS_FC4TYPE_NVME;
+				list[i].fc4_features = nvme_features;
+			}
 		}
 
 		/* Last device exit. */
@@ -3005,7 +3010,7 @@ static void qla24xx_async_gpsc_sp_done(srb_t *sp, int res)
 	fcport->flags &= ~(FCF_ASYNC_SENT | FCF_ASYNC_ACTIVE);
 
 	if (res == QLA_FUNCTION_TIMEOUT)
-		return;
+		goto done;
 
 	if (res == (DID_ERROR << 16)) {
 		/* entry status error */
@@ -3435,6 +3440,8 @@ void qla24xx_async_gffid_sp_done(srb_t *sp, int res)
 	fc_port_t *fcport = sp->fcport;
 	struct ct_sns_rsp *ct_rsp;
 	struct event_arg ea;
+	uint8_t fc4_scsi_feat;
+	uint8_t fc4_nvme_feat;
 
 	ql_dbg(ql_dbg_disc, vha, 0x2133,
 	       "Async done-%s res %x ID %x. %8phC\n",
@@ -3442,24 +3449,25 @@ void qla24xx_async_gffid_sp_done(srb_t *sp, int res)
 
 	fcport->flags &= ~FCF_ASYNC_SENT;
 	ct_rsp = &fcport->ct_desc.ct_sns->p.rsp;
+	fc4_scsi_feat = ct_rsp->rsp.gff_id.fc4_features[GFF_FCP_SCSI_OFFSET];
+	fc4_nvme_feat = ct_rsp->rsp.gff_id.fc4_features[GFF_NVME_OFFSET];
+
 	/*
 	 * FC-GS-7, 5.2.3.12 FC-4 Features - format
 	 * The format of the FC-4 Features object, as defined by the FC-4,
 	 * Shall be an array of 4-bit values, one for each type code value
 	 */
 	if (!res) {
-		if (ct_rsp->rsp.gff_id.fc4_features[GFF_FCP_SCSI_OFFSET] & 0xf) {
+		if (fc4_scsi_feat & 0xf) {
 			/* w1 b00:03 */
-			fcport->fc4_type =
-			    ct_rsp->rsp.gff_id.fc4_features[GFF_FCP_SCSI_OFFSET];
-			fcport->fc4_type &= 0xf;
-	       }
+			fcport->fc4_type = FS_FC4TYPE_FCP;
+			fcport->fc4_features = fc4_scsi_feat & 0xf;
+		}
 
-		if (ct_rsp->rsp.gff_id.fc4_features[GFF_NVME_OFFSET] & 0xf) {
+		if (fc4_nvme_feat & 0xf) {
 			/* w5 [00:03]/28h */
-			fcport->fc4f_nvme =
-			    ct_rsp->rsp.gff_id.fc4_features[GFF_NVME_OFFSET];
-			fcport->fc4f_nvme &= 0xf;
+			fcport->fc4_type |= FS_FC4TYPE_NVME;
+			fcport->fc4_features = fc4_nvme_feat & 0xf;
 		}
 	}
 
@@ -3563,7 +3571,7 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 	u8 recheck = 0;
 	u16 dup = 0, dup_cnt = 0;
 
-	ql_dbg(ql_dbg_disc, vha, 0xffff,
+	ql_dbg(ql_dbg_disc + ql_dbg_verbose, vha, 0xffff,
 	    "%s enter\n", __func__);
 
 	if (sp->gen1 != vha->hw->base_qpair->chip_reset) {
@@ -3579,11 +3587,23 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 		if (vha->scan.scan_retry < MAX_SCAN_RETRIES) {
 			set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
 			set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
+			goto out;
 		} else {
 			ql_dbg(ql_dbg_disc, vha, 0xffff,
-			    "Fabric scan failed on all retries.\n");
+			    "%s: Fabric scan failed for %d retries.\n",
+			    __func__, vha->scan.scan_retry);
+			/*
+			 * Unable to scan any rports. logout loop below
+			 * will unregister all sessions.
+			 */
+			list_for_each_entry(fcport, &vha->vp_fcports, list) {
+				if ((fcport->flags & FCF_FABRIC_DEVICE) != 0) {
+					fcport->scan_state = QLA_FCPORT_SCAN;
+					fcport->logout_on_delete = 0;
+				}
+			}
+			goto login_logout;
 		}
-		goto out;
 	}
 	vha->scan.scan_retry = 0;
 
@@ -3661,6 +3681,7 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 		    dup_cnt);
 	}
 
+login_logout:
 	/*
 	 * Logout all previous fabric dev marked lost, except FCP2 devices.
 	 */
@@ -4047,7 +4068,7 @@ done_free_sp:
 
 void qla24xx_async_gpnft_done(scsi_qla_host_t *vha, srb_t *sp)
 {
-	ql_dbg(ql_dbg_disc, vha, 0xffff,
+	ql_dbg(ql_dbg_disc + ql_dbg_verbose, vha, 0xffff,
 	    "%s enter\n", __func__);
 	qla24xx_async_gnnft(vha, sp, sp->gen2);
 }
@@ -4061,7 +4082,7 @@ int qla24xx_async_gpnft(scsi_qla_host_t *vha, u8 fc4_type, srb_t *sp)
 	u32 rspsz;
 	unsigned long flags;
 
-	ql_dbg(ql_dbg_disc, vha, 0xffff,
+	ql_dbg(ql_dbg_disc + ql_dbg_verbose, vha, 0xffff,
 	    "%s enter\n", __func__);
 
 	if (!vha->flags.online)
@@ -4070,14 +4091,15 @@ int qla24xx_async_gpnft(scsi_qla_host_t *vha, u8 fc4_type, srb_t *sp)
 	spin_lock_irqsave(&vha->work_lock, flags);
 	if (vha->scan.scan_flags & SF_SCANNING) {
 		spin_unlock_irqrestore(&vha->work_lock, flags);
-		ql_dbg(ql_dbg_disc, vha, 0xffff, "scan active\n");
+		ql_dbg(ql_dbg_disc + ql_dbg_verbose, vha, 0xffff,
+		    "%s: scan active\n", __func__);
 		return rval;
 	}
 	vha->scan.scan_flags |= SF_SCANNING;
 	spin_unlock_irqrestore(&vha->work_lock, flags);
 
 	if (fc4_type == FC4_TYPE_FCP_SCSI) {
-		ql_dbg(ql_dbg_disc, vha, 0xffff,
+		ql_dbg(ql_dbg_disc + ql_dbg_verbose, vha, 0xffff,
 		    "%s: Performing FCP Scan\n", __func__);
 
 		if (sp)
@@ -4132,7 +4154,7 @@ int qla24xx_async_gpnft(scsi_qla_host_t *vha, u8 fc4_type, srb_t *sp)
 		}
 		sp->u.iocb_cmd.u.ctarg.rsp_size = rspsz;
 
-		ql_dbg(ql_dbg_disc, vha, 0xffff,
+		ql_dbg(ql_dbg_disc + ql_dbg_verbose, vha, 0xffff,
 		    "%s scan list size %d\n", __func__, vha->scan.size);
 
 		memset(vha->scan.l, 0, vha->scan.size);
@@ -4197,8 +4219,8 @@ done_free_sp:
 	spin_lock_irqsave(&vha->work_lock, flags);
 	vha->scan.scan_flags &= ~SF_SCANNING;
 	if (vha->scan.scan_flags == 0) {
-		ql_dbg(ql_dbg_disc, vha, 0xffff,
-		    "%s: schedule\n", __func__);
+		ql_dbg(ql_dbg_disc + ql_dbg_verbose, vha, 0xffff,
+		    "%s: Scan scheduled.\n", __func__);
 		vha->scan.scan_flags |= SF_QUEUED;
 		schedule_delayed_work(&vha->scan.scan_work, 5);
 	}

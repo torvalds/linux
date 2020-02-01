@@ -514,17 +514,6 @@ int tb_drom_read(struct tb_switch *sw)
 		 * no entries). Hardcode the configuration here.
 		 */
 		tb_drom_read_uid_only(sw, &sw->uid);
-
-		sw->ports[1].link_nr = 0;
-		sw->ports[2].link_nr = 1;
-		sw->ports[1].dual_link_port = &sw->ports[2];
-		sw->ports[2].dual_link_port = &sw->ports[1];
-
-		sw->ports[3].link_nr = 0;
-		sw->ports[4].link_nr = 1;
-		sw->ports[3].dual_link_port = &sw->ports[4];
-		sw->ports[4].dual_link_port = &sw->ports[3];
-
 		return 0;
 	}
 

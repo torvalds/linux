@@ -154,6 +154,27 @@ User command examples:
       values:
          cmode runtime value smfs
 
+enable_roce: RoCE enablement state
+----------------------------------
+RoCE enablement state controls driver support for RoCE traffic.
+When RoCE is disabled, there is no gid table, only raw ethernet QPs are supported and traffic on the well known UDP RoCE port is handled as raw ethernet traffic.
+
+To change RoCE enablement state a user must change the driverinit cmode value and run devlink reload.
+
+User command examples:
+
+- Disable RoCE::
+
+    $ devlink dev param set pci/0000:06:00.0 name enable_roce value false cmode driverinit
+    $ devlink dev reload pci/0000:06:00.0
+
+- Read RoCE enablement state::
+
+    $ devlink dev param show pci/0000:06:00.0 name enable_roce
+      pci/0000:06:00.0:
+      name enable_roce type generic
+      values:
+         cmode driverinit value true
 
 Devlink health reporters
 ========================
@@ -258,7 +279,7 @@ mlx5 tracepoints
 ================
 
 mlx5 driver provides internal trace points for tracking and debugging using
-kernel tracepoints interfaces (refer to Documentation/trace/ftrase.rst).
+kernel tracepoints interfaces (refer to Documentation/trace/ftrace.rst).
 
 For the list of support mlx5 events check /sys/kernel/debug/tracing/events/mlx5/
 

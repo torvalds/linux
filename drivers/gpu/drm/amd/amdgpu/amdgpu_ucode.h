@@ -108,6 +108,12 @@ struct ta_firmware_header_v1_0 {
 	uint32_t ta_ras_ucode_version;
 	uint32_t ta_ras_offset_bytes;
 	uint32_t ta_ras_size_bytes;
+	uint32_t ta_hdcp_ucode_version;
+	uint32_t ta_hdcp_offset_bytes;
+	uint32_t ta_hdcp_size_bytes;
+	uint32_t ta_dtm_ucode_version;
+	uint32_t ta_dtm_offset_bytes;
+	uint32_t ta_dtm_size_bytes;
 };
 
 /* version_major=1, version_minor=0 */
@@ -286,10 +292,10 @@ enum AMDGPU_UCODE_ID {
 	AMDGPU_UCODE_ID_CP_MEC2_JT,
 	AMDGPU_UCODE_ID_CP_MES,
 	AMDGPU_UCODE_ID_CP_MES_DATA,
-	AMDGPU_UCODE_ID_RLC_G,
 	AMDGPU_UCODE_ID_RLC_RESTORE_LIST_CNTL,
 	AMDGPU_UCODE_ID_RLC_RESTORE_LIST_GPM_MEM,
 	AMDGPU_UCODE_ID_RLC_RESTORE_LIST_SRM_MEM,
+	AMDGPU_UCODE_ID_RLC_G,
 	AMDGPU_UCODE_ID_STORAGE,
 	AMDGPU_UCODE_ID_SMC,
 	AMDGPU_UCODE_ID_UVD,

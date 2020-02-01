@@ -139,7 +139,7 @@ extern struct kmem_cache *kmem_cache;
 
 /* A table of kmalloc cache names and sizes */
 extern const struct kmalloc_info_struct {
-	const char *name;
+	const char *name[NR_KMALLOC_TYPES];
 	unsigned int size;
 } kmalloc_info[];
 
@@ -323,8 +323,8 @@ static inline struct kmem_cache *memcg_root_cache(struct kmem_cache *s)
  * Expects a pointer to a slab page. Please note, that PageSlab() check
  * isn't sufficient, as it returns true also for tail compound slab pages,
  * which do not have slab_cache pointer set.
- * So this function assumes that the page can pass PageHead() and PageSlab()
- * checks.
+ * So this function assumes that the page can pass PageSlab() && !PageTail()
+ * check.
  *
  * The kmem_cache can be reparented asynchronously. The caller must ensure
  * the memcg lifetime, e.g. by taking rcu_read_lock() or cgroup_mutex.
@@ -369,7 +369,7 @@ static __always_inline int memcg_charge_slab(struct page *page,
 	if (ret)
 		goto out;
 
-	lruvec = mem_cgroup_lruvec(page_pgdat(page), memcg);
+	lruvec = mem_cgroup_lruvec(memcg, page_pgdat(page));
 	mod_lruvec_state(lruvec, cache_vmstat_idx(s), 1 << order);
 
 	/* transer try_charge() page references to kmem_cache */
@@ -393,7 +393,7 @@ static __always_inline void memcg_uncharge_slab(struct page *page, int order,
 	rcu_read_lock();
 	memcg = READ_ONCE(s->memcg_params.memcg);
 	if (likely(!mem_cgroup_is_root(memcg))) {
-		lruvec = mem_cgroup_lruvec(page_pgdat(page), memcg);
+		lruvec = mem_cgroup_lruvec(memcg, page_pgdat(page));
 		mod_lruvec_state(lruvec, cache_vmstat_idx(s), -(1 << order));
 		memcg_kmem_uncharge_memcg(page, order, memcg);
 	} else {

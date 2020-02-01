@@ -40,6 +40,17 @@
 #define KOMEDA_ERR_TTNG			BIT_ULL(30)
 #define KOMEDA_ERR_TTF			BIT_ULL(31)
 
+#define KOMEDA_ERR_EVENTS	\
+	(KOMEDA_EVENT_URUN	| KOMEDA_EVENT_IBSY	| KOMEDA_EVENT_OVR |\
+	KOMEDA_ERR_TETO		| KOMEDA_ERR_TEMR	| KOMEDA_ERR_TITR |\
+	KOMEDA_ERR_CPE		| KOMEDA_ERR_CFGE	| KOMEDA_ERR_AXIE |\
+	KOMEDA_ERR_ACE0		| KOMEDA_ERR_ACE1	| KOMEDA_ERR_ACE2 |\
+	KOMEDA_ERR_ACE3		| KOMEDA_ERR_DRIFTTO	| KOMEDA_ERR_FRAMETO |\
+	KOMEDA_ERR_ZME		| KOMEDA_ERR_MERR	| KOMEDA_ERR_TCF |\
+	KOMEDA_ERR_TTNG		| KOMEDA_ERR_TTF)
+
+#define KOMEDA_WARN_EVENTS	KOMEDA_ERR_CSCE
+
 /* malidp device id */
 enum {
 	MALI_D71 = 0,
@@ -206,5 +217,14 @@ struct komeda_dev *komeda_dev_create(struct device *dev);
 void komeda_dev_destroy(struct komeda_dev *mdev);
 
 struct komeda_dev *dev_to_mdev(struct device *dev);
+
+#ifdef CONFIG_DRM_KOMEDA_ERROR_PRINT
+void komeda_print_events(struct komeda_events *evts);
+#else
+static inline void komeda_print_events(struct komeda_events *evts) {}
+#endif
+
+int komeda_dev_resume(struct komeda_dev *mdev);
+int komeda_dev_suspend(struct komeda_dev *mdev);
 
 #endif /*_KOMEDA_DEV_H_*/

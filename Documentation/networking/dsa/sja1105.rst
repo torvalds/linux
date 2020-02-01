@@ -230,12 +230,6 @@ simultaneously on two ports. The driver checks the consistency of the schedules
 against this restriction and errors out when appropriate. Schedule analysis is
 needed to avoid this, which is outside the scope of the document.
 
-At the moment, the time-aware scheduler can only be triggered based on a
-standalone clock and not based on PTP time. This means the base-time argument
-from tc-taprio is ignored and the schedule starts right away. It also means it
-is more difficult to phase-align the scheduler with the other devices in the
-network.
-
 Device Tree bindings and board design
 =====================================
 

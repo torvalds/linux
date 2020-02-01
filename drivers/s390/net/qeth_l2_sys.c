@@ -18,12 +18,10 @@ static ssize_t qeth_bridge_port_role_state_show(struct device *dev,
 	int rc = 0;
 	char *word;
 
-	if (!card)
-		return -EINVAL;
-
 	if (qeth_l2_vnicc_is_in_use(card))
 		return sprintf(buf, "n/a (VNIC characteristics)\n");
 
+	mutex_lock(&card->sbp_lock);
 	if (qeth_card_hw_is_reachable(card) &&
 					card->options.sbp.supported_funcs)
 		rc = qeth_bridgeport_query_ports(card,
@@ -57,6 +55,7 @@ static ssize_t qeth_bridge_port_role_state_show(struct device *dev,
 		else
 			rc = sprintf(buf, "%s\n", word);
 	}
+	mutex_unlock(&card->sbp_lock);
 
 	return rc;
 }
@@ -79,8 +78,6 @@ static ssize_t qeth_bridge_port_role_store(struct device *dev,
 	int rc = 0;
 	enum qeth_sbp_roles role;
 
-	if (!card)
-		return -EINVAL;
 	if (sysfs_streq(buf, "primary"))
 		role = QETH_SBP_ROLE_PRIMARY;
 	else if (sysfs_streq(buf, "secondary"))
@@ -91,6 +88,7 @@ static ssize_t qeth_bridge_port_role_store(struct device *dev,
 		return -EINVAL;
 
 	mutex_lock(&card->conf_mutex);
+	mutex_lock(&card->sbp_lock);
 
 	if (qeth_l2_vnicc_is_in_use(card))
 		rc = -EBUSY;
@@ -104,6 +102,7 @@ static ssize_t qeth_bridge_port_role_store(struct device *dev,
 	} else
 		card->options.sbp.role = role;
 
+	mutex_unlock(&card->sbp_lock);
 	mutex_unlock(&card->conf_mutex);
 
 	return rc ? rc : count;
@@ -132,9 +131,6 @@ static ssize_t qeth_bridgeport_hostnotification_show(struct device *dev,
 	struct qeth_card *card = dev_get_drvdata(dev);
 	int enabled;
 
-	if (!card)
-		return -EINVAL;
-
 	if (qeth_l2_vnicc_is_in_use(card))
 		return sprintf(buf, "n/a (VNIC characteristics)\n");
 
@@ -150,14 +146,12 @@ static ssize_t qeth_bridgeport_hostnotification_store(struct device *dev,
 	bool enable;
 	int rc;
 
-	if (!card)
-		return -EINVAL;
-
 	rc = kstrtobool(buf, &enable);
 	if (rc)
 		return rc;
 
 	mutex_lock(&card->conf_mutex);
+	mutex_lock(&card->sbp_lock);
 
 	if (qeth_l2_vnicc_is_in_use(card))
 		rc = -EBUSY;
@@ -168,6 +162,7 @@ static ssize_t qeth_bridgeport_hostnotification_store(struct device *dev,
 	} else
 		card->options.sbp.hostnotification = enable;
 
+	mutex_unlock(&card->sbp_lock);
 	mutex_unlock(&card->conf_mutex);
 
 	return rc ? rc : count;
@@ -182,9 +177,6 @@ static ssize_t qeth_bridgeport_reflect_show(struct device *dev,
 {
 	struct qeth_card *card = dev_get_drvdata(dev);
 	char *state;
-
-	if (!card)
-		return -EINVAL;
 
 	if (qeth_l2_vnicc_is_in_use(card))
 		return sprintf(buf, "n/a (VNIC characteristics)\n");
@@ -207,9 +199,6 @@ static ssize_t qeth_bridgeport_reflect_store(struct device *dev,
 	int enable, primary;
 	int rc = 0;
 
-	if (!card)
-		return -EINVAL;
-
 	if (sysfs_streq(buf, "none")) {
 		enable = 0;
 		primary = 0;
@@ -223,6 +212,7 @@ static ssize_t qeth_bridgeport_reflect_store(struct device *dev,
 		return -EINVAL;
 
 	mutex_lock(&card->conf_mutex);
+	mutex_lock(&card->sbp_lock);
 
 	if (qeth_l2_vnicc_is_in_use(card))
 		rc = -EBUSY;
@@ -234,6 +224,7 @@ static ssize_t qeth_bridgeport_reflect_store(struct device *dev,
 		rc = 0;
 	}
 
+	mutex_unlock(&card->sbp_lock);
 	mutex_unlock(&card->conf_mutex);
 
 	return rc ? rc : count;
@@ -269,7 +260,10 @@ void qeth_l2_setup_bridgeport_attrs(struct qeth_card *card)
 		return;
 	if (!card->options.sbp.supported_funcs)
 		return;
-	if (card->options.sbp.role != QETH_SBP_ROLE_NONE) {
+
+	mutex_lock(&card->sbp_lock);
+	if (!card->options.sbp.reflect_promisc &&
+	    card->options.sbp.role != QETH_SBP_ROLE_NONE) {
 		/* Conditional to avoid spurious error messages */
 		qeth_bridgeport_setrole(card, card->options.sbp.role);
 		/* Let the callback function refresh the stored role value. */
@@ -280,8 +274,10 @@ void qeth_l2_setup_bridgeport_attrs(struct qeth_card *card)
 		rc = qeth_bridgeport_an_set(card, 1);
 		if (rc)
 			card->options.sbp.hostnotification = 0;
-	} else
+	} else {
 		qeth_bridgeport_an_set(card, 0);
+	}
+	mutex_unlock(&card->sbp_lock);
 }
 
 /* VNIC CHARS support */
@@ -315,9 +311,6 @@ static ssize_t qeth_vnicc_timeout_show(struct device *dev,
 	u32 timeout;
 	int rc;
 
-	if (!card)
-		return -EINVAL;
-
 	rc = qeth_l2_vnicc_get_timeout(card, &timeout);
 	if (rc == -EBUSY)
 		return sprintf(buf, "n/a (BridgePort)\n");
@@ -334,9 +327,6 @@ static ssize_t qeth_vnicc_timeout_store(struct device *dev,
 	struct qeth_card *card = dev_get_drvdata(dev);
 	u32 timeout;
 	int rc;
-
-	if (!card)
-		return -EINVAL;
 
 	rc = kstrtou32(buf, 10, &timeout);
 	if (rc)
@@ -357,9 +347,6 @@ static ssize_t qeth_vnicc_char_show(struct device *dev,
 	u32 vnicc;
 	int rc;
 
-	if (!card)
-		return -EINVAL;
-
 	vnicc = qeth_l2_vnicc_sysfs_attr_to_char(attr->attr.name);
 	rc = qeth_l2_vnicc_get_state(card, vnicc, &state);
 
@@ -379,9 +366,6 @@ static ssize_t qeth_vnicc_char_store(struct device *dev,
 	bool state;
 	u32 vnicc;
 	int rc;
-
-	if (!card)
-		return -EINVAL;
 
 	if (kstrtobool(buf, &state))
 		return -EINVAL;

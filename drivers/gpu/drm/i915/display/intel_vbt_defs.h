@@ -114,6 +114,7 @@ enum bdb_block_id {
 	BDB_LVDS_POWER			= 44,
 	BDB_MIPI_CONFIG			= 52,
 	BDB_MIPI_SEQUENCE		= 53,
+	BDB_COMPRESSION_PARAMETERS	= 56,
 	BDB_SKIP			= 254, /* VBIOS private block, ignore */
 };
 
@@ -291,6 +292,8 @@ struct bdb_general_features {
 #define DVO_PORT_HDMIE		12				/* 193 */
 #define DVO_PORT_DPF		13				/* N/A */
 #define DVO_PORT_HDMIF		14				/* N/A */
+#define DVO_PORT_DPG		15
+#define DVO_PORT_HDMIG		16
 #define DVO_PORT_MIPIA		21				/* 171 */
 #define DVO_PORT_MIPIB		22				/* 171 */
 #define DVO_PORT_MIPIC		23				/* 171 */
@@ -325,6 +328,7 @@ enum vbt_gmbus_ddi {
 #define DP_AUX_D 0x30
 #define DP_AUX_E 0x50
 #define DP_AUX_F 0x60
+#define DP_AUX_G 0x70
 
 #define VBT_DP_MAX_LINK_RATE_HBR3	0
 #define VBT_DP_MAX_LINK_RATE_HBR2	1
@@ -806,6 +810,57 @@ struct bdb_mipi_config {
 struct bdb_mipi_sequence {
 	u8 version;
 	u8 data[0]; /* up to 6 variable length blocks */
+} __packed;
+
+/*
+ * Block 56 - Compression Parameters
+ */
+
+#define VBT_RC_BUFFER_BLOCK_SIZE_1KB	0
+#define VBT_RC_BUFFER_BLOCK_SIZE_4KB	1
+#define VBT_RC_BUFFER_BLOCK_SIZE_16KB	2
+#define VBT_RC_BUFFER_BLOCK_SIZE_64KB	3
+
+#define VBT_DSC_LINE_BUFFER_DEPTH(vbt_value)	((vbt_value) + 8) /* bits */
+#define VBT_DSC_MAX_BPP(vbt_value)		(6 + (vbt_value) * 2)
+
+struct dsc_compression_parameters_entry {
+	u8 version_major:4;
+	u8 version_minor:4;
+
+	u8 rc_buffer_block_size:2;
+	u8 reserved1:6;
+
+	/*
+	 * Buffer size in bytes:
+	 *
+	 * 4 ^ rc_buffer_block_size * 1024 * (rc_buffer_size + 1) bytes
+	 */
+	u8 rc_buffer_size;
+	u32 slices_per_line;
+
+	u8 line_buffer_depth:4;
+	u8 reserved2:4;
+
+	/* Flag Bits 1 */
+	u8 block_prediction_enable:1;
+	u8 reserved3:7;
+
+	u8 max_bpp; /* mapping */
+
+	/* Color depth capabilities */
+	u8 reserved4:1;
+	u8 support_8bpc:1;
+	u8 support_10bpc:1;
+	u8 support_12bpc:1;
+	u8 reserved5:4;
+
+	u16 slice_height;
+} __packed;
+
+struct bdb_compression_parameters {
+	u16 entry_size;
+	struct dsc_compression_parameters_entry data[16];
 } __packed;
 
 #endif /* _INTEL_VBT_DEFS_H_ */

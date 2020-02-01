@@ -1008,7 +1008,7 @@ static int cpcap_adc_probe(struct platform_device *pdev)
 
 	error = devm_request_threaded_irq(&pdev->dev, ddata->irq, NULL,
 					  cpcap_adc_irq_thread,
-					  IRQF_TRIGGER_NONE,
+					  IRQF_TRIGGER_NONE | IRQF_ONESHOT,
 					  "cpcap-adc", indio_dev);
 	if (error) {
 		dev_err(&pdev->dev, "could not get irq: %i\n",

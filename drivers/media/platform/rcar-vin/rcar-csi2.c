@@ -1082,6 +1082,10 @@ static const struct of_device_id rcar_csi2_of_table[] = {
 		.data = &rcar_csi2_info_r8a7796,
 	},
 	{
+		.compatible = "renesas,r8a774b1-csi2",
+		.data = &rcar_csi2_info_r8a77965,
+	},
+	{
 		.compatible = "renesas,r8a774c0-csi2",
 		.data = &rcar_csi2_info_r8a77990,
 	},

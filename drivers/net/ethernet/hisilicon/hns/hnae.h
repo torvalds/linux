@@ -274,9 +274,6 @@ struct hnae_ring {
 	/* statistic */
 	struct ring_stats stats;
 
-	/* ring lock for poll one */
-	spinlock_t lock;
-
 	dma_addr_t desc_dma_addr;
 	u32 buf_size;       /* size for hnae_desc->addr, preset by AE */
 	u16 desc_num;       /* total number of desc */

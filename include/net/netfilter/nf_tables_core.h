@@ -41,7 +41,7 @@ struct nft_immediate_expr {
  */
 static inline u32 nft_cmp_fast_mask(unsigned int len)
 {
-	return cpu_to_le32(~0U >> (FIELD_SIZEOF(struct nft_cmp_fast_expr,
+	return cpu_to_le32(~0U >> (sizeof_field(struct nft_cmp_fast_expr,
 						data) * BITS_PER_BYTE - len));
 }
 

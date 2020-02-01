@@ -1902,7 +1902,7 @@ static int snd_cmipci_pcm_new(struct cmipci *cm, int device)
 	cm->pcm = pcm;
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(cm->pci), 64*1024, 128*1024);
+					      &cm->pci->dev, 64*1024, 128*1024);
 
 	return 0;
 }
@@ -1924,7 +1924,7 @@ static int snd_cmipci_pcm2_new(struct cmipci *cm, int device)
 	cm->pcm2 = pcm;
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(cm->pci), 64*1024, 128*1024);
+					      &cm->pci->dev, 64*1024, 128*1024);
 
 	return 0;
 }
@@ -1947,7 +1947,7 @@ static int snd_cmipci_pcm_spdif_new(struct cmipci *cm, int device)
 	cm->pcm_spdif = pcm;
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(cm->pci), 64*1024, 128*1024);
+					      &cm->pci->dev, 64*1024, 128*1024);
 
 	err = snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK,
 				     snd_pcm_alt_chmaps, cm->max_channels, 0,

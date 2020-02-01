@@ -325,28 +325,33 @@ done:
 static bool sanity(const struct iov_iter *i)
 {
 	struct pipe_inode_info *pipe = i->pipe;
-	int idx = i->idx;
-	int next = pipe->curbuf + pipe->nrbufs;
+	unsigned int p_head = pipe->head;
+	unsigned int p_tail = pipe->tail;
+	unsigned int p_mask = pipe->ring_size - 1;
+	unsigned int p_occupancy = pipe_occupancy(p_head, p_tail);
+	unsigned int i_head = i->head;
+	unsigned int idx;
+
 	if (i->iov_offset) {
 		struct pipe_buffer *p;
-		if (unlikely(!pipe->nrbufs))
+		if (unlikely(p_occupancy == 0))
 			goto Bad;	// pipe must be non-empty
-		if (unlikely(idx != ((next - 1) & (pipe->buffers - 1))))
+		if (unlikely(i_head != p_head - 1))
 			goto Bad;	// must be at the last buffer...
 
-		p = &pipe->bufs[idx];
+		p = &pipe->bufs[i_head & p_mask];
 		if (unlikely(p->offset + p->len != i->iov_offset))
 			goto Bad;	// ... at the end of segment
 	} else {
-		if (idx != (next & (pipe->buffers - 1)))
+		if (i_head != p_head)
 			goto Bad;	// must be right after the last buffer
 	}
 	return true;
 Bad:
-	printk(KERN_ERR "idx = %d, offset = %zd\n", i->idx, i->iov_offset);
-	printk(KERN_ERR "curbuf = %d, nrbufs = %d, buffers = %d\n",
-			pipe->curbuf, pipe->nrbufs, pipe->buffers);
-	for (idx = 0; idx < pipe->buffers; idx++)
+	printk(KERN_ERR "idx = %d, offset = %zd\n", i_head, i->iov_offset);
+	printk(KERN_ERR "head = %d, tail = %d, buffers = %d\n",
+			p_head, p_tail, pipe->ring_size);
+	for (idx = 0; idx < pipe->ring_size; idx++)
 		printk(KERN_ERR "[%p %p %d %d]\n",
 			pipe->bufs[idx].ops,
 			pipe->bufs[idx].page,
@@ -359,18 +364,15 @@ Bad:
 #define sanity(i) true
 #endif
 
-static inline int next_idx(int idx, struct pipe_inode_info *pipe)
-{
-	return (idx + 1) & (pipe->buffers - 1);
-}
-
 static size_t copy_page_to_iter_pipe(struct page *page, size_t offset, size_t bytes,
 			 struct iov_iter *i)
 {
 	struct pipe_inode_info *pipe = i->pipe;
 	struct pipe_buffer *buf;
+	unsigned int p_tail = pipe->tail;
+	unsigned int p_mask = pipe->ring_size - 1;
+	unsigned int i_head = i->head;
 	size_t off;
-	int idx;
 
 	if (unlikely(bytes > i->count))
 		bytes = i->count;
@@ -382,8 +384,7 @@ static size_t copy_page_to_iter_pipe(struct page *page, size_t offset, size_t by
 		return 0;
 
 	off = i->iov_offset;
-	idx = i->idx;
-	buf = &pipe->bufs[idx];
+	buf = &pipe->bufs[i_head & p_mask];
 	if (off) {
 		if (offset == off && buf->page == page) {
 			/* merge with the last one */
@@ -391,18 +392,21 @@ static size_t copy_page_to_iter_pipe(struct page *page, size_t offset, size_t by
 			i->iov_offset += bytes;
 			goto out;
 		}
-		idx = next_idx(idx, pipe);
-		buf = &pipe->bufs[idx];
+		i_head++;
+		buf = &pipe->bufs[i_head & p_mask];
 	}
-	if (idx == pipe->curbuf && pipe->nrbufs)
+	if (pipe_full(i_head, p_tail, pipe->max_usage))
 		return 0;
-	pipe->nrbufs++;
+
 	buf->ops = &page_cache_pipe_buf_ops;
-	get_page(buf->page = page);
+	get_page(page);
+	buf->page = page;
 	buf->offset = offset;
 	buf->len = bytes;
+
+	pipe->head = i_head + 1;
 	i->iov_offset = offset + bytes;
-	i->idx = idx;
+	i->head = i_head;
 out:
 	i->count -= bytes;
 	return bytes;
@@ -480,24 +484,30 @@ static inline bool allocated(struct pipe_buffer *buf)
 	return buf->ops == &default_pipe_buf_ops;
 }
 
-static inline void data_start(const struct iov_iter *i, int *idxp, size_t *offp)
+static inline void data_start(const struct iov_iter *i,
+			      unsigned int *iter_headp, size_t *offp)
 {
+	unsigned int p_mask = i->pipe->ring_size - 1;
+	unsigned int iter_head = i->head;
 	size_t off = i->iov_offset;
-	int idx = i->idx;
-	if (off && (!allocated(&i->pipe->bufs[idx]) || off == PAGE_SIZE)) {
-		idx = next_idx(idx, i->pipe);
+
+	if (off && (!allocated(&i->pipe->bufs[iter_head & p_mask]) ||
+		    off == PAGE_SIZE)) {
+		iter_head++;
 		off = 0;
 	}
-	*idxp = idx;
+	*iter_headp = iter_head;
 	*offp = off;
 }
 
 static size_t push_pipe(struct iov_iter *i, size_t size,
-			int *idxp, size_t *offp)
+			int *iter_headp, size_t *offp)
 {
 	struct pipe_inode_info *pipe = i->pipe;
+	unsigned int p_tail = pipe->tail;
+	unsigned int p_mask = pipe->ring_size - 1;
+	unsigned int iter_head;
 	size_t off;
-	int idx;
 	ssize_t left;
 
 	if (unlikely(size > i->count))
@@ -506,33 +516,34 @@ static size_t push_pipe(struct iov_iter *i, size_t size,
 		return 0;
 
 	left = size;
-	data_start(i, &idx, &off);
-	*idxp = idx;
+	data_start(i, &iter_head, &off);
+	*iter_headp = iter_head;
 	*offp = off;
 	if (off) {
 		left -= PAGE_SIZE - off;
 		if (left <= 0) {
-			pipe->bufs[idx].len += size;
+			pipe->bufs[iter_head & p_mask].len += size;
 			return size;
 		}
-		pipe->bufs[idx].len = PAGE_SIZE;
-		idx = next_idx(idx, pipe);
+		pipe->bufs[iter_head & p_mask].len = PAGE_SIZE;
+		iter_head++;
 	}
-	while (idx != pipe->curbuf || !pipe->nrbufs) {
+	while (!pipe_full(iter_head, p_tail, pipe->max_usage)) {
+		struct pipe_buffer *buf = &pipe->bufs[iter_head & p_mask];
 		struct page *page = alloc_page(GFP_USER);
 		if (!page)
 			break;
-		pipe->nrbufs++;
-		pipe->bufs[idx].ops = &default_pipe_buf_ops;
-		pipe->bufs[idx].page = page;
-		pipe->bufs[idx].offset = 0;
-		if (left <= PAGE_SIZE) {
-			pipe->bufs[idx].len = left;
+
+		buf->ops = &default_pipe_buf_ops;
+		buf->page = page;
+		buf->offset = 0;
+		buf->len = min_t(ssize_t, left, PAGE_SIZE);
+		left -= buf->len;
+		iter_head++;
+		pipe->head = iter_head;
+
+		if (left == 0)
 			return size;
-		}
-		pipe->bufs[idx].len = PAGE_SIZE;
-		left -= PAGE_SIZE;
-		idx = next_idx(idx, pipe);
 	}
 	return size - left;
 }
@@ -541,23 +552,26 @@ static size_t copy_pipe_to_iter(const void *addr, size_t bytes,
 				struct iov_iter *i)
 {
 	struct pipe_inode_info *pipe = i->pipe;
+	unsigned int p_mask = pipe->ring_size - 1;
+	unsigned int i_head;
 	size_t n, off;
-	int idx;
 
 	if (!sanity(i))
 		return 0;
 
-	bytes = n = push_pipe(i, bytes, &idx, &off);
+	bytes = n = push_pipe(i, bytes, &i_head, &off);
 	if (unlikely(!n))
 		return 0;
-	for ( ; n; idx = next_idx(idx, pipe), off = 0) {
+	do {
 		size_t chunk = min_t(size_t, n, PAGE_SIZE - off);
-		memcpy_to_page(pipe->bufs[idx].page, off, addr, chunk);
-		i->idx = idx;
+		memcpy_to_page(pipe->bufs[i_head & p_mask].page, off, addr, chunk);
+		i->head = i_head;
 		i->iov_offset = off + chunk;
 		n -= chunk;
 		addr += chunk;
-	}
+		off = 0;
+		i_head++;
+	} while (n);
 	i->count -= bytes;
 	return bytes;
 }
@@ -573,28 +587,31 @@ static size_t csum_and_copy_to_pipe_iter(const void *addr, size_t bytes,
 				__wsum *csum, struct iov_iter *i)
 {
 	struct pipe_inode_info *pipe = i->pipe;
+	unsigned int p_mask = pipe->ring_size - 1;
+	unsigned int i_head;
 	size_t n, r;
 	size_t off = 0;
 	__wsum sum = *csum;
-	int idx;
 
 	if (!sanity(i))
 		return 0;
 
-	bytes = n = push_pipe(i, bytes, &idx, &r);
+	bytes = n = push_pipe(i, bytes, &i_head, &r);
 	if (unlikely(!n))
 		return 0;
-	for ( ; n; idx = next_idx(idx, pipe), r = 0) {
+	do {
 		size_t chunk = min_t(size_t, n, PAGE_SIZE - r);
-		char *p = kmap_atomic(pipe->bufs[idx].page);
+		char *p = kmap_atomic(pipe->bufs[i_head & p_mask].page);
 		sum = csum_and_memcpy(p + r, addr, chunk, sum, off);
 		kunmap_atomic(p);
-		i->idx = idx;
+		i->head = i_head;
 		i->iov_offset = r + chunk;
 		n -= chunk;
 		off += chunk;
 		addr += chunk;
-	}
+		r = 0;
+		i_head++;
+	} while (n);
 	i->count -= bytes;
 	*csum = sum;
 	return bytes;
@@ -645,29 +662,32 @@ static size_t copy_pipe_to_iter_mcsafe(const void *addr, size_t bytes,
 				struct iov_iter *i)
 {
 	struct pipe_inode_info *pipe = i->pipe;
+	unsigned int p_mask = pipe->ring_size - 1;
+	unsigned int i_head;
 	size_t n, off, xfer = 0;
-	int idx;
 
 	if (!sanity(i))
 		return 0;
 
-	bytes = n = push_pipe(i, bytes, &idx, &off);
+	bytes = n = push_pipe(i, bytes, &i_head, &off);
 	if (unlikely(!n))
 		return 0;
-	for ( ; n; idx = next_idx(idx, pipe), off = 0) {
+	do {
 		size_t chunk = min_t(size_t, n, PAGE_SIZE - off);
 		unsigned long rem;
 
-		rem = memcpy_mcsafe_to_page(pipe->bufs[idx].page, off, addr,
-				chunk);
-		i->idx = idx;
+		rem = memcpy_mcsafe_to_page(pipe->bufs[i_head & p_mask].page,
+					    off, addr, chunk);
+		i->head = i_head;
 		i->iov_offset = off + chunk - rem;
 		xfer += chunk - rem;
 		if (rem)
 			break;
 		n -= chunk;
 		addr += chunk;
-	}
+		off = 0;
+		i_head++;
+	} while (n);
 	i->count -= xfer;
 	return xfer;
 }
@@ -925,23 +945,26 @@ EXPORT_SYMBOL(copy_page_from_iter);
 static size_t pipe_zero(size_t bytes, struct iov_iter *i)
 {
 	struct pipe_inode_info *pipe = i->pipe;
+	unsigned int p_mask = pipe->ring_size - 1;
+	unsigned int i_head;
 	size_t n, off;
-	int idx;
 
 	if (!sanity(i))
 		return 0;
 
-	bytes = n = push_pipe(i, bytes, &idx, &off);
+	bytes = n = push_pipe(i, bytes, &i_head, &off);
 	if (unlikely(!n))
 		return 0;
 
-	for ( ; n; idx = next_idx(idx, pipe), off = 0) {
+	do {
 		size_t chunk = min_t(size_t, n, PAGE_SIZE - off);
-		memzero_page(pipe->bufs[idx].page, off, chunk);
-		i->idx = idx;
+		memzero_page(pipe->bufs[i_head & p_mask].page, off, chunk);
+		i->head = i_head;
 		i->iov_offset = off + chunk;
 		n -= chunk;
-	}
+		off = 0;
+		i_head++;
+	} while (n);
 	i->count -= bytes;
 	return bytes;
 }
@@ -987,20 +1010,26 @@ EXPORT_SYMBOL(iov_iter_copy_from_user_atomic);
 static inline void pipe_truncate(struct iov_iter *i)
 {
 	struct pipe_inode_info *pipe = i->pipe;
-	if (pipe->nrbufs) {
+	unsigned int p_tail = pipe->tail;
+	unsigned int p_head = pipe->head;
+	unsigned int p_mask = pipe->ring_size - 1;
+
+	if (!pipe_empty(p_head, p_tail)) {
+		struct pipe_buffer *buf;
+		unsigned int i_head = i->head;
 		size_t off = i->iov_offset;
-		int idx = i->idx;
-		int nrbufs = (idx - pipe->curbuf) & (pipe->buffers - 1);
+
 		if (off) {
-			pipe->bufs[idx].len = off - pipe->bufs[idx].offset;
-			idx = next_idx(idx, pipe);
-			nrbufs++;
+			buf = &pipe->bufs[i_head & p_mask];
+			buf->len = off - buf->offset;
+			i_head++;
 		}
-		while (pipe->nrbufs > nrbufs) {
-			pipe_buf_release(pipe, &pipe->bufs[idx]);
-			idx = next_idx(idx, pipe);
-			pipe->nrbufs--;
+		while (p_head != i_head) {
+			p_head--;
+			pipe_buf_release(pipe, &pipe->bufs[p_head & p_mask]);
 		}
+
+		pipe->head = p_head;
 	}
 }
 
@@ -1011,18 +1040,20 @@ static void pipe_advance(struct iov_iter *i, size_t size)
 		size = i->count;
 	if (size) {
 		struct pipe_buffer *buf;
+		unsigned int p_mask = pipe->ring_size - 1;
+		unsigned int i_head = i->head;
 		size_t off = i->iov_offset, left = size;
-		int idx = i->idx;
+
 		if (off) /* make it relative to the beginning of buffer */
-			left += off - pipe->bufs[idx].offset;
+			left += off - pipe->bufs[i_head & p_mask].offset;
 		while (1) {
-			buf = &pipe->bufs[idx];
+			buf = &pipe->bufs[i_head & p_mask];
 			if (left <= buf->len)
 				break;
 			left -= buf->len;
-			idx = next_idx(idx, pipe);
+			i_head++;
 		}
-		i->idx = idx;
+		i->head = i_head;
 		i->iov_offset = buf->offset + left;
 	}
 	i->count -= size;
@@ -1053,25 +1084,27 @@ void iov_iter_revert(struct iov_iter *i, size_t unroll)
 	i->count += unroll;
 	if (unlikely(iov_iter_is_pipe(i))) {
 		struct pipe_inode_info *pipe = i->pipe;
-		int idx = i->idx;
+		unsigned int p_mask = pipe->ring_size - 1;
+		unsigned int i_head = i->head;
 		size_t off = i->iov_offset;
 		while (1) {
-			size_t n = off - pipe->bufs[idx].offset;
+			struct pipe_buffer *b = &pipe->bufs[i_head & p_mask];
+			size_t n = off - b->offset;
 			if (unroll < n) {
 				off -= unroll;
 				break;
 			}
 			unroll -= n;
-			if (!unroll && idx == i->start_idx) {
+			if (!unroll && i_head == i->start_head) {
 				off = 0;
 				break;
 			}
-			if (!idx--)
-				idx = pipe->buffers - 1;
-			off = pipe->bufs[idx].offset + pipe->bufs[idx].len;
+			i_head--;
+			b = &pipe->bufs[i_head & p_mask];
+			off = b->offset + b->len;
 		}
 		i->iov_offset = off;
-		i->idx = idx;
+		i->head = i_head;
 		pipe_truncate(i);
 		return;
 	}
@@ -1159,13 +1192,13 @@ void iov_iter_pipe(struct iov_iter *i, unsigned int direction,
 			size_t count)
 {
 	BUG_ON(direction != READ);
-	WARN_ON(pipe->nrbufs == pipe->buffers);
+	WARN_ON(pipe_full(pipe->head, pipe->tail, pipe->ring_size));
 	i->type = ITER_PIPE | READ;
 	i->pipe = pipe;
-	i->idx = (pipe->curbuf + pipe->nrbufs) & (pipe->buffers - 1);
+	i->head = pipe->head;
 	i->iov_offset = 0;
 	i->count = count;
-	i->start_idx = i->idx;
+	i->start_head = i->head;
 }
 EXPORT_SYMBOL(iov_iter_pipe);
 
@@ -1193,7 +1226,9 @@ unsigned long iov_iter_alignment(const struct iov_iter *i)
 	size_t size = i->count;
 
 	if (unlikely(iov_iter_is_pipe(i))) {
-		if (size && i->iov_offset && allocated(&i->pipe->bufs[i->idx]))
+		unsigned int p_mask = i->pipe->ring_size - 1;
+
+		if (size && i->iov_offset && allocated(&i->pipe->bufs[i->head & p_mask]))
 			return size | i->iov_offset;
 		return size;
 	}
@@ -1231,19 +1266,20 @@ EXPORT_SYMBOL(iov_iter_gap_alignment);
 static inline ssize_t __pipe_get_pages(struct iov_iter *i,
 				size_t maxsize,
 				struct page **pages,
-				int idx,
+				int iter_head,
 				size_t *start)
 {
 	struct pipe_inode_info *pipe = i->pipe;
-	ssize_t n = push_pipe(i, maxsize, &idx, start);
+	unsigned int p_mask = pipe->ring_size - 1;
+	ssize_t n = push_pipe(i, maxsize, &iter_head, start);
 	if (!n)
 		return -EFAULT;
 
 	maxsize = n;
 	n += *start;
 	while (n > 0) {
-		get_page(*pages++ = pipe->bufs[idx].page);
-		idx = next_idx(idx, pipe);
+		get_page(*pages++ = pipe->bufs[iter_head & p_mask].page);
+		iter_head++;
 		n -= PAGE_SIZE;
 	}
 
@@ -1254,9 +1290,8 @@ static ssize_t pipe_get_pages(struct iov_iter *i,
 		   struct page **pages, size_t maxsize, unsigned maxpages,
 		   size_t *start)
 {
-	unsigned npages;
+	unsigned int iter_head, npages;
 	size_t capacity;
-	int idx;
 
 	if (!maxsize)
 		return 0;
@@ -1264,12 +1299,12 @@ static ssize_t pipe_get_pages(struct iov_iter *i,
 	if (!sanity(i))
 		return -EFAULT;
 
-	data_start(i, &idx, start);
-	/* some of this one + all after this one */
-	npages = ((i->pipe->curbuf - idx - 1) & (i->pipe->buffers - 1)) + 1;
-	capacity = min(npages,maxpages) * PAGE_SIZE - *start;
+	data_start(i, &iter_head, start);
+	/* Amount of free space: some of this one + all after this one */
+	npages = pipe_space_for_user(iter_head, i->pipe->tail, i->pipe);
+	capacity = min(npages, maxpages) * PAGE_SIZE - *start;
 
-	return __pipe_get_pages(i, min(maxsize, capacity), pages, idx, start);
+	return __pipe_get_pages(i, min(maxsize, capacity), pages, iter_head, start);
 }
 
 ssize_t iov_iter_get_pages(struct iov_iter *i,
@@ -1323,9 +1358,8 @@ static ssize_t pipe_get_pages_alloc(struct iov_iter *i,
 		   size_t *start)
 {
 	struct page **p;
+	unsigned int iter_head, npages;
 	ssize_t n;
-	int idx;
-	int npages;
 
 	if (!maxsize)
 		return 0;
@@ -1333,9 +1367,9 @@ static ssize_t pipe_get_pages_alloc(struct iov_iter *i,
 	if (!sanity(i))
 		return -EFAULT;
 
-	data_start(i, &idx, start);
-	/* some of this one + all after this one */
-	npages = ((i->pipe->curbuf - idx - 1) & (i->pipe->buffers - 1)) + 1;
+	data_start(i, &iter_head, start);
+	/* Amount of free space: some of this one + all after this one */
+	npages = pipe_space_for_user(iter_head, i->pipe->tail, i->pipe);
 	n = npages * PAGE_SIZE - *start;
 	if (maxsize > n)
 		maxsize = n;
@@ -1344,7 +1378,7 @@ static ssize_t pipe_get_pages_alloc(struct iov_iter *i,
 	p = get_pages_array(npages);
 	if (!p)
 		return -ENOMEM;
-	n = __pipe_get_pages(i, maxsize, p, idx, start);
+	n = __pipe_get_pages(i, maxsize, p, iter_head, start);
 	if (n > 0)
 		*pages = p;
 	else
@@ -1560,15 +1594,15 @@ int iov_iter_npages(const struct iov_iter *i, int maxpages)
 
 	if (unlikely(iov_iter_is_pipe(i))) {
 		struct pipe_inode_info *pipe = i->pipe;
+		unsigned int iter_head;
 		size_t off;
-		int idx;
 
 		if (!sanity(i))
 			return 0;
 
-		data_start(i, &idx, &off);
+		data_start(i, &iter_head, &off);
 		/* some of this one + all after this one */
-		npages = ((pipe->curbuf - idx - 1) & (pipe->buffers - 1)) + 1;
+		npages = pipe_space_for_user(iter_head, pipe->tail, pipe);
 		if (npages >= maxpages)
 			return maxpages;
 	} else iterate_all_kinds(i, size, v, ({
@@ -1678,6 +1712,7 @@ ssize_t compat_import_iovec(int type,
 	*iov = p == *iov ? NULL : p;
 	return n;
 }
+EXPORT_SYMBOL(compat_import_iovec);
 #endif
 
 int import_single_range(int rw, void __user *buf, size_t len,

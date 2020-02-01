@@ -645,11 +645,6 @@ static void _dpu_encoder_update_vsync_source(struct dpu_encoder_virt *dpu_enc,
 	priv = drm_enc->dev->dev_private;
 
 	dpu_kms = to_dpu_kms(priv->kms);
-	if (!dpu_kms) {
-		DPU_ERROR("invalid dpu_kms\n");
-		return;
-	}
-
 	hw_mdptop = dpu_kms->hw_mdp;
 	if (!hw_mdptop) {
 		DPU_ERROR("invalid mdptop\n");
@@ -735,8 +730,7 @@ static int dpu_encoder_resource_control(struct drm_encoder *drm_enc,
 	struct msm_drm_private *priv;
 	bool is_vid_mode = false;
 
-	if (!drm_enc || !drm_enc->dev || !drm_enc->dev->dev_private ||
-			!drm_enc->crtc) {
+	if (!drm_enc || !drm_enc->dev || !drm_enc->crtc) {
 		DPU_ERROR("invalid parameters\n");
 		return -EINVAL;
 	}
@@ -1092,17 +1086,13 @@ static void _dpu_encoder_virt_enable_helper(struct drm_encoder *drm_enc)
 	struct msm_drm_private *priv;
 	struct dpu_kms *dpu_kms;
 
-	if (!drm_enc || !drm_enc->dev || !drm_enc->dev->dev_private) {
+	if (!drm_enc || !drm_enc->dev) {
 		DPU_ERROR("invalid parameters\n");
 		return;
 	}
 
 	priv = drm_enc->dev->dev_private;
 	dpu_kms = to_dpu_kms(priv->kms);
-	if (!dpu_kms) {
-		DPU_ERROR("invalid dpu_kms\n");
-		return;
-	}
 
 	dpu_enc = to_dpu_encoder_virt(drm_enc);
 	if (!dpu_enc || !dpu_enc->cur_master) {
@@ -1184,7 +1174,6 @@ static void dpu_encoder_virt_disable(struct drm_encoder *drm_enc)
 	struct dpu_encoder_virt *dpu_enc = NULL;
 	struct msm_drm_private *priv;
 	struct dpu_kms *dpu_kms;
-	struct drm_display_mode *mode;
 	int i = 0;
 
 	if (!drm_enc) {
@@ -1193,9 +1182,6 @@ static void dpu_encoder_virt_disable(struct drm_encoder *drm_enc)
 	} else if (!drm_enc->dev) {
 		DPU_ERROR("invalid dev\n");
 		return;
-	} else if (!drm_enc->dev->dev_private) {
-		DPU_ERROR("invalid dev_private\n");
-		return;
 	}
 
 	dpu_enc = to_dpu_encoder_virt(drm_enc);
@@ -1203,8 +1189,6 @@ static void dpu_encoder_virt_disable(struct drm_encoder *drm_enc)
 
 	mutex_lock(&dpu_enc->enc_lock);
 	dpu_enc->enabled = false;
-
-	mode = &drm_enc->crtc->state->adjusted_mode;
 
 	priv = drm_enc->dev->dev_private;
 	dpu_kms = to_dpu_kms(priv->kms);
@@ -1734,8 +1718,7 @@ static void dpu_encoder_vsync_event_handler(struct timer_list *t)
 	struct msm_drm_private *priv;
 	struct msm_drm_thread *event_thread;
 
-	if (!drm_enc->dev || !drm_enc->dev->dev_private ||
-			!drm_enc->crtc) {
+	if (!drm_enc->dev || !drm_enc->crtc) {
 		DPU_ERROR("invalid parameters\n");
 		return;
 	}
@@ -1914,8 +1897,6 @@ static int _dpu_encoder_debugfs_status_open(struct inode *inode,
 static int _dpu_encoder_init_debugfs(struct drm_encoder *drm_enc)
 {
 	struct dpu_encoder_virt *dpu_enc = to_dpu_encoder_virt(drm_enc);
-	struct msm_drm_private *priv;
-	struct dpu_kms *dpu_kms;
 	int i;
 
 	static const struct file_operations debugfs_status_fops = {
@@ -1927,13 +1908,10 @@ static int _dpu_encoder_init_debugfs(struct drm_encoder *drm_enc)
 
 	char name[DPU_NAME_SIZE];
 
-	if (!drm_enc->dev || !drm_enc->dev->dev_private) {
+	if (!drm_enc->dev) {
 		DPU_ERROR("invalid encoder or kms\n");
 		return -EINVAL;
 	}
-
-	priv = drm_enc->dev->dev_private;
-	dpu_kms = to_dpu_kms(priv->kms);
 
 	snprintf(name, DPU_NAME_SIZE, "encoder%u", drm_enc->base.id);
 
@@ -2042,9 +2020,8 @@ static int dpu_encoder_setup_display(struct dpu_encoder_virt *dpu_enc,
 	enum dpu_intf_type intf_type;
 	struct dpu_enc_phys_init_params phys_params;
 
-	if (!dpu_enc || !dpu_kms) {
-		DPU_ERROR("invalid arg(s), enc %d kms %d\n",
-				dpu_enc != 0, dpu_kms != 0);
+	if (!dpu_enc) {
+		DPU_ERROR("invalid arg(s), enc %d\n", dpu_enc != 0);
 		return -EINVAL;
 	}
 
@@ -2133,14 +2110,12 @@ static void dpu_encoder_frame_done_timeout(struct timer_list *t)
 	struct dpu_encoder_virt *dpu_enc = from_timer(dpu_enc, t,
 			frame_done_timer);
 	struct drm_encoder *drm_enc = &dpu_enc->base;
-	struct msm_drm_private *priv;
 	u32 event;
 
-	if (!drm_enc->dev || !drm_enc->dev->dev_private) {
+	if (!drm_enc->dev) {
 		DPU_ERROR("invalid parameters\n");
 		return;
 	}
-	priv = drm_enc->dev->dev_private;
 
 	if (!dpu_enc->frame_busy_mask[0] || !dpu_enc->crtc_frame_event_cb) {
 		DRM_DEBUG_KMS("id:%u invalid timeout frame_busy_mask=%lu\n",

@@ -7,7 +7,9 @@
 #include "fw.h"
 #include "tx.h"
 #include "reg.h"
+#include "sec.h"
 #include "debug.h"
+#include "util.h"
 
 static void rtw_fw_c2h_cmd_handle_ext(struct rtw_dev *rtwdev,
 				      struct sk_buff *skb)
@@ -25,6 +27,100 @@ static void rtw_fw_c2h_cmd_handle_ext(struct rtw_dev *rtwdev,
 	default:
 		break;
 	}
+}
+
+static u16 get_max_amsdu_len(u32 bit_rate)
+{
+	/* lower than ofdm, do not aggregate */
+	if (bit_rate < 550)
+		return 1;
+
+	/* lower than 20M 2ss mcs8, make it small */
+	if (bit_rate < 1800)
+		return 1200;
+
+	/* lower than 40M 2ss mcs9, make it medium */
+	if (bit_rate < 4000)
+		return 2600;
+
+	/* not yet 80M 2ss mcs8/9, make it twice regular packet size */
+	if (bit_rate < 7000)
+		return 3500;
+
+	/* unlimited */
+	return 0;
+}
+
+struct rtw_fw_iter_ra_data {
+	struct rtw_dev *rtwdev;
+	u8 *payload;
+};
+
+static void rtw_fw_ra_report_iter(void *data, struct ieee80211_sta *sta)
+{
+	struct rtw_fw_iter_ra_data *ra_data = data;
+	struct rtw_sta_info *si = (struct rtw_sta_info *)sta->drv_priv;
+	u8 mac_id, rate, sgi, bw;
+	u8 mcs, nss;
+	u32 bit_rate;
+
+	mac_id = GET_RA_REPORT_MACID(ra_data->payload);
+	if (si->mac_id != mac_id)
+		return;
+
+	si->ra_report.txrate.flags = 0;
+
+	rate = GET_RA_REPORT_RATE(ra_data->payload);
+	sgi = GET_RA_REPORT_SGI(ra_data->payload);
+	bw = GET_RA_REPORT_BW(ra_data->payload);
+
+	if (rate < DESC_RATEMCS0) {
+		si->ra_report.txrate.legacy = rtw_desc_to_bitrate(rate);
+		goto legacy;
+	}
+
+	rtw_desc_to_mcsrate(rate, &mcs, &nss);
+	if (rate >= DESC_RATEVHT1SS_MCS0)
+		si->ra_report.txrate.flags |= RATE_INFO_FLAGS_VHT_MCS;
+	else if (rate >= DESC_RATEMCS0)
+		si->ra_report.txrate.flags |= RATE_INFO_FLAGS_MCS;
+
+	if (rate >= DESC_RATEMCS0) {
+		si->ra_report.txrate.mcs = mcs;
+		si->ra_report.txrate.nss = nss;
+	}
+
+	if (sgi)
+		si->ra_report.txrate.flags |= RATE_INFO_FLAGS_SHORT_GI;
+
+	if (bw == RTW_CHANNEL_WIDTH_80)
+		si->ra_report.txrate.bw = RATE_INFO_BW_80;
+	else if (bw == RTW_CHANNEL_WIDTH_40)
+		si->ra_report.txrate.bw = RATE_INFO_BW_40;
+	else
+		si->ra_report.txrate.bw = RATE_INFO_BW_20;
+
+legacy:
+	bit_rate = cfg80211_calculate_bitrate(&si->ra_report.txrate);
+
+	si->ra_report.desc_rate = rate;
+	si->ra_report.bit_rate = bit_rate;
+
+	sta->max_rc_amsdu_len = get_max_amsdu_len(bit_rate);
+}
+
+static void rtw_fw_ra_report_handle(struct rtw_dev *rtwdev, u8 *payload,
+				    u8 length)
+{
+	struct rtw_fw_iter_ra_data ra_data;
+
+	if (WARN(length < 7, "invalid ra report c2h length\n"))
+		return;
+
+	rtwdev->dm_info.tx_rate = GET_RA_REPORT_RATE(payload);
+	ra_data.rtwdev = rtwdev;
+	ra_data.payload = payload;
+	rtw_iterate_stas_atomic(rtwdev, rtw_fw_ra_report_iter, &ra_data);
 }
 
 void rtw_fw_c2h_cmd_handle(struct rtw_dev *rtwdev, struct sk_buff *skb)
@@ -48,6 +144,9 @@ void rtw_fw_c2h_cmd_handle(struct rtw_dev *rtwdev, struct sk_buff *skb)
 		break;
 	case C2H_HALMAC:
 		rtw_fw_c2h_cmd_handle_ext(rtwdev, skb);
+		break;
+	case C2H_RA_RPT:
+		rtw_fw_ra_report_handle(rtwdev, c2h->payload, len);
 		break;
 	default:
 		break;
@@ -397,6 +496,24 @@ static u8 rtw_get_rsvd_page_location(struct rtw_dev *rtwdev,
 	return location;
 }
 
+void rtw_fw_set_pg_info(struct rtw_dev *rtwdev)
+{
+	struct rtw_lps_conf *conf = &rtwdev->lps_conf;
+	u8 h2c_pkt[H2C_PKT_SIZE] = {0};
+	u8 loc_pg, loc_dpk;
+
+	loc_pg = rtw_get_rsvd_page_location(rtwdev, RSVD_LPS_PG_INFO);
+	loc_dpk = rtw_get_rsvd_page_location(rtwdev, RSVD_LPS_PG_DPK);
+
+	SET_H2C_CMD_ID_CLASS(h2c_pkt, H2C_CMD_LPS_PG_INFO);
+
+	LPS_PG_INFO_LOC(h2c_pkt, loc_pg);
+	LPS_PG_DPK_LOC(h2c_pkt, loc_dpk);
+	LPS_PG_SEC_CAM_EN(h2c_pkt, conf->sec_cam_backup);
+
+	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
+}
+
 void rtw_send_rsvd_page_h2c(struct rtw_dev *rtwdev)
 {
 	u8 h2c_pkt[H2C_PKT_SIZE] = {0};
@@ -442,6 +559,58 @@ rtw_beacon_get(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	return skb_new;
 }
 
+static struct sk_buff *rtw_lps_pg_dpk_get(struct ieee80211_hw *hw)
+{
+	struct rtw_dev *rtwdev = hw->priv;
+	struct rtw_chip_info *chip = rtwdev->chip;
+	struct rtw_dpk_info *dpk_info = &rtwdev->dm_info.dpk_info;
+	struct rtw_lps_pg_dpk_hdr *dpk_hdr;
+	struct sk_buff *skb;
+	u32 size;
+
+	size = chip->tx_pkt_desc_sz + sizeof(*dpk_hdr);
+	skb = alloc_skb(size, GFP_KERNEL);
+	if (!skb)
+		return NULL;
+
+	skb_reserve(skb, chip->tx_pkt_desc_sz);
+	dpk_hdr = skb_put_zero(skb, sizeof(*dpk_hdr));
+	dpk_hdr->dpk_ch = dpk_info->dpk_ch;
+	dpk_hdr->dpk_path_ok = dpk_info->dpk_path_ok[0];
+	memcpy(dpk_hdr->dpk_txagc, dpk_info->dpk_txagc, 2);
+	memcpy(dpk_hdr->dpk_gs, dpk_info->dpk_gs, 4);
+	memcpy(dpk_hdr->coef, dpk_info->coef, 160);
+
+	return skb;
+}
+
+static struct sk_buff *rtw_lps_pg_info_get(struct ieee80211_hw *hw,
+					   struct ieee80211_vif *vif)
+{
+	struct rtw_dev *rtwdev = hw->priv;
+	struct rtw_chip_info *chip = rtwdev->chip;
+	struct rtw_lps_conf *conf = &rtwdev->lps_conf;
+	struct rtw_lps_pg_info_hdr *pg_info_hdr;
+	struct sk_buff *skb;
+	u32 size;
+
+	size = chip->tx_pkt_desc_sz + sizeof(*pg_info_hdr);
+	skb = alloc_skb(size, GFP_KERNEL);
+	if (!skb)
+		return NULL;
+
+	skb_reserve(skb, chip->tx_pkt_desc_sz);
+	pg_info_hdr = skb_put_zero(skb, sizeof(*pg_info_hdr));
+	pg_info_hdr->tx_bu_page_count = rtwdev->fifo.rsvd_drv_pg_num;
+	pg_info_hdr->macid = find_first_bit(rtwdev->mac_id_map, RTW_MAX_MAC_ID_NUM);
+	pg_info_hdr->sec_cam_count =
+		rtw_sec_cam_pg_backup(rtwdev, pg_info_hdr->sec_cam);
+
+	conf->sec_cam_backup = pg_info_hdr->sec_cam_count != 0;
+
+	return skb;
+}
+
 static struct sk_buff *rtw_get_rsvd_page_skb(struct ieee80211_hw *hw,
 					     struct ieee80211_vif *vif,
 					     enum rtw_rsvd_packet_type type)
@@ -463,6 +632,12 @@ static struct sk_buff *rtw_get_rsvd_page_skb(struct ieee80211_hw *hw,
 		break;
 	case RSVD_QOS_NULL:
 		skb_new = ieee80211_nullfunc_get(hw, vif, true);
+		break;
+	case RSVD_LPS_PG_DPK:
+		skb_new = rtw_lps_pg_dpk_get(hw);
+		break;
+	case RSVD_LPS_PG_INFO:
+		skb_new = rtw_lps_pg_info_get(hw, vif);
 		break;
 	default:
 		return NULL;
@@ -497,9 +672,6 @@ static void rtw_rsvd_page_list_to_buf(struct rtw_dev *rtwdev, u8 page_size,
 				      struct rtw_rsvd_page *rsvd_pkt)
 {
 	struct sk_buff *skb = rsvd_pkt->skb;
-
-	if (rsvd_pkt->add_txdesc)
-		rtw_fill_rsvd_page_desc(rtwdev, skb);
 
 	if (page >= 1)
 		memcpy(buf + page_margin + page_size * (page - 1),
@@ -625,16 +797,37 @@ static u8 *rtw_build_rsvd_page(struct rtw_dev *rtwdev,
 	list_for_each_entry(rsvd_pkt, &rtwdev->rsvd_page_list, list) {
 		iter = rtw_get_rsvd_page_skb(hw, vif, rsvd_pkt->type);
 		if (!iter) {
-			rtw_err(rtwdev, "fail to build rsvd packet\n");
+			rtw_err(rtwdev, "failed to build rsvd packet\n");
 			goto release_skb;
 		}
+
+		/* Fill the tx_desc for the rsvd pkt that requires one.
+		 * And iter->len will be added with size of tx_desc_sz.
+		 */
+		if (rsvd_pkt->add_txdesc)
+			rtw_fill_rsvd_page_desc(rtwdev, iter);
+
 		rsvd_pkt->skb = iter;
 		rsvd_pkt->page = total_page;
-		if (rsvd_pkt->add_txdesc)
+
+		/* Reserved page is downloaded via TX path, and TX path will
+		 * generate a tx_desc at the header to describe length of
+		 * the buffer. If we are not counting page numbers with the
+		 * size of tx_desc added at the first rsvd_pkt (usually a
+		 * beacon, firmware default refer to the first page as the
+		 * content of beacon), we could generate a buffer which size
+		 * is smaller than the actual size of the whole rsvd_page
+		 */
+		if (total_page == 0) {
+			if (rsvd_pkt->type != RSVD_BEACON) {
+				rtw_err(rtwdev, "first page should be a beacon\n");
+				goto release_skb;
+			}
 			total_page += rtw_len_to_page(iter->len + tx_desc_sz,
 						      page_size);
-		else
+		} else {
 			total_page += rtw_len_to_page(iter->len, page_size);
+		}
 	}
 
 	if (total_page > rtwdev->fifo.rsvd_drv_pg_num) {
@@ -647,13 +840,24 @@ static u8 *rtw_build_rsvd_page(struct rtw_dev *rtwdev,
 	if (!buf)
 		goto release_skb;
 
+	/* Copy the content of each rsvd_pkt to the buf, and they should
+	 * be aligned to the pages.
+	 *
+	 * Note that the first rsvd_pkt is a beacon no matter what vif->type.
+	 * And that rsvd_pkt does not require tx_desc because when it goes
+	 * through TX path, the TX path will generate one for it.
+	 */
 	list_for_each_entry(rsvd_pkt, &rtwdev->rsvd_page_list, list) {
 		rtw_rsvd_page_list_to_buf(rtwdev, page_size, page_margin,
 					  page, buf, rsvd_pkt);
-		page += rtw_len_to_page(rsvd_pkt->skb->len, page_size);
-	}
-	list_for_each_entry(rsvd_pkt, &rtwdev->rsvd_page_list, list)
+		if (page == 0)
+			page += rtw_len_to_page(rsvd_pkt->skb->len +
+						tx_desc_sz, page_size);
+		else
+			page += rtw_len_to_page(rsvd_pkt->skb->len, page_size);
+
 		kfree_skb(rsvd_pkt->skb);
+	}
 
 	return buf;
 
@@ -706,6 +910,11 @@ int rtw_fw_download_rsvd_page(struct rtw_dev *rtwdev, struct ieee80211_vif *vif)
 		goto free;
 	}
 
+	/* The last thing is to download the *ONLY* beacon again, because
+	 * the previous tx_desc is to describe the total rsvd page. Download
+	 * the beacon again to replace the TX desc header, and we will get
+	 * a correct tx_desc for the beacon in the rsvd page.
+	 */
 	ret = rtw_download_beacon(rtwdev, vif);
 	if (ret) {
 		rtw_err(rtwdev, "failed to download beacon\n");

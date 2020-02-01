@@ -118,9 +118,8 @@ static int sja1105_cgu_idiv_config(struct sja1105_private *priv, int port,
 	idiv.pd        = enabled ? 0 : 1; /* Power down? */
 	sja1105_cgu_idiv_packing(packed_buf, &idiv, PACK);
 
-	return sja1105_spi_send_packed_buf(priv, SPI_WRITE,
-					   regs->cgu_idiv[port], packed_buf,
-					   SJA1105_SIZE_CGU_CMD);
+	return sja1105_xfer_buf(priv, SPI_WRITE, regs->cgu_idiv[port],
+				packed_buf, SJA1105_SIZE_CGU_CMD);
 }
 
 static void
@@ -167,9 +166,8 @@ static int sja1105_cgu_mii_tx_clk_config(struct sja1105_private *priv,
 	mii_tx_clk.pd        = 0;  /* Power Down off => enabled */
 	sja1105_cgu_mii_control_packing(packed_buf, &mii_tx_clk, PACK);
 
-	return sja1105_spi_send_packed_buf(priv, SPI_WRITE,
-					   regs->mii_tx_clk[port], packed_buf,
-					   SJA1105_SIZE_CGU_CMD);
+	return sja1105_xfer_buf(priv, SPI_WRITE, regs->mii_tx_clk[port],
+				packed_buf, SJA1105_SIZE_CGU_CMD);
 }
 
 static int
@@ -192,9 +190,8 @@ sja1105_cgu_mii_rx_clk_config(struct sja1105_private *priv, int port)
 	mii_rx_clk.pd        = 0;  /* Power Down off => enabled */
 	sja1105_cgu_mii_control_packing(packed_buf, &mii_rx_clk, PACK);
 
-	return sja1105_spi_send_packed_buf(priv, SPI_WRITE,
-					   regs->mii_rx_clk[port], packed_buf,
-					   SJA1105_SIZE_CGU_CMD);
+	return sja1105_xfer_buf(priv, SPI_WRITE, regs->mii_rx_clk[port],
+				packed_buf, SJA1105_SIZE_CGU_CMD);
 }
 
 static int
@@ -217,9 +214,8 @@ sja1105_cgu_mii_ext_tx_clk_config(struct sja1105_private *priv, int port)
 	mii_ext_tx_clk.pd        = 0; /* Power Down off => enabled */
 	sja1105_cgu_mii_control_packing(packed_buf, &mii_ext_tx_clk, PACK);
 
-	return sja1105_spi_send_packed_buf(priv, SPI_WRITE,
-					   regs->mii_ext_tx_clk[port],
-					   packed_buf, SJA1105_SIZE_CGU_CMD);
+	return sja1105_xfer_buf(priv, SPI_WRITE, regs->mii_ext_tx_clk[port],
+				packed_buf, SJA1105_SIZE_CGU_CMD);
 }
 
 static int
@@ -242,9 +238,8 @@ sja1105_cgu_mii_ext_rx_clk_config(struct sja1105_private *priv, int port)
 	mii_ext_rx_clk.pd        = 0; /* Power Down off => enabled */
 	sja1105_cgu_mii_control_packing(packed_buf, &mii_ext_rx_clk, PACK);
 
-	return sja1105_spi_send_packed_buf(priv, SPI_WRITE,
-					   regs->mii_ext_rx_clk[port],
-					   packed_buf, SJA1105_SIZE_CGU_CMD);
+	return sja1105_xfer_buf(priv, SPI_WRITE, regs->mii_ext_rx_clk[port],
+				packed_buf, SJA1105_SIZE_CGU_CMD);
 }
 
 static int sja1105_mii_clocking_setup(struct sja1105_private *priv, int port,
@@ -337,9 +332,8 @@ static int sja1105_cgu_rgmii_tx_clk_config(struct sja1105_private *priv,
 	txc.pd = 0;
 	sja1105_cgu_mii_control_packing(packed_buf, &txc, PACK);
 
-	return sja1105_spi_send_packed_buf(priv, SPI_WRITE,
-					   regs->rgmii_tx_clk[port],
-					   packed_buf, SJA1105_SIZE_CGU_CMD);
+	return sja1105_xfer_buf(priv, SPI_WRITE, regs->rgmii_tx_clk[port],
+				packed_buf, SJA1105_SIZE_CGU_CMD);
 }
 
 /* AGU */
@@ -383,9 +377,8 @@ static int sja1105_rgmii_cfg_pad_tx_config(struct sja1105_private *priv,
 	pad_mii_tx.clk_ipud  = 2; /* TX_CLK input stage (default) */
 	sja1105_cfg_pad_mii_tx_packing(packed_buf, &pad_mii_tx, PACK);
 
-	return sja1105_spi_send_packed_buf(priv, SPI_WRITE,
-					   regs->pad_mii_tx[port],
-					   packed_buf, SJA1105_SIZE_CGU_CMD);
+	return sja1105_xfer_buf(priv, SPI_WRITE, regs->pad_mii_tx[port],
+				packed_buf, SJA1105_SIZE_CGU_CMD);
 }
 
 static void
@@ -405,7 +398,7 @@ sja1105_cfg_pad_mii_id_packing(void *buf, struct sja1105_cfg_pad_mii_id *cmd,
 }
 
 /* Valid range in degrees is an integer between 73.8 and 101.7 */
-static inline u64 sja1105_rgmii_delay(u64 phase)
+static u64 sja1105_rgmii_delay(u64 phase)
 {
 	/* UM11040.pdf: The delay in degree phase is 73.8 + delay_tune * 0.9.
 	 * To avoid floating point operations we'll multiply by 10
@@ -442,9 +435,8 @@ int sja1105pqrs_setup_rgmii_delay(const void *ctx, int port)
 	pad_mii_id.txc_pd = 1;
 	sja1105_cfg_pad_mii_id_packing(packed_buf, &pad_mii_id, PACK);
 
-	rc = sja1105_spi_send_packed_buf(priv, SPI_WRITE,
-					 regs->pad_mii_id[port],
-					 packed_buf, SJA1105_SIZE_CGU_CMD);
+	rc = sja1105_xfer_buf(priv, SPI_WRITE, regs->pad_mii_id[port],
+			      packed_buf, SJA1105_SIZE_CGU_CMD);
 	if (rc < 0)
 		return rc;
 
@@ -459,9 +451,8 @@ int sja1105pqrs_setup_rgmii_delay(const void *ctx, int port)
 	}
 	sja1105_cfg_pad_mii_id_packing(packed_buf, &pad_mii_id, PACK);
 
-	return sja1105_spi_send_packed_buf(priv, SPI_WRITE,
-					   regs->pad_mii_id[port],
-					   packed_buf, SJA1105_SIZE_CGU_CMD);
+	return sja1105_xfer_buf(priv, SPI_WRITE, regs->pad_mii_id[port],
+				packed_buf, SJA1105_SIZE_CGU_CMD);
 }
 
 static int sja1105_rgmii_clocking_setup(struct sja1105_private *priv, int port,
@@ -547,9 +538,8 @@ static int sja1105_cgu_rmii_ref_clk_config(struct sja1105_private *priv,
 	ref_clk.pd        = 0;      /* Power Down off => enabled */
 	sja1105_cgu_mii_control_packing(packed_buf, &ref_clk, PACK);
 
-	return sja1105_spi_send_packed_buf(priv, SPI_WRITE,
-					   regs->rmii_ref_clk[port],
-					   packed_buf, SJA1105_SIZE_CGU_CMD);
+	return sja1105_xfer_buf(priv, SPI_WRITE, regs->rmii_ref_clk[port],
+				packed_buf, SJA1105_SIZE_CGU_CMD);
 }
 
 static int
@@ -565,9 +555,8 @@ sja1105_cgu_rmii_ext_tx_clk_config(struct sja1105_private *priv, int port)
 	ext_tx_clk.pd        = 0;   /* Power Down off => enabled */
 	sja1105_cgu_mii_control_packing(packed_buf, &ext_tx_clk, PACK);
 
-	return sja1105_spi_send_packed_buf(priv, SPI_WRITE,
-					   regs->rmii_ext_tx_clk[port],
-					   packed_buf, SJA1105_SIZE_CGU_CMD);
+	return sja1105_xfer_buf(priv, SPI_WRITE, regs->rmii_ext_tx_clk[port],
+				packed_buf, SJA1105_SIZE_CGU_CMD);
 }
 
 static int sja1105_cgu_rmii_pll_config(struct sja1105_private *priv)
@@ -595,8 +584,8 @@ static int sja1105_cgu_rmii_pll_config(struct sja1105_private *priv)
 	pll.pd        = 0x1;
 
 	sja1105_cgu_pll_control_packing(packed_buf, &pll, PACK);
-	rc = sja1105_spi_send_packed_buf(priv, SPI_WRITE, regs->rmii_pll1,
-					 packed_buf, SJA1105_SIZE_CGU_CMD);
+	rc = sja1105_xfer_buf(priv, SPI_WRITE, regs->rmii_pll1, packed_buf,
+			      SJA1105_SIZE_CGU_CMD);
 	if (rc < 0) {
 		dev_err(dev, "failed to configure PLL1 for 50MHz\n");
 		return rc;
@@ -606,8 +595,8 @@ static int sja1105_cgu_rmii_pll_config(struct sja1105_private *priv)
 	pll.pd = 0x0;
 
 	sja1105_cgu_pll_control_packing(packed_buf, &pll, PACK);
-	rc = sja1105_spi_send_packed_buf(priv, SPI_WRITE, regs->rmii_pll1,
-					 packed_buf, SJA1105_SIZE_CGU_CMD);
+	rc = sja1105_xfer_buf(priv, SPI_WRITE, regs->rmii_pll1, packed_buf,
+			      SJA1105_SIZE_CGU_CMD);
 	if (rc < 0) {
 		dev_err(dev, "failed to enable PLL1\n");
 		return rc;

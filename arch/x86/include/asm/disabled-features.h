@@ -22,7 +22,7 @@
 # define DISABLE_SMAP	(1<<(X86_FEATURE_SMAP & 31))
 #endif
 
-#ifdef CONFIG_X86_INTEL_UMIP
+#ifdef CONFIG_X86_UMIP
 # define DISABLE_UMIP	0
 #else
 # define DISABLE_UMIP	(1<<(X86_FEATURE_UMIP & 31))

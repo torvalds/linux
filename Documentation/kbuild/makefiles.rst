@@ -297,9 +297,19 @@ more details, with real examples.
 	If CONFIG_EXT2_FS is set to either 'y' (built-in) or 'm' (modular)
 	the corresponding obj- variable will be set, and kbuild will descend
 	down in the ext2 directory.
-	Kbuild only uses this information to decide that it needs to visit
-	the directory, it is the Makefile in the subdirectory that
-	specifies what is modular and what is built-in.
+
+	Kbuild uses this information not only to decide that it needs to visit
+	the directory, but also to decide whether or not to link objects from
+	the directory into vmlinux.
+
+	When Kbuild descends into the directory with 'y', all built-in objects
+	from that directory are combined into the built-in.a, which will be
+	eventually linked into vmlinux.
+
+	When Kbuild descends into the directory with 'm', in contrast, nothing
+	from that directory will be linked into vmlinux. If the Makefile in
+	that directory specifies obj-y, those objects will be left orphan.
+	It is very likely a bug of the Makefile or of dependencies in Kconfig.
 
 	It is good practice to use a `CONFIG_` variable when assigning directory
 	names. This allows kbuild to totally skip the directory if the
@@ -1114,23 +1124,6 @@ When kbuild executes, the following steps are followed (roughly):
 
 	In this example, extra-y is used to list object files that
 	shall be built, but shall not be linked as part of built-in.a.
-
-    header-test-y
-
-	header-test-y specifies headers (`*.h`) in the current directory that
-	should be compile tested to ensure they are self-contained,
-	i.e. compilable as standalone units. If CONFIG_HEADER_TEST is enabled,
-	this builds them as part of extra-y.
-
-    header-test-pattern-y
-
-	This works as a weaker version of header-test-y, and accepts wildcard
-	patterns. The typical usage is::
-
-		header-test-pattern-y += *.h
-
-	This specifies all the files that matches to `*.h` in the current
-	directory, but the files in 'header-test-' are excluded.
 
 6.7 Commands useful for building a boot image
 ---------------------------------------------

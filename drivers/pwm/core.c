@@ -472,14 +472,7 @@ int pwm_apply_state(struct pwm_device *pwm, const struct pwm_state *state)
 		if (err)
 			return err;
 
-		/*
-		 * .apply might have to round some values in *state, if possible
-		 * read the actually implemented value back.
-		 */
-		if (chip->ops->get_state)
-			chip->ops->get_state(chip, pwm, &pwm->state);
-		else
-			pwm->state = *state;
+		pwm->state = *state;
 	} else {
 		/*
 		 * FIXME: restore the initial state in case of error.

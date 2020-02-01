@@ -134,7 +134,7 @@ static int lm3646_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct lm3646_flash *flash = to_lm3646_flash(ctrl);
 	unsigned int reg_val;
-	int rval = -EINVAL;
+	int rval;
 
 	switch (ctrl->id) {
 	case V4L2_CID_FLASH_LED_MODE:

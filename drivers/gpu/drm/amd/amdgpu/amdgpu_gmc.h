@@ -77,6 +77,7 @@ struct amdgpu_gmc_fault {
 struct amdgpu_vmhub {
 	uint32_t	ctx0_ptb_addr_lo32;
 	uint32_t	ctx0_ptb_addr_hi32;
+	uint32_t	vm_inv_eng0_sem;
 	uint32_t	vm_inv_eng0_req;
 	uint32_t	vm_inv_eng0_ack;
 	uint32_t	vm_context0_cntl;
@@ -99,12 +100,15 @@ struct amdgpu_gmc_funcs {
 				   unsigned pasid);
 	/* enable/disable PRT support */
 	void (*set_prt)(struct amdgpu_device *adev, bool enable);
-	/* set pte flags based per asic */
-	uint64_t (*get_vm_pte_flags)(struct amdgpu_device *adev,
-				     uint32_t flags);
+	/* map mtype to hardware flags */
+	uint64_t (*map_mtype)(struct amdgpu_device *adev, uint32_t flags);
 	/* get the pde for a given mc addr */
 	void (*get_vm_pde)(struct amdgpu_device *adev, int level,
 			   u64 *dst, u64 *flags);
+	/* get the pte flags to use for a BO VA mapping */
+	void (*get_vm_pte)(struct amdgpu_device *adev,
+			   struct amdgpu_bo_va_mapping *mapping,
+			   uint64_t *flags);
 };
 
 struct amdgpu_xgmi {
@@ -120,21 +124,52 @@ struct amdgpu_xgmi {
 	/* gpu list in the same hive */
 	struct list_head head;
 	bool supported;
+	struct ras_common_if *ras_if;
 };
 
 struct amdgpu_gmc {
+	/* FB's physical address in MMIO space (for CPU to
+	 * map FB). This is different compared to the agp/
+	 * gart/vram_start/end field as the later is from
+	 * GPU's view and aper_base is from CPU's view.
+	 */
 	resource_size_t		aper_size;
 	resource_size_t		aper_base;
 	/* for some chips with <= 32MB we need to lie
 	 * about vram size near mc fb location */
 	u64			mc_vram_size;
 	u64			visible_vram_size;
+	/* AGP aperture start and end in MC address space
+	 * Driver find a hole in the MC address space
+	 * to place AGP by setting MC_VM_AGP_BOT/TOP registers
+	 * Under VMID0, logical address == MC address. AGP
+	 * aperture maps to physical bus or IOVA addressed.
+	 * AGP aperture is used to simulate FB in ZFB case.
+	 * AGP aperture is also used for page table in system
+	 * memory (mainly for APU).
+	 *
+	 */
 	u64			agp_size;
 	u64			agp_start;
 	u64			agp_end;
+	/* GART aperture start and end in MC address space
+	 * Driver find a hole in the MC address space
+	 * to place GART by setting VM_CONTEXT0_PAGE_TABLE_START/END_ADDR
+	 * registers
+	 * Under VMID0, logical address inside GART aperture will
+	 * be translated through gpuvm gart page table to access
+	 * paged system memory
+	 */
 	u64			gart_size;
 	u64			gart_start;
 	u64			gart_end;
+	/* Frame buffer aperture of this GPU device. Different from
+	 * fb_start (see below), this only covers the local GPU device.
+	 * Driver get fb_start from MC_VM_FB_LOCATION_BASE (set by vbios)
+	 * and calculate vram_start of this local device by adding an
+	 * offset inside the XGMI hive.
+	 * Under VMID0, logical address == MC address
+	 */
 	u64			vram_start;
 	u64			vram_end;
 	/* FB region , it's same as local vram region in single GPU, in XGMI
@@ -153,6 +188,7 @@ struct amdgpu_gmc {
 	uint32_t                fw_version;
 	struct amdgpu_irq_src	vm_fault;
 	uint32_t		vram_type;
+	uint8_t			vram_vendor;
 	uint32_t                srbm_soft_reset;
 	bool			prt_warning;
 	uint64_t		stolen_size;
@@ -177,15 +213,14 @@ struct amdgpu_gmc {
 
 	struct amdgpu_xgmi xgmi;
 	struct amdgpu_irq_src	ecc_irq;
-	struct ras_common_if    *umc_ras_if;
-	struct ras_common_if    *mmhub_ras_if;
 };
 
 #define amdgpu_gmc_flush_gpu_tlb(adev, vmid, vmhub, type) ((adev)->gmc.gmc_funcs->flush_gpu_tlb((adev), (vmid), (vmhub), (type)))
 #define amdgpu_gmc_emit_flush_gpu_tlb(r, vmid, addr) (r)->adev->gmc.gmc_funcs->emit_flush_gpu_tlb((r), (vmid), (addr))
 #define amdgpu_gmc_emit_pasid_mapping(r, vmid, pasid) (r)->adev->gmc.gmc_funcs->emit_pasid_mapping((r), (vmid), (pasid))
+#define amdgpu_gmc_map_mtype(adev, flags) (adev)->gmc.gmc_funcs->map_mtype((adev),(flags))
 #define amdgpu_gmc_get_vm_pde(adev, level, dst, flags) (adev)->gmc.gmc_funcs->get_vm_pde((adev), (level), (dst), (flags))
-#define amdgpu_gmc_get_pte_flags(adev, flags) (adev)->gmc.gmc_funcs->get_vm_pte_flags((adev),(flags))
+#define amdgpu_gmc_get_vm_pte(adev, mapping, flags) (adev)->gmc.gmc_funcs->get_vm_pte((adev), (mapping), (flags))
 
 /**
  * amdgpu_gmc_vram_full_visible - Check if full VRAM is visible through the BAR
@@ -230,5 +265,7 @@ void amdgpu_gmc_agp_location(struct amdgpu_device *adev,
 			     struct amdgpu_gmc *mc);
 bool amdgpu_gmc_filter_faults(struct amdgpu_device *adev, uint64_t addr,
 			      uint16_t pasid, uint64_t timestamp);
+int amdgpu_gmc_ras_late_init(struct amdgpu_device *adev);
+void amdgpu_gmc_ras_fini(struct amdgpu_device *adev);
 
 #endif

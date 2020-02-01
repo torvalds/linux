@@ -4,7 +4,8 @@
  * Copyright © 2018 Intel Corporation
  */
 
-#include "../i915_drv.h"
+#include "i915_drv.h"
+#include "gt/intel_gt_requests.h"
 
 #include "../i915_selftest.h"
 #include "igt_flush_test.h"
@@ -15,20 +16,16 @@ int igt_live_test_begin(struct igt_live_test *t,
 			const char *func,
 			const char *name)
 {
+	struct intel_gt *gt = &i915->gt;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 	int err;
-
-	lockdep_assert_held(&i915->drm.struct_mutex);
 
 	t->i915 = i915;
 	t->func = func;
 	t->name = name;
 
-	err = i915_gem_wait_for_idle(i915,
-				     I915_WAIT_INTERRUPTIBLE |
-				     I915_WAIT_LOCKED,
-				     MAX_SCHEDULE_TIMEOUT);
+	err = intel_gt_wait_for_idle(gt, MAX_SCHEDULE_TIMEOUT);
 	if (err) {
 		pr_err("%s(%s): failed to idle before, with err=%d!",
 		       func, name, err);
@@ -37,7 +34,7 @@ int igt_live_test_begin(struct igt_live_test *t,
 
 	t->reset_global = i915_reset_count(&i915->gpu_error);
 
-	for_each_engine(engine, i915, id)
+	for_each_engine(engine, gt, id)
 		t->reset_engine[id] =
 			i915_reset_engine_count(&i915->gpu_error, engine);
 
@@ -50,9 +47,7 @@ int igt_live_test_end(struct igt_live_test *t)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
-	lockdep_assert_held(&i915->drm.struct_mutex);
-
-	if (igt_flush_test(i915, I915_WAIT_LOCKED))
+	if (igt_flush_test(i915))
 		return -EIO;
 
 	if (t->reset_global != i915_reset_count(&i915->gpu_error)) {
@@ -62,7 +57,7 @@ int igt_live_test_end(struct igt_live_test *t)
 		return -EIO;
 	}
 
-	for_each_engine(engine, i915, id) {
+	for_each_engine(engine, &i915->gt, id) {
 		if (t->reset_engine[id] ==
 		    i915_reset_engine_count(&i915->gpu_error, engine))
 			continue;

@@ -286,27 +286,60 @@ extern int edac_device_add_device(struct edac_device_ctl_info *edac_dev);
 extern struct edac_device_ctl_info *edac_device_del_device(struct device *dev);
 
 /**
- * edac_device_handle_ue():
- *	perform a common output and handling of an 'edac_dev' UE event
+ * Log correctable errors.
  *
  * @edac_dev: pointer to struct &edac_device_ctl_info
- * @inst_nr: number of the instance where the UE error happened
- * @block_nr: number of the block where the UE error happened
+ * @inst_nr: number of the instance where the CE error happened
+ * @count: Number of errors to log.
+ * @block_nr: number of the block where the CE error happened
  * @msg: message to be printed
  */
-extern void edac_device_handle_ue(struct edac_device_ctl_info *edac_dev,
-				int inst_nr, int block_nr, const char *msg);
+void edac_device_handle_ce_count(struct edac_device_ctl_info *edac_dev,
+				 unsigned int count, int inst_nr, int block_nr,
+				 const char *msg);
+
 /**
- * edac_device_handle_ce():
- *	perform a common output and handling of an 'edac_dev' CE event
+ * Log uncorrectable errors.
+ *
+ * @edac_dev: pointer to struct &edac_device_ctl_info
+ * @inst_nr: number of the instance where the CE error happened
+ * @count: Number of errors to log.
+ * @block_nr: number of the block where the CE error happened
+ * @msg: message to be printed
+ */
+void edac_device_handle_ue_count(struct edac_device_ctl_info *edac_dev,
+				 unsigned int count, int inst_nr, int block_nr,
+				 const char *msg);
+
+/**
+ * edac_device_handle_ce(): Log a single correctable error
  *
  * @edac_dev: pointer to struct &edac_device_ctl_info
  * @inst_nr: number of the instance where the CE error happened
  * @block_nr: number of the block where the CE error happened
  * @msg: message to be printed
  */
-extern void edac_device_handle_ce(struct edac_device_ctl_info *edac_dev,
-				int inst_nr, int block_nr, const char *msg);
+static inline void
+edac_device_handle_ce(struct edac_device_ctl_info *edac_dev, int inst_nr,
+		      int block_nr, const char *msg)
+{
+	edac_device_handle_ce_count(edac_dev, 1, inst_nr, block_nr, msg);
+}
+
+/**
+ * edac_device_handle_ue(): Log a single uncorrectable error
+ *
+ * @edac_dev: pointer to struct &edac_device_ctl_info
+ * @inst_nr: number of the instance where the UE error happened
+ * @block_nr: number of the block where the UE error happened
+ * @msg: message to be printed
+ */
+static inline void
+edac_device_handle_ue(struct edac_device_ctl_info *edac_dev, int inst_nr,
+		      int block_nr, const char *msg)
+{
+	edac_device_handle_ue_count(edac_dev, 1, inst_nr, block_nr, msg);
+}
 
 /**
  * edac_device_alloc_index: Allocate a unique device index number
@@ -316,5 +349,4 @@ extern void edac_device_handle_ce(struct edac_device_ctl_info *edac_dev,
  */
 extern int edac_device_alloc_index(void);
 extern const char *edac_layer_name[];
-
 #endif
