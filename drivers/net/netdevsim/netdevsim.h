@@ -240,6 +240,7 @@ struct nsim_bus_dev {
 				  */
 	unsigned int num_vfs;
 	struct nsim_vf_config *vfconfigs;
+	bool init;
 };
 
 int nsim_bus_init(void);
