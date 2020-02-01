@@ -145,13 +145,6 @@ ENDPROC(coprocessor_flush)
  *	     <  VALID_DOUBLE_EXCEPTION_ADDRESS: regular exception
  */
 
-ENTRY(fast_coprocessor_double)
-
-	wsr	a0, excsave1
-	call0	unrecoverable_exception
-
-ENDPROC(fast_coprocessor_double)
-
 ENTRY(fast_coprocessor)
 
 	/* Save remaining registers a1-a3 and SAR */
