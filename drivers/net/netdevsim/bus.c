@@ -97,6 +97,8 @@ new_port_store(struct device *dev, struct device_attribute *attr,
 	       const char *buf, size_t count)
 {
 	struct nsim_bus_dev *nsim_bus_dev = to_nsim_bus_dev(dev);
+	struct nsim_dev *nsim_dev = dev_get_drvdata(dev);
+	struct devlink *devlink;
 	unsigned int port_index;
 	int ret;
 
@@ -106,7 +108,14 @@ new_port_store(struct device *dev, struct device_attribute *attr,
 	ret = kstrtouint(buf, 0, &port_index);
 	if (ret)
 		return ret;
+
+	devlink = priv_to_devlink(nsim_dev);
+
+	mutex_lock(&nsim_bus_dev->nsim_bus_reload_lock);
+	devlink_reload_disable(devlink);
 	ret = nsim_dev_port_add(nsim_bus_dev, port_index);
+	devlink_reload_enable(devlink);
+	mutex_unlock(&nsim_bus_dev->nsim_bus_reload_lock);
 	return ret ? ret : count;
 }
 
@@ -117,6 +126,8 @@ del_port_store(struct device *dev, struct device_attribute *attr,
 	       const char *buf, size_t count)
 {
 	struct nsim_bus_dev *nsim_bus_dev = to_nsim_bus_dev(dev);
+	struct nsim_dev *nsim_dev = dev_get_drvdata(dev);
+	struct devlink *devlink;
 	unsigned int port_index;
 	int ret;
 
@@ -126,7 +137,14 @@ del_port_store(struct device *dev, struct device_attribute *attr,
 	ret = kstrtouint(buf, 0, &port_index);
 	if (ret)
 		return ret;
+
+	devlink = priv_to_devlink(nsim_dev);
+
+	mutex_lock(&nsim_bus_dev->nsim_bus_reload_lock);
+	devlink_reload_disable(devlink);
 	ret = nsim_dev_port_del(nsim_bus_dev, port_index);
+	devlink_reload_enable(devlink);
+	mutex_unlock(&nsim_bus_dev->nsim_bus_reload_lock);
 	return ret ? ret : count;
 }
 
@@ -311,6 +329,7 @@ nsim_bus_dev_new(unsigned int id, unsigned int port_count)
 	nsim_bus_dev->dev.type = &nsim_bus_dev_type;
 	nsim_bus_dev->port_count = port_count;
 	nsim_bus_dev->initial_net = current->nsproxy->net_ns;
+	mutex_init(&nsim_bus_dev->nsim_bus_reload_lock);
 	/* Disallow using nsim_bus_dev */
 	smp_store_release(&nsim_bus_dev->init, false);
 
