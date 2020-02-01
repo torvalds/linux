@@ -77,11 +77,11 @@ static int nsim_dev_debugfs_init(struct nsim_dev *nsim_dev)
 
 	sprintf(dev_ddir_name, DRV_NAME "%u", nsim_dev->nsim_bus_dev->dev.id);
 	nsim_dev->ddir = debugfs_create_dir(dev_ddir_name, nsim_dev_ddir);
-	if (IS_ERR_OR_NULL(nsim_dev->ddir))
-		return PTR_ERR_OR_ZERO(nsim_dev->ddir) ?: -EINVAL;
+	if (IS_ERR(nsim_dev->ddir))
+		return PTR_ERR(nsim_dev->ddir);
 	nsim_dev->ports_ddir = debugfs_create_dir("ports", nsim_dev->ddir);
-	if (IS_ERR_OR_NULL(nsim_dev->ports_ddir))
-		return PTR_ERR_OR_ZERO(nsim_dev->ports_ddir) ?: -EINVAL;
+	if (IS_ERR(nsim_dev->ports_ddir))
+		return PTR_ERR(nsim_dev->ports_ddir);
 	debugfs_create_bool("fw_update_status", 0600, nsim_dev->ddir,
 			    &nsim_dev->fw_update_status);
 	debugfs_create_u32("max_macs", 0600, nsim_dev->ddir,
@@ -115,8 +115,8 @@ static int nsim_dev_port_debugfs_init(struct nsim_dev *nsim_dev,
 	sprintf(port_ddir_name, "%u", nsim_dev_port->port_index);
 	nsim_dev_port->ddir = debugfs_create_dir(port_ddir_name,
 						 nsim_dev->ports_ddir);
-	if (IS_ERR_OR_NULL(nsim_dev_port->ddir))
-		return -ENOMEM;
+	if (IS_ERR(nsim_dev_port->ddir))
+		return PTR_ERR(nsim_dev_port->ddir);
 
 	sprintf(dev_link_name, "../../../" DRV_NAME "%u",
 		nsim_dev->nsim_bus_dev->dev.id);
@@ -934,8 +934,8 @@ int nsim_dev_port_del(struct nsim_bus_dev *nsim_bus_dev,
 int nsim_dev_init(void)
 {
 	nsim_dev_ddir = debugfs_create_dir(DRV_NAME, NULL);
-	if (IS_ERR_OR_NULL(nsim_dev_ddir))
-		return -ENOMEM;
+	if (IS_ERR(nsim_dev_ddir))
+		return PTR_ERR(nsim_dev_ddir);
 	return 0;
 }
 
