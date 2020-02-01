@@ -551,6 +551,11 @@ static int mt7615_load_n9(struct mt7615_dev *dev, const char *name)
 		 sizeof(dev->mt76.hw->wiphy->fw_version),
 		 "%.10s-%.15s", hdr->fw_ver, hdr->build_date);
 
+	if (!strncmp(hdr->fw_ver, "2.0", sizeof(hdr->fw_ver)))
+		dev->fw_ver = MT7615_FIRMWARE_V2;
+	else
+		dev->fw_ver = MT7615_FIRMWARE_V1;
+
 out:
 	release_firmware(fw);
 	return ret;
@@ -1121,10 +1126,11 @@ static int
 mt7615_mcu_send_sta_rec(struct mt7615_dev *dev, u8 *req, u8 *wreq,
 			u8 wlen, bool enable)
 {
-	u32 slen = wreq - req;
+	bool is_v1 = (dev->fw_ver == MT7615_FIRMWARE_V1);
+	u32 slen = is_v1 ? wreq - req : wreq - req + wlen;
 	int ret;
 
-	if (!enable) {
+	if (is_v1 && !enable) {
 		ret = __mt76_mcu_send_msg(&dev->mt76,
 					  MCU_EXT_CMD_STA_REC_UPDATE,
 					  req, slen, true);
@@ -1135,10 +1141,12 @@ mt7615_mcu_send_sta_rec(struct mt7615_dev *dev, u8 *req, u8 *wreq,
 					   wreq, wlen, true);
 	}
 
-	ret = __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_WTBL_UPDATE, wreq,
-				  wlen, true);
-	if (ret)
-		return ret;
+	if (is_v1) {
+		ret = __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_WTBL_UPDATE,
+					  wreq, wlen, true);
+		if (ret)
+			return ret;
+	}
 
 	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_STA_REC_UPDATE,
 				   req, slen, true);

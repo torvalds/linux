@@ -36,6 +36,9 @@
 #define MT7622_FIRMWARE_N9		"mediatek/mt7622_n9.bin"
 #define MT7622_ROM_PATCH		"mediatek/mt7622_rom_patch.bin"
 
+#define MT7615_FIRMWARE_V1		1
+#define MT7615_FIRMWARE_V2		2
+
 #define MT7615_EEPROM_SIZE		1024
 #define MT7615_TOKEN_SIZE		4096
 
@@ -178,6 +181,8 @@ struct mt7615_dev {
 
 	spinlock_t token_lock;
 	struct idr token;
+
+	u8 fw_ver;
 };
 
 enum {
