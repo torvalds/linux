@@ -495,8 +495,8 @@ struct intel_atomic_state {
 	 */
 	bool global_state_changed;
 
-	/* Gen9+ only */
-	struct skl_ddb_values wm_results;
+	/* Number of enabled DBuf slices */
+	u8 enabled_dbuf_slices_num;
 
 	struct i915_sw_fence commit_ready;
 

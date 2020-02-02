@@ -3597,16 +3597,16 @@ bool ilk_disable_lp_wm(struct drm_i915_private *dev_priv)
 	return _ilk_disable_lp_wm(dev_priv, WM_DIRTY_LP_ALL);
 }
 
-static u8 intel_enabled_dbuf_slices_num(struct drm_i915_private *dev_priv)
+u8 intel_enabled_dbuf_slices_num(struct drm_i915_private *dev_priv)
 {
-	u8 enabled_slices;
+	u8 enabled_dbuf_slices_num;
 
 	/* Slice 1 will always be enabled */
-	enabled_slices = 1;
+	enabled_dbuf_slices_num = 1;
 
 	/* Gen prior to GEN11 have only one DBuf slice */
 	if (INTEL_GEN(dev_priv) < 11)
-		return enabled_slices;
+		return enabled_dbuf_slices_num;
 
 	/*
 	 * FIXME: for now we'll only ever use 1 slice; pretend that we have
@@ -3614,9 +3614,9 @@ static u8 intel_enabled_dbuf_slices_num(struct drm_i915_private *dev_priv)
 	 * toggling of the second slice.
 	 */
 	if (0 && I915_READ(DBUF_CTL_S2) & DBUF_POWER_STATE)
-		enabled_slices++;
+		enabled_dbuf_slices_num++;
 
-	return enabled_slices;
+	return enabled_dbuf_slices_num;
 }
 
 /*
@@ -3820,9 +3820,10 @@ bool intel_can_enable_sagv(struct intel_atomic_state *state)
 static u16 intel_get_ddb_size(struct drm_i915_private *dev_priv,
 			      const struct intel_crtc_state *crtc_state,
 			      const u64 total_data_rate,
-			      const int num_active,
-			      struct skl_ddb_allocation *ddb)
+			      const int num_active)
 {
+	struct drm_atomic_state *state = crtc_state->uapi.state;
+	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
 	const struct drm_display_mode *adjusted_mode;
 	u64 total_data_bw;
 	u16 ddb_size = INTEL_INFO(dev_priv)->ddb_size;
@@ -3844,9 +3845,9 @@ static u16 intel_get_ddb_size(struct drm_i915_private *dev_priv,
 	 * - should validate we stay within the hw bandwidth limits
 	 */
 	if (0 && (num_active > 1 || total_data_bw >= GBps(12))) {
-		ddb->enabled_slices = 2;
+		intel_state->enabled_dbuf_slices_num = 2;
 	} else {
-		ddb->enabled_slices = 1;
+		intel_state->enabled_dbuf_slices_num = 1;
 		ddb_size /= 2;
 	}
 
@@ -3857,7 +3858,6 @@ static void
 skl_ddb_get_pipe_allocation_limits(struct drm_i915_private *dev_priv,
 				   const struct intel_crtc_state *crtc_state,
 				   const u64 total_data_rate,
-				   struct skl_ddb_allocation *ddb,
 				   struct skl_ddb_entry *alloc, /* out */
 				   int *num_active /* out */)
 {
@@ -3883,7 +3883,7 @@ skl_ddb_get_pipe_allocation_limits(struct drm_i915_private *dev_priv,
 		*num_active = hweight8(dev_priv->active_pipes);
 
 	ddb_size = intel_get_ddb_size(dev_priv, crtc_state, total_data_rate,
-				      *num_active, ddb);
+				      *num_active);
 
 	/*
 	 * If the state doesn't change the active CRTC's or there is no
@@ -4044,10 +4044,10 @@ void skl_pipe_ddb_get_hw_state(struct intel_crtc *crtc,
 	intel_display_power_put(dev_priv, power_domain, wakeref);
 }
 
-void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv,
-			  struct skl_ddb_allocation *ddb /* out */)
+void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv)
 {
-	ddb->enabled_slices = intel_enabled_dbuf_slices_num(dev_priv);
+	dev_priv->enabled_dbuf_slices_num =
+				intel_enabled_dbuf_slices_num(dev_priv);
 }
 
 /*
@@ -4224,8 +4224,7 @@ icl_get_total_relative_data_rate(struct intel_crtc_state *crtc_state,
 }
 
 static int
-skl_allocate_pipe_ddb(struct intel_crtc_state *crtc_state,
-		      struct skl_ddb_allocation *ddb /* out */)
+skl_allocate_pipe_ddb(struct intel_crtc_state *crtc_state)
 {
 	struct drm_atomic_state *state = crtc_state->uapi.state;
 	struct drm_crtc *crtc = crtc_state->uapi.crtc;
@@ -4267,7 +4266,7 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *crtc_state,
 
 
 	skl_ddb_get_pipe_allocation_limits(dev_priv, crtc_state, total_data_rate,
-					   ddb, alloc, &num_active);
+					   alloc, &num_active);
 	alloc_size = skl_ddb_entry_size(alloc);
 	if (alloc_size == 0)
 		return 0;
@@ -5150,18 +5149,17 @@ skl_ddb_add_affected_planes(const struct intel_crtc_state *old_crtc_state,
 static int
 skl_compute_ddb(struct intel_atomic_state *state)
 {
-	const struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	struct skl_ddb_allocation *ddb = &state->wm_results.ddb;
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_crtc_state *old_crtc_state;
 	struct intel_crtc_state *new_crtc_state;
 	struct intel_crtc *crtc;
 	int ret, i;
 
-	memcpy(ddb, &dev_priv->wm.skl_hw.ddb, sizeof(*ddb));
+	state->enabled_dbuf_slices_num = dev_priv->enabled_dbuf_slices_num;
 
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
-		ret = skl_allocate_pipe_ddb(new_crtc_state, ddb);
+		ret = skl_allocate_pipe_ddb(new_crtc_state);
 		if (ret)
 			return ret;
 
@@ -5589,11 +5587,10 @@ void skl_pipe_wm_get_hw_state(struct intel_crtc *crtc,
 
 void skl_wm_get_hw_state(struct drm_i915_private *dev_priv)
 {
-	struct skl_ddb_allocation *ddb = &dev_priv->wm.skl_hw.ddb;
 	struct intel_crtc *crtc;
 	struct intel_crtc_state *crtc_state;
 
-	skl_ddb_get_hw_state(dev_priv, ddb);
+	skl_ddb_get_hw_state(dev_priv);
 	for_each_intel_crtc(&dev_priv->drm, crtc) {
 		crtc_state = to_intel_crtc_state(crtc->base.state);
 

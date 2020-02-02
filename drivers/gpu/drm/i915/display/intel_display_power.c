@@ -4443,7 +4443,7 @@ static u8 intel_dbuf_max_slices(struct drm_i915_private *dev_priv)
 void icl_dbuf_slices_update(struct drm_i915_private *dev_priv,
 			    u8 req_slices)
 {
-	const u8 hw_enabled_slices = dev_priv->wm.skl_hw.ddb.enabled_slices;
+	const u8 hw_enabled_slices = dev_priv->enabled_dbuf_slices_num;
 	bool ret;
 
 	if (req_slices > intel_dbuf_max_slices(dev_priv)) {
@@ -4461,7 +4461,7 @@ void icl_dbuf_slices_update(struct drm_i915_private *dev_priv,
 		ret = intel_dbuf_slice_set(dev_priv, DBUF_CTL_S2, false);
 
 	if (ret)
-		dev_priv->wm.skl_hw.ddb.enabled_slices = req_slices;
+		dev_priv->enabled_dbuf_slices_num = req_slices;
 }
 
 static void icl_dbuf_enable(struct drm_i915_private *dev_priv)
@@ -4482,7 +4482,7 @@ static void icl_dbuf_enable(struct drm_i915_private *dev_priv)
 		 * FIXME: for now pretend that we only have 1 slice, see
 		 * intel_enabled_dbuf_slices_num().
 		 */
-		dev_priv->wm.skl_hw.ddb.enabled_slices = 1;
+		dev_priv->enabled_dbuf_slices_num = 1;
 }
 
 static void icl_dbuf_disable(struct drm_i915_private *dev_priv)
@@ -4503,7 +4503,7 @@ static void icl_dbuf_disable(struct drm_i915_private *dev_priv)
 		 * FIXME: for now pretend that the first slice is always
 		 * enabled, see intel_enabled_dbuf_slices_num().
 		 */
-		dev_priv->wm.skl_hw.ddb.enabled_slices = 1;
+		dev_priv->enabled_dbuf_slices_num = 1;
 }
 
 static void icl_mbus_init(struct drm_i915_private *dev_priv)

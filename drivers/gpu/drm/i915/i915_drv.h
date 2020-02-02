@@ -798,14 +798,6 @@ static inline bool skl_ddb_entry_equal(const struct skl_ddb_entry *e1,
 	return false;
 }
 
-struct skl_ddb_allocation {
-	u8 enabled_slices; /* GEN11 has configurable 2 slices */
-};
-
-struct skl_ddb_values {
-	struct skl_ddb_allocation ddb;
-};
-
 struct skl_wm_level {
 	u16 min_ddb_alloc;
 	u16 plane_res_b;
@@ -1173,7 +1165,6 @@ struct drm_i915_private {
 		/* current hardware state */
 		union {
 			struct ilk_wm_values hw;
-			struct skl_ddb_values skl_hw;
 			struct vlv_wm_values vlv;
 			struct g4x_wm_values g4x;
 		};
@@ -1194,6 +1185,8 @@ struct drm_i915_private {
 		 */
 		bool distrust_bios_wm;
 	} wm;
+
+	u8 enabled_dbuf_slices_num; /* GEN11 has configurable 2 slices */
 
 	struct dram_info {
 		bool valid;
