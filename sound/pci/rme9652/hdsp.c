@@ -4802,7 +4802,7 @@ static int snd_hdsp_hwdep_ioctl(struct snd_hwdep *hw, struct file *file, unsigne
 		break;
 	}
 	case SNDRV_HDSP_IOCTL_UPLOAD_FIRMWARE: {
-		struct hdsp_firmware __user *firmware;
+		struct hdsp_firmware firmware;
 		u32 __user *firmware_data;
 		int err;
 
@@ -4815,10 +4815,9 @@ static int snd_hdsp_hwdep_ioctl(struct snd_hwdep *hw, struct file *file, unsigne
 
 		dev_info(hdsp->card->dev,
 			 "initializing firmware upload\n");
-		firmware = (struct hdsp_firmware __user *)argp;
-
-		if (get_user(firmware_data, (__force void __user **)&firmware->firmware_data))
+		if (copy_from_user(&firmware, argp, sizeof(firmware)))
 			return -EFAULT;
+		firmware_data = (u32 __user *)firmware.firmware_data;
 
 		if (hdsp_check_for_iobox (hdsp))
 			return -EIO;
