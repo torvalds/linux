@@ -750,7 +750,7 @@ __smb2_handle_cancelled_close(struct cifs_tcon *tcon, __u64 persistent_fid,
 {
 	struct close_cancelled_open *cancelled;
 
-	cancelled = kzalloc(sizeof(*cancelled), GFP_KERNEL);
+	cancelled = kzalloc(sizeof(*cancelled), GFP_ATOMIC);
 	if (!cancelled)
 		return -ENOMEM;
 
