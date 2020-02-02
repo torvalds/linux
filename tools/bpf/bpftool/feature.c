@@ -580,7 +580,7 @@ probe_large_insn_limit(const char *define_prefix, __u32 ifindex)
 	res = bpf_probe_large_insn_limit(ifindex);
 	print_bool_feature("have_large_insn_limit",
 			   "Large program size limit",
-			   "HAVE_LARGE_INSN_LIMIT",
+			   "LARGE_INSN_LIMIT",
 			   res, define_prefix);
 }
 
