@@ -97,6 +97,7 @@ static int get_omac_idx(enum nl80211_iftype type, u32 mask)
 	int i;
 
 	switch (type) {
+	case NL80211_IFTYPE_MONITOR:
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_MESH_POINT:
 	case NL80211_IFTYPE_ADHOC:
