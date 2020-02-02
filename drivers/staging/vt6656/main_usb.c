@@ -858,9 +858,7 @@ static int vnt_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	switch (cmd) {
 	case SET_KEY:
-		if (vnt_set_keys(hw, sta, vif, key))
-			return -EOPNOTSUPP;
-		break;
+		return vnt_set_keys(hw, sta, vif, key);
 	case DISABLE_KEY:
 		if (test_bit(key->hw_key_idx, &priv->key_entry_inuse))
 			clear_bit(key->hw_key_idx, &priv->key_entry_inuse);
