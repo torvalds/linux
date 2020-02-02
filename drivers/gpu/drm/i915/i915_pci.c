@@ -615,7 +615,8 @@ static const struct intel_device_info chv_info = {
 	.has_gt_uc = 1, \
 	.display.has_hdcp = 1, \
 	.display.has_ipc = 1, \
-	.ddb_size = 896
+	.ddb_size = 896, \
+	.num_supported_dbuf_slices = 1
 
 #define SKL_PLATFORM \
 	GEN9_FEATURES, \
@@ -650,6 +651,7 @@ static const struct intel_device_info skl_gt4_info = {
 #define GEN9_LP_FEATURES \
 	GEN(9), \
 	.is_lp = 1, \
+	.num_supported_dbuf_slices = 1, \
 	.display.has_hotplug = 1, \
 	.engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0), \
 	.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C), \
@@ -774,6 +776,7 @@ static const struct intel_device_info cnl_info = {
 	}, \
 	GEN(11), \
 	.ddb_size = 2048, \
+	.num_supported_dbuf_slices = 2, \
 	.has_logical_ring_elsq = 1, \
 	.color = { .degamma_lut_size = 33, .gamma_lut_size = 262145 }
 

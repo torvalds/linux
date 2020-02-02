@@ -14084,13 +14084,13 @@ static void verify_wm_state(struct intel_crtc *crtc,
 
 	skl_pipe_ddb_get_hw_state(crtc, hw->ddb_y, hw->ddb_uv);
 
-	hw_enabled_slices = intel_enabled_dbuf_slices_num(dev_priv);
+	hw_enabled_slices = intel_enabled_dbuf_slices_mask(dev_priv);
 
 	if (INTEL_GEN(dev_priv) >= 11 &&
-	    hw_enabled_slices != dev_priv->enabled_dbuf_slices_num)
+	    hw_enabled_slices != dev_priv->enabled_dbuf_slices_mask)
 		drm_err(&dev_priv->drm,
-			"mismatch in DBUF Slices (expected %u, got %u)\n",
-			dev_priv->enabled_dbuf_slices_num,
+			"mismatch in DBUF Slices (expected 0x%x, got 0x%x)\n",
+			dev_priv->enabled_dbuf_slices_mask,
 			hw_enabled_slices);
 
 	/* planes */
@@ -15448,22 +15448,23 @@ static void intel_update_trans_port_sync_crtcs(struct intel_crtc *crtc,
 static void icl_dbuf_slice_pre_update(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	u8 hw_enabled_slices = dev_priv->enabled_dbuf_slices_num;
-	u8 required_slices = state->enabled_dbuf_slices_num;
+	u8 hw_enabled_slices = dev_priv->enabled_dbuf_slices_mask;
+	u8 required_slices = state->enabled_dbuf_slices_mask;
+	u8 slices_union = hw_enabled_slices | required_slices;
 
 	/* If 2nd DBuf slice required, enable it here */
-	if (INTEL_GEN(dev_priv) >= 11 && required_slices > hw_enabled_slices)
-		icl_dbuf_slices_update(dev_priv, required_slices);
+	if (INTEL_GEN(dev_priv) >= 11 && slices_union != hw_enabled_slices)
+		icl_dbuf_slices_update(dev_priv, slices_union);
 }
 
 static void icl_dbuf_slice_post_update(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	u8 hw_enabled_slices = dev_priv->enabled_dbuf_slices_num;
-	u8 required_slices = state->enabled_dbuf_slices_num;
+	u8 hw_enabled_slices = dev_priv->enabled_dbuf_slices_mask;
+	u8 required_slices = state->enabled_dbuf_slices_mask;
 
 	/* If 2nd DBuf slice is no more required disable it */
-	if (INTEL_GEN(dev_priv) >= 11 && required_slices < hw_enabled_slices)
+	if (INTEL_GEN(dev_priv) >= 11 && required_slices != hw_enabled_slices)
 		icl_dbuf_slices_update(dev_priv, required_slices);
 }
 

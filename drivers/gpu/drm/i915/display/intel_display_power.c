@@ -15,6 +15,7 @@
 #include "intel_display_types.h"
 #include "intel_dpio_phy.h"
 #include "intel_hotplug.h"
+#include "intel_pm.h"
 #include "intel_sideband.h"
 #include "intel_tc.h"
 #include "intel_vga.h"
@@ -1041,11 +1042,13 @@ static bool gen9_dc_off_power_well_enabled(struct drm_i915_private *dev_priv,
 
 static void gen9_assert_dbuf_enabled(struct drm_i915_private *dev_priv)
 {
-	u32 tmp = intel_de_read(dev_priv, DBUF_CTL_S(0));
+	u8 hw_enabled_dbuf_slices = intel_enabled_dbuf_slices_mask(dev_priv);
+	u8 enabled_dbuf_slices = dev_priv->enabled_dbuf_slices_mask;
 
-	WARN((tmp & (DBUF_POWER_STATE | DBUF_POWER_REQUEST)) !=
-	     (DBUF_POWER_STATE | DBUF_POWER_REQUEST),
-	     "Unexpected DBuf power power state (0x%08x)\n", tmp);
+	WARN(hw_enabled_dbuf_slices != enabled_dbuf_slices,
+	     "Unexpected DBuf power power state (0x%08x, expected 0x%08x)\n",
+	     hw_enabled_dbuf_slices,
+	     enabled_dbuf_slices);
 }
 
 static void gen9_disable_dc_states(struct drm_i915_private *dev_priv)
@@ -4425,87 +4428,58 @@ bool intel_dbuf_slice_set(struct drm_i915_private *dev_priv,
 
 static void gen9_dbuf_enable(struct drm_i915_private *dev_priv)
 {
-	intel_dbuf_slice_set(dev_priv, DBUF_CTL_S(0), true);
+	icl_dbuf_slices_update(dev_priv, BIT(DBUF_S1));
 }
 
 static void gen9_dbuf_disable(struct drm_i915_private *dev_priv)
 {
-	intel_dbuf_slice_set(dev_priv, DBUF_CTL_S(0), false);
-}
-
-static u8 intel_dbuf_max_slices(struct drm_i915_private *dev_priv)
-{
-	if (INTEL_GEN(dev_priv) < 11)
-		return 1;
-	return 2;
+	icl_dbuf_slices_update(dev_priv, 0);
 }
 
 void icl_dbuf_slices_update(struct drm_i915_private *dev_priv,
 			    u8 req_slices)
 {
-	const u8 hw_enabled_slices = dev_priv->enabled_dbuf_slices_num;
-	bool ret;
+	int i;
+	int max_slices = INTEL_INFO(dev_priv)->num_supported_dbuf_slices;
+	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 
-	if (req_slices > intel_dbuf_max_slices(dev_priv)) {
-		drm_err(&dev_priv->drm,
-			"Invalid number of dbuf slices requested\n");
-		return;
+	WARN(hweight8(req_slices) > max_slices,
+	     "Invalid number of dbuf slices requested\n");
+
+	DRM_DEBUG_KMS("Updating dbuf slices to 0x%x\n", req_slices);
+
+	/*
+	 * Might be running this in parallel to gen9_dc_off_power_well_enable
+	 * being called from intel_dp_detect for instance,
+	 * which causes assertion triggered by race condition,
+	 * as gen9_assert_dbuf_enabled might preempt this when registers
+	 * were already updated, while dev_priv was not.
+	 */
+	mutex_lock(&power_domains->lock);
+
+	for (i = 0; i < max_slices; i++) {
+		intel_dbuf_slice_set(dev_priv,
+				     DBUF_CTL_S(i),
+				     (req_slices & BIT(i)) != 0);
 	}
 
-	if (req_slices == hw_enabled_slices || req_slices == 0)
-		return;
+	dev_priv->enabled_dbuf_slices_mask = req_slices;
 
-	if (req_slices > hw_enabled_slices)
-		ret = intel_dbuf_slice_set(dev_priv,
-					   DBUF_CTL_S(DBUF_S2), true);
-	else
-		ret = intel_dbuf_slice_set(dev_priv,
-					   DBUF_CTL_S(DBUF_S2), false);
-
-	if (ret)
-		dev_priv->enabled_dbuf_slices_num = req_slices;
+	mutex_unlock(&power_domains->lock);
 }
 
 static void icl_dbuf_enable(struct drm_i915_private *dev_priv)
 {
-	intel_de_write(dev_priv, DBUF_CTL_S(0),
-		       intel_de_read(dev_priv, DBUF_CTL_S(0)) | DBUF_POWER_REQUEST);
-	intel_de_write(dev_priv, DBUF_CTL_S(1),
-		       intel_de_read(dev_priv, DBUF_CTL_S(1)) | DBUF_POWER_REQUEST);
-	intel_de_posting_read(dev_priv, DBUF_CTL_S(1));
-
-	udelay(10);
-
-	if (!(intel_de_read(dev_priv, DBUF_CTL_S(0)) & DBUF_POWER_STATE) ||
-	    !(intel_de_read(dev_priv, DBUF_CTL_S(1)) & DBUF_POWER_STATE))
-		drm_err(&dev_priv->drm, "DBuf power enable timeout\n");
-	else
-		/*
-		 * FIXME: for now pretend that we only have 1 slice, see
-		 * intel_enabled_dbuf_slices_num().
-		 */
-		dev_priv->enabled_dbuf_slices_num = 1;
+	/*
+	 * Just power up 1 slice, we will
+	 * figure out later which slices we have and what we need.
+	 */
+	icl_dbuf_slices_update(dev_priv, BIT(DBUF_S1));
 }
 
 static void icl_dbuf_disable(struct drm_i915_private *dev_priv)
 {
-	intel_de_write(dev_priv, DBUF_CTL_S(0),
-		       intel_de_read(dev_priv, DBUF_CTL_S(0)) & ~DBUF_POWER_REQUEST);
-	intel_de_write(dev_priv, DBUF_CTL_S(1),
-		       intel_de_read(dev_priv, DBUF_CTL_S(1)) & ~DBUF_POWER_REQUEST);
-	intel_de_posting_read(dev_priv, DBUF_CTL_S(1));
-
-	udelay(10);
-
-	if ((intel_de_read(dev_priv, DBUF_CTL_S(0)) & DBUF_POWER_STATE) ||
-	    (intel_de_read(dev_priv, DBUF_CTL_S(1)) & DBUF_POWER_STATE))
-		drm_err(&dev_priv->drm, "DBuf power disable timeout!\n");
-	else
-		/*
-		 * FIXME: for now pretend that the first slice is always
-		 * enabled, see intel_enabled_dbuf_slices_num().
-		 */
-		dev_priv->enabled_dbuf_slices_num = 1;
+	icl_dbuf_slices_update(dev_priv, 0);
 }
 
 static void icl_mbus_init(struct drm_i915_private *dev_priv)

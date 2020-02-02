@@ -3597,26 +3597,18 @@ bool ilk_disable_lp_wm(struct drm_i915_private *dev_priv)
 	return _ilk_disable_lp_wm(dev_priv, WM_DIRTY_LP_ALL);
 }
 
-u8 intel_enabled_dbuf_slices_num(struct drm_i915_private *dev_priv)
+u8 intel_enabled_dbuf_slices_mask(struct drm_i915_private *dev_priv)
 {
-	u8 enabled_dbuf_slices_num;
+	int i;
+	int max_slices = INTEL_INFO(dev_priv)->num_supported_dbuf_slices;
+	u8 enabled_slices_mask = 0;
 
-	/* Slice 1 will always be enabled */
-	enabled_dbuf_slices_num = 1;
+	for (i = 0; i < max_slices; i++) {
+		if (I915_READ(DBUF_CTL_S(i)) & DBUF_POWER_STATE)
+			enabled_slices_mask |= BIT(i);
+	}
 
-	/* Gen prior to GEN11 have only one DBuf slice */
-	if (INTEL_GEN(dev_priv) < 11)
-		return enabled_dbuf_slices_num;
-
-	/*
-	 * FIXME: for now we'll only ever use 1 slice; pretend that we have
-	 * only that 1 slice enabled until we have a proper way for on-demand
-	 * toggling of the second slice.
-	 */
-	if (0 && I915_READ(DBUF_CTL_S(DBUF_S2)) & DBUF_POWER_STATE)
-		enabled_dbuf_slices_num++;
-
-	return enabled_dbuf_slices_num;
+	return enabled_slices_mask;
 }
 
 /*
@@ -3824,8 +3816,6 @@ static u16 intel_get_ddb_size(struct drm_i915_private *dev_priv,
 {
 	struct drm_atomic_state *state = crtc_state->uapi.state;
 	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
-	const struct drm_display_mode *adjusted_mode;
-	u64 total_data_bw;
 	u16 ddb_size = INTEL_INFO(dev_priv)->ddb_size;
 
 	drm_WARN_ON(&dev_priv->drm, ddb_size == 0);
@@ -3833,23 +3823,8 @@ static u16 intel_get_ddb_size(struct drm_i915_private *dev_priv,
 	if (INTEL_GEN(dev_priv) < 11)
 		return ddb_size - 4; /* 4 blocks for bypass path allocation */
 
-	adjusted_mode = &crtc_state->hw.adjusted_mode;
-	total_data_bw = total_data_rate * drm_mode_vrefresh(adjusted_mode);
-
-	/*
-	 * 12GB/s is maximum BW supported by single DBuf slice.
-	 *
-	 * FIXME dbuf slice code is broken:
-	 * - must wait for planes to stop using the slice before powering it off
-	 * - plane straddling both slices is illegal in multi-pipe scenarios
-	 * - should validate we stay within the hw bandwidth limits
-	 */
-	if (0 && (num_active > 1 || total_data_bw >= GBps(12))) {
-		intel_state->enabled_dbuf_slices_num = 2;
-	} else {
-		intel_state->enabled_dbuf_slices_num = 1;
-		ddb_size /= 2;
-	}
+	intel_state->enabled_dbuf_slices_mask = BIT(DBUF_S1);
+	ddb_size /= 2;
 
 	return ddb_size;
 }
@@ -4046,8 +4021,8 @@ void skl_pipe_ddb_get_hw_state(struct intel_crtc *crtc,
 
 void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv)
 {
-	dev_priv->enabled_dbuf_slices_num =
-				intel_enabled_dbuf_slices_num(dev_priv);
+	dev_priv->enabled_dbuf_slices_mask =
+				intel_enabled_dbuf_slices_mask(dev_priv);
 }
 
 /*
@@ -5155,7 +5130,7 @@ skl_compute_ddb(struct intel_atomic_state *state)
 	struct intel_crtc *crtc;
 	int ret, i;
 
-	state->enabled_dbuf_slices_num = dev_priv->enabled_dbuf_slices_num;
+	state->enabled_dbuf_slices_mask = dev_priv->enabled_dbuf_slices_mask;
 
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
