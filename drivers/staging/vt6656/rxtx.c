@@ -39,30 +39,12 @@ static const u16 vnt_time_stampoff[2][MAX_RATE] = {
 	{384, 192, 130, 113, 54, 43, 37, 31, 28, 25, 24, 23},
 };
 
-static const u16 vnt_fb_opt0[2][5] = {
-	{RATE_12M, RATE_18M, RATE_24M, RATE_36M, RATE_48M}, /* fallback_rate0 */
-	{RATE_12M, RATE_12M, RATE_18M, RATE_24M, RATE_36M}, /* fallback_rate1 */
-};
-
-static const u16 vnt_fb_opt1[2][5] = {
-	{RATE_12M, RATE_18M, RATE_24M, RATE_24M, RATE_36M}, /* fallback_rate0 */
-	{RATE_6M,  RATE_6M,  RATE_12M, RATE_12M, RATE_18M}, /* fallback_rate1 */
-};
-
 #define RTSDUR_BB       0
 #define RTSDUR_BA       1
 #define RTSDUR_AA       2
 #define CTSDUR_BA       3
-#define RTSDUR_BA_F0    4
-#define RTSDUR_AA_F0    5
-#define RTSDUR_BA_F1    6
-#define RTSDUR_AA_F1    7
-#define CTSDUR_BA_F0    8
-#define CTSDUR_BA_F1    9
 #define DATADUR_B       10
 #define DATADUR_A       11
-#define DATADUR_A_F0    12
-#define DATADUR_A_F1    13
 
 static struct vnt_usb_send_context
 	*vnt_get_free_context(struct vnt_private *priv)
@@ -216,8 +198,6 @@ static __le16 vnt_get_rtscts_duration_le(struct vnt_usb_send_context *context,
 	switch (dur_type) {
 	case RTSDUR_BB:
 	case RTSDUR_BA:
-	case RTSDUR_BA_F0:
-	case RTSDUR_BA_F1:
 		cts_time = vnt_get_frame_time(priv->preamble_type, pkt_type,
 					      14, priv->top_cck_basic_rate);
 		dur_time = cts_time + 2 * priv->sifs +
@@ -226,8 +206,6 @@ static __le16 vnt_get_rtscts_duration_le(struct vnt_usb_send_context *context,
 		break;
 
 	case RTSDUR_AA:
-	case RTSDUR_AA_F0:
-	case RTSDUR_AA_F1:
 		cts_time = vnt_get_frame_time(priv->preamble_type, pkt_type,
 					      14, priv->top_ofdm_basic_rate);
 		dur_time = cts_time + 2 * priv->sifs +
@@ -236,8 +214,6 @@ static __le16 vnt_get_rtscts_duration_le(struct vnt_usb_send_context *context,
 		break;
 
 	case CTSDUR_BA:
-	case CTSDUR_BA_F0:
-	case CTSDUR_BA_F1:
 		dur_time = priv->sifs + vnt_get_rsvtime(priv,
 				pkt_type, frame_length, rate, need_ack);
 		break;
@@ -295,63 +271,6 @@ static u16 vnt_rxtx_datahead_g(struct vnt_usb_send_context *tx_context,
 	tx_context->tx_hdr_size = vnt_mac_hdr_pos(tx_context, &buf->hdr);
 
 	return le16_to_cpu(buf->duration_a);
-}
-
-static u16 vnt_rxtx_datahead_g_fb(struct vnt_usb_send_context *tx_context,
-				  struct vnt_tx_datahead_g_fb *buf)
-{
-	struct vnt_private *priv = tx_context->priv;
-	u32 frame_len = tx_context->frame_len;
-	u16 rate = tx_context->tx_rate;
-	u8 need_ack = tx_context->need_ack;
-
-	/* Get SignalField,ServiceField,Length */
-	vnt_get_phy_field(priv, frame_len, rate, tx_context->pkt_type, &buf->a);
-
-	vnt_get_phy_field(priv, frame_len, priv->top_cck_basic_rate,
-			  PK_TYPE_11B, &buf->b);
-
-	/* Get Duration and TimeStamp */
-	buf->duration_a = vnt_get_duration_le(priv, tx_context->pkt_type,
-					      need_ack);
-	buf->duration_b = vnt_get_duration_le(priv, PK_TYPE_11B, need_ack);
-
-	buf->duration_a_f0 = vnt_get_duration_le(priv, tx_context->pkt_type,
-						 need_ack);
-	buf->duration_a_f1 = vnt_get_duration_le(priv, tx_context->pkt_type,
-						 need_ack);
-
-	buf->time_stamp_off_a = vnt_time_stamp_off(priv, rate);
-	buf->time_stamp_off_b = vnt_time_stamp_off(priv,
-						   priv->top_cck_basic_rate);
-
-	tx_context->tx_hdr_size = vnt_mac_hdr_pos(tx_context, &buf->hdr);
-
-	return le16_to_cpu(buf->duration_a);
-}
-
-static u16 vnt_rxtx_datahead_a_fb(struct vnt_usb_send_context *tx_context,
-				  struct vnt_tx_datahead_a_fb *buf)
-{
-	struct vnt_private *priv = tx_context->priv;
-	u16 rate = tx_context->tx_rate;
-	u8 pkt_type = tx_context->pkt_type;
-	u8 need_ack = tx_context->need_ack;
-	u32 frame_len = tx_context->frame_len;
-
-	/* Get SignalField,ServiceField,Length */
-	vnt_get_phy_field(priv, frame_len, rate, pkt_type, &buf->a);
-	/* Get Duration and TimeStampOff */
-	buf->duration = vnt_get_duration_le(priv, pkt_type, need_ack);
-
-	buf->duration_f0 = vnt_get_duration_le(priv, pkt_type, need_ack);
-	buf->duration_f1 = vnt_get_duration_le(priv, pkt_type, need_ack);
-
-	buf->time_stamp_off = vnt_time_stamp_off(priv, rate);
-
-	tx_context->tx_hdr_size = vnt_mac_hdr_pos(tx_context, &buf->hdr);
-
-	return le16_to_cpu(buf->duration);
 }
 
 static u16 vnt_rxtx_datahead_ab(struct vnt_usb_send_context *tx_context,
@@ -426,50 +345,6 @@ static u16 vnt_rxtx_rts_g_head(struct vnt_usb_send_context *tx_context,
 	return vnt_rxtx_datahead_g(tx_context, &buf->data_head);
 }
 
-static u16 vnt_rxtx_rts_g_fb_head(struct vnt_usb_send_context *tx_context,
-				  struct vnt_rts_g_fb *buf)
-{
-	struct vnt_private *priv = tx_context->priv;
-	u16 current_rate = tx_context->tx_rate;
-	u16 rts_frame_len = 20;
-
-	vnt_get_phy_field(priv, rts_frame_len, priv->top_cck_basic_rate,
-			  PK_TYPE_11B, &buf->b);
-	vnt_get_phy_field(priv, rts_frame_len, priv->top_ofdm_basic_rate,
-			  tx_context->pkt_type, &buf->a);
-
-	buf->duration_bb = vnt_get_rtscts_duration_le(tx_context, RTSDUR_BB,
-						      PK_TYPE_11B,
-						      priv->top_cck_basic_rate);
-	buf->duration_aa = vnt_get_rtscts_duration_le(tx_context, RTSDUR_AA,
-						      tx_context->pkt_type,
-						      current_rate);
-	buf->duration_ba = vnt_get_rtscts_duration_le(tx_context, RTSDUR_BA,
-						      tx_context->pkt_type,
-						      current_rate);
-
-	buf->rts_duration_ba_f0 =
-		vnt_get_rtscts_duration_le(tx_context, RTSDUR_BA_F0,
-					   tx_context->pkt_type,
-					   priv->tx_rate_fb0);
-	buf->rts_duration_aa_f0 =
-		vnt_get_rtscts_duration_le(tx_context, RTSDUR_AA_F0,
-					   tx_context->pkt_type,
-					   priv->tx_rate_fb0);
-	buf->rts_duration_ba_f1 =
-		vnt_get_rtscts_duration_le(tx_context, RTSDUR_BA_F1,
-					   tx_context->pkt_type,
-					   priv->tx_rate_fb1);
-	buf->rts_duration_aa_f1 =
-		vnt_get_rtscts_duration_le(tx_context, RTSDUR_AA_F1,
-					   tx_context->pkt_type,
-					   priv->tx_rate_fb1);
-
-	vnt_fill_ieee80211_rts(tx_context, &buf->data, buf->duration_aa);
-
-	return vnt_rxtx_datahead_g_fb(tx_context, &buf->data_head);
-}
-
 static u16 vnt_rxtx_rts_ab_head(struct vnt_usb_send_context *tx_context,
 				struct vnt_rts_ab *buf)
 {
@@ -487,71 +362,6 @@ static u16 vnt_rxtx_rts_ab_head(struct vnt_usb_send_context *tx_context,
 	vnt_fill_ieee80211_rts(tx_context, &buf->data, buf->duration);
 
 	return vnt_rxtx_datahead_ab(tx_context, &buf->data_head);
-}
-
-static u16 vnt_rxtx_rts_a_fb_head(struct vnt_usb_send_context *tx_context,
-				  struct vnt_rts_a_fb *buf)
-{
-	struct vnt_private *priv = tx_context->priv;
-	u16 current_rate = tx_context->tx_rate;
-	u16 rts_frame_len = 20;
-
-	vnt_get_phy_field(priv, rts_frame_len, priv->top_ofdm_basic_rate,
-			  tx_context->pkt_type, &buf->a);
-
-	buf->duration = vnt_get_rtscts_duration_le(tx_context, RTSDUR_AA,
-						   tx_context->pkt_type,
-						   current_rate);
-
-	buf->rts_duration_f0 =
-		vnt_get_rtscts_duration_le(tx_context, RTSDUR_AA_F0,
-					   tx_context->pkt_type,
-					   priv->tx_rate_fb0);
-
-	buf->rts_duration_f1 =
-		vnt_get_rtscts_duration_le(tx_context, RTSDUR_AA_F1,
-					   tx_context->pkt_type,
-					   priv->tx_rate_fb1);
-
-	vnt_fill_ieee80211_rts(tx_context, &buf->data, buf->duration);
-
-	return vnt_rxtx_datahead_a_fb(tx_context, &buf->data_head);
-}
-
-static u16 vnt_fill_cts_fb_head(struct vnt_usb_send_context *tx_context,
-				union vnt_tx_data_head *head)
-{
-	struct vnt_private *priv = tx_context->priv;
-	struct vnt_cts_fb *buf = &head->cts_g_fb;
-	u32 cts_frame_len = 14;
-	u16 current_rate = tx_context->tx_rate;
-
-	/* Get SignalField,ServiceField,Length */
-	vnt_get_phy_field(priv, cts_frame_len, priv->top_cck_basic_rate,
-			  PK_TYPE_11B, &buf->b);
-
-	buf->duration_ba =
-		vnt_get_rtscts_duration_le(tx_context, CTSDUR_BA,
-					   tx_context->pkt_type,
-					   current_rate);
-	/* Get CTSDuration_ba_f0 */
-	buf->cts_duration_ba_f0 =
-		vnt_get_rtscts_duration_le(tx_context, CTSDUR_BA_F0,
-					   tx_context->pkt_type,
-					   priv->tx_rate_fb0);
-	/* Get CTSDuration_ba_f1 */
-	buf->cts_duration_ba_f1 =
-		vnt_get_rtscts_duration_le(tx_context, CTSDUR_BA_F1,
-					   tx_context->pkt_type,
-					   priv->tx_rate_fb1);
-	/* Get CTS Frame body */
-	buf->data.duration = buf->duration_ba;
-	buf->data.frame_control =
-		cpu_to_le16(IEEE80211_FTYPE_CTL | IEEE80211_STYPE_CTS);
-
-	ether_addr_copy(buf->data.ra, priv->current_net_addr);
-
-	return vnt_rxtx_datahead_g_fb(tx_context, &buf->data_head);
 }
 
 static u16 vnt_fill_cts_head(struct vnt_usb_send_context *tx_context,
@@ -606,9 +416,6 @@ static u16 vnt_rxtx_rts(struct vnt_usb_send_context *tx_context,
 	if (need_mic)
 		head = &tx_head->tx_rts.tx.mic.head;
 
-	if (tx_context->fb_option)
-		return vnt_rxtx_rts_g_fb_head(tx_context, &head->rts_g_fb);
-
 	return vnt_rxtx_rts_g_head(tx_context, &head->rts_g);
 }
 
@@ -632,10 +439,6 @@ static u16 vnt_rxtx_cts(struct vnt_usb_send_context *tx_context,
 
 	if (need_mic)
 		head = &tx_head->tx_cts.tx.mic.head;
-
-	/* Fill CTS */
-	if (tx_context->fb_option)
-		return vnt_fill_cts_fb_head(tx_context, head);
 
 	return vnt_fill_cts_head(tx_context, head);
 }
@@ -664,17 +467,8 @@ static u16 vnt_rxtx_ab(struct vnt_usb_send_context *tx_context,
 			buf->rts_rrv_time = vnt_get_rtscts_rsvtime_le(priv, 2,
 				tx_context->pkt_type, frame_len, current_rate);
 
-		if (tx_context->fb_option &&
-		    tx_context->pkt_type == PK_TYPE_11A)
-			return vnt_rxtx_rts_a_fb_head(tx_context,
-						      &head->rts_a_fb);
-
 		return vnt_rxtx_rts_ab_head(tx_context, &head->rts_ab);
 	}
-
-	if (tx_context->pkt_type == PK_TYPE_11A)
-		return vnt_rxtx_datahead_a_fb(tx_context,
-					      &head->data_head_a_fb);
 
 	return vnt_rxtx_datahead_ab(tx_context, &head->data_head_ab);
 }
