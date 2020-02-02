@@ -53,19 +53,11 @@ SYM_FUNC_START(startup_32)
 	 * all need to be under the 4G limit.
 	 */
 	cld
-	/*
-	 * Test KEEP_SEGMENTS flag to see if the bootloader is asking
-	 * us to not reload segments
-	 */
-	testb $KEEP_SEGMENTS, BP_loadflags(%esi)
-	jnz 1f
-
 	cli
 	movl	$(__BOOT_DS), %eax
 	movl	%eax, %ds
 	movl	%eax, %es
 	movl	%eax, %ss
-1:
 
 /*
  * Calculate the delta between where we were compiled to run

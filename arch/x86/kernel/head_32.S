@@ -67,11 +67,6 @@ __HEAD
 SYM_CODE_START(startup_32)
 	movl pa(initial_stack),%ecx
 	
-	/* test KEEP_SEGMENTS flag to see if the bootloader is asking
-		us to not reload segments */
-	testb $KEEP_SEGMENTS, BP_loadflags(%esi)
-	jnz 2f
-
 /*
  * Set segments to known values.
  */
@@ -82,7 +77,6 @@ SYM_CODE_START(startup_32)
 	movl %eax,%fs
 	movl %eax,%gs
 	movl %eax,%ss
-2:
 	leal -__PAGE_OFFSET(%ecx),%esp
 
 /*

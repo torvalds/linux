@@ -490,15 +490,11 @@ Protocol:	2.00+
 		kernel) to not write early messages that require
 		accessing the display hardware directly.
 
-  Bit 6 (write): KEEP_SEGMENTS
+  Bit 6 (obsolete): KEEP_SEGMENTS
 
 	Protocol: 2.07+
 
-	- If 0, reload the segment registers in the 32bit entry point.
-	- If 1, do not reload the segment registers in the 32bit entry point.
-
-		Assume that %cs %ds %ss %es are all set to flat segments with
-		a base of 0 (or the equivalent for their environment).
+        - This flag is obsolete.
 
   Bit 7 (write): CAN_USE_HEAP
 
