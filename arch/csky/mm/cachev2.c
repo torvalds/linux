@@ -52,23 +52,9 @@ void dcache_wb_range(unsigned long start, unsigned long end)
 	sync_is();
 }
 
-void dcache_inv_range(unsigned long start, unsigned long end)
-{
-	unsigned long i = start & ~(L1_CACHE_BYTES - 1);
-
-	for (; i < end; i += L1_CACHE_BYTES)
-		asm volatile("dcache.civa %0\n"::"r"(i):"memory");
-	sync_is();
-}
-
 void cache_wbinv_range(unsigned long start, unsigned long end)
 {
-	unsigned long i = start & ~(L1_CACHE_BYTES - 1);
-
-	for (; i < end; i += L1_CACHE_BYTES)
-		asm volatile("dcache.cval1 %0\n"::"r"(i):"memory");
-	sync_is();
-
+	dcache_wb_range(start, end);
 	icache_inv_range(start, end);
 }
 EXPORT_SYMBOL(cache_wbinv_range);
