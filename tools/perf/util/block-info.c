@@ -74,30 +74,21 @@ int64_t block_info__cmp(struct perf_hpp_fmt *fmt __maybe_unused,
 
 	if (!bi_l->sym || !bi_r->sym) {
 		if (!bi_l->sym && !bi_r->sym)
-			return 0;
+			return -1;
 		else if (!bi_l->sym)
 			return -1;
 		else
 			return 1;
 	}
 
-	if (bi_l->sym == bi_r->sym) {
-		if (bi_l->start == bi_r->start) {
-			if (bi_l->end == bi_r->end)
-				return 0;
-			else
-				return (int64_t)(bi_r->end - bi_l->end);
-		} else
-			return (int64_t)(bi_r->start - bi_l->start);
-	} else {
-		cmp = strcmp(bi_l->sym->name, bi_r->sym->name);
+	cmp = strcmp(bi_l->sym->name, bi_r->sym->name);
+	if (cmp)
 		return cmp;
-	}
 
-	if (bi_l->sym->start != bi_r->sym->start)
-		return (int64_t)(bi_r->sym->start - bi_l->sym->start);
+	if (bi_l->start != bi_r->start)
+		return (int64_t)(bi_r->start - bi_l->start);
 
-	return (int64_t)(bi_r->sym->end - bi_l->sym->end);
+	return (int64_t)(bi_r->end - bi_l->end);
 }
 
 static void init_block_info(struct block_info *bi, struct symbol *sym,
