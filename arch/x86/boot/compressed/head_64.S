@@ -69,8 +69,9 @@ SYM_FUNC_START(startup_32)
 	subl	$1b, %ebp
 
 	/* Load new GDT with the 64bit segments using 32bit descriptor */
-	addl	%ebp, gdt+2(%ebp)
-	lgdt	gdt(%ebp)
+	leal	gdt(%ebp), %eax
+	movl	%eax, 2(%eax)
+	lgdt	(%eax)
 
 	/* Load segment registers with our descriptors */
 	movl	$__BOOT_DS, %eax
@@ -355,9 +356,9 @@ SYM_CODE_START(startup_64)
 	 */
 
 	/* Make sure we have GDT with 32-bit code segment */
-	leaq	gdt(%rip), %rax
-	movq	%rax, gdt64+2(%rip)
-	lgdt	gdt64(%rip)
+	leaq	gdt64(%rip), %rax
+	addq	%rax, 2(%rax)
+	lgdt	(%rax)
 
 	/*
 	 * paging_prepare() sets up the trampoline and checks if we need to
@@ -625,12 +626,12 @@ SYM_FUNC_END(.Lno_longmode)
 	.data
 SYM_DATA_START_LOCAL(gdt64)
 	.word	gdt_end - gdt - 1
-	.quad   0
+	.quad   gdt - gdt64
 SYM_DATA_END(gdt64)
 	.balign	8
 SYM_DATA_START_LOCAL(gdt)
 	.word	gdt_end - gdt - 1
-	.long	gdt
+	.long	0
 	.word	0
 	.quad	0x00cf9a000000ffff	/* __KERNEL32_CS */
 	.quad	0x00af9a000000ffff	/* __KERNEL_CS */
