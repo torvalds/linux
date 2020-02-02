@@ -93,7 +93,7 @@ static void nfs_dns_ent_init(struct cache_head *cnew,
 	key = container_of(ckey, struct nfs_dns_ent, h);
 
 	kfree(new->hostname);
-	new->hostname = kstrndup(key->hostname, key->namelen, GFP_KERNEL);
+	new->hostname = kmemdup_nul(key->hostname, key->namelen, GFP_KERNEL);
 	if (new->hostname) {
 		new->namelen = key->namelen;
 		nfs_dns_ent_update(cnew, ckey);

@@ -501,7 +501,7 @@ static int nfs4_try_replacing_one_location(struct nfs_server *server,
 		rpc_set_port(sap, NFS_PORT);
 
 		error = -ENOMEM;
-		hostname = kstrndup(buf->data, buf->len, GFP_KERNEL);
+		hostname = kmemdup_nul(buf->data, buf->len, GFP_KERNEL);
 		if (hostname == NULL)
 			break;
 
