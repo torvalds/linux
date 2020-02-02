@@ -792,7 +792,7 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 	struct vnt_usb_send_context *tx_context;
 	unsigned long flags;
 	u16 tx_bytes, tx_header_size, tx_body_size, current_rate, duration_id;
-	u8 pkt_type, fb_option = AUTO_FB_NONE;
+	u8 pkt_type;
 	bool need_rts = false;
 	bool need_mic = false;
 
@@ -911,33 +911,6 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 	}
 
 	tx_buffer_head->current_rate = cpu_to_le16(current_rate);
-
-	/* legacy rates TODO use ieee80211_tx_rate */
-	if (current_rate >= RATE_18M && ieee80211_is_data(hdr->frame_control)) {
-		if (priv->auto_fb_ctrl == AUTO_FB_0) {
-			tx_buffer_head->fifo_ctl |=
-						cpu_to_le16(FIFOCTL_AUTO_FB_0);
-
-			priv->tx_rate_fb0 =
-				vnt_fb_opt0[FB_RATE0][current_rate - RATE_18M];
-			priv->tx_rate_fb1 =
-				vnt_fb_opt0[FB_RATE1][current_rate - RATE_18M];
-
-			fb_option = AUTO_FB_0;
-		} else if (priv->auto_fb_ctrl == AUTO_FB_1) {
-			tx_buffer_head->fifo_ctl |=
-						cpu_to_le16(FIFOCTL_AUTO_FB_1);
-
-			priv->tx_rate_fb0 =
-				vnt_fb_opt1[FB_RATE0][current_rate - RATE_18M];
-			priv->tx_rate_fb1 =
-				vnt_fb_opt1[FB_RATE1][current_rate - RATE_18M];
-
-			fb_option = AUTO_FB_1;
-		}
-	}
-
-	tx_context->fb_option = fb_option;
 
 	duration_id = vnt_generate_tx_parameter(tx_context, tx_buffer, &mic_hdr,
 						need_mic, need_rts);

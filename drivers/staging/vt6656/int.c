@@ -23,22 +23,6 @@
 #include "power.h"
 #include "usbpipe.h"
 
-static const u8 fallback_rate0[5][5] = {
-	{RATE_18M, RATE_18M, RATE_12M, RATE_12M, RATE_12M},
-	{RATE_24M, RATE_24M, RATE_18M, RATE_12M, RATE_12M},
-	{RATE_36M, RATE_36M, RATE_24M, RATE_18M, RATE_18M},
-	{RATE_48M, RATE_48M, RATE_36M, RATE_24M, RATE_24M},
-	{RATE_54M, RATE_54M, RATE_48M, RATE_36M, RATE_36M}
-};
-
-static const u8 fallback_rate1[5][5] = {
-	{RATE_18M, RATE_18M, RATE_12M, RATE_6M, RATE_6M},
-	{RATE_24M, RATE_24M, RATE_18M, RATE_6M, RATE_6M},
-	{RATE_36M, RATE_36M, RATE_24M, RATE_12M, RATE_12M},
-	{RATE_48M, RATE_48M, RATE_24M, RATE_12M, RATE_12M},
-	{RATE_54M, RATE_54M, RATE_36M, RATE_18M, RATE_18M}
-};
-
 int vnt_int_start_interrupt(struct vnt_private *priv)
 {
 	int ret = 0;
@@ -59,7 +43,6 @@ static int vnt_int_report_rate(struct vnt_private *priv, u8 pkt_no, u8 tsr)
 {
 	struct vnt_usb_send_context *context;
 	struct ieee80211_tx_info *info;
-	struct ieee80211_rate *rate;
 	u8 tx_retry = (tsr & 0xf0) >> 4;
 	s8 idx;
 
@@ -73,27 +56,6 @@ static int vnt_int_report_rate(struct vnt_private *priv, u8 pkt_no, u8 tsr)
 
 	info = IEEE80211_SKB_CB(context->skb);
 	idx = info->control.rates[0].idx;
-
-	if (context->fb_option && !(tsr & (TSR_TMO | TSR_RETRYTMO))) {
-		u8 tx_rate;
-		u8 retry = tx_retry;
-
-		rate = ieee80211_get_tx_rate(priv->hw, info);
-		tx_rate = rate->hw_value - RATE_18M;
-
-		if (retry > 4)
-			retry = 4;
-
-		if (context->fb_option == AUTO_FB_0)
-			tx_rate = fallback_rate0[tx_rate][retry];
-		else if (context->fb_option == AUTO_FB_1)
-			tx_rate = fallback_rate1[tx_rate][retry];
-
-		if (info->band == NL80211_BAND_5GHZ)
-			idx = tx_rate - RATE_6M;
-		else
-			idx = tx_rate;
-	}
 
 	ieee80211_tx_info_clear_status(info);
 
