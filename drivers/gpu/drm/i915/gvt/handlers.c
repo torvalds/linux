@@ -2886,7 +2886,7 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(HSW_PWR_WELL_CTL1, D_SKL_PLUS);
 	MMIO_DH(HSW_PWR_WELL_CTL2, D_SKL_PLUS, NULL, skl_power_well_ctl_write);
 
-	MMIO_DH(DBUF_CTL, D_SKL_PLUS, NULL, gen9_dbuf_ctl_mmio_write);
+	MMIO_DH(DBUF_CTL_S(0), D_SKL_PLUS, NULL, gen9_dbuf_ctl_mmio_write);
 
 	MMIO_D(GEN9_PG_ENABLE, D_SKL_PLUS);
 	MMIO_D(GEN9_MEDIA_PG_IDLE_HYSTERESIS, D_SKL_PLUS);

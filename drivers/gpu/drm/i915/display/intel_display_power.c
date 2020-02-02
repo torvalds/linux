@@ -1041,7 +1041,7 @@ static bool gen9_dc_off_power_well_enabled(struct drm_i915_private *dev_priv,
 
 static void gen9_assert_dbuf_enabled(struct drm_i915_private *dev_priv)
 {
-	u32 tmp = intel_de_read(dev_priv, DBUF_CTL);
+	u32 tmp = intel_de_read(dev_priv, DBUF_CTL_S(0));
 
 	WARN((tmp & (DBUF_POWER_STATE | DBUF_POWER_REQUEST)) !=
 	     (DBUF_POWER_STATE | DBUF_POWER_REQUEST),
@@ -4425,12 +4425,12 @@ bool intel_dbuf_slice_set(struct drm_i915_private *dev_priv,
 
 static void gen9_dbuf_enable(struct drm_i915_private *dev_priv)
 {
-	intel_dbuf_slice_set(dev_priv, DBUF_CTL, true);
+	intel_dbuf_slice_set(dev_priv, DBUF_CTL_S(0), true);
 }
 
 static void gen9_dbuf_disable(struct drm_i915_private *dev_priv)
 {
-	intel_dbuf_slice_set(dev_priv, DBUF_CTL, false);
+	intel_dbuf_slice_set(dev_priv, DBUF_CTL_S(0), false);
 }
 
 static u8 intel_dbuf_max_slices(struct drm_i915_private *dev_priv)
@@ -4456,9 +4456,11 @@ void icl_dbuf_slices_update(struct drm_i915_private *dev_priv,
 		return;
 
 	if (req_slices > hw_enabled_slices)
-		ret = intel_dbuf_slice_set(dev_priv, DBUF_CTL_S2, true);
+		ret = intel_dbuf_slice_set(dev_priv,
+					   DBUF_CTL_S(DBUF_S2), true);
 	else
-		ret = intel_dbuf_slice_set(dev_priv, DBUF_CTL_S2, false);
+		ret = intel_dbuf_slice_set(dev_priv,
+					   DBUF_CTL_S(DBUF_S2), false);
 
 	if (ret)
 		dev_priv->enabled_dbuf_slices_num = req_slices;
@@ -4466,16 +4468,16 @@ void icl_dbuf_slices_update(struct drm_i915_private *dev_priv,
 
 static void icl_dbuf_enable(struct drm_i915_private *dev_priv)
 {
-	intel_de_write(dev_priv, DBUF_CTL_S1,
-		       intel_de_read(dev_priv, DBUF_CTL_S1) | DBUF_POWER_REQUEST);
-	intel_de_write(dev_priv, DBUF_CTL_S2,
-		       intel_de_read(dev_priv, DBUF_CTL_S2) | DBUF_POWER_REQUEST);
-	intel_de_posting_read(dev_priv, DBUF_CTL_S2);
+	intel_de_write(dev_priv, DBUF_CTL_S(0),
+		       intel_de_read(dev_priv, DBUF_CTL_S(0)) | DBUF_POWER_REQUEST);
+	intel_de_write(dev_priv, DBUF_CTL_S(1),
+		       intel_de_read(dev_priv, DBUF_CTL_S(1)) | DBUF_POWER_REQUEST);
+	intel_de_posting_read(dev_priv, DBUF_CTL_S(1));
 
 	udelay(10);
 
-	if (!(intel_de_read(dev_priv, DBUF_CTL_S1) & DBUF_POWER_STATE) ||
-	    !(intel_de_read(dev_priv, DBUF_CTL_S2) & DBUF_POWER_STATE))
+	if (!(intel_de_read(dev_priv, DBUF_CTL_S(0)) & DBUF_POWER_STATE) ||
+	    !(intel_de_read(dev_priv, DBUF_CTL_S(1)) & DBUF_POWER_STATE))
 		drm_err(&dev_priv->drm, "DBuf power enable timeout\n");
 	else
 		/*
@@ -4487,16 +4489,16 @@ static void icl_dbuf_enable(struct drm_i915_private *dev_priv)
 
 static void icl_dbuf_disable(struct drm_i915_private *dev_priv)
 {
-	intel_de_write(dev_priv, DBUF_CTL_S1,
-		       intel_de_read(dev_priv, DBUF_CTL_S1) & ~DBUF_POWER_REQUEST);
-	intel_de_write(dev_priv, DBUF_CTL_S2,
-		       intel_de_read(dev_priv, DBUF_CTL_S2) & ~DBUF_POWER_REQUEST);
-	intel_de_posting_read(dev_priv, DBUF_CTL_S2);
+	intel_de_write(dev_priv, DBUF_CTL_S(0),
+		       intel_de_read(dev_priv, DBUF_CTL_S(0)) & ~DBUF_POWER_REQUEST);
+	intel_de_write(dev_priv, DBUF_CTL_S(1),
+		       intel_de_read(dev_priv, DBUF_CTL_S(1)) & ~DBUF_POWER_REQUEST);
+	intel_de_posting_read(dev_priv, DBUF_CTL_S(1));
 
 	udelay(10);
 
-	if ((intel_de_read(dev_priv, DBUF_CTL_S1) & DBUF_POWER_STATE) ||
-	    (intel_de_read(dev_priv, DBUF_CTL_S2) & DBUF_POWER_STATE))
+	if ((intel_de_read(dev_priv, DBUF_CTL_S(0)) & DBUF_POWER_STATE) ||
+	    (intel_de_read(dev_priv, DBUF_CTL_S(1)) & DBUF_POWER_STATE))
 		drm_err(&dev_priv->drm, "DBuf power disable timeout!\n");
 	else
 		/*
