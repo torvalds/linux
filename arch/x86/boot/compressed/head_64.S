@@ -624,12 +624,12 @@ SYM_FUNC_END(.Lno_longmode)
 
 	.data
 SYM_DATA_START_LOCAL(gdt64)
-	.word	gdt_end - gdt
+	.word	gdt_end - gdt - 1
 	.quad   0
 SYM_DATA_END(gdt64)
 	.balign	8
 SYM_DATA_START_LOCAL(gdt)
-	.word	gdt_end - gdt
+	.word	gdt_end - gdt - 1
 	.long	gdt
 	.word	0
 	.quad	0x00cf9a000000ffff	/* __KERNEL32_CS */
