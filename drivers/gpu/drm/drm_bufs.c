@@ -149,7 +149,6 @@ static int drm_addmap_core(struct drm_device *dev, resource_size_t offset,
 {
 	struct drm_local_map *map;
 	struct drm_map_list *list;
-	drm_dma_handle_t *dmah;
 	unsigned long user_token;
 	int ret;
 
@@ -324,14 +323,14 @@ static int drm_addmap_core(struct drm_device *dev, resource_size_t offset,
 		 * As we're limiting the address to 2^32-1 (or less),
 		 * casting it down to 32 bits is no problem, but we
 		 * need to point to a 64bit variable first. */
-		dmah = drm_pci_alloc(dev, map->size, map->size);
-		if (!dmah) {
+		map->handle = dma_alloc_coherent(&dev->pdev->dev,
+						 map->size,
+						 &map->offset,
+						 GFP_KERNEL);
+		if (!map->handle) {
 			kfree(map);
 			return -ENOMEM;
 		}
-		map->handle = dmah->vaddr;
-		map->offset = (unsigned long)dmah->busaddr;
-		kfree(dmah);
 		break;
 	default:
 		kfree(map);
@@ -513,7 +512,6 @@ int drm_legacy_getmap_ioctl(struct drm_device *dev, void *data,
 int drm_legacy_rmmap_locked(struct drm_device *dev, struct drm_local_map *map)
 {
 	struct drm_map_list *r_list = NULL, *list_t;
-	drm_dma_handle_t dmah;
 	int found = 0;
 	struct drm_master *master;
 
@@ -554,10 +552,10 @@ int drm_legacy_rmmap_locked(struct drm_device *dev, struct drm_local_map *map)
 	case _DRM_SCATTER_GATHER:
 		break;
 	case _DRM_CONSISTENT:
-		dmah.vaddr = map->handle;
-		dmah.busaddr = map->offset;
-		dmah.size = map->size;
-		__drm_legacy_pci_free(dev, &dmah);
+		dma_free_coherent(&dev->pdev->dev,
+				  map->size,
+				  map->handle,
+				  map->offset);
 		break;
 	}
 	kfree(map);
