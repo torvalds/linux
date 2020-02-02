@@ -54,10 +54,6 @@ SYM_FUNC_START(startup_32)
 	 */
 	cld
 	cli
-	movl	$(__BOOT_DS), %eax
-	movl	%eax, %ds
-	movl	%eax, %es
-	movl	%eax, %ss
 
 /*
  * Calculate the delta between where we were compiled to run
@@ -72,10 +68,20 @@ SYM_FUNC_START(startup_32)
 1:	popl	%ebp
 	subl	$1b, %ebp
 
+	/* Load new GDT with the 64bit segments using 32bit descriptor */
+	addl	%ebp, gdt+2(%ebp)
+	lgdt	gdt(%ebp)
+
+	/* Load segment registers with our descriptors */
+	movl	$__BOOT_DS, %eax
+	movl	%eax, %ds
+	movl	%eax, %es
+	movl	%eax, %fs
+	movl	%eax, %gs
+	movl	%eax, %ss
+
 /* setup a stack and make sure cpu supports long mode. */
-	movl	$boot_stack_end, %eax
-	addl	%ebp, %eax
-	movl	%eax, %esp
+	leal	boot_stack_end(%ebp), %esp
 
 	call	verify_cpu
 	testl	%eax, %eax
@@ -111,10 +117,6 @@ SYM_FUNC_START(startup_32)
 /*
  * Prepare for entering 64 bit mode
  */
-
-	/* Load new GDT with the 64bit segments using 32bit descriptor */
-	addl	%ebp, gdt+2(%ebp)
-	lgdt	gdt(%ebp)
 
 	/* Enable PAE mode */
 	movl	%cr4, %eax
@@ -232,8 +234,12 @@ SYM_FUNC_START(efi32_stub_entry)
 
 	movl	%ecx, efi32_boot_args(%ebp)
 	movl	%edx, efi32_boot_args+4(%ebp)
-	sgdtl	efi32_boot_gdt(%ebp)
 	movb	$0, efi_is64(%ebp)
+
+	/* Save firmware GDTR and code/data selectors */
+	sgdtl	efi32_boot_gdt(%ebp)
+	movw	%cs, efi32_boot_cs(%ebp)
+	movw	%ds, efi32_boot_ds(%ebp)
 
 	/* Disable paging */
 	movl	%cr0, %eax
