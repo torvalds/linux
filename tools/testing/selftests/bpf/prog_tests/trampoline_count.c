@@ -46,7 +46,7 @@ void test_trampoline_count(void)
 	const char *fentry_name = "fentry/__set_task_comm";
 	const char *fexit_name = "fexit/__set_task_comm";
 	const char *object = "test_trampoline_count.o";
-	struct inst inst[MAX_TRAMP_PROGS] = { 0 };
+	struct inst inst[MAX_TRAMP_PROGS] = {};
 	int err, i = 0, duration = 0;
 	struct bpf_object *obj;
 	struct bpf_link *link;
