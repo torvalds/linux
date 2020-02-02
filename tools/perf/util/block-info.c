@@ -65,8 +65,7 @@ struct block_info *block_info__new(void)
 	return bi;
 }
 
-int64_t block_info__cmp(struct perf_hpp_fmt *fmt __maybe_unused,
-			struct hist_entry *left, struct hist_entry *right)
+int64_t __block_info__cmp(struct hist_entry *left, struct hist_entry *right)
 {
 	struct block_info *bi_l = left->block_info;
 	struct block_info *bi_r = right->block_info;
@@ -89,6 +88,12 @@ int64_t block_info__cmp(struct perf_hpp_fmt *fmt __maybe_unused,
 		return (int64_t)(bi_r->start - bi_l->start);
 
 	return (int64_t)(bi_r->end - bi_l->end);
+}
+
+int64_t block_info__cmp(struct perf_hpp_fmt *fmt __maybe_unused,
+			struct hist_entry *left, struct hist_entry *right)
+{
+	return __block_info__cmp(left, right);
 }
 
 static void init_block_info(struct block_info *bi, struct symbol *sym,
