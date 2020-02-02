@@ -214,16 +214,13 @@ int __init efi_memblock_x86_reserve_range(void)
 	if (efi_enabled(EFI_PARAVIRT))
 		return 0;
 
-#ifdef CONFIG_X86_32
-	/* Can't handle data above 4GB at this time */
-	if (e->efi_memmap_hi) {
+	/* Can't handle firmware tables above 4GB on i386 */
+	if (IS_ENABLED(CONFIG_X86_32) && e->efi_memmap_hi > 0) {
 		pr_err("Memory map is above 4GB, disabling EFI.\n");
 		return -EINVAL;
 	}
-	pmap =  e->efi_memmap;
-#else
-	pmap = (e->efi_memmap |	((__u64)e->efi_memmap_hi << 32));
-#endif
+	pmap = (phys_addr_t)(e->efi_memmap | ((u64)e->efi_memmap_hi << 32));
+
 	data.phys_map		= pmap;
 	data.size 		= e->efi_memmap_size;
 	data.desc_size		= e->efi_memdesc_size;
