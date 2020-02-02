@@ -1020,19 +1020,26 @@ static struct io_uring_cqe *io_get_cqring(struct io_ring_ctx *ctx)
 
 static inline bool io_should_trigger_evfd(struct io_ring_ctx *ctx)
 {
+	if (!ctx->cq_ev_fd)
+		return false;
 	if (!ctx->eventfd_async)
 		return true;
 	return io_wq_current_is_worker() || in_interrupt();
 }
 
-static void io_cqring_ev_posted(struct io_ring_ctx *ctx)
+static void __io_cqring_ev_posted(struct io_ring_ctx *ctx, bool trigger_ev)
 {
 	if (waitqueue_active(&ctx->wait))
 		wake_up(&ctx->wait);
 	if (waitqueue_active(&ctx->sqo_wait))
 		wake_up(&ctx->sqo_wait);
-	if (ctx->cq_ev_fd && io_should_trigger_evfd(ctx))
+	if (trigger_ev)
 		eventfd_signal(ctx->cq_ev_fd, 1);
+}
+
+static void io_cqring_ev_posted(struct io_ring_ctx *ctx)
+{
+	__io_cqring_ev_posted(ctx, io_should_trigger_evfd(ctx));
 }
 
 /* Returns true if there are no backlogged entries after the flush */
@@ -3561,6 +3568,14 @@ static void io_poll_flush(struct io_wq_work **workptr)
 		__io_poll_flush(req->ctx, nodes);
 }
 
+static void io_poll_trigger_evfd(struct io_wq_work **workptr)
+{
+	struct io_kiocb *req = container_of(*workptr, struct io_kiocb, work);
+
+	eventfd_signal(req->ctx->cq_ev_fd, 1);
+	io_put_req(req);
+}
+
 static int io_poll_wake(struct wait_queue_entry *wait, unsigned mode, int sync,
 			void *key)
 {
@@ -3586,14 +3601,22 @@ static int io_poll_wake(struct wait_queue_entry *wait, unsigned mode, int sync,
 
 		if (llist_empty(&ctx->poll_llist) &&
 		    spin_trylock_irqsave(&ctx->completion_lock, flags)) {
+			bool trigger_ev;
+
 			hash_del(&req->hash_node);
 			io_poll_complete(req, mask, 0);
-			req->flags |= REQ_F_COMP_LOCKED;
-			io_put_req(req);
-			spin_unlock_irqrestore(&ctx->completion_lock, flags);
 
-			io_cqring_ev_posted(ctx);
-			req = NULL;
+			trigger_ev = io_should_trigger_evfd(ctx);
+			if (trigger_ev && eventfd_signal_count()) {
+				trigger_ev = false;
+				req->work.func = io_poll_trigger_evfd;
+			} else {
+				req->flags |= REQ_F_COMP_LOCKED;
+				io_put_req(req);
+				req = NULL;
+			}
+			spin_unlock_irqrestore(&ctx->completion_lock, flags);
+			__io_cqring_ev_posted(ctx, trigger_ev);
 		} else {
 			req->result = mask;
 			req->llist_node.next = NULL;
