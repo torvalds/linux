@@ -176,43 +176,43 @@ static void check_symbol_range(const char *sym, unsigned long long addr,
 
 static int read_symbol(FILE *in, struct sym_entry *s)
 {
-	char sym[500], stype;
+	char name[500], type;
 	int rc;
 
-	rc = fscanf(in, "%llx %c %499s\n", &s->addr, &stype, sym);
+	rc = fscanf(in, "%llx %c %499s\n", &s->addr, &type, name);
 	if (rc != 3) {
-		if (rc != EOF && fgets(sym, 500, in) == NULL)
+		if (rc != EOF && fgets(name, 500, in) == NULL)
 			fprintf(stderr, "Read error or end of file.\n");
 		return -1;
 	}
-	if (strlen(sym) >= KSYM_NAME_LEN) {
+	if (strlen(name) >= KSYM_NAME_LEN) {
 		fprintf(stderr, "Symbol %s too long for kallsyms (%zu >= %d).\n"
 				"Please increase KSYM_NAME_LEN both in kernel and kallsyms.c\n",
-			sym, strlen(sym), KSYM_NAME_LEN);
+			name, strlen(name), KSYM_NAME_LEN);
 		return -1;
 	}
 
-	if (is_ignored_symbol(sym, stype))
+	if (is_ignored_symbol(name, type))
 		return -1;
 
 	/* Ignore most absolute/undefined (?) symbols. */
-	if (strcmp(sym, "_text") == 0)
+	if (strcmp(name, "_text") == 0)
 		_text = s->addr;
 
-	check_symbol_range(sym, s->addr, text_ranges, ARRAY_SIZE(text_ranges));
-	check_symbol_range(sym, s->addr, &percpu_range, 1);
+	check_symbol_range(name, s->addr, text_ranges, ARRAY_SIZE(text_ranges));
+	check_symbol_range(name, s->addr, &percpu_range, 1);
 
 	/* include the type field in the symbol name, so that it gets
 	 * compressed together */
-	s->len = strlen(sym) + 1;
+	s->len = strlen(name) + 1;
 	s->sym = malloc(s->len + 1);
 	if (!s->sym) {
 		fprintf(stderr, "kallsyms failure: "
 			"unable to allocate required amount of memory\n");
 		exit(EXIT_FAILURE);
 	}
-	strcpy(sym_name(s), sym);
-	s->sym[0] = stype;
+	strcpy(sym_name(s), name);
+	s->sym[0] = type;
 
 	s->percpu_absolute = 0;
 
