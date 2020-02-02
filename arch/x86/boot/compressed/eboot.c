@@ -712,10 +712,8 @@ struct boot_params *efi_main(efi_handle_t handle,
 			     efi_system_table_t *sys_table_arg,
 			     struct boot_params *boot_params)
 {
-	struct desc_ptr *gdt = NULL;
 	struct setup_header *hdr = &boot_params->hdr;
 	efi_status_t status;
-	struct desc_struct *desc;
 	unsigned long cmdline_paddr;
 
 	sys_table = sys_table_arg;
@@ -753,20 +751,6 @@ struct boot_params *efi_main(efi_handle_t handle,
 
 	setup_quirks(boot_params);
 
-	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA, sizeof(*gdt),
-			     (void **)&gdt);
-	if (status != EFI_SUCCESS) {
-		efi_printk("Failed to allocate memory for 'gdt' structure\n");
-		goto fail;
-	}
-
-	gdt->size = 0x800;
-	status = efi_low_alloc(gdt->size, 8, (unsigned long *)&gdt->address);
-	if (status != EFI_SUCCESS) {
-		efi_printk("Failed to allocate memory for 'gdt'\n");
-		goto fail;
-	}
-
 	/*
 	 * If the kernel isn't already loaded at the preferred load
 	 * address, relocate it.
@@ -792,93 +776,6 @@ struct boot_params *efi_main(efi_handle_t handle,
 		efi_printk("exit_boot() failed!\n");
 		goto fail;
 	}
-
-	memset((char *)gdt->address, 0x0, gdt->size);
-	desc = (struct desc_struct *)gdt->address;
-
-	/* The first GDT is a dummy. */
-	desc++;
-
-	if (IS_ENABLED(CONFIG_X86_64)) {
-		/* __KERNEL32_CS */
-		desc->limit0	= 0xffff;
-		desc->base0	= 0x0000;
-		desc->base1	= 0x0000;
-		desc->type	= SEG_TYPE_CODE | SEG_TYPE_EXEC_READ;
-		desc->s		= DESC_TYPE_CODE_DATA;
-		desc->dpl	= 0;
-		desc->p		= 1;
-		desc->limit1	= 0xf;
-		desc->avl	= 0;
-		desc->l		= 0;
-		desc->d		= SEG_OP_SIZE_32BIT;
-		desc->g		= SEG_GRANULARITY_4KB;
-		desc->base2	= 0x00;
-
-		desc++;
-	} else {
-		/* Second entry is unused on 32-bit */
-		desc++;
-	}
-
-	/* __KERNEL_CS */
-	desc->limit0	= 0xffff;
-	desc->base0	= 0x0000;
-	desc->base1	= 0x0000;
-	desc->type	= SEG_TYPE_CODE | SEG_TYPE_EXEC_READ;
-	desc->s		= DESC_TYPE_CODE_DATA;
-	desc->dpl	= 0;
-	desc->p		= 1;
-	desc->limit1	= 0xf;
-	desc->avl	= 0;
-
-	if (IS_ENABLED(CONFIG_X86_64)) {
-		desc->l = 1;
-		desc->d = 0;
-	} else {
-		desc->l = 0;
-		desc->d = SEG_OP_SIZE_32BIT;
-	}
-	desc->g		= SEG_GRANULARITY_4KB;
-	desc->base2	= 0x00;
-	desc++;
-
-	/* __KERNEL_DS */
-	desc->limit0	= 0xffff;
-	desc->base0	= 0x0000;
-	desc->base1	= 0x0000;
-	desc->type	= SEG_TYPE_DATA | SEG_TYPE_READ_WRITE;
-	desc->s		= DESC_TYPE_CODE_DATA;
-	desc->dpl	= 0;
-	desc->p		= 1;
-	desc->limit1	= 0xf;
-	desc->avl	= 0;
-	desc->l		= 0;
-	desc->d		= SEG_OP_SIZE_32BIT;
-	desc->g		= SEG_GRANULARITY_4KB;
-	desc->base2	= 0x00;
-	desc++;
-
-	if (IS_ENABLED(CONFIG_X86_64)) {
-		/* Task segment value */
-		desc->limit0	= 0x0000;
-		desc->base0	= 0x0000;
-		desc->base1	= 0x0000;
-		desc->type	= SEG_TYPE_TSS;
-		desc->s		= 0;
-		desc->dpl	= 0;
-		desc->p		= 1;
-		desc->limit1	= 0x0;
-		desc->avl	= 0;
-		desc->l		= 0;
-		desc->d		= 0;
-		desc->g		= SEG_GRANULARITY_4KB;
-		desc->base2	= 0x00;
-		desc++;
-	}
-
-	asm volatile("cli");
-	asm volatile ("lgdt %0" : : "m" (*gdt));
 
 	return boot_params;
 fail:
