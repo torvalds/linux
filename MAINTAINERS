@@ -16108,6 +16108,7 @@ M:	Sakari Ailus <sakari.ailus@linux.intel.com>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/media/i2c/nokia,smia.txt
+F:	Documentation/driver-api/media/drivers/ccs/
 F:	drivers/media/i2c/smiapp-pll.c
 F:	drivers/media/i2c/smiapp-pll.h
 F:	drivers/media/i2c/smiapp/
