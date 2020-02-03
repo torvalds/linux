@@ -60,6 +60,9 @@ of the system.  The former are always used if the processor model at hand is
 recognized by ``intel_idle`` and the latter are used if that is required for
 the given processor model (which is the case for all server processor models
 recognized by ``intel_idle``) or if the processor model is not recognized.
+[There is a module parameter that can be used to make the driver use the ACPI
+tables with any processor model recognized by it; see
+`below <intel-idle-parameters_>`_.]
 
 If the ACPI tables are going to be used for building the list of available idle
 states, ``intel_idle`` first looks for a ``_CST`` object under one of the ACPI
@@ -165,7 +168,7 @@ and ``idle=nomwait``.  If any of them is present in the kernel command line, the
 ``MWAIT`` instruction is not allowed to be used, so the initialization of
 ``intel_idle`` will fail.
 
-Apart from that there are two module parameters recognized by ``intel_idle``
+Apart from that there are three module parameters recognized by ``intel_idle``
 itself that can be set via the kernel command line (they cannot be updated via
 sysfs, so that is the only way to change their values).
 
@@ -186,9 +189,11 @@ QoS) feature can be used to prevent ``CPUIdle`` from touching those idle states
 even if they have been enumerated (see :ref:`cpu-pm-qos` in :doc:`cpuidle`).
 Setting ``max_cstate`` to 0 causes the ``intel_idle`` initialization to fail.
 
-The ``noacpi`` module parameter (which is recognized by ``intel_idle`` if the
-kernel has been configured with ACPI support), can be set to make the driver
-ignore the system's ACPI tables entirely (it is unset by default).
+The ``no_acpi`` and ``use_acpi`` module parameters (recognized by ``intel_idle``
+if the kernel has been configured with ACPI support) can be set to make the
+driver ignore the system's ACPI tables entirely or use them for all of the
+recognized processor models, respectively (they both are unset by default and
+``use_acpi`` has no effect if ``no_acpi`` is set).
 
 
 .. _intel-idle-core-and-package-idle-states:

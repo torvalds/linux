@@ -1131,6 +1131,10 @@ static bool no_acpi __read_mostly;
 module_param(no_acpi, bool, 0444);
 MODULE_PARM_DESC(no_acpi, "Do not use ACPI _CST for building the idle states list");
 
+static bool force_use_acpi __read_mostly; /* No effect if no_acpi is set. */
+module_param_named(use_acpi, force_use_acpi, bool, 0444);
+MODULE_PARM_DESC(use_acpi, "Use ACPI _CST for building the idle states list");
+
 static struct acpi_processor_power acpi_state_table __initdata;
 
 /**
@@ -1258,6 +1262,8 @@ static bool __init intel_idle_off_by_default(u32 mwait_hint)
 	return true;
 }
 #else /* !CONFIG_ACPI_PROCESSOR_CSTATE */
+#define force_use_acpi	(false)
+
 static inline bool intel_idle_acpi_cst_extract(void) { return false; }
 static inline void intel_idle_init_cstates_acpi(struct cpuidle_driver *drv) { }
 static inline bool intel_idle_off_by_default(u32 mwait_hint) { return false; }
@@ -1460,7 +1466,8 @@ static void __init intel_idle_init_cstates_icpu(struct cpuidle_driver *drv)
 		/* Structure copy. */
 		drv->states[drv->state_count] = cpuidle_state_table[cstate];
 
-		if (icpu->use_acpi && intel_idle_off_by_default(mwait_hint) &&
+		if ((icpu->use_acpi || force_use_acpi) &&
+		    intel_idle_off_by_default(mwait_hint) &&
 		    !(cpuidle_state_table[cstate].flags & CPUIDLE_FLAG_ALWAYS_ENABLE))
 			drv->states[drv->state_count].flags |= CPUIDLE_FLAG_OFF;
 
@@ -1607,7 +1614,7 @@ static int __init intel_idle_init(void)
 	icpu = (const struct idle_cpu *)id->driver_data;
 	if (icpu) {
 		cpuidle_state_table = icpu->state_table;
-		if (icpu->use_acpi)
+		if (icpu->use_acpi || force_use_acpi)
 			intel_idle_acpi_cst_extract();
 	} else if (!intel_idle_acpi_cst_extract()) {
 		return -ENODEV;
