@@ -2452,25 +2452,17 @@ out:
 
 int mlx5_eswitch_get_vepa(struct mlx5_eswitch *esw, u8 *setting)
 {
-	int err = 0;
-
 	if (!esw)
 		return -EOPNOTSUPP;
 
 	if (!ESW_ALLOWED(esw))
 		return -EPERM;
 
-	mutex_lock(&esw->state_lock);
-	if (esw->mode != MLX5_ESWITCH_LEGACY) {
-		err = -EOPNOTSUPP;
-		goto out;
-	}
+	if (esw->mode != MLX5_ESWITCH_LEGACY)
+		return -EOPNOTSUPP;
 
 	*setting = esw->fdb_table.legacy.vepa_uplink_rule ? 1 : 0;
-
-out:
-	mutex_unlock(&esw->state_lock);
-	return err;
+	return 0;
 }
 
 int mlx5_eswitch_set_vport_trust(struct mlx5_eswitch *esw,
