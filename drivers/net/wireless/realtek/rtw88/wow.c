@@ -281,27 +281,26 @@ static void rtw_wow_rx_dma_start(struct rtw_dev *rtwdev)
 	rtw_write32_clr(rtwdev, REG_RXPKT_NUM, BIT_RW_RELEASE);
 }
 
-static bool rtw_wow_check_fw_status(struct rtw_dev *rtwdev, bool wow_enable)
+static int rtw_wow_check_fw_status(struct rtw_dev *rtwdev, bool wow_enable)
 {
-	bool ret;
-
 	/* wait 100ms for wow firmware to finish work */
 	msleep(100);
 
 	if (wow_enable) {
-		if (!rtw_read8(rtwdev, REG_WOWLAN_WAKE_REASON))
-			ret = 0;
+		if (rtw_read8(rtwdev, REG_WOWLAN_WAKE_REASON))
+			goto wow_fail;
 	} else {
-		if (rtw_read32_mask(rtwdev, REG_FE1IMR, BIT_FS_RXDONE) == 0 &&
-		    rtw_read32_mask(rtwdev, REG_RXPKT_NUM, BIT_RW_RELEASE) == 0)
-			ret = 0;
+		if (rtw_read32_mask(rtwdev, REG_FE1IMR, BIT_FS_RXDONE) ||
+		    rtw_read32_mask(rtwdev, REG_RXPKT_NUM, BIT_RW_RELEASE))
+			goto wow_fail;
 	}
 
-	if (ret)
-		rtw_err(rtwdev, "failed to check wow status %s\n",
-			wow_enable ? "enabled" : "disabled");
+	return 0;
 
-	return ret;
+wow_fail:
+	rtw_err(rtwdev, "failed to check wow status %s\n",
+		wow_enable ? "enabled" : "disabled");
+	return -EBUSY;
 }
 
 static void rtw_wow_fw_security_type_iter(struct ieee80211_hw *hw,
