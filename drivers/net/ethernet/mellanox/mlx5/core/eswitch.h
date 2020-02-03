@@ -209,6 +209,8 @@ struct mlx5_esw_offload {
 	struct mutex peer_mutex;
 	struct mutex encap_tbl_lock; /* protects encap_tbl */
 	DECLARE_HASHTABLE(encap_tbl, 8);
+	struct mutex decap_tbl_lock; /* protects decap_tbl */
+	DECLARE_HASHTABLE(decap_tbl, 8);
 	struct mod_hdr_tbl mod_hdr;
 	DECLARE_HASHTABLE(termtbl_tbl, 8);
 	struct mutex termtbl_mutex; /* protects termtbl hash */
@@ -432,6 +434,7 @@ struct mlx5_esw_flow_attr {
 	struct mlx5_flow_table *fdb;
 	struct mlx5_flow_table *dest_ft;
 	struct mlx5_ct_attr ct_attr;
+	struct mlx5_pkt_reformat *decap_pkt_reformat;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
 };
 

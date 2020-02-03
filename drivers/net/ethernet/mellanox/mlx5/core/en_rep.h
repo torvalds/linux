@@ -158,6 +158,22 @@ struct mlx5e_neigh_hash_entry {
 enum {
 	/* set when the encap entry is successfully offloaded into HW */
 	MLX5_ENCAP_ENTRY_VALID     = BIT(0),
+	MLX5_REFORMAT_DECAP        = BIT(1),
+};
+
+struct mlx5e_decap_key {
+	struct ethhdr key;
+};
+
+struct mlx5e_decap_entry {
+	struct mlx5e_decap_key key;
+	struct list_head flows;
+	struct hlist_node hlist;
+	refcount_t refcnt;
+	struct completion res_ready;
+	int compl_result;
+	struct mlx5_pkt_reformat *pkt_reformat;
+	struct rcu_head rcu;
 };
 
 struct mlx5e_encap_entry {
