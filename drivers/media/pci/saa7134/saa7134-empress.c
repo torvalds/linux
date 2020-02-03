@@ -291,7 +291,7 @@ static int empress_init(struct saa7134_dev *dev)
 		dev->empress_dev->device_caps |= V4L2_CAP_TUNER;
 
 	video_set_drvdata(dev->empress_dev, dev);
-	err = video_register_device(dev->empress_dev,VFL_TYPE_GRABBER,
+	err = video_register_device(dev->empress_dev,VFL_TYPE_VIDEO,
 				    empress_nr[dev->nr]);
 	if (err < 0) {
 		pr_info("%s: can't register video device\n",
