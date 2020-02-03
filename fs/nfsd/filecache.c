@@ -52,7 +52,7 @@ struct nfsd_fcache_disposal {
 	struct rcu_head rcu;
 };
 
-struct workqueue_struct *nfsd_filecache_wq __read_mostly;
+static struct workqueue_struct *nfsd_filecache_wq __read_mostly;
 
 static struct kmem_cache		*nfsd_file_slab;
 static struct kmem_cache		*nfsd_file_mark_slab;
