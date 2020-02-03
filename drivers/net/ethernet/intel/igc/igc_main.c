@@ -4789,6 +4789,16 @@ static int igc_probe(struct pci_dev *pdev,
 	hw->fc.requested_mode = igc_fc_default;
 	hw->fc.current_mode = igc_fc_default;
 
+	/* By default, support wake on port A */
+	adapter->flags |= IGC_FLAG_WOL_SUPPORTED;
+
+	/* initialize the wol settings based on the eeprom settings */
+	if (adapter->flags & IGC_FLAG_WOL_SUPPORTED)
+		adapter->wol |= IGC_WUFC_MAG;
+
+	device_set_wakeup_enable(&adapter->pdev->dev,
+				 adapter->flags & IGC_FLAG_WOL_SUPPORTED);
+
 	/* reset the hardware with the new settings */
 	igc_reset(adapter);
 
