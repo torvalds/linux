@@ -2356,9 +2356,14 @@ smiapp_sysfs_ident_read(struct device *dev, struct device_attribute *attr,
 	struct smiapp_sensor *sensor = to_smiapp_sensor(subdev);
 	struct smiapp_module_info *minfo = &sensor->minfo;
 
-	return snprintf(buf, PAGE_SIZE, "%2.2x%4.4x%2.2x\n",
-			minfo->manufacturer_id, minfo->model_id,
-			minfo->revision_number_major) + 1;
+	if (minfo->mipi_manufacturer_id)
+		return snprintf(buf, PAGE_SIZE, "%4.4x%4.4x%2.2x\n",
+				minfo->mipi_manufacturer_id, minfo->model_id,
+				minfo->revision_number_major) + 1;
+	else
+		return snprintf(buf, PAGE_SIZE, "%2.2x%4.4x%2.2x\n",
+				minfo->smia_manufacturer_id, minfo->model_id,
+				minfo->revision_number_major) + 1;
 }
 
 static DEVICE_ATTR(ident, S_IRUGO, smiapp_sysfs_ident_read, NULL);
@@ -2377,8 +2382,11 @@ static int smiapp_identify_module(struct smiapp_sensor *sensor)
 	minfo->name = SMIAPP_NAME;
 
 	/* Module info */
-	rval = smiapp_read_8only(sensor, SMIAPP_REG_U8_MANUFACTURER_ID,
-				 &minfo->manufacturer_id);
+	rval = ccs_read(sensor, MODULE_MANUFACTURER_ID,
+			&minfo->mipi_manufacturer_id);
+	if (!rval && !minfo->mipi_manufacturer_id)
+		rval = smiapp_read_8only(sensor, SMIAPP_REG_U8_MANUFACTURER_ID,
+					 &minfo->smia_manufacturer_id);
 	if (!rval)
 		rval = smiapp_read_8only(sensor, SMIAPP_REG_U16_MODEL_ID,
 					 &minfo->model_id);
@@ -2404,9 +2412,12 @@ static int smiapp_identify_module(struct smiapp_sensor *sensor)
 
 	/* Sensor info */
 	if (!rval)
+		rval = ccs_read(sensor, SENSOR_MANUFACTURER_ID,
+				&minfo->sensor_mipi_manufacturer_id);
+	if (!rval && !minfo->sensor_mipi_manufacturer_id)
 		rval = smiapp_read_8only(sensor,
 					 SMIAPP_REG_U8_SENSOR_MANUFACTURER_ID,
-					 &minfo->sensor_manufacturer_id);
+					 &minfo->sensor_smia_manufacturer_id);
 	if (!rval)
 		rval = smiapp_read_8only(sensor,
 					 SMIAPP_REG_U16_SENSOR_MODEL_ID,
@@ -2422,9 +2433,11 @@ static int smiapp_identify_module(struct smiapp_sensor *sensor)
 
 	/* SMIA */
 	if (!rval)
+		rval = ccs_read(sensor, MIPI_CCS_VERSION, &minfo->ccs_version);
+	if (!rval && !minfo->ccs_version)
 		rval = smiapp_read_8only(sensor, SMIAPP_REG_U8_SMIA_VERSION,
 					 &minfo->smia_version);
-	if (!rval)
+	if (!rval && !minfo->ccs_version)
 		rval = smiapp_read_8only(sensor, SMIAPP_REG_U8_SMIAPP_VERSION,
 					 &minfo->smiapp_version);
 
@@ -2433,38 +2446,62 @@ static int smiapp_identify_module(struct smiapp_sensor *sensor)
 		return -ENODEV;
 	}
 
-	dev_dbg(&client->dev, "module 0x%2.2x-0x%4.4x\n",
-		minfo->manufacturer_id, minfo->model_id);
+	if (minfo->mipi_manufacturer_id)
+		dev_dbg(&client->dev, "MIPI CCS module 0x%4.4x-0x%4.4x\n",
+			minfo->mipi_manufacturer_id, minfo->model_id);
+	else
+		dev_dbg(&client->dev, "SMIA module 0x%2.2x-0x%4.4x\n",
+			minfo->smia_manufacturer_id, minfo->model_id);
 
 	dev_dbg(&client->dev,
 		"module revision 0x%2.2x-0x%2.2x date %2.2d-%2.2d-%2.2d\n",
 		minfo->revision_number_major, minfo->revision_number_minor,
 		minfo->module_year, minfo->module_month, minfo->module_day);
 
-	dev_dbg(&client->dev, "sensor 0x%2.2x-0x%4.4x\n",
-		minfo->sensor_manufacturer_id, minfo->sensor_model_id);
+	if (minfo->sensor_mipi_manufacturer_id)
+		dev_dbg(&client->dev, "MIPI CCS sensor 0x%4.4x-0x%4.4x\n",
+			minfo->sensor_mipi_manufacturer_id,
+			minfo->sensor_model_id);
+	else
+		dev_dbg(&client->dev, "SMIA sensor 0x%2.2x-0x%4.4x\n",
+			minfo->sensor_smia_manufacturer_id,
+			minfo->sensor_model_id);
 
 	dev_dbg(&client->dev,
 		"sensor revision 0x%2.2x firmware version 0x%2.2x\n",
 		minfo->sensor_revision_number, minfo->sensor_firmware_version);
 
-	dev_dbg(&client->dev, "smia version %2.2d smiapp version %2.2d\n",
-		minfo->smia_version, minfo->smiapp_version);
+	if (minfo->ccs_version)
+		dev_dbg(&client->dev, "MIPI CCS version %u.%u",
+			(minfo->ccs_version & CCS_MIPI_CCS_VERSION_MAJOR_MASK)
+			>> CCS_MIPI_CCS_VERSION_MAJOR_SHIFT,
+			(minfo->ccs_version & CCS_MIPI_CCS_VERSION_MINOR_MASK));
+	else
+		dev_dbg(&client->dev,
+			"smia version %2.2d smiapp version %2.2d\n",
+			minfo->smia_version, minfo->smiapp_version);
 
 	/*
 	 * Some modules have bad data in the lvalues below. Hope the
 	 * rvalues have better stuff. The lvalues are module
 	 * parameters whereas the rvalues are sensor parameters.
 	 */
-	if (!minfo->manufacturer_id && !minfo->model_id) {
-		minfo->manufacturer_id = minfo->sensor_manufacturer_id;
+	if (minfo->sensor_smia_manufacturer_id &&
+	    !minfo->smia_manufacturer_id && !minfo->model_id) {
+		minfo->smia_manufacturer_id =
+			minfo->sensor_smia_manufacturer_id;
 		minfo->model_id = minfo->sensor_model_id;
 		minfo->revision_number_major = minfo->sensor_revision_number;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(smiapp_module_idents); i++) {
-		if (smiapp_module_idents[i].manufacturer_id
-		    != minfo->manufacturer_id)
+		if (smiapp_module_idents[i].mipi_manufacturer_id &&
+		    smiapp_module_idents[i].mipi_manufacturer_id
+		    != minfo->mipi_manufacturer_id)
+			continue;
+		if (smiapp_module_idents[i].smia_manufacturer_id &&
+		    smiapp_module_idents[i].smia_manufacturer_id
+		    != minfo->smia_manufacturer_id)
 			continue;
 		if (smiapp_module_idents[i].model_id != minfo->model_id)
 			continue;
@@ -2488,9 +2525,8 @@ static int smiapp_identify_module(struct smiapp_sensor *sensor)
 		dev_warn(&client->dev,
 			 "no quirks for this module; let's hope it's fully compliant\n");
 
-	dev_dbg(&client->dev, "the sensor is called %s, ident %2.2x%4.4x%2.2x\n",
-		minfo->name, minfo->manufacturer_id, minfo->model_id,
-		minfo->revision_number_major);
+	dev_dbg(&client->dev, "the sensor is called %s\n",
+		minfo->name);
 
 	return 0;
 }

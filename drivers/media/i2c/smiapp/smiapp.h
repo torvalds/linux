@@ -91,8 +91,9 @@ struct smiapp_quirk;
 #define SMIAPP_MODULE_IDENT_FLAG_REV_LE		(1 << 0)
 
 struct smiapp_module_ident {
-	u8 manufacturer_id;
+	u16 mipi_manufacturer_id;
 	u16 model_id;
+	u8 smia_manufacturer_id;
 	u8 revision_number_major;
 
 	u8 flags;
@@ -102,7 +103,8 @@ struct smiapp_module_ident {
 };
 
 struct smiapp_module_info {
-	u32 manufacturer_id;
+	u32 smia_manufacturer_id;
+	u32 mipi_manufacturer_id;
 	u32 model_id;
 	u32 revision_number_major;
 	u32 revision_number_minor;
@@ -111,13 +113,15 @@ struct smiapp_module_info {
 	u32 module_month;
 	u32 module_day;
 
-	u32 sensor_manufacturer_id;
+	u32 sensor_smia_manufacturer_id;
+	u32 sensor_mipi_manufacturer_id;
 	u32 sensor_model_id;
 	u32 sensor_revision_number;
 	u32 sensor_firmware_version;
 
 	u32 smia_version;
 	u32 smiapp_version;
+	u32 ccs_version;
 
 	u32 smiapp_profile;
 
@@ -126,7 +130,7 @@ struct smiapp_module_info {
 };
 
 #define SMIAPP_IDENT_FQ(manufacturer, model, rev, fl, _name, _quirk)	\
-	{ .manufacturer_id = manufacturer,				\
+	{ .smia_manufacturer_id = manufacturer,				\
 	  .model_id = model,						\
 	  .revision_number_major = rev,					\
 	  .flags = fl,							\
@@ -134,7 +138,7 @@ struct smiapp_module_info {
 	  .quirk = _quirk, }
 
 #define SMIAPP_IDENT_LQ(manufacturer, model, rev, _name, _quirk)	\
-	{ .manufacturer_id = manufacturer,				\
+	{ .smia_manufacturer_id = manufacturer,				\
 	  .model_id = model,						\
 	  .revision_number_major = rev,					\
 	  .flags = SMIAPP_MODULE_IDENT_FLAG_REV_LE,			\
@@ -142,14 +146,14 @@ struct smiapp_module_info {
 	  .quirk = _quirk, }
 
 #define SMIAPP_IDENT_L(manufacturer, model, rev, _name)			\
-	{ .manufacturer_id = manufacturer,				\
+	{ .smia_manufacturer_id = manufacturer,				\
 	  .model_id = model,						\
 	  .revision_number_major = rev,					\
 	  .flags = SMIAPP_MODULE_IDENT_FLAG_REV_LE,			\
 	  .name = _name, }
 
 #define SMIAPP_IDENT_Q(manufacturer, model, rev, _name, _quirk)		\
-	{ .manufacturer_id = manufacturer,				\
+	{ .smia_manufacturer_id = manufacturer,				\
 	  .model_id = model,						\
 	  .revision_number_major = rev,					\
 	  .flags = 0,							\
@@ -157,7 +161,7 @@ struct smiapp_module_info {
 	  .quirk = _quirk, }
 
 #define SMIAPP_IDENT(manufacturer, model, rev, _name)			\
-	{ .manufacturer_id = manufacturer,				\
+	{ .smia_manufacturer_id = manufacturer,				\
 	  .model_id = model,						\
 	  .revision_number_major = rev,					\
 	  .flags = 0,							\
