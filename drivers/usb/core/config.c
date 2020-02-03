@@ -322,7 +322,7 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno,
 	j = 255;
 	if (usb_endpoint_xfer_int(d)) {
 		i = 1;
-		switch (to_usb_device(ddev)->speed) {
+		switch (udev->speed) {
 		case USB_SPEED_SUPER_PLUS:
 		case USB_SPEED_SUPER:
 		case USB_SPEED_HIGH:
@@ -343,8 +343,7 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno,
 			/*
 			 * This quirk fixes bIntervals reported in ms.
 			 */
-			if (to_usb_device(ddev)->quirks &
-				USB_QUIRK_LINEAR_FRAME_INTR_BINTERVAL) {
+			if (udev->quirks & USB_QUIRK_LINEAR_FRAME_INTR_BINTERVAL) {
 				n = clamp(fls(d->bInterval) + 3, i, j);
 				i = j = n;
 			}
@@ -352,8 +351,7 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno,
 			 * This quirk fixes bIntervals reported in
 			 * linear microframes.
 			 */
-			if (to_usb_device(ddev)->quirks &
-				USB_QUIRK_LINEAR_UFRAME_INTR_BINTERVAL) {
+			if (udev->quirks & USB_QUIRK_LINEAR_UFRAME_INTR_BINTERVAL) {
 				n = clamp(fls(d->bInterval), i, j);
 				i = j = n;
 			}
@@ -370,7 +368,7 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno,
 	} else if (usb_endpoint_xfer_isoc(d)) {
 		i = 1;
 		j = 16;
-		switch (to_usb_device(ddev)->speed) {
+		switch (udev->speed) {
 		case USB_SPEED_HIGH:
 			n = 7;		/* 8 ms = 2^(7-1) uframes */
 			break;
@@ -392,8 +390,7 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno,
 	 * explicitly forbidden by the USB spec.  In an attempt to make
 	 * them usable, we will try treating them as Interrupt endpoints.
 	 */
-	if (to_usb_device(ddev)->speed == USB_SPEED_LOW &&
-			usb_endpoint_xfer_bulk(d)) {
+	if (udev->speed == USB_SPEED_LOW && usb_endpoint_xfer_bulk(d)) {
 		dev_warn(ddev, "config %d interface %d altsetting %d "
 		    "endpoint 0x%X is Bulk; changing to Interrupt\n",
 		    cfgno, inum, asnum, d->bEndpointAddress);
@@ -417,7 +414,7 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno,
 
 	/* Find the highest legal maxpacket size for this endpoint */
 	i = 0;		/* additional transactions per microframe */
-	switch (to_usb_device(ddev)->speed) {
+	switch (udev->speed) {
 	case USB_SPEED_LOW:
 		maxpacket_maxes = low_speed_maxpacket_maxes;
 		break;
@@ -453,8 +450,7 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno,
 	 * maxpacket sizes other than 512.  High speed HCDs may not
 	 * be able to handle that particular bug, so let's warn...
 	 */
-	if (to_usb_device(ddev)->speed == USB_SPEED_HIGH
-			&& usb_endpoint_xfer_bulk(d)) {
+	if (udev->speed == USB_SPEED_HIGH && usb_endpoint_xfer_bulk(d)) {
 		if (maxp != 512)
 			dev_warn(ddev, "config %d interface %d altsetting %d "
 				"bulk endpoint 0x%X has invalid maxpacket %d\n",
@@ -463,7 +459,7 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno,
 	}
 
 	/* Parse a possible SuperSpeed endpoint companion descriptor */
-	if (to_usb_device(ddev)->speed >= USB_SPEED_SUPER)
+	if (udev->speed >= USB_SPEED_SUPER)
 		usb_parse_ss_endpoint_companion(ddev, cfgno,
 				inum, asnum, endpoint, buffer, size);
 
