@@ -23,18 +23,6 @@
  */
 unsigned int zone_dma_bits __ro_after_init = 24;
 
-static void report_addr(struct device *dev, dma_addr_t dma_addr, size_t size)
-{
-	if (!dev->dma_mask) {
-		dev_err_once(dev, "DMA map on device without dma_mask\n");
-	} else if (*dev->dma_mask >= DMA_BIT_MASK(32) || dev->bus_dma_limit) {
-		dev_err_once(dev,
-			"overflow %pad+%zu of DMA mask %llx bus limit %llx\n",
-			&dma_addr, size, *dev->dma_mask, dev->bus_dma_limit);
-	}
-	WARN_ON_ONCE(1);
-}
-
 static inline dma_addr_t phys_to_dma_direct(struct device *dev,
 		phys_addr_t phys)
 {
@@ -371,7 +359,9 @@ dma_addr_t dma_direct_map_page(struct device *dev, struct page *page,
 		if (swiotlb_force != SWIOTLB_NO_FORCE)
 			return swiotlb_map(dev, phys, size, dir, attrs);
 
-		report_addr(dev, dma_addr, size);
+		dev_WARN_ONCE(dev, 1,
+			     "DMA addr %pad+%zu overflow (mask %llx, bus limit %llx).\n",
+			     &dma_addr, size, *dev->dma_mask, dev->bus_dma_limit);
 		return DMA_MAPPING_ERROR;
 	}
 
@@ -409,7 +399,10 @@ dma_addr_t dma_direct_map_resource(struct device *dev, phys_addr_t paddr,
 	dma_addr_t dma_addr = paddr;
 
 	if (unlikely(!dma_capable(dev, dma_addr, size, false))) {
-		report_addr(dev, dma_addr, size);
+		dev_err_once(dev,
+			     "DMA addr %pad+%zu overflow (mask %llx, bus limit %llx).\n",
+			     &dma_addr, size, *dev->dma_mask, dev->bus_dma_limit);
+		WARN_ON_ONCE(1);
 		return DMA_MAPPING_ERROR;
 	}
 
