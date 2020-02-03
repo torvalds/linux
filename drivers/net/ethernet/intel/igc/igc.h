@@ -57,6 +57,8 @@ extern char igc_driver_version[];
 
 /* Interrupt defines */
 #define IGC_START_ITR			648 /* ~6000 ints/sec */
+
+/* Flags definitions */
 #define IGC_FLAG_HAS_MSI		BIT(0)
 #define IGC_FLAG_QUEUE_PAIRS		BIT(3)
 #define IGC_FLAG_DMAC			BIT(4)
