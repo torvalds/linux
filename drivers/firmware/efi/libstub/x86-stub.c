@@ -699,8 +699,13 @@ struct boot_params *efi_main(efi_handle_t handle,
 {
 	unsigned long bzimage_addr = (unsigned long)startup_32;
 	struct setup_header *hdr = &boot_params->hdr;
+	unsigned long max_addr = hdr->initrd_addr_max;
+	unsigned long initrd_addr, initrd_size;
 	efi_status_t status;
 	unsigned long cmdline_paddr;
+
+	if (hdr->xloadflags & XLF_CAN_BE_LOADED_ABOVE_4G)
+		max_addr = ULONG_MAX;
 
 	sys_table = sys_table_arg;
 
@@ -733,6 +738,24 @@ struct boot_params *efi_main(efi_handle_t handle,
 	cmdline_paddr = ((u64)hdr->cmd_line_ptr |
 			 ((u64)boot_params->ext_cmd_line_ptr << 32));
 	efi_parse_options((char *)cmdline_paddr);
+
+	/*
+	 * At this point, an initrd may already have been loaded, either by
+	 * the bootloader and passed via bootparams, or loaded from a initrd=
+	 * command line option by efi_pe_entry() above. In either case, we
+	 * permit an initrd loaded from the LINUX_EFI_INITRD_MEDIA_GUID device
+	 * path to supersede it.
+	 */
+	status = efi_load_initrd_dev_path(&initrd_addr, &initrd_size, max_addr);
+	if (status == EFI_SUCCESS) {
+		hdr->ramdisk_image		= (u32)initrd_addr;
+		hdr->ramdisk_size 		= (u32)initrd_size;
+		boot_params->ext_ramdisk_image	= (u64)initrd_addr >> 32;
+		boot_params->ext_ramdisk_size 	= (u64)initrd_size >> 32;
+	} else if (status != EFI_NOT_FOUND) {
+		efi_printk("efi_load_initrd_dev_path() failed!\n");
+		goto fail;
+	}
 
 	/*
 	 * If the boot loader gave us a value for secure_boot then we use that,

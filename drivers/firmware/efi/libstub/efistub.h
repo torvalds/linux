@@ -640,4 +640,8 @@ efi_status_t efi_load_initrd(efi_loaded_image_t *image,
 			     unsigned long soft_limit,
 			     unsigned long hard_limit);
 
+efi_status_t efi_load_initrd_dev_path(unsigned long *load_addr,
+				      unsigned long *load_size,
+				      unsigned long max);
+
 #endif

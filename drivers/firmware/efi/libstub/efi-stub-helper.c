@@ -299,3 +299,89 @@ void efi_char16_printk(efi_char16_t *str)
 	efi_call_proto(efi_table_attr(efi_system_table(), con_out),
 		       output_string, str);
 }
+
+/*
+ * The LINUX_EFI_INITRD_MEDIA_GUID vendor media device path below provides a way
+ * for the firmware or bootloader to expose the initrd data directly to the stub
+ * via the trivial LoadFile2 protocol, which is defined in the UEFI spec, and is
+ * very easy to implement. It is a simple Linux initrd specific conduit between
+ * kernel and firmware, allowing us to put the EFI stub (being part of the
+ * kernel) in charge of where and when to load the initrd, while leaving it up
+ * to the firmware to decide whether it needs to expose its filesystem hierarchy
+ * via EFI protocols.
+ */
+static const struct {
+	struct efi_vendor_dev_path	vendor;
+	struct efi_generic_dev_path	end;
+} __packed initrd_dev_path = {
+	{
+		{
+			EFI_DEV_MEDIA,
+			EFI_DEV_MEDIA_VENDOR,
+			sizeof(struct efi_vendor_dev_path),
+		},
+		LINUX_EFI_INITRD_MEDIA_GUID
+	}, {
+		EFI_DEV_END_PATH,
+		EFI_DEV_END_ENTIRE,
+		sizeof(struct efi_generic_dev_path)
+	}
+};
+
+/**
+ * efi_load_initrd_dev_path - load the initrd from the Linux initrd device path
+ * @load_addr:	pointer to store the address where the initrd was loaded
+ * @load_size:	pointer to store the size of the loaded initrd
+ * @max:	upper limit for the initrd memory allocation
+ * @return:	%EFI_SUCCESS if the initrd was loaded successfully, in which
+ *		case @load_addr and @load_size are assigned accordingly
+ *		%EFI_NOT_FOUND if no LoadFile2 protocol exists on the initrd
+ *		device path
+ *		%EFI_INVALID_PARAMETER if load_addr == NULL or load_size == NULL
+ *		%EFI_OUT_OF_RESOURCES if memory allocation failed
+ *		%EFI_LOAD_ERROR in all other cases
+ */
+efi_status_t efi_load_initrd_dev_path(unsigned long *load_addr,
+				      unsigned long *load_size,
+				      unsigned long max)
+{
+	efi_guid_t lf2_proto_guid = EFI_LOAD_FILE2_PROTOCOL_GUID;
+	efi_device_path_protocol_t *dp;
+	efi_load_file2_protocol_t *lf2;
+	unsigned long initrd_addr;
+	unsigned long initrd_size;
+	efi_handle_t handle;
+	efi_status_t status;
+
+	if (!load_addr || !load_size)
+		return EFI_INVALID_PARAMETER;
+
+	dp = (efi_device_path_protocol_t *)&initrd_dev_path;
+	status = efi_bs_call(locate_device_path, &lf2_proto_guid, &dp, &handle);
+	if (status != EFI_SUCCESS)
+		return status;
+
+	status = efi_bs_call(handle_protocol, handle, &lf2_proto_guid,
+			     (void **)&lf2);
+	if (status != EFI_SUCCESS)
+		return status;
+
+	status = efi_call_proto(lf2, load_file, dp, false, &initrd_size, NULL);
+	if (status != EFI_BUFFER_TOO_SMALL)
+		return EFI_LOAD_ERROR;
+
+	status = efi_allocate_pages(initrd_size, &initrd_addr, max);
+	if (status != EFI_SUCCESS)
+		return status;
+
+	status = efi_call_proto(lf2, load_file, dp, false, &initrd_size,
+				(void *)initrd_addr);
+	if (status != EFI_SUCCESS) {
+		efi_free(initrd_size, initrd_addr);
+		return EFI_LOAD_ERROR;
+	}
+
+	*load_addr = initrd_addr;
+	*load_size = initrd_size;
+	return EFI_SUCCESS;
+}

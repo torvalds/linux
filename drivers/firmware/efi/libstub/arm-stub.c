@@ -165,6 +165,7 @@ efi_status_t efi_entry(efi_handle_t handle, efi_system_table_t *sys_table_arg)
 	enum efi_secureboot_mode secure_boot;
 	struct screen_info *si;
 	efi_properties_table_t *prop_tbl;
+	unsigned long max_addr;
 
 	sys_table = sys_table_arg;
 
@@ -267,10 +268,18 @@ efi_status_t efi_entry(efi_handle_t handle, efi_system_table_t *sys_table_arg)
 	if (!fdt_addr)
 		pr_efi("Generating empty DTB\n");
 
-	status = efi_load_initrd(image, &initrd_addr, &initrd_size, ULONG_MAX,
-				 efi_get_max_initrd_addr(dram_base, image_addr));
+	max_addr = efi_get_max_initrd_addr(dram_base, image_addr);
+	status = efi_load_initrd_dev_path(&initrd_addr, &initrd_size, max_addr);
+	if (status == EFI_SUCCESS) {
+		pr_efi("Loaded initrd from LINUX_EFI_INITRD_MEDIA_GUID device path\n");
+	} else if (status == EFI_NOT_FOUND) {
+		status = efi_load_initrd(image, &initrd_addr, &initrd_size,
+					 ULONG_MAX, max_addr);
+		if (status == EFI_SUCCESS)
+			pr_efi("Loaded initrd from command line option\n");
+	}
 	if (status != EFI_SUCCESS)
-		pr_efi_err("Failed initrd from command line!\n");
+		pr_efi_err("Failed to load initrd!\n");
 
 	efi_random_get_seed();
 
