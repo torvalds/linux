@@ -226,10 +226,7 @@ static void gen6_rc6_enable(struct intel_rc6 *rc6)
 
 	set(uncore, GEN6_RC_SLEEP, 0);
 	set(uncore, GEN6_RC1e_THRESHOLD, 1000);
-	if (IS_IVYBRIDGE(i915))
-		set(uncore, GEN6_RC6_THRESHOLD, 125000);
-	else
-		set(uncore, GEN6_RC6_THRESHOLD, 50000);
+	set(uncore, GEN6_RC6_THRESHOLD, 50000);
 	set(uncore, GEN6_RC6p_THRESHOLD, 150000);
 	set(uncore, GEN6_RC6pp_THRESHOLD, 64000); /* unused */
 
