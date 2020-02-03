@@ -4825,9 +4825,7 @@ void bfq_put_queue(struct bfq_queue *bfqq)
 {
 	struct bfq_queue *item;
 	struct hlist_node *n;
-#ifdef CONFIG_BFQ_GROUP_IOSCHED
 	struct bfq_group *bfqg = bfqq_group(bfqq);
-#endif
 
 	if (bfqq->bfqd)
 		bfq_log_bfqq(bfqq->bfqd, bfqq, "put_queue: %p %d",
@@ -4900,9 +4898,7 @@ void bfq_put_queue(struct bfq_queue *bfqq)
 		bfqq->bfqd->last_completed_rq_bfqq = NULL;
 
 	kmem_cache_free(bfq_pool, bfqq);
-#ifdef CONFIG_BFQ_GROUP_IOSCHED
 	bfqg_and_blkg_put(bfqg);
-#endif
 }
 
 static void bfq_put_cooperator(struct bfq_queue *bfqq)
@@ -6390,10 +6386,10 @@ static void bfq_exit_queue(struct elevator_queue *e)
 
 	hrtimer_cancel(&bfqd->idle_slice_timer);
 
-#ifdef CONFIG_BFQ_GROUP_IOSCHED
 	/* release oom-queue reference to root group */
 	bfqg_and_blkg_put(bfqd->root_group);
 
+#ifdef CONFIG_BFQ_GROUP_IOSCHED
 	blkcg_deactivate_policy(bfqd->queue, &blkcg_policy_bfq);
 #else
 	spin_lock_irq(&bfqd->lock);

@@ -921,6 +921,7 @@ struct bfq_group {
 
 #else
 struct bfq_group {
+	struct bfq_entity entity;
 	struct bfq_sched_data sched_data;
 
 	struct bfq_queue *async_bfqq[2][IOPRIO_BE_NR];

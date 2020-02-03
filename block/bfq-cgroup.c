@@ -1406,6 +1406,10 @@ struct bfq_group *bfqq_group(struct bfq_queue *bfqq)
 	return bfqq->bfqd->root_group;
 }
 
+void bfqg_and_blkg_get(struct bfq_group *bfqg) {}
+
+void bfqg_and_blkg_put(struct bfq_group *bfqg) {}
+
 struct bfq_group *bfq_create_group_hierarchy(struct bfq_data *bfqd, int node)
 {
 	struct bfq_group *bfqg;
