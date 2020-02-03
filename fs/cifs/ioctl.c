@@ -65,7 +65,7 @@ static long cifs_ioctl_query_info(unsigned int xid, struct file *filep,
 
 	if (tcon->ses->server->ops->ioctl_query_info)
 		rc = tcon->ses->server->ops->ioctl_query_info(
-				xid, tcon, utf16_path,
+				xid, tcon, cifs_sb, utf16_path,
 				filep->private_data ? 0 : 1, p);
 	else
 		rc = -EOPNOTSUPP;

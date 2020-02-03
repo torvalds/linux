@@ -222,9 +222,6 @@ cifs_nt_open(char *full_path, struct inode *inode, struct cifs_sb_info *cifs_sb,
 	if (!buf)
 		return -ENOMEM;
 
-	if (backup_cred(cifs_sb))
-		create_options |= CREATE_OPEN_BACKUP_INTENT;
-
 	/* O_SYNC also has bit for O_DSYNC so following check picks up either */
 	if (f_flags & O_SYNC)
 		create_options |= CREATE_WRITE_THROUGH;
@@ -235,7 +232,7 @@ cifs_nt_open(char *full_path, struct inode *inode, struct cifs_sb_info *cifs_sb,
 	oparms.tcon = tcon;
 	oparms.cifs_sb = cifs_sb;
 	oparms.desired_access = desired_access;
-	oparms.create_options = create_options;
+	oparms.create_options = cifs_create_options(cifs_sb, create_options);
 	oparms.disposition = disposition;
 	oparms.path = full_path;
 	oparms.fid = fid;
@@ -752,9 +749,6 @@ cifs_reopen_file(struct cifsFileInfo *cfile, bool can_flush)
 
 	desired_access = cifs_convert_flags(cfile->f_flags);
 
-	if (backup_cred(cifs_sb))
-		create_options |= CREATE_OPEN_BACKUP_INTENT;
-
 	/* O_SYNC also has bit for O_DSYNC so following check picks up either */
 	if (cfile->f_flags & O_SYNC)
 		create_options |= CREATE_WRITE_THROUGH;
@@ -768,7 +762,7 @@ cifs_reopen_file(struct cifsFileInfo *cfile, bool can_flush)
 	oparms.tcon = tcon;
 	oparms.cifs_sb = cifs_sb;
 	oparms.desired_access = desired_access;
-	oparms.create_options = create_options;
+	oparms.create_options = cifs_create_options(cifs_sb, create_options);
 	oparms.disposition = disposition;
 	oparms.path = full_path;
 	oparms.fid = &cfile->fid;

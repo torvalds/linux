@@ -472,9 +472,7 @@ cifs_sfu_type(struct cifs_fattr *fattr, const char *path,
 	oparms.tcon = tcon;
 	oparms.cifs_sb = cifs_sb;
 	oparms.desired_access = GENERIC_READ;
-	oparms.create_options = CREATE_NOT_DIR;
-	if (backup_cred(cifs_sb))
-		oparms.create_options |= CREATE_OPEN_BACKUP_INTENT;
+	oparms.create_options = cifs_create_options(cifs_sb, CREATE_NOT_DIR);
 	oparms.disposition = FILE_OPEN;
 	oparms.path = path;
 	oparms.fid = &fid;
@@ -1284,7 +1282,7 @@ cifs_rename_pending_delete(const char *full_path, struct dentry *dentry,
 	oparms.tcon = tcon;
 	oparms.cifs_sb = cifs_sb;
 	oparms.desired_access = DELETE | FILE_WRITE_ATTRIBUTES;
-	oparms.create_options = CREATE_NOT_DIR;
+	oparms.create_options = cifs_create_options(cifs_sb, CREATE_NOT_DIR);
 	oparms.disposition = FILE_OPEN;
 	oparms.path = full_path;
 	oparms.fid = &fid;
@@ -1822,7 +1820,7 @@ cifs_do_rename(const unsigned int xid, struct dentry *from_dentry,
 	oparms.cifs_sb = cifs_sb;
 	/* open the file to be renamed -- we need DELETE perms */
 	oparms.desired_access = DELETE;
-	oparms.create_options = CREATE_NOT_DIR;
+	oparms.create_options = cifs_create_options(cifs_sb, CREATE_NOT_DIR);
 	oparms.disposition = FILE_OPEN;
 	oparms.path = from_path;
 	oparms.fid = &fid;
