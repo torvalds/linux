@@ -168,7 +168,7 @@ and ``idle=nomwait``.  If any of them is present in the kernel command line, the
 ``MWAIT`` instruction is not allowed to be used, so the initialization of
 ``intel_idle`` will fail.
 
-Apart from that there are three module parameters recognized by ``intel_idle``
+Apart from that there are four module parameters recognized by ``intel_idle``
 itself that can be set via the kernel command line (they cannot be updated via
 sysfs, so that is the only way to change their values).
 
@@ -194,6 +194,23 @@ if the kernel has been configured with ACPI support) can be set to make the
 driver ignore the system's ACPI tables entirely or use them for all of the
 recognized processor models, respectively (they both are unset by default and
 ``use_acpi`` has no effect if ``no_acpi`` is set).
+
+The value of the ``states_off`` module parameter (0 by default) represents a
+list of idle states to be disabled by default in the form of a bitmask.
+
+Namely, the positions of the bits that are set in the ``states_off`` value are
+the indices of idle states to be disabled by default (as reflected by the names
+of the corresponding idle state directories in ``sysfs``, :file:`state0`,
+:file:`state1` ... :file:`state<i>` ..., where ``<i>`` is the index of the given
+idle state; see :ref:`idle-states-representation` in :doc:`cpuidle`).
+
+For example, if ``states_off`` is equal to 3, the driver will disable idle
+states 0 and 1 by default, and if it is equal to 8, idle state 3 will be
+disabled by default and so on (bit positions beyond the maximum idle state index
+are ignored).
+
+The idle states disabled this way can be enabled (on a per-CPU basis) from user
+space via ``sysfs``.
 
 
 .. _intel-idle-core-and-package-idle-states:
