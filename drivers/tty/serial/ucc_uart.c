@@ -332,8 +332,6 @@ static int qe_uart_tx_pump(struct uart_qe_port *qe_port)
 	struct uart_port *port = &qe_port->port;
 	struct circ_buf *xmit = &port->state->xmit;
 
-	bdp = qe_port->rx_cur;
-
 	/* Handle xon/xoff */
 	if (port->x_char) {
 		/* Pick next descriptor and fill from buffer */
@@ -551,9 +549,7 @@ handle_error:
 	/* Overrun does not affect the current character ! */
 	if (status & BD_SC_OV)
 		tty_insert_flip_char(tport, 0, TTY_OVERRUN);
-#ifdef SUPPORT_SYSRQ
 	port->sysrq = 0;
-#endif
 	goto error_return;
 }
 

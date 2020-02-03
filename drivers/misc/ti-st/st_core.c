@@ -736,8 +736,8 @@ static int st_tty_open(struct tty_struct *tty)
 
 static void st_tty_close(struct tty_struct *tty)
 {
-	unsigned char i = ST_MAX_CHANNELS;
-	unsigned long flags = 0;
+	unsigned char i;
+	unsigned long flags;
 	struct	st_data_s *st_gdata = tty->disc_data;
 
 	pr_info("%s ", __func__);

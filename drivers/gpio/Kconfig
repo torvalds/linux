@@ -312,6 +312,12 @@ config GPIO_IXP4XX
 	  IXP4xx series of chips.
 
 	  If unsure, say N.
+config GPIO_LOGICVC
+	tristate "Xylon LogiCVC GPIO support"
+	depends on MFD_SYSCON && OF
+	help
+	  Say yes here to support GPIO functionality of the Xylon LogiCVC
+	  programmable logic block.
 
 config GPIO_LOONGSON
 	bool "Loongson-2/3 GPIO support"
@@ -334,14 +340,6 @@ config GPIO_LPC32XX
 	help
 	  Select this option to enable GPIO driver for
 	  NXP LPC32XX devices.
-
-config GPIO_LYNXPOINT
-	tristate "Intel Lynxpoint GPIO support"
-	depends on ACPI && X86
-	select GPIOLIB_IRQCHIP
-	help
-	  driver for GPIO functionality on Intel Lynxpoint PCH chipset
-	  Requires ACPI device enumeration code to set up a platform device.
 
 config GPIO_MB86S7X
 	tristate "GPIO support for Fujitsu MB86S7x Platforms"
@@ -582,6 +580,7 @@ config GPIO_THUNDERX
 	tristate "Cavium ThunderX/OCTEON-TX GPIO"
 	depends on ARCH_THUNDER || (64BIT && COMPILE_TEST)
 	depends on PCI_MSI
+	select GPIOLIB_IRQCHIP
 	select IRQ_DOMAIN_HIERARCHY
 	select IRQ_FASTEOI_HIERARCHY_HANDLERS
 	help
@@ -620,6 +619,13 @@ config GPIO_VX855
 	  This driver provides common support for accessing the device,
 	  additional drivers must be enabled in order to use the
 	  functionality of the device.
+
+config GPIO_WCD934X
+	tristate "Qualcomm Technologies Inc WCD9340/WCD9341 gpio controller driver"
+	depends on MFD_WCD934X && OF_GPIO
+	help
+         This driver is to supprot GPIO block found on the Qualcomm Technologies
+	 Inc WCD9340/WCD9341 Audio Codec.
 
 config GPIO_XGENE
 	bool "APM X-Gene GPIO controller support"

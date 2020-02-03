@@ -132,7 +132,6 @@ Code  Seq#    Include File                                           Comments
 'F'   80-8F  linux/arcfb.h                                           conflict!
 'F'   DD     video/sstfb.h                                           conflict!
 'G'   00-3F  drivers/misc/sgi-gru/grulib.h                           conflict!
-'G'   00-0F  linux/gigaset_dev.h                                     conflict!
 'H'   00-7F  linux/hiddev.h                                          conflict!
 'H'   00-0F  linux/hidraw.h                                          conflict!
 'H'   01     linux/mei.h                                             conflict!

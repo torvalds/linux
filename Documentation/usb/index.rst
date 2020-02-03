@@ -22,11 +22,9 @@ USB support
     misc_usbsevseg
     mtouchusb
     ohci
-    rio
     usbip_protocol
     usbmon
     usb-serial
-    wusb-design-overview
 
     usb-help
     text_files

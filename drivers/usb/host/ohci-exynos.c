@@ -19,7 +19,7 @@
 
 #include "ohci.h"
 
-#define DRIVER_DESC "OHCI EXYNOS driver"
+#define DRIVER_DESC "OHCI Exynos driver"
 
 static const char hcd_name[] = "ohci-exynos";
 static struct hc_driver __read_mostly exynos_ohci_hc_driver;

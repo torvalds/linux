@@ -53,4 +53,14 @@ config USB_CDNS3_TI
 
 	  e.g. J721e.
 
+config USB_CDNS3_IMX
+	tristate "Cadence USB3 support on NXP i.MX platforms"
+	depends on ARCH_MXC || COMPILE_TEST
+	default USB_CDNS3
+	help
+	  Say 'Y' or 'M' here if you are building for NXP i.MX
+	  platforms that contain Cadence USB3 controller core.
+
+	  For example, imx8qm and imx8qxp.
+
 endif

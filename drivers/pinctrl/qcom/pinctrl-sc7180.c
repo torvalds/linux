@@ -456,14 +456,18 @@ enum sc7180_functions {
 	msm_mux_qspi_data,
 	msm_mux_qup00,
 	msm_mux_qup01,
-	msm_mux_qup02,
+	msm_mux_qup02_i2c,
+	msm_mux_qup02_uart,
 	msm_mux_qup03,
-	msm_mux_qup04,
+	msm_mux_qup04_i2c,
+	msm_mux_qup04_uart,
 	msm_mux_qup05,
 	msm_mux_qup10,
-	msm_mux_qup11,
+	msm_mux_qup11_i2c,
+	msm_mux_qup11_uart,
 	msm_mux_qup12,
-	msm_mux_qup13,
+	msm_mux_qup13_i2c,
+	msm_mux_qup13_uart,
 	msm_mux_qup14,
 	msm_mux_qup15,
 	msm_mux_sdc1_tb,
@@ -543,7 +547,10 @@ static const char * const sdc1_tb_groups[] = {
 static const char * const sdc2_tb_groups[] = {
 	"gpio5",
 };
-static const char * const qup11_groups[] = {
+static const char * const qup11_i2c_groups[] = {
+	"gpio6", "gpio7",
+};
+static const char * const qup11_uart_groups[] = {
 	"gpio6", "gpio7",
 };
 static const char * const ddr_bist_groups[] = {
@@ -593,7 +600,10 @@ static const char * const qdss_groups[] = {
 static const char * const pll_reset_groups[] = {
 	"gpio14",
 };
-static const char * const qup02_groups[] = {
+static const char * const qup02_i2c_groups[] = {
+	"gpio15", "gpio16",
+};
+static const char * const qup02_uart_groups[] = {
 	"gpio15", "gpio16",
 };
 static const char * const cci_i2c_groups[] = {
@@ -698,7 +708,10 @@ static const char * const wlan1_adc1_groups[] = {
 static const char * const atest_usb13_groups[] = {
 	"gpio44",
 };
-static const char * const qup13_groups[] = {
+static const char * const qup13_i2c_groups[] = {
+	"gpio46", "gpio47",
+};
+static const char * const qup13_uart_groups[] = {
 	"gpio46", "gpio47",
 };
 static const char * const gcc_gp1_groups[] = {
@@ -848,7 +861,10 @@ static const char * const usb_phy_groups[] = {
 static const char * const mss_lte_groups[] = {
 	"gpio108", "gpio109",
 };
-static const char * const qup04_groups[] = {
+static const char * const qup04_i2c_groups[] = {
+	"gpio115", "gpio116",
+};
+static const char * const qup04_uart_groups[] = {
 	"gpio115", "gpio116",
 };
 
@@ -929,14 +945,18 @@ static const struct msm_function sc7180_functions[] = {
 	FUNCTION(qspi_data),
 	FUNCTION(qup00),
 	FUNCTION(qup01),
-	FUNCTION(qup02),
+	FUNCTION(qup02_i2c),
+	FUNCTION(qup02_uart),
 	FUNCTION(qup03),
-	FUNCTION(qup04),
+	FUNCTION(qup04_i2c),
+	FUNCTION(qup04_uart),
 	FUNCTION(qup05),
 	FUNCTION(qup10),
-	FUNCTION(qup11),
+	FUNCTION(qup11_i2c),
+	FUNCTION(qup11_uart),
 	FUNCTION(qup12),
-	FUNCTION(qup13),
+	FUNCTION(qup13_i2c),
+	FUNCTION(qup13_uart),
 	FUNCTION(qup14),
 	FUNCTION(qup15),
 	FUNCTION(sdc1_tb),
@@ -976,8 +996,8 @@ static const struct msm_pingroup sc7180_groups[] = {
 	[3] = PINGROUP(3, SOUTH, qup01, sp_cmu, dbg_out, qdss_cti, _, _, _, _, _),
 	[4] = PINGROUP(4, NORTH, sdc1_tb, _, qdss_cti, _, _, _, _, _, _),
 	[5] = PINGROUP(5, NORTH, sdc2_tb, _, _, _, _, _, _, _, _),
-	[6] = PINGROUP(6, NORTH, qup11, qup11, _, _, _, _, _, _, _),
-	[7] = PINGROUP(7, NORTH, qup11, qup11, ddr_bist, _, _, _, _, _, _),
+	[6] = PINGROUP(6, NORTH, qup11_i2c, qup11_uart, _, _, _, _, _, _, _),
+	[7] = PINGROUP(7, NORTH, qup11_i2c, qup11_uart, ddr_bist, _, _, _, _, _, _),
 	[8] = PINGROUP(8, NORTH, gp_pdm1, ddr_bist, _, phase_flag, qdss_cti, _, _, _, _),
 	[9] = PINGROUP(9, NORTH, ddr_bist, _, phase_flag, qdss_cti, _, _, _, _, _),
 	[10] = PINGROUP(10, NORTH, mdp_vsync, ddr_bist, _, _, _, _, _, _, _),
@@ -985,8 +1005,8 @@ static const struct msm_pingroup sc7180_groups[] = {
 	[12] = PINGROUP(12, SOUTH, mdp_vsync, m_voc, qup01, _, phase_flag, wlan2_adc0, atest_usb10, ddr_pxi3, _),
 	[13] = PINGROUP(13, SOUTH, cam_mclk, pll_bypassnl, qdss, _, _, _, _, _, _),
 	[14] = PINGROUP(14, SOUTH, cam_mclk, pll_reset, qdss, _, _, _, _, _, _),
-	[15] = PINGROUP(15, SOUTH, cam_mclk, qup02, qup02, qdss, _, _, _, _, _),
-	[16] = PINGROUP(16, SOUTH, cam_mclk, qup02, qup02, qdss, _, _, _, _, _),
+	[15] = PINGROUP(15, SOUTH, cam_mclk, qup02_i2c, qup02_uart, qdss, _, _, _, _, _),
+	[16] = PINGROUP(16, SOUTH, cam_mclk, qup02_i2c, qup02_uart, qdss, _, _, _, _, _),
 	[17] = PINGROUP(17, SOUTH, cci_i2c, _, phase_flag, qdss, _, wlan1_adc0, atest_usb12, ddr_pxi1, atest_char),
 	[18] = PINGROUP(18, SOUTH, cci_i2c, agera_pll, _, phase_flag, qdss, vsense_trigger, ddr_pxi0, atest_char3, _),
 	[19] = PINGROUP(19, SOUTH, cci_i2c, _, phase_flag, qdss, atest_char2, _, _, _, _),
@@ -1016,8 +1036,8 @@ static const struct msm_pingroup sc7180_groups[] = {
 	[43] = PINGROUP(43, NORTH, qup12, _, _, _, _, _, _, _, _),
 	[44] = PINGROUP(44, NORTH, qup12, _, phase_flag, qdss_cti, wlan1_adc1, atest_usb13, ddr_pxi1, _, _),
 	[45] = PINGROUP(45, NORTH, qup12, qdss_cti, _, _, _, _, _, _, _),
-	[46] = PINGROUP(46, NORTH, qup13, qup13, _, _, _, _, _, _, _),
-	[47] = PINGROUP(47, NORTH, qup13, qup13, _, _, _, _, _, _, _),
+	[46] = PINGROUP(46, NORTH, qup13_i2c, qup13_uart, _, _, _, _, _, _, _),
+	[47] = PINGROUP(47, NORTH, qup13_i2c, qup13_uart, _, _, _, _, _, _, _),
 	[48] = PINGROUP(48, NORTH, gcc_gp1, _, _, _, _, _, _, _, _),
 	[49] = PINGROUP(49, WEST, mi2s_1, btfm_slimbus, _, _, _, _, _, _, _),
 	[50] = PINGROUP(50, WEST, mi2s_1, btfm_slimbus, gp_pdm1, _, _, _, _, _, _),
@@ -1085,8 +1105,8 @@ static const struct msm_pingroup sc7180_groups[] = {
 	[112] = PINGROUP(112, NORTH, _, _, _, _, _, _, _, _, _),
 	[113] = PINGROUP(113, NORTH, _, _, _, _, _, _, _, _, _),
 	[114] = PINGROUP(114, NORTH, _, _, _, _, _, _, _, _, _),
-	[115] = PINGROUP(115, WEST, qup04, qup04, _, _, _, _, _, _, _),
-	[116] = PINGROUP(116, WEST, qup04, qup04, _, _, _, _, _, _, _),
+	[115] = PINGROUP(115, WEST, qup04_i2c, qup04_uart, _, _, _, _, _, _, _),
+	[116] = PINGROUP(116, WEST, qup04_i2c, qup04_uart, _, _, _, _, _, _, _),
 	[117] = PINGROUP(117, WEST, dp_hot, _, _, _, _, _, _, _, _),
 	[118] = PINGROUP(118, WEST, _, _, _, _, _, _, _, _, _),
 	[119] = UFS_RESET(ufs_reset, 0x7f000),
@@ -1099,6 +1119,22 @@ static const struct msm_pingroup sc7180_groups[] = {
 	[126] = SDC_QDSD_PINGROUP(sdc2_data, 0x7b000, 9, 0),
 };
 
+static const struct msm_gpio_wakeirq_map sc7180_pdc_map[] = {
+	{0, 40}, {3, 50}, {4, 42}, {5, 70}, {6, 41}, {9, 35},
+	{10, 80}, {11, 51}, {16, 20}, {21, 55}, {22, 90}, {23, 21},
+	{24, 61}, {26, 52}, {28, 36}, {30, 100}, {31, 33}, {32, 81},
+	{33, 62}, {34, 43}, {36, 91}, {37, 53}, {38, 63}, {39, 72},
+	{41, 101}, {42, 7}, {43, 34}, {45, 73}, {47, 82}, {49, 17},
+	{52, 109}, {53, 102}, {55, 92}, {56, 56}, {57, 57}, {58, 83},
+	{59, 37}, {62, 110}, {63, 111}, {64, 74}, {65, 44}, {66, 93},
+	{67, 58}, {68, 112}, {69, 32}, {70, 54}, {72, 59}, {73, 64},
+	{74, 71}, {78, 31}, {82, 30}, {85, 103}, {86, 38}, {87, 39},
+	{88, 45}, {89, 46}, {90, 47}, {91, 48}, {92, 60}, {93, 49},
+	{94, 84}, {95, 94}, {98, 65}, {101, 66}, {104, 67}, {109, 104},
+	{110, 68}, {113, 69}, {114, 113}, {115, 108}, {116, 121},
+	{117, 114}, {118, 119},
+};
+
 static const struct msm_pinctrl_soc_data sc7180_pinctrl = {
 	.pins = sc7180_pins,
 	.npins = ARRAY_SIZE(sc7180_pins),
@@ -1109,6 +1145,8 @@ static const struct msm_pinctrl_soc_data sc7180_pinctrl = {
 	.ngpios = 120,
 	.tiles = sc7180_tiles,
 	.ntiles = ARRAY_SIZE(sc7180_tiles),
+	.wakeirq_map = sc7180_pdc_map,
+	.nwakeirq_map = ARRAY_SIZE(sc7180_pdc_map),
 };
 
 static int sc7180_pinctrl_probe(struct platform_device *pdev)

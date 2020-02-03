@@ -222,8 +222,10 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 
 	if (IS_ENABLED(CONFIG_SERIAL_8250_FSL) &&
 	    (of_device_is_compatible(np, "fsl,ns16550") ||
-	     of_device_is_compatible(np, "fsl,16550-FIFO64")))
+	     of_device_is_compatible(np, "fsl,16550-FIFO64"))) {
 		port->handle_irq = fsl8250_handle_irq;
+		port->has_sysrq = IS_ENABLED(CONFIG_SERIAL_8250_CONSOLE);
+	}
 
 	return 0;
 err_unprepare:

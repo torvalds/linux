@@ -978,7 +978,7 @@ static int aspeed_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
 }
 
 /**
- * aspeed_gpio_copro_set_ops - Sets the callbacks used for handhsaking with
+ * aspeed_gpio_copro_set_ops - Sets the callbacks used for handshaking with
  *                             the coprocessor for shared GPIO banks
  * @ops: The callbacks
  * @data: Pointer passed back to the callbacks

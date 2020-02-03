@@ -1,8 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0
-#if defined(CONFIG_SERIAL_EFM32_UART_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
-#define SUPPORT_SYSRQ
-#endif
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/io.h>
@@ -748,6 +744,7 @@ static int efm32_uart_probe(struct platform_device *pdev)
 	efm_port->port.type = PORT_EFMUART;
 	efm_port->port.iotype = UPIO_MEM32;
 	efm_port->port.fifosize = 2;
+	efm_port->port.has_sysrq = IS_ENABLED(CONFIG_SERIAL_EFM32_UART_CONSOLE);
 	efm_port->port.ops = &efm32_uart_pops;
 	efm_port->port.flags = UPF_BOOT_AUTOCONF;
 

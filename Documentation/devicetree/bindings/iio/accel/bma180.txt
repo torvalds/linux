@@ -1,11 +1,14 @@
-* Bosch BMA180 / BMA250 triaxial acceleration sensor
+* Bosch BMA180 / BMA25x triaxial acceleration sensor
 
 http://omapworld.com/BMA180_111_1002839.pdf
 http://ae-bst.resource.bosch.com/media/products/dokumente/bma250/bst-bma250-ds002-05.pdf
 
 Required properties:
 
-  - compatible : should be "bosch,bma180" or "bosch,bma250"
+  - compatible : should be one of:
+    "bosch,bma180"
+    "bosch,bma250"
+    "bosch,bma254"
   - reg : the I2C address of the sensor
 
 Optional properties:

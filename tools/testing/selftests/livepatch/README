@@ -35,7 +35,7 @@ Adding tests
 ------------
 
 See the common functions.sh file for the existing collection of utility
-functions, most importantly set_dynamic_debug() and check_result().  The
+functions, most importantly setup_config() and check_result().  The
 latter function greps the kernel's ring buffer for "livepatch:" and
 "test_klp" strings, so tests be sure to include one of those strings for
 result comparison.  Other utility functions include general module

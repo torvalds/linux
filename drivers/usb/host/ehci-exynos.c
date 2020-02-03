@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * SAMSUNG EXYNOS USB HOST EHCI Controller
+ * Samsung Exynos USB HOST EHCI Controller
  *
  * Copyright (C) 2011 Samsung Electronics Co.Ltd
  * Author: Jingoo Han <jg1.han@samsung.com>
@@ -21,7 +21,7 @@
 
 #include "ehci.h"
 
-#define DRIVER_DESC "EHCI EXYNOS driver"
+#define DRIVER_DESC "EHCI Exynos driver"
 
 #define EHCI_INSNREG00(base)			(base + 0x90)
 #define EHCI_INSNREG00_ENA_INCR16		(0x1 << 25)

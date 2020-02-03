@@ -2783,11 +2783,15 @@ static void ehci_port_power(struct oxu_hcd *oxu, int is_on)
 		return;
 
 	oxu_dbg(oxu, "...power%s ports...\n", is_on ? "up" : "down");
-	for (port = HCS_N_PORTS(oxu->hcs_params); port > 0; )
-		(void) oxu_hub_control(oxu_to_hcd(oxu),
-				is_on ? SetPortFeature : ClearPortFeature,
-				USB_PORT_FEAT_POWER,
-				port--, NULL, 0);
+	for (port = HCS_N_PORTS(oxu->hcs_params); port > 0; ) {
+		if (is_on)
+			oxu_hub_control(oxu_to_hcd(oxu), SetPortFeature,
+				USB_PORT_FEAT_POWER, port--, NULL, 0);
+		else
+			oxu_hub_control(oxu_to_hcd(oxu), ClearPortFeature,
+				USB_PORT_FEAT_POWER, port--, NULL, 0);
+	}
+
 	msleep(20);
 }
 

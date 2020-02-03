@@ -4,8 +4,8 @@
 #ifndef VCHI_H_
 #define VCHI_H_
 
-#include "interface/vchi/vchi_cfg.h"
-#include "interface/vchi/vchi_common.h"
+#include "vchi_cfg.h"
+#include "vchi_common.h"
 
 /******************************************************************************
  * Global defs

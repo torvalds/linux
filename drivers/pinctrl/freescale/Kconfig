@@ -137,6 +137,13 @@ config PINCTRL_IMX8MN
 	help
 	  Say Y here to enable the imx8mn pinctrl driver
 
+config PINCTRL_IMX8MP
+	bool "IMX8MP pinctrl driver"
+	depends on ARCH_MXC && ARM64
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the imx8mp pinctrl driver
+
 config PINCTRL_IMX8MQ
 	bool "IMX8MQ pinctrl driver"
 	depends on ARCH_MXC && ARM64

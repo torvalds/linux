@@ -54,6 +54,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/pm.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/bitfield.h>
 
@@ -655,6 +656,10 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.addr = 0x08,
 				.mask = GENMASK(5, 3),
 			},
+			[ST_LSM6DSX_ID_EXT0] = {
+				.addr = 0x09,
+				.mask = GENMASK(2, 0),
+			},
 		},
 		.fifo_ops = {
 			.update_fifo = st_lsm6dsx_update_fifo,
@@ -686,6 +691,39 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.addr = 0x09,
 				.mask = GENMASK(5, 3),
 			},
+		},
+		.shub_settings = {
+			.page_mux = {
+				.addr = 0x01,
+				.mask = BIT(7),
+			},
+			.master_en = {
+				.addr = 0x1a,
+				.mask = BIT(0),
+			},
+			.pullup_en = {
+				.addr = 0x1a,
+				.mask = BIT(3),
+			},
+			.aux_sens = {
+				.addr = 0x04,
+				.mask = GENMASK(5, 4),
+			},
+			.wr_once = {
+				.addr = 0x07,
+				.mask = BIT(5),
+			},
+			.emb_func = {
+				.addr = 0x19,
+				.mask = BIT(2),
+			},
+			.num_ext_dev = 1,
+			.shub_out = {
+				.addr = 0x2e,
+			},
+			.slv0_addr = 0x02,
+			.dw_slv0_addr = 0x0e,
+			.pause = 0x7,
 		},
 		.event_settings = {
 			.enable_reg = {
@@ -867,10 +905,12 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.mask = BIT(6),
 			},
 			.master_en = {
+				.sec_page = true,
 				.addr = 0x14,
 				.mask = BIT(2),
 			},
 			.pullup_en = {
+				.sec_page = true,
 				.addr = 0x14,
 				.mask = BIT(3),
 			},
@@ -882,7 +922,11 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.addr = 0x14,
 				.mask = BIT(6),
 			},
-			.shub_out = 0x02,
+			.num_ext_dev = 3,
+			.shub_out = {
+				.sec_page = true,
+				.addr = 0x02,
+			},
 			.slv0_addr = 0x15,
 			.dw_slv0_addr = 0x21,
 			.batch_en = BIT(3),
@@ -1241,10 +1285,12 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.mask = BIT(6),
 			},
 			.master_en = {
+				.sec_page = true,
 				.addr = 0x14,
 				.mask = BIT(2),
 			},
 			.pullup_en = {
+				.sec_page = true,
 				.addr = 0x14,
 				.mask = BIT(3),
 			},
@@ -1256,7 +1302,11 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.addr = 0x14,
 				.mask = BIT(6),
 			},
-			.shub_out = 0x02,
+			.num_ext_dev = 3,
+			.shub_out = {
+				.sec_page = true,
+				.addr = 0x02,
+			},
 			.slv0_addr = 0x15,
 			.dw_slv0_addr = 0x21,
 			.batch_en = BIT(3),
@@ -1506,8 +1556,11 @@ static int st_lsm6dsx_read_oneshot(struct st_lsm6dsx_sensor *sensor,
 	if (err < 0)
 		return err;
 
-	if (!hw->enable_event)
-		st_lsm6dsx_sensor_set_enable(sensor, false);
+	if (!hw->enable_event) {
+		err = st_lsm6dsx_sensor_set_enable(sensor, false);
+		if (err < 0)
+			return err;
+	}
 
 	*val = (s16)le16_to_cpu(data);
 
@@ -1609,11 +1662,11 @@ static int st_lsm6dsx_event_setup(struct st_lsm6dsx_hw *hw, int state)
 }
 
 static int st_lsm6dsx_read_event(struct iio_dev *iio_dev,
-				   const struct iio_chan_spec *chan,
-				   enum iio_event_type type,
-				   enum iio_event_direction dir,
-				   enum iio_event_info info,
-				   int *val, int *val2)
+				 const struct iio_chan_spec *chan,
+				 enum iio_event_type type,
+				 enum iio_event_direction dir,
+				 enum iio_event_info info,
+				 int *val, int *val2)
 {
 	struct st_lsm6dsx_sensor *sensor = iio_priv(iio_dev);
 	struct st_lsm6dsx_hw *hw = sensor->hw;
@@ -1827,14 +1880,14 @@ static const struct iio_info st_lsm6dsx_gyro_info = {
 	.hwfifo_set_watermark = st_lsm6dsx_set_watermark,
 };
 
-static int st_lsm6dsx_of_get_drdy_pin(struct st_lsm6dsx_hw *hw, int *drdy_pin)
+static int st_lsm6dsx_get_drdy_pin(struct st_lsm6dsx_hw *hw, int *drdy_pin)
 {
-	struct device_node *np = hw->dev->of_node;
+	struct device *dev = hw->dev;
 
-	if (!np)
+	if (!dev_fwnode(dev))
 		return -EINVAL;
 
-	return of_property_read_u32(np, "st,drdy-int-pin", drdy_pin);
+	return device_property_read_u32(dev, "st,drdy-int-pin", drdy_pin);
 }
 
 static int
@@ -1843,7 +1896,7 @@ st_lsm6dsx_get_drdy_reg(struct st_lsm6dsx_hw *hw,
 {
 	int err = 0, drdy_pin;
 
-	if (st_lsm6dsx_of_get_drdy_pin(hw, &drdy_pin) < 0) {
+	if (st_lsm6dsx_get_drdy_pin(hw, &drdy_pin) < 0) {
 		struct st_sensors_platform_data *pdata;
 		struct device *dev = hw->dev;
 
@@ -1872,26 +1925,29 @@ st_lsm6dsx_get_drdy_reg(struct st_lsm6dsx_hw *hw,
 static int st_lsm6dsx_init_shub(struct st_lsm6dsx_hw *hw)
 {
 	const struct st_lsm6dsx_shub_settings *hub_settings;
-	struct device_node *np = hw->dev->of_node;
 	struct st_sensors_platform_data *pdata;
+	struct device *dev = hw->dev;
 	unsigned int data;
 	int err = 0;
 
 	hub_settings = &hw->settings->shub_settings;
 
-	pdata = (struct st_sensors_platform_data *)hw->dev->platform_data;
-	if ((np && of_property_read_bool(np, "st,pullups")) ||
+	pdata = (struct st_sensors_platform_data *)dev->platform_data;
+	if ((dev_fwnode(dev) && device_property_read_bool(dev, "st,pullups")) ||
 	    (pdata && pdata->pullups)) {
-		err = st_lsm6dsx_set_page(hw, true);
-		if (err < 0)
-			return err;
+		if (hub_settings->pullup_en.sec_page) {
+			err = st_lsm6dsx_set_page(hw, true);
+			if (err < 0)
+				return err;
+		}
 
 		data = ST_LSM6DSX_SHIFT_VAL(1, hub_settings->pullup_en.mask);
 		err = regmap_update_bits(hw->regmap,
 					 hub_settings->pullup_en.addr,
 					 hub_settings->pullup_en.mask, data);
 
-		st_lsm6dsx_set_page(hw, false);
+		if (hub_settings->pullup_en.sec_page)
+			st_lsm6dsx_set_page(hw, false);
 
 		if (err < 0)
 			return err;
@@ -1909,6 +1965,16 @@ static int st_lsm6dsx_init_shub(struct st_lsm6dsx_hw *hw)
 					 hub_settings->aux_sens.mask, data);
 
 		st_lsm6dsx_set_page(hw, false);
+
+		if (err < 0)
+			return err;
+	}
+
+	if (hub_settings->emb_func.addr) {
+		data = ST_LSM6DSX_SHIFT_VAL(1, hub_settings->emb_func.mask);
+		err = regmap_update_bits(hw->regmap,
+					 hub_settings->emb_func.addr,
+					 hub_settings->emb_func.mask, data);
 	}
 
 	return err;
@@ -2158,9 +2224,9 @@ static irqreturn_t st_lsm6dsx_handler_thread(int irq, void *private)
 
 static int st_lsm6dsx_irq_setup(struct st_lsm6dsx_hw *hw)
 {
-	struct device_node *np = hw->dev->of_node;
 	struct st_sensors_platform_data *pdata;
 	const struct st_lsm6dsx_reg *reg;
+	struct device *dev = hw->dev;
 	unsigned long irq_type;
 	bool irq_active_low;
 	int err;
@@ -2188,8 +2254,8 @@ static int st_lsm6dsx_irq_setup(struct st_lsm6dsx_hw *hw)
 	if (err < 0)
 		return err;
 
-	pdata = (struct st_sensors_platform_data *)hw->dev->platform_data;
-	if ((np && of_property_read_bool(np, "drive-open-drain")) ||
+	pdata = (struct st_sensors_platform_data *)dev->platform_data;
+	if ((dev_fwnode(dev) && device_property_read_bool(dev, "drive-open-drain")) ||
 	    (pdata && pdata->open_drain)) {
 		reg = &hw->settings->irq_config.od;
 		err = regmap_update_bits(hw->regmap, reg->addr, reg->mask,
@@ -2219,7 +2285,6 @@ int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id,
 {
 	struct st_sensors_platform_data *pdata = dev->platform_data;
 	const struct st_lsm6dsx_shub_settings *hub_settings;
-	struct device_node *np = dev->of_node;
 	struct st_lsm6dsx_hw *hw;
 	const char *name = NULL;
 	int i, err;
@@ -2273,6 +2338,10 @@ int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id,
 			return err;
 	}
 
+	err = iio_read_mount_matrix(hw->dev, "mount-matrix", &hw->orientation);
+	if (err)
+		return err;
+
 	for (i = 0; i < ST_LSM6DSX_ID_MAX; i++) {
 		if (!hw->iio_devs[i])
 			continue;
@@ -2282,7 +2351,7 @@ int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id,
 			return err;
 	}
 
-	if ((np && of_property_read_bool(np, "wakeup-source")) ||
+	if ((dev_fwnode(dev) && device_property_read_bool(dev, "wakeup-source")) ||
 	    (pdata && pdata->wakeup_source))
 		device_init_wakeup(dev, true);
 

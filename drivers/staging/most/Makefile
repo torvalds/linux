@@ -2,7 +2,6 @@
 obj-$(CONFIG_MOST) += most_core.o
 most_core-y := core.o
 most_core-y += configfs.o
-ccflags-y += -I $(srctree)/drivers/staging/
 
 obj-$(CONFIG_MOST_CDEV)	+= cdev/
 obj-$(CONFIG_MOST_NET)	+= net/

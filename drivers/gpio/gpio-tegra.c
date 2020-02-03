@@ -96,12 +96,12 @@ struct tegra_gpio_info {
 static inline void tegra_gpio_writel(struct tegra_gpio_info *tgi,
 				     u32 val, u32 reg)
 {
-	__raw_writel(val, tgi->regs + reg);
+	writel_relaxed(val, tgi->regs + reg);
 }
 
 static inline u32 tegra_gpio_readl(struct tegra_gpio_info *tgi, u32 reg)
 {
-	return __raw_readl(tgi->regs + reg);
+	return readl_relaxed(tgi->regs + reg);
 }
 
 static unsigned int tegra_gpio_compose(unsigned int bank, unsigned int port,
@@ -416,10 +416,7 @@ static void tegra_gpio_irq_handler(struct irq_desc *desc)
 static int tegra_gpio_resume(struct device *dev)
 {
 	struct tegra_gpio_info *tgi = dev_get_drvdata(dev);
-	unsigned long flags;
 	unsigned int b, p;
-
-	local_irq_save(flags);
 
 	for (b = 0; b < tgi->bank_count; b++) {
 		struct tegra_gpio_bank *bank = &tgi->bank_info[b];
@@ -448,17 +445,14 @@ static int tegra_gpio_resume(struct device *dev)
 		}
 	}
 
-	local_irq_restore(flags);
 	return 0;
 }
 
 static int tegra_gpio_suspend(struct device *dev)
 {
 	struct tegra_gpio_info *tgi = dev_get_drvdata(dev);
-	unsigned long flags;
 	unsigned int b, p;
 
-	local_irq_save(flags);
 	for (b = 0; b < tgi->bank_count; b++) {
 		struct tegra_gpio_bank *bank = &tgi->bank_info[b];
 
@@ -488,7 +482,7 @@ static int tegra_gpio_suspend(struct device *dev)
 					  GPIO_INT_ENB(tgi, gpio));
 		}
 	}
-	local_irq_restore(flags);
+
 	return 0;
 }
 
@@ -497,6 +491,11 @@ static int tegra_gpio_irq_set_wake(struct irq_data *d, unsigned int enable)
 	struct tegra_gpio_bank *bank = irq_data_get_irq_chip_data(d);
 	unsigned int gpio = d->hwirq;
 	u32 port, bit, mask;
+	int err;
+
+	err = irq_set_irq_wake(bank->irq, enable);
+	if (err)
+		return err;
 
 	port = GPIO_PORT(gpio);
 	bit = GPIO_BIT(gpio);
@@ -507,7 +506,7 @@ static int tegra_gpio_irq_set_wake(struct irq_data *d, unsigned int enable)
 	else
 		bank->wake_enb[port] &= ~mask;
 
-	return irq_set_irq_wake(bank->irq, enable);
+	return 0;
 }
 #endif
 
@@ -557,7 +556,7 @@ static inline void tegra_gpio_debuginit(struct tegra_gpio_info *tgi)
 #endif
 
 static const struct dev_pm_ops tegra_gpio_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(tegra_gpio_suspend, tegra_gpio_resume)
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(tegra_gpio_suspend, tegra_gpio_resume)
 };
 
 static int tegra_gpio_probe(struct platform_device *pdev)

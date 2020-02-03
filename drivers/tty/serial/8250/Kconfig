@@ -60,6 +60,16 @@ config SERIAL_8250_PNP
 	  This builds standard PNP serial support. You may be able to
 	  disable this feature if you only need legacy serial support.
 
+config SERIAL_8250_16550A_VARIANTS
+	bool "Support for variants of the 16550A serial port"
+	depends on SERIAL_8250
+	help
+	  The 8250 driver can probe for many variants of the venerable 16550A
+	  serial port. Doing so takes additional time at boot.
+
+	  On modern systems, especially those using serial only for a simple
+	  console, you can say N here.
+
 config SERIAL_8250_FINTEK
 	bool "Support for Fintek F81216A LPC to 4 UART RS485 API"
 	depends on SERIAL_8250

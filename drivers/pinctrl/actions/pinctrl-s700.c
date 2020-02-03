@@ -1583,7 +1583,6 @@ static const struct owl_pinmux_func s700_functions[] = {
 	[S700_MUX_USB30] = FUNCTION(usb30),
 	[S700_MUX_CLKO_25M] = FUNCTION(clko_25m),
 	[S700_MUX_MIPI_CSI] = FUNCTION(mipi_csi),
-	[S700_MUX_DSI] = FUNCTION(dsi),
 	[S700_MUX_NAND] = FUNCTION(nand),
 	[S700_MUX_SPDIF] = FUNCTION(spdif),
 	[S700_MUX_SIRQ0] = FUNCTION(sirq0),

@@ -6,10 +6,11 @@
  * Author: Brendan Higgins <brendanhiggins@google.com>
  */
 
-#include <kunit/string-stream.h>
 #include <kunit/test.h>
 #include <linux/list.h>
 #include <linux/slab.h>
+
+#include "string-stream.h"
 
 struct string_stream_fragment_alloc_context {
 	struct kunit *test;

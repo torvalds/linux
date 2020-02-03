@@ -850,6 +850,12 @@ static int ti_pipe3_probe(struct platform_device *pdev)
 
 static int ti_pipe3_remove(struct platform_device *pdev)
 {
+	struct ti_pipe3 *phy = platform_get_drvdata(pdev);
+
+	if (phy->mode == PIPE3_MODE_SATA) {
+		clk_disable_unprepare(phy->refclk);
+		phy->sata_refclk_enabled = false;
+	}
 	pm_runtime_disable(&pdev->dev);
 
 	return 0;
@@ -900,18 +906,8 @@ static void ti_pipe3_disable_clocks(struct ti_pipe3 *phy)
 {
 	if (!IS_ERR(phy->wkupclk))
 		clk_disable_unprepare(phy->wkupclk);
-	if (!IS_ERR(phy->refclk)) {
+	if (!IS_ERR(phy->refclk))
 		clk_disable_unprepare(phy->refclk);
-		/*
-		 * SATA refclk needs an additional disable as we left it
-		 * on in probe to avoid Errata i783
-		 */
-		if (phy->sata_refclk_enabled) {
-			clk_disable_unprepare(phy->refclk);
-			phy->sata_refclk_enabled = false;
-		}
-	}
-
 	if (!IS_ERR(phy->div_clk))
 		clk_disable_unprepare(phy->div_clk);
 }

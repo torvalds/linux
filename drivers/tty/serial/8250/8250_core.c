@@ -816,6 +816,7 @@ static int serial8250_probe(struct platform_device *dev)
 		uart.port.flags		= p->flags;
 		uart.port.mapbase	= p->mapbase;
 		uart.port.hub6		= p->hub6;
+		uart.port.has_sysrq	= p->has_sysrq;
 		uart.port.private_data	= p->private_data;
 		uart.port.type		= p->type;
 		uart.port.serial_in	= p->serial_in;

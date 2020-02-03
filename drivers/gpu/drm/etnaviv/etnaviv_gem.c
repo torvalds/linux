@@ -373,7 +373,7 @@ static inline enum dma_data_direction etnaviv_op_to_dma_dir(u32 op)
 }
 
 int etnaviv_gem_cpu_prep(struct drm_gem_object *obj, u32 op,
-		struct timespec *timeout)
+		struct drm_etnaviv_timespec *timeout)
 {
 	struct etnaviv_gem_object *etnaviv_obj = to_etnaviv_bo(obj);
 	struct drm_device *dev = obj->dev;
@@ -431,7 +431,7 @@ int etnaviv_gem_cpu_fini(struct drm_gem_object *obj)
 }
 
 int etnaviv_gem_wait_bo(struct etnaviv_gpu *gpu, struct drm_gem_object *obj,
-	struct timespec *timeout)
+	struct drm_etnaviv_timespec *timeout)
 {
 	struct etnaviv_gem_object *etnaviv_obj = to_etnaviv_bo(obj);
 

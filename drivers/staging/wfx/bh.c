@@ -271,8 +271,7 @@ static void bh_work(struct work_struct *work)
 
 	if (last_op_is_rx)
 		ack_sdio_data(wdev);
-	if (!wdev->hif.tx_buffers_used && !work_pending(work) &&
-	    !atomic_read(&wdev->scan_in_progress)) {
+	if (!wdev->hif.tx_buffers_used && !work_pending(work)) {
 		device_release(wdev);
 		release_chip = true;
 	}

@@ -57,6 +57,7 @@
 
 #define NTP_API		4	/* NTP API version */
 
+#ifndef __KERNEL__
 /*
  * syscall interface - used (mainly by NTP daemon)
  * to discipline kernel clock oscillator
@@ -91,6 +92,7 @@ struct timex {
 	int  :32; int  :32; int  :32; int  :32;
 	int  :32; int  :32; int  :32;
 };
+#endif
 
 struct __kernel_timex_timeval {
 	__kernel_time64_t       tv_sec;

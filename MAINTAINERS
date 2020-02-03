@@ -674,6 +674,14 @@ S:	Maintained
 F:	Documentation/i2c/busses/i2c-ali1563.rst
 F:	drivers/i2c/busses/i2c-ali1563.c
 
+ALL SENSORS DLH SERIES PRESSURE SENSORS DRIVER
+M:	Tomislav Denis <tomislav.denis@avl.com>
+W:	http://www.allsensors.com/
+S:	Maintained
+L:	linux-iio@vger.kernel.org
+F:	drivers/iio/pressure/dlhl60d.c
+F:	Documentation/devicetree/bindings/iio/pressure/asc,dlhl60d.yaml
+
 ALLEGRO DVT VIDEO IP CORE DRIVER
 M:	Michael Tretter <m.tretter@pengutronix.de>
 R:	Pengutronix Kernel Team <kernel@pengutronix.de>
@@ -734,7 +742,7 @@ S:	Maintained
 F:	drivers/mailbox/mailbox-altera.c
 
 ALTERA PIO DRIVER
-M:	Tien Hock Loh <thloh@altera.com>
+M:	Joyce Ooi <joyce.ooi@intel.com>
 L:	linux-gpio@vger.kernel.org
 S:	Maintained
 F:	drivers/gpio/gpio-altera.c
@@ -907,6 +915,14 @@ S:	Supported
 F:	drivers/iio/dac/ad5758.c
 F:	Documentation/devicetree/bindings/iio/dac/ad5758.txt
 
+ANALOG DEVICES INC AD7091R5 DRIVER
+M:	Beniamin Bia <beniamin.bia@analog.com>
+L:	linux-iio@vger.kernel.org
+W:	http://ez.analog.com/community/linux-device-drivers
+S:	Supported
+F:	drivers/iio/adc/ad7091r5.c
+F:	Documentation/devicetree/bindings/iio/adc/adi,ad7091r5.yaml
+
 ANALOG DEVICES INC AD7124 DRIVER
 M:	Stefan Popa <stefan.popa@analog.com>
 L:	linux-iio@vger.kernel.org
@@ -1061,7 +1077,7 @@ S:	Supported
 F:	Documentation/ABI/testing/sysfs-bus-iio-frequency-ad9523
 F:	Documentation/ABI/testing/sysfs-bus-iio-frequency-adf4350
 F:	drivers/iio/*/ad*
-F:	drivers/iio/adc/ltc2497*
+F:	drivers/iio/adc/ltc249*
 X:	drivers/iio/*/adjd*
 F:	drivers/staging/iio/*/ad*
 
@@ -3115,6 +3131,13 @@ W:	http://sourceforge.net/projects/bonding/
 S:	Supported
 F:	drivers/net/bonding/
 F:	include/uapi/linux/if_bonding.h
+
+BOSCH SENSORTEC BMA400 ACCELEROMETER IIO DRIVER
+M:	Dan Robertson <dan@dlrobertson.com>
+L:	linux-iio@vger.kernel.org
+S:	Maintained
+F:	drivers/iio/accel/bma400*
+F:	Documentation/devicetree/bindings/iio/accel/bosch,bma400.yaml
 
 BPF (Safe dynamic programs and tools)
 M:	Alexei Starovoitov <ast@kernel.org>
@@ -6181,6 +6204,12 @@ M:	Maxim Levitsky <maximlevitsky@gmail.com>
 S:	Maintained
 F:	drivers/media/rc/ene_ir.*
 
+EPAPR HYPERVISOR BYTE CHANNEL DEVICE DRIVER
+M:	Laurentiu Tudor <laurentiu.tudor@nxp.com>
+L:	linuxppc-dev@lists.ozlabs.org
+S:	Maintained
+F:	drivers/tty/ehv_bytechan.c
+
 EPSON S1D13XXX FRAMEBUFFER DRIVER
 M:	Kristoffer Ericson <kristoffer.ericson@gmail.com>
 S:	Maintained
@@ -6429,6 +6458,7 @@ F:	fs/*
 F:	include/linux/fs.h
 F:	include/linux/fs_types.h
 F:	include/uapi/linux/fs.h
+F:	include/uapi/linux/openat2.h
 
 FINTEK F75375S HARDWARE MONITOR AND FAN CONTROLLER DRIVER
 M:	Riku Voipio <riku.voipio@iki.fi>
@@ -8383,7 +8413,6 @@ S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/andy/linux-gpio-intel.git
 F:	drivers/gpio/gpio-ich.c
 F:	drivers/gpio/gpio-intel-mid.c
-F:	drivers/gpio/gpio-lynxpoint.c
 F:	drivers/gpio/gpio-merrifield.c
 F:	drivers/gpio/gpio-ml-ioh.c
 F:	drivers/gpio/gpio-pch.c
@@ -8857,7 +8886,7 @@ S:	Maintained
 F:	drivers/isdn/mISDN
 F:	drivers/isdn/hardware
 
-ISDN/CAPI SUBSYSTEM
+ISDN/CMTP OVER BLUETOOTH
 M:	Karsten Keil <isdn@linux-pingi.de>
 L:	isdn4linux@listserv.isdn4linux.de (subscribers-only)
 L:	netdev@vger.kernel.org
@@ -8865,7 +8894,6 @@ W:	http://www.isdn4linux.de
 S:	Odd Fixes
 F:	Documentation/isdn/
 F:	drivers/isdn/capi/
-F:	drivers/staging/isdn/
 F:	net/bluetooth/cmtp/
 F:	include/linux/isdn/
 F:	include/uapi/linux/isdn/
@@ -9628,6 +9656,7 @@ LINUX KERNEL DUMP TEST MODULE (LKDTM)
 M:	Kees Cook <keescook@chromium.org>
 S:	Maintained
 F:	drivers/misc/lkdtm/*
+F:	tools/testing/selftests/lkdtm/*
 
 LINUX KERNEL MEMORY CONSISTENCY MODEL (LKMM)
 M:	Alan Stern <stern@rowland.harvard.edu>
@@ -12523,6 +12552,13 @@ L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	drivers/platform/x86/panasonic-laptop.c
 
+PARALLAX PING IIO SENSOR DRIVER
+M:	Andreas Klinger <ak@it-klinger.de>
+L:	linux-iio@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/iio/proximity/parallax-ping.yaml
+F:	drivers/iio/proximity/ping.c
+
 PARALLEL LCD/KEYPAD PANEL DRIVER
 M:	Willy Tarreau <willy@haproxy.com>
 M:	Ksenija Stanojevic <ksenija.stanojevic@gmail.com>
@@ -15143,11 +15179,8 @@ F:	drivers/video/fbdev/sm712*
 F:	Documentation/fb/sm712fb.rst
 
 SIMPLE FIRMWARE INTERFACE (SFI)
-M:	Len Brown <lenb@kernel.org>
-L:	sfi-devel@simplefirmware.org
 W:	http://simplefirmware.org/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lenb/linux-sfi-2.6.git
-S:	Supported
+S:	Obsolete
 F:	arch/x86/platform/sfi/
 F:	drivers/sfi/
 F:	include/linux/sfi*.h
@@ -16475,6 +16508,7 @@ M:	Andreas Noever <andreas.noever@gmail.com>
 M:	Michael Jamet <michael.jamet@intel.com>
 M:	Mika Westerberg <mika.westerberg@linux.intel.com>
 M:	Yehezkel Bernat <YehezkelShB@gmail.com>
+L:	linux-usb@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/westeri/thunderbolt.git
 S:	Maintained
 F:	Documentation/admin-guide/thunderbolt.rst
@@ -17477,7 +17511,7 @@ F:	drivers/mtd/nand/raw/vf610_nfc.c
 VFAT/FAT/MSDOS FILESYSTEM
 M:	OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>
 S:	Maintained
-F:	Documentation/filesystems/vfat.txt
+F:	Documentation/filesystems/vfat.rst
 F:	fs/fat/
 
 VFIO DRIVER

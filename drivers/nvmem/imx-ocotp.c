@@ -44,6 +44,14 @@
 #define IMX_OCOTP_BM_CTRL_ERROR		0x00000200
 #define IMX_OCOTP_BM_CTRL_REL_SHADOWS	0x00000400
 
+#define IMX_OCOTP_BM_CTRL_DEFAULT				\
+	{							\
+		.bm_addr = IMX_OCOTP_BM_CTRL_ADDR,		\
+		.bm_busy = IMX_OCOTP_BM_CTRL_BUSY,		\
+		.bm_error = IMX_OCOTP_BM_CTRL_ERROR,		\
+		.bm_rel_shadows = IMX_OCOTP_BM_CTRL_REL_SHADOWS,\
+	}
+
 #define TIMING_STROBE_PROG_US		10	/* Min time to blow a fuse */
 #define TIMING_STROBE_READ_NS		37	/* Min time before read */
 #define TIMING_RELAX_NS			17
@@ -62,18 +70,31 @@ struct ocotp_priv {
 	struct nvmem_config *config;
 };
 
+struct ocotp_ctrl_reg {
+	u32 bm_addr;
+	u32 bm_busy;
+	u32 bm_error;
+	u32 bm_rel_shadows;
+};
+
 struct ocotp_params {
 	unsigned int nregs;
 	unsigned int bank_address_words;
 	void (*set_timing)(struct ocotp_priv *priv);
+	struct ocotp_ctrl_reg ctrl;
 };
 
-static int imx_ocotp_wait_for_busy(void __iomem *base, u32 flags)
+static int imx_ocotp_wait_for_busy(struct ocotp_priv *priv, u32 flags)
 {
 	int count;
 	u32 c, mask;
+	u32 bm_ctrl_busy, bm_ctrl_error;
+	void __iomem *base = priv->base;
 
-	mask = IMX_OCOTP_BM_CTRL_BUSY | IMX_OCOTP_BM_CTRL_ERROR | flags;
+	bm_ctrl_busy = priv->params->ctrl.bm_busy;
+	bm_ctrl_error = priv->params->ctrl.bm_error;
+
+	mask = bm_ctrl_busy | bm_ctrl_error | flags;
 
 	for (count = 10000; count >= 0; count--) {
 		c = readl(base + IMX_OCOTP_ADDR_CTRL);
@@ -97,7 +118,7 @@ static int imx_ocotp_wait_for_busy(void __iomem *base, u32 flags)
 		 * - A read is performed to from a fuse word which has been read
 		 *   locked.
 		 */
-		if (c & IMX_OCOTP_BM_CTRL_ERROR)
+		if (c & bm_ctrl_error)
 			return -EPERM;
 		return -ETIMEDOUT;
 	}
@@ -105,15 +126,18 @@ static int imx_ocotp_wait_for_busy(void __iomem *base, u32 flags)
 	return 0;
 }
 
-static void imx_ocotp_clr_err_if_set(void __iomem *base)
+static void imx_ocotp_clr_err_if_set(struct ocotp_priv *priv)
 {
-	u32 c;
+	u32 c, bm_ctrl_error;
+	void __iomem *base = priv->base;
+
+	bm_ctrl_error = priv->params->ctrl.bm_error;
 
 	c = readl(base + IMX_OCOTP_ADDR_CTRL);
-	if (!(c & IMX_OCOTP_BM_CTRL_ERROR))
+	if (!(c & bm_ctrl_error))
 		return;
 
-	writel(IMX_OCOTP_BM_CTRL_ERROR, base + IMX_OCOTP_ADDR_CTRL_CLR);
+	writel(bm_ctrl_error, base + IMX_OCOTP_ADDR_CTRL_CLR);
 }
 
 static int imx_ocotp_read(void *context, unsigned int offset,
@@ -140,7 +164,7 @@ static int imx_ocotp_read(void *context, unsigned int offset,
 		return ret;
 	}
 
-	ret = imx_ocotp_wait_for_busy(priv->base, 0);
+	ret = imx_ocotp_wait_for_busy(priv, 0);
 	if (ret < 0) {
 		dev_err(priv->dev, "timeout during read setup\n");
 		goto read_end;
@@ -157,7 +181,7 @@ static int imx_ocotp_read(void *context, unsigned int offset,
 		 * issued
 		 */
 		if (*(buf - 1) == IMX_OCOTP_READ_LOCKED_VAL)
-			imx_ocotp_clr_err_if_set(priv->base);
+			imx_ocotp_clr_err_if_set(priv);
 	}
 	ret = 0;
 
@@ -274,7 +298,7 @@ static int imx_ocotp_write(void *context, unsigned int offset, void *val,
 	 * write or reload must be completed before a write access can be
 	 * requested.
 	 */
-	ret = imx_ocotp_wait_for_busy(priv->base, 0);
+	ret = imx_ocotp_wait_for_busy(priv, 0);
 	if (ret < 0) {
 		dev_err(priv->dev, "timeout during timing setup\n");
 		goto write_end;
@@ -306,8 +330,8 @@ static int imx_ocotp_write(void *context, unsigned int offset, void *val,
 	}
 
 	ctrl = readl(priv->base + IMX_OCOTP_ADDR_CTRL);
-	ctrl &= ~IMX_OCOTP_BM_CTRL_ADDR;
-	ctrl |= waddr & IMX_OCOTP_BM_CTRL_ADDR;
+	ctrl &= ~priv->params->ctrl.bm_addr;
+	ctrl |= waddr & priv->params->ctrl.bm_addr;
 	ctrl |= IMX_OCOTP_WR_UNLOCK;
 
 	writel(ctrl, priv->base + IMX_OCOTP_ADDR_CTRL);
@@ -374,11 +398,11 @@ static int imx_ocotp_write(void *context, unsigned int offset, void *val,
 	 * be set. It must be cleared by software before any new write access
 	 * can be issued.
 	 */
-	ret = imx_ocotp_wait_for_busy(priv->base, 0);
+	ret = imx_ocotp_wait_for_busy(priv, 0);
 	if (ret < 0) {
 		if (ret == -EPERM) {
 			dev_err(priv->dev, "failed write to locked region");
-			imx_ocotp_clr_err_if_set(priv->base);
+			imx_ocotp_clr_err_if_set(priv);
 		} else {
 			dev_err(priv->dev, "timeout during data write\n");
 		}
@@ -394,10 +418,10 @@ static int imx_ocotp_write(void *context, unsigned int offset, void *val,
 	udelay(2);
 
 	/* reload all shadow registers */
-	writel(IMX_OCOTP_BM_CTRL_REL_SHADOWS,
+	writel(priv->params->ctrl.bm_rel_shadows,
 	       priv->base + IMX_OCOTP_ADDR_CTRL_SET);
-	ret = imx_ocotp_wait_for_busy(priv->base,
-				      IMX_OCOTP_BM_CTRL_REL_SHADOWS);
+	ret = imx_ocotp_wait_for_busy(priv,
+				      priv->params->ctrl.bm_rel_shadows);
 	if (ret < 0) {
 		dev_err(priv->dev, "timeout during shadow register reload\n");
 		goto write_end;
@@ -424,65 +448,76 @@ static const struct ocotp_params imx6q_params = {
 	.nregs = 128,
 	.bank_address_words = 0,
 	.set_timing = imx_ocotp_set_imx6_timing,
+	.ctrl = IMX_OCOTP_BM_CTRL_DEFAULT,
 };
 
 static const struct ocotp_params imx6sl_params = {
 	.nregs = 64,
 	.bank_address_words = 0,
 	.set_timing = imx_ocotp_set_imx6_timing,
+	.ctrl = IMX_OCOTP_BM_CTRL_DEFAULT,
 };
 
 static const struct ocotp_params imx6sll_params = {
 	.nregs = 128,
 	.bank_address_words = 0,
 	.set_timing = imx_ocotp_set_imx6_timing,
+	.ctrl = IMX_OCOTP_BM_CTRL_DEFAULT,
 };
 
 static const struct ocotp_params imx6sx_params = {
 	.nregs = 128,
 	.bank_address_words = 0,
 	.set_timing = imx_ocotp_set_imx6_timing,
+	.ctrl = IMX_OCOTP_BM_CTRL_DEFAULT,
 };
 
 static const struct ocotp_params imx6ul_params = {
 	.nregs = 128,
 	.bank_address_words = 0,
 	.set_timing = imx_ocotp_set_imx6_timing,
+	.ctrl = IMX_OCOTP_BM_CTRL_DEFAULT,
 };
 
 static const struct ocotp_params imx6ull_params = {
 	.nregs = 64,
 	.bank_address_words = 0,
 	.set_timing = imx_ocotp_set_imx6_timing,
+	.ctrl = IMX_OCOTP_BM_CTRL_DEFAULT,
 };
 
 static const struct ocotp_params imx7d_params = {
 	.nregs = 64,
 	.bank_address_words = 4,
 	.set_timing = imx_ocotp_set_imx7_timing,
+	.ctrl = IMX_OCOTP_BM_CTRL_DEFAULT,
 };
 
 static const struct ocotp_params imx7ulp_params = {
 	.nregs = 256,
 	.bank_address_words = 0,
+	.ctrl = IMX_OCOTP_BM_CTRL_DEFAULT,
 };
 
 static const struct ocotp_params imx8mq_params = {
 	.nregs = 256,
 	.bank_address_words = 0,
 	.set_timing = imx_ocotp_set_imx6_timing,
+	.ctrl = IMX_OCOTP_BM_CTRL_DEFAULT,
 };
 
 static const struct ocotp_params imx8mm_params = {
 	.nregs = 256,
 	.bank_address_words = 0,
 	.set_timing = imx_ocotp_set_imx6_timing,
+	.ctrl = IMX_OCOTP_BM_CTRL_DEFAULT,
 };
 
 static const struct ocotp_params imx8mn_params = {
 	.nregs = 256,
 	.bank_address_words = 0,
 	.set_timing = imx_ocotp_set_imx6_timing,
+	.ctrl = IMX_OCOTP_BM_CTRL_DEFAULT,
 };
 
 static const struct of_device_id imx_ocotp_dt_ids[] = {
@@ -521,17 +556,17 @@ static int imx_ocotp_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->clk))
 		return PTR_ERR(priv->clk);
 
-	clk_prepare_enable(priv->clk);
-	imx_ocotp_clr_err_if_set(priv->base);
-	clk_disable_unprepare(priv->clk);
-
 	priv->params = of_device_get_match_data(&pdev->dev);
 	imx_ocotp_nvmem_config.size = 4 * priv->params->nregs;
 	imx_ocotp_nvmem_config.dev = dev;
 	imx_ocotp_nvmem_config.priv = priv;
 	priv->config = &imx_ocotp_nvmem_config;
-	nvmem = devm_nvmem_register(dev, &imx_ocotp_nvmem_config);
 
+	clk_prepare_enable(priv->clk);
+	imx_ocotp_clr_err_if_set(priv);
+	clk_disable_unprepare(priv->clk);
+
+	nvmem = devm_nvmem_register(dev, &imx_ocotp_nvmem_config);
 
 	return PTR_ERR_OR_ZERO(nvmem);
 }

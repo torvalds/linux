@@ -77,14 +77,12 @@ MODULE_PARM_DESC(qlge_irq_type, "0 = MSI-X, 1 = MSI, 2 = Legacy.");
 static int qlge_mpi_coredump;
 module_param(qlge_mpi_coredump, int, 0);
 MODULE_PARM_DESC(qlge_mpi_coredump,
-		"Option to enable MPI firmware dump. "
-		"Default is OFF - Do Not allocate memory. ");
+		 "Option to enable MPI firmware dump. Default is OFF - Do Not allocate memory. ");
 
 static int qlge_force_coredump;
 module_param(qlge_force_coredump, int, 0);
 MODULE_PARM_DESC(qlge_force_coredump,
-		"Option to allow force of firmware core dump. "
-		"Default is OFF - Do not allow.");
+		 "Option to allow force of firmware core dump. Default is OFF - Do not allow.");
 
 static const struct pci_device_id qlge_pci_tbl[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, QLGE_DEVICE_ID_8012)},
@@ -178,8 +176,9 @@ int ql_wait_reg_rdy(struct ql_adapter *qdev, u32 reg, u32 bit, u32 err_bit)
 				    "register 0x%.08x access error, value = 0x%.08x!.\n",
 				    reg, temp);
 			return -EIO;
-		} else if (temp & bit)
+		} else if (temp & bit) {
 			return 0;
+		}
 		udelay(UDELAY_DELAY);
 	}
 	netif_alert(qdev, probe, qdev->ndev,
@@ -205,7 +204,6 @@ static int ql_wait_cfg(struct ql_adapter *qdev, u32 bit)
 	}
 	return -ETIMEDOUT;
 }
-
 
 /* Used to issue init control blocks to hw. Maps control block,
  * sets address, triggers download, waits for completion.
@@ -270,36 +268,34 @@ int ql_get_mac_addr_reg(struct ql_adapter *qdev, u32 type, u16 index,
 		{
 			status =
 			    ql_wait_reg_rdy(qdev,
-				MAC_ADDR_IDX, MAC_ADDR_MW, 0);
+					    MAC_ADDR_IDX, MAC_ADDR_MW, 0);
 			if (status)
 				goto exit;
 			ql_write32(qdev, MAC_ADDR_IDX, (offset++) | /* offset */
 				   (index << MAC_ADDR_IDX_SHIFT) | /* index */
 				   MAC_ADDR_ADR | MAC_ADDR_RS | type); /* type */
 			status =
-			    ql_wait_reg_rdy(qdev,
-				MAC_ADDR_IDX, MAC_ADDR_MR, 0);
+			    ql_wait_reg_rdy(qdev, MAC_ADDR_IDX, MAC_ADDR_MR, 0);
 			if (status)
 				goto exit;
 			*value++ = ql_read32(qdev, MAC_ADDR_DATA);
 			status =
-			    ql_wait_reg_rdy(qdev,
-				MAC_ADDR_IDX, MAC_ADDR_MW, 0);
+			    ql_wait_reg_rdy(qdev, MAC_ADDR_IDX, MAC_ADDR_MW, 0);
 			if (status)
 				goto exit;
 			ql_write32(qdev, MAC_ADDR_IDX, (offset++) | /* offset */
 				   (index << MAC_ADDR_IDX_SHIFT) | /* index */
 				   MAC_ADDR_ADR | MAC_ADDR_RS | type); /* type */
 			status =
-			    ql_wait_reg_rdy(qdev,
-				MAC_ADDR_IDX, MAC_ADDR_MR, 0);
+			    ql_wait_reg_rdy(qdev, MAC_ADDR_IDX, MAC_ADDR_MR, 0);
 			if (status)
 				goto exit;
 			*value++ = ql_read32(qdev, MAC_ADDR_DATA);
 			if (type == MAC_ADDR_TYPE_CAM_MAC) {
 				status =
 				    ql_wait_reg_rdy(qdev,
-					MAC_ADDR_IDX, MAC_ADDR_MW, 0);
+						    MAC_ADDR_IDX, MAC_ADDR_MW,
+						    0);
 				if (status)
 					goto exit;
 				ql_write32(qdev, MAC_ADDR_IDX, (offset++) | /* offset */
@@ -343,7 +339,7 @@ static int ql_set_mac_addr_reg(struct ql_adapter *qdev, u8 *addr, u32 type,
 
 			status =
 				ql_wait_reg_rdy(qdev,
-				MAC_ADDR_IDX, MAC_ADDR_MW, 0);
+						MAC_ADDR_IDX, MAC_ADDR_MW, 0);
 			if (status)
 				goto exit;
 			ql_write32(qdev, MAC_ADDR_IDX, (offset++) |
@@ -352,7 +348,7 @@ static int ql_set_mac_addr_reg(struct ql_adapter *qdev, u8 *addr, u32 type,
 			ql_write32(qdev, MAC_ADDR_DATA, lower);
 			status =
 				ql_wait_reg_rdy(qdev,
-				MAC_ADDR_IDX, MAC_ADDR_MW, 0);
+						MAC_ADDR_IDX, MAC_ADDR_MW, 0);
 			if (status)
 				goto exit;
 			ql_write32(qdev, MAC_ADDR_IDX, (offset++) |
@@ -362,7 +358,7 @@ static int ql_set_mac_addr_reg(struct ql_adapter *qdev, u8 *addr, u32 type,
 			ql_write32(qdev, MAC_ADDR_DATA, upper);
 			status =
 				ql_wait_reg_rdy(qdev,
-				MAC_ADDR_IDX, MAC_ADDR_MW, 0);
+						MAC_ADDR_IDX, MAC_ADDR_MW, 0);
 			if (status)
 				goto exit;
 			break;
@@ -375,8 +371,7 @@ static int ql_set_mac_addr_reg(struct ql_adapter *qdev, u8 *addr, u32 type,
 			    (addr[2] << 24) | (addr[3] << 16) | (addr[4] << 8) |
 			    (addr[5]);
 			status =
-			    ql_wait_reg_rdy(qdev,
-				MAC_ADDR_IDX, MAC_ADDR_MW, 0);
+			    ql_wait_reg_rdy(qdev, MAC_ADDR_IDX, MAC_ADDR_MW, 0);
 			if (status)
 				goto exit;
 			ql_write32(qdev, MAC_ADDR_IDX, (offset++) | /* offset */
@@ -384,8 +379,7 @@ static int ql_set_mac_addr_reg(struct ql_adapter *qdev, u8 *addr, u32 type,
 				   type);	/* type */
 			ql_write32(qdev, MAC_ADDR_DATA, lower);
 			status =
-			    ql_wait_reg_rdy(qdev,
-				MAC_ADDR_IDX, MAC_ADDR_MW, 0);
+			    ql_wait_reg_rdy(qdev, MAC_ADDR_IDX, MAC_ADDR_MW, 0);
 			if (status)
 				goto exit;
 			ql_write32(qdev, MAC_ADDR_IDX, (offset++) | /* offset */
@@ -393,16 +387,15 @@ static int ql_set_mac_addr_reg(struct ql_adapter *qdev, u8 *addr, u32 type,
 				   type);	/* type */
 			ql_write32(qdev, MAC_ADDR_DATA, upper);
 			status =
-			    ql_wait_reg_rdy(qdev,
-				MAC_ADDR_IDX, MAC_ADDR_MW, 0);
+			    ql_wait_reg_rdy(qdev, MAC_ADDR_IDX, MAC_ADDR_MW, 0);
 			if (status)
 				goto exit;
 			ql_write32(qdev, MAC_ADDR_IDX, (offset) |	/* offset */
 				   (index << MAC_ADDR_IDX_SHIFT) |	/* index */
 				   type);	/* type */
 			/* This field should also include the queue id
-			   and possibly the function id.  Right now we hardcode
-			   the route field to NIC core.
+			 * and possibly the function id.  Right now we hardcode
+			 * the route field to NIC core.
 			 */
 			cam_output = (CAM_OUT_ROUTE_NIC |
 				      (qdev->
@@ -423,8 +416,7 @@ static int ql_set_mac_addr_reg(struct ql_adapter *qdev, u8 *addr, u32 type,
 			 * That's bit-27 we're talking about.
 			 */
 			status =
-			    ql_wait_reg_rdy(qdev,
-				MAC_ADDR_IDX, MAC_ADDR_MW, 0);
+			    ql_wait_reg_rdy(qdev, MAC_ADDR_IDX, MAC_ADDR_MW, 0);
 			if (status)
 				goto exit;
 			ql_write32(qdev, MAC_ADDR_IDX, offset |	/* offset */
@@ -467,7 +459,8 @@ static int ql_set_mac_addr(struct ql_adapter *qdev, int set)
 	if (status)
 		return status;
 	status = ql_set_mac_addr_reg(qdev, (u8 *) addr,
-			MAC_ADDR_TYPE_CAM_MAC, qdev->func * MAX_CQ);
+				     MAC_ADDR_TYPE_CAM_MAC,
+				     qdev->func * MAX_CQ);
 	ql_sem_unlock(qdev, SEM_MAC_ADDR_MASK);
 	if (status)
 		netif_err(qdev, ifup, qdev->ndev,
@@ -672,17 +665,17 @@ static int ql_read_flash_word(struct ql_adapter *qdev, int offset, __le32 *data)
 	int status = 0;
 	/* wait for reg to come ready */
 	status = ql_wait_reg_rdy(qdev,
-			FLASH_ADDR, FLASH_ADDR_RDY, FLASH_ADDR_ERR);
+				 FLASH_ADDR, FLASH_ADDR_RDY, FLASH_ADDR_ERR);
 	if (status)
 		goto exit;
 	/* set up for reg read */
 	ql_write32(qdev, FLASH_ADDR, FLASH_ADDR_R | offset);
 	/* wait for reg to come ready */
 	status = ql_wait_reg_rdy(qdev,
-			FLASH_ADDR, FLASH_ADDR_RDY, FLASH_ADDR_ERR);
+				 FLASH_ADDR, FLASH_ADDR_RDY, FLASH_ADDR_ERR);
 	if (status)
 		goto exit;
-	 /* This data is stored on flash as an array of
+	/* This data is stored on flash as an array of
 	 * __le32.  Since ql_read32() returns cpu endian
 	 * we need to swap it back.
 	 */
@@ -721,8 +714,9 @@ static int ql_get_8000_flash_params(struct ql_adapter *qdev)
 	}
 
 	status = ql_validate_flash(qdev,
-			sizeof(struct flash_params_8000) / sizeof(u16),
-			"8000");
+				   sizeof(struct flash_params_8000) /
+				   sizeof(u16),
+				   "8000");
 	if (status) {
 		netif_err(qdev, ifup, qdev->ndev, "Invalid flash.\n");
 		status = -EINVAL;
@@ -734,12 +728,12 @@ static int ql_get_8000_flash_params(struct ql_adapter *qdev)
 	 */
 	if (qdev->flash.flash_params_8000.data_type1 == 2)
 		memcpy(mac_addr,
-			qdev->flash.flash_params_8000.mac_addr1,
-			qdev->ndev->addr_len);
+		       qdev->flash.flash_params_8000.mac_addr1,
+		       qdev->ndev->addr_len);
 	else
 		memcpy(mac_addr,
-			qdev->flash.flash_params_8000.mac_addr,
-			qdev->ndev->addr_len);
+		       qdev->flash.flash_params_8000.mac_addr,
+		       qdev->ndev->addr_len);
 
 	if (!is_valid_ether_addr(mac_addr)) {
 		netif_err(qdev, ifup, qdev->ndev, "Invalid MAC address.\n");
@@ -748,8 +742,8 @@ static int ql_get_8000_flash_params(struct ql_adapter *qdev)
 	}
 
 	memcpy(qdev->ndev->dev_addr,
-		mac_addr,
-		qdev->ndev->addr_len);
+	       mac_addr,
+	       qdev->ndev->addr_len);
 
 exit:
 	ql_sem_unlock(qdev, SEM_FLASH_MASK);
@@ -784,8 +778,9 @@ static int ql_get_8012_flash_params(struct ql_adapter *qdev)
 	}
 
 	status = ql_validate_flash(qdev,
-			sizeof(struct flash_params_8012) / sizeof(u16),
-			"8012");
+				   sizeof(struct flash_params_8012) /
+				   sizeof(u16),
+				   "8012");
 	if (status) {
 		netif_err(qdev, ifup, qdev->ndev, "Invalid flash.\n");
 		status = -EINVAL;
@@ -798,8 +793,8 @@ static int ql_get_8012_flash_params(struct ql_adapter *qdev)
 	}
 
 	memcpy(qdev->ndev->dev_addr,
-		qdev->flash.flash_params_8012.mac_addr,
-		qdev->ndev->addr_len);
+	       qdev->flash.flash_params_8012.mac_addr,
+	       qdev->ndev->addr_len);
 
 exit:
 	ql_sem_unlock(qdev, SEM_FLASH_MASK);
@@ -815,7 +810,7 @@ static int ql_write_xgmac_reg(struct ql_adapter *qdev, u32 reg, u32 data)
 	int status;
 	/* wait for reg to come ready */
 	status = ql_wait_reg_rdy(qdev,
-			XGMAC_ADDR, XGMAC_ADDR_RDY, XGMAC_ADDR_XME);
+				 XGMAC_ADDR, XGMAC_ADDR_RDY, XGMAC_ADDR_XME);
 	if (status)
 		return status;
 	/* write the data to the data reg */
@@ -834,14 +829,14 @@ int ql_read_xgmac_reg(struct ql_adapter *qdev, u32 reg, u32 *data)
 	int status = 0;
 	/* wait for reg to come ready */
 	status = ql_wait_reg_rdy(qdev,
-			XGMAC_ADDR, XGMAC_ADDR_RDY, XGMAC_ADDR_XME);
+				 XGMAC_ADDR, XGMAC_ADDR_RDY, XGMAC_ADDR_XME);
 	if (status)
 		goto exit;
 	/* set up for reg read */
 	ql_write32(qdev, XGMAC_ADDR, reg | XGMAC_ADDR_R);
 	/* wait for reg to come ready */
 	status = ql_wait_reg_rdy(qdev,
-			XGMAC_ADDR, XGMAC_ADDR_RDY, XGMAC_ADDR_XME);
+				 XGMAC_ADDR, XGMAC_ADDR_RDY, XGMAC_ADDR_XME);
 	if (status)
 		goto exit;
 	/* get the data */
@@ -1436,10 +1431,9 @@ static void ql_update_mac_hdr_len(struct ql_adapter *qdev,
 
 /* Process an inbound completion from an rx ring. */
 static void ql_process_mac_rx_gro_page(struct ql_adapter *qdev,
-					struct rx_ring *rx_ring,
-					struct ib_mac_iocb_rsp *ib_mac_rsp,
-					u32 length,
-					u16 vlan_id)
+				       struct rx_ring *rx_ring,
+				       struct ib_mac_iocb_rsp *ib_mac_rsp,
+				       u32 length, u16 vlan_id)
 {
 	struct sk_buff *skb;
 	struct qlge_bq_desc *lbq_desc = ql_get_curr_lchunk(qdev, rx_ring);
@@ -1483,10 +1477,9 @@ static void ql_process_mac_rx_gro_page(struct ql_adapter *qdev,
 
 /* Process an inbound completion from an rx ring. */
 static void ql_process_mac_rx_page(struct ql_adapter *qdev,
-					struct rx_ring *rx_ring,
-					struct ib_mac_iocb_rsp *ib_mac_rsp,
-					u32 length,
-					u16 vlan_id)
+				   struct rx_ring *rx_ring,
+				   struct ib_mac_iocb_rsp *ib_mac_rsp,
+				   u32 length, u16 vlan_id)
 {
 	struct net_device *ndev = qdev->ndev;
 	struct sk_buff *skb = NULL;
@@ -1528,8 +1521,7 @@ static void ql_process_mac_rx_page(struct ql_adapter *qdev,
 		     "%d bytes of headers and data in large. Chain page to new skb and pull tail.\n",
 		     length);
 	skb_fill_page_desc(skb, 0, lbq_desc->p.pg_chunk.page,
-				lbq_desc->p.pg_chunk.offset + hlen,
-				length - hlen);
+			   lbq_desc->p.pg_chunk.offset + hlen, length - hlen);
 	skb->len += length - hlen;
 	skb->data_len += length - hlen;
 	skb->truesize += length - hlen;
@@ -1540,7 +1532,7 @@ static void ql_process_mac_rx_page(struct ql_adapter *qdev,
 	skb_checksum_none_assert(skb);
 
 	if ((ndev->features & NETIF_F_RXCSUM) &&
-		!(ib_mac_rsp->flags1 & IB_MAC_CSUM_ERR_MASK)) {
+	    !(ib_mac_rsp->flags1 & IB_MAC_CSUM_ERR_MASK)) {
 		/* TCP frame. */
 		if (ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_T) {
 			netif_printk(qdev, rx_status, KERN_DEBUG, qdev->ndev,
@@ -1576,10 +1568,9 @@ err_out:
 
 /* Process an inbound completion from an rx ring. */
 static void ql_process_mac_rx_skb(struct ql_adapter *qdev,
-					struct rx_ring *rx_ring,
-					struct ib_mac_iocb_rsp *ib_mac_rsp,
-					u32 length,
-					u16 vlan_id)
+				  struct rx_ring *rx_ring,
+				  struct ib_mac_iocb_rsp *ib_mac_rsp,
+				  u32 length, u16 vlan_id)
 {
 	struct qlge_bq_desc *sbq_desc = qlge_get_curr_buf(&rx_ring->sbq);
 	struct net_device *ndev = qdev->ndev;
@@ -1648,7 +1639,7 @@ static void ql_process_mac_rx_skb(struct ql_adapter *qdev,
 	 * csum or frame errors.
 	 */
 	if ((ndev->features & NETIF_F_RXCSUM) &&
-		!(ib_mac_rsp->flags1 & IB_MAC_CSUM_ERR_MASK)) {
+	    !(ib_mac_rsp->flags1 & IB_MAC_CSUM_ERR_MASK)) {
 		/* TCP frame. */
 		if (ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_T) {
 			netif_printk(qdev, rx_status, KERN_DEBUG, qdev->ndev,
@@ -1779,8 +1770,7 @@ static struct sk_buff *ql_build_rx_skb(struct ql_adapter *qdev,
 				     "Chaining page at offset = %d, for %d bytes  to skb.\n",
 				     lbq_desc->p.pg_chunk.offset, length);
 			skb_fill_page_desc(skb, 0, lbq_desc->p.pg_chunk.page,
-						lbq_desc->p.pg_chunk.offset,
-						length);
+					   lbq_desc->p.pg_chunk.offset, length);
 			skb->len += length;
 			skb->data_len += length;
 			skb->truesize += length;
@@ -1804,10 +1794,9 @@ static struct sk_buff *ql_build_rx_skb(struct ql_adapter *qdev,
 			netif_printk(qdev, rx_status, KERN_DEBUG, qdev->ndev,
 				     "%d bytes of headers and data in large. Chain page to new skb and pull tail.\n",
 				     length);
-			skb_fill_page_desc(skb, 0,
-						lbq_desc->p.pg_chunk.page,
-						lbq_desc->p.pg_chunk.offset,
-						length);
+			skb_fill_page_desc(skb, 0, lbq_desc->p.pg_chunk.page,
+					   lbq_desc->p.pg_chunk.offset,
+					   length);
 			skb->len += length;
 			skb->data_len += length;
 			skb->truesize += length;
@@ -1857,9 +1846,8 @@ static struct sk_buff *ql_build_rx_skb(struct ql_adapter *qdev,
 				     "Adding page %d to skb for %d bytes.\n",
 				     i, size);
 			skb_fill_page_desc(skb, i,
-						lbq_desc->p.pg_chunk.page,
-						lbq_desc->p.pg_chunk.offset,
-						size);
+					   lbq_desc->p.pg_chunk.page,
+					   lbq_desc->p.pg_chunk.offset, size);
 			skb->len += size;
 			skb->data_len += size;
 			skb->truesize += size;
@@ -1875,9 +1863,9 @@ static struct sk_buff *ql_build_rx_skb(struct ql_adapter *qdev,
 
 /* Process an inbound completion from an rx ring. */
 static void ql_process_mac_split_rx_intr(struct ql_adapter *qdev,
-				   struct rx_ring *rx_ring,
-				   struct ib_mac_iocb_rsp *ib_mac_rsp,
-				   u16 vlan_id)
+					 struct rx_ring *rx_ring,
+					 struct ib_mac_iocb_rsp *ib_mac_rsp,
+					 u16 vlan_id)
 {
 	struct net_device *ndev = qdev->ndev;
 	struct sk_buff *skb = NULL;
@@ -1938,7 +1926,7 @@ static void ql_process_mac_split_rx_intr(struct ql_adapter *qdev,
 	 * csum or frame errors.
 	 */
 	if ((ndev->features & NETIF_F_RXCSUM) &&
-		!(ib_mac_rsp->flags1 & IB_MAC_CSUM_ERR_MASK)) {
+	    !(ib_mac_rsp->flags1 & IB_MAC_CSUM_ERR_MASK)) {
 		/* TCP frame. */
 		if (ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_T) {
 			netif_printk(qdev, rx_status, KERN_DEBUG, qdev->ndev,
@@ -1970,8 +1958,8 @@ static void ql_process_mac_split_rx_intr(struct ql_adapter *qdev,
 
 /* Process an inbound completion from an rx ring. */
 static unsigned long ql_process_mac_rx_intr(struct ql_adapter *qdev,
-					struct rx_ring *rx_ring,
-					struct ib_mac_iocb_rsp *ib_mac_rsp)
+					    struct rx_ring *rx_ring,
+					    struct ib_mac_iocb_rsp *ib_mac_rsp)
 {
 	u32 length = le32_to_cpu(ib_mac_rsp->data_len);
 	u16 vlan_id = ((ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_V) &&
@@ -1986,34 +1974,34 @@ static unsigned long ql_process_mac_rx_intr(struct ql_adapter *qdev,
 		 * separate buffers.
 		 */
 		ql_process_mac_split_rx_intr(qdev, rx_ring, ib_mac_rsp,
-						vlan_id);
+					     vlan_id);
 	} else if (ib_mac_rsp->flags3 & IB_MAC_IOCB_RSP_DS) {
 		/* The data fit in a single small buffer.
 		 * Allocate a new skb, copy the data and
 		 * return the buffer to the free pool.
 		 */
-		ql_process_mac_rx_skb(qdev, rx_ring, ib_mac_rsp,
-						length, vlan_id);
+		ql_process_mac_rx_skb(qdev, rx_ring, ib_mac_rsp, length,
+				      vlan_id);
 	} else if ((ib_mac_rsp->flags3 & IB_MAC_IOCB_RSP_DL) &&
 		!(ib_mac_rsp->flags1 & IB_MAC_CSUM_ERR_MASK) &&
 		(ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_T)) {
 		/* TCP packet in a page chunk that's been checksummed.
 		 * Tack it on to our GRO skb and let it go.
 		 */
-		ql_process_mac_rx_gro_page(qdev, rx_ring, ib_mac_rsp,
-						length, vlan_id);
+		ql_process_mac_rx_gro_page(qdev, rx_ring, ib_mac_rsp, length,
+					   vlan_id);
 	} else if (ib_mac_rsp->flags3 & IB_MAC_IOCB_RSP_DL) {
 		/* Non-TCP packet in a page chunk. Allocate an
 		 * skb, tack it on frags, and send it up.
 		 */
-		ql_process_mac_rx_page(qdev, rx_ring, ib_mac_rsp,
-						length, vlan_id);
+		ql_process_mac_rx_page(qdev, rx_ring, ib_mac_rsp, length,
+				       vlan_id);
 	} else {
 		/* Non-TCP/UDP large frames that span multiple buffers
 		 * can be processed corrrectly by the split frame logic.
 		 */
 		ql_process_mac_split_rx_intr(qdev, rx_ring, ib_mac_rsp,
-						vlan_id);
+					     vlan_id);
 	}
 
 	return (unsigned long)length;
@@ -2222,15 +2210,16 @@ static int ql_napi_poll_msix(struct napi_struct *napi, int budget)
 		     "Enter, NAPI POLL cq_id = %d.\n", rx_ring->cq_id);
 
 	/* Service the TX rings first.  They start
-	 * right after the RSS rings. */
+	 * right after the RSS rings.
+	 */
 	for (i = qdev->rss_ring_count; i < qdev->rx_ring_count; i++) {
 		trx_ring = &qdev->rx_ring[i];
 		/* If this TX completion ring belongs to this vector and
 		 * it's not empty then service it.
 		 */
 		if ((ctx->irq_mask & (1 << trx_ring->cq_id)) &&
-			(ql_read_sh_reg(trx_ring->prod_idx_sh_reg) !=
-					trx_ring->cnsmr_idx)) {
+		    (ql_read_sh_reg(trx_ring->prod_idx_sh_reg) !=
+		     trx_ring->cnsmr_idx)) {
 			netif_printk(qdev, intr, KERN_DEBUG, qdev->ndev,
 				     "%s: Servicing TX completion ring %d.\n",
 				     __func__, trx_ring->cq_id);
@@ -2304,7 +2293,7 @@ static int qlge_update_hw_vlan_features(struct net_device *ndev,
 }
 
 static int qlge_set_features(struct net_device *ndev,
-	netdev_features_t features)
+			     netdev_features_t features)
 {
 	netdev_features_t changed = ndev->features ^ features;
 	int err;
@@ -2447,7 +2436,7 @@ static irqreturn_t qlge_isr(int irq, void *dev_id)
 	 * Check MPI processor activity.
 	 */
 	if ((var & STS_PI) &&
-		(ql_read32(qdev, INTR_MASK) & INTR_MASK_PI)) {
+	    (ql_read32(qdev, INTR_MASK) & INTR_MASK_PI)) {
 		/*
 		 * We've got an async event or mailbox completion.
 		 * Handle it and clear the source of the interrupt.
@@ -2456,7 +2445,7 @@ static irqreturn_t qlge_isr(int irq, void *dev_id)
 			  "Got MPI processor interrupt.\n");
 		ql_write32(qdev, INTR_MASK, (INTR_MASK_PI << 16));
 		queue_delayed_work_on(smp_processor_id(),
-				qdev->workqueue, &qdev->mpi_work, 0);
+				      qdev->workqueue, &qdev->mpi_work, 0);
 		work_done++;
 	}
 
@@ -2638,7 +2627,6 @@ static netdev_tx_t qlge_send(struct sk_buff *skb, struct net_device *ndev)
 	}
 	return NETDEV_TX_OK;
 }
-
 
 static void ql_free_shadow_space(struct ql_adapter *qdev)
 {
@@ -2887,7 +2875,8 @@ static void ql_free_rx_resources(struct ql_adapter *qdev,
 }
 
 /* Allocate queues and buffers for this completions queue based
- * on the values in the parameter structure. */
+ * on the values in the parameter structure.
+ */
 static int ql_alloc_rx_resources(struct ql_adapter *qdev,
 				 struct rx_ring *rx_ring)
 {
@@ -3530,19 +3519,17 @@ static int ql_route_initialize(struct ql_adapter *qdev)
 		return status;
 
 	status = ql_set_routing_reg(qdev, RT_IDX_IP_CSUM_ERR_SLOT,
-						RT_IDX_IP_CSUM_ERR, 1);
+				    RT_IDX_IP_CSUM_ERR, 1);
 	if (status) {
 		netif_err(qdev, ifup, qdev->ndev,
-			"Failed to init routing register "
-			"for IP CSUM error packets.\n");
+			  "Failed to init routing register for IP CSUM error packets.\n");
 		goto exit;
 	}
 	status = ql_set_routing_reg(qdev, RT_IDX_TCP_UDP_CSUM_ERR_SLOT,
-						RT_IDX_TU_CSUM_ERR, 1);
+				    RT_IDX_TU_CSUM_ERR, 1);
 	if (status) {
 		netif_err(qdev, ifup, qdev->ndev,
-			"Failed to init routing register "
-			"for TCP/UDP CSUM error packets.\n");
+			  "Failed to init routing register for TCP/UDP CSUM error packets.\n");
 		goto exit;
 	}
 	status = ql_set_routing_reg(qdev, RT_IDX_BCAST_SLOT, RT_IDX_BCAST, 1);
@@ -3556,7 +3543,7 @@ static int ql_route_initialize(struct ql_adapter *qdev)
 	 */
 	if (qdev->rss_ring_count > 1) {
 		status = ql_set_routing_reg(qdev, RT_IDX_RSS_MATCH_SLOT,
-					RT_IDX_RSS_MATCH, 1);
+					    RT_IDX_RSS_MATCH, 1);
 		if (status) {
 			netif_err(qdev, ifup, qdev->ndev,
 				  "Failed to init routing register for MATCH RSS packets.\n");
@@ -3654,7 +3641,7 @@ static int ql_adapter_initialize(struct ql_adapter *qdev)
 
 	/* Default WOL is enable on Mezz cards */
 	if (qdev->pdev->subsystem_device == 0x0068 ||
-			qdev->pdev->subsystem_device == 0x0180)
+	    qdev->pdev->subsystem_device == 0x0180)
 		qdev->wol = WAKE_MAGIC;
 
 	/* Start up the rx queues. */
@@ -3731,8 +3718,9 @@ static int ql_adapter_reset(struct ql_adapter *qdev)
 
 		/* Wait for the NIC and MGMNT FIFOs to empty. */
 		ql_wait_fifo_empty(qdev);
-	} else
+	} else {
 		clear_bit(QL_ASIC_RECOVERY, &qdev->flags);
+	}
 
 	ql_write32(qdev, RST_FO, (RST_FO_FR << 16) | RST_FO_FR);
 
@@ -3880,7 +3868,7 @@ static int ql_adapter_up(struct ql_adapter *qdev)
 	 * link is up the turn on the carrier.
 	 */
 	if ((ql_read32(qdev, STS) & qdev->port_init) &&
-			(ql_read32(qdev, STS) & qdev->port_link_up))
+	    (ql_read32(qdev, STS) & qdev->port_link_up))
 		ql_link_on(qdev);
 	/* Restore rx mode. */
 	clear_bit(QL_ALLMULTI, &qdev->flags);
@@ -4099,21 +4087,20 @@ static int qlge_change_mtu(struct net_device *ndev, int new_mtu)
 	struct ql_adapter *qdev = netdev_priv(ndev);
 	int status;
 
-	if (ndev->mtu == 1500 && new_mtu == 9000) {
+	if (ndev->mtu == 1500 && new_mtu == 9000)
 		netif_err(qdev, ifup, qdev->ndev, "Changing to jumbo MTU.\n");
-	} else if (ndev->mtu == 9000 && new_mtu == 1500) {
+	else if (ndev->mtu == 9000 && new_mtu == 1500)
 		netif_err(qdev, ifup, qdev->ndev, "Changing to normal MTU.\n");
-	} else
+	else
 		return -EINVAL;
 
 	queue_delayed_work(qdev->workqueue,
-			&qdev->mpi_port_cfg_work, 3*HZ);
+			   &qdev->mpi_port_cfg_work, 3 * HZ);
 
 	ndev->mtu = new_mtu;
 
-	if (!netif_running(qdev->ndev)) {
+	if (!netif_running(qdev->ndev))
 		return 0;
-	}
 
 	status = ql_change_rx_buffers(qdev);
 	if (status) {
@@ -4267,7 +4254,8 @@ static int qlge_set_mac_address(struct net_device *ndev, void *p)
 	if (status)
 		return status;
 	status = ql_set_mac_addr_reg(qdev, (u8 *) ndev->dev_addr,
-			MAC_ADDR_TYPE_CAM_MAC, qdev->func * MAX_CQ);
+				     MAC_ADDR_TYPE_CAM_MAC,
+				     qdev->func * MAX_CQ);
 	if (status)
 		netif_err(qdev, hw, qdev->ndev, "Failed to load MAC address.\n");
 	ql_sem_unlock(qdev, SEM_MAC_ADDR_MASK);
@@ -4334,7 +4322,7 @@ static int ql_get_alt_pcie_func(struct ql_adapter *qdev)
 	u32 nic_func1, nic_func2;
 
 	status = ql_read_mpi_reg(qdev, MPI_TEST_FUNC_PORT_CFG,
-			&temp);
+				 &temp);
 	if (status)
 		return status;
 
@@ -4578,11 +4566,12 @@ static int qlge_probe(struct pci_dev *pdev,
 {
 	struct net_device *ndev = NULL;
 	struct ql_adapter *qdev = NULL;
-	static int cards_found = 0;
+	static int cards_found;
 	int err = 0;
 
 	ndev = alloc_etherdev_mq(sizeof(struct ql_adapter),
-			min(MAX_CPUS, netif_get_num_default_rss_queues()));
+				 min(MAX_CPUS,
+				     netif_get_num_default_rss_queues()));
 	if (!ndev)
 		return -ENOMEM;
 

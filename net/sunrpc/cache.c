@@ -42,7 +42,7 @@ static bool cache_listeners_exist(struct cache_detail *detail);
 
 static void cache_init(struct cache_head *h, struct cache_detail *detail)
 {
-	time_t now = seconds_since_boot();
+	time64_t now = seconds_since_boot();
 	INIT_HLIST_NODE(&h->cache_list);
 	h->flags = 0;
 	kref_init(&h->ref);
@@ -139,10 +139,10 @@ EXPORT_SYMBOL_GPL(sunrpc_cache_lookup_rcu);
 
 static void cache_dequeue(struct cache_detail *detail, struct cache_head *ch);
 
-static void cache_fresh_locked(struct cache_head *head, time_t expiry,
+static void cache_fresh_locked(struct cache_head *head, time64_t expiry,
 			       struct cache_detail *detail)
 {
-	time_t now = seconds_since_boot();
+	time64_t now = seconds_since_boot();
 	if (now <= detail->flush_time)
 		/* ensure it isn't immediately treated as expired */
 		now = detail->flush_time + 1;
@@ -274,7 +274,7 @@ int cache_check(struct cache_detail *detail,
 		    struct cache_head *h, struct cache_req *rqstp)
 {
 	int rv;
-	long refresh_age, age;
+	time64_t refresh_age, age;
 
 	/* First decide return status as best we can */
 	rv = cache_is_valid(h);
@@ -288,7 +288,7 @@ int cache_check(struct cache_detail *detail,
 			rv = -ENOENT;
 	} else if (rv == -EAGAIN ||
 		   (h->expiry_time != 0 && age > refresh_age/2)) {
-		dprintk("RPC:       Want update, refage=%ld, age=%ld\n",
+		dprintk("RPC:       Want update, refage=%lld, age=%lld\n",
 				refresh_age, age);
 		if (!test_and_set_bit(CACHE_PENDING, &h->flags)) {
 			switch (cache_make_upcall(detail, h)) {
@@ -1404,7 +1404,7 @@ static int c_show(struct seq_file *m, void *p)
 		return cd->cache_show(m, cd, NULL);
 
 	ifdebug(CACHE)
-		seq_printf(m, "# expiry=%ld refcnt=%d flags=%lx\n",
+		seq_printf(m, "# expiry=%lld refcnt=%d flags=%lx\n",
 			   convert_to_wallclock(cp->expiry_time),
 			   kref_read(&cp->ref), cp->flags);
 	cache_get(cp);
@@ -1477,7 +1477,7 @@ static ssize_t read_flush(struct file *file, char __user *buf,
 	char tbuf[22];
 	size_t len;
 
-	len = snprintf(tbuf, sizeof(tbuf), "%lu\n",
+	len = snprintf(tbuf, sizeof(tbuf), "%llu\n",
 			convert_to_wallclock(cd->flush_time));
 	return simple_read_from_buffer(buf, count, ppos, tbuf, len);
 }
@@ -1488,7 +1488,7 @@ static ssize_t write_flush(struct file *file, const char __user *buf,
 {
 	char tbuf[20];
 	char *ep;
-	time_t now;
+	time64_t now;
 
 	if (*ppos || count > sizeof(tbuf)-1)
 		return -EINVAL;

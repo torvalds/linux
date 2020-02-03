@@ -189,7 +189,7 @@ int ucsi_resume(struct ucsi *ucsi)
 	u64 command;
 
 	/* Restore UCSI notification enable mask after system resume */
-	command = UCSI_SET_NOTIFICATION_ENABLE | UCSI_ENABLE_NTFY_ALL;
+	command = UCSI_SET_NOTIFICATION_ENABLE | ucsi->ntfy;
 
 	return ucsi_send_command(ucsi, command, NULL, 0);
 }
@@ -318,6 +318,82 @@ err:
 	return ret;
 }
 
+static int
+ucsi_register_altmodes_nvidia(struct ucsi_connector *con, u8 recipient)
+{
+	int max_altmodes = UCSI_MAX_ALTMODES;
+	struct typec_altmode_desc desc;
+	struct ucsi_altmode alt;
+	struct ucsi_altmode orig[UCSI_MAX_ALTMODES];
+	struct ucsi_altmode updated[UCSI_MAX_ALTMODES];
+	struct ucsi *ucsi = con->ucsi;
+	bool multi_dp = false;
+	u64 command;
+	int ret;
+	int len;
+	int i;
+	int k = 0;
+
+	if (recipient == UCSI_RECIPIENT_CON)
+		max_altmodes = con->ucsi->cap.num_alt_modes;
+
+	memset(orig, 0, sizeof(orig));
+	memset(updated, 0, sizeof(updated));
+
+	/* First get all the alternate modes */
+	for (i = 0; i < max_altmodes; i++) {
+		memset(&alt, 0, sizeof(alt));
+		command = UCSI_GET_ALTERNATE_MODES;
+		command |= UCSI_GET_ALTMODE_RECIPIENT(recipient);
+		command |= UCSI_GET_ALTMODE_CONNECTOR_NUMBER(con->num);
+		command |= UCSI_GET_ALTMODE_OFFSET(i);
+		len = ucsi_run_command(con->ucsi, command, &alt, sizeof(alt));
+		/*
+		 * We are collecting all altmodes first and then registering.
+		 * Some type-C device will return zero length data beyond last
+		 * alternate modes. We should not return if length is zero.
+		 */
+		if (len < 0)
+			return len;
+
+		/* We got all altmodes, now break out and register them */
+		if (!len || !alt.svid)
+			break;
+
+		orig[k].mid = alt.mid;
+		orig[k].svid = alt.svid;
+		k++;
+	}
+	/*
+	 * Update the original altmode table as some ppms may report
+	 * multiple DP altmodes.
+	 */
+	if (recipient == UCSI_RECIPIENT_CON)
+		multi_dp = ucsi->ops->update_altmodes(ucsi, orig, updated);
+
+	/* now register altmodes */
+	for (i = 0; i < max_altmodes; i++) {
+		memset(&desc, 0, sizeof(desc));
+		if (multi_dp && recipient == UCSI_RECIPIENT_CON) {
+			desc.svid = updated[i].svid;
+			desc.vdo = updated[i].mid;
+		} else {
+			desc.svid = orig[i].svid;
+			desc.vdo = orig[i].mid;
+		}
+		desc.roles = TYPEC_PORT_DRD;
+
+		if (!desc.svid)
+			return 0;
+
+		ret = ucsi_register_altmode(con, &desc, recipient);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int ucsi_register_altmodes(struct ucsi_connector *con, u8 recipient)
 {
 	int max_altmodes = UCSI_MAX_ALTMODES;
@@ -335,6 +411,9 @@ static int ucsi_register_altmodes(struct ucsi_connector *con, u8 recipient)
 
 	if (recipient == UCSI_RECIPIENT_SOP && con->partner_altmode[0])
 		return 0;
+
+	if (con->ucsi->ops->update_altmodes)
+		return ucsi_register_altmodes_nvidia(con, recipient);
 
 	if (recipient == UCSI_RECIPIENT_CON)
 		max_altmodes = con->ucsi->cap.num_alt_modes;
@@ -589,6 +668,11 @@ void ucsi_connector_change(struct ucsi *ucsi, u8 num)
 {
 	struct ucsi_connector *con = &ucsi->connector[num - 1];
 
+	if (!(ucsi->ntfy & UCSI_ENABLE_NTFY_CONNECTOR_CHANGE)) {
+		dev_dbg(ucsi->dev, "Bogus connector change event\n");
+		return;
+	}
+
 	if (!test_and_set_bit(EVENT_PENDING, &ucsi->flags))
 		schedule_work(&con->work);
 }
@@ -656,7 +740,7 @@ static int ucsi_role_cmd(struct ucsi_connector *con, u64 command)
 		ucsi_reset_ppm(con->ucsi);
 		mutex_unlock(&con->ucsi->ppm_lock);
 
-		c = UCSI_SET_NOTIFICATION_ENABLE | UCSI_ENABLE_NTFY_ALL;
+		c = UCSI_SET_NOTIFICATION_ENABLE | con->ucsi->ntfy;
 		ucsi_send_command(con->ucsi, c, NULL, 0);
 
 		ucsi_reset_connector(con, true);
@@ -890,8 +974,8 @@ int ucsi_init(struct ucsi *ucsi)
 	}
 
 	/* Enable basic notifications */
-	command = UCSI_SET_NOTIFICATION_ENABLE;
-	command |= UCSI_ENABLE_NTFY_CMD_COMPLETE | UCSI_ENABLE_NTFY_ERROR;
+	ucsi->ntfy = UCSI_ENABLE_NTFY_CMD_COMPLETE | UCSI_ENABLE_NTFY_ERROR;
+	command = UCSI_SET_NOTIFICATION_ENABLE | ucsi->ntfy;
 	ret = ucsi_run_command(ucsi, command, NULL, 0);
 	if (ret < 0)
 		goto err_reset;
@@ -923,7 +1007,8 @@ int ucsi_init(struct ucsi *ucsi)
 	}
 
 	/* Enable all notifications */
-	command = UCSI_SET_NOTIFICATION_ENABLE | UCSI_ENABLE_NTFY_ALL;
+	ucsi->ntfy = UCSI_ENABLE_NTFY_ALL;
+	command = UCSI_SET_NOTIFICATION_ENABLE | ucsi->ntfy;
 	ret = ucsi_run_command(ucsi, command, NULL, 0);
 	if (ret < 0)
 		goto err_unregister;

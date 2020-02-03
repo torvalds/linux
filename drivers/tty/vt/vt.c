@@ -3326,8 +3326,9 @@ static int __init con_init(void)
 
 	console_lock();
 
-	if (conswitchp)
-		display_desc = conswitchp->con_startup();
+	if (!conswitchp)
+		conswitchp = &dummy_con;
+	display_desc = conswitchp->con_startup();
 	if (!display_desc) {
 		fg_console = 0;
 		console_unlock();
@@ -3567,7 +3568,6 @@ err:
 
 
 #ifdef CONFIG_VT_HW_CONSOLE_BINDING
-/* unlocked version of unbind_con_driver() */
 int do_unbind_con_driver(const struct consw *csw, int first, int last, int deflt)
 {
 	struct module *owner = csw->owner;
@@ -4095,7 +4095,7 @@ static void con_driver_unregister_callback(struct work_struct *ignored)
  *	when a driver wants to take over some existing consoles
  *	and become default driver for newly opened ones.
  *
- *	do_take_over_console is basically a register followed by unbind
+ *	do_take_over_console is basically a register followed by bind
  */
 int do_take_over_console(const struct consw *csw, int first, int last, int deflt)
 {

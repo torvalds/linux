@@ -591,6 +591,12 @@ static int tcpci_probe(struct i2c_client *client,
 static int tcpci_remove(struct i2c_client *client)
 {
 	struct tcpci_chip *chip = i2c_get_clientdata(client);
+	int err;
+
+	/* Disable chip interrupts before unregistering port */
+	err = tcpci_write16(chip->tcpci, TCPC_ALERT_MASK, 0);
+	if (err < 0)
+		return err;
 
 	tcpci_unregister_port(chip->tcpci);
 

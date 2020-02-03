@@ -765,7 +765,7 @@ bool rtw_is_cckrates_included(u8 *rate);
 
 bool rtw_is_cckratesonly_included(u8 *rate);
 
-int rtw_check_network_type(unsigned char *rate, int ratelen, int channel);
+int rtw_check_network_type(unsigned char *rate);
 
 void rtw_get_bcn_info(struct wlan_network *pnetwork);
 

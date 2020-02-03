@@ -1229,8 +1229,8 @@ static int rza1_parse_gpiochip(struct rza1_pinctrl *rza1_pctl,
 
 	pinctrl_add_gpio_range(rza1_pctl->pctl, range);
 
-	dev_info(rza1_pctl->dev, "Parsed gpiochip %s with %d pins\n",
-		 chip->label, chip->ngpio);
+	dev_dbg(rza1_pctl->dev, "Parsed gpiochip %s with %d pins\n",
+		chip->label, chip->ngpio);
 
 	return 0;
 }
