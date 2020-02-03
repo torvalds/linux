@@ -74,7 +74,7 @@ static int comp_vdev_open(struct file *filp)
 	struct comp_fh *fh;
 
 	switch (vdev->vfl_type) {
-	case VFL_TYPE_GRABBER:
+	case VFL_TYPE_VIDEO:
 		break;
 	default:
 		return -EINVAL;
@@ -424,7 +424,7 @@ static int comp_register_videodev(struct most_video_dev *mdev)
 
 	/* Register the v4l2 device */
 	video_set_drvdata(mdev->vdev, mdev);
-	ret = video_register_device(mdev->vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(mdev->vdev, VFL_TYPE_VIDEO, -1);
 	if (ret) {
 		v4l2_err(&mdev->v4l2_dev, "video_register_device failed (%d)\n",
 			 ret);
