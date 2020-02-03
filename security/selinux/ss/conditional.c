@@ -87,8 +87,9 @@ static int cond_evaluate_expr(struct policydb *p, struct cond_expr *expr)
  */
 void evaluate_cond_node(struct policydb *p, struct cond_node *node)
 {
+	struct avtab_node *avnode;
 	int new_state;
-	struct cond_av_list *cur;
+	u32 i;
 
 	new_state = cond_evaluate_expr(p, node->expr);
 	if (new_state != node->cur_state) {
@@ -96,19 +97,21 @@ void evaluate_cond_node(struct policydb *p, struct cond_node *node)
 		if (new_state == -1)
 			pr_err("SELinux: expression result was undefined - disabling all rules.\n");
 		/* turn the rules on or off */
-		for (cur = node->true_list; cur; cur = cur->next) {
+		for (i = 0; i < node->true_list.len; i++) {
+			avnode = node->true_list.nodes[i];
 			if (new_state <= 0)
-				cur->node->key.specified &= ~AVTAB_ENABLED;
+				avnode->key.specified &= ~AVTAB_ENABLED;
 			else
-				cur->node->key.specified |= AVTAB_ENABLED;
+				avnode->key.specified |= AVTAB_ENABLED;
 		}
 
-		for (cur = node->false_list; cur; cur = cur->next) {
+		for (i = 0; i < node->false_list.len; i++) {
+			avnode = node->false_list.nodes[i];
 			/* -1 or 1 */
 			if (new_state)
-				cur->node->key.specified &= ~AVTAB_ENABLED;
+				avnode->key.specified &= ~AVTAB_ENABLED;
 			else
-				cur->node->key.specified |= AVTAB_ENABLED;
+				avnode->key.specified |= AVTAB_ENABLED;
 		}
 	}
 }
@@ -128,16 +131,6 @@ int cond_policydb_init(struct policydb *p)
 	return 0;
 }
 
-static void cond_av_list_destroy(struct cond_av_list *list)
-{
-	struct cond_av_list *cur, *next;
-	for (cur = list; cur; cur = next) {
-		next = cur->next;
-		/* the avtab_ptr_t node is destroy by the avtab */
-		kfree(cur);
-	}
-}
-
 static void cond_node_destroy(struct cond_node *node)
 {
 	struct cond_expr *cur_expr, *next_expr;
@@ -146,8 +139,9 @@ static void cond_node_destroy(struct cond_node *node)
 		next_expr = cur_expr->next;
 		kfree(cur_expr);
 	}
-	cond_av_list_destroy(node->true_list);
-	cond_av_list_destroy(node->false_list);
+	/* the avtab_ptr_t nodes are destroyed by the avtab */
+	kfree(node->true_list.nodes);
+	kfree(node->false_list.nodes);
 }
 
 static void cond_list_destroy(struct policydb *p)
@@ -255,19 +249,18 @@ err:
 
 struct cond_insertf_data {
 	struct policydb *p;
+	struct avtab_node **dst;
 	struct cond_av_list *other;
-	struct cond_av_list *head;
-	struct cond_av_list *tail;
 };
 
 static int cond_insertf(struct avtab *a, struct avtab_key *k, struct avtab_datum *d, void *ptr)
 {
 	struct cond_insertf_data *data = ptr;
 	struct policydb *p = data->p;
-	struct cond_av_list *other = data->other, *list, *cur;
+	struct cond_av_list *other = data->other;
 	struct avtab_node *node_ptr;
-	u8 found;
-	int rc = -EINVAL;
+	u32 i;
+	bool found;
 
 	/*
 	 * For type rules we have to make certain there aren't any
@@ -277,7 +270,7 @@ static int cond_insertf(struct avtab *a, struct avtab_key *k, struct avtab_datum
 	if (k->specified & AVTAB_TYPE) {
 		if (avtab_search(&p->te_avtab, k)) {
 			pr_err("SELinux: type rule already exists outside of a conditional.\n");
-			goto err;
+			return -EINVAL;
 		}
 		/*
 		 * If we are reading the false list other will be a pointer to
@@ -292,24 +285,24 @@ static int cond_insertf(struct avtab *a, struct avtab_key *k, struct avtab_datum
 			if (node_ptr) {
 				if (avtab_search_node_next(node_ptr, k->specified)) {
 					pr_err("SELinux: too many conflicting type rules.\n");
-					goto err;
+					return -EINVAL;
 				}
-				found = 0;
-				for (cur = other; cur; cur = cur->next) {
-					if (cur->node == node_ptr) {
-						found = 1;
+				found = false;
+				for (i = 0; i < other->len; i++) {
+					if (other->nodes[i] == node_ptr) {
+						found = true;
 						break;
 					}
 				}
 				if (!found) {
 					pr_err("SELinux: conflicting type rules.\n");
-					goto err;
+					return -EINVAL;
 				}
 			}
 		} else {
 			if (avtab_search(&p->te_cond_avtab, k)) {
 				pr_err("SELinux: conflicting type rules when adding type rule for true.\n");
-				goto err;
+				return -EINVAL;
 			}
 		}
 	}
@@ -317,38 +310,21 @@ static int cond_insertf(struct avtab *a, struct avtab_key *k, struct avtab_datum
 	node_ptr = avtab_insert_nonunique(&p->te_cond_avtab, k, d);
 	if (!node_ptr) {
 		pr_err("SELinux: could not insert rule.\n");
-		rc = -ENOMEM;
-		goto err;
+		return -ENOMEM;
 	}
 
-	list = kzalloc(sizeof(*list), GFP_KERNEL);
-	if (!list) {
-		rc = -ENOMEM;
-		goto err;
-	}
-
-	list->node = node_ptr;
-	if (!data->head)
-		data->head = list;
-	else
-		data->tail->next = list;
-	data->tail = list;
+	*data->dst = node_ptr;
 	return 0;
-
-err:
-	cond_av_list_destroy(data->head);
-	data->head = NULL;
-	return rc;
 }
 
-static int cond_read_av_list(struct policydb *p, void *fp, struct cond_av_list **ret_list, struct cond_av_list *other)
+static int cond_read_av_list(struct policydb *p, void *fp,
+			     struct cond_av_list *list,
+			     struct cond_av_list *other)
 {
-	int i, rc;
+	int rc;
 	__le32 buf[1];
-	u32 len;
+	u32 i, len;
 	struct cond_insertf_data data;
-
-	*ret_list = NULL;
 
 	rc = next_entry(buf, fp, sizeof(u32));
 	if (rc)
@@ -358,18 +334,24 @@ static int cond_read_av_list(struct policydb *p, void *fp, struct cond_av_list *
 	if (len == 0)
 		return 0;
 
+	list->nodes = kcalloc(len, sizeof(*list->nodes), GFP_KERNEL);
+	if (!list->nodes)
+		return -ENOMEM;
+
 	data.p = p;
 	data.other = other;
-	data.head = NULL;
-	data.tail = NULL;
 	for (i = 0; i < len; i++) {
+		data.dst = &list->nodes[i];
 		rc = avtab_read_item(&p->te_cond_avtab, fp, p, cond_insertf,
 				     &data);
-		if (rc)
+		if (rc) {
+			kfree(list->nodes);
+			list->nodes = NULL;
 			return rc;
+		}
 	}
 
-	*ret_list = data.head;
+	list->len = len;
 	return 0;
 }
 
@@ -432,7 +414,7 @@ static int cond_read_node(struct policydb *p, struct cond_node *node, void *fp)
 	rc = cond_read_av_list(p, fp, &node->true_list, NULL);
 	if (rc)
 		goto err;
-	rc = cond_read_av_list(p, fp, &node->false_list, node->true_list);
+	rc = cond_read_av_list(p, fp, &node->false_list, &node->true_list);
 	if (rc)
 		goto err;
 	return 0;
@@ -511,24 +493,16 @@ static int cond_write_av_list(struct policydb *p,
 			      struct cond_av_list *list, struct policy_file *fp)
 {
 	__le32 buf[1];
-	struct cond_av_list *cur_list;
-	u32 len;
+	u32 i;
 	int rc;
 
-	len = 0;
-	for (cur_list = list; cur_list != NULL; cur_list = cur_list->next)
-		len++;
-
-	buf[0] = cpu_to_le32(len);
+	buf[0] = cpu_to_le32(list->len);
 	rc = put_entry(buf, sizeof(u32), 1, fp);
 	if (rc)
 		return rc;
 
-	if (len == 0)
-		return 0;
-
-	for (cur_list = list; cur_list != NULL; cur_list = cur_list->next) {
-		rc = avtab_write_item(p, cur_list->node, fp);
+	for (i = 0; i < list->len; i++) {
+		rc = avtab_write_item(p, list->nodes[i], fp);
 		if (rc)
 			return rc;
 	}
@@ -565,10 +539,10 @@ static int cond_write_node(struct policydb *p, struct cond_node *node,
 			return rc;
 	}
 
-	rc = cond_write_av_list(p, node->true_list, fp);
+	rc = cond_write_av_list(p, &node->true_list, fp);
 	if (rc)
 		return rc;
-	rc = cond_write_av_list(p, node->false_list, fp);
+	rc = cond_write_av_list(p, &node->false_list, fp);
 	if (rc)
 		return rc;
 

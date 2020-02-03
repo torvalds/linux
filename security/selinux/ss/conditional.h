@@ -39,8 +39,8 @@ struct cond_expr {
  * struct is for that list.
  */
 struct cond_av_list {
-	struct avtab_node *node;
-	struct cond_av_list *next;
+	struct avtab_node **nodes;
+	u32 len;
 };
 
 /*
@@ -53,8 +53,8 @@ struct cond_av_list {
 struct cond_node {
 	int cur_state;
 	struct cond_expr *expr;
-	struct cond_av_list *true_list;
-	struct cond_av_list *false_list;
+	struct cond_av_list true_list;
+	struct cond_av_list false_list;
 };
 
 int cond_policydb_init(struct policydb *p);
