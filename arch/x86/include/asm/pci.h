@@ -33,12 +33,12 @@ extern int pci_routeirq;
 extern int noioapicquirk;
 extern int noioapicreroute;
 
-#ifdef CONFIG_PCI
-
 static inline struct pci_sysdata *to_pci_sysdata(const struct pci_bus *bus)
 {
 	return bus->sysdata;
 }
+
+#ifdef CONFIG_PCI
 
 #ifdef CONFIG_PCI_DOMAINS
 static inline int pci_domain_nr(struct pci_bus *bus)
