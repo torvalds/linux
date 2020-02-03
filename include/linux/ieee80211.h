@@ -2062,7 +2062,7 @@ ieee80211_he_ppe_size(u8 ppe_thres_hdr, const u8 *phy_cap_info)
 
 /*
  * ieee80211_he_oper_size - calculate 802.11ax HE Operations IE size
- * @he_oper_ie: byte data of the He Operations IE, stating from the the byte
+ * @he_oper_ie: byte data of the He Operations IE, stating from the byte
  *	after the ext ID byte. It is assumed that he_oper_ie has at least
  *	sizeof(struct ieee80211_he_operation) bytes, the caller must have
  *	validated this.
@@ -2100,7 +2100,7 @@ ieee80211_he_oper_size(const u8 *he_oper_ie)
 
 /*
  * ieee80211_he_spr_size - calculate 802.11ax HE Spatial Reuse IE size
- * @he_spr_ie: byte data of the He Spatial Reuse IE, stating from the the byte
+ * @he_spr_ie: byte data of the He Spatial Reuse IE, stating from the byte
  *	after the ext ID byte. It is assumed that he_spr_ie has at least
  *	sizeof(struct ieee80211_he_spr) bytes, the caller must have validated
  *	this
@@ -2743,7 +2743,7 @@ enum ieee80211_tdls_actioncode {
  */
 #define WLAN_EXT_CAPA3_MULTI_BSSID_SUPPORT	BIT(6)
 
-/* TDLS capabilities in the the 4th byte of @WLAN_EID_EXT_CAPABILITY */
+/* TDLS capabilities in the 4th byte of @WLAN_EID_EXT_CAPABILITY */
 #define WLAN_EXT_CAPA4_TDLS_BUFFER_STA		BIT(4)
 #define WLAN_EXT_CAPA4_TDLS_PEER_PSM		BIT(5)
 #define WLAN_EXT_CAPA4_TDLS_CHAN_SWITCH		BIT(6)
