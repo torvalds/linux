@@ -2717,7 +2717,7 @@ static int allegro_register_device(struct allegro_dev *dev)
 	video_dev->device_caps = V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING;
 	video_set_drvdata(video_dev, dev);
 
-	return video_register_device(video_dev, VFL_TYPE_GRABBER, 0);
+	return video_register_device(video_dev, VFL_TYPE_VIDEO, 0);
 }
 
 static void allegro_device_run(void *priv)

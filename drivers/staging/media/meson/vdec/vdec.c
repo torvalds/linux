@@ -1076,7 +1076,7 @@ static int vdec_probe(struct platform_device *pdev)
 
 	video_set_drvdata(vdev, core);
 
-	ret = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
 	if (ret) {
 		dev_err(dev, "Failed registering video device\n");
 		goto err_vdev_release;
