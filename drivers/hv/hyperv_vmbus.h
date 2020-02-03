@@ -352,14 +352,20 @@ void vmbus_on_msg_dpc(unsigned long data);
 
 int hv_kvp_init(struct hv_util_service *srv);
 void hv_kvp_deinit(void);
+int hv_kvp_pre_suspend(void);
+int hv_kvp_pre_resume(void);
 void hv_kvp_onchannelcallback(void *context);
 
 int hv_vss_init(struct hv_util_service *srv);
 void hv_vss_deinit(void);
+int hv_vss_pre_suspend(void);
+int hv_vss_pre_resume(void);
 void hv_vss_onchannelcallback(void *context);
 
 int hv_fcopy_init(struct hv_util_service *srv);
 void hv_fcopy_deinit(void);
+int hv_fcopy_pre_suspend(void);
+int hv_fcopy_pre_resume(void);
 void hv_fcopy_onchannelcallback(void *context);
 void vmbus_initiate_unload(bool crash);
 
