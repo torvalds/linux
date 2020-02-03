@@ -941,10 +941,70 @@ static int __nf_ct_resolve_clash(struct sk_buff *skb,
 }
 
 /**
+ * nf_ct_resolve_clash_harder - attempt to insert clashing conntrack entry
+ *
+ * @skb: skb that causes the collision
+ * @repl_idx: hash slot for reply direction
+ *
+ * Called when origin or reply direction had a clash.
+ * The skb can be handled without packet drop provided the reply direction
+ * is unique or there the existing entry has the identical tuple in both
+ * directions.
+ *
+ * Caller must hold conntrack table locks to prevent concurrent updates.
+ *
+ * Returns NF_DROP if the clash could not be handled.
+ */
+static int nf_ct_resolve_clash_harder(struct sk_buff *skb, u32 repl_idx)
+{
+	struct nf_conn *loser_ct = (struct nf_conn *)skb_nfct(skb);
+	const struct nf_conntrack_zone *zone;
+	struct nf_conntrack_tuple_hash *h;
+	struct hlist_nulls_node *n;
+	struct net *net;
+
+	zone = nf_ct_zone(loser_ct);
+	net = nf_ct_net(loser_ct);
+
+	/* Reply direction must never result in a clash, unless both origin
+	 * and reply tuples are identical.
+	 */
+	hlist_nulls_for_each_entry(h, n, &nf_conntrack_hash[repl_idx], hnnode) {
+		if (nf_ct_key_equal(h,
+				    &loser_ct->tuplehash[IP_CT_DIR_REPLY].tuple,
+				    zone, net))
+			return __nf_ct_resolve_clash(skb, h);
+	}
+
+	/* We want the clashing entry to go away real soon: 1 second timeout. */
+	loser_ct->timeout = nfct_time_stamp + HZ;
+
+	/* IPS_NAT_CLASH removes the entry automatically on the first
+	 * reply.  Also prevents UDP tracker from moving the entry to
+	 * ASSURED state, i.e. the entry can always be evicted under
+	 * pressure.
+	 */
+	loser_ct->status |= IPS_FIXED_TIMEOUT | IPS_NAT_CLASH;
+
+	__nf_conntrack_insert_prepare(loser_ct);
+
+	/* fake add for ORIGINAL dir: we want lookups to only find the entry
+	 * already in the table.  This also hides the clashing entry from
+	 * ctnetlink iteration, i.e. conntrack -L won't show them.
+	 */
+	hlist_nulls_add_fake(&loser_ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode);
+
+	hlist_nulls_add_head_rcu(&loser_ct->tuplehash[IP_CT_DIR_REPLY].hnnode,
+				 &nf_conntrack_hash[repl_idx]);
+	return NF_ACCEPT;
+}
+
+/**
  * nf_ct_resolve_clash - attempt to handle clash without packet drop
  *
  * @skb: skb that causes the clash
  * @h: tuplehash of the clashing entry already in table
+ * @hash_reply: hash slot for reply direction
  *
  * A conntrack entry can be inserted to the connection tracking table
  * if there is no existing entry with an identical tuple.
@@ -963,10 +1023,18 @@ static int __nf_ct_resolve_clash(struct sk_buff *skb,
  * exactly the same, only the to-be-confirmed conntrack entry is discarded
  * and @skb is associated with the conntrack entry already in the table.
  *
+ * Failing that, the new, unconfirmed conntrack is still added to the table
+ * provided that the collision only occurs in the ORIGINAL direction.
+ * The new entry will be added after the existing one in the hash list,
+ * so packets in the ORIGINAL direction will continue to match the existing
+ * entry.  The new entry will also have a fixed timeout so it expires --
+ * due to the collision, it will not see bidirectional traffic.
+ *
  * Returns NF_DROP if the clash could not be resolved.
  */
 static __cold noinline int
-nf_ct_resolve_clash(struct sk_buff *skb, struct nf_conntrack_tuple_hash *h)
+nf_ct_resolve_clash(struct sk_buff *skb, struct nf_conntrack_tuple_hash *h,
+		    u32 reply_hash)
 {
 	/* This is the conntrack entry already in hashes that won race. */
 	struct nf_conn *ct = nf_ct_tuplehash_to_ctrack(h);
@@ -984,6 +1052,10 @@ nf_ct_resolve_clash(struct sk_buff *skb, struct nf_conntrack_tuple_hash *h)
 		goto drop;
 
 	ret = __nf_ct_resolve_clash(skb, h);
+	if (ret == NF_ACCEPT)
+		return ret;
+
+	ret = nf_ct_resolve_clash_harder(skb, reply_hash);
 	if (ret == NF_ACCEPT)
 		return ret;
 
@@ -1101,7 +1173,7 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 	return NF_ACCEPT;
 
 out:
-	ret = nf_ct_resolve_clash(skb, h);
+	ret = nf_ct_resolve_clash(skb, h, reply_hash);
 dying:
 	nf_conntrack_double_unlock(hash, reply_hash);
 	local_bh_enable();
