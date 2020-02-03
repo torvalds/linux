@@ -27,7 +27,7 @@ corec57d_init(struct nv50_core *core)
 {
 	const u32 windows = 8; /*XXX*/
 	u32 *push, i;
-	if ((push = evo_wait(&core->chan, 2 + 5 * windows + 2))) {
+	if ((push = evo_wait(&core->chan, 2 + 5 * windows))) {
 		evo_mthd(push, 0x0208, 1);
 		evo_data(push, core->chan.sync.handle);
 		for (i = 0; i < windows; i++) {
@@ -37,8 +37,6 @@ corec57d_init(struct nv50_core *core)
 			evo_mthd(push, 0x1010 + (i * 0x080), 1);
 			evo_data(push, 0x00117fff);
 		}
-		evo_mthd(push, 0x0200, 1);
-		evo_data(push, 0x00000001);
 		evo_kick(push, &core->chan);
 		core->assign_windows = true;
 	}
