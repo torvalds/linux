@@ -60,6 +60,12 @@ static void dmub_dcn20_get_fb_base_offset(struct dmub_srv *dmub,
 {
 	uint32_t tmp;
 
+	if (dmub->fb_base || dmub->fb_offset) {
+		*fb_base = dmub->fb_base;
+		*fb_offset = dmub->fb_offset;
+		return;
+	}
+
 	REG_GET(DCN_VM_FB_LOCATION_BASE, FB_BASE, &tmp);
 	*fb_base = (uint64_t)tmp << 24;
 
