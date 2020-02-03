@@ -158,7 +158,7 @@ static int __smiapp_read(struct smiapp_sensor *sensor, u32 reg, u32 *val,
 	    && len != SMIAPP_REG_32BIT)
 		return -EINVAL;
 
-	if (len == SMIAPP_REG_8BIT || !only8)
+	if (!only8)
 		rval = ____smiapp_read(sensor, SMIAPP_REG_ADDR(reg), len, val);
 	else
 		rval = ____smiapp_read_8only(sensor, SMIAPP_REG_ADDR(reg), len,
