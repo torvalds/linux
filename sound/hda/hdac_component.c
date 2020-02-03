@@ -262,6 +262,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_acomp_register_notifier);
 /**
  * snd_hdac_acomp_init - Initialize audio component
  * @bus: HDA core bus
+ * @aops: audio component ops
  * @match_master: match function for finding components
  * @extra_size: Extra bytes to allocate
  *

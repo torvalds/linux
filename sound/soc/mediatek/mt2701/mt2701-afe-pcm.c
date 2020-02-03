@@ -549,8 +549,6 @@ static struct snd_soc_dai_driver mt2701_afe_pcm_dais[] = {
 	{
 		.name = "PCMO0",
 		.id = MT2701_MEMIF_DL1,
-		.suspend = mtk_afe_dai_suspend,
-		.resume = mtk_afe_dai_resume,
 		.playback = {
 			.stream_name = "DL1",
 			.channels_min = 1,
@@ -565,8 +563,6 @@ static struct snd_soc_dai_driver mt2701_afe_pcm_dais[] = {
 	{
 		.name = "PCM_multi",
 		.id = MT2701_MEMIF_DLM,
-		.suspend = mtk_afe_dai_suspend,
-		.resume = mtk_afe_dai_resume,
 		.playback = {
 			.stream_name = "DLM",
 			.channels_min = 1,
@@ -582,8 +578,6 @@ static struct snd_soc_dai_driver mt2701_afe_pcm_dais[] = {
 	{
 		.name = "PCM0",
 		.id = MT2701_MEMIF_UL1,
-		.suspend = mtk_afe_dai_suspend,
-		.resume = mtk_afe_dai_resume,
 		.capture = {
 			.stream_name = "UL1",
 			.channels_min = 1,
@@ -598,8 +592,6 @@ static struct snd_soc_dai_driver mt2701_afe_pcm_dais[] = {
 	{
 		.name = "PCM1",
 		.id = MT2701_MEMIF_UL2,
-		.suspend = mtk_afe_dai_suspend,
-		.resume = mtk_afe_dai_resume,
 		.capture = {
 			.stream_name = "UL2",
 			.channels_min = 1,
@@ -615,8 +607,6 @@ static struct snd_soc_dai_driver mt2701_afe_pcm_dais[] = {
 	{
 		.name = "PCM_BT_DL",
 		.id = MT2701_MEMIF_DLBT,
-		.suspend = mtk_afe_dai_suspend,
-		.resume = mtk_afe_dai_resume,
 		.playback = {
 			.stream_name = "DLBT",
 			.channels_min = 1,
@@ -630,8 +620,6 @@ static struct snd_soc_dai_driver mt2701_afe_pcm_dais[] = {
 	{
 		.name = "PCM_BT_UL",
 		.id = MT2701_MEMIF_ULBT,
-		.suspend = mtk_afe_dai_suspend,
-		.resume = mtk_afe_dai_resume,
 		.capture = {
 			.stream_name = "ULBT",
 			.channels_min = 1,
@@ -982,6 +970,8 @@ static const struct snd_soc_component_driver mt2701_afe_pcm_dai_component = {
 	.num_dapm_widgets = ARRAY_SIZE(mt2701_afe_pcm_widgets),
 	.dapm_routes = mt2701_afe_pcm_routes,
 	.num_dapm_routes = ARRAY_SIZE(mt2701_afe_pcm_routes),
+	.suspend = mtk_afe_suspend,
+	.resume = mtk_afe_resume,
 };
 
 static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {

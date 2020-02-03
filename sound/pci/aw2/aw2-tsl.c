@@ -59,7 +59,7 @@
     /*      SD3:          >-------<_4-L___>-------<_4-R___> */
     /*      WS4:          -------\_______________/--------- */
 
-static int tsl1[8] = {
+static const int tsl1[8] = {
 	1 * TSL_SDW_A1 | 3 * TSL_BSEL_A1 |
 	0 * TSL_DIS_A1 | 0 * TSL_DOD_A1 | TSL_LF_A1,
 
@@ -85,7 +85,7 @@ static int tsl1[8] = {
 	0 * TSL_DOD_A1 | TSL_WS1 | TSL_WS0 | TSL_SF_A1 | TSL_EOS,
 };
 
-static int tsl2[8] = {
+static const int tsl2[8] = {
 	0 * TSL_SDW_A2 | 3 * TSL_BSEL_A2 | 2 * TSL_DOD_A2 | TSL_LF_A2,
 	0 * TSL_SDW_A2 | 2 * TSL_BSEL_A2 | 2 * TSL_DOD_A2,
 	0 * TSL_SDW_A2 | 3 * TSL_BSEL_A2 | 2 * TSL_DOD_A2,

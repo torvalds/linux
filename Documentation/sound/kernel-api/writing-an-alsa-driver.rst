@@ -259,7 +259,7 @@ to details explained in the following section.
       {
               struct mychip *chip;
               int err;
-              static struct snd_device_ops ops = {
+              static const struct snd_device_ops ops = {
                      .dev_free = snd_mychip_dev_free,
               };
 
@@ -675,7 +675,7 @@ low-level device with a specified ``ops``,
 
 ::
 
-  static struct snd_device_ops ops = {
+  static const struct snd_device_ops ops = {
           .dev_free =        snd_mychip_dev_free,
   };
   ....
@@ -761,7 +761,7 @@ destructor and PCI entries. Example code is shown first, below.
       {
               struct mychip *chip;
               int err;
-              static struct snd_device_ops ops = {
+              static const struct snd_device_ops ops = {
                      .dev_free = snd_mychip_dev_free,
               };
 
@@ -3912,7 +3912,7 @@ For a raw-data proc-file, set the attributes as follows:
 
 ::
 
-  static struct snd_info_entry_ops my_file_io_ops = {
+  static const struct snd_info_entry_ops my_file_io_ops = {
           .read = my_file_io_read,
   };
 

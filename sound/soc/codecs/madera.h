@@ -383,6 +383,8 @@ int madera_eq_coeff_put(struct snd_kcontrol *kcontrol,
 int madera_lhpf_coeff_put(struct snd_kcontrol *kcontrol,
 			  struct snd_ctl_elem_value *ucontrol);
 
+int madera_clk_ev(struct snd_soc_dapm_widget *w,
+		  struct snd_kcontrol *kcontrol, int event);
 int madera_sysclk_ev(struct snd_soc_dapm_widget *w,
 		     struct snd_kcontrol *kcontrol, int event);
 int madera_spk_ev(struct snd_soc_dapm_widget *w,
@@ -421,7 +423,9 @@ int madera_core_free(struct madera_priv *priv);
 int madera_init_overheat(struct madera_priv *priv);
 int madera_free_overheat(struct madera_priv *priv);
 int madera_init_inputs(struct snd_soc_component *component);
-int madera_init_outputs(struct snd_soc_component *component, int n_mono_routes);
+int madera_init_outputs(struct snd_soc_component *component,
+			const struct snd_soc_dapm_route *routes,
+			int n_mono_routes, int n_real);
 int madera_init_bus_error_irq(struct madera_priv *priv, int dsp_num,
 			      irq_handler_t handler);
 void madera_free_bus_error_irq(struct madera_priv *priv, int dsp_num);

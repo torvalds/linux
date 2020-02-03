@@ -111,7 +111,7 @@ static int olpc_mic_put(struct snd_kcontrol *kctl, struct snd_ctl_elem_value *v)
 	return 1;
 }
 
-static struct snd_kcontrol_new olpc_cs5535audio_ctls[] = {
+static const struct snd_kcontrol_new olpc_cs5535audio_ctls[] = {
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "DC Mode Enable",

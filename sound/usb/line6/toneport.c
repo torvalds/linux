@@ -63,7 +63,7 @@ static int toneport_send_cmd(struct usb_device *usbdev, int cmd1, int cmd2);
 
 #define TONEPORT_PCM_DELAY 1
 
-static struct snd_ratden toneport_ratden = {
+static const struct snd_ratden toneport_ratden = {
 	.num_min = 44100,
 	.num_max = 44100,
 	.num_step = 1,

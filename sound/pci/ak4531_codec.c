@@ -255,7 +255,7 @@ static const DECLARE_TLV_DB_SCALE(db_scale_master, -6200, 200, 0);
 static const DECLARE_TLV_DB_SCALE(db_scale_mono, -2800, 400, 0);
 static const DECLARE_TLV_DB_SCALE(db_scale_input, -5000, 200, 0);
 
-static struct snd_kcontrol_new snd_ak4531_controls[] = {
+static const struct snd_kcontrol_new snd_ak4531_controls[] = {
 
 AK4531_DOUBLE_TLV("Master Playback Switch", 0,
 		  AK4531_LMASTER, AK4531_RMASTER, 7, 7, 1, 1,
@@ -335,7 +335,7 @@ static int snd_ak4531_dev_free(struct snd_device *device)
 	return snd_ak4531_free(ak4531);
 }
 
-static u8 snd_ak4531_initial_map[0x19 + 1] = {
+static const u8 snd_ak4531_initial_map[0x19 + 1] = {
 	0x9f,		/* 00: Master Volume Lch */
 	0x9f,		/* 01: Master Volume Rch */
 	0x9f,		/* 02: Voice Volume Lch */
@@ -371,7 +371,7 @@ int snd_ak4531_mixer(struct snd_card *card,
 	unsigned int idx;
 	int err;
 	struct snd_ak4531 *ak4531;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_ak4531_dev_free,
 	};
 

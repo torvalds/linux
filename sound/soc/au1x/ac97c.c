@@ -206,7 +206,6 @@ static int au1xac97c_dai_probe(struct snd_soc_dai *dai)
 
 static struct snd_soc_dai_driver au1xac97c_dai_driver = {
 	.name			= "alchemy-ac97c",
-	.bus_control		= true,
 	.probe			= au1xac97c_dai_probe,
 	.playback = {
 		.rates		= AC97_RATES,

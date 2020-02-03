@@ -590,7 +590,9 @@ EXPORT_SYMBOL_GPL(snd_hdac_stream_timecounter_init);
 /**
  * snd_hdac_stream_sync_trigger - turn on/off stream sync register
  * @azx_dev: HD-audio core stream (master stream)
+ * @set: true = set, false = clear
  * @streams: bit flags of streams to sync
+ * @reg: the stream sync register address
  */
 void snd_hdac_stream_sync_trigger(struct hdac_stream *azx_dev, bool set,
 				  unsigned int streams, unsigned int reg)

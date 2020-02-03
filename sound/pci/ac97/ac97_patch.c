@@ -1211,25 +1211,25 @@ static const struct snd_ac97_build_ops patch_sigmatel_stac9758_ops = {
 
 static int patch_sigmatel_stac9758(struct snd_ac97 * ac97)
 {
-	static unsigned short regs[4] = {
+	static const unsigned short regs[4] = {
 		AC97_SIGMATEL_OUTSEL,
 		AC97_SIGMATEL_IOMISC,
 		AC97_SIGMATEL_INSEL,
 		AC97_SIGMATEL_VARIOUS
 	};
-	static unsigned short def_regs[4] = {
+	static const unsigned short def_regs[4] = {
 		/* OUTSEL */ 0xd794, /* CL:CL, SR:SR, LO:MX, LI:DS, MI:DS */
 		/* IOMISC */ 0x2001,
 		/* INSEL */ 0x0201, /* LI:LI, MI:M1 */
 		/* VARIOUS */ 0x0040
 	};
-	static unsigned short m675_regs[4] = {
+	static const unsigned short m675_regs[4] = {
 		/* OUTSEL */ 0xfc70, /* CL:MX, SR:MX, LO:DS, LI:MX, MI:DS */
 		/* IOMISC */ 0x2102, /* HP amp on */
 		/* INSEL */ 0x0203, /* LI:LI, MI:FR */
 		/* VARIOUS */ 0x0041 /* stereo mic */
 	};
-	unsigned short *pregs = def_regs;
+	const unsigned short *pregs = def_regs;
 	int i;
 
 	/* Gateway M675 notebook */
@@ -1361,7 +1361,7 @@ static int patch_cx20551(struct snd_ac97 *ac97)
 #ifdef CONFIG_PM
 static void ad18xx_resume(struct snd_ac97 *ac97)
 {
-	static unsigned short setup_regs[] = {
+	static const unsigned short setup_regs[] = {
 		AC97_AD_MISC, AC97_AD_SERIAL_CFG, AC97_AD_JACK_SPDIF,
 	};
 	int i, codec;
@@ -1470,7 +1470,7 @@ static unsigned short patch_ad1881_unchained(struct snd_ac97 * ac97, int idx, un
 
 static int patch_ad1881_chained1(struct snd_ac97 * ac97, int idx, unsigned short codec_bits)
 {
-	static int cfg_bits[3] = { 1<<12, 1<<14, 1<<13 };
+	static const int cfg_bits[3] = { 1<<12, 1<<14, 1<<13 };
 	unsigned short val;
 	
 	snd_ac97_update_bits(ac97, AC97_AD_SERIAL_CFG, 0x7000, cfg_bits[idx]);
@@ -1794,7 +1794,7 @@ static const struct snd_kcontrol_new snd_ac97_ad1981x_jack_sense[] = {
 /* black list to avoid HP/Line jack-sense controls
  * (SS vendor << 16 | device)
  */
-static unsigned int ad1981_jacks_blacklist[] = {
+static const unsigned int ad1981_jacks_blacklist[] = {
 	0x10140523, /* Thinkpad R40 */
 	0x10140534, /* Thinkpad X31 */
 	0x10140537, /* Thinkpad T41p */
@@ -1838,7 +1838,7 @@ static const struct snd_ac97_build_ops patch_ad1981a_build_ops = {
 /* white list to enable HP jack-sense bits
  * (SS vendor << 16 | device)
  */
-static unsigned int ad1981_jacks_whitelist[] = {
+static const unsigned int ad1981_jacks_whitelist[] = {
 	0x0e11005a, /* HP nc4000/4010 */
 	0x103c0890, /* HP nc6000 */
 	0x103c0938, /* HP nc4220 */
@@ -3116,22 +3116,22 @@ static void cm9761_update_jacks(struct snd_ac97 *ac97)
 	/* FIXME: check the bits for each model
 	 *        model 83 is confirmed to work
 	 */
-	static unsigned short surr_on[3][2] = {
+	static const unsigned short surr_on[3][2] = {
 		{ 0x0008, 0x0000 }, /* 9761-78 & 82 */
 		{ 0x0000, 0x0008 }, /* 9761-82 rev.B */
 		{ 0x0000, 0x0008 }, /* 9761-83 */
 	};
-	static unsigned short clfe_on[3][2] = {
+	static const unsigned short clfe_on[3][2] = {
 		{ 0x0000, 0x1000 }, /* 9761-78 & 82 */
 		{ 0x1000, 0x0000 }, /* 9761-82 rev.B */
 		{ 0x0000, 0x1000 }, /* 9761-83 */
 	};
-	static unsigned short surr_shared[3][2] = {
+	static const unsigned short surr_shared[3][2] = {
 		{ 0x0000, 0x0400 }, /* 9761-78 & 82 */
 		{ 0x0000, 0x0400 }, /* 9761-82 rev.B */
 		{ 0x0000, 0x0400 }, /* 9761-83 */
 	};
-	static unsigned short clfe_shared[3][2] = {
+	static const unsigned short clfe_shared[3][2] = {
 		{ 0x2000, 0x0880 }, /* 9761-78 & 82 */
 		{ 0x0000, 0x2880 }, /* 9761-82 rev.B */
 		{ 0x2000, 0x0800 }, /* 9761-83 */
@@ -3635,7 +3635,7 @@ struct vt1618_uaj_item {
 
 /* This list reflects the vt1618 docs for Vendor Defined Register 0x60. */
 
-static struct vt1618_uaj_item vt1618_uaj[3] = {
+static const struct vt1618_uaj_item vt1618_uaj[3] = {
 	{
 		/* speaker jack */
 		.mask  = 0x03,
@@ -3871,7 +3871,7 @@ static int mpatch_si3036(struct snd_ac97 * ac97)
  * check_volume_resolution().
  */
 
-static struct snd_ac97_res_table lm4550_restbl[] = {
+static const struct snd_ac97_res_table lm4550_restbl[] = {
 	{ AC97_MASTER, 0x1f1f },
 	{ AC97_HEADPHONE, 0x1f1f },
 	{ AC97_MASTER_MONO, 0x001f },

@@ -46,7 +46,7 @@ MODULE_PARM_DESC(high_res_gpr_volume, "GPR mixer controls use 31-bit range.");
  *  Tables
  */ 
 
-static char *fxbuses[16] = {
+static const char * const fxbuses[16] = {
 	/* 0x00 */ "PCM Left",
 	/* 0x01 */ "PCM Right",
 	/* 0x02 */ "PCM Surround Left",
@@ -65,7 +65,7 @@ static char *fxbuses[16] = {
 	/* 0x0f */ NULL
 };
 
-static char *creative_ins[16] = {
+static const char * const creative_ins[16] = {
 	/* 0x00 */ "AC97 Left",
 	/* 0x01 */ "AC97 Right",
 	/* 0x02 */ "TTL IEC958 Left",
@@ -84,7 +84,7 @@ static char *creative_ins[16] = {
 	/* 0x0f */ NULL
 };
 
-static char *audigy_ins[16] = {
+static const char * const audigy_ins[16] = {
 	/* 0x00 */ "AC97 Left",
 	/* 0x01 */ "AC97 Right",
 	/* 0x02 */ "Audigy CD Left",
@@ -103,7 +103,7 @@ static char *audigy_ins[16] = {
 	/* 0x0f */ NULL
 };
 
-static char *creative_outs[32] = {
+static const char * const creative_outs[32] = {
 	/* 0x00 */ "AC97 Left",
 	/* 0x01 */ "AC97 Right",
 	/* 0x02 */ "Optical IEC958 Left",
@@ -138,7 +138,7 @@ static char *creative_outs[32] = {
 	/* 0x1f */ NULL,
 };
 
-static char *audigy_outs[32] = {
+static const char * const audigy_outs[32] = {
 	/* 0x00 */ "Digital Front Left",
 	/* 0x01 */ "Digital Front Right",
 	/* 0x02 */ "Digital Center",
@@ -628,7 +628,7 @@ static int snd_emu10k1_code_peek(struct snd_emu10k1 *emu,
 }
 
 static struct snd_emu10k1_fx8010_ctl *
-snd_emu10k1_look_for_ctl(struct snd_emu10k1 *emu, struct snd_ctl_elem_id *id)
+snd_emu10k1_look_for_ctl(struct snd_emu10k1 *emu, struct emu10k1_ctl_elem_id *id)
 {
 	struct snd_emu10k1_fx8010_ctl *ctl;
 	struct snd_kcontrol *kcontrol;
@@ -714,15 +714,15 @@ static int snd_emu10k1_verify_controls(struct snd_emu10k1 *emu,
 				       bool in_kernel)
 {
 	unsigned int i;
-	struct snd_ctl_elem_id __user *_id;
-	struct snd_ctl_elem_id id;
+	struct emu10k1_ctl_elem_id __user *_id;
+	struct emu10k1_ctl_elem_id id;
 	struct snd_emu10k1_fx8010_control_gpr *gctl;
 	int err;
 	
-	for (i = 0, _id = icode->gpr_del_controls;
-	     i < icode->gpr_del_control_count; i++, _id++) {
+	_id = (__force struct emu10k1_ctl_elem_id __user *)icode->gpr_del_controls;
+	for (i = 0; i < icode->gpr_del_control_count; i++, _id++) {
 		if (in_kernel)
-			id = *(__force struct snd_ctl_elem_id *)_id;
+			id = *(__force struct emu10k1_ctl_elem_id *)_id;
 		else if (copy_from_user(&id, _id, sizeof(id)))
 	     		return -EFAULT;
 		if (snd_emu10k1_look_for_ctl(emu, &id) == NULL)
@@ -741,7 +741,8 @@ static int snd_emu10k1_verify_controls(struct snd_emu10k1 *emu,
 		if (snd_emu10k1_look_for_ctl(emu, &gctl->id))
 			continue;
 		down_read(&emu->card->controls_rwsem);
-		if (snd_ctl_find_id(emu->card, &gctl->id) != NULL) {
+		if (snd_ctl_find_id(emu->card,
+				    (struct snd_ctl_elem_id *)&gctl->id)) {
 			up_read(&emu->card->controls_rwsem);
 			err = -EEXIST;
 			goto __error;
@@ -876,15 +877,16 @@ static int snd_emu10k1_del_controls(struct snd_emu10k1 *emu,
 				    bool in_kernel)
 {
 	unsigned int i;
-	struct snd_ctl_elem_id id;
-	struct snd_ctl_elem_id __user *_id;
+	struct emu10k1_ctl_elem_id id;
+	struct emu10k1_ctl_elem_id __user *_id;
 	struct snd_emu10k1_fx8010_ctl *ctl;
 	struct snd_card *card = emu->card;
 	
-	for (i = 0, _id = icode->gpr_del_controls;
-	     i < icode->gpr_del_control_count; i++, _id++) {
+	_id = (__force struct emu10k1_ctl_elem_id __user *)icode->gpr_del_controls;
+
+	for (i = 0; i < icode->gpr_del_control_count; i++, _id++) {
 		if (in_kernel)
-			id = *(__force struct snd_ctl_elem_id *)_id;
+			id = *(__force struct emu10k1_ctl_elem_id *)_id;
 		else if (copy_from_user(&id, _id, sizeof(id)))
 			return -EFAULT;
 		down_write(&card->controls_rwsem);
@@ -2483,7 +2485,7 @@ static int snd_emu10k1_fx8010_open(struct snd_hwdep * hw, struct file *file)
 	return 0;
 }
 
-static void copy_string(char *dst, char *src, char *null, int idx)
+static void copy_string(char *dst, const char *src, const char *null, int idx)
 {
 	if (src == NULL)
 		sprintf(dst, "%s %02X", null, idx);
@@ -2494,7 +2496,7 @@ static void copy_string(char *dst, char *src, char *null, int idx)
 static void snd_emu10k1_fx8010_info(struct snd_emu10k1 *emu,
 				   struct snd_emu10k1_fx8010_info *info)
 {
-	char **fxbus, **extin, **extout;
+	const char * const *fxbus, * const *extin, * const *extout;
 	unsigned short fxbus_mask, extin_mask, extout_mask;
 	int res;
 

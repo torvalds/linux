@@ -34,6 +34,7 @@
 #define IMA_EUID	0x0080
 #define IMA_PCR		0x0100
 #define IMA_FSNAME	0x0200
+#define IMA_KEYRINGS	0x0400
 
 #define UNKNOWN		0
 #define MEASURE		0x0001	/* same as IMA_MEASURE */
@@ -79,6 +80,7 @@ struct ima_rule_entry {
 		int type;	/* audit type */
 	} lsm[MAX_LSM_RULES];
 	char *fsname;
+	char *keyrings; /* Measure keys added to these keyrings */
 	struct ima_template_desc *template;
 };
 
@@ -206,6 +208,10 @@ static LIST_HEAD(ima_policy_rules);
 static LIST_HEAD(ima_temp_rules);
 static struct list_head *ima_rules;
 
+/* Pre-allocated buffer used for matching keyrings. */
+static char *ima_keyrings;
+static size_t ima_keyrings_len;
+
 static int ima_policy __initdata;
 
 static int __init default_measure_policy_setup(char *str)
@@ -263,7 +269,7 @@ static void ima_lsm_free_rule(struct ima_rule_entry *entry)
 static struct ima_rule_entry *ima_lsm_copy_rule(struct ima_rule_entry *entry)
 {
 	struct ima_rule_entry *nentry;
-	int i, result;
+	int i;
 
 	nentry = kmalloc(sizeof(*nentry), GFP_KERNEL);
 	if (!nentry)
@@ -277,7 +283,7 @@ static struct ima_rule_entry *ima_lsm_copy_rule(struct ima_rule_entry *entry)
 	memset(nentry->lsm, 0, sizeof_field(struct ima_rule_entry, lsm));
 
 	for (i = 0; i < MAX_LSM_RULES; i++) {
-		if (!entry->lsm[i].rule)
+		if (!entry->lsm[i].args_p)
 			continue;
 
 		nentry->lsm[i].type = entry->lsm[i].type;
@@ -286,13 +292,13 @@ static struct ima_rule_entry *ima_lsm_copy_rule(struct ima_rule_entry *entry)
 		if (!nentry->lsm[i].args_p)
 			goto out_err;
 
-		result = security_filter_rule_init(nentry->lsm[i].type,
-						   Audit_equal,
-						   nentry->lsm[i].args_p,
-						   &nentry->lsm[i].rule);
-		if (result == -EINVAL)
-			pr_warn("ima: rule for LSM \'%d\' is undefined\n",
-				entry->lsm[i].type);
+		security_filter_rule_init(nentry->lsm[i].type,
+					  Audit_equal,
+					  nentry->lsm[i].args_p,
+					  &nentry->lsm[i].rule);
+		if (!nentry->lsm[i].rule)
+			pr_warn("rule for LSM \'%s\' is undefined\n",
+				(char *)entry->lsm[i].args_p);
 	}
 	return nentry;
 
@@ -329,7 +335,7 @@ static void ima_lsm_update_rules(void)
 	list_for_each_entry_safe(entry, e, &ima_policy_rules, list) {
 		needs_update = 0;
 		for (i = 0; i < MAX_LSM_RULES; i++) {
-			if (entry->lsm[i].rule) {
+			if (entry->lsm[i].args_p) {
 				needs_update = 1;
 				break;
 			}
@@ -339,8 +345,7 @@ static void ima_lsm_update_rules(void)
 
 		result = ima_lsm_update_rule(entry);
 		if (result) {
-			pr_err("ima: lsm rule update error %d\n",
-				result);
+			pr_err("lsm rule update error %d\n", result);
 			return;
 		}
 	}
@@ -357,25 +362,70 @@ int ima_lsm_policy_change(struct notifier_block *nb, unsigned long event,
 }
 
 /**
- * ima_match_rules - determine whether an inode matches the measure rule.
+ * ima_match_keyring - determine whether the keyring matches the measure rule
+ * @rule: a pointer to a rule
+ * @keyring: name of the keyring to match against the measure rule
+ * @cred: a pointer to a credentials structure for user validation
+ *
+ * Returns true if keyring matches one in the rule, false otherwise.
+ */
+static bool ima_match_keyring(struct ima_rule_entry *rule,
+			      const char *keyring, const struct cred *cred)
+{
+	char *next_keyring, *keyrings_ptr;
+	bool matched = false;
+
+	if ((rule->flags & IMA_UID) && !rule->uid_op(cred->uid, rule->uid))
+		return false;
+
+	if (!rule->keyrings)
+		return true;
+
+	if (!keyring)
+		return false;
+
+	strcpy(ima_keyrings, rule->keyrings);
+
+	/*
+	 * "keyrings=" is specified in the policy in the format below:
+	 * keyrings=.builtin_trusted_keys|.ima|.evm
+	 */
+	keyrings_ptr = ima_keyrings;
+	while ((next_keyring = strsep(&keyrings_ptr, "|")) != NULL) {
+		if (!strcmp(next_keyring, keyring)) {
+			matched = true;
+			break;
+		}
+	}
+
+	return matched;
+}
+
+/**
+ * ima_match_rules - determine whether an inode matches the policy rule.
  * @rule: a pointer to a rule
  * @inode: a pointer to an inode
  * @cred: a pointer to a credentials structure for user validation
  * @secid: the secid of the task to be validated
  * @func: LIM hook identifier
  * @mask: requested action (MAY_READ | MAY_WRITE | MAY_APPEND | MAY_EXEC)
+ * @keyring: keyring name to check in policy for KEY_CHECK func
  *
  * Returns true on rule match, false on failure.
  */
 static bool ima_match_rules(struct ima_rule_entry *rule, struct inode *inode,
 			    const struct cred *cred, u32 secid,
-			    enum ima_hooks func, int mask)
+			    enum ima_hooks func, int mask,
+			    const char *keyring)
 {
 	int i;
 
-	if (func == KEXEC_CMDLINE) {
-		if ((rule->flags & IMA_FUNC) && (rule->func == func))
+	if ((func == KEXEC_CMDLINE) || (func == KEY_CHECK)) {
+		if ((rule->flags & IMA_FUNC) && (rule->func == func)) {
+			if (func == KEY_CHECK)
+				return ima_match_keyring(rule, keyring, cred);
 			return true;
+		}
 		return false;
 	}
 	if ((rule->flags & IMA_FUNC) &&
@@ -415,9 +465,12 @@ static bool ima_match_rules(struct ima_rule_entry *rule, struct inode *inode,
 		int rc = 0;
 		u32 osid;
 
-		if (!rule->lsm[i].rule)
-			continue;
-
+		if (!rule->lsm[i].rule) {
+			if (!rule->lsm[i].args_p)
+				continue;
+			else
+				return false;
+		}
 		switch (i) {
 		case LSM_OBJ_USER:
 		case LSM_OBJ_ROLE:
@@ -479,6 +532,8 @@ static int get_subaction(struct ima_rule_entry *rule, enum ima_hooks func)
  * @mask: requested action (MAY_READ | MAY_WRITE | MAY_APPEND | MAY_EXEC)
  * @pcr: set the pcr to extend
  * @template_desc: the template that should be used for this rule
+ * @keyring: the keyring name, if given, to be used to check in the policy.
+ *           keyring can be NULL if func is anything other than KEY_CHECK.
  *
  * Measure decision based on func/mask/fsmagic and LSM(subj/obj/type)
  * conditions.
@@ -489,7 +544,8 @@ static int get_subaction(struct ima_rule_entry *rule, enum ima_hooks func)
  */
 int ima_match_policy(struct inode *inode, const struct cred *cred, u32 secid,
 		     enum ima_hooks func, int mask, int flags, int *pcr,
-		     struct ima_template_desc **template_desc)
+		     struct ima_template_desc **template_desc,
+		     const char *keyring)
 {
 	struct ima_rule_entry *entry;
 	int action = 0, actmask = flags | (flags << 1);
@@ -503,7 +559,8 @@ int ima_match_policy(struct inode *inode, const struct cred *cred, u32 secid,
 		if (!(entry->action & actmask))
 			continue;
 
-		if (!ima_match_rules(entry, inode, cred, secid, func, mask))
+		if (!ima_match_rules(entry, inode, cred, secid, func, mask,
+				     keyring))
 			continue;
 
 		action |= entry->flags & IMA_ACTION_FLAGS;
@@ -752,6 +809,9 @@ void ima_update_policy(void)
 		kfree(arch_policy_entry);
 	}
 	ima_update_policy_flag();
+
+	/* Custom IMA policy has been loaded */
+	ima_process_queued_keys();
 }
 
 /* Keep the enumeration in sync with the policy_tokens! */
@@ -766,7 +826,8 @@ enum {
 	Opt_uid_gt, Opt_euid_gt, Opt_fowner_gt,
 	Opt_uid_lt, Opt_euid_lt, Opt_fowner_lt,
 	Opt_appraise_type, Opt_appraise_flag,
-	Opt_permit_directio, Opt_pcr, Opt_template, Opt_err
+	Opt_permit_directio, Opt_pcr, Opt_template, Opt_keyrings,
+	Opt_err
 };
 
 static const match_table_t policy_tokens = {
@@ -802,6 +863,7 @@ static const match_table_t policy_tokens = {
 	{Opt_permit_directio, "permit_directio"},
 	{Opt_pcr, "pcr=%s"},
 	{Opt_template, "template=%s"},
+	{Opt_keyrings, "keyrings=%s"},
 	{Opt_err, NULL}
 };
 
@@ -823,8 +885,14 @@ static int ima_lsm_rule_init(struct ima_rule_entry *entry,
 					   entry->lsm[lsm_rule].args_p,
 					   &entry->lsm[lsm_rule].rule);
 	if (!entry->lsm[lsm_rule].rule) {
-		kfree(entry->lsm[lsm_rule].args_p);
-		return -EINVAL;
+		pr_warn("rule for LSM \'%s\' is undefined\n",
+			(char *)entry->lsm[lsm_rule].args_p);
+
+		if (ima_rules == &ima_default_rules) {
+			kfree(entry->lsm[lsm_rule].args_p);
+			result = -EINVAL;
+		} else
+			result = 0;
 	}
 
 	return result;
@@ -889,6 +957,7 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 	bool uid_token;
 	struct ima_template_desc *template_desc;
 	int result = 0;
+	size_t keyrings_len;
 
 	ab = integrity_audit_log_start(audit_context(), GFP_KERNEL,
 				       AUDIT_INTEGRITY_POLICY_RULE);
@@ -997,6 +1066,8 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 				entry->func = POLICY_CHECK;
 			else if (strcmp(args[0].from, "KEXEC_CMDLINE") == 0)
 				entry->func = KEXEC_CMDLINE;
+			else if (strcmp(args[0].from, "KEY_CHECK") == 0)
+				entry->func = KEY_CHECK;
 			else
 				result = -EINVAL;
 			if (!result)
@@ -1048,6 +1119,44 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 			}
 			result = 0;
 			entry->flags |= IMA_FSNAME;
+			break;
+		case Opt_keyrings:
+			ima_log_string(ab, "keyrings", args[0].from);
+
+			keyrings_len = strlen(args[0].from) + 1;
+
+			if ((entry->keyrings) ||
+			    (entry->action != MEASURE) ||
+			    (entry->func != KEY_CHECK) ||
+			    (keyrings_len < 2)) {
+				result = -EINVAL;
+				break;
+			}
+
+			if (keyrings_len > ima_keyrings_len) {
+				char *tmpbuf;
+
+				tmpbuf = krealloc(ima_keyrings, keyrings_len,
+						  GFP_KERNEL);
+				if (!tmpbuf) {
+					result = -ENOMEM;
+					break;
+				}
+
+				ima_keyrings = tmpbuf;
+				ima_keyrings_len = keyrings_len;
+			}
+
+			entry->keyrings = kstrdup(args[0].from, GFP_KERNEL);
+			if (!entry->keyrings) {
+				kfree(ima_keyrings);
+				ima_keyrings = NULL;
+				ima_keyrings_len = 0;
+				result = -ENOMEM;
+				break;
+			}
+			result = 0;
+			entry->flags |= IMA_KEYRINGS;
 			break;
 		case Opt_fsuuid:
 			ima_log_string(ab, "fsuuid", args[0].from);
@@ -1424,6 +1533,13 @@ int ima_policy_show(struct seq_file *m, void *v)
 		seq_puts(m, " ");
 	}
 
+	if (entry->flags & IMA_KEYRINGS) {
+		if (entry->keyrings != NULL)
+			snprintf(tbuf, sizeof(tbuf), "%s", entry->keyrings);
+		seq_printf(m, pt(Opt_keyrings), tbuf);
+		seq_puts(m, " ");
+	}
+
 	if (entry->flags & IMA_PCR) {
 		snprintf(tbuf, sizeof(tbuf), "%d", entry->pcr);
 		seq_printf(m, pt(Opt_pcr), tbuf);
@@ -1496,6 +1612,7 @@ int ima_policy_show(struct seq_file *m, void *v)
 					   (char *)entry->lsm[i].args_p);
 				break;
 			}
+			seq_puts(m, " ");
 		}
 	}
 	if (entry->template)

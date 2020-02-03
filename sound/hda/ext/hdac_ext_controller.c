@@ -28,7 +28,7 @@
 
 /**
  * snd_hdac_ext_bus_ppcap_enable - enable/disable processing pipe capability
- * @ebus: HD-audio extended core bus
+ * @bus: the pointer to HDAC bus object
  * @enable: flag to turn on/off the capability
  */
 void snd_hdac_ext_bus_ppcap_enable(struct hdac_bus *bus, bool enable)
@@ -50,7 +50,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_ppcap_enable);
 
 /**
  * snd_hdac_ext_bus_ppcap_int_enable - ppcap interrupt enable/disable
- * @ebus: HD-audio extended core bus
+ * @bus: the pointer to HDAC bus object
  * @enable: flag to enable/disable interrupt
  */
 void snd_hdac_ext_bus_ppcap_int_enable(struct hdac_bus *bus, bool enable)
@@ -77,7 +77,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_ppcap_int_enable);
 
 /**
  * snd_hdac_ext_bus_get_ml_capabilities - get multilink capability
- * @ebus: HD-audio extended core bus
+ * @bus: the pointer to HDAC bus object
  *
  * This will parse all links and read the mlink capabilities and add them
  * in hlink_list of extended hdac bus
@@ -117,7 +117,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_get_ml_capabilities);
 /**
  * snd_hdac_link_free_all- free hdac extended link objects
  *
- * @ebus: HD-audio ext core bus
+ * @bus: the pointer to HDAC bus object
  */
 
 void snd_hdac_link_free_all(struct hdac_bus *bus)
@@ -134,7 +134,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_link_free_all);
 
 /**
  * snd_hdac_ext_bus_get_link_index - get link based on codec name
- * @ebus: HD-audio extended core bus
+ * @bus: the pointer to HDAC bus object
  * @codec_name: codec name
  */
 struct hdac_ext_link *snd_hdac_ext_bus_get_link(struct hdac_bus *bus,
@@ -211,7 +211,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_link_power_down);
 
 /**
  * snd_hdac_ext_bus_link_power_up_all -power up all hda link
- * @ebus: HD-audio extended bus
+ * @bus: the pointer to HDAC bus object
  */
 int snd_hdac_ext_bus_link_power_up_all(struct hdac_bus *bus)
 {
@@ -232,7 +232,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_link_power_up_all);
 
 /**
  * snd_hdac_ext_bus_link_power_down_all -power down all hda link
- * @ebus: HD-audio extended bus
+ * @bus: the pointer to HDAC bus object
  */
 int snd_hdac_ext_bus_link_power_down_all(struct hdac_bus *bus)
 {

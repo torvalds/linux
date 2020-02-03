@@ -53,11 +53,6 @@ void do_report_trap(struct pt_regs *regs, int si_signo, int si_code, char *str)
                 if (fixup)
 			regs->psw.addr = extable_fixup(fixup);
 		else {
-			enum bug_trap_type btt;
-
-			btt = report_bug(regs->psw.addr, regs);
-			if (btt == BUG_TRAP_TYPE_WARN)
-				return;
 			die(regs, str);
 		}
         }
@@ -245,6 +240,27 @@ void space_switch_exception(struct pt_regs *regs)
 	do_trap(regs, SIGILL, ILL_PRVOPC, "space switch event");
 }
 
+void monitor_event_exception(struct pt_regs *regs)
+{
+	const struct exception_table_entry *fixup;
+
+	if (user_mode(regs))
+		return;
+
+	switch (report_bug(regs->psw.addr - (regs->int_code >> 16), regs)) {
+	case BUG_TRAP_TYPE_NONE:
+		fixup = s390_search_extables(regs->psw.addr);
+		if (fixup)
+			regs->psw.addr = extable_fixup(fixup);
+		break;
+	case BUG_TRAP_TYPE_WARN:
+		break;
+	case BUG_TRAP_TYPE_BUG:
+		die(regs, "monitor event");
+		break;
+	}
+}
+
 void kernel_stack_overflow(struct pt_regs *regs)
 {
 	bust_spinlocks(1);
@@ -255,8 +271,23 @@ void kernel_stack_overflow(struct pt_regs *regs)
 }
 NOKPROBE_SYMBOL(kernel_stack_overflow);
 
+static void test_monitor_call(void)
+{
+	int val = 1;
+
+	asm volatile(
+		"	mc	0,0\n"
+		"0:	xgr	%0,%0\n"
+		"1:\n"
+		EX_TABLE(0b,1b)
+		: "+d" (val));
+	if (!val)
+		panic("Monitor call doesn't work!\n");
+}
+
 void __init trap_init(void)
 {
 	sort_extable(__start_dma_ex_table, __stop_dma_ex_table);
 	local_mcck_enable();
+	test_monitor_call();
 }

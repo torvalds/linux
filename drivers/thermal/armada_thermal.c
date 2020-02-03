@@ -155,6 +155,9 @@ static void armadaxp_init(struct platform_device *pdev,
 
 	regmap_write(priv->syscon, data->syscon_control1_off, reg);
 
+	reg &= ~PMU_TDC0_SW_RST_MASK;
+	regmap_write(priv->syscon, data->syscon_control1_off, reg);
+
 	/* Enable the sensor */
 	regmap_read(priv->syscon, data->syscon_status_off, &reg);
 	reg &= ~PMU_TM_DISABLE_MASK;
@@ -578,7 +581,7 @@ static const struct armada_thermal_data armadaxp_data = {
 	.coef_m = 10000000ULL,
 	.coef_div = 13825,
 	.syscon_status_off = 0xb0,
-	.syscon_control1_off = 0xd0,
+	.syscon_control1_off = 0x2d0,
 };
 
 static const struct armada_thermal_data armada370_data = {
