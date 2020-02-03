@@ -176,8 +176,6 @@
 
 /* Typical size of the average request (2 pipecontrols and a MI_BB) */
 #define EXECLISTS_REQUEST_SIZE 64 /* bytes */
-#define WA_TAIL_DWORDS 2
-#define WA_TAIL_BYTES (sizeof(u32) * WA_TAIL_DWORDS)
 
 struct virtual_engine {
 	struct intel_engine_cs base;
@@ -2935,22 +2933,6 @@ static void execlists_context_reset(struct intel_context *ce)
 	CE_TRACE(ce, "reset\n");
 	GEM_BUG_ON(!intel_context_is_pinned(ce));
 
-	/*
-	 * Because we emit WA_TAIL_DWORDS there may be a disparity
-	 * between our bookkeeping in ce->ring->head and ce->ring->tail and
-	 * that stored in context. As we only write new commands from
-	 * ce->ring->tail onwards, everything before that is junk. If the GPU
-	 * starts reading from its RING_HEAD from the context, it may try to
-	 * execute that junk and die.
-	 *
-	 * The contexts that are stilled pinned on resume belong to the
-	 * kernel, and are local to each engine. All other contexts will
-	 * have their head/tail sanitized upon pinning before use, so they
-	 * will never see garbage,
-	 *
-	 * So to avoid that we reset the context images upon resume. For
-	 * simplicity, we just zero everything out.
-	 */
 	intel_ring_reset(ce->ring, ce->ring->emit);
 
 	/* Scrub away the garbage */
