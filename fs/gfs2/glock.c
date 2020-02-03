@@ -308,7 +308,7 @@ void gfs2_glock_put(struct gfs2_glock *gl)
 
 static inline int may_grant(const struct gfs2_glock *gl, const struct gfs2_holder *gh)
 {
-	const struct gfs2_holder *gh_head = list_entry(gl->gl_holders.next, const struct gfs2_holder, gh_list);
+	const struct gfs2_holder *gh_head = list_first_entry(&gl->gl_holders, const struct gfs2_holder, gh_list);
 	if ((gh->gh_state == LM_ST_EXCLUSIVE ||
 	     gh_head->gh_state == LM_ST_EXCLUSIVE) && gh != gh_head)
 		return 0;
@@ -690,7 +690,7 @@ static inline struct gfs2_holder *find_first_holder(const struct gfs2_glock *gl)
 	struct gfs2_holder *gh;
 
 	if (!list_empty(&gl->gl_holders)) {
-		gh = list_entry(gl->gl_holders.next, struct gfs2_holder, gh_list);
+		gh = list_first_entry(&gl->gl_holders, struct gfs2_holder, gh_list);
 		if (test_bit(HIF_HOLDER, &gh->gh_iflags))
 			return gh;
 	}
@@ -1240,7 +1240,7 @@ fail:
 	}
 	list_add_tail(&gh->gh_list, insert_pt);
 do_cancel:
-	gh = list_entry(gl->gl_holders.next, struct gfs2_holder, gh_list);
+	gh = list_first_entry(&gl->gl_holders, struct gfs2_holder, gh_list);
 	if (!(gh->gh_flags & LM_FLAG_PRIORITY)) {
 		spin_unlock(&gl->gl_lockref.lock);
 		if (sdp->sd_lockstruct.ls_ops->lm_cancel)
@@ -1642,7 +1642,7 @@ __acquires(&lru_lock)
 	list_sort(NULL, list, glock_cmp);
 
 	while(!list_empty(list)) {
-		gl = list_entry(list->next, struct gfs2_glock, gl_lru);
+		gl = list_first_entry(list, struct gfs2_glock, gl_lru);
 		list_del_init(&gl->gl_lru);
 		if (!spin_trylock(&gl->gl_lockref.lock)) {
 add_back_to_lru:
@@ -1683,7 +1683,7 @@ static long gfs2_scan_glock_lru(int nr)
 
 	spin_lock(&lru_lock);
 	while ((nr-- >= 0) && !list_empty(&lru_list)) {
-		gl = list_entry(lru_list.next, struct gfs2_glock, gl_lru);
+		gl = list_first_entry(&lru_list, struct gfs2_glock, gl_lru);
 
 		/* Test for being demotable */
 		if (!test_bit(GLF_LOCK, &gl->gl_flags)) {

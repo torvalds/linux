@@ -115,7 +115,7 @@ static void gfs2_qd_dispose(struct list_head *list)
 	struct gfs2_sbd *sdp;
 
 	while (!list_empty(list)) {
-		qd = list_entry(list->next, struct gfs2_quota_data, qd_lru);
+		qd = list_first_entry(list, struct gfs2_quota_data, qd_lru);
 		sdp = qd->qd_gl->gl_name.ln_sbd;
 
 		list_del(&qd->qd_lru);
@@ -1441,7 +1441,7 @@ void gfs2_quota_cleanup(struct gfs2_sbd *sdp)
 
 	spin_lock(&qd_lock);
 	while (!list_empty(head)) {
-		qd = list_entry(head->prev, struct gfs2_quota_data, qd_list);
+		qd = list_last_entry(head, struct gfs2_quota_data, qd_list);
 
 		list_del(&qd->qd_list);
 
@@ -1504,7 +1504,7 @@ static void quotad_check_trunc_list(struct gfs2_sbd *sdp)
 		ip = NULL;
 		spin_lock(&sdp->sd_trunc_lock);
 		if (!list_empty(&sdp->sd_trunc_list)) {
-			ip = list_entry(sdp->sd_trunc_list.next,
+			ip = list_first_entry(&sdp->sd_trunc_list,
 					struct gfs2_inode, i_trunc_list);
 			list_del_init(&ip->i_trunc_list);
 		}
