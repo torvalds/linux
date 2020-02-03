@@ -37,8 +37,8 @@
 #define PLLDIG_MAX_VCO_FREQ         1300000000
 
 /* Range of the output frequencies, in Hz */
-#define PHI1_MIN_FREQ               27000000
-#define PHI1_MAX_FREQ               600000000
+#define PHI1_MIN_FREQ               27000000UL
+#define PHI1_MAX_FREQ               600000000UL
 
 /* Maximum value of the reduced frequency divider */
 #define MAX_RFDPHI1          63UL
