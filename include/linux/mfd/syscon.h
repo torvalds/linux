@@ -23,6 +23,11 @@ extern struct regmap *syscon_regmap_lookup_by_compatible(const char *s);
 extern struct regmap *syscon_regmap_lookup_by_phandle(
 					struct device_node *np,
 					const char *property);
+extern struct regmap *syscon_regmap_lookup_by_phandle_args(
+					struct device_node *np,
+					const char *property,
+					int arg_count,
+					unsigned int *out_args);
 #else
 static inline struct regmap *device_node_to_regmap(struct device_node *np)
 {
@@ -42,6 +47,15 @@ static inline struct regmap *syscon_regmap_lookup_by_compatible(const char *s)
 static inline struct regmap *syscon_regmap_lookup_by_phandle(
 					struct device_node *np,
 					const char *property)
+{
+	return ERR_PTR(-ENOTSUPP);
+}
+
+static inline struct regmap *syscon_regmap_lookup_by_phandle_args(
+					struct device_node *np,
+					const char *property,
+					int arg_count,
+					unsigned int *out_args)
 {
 	return ERR_PTR(-ENOTSUPP);
 }

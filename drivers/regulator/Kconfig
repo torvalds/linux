@@ -209,6 +209,7 @@ config REGULATOR_BD71828
 config REGULATOR_BD718XX
 	tristate "ROHM BD71837 Power Regulator"
 	depends on MFD_ROHM_BD718XX
+	select REGULATOR_ROHM
 	help
 	  This driver supports voltage regulators on ROHM BD71837 PMIC.
 	  This will enable support for the software controllable buck
@@ -822,6 +823,9 @@ config REGULATOR_RN5T618
 	help
 	  Say y here to support the regulators found on Ricoh RN5T567,
 	  RN5T618 or RC5T619 PMIC.
+
+config REGULATOR_ROHM
+	tristate
 
 config REGULATOR_RT5033
 	tristate "Richtek RT5033 Regulators"
