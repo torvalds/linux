@@ -335,17 +335,18 @@ static int vcnl4000_read_raw(struct iio_dev *indio_dev,
 		switch (chan->type) {
 		case IIO_LIGHT:
 			ret = data->chip_spec->measure_light(data, val);
-			if (ret < 0)
-				return ret;
-			return IIO_VAL_INT;
+			if (!ret)
+				ret = IIO_VAL_INT;
+			break;
 		case IIO_PROXIMITY:
 			ret = data->chip_spec->measure_proximity(data, val);
-			if (ret < 0)
-				return ret;
-			return IIO_VAL_INT;
+			if (!ret)
+				ret = IIO_VAL_INT;
+			break;
 		default:
-			return -EINVAL;
+			ret = -EINVAL;
 		}
+		return ret;
 	case IIO_CHAN_INFO_SCALE:
 		if (chan->type != IIO_LIGHT)
 			return -EINVAL;
