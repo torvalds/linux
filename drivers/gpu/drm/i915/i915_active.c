@@ -398,9 +398,13 @@ i915_active_set_exclusive(struct i915_active *ref, struct dma_fence *f)
 	/* We expect the caller to manage the exclusive timeline ordering */
 	GEM_BUG_ON(i915_active_is_idle(ref));
 
+	rcu_read_lock();
 	prev = __i915_active_fence_set(&ref->excl, f);
-	if (!prev)
+	if (prev)
+		prev = dma_fence_get_rcu(prev);
+	else
 		atomic_inc(&ref->count);
+	rcu_read_unlock();
 
 	return prev;
 }

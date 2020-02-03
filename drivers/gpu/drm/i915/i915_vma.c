@@ -422,10 +422,12 @@ int i915_vma_bind(struct i915_vma *vma,
 		 * execution and not content or object's backing store lifetime.
 		 */
 		prev = i915_active_set_exclusive(&vma->active, &work->base.dma);
-		if (prev)
+		if (prev) {
 			__i915_sw_fence_await_dma_fence(&work->base.chain,
 							prev,
 							&work->cb);
+			dma_fence_put(prev);
+		}
 
 		work->base.dma.error = 0; /* enable the queue_work() */
 
