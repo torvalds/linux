@@ -858,7 +858,7 @@ static int video_i2c_probe(struct i2c_client *client,
 		}
 	}
 
-	ret = video_register_device(&data->vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(&data->vdev, VFL_TYPE_VIDEO, -1);
 	if (ret < 0)
 		goto error_pm_disable;
 
