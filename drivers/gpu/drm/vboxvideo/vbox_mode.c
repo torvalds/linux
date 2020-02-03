@@ -826,6 +826,7 @@ static int vbox_connector_init(struct drm_device *dev,
 
 static const struct drm_mode_config_funcs vbox_mode_funcs = {
 	.fb_create = drm_gem_fb_create_with_dirty,
+	.mode_valid = drm_vram_helper_mode_valid,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
