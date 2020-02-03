@@ -2957,8 +2957,7 @@ int security_set_bools(struct selinux_state *state, u32 len, int *values)
 			policydb->bool_val_to_struct[i]->state = 0;
 	}
 
-	for (i = 0; i < policydb->cond_list_len; i++)
-		evaluate_cond_node(policydb, &policydb->cond_list[i]);
+	evaluate_cond_nodes(policydb);
 
 	seqno = ++state->ss->latest_granting;
 	rc = 0;
@@ -3011,8 +3010,7 @@ static int security_preserve_bools(struct selinux_state *state,
 		if (booldatum)
 			booldatum->state = bvalues[i];
 	}
-	for (i = 0; i < policydb->cond_list_len; i++)
-		evaluate_cond_node(policydb, &policydb->cond_list[i]);
+	evaluate_cond_nodes(policydb);
 
 out:
 	if (bnames) {

@@ -78,6 +78,6 @@ void cond_compute_av(struct avtab *ctab, struct avtab_key *key,
 		struct av_decision *avd, struct extended_perms *xperms);
 void cond_compute_xperms(struct avtab *ctab, struct avtab_key *key,
 		struct extended_perms_decision *xpermd);
-void evaluate_cond_node(struct policydb *p, struct cond_node *node);
+void evaluate_cond_nodes(struct policydb *p);
 
 #endif /* _CONDITIONAL_H_ */
