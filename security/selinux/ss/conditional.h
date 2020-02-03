@@ -19,7 +19,7 @@
  * A conditional expression is a list of operators and operands
  * in reverse polish notation.
  */
-struct cond_expr {
+struct cond_expr_node {
 #define COND_BOOL	1 /* plain bool */
 #define COND_NOT	2 /* !bool */
 #define COND_OR		3 /* bool || bool */
@@ -28,9 +28,13 @@ struct cond_expr {
 #define COND_EQ		6 /* bool == bool */
 #define COND_NEQ	7 /* bool != bool */
 #define COND_LAST	COND_NEQ
-	__u32 expr_type;
-	__u32 bool;
-	struct cond_expr *next;
+	u32 expr_type;
+	u32 bool;
+};
+
+struct cond_expr {
+	struct cond_expr_node *nodes;
+	u32 len;
 };
 
 /*
@@ -52,7 +56,7 @@ struct cond_av_list {
  */
 struct cond_node {
 	int cur_state;
-	struct cond_expr *expr;
+	struct cond_expr expr;
 	struct cond_av_list true_list;
 	struct cond_av_list false_list;
 };

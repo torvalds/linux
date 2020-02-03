@@ -23,18 +23,19 @@
  */
 static int cond_evaluate_expr(struct policydb *p, struct cond_expr *expr)
 {
-
-	struct cond_expr *cur;
+	u32 i;
 	int s[COND_EXPR_MAXDEPTH];
 	int sp = -1;
 
-	for (cur = expr; cur; cur = cur->next) {
-		switch (cur->expr_type) {
+	for (i = 0; i < expr->len; i++) {
+		struct cond_expr_node *node = &expr->nodes[i];
+
+		switch (node->expr_type) {
 		case COND_BOOL:
 			if (sp == (COND_EXPR_MAXDEPTH - 1))
 				return -1;
 			sp++;
-			s[sp] = p->bool_val_to_struct[cur->bool - 1]->state;
+			s[sp] = p->bool_val_to_struct[node->bool - 1]->state;
 			break;
 		case COND_NOT:
 			if (sp < 0)
@@ -91,7 +92,7 @@ void evaluate_cond_node(struct policydb *p, struct cond_node *node)
 	int new_state;
 	u32 i;
 
-	new_state = cond_evaluate_expr(p, node->expr);
+	new_state = cond_evaluate_expr(p, &node->expr);
 	if (new_state != node->cur_state) {
 		node->cur_state = new_state;
 		if (new_state == -1)
@@ -133,12 +134,7 @@ int cond_policydb_init(struct policydb *p)
 
 static void cond_node_destroy(struct cond_node *node)
 {
-	struct cond_expr *cur_expr, *next_expr;
-
-	for (cur_expr = node->expr; cur_expr; cur_expr = next_expr) {
-		next_expr = cur_expr->next;
-		kfree(cur_expr);
-	}
+	kfree(node->expr.nodes);
 	/* the avtab_ptr_t nodes are destroyed by the avtab */
 	kfree(node->true_list.nodes);
 	kfree(node->false_list.nodes);
@@ -355,7 +351,7 @@ static int cond_read_av_list(struct policydb *p, void *fp,
 	return 0;
 }
 
-static int expr_isvalid(struct policydb *p, struct cond_expr *expr)
+static int expr_node_isvalid(struct policydb *p, struct cond_expr_node *expr)
 {
 	if (expr->expr_type <= 0 || expr->expr_type > COND_LAST) {
 		pr_err("SELinux: conditional expressions uses unknown operator.\n");
@@ -372,43 +368,37 @@ static int expr_isvalid(struct policydb *p, struct cond_expr *expr)
 static int cond_read_node(struct policydb *p, struct cond_node *node, void *fp)
 {
 	__le32 buf[2];
-	u32 len, i;
+	u32 i, len;
 	int rc;
-	struct cond_expr *expr = NULL, *last = NULL;
 
 	rc = next_entry(buf, fp, sizeof(u32) * 2);
 	if (rc)
-		goto err;
+		return rc;
 
 	node->cur_state = le32_to_cpu(buf[0]);
 
 	/* expr */
 	len = le32_to_cpu(buf[1]);
+	node->expr.nodes = kcalloc(len, sizeof(*node->expr.nodes), GFP_KERNEL);
+	if (!node->expr.nodes)
+		return -ENOMEM;
+
+	node->expr.len = len;
 
 	for (i = 0; i < len; i++) {
+		struct cond_expr_node *expr = &node->expr.nodes[i];
+
 		rc = next_entry(buf, fp, sizeof(u32) * 2);
 		if (rc)
-			goto err;
-
-		rc = -ENOMEM;
-		expr = kzalloc(sizeof(*expr), GFP_KERNEL);
-		if (!expr)
 			goto err;
 
 		expr->expr_type = le32_to_cpu(buf[0]);
 		expr->bool = le32_to_cpu(buf[1]);
 
-		if (!expr_isvalid(p, expr)) {
+		if (!expr_node_isvalid(p, expr)) {
 			rc = -EINVAL;
-			kfree(expr);
 			goto err;
 		}
-
-		if (i == 0)
-			node->expr = expr;
-		else
-			last->next = expr;
-		last = expr;
 	}
 
 	rc = cond_read_av_list(p, fp, &node->true_list, NULL);
@@ -513,27 +503,23 @@ static int cond_write_av_list(struct policydb *p,
 static int cond_write_node(struct policydb *p, struct cond_node *node,
 		    struct policy_file *fp)
 {
-	struct cond_expr *cur_expr;
 	__le32 buf[2];
 	int rc;
-	u32 len = 0;
+	u32 i;
 
 	buf[0] = cpu_to_le32(node->cur_state);
 	rc = put_entry(buf, sizeof(u32), 1, fp);
 	if (rc)
 		return rc;
 
-	for (cur_expr = node->expr; cur_expr != NULL; cur_expr = cur_expr->next)
-		len++;
-
-	buf[0] = cpu_to_le32(len);
+	buf[0] = cpu_to_le32(node->expr.len);
 	rc = put_entry(buf, sizeof(u32), 1, fp);
 	if (rc)
 		return rc;
 
-	for (cur_expr = node->expr; cur_expr != NULL; cur_expr = cur_expr->next) {
-		buf[0] = cpu_to_le32(cur_expr->expr_type);
-		buf[1] = cpu_to_le32(cur_expr->bool);
+	for (i = 0; i < node->expr.len; i++) {
+		buf[0] = cpu_to_le32(node->expr.nodes[i].expr_type);
+		buf[1] = cpu_to_le32(node->expr.nodes[i].bool);
 		rc = put_entry(buf, sizeof(u32), 2, fp);
 		if (rc)
 			return rc;
