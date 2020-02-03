@@ -921,7 +921,7 @@ int msm_video_register(struct camss_video *video, struct v4l2_device *v4l2_dev,
 	vdev->lock = &video->lock;
 	strscpy(vdev->name, name, sizeof(vdev->name));
 
-	ret = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
 	if (ret < 0) {
 		dev_err(v4l2_dev->dev, "Failed to register video device: %d\n",
 			ret);

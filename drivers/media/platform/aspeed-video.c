@@ -1582,14 +1582,14 @@ static int aspeed_video_setup_video(struct aspeed_video *video)
 		V4L2_CAP_STREAMING;
 	vdev->v4l2_dev = v4l2_dev;
 	strscpy(vdev->name, DEVICE_NAME, sizeof(vdev->name));
-	vdev->vfl_type = VFL_TYPE_GRABBER;
+	vdev->vfl_type = VFL_TYPE_VIDEO;
 	vdev->vfl_dir = VFL_DIR_RX;
 	vdev->release = video_device_release_empty;
 	vdev->ioctl_ops = &aspeed_video_ioctl_ops;
 	vdev->lock = &video->video_lock;
 
 	video_set_drvdata(vdev, video);
-	rc = video_register_device(vdev, VFL_TYPE_GRABBER, 0);
+	rc = video_register_device(vdev, VFL_TYPE_VIDEO, 0);
 	if (rc) {
 		vb2_queue_release(vbq);
 		v4l2_ctrl_handler_free(&video->ctrl_handler);

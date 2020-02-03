@@ -1262,7 +1262,7 @@ static int viacam_probe(struct platform_device *pdev)
 	cam->vdev.lock = &cam->lock;
 	cam->vdev.queue = vq;
 	video_set_drvdata(&cam->vdev, cam);
-	ret = video_register_device(&cam->vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(&cam->vdev, VFL_TYPE_VIDEO, -1);
 	if (ret)
 		goto out_irq;
 

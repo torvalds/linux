@@ -2120,7 +2120,7 @@ static int register_instance(struct vicodec_dev *dev,
 	}
 	video_set_drvdata(vfd, dev);
 
-	ret = video_register_device(vfd, VFL_TYPE_GRABBER, 0);
+	ret = video_register_device(vfd, VFL_TYPE_VIDEO, 0);
 	if (ret) {
 		v4l2_err(&dev->v4l2_dev, "Failed to register video device '%s'\n", name);
 		v4l2_m2m_release(dev_instance->m2m_dev);

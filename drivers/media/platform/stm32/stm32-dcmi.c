@@ -1974,7 +1974,7 @@ static int dcmi_probe(struct platform_device *pdev)
 	}
 	dcmi->vdev->entity.flags |= MEDIA_ENT_FL_DEFAULT;
 
-	ret = video_register_device(dcmi->vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(dcmi->vdev, VFL_TYPE_VIDEO, -1);
 	if (ret) {
 		dev_err(dcmi->dev, "Failed to register video device\n");
 		goto err_media_entity_cleanup;

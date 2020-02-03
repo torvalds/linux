@@ -969,7 +969,7 @@ int rvin_v4l2_register(struct rvin_dev *vin)
 
 	rvin_format_align(vin, &vin->format);
 
-	ret = video_register_device(&vin->vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(&vin->vdev, VFL_TYPE_VIDEO, -1);
 	if (ret) {
 		vin_err(vin, "Failed to register video device\n");
 		return ret;

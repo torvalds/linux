@@ -1948,7 +1948,7 @@ static int cal_complete_ctx(struct cal_ctx *ctx)
 	vfd->lock = &ctx->mutex;
 	video_set_drvdata(vfd, ctx);
 
-	ret = video_register_device(vfd, VFL_TYPE_GRABBER, video_nr);
+	ret = video_register_device(vfd, VFL_TYPE_VIDEO, video_nr);
 	if (ret < 0)
 		return ret;
 

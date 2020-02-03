@@ -374,7 +374,7 @@ int sun4i_csi_v4l2_register(struct sun4i_csi *csi)
 	vdev->ioctl_ops = &sun4i_csi_ioctl_ops;
 	video_set_drvdata(vdev, csi);
 
-	ret = video_register_device(&csi->vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(&csi->vdev, VFL_TYPE_VIDEO, -1);
 	if (ret)
 		return ret;
 

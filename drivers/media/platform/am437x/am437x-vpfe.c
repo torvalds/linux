@@ -2267,7 +2267,7 @@ static int vpfe_probe_complete(struct vpfe_device *vpfe)
 	vdev->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING |
 			    V4L2_CAP_READWRITE;
 	video_set_drvdata(vdev, vpfe);
-	err = video_register_device(&vpfe->video_dev, VFL_TYPE_GRABBER, -1);
+	err = video_register_device(&vpfe->video_dev, VFL_TYPE_VIDEO, -1);
 	if (err) {
 		vpfe_err(vpfe,
 			"Unable to register video device.\n");

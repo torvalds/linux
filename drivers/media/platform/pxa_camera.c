@@ -2191,7 +2191,7 @@ static int pxa_camera_sensor_bound(struct v4l2_async_notifier *notifier,
 	if (err)
 		goto out_sensor_poweroff;
 
-	err = video_register_device(&pcdev->vdev, VFL_TYPE_GRABBER, -1);
+	err = video_register_device(&pcdev->vdev, VFL_TYPE_VIDEO, -1);
 	if (err) {
 		v4l2_err(v4l2_dev, "register video device failed: %d\n", err);
 		pcdev->sensor = NULL;

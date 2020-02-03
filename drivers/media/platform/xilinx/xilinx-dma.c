@@ -685,7 +685,7 @@ int xvip_dma_init(struct xvip_composite_device *xdev, struct xvip_dma *dma,
 		 xdev->dev->of_node,
 		 type == V4L2_BUF_TYPE_VIDEO_CAPTURE ? "output" : "input",
 		 port);
-	dma->video.vfl_type = VFL_TYPE_GRABBER;
+	dma->video.vfl_type = VFL_TYPE_VIDEO;
 	dma->video.vfl_dir = type == V4L2_BUF_TYPE_VIDEO_CAPTURE
 			   ? VFL_DIR_RX : VFL_DIR_TX;
 	dma->video.release = video_device_release_empty;
@@ -735,7 +735,7 @@ int xvip_dma_init(struct xvip_composite_device *xdev, struct xvip_dma *dma,
 
 	dma->align = 1 << dma->dma->device->copy_align;
 
-	ret = video_register_device(&dma->video, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(&dma->video, VFL_TYPE_VIDEO, -1);
 	if (ret < 0) {
 		dev_err(dma->xdev->dev, "failed to register video device\n");
 		goto error;

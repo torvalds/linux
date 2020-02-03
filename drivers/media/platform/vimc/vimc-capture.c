@@ -460,7 +460,7 @@ struct vimc_ent_device *vimc_cap_add(struct vimc_device *vimc,
 	video_set_drvdata(vdev, &vcap->ved);
 
 	/* Register the video_device with the v4l2 and the media framework */
-	ret = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
 	if (ret) {
 		dev_err(&vimc->pdev.dev, "%s: video register failed (err=%d)\n",
 			vcap->vdev.name, ret);
