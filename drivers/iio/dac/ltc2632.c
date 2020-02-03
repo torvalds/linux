@@ -12,9 +12,6 @@
 #include <linux/iio/iio.h>
 #include <linux/regulator/consumer.h>
 
-#define LTC2632_ADDR_DAC0                       0x0
-#define LTC2632_ADDR_DAC1                       0x1
-
 #define LTC2632_CMD_WRITE_INPUT_N               0x0
 #define LTC2632_CMD_UPDATE_DAC_N                0x1
 #define LTC2632_CMD_WRITE_INPUT_N_UPDATE_ALL    0x2
