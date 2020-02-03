@@ -272,8 +272,9 @@ struct policydb {
 	struct cond_bool_datum **bool_val_to_struct;
 	/* type enforcement conditional access vectors and transitions */
 	struct avtab te_cond_avtab;
-	/* linked list indexing te_cond_avtab by conditional */
+	/* array indexing te_cond_avtab by conditional */
 	struct cond_node *cond_list;
+	u32 cond_list_len;
 
 	/* role allows */
 	struct role_allow *role_allow;

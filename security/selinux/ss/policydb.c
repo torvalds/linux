@@ -3483,7 +3483,7 @@ int policydb_write(struct policydb *p, void *fp)
 	if (rc)
 		return rc;
 
-	rc = cond_write_list(p, p->cond_list, fp);
+	rc = cond_write_list(p, fp);
 	if (rc)
 		return rc;
 

@@ -2867,10 +2867,11 @@ out:
 }
 
 int security_get_bools(struct selinux_state *state,
-		       int *len, char ***names, int **values)
+		       u32 *len, char ***names, int **values)
 {
 	struct policydb *policydb;
-	int i, rc;
+	u32 i;
+	int rc;
 
 	if (!selinux_initialized(state)) {
 		*len = 0;
@@ -2924,12 +2925,11 @@ err:
 }
 
 
-int security_set_bools(struct selinux_state *state, int len, int *values)
+int security_set_bools(struct selinux_state *state, u32 len, int *values)
 {
 	struct policydb *policydb;
-	int i, rc;
-	int lenp, seqno = 0;
-	struct cond_node *cur;
+	int rc;
+	u32 i, lenp, seqno = 0;
 
 	write_lock_irq(&state->ss->policy_rwlock);
 
@@ -2957,8 +2957,8 @@ int security_set_bools(struct selinux_state *state, int len, int *values)
 			policydb->bool_val_to_struct[i]->state = 0;
 	}
 
-	for (cur = policydb->cond_list; cur; cur = cur->next)
-		evaluate_cond_node(policydb, cur);
+	for (i = 0; i < policydb->cond_list_len; i++)
+		evaluate_cond_node(policydb, &policydb->cond_list[i]);
 
 	seqno = ++state->ss->latest_granting;
 	rc = 0;
@@ -2974,11 +2974,11 @@ out:
 }
 
 int security_get_bool_value(struct selinux_state *state,
-			    int index)
+			    u32 index)
 {
 	struct policydb *policydb;
 	int rc;
-	int len;
+	u32 len;
 
 	read_lock(&state->ss->policy_rwlock);
 
@@ -2998,10 +2998,10 @@ out:
 static int security_preserve_bools(struct selinux_state *state,
 				   struct policydb *policydb)
 {
-	int rc, nbools = 0, *bvalues = NULL, i;
+	int rc, *bvalues = NULL;
 	char **bnames = NULL;
 	struct cond_bool_datum *booldatum;
-	struct cond_node *cur;
+	u32 i, nbools = 0;
 
 	rc = security_get_bools(state, &nbools, &bnames, &bvalues);
 	if (rc)
@@ -3011,8 +3011,8 @@ static int security_preserve_bools(struct selinux_state *state,
 		if (booldatum)
 			booldatum->state = bvalues[i];
 	}
-	for (cur = policydb->cond_list; cur; cur = cur->next)
-		evaluate_cond_node(policydb, cur);
+	for (i = 0; i < policydb->cond_list_len; i++)
+		evaluate_cond_node(policydb, &policydb->cond_list[i]);
 
 out:
 	if (bnames) {

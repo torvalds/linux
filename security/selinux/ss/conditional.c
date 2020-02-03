@@ -119,6 +119,7 @@ int cond_policydb_init(struct policydb *p)
 
 	p->bool_val_to_struct = NULL;
 	p->cond_list = NULL;
+	p->cond_list_len = 0;
 
 	rc = avtab_init(&p->te_cond_avtab);
 	if (rc)
@@ -147,27 +148,22 @@ static void cond_node_destroy(struct cond_node *node)
 	}
 	cond_av_list_destroy(node->true_list);
 	cond_av_list_destroy(node->false_list);
-	kfree(node);
 }
 
-static void cond_list_destroy(struct cond_node *list)
+static void cond_list_destroy(struct policydb *p)
 {
-	struct cond_node *next, *cur;
+	u32 i;
 
-	if (list == NULL)
-		return;
-
-	for (cur = list; cur; cur = next) {
-		next = cur->next;
-		cond_node_destroy(cur);
-	}
+	for (i = 0; i < p->cond_list_len; i++)
+		cond_node_destroy(&p->cond_list[i]);
+	kfree(p->cond_list);
 }
 
 void cond_policydb_destroy(struct policydb *p)
 {
 	kfree(p->bool_val_to_struct);
 	avtab_destroy(&p->te_cond_avtab);
-	cond_list_destroy(p->cond_list);
+	cond_list_destroy(p);
 }
 
 int cond_init_bool_indexes(struct policydb *p)
@@ -447,7 +443,6 @@ err:
 
 int cond_read_list(struct policydb *p, void *fp)
 {
-	struct cond_node *node, *last = NULL;
 	__le32 buf[1];
 	u32 i, len;
 	int rc;
@@ -458,29 +453,24 @@ int cond_read_list(struct policydb *p, void *fp)
 
 	len = le32_to_cpu(buf[0]);
 
+	p->cond_list = kcalloc(len, sizeof(*p->cond_list), GFP_KERNEL);
+	if (!p->cond_list)
+		return rc;
+
 	rc = avtab_alloc(&(p->te_cond_avtab), p->te_avtab.nel);
 	if (rc)
 		goto err;
 
-	for (i = 0; i < len; i++) {
-		rc = -ENOMEM;
-		node = kzalloc(sizeof(*node), GFP_KERNEL);
-		if (!node)
-			goto err;
+	p->cond_list_len = len;
 
-		rc = cond_read_node(p, node, fp);
+	for (i = 0; i < len; i++) {
+		rc = cond_read_node(p, &p->cond_list[i], fp);
 		if (rc)
 			goto err;
-
-		if (i == 0)
-			p->cond_list = node;
-		else
-			last->next = node;
-		last = node;
 	}
 	return 0;
 err:
-	cond_list_destroy(p->cond_list);
+	cond_list_destroy(p);
 	p->cond_list = NULL;
 	return rc;
 }
@@ -585,23 +575,19 @@ static int cond_write_node(struct policydb *p, struct cond_node *node,
 	return 0;
 }
 
-int cond_write_list(struct policydb *p, struct cond_node *list, void *fp)
+int cond_write_list(struct policydb *p, void *fp)
 {
-	struct cond_node *cur;
-	u32 len;
+	u32 i;
 	__le32 buf[1];
 	int rc;
 
-	len = 0;
-	for (cur = list; cur != NULL; cur = cur->next)
-		len++;
-	buf[0] = cpu_to_le32(len);
+	buf[0] = cpu_to_le32(p->cond_list_len);
 	rc = put_entry(buf, sizeof(u32), 1, fp);
 	if (rc)
 		return rc;
 
-	for (cur = list; cur != NULL; cur = cur->next) {
-		rc = cond_write_node(p, cur, fp);
+	for (i = 0; i < p->cond_list_len; i++) {
+		rc = cond_write_node(p, &p->cond_list[i], fp);
 		if (rc)
 			return rc;
 	}

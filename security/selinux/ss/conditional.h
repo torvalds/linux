@@ -55,7 +55,6 @@ struct cond_node {
 	struct cond_expr *expr;
 	struct cond_av_list *true_list;
 	struct cond_av_list *false_list;
-	struct cond_node *next;
 };
 
 int cond_policydb_init(struct policydb *p);
@@ -69,7 +68,7 @@ int cond_index_bool(void *key, void *datum, void *datap);
 int cond_read_bool(struct policydb *p, struct hashtab *h, void *fp);
 int cond_read_list(struct policydb *p, void *fp);
 int cond_write_bool(void *key, void *datum, void *ptr);
-int cond_write_list(struct policydb *p, struct cond_node *list, void *fp);
+int cond_write_list(struct policydb *p, void *fp);
 
 void cond_compute_av(struct avtab *ctab, struct avtab_key *key,
 		struct av_decision *avd, struct extended_perms *xperms);

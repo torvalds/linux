@@ -1335,14 +1335,14 @@ static void sel_remove_entries(struct dentry *de)
 
 static int sel_make_bools(struct selinux_fs_info *fsi)
 {
-	int i, ret;
+	int ret;
 	ssize_t len;
 	struct dentry *dentry = NULL;
 	struct dentry *dir = fsi->bool_dir;
 	struct inode *inode = NULL;
 	struct inode_security_struct *isec;
 	char **names = NULL, *page;
-	int num;
+	u32 i, num;
 	int *values = NULL;
 	u32 sid;
 
