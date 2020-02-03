@@ -8,7 +8,7 @@
 # with unpack_to_rootfs(). Make size_append no-op.
 override size_append := :
 
-compress-$(CONFIG_INITRAMFS_COMPRESSION_NONE)	:= shipped
+compress-y					:= shipped
 compress-$(CONFIG_INITRAMFS_COMPRESSION_GZIP)	:= gzip
 compress-$(CONFIG_INITRAMFS_COMPRESSION_BZIP2)	:= bzip2
 compress-$(CONFIG_INITRAMFS_COMPRESSION_LZMA)	:= lzma
