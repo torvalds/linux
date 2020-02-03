@@ -452,7 +452,7 @@ static u64 get_mmio_spte_generation(u64 spte)
 }
 
 static void mark_mmio_spte(struct kvm_vcpu *vcpu, u64 *sptep, u64 gfn,
-			   unsigned access)
+			   unsigned int access)
 {
 	u64 gen = kvm_vcpu_memslots(vcpu)->generation & MMIO_SPTE_GEN_MASK;
 	u64 mask = generation_mmio_spte_mask(gen);
@@ -484,7 +484,7 @@ static unsigned get_mmio_spte_access(u64 spte)
 }
 
 static bool set_mmio_spte(struct kvm_vcpu *vcpu, u64 *sptep, gfn_t gfn,
-			  kvm_pfn_t pfn, unsigned access)
+			  kvm_pfn_t pfn, unsigned int access)
 {
 	if (unlikely(is_noslot_pfn(pfn))) {
 		mark_mmio_spte(vcpu, sptep, gfn, access);
@@ -2475,7 +2475,7 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 					     gva_t gaddr,
 					     unsigned level,
 					     int direct,
-					     unsigned access)
+					     unsigned int access)
 {
 	union kvm_mmu_page_role role;
 	unsigned quadrant;
@@ -2990,7 +2990,7 @@ static bool kvm_is_mmio_pfn(kvm_pfn_t pfn)
 #define SET_SPTE_NEED_REMOTE_TLB_FLUSH	BIT(1)
 
 static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
-		    unsigned pte_access, int level,
+		    unsigned int pte_access, int level,
 		    gfn_t gfn, kvm_pfn_t pfn, bool speculative,
 		    bool can_unsync, bool host_writable)
 {
@@ -3081,9 +3081,10 @@ set_pte:
 	return ret;
 }
 
-static int mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep, unsigned pte_access,
-			int write_fault, int level, gfn_t gfn, kvm_pfn_t pfn,
-		       	bool speculative, bool host_writable)
+static int mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
+			unsigned int pte_access, int write_fault, int level,
+			gfn_t gfn, kvm_pfn_t pfn, bool speculative,
+			bool host_writable)
 {
 	int was_rmapped = 0;
 	int rmap_count;
@@ -3165,7 +3166,7 @@ static int direct_pte_prefetch_many(struct kvm_vcpu *vcpu,
 {
 	struct page *pages[PTE_PREFETCH_NUM];
 	struct kvm_memory_slot *slot;
-	unsigned access = sp->role.access;
+	unsigned int access = sp->role.access;
 	int i, ret;
 	gfn_t gfn;
 
@@ -3400,7 +3401,8 @@ static int kvm_handle_bad_page(struct kvm_vcpu *vcpu, gfn_t gfn, kvm_pfn_t pfn)
 }
 
 static bool handle_abnormal_pfn(struct kvm_vcpu *vcpu, gva_t gva, gfn_t gfn,
-				kvm_pfn_t pfn, unsigned access, int *ret_val)
+				kvm_pfn_t pfn, unsigned int access,
+				int *ret_val)
 {
 	/* The pfn is invalid, report the error! */
 	if (unlikely(is_error_pfn(pfn))) {
@@ -4005,7 +4007,7 @@ static int handle_mmio_page_fault(struct kvm_vcpu *vcpu, u64 addr, bool direct)
 
 	if (is_mmio_spte(spte)) {
 		gfn_t gfn = get_mmio_spte_gfn(spte);
-		unsigned access = get_mmio_spte_access(spte);
+		unsigned int access = get_mmio_spte_access(spte);
 
 		if (!check_mmio_spte(vcpu, spte))
 			return RET_PF_INVALID;
@@ -4349,7 +4351,7 @@ static void inject_page_fault(struct kvm_vcpu *vcpu,
 }
 
 static bool sync_mmio_spte(struct kvm_vcpu *vcpu, u64 *sptep, gfn_t gfn,
-			   unsigned access, int *nr_present)
+			   unsigned int access, int *nr_present)
 {
 	if (unlikely(is_mmio_spte(*sptep))) {
 		if (gfn != get_mmio_spte_gfn(*sptep)) {
