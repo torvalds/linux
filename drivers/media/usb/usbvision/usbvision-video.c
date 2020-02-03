@@ -1271,7 +1271,7 @@ static int usbvision_register_video(struct usb_usbvision *usbvision)
 	if (usbvision->have_tuner)
 		usbvision->vdev.device_caps |= V4L2_CAP_TUNER;
 
-	if (video_register_device(&usbvision->vdev, VFL_TYPE_GRABBER, video_nr) < 0)
+	if (video_register_device(&usbvision->vdev, VFL_TYPE_VIDEO, video_nr) < 0)
 		goto err_exit;
 	printk(KERN_INFO "USBVision[%d]: registered USBVision Video device %s [v4l2]\n",
 	       usbvision->nr, video_device_node_name(&usbvision->vdev));
