@@ -83,28 +83,8 @@ static int bochs_connector_get_modes(struct drm_connector *connector)
 	return count;
 }
 
-static enum drm_mode_status bochs_connector_mode_valid(struct drm_connector *connector,
-				      struct drm_display_mode *mode)
-{
-	struct bochs_device *bochs =
-		container_of(connector, struct bochs_device, connector);
-	unsigned long size = mode->hdisplay * mode->vdisplay * 4;
-
-	/*
-	 * Make sure we can fit two framebuffers into video memory.
-	 * This allows up to 1600x1200 with 16 MB (default size).
-	 * If you want more try this:
-	 *     'qemu -vga std -global VGA.vgamem_mb=32 $otherargs'
-	 */
-	if (size * 2 > bochs->fb_size)
-		return MODE_BAD;
-
-	return MODE_OK;
-}
-
 static const struct drm_connector_helper_funcs bochs_connector_connector_helper_funcs = {
 	.get_modes = bochs_connector_get_modes,
-	.mode_valid = bochs_connector_mode_valid,
 };
 
 static const struct drm_connector_funcs bochs_connector_connector_funcs = {
@@ -148,6 +128,7 @@ bochs_gem_fb_create(struct drm_device *dev, struct drm_file *file,
 
 const struct drm_mode_config_funcs bochs_mode_funcs = {
 	.fb_create = bochs_gem_fb_create,
+	.mode_valid = drm_vram_helper_mode_valid,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
