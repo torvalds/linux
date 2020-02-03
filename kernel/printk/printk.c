@@ -2853,6 +2853,9 @@ int unregister_console(struct console *console)
 	console_unlock();
 	console_sysfs_notify();
 
+	if (console->exit)
+		res = console->exit(console);
+
 	return res;
 
 out_disable_unlock:
