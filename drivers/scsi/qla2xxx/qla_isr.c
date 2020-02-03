@@ -788,7 +788,7 @@ skip_rio:
 		if (atomic_read(&vha->loop_state) != LOOP_DOWN) {
 			atomic_set(&vha->loop_state, LOOP_DOWN);
 			atomic_set(&vha->loop_down_timer, LOOP_DOWN_TIME);
-			qla2x00_mark_all_devices_lost(vha, 1);
+			qla2x00_mark_all_devices_lost(vha);
 		}
 
 		if (vha->vp_idx) {
@@ -861,7 +861,7 @@ skip_rio:
 			}
 
 			vha->device_flags |= DFLG_NO_CABLE;
-			qla2x00_mark_all_devices_lost(vha, 1);
+			qla2x00_mark_all_devices_lost(vha);
 		}
 
 		if (vha->vp_idx) {
@@ -881,7 +881,7 @@ skip_rio:
 		if (atomic_read(&vha->loop_state) != LOOP_DOWN) {
 			atomic_set(&vha->loop_state, LOOP_DOWN);
 			atomic_set(&vha->loop_down_timer, LOOP_DOWN_TIME);
-			qla2x00_mark_all_devices_lost(vha, 1);
+			qla2x00_mark_all_devices_lost(vha);
 		}
 
 		if (vha->vp_idx) {
@@ -924,7 +924,7 @@ skip_rio:
 				atomic_set(&vha->loop_down_timer,
 				    LOOP_DOWN_TIME);
 			if (!N2N_TOPO(ha))
-				qla2x00_mark_all_devices_lost(vha, 1);
+				qla2x00_mark_all_devices_lost(vha);
 		}
 
 		if (vha->vp_idx) {
@@ -953,7 +953,7 @@ skip_rio:
 			if (!atomic_read(&vha->loop_down_timer))
 				atomic_set(&vha->loop_down_timer,
 				    LOOP_DOWN_TIME);
-			qla2x00_mark_all_devices_lost(vha, 1);
+			qla2x00_mark_all_devices_lost(vha);
 		}
 
 		if (vha->vp_idx) {
@@ -1022,7 +1022,6 @@ skip_rio:
 			    "Marking port lost loopid=%04x portid=%06x.\n",
 			    fcport->loop_id, fcport->d_id.b24);
 			if (qla_ini_mode_enabled(vha)) {
-				qla2x00_mark_device_lost(fcport->vha, fcport, 1, 1);
 				fcport->logout_on_delete = 0;
 				qlt_schedule_sess_for_deletion(fcport);
 			}
@@ -1034,14 +1033,14 @@ global_port_update:
 				atomic_set(&vha->loop_down_timer,
 				    LOOP_DOWN_TIME);
 				vha->device_flags |= DFLG_NO_CABLE;
-				qla2x00_mark_all_devices_lost(vha, 1);
+				qla2x00_mark_all_devices_lost(vha);
 			}
 
 			if (vha->vp_idx) {
 				atomic_set(&vha->vp_state, VP_FAILED);
 				fc_vport_set_state(vha->fc_vport,
 				    FC_VPORT_FAILED);
-				qla2x00_mark_all_devices_lost(vha, 1);
+				qla2x00_mark_all_devices_lost(vha);
 			}
 
 			vha->flags.management_server_logged_in = 0;
@@ -1253,11 +1252,33 @@ global_port_update:
 
 	case MBA_DPORT_DIAGNOSTICS:
 		ql_dbg(ql_dbg_async, vha, 0x5052,
-		    "D-Port Diagnostics: %04x result=%s\n",
-		    mb[0],
-		    mb[1] == 0 ? "start" :
-		    mb[1] == 1 ? "done (pass)" :
-		    mb[1] == 2 ? "done (error)" : "other");
+		    "D-Port Diagnostics: %04x %04x %04x %04x\n",
+		    mb[0], mb[1], mb[2], mb[3]);
+		if (IS_QLA83XX(ha) || IS_QLA27XX(ha) || IS_QLA28XX(ha)) {
+			static char *results[] = {
+			    "start", "done(pass)", "done(error)", "undefined" };
+			static char *types[] = {
+			    "none", "dynamic", "static", "other" };
+			uint result = mb[1] >> 0 & 0x3;
+			uint type = mb[1] >> 6 & 0x3;
+			uint sw = mb[1] >> 15 & 0x1;
+			ql_dbg(ql_dbg_async, vha, 0x5052,
+			    "D-Port Diagnostics: result=%s type=%s [sw=%u]\n",
+			    results[result], types[type], sw);
+			if (result == 2) {
+				static char *reasons[] = {
+				    "reserved", "unexpected reject",
+				    "unexpected phase", "retry exceeded",
+				    "timed out", "not supported",
+				    "user stopped" };
+				uint reason = mb[2] >> 0 & 0xf;
+				uint phase = mb[2] >> 12 & 0xf;
+				ql_dbg(ql_dbg_async, vha, 0x5052,
+				    "D-Port Diagnostics: reason=%s phase=%u \n",
+				    reason < 7 ? reasons[reason] : "other",
+				    phase >> 1);
+			}
+		}
 		break;
 
 	case MBA_TEMPERATURE_ALERT:
@@ -2152,12 +2173,12 @@ qla2x00_handle_dif_error(srb_t *sp, struct sts_entry_24xx *sts24)
 	 * swab32 of the "data" field in the beginning of qla2x00_status_entry()
 	 * would make guard field appear at offset 2
 	 */
-	a_guard   = le16_to_cpu(*(uint16_t *)(ap + 2));
-	a_app_tag = le16_to_cpu(*(uint16_t *)(ap + 0));
-	a_ref_tag = le32_to_cpu(*(uint32_t *)(ap + 4));
-	e_guard   = le16_to_cpu(*(uint16_t *)(ep + 2));
-	e_app_tag = le16_to_cpu(*(uint16_t *)(ep + 0));
-	e_ref_tag = le32_to_cpu(*(uint32_t *)(ep + 4));
+	a_guard   = get_unaligned_le16(ap + 2);
+	a_app_tag = get_unaligned_le16(ap + 0);
+	a_ref_tag = get_unaligned_le32(ap + 4);
+	e_guard   = get_unaligned_le16(ep + 2);
+	e_app_tag = get_unaligned_le16(ep + 0);
+	e_ref_tag = get_unaligned_le32(ep + 4);
 
 	ql_dbg(ql_dbg_io, vha, 0x3023,
 	    "iocb(s) %p Returned STATUS.\n", sts24);
@@ -2745,7 +2766,6 @@ check_scsi_status:
 				port_state_str[FCS_ONLINE],
 				comp_status);
 
-			qla2x00_mark_device_lost(fcport->vha, fcport, 1, 1);
 			qlt_schedule_sess_for_deletion(fcport);
 		}
 

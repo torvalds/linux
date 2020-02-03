@@ -4918,8 +4918,17 @@ static int
 lpfc_sli4_rb_setup(struct lpfc_hba *phba)
 {
 	phba->hbq_in_use = 1;
-	phba->hbqs[LPFC_ELS_HBQ].entry_count =
-		lpfc_hbq_defs[LPFC_ELS_HBQ]->entry_count;
+	/**
+	 * Specific case when the MDS diagnostics is enabled and supported.
+	 * The receive buffer count is truncated to manage the incoming
+	 * traffic.
+	 **/
+	if (phba->cfg_enable_mds_diags && phba->mds_diags_support)
+		phba->hbqs[LPFC_ELS_HBQ].entry_count =
+			lpfc_hbq_defs[LPFC_ELS_HBQ]->entry_count >> 1;
+	else
+		phba->hbqs[LPFC_ELS_HBQ].entry_count =
+			lpfc_hbq_defs[LPFC_ELS_HBQ]->entry_count;
 	phba->hbq_count = 1;
 	lpfc_sli_hbqbuf_init_hbqs(phba, LPFC_ELS_HBQ);
 	/* Initially populate or replenish the HBQs */
@@ -19449,7 +19458,7 @@ lpfc_wr_object(struct lpfc_hba *phba, struct list_head *dmabuf_list,
 	struct lpfc_mbx_wr_object *wr_object;
 	LPFC_MBOXQ_t *mbox;
 	int rc = 0, i = 0;
-	uint32_t shdr_status, shdr_add_status, shdr_change_status;
+	uint32_t shdr_status, shdr_add_status, shdr_change_status, shdr_csf;
 	uint32_t mbox_tmo;
 	struct lpfc_dmabuf *dmabuf;
 	uint32_t written = 0;
@@ -19506,6 +19515,16 @@ lpfc_wr_object(struct lpfc_hba *phba, struct list_head *dmabuf_list,
 	if (check_change_status) {
 		shdr_change_status = bf_get(lpfc_wr_object_change_status,
 					    &wr_object->u.response);
+
+		if (shdr_change_status == LPFC_CHANGE_STATUS_FW_RESET ||
+		    shdr_change_status == LPFC_CHANGE_STATUS_PORT_MIGRATION) {
+			shdr_csf = bf_get(lpfc_wr_object_csf,
+					  &wr_object->u.response);
+			if (shdr_csf)
+				shdr_change_status =
+						   LPFC_CHANGE_STATUS_PCI_RESET;
+		}
+
 		switch (shdr_change_status) {
 		case (LPFC_CHANGE_STATUS_PHYS_DEV_RESET):
 			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,

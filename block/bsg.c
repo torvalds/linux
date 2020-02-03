@@ -382,6 +382,7 @@ static const struct file_operations bsg_fops = {
 	.open		=	bsg_open,
 	.release	=	bsg_release,
 	.unlocked_ioctl	=	bsg_ioctl,
+	.compat_ioctl	=	compat_ptr_ioctl,
 	.owner		=	THIS_MODULE,
 	.llseek		=	default_llseek,
 };
