@@ -2182,12 +2182,6 @@ extern int __meminit __early_pfn_to_nid(unsigned long pfn,
 					struct mminit_pfnnid_cache *state);
 #endif
 
-#if !defined(CONFIG_FLAT_NODE_MEM_MAP)
-void zero_resv_unavail(void);
-#else
-static inline void zero_resv_unavail(void) {}
-#endif
-
 extern void set_dma_reserve(unsigned long new_dma_reserve);
 extern void memmap_init_zone(unsigned long, int, unsigned long, unsigned long,
 		enum memmap_context, struct vmem_altmap *);
