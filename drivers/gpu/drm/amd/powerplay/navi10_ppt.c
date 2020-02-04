@@ -1977,7 +1977,7 @@ static int navi10_setup_od_limits(struct smu_context *smu) {
 }
 
 static int navi10_set_default_od_settings(struct smu_context *smu, bool initialize) {
-	OverDriveTable_t *od_table;
+	OverDriveTable_t *od_table, *boot_od_table;
 	int ret = 0;
 
 	ret = smu_v11_0_set_default_od_settings(smu, initialize, sizeof(OverDriveTable_t));
@@ -1985,6 +1985,7 @@ static int navi10_set_default_od_settings(struct smu_context *smu, bool initiali
 		return ret;
 
 	od_table = (OverDriveTable_t *)smu->smu_table.overdrive_table;
+	boot_od_table = (OverDriveTable_t *)smu->smu_table.boot_overdrive_table;
 	if (initialize) {
 		ret = navi10_setup_od_limits(smu);
 		if (ret) {
@@ -1998,6 +1999,8 @@ static int navi10_set_default_od_settings(struct smu_context *smu, bool initiali
 										od_table->GfxclkFreq1);
 				if (ret)
 					od_table->GfxclkVolt1 = 0;
+				if (boot_od_table)
+					boot_od_table->GfxclkVolt1 = od_table->GfxclkVolt1;
 			}
 
 			if (!od_table->GfxclkVolt2) {
@@ -2006,6 +2009,8 @@ static int navi10_set_default_od_settings(struct smu_context *smu, bool initiali
 										od_table->GfxclkFreq2);
 				if (ret)
 					od_table->GfxclkVolt2 = 0;
+				if (boot_od_table)
+					boot_od_table->GfxclkVolt2 = od_table->GfxclkVolt2;
 			}
 
 			if (!od_table->GfxclkVolt3) {
@@ -2014,6 +2019,8 @@ static int navi10_set_default_od_settings(struct smu_context *smu, bool initiali
 										od_table->GfxclkFreq3);
 				if (ret)
 					od_table->GfxclkVolt3 = 0;
+				if (boot_od_table)
+					boot_od_table->GfxclkVolt3 = od_table->GfxclkVolt3;
 			}
 		}
 	}
