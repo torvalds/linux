@@ -445,7 +445,7 @@ int mmc_switch_status(struct mmc_card *card, bool crc_err_fatal)
 }
 
 static int mmc_busy_status(struct mmc_card *card, bool retry_crc_err,
-			   bool *busy)
+			   enum mmc_busy_cmd busy_cmd, bool *busy)
 {
 	struct mmc_host *host = card->host;
 	u32 status = 0;
@@ -464,7 +464,17 @@ static int mmc_busy_status(struct mmc_card *card, bool retry_crc_err,
 	if (err)
 		return err;
 
-	err = mmc_switch_status_error(card->host, status);
+	switch (busy_cmd) {
+	case MMC_BUSY_CMD6:
+		err = mmc_switch_status_error(card->host, status);
+		break;
+	case MMC_BUSY_ERASE:
+		err = R1_STATUS(status) ? -EIO : 0;
+		break;
+	default:
+		err = -EINVAL;
+	}
+
 	if (err)
 		return err;
 
@@ -472,8 +482,9 @@ static int mmc_busy_status(struct mmc_card *card, bool retry_crc_err,
 	return 0;
 }
 
-static int mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
-			bool send_status, bool retry_crc_err)
+static int __mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
+			       bool send_status, bool retry_crc_err,
+			       enum mmc_busy_cmd busy_cmd)
 {
 	struct mmc_host *host = card->host;
 	int err;
@@ -500,7 +511,7 @@ static int mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
 		 */
 		expired = time_after(jiffies, timeout);
 
-		err = mmc_busy_status(card, retry_crc_err, &busy);
+		err = mmc_busy_status(card, retry_crc_err, busy_cmd, &busy);
 		if (err)
 			return err;
 
@@ -520,6 +531,12 @@ static int mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
 	} while (busy);
 
 	return 0;
+}
+
+int mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
+		      enum mmc_busy_cmd busy_cmd)
+{
+	return __mmc_poll_for_busy(card, timeout_ms, true, false, busy_cmd);
 }
 
 /**
@@ -591,7 +608,8 @@ int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 		goto out_tim;
 
 	/* Let's try to poll to find out when the command is completed. */
-	err = mmc_poll_for_busy(card, timeout_ms, send_status, retry_crc_err);
+	err = __mmc_poll_for_busy(card, timeout_ms, send_status, retry_crc_err,
+				  MMC_BUSY_CMD6);
 	if (err)
 		goto out;
 
