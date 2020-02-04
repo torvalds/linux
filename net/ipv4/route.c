@@ -237,11 +237,11 @@ static int rt_cache_seq_open(struct inode *inode, struct file *file)
 	return seq_open(file, &rt_cache_seq_ops);
 }
 
-static const struct file_operations rt_cache_seq_fops = {
-	.open	 = rt_cache_seq_open,
-	.read	 = seq_read,
-	.llseek	 = seq_lseek,
-	.release = seq_release,
+static const struct proc_ops rt_cache_proc_ops = {
+	.proc_open	= rt_cache_seq_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= seq_release,
 };
 
 
@@ -328,11 +328,11 @@ static int rt_cpu_seq_open(struct inode *inode, struct file *file)
 	return seq_open(file, &rt_cpu_seq_ops);
 }
 
-static const struct file_operations rt_cpu_seq_fops = {
-	.open	 = rt_cpu_seq_open,
-	.read	 = seq_read,
-	.llseek	 = seq_lseek,
-	.release = seq_release,
+static const struct proc_ops rt_cpu_proc_ops = {
+	.proc_open	= rt_cpu_seq_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= seq_release,
 };
 
 #ifdef CONFIG_IP_ROUTE_CLASSID
@@ -366,12 +366,12 @@ static int __net_init ip_rt_do_proc_init(struct net *net)
 	struct proc_dir_entry *pde;
 
 	pde = proc_create("rt_cache", 0444, net->proc_net,
-			  &rt_cache_seq_fops);
+			  &rt_cache_proc_ops);
 	if (!pde)
 		goto err1;
 
 	pde = proc_create("rt_cache", 0444,
-			  net->proc_net_stat, &rt_cpu_seq_fops);
+			  net->proc_net_stat, &rt_cpu_proc_ops);
 	if (!pde)
 		goto err2;
 

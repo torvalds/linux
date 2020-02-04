@@ -1173,13 +1173,12 @@ static ssize_t viafb_dvp0_proc_write(struct file *file,
 	return count;
 }
 
-static const struct file_operations viafb_dvp0_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= viafb_dvp0_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= viafb_dvp0_proc_write,
+static const struct proc_ops viafb_dvp0_proc_ops = {
+	.proc_open	= viafb_dvp0_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= viafb_dvp0_proc_write,
 };
 
 static int viafb_dvp1_proc_show(struct seq_file *m, void *v)
@@ -1238,13 +1237,12 @@ static ssize_t viafb_dvp1_proc_write(struct file *file,
 	return count;
 }
 
-static const struct file_operations viafb_dvp1_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= viafb_dvp1_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= viafb_dvp1_proc_write,
+static const struct proc_ops viafb_dvp1_proc_ops = {
+	.proc_open	= viafb_dvp1_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= viafb_dvp1_proc_write,
 };
 
 static int viafb_dfph_proc_show(struct seq_file *m, void *v)
@@ -1273,13 +1271,12 @@ static ssize_t viafb_dfph_proc_write(struct file *file,
 	return count;
 }
 
-static const struct file_operations viafb_dfph_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= viafb_dfph_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= viafb_dfph_proc_write,
+static const struct proc_ops viafb_dfph_proc_ops = {
+	.proc_open	= viafb_dfph_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= viafb_dfph_proc_write,
 };
 
 static int viafb_dfpl_proc_show(struct seq_file *m, void *v)
@@ -1308,13 +1305,12 @@ static ssize_t viafb_dfpl_proc_write(struct file *file,
 	return count;
 }
 
-static const struct file_operations viafb_dfpl_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= viafb_dfpl_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= viafb_dfpl_proc_write,
+static const struct proc_ops viafb_dfpl_proc_ops = {
+	.proc_open	= viafb_dfpl_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= viafb_dfpl_proc_write,
 };
 
 static int viafb_vt1636_proc_show(struct seq_file *m, void *v)
@@ -1444,13 +1440,12 @@ static ssize_t viafb_vt1636_proc_write(struct file *file,
 	return count;
 }
 
-static const struct file_operations viafb_vt1636_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= viafb_vt1636_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= viafb_vt1636_proc_write,
+static const struct proc_ops viafb_vt1636_proc_ops = {
+	.proc_open	= viafb_vt1636_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= viafb_vt1636_proc_write,
 };
 
 #endif /* CONFIG_FB_VIA_DIRECT_PROCFS */
@@ -1522,13 +1517,12 @@ static ssize_t viafb_iga1_odev_proc_write(struct file *file,
 	return res;
 }
 
-static const struct file_operations viafb_iga1_odev_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= viafb_iga1_odev_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= viafb_iga1_odev_proc_write,
+static const struct proc_ops viafb_iga1_odev_proc_ops = {
+	.proc_open	= viafb_iga1_odev_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= viafb_iga1_odev_proc_write,
 };
 
 static int viafb_iga2_odev_proc_show(struct seq_file *m, void *v)
@@ -1562,13 +1556,12 @@ static ssize_t viafb_iga2_odev_proc_write(struct file *file,
 	return res;
 }
 
-static const struct file_operations viafb_iga2_odev_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= viafb_iga2_odev_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= viafb_iga2_odev_proc_write,
+static const struct proc_ops viafb_iga2_odev_proc_ops = {
+	.proc_open	= viafb_iga2_odev_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= viafb_iga2_odev_proc_write,
 };
 
 #define IS_VT1636(lvds_chip)	((lvds_chip).lvds_chip_name == VT1636_LVDS)
@@ -1580,14 +1573,14 @@ static void viafb_init_proc(struct viafb_shared *shared)
 	shared->proc_entry = viafb_entry;
 	if (viafb_entry) {
 #ifdef CONFIG_FB_VIA_DIRECT_PROCFS
-		proc_create("dvp0", 0, viafb_entry, &viafb_dvp0_proc_fops);
-		proc_create("dvp1", 0, viafb_entry, &viafb_dvp1_proc_fops);
-		proc_create("dfph", 0, viafb_entry, &viafb_dfph_proc_fops);
-		proc_create("dfpl", 0, viafb_entry, &viafb_dfpl_proc_fops);
+		proc_create("dvp0", 0, viafb_entry, &viafb_dvp0_proc_ops);
+		proc_create("dvp1", 0, viafb_entry, &viafb_dvp1_proc_ops);
+		proc_create("dfph", 0, viafb_entry, &viafb_dfph_proc_ops);
+		proc_create("dfpl", 0, viafb_entry, &viafb_dfpl_proc_ops);
 		if (IS_VT1636(shared->chip_info.lvds_chip_info)
 			|| IS_VT1636(shared->chip_info.lvds_chip_info2))
 			proc_create("vt1636", 0, viafb_entry,
-				&viafb_vt1636_proc_fops);
+				    &viafb_vt1636_proc_ops);
 #endif /* CONFIG_FB_VIA_DIRECT_PROCFS */
 
 		proc_create_single("supported_output_devices", 0, viafb_entry,
@@ -1595,11 +1588,11 @@ static void viafb_init_proc(struct viafb_shared *shared)
 		iga1_entry = proc_mkdir("iga1", viafb_entry);
 		shared->iga1_proc_entry = iga1_entry;
 		proc_create("output_devices", 0, iga1_entry,
-			&viafb_iga1_odev_proc_fops);
+			    &viafb_iga1_odev_proc_ops);
 		iga2_entry = proc_mkdir("iga2", viafb_entry);
 		shared->iga2_proc_entry = iga2_entry;
 		proc_create("output_devices", 0, iga2_entry,
-			&viafb_iga2_odev_proc_fops);
+			    &viafb_iga2_odev_proc_ops);
 	}
 }
 static void viafb_remove_proc(struct viafb_shared *shared)

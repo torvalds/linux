@@ -8279,13 +8279,12 @@ static __poll_t mdstat_poll(struct file *filp, poll_table *wait)
 	return mask;
 }
 
-static const struct file_operations md_seq_fops = {
-	.owner		= THIS_MODULE,
-	.open           = md_seq_open,
-	.read           = seq_read,
-	.llseek         = seq_lseek,
-	.release	= seq_release,
-	.poll		= mdstat_poll,
+static const struct proc_ops mdstat_proc_ops = {
+	.proc_open	= md_seq_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= seq_release,
+	.proc_poll	= mdstat_poll,
 };
 
 int register_md_personality(struct md_personality *p)
@@ -9454,7 +9453,7 @@ static void md_geninit(void)
 {
 	pr_debug("md: sizeof(mdp_super_t) = %d\n", (int)sizeof(mdp_super_t));
 
-	proc_create("mdstat", S_IRUGO, NULL, &md_seq_fops);
+	proc_create("mdstat", S_IRUGO, NULL, &mdstat_proc_ops);
 }
 
 static int __init md_init(void)

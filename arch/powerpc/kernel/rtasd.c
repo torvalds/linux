@@ -385,12 +385,12 @@ static __poll_t rtas_log_poll(struct file *file, poll_table * wait)
 	return 0;
 }
 
-static const struct file_operations proc_rtas_log_operations = {
-	.read =		rtas_log_read,
-	.poll =		rtas_log_poll,
-	.open =		rtas_log_open,
-	.release =	rtas_log_release,
-	.llseek =	noop_llseek,
+static const struct proc_ops rtas_log_proc_ops = {
+	.proc_read	= rtas_log_read,
+	.proc_poll	= rtas_log_poll,
+	.proc_open	= rtas_log_open,
+	.proc_release	= rtas_log_release,
+	.proc_lseek	= noop_llseek,
 };
 
 static int enable_surveillance(int timeout)
@@ -572,7 +572,7 @@ static int __init rtas_init(void)
 		return -ENODEV;
 
 	entry = proc_create("powerpc/rtas/error_log", 0400, NULL,
-			    &proc_rtas_log_operations);
+			    &rtas_log_proc_ops);
 	if (!entry)
 		printk(KERN_ERR "Failed to create error_log proc entry\n");
 

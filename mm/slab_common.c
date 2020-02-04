@@ -1580,18 +1580,17 @@ static int slabinfo_open(struct inode *inode, struct file *file)
 	return seq_open(file, &slabinfo_op);
 }
 
-static const struct file_operations proc_slabinfo_operations = {
-	.open		= slabinfo_open,
-	.read		= seq_read,
-	.write          = slabinfo_write,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
+static const struct proc_ops slabinfo_proc_ops = {
+	.proc_open	= slabinfo_open,
+	.proc_read	= seq_read,
+	.proc_write	= slabinfo_write,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= seq_release,
 };
 
 static int __init slab_proc_init(void)
 {
-	proc_create("slabinfo", SLABINFO_RIGHTS, NULL,
-						&proc_slabinfo_operations);
+	proc_create("slabinfo", SLABINFO_RIGHTS, NULL, &slabinfo_proc_ops);
 	return 0;
 }
 module_init(slab_proc_init);

@@ -211,9 +211,9 @@ static ssize_t prism2_pda_proc_read(struct file *file, char __user *buf,
 	return count;
 }
 
-static const struct file_operations prism2_pda_proc_fops = {
-	.read		= prism2_pda_proc_read,
-	.llseek		= generic_file_llseek,
+static const struct proc_ops prism2_pda_proc_ops = {
+	.proc_read	= prism2_pda_proc_read,
+	.proc_lseek	= generic_file_llseek,
 };
 
 
@@ -223,8 +223,8 @@ static ssize_t prism2_aux_dump_proc_no_read(struct file *file, char __user *buf,
 	return 0;
 }
 
-static const struct file_operations prism2_aux_dump_proc_fops = {
-	.read		= prism2_aux_dump_proc_no_read,
+static const struct proc_ops prism2_aux_dump_proc_ops = {
+	.proc_read	= prism2_aux_dump_proc_no_read,
 };
 
 
@@ -379,9 +379,9 @@ void hostap_init_proc(local_info_t *local)
 	proc_create_seq_data("wds", 0, local->proc,
 			&prism2_wds_proc_seqops, local);
 	proc_create_data("pda", 0, local->proc,
-			 &prism2_pda_proc_fops, local);
+			 &prism2_pda_proc_ops, local);
 	proc_create_data("aux_dump", 0, local->proc,
-			 local->func->read_aux_fops ?: &prism2_aux_dump_proc_fops,
+			 local->func->read_aux_proc_ops ?: &prism2_aux_dump_proc_ops,
 			 local);
 	proc_create_seq_data("bss_list", 0, local->proc,
 			&prism2_bss_list_proc_seqops, local);

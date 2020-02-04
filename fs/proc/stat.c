@@ -223,16 +223,16 @@ static int stat_open(struct inode *inode, struct file *file)
 	return single_open_size(file, show_stat, NULL, size);
 }
 
-static const struct file_operations proc_stat_operations = {
-	.open		= stat_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
+static const struct proc_ops stat_proc_ops = {
+	.proc_open	= stat_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
 };
 
 static int __init proc_stat_init(void)
 {
-	proc_create("stat", 0, NULL, &proc_stat_operations);
+	proc_create("stat", 0, NULL, &stat_proc_ops);
 	return 0;
 }
 fs_initcall(proc_stat_init);

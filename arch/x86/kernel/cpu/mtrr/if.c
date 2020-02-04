@@ -396,15 +396,16 @@ static int mtrr_open(struct inode *inode, struct file *file)
 	return single_open(file, mtrr_seq_show, NULL);
 }
 
-static const struct file_operations mtrr_fops = {
-	.owner			= THIS_MODULE,
-	.open			= mtrr_open,
-	.read			= seq_read,
-	.llseek			= seq_lseek,
-	.write			= mtrr_write,
-	.unlocked_ioctl		= mtrr_ioctl,
-	.compat_ioctl		= mtrr_ioctl,
-	.release		= mtrr_close,
+static const struct proc_ops mtrr_proc_ops = {
+	.proc_open		= mtrr_open,
+	.proc_read		= seq_read,
+	.proc_lseek		= seq_lseek,
+	.proc_write		= mtrr_write,
+	.proc_ioctl		= mtrr_ioctl,
+#ifdef CONFIG_COMPAT
+	.proc_compat_ioctl	= mtrr_ioctl,
+#endif
+	.proc_release		= mtrr_close,
 };
 
 static int __init mtrr_if_init(void)
@@ -417,7 +418,7 @@ static int __init mtrr_if_init(void)
 	    (!cpu_has(c, X86_FEATURE_CENTAUR_MCR)))
 		return -ENODEV;
 
-	proc_create("mtrr", S_IWUSR | S_IRUGO, NULL, &mtrr_fops);
+	proc_create("mtrr", S_IWUSR | S_IRUGO, NULL, &mtrr_proc_ops);
 	return 0;
 }
 arch_initcall(mtrr_if_init);

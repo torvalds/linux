@@ -1101,15 +1101,15 @@ static ssize_t write_sysrq_trigger(struct file *file, const char __user *buf,
 	return count;
 }
 
-static const struct file_operations proc_sysrq_trigger_operations = {
-	.write		= write_sysrq_trigger,
-	.llseek		= noop_llseek,
+static const struct proc_ops sysrq_trigger_proc_ops = {
+	.proc_write	= write_sysrq_trigger,
+	.proc_lseek	= noop_llseek,
 };
 
 static void sysrq_init_procfs(void)
 {
 	if (!proc_create("sysrq-trigger", S_IWUSR, NULL,
-			 &proc_sysrq_trigger_operations))
+			 &sysrq_trigger_proc_ops))
 		pr_err("Failed to register proc interface\n");
 }
 

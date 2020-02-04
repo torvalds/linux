@@ -24,7 +24,7 @@ struct dfs_cache_tgt_iterator {
 
 extern int dfs_cache_init(void);
 extern void dfs_cache_destroy(void);
-extern const struct file_operations dfscache_proc_fops;
+extern const struct proc_ops dfscache_proc_ops;
 
 extern int dfs_cache_find(const unsigned int xid, struct cifs_ses *ses,
 			  const struct nls_table *nls_codepage, int remap,
