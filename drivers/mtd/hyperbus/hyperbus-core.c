@@ -73,8 +73,10 @@ int hyperbus_register_device(struct hyperbus_device *hbdev)
 
 	np = hbdev->np;
 	ctlr = hbdev->ctlr;
-	if (!of_device_is_compatible(np, "cypress,hyperflash"))
+	if (!of_device_is_compatible(np, "cypress,hyperflash")) {
+		dev_err(ctlr->dev, "\"cypress,hyperflash\" compatible missing\n");
 		return -ENODEV;
+	}
 
 	hbdev->memtype = HYPERFLASH;
 
