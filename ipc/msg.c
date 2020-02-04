@@ -377,7 +377,7 @@ copy_msqid_from_user(struct msqid64_ds *out, void __user *buf, int version)
  * NOTE: no locks must be held, the rwsem is taken inside this function.
  */
 static int msgctl_down(struct ipc_namespace *ns, int msqid, int cmd,
-			struct msqid64_ds *msqid64)
+			struct ipc64_perm *perm, int msg_qbytes)
 {
 	struct kern_ipc_perm *ipcp;
 	struct msg_queue *msq;
@@ -387,7 +387,7 @@ static int msgctl_down(struct ipc_namespace *ns, int msqid, int cmd,
 	rcu_read_lock();
 
 	ipcp = ipcctl_obtain_check(ns, &msg_ids(ns), msqid, cmd,
-				      &msqid64->msg_perm, msqid64->msg_qbytes);
+				      perm, msg_qbytes);
 	if (IS_ERR(ipcp)) {
 		err = PTR_ERR(ipcp);
 		goto out_unlock1;
@@ -409,18 +409,18 @@ static int msgctl_down(struct ipc_namespace *ns, int msqid, int cmd,
 	{
 		DEFINE_WAKE_Q(wake_q);
 
-		if (msqid64->msg_qbytes > ns->msg_ctlmnb &&
+		if (msg_qbytes > ns->msg_ctlmnb &&
 		    !capable(CAP_SYS_RESOURCE)) {
 			err = -EPERM;
 			goto out_unlock1;
 		}
 
 		ipc_lock_object(&msq->q_perm);
-		err = ipc_update_perm(&msqid64->msg_perm, ipcp);
+		err = ipc_update_perm(perm, ipcp);
 		if (err)
 			goto out_unlock0;
 
-		msq->q_qbytes = msqid64->msg_qbytes;
+		msq->q_qbytes = msg_qbytes;
 
 		msq->q_ctime = ktime_get_real_seconds();
 		/*
@@ -603,9 +603,10 @@ long ksys_msgctl(int msqid, int cmd, struct msqid_ds __user *buf)
 	case IPC_SET:
 		if (copy_msqid_from_user(&msqid64, buf, version))
 			return -EFAULT;
-		/* fallthru */
+		return msgctl_down(ns, msqid, cmd, &msqid64.msg_perm,
+				   msqid64.msg_qbytes);
 	case IPC_RMID:
-		return msgctl_down(ns, msqid, cmd, &msqid64);
+		return msgctl_down(ns, msqid, cmd, NULL, 0);
 	default:
 		return  -EINVAL;
 	}
@@ -724,9 +725,9 @@ long compat_ksys_msgctl(int msqid, int cmd, void __user *uptr)
 	case IPC_SET:
 		if (copy_compat_msqid_from_user(&msqid64, uptr, version))
 			return -EFAULT;
-		/* fallthru */
+		return msgctl_down(ns, msqid, cmd, &msqid64.msg_perm, msqid64.msg_qbytes);
 	case IPC_RMID:
-		return msgctl_down(ns, msqid, cmd, &msqid64);
+		return msgctl_down(ns, msqid, cmd, NULL, 0);
 	default:
 		return -EINVAL;
 	}
