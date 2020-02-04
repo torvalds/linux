@@ -4498,6 +4498,10 @@ static void icl_mbus_init(struct drm_i915_private *dev_priv)
 		MBUS_ABOX_BW_CREDIT(1);
 
 	intel_de_rmw(dev_priv, MBUS_ABOX_CTL, mask, val);
+	if (INTEL_GEN(dev_priv) >= 12) {
+		intel_de_rmw(dev_priv, MBUS_ABOX1_CTL, mask, val);
+		intel_de_rmw(dev_priv, MBUS_ABOX2_CTL, mask, val);
+	}
 }
 
 static void hsw_assert_cdclk(struct drm_i915_private *dev_priv)

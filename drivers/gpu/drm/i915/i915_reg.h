@@ -2865,6 +2865,8 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define MI_ARB_STATE	_MMIO(0x20e4) /* 915+ only */
 
 #define MBUS_ABOX_CTL			_MMIO(0x45038)
+#define MBUS_ABOX1_CTL			_MMIO(0x45048)
+#define MBUS_ABOX2_CTL			_MMIO(0x4504C)
 #define MBUS_ABOX_BW_CREDIT_MASK	(3 << 20)
 #define MBUS_ABOX_BW_CREDIT(x)		((x) << 20)
 #define MBUS_ABOX_B_CREDIT_MASK		(0xF << 16)
