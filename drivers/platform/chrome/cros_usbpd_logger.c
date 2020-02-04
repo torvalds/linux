@@ -6,7 +6,6 @@
  */
 
 #include <linux/ktime.h>
-#include <linux/mfd/cros_ec.h>
 #include <linux/math64.h>
 #include <linux/module.h>
 #include <linux/platform_data/cros_ec_commands.h>
