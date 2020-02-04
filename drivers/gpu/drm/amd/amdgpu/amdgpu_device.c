@@ -3120,10 +3120,6 @@ fence_driver_init:
 	} else
 		adev->ucode_sysfs_en = true;
 
-	r = amdgpu_debugfs_init(adev);
-	if (r)
-		DRM_ERROR("Creating debugfs files failed (%d).\n", r);
-
 	if ((amdgpu_testing & 1)) {
 		if (adev->accel_working)
 			amdgpu_test_moves(adev);
@@ -3245,7 +3241,6 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 		amdgpu_ucode_sysfs_fini(adev);
 	if (IS_ENABLED(CONFIG_PERF_EVENTS))
 		amdgpu_pmu_fini(adev);
-	amdgpu_debugfs_fini(adev);
 	if (amdgpu_discovery && adev->asic_type >= CHIP_NAVI10)
 		amdgpu_discovery_fini(adev);
 }
