@@ -834,26 +834,40 @@ int mmc_bus_test(struct mmc_card *card, u8 bus_width)
 static int mmc_send_hpi_cmd(struct mmc_card *card)
 {
 	unsigned int busy_timeout_ms = card->ext_csd.out_of_int_time;
+	struct mmc_host *host = card->host;
+	bool use_r1b_resp = true;
 	struct mmc_command cmd = {};
-	unsigned int opcode;
 	int err;
 
-	opcode = card->ext_csd.hpi_cmd;
-	if (opcode == MMC_STOP_TRANSMISSION)
-		cmd.flags = MMC_RSP_R1B | MMC_CMD_AC;
-	else if (opcode == MMC_SEND_STATUS)
-		cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
-
-	cmd.opcode = opcode;
+	cmd.opcode = card->ext_csd.hpi_cmd;
 	cmd.arg = card->rca << 16 | 1;
 
-	err = mmc_wait_for_cmd(card->host, &cmd, 0);
+	/*
+	 * Make sure the host's max_busy_timeout fit the needed timeout for HPI.
+	 * In case it doesn't, let's instruct the host to avoid HW busy
+	 * detection, by using a R1 response instead of R1B.
+	 */
+	if (host->max_busy_timeout && busy_timeout_ms > host->max_busy_timeout)
+		use_r1b_resp = false;
+
+	if (cmd.opcode == MMC_STOP_TRANSMISSION && use_r1b_resp) {
+		cmd.flags = MMC_RSP_R1B | MMC_CMD_AC;
+		cmd.busy_timeout = busy_timeout_ms;
+	} else {
+		cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
+		use_r1b_resp = false;
+	}
+
+	err = mmc_wait_for_cmd(host, &cmd, 0);
 	if (err) {
-		pr_warn("%s: error %d interrupting operation. "
-			"HPI command response %#x\n", mmc_hostname(card->host),
-			err, cmd.resp[0]);
+		pr_warn("%s: HPI error %d. Command response %#x\n",
+			mmc_hostname(host), err, cmd.resp[0]);
 		return err;
 	}
+
+	/* No need to poll when using HW busy detection. */
+	if (host->caps & MMC_CAP_WAIT_WHILE_BUSY && use_r1b_resp)
+		return 0;
 
 	/* Let's poll to find out when the HPI request completes. */
 	return mmc_poll_for_busy(card, busy_timeout_ms, MMC_BUSY_HPI);
