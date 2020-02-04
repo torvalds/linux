@@ -468,7 +468,7 @@ static int mmc_busy_status(struct mmc_card *card, bool retry_crc_err,
 	if (err)
 		return err;
 
-	*busy = R1_CURRENT_STATE(status) == R1_STATE_PRG;
+	*busy = !mmc_ready_for_data(status);
 	return 0;
 }
 
