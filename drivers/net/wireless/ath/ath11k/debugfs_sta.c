@@ -379,6 +379,13 @@ static ssize_t ath11k_dbg_sta_dump_rx_stats(struct file *file,
 		len += scnprintf(buf + len, size - len, "%llu ", rx_stats->nss_count[i]);
 	len += scnprintf(buf + len, size - len, "\nRX Duration:%llu ",
 			 rx_stats->rx_duration);
+	len += scnprintf(buf + len, size - len,
+			 "\nDCM: %llu\nRU: 26 %llu 52: %llu 106: %llu 242: %llu 484: %llu 996: %llu\n",
+			 rx_stats->dcm_count, rx_stats->ru_alloc_cnt[0],
+			 rx_stats->ru_alloc_cnt[1], rx_stats->ru_alloc_cnt[2],
+			 rx_stats->ru_alloc_cnt[3], rx_stats->ru_alloc_cnt[4],
+			 rx_stats->ru_alloc_cnt[5]);
+
 	len += scnprintf(buf + len, size - len, "\n");
 
 	spin_unlock_bh(&ar->ab->base_lock);
