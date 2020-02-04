@@ -422,6 +422,8 @@ static const struct pmc_reg_map tgl_reg_map = {
 	.pm_cfg_offset = CNP_PMC_PM_CFG_OFFSET,
 	.pm_read_disable_bit = CNP_PMC_READ_DISABLE_BIT,
 	.ltr_ignore_max = TGL_NUM_IP_IGN_ALLOWED,
+	.lpm_en_offset = TGL_LPM_EN_OFFSET,
+	.lpm_residency_offset = TGL_LPM_RESIDENCY_OFFSET,
 };
 
 static inline u32 pmc_core_reg_read(struct pmc_dev *pmcdev, int reg_offset)
@@ -794,6 +796,26 @@ static int pmc_core_ltr_show(struct seq_file *s, void *unused)
 }
 DEFINE_SHOW_ATTRIBUTE(pmc_core_ltr);
 
+static int pmc_core_substate_res_show(struct seq_file *s, void *unused)
+{
+	struct pmc_dev *pmcdev = s->private;
+	u32 offset = pmcdev->map->lpm_residency_offset;
+	u32 lpm_en;
+	int index;
+
+	lpm_en = pmc_core_reg_read(pmcdev, pmcdev->map->lpm_en_offset);
+	seq_printf(s, "status substate residency\n");
+	for (index = 0; lpm_modes[index]; index++) {
+		seq_printf(s, "%7s %7s %-15u\n",
+			   BIT(index) & lpm_en ? "Enabled" : " ",
+			   lpm_modes[index], pmc_core_reg_read(pmcdev, offset));
+		offset += 4;
+	}
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(pmc_core_substate_res);
+
 static int pmc_core_pkgc_show(struct seq_file *s, void *unused)
 {
 	struct pmc_dev *pmcdev = s->private;
@@ -858,6 +880,12 @@ static void pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
 
 		debugfs_create_bool("slp_s0_dbg_latch", 0644,
 				    dir, &slps0_dbg_latch);
+	}
+
+	if (pmcdev->map->lpm_en_offset) {
+		debugfs_create_file("substate_residencies", 0444,
+				    pmcdev->dbgfs_dir, pmcdev,
+				    &pmc_core_substate_res_fops);
 	}
 }
 #else

@@ -188,6 +188,24 @@ enum ppfear_regs {
 
 #define TGL_NUM_IP_IGN_ALLOWED			22
 
+/*
+ * Tigerlake Power Management Controller register offsets
+ */
+#define TGL_LPM_EN_OFFSET			0x1C78
+#define TGL_LPM_RESIDENCY_OFFSET		0x1C80
+
+const char *lpm_modes[] = {
+	"S0i2.0",
+	"S0i2.1",
+	"S0i2.2",
+	"S0i3.0",
+	"S0i3.1",
+	"S0i3.2",
+	"S0i3.3",
+	"S0i3.4",
+	NULL
+};
+
 struct pmc_bit_map {
 	const char *name;
 	u32 bit_mask;
@@ -231,6 +249,9 @@ struct pmc_reg_map {
 	const u32 slps0_dbg_offset;
 	const u32 ltr_ignore_max;
 	const u32 pm_vric1_offset;
+	/* Low Power Mode registers */
+	const u32 lpm_en_offset;
+	const u32 lpm_residency_offset;
 };
 
 /**
