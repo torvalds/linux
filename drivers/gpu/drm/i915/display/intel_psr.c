@@ -61,9 +61,9 @@
  * must be correctly synchronized/cancelled when shutting down the pipe."
  */
 
-static bool psr_global_enabled(u32 debug)
+static bool psr_global_enabled(struct drm_i915_private *i915)
 {
-	switch (debug & I915_PSR_DEBUG_MODE_MASK) {
+	switch (i915->psr.debug & I915_PSR_DEBUG_MODE_MASK) {
 	case I915_PSR_DEBUG_DEFAULT:
 		return i915_modparams.enable_psr;
 	case I915_PSR_DEBUG_DISABLE:
@@ -930,7 +930,7 @@ void intel_psr_enable(struct intel_dp *intel_dp,
 
 	mutex_lock(&dev_priv->psr.lock);
 
-	if (!psr_global_enabled(dev_priv->psr.debug)) {
+	if (!psr_global_enabled(dev_priv)) {
 		drm_dbg_kms(&dev_priv->drm, "PSR disabled by flag\n");
 		goto unlock;
 	}
@@ -1085,7 +1085,7 @@ void intel_psr_update(struct intel_dp *intel_dp,
 
 	mutex_lock(&dev_priv->psr.lock);
 
-	enable = crtc_state->has_psr && psr_global_enabled(psr->debug);
+	enable = crtc_state->has_psr && psr_global_enabled(dev_priv);
 	psr2_enable = intel_psr2_enabled(dev_priv, crtc_state);
 
 	if (enable == psr->enabled && psr2_enable == psr->psr2_enabled) {
