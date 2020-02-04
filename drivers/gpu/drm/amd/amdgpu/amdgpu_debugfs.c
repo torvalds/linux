@@ -1297,6 +1297,10 @@ int amdgpu_debugfs_init(struct amdgpu_device *adev)
 		return r;
 	}
 
+	if (amdgpu_debugfs_sa_init(adev)) {
+		dev_err(adev->dev, "failed to register debugfs file for SA\n");
+	}
+
 	return amdgpu_debugfs_add_files(adev, amdgpu_debugfs_list,
 					ARRAY_SIZE(amdgpu_debugfs_list));
 }
