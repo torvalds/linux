@@ -19,6 +19,7 @@
 
 #define PHY_MDM6600_PHY_DELAY_MS	4000	/* PHY enable 2.2s to 3.5s */
 #define PHY_MDM6600_ENABLED_DELAY_MS	8000	/* 8s more total for MDM6600 */
+#define PHY_MDM6600_WAKE_KICK_MS	600	/* time on after GPIO toggle */
 #define MDM6600_MODEM_IDLE_DELAY_MS	1000	/* modem after USB suspend */
 #define MDM6600_MODEM_WAKE_DELAY_MS	200	/* modem response after idle */
 
@@ -491,8 +492,14 @@ static void phy_mdm6600_modem_wake(struct work_struct *work)
 
 	ddata = container_of(work, struct phy_mdm6600, modem_wake_work.work);
 	phy_mdm6600_wake_modem(ddata);
+
+	/*
+	 * The modem does not always stay awake 1.2 seconds after toggling
+	 * the wake GPIO, and sometimes it idles after about some 600 ms
+	 * making writes time out.
+	 */
 	schedule_delayed_work(&ddata->modem_wake_work,
-			      msecs_to_jiffies(MDM6600_MODEM_IDLE_DELAY_MS));
+			      msecs_to_jiffies(PHY_MDM6600_WAKE_KICK_MS));
 }
 
 static int __maybe_unused phy_mdm6600_runtime_suspend(struct device *dev)
