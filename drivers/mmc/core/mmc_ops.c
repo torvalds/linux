@@ -471,6 +471,8 @@ static int mmc_busy_status(struct mmc_card *card, bool retry_crc_err,
 	case MMC_BUSY_ERASE:
 		err = R1_STATUS(status) ? -EIO : 0;
 		break;
+	case MMC_BUSY_HPI:
+		break;
 	default:
 		err = -EINVAL;
 	}
@@ -831,6 +833,7 @@ int mmc_bus_test(struct mmc_card *card, u8 bus_width)
 
 static int mmc_send_hpi_cmd(struct mmc_card *card)
 {
+	unsigned int busy_timeout_ms = card->ext_csd.out_of_int_time;
 	struct mmc_command cmd = {};
 	unsigned int opcode;
 	int err;
@@ -852,7 +855,8 @@ static int mmc_send_hpi_cmd(struct mmc_card *card)
 		return err;
 	}
 
-	return 0;
+	/* Let's poll to find out when the HPI request completes. */
+	return mmc_poll_for_busy(card, busy_timeout_ms, MMC_BUSY_HPI);
 }
 
 /**
@@ -866,7 +870,6 @@ int mmc_interrupt_hpi(struct mmc_card *card)
 {
 	int err;
 	u32 status;
-	unsigned long prg_wait;
 
 	if (!card->ext_csd.hpi_en) {
 		pr_info("%s: HPI enable bit unset\n", mmc_hostname(card->host));
@@ -900,19 +903,6 @@ int mmc_interrupt_hpi(struct mmc_card *card)
 	}
 
 	err = mmc_send_hpi_cmd(card);
-	if (err)
-		goto out;
-
-	prg_wait = jiffies + msecs_to_jiffies(card->ext_csd.out_of_int_time);
-	do {
-		err = mmc_send_status(card, &status);
-
-		if (!err && R1_CURRENT_STATE(status) == R1_STATE_TRAN)
-			break;
-		if (time_after(jiffies, prg_wait))
-			err = -ETIMEDOUT;
-	} while (!err);
-
 out:
 	return err;
 }
