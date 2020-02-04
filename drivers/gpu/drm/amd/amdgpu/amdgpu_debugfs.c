@@ -31,6 +31,7 @@
 #include <drm/drm_debugfs.h>
 
 #include "amdgpu.h"
+#include "amdgpu_pm.h"
 
 /**
  * amdgpu_debugfs_add_files - Add simple debugfs entries
@@ -1287,6 +1288,12 @@ int amdgpu_debugfs_init(struct amdgpu_device *adev)
 	r = amdgpu_ttm_debugfs_init(adev);
 	if (r) {
 		DRM_ERROR("Failed to init debugfs\n");
+		return r;
+	}
+
+	r = amdgpu_debugfs_pm_init(adev);
+	if (r) {
+		DRM_ERROR("Failed to register debugfs file for dpm!\n");
 		return r;
 	}
 
