@@ -3389,6 +3389,67 @@ int skl_format_to_fourcc(int format, bool rgb_order, bool alpha)
 	}
 }
 
+static struct i915_vma *
+initial_plane_vma(struct drm_i915_private *i915,
+		  struct intel_initial_plane_config *plane_config)
+{
+	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
+	u32 base, size;
+
+	if (plane_config->size == 0)
+		return NULL;
+
+	base = round_down(plane_config->base,
+			  I915_GTT_MIN_ALIGNMENT);
+	size = round_up(plane_config->base + plane_config->size,
+			I915_GTT_MIN_ALIGNMENT);
+	size -= base;
+
+	/*
+	 * If the FB is too big, just don't use it since fbdev is not very
+	 * important and we should probably use that space with FBC or other
+	 * features.
+	 */
+	if (size * 2 > i915->stolen_usable_size)
+		return NULL;
+
+	obj = i915_gem_object_create_stolen_for_preallocated(i915, base, size);
+	if (IS_ERR(obj))
+		return NULL;
+
+	switch (plane_config->tiling) {
+	case I915_TILING_NONE:
+		break;
+	case I915_TILING_X:
+	case I915_TILING_Y:
+		obj->tiling_and_stride =
+			plane_config->fb->base.pitches[0] |
+			plane_config->tiling;
+		break;
+	default:
+		MISSING_CASE(plane_config->tiling);
+		goto err_obj;
+	}
+
+	vma = i915_vma_instance(obj, &i915->ggtt.vm, NULL);
+	if (IS_ERR(vma))
+		goto err_obj;
+
+	if (i915_ggtt_pin(vma, 0, PIN_MAPPABLE | PIN_OFFSET_FIXED | base))
+		goto err_obj;
+
+	if (i915_gem_object_is_tiled(obj) &&
+	    !i915_vma_is_map_and_fenceable(vma))
+		goto err_obj;
+
+	return vma;
+
+err_obj:
+	i915_gem_object_put(obj);
+	return NULL;
+}
+
 static bool
 intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
 			      struct intel_initial_plane_config *plane_config)
@@ -3397,22 +3458,7 @@ intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_mode_fb_cmd2 mode_cmd = { 0 };
 	struct drm_framebuffer *fb = &plane_config->fb->base;
-	u32 base_aligned = round_down(plane_config->base, PAGE_SIZE);
-	u32 size_aligned = round_up(plane_config->base + plane_config->size,
-				    PAGE_SIZE);
-	struct drm_i915_gem_object *obj;
-	bool ret = false;
-
-	size_aligned -= base_aligned;
-
-	if (plane_config->size == 0)
-		return false;
-
-	/* If the FB is too big, just don't use it since fbdev is not very
-	 * important and we should probably use that space with FBC or other
-	 * features. */
-	if (size_aligned * 2 > dev_priv->stolen_usable_size)
-		return false;
+	struct i915_vma *vma;
 
 	switch (fb->modifier) {
 	case DRM_FORMAT_MOD_LINEAR:
@@ -3426,24 +3472,9 @@ intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
 		return false;
 	}
 
-	obj = i915_gem_object_create_stolen_for_preallocated(dev_priv,
-							     base_aligned,
-							     base_aligned,
-							     size_aligned);
-	if (IS_ERR(obj))
+	vma = initial_plane_vma(dev_priv, plane_config);
+	if (!vma)
 		return false;
-
-	switch (plane_config->tiling) {
-	case I915_TILING_NONE:
-		break;
-	case I915_TILING_X:
-	case I915_TILING_Y:
-		obj->tiling_and_stride = fb->pitches[0] | plane_config->tiling;
-		break;
-	default:
-		MISSING_CASE(plane_config->tiling);
-		goto out;
-	}
 
 	mode_cmd.pixel_format = fb->format->format;
 	mode_cmd.width = fb->width;
@@ -3452,17 +3483,18 @@ intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
 	mode_cmd.modifier[0] = fb->modifier;
 	mode_cmd.flags = DRM_MODE_FB_MODIFIERS;
 
-	if (intel_framebuffer_init(to_intel_framebuffer(fb), obj, &mode_cmd)) {
+	if (intel_framebuffer_init(to_intel_framebuffer(fb),
+				   vma->obj, &mode_cmd)) {
 		drm_dbg_kms(&dev_priv->drm, "intel fb init failed\n");
-		goto out;
+		goto err_vma;
 	}
 
+	plane_config->vma = vma;
+	return true;
 
-	drm_dbg_kms(&dev_priv->drm, "initial plane fb obj %p\n", obj);
-	ret = true;
-out:
-	i915_gem_object_put(obj);
-	return ret;
+err_vma:
+	i915_vma_put(vma);
+	return false;
 }
 
 static void
@@ -3561,12 +3593,14 @@ intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 	struct intel_plane_state *intel_state =
 		to_intel_plane_state(plane_state);
 	struct drm_framebuffer *fb;
+	struct i915_vma *vma;
 
 	if (!plane_config->fb)
 		return;
 
 	if (intel_alloc_initial_plane_obj(intel_crtc, plane_config)) {
 		fb = &plane_config->fb->base;
+		vma = plane_config->vma;
 		goto valid_fb;
 	}
 
@@ -3589,6 +3623,7 @@ intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 
 		if (intel_plane_ggtt_offset(state) == plane_config->base) {
 			fb = state->hw.fb;
+			vma = state->vma;
 			goto valid_fb;
 		}
 	}
@@ -3611,21 +3646,11 @@ valid_fb:
 	intel_state->color_plane[0].stride =
 		intel_fb_pitch(fb, 0, intel_state->hw.rotation);
 
-	intel_state->vma =
-		intel_pin_and_fence_fb_obj(fb,
-					   &intel_state->view,
-					   intel_plane_uses_fence(intel_state),
-					   &intel_state->flags);
-	if (IS_ERR(intel_state->vma)) {
-		drm_err(&dev_priv->drm,
-			"failed to pin boot fb on pipe %d: %li\n",
-			intel_crtc->pipe, PTR_ERR(intel_state->vma));
-
-		intel_state->vma = NULL;
-		return;
-	}
-
-	intel_frontbuffer_flush(to_intel_frontbuffer(fb), ORIGIN_DIRTYFB);
+	__i915_vma_pin(vma);
+	intel_state->vma = i915_vma_get(vma);
+	if (intel_plane_uses_fence(intel_state) && i915_vma_pin_fence(vma) == 0)
+		if (vma->fence)
+			intel_state->flags |= PLANE_HAS_FENCE;
 
 	plane_state->src_x = 0;
 	plane_state->src_y = 0;
@@ -3648,6 +3673,8 @@ valid_fb:
 
 	plane_state->crtc = &intel_crtc->base;
 	intel_plane_copy_uapi_to_hw_state(intel_state, intel_state);
+
+	intel_frontbuffer_flush(to_intel_frontbuffer(fb), ORIGIN_DIRTYFB);
 
 	atomic_or(to_intel_plane(primary)->frontbuffer_bit,
 		  &to_intel_frontbuffer(fb)->bits);
@@ -17863,6 +17890,9 @@ static void plane_config_fini(struct intel_initial_plane_config *plane_config)
 		else
 			kfree(fb);
 	}
+
+	if (plane_config->vma)
+		i915_vma_put(plane_config->vma);
 }
 
 int intel_modeset_init(struct drm_i915_private *i915)

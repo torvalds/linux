@@ -686,28 +686,24 @@ struct intel_memory_region *i915_gem_stolen_setup(struct drm_i915_private *i915)
 struct drm_i915_gem_object *
 i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *i915,
 					       resource_size_t stolen_offset,
-					       resource_size_t gtt_offset,
 					       resource_size_t size)
 {
 	struct intel_memory_region *mem = i915->mm.regions[INTEL_REGION_STOLEN];
-	struct i915_ggtt *ggtt = &i915->ggtt;
 	struct drm_i915_gem_object *obj;
 	struct drm_mm_node *stolen;
-	struct i915_vma *vma;
 	int ret;
 
 	if (!drm_mm_initialized(&i915->mm.stolen))
 		return ERR_PTR(-ENODEV);
 
 	drm_dbg(&i915->drm,
-		"creating preallocated stolen object: stolen_offset=%pa, gtt_offset=%pa, size=%pa\n",
-		&stolen_offset, &gtt_offset, &size);
+		"creating preallocated stolen object: stolen_offset=%pa, size=%pa\n",
+		&stolen_offset, &size);
 
 	/* KISS and expect everything to be page-aligned */
-	if (drm_WARN_ON(&i915->drm, size == 0) ||
-	    drm_WARN_ON(&i915->drm, !IS_ALIGNED(size, I915_GTT_PAGE_SIZE)) ||
-	    drm_WARN_ON(&i915->drm,
-			!IS_ALIGNED(stolen_offset, I915_GTT_MIN_ALIGNMENT)))
+	if (GEM_WARN_ON(size == 0) ||
+	    GEM_WARN_ON(!IS_ALIGNED(size, I915_GTT_PAGE_SIZE)) ||
+	    GEM_WARN_ON(!IS_ALIGNED(stolen_offset, I915_GTT_MIN_ALIGNMENT)))
 		return ERR_PTR(-EINVAL);
 
 	stolen = kzalloc(sizeof(*stolen), GFP_KERNEL);
@@ -720,68 +716,20 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *i915,
 	ret = drm_mm_reserve_node(&i915->mm.stolen, stolen);
 	mutex_unlock(&i915->mm.stolen_lock);
 	if (ret) {
-		drm_dbg(&i915->drm, "failed to allocate stolen space\n");
-		kfree(stolen);
-		return ERR_PTR(ret);
+		obj = ERR_PTR(ret);
+		goto err_free;
 	}
 
 	obj = __i915_gem_object_create_stolen(mem, stolen);
-	if (IS_ERR(obj)) {
-		drm_dbg(&i915->drm, "failed to allocate stolen object\n");
-		i915_gem_stolen_remove_node(i915, stolen);
-		kfree(stolen);
-		return obj;
-	}
+	if (IS_ERR(obj))
+		goto err_stolen;
 
-	/* Some objects just need physical mem from stolen space */
-	if (gtt_offset == I915_GTT_OFFSET_NONE)
-		return obj;
-
-	ret = i915_gem_object_pin_pages(obj);
-	if (ret)
-		goto err;
-
-	vma = i915_vma_instance(obj, &ggtt->vm, NULL);
-	if (IS_ERR(vma)) {
-		ret = PTR_ERR(vma);
-		goto err_pages;
-	}
-
-	/* To simplify the initialisation sequence between KMS and GTT,
-	 * we allow construction of the stolen object prior to
-	 * setting up the GTT space. The actual reservation will occur
-	 * later.
-	 */
-	mutex_lock(&ggtt->vm.mutex);
-	ret = i915_gem_gtt_reserve(&ggtt->vm, &vma->node,
-				   size, gtt_offset, obj->cache_level,
-				   0);
-	if (ret) {
-		drm_dbg(&i915->drm, "failed to allocate stolen GTT space\n");
-		mutex_unlock(&ggtt->vm.mutex);
-		goto err_pages;
-	}
-
-	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
-
-	GEM_BUG_ON(vma->pages);
-	vma->pages = obj->mm.pages;
-	atomic_set(&vma->pages_count, I915_VMA_PAGES_ACTIVE);
-
-	set_bit(I915_VMA_GLOBAL_BIND_BIT, __i915_vma_flags(vma));
-	__i915_vma_set_map_and_fenceable(vma);
-
-	list_add_tail(&vma->vm_link, &ggtt->vm.bound_list);
-	mutex_unlock(&ggtt->vm.mutex);
-
-	GEM_BUG_ON(i915_gem_object_is_shrinkable(obj));
-	atomic_inc(&obj->bind_count);
-
+	i915_gem_object_set_cache_coherency(obj, I915_CACHE_NONE);
 	return obj;
 
-err_pages:
-	i915_gem_object_unpin_pages(obj);
-err:
-	i915_gem_object_put(obj);
-	return ERR_PTR(ret);
+err_stolen:
+	i915_gem_stolen_remove_node(i915, stolen);
+err_free:
+	kfree(stolen);
+	return obj;
 }

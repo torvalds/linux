@@ -296,7 +296,6 @@ static int vlv_rc6_init(struct intel_rc6 *rc6)
 		pcbr_offset = (pcbr & ~4095) - i915->dsm.start;
 		pctx = i915_gem_object_create_stolen_for_preallocated(i915,
 								      pcbr_offset,
-								      I915_GTT_OFFSET_NONE,
 								      pctx_size);
 		if (IS_ERR(pctx))
 			return PTR_ERR(pctx);
