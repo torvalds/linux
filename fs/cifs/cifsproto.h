@@ -614,7 +614,7 @@ static inline int get_dfs_path(const unsigned int xid, struct cifs_ses *ses,
 
 static inline int cifs_create_options(struct cifs_sb_info *cifs_sb, int options)
 {
-	if (backup_cred(cifs_sb))
+	if (cifs_sb && (backup_cred(cifs_sb)))
 		return options | CREATE_OPEN_BACKUP_INTENT;
 	else
 		return options;
