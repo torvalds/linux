@@ -659,8 +659,6 @@ static inline bool rwsem_can_spin_on_owner(struct rw_semaphore *sem,
 	unsigned long flags;
 	bool ret = true;
 
-	BUILD_BUG_ON(!(RWSEM_OWNER_UNKNOWN & RWSEM_NONSPINNABLE));
-
 	if (need_resched()) {
 		lockevent_inc(rwsem_opt_fail);
 		return false;
