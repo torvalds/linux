@@ -5353,7 +5353,7 @@ static bool nested_vmx_exit_handled_io(struct kvm_vcpu *vcpu,
 				       struct vmcs12 *vmcs12)
 {
 	unsigned long exit_qualification;
-	unsigned int port;
+	unsigned short port;
 	int size;
 
 	if (!nested_cpu_has(vmcs12, CPU_BASED_USE_IO_BITMAPS))
