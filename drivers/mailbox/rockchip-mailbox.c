@@ -207,18 +207,25 @@ static int rockchip_mbox_probe(struct platform_device *pdev)
 
 	for (i = 0; i < mb->mbox.num_chans; i++) {
 		irq = platform_get_irq(pdev, i);
-		if (irq < 0)
-			return irq;
-
-		ret = devm_request_threaded_irq(&pdev->dev, irq,
-						NULL,
-						rockchip_mbox_irq, IRQF_ONESHOT,
-						dev_name(&pdev->dev), mb);
-		if (ret < 0)
-			return ret;
+		if (irq < 0) {
+			/* For shared irq case, only could be got one time */
+			if (i > 0 && irq == -ENXIO)
+				mb->chans[i].irq = mb->chans[0].irq;
+			else
+				return irq;
+		} else {
+			mb->chans[i].irq = irq;
+			ret = devm_request_threaded_irq(&pdev->dev, irq,
+							NULL,
+							rockchip_mbox_irq,
+							IRQF_ONESHOT,
+							dev_name(&pdev->dev),
+							mb);
+			if (ret < 0)
+				return ret;
+		}
 
 		mb->chans[i].idx = i;
-		mb->chans[i].irq = irq;
 		mb->mbox.chans[i].con_priv = &mb->chans[i];
 	}
 
