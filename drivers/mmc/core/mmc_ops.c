@@ -444,6 +444,34 @@ int mmc_switch_status(struct mmc_card *card, bool crc_err_fatal)
 	return mmc_switch_status_error(card->host, status);
 }
 
+static int mmc_busy_status(struct mmc_card *card, bool retry_crc_err,
+			   bool *busy)
+{
+	struct mmc_host *host = card->host;
+	u32 status = 0;
+	int err;
+
+	if (host->ops->card_busy) {
+		*busy = host->ops->card_busy(host);
+		return 0;
+	}
+
+	err = mmc_send_status(card, &status);
+	if (retry_crc_err && err == -EILSEQ) {
+		*busy = true;
+		return 0;
+	}
+	if (err)
+		return err;
+
+	err = mmc_switch_status_error(card->host, status);
+	if (err)
+		return err;
+
+	*busy = R1_CURRENT_STATE(status) == R1_STATE_PRG;
+	return 0;
+}
+
 static int mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
 			bool send_status, bool retry_crc_err)
 {
@@ -451,7 +479,6 @@ static int mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
 	int err;
 	unsigned long timeout;
 	unsigned int udelay = 32, udelay_max = 32768;
-	u32 status = 0;
 	bool expired = false;
 	bool busy = false;
 
@@ -473,21 +500,9 @@ static int mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
 		 */
 		expired = time_after(jiffies, timeout);
 
-		if (host->ops->card_busy) {
-			busy = host->ops->card_busy(host);
-		} else {
-			err = mmc_send_status(card, &status);
-			if (retry_crc_err && err == -EILSEQ) {
-				busy = true;
-			} else if (err) {
-				return err;
-			} else {
-				err = mmc_switch_status_error(host, status);
-				if (err)
-					return err;
-				busy = R1_CURRENT_STATE(status) == R1_STATE_PRG;
-			}
-		}
+		err = mmc_busy_status(card, retry_crc_err, &busy);
+		if (err)
+			return err;
 
 		/* Timeout if the device still remains busy. */
 		if (expired && busy) {
