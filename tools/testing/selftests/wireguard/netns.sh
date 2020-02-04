@@ -38,9 +38,8 @@ ip0() { pretty 0 "ip $*"; ip -n $netns0 "$@"; }
 ip1() { pretty 1 "ip $*"; ip -n $netns1 "$@"; }
 ip2() { pretty 2 "ip $*"; ip -n $netns2 "$@"; }
 sleep() { read -t "$1" -N 1 || true; }
-waitiperf() { pretty "${1//*-}" "wait for iperf:5201"; while [[ $(ss -N "$1" -tlp 'sport = 5201') != *iperf3* ]]; do sleep 0.1; done; }
-waitncatudp() { pretty "${1//*-}" "wait for udp:1111"; while [[ $(ss -N "$1" -ulp 'sport = 1111') != *ncat* ]]; do sleep 0.1; done; }
-waitncattcp() { pretty "${1//*-}" "wait for tcp:1111"; while [[ $(ss -N "$1" -tlp 'sport = 1111') != *ncat* ]]; do sleep 0.1; done; }
+waitiperf() { pretty "${1//*-}" "wait for iperf:5201 pid $2"; while [[ $(ss -N "$1" -tlpH 'sport = 5201') != *\"iperf3\",pid=$2,fd=* ]]; do sleep 0.1; done; }
+waitncatudp() { pretty "${1//*-}" "wait for udp:1111 pid $2"; while [[ $(ss -N "$1" -ulpH 'sport = 1111') != *\"ncat\",pid=$2,fd=* ]]; do sleep 0.1; done; }
 waitiface() { pretty "${1//*-}" "wait for $2 to come up"; ip netns exec "$1" bash -c "while [[ \$(< \"/sys/class/net/$2/operstate\") != up ]]; do read -t .1 -N 0 || true; done;"; }
 
 cleanup() {
@@ -119,22 +118,22 @@ tests() {
 
 	# TCP over IPv4
 	n2 iperf3 -s -1 -B 192.168.241.2 &
-	waitiperf $netns2
+	waitiperf $netns2 $!
 	n1 iperf3 -Z -t 3 -c 192.168.241.2
 
 	# TCP over IPv6
 	n1 iperf3 -s -1 -B fd00::1 &
-	waitiperf $netns1
+	waitiperf $netns1 $!
 	n2 iperf3 -Z -t 3 -c fd00::1
 
 	# UDP over IPv4
 	n1 iperf3 -s -1 -B 192.168.241.1 &
-	waitiperf $netns1
+	waitiperf $netns1 $!
 	n2 iperf3 -Z -t 3 -b 0 -u -c 192.168.241.1
 
 	# UDP over IPv6
 	n2 iperf3 -s -1 -B fd00::2 &
-	waitiperf $netns2
+	waitiperf $netns2 $!
 	n1 iperf3 -Z -t 3 -b 0 -u -c fd00::2
 }
 
@@ -207,7 +206,7 @@ n1 ping -W 1 -c 1 192.168.241.2
 n1 wg set wg0 peer "$pub2" allowed-ips 192.168.241.0/24
 exec 4< <(n1 ncat -l -u -p 1111)
 ncat_pid=$!
-waitncatudp $netns1
+waitncatudp $netns1 $ncat_pid
 n2 ncat -u 192.168.241.1 1111 <<<"X"
 read -r -N 1 -t 1 out <&4 && [[ $out == "X" ]]
 kill $ncat_pid
@@ -216,7 +215,7 @@ n1 wg set wg0 peer "$more_specific_key" allowed-ips 192.168.241.2/32
 n2 wg set wg0 listen-port 9997
 exec 4< <(n1 ncat -l -u -p 1111)
 ncat_pid=$!
-waitncatudp $netns1
+waitncatudp $netns1 $ncat_pid
 n2 ncat -u 192.168.241.1 1111 <<<"X"
 ! read -r -N 1 -t 1 out <&4 || false
 kill $ncat_pid
