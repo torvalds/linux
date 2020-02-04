@@ -355,6 +355,10 @@
 	status = "okay";
 };
 
+&usbotg_hs {
+	vbus-supply = <&vbus_otg>;
+};
+
 &usbphyc_port0 {
 	phy-supply = <&vdd_usb>;
 	vdda1v1-supply = <&reg11>;
