@@ -845,30 +845,41 @@ out_unlock:
 	mutex_unlock(&pmcdev->lock);
 }
 
-static int pmc_core_slps0_dbg_show(struct seq_file *s, void *unused)
+static void pmc_core_slps0_display(struct pmc_dev *pmcdev, struct device *dev,
+				   struct seq_file *s)
 {
-	struct pmc_dev *pmcdev = s->private;
 	const struct pmc_bit_map **maps = pmcdev->map->slps0_dbg_maps;
 	const struct pmc_bit_map *map;
-	int offset;
+	int offset = pmcdev->map->slps0_dbg_offset;
 	u32 data;
 
-	pmc_core_slps0_dbg_latch(pmcdev, false);
-	offset = pmcdev->map->slps0_dbg_offset;
 	while (*maps) {
 		map = *maps;
 		data = pmc_core_reg_read(pmcdev, offset);
 		offset += 4;
 		while (map->name) {
-			seq_printf(s, "SLP_S0_DBG: %-32s\tState: %s\n",
-				   map->name,
-				   data & map->bit_mask ?
-				   "Yes" : "No");
+			if (dev)
+				dev_dbg(dev, "SLP_S0_DBG: %-32s\tState: %s\n",
+					map->name,
+					data & map->bit_mask ? "Yes" : "No");
+			if (s)
+				seq_printf(s, "SLP_S0_DBG: %-32s\tState: %s\n",
+					   map->name,
+					   data & map->bit_mask ? "Yes" : "No");
 			++map;
 		}
 		++maps;
 	}
+}
+
+static int pmc_core_slps0_dbg_show(struct seq_file *s, void *unused)
+{
+	struct pmc_dev *pmcdev = s->private;
+
+	pmc_core_slps0_dbg_latch(pmcdev, false);
+	pmc_core_slps0_display(pmcdev, NULL, s);
 	pmc_core_slps0_dbg_latch(pmcdev, true);
+
 	return 0;
 }
 DEFINE_SHOW_ATTRIBUTE(pmc_core_slps0_dbg);
@@ -1264,10 +1275,6 @@ static inline bool pmc_core_is_s0ix_failed(struct pmc_dev *pmcdev)
 static int pmc_core_resume(struct device *dev)
 {
 	struct pmc_dev *pmcdev = dev_get_drvdata(dev);
-	const struct pmc_bit_map **maps = pmcdev->map->slps0_dbg_maps;
-	int offset = pmcdev->map->slps0_dbg_offset;
-	const struct pmc_bit_map *map;
-	u32 data;
 
 	if (!pmcdev->check_counters)
 		return 0;
@@ -1285,18 +1292,9 @@ static int pmc_core_resume(struct device *dev)
 	/* The real interesting case - S0ix failed - lets ask PMC why. */
 	dev_warn(dev, "CPU did not enter SLP_S0!!! (S0ix cnt=%llu)\n",
 		 pmcdev->s0ix_counter);
-	while (*maps) {
-		map = *maps;
-		data = pmc_core_reg_read(pmcdev, offset);
-		offset += 4;
-		while (map->name) {
-			dev_dbg(dev, "SLP_S0_DBG: %-32s\tState: %s\n",
-				map->name,
-				data & map->bit_mask ? "Yes" : "No");
-			map++;
-		}
-		maps++;
-	}
+	if (pmcdev->map->slps0_dbg_maps)
+		pmc_core_slps0_display(pmcdev, dev, NULL);
+
 	return 0;
 }
 
