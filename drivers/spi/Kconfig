@@ -897,6 +897,17 @@ config SPI_ZYNQMP_GQSPI
 # Add new SPI master controllers in alphabetical order above this line
 #
 
+comment "SPI Multiplexer support"
+
+config SPI_MUX
+	tristate "SPI multiplexer support"
+	select MULTIPLEXER
+	help
+	  This adds support for SPI multiplexers. Each SPI mux will be
+	  accessible as a SPI controller, the devices behind the mux will appear
+	  to be chip selects on this controller. It is still necessary to
+	  select one or more specific mux-controller drivers.
+
 #
 # There are lots of SPI device types, with sensors and memory
 # being probably the most widely used ones.
