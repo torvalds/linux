@@ -328,16 +328,15 @@ intel_dp_aux_display_control_capable(struct intel_connector *connector)
 int intel_dp_aux_init_backlight_funcs(struct intel_connector *intel_connector)
 {
 	struct intel_panel *panel = &intel_connector->panel;
-	enum intel_backlight_type type =
-		to_i915(intel_connector->base.dev)->vbt.backlight.type;
+	struct drm_i915_private *dev_priv = to_i915(intel_connector->base.dev);
 
 	if (i915_modparams.enable_dpcd_backlight == 0 ||
 	    (i915_modparams.enable_dpcd_backlight == -1 &&
-	     !intel_dp_aux_display_control_capable(intel_connector)))
+	    dev_priv->vbt.backlight.type != INTEL_BACKLIGHT_VESA_EDP_AUX_INTERFACE))
 		return -ENODEV;
 
-	if (type != INTEL_BACKLIGHT_VESA_EDP_AUX_INTERFACE)
-		DRM_DEBUG_DRIVER("Ignoring VBT backlight type\n");
+	if (!intel_dp_aux_display_control_capable(intel_connector))
+		return -ENODEV;
 
 	panel->backlight.setup = intel_dp_aux_setup_backlight;
 	panel->backlight.enable = intel_dp_aux_enable_backlight;
