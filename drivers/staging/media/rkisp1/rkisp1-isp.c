@@ -28,9 +28,9 @@
 #define RKISP1_DIR_SINK_SRC (RKISP1_DIR_SINK | RKISP1_DIR_SRC)
 
 /*
- * NOTE: MIPI controller and input MUX are also configured in this file,
- * because ISP Subdev is not only describe ISP submodule(input size,format,
- * output size, format), but also a virtual route device.
+ * NOTE: MIPI controller and input MUX are also configured in this file.
+ * This is because ISP Subdev describes not only ISP submodule (input size,
+ * format, output size, format), but also a virtual route device.
  */
 
 /*
