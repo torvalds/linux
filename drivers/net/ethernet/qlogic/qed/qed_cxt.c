@@ -1398,13 +1398,10 @@ void qed_qm_init_pf(struct qed_hwfn *p_hwfn,
 {
 	struct qed_qm_info *qm_info = &p_hwfn->qm_info;
 	struct qed_qm_pf_rt_init_params params;
-	struct qed_mcp_link_state *p_link;
 	struct qed_qm_iids iids;
 
 	memset(&iids, 0, sizeof(iids));
 	qed_cxt_qm_iids(p_hwfn, &iids);
-
-	p_link = &QED_LEADING_HWFN(p_hwfn->cdev)->mcp_info->link_output;
 
 	memset(&params, 0, sizeof(params));
 	params.port_id = p_hwfn->port_id;
