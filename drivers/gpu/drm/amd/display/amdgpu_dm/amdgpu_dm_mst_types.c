@@ -158,8 +158,6 @@ amdgpu_dm_mst_connector_late_register(struct drm_connector *connector)
 
 #if defined(CONFIG_DEBUG_FS)
 	connector_debugfs_init(amdgpu_dm_connector);
-	amdgpu_dm_connector->debugfs_dpcd_address = 0;
-	amdgpu_dm_connector->debugfs_dpcd_size = 0;
 #endif
 
 	return drm_dp_mst_connector_late_register(connector, port);

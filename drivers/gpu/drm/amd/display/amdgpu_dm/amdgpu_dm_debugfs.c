@@ -1090,6 +1090,9 @@ void connector_debugfs_init(struct amdgpu_dm_connector *connector)
 	debugfs_create_file_unsafe("force_yuv420_output", 0644, dir, connector,
 				   &force_yuv420_output_fops);
 
+	connector->debugfs_dpcd_address = 0;
+	connector->debugfs_dpcd_size = 0;
+
 }
 
 /*
