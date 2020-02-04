@@ -12,7 +12,6 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
-#include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 
 #include "hwspinlock_internal.h"
@@ -122,35 +121,12 @@ static int qcom_hwspinlock_probe(struct platform_device *pdev)
 							     regmap, field);
 	}
 
-	pm_runtime_enable(&pdev->dev);
-
-	ret = hwspin_lock_register(bank, &pdev->dev, &qcom_hwspinlock_ops,
-				   0, QCOM_MUTEX_NUM_LOCKS);
-	if (ret)
-		pm_runtime_disable(&pdev->dev);
-
-	return ret;
-}
-
-static int qcom_hwspinlock_remove(struct platform_device *pdev)
-{
-	struct hwspinlock_device *bank = platform_get_drvdata(pdev);
-	int ret;
-
-	ret = hwspin_lock_unregister(bank);
-	if (ret) {
-		dev_err(&pdev->dev, "%s failed: %d\n", __func__, ret);
-		return ret;
-	}
-
-	pm_runtime_disable(&pdev->dev);
-
-	return 0;
+	return devm_hwspin_lock_register(&pdev->dev, bank, &qcom_hwspinlock_ops,
+					 0, QCOM_MUTEX_NUM_LOCKS);
 }
 
 static struct platform_driver qcom_hwspinlock_driver = {
 	.probe		= qcom_hwspinlock_probe,
-	.remove		= qcom_hwspinlock_remove,
 	.driver		= {
 		.name	= "qcom_hwspinlock",
 		.of_match_table = qcom_hwspinlock_of_match,
