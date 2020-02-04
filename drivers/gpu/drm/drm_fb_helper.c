@@ -250,17 +250,7 @@ int drm_fb_helper_restore_fbdev_mode_unlocked(struct drm_fb_helper *fb_helper)
 		return 0;
 
 	mutex_lock(&fb_helper->lock);
-	/*
-	 * TODO:
-	 * We should bail out here if there is a master by dropping _force.
-	 * Currently these igt tests fail if we do that:
-	 * - kms_fbcon_fbt@psr
-	 * - kms_fbcon_fbt@psr-suspend
-	 *
-	 * So first these tests need to be fixed so they drop master or don't
-	 * have an fd open.
-	 */
-	ret = drm_client_modeset_commit_force(&fb_helper->client);
+	ret = drm_client_modeset_commit(&fb_helper->client);
 
 	do_delayed = fb_helper->delayed_hotplug;
 	if (do_delayed)

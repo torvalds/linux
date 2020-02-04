@@ -44,6 +44,11 @@ struct drm_client_funcs {
 	 * returns zero gets the privilege to restore and no more clients are
 	 * called. This callback is not called after @unregister has been called.
 	 *
+	 * Note that the core does not guarantee exclusion against concurrent
+	 * drm_open(). Clients need to ensure this themselves, for example by
+	 * using drm_master_internal_acquire() and
+	 * drm_master_internal_release().
+	 *
 	 * This callback is optional.
 	 */
 	int (*restore)(struct drm_client_dev *client);
