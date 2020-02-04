@@ -220,19 +220,17 @@ static int rkisp1_subdev_notifier_complete(struct v4l2_async_notifier *notifier)
 		container_of(notifier, struct rkisp1_device, notifier);
 	int ret;
 
-	mutex_lock(&rkisp1->media_dev.graph_mutex);
 	ret = rkisp1_create_links(rkisp1);
 	if (ret)
-		goto unlock;
+		return ret;
+
 	ret = v4l2_device_register_subdev_nodes(&rkisp1->v4l2_dev);
 	if (ret)
-		goto unlock;
+		return ret;
 
 	dev_dbg(rkisp1->dev, "Async subdev notifier completed\n");
 
-unlock:
-	mutex_unlock(&rkisp1->media_dev.graph_mutex);
-	return ret;
+	return 0;
 }
 
 static int rkisp1_fwnode_parse(struct device *dev,
