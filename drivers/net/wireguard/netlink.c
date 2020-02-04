@@ -579,10 +579,8 @@ static int wg_set_device(struct sk_buff *skb, struct genl_info *info)
 							 private_key);
 		list_for_each_entry_safe(peer, temp, &wg->peer_list,
 					 peer_list) {
-			if (wg_noise_precompute_static_static(peer))
-				wg_noise_expire_current_peer_keypairs(peer);
-			else
-				wg_peer_remove(peer);
+			BUG_ON(!wg_noise_precompute_static_static(peer));
+			wg_noise_expire_current_peer_keypairs(peer);
 		}
 		wg_cookie_checker_precompute_device_keys(&wg->cookie_checker);
 		up_write(&wg->static_identity.lock);
