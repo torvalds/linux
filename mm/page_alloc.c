@@ -5905,18 +5905,20 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
 	}
 #endif
 
-	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
+	for (pfn = start_pfn; pfn < end_pfn; ) {
 		/*
 		 * There can be holes in boot-time mem_map[]s handed to this
 		 * function.  They do not exist on hotplugged memory.
 		 */
 		if (context == MEMMAP_EARLY) {
 			if (!early_pfn_valid(pfn)) {
-				pfn = next_pfn(pfn) - 1;
+				pfn = next_pfn(pfn);
 				continue;
 			}
-			if (!early_pfn_in_nid(pfn, nid))
+			if (!early_pfn_in_nid(pfn, nid)) {
+				pfn++;
 				continue;
+			}
 			if (overlap_memmap_init(zone, &pfn))
 				continue;
 			if (defer_init(nid, pfn, end_pfn))
@@ -5944,6 +5946,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
 			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
 			cond_resched();
 		}
+		pfn++;
 	}
 }
 
