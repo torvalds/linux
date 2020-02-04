@@ -918,6 +918,23 @@ out_name:
  * The same algorithm is used for senders.
  */
 
+static inline void __pipelined_op(struct wake_q_head *wake_q,
+				  struct mqueue_inode_info *info,
+				  struct ext_wait_queue *this)
+{
+	list_del(&this->list);
+	wake_q_add(wake_q, this->task);
+	/*
+	 * Rely on the implicit cmpxchg barrier from wake_q_add such
+	 * that we can ensure that updating receiver->state is the last
+	 * write operation: As once set, the receiver can continue,
+	 * and if we don't have the reference count from the wake_q,
+	 * yet, at that point we can later have a use-after-free
+	 * condition and bogus wakeup.
+	 */
+	this->state = STATE_READY;
+}
+
 /* pipelined_send() - send a message directly to the task waiting in
  * sys_mq_timedreceive() (without inserting message into a queue).
  */
@@ -927,17 +944,7 @@ static inline void pipelined_send(struct wake_q_head *wake_q,
 				  struct ext_wait_queue *receiver)
 {
 	receiver->msg = message;
-	list_del(&receiver->list);
-	wake_q_add(wake_q, receiver->task);
-	/*
-	 * Rely on the implicit cmpxchg barrier from wake_q_add such
-	 * that we can ensure that updating receiver->state is the last
-	 * write operation: As once set, the receiver can continue,
-	 * and if we don't have the reference count from the wake_q,
-	 * yet, at that point we can later have a use-after-free
-	 * condition and bogus wakeup.
-	 */
-	receiver->state = STATE_READY;
+	__pipelined_op(wake_q, info, receiver);
 }
 
 /* pipelined_receive() - if there is task waiting in sys_mq_timedsend()
@@ -955,9 +962,7 @@ static inline void pipelined_receive(struct wake_q_head *wake_q,
 	if (msg_insert(sender->msg, info))
 		return;
 
-	list_del(&sender->list);
-	wake_q_add(wake_q, sender->task);
-	sender->state = STATE_READY;
+	__pipelined_op(wake_q, info, sender);
 }
 
 static int do_mq_timedsend(mqd_t mqdes, const char __user *u_msg_ptr,
