@@ -331,7 +331,6 @@ struct ath11k_sta {
 	u32 smps;
 
 	struct work_struct update_wk;
-	struct ieee80211_tx_info tx_info;
 	struct rate_info txrate;
 	struct rate_info last_txrate;
 	u64 rx_duration;
