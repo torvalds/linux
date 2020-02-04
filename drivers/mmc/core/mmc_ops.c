@@ -456,6 +456,7 @@ static int mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
 	struct mmc_host *host = card->host;
 	int err;
 	unsigned long timeout;
+	unsigned int udelay = 32, udelay_max = 32768;
 	u32 status = 0;
 	bool expired = false;
 	bool busy = false;
@@ -499,6 +500,13 @@ static int mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
 			pr_err("%s: Card stuck being busy! %s\n",
 				mmc_hostname(host), __func__);
 			return -ETIMEDOUT;
+		}
+
+		/* Throttle the polling rate to avoid hogging the CPU. */
+		if (busy) {
+			usleep_range(udelay, udelay * 2);
+			if (udelay < udelay_max)
+				udelay *= 2;
 		}
 	} while (busy);
 
