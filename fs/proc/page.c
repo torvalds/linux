@@ -21,6 +21,21 @@
 #define KPMMASK (KPMSIZE - 1)
 #define KPMBITS (KPMSIZE * BITS_PER_BYTE)
 
+static inline unsigned long get_max_dump_pfn(void)
+{
+#ifdef CONFIG_SPARSEMEM
+	/*
+	 * The memmap of early sections is completely populated and marked
+	 * online even if max_pfn does not fall on a section boundary -
+	 * pfn_to_online_page() will succeed on all pages. Allow inspecting
+	 * these memmaps.
+	 */
+	return round_up(max_pfn, PAGES_PER_SECTION);
+#else
+	return max_pfn;
+#endif
+}
+
 /* /proc/kpagecount - an array exposing page counts
  *
  * Each entry is a u64 representing the corresponding
@@ -29,6 +44,7 @@
 static ssize_t kpagecount_read(struct file *file, char __user *buf,
 			     size_t count, loff_t *ppos)
 {
+	const unsigned long max_dump_pfn = get_max_dump_pfn();
 	u64 __user *out = (u64 __user *)buf;
 	struct page *ppage;
 	unsigned long src = *ppos;
@@ -37,9 +53,11 @@ static ssize_t kpagecount_read(struct file *file, char __user *buf,
 	u64 pcount;
 
 	pfn = src / KPMSIZE;
-	count = min_t(size_t, count, (max_pfn * KPMSIZE) - src);
 	if (src & KPMMASK || count & KPMMASK)
 		return -EINVAL;
+	if (src >= max_dump_pfn * KPMSIZE)
+		return 0;
+	count = min_t(unsigned long, count, (max_dump_pfn * KPMSIZE) - src);
 
 	while (count > 0) {
 		/*
@@ -206,6 +224,7 @@ u64 stable_page_flags(struct page *page)
 static ssize_t kpageflags_read(struct file *file, char __user *buf,
 			     size_t count, loff_t *ppos)
 {
+	const unsigned long max_dump_pfn = get_max_dump_pfn();
 	u64 __user *out = (u64 __user *)buf;
 	struct page *ppage;
 	unsigned long src = *ppos;
@@ -213,9 +232,11 @@ static ssize_t kpageflags_read(struct file *file, char __user *buf,
 	ssize_t ret = 0;
 
 	pfn = src / KPMSIZE;
-	count = min_t(unsigned long, count, (max_pfn * KPMSIZE) - src);
 	if (src & KPMMASK || count & KPMMASK)
 		return -EINVAL;
+	if (src >= max_dump_pfn * KPMSIZE)
+		return 0;
+	count = min_t(unsigned long, count, (max_dump_pfn * KPMSIZE) - src);
 
 	while (count > 0) {
 		/*
@@ -251,6 +272,7 @@ static const struct file_operations proc_kpageflags_operations = {
 static ssize_t kpagecgroup_read(struct file *file, char __user *buf,
 				size_t count, loff_t *ppos)
 {
+	const unsigned long max_dump_pfn = get_max_dump_pfn();
 	u64 __user *out = (u64 __user *)buf;
 	struct page *ppage;
 	unsigned long src = *ppos;
@@ -259,9 +281,11 @@ static ssize_t kpagecgroup_read(struct file *file, char __user *buf,
 	u64 ino;
 
 	pfn = src / KPMSIZE;
-	count = min_t(unsigned long, count, (max_pfn * KPMSIZE) - src);
 	if (src & KPMMASK || count & KPMMASK)
 		return -EINVAL;
+	if (src >= max_dump_pfn * KPMSIZE)
+		return 0;
+	count = min_t(unsigned long, count, (max_dump_pfn * KPMSIZE) - src);
 
 	while (count > 0) {
 		/*
