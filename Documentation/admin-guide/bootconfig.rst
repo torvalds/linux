@@ -123,6 +123,8 @@ To remove the config from the image, you can use -d option as below::
 
  # tools/bootconfig/bootconfig -d /boot/initrd.img-X.Y.Z
 
+Then add "bootconfig" on the normal kernel command line to tell the
+kernel to look for the bootconfig at the end of the initrd file.
 
 Config File Limitation
 ======================

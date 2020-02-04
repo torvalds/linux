@@ -336,28 +336,39 @@ u32 boot_config_checksum(unsigned char *p, u32 size)
 	return ret;
 }
 
-static void __init setup_boot_config(void)
+static void __init setup_boot_config(const char *cmdline)
 {
 	u32 size, csum;
 	char *data, *copy;
+	const char *p;
 	u32 *hdr;
 
-	if (!initrd_end)
+	p = strstr(cmdline, "bootconfig");
+	if (!p || (p != cmdline && !isspace(*(p-1))) ||
+	    (p[10] && !isspace(p[10])))
 		return;
+
+	if (!initrd_end)
+		goto not_found;
 
 	hdr = (u32 *)(initrd_end - 8);
 	size = hdr[0];
 	csum = hdr[1];
 
-	if (size >= XBC_DATA_MAX)
+	if (size >= XBC_DATA_MAX) {
+		pr_err("bootconfig size %d greater than max size %d\n",
+			size, XBC_DATA_MAX);
 		return;
+	}
 
 	data = ((void *)hdr) - size;
 	if ((unsigned long)data < initrd_start)
-		return;
+		goto not_found;
 
-	if (boot_config_checksum((unsigned char *)data, size) != csum)
+	if (boot_config_checksum((unsigned char *)data, size) != csum) {
+		pr_err("bootconfig checksum failed\n");
 		return;
+	}
 
 	copy = memblock_alloc(size + 1, SMP_CACHE_BYTES);
 	if (!copy) {
@@ -377,9 +388,12 @@ static void __init setup_boot_config(void)
 		/* Also, "init." keys are init arguments */
 		extra_init_args = xbc_make_cmdline("init");
 	}
+	return;
+not_found:
+	pr_err("'bootconfig' found on command line, but no bootconfig found\n");
 }
 #else
-#define setup_boot_config()	do { } while (0)
+#define setup_boot_config(cmdline)	do { } while (0)
 #endif
 
 /* Change NUL term back to "=", to make "param" the whole string. */
@@ -760,7 +774,7 @@ asmlinkage __visible void __init start_kernel(void)
 	pr_notice("%s", linux_banner);
 	early_security_init();
 	setup_arch(&command_line);
-	setup_boot_config();
+	setup_boot_config(command_line);
 	setup_command_line(command_line);
 	setup_nr_cpu_ids();
 	setup_per_cpu_areas();
