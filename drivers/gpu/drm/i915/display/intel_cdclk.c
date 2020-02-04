@@ -1907,7 +1907,7 @@ intel_set_cdclk_pre_plane_update(struct intel_atomic_state *state)
  * intel_set_cdclk_post_plane_update - Push the CDCLK state to the hardware
  * @state: intel atomic state
  *
- * Program the hardware before updating the HW plane state based on the
+ * Program the hardware after updating the HW plane state based on the
  * new CDCLK state, if necessary.
  */
 void
