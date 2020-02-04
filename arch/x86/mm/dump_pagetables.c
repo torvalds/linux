@@ -357,7 +357,8 @@ static void note_page(struct ptdump_state *pt_st, unsigned long addr, int level,
 	}
 }
 
-static void ptdump_walk_pgd_level_core(struct seq_file *m, pgd_t *pgd,
+static void ptdump_walk_pgd_level_core(struct seq_file *m,
+				       struct mm_struct *mm, pgd_t *pgd,
 				       bool checkwx, bool dmesg)
 {
 	const struct ptdump_range ptdump_ranges[] = {
@@ -386,12 +387,7 @@ static void ptdump_walk_pgd_level_core(struct seq_file *m, pgd_t *pgd,
 		.seq		= m
 	};
 
-	struct mm_struct fake_mm = {
-		.pgd = pgd
-	};
-	init_rwsem(&fake_mm.mmap_sem);
-
-	ptdump_walk_pgd(&st.ptdump, &fake_mm);
+	ptdump_walk_pgd(&st.ptdump, mm, pgd);
 
 	if (!checkwx)
 		return;
@@ -404,7 +400,7 @@ static void ptdump_walk_pgd_level_core(struct seq_file *m, pgd_t *pgd,
 
 void ptdump_walk_pgd_level(struct seq_file *m, struct mm_struct *mm)
 {
-	ptdump_walk_pgd_level_core(m, mm->pgd, false, true);
+	ptdump_walk_pgd_level_core(m, mm, mm->pgd, false, true);
 }
 
 void ptdump_walk_pgd_level_debugfs(struct seq_file *m, struct mm_struct *mm,
@@ -415,7 +411,7 @@ void ptdump_walk_pgd_level_debugfs(struct seq_file *m, struct mm_struct *mm,
 	if (user && boot_cpu_has(X86_FEATURE_PTI))
 		pgd = kernel_to_user_pgdp(pgd);
 #endif
-	ptdump_walk_pgd_level_core(m, pgd, false, false);
+	ptdump_walk_pgd_level_core(m, mm, pgd, false, false);
 }
 EXPORT_SYMBOL_GPL(ptdump_walk_pgd_level_debugfs);
 
@@ -430,13 +426,13 @@ void ptdump_walk_user_pgd_level_checkwx(void)
 
 	pr_info("x86/mm: Checking user space page tables\n");
 	pgd = kernel_to_user_pgdp(pgd);
-	ptdump_walk_pgd_level_core(NULL, pgd, true, false);
+	ptdump_walk_pgd_level_core(NULL, &init_mm, pgd, true, false);
 #endif
 }
 
 void ptdump_walk_pgd_level_checkwx(void)
 {
-	ptdump_walk_pgd_level_core(NULL, INIT_PGD, true, false);
+	ptdump_walk_pgd_level_core(NULL, &init_mm, INIT_PGD, true, false);
 }
 
 static int __init pt_dump_init(void)

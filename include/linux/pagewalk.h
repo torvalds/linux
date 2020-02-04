@@ -74,6 +74,7 @@ enum page_walk_action {
  * mm_walk - walk_page_range data
  * @ops:	operation to call during the walk
  * @mm:		mm_struct representing the target process of page table walk
+ * @pgd:	pointer to PGD; only valid with no_vma (otherwise set to NULL)
  * @vma:	vma currently walked (NULL if walking outside vmas)
  * @action:	next action to perform (see enum page_walk_action)
  * @no_vma:	walk ignoring vmas (vma will always be NULL)
@@ -84,6 +85,7 @@ enum page_walk_action {
 struct mm_walk {
 	const struct mm_walk_ops *ops;
 	struct mm_struct *mm;
+	pgd_t *pgd;
 	struct vm_area_struct *vma;
 	enum page_walk_action action;
 	bool no_vma;
@@ -95,6 +97,7 @@ int walk_page_range(struct mm_struct *mm, unsigned long start,
 		void *private);
 int walk_page_range_novma(struct mm_struct *mm, unsigned long start,
 			  unsigned long end, const struct mm_walk_ops *ops,
+			  pgd_t *pgd,
 			  void *private);
 int walk_page_vma(struct vm_area_struct *vma, const struct mm_walk_ops *ops,
 		void *private);

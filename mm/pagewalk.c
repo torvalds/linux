@@ -206,7 +206,10 @@ static int walk_pgd_range(unsigned long addr, unsigned long end,
 	const struct mm_walk_ops *ops = walk->ops;
 	int err = 0;
 
-	pgd = pgd_offset(walk->mm, addr);
+	if (walk->pgd)
+		pgd = walk->pgd + pgd_index(addr);
+	else
+		pgd = pgd_offset(walk->mm, addr);
 	do {
 		next = pgd_addr_end(addr, end);
 		if (pgd_none_or_clear_bad(pgd)) {
@@ -436,11 +439,13 @@ int walk_page_range(struct mm_struct *mm, unsigned long start,
  */
 int walk_page_range_novma(struct mm_struct *mm, unsigned long start,
 			  unsigned long end, const struct mm_walk_ops *ops,
+			  pgd_t *pgd,
 			  void *private)
 {
 	struct mm_walk walk = {
 		.ops		= ops,
 		.mm		= mm,
+		.pgd		= pgd,
 		.private	= private,
 		.no_vma		= true
 	};

@@ -17,6 +17,6 @@ struct ptdump_state {
 	const struct ptdump_range *range;
 };
 
-void ptdump_walk_pgd(struct ptdump_state *st, struct mm_struct *mm);
+void ptdump_walk_pgd(struct ptdump_state *st, struct mm_struct *mm, pgd_t *pgd);
 
 #endif /* _LINUX_PTDUMP_H */
