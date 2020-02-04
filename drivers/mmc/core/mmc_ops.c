@@ -516,7 +516,6 @@ static int mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
  *	@timeout_ms: timeout (ms) for operation performed by register write,
  *                   timeout of zero implies maximum possible timeout
  *	@timing: new timing to change to
- *	@use_busy_signal: use the busy signal as response type
  *	@send_status: send status cmd to poll for busy
  *	@retry_crc_err: retry when CRC errors when polling with CMD13 for busy
  *
@@ -524,12 +523,12 @@ static int mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
  */
 int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 		unsigned int timeout_ms, unsigned char timing,
-		bool use_busy_signal, bool send_status,	bool retry_crc_err)
+		bool send_status, bool retry_crc_err)
 {
 	struct mmc_host *host = card->host;
 	int err;
 	struct mmc_command cmd = {};
-	bool use_r1b_resp = use_busy_signal;
+	bool use_r1b_resp = true;
 	unsigned char old_timing = host->ios.timing;
 
 	mmc_retune_hold(host);
@@ -571,10 +570,6 @@ int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 	if (err)
 		goto out;
 
-	/* No need to check card status in case of unblocking command */
-	if (!use_busy_signal)
-		goto out;
-
 	/*If SPI or used HW busy detection above, then we don't need to poll. */
 	if (((host->caps & MMC_CAP_WAIT_WHILE_BUSY) && use_r1b_resp) ||
 		mmc_host_is_spi(host))
@@ -605,7 +600,7 @@ int mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 		unsigned int timeout_ms)
 {
 	return __mmc_switch(card, set, index, value, timeout_ms, 0,
-			true, true, false);
+			    true, false);
 }
 EXPORT_SYMBOL_GPL(mmc_switch);
 
