@@ -8,6 +8,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/host1x.h>
+#include <linux/iommu.h>
 #include <linux/kref.h>
 #include <linux/module.h>
 #include <linux/scatterlist.h>
@@ -101,9 +102,11 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 {
 	struct host1x_client *client = job->client;
 	struct device *dev = client->dev;
+	struct iommu_domain *domain;
 	unsigned int i;
 	int err;
 
+	domain = iommu_get_domain_for_dev(dev);
 	job->num_unpins = 0;
 
 	for (i = 0; i < job->num_relocs; i++) {
@@ -117,7 +120,19 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 			goto unpin;
 		}
 
-		if (client->group)
+		/*
+		 * If the client device is not attached to an IOMMU, the
+		 * physical address of the buffer object can be used.
+		 *
+		 * Similarly, when an IOMMU domain is shared between all
+		 * host1x clients, the IOVA is already available, so no
+		 * need to map the buffer object again.
+		 *
+		 * XXX Note that this isn't always safe to do because it
+		 * relies on an assumption that no cache maintenance is
+		 * needed on the buffer objects.
+		 */
+		if (!domain || client->group)
 			phys = &phys_addr;
 		else
 			phys = NULL;
@@ -176,6 +191,7 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 		dma_addr_t phys_addr;
 		unsigned long shift;
 		struct iova *alloc;
+		dma_addr_t *phys;
 		unsigned int j;
 
 		g->bo = host1x_bo_get(g->bo);
@@ -184,7 +200,17 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 			goto unpin;
 		}
 
-		sgt = host1x_bo_pin(host->dev, g->bo, NULL);
+		/**
+		 * If the host1x is not attached to an IOMMU, there is no need
+		 * to map the buffer object for the host1x, since the physical
+		 * address can simply be used.
+		 */
+		if (!iommu_get_domain_for_dev(host->dev))
+			phys = &phys_addr;
+		else
+			phys = NULL;
+
+		sgt = host1x_bo_pin(host->dev, g->bo, phys);
 		if (IS_ERR(sgt)) {
 			err = PTR_ERR(sgt);
 			goto unpin;
@@ -214,7 +240,7 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 
 			job->unpins[job->num_unpins].size = gather_size;
 			phys_addr = iova_dma_addr(&host->iova, alloc);
-		} else {
+		} else if (sgt) {
 			err = dma_map_sg(host->dev, sgt->sgl, sgt->nents,
 					 DMA_TO_DEVICE);
 			if (!err) {
