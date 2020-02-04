@@ -473,7 +473,7 @@ struct proc_dir_entry *proc_mkdir_data(const char *name, umode_t mode,
 	ent = __proc_create(&parent, name, S_IFDIR | mode, 2);
 	if (ent) {
 		ent->data = data;
-		ent->proc_fops = &proc_dir_operations;
+		ent->proc_dir_ops = &proc_dir_operations;
 		ent->proc_iops = &proc_dir_inode_operations;
 		ent = proc_register(parent, ent);
 	}
@@ -503,7 +503,7 @@ struct proc_dir_entry *proc_create_mount_point(const char *name)
 	ent = __proc_create(&parent, name, mode, 2);
 	if (ent) {
 		ent->data = NULL;
-		ent->proc_fops = NULL;
+		ent->proc_dir_ops = NULL;
 		ent->proc_iops = NULL;
 		ent = proc_register(parent, ent);
 	}
@@ -533,25 +533,23 @@ struct proc_dir_entry *proc_create_reg(const char *name, umode_t mode,
 
 struct proc_dir_entry *proc_create_data(const char *name, umode_t mode,
 		struct proc_dir_entry *parent,
-		const struct file_operations *proc_fops, void *data)
+		const struct proc_ops *proc_ops, void *data)
 {
 	struct proc_dir_entry *p;
-
-	BUG_ON(proc_fops == NULL);
 
 	p = proc_create_reg(name, mode, &parent, data);
 	if (!p)
 		return NULL;
-	p->proc_fops = proc_fops;
+	p->proc_ops = proc_ops;
 	return proc_register(parent, p);
 }
 EXPORT_SYMBOL(proc_create_data);
  
 struct proc_dir_entry *proc_create(const char *name, umode_t mode,
 				   struct proc_dir_entry *parent,
-				   const struct file_operations *proc_fops)
+				   const struct proc_ops *proc_ops)
 {
-	return proc_create_data(name, mode, parent, proc_fops, NULL);
+	return proc_create_data(name, mode, parent, proc_ops, NULL);
 }
 EXPORT_SYMBOL(proc_create);
 
@@ -573,11 +571,11 @@ static int proc_seq_release(struct inode *inode, struct file *file)
 	return seq_release(inode, file);
 }
 
-static const struct file_operations proc_seq_fops = {
-	.open		= proc_seq_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= proc_seq_release,
+static const struct proc_ops proc_seq_ops = {
+	.proc_open	= proc_seq_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= proc_seq_release,
 };
 
 struct proc_dir_entry *proc_create_seq_private(const char *name, umode_t mode,
@@ -589,7 +587,7 @@ struct proc_dir_entry *proc_create_seq_private(const char *name, umode_t mode,
 	p = proc_create_reg(name, mode, &parent, data);
 	if (!p)
 		return NULL;
-	p->proc_fops = &proc_seq_fops;
+	p->proc_ops = &proc_seq_ops;
 	p->seq_ops = ops;
 	p->state_size = state_size;
 	return proc_register(parent, p);
@@ -603,11 +601,11 @@ static int proc_single_open(struct inode *inode, struct file *file)
 	return single_open(file, de->single_show, de->data);
 }
 
-static const struct file_operations proc_single_fops = {
-	.open		= proc_single_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
+static const struct proc_ops proc_single_ops = {
+	.proc_open	= proc_single_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
 };
 
 struct proc_dir_entry *proc_create_single_data(const char *name, umode_t mode,
@@ -619,7 +617,7 @@ struct proc_dir_entry *proc_create_single_data(const char *name, umode_t mode,
 	p = proc_create_reg(name, mode, &parent, data);
 	if (!p)
 		return NULL;
-	p->proc_fops = &proc_single_fops;
+	p->proc_ops = &proc_single_ops;
 	p->single_show = show;
 	return proc_register(parent, p);
 }
