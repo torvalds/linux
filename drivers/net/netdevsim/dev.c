@@ -934,9 +934,7 @@ int nsim_dev_port_del(struct nsim_bus_dev *nsim_bus_dev,
 int nsim_dev_init(void)
 {
 	nsim_dev_ddir = debugfs_create_dir(DRV_NAME, NULL);
-	if (IS_ERR(nsim_dev_ddir))
-		return PTR_ERR(nsim_dev_ddir);
-	return 0;
+	return PTR_ERR_OR_ZERO(nsim_dev_ddir);
 }
 
 void nsim_dev_exit(void)
