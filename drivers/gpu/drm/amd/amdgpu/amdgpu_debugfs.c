@@ -1301,6 +1301,9 @@ int amdgpu_debugfs_init(struct amdgpu_device *adev)
 		dev_err(adev->dev, "failed to register debugfs file for SA\n");
 	}
 
+	if (amdgpu_debugfs_fence_init(adev))
+		dev_err(adev->dev, "fence debugfs file creation failed\n");
+
 	return amdgpu_debugfs_add_files(adev, amdgpu_debugfs_list,
 					ARRAY_SIZE(amdgpu_debugfs_list));
 }
