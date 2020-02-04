@@ -1120,6 +1120,19 @@
 			bias-disable;
 		};
 	};
+
+	usbotg_hs_pins_a: usbotg-hs-0 {
+		pins {
+			pinmux = <STM32_PINMUX('A', 10, ANALOG)>; /* OTG_ID */
+		};
+	};
+
+	usbotg_fs_dp_dm_pins_a: usbotg-fs-dp-dm-0 {
+		pins {
+			pinmux = <STM32_PINMUX('A', 11, ANALOG)>, /* OTG_FS_DM */
+				 <STM32_PINMUX('A', 12, ANALOG)>; /* OTG_FS_DP */
+		};
+	};
 };
 
 &pinctrl_z {
