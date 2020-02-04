@@ -125,7 +125,7 @@ struct pci_dn *pci_get_pdn(struct pci_dev *pdev)
 }
 
 #ifdef CONFIG_PCI_IOV
-static struct pci_dn *add_one_dev_pci_data(struct pci_dn *parent,
+static struct pci_dn *add_one_sriov_vf_pdn(struct pci_dn *parent,
 					   int vf_index,
 					   int busno, int devfn)
 {
@@ -151,17 +151,15 @@ static struct pci_dn *add_one_dev_pci_data(struct pci_dn *parent,
 
 	return pdn;
 }
-#endif
 
-struct pci_dn *add_dev_pci_data(struct pci_dev *pdev)
+struct pci_dn *add_sriov_vf_pdns(struct pci_dev *pdev)
 {
-#ifdef CONFIG_PCI_IOV
 	struct pci_dn *parent, *pdn;
 	int i;
 
 	/* Only support IOV for now */
-	if (!pdev->is_physfn)
-		return pci_get_pdn(pdev);
+	if (WARN_ON(!pdev->is_physfn))
+		return NULL;
 
 	/* Check if VFs have been populated */
 	pdn = pci_get_pdn(pdev);
@@ -176,7 +174,7 @@ struct pci_dn *add_dev_pci_data(struct pci_dev *pdev)
 	for (i = 0; i < pci_sriov_get_totalvfs(pdev); i++) {
 		struct eeh_dev *edev __maybe_unused;
 
-		pdn = add_one_dev_pci_data(parent, i,
+		pdn = add_one_sriov_vf_pdn(parent, i,
 					   pci_iov_virtfn_bus(pdev, i),
 					   pci_iov_virtfn_devfn(pdev, i));
 		if (!pdn) {
@@ -192,31 +190,17 @@ struct pci_dn *add_dev_pci_data(struct pci_dev *pdev)
 		edev->physfn = pdev;
 #endif /* CONFIG_EEH */
 	}
-#endif /* CONFIG_PCI_IOV */
-
 	return pci_get_pdn(pdev);
 }
 
-void remove_dev_pci_data(struct pci_dev *pdev)
+void remove_sriov_vf_pdns(struct pci_dev *pdev)
 {
-#ifdef CONFIG_PCI_IOV
 	struct pci_dn *parent;
 	struct pci_dn *pdn, *tmp;
 	int i;
 
-	/*
-	 * VF and VF PE are created/released dynamically, so we need to
-	 * bind/unbind them.  Otherwise the VF and VF PE would be mismatched
-	 * when re-enabling SR-IOV.
-	 */
-	if (pdev->is_virtfn) {
-		pdn = pci_get_pdn(pdev);
-		pdn->pe_number = IODA_INVALID_PE;
-		return;
-	}
-
 	/* Only support IOV PF for now */
-	if (!pdev->is_physfn)
+	if (WARN_ON(!pdev->is_physfn))
 		return;
 
 	/* Check if VFs have been populated */
@@ -244,9 +228,22 @@ void remove_dev_pci_data(struct pci_dev *pdev)
 				continue;
 
 #ifdef CONFIG_EEH
-			/* Release EEH device for the VF */
+			/*
+			 * Release EEH state for this VF. The PCI core
+			 * has already torn down the pci_dev for this VF, but
+			 * we're responsible to removing the eeh_dev since it
+			 * has the same lifetime as the pci_dn that spawned it.
+			 */
 			edev = pdn_to_eeh_dev(pdn);
 			if (edev) {
+				/*
+				 * We allocate pci_dn's for the totalvfs count,
+				 * but only only the vfs that were activated
+				 * have a configured PE.
+				 */
+				if (edev->pe)
+					eeh_rmv_from_parent_pe(edev);
+
 				pdn->edev = NULL;
 				kfree(edev);
 			}
@@ -258,8 +255,8 @@ void remove_dev_pci_data(struct pci_dev *pdev)
 			kfree(pdn);
 		}
 	}
-#endif /* CONFIG_PCI_IOV */
 }
+#endif /* CONFIG_PCI_IOV */
 
 struct pci_dn *pci_add_device_node_info(struct pci_controller *hose,
 					struct device_node *dn)

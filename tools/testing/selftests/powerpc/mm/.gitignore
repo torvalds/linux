@@ -5,3 +5,4 @@ prot_sao
 segv_errors
 wild_bctr
 large_vm_fork_separation
+bad_accesses

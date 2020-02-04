@@ -64,7 +64,7 @@ static void quirk_mpc8360e_qe_enet10(void)
 		return;
 	}
 
-	base = ioremap(res.start, res.end - res.start + 1);
+	base = ioremap(res.start, resource_size(&res));
 
 	/*
 	 * set output delay adjustments to default values according
