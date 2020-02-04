@@ -263,6 +263,7 @@ static int add(struct allowedips_node __rcu **trie, u8 bits, const u8 *key,
 	} else {
 		node = kzalloc(sizeof(*node), GFP_KERNEL);
 		if (unlikely(!node)) {
+			list_del(&newnode->peer_list);
 			kfree(newnode);
 			return -ENOMEM;
 		}
