@@ -3760,6 +3760,15 @@ static bool dcn20_resource_construct(
 
 	dcn20_hw_sequencer_construct(dc);
 
+	// IF NV12, set PG function pointer to NULL. It's not that
+	// PG isn't supported for NV12, it's that we don't want to
+	// program the registers because that will cause more power
+	// to be consumed. We could have created dcn20_init_hw to get
+	// the same effect by checking ASIC rev, but there was a
+	// request at some point to not check ASIC rev on hw sequencer.
+	if (ASICREV_IS_NAVI12_P(dc->ctx->asic_id.hw_internal_rev))
+		dc->hwseq->funcs.enable_power_gating_plane = NULL;
+
 	dc->caps.max_planes =  pool->base.pipe_count;
 
 	for (i = 0; i < dc->caps.max_planes; ++i)
