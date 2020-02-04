@@ -10,8 +10,6 @@
 #include <uapi/asm/setup.h>
 
 # ifndef __ASSEMBLY__
-extern unsigned int boot_cpuid; /* move to smp.h */
-
 extern char cmd_line[COMMAND_LINE_SIZE];
 
 extern char *klimit;
