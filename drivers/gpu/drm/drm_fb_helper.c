@@ -284,7 +284,7 @@ static bool drm_fb_helper_force_kernel_mode(void)
 			continue;
 
 		mutex_lock(&helper->lock);
-		ret = drm_client_modeset_commit_force(&helper->client);
+		ret = drm_client_modeset_commit_locked(&helper->client);
 		if (ret)
 			error = true;
 		mutex_unlock(&helper->lock);
@@ -1342,7 +1342,7 @@ static int pan_display_atomic(struct fb_var_screeninfo *var,
 
 	pan_set(fb_helper, var->xoffset, var->yoffset);
 
-	ret = drm_client_modeset_commit_force(&fb_helper->client);
+	ret = drm_client_modeset_commit_locked(&fb_helper->client);
 	if (!ret) {
 		info->var.xoffset = var->xoffset;
 		info->var.yoffset = var->yoffset;
