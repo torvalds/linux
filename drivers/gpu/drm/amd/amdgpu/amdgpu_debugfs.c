@@ -1285,7 +1285,7 @@ int amdgpu_debugfs_init(struct amdgpu_device *adev)
 					ARRAY_SIZE(amdgpu_debugfs_list));
 }
 
-void amdgpu_debugfs_preempt_cleanup(struct amdgpu_device *adev)
+void amdgpu_debugfs_fini(struct amdgpu_device *adev)
 {
 	debugfs_remove(adev->debugfs_preempt);
 }
@@ -1295,7 +1295,7 @@ int amdgpu_debugfs_init(struct amdgpu_device *adev)
 {
 	return 0;
 }
-void amdgpu_debugfs_preempt_cleanup(struct amdgpu_device *adev) { }
+void amdgpu_debugfs_fini(struct amdgpu_device *adev) { }
 int amdgpu_debugfs_regs_init(struct amdgpu_device *adev)
 {
 	return 0;
