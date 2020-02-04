@@ -390,6 +390,9 @@ include::itrace.txt[]
 --reltime::
 	Print time stamps relative to trace start.
 
+--deltatime::
+	Print time stamps relative to previous event.
+
 --per-event-dump::
 	Create per event files with a "perf.data.EVENT.dump" name instead of
         printing to stdout, useful, for instance, for generating flamegraphs.

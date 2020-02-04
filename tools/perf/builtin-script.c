@@ -63,7 +63,9 @@
 static char const		*script_name;
 static char const		*generate_script_lang;
 static bool			reltime;
+static bool			deltatime;
 static u64			initial_time;
+static u64			previous_time;
 static bool			debug_mode;
 static u64			last_timestamp;
 static u64			nr_unordered;
@@ -704,6 +706,13 @@ static int perf_sample__fprintf_start(struct perf_sample *sample,
 			if (!initial_time)
 				initial_time = sample->time;
 			t = sample->time - initial_time;
+		} else if (deltatime) {
+			if (previous_time)
+				t = sample->time - previous_time;
+			else {
+				t = 0;
+			}
+			previous_time = sample->time;
 		}
 		nsecs = t;
 		secs = nsecs / NSEC_PER_SEC;
@@ -3555,6 +3564,7 @@ int cmd_script(int argc, const char **argv)
 		     "anything beyond the specified depth will be ignored. "
 		     "Default: kernel.perf_event_max_stack or " __stringify(PERF_MAX_STACK_DEPTH)),
 	OPT_BOOLEAN(0, "reltime", &reltime, "Show time stamps relative to start"),
+	OPT_BOOLEAN(0, "deltatime", &deltatime, "Show time stamps relative to previous event"),
 	OPT_BOOLEAN('I', "show-info", &show_full_info,
 		    "display extended information from perf.data file"),
 	OPT_BOOLEAN('\0', "show-kernel-path", &symbol_conf.show_kernel_path,
@@ -3649,6 +3659,13 @@ int cmd_script(int argc, const char **argv)
 				"(see 'perf script -l' for listing)\n");
 			return -1;
 		}
+	}
+
+	if (reltime && deltatime) {
+		fprintf(stderr,
+			"reltime and deltatime - the two don't get along well. "
+			"Please limit to --reltime or --deltatime.\n");
+		return -1;
 	}
 
 	if (itrace_synth_opts.callchain &&
