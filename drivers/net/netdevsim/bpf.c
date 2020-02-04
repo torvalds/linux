@@ -218,6 +218,7 @@ static int nsim_bpf_create_prog(struct nsim_dev *nsim_dev,
 {
 	struct nsim_bpf_bound_prog *state;
 	char name[16];
+	int ret;
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state)
@@ -230,9 +231,10 @@ static int nsim_bpf_create_prog(struct nsim_dev *nsim_dev,
 	/* Program id is not populated yet when we create the state. */
 	sprintf(name, "%u", nsim_dev->prog_id_gen++);
 	state->ddir = debugfs_create_dir(name, nsim_dev->ddir_bpf_bound_progs);
-	if (IS_ERR_OR_NULL(state->ddir)) {
+	if (IS_ERR(state->ddir)) {
+		ret = PTR_ERR(state->ddir);
 		kfree(state);
-		return -ENOMEM;
+		return ret;
 	}
 
 	debugfs_create_u32("id", 0400, state->ddir, &prog->aux->id);
@@ -587,8 +589,8 @@ int nsim_bpf_dev_init(struct nsim_dev *nsim_dev)
 
 	nsim_dev->ddir_bpf_bound_progs = debugfs_create_dir("bpf_bound_progs",
 							    nsim_dev->ddir);
-	if (IS_ERR_OR_NULL(nsim_dev->ddir_bpf_bound_progs))
-		return -ENOMEM;
+	if (IS_ERR(nsim_dev->ddir_bpf_bound_progs))
+		return PTR_ERR(nsim_dev->ddir_bpf_bound_progs);
 
 	nsim_dev->bpf_dev = bpf_offload_dev_create(&nsim_bpf_dev_ops, nsim_dev);
 	err = PTR_ERR_OR_ZERO(nsim_dev->bpf_dev);
