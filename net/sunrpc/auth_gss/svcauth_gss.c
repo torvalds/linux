@@ -1428,10 +1428,10 @@ static ssize_t read_gssp(struct file *file, char __user *buf,
 	return len;
 }
 
-static const struct file_operations use_gss_proxy_ops = {
-	.open = nonseekable_open,
-	.write = write_gssp,
-	.read = read_gssp,
+static const struct proc_ops use_gss_proxy_proc_ops = {
+	.proc_open	= nonseekable_open,
+	.proc_write	= write_gssp,
+	.proc_read	= read_gssp,
 };
 
 static int create_use_gss_proxy_proc_entry(struct net *net)
@@ -1442,7 +1442,7 @@ static int create_use_gss_proxy_proc_entry(struct net *net)
 	sn->use_gss_proxy = -1;
 	*p = proc_create_data("use-gss-proxy", S_IFREG | 0600,
 			      sn->proc_net_rpc,
-			      &use_gss_proxy_ops, net);
+			      &use_gss_proxy_proc_ops, net);
 	if (!*p)
 		return -ENOMEM;
 	init_gssp_clnt(sn);

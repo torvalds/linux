@@ -171,7 +171,7 @@ static int alg_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	sa->salg_name[sizeof(sa->salg_name) + addr_len - sizeof(*sa) - 1] = 0;
 
 	type = alg_get_type(sa->salg_type);
-	if (IS_ERR(type) && PTR_ERR(type) == -ENOENT) {
+	if (PTR_ERR(type) == -ENOENT) {
 		request_module("algif-%s", sa->salg_type);
 		type = alg_get_type(sa->salg_type);
 	}

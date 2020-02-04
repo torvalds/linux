@@ -2796,17 +2796,17 @@ static int swaps_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static const struct file_operations proc_swaps_operations = {
-	.open		= swaps_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-	.poll		= swaps_poll,
+static const struct proc_ops swaps_proc_ops = {
+	.proc_open	= swaps_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= seq_release,
+	.proc_poll	= swaps_poll,
 };
 
 static int __init procswaps_init(void)
 {
-	proc_create("swaps", 0, NULL, &proc_swaps_operations);
+	proc_create("swaps", 0, NULL, &swaps_proc_ops);
 	return 0;
 }
 __initcall(procswaps_init);

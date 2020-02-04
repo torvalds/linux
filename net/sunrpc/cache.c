@@ -1571,15 +1571,14 @@ static int cache_release_procfs(struct inode *inode, struct file *filp)
 	return cache_release(inode, filp, cd);
 }
 
-static const struct file_operations cache_file_operations_procfs = {
-	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
-	.read		= cache_read_procfs,
-	.write		= cache_write_procfs,
-	.poll		= cache_poll_procfs,
-	.unlocked_ioctl	= cache_ioctl_procfs, /* for FIONREAD */
-	.open		= cache_open_procfs,
-	.release	= cache_release_procfs,
+static const struct proc_ops cache_channel_proc_ops = {
+	.proc_lseek	= no_llseek,
+	.proc_read	= cache_read_procfs,
+	.proc_write	= cache_write_procfs,
+	.proc_poll	= cache_poll_procfs,
+	.proc_ioctl	= cache_ioctl_procfs, /* for FIONREAD */
+	.proc_open	= cache_open_procfs,
+	.proc_release	= cache_release_procfs,
 };
 
 static int content_open_procfs(struct inode *inode, struct file *filp)
@@ -1596,11 +1595,11 @@ static int content_release_procfs(struct inode *inode, struct file *filp)
 	return content_release(inode, filp, cd);
 }
 
-static const struct file_operations content_file_operations_procfs = {
-	.open		= content_open_procfs,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= content_release_procfs,
+static const struct proc_ops content_proc_ops = {
+	.proc_open	= content_open_procfs,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= content_release_procfs,
 };
 
 static int open_flush_procfs(struct inode *inode, struct file *filp)
@@ -1634,12 +1633,12 @@ static ssize_t write_flush_procfs(struct file *filp,
 	return write_flush(filp, buf, count, ppos, cd);
 }
 
-static const struct file_operations cache_flush_operations_procfs = {
-	.open		= open_flush_procfs,
-	.read		= read_flush_procfs,
-	.write		= write_flush_procfs,
-	.release	= release_flush_procfs,
-	.llseek		= no_llseek,
+static const struct proc_ops cache_flush_proc_ops = {
+	.proc_open	= open_flush_procfs,
+	.proc_read	= read_flush_procfs,
+	.proc_write	= write_flush_procfs,
+	.proc_release	= release_flush_procfs,
+	.proc_lseek	= no_llseek,
 };
 
 static void remove_cache_proc_entries(struct cache_detail *cd)
@@ -1662,19 +1661,19 @@ static int create_cache_proc_entries(struct cache_detail *cd, struct net *net)
 		goto out_nomem;
 
 	p = proc_create_data("flush", S_IFREG | 0600,
-			     cd->procfs, &cache_flush_operations_procfs, cd);
+			     cd->procfs, &cache_flush_proc_ops, cd);
 	if (p == NULL)
 		goto out_nomem;
 
 	if (cd->cache_request || cd->cache_parse) {
 		p = proc_create_data("channel", S_IFREG | 0600, cd->procfs,
-				     &cache_file_operations_procfs, cd);
+				     &cache_channel_proc_ops, cd);
 		if (p == NULL)
 			goto out_nomem;
 	}
 	if (cd->cache_show) {
 		p = proc_create_data("content", S_IFREG | 0400, cd->procfs,
-				     &content_file_operations_procfs, cd);
+				     &content_proc_ops, cd);
 		if (p == NULL)
 			goto out_nomem;
 	}

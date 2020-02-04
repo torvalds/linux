@@ -186,7 +186,7 @@ bitmap_find_next_zero_area(unsigned long *map,
 					      align_mask, 0);
 }
 
-extern int __bitmap_parse(const char *buf, unsigned int buflen, int is_user,
+extern int bitmap_parse(const char *buf, unsigned int buflen,
 			unsigned long *dst, int nbits);
 extern int bitmap_parse_user(const char __user *ubuf, unsigned int ulen,
 			unsigned long *dst, int nbits);
@@ -452,12 +452,6 @@ static inline void bitmap_replace(unsigned long *dst,
 		*dst = (*old & ~(*mask)) | (*new & *mask);
 	else
 		__bitmap_replace(dst, old, new, mask, nbits);
-}
-
-static inline int bitmap_parse(const char *buf, unsigned int buflen,
-			unsigned long *maskp, int nmaskbits)
-{
-	return __bitmap_parse(buf, buflen, 0, maskp, nmaskbits);
 }
 
 static inline void bitmap_next_clear_region(unsigned long *bitmap,

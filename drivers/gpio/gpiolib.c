@@ -5039,7 +5039,7 @@ struct gpio_descs *__must_check gpiod_get_array_optional(struct device *dev,
 	struct gpio_descs *descs;
 
 	descs = gpiod_get_array(dev, con_id, flags);
-	if (IS_ERR(descs) && (PTR_ERR(descs) == -ENOENT))
+	if (PTR_ERR(descs) == -ENOENT)
 		return NULL;
 
 	return descs;

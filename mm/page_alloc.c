@@ -5852,18 +5852,11 @@ overlap_memmap_init(unsigned long zone, unsigned long *pfn)
 /* Skip PFNs that belong to non-present sections */
 static inline __meminit unsigned long next_pfn(unsigned long pfn)
 {
-	unsigned long section_nr;
+	const unsigned long section_nr = pfn_to_section_nr(++pfn);
 
-	section_nr = pfn_to_section_nr(++pfn);
 	if (present_section_nr(section_nr))
 		return pfn;
-
-	while (++section_nr <= __highest_present_section_nr) {
-		if (present_section_nr(section_nr))
-			return section_nr_to_pfn(section_nr);
-	}
-
-	return -1;
+	return section_nr_to_pfn(next_present_section_nr(section_nr));
 }
 #else
 static inline __meminit unsigned long next_pfn(unsigned long pfn)
@@ -5905,18 +5898,20 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
 	}
 #endif
 
-	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
+	for (pfn = start_pfn; pfn < end_pfn; ) {
 		/*
 		 * There can be holes in boot-time mem_map[]s handed to this
 		 * function.  They do not exist on hotplugged memory.
 		 */
 		if (context == MEMMAP_EARLY) {
 			if (!early_pfn_valid(pfn)) {
-				pfn = next_pfn(pfn) - 1;
+				pfn = next_pfn(pfn);
 				continue;
 			}
-			if (!early_pfn_in_nid(pfn, nid))
+			if (!early_pfn_in_nid(pfn, nid)) {
+				pfn++;
 				continue;
+			}
 			if (overlap_memmap_init(zone, &pfn))
 				continue;
 			if (defer_init(nid, pfn, end_pfn))
@@ -5944,16 +5939,17 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
 			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
 			cond_resched();
 		}
+		pfn++;
 	}
 }
 
 #ifdef CONFIG_ZONE_DEVICE
 void __ref memmap_init_zone_device(struct zone *zone,
 				   unsigned long start_pfn,
-				   unsigned long size,
+				   unsigned long nr_pages,
 				   struct dev_pagemap *pgmap)
 {
-	unsigned long pfn, end_pfn = start_pfn + size;
+	unsigned long pfn, end_pfn = start_pfn + nr_pages;
 	struct pglist_data *pgdat = zone->zone_pgdat;
 	struct vmem_altmap *altmap = pgmap_altmap(pgmap);
 	unsigned long zone_idx = zone_idx(zone);
@@ -5970,7 +5966,7 @@ void __ref memmap_init_zone_device(struct zone *zone,
 	 */
 	if (altmap) {
 		start_pfn = altmap->base_pfn + vmem_altmap_offset(altmap);
-		size = end_pfn - start_pfn;
+		nr_pages = end_pfn - start_pfn;
 	}
 
 	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
@@ -6017,7 +6013,7 @@ void __ref memmap_init_zone_device(struct zone *zone,
 	}
 
 	pr_info("%s initialised %lu pages in %ums\n", __func__,
-		size, jiffies_to_msecs(jiffies - start));
+		nr_pages, jiffies_to_msecs(jiffies - start));
 }
 
 #endif
@@ -6916,10 +6912,10 @@ void __init free_area_init_node(int nid, unsigned long *zones_size,
 
 #if !defined(CONFIG_FLAT_NODE_MEM_MAP)
 /*
- * Zero all valid struct pages in range [spfn, epfn), return number of struct
- * pages zeroed
+ * Initialize all valid struct pages in the range [spfn, epfn) and mark them
+ * PageReserved(). Return the number of struct pages that were initialized.
  */
-static u64 zero_pfn_range(unsigned long spfn, unsigned long epfn)
+static u64 __init init_unavailable_range(unsigned long spfn, unsigned long epfn)
 {
 	unsigned long pfn;
 	u64 pgcnt = 0;
@@ -6930,7 +6926,13 @@ static u64 zero_pfn_range(unsigned long spfn, unsigned long epfn)
 				+ pageblock_nr_pages - 1;
 			continue;
 		}
-		mm_zero_struct_page(pfn_to_page(pfn));
+		/*
+		 * Use a fake node/zone (0) for now. Some of these pages
+		 * (in memblock.reserved but not in memblock.memory) will
+		 * get re-initialized via reserve_bootmem_region() later.
+		 */
+		__init_single_page(pfn_to_page(pfn), pfn, 0, 0);
+		__SetPageReserved(pfn_to_page(pfn));
 		pgcnt++;
 	}
 
@@ -6942,14 +6944,15 @@ static u64 zero_pfn_range(unsigned long spfn, unsigned long epfn)
  * initialized by going through __init_single_page(). But, there are some
  * struct pages which are reserved in memblock allocator and their fields
  * may be accessed (for example page_to_pfn() on some configuration accesses
- * flags). We must explicitly zero those struct pages.
+ * flags). We must explicitly initialize those struct pages.
  *
  * This function also addresses a similar issue where struct pages are left
  * uninitialized because the physical address range is not covered by
  * memblock.memory or memblock.reserved. That could happen when memblock
- * layout is manually configured via memmap=.
+ * layout is manually configured via memmap=, or when the highest physical
+ * address (max_pfn) does not end on a section boundary.
  */
-void __init zero_resv_unavail(void)
+static void __init init_unavailable_mem(void)
 {
 	phys_addr_t start, end;
 	u64 i, pgcnt;
@@ -6962,10 +6965,20 @@ void __init zero_resv_unavail(void)
 	for_each_mem_range(i, &memblock.memory, NULL,
 			NUMA_NO_NODE, MEMBLOCK_NONE, &start, &end, NULL) {
 		if (next < start)
-			pgcnt += zero_pfn_range(PFN_DOWN(next), PFN_UP(start));
+			pgcnt += init_unavailable_range(PFN_DOWN(next),
+							PFN_UP(start));
 		next = end;
 	}
-	pgcnt += zero_pfn_range(PFN_DOWN(next), max_pfn);
+
+	/*
+	 * Early sections always have a fully populated memmap for the whole
+	 * section - see pfn_valid(). If the last section has holes at the
+	 * end and that section is marked "online", the memmap will be
+	 * considered initialized. Make sure that memmap has a well defined
+	 * state.
+	 */
+	pgcnt += init_unavailable_range(PFN_DOWN(next),
+					round_up(max_pfn, PAGES_PER_SECTION));
 
 	/*
 	 * Struct pages that do not have backing memory. This could be because
@@ -6973,6 +6986,10 @@ void __init zero_resv_unavail(void)
 	 */
 	if (pgcnt)
 		pr_info("Zeroed struct page in unavailable ranges: %lld pages", pgcnt);
+}
+#else
+static inline void __init init_unavailable_mem(void)
+{
 }
 #endif /* !CONFIG_FLAT_NODE_MEM_MAP */
 
@@ -7403,7 +7420,7 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
 	/* Initialise every node */
 	mminit_verify_pageflags_layout();
 	setup_nr_node_ids();
-	zero_resv_unavail();
+	init_unavailable_mem();
 	for_each_online_node(nid) {
 		pg_data_t *pgdat = NODE_DATA(nid);
 		free_area_init_node(nid, NULL,
@@ -7598,7 +7615,7 @@ void __init set_dma_reserve(unsigned long new_dma_reserve)
 
 void __init free_area_init(unsigned long *zones_size)
 {
-	zero_resv_unavail();
+	init_unavailable_mem();
 	free_area_init_node(0, zones_size,
 			__pa(PAGE_OFFSET) >> PAGE_SHIFT, NULL);
 }

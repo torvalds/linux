@@ -1202,13 +1202,12 @@ static int acpi_battery_alarm_proc_open(struct inode *inode, struct file *file)
 	return single_open(file, acpi_battery_alarm_proc_show, PDE_DATA(inode));
 }
 
-static const struct file_operations acpi_battery_alarm_fops = {
-	.owner		= THIS_MODULE,
-	.open		= acpi_battery_alarm_proc_open,
-	.read		= seq_read,
-	.write		= acpi_battery_write_alarm,
-	.llseek		= seq_lseek,
-	.release	= single_release,
+static const struct proc_ops acpi_battery_alarm_proc_ops = {
+	.proc_open	= acpi_battery_alarm_proc_open,
+	.proc_read	= seq_read,
+	.proc_write	= acpi_battery_write_alarm,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
 };
 
 static int acpi_battery_add_fs(struct acpi_device *device)
@@ -1228,7 +1227,7 @@ static int acpi_battery_add_fs(struct acpi_device *device)
 			acpi_battery_state_proc_show, acpi_driver_data(device)))
 		return -ENODEV;
 	if (!proc_create_data("alarm", S_IFREG | S_IRUGO | S_IWUSR,
-			acpi_device_dir(device), &acpi_battery_alarm_fops,
+			acpi_device_dir(device), &acpi_battery_alarm_proc_ops,
 			acpi_driver_data(device)))
 		return -ENODEV;
 	return 0;

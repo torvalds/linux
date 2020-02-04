@@ -2322,25 +2322,23 @@ static int sg_proc_seq_show_int(struct seq_file *s, void *v);
 static int sg_proc_single_open_adio(struct inode *inode, struct file *file);
 static ssize_t sg_proc_write_adio(struct file *filp, const char __user *buffer,
 			          size_t count, loff_t *off);
-static const struct file_operations adio_fops = {
-	.owner = THIS_MODULE,
-	.open = sg_proc_single_open_adio,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.write = sg_proc_write_adio,
-	.release = single_release,
+static const struct proc_ops adio_proc_ops = {
+	.proc_open	= sg_proc_single_open_adio,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_write	= sg_proc_write_adio,
+	.proc_release	= single_release,
 };
 
 static int sg_proc_single_open_dressz(struct inode *inode, struct file *file);
 static ssize_t sg_proc_write_dressz(struct file *filp, 
 		const char __user *buffer, size_t count, loff_t *off);
-static const struct file_operations dressz_fops = {
-	.owner = THIS_MODULE,
-	.open = sg_proc_single_open_dressz,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.write = sg_proc_write_dressz,
-	.release = single_release,
+static const struct proc_ops dressz_proc_ops = {
+	.proc_open	= sg_proc_single_open_dressz,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_write	= sg_proc_write_dressz,
+	.proc_release	= single_release,
 };
 
 static int sg_proc_seq_show_version(struct seq_file *s, void *v);
@@ -2381,9 +2379,9 @@ sg_proc_init(void)
 	if (!p)
 		return 1;
 
-	proc_create("allow_dio", S_IRUGO | S_IWUSR, p, &adio_fops);
+	proc_create("allow_dio", S_IRUGO | S_IWUSR, p, &adio_proc_ops);
 	proc_create_seq("debug", S_IRUGO, p, &debug_seq_ops);
-	proc_create("def_reserved_size", S_IRUGO | S_IWUSR, p, &dressz_fops);
+	proc_create("def_reserved_size", S_IRUGO | S_IWUSR, p, &dressz_proc_ops);
 	proc_create_single("device_hdr", S_IRUGO, p, sg_proc_seq_show_devhdr);
 	proc_create_seq("devices", S_IRUGO, p, &dev_seq_ops);
 	proc_create_seq("device_strs", S_IRUGO, p, &devstrs_seq_ops);

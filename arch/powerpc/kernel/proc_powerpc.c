@@ -39,10 +39,10 @@ static int page_map_mmap( struct file *file, struct vm_area_struct *vma )
 	return 0;
 }
 
-static const struct file_operations page_map_fops = {
-	.llseek	= page_map_seek,
-	.read	= page_map_read,
-	.mmap	= page_map_mmap
+static const struct proc_ops page_map_proc_ops = {
+	.proc_lseek	= page_map_seek,
+	.proc_read	= page_map_read,
+	.proc_mmap	= page_map_mmap,
 };
 
 
@@ -51,7 +51,7 @@ static int __init proc_ppc64_init(void)
 	struct proc_dir_entry *pde;
 
 	pde = proc_create_data("powerpc/systemcfg", S_IFREG | 0444, NULL,
-			       &page_map_fops, vdso_data);
+			       &page_map_proc_ops, vdso_data);
 	if (!pde)
 		return 1;
 	proc_set_size(pde, PAGE_SIZE);
