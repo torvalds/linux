@@ -194,6 +194,9 @@ enum ppfear_regs {
 #define TGL_LPM_EN_OFFSET			0x1C78
 #define TGL_LPM_RESIDENCY_OFFSET		0x1C80
 
+/* Tigerlake Low Power Mode debug registers */
+#define TGL_LPM_STATUS_OFFSET			0x1C3C
+
 const char *lpm_modes[] = {
 	"S0i2.0",
 	"S0i2.1",
@@ -239,6 +242,7 @@ struct pmc_reg_map {
 	const struct pmc_bit_map **slps0_dbg_maps;
 	const struct pmc_bit_map *ltr_show_sts;
 	const struct pmc_bit_map *msr_sts;
+	const struct pmc_bit_map **lpm_sts;
 	const u32 slp_s0_offset;
 	const u32 ltr_ignore_offset;
 	const int regmap_length;
@@ -252,6 +256,7 @@ struct pmc_reg_map {
 	/* Low Power Mode registers */
 	const u32 lpm_en_offset;
 	const u32 lpm_residency_offset;
+	const u32 lpm_status_offset;
 };
 
 /**

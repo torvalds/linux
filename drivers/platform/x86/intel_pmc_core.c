@@ -408,6 +408,152 @@ static const struct pmc_reg_map icl_reg_map = {
 	.ltr_ignore_max = ICL_NUM_IP_IGN_ALLOWED,
 };
 
+static const struct pmc_bit_map tgl_lpm0_map[] = {
+	{"USB2PLL_OFF_STS",			BIT(18)},
+	{"PCIe/USB3.1_Gen2PLL_OFF_STS",		BIT(19)},
+	{"PCIe_Gen3PLL_OFF_STS",		BIT(20)},
+	{"OPIOPLL_OFF_STS",			BIT(21)},
+	{"OCPLL_OFF_STS",			BIT(22)},
+	{"AudioPLL_OFF_STS",			BIT(23)},
+	{"MIPIPLL_OFF_STS",			BIT(24)},
+	{"Fast_XTAL_Osc_OFF_STS",		BIT(25)},
+	{"AC_Ring_Osc_OFF_STS",			BIT(26)},
+	{"MC_Ring_Osc_OFF_STS",			BIT(27)},
+	{"SATAPLL_OFF_STS",			BIT(29)},
+	{"XTAL_USB2PLL_OFF_STS",		BIT(31)},
+	{}
+};
+
+static const struct pmc_bit_map tgl_lpm1_map[] = {
+	{"SPI_PG_STS",				BIT(2)},
+	{"xHCI_PG_STS",				BIT(3)},
+	{"PCIe_Ctrller_A_PG_STS",		BIT(4)},
+	{"PCIe_Ctrller_B_PG_STS",		BIT(5)},
+	{"PCIe_Ctrller_C_PG_STS",		BIT(6)},
+	{"GBE_PG_STS",				BIT(7)},
+	{"SATA_PG_STS",				BIT(8)},
+	{"HDA0_PG_STS",				BIT(9)},
+	{"HDA1_PG_STS",				BIT(10)},
+	{"HDA2_PG_STS",				BIT(11)},
+	{"HDA3_PG_STS",				BIT(12)},
+	{"PCIe_Ctrller_D_PG_STS",		BIT(13)},
+	{"ISIO_PG_STS",				BIT(14)},
+	{"SMB_PG_STS",				BIT(16)},
+	{"ISH_PG_STS",				BIT(17)},
+	{"ITH_PG_STS",				BIT(19)},
+	{"SDX_PG_STS",				BIT(20)},
+	{"xDCI_PG_STS",				BIT(25)},
+	{"DCI_PG_STS",				BIT(26)},
+	{"CSME0_PG_STS",			BIT(27)},
+	{"CSME_KVM_PG_STS",			BIT(28)},
+	{"CSME1_PG_STS",			BIT(29)},
+	{"CSME_CLINK_PG_STS",			BIT(30)},
+	{"CSME2_PG_STS",			BIT(31)},
+	{}
+};
+
+static const struct pmc_bit_map tgl_lpm2_map[] = {
+	{"ADSP_D3_STS",				BIT(0)},
+	{"SATA_D3_STS",				BIT(1)},
+	{"xHCI0_D3_STS",			BIT(2)},
+	{"xDCI1_D3_STS",			BIT(5)},
+	{"SDX_D3_STS",				BIT(6)},
+	{"EMMC_D3_STS",				BIT(7)},
+	{"IS_D3_STS",				BIT(8)},
+	{"THC0_D3_STS",				BIT(9)},
+	{"THC1_D3_STS",				BIT(10)},
+	{"GBE_D3_STS",				BIT(11)},
+	{"GBE_TSN_D3_STS",			BIT(12)},
+	{}
+};
+
+static const struct pmc_bit_map tgl_lpm3_map[] = {
+	{"GPIO_COM0_VNN_REQ_STS",		BIT(1)},
+	{"GPIO_COM1_VNN_REQ_STS",		BIT(2)},
+	{"GPIO_COM2_VNN_REQ_STS",		BIT(3)},
+	{"GPIO_COM3_VNN_REQ_STS",		BIT(4)},
+	{"GPIO_COM4_VNN_REQ_STS",		BIT(5)},
+	{"GPIO_COM5_VNN_REQ_STS",		BIT(6)},
+	{"Audio_VNN_REQ_STS",			BIT(7)},
+	{"ISH_VNN_REQ_STS",			BIT(8)},
+	{"CNVI_VNN_REQ_STS",			BIT(9)},
+	{"eSPI_VNN_REQ_STS",			BIT(10)},
+	{"Display_VNN_REQ_STS",			BIT(11)},
+	{"DTS_VNN_REQ_STS",			BIT(12)},
+	{"SMBUS_VNN_REQ_STS",			BIT(14)},
+	{"CSME_VNN_REQ_STS",			BIT(15)},
+	{"SMLINK0_VNN_REQ_STS",			BIT(16)},
+	{"SMLINK1_VNN_REQ_STS",			BIT(17)},
+	{"CLINK_VNN_REQ_STS",			BIT(20)},
+	{"DCI_VNN_REQ_STS",			BIT(21)},
+	{"ITH_VNN_REQ_STS",			BIT(22)},
+	{"CSME_VNN_REQ_STS",			BIT(24)},
+	{"GBE_VNN_REQ_STS",			BIT(25)},
+	{}
+};
+
+static const struct pmc_bit_map tgl_lpm4_map[] = {
+	{"CPU_C10_REQ_STS_0",			BIT(0)},
+	{"PCIe_LPM_En_REQ_STS_3",		BIT(3)},
+	{"ITH_REQ_STS_5",			BIT(5)},
+	{"CNVI_REQ_STS_6",			BIT(6)},
+	{"ISH_REQ_STS_7",			BIT(7)},
+	{"USB2_SUS_PG_Sys_REQ_STS_10",		BIT(10)},
+	{"PCIe_Clk_REQ_STS_12",			BIT(12)},
+	{"MPHY_Core_DL_REQ_STS_16",		BIT(16)},
+	{"Break-even_En_REQ_STS_17",		BIT(17)},
+	{"Auto-demo_En_REQ_STS_18",		BIT(18)},
+	{"MPHY_SUS_REQ_STS_22",			BIT(22)},
+	{"xDCI_attached_REQ_STS_24",		BIT(24)},
+	{}
+};
+
+static const struct pmc_bit_map tgl_lpm5_map[] = {
+	{"LSX_Wake0_En_STS",			BIT(0)},
+	{"LSX_Wake0_Pol_STS",			BIT(1)},
+	{"LSX_Wake1_En_STS",			BIT(2)},
+	{"LSX_Wake1_Pol_STS",			BIT(3)},
+	{"LSX_Wake2_En_STS",			BIT(4)},
+	{"LSX_Wake2_Pol_STS",			BIT(5)},
+	{"LSX_Wake3_En_STS",			BIT(6)},
+	{"LSX_Wake3_Pol_STS",			BIT(7)},
+	{"LSX_Wake4_En_STS",			BIT(8)},
+	{"LSX_Wake4_Pol_STS",			BIT(9)},
+	{"LSX_Wake5_En_STS",			BIT(10)},
+	{"LSX_Wake5_Pol_STS",			BIT(11)},
+	{"LSX_Wake6_En_STS",			BIT(12)},
+	{"LSX_Wake6_Pol_STS",			BIT(13)},
+	{"LSX_Wake7_En_STS",			BIT(14)},
+	{"LSX_Wake7_Pol_STS",			BIT(15)},
+	{"Intel_Se_IO_Wake0_En_STS",		BIT(16)},
+	{"Intel_Se_IO_Wake0_Pol_STS",		BIT(17)},
+	{"Intel_Se_IO_Wake1_En_STS",		BIT(18)},
+	{"Intel_Se_IO_Wake1_Pol_STS",		BIT(19)},
+	{"Int_Timer_SS_Wake0_En_STS",		BIT(20)},
+	{"Int_Timer_SS_Wake0_Pol_STS",		BIT(21)},
+	{"Int_Timer_SS_Wake1_En_STS",		BIT(22)},
+	{"Int_Timer_SS_Wake1_Pol_STS",		BIT(23)},
+	{"Int_Timer_SS_Wake2_En_STS",		BIT(24)},
+	{"Int_Timer_SS_Wake2_Pol_STS",		BIT(25)},
+	{"Int_Timer_SS_Wake3_En_STS",		BIT(26)},
+	{"Int_Timer_SS_Wake3_Pol_STS",		BIT(27)},
+	{"Int_Timer_SS_Wake4_En_STS",		BIT(28)},
+	{"Int_Timer_SS_Wake4_Pol_STS",		BIT(29)},
+	{"Int_Timer_SS_Wake5_En_STS",		BIT(30)},
+	{"Int_Timer_SS_Wake5_Pol_STS",		BIT(31)},
+	{}
+};
+
+static const struct pmc_bit_map *tgl_lpm_maps[] = {
+	tgl_lpm0_map,
+	tgl_lpm1_map,
+	tgl_lpm2_map,
+	tgl_lpm3_map,
+	tgl_lpm4_map,
+	tgl_lpm5_map,
+	NULL
+};
+
 static const struct pmc_reg_map tgl_reg_map = {
 	.pfear_sts = ext_tgl_pfear_map,
 	.slp_s0_offset = CNP_PMC_SLP_S0_RES_COUNTER_OFFSET,
@@ -424,6 +570,8 @@ static const struct pmc_reg_map tgl_reg_map = {
 	.ltr_ignore_max = TGL_NUM_IP_IGN_ALLOWED,
 	.lpm_en_offset = TGL_LPM_EN_OFFSET,
 	.lpm_residency_offset = TGL_LPM_RESIDENCY_OFFSET,
+	.lpm_sts = tgl_lpm_maps,
+	.lpm_status_offset = TGL_LPM_STATUS_OFFSET,
 };
 
 static inline u32 pmc_core_reg_read(struct pmc_dev *pmcdev, int reg_offset)
@@ -816,6 +964,40 @@ static int pmc_core_substate_res_show(struct seq_file *s, void *unused)
 }
 DEFINE_SHOW_ATTRIBUTE(pmc_core_substate_res);
 
+static void pmc_core_lpm_display(struct pmc_dev *pmcdev, struct seq_file *s,
+				 u32 offset, const char *str,
+				 const struct pmc_bit_map **maps)
+{
+	u32 lpm_regs[ARRAY_SIZE(tgl_lpm_maps)-1];
+	int index, idx, len = 32, bit_mask;
+
+	for (index = 0; tgl_lpm_maps[index]; index++) {
+		lpm_regs[index] = pmc_core_reg_read(pmcdev, offset);
+		offset += 4;
+	}
+
+	for (idx = 0; maps[idx]; idx++) {
+		seq_printf(s, "\nLPM_%s_%d:\t0x%x\n", str, idx, lpm_regs[idx]);
+		for (index = 0; maps[idx][index].name && index < len; index++) {
+			bit_mask = maps[idx][index].bit_mask;
+			seq_printf(s, "%-30s %-30d\n", maps[idx][index].name,
+				   lpm_regs[idx] & bit_mask ? 1 : 0);
+		}
+	}
+}
+
+static int pmc_core_substate_sts_regs_show(struct seq_file *s, void *unused)
+{
+	struct pmc_dev *pmcdev = s->private;
+	const struct pmc_bit_map **maps = pmcdev->map->lpm_sts;
+	u32 offset = pmcdev->map->lpm_status_offset;
+
+	pmc_core_lpm_display(pmcdev, s, offset, "STATUS", maps);
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(pmc_core_substate_sts_regs);
+
 static int pmc_core_pkgc_show(struct seq_file *s, void *unused)
 {
 	struct pmc_dev *pmcdev = s->private;
@@ -886,6 +1068,12 @@ static void pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
 		debugfs_create_file("substate_residencies", 0444,
 				    pmcdev->dbgfs_dir, pmcdev,
 				    &pmc_core_substate_res_fops);
+	}
+
+	if (pmcdev->map->lpm_status_offset) {
+		debugfs_create_file("substate_status_registers", 0444,
+				    pmcdev->dbgfs_dir, pmcdev,
+				    &pmc_core_substate_sts_regs_fops);
 	}
 }
 #else
