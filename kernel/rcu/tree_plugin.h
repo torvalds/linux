@@ -1579,8 +1579,7 @@ static void rcu_nocb_unlock_irqrestore(struct rcu_data *rdp,
 static void rcu_lockdep_assert_cblist_protected(struct rcu_data *rdp)
 {
 	lockdep_assert_irqs_disabled();
-	if (rcu_segcblist_is_offloaded(&rdp->cblist) &&
-	    cpu_online(rdp->cpu))
+	if (rcu_segcblist_is_offloaded(&rdp->cblist))
 		lockdep_assert_held(&rdp->nocb_lock);
 }
 
