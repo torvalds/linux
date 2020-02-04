@@ -1379,6 +1379,16 @@ static inline int pfn_present(unsigned long pfn)
 	return present_section(__nr_to_section(pfn_to_section_nr(pfn)));
 }
 
+static inline unsigned long next_present_section_nr(unsigned long section_nr)
+{
+	while (++section_nr <= __highest_present_section_nr) {
+		if (present_section_nr(section_nr))
+			return section_nr;
+	}
+
+	return -1;
+}
+
 /*
  * These are _only_ used during initialisation, therefore they
  * can use __initdata ...  They could have names to indicate
