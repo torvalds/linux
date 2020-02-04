@@ -378,18 +378,6 @@ static int a6xx_hw_init(struct msm_gpu *gpu)
 	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
 	int ret;
 
-	/*
-	 * During a previous slumber, GBIF halt is asserted to ensure
-	 * no further transaction can go through GPU before GPU
-	 * headswitch is turned off.
-	 *
-	 * This halt is deasserted once headswitch goes off but
-	 * incase headswitch doesn't goes off clear GBIF halt
-	 * here to ensure GPU wake-up doesn't fail because of
-	 * halted GPU transactions.
-	 */
-	gpu_write(gpu, REG_A6XX_GBIF_HALT, 0x0);
-
 	/* Make sure the GMU keeps the GPU on while we set it up */
 	a6xx_gmu_set_oob(&a6xx_gpu->gmu, GMU_OOB_GPU_SET);
 
