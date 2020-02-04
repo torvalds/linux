@@ -199,11 +199,9 @@ static int pcf2127_rtc_ioctl(struct device *dev,
 		if (ret)
 			return ret;
 
-		touser = touser & PCF2127_BIT_CTRL3_BLF ? 1 : 0;
+		touser = touser & PCF2127_BIT_CTRL3_BLF ? RTC_VL_BACKUP_LOW : 0;
 
-		if (copy_to_user((void __user *)arg, &touser, sizeof(int)))
-			return -EFAULT;
-		return 0;
+		return put_user(touser, (unsigned int __user *)arg);
 	default:
 		return -ENOIOCTLCMD;
 	}
