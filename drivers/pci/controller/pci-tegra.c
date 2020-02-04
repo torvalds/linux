@@ -1406,7 +1406,7 @@ static struct phy *devm_of_phy_optional_get_index(struct device *dev,
 	phy = devm_of_phy_get(dev, np, name);
 	kfree(name);
 
-	if (IS_ERR(phy) && PTR_ERR(phy) == -ENODEV)
+	if (PTR_ERR(phy) == -ENODEV)
 		phy = NULL;
 
 	return phy;

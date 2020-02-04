@@ -484,24 +484,24 @@ struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 			break;
 	}
 
-	if (IS_ERR(desc) && PTR_ERR(desc) == -ENOENT) {
+	if (PTR_ERR(desc) == -ENOENT) {
 		/* Special handling for SPI GPIOs if used */
 		desc = of_find_spi_gpio(dev, con_id, &of_flags);
 	}
 
-	if (IS_ERR(desc) && PTR_ERR(desc) == -ENOENT) {
+	if (PTR_ERR(desc) == -ENOENT) {
 		/* This quirk looks up flags and all */
 		desc = of_find_spi_cs_gpio(dev, con_id, idx, flags);
 		if (!IS_ERR(desc))
 			return desc;
 	}
 
-	if (IS_ERR(desc) && PTR_ERR(desc) == -ENOENT) {
+	if (PTR_ERR(desc) == -ENOENT) {
 		/* Special handling for regulator GPIOs if used */
 		desc = of_find_regulator_gpio(dev, con_id, &of_flags);
 	}
 
-	if (IS_ERR(desc) && PTR_ERR(desc) == -ENOENT)
+	if (PTR_ERR(desc) == -ENOENT)
 		desc = of_find_arizona_gpio(dev, con_id, &of_flags);
 
 	if (IS_ERR(desc))

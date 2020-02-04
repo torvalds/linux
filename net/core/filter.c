@@ -1573,7 +1573,7 @@ int sk_reuseport_attach_bpf(u32 ufd, struct sock *sk)
 		return -EPERM;
 
 	prog = bpf_prog_get_type(ufd, BPF_PROG_TYPE_SOCKET_FILTER);
-	if (IS_ERR(prog) && PTR_ERR(prog) == -EINVAL)
+	if (PTR_ERR(prog) == -EINVAL)
 		prog = bpf_prog_get_type(ufd, BPF_PROG_TYPE_SK_REUSEPORT);
 	if (IS_ERR(prog))
 		return PTR_ERR(prog);

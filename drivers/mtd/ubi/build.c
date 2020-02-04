@@ -1180,7 +1180,7 @@ static struct mtd_info * __init open_mtd_device(const char *mtd_dev)
 		 * MTD device name.
 		 */
 		mtd = get_mtd_device_nm(mtd_dev);
-		if (IS_ERR(mtd) && PTR_ERR(mtd) == -ENODEV)
+		if (PTR_ERR(mtd) == -ENODEV)
 			/* Probably this is an MTD character device node path */
 			mtd = open_mtd_by_chdev(mtd_dev);
 	} else
