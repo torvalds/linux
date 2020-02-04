@@ -5972,7 +5972,6 @@ static int amdgpu_dm_connector_init(struct amdgpu_display_manager *dm,
 	drm_connector_attach_encoder(
 		&aconnector->base, &aencoder->base);
 
-	drm_connector_register(&aconnector->base);
 #if defined(CONFIG_DEBUG_FS)
 	connector_debugfs_init(aconnector);
 	aconnector->debugfs_dpcd_address = 0;
