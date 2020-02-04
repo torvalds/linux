@@ -516,6 +516,12 @@ n0 wg set wg0 peer "$pub2" allowed-ips 0.0.0.0/0,10.0.0.0/8,100.0.0.0/10,172.16.
 n0 wg set wg0 peer "$pub2" allowed-ips 0.0.0.0/0
 n0 wg set wg0 peer "$pub2" allowed-ips ::/0,1700::/111,5000::/4,e000::/37,9000::/75
 n0 wg set wg0 peer "$pub2" allowed-ips ::/0
+n0 wg set wg0 peer "$pub2" remove
+low_order_points=( AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= 4Ot6fDtBuK4WVuP68Z/EatoJjeucMrH9hmIFFl9JuAA= X5yVvKNQjCSx0LFVnIPvWwREXMRYHI6G2CJO3dCfEVc= 7P///////////////////////////////////////38= 7f///////////////////////////////////////38= 7v///////////////////////////////////////38= )
+n0 wg set wg0 private-key /dev/null ${low_order_points[@]/#/peer }
+[[ -z $(n0 wg show wg0 peers) ]]
+n0 wg set wg0 private-key <(echo "$key1") ${low_order_points[@]/#/peer }
+[[ -z $(n0 wg show wg0 peers) ]]
 ip0 link del wg0
 
 declare -A objects
