@@ -1272,6 +1272,8 @@ DEFINE_SIMPLE_ATTRIBUTE(fops_ib_preempt, NULL,
 
 int amdgpu_debugfs_init(struct amdgpu_device *adev)
 {
+	int r;
+
 	adev->debugfs_preempt =
 		debugfs_create_file("amdgpu_preempt_ib", 0600,
 				    adev->ddev->primary->debugfs_root, adev,
@@ -1281,12 +1283,20 @@ int amdgpu_debugfs_init(struct amdgpu_device *adev)
 		return -EIO;
 	}
 
+	/* Register debugfs entries for amdgpu_ttm */
+	r = amdgpu_ttm_debugfs_init(adev);
+	if (r) {
+		DRM_ERROR("Failed to init debugfs\n");
+		return r;
+	}
+
 	return amdgpu_debugfs_add_files(adev, amdgpu_debugfs_list,
 					ARRAY_SIZE(amdgpu_debugfs_list));
 }
 
 void amdgpu_debugfs_fini(struct amdgpu_device *adev)
 {
+	amdgpu_ttm_debugfs_fini(adev);
 	debugfs_remove(adev->debugfs_preempt);
 }
 
