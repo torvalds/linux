@@ -3570,8 +3570,6 @@ intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 		goto valid_fb;
 	}
 
-	kfree(plane_config->fb);
-
 	/*
 	 * Failed to alloc the obj, check to see if we should share
 	 * an fb with another CRTC instead
@@ -3591,7 +3589,6 @@ intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 
 		if (intel_plane_ggtt_offset(state) == plane_config->base) {
 			fb = state->hw.fb;
-			drm_framebuffer_get(fb);
 			goto valid_fb;
 		}
 	}
@@ -3625,7 +3622,6 @@ valid_fb:
 			intel_crtc->pipe, PTR_ERR(intel_state->vma));
 
 		intel_state->vma = NULL;
-		drm_framebuffer_put(fb);
 		return;
 	}
 
@@ -3648,6 +3644,8 @@ valid_fb:
 		dev_priv->preserve_bios_swizzle = true;
 
 	plane_state->fb = fb;
+	drm_framebuffer_get(fb);
+
 	plane_state->crtc = &intel_crtc->base;
 	intel_plane_copy_uapi_to_hw_state(intel_state, intel_state);
 
@@ -17854,6 +17852,19 @@ static void intel_mode_config_cleanup(struct drm_i915_private *i915)
 	drm_mode_config_cleanup(&i915->drm);
 }
 
+static void plane_config_fini(struct intel_initial_plane_config *plane_config)
+{
+	if (plane_config->fb) {
+		struct drm_framebuffer *fb = &plane_config->fb->base;
+
+		/* We may only have the stub and not a full framebuffer */
+		if (drm_framebuffer_read_refcount(fb))
+			drm_framebuffer_put(fb);
+		else
+			kfree(fb);
+	}
+}
+
 int intel_modeset_init(struct drm_i915_private *i915)
 {
 	struct drm_device *dev = &i915->drm;
@@ -17942,6 +17953,8 @@ int intel_modeset_init(struct drm_i915_private *i915)
 		 * just get the first one.
 		 */
 		intel_find_initial_plane_obj(crtc, &plane_config);
+
+		plane_config_fini(&plane_config);
 	}
 
 	/*
