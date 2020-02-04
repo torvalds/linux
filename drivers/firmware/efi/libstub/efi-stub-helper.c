@@ -14,6 +14,7 @@
 
 static bool __efistub_global efi_nochunk;
 static bool __efistub_global efi_nokaslr;
+static bool __efistub_global efi_noinitrd;
 static bool __efistub_global efi_quiet;
 static bool __efistub_global efi_novamap;
 static bool __efistub_global efi_nosoftreserve;
@@ -27,6 +28,10 @@ bool __pure nochunk(void)
 bool __pure nokaslr(void)
 {
 	return efi_nokaslr;
+}
+bool __pure noinitrd(void)
+{
+	return efi_noinitrd;
 }
 bool __pure is_quiet(void)
 {
@@ -87,6 +92,8 @@ efi_status_t efi_parse_options(char const *cmdline)
 			efi_nokaslr = true;
 		} else if (!strcmp(param, "quiet")) {
 			efi_quiet = true;
+		} else if (!strcmp(param, "noinitrd")) {
+			efi_noinitrd = true;
 		} else if (!strcmp(param, "efi") && val) {
 			efi_nochunk = parse_option_str(val, "nochunk");
 			efi_novamap = parse_option_str(val, "novamap");

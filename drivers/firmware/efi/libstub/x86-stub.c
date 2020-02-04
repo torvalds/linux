@@ -421,15 +421,18 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	if (status != EFI_SUCCESS)
 		goto fail2;
 
-	status = efi_load_initrd(image, &ramdisk_addr, &ramdisk_size,
-				 hdr->initrd_addr_max,
-				 above4g ? ULONG_MAX : hdr->initrd_addr_max);
-	if (status != EFI_SUCCESS)
-		goto fail2;
-	hdr->ramdisk_image = ramdisk_addr & 0xffffffff;
-	hdr->ramdisk_size  = ramdisk_size & 0xffffffff;
-	boot_params->ext_ramdisk_image = (u64)ramdisk_addr >> 32;
-	boot_params->ext_ramdisk_size  = (u64)ramdisk_size >> 32;
+	if (!noinitrd()) {
+		status = efi_load_initrd(image, &ramdisk_addr, &ramdisk_size,
+					 hdr->initrd_addr_max,
+					 above4g ? ULONG_MAX
+						 : hdr->initrd_addr_max);
+		if (status != EFI_SUCCESS)
+			goto fail2;
+		hdr->ramdisk_image = ramdisk_addr & 0xffffffff;
+		hdr->ramdisk_size  = ramdisk_size & 0xffffffff;
+		boot_params->ext_ramdisk_image = (u64)ramdisk_addr >> 32;
+		boot_params->ext_ramdisk_size  = (u64)ramdisk_size >> 32;
+	}
 
 	efi_stub_entry(handle, sys_table, boot_params);
 	/* not reached */
@@ -699,13 +702,8 @@ struct boot_params *efi_main(efi_handle_t handle,
 {
 	unsigned long bzimage_addr = (unsigned long)startup_32;
 	struct setup_header *hdr = &boot_params->hdr;
-	unsigned long max_addr = hdr->initrd_addr_max;
-	unsigned long initrd_addr, initrd_size;
 	efi_status_t status;
 	unsigned long cmdline_paddr;
-
-	if (hdr->xloadflags & XLF_CAN_BE_LOADED_ABOVE_4G)
-		max_addr = ULONG_MAX;
 
 	sys_table = sys_table_arg;
 
@@ -746,15 +744,23 @@ struct boot_params *efi_main(efi_handle_t handle,
 	 * permit an initrd loaded from the LINUX_EFI_INITRD_MEDIA_GUID device
 	 * path to supersede it.
 	 */
-	status = efi_load_initrd_dev_path(&initrd_addr, &initrd_size, max_addr);
-	if (status == EFI_SUCCESS) {
-		hdr->ramdisk_image		= (u32)initrd_addr;
-		hdr->ramdisk_size 		= (u32)initrd_size;
-		boot_params->ext_ramdisk_image	= (u64)initrd_addr >> 32;
-		boot_params->ext_ramdisk_size 	= (u64)initrd_size >> 32;
-	} else if (status != EFI_NOT_FOUND) {
-		efi_printk("efi_load_initrd_dev_path() failed!\n");
-		goto fail;
+	if (!noinitrd()) {
+		unsigned long addr, size;
+		unsigned long max_addr = hdr->initrd_addr_max;
+
+		if (hdr->xloadflags & XLF_CAN_BE_LOADED_ABOVE_4G)
+			max_addr = ULONG_MAX;
+
+		status = efi_load_initrd_dev_path(&addr, &size, max_addr);
+		if (status == EFI_SUCCESS) {
+			hdr->ramdisk_image		= (u32)addr;
+			hdr->ramdisk_size 		= (u32)size;
+			boot_params->ext_ramdisk_image	= (u64)addr >> 32;
+			boot_params->ext_ramdisk_size 	= (u64)size >> 32;
+		} else if (status != EFI_NOT_FOUND) {
+			efi_printk("efi_load_initrd_dev_path() failed!\n");
+			goto fail;
+		}
 	}
 
 	/*
