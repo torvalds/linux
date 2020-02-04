@@ -81,6 +81,13 @@ config GKI_LEGACY_WEXT_ALLCONFIG
 	  If you are not building a kernel to be used for a variety of
 	  out-of-kernel built wireless modules, say N here.
 
+config GKI_HIDDEN_SOC_PM_CONFIGS
+	bool "Hidden SOC Power Management configs for GKI"
+	select PM_GENERIC_DOMAINS if PM
+	help
+	  Dummy config option used to enable all the hidden SOC specific power
+	  management add-in modules.
+
 # Atrocities needed for
 # a) building GKI modules in separate tree, or
 # b) building drivers that are not modularizable
@@ -98,6 +105,7 @@ config GKI_HACKS_TO_FIX
 	select GKI_HIDDEN_GPIO_CONFIGS
 	select GKI_LEGACY_WEXT_ALLCONFIG
 	select GKI_HIDDEN_VIRTUAL_CONFIGS
+	select GKI_HIDDEN_SOC_PM_CONFIGS
 	help
 	  Dummy config option used to enable core functionality used by
 	  modules that may not be selectable in this config.
