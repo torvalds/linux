@@ -389,9 +389,9 @@ void btrfs_update_global_block_rsv(struct btrfs_fs_info *fs_info)
 
 	if (block_rsv->reserved < block_rsv->size) {
 		num_bytes = block_rsv->size - block_rsv->reserved;
-		block_rsv->reserved += num_bytes;
 		btrfs_space_info_update_bytes_may_use(fs_info, sinfo,
 						      num_bytes);
+		block_rsv->reserved = block_rsv->size;
 	} else if (block_rsv->reserved > block_rsv->size) {
 		num_bytes = block_rsv->reserved - block_rsv->size;
 		btrfs_space_info_update_bytes_may_use(fs_info, sinfo,
