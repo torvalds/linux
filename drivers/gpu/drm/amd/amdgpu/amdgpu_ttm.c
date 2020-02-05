@@ -1598,7 +1598,7 @@ static int amdgpu_ttm_access_memory(struct ttm_buffer_object *bo,
 
 	while (len && pos < adev->gmc.mc_vram_size) {
 		uint64_t aligned_pos = pos & ~(uint64_t)3;
-		uint32_t bytes = 4 - (pos & 3);
+		uint64_t bytes = 4 - (pos & 3);
 		uint32_t shift = (pos & 3) * 8;
 		uint32_t mask = 0xffffffff << shift;
 
@@ -1607,20 +1607,28 @@ static int amdgpu_ttm_access_memory(struct ttm_buffer_object *bo,
 			bytes = len;
 		}
 
-		spin_lock_irqsave(&adev->mmio_idx_lock, flags);
-		WREG32_NO_KIQ(mmMM_INDEX, ((uint32_t)aligned_pos) | 0x80000000);
-		WREG32_NO_KIQ(mmMM_INDEX_HI, aligned_pos >> 31);
-		if (!write || mask != 0xffffffff)
-			value = RREG32_NO_KIQ(mmMM_DATA);
-		if (write) {
-			value &= ~mask;
-			value |= (*(uint32_t *)buf << shift) & mask;
-			WREG32_NO_KIQ(mmMM_DATA, value);
-		}
-		spin_unlock_irqrestore(&adev->mmio_idx_lock, flags);
-		if (!write) {
-			value = (value & mask) >> shift;
-			memcpy(buf, &value, bytes);
+		if (mask != 0xffffffff) {
+			spin_lock_irqsave(&adev->mmio_idx_lock, flags);
+			WREG32_NO_KIQ(mmMM_INDEX, ((uint32_t)aligned_pos) | 0x80000000);
+			WREG32_NO_KIQ(mmMM_INDEX_HI, aligned_pos >> 31);
+			if (!write || mask != 0xffffffff)
+				value = RREG32_NO_KIQ(mmMM_DATA);
+			if (write) {
+				value &= ~mask;
+				value |= (*(uint32_t *)buf << shift) & mask;
+				WREG32_NO_KIQ(mmMM_DATA, value);
+			}
+			spin_unlock_irqrestore(&adev->mmio_idx_lock, flags);
+			if (!write) {
+				value = (value & mask) >> shift;
+				memcpy(buf, &value, bytes);
+			}
+		} else {
+			bytes = (nodes->start + nodes->size) << PAGE_SHIFT;
+			bytes = min(bytes - pos, (uint64_t)len & ~0x3ull);
+
+			amdgpu_device_vram_access(adev, pos, (uint32_t *)buf,
+						  bytes, write);
 		}
 
 		ret += bytes;
