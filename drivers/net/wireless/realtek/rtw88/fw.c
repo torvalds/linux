@@ -819,8 +819,7 @@ static struct sk_buff *rtw_lps_pg_dpk_get(struct ieee80211_hw *hw)
 	return skb;
 }
 
-static struct sk_buff *rtw_lps_pg_info_get(struct ieee80211_hw *hw,
-					   struct ieee80211_vif *vif)
+static struct sk_buff *rtw_lps_pg_info_get(struct ieee80211_hw *hw)
 {
 	struct rtw_dev *rtwdev = hw->priv;
 	struct rtw_chip_info *chip = rtwdev->chip;
@@ -876,7 +875,7 @@ static struct sk_buff *rtw_get_rsvd_page_skb(struct ieee80211_hw *hw,
 		skb_new = rtw_lps_pg_dpk_get(hw);
 		break;
 	case RSVD_LPS_PG_INFO:
-		skb_new = rtw_lps_pg_info_get(hw, vif);
+		skb_new = rtw_lps_pg_info_get(hw);
 		break;
 	case RSVD_PROBE_REQ:
 		ssid = (struct cfg80211_ssid *)rsvd_pkt->ssid;
