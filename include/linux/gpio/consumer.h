@@ -2,9 +2,10 @@
 #ifndef __LINUX_GPIO_CONSUMER_H
 #define __LINUX_GPIO_CONSUMER_H
 
+#include <linux/bits.h>
 #include <linux/bug.h>
+#include <linux/compiler_types.h>
 #include <linux/err.h>
-#include <linux/kernel.h>
 
 struct device;
 
@@ -188,6 +189,8 @@ struct gpio_desc *devm_fwnode_gpiod_get_index(struct device *dev,
 					      const char *label);
 
 #else /* CONFIG_GPIOLIB */
+
+#include <linux/kernel.h>
 
 static inline int gpiod_count(struct device *dev, const char *con_id)
 {
