@@ -215,4 +215,7 @@ struct amd_ntb_dev {
 #define ntb_ndev(__ntb) container_of(__ntb, struct amd_ntb_dev, ntb)
 #define hb_ndev(__work) container_of(__work, struct amd_ntb_dev, hb_timer.work)
 
+static void amd_set_side_info_reg(struct amd_ntb_dev *ndev, bool peer);
+static void amd_clear_side_info_reg(struct amd_ntb_dev *ndev, bool peer);
+
 #endif

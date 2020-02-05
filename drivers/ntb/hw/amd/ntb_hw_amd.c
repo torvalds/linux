@@ -913,17 +913,47 @@ static int amd_init_isr(struct amd_ntb_dev *ndev)
 	return ndev_init_isr(ndev, AMD_DB_CNT, AMD_MSIX_VECTOR_CNT);
 }
 
-static void amd_init_side_info(struct amd_ntb_dev *ndev)
+static void amd_set_side_info_reg(struct amd_ntb_dev *ndev, bool peer)
 {
-	void __iomem *mmio = ndev->self_mmio;
+	void __iomem *mmio = NULL;
 	unsigned int reg;
-	u32 ntb_ctl;
+
+	if (peer)
+		mmio = ndev->peer_mmio;
+	else
+		mmio = ndev->self_mmio;
 
 	reg = readl(mmio + AMD_SIDEINFO_OFFSET);
 	if (!(reg & AMD_SIDE_READY)) {
 		reg |= AMD_SIDE_READY;
 		writel(reg, mmio + AMD_SIDEINFO_OFFSET);
 	}
+}
+
+static void amd_clear_side_info_reg(struct amd_ntb_dev *ndev, bool peer)
+{
+	void __iomem *mmio = NULL;
+	unsigned int reg;
+
+	if (peer)
+		mmio = ndev->peer_mmio;
+	else
+		mmio = ndev->self_mmio;
+
+	reg = readl(mmio + AMD_SIDEINFO_OFFSET);
+	if (reg & AMD_SIDE_READY) {
+		reg &= ~AMD_SIDE_READY;
+		writel(reg, mmio + AMD_SIDEINFO_OFFSET);
+		readl(mmio + AMD_SIDEINFO_OFFSET);
+	}
+}
+
+static void amd_init_side_info(struct amd_ntb_dev *ndev)
+{
+	void __iomem *mmio = ndev->self_mmio;
+	u32 ntb_ctl;
+
+	amd_set_side_info_reg(ndev, false);
 
 	ntb_ctl = readl(mmio + AMD_CNTL_OFFSET);
 	ntb_ctl |= (PMM_REG_CTL | SMM_REG_CTL);
@@ -933,15 +963,9 @@ static void amd_init_side_info(struct amd_ntb_dev *ndev)
 static void amd_deinit_side_info(struct amd_ntb_dev *ndev)
 {
 	void __iomem *mmio = ndev->self_mmio;
-	unsigned int reg;
 	u32 ntb_ctl;
 
-	reg = readl(mmio + AMD_SIDEINFO_OFFSET);
-	if (reg & AMD_SIDE_READY) {
-		reg &= ~AMD_SIDE_READY;
-		writel(reg, mmio + AMD_SIDEINFO_OFFSET);
-		readl(mmio + AMD_SIDEINFO_OFFSET);
-	}
+	amd_clear_side_info_reg(ndev, false);
 
 	ntb_ctl = readl(mmio + AMD_CNTL_OFFSET);
 	ntb_ctl &= ~(PMM_REG_CTL | SMM_REG_CTL);
