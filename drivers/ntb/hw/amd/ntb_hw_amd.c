@@ -550,6 +550,9 @@ static void amd_handle_event(struct amd_ntb_dev *ndev, int vec)
 		dev_info(dev, "event status = 0x%x.\n", status);
 		break;
 	}
+
+	/* Clear the interrupt status */
+	writel(status, mmio + AMD_INTSTAT_OFFSET);
 }
 
 static irqreturn_t ndev_interrupt(struct amd_ntb_dev *ndev, int vec)
