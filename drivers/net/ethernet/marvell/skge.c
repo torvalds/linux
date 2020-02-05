@@ -2884,7 +2884,7 @@ static void skge_tx_clean(struct net_device *dev)
 	skge->tx_ring.to_clean = e;
 }
 
-static void skge_tx_timeout(struct net_device *dev)
+static void skge_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct skge_port *skge = netdev_priv(dev);
 

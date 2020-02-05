@@ -2546,6 +2546,23 @@ int rvu_mbox_handler_nix_set_mac_addr(struct rvu *rvu,
 	return 0;
 }
 
+int rvu_mbox_handler_nix_get_mac_addr(struct rvu *rvu,
+				      struct msg_req *req,
+				      struct nix_get_mac_addr_rsp *rsp)
+{
+	u16 pcifunc = req->hdr.pcifunc;
+	struct rvu_pfvf *pfvf;
+
+	if (!is_nixlf_attached(rvu, pcifunc))
+		return NIX_AF_ERR_AF_LF_INVALID;
+
+	pfvf = rvu_get_pfvf(rvu, pcifunc);
+
+	ether_addr_copy(rsp->mac_addr, pfvf->mac_addr);
+
+	return 0;
+}
+
 int rvu_mbox_handler_nix_set_rx_mode(struct rvu *rvu, struct nix_rx_mode *req,
 				     struct msg_rsp *rsp)
 {

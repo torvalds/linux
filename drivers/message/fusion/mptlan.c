@@ -552,7 +552,7 @@ mpt_lan_close(struct net_device *dev)
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /* Tx timeout handler. */
 static void
-mpt_lan_tx_timeout(struct net_device *dev)
+mpt_lan_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct mpt_lan_priv *priv = netdev_priv(dev);
 	MPT_ADAPTER *mpt_dev = priv->mpt_dev;

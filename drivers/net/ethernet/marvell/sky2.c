@@ -2358,7 +2358,7 @@ static void sky2_qlink_intr(struct sky2_hw *hw)
 /* Transmit timeout is only called if we are running, carrier is up
  * and tx queue is full (stopped).
  */
-static void sky2_tx_timeout(struct net_device *dev)
+static void sky2_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct sky2_port *sky2 = netdev_priv(dev);
 	struct sky2_hw *hw = sky2->hw;

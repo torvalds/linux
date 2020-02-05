@@ -26,6 +26,7 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
+#include "smp.h"
 #include "hci_debugfs.h"
 
 #define DEFINE_QUIRK_ATTRIBUTE(__name, __quirk)				      \
@@ -151,6 +152,21 @@ static int blacklist_show(struct seq_file *f, void *p)
 }
 
 DEFINE_SHOW_ATTRIBUTE(blacklist);
+
+static int blocked_keys_show(struct seq_file *f, void *p)
+{
+	struct hci_dev *hdev = f->private;
+	struct blocked_key *key;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(key, &hdev->blocked_keys, list)
+		seq_printf(f, "%u %*phN\n", key->type, 16, key->val);
+	rcu_read_unlock();
+
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(blocked_keys);
 
 static int uuids_show(struct seq_file *f, void *p)
 {
@@ -308,6 +324,8 @@ void hci_debugfs_create_common(struct hci_dev *hdev)
 			    &device_list_fops);
 	debugfs_create_file("blacklist", 0444, hdev->debugfs, hdev,
 			    &blacklist_fops);
+	debugfs_create_file("blocked_keys", 0444, hdev->debugfs, hdev,
+			    &blocked_keys_fops);
 	debugfs_create_file("uuids", 0444, hdev->debugfs, hdev, &uuids_fops);
 	debugfs_create_file("remote_oob", 0400, hdev->debugfs, hdev,
 			    &remote_oob_fops);
@@ -972,6 +990,62 @@ static int adv_max_interval_get(void *data, u64 *val)
 DEFINE_SIMPLE_ATTRIBUTE(adv_max_interval_fops, adv_max_interval_get,
 			adv_max_interval_set, "%llu\n");
 
+static int min_key_size_set(void *data, u64 val)
+{
+	struct hci_dev *hdev = data;
+
+	if (val > hdev->le_max_key_size || val < SMP_MIN_ENC_KEY_SIZE)
+		return -EINVAL;
+
+	hci_dev_lock(hdev);
+	hdev->le_min_key_size = val;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int min_key_size_get(void *data, u64 *val)
+{
+	struct hci_dev *hdev = data;
+
+	hci_dev_lock(hdev);
+	*val = hdev->le_min_key_size;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(min_key_size_fops, min_key_size_get,
+			min_key_size_set, "%llu\n");
+
+static int max_key_size_set(void *data, u64 val)
+{
+	struct hci_dev *hdev = data;
+
+	if (val > SMP_MAX_ENC_KEY_SIZE || val < hdev->le_min_key_size)
+		return -EINVAL;
+
+	hci_dev_lock(hdev);
+	hdev->le_max_key_size = val;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int max_key_size_get(void *data, u64 *val)
+{
+	struct hci_dev *hdev = data;
+
+	hci_dev_lock(hdev);
+	*val = hdev->le_max_key_size;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(max_key_size_fops, max_key_size_get,
+			max_key_size_set, "%llu\n");
+
 static int auth_payload_timeout_set(void *data, u64 val)
 {
 	struct hci_dev *hdev = data;
@@ -1054,6 +1128,10 @@ void hci_debugfs_create_le(struct hci_dev *hdev)
 			    &adv_max_interval_fops);
 	debugfs_create_u16("discov_interleaved_timeout", 0644, hdev->debugfs,
 			   &hdev->discov_interleaved_timeout);
+	debugfs_create_file("min_key_size", 0644, hdev->debugfs, hdev,
+			    &min_key_size_fops);
+	debugfs_create_file("max_key_size", 0644, hdev->debugfs, hdev,
+			    &max_key_size_fops);
 	debugfs_create_file("auth_payload_timeout", 0644, hdev->debugfs, hdev,
 			    &auth_payload_timeout_fops);
 

@@ -270,7 +270,9 @@ static int caif_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ser_device *ser;
 
-	BUG_ON(dev == NULL);
+	if (WARN_ON(!dev))
+		return -EINVAL;
+
 	ser = netdev_priv(dev);
 
 	/* Send flow off once, on high water mark */

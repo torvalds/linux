@@ -225,18 +225,6 @@ static int snd_sb8_playback_trigger(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int snd_sb8_hw_params(struct snd_pcm_substream *substream,
-			     struct snd_pcm_hw_params *hw_params)
-{
-	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
-}
-
-static int snd_sb8_hw_free(struct snd_pcm_substream *substream)
-{
-	snd_pcm_lib_free_pages(substream);
-	return 0;
-}
-
 static int snd_sb8_capture_prepare(struct snd_pcm_substream *substream)
 {
 	unsigned long flags;
@@ -558,9 +546,6 @@ static int snd_sb8_close(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_sb8_playback_ops = {
 	.open =			snd_sb8_open,
 	.close =		snd_sb8_close,
-	.ioctl =		snd_pcm_lib_ioctl,
-	.hw_params =		snd_sb8_hw_params,
-	.hw_free =		snd_sb8_hw_free,
 	.prepare =		snd_sb8_playback_prepare,
 	.trigger =		snd_sb8_playback_trigger,
 	.pointer =		snd_sb8_playback_pointer,
@@ -569,9 +554,6 @@ static const struct snd_pcm_ops snd_sb8_playback_ops = {
 static const struct snd_pcm_ops snd_sb8_capture_ops = {
 	.open =			snd_sb8_open,
 	.close =		snd_sb8_close,
-	.ioctl =		snd_pcm_lib_ioctl,
-	.hw_params =		snd_sb8_hw_params,
-	.hw_free =		snd_sb8_hw_free,
 	.prepare =		snd_sb8_capture_prepare,
 	.trigger =		snd_sb8_capture_trigger,
 	.pointer =		snd_sb8_capture_pointer,
@@ -595,9 +577,8 @@ int snd_sb8dsp_pcm(struct snd_sb *chip, int device)
 
 	if (chip->dma8 > 3 || chip->dma16 >= 0)
 		max_prealloc = 128 * 1024;
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      card->dev,
-					      64*1024, max_prealloc);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+				       card->dev, 64*1024, max_prealloc);
 
 	return 0;
 }

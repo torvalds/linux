@@ -1127,24 +1127,18 @@ EXPORT_SYMBOL_GPL(crypto_it_tab);
  * @in_key:	The input key.
  * @key_len:	The size of the key.
  *
- * Returns 0 on success, on failure the %CRYPTO_TFM_RES_BAD_KEY_LEN flag in tfm
- * is set. The function uses aes_expand_key() to expand the key.
- * &crypto_aes_ctx _must_ be the private data embedded in @tfm which is
- * retrieved with crypto_tfm_ctx().
+ * This function uses aes_expand_key() to expand the key.  &crypto_aes_ctx
+ * _must_ be the private data embedded in @tfm which is retrieved with
+ * crypto_tfm_ctx().
+ *
+ * Return: 0 on success; -EINVAL on failure (only happens for bad key lengths)
  */
 int crypto_aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 		unsigned int key_len)
 {
 	struct crypto_aes_ctx *ctx = crypto_tfm_ctx(tfm);
-	u32 *flags = &tfm->crt_flags;
-	int ret;
 
-	ret = aes_expandkey(ctx, in_key, key_len);
-	if (!ret)
-		return 0;
-
-	*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
-	return -EINVAL;
+	return aes_expandkey(ctx, in_key, key_len);
 }
 EXPORT_SYMBOL_GPL(crypto_aes_set_key);
 

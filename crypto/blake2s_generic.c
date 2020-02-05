@@ -17,10 +17,8 @@ static int crypto_blake2s_setkey(struct crypto_shash *tfm, const u8 *key,
 {
 	struct blake2s_tfm_ctx *tctx = crypto_shash_ctx(tfm);
 
-	if (keylen == 0 || keylen > BLAKE2S_KEY_SIZE) {
-		crypto_shash_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (keylen == 0 || keylen > BLAKE2S_KEY_SIZE)
 		return -EINVAL;
-	}
 
 	memcpy(tctx->key, key, keylen);
 	tctx->keylen = keylen;

@@ -93,7 +93,7 @@ static irqreturn_t fjn_interrupt(int irq, void *dev_id);
 static void fjn_rx(struct net_device *dev);
 static void fjn_reset(struct net_device *dev);
 static void set_rx_mode(struct net_device *dev);
-static void fjn_tx_timeout(struct net_device *dev);
+static void fjn_tx_timeout(struct net_device *dev, unsigned int txqueue);
 static const struct ethtool_ops netdev_ethtool_ops;
 
 /*
@@ -774,7 +774,7 @@ static irqreturn_t fjn_interrupt(int dummy, void *dev_id)
 
 /*====================================================================*/
 
-static void fjn_tx_timeout(struct net_device *dev)
+static void fjn_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
     struct local_info *lp = netdev_priv(dev);
     unsigned int ioaddr = dev->base_addr;

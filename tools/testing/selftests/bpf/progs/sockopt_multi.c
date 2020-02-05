@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <netinet/in.h>
 #include <linux/bpf.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 char _license[] SEC("license") = "GPL";
 __u32 _version SEC("version") = 1;

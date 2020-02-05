@@ -306,7 +306,7 @@ static void iwl_pcie_txq_inc_wr_ptr(struct iwl_trans *trans,
 			IWL_DEBUG_INFO(trans, "Tx queue %d requesting wakeup, GP1 = 0x%x\n",
 				       txq_id, reg);
 			iwl_set_bit(trans, CSR_GP_CNTRL,
-				    BIT(trans->trans_cfg->csr->flag_mac_access_req));
+				    CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 			txq->need_update = true;
 			return;
 		}
@@ -652,7 +652,7 @@ static void iwl_pcie_clear_cmd_in_flight(struct iwl_trans *trans)
 
 	trans_pcie->cmd_hold_nic_awake = false;
 	__iwl_trans_pcie_clear_bit(trans, CSR_GP_CNTRL,
-				   BIT(trans->trans_cfg->csr->flag_mac_access_req));
+				   CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 }
 
 /*
@@ -1261,16 +1261,16 @@ static int iwl_pcie_set_cmd_in_flight(struct iwl_trans *trans,
 	if (trans->trans_cfg->base_params->apmg_wake_up_wa &&
 	    !trans_pcie->cmd_hold_nic_awake) {
 		__iwl_trans_pcie_set_bit(trans, CSR_GP_CNTRL,
-					 BIT(trans->trans_cfg->csr->flag_mac_access_req));
+					 CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 
 		ret = iwl_poll_bit(trans, CSR_GP_CNTRL,
-				   BIT(trans->trans_cfg->csr->flag_val_mac_access_en),
-				   (BIT(trans->trans_cfg->csr->flag_mac_clock_ready) |
+				   CSR_GP_CNTRL_REG_VAL_MAC_ACCESS_EN,
+				   (CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY |
 				    CSR_GP_CNTRL_REG_FLAG_GOING_TO_SLEEP),
 				   15000);
 		if (ret < 0) {
 			__iwl_trans_pcie_clear_bit(trans, CSR_GP_CNTRL,
-					BIT(trans->trans_cfg->csr->flag_mac_access_req));
+					CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 			IWL_ERR(trans, "Failed to wake NIC for hcmd\n");
 			return -EIO;
 		}

@@ -248,7 +248,7 @@ static const s16 snd_opl4_pitch_map[0x600] = {
  * Attenuation according to GM recommendations, in -0.375 dB units.
  * table[v] = 40 * log(v / 127) / -0.375
  */
-static unsigned char snd_opl4_volume_table[128] = {
+static const unsigned char snd_opl4_volume_table[128] = {
 	255,224,192,173,160,150,141,134,
 	128,122,117,113,109,105,102, 99,
 	 96, 93, 90, 88, 85, 83, 81, 79,

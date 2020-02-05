@@ -2,6 +2,7 @@
 config FSL_ENETC
 	tristate "ENETC PF driver"
 	depends on PCI && PCI_MSI && (ARCH_LAYERSCAPE || COMPILE_TEST)
+	select FSL_ENETC_MDIO
 	select PHYLIB
 	help
 	  This driver supports NXP ENETC gigabit ethernet controller PCIe

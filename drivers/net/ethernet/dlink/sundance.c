@@ -432,7 +432,7 @@ static int  mdio_wait_link(struct net_device *dev, int wait);
 static int  netdev_open(struct net_device *dev);
 static void check_duplex(struct net_device *dev);
 static void netdev_timer(struct timer_list *t);
-static void tx_timeout(struct net_device *dev);
+static void tx_timeout(struct net_device *dev, unsigned int txqueue);
 static void init_ring(struct net_device *dev);
 static netdev_tx_t start_tx(struct sk_buff *skb, struct net_device *dev);
 static int reset_tx (struct net_device *dev);
@@ -969,7 +969,7 @@ static void netdev_timer(struct timer_list *t)
 	add_timer(&np->timer);
 }
 
-static void tx_timeout(struct net_device *dev)
+static void tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct netdev_private *np = netdev_priv(dev);
 	void __iomem *ioaddr = np->base;

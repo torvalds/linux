@@ -208,10 +208,12 @@ SYM_FUNC_START(startup_32)
 	pushl	$__KERNEL_CS
 	leal	startup_64(%ebp), %eax
 #ifdef CONFIG_EFI_MIXED
-	movl	efi32_config(%ebp), %ebx
-	cmp	$0, %ebx
+	movl	efi32_boot_args(%ebp), %edi
+	cmp	$0, %edi
 	jz	1f
-	leal	handover_entry(%ebp), %eax
+	leal	efi64_stub_entry(%ebp), %eax
+	movl	%esi, %edx
+	movl	efi32_boot_args+4(%ebp), %esi
 1:
 #endif
 	pushl	%eax
@@ -232,17 +234,14 @@ SYM_FUNC_START(efi32_stub_entry)
 	popl	%edx
 	popl	%esi
 
-	leal	(BP_scratch+4)(%esi), %esp
 	call	1f
 1:	pop	%ebp
 	subl	$1b, %ebp
 
-	movl	%ecx, efi32_config(%ebp)
-	movl	%edx, efi32_config+8(%ebp)
+	movl	%ecx, efi32_boot_args(%ebp)
+	movl	%edx, efi32_boot_args+4(%ebp)
 	sgdtl	efi32_boot_gdt(%ebp)
-
-	leal	efi32_config(%ebp), %eax
-	movl	%eax, efi_config(%ebp)
+	movb	$0, efi_is64(%ebp)
 
 	/* Disable paging */
 	movl	%cr0, %eax
@@ -450,70 +449,17 @@ trampoline_return:
 SYM_CODE_END(startup_64)
 
 #ifdef CONFIG_EFI_STUB
-
-/* The entry point for the PE/COFF executable is efi_pe_entry. */
-SYM_FUNC_START(efi_pe_entry)
-	movq	%rcx, efi64_config(%rip)	/* Handle */
-	movq	%rdx, efi64_config+8(%rip) /* EFI System table pointer */
-
-	leaq	efi64_config(%rip), %rax
-	movq	%rax, efi_config(%rip)
-
-	call	1f
-1:	popq	%rbp
-	subq	$1b, %rbp
-
-	/*
-	 * Relocate efi_config->call().
-	 */
-	addq	%rbp, efi64_config+40(%rip)
-
-	movq	%rax, %rdi
-	call	make_boot_params
-	cmpq	$0,%rax
-	je	fail
-	mov	%rax, %rsi
-	leaq	startup_32(%rip), %rax
-	movl	%eax, BP_code32_start(%rsi)
-	jmp	2f		/* Skip the relocation */
-
-handover_entry:
-	call	1f
-1:	popq	%rbp
-	subq	$1b, %rbp
-
-	/*
-	 * Relocate efi_config->call().
-	 */
-	movq	efi_config(%rip), %rax
-	addq	%rbp, 40(%rax)
-2:
-	movq	efi_config(%rip), %rdi
+	.org 0x390
+SYM_FUNC_START(efi64_stub_entry)
+SYM_FUNC_START_ALIAS(efi_stub_entry)
+	and	$~0xf, %rsp			/* realign the stack */
 	call	efi_main
 	movq	%rax,%rsi
-	cmpq	$0,%rax
-	jne	2f
-fail:
-	/* EFI init failed, so hang. */
-	hlt
-	jmp	fail
-2:
 	movl	BP_code32_start(%esi), %eax
 	leaq	startup_64(%rax), %rax
 	jmp	*%rax
-SYM_FUNC_END(efi_pe_entry)
-
-	.org 0x390
-SYM_FUNC_START(efi64_stub_entry)
-	movq	%rdi, efi64_config(%rip)	/* Handle */
-	movq	%rsi, efi64_config+8(%rip) /* EFI System table pointer */
-
-	leaq	efi64_config(%rip), %rax
-	movq	%rax, efi_config(%rip)
-
-	movq	%rdx, %rsi
-	jmp	handover_entry
 SYM_FUNC_END(efi64_stub_entry)
+SYM_FUNC_END_ALIAS(efi_stub_entry)
 #endif
 
 	.text
@@ -682,23 +628,10 @@ SYM_DATA_START_LOCAL(gdt)
 	.quad   0x0000000000000000	/* TS continued */
 SYM_DATA_END_LABEL(gdt, SYM_L_LOCAL, gdt_end)
 
-#ifdef CONFIG_EFI_STUB
-SYM_DATA_LOCAL(efi_config, .quad 0)
-
 #ifdef CONFIG_EFI_MIXED
-SYM_DATA_START(efi32_config)
-	.fill	5,8,0
-	.quad	efi64_thunk
-	.byte	0
-SYM_DATA_END(efi32_config)
+SYM_DATA_LOCAL(efi32_boot_args, .long 0, 0)
+SYM_DATA(efi_is64, .byte 1)
 #endif
-
-SYM_DATA_START(efi64_config)
-	.fill	5,8,0
-	.quad	efi_call
-	.byte	1
-SYM_DATA_END(efi64_config)
-#endif /* CONFIG_EFI_STUB */
 
 /*
  * Stack and heap for uncompression

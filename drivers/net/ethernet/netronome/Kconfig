@@ -31,6 +31,7 @@ config NFP_APP_FLOWER
 	bool "NFP4000/NFP6000 TC Flower offload support"
 	depends on NFP
 	depends on NET_SWITCHDEV
+	depends on IPV6!=m || NFP=m
 	default y
 	---help---
 	  Enable driver support for TC Flower offload on NFP4000 and NFP6000.

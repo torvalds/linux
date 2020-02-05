@@ -152,12 +152,16 @@ static void ionic_rx_clean(struct ionic_queue *q, struct ionic_desc_info *desc_i
 	stats = q_to_rx_stats(q);
 	netdev = q->lif->netdev;
 
-	if (comp->status)
+	if (comp->status) {
+		stats->dropped++;
 		return;
+	}
 
 	/* no packet processing while resetting */
-	if (unlikely(test_bit(IONIC_LIF_QUEUE_RESET, q->lif->state)))
+	if (unlikely(test_bit(IONIC_LIF_QUEUE_RESET, q->lif->state))) {
+		stats->dropped++;
 		return;
+	}
 
 	stats->pkts++;
 	stats->bytes += le16_to_cpu(comp->len);
@@ -167,8 +171,10 @@ static void ionic_rx_clean(struct ionic_queue *q, struct ionic_desc_info *desc_i
 	else
 		skb = ionic_rx_frags(q, desc_info, cq_info);
 
-	if (unlikely(!skb))
+	if (unlikely(!skb)) {
+		stats->dropped++;
 		return;
+	}
 
 	skb_record_rx_queue(skb, q->index);
 
@@ -337,6 +343,8 @@ void ionic_rx_fill(struct ionic_queue *q)
 	struct ionic_rxq_sg_desc *sg_desc;
 	struct ionic_rxq_sg_elem *sg_elem;
 	struct ionic_rxq_desc *desc;
+	unsigned int remain_len;
+	unsigned int seg_len;
 	unsigned int nfrags;
 	bool ring_doorbell;
 	unsigned int i, j;
@@ -346,6 +354,7 @@ void ionic_rx_fill(struct ionic_queue *q)
 	nfrags = round_up(len, PAGE_SIZE) / PAGE_SIZE;
 
 	for (i = ionic_q_space_avail(q); i; i--) {
+		remain_len = len;
 		desc_info = q->head;
 		desc = desc_info->desc;
 		sg_desc = desc_info->sg_desc;
@@ -369,7 +378,9 @@ void ionic_rx_fill(struct ionic_queue *q)
 			return;
 		}
 		desc->addr = cpu_to_le64(page_info->dma_addr);
-		desc->len = cpu_to_le16(PAGE_SIZE);
+		seg_len = min_t(unsigned int, PAGE_SIZE, len);
+		desc->len = cpu_to_le16(seg_len);
+		remain_len -= seg_len;
 		page_info++;
 
 		/* fill sg descriptors - pages[1..n] */
@@ -385,7 +396,9 @@ void ionic_rx_fill(struct ionic_queue *q)
 				return;
 			}
 			sg_elem->addr = cpu_to_le64(page_info->dma_addr);
-			sg_elem->len = cpu_to_le16(PAGE_SIZE);
+			seg_len = min_t(unsigned int, PAGE_SIZE, remain_len);
+			sg_elem->len = cpu_to_le16(seg_len);
+			remain_len -= seg_len;
 			page_info++;
 		}
 

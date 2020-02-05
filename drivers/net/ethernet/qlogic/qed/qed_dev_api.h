@@ -230,30 +230,6 @@ enum qed_dmae_address_type_t {
 	QED_DMAE_ADDRESS_GRC
 };
 
-/* value of flags If QED_DMAE_FLAG_RW_REPL_SRC flag is set and the
- * source is a block of length DMAE_MAX_RW_SIZE and the
- * destination is larger, the source block will be duplicated as
- * many times as required to fill the destination block. This is
- * used mostly to write a zeroed buffer to destination address
- * using DMA
- */
-#define QED_DMAE_FLAG_RW_REPL_SRC	0x00000001
-#define QED_DMAE_FLAG_VF_SRC		0x00000002
-#define QED_DMAE_FLAG_VF_DST		0x00000004
-#define QED_DMAE_FLAG_COMPLETION_DST	0x00000008
-#define QED_DMAE_FLAG_PORT		0x00000010
-#define QED_DMAE_FLAG_PF_SRC		0x00000020
-#define QED_DMAE_FLAG_PF_DST		0x00000040
-
-struct qed_dmae_params {
-	u32 flags; /* consists of QED_DMAE_FLAG_* values */
-	u8 src_vfid;
-	u8 dst_vfid;
-	u8 port_id;
-	u8 src_pfid;
-	u8 dst_pfid;
-};
-
 /**
  * @brief qed_dmae_host2grc - copy data from source addr to
  * dmae registers using the given ptt

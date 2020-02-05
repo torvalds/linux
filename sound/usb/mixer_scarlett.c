@@ -633,7 +633,7 @@ static int add_output_ctls(struct usb_mixer_interface *mixer,
 /********************** device-specific config *************************/
 
 /*  untested...  */
-static struct scarlett_device_info s6i6_info = {
+static const struct scarlett_device_info s6i6_info = {
 	.matrix_in = 18,
 	.matrix_out = 8,
 	.input_len = 6,
@@ -675,7 +675,7 @@ static struct scarlett_device_info s6i6_info = {
 };
 
 /*  untested...  */
-static struct scarlett_device_info s8i6_info = {
+static const struct scarlett_device_info s8i6_info = {
 	.matrix_in = 18,
 	.matrix_out = 6,
 	.input_len = 8,
@@ -714,7 +714,7 @@ static struct scarlett_device_info s8i6_info = {
 	}
 };
 
-static struct scarlett_device_info s18i6_info = {
+static const struct scarlett_device_info s18i6_info = {
 	.matrix_in = 18,
 	.matrix_out = 6,
 	.input_len = 18,
@@ -751,7 +751,7 @@ static struct scarlett_device_info s18i6_info = {
 	}
 };
 
-static struct scarlett_device_info s18i8_info = {
+static const struct scarlett_device_info s18i8_info = {
 	.matrix_in = 18,
 	.matrix_out = 8,
 	.input_len = 18,
@@ -793,7 +793,7 @@ static struct scarlett_device_info s18i8_info = {
 	}
 };
 
-static struct scarlett_device_info s18i20_info = {
+static const struct scarlett_device_info s18i20_info = {
 	.matrix_in = 18,
 	.matrix_out = 8,
 	.input_len = 18,
@@ -843,7 +843,7 @@ static struct scarlett_device_info s18i20_info = {
 
 
 static int scarlett_controls_create_generic(struct usb_mixer_interface *mixer,
-	struct scarlett_device_info *info)
+	const struct scarlett_device_info *info)
 {
 	int i, err;
 	char mx[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
@@ -915,7 +915,7 @@ int snd_scarlett_controls_create(struct usb_mixer_interface *mixer)
 {
 	int err, i, o;
 	char mx[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
-	struct scarlett_device_info *info;
+	const struct scarlett_device_info *info;
 	struct usb_mixer_elem_info *elem;
 	static char sample_rate_buffer[4] = { '\x80', '\xbb', '\x00', '\x00' };
 

@@ -116,6 +116,6 @@ int snd_usb_get_cur_mix_value(struct usb_mixer_elem_info *cval,
 
 extern void snd_usb_mixer_elem_free(struct snd_kcontrol *kctl);
 
-extern struct snd_kcontrol_new *snd_usb_feature_unit_ctl;
+extern const struct snd_kcontrol_new *snd_usb_feature_unit_ctl;
 
 #endif /* __USBMIXER_H */

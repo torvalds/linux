@@ -842,10 +842,7 @@ iwl_mvm_tx_tso_segment(struct sk_buff *skb, unsigned int num_subframes,
 	else if (next)
 		consume_skb(skb);
 
-	while (next) {
-		tmp = next;
-		next = tmp->next;
-
+	skb_list_walk_safe(next, tmp, next) {
 		memcpy(tmp->cb, cb, sizeof(tmp->cb));
 		/*
 		 * Compute the length of all the data added for the A-MSDU.
@@ -875,9 +872,7 @@ iwl_mvm_tx_tso_segment(struct sk_buff *skb, unsigned int num_subframes,
 			skb_shinfo(tmp)->gso_size = 0;
 		}
 
-		tmp->prev = NULL;
-		tmp->next = NULL;
-
+		skb_mark_not_on_list(tmp);
 		__skb_queue_tail(mpdus_skb, tmp);
 		i++;
 	}

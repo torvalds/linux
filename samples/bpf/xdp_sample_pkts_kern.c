@@ -2,7 +2,7 @@
 #include <linux/ptrace.h>
 #include <linux/version.h>
 #include <uapi/linux/bpf.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 #define SAMPLE_SIZE 64ul
 #define MAX_CPUS 128

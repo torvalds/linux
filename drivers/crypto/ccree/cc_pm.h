@@ -21,7 +21,7 @@ void cc_pm_fini(struct cc_drvdata *drvdata);
 int cc_pm_suspend(struct device *dev);
 int cc_pm_resume(struct device *dev);
 int cc_pm_get(struct device *dev);
-int cc_pm_put_suspend(struct device *dev);
+void cc_pm_put_suspend(struct device *dev);
 bool cc_pm_is_dev_suspended(struct device *dev);
 
 #else
@@ -35,25 +35,12 @@ static inline void cc_pm_go(struct cc_drvdata *drvdata) {}
 
 static inline void cc_pm_fini(struct cc_drvdata *drvdata) {}
 
-static inline int cc_pm_suspend(struct device *dev)
-{
-	return 0;
-}
-
-static inline int cc_pm_resume(struct device *dev)
-{
-	return 0;
-}
-
 static inline int cc_pm_get(struct device *dev)
 {
 	return 0;
 }
 
-static inline int cc_pm_put_suspend(struct device *dev)
-{
-	return 0;
-}
+static inline void cc_pm_put_suspend(struct device *dev) {}
 
 static inline bool cc_pm_is_dev_suspended(struct device *dev)
 {

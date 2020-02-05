@@ -75,7 +75,7 @@
 	 *			  int blocks)
 	 */
 	.text
-ENTRY(sha2_ce_transform)
+SYM_FUNC_START(sha2_ce_transform)
 	frame_push	3
 
 	mov		x19, x0
@@ -166,4 +166,4 @@ CPU_LE(	rev32		v19.16b, v19.16b	)
 4:	st1		{dgav.4s, dgbv.4s}, [x19]
 	frame_pop
 	ret
-ENDPROC(sha2_ce_transform)
+SYM_FUNC_END(sha2_ce_transform)

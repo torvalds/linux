@@ -2579,6 +2579,38 @@ wil_cfg80211_update_ft_ies(struct wiphy *wiphy, struct net_device *dev,
 	return rc;
 }
 
+static int wil_cfg80211_set_multicast_to_unicast(struct wiphy *wiphy,
+						 struct net_device *dev,
+						 const bool enabled)
+{
+	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+
+	if (wil->multicast_to_unicast == enabled)
+		return 0;
+
+	wil_info(wil, "set multicast to unicast, enabled=%d\n", enabled);
+	wil->multicast_to_unicast = enabled;
+
+	return 0;
+}
+
+static int wil_cfg80211_set_cqm_rssi_config(struct wiphy *wiphy,
+					    struct net_device *dev,
+					    s32 rssi_thold, u32 rssi_hyst)
+{
+	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+	int rc;
+
+	wil->cqm_rssi_thold = rssi_thold;
+
+	rc = wmi_set_cqm_rssi_config(wil, rssi_thold, rssi_hyst);
+	if (rc)
+		/* reset stored value upon failure */
+		wil->cqm_rssi_thold = 0;
+
+	return rc;
+}
+
 static const struct cfg80211_ops wil_cfg80211_ops = {
 	.add_virtual_intf = wil_cfg80211_add_iface,
 	.del_virtual_intf = wil_cfg80211_del_iface,
@@ -2610,11 +2642,13 @@ static const struct cfg80211_ops wil_cfg80211_ops = {
 	.start_p2p_device = wil_cfg80211_start_p2p_device,
 	.stop_p2p_device = wil_cfg80211_stop_p2p_device,
 	.set_power_mgmt = wil_cfg80211_set_power_mgmt,
+	.set_cqm_rssi_config = wil_cfg80211_set_cqm_rssi_config,
 	.suspend = wil_cfg80211_suspend,
 	.resume = wil_cfg80211_resume,
 	.sched_scan_start = wil_cfg80211_sched_scan_start,
 	.sched_scan_stop = wil_cfg80211_sched_scan_stop,
 	.update_ft_ies = wil_cfg80211_update_ft_ies,
+	.set_multicast_to_unicast = wil_cfg80211_set_multicast_to_unicast,
 };
 
 static void wil_wiphy_init(struct wiphy *wiphy)

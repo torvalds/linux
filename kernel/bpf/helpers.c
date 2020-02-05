@@ -11,6 +11,7 @@
 #include <linux/uidgid.h>
 #include <linux/filter.h>
 #include <linux/ctype.h>
+#include <linux/jiffies.h>
 
 #include "../../lib/kstrtox.h"
 
@@ -311,6 +312,17 @@ void copy_map_value_locked(struct bpf_map *map, void *dst, void *src,
 	____bpf_spin_unlock(lock);
 	preempt_enable();
 }
+
+BPF_CALL_0(bpf_jiffies64)
+{
+	return get_jiffies_64();
+}
+
+const struct bpf_func_proto bpf_jiffies64_proto = {
+	.func		= bpf_jiffies64,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+};
 
 #ifdef CONFIG_CGROUPS
 BPF_CALL_0(bpf_get_current_cgroup_id)

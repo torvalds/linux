@@ -740,7 +740,7 @@ static int setup_cipher(struct crypto_tfm *tfm, int encrypt,
 	u32 keylen_cfg = 0;
 	struct ix_sa_dir *dir;
 	struct ixp_ctx *ctx = crypto_tfm_ctx(tfm);
-	u32 *flags = &tfm->crt_flags;
+	int err;
 
 	dir = encrypt ? &ctx->encrypt : &ctx->decrypt;
 	cinfo = dir->npe_ctx;
@@ -757,12 +757,13 @@ static int setup_cipher(struct crypto_tfm *tfm, int encrypt,
 		case 24: keylen_cfg = MOD_AES192; break;
 		case 32: keylen_cfg = MOD_AES256; break;
 		default:
-			*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
 			return -EINVAL;
 		}
 		cipher_cfg |= keylen_cfg;
 	} else {
-		crypto_des_verify_key(tfm, key);
+		err = crypto_des_verify_key(tfm, key);
+		if (err)
+			return err;
 	}
 	/* write cfg word to cryptinfo */
 	*(u32*)cinfo = cpu_to_be32(cipher_cfg);
@@ -819,7 +820,6 @@ static int ablk_setkey(struct crypto_skcipher *tfm, const u8 *key,
 			unsigned int key_len)
 {
 	struct ixp_ctx *ctx = crypto_skcipher_ctx(tfm);
-	u32 *flags = &tfm->base.crt_flags;
 	int ret;
 
 	init_completion(&ctx->completion);
@@ -835,16 +835,6 @@ static int ablk_setkey(struct crypto_skcipher *tfm, const u8 *key,
 	if (ret)
 		goto out;
 	ret = setup_cipher(&tfm->base, 1, key, key_len);
-	if (ret)
-		goto out;
-
-	if (*flags & CRYPTO_TFM_RES_WEAK_KEY) {
-		if (*flags & CRYPTO_TFM_REQ_FORBID_WEAK_KEYS) {
-			ret = -EINVAL;
-		} else {
-			*flags &= ~CRYPTO_TFM_RES_WEAK_KEY;
-		}
-	}
 out:
 	if (!atomic_dec_and_test(&ctx->configuring))
 		wait_for_completion(&ctx->completion);
@@ -1096,7 +1086,6 @@ free_buf_src:
 static int aead_setup(struct crypto_aead *tfm, unsigned int authsize)
 {
 	struct ixp_ctx *ctx = crypto_aead_ctx(tfm);
-	u32 *flags = &tfm->base.crt_flags;
 	unsigned digest_len = crypto_aead_maxauthsize(tfm);
 	int ret;
 
@@ -1120,17 +1109,6 @@ static int aead_setup(struct crypto_aead *tfm, unsigned int authsize)
 		goto out;
 	ret = setup_auth(&tfm->base, 1, authsize,  ctx->authkey,
 			ctx->authkey_len, digest_len);
-	if (ret)
-		goto out;
-
-	if (*flags & CRYPTO_TFM_RES_WEAK_KEY) {
-		if (*flags & CRYPTO_TFM_REQ_FORBID_WEAK_KEYS) {
-			ret = -EINVAL;
-			goto out;
-		} else {
-			*flags &= ~CRYPTO_TFM_RES_WEAK_KEY;
-		}
-	}
 out:
 	if (!atomic_dec_and_test(&ctx->configuring))
 		wait_for_completion(&ctx->completion);
@@ -1169,7 +1147,6 @@ static int aead_setkey(struct crypto_aead *tfm, const u8 *key,
 	memzero_explicit(&keys, sizeof(keys));
 	return aead_setup(tfm, crypto_aead_authsize(tfm));
 badkey:
-	crypto_aead_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
 	memzero_explicit(&keys, sizeof(keys));
 	return -EINVAL;
 }

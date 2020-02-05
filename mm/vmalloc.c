@@ -41,6 +41,14 @@
 
 #include "internal.h"
 
+bool is_vmalloc_addr(const void *x)
+{
+	unsigned long addr = (unsigned long)x;
+
+	return addr >= VMALLOC_START && addr < VMALLOC_END;
+}
+EXPORT_SYMBOL(is_vmalloc_addr);
+
 struct vfree_deferred {
 	struct llist_head list;
 	struct work_struct wq;

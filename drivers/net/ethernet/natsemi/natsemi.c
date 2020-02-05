@@ -612,7 +612,7 @@ static void undo_cable_magic(struct net_device *dev);
 static void check_link(struct net_device *dev);
 static void netdev_timer(struct timer_list *t);
 static void dump_ring(struct net_device *dev);
-static void ns_tx_timeout(struct net_device *dev);
+static void ns_tx_timeout(struct net_device *dev, unsigned int txqueue);
 static int alloc_ring(struct net_device *dev);
 static void refill_rx(struct net_device *dev);
 static void init_ring(struct net_device *dev);
@@ -1881,7 +1881,7 @@ static void dump_ring(struct net_device *dev)
 	}
 }
 
-static void ns_tx_timeout(struct net_device *dev)
+static void ns_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct netdev_private *np = netdev_priv(dev);
 	void __iomem * ioaddr = ns_ioaddr(dev);

@@ -655,7 +655,7 @@ static void disable_net_traffic(rtl8150_t * dev)
 	set_registers(dev, CR, 1, &cr);
 }
 
-static void rtl8150_tx_timeout(struct net_device *netdev)
+static void rtl8150_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	rtl8150_t *dev = netdev_priv(netdev);
 	dev_warn(&netdev->dev, "Tx timeout.\n");

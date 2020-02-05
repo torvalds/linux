@@ -3257,12 +3257,16 @@ static struct platform_driver velocity_platform_driver = {
  *	@dev: network device
  *
  *	Called before an ethtool operation. We need to make sure the
- *	chip is out of D3 state before we poke at it.
+ *	chip is out of D3 state before we poke at it. In case of ethtool
+ *	ops nesting, only wake the device up in the outermost block.
  */
 static int velocity_ethtool_up(struct net_device *dev)
 {
 	struct velocity_info *vptr = netdev_priv(dev);
-	if (!netif_running(dev))
+
+	if (vptr->ethtool_ops_nesting == U32_MAX)
+		return -EBUSY;
+	if (!vptr->ethtool_ops_nesting++ && !netif_running(dev))
 		velocity_set_power_state(vptr, PCI_D0);
 	return 0;
 }
@@ -3272,12 +3276,14 @@ static int velocity_ethtool_up(struct net_device *dev)
  *	@dev: network device
  *
  *	Called after an ethtool operation. Restore the chip back to D3
- *	state if it isn't running.
+ *	state if it isn't running. In case of ethtool ops nesting, only
+ *	put the device to sleep in the outermost block.
  */
 static void velocity_ethtool_down(struct net_device *dev)
 {
 	struct velocity_info *vptr = netdev_priv(dev);
-	if (!netif_running(dev))
+
+	if (!--vptr->ethtool_ops_nesting && !netif_running(dev))
 		velocity_set_power_state(vptr, PCI_D3hot);
 }
 

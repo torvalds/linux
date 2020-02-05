@@ -18,7 +18,7 @@
 #define DP	B14
 #define SP	B15
 
-#ifndef CONFIG_PREEMPT
+#ifndef CONFIG_PREEMPTION
 #define resume_kernel restore_all
 #endif
 
@@ -287,7 +287,7 @@ work_notifysig:
 	;; is a little bit different
 	;;
 ENTRY(ret_from_exception)
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPTION
 	MASK_INT B2
 #endif
 
@@ -557,7 +557,7 @@ ENDPROC(_nmi_handler)
 	;;
 	;; Jump to schedule() then return to ret_from_isr
 	;;
-#ifdef	CONFIG_PREEMPT
+#ifdef	CONFIG_PREEMPTION
 resume_kernel:
 	GET_THREAD_INFO A12
 	LDW	.D1T1	*+A12(THREAD_INFO_PREEMPT_COUNT),A1
@@ -582,7 +582,7 @@ preempt_schedule:
 	B	.S2	preempt_schedule_irq
 #endif
 	ADDKPC	.S2	preempt_schedule,B3,4
-#endif /* CONFIG_PREEMPT */
+#endif /* CONFIG_PREEMPTION */
 
 ENTRY(enable_exception)
 	DINT

@@ -2637,7 +2637,7 @@ static int qed_set_grc_config(struct qed_dev *cdev, u32 cfg_id, u32 val)
 	if (!ptt)
 		return -EAGAIN;
 
-	rc = qed_dbg_grc_config(hwfn, ptt, cfg_id, val);
+	rc = qed_dbg_grc_config(hwfn, cfg_id, val);
 
 	qed_ptt_release(hwfn, ptt);
 

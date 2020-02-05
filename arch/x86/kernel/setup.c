@@ -2,130 +2,54 @@
 /*
  *  Copyright (C) 1995  Linus Torvalds
  *
- *  Support of BIGMEM added by Gerhard Wichert, Siemens AG, July 1999
- *
- *  Memory region support
- *	David Parsons <orc@pell.chi.il.us>, July-August 1999
- *
- *  Added E820 sanitization routine (removes overlapping memory regions);
- *  Brian Moyle <bmoyle@mvista.com>, February 2001
- *
- * Moved CPU detection code to cpu/${cpu}.c
- *    Patrick Mochel <mochel@osdl.org>, March 2002
- *
- *  Provisions for empty E820 memory regions (reported by certain BIOSes).
- *  Alex Achenbach <xela@slit.de>, December 2002.
- *
+ * This file contains the setup_arch() code, which handles the architecture-dependent
+ * parts of early kernel initialization.
  */
-
-/*
- * This file handles the architecture-dependent parts of initialization
- */
-
-#include <linux/sched.h>
-#include <linux/mm.h>
-#include <linux/mmzone.h>
-#include <linux/screen_info.h>
-#include <linux/ioport.h>
-#include <linux/acpi.h>
-#include <linux/sfi.h>
-#include <linux/apm_bios.h>
-#include <linux/initrd.h>
-#include <linux/memblock.h>
-#include <linux/seq_file.h>
 #include <linux/console.h>
-#include <linux/root_dev.h>
-#include <linux/highmem.h>
-#include <linux/export.h>
-#include <linux/efi.h>
-#include <linux/init.h>
-#include <linux/edd.h>
-#include <linux/iscsi_ibft.h>
-#include <linux/nodemask.h>
-#include <linux/kexec.h>
+#include <linux/crash_dump.h>
 #include <linux/dmi.h>
-#include <linux/pfn.h>
-#include <linux/pci.h>
-#include <asm/pci-direct.h>
+#include <linux/efi.h>
 #include <linux/init_ohci1394_dma.h>
-#include <linux/kvm_para.h>
-#include <linux/dma-contiguous.h>
-#include <xen/xen.h>
+#include <linux/initrd.h>
+#include <linux/iscsi_ibft.h>
+#include <linux/memblock.h>
+#include <linux/pci.h>
+#include <linux/root_dev.h>
+#include <linux/sfi.h>
+#include <linux/tboot.h>
+#include <linux/usb/xhci-dbgp.h>
+
 #include <uapi/linux/mount.h>
 
-#include <linux/errno.h>
-#include <linux/kernel.h>
-#include <linux/stddef.h>
-#include <linux/unistd.h>
-#include <linux/ptrace.h>
-#include <linux/user.h>
-#include <linux/delay.h>
+#include <xen/xen.h>
 
-#include <linux/kallsyms.h>
-#include <linux/cpufreq.h>
-#include <linux/dma-mapping.h>
-#include <linux/ctype.h>
-#include <linux/uaccess.h>
-
-#include <linux/percpu.h>
-#include <linux/crash_dump.h>
-#include <linux/tboot.h>
-#include <linux/jiffies.h>
-#include <linux/mem_encrypt.h>
-#include <linux/sizes.h>
-
-#include <linux/usb/xhci-dbgp.h>
-#include <video/edid.h>
-
-#include <asm/mtrr.h>
 #include <asm/apic.h>
-#include <asm/realmode.h>
-#include <asm/e820/api.h>
-#include <asm/mpspec.h>
-#include <asm/setup.h>
-#include <asm/efi.h>
-#include <asm/timer.h>
-#include <asm/i8259.h>
-#include <asm/sections.h>
-#include <asm/io_apic.h>
-#include <asm/ist.h>
-#include <asm/setup_arch.h>
 #include <asm/bios_ebda.h>
-#include <asm/cacheflush.h>
-#include <asm/processor.h>
 #include <asm/bugs.h>
-#include <asm/kasan.h>
-
-#include <asm/vsyscall.h>
 #include <asm/cpu.h>
-#include <asm/desc.h>
-#include <asm/dma.h>
-#include <asm/iommu.h>
+#include <asm/efi.h>
 #include <asm/gart.h>
-#include <asm/mmu_context.h>
-#include <asm/proto.h>
-
-#include <asm/paravirt.h>
 #include <asm/hypervisor.h>
-#include <asm/olpc_ofw.h>
-
-#include <asm/percpu.h>
-#include <asm/topology.h>
-#include <asm/apicdef.h>
-#include <asm/amd_nb.h>
-#include <asm/mce.h>
-#include <asm/alternative.h>
-#include <asm/prom.h>
-#include <asm/microcode.h>
+#include <asm/io_apic.h>
+#include <asm/kasan.h>
 #include <asm/kaslr.h>
+#include <asm/mce.h>
+#include <asm/mtrr.h>
+#include <asm/realmode.h>
+#include <asm/olpc_ofw.h>
+#include <asm/pci-direct.h>
+#include <asm/prom.h>
+#include <asm/proto.h>
 #include <asm/unwind.h>
+#include <asm/vsyscall.h>
+#include <linux/vmalloc.h>
 
 /*
- * max_low_pfn_mapped: highest direct mapped pfn under 4GB
- * max_pfn_mapped:     highest direct mapped pfn over 4GB
+ * max_low_pfn_mapped: highest directly mapped pfn < 4 GB
+ * max_pfn_mapped:     highest directly mapped pfn > 4 GB
  *
  * The direct mapping only covers E820_TYPE_RAM regions, so the ranges and gaps are
- * represented by pfn_mapped
+ * represented by pfn_mapped[].
  */
 unsigned long max_low_pfn_mapped;
 unsigned long max_pfn_mapped;
@@ -135,14 +59,23 @@ RESERVE_BRK(dmi_alloc, 65536);
 #endif
 
 
-static __initdata unsigned long _brk_start = (unsigned long)__brk_base;
-unsigned long _brk_end = (unsigned long)__brk_base;
+/*
+ * Range of the BSS area. The size of the BSS area is determined
+ * at link time, with RESERVE_BRK*() facility reserving additional
+ * chunks.
+ */
+static __initdata
+unsigned long _brk_start = (unsigned long)__brk_base;
+unsigned long _brk_end   = (unsigned long)__brk_base;
 
 struct boot_params boot_params;
 
 /*
- * Machine setup..
+ * These are the four main kernel memory regions, we put them into
+ * the resource tree so that kdump tools and other debugging tools
+ * recover it:
  */
+
 static struct resource rodata_resource = {
 	.name	= "Kernel rodata",
 	.start	= 0,
@@ -173,16 +106,16 @@ static struct resource bss_resource = {
 
 
 #ifdef CONFIG_X86_32
-/* cpu data as detected by the assembly code in head_32.S */
+/* CPU data as detected by the assembly code in head_32.S */
 struct cpuinfo_x86 new_cpu_data;
 
-/* common cpu data for all cpus */
+/* Common CPU data for all CPUs */
 struct cpuinfo_x86 boot_cpu_data __read_mostly;
 EXPORT_SYMBOL(boot_cpu_data);
 
 unsigned int def_to_bigsmp;
 
-/* for MCA, but anyone else can use it if they want */
+/* For MCA, but anyone else can use it if they want */
 unsigned int machine_id;
 unsigned int machine_submodel_id;
 unsigned int BIOS_revision;
@@ -468,15 +401,15 @@ static void __init memblock_x86_reserve_range_setup_data(void)
 /*
  * Keep the crash kernel below this limit.
  *
- * On 32 bits earlier kernels would limit the kernel to the low 512 MiB
+ * Earlier 32-bits kernels would limit the kernel to the low 512 MB range
  * due to mapping restrictions.
  *
- * On 64bit, kdump kernel need be restricted to be under 64TB, which is
+ * 64-bit kdump kernels need to be restricted to be under 64 TB, which is
  * the upper limit of system RAM in 4-level paging mode. Since the kdump
- * jumping could be from 5-level to 4-level, the jumping will fail if
- * kernel is put above 64TB, and there's no way to detect the paging mode
- * of the kernel which will be loaded for dumping during the 1st kernel
- * bootup.
+ * jump could be from 5-level paging to 4-level paging, the jump will fail if
+ * the kernel is put above 64 TB, and during the 1st kernel bootup there's
+ * no good way to detect the paging mode of the target kernel which will be
+ * loaded for dumping.
  */
 #ifdef CONFIG_X86_32
 # define CRASH_ADDR_LOW_MAX	SZ_512M
@@ -887,7 +820,7 @@ void __init setup_arch(char **cmdline_p)
 	/*
 	 * Note: Quark X1000 CPUs advertise PGE incorrectly and require
 	 * a cr3 based tlb flush, so the following __flush_tlb_all()
-	 * will not flush anything because the cpu quirk which clears
+	 * will not flush anything because the CPU quirk which clears
 	 * X86_FEATURE_PGE has not been invoked yet. Though due to the
 	 * load_cr3() above the TLB has been flushed already. The
 	 * quirk is invoked before subsequent calls to __flush_tlb_all()

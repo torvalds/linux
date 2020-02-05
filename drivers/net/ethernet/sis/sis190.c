@@ -1538,7 +1538,7 @@ err_out_0:
 	goto out;
 }
 
-static void sis190_tx_timeout(struct net_device *dev)
+static void sis190_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct sis190_private *tp = netdev_priv(dev);
 	void __iomem *ioaddr = tp->mmio_addr;

@@ -2,7 +2,7 @@
 #include <linux/version.h>
 #include <linux/ptrace.h>
 #include <uapi/linux/bpf.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 SEC("kprobe/blk_mq_start_request")
 int bpf_prog1(struct pt_regs *ctx)

@@ -118,7 +118,8 @@ static void oxfw_card_free(struct snd_card *card)
 {
 	struct snd_oxfw *oxfw = card->private_data;
 
-	snd_oxfw_stream_destroy_duplex(oxfw);
+	if (oxfw->has_output || oxfw->has_input)
+		snd_oxfw_stream_destroy_duplex(oxfw);
 }
 
 static int detect_quirks(struct snd_oxfw *oxfw)
@@ -206,23 +207,25 @@ static void do_registration(struct work_struct *work)
 	if (err < 0)
 		goto error;
 
-	err = snd_oxfw_stream_init_duplex(oxfw);
-	if (err < 0)
-		goto error;
+	if (oxfw->has_output || oxfw->has_input) {
+		err = snd_oxfw_stream_init_duplex(oxfw);
+		if (err < 0)
+			goto error;
 
-	err = snd_oxfw_create_pcm(oxfw);
-	if (err < 0)
-		goto error;
+		err = snd_oxfw_create_pcm(oxfw);
+		if (err < 0)
+			goto error;
 
-	snd_oxfw_proc_init(oxfw);
+		snd_oxfw_proc_init(oxfw);
 
-	err = snd_oxfw_create_midi(oxfw);
-	if (err < 0)
-		goto error;
+		err = snd_oxfw_create_midi(oxfw);
+		if (err < 0)
+			goto error;
 
-	err = snd_oxfw_create_hwdep(oxfw);
-	if (err < 0)
-		goto error;
+		err = snd_oxfw_create_hwdep(oxfw);
+		if (err < 0)
+			goto error;
+	}
 
 	err = snd_card_register(oxfw->card);
 	if (err < 0)
@@ -274,9 +277,11 @@ static void oxfw_bus_reset(struct fw_unit *unit)
 	fcp_bus_reset(oxfw->unit);
 
 	if (oxfw->registered) {
-		mutex_lock(&oxfw->mutex);
-		snd_oxfw_stream_update_duplex(oxfw);
-		mutex_unlock(&oxfw->mutex);
+		if (oxfw->has_output || oxfw->has_input) {
+			mutex_lock(&oxfw->mutex);
+			snd_oxfw_stream_update_duplex(oxfw);
+			mutex_unlock(&oxfw->mutex);
+		}
 
 		if (oxfw->entry->vendor_id == OUI_STANTON)
 			snd_oxfw_scs1x_update(oxfw);

@@ -57,10 +57,8 @@ static int ghash_setkey(struct crypto_shash *tfm,
 	be128 *x = (be128 *)key;
 	u64 a, b;
 
-	if (keylen != GHASH_BLOCK_SIZE) {
-		crypto_shash_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (keylen != GHASH_BLOCK_SIZE)
 		return -EINVAL;
-	}
 
 	/* perform multiplication by 'x' in GF(2^128) */
 	a = be64_to_cpu(x->a);
@@ -257,16 +255,11 @@ static int ghash_async_setkey(struct crypto_ahash *tfm, const u8 *key,
 {
 	struct ghash_async_ctx *ctx = crypto_ahash_ctx(tfm);
 	struct crypto_ahash *child = &ctx->cryptd_tfm->base;
-	int err;
 
 	crypto_ahash_clear_flags(child, CRYPTO_TFM_REQ_MASK);
 	crypto_ahash_set_flags(child, crypto_ahash_get_flags(tfm)
 			       & CRYPTO_TFM_REQ_MASK);
-	err = crypto_ahash_setkey(child, key, keylen);
-	crypto_ahash_set_flags(tfm, crypto_ahash_get_flags(child)
-			       & CRYPTO_TFM_RES_MASK);
-
-	return err;
+	return crypto_ahash_setkey(child, key, keylen);
 }
 
 static int ghash_async_init_tfm(struct crypto_tfm *tfm)

@@ -83,9 +83,9 @@ static int snd_gusextreme_es1688_create(struct snd_card *card,
 					struct snd_es1688 *chip,
 					struct device *dev, unsigned int n)
 {
-	static long possible_ports[] = {0x220, 0x240, 0x260};
-	static int possible_irqs[] = {5, 9, 10, 7, -1};
-	static int possible_dmas[] = {1, 3, 0, -1};
+	static const long possible_ports[] = {0x220, 0x240, 0x260};
+	static const int possible_irqs[] = {5, 9, 10, 7, -1};
+	static const int possible_dmas[] = {1, 3, 0, -1};
 
 	int i, error;
 
@@ -122,8 +122,8 @@ static int snd_gusextreme_gus_card_create(struct snd_card *card,
 					  struct device *dev, unsigned int n,
 					  struct snd_gus_card **rgus)
 {
-	static int possible_irqs[] = {11, 12, 15, 9, 5, 7, 3, -1};
-	static int possible_dmas[] = {5, 6, 7, 3, 1, -1};
+	static const int possible_irqs[] = {11, 12, 15, 9, 5, 7, 3, -1};
+	static const int possible_dmas[] = {5, 6, 7, 3, 1, -1};
 
 	if (gf1_irq[n] == SNDRV_AUTO_IRQ) {
 		gf1_irq[n] = snd_legacy_find_free_irq(possible_irqs);

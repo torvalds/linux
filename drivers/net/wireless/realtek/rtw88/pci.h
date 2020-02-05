@@ -210,7 +210,7 @@ struct rtw_pci {
 	void __iomem *mmap;
 };
 
-static u32 max_num_of_tx_queue(u8 queue)
+static inline u32 max_num_of_tx_queue(u8 queue)
 {
 	u32 max_num;
 

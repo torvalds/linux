@@ -178,7 +178,7 @@ static void tls_icsk_clean_acked(struct sock *sk, u32 acked_seq)
  * socket and no in-flight SKBs associated with this
  * socket, so it is safe to free all the resources.
  */
-static void tls_device_sk_destruct(struct sock *sk)
+void tls_device_sk_destruct(struct sock *sk)
 {
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_offload_context_tx *ctx = tls_offload_ctx_tx(tls_ctx);
@@ -196,6 +196,7 @@ static void tls_device_sk_destruct(struct sock *sk)
 	if (refcount_dec_and_test(&tls_ctx->refcount))
 		tls_device_queue_ctx_destruction(tls_ctx);
 }
+EXPORT_SYMBOL_GPL(tls_device_sk_destruct);
 
 void tls_device_free_resources_tx(struct sock *sk)
 {
@@ -903,7 +904,7 @@ static void tls_device_attach(struct tls_context *ctx, struct sock *sk,
 		spin_unlock_irq(&tls_device_lock);
 
 		ctx->sk_destruct = sk->sk_destruct;
-		sk->sk_destruct = tls_device_sk_destruct;
+		smp_store_release(&sk->sk_destruct, tls_device_sk_destruct);
 	}
 }
 

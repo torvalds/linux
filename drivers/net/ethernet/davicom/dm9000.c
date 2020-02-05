@@ -964,7 +964,7 @@ dm9000_init_dm9000(struct net_device *dev)
 }
 
 /* Our watchdog timed out. Called by the networking layer */
-static void dm9000_timeout(struct net_device *dev)
+static void dm9000_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct board_info *db = netdev_priv(dev);
 	u8 reg_save;
