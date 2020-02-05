@@ -217,5 +217,6 @@ struct amd_ntb_dev {
 
 static void amd_set_side_info_reg(struct amd_ntb_dev *ndev, bool peer);
 static void amd_clear_side_info_reg(struct amd_ntb_dev *ndev, bool peer);
+static int amd_poll_link(struct amd_ntb_dev *ndev);
 
 #endif

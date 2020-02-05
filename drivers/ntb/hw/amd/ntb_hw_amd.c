@@ -245,12 +245,66 @@ static int amd_ntb_get_link_status(struct amd_ntb_dev *ndev)
 
 static int amd_link_is_up(struct amd_ntb_dev *ndev)
 {
-	if (!ndev->peer_sta)
-		return ndev->cntl_sta;
+	int ret;
 
-	if (ndev->peer_sta & AMD_LINK_UP_EVENT) {
-		ndev->peer_sta = 0;
-		return 1;
+	/*
+	 * We consider the link to be up under two conditions:
+	 *
+	 *   - When a link-up event is received. This is indicated by
+	 *     AMD_LINK_UP_EVENT set in peer_sta.
+	 *   - When driver on both sides of the link have been loaded.
+	 *     This is indicated by bit 1 being set in the peer
+	 *     SIDEINFO register.
+	 *
+	 * This function should return 1 when the latter of the above
+	 * two conditions is true.
+	 *
+	 * Now consider the sequence of events - Link-Up event occurs,
+	 * then the peer side driver loads. In this case, we would have
+	 * received LINK_UP event and bit 1 of peer SIDEINFO is also
+	 * set. What happens now if the link goes down? Bit 1 of
+	 * peer SIDEINFO remains set, but LINK_DOWN bit is set in
+	 * peer_sta. So we should return 0 from this function. Not only
+	 * that, we clear bit 1 of peer SIDEINFO to 0, since the peer
+	 * side driver did not even get a chance to clear it before
+	 * the link went down. This can be the case of surprise link
+	 * removal.
+	 *
+	 * LINK_UP event will always occur before the peer side driver
+	 * gets loaded the very first time. So there can be a case when
+	 * the LINK_UP event has occurred, but the peer side driver hasn't
+	 * yet loaded. We return 0 in that case.
+	 *
+	 * There is also a special case when the primary side driver is
+	 * unloaded and then loaded again. Since there is no change in
+	 * the status of NTB secondary in this case, there is no Link-Up
+	 * or Link-Down notification received. We recognize this condition
+	 * with peer_sta being set to 0.
+	 *
+	 * If bit 1 of peer SIDEINFO register is not set, then we
+	 * simply return 0 irrespective of the link up or down status
+	 * set in peer_sta.
+	 */
+	ret = amd_poll_link(ndev);
+	if (ret) {
+		/*
+		 * We need to check the below only for NTB primary. For NTB
+		 * secondary, simply checking the result of PSIDE_INFO
+		 * register will suffice.
+		 */
+		if (ndev->ntb.topo == NTB_TOPO_PRI) {
+			if ((ndev->peer_sta & AMD_LINK_UP_EVENT) ||
+			    (ndev->peer_sta == 0))
+				return ret;
+			else if (ndev->peer_sta & AMD_LINK_DOWN_EVENT) {
+				/* Clear peer sideinfo register */
+				amd_clear_side_info_reg(ndev, true);
+
+				return 0;
+			}
+		} else { /* NTB_TOPO_SEC */
+			return ret;
+		}
 	}
 
 	return 0;
