@@ -14,7 +14,8 @@ int smp_call_function_single(int cpu, void (*func) (void *info), void *info,
 {
 	unsigned long flags;
 
-	WARN_ON(cpu != 0);
+	if (cpu != 0)
+		return -ENXIO;
 
 	local_irq_save(flags);
 	func(info);
