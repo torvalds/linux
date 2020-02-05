@@ -3331,7 +3331,7 @@ static inline void contiguous_readpages(struct extent_io_tree *tree,
 
 	ASSERT(tree == &inode->io_tree);
 
-	btrfs_lock_and_flush_ordered_range(tree, inode, start, end, NULL);
+	btrfs_lock_and_flush_ordered_range(inode, start, end, NULL);
 
 	for (index = 0; index < nr_pages; index++) {
 		__do_readpage(tree, pages[index], btrfs_get_extent, em_cached,
@@ -3354,7 +3354,7 @@ static int __extent_read_full_page(struct extent_io_tree *tree,
 
 	ASSERT(tree == &inode->io_tree);
 
-	btrfs_lock_and_flush_ordered_range(tree, inode, start, end, NULL);
+	btrfs_lock_and_flush_ordered_range(inode, start, end, NULL);
 
 	ret = __do_readpage(tree, page, get_extent, NULL, bio, mirror_num,
 			    bio_flags, read_flags, NULL);

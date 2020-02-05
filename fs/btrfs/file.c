@@ -1561,7 +1561,7 @@ static noinline int check_can_nocow(struct btrfs_inode *inode, loff_t pos,
 	lockend = round_up(pos + *write_bytes,
 			   fs_info->sectorsize) - 1;
 
-	btrfs_lock_and_flush_ordered_range(&inode->io_tree, inode, lockstart,
+	btrfs_lock_and_flush_ordered_range(inode, lockstart,
 					   lockend, NULL);
 
 	num_bytes = lockend - lockstart + 1;

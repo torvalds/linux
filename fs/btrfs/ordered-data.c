@@ -835,7 +835,6 @@ out:
  * btrfs_flush_ordered_range - Lock the passed range and ensures all pending
  * ordered extents in it are run to completion.
  *
- * @tree:         IO tree used for locking out other users of the range
  * @inode:        Inode whose ordered tree is to be searched
  * @start:        Beginning of range to flush
  * @end:          Last byte of range to lock
@@ -845,8 +844,7 @@ out:
  * This function always returns with the given range locked, ensuring after it's
  * called no order extent can be pending.
  */
-void btrfs_lock_and_flush_ordered_range(struct extent_io_tree *tree,
-					struct btrfs_inode *inode, u64 start,
+void btrfs_lock_and_flush_ordered_range(struct btrfs_inode *inode, u64 start,
 					u64 end,
 					struct extent_state **cached_state)
 {
@@ -854,13 +852,11 @@ void btrfs_lock_and_flush_ordered_range(struct extent_io_tree *tree,
 	struct extent_state *cache = NULL;
 	struct extent_state **cachedp = &cache;
 
-	ASSERT(tree == &inode->io_tree);
-
 	if (cached_state)
 		cachedp = cached_state;
 
 	while (1) {
-		lock_extent_bits(tree, start, end, cachedp);
+		lock_extent_bits(&inode->io_tree, start, end, cachedp);
 		ordered = btrfs_lookup_ordered_range(inode, start,
 						     end - start + 1);
 		if (!ordered) {
@@ -873,7 +869,7 @@ void btrfs_lock_and_flush_ordered_range(struct extent_io_tree *tree,
 				refcount_dec(&cache->refs);
 			break;
 		}
-		unlock_extent_cached(tree, start, end, cachedp);
+		unlock_extent_cached(&inode->io_tree, start, end, cachedp);
 		btrfs_start_ordered_extent(&inode->vfs_inode, ordered, 1);
 		btrfs_put_ordered_extent(ordered);
 	}
