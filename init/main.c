@@ -342,6 +342,7 @@ static void __init setup_boot_config(const char *cmdline)
 	char *data, *copy;
 	const char *p;
 	u32 *hdr;
+	int ret;
 
 	p = strstr(cmdline, "bootconfig");
 	if (!p || (p != cmdline && !isspace(*(p-1))) ||
@@ -379,10 +380,11 @@ static void __init setup_boot_config(const char *cmdline)
 	memcpy(copy, data, size);
 	copy[size] = '\0';
 
-	if (xbc_init(copy) < 0)
+	ret = xbc_init(copy);
+	if (ret < 0)
 		pr_err("Failed to parse bootconfig\n");
 	else {
-		pr_info("Load bootconfig: %d bytes\n", size);
+		pr_info("Load bootconfig: %d bytes %d nodes\n", size, ret);
 		/* keys starting with "kernel." are passed via cmdline */
 		extra_command_line = xbc_make_cmdline("kernel");
 		/* Also, "init." keys are init arguments */
