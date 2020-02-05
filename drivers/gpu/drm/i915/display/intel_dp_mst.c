@@ -491,6 +491,12 @@ static void intel_mst_enable_dp(struct intel_encoder *encoder,
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
+	drm_WARN_ON(&dev_priv->drm, pipe_config->has_pch_encoder);
+
+	intel_enable_pipe(pipe_config);
+
+	intel_crtc_vblank_on(pipe_config);
+
 	DRM_DEBUG_KMS("active links %d\n", intel_dp->active_mst_links);
 
 	if (intel_de_wait_for_set(dev_priv, intel_dp->regs.dp_tp_status,
