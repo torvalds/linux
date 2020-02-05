@@ -243,7 +243,7 @@ loop:
 
 	cur_trans = fs_info->running_transaction;
 	if (cur_trans) {
-		if (cur_trans->aborted) {
+		if (TRANS_ABORTED(cur_trans)) {
 			spin_unlock(&fs_info->trans_lock);
 			return cur_trans->aborted;
 		}
@@ -459,7 +459,7 @@ static inline int is_transaction_blocked(struct btrfs_transaction *trans)
 {
 	return (trans->state >= TRANS_STATE_COMMIT_START &&
 		trans->state < TRANS_STATE_UNBLOCKED &&
-		!trans->aborted);
+		!TRANS_ABORTED(trans));
 }
 
 /* wait for commit against the current transaction to become unblocked
@@ -478,7 +478,7 @@ static void wait_current_trans(struct btrfs_fs_info *fs_info)
 
 		wait_event(fs_info->transaction_wait,
 			   cur_trans->state >= TRANS_STATE_UNBLOCKED ||
-			   cur_trans->aborted);
+			   TRANS_ABORTED(cur_trans));
 		btrfs_put_transaction(cur_trans);
 	} else {
 		spin_unlock(&fs_info->trans_lock);
@@ -937,7 +937,7 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 	if (throttle)
 		btrfs_run_delayed_iputs(info);
 
-	if (trans->aborted ||
+	if (TRANS_ABORTED(trans) ||
 	    test_bit(BTRFS_FS_STATE_ERROR, &info->fs_state)) {
 		wake_up_process(info->transaction_kthread);
 		err = -EIO;
@@ -1794,7 +1794,8 @@ static void wait_current_trans_commit_start(struct btrfs_fs_info *fs_info,
 					    struct btrfs_transaction *trans)
 {
 	wait_event(fs_info->transaction_blocked_wait,
-		   trans->state >= TRANS_STATE_COMMIT_START || trans->aborted);
+		   trans->state >= TRANS_STATE_COMMIT_START ||
+		   TRANS_ABORTED(trans));
 }
 
 /*
@@ -1806,7 +1807,8 @@ static void wait_current_trans_commit_start_and_unblock(
 					struct btrfs_transaction *trans)
 {
 	wait_event(fs_info->transaction_wait,
-		   trans->state >= TRANS_STATE_UNBLOCKED || trans->aborted);
+		   trans->state >= TRANS_STATE_UNBLOCKED ||
+		   TRANS_ABORTED(trans));
 }
 
 /*
@@ -2026,7 +2028,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	trans->dirty = true;
 
 	/* Stop the commit early if ->aborted is set */
-	if (unlikely(READ_ONCE(cur_trans->aborted))) {
+	if (TRANS_ABORTED(cur_trans)) {
 		ret = cur_trans->aborted;
 		btrfs_end_transaction(trans);
 		return ret;
@@ -2100,7 +2102,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 
 		wait_for_commit(cur_trans);
 
-		if (unlikely(cur_trans->aborted))
+		if (TRANS_ABORTED(cur_trans))
 			ret = cur_trans->aborted;
 
 		btrfs_put_transaction(cur_trans);
@@ -2119,7 +2121,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 			spin_unlock(&fs_info->trans_lock);
 
 			wait_for_commit(prev_trans);
-			ret = prev_trans->aborted;
+			ret = READ_ONCE(prev_trans->aborted);
 
 			btrfs_put_transaction(prev_trans);
 			if (ret)
@@ -2173,8 +2175,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	wait_event(cur_trans->writer_wait,
 		   atomic_read(&cur_trans->num_writers) == 1);
 
-	/* ->aborted might be set after the previous check, so check it */
-	if (unlikely(READ_ONCE(cur_trans->aborted))) {
+	if (TRANS_ABORTED(cur_trans)) {
 		ret = cur_trans->aborted;
 		goto scrub_continue;
 	}
@@ -2292,7 +2293,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	 * The tasks which save the space cache and inode cache may also
 	 * update ->aborted, check it.
 	 */
-	if (unlikely(READ_ONCE(cur_trans->aborted))) {
+	if (TRANS_ABORTED(cur_trans)) {
 		ret = cur_trans->aborted;
 		mutex_unlock(&fs_info->tree_log_mutex);
 		mutex_unlock(&fs_info->reloc_mutex);

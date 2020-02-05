@@ -1139,7 +1139,7 @@ static int __btrfs_run_delayed_items(struct btrfs_trans_handle *trans, int nr)
 	int ret = 0;
 	bool count = (nr > 0);
 
-	if (trans->aborted)
+	if (TRANS_ABORTED(trans))
 		return -EIO;
 
 	path = btrfs_alloc_path();

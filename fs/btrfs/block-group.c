@@ -2345,7 +2345,7 @@ static int cache_save_setup(struct btrfs_block_group *block_group,
 		return 0;
 	}
 
-	if (trans->aborted)
+	if (TRANS_ABORTED(trans))
 		return 0;
 again:
 	inode = lookup_free_space_inode(block_group, path);
