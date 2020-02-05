@@ -568,6 +568,20 @@ static const struct cnl_ddi_buf_trans icl_combo_phy_ddi_translations_hdmi[] = {
 	{ 0x6, 0x7F, 0x35, 0x00, 0x0A },	/* 600   850      3.0   */
 };
 
+static const struct cnl_ddi_buf_trans ehl_combo_phy_ddi_translations_hbr2_hbr3[] = {
+						/* NT mV Trans mV db    */
+	{ 0xA, 0x33, 0x3F, 0x00, 0x00 },	/* 350   350      0.0   */
+	{ 0xA, 0x47, 0x36, 0x00, 0x09 },	/* 350   500      3.1   */
+	{ 0xC, 0x64, 0x30, 0x00, 0x0F },	/* 350   700      6.0   */
+	{ 0x6, 0x7F, 0x2C, 0x00, 0x13 },	/* 350   900      8.2   */
+	{ 0xA, 0x46, 0x3F, 0x00, 0x00 },	/* 500   500      0.0   */
+	{ 0xC, 0x64, 0x36, 0x00, 0x09 },	/* 500   700      2.9   */
+	{ 0x6, 0x7F, 0x30, 0x00, 0x0F },	/* 500   900      5.1   */
+	{ 0xC, 0x61, 0x3F, 0x00, 0x00 },	/* 650   700      0.6   */
+	{ 0x6, 0x7F, 0x37, 0x00, 0x08 },	/* 600   900      3.5   */
+	{ 0x6, 0x7F, 0x3F, 0x00, 0x00 },	/* 900   900      0.0   */
+};
+
 struct icl_mg_phy_ddi_buf_trans {
 	u32 cri_txdeemph_override_5_0;
 	u32 cri_txdeemph_override_11_6;
@@ -927,6 +941,18 @@ icl_get_combo_buf_trans(struct drm_i915_private *dev_priv, int type, int rate,
 
 	*n_entries = ARRAY_SIZE(icl_combo_phy_ddi_translations_dp_hbr2);
 	return icl_combo_phy_ddi_translations_dp_hbr2;
+}
+
+static const struct cnl_ddi_buf_trans *
+ehl_get_combo_buf_trans(struct drm_i915_private *dev_priv, int type, int rate,
+			int *n_entries)
+{
+	if (type == INTEL_OUTPUT_DP && rate > 270000) {
+		*n_entries = ARRAY_SIZE(ehl_combo_phy_ddi_translations_hbr2_hbr3);
+		return ehl_combo_phy_ddi_translations_hbr2_hbr3;
+	}
+
+	return icl_get_combo_buf_trans(dev_priv, type, rate, n_entries);
 }
 
 static const struct cnl_ddi_buf_trans *
@@ -2417,7 +2443,10 @@ u8 intel_ddi_dp_voltage_max(struct intel_encoder *encoder)
 		else
 			n_entries = ARRAY_SIZE(tgl_dkl_phy_dp_ddi_trans);
 	} else if (INTEL_GEN(dev_priv) == 11) {
-		if (intel_phy_is_combo(dev_priv, phy))
+		if (IS_ELKHARTLAKE(dev_priv))
+			ehl_get_combo_buf_trans(dev_priv, encoder->type,
+						intel_dp->link_rate, &n_entries);
+		else if (intel_phy_is_combo(dev_priv, phy))
 			icl_get_combo_buf_trans(dev_priv, encoder->type,
 						intel_dp->link_rate, &n_entries);
 		else
@@ -2609,6 +2638,9 @@ static void icl_ddi_combo_vswing_program(struct drm_i915_private *dev_priv,
 
 	if (INTEL_GEN(dev_priv) >= 12)
 		ddi_translations = tgl_get_combo_buf_trans(dev_priv, type, rate,
+							   &n_entries);
+	else if (IS_ELKHARTLAKE(dev_priv))
+		ddi_translations = ehl_get_combo_buf_trans(dev_priv, type, rate,
 							   &n_entries);
 	else
 		ddi_translations = icl_get_combo_buf_trans(dev_priv, type, rate,
