@@ -6,6 +6,7 @@ LINUX_GCC_CROSS_COMPILE_PREBUILTS_BIN=prebuilts/gcc/linux-x86/aarch64/aarch64-li
 
 FILES="
 arch/arm64/boot/Image.gz
+arch/arm64/boot/Image
 vmlinux
 System.map
 "
