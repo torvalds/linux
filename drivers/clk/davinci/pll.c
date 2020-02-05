@@ -373,7 +373,7 @@ struct clk *davinci_pll_clk_register(struct device *dev,
 	char pllout_name[MAX_NAME_SIZE];
 	char postdiv_name[MAX_NAME_SIZE];
 	char pllen_name[MAX_NAME_SIZE];
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct davinci_pll_clk *pllout;
 	struct davinci_pllen_clk *pllen;
 	struct clk *oscin_clk = NULL;

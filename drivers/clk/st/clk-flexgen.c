@@ -200,7 +200,7 @@ static struct clk *clk_register_flexgen(const char *name,
 				unsigned long flexgen_flags, bool mode) {
 	struct flexgen *fgxbar;
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	u32  xbar_shift;
 	void __iomem *xbar_reg, *fdiv_reg;
 

@@ -387,7 +387,7 @@ static struct clk_hw *aspeed_clk_hw_register_gate(struct device *dev,
 		u8 clk_gate_flags, spinlock_t *lock)
 {
 	struct aspeed_clk_gate *gate;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct clk_hw *hw;
 	int ret;
 

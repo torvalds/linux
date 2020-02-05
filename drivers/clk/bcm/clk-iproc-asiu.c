@@ -216,7 +216,7 @@ void __init iproc_asiu_setup(struct device_node *node,
 		goto err_iomap_gate;
 
 	for (i = 0; i < num_clks; i++) {
-		struct clk_init_data init;
+		struct clk_init_data init = {};
 		const char *parent_name;
 		struct iproc_asiu_clk *asiu_clk;
 		const char *clk_name;

@@ -193,7 +193,7 @@ static struct clk_hw *gemini_pci_clk_setup(const char *name,
 					   struct regmap *map)
 {
 	struct clk_gemini_pci *pciclk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	int ret;
 
 	pciclk = kzalloc(sizeof(*pciclk), GFP_KERNEL);

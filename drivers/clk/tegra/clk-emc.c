@@ -473,7 +473,7 @@ struct clk *tegra_clk_register_emc(void __iomem *base, struct device_node *np,
 				   spinlock_t *lock)
 {
 	struct tegra_clk_emc *tegra;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct device_node *node;
 	u32 node_ram_code;
 	struct clk *clk;

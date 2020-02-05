@@ -178,7 +178,7 @@ at91_clk_register_programmable(struct regmap *regmap,
 {
 	struct clk_programmable *prog;
 	struct clk_hw *hw;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	int ret;
 
 	if (id > PROG_ID_MAX)

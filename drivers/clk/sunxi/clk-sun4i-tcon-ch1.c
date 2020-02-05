@@ -233,7 +233,7 @@ static void __init tcon_ch1_setup(struct device_node *node)
 {
 	const char *parents[TCON_CH1_SCLK2_PARENTS];
 	const char *clk_name = node->name;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct tcon_ch1_clk *tclk;
 	struct resource res;
 	struct clk *clk;

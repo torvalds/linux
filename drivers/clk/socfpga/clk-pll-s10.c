@@ -113,7 +113,7 @@ struct clk *s10_register_pll(const char *name, const char * const *parent_names,
 {
 	struct clk *clk;
 	struct socfpga_pll *pll_clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	pll_clk = kzalloc(sizeof(*pll_clk), GFP_KERNEL);
 	if (WARN_ON(!pll_clk))

@@ -78,7 +78,7 @@ struct clk *mxs_clk_div(const char *name, const char *parent_name,
 {
 	struct clk_div *div;
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	div = kzalloc(sizeof(*div), GFP_KERNEL);
 	if (!div)

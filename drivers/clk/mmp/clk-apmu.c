@@ -70,7 +70,7 @@ struct clk *mmp_clk_register_apmu(const char *name, const char *parent_name,
 {
 	struct clk_apmu *apmu;
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	apmu = kzalloc(sizeof(*apmu), GFP_KERNEL);
 	if (!apmu)

@@ -407,7 +407,7 @@ static int si570_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
 	struct clk_si570 *data;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	u32 initial_fout, factory_fout, stability;
 	int err;
 	enum clk_si570_variant variant = id->driver_data;
