@@ -7710,6 +7710,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 		connector->ycbcr_420_allowed = true;
 
 	intel_encoder->hpd_pin = intel_hpd_pin_default(dev_priv, port);
+	intel_connector->polled = DRM_CONNECTOR_POLL_HPD;
 
 	intel_dp_aux_init(intel_dp);
 

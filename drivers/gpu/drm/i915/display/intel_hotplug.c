@@ -262,8 +262,6 @@ static void intel_hpd_irq_storm_reenable_work(struct work_struct *work)
 			DRM_DEBUG_DRIVER("Reenabling HPD on connector %s\n",
 					 connector->base.name);
 		connector->base.polled = connector->polled;
-		if (!connector->base.polled)
-			connector->base.polled = DRM_CONNECTOR_POLL_HPD;
 	}
 	drm_connector_list_iter_end(&conn_iter);
 
@@ -620,16 +618,17 @@ static void i915_hpd_poll_init_work(struct work_struct *work)
 
 	drm_connector_list_iter_begin(dev, &conn_iter);
 	for_each_intel_connector_iter(connector, &conn_iter) {
-		enum hpd_pin pin = intel_connector_hpd_pin(connector);
+		enum hpd_pin pin;
+
+		pin = intel_connector_hpd_pin(connector);
+		if (pin == HPD_NONE)
+			continue;
 
 		connector->base.polled = connector->polled;
 
-		if (pin != HPD_NONE && I915_HAS_HOTPLUG(dev_priv) &&
-		    !connector->base.polled)
-			connector->base.polled = enabled ?
-				DRM_CONNECTOR_POLL_CONNECT |
-				DRM_CONNECTOR_POLL_DISCONNECT :
-				DRM_CONNECTOR_POLL_HPD;
+		if (enabled && connector->base.polled == DRM_CONNECTOR_POLL_HPD)
+			connector->base.polled = DRM_CONNECTOR_POLL_CONNECT |
+				DRM_CONNECTOR_POLL_DISCONNECT;
 	}
 	drm_connector_list_iter_end(&conn_iter);
 

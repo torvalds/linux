@@ -3176,6 +3176,7 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 		connector->ycbcr_420_allowed = true;
 
 	intel_encoder->hpd_pin = intel_hpd_pin_default(dev_priv, port);
+	intel_connector->polled = DRM_CONNECTOR_POLL_HPD;
 
 	if (HAS_DDI(dev_priv))
 		intel_connector->get_hw_state = intel_ddi_connector_get_hw_state;

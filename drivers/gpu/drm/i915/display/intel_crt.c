@@ -1046,6 +1046,7 @@ void intel_crt_init(struct drm_i915_private *dev_priv)
 	    !dmi_check_system(intel_spurious_crt_detect)) {
 		crt->base.hpd_pin = HPD_CRT;
 		crt->base.hotplug = intel_encoder_hotplug;
+		intel_connector->polled = DRM_CONNECTOR_POLL_HPD;
 	} else {
 		intel_connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 	}
