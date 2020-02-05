@@ -56,6 +56,7 @@ struct rt5682_priv {
 	struct delayed_work jack_detect_work;
 	struct delayed_work jd_check_work;
 	struct mutex calibrate_mutex;
+	bool is_sdw;
 
 	int sysclk;
 	int sysclk_src;
@@ -805,10 +806,11 @@ static const struct snd_kcontrol_new rt5682_if1_45_adc_swap_mux =
 static const struct snd_kcontrol_new rt5682_if1_67_adc_swap_mux =
 	SOC_DAPM_ENUM("IF1 67 ADC Swap Mux", rt5682_if1_67_adc_enum);
 
-static void rt5682_reset(struct regmap *regmap)
+static void rt5682_reset(struct rt5682_priv *rt5682)
 {
-	regmap_write(regmap, RT5682_RESET, 0);
-	regmap_write(regmap, RT5682_I2C_MODE, 1);
+	regmap_write(rt5682->regmap, RT5682_RESET, 0);
+	if (!rt5682->is_sdw)
+		regmap_write(rt5682->regmap, RT5682_I2C_MODE, 1);
 }
 /**
  * rt5682_sel_asrc_clk_src - select ASRC clock source for a set of filters
@@ -871,6 +873,8 @@ static int rt5682_button_detect(struct snd_soc_component *component)
 static void rt5682_enable_push_button_irq(struct snd_soc_component *component,
 		bool enable)
 {
+	struct rt5682_priv *rt5682 = snd_soc_component_get_drvdata(component);
+
 	if (enable) {
 		snd_soc_component_update_bits(component, RT5682_SAR_IL_CMD_1,
 			RT5682_SAR_BUTT_DET_MASK, RT5682_SAR_BUTT_DET_EN);
@@ -880,8 +884,15 @@ static void rt5682_enable_push_button_irq(struct snd_soc_component *component,
 		snd_soc_component_update_bits(component, RT5682_4BTN_IL_CMD_2,
 			RT5682_4BTN_IL_MASK | RT5682_4BTN_IL_RST_MASK,
 			RT5682_4BTN_IL_EN | RT5682_4BTN_IL_NOR);
-		snd_soc_component_update_bits(component, RT5682_IRQ_CTRL_3,
-			RT5682_IL_IRQ_MASK, RT5682_IL_IRQ_EN);
+		if (rt5682->is_sdw)
+			snd_soc_component_update_bits(component,
+				RT5682_IRQ_CTRL_3,
+				RT5682_IL_IRQ_MASK | RT5682_IL_IRQ_TYPE_MASK,
+				RT5682_IL_IRQ_EN | RT5682_IL_IRQ_PUL);
+		else
+			snd_soc_component_update_bits(component,
+				RT5682_IRQ_CTRL_3, RT5682_IL_IRQ_MASK,
+				RT5682_IL_IRQ_EN);
 	} else {
 		snd_soc_component_update_bits(component, RT5682_IRQ_CTRL_3,
 			RT5682_IL_IRQ_MASK, RT5682_IL_IRQ_DIS);
@@ -999,62 +1010,69 @@ static int rt5682_set_jack_detect(struct snd_soc_component *component,
 
 	rt5682->hs_jack = hs_jack;
 
-	if (!hs_jack) {
-		regmap_update_bits(rt5682->regmap, RT5682_IRQ_CTRL_2,
-				   RT5682_JD1_EN_MASK, RT5682_JD1_DIS);
-		regmap_update_bits(rt5682->regmap, RT5682_RC_CLK_CTRL,
-				   RT5682_POW_JDH | RT5682_POW_JDL, 0);
-		cancel_delayed_work_sync(&rt5682->jack_detect_work);
-		return 0;
-	}
+	if (!rt5682->is_sdw) {
+		if (!hs_jack) {
+			regmap_update_bits(rt5682->regmap, RT5682_IRQ_CTRL_2,
+					   RT5682_JD1_EN_MASK, RT5682_JD1_DIS);
+			regmap_update_bits(rt5682->regmap, RT5682_RC_CLK_CTRL,
+					   RT5682_POW_JDH | RT5682_POW_JDL, 0);
+			cancel_delayed_work_sync(&rt5682->jack_detect_work);
+			return 0;
+		}
 
-	switch (rt5682->pdata.jd_src) {
-	case RT5682_JD1:
-		snd_soc_component_update_bits(component, RT5682_CBJ_CTRL_2,
-			RT5682_EXT_JD_SRC, RT5682_EXT_JD_SRC_MANUAL);
-		snd_soc_component_write(component, RT5682_CBJ_CTRL_1, 0xd042);
-		snd_soc_component_update_bits(component, RT5682_CBJ_CTRL_3,
-			RT5682_CBJ_IN_BUF_EN, RT5682_CBJ_IN_BUF_EN);
-		snd_soc_component_update_bits(component, RT5682_SAR_IL_CMD_1,
-			RT5682_SAR_POW_MASK, RT5682_SAR_POW_EN);
-		regmap_update_bits(rt5682->regmap, RT5682_GPIO_CTRL_1,
-			RT5682_GP1_PIN_MASK, RT5682_GP1_PIN_IRQ);
-		regmap_update_bits(rt5682->regmap, RT5682_RC_CLK_CTRL,
+		switch (rt5682->pdata.jd_src) {
+		case RT5682_JD1:
+			snd_soc_component_update_bits(component,
+				RT5682_CBJ_CTRL_2, RT5682_EXT_JD_SRC,
+				RT5682_EXT_JD_SRC_MANUAL);
+			snd_soc_component_write(component, RT5682_CBJ_CTRL_1,
+				0xd042);
+			snd_soc_component_update_bits(component,
+				RT5682_CBJ_CTRL_3, RT5682_CBJ_IN_BUF_EN,
+				RT5682_CBJ_IN_BUF_EN);
+			snd_soc_component_update_bits(component,
+				RT5682_SAR_IL_CMD_1, RT5682_SAR_POW_MASK,
+				RT5682_SAR_POW_EN);
+			regmap_update_bits(rt5682->regmap, RT5682_GPIO_CTRL_1,
+				RT5682_GP1_PIN_MASK, RT5682_GP1_PIN_IRQ);
+			regmap_update_bits(rt5682->regmap, RT5682_RC_CLK_CTRL,
 				RT5682_POW_IRQ | RT5682_POW_JDH |
 				RT5682_POW_ANA, RT5682_POW_IRQ |
 				RT5682_POW_JDH | RT5682_POW_ANA);
-		regmap_update_bits(rt5682->regmap, RT5682_PWR_ANLG_2,
-			RT5682_PWR_JDH | RT5682_PWR_JDL,
-			RT5682_PWR_JDH | RT5682_PWR_JDL);
-		regmap_update_bits(rt5682->regmap, RT5682_IRQ_CTRL_2,
-			RT5682_JD1_EN_MASK | RT5682_JD1_POL_MASK,
-			RT5682_JD1_EN | RT5682_JD1_POL_NOR);
-		regmap_update_bits(rt5682->regmap, RT5682_4BTN_IL_CMD_4,
-			0x7f7f, (rt5682->pdata.btndet_delay << 8 |
-			rt5682->pdata.btndet_delay));
-		regmap_update_bits(rt5682->regmap, RT5682_4BTN_IL_CMD_5,
-			0x7f7f, (rt5682->pdata.btndet_delay << 8 |
-			rt5682->pdata.btndet_delay));
-		regmap_update_bits(rt5682->regmap, RT5682_4BTN_IL_CMD_6,
-			0x7f7f, (rt5682->pdata.btndet_delay << 8 |
-			rt5682->pdata.btndet_delay));
-		regmap_update_bits(rt5682->regmap, RT5682_4BTN_IL_CMD_7,
-			0x7f7f, (rt5682->pdata.btndet_delay << 8 |
-			rt5682->pdata.btndet_delay));
-		mod_delayed_work(system_power_efficient_wq,
-			   &rt5682->jack_detect_work, msecs_to_jiffies(250));
-		break;
+			regmap_update_bits(rt5682->regmap, RT5682_PWR_ANLG_2,
+				RT5682_PWR_JDH | RT5682_PWR_JDL,
+				RT5682_PWR_JDH | RT5682_PWR_JDL);
+			regmap_update_bits(rt5682->regmap, RT5682_IRQ_CTRL_2,
+				RT5682_JD1_EN_MASK | RT5682_JD1_POL_MASK,
+				RT5682_JD1_EN | RT5682_JD1_POL_NOR);
+			regmap_update_bits(rt5682->regmap, RT5682_4BTN_IL_CMD_4,
+				0x7f7f, (rt5682->pdata.btndet_delay << 8 |
+				rt5682->pdata.btndet_delay));
+			regmap_update_bits(rt5682->regmap, RT5682_4BTN_IL_CMD_5,
+				0x7f7f, (rt5682->pdata.btndet_delay << 8 |
+				rt5682->pdata.btndet_delay));
+			regmap_update_bits(rt5682->regmap, RT5682_4BTN_IL_CMD_6,
+				0x7f7f, (rt5682->pdata.btndet_delay << 8 |
+				rt5682->pdata.btndet_delay));
+			regmap_update_bits(rt5682->regmap, RT5682_4BTN_IL_CMD_7,
+				0x7f7f, (rt5682->pdata.btndet_delay << 8 |
+				rt5682->pdata.btndet_delay));
+			mod_delayed_work(system_power_efficient_wq,
+				   &rt5682->jack_detect_work,
+					msecs_to_jiffies(250));
+			break;
 
-	case RT5682_JD_NULL:
-		regmap_update_bits(rt5682->regmap, RT5682_IRQ_CTRL_2,
-			RT5682_JD1_EN_MASK, RT5682_JD1_DIS);
-		regmap_update_bits(rt5682->regmap, RT5682_RC_CLK_CTRL,
-				RT5682_POW_JDH | RT5682_POW_JDL, 0);
-		break;
+		case RT5682_JD_NULL:
+			regmap_update_bits(rt5682->regmap, RT5682_IRQ_CTRL_2,
+				RT5682_JD1_EN_MASK, RT5682_JD1_DIS);
+			regmap_update_bits(rt5682->regmap, RT5682_RC_CLK_CTRL,
+					RT5682_POW_JDH | RT5682_POW_JDL, 0);
+			break;
 
-	default:
-		dev_warn(component->dev, "Wrong JD source\n");
-		break;
+		default:
+			dev_warn(component->dev, "Wrong JD source\n");
+			break;
+		}
 	}
 
 	return 0;
@@ -1134,11 +1152,13 @@ static void rt5682_jack_detect_handler(struct work_struct *work)
 			    SND_JACK_BTN_0 | SND_JACK_BTN_1 |
 			    SND_JACK_BTN_2 | SND_JACK_BTN_3);
 
-	if (rt5682->jack_type & (SND_JACK_BTN_0 | SND_JACK_BTN_1 |
-		SND_JACK_BTN_2 | SND_JACK_BTN_3))
-		schedule_delayed_work(&rt5682->jd_check_work, 0);
-	else
-		cancel_delayed_work_sync(&rt5682->jd_check_work);
+	if (!rt5682->is_sdw) {
+		if (rt5682->jack_type & (SND_JACK_BTN_0 | SND_JACK_BTN_1 |
+			SND_JACK_BTN_2 | SND_JACK_BTN_3))
+			schedule_delayed_work(&rt5682->jd_check_work, 0);
+		else
+			cancel_delayed_work_sync(&rt5682->jd_check_work);
+	}
 
 	mutex_unlock(&rt5682->calibrate_mutex);
 }
@@ -2332,7 +2352,7 @@ static void rt5682_remove(struct snd_soc_component *component)
 {
 	struct rt5682_priv *rt5682 = snd_soc_component_get_drvdata(component);
 
-	rt5682_reset(rt5682->regmap);
+	rt5682_reset(rt5682);
 }
 
 #ifdef CONFIG_PM
@@ -2474,7 +2494,7 @@ static void rt5682_calibrate(struct rt5682_priv *rt5682)
 
 	mutex_lock(&rt5682->calibrate_mutex);
 
-	rt5682_reset(rt5682->regmap);
+	rt5682_reset(rt5682);
 	regmap_write(rt5682->regmap, RT5682_I2C_CTRL, 0x000f);
 	regmap_write(rt5682->regmap, RT5682_PWR_ANLG_1, 0xa2af);
 	usleep_range(15000, 20000);
@@ -2586,7 +2606,7 @@ static int rt5682_i2c_probe(struct i2c_client *i2c,
 		return -ENODEV;
 	}
 
-	rt5682_reset(rt5682->regmap);
+	rt5682_reset(rt5682);
 
 	mutex_init(&rt5682->calibrate_mutex);
 	rt5682_calibrate(rt5682);
@@ -2676,7 +2696,7 @@ static void rt5682_i2c_shutdown(struct i2c_client *client)
 {
 	struct rt5682_priv *rt5682 = i2c_get_clientdata(client);
 
-	rt5682_reset(rt5682->regmap);
+	rt5682_reset(rt5682);
 }
 
 #ifdef CONFIG_OF
