@@ -246,7 +246,7 @@ static int amd_ntb_get_link_status(struct amd_ntb_dev *ndev)
 static int amd_link_is_up(struct amd_ntb_dev *ndev)
 {
 	if (!ndev->peer_sta)
-		return NTB_LNK_STA_ACTIVE(ndev->cntl_sta);
+		return ndev->cntl_sta;
 
 	if (ndev->peer_sta & AMD_LINK_UP_EVENT) {
 		ndev->peer_sta = 0;
@@ -896,16 +896,15 @@ static int amd_poll_link(struct amd_ntb_dev *ndev)
 	u32 reg;
 
 	reg = readl(mmio + AMD_SIDEINFO_OFFSET);
-	reg &= NTB_LIN_STA_ACTIVE_BIT;
+	reg &= AMD_SIDE_READY;
 
 	dev_dbg(&ndev->ntb.pdev->dev, "%s: reg_val = 0x%x.\n", __func__, reg);
 
-	if (reg == ndev->cntl_sta)
-		return 0;
-
 	ndev->cntl_sta = reg;
 
-	return amd_ntb_get_link_status(ndev);
+	amd_ntb_get_link_status(ndev);
+
+	return ndev->cntl_sta;
 }
 
 static void amd_link_hb(struct work_struct *work)
