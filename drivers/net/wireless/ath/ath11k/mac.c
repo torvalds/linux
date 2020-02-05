@@ -178,6 +178,22 @@ u8 ath11k_mac_bw_to_mac80211_bw(u8 bw)
 	return ret;
 }
 
+enum ath11k_supported_bw ath11k_mac_mac80211_bw_to_ath11k_bw(enum rate_info_bw bw)
+{
+	switch (bw) {
+	case RATE_INFO_BW_20:
+		return ATH11K_BW_20;
+	case RATE_INFO_BW_40:
+		return ATH11K_BW_40;
+	case RATE_INFO_BW_80:
+		return ATH11K_BW_80;
+	case RATE_INFO_BW_160:
+		return ATH11K_BW_160;
+	default:
+		return ATH11K_BW_20;
+	}
+}
+
 int ath11k_mac_hw_ratecode_to_legacy_rate(u8 hw_rc, u8 preamble, u8 *rateidx,
 					  u16 *rate)
 {
