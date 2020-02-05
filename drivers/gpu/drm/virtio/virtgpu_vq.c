@@ -318,18 +318,43 @@ static struct sg_table *vmalloc_to_sgt(char *data, uint32_t size, int *sg_ents)
 	return sgt;
 }
 
-static bool virtio_gpu_queue_ctrl_sgs_locked(struct virtio_gpu_device *vgdev,
-					     struct virtio_gpu_vbuffer *vbuf,
-					     struct scatterlist **sgs,
-					     int outcnt,
-					     int incnt)
+static bool virtio_gpu_queue_ctrl_sgs(struct virtio_gpu_device *vgdev,
+				      struct virtio_gpu_vbuffer *vbuf,
+				      struct virtio_gpu_fence *fence,
+				      int elemcnt,
+				      struct scatterlist **sgs,
+				      int outcnt,
+				      int incnt)
 {
 	struct virtqueue *vq = vgdev->ctrlq.vq;
 	bool notify = false;
 	int ret;
 
-	if (!vgdev->vqs_ready)
+again:
+	spin_lock(&vgdev->ctrlq.qlock);
+
+	if (vq->num_free < elemcnt) {
+		spin_unlock(&vgdev->ctrlq.qlock);
+		wait_event(vgdev->ctrlq.ack_queue, vq->num_free >= elemcnt);
+		goto again;
+	}
+
+	/* now that the position of the vbuf in the virtqueue is known, we can
+	 * finally set the fence id
+	 */
+	if (fence) {
+		virtio_gpu_fence_emit(vgdev, virtio_gpu_vbuf_ctrl_hdr(vbuf),
+				      fence);
+		if (vbuf->objs) {
+			virtio_gpu_array_add_fence(vbuf->objs, &fence->f);
+			virtio_gpu_array_unlock_resv(vbuf->objs);
+		}
+	}
+
+	if (!vgdev->vqs_ready) {
+		spin_unlock(&vgdev->ctrlq.qlock);
 		return notify;
+	}
 
 	ret = virtqueue_add_sgs(vq, sgs, outcnt, incnt, vbuf, GFP_ATOMIC);
 	WARN_ON(ret);
@@ -338,6 +363,8 @@ static bool virtio_gpu_queue_ctrl_sgs_locked(struct virtio_gpu_device *vgdev,
 
 	notify = virtqueue_kick_prepare(vq);
 
+	spin_unlock(&vgdev->ctrlq.qlock);
+
 	return notify;
 }
 
@@ -345,7 +372,6 @@ static void virtio_gpu_queue_fenced_ctrl_buffer(struct virtio_gpu_device *vgdev,
 						struct virtio_gpu_vbuffer *vbuf,
 						struct virtio_gpu_fence *fence)
 {
-	struct virtqueue *vq = vgdev->ctrlq.vq;
 	struct scatterlist *sgs[3], vcmd, vout, vresp;
 	struct sg_table *sgt = NULL;
 	int elemcnt = 0, outcnt = 0, incnt = 0;
@@ -387,34 +413,8 @@ static void virtio_gpu_queue_fenced_ctrl_buffer(struct virtio_gpu_device *vgdev,
 		incnt++;
 	}
 
-again:
-	spin_lock(&vgdev->ctrlq.qlock);
-
-	/*
-	 * Make sure we have enouth space in the virtqueue.  If not
-	 * wait here until we have.
-	 *
-	 * Without that virtio_gpu_queue_ctrl_buffer_nolock might have
-	 * to wait for free space, which can result in fence ids being
-	 * submitted out-of-order.
-	 */
-	if (vq->num_free < elemcnt) {
-		spin_unlock(&vgdev->ctrlq.qlock);
-		wait_event(vgdev->ctrlq.ack_queue, vq->num_free >= elemcnt);
-		goto again;
-	}
-
-	if (fence) {
-		virtio_gpu_fence_emit(vgdev, virtio_gpu_vbuf_ctrl_hdr(vbuf),
-				      fence);
-		if (vbuf->objs) {
-			virtio_gpu_array_add_fence(vbuf->objs, &fence->f);
-			virtio_gpu_array_unlock_resv(vbuf->objs);
-		}
-	}
-	notify = virtio_gpu_queue_ctrl_sgs_locked(vgdev, vbuf, sgs, outcnt,
-						  incnt);
-	spin_unlock(&vgdev->ctrlq.qlock);
+	notify = virtio_gpu_queue_ctrl_sgs(vgdev, vbuf, fence, elemcnt, sgs,
+					   outcnt, incnt);
 	if (notify) {
 		if (vgdev->disable_notify)
 			vgdev->pending_notify = true;
