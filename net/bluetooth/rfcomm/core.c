@@ -73,8 +73,6 @@ static struct rfcomm_session *rfcomm_session_del(struct rfcomm_session *s);
 
 /* ---- RFCOMM frame parsing macros ---- */
 #define __get_dlci(b)     ((b & 0xfc) >> 2)
-#define __get_channel(b)  ((b & 0xf8) >> 3)
-#define __get_dir(b)      ((b & 0x04) >> 2)
 #define __get_type(b)     ((b & 0xef))
 
 #define __test_ea(b)      ((b & 0x01))
@@ -87,7 +85,6 @@ static struct rfcomm_session *rfcomm_session_del(struct rfcomm_session *s);
 #define __ctrl(type, pf)       (((type & 0xef) | (pf << 4)))
 #define __dlci(dir, chn)       (((chn & 0x1f) << 1) | dir)
 #define __srv_channel(dlci)    (dlci >> 1)
-#define __dir(dlci)            (dlci & 0x01)
 
 #define __len8(len)       (((len) << 1) | 1)
 #define __len16(len)      ((len) << 1)
