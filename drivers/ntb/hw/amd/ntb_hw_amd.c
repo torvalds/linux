@@ -195,6 +195,54 @@ static int amd_ntb_mw_set_trans(struct ntb_dev *ntb, int pidx, int idx,
 	return 0;
 }
 
+static int amd_ntb_get_link_status(struct amd_ntb_dev *ndev)
+{
+	struct pci_dev *pdev = NULL;
+	struct pci_dev *pci_swds = NULL;
+	struct pci_dev *pci_swus = NULL;
+	u32 stat;
+	int rc;
+
+	if (ndev->ntb.topo == NTB_TOPO_SEC) {
+		/* Locate the pointer to Downstream Switch for this device */
+		pci_swds = pci_upstream_bridge(ndev->ntb.pdev);
+		if (pci_swds) {
+			/*
+			 * Locate the pointer to Upstream Switch for
+			 * the Downstream Switch.
+			 */
+			pci_swus = pci_upstream_bridge(pci_swds);
+			if (pci_swus) {
+				rc = pcie_capability_read_dword(pci_swus,
+								PCI_EXP_LNKCTL,
+								&stat);
+				if (rc)
+					return 0;
+			} else {
+				return 0;
+			}
+		} else {
+			return 0;
+		}
+	} else if (ndev->ntb.topo == NTB_TOPO_PRI) {
+		/*
+		 * For NTB primary, we simply read the Link Status and control
+		 * register of the NTB device itself.
+		 */
+		pdev = ndev->ntb.pdev;
+		rc = pcie_capability_read_dword(pdev, PCI_EXP_LNKCTL, &stat);
+		if (rc)
+			return 0;
+	} else {
+		/* Catch all for everything else */
+		return 0;
+	}
+
+	ndev->lnk_sta = stat;
+
+	return 1;
+}
+
 static int amd_link_is_up(struct amd_ntb_dev *ndev)
 {
 	if (!ndev->peer_sta)
@@ -845,11 +893,7 @@ static inline void ndev_init_struct(struct amd_ntb_dev *ndev,
 static int amd_poll_link(struct amd_ntb_dev *ndev)
 {
 	void __iomem *mmio = ndev->peer_mmio;
-	struct pci_dev *pdev = NULL;
-	struct pci_dev *pci_swds = NULL;
-	struct pci_dev *pci_swus = NULL;
-	u32 reg, stat;
-	int rc;
+	u32 reg;
 
 	reg = readl(mmio + AMD_SIDEINFO_OFFSET);
 	reg &= NTB_LIN_STA_ACTIVE_BIT;
@@ -861,44 +905,7 @@ static int amd_poll_link(struct amd_ntb_dev *ndev)
 
 	ndev->cntl_sta = reg;
 
-	if (ndev->ntb.topo == NTB_TOPO_SEC) {
-		/* Locate the pointer to Downstream Switch for this device */
-		pci_swds = pci_upstream_bridge(ndev->ntb.pdev);
-		if (pci_swds) {
-			/*
-			 * Locate the pointer to Upstream Switch for
-			 * the Downstream Switch.
-			 */
-			pci_swus = pci_upstream_bridge(pci_swds);
-			if (pci_swus) {
-				rc = pcie_capability_read_dword(pci_swus,
-								PCI_EXP_LNKCTL,
-								&stat);
-				if (rc)
-					return 0;
-			} else {
-				return 0;
-			}
-		} else {
-			return 0;
-		}
-	} else if (ndev->ntb.topo == NTB_TOPO_PRI) {
-		/*
-		 * For NTB primary, we simply read the Link Status and control
-		 * register of the NTB device itself.
-		 */
-		pdev = ndev->ntb.pdev;
-		rc = pcie_capability_read_dword(pdev, PCI_EXP_LNKCTL, &stat);
-		if (rc)
-			return 0;
-	} else {
-		/* Catch all for everything else */
-		return 0;
-	}
-
-	ndev->lnk_sta = stat;
-
-	return 1;
+	return amd_ntb_get_link_status(ndev);
 }
 
 static void amd_link_hb(struct work_struct *work)
