@@ -865,9 +865,10 @@ static struct signature_info *incfs_copy_signature_info_from_user(
 			goto err;
 		}
 
-		// TODO this sets the root_hash length to MAX_HASH_SIZE not
-		// the actual size. Fix, then set INCFS_MAX_HASH_SIZE back
-		// to 64
+		/* TODO this sets the root_hash length to MAX_HASH_SIZE not
+		 * the actual size. Fix, then set INCFS_MAX_HASH_SIZE back
+		 * to 64
+		 */
 		result->root_hash = range(p, INCFS_MAX_HASH_SIZE);
 		if (copy_from_user(p, u64_to_user_ptr(usr_si.root_hash),
 				result->root_hash.len) > 0) {
@@ -1002,8 +1003,9 @@ static int init_new_file(struct mount_info *mi, struct dentry *dentry,
 				goto out;
 			}
 
-			// TODO This code seems wrong when len is zero - we
-			// should error out??
+			/* TODO This code seems wrong when len is zero - we
+			 * should error out??
+			 */
 			if (si->signature.len > 0)
 				error = incfs_validate_pkcs7_signature(
 						si->signature,

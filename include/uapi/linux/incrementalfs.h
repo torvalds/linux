@@ -22,8 +22,9 @@
 #define INCFS_DATA_FILE_BLOCK_SIZE 4096
 #define INCFS_HEADER_VER 1
 
-// TODO: This value is assumed in incfs_copy_signature_info_from_user to be the
-// actual signature length. Set back to 64 when fixed.
+/* TODO: This value is assumed in incfs_copy_signature_info_from_user to be the
+ * actual signature length. Set back to 64 when fixed.
+ */
 #define INCFS_MAX_HASH_SIZE 32
 #define INCFS_MAX_FILE_ATTR_SIZE 512
 
