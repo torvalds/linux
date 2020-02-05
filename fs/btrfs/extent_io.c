@@ -3361,14 +3361,13 @@ static int __extent_read_full_page(struct extent_io_tree *tree,
 	return ret;
 }
 
-int extent_read_full_page(struct extent_io_tree *tree, struct page *page,
-			    get_extent_t *get_extent, int mirror_num)
+int extent_read_full_page(struct page *page, get_extent_t *get_extent,
+			  int mirror_num)
 {
 	struct bio *bio = NULL;
 	unsigned long bio_flags = 0;
+	struct extent_io_tree *tree = &BTRFS_I(page->mapping->host)->io_tree;
 	int ret;
-
-	ASSERT(tree == &BTRFS_I(page->mapping->host)->io_tree);
 
 	ret = __extent_read_full_page(tree, page, get_extent, &bio, mirror_num,
 				      &bio_flags, 0);
