@@ -551,8 +551,12 @@ static void amd_handle_event(struct amd_ntb_dev *ndev, int vec)
 		dev_info(dev, "Flush is done.\n");
 		break;
 	case AMD_PEER_RESET_EVENT:
-		ndev->peer_sta |= AMD_PEER_RESET_EVENT;
-		amd_ack_smu(ndev, AMD_PEER_RESET_EVENT);
+	case AMD_LINK_DOWN_EVENT:
+		ndev->peer_sta |= status;
+		if (status == AMD_LINK_DOWN_EVENT)
+			ndev->peer_sta &= ~AMD_LINK_UP_EVENT;
+
+		amd_ack_smu(ndev, status);
 
 		/* link down first */
 		ntb_link_event(&ndev->ntb);
@@ -563,7 +567,6 @@ static void amd_handle_event(struct amd_ntb_dev *ndev, int vec)
 	case AMD_PEER_D3_EVENT:
 	case AMD_PEER_PMETO_EVENT:
 	case AMD_LINK_UP_EVENT:
-	case AMD_LINK_DOWN_EVENT:
 		ndev->peer_sta |= status;
 		amd_ack_smu(ndev, status);
 
