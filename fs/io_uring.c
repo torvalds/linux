@@ -753,6 +753,7 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 				 struct io_uring_files_update *ip,
 				 unsigned nr_args);
 static int io_grab_files(struct io_kiocb *req);
+static void io_ring_file_ref_flush(struct fixed_file_data *data);
 
 static struct kmem_cache *req_cachep;
 
@@ -5261,15 +5262,10 @@ static int io_sqe_files_unregister(struct io_ring_ctx *ctx)
 	if (!data)
 		return -ENXIO;
 
-	/* protect against inflight atomic switch, which drops the ref */
-	percpu_ref_get(&data->refs);
-	/* wait for existing switches */
-	flush_work(&data->ref_work);
 	percpu_ref_kill_and_confirm(&data->refs, io_file_ref_kill);
-	wait_for_completion(&data->done);
-	percpu_ref_put(&data->refs);
-	/* flush potential new switch */
 	flush_work(&data->ref_work);
+	wait_for_completion(&data->done);
+	io_ring_file_ref_flush(data);
 	percpu_ref_exit(&data->refs);
 
 	__io_sqe_files_unregister(ctx);
@@ -5507,13 +5503,10 @@ struct io_file_put {
 	struct completion *done;
 };
 
-static void io_ring_file_ref_switch(struct work_struct *work)
+static void io_ring_file_ref_flush(struct fixed_file_data *data)
 {
 	struct io_file_put *pfile, *tmp;
-	struct fixed_file_data *data;
 	struct llist_node *node;
-
-	data = container_of(work, struct fixed_file_data, ref_work);
 
 	while ((node = llist_del_all(&data->put_llist)) != NULL) {
 		llist_for_each_entry_safe(pfile, tmp, node, llist) {
@@ -5524,7 +5517,14 @@ static void io_ring_file_ref_switch(struct work_struct *work)
 				kfree(pfile);
 		}
 	}
+}
 
+static void io_ring_file_ref_switch(struct work_struct *work)
+{
+	struct fixed_file_data *data;
+
+	data = container_of(work, struct fixed_file_data, ref_work);
+	io_ring_file_ref_flush(data);
 	percpu_ref_get(&data->refs);
 	percpu_ref_switch_to_percpu(&data->refs);
 }
@@ -5535,8 +5535,14 @@ static void io_file_data_ref_zero(struct percpu_ref *ref)
 
 	data = container_of(ref, struct fixed_file_data, refs);
 
-	/* we can't safely switch from inside this context, punt to wq */
-	queue_work(system_wq, &data->ref_work);
+	/*
+	 * We can't safely switch from inside this context, punt to wq. If
+	 * the table ref is going away, the table is being unregistered.
+	 * Don't queue up the async work for that case, the caller will
+	 * handle it.
+	 */
+	if (!percpu_ref_is_dying(&data->refs))
+		queue_work(system_wq, &data->ref_work);
 }
 
 static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
