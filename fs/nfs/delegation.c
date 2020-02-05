@@ -42,6 +42,8 @@ static void nfs_mark_delegation_revoked(struct nfs_delegation *delegation)
 	if (!test_and_set_bit(NFS_DELEGATION_REVOKED, &delegation->flags)) {
 		delegation->stateid.type = NFS4_INVALID_STATEID_TYPE;
 		atomic_long_dec(&nfs_active_delegations);
+		if (!test_bit(NFS_DELEGATION_RETURNING, &delegation->flags))
+			nfs_clear_verifier_delegated(delegation->inode);
 	}
 }
 
@@ -276,6 +278,8 @@ nfs_start_delegation_return_locked(struct nfs_inode *nfsi)
 	if (!test_and_set_bit(NFS_DELEGATION_RETURNING, &delegation->flags))
 		ret = delegation;
 	spin_unlock(&delegation->lock);
+	if (ret)
+		nfs_clear_verifier_delegated(&nfsi->vfs_inode);
 out:
 	return ret;
 }
@@ -689,6 +693,8 @@ void nfs4_inode_return_delegation_on_close(struct inode *inode)
 			ret = delegation;
 		}
 		spin_unlock(&delegation->lock);
+		if (ret)
+			nfs_clear_verifier_delegated(inode);
 	}
 out:
 	rcu_read_unlock();
