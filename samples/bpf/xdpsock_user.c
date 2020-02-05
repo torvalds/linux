@@ -788,7 +788,8 @@ static void kick_tx(struct xsk_socket_info *xsk)
 	int ret;
 
 	ret = sendto(xsk_socket__fd(xsk->xsk), NULL, 0, MSG_DONTWAIT, NULL, 0);
-	if (ret >= 0 || errno == ENOBUFS || errno == EAGAIN || errno == EBUSY)
+	if (ret >= 0 || errno == ENOBUFS || errno == EAGAIN ||
+	    errno == EBUSY || errno == ENETDOWN)
 		return;
 	exit_with_error(errno);
 }
