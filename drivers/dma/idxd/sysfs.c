@@ -66,7 +66,7 @@ static inline bool is_idxd_wq_dmaengine(struct idxd_wq *wq)
 
 static inline bool is_idxd_wq_cdev(struct idxd_wq *wq)
 {
-	return wq->type == IDXD_WQT_USER ? true : false;
+	return wq->type == IDXD_WQT_USER;
 }
 
 static int idxd_config_bus_match(struct device *dev,
