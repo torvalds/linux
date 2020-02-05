@@ -854,6 +854,8 @@ void btrfs_lock_and_flush_ordered_range(struct extent_io_tree *tree,
 	struct extent_state *cache = NULL;
 	struct extent_state **cachedp = &cache;
 
+	ASSERT(tree == &inode->io_tree);
+
 	if (cached_state)
 		cachedp = cached_state;
 
