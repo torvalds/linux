@@ -143,44 +143,6 @@ struct extent_buffer *btrfs_root_node(struct btrfs_root *root)
 	return eb;
 }
 
-/* loop around taking references on and locking the root node of the
- * tree until you end up with a lock on the root.  A locked buffer
- * is returned, with a reference held.
- */
-struct extent_buffer *btrfs_lock_root_node(struct btrfs_root *root)
-{
-	struct extent_buffer *eb;
-
-	while (1) {
-		eb = btrfs_root_node(root);
-		btrfs_tree_lock(eb);
-		if (eb == root->node)
-			break;
-		btrfs_tree_unlock(eb);
-		free_extent_buffer(eb);
-	}
-	return eb;
-}
-
-/* loop around taking references on and locking the root node of the
- * tree until you end up with a lock on the root.  A locked buffer
- * is returned, with a reference held.
- */
-struct extent_buffer *btrfs_read_lock_root_node(struct btrfs_root *root)
-{
-	struct extent_buffer *eb;
-
-	while (1) {
-		eb = btrfs_root_node(root);
-		btrfs_tree_read_lock(eb);
-		if (eb == root->node)
-			break;
-		btrfs_tree_read_unlock(eb);
-		free_extent_buffer(eb);
-	}
-	return eb;
-}
-
 /* cowonly root (everything not a reference counted cow subvolume), just get
  * put onto a simple dirty list.  transaction.c walks this to make sure they
  * get properly updated on disk.
