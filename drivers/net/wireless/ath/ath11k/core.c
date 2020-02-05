@@ -607,6 +607,7 @@ void ath11k_core_halt(struct ath11k *ar)
 	lockdep_assert_held(&ar->conf_mutex);
 
 	ar->num_created_vdevs = 0;
+	ar->allocated_vdev_map = 0;
 
 	ath11k_mac_scan_finish(ar);
 	ath11k_mac_peer_cleanup_all(ar);

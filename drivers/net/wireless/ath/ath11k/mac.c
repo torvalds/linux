@@ -369,8 +369,10 @@ struct ath11k_vif *ath11k_mac_get_arvif(struct ath11k *ar, u32 vdev_id)
 						   flags,
 						   ath11k_get_arvif_iter,
 						   &arvif_iter);
-	if (!arvif_iter.arvif)
+	if (!arvif_iter.arvif) {
+		ath11k_warn(ar->ab, "No VIF found for vdev %d\n", vdev_id);
 		return NULL;
+	}
 
 	return arvif_iter.arvif;
 }
@@ -398,14 +400,12 @@ struct ath11k *ath11k_mac_get_ar_by_vdev_id(struct ath11k_base *ab, u32 vdev_id)
 {
 	int i;
 	struct ath11k_pdev *pdev;
-	struct ath11k_vif *arvif;
 
 	for (i = 0; i < ab->num_radios; i++) {
 		pdev = rcu_dereference(ab->pdevs_active[i]);
 		if (pdev && pdev->ar) {
-			arvif = ath11k_mac_get_arvif(pdev->ar, vdev_id);
-			if (arvif)
-				return arvif->ar;
+			if (pdev->ar->allocated_vdev_map & (1LL << vdev_id))
+				return pdev->ar;
 		}
 	}
 
@@ -3874,6 +3874,7 @@ static int ath11k_mac_op_start(struct ieee80211_hw *hw)
 	ar->num_started_vdevs = 0;
 	ar->num_created_vdevs = 0;
 	ar->num_peers = 0;
+	ar->allocated_vdev_map = 0;
 
 	/* Configure monitor status ring with default rx_filter to get rx status
 	 * such as rssi, rx_duration.
@@ -4112,8 +4113,9 @@ static int ath11k_mac_op_add_interface(struct ieee80211_hw *hw,
 	}
 
 	ar->num_created_vdevs++;
-
+	ar->allocated_vdev_map |= 1LL << arvif->vdev_id;
 	ab->free_vdev_map &= ~(1LL << arvif->vdev_id);
+
 	spin_lock_bh(&ar->data_lock);
 	list_add(&arvif->list, &ar->arvifs);
 	spin_unlock_bh(&ar->data_lock);
@@ -4227,6 +4229,7 @@ err_peer_del:
 err_vdev_del:
 	ath11k_wmi_vdev_delete(ar, arvif->vdev_id);
 	ar->num_created_vdevs--;
+	ar->allocated_vdev_map &= ~(1LL << arvif->vdev_id);
 	ab->free_vdev_map |= 1LL << arvif->vdev_id;
 	spin_lock_bh(&ar->data_lock);
 	list_del(&arvif->list);
@@ -4263,7 +4266,6 @@ static void ath11k_mac_op_remove_interface(struct ieee80211_hw *hw,
 	ath11k_dbg(ab, ATH11K_DBG_MAC, "mac remove interface (vdev %d)\n",
 		   arvif->vdev_id);
 
-	ab->free_vdev_map |= 1LL << (arvif->vdev_id);
 	spin_lock_bh(&ar->data_lock);
 	list_del(&arvif->list);
 	spin_unlock_bh(&ar->data_lock);
@@ -4281,6 +4283,8 @@ static void ath11k_mac_op_remove_interface(struct ieee80211_hw *hw,
 			    arvif->vdev_id, ret);
 
 	ar->num_created_vdevs--;
+	ar->allocated_vdev_map &= ~(1LL << arvif->vdev_id);
+	ab->free_vdev_map |= 1LL << (arvif->vdev_id);
 
 	ath11k_peer_cleanup(ar, arvif->vdev_id);
 

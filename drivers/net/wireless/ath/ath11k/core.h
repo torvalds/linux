@@ -487,6 +487,7 @@ struct ath11k {
 	int max_num_peers;
 	u32 num_started_vdevs;
 	u32 num_created_vdevs;
+	unsigned long long allocated_vdev_map;
 
 	struct idr txmgmt_idr;
 	/* protects txmgmt_idr data */
