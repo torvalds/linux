@@ -310,8 +310,6 @@ static struct sg_table *vmalloc_to_sgt(char *data, uint32_t size, int *sg_ents)
 static bool virtio_gpu_queue_ctrl_buffer_locked(struct virtio_gpu_device *vgdev,
 						struct virtio_gpu_vbuffer *vbuf,
 						struct scatterlist *vout)
-		__releases(&vgdev->ctrlq.qlock)
-		__acquires(&vgdev->ctrlq.qlock)
 {
 	struct virtqueue *vq = vgdev->ctrlq.vq;
 	struct scatterlist *sgs[3], vcmd, vresp;
@@ -337,19 +335,14 @@ static bool virtio_gpu_queue_ctrl_buffer_locked(struct virtio_gpu_device *vgdev,
 		incnt++;
 	}
 
-retry:
 	ret = virtqueue_add_sgs(vq, sgs, outcnt, incnt, vbuf, GFP_ATOMIC);
-	if (ret == -ENOSPC) {
-		spin_unlock(&vgdev->ctrlq.qlock);
-		wait_event(vgdev->ctrlq.ack_queue, vq->num_free >= outcnt + incnt);
-		spin_lock(&vgdev->ctrlq.qlock);
-		goto retry;
-	} else {
-		trace_virtio_gpu_cmd_queue(vq,
-			(struct virtio_gpu_ctrl_hdr *)vbuf->buf);
+	WARN_ON(ret);
 
-		notify = virtqueue_kick_prepare(vq);
-	}
+	trace_virtio_gpu_cmd_queue(vq,
+		(struct virtio_gpu_ctrl_hdr *)vbuf->buf);
+
+	notify = virtqueue_kick_prepare(vq);
+
 	return notify;
 }
 
