@@ -242,36 +242,39 @@ static void intel_hpd_irq_storm_reenable_work(struct work_struct *work)
 		container_of(work, typeof(*dev_priv),
 			     hotplug.reenable_work.work);
 	struct drm_device *dev = &dev_priv->drm;
+	struct drm_connector_list_iter conn_iter;
+	struct intel_connector *connector;
 	intel_wakeref_t wakeref;
 	enum hpd_pin pin;
 
 	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 
 	spin_lock_irq(&dev_priv->irq_lock);
-	for_each_hpd_pin(pin) {
-		struct drm_connector_list_iter conn_iter;
-		struct intel_connector *connector;
 
-		if (dev_priv->hotplug.stats[pin].state != HPD_DISABLED)
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	for_each_intel_connector_iter(connector, &conn_iter) {
+		pin = intel_connector_hpd_pin(connector);
+		if (pin == HPD_NONE ||
+		    dev_priv->hotplug.stats[pin].state != HPD_DISABLED)
 			continue;
 
-		dev_priv->hotplug.stats[pin].state = HPD_ENABLED;
-
-		drm_connector_list_iter_begin(dev, &conn_iter);
-		for_each_intel_connector_iter(connector, &conn_iter) {
-			if (intel_connector_hpd_pin(connector) == pin) {
-				if (connector->base.polled != connector->polled)
-					DRM_DEBUG_DRIVER("Reenabling HPD on connector %s\n",
-							 connector->base.name);
-				connector->base.polled = connector->polled;
-				if (!connector->base.polled)
-					connector->base.polled = DRM_CONNECTOR_POLL_HPD;
-			}
-		}
-		drm_connector_list_iter_end(&conn_iter);
+		if (connector->base.polled != connector->polled)
+			DRM_DEBUG_DRIVER("Reenabling HPD on connector %s\n",
+					 connector->base.name);
+		connector->base.polled = connector->polled;
+		if (!connector->base.polled)
+			connector->base.polled = DRM_CONNECTOR_POLL_HPD;
 	}
+	drm_connector_list_iter_end(&conn_iter);
+
+	for_each_hpd_pin(pin) {
+		if (dev_priv->hotplug.stats[pin].state == HPD_DISABLED)
+			dev_priv->hotplug.stats[pin].state = HPD_ENABLED;
+	}
+
 	if (dev_priv->display_irqs_enabled && dev_priv->display.hpd_irq_setup)
 		dev_priv->display.hpd_irq_setup(dev_priv);
+
 	spin_unlock_irq(&dev_priv->irq_lock);
 
 	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
