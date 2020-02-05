@@ -297,8 +297,6 @@ static int create_queue_nocpsch(struct device_queue_manager *dqm,
 	struct mqd_manager *mqd_mgr;
 	int retval;
 
-	print_queue(q);
-
 	dqm_lock(dqm);
 
 	if (dqm->total_queue_count >= max_num_of_queues_per_device) {
