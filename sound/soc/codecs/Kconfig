@@ -1334,6 +1334,7 @@ config SND_SOC_WCD9335
 
 config SND_SOC_WCD934X
 	tristate "WCD9340/WCD9341 Codec"
+	depends on COMMON_CLK
 	depends on MFD_WCD934X
 	help
 	  The WCD9340/9341 is a audio codec IC Integrated in

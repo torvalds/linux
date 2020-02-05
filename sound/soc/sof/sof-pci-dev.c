@@ -235,6 +235,7 @@ static const struct sof_dev_desc jsl_desc = {
 	.chip_info = &jsl_chip_info,
 	.default_fw_path = "intel/sof",
 	.default_tplg_path = "intel/sof-tplg",
+	.default_fw_filename = "sof-jsl.ri",
 	.nocodec_tplg_filename = "sof-jsl-nocodec.tplg",
 	.ops = &sof_cnl_ops,
 };
@@ -415,6 +416,8 @@ static const struct pci_device_id sof_pci_ids[] = {
 #endif
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_JASPERLAKE)
 	{ PCI_DEVICE(0x8086, 0x38c8),
+		.driver_data = (unsigned long)&jsl_desc},
+	{ PCI_DEVICE(0x8086, 0x4dc8),
 		.driver_data = (unsigned long)&jsl_desc},
 #endif
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_COMETLAKE_LP)

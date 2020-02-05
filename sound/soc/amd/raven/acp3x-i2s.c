@@ -234,30 +234,32 @@ static int acp3x_i2s_trigger(struct snd_pcm_substream *substream,
 			switch (rtd->i2s_instance) {
 			case I2S_BT_INSTANCE:
 				reg_val = mmACP_BTTDM_ITER;
-				ier_val = mmACP_BTTDM_IER;
 				break;
 			case I2S_SP_INSTANCE:
 			default:
 				reg_val = mmACP_I2STDM_ITER;
-				ier_val = mmACP_I2STDM_IER;
 			}
 
 		} else {
 			switch (rtd->i2s_instance) {
 			case I2S_BT_INSTANCE:
 				reg_val = mmACP_BTTDM_IRER;
-				ier_val = mmACP_BTTDM_IER;
 				break;
 			case I2S_SP_INSTANCE:
 			default:
 				reg_val = mmACP_I2STDM_IRER;
-				ier_val = mmACP_I2STDM_IER;
 			}
 		}
 		val = rv_readl(rtd->acp3x_base + reg_val);
 		val = val & ~BIT(0);
 		rv_writel(val, rtd->acp3x_base + reg_val);
-		rv_writel(0, rtd->acp3x_base + ier_val);
+
+		if (!(rv_readl(rtd->acp3x_base + mmACP_BTTDM_ITER) & BIT(0)) &&
+		     !(rv_readl(rtd->acp3x_base + mmACP_BTTDM_IRER) & BIT(0)))
+			rv_writel(0, rtd->acp3x_base + mmACP_BTTDM_IER);
+		if (!(rv_readl(rtd->acp3x_base + mmACP_I2STDM_ITER) & BIT(0)) &&
+		     !(rv_readl(rtd->acp3x_base + mmACP_I2STDM_IRER) & BIT(0)))
+			rv_writel(0, rtd->acp3x_base + mmACP_I2STDM_IER);
 		ret = 0;
 		break;
 	default:

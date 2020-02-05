@@ -13947,7 +13947,6 @@ F:	include/linux/platform_data/rtc-*
 F:	tools/testing/selftests/rtc/
 
 REALTEK AUDIO CODECS
-M:	Bard Liao <bardliao@realtek.com>
 M:	Oder Chiou <oder_chiou@realtek.com>
 S:	Maintained
 F:	sound/soc/codecs/rt*
