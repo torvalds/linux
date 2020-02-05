@@ -333,6 +333,14 @@ static bool virtio_gpu_queue_ctrl_sgs(struct virtio_gpu_device *vgdev,
 again:
 	spin_lock(&vgdev->ctrlq.qlock);
 
+	if (!vgdev->vqs_ready) {
+		spin_unlock(&vgdev->ctrlq.qlock);
+
+		if (fence && vbuf->objs)
+			virtio_gpu_array_unlock_resv(vbuf->objs);
+		return notify;
+	}
+
 	if (vq->num_free < elemcnt) {
 		spin_unlock(&vgdev->ctrlq.qlock);
 		wait_event(vgdev->ctrlq.ack_queue, vq->num_free >= elemcnt);
@@ -349,11 +357,6 @@ again:
 			virtio_gpu_array_add_fence(vbuf->objs, &fence->f);
 			virtio_gpu_array_unlock_resv(vbuf->objs);
 		}
-	}
-
-	if (!vgdev->vqs_ready) {
-		spin_unlock(&vgdev->ctrlq.qlock);
-		return notify;
 	}
 
 	ret = virtqueue_add_sgs(vq, sgs, outcnt, incnt, vbuf, GFP_ATOMIC);
