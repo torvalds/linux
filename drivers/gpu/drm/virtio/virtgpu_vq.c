@@ -391,7 +391,8 @@ again:
 	 */
 	if (vq->num_free < 2 + outcnt) {
 		spin_unlock(&vgdev->ctrlq.qlock);
-		wait_event(vgdev->ctrlq.ack_queue, vq->num_free >= 3);
+		wait_event(vgdev->ctrlq.ack_queue,
+			   vq->num_free >= 2 + outcnt);
 		goto again;
 	}
 
