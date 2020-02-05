@@ -1300,17 +1300,9 @@ exit:
 static void ath11k_htt_pktlog(struct ath11k_base *ab, struct sk_buff *skb)
 {
 	struct htt_pktlog_msg *data = (struct htt_pktlog_msg *)skb->data;
+	struct ath_pktlog_hdr *hdr = (struct ath_pktlog_hdr *)data;
 	struct ath11k *ar;
-	u32 len;
 	u8 pdev_id;
-
-	len = FIELD_GET(HTT_T2H_PPDU_STATS_INFO_PAYLOAD_SIZE, data->hdr);
-	if (len > ATH11K_HTT_PKTLOG_MAX_SIZE) {
-		ath11k_warn(ab, "htt pktlog buffer size %d, expected < %d\n",
-			    len,
-			    ATH11K_HTT_PKTLOG_MAX_SIZE);
-		return;
-	}
 
 	pdev_id = FIELD_GET(HTT_T2H_PPDU_STATS_INFO_PDEV_ID, data->hdr);
 	ar = ath11k_mac_get_ar_by_pdev_id(ab, pdev_id);
@@ -1319,7 +1311,7 @@ static void ath11k_htt_pktlog(struct ath11k_base *ab, struct sk_buff *skb)
 		return;
 	}
 
-	trace_ath11k_htt_pktlog(ar, data->payload, len);
+	trace_ath11k_htt_pktlog(ar, data->payload, hdr->size);
 }
 
 void ath11k_dp_htt_htc_t2h_msg_handler(struct ath11k_base *ab,
