@@ -1481,6 +1481,7 @@ static struct dentry *dir_lookup(struct inode *dir_inode, struct dentry *dentry,
 		err = IS_ERR(backing_dentry)
 			? PTR_ERR(backing_dentry)
 			: -EFAULT;
+		backing_dentry = NULL;
 		goto out;
 	} else {
 		struct inode *inode = NULL;
