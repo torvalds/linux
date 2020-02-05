@@ -728,7 +728,8 @@ void __init xbc_destroy_all(void)
  *
  * This parses the boot config text in @buf. @buf must be a
  * null terminated string and smaller than XBC_DATA_MAX.
- * Return 0 if succeeded, or -errno if there is any error.
+ * Return the number of stored nodes (>0) if succeeded, or -errno
+ * if there is any error.
  */
 int __init xbc_init(char *buf)
 {
@@ -788,6 +789,8 @@ int __init xbc_init(char *buf)
 
 	if (ret < 0)
 		xbc_destroy_all();
+	else
+		ret = xbc_node_num;
 
 	return ret;
 }
