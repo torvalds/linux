@@ -784,7 +784,7 @@ static int __cvmx_helper_errata_fix_ipd_ptr_alignment(void)
 	uint64_t *p64;
 	cvmx_pko_command_word0_t pko_command;
 	union cvmx_buf_ptr g_buffer, pkt_buffer;
-	cvmx_wqe_t *work;
+	struct cvmx_wqe *work;
 	int size, num_segs = 0, wqe_pcnt, pkt_pcnt;
 	union cvmx_gmxx_prtx_cfg gmx_cfg;
 	int retry_cnt;
