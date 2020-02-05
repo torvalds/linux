@@ -504,7 +504,7 @@ struct i915_psr {
 	u16 su_x_granularity;
 	bool dc3co_enabled;
 	u32 dc3co_exit_delay;
-	struct delayed_work idle_work;
+	struct delayed_work dc3co_work;
 	bool initially_probed;
 };
 
