@@ -122,7 +122,6 @@ struct tree_entry {
 
 struct extent_page_data {
 	struct bio *bio;
-	struct extent_io_tree *tree;
 	/* tells writepage not to lock the state bits for this range
 	 * it still does the unlocking
 	 */
@@ -3004,6 +3003,7 @@ static int submit_extent_page(unsigned int opf, struct extent_io_tree *tree,
 	sector_t sector = offset >> 9;
 
 	ASSERT(bio_ret);
+	ASSERT(tree == &BTRFS_I(page->mapping->host)->io_tree);
 
 	if (*bio_ret) {
 		bool contig;
@@ -3471,7 +3471,7 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 				 unsigned long nr_written,
 				 int *nr_ret)
 {
-	struct extent_io_tree *tree = epd->tree;
+	struct extent_io_tree *tree = &BTRFS_I(inode)->io_tree;
 	u64 start = page_offset(page);
 	u64 page_end = start + PAGE_SIZE - 1;
 	u64 end;
@@ -3945,11 +3945,9 @@ static noinline_for_stack int write_one_eb(struct extent_buffer *eb,
 int btree_write_cache_pages(struct address_space *mapping,
 				   struct writeback_control *wbc)
 {
-	struct extent_io_tree *tree = &BTRFS_I(mapping->host)->io_tree;
 	struct extent_buffer *eb, *prev_eb = NULL;
 	struct extent_page_data epd = {
 		.bio = NULL,
-		.tree = tree,
 		.extent_locked = 0,
 		.sync_io = wbc->sync_mode == WB_SYNC_ALL,
 	};
@@ -4238,7 +4236,6 @@ int extent_write_full_page(struct page *page, struct writeback_control *wbc)
 	int ret;
 	struct extent_page_data epd = {
 		.bio = NULL,
-		.tree = &BTRFS_I(page->mapping->host)->io_tree,
 		.extent_locked = 0,
 		.sync_io = wbc->sync_mode == WB_SYNC_ALL,
 	};
@@ -4260,14 +4257,12 @@ int extent_write_locked_range(struct inode *inode, u64 start, u64 end,
 {
 	int ret = 0;
 	struct address_space *mapping = inode->i_mapping;
-	struct extent_io_tree *tree = &BTRFS_I(inode)->io_tree;
 	struct page *page;
 	unsigned long nr_pages = (end - start + PAGE_SIZE) >>
 		PAGE_SHIFT;
 
 	struct extent_page_data epd = {
 		.bio = NULL,
-		.tree = tree,
 		.extent_locked = 1,
 		.sync_io = mode == WB_SYNC_ALL,
 	};
@@ -4311,7 +4306,6 @@ int extent_writepages(struct address_space *mapping,
 	int ret = 0;
 	struct extent_page_data epd = {
 		.bio = NULL,
-		.tree = &BTRFS_I(mapping->host)->io_tree,
 		.extent_locked = 0,
 		.sync_io = wbc->sync_mode == WB_SYNC_ALL,
 	};
