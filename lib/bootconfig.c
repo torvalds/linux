@@ -373,7 +373,8 @@ static struct xbc_node * __init xbc_add_sibling(char *data, u32 flag)
 				sib->next = xbc_node_index(node);
 			}
 		}
-	}
+	} else
+		xbc_parse_error("Too many nodes", data);
 
 	return node;
 }
@@ -657,8 +658,10 @@ static int __init xbc_verify_tree(void)
 	struct xbc_node *n, *m;
 
 	/* Empty tree */
-	if (xbc_node_num == 0)
+	if (xbc_node_num == 0) {
+		xbc_parse_error("Empty config", xbc_data);
 		return -ENOENT;
+	}
 
 	for (i = 0; i < xbc_node_num; i++) {
 		if (xbc_nodes[i].next > xbc_node_num) {
@@ -732,12 +735,17 @@ int __init xbc_init(char *buf)
 	char *p, *q;
 	int ret, c;
 
-	if (xbc_data)
+	if (xbc_data) {
+		pr_err("Error: bootconfig is already initialized.\n");
 		return -EBUSY;
+	}
 
 	ret = strlen(buf);
-	if (ret > XBC_DATA_MAX - 1 || ret == 0)
+	if (ret > XBC_DATA_MAX - 1 || ret == 0) {
+		pr_err("Error: Config data is %s.\n",
+			ret ? "too big" : "empty");
 		return -ERANGE;
+	}
 
 	xbc_data = buf;
 	xbc_data_size = ret + 1;
