@@ -1197,10 +1197,17 @@ static void rtw_pci_link_ps(struct rtw_dev *rtwdev, bool enter)
 
 static void rtw_pci_link_cfg(struct rtw_dev *rtwdev)
 {
+	struct rtw_chip_info *chip = rtwdev->chip;
 	struct rtw_pci *rtwpci = (struct rtw_pci *)rtwdev->priv;
 	struct pci_dev *pdev = rtwpci->pdev;
 	u16 link_ctrl;
 	int ret;
+
+	/* RTL8822CE has enabled REFCLK auto calibration, it does not need
+	 * to add clock delay to cover the REFCLK timing gap.
+	 */
+	if (chip->id == RTW_CHIP_TYPE_8822C)
+		rtw_dbi_write8(rtwdev, RTK_PCIE_CLKDLY_CTRL, 0);
 
 	/* Though there is standard PCIE configuration space to set the
 	 * link control register, but by Realtek's design, driver should
