@@ -372,7 +372,7 @@ static void __init setup_boot_config(const char *cmdline)
 
 	copy = memblock_alloc(size + 1, SMP_CACHE_BYTES);
 	if (!copy) {
-		pr_err("Failed to allocate memory for boot config\n");
+		pr_err("Failed to allocate memory for bootconfig\n");
 		return;
 	}
 
@@ -380,9 +380,9 @@ static void __init setup_boot_config(const char *cmdline)
 	copy[size] = '\0';
 
 	if (xbc_init(copy) < 0)
-		pr_err("Failed to parse boot config\n");
+		pr_err("Failed to parse bootconfig\n");
 	else {
-		pr_info("Load boot config: %d bytes\n", size);
+		pr_info("Load bootconfig: %d bytes\n", size);
 		/* keys starting with "kernel." are passed via cmdline */
 		extra_command_line = xbc_make_cmdline("kernel");
 		/* Also, "init." keys are init arguments */
