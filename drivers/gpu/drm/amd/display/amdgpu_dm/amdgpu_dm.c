@@ -98,6 +98,9 @@ MODULE_FIRMWARE(FIRMWARE_RENOIR_DMUB);
 #define FIRMWARE_RAVEN_DMCU		"amdgpu/raven_dmcu.bin"
 MODULE_FIRMWARE(FIRMWARE_RAVEN_DMCU);
 
+#define FIRMWARE_NAVI12_DMCU            "amdgpu/navi12_dmcu.bin"
+MODULE_FIRMWARE(FIRMWARE_NAVI12_DMCU);
+
 /* Number of bytes in PSP header for firmware. */
 #define PSP_HEADER_BYTES 0x100
 
@@ -1093,9 +1096,11 @@ static int load_dmcu_fw(struct amdgpu_device *adev)
 	case CHIP_VEGA20:
 	case CHIP_NAVI10:
 	case CHIP_NAVI14:
-	case CHIP_NAVI12:
 	case CHIP_RENOIR:
 		return 0;
+	case CHIP_NAVI12:
+		fw_name_dmcu = FIRMWARE_NAVI12_DMCU;
+		break;
 	case CHIP_RAVEN:
 		if (ASICREV_IS_PICASSO(adev->external_rev_id))
 			fw_name_dmcu = FIRMWARE_RAVEN_DMCU;
