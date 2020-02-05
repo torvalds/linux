@@ -193,6 +193,7 @@ struct amd_ntb_dev {
 
 	u64 db_valid_mask;
 	u64 db_mask;
+	u64 db_last_bit;
 	u32 int_mask;
 
 	struct msix_entry *msix;

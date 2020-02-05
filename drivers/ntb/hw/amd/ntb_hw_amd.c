@@ -647,6 +647,36 @@ static void amd_handle_event(struct amd_ntb_dev *ndev, int vec)
 	writel(status, mmio + AMD_INTSTAT_OFFSET);
 }
 
+static void amd_handle_db_event(struct amd_ntb_dev *ndev, int vec)
+{
+	struct device *dev = &ndev->ntb.pdev->dev;
+	u64 status;
+
+	status = amd_ntb_db_read(&ndev->ntb);
+
+	dev_dbg(dev, "status = 0x%llx and vec = %d\n", status, vec);
+
+	/*
+	 * Since we had reserved highest order bit of DB for signaling peer of
+	 * a special event, this is the only status bit we should be concerned
+	 * here now.
+	 */
+	if (status & BIT(ndev->db_last_bit)) {
+		ntb_db_clear(&ndev->ntb, BIT(ndev->db_last_bit));
+		/* send link down event notification */
+		ntb_link_event(&ndev->ntb);
+
+		/*
+		 * If we are here, that means the peer has signalled a special
+		 * event which notifies that the peer driver has been
+		 * un-loaded for some reason. Since there is a chance that the
+		 * peer will load its driver again sometime, we schedule link
+		 * polling routine.
+		 */
+		schedule_delayed_work(&ndev->hb_timer, AMD_LINK_HB_TIMEOUT);
+	}
+}
+
 static irqreturn_t ndev_interrupt(struct amd_ntb_dev *ndev, int vec)
 {
 	dev_dbg(&ndev->ntb.pdev->dev, "vec %d\n", vec);
@@ -654,8 +684,10 @@ static irqreturn_t ndev_interrupt(struct amd_ntb_dev *ndev, int vec)
 	if (vec > (AMD_DB_CNT - 1) || (ndev->msix_vec_count == 1))
 		amd_handle_event(ndev, vec);
 
-	if (vec < AMD_DB_CNT)
+	if (vec < AMD_DB_CNT) {
+		amd_handle_db_event(ndev, vec);
 		ntb_db_event(&ndev->ntb, vec);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -1097,6 +1129,21 @@ static int amd_init_dev(struct amd_ntb_dev *ndev)
 	}
 
 	ndev->db_valid_mask = BIT_ULL(ndev->db_count) - 1;
+	/*
+	 * We reserve the highest order bit of the DB register which will
+	 * be used to notify peer when the driver on this side is being
+	 * un-loaded.
+	 */
+	ndev->db_last_bit =
+			find_last_bit((unsigned long *)&ndev->db_valid_mask,
+				      hweight64(ndev->db_valid_mask));
+	writew((u16)~BIT(ndev->db_last_bit), mmio + AMD_DBMASK_OFFSET);
+	/*
+	 * Since now there is one less bit to account for, the DB count
+	 * and DB mask should be adjusted accordingly.
+	 */
+	ndev->db_count -= 1;
+	ndev->db_valid_mask = BIT_ULL(ndev->db_count) - 1;
 
 	/* Enable Link-Up and Link-Down event interrupts */
 	ndev->int_mask &= ~(AMD_LINK_UP_EVENT | AMD_LINK_DOWN_EVENT);
@@ -1235,9 +1282,15 @@ static void amd_ntb_pci_remove(struct pci_dev *pdev)
 {
 	struct amd_ntb_dev *ndev = pci_get_drvdata(pdev);
 
+	/*
+	 * Clear the READY bit in SIDEINFO register before sending DB event
+	 * to the peer. This will make sure that when the peer handles the
+	 * DB event, it correctly reads this bit as being 0.
+	 */
+	amd_deinit_side_info(ndev);
+	ntb_peer_db_set(&ndev->ntb, BIT_ULL(ndev->db_last_bit));
 	ntb_unregister_device(&ndev->ntb);
 	ndev_deinit_debugfs(ndev);
-	amd_deinit_side_info(ndev);
 	amd_deinit_dev(ndev);
 	amd_ntb_deinit_pci(ndev);
 	kfree(ndev);
