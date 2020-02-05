@@ -1756,13 +1756,10 @@ static int qca_regulator_enable(struct qca_serdev *qcadev)
 	power->vregs_on = true;
 
 	ret = clk_prepare_enable(qcadev->susclk);
-	if (ret) {
-		/* Turn off regulators to overcome power leakage */
+	if (ret)
 		qca_regulator_disable(qcadev);
-		return ret;
-	}
 
-	return 0;
+	return ret;
 }
 
 static void qca_regulator_disable(struct qca_serdev *qcadev)
@@ -1781,8 +1778,7 @@ static void qca_regulator_disable(struct qca_serdev *qcadev)
 	regulator_bulk_disable(power->num_vregs, power->vreg_bulk);
 	power->vregs_on = false;
 
-	if (qcadev->susclk)
-		clk_disable_unprepare(qcadev->susclk);
+	clk_disable_unprepare(qcadev->susclk);
 }
 
 static int qca_init_regulators(struct qca_power *qca,
