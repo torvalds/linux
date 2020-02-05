@@ -488,7 +488,7 @@ unsigned long clk_hw_get_rate(const struct clk_hw *hw)
 }
 EXPORT_SYMBOL_GPL(clk_hw_get_rate);
 
-static unsigned long __clk_get_accuracy(struct clk_core *core)
+static unsigned long clk_core_get_accuracy_no_lock(struct clk_core *core)
 {
 	if (!core)
 		return 0;
@@ -1517,18 +1517,12 @@ static void __clk_recalc_accuracies(struct clk_core *core)
 		__clk_recalc_accuracies(child);
 }
 
-static long clk_core_get_accuracy(struct clk_core *core)
+static long clk_core_get_accuracy_recalc(struct clk_core *core)
 {
-	unsigned long accuracy;
-
-	clk_prepare_lock();
 	if (core && (core->flags & CLK_GET_ACCURACY_NOCACHE))
 		__clk_recalc_accuracies(core);
 
-	accuracy = __clk_get_accuracy(core);
-	clk_prepare_unlock();
-
-	return accuracy;
+	return clk_core_get_accuracy_no_lock(core);
 }
 
 /**
@@ -1542,10 +1536,16 @@ static long clk_core_get_accuracy(struct clk_core *core)
  */
 long clk_get_accuracy(struct clk *clk)
 {
+	long accuracy;
+
 	if (!clk)
 		return 0;
 
-	return clk_core_get_accuracy(clk->core);
+	clk_prepare_lock();
+	accuracy = clk_core_get_accuracy_recalc(clk->core);
+	clk_prepare_unlock();
+
+	return accuracy;
 }
 EXPORT_SYMBOL_GPL(clk_get_accuracy);
 
@@ -1599,19 +1599,12 @@ static void __clk_recalc_rates(struct clk_core *core, unsigned long msg)
 		__clk_recalc_rates(child, msg);
 }
 
-static unsigned long clk_core_get_rate(struct clk_core *core)
+static unsigned long clk_core_get_rate_recalc(struct clk_core *core)
 {
-	unsigned long rate;
-
-	clk_prepare_lock();
-
 	if (core && (core->flags & CLK_GET_RATE_NOCACHE))
 		__clk_recalc_rates(core, 0);
 
-	rate = clk_core_get_rate_nolock(core);
-	clk_prepare_unlock();
-
-	return rate;
+	return clk_core_get_rate_nolock(core);
 }
 
 /**
@@ -1624,10 +1617,16 @@ static unsigned long clk_core_get_rate(struct clk_core *core)
  */
 unsigned long clk_get_rate(struct clk *clk)
 {
+	unsigned long rate;
+
 	if (!clk)
 		return 0;
 
-	return clk_core_get_rate(clk->core);
+	clk_prepare_lock();
+	rate = clk_core_get_rate_recalc(clk->core);
+	clk_prepare_unlock();
+
+	return rate;
 }
 EXPORT_SYMBOL_GPL(clk_get_rate);
 
@@ -2910,7 +2909,8 @@ static void clk_summary_show_one(struct seq_file *s, struct clk_core *c,
 		   level * 3 + 1, "",
 		   30 - level * 3, c->name,
 		   c->enable_count, c->prepare_count, c->protect_count,
-		   clk_core_get_rate(c), clk_core_get_accuracy(c));
+		   clk_core_get_rate_recalc(c),
+		   clk_core_get_accuracy_recalc(c));
 
 	phase = clk_core_get_phase(c);
 	if (phase >= 0)
@@ -2965,10 +2965,10 @@ static void clk_dump_one(struct seq_file *s, struct clk_core *c, int level)
 	seq_printf(s, "\"enable_count\": %d,", c->enable_count);
 	seq_printf(s, "\"prepare_count\": %d,", c->prepare_count);
 	seq_printf(s, "\"protect_count\": %d,", c->protect_count);
-	seq_printf(s, "\"rate\": %lu,", clk_core_get_rate(c));
+	seq_printf(s, "\"rate\": %lu,", clk_core_get_rate_recalc(c));
 	seq_printf(s, "\"min_rate\": %lu,", min_rate);
 	seq_printf(s, "\"max_rate\": %lu,", max_rate);
-	seq_printf(s, "\"accuracy\": %lu,", clk_core_get_accuracy(c));
+	seq_printf(s, "\"accuracy\": %lu,", clk_core_get_accuracy_recalc(c));
 	phase = clk_core_get_phase(c);
 	if (phase >= 0)
 		seq_printf(s, "\"phase\": %d,", phase);
@@ -3446,7 +3446,7 @@ static int __clk_core_init(struct clk_core *core)
 	 */
 	if (core->ops->recalc_accuracy)
 		core->accuracy = core->ops->recalc_accuracy(core->hw,
-					__clk_get_accuracy(parent));
+					clk_core_get_accuracy_no_lock(parent));
 	else if (parent)
 		core->accuracy = parent->accuracy;
 	else
