@@ -24,6 +24,13 @@
 
 #define MPTCP_SAME_STATE TCP_MAX_STATES
 
+#if IS_ENABLED(CONFIG_MPTCP_IPV6)
+struct mptcp6_sock {
+	struct mptcp_sock msk;
+	struct ipv6_pinfo np;
+};
+#endif
+
 /* If msk has an initial subflow socket, and the MP_CAPABLE handshake has not
  * completed yet or has failed, return the subflow socket.
  * Otherwise return NULL.
@@ -627,6 +634,30 @@ static void mptcp_copy_inaddrs(struct sock *msk, const struct sock *ssk)
 	inet_sk(msk)->inet_rcv_saddr = inet_sk(ssk)->inet_rcv_saddr;
 }
 
+#if IS_ENABLED(CONFIG_MPTCP_IPV6)
+static struct ipv6_pinfo *mptcp_inet6_sk(const struct sock *sk)
+{
+	unsigned int offset = sizeof(struct mptcp6_sock) - sizeof(struct ipv6_pinfo);
+
+	return (struct ipv6_pinfo *)(((u8 *)sk) + offset);
+}
+#endif
+
+struct sock *mptcp_sk_clone_lock(const struct sock *sk)
+{
+	struct sock *nsk = sk_clone_lock(sk, GFP_ATOMIC);
+
+	if (!nsk)
+		return NULL;
+
+#if IS_ENABLED(CONFIG_MPTCP_IPV6)
+	if (nsk->sk_family == AF_INET6)
+		inet_sk(nsk)->pinet6 = mptcp_inet6_sk(nsk);
+#endif
+
+	return nsk;
+}
+
 static struct sock *mptcp_accept(struct sock *sk, int flags, int *err,
 				 bool kern)
 {
@@ -657,7 +688,7 @@ static struct sock *mptcp_accept(struct sock *sk, int flags, int *err,
 		lock_sock(sk);
 
 		local_bh_disable();
-		new_mptcp_sock = sk_clone_lock(sk, GFP_ATOMIC);
+		new_mptcp_sock = mptcp_sk_clone_lock(sk);
 		if (!new_mptcp_sock) {
 			*err = -ENOBUFS;
 			local_bh_enable();
@@ -1206,8 +1237,7 @@ int mptcp_proto_v6_init(void)
 	strcpy(mptcp_v6_prot.name, "MPTCPv6");
 	mptcp_v6_prot.slab = NULL;
 	mptcp_v6_prot.destroy = mptcp_v6_destroy;
-	mptcp_v6_prot.obj_size = sizeof(struct mptcp_sock) +
-				 sizeof(struct ipv6_pinfo);
+	mptcp_v6_prot.obj_size = sizeof(struct mptcp6_sock);
 
 	err = proto_register(&mptcp_v6_prot, 1);
 	if (err)
