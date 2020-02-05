@@ -389,7 +389,7 @@ static const char * const rt1015_boost_mode[] = {
 	"Bypass", "Adaptive", "Fixed Adaptive"
 };
 
-static const SOC_ENUM_SINGLE_DECL(rt1015_boost_mode_enum, 0, 0,
+static SOC_ENUM_SINGLE_DECL(rt1015_boost_mode_enum, 0, 0,
 	rt1015_boost_mode);
 
 static int rt1015_boost_mode_get(struct snd_kcontrol *kcontrol,
