@@ -994,6 +994,7 @@ static enum ntb_topo amd_get_topo(struct amd_ntb_dev *ndev)
 
 static int amd_init_dev(struct amd_ntb_dev *ndev)
 {
+	void __iomem *mmio = ndev->self_mmio;
 	struct pci_dev *pdev;
 	int rc = 0;
 
@@ -1014,6 +1015,10 @@ static int amd_init_dev(struct amd_ntb_dev *ndev)
 	}
 
 	ndev->db_valid_mask = BIT_ULL(ndev->db_count) - 1;
+
+	/* Enable Link-Up and Link-Down event interrupts */
+	ndev->int_mask &= ~(AMD_LINK_UP_EVENT | AMD_LINK_DOWN_EVENT);
+	writel(ndev->int_mask, mmio + AMD_INTMASK_OFFSET);
 
 	return 0;
 }
