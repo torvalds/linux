@@ -823,6 +823,10 @@ static int dm_dmub_hw_init(struct amdgpu_device *adev)
 	hw_params.fb_base = adev->gmc.fb_start;
 	hw_params.fb_offset = adev->gmc.aper_base;
 
+	/* backdoor load firmware and trigger dmub running */
+	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
+		hw_params.load_inst_const = true;
+
 	if (dmcu)
 		hw_params.psp_version = dmcu->psp_version;
 
@@ -1189,11 +1193,6 @@ static int dm_dmub_sw_init(struct amdgpu_device *adev)
 	r = amdgpu_ucode_validate(adev->dm.dmub_fw);
 	if (r) {
 		DRM_ERROR("Couldn't validate DMUB firmware: %d\n", r);
-		return 0;
-	}
-
-	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) {
-		DRM_WARN("Only PSP firmware loading is supported for DMUB\n");
 		return 0;
 	}
 
