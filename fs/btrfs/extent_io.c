@@ -3109,8 +3109,7 @@ __get_extent_map(struct inode *inode, struct page *page, size_t pg_offset,
  * XXX JDM: This needs looking at to ensure proper page locking
  * return 0 on success, otherwise return error
  */
-static int __do_readpage(struct extent_io_tree *tree,
-			 struct page *page,
+static int __do_readpage(struct page *page,
 			 get_extent_t *get_extent,
 			 struct extent_map **em_cached,
 			 struct bio **bio, int mirror_num,
@@ -3133,8 +3132,7 @@ static int __do_readpage(struct extent_io_tree *tree,
 	size_t disk_io_size;
 	size_t blocksize = inode->i_sb->s_blocksize;
 	unsigned long this_bio_flag = 0;
-
-	ASSERT(tree == &BTRFS_I(inode)->io_tree);
+	struct extent_io_tree *tree = &BTRFS_I(inode)->io_tree;
 
 	set_page_extent_mapped(page);
 
@@ -3326,13 +3324,12 @@ static inline void contiguous_readpages(struct page *pages[], int nr_pages,
 					     u64 *prev_em_start)
 {
 	struct btrfs_inode *inode = BTRFS_I(pages[0]->mapping->host);
-	struct extent_io_tree *tree = &inode->io_tree;
 	int index;
 
 	btrfs_lock_and_flush_ordered_range(inode, start, end, NULL);
 
 	for (index = 0; index < nr_pages; index++) {
-		__do_readpage(tree, pages[index], btrfs_get_extent, em_cached,
+		__do_readpage(pages[index], btrfs_get_extent, em_cached,
 				bio, 0, bio_flags, REQ_RAHEAD, prev_em_start);
 		put_page(pages[index]);
 	}
@@ -3347,12 +3344,11 @@ static int __extent_read_full_page(struct page *page,
 	struct btrfs_inode *inode = BTRFS_I(page->mapping->host);
 	u64 start = page_offset(page);
 	u64 end = start + PAGE_SIZE - 1;
-	struct extent_io_tree *tree = &inode->io_tree;
 	int ret;
 
 	btrfs_lock_and_flush_ordered_range(inode, start, end, NULL);
 
-	ret = __do_readpage(tree, page, get_extent, NULL, bio, mirror_num,
+	ret = __do_readpage(page, get_extent, NULL, bio, mirror_num,
 			    bio_flags, read_flags, NULL);
 	return ret;
 }
