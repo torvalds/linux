@@ -1056,8 +1056,6 @@ static int amd_init_ntb(struct amd_ntb_dev *ndev)
 		return -EINVAL;
 	}
 
-	ndev->db_valid_mask = BIT_ULL(ndev->db_count) - 1;
-
 	/* Mask event interrupts */
 	writel(ndev->int_mask, mmio + AMD_INTMASK_OFFSET);
 
