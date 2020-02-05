@@ -137,8 +137,11 @@ cleanup:
 static int test_cgcore_populated(const char *root)
 {
 	int ret = KSFT_FAIL;
+	int err;
 	char *cg_test_a = NULL, *cg_test_b = NULL;
 	char *cg_test_c = NULL, *cg_test_d = NULL;
+	int cgroup_fd = -EBADF;
+	pid_t pid;
 
 	cg_test_a = cg_name(root, "cg_test_a");
 	cg_test_b = cg_name(root, "cg_test_a/cg_test_b");
@@ -190,6 +193,52 @@ static int test_cgcore_populated(const char *root)
 	if (cg_read_strcmp(cg_test_d, "cgroup.events", "populated 0\n"))
 		goto cleanup;
 
+	/* Test that we can directly clone into a new cgroup. */
+	cgroup_fd = dirfd_open_opath(cg_test_d);
+	if (cgroup_fd < 0)
+		goto cleanup;
+
+	pid = clone_into_cgroup(cgroup_fd);
+	if (pid < 0) {
+		if (errno == ENOSYS)
+			goto cleanup_pass;
+		goto cleanup;
+	}
+
+	if (pid == 0) {
+		if (raise(SIGSTOP))
+			exit(EXIT_FAILURE);
+		exit(EXIT_SUCCESS);
+	}
+
+	err = cg_read_strcmp(cg_test_d, "cgroup.events", "populated 1\n");
+
+	(void)clone_reap(pid, WSTOPPED);
+	(void)kill(pid, SIGCONT);
+	(void)clone_reap(pid, WEXITED);
+
+	if (err)
+		goto cleanup;
+
+	if (cg_read_strcmp(cg_test_d, "cgroup.events", "populated 0\n"))
+		goto cleanup;
+
+	/* Remove cgroup. */
+	if (cg_test_d) {
+		cg_destroy(cg_test_d);
+		free(cg_test_d);
+		cg_test_d = NULL;
+	}
+
+	pid = clone_into_cgroup(cgroup_fd);
+	if (pid < 0)
+		goto cleanup_pass;
+	if (pid == 0)
+		exit(EXIT_SUCCESS);
+	(void)clone_reap(pid, WEXITED);
+	goto cleanup;
+
+cleanup_pass:
 	ret = KSFT_PASS;
 
 cleanup:
@@ -205,6 +254,8 @@ cleanup:
 	free(cg_test_c);
 	free(cg_test_b);
 	free(cg_test_a);
+	if (cgroup_fd >= 0)
+		close(cgroup_fd);
 	return ret;
 }
 
@@ -248,6 +299,16 @@ static int test_cgcore_invalid_domain(const char *root)
 	if (errno != EOPNOTSUPP)
 		goto cleanup;
 
+	if (!clone_into_cgroup_run_wait(child))
+		goto cleanup;
+
+	if (errno == ENOSYS)
+		goto cleanup_pass;
+
+	if (errno != EOPNOTSUPP)
+		goto cleanup;
+
+cleanup_pass:
 	ret = KSFT_PASS;
 
 cleanup:
@@ -455,6 +516,9 @@ static int test_cgcore_internal_process_constraint(const char *root)
 		goto cleanup;
 
 	if (!cg_enter_current(parent))
+		goto cleanup;
+
+	if (!clone_into_cgroup_run_wait(parent))
 		goto cleanup;
 
 	ret = KSFT_PASS;
