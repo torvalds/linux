@@ -318,33 +318,18 @@ static struct sg_table *vmalloc_to_sgt(char *data, uint32_t size, int *sg_ents)
 	return sgt;
 }
 
-static bool virtio_gpu_queue_ctrl_buffer_locked(struct virtio_gpu_device *vgdev,
-						struct virtio_gpu_vbuffer *vbuf,
-						struct scatterlist *vout)
+static bool virtio_gpu_queue_ctrl_sgs_locked(struct virtio_gpu_device *vgdev,
+					     struct virtio_gpu_vbuffer *vbuf,
+					     struct scatterlist **sgs,
+					     int outcnt,
+					     int incnt)
 {
 	struct virtqueue *vq = vgdev->ctrlq.vq;
-	struct scatterlist *sgs[3], vcmd, vresp;
-	int outcnt = 0, incnt = 0;
 	bool notify = false;
 	int ret;
 
 	if (!vgdev->vqs_ready)
 		return notify;
-
-	sg_init_one(&vcmd, vbuf->buf, vbuf->size);
-	sgs[outcnt + incnt] = &vcmd;
-	outcnt++;
-
-	if (vout) {
-		sgs[outcnt + incnt] = vout;
-		outcnt++;
-	}
-
-	if (vbuf->resp_size) {
-		sg_init_one(&vresp, vbuf->resp_buf, vbuf->resp_size);
-		sgs[outcnt + incnt] = &vresp;
-		incnt++;
-	}
 
 	ret = virtqueue_add_sgs(vq, sgs, outcnt, incnt, vbuf, GFP_ATOMIC);
 	WARN_ON(ret);
@@ -361,26 +346,45 @@ static void virtio_gpu_queue_fenced_ctrl_buffer(struct virtio_gpu_device *vgdev,
 						struct virtio_gpu_fence *fence)
 {
 	struct virtqueue *vq = vgdev->ctrlq.vq;
-	struct scatterlist *vout = NULL, sg;
+	struct scatterlist *sgs[3], vcmd, vout, vresp;
 	struct sg_table *sgt = NULL;
+	int elemcnt = 0, outcnt = 0, incnt = 0;
 	bool notify;
-	int outcnt = 0;
 
+	/* set up vcmd */
+	sg_init_one(&vcmd, vbuf->buf, vbuf->size);
+	elemcnt++;
+	sgs[outcnt] = &vcmd;
+	outcnt++;
+
+	/* set up vout */
 	if (vbuf->data_size) {
 		if (is_vmalloc_addr(vbuf->data_buf)) {
+			int sg_ents;
 			sgt = vmalloc_to_sgt(vbuf->data_buf, vbuf->data_size,
-					     &outcnt);
+					     &sg_ents);
 			if (!sgt) {
 				if (fence && vbuf->objs)
 					virtio_gpu_array_unlock_resv(vbuf->objs);
 				return;
 			}
-			vout = sgt->sgl;
+
+			elemcnt += sg_ents;
+			sgs[outcnt] = sgt->sgl;
 		} else {
-			sg_init_one(&sg, vbuf->data_buf, vbuf->data_size);
-			vout = &sg;
-			outcnt = 1;
+			sg_init_one(&vout, vbuf->data_buf, vbuf->data_size);
+			elemcnt++;
+			sgs[outcnt] = &vout;
 		}
+		outcnt++;
+	}
+
+	/* set up vresp */
+	if (vbuf->resp_size) {
+		sg_init_one(&vresp, vbuf->resp_buf, vbuf->resp_size);
+		elemcnt++;
+		sgs[outcnt + incnt] = &vresp;
+		incnt++;
 	}
 
 again:
@@ -394,10 +398,9 @@ again:
 	 * to wait for free space, which can result in fence ids being
 	 * submitted out-of-order.
 	 */
-	if (vq->num_free < 2 + outcnt) {
+	if (vq->num_free < elemcnt) {
 		spin_unlock(&vgdev->ctrlq.qlock);
-		wait_event(vgdev->ctrlq.ack_queue,
-			   vq->num_free >= 2 + outcnt);
+		wait_event(vgdev->ctrlq.ack_queue, vq->num_free >= elemcnt);
 		goto again;
 	}
 
@@ -409,7 +412,8 @@ again:
 			virtio_gpu_array_unlock_resv(vbuf->objs);
 		}
 	}
-	notify = virtio_gpu_queue_ctrl_buffer_locked(vgdev, vbuf, vout);
+	notify = virtio_gpu_queue_ctrl_sgs_locked(vgdev, vbuf, sgs, outcnt,
+						  incnt);
 	spin_unlock(&vgdev->ctrlq.qlock);
 	if (notify) {
 		if (vgdev->disable_notify)
