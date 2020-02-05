@@ -257,6 +257,8 @@ static int qti_flash_led_strobe(struct flash_node_data *fnode,
 		if (rc < 0)
 			goto error;
 
+		fnode->configured = false;
+
 		if (led->ref_count)
 			led->ref_count--;
 
@@ -353,7 +355,7 @@ static int qti_flash_led_disable(struct flash_node_data *fnode)
 	if (rc < 0)
 		goto out;
 
-	fnode->configured = false;
+	fnode->current_ma = 0;
 
 out:
 	spin_unlock(&led->lock);
