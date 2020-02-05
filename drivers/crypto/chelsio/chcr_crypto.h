@@ -254,6 +254,7 @@ struct chcr_context {
 	unsigned char rx_qidx;
 	unsigned char tx_chan_id;
 	unsigned char pci_chan_id;
+	struct completion cbc_aes_aio_done;
 	struct __crypto_ctx crypto_ctx[0];
 };
 
