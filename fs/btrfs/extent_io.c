@@ -3318,8 +3318,7 @@ out:
 	return ret;
 }
 
-static inline void contiguous_readpages(struct extent_io_tree *tree,
-					     struct page *pages[], int nr_pages,
+static inline void contiguous_readpages(struct page *pages[], int nr_pages,
 					     u64 start, u64 end,
 					     struct extent_map **em_cached,
 					     struct bio **bio,
@@ -3327,9 +3326,8 @@ static inline void contiguous_readpages(struct extent_io_tree *tree,
 					     u64 *prev_em_start)
 {
 	struct btrfs_inode *inode = BTRFS_I(pages[0]->mapping->host);
+	struct extent_io_tree *tree = &inode->io_tree;
 	int index;
-
-	ASSERT(tree == &inode->io_tree);
 
 	btrfs_lock_and_flush_ordered_range(inode, start, end, NULL);
 
@@ -4328,7 +4326,6 @@ int extent_readpages(struct address_space *mapping, struct list_head *pages,
 	unsigned long bio_flags = 0;
 	struct page *pagepool[16];
 	struct extent_map *em_cached = NULL;
-	struct extent_io_tree *tree = &BTRFS_I(mapping->host)->io_tree;
 	int nr = 0;
 	u64 prev_em_start = (u64)-1;
 
@@ -4355,7 +4352,7 @@ int extent_readpages(struct address_space *mapping, struct list_head *pages,
 
 			ASSERT(contig_start + nr * PAGE_SIZE - 1 == contig_end);
 
-			contiguous_readpages(tree, pagepool, nr, contig_start,
+			contiguous_readpages(pagepool, nr, contig_start,
 				     contig_end, &em_cached, &bio, &bio_flags,
 				     &prev_em_start);
 		}
