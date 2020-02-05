@@ -95,7 +95,8 @@ virtio_gpu_get_vbuf(struct virtio_gpu_device *vgdev,
 	if (!vbuf)
 		return ERR_PTR(-ENOMEM);
 
-	BUG_ON(size > MAX_INLINE_CMD_SIZE);
+	BUG_ON(size > MAX_INLINE_CMD_SIZE ||
+	       size < sizeof(struct virtio_gpu_ctrl_hdr));
 	vbuf->buf = (void *)vbuf + sizeof(*vbuf);
 	vbuf->size = size;
 
@@ -107,6 +108,16 @@ virtio_gpu_get_vbuf(struct virtio_gpu_device *vgdev,
 		vbuf->resp_buf = resp_buf;
 	BUG_ON(!vbuf->resp_buf);
 	return vbuf;
+}
+
+static struct virtio_gpu_ctrl_hdr *
+virtio_gpu_vbuf_ctrl_hdr(struct virtio_gpu_vbuffer *vbuf)
+{
+	/* this assumes a vbuf contains a command that starts with a
+	 * virtio_gpu_ctrl_hdr, which is true for both ctrl and cursor
+	 * virtqueues.
+	 */
+	return (struct virtio_gpu_ctrl_hdr *)vbuf->buf;
 }
 
 static void *virtio_gpu_alloc_cmd(struct virtio_gpu_device *vgdev,
@@ -211,7 +222,7 @@ void virtio_gpu_dequeue_ctrl_func(struct work_struct *work)
 		if (resp->type != cpu_to_le32(VIRTIO_GPU_RESP_OK_NODATA)) {
 			if (resp->type >= cpu_to_le32(VIRTIO_GPU_RESP_ERR_UNSPEC)) {
 				struct virtio_gpu_ctrl_hdr *cmd;
-				cmd = (struct virtio_gpu_ctrl_hdr *)entry->buf;
+				cmd = virtio_gpu_vbuf_ctrl_hdr(entry);
 				DRM_ERROR_RATELIMITED("response 0x%x (command 0x%x)\n",
 						      le32_to_cpu(resp->type),
 						      le32_to_cpu(cmd->type));
@@ -338,8 +349,7 @@ static bool virtio_gpu_queue_ctrl_buffer_locked(struct virtio_gpu_device *vgdev,
 	ret = virtqueue_add_sgs(vq, sgs, outcnt, incnt, vbuf, GFP_ATOMIC);
 	WARN_ON(ret);
 
-	trace_virtio_gpu_cmd_queue(vq,
-		(struct virtio_gpu_ctrl_hdr *)vbuf->buf);
+	trace_virtio_gpu_cmd_queue(vq, virtio_gpu_vbuf_ctrl_hdr(vbuf));
 
 	notify = virtqueue_kick_prepare(vq);
 
@@ -458,7 +468,7 @@ retry:
 		goto retry;
 	} else {
 		trace_virtio_gpu_cmd_queue(vq,
-			(struct virtio_gpu_ctrl_hdr *)vbuf->buf);
+			virtio_gpu_vbuf_ctrl_hdr(vbuf));
 
 		notify = virtqueue_kick_prepare(vq);
 	}
