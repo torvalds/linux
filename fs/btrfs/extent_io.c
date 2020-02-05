@@ -2973,7 +2973,6 @@ struct bio *btrfs_bio_clone_partial(struct bio *orig, int offset, int size)
 
 /*
  * @opf:	bio REQ_OP_* and REQ_* flags as one value
- * @tree:	tree so we can call our merge_bio hook
  * @wbc:	optional writeback control for io accounting
  * @page:	page to add to the bio
  * @pg_offset:	offset of the new bio or to check whether we are adding
@@ -2986,7 +2985,7 @@ struct bio *btrfs_bio_clone_partial(struct bio *orig, int offset, int size)
  * @prev_bio_flags:  flags of previous bio to see if we can merge the current one
  * @bio_flags:	flags of the current bio to see if we can merge them
  */
-static int submit_extent_page(unsigned int opf, struct extent_io_tree *tree,
+static int submit_extent_page(unsigned int opf,
 			      struct writeback_control *wbc,
 			      struct page *page, u64 offset,
 			      size_t size, unsigned long pg_offset,
@@ -3001,9 +3000,9 @@ static int submit_extent_page(unsigned int opf, struct extent_io_tree *tree,
 	struct bio *bio;
 	size_t page_size = min_t(size_t, size, PAGE_SIZE);
 	sector_t sector = offset >> 9;
+	struct extent_io_tree *tree = &BTRFS_I(page->mapping->host)->io_tree;
 
 	ASSERT(bio_ret);
-	ASSERT(tree == &BTRFS_I(page->mapping->host)->io_tree);
 
 	if (*bio_ret) {
 		bool contig;
@@ -3290,7 +3289,7 @@ static int __do_readpage(struct extent_io_tree *tree,
 			continue;
 		}
 
-		ret = submit_extent_page(REQ_OP_READ | read_flags, tree, NULL,
+		ret = submit_extent_page(REQ_OP_READ | read_flags, NULL,
 					 page, offset, disk_io_size,
 					 pg_offset, bio,
 					 end_bio_extent_readpage, mirror_num,
@@ -3557,7 +3556,7 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 			       page->index, cur, end);
 		}
 
-		ret = submit_extent_page(REQ_OP_WRITE | write_flags, tree, wbc,
+		ret = submit_extent_page(REQ_OP_WRITE | write_flags, wbc,
 					 page, offset, iosize, pg_offset,
 					 &epd->bio,
 					 end_bio_extent_writepage,
@@ -3878,8 +3877,6 @@ static noinline_for_stack int write_one_eb(struct extent_buffer *eb,
 			struct writeback_control *wbc,
 			struct extent_page_data *epd)
 {
-	struct btrfs_fs_info *fs_info = eb->fs_info;
-	struct extent_io_tree *tree = &BTRFS_I(fs_info->btree_inode)->io_tree;
 	u64 offset = eb->start;
 	u32 nritems;
 	int i, num_pages;
@@ -3912,7 +3909,7 @@ static noinline_for_stack int write_one_eb(struct extent_buffer *eb,
 
 		clear_page_dirty_for_io(p);
 		set_page_writeback(p);
-		ret = submit_extent_page(REQ_OP_WRITE | write_flags, tree, wbc,
+		ret = submit_extent_page(REQ_OP_WRITE | write_flags, wbc,
 					 p, offset, PAGE_SIZE, 0,
 					 &epd->bio,
 					 end_bio_extent_buffer_writepage,
