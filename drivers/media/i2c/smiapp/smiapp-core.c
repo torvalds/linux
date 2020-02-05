@@ -27,12 +27,18 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-device.h>
 
+#include "ccs-limits.h"
 #include "smiapp.h"
 
 #define SMIAPP_ALIGN_DIM(dim, flags)	\
 	((flags) & V4L2_SEL_FLAG_GE	\
 	 ? ALIGN((dim), 2)		\
 	 : (dim) & ~1)
+
+static struct ccs_limit_offset {
+	u16	lim;
+	u16	info;
+} ccs_limit_offsets[CCS_L_LAST + 1];
 
 /*
  * smiapp_module_idents - supported camera modules
@@ -3166,7 +3172,39 @@ static struct i2c_driver smiapp_i2c_driver = {
 	.id_table = smiapp_id_table,
 };
 
-module_i2c_driver(smiapp_i2c_driver);
+static int smiapp_module_init(void)
+{
+	unsigned int i, l;
+
+	for (i = 0, l = 0; ccs_limits[i].size && l < CCS_L_LAST; i++) {
+		if (!(ccs_limits[i].flags & CCS_L_FL_SAME_REG)) {
+			ccs_limit_offsets[l + 1].lim =
+				ALIGN(ccs_limit_offsets[l].lim +
+				      ccs_limits[i].size,
+				      ccs_reg_width(ccs_limits[i + 1].reg));
+			ccs_limit_offsets[l].info = i;
+			l++;
+		} else {
+			ccs_limit_offsets[l].lim += ccs_limits[i].size;
+		}
+	}
+
+	if (WARN_ON(ccs_limits[i].size))
+		return -EINVAL;
+
+	if (WARN_ON(l != CCS_L_LAST))
+		return -EINVAL;
+
+	return i2c_register_driver(THIS_MODULE, &smiapp_i2c_driver);
+}
+
+static void smiapp_module_cleanup(void)
+{
+	i2c_del_driver(&smiapp_i2c_driver);
+}
+
+module_init(smiapp_module_init);
+module_exit(smiapp_module_cleanup);
 
 MODULE_AUTHOR("Sakari Ailus <sakari.ailus@iki.fi>");
 MODULE_DESCRIPTION("Generic SMIA/SMIA++ camera module driver");
