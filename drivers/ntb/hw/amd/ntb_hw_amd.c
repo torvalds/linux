@@ -290,7 +290,6 @@ static int amd_ntb_link_enable(struct ntb_dev *ntb,
 {
 	struct amd_ntb_dev *ndev = ntb_ndev(ntb);
 	void __iomem *mmio = ndev->self_mmio;
-	u32 ntb_ctl;
 
 	/* Enable event interrupt */
 	ndev->int_mask &= ~AMD_EVENT_INTMASK;
@@ -300,10 +299,6 @@ static int amd_ntb_link_enable(struct ntb_dev *ntb,
 		return -EINVAL;
 	dev_dbg(&ntb->pdev->dev, "Enabling Link.\n");
 
-	ntb_ctl = readl(mmio + AMD_CNTL_OFFSET);
-	ntb_ctl |= (PMM_REG_CTL | SMM_REG_CTL);
-	writel(ntb_ctl, mmio + AMD_CNTL_OFFSET);
-
 	return 0;
 }
 
@@ -311,7 +306,6 @@ static int amd_ntb_link_disable(struct ntb_dev *ntb)
 {
 	struct amd_ntb_dev *ndev = ntb_ndev(ntb);
 	void __iomem *mmio = ndev->self_mmio;
-	u32 ntb_ctl;
 
 	/* Disable event interrupt */
 	ndev->int_mask |= AMD_EVENT_INTMASK;
@@ -320,10 +314,6 @@ static int amd_ntb_link_disable(struct ntb_dev *ntb)
 	if (ndev->ntb.topo == NTB_TOPO_SEC)
 		return -EINVAL;
 	dev_dbg(&ntb->pdev->dev, "Enabling Link.\n");
-
-	ntb_ctl = readl(mmio + AMD_CNTL_OFFSET);
-	ntb_ctl &= ~(PMM_REG_CTL | SMM_REG_CTL);
-	writel(ntb_ctl, mmio + AMD_CNTL_OFFSET);
 
 	return 0;
 }
@@ -927,18 +917,24 @@ static void amd_init_side_info(struct amd_ntb_dev *ndev)
 {
 	void __iomem *mmio = ndev->self_mmio;
 	unsigned int reg;
+	u32 ntb_ctl;
 
 	reg = readl(mmio + AMD_SIDEINFO_OFFSET);
 	if (!(reg & AMD_SIDE_READY)) {
 		reg |= AMD_SIDE_READY;
 		writel(reg, mmio + AMD_SIDEINFO_OFFSET);
 	}
+
+	ntb_ctl = readl(mmio + AMD_CNTL_OFFSET);
+	ntb_ctl |= (PMM_REG_CTL | SMM_REG_CTL);
+	writel(ntb_ctl, mmio + AMD_CNTL_OFFSET);
 }
 
 static void amd_deinit_side_info(struct amd_ntb_dev *ndev)
 {
 	void __iomem *mmio = ndev->self_mmio;
 	unsigned int reg;
+	u32 ntb_ctl;
 
 	reg = readl(mmio + AMD_SIDEINFO_OFFSET);
 	if (reg & AMD_SIDE_READY) {
@@ -946,6 +942,10 @@ static void amd_deinit_side_info(struct amd_ntb_dev *ndev)
 		writel(reg, mmio + AMD_SIDEINFO_OFFSET);
 		readl(mmio + AMD_SIDEINFO_OFFSET);
 	}
+
+	ntb_ctl = readl(mmio + AMD_CNTL_OFFSET);
+	ntb_ctl &= ~(PMM_REG_CTL | SMM_REG_CTL);
+	writel(ntb_ctl, mmio + AMD_CNTL_OFFSET);
 }
 
 static int amd_init_ntb(struct amd_ntb_dev *ndev)
