@@ -169,7 +169,7 @@ typedef union {
 /**
  * Structure of the first packet output command word.
  */
-typedef union {
+union cvmx_pko_command_word0 {
 	uint64_t u64;
 	struct {
 #ifdef __BIG_ENDIAN_BITFIELD
@@ -261,7 +261,7 @@ typedef union {
 	        uint64_t size1:2;
 #endif
 	} s;
-} cvmx_pko_command_word0_t;
+};
 
 /* CSR typedefs have been moved to cvmx-csr-*.h */
 
@@ -419,7 +419,7 @@ static inline void cvmx_pko_send_packet_prepare(uint64_t port, uint64_t queue,
 static inline cvmx_pko_status_t cvmx_pko_send_packet_finish(
 	uint64_t port,
 	uint64_t queue,
-	cvmx_pko_command_word0_t pko_command,
+	union cvmx_pko_command_word0 pko_command,
 	union cvmx_buf_ptr packet,
 	cvmx_pko_lock_t use_locking)
 {
@@ -462,7 +462,7 @@ static inline cvmx_pko_status_t cvmx_pko_send_packet_finish(
 static inline cvmx_pko_status_t cvmx_pko_send_packet_finish3(
 	uint64_t port,
 	uint64_t queue,
-	cvmx_pko_command_word0_t pko_command,
+	union cvmx_pko_command_word0 pko_command,
 	union cvmx_buf_ptr packet,
 	uint64_t addr,
 	cvmx_pko_lock_t use_locking)
