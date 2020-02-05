@@ -1296,6 +1296,22 @@ static void amd_ntb_pci_remove(struct pci_dev *pdev)
 	kfree(ndev);
 }
 
+static void amd_ntb_pci_shutdown(struct pci_dev *pdev)
+{
+	struct amd_ntb_dev *ndev = pci_get_drvdata(pdev);
+
+	/* Send link down notification */
+	ntb_link_event(&ndev->ntb);
+
+	amd_deinit_side_info(ndev);
+	ntb_peer_db_set(&ndev->ntb, BIT_ULL(ndev->db_last_bit));
+	ntb_unregister_device(&ndev->ntb);
+	ndev_deinit_debugfs(ndev);
+	amd_deinit_dev(ndev);
+	amd_ntb_deinit_pci(ndev);
+	kfree(ndev);
+}
+
 static const struct file_operations amd_ntb_debugfs_info = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
@@ -1326,6 +1342,7 @@ static struct pci_driver amd_ntb_pci_driver = {
 	.id_table	= amd_ntb_pci_tbl,
 	.probe		= amd_ntb_pci_probe,
 	.remove		= amd_ntb_pci_remove,
+	.shutdown	= amd_ntb_pci_shutdown,
 };
 
 static int __init amd_ntb_pci_driver_init(void)
