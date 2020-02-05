@@ -5345,15 +5345,18 @@ static void ath11k_peer_assoc_conf_event(struct ath11k_base *ab, struct sk_buff 
 		   "peer assoc conf ev vdev id %d macaddr %pM\n",
 		   peer_assoc_conf.vdev_id, peer_assoc_conf.macaddr);
 
+	rcu_read_lock();
 	ar = ath11k_mac_get_ar_by_vdev_id(ab, peer_assoc_conf.vdev_id);
 
 	if (!ar) {
 		ath11k_warn(ab, "invalid vdev id in peer assoc conf ev %d",
 			    peer_assoc_conf.vdev_id);
+		rcu_read_unlock();
 		return;
 	}
 
 	complete(&ar->peer_assoc_done);
+	rcu_read_unlock();
 }
 
 static void ath11k_update_stats_event(struct ath11k_base *ab, struct sk_buff *skb)
