@@ -83,10 +83,6 @@ struct idle_cpu {
 
 static const struct idle_cpu *icpu;
 static struct cpuidle_device __percpu *intel_idle_cpuidle_devices;
-static int intel_idle(struct cpuidle_device *dev,
-			struct cpuidle_driver *drv, int index);
-static void intel_idle_s2idle(struct cpuidle_device *dev,
-			      struct cpuidle_driver *drv, int index);
 static struct cpuidle_state *cpuidle_state_table;
 
 /*
@@ -111,6 +107,81 @@ static struct cpuidle_state *cpuidle_state_table;
  */
 #define flg2MWAIT(flags) (((flags) >> 24) & 0xFF)
 #define MWAIT2flg(eax) ((eax & 0xFF) << 24)
+
+/**
+ * intel_idle - Ask the processor to enter the given idle state.
+ * @dev: cpuidle device of the target CPU.
+ * @drv: cpuidle driver (assumed to point to intel_idle_driver).
+ * @index: Target idle state index.
+ *
+ * Use the MWAIT instruction to notify the processor that the CPU represented by
+ * @dev is idle and it can try to enter the idle state corresponding to @index.
+ *
+ * If the local APIC timer is not known to be reliable in the target idle state,
+ * enable one-shot tick broadcasting for the target CPU before executing MWAIT.
+ *
+ * Optionally call leave_mm() for the target CPU upfront to avoid wakeups due to
+ * flushing user TLBs.
+ *
+ * Must be called under local_irq_disable().
+ */
+static __cpuidle int intel_idle(struct cpuidle_device *dev,
+				struct cpuidle_driver *drv, int index)
+{
+	struct cpuidle_state *state = &drv->states[index];
+	unsigned long eax = flg2MWAIT(state->flags);
+	unsigned long ecx = 1; /* break on interrupt flag */
+	bool uninitialized_var(tick);
+	int cpu = smp_processor_id();
+
+	/*
+	 * leave_mm() to avoid costly and often unnecessary wakeups
+	 * for flushing the user TLB's associated with the active mm.
+	 */
+	if (state->flags & CPUIDLE_FLAG_TLB_FLUSHED)
+		leave_mm(cpu);
+
+	if (!static_cpu_has(X86_FEATURE_ARAT) && !lapic_timer_always_reliable) {
+		/*
+		 * Switch over to one-shot tick broadcast if the target C-state
+		 * is deeper than C1.
+		 */
+		if ((eax >> MWAIT_SUBSTATE_SIZE) & MWAIT_CSTATE_MASK) {
+			tick = true;
+			tick_broadcast_enter();
+		} else {
+			tick = false;
+		}
+	}
+
+	mwait_idle_with_hints(eax, ecx);
+
+	if (!static_cpu_has(X86_FEATURE_ARAT) && tick)
+		tick_broadcast_exit();
+
+	return index;
+}
+
+/**
+ * intel_idle_s2idle - Ask the processor to enter the given idle state.
+ * @dev: cpuidle device of the target CPU.
+ * @drv: cpuidle driver (assumed to point to intel_idle_driver).
+ * @index: Target idle state index.
+ *
+ * Use the MWAIT instruction to notify the processor that the CPU represented by
+ * @dev is idle and it can try to enter the idle state corresponding to @index.
+ *
+ * Invoked as a suspend-to-idle callback routine with frozen user space, frozen
+ * scheduler tick and suspended scheduler clock on the target CPU.
+ */
+static __cpuidle void intel_idle_s2idle(struct cpuidle_device *dev,
+					struct cpuidle_driver *drv, int index)
+{
+	unsigned long eax = flg2MWAIT(drv->states[index].flags);
+	unsigned long ecx = 1; /* break on interrupt flag */
+
+	mwait_idle_with_hints(eax, ecx);
+}
 
 /*
  * States are indexed by the cstate number,
@@ -890,81 +961,6 @@ static struct cpuidle_state dnv_cstates[] = {
 	{
 		.enter = NULL }
 };
-
-/**
- * intel_idle - Ask the processor to enter the given idle state.
- * @dev: cpuidle device of the target CPU.
- * @drv: cpuidle driver (assumed to point to intel_idle_driver).
- * @index: Target idle state index.
- *
- * Use the MWAIT instruction to notify the processor that the CPU represented by
- * @dev is idle and it can try to enter the idle state corresponding to @index.
- *
- * If the local APIC timer is not known to be reliable in the target idle state,
- * enable one-shot tick broadcasting for the target CPU before executing MWAIT.
- *
- * Optionally call leave_mm() for the target CPU upfront to avoid wakeups due to
- * flushing user TLBs.
- *
- * Must be called under local_irq_disable().
- */
-static __cpuidle int intel_idle(struct cpuidle_device *dev,
-				struct cpuidle_driver *drv, int index)
-{
-	struct cpuidle_state *state = &drv->states[index];
-	unsigned long eax = flg2MWAIT(state->flags);
-	unsigned long ecx = 1; /* break on interrupt flag */
-	bool uninitialized_var(tick);
-	int cpu = smp_processor_id();
-
-	/*
-	 * leave_mm() to avoid costly and often unnecessary wakeups
-	 * for flushing the user TLB's associated with the active mm.
-	 */
-	if (state->flags & CPUIDLE_FLAG_TLB_FLUSHED)
-		leave_mm(cpu);
-
-	if (!static_cpu_has(X86_FEATURE_ARAT) && !lapic_timer_always_reliable) {
-		/*
-		 * Switch over to one-shot tick broadcast if the target C-state
-		 * is deeper than C1.
-		 */
-		if ((eax >> MWAIT_SUBSTATE_SIZE) & MWAIT_CSTATE_MASK) {
-			tick = true;
-			tick_broadcast_enter();
-		} else {
-			tick = false;
-		}
-	}
-
-	mwait_idle_with_hints(eax, ecx);
-
-	if (!static_cpu_has(X86_FEATURE_ARAT) && tick)
-		tick_broadcast_exit();
-
-	return index;
-}
-
-/**
- * intel_idle_s2idle - Ask the processor to enter the given idle state.
- * @dev: cpuidle device of the target CPU.
- * @drv: cpuidle driver (assumed to point to intel_idle_driver).
- * @index: Target idle state index.
- *
- * Use the MWAIT instruction to notify the processor that the CPU represented by
- * @dev is idle and it can try to enter the idle state corresponding to @index.
- *
- * Invoked as a suspend-to-idle callback routine with frozen user space, frozen
- * scheduler tick and suspended scheduler clock on the target CPU.
- */
-static __cpuidle void intel_idle_s2idle(struct cpuidle_device *dev,
-					struct cpuidle_driver *drv, int index)
-{
-	unsigned long eax = flg2MWAIT(drv->states[index].flags);
-	unsigned long ecx = 1; /* break on interrupt flag */
-
-	mwait_idle_with_hints(eax, ecx);
-}
 
 static const struct idle_cpu idle_cpu_nehalem = {
 	.state_table = nehalem_cstates,
