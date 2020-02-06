@@ -2,7 +2,8 @@
 /*
  * Stage 1 of the trace events.
  *
- * Override the macros in <trace/trace_events.h> to include the following:
+ * Override the macros in the event tracepoint header <trace/events/XXX.h>
+ * to include the following:
  *
  * struct trace_event_raw_<call> {
  *	struct trace_entry		ent;
@@ -223,7 +224,8 @@ TRACE_MAKE_SYSTEM_STR();
 /*
  * Stage 3 of the trace events.
  *
- * Override the macros in <trace/trace_events.h> to include the following:
+ * Override the macros in the event tracepoint header <trace/events/XXX.h>
+ * to include the following:
  *
  * enum print_line_t
  * trace_raw_output_<call>(struct trace_iterator *iter, int flags)
@@ -533,7 +535,8 @@ static inline notrace int trace_event_get_offsets_##call(		\
 /*
  * Stage 4 of the trace events.
  *
- * Override the macros in <trace/trace_events.h> to include the following:
+ * Override the macros in the event tracepoint header <trace/events/XXX.h>
+ * to include the following:
  *
  * For those macros defined with TRACE_EVENT:
  *
@@ -548,7 +551,7 @@ static inline notrace int trace_event_get_offsets_##call(		\
  *	enum event_trigger_type __tt = ETT_NONE;
  *	struct ring_buffer_event *event;
  *	struct trace_event_raw_<call> *entry; <-- defined in stage 1
- *	struct ring_buffer *buffer;
+ *	struct trace_buffer *buffer;
  *	unsigned long irq_flags;
  *	int __data_size;
  *	int pc;
