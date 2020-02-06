@@ -577,8 +577,7 @@ int ice_init_pf_dcb(struct ice_pf *pf, bool locked)
 		goto dcb_init_err;
 	}
 
-	dev_info(dev,
-		 "DCB is enabled in the hardware, max number of TCs supported on this port are %d\n",
+	dev_info(dev, "DCB is enabled in the hardware, max number of TCs supported on this port are %d\n",
 		 pf->hw.func_caps.common_cap.maxtc);
 	if (err) {
 		struct ice_vsi *pf_vsi;
@@ -588,8 +587,8 @@ int ice_init_pf_dcb(struct ice_pf *pf, bool locked)
 		clear_bit(ICE_FLAG_FW_LLDP_AGENT, pf->flags);
 		err = ice_dcb_sw_dflt_cfg(pf, true, locked);
 		if (err) {
-			dev_err(dev,
-				"Failed to set local DCB config %d\n", err);
+			dev_err(dev, "Failed to set local DCB config %d\n",
+				err);
 			err = -EIO;
 			goto dcb_init_err;
 		}

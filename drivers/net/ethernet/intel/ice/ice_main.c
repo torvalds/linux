@@ -162,8 +162,7 @@ unregister:
 	 * had an error
 	 */
 	if (status && vsi->netdev->reg_state == NETREG_REGISTERED) {
-		dev_err(ice_pf_to_dev(pf),
-			"Could not add MAC filters error %d. Unregistering device\n",
+		dev_err(ice_pf_to_dev(pf), "Could not add MAC filters error %d. Unregistering device\n",
 			status);
 		unregister_netdev(vsi->netdev);
 		free_netdev(vsi->netdev);
@@ -335,8 +334,7 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 		    !test_and_set_bit(__ICE_FLTR_OVERFLOW_PROMISC,
 				      vsi->state)) {
 			promisc_forced_on = true;
-			netdev_warn(netdev,
-				    "Reached MAC filter limit, forcing promisc mode on VSI %d\n",
+			netdev_warn(netdev, "Reached MAC filter limit, forcing promisc mode on VSI %d\n",
 				    vsi->vsi_num);
 		} else {
 			err = -EIO;
@@ -382,8 +380,7 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 			if (!ice_is_dflt_vsi_in_use(pf->first_sw)) {
 				err = ice_set_dflt_vsi(pf->first_sw, vsi);
 				if (err && err != -EEXIST) {
-					netdev_err(netdev,
-						   "Error %d setting default VSI %i Rx rule\n",
+					netdev_err(netdev, "Error %d setting default VSI %i Rx rule\n",
 						   err, vsi->vsi_num);
 					vsi->current_netdev_flags &=
 						~IFF_PROMISC;
@@ -395,8 +392,7 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 			if (ice_is_vsi_dflt_vsi(pf->first_sw, vsi)) {
 				err = ice_clear_dflt_vsi(pf->first_sw);
 				if (err) {
-					netdev_err(netdev,
-						   "Error %d clearing default VSI %i Rx rule\n",
+					netdev_err(netdev, "Error %d clearing default VSI %i Rx rule\n",
 						   err, vsi->vsi_num);
 					vsi->current_netdev_flags |=
 						IFF_PROMISC;
@@ -815,8 +811,7 @@ ice_link_event(struct ice_pf *pf, struct ice_port_info *pi, bool link_up,
 	 */
 	result = ice_update_link_info(pi);
 	if (result)
-		dev_dbg(dev,
-			"Failed to update link status and re-enable link events for port %d\n",
+		dev_dbg(dev, "Failed to update link status and re-enable link events for port %d\n",
 			pi->lport);
 
 	/* if the old link up/down and speed is the same as the new */
@@ -834,8 +829,7 @@ ice_link_event(struct ice_pf *pf, struct ice_port_info *pi, bool link_up,
 
 		result = ice_aq_set_link_restart_an(pi, false, NULL);
 		if (result) {
-			dev_dbg(dev,
-				"Failed to set link down, VSI %d error %d\n",
+			dev_dbg(dev, "Failed to set link down, VSI %d error %d\n",
 				vsi->vsi_num, result);
 			return result;
 		}
@@ -893,15 +887,13 @@ static int ice_init_link_events(struct ice_port_info *pi)
 		       ICE_AQ_LINK_EVENT_MODULE_QUAL_FAIL));
 
 	if (ice_aq_set_event_mask(pi->hw, pi->lport, mask, NULL)) {
-		dev_dbg(ice_hw_to_dev(pi->hw),
-			"Failed to set link event mask for port %d\n",
+		dev_dbg(ice_hw_to_dev(pi->hw), "Failed to set link event mask for port %d\n",
 			pi->lport);
 		return -EIO;
 	}
 
 	if (ice_aq_get_link_info(pi, true, NULL, NULL)) {
-		dev_dbg(ice_hw_to_dev(pi->hw),
-			"Failed to enable link events for port %d\n",
+		dev_dbg(ice_hw_to_dev(pi->hw), "Failed to enable link events for port %d\n",
 			pi->lport);
 		return -EIO;
 	}
@@ -930,8 +922,8 @@ ice_handle_link_event(struct ice_pf *pf, struct ice_rq_event_info *event)
 				!!(link_data->link_info & ICE_AQ_LINK_UP),
 				le16_to_cpu(link_data->link_speed));
 	if (status)
-		dev_dbg(ice_pf_to_dev(pf),
-			"Could not process link event, error %d\n", status);
+		dev_dbg(ice_pf_to_dev(pf), "Could not process link event, error %d\n",
+			status);
 
 	return status;
 }
@@ -980,13 +972,11 @@ static int __ice_clean_ctrlq(struct ice_pf *pf, enum ice_ctl_q q_type)
 			dev_dbg(dev, "%s Receive Queue VF Error detected\n",
 				qtype);
 		if (val & PF_FW_ARQLEN_ARQOVFL_M) {
-			dev_dbg(dev,
-				"%s Receive Queue Overflow Error detected\n",
+			dev_dbg(dev, "%s Receive Queue Overflow Error detected\n",
 				qtype);
 		}
 		if (val & PF_FW_ARQLEN_ARQCRIT_M)
-			dev_dbg(dev,
-				"%s Receive Queue Critical Error detected\n",
+			dev_dbg(dev, "%s Receive Queue Critical Error detected\n",
 				qtype);
 		val &= ~(PF_FW_ARQLEN_ARQVFE_M | PF_FW_ARQLEN_ARQOVFL_M |
 			 PF_FW_ARQLEN_ARQCRIT_M);
@@ -999,8 +989,8 @@ static int __ice_clean_ctrlq(struct ice_pf *pf, enum ice_ctl_q q_type)
 		   PF_FW_ATQLEN_ATQCRIT_M)) {
 		oldval = val;
 		if (val & PF_FW_ATQLEN_ATQVFE_M)
-			dev_dbg(dev,
-				"%s Send Queue VF Error detected\n", qtype);
+			dev_dbg(dev, "%s Send Queue VF Error detected\n",
+				qtype);
 		if (val & PF_FW_ATQLEN_ATQOVFL_M) {
 			dev_dbg(dev, "%s Send Queue Overflow Error detected\n",
 				qtype);
@@ -1049,8 +1039,7 @@ static int __ice_clean_ctrlq(struct ice_pf *pf, enum ice_ctl_q q_type)
 			ice_dcb_process_lldp_set_mib_change(pf, &event);
 			break;
 		default:
-			dev_dbg(dev,
-				"%s Receive Queue unknown event 0x%04x ignored\n",
+			dev_dbg(dev, "%s Receive Queue unknown event 0x%04x ignored\n",
 				qtype, opcode);
 			break;
 		}
@@ -1336,8 +1325,7 @@ static void ice_handle_mdd_event(struct ice_pf *pf)
 			vf->num_mdd_events++;
 			if (vf->num_mdd_events &&
 			    vf->num_mdd_events <= ICE_MDD_EVENTS_THRESHOLD)
-				dev_info(dev,
-					 "VF %d has had %llu MDD events since last boot, Admin might need to reload AVF driver with this number of events\n",
+				dev_info(dev, "VF %d has had %llu MDD events since last boot, Admin might need to reload AVF driver with this number of events\n",
 					 i, vf->num_mdd_events);
 		}
 	}
@@ -1379,8 +1367,7 @@ static int ice_force_phys_link_state(struct ice_vsi *vsi, bool link_up)
 	retcode = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_SW_CFG, pcaps,
 				      NULL);
 	if (retcode) {
-		dev_err(dev,
-			"Failed to get phy capabilities, VSI %d error %d\n",
+		dev_err(dev, "Failed to get phy capabilities, VSI %d error %d\n",
 			vsi->vsi_num, retcode);
 		retcode = -EIO;
 		goto out;
@@ -1650,8 +1637,8 @@ static int ice_vsi_req_irq_msix(struct ice_vsi *vsi, char *basename)
 		err = devm_request_irq(dev, irq_num, vsi->irq_handler, 0,
 				       q_vector->name, q_vector);
 		if (err) {
-			netdev_err(vsi->netdev,
-				   "MSIX request_irq failed, error: %d\n", err);
+			netdev_err(vsi->netdev, "MSIX request_irq failed, error: %d\n",
+				   err);
 			goto free_q_irqs;
 		}
 
@@ -2763,8 +2750,7 @@ static int ice_ena_msix_range(struct ice_pf *pf)
 	}
 
 	if (v_actual < v_budget) {
-		dev_warn(dev,
-			 "not enough OS MSI-X vectors. requested = %d, obtained = %d\n",
+		dev_warn(dev, "not enough OS MSI-X vectors. requested = %d, obtained = %d\n",
 			 v_budget, v_actual);
 /* 2 vectors for LAN (traffic + OICR) */
 #define ICE_MIN_LAN_VECS 2
@@ -2786,8 +2772,7 @@ msix_err:
 	goto exit_err;
 
 no_hw_vecs_left_err:
-	dev_err(dev,
-		"not enough device MSI-X vectors. requested = %d, available = %d\n",
+	dev_err(dev, "not enough device MSI-X vectors. requested = %d, available = %d\n",
 		needed, v_left);
 	err = -ERANGE;
 exit_err:
@@ -2920,16 +2905,14 @@ ice_log_pkg_init(struct ice_hw *hw, enum ice_status *status)
 		    !memcmp(hw->pkg_name, hw->active_pkg_name,
 			    sizeof(hw->pkg_name))) {
 			if (hw->pkg_dwnld_status == ICE_AQ_RC_EEXIST)
-				dev_info(dev,
-					 "DDP package already present on device: %s version %d.%d.%d.%d\n",
+				dev_info(dev, "DDP package already present on device: %s version %d.%d.%d.%d\n",
 					 hw->active_pkg_name,
 					 hw->active_pkg_ver.major,
 					 hw->active_pkg_ver.minor,
 					 hw->active_pkg_ver.update,
 					 hw->active_pkg_ver.draft);
 			else
-				dev_info(dev,
-					 "The DDP package was successfully loaded: %s version %d.%d.%d.%d\n",
+				dev_info(dev, "The DDP package was successfully loaded: %s version %d.%d.%d.%d\n",
 					 hw->active_pkg_name,
 					 hw->active_pkg_ver.major,
 					 hw->active_pkg_ver.minor,
@@ -2937,8 +2920,7 @@ ice_log_pkg_init(struct ice_hw *hw, enum ice_status *status)
 					 hw->active_pkg_ver.draft);
 		} else if (hw->active_pkg_ver.major != ICE_PKG_SUPP_VER_MAJ ||
 			   hw->active_pkg_ver.minor != ICE_PKG_SUPP_VER_MNR) {
-			dev_err(dev,
-				"The device has a DDP package that is not supported by the driver.  The device has package '%s' version %d.%d.x.x.  The driver requires version %d.%d.x.x.  Entering Safe Mode.\n",
+			dev_err(dev, "The device has a DDP package that is not supported by the driver.  The device has package '%s' version %d.%d.x.x.  The driver requires version %d.%d.x.x.  Entering Safe Mode.\n",
 				hw->active_pkg_name,
 				hw->active_pkg_ver.major,
 				hw->active_pkg_ver.minor,
@@ -2946,8 +2928,7 @@ ice_log_pkg_init(struct ice_hw *hw, enum ice_status *status)
 			*status = ICE_ERR_NOT_SUPPORTED;
 		} else if (hw->active_pkg_ver.major == ICE_PKG_SUPP_VER_MAJ &&
 			   hw->active_pkg_ver.minor == ICE_PKG_SUPP_VER_MNR) {
-			dev_info(dev,
-				 "The driver could not load the DDP package file because a compatible DDP package is already present on the device.  The device has package '%s' version %d.%d.%d.%d.  The package file found by the driver: '%s' version %d.%d.%d.%d.\n",
+			dev_info(dev, "The driver could not load the DDP package file because a compatible DDP package is already present on the device.  The device has package '%s' version %d.%d.%d.%d.  The package file found by the driver: '%s' version %d.%d.%d.%d.\n",
 				 hw->active_pkg_name,
 				 hw->active_pkg_ver.major,
 				 hw->active_pkg_ver.minor,
@@ -2959,54 +2940,46 @@ ice_log_pkg_init(struct ice_hw *hw, enum ice_status *status)
 				 hw->pkg_ver.update,
 				 hw->pkg_ver.draft);
 		} else {
-			dev_err(dev,
-				"An unknown error occurred when loading the DDP package, please reboot the system.  If the problem persists, update the NVM.  Entering Safe Mode.\n");
+			dev_err(dev, "An unknown error occurred when loading the DDP package, please reboot the system.  If the problem persists, update the NVM.  Entering Safe Mode.\n");
 			*status = ICE_ERR_NOT_SUPPORTED;
 		}
 		break;
 	case ICE_ERR_BUF_TOO_SHORT:
 		/* fall-through */
 	case ICE_ERR_CFG:
-		dev_err(dev,
-			"The DDP package file is invalid. Entering Safe Mode.\n");
+		dev_err(dev, "The DDP package file is invalid. Entering Safe Mode.\n");
 		break;
 	case ICE_ERR_NOT_SUPPORTED:
 		/* Package File version not supported */
 		if (hw->pkg_ver.major > ICE_PKG_SUPP_VER_MAJ ||
 		    (hw->pkg_ver.major == ICE_PKG_SUPP_VER_MAJ &&
 		     hw->pkg_ver.minor > ICE_PKG_SUPP_VER_MNR))
-			dev_err(dev,
-				"The DDP package file version is higher than the driver supports.  Please use an updated driver.  Entering Safe Mode.\n");
+			dev_err(dev, "The DDP package file version is higher than the driver supports.  Please use an updated driver.  Entering Safe Mode.\n");
 		else if (hw->pkg_ver.major < ICE_PKG_SUPP_VER_MAJ ||
 			 (hw->pkg_ver.major == ICE_PKG_SUPP_VER_MAJ &&
 			  hw->pkg_ver.minor < ICE_PKG_SUPP_VER_MNR))
-			dev_err(dev,
-				"The DDP package file version is lower than the driver supports.  The driver requires version %d.%d.x.x.  Please use an updated DDP Package file.  Entering Safe Mode.\n",
+			dev_err(dev, "The DDP package file version is lower than the driver supports.  The driver requires version %d.%d.x.x.  Please use an updated DDP Package file.  Entering Safe Mode.\n",
 				ICE_PKG_SUPP_VER_MAJ, ICE_PKG_SUPP_VER_MNR);
 		break;
 	case ICE_ERR_AQ_ERROR:
 		switch (hw->pkg_dwnld_status) {
 		case ICE_AQ_RC_ENOSEC:
 		case ICE_AQ_RC_EBADSIG:
-			dev_err(dev,
-				"The DDP package could not be loaded because its signature is not valid.  Please use a valid DDP Package.  Entering Safe Mode.\n");
+			dev_err(dev, "The DDP package could not be loaded because its signature is not valid.  Please use a valid DDP Package.  Entering Safe Mode.\n");
 			return;
 		case ICE_AQ_RC_ESVN:
-			dev_err(dev,
-				"The DDP Package could not be loaded because its security revision is too low.  Please use an updated DDP Package.  Entering Safe Mode.\n");
+			dev_err(dev, "The DDP Package could not be loaded because its security revision is too low.  Please use an updated DDP Package.  Entering Safe Mode.\n");
 			return;
 		case ICE_AQ_RC_EBADMAN:
 		case ICE_AQ_RC_EBADBUF:
-			dev_err(dev,
-				"An error occurred on the device while loading the DDP package.  The device will be reset.\n");
+			dev_err(dev, "An error occurred on the device while loading the DDP package.  The device will be reset.\n");
 			return;
 		default:
 			break;
 		}
 		/* fall-through */
 	default:
-		dev_err(dev,
-			"An unknown error (%d) occurred when loading the DDP package.  Entering Safe Mode.\n",
+		dev_err(dev, "An unknown error (%d) occurred when loading the DDP package.  Entering Safe Mode.\n",
 			*status);
 		break;
 	}
@@ -3037,8 +3010,7 @@ ice_load_pkg(const struct firmware *firmware, struct ice_pf *pf)
 		status = ice_init_pkg(hw, hw->pkg_copy, hw->pkg_size);
 		ice_log_pkg_init(hw, &status);
 	} else {
-		dev_err(dev,
-			"The DDP package file failed to load. Entering Safe Mode.\n");
+		dev_err(dev, "The DDP package file failed to load. Entering Safe Mode.\n");
 	}
 
 	if (status) {
@@ -3064,8 +3036,7 @@ ice_load_pkg(const struct firmware *firmware, struct ice_pf *pf)
 static void ice_verify_cacheline_size(struct ice_pf *pf)
 {
 	if (rd32(&pf->hw, GLPCI_CNF2) & GLPCI_CNF2_CACHELINE_SIZE_M)
-		dev_warn(ice_pf_to_dev(pf),
-			 "%d Byte cache line assumption is invalid, driver may have Tx timeouts!\n",
+		dev_warn(ice_pf_to_dev(pf), "%d Byte cache line assumption is invalid, driver may have Tx timeouts!\n",
 			 ICE_CACHE_LINE_BYTES);
 }
 
@@ -3158,8 +3129,7 @@ static void ice_request_fw(struct ice_pf *pf)
 dflt_pkg_load:
 	err = request_firmware(&firmware, ICE_DDP_PKG_FILE, dev);
 	if (err) {
-		dev_err(dev,
-			"The DDP package file was not found or could not be read. Entering Safe Mode\n");
+		dev_err(dev, "The DDP package file was not found or could not be read. Entering Safe Mode\n");
 		return;
 	}
 
@@ -3251,8 +3221,7 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 	 * true
 	 */
 	if (ice_is_safe_mode(pf)) {
-		dev_err(dev,
-			"Package download failed. Advanced features disabled - Device now in Safe Mode\n");
+		dev_err(dev, "Package download failed. Advanced features disabled - Device now in Safe Mode\n");
 		/* we already got function/device capabilities but these don't
 		 * reflect what the driver needs to do in safe mode. Instead of
 		 * adding conditional logic everywhere to ignore these
@@ -3329,8 +3298,7 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 	/* tell the firmware we are up */
 	err = ice_send_version(pf);
 	if (err) {
-		dev_err(dev,
-			"probe failed sending driver version %s. error: %d\n",
+		dev_err(dev, "probe failed sending driver version %s. error: %d\n",
 			ice_drv_ver, err);
 		goto err_alloc_sw_unroll;
 	}
@@ -3471,8 +3439,7 @@ static pci_ers_result_t ice_pci_err_slot_reset(struct pci_dev *pdev)
 
 	err = pci_enable_device_mem(pdev);
 	if (err) {
-		dev_err(&pdev->dev,
-			"Cannot re-enable PCI device after reset, error %d\n",
+		dev_err(&pdev->dev, "Cannot re-enable PCI device after reset, error %d\n",
 			err);
 		result = PCI_ERS_RESULT_DISCONNECT;
 	} else {
@@ -3491,8 +3458,7 @@ static pci_ers_result_t ice_pci_err_slot_reset(struct pci_dev *pdev)
 
 	err = pci_cleanup_aer_uncorrect_error_status(pdev);
 	if (err)
-		dev_dbg(&pdev->dev,
-			"pci_cleanup_aer_uncorrect_error_status failed, error %d\n",
+		dev_dbg(&pdev->dev, "pci_cleanup_aer_uncorrect_error_status failed, error %d\n",
 			err);
 		/* non-fatal, continue */
 
@@ -3511,8 +3477,8 @@ static void ice_pci_err_resume(struct pci_dev *pdev)
 	struct ice_pf *pf = pci_get_drvdata(pdev);
 
 	if (!pf) {
-		dev_err(&pdev->dev,
-			"%s failed, device is unrecoverable\n", __func__);
+		dev_err(&pdev->dev, "%s failed, device is unrecoverable\n",
+			__func__);
 		return;
 	}
 
@@ -3760,8 +3726,7 @@ ice_set_tx_maxrate(struct net_device *netdev, int queue_index, u32 maxrate)
 
 	/* Validate maxrate requested is within permitted range */
 	if (maxrate && (maxrate > (ICE_SCHED_MAX_BW / 1000))) {
-		netdev_err(netdev,
-			   "Invalid max rate %d specified for the queue %d\n",
+		netdev_err(netdev, "Invalid max rate %d specified for the queue %d\n",
 			   maxrate, queue_index);
 		return -EINVAL;
 	}
@@ -3777,8 +3742,8 @@ ice_set_tx_maxrate(struct net_device *netdev, int queue_index, u32 maxrate)
 		status = ice_cfg_q_bw_lmt(vsi->port_info, vsi->idx, tc,
 					  q_handle, ICE_MAX_BW, maxrate * 1000);
 	if (status) {
-		netdev_err(netdev,
-			   "Unable to set Tx max rate, error %d\n", status);
+		netdev_err(netdev, "Unable to set Tx max rate, error %d\n",
+			   status);
 		return -EIO;
 	}
 
@@ -3870,15 +3835,13 @@ ice_set_features(struct net_device *netdev, netdev_features_t features)
 
 	/* Don't set any netdev advanced features with device in Safe Mode */
 	if (ice_is_safe_mode(vsi->back)) {
-		dev_err(ice_pf_to_dev(vsi->back),
-			"Device is in Safe Mode - not enabling advanced netdev features\n");
+		dev_err(ice_pf_to_dev(vsi->back), "Device is in Safe Mode - not enabling advanced netdev features\n");
 		return ret;
 	}
 
 	/* Do not change setting during reset */
 	if (ice_is_reset_in_progress(pf->state)) {
-		dev_err(ice_pf_to_dev(vsi->back),
-			"Device is resetting, changing advanced netdev features temporarily unavailable.\n");
+		dev_err(ice_pf_to_dev(vsi->back), "Device is resetting, changing advanced netdev features temporarily unavailable.\n");
 		return -EBUSY;
 	}
 
@@ -4366,21 +4329,18 @@ int ice_down(struct ice_vsi *vsi)
 
 	tx_err = ice_vsi_stop_lan_tx_rings(vsi, ICE_NO_RESET, 0);
 	if (tx_err)
-		netdev_err(vsi->netdev,
-			   "Failed stop Tx rings, VSI %d error %d\n",
+		netdev_err(vsi->netdev, "Failed stop Tx rings, VSI %d error %d\n",
 			   vsi->vsi_num, tx_err);
 	if (!tx_err && ice_is_xdp_ena_vsi(vsi)) {
 		tx_err = ice_vsi_stop_xdp_tx_rings(vsi);
 		if (tx_err)
-			netdev_err(vsi->netdev,
-				   "Failed stop XDP rings, VSI %d error %d\n",
+			netdev_err(vsi->netdev, "Failed stop XDP rings, VSI %d error %d\n",
 				   vsi->vsi_num, tx_err);
 	}
 
 	rx_err = ice_vsi_stop_rx_rings(vsi);
 	if (rx_err)
-		netdev_err(vsi->netdev,
-			   "Failed stop Rx rings, VSI %d error %d\n",
+		netdev_err(vsi->netdev, "Failed stop Rx rings, VSI %d error %d\n",
 			   vsi->vsi_num, rx_err);
 
 	ice_napi_disable_all(vsi);
@@ -4388,8 +4348,7 @@ int ice_down(struct ice_vsi *vsi)
 	if (test_bit(ICE_FLAG_LINK_DOWN_ON_CLOSE_ENA, vsi->back->flags)) {
 		link_err = ice_force_phys_link_state(vsi, false);
 		if (link_err)
-			netdev_err(vsi->netdev,
-				   "Failed to set physical link down, VSI %d error %d\n",
+			netdev_err(vsi->netdev, "Failed to set physical link down, VSI %d error %d\n",
 				   vsi->vsi_num, link_err);
 	}
 
@@ -4400,8 +4359,7 @@ int ice_down(struct ice_vsi *vsi)
 		ice_clean_rx_ring(vsi->rx_rings[i]);
 
 	if (tx_err || rx_err || link_err) {
-		netdev_err(vsi->netdev,
-			   "Failed to close VSI 0x%04X on switch 0x%04X\n",
+		netdev_err(vsi->netdev, "Failed to close VSI 0x%04X on switch 0x%04X\n",
 			   vsi->vsi_num, vsi->vsw->sw_id);
 		return -EIO;
 	}
@@ -4548,8 +4506,7 @@ static void ice_vsi_release_all(struct ice_pf *pf)
 
 		err = ice_vsi_release(pf->vsi[i]);
 		if (err)
-			dev_dbg(ice_pf_to_dev(pf),
-				"Failed to release pf->vsi[%d], err %d, vsi_num = %d\n",
+			dev_dbg(ice_pf_to_dev(pf), "Failed to release pf->vsi[%d], err %d, vsi_num = %d\n",
 				i, err, pf->vsi[i]->vsi_num);
 	}
 }
@@ -4576,8 +4533,7 @@ static int ice_vsi_rebuild_by_type(struct ice_pf *pf, enum ice_vsi_type type)
 		/* rebuild the VSI */
 		err = ice_vsi_rebuild(vsi, true);
 		if (err) {
-			dev_err(dev,
-				"rebuild VSI failed, err %d, VSI index %d, type %s\n",
+			dev_err(dev, "rebuild VSI failed, err %d, VSI index %d, type %s\n",
 				err, vsi->idx, ice_vsi_type_str(type));
 			return err;
 		}
@@ -4585,8 +4541,7 @@ static int ice_vsi_rebuild_by_type(struct ice_pf *pf, enum ice_vsi_type type)
 		/* replay filters for the VSI */
 		status = ice_replay_vsi(&pf->hw, vsi->idx);
 		if (status) {
-			dev_err(dev,
-				"replay VSI failed, status %d, VSI index %d, type %s\n",
+			dev_err(dev, "replay VSI failed, status %d, VSI index %d, type %s\n",
 				status, vsi->idx, ice_vsi_type_str(type));
 			return -EIO;
 		}
@@ -4599,8 +4554,7 @@ static int ice_vsi_rebuild_by_type(struct ice_pf *pf, enum ice_vsi_type type)
 		/* enable the VSI */
 		err = ice_ena_vsi(vsi, false);
 		if (err) {
-			dev_err(dev,
-				"enable VSI failed, err %d, VSI index %d, type %s\n",
+			dev_err(dev, "enable VSI failed, err %d, VSI index %d, type %s\n",
 				err, vsi->idx, ice_vsi_type_str(type));
 			return err;
 		}
@@ -4678,8 +4632,7 @@ static void ice_rebuild(struct ice_pf *pf, enum ice_reset_req reset_type)
 	}
 
 	if (pf->first_sw->dflt_vsi_ena)
-		dev_info(dev,
-			 "Clearing default VSI, re-enable after reset completes\n");
+		dev_info(dev, "Clearing default VSI, re-enable after reset completes\n");
 	/* clear the default VSI configuration if it exists */
 	pf->first_sw->dflt_vsi = NULL;
 	pf->first_sw->dflt_vsi_ena = false;
@@ -4730,8 +4683,7 @@ static void ice_rebuild(struct ice_pf *pf, enum ice_reset_req reset_type)
 	/* tell the firmware we are up */
 	ret = ice_send_version(pf);
 	if (ret) {
-		dev_err(dev,
-			"Rebuild failed due to error sending driver version: %d\n",
+		dev_err(dev, "Rebuild failed due to error sending driver version: %d\n",
 			ret);
 		goto err_vsi_rebuild;
 	}
@@ -5179,8 +5131,7 @@ int ice_open(struct net_device *netdev)
 	if (pi->phy.link_info.link_info & ICE_AQ_MEDIA_AVAILABLE) {
 		err = ice_force_phys_link_state(vsi, true);
 		if (err) {
-			netdev_err(netdev,
-				   "Failed to set physical link up, error %d\n",
+			netdev_err(netdev, "Failed to set physical link up, error %d\n",
 				   err);
 			return err;
 		}

@@ -374,8 +374,7 @@ static int ice_reg_pattern_test(struct ice_hw *hw, u32 reg, u32 mask)
 		val = rd32(hw, reg);
 		if (val == pattern)
 			continue;
-		dev_err(dev,
-			"%s: reg pattern test failed - reg 0x%08x pat 0x%08x val 0x%08x\n"
+		dev_err(dev, "%s: reg pattern test failed - reg 0x%08x pat 0x%08x val 0x%08x\n"
 			, __func__, reg, pattern, val);
 		return 1;
 	}
@@ -383,8 +382,7 @@ static int ice_reg_pattern_test(struct ice_hw *hw, u32 reg, u32 mask)
 	wr32(hw, reg, orig_val);
 	val = rd32(hw, reg);
 	if (val != orig_val) {
-		dev_err(dev,
-			"%s: reg restore test failed - reg 0x%08x orig 0x%08x val 0x%08x\n"
+		dev_err(dev, "%s: reg restore test failed - reg 0x%08x orig 0x%08x val 0x%08x\n"
 			, __func__, reg, orig_val, val);
 		return 1;
 	}
@@ -802,8 +800,7 @@ ice_self_test(struct net_device *netdev, struct ethtool_test *eth_test,
 		set_bit(__ICE_TESTING, pf->state);
 
 		if (ice_active_vfs(pf)) {
-			dev_warn(dev,
-				 "Please take active VFs and Netqueues offline and restart the adapter before running NIC diagnostics\n");
+			dev_warn(dev, "Please take active VFs and Netqueues offline and restart the adapter before running NIC diagnostics\n");
 			data[ICE_ETH_TEST_REG] = 1;
 			data[ICE_ETH_TEST_EEPROM] = 1;
 			data[ICE_ETH_TEST_INTR] = 1;
@@ -1211,8 +1208,7 @@ static int ice_set_priv_flags(struct net_device *netdev, u32 flags)
 			 * events to respond to.
 			 */
 			if (status)
-				dev_info(dev,
-					 "Failed to unreg for LLDP events\n");
+				dev_info(dev, "Failed to unreg for LLDP events\n");
 
 			/* The AQ call to stop the FW LLDP agent will generate
 			 * an error if the agent is already stopped.
@@ -1267,8 +1263,7 @@ static int ice_set_priv_flags(struct net_device *netdev, u32 flags)
 			/* Register for MIB change events */
 			status = ice_cfg_lldp_mib_change(&pf->hw, true);
 			if (status)
-				dev_dbg(dev,
-					"Fail to enable MIB change events\n");
+				dev_dbg(dev, "Fail to enable MIB change events\n");
 		}
 	}
 	if (test_bit(ICE_FLAG_LEGACY_RX, change_flags)) {
@@ -1761,8 +1756,7 @@ ice_get_settings_link_up(struct ethtool_link_ksettings *ks,
 		ks->base.speed = SPEED_100;
 		break;
 	default:
-		netdev_info(netdev,
-			    "WARNING: Unrecognized link_speed (0x%x).\n",
+		netdev_info(netdev, "WARNING: Unrecognized link_speed (0x%x).\n",
 			    link_info->link_speed);
 		break;
 	}
@@ -2578,13 +2572,11 @@ ice_set_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring)
 
 	new_tx_cnt = ALIGN(ring->tx_pending, ICE_REQ_DESC_MULTIPLE);
 	if (new_tx_cnt != ring->tx_pending)
-		netdev_info(netdev,
-			    "Requested Tx descriptor count rounded up to %d\n",
+		netdev_info(netdev, "Requested Tx descriptor count rounded up to %d\n",
 			    new_tx_cnt);
 	new_rx_cnt = ALIGN(ring->rx_pending, ICE_REQ_DESC_MULTIPLE);
 	if (new_rx_cnt != ring->rx_pending)
-		netdev_info(netdev,
-			    "Requested Rx descriptor count rounded up to %d\n",
+		netdev_info(netdev, "Requested Rx descriptor count rounded up to %d\n",
 			    new_rx_cnt);
 
 	/* if nothing to do return success */
@@ -3451,8 +3443,7 @@ ice_set_rc_coalesce(enum ice_container_type c_type, struct ethtool_coalesce *ec,
 		if (ec->rx_coalesce_usecs_high > ICE_MAX_INTRL ||
 		    (ec->rx_coalesce_usecs_high &&
 		     ec->rx_coalesce_usecs_high < pf->hw.intrl_gran)) {
-			netdev_info(vsi->netdev,
-				    "Invalid value, %s-usecs-high valid values are 0 (disabled), %d-%d\n",
+			netdev_info(vsi->netdev, "Invalid value, %s-usecs-high valid values are 0 (disabled), %d-%d\n",
 				    c_type_str, pf->hw.intrl_gran,
 				    ICE_MAX_INTRL);
 			return -EINVAL;
@@ -3470,8 +3461,7 @@ ice_set_rc_coalesce(enum ice_container_type c_type, struct ethtool_coalesce *ec,
 		break;
 	case ICE_TX_CONTAINER:
 		if (ec->tx_coalesce_usecs_high) {
-			netdev_info(vsi->netdev,
-				    "setting %s-usecs-high is not supported\n",
+			netdev_info(vsi->netdev, "setting %s-usecs-high is not supported\n",
 				    c_type_str);
 			return -EINVAL;
 		}
@@ -3488,23 +3478,20 @@ ice_set_rc_coalesce(enum ice_container_type c_type, struct ethtool_coalesce *ec,
 
 	itr_setting = rc->itr_setting & ~ICE_ITR_DYNAMIC;
 	if (coalesce_usecs != itr_setting && use_adaptive_coalesce) {
-		netdev_info(vsi->netdev,
-			    "%s interrupt throttling cannot be changed if adaptive-%s is enabled\n",
+		netdev_info(vsi->netdev, "%s interrupt throttling cannot be changed if adaptive-%s is enabled\n",
 			    c_type_str, c_type_str);
 		return -EINVAL;
 	}
 
 	if (coalesce_usecs > ICE_ITR_MAX) {
-		netdev_info(vsi->netdev,
-			    "Invalid value, %s-usecs range is 0-%d\n",
+		netdev_info(vsi->netdev, "Invalid value, %s-usecs range is 0-%d\n",
 			    c_type_str, ICE_ITR_MAX);
 		return -EINVAL;
 	}
 
 	/* hardware only supports an ITR granularity of 2us */
 	if (coalesce_usecs % 2 != 0) {
-		netdev_info(vsi->netdev,
-			    "Invalid value, %s-usecs must be even\n",
+		netdev_info(vsi->netdev, "Invalid value, %s-usecs must be even\n",
 			    c_type_str);
 		return -EINVAL;
 	}
@@ -3745,8 +3732,7 @@ ice_get_module_info(struct net_device *netdev,
 		}
 		break;
 	default:
-		netdev_warn(netdev,
-			    "SFF Module Type not recognized.\n");
+		netdev_warn(netdev, "SFF Module Type not recognized.\n");
 		return -EINVAL;
 	}
 	return 0;
