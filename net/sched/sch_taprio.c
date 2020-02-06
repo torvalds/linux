@@ -31,6 +31,7 @@ static DEFINE_SPINLOCK(taprio_list_lock);
 
 #define TXTIME_ASSIST_IS_ENABLED(flags) ((flags) & TCA_TAPRIO_ATTR_FLAG_TXTIME_ASSIST)
 #define FULL_OFFLOAD_IS_ENABLED(flags) ((flags) & TCA_TAPRIO_ATTR_FLAG_FULL_OFFLOAD)
+#define TAPRIO_FLAGS_INVALID U32_MAX
 
 struct sched_entry {
 	struct list_head list;
@@ -1367,6 +1368,33 @@ static int taprio_mqprio_cmp(const struct net_device *dev,
 	return 0;
 }
 
+/* The semantics of the 'flags' argument in relation to 'change()'
+ * requests, are interpreted following two rules (which are applied in
+ * this order): (1) an omitted 'flags' argument is interpreted as
+ * zero; (2) the 'flags' of a "running" taprio instance cannot be
+ * changed.
+ */
+static int taprio_new_flags(const struct nlattr *attr, u32 old,
+			    struct netlink_ext_ack *extack)
+{
+	u32 new = 0;
+
+	if (attr)
+		new = nla_get_u32(attr);
+
+	if (old != TAPRIO_FLAGS_INVALID && old != new) {
+		NL_SET_ERR_MSG_MOD(extack, "Changing 'flags' of a running schedule is not supported");
+		return -EOPNOTSUPP;
+	}
+
+	if (!taprio_flags_valid(new)) {
+		NL_SET_ERR_MSG_MOD(extack, "Specified 'flags' are not valid");
+		return -EINVAL;
+	}
+
+	return new;
+}
+
 static int taprio_change(struct Qdisc *sch, struct nlattr *opt,
 			 struct netlink_ext_ack *extack)
 {
@@ -1375,7 +1403,6 @@ static int taprio_change(struct Qdisc *sch, struct nlattr *opt,
 	struct taprio_sched *q = qdisc_priv(sch);
 	struct net_device *dev = qdisc_dev(sch);
 	struct tc_mqprio_qopt *mqprio = NULL;
-	u32 taprio_flags = 0;
 	unsigned long flags;
 	ktime_t start;
 	int i, err;
@@ -1388,21 +1415,14 @@ static int taprio_change(struct Qdisc *sch, struct nlattr *opt,
 	if (tb[TCA_TAPRIO_ATTR_PRIOMAP])
 		mqprio = nla_data(tb[TCA_TAPRIO_ATTR_PRIOMAP]);
 
-	if (tb[TCA_TAPRIO_ATTR_FLAGS]) {
-		taprio_flags = nla_get_u32(tb[TCA_TAPRIO_ATTR_FLAGS]);
+	err = taprio_new_flags(tb[TCA_TAPRIO_ATTR_FLAGS],
+			       q->flags, extack);
+	if (err < 0)
+		return err;
 
-		if (q->flags != 0 && q->flags != taprio_flags) {
-			NL_SET_ERR_MSG_MOD(extack, "Changing 'flags' of a running schedule is not supported");
-			return -EOPNOTSUPP;
-		} else if (!taprio_flags_valid(taprio_flags)) {
-			NL_SET_ERR_MSG_MOD(extack, "Specified 'flags' are not valid");
-			return -EINVAL;
-		}
+	q->flags = err;
 
-		q->flags = taprio_flags;
-	}
-
-	err = taprio_parse_mqprio_opt(dev, mqprio, extack, taprio_flags);
+	err = taprio_parse_mqprio_opt(dev, mqprio, extack, q->flags);
 	if (err < 0)
 		return err;
 
@@ -1457,7 +1477,7 @@ static int taprio_change(struct Qdisc *sch, struct nlattr *opt,
 					       mqprio->prio_tc_map[i]);
 	}
 
-	if (FULL_OFFLOAD_IS_ENABLED(taprio_flags))
+	if (FULL_OFFLOAD_IS_ENABLED(q->flags))
 		err = taprio_enable_offload(dev, mqprio, q, new_admin, extack);
 	else
 		err = taprio_disable_offload(dev, q, extack);
@@ -1477,14 +1497,14 @@ static int taprio_change(struct Qdisc *sch, struct nlattr *opt,
 		q->txtime_delay = nla_get_u32(tb[TCA_TAPRIO_ATTR_TXTIME_DELAY]);
 	}
 
-	if (!TXTIME_ASSIST_IS_ENABLED(taprio_flags) &&
-	    !FULL_OFFLOAD_IS_ENABLED(taprio_flags) &&
+	if (!TXTIME_ASSIST_IS_ENABLED(q->flags) &&
+	    !FULL_OFFLOAD_IS_ENABLED(q->flags) &&
 	    !hrtimer_active(&q->advance_timer)) {
 		hrtimer_init(&q->advance_timer, q->clockid, HRTIMER_MODE_ABS);
 		q->advance_timer.function = advance_sched;
 	}
 
-	if (FULL_OFFLOAD_IS_ENABLED(taprio_flags)) {
+	if (FULL_OFFLOAD_IS_ENABLED(q->flags)) {
 		q->dequeue = taprio_dequeue_offload;
 		q->peek = taprio_peek_offload;
 	} else {
@@ -1501,7 +1521,7 @@ static int taprio_change(struct Qdisc *sch, struct nlattr *opt,
 		goto unlock;
 	}
 
-	if (TXTIME_ASSIST_IS_ENABLED(taprio_flags)) {
+	if (TXTIME_ASSIST_IS_ENABLED(q->flags)) {
 		setup_txtime(q, new_admin, start);
 
 		if (!oper) {
@@ -1528,7 +1548,7 @@ static int taprio_change(struct Qdisc *sch, struct nlattr *opt,
 
 		spin_unlock_irqrestore(&q->current_entry_lock, flags);
 
-		if (FULL_OFFLOAD_IS_ENABLED(taprio_flags))
+		if (FULL_OFFLOAD_IS_ENABLED(q->flags))
 			taprio_offload_config_changed(q);
 	}
 
@@ -1597,6 +1617,7 @@ static int taprio_init(struct Qdisc *sch, struct nlattr *opt,
 	 * and get the valid one on taprio_change().
 	 */
 	q->clockid = -1;
+	q->flags = TAPRIO_FLAGS_INVALID;
 
 	spin_lock(&taprio_list_lock);
 	list_add(&q->taprio_list, &taprio_list);
