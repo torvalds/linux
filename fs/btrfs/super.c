@@ -1028,7 +1028,7 @@ static char *get_subvol_name_from_objectid(struct btrfs_fs_info *fs_info,
 					   u64 subvol_objectid)
 {
 	struct btrfs_root *root = fs_info->tree_root;
-	struct btrfs_root *fs_root;
+	struct btrfs_root *fs_root = NULL;
 	struct btrfs_root_ref *root_ref;
 	struct btrfs_inode_ref *inode_ref;
 	struct btrfs_key key;
@@ -1099,6 +1099,12 @@ static char *get_subvol_name_from_objectid(struct btrfs_fs_info *fs_info,
 		fs_root = btrfs_get_fs_root(fs_info, &key, true);
 		if (IS_ERR(fs_root)) {
 			ret = PTR_ERR(fs_root);
+			fs_root = NULL;
+			goto err;
+		}
+		if (!btrfs_grab_fs_root(fs_root)) {
+			ret = -ENOENT;
+			fs_root = NULL;
 			goto err;
 		}
 
@@ -1143,6 +1149,8 @@ static char *get_subvol_name_from_objectid(struct btrfs_fs_info *fs_info,
 			ptr[0] = '/';
 			btrfs_release_path(path);
 		}
+		btrfs_put_fs_root(fs_root);
+		fs_root = NULL;
 	}
 
 	btrfs_free_path(path);
@@ -1155,6 +1163,7 @@ static char *get_subvol_name_from_objectid(struct btrfs_fs_info *fs_info,
 	return name;
 
 err:
+	btrfs_put_fs_root(fs_root);
 	btrfs_free_path(path);
 	kfree(name);
 	return ERR_PTR(ret);
