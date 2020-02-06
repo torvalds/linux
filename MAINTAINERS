@@ -12418,7 +12418,6 @@ F:	Documentation/ABI/testing/sysfs-firmware-ofw
 
 OPEN FIRMWARE AND FLATTENED DEVICE TREE BINDINGS
 M:	Rob Herring <robh+dt@kernel.org>
-M:	Mark Rutland <mark.rutland@arm.com>
 L:	devicetree@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/robh/linux.git
 Q:	http://patchwork.ozlabs.org/project/devicetree-bindings/list/
