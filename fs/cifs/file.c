@@ -2593,8 +2593,10 @@ int cifs_strict_fsync(struct file *file, loff_t start, loff_t end,
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 
 	rc = file_write_and_wait_range(file, start, end);
-	if (rc)
+	if (rc) {
+		trace_cifs_fsync_err(inode->i_ino, rc);
 		return rc;
+	}
 
 	xid = get_xid();
 
