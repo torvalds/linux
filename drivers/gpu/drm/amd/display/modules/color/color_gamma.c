@@ -154,6 +154,7 @@ static void compute_de_pq(struct fixed31_32 in_x, struct fixed31_32 *out_y)
 
 	struct fixed31_32 l_pow_m1;
 	struct fixed31_32 base, div;
+	struct fixed31_32 base2;
 
 
 	if (dc_fixpt_lt(in_x, dc_fixpt_zero))
@@ -163,13 +164,15 @@ static void compute_de_pq(struct fixed31_32 in_x, struct fixed31_32 *out_y)
 			dc_fixpt_div(dc_fixpt_one, m2));
 	base = dc_fixpt_sub(l_pow_m1, c1);
 
-	if (dc_fixpt_lt(base, dc_fixpt_zero))
-		base = dc_fixpt_zero;
-
 	div = dc_fixpt_sub(c2, dc_fixpt_mul(c3, l_pow_m1));
 
-	*out_y = dc_fixpt_pow(dc_fixpt_div(base, div),
-			dc_fixpt_div(dc_fixpt_one, m1));
+	base2 = dc_fixpt_div(base, div);
+	//avoid complex numbers
+	if (dc_fixpt_lt(base2, dc_fixpt_zero))
+		base2 = dc_fixpt_sub(dc_fixpt_zero, base2);
+
+
+	*out_y = dc_fixpt_pow(base2, dc_fixpt_div(dc_fixpt_one, m1));
 
 }
 
@@ -361,8 +364,10 @@ static struct fixed31_32 translate_from_linear_space(
 			scratch_2 = dc_fixpt_mul(gamma_of_2,
 					pow_buffer[pow_buffer_ptr%16]);
 
-		pow_buffer[pow_buffer_ptr%16] = scratch_2;
-		pow_buffer_ptr++;
+		if (pow_buffer_ptr != -1) {
+			pow_buffer[pow_buffer_ptr%16] = scratch_2;
+			pow_buffer_ptr++;
+		}
 
 		scratch_1 = dc_fixpt_mul(scratch_1, scratch_2);
 		scratch_1 = dc_fixpt_sub(scratch_1, args->a2);
@@ -937,7 +942,6 @@ static bool build_freesync_hdr(struct pwl_float_data_ex *rgb_regamma,
 	struct fixed31_32 max_display;
 	struct fixed31_32 min_display;
 	struct fixed31_32 max_content;
-	struct fixed31_32 min_content;
 	struct fixed31_32 clip = dc_fixpt_one;
 	struct fixed31_32 output;
 	bool use_eetf = false;
@@ -951,7 +955,6 @@ static bool build_freesync_hdr(struct pwl_float_data_ex *rgb_regamma,
 	max_display = dc_fixpt_from_int(fs_params->max_display);
 	min_display = dc_fixpt_from_fraction(fs_params->min_display, 10000);
 	max_content = dc_fixpt_from_int(fs_params->max_content);
-	min_content = dc_fixpt_from_fraction(fs_params->min_content, 10000);
 	sdr_white_level = dc_fixpt_from_int(fs_params->sdr_white_level);
 
 	if (fs_params->min_display > 1000) // cap at 0.1 at the bottom
@@ -2000,10 +2003,28 @@ bool mod_color_calculate_degamma_params(struct dc_transfer_func *input_tf,
 	tf_pts->x_point_at_y1_green = 1;
 	tf_pts->x_point_at_y1_blue = 1;
 
-	map_regamma_hw_to_x_user(ramp, coeff, rgb_user,
-			coordinates_x, axis_x, curve,
-			MAX_HW_POINTS, tf_pts,
-			mapUserRamp && ramp && ramp->type == GAMMA_RGB_256);
+	if (input_tf->tf == TRANSFER_FUNCTION_PQ) {
+		/* just copy current rgb_regamma into  tf_pts */
+		struct pwl_float_data_ex *curvePt = curve;
+		int i = 0;
+
+		while (i <= MAX_HW_POINTS) {
+			tf_pts->red[i]   = curvePt->r;
+			tf_pts->green[i] = curvePt->g;
+			tf_pts->blue[i]  = curvePt->b;
+			++curvePt;
+			++i;
+		}
+	} else {
+		//clamps to 0-1
+		map_regamma_hw_to_x_user(ramp, coeff, rgb_user,
+				coordinates_x, axis_x, curve,
+				MAX_HW_POINTS, tf_pts,
+				mapUserRamp && ramp && ramp->type == GAMMA_RGB_256);
+	}
+
+
+
 	if (ramp->type == GAMMA_CUSTOM)
 		apply_lut_1d(ramp, MAX_HW_POINTS, tf_pts);
 

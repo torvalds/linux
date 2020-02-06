@@ -53,7 +53,8 @@ enum amd_ip_block_type {
 	AMD_IP_BLOCK_TYPE_VCE,
 	AMD_IP_BLOCK_TYPE_ACP,
 	AMD_IP_BLOCK_TYPE_VCN,
-	AMD_IP_BLOCK_TYPE_MES
+	AMD_IP_BLOCK_TYPE_MES,
+	AMD_IP_BLOCK_TYPE_JPEG
 };
 
 enum amd_clockgating_state {
@@ -99,6 +100,7 @@ enum amd_powergating_state {
 #define AMD_CG_SUPPORT_IH_CG			(1 << 27)
 #define AMD_CG_SUPPORT_ATHUB_LS			(1 << 28)
 #define AMD_CG_SUPPORT_ATHUB_MGCG		(1 << 29)
+#define AMD_CG_SUPPORT_JPEG_MGCG		(1 << 30)
 /* PG flags */
 #define AMD_PG_SUPPORT_GFX_PG			(1 << 0)
 #define AMD_PG_SUPPORT_GFX_SMG			(1 << 1)
@@ -117,6 +119,7 @@ enum amd_powergating_state {
 #define AMD_PG_SUPPORT_VCN			(1 << 14)
 #define AMD_PG_SUPPORT_VCN_DPG			(1 << 15)
 #define AMD_PG_SUPPORT_ATHUB			(1 << 16)
+#define AMD_PG_SUPPORT_JPEG			(1 << 17)
 
 enum PP_FEATURE_MASK {
 	PP_SCLK_DPM_MASK = 0x1,

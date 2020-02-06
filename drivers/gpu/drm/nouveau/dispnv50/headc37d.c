@@ -148,14 +148,18 @@ headc37d_olut_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 	}
 }
 
-static void
-headc37d_olut(struct nv50_head *head, struct nv50_head_atom *asyh)
+static bool
+headc37d_olut(struct nv50_head *head, struct nv50_head_atom *asyh, int size)
 {
+	if (size != 256 && size != 1024)
+		return false;
+
 	asyh->olut.mode = 2;
-	asyh->olut.size = 0;
+	asyh->olut.size = size == 1024 ? 2 : 0;
 	asyh->olut.range = 0;
 	asyh->olut.output_mode = 1;
 	asyh->olut.load = head907d_olut_load;
+	return true;
 }
 
 static void
@@ -201,6 +205,7 @@ headc37d = {
 	.view = headc37d_view,
 	.mode = headc37d_mode,
 	.olut = headc37d_olut,
+	.olut_size = 1024,
 	.olut_set = headc37d_olut_set,
 	.olut_clr = headc37d_olut_clr,
 	.curs_layout = head917d_curs_layout,

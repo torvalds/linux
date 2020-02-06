@@ -85,42 +85,54 @@ static void process_output(struct hdcp_workqueue *hdcp_work)
 		schedule_delayed_work(&hdcp_work->watchdog_timer_dwork,
 				      msecs_to_jiffies(output.watchdog_timer_delay));
 
+	schedule_delayed_work(&hdcp_work->property_validate_dwork, msecs_to_jiffies(0));
 }
 
-void hdcp_add_display(struct hdcp_workqueue *hdcp_work, unsigned int link_index, struct amdgpu_dm_connector *aconnector)
+void hdcp_update_display(struct hdcp_workqueue *hdcp_work,
+			 unsigned int link_index,
+			 struct amdgpu_dm_connector *aconnector,
+			 uint8_t content_type,
+			 bool enable_encryption)
 {
 	struct hdcp_workqueue *hdcp_w = &hdcp_work[link_index];
 	struct mod_hdcp_display *display = &hdcp_work[link_index].display;
 	struct mod_hdcp_link *link = &hdcp_work[link_index].link;
+	struct mod_hdcp_display_query query;
 
 	mutex_lock(&hdcp_w->mutex);
 	hdcp_w->aconnector = aconnector;
 
+	query.display = NULL;
+	mod_hdcp_query_display(&hdcp_w->hdcp, aconnector->base.index, &query);
+
+	if (query.display != NULL) {
+		memcpy(display, query.display, sizeof(struct mod_hdcp_display));
+		mod_hdcp_remove_display(&hdcp_w->hdcp, aconnector->base.index, &hdcp_w->output);
+
+		hdcp_w->link.adjust.hdcp2.force_type = MOD_HDCP_FORCE_TYPE_0;
+
+		if (enable_encryption) {
+			display->adjust.disable = 0;
+			if (content_type == DRM_MODE_HDCP_CONTENT_TYPE0)
+				hdcp_w->link.adjust.hdcp2.force_type = MOD_HDCP_FORCE_TYPE_0;
+			else if (content_type == DRM_MODE_HDCP_CONTENT_TYPE1)
+				hdcp_w->link.adjust.hdcp2.force_type = MOD_HDCP_FORCE_TYPE_1;
+
+			schedule_delayed_work(&hdcp_w->property_validate_dwork,
+					      msecs_to_jiffies(DRM_HDCP_CHECK_PERIOD_MS));
+		} else {
+			display->adjust.disable = 1;
+			hdcp_w->encryption_status = MOD_HDCP_ENCRYPTION_STATUS_HDCP_OFF;
+			cancel_delayed_work(&hdcp_w->property_validate_dwork);
+		}
+
+		display->state = MOD_HDCP_DISPLAY_ACTIVE;
+	}
+
 	mod_hdcp_add_display(&hdcp_w->hdcp, link, display, &hdcp_w->output);
 
-	schedule_delayed_work(&hdcp_w->property_validate_dwork, msecs_to_jiffies(DRM_HDCP_CHECK_PERIOD_MS));
-
 	process_output(hdcp_w);
-
 	mutex_unlock(&hdcp_w->mutex);
-
-}
-
-void hdcp_remove_display(struct hdcp_workqueue *hdcp_work, unsigned int link_index,  unsigned int display_index)
-{
-	struct hdcp_workqueue *hdcp_w = &hdcp_work[link_index];
-
-	mutex_lock(&hdcp_w->mutex);
-
-	mod_hdcp_remove_display(&hdcp_w->hdcp, display_index, &hdcp_w->output);
-
-	cancel_delayed_work(&hdcp_w->property_validate_dwork);
-	hdcp_w->encryption_status = MOD_HDCP_ENCRYPTION_STATUS_HDCP_OFF;
-
-	process_output(hdcp_w);
-
-	mutex_unlock(&hdcp_w->mutex);
-
 }
 
 void hdcp_reset_display(struct hdcp_workqueue *hdcp_work, unsigned int link_index)
@@ -190,10 +202,16 @@ static void event_property_update(struct work_struct *work)
 		}
 	}
 
-	if (hdcp_work->encryption_status == MOD_HDCP_ENCRYPTION_STATUS_HDCP1_ON)
-		drm_hdcp_update_content_protection(&aconnector->base, DRM_MODE_CONTENT_PROTECTION_ENABLED);
-	else
+	if (hdcp_work->encryption_status != MOD_HDCP_ENCRYPTION_STATUS_HDCP_OFF) {
+		if (aconnector->base.state->hdcp_content_type == DRM_MODE_HDCP_CONTENT_TYPE0 &&
+		    hdcp_work->encryption_status <= MOD_HDCP_ENCRYPTION_STATUS_HDCP2_TYPE0_ON)
+			drm_hdcp_update_content_protection(&aconnector->base, DRM_MODE_CONTENT_PROTECTION_ENABLED);
+		else if (aconnector->base.state->hdcp_content_type == DRM_MODE_HDCP_CONTENT_TYPE1 &&
+			 hdcp_work->encryption_status == MOD_HDCP_ENCRYPTION_STATUS_HDCP2_TYPE1_ON)
+			drm_hdcp_update_content_protection(&aconnector->base, DRM_MODE_CONTENT_PROTECTION_ENABLED);
+	} else {
 		drm_hdcp_update_content_protection(&aconnector->base, DRM_MODE_CONTENT_PROTECTION_DESIRED);
+	}
 
 
 	mutex_unlock(&hdcp_work->mutex);
@@ -207,6 +225,9 @@ static void event_property_validate(struct work_struct *work)
 	struct mod_hdcp_display_query query;
 	struct amdgpu_dm_connector *aconnector = hdcp_work->aconnector;
 
+	if (!aconnector)
+		return;
+
 	mutex_lock(&hdcp_work->mutex);
 
 	query.encryption_status = MOD_HDCP_ENCRYPTION_STATUS_HDCP_OFF;
@@ -216,8 +237,6 @@ static void event_property_validate(struct work_struct *work)
 		hdcp_work->encryption_status = query.encryption_status;
 		schedule_work(&hdcp_work->property_update_work);
 	}
-
-	schedule_delayed_work(&hdcp_work->property_validate_dwork, msecs_to_jiffies(DRM_HDCP_CHECK_PERIOD_MS));
 
 	mutex_unlock(&hdcp_work->mutex);
 }
@@ -294,8 +313,10 @@ static void update_config(void *handle, struct cp_psp_stream_config *config)
 	link->dig_be = config->link_enc_inst;
 	link->ddc_line = aconnector->dc_link->ddc_hw_inst + 1;
 	link->dp.rev = aconnector->dc_link->dpcd_caps.dpcd_rev.raw;
-	link->adjust.hdcp2.disable = 1;
+	display->adjust.disable = 1;
+	link->adjust.auth_delay = 2;
 
+	hdcp_update_display(hdcp_work, link_index, aconnector, DRM_MODE_HDCP_CONTENT_TYPE0, false);
 }
 
 struct hdcp_workqueue *hdcp_create_workqueue(void *psp_context, struct cp_psp *cp_psp, struct dc *dc)

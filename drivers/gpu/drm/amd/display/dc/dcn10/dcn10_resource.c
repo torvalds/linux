@@ -28,6 +28,8 @@
 #include "dm_services.h"
 #include "dc.h"
 
+#include "dcn10_init.h"
+
 #include "resource.h"
 #include "include/irq_service_interface.h"
 #include "dcn10_resource.h"
@@ -919,7 +921,7 @@ static struct pp_smu_funcs *dcn10_pp_smu_create(struct dc_context *ctx)
 	return pp_smu;
 }
 
-static void destruct(struct dcn10_resource_pool *pool)
+static void dcn10_resource_destruct(struct dcn10_resource_pool *pool)
 {
 	unsigned int i;
 
@@ -1166,7 +1168,7 @@ static void dcn10_destroy_resource_pool(struct resource_pool **pool)
 {
 	struct dcn10_resource_pool *dcn10_pool = TO_DCN10_RES_POOL(*pool);
 
-	destruct(dcn10_pool);
+	dcn10_resource_destruct(dcn10_pool);
 	kfree(dcn10_pool);
 	*pool = NULL;
 }
@@ -1305,7 +1307,7 @@ static uint32_t read_pipe_fuses(struct dc_context *ctx)
 	return value;
 }
 
-static bool construct(
+static bool dcn10_resource_construct(
 	uint8_t num_virtual_links,
 	struct dc *dc,
 	struct dcn10_resource_pool *pool)
@@ -1592,7 +1594,7 @@ static bool construct(
 
 fail:
 
-	destruct(pool);
+	dcn10_resource_destruct(pool);
 
 	return false;
 }
@@ -1607,7 +1609,7 @@ struct resource_pool *dcn10_create_resource_pool(
 	if (!pool)
 		return NULL;
 
-	if (construct(init_data->num_virtual_links, dc, pool))
+	if (dcn10_resource_construct(init_data->num_virtual_links, dc, pool))
 		return &pool->base;
 
 	kfree(pool);

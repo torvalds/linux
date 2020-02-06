@@ -141,12 +141,12 @@ static const struct drm_display_mode lb035q02_mode = {
 	.height_mm = 53,
 };
 
-static int lb035q02_get_modes(struct drm_panel *panel)
+static int lb035q02_get_modes(struct drm_panel *panel,
+			      struct drm_connector *connector)
 {
-	struct drm_connector *connector = panel->connector;
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(panel->drm, &lb035q02_mode);
+	mode = drm_mode_duplicate(connector->dev, &lb035q02_mode);
 	if (!mode)
 		return -ENOMEM;
 

@@ -461,16 +461,6 @@ static void armada_gem_prime_unmap_dma_buf(struct dma_buf_attachment *attach,
 	kfree(sgt);
 }
 
-static void *armada_gem_dmabuf_no_kmap(struct dma_buf *buf, unsigned long n)
-{
-	return NULL;
-}
-
-static void
-armada_gem_dmabuf_no_kunmap(struct dma_buf *buf, unsigned long n, void *addr)
-{
-}
-
 static int
 armada_gem_dmabuf_mmap(struct dma_buf *buf, struct vm_area_struct *vma)
 {
@@ -481,8 +471,6 @@ static const struct dma_buf_ops armada_gem_prime_dmabuf_ops = {
 	.map_dma_buf	= armada_gem_prime_map_dma_buf,
 	.unmap_dma_buf	= armada_gem_prime_unmap_dma_buf,
 	.release	= drm_gem_dmabuf_release,
-	.map		= armada_gem_dmabuf_no_kmap,
-	.unmap		= armada_gem_dmabuf_no_kunmap,
 	.mmap		= armada_gem_dmabuf_mmap,
 };
 

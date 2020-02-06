@@ -25,7 +25,9 @@
 #include <linux/kthread.h>
 
 #include "gem/i915_gem_context.h"
-#include "gt/intel_gt.h"
+
+#include "intel_gt.h"
+#include "intel_engine_heartbeat.h"
 #include "intel_engine_pm.h"
 
 #include "i915_selftest.h"
@@ -308,6 +310,24 @@ static bool wait_until_running(struct hang *h, struct i915_request *rq)
 			  1000));
 }
 
+static void engine_heartbeat_disable(struct intel_engine_cs *engine,
+				     unsigned long *saved)
+{
+	*saved = engine->props.heartbeat_interval_ms;
+	engine->props.heartbeat_interval_ms = 0;
+
+	intel_engine_pm_get(engine);
+	intel_engine_park_heartbeat(engine);
+}
+
+static void engine_heartbeat_enable(struct intel_engine_cs *engine,
+				    unsigned long saved)
+{
+	intel_engine_pm_put(engine);
+
+	engine->props.heartbeat_interval_ms = saved;
+}
+
 static int igt_hang_sanitycheck(void *arg)
 {
 	struct intel_gt *gt = arg;
@@ -377,36 +397,30 @@ static int igt_reset_nop(void *arg)
 	struct intel_gt *gt = arg;
 	struct i915_gpu_error *global = &gt->i915->gpu_error;
 	struct intel_engine_cs *engine;
-	struct i915_gem_context *ctx;
 	unsigned int reset_count, count;
 	enum intel_engine_id id;
-	struct drm_file *file;
 	IGT_TIMEOUT(end_time);
 	int err = 0;
 
 	/* Check that we can reset during non-user portions of requests */
 
-	file = mock_file(gt->i915);
-	if (IS_ERR(file))
-		return PTR_ERR(file);
-
-	ctx = live_context(gt->i915, file);
-	if (IS_ERR(ctx)) {
-		err = PTR_ERR(ctx);
-		goto out;
-	}
-
-	i915_gem_context_clear_bannable(ctx);
 	reset_count = i915_reset_count(global);
 	count = 0;
 	do {
 		for_each_engine(engine, gt, id) {
+			struct intel_context *ce;
 			int i;
+
+			ce = intel_context_create(engine);
+			if (IS_ERR(ce)) {
+				err = PTR_ERR(ce);
+				break;
+			}
 
 			for (i = 0; i < 16; i++) {
 				struct i915_request *rq;
 
-				rq = igt_request_alloc(ctx, engine);
+				rq = intel_context_create_request(ce);
 				if (IS_ERR(rq)) {
 					err = PTR_ERR(rq);
 					break;
@@ -414,6 +428,8 @@ static int igt_reset_nop(void *arg)
 
 				i915_request_add(rq);
 			}
+
+			intel_context_put(ce);
 		}
 
 		igt_global_reset_lock(gt);
@@ -437,10 +453,7 @@ static int igt_reset_nop(void *arg)
 	} while (time_before(jiffies, end_time));
 	pr_info("%s: %d resets\n", __func__, count);
 
-	err = igt_flush_test(gt->i915);
-out:
-	mock_file_free(gt->i915, file);
-	if (intel_gt_is_wedged(gt))
+	if (igt_flush_test(gt->i915))
 		err = -EIO;
 	return err;
 }
@@ -450,36 +463,29 @@ static int igt_reset_nop_engine(void *arg)
 	struct intel_gt *gt = arg;
 	struct i915_gpu_error *global = &gt->i915->gpu_error;
 	struct intel_engine_cs *engine;
-	struct i915_gem_context *ctx;
 	enum intel_engine_id id;
-	struct drm_file *file;
-	int err = 0;
 
 	/* Check that we can engine-reset during non-user portions */
 
 	if (!intel_has_reset_engine(gt))
 		return 0;
 
-	file = mock_file(gt->i915);
-	if (IS_ERR(file))
-		return PTR_ERR(file);
-
-	ctx = live_context(gt->i915, file);
-	if (IS_ERR(ctx)) {
-		err = PTR_ERR(ctx);
-		goto out;
-	}
-
-	i915_gem_context_clear_bannable(ctx);
 	for_each_engine(engine, gt, id) {
-		unsigned int reset_count, reset_engine_count;
-		unsigned int count;
+		unsigned int reset_count, reset_engine_count, count;
+		struct intel_context *ce;
+		unsigned long heartbeat;
 		IGT_TIMEOUT(end_time);
+		int err;
+
+		ce = intel_context_create(engine);
+		if (IS_ERR(ce))
+			return PTR_ERR(ce);
 
 		reset_count = i915_reset_count(global);
 		reset_engine_count = i915_reset_engine_count(global, engine);
 		count = 0;
 
+		engine_heartbeat_disable(engine, &heartbeat);
 		set_bit(I915_RESET_ENGINE + id, &gt->reset.flags);
 		do {
 			int i;
@@ -494,7 +500,7 @@ static int igt_reset_nop_engine(void *arg)
 			for (i = 0; i < 16; i++) {
 				struct i915_request *rq;
 
-				rq = igt_request_alloc(ctx, engine);
+				rq = intel_context_create_request(ce);
 				if (IS_ERR(rq)) {
 					err = PTR_ERR(rq);
 					break;
@@ -523,22 +529,18 @@ static int igt_reset_nop_engine(void *arg)
 			}
 		} while (time_before(jiffies, end_time));
 		clear_bit(I915_RESET_ENGINE + id, &gt->reset.flags);
+		engine_heartbeat_enable(engine, heartbeat);
+
 		pr_info("%s(%s): %d resets\n", __func__, engine->name, count);
 
+		intel_context_put(ce);
+		if (igt_flush_test(gt->i915))
+			err = -EIO;
 		if (err)
-			break;
-
-		err = igt_flush_test(gt->i915);
-		if (err)
-			break;
+			return err;
 	}
 
-	err = igt_flush_test(gt->i915);
-out:
-	mock_file_free(gt->i915, file);
-	if (intel_gt_is_wedged(gt))
-		err = -EIO;
-	return err;
+	return 0;
 }
 
 static int __igt_reset_engine(struct intel_gt *gt, bool active)
@@ -562,6 +564,7 @@ static int __igt_reset_engine(struct intel_gt *gt, bool active)
 
 	for_each_engine(engine, gt, id) {
 		unsigned int reset_count, reset_engine_count;
+		unsigned long heartbeat;
 		IGT_TIMEOUT(end_time);
 
 		if (active && !intel_engine_can_store_dword(engine))
@@ -577,7 +580,7 @@ static int __igt_reset_engine(struct intel_gt *gt, bool active)
 		reset_count = i915_reset_count(global);
 		reset_engine_count = i915_reset_engine_count(global, engine);
 
-		intel_engine_pm_get(engine);
+		engine_heartbeat_disable(engine, &heartbeat);
 		set_bit(I915_RESET_ENGINE + id, &gt->reset.flags);
 		do {
 			if (active) {
@@ -629,7 +632,7 @@ static int __igt_reset_engine(struct intel_gt *gt, bool active)
 			}
 		} while (time_before(jiffies, end_time));
 		clear_bit(I915_RESET_ENGINE + id, &gt->reset.flags);
-		intel_engine_pm_put(engine);
+		engine_heartbeat_enable(engine, heartbeat);
 
 		if (err)
 			break;
@@ -699,42 +702,42 @@ static int active_engine(void *data)
 	struct active_engine *arg = data;
 	struct intel_engine_cs *engine = arg->engine;
 	struct i915_request *rq[8] = {};
-	struct i915_gem_context *ctx[ARRAY_SIZE(rq)];
-	struct drm_file *file;
-	unsigned long count = 0;
+	struct intel_context *ce[ARRAY_SIZE(rq)];
+	unsigned long count;
 	int err = 0;
 
-	file = mock_file(engine->i915);
-	if (IS_ERR(file))
-		return PTR_ERR(file);
-
-	for (count = 0; count < ARRAY_SIZE(ctx); count++) {
-		ctx[count] = live_context(engine->i915, file);
-		if (IS_ERR(ctx[count])) {
-			err = PTR_ERR(ctx[count]);
+	for (count = 0; count < ARRAY_SIZE(ce); count++) {
+		ce[count] = intel_context_create(engine);
+		if (IS_ERR(ce[count])) {
+			err = PTR_ERR(ce[count]);
 			while (--count)
-				i915_gem_context_put(ctx[count]);
-			goto err_file;
+				intel_context_put(ce[count]);
+			return err;
 		}
 	}
 
+	count = 0;
 	while (!kthread_should_stop()) {
 		unsigned int idx = count++ & (ARRAY_SIZE(rq) - 1);
 		struct i915_request *old = rq[idx];
 		struct i915_request *new;
 
-		new = igt_request_alloc(ctx[idx], engine);
+		new = intel_context_create_request(ce[idx]);
 		if (IS_ERR(new)) {
 			err = PTR_ERR(new);
 			break;
 		}
 
-		if (arg->flags & TEST_PRIORITY)
-			ctx[idx]->sched.priority =
-				i915_prandom_u32_max_state(512, &prng);
-
 		rq[idx] = i915_request_get(new);
 		i915_request_add(new);
+
+		if (engine->schedule && arg->flags & TEST_PRIORITY) {
+			struct i915_sched_attr attr = {
+				.priority =
+					i915_prandom_u32_max_state(512, &prng),
+			};
+			engine->schedule(rq[idx], &attr);
+		}
 
 		err = active_request_put(old);
 		if (err)
@@ -749,10 +752,10 @@ static int active_engine(void *data)
 		/* Keep the first error */
 		if (!err)
 			err = err__;
+
+		intel_context_put(ce[count]);
 	}
 
-err_file:
-	mock_file_free(engine->i915, file);
 	return err;
 }
 
@@ -786,6 +789,7 @@ static int __igt_reset_engines(struct intel_gt *gt,
 		struct active_engine threads[I915_NUM_ENGINES] = {};
 		unsigned long device = i915_reset_count(global);
 		unsigned long count = 0, reported;
+		unsigned long heartbeat;
 		IGT_TIMEOUT(end_time);
 
 		if (flags & TEST_ACTIVE &&
@@ -828,7 +832,7 @@ static int __igt_reset_engines(struct intel_gt *gt,
 
 		yield(); /* start all threads before we begin */
 
-		intel_engine_pm_get(engine);
+		engine_heartbeat_disable(engine, &heartbeat);
 		set_bit(I915_RESET_ENGINE + id, &gt->reset.flags);
 		do {
 			struct i915_request *rq = NULL;
@@ -902,7 +906,8 @@ static int __igt_reset_engines(struct intel_gt *gt,
 			}
 		} while (time_before(jiffies, end_time));
 		clear_bit(I915_RESET_ENGINE + id, &gt->reset.flags);
-		intel_engine_pm_put(engine);
+		engine_heartbeat_enable(engine, heartbeat);
+
 		pr_info("i915_reset_engine(%s:%s): %lu resets\n",
 			engine->name, test_name, count);
 
@@ -1300,32 +1305,21 @@ static int igt_reset_evict_ggtt(void *arg)
 static int igt_reset_evict_ppgtt(void *arg)
 {
 	struct intel_gt *gt = arg;
-	struct i915_gem_context *ctx;
-	struct i915_address_space *vm;
-	struct drm_file *file;
+	struct i915_ppgtt *ppgtt;
 	int err;
 
-	file = mock_file(gt->i915);
-	if (IS_ERR(file))
-		return PTR_ERR(file);
+	/* aliasing == global gtt locking, covered above */
+	if (INTEL_PPGTT(gt->i915) < INTEL_PPGTT_FULL)
+		return 0;
 
-	ctx = live_context(gt->i915, file);
-	if (IS_ERR(ctx)) {
-		err = PTR_ERR(ctx);
-		goto out;
-	}
+	ppgtt = i915_ppgtt_create(gt);
+	if (IS_ERR(ppgtt))
+		return PTR_ERR(ppgtt);
 
-	err = 0;
-	vm = i915_gem_context_get_vm_rcu(ctx);
-	if (!i915_is_ggtt(vm)) {
-		/* aliasing == global gtt locking, covered above */
-		err = __igt_reset_evict_vma(gt, vm,
-					    evict_vma, EXEC_OBJECT_WRITE);
-	}
-	i915_vm_put(vm);
+	err = __igt_reset_evict_vma(gt, &ppgtt->vm,
+				    evict_vma, EXEC_OBJECT_WRITE);
+	i915_vm_put(&ppgtt->vm);
 
-out:
-	mock_file_free(gt->i915, file);
 	return err;
 }
 
@@ -1504,7 +1498,7 @@ static int igt_handle_error(void *arg)
 	struct intel_engine_cs *engine = gt->engine[RCS0];
 	struct hang h;
 	struct i915_request *rq;
-	struct i915_gpu_state *error;
+	struct i915_gpu_coredump *error;
 	int err;
 
 	/* Check that we can issue a global GPU and engine reset */

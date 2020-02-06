@@ -30,6 +30,8 @@
 #include "hdp/hdp_5_0_0_sh_mask.h"
 #include "gc/gc_10_1_0_sh_mask.h"
 #include "mmhub/mmhub_2_0_0_sh_mask.h"
+#include "athub/athub_2_0_0_sh_mask.h"
+#include "athub/athub_2_0_0_offset.h"
 #include "dcn/dcn_2_0_0_offset.h"
 #include "dcn/dcn_2_0_0_sh_mask.h"
 #include "oss/osssys_5_0_0_offset.h"
@@ -37,6 +39,7 @@
 #include "navi10_enum.h"
 
 #include "soc15.h"
+#include "soc15d.h"
 #include "soc15_common.h"
 
 #include "nbio_v2_3.h"
@@ -234,6 +237,19 @@ static bool gmc_v10_0_use_invalidate_semaphore(struct amdgpu_device *adev,
 		(!amdgpu_sriov_vf(adev)));
 }
 
+static bool gmc_v10_0_get_atc_vmid_pasid_mapping_info(
+					struct amdgpu_device *adev,
+					uint8_t vmid, uint16_t *p_pasid)
+{
+	uint32_t value;
+
+	value = RREG32(SOC15_REG_OFFSET(ATHUB, 0, mmATC_VMID0_PASID_MAPPING)
+		     + vmid);
+	*p_pasid = value & ATC_VMID0_PASID_MAPPING__PASID_MASK;
+
+	return !!(value & ATC_VMID0_PASID_MAPPING__VALID_MASK);
+}
+
 /*
  * GART
  * VMID 0 is the physical GPU addresses as used by the kernel.
@@ -378,6 +394,63 @@ error_submit:
 error_alloc:
 	mutex_unlock(&adev->mman.gtt_window_lock);
 	DRM_ERROR("Error flushing GPU TLB using the SDMA (%d)!\n", r);
+}
+
+/**
+ * gmc_v10_0_flush_gpu_tlb_pasid - tlb flush via pasid
+ *
+ * @adev: amdgpu_device pointer
+ * @pasid: pasid to be flush
+ *
+ * Flush the TLB for the requested pasid.
+ */
+static int gmc_v10_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
+					uint16_t pasid, uint32_t flush_type,
+					bool all_hub)
+{
+	int vmid, i;
+	signed long r;
+	uint32_t seq;
+	uint16_t queried_pasid;
+	bool ret;
+	struct amdgpu_ring *ring = &adev->gfx.kiq.ring;
+	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
+
+	if (amdgpu_emu_mode == 0 && ring->sched.ready) {
+		spin_lock(&adev->gfx.kiq.ring_lock);
+		amdgpu_ring_alloc(ring, kiq->pmf->invalidate_tlbs_size);
+		kiq->pmf->kiq_invalidate_tlbs(ring,
+					pasid, flush_type, all_hub);
+		amdgpu_fence_emit_polling(ring, &seq);
+		amdgpu_ring_commit(ring);
+		spin_unlock(&adev->gfx.kiq.ring_lock);
+		r = amdgpu_fence_wait_polling(ring, seq, adev->usec_timeout);
+		if (r < 1) {
+			DRM_ERROR("wait for kiq fence error: %ld.\n", r);
+			return -ETIME;
+		}
+
+		return 0;
+	}
+
+	for (vmid = 1; vmid < 16; vmid++) {
+
+		ret = gmc_v10_0_get_atc_vmid_pasid_mapping_info(adev, vmid,
+				&queried_pasid);
+		if (ret	&& queried_pasid == pasid) {
+			if (all_hub) {
+				for (i = 0; i < adev->num_vmhubs; i++)
+					gmc_v10_0_flush_gpu_tlb(adev, vmid,
+							i, 0);
+			} else {
+				gmc_v10_0_flush_gpu_tlb(adev, vmid,
+						AMDGPU_GFXHUB_0, 0);
+			}
+			break;
+		}
+	}
+
+	return 0;
 }
 
 static uint64_t gmc_v10_0_emit_flush_gpu_tlb(struct amdgpu_ring *ring,
@@ -531,6 +604,7 @@ static void gmc_v10_0_get_vm_pte(struct amdgpu_device *adev,
 
 static const struct amdgpu_gmc_funcs gmc_v10_0_gmc_funcs = {
 	.flush_gpu_tlb = gmc_v10_0_flush_gpu_tlb,
+	.flush_gpu_tlb_pasid = gmc_v10_0_flush_gpu_tlb_pasid,
 	.emit_flush_gpu_tlb = gmc_v10_0_emit_flush_gpu_tlb,
 	.emit_pasid_mapping = gmc_v10_0_emit_pasid_mapping,
 	.map_mtype = gmc_v10_0_map_mtype,
@@ -564,22 +638,18 @@ static int gmc_v10_0_early_init(void *handle)
 static int gmc_v10_0_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	unsigned vm_inv_eng[AMDGPU_MAX_VMHUBS] = { 4, 4 };
-	unsigned i;
+	int r;
 
-	for(i = 0; i < adev->num_rings; ++i) {
-		struct amdgpu_ring *ring = adev->rings[i];
-		unsigned vmhub = ring->funcs->vmhub;
+	/*
+	 * Can't free the stolen VGA memory when it might be used for memory
+	 * training again.
+	 */
+	if (!adev->fw_vram_usage.mem_train_support)
+		amdgpu_bo_late_init(adev);
 
-		ring->vm_inv_eng = vm_inv_eng[vmhub]++;
-		dev_info(adev->dev, "ring %u(%s) uses VM inv eng %u on hub %u\n",
-			 ring->idx, ring->name, ring->vm_inv_eng,
-			 ring->funcs->vmhub);
-	}
-
-	/* Engine 17 is used for GART flushes */
-	for(i = 0; i < AMDGPU_MAX_VMHUBS; ++i)
-		BUG_ON(vm_inv_eng[i] > 17);
+	r = amdgpu_gmc_allocate_vm_inv_eng(adev);
+	if (r)
+		return r;
 
 	return amdgpu_irq_get(adev, &adev->gmc.vm_fault, 0);
 }
@@ -731,6 +801,10 @@ static int gmc_v10_0_sw_init(void *handle)
 	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_VMC,
 			      VMC_1_0__SRCID__VM_FAULT,
 			      &adev->gmc.vm_fault);
+
+	if (r)
+		return r;
+
 	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_UTCL2,
 			      UTCL2_1_0__SRCID__FAULT,
 			      &adev->gmc.vm_fault);
@@ -743,15 +817,6 @@ static int gmc_v10_0_sw_init(void *handle)
 	 */
 	adev->gmc.mc_mask = 0xffffffffffffULL; /* 48 bit MC */
 
-	/*
-	 * Reserve 8M stolen memory for navi10 like vega10
-	 * TODO: will check if it's really needed on asic.
-	 */
-	if (amdgpu_emu_mode == 1)
-		adev->gmc.stolen_size = 0;
-	else
-		adev->gmc.stolen_size = 9 * 1024 *1024;
-
 	r = dma_set_mask_and_coherent(adev->dev, DMA_BIT_MASK(44));
 	if (r) {
 		printk(KERN_WARNING "amdgpu: No suitable DMA available.\n");
@@ -763,6 +828,19 @@ static int gmc_v10_0_sw_init(void *handle)
 		return r;
 
 	adev->gmc.stolen_size = gmc_v10_0_get_vbios_fb_size(adev);
+
+	/*
+	 * In dual GPUs scenario, stolen_size is assigned to zero on the
+	 * secondary GPU, since there is no pre-OS console using that memory.
+	 * Then the bottom region of VRAM was allocated as GTT, unfortunately a
+	 * small region of bottom VRAM was encroached by UMC firmware during
+	 * GDDR6 BIST training, this cause page fault.
+	 * The page fault can be fixed by forcing stolen_size to 3MB, then the
+	 * bottom region of VRAM was allocated as stolen memory, GTT corruption
+	 * avoid.
+	 */
+	adev->gmc.stolen_size = max(adev->gmc.stolen_size,
+				    AMDGPU_STOLEN_BIST_TRAINING_DEFAULT_SIZE);
 
 	/* Memory manager */
 	r = amdgpu_bo_init(adev);
@@ -803,6 +881,13 @@ static void gmc_v10_0_gart_fini(struct amdgpu_device *adev)
 static int gmc_v10_0_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	void *stolen_vga_buf;
+
+	/*
+	 * Free the stolen memory if it wasn't already freed in late_init
+	 * because of memory training.
+	 */
+	amdgpu_bo_free_kernel(&adev->stolen_vga_memory, NULL, &stolen_vga_buf);
 
 	amdgpu_vm_manager_fini(adev);
 	gmc_v10_0_gart_fini(adev);

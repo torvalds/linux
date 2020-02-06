@@ -412,6 +412,9 @@ int i915_vma_pin_fence(struct i915_vma *vma)
 {
 	int err;
 
+	if (!vma->fence && !i915_gem_object_is_tiled(vma->obj))
+		return 0;
+
 	/*
 	 * Note that we revoke fences on runtime suspend. Therefore the user
 	 * must keep the device awake whilst using the fence.

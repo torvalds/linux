@@ -60,6 +60,18 @@ struct soc15_allowed_register_entry {
 	bool grbm_indexed;
 };
 
+struct soc15_ras_field_entry {
+	const char *name;
+	uint32_t hwip;
+	uint32_t inst;
+	uint32_t seg;
+	uint32_t reg_offset;
+	uint32_t sec_count_mask;
+	uint32_t sec_count_shift;
+	uint32_t ded_count_mask;
+	uint32_t ded_count_shift;
+};
+
 #define SOC15_REG_ENTRY(ip, inst, reg)	ip##_HWIP, inst, reg##_BASE_IDX, reg
 
 #define SOC15_REG_ENTRY_OFFSET(entry)	(adev->reg_offset[entry.hwip][entry.inst][entry.seg] + entry.reg_offset)

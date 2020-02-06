@@ -177,9 +177,7 @@ struct dce_i2c_shift {
 	uint8_t DC_I2C_INDEX;
 	uint8_t DC_I2C_INDEX_WRITE;
 	uint8_t XTAL_REF_DIV;
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	uint8_t DC_I2C_DDC1_SEND_RESET_LENGTH;
-#endif
 	uint8_t DC_I2C_REG_RW_CNTL_STATUS;
 };
 
@@ -220,17 +218,13 @@ struct dce_i2c_mask {
 	uint32_t DC_I2C_INDEX;
 	uint32_t DC_I2C_INDEX_WRITE;
 	uint32_t XTAL_REF_DIV;
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	uint32_t DC_I2C_DDC1_SEND_RESET_LENGTH;
-#endif
 	uint32_t DC_I2C_REG_RW_CNTL_STATUS;
 };
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 #define I2C_COMMON_MASK_SH_LIST_DCN2(mask_sh)\
 	I2C_COMMON_MASK_SH_LIST_DCE110(mask_sh),\
 	I2C_SF(DC_I2C_DDC1_SETUP, DC_I2C_DDC1_SEND_RESET_LENGTH, mask_sh)
-#endif
 
 struct dce_i2c_registers {
 	uint32_t SETUP;
@@ -312,7 +306,6 @@ void dcn1_i2c_hw_construct(
 	const struct dce_i2c_shift *shifts,
 	const struct dce_i2c_mask *masks);
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 void dcn2_i2c_hw_construct(
 	struct dce_i2c_hw *dce_i2c_hw,
 	struct dc_context *ctx,
@@ -320,7 +313,6 @@ void dcn2_i2c_hw_construct(
 	const struct dce_i2c_registers *regs,
 	const struct dce_i2c_shift *shifts,
 	const struct dce_i2c_mask *masks);
-#endif
 
 bool dce_i2c_submit_command_hw(
 	struct resource_pool *pool,

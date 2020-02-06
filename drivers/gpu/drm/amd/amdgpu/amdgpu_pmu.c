@@ -74,9 +74,9 @@ static void amdgpu_perf_start(struct perf_event *event, int flags)
 	switch (pe->pmu_perf_type) {
 	case PERF_TYPE_AMDGPU_DF:
 		if (!(flags & PERF_EF_RELOAD))
-			pe->adev->df_funcs->pmc_start(pe->adev, hwc->conf, 1);
+			pe->adev->df.funcs->pmc_start(pe->adev, hwc->conf, 1);
 
-		pe->adev->df_funcs->pmc_start(pe->adev, hwc->conf, 0);
+		pe->adev->df.funcs->pmc_start(pe->adev, hwc->conf, 0);
 		break;
 	default:
 		break;
@@ -101,13 +101,13 @@ static void amdgpu_perf_read(struct perf_event *event)
 
 		switch (pe->pmu_perf_type) {
 		case PERF_TYPE_AMDGPU_DF:
-			pe->adev->df_funcs->pmc_get_count(pe->adev, hwc->conf,
+			pe->adev->df.funcs->pmc_get_count(pe->adev, hwc->conf,
 							  &count);
 			break;
 		default:
 			count = 0;
 			break;
-		};
+		}
 	} while (local64_cmpxchg(&hwc->prev_count, prev, count) != prev);
 
 	local64_add(count - prev, &event->count);
@@ -126,11 +126,11 @@ static void amdgpu_perf_stop(struct perf_event *event, int flags)
 
 	switch (pe->pmu_perf_type) {
 	case PERF_TYPE_AMDGPU_DF:
-		pe->adev->df_funcs->pmc_stop(pe->adev, hwc->conf, 0);
+		pe->adev->df.funcs->pmc_stop(pe->adev, hwc->conf, 0);
 		break;
 	default:
 		break;
-	};
+	}
 
 	WARN_ON_ONCE(hwc->state & PERF_HES_STOPPED);
 	hwc->state |= PERF_HES_STOPPED;
@@ -156,11 +156,11 @@ static int amdgpu_perf_add(struct perf_event *event, int flags)
 
 	switch (pe->pmu_perf_type) {
 	case PERF_TYPE_AMDGPU_DF:
-		retval = pe->adev->df_funcs->pmc_start(pe->adev, hwc->conf, 1);
+		retval = pe->adev->df.funcs->pmc_start(pe->adev, hwc->conf, 1);
 		break;
 	default:
 		return 0;
-	};
+	}
 
 	if (retval)
 		return retval;
@@ -184,11 +184,11 @@ static void amdgpu_perf_del(struct perf_event *event, int flags)
 
 	switch (pe->pmu_perf_type) {
 	case PERF_TYPE_AMDGPU_DF:
-		pe->adev->df_funcs->pmc_stop(pe->adev, hwc->conf, 1);
+		pe->adev->df.funcs->pmc_stop(pe->adev, hwc->conf, 1);
 		break;
 	default:
 		break;
-	};
+	}
 
 	perf_event_update_userpage(event);
 }

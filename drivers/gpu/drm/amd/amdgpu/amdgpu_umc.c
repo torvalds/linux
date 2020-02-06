@@ -95,13 +95,6 @@ int amdgpu_umc_process_ras_data_cb(struct amdgpu_device *adev,
 {
 	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
 
-	/* When “Full RAS” is enabled, the per-IP interrupt sources should
-	 * be disabled and the driver should only look for the aggregated
-	 * interrupt via sync flood
-	 */
-	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__GFX))
-		return AMDGPU_RAS_SUCCESS;
-
 	kgd2kfd_set_sram_ecc_flag(adev->kfd.dev);
 	if (adev->umc.funcs &&
 	    adev->umc.funcs->query_ras_error_count)
@@ -113,6 +106,7 @@ int amdgpu_umc_process_ras_data_cb(struct amdgpu_device *adev,
 		err_data->err_addr =
 			kcalloc(adev->umc.max_ras_err_cnt_per_query,
 				sizeof(struct eeprom_table_record), GFP_KERNEL);
+
 		/* still call query_ras_error_address to clear error status
 		 * even NOMEM error is encountered
 		 */
@@ -132,7 +126,7 @@ int amdgpu_umc_process_ras_data_cb(struct amdgpu_device *adev,
 						err_data->err_addr_cnt))
 			DRM_WARN("Failed to add ras bad page!\n");
 
-		amdgpu_ras_reset_gpu(adev, 0);
+		amdgpu_ras_reset_gpu(adev);
 	}
 
 	kfree(err_data->err_addr);

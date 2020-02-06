@@ -7,6 +7,12 @@
 #ifndef __HUGE_GEM_OBJECT_H
 #define __HUGE_GEM_OBJECT_H
 
+#include <linux/types.h>
+
+#include "gem/i915_gem_object_types.h"
+
+struct drm_i915_private;
+
 struct drm_i915_gem_object *
 huge_gem_object(struct drm_i915_private *i915,
 		phys_addr_t phys_size,

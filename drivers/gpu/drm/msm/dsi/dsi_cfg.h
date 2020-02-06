@@ -20,6 +20,7 @@
 #define MSM_DSI_6G_VER_MINOR_V1_4_2	0x10040002
 #define MSM_DSI_6G_VER_MINOR_V2_2_0	0x20000000
 #define MSM_DSI_6G_VER_MINOR_V2_2_1	0x20020001
+#define MSM_DSI_6G_VER_MINOR_V2_4_1	0x20040001
 
 #define MSM_DSI_V2_VER_MINOR_8064	0x0
 
@@ -35,6 +36,7 @@ struct msm_dsi_config {
 };
 
 struct msm_dsi_host_cfg_ops {
+	int (*link_clk_set_rate)(struct msm_dsi_host *msm_host);
 	int (*link_clk_enable)(struct msm_dsi_host *msm_host);
 	void (*link_clk_disable)(struct msm_dsi_host *msm_host);
 	int (*clk_init_ver)(struct msm_dsi_host *msm_host);

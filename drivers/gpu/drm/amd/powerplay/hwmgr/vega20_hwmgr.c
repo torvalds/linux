@@ -872,7 +872,7 @@ static int vega20_override_pcie_parameters(struct pp_hwmgr *hwmgr)
 		"[OverridePcieParameters] Attempt to override pcie params failed!",
 		return ret);
 
-	data->pcie_parameters_override = 1;
+	data->pcie_parameters_override = true;
 	data->pcie_gen_level1 = pcie_gen;
 	data->pcie_width_level1 = pcie_width;
 

@@ -88,7 +88,7 @@ int intel_timeline_read_hwsp(struct i915_request *from,
 			     struct i915_request *until,
 			     u32 *hwsp_offset);
 
-void intel_timelines_init(struct drm_i915_private *i915);
-void intel_timelines_fini(struct drm_i915_private *i915);
+void intel_gt_init_timelines(struct intel_gt *gt);
+void intel_gt_fini_timelines(struct intel_gt *gt);
 
 #endif

@@ -4,6 +4,7 @@
  * Author: James.Qian.Wang <james.qian.wang@arm.com>
  *
  */
+#include <drm/drm_atomic.h>
 #include <drm/drm_print.h>
 
 #include "komeda_dev.h"
@@ -16,6 +17,7 @@ struct komeda_str {
 
 /* return 0 on success,  < 0 on no space.
  */
+__printf(2, 3)
 static int komeda_sprintf(struct komeda_str *str, const char *fmt, ...)
 {
 	va_list args;
@@ -76,6 +78,8 @@ static void evt_str(struct komeda_str *str, u64 events)
 
 	/* LPU errors or events */
 	evt_sprintf(str, events & KOMEDA_EVENT_IBSY, "IBSY|");
+	evt_sprintf(str, events & KOMEDA_EVENT_EMPTY, "EMPTY|");
+	evt_sprintf(str, events & KOMEDA_EVENT_FULL, "FULL|");
 	evt_sprintf(str, events & KOMEDA_ERR_AXIE, "AXIE|");
 	evt_sprintf(str, events & KOMEDA_ERR_ACE0, "ACE0|");
 	evt_sprintf(str, events & KOMEDA_ERR_ACE1, "ACE1|");
@@ -107,20 +111,31 @@ static bool is_new_frame(struct komeda_events *a)
 	       (KOMEDA_EVENT_FLIP | KOMEDA_EVENT_EOW);
 }
 
-void komeda_print_events(struct komeda_events *evts)
+void komeda_print_events(struct komeda_events *evts, struct drm_device *dev)
 {
-	u64 print_evts = KOMEDA_ERR_EVENTS;
+	u64 print_evts = 0;
 	static bool en_print = true;
+	struct komeda_dev *mdev = dev->dev_private;
+	u16 const err_verbosity = mdev->err_verbosity;
+	u64 evts_mask = evts->global | evts->pipes[0] | evts->pipes[1];
 
 	/* reduce the same msg print, only print the first evt for one frame */
 	if (evts->global || is_new_frame(evts))
 		en_print = true;
-	if (!en_print)
+	if (!(err_verbosity & KOMEDA_DEV_PRINT_DISABLE_RATELIMIT) && !en_print)
 		return;
 
-	if ((evts->global | evts->pipes[0] | evts->pipes[1]) & print_evts) {
+	if (err_verbosity & KOMEDA_DEV_PRINT_ERR_EVENTS)
+		print_evts |= KOMEDA_ERR_EVENTS;
+	if (err_verbosity & KOMEDA_DEV_PRINT_WARN_EVENTS)
+		print_evts |= KOMEDA_WARN_EVENTS;
+	if (err_verbosity & KOMEDA_DEV_PRINT_INFO_EVENTS)
+		print_evts |= KOMEDA_INFO_EVENTS;
+
+	if (evts_mask & print_evts) {
 		char msg[256];
 		struct komeda_str str;
+		struct drm_printer p = drm_info_printer(dev->dev);
 
 		str.str = msg;
 		str.sz  = sizeof(msg);
@@ -134,6 +149,9 @@ void komeda_print_events(struct komeda_events *evts)
 		evt_str(&str, evts->pipes[1]);
 
 		DRM_ERROR("err detect: %s\n", msg);
+		if ((err_verbosity & KOMEDA_DEV_PRINT_DUMP_STATE_ON_EVENT) &&
+		    (evts_mask & (KOMEDA_ERR_EVENTS | KOMEDA_WARN_EVENTS)))
+			drm_state_dump(dev, &p);
 
 		en_print = false;
 	}

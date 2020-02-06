@@ -1635,7 +1635,7 @@ static void dispc_ovl_set_scaling_uv(enum omap_plane plane,
 {
 	int scale_x = out_width != orig_width;
 	int scale_y = out_height != orig_height;
-	bool chroma_upscale = plane != OMAP_DSS_WB ? true : false;
+	bool chroma_upscale = plane != OMAP_DSS_WB;
 
 	if (!dss_has_feature(FEAT_HANDLE_UV_SEPARATE))
 		return;
@@ -3100,9 +3100,9 @@ static bool _dispc_mgr_pclk_ok(enum omap_channel channel,
 		unsigned long pclk)
 {
 	if (dss_mgr_is_lcd(channel))
-		return pclk <= dispc.feat->max_lcd_pclk ? true : false;
+		return pclk <= dispc.feat->max_lcd_pclk;
 	else
-		return pclk <= dispc.feat->max_tv_pclk ? true : false;
+		return pclk <= dispc.feat->max_tv_pclk;
 }
 
 bool dispc_mgr_timings_ok(enum omap_channel channel,

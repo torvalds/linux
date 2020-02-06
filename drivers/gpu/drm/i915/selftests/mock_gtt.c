@@ -55,6 +55,11 @@ static void mock_cleanup(struct i915_address_space *vm)
 {
 }
 
+static void mock_clear_range(struct i915_address_space *vm,
+			     u64 start, u64 length)
+{
+}
+
 struct i915_ppgtt *mock_ppgtt(struct drm_i915_private *i915, const char *name)
 {
 	struct i915_ppgtt *ppgtt;
@@ -70,7 +75,7 @@ struct i915_ppgtt *mock_ppgtt(struct drm_i915_private *i915, const char *name)
 
 	i915_address_space_init(&ppgtt->vm, VM_CLASS_PPGTT);
 
-	ppgtt->vm.clear_range = nop_clear_range;
+	ppgtt->vm.clear_range = mock_clear_range;
 	ppgtt->vm.insert_page = mock_insert_page;
 	ppgtt->vm.insert_entries = mock_insert_entries;
 	ppgtt->vm.cleanup = mock_cleanup;
@@ -107,7 +112,7 @@ void mock_init_ggtt(struct drm_i915_private *i915, struct i915_ggtt *ggtt)
 	ggtt->mappable_end = resource_size(&ggtt->gmadr);
 	ggtt->vm.total = 4096 * PAGE_SIZE;
 
-	ggtt->vm.clear_range = nop_clear_range;
+	ggtt->vm.clear_range = mock_clear_range;
 	ggtt->vm.insert_page = mock_insert_page;
 	ggtt->vm.insert_entries = mock_insert_entries;
 	ggtt->vm.cleanup = mock_cleanup;

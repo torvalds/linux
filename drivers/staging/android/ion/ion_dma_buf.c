@@ -234,6 +234,7 @@ static int ion_dma_buf_end_cpu_access_partial(struct dma_buf *dmabuf,
 						    len);
 }
 
+#if 0
 static void *ion_dma_buf_map(struct dma_buf *dmabuf, unsigned long offset)
 {
 	struct ion_buffer *buffer = dmabuf->priv;
@@ -244,6 +245,7 @@ static void *ion_dma_buf_map(struct dma_buf *dmabuf, unsigned long offset)
 
 	return ion_buffer_kmap_get(buffer) + offset * PAGE_SIZE;
 }
+#endif
 
 static int ion_dma_buf_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 {
@@ -270,6 +272,7 @@ static int ion_dma_buf_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 	return ret;
 }
 
+#if 0
 static void ion_dma_buf_unmap(struct dma_buf *dmabuf, unsigned long offset,
 			      void *addr)
 {
@@ -280,6 +283,7 @@ static void ion_dma_buf_unmap(struct dma_buf *dmabuf, unsigned long offset,
 		return;
 	heap->buf_ops.unmap(dmabuf, offset, addr);
 }
+#endif
 
 static void *ion_dma_buf_vmap(struct dma_buf *dmabuf)
 {
@@ -325,8 +329,8 @@ static const struct dma_buf_ops dma_buf_ops = {
 	.end_cpu_access = ion_dma_buf_end_cpu_access,
 	.end_cpu_access_partial = ion_dma_buf_end_cpu_access_partial,
 	.mmap = ion_dma_buf_mmap,
-	.map = ion_dma_buf_map,
-	.unmap = ion_dma_buf_unmap,
+//	.map = ion_dma_buf_map,
+//	.unmap = ion_dma_buf_unmap,
 	.vmap = ion_dma_buf_vmap,
 	.vunmap = ion_dma_buf_vunmap,
 	.get_flags = ion_dma_buf_get_flags,

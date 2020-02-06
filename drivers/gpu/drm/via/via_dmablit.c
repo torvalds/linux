@@ -35,11 +35,11 @@
  */
 
 #include <linux/pagemap.h>
+#include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 
 #include <drm/drm_device.h>
-#include <drm/drm_pci.h>
 #include <drm/via_drm.h>
 
 #include "via_dmablit.h"

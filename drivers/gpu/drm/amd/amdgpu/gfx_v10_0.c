@@ -40,6 +40,7 @@
 #include "ivsrcid/gfx/irqsrcs_gfx_10_1.h"
 
 #include "soc15.h"
+#include "soc15d.h"
 #include "soc15_common.h"
 #include "clearstate_gfx10.h"
 #include "v10_structs.h"
@@ -50,9 +51,6 @@
  * Navi10 has two graphic rings to share each graphic pipe.
  * 1. Primary ring
  * 2. Async ring
- *
- * In bring-up phase, it just used primary ring so set gfx ring number as 1 at
- * first.
  */
 #define GFX10_NUM_GFX_RINGS	2
 #define GFX10_MEC_HPD_SIZE	2048
@@ -123,7 +121,7 @@ static const struct soc15_reg_golden golden_settings_gc_10_1[] =
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmPA_SC_ENHANCE_2, 0x00000800, 0x00000820),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmPA_SC_LINE_STIPPLE_STATE, 0x0000ff0f, 0x00000000),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmRMI_SPARE, 0xffffffff, 0xffff3101),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, mmSPI_CONFIG_CNTL, 0x001f0000, 0x00070104),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmSPI_CONFIG_CNTL_1, 0x001f0000, 0x00070104),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmSQ_ALU_CLK_CTRL, 0xffffffff, 0xffffffff),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmSQ_ARB_CONFIG, 0x00000100, 0x00000130),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmSQ_LDS_CLK_CTRL, 0xffffffff, 0xffffffff),
@@ -171,7 +169,7 @@ static const struct soc15_reg_golden golden_settings_gc_10_1_1[] =
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmPA_SC_ENHANCE_2, 0x00000800, 0x00000820),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmPA_SC_LINE_STIPPLE_STATE, 0x0000ff0f, 0x00000000),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmRMI_SPARE, 0xffffffff, 0xffff3101),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, mmSPI_CONFIG_CNTL, 0x001f0000, 0x00070105),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmSPI_CONFIG_CNTL_1, 0x001f0000, 0x00070105),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmSQ_ALU_CLK_CTRL, 0xffffffff, 0xffffffff),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmSQ_ARB_CONFIG, 0x00000133, 0x00000130),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmSQ_LDS_CLK_CTRL, 0xffffffff, 0xffffffff),
@@ -348,15 +346,29 @@ static void gfx10_kiq_query_status(struct amdgpu_ring *kiq_ring,
 	amdgpu_ring_write(kiq_ring, upper_32_bits(seq));
 }
 
+static void gfx10_kiq_invalidate_tlbs(struct amdgpu_ring *kiq_ring,
+				uint16_t pasid, uint32_t flush_type,
+				bool all_hub)
+{
+	amdgpu_ring_write(kiq_ring, PACKET3(PACKET3_INVALIDATE_TLBS, 0));
+	amdgpu_ring_write(kiq_ring,
+			PACKET3_INVALIDATE_TLBS_DST_SEL(1) |
+			PACKET3_INVALIDATE_TLBS_ALL_HUB(all_hub) |
+			PACKET3_INVALIDATE_TLBS_PASID(pasid) |
+			PACKET3_INVALIDATE_TLBS_FLUSH_TYPE(flush_type));
+}
+
 static const struct kiq_pm4_funcs gfx_v10_0_kiq_pm4_funcs = {
 	.kiq_set_resources = gfx10_kiq_set_resources,
 	.kiq_map_queues = gfx10_kiq_map_queues,
 	.kiq_unmap_queues = gfx10_kiq_unmap_queues,
 	.kiq_query_status = gfx10_kiq_query_status,
+	.kiq_invalidate_tlbs = gfx10_kiq_invalidate_tlbs,
 	.set_resources_size = 8,
 	.map_queues_size = 7,
 	.unmap_queues_size = 6,
 	.query_status_size = 7,
+	.invalidate_tlbs_size = 12,
 };
 
 static void gfx_v10_0_set_kiq_pm4_funcs(struct amdgpu_device *adev)
@@ -474,18 +486,10 @@ static int gfx_v10_0_ring_test_ring(struct amdgpu_ring *ring)
 		else
 			udelay(1);
 	}
-	if (i < adev->usec_timeout) {
-		if (amdgpu_emu_mode == 1)
-			DRM_INFO("ring test on %d succeeded in %d msecs\n",
-				 ring->idx, i);
-		else
-			DRM_INFO("ring test on %d succeeded in %d usecs\n",
-				 ring->idx, i);
-	} else {
-		DRM_ERROR("amdgpu: ring %d test failed (scratch(0x%04X)=0x%08X)\n",
-			  ring->idx, scratch, tmp);
-		r = -EINVAL;
-	}
+
+	if (i >= adev->usec_timeout)
+		r = -ETIMEDOUT;
+
 	amdgpu_gfx_scratch_free(adev, scratch);
 
 	return r;
@@ -535,14 +539,10 @@ static int gfx_v10_0_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	}
 
 	tmp = RREG32(scratch);
-	if (tmp == 0xDEADBEEF) {
-		DRM_INFO("ib test on ring %d succeeded\n", ring->idx);
+	if (tmp == 0xDEADBEEF)
 		r = 0;
-	} else {
-		DRM_ERROR("amdgpu: ib test failed (scratch(0x%04X)=0x%08X)\n",
-			  scratch, tmp);
+	else
 		r = -EINVAL;
-	}
 err2:
 	amdgpu_ib_free(adev, &ib, NULL);
 	dma_fence_put(f);
@@ -591,8 +591,7 @@ static void gfx_v10_0_check_fw_write_wait(struct amdgpu_device *adev)
 	}
 
 	if (adev->gfx.cp_fw_write_wait == false)
-		DRM_WARN_ONCE("Warning: check cp_fw_version and update it to realize \
-			      GRBM requires 1-cycle delay in cp firmware\n");
+		DRM_WARN_ONCE("CP firmware version too old, please update!");
 }
 
 
@@ -617,11 +616,29 @@ static void gfx_v10_0_init_rlc_ext_microcode(struct amdgpu_device *adev)
 			le32_to_cpu(rlc_hdr->reg_list_format_direct_reg_list_length);
 }
 
+static bool gfx_v10_0_navi10_gfxoff_should_enable(struct amdgpu_device *adev)
+{
+	bool ret = false;
+
+	switch (adev->pdev->revision) {
+	case 0xc2:
+	case 0xc3:
+		ret = true;
+		break;
+	default:
+		ret = false;
+		break;
+	}
+
+	return ret ;
+}
+
 static void gfx_v10_0_check_gfxoff_flag(struct amdgpu_device *adev)
 {
 	switch (adev->asic_type) {
 	case CHIP_NAVI10:
-		adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
+		if (!gfx_v10_0_navi10_gfxoff_should_enable(adev))
+			adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
 		break;
 	default:
 		break;
@@ -805,10 +822,11 @@ static int gfx_v10_0_init_microcode(struct amdgpu_device *adev)
 		info = &adev->firmware.ucode[AMDGPU_UCODE_ID_RLC_G];
 		info->ucode_id = AMDGPU_UCODE_ID_RLC_G;
 		info->fw = adev->gfx.rlc_fw;
-		header = (const struct common_firmware_header *)info->fw->data;
-		adev->firmware.fw_size +=
-			ALIGN(le32_to_cpu(header->ucode_size_bytes), PAGE_SIZE);
-
+		if (info->fw) {
+			header = (const struct common_firmware_header *)info->fw->data;
+			adev->firmware.fw_size +=
+				ALIGN(le32_to_cpu(header->ucode_size_bytes), PAGE_SIZE);
+		}
 		if (adev->gfx.rlc.is_rlc_v2_1 &&
 		    adev->gfx.rlc.save_restore_list_cntl_size_bytes &&
 		    adev->gfx.rlc.save_restore_list_gpm_size_bytes &&
@@ -1948,7 +1966,7 @@ static int gfx_v10_0_parse_rlc_toc(struct amdgpu_device *adev)
 		rlc_autoload_info[rlc_toc->id].size = rlc_toc->size * 4;
 
 		rlc_toc++;
-	};
+	}
 
 	return 0;
 }
@@ -3319,8 +3337,11 @@ static int gfx_v10_0_compute_mqd_init(struct amdgpu_ring *ring)
 	tmp = REG_SET_FIELD(tmp, CP_HQD_IB_CONTROL, MIN_IB_AVAIL_SIZE, 3);
 	mqd->cp_hqd_ib_control = tmp;
 
-	/* activate the queue */
-	mqd->cp_hqd_active = 1;
+	/* map_queues packet doesn't need activate the queue,
+	 * so only kiq need set this field.
+	 */
+	if (ring->funcs->type == AMDGPU_RING_TYPE_KIQ)
+		mqd->cp_hqd_active = 1;
 
 	return 0;
 }
@@ -3591,23 +3612,16 @@ static int gfx_v10_0_cp_resume(struct amdgpu_device *adev)
 
 	for (i = 0; i < adev->gfx.num_gfx_rings; i++) {
 		ring = &adev->gfx.gfx_ring[i];
-		DRM_INFO("gfx %d ring me %d pipe %d q %d\n",
-			 i, ring->me, ring->pipe, ring->queue);
-		r = amdgpu_ring_test_ring(ring);
-		if (r) {
-			ring->sched.ready = false;
+		r = amdgpu_ring_test_helper(ring);
+		if (r)
 			return r;
-		}
 	}
 
 	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
 		ring = &adev->gfx.compute_ring[i];
-		ring->sched.ready = true;
-		DRM_INFO("compute ring %d mec %d pipe %d q %d\n",
-			 i, ring->me, ring->pipe, ring->queue);
-		r = amdgpu_ring_test_ring(ring);
+		r = amdgpu_ring_test_helper(ring);
 		if (r)
-			ring->sched.ready = false;
+			return r;
 	}
 
 	return 0;

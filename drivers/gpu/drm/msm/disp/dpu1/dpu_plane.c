@@ -53,8 +53,13 @@ enum {
 	R_MAX
 };
 
+/*
+ * Default Preload Values
+ */
 #define DPU_QSEED3_DEFAULT_PRELOAD_H 0x4
 #define DPU_QSEED3_DEFAULT_PRELOAD_V 0x3
+#define DPU_QSEED4_DEFAULT_PRELOAD_V 0x2
+#define DPU_QSEED4_DEFAULT_PRELOAD_H 0x4
 
 #define DEFAULT_REFRESH_RATE	60
 
@@ -477,8 +482,16 @@ static void _dpu_plane_setup_scaler3(struct dpu_plane *pdpu,
 			scale_cfg->src_width[i] /= chroma_subsmpl_h;
 			scale_cfg->src_height[i] /= chroma_subsmpl_v;
 		}
-		scale_cfg->preload_x[i] = DPU_QSEED3_DEFAULT_PRELOAD_H;
-		scale_cfg->preload_y[i] = DPU_QSEED3_DEFAULT_PRELOAD_V;
+
+		if (pdpu->pipe_hw->cap->features &
+			BIT(DPU_SSPP_SCALER_QSEED4)) {
+			scale_cfg->preload_x[i] = DPU_QSEED4_DEFAULT_PRELOAD_H;
+			scale_cfg->preload_y[i] = DPU_QSEED4_DEFAULT_PRELOAD_V;
+		} else {
+			scale_cfg->preload_x[i] = DPU_QSEED3_DEFAULT_PRELOAD_H;
+			scale_cfg->preload_y[i] = DPU_QSEED3_DEFAULT_PRELOAD_V;
+		}
+
 		pstate->pixel_ext.num_ext_pxls_top[i] =
 			scale_cfg->src_height[i];
 		pstate->pixel_ext.num_ext_pxls_left[i] =
@@ -738,7 +751,7 @@ done:
 	} else {
 		pstate[R0]->multirect_index = DPU_SSPP_RECT_0;
 		pstate[R1]->multirect_index = DPU_SSPP_RECT_1;
-	};
+	}
 
 	DPU_DEBUG_PLANE(dpu_plane[R0], "R0: %d - %d\n",
 		pstate[R0]->multirect_mode, pstate[R0]->multirect_index);
@@ -1337,7 +1350,8 @@ static int _dpu_plane_init_debugfs(struct drm_plane *plane)
 			pdpu->debugfs_root, &pdpu->debugfs_src);
 
 	if (cfg->features & BIT(DPU_SSPP_SCALER_QSEED3) ||
-			cfg->features & BIT(DPU_SSPP_SCALER_QSEED2)) {
+			cfg->features & BIT(DPU_SSPP_SCALER_QSEED2) ||
+			cfg->features & BIT(DPU_SSPP_SCALER_QSEED4)) {
 		dpu_debugfs_setup_regset32(&pdpu->debugfs_scaler,
 				sblk->scaler_blk.base + cfg->base,
 				sblk->scaler_blk.len,

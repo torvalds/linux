@@ -30,15 +30,18 @@
 
 #include <drm/drm_drv.h>
 
+#include "i915_utils.h"
+
 struct drm_i915_private;
 
 #ifdef CONFIG_DRM_I915_DEBUG_GEM
 
-#define GEM_SHOW_DEBUG() (drm_debug & DRM_UT_DRIVER)
+#define GEM_SHOW_DEBUG() drm_debug_enabled(DRM_UT_DRIVER)
 
 #define GEM_BUG_ON(condition) do { if (unlikely((condition))) {	\
 		GEM_TRACE_ERR("%s:%d GEM_BUG_ON(%s)\n", \
 			      __func__, __LINE__, __stringify(condition)); \
+		GEM_TRACE_DUMP(); \
 		BUG(); \
 		} \
 	} while(0)
@@ -68,9 +71,10 @@ struct drm_i915_private;
 	pr_err(__VA_ARGS__);						\
 	trace_printk(__VA_ARGS__);					\
 } while (0)
-#define GEM_TRACE_DUMP() ftrace_dump(DUMP_ALL)
+#define GEM_TRACE_DUMP() \
+	do { ftrace_dump(DUMP_ALL); add_taint_for_CI(TAINT_WARN); } while (0)
 #define GEM_TRACE_DUMP_ON(expr) \
-	do { if (expr) ftrace_dump(DUMP_ALL); } while (0)
+	do { if (expr) GEM_TRACE_DUMP(); } while (0)
 #else
 #define GEM_TRACE(...) do { } while (0)
 #define GEM_TRACE_ERR(...) do { } while (0)

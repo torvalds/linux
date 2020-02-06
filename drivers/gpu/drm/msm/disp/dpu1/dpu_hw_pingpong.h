@@ -106,7 +106,7 @@ struct dpu_hw_pingpong {
  */
 struct dpu_hw_pingpong *dpu_hw_pingpong_init(enum dpu_pingpong idx,
 		void __iomem *addr,
-		struct dpu_mdss_cfg *m);
+		const struct dpu_mdss_cfg *m);
 
 /**
  * dpu_hw_pingpong_destroy - destroys pingpong driver context

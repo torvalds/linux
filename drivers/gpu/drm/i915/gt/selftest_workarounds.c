@@ -264,22 +264,15 @@ static int
 switch_to_scratch_context(struct intel_engine_cs *engine,
 			  struct igt_spinner *spin)
 {
-	struct i915_gem_context *ctx;
 	struct intel_context *ce;
 	struct i915_request *rq;
 	int err = 0;
 
-	ctx = kernel_context(engine->i915);
-	if (IS_ERR(ctx))
-		return PTR_ERR(ctx);
-
-	GEM_BUG_ON(i915_gem_context_is_bannable(ctx));
-
-	ce = i915_gem_context_get_engine(ctx, engine->legacy_idx);
-	GEM_BUG_ON(IS_ERR(ce));
+	ce = intel_context_create(engine);
+	if (IS_ERR(ce))
+		return PTR_ERR(ce);
 
 	rq = igt_spinner_create_request(spin, ce, MI_NOOP);
-
 	intel_context_put(ce);
 
 	if (IS_ERR(rq)) {
@@ -293,7 +286,6 @@ err:
 	if (err && spin)
 		igt_spinner_end(spin);
 
-	kernel_context_close(ctx);
 	return err;
 }
 
@@ -367,20 +359,17 @@ out_ctx:
 	return err;
 }
 
-static struct i915_vma *create_batch(struct i915_gem_context *ctx)
+static struct i915_vma *create_batch(struct i915_address_space *vm)
 {
 	struct drm_i915_gem_object *obj;
-	struct i915_address_space *vm;
 	struct i915_vma *vma;
 	int err;
 
-	obj = i915_gem_object_create_internal(ctx->i915, 16 * PAGE_SIZE);
+	obj = i915_gem_object_create_internal(vm->i915, 16 * PAGE_SIZE);
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
 
-	vm = i915_gem_context_get_vm_rcu(ctx);
 	vma = i915_vma_instance(obj, vm, NULL);
-	i915_vm_put(vm);
 	if (IS_ERR(vma)) {
 		err = PTR_ERR(vma);
 		goto err_obj;
@@ -452,8 +441,7 @@ static int whitelist_writable_count(struct intel_engine_cs *engine)
 	return count;
 }
 
-static int check_dirty_whitelist(struct i915_gem_context *ctx,
-				 struct intel_engine_cs *engine)
+static int check_dirty_whitelist(struct intel_context *ce)
 {
 	const u32 values[] = {
 		0x00000000,
@@ -481,19 +469,17 @@ static int check_dirty_whitelist(struct i915_gem_context *ctx,
 		0xffff00ff,
 		0xffffffff,
 	};
-	struct i915_address_space *vm;
+	struct intel_engine_cs *engine = ce->engine;
 	struct i915_vma *scratch;
 	struct i915_vma *batch;
 	int err = 0, i, v;
 	u32 *cs, *results;
 
-	vm = i915_gem_context_get_vm_rcu(ctx);
-	scratch = create_scratch(vm, 2 * ARRAY_SIZE(values) + 1);
-	i915_vm_put(vm);
+	scratch = create_scratch(ce->vm, 2 * ARRAY_SIZE(values) + 1);
 	if (IS_ERR(scratch))
 		return PTR_ERR(scratch);
 
-	batch = create_batch(ctx);
+	batch = create_batch(ce->vm);
 	if (IS_ERR(batch)) {
 		err = PTR_ERR(batch);
 		goto out_scratch;
@@ -518,7 +504,7 @@ static int check_dirty_whitelist(struct i915_gem_context *ctx,
 
 		srm = MI_STORE_REGISTER_MEM;
 		lrm = MI_LOAD_REGISTER_MEM;
-		if (INTEL_GEN(ctx->i915) >= 8)
+		if (INTEL_GEN(engine->i915) >= 8)
 			lrm++, srm++;
 
 		pr_debug("%s: Writing garbage to %x\n",
@@ -577,7 +563,7 @@ static int check_dirty_whitelist(struct i915_gem_context *ctx,
 		i915_gem_object_unpin_map(batch->obj);
 		intel_gt_chipset_flush(engine->gt);
 
-		rq = igt_request_alloc(ctx, engine);
+		rq = intel_context_create_request(ce);
 		if (IS_ERR(rq)) {
 			err = PTR_ERR(rq);
 			goto out_batch;
@@ -696,7 +682,7 @@ out_unpin:
 			break;
 	}
 
-	if (igt_flush_test(ctx->i915))
+	if (igt_flush_test(engine->i915))
 		err = -EIO;
 out_batch:
 	i915_vma_unpin_and_release(&batch, 0);
@@ -709,38 +695,31 @@ static int live_dirty_whitelist(void *arg)
 {
 	struct intel_gt *gt = arg;
 	struct intel_engine_cs *engine;
-	struct i915_gem_context *ctx;
 	enum intel_engine_id id;
-	struct drm_file *file;
-	int err = 0;
 
 	/* Can the user write to the whitelisted registers? */
 
 	if (INTEL_GEN(gt->i915) < 7) /* minimum requirement for LRI, SRM, LRM */
 		return 0;
 
-	file = mock_file(gt->i915);
-	if (IS_ERR(file))
-		return PTR_ERR(file);
-
-	ctx = live_context(gt->i915, file);
-	if (IS_ERR(ctx)) {
-		err = PTR_ERR(ctx);
-		goto out_file;
-	}
-
 	for_each_engine(engine, gt, id) {
+		struct intel_context *ce;
+		int err;
+
 		if (engine->whitelist.count == 0)
 			continue;
 
-		err = check_dirty_whitelist(ctx, engine);
+		ce = intel_context_create(engine);
+		if (IS_ERR(ce))
+			return PTR_ERR(ce);
+
+		err = check_dirty_whitelist(ce);
+		intel_context_put(ce);
 		if (err)
-			goto out_file;
+			return err;
 	}
 
-out_file:
-	mock_file_free(gt->i915, file);
-	return err;
+	return 0;
 }
 
 static int live_reset_whitelist(void *arg)
@@ -830,12 +809,15 @@ err_req:
 static int scrub_whitelisted_registers(struct i915_gem_context *ctx,
 				       struct intel_engine_cs *engine)
 {
+	struct i915_address_space *vm;
 	struct i915_request *rq;
 	struct i915_vma *batch;
 	int i, err = 0;
 	u32 *cs;
 
-	batch = create_batch(ctx);
+	vm = i915_gem_context_get_vm_rcu(ctx);
+	batch = create_batch(vm);
+	i915_vm_put(vm);
 	if (IS_ERR(batch))
 		return PTR_ERR(batch);
 

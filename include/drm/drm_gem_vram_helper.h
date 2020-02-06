@@ -16,7 +16,6 @@ struct drm_mode_create_dumb;
 struct drm_plane;
 struct drm_plane_state;
 struct drm_simple_display_pipe;
-struct drm_vram_mm_funcs;
 struct filp;
 struct vm_area_struct;
 
@@ -94,10 +93,8 @@ static inline struct drm_gem_vram_object *drm_gem_vram_of_gem(
 }
 
 struct drm_gem_vram_object *drm_gem_vram_create(struct drm_device *dev,
-						struct ttm_bo_device *bdev,
 						size_t size,
-						unsigned long pg_align,
-						bool interruptible);
+						unsigned long pg_align);
 void drm_gem_vram_put(struct drm_gem_vram_object *gbo);
 u64 drm_gem_vram_mmap_offset(struct drm_gem_vram_object *gbo);
 s64 drm_gem_vram_offset(struct drm_gem_vram_object *gbo);
@@ -111,9 +108,8 @@ void drm_gem_vram_vunmap(struct drm_gem_vram_object *gbo, void *vaddr);
 
 int drm_gem_vram_fill_create_dumb(struct drm_file *file,
 				  struct drm_device *dev,
-				  struct ttm_bo_device *bdev,
 				  unsigned long pg_align,
-				  bool interruptible,
+				  unsigned long pitch_align,
 				  struct drm_mode_create_dumb *args);
 
 /*

@@ -2691,7 +2691,7 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	return 0;
 }
 
-static int init_broadwell_mmio_info(struct intel_gvt *gvt)
+static int init_bdw_mmio_info(struct intel_gvt *gvt)
 {
 	struct drm_i915_private *dev_priv = gvt->dev_priv;
 	int ret;
@@ -3380,20 +3380,20 @@ int intel_gvt_setup_mmio_info(struct intel_gvt *gvt)
 		goto err;
 
 	if (IS_BROADWELL(dev_priv)) {
-		ret = init_broadwell_mmio_info(gvt);
+		ret = init_bdw_mmio_info(gvt);
 		if (ret)
 			goto err;
 	} else if (IS_SKYLAKE(dev_priv)
 		|| IS_KABYLAKE(dev_priv)
 		|| IS_COFFEELAKE(dev_priv)) {
-		ret = init_broadwell_mmio_info(gvt);
+		ret = init_bdw_mmio_info(gvt);
 		if (ret)
 			goto err;
 		ret = init_skl_mmio_info(gvt);
 		if (ret)
 			goto err;
 	} else if (IS_BROXTON(dev_priv)) {
-		ret = init_broadwell_mmio_info(gvt);
+		ret = init_bdw_mmio_info(gvt);
 		if (ret)
 			goto err;
 		ret = init_skl_mmio_info(gvt);

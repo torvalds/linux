@@ -244,7 +244,7 @@ static int vivid_fb_blank(int blank_mode, struct fb_info *info)
 	return 0;
 }
 
-static struct fb_ops vivid_fb_ops = {
+static const struct fb_ops vivid_fb_ops = {
 	.owner = THIS_MODULE,
 	.fb_check_var   = vivid_fb_check_var,
 	.fb_set_par     = vivid_fb_set_par,
@@ -311,7 +311,6 @@ static int vivid_fb_init_vidmode(struct vivid_dev *dev)
 
 	dev->fb_info.node = -1;
 	dev->fb_info.flags = FBINFO_FLAG_DEFAULT;
-	dev->fb_info.fbops = &vivid_fb_ops;
 	dev->fb_info.par = dev;
 	dev->fb_info.var = dev->fb_defined;
 	dev->fb_info.fix = dev->fb_fix;

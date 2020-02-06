@@ -8739,10 +8739,16 @@
 #define TCP_ADDR_CONFIG__NUM_BANKS__SHIFT                                                                     0x4
 #define TCP_ADDR_CONFIG__COLHI_WIDTH__SHIFT                                                                   0x6
 #define TCP_ADDR_CONFIG__RB_SPLIT_COLHI__SHIFT                                                                0x9
+#define TCP_ADDR_CONFIG__ENABLE64KHASH__SHIFT                                                                 0xb
+#define TCP_ADDR_CONFIG__ENABLE2MHASH__SHIFT                                                                  0xc
+#define TCP_ADDR_CONFIG__ENABLE1GHASH__SHIFT                                                                  0xd
 #define TCP_ADDR_CONFIG__NUM_TCC_BANKS_MASK                                                                   0x0000000FL
 #define TCP_ADDR_CONFIG__NUM_BANKS_MASK                                                                       0x00000030L
 #define TCP_ADDR_CONFIG__COLHI_WIDTH_MASK                                                                     0x000001C0L
 #define TCP_ADDR_CONFIG__RB_SPLIT_COLHI_MASK                                                                  0x00000200L
+#define TCP_ADDR_CONFIG__ENABLE64KHASH_MASK                                                                   0x00000800L
+#define TCP_ADDR_CONFIG__ENABLE2MHASH_MASK                                                                    0x00001000L
+#define TCP_ADDR_CONFIG__ENABLE1GHASH_MASK                                                                    0x00002000L
 //TCP_CREDIT
 #define TCP_CREDIT__LFIFO_CREDIT__SHIFT                                                                       0x0
 #define TCP_CREDIT__REQ_FIFO_CREDIT__SHIFT                                                                    0x10

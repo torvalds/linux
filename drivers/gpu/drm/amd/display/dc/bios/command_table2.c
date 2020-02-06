@@ -37,6 +37,8 @@
 #include "bios_parser_types_internal2.h"
 #include "amdgpu.h"
 
+#include "dc_dmub_srv.h"
+#include "dc.h"
 
 #define DC_LOGGER \
 	bp->base.ctx->logger
@@ -103,6 +105,21 @@ static void init_dig_encoder_control(struct bios_parser *bp)
 	}
 }
 
+static void encoder_control_dmcub(
+		struct dc_dmub_srv *dmcub,
+		struct dig_encoder_stream_setup_parameters_v1_5 *dig)
+{
+	struct dmub_rb_cmd_digx_encoder_control encoder_control = { 0 };
+
+	encoder_control.header.type = DMUB_CMD__VBIOS;
+	encoder_control.header.sub_type = DMUB_CMD__VBIOS_DIGX_ENCODER_CONTROL;
+	encoder_control.encoder_control.dig.stream_param = *dig;
+
+	dc_dmub_srv_cmd_queue(dmcub, &encoder_control.header);
+	dc_dmub_srv_cmd_execute(dmcub);
+	dc_dmub_srv_wait_idle(dmcub);
+}
+
 static enum bp_result encoder_control_digx_v1_5(
 	struct bios_parser *bp,
 	struct bp_encoder_control *cntl)
@@ -155,6 +172,12 @@ static enum bp_result encoder_control_digx_v1_5(
 			break;
 		}
 
+	if (bp->base.ctx->dc->ctx->dmub_srv &&
+	    bp->base.ctx->dc->debug.dmub_command_table) {
+		encoder_control_dmcub(bp->base.ctx->dmub_srv, &params);
+		return BP_RESULT_OK;
+	}
+
 	if (EXEC_BIOS_CMD_TABLE(digxencodercontrol, params))
 		result = BP_RESULT_OK;
 
@@ -191,6 +214,22 @@ static void init_transmitter_control(struct bios_parser *bp)
 	}
 }
 
+static void transmitter_control_dmcub(
+		struct dc_dmub_srv *dmcub,
+		struct dig_transmitter_control_parameters_v1_6 *dig)
+{
+	struct dmub_rb_cmd_dig1_transmitter_control transmitter_control;
+
+	transmitter_control.header.type = DMUB_CMD__VBIOS;
+	transmitter_control.header.sub_type =
+		DMUB_CMD__VBIOS_DIG1_TRANSMITTER_CONTROL;
+	transmitter_control.transmitter_control.dig = *dig;
+
+	dc_dmub_srv_cmd_queue(dmcub, &transmitter_control.header);
+	dc_dmub_srv_cmd_execute(dmcub);
+	dc_dmub_srv_wait_idle(dmcub);
+}
+
 static enum bp_result transmitter_control_v1_6(
 	struct bios_parser *bp,
 	struct bp_transmitter_control *cntl)
@@ -222,6 +261,11 @@ static enum bp_result transmitter_control_v1_6(
 		__func__, ps.param.symclk_10khz);
 	}
 
+	if (bp->base.ctx->dc->ctx->dmub_srv &&
+	    bp->base.ctx->dc->debug.dmub_command_table) {
+		transmitter_control_dmcub(bp->base.ctx->dmub_srv, &ps.param);
+		return BP_RESULT_OK;
+	}
 
 /*color_depth not used any more, driver has deep color factor in the Phyclk*/
 	if (EXEC_BIOS_CMD_TABLE(dig1transmittercontrol, ps))
@@ -255,7 +299,20 @@ static void init_set_pixel_clock(struct bios_parser *bp)
 	}
 }
 
+static void set_pixel_clock_dmcub(
+		struct dc_dmub_srv *dmcub,
+		struct set_pixel_clock_parameter_v1_7 *clk)
+{
+	struct dmub_rb_cmd_set_pixel_clock pixel_clock = { 0 };
 
+	pixel_clock.header.type = DMUB_CMD__VBIOS;
+	pixel_clock.header.sub_type = DMUB_CMD__VBIOS_SET_PIXEL_CLOCK;
+	pixel_clock.pixel_clock.clk = *clk;
+
+	dc_dmub_srv_cmd_queue(dmcub, &pixel_clock.header);
+	dc_dmub_srv_cmd_execute(dmcub);
+	dc_dmub_srv_wait_idle(dmcub);
+}
 
 static enum bp_result set_pixel_clock_v7(
 	struct bios_parser *bp,
@@ -330,6 +387,12 @@ static enum bp_result set_pixel_clock_v7(
 
 		if (bp_params->signal_type == SIGNAL_TYPE_DVI_DUAL_LINK)
 			clk.miscinfo |= PIXEL_CLOCK_V7_MISC_DVI_DUALLINK_EN;
+
+		if (bp->base.ctx->dc->ctx->dmub_srv &&
+		    bp->base.ctx->dc->debug.dmub_command_table) {
+			set_pixel_clock_dmcub(bp->base.ctx->dmub_srv, &clk);
+			return BP_RESULT_OK;
+		}
 
 		if (EXEC_BIOS_CMD_TABLE(setpixelclock, clk))
 			result = BP_RESULT_OK;
@@ -585,6 +648,21 @@ static void init_enable_disp_power_gating(
 	}
 }
 
+static void enable_disp_power_gating_dmcub(
+	struct dc_dmub_srv *dmcub,
+	struct enable_disp_power_gating_parameters_v2_1 *pwr)
+{
+	struct dmub_rb_cmd_enable_disp_power_gating power_gating;
+
+	power_gating.header.type = DMUB_CMD__VBIOS;
+	power_gating.header.sub_type = DMUB_CMD__VBIOS_ENABLE_DISP_POWER_GATING;
+	power_gating.power_gating.pwr = *pwr;
+
+	dc_dmub_srv_cmd_queue(dmcub, &power_gating.header);
+	dc_dmub_srv_cmd_execute(dmcub);
+	dc_dmub_srv_wait_idle(dmcub);
+}
+
 static enum bp_result enable_disp_power_gating_v2_1(
 	struct bios_parser *bp,
 	enum controller_id crtc_id,
@@ -603,6 +681,13 @@ static enum bp_result enable_disp_power_gating_v2_1(
 
 	ps.param.enable =
 		bp->cmd_helper->disp_power_gating_action_to_atom(action);
+
+	if (bp->base.ctx->dc->ctx->dmub_srv &&
+	    bp->base.ctx->dc->debug.dmub_command_table) {
+		enable_disp_power_gating_dmcub(bp->base.ctx->dmub_srv,
+					       &ps.param);
+		return BP_RESULT_OK;
+	}
 
 	if (EXEC_BIOS_CMD_TABLE(enabledisppowergating, ps.param))
 		result = BP_RESULT_OK;

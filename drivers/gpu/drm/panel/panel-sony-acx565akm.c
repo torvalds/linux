@@ -521,12 +521,12 @@ static const struct drm_display_mode acx565akm_mode = {
 	.height_mm = 46,
 };
 
-static int acx565akm_get_modes(struct drm_panel *panel)
+static int acx565akm_get_modes(struct drm_panel *panel,
+			       struct drm_connector *connector)
 {
-	struct drm_connector *connector = panel->connector;
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(panel->drm, &acx565akm_mode);
+	mode = drm_mode_duplicate(connector->dev, &acx565akm_mode);
 	if (!mode)
 		return -ENOMEM;
 
