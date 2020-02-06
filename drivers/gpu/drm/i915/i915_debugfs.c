@@ -2188,29 +2188,6 @@ DEFINE_SIMPLE_ATTRIBUTE(i915_edp_psr_debug_fops,
 			i915_edp_psr_debug_get, i915_edp_psr_debug_set,
 			"%llu\n");
 
-static int i915_energy_uJ(struct seq_file *m, void *data)
-{
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	unsigned long long power;
-	intel_wakeref_t wakeref;
-	u32 units;
-
-	if (INTEL_GEN(dev_priv) < 6)
-		return -ENODEV;
-
-	if (rdmsrl_safe(MSR_RAPL_POWER_UNIT, &power))
-		return -ENODEV;
-
-	units = (power & 0x1f00) >> 8;
-	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref)
-		power = I915_READ(MCH_SECP_NRG_STTS);
-
-	power = (1000000 * power) >> units; /* convert to uJ */
-	seq_printf(m, "%llu", power);
-
-	return 0;
-}
-
 static int i915_runtime_pm_status(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
@@ -4258,7 +4235,6 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_swizzle_info", i915_swizzle_info, 0},
 	{"i915_llc", i915_llc, 0},
 	{"i915_edp_psr_status", i915_edp_psr_status, 0},
-	{"i915_energy_uJ", i915_energy_uJ, 0},
 	{"i915_runtime_pm_status", i915_runtime_pm_status, 0},
 	{"i915_power_domain_info", i915_power_domain_info, 0},
 	{"i915_dmc_info", i915_dmc_info, 0},

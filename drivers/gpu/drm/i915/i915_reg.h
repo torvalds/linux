@@ -3749,8 +3749,6 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define   MCH_SSKPD_WM0_MASK		0x3f
 #define   MCH_SSKPD_WM0_VAL		0xc
 
-#define MCH_SECP_NRG_STTS		_MMIO(MCHBAR_MIRROR_BASE_SNB + 0x592c)
-
 /* Clocking configuration register */
 #define CLKCFG			_MMIO(MCHBAR_MIRROR_BASE + 0xc00)
 #define CLKCFG_FSB_400					(5 << 0)	/* hrawclk 100 */
