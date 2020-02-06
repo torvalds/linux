@@ -1055,8 +1055,7 @@ static const struct afs_call_type afs_RXFSStoreData64 = {
 /*
  * store a set of pages to a very large file
  */
-static void afs_fs_store_data64(struct afs_operation *op,
-				loff_t pos, loff_t size, loff_t i_size)
+static void afs_fs_store_data64(struct afs_operation *op)
 {
 	struct afs_vnode_param *vp = &op->file[0];
 	struct afs_call *call;
@@ -1071,7 +1070,7 @@ static void afs_fs_store_data64(struct afs_operation *op,
 	if (!call)
 		return afs_op_nomem(op);
 
-	call->send_pages = true;
+	call->write_iter = op->store.write_iter;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1087,47 +1086,38 @@ static void afs_fs_store_data64(struct afs_operation *op,
 	*bp++ = 0; /* unix mode */
 	*bp++ = 0; /* segment size */
 
-	*bp++ = htonl(upper_32_bits(pos));
-	*bp++ = htonl(lower_32_bits(pos));
-	*bp++ = htonl(upper_32_bits(size));
-	*bp++ = htonl(lower_32_bits(size));
-	*bp++ = htonl(upper_32_bits(i_size));
-	*bp++ = htonl(lower_32_bits(i_size));
+	*bp++ = htonl(upper_32_bits(op->store.pos));
+	*bp++ = htonl(lower_32_bits(op->store.pos));
+	*bp++ = htonl(upper_32_bits(op->store.size));
+	*bp++ = htonl(lower_32_bits(op->store.size));
+	*bp++ = htonl(upper_32_bits(op->store.i_size));
+	*bp++ = htonl(lower_32_bits(op->store.i_size));
 
 	trace_afs_make_fs_call(call, &vp->fid);
 	afs_make_op_call(op, call, GFP_NOFS);
 }
 
 /*
- * store a set of pages
+ * Write data to a file on the server.
  */
 void afs_fs_store_data(struct afs_operation *op)
 {
 	struct afs_vnode_param *vp = &op->file[0];
 	struct afs_call *call;
-	loff_t size, pos, i_size;
 	__be32 *bp;
 
 	_enter(",%x,{%llx:%llu},,",
 	       key_serial(op->key), vp->fid.vid, vp->fid.vnode);
 
-	size = (loff_t)op->store.last_to - (loff_t)op->store.first_offset;
-	if (op->store.first != op->store.last)
-		size += (loff_t)(op->store.last - op->store.first) << PAGE_SHIFT;
-	pos = (loff_t)op->store.first << PAGE_SHIFT;
-	pos += op->store.first_offset;
-
-	i_size = i_size_read(&vp->vnode->vfs_inode);
-	if (pos + size > i_size)
-		i_size = size + pos;
-
 	_debug("size %llx, at %llx, i_size %llx",
-	       (unsigned long long) size, (unsigned long long) pos,
-	       (unsigned long long) i_size);
+	       (unsigned long long)op->store.size,
+	       (unsigned long long)op->store.pos,
+	       (unsigned long long)op->store.i_size);
 
-	if (upper_32_bits(pos) || upper_32_bits(i_size) || upper_32_bits(size) ||
-	    upper_32_bits(pos + size))
-		return afs_fs_store_data64(op, pos, size, i_size);
+	if (upper_32_bits(op->store.pos) ||
+	    upper_32_bits(op->store.size) ||
+	    upper_32_bits(op->store.i_size))
+		return afs_fs_store_data64(op);
 
 	call = afs_alloc_flat_call(op->net, &afs_RXFSStoreData,
 				   (4 + 6 + 3) * 4,
@@ -1135,7 +1125,7 @@ void afs_fs_store_data(struct afs_operation *op)
 	if (!call)
 		return afs_op_nomem(op);
 
-	call->send_pages = true;
+	call->write_iter = op->store.write_iter;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1151,9 +1141,9 @@ void afs_fs_store_data(struct afs_operation *op)
 	*bp++ = 0; /* unix mode */
 	*bp++ = 0; /* segment size */
 
-	*bp++ = htonl(lower_32_bits(pos));
-	*bp++ = htonl(lower_32_bits(size));
-	*bp++ = htonl(lower_32_bits(i_size));
+	*bp++ = htonl(lower_32_bits(op->store.pos));
+	*bp++ = htonl(lower_32_bits(op->store.size));
+	*bp++ = htonl(lower_32_bits(op->store.i_size));
 
 	trace_afs_make_fs_call(call, &vp->fid);
 	afs_make_op_call(op, call, GFP_NOFS);

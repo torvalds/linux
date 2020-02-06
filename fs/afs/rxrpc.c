@@ -271,40 +271,6 @@ void afs_flat_call_destructor(struct afs_call *call)
 	call->buffer = NULL;
 }
 
-#define AFS_BVEC_MAX 8
-
-/*
- * Load the given bvec with the next few pages.
- */
-static void afs_load_bvec(struct afs_call *call, struct msghdr *msg,
-			  struct bio_vec *bv, pgoff_t first, pgoff_t last,
-			  unsigned offset)
-{
-	struct afs_operation *op = call->op;
-	struct page *pages[AFS_BVEC_MAX];
-	unsigned int nr, n, i, to, bytes = 0;
-
-	nr = min_t(pgoff_t, last - first + 1, AFS_BVEC_MAX);
-	n = find_get_pages_contig(op->store.mapping, first, nr, pages);
-	ASSERTCMP(n, ==, nr);
-
-	msg->msg_flags |= MSG_MORE;
-	for (i = 0; i < nr; i++) {
-		to = PAGE_SIZE;
-		if (first + i >= last) {
-			to = op->store.last_to;
-			msg->msg_flags &= ~MSG_MORE;
-		}
-		bv[i].bv_page = pages[i];
-		bv[i].bv_len = to - offset;
-		bv[i].bv_offset = offset;
-		bytes += to - offset;
-		offset = 0;
-	}
-
-	iov_iter_bvec(&msg->msg_iter, WRITE, bv, nr, bytes);
-}
-
 /*
  * Advance the AFS call state when the RxRPC call ends the transmit phase.
  */
@@ -315,42 +281,6 @@ static void afs_notify_end_request_tx(struct sock *sock,
 	struct afs_call *call = (struct afs_call *)call_user_ID;
 
 	afs_set_call_state(call, AFS_CALL_CL_REQUESTING, AFS_CALL_CL_AWAIT_REPLY);
-}
-
-/*
- * attach the data from a bunch of pages on an inode to a call
- */
-static int afs_send_pages(struct afs_call *call, struct msghdr *msg)
-{
-	struct afs_operation *op = call->op;
-	struct bio_vec bv[AFS_BVEC_MAX];
-	unsigned int bytes, nr, loop, offset;
-	pgoff_t first = op->store.first, last = op->store.last;
-	int ret;
-
-	offset = op->store.first_offset;
-	op->store.first_offset = 0;
-
-	do {
-		afs_load_bvec(call, msg, bv, first, last, offset);
-		trace_afs_send_pages(call, msg, first, last, offset);
-
-		offset = 0;
-		bytes = msg->msg_iter.count;
-		nr = msg->msg_iter.nr_segs;
-
-		ret = rxrpc_kernel_send_data(op->net->socket, call->rxcall, msg,
-					     bytes, afs_notify_end_request_tx);
-		for (loop = 0; loop < nr; loop++)
-			put_page(bv[loop].bv_page);
-		if (ret < 0)
-			break;
-
-		first += nr;
-	} while (first <= last);
-
-	trace_afs_sent_pages(call, op->store.first, last, first, ret);
-	return ret;
 }
 
 /*
@@ -384,21 +314,8 @@ void afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call, gfp_t gfp)
 	 * after the initial fixed part.
 	 */
 	tx_total_len = call->request_size;
-	if (call->send_pages) {
-		struct afs_operation *op = call->op;
-
-		if (op->store.last == op->store.first) {
-			tx_total_len += op->store.last_to - op->store.first_offset;
-		} else {
-			/* It looks mathematically like you should be able to
-			 * combine the following lines with the ones above, but
-			 * unsigned arithmetic is fun when it wraps...
-			 */
-			tx_total_len += PAGE_SIZE - op->store.first_offset;
-			tx_total_len += op->store.last_to;
-			tx_total_len += (op->store.last - op->store.first - 1) * PAGE_SIZE;
-		}
-	}
+	if (call->write_iter)
+		tx_total_len += iov_iter_count(call->write_iter);
 
 	/* If the call is going to be asynchronous, we need an extra ref for
 	 * the call to hold itself so the caller need not hang on to its ref.
@@ -440,7 +357,7 @@ void afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call, gfp_t gfp)
 	iov_iter_kvec(&msg.msg_iter, WRITE, iov, 1, call->request_size);
 	msg.msg_control		= NULL;
 	msg.msg_controllen	= 0;
-	msg.msg_flags		= MSG_WAITALL | (call->send_pages ? MSG_MORE : 0);
+	msg.msg_flags		= MSG_WAITALL | (call->write_iter ? MSG_MORE : 0);
 
 	ret = rxrpc_kernel_send_data(call->net->socket, rxcall,
 				     &msg, call->request_size,
@@ -448,8 +365,18 @@ void afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call, gfp_t gfp)
 	if (ret < 0)
 		goto error_do_abort;
 
-	if (call->send_pages) {
-		ret = afs_send_pages(call, &msg);
+	if (call->write_iter) {
+		msg.msg_iter = *call->write_iter;
+		msg.msg_flags &= ~MSG_MORE;
+		trace_afs_send_data(call, &msg);
+
+		ret = rxrpc_kernel_send_data(call->net->socket,
+					     call->rxcall, &msg,
+					     iov_iter_count(&msg.msg_iter),
+					     afs_notify_end_request_tx);
+		*call->write_iter = msg.msg_iter;
+
+		trace_afs_sent_data(call, &msg, ret);
 		if (ret < 0)
 			goto error_do_abort;
 	}

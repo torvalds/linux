@@ -1078,25 +1078,15 @@ void yfs_fs_store_data(struct afs_operation *op)
 {
 	struct afs_vnode_param *vp = &op->file[0];
 	struct afs_call *call;
-	loff_t size, pos, i_size;
 	__be32 *bp;
 
 	_enter(",%x,{%llx:%llu},,",
 	       key_serial(op->key), vp->fid.vid, vp->fid.vnode);
 
-	size = (loff_t)op->store.last_to - (loff_t)op->store.first_offset;
-	if (op->store.first != op->store.last)
-		size += (loff_t)(op->store.last - op->store.first) << PAGE_SHIFT;
-	pos = (loff_t)op->store.first << PAGE_SHIFT;
-	pos += op->store.first_offset;
-
-	i_size = i_size_read(&vp->vnode->vfs_inode);
-	if (pos + size > i_size)
-		i_size = size + pos;
-
 	_debug("size %llx, at %llx, i_size %llx",
-	       (unsigned long long)size, (unsigned long long)pos,
-	       (unsigned long long)i_size);
+	       (unsigned long long)op->store.size,
+	       (unsigned long long)op->store.pos,
+	       (unsigned long long)op->store.i_size);
 
 	call = afs_alloc_flat_call(op->net, &yfs_RXYFSStoreData64,
 				   sizeof(__be32) +
@@ -1109,8 +1099,7 @@ void yfs_fs_store_data(struct afs_operation *op)
 	if (!call)
 		return afs_op_nomem(op);
 
-	call->key = op->key;
-	call->send_pages = true;
+	call->write_iter = op->store.write_iter;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1118,9 +1107,9 @@ void yfs_fs_store_data(struct afs_operation *op)
 	bp = xdr_encode_u32(bp, 0); /* RPC flags */
 	bp = xdr_encode_YFSFid(bp, &vp->fid);
 	bp = xdr_encode_YFSStoreStatus_mtime(bp, &op->mtime);
-	bp = xdr_encode_u64(bp, pos);
-	bp = xdr_encode_u64(bp, size);
-	bp = xdr_encode_u64(bp, i_size);
+	bp = xdr_encode_u64(bp, op->store.pos);
+	bp = xdr_encode_u64(bp, op->store.size);
+	bp = xdr_encode_u64(bp, op->store.i_size);
 	yfs_check_req(call, bp);
 
 	trace_afs_make_fs_call(call, &vp->fid);

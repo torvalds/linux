@@ -325,36 +325,27 @@ static void afs_redirty_pages(struct writeback_control *wbc,
 /*
  * completion of write to server
  */
-static void afs_pages_written_back(struct afs_vnode *vnode,
-				   pgoff_t first, pgoff_t last)
+static void afs_pages_written_back(struct afs_vnode *vnode, pgoff_t start, pgoff_t last)
 {
-	struct pagevec pv;
-	unsigned count, loop;
+	struct address_space *mapping = vnode->vfs_inode.i_mapping;
+	struct page *page;
+
+	XA_STATE(xas, &mapping->i_pages, start);
 
 	_enter("{%llx:%llu},{%lx-%lx}",
-	       vnode->fid.vid, vnode->fid.vnode, first, last);
+	       vnode->fid.vid, vnode->fid.vnode, start, last);
 
-	pagevec_init(&pv);
+	rcu_read_lock();
 
-	do {
-		_debug("done %lx-%lx", first, last);
+	xas_for_each(&xas, page, last) {
+		ASSERT(PageWriteback(page));
 
-		count = last - first + 1;
-		if (count > PAGEVEC_SIZE)
-			count = PAGEVEC_SIZE;
-		pv.nr = find_get_pages_contig(vnode->vfs_inode.i_mapping,
-					      first, count, pv.pages);
-		ASSERTCMP(pv.nr, ==, count);
+		detach_page_private(page);
+		trace_afs_page_dirty(vnode, tracepoint_string("clear"), page);
+		page_endio(page, true, 0);
+	}
 
-		for (loop = 0; loop < count; loop++) {
-			detach_page_private(pv.pages[loop]);
-			trace_afs_page_dirty(vnode, tracepoint_string("clear"),
-					     pv.pages[loop]);
-			end_page_writeback(pv.pages[loop]);
-		}
-		first += count;
-		__pagevec_release(&pv);
-	} while (first <= last);
+	rcu_read_unlock();
 
 	afs_prune_wb_keys(vnode);
 	_leave("");
@@ -411,9 +402,7 @@ static void afs_store_data_success(struct afs_operation *op)
 		if (!op->store.laundering)
 			afs_pages_written_back(vnode, op->store.first, op->store.last);
 		afs_stat_v(vnode, n_stores);
-		atomic_long_add((op->store.last * PAGE_SIZE + op->store.last_to) -
-				(op->store.first * PAGE_SIZE + op->store.first_offset),
-				&afs_v2net(vnode)->n_store_bytes);
+		atomic_long_add(op->store.size, &afs_v2net(vnode)->n_store_bytes);
 	}
 }
 
@@ -426,21 +415,21 @@ static const struct afs_operation_ops afs_store_data_operation = {
 /*
  * write to a file
  */
-static int afs_store_data(struct address_space *mapping,
-			  pgoff_t first, pgoff_t last,
-			  unsigned offset, unsigned to, bool laundering)
+static int afs_store_data(struct afs_vnode *vnode, struct iov_iter *iter,
+			  loff_t pos, pgoff_t first, pgoff_t last,
+			  bool laundering)
 {
-	struct afs_vnode *vnode = AFS_FS_I(mapping->host);
 	struct afs_operation *op;
 	struct afs_wb_key *wbk = NULL;
-	int ret;
+	loff_t size = iov_iter_count(iter), i_size;
+	int ret = -ENOKEY;
 
-	_enter("%s{%llx:%llu.%u},%lx,%lx,%x,%x",
+	_enter("%s{%llx:%llu.%u},%llx,%llx",
 	       vnode->volume->name,
 	       vnode->fid.vid,
 	       vnode->fid.vnode,
 	       vnode->fid.unique,
-	       first, last, offset, to);
+	       size, pos);
 
 	ret = afs_get_writeback_key(vnode, &wbk);
 	if (ret) {
@@ -454,13 +443,16 @@ static int afs_store_data(struct address_space *mapping,
 		return -ENOMEM;
 	}
 
+	i_size = i_size_read(&vnode->vfs_inode);
+
 	afs_op_set_vnode(op, 0, vnode);
 	op->file[0].dv_delta = 1;
-	op->store.mapping = mapping;
+	op->store.write_iter = iter;
+	op->store.pos = pos;
 	op->store.first = first;
 	op->store.last = last;
-	op->store.first_offset = offset;
-	op->store.last_to = to;
+	op->store.size = size;
+	op->store.i_size = max(pos + size, i_size);
 	op->store.laundering = laundering;
 	op->mtime = vnode->vfs_inode.i_mtime;
 	op->flags |= AFS_OPERATION_UNINTR;
@@ -503,11 +495,12 @@ static int afs_write_back_from_locked_page(struct address_space *mapping,
 					   pgoff_t final_page)
 {
 	struct afs_vnode *vnode = AFS_FS_I(mapping->host);
+	struct iov_iter iter;
 	struct page *pages[8], *page;
 	unsigned long count, priv;
 	unsigned n, offset, to, f, t;
 	pgoff_t start, first, last;
-	loff_t i_size, end;
+	loff_t i_size, pos, end;
 	int loop, ret;
 
 	_enter(",%lx", primary_page->index);
@@ -604,15 +597,28 @@ no_more:
 
 	first = primary_page->index;
 	last = first + count - 1;
-
-	end = (loff_t)last * PAGE_SIZE + to;
-	i_size = i_size_read(&vnode->vfs_inode);
-
 	_debug("write back %lx[%u..] to %lx[..%u]", first, offset, last, to);
-	if (end > i_size)
-		to = i_size & ~PAGE_MASK;
 
-	ret = afs_store_data(mapping, first, last, offset, to, false);
+	pos = first;
+	pos <<= PAGE_SHIFT;
+	pos += offset;
+	end = last;
+	end <<= PAGE_SHIFT;
+	end += to;
+
+	/* Trim the actual write down to the EOF */
+	i_size = i_size_read(&vnode->vfs_inode);
+	if (end > i_size)
+		end = i_size;
+
+	if (pos < i_size) {
+		iov_iter_xarray(&iter, WRITE, &mapping->i_pages, pos, end - pos);
+		ret = afs_store_data(vnode, &iter, pos, first, last, false);
+	} else {
+		/* The dirty region was entirely beyond the EOF. */
+		ret = 0;
+	}
+
 	switch (ret) {
 	case 0:
 		ret = count;
@@ -912,6 +918,8 @@ int afs_launder_page(struct page *page)
 {
 	struct address_space *mapping = page->mapping;
 	struct afs_vnode *vnode = AFS_FS_I(mapping->host);
+	struct iov_iter iter;
+	struct bio_vec bv[1];
 	unsigned long priv;
 	unsigned int f, t;
 	int ret = 0;
@@ -927,8 +935,14 @@ int afs_launder_page(struct page *page)
 			t = afs_page_dirty_to(page, priv);
 		}
 
+		bv[0].bv_page = page;
+		bv[0].bv_offset = f;
+		bv[0].bv_len = t - f;
+		iov_iter_bvec(&iter, WRITE, bv, 1, bv[0].bv_len);
+
 		trace_afs_page_dirty(vnode, tracepoint_string("launder"), page);
-		ret = afs_store_data(mapping, page->index, page->index, t, f, true);
+		ret = afs_store_data(vnode, &iter, (loff_t)page->index << PAGE_SHIFT,
+				     page->index, page->index, true);
 	}
 
 	detach_page_private(page);

@@ -107,6 +107,7 @@ struct afs_call {
 	void			*request;	/* request data (first part) */
 	size_t			iov_len;	/* Size of *iter to be used */
 	struct iov_iter		def_iter;	/* Default buffer/data iterator */
+	struct iov_iter		*write_iter;	/* Iterator defining write to be made */
 	struct iov_iter		*iter;		/* Iterator currently in use */
 	union {	/* Convenience for ->def_iter */
 		struct kvec	kvec[1];
@@ -133,7 +134,6 @@ struct afs_call {
 	unsigned char		unmarshall;	/* unmarshalling phase */
 	unsigned char		addr_ix;	/* Address in ->alist */
 	bool			drop_ref;	/* T if need to drop ref for incoming call */
-	bool			send_pages;	/* T if data from mapping should be sent */
 	bool			need_attention;	/* T if RxRPC poked us */
 	bool			async;		/* T if asynchronous */
 	bool			upgrade;	/* T to request service upgrade */
@@ -811,12 +811,13 @@ struct afs_operation {
 			afs_lock_type_t type;
 		} lock;
 		struct {
-			struct address_space *mapping;	/* Pages being written from */
-			pgoff_t		first;		/* first page in mapping to deal with */
-			pgoff_t		last;		/* last page in mapping to deal with */
-			unsigned	first_offset;	/* offset into mapping[first] */
-			unsigned	last_to;	/* amount of mapping[last] */
-			bool		laundering;	/* Laundering page, PG_writeback not set */
+			struct iov_iter	*write_iter;
+			loff_t	pos;
+			loff_t	size;
+			loff_t	i_size;
+			pgoff_t	first;		/* first page in mapping to deal with */
+			pgoff_t	last;		/* last page in mapping to deal with */
+			bool	laundering;	/* Laundering page, PG_writeback not set */
 		} store;
 		struct {
 			struct iattr	*attr;
