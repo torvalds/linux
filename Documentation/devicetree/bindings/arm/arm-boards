@@ -121,7 +121,7 @@ Required properties (in root node):
 Required nodes:
 
 - soc: some node of the RealView platforms must be the SoC
-  node that contain the SoC-specific devices, withe the compatible
+  node that contain the SoC-specific devices, with the compatible
   string set to one of these tuples:
    "arm,realview-eb-soc", "simple-bus"
    "arm,realview-pb1176-soc", "simple-bus"

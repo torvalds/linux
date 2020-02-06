@@ -151,6 +151,8 @@ patternProperties:
     description: Bosch Sensortec GmbH
   "^boundary,.*":
     description: Boundary Devices Inc.
+  "^broadmobi,.*":
+    description: Shanghai Broadmobi Communication Technology Co.,Ltd.
   "^brcm,.*":
     description: Broadcom Corporation
   "^buffalo,.*":
@@ -159,6 +161,8 @@ patternProperties:
     description: B&R Industrial Automation GmbH
   "^bticino,.*":
     description: Bticino International
+  "^calaosystems,.*":
+    description: CALAO Systems SAS
   "^calxeda,.*":
     description: Calxeda
   "^capella,.*":
@@ -477,6 +481,8 @@ patternProperties:
     description: Shenzhen Jesurun Electronics Business Dept.
   "^jianda,.*":
     description: Jiandangjing Technology Co., Ltd.
+  "^kam,.*":
+    description: Kamstrup A/S
   "^karo,.*":
     description: Ka-Ro electronics GmbH
   "^keithkoep,.*":
@@ -615,6 +621,8 @@ patternProperties:
     description: Moxa Inc.
   "^mpl,.*":
     description: MPL AG
+  "^mps,.*":
+    description: Monolithic Power Systems Inc.
   "^mqmaker,.*":
     description: mqmaker Inc.
   "^mscc,.*":
@@ -915,8 +923,12 @@ patternProperties:
     description: Startek
   "^ste,.*":
     description: ST-Ericsson
+    deprecated: true
   "^stericsson,.*":
     description: ST-Ericsson
+  "^st-ericsson,.*":
+    description: ST-Ericsson
+    deprecated: true
   "^summit,.*":
     description: Summit microelectronics
   "^sunchip,.*":

@@ -22,6 +22,7 @@ Required properties:
 	       "fsl,imx8mm-usdhc"
 	       "fsl,imx8mn-usdhc"
 	       "fsl,imx8mp-usdhc"
+	       "fsl,imx8qm-usdhc"
 	       "fsl,imx8qxp-usdhc"
 
 Optional properties:

@@ -206,7 +206,7 @@ static int set_xfer_rate (ide_drive_t *drive, int arg)
 ide_devset_rw(current_speed, xfer_rate);
 ide_devset_rw_field(init_speed, init_speed);
 ide_devset_rw_flag(nice1, IDE_DFLAG_NICE1);
-ide_devset_rw_field(number, dn);
+ide_devset_ro_field(number, dn);
 
 static const struct ide_proc_devset ide_generic_settings[] = {
 	IDE_PROC_DEVSET(current_speed, 0, 70),

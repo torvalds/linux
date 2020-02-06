@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/dma/st,stm32-dmamux.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: STMicroelectronics STM32 DMA MUX (DMA request router) bindings
+
+maintainers:
+  - Amelie Delaunay <amelie.delaunay@st.com>
+
+allOf:
+  - $ref: "dma-router.yaml#"
+
+properties:
+  "#dma-cells":
+    const: 3
+
+  compatible:
+    const: st,stm32h7-dmamux
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - dma-masters
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/stm32mp1-clks.h>
+    #include <dt-bindings/reset/stm32mp1-resets.h>
+    dma-router@40020800 {
+      compatible = "st,stm32h7-dmamux";
+      reg = <0x40020800 0x3c>;
+      #dma-cells = <3>;
+      dma-requests = <128>;
+      dma-channels = <16>;
+      dma-masters = <&dma1 &dma2>;
+      clocks = <&timer_clk>;
+    };
+
+...
+

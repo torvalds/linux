@@ -1,0 +1,65 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/sunxi/allwinner,sun4i-a10-mbus.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Allwinner Memory Bus (MBUS) controller
+
+maintainers:
+  - Chen-Yu Tsai <wens@csie.org>
+  - Maxime Ripard <mripard@kernel.org>
+
+description: |
+  The MBUS controller drives the MBUS that other devices in the SoC
+  will use to perform DMA. It also has a register interface that
+  allows to monitor and control the bandwidth and priorities for
+  masters on that bus.
+
+  Each device having to perform their DMA through the MBUS must have
+  the interconnects and interconnect-names properties set to the MBUS
+  controller and with "dma-mem" as the interconnect name.
+
+properties:
+  "#interconnect-cells":
+    const: 1
+    description:
+      The content of the cell is the MBUS ID.
+
+  compatible:
+    enum:
+      - allwinner,sun5i-a13-mbus
+      - allwinner,sun8i-h3-mbus
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  dma-ranges:
+    description:
+      See section 2.3.9 of the DeviceTree Specification.
+
+required:
+  - "#interconnect-cells"
+  - compatible
+  - reg
+  - clocks
+  - dma-ranges
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/sun5i-ccu.h>
+
+    mbus: dram-controller@1c01000 {
+        compatible = "allwinner,sun5i-a13-mbus";
+        reg = <0x01c01000 0x1000>;
+        clocks = <&ccu CLK_MBUS>;
+        dma-ranges = <0x00000000 0x40000000 0x20000000>;
+        #interconnect-cells = <1>;
+    };
+
+...

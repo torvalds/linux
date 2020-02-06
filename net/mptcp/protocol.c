@@ -28,7 +28,7 @@ static void __mptcp_close(struct sock *sk, long timeout);
 
 static const struct proto_ops *tcp_proto_ops(struct sock *sk)
 {
-#if IS_ENABLED(CONFIG_IPV6)
+#if IS_ENABLED(CONFIG_MPTCP_IPV6)
 	if (sk->sk_family == AF_INET6)
 		return &inet6_stream_ops;
 #endif
@@ -644,19 +644,21 @@ static void __mptcp_close(struct sock *sk, long timeout)
 {
 	struct mptcp_subflow_context *subflow, *tmp;
 	struct mptcp_sock *msk = mptcp_sk(sk);
+	LIST_HEAD(conn_list);
 
 	mptcp_token_destroy(msk->token);
 	inet_sk_state_store(sk, TCP_CLOSE);
 
-	list_for_each_entry_safe(subflow, tmp, &msk->conn_list, node) {
+	list_splice_init(&msk->conn_list, &conn_list);
+
+	release_sock(sk);
+
+	list_for_each_entry_safe(subflow, tmp, &conn_list, node) {
 		struct sock *ssk = mptcp_subflow_tcp_sock(subflow);
 
 		__mptcp_close_ssk(sk, ssk, subflow, timeout);
 	}
 
-	if (msk->cached_ext)
-		__skb_ext_put(msk->cached_ext);
-	release_sock(sk);
 	sk_common_release(sk);
 }
 
@@ -776,18 +778,19 @@ static struct sock *mptcp_accept(struct sock *sk, int flags, int *err,
 
 static void mptcp_destroy(struct sock *sk)
 {
+	struct mptcp_sock *msk = mptcp_sk(sk);
+
+	if (msk->cached_ext)
+		__skb_ext_put(msk->cached_ext);
 }
 
 static int mptcp_setsockopt(struct sock *sk, int level, int optname,
-			    char __user *uoptval, unsigned int optlen)
+			    char __user *optval, unsigned int optlen)
 {
 	struct mptcp_sock *msk = mptcp_sk(sk);
-	char __kernel *optval;
 	int ret = -EOPNOTSUPP;
 	struct socket *ssock;
-
-	/* will be treated as __user in tcp_setsockopt */
-	optval = (char __kernel __force *)uoptval;
+	struct sock *ssk;
 
 	pr_debug("msk=%p", msk);
 
@@ -796,27 +799,28 @@ static int mptcp_setsockopt(struct sock *sk, int level, int optname,
 	 */
 	lock_sock(sk);
 	ssock = __mptcp_socket_create(msk, MPTCP_SAME_STATE);
-	if (!IS_ERR(ssock)) {
-		pr_debug("subflow=%p", ssock->sk);
-		ret = kernel_setsockopt(ssock, level, optname, optval, optlen);
+	if (IS_ERR(ssock)) {
+		release_sock(sk);
+		return ret;
 	}
+
+	ssk = ssock->sk;
+	sock_hold(ssk);
 	release_sock(sk);
+
+	ret = tcp_setsockopt(ssk, level, optname, optval, optlen);
+	sock_put(ssk);
 
 	return ret;
 }
 
 static int mptcp_getsockopt(struct sock *sk, int level, int optname,
-			    char __user *uoptval, int __user *uoption)
+			    char __user *optval, int __user *option)
 {
 	struct mptcp_sock *msk = mptcp_sk(sk);
-	char __kernel *optval;
 	int ret = -EOPNOTSUPP;
-	int __kernel *option;
 	struct socket *ssock;
-
-	/* will be treated as __user in tcp_getsockopt */
-	optval = (char __kernel __force *)uoptval;
-	option = (int __kernel __force *)uoption;
+	struct sock *ssk;
 
 	pr_debug("msk=%p", msk);
 
@@ -825,11 +829,17 @@ static int mptcp_getsockopt(struct sock *sk, int level, int optname,
 	 */
 	lock_sock(sk);
 	ssock = __mptcp_socket_create(msk, MPTCP_SAME_STATE);
-	if (!IS_ERR(ssock)) {
-		pr_debug("subflow=%p", ssock->sk);
-		ret = kernel_getsockopt(ssock, level, optname, optval, option);
+	if (IS_ERR(ssock)) {
+		release_sock(sk);
+		return ret;
 	}
+
+	ssk = ssock->sk;
+	sock_hold(ssk);
 	release_sock(sk);
+
+	ret = tcp_getsockopt(ssk, level, optname, optval, option);
+	sock_put(ssk);
 
 	return ret;
 }

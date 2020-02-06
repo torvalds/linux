@@ -1,0 +1,86 @@
+# SPDX-License-Identifier: GPL-2.0-only
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/leds/leds-gpio.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: LEDs connected to GPIO lines
+
+maintainers:
+  - Jacek Anaszewski <jacek.anaszewski@gmail.com>
+  - Pavel Machek <pavel@ucw.cz>
+
+description:
+  Each LED is represented as a sub-node of the gpio-leds device.  Each
+  node's name represents the name of the corresponding LED.
+
+properties:
+  compatible:
+    const: gpio-leds
+
+patternProperties:
+  # The first form is preferred, but fall back to just 'led' anywhere in the
+  # node name to at least catch some child nodes.
+  "(^led-[0-9a-f]$|led)":
+    type: object
+
+    allOf:
+      - $ref: common.yaml#
+
+    properties:
+      gpios:
+        maxItems: 1
+
+      retain-state-suspended:
+        description:
+          The suspend state can be retained.Such as charge-led gpio.
+        type: boolean
+
+      retain-state-shutdown:
+        description:
+          Retain the state of the LED on shutdown. Useful in BMC systems, for
+          example when the BMC is rebooted while the host remains up.
+        type: boolean
+
+    required:
+      - gpios
+
+additionalProperties: false
+
+examples:
+  - |
+
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/leds/common.h>
+
+    leds {
+        compatible = "gpio-leds";
+        led-0 {
+            gpios = <&mcu_pio 0 GPIO_ACTIVE_LOW>;
+            linux,default-trigger = "disk-activity";
+            function = LED_FUNCTION_DISK;
+        };
+
+        led-1 {
+            gpios = <&mcu_pio 1 GPIO_ACTIVE_HIGH>;
+            /* Keep LED on if BIOS detected hardware fault */
+            default-state = "keep";
+            function = LED_FUNCTION_FAULT;
+        };
+    };
+
+    run-control {
+        compatible = "gpio-leds";
+        led-0 {
+            gpios = <&mpc8572 6 GPIO_ACTIVE_HIGH>;
+            color = <LED_COLOR_ID_RED>;
+            default-state = "off";
+        };
+        led-1 {
+            gpios = <&mpc8572 7 GPIO_ACTIVE_HIGH>;
+            color = <LED_COLOR_ID_GREEN>;
+            default-state = "on";
+        };
+    };
+
+...
