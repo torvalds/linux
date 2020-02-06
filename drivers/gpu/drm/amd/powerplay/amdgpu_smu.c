@@ -1454,12 +1454,54 @@ int smu_reset(struct smu_context *smu)
 	return ret;
 }
 
+static int smu_disabled_dpms(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t smu_version;
+	int ret = 0;
+
+	ret = smu_get_smc_version(smu, NULL, &smu_version);
+	if (ret) {
+		pr_err("Failed to get smu version.\n");
+		return ret;
+	}
+
+	/*
+	 * For baco reset on Arcturus, this operation
+	 * (disable all smu feature) will be handled by SMU FW.
+	 */
+	if (adev->in_gpu_reset &&
+	    (amdgpu_asic_reset_method(adev) == AMD_RESET_METHOD_BACO) &&
+	    (adev->asic_type == CHIP_ARCTURUS && smu_version > 0x360e00))
+		return 0;
+
+	/* Disable all enabled SMU features */
+	ret = smu_system_features_control(smu, false);
+	if (ret) {
+		pr_err("Failed to disable smu features.\n");
+		return ret;
+	}
+
+	/* For baco reset, need to leave BACO feature enabled */
+	if (adev->in_gpu_reset &&
+	    (amdgpu_asic_reset_method(adev) == AMD_RESET_METHOD_BACO) &&
+	    !smu->is_apu &&
+	    smu_feature_is_enabled(smu, SMU_FEATURE_BACO_BIT)) {
+		ret = smu_feature_set_enabled(smu, SMU_FEATURE_BACO_BIT, true);
+		if (ret) {
+			pr_warn("set BACO feature enabled failed, return %d\n", ret);
+			return ret;
+		}
+	}
+
+	return ret;
+}
+
 static int smu_suspend(void *handle)
 {
-	int ret;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct smu_context *smu = &adev->smu;
-	bool baco_feature_is_enabled = false;
+	int ret;
 
 	if (amdgpu_sriov_vf(adev)&& !amdgpu_sriov_is_pp_one_vf(adev))
 		return 0;
@@ -1467,21 +1509,10 @@ static int smu_suspend(void *handle)
 	if (!smu->pm_enabled)
 		return 0;
 
-	if(!smu->is_apu)
-		baco_feature_is_enabled = smu_feature_is_enabled(smu, SMU_FEATURE_BACO_BIT);
-
 	if(!amdgpu_sriov_vf(adev)) {
-		ret = smu_system_features_control(smu, false);
+		ret = smu_disabled_dpms(smu);
 		if (ret)
 			return ret;
-
-		if (baco_feature_is_enabled) {
-			ret = smu_feature_set_enabled(smu, SMU_FEATURE_BACO_BIT, true);
-			if (ret) {
-				pr_warn("set BACO feature enabled failed, return %d\n", ret);
-				return ret;
-			}
-		}
 	}
 
 	smu->watermarks_bitmap &= ~(WATERMARKS_LOADED);
