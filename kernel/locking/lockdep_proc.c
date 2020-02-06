@@ -137,7 +137,7 @@ static int lc_show(struct seq_file *m, void *v)
 	};
 
 	if (v == SEQ_START_TOKEN) {
-		if (nr_chain_hlocks > MAX_LOCKDEP_CHAIN_HLOCKS)
+		if (!nr_free_chain_hlocks)
 			seq_printf(m, "(buggered) ");
 		seq_printf(m, "all lock chains:\n");
 		return 0;
@@ -278,8 +278,12 @@ static int lockdep_stats_show(struct seq_file *m, void *v)
 #ifdef CONFIG_PROVE_LOCKING
 	seq_printf(m, " dependency chains:             %11lu [max: %lu]\n",
 			lock_chain_count(), MAX_LOCKDEP_CHAINS);
-	seq_printf(m, " dependency chain hlocks:       %11u [max: %lu]\n",
-			nr_chain_hlocks, MAX_LOCKDEP_CHAIN_HLOCKS);
+	seq_printf(m, " dependency chain hlocks used:  %11lu [max: %lu]\n",
+			MAX_LOCKDEP_CHAIN_HLOCKS -
+			(nr_free_chain_hlocks + nr_lost_chain_hlocks),
+			MAX_LOCKDEP_CHAIN_HLOCKS);
+	seq_printf(m, " dependency chain hlocks lost:  %11u\n",
+			nr_lost_chain_hlocks);
 #endif
 
 #ifdef CONFIG_TRACE_IRQFLAGS
@@ -352,6 +356,8 @@ static int lockdep_stats_show(struct seq_file *m, void *v)
 #ifdef CONFIG_PROVE_LOCKING
 	seq_printf(m, " zapped lock chains:            %11lu\n",
 			nr_zapped_lock_chains);
+	seq_printf(m, " large chain blocks:            %11u\n",
+			nr_large_chain_blocks);
 #endif
 	return 0;
 }
