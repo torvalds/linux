@@ -892,19 +892,28 @@ static struct cpuidle_state dnv_cstates[] = {
 };
 
 /**
- * intel_idle
- * @dev: cpuidle_device
- * @drv: cpuidle driver
- * @index: index of cpuidle state
+ * intel_idle - Ask the processor to enter the given idle state.
+ * @dev: cpuidle device of the target CPU.
+ * @drv: cpuidle driver (assumed to point to intel_idle_driver).
+ * @index: Target idle state index.
+ *
+ * Use the MWAIT instruction to notify the processor that the CPU represented by
+ * @dev is idle and it can try to enter the idle state corresponding to @index.
+ *
+ * If the local APIC timer is not known to be reliable in the target idle state,
+ * enable one-shot tick broadcasting for the target CPU before executing MWAIT.
+ *
+ * Optionally call leave_mm() for the target CPU upfront to avoid wakeups due to
+ * flushing user TLBs.
  *
  * Must be called under local_irq_disable().
  */
 static __cpuidle int intel_idle(struct cpuidle_device *dev,
 				struct cpuidle_driver *drv, int index)
 {
-	unsigned long ecx = 1; /* break on interrupt flag */
 	struct cpuidle_state *state = &drv->states[index];
 	unsigned long eax = flg2MWAIT(state->flags);
+	unsigned long ecx = 1; /* break on interrupt flag */
 	bool uninitialized_var(tick);
 	int cpu = smp_processor_id();
 
@@ -937,16 +946,22 @@ static __cpuidle int intel_idle(struct cpuidle_device *dev,
 }
 
 /**
- * intel_idle_s2idle - simplified "enter" callback routine for suspend-to-idle
- * @dev: cpuidle_device
- * @drv: cpuidle driver
- * @index: state index
+ * intel_idle_s2idle - Ask the processor to enter the given idle state.
+ * @dev: cpuidle device of the target CPU.
+ * @drv: cpuidle driver (assumed to point to intel_idle_driver).
+ * @index: Target idle state index.
+ *
+ * Use the MWAIT instruction to notify the processor that the CPU represented by
+ * @dev is idle and it can try to enter the idle state corresponding to @index.
+ *
+ * Invoked as a suspend-to-idle callback routine with frozen user space, frozen
+ * scheduler tick and suspended scheduler clock on the target CPU.
  */
-static void intel_idle_s2idle(struct cpuidle_device *dev,
-			     struct cpuidle_driver *drv, int index)
+static __cpuidle void intel_idle_s2idle(struct cpuidle_device *dev,
+					struct cpuidle_driver *drv, int index)
 {
-	unsigned long ecx = 1; /* break on interrupt flag */
 	unsigned long eax = flg2MWAIT(drv->states[index].flags);
+	unsigned long ecx = 1; /* break on interrupt flag */
 
 	mwait_idle_with_hints(eax, ecx);
 }
