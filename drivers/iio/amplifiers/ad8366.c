@@ -180,9 +180,22 @@ static int ad8366_write_raw(struct iio_dev *indio_dev,
 	return ret;
 }
 
+static int ad8366_write_raw_get_fmt(struct iio_dev *indio_dev,
+				    struct iio_chan_spec const *chan,
+				    long mask)
+{
+	switch (mask) {
+	case IIO_CHAN_INFO_HARDWAREGAIN:
+		return IIO_VAL_INT_PLUS_MICRO_DB;
+	default:
+		return -EINVAL;
+	}
+}
+
 static const struct iio_info ad8366_info = {
 	.read_raw = &ad8366_read_raw,
 	.write_raw = &ad8366_write_raw,
+	.write_raw_get_fmt = &ad8366_write_raw_get_fmt,
 };
 
 #define AD8366_CHAN(_channel) {				\
