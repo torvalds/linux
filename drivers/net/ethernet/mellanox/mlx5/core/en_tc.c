@@ -3533,7 +3533,8 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 				NL_SET_ERR_MSG_MOD(extack, "Goto action is not supported");
 				return -EOPNOTSUPP;
 			}
-			if (dest_chain <= attr->chain) {
+			if (!mlx5_esw_chains_backwards_supported(esw) &&
+			    dest_chain <= attr->chain) {
 				NL_SET_ERR_MSG(extack, "Goto earlier chain isn't supported");
 				return -EOPNOTSUPP;
 			}

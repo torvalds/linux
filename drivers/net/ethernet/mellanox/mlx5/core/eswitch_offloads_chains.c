@@ -97,6 +97,11 @@ bool mlx5_esw_chains_prios_supported(struct mlx5_eswitch *esw)
 	return esw->fdb_table.flags & ESW_FDB_CHAINS_AND_PRIOS_SUPPORTED;
 }
 
+bool mlx5_esw_chains_backwards_supported(struct mlx5_eswitch *esw)
+{
+	return fdb_ignore_flow_level_supported(esw);
+}
+
 u32 mlx5_esw_chains_get_chain_range(struct mlx5_eswitch *esw)
 {
 	if (!mlx5_esw_chains_prios_supported(esw))
