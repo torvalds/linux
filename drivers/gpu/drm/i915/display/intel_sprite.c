@@ -1639,8 +1639,8 @@ static int g4x_sprite_min_cdclk(const struct intel_crtc_state *crtc_state,
 	limit -= decimate;
 
 	/* -10% for RGB */
-	if (fb->format->cpp[0] >= 4)
-		limit--; /* -10% for RGB */
+	if (!fb->format->is_yuv)
+		limit--;
 
 	/*
 	 * We should also do -10% if sprite scaling is enabled
