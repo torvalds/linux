@@ -1113,7 +1113,7 @@ xfs_buf_iodone_callback_error(
 	if (bp->b_target != lasttarg ||
 	    time_after(jiffies, (lasttime + 5*HZ))) {
 		lasttime = jiffies;
-		xfs_buf_ioerror_alert(bp, __func__);
+		xfs_buf_ioerror_alert(bp, __this_address);
 	}
 	lasttarg = bp->b_target;
 

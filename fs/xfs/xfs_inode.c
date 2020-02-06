@@ -2546,6 +2546,7 @@ xfs_ifree_cluster(
 	struct xfs_perag	*pag;
 	struct xfs_ino_geometry	*igeo = M_IGEO(mp);
 	xfs_ino_t		inum;
+	int			error;
 
 	inum = xic->first_ino;
 	pag = xfs_perag_get(mp, XFS_INO_TO_AGNO(mp, inum));
@@ -2574,12 +2575,11 @@ xfs_ifree_cluster(
 		 * complete before we get a lock on it, and hence we may fail
 		 * to mark all the active inodes on the buffer stale.
 		 */
-		bp = xfs_trans_get_buf(tp, mp->m_ddev_targp, blkno,
-					mp->m_bsize * igeo->blocks_per_cluster,
-					XBF_UNMAPPED);
-
-		if (!bp)
-			return -ENOMEM;
+		error = xfs_trans_get_buf(tp, mp->m_ddev_targp, blkno,
+				mp->m_bsize * igeo->blocks_per_cluster,
+				XBF_UNMAPPED, &bp);
+		if (error)
+			return error;
 
 		/*
 		 * This buffer may not have been correctly initialised as we

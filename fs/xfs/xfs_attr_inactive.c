@@ -205,11 +205,12 @@ xfs_attr3_node_inactive(
 		/*
 		 * Remove the subsidiary block from the cache and from the log.
 		 */
-		child_bp = xfs_trans_get_buf(*trans, mp->m_ddev_targp,
+		error = xfs_trans_get_buf(*trans, mp->m_ddev_targp,
 				child_blkno,
-				XFS_FSB_TO_BB(mp, mp->m_attr_geo->fsbcount), 0);
-		if (!child_bp)
-			return -EIO;
+				XFS_FSB_TO_BB(mp, mp->m_attr_geo->fsbcount), 0,
+				&child_bp);
+		if (error)
+			return error;
 		error = bp->b_error;
 		if (error) {
 			xfs_trans_brelse(*trans, child_bp);
@@ -298,10 +299,10 @@ xfs_attr3_root_inactive(
 	/*
 	 * Invalidate the incore copy of the root block.
 	 */
-	bp = xfs_trans_get_buf(*trans, mp->m_ddev_targp, blkno,
-			XFS_FSB_TO_BB(mp, mp->m_attr_geo->fsbcount), 0);
-	if (!bp)
-		return -EIO;
+	error = xfs_trans_get_buf(*trans, mp->m_ddev_targp, blkno,
+			XFS_FSB_TO_BB(mp, mp->m_attr_geo->fsbcount), 0, &bp);
+	if (error)
+		return error;
 	error = bp->b_error;
 	if (error) {
 		xfs_trans_brelse(*trans, bp);
