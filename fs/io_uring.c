@@ -553,7 +553,6 @@ struct io_kiocb {
 	 * llist_node is only used for poll deferred completions
 	 */
 	struct llist_node		llist_node;
-	bool				has_user;
 	bool				in_async;
 	bool				needs_fixed_file;
 	u8				opcode;
@@ -2055,9 +2054,6 @@ static ssize_t io_import_iovec(int rw, struct io_kiocb *req,
 			*iovec = NULL;
 		return iorw->size;
 	}
-
-	if (!req->has_user)
-		return -EFAULT;
 
 #ifdef CONFIG_COMPAT
 	if (req->ctx->compat)
@@ -4446,7 +4442,6 @@ static void io_wq_submit_work(struct io_wq_work **workptr)
 	}
 
 	if (!ret) {
-		req->has_user = (work->flags & IO_WQ_WORK_HAS_MM) != 0;
 		req->in_async = true;
 		do {
 			ret = io_issue_sqe(req, NULL, &nxt, false);
@@ -4950,6 +4945,7 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr,
 	for (i = 0; i < nr; i++) {
 		const struct io_uring_sqe *sqe;
 		struct io_kiocb *req;
+		int err;
 
 		req = io_get_req(ctx, statep);
 		if (unlikely(!req)) {
@@ -4966,20 +4962,23 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr,
 		submitted++;
 
 		if (unlikely(req->opcode >= IORING_OP_LAST)) {
-			io_cqring_add_event(req, -EINVAL);
+			err = -EINVAL;
+fail_req:
+			io_cqring_add_event(req, err);
 			io_double_put_req(req);
 			break;
 		}
 
 		if (io_op_defs[req->opcode].needs_mm && !*mm) {
 			mm_fault = mm_fault || !mmget_not_zero(ctx->sqo_mm);
-			if (!mm_fault) {
-				use_mm(ctx->sqo_mm);
-				*mm = ctx->sqo_mm;
+			if (unlikely(mm_fault)) {
+				err = -EFAULT;
+				goto fail_req;
 			}
+			use_mm(ctx->sqo_mm);
+			*mm = ctx->sqo_mm;
 		}
 
-		req->has_user = *mm != NULL;
 		req->in_async = async;
 		req->needs_fixed_file = async;
 		trace_io_uring_submit_sqe(ctx, req->opcode, req->user_data,
