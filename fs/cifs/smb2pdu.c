@@ -3363,6 +3363,7 @@ SMB2_notify_init(const unsigned int xid, struct smb_rqst *rqst,
 
 	req->PersistentFileId = persistent_fid;
 	req->VolatileFileId = volatile_fid;
+	/* See note 354 of MS-SMB2, 64K max */
 	req->OutputBufferLength =
 		cpu_to_le32(SMB2_MAX_BUFFER_SIZE - MAX_SMB2_HDR_SIZE);
 	req->CompletionFilter = cpu_to_le32(completion_filter);

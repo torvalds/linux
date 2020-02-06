@@ -2045,6 +2045,66 @@ smb3_enum_snapshots(const unsigned int xid, struct cifs_tcon *tcon,
 	return rc;
 }
 
+
+
+static int
+smb3_notify(const unsigned int xid, struct file *pfile,
+	    void __user *ioc_buf)
+{
+	struct smb3_notify notify;
+	struct dentry *dentry = pfile->f_path.dentry;
+	struct inode *inode = file_inode(pfile);
+	struct cifs_sb_info *cifs_sb;
+	struct cifs_open_parms oparms;
+	struct cifs_fid fid;
+	struct cifs_tcon *tcon;
+	unsigned char *path = NULL;
+	__le16 *utf16_path = NULL;
+	u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
+	int rc = 0;
+
+	path = build_path_from_dentry(dentry);
+	if (path == NULL)
+		return -ENOMEM;
+
+	cifs_sb = CIFS_SB(inode->i_sb);
+
+	utf16_path = cifs_convert_path_to_utf16(path + 1, cifs_sb);
+	if (utf16_path == NULL) {
+		rc = -ENOMEM;
+		goto notify_exit;
+	}
+
+	if (copy_from_user(&notify, ioc_buf, sizeof(struct smb3_notify))) {
+		rc = -EFAULT;
+		goto notify_exit;
+	}
+
+	tcon = cifs_sb_master_tcon(cifs_sb);
+	oparms.tcon = tcon;
+	oparms.desired_access = FILE_READ_ATTRIBUTES;
+	oparms.disposition = FILE_OPEN;
+	oparms.create_options = cifs_create_options(cifs_sb, 0);
+	oparms.fid = &fid;
+	oparms.reconnect = false;
+
+	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL, NULL, NULL);
+	if (rc)
+		goto notify_exit;
+
+	rc = SMB2_change_notify(xid, tcon, fid.persistent_fid, fid.volatile_fid,
+				notify.watch_tree, notify.completion_filter);
+
+	SMB2_close(xid, tcon, fid.persistent_fid, fid.volatile_fid);
+
+	cifs_dbg(FYI, "change notify for path %s rc %d\n", path, rc);
+
+notify_exit:
+	kfree(path);
+	kfree(utf16_path);
+	return rc;
+}
+
 static int
 smb2_query_dir_first(const unsigned int xid, struct cifs_tcon *tcon,
 		     const char *path, struct cifs_sb_info *cifs_sb,
@@ -4841,6 +4901,7 @@ struct smb_version_operations smb30_operations = {
 	.dir_needs_close = smb2_dir_needs_close,
 	.fallocate = smb3_fallocate,
 	.enum_snapshots = smb3_enum_snapshots,
+	.notify = smb3_notify,
 	.init_transform_rq = smb3_init_transform_rq,
 	.is_transform_hdr = smb3_is_transform_hdr,
 	.receive_transform = smb3_receive_transform,
@@ -4951,6 +5012,7 @@ struct smb_version_operations smb311_operations = {
 	.dir_needs_close = smb2_dir_needs_close,
 	.fallocate = smb3_fallocate,
 	.enum_snapshots = smb3_enum_snapshots,
+	.notify = smb3_notify,
 	.init_transform_rq = smb3_init_transform_rq,
 	.is_transform_hdr = smb3_is_transform_hdr,
 	.receive_transform = smb3_receive_transform,

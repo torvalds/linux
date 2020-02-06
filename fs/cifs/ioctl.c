@@ -169,6 +169,7 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 	unsigned int xid;
 	struct cifsFileInfo *pSMBFile = filep->private_data;
 	struct cifs_tcon *tcon;
+	struct cifs_sb_info *cifs_sb;
 	__u64	ExtAttrBits = 0;
 	__u64   caps;
 
@@ -298,6 +299,21 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 				rc = -EFAULT;
 			else
 				rc = 0;
+			break;
+		case CIFS_IOC_NOTIFY:
+			if (!S_ISDIR(inode->i_mode)) {
+				/* Notify can only be done on directories */
+				rc = -EOPNOTSUPP;
+				break;
+			}
+			cifs_sb = CIFS_SB(inode->i_sb);
+			tcon = tlink_tcon(cifs_sb_tlink(cifs_sb));
+			if (tcon && tcon->ses->server->ops->notify) {
+				rc = tcon->ses->server->ops->notify(xid,
+						filep, (void __user *)arg);
+				cifs_dbg(FYI, "ioctl notify rc %d\n", rc);
+			} else
+				rc = -EOPNOTSUPP;
 			break;
 		default:
 			cifs_dbg(FYI, "unsupported ioctl\n");
