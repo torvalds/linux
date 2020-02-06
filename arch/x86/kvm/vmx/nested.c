@@ -1074,10 +1074,10 @@ static bool nested_cr3_valid(struct kvm_vcpu *vcpu, unsigned long val)
 }
 
 /*
- * Load guest's/host's cr3 at nested entry/exit. nested_ept is true if we are
- * emulating VM entry into a guest with EPT enabled.
- * Returns 0 on success, 1 on failure. Invalid state exit qualification code
- * is assigned to entry_failure_code on failure.
+ * Load guest's/host's cr3 at nested entry/exit.  @nested_ept is true if we are
+ * emulating VM-Entry into a guest with EPT enabled.  On failure, the expected
+ * Exit Qualification (for a VM-Entry consistency check VM-Exit) is assigned to
+ * @entry_failure_code.
  */
 static int nested_vmx_load_cr3(struct kvm_vcpu *vcpu, unsigned long cr3, bool nested_ept,
 			       u32 *entry_failure_code)
@@ -2756,6 +2756,9 @@ static int nested_vmx_check_controls(struct kvm_vcpu *vcpu,
 	    nested_check_vm_exit_controls(vcpu, vmcs12) ||
 	    nested_check_vm_entry_controls(vcpu, vmcs12))
 		return -EINVAL;
+
+	if (to_vmx(vcpu)->nested.enlightened_vmcs_enabled)
+		return nested_evmcs_check_controls(vmcs12);
 
 	return 0;
 }
@@ -4722,8 +4725,6 @@ static int handle_vmclear(struct kvm_vcpu *vcpu)
 
 	return nested_vmx_succeed(vcpu);
 }
-
-static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch);
 
 /* Emulate the VMLAUNCH instruction */
 static int handle_vmlaunch(struct kvm_vcpu *vcpu)

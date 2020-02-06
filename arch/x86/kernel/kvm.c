@@ -736,6 +736,9 @@ static __init int kvm_setup_pv_tlb_flush(void)
 {
 	int cpu;
 
+	if (!kvm_para_available() || nopv)
+		return 0;
+
 	if (kvm_para_has_feature(KVM_FEATURE_PV_TLB_FLUSH) &&
 	    !kvm_para_has_hint(KVM_HINTS_REALTIME) &&
 	    kvm_para_has_feature(KVM_FEATURE_STEAL_TIME)) {

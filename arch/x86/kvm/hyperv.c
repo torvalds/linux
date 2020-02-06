@@ -776,9 +776,10 @@ int kvm_hv_activate_synic(struct kvm_vcpu *vcpu, bool dont_zero_synic_pages)
 
 	/*
 	 * Hyper-V SynIC auto EOI SINT's are
-	 * not compatible with APICV, so deactivate APICV
+	 * not compatible with APICV, so request
+	 * to deactivate APICV permanently.
 	 */
-	kvm_vcpu_deactivate_apicv(vcpu);
+	kvm_request_apicv_update(vcpu->kvm, false, APICV_INHIBIT_REASON_HYPERV);
 	synic->active = true;
 	synic->dont_zero_synic_pages = dont_zero_synic_pages;
 	return 0;

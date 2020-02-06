@@ -280,6 +280,22 @@ static inline void dump_handler(const char *symbol, void *start, void *end)
 	pr_debug("\tEND(%s)\n", symbol);
 }
 
+/* low level hrtimer wake routine */
+static enum hrtimer_restart kvm_mips_comparecount_wakeup(struct hrtimer *timer)
+{
+	struct kvm_vcpu *vcpu;
+
+	vcpu = container_of(timer, struct kvm_vcpu, arch.comparecount_timer);
+
+	kvm_mips_callbacks->queue_timer_int(vcpu);
+
+	vcpu->arch.wait = 0;
+	if (swq_has_sleeper(&vcpu->wq))
+		swake_up_one(&vcpu->wq);
+
+	return kvm_mips_count_timeout(vcpu);
+}
+
 int kvm_arch_vcpu_precreate(struct kvm *kvm, unsigned int id)
 {
 	return 0;
@@ -1207,27 +1223,6 @@ int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 
 	vcpu_put(vcpu);
 	return 0;
-}
-
-static void kvm_mips_comparecount_func(unsigned long data)
-{
-	struct kvm_vcpu *vcpu = (struct kvm_vcpu *)data;
-
-	kvm_mips_callbacks->queue_timer_int(vcpu);
-
-	vcpu->arch.wait = 0;
-	if (swq_has_sleeper(&vcpu->wq))
-		swake_up_one(&vcpu->wq);
-}
-
-/* low level hrtimer wake routine */
-static enum hrtimer_restart kvm_mips_comparecount_wakeup(struct hrtimer *timer)
-{
-	struct kvm_vcpu *vcpu;
-
-	vcpu = container_of(timer, struct kvm_vcpu, arch.comparecount_timer);
-	kvm_mips_comparecount_func((unsigned long) vcpu);
-	return kvm_mips_count_timeout(vcpu);
 }
 
 int kvm_arch_vcpu_ioctl_translate(struct kvm_vcpu *vcpu,

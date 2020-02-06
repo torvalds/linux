@@ -34,8 +34,8 @@
 #define VMX_FEATURE_EPTP_SWITCHING	( 0*32+ 28) /* EPTP switching (in guest) */
 
 /* Primary Processor-Based VM-Execution Controls, word 1 */
-#define VMX_FEATURE_VIRTUAL_INTR_PENDING ( 1*32+  2) /* "" VM-Exit if INTRs are unblocked in guest */
-#define VMX_FEATURE_TSC_OFFSETTING	( 1*32+  3) /* "tsc_offset" Offset hardware TSC when read in guest */
+#define VMX_FEATURE_INTR_WINDOW_EXITING ( 1*32+  2) /* "" VM-Exit if INTRs are unblocked in guest */
+#define VMX_FEATURE_USE_TSC_OFFSETTING	( 1*32+  3) /* "tsc_offset" Offset hardware TSC when read in guest */
 #define VMX_FEATURE_HLT_EXITING		( 1*32+  7) /* "" VM-Exit on HLT */
 #define VMX_FEATURE_INVLPG_EXITING	( 1*32+  9) /* "" VM-Exit on INVLPG */
 #define VMX_FEATURE_MWAIT_EXITING	( 1*32+ 10) /* "" VM-Exit on MWAIT */
@@ -46,7 +46,7 @@
 #define VMX_FEATURE_CR8_LOAD_EXITING	( 1*32+ 19) /* "" VM-Exit on writes to CR8 */
 #define VMX_FEATURE_CR8_STORE_EXITING	( 1*32+ 20) /* "" VM-Exit on reads from CR8 */
 #define VMX_FEATURE_VIRTUAL_TPR		( 1*32+ 21) /* "vtpr" TPR virtualization, a.k.a. TPR shadow */
-#define VMX_FEATURE_VIRTUAL_NMI_PENDING	( 1*32+ 22) /* "" VM-Exit if NMIs are unblocked in guest */
+#define VMX_FEATURE_NMI_WINDOW_EXITING	( 1*32+ 22) /* "" VM-Exit if NMIs are unblocked in guest */
 #define VMX_FEATURE_MOV_DR_EXITING	( 1*32+ 23) /* "" VM-Exit on accesses to debug registers */
 #define VMX_FEATURE_UNCOND_IO_EXITING	( 1*32+ 24) /* "" VM-Exit on *all* IN{S} and OUT{S}*/
 #define VMX_FEATURE_USE_IO_BITMAPS	( 1*32+ 25) /* "" VM-Exit based on I/O port */
