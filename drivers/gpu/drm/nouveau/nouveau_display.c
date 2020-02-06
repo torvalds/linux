@@ -31,6 +31,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
 
@@ -179,37 +180,15 @@ nouveau_display_vblank_init(struct drm_device *dev)
 	return 0;
 }
 
-static void
-nouveau_user_framebuffer_destroy(struct drm_framebuffer *drm_fb)
-{
-	struct nouveau_framebuffer *fb = nouveau_framebuffer(drm_fb);
-
-	if (fb->nvbo)
-		drm_gem_object_put_unlocked(&fb->nvbo->bo.base);
-
-	drm_framebuffer_cleanup(drm_fb);
-	kfree(fb);
-}
-
-static int
-nouveau_user_framebuffer_create_handle(struct drm_framebuffer *drm_fb,
-				       struct drm_file *file_priv,
-				       unsigned int *handle)
-{
-	struct nouveau_framebuffer *fb = nouveau_framebuffer(drm_fb);
-
-	return drm_gem_handle_create(file_priv, &fb->nvbo->bo.base, handle);
-}
-
 static const struct drm_framebuffer_funcs nouveau_framebuffer_funcs = {
-	.destroy = nouveau_user_framebuffer_destroy,
-	.create_handle = nouveau_user_framebuffer_create_handle,
+	.destroy = drm_gem_fb_destroy,
+	.create_handle = drm_gem_fb_create_handle,
 };
 
 int
 nouveau_framebuffer_new(struct drm_device *dev,
 			const struct drm_mode_fb_cmd2 *mode_cmd,
-			struct nouveau_bo *nvbo,
+			struct drm_gem_object *gem,
 			struct nouveau_framebuffer **pfb)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
@@ -240,7 +219,7 @@ nouveau_framebuffer_new(struct drm_device *dev,
 		return -ENOMEM;
 
 	drm_helper_mode_fill_fb_struct(dev, &fb->base, mode_cmd);
-	fb->nvbo = nvbo;
+	fb->base.obj[0] = gem;
 
 	ret = drm_framebuffer_init(dev, &fb->base, &nouveau_framebuffer_funcs);
 	if (ret)
@@ -254,16 +233,14 @@ nouveau_user_framebuffer_create(struct drm_device *dev,
 				const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct nouveau_framebuffer *fb;
-	struct nouveau_bo *nvbo;
 	struct drm_gem_object *gem;
 	int ret;
 
 	gem = drm_gem_object_lookup(file_priv, mode_cmd->handles[0]);
 	if (!gem)
 		return ERR_PTR(-ENOENT);
-	nvbo = nouveau_gem_object(gem);
 
-	ret = nouveau_framebuffer_new(dev, mode_cmd, nvbo, &fb);
+	ret = nouveau_framebuffer_new(dev, mode_cmd, gem, &fb);
 	if (ret == 0)
 		return &fb->base;
 

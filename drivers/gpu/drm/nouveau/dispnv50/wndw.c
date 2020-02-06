@@ -29,6 +29,7 @@
 #include <drm/drm_fourcc.h>
 
 #include "nouveau_bo.h"
+#include "nouveau_gem.h"
 
 static void
 nv50_wndw_ctxdma_del(struct nv50_wndw_ctxdma *ctxdma)
@@ -43,7 +44,8 @@ nv50_wndw_ctxdma_new(struct nv50_wndw *wndw, struct nouveau_framebuffer *fb)
 {
 	struct nouveau_drm *drm = nouveau_drm(fb->base.dev);
 	struct nv50_wndw_ctxdma *ctxdma;
-	const u8    kind = fb->nvbo->kind;
+	struct nouveau_bo *nvbo = nouveau_gem_object(fb->base.obj[0]);
+	const u8    kind = nvbo->kind;
 	const u32 handle = 0xfb000000 | kind;
 	struct {
 		struct nv_dma_v0 base;
@@ -236,6 +238,7 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw, bool modeset,
 {
 	struct nouveau_framebuffer *fb = nouveau_framebuffer(asyw->state.fb);
 	struct nouveau_drm *drm = nouveau_drm(wndw->plane.dev);
+	struct nouveau_bo *nvbo = nouveau_gem_object(fb->base.obj[0]);
 	int ret;
 
 	NV_ATOMIC(drm, "%s acquire\n", wndw->plane.name);
@@ -243,7 +246,7 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw, bool modeset,
 	if (asyw->state.fb != armw->state.fb || !armw->visible || modeset) {
 		asyw->image.w = fb->base.width;
 		asyw->image.h = fb->base.height;
-		asyw->image.kind = fb->nvbo->kind;
+		asyw->image.kind = nvbo->kind;
 
 		ret = nv50_wndw_atomic_check_acquire_rgb(asyw);
 		if (ret) {
@@ -255,9 +258,9 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw, bool modeset,
 		if (asyw->image.kind) {
 			asyw->image.layout = 0;
 			if (drm->client.device.info.chipset >= 0xc0)
-				asyw->image.blockh = fb->nvbo->mode >> 4;
+				asyw->image.blockh = nvbo->mode >> 4;
 			else
-				asyw->image.blockh = fb->nvbo->mode;
+				asyw->image.blockh = nvbo->mode;
 			asyw->image.blocks[0] = fb->base.pitches[0] / 64;
 			asyw->image.pitch[0] = 0;
 		} else {
@@ -471,14 +474,15 @@ nv50_wndw_atomic_check(struct drm_plane *plane, struct drm_plane_state *state)
 static void
 nv50_wndw_cleanup_fb(struct drm_plane *plane, struct drm_plane_state *old_state)
 {
-	struct nouveau_framebuffer *fb = nouveau_framebuffer(old_state->fb);
 	struct nouveau_drm *drm = nouveau_drm(plane->dev);
+	struct nouveau_bo *nvbo;
 
 	NV_ATOMIC(drm, "%s cleanup: %p\n", plane->name, old_state->fb);
 	if (!old_state->fb)
 		return;
 
-	nouveau_bo_unpin(fb->nvbo);
+	nvbo = nouveau_gem_object(old_state->fb->obj[0]);
+	nouveau_bo_unpin(nvbo);
 }
 
 static int
@@ -488,6 +492,7 @@ nv50_wndw_prepare_fb(struct drm_plane *plane, struct drm_plane_state *state)
 	struct nouveau_drm *drm = nouveau_drm(plane->dev);
 	struct nv50_wndw *wndw = nv50_wndw(plane);
 	struct nv50_wndw_atom *asyw = nv50_wndw_atom(state);
+	struct nouveau_bo *nvbo;
 	struct nv50_head_atom *asyh;
 	struct nv50_wndw_ctxdma *ctxdma;
 	int ret;
@@ -496,22 +501,23 @@ nv50_wndw_prepare_fb(struct drm_plane *plane, struct drm_plane_state *state)
 	if (!asyw->state.fb)
 		return 0;
 
-	ret = nouveau_bo_pin(fb->nvbo, TTM_PL_FLAG_VRAM, true);
+	nvbo = nouveau_gem_object(state->fb->obj[0]);
+	ret = nouveau_bo_pin(nvbo, TTM_PL_FLAG_VRAM, true);
 	if (ret)
 		return ret;
 
 	if (wndw->ctxdma.parent) {
 		ctxdma = nv50_wndw_ctxdma_new(wndw, fb);
 		if (IS_ERR(ctxdma)) {
-			nouveau_bo_unpin(fb->nvbo);
+			nouveau_bo_unpin(nvbo);
 			return PTR_ERR(ctxdma);
 		}
 
 		asyw->image.handle[0] = ctxdma->object.handle;
 	}
 
-	asyw->state.fence = dma_resv_get_excl_rcu(fb->nvbo->bo.base.resv);
-	asyw->image.offset[0] = fb->nvbo->bo.offset;
+	asyw->state.fence = dma_resv_get_excl_rcu(nvbo->bo.base.resv);
+	asyw->image.offset[0] = nvbo->bo.offset;
 
 	if (wndw->func->prepare) {
 		asyh = nv50_head_atom_get(asyw->state.state, asyw->state.crtc);
