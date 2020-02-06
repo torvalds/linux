@@ -736,9 +736,9 @@ static bool navi10_is_support_fine_grained_dpm(struct smu_context *smu, enum smu
 	return dpm_desc->SnapToDiscrete == 0 ? true : false;
 }
 
-static inline bool navi10_od_feature_is_supported(struct smu_11_0_overdrive_table *od_table, enum SMU_11_0_ODFEATURE_ID feature)
+static inline bool navi10_od_feature_is_supported(struct smu_11_0_overdrive_table *od_table, enum SMU_11_0_ODFEATURE_CAP cap)
 {
-	return od_table->cap[feature];
+	return od_table->cap[cap];
 }
 
 static void navi10_od_setting_get_range(struct smu_11_0_overdrive_table *od_table,
@@ -846,7 +846,7 @@ static int navi10_print_clk_levels(struct smu_context *smu,
 	case SMU_OD_SCLK:
 		if (!smu->od_enabled || !od_table || !od_settings)
 			break;
-		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODFEATURE_GFXCLK_LIMITS))
+		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODCAP_GFXCLK_LIMITS))
 			break;
 		size += sprintf(buf + size, "OD_SCLK:\n");
 		size += sprintf(buf + size, "0: %uMhz\n1: %uMhz\n", od_table->GfxclkFmin, od_table->GfxclkFmax);
@@ -854,7 +854,7 @@ static int navi10_print_clk_levels(struct smu_context *smu,
 	case SMU_OD_MCLK:
 		if (!smu->od_enabled || !od_table || !od_settings)
 			break;
-		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODFEATURE_UCLK_MAX))
+		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODCAP_UCLK_MAX))
 			break;
 		size += sprintf(buf + size, "OD_MCLK:\n");
 		size += sprintf(buf + size, "1: %uMHz\n", od_table->UclkFmax);
@@ -862,7 +862,7 @@ static int navi10_print_clk_levels(struct smu_context *smu,
 	case SMU_OD_VDDC_CURVE:
 		if (!smu->od_enabled || !od_table || !od_settings)
 			break;
-		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODFEATURE_GFXCLK_CURVE))
+		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODCAP_GFXCLK_CURVE))
 			break;
 		size += sprintf(buf + size, "OD_VDDC_CURVE:\n");
 		for (i = 0; i < 3; i++) {
@@ -887,7 +887,7 @@ static int navi10_print_clk_levels(struct smu_context *smu,
 			break;
 		size = sprintf(buf, "%s:\n", "OD_RANGE");
 
-		if (navi10_od_feature_is_supported(od_settings, SMU_11_0_ODFEATURE_GFXCLK_LIMITS)) {
+		if (navi10_od_feature_is_supported(od_settings, SMU_11_0_ODCAP_GFXCLK_LIMITS)) {
 			navi10_od_setting_get_range(od_settings, SMU_11_0_ODSETTING_GFXCLKFMIN,
 						    &min_value, NULL);
 			navi10_od_setting_get_range(od_settings, SMU_11_0_ODSETTING_GFXCLKFMAX,
@@ -896,14 +896,14 @@ static int navi10_print_clk_levels(struct smu_context *smu,
 					min_value, max_value);
 		}
 
-		if (navi10_od_feature_is_supported(od_settings, SMU_11_0_ODFEATURE_UCLK_MAX)) {
+		if (navi10_od_feature_is_supported(od_settings, SMU_11_0_ODCAP_UCLK_MAX)) {
 			navi10_od_setting_get_range(od_settings, SMU_11_0_ODSETTING_UCLKFMAX,
 						    &min_value, &max_value);
 			size += sprintf(buf + size, "MCLK: %7uMhz %10uMhz\n",
 					min_value, max_value);
 		}
 
-		if (navi10_od_feature_is_supported(od_settings, SMU_11_0_ODFEATURE_GFXCLK_CURVE)) {
+		if (navi10_od_feature_is_supported(od_settings, SMU_11_0_ODCAP_GFXCLK_CURVE)) {
 			navi10_od_setting_get_range(od_settings, SMU_11_0_ODSETTING_VDDGFXCURVEFREQ_P1,
 						    &min_value, &max_value);
 			size += sprintf(buf + size, "VDDC_CURVE_SCLK[0]: %7uMhz %10uMhz\n",
@@ -2056,7 +2056,7 @@ static int navi10_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TABL
 
 	switch (type) {
 	case PP_OD_EDIT_SCLK_VDDC_TABLE:
-		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODFEATURE_GFXCLK_LIMITS)) {
+		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODCAP_GFXCLK_LIMITS)) {
 			pr_warn("GFXCLK_LIMITS not supported!\n");
 			return -ENOTSUPP;
 		}
@@ -2102,7 +2102,7 @@ static int navi10_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TABL
 		}
 		break;
 	case PP_OD_EDIT_MCLK_VDDC_TABLE:
-		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODFEATURE_UCLK_MAX)) {
+		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODCAP_UCLK_MAX)) {
 			pr_warn("UCLK_MAX not supported!\n");
 			return -ENOTSUPP;
 		}
@@ -2143,7 +2143,7 @@ static int navi10_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TABL
 		}
 		break;
 	case PP_OD_EDIT_VDDC_CURVE:
-		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODFEATURE_GFXCLK_CURVE)) {
+		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODCAP_GFXCLK_CURVE)) {
 			pr_warn("GFXCLK_CURVE not supported!\n");
 			return -ENOTSUPP;
 		}
