@@ -40,6 +40,13 @@ enum kcsan_counter_id {
 	KCSAN_COUNTER_DATA_RACES,
 
 	/*
+	 * Total number of ASSERT failures due to races. If the observed race is
+	 * due to two conflicting ASSERT type accesses, then both will be
+	 * counted.
+	 */
+	KCSAN_COUNTER_ASSERT_FAILURES,
+
+	/*
 	 * Number of times no watchpoints were available.
 	 */
 	KCSAN_COUNTER_NO_CAPACITY,

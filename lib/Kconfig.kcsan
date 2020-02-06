@@ -4,13 +4,17 @@ config HAVE_ARCH_KCSAN
 	bool
 
 menuconfig KCSAN
-	bool "KCSAN: dynamic data race detector"
+	bool "KCSAN: dynamic race detector"
 	depends on HAVE_ARCH_KCSAN && DEBUG_KERNEL && !KASAN
 	select STACKTRACE
 	help
-	  The Kernel Concurrency Sanitizer (KCSAN) is a dynamic data race
-	  detector, which relies on compile-time instrumentation, and uses a
-	  watchpoint-based sampling approach to detect data races.
+	  The Kernel Concurrency Sanitizer (KCSAN) is a dynamic race detector,
+	  which relies on compile-time instrumentation, and uses a
+	  watchpoint-based sampling approach to detect races.
+
+	  KCSAN's primary purpose is to detect data races. KCSAN can also be
+	  used to check properties, with the help of provided assertions, of
+	  concurrent code where bugs do not manifest as data races.
 
 	  See <file:Documentation/dev-tools/kcsan.rst> for more details.
 
@@ -85,14 +89,14 @@ config KCSAN_SKIP_WATCH_RANDOMIZE
 	  KCSAN_WATCH_SKIP.
 
 config KCSAN_REPORT_ONCE_IN_MS
-	int "Duration in milliseconds, in which any given data race is only reported once"
+	int "Duration in milliseconds, in which any given race is only reported once"
 	default 3000
 	help
-	  Any given data race is only reported once in the defined time window.
-	  Different data races may still generate reports within a duration
-	  that is smaller than the duration defined here. This allows rate
-	  limiting reporting to avoid flooding the console with reports.
-	  Setting this to 0 disables rate limiting.
+	  Any given race is only reported once in the defined time window.
+	  Different races may still generate reports within a duration that is
+	  smaller than the duration defined here. This allows rate limiting
+	  reporting to avoid flooding the console with reports.  Setting this
+	  to 0 disables rate limiting.
 
 # The main purpose of the below options is to control reported data races (e.g.
 # in fuzzer configs), and are not expected to be switched frequently by other

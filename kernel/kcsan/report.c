@@ -34,11 +34,11 @@ static struct {
 } other_info = { .ptr = NULL };
 
 /*
- * Information about reported data races; used to rate limit reporting.
+ * Information about reported races; used to rate limit reporting.
  */
 struct report_time {
 	/*
-	 * The last time the data race was reported.
+	 * The last time the race was reported.
 	 */
 	unsigned long time;
 
@@ -57,7 +57,7 @@ struct report_time {
  *
  * Therefore, we use a fixed-size array, which at most will occupy a page. This
  * still adequately rate limits reports, assuming that a) number of unique data
- * races is not excessive, and b) occurrence of unique data races within the
+ * races is not excessive, and b) occurrence of unique races within the
  * same time window is limited.
  */
 #define REPORT_TIMES_MAX (PAGE_SIZE / sizeof(struct report_time))
@@ -74,7 +74,7 @@ static struct report_time report_times[REPORT_TIMES_SIZE];
 static DEFINE_SPINLOCK(report_lock);
 
 /*
- * Checks if the data race identified by thread frames frame1 and frame2 has
+ * Checks if the race identified by thread frames frame1 and frame2 has
  * been reported since (now - KCSAN_REPORT_ONCE_IN_MS).
  */
 static bool rate_limit_report(unsigned long frame1, unsigned long frame2)
@@ -90,7 +90,7 @@ static bool rate_limit_report(unsigned long frame1, unsigned long frame2)
 
 	invalid_before = jiffies - msecs_to_jiffies(CONFIG_KCSAN_REPORT_ONCE_IN_MS);
 
-	/* Check if a matching data race report exists. */
+	/* Check if a matching race report exists. */
 	for (i = 0; i < REPORT_TIMES_SIZE; ++i) {
 		struct report_time *rt = &report_times[i];
 
@@ -114,7 +114,7 @@ static bool rate_limit_report(unsigned long frame1, unsigned long frame2)
 		if (time_before(rt->time, invalid_before))
 			continue; /* before KCSAN_REPORT_ONCE_IN_MS ago */
 
-		/* Reported recently, check if data race matches. */
+		/* Reported recently, check if race matches. */
 		if ((rt->frame1 == frame1 && rt->frame2 == frame2) ||
 		    (rt->frame1 == frame2 && rt->frame2 == frame1))
 			return true;
@@ -142,11 +142,12 @@ skip_report(bool value_change, unsigned long top_frame)
 	 * 3. write watchpoint, conflicting write (value_change==true): report;
 	 * 4. write watchpoint, conflicting write (value_change==false): skip;
 	 * 5. write watchpoint, conflicting read (value_change==false): skip;
-	 * 6. write watchpoint, conflicting read (value_change==true): impossible;
+	 * 6. write watchpoint, conflicting read (value_change==true): report;
 	 *
 	 * Cases 1-4 are intuitive and expected; case 5 ensures we do not report
-	 * data races where the write may have rewritten the same value; and
-	 * case 6 is simply impossible.
+	 * data races where the write may have rewritten the same value; case 6
+	 * is possible either if the size is larger than what we check value
+	 * changes for or the access type is KCSAN_ACCESS_ASSERT.
 	 */
 	if (IS_ENABLED(CONFIG_KCSAN_REPORT_VALUE_CHANGE_ONLY) && !value_change) {
 		/*
@@ -178,9 +179,25 @@ static const char *get_access_type(int type)
 		return "write";
 	case KCSAN_ACCESS_WRITE | KCSAN_ACCESS_ATOMIC:
 		return "write (marked)";
+
+	/*
+	 * ASSERT variants:
+	 */
+	case KCSAN_ACCESS_ASSERT:
+	case KCSAN_ACCESS_ASSERT | KCSAN_ACCESS_ATOMIC:
+		return "assert no writes";
+	case KCSAN_ACCESS_ASSERT | KCSAN_ACCESS_WRITE:
+	case KCSAN_ACCESS_ASSERT | KCSAN_ACCESS_WRITE | KCSAN_ACCESS_ATOMIC:
+		return "assert no accesses";
+
 	default:
 		BUG();
 	}
+}
+
+static const char *get_bug_type(int type)
+{
+	return (type & KCSAN_ACCESS_ASSERT) != 0 ? "assert: race" : "data-race";
 }
 
 /* Return thread description: in task or interrupt. */
@@ -268,13 +285,15 @@ static bool print_report(const volatile void *ptr, size_t size, int access_type,
 		 * Do not print offset of functions to keep title short.
 		 */
 		cmp = sym_strcmp((void *)other_frame, (void *)this_frame);
-		pr_err("BUG: KCSAN: data-race in %ps / %ps\n",
+		pr_err("BUG: KCSAN: %s in %ps / %ps\n",
+		       get_bug_type(access_type | other_info.access_type),
 		       (void *)(cmp < 0 ? other_frame : this_frame),
 		       (void *)(cmp < 0 ? this_frame : other_frame));
 	} break;
 
 	case KCSAN_REPORT_RACE_UNKNOWN_ORIGIN:
-		pr_err("BUG: KCSAN: data-race in %pS\n", (void *)this_frame);
+		pr_err("BUG: KCSAN: %s in %pS\n", get_bug_type(access_type),
+		       (void *)this_frame);
 		break;
 
 	default:
@@ -427,7 +446,7 @@ void kcsan_report(const volatile void *ptr, size_t size, int access_type,
 	/*
 	 * With TRACE_IRQFLAGS, lockdep's IRQ trace state becomes corrupted if
 	 * we do not turn off lockdep here; this could happen due to recursion
-	 * into lockdep via KCSAN if we detect a data race in utilities used by
+	 * into lockdep via KCSAN if we detect a race in utilities used by
 	 * lockdep.
 	 */
 	lockdep_off();

@@ -44,6 +44,7 @@ static const char *counter_to_name(enum kcsan_counter_id id)
 	case KCSAN_COUNTER_USED_WATCHPOINTS:		return "used_watchpoints";
 	case KCSAN_COUNTER_SETUP_WATCHPOINTS:		return "setup_watchpoints";
 	case KCSAN_COUNTER_DATA_RACES:			return "data_races";
+	case KCSAN_COUNTER_ASSERT_FAILURES:		return "assert_failures";
 	case KCSAN_COUNTER_NO_CAPACITY:			return "no_capacity";
 	case KCSAN_COUNTER_REPORT_RACES:		return "report_races";
 	case KCSAN_COUNTER_RACES_UNKNOWN_ORIGIN:	return "races_unknown_origin";
