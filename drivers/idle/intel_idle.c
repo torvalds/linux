@@ -1288,11 +1288,11 @@ static inline void intel_idle_init_cstates_acpi(struct cpuidle_driver *drv) { }
 static inline bool intel_idle_off_by_default(u32 mwait_hint) { return false; }
 #endif /* !CONFIG_ACPI_PROCESSOR_CSTATE */
 
-/*
- * ivt_idle_state_table_update(void)
+/**
+ * ivt_idle_state_table_update - Tune the idle states table for Ivy Town.
  *
- * Tune IVT multi-socket targets
- * Assumption: num_sockets == (max_package_num + 1)
+ * Tune IVT multi-socket targets.
+ * Assumption: num_sockets == (max_package_num + 1).
  */
 static void __init ivt_idle_state_table_update(void)
 {
@@ -1338,11 +1338,11 @@ static unsigned long long __init irtl_2_usec(unsigned long long irtl)
 	return div_u64((irtl & 0x3FF) * ns, NSEC_PER_USEC);
 }
 
-/*
- * bxt_idle_state_table_update(void)
+/**
+ * bxt_idle_state_table_update - Fix up the Broxton idle states table.
  *
- * On BXT, we trust the IRTL to show the definitive maximum latency
- * We use the same value for target_residency.
+ * On BXT, trust the IRTL (Interrupt Response Time Limit) MSR to show the
+ * definitive maximum latency and use the same value for target_residency.
  */
 static void __init bxt_idle_state_table_update(void)
 {
@@ -1385,11 +1385,11 @@ static void __init bxt_idle_state_table_update(void)
 	}
 
 }
-/*
- * sklh_idle_state_table_update(void)
+
+/**
+ * sklh_idle_state_table_update - Fix up the Sky Lake idle states table.
  *
- * On SKL-H (model 0x5e) disable C8 and C9 if:
- * C10 is enabled and SGX disabled
+ * On SKL-H (model 0x5e) skip C8 and C9 if C10 is enabled and SGX disabled.
  */
 static void __init sklh_idle_state_table_update(void)
 {
@@ -1500,9 +1500,9 @@ static void __init intel_idle_init_cstates_icpu(struct cpuidle_driver *drv)
 	}
 }
 
-/*
- * intel_idle_cpuidle_driver_init()
- * allocate, initialize cpuidle_states
+/**
+ * intel_idle_cpuidle_driver_init - Create the list of available idle states.
+ * @drv: cpuidle driver structure to initialize.
  */
 static void __init intel_idle_cpuidle_driver_init(struct cpuidle_driver *drv)
 {
@@ -1537,10 +1537,12 @@ static void c1e_promotion_disable(void)
 	wrmsrl(MSR_IA32_POWER_CTL, msr_bits);
 }
 
-/*
- * intel_idle_cpu_init()
- * allocate, initialize, register cpuidle_devices
- * @cpu: cpu/core to initialize
+/**
+ * intel_idle_cpu_init - Register the target CPU with the cpuidle core.
+ * @cpu: CPU to initialize.
+ *
+ * Register a cpuidle device object for @cpu and update its MSRs in accordance
+ * with the processor model flags.
  */
 static int intel_idle_cpu_init(unsigned int cpu)
 {
