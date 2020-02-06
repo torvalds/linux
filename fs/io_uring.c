@@ -204,11 +204,11 @@ struct io_ring_ctx {
 
 	struct {
 		unsigned int		flags;
-		int			compat: 1;
-		int			account_mem: 1;
-		int			cq_overflow_flushed: 1;
-		int			drain_next: 1;
-		int			eventfd_async: 1;
+		unsigned int		compat: 1;
+		unsigned int		account_mem: 1;
+		unsigned int		cq_overflow_flushed: 1;
+		unsigned int		drain_next: 1;
+		unsigned int		eventfd_async: 1;
 
 		/*
 		 * Ring buffer of indices into array of io_uring_sqe, which is
