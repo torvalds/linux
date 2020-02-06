@@ -102,6 +102,19 @@ static inline void kvm_mmu_load_cr3(struct kvm_vcpu *vcpu)
 					      kvm_get_active_pcid(vcpu));
 }
 
+int kvm_tdp_page_fault(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
+		       bool prefault);
+
+static inline int kvm_mmu_do_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
+					u32 err, bool prefault)
+{
+#ifdef CONFIG_RETPOLINE
+	if (likely(vcpu->arch.mmu->page_fault == kvm_tdp_page_fault))
+		return kvm_tdp_page_fault(vcpu, cr2_or_gpa, err, prefault);
+#endif
+	return vcpu->arch.mmu->page_fault(vcpu, cr2_or_gpa, err, prefault);
+}
+
 /*
  * Currently, we have two sorts of write-protection, a) the first one
  * write-protects guest page to sync the guest modification, b) another one is
