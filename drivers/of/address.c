@@ -944,6 +944,7 @@ int of_dma_get_range(struct device_node *np, u64 *dma_addr, u64 *paddr, u64 *siz
 	bool found_dma_ranges = false;
 	struct of_range_parser parser;
 	struct of_range range;
+	u64 dma_start = U64_MAX, dma_end = 0, dma_offset = 0;
 
 	while (node) {
 		ranges = of_get_property(node, "dma-ranges", &len);
@@ -974,14 +975,33 @@ int of_dma_get_range(struct device_node *np, u64 *dma_addr, u64 *paddr, u64 *siz
 		pr_debug("dma_addr(%llx) cpu_addr(%llx) size(%llx)\n",
 			 range.bus_addr, range.cpu_addr, range.size);
 
-		*dma_addr = range.bus_addr;
-		*paddr = range.cpu_addr;
-		*size = range.size;
+		if (dma_offset && range.cpu_addr - range.bus_addr != dma_offset) {
+			pr_warn("Can't handle multiple dma-ranges with different offsets on node(%pOF)\n", node);
+			/* Don't error out as we'd break some existing DTs */
+			continue;
+		}
+		dma_offset = range.cpu_addr - range.bus_addr;
 
+		/* Take lower and upper limits */
+		if (range.bus_addr < dma_start)
+			dma_start = range.bus_addr;
+		if (range.bus_addr + range.size > dma_end)
+			dma_end = range.bus_addr + range.size;
+	}
+
+	if (dma_start >= dma_end) {
+		ret = -EINVAL;
+		pr_debug("Invalid DMA ranges configuration on node(%pOF)\n",
+			 node);
 		goto out;
 	}
 
-	pr_err("translation of DMA ranges failed on node(%pOF)\n", np);
+	*dma_addr = dma_start;
+	*size = dma_end - dma_start;
+	*paddr = dma_start + dma_offset;
+
+	pr_debug("final: dma_addr(%llx) cpu_addr(%llx) size(%llx)\n",
+		 *dma_addr, *paddr, *size);
 
 out:
 	of_node_put(node);
