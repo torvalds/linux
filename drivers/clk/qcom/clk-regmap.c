@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2014, 2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014, 2019-2020 The Linux Foundation. All rights reserved.
  */
 
 #include <linux/device.h>
@@ -91,9 +91,9 @@ EXPORT_SYMBOL_GPL(clk_disable_regmap);
  * @cur_rate: current rate of the clk
  * @new_rate: new rate about to be set for the clk
  *
- * Finds the new vdd level corresponding to the new rate and swap out the
- * existing vdd vote if the new_vdd_level is greater than the vdd_level and
- * the clock is prepared.
+ * Finds new vdd level corresponding to new rate and update vdd_level
+ * cache if new_vdd_level is greater than vdd_level. If clock is prepared
+ * then update existing vdd vote.
  *
  * Returns 0 on success, -EERROR otherwise.
  */
@@ -108,9 +108,6 @@ int clk_pre_change_regmap(struct clk_hw *hw, unsigned long cur_rate,
 	if (!rclk->vdd_data.vdd_class)
 		return 0;
 
-	if (!clk_hw_is_prepared(hw))
-		return 0;
-
 	new_vdd_level = clk_find_vdd_level(hw, &rclk->vdd_data, new_rate);
 	if (new_vdd_level < 0)
 		return new_vdd_level;
@@ -118,11 +115,14 @@ int clk_pre_change_regmap(struct clk_hw *hw, unsigned long cur_rate,
 	if (new_vdd_level <= vdd_level)
 		return 0;
 
-	ret = clk_vote_vdd_level(&rclk->vdd_data, new_vdd_level);
-	if (ret)
-		return ret;
+	if (clk_hw_is_prepared(hw)) {
+		ret = clk_vote_vdd_level(&rclk->vdd_data, new_vdd_level);
+		if (ret)
+			return ret;
 
-	clk_unvote_vdd_level(&rclk->vdd_data, vdd_level);
+		clk_unvote_vdd_level(&rclk->vdd_data, vdd_level);
+	}
+
 	rclk->vdd_data.vdd_level = new_vdd_level;
 
 	return 0;
@@ -136,9 +136,9 @@ EXPORT_SYMBOL(clk_pre_change_regmap);
  * @old_rate: previous rate of the clk
  * @cur_rate: current rate of the recently changed clk
  *
- * Finds the vdd level corresponding to the cur rate and swap out the
- * existing vdd vote if the cur_vdd_level is less than the vdd_level and the
- * clock is prepared.
+ * Finds new vdd level corresponding to current rate and update vdd_level
+ * cache if cur_vdd_level is less than vdd_level. If clock is prepared
+ * then update existing vdd vote.
  *
  * Returns 0 on success, -EERROR otherwise.
  */
@@ -153,9 +153,6 @@ int clk_post_change_regmap(struct clk_hw *hw, unsigned long old_rate,
 	if (!rclk->vdd_data.vdd_class)
 		return 0;
 
-	if (!clk_hw_is_prepared(hw))
-		return 0;
-
 	cur_vdd_level = clk_find_vdd_level(hw, &rclk->vdd_data, cur_rate);
 	if (cur_vdd_level < 0)
 		return cur_vdd_level;
@@ -163,11 +160,14 @@ int clk_post_change_regmap(struct clk_hw *hw, unsigned long old_rate,
 	if (cur_vdd_level >= vdd_level)
 		return 0;
 
-	ret = clk_vote_vdd_level(&rclk->vdd_data, cur_vdd_level);
-	if (ret)
-		return ret;
+	if (clk_hw_is_prepared(hw)) {
+		ret = clk_vote_vdd_level(&rclk->vdd_data, cur_vdd_level);
+		if (ret)
+			return ret;
 
-	clk_unvote_vdd_level(&rclk->vdd_data, vdd_level);
+		clk_unvote_vdd_level(&rclk->vdd_data, vdd_level);
+	}
+
 	rclk->vdd_data.vdd_level = cur_vdd_level;
 
 	return 0;
