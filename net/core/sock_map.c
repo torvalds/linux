@@ -250,6 +250,7 @@ static void sock_map_free(struct bpf_map *map)
 	}
 	raw_spin_unlock_bh(&stab->lock);
 
+	/* wait for psock readers accessing its map link */
 	synchronize_rcu();
 
 	bpf_map_area_free(stab->sks);
@@ -876,6 +877,9 @@ static void sock_hash_free(struct bpf_map *map)
 		}
 		raw_spin_unlock_bh(&bucket->lock);
 	}
+
+	/* wait for psock readers accessing its map link */
+	synchronize_rcu();
 
 	bpf_map_area_free(htab->buckets);
 	kfree(htab);
