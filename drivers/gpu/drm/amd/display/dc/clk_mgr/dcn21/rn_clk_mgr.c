@@ -405,7 +405,7 @@ void rn_init_clocks(struct clk_mgr *clk_mgr)
 	clk_mgr->clks.pwr_state = DCN_PWR_STATE_UNKNOWN;
 }
 
-void build_watermark_ranges(struct clk_bw_params *bw_params, struct pp_smu_wm_range_sets *ranges)
+static void build_watermark_ranges(struct clk_bw_params *bw_params, struct pp_smu_wm_range_sets *ranges)
 {
 	int i, num_valid_sets;
 
@@ -503,7 +503,7 @@ static struct clk_mgr_funcs dcn21_funcs = {
 	.notify_wm_ranges = rn_notify_wm_ranges
 };
 
-struct clk_bw_params rn_bw_params = {
+static struct clk_bw_params rn_bw_params = {
 	.vram_type = Ddr4MemType,
 	.num_channels = 1,
 	.clk_table = {
@@ -543,7 +543,7 @@ struct clk_bw_params rn_bw_params = {
 
 };
 
-struct wm_table ddr4_wm_table = {
+static struct wm_table ddr4_wm_table = {
 	.entries = {
 		{
 			.wm_inst = WM_A,
@@ -580,7 +580,7 @@ struct wm_table ddr4_wm_table = {
 	}
 };
 
-struct wm_table lpddr4_wm_table = {
+static struct wm_table lpddr4_wm_table = {
 	.entries = {
 		{
 			.wm_inst = WM_A,
