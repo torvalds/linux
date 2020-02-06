@@ -140,13 +140,31 @@ static void cdns_torrent_phy_write(struct cdns_torrent_phy *cdns_phy,
 	writel(val, cdns_phy->sd_base + offset);
 }
 
+/* DPTX mmr access functions */
+
+static void cdns_torrent_dp_write(struct cdns_torrent_phy *cdns_phy,
+				  u32 offset, u32 val)
+{
+	writel(val, cdns_phy->base + offset);
+}
+
+static u32 cdns_torrent_dp_read(struct cdns_torrent_phy *cdns_phy, u32 offset)
+{
+	return readl(cdns_phy->base + offset);
+}
+
+#define cdns_torrent_dp_read_poll_timeout(cdns_phy, offset, val, cond, \
+					  delay_us, timeout_us) \
+	readl_poll_timeout((cdns_phy)->base + (offset), \
+			   val, cond, delay_us, timeout_us)
+
 static int cdns_torrent_dp_init(struct phy *phy)
 {
 	unsigned char lane_bits;
 
 	struct cdns_torrent_phy *cdns_phy = phy_get_drvdata(phy);
 
-	writel(0x0003, cdns_phy->base + PHY_AUX_CTRL); /* enable AUX */
+	cdns_torrent_dp_write(cdns_phy, PHY_AUX_CTRL, 0x0003); /* enable AUX */
 
 	/* PHY PMA registers configuration function */
 	cdns_torrent_dp_pma_cfg(cdns_phy);
@@ -195,11 +213,11 @@ static int cdns_torrent_dp_init(struct phy *phy)
 	 * used lanes
 	 */
 	lane_bits = (1 << cdns_phy->num_lanes) - 1;
-	writel(((0xF & ~lane_bits) << 4) | (0xF & lane_bits),
-	       cdns_phy->base + PHY_RESET);
+	cdns_torrent_dp_write(cdns_phy, PHY_RESET,
+			      ((0xF & ~lane_bits) << 4) | (0xF & lane_bits));
 
 	/* release pma_xcvr_pllclk_en_ln_*, only for the master lane */
-	writel(0x0001, cdns_phy->base + PHY_PMA_XCVR_PLLCLK_EN);
+	cdns_torrent_dp_write(cdns_phy, PHY_PMA_XCVR_PLLCLK_EN, 0x0001);
 
 	/* PHY PMA registers configuration functions */
 	cdns_torrent_dp_pma_cmn_vco_cfg_25mhz(cdns_phy);
@@ -219,8 +237,8 @@ void cdns_torrent_dp_wait_pma_cmn_ready(struct cdns_torrent_phy *cdns_phy)
 	unsigned int reg;
 	int ret;
 
-	ret = readl_poll_timeout(cdns_phy->base + PHY_PMA_CMN_READY, reg,
-				 reg & 1, 0, 500);
+	ret = cdns_torrent_dp_read_poll_timeout(cdns_phy, PHY_PMA_CMN_READY,
+						reg, reg & 1, 0, 500);
 	if (ret == -ETIMEDOUT)
 		dev_err(cdns_phy->dev,
 			"timeout waiting for PMA common ready\n");
@@ -391,8 +409,10 @@ static void cdns_torrent_dp_run(struct cdns_torrent_phy *cdns_phy)
 	 * waiting for ACK of pma_xcvr_pllclk_en_ln_*, only for the
 	 * master lane
 	 */
-	ret = readl_poll_timeout(cdns_phy->base + PHY_PMA_XCVR_PLLCLK_EN_ACK,
-				 read_val, read_val & 1, 0, POLL_TIMEOUT_US);
+	ret = cdns_torrent_dp_read_poll_timeout(cdns_phy,
+						PHY_PMA_XCVR_PLLCLK_EN_ACK,
+						read_val, read_val & 1, 0,
+						POLL_TIMEOUT_US);
 	if (ret == -ETIMEDOUT)
 		dev_err(cdns_phy->dev,
 			"timeout waiting for link PLL clock enable ack\n");
@@ -417,28 +437,35 @@ static void cdns_torrent_dp_run(struct cdns_torrent_phy *cdns_phy)
 		break;
 	}
 
-	writel(write_val1, cdns_phy->base + PHY_PMA_XCVR_POWER_STATE_REQ);
+	cdns_torrent_dp_write(cdns_phy,
+			      PHY_PMA_XCVR_POWER_STATE_REQ, write_val1);
 
-	ret = readl_poll_timeout(cdns_phy->base + PHY_PMA_XCVR_POWER_STATE_ACK,
-				 read_val, (read_val & mask) == write_val1, 0,
-				 POLL_TIMEOUT_US);
+	ret = cdns_torrent_dp_read_poll_timeout(cdns_phy,
+						PHY_PMA_XCVR_POWER_STATE_ACK,
+						read_val,
+						(read_val & mask) == write_val1,
+						0, POLL_TIMEOUT_US);
+
 	if (ret == -ETIMEDOUT)
 		dev_err(cdns_phy->dev,
 			"timeout waiting for link power state ack\n");
 
-	writel(0, cdns_phy->base + PHY_PMA_XCVR_POWER_STATE_REQ);
+	cdns_torrent_dp_write(cdns_phy, PHY_PMA_XCVR_POWER_STATE_REQ, 0);
 	ndelay(100);
 
-	writel(write_val2, cdns_phy->base + PHY_PMA_XCVR_POWER_STATE_REQ);
+	cdns_torrent_dp_write(cdns_phy,
+			      PHY_PMA_XCVR_POWER_STATE_REQ, write_val2);
 
-	ret = readl_poll_timeout(cdns_phy->base + PHY_PMA_XCVR_POWER_STATE_ACK,
-				 read_val, (read_val & mask) == write_val2, 0,
-				 POLL_TIMEOUT_US);
+	ret = cdns_torrent_dp_read_poll_timeout(cdns_phy,
+						PHY_PMA_XCVR_POWER_STATE_ACK,
+						read_val,
+						(read_val & mask) == write_val2,
+						0, POLL_TIMEOUT_US);
 	if (ret == -ETIMEDOUT)
 		dev_err(cdns_phy->dev,
 			"timeout waiting for link power state ack\n");
 
-	writel(0, cdns_phy->base + PHY_PMA_XCVR_POWER_STATE_REQ);
+	cdns_torrent_dp_write(cdns_phy, PHY_PMA_XCVR_POWER_STATE_REQ, 0);
 	ndelay(100);
 }
 
@@ -450,9 +477,11 @@ static void cdns_dp_phy_write_field(struct cdns_torrent_phy *cdns_phy,
 {
 	unsigned int read_val;
 
-	read_val = readl(cdns_phy->base + offset);
-	writel(((val << start_bit) | (read_val & ~(((1 << num_bits) - 1) <<
-		start_bit))), cdns_phy->base + offset);
+	read_val = cdns_torrent_dp_read(cdns_phy, offset);
+	cdns_torrent_dp_write(cdns_phy, offset,
+			      ((val << start_bit) |
+			      (read_val & ~(((1 << num_bits) - 1) <<
+			      start_bit))));
 }
 
 static int cdns_torrent_phy_probe(struct platform_device *pdev)
