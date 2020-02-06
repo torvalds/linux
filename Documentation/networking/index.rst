@@ -33,6 +33,7 @@ Contents:
    tls
    tls-offload
    nfc
+   6lowpan
 
 .. only::  subproject and html
 
