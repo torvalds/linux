@@ -1588,7 +1588,7 @@ static void taprio_destroy(struct Qdisc *sch)
 	}
 	q->qdiscs = NULL;
 
-	netdev_set_num_tc(dev, 0);
+	netdev_reset_tc(dev);
 
 	if (q->oper_sched)
 		call_rcu(&q->oper_sched->rcu, taprio_free_sched_cb);
