@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Cadence MHDP DisplayPort SD0801 PHY driver.
+ * Cadence Torrent SD0801 PHY driver.
  *
  * Copyright 2018 Cadence Design Systems, Inc.
  *
@@ -101,7 +101,7 @@
 #define RX_PSC_A3			0x2000c
 #define PHY_PLL_CFG			0x30038
 
-struct cdns_dp_phy {
+struct cdns_torrent_phy {
 	void __iomem *base;	/* DPTX registers base */
 	void __iomem *sd_base; /* SD0801 registers base */
 	u32 num_lanes; /* Number of lanes to use */
@@ -109,36 +109,39 @@ struct cdns_dp_phy {
 	struct device *dev;
 };
 
-static int cdns_dp_phy_init(struct phy *phy);
-static void cdns_dp_phy_run(struct cdns_dp_phy *cdns_phy);
-static void cdns_dp_phy_wait_pma_cmn_ready(struct cdns_dp_phy *cdns_phy);
-static void cdns_dp_phy_pma_cfg(struct cdns_dp_phy *cdns_phy);
-static void cdns_dp_phy_pma_cmn_cfg_25mhz(struct cdns_dp_phy *cdns_phy);
-static void cdns_dp_phy_pma_lane_cfg(struct cdns_dp_phy *cdns_phy,
+static int cdns_torrent_dp_init(struct phy *phy);
+static void cdns_torrent_dp_run(struct cdns_torrent_phy *cdns_phy);
+static
+void cdns_torrent_dp_wait_pma_cmn_ready(struct cdns_torrent_phy *cdns_phy);
+static void cdns_torrent_dp_pma_cfg(struct cdns_torrent_phy *cdns_phy);
+static
+void cdns_torrent_dp_pma_cmn_cfg_25mhz(struct cdns_torrent_phy *cdns_phy);
+static void cdns_torrent_dp_pma_lane_cfg(struct cdns_torrent_phy *cdns_phy,
 					 unsigned int lane);
-static void cdns_dp_phy_pma_cmn_vco_cfg_25mhz(struct cdns_dp_phy *cdns_phy);
-static void cdns_dp_phy_pma_cmn_rate(struct cdns_dp_phy *cdns_phy);
-static void cdns_dp_phy_write_field(struct cdns_dp_phy *cdns_phy,
-					unsigned int offset,
-					unsigned char start_bit,
-					unsigned char num_bits,
-					unsigned int val);
+static
+void cdns_torrent_dp_pma_cmn_vco_cfg_25mhz(struct cdns_torrent_phy *cdns_phy);
+static void cdns_torrent_dp_pma_cmn_rate(struct cdns_torrent_phy *cdns_phy);
+static void cdns_dp_phy_write_field(struct cdns_torrent_phy *cdns_phy,
+				    unsigned int offset,
+				    unsigned char start_bit,
+				    unsigned char num_bits,
+				    unsigned int val);
 
-static const struct phy_ops cdns_dp_phy_ops = {
-	.init		= cdns_dp_phy_init,
+static const struct phy_ops cdns_torrent_phy_ops = {
+	.init		= cdns_torrent_dp_init,
 	.owner		= THIS_MODULE,
 };
 
-static int cdns_dp_phy_init(struct phy *phy)
+static int cdns_torrent_dp_init(struct phy *phy)
 {
 	unsigned char lane_bits;
 
-	struct cdns_dp_phy *cdns_phy = phy_get_drvdata(phy);
+	struct cdns_torrent_phy *cdns_phy = phy_get_drvdata(phy);
 
 	writel(0x0003, cdns_phy->base + PHY_AUX_CTRL); /* enable AUX */
 
 	/* PHY PMA registers configuration function */
-	cdns_dp_phy_pma_cfg(cdns_phy);
+	cdns_torrent_dp_pma_cfg(cdns_phy);
 
 	/*
 	 * Set lines power state to A0
@@ -185,24 +188,25 @@ static int cdns_dp_phy_init(struct phy *phy)
 	 */
 	lane_bits = (1 << cdns_phy->num_lanes) - 1;
 	writel(((0xF & ~lane_bits) << 4) | (0xF & lane_bits),
-		   cdns_phy->base + PHY_RESET);
+	       cdns_phy->base + PHY_RESET);
 
 	/* release pma_xcvr_pllclk_en_ln_*, only for the master lane */
 	writel(0x0001, cdns_phy->base + PHY_PMA_XCVR_PLLCLK_EN);
 
 	/* PHY PMA registers configuration functions */
-	cdns_dp_phy_pma_cmn_vco_cfg_25mhz(cdns_phy);
-	cdns_dp_phy_pma_cmn_rate(cdns_phy);
+	cdns_torrent_dp_pma_cmn_vco_cfg_25mhz(cdns_phy);
+	cdns_torrent_dp_pma_cmn_rate(cdns_phy);
 
 	/* take out of reset */
 	cdns_dp_phy_write_field(cdns_phy, PHY_RESET, 8, 1, 1);
-	cdns_dp_phy_wait_pma_cmn_ready(cdns_phy);
-	cdns_dp_phy_run(cdns_phy);
+	cdns_torrent_dp_wait_pma_cmn_ready(cdns_phy);
+	cdns_torrent_dp_run(cdns_phy);
 
 	return 0;
 }
 
-static void cdns_dp_phy_wait_pma_cmn_ready(struct cdns_dp_phy *cdns_phy)
+static
+void cdns_torrent_dp_wait_pma_cmn_ready(struct cdns_torrent_phy *cdns_phy)
 {
 	unsigned int reg;
 	int ret;
@@ -214,19 +218,20 @@ static void cdns_dp_phy_wait_pma_cmn_ready(struct cdns_dp_phy *cdns_phy)
 			"timeout waiting for PMA common ready\n");
 }
 
-static void cdns_dp_phy_pma_cfg(struct cdns_dp_phy *cdns_phy)
+static void cdns_torrent_dp_pma_cfg(struct cdns_torrent_phy *cdns_phy)
 {
 	unsigned int i;
 
 	/* PMA common configuration */
-	cdns_dp_phy_pma_cmn_cfg_25mhz(cdns_phy);
+	cdns_torrent_dp_pma_cmn_cfg_25mhz(cdns_phy);
 
 	/* PMA lane configuration to deal with multi-link operation */
 	for (i = 0; i < cdns_phy->num_lanes; i++)
-		cdns_dp_phy_pma_lane_cfg(cdns_phy, i);
+		cdns_torrent_dp_pma_lane_cfg(cdns_phy, i);
 }
 
-static void cdns_dp_phy_pma_cmn_cfg_25mhz(struct cdns_dp_phy *cdns_phy)
+static
+void cdns_torrent_dp_pma_cmn_cfg_25mhz(struct cdns_torrent_phy *cdns_phy)
 {
 	/* refclock registers - assumes 25 MHz refclock */
 	writel(0x0019, cdns_phy->sd_base + CMN_SSM_BIAS_TMR);
@@ -259,7 +264,8 @@ static void cdns_dp_phy_pma_cmn_cfg_25mhz(struct cdns_dp_phy *cdns_phy)
 	writel(0x0318, cdns_phy->sd_base + CMN_PLL0_VCOCAL_REFTIM_START);
 }
 
-static void cdns_dp_phy_pma_cmn_vco_cfg_25mhz(struct cdns_dp_phy *cdns_phy)
+static
+void cdns_torrent_dp_pma_cmn_vco_cfg_25mhz(struct cdns_torrent_phy *cdns_phy)
 {
 	/* Assumes 25 MHz refclock */
 	switch (cdns_phy->max_bit_rate) {
@@ -300,7 +306,7 @@ static void cdns_dp_phy_pma_cmn_vco_cfg_25mhz(struct cdns_dp_phy *cdns_phy)
 	writel(0x0318, cdns_phy->sd_base + CMN_PLL0_VCOCAL_PLLCNT_START);
 }
 
-static void cdns_dp_phy_pma_cmn_rate(struct cdns_dp_phy *cdns_phy)
+static void cdns_torrent_dp_pma_cmn_rate(struct cdns_torrent_phy *cdns_phy)
 {
 	unsigned int clk_sel_val = 0;
 	unsigned int hsclk_div_val = 0;
@@ -340,12 +346,12 @@ static void cdns_dp_phy_pma_cmn_rate(struct cdns_dp_phy *cdns_phy)
 	/* PMA lane configuration to deal with multi-link operation */
 	for (i = 0; i < cdns_phy->num_lanes; i++) {
 		writel(hsclk_div_val,
-		       cdns_phy->sd_base + (XCVR_DIAG_HSCLK_DIV | (i<<11)));
+		       cdns_phy->sd_base + (XCVR_DIAG_HSCLK_DIV | (i << 11)));
 	}
 }
 
-static void cdns_dp_phy_pma_lane_cfg(struct cdns_dp_phy *cdns_phy,
-				     unsigned int lane)
+static void cdns_torrent_dp_pma_lane_cfg(struct cdns_torrent_phy *cdns_phy,
+					 unsigned int lane)
 {
 	unsigned int lane_bits = (lane & LANE_MASK) << 11;
 
@@ -361,7 +367,7 @@ static void cdns_dp_phy_pma_lane_cfg(struct cdns_dp_phy *cdns_phy,
 	writel(0x0000, cdns_phy->sd_base + (XCVR_DIAG_HSCLK_SEL | lane_bits));
 }
 
-static void cdns_dp_phy_run(struct cdns_dp_phy *cdns_phy)
+static void cdns_torrent_dp_run(struct cdns_torrent_phy *cdns_phy)
 {
 	unsigned int read_val;
 	u32 write_val1 = 0;
@@ -382,7 +388,6 @@ static void cdns_dp_phy_run(struct cdns_dp_phy *cdns_phy)
 	ndelay(100);
 
 	switch (cdns_phy->num_lanes) {
-
 	case 1:	/* lane 0 */
 		write_val1 = 0x00000004;
 		write_val2 = 0x00000001;
@@ -425,7 +430,7 @@ static void cdns_dp_phy_run(struct cdns_dp_phy *cdns_phy)
 	ndelay(100);
 }
 
-static void cdns_dp_phy_write_field(struct cdns_dp_phy *cdns_phy,
+static void cdns_dp_phy_write_field(struct cdns_torrent_phy *cdns_phy,
 				    unsigned int offset,
 				    unsigned char start_bit,
 				    unsigned char num_bits,
@@ -438,10 +443,10 @@ static void cdns_dp_phy_write_field(struct cdns_dp_phy *cdns_phy,
 		start_bit))), cdns_phy->base + offset);
 }
 
-static int cdns_dp_phy_probe(struct platform_device *pdev)
+static int cdns_torrent_phy_probe(struct platform_device *pdev)
 {
 	struct resource *regs;
-	struct cdns_dp_phy *cdns_phy;
+	struct cdns_torrent_phy *cdns_phy;
 	struct device *dev = &pdev->dev;
 	struct phy_provider *phy_provider;
 	struct phy *phy;
@@ -453,9 +458,9 @@ static int cdns_dp_phy_probe(struct platform_device *pdev)
 
 	cdns_phy->dev = &pdev->dev;
 
-	phy = devm_phy_create(dev, NULL, &cdns_dp_phy_ops);
+	phy = devm_phy_create(dev, NULL, &cdns_torrent_phy_ops);
 	if (IS_ERR(phy)) {
-		dev_err(dev, "failed to create DisplayPort PHY\n");
+		dev_err(dev, "failed to create Torrent PHY\n");
 		return PTR_ERR(phy);
 	}
 
@@ -470,7 +475,7 @@ static int cdns_dp_phy_probe(struct platform_device *pdev)
 		return PTR_ERR(cdns_phy->sd_base);
 
 	err = device_property_read_u32(dev, "num_lanes",
-				       &(cdns_phy->num_lanes));
+				       &cdns_phy->num_lanes);
 	if (err)
 		cdns_phy->num_lanes = DEFAULT_NUM_LANES;
 
@@ -487,7 +492,7 @@ static int cdns_dp_phy_probe(struct platform_device *pdev)
 	}
 
 	err = device_property_read_u32(dev, "max_bit_rate",
-		   &(cdns_phy->max_bit_rate));
+				       &cdns_phy->max_bit_rate);
 	if (err)
 		cdns_phy->max_bit_rate = DEFAULT_MAX_BIT_RATE;
 
@@ -519,23 +524,23 @@ static int cdns_dp_phy_probe(struct platform_device *pdev)
 	return PTR_ERR_OR_ZERO(phy_provider);
 }
 
-static const struct of_device_id cdns_dp_phy_of_match[] = {
+static const struct of_device_id cdns_torrent_phy_of_match[] = {
 	{
 		.compatible = "cdns,torrent-phy"
 	},
 	{}
 };
-MODULE_DEVICE_TABLE(of, cdns_dp_phy_of_match);
+MODULE_DEVICE_TABLE(of, cdns_torrent_phy_of_match);
 
-static struct platform_driver cdns_dp_phy_driver = {
-	.probe	= cdns_dp_phy_probe,
+static struct platform_driver cdns_torrent_phy_driver = {
+	.probe	= cdns_torrent_phy_probe,
 	.driver = {
-		.name	= "cdns-dp-phy",
-		.of_match_table	= cdns_dp_phy_of_match,
+		.name	= "cdns-torrent-phy",
+		.of_match_table	= cdns_torrent_phy_of_match,
 	}
 };
-module_platform_driver(cdns_dp_phy_driver);
+module_platform_driver(cdns_torrent_phy_driver);
 
 MODULE_AUTHOR("Cadence Design Systems, Inc.");
-MODULE_DESCRIPTION("Cadence MHDP PHY driver");
+MODULE_DESCRIPTION("Cadence Torrent PHY driver");
 MODULE_LICENSE("GPL v2");
