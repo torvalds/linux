@@ -65,7 +65,7 @@ static struct cpuidle_driver intel_idle_driver = {
 static int max_cstate = CPUIDLE_STATE_MAX - 1;
 static unsigned int disabled_states_mask;
 
-static unsigned int mwait_substates __initdata;
+static struct cpuidle_device __percpu *intel_idle_cpuidle_devices;
 
 static unsigned long auto_demotion_disable_flags;
 static bool disable_promotion_to_c1e;
@@ -86,8 +86,9 @@ struct idle_cpu {
 };
 
 static const struct idle_cpu *icpu __initdata;
-static struct cpuidle_device __percpu *intel_idle_cpuidle_devices;
 static struct cpuidle_state *cpuidle_state_table __initdata;
+
+static unsigned int mwait_substates __initdata;
 
 /*
  * Enable this state by default even if the ACPI _CST does not list it.
