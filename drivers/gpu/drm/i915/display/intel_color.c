@@ -1192,7 +1192,8 @@ static int check_luts(const struct intel_crtc_state *crtc_state)
 
 	/* C8 relies on its palette being stored in the legacy LUT */
 	if (crtc_state->c8_planes) {
-		DRM_DEBUG_KMS("C8 pixelformat requires the legacy LUT\n");
+		drm_dbg_kms(&dev_priv->drm,
+			    "C8 pixelformat requires the legacy LUT\n");
 		return -EINVAL;
 	}
 
