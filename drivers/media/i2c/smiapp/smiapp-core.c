@@ -69,37 +69,25 @@ static u32 smiapp_get_limit(struct smiapp_sensor *sensor,
 #define SMIA_LIM(sensor, limit) \
 	smiapp_get_limit(sensor, SMIAPP_LIMIT_##limit)
 
-static int smiapp_get_limits(struct smiapp_sensor *sensor, int const *limit,
-			     unsigned int n)
+static int smiapp_read_all_smia_limits(struct smiapp_sensor *sensor)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
-	unsigned int i;
-	u32 val;
-	int rval;
-
-	for (i = 0; i < n; i++) {
-		rval = smiapp_read(
-			sensor, smiapp_reg_limits[limit[i]].addr, &val);
-		if (rval)
-			return rval;
-		sensor->limits[limit[i]] = val;
-		dev_dbg(&client->dev, "0x%8.8x \"%s\" = %u, 0x%x\n",
-			smiapp_reg_limits[limit[i]].addr,
-			smiapp_reg_limits[limit[i]].what, val, val);
-	}
-
-	return 0;
-}
-
-static int smiapp_get_all_limits(struct smiapp_sensor *sensor)
-{
 	unsigned int i;
 	int rval;
 
 	for (i = 0; i < SMIAPP_LIMIT_LAST; i++) {
-		rval = smiapp_get_limits(sensor, &i, 1);
-		if (rval < 0)
+		u32 val;
+
+		rval = smiapp_read(
+			sensor, smiapp_reg_limits[i].addr, &val);
+		if (rval)
 			return rval;
+
+		sensor->limits[i] = val;
+
+		dev_dbg(&client->dev, "0x%8.8x \"%s\" = %u, 0x%x\n",
+			smiapp_reg_limits[i].addr,
+			smiapp_reg_limits[i].what, val, val);
 	}
 
 	if (SMIA_LIM(sensor, SCALER_N_MIN) == 0)
@@ -2938,7 +2926,7 @@ static int smiapp_probe(struct i2c_client *client)
 		goto out_power_off;
 	}
 
-	rval = smiapp_get_all_limits(sensor);
+	rval = smiapp_read_all_smia_limits(sensor);
 	if (rval) {
 		rval = -ENODEV;
 		goto out_power_off;
