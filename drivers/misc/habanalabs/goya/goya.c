@@ -2575,8 +2575,7 @@ static int goya_hw_init(struct hl_device *hdev)
 	 * After CPU initialization is finished, change DDR bar mapping inside
 	 * iATU to point to the start address of the MMU page tables
 	 */
-	if (goya_set_ddr_bar_base(hdev, DRAM_PHYS_BASE +
-			(MMU_PAGE_TABLES_ADDR &
+	if (goya_set_ddr_bar_base(hdev, (MMU_PAGE_TABLES_ADDR &
 			~(prop->dram_pci_bar_size - 0x1ull))) == U64_MAX) {
 		dev_err(hdev->dev,
 			"failed to map DDR bar to MMU page tables\n");
