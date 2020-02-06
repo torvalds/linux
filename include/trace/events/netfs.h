@@ -43,6 +43,7 @@ enum netfs_sreq_trace {
 	netfs_sreq_trace_submit,
 	netfs_sreq_trace_terminated,
 	netfs_sreq_trace_write,
+	netfs_sreq_trace_write_skip,
 	netfs_sreq_trace_write_term,
 };
 
@@ -77,6 +78,7 @@ enum netfs_sreq_trace {
 	EM(netfs_sreq_trace_submit,		"SUBMT")	\
 	EM(netfs_sreq_trace_terminated,		"TERM ")	\
 	EM(netfs_sreq_trace_write,		"WRITE")	\
+	EM(netfs_sreq_trace_write_skip,		"SKIP ")	\
 	E_(netfs_sreq_trace_write_term,		"WTERM")
 
 
