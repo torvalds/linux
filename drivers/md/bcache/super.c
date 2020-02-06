@@ -609,12 +609,13 @@ int bch_prio_write(struct cache *ca, bool wait)
 	return 0;
 }
 
-static void prio_read(struct cache *ca, uint64_t bucket)
+static int prio_read(struct cache *ca, uint64_t bucket)
 {
 	struct prio_set *p = ca->disk_buckets;
 	struct bucket_disk *d = p->data + prios_per_bucket(ca), *end = d;
 	struct bucket *b;
 	unsigned int bucket_nr = 0;
+	int ret = -EIO;
 
 	for (b = ca->buckets;
 	     b < ca->buckets + ca->sb.nbuckets;
@@ -627,11 +628,15 @@ static void prio_read(struct cache *ca, uint64_t bucket)
 			prio_io(ca, bucket, REQ_OP_READ, 0);
 
 			if (p->csum !=
-			    bch_crc64(&p->magic, bucket_bytes(ca) - 8))
+			    bch_crc64(&p->magic, bucket_bytes(ca) - 8)) {
 				pr_warn("bad csum reading priorities");
+				goto out;
+			}
 
-			if (p->magic != pset_magic(&ca->sb))
+			if (p->magic != pset_magic(&ca->sb)) {
 				pr_warn("bad magic reading priorities");
+				goto out;
+			}
 
 			bucket = p->next_bucket;
 			d = p->data;
@@ -640,6 +645,10 @@ static void prio_read(struct cache *ca, uint64_t bucket)
 		b->prio = le16_to_cpu(d->prio);
 		b->gen = b->last_gc = d->gen;
 	}
+
+	ret = 0;
+out:
+	return ret;
 }
 
 /* Bcache device */
@@ -1873,8 +1882,10 @@ static int run_cache_set(struct cache_set *c)
 		j = &list_entry(journal.prev, struct journal_replay, list)->j;
 
 		err = "IO error reading priorities";
-		for_each_cache(ca, c, i)
-			prio_read(ca, j->prio_bucket[ca->sb.nr_this_dev]);
+		for_each_cache(ca, c, i) {
+			if (prio_read(ca, j->prio_bucket[ca->sb.nr_this_dev]))
+				goto err;
+		}
 
 		/*
 		 * If prio_read() fails it'll call cache_set_error and we'll

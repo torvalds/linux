@@ -422,7 +422,8 @@ err:
 static void btree_flush_write(struct cache_set *c)
 {
 	struct btree *b, *t, *btree_nodes[BTREE_FLUSH_NR];
-	unsigned int i, nr, ref_nr;
+	unsigned int i, nr;
+	int ref_nr;
 	atomic_t *fifo_front_p, *now_fifo_front_p;
 	size_t mask;
 

@@ -14947,8 +14947,8 @@ S:	Maintained
 F:	drivers/mmc/host/sdhci-omap.c
 
 SECURE ENCRYPTING DEVICE (SED) OPAL DRIVER
-M:	Scott Bauer <scott.bauer@intel.com>
 M:	Jonathan Derrick <jonathan.derrick@intel.com>
+M:	Revanth Rajashekar <revanth.rajashekar@intel.com>
 L:	linux-block@vger.kernel.org
 S:	Supported
 F:	block/sed*
