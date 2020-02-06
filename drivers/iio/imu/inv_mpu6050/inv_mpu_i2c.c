@@ -10,6 +10,7 @@
 #include <linux/iio/iio.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
+#include <linux/property.h>
 #include "inv_mpu_iio.h"
 
 static const struct regmap_config inv_mpu_regmap_config = {
@@ -52,20 +53,6 @@ static int inv_mpu6050_deselect_bypass(struct i2c_mux_core *muxc, u32 chan_id)
 	mutex_unlock(&st->lock);
 
 	return 0;
-}
-
-static const char *inv_mpu_match_acpi_device(struct device *dev,
-					     enum inv_devices *chip_id)
-{
-	const struct acpi_device_id *id;
-
-	id = acpi_match_device(dev->driver->acpi_match_table, dev);
-	if (!id)
-		return NULL;
-
-	*chip_id = (int)id->driver_data;
-
-	return dev_name(dev);
 }
 
 static bool inv_mpu_i2c_aux_bus(struct device *dev)
@@ -130,6 +117,7 @@ static int inv_mpu_magn_disable(struct iio_dev *indio_dev)
 static int inv_mpu_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
+	const void *match;
 	struct inv_mpu6050_state *st;
 	int result;
 	enum inv_devices chip_type;
@@ -140,18 +128,14 @@ static int inv_mpu_probe(struct i2c_client *client,
 				     I2C_FUNC_SMBUS_I2C_BLOCK))
 		return -EOPNOTSUPP;
 
-	if (client->dev.of_node) {
-		chip_type = (enum inv_devices)
-			of_device_get_match_data(&client->dev);
+	match = device_get_match_data(&client->dev);
+	if (match) {
+		chip_type = (enum inv_devices)match;
 		name = client->name;
 	} else if (id) {
 		chip_type = (enum inv_devices)
 			id->driver_data;
 		name = id->name;
-	} else if (ACPI_HANDLE(&client->dev)) {
-		name = inv_mpu_match_acpi_device(&client->dev, &chip_type);
-		if (!name)
-			return -ENODEV;
 	} else {
 		return -ENOSYS;
 	}
