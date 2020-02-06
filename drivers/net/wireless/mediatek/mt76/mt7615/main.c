@@ -712,6 +712,7 @@ const struct ieee80211_ops mt7615_ops = {
 	.bss_info_changed = mt7615_bss_info_changed,
 	.sta_add = mt7615_sta_add,
 	.sta_remove = mt7615_sta_remove,
+	.sta_pre_rcu_remove = mt76_sta_pre_rcu_remove,
 	.set_key = mt7615_set_key,
 	.ampdu_action = mt7615_ampdu_action,
 	.set_rts_threshold = mt7615_set_rts_threshold,

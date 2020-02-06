@@ -680,6 +680,7 @@ const struct ieee80211_ops mt7603_ops = {
 	.configure_filter = mt7603_configure_filter,
 	.bss_info_changed = mt7603_bss_info_changed,
 	.sta_state = mt76_sta_state,
+	.sta_pre_rcu_remove = mt76_sta_pre_rcu_remove,
 	.set_key = mt7603_set_key,
 	.conf_tx = mt7603_conf_tx,
 	.sw_scan_start = mt76_sw_scan,

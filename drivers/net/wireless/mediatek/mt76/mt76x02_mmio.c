@@ -427,6 +427,8 @@ static void mt76x02_reset_state(struct mt76x02_dev *dev)
 		if (!wcid)
 			continue;
 
+		rcu_assign_pointer(dev->mt76.wcid[i], NULL);
+
 		priv = msta = container_of(wcid, struct mt76x02_sta, wcid);
 		sta = container_of(priv, struct ieee80211_sta, drv_priv);
 
