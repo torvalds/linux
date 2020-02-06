@@ -939,10 +939,11 @@ int of_dma_get_range(struct device_node *np, u64 *dma_addr, u64 *paddr, u64 *siz
 {
 	struct device_node *node = of_node_get(np);
 	const __be32 *ranges = NULL;
-	int len, naddr, nsize, pna;
+	int len;
 	int ret = 0;
 	bool found_dma_ranges = false;
-	u64 dmaaddr;
+	struct of_range_parser parser;
+	struct of_range range;
 
 	while (node) {
 		ranges = of_get_property(node, "dma-ranges", &len);
@@ -967,33 +968,20 @@ int of_dma_get_range(struct device_node *np, u64 *dma_addr, u64 *paddr, u64 *siz
 		goto out;
 	}
 
-	naddr = of_bus_n_addr_cells(node);
-	nsize = of_bus_n_size_cells(node);
-	pna = of_n_addr_cells(node);
-	if ((len / sizeof(__be32)) % (pna + naddr + nsize)) {
-		ret = -EINVAL;
+	of_dma_range_parser_init(&parser, node);
+
+	for_each_of_range(&parser, &range) {
+		pr_debug("dma_addr(%llx) cpu_addr(%llx) size(%llx)\n",
+			 range.bus_addr, range.cpu_addr, range.size);
+
+		*dma_addr = range.bus_addr;
+		*paddr = range.cpu_addr;
+		*size = range.size;
+
 		goto out;
 	}
 
-	/* dma-ranges format:
-	 * DMA addr	: naddr cells
-	 * CPU addr	: pna cells
-	 * size		: nsize cells
-	 */
-	dmaaddr = of_read_number(ranges, naddr);
-	*paddr = of_translate_dma_address(node, ranges + naddr);
-	if (*paddr == OF_BAD_ADDR) {
-		pr_err("translation of DMA address(%llx) to CPU address failed node(%pOF)\n",
-		       dmaaddr, np);
-		ret = -EINVAL;
-		goto out;
-	}
-	*dma_addr = dmaaddr;
-
-	*size = of_read_number(ranges + naddr + pna, nsize);
-
-	pr_debug("dma_addr(%llx) cpu_addr(%llx) size(%llx)\n",
-		 *dma_addr, *paddr, *size);
+	pr_err("translation of DMA ranges failed on node(%pOF)\n", np);
 
 out:
 	of_node_put(node);
