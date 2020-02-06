@@ -930,7 +930,7 @@ vm_fault_t afs_page_mkwrite(struct vm_fault *vmf)
 	 */
 #ifdef CONFIG_AFS_FSCACHE
 	if (PageFsCache(page) &&
-	    wait_on_page_bit_killable(page, PG_fscache) < 0)
+	    wait_on_page_fscache_killable(page) < 0)
 		return VM_FAULT_RETRY;
 #endif
 
@@ -944,7 +944,10 @@ vm_fault_t afs_page_mkwrite(struct vm_fault *vmf)
 	 * details the portion of the page we need to write back and we might
 	 * need to redirty the page if there's a problem.
 	 */
-	wait_on_page_writeback(page);
+	if (wait_on_page_writeback_killable(page) < 0) {
+		unlock_page(page);
+		return VM_FAULT_RETRY;
+	}
 
 	priv = afs_page_dirty(page, 0, thp_size(page));
 	priv = afs_page_dirty_mmapped(priv);
