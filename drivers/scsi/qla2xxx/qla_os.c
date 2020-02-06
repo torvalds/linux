@@ -3935,19 +3935,6 @@ void qla2x00_mark_device_lost(scsi_qla_host_t *vha, fc_port_t *fcport,
 	set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
 }
 
-/*
- * qla2x00_mark_all_devices_lost
- *	Updates fcport state when device goes offline.
- *
- * Input:
- *	ha = adapter block pointer.
- *	fcport = port structure pointer.
- *
- * Return:
- *	None.
- *
- * Context:
- */
 void
 qla2x00_mark_all_devices_lost(scsi_qla_host_t *vha)
 {
@@ -3959,16 +3946,6 @@ qla2x00_mark_all_devices_lost(scsi_qla_host_t *vha)
 	list_for_each_entry(fcport, &vha->vp_fcports, list) {
 		fcport->scan_state = 0;
 		qlt_schedule_sess_for_deletion(fcport);
-
-		if (vha->vp_idx != 0 && vha->vp_idx != fcport->vha->vp_idx)
-			continue;
-
-		/*
-		 * No point in marking the device as lost, if the device is
-		 * already DEAD.
-		 */
-		if (atomic_read(&fcport->state) == FCS_DEVICE_DEAD)
-			continue;
 	}
 }
 
