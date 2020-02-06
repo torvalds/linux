@@ -2415,14 +2415,12 @@ static u64 inherit_vpe_l1_table_from_rd(cpumask_t **mask)
 
 	for_each_possible_cpu(cpu) {
 		void __iomem *base = gic_data_rdist_cpu(cpu)->rd_base;
-		u32 tmp;
 
 		if (!base || cpu == smp_processor_id())
 			continue;
 
 		val = gic_read_typer(base + GICR_TYPER);
-		tmp = compute_common_aff(val);
-		if (tmp != aff)
+		if (aff != compute_common_aff(val))
 			continue;
 
 		/*
