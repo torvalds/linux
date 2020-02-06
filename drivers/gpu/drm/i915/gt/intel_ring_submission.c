@@ -627,6 +627,27 @@ static bool stop_ring(struct intel_engine_cs *engine)
 	return (ENGINE_READ(engine, RING_HEAD) & HEAD_ADDR) == 0;
 }
 
+static struct i915_address_space *vm_alias(struct i915_address_space *vm)
+{
+	if (i915_is_ggtt(vm))
+		vm = &i915_vm_to_ggtt(vm)->alias->vm;
+
+	return vm;
+}
+
+static void set_pp_dir(struct intel_engine_cs *engine)
+{
+	struct i915_address_space *vm = vm_alias(engine->gt->vm);
+
+	if (vm) {
+		struct i915_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
+
+		ENGINE_WRITE(engine, RING_PP_DIR_DCLV, PP_DIR_DCLV_2G);
+		ENGINE_WRITE(engine, RING_PP_DIR_BASE,
+			     px_base(ppgtt->pd)->ggtt_offset << 10);
+	}
+}
+
 static int xcs_resume(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
@@ -684,6 +705,8 @@ static int xcs_resume(struct intel_engine_cs *engine)
 	GEM_BUG_ON(!intel_ring_offset_valid(ring, ring->head));
 	GEM_BUG_ON(!intel_ring_offset_valid(ring, ring->tail));
 	intel_ring_update_space(ring);
+
+	set_pp_dir(engine);
 
 	/* First wake the ring up to an empty/idle ring */
 	ENGINE_WRITE(engine, RING_HEAD, ring->head);
@@ -1161,23 +1184,12 @@ static void ring_context_destroy(struct kref *ref)
 	intel_context_free(ce);
 }
 
-static struct i915_address_space *vm_alias(struct intel_context *ce)
-{
-	struct i915_address_space *vm;
-
-	vm = ce->vm;
-	if (i915_is_ggtt(vm))
-		vm = &i915_vm_to_ggtt(vm)->alias->vm;
-
-	return vm;
-}
-
 static int __context_pin_ppgtt(struct intel_context *ce)
 {
 	struct i915_address_space *vm;
 	int err = 0;
 
-	vm = vm_alias(ce);
+	vm = vm_alias(ce->vm);
 	if (vm)
 		err = gen6_ppgtt_pin(i915_vm_to_ppgtt((vm)));
 
@@ -1188,7 +1200,7 @@ static void __context_unpin_ppgtt(struct intel_context *ce)
 {
 	struct i915_address_space *vm;
 
-	vm = vm_alias(ce);
+	vm = vm_alias(ce->vm);
 	if (vm)
 		gen6_ppgtt_unpin(i915_vm_to_ppgtt(vm));
 }
@@ -1545,7 +1557,7 @@ static int switch_context(struct i915_request *rq)
 
 	GEM_BUG_ON(HAS_EXECLISTS(rq->i915));
 
-	ret = switch_mm(rq, vm_alias(ce));
+	ret = switch_mm(rq, vm_alias(ce->vm));
 	if (ret)
 		return ret;
 
