@@ -101,7 +101,7 @@ static unsigned int mwait_substates __initdata;
  * If this flag is set, SW flushes the TLB, so even if the
  * HW doesn't do the flushing, this flag is safe to use.
  */
-#define CPUIDLE_FLAG_TLB_FLUSHED	0x10000
+#define CPUIDLE_FLAG_TLB_FLUSHED	BIT(16)
 
 /*
  * MWAIT takes an 8-bit "hint" in EAX "suggesting"
