@@ -521,7 +521,7 @@ static int cdns_dp_phy_probe(struct platform_device *pdev)
 
 static const struct of_device_id cdns_dp_phy_of_match[] = {
 	{
-		.compatible = "cdns,dp-phy"
+		.compatible = "cdns,torrent-phy"
 	},
 	{}
 };
