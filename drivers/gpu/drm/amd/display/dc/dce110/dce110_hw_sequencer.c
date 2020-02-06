@@ -698,8 +698,10 @@ void dce110_enable_stream(struct pipe_ctx *pipe_ctx)
 }
 
 /*todo: cloned in stream enc, fix*/
-static bool is_panel_backlight_on(struct dce_hwseq *hws)
+bool dce110_is_panel_backlight_on(struct dc_link *link)
 {
+	struct dc_context *ctx = link->ctx;
+	struct dce_hwseq *hws = ctx->dc->hwseq;
 	uint32_t value;
 
 	REG_GET(LVTMA_PWRSEQ_CNTL, LVTMA_BLON, &value);
@@ -707,10 +709,11 @@ static bool is_panel_backlight_on(struct dce_hwseq *hws)
 	return value;
 }
 
-static bool is_panel_powered_on(struct dce_hwseq *hws)
+bool dce110_is_panel_powered_on(struct dc_link *link)
 {
+	struct dc_context *ctx = link->ctx;
+	struct dce_hwseq *hws = ctx->dc->hwseq;
 	uint32_t pwr_seq_state, dig_on, dig_on_ovrd;
-
 
 	REG_GET(LVTMA_PWRSEQ_STATE, LVTMA_PWRSEQ_TARGET_STATE_R, &pwr_seq_state);
 
@@ -818,7 +821,7 @@ void dce110_edp_power_control(
 		return;
 	}
 
-	if (power_up != is_panel_powered_on(hwseq)) {
+	if (power_up != hwseq->funcs.is_panel_powered_on(link)) {
 		/* Send VBIOS command to prompt eDP panel power */
 		if (power_up) {
 			unsigned long long current_ts = dm_get_timestamp(ctx);
@@ -898,7 +901,7 @@ void dce110_edp_backlight_control(
 		return;
 	}
 
-	if (enable && is_panel_backlight_on(hws)) {
+	if (enable && hws->funcs.is_panel_backlight_on(link)) {
 		DC_LOG_HW_RESUME_S3(
 				"%s: panel already powered up. Do nothing.\n",
 				__func__);
@@ -2764,6 +2767,8 @@ static const struct hwseq_private_funcs dce110_private_funcs = {
 	.disable_stream_gating = NULL,
 	.enable_stream_gating = NULL,
 	.edp_backlight_control = dce110_edp_backlight_control,
+	.is_panel_backlight_on = dce110_is_panel_backlight_on,
+	.is_panel_powered_on = dce110_is_panel_powered_on,
 };
 
 void dce110_hw_sequencer_construct(struct dc *dc)
