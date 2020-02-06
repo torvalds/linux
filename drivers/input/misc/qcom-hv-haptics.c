@@ -884,8 +884,8 @@ static int haptics_load_predefined_effect(struct haptics_chip *chip,
 		return rc;
 
 	play->pattern_src = play->effect->src;
-	if (play->pattern_src != PATTERN1 ||
-			play->pattern_src != PATTERN2 ||
+	if (play->pattern_src != PATTERN1 &&
+			play->pattern_src != PATTERN2 &&
 			play->pattern_src != FIFO) {
 		dev_err(chip->dev, "pattern src %d can't be used for predefined effect\n",
 				play->pattern_src);
