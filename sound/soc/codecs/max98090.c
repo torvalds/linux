@@ -52,7 +52,8 @@ static void max98090_shdn_restore_locked(struct max98090_priv *max98090)
 
 static void max98090_shdn_save(struct max98090_priv *max98090)
 {
-	mutex_lock(&max98090->component->card->dapm_mutex);
+	mutex_lock_nested(&max98090->component->card->dapm_mutex,
+			  SND_SOC_DAPM_CLASS_RUNTIME);
 	max98090_shdn_save_locked(max98090);
 }
 
