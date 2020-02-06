@@ -66,10 +66,7 @@ static int max_cstate = CPUIDLE_STATE_MAX - 1;
 static unsigned int disabled_states_mask;
 
 static unsigned int mwait_substates;
-
-#define LAPIC_TIMER_ALWAYS_RELIABLE 0xFFFFFFFF
-/* Reliable LAPIC Timer States, bit 1 for C1 etc.  */
-static unsigned int lapic_timer_reliable_states = (1 << 1);	 /* Default to only C1 */
+static bool lapic_timer_always_reliable;
 
 struct idle_cpu {
 	struct cpuidle_state *state_table;
@@ -908,7 +905,6 @@ static __cpuidle int intel_idle(struct cpuidle_device *dev,
 	unsigned long ecx = 1; /* break on interrupt flag */
 	struct cpuidle_state *state = &drv->states[index];
 	unsigned long eax = flg2MWAIT(state->flags);
-	unsigned int cstate;
 	bool uninitialized_var(tick);
 	int cpu = smp_processor_id();
 
@@ -919,13 +915,16 @@ static __cpuidle int intel_idle(struct cpuidle_device *dev,
 	if (state->flags & CPUIDLE_FLAG_TLB_FLUSHED)
 		leave_mm(cpu);
 
-	if (!static_cpu_has(X86_FEATURE_ARAT)) {
-		cstate = (((eax) >> MWAIT_SUBSTATE_SIZE) &
-				MWAIT_CSTATE_MASK) + 1;
-		tick = false;
-		if (!(lapic_timer_reliable_states & (1 << (cstate)))) {
+	if (!static_cpu_has(X86_FEATURE_ARAT) && !lapic_timer_always_reliable) {
+		/*
+		 * Switch over to one-shot tick broadcast if the target C-state
+		 * is deeper than C1.
+		 */
+		if ((eax >> MWAIT_SUBSTATE_SIZE) & MWAIT_CSTATE_MASK) {
 			tick = true;
 			tick_broadcast_enter();
+		} else {
+			tick = false;
 		}
 	}
 
@@ -1555,7 +1554,7 @@ static int intel_idle_cpu_online(unsigned int cpu)
 {
 	struct cpuidle_device *dev;
 
-	if (lapic_timer_reliable_states != LAPIC_TIMER_ALWAYS_RELIABLE)
+	if (!lapic_timer_always_reliable)
 		tick_broadcast_enable();
 
 	/*
@@ -1647,15 +1646,15 @@ static int __init intel_idle_init(void)
 	}
 
 	if (boot_cpu_has(X86_FEATURE_ARAT))	/* Always Reliable APIC Timer */
-		lapic_timer_reliable_states = LAPIC_TIMER_ALWAYS_RELIABLE;
+		lapic_timer_always_reliable = true;
 
 	retval = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "idle/intel:online",
 				   intel_idle_cpu_online, NULL);
 	if (retval < 0)
 		goto hp_setup_fail;
 
-	pr_debug("lapic_timer_reliable_states 0x%x\n",
-		 lapic_timer_reliable_states);
+	pr_debug("Local APIC timer is reliable in %s\n",
+		 lapic_timer_always_reliable ? "all C-states" : "C1");
 
 	return 0;
 
