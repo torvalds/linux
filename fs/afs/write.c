@@ -23,6 +23,16 @@ int afs_set_page_dirty(struct page *page)
 }
 
 /*
+ * Handle completion of a read operation to fill a page.
+ */
+static void afs_fill_hole(struct afs_read *req)
+{
+	if (iov_iter_count(req->iter) > 0)
+		/* The read was short - clear the excess buffer. */
+		iov_iter_zero(iov_iter_count(req->iter), req->iter);
+}
+
+/*
  * partly or wholly fill a page that's under preparation for writing
  */
 static int afs_fill_page(struct file *file,
@@ -45,18 +55,19 @@ static int afs_fill_page(struct file *file,
 		return 0;
 	}
 
-	req = kzalloc(struct_size(req, array, 1), GFP_KERNEL);
+	req = kzalloc(sizeof(struct afs_read), GFP_KERNEL);
 	if (!req)
 		return -ENOMEM;
 
 	refcount_set(&req->usage, 1);
-	req->key = key_get(afs_file_key(file));
-	req->pos = pos;
-	req->len = len;
-	req->nr_pages = 1;
-	req->pages = req->array;
-	req->pages[0] = page;
-	get_page(page);
+	req->vnode	= vnode;
+	req->done	= afs_fill_hole;
+	req->key	= key_get(afs_file_key(file));
+	req->pos	= pos;
+	req->len	= len;
+	req->nr_pages	= 1;
+	req->iter	= &req->def_iter;
+	iov_iter_xarray(&req->def_iter, READ, &file->f_mapping->i_pages, pos, len);
 
 	ret = afs_fetch_data(vnode, req);
 	afs_put_read(req);

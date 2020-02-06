@@ -184,20 +184,71 @@ int afs_release(struct inode *inode, struct file *file)
 }
 
 /*
+ * Handle completion of a read operation.
+ */
+static void afs_file_read_done(struct afs_read *req)
+{
+	struct afs_vnode *vnode = req->vnode;
+	struct page *page;
+	pgoff_t index = req->pos >> PAGE_SHIFT;
+	pgoff_t last = index + req->nr_pages - 1;
+
+	XA_STATE(xas, &vnode->vfs_inode.i_mapping->i_pages, index);
+
+	if (iov_iter_count(req->iter) > 0) {
+		/* The read was short - clear the excess buffer. */
+		_debug("afterclear %zx %zx %llx/%llx",
+		       req->iter->iov_offset,
+		       iov_iter_count(req->iter),
+		       req->actual_len, req->len);
+		iov_iter_zero(iov_iter_count(req->iter), req->iter);
+	}
+
+	rcu_read_lock();
+	xas_for_each(&xas, page, last) {
+		page_endio(page, false, 0);
+		put_page(page);
+	}
+	rcu_read_unlock();
+
+	task_io_account_read(req->len);
+	req->cleanup = NULL;
+}
+
+/*
+ * Dispose of our locks and refs on the pages if the read failed.
+ */
+static void afs_file_read_cleanup(struct afs_read *req)
+{
+	struct page *page;
+	pgoff_t index = req->pos >> PAGE_SHIFT;
+	pgoff_t last = index + req->nr_pages - 1;
+
+	if (req->iter) {
+		XA_STATE(xas, &req->vnode->vfs_inode.i_mapping->i_pages, index);
+
+		_enter("%lu,%u,%zu", index, req->nr_pages, iov_iter_count(req->iter));
+
+		rcu_read_lock();
+		xas_for_each(&xas, page, last) {
+			BUG_ON(xa_is_value(page));
+			BUG_ON(PageCompound(page));
+
+			page_endio(page, false, req->error);
+			put_page(page);
+		}
+		rcu_read_unlock();
+	}
+}
+
+/*
  * Dispose of a ref to a read record.
  */
 void afs_put_read(struct afs_read *req)
 {
-	int i;
-
 	if (refcount_dec_and_test(&req->usage)) {
-		if (req->pages) {
-			for (i = 0; i < req->nr_pages; i++)
-				if (req->pages[i])
-					put_page(req->pages[i]);
-			if (req->pages != req->array)
-				kfree(req->pages);
-		}
+		if (req->cleanup)
+			req->cleanup(req);
 		key_put(req->key);
 		kfree(req);
 	}
@@ -215,6 +266,7 @@ static void afs_fetch_data_success(struct afs_operation *op)
 
 static void afs_fetch_data_put(struct afs_operation *op)
 {
+	op->fetch.req->error = op->error;
 	afs_put_read(op->fetch.req);
 }
 
@@ -254,12 +306,11 @@ int afs_fetch_data(struct afs_vnode *vnode, struct afs_read *req)
 /*
  * read page from file, directory or symlink, given a key to use
  */
-int afs_page_filler(void *data, struct page *page)
+static int afs_page_filler(struct key *key, struct page *page)
 {
 	struct inode *inode = page->mapping->host;
 	struct afs_vnode *vnode = AFS_FS_I(inode);
 	struct afs_read *req;
-	struct key *key = data;
 	int ret;
 
 	_enter("{%x},{%lu},{%lu}", key_serial(key), inode->i_ino, page->index);
@@ -270,53 +321,52 @@ int afs_page_filler(void *data, struct page *page)
 	if (test_bit(AFS_VNODE_DELETED, &vnode->flags))
 		goto error;
 
-	req = kzalloc(struct_size(req, array, 1), GFP_KERNEL);
+	req = kzalloc(sizeof(struct afs_read), GFP_KERNEL);
 	if (!req)
 		goto enomem;
 
-	/* We request a full page.  If the page is a partial one at the
-	 * end of the file, the server will return a short read and the
-	 * unmarshalling code will clear the unfilled space.
-	 */
 	refcount_set(&req->usage, 1);
-	req->key = key_get(key);
-	req->pos = (loff_t)page->index << PAGE_SHIFT;
-	req->len = PAGE_SIZE;
-	req->nr_pages = 1;
-	req->pages = req->array;
-	req->pages[0] = page;
+	req->vnode		= vnode;
+	req->key		= key_get(key);
+	req->pos		= (loff_t)page->index << PAGE_SHIFT;
+	req->len		= PAGE_SIZE;
+	req->nr_pages		= 1;
+	req->done		= afs_file_read_done;
+	req->cleanup		= afs_file_read_cleanup;
+
 	get_page(page);
+	iov_iter_xarray(&req->def_iter, READ, &page->mapping->i_pages,
+			req->pos, req->len);
+	req->iter = &req->def_iter;
 
-	/* read the contents of the file from the server into the
-	 * page */
 	ret = afs_fetch_data(vnode, req);
+	if (ret < 0)
+		goto fetch_error;
+
 	afs_put_read(req);
-
-	if (ret < 0) {
-		if (ret == -ENOENT) {
-			_debug("got NOENT from server"
-			       " - marking file deleted and stale");
-			set_bit(AFS_VNODE_DELETED, &vnode->flags);
-			ret = -ESTALE;
-		}
-
-		if (ret == -EINTR ||
-		    ret == -ENOMEM ||
-		    ret == -ERESTARTSYS ||
-		    ret == -EAGAIN)
-			goto error;
-		goto io_error;
-	}
-
-	SetPageUptodate(page);
-	unlock_page(page);
-
 	_leave(" = 0");
 	return 0;
 
-io_error:
-	SetPageError(page);
-	goto error;
+fetch_error:
+	switch (ret) {
+	case -EINTR:
+	case -ENOMEM:
+	case -ERESTARTSYS:
+	case -EAGAIN:
+		afs_put_read(req);
+		goto error;
+	case -ENOENT:
+		_debug("got NOENT from server - marking file deleted and stale");
+		set_bit(AFS_VNODE_DELETED, &vnode->flags);
+		ret = -ESTALE;
+		/* Fall through */
+	default:
+		page_endio(page, false, ret);
+		afs_put_read(req);
+		_leave(" = %d", ret);
+		return ret;
+	}
+
 enomem:
 	ret = -ENOMEM;
 error:
@@ -352,19 +402,6 @@ static int afs_readpage(struct file *file, struct page *page)
 }
 
 /*
- * Make pages available as they're filled.
- */
-static void afs_readpages_page_done(struct afs_read *req)
-{
-	struct page *page = req->pages[req->index];
-
-	req->pages[req->index] = NULL;
-	SetPageUptodate(page);
-	unlock_page(page);
-	put_page(page);
-}
-
-/*
  * Read a contiguous set of pages.
  */
 static int afs_readpages_one(struct file *file, struct address_space *mapping,
@@ -375,7 +412,7 @@ static int afs_readpages_one(struct file *file, struct address_space *mapping,
 	struct list_head *p;
 	struct page *first, *page;
 	pgoff_t index;
-	int ret, n, i;
+	int ret, n;
 
 	/* Count the number of contiguous pages at the front of the list.  Note
 	 * that the list goes prev-wards rather than next-wards.
@@ -391,21 +428,20 @@ static int afs_readpages_one(struct file *file, struct address_space *mapping,
 		n++;
 	}
 
-	req = kzalloc(struct_size(req, array, n), GFP_NOFS);
+	req = kzalloc(sizeof(struct afs_read), GFP_NOFS);
 	if (!req)
 		return -ENOMEM;
 
 	refcount_set(&req->usage, 1);
 	req->vnode = vnode;
 	req->key = key_get(afs_file_key(file));
-	req->page_done = afs_readpages_page_done;
+	req->done = afs_file_read_done;
+	req->cleanup = afs_file_read_cleanup;
 	req->pos = first->index;
 	req->pos <<= PAGE_SHIFT;
-	req->pages = req->array;
 
-	/* Transfer the pages to the request.  We add them in until one fails
-	 * to add to the LRU and then we stop (as that'll make a hole in the
-	 * contiguous run.
+	/* Add pages to the LRU until it fails.  We keep the pages ref'd and
+	 * locked until the read is complete.
 	 *
 	 * Note that it's possible for the file size to change whilst we're
 	 * doing this, but we rely on the server returning less than we asked
@@ -422,8 +458,7 @@ static int afs_readpages_one(struct file *file, struct address_space *mapping,
 			break;
 		}
 
-		req->pages[req->nr_pages++] = page;
-		req->len += PAGE_SIZE;
+		req->nr_pages++;
 	} while (req->nr_pages < n);
 
 	if (req->nr_pages == 0) {
@@ -431,28 +466,23 @@ static int afs_readpages_one(struct file *file, struct address_space *mapping,
 		return 0;
 	}
 
+	req->len = req->nr_pages * PAGE_SIZE;
+	iov_iter_xarray(&req->def_iter, READ, &file->f_mapping->i_pages,
+			req->pos, req->len);
+	req->iter = &req->def_iter;
+
 	ret = afs_fetch_data(vnode, req);
 	if (ret < 0)
 		goto error;
 
-	task_io_account_read(PAGE_SIZE * req->nr_pages);
 	afs_put_read(req);
 	return 0;
 
 error:
 	if (ret == -ENOENT) {
-		_debug("got NOENT from server"
-		       " - marking file deleted and stale");
+		_debug("got NOENT from server - marking file deleted and stale");
 		set_bit(AFS_VNODE_DELETED, &vnode->flags);
 		ret = -ESTALE;
-	}
-
-	for (i = 0; i < req->nr_pages; i++) {
-		page = req->pages[i];
-		if (page) {
-			SetPageError(page);
-			unlock_page(page);
-		}
 	}
 
 	afs_put_read(req);
