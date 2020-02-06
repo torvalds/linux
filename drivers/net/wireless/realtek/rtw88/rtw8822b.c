@@ -1543,7 +1543,7 @@ static void rtw8822b_bf_config_bfee(struct rtw_dev *rtwdev, struct rtw_vif *vif,
 		rtw_warn(rtwdev, "wrong bfee role\n");
 }
 
-static struct rtw_pwr_seq_cmd trans_carddis_to_cardemu_8822b[] = {
+static const struct rtw_pwr_seq_cmd trans_carddis_to_cardemu_8822b[] = {
 	{0x0086,
 	 RTW_PWR_CUT_ALL_MSK,
 	 RTW_PWR_INTF_SDIO_MSK,
@@ -1581,7 +1581,7 @@ static struct rtw_pwr_seq_cmd trans_carddis_to_cardemu_8822b[] = {
 	 RTW_PWR_CMD_END, 0, 0},
 };
 
-static struct rtw_pwr_seq_cmd trans_cardemu_to_act_8822b[] = {
+static const struct rtw_pwr_seq_cmd trans_cardemu_to_act_8822b[] = {
 	{0x0012,
 	 RTW_PWR_CUT_ALL_MSK,
 	 RTW_PWR_INTF_ALL_MSK,
@@ -1714,7 +1714,7 @@ static struct rtw_pwr_seq_cmd trans_cardemu_to_act_8822b[] = {
 	 RTW_PWR_CMD_END, 0, 0},
 };
 
-static struct rtw_pwr_seq_cmd trans_act_to_cardemu_8822b[] = {
+static const struct rtw_pwr_seq_cmd trans_act_to_cardemu_8822b[] = {
 	{0x0003,
 	 RTW_PWR_CUT_ALL_MSK,
 	 RTW_PWR_INTF_SDIO_MSK,
@@ -1787,7 +1787,7 @@ static struct rtw_pwr_seq_cmd trans_act_to_cardemu_8822b[] = {
 	 RTW_PWR_CMD_END, 0, 0},
 };
 
-static struct rtw_pwr_seq_cmd trans_cardemu_to_carddis_8822b[] = {
+static const struct rtw_pwr_seq_cmd trans_cardemu_to_carddis_8822b[] = {
 	{0x0005,
 	 RTW_PWR_CUT_ALL_MSK,
 	 RTW_PWR_INTF_SDIO_MSK,
@@ -1905,26 +1905,26 @@ static struct rtw_pwr_seq_cmd trans_cardemu_to_carddis_8822b[] = {
 	 RTW_PWR_CMD_END, 0, 0},
 };
 
-static struct rtw_pwr_seq_cmd *card_enable_flow_8822b[] = {
+static const struct rtw_pwr_seq_cmd *card_enable_flow_8822b[] = {
 	trans_carddis_to_cardemu_8822b,
 	trans_cardemu_to_act_8822b,
 	NULL
 };
 
-static struct rtw_pwr_seq_cmd *card_disable_flow_8822b[] = {
+static const struct rtw_pwr_seq_cmd *card_disable_flow_8822b[] = {
 	trans_act_to_cardemu_8822b,
 	trans_cardemu_to_carddis_8822b,
 	NULL
 };
 
-static struct rtw_intf_phy_para usb2_param_8822b[] = {
+static const struct rtw_intf_phy_para usb2_param_8822b[] = {
 	{0xFFFF, 0x00,
 	 RTW_IP_SEL_PHY,
 	 RTW_INTF_PHY_CUT_ALL,
 	 RTW_INTF_PHY_PLATFORM_ALL},
 };
 
-static struct rtw_intf_phy_para usb3_param_8822b[] = {
+static const struct rtw_intf_phy_para usb3_param_8822b[] = {
 	{0x0001, 0xA841,
 	 RTW_IP_SEL_PHY,
 	 RTW_INTF_PHY_CUT_D,
@@ -1935,7 +1935,7 @@ static struct rtw_intf_phy_para usb3_param_8822b[] = {
 	 RTW_INTF_PHY_PLATFORM_ALL},
 };
 
-static struct rtw_intf_phy_para pcie_gen1_param_8822b[] = {
+static const struct rtw_intf_phy_para pcie_gen1_param_8822b[] = {
 	{0x0001, 0xA841,
 	 RTW_IP_SEL_PHY,
 	 RTW_INTF_PHY_CUT_C,
@@ -1982,7 +1982,7 @@ static struct rtw_intf_phy_para pcie_gen1_param_8822b[] = {
 	 RTW_INTF_PHY_PLATFORM_ALL},
 };
 
-static struct rtw_intf_phy_para pcie_gen2_param_8822b[] = {
+static const struct rtw_intf_phy_para pcie_gen2_param_8822b[] = {
 	{0x0001, 0xA841,
 	 RTW_IP_SEL_PHY,
 	 RTW_INTF_PHY_CUT_C,
@@ -2029,7 +2029,7 @@ static struct rtw_intf_phy_para pcie_gen2_param_8822b[] = {
 	 RTW_INTF_PHY_PLATFORM_ALL},
 };
 
-static struct rtw_intf_phy_para_table phy_para_table_8822b = {
+static const struct rtw_intf_phy_para_table phy_para_table_8822b = {
 	.usb2_para	= usb2_param_8822b,
 	.usb3_para	= usb3_param_8822b,
 	.gen1_para	= pcie_gen1_param_8822b,
@@ -2046,12 +2046,12 @@ static const struct rtw_rfe_def rtw8822b_rfe_defs[] = {
 	[5] = RTW_DEF_RFE(8822b, 5, 5),
 };
 
-static struct rtw_hw_reg rtw8822b_dig[] = {
+static const struct rtw_hw_reg rtw8822b_dig[] = {
 	[0] = { .addr = 0xc50, .mask = 0x7f },
 	[1] = { .addr = 0xe50, .mask = 0x7f },
 };
 
-static struct rtw_page_table page_table_8822b[] = {
+static const struct rtw_page_table page_table_8822b[] = {
 	{64, 64, 64, 64, 1},
 	{64, 64, 64, 64, 1},
 	{64, 64, 0, 0, 1},
@@ -2059,7 +2059,7 @@ static struct rtw_page_table page_table_8822b[] = {
 	{64, 64, 64, 64, 1},
 };
 
-static struct rtw_rqpn rqpn_table_8822b[] = {
+static const struct rtw_rqpn rqpn_table_8822b[] = {
 	{RTW_DMA_MAPPING_NORMAL, RTW_DMA_MAPPING_NORMAL,
 	 RTW_DMA_MAPPING_LOW, RTW_DMA_MAPPING_LOW,
 	 RTW_DMA_MAPPING_EXTRA, RTW_DMA_MAPPING_HIGH},

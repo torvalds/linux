@@ -1255,7 +1255,7 @@ static void rtw_pci_interface_cfg(struct rtw_dev *rtwdev)
 static void rtw_pci_phy_cfg(struct rtw_dev *rtwdev)
 {
 	struct rtw_chip_info *chip = rtwdev->chip;
-	struct rtw_intf_phy_para *para;
+	const struct rtw_intf_phy_para *para;
 	u16 cut;
 	u16 value;
 	u16 offset;

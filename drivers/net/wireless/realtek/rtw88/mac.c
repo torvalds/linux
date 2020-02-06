@@ -101,7 +101,7 @@ static int rtw_mac_pre_system_cfg(struct rtw_dev *rtwdev)
 }
 
 static int rtw_pwr_cmd_polling(struct rtw_dev *rtwdev,
-			       struct rtw_pwr_seq_cmd *cmd)
+			       const struct rtw_pwr_seq_cmd *cmd)
 {
 	u8 value;
 	u8 flag = 0;
@@ -139,9 +139,10 @@ static int rtw_pwr_cmd_polling(struct rtw_dev *rtwdev,
 }
 
 static int rtw_sub_pwr_seq_parser(struct rtw_dev *rtwdev, u8 intf_mask,
-				  u8 cut_mask, struct rtw_pwr_seq_cmd *cmd)
+				  u8 cut_mask,
+				  const struct rtw_pwr_seq_cmd *cmd)
 {
-	struct rtw_pwr_seq_cmd *cur_cmd;
+	const struct rtw_pwr_seq_cmd *cur_cmd;
 	u32 offset;
 	u8 value;
 
@@ -183,13 +184,13 @@ static int rtw_sub_pwr_seq_parser(struct rtw_dev *rtwdev, u8 intf_mask,
 }
 
 static int rtw_pwr_seq_parser(struct rtw_dev *rtwdev,
-			      struct rtw_pwr_seq_cmd **cmd_seq)
+			      const struct rtw_pwr_seq_cmd **cmd_seq)
 {
 	u8 cut_mask;
 	u8 intf_mask;
 	u8 cut;
 	u32 idx = 0;
-	struct rtw_pwr_seq_cmd *cmd;
+	const struct rtw_pwr_seq_cmd *cmd;
 	int ret;
 
 	cut = rtwdev->hal.cut_version;
@@ -223,7 +224,7 @@ static int rtw_pwr_seq_parser(struct rtw_dev *rtwdev,
 static int rtw_mac_power_switch(struct rtw_dev *rtwdev, bool pwr_on)
 {
 	struct rtw_chip_info *chip = rtwdev->chip;
-	struct rtw_pwr_seq_cmd **pwr_seq;
+	const struct rtw_pwr_seq_cmd **pwr_seq;
 	u8 rpwm;
 	bool cur_pwr;
 
@@ -705,7 +706,7 @@ dlfw_fail:
 
 static u32 get_priority_queues(struct rtw_dev *rtwdev, u32 queues)
 {
-	struct rtw_rqpn *rqpn = rtwdev->fifo.rqpn;
+	const struct rtw_rqpn *rqpn = rtwdev->fifo.rqpn;
 	u32 prio_queues = 0;
 
 	if (queues & BIT(IEEE80211_AC_VO))
@@ -793,7 +794,7 @@ void rtw_mac_flush_queues(struct rtw_dev *rtwdev, u32 queues, bool drop)
 static int txdma_queue_mapping(struct rtw_dev *rtwdev)
 {
 	struct rtw_chip_info *chip = rtwdev->chip;
-	struct rtw_rqpn *rqpn = NULL;
+	const struct rtw_rqpn *rqpn = NULL;
 	u16 txdma_pq_map = 0;
 
 	switch (rtw_hci_type(rtwdev)) {
@@ -882,7 +883,7 @@ static int priority_queue_cfg(struct rtw_dev *rtwdev)
 {
 	struct rtw_fifo_conf *fifo = &rtwdev->fifo;
 	struct rtw_chip_info *chip = rtwdev->chip;
-	struct rtw_page_table *pg_tbl = NULL;
+	const struct rtw_page_table *pg_tbl = NULL;
 	u16 pubq_num;
 	int ret;
 
