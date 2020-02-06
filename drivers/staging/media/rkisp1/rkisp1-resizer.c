@@ -503,6 +503,8 @@ static void rkisp1_rsz_set_sink_crop(struct rkisp1_resizer *rsz,
 		sink_crop->top = 0;
 		sink_crop->width = sink_fmt->width;
 		sink_crop->height = sink_fmt->height;
+
+		*r = *sink_crop;
 		return;
 	}
 
