@@ -1595,4 +1595,12 @@ struct smb2_file_network_open_info {
 
 extern char smb2_padding[7];
 
+/* equivalent of the contents of SMB3.1.1 POSIX open context response */
+struct smb_posix_info {
+	__le32 nlink;
+	__le32 reparse_tag;
+	__le32 mode;
+	kuid_t	uid;
+	kuid_t	gid;
+};
 #endif				/* _SMB2PDU_H */

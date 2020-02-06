@@ -1939,6 +1939,16 @@ parse_query_id_ctxt(struct create_context *cc, struct smb2_file_all_info *buf)
 	buf->IndexNumber = pdisk_id->DiskFileId;
 }
 
+static void
+parse_posix_ctxt(struct create_context *cc, struct smb_posix_info *pposix_inf)
+{
+	/* struct smb_posix_info *ppinf = (struct smb_posix_info *)cc; */
+
+	/* TODO: Need to add parsing for the context and return */
+	printk_once(KERN_WARNING
+		    "SMB3 3.11 POSIX response context not completed yet\n");
+}
+
 void
 smb2_parse_contexts(struct TCP_Server_Info *server,
 		       struct smb2_create_rsp *rsp,
@@ -1950,6 +1960,9 @@ smb2_parse_contexts(struct TCP_Server_Info *server,
 	unsigned int next;
 	unsigned int remaining;
 	char *name;
+	const char smb3_create_tag_posix[] = {0x93, 0xAD, 0x25, 0x50, 0x9C,
+					0xB4, 0x11, 0xE7, 0xB4, 0x23, 0x83,
+					0xDE, 0x96, 0x8B, 0xCD, 0x7C};
 
 	*oplock = 0;
 	data_offset = (char *)rsp + le32_to_cpu(rsp->CreateContextsOffset);
@@ -1969,6 +1982,15 @@ smb2_parse_contexts(struct TCP_Server_Info *server,
 		else if (buf && (le16_to_cpu(cc->NameLength) == 4) &&
 		    strncmp(name, SMB2_CREATE_QUERY_ON_DISK_ID, 4) == 0)
 			parse_query_id_ctxt(cc, buf);
+		else if ((le16_to_cpu(cc->NameLength) == 16)) {
+			if (memcmp(name, smb3_create_tag_posix, 16) == 0)
+				parse_posix_ctxt(cc, NULL);
+		}
+		/* else {
+			cifs_dbg(FYI, "Context not matched with len %d\n",
+				le16_to_cpu(cc->NameLength));
+			cifs_dump_mem("Cctxt name: ", name, 4);
+		} */
 
 		next = le32_to_cpu(cc->Next);
 		if (!next)
