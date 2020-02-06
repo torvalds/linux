@@ -25,20 +25,6 @@ static enum ice_status ice_set_mac_type(struct ice_hw *hw)
 }
 
 /**
- * ice_dev_onetime_setup - Temporary HW/FW workarounds
- * @hw: pointer to the HW structure
- *
- * This function provides temporary workarounds for certain issues
- * that are expected to be fixed in the HW/FW.
- */
-void ice_dev_onetime_setup(struct ice_hw *hw)
-{
-#define MBX_PF_VT_PFALLOC	0x00231E80
-	/* set VFs per PF */
-	wr32(hw, MBX_PF_VT_PFALLOC, rd32(hw, PF_VT_PFALLOC_HIF));
-}
-
-/**
  * ice_clear_pf_cfg - Clear PF configuration
  * @hw: pointer to the hardware structure
  *
@@ -762,8 +748,6 @@ enum ice_status ice_init_hw(struct ice_hw *hw)
 	status = ice_init_fltr_mgmt_struct(hw);
 	if (status)
 		goto err_unroll_sched;
-
-	ice_dev_onetime_setup(hw);
 
 	/* Get MAC information */
 	/* A single port can report up to two (LAN and WoL) addresses */
