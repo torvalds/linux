@@ -56,9 +56,6 @@
 #define APIC_VERSION			(0x14UL | ((KVM_APIC_LVT_NUM - 1) << 16))
 #define LAPIC_MMIO_LENGTH		(1 << 12)
 /* followed define is not in apicdef.h */
-#define APIC_SHORT_MASK			0xc0000
-#define APIC_DEST_NOSHORT		0x0
-#define APIC_DEST_MASK			0x800
 #define MAX_APIC_VECTOR			256
 #define APIC_VECTORS_PER_REG		32
 
@@ -792,13 +789,13 @@ static u32 kvm_apic_mda(struct kvm_vcpu *vcpu, unsigned int dest_id,
 }
 
 bool kvm_apic_match_dest(struct kvm_vcpu *vcpu, struct kvm_lapic *source,
-			   int short_hand, unsigned int dest, int dest_mode)
+			   int shorthand, unsigned int dest, int dest_mode)
 {
 	struct kvm_lapic *target = vcpu->arch.apic;
 	u32 mda = kvm_apic_mda(vcpu, dest, source, target);
 
 	ASSERT(target);
-	switch (short_hand) {
+	switch (shorthand) {
 	case APIC_DEST_NOSHORT:
 		if (dest_mode == APIC_DEST_PHYSICAL)
 			return kvm_apic_match_physical_addr(target, mda);
@@ -967,12 +964,12 @@ bool kvm_irq_delivery_to_apic_fast(struct kvm *kvm, struct kvm_lapic *src,
 }
 
 /*
- * This routine tries to handler interrupts in posted mode, here is how
+ * This routine tries to handle interrupts in posted mode, here is how
  * it deals with different cases:
  * - For single-destination interrupts, handle it in posted mode
  * - Else if vector hashing is enabled and it is a lowest-priority
  *   interrupt, handle it in posted mode and use the following mechanism
- *   to find the destinaiton vCPU.
+ *   to find the destination vCPU.
  *	1. For lowest-priority interrupts, store all the possible
  *	   destination vCPUs in an array.
  *	2. Use "guest vector % max number of destination vCPUs" to find
@@ -1151,7 +1148,7 @@ void kvm_bitmap_or_dest_vcpus(struct kvm *kvm, struct kvm_lapic_irq *irq,
 			if (!kvm_apic_present(vcpu))
 				continue;
 			if (!kvm_apic_match_dest(vcpu, NULL,
-						 irq->delivery_mode,
+						 irq->shorthand,
 						 irq->dest_id,
 						 irq->dest_mode))
 				continue;
@@ -1574,9 +1571,9 @@ static void kvm_apic_inject_pending_timer_irqs(struct kvm_lapic *apic)
 	struct kvm_timer *ktimer = &apic->lapic_timer;
 
 	kvm_apic_local_deliver(apic, APIC_LVTT);
-	if (apic_lvtt_tscdeadline(apic))
+	if (apic_lvtt_tscdeadline(apic)) {
 		ktimer->tscdeadline = 0;
-	if (apic_lvtt_oneshot(apic)) {
+	} else if (apic_lvtt_oneshot(apic)) {
 		ktimer->tscdeadline = 0;
 		ktimer->target_expiration = 0;
 	}
@@ -1963,15 +1960,20 @@ int kvm_lapic_reg_write(struct kvm_lapic *apic, u32 reg, u32 val)
 	case APIC_LVTTHMR:
 	case APIC_LVTPC:
 	case APIC_LVT1:
-	case APIC_LVTERR:
+	case APIC_LVTERR: {
 		/* TODO: Check vector */
+		size_t size;
+		u32 index;
+
 		if (!kvm_apic_sw_enabled(apic))
 			val |= APIC_LVT_MASKED;
-
-		val &= apic_lvt_mask[(reg - APIC_LVTT) >> 4];
+		size = ARRAY_SIZE(apic_lvt_mask);
+		index = array_index_nospec(
+				(reg - APIC_LVTT) >> 4, size);
+		val &= apic_lvt_mask[index];
 		kvm_lapic_set_reg(apic, reg, val);
-
 		break;
+	}
 
 	case APIC_LVTT:
 		if (!kvm_apic_sw_enabled(apic))
@@ -2373,14 +2375,13 @@ int kvm_apic_has_interrupt(struct kvm_vcpu *vcpu)
 int kvm_apic_accept_pic_intr(struct kvm_vcpu *vcpu)
 {
 	u32 lvt0 = kvm_lapic_get_reg(vcpu->arch.apic, APIC_LVT0);
-	int r = 0;
 
 	if (!kvm_apic_hw_enabled(vcpu->arch.apic))
-		r = 1;
+		return 1;
 	if ((lvt0 & APIC_LVT_MASKED) == 0 &&
 	    GET_APIC_DELIVERY_MODE(lvt0) == APIC_MODE_EXTINT)
-		r = 1;
-	return r;
+		return 1;
+	return 0;
 }
 
 void kvm_inject_apic_timer_irqs(struct kvm_vcpu *vcpu)
