@@ -641,6 +641,10 @@ struct hns_roce_rinl_buf {
 	u32			 wqe_cnt;
 };
 
+enum {
+	HNS_ROCE_FLUSH_FLAG = 0,
+};
+
 struct hns_roce_work {
 	struct hns_roce_dev *hr_dev;
 	struct work_struct work;
@@ -693,6 +697,8 @@ struct hns_roce_qp {
 	struct hns_roce_sge	sge;
 	u32			next_sge;
 
+	/* 0: flush needed, 1: unneeded */
+	unsigned long		flush_flag;
 	struct hns_roce_work	flush_work;
 	struct hns_roce_rinl_buf rq_inl_buf;
 	struct list_head	node;		/* all qps are on a list */

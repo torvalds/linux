@@ -57,10 +57,12 @@ static void flush_work_handle(struct work_struct *work)
 	attr_mask = IB_QP_STATE;
 	attr.qp_state = IB_QPS_ERR;
 
-	ret = hns_roce_modify_qp(&hr_qp->ibqp, &attr, attr_mask, NULL);
-	if (ret)
-		dev_err(dev, "Modify QP to error state failed(%d) during CQE flush\n",
-			ret);
+	if (test_and_clear_bit(HNS_ROCE_FLUSH_FLAG, &hr_qp->flush_flag)) {
+		ret = hns_roce_modify_qp(&hr_qp->ibqp, &attr, attr_mask, NULL);
+		if (ret)
+			dev_err(dev, "Modify QP to error state failed(%d) during CQE flush\n",
+				ret);
+	}
 
 	/*
 	 * make sure we signal QP destroy leg that flush QP was completed
@@ -764,6 +766,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 	spin_lock_init(&hr_qp->rq.lock);
 
 	hr_qp->state = IB_QPS_RESET;
+	hr_qp->flush_flag = 0;
 
 	hr_qp->ibqp.qp_type = init_attr->qp_type;
 
