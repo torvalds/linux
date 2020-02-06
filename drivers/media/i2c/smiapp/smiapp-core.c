@@ -28,6 +28,7 @@
 #include <media/v4l2-device.h>
 
 #include "ccs-limits.h"
+#include "ccs-regs.h"
 #include "smiapp.h"
 
 #define SMIAPP_ALIGN_DIM(dim, flags)	\
@@ -100,6 +101,164 @@ static int smiapp_read_all_smia_limits(struct smiapp_sensor *sensor)
 		smiapp_replace_limit(sensor, SMIAPP_LIMIT_SCALER_N_MIN, 16);
 
 	return 0;
+}
+
+static void ccs_assign_limit(void *ptr, unsigned int width, u32 val)
+{
+	switch (width) {
+	case sizeof(u8):
+		*(u8 *)ptr = val;
+		break;
+	case sizeof(u16):
+		*(u16 *)ptr = val;
+		break;
+	case sizeof(u32):
+		*(u32 *)ptr = val;
+		break;
+	}
+}
+
+static int ccs_limit_ptr(struct smiapp_sensor *sensor, unsigned int limit,
+			 unsigned int offset, void **__ptr)
+{
+	const struct ccs_limit *linfo;
+
+	if (WARN_ON(limit >= CCS_L_LAST))
+		return -EINVAL;
+
+	linfo = &ccs_limits[ccs_limit_offsets[limit].info];
+
+	if (WARN_ON(!sensor->ccs_limits) ||
+	    WARN_ON(offset + ccs_reg_width(linfo->reg) >
+		    ccs_limit_offsets[limit + 1].lim))
+		return -EINVAL;
+
+	*__ptr = sensor->ccs_limits + ccs_limit_offsets[limit].lim + offset;
+
+	return 0;
+}
+
+void ccs_replace_limit(struct smiapp_sensor *sensor,
+		       unsigned int limit, unsigned int offset, u32 val)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
+	const struct ccs_limit *linfo;
+	void *ptr;
+	int ret;
+
+	ret = ccs_limit_ptr(sensor, limit, offset, &ptr);
+	if (ret)
+		return;
+
+	linfo = &ccs_limits[ccs_limit_offsets[limit].info];
+
+	dev_dbg(&client->dev, "quirk: 0x%8.8x \"%s\" %u = %d, 0x%x\n",
+		linfo->reg, linfo->name, offset, val, val);
+
+	ccs_assign_limit(ptr, ccs_reg_width(linfo->reg), val);
+}
+
+static u32 ccs_get_limit(struct smiapp_sensor *sensor,
+			 unsigned int limit, unsigned int offset)
+{
+	void *ptr;
+	int ret;
+
+	ret = ccs_limit_ptr(sensor, limit, offset, &ptr);
+	if (ret)
+		return 0;
+
+	switch (ccs_reg_width(ccs_limits[ccs_limit_offsets[limit].info].reg)) {
+	case sizeof(u8):
+		return *(u8 *)ptr;
+	case sizeof(u16):
+		return *(u16 *)ptr;
+	case sizeof(u32):
+		return *(u32 *)ptr;
+	}
+
+	WARN_ON(1);
+
+	return 0;
+}
+
+#define CCS_LIM(sensor, limit) \
+	ccs_get_limit(sensor, CCS_L_##limit, 0)
+
+#define CCS_LIM_AT(sensor, limit, offset)	\
+	ccs_get_limit(sensor, CCS_L_##limit, CCS_L_##limit##_OFFSET(offset))
+
+static int ccs_read_all_limits(struct smiapp_sensor *sensor)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
+	void *ptr, *alloc, *end;
+	unsigned int i, l;
+	int ret;
+
+	kfree(sensor->ccs_limits);
+	sensor->ccs_limits = NULL;
+
+	alloc = kzalloc(ccs_limit_offsets[CCS_L_LAST].lim, GFP_KERNEL);
+	if (!alloc)
+		return -ENOMEM;
+
+	end = alloc + ccs_limit_offsets[CCS_L_LAST].lim;
+
+	for (i = 0, l = 0, ptr = alloc; ccs_limits[i].size; i++) {
+		u32 reg = ccs_limits[i].reg;
+		unsigned int width = ccs_reg_width(reg);
+		unsigned int j;
+
+		if (l == CCS_L_LAST) {
+			dev_err(&client->dev,
+				"internal error --- end of limit array\n");
+			ret = -EINVAL;
+			goto out_err;
+		}
+
+		for (j = 0; j < ccs_limits[i].size / width;
+		     j++, reg += width, ptr += width) {
+			u32 val;
+
+			ret = smiapp_read(sensor, reg, &val);
+			if (ret)
+				goto out_err;
+
+			if (ptr + width > end) {
+				dev_err(&client->dev,
+					"internal error --- no room for regs\n");
+				ret = -EINVAL;
+				goto out_err;
+			}
+
+			ccs_assign_limit(ptr, width, val);
+
+			dev_dbg(&client->dev, "0x%8.8x \"%s\" = %u, 0x%x\n",
+				reg, ccs_limits[i].name, val, val);
+		}
+
+		if (ccs_limits[i].flags & CCS_L_FL_SAME_REG)
+			continue;
+
+		l++;
+		ptr = alloc + ccs_limit_offsets[l].lim;
+	}
+
+	if (l != CCS_L_LAST) {
+		dev_err(&client->dev,
+			"internal error --- insufficient limits\n");
+		ret = -EINVAL;
+		goto out_err;
+	}
+
+	sensor->ccs_limits = alloc;
+
+	return 0;
+
+out_err:
+	kfree(alloc);
+
+	return ret;
 }
 
 static int smiapp_read_frame_fmt(struct smiapp_sensor *sensor)
@@ -2970,10 +3129,14 @@ static int smiapp_probe(struct i2c_client *client)
 		goto out_power_off;
 	}
 
+	rval = ccs_read_all_limits(sensor);
+	if (rval)
+		goto out_power_off;
+
 	rval = smiapp_read_frame_fmt(sensor);
 	if (rval) {
 		rval = -ENODEV;
-		goto out_power_off;
+		goto out_free_ccs_limits;
 	}
 
 	/*
@@ -2997,7 +3160,7 @@ static int smiapp_probe(struct i2c_client *client)
 	rval = smiapp_call_quirk(sensor, limits);
 	if (rval) {
 		dev_err(&client->dev, "limits quirks failed\n");
-		goto out_power_off;
+		goto out_free_ccs_limits;
 	}
 
 	if (SMIA_LIM(sensor, BINNING_CAPABILITY)) {
@@ -3007,7 +3170,7 @@ static int smiapp_probe(struct i2c_client *client)
 				   SMIAPP_REG_U8_BINNING_SUBTYPES, &val);
 		if (rval < 0) {
 			rval = -ENODEV;
-			goto out_power_off;
+			goto out_free_ccs_limits;
 		}
 		sensor->nbinning_subtypes = min_t(u8, val,
 						  SMIAPP_BINNING_SUBTYPES);
@@ -3017,7 +3180,7 @@ static int smiapp_probe(struct i2c_client *client)
 				sensor, SMIAPP_REG_U8_BINNING_TYPE_n(i), &val);
 			if (rval < 0) {
 				rval = -ENODEV;
-				goto out_power_off;
+				goto out_free_ccs_limits;
 			}
 			sensor->binning_subtypes[i] =
 				*(struct smiapp_binning_subtype *)&val;
@@ -3033,7 +3196,7 @@ static int smiapp_probe(struct i2c_client *client)
 	if (device_create_file(&client->dev, &dev_attr_ident) != 0) {
 		dev_err(&client->dev, "sysfs ident entry creation failed\n");
 		rval = -ENOENT;
-		goto out_power_off;
+		goto out_free_ccs_limits;
 	}
 
 	if (sensor->minfo.smiapp_version &&
@@ -3150,6 +3313,9 @@ out_media_entity_cleanup:
 out_cleanup:
 	smiapp_cleanup(sensor);
 
+out_free_ccs_limits:
+	kfree(sensor->ccs_limits);
+
 out_power_off:
 	smiapp_power_off(&client->dev);
 	mutex_destroy(&sensor->mutex);
@@ -3176,6 +3342,7 @@ static int smiapp_remove(struct i2c_client *client)
 	}
 	smiapp_cleanup(sensor);
 	mutex_destroy(&sensor->mutex);
+	kfree(sensor->ccs_limits);
 
 	return 0;
 }

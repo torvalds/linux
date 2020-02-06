@@ -228,6 +228,7 @@ struct smiapp_sensor {
 	struct clk *ext_clk;
 	struct gpio_desc *xshutdown;
 	u32 limits[SMIAPP_LIMIT_LAST];
+	void *ccs_limits;
 	u8 nbinning_subtypes;
 	struct smiapp_binning_subtype binning_subtypes[SMIAPP_BINNING_SUBTYPES];
 	u32 mbus_frame_fmts;
@@ -280,5 +281,8 @@ struct smiapp_sensor {
 
 #define to_smiapp_sensor(_sd)	\
 	(to_smiapp_subdev(_sd)->sensor)
+
+void ccs_replace_limit(struct smiapp_sensor *sensor,
+		       unsigned int limit, unsigned int offset, u32 val);
 
 #endif /* __SMIAPP_PRIV_H_ */
