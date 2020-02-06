@@ -1587,6 +1587,11 @@ static void hdmi_present_sense_via_verbs(struct hdmi_spec_per_pin *per_pin,
 	 */
 	int present;
 	bool do_repoll = false;
+	int ret;
+
+	ret = snd_hda_power_up_pm(codec);
+	if (ret < 0 && pm_runtime_suspended(hda_codec_dev(codec)))
+		goto out;
 
 	present = snd_hda_jack_pin_sense(codec, pin_nid, dev_id);
 
@@ -1620,6 +1625,8 @@ static void hdmi_present_sense_via_verbs(struct hdmi_spec_per_pin *per_pin,
 		do_update_eld(codec, per_pin, eld);
 
 	mutex_unlock(&per_pin->lock);
+ out:
+	snd_hda_power_down_pm(codec);
 }
 
 /* update ELD and jack state via audio component */
@@ -1657,20 +1664,11 @@ static void sync_eld_via_acomp(struct hda_codec *codec,
 static void hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
 {
 	struct hda_codec *codec = per_pin->codec;
-	int ret;
 
-	/* no temporary power up/down needed for component notifier */
-	if (!codec_has_acomp(codec)) {
-		ret = snd_hda_power_up_pm(codec);
-		if (ret < 0 && pm_runtime_suspended(hda_codec_dev(codec))) {
-			snd_hda_power_down_pm(codec);
-			return;
-		}
+	if (!codec_has_acomp(codec))
 		hdmi_present_sense_via_verbs(per_pin, repoll);
-		snd_hda_power_down_pm(codec);
-	} else {
+	else
 		sync_eld_via_acomp(codec, per_pin);
-	}
 }
 
 static void hdmi_repoll_eld(struct work_struct *work)
