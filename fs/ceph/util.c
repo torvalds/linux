@@ -39,7 +39,6 @@ void ceph_file_layout_from_legacy(struct ceph_file_layout *fl,
 	    fl->stripe_count == 0 && fl->object_size == 0)
 		fl->pool_id = -1;
 }
-EXPORT_SYMBOL(ceph_file_layout_from_legacy);
 
 void ceph_file_layout_to_legacy(struct ceph_file_layout *fl,
 				struct ceph_file_layout_legacy *legacy)
@@ -52,7 +51,6 @@ void ceph_file_layout_to_legacy(struct ceph_file_layout *fl,
 	else
 		legacy->fl_pg_pool = 0;
 }
-EXPORT_SYMBOL(ceph_file_layout_to_legacy);
 
 int ceph_flags_to_mode(int flags)
 {
@@ -82,7 +80,6 @@ int ceph_flags_to_mode(int flags)
 
 	return mode;
 }
-EXPORT_SYMBOL(ceph_flags_to_mode);
 
 int ceph_caps_for_mode(int mode)
 {
@@ -101,4 +98,3 @@ int ceph_caps_for_mode(int mode)
 
 	return caps;
 }
-EXPORT_SYMBOL(ceph_caps_for_mode);
