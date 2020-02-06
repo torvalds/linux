@@ -662,20 +662,15 @@ enum mod_hdcp_status mod_hdcp_hdcp2_enable_encryption(struct mod_hdcp *hdcp)
 {
 	struct psp_context *psp = hdcp->config.psp.handle;
 	struct ta_hdcp_shared_memory *hdcp_cmd;
-	struct ta_hdcp_cmd_hdcp2_process_prepare_authentication_message_input_v2 *msg_in;
 	struct mod_hdcp_display *display = get_first_added_display(hdcp);
 
 	hdcp_cmd = (struct ta_hdcp_shared_memory *)psp->hdcp_context.hdcp_shared_buf;
 	memset(hdcp_cmd, 0, sizeof(struct ta_hdcp_shared_memory));
 
-	msg_in = &hdcp_cmd->in_msg.hdcp2_prepare_process_authentication_message_v2;
-
-	hdcp2_message_init(hdcp, msg_in);
-
 	if (!display)
 		return MOD_HDCP_STATUS_DISPLAY_NOT_FOUND;
 
-	hdcp_cmd->in_msg.hdcp1_enable_encryption.session_handle = hdcp->auth.id;
+	hdcp_cmd->in_msg.hdcp2_set_encryption.session_handle = hdcp->auth.id;
 
 	hdcp_cmd->cmd_id = TA_HDCP_COMMAND__HDCP2_SET_ENCRYPTION;
 	psp_hdcp_invoke(psp, hdcp_cmd->cmd_id);
