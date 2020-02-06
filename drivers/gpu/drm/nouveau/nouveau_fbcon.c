@@ -312,7 +312,7 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvif_device *device = &drm->client.device;
 	struct fb_info *info;
-	struct nouveau_framebuffer *fb;
+	struct drm_framebuffer *fb;
 	struct nouveau_channel *chan;
 	struct nouveau_bo *nvbo;
 	struct drm_mode_fb_cmd2 mode_cmd;
@@ -367,7 +367,7 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 	}
 
 	/* setup helper */
-	fbcon->helper.fb = &fb->base;
+	fbcon->helper.fb = fb;
 
 	if (!chan)
 		info->flags = FBINFO_HWACCEL_DISABLED;
@@ -393,7 +393,7 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 
 	/* To allow resizeing without swapping buffers */
 	NV_INFO(drm, "allocated %dx%d fb: 0x%llx, bo %p\n",
-		fb->base.width, fb->base.height, nvbo->bo.offset, nvbo);
+		fb->width, fb->height, nvbo->bo.offset, nvbo);
 
 	vga_switcheroo_client_fb_set(dev->pdev, info);
 	return 0;
@@ -413,18 +413,18 @@ out:
 static int
 nouveau_fbcon_destroy(struct drm_device *dev, struct nouveau_fbdev *fbcon)
 {
-	struct nouveau_framebuffer *nouveau_fb = nouveau_framebuffer(fbcon->helper.fb);
+	struct drm_framebuffer *fb = fbcon->helper.fb;
 	struct nouveau_bo *nvbo;
 
 	drm_fb_helper_unregister_fbi(&fbcon->helper);
 	drm_fb_helper_fini(&fbcon->helper);
 
-	if (nouveau_fb && nouveau_fb->base.obj[0]) {
-		nvbo = nouveau_gem_object(nouveau_fb->base.obj[0]);
+	if (fb && fb->obj[0]) {
+		nvbo = nouveau_gem_object(fb->obj[0]);
 		nouveau_vma_del(&fbcon->vma);
 		nouveau_bo_unmap(nvbo);
 		nouveau_bo_unpin(nvbo);
-		drm_framebuffer_put(&nouveau_fb->base);
+		drm_framebuffer_put(fb);
 	}
 
 	return 0;

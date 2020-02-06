@@ -189,10 +189,10 @@ int
 nouveau_framebuffer_new(struct drm_device *dev,
 			const struct drm_mode_fb_cmd2 *mode_cmd,
 			struct drm_gem_object *gem,
-			struct nouveau_framebuffer **pfb)
+			struct drm_framebuffer **pfb)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_framebuffer *fb;
+	struct drm_framebuffer *fb;
 	int ret;
 
         /* YUV overlays have special requirements pre-NV50 */
@@ -218,10 +218,10 @@ nouveau_framebuffer_new(struct drm_device *dev,
 	if (!(fb = *pfb = kzalloc(sizeof(*fb), GFP_KERNEL)))
 		return -ENOMEM;
 
-	drm_helper_mode_fill_fb_struct(dev, &fb->base, mode_cmd);
-	fb->base.obj[0] = gem;
+	drm_helper_mode_fill_fb_struct(dev, fb, mode_cmd);
+	fb->obj[0] = gem;
 
-	ret = drm_framebuffer_init(dev, &fb->base, &nouveau_framebuffer_funcs);
+	ret = drm_framebuffer_init(dev, fb, &nouveau_framebuffer_funcs);
 	if (ret)
 		kfree(fb);
 	return ret;
@@ -232,7 +232,7 @@ nouveau_user_framebuffer_create(struct drm_device *dev,
 				struct drm_file *file_priv,
 				const struct drm_mode_fb_cmd2 *mode_cmd)
 {
-	struct nouveau_framebuffer *fb;
+	struct drm_framebuffer *fb;
 	struct drm_gem_object *gem;
 	int ret;
 
@@ -242,7 +242,7 @@ nouveau_user_framebuffer_create(struct drm_device *dev,
 
 	ret = nouveau_framebuffer_new(dev, mode_cmd, gem, &fb);
 	if (ret == 0)
-		return &fb->base;
+		return fb;
 
 	drm_gem_object_put_unlocked(gem);
 	return ERR_PTR(ret);

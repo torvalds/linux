@@ -8,21 +8,11 @@
 
 #include <drm/drm_framebuffer.h>
 
-struct nouveau_framebuffer {
-	struct drm_framebuffer base;
-};
-
-static inline struct nouveau_framebuffer *
-nouveau_framebuffer(struct drm_framebuffer *fb)
-{
-	return container_of(fb, struct nouveau_framebuffer, base);
-}
-
 int
 nouveau_framebuffer_new(struct drm_device *dev,
 			const struct drm_mode_fb_cmd2 *mode_cmd,
 			struct drm_gem_object *gem,
-			struct nouveau_framebuffer **pfb);
+			struct drm_framebuffer **pfb);
 
 struct nouveau_display {
 	void *priv;
