@@ -3153,7 +3153,9 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 	struct ice_hw *hw;
 	int err;
 
-	/* this driver uses devres, see Documentation/driver-api/driver-model/devres.rst */
+	/* this driver uses devres, see
+	 * Documentation/driver-api/driver-model/devres.rst
+	 */
 	err = pcim_enable_device(pdev);
 	if (err)
 		return err;

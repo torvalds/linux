@@ -412,9 +412,9 @@ static int ice_dcb_init_cfg(struct ice_pf *pf, bool locked)
 }
 
 /**
- * ice_dcb_sw_default_config - Apply a default DCB config
+ * ice_dcb_sw_dflt_cfg - Apply a default DCB config
  * @pf: PF to apply config to
- * @ets_willing: configure ets willing
+ * @ets_willing: configure ETS willing
  * @locked: was this function called with RTNL held
  */
 static int ice_dcb_sw_dflt_cfg(struct ice_pf *pf, bool ets_willing, bool locked)
