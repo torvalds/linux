@@ -707,30 +707,32 @@ error_write_raw_unlock:
 /**
  *  inv_mpu6050_set_lpf() - set low pass filer based on fifo rate.
  *
- *                  Based on the Nyquist principle, the sampling rate must
- *                  exceed twice of the bandwidth of the signal, or there
- *                  would be alising. This function basically search for the
- *                  correct low pass parameters based on the fifo rate, e.g,
- *                  sampling frequency.
+ *                  Based on the Nyquist principle, the bandwidth of the low
+ *                  pass filter must not exceed the signal sampling rate divided
+ *                  by 2, or there would be aliasing.
+ *                  This function basically search for the correct low pass
+ *                  parameters based on the fifo rate, e.g, sampling frequency.
  *
  *  lpf is set automatically when setting sampling rate to avoid any aliases.
  */
 static int inv_mpu6050_set_lpf(struct inv_mpu6050_state *st, int rate)
 {
-	static const int hz[] = {188, 98, 42, 20, 10, 5};
+	static const int hz[] = {400, 200, 90, 40, 20, 10};
 	static const int d[] = {
-		INV_MPU6050_FILTER_188HZ, INV_MPU6050_FILTER_98HZ,
-		INV_MPU6050_FILTER_42HZ, INV_MPU6050_FILTER_20HZ,
+		INV_MPU6050_FILTER_200HZ, INV_MPU6050_FILTER_100HZ,
+		INV_MPU6050_FILTER_45HZ, INV_MPU6050_FILTER_20HZ,
 		INV_MPU6050_FILTER_10HZ, INV_MPU6050_FILTER_5HZ
 	};
-	int i, h, result;
+	int i, result;
 	u8 data;
 
-	h = (rate >> 1);
-	i = 0;
-	while ((h < hz[i]) && (i < ARRAY_SIZE(d) - 1))
-		i++;
-	data = d[i];
+	data = INV_MPU6050_FILTER_5HZ;
+	for (i = 0; i < ARRAY_SIZE(hz); ++i) {
+		if (rate >= hz[i]) {
+			data = d[i];
+			break;
+		}
+	}
 	result = inv_mpu6050_set_lpf_regs(st, data);
 	if (result)
 		return result;
