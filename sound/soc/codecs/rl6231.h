@@ -10,7 +10,7 @@
 #ifndef __RL6231_H__
 #define __RL6231_H__
 
-#define RL6231_PLL_INP_MAX	40000000
+#define RL6231_PLL_INP_MAX	50000000
 #define RL6231_PLL_INP_MIN	256000
 #define RL6231_PLL_N_MAX	0x1ff
 #define RL6231_PLL_K_MAX	0x1f
