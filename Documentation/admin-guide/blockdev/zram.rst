@@ -251,8 +251,6 @@ line of text and contains the following stats separated by whitespace:
 
  ================ =============================================================
  orig_data_size   uncompressed size of data stored in this disk.
-		  This excludes same-element-filled pages (same_pages) since
-		  no memory is allocated for them.
                   Unit: bytes
  compr_data_size  compressed size of data stored in this disk
  mem_used_total   the amount of memory allocated for this disk. This
