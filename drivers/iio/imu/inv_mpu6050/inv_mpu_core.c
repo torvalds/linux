@@ -200,6 +200,14 @@ static const struct inv_mpu6050_hw hw_info[] = {
 		.fifo_size = 1008,
 		.temp = {INV_ICM20608_TEMP_OFFSET, INV_ICM20608_TEMP_SCALE},
 	},
+	{
+		.whoami = INV_IAM20680_WHOAMI_VALUE,
+		.name = "IAM20680",
+		.reg = &reg_set_6500,
+		.config = &chip_config_6050,
+		.fifo_size = 512,
+		.temp = {INV_ICM20608_TEMP_OFFSET, INV_ICM20608_TEMP_SCALE},
+	},
 };
 
 int inv_mpu6050_switch_engine(struct inv_mpu6050_state *st, bool en, u32 mask)
