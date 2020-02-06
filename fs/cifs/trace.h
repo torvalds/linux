@@ -547,6 +547,33 @@ DEFINE_EVENT(smb3_exit_err_class, smb3_##name,    \
 
 DEFINE_SMB3_EXIT_ERR_EVENT(exit_err);
 
+
+DECLARE_EVENT_CLASS(smb3_sync_err_class,
+	TP_PROTO(unsigned long ino,
+		int	rc),
+	TP_ARGS(ino, rc),
+	TP_STRUCT__entry(
+		__field(unsigned long, ino)
+		__field(int, rc)
+	),
+	TP_fast_assign(
+		__entry->ino = ino;
+		__entry->rc = rc;
+	),
+	TP_printk("\tino=%lu rc=%d",
+		__entry->ino, __entry->rc)
+)
+
+#define DEFINE_SMB3_SYNC_ERR_EVENT(name)          \
+DEFINE_EVENT(smb3_sync_err_class, cifs_##name,    \
+	TP_PROTO(unsigned long ino,		\
+		int	rc),			\
+	TP_ARGS(ino, rc))
+
+DEFINE_SMB3_SYNC_ERR_EVENT(fsync_err);
+DEFINE_SMB3_SYNC_ERR_EVENT(flush_err);
+
+
 DECLARE_EVENT_CLASS(smb3_enter_exit_class,
 	TP_PROTO(unsigned int xid,
 		const char *func_name),

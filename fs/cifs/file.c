@@ -2632,8 +2632,10 @@ int cifs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	struct cifs_sb_info *cifs_sb = CIFS_FILE_SB(file);
 
 	rc = file_write_and_wait_range(file, start, end);
-	if (rc)
+	if (rc) {
+		trace_cifs_fsync_err(file_inode(file)->i_ino, rc);
 		return rc;
+	}
 
 	xid = get_xid();
 
@@ -2666,7 +2668,8 @@ int cifs_flush(struct file *file, fl_owner_t id)
 		rc = filemap_write_and_wait(inode->i_mapping);
 
 	cifs_dbg(FYI, "Flush inode %p file %p rc %d\n", inode, file, rc);
-
+	if (rc)
+		trace_cifs_flush_err(inode->i_ino, rc);
 	return rc;
 }
 
