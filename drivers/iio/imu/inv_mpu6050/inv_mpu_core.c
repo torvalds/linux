@@ -201,6 +201,14 @@ static const struct inv_mpu6050_hw hw_info[] = {
 		.temp = {INV_ICM20608_TEMP_OFFSET, INV_ICM20608_TEMP_SCALE},
 	},
 	{
+		.whoami = INV_ICM20690_WHOAMI_VALUE,
+		.name = "ICM20690",
+		.reg = &reg_set_icm20602,
+		.config = &chip_config_6050,
+		.fifo_size = 1024,
+		.temp = {INV_ICM20608_TEMP_OFFSET, INV_ICM20608_TEMP_SCALE},
+	},
+	{
 		.whoami = INV_IAM20680_WHOAMI_VALUE,
 		.name = "IAM20680",
 		.reg = &reg_set_6500,
@@ -295,6 +303,25 @@ int inv_mpu6050_set_power_itg(struct inv_mpu6050_state *st, bool power_on)
 }
 EXPORT_SYMBOL_GPL(inv_mpu6050_set_power_itg);
 
+static int inv_mpu6050_set_gyro_fsr(struct inv_mpu6050_state *st,
+				    enum inv_mpu6050_fsr_e val)
+{
+	unsigned int gyro_shift;
+	u8 data;
+
+	switch (st->chip_type) {
+	case INV_ICM20690:
+		gyro_shift = INV_ICM20690_GYRO_CONFIG_FSR_SHIFT;
+		break;
+	default:
+		gyro_shift = INV_MPU6050_GYRO_CONFIG_FSR_SHIFT;
+		break;
+	}
+
+	data = val << gyro_shift;
+	return regmap_write(st->map, st->reg->gyro_config, data);
+}
+
 /**
  *  inv_mpu6050_set_lpf_regs() - set low pass filter registers, chip dependent
  *
@@ -318,6 +345,7 @@ static int inv_mpu6050_set_lpf_regs(struct inv_mpu6050_state *st,
 		/* old chips, nothing to do */
 		return 0;
 	case INV_ICM20689:
+	case INV_ICM20690:
 		/* set FIFO size to maximum value */
 		val |= INV_ICM20689_BITS_FIFO_SIZE_MAX;
 		break;
@@ -346,8 +374,8 @@ static int inv_mpu6050_init_config(struct iio_dev *indio_dev)
 	result = inv_mpu6050_set_power_itg(st, true);
 	if (result)
 		return result;
-	d = (INV_MPU6050_FSR_2000DPS << INV_MPU6050_GYRO_CONFIG_FSR_SHIFT);
-	result = regmap_write(st->map, st->reg->gyro_config, d);
+
+	result = inv_mpu6050_set_gyro_fsr(st, INV_MPU6050_FSR_2000DPS);
 	if (result)
 		goto error_power_off;
 
@@ -559,12 +587,10 @@ inv_mpu6050_read_raw(struct iio_dev *indio_dev,
 static int inv_mpu6050_write_gyro_scale(struct inv_mpu6050_state *st, int val)
 {
 	int result, i;
-	u8 d;
 
 	for (i = 0; i < ARRAY_SIZE(gyro_scale_6050); ++i) {
 		if (gyro_scale_6050[i] == val) {
-			d = (i << INV_MPU6050_GYRO_CONFIG_FSR_SHIFT);
-			result = regmap_write(st->map, st->reg->gyro_config, d);
+			result = inv_mpu6050_set_gyro_fsr(st, i);
 			if (result)
 				return result;
 

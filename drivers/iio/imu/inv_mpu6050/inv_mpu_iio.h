@@ -78,6 +78,7 @@ enum inv_devices {
 	INV_ICM20609,
 	INV_ICM20689,
 	INV_ICM20602,
+	INV_ICM20690,
 	INV_IAM20680,
 	INV_NUM_PARTS
 };
@@ -297,6 +298,7 @@ struct inv_mpu6050_state {
 #define INV_MPU6050_MAX_ACCL_FS_PARAM        3
 #define INV_MPU6050_THREE_AXIS               3
 #define INV_MPU6050_GYRO_CONFIG_FSR_SHIFT    3
+#define INV_ICM20690_GYRO_CONFIG_FSR_SHIFT   2
 #define INV_MPU6050_ACCL_CONFIG_FSR_SHIFT    3
 
 #define INV_MPU6500_TEMP_OFFSET              7011
@@ -347,6 +349,7 @@ struct inv_mpu6050_state {
 #define INV_ICM20609_WHOAMI_VALUE		0xA6
 #define INV_ICM20689_WHOAMI_VALUE		0x98
 #define INV_ICM20602_WHOAMI_VALUE		0x12
+#define INV_ICM20690_WHOAMI_VALUE		0x20
 #define INV_IAM20680_WHOAMI_VALUE		0xA9
 
 /* scan element definition for generic MPU6xxx devices */
