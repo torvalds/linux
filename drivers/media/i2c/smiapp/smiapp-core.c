@@ -69,6 +69,45 @@ static u32 smiapp_get_limit(struct smiapp_sensor *sensor,
 #define SMIA_LIM(sensor, limit) \
 	smiapp_get_limit(sensor, SMIAPP_LIMIT_##limit)
 
+static int smiapp_get_limits(struct smiapp_sensor *sensor, int const *limit,
+			     unsigned int n)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
+	unsigned int i;
+	u32 val;
+	int rval;
+
+	for (i = 0; i < n; i++) {
+		rval = smiapp_read(
+			sensor, smiapp_reg_limits[limit[i]].addr, &val);
+		if (rval)
+			return rval;
+		sensor->limits[limit[i]] = val;
+		dev_dbg(&client->dev, "0x%8.8x \"%s\" = %u, 0x%x\n",
+			smiapp_reg_limits[limit[i]].addr,
+			smiapp_reg_limits[limit[i]].what, val, val);
+	}
+
+	return 0;
+}
+
+static int smiapp_get_all_limits(struct smiapp_sensor *sensor)
+{
+	unsigned int i;
+	int rval;
+
+	for (i = 0; i < SMIAPP_LIMIT_LAST; i++) {
+		rval = smiapp_get_limits(sensor, &i, 1);
+		if (rval < 0)
+			return rval;
+	}
+
+	if (SMIA_LIM(sensor, SCALER_N_MIN) == 0)
+		smiapp_replace_limit(sensor, SMIAPP_LIMIT_SCALER_N_MIN, 16);
+
+	return 0;
+}
+
 static int smiapp_read_frame_fmt(struct smiapp_sensor *sensor)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
@@ -687,45 +726,6 @@ static void smiapp_free_controls(struct smiapp_sensor *sensor)
 
 	for (i = 0; i < sensor->ssds_used; i++)
 		v4l2_ctrl_handler_free(&sensor->ssds[i].ctrl_handler);
-}
-
-static int smiapp_get_limits(struct smiapp_sensor *sensor, int const *limit,
-			     unsigned int n)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
-	unsigned int i;
-	u32 val;
-	int rval;
-
-	for (i = 0; i < n; i++) {
-		rval = smiapp_read(
-			sensor, smiapp_reg_limits[limit[i]].addr, &val);
-		if (rval)
-			return rval;
-		sensor->limits[limit[i]] = val;
-		dev_dbg(&client->dev, "0x%8.8x \"%s\" = %u, 0x%x\n",
-			smiapp_reg_limits[limit[i]].addr,
-			smiapp_reg_limits[limit[i]].what, val, val);
-	}
-
-	return 0;
-}
-
-static int smiapp_get_all_limits(struct smiapp_sensor *sensor)
-{
-	unsigned int i;
-	int rval;
-
-	for (i = 0; i < SMIAPP_LIMIT_LAST; i++) {
-		rval = smiapp_get_limits(sensor, &i, 1);
-		if (rval < 0)
-			return rval;
-	}
-
-	if (SMIA_LIM(sensor, SCALER_N_MIN) == 0)
-		smiapp_replace_limit(sensor, SMIAPP_LIMIT_SCALER_N_MIN, 16);
-
-	return 0;
 }
 
 static int smiapp_get_mbus_formats(struct smiapp_sensor *sensor)
