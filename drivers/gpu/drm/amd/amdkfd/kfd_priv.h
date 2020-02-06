@@ -731,6 +731,12 @@ struct kfd_process_device {
 
 #define qpd_to_pdd(x) container_of(x, struct kfd_process_device, qpd)
 
+struct svm_range_list {
+	struct mutex			lock;
+	struct rb_root_cached		objects;
+	struct list_head		list;
+};
+
 /* Process data */
 struct kfd_process {
 	/*
@@ -810,6 +816,8 @@ struct kfd_process {
 	struct kobject *kobj_queues;
 	struct attribute attr_pasid;
 
+	/* shared virtual memory registered by this process */
+	struct svm_range_list svms;
 	bool svm_disabled;
 };
 
