@@ -420,7 +420,8 @@ static int hsw_crt_compute_config(struct intel_encoder *encoder,
 	/* LPT FDI RX only supports 8bpc. */
 	if (HAS_PCH_LPT(dev_priv)) {
 		if (pipe_config->bw_constrained && pipe_config->pipe_bpp < 24) {
-			DRM_DEBUG_KMS("LPT only supports 24bpp\n");
+			drm_dbg_kms(&dev_priv->drm,
+				    "LPT only supports 24bpp\n");
 			return -EINVAL;
 		}
 
@@ -449,7 +450,8 @@ static bool ilk_crt_detect_hotplug(struct drm_connector *connector)
 		crt->force_hotplug_required = false;
 
 		save_adpa = adpa = intel_de_read(dev_priv, crt->adpa_reg);
-		DRM_DEBUG_KMS("trigger hotplug detect cycle: adpa=0x%x\n", adpa);
+		drm_dbg_kms(&dev_priv->drm,
+			    "trigger hotplug detect cycle: adpa=0x%x\n", adpa);
 
 		adpa |= ADPA_CRT_HOTPLUG_FORCE_TRIGGER;
 		if (turn_off_dac)
@@ -461,7 +463,8 @@ static bool ilk_crt_detect_hotplug(struct drm_connector *connector)
 					    crt->adpa_reg,
 					    ADPA_CRT_HOTPLUG_FORCE_TRIGGER,
 					    1000))
-			DRM_DEBUG_KMS("timed out waiting for FORCE_TRIGGER");
+			drm_dbg_kms(&dev_priv->drm,
+				    "timed out waiting for FORCE_TRIGGER");
 
 		if (turn_off_dac) {
 			intel_de_write(dev_priv, crt->adpa_reg, save_adpa);
@@ -475,7 +478,8 @@ static bool ilk_crt_detect_hotplug(struct drm_connector *connector)
 		ret = true;
 	else
 		ret = false;
-	DRM_DEBUG_KMS("ironlake hotplug adpa=0x%x, result %d\n", adpa, ret);
+	drm_dbg_kms(&dev_priv->drm, "ironlake hotplug adpa=0x%x, result %d\n",
+		    adpa, ret);
 
 	return ret;
 }
@@ -505,7 +509,8 @@ static bool valleyview_crt_detect_hotplug(struct drm_connector *connector)
 	reenable_hpd = intel_hpd_disable(dev_priv, crt->base.hpd_pin);
 
 	save_adpa = adpa = intel_de_read(dev_priv, crt->adpa_reg);
-	DRM_DEBUG_KMS("trigger hotplug detect cycle: adpa=0x%x\n", adpa);
+	drm_dbg_kms(&dev_priv->drm,
+		    "trigger hotplug detect cycle: adpa=0x%x\n", adpa);
 
 	adpa |= ADPA_CRT_HOTPLUG_FORCE_TRIGGER;
 
@@ -513,7 +518,8 @@ static bool valleyview_crt_detect_hotplug(struct drm_connector *connector)
 
 	if (intel_de_wait_for_clear(dev_priv, crt->adpa_reg,
 				    ADPA_CRT_HOTPLUG_FORCE_TRIGGER, 1000)) {
-		DRM_DEBUG_KMS("timed out waiting for FORCE_TRIGGER");
+		drm_dbg_kms(&dev_priv->drm,
+			    "timed out waiting for FORCE_TRIGGER");
 		intel_de_write(dev_priv, crt->adpa_reg, save_adpa);
 	}
 
@@ -524,7 +530,8 @@ static bool valleyview_crt_detect_hotplug(struct drm_connector *connector)
 	else
 		ret = false;
 
-	DRM_DEBUG_KMS("valleyview hotplug adpa=0x%x, result %d\n", adpa, ret);
+	drm_dbg_kms(&dev_priv->drm,
+		    "valleyview hotplug adpa=0x%x, result %d\n", adpa, ret);
 
 	if (reenable_hpd)
 		intel_hpd_enable(dev_priv, crt->base.hpd_pin);
@@ -564,7 +571,8 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 		/* wait for FORCE_DETECT to go off */
 		if (intel_de_wait_for_clear(dev_priv, PORT_HOTPLUG_EN,
 					    CRT_HOTPLUG_FORCE_DETECT, 1000))
-			DRM_DEBUG_KMS("timed out waiting for FORCE_DETECT to go off");
+			drm_dbg_kms(&dev_priv->drm,
+				    "timed out waiting for FORCE_DETECT to go off");
 	}
 
 	stat = intel_de_read(dev_priv, PORT_HOTPLUG_STAT);
@@ -635,13 +643,16 @@ static bool intel_crt_detect_ddc(struct drm_connector *connector)
 		 * have to check the EDID input spec of the attached device.
 		 */
 		if (!is_digital) {
-			DRM_DEBUG_KMS("CRT detected via DDC:0x50 [EDID]\n");
+			drm_dbg_kms(&dev_priv->drm,
+				    "CRT detected via DDC:0x50 [EDID]\n");
 			ret = true;
 		} else {
-			DRM_DEBUG_KMS("CRT not detected via DDC:0x50 [EDID reports a digital panel]\n");
+			drm_dbg_kms(&dev_priv->drm,
+				    "CRT not detected via DDC:0x50 [EDID reports a digital panel]\n");
 		}
 	} else {
-		DRM_DEBUG_KMS("CRT not detected via DDC:0x50 [no valid EDID found]\n");
+		drm_dbg_kms(&dev_priv->drm,
+			    "CRT not detected via DDC:0x50 [no valid EDID found]\n");
 	}
 
 	kfree(edid);
@@ -666,7 +677,7 @@ intel_crt_load_detect(struct intel_crt *crt, u32 pipe)
 	u8 st00;
 	enum drm_connector_status status;
 
-	DRM_DEBUG_KMS("starting load-detect on CRT\n");
+	drm_dbg_kms(&dev_priv->drm, "starting load-detect on CRT\n");
 
 	bclrpat_reg = BCLRPAT(pipe);
 	vtotal_reg = VTOTAL(pipe);
@@ -807,9 +818,9 @@ intel_crt_detect(struct drm_connector *connector,
 	int status, ret;
 	struct intel_load_detect_pipe tmp;
 
-	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] force=%d\n",
-		      connector->base.id, connector->name,
-		      force);
+	drm_dbg_kms(&dev_priv->drm, "[CONNECTOR:%d:%s] force=%d\n",
+		    connector->base.id, connector->name,
+		    force);
 
 	if (i915_modparams.load_detect_test) {
 		wakeref = intel_display_power_get(dev_priv,
@@ -830,11 +841,13 @@ intel_crt_detect(struct drm_connector *connector,
 		 * only trust an assertion that the monitor is connected.
 		 */
 		if (intel_crt_detect_hotplug(connector)) {
-			DRM_DEBUG_KMS("CRT detected via hotplug\n");
+			drm_dbg_kms(&dev_priv->drm,
+				    "CRT detected via hotplug\n");
 			status = connector_status_connected;
 			goto out;
 		} else
-			DRM_DEBUG_KMS("CRT not detected via hotplug\n");
+			drm_dbg_kms(&dev_priv->drm,
+				    "CRT not detected via hotplug\n");
 	}
 
 	if (intel_crt_detect_ddc(connector)) {
@@ -930,7 +943,7 @@ void intel_crt_reset(struct drm_encoder *encoder)
 		intel_de_write(dev_priv, crt->adpa_reg, adpa);
 		intel_de_posting_read(dev_priv, crt->adpa_reg);
 
-		DRM_DEBUG_KMS("crt adpa set to 0x%x\n", adpa);
+		drm_dbg_kms(&dev_priv->drm, "crt adpa set to 0x%x\n", adpa);
 		crt->force_hotplug_required = true;
 	}
 
