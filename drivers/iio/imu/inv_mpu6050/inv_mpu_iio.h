@@ -75,6 +75,8 @@ enum inv_devices {
 	INV_MPU9250,
 	INV_MPU9255,
 	INV_ICM20608,
+	INV_ICM20609,
+	INV_ICM20689,
 	INV_ICM20602,
 	INV_NUM_PARTS
 };
@@ -276,6 +278,7 @@ struct inv_mpu6050_state {
 
 /* mpu6500 registers */
 #define INV_MPU6500_REG_ACCEL_CONFIG_2      0x1D
+#define INV_ICM20689_BITS_FIFO_SIZE_MAX     0xC0
 #define INV_MPU6500_REG_ACCEL_OFFSET        0x77
 
 /* delay time in milliseconds */
@@ -340,6 +343,8 @@ struct inv_mpu6050_state {
 #define INV_MPU9255_WHOAMI_VALUE		0x73
 #define INV_MPU6515_WHOAMI_VALUE		0x74
 #define INV_ICM20608_WHOAMI_VALUE		0xAF
+#define INV_ICM20609_WHOAMI_VALUE		0xA6
+#define INV_ICM20689_WHOAMI_VALUE		0x98
 #define INV_ICM20602_WHOAMI_VALUE		0x12
 
 /* scan element definition for generic MPU6xxx devices */

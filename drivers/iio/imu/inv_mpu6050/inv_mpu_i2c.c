@@ -61,6 +61,8 @@ static bool inv_mpu_i2c_aux_bus(struct device *dev)
 
 	switch (st->chip_type) {
 	case INV_ICM20608:
+	case INV_ICM20609:
+	case INV_ICM20689:
 	case INV_ICM20602:
 		/* no i2c auxiliary bus on the chip */
 		return false;
@@ -202,6 +204,8 @@ static const struct i2c_device_id inv_mpu_id[] = {
 	{"mpu9250", INV_MPU9250},
 	{"mpu9255", INV_MPU9255},
 	{"icm20608", INV_ICM20608},
+	{"icm20609", INV_ICM20609},
+	{"icm20689", INV_ICM20689},
 	{"icm20602", INV_ICM20602},
 	{}
 };
@@ -236,6 +240,14 @@ static const struct of_device_id inv_of_match[] = {
 	{
 		.compatible = "invensense,icm20608",
 		.data = (void *)INV_ICM20608
+	},
+	{
+		.compatible = "invensense,icm20609",
+		.data = (void *)INV_ICM20609
+	},
+	{
+		.compatible = "invensense,icm20689",
+		.data = (void *)INV_ICM20689
 	},
 	{
 		.compatible = "invensense,icm20602",

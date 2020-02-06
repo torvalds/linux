@@ -177,6 +177,22 @@ static const struct inv_mpu6050_hw hw_info[] = {
 		.temp = {INV_ICM20608_TEMP_OFFSET, INV_ICM20608_TEMP_SCALE},
 	},
 	{
+		.whoami = INV_ICM20609_WHOAMI_VALUE,
+		.name = "ICM20609",
+		.reg = &reg_set_6500,
+		.config = &chip_config_6050,
+		.fifo_size = 4 * 1024,
+		.temp = {INV_ICM20608_TEMP_OFFSET, INV_ICM20608_TEMP_SCALE},
+	},
+	{
+		.whoami = INV_ICM20689_WHOAMI_VALUE,
+		.name = "ICM20689",
+		.reg = &reg_set_6500,
+		.config = &chip_config_6050,
+		.fifo_size = 4 * 1024,
+		.temp = {INV_ICM20608_TEMP_OFFSET, INV_ICM20608_TEMP_SCALE},
+	},
+	{
 		.whoami = INV_ICM20602_WHOAMI_VALUE,
 		.name = "ICM20602",
 		.reg = &reg_set_icm20602,
@@ -286,20 +302,22 @@ static int inv_mpu6050_set_lpf_regs(struct inv_mpu6050_state *st,
 	if (result)
 		return result;
 
+	/* set accel lpf */
 	switch (st->chip_type) {
 	case INV_MPU6050:
 	case INV_MPU6000:
 	case INV_MPU9150:
 		/* old chips, nothing to do */
-		result = 0;
+		return 0;
+	case INV_ICM20689:
+		/* set FIFO size to maximum value */
+		val |= INV_ICM20689_BITS_FIFO_SIZE_MAX;
 		break;
 	default:
-		/* set accel lpf */
-		result = regmap_write(st->map, st->reg->accel_lpf, val);
 		break;
 	}
 
-	return result;
+	return regmap_write(st->map, st->reg->accel_lpf, val);
 }
 
 /**
