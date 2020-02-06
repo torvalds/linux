@@ -353,7 +353,7 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 
 	chan = nouveau_nofbaccel ? NULL : drm->channel;
 	if (chan && device->info.family >= NV_DEVICE_INFO_V0_TESLA) {
-		ret = nouveau_vma_new(nvbo, chan->vmm, &fb->vma);
+		ret = nouveau_vma_new(nvbo, chan->vmm, &fbcon->vma);
 		if (ret) {
 			NV_ERROR(drm, "failed to map fb into chan: %d\n", ret);
 			chan = NULL;
@@ -400,7 +400,7 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 
 out_unlock:
 	if (chan)
-		nouveau_vma_del(&fb->vma);
+		nouveau_vma_del(&fbcon->vma);
 	nouveau_bo_unmap(fb->nvbo);
 out_unpin:
 	nouveau_bo_unpin(fb->nvbo);
@@ -419,7 +419,7 @@ nouveau_fbcon_destroy(struct drm_device *dev, struct nouveau_fbdev *fbcon)
 	drm_fb_helper_fini(&fbcon->helper);
 
 	if (nouveau_fb && nouveau_fb->nvbo) {
-		nouveau_vma_del(&nouveau_fb->vma);
+		nouveau_vma_del(&fbcon->vma);
 		nouveau_bo_unmap(nouveau_fb->nvbo);
 		nouveau_bo_unpin(nouveau_fb->nvbo);
 		drm_framebuffer_put(&nouveau_fb->base);
