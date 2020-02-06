@@ -1626,8 +1626,7 @@ static int g4x_sprite_min_cdclk(const struct intel_crtc_state *crtc_state,
 	hscale = drm_rect_calc_hscale(&plane_state->uapi.src,
 				      &plane_state->uapi.dst,
 				      0, INT_MAX);
-	if (hscale < 0x10000)
-		return pixel_rate;
+	hscale = max(hscale, 0x10000u);
 
 	/* Decimation steps at 2x,4x,8x,16x */
 	decimate = ilog2(hscale >> 16);
