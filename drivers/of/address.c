@@ -694,12 +694,12 @@ EXPORT_SYMBOL(of_get_address);
 static int parser_init(struct of_pci_range_parser *parser,
 			struct device_node *node, const char *name)
 {
-	const int na = 3, ns = 2;
 	int rlen;
 
 	parser->node = node;
 	parser->pna = of_n_addr_cells(node);
-	parser->np = parser->pna + na + ns;
+	parser->na = of_bus_n_addr_cells(node);
+	parser->ns = of_bus_n_size_cells(node);
 	parser->dma = !strcmp(name, "dma-ranges");
 
 	parser->range = of_get_property(node, name, &rlen);
@@ -724,20 +724,28 @@ int of_pci_dma_range_parser_init(struct of_pci_range_parser *parser,
 	return parser_init(parser, node, "dma-ranges");
 }
 EXPORT_SYMBOL_GPL(of_pci_dma_range_parser_init);
+#define of_dma_range_parser_init of_pci_dma_range_parser_init
 
 struct of_pci_range *of_pci_range_parser_one(struct of_pci_range_parser *parser,
 						struct of_pci_range *range)
 {
-	const int na = 3, ns = 2;
+	int na = parser->na;
+	int ns = parser->ns;
+	int np = parser->pna + na + ns;
 
 	if (!range)
 		return NULL;
 
-	if (!parser->range || parser->range + parser->np > parser->end)
+	if (!parser->range || parser->range + np > parser->end)
 		return NULL;
 
-	range->flags = of_bus_pci_get_flags(parser->range);
-	range->pci_addr = of_read_number(parser->range + 1, ns);
+	if (parser->na == 3)
+		range->flags = of_bus_pci_get_flags(parser->range);
+	else
+		range->flags = 0;
+
+	range->pci_addr = of_read_number(parser->range, na);
+
 	if (parser->dma)
 		range->cpu_addr = of_translate_dma_address(parser->node,
 				parser->range + na);
@@ -746,15 +754,16 @@ struct of_pci_range *of_pci_range_parser_one(struct of_pci_range_parser *parser,
 				parser->range + na);
 	range->size = of_read_number(parser->range + parser->pna + na, ns);
 
-	parser->range += parser->np;
+	parser->range += np;
 
 	/* Now consume following elements while they are contiguous */
-	while (parser->range + parser->np <= parser->end) {
-		u32 flags;
+	while (parser->range + np <= parser->end) {
+		u32 flags = 0;
 		u64 pci_addr, cpu_addr, size;
 
-		flags = of_bus_pci_get_flags(parser->range);
-		pci_addr = of_read_number(parser->range + 1, ns);
+		if (parser->na == 3)
+			flags = of_bus_pci_get_flags(parser->range);
+		pci_addr = of_read_number(parser->range, na);
 		if (parser->dma)
 			cpu_addr = of_translate_dma_address(parser->node,
 					parser->range + na);
@@ -770,7 +779,7 @@ struct of_pci_range *of_pci_range_parser_one(struct of_pci_range_parser *parser,
 			break;
 
 		range->size += size;
-		parser->range += parser->np;
+		parser->range += np;
 	}
 
 	return range;
