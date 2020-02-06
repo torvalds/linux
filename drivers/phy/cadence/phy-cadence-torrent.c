@@ -132,6 +132,14 @@ static const struct phy_ops cdns_torrent_phy_ops = {
 	.owner		= THIS_MODULE,
 };
 
+/* PHY mmr access functions */
+
+static void cdns_torrent_phy_write(struct cdns_torrent_phy *cdns_phy,
+				   u32 offset, u32 val)
+{
+	writel(val, cdns_phy->sd_base + offset);
+}
+
 static int cdns_torrent_dp_init(struct phy *phy)
 {
 	unsigned char lane_bits;
@@ -234,34 +242,35 @@ static
 void cdns_torrent_dp_pma_cmn_cfg_25mhz(struct cdns_torrent_phy *cdns_phy)
 {
 	/* refclock registers - assumes 25 MHz refclock */
-	writel(0x0019, cdns_phy->sd_base + CMN_SSM_BIAS_TMR);
-	writel(0x0032, cdns_phy->sd_base + CMN_PLLSM0_PLLPRE_TMR);
-	writel(0x00D1, cdns_phy->sd_base + CMN_PLLSM0_PLLLOCK_TMR);
-	writel(0x0032, cdns_phy->sd_base + CMN_PLLSM1_PLLPRE_TMR);
-	writel(0x00D1, cdns_phy->sd_base + CMN_PLLSM1_PLLLOCK_TMR);
-	writel(0x007D, cdns_phy->sd_base + CMN_BGCAL_INIT_TMR);
-	writel(0x007D, cdns_phy->sd_base + CMN_BGCAL_ITER_TMR);
-	writel(0x0019, cdns_phy->sd_base + CMN_IBCAL_INIT_TMR);
-	writel(0x001E, cdns_phy->sd_base + CMN_TXPUCAL_INIT_TMR);
-	writel(0x0006, cdns_phy->sd_base + CMN_TXPUCAL_ITER_TMR);
-	writel(0x001E, cdns_phy->sd_base + CMN_TXPDCAL_INIT_TMR);
-	writel(0x0006, cdns_phy->sd_base + CMN_TXPDCAL_ITER_TMR);
-	writel(0x02EE, cdns_phy->sd_base + CMN_RXCAL_INIT_TMR);
-	writel(0x0006, cdns_phy->sd_base + CMN_RXCAL_ITER_TMR);
-	writel(0x0002, cdns_phy->sd_base + CMN_SD_CAL_INIT_TMR);
-	writel(0x0002, cdns_phy->sd_base + CMN_SD_CAL_ITER_TMR);
-	writel(0x000E, cdns_phy->sd_base + CMN_SD_CAL_REFTIM_START);
-	writel(0x012B, cdns_phy->sd_base + CMN_SD_CAL_PLLCNT_START);
+	cdns_torrent_phy_write(cdns_phy, CMN_SSM_BIAS_TMR, 0x0019);
+	cdns_torrent_phy_write(cdns_phy, CMN_PLLSM0_PLLPRE_TMR, 0x0032);
+	cdns_torrent_phy_write(cdns_phy, CMN_PLLSM0_PLLLOCK_TMR, 0x00D1);
+	cdns_torrent_phy_write(cdns_phy, CMN_PLLSM1_PLLPRE_TMR, 0x0032);
+	cdns_torrent_phy_write(cdns_phy, CMN_PLLSM1_PLLLOCK_TMR, 0x00D1);
+	cdns_torrent_phy_write(cdns_phy, CMN_BGCAL_INIT_TMR, 0x007D);
+	cdns_torrent_phy_write(cdns_phy, CMN_BGCAL_ITER_TMR, 0x007D);
+	cdns_torrent_phy_write(cdns_phy, CMN_IBCAL_INIT_TMR, 0x0019);
+	cdns_torrent_phy_write(cdns_phy, CMN_TXPUCAL_INIT_TMR, 0x001E);
+	cdns_torrent_phy_write(cdns_phy, CMN_TXPUCAL_ITER_TMR, 0x0006);
+	cdns_torrent_phy_write(cdns_phy, CMN_TXPDCAL_INIT_TMR, 0x001E);
+	cdns_torrent_phy_write(cdns_phy, CMN_TXPDCAL_ITER_TMR, 0x0006);
+	cdns_torrent_phy_write(cdns_phy, CMN_RXCAL_INIT_TMR, 0x02EE);
+	cdns_torrent_phy_write(cdns_phy, CMN_RXCAL_ITER_TMR, 0x0006);
+	cdns_torrent_phy_write(cdns_phy, CMN_SD_CAL_INIT_TMR, 0x0002);
+	cdns_torrent_phy_write(cdns_phy, CMN_SD_CAL_ITER_TMR, 0x0002);
+	cdns_torrent_phy_write(cdns_phy, CMN_SD_CAL_REFTIM_START, 0x000E);
+	cdns_torrent_phy_write(cdns_phy, CMN_SD_CAL_PLLCNT_START, 0x012B);
+
 	/* PLL registers */
-	writel(0x0409, cdns_phy->sd_base + CMN_PDIAG_PLL0_CP_PADJ_M0);
-	writel(0x1001, cdns_phy->sd_base + CMN_PDIAG_PLL0_CP_IADJ_M0);
-	writel(0x0F08, cdns_phy->sd_base + CMN_PDIAG_PLL0_FILT_PADJ_M0);
-	writel(0x0004, cdns_phy->sd_base + CMN_PLL0_DSM_DIAG_M0);
-	writel(0x00FA, cdns_phy->sd_base + CMN_PLL0_VCOCAL_INIT_TMR);
-	writel(0x0004, cdns_phy->sd_base + CMN_PLL0_VCOCAL_ITER_TMR);
-	writel(0x00FA, cdns_phy->sd_base + CMN_PLL1_VCOCAL_INIT_TMR);
-	writel(0x0004, cdns_phy->sd_base + CMN_PLL1_VCOCAL_ITER_TMR);
-	writel(0x0318, cdns_phy->sd_base + CMN_PLL0_VCOCAL_REFTIM_START);
+	cdns_torrent_phy_write(cdns_phy, CMN_PDIAG_PLL0_CP_PADJ_M0, 0x0409);
+	cdns_torrent_phy_write(cdns_phy, CMN_PDIAG_PLL0_CP_IADJ_M0, 0x1001);
+	cdns_torrent_phy_write(cdns_phy, CMN_PDIAG_PLL0_FILT_PADJ_M0, 0x0F08);
+	cdns_torrent_phy_write(cdns_phy, CMN_PLL0_DSM_DIAG_M0, 0x0004);
+	cdns_torrent_phy_write(cdns_phy, CMN_PLL0_VCOCAL_INIT_TMR, 0x00FA);
+	cdns_torrent_phy_write(cdns_phy, CMN_PLL0_VCOCAL_ITER_TMR, 0x0004);
+	cdns_torrent_phy_write(cdns_phy, CMN_PLL1_VCOCAL_INIT_TMR, 0x00FA);
+	cdns_torrent_phy_write(cdns_phy, CMN_PLL1_VCOCAL_ITER_TMR, 0x0004);
+	cdns_torrent_phy_write(cdns_phy, CMN_PLL0_VCOCAL_REFTIM_START, 0x0318);
 }
 
 static
@@ -269,41 +278,41 @@ void cdns_torrent_dp_pma_cmn_vco_cfg_25mhz(struct cdns_torrent_phy *cdns_phy)
 {
 	/* Assumes 25 MHz refclock */
 	switch (cdns_phy->max_bit_rate) {
-		/* Setting VCO for 10.8GHz */
+	/* Setting VCO for 10.8GHz */
 	case 2700:
 	case 5400:
-		writel(0x01B0, cdns_phy->sd_base + CMN_PLL0_INTDIV_M0);
-		writel(0x0000, cdns_phy->sd_base + CMN_PLL0_FRACDIVL_M0);
-		writel(0x0002, cdns_phy->sd_base + CMN_PLL0_FRACDIVH_M0);
-		writel(0x0120, cdns_phy->sd_base + CMN_PLL0_HIGH_THR_M0);
+		cdns_torrent_phy_write(cdns_phy, CMN_PLL0_INTDIV_M0, 0x01B0);
+		cdns_torrent_phy_write(cdns_phy, CMN_PLL0_FRACDIVL_M0, 0x0000);
+		cdns_torrent_phy_write(cdns_phy, CMN_PLL0_FRACDIVH_M0, 0x0002);
+		cdns_torrent_phy_write(cdns_phy, CMN_PLL0_HIGH_THR_M0, 0x0120);
 		break;
-		/* Setting VCO for 9.72GHz */
+	/* Setting VCO for 9.72GHz */
 	case 2430:
 	case 3240:
-		writel(0x0184, cdns_phy->sd_base + CMN_PLL0_INTDIV_M0);
-		writel(0xCCCD, cdns_phy->sd_base + CMN_PLL0_FRACDIVL_M0);
-		writel(0x0002, cdns_phy->sd_base + CMN_PLL0_FRACDIVH_M0);
-		writel(0x0104, cdns_phy->sd_base + CMN_PLL0_HIGH_THR_M0);
+		cdns_torrent_phy_write(cdns_phy, CMN_PLL0_INTDIV_M0, 0x0184);
+		cdns_torrent_phy_write(cdns_phy, CMN_PLL0_FRACDIVL_M0, 0xCCCD);
+		cdns_torrent_phy_write(cdns_phy, CMN_PLL0_FRACDIVH_M0, 0x0002);
+		cdns_torrent_phy_write(cdns_phy, CMN_PLL0_HIGH_THR_M0, 0x0104);
 		break;
-		/* Setting VCO for 8.64GHz */
+	/* Setting VCO for 8.64GHz */
 	case 2160:
 	case 4320:
-		writel(0x0159, cdns_phy->sd_base + CMN_PLL0_INTDIV_M0);
-		writel(0x999A, cdns_phy->sd_base + CMN_PLL0_FRACDIVL_M0);
-		writel(0x0002, cdns_phy->sd_base + CMN_PLL0_FRACDIVH_M0);
-		writel(0x00E7, cdns_phy->sd_base + CMN_PLL0_HIGH_THR_M0);
+		cdns_torrent_phy_write(cdns_phy, CMN_PLL0_INTDIV_M0, 0x0159);
+		cdns_torrent_phy_write(cdns_phy, CMN_PLL0_FRACDIVL_M0, 0x999A);
+		cdns_torrent_phy_write(cdns_phy, CMN_PLL0_FRACDIVH_M0, 0x0002);
+		cdns_torrent_phy_write(cdns_phy, CMN_PLL0_HIGH_THR_M0, 0x00E7);
 		break;
-		/* Setting VCO for 8.1GHz */
+	/* Setting VCO for 8.1GHz */
 	case 8100:
-		writel(0x0144, cdns_phy->sd_base + CMN_PLL0_INTDIV_M0);
-		writel(0x0000, cdns_phy->sd_base + CMN_PLL0_FRACDIVL_M0);
-		writel(0x0002, cdns_phy->sd_base + CMN_PLL0_FRACDIVH_M0);
-		writel(0x00D8, cdns_phy->sd_base + CMN_PLL0_HIGH_THR_M0);
+		cdns_torrent_phy_write(cdns_phy, CMN_PLL0_INTDIV_M0, 0x0144);
+		cdns_torrent_phy_write(cdns_phy, CMN_PLL0_FRACDIVL_M0, 0x0000);
+		cdns_torrent_phy_write(cdns_phy, CMN_PLL0_FRACDIVH_M0, 0x0002);
+		cdns_torrent_phy_write(cdns_phy, CMN_PLL0_HIGH_THR_M0, 0x00D8);
 		break;
 	}
 
-	writel(0x0002, cdns_phy->sd_base + CMN_PDIAG_PLL0_CTRL_M0);
-	writel(0x0318, cdns_phy->sd_base + CMN_PLL0_VCOCAL_PLLCNT_START);
+	cdns_torrent_phy_write(cdns_phy, CMN_PDIAG_PLL0_CTRL_M0, 0x0002);
+	cdns_torrent_phy_write(cdns_phy, CMN_PLL0_VCOCAL_PLLCNT_START, 0x0318);
 }
 
 static void cdns_torrent_dp_pma_cmn_rate(struct cdns_torrent_phy *cdns_phy)
@@ -313,7 +322,7 @@ static void cdns_torrent_dp_pma_cmn_rate(struct cdns_torrent_phy *cdns_phy)
 	unsigned int i;
 
 	/* 16'h0000 for single DP link configuration */
-	writel(0x0000, cdns_phy->sd_base + PHY_PLL_CFG);
+	cdns_torrent_phy_write(cdns_phy, PHY_PLL_CFG, 0x0000);
 
 	switch (cdns_phy->max_bit_rate) {
 	case 1620:
@@ -324,7 +333,7 @@ static void cdns_torrent_dp_pma_cmn_rate(struct cdns_torrent_phy *cdns_phy)
 	case 2430:
 	case 2700:
 		clk_sel_val = 0x0701;
-		 hsclk_div_val = 1;
+		hsclk_div_val = 1;
 		break;
 	case 3240:
 		clk_sel_val = 0x0b00;
@@ -341,13 +350,14 @@ static void cdns_torrent_dp_pma_cmn_rate(struct cdns_torrent_phy *cdns_phy)
 		break;
 	}
 
-	writel(clk_sel_val, cdns_phy->sd_base + CMN_PDIAG_PLL0_CLK_SEL_M0);
+	cdns_torrent_phy_write(cdns_phy,
+			       CMN_PDIAG_PLL0_CLK_SEL_M0, clk_sel_val);
 
 	/* PMA lane configuration to deal with multi-link operation */
-	for (i = 0; i < cdns_phy->num_lanes; i++) {
-		writel(hsclk_div_val,
-		       cdns_phy->sd_base + (XCVR_DIAG_HSCLK_DIV | (i << 11)));
-	}
+	for (i = 0; i < cdns_phy->num_lanes; i++)
+		cdns_torrent_phy_write(cdns_phy,
+				       (XCVR_DIAG_HSCLK_DIV | (i << 11)),
+				       hsclk_div_val);
 }
 
 static void cdns_torrent_dp_pma_lane_cfg(struct cdns_torrent_phy *cdns_phy,
@@ -356,15 +366,17 @@ static void cdns_torrent_dp_pma_lane_cfg(struct cdns_torrent_phy *cdns_phy,
 	unsigned int lane_bits = (lane & LANE_MASK) << 11;
 
 	/* Writing Tx/Rx Power State Controllers registers */
-	writel(0x00FB, cdns_phy->sd_base + (TX_PSC_A0 | lane_bits));
-	writel(0x04AA, cdns_phy->sd_base + (TX_PSC_A2 | lane_bits));
-	writel(0x04AA, cdns_phy->sd_base + (TX_PSC_A3 | lane_bits));
-	writel(0x0000, cdns_phy->sd_base + (RX_PSC_A0 | lane_bits));
-	writel(0x0000, cdns_phy->sd_base + (RX_PSC_A2 | lane_bits));
-	writel(0x0000, cdns_phy->sd_base + (RX_PSC_A3 | lane_bits));
+	cdns_torrent_phy_write(cdns_phy, (TX_PSC_A0 | lane_bits), 0x00FB);
+	cdns_torrent_phy_write(cdns_phy, (TX_PSC_A2 | lane_bits), 0x04AA);
+	cdns_torrent_phy_write(cdns_phy, (TX_PSC_A3 | lane_bits), 0x04AA);
+	cdns_torrent_phy_write(cdns_phy, (RX_PSC_A0 | lane_bits), 0x0000);
+	cdns_torrent_phy_write(cdns_phy, (RX_PSC_A2 | lane_bits), 0x0000);
+	cdns_torrent_phy_write(cdns_phy, (RX_PSC_A3 | lane_bits), 0x0000);
 
-	writel(0x0001, cdns_phy->sd_base + (XCVR_DIAG_PLLDRC_CTRL | lane_bits));
-	writel(0x0000, cdns_phy->sd_base + (XCVR_DIAG_HSCLK_SEL | lane_bits));
+	cdns_torrent_phy_write(cdns_phy,
+			       (XCVR_DIAG_PLLDRC_CTRL | lane_bits), 0x0001);
+	cdns_torrent_phy_write(cdns_phy,
+			       (XCVR_DIAG_HSCLK_SEL | lane_bits), 0x0000);
 }
 
 static void cdns_torrent_dp_run(struct cdns_torrent_phy *cdns_phy)
