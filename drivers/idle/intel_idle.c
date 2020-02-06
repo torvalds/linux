@@ -65,7 +65,11 @@ static struct cpuidle_driver intel_idle_driver = {
 static int max_cstate = CPUIDLE_STATE_MAX - 1;
 static unsigned int disabled_states_mask;
 
-static unsigned int mwait_substates;
+static unsigned int mwait_substates __initdata;
+
+static unsigned long auto_demotion_disable_flags;
+static bool disable_promotion_to_c1e;
+
 static bool lapic_timer_always_reliable;
 
 struct idle_cpu {
@@ -81,9 +85,9 @@ struct idle_cpu {
 	bool use_acpi;
 };
 
-static const struct idle_cpu *icpu;
+static const struct idle_cpu *icpu __initdata;
 static struct cpuidle_device __percpu *intel_idle_cpuidle_devices;
-static struct cpuidle_state *cpuidle_state_table;
+static struct cpuidle_state *cpuidle_state_table __initdata;
 
 /*
  * Enable this state by default even if the ACPI _CST does not list it.
@@ -1519,7 +1523,7 @@ static void auto_demotion_disable(void)
 	unsigned long long msr_bits;
 
 	rdmsrl(MSR_PKG_CST_CONFIG_CONTROL, msr_bits);
-	msr_bits &= ~(icpu->auto_demotion_disable_flags);
+	msr_bits &= ~auto_demotion_disable_flags;
 	wrmsrl(MSR_PKG_CST_CONFIG_CONTROL, msr_bits);
 }
 
@@ -1549,13 +1553,10 @@ static int intel_idle_cpu_init(unsigned int cpu)
 		return -EIO;
 	}
 
-	if (!icpu)
-		return 0;
-
-	if (icpu->auto_demotion_disable_flags)
+	if (auto_demotion_disable_flags)
 		auto_demotion_disable();
 
-	if (icpu->disable_promotion_to_c1e)
+	if (disable_promotion_to_c1e)
 		c1e_promotion_disable();
 
 	return 0;
@@ -1633,6 +1634,8 @@ static int __init intel_idle_init(void)
 	icpu = (const struct idle_cpu *)id->driver_data;
 	if (icpu) {
 		cpuidle_state_table = icpu->state_table;
+		auto_demotion_disable_flags = icpu->auto_demotion_disable_flags;
+		disable_promotion_to_c1e = icpu->disable_promotion_to_c1e;
 		if (icpu->use_acpi || force_use_acpi)
 			intel_idle_acpi_cst_extract();
 	} else if (!intel_idle_acpi_cst_extract()) {
