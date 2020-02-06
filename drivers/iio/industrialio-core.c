@@ -769,17 +769,18 @@ static ssize_t iio_read_channel_info_avail(struct device *dev,
 }
 
 /**
- * iio_str_to_fixpoint() - Parse a fixed-point number from a string
+ * __iio_str_to_fixpoint() - Parse a fixed-point number from a string
  * @str: The string to parse
  * @fract_mult: Multiplier for the first decimal place, should be a power of 10
  * @integer: The integer part of the number
  * @fract: The fractional part of the number
+ * @scale_db: True if this should parse as dB
  *
  * Returns 0 on success, or a negative error code if the string could not be
  * parsed.
  */
-int iio_str_to_fixpoint(const char *str, int fract_mult,
-	int *integer, int *fract)
+static int __iio_str_to_fixpoint(const char *str, int fract_mult,
+				 int *integer, int *fract, bool scale_db)
 {
 	int i = 0, f = 0;
 	bool integer_part = true, negative = false;
@@ -810,6 +811,14 @@ int iio_str_to_fixpoint(const char *str, int fract_mult,
 				break;
 			else
 				return -EINVAL;
+		} else if (!strncmp(str, " dB", sizeof(" dB") - 1) && scale_db) {
+			/* Ignore the dB suffix */
+			str += sizeof(" dB") - 1;
+			continue;
+		} else if (!strncmp(str, "dB", sizeof("dB") - 1) && scale_db) {
+			/* Ignore the dB suffix */
+			str += sizeof("dB") - 1;
+			continue;
 		} else if (*str == '.' && integer_part) {
 			integer_part = false;
 		} else {
@@ -830,6 +839,22 @@ int iio_str_to_fixpoint(const char *str, int fract_mult,
 
 	return 0;
 }
+
+/**
+ * iio_str_to_fixpoint() - Parse a fixed-point number from a string
+ * @str: The string to parse
+ * @fract_mult: Multiplier for the first decimal place, should be a power of 10
+ * @integer: The integer part of the number
+ * @fract: The fractional part of the number
+ *
+ * Returns 0 on success, or a negative error code if the string could not be
+ * parsed.
+ */
+int iio_str_to_fixpoint(const char *str, int fract_mult,
+			int *integer, int *fract)
+{
+	return __iio_str_to_fixpoint(str, fract_mult, integer, fract, false);
+}
 EXPORT_SYMBOL_GPL(iio_str_to_fixpoint);
 
 static ssize_t iio_write_channel_info(struct device *dev,
@@ -842,6 +867,7 @@ static ssize_t iio_write_channel_info(struct device *dev,
 	int ret, fract_mult = 100000;
 	int integer, fract = 0;
 	bool is_char = false;
+	bool scale_db = false;
 
 	/* Assumes decimal - precision based on number of digits */
 	if (!indio_dev->info->write_raw)
@@ -853,6 +879,9 @@ static ssize_t iio_write_channel_info(struct device *dev,
 		case IIO_VAL_INT:
 			fract_mult = 0;
 			break;
+		case IIO_VAL_INT_PLUS_MICRO_DB:
+			scale_db = true;
+			/* fall through */
 		case IIO_VAL_INT_PLUS_MICRO:
 			fract_mult = 100000;
 			break;
@@ -877,6 +906,10 @@ static ssize_t iio_write_channel_info(struct device *dev,
 		if (ret)
 			return ret;
 	}
+	ret = __iio_str_to_fixpoint(buf, fract_mult, &integer, &fract,
+				    scale_db);
+	if (ret)
+		return ret;
 
 	ret = indio_dev->info->write_raw(indio_dev, this_attr->c,
 					 integer, fract, this_attr->address);
