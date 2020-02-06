@@ -1114,9 +1114,6 @@ static int __init powernv_cpufreq_init(void)
 	if (rc)
 		goto out;
 
-	register_reboot_notifier(&powernv_cpufreq_reboot_nb);
-	opal_message_notifier_register(OPAL_MSG_OCC, &powernv_cpufreq_opal_nb);
-
 	if (powernv_pstate_info.wof_enabled)
 		powernv_cpufreq_driver.boost_enabled = true;
 	else
@@ -1125,15 +1122,17 @@ static int __init powernv_cpufreq_init(void)
 	rc = cpufreq_register_driver(&powernv_cpufreq_driver);
 	if (rc) {
 		pr_info("Failed to register the cpufreq driver (%d)\n", rc);
-		goto cleanup_notifiers;
+		goto cleanup;
 	}
 
 	if (powernv_pstate_info.wof_enabled)
 		cpufreq_enable_boost_support();
 
+	register_reboot_notifier(&powernv_cpufreq_reboot_nb);
+	opal_message_notifier_register(OPAL_MSG_OCC, &powernv_cpufreq_opal_nb);
+
 	return 0;
-cleanup_notifiers:
-	unregister_all_notifiers();
+cleanup:
 	clean_chip_info();
 out:
 	pr_info("Platform driver disabled. System does not support PState control\n");
