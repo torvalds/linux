@@ -443,11 +443,14 @@ static int add_all_parents(struct btrfs_root *root, struct btrfs_path *path,
 	 *    slot == nritems.
 	 * 2. We are searching for normal backref but bytenr of this leaf
 	 *    matches shared data backref
+	 * 3. The leaf owner is not equal to the root we are searching
+	 *
 	 * For these cases, go to the next leaf before we continue.
 	 */
 	eb = path->nodes[0];
 	if (path->slots[0] >= btrfs_header_nritems(eb) ||
-	    is_shared_data_backref(preftrees, eb->start)) {
+	    is_shared_data_backref(preftrees, eb->start) ||
+	    ref->root_id != btrfs_header_owner(eb)) {
 		if (time_seq == SEQ_LAST)
 			ret = btrfs_next_leaf(root, path);
 		else
@@ -466,9 +469,12 @@ static int add_all_parents(struct btrfs_root *root, struct btrfs_path *path,
 
 		/*
 		 * We are searching for normal backref but bytenr of this leaf
-		 * matches shared data backref.
+		 * matches shared data backref, OR
+		 * the leaf owner is not equal to the root we are searching for
 		 */
-		if (slot == 0 && is_shared_data_backref(preftrees, eb->start)) {
+		if (slot == 0 &&
+		    (is_shared_data_backref(preftrees, eb->start) ||
+		     ref->root_id != btrfs_header_owner(eb))) {
 			if (time_seq == SEQ_LAST)
 				ret = btrfs_next_leaf(root, path);
 			else
