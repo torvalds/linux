@@ -60,6 +60,9 @@ of the system.  The former are always used if the processor model at hand is
 recognized by ``intel_idle`` and the latter are used if that is required for
 the given processor model (which is the case for all server processor models
 recognized by ``intel_idle``) or if the processor model is not recognized.
+[There is a module parameter that can be used to make the driver use the ACPI
+tables with any processor model recognized by it; see
+`below <intel-idle-parameters_>`_.]
 
 If the ACPI tables are going to be used for building the list of available idle
 states, ``intel_idle`` first looks for a ``_CST`` object under one of the ACPI
@@ -165,7 +168,7 @@ and ``idle=nomwait``.  If any of them is present in the kernel command line, the
 ``MWAIT`` instruction is not allowed to be used, so the initialization of
 ``intel_idle`` will fail.
 
-Apart from that there are two module parameters recognized by ``intel_idle``
+Apart from that there are four module parameters recognized by ``intel_idle``
 itself that can be set via the kernel command line (they cannot be updated via
 sysfs, so that is the only way to change their values).
 
@@ -186,9 +189,28 @@ QoS) feature can be used to prevent ``CPUIdle`` from touching those idle states
 even if they have been enumerated (see :ref:`cpu-pm-qos` in :doc:`cpuidle`).
 Setting ``max_cstate`` to 0 causes the ``intel_idle`` initialization to fail.
 
-The ``noacpi`` module parameter (which is recognized by ``intel_idle`` if the
-kernel has been configured with ACPI support), can be set to make the driver
-ignore the system's ACPI tables entirely (it is unset by default).
+The ``no_acpi`` and ``use_acpi`` module parameters (recognized by ``intel_idle``
+if the kernel has been configured with ACPI support) can be set to make the
+driver ignore the system's ACPI tables entirely or use them for all of the
+recognized processor models, respectively (they both are unset by default and
+``use_acpi`` has no effect if ``no_acpi`` is set).
+
+The value of the ``states_off`` module parameter (0 by default) represents a
+list of idle states to be disabled by default in the form of a bitmask.
+
+Namely, the positions of the bits that are set in the ``states_off`` value are
+the indices of idle states to be disabled by default (as reflected by the names
+of the corresponding idle state directories in ``sysfs``, :file:`state0`,
+:file:`state1` ... :file:`state<i>` ..., where ``<i>`` is the index of the given
+idle state; see :ref:`idle-states-representation` in :doc:`cpuidle`).
+
+For example, if ``states_off`` is equal to 3, the driver will disable idle
+states 0 and 1 by default, and if it is equal to 8, idle state 3 will be
+disabled by default and so on (bit positions beyond the maximum idle state index
+are ignored).
+
+The idle states disabled this way can be enabled (on a per-CPU basis) from user
+space via ``sysfs``.
 
 
 .. _intel-idle-core-and-package-idle-states:

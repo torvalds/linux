@@ -632,16 +632,16 @@ class priority list and destroyed.  If that happens, the priority list mechanism
 will be used, again, to determine the new effective value for the whole list
 and that value will become the new real constraint.
 
-In turn, for each CPU there is only one resume latency PM QoS request
-associated with the :file:`power/pm_qos_resume_latency_us` file under
+In turn, for each CPU there is one resume latency PM QoS request associated with
+the :file:`power/pm_qos_resume_latency_us` file under
 :file:`/sys/devices/system/cpu/cpu<N>/` in ``sysfs`` and writing to it causes
 this single PM QoS request to be updated regardless of which user space
 process does that.  In other words, this PM QoS request is shared by the entire
 user space, so access to the file associated with it needs to be arbitrated
 to avoid confusion.  [Arguably, the only legitimate use of this mechanism in
 practice is to pin a process to the CPU in question and let it use the
-``sysfs`` interface to control the resume latency constraint for it.]  It
-still only is a request, however.  It is a member of a priority list used to
+``sysfs`` interface to control the resume latency constraint for it.]  It is
+still only a request, however.  It is an entry in a priority list used to
 determine the effective value to be set as the resume latency constraint for the
 CPU in question every time the list of requests is updated this way or another
 (there may be other requests coming from kernel code in that list).
