@@ -204,6 +204,7 @@ struct _vcs_dpi_ip_params_st {
 	unsigned int LineBufferFixedBpp;
 	unsigned int can_vstartup_lines_exceed_vsync_plus_back_porch_lines_minus_one;
 	unsigned int bug_forcing_LC_req_same_size_fixed;
+	unsigned int number_of_cursors;
 };
 
 struct _vcs_dpi_display_xfc_params_st {

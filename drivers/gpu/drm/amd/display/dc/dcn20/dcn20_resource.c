@@ -153,6 +153,7 @@ struct _vcs_dpi_ip_params_st dcn2_0_ip = {
 	.xfc_supported = true,
 	.xfc_fill_bw_overhead_percent = 10.0,
 	.xfc_fill_constant_bytes = 0,
+	.number_of_cursors = 1,
 };
 
 struct _vcs_dpi_ip_params_st dcn2_0_nv14_ip = {
@@ -220,7 +221,8 @@ struct _vcs_dpi_ip_params_st dcn2_0_nv14_ip = {
 	.xfc_supported = true,
 	.xfc_fill_bw_overhead_percent = 10.0,
 	.xfc_fill_constant_bytes = 0,
-	.ptoi_supported = 0
+	.ptoi_supported = 0,
+	.number_of_cursors = 1,
 };
 
 struct _vcs_dpi_soc_bounding_box_st dcn2_0_soc = {
@@ -2042,14 +2044,17 @@ int dcn20_populate_dml_pipes_from_context(
 		/* todo: default max for now, until there is logic reflecting this in dc*/
 		pipes[pipe_cnt].dout.output_bpc = 12;
 		/*
-		 * Use max cursor settings for calculations to minimize
+		 * For graphic plane, cursor number is 1, nv12 is 0
 		 * bw calculations due to cursor on/off
 		 */
-		pipes[pipe_cnt].pipe.src.num_cursors = 2;
+		if (res_ctx->pipe_ctx[i].plane_state &&
+				res_ctx->pipe_ctx[i].plane_state->address.type == PLN_ADDR_TYPE_VIDEO_PROGRESSIVE)
+			pipes[pipe_cnt].pipe.src.num_cursors = 0;
+		else
+			pipes[pipe_cnt].pipe.src.num_cursors = dc->dml.ip.number_of_cursors;
+
 		pipes[pipe_cnt].pipe.src.cur0_src_width = 256;
 		pipes[pipe_cnt].pipe.src.cur0_bpp = dm_cur_32bit;
-		pipes[pipe_cnt].pipe.src.cur1_src_width = 256;
-		pipes[pipe_cnt].pipe.src.cur1_bpp = dm_cur_32bit;
 
 		if (!res_ctx->pipe_ctx[i].plane_state) {
 			pipes[pipe_cnt].pipe.src.is_hsplit = pipes[pipe_cnt].pipe.dest.odm_combine != dm_odm_combine_mode_disabled;

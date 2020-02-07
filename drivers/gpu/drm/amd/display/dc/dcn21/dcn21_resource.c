@@ -156,7 +156,8 @@ struct _vcs_dpi_ip_params_st dcn2_1_ip = {
 	.xfc_supported = false,
 	.xfc_fill_bw_overhead_percent = 10.0,
 	.xfc_fill_constant_bytes = 0,
-	.ptoi_supported = 0
+	.ptoi_supported = 0,
+	.number_of_cursors = 1,
 };
 
 struct _vcs_dpi_soc_bounding_box_st dcn2_1_soc = {

@@ -299,7 +299,6 @@ void optc1_set_vtg_params(struct timing_generator *optc,
 	uint32_t asic_blank_end;
 	uint32_t v_init;
 	uint32_t v_fp2 = 0;
-	int32_t vertical_line_start;
 
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 
@@ -316,9 +315,8 @@ void optc1_set_vtg_params(struct timing_generator *optc,
 			patched_crtc_timing.v_border_top;
 
 	/* if VSTARTUP is before VSYNC, FP2 is the offset, otherwise 0 */
-	vertical_line_start = asic_blank_end - optc1->vstartup_start + 1;
-	if (vertical_line_start < 0)
-		v_fp2 = -vertical_line_start;
+	if (optc1->vstartup_start > asic_blank_end)
+		v_fp2 = optc1->vstartup_start - asic_blank_end;
 
 	/* Interlace */
 	if (REG(OTG_INTERLACE_CONTROL)) {
