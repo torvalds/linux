@@ -30,6 +30,7 @@
 #include "kfd_iommu.h"
 #include "amdgpu_amdkfd.h"
 #include "kfd_smi_events.h"
+#include "kfd_migrate.h"
 
 #define MQD_SIZE_ALIGNED 768
 
@@ -814,6 +815,8 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 
 	kfd_cwsr_init(kfd);
 
+	svm_migrate_init((struct amdgpu_device *)kfd->kgd);
+
 	if (kfd_resume(kfd))
 		goto kfd_resume_error;
 
@@ -862,6 +865,7 @@ void kgd2kfd_device_exit(struct kfd_dev *kfd)
 {
 	if (kfd->init_complete) {
 		kgd2kfd_suspend(kfd, false);
+		svm_migrate_fini((struct amdgpu_device *)kfd->kgd);
 		device_queue_manager_uninit(kfd->dqm);
 		kfd_interrupt_exit(kfd);
 		kfd_topology_remove_device(kfd);
