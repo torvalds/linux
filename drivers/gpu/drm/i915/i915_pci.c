@@ -963,7 +963,7 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (intel_info->require_force_probe &&
 	    !force_probe(pdev->device, i915_modparams.force_probe)) {
-		drm_info(&pdev_to_i915(pdev)->drm,
+		dev_info(&pdev->dev,
 			 "Your graphics device %04x is not properly supported by the driver in this\n"
 			 "kernel version. To force driver probe anyway, use i915.force_probe=%04x\n"
 			 "module parameter or CONFIG_DRM_I915_FORCE_PROBE=%04x configuration option,\n"
