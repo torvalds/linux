@@ -2786,6 +2786,9 @@ void dcn20_calculate_dlg_params(
 							!= dm_dram_clock_change_unsupported;
 	context->bw_ctx.bw.dcn.clk.dppclk_khz = 0;
 
+	if (context->bw_ctx.bw.dcn.clk.dispclk_khz < dc->debug.min_disp_clk_khz)
+		context->bw_ctx.bw.dcn.clk.dispclk_khz = dc->debug.min_disp_clk_khz;
+
 	/*
 	 * An artifact of dml pipe split/odm is that pipes get merged back together for
 	 * calculation. Therefore we need to only extract for first pipe in ascending index order
