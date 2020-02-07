@@ -12843,11 +12843,13 @@ static int intel_crtc_atomic_check(struct intel_atomic_state *state,
 	}
 
 	if (INTEL_GEN(dev_priv) >= 9) {
-		if (mode_changed || crtc_state->update_pipe)
+		if (mode_changed || crtc_state->update_pipe) {
 			ret = skl_update_scaler_crtc(crtc_state);
-		if (!ret)
-			ret = intel_atomic_setup_scalers(dev_priv, crtc,
-							 crtc_state);
+			if (ret)
+				return ret;
+		}
+
+		ret = intel_atomic_setup_scalers(dev_priv, crtc, crtc_state);
 		if (ret)
 			return ret;
 	}
