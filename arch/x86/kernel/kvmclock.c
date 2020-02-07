@@ -161,7 +161,7 @@ bool kvm_check_and_clear_guest_paused(void)
 
 static int kvm_cs_enable(struct clocksource *cs)
 {
-	vclocks_set_used(VCLOCK_PVCLOCK);
+	vclocks_set_used(VDSO_CLOCKMODE_PVCLOCK);
 	return 0;
 }
 
@@ -279,7 +279,7 @@ static int __init kvm_setup_vsyscall_timeinfo(void)
 	if (!(flags & PVCLOCK_TSC_STABLE_BIT))
 		return 0;
 
-	kvm_clock.archdata.vclock_mode = VCLOCK_PVCLOCK;
+	kvm_clock.vdso_clock_mode = VDSO_CLOCKMODE_PVCLOCK;
 #endif
 
 	kvmclock_init_mem();

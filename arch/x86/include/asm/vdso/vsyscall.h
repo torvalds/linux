@@ -21,13 +21,6 @@ struct vdso_data *__x86_get_k_vdso_data(void)
 }
 #define __arch_get_k_vdso_data __x86_get_k_vdso_data
 
-static __always_inline
-int __x86_get_clock_mode(struct timekeeper *tk)
-{
-	return tk->tkr_mono.clock->archdata.vclock_mode;
-}
-#define __arch_get_clock_mode __x86_get_clock_mode
-
 /* The asm-generic header needs to be included after the definitions above */
 #include <asm-generic/vdso/vsyscall.h>
 

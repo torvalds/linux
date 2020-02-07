@@ -147,7 +147,7 @@ static struct notifier_block xen_pvclock_gtod_notifier = {
 
 static int xen_cs_enable(struct clocksource *cs)
 {
-	vclocks_set_used(VCLOCK_PVCLOCK);
+	vclocks_set_used(VDSO_CLOCKMODE_PVCLOCK);
 	return 0;
 }
 
@@ -419,12 +419,13 @@ void xen_restore_time_memory_area(void)
 	ret = HYPERVISOR_vcpu_op(VCPUOP_register_vcpu_time_memory_area, 0, &t);
 
 	/*
-	 * We don't disable VCLOCK_PVCLOCK entirely if it fails to register the
-	 * secondary time info with Xen or if we migrated to a host without the
-	 * necessary flags. On both of these cases what happens is either
-	 * process seeing a zeroed out pvti or seeing no PVCLOCK_TSC_STABLE_BIT
-	 * bit set. Userspace checks the latter and if 0, it discards the data
-	 * in pvti and fallbacks to a system call for a reliable timestamp.
+	 * We don't disable VDSO_CLOCKMODE_PVCLOCK entirely if it fails to
+	 * register the secondary time info with Xen or if we migrated to a
+	 * host without the necessary flags. On both of these cases what
+	 * happens is either process seeing a zeroed out pvti or seeing no
+	 * PVCLOCK_TSC_STABLE_BIT bit set. Userspace checks the latter and
+	 * if 0, it discards the data in pvti and fallbacks to a system
+	 * call for a reliable timestamp.
 	 */
 	if (ret != 0)
 		pr_notice("Cannot restore secondary vcpu_time_info (err %d)",
@@ -450,7 +451,7 @@ static void xen_setup_vsyscall_time_info(void)
 
 	ret = HYPERVISOR_vcpu_op(VCPUOP_register_vcpu_time_memory_area, 0, &t);
 	if (ret) {
-		pr_notice("xen: VCLOCK_PVCLOCK not supported (err %d)\n", ret);
+		pr_notice("xen: VDSO_CLOCKMODE_PVCLOCK not supported (err %d)\n", ret);
 		free_page((unsigned long)ti);
 		return;
 	}
@@ -467,14 +468,14 @@ static void xen_setup_vsyscall_time_info(void)
 		if (!ret)
 			free_page((unsigned long)ti);
 
-		pr_notice("xen: VCLOCK_PVCLOCK not supported (tsc unstable)\n");
+		pr_notice("xen: VDSO_CLOCKMODE_PVCLOCK not supported (tsc unstable)\n");
 		return;
 	}
 
 	xen_clock = ti;
 	pvclock_set_pvti_cpu0_va(xen_clock);
 
-	xen_clocksource.archdata.vclock_mode = VCLOCK_PVCLOCK;
+	xen_clocksource.vdso_clock_mode = VDSO_CLOCKMODE_PVCLOCK;
 }
 
 static void __init xen_time_init(void)

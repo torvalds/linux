@@ -4,15 +4,10 @@
 #ifndef _ASM_X86_CLOCKSOURCE_H
 #define _ASM_X86_CLOCKSOURCE_H
 
-#define VCLOCK_NONE	0	/* No vDSO clock available.		*/
-#define VCLOCK_TSC	1	/* vDSO should use vread_tsc.		*/
-#define VCLOCK_PVCLOCK	2	/* vDSO should use vread_pvclock.	*/
-#define VCLOCK_HVCLOCK	3	/* vDSO should use vread_hvclock.	*/
-#define VCLOCK_MAX	3
-
-struct arch_clocksource_data {
-	int vclock_mode;
-};
+#define VDSO_ARCH_CLOCKMODES	\
+	VDSO_CLOCKMODE_TSC,	\
+	VDSO_CLOCKMODE_PVCLOCK,	\
+	VDSO_CLOCKMODE_HVCLOCK
 
 extern unsigned int vclocks_used;
 

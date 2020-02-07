@@ -1631,7 +1631,7 @@ static void update_pvclock_gtod(struct timekeeper *tk)
 	write_seqcount_begin(&vdata->seq);
 
 	/* copy pvclock gtod data */
-	vdata->clock.vclock_mode	= tk->tkr_mono.clock->archdata.vclock_mode;
+	vdata->clock.vclock_mode	= tk->tkr_mono.clock->vdso_clock_mode;
 	vdata->clock.cycle_last		= tk->tkr_mono.cycle_last;
 	vdata->clock.mask		= tk->tkr_mono.mask;
 	vdata->clock.mult		= tk->tkr_mono.mult;
@@ -1639,7 +1639,7 @@ static void update_pvclock_gtod(struct timekeeper *tk)
 	vdata->clock.base_cycles	= tk->tkr_mono.xtime_nsec;
 	vdata->clock.offset		= tk->tkr_mono.base;
 
-	vdata->raw_clock.vclock_mode	= tk->tkr_raw.clock->archdata.vclock_mode;
+	vdata->raw_clock.vclock_mode	= tk->tkr_raw.clock->vdso_clock_mode;
 	vdata->raw_clock.cycle_last	= tk->tkr_raw.cycle_last;
 	vdata->raw_clock.mask		= tk->tkr_raw.mask;
 	vdata->raw_clock.mult		= tk->tkr_raw.mult;
@@ -1840,7 +1840,7 @@ static u64 compute_guest_tsc(struct kvm_vcpu *vcpu, s64 kernel_ns)
 
 static inline int gtod_is_based_on_tsc(int mode)
 {
-	return mode == VCLOCK_TSC || mode == VCLOCK_HVCLOCK;
+	return mode == VDSO_CLOCKMODE_TSC || mode == VDSO_CLOCKMODE_HVCLOCK;
 }
 
 static void kvm_track_tsc_matching(struct kvm_vcpu *vcpu)
@@ -1933,7 +1933,7 @@ static inline bool kvm_check_tsc_unstable(void)
 	 * TSC is marked unstable when we're running on Hyper-V,
 	 * 'TSC page' clocksource is good.
 	 */
-	if (pvclock_gtod_data.clock.vclock_mode == VCLOCK_HVCLOCK)
+	if (pvclock_gtod_data.clock.vclock_mode == VDSO_CLOCKMODE_HVCLOCK)
 		return false;
 #endif
 	return check_tsc_unstable();
@@ -2088,30 +2088,30 @@ static inline u64 vgettsc(struct pvclock_clock *clock, u64 *tsc_timestamp,
 	u64 tsc_pg_val;
 
 	switch (clock->vclock_mode) {
-	case VCLOCK_HVCLOCK:
+	case VDSO_CLOCKMODE_HVCLOCK:
 		tsc_pg_val = hv_read_tsc_page_tsc(hv_get_tsc_page(),
 						  tsc_timestamp);
 		if (tsc_pg_val != U64_MAX) {
 			/* TSC page valid */
-			*mode = VCLOCK_HVCLOCK;
+			*mode = VDSO_CLOCKMODE_HVCLOCK;
 			v = (tsc_pg_val - clock->cycle_last) &
 				clock->mask;
 		} else {
 			/* TSC page invalid */
-			*mode = VCLOCK_NONE;
+			*mode = VDSO_CLOCKMODE_NONE;
 		}
 		break;
-	case VCLOCK_TSC:
-		*mode = VCLOCK_TSC;
+	case VDSO_CLOCKMODE_TSC:
+		*mode = VDSO_CLOCKMODE_TSC;
 		*tsc_timestamp = read_tsc();
 		v = (*tsc_timestamp - clock->cycle_last) &
 			clock->mask;
 		break;
 	default:
-		*mode = VCLOCK_NONE;
+		*mode = VDSO_CLOCKMODE_NONE;
 	}
 
-	if (*mode == VCLOCK_NONE)
+	if (*mode == VDSO_CLOCKMODE_NONE)
 		*tsc_timestamp = v = 0;
 
 	return v * clock->mult;
