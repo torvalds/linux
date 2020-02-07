@@ -36,26 +36,6 @@
 #define X86_CR4_SMAP		(1ul << 21)
 #define X86_CR4_PKE		(1ul << 22)
 
-/* The enum values match the intruction encoding of each register */
-enum x86_register {
-	RAX = 0,
-	RCX,
-	RDX,
-	RBX,
-	RSP,
-	RBP,
-	RSI,
-	RDI,
-	R8,
-	R9,
-	R10,
-	R11,
-	R12,
-	R13,
-	R14,
-	R15,
-};
-
 /* General Registers in 64-Bit Mode */
 struct gpr64_regs {
 	u64 rax;
