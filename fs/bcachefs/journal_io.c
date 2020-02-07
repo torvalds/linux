@@ -170,8 +170,10 @@ static int journal_validate_key(struct bch_fs *c, struct jset *jset,
 		return 0;
 	}
 
-	if (JSET_BIG_ENDIAN(jset) != CPU_BIG_ENDIAN)
-		bch2_bkey_swab(NULL, bkey_to_packed(k));
+	if (JSET_BIG_ENDIAN(jset) != CPU_BIG_ENDIAN) {
+		bch2_bkey_swab_key(NULL, bkey_to_packed(k));
+		bch2_bkey_swab_val(bkey_i_to_s(k));
+	}
 
 	if (!write &&
 	    version < bcachefs_metadata_version_bkey_renumber)

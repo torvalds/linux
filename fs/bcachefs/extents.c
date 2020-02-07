@@ -1078,17 +1078,19 @@ const char *bch2_bkey_ptrs_invalid(const struct bch_fs *c, struct bkey_s_c k)
 	return NULL;
 }
 
-void bch2_ptr_swab(const struct bkey_format *f, struct bkey_packed *k)
+void bch2_ptr_swab(struct bkey_s k)
 {
+	struct bkey_ptrs ptrs = bch2_bkey_ptrs(k);
 	union bch_extent_entry *entry;
-	u64 *d = (u64 *) bkeyp_val(f, k);
-	unsigned i;
+	u64 *d;
 
-	for (i = 0; i < bkeyp_val_u64s(f, k); i++)
-		d[i] = swab64(d[i]);
+	for (d =  (u64 *) ptrs.start;
+	     d != (u64 *) ptrs.end;
+	     d++)
+		*d = swab64(*d);
 
-	for (entry = (union bch_extent_entry *) d;
-	     entry < (union bch_extent_entry *) (d + bkeyp_val_u64s(f, k));
+	for (entry = ptrs.start;
+	     entry < ptrs.end;
 	     entry = extent_entry_next(entry)) {
 		switch (extent_entry_type(entry)) {
 		case BCH_EXTENT_ENTRY_ptr:

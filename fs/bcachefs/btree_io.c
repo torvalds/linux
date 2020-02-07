@@ -783,7 +783,7 @@ static int validate_bset(struct bch_fs *c, struct btree *b,
 
 	for (k = i->start;
 	     k != vstruct_last(i);) {
-		struct bkey_s_c u;
+		struct bkey_s u;
 		struct bkey tmp;
 		const char *invalid;
 
@@ -804,21 +804,24 @@ static int validate_bset(struct bch_fs *c, struct btree *b,
 		}
 
 		if (BSET_BIG_ENDIAN(i) != CPU_BIG_ENDIAN)
-			bch2_bkey_swab(&b->format, k);
+			bch2_bkey_swab_key(&b->format, k);
 
 		if (!write &&
 		    version < bcachefs_metadata_version_bkey_renumber)
 			bch2_bkey_renumber(btree_node_type(b), k, write);
 
-		u = bkey_disassemble(b, k, &tmp);
+		u = __bkey_disassemble(b, k, &tmp);
 
-		invalid = __bch2_bkey_invalid(c, u, btree_node_type(b)) ?:
-			bch2_bkey_in_btree_node(b, u) ?:
-			(write ? bch2_bkey_val_invalid(c, u) : NULL);
+		if (BSET_BIG_ENDIAN(i) != CPU_BIG_ENDIAN)
+			bch2_bkey_swab_val(u);
+
+		invalid = __bch2_bkey_invalid(c, u.s_c, btree_node_type(b)) ?:
+			bch2_bkey_in_btree_node(b, u.s_c) ?:
+			(write ? bch2_bkey_val_invalid(c, u.s_c) : NULL);
 		if (invalid) {
 			char buf[160];
 
-			bch2_bkey_val_to_text(&PBUF(buf), c, u);
+			bch2_bkey_val_to_text(&PBUF(buf), c, u.s_c);
 			btree_err(BTREE_ERR_FIXABLE, c, b, i,
 				  "invalid bkey:\n%s\n%s", invalid, buf);
 

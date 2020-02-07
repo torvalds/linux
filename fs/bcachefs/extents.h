@@ -532,7 +532,7 @@ void bch2_bkey_ptrs_to_text(struct printbuf *, struct bch_fs *,
 			    struct bkey_s_c);
 const char *bch2_bkey_ptrs_invalid(const struct bch_fs *, struct bkey_s_c);
 
-void bch2_ptr_swab(const struct bkey_format *, struct bkey_packed *);
+void bch2_ptr_swab(struct bkey_s);
 
 /* Generic extent code: */
 

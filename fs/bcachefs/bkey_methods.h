@@ -29,7 +29,7 @@ struct bkey_ops {
 	void		(*key_debugcheck)(struct bch_fs *, struct bkey_s_c);
 	void		(*val_to_text)(struct printbuf *, struct bch_fs *,
 				       struct bkey_s_c);
-	void		(*swab)(const struct bkey_format *, struct bkey_packed *);
+	void		(*swab)(struct bkey_s);
 	bool		(*key_normalize)(struct bch_fs *, struct bkey_s);
 	enum merge_result (*key_merge)(struct bch_fs *,
 				       struct bkey_s, struct bkey_s);
@@ -51,7 +51,7 @@ void bch2_val_to_text(struct printbuf *, struct bch_fs *,
 void bch2_bkey_val_to_text(struct printbuf *, struct bch_fs *,
 			   struct bkey_s_c);
 
-void bch2_bkey_swab(const struct bkey_format *, struct bkey_packed *);
+void bch2_bkey_swab_val(struct bkey_s);
 
 bool bch2_bkey_normalize(struct bch_fs *, struct bkey_s);
 

@@ -202,15 +202,12 @@ void bch2_bkey_val_to_text(struct printbuf *out, struct bch_fs *c,
 	bch2_val_to_text(out, c, k);
 }
 
-void bch2_bkey_swab(const struct bkey_format *f,
-		    struct bkey_packed *k)
+void bch2_bkey_swab_val(struct bkey_s k)
 {
-	const struct bkey_ops *ops = &bch2_bkey_ops[k->type];
-
-	bch2_bkey_swab_key(f, k);
+	const struct bkey_ops *ops = &bch2_bkey_ops[k.k->type];
 
 	if (ops->swab)
-		ops->swab(f, k);
+		ops->swab(k);
 }
 
 bool bch2_bkey_normalize(struct bch_fs *c, struct bkey_s k)
