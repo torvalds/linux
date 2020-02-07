@@ -145,12 +145,19 @@ static struct notifier_block xen_pvclock_gtod_notifier = {
 	.notifier_call = xen_pvclock_gtod_notify,
 };
 
+static int xen_cs_enable(struct clocksource *cs)
+{
+	vclocks_set_used(VCLOCK_PVCLOCK);
+	return 0;
+}
+
 static struct clocksource xen_clocksource __read_mostly = {
-	.name = "xen",
-	.rating = 400,
-	.read = xen_clocksource_get_cycles,
-	.mask = ~0,
-	.flags = CLOCK_SOURCE_IS_CONTINUOUS,
+	.name	= "xen",
+	.rating	= 400,
+	.read	= xen_clocksource_get_cycles,
+	.mask	= CLOCKSOURCE_MASK(64),
+	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
+	.enable = xen_cs_enable,
 };
 
 /*

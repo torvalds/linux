@@ -38,6 +38,8 @@ struct vdso_data *arch_get_vdso_data(void *vvar_page)
 }
 #undef EMIT_VVAR
 
+unsigned int vclocks_used __read_mostly;
+
 #if defined(CONFIG_X86_64)
 unsigned int __read_mostly vdso64_enabled = 1;
 #endif
@@ -445,6 +447,8 @@ __setup("vdso=", vdso_setup);
 
 static int __init init_vdso(void)
 {
+	BUILD_BUG_ON(VCLOCK_MAX >= 32);
+
 	init_vdso_image(&vdso_image_64);
 
 #ifdef CONFIG_X86_X32_ABI
