@@ -65,6 +65,11 @@ void intel_guc_ct_fini(struct intel_guc_ct *ct);
 int intel_guc_ct_enable(struct intel_guc_ct *ct);
 void intel_guc_ct_disable(struct intel_guc_ct *ct);
 
+static inline void intel_guc_ct_sanitize(struct intel_guc_ct *ct)
+{
+	ct->enabled = false;
+}
+
 static inline bool intel_guc_ct_enabled(struct intel_guc_ct *ct)
 {
 	return ct->enabled;
