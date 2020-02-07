@@ -1113,12 +1113,12 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 			return ret;
 	}
 
+	ret = smu_set_driver_table_location(smu);
+	if (ret)
+		return ret;
+
 	/* smu_dump_pptable(smu); */
 	if (!amdgpu_sriov_vf(adev)) {
-		ret = smu_set_driver_table_location(smu);
-		if (ret)
-			return ret;
-
 		/*
 		 * Copy pptable bo in the vram to smc with SMU MSGs such as
 		 * SetDriverDramAddr and TransferTableDram2Smu.
