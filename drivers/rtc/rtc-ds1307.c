@@ -144,6 +144,8 @@ enum ds_type {
 #	define M41TXX_BIT_CALIB_SIGN	BIT(5)
 #	define M41TXX_M_CALIBRATION	GENMASK(4, 0)
 
+#define DS1388_REG_FLAG			0x0b
+#	define DS1388_BIT_OSF		BIT(7)
 /* negative offset step is -2.034ppm */
 #define M41TXX_NEG_OFFSET_STEP_PPB	2034
 /* positive offset step is +4.068ppm */
@@ -250,6 +252,13 @@ static int ds1307_get_time(struct device *dev, struct rtc_time *t)
 		if (ret)
 			return ret;
 		if (tmp & DS1340_BIT_OSF)
+			return -EINVAL;
+		break;
+	case ds_1388:
+		ret = regmap_read(ds1307->regmap, DS1388_REG_FLAG, &tmp);
+		if (ret)
+			return ret;
+		if (tmp & DS1388_BIT_OSF)
 			return -EINVAL;
 		break;
 	case mcp794xx:
