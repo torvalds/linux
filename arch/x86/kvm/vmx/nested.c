@@ -544,7 +544,8 @@ static void nested_vmx_disable_intercept_for_msr(unsigned long *msr_bitmap_l1,
 	}
 }
 
-static inline void enable_x2apic_msr_intercepts(unsigned long *msr_bitmap) {
+static inline void enable_x2apic_msr_intercepts(unsigned long *msr_bitmap)
+{
 	int msr;
 
 	for (msr = 0x800; msr <= 0x8ff; msr += BITS_PER_LONG) {
@@ -1981,7 +1982,7 @@ static int nested_vmx_handle_enlightened_vmptrld(struct kvm_vcpu *vcpu,
 	}
 
 	/*
-	 * Clean fields data can't de used on VMLAUNCH and when we switch
+	 * Clean fields data can't be used on VMLAUNCH and when we switch
 	 * between different L2 guests as KVM keeps a single VMCS12 per L1.
 	 */
 	if (from_launch || evmcs_gpa_changed)
