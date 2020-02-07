@@ -4993,6 +4993,9 @@ static void mlxsw_sp_rt6_release(struct fib6_info *rt)
 
 static void mlxsw_sp_rt6_destroy(struct mlxsw_sp_rt6 *mlxsw_sp_rt6)
 {
+	struct fib6_nh *fib6_nh = mlxsw_sp_rt6->rt->fib6_nh;
+
+	fib6_nh->fib_nh_flags &= ~RTNH_F_OFFLOAD;
 	mlxsw_sp_rt6_release(mlxsw_sp_rt6->rt);
 	kfree(mlxsw_sp_rt6);
 }
