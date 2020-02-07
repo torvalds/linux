@@ -24,8 +24,6 @@
 
 #define VDSO_HAS_CLOCK_GETRES		1
 
-#define __VDSO_USE_SYSCALL		ULLONG_MAX
-
 static __always_inline long gettimeofday_fallback(
 				struct __kernel_old_timeval *_tv,
 				struct timezone *_tz)
@@ -175,28 +173,20 @@ static __always_inline u64 read_gic_count(const struct vdso_data *data)
 
 static __always_inline u64 __arch_get_hw_counter(s32 clock_mode)
 {
-#ifdef CONFIG_CLKSRC_MIPS_GIC
-	const struct vdso_data *data = get_vdso_data();
-#endif
-	u64 cycle_now;
-
-	switch (clock_mode) {
 #ifdef CONFIG_CSRC_R4K
-	case VDSO_CLOCK_R4K:
-		cycle_now = read_r4k_count();
-		break;
+	if (clock_mode == VDSO_CLOCKMODE_R4K)
+		return read_r4k_count();
 #endif
 #ifdef CONFIG_CLKSRC_MIPS_GIC
-	case VDSO_CLOCK_GIC:
-		cycle_now = read_gic_count(data);
-		break;
+	if (clock_mode == VDSO_CLOCKMODE_GIC)
+		return read_gic_count(get_vdso_data());
 #endif
-	default:
-		cycle_now = __VDSO_USE_SYSCALL;
-		break;
-	}
-
-	return cycle_now;
+	/*
+	 * Core checks mode already. So this raced against a concurrent
+	 * update. Return something. Core will do another round see the
+	 * change and fallback to syscall.
+	 */
+	return 0;
 }
 
 static inline bool mips_vdso_hres_capable(void)
