@@ -1933,6 +1933,7 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nv50_disp *disp = nv50_disp(dev);
 	struct nv50_atom *atom = nv50_atom(state);
+	struct nv50_core *core = disp->core;
 	struct nv50_outp_atom *outp, *outt;
 	u32 interlock[NV50_DISP_INTERLOCK__SIZE] = {};
 	int i;
@@ -2049,6 +2050,21 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 			if (new_crtc_state->event)
 				drm_crtc_vblank_get(crtc);
 		}
+	}
+
+	/* Update window->head assignment.
+	 *
+	 * This has to happen in an update that's not interlocked with
+	 * any window channels to avoid hitting HW error checks.
+	 *
+	 *TODO: Proper handling of window ownership (Turing apparently
+	 *      supports non-fixed mappings).
+	 */
+	if (core->assign_windows) {
+		core->func->wndw.owner(core);
+		core->func->update(core, interlock, false);
+		core->assign_windows = false;
+		interlock[NV50_DISP_INTERLOCK_CORE] = 0;
 	}
 
 	/* Update plane(s). */
