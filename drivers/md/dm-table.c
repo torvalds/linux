@@ -1237,6 +1237,70 @@ static int dm_keyslot_evict(struct blk_crypto_profile *profile,
 	return args.err;
 }
 
+struct dm_derive_sw_secret_args {
+	const u8 *wrapped_key;
+	unsigned int wrapped_key_size;
+	u8 *secret;
+	int err;
+};
+
+static int dm_derive_sw_secret_callback(struct dm_target *ti,
+					struct dm_dev *dev, sector_t start,
+					sector_t len, void *data)
+{
+	struct dm_derive_sw_secret_args *args = data;
+	struct request_queue *q = bdev_get_queue(dev->bdev);
+
+	if (!args->err)
+		return 0;
+
+	args->err = blk_crypto_derive_sw_secret(q->crypto_profile,
+						args->wrapped_key,
+						args->wrapped_key_size,
+						args->secret);
+	/* Try another device in case this fails. */
+	return 0;
+}
+
+/*
+ * Retrieve the sw_secret from the underlying device.  Given that only one
+ * sw_secret can exist for a particular wrapped key, retrieve it only from the
+ * first device that supports derive_sw_secret().
+ */
+static int dm_derive_sw_secret(struct blk_crypto_profile *profile,
+			       const u8 *wrapped_key,
+			       unsigned int wrapped_key_size,
+			       u8 secret[BLK_CRYPTO_SW_SECRET_SIZE])
+{
+	struct mapped_device *md =
+		container_of(profile, struct dm_crypto_profile, profile)->md;
+	struct dm_derive_sw_secret_args args = {
+		.wrapped_key = wrapped_key,
+		.wrapped_key_size = wrapped_key_size,
+		.secret = secret,
+		.err = -EOPNOTSUPP,
+	};
+	struct dm_table *t;
+	int srcu_idx;
+	int i;
+	struct dm_target *ti;
+
+	t = dm_get_live_table(md, &srcu_idx);
+	if (!t)
+		return -EOPNOTSUPP;
+	for (i = 0; i < dm_table_get_num_targets(t); i++) {
+		ti = dm_table_get_target(t, i);
+		if (!ti->type->iterate_devices)
+			continue;
+		ti->type->iterate_devices(ti, dm_derive_sw_secret_callback,
+					  &args);
+		if (!args.err)
+			break;
+	}
+	dm_put_live_table(md, srcu_idx);
+	return args.err;
+}
+
 static int
 device_intersect_crypto_capabilities(struct dm_target *ti, struct dm_dev *dev,
 				     sector_t start, sector_t len, void *data)
@@ -1293,6 +1357,7 @@ static int dm_table_construct_crypto_profile(struct dm_table *t)
 	profile = &dmcp->profile;
 	blk_crypto_profile_init(profile, 0);
 	profile->ll_ops.keyslot_evict = dm_keyslot_evict;
+	profile->ll_ops.derive_sw_secret = dm_derive_sw_secret;
 	profile->max_dun_bytes_supported = UINT_MAX;
 	memset(profile->modes_supported, 0xFF,
 	       sizeof(profile->modes_supported));

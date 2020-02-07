@@ -505,6 +505,7 @@ int blk_crypto_derive_sw_secret(struct blk_crypto_profile *profile,
 	}
 	return err;
 }
+EXPORT_SYMBOL_GPL(blk_crypto_derive_sw_secret);
 
 /**
  * blk_crypto_intersect_capabilities() - restrict supported crypto capabilities
