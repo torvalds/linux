@@ -121,6 +121,51 @@ struct drm_gem_object *virtio_gpu_create_object(struct drm_device *dev,
 	return &bo->base.base;
 }
 
+static int virtio_gpu_object_shmem_init(struct virtio_gpu_device *vgdev,
+					struct virtio_gpu_object *bo,
+					struct virtio_gpu_mem_entry **ents,
+					unsigned int *nents)
+{
+	bool use_dma_api = !virtio_has_iommu_quirk(vgdev->vdev);
+	struct scatterlist *sg;
+	int si, ret;
+
+	ret = drm_gem_shmem_pin(&bo->base.base);
+	if (ret < 0)
+		return -EINVAL;
+
+	bo->pages = drm_gem_shmem_get_sg_table(&bo->base.base);
+	if (!bo->pages) {
+		drm_gem_shmem_unpin(&bo->base.base);
+		return -EINVAL;
+	}
+
+	if (use_dma_api) {
+		bo->mapped = dma_map_sg(vgdev->vdev->dev.parent,
+					bo->pages->sgl, bo->pages->nents,
+					DMA_TO_DEVICE);
+		*nents = bo->mapped;
+	} else {
+		*nents = bo->pages->nents;
+	}
+
+	*ents = kmalloc_array(*nents, sizeof(struct virtio_gpu_mem_entry),
+			      GFP_KERNEL);
+	if (!(*ents)) {
+		DRM_ERROR("failed to allocate ent list\n");
+		return -ENOMEM;
+	}
+
+	for_each_sg(bo->pages->sgl, sg, *nents, si) {
+		(*ents)[si].addr = cpu_to_le64(use_dma_api
+					       ? sg_dma_address(sg)
+					       : sg_phys(sg));
+		(*ents)[si].length = cpu_to_le32(sg->length);
+		(*ents)[si].padding = 0;
+	}
+	return 0;
+}
+
 int virtio_gpu_object_create(struct virtio_gpu_device *vgdev,
 			     struct virtio_gpu_object_params *params,
 			     struct virtio_gpu_object **bo_ptr,
@@ -129,6 +174,8 @@ int virtio_gpu_object_create(struct virtio_gpu_device *vgdev,
 	struct virtio_gpu_object_array *objs = NULL;
 	struct drm_gem_shmem_object *shmem_obj;
 	struct virtio_gpu_object *bo;
+	struct virtio_gpu_mem_entry *ents;
+	unsigned int nents;
 	int ret;
 
 	*bo_ptr = NULL;
@@ -165,7 +212,13 @@ int virtio_gpu_object_create(struct virtio_gpu_device *vgdev,
 					       objs, fence);
 	}
 
-	ret = virtio_gpu_object_attach(vgdev, bo, NULL);
+	ret = virtio_gpu_object_shmem_init(vgdev, bo, &ents, &nents);
+	if (ret != 0) {
+		virtio_gpu_free_object(&shmem_obj->base);
+		return ret;
+	}
+
+	ret = virtio_gpu_object_attach(vgdev, bo, ents, nents);
 	if (ret != 0) {
 		virtio_gpu_free_object(&shmem_obj->base);
 		return ret;
