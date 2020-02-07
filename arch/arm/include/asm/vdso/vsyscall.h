@@ -50,13 +50,6 @@ int __arm_get_clock_mode(struct timekeeper *tk)
 #define __arch_get_clock_mode __arm_get_clock_mode
 
 static __always_inline
-int __arm_use_vsyscall(struct vdso_data *vdata)
-{
-	return vdata[CS_HRES_COARSE].clock_mode;
-}
-#define __arch_use_vsyscall __arm_use_vsyscall
-
-static __always_inline
 void __arm_sync_vdso_data(struct vdso_data *vdata)
 {
 	flush_dcache_page(virt_to_page(vdata));
