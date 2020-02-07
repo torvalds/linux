@@ -21,8 +21,6 @@
 #define CS_RAW		1
 #define CS_BASES	(CS_RAW + 1)
 
-#define VCLOCK_TIMENS	UINT_MAX
-
 /**
  * struct vdso_timestamp - basetime per clock_id
  * @sec:	seconds
