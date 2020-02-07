@@ -386,8 +386,34 @@ static int add_indirect_ref(const struct btrfs_fs_info *fs_info,
 			      wanted_disk_byte, count, sc, gfp_mask);
 }
 
+static int is_shared_data_backref(struct preftrees *preftrees, u64 bytenr)
+{
+	struct rb_node **p = &preftrees->direct.root.rb_root.rb_node;
+	struct rb_node *parent = NULL;
+	struct prelim_ref *ref = NULL;
+	struct prelim_ref target = {0};
+	int result;
+
+	target.parent = bytenr;
+
+	while (*p) {
+		parent = *p;
+		ref = rb_entry(parent, struct prelim_ref, rbnode);
+		result = prelim_ref_compare(ref, &target);
+
+		if (result < 0)
+			p = &(*p)->rb_left;
+		else if (result > 0)
+			p = &(*p)->rb_right;
+		else
+			return 1;
+	}
+	return 0;
+}
+
 static int add_all_parents(struct btrfs_root *root, struct btrfs_path *path,
-			   struct ulist *parents, struct prelim_ref *ref,
+			   struct ulist *parents,
+			   struct preftrees *preftrees, struct prelim_ref *ref,
 			   int level, u64 time_seq, const u64 *extent_item_pos,
 			   u64 total_refs, bool ignore_offset)
 {
@@ -412,11 +438,16 @@ static int add_all_parents(struct btrfs_root *root, struct btrfs_path *path,
 	}
 
 	/*
-	 * We normally enter this function with the path already pointing to
-	 * the first item to check. But sometimes, we may enter it with
-	 * slot==nritems. In that case, go to the next leaf before we continue.
+	 * 1. We normally enter this function with the path already pointing to
+	 *    the first item to check. But sometimes, we may enter it with
+	 *    slot == nritems.
+	 * 2. We are searching for normal backref but bytenr of this leaf
+	 *    matches shared data backref
+	 * For these cases, go to the next leaf before we continue.
 	 */
-	if (path->slots[0] >= btrfs_header_nritems(path->nodes[0])) {
+	eb = path->nodes[0];
+	if (path->slots[0] >= btrfs_header_nritems(eb) ||
+	    is_shared_data_backref(preftrees, eb->start)) {
 		if (time_seq == SEQ_LAST)
 			ret = btrfs_next_leaf(root, path);
 		else
@@ -433,6 +464,17 @@ static int add_all_parents(struct btrfs_root *root, struct btrfs_path *path,
 		    key.type != BTRFS_EXTENT_DATA_KEY)
 			break;
 
+		/*
+		 * We are searching for normal backref but bytenr of this leaf
+		 * matches shared data backref.
+		 */
+		if (slot == 0 && is_shared_data_backref(preftrees, eb->start)) {
+			if (time_seq == SEQ_LAST)
+				ret = btrfs_next_leaf(root, path);
+			else
+				ret = btrfs_next_old_leaf(root, path, time_seq);
+			continue;
+		}
 		fi = btrfs_item_ptr(eb, slot, struct btrfs_file_extent_item);
 		disk_byte = btrfs_file_extent_disk_bytenr(eb, fi);
 		data_offset = btrfs_file_extent_offset(eb, fi);
@@ -484,6 +526,7 @@ next:
  */
 static int resolve_indirect_ref(struct btrfs_fs_info *fs_info,
 				struct btrfs_path *path, u64 time_seq,
+				struct preftrees *preftrees,
 				struct prelim_ref *ref, struct ulist *parents,
 				const u64 *extent_item_pos, u64 total_refs,
 				bool ignore_offset)
@@ -577,8 +620,8 @@ static int resolve_indirect_ref(struct btrfs_fs_info *fs_info,
 		eb = path->nodes[level];
 	}
 
-	ret = add_all_parents(root, path, parents, ref, level, time_seq,
-			      extent_item_pos, total_refs, ignore_offset);
+	ret = add_all_parents(root, path, parents, preftrees, ref, level,
+			      time_seq, extent_item_pos, total_refs, ignore_offset);
 out:
 	btrfs_put_root(root);
 out_free:
@@ -658,8 +701,8 @@ static int resolve_indirect_refs(struct btrfs_fs_info *fs_info,
 			ret = BACKREF_FOUND_SHARED;
 			goto out;
 		}
-		err = resolve_indirect_ref(fs_info, path, time_seq, ref,
-					   parents, extent_item_pos,
+		err = resolve_indirect_ref(fs_info, path, time_seq, preftrees,
+					   ref, parents, extent_item_pos,
 					   total_refs, ignore_offset);
 		/*
 		 * we can only tolerate ENOENT,otherwise,we should catch error
