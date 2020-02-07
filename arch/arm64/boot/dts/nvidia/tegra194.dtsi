@@ -1042,6 +1042,7 @@
 			reg-names = "hypervisor", "vm";
 			interrupts = <GIC_SPI 265 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 263 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "syncpt", "host1x";
 			clocks = <&bpmp TEGRA194_CLK_HOST1X>;
 			clock-names = "host1x";
 			resets = <&bpmp TEGRA194_RESET_HOST1X>;
