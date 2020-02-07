@@ -96,6 +96,7 @@ struct rkisp1_sensor_async {
  * @sink_crop: crop for sink pad
  * @src_fmt: output format
  * @src_crop: output size
+ * @ops_lock: ops serialization
  *
  * @is_dphy_errctrl_disabled : if dphy errctrl is disabled (avoid endless interrupt)
  * @frame_sequence: used to synchronize frame_id between video devices.
@@ -107,6 +108,7 @@ struct rkisp1_isp {
 	struct v4l2_subdev_pad_config pad_cfg[RKISP1_ISP_PAD_MAX];
 	const struct rkisp1_isp_mbus_info *sink_fmt;
 	const struct rkisp1_isp_mbus_info *src_fmt;
+	struct mutex ops_lock;
 	bool is_dphy_errctrl_disabled;
 	atomic_t frame_sequence;
 };
