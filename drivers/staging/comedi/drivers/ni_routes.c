@@ -50,6 +50,43 @@
 #define RVi(table, src, dest)	((table)[(dest) * NI_NUM_NAMES + (src)])
 
 /*
+ * Find the route values for a device family.
+ */
+static const u8 *ni_find_route_values(const char *device_family)
+{
+	const u8 *rv = NULL;
+	int i;
+
+	for (i = 0; ni_all_route_values[i]; ++i) {
+		if (memcmp(ni_all_route_values[i]->family, device_family,
+			   strnlen(device_family, 30)) == 0) {
+			rv = &ni_all_route_values[i]->register_values[0][0];
+			break;
+		}
+	}
+	return rv;
+}
+
+/*
+ * Find the valid routes for a board.
+ */
+static const struct ni_device_routes *
+ni_find_valid_routes(const char *board_name)
+{
+	const struct ni_device_routes *dr = NULL;
+	int i;
+
+	for (i = 0; ni_device_routes_list[i]; ++i) {
+		if (memcmp(ni_device_routes_list[i]->device, board_name,
+			   strnlen(board_name, 30)) == 0) {
+			dr = ni_device_routes_list[i];
+			break;
+		}
+	}
+	return dr;
+}
+
+/*
  * Find the proper route_values and ni_device_routes tables for this particular
  * device.
  *
@@ -59,27 +96,14 @@ static int ni_find_device_routes(const char *device_family,
 				 const char *board_name,
 				 struct ni_route_tables *tables)
 {
-	const struct ni_device_routes *dr = NULL;
-	const u8 *rv = NULL;
-	int i;
+	const struct ni_device_routes *dr;
+	const u8 *rv;
 
 	/* First, find the register_values table for this device family */
-	for (i = 0; ni_all_route_values[i]; ++i) {
-		if (memcmp(ni_all_route_values[i]->family, device_family,
-			   strnlen(device_family, 30)) == 0) {
-			rv = &ni_all_route_values[i]->register_values[0][0];
-			break;
-		}
-	}
+	rv = ni_find_route_values(device_family);
 
 	/* Second, find the set of routes valid for this device. */
-	for (i = 0; ni_device_routes_list[i]; ++i) {
-		if (memcmp(ni_device_routes_list[i]->device, board_name,
-			   strnlen(board_name, 30)) == 0) {
-			dr = ni_device_routes_list[i];
-			break;
-		}
-	}
+	dr = ni_find_valid_routes(board_name);
 
 	tables->route_values = rv;
 	tables->valid_routes = dr;
