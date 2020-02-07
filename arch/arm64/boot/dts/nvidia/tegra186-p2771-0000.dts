@@ -286,8 +286,8 @@
 		sor@15580000 {
 			status = "okay";
 
-			avdd-io-supply = <&vdd_hdmi_1v05>;
-			vdd-pll-supply = <&vdd_1v8_ap>;
+			avdd-io-hdmi-dp-supply = <&vdd_hdmi_1v05>;
+			vdd-hdmi-dp-pll-supply = <&vdd_1v8_ap>;
 			hdmi-supply = <&vdd_hdmi>;
 
 			nvidia,ddc-i2c-bus = <&ddc>;
