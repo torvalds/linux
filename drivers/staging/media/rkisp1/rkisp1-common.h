@@ -226,6 +226,7 @@ struct rkisp1_resizer {
 	struct v4l2_subdev_pad_config pad_cfg[RKISP1_ISP_PAD_MAX];
 	const struct rkisp1_rsz_config *config;
 	enum rkisp1_fmt_pix_type fmt_type;
+	struct mutex ops_lock;
 };
 
 struct rkisp1_debug {
