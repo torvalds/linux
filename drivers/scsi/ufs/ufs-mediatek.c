@@ -318,7 +318,7 @@ static int ufs_mtk_pre_link(struct ufs_hba *hba)
 	 * to make sure that both host and device TX LCC are disabled
 	 * once link startup is completed.
 	 */
-	ret = ufshcd_dme_set(hba, UIC_ARG_MIB(PA_LOCAL_TX_LCC_ENABLE), 0);
+	ret = ufshcd_disable_host_tx_lcc(hba);
 	if (ret)
 		return ret;
 
