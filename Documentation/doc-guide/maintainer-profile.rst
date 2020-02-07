@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GPL-2.0
+
 Documentation subsystem maintainer entry profile
 ================================================
 
