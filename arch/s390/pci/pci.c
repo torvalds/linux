@@ -48,6 +48,8 @@ static unsigned int zpci_num_domains_allocated;
 	min(((unsigned long) ZPCI_NR_DEVICES * PCI_STD_NUM_BARS / 2),	\
 	    ZPCI_IOMAP_MAX_ENTRIES)
 
+unsigned int s390_pci_no_rid;
+
 static DEFINE_SPINLOCK(zpci_iomap_lock);
 static unsigned long *zpci_iomap_bitmap;
 struct zpci_iomap_entry *zpci_iomap_start;
@@ -842,6 +844,10 @@ char * __init pcibios_setup(char *str)
 	}
 	if (!strcmp(str, "force_floating")) {
 		s390_pci_force_floating = 1;
+		return NULL;
+	}
+	if (!strcmp(str, "norid")) {
+		s390_pci_no_rid = 1;
 		return NULL;
 	}
 	return str;

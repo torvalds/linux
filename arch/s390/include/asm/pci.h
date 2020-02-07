@@ -168,6 +168,7 @@ static inline bool zdev_enabled(struct zpci_dev *zdev)
 
 extern const struct attribute_group *zpci_attr_groups[];
 extern unsigned int s390_pci_force_floating __initdata;
+extern unsigned int s390_pci_no_rid;
 
 /* -----------------------------------------------------------------------------
   Prototypes
