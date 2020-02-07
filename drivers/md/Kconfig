@@ -298,6 +298,9 @@ config DM_DEFAULT_KEY
 	tristate "Default-key target support"
 	depends on BLK_DEV_DM
 	depends on BLK_INLINE_ENCRYPTION
+	# dm-default-key doesn't require -o inlinecrypt, but it does currently
+	# rely on the inline encryption hooks being built into the kernel.
+	depends on FS_ENCRYPTION_INLINE_CRYPT
 	help
 	  This device-mapper target allows you to create a device that
 	  assigns a default encryption key to bios that aren't for the
