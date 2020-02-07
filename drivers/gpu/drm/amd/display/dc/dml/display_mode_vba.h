@@ -763,8 +763,8 @@ struct vba_vars_st {
 	double SwathWidthC[DC__NUM_DPP__MAX];
 	unsigned int BytePerPixelY[DC__NUM_DPP__MAX];
 	unsigned int BytePerPixelC[DC__NUM_DPP__MAX];
-	long dummyinteger1;
-	long dummyinteger2;
+	unsigned int dummyinteger1;
+	unsigned int dummyinteger2;
 	double FinalDRAMClockChangeLatency;
 	double Tdmdl_vm[DC__NUM_DPP__MAX];
 	double Tdmdl[DC__NUM_DPP__MAX];

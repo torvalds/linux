@@ -120,7 +120,10 @@
 #define PPSMC_MSG_GetVoltageByDpmOverdrive       0x45
 #define PPSMC_MSG_BacoAudioD3PME                 0x48
 
-#define PPSMC_Message_Count                      0x49
+#define PPSMC_MSG_DALDisableDummyPstateChange    0x49
+#define PPSMC_MSG_DALEnableDummyPstateChange     0x4A
+
+#define PPSMC_Message_Count                      0x4B
 
 typedef uint32_t PPSMC_Result;
 typedef uint32_t PPSMC_Msg;

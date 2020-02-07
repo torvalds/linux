@@ -155,6 +155,12 @@ gv100_disp_intr_ctrl_disp(struct nv50_disp *disp)
 	if (stat & 0x00000008)
 		stat &= ~0x00000008;
 
+	if (stat & 0x00000080) {
+		u32 error = nvkm_mask(device, 0x611848, 0x00000000, 0x00000000);
+		nvkm_warn(subdev, "error %08x\n", error);
+		stat &= ~0x00000080;
+	}
+
 	if (stat & 0x00000100) {
 		unsigned long wndws = nvkm_rd32(device, 0x611858);
 		unsigned long other = nvkm_rd32(device, 0x61185c);

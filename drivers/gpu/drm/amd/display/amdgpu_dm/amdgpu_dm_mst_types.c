@@ -632,7 +632,7 @@ static void increase_dsc_bpp(struct drm_atomic_state *state,
 			if (drm_dp_atomic_find_vcpi_slots(state,
 							  params[next_index].port->mgr,
 							  params[next_index].port,
-							  vars[next_index].pbn,\
+							  vars[next_index].pbn,
 							  dm_mst_get_pbn_divider(dc_link)) < 0)
 				return;
 			if (!drm_dp_mst_atomic_check(state)) {

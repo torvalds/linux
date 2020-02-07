@@ -476,13 +476,13 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 {
 	bool use_semaphore = gmc_v9_0_use_invalidate_semaphore(adev, vmhub);
 	const unsigned eng = 17;
-	u32 j, tmp;
+	u32 j, inv_req, tmp;
 	struct amdgpu_vmhub *hub;
 
 	BUG_ON(vmhub >= adev->num_vmhubs);
 
 	hub = &adev->vmhub[vmhub];
-	tmp = gmc_v9_0_get_invalidate_req(vmid, flush_type);
+	inv_req = gmc_v9_0_get_invalidate_req(vmid, flush_type);
 
 	/* This is necessary for a HW workaround under SRIOV as well
 	 * as GFXOFF under bare metal
@@ -493,7 +493,7 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 		uint32_t req = hub->vm_inv_eng0_req + eng;
 		uint32_t ack = hub->vm_inv_eng0_ack + eng;
 
-		amdgpu_virt_kiq_reg_write_reg_wait(adev, req, ack, tmp,
+		amdgpu_virt_kiq_reg_write_reg_wait(adev, req, ack, inv_req,
 				1 << vmid);
 		return;
 	}
@@ -521,7 +521,7 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 			DRM_ERROR("Timeout waiting for sem acquire in VM flush!\n");
 	}
 
-	WREG32_NO_KIQ(hub->vm_inv_eng0_req + eng, tmp);
+	WREG32_NO_KIQ(hub->vm_inv_eng0_req + eng, inv_req);
 
 	/*
 	 * Issue a dummy read to wait for the ACK register to be cleared
@@ -578,7 +578,8 @@ static int gmc_v9_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 
 	if (ring->sched.ready) {
 		spin_lock(&adev->gfx.kiq.ring_lock);
-		amdgpu_ring_alloc(ring, kiq->pmf->invalidate_tlbs_size);
+		/* 2 dwords flush + 8 dwords fence */
+		amdgpu_ring_alloc(ring, kiq->pmf->invalidate_tlbs_size + 8);
 		kiq->pmf->kiq_invalidate_tlbs(ring,
 					pasid, flush_type, all_hub);
 		amdgpu_fence_emit_polling(ring, &seq);
@@ -601,10 +602,10 @@ static int gmc_v9_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 			if (all_hub) {
 				for (i = 0; i < adev->num_vmhubs; i++)
 					gmc_v9_0_flush_gpu_tlb(adev, vmid,
-							i, 0);
+							i, flush_type);
 			} else {
 				gmc_v9_0_flush_gpu_tlb(adev, vmid,
-						AMDGPU_GFXHUB_0, 0);
+						AMDGPU_GFXHUB_0, flush_type);
 			}
 			break;
 		}

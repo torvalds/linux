@@ -262,7 +262,8 @@ static void gmc_v10_0_flush_vm_hub(struct amdgpu_device *adev, uint32_t vmid,
 {
 	bool use_semaphore = gmc_v10_0_use_invalidate_semaphore(adev, vmhub);
 	struct amdgpu_vmhub *hub = &adev->vmhub[vmhub];
-	u32 tmp = gmc_v10_0_get_invalidate_req(vmid, flush_type);
+	u32 inv_req = gmc_v10_0_get_invalidate_req(vmid, flush_type);
+	u32 tmp;
 	/* Use register 17 for GART */
 	const unsigned eng = 17;
 	unsigned int i;
@@ -289,7 +290,7 @@ static void gmc_v10_0_flush_vm_hub(struct amdgpu_device *adev, uint32_t vmid,
 			DRM_ERROR("Timeout waiting for sem acquire in VM flush!\n");
 	}
 
-	WREG32_NO_KIQ(hub->vm_inv_eng0_req + eng, tmp);
+	WREG32_NO_KIQ(hub->vm_inv_eng0_req + eng, inv_req);
 
 	/*
 	 * Issue a dummy read to wait for the ACK register to be cleared
@@ -418,7 +419,8 @@ static int gmc_v10_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 
 	if (amdgpu_emu_mode == 0 && ring->sched.ready) {
 		spin_lock(&adev->gfx.kiq.ring_lock);
-		amdgpu_ring_alloc(ring, kiq->pmf->invalidate_tlbs_size);
+		/* 2 dwords flush + 8 dwords fence */
+		amdgpu_ring_alloc(ring, kiq->pmf->invalidate_tlbs_size + 8);
 		kiq->pmf->kiq_invalidate_tlbs(ring,
 					pasid, flush_type, all_hub);
 		amdgpu_fence_emit_polling(ring, &seq);
@@ -441,10 +443,10 @@ static int gmc_v10_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 			if (all_hub) {
 				for (i = 0; i < adev->num_vmhubs; i++)
 					gmc_v10_0_flush_gpu_tlb(adev, vmid,
-							i, 0);
+							i, flush_type);
 			} else {
 				gmc_v10_0_flush_gpu_tlb(adev, vmid,
-						AMDGPU_GFXHUB_0, 0);
+						AMDGPU_GFXHUB_0, flush_type);
 			}
 			break;
 		}
@@ -640,12 +642,7 @@ static int gmc_v10_0_late_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int r;
 
-	/*
-	 * Can't free the stolen VGA memory when it might be used for memory
-	 * training again.
-	 */
-	if (!adev->fw_vram_usage.mem_train_support)
-		amdgpu_bo_late_init(adev);
+	amdgpu_bo_late_init(adev);
 
 	r = amdgpu_gmc_allocate_vm_inv_eng(adev);
 	if (r)
@@ -829,19 +826,6 @@ static int gmc_v10_0_sw_init(void *handle)
 
 	adev->gmc.stolen_size = gmc_v10_0_get_vbios_fb_size(adev);
 
-	/*
-	 * In dual GPUs scenario, stolen_size is assigned to zero on the
-	 * secondary GPU, since there is no pre-OS console using that memory.
-	 * Then the bottom region of VRAM was allocated as GTT, unfortunately a
-	 * small region of bottom VRAM was encroached by UMC firmware during
-	 * GDDR6 BIST training, this cause page fault.
-	 * The page fault can be fixed by forcing stolen_size to 3MB, then the
-	 * bottom region of VRAM was allocated as stolen memory, GTT corruption
-	 * avoid.
-	 */
-	adev->gmc.stolen_size = max(adev->gmc.stolen_size,
-				    AMDGPU_STOLEN_BIST_TRAINING_DEFAULT_SIZE);
-
 	/* Memory manager */
 	r = amdgpu_bo_init(adev);
 	if (r)
@@ -881,13 +865,6 @@ static void gmc_v10_0_gart_fini(struct amdgpu_device *adev)
 static int gmc_v10_0_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	void *stolen_vga_buf;
-
-	/*
-	 * Free the stolen memory if it wasn't already freed in late_init
-	 * because of memory training.
-	 */
-	amdgpu_bo_free_kernel(&adev->stolen_vga_memory, NULL, &stolen_vga_buf);
 
 	amdgpu_vm_manager_fini(adev);
 	gmc_v10_0_gart_fini(adev);

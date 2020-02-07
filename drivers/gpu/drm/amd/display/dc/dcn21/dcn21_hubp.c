@@ -261,28 +261,28 @@ static void hubp21_apply_PLAT_54186_wa(
 			address->video_progressive.luma_addr.high_part == 0xf4)
 		return;
 
-	if ((rotation_angle == 0 || rotation_angle == 180)
+	if ((rotation_angle == ROTATION_ANGLE_0 || rotation_angle == ROTATION_ANGLE_180)
 			&& viewport_c_height <= 512)
 		return;
 
-	if ((rotation_angle == 90 || rotation_angle == 270)
+	if ((rotation_angle == ROTATION_ANGLE_90 || rotation_angle == ROTATION_ANGLE_270)
 				&& viewport_c_width <= 512)
 		return;
 
 	switch (rotation_angle) {
-	case 0: /* 0 degree rotation */
+	case ROTATION_ANGLE_0: /* 0 degree rotation */
 		row_height = 128;
 		patched_viewport_height = (viewport_c_height / row_height + 1) * row_height + 1;
 		patched_viewport_width = viewport_c_width;
 		hubp21->PLAT_54186_wa_chroma_addr_offset = 0;
 		break;
-	case 2: /* 180 degree rotation */
+	case ROTATION_ANGLE_180: /* 180 degree rotation */
 		row_height = 128;
 		patched_viewport_height = viewport_c_height + row_height;
 		patched_viewport_width = viewport_c_width;
 		hubp21->PLAT_54186_wa_chroma_addr_offset = 0 - chroma_pitch * row_height * chroma_bpe;
 		break;
-	case 1: /* 90 degree rotation */
+	case ROTATION_ANGLE_90: /* 90 degree rotation */
 		row_height = 256;
 		if (h_mirror_en) {
 			patched_viewport_height = viewport_c_height;
@@ -294,7 +294,7 @@ static void hubp21_apply_PLAT_54186_wa(
 			hubp21->PLAT_54186_wa_chroma_addr_offset = 0 - tile_blk_size;
 		}
 		break;
-	case 3:	/* 270 degree rotation */
+	case ROTATION_ANGLE_270: /* 270 degree rotation */
 		row_height = 256;
 		if (h_mirror_en) {
 			patched_viewport_height = viewport_c_height;

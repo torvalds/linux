@@ -135,6 +135,20 @@ void hdcp_update_display(struct hdcp_workqueue *hdcp_work,
 	mutex_unlock(&hdcp_w->mutex);
 }
 
+static void hdcp_remove_display(struct hdcp_workqueue *hdcp_work,
+			 unsigned int link_index,
+			 struct amdgpu_dm_connector *aconnector)
+{
+	struct hdcp_workqueue *hdcp_w = &hdcp_work[link_index];
+
+	mutex_lock(&hdcp_w->mutex);
+	hdcp_w->aconnector = aconnector;
+
+	mod_hdcp_remove_display(&hdcp_w->hdcp, aconnector->base.index, &hdcp_w->output);
+
+	process_output(hdcp_w);
+	mutex_unlock(&hdcp_w->mutex);
+}
 void hdcp_reset_display(struct hdcp_workqueue *hdcp_work, unsigned int link_index)
 {
 	struct hdcp_workqueue *hdcp_w = &hdcp_work[link_index];
@@ -303,6 +317,11 @@ static void update_config(void *handle, struct cp_psp_stream_config *config)
 	memset(link, 0, sizeof(*link));
 
 	display->index = aconnector->base.index;
+
+	if (config->dpms_off) {
+		hdcp_remove_display(hdcp_work, link_index, aconnector);
+		return;
+	}
 	display->state = MOD_HDCP_DISPLAY_ACTIVE;
 
 	if (aconnector->dc_sink != NULL)

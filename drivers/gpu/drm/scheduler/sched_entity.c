@@ -45,7 +45,7 @@
  * @guilty: atomic_t set to 1 when a job on this queue
  *          is found to be guilty causing a timeout
  *
- * Note: the sched_list should have atleast one element to schedule
+ * Note: the sched_list should have at least one element to schedule
  *       the entity
  *
  * Returns 0 on success or a negative error code on failure.

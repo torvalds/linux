@@ -287,8 +287,6 @@ static inline bool is_virtual_machine(void)
 
 bool amdgpu_virt_mmio_blocked(struct amdgpu_device *adev);
 void amdgpu_virt_init_setting(struct amdgpu_device *adev);
-uint32_t amdgpu_virt_kiq_rreg(struct amdgpu_device *adev, uint32_t reg);
-void amdgpu_virt_kiq_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v);
 void amdgpu_virt_kiq_reg_write_reg_wait(struct amdgpu_device *adev,
 					uint32_t reg0, uint32_t rreg1,
 					uint32_t ref, uint32_t mask);

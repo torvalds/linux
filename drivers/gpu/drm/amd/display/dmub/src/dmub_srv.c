@@ -312,6 +312,9 @@ enum dmub_status dmub_srv_is_hw_init(struct dmub_srv *dmub, bool *is_hw_init)
 	if (!dmub->sw_init)
 		return DMUB_STATUS_INVALID;
 
+	if (!dmub->hw_init)
+		return DMUB_STATUS_OK;
+
 	if (dmub->hw_funcs.is_hw_init)
 		*is_hw_init = dmub->hw_funcs.is_hw_init(dmub);
 
@@ -411,6 +414,22 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 		dmub->hw_funcs.reset_release(dmub);
 
 	dmub->hw_init = true;
+
+	return DMUB_STATUS_OK;
+}
+
+enum dmub_status dmub_srv_hw_reset(struct dmub_srv *dmub)
+{
+	if (!dmub->sw_init)
+		return DMUB_STATUS_INVALID;
+
+	if (dmub->hw_init == false)
+		return DMUB_STATUS_OK;
+
+	if (dmub->hw_funcs.reset)
+		dmub->hw_funcs.reset(dmub);
+
+	dmub->hw_init = false;
 
 	return DMUB_STATUS_OK;
 }

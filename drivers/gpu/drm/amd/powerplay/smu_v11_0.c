@@ -1882,6 +1882,12 @@ int smu_v11_0_set_default_od_settings(struct smu_context *smu, bool initialize, 
 			pr_err("Failed to export overdrive table!\n");
 			return ret;
 		}
+		if (!table_context->boot_overdrive_table) {
+			table_context->boot_overdrive_table = kmemdup(table_context->overdrive_table, overdrive_table_size, GFP_KERNEL);
+			if (!table_context->boot_overdrive_table) {
+				return -ENOMEM;
+			}
+		}
 	}
 	ret = smu_update_table(smu, SMU_TABLE_OVERDRIVE, 0, table_context->overdrive_table, true);
 	if (ret) {
