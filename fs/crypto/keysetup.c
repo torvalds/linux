@@ -117,15 +117,15 @@ err_free_tfm:
  */
 int fscrypt_prepare_key(struct fscrypt_prepared_key *prep_key,
 			const u8 *raw_key, unsigned int raw_key_size,
-			const struct fscrypt_info *ci)
+			bool is_hw_wrapped, const struct fscrypt_info *ci)
 {
 	struct crypto_skcipher *tfm;
 
 	if (fscrypt_using_inline_encryption(ci))
 		return fscrypt_prepare_inline_crypt_key(prep_key,
-				raw_key, raw_key_size, ci);
+				raw_key, raw_key_size, is_hw_wrapped, ci);
 
-	if (WARN_ON(raw_key_size != ci->ci_mode->keysize))
+	if (WARN_ON(is_hw_wrapped || raw_key_size != ci->ci_mode->keysize))
 		return -EINVAL;
 
 	tfm = fscrypt_allocate_skcipher(ci->ci_mode, raw_key, ci->ci_inode);
@@ -150,8 +150,8 @@ void fscrypt_destroy_prepared_key(struct fscrypt_prepared_key *prep_key)
 int fscrypt_set_per_file_enc_key(struct fscrypt_info *ci, const u8 *raw_key)
 {
 	ci->ci_owns_key = true;
-	return fscrypt_prepare_key(&ci->ci_key, raw_key,
-				   ci->ci_mode->keysize, ci);
+	return fscrypt_prepare_key(&ci->ci_key, raw_key, ci->ci_mode->keysize,
+				   false /*is_hw_wrapped*/, ci);
 }
 
 static int setup_per_mode_enc_key(struct fscrypt_info *ci,
@@ -202,7 +202,7 @@ static int setup_per_mode_enc_key(struct fscrypt_info *ci,
 			}
 		}
 		err = fscrypt_prepare_key(prep_key, mk->mk_secret.raw,
-					  mk->mk_secret.size, ci);
+					  mk->mk_secret.size, true, ci);
 		if (err)
 			goto out_unlock;
 	} else {
@@ -221,7 +221,7 @@ static int setup_per_mode_enc_key(struct fscrypt_info *ci,
 		if (err)
 			goto out_unlock;
 		err = fscrypt_prepare_key(prep_key, mode_key, mode->keysize,
-					  ci);
+					  false /*is_hw_wrapped*/, ci);
 		memzero_explicit(mode_key, mode->keysize);
 		if (err)
 			goto out_unlock;

@@ -224,7 +224,7 @@ static int default_key_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 
 	err = blk_crypto_init_key(&dkc->key, raw_key, cipher->key_size,
-				  cipher->mode_num, dkc->sector_size);
+				  false, cipher->mode_num, dkc->sector_size);
 	if (err) {
 		ti->error = "Error initializing blk-crypto key";
 		goto bad;
