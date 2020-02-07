@@ -2516,6 +2516,8 @@ static int io_openat_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 	if (sqe->ioprio || sqe->buf_index)
 		return -EINVAL;
+	if (sqe->flags & IOSQE_FIXED_FILE)
+		return -EBADF;
 
 	req->open.dfd = READ_ONCE(sqe->fd);
 	req->open.how.mode = READ_ONCE(sqe->len);
@@ -2541,6 +2543,8 @@ static int io_openat2_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 	if (sqe->ioprio || sqe->buf_index)
 		return -EINVAL;
+	if (sqe->flags & IOSQE_FIXED_FILE)
+		return -EBADF;
 
 	req->open.dfd = READ_ONCE(sqe->fd);
 	fname = u64_to_user_ptr(READ_ONCE(sqe->addr));
@@ -2736,6 +2740,8 @@ static int io_statx_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 	if (sqe->ioprio || sqe->buf_index)
 		return -EINVAL;
+	if (sqe->flags & IOSQE_FIXED_FILE)
+		return -EBADF;
 
 	req->open.dfd = READ_ONCE(sqe->fd);
 	req->open.mask = READ_ONCE(sqe->len);
@@ -2809,7 +2815,7 @@ static int io_close_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	    sqe->rw_flags || sqe->buf_index)
 		return -EINVAL;
 	if (sqe->flags & IOSQE_FIXED_FILE)
-		return -EINVAL;
+		return -EBADF;
 
 	req->close.fd = READ_ONCE(sqe->fd);
 	if (req->file->f_op == &io_uring_fops ||
