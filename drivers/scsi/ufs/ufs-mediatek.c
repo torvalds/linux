@@ -313,6 +313,15 @@ static int ufs_mtk_pre_link(struct ufs_hba *hba)
 
 	ufs_mtk_unipro_powerdown(hba, 0);
 
+	/*
+	 * Setting PA_Local_TX_LCC_Enable to 0 before link startup
+	 * to make sure that both host and device TX LCC are disabled
+	 * once link startup is completed.
+	 */
+	ret = ufshcd_dme_set(hba, UIC_ARG_MIB(PA_LOCAL_TX_LCC_ENABLE), 0);
+	if (ret)
+		return ret;
+
 	/* disable deep stall */
 	ret = ufshcd_dme_get(hba, UIC_ARG_MIB(VS_SAVEPOWERCONTROL), &tmp);
 	if (ret)
@@ -344,9 +353,6 @@ static void ufs_mtk_setup_clk_gating(struct ufs_hba *hba)
 
 static int ufs_mtk_post_link(struct ufs_hba *hba)
 {
-	/* disable device LCC */
-	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_LOCAL_TX_LCC_ENABLE), 0);
-
 	/* enable unipro clock gating feature */
 	ufs_mtk_cfg_unipro_cg(hba, true);
 
