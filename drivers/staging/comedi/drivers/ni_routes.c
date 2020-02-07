@@ -88,12 +88,14 @@ ni_find_valid_routes(const char *board_name)
 
 /*
  * Find the proper route_values and ni_device_routes tables for this particular
- * device.
+ * device.  Possibly try an alternate board name if device routes not found
+ * for the actual board name.
  *
  * Return: -ENODATA if either was not found; 0 if both were found.
  */
 static int ni_find_device_routes(const char *device_family,
 				 const char *board_name,
+				 const char *alt_board_name,
 				 struct ni_route_tables *tables)
 {
 	const struct ni_device_routes *dr;
@@ -104,6 +106,8 @@ static int ni_find_device_routes(const char *device_family,
 
 	/* Second, find the set of routes valid for this device. */
 	dr = ni_find_valid_routes(board_name);
+	if (!dr && alt_board_name)
+		dr = ni_find_valid_routes(alt_board_name);
 
 	tables->route_values = rv;
 	tables->valid_routes = dr;
@@ -117,15 +121,28 @@ static int ni_find_device_routes(const char *device_family,
 /**
  * ni_assign_device_routes() - Assign the proper lookup table for NI signal
  *			       routing to the specified NI device.
+ * @device_family: Device family name (determines route values).
+ * @board_name: Board name (determines set of routes).
+ * @alt_board_name: Optional alternate board name to try on failure.
+ * @tables: Pointer to assigned routing information.
+ *
+ * Finds the route values for the device family and the set of valid routes
+ * for the board.  If valid routes could not be found for the actual board
+ * name and an alternate board name has been specified, try that one.
+ *
+ * On failure, the assigned routing information may be partially filled
+ * (for example, with the route values but not the set of valid routes).
  *
  * Return: -ENODATA if assignment was not successful; 0 if successful.
  */
 int ni_assign_device_routes(const char *device_family,
 			    const char *board_name,
+			    const char *alt_board_name,
 			    struct ni_route_tables *tables)
 {
 	memset(tables, 0, sizeof(struct ni_route_tables));
-	return ni_find_device_routes(device_family, board_name, tables);
+	return ni_find_device_routes(device_family, board_name, alt_board_name,
+				     tables);
 }
 EXPORT_SYMBOL_GPL(ni_assign_device_routes);
 
