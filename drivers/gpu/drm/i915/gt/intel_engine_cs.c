@@ -631,13 +631,13 @@ static int engine_setup_common(struct intel_engine_cs *engine)
 
 struct measure_breadcrumb {
 	struct i915_request rq;
-	struct intel_timeline timeline;
 	struct intel_ring ring;
 	u32 cs[1024];
 };
 
-static int measure_breadcrumb_dw(struct intel_engine_cs *engine)
+static int measure_breadcrumb_dw(struct intel_context *ce)
 {
+	struct intel_engine_cs *engine = ce->engine;
 	struct measure_breadcrumb *frame;
 	int dw = -ENOMEM;
 
@@ -647,39 +647,27 @@ static int measure_breadcrumb_dw(struct intel_engine_cs *engine)
 	if (!frame)
 		return -ENOMEM;
 
-	if (intel_timeline_init(&frame->timeline,
-				engine->gt,
-				engine->status_page.vma))
-		goto out_frame;
-
-	mutex_lock(&frame->timeline.mutex);
+	frame->rq.i915 = engine->i915;
+	frame->rq.engine = engine;
+	frame->rq.context = ce;
+	rcu_assign_pointer(frame->rq.timeline, ce->timeline);
 
 	frame->ring.vaddr = frame->cs;
 	frame->ring.size = sizeof(frame->cs);
 	frame->ring.effective_size = frame->ring.size;
 	intel_ring_update_space(&frame->ring);
-
-	frame->rq.i915 = engine->i915;
-	frame->rq.engine = engine;
 	frame->rq.ring = &frame->ring;
-	rcu_assign_pointer(frame->rq.timeline, &frame->timeline);
 
-	dw = intel_timeline_pin(&frame->timeline);
-	if (dw < 0)
-		goto out_timeline;
-
+	mutex_lock(&ce->timeline->mutex);
 	spin_lock_irq(&engine->active.lock);
+
 	dw = engine->emit_fini_breadcrumb(&frame->rq, frame->cs) - frame->cs;
+
 	spin_unlock_irq(&engine->active.lock);
+	mutex_unlock(&ce->timeline->mutex);
 
 	GEM_BUG_ON(dw & 1); /* RING_TAIL must be qword aligned */
 
-	intel_timeline_unpin(&frame->timeline);
-
-out_timeline:
-	mutex_unlock(&frame->timeline.mutex);
-	intel_timeline_fini(&frame->timeline);
-out_frame:
 	kfree(frame);
 	return dw;
 }
@@ -754,12 +742,6 @@ static int engine_init_common(struct intel_engine_cs *engine)
 
 	engine->set_default_submission(engine);
 
-	ret = measure_breadcrumb_dw(engine);
-	if (ret < 0)
-		return ret;
-
-	engine->emit_fini_breadcrumb_dw = ret;
-
 	/*
 	 * We may need to do things with the shrinker which
 	 * require us to immediately switch back to the default
@@ -772,9 +754,18 @@ static int engine_init_common(struct intel_engine_cs *engine)
 	if (IS_ERR(ce))
 		return PTR_ERR(ce);
 
+	ret = measure_breadcrumb_dw(ce);
+	if (ret < 0)
+		goto err_context;
+
+	engine->emit_fini_breadcrumb_dw = ret;
 	engine->kernel_context = ce;
 
 	return 0;
+
+err_context:
+	intel_context_put(ce);
+	return ret;
 }
 
 int intel_engines_init(struct intel_gt *gt)
