@@ -330,6 +330,9 @@ static void virtio_gpu_queue_ctrl_sgs(struct virtio_gpu_device *vgdev,
 	bool notify = false;
 	int ret;
 
+	if (vgdev->has_indirect)
+		elemcnt = 1;
+
 again:
 	spin_lock(&vgdev->ctrlq.qlock);
 
