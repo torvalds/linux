@@ -1220,6 +1220,7 @@ static int amdgpu_pmops_runtime_suspend(struct device *dev)
 		}
 	}
 
+	adev->in_runpm = true;
 	if (amdgpu_device_supports_boco(drm_dev))
 		drm_dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 	drm_kms_helper_poll_disable(drm_dev);
@@ -1278,6 +1279,7 @@ static int amdgpu_pmops_runtime_resume(struct device *dev)
 	drm_kms_helper_poll_enable(drm_dev);
 	if (amdgpu_device_supports_boco(drm_dev))
 		drm_dev->switch_power_state = DRM_SWITCH_POWER_ON;
+	adev->in_runpm = false;
 	return 0;
 }
 
