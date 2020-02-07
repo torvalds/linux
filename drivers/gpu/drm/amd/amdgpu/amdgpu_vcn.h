@@ -65,33 +65,33 @@
 /* 1 second timeout */
 #define VCN_IDLE_TIMEOUT	msecs_to_jiffies(1000)
 
-#define RREG32_SOC15_DPG_MODE(ip, inst, reg, mask, sram_sel) 				\
-	({	WREG32_SOC15(ip, inst, mmUVD_DPG_LMA_MASK, mask); 			\
-		WREG32_SOC15(ip, inst, mmUVD_DPG_LMA_CTL, 				\
+#define RREG32_SOC15_DPG_MODE(ip, inst_idx, reg, mask, sram_sel) 			\
+	({	WREG32_SOC15(ip, inst_idx, mmUVD_DPG_LMA_MASK, mask); 			\
+		WREG32_SOC15(ip, inst_idx, mmUVD_DPG_LMA_CTL, 				\
 			UVD_DPG_LMA_CTL__MASK_EN_MASK | 				\
-			((adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg) 	\
+			((adev->reg_offset[ip##_HWIP][inst_idx][reg##_BASE_IDX] + reg) 	\
 			<< UVD_DPG_LMA_CTL__READ_WRITE_ADDR__SHIFT) | 			\
 			(sram_sel << UVD_DPG_LMA_CTL__SRAM_SEL__SHIFT)); 		\
-		RREG32_SOC15(ip, inst, mmUVD_DPG_LMA_DATA); 				\
+		RREG32_SOC15(ip, inst_idx, mmUVD_DPG_LMA_DATA); 			\
 	})
 
-#define WREG32_SOC15_DPG_MODE(ip, inst, reg, value, mask, sram_sel) 			\
+#define WREG32_SOC15_DPG_MODE(ip, inst_idx, reg, value, mask, sram_sel) 		\
 	do { 										\
-		WREG32_SOC15(ip, inst, mmUVD_DPG_LMA_DATA, value); 			\
-		WREG32_SOC15(ip, inst, mmUVD_DPG_LMA_MASK, mask); 			\
-		WREG32_SOC15(ip, inst, mmUVD_DPG_LMA_CTL, 				\
+		WREG32_SOC15(ip, inst_idx, mmUVD_DPG_LMA_DATA, value); 			\
+		WREG32_SOC15(ip, inst_idx, mmUVD_DPG_LMA_MASK, mask); 			\
+		WREG32_SOC15(ip, inst_idx, mmUVD_DPG_LMA_CTL, 				\
 			UVD_DPG_LMA_CTL__READ_WRITE_MASK | 				\
-			((adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg) 	\
+			((adev->reg_offset[ip##_HWIP][inst_idx][reg##_BASE_IDX] + reg) 	\
 			<< UVD_DPG_LMA_CTL__READ_WRITE_ADDR__SHIFT) | 			\
 			(sram_sel << UVD_DPG_LMA_CTL__SRAM_SEL__SHIFT)); 		\
 	} while (0)
 
-#define SOC15_DPG_MODE_OFFSET_2_0(ip, inst, reg) 						\
+#define SOC15_DPG_MODE_OFFSET_2_0(ip, inst_idx, reg) 						\
 	({											\
 		uint32_t internal_reg_offset, addr;						\
 		bool video_range, aon_range;							\
 												\
-		addr = (adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg);		\
+		addr = (adev->reg_offset[ip##_HWIP][inst_idx][reg##_BASE_IDX] + reg);		\
 		addr <<= 2; 									\
 		video_range = ((((0xFFFFF & addr) >= (VCN_VID_SOC_ADDRESS_2_0)) && 		\
 				((0xFFFFF & addr) < ((VCN_VID_SOC_ADDRESS_2_0 + 0x2600)))));	\
@@ -111,7 +111,7 @@
 
 #define RREG32_SOC15_DPG_MODE_2_0(inst_idx, offset, mask_en) 					\
 	({											\
-		WREG32_SOC15(VCN, inst, mmUVD_DPG_LMA_CTL, 					\
+		WREG32_SOC15(VCN, inst_idx, mmUVD_DPG_LMA_CTL, 					\
 			(0x0 << UVD_DPG_LMA_CTL__READ_WRITE__SHIFT |				\
 			mask_en << UVD_DPG_LMA_CTL__MASK_EN__SHIFT |				\
 			offset << UVD_DPG_LMA_CTL__READ_WRITE_ADDR__SHIFT));			\

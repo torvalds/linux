@@ -256,7 +256,6 @@ struct i2c_request_transaction_data {
 
 struct dce_i2c_hw {
 	struct ddc *ddc;
-	uint32_t original_speed;
 	uint32_t engine_keep_power_up_count;
 	uint32_t transaction_count;
 	uint32_t buffer_used_bytes;

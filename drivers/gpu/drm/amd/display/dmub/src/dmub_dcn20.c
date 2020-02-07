@@ -54,6 +54,19 @@ const struct dmub_srv_common_regs dmub_srv_dcn20_regs = {
 
 /* Shared functions. */
 
+static void dmub_dcn20_get_fb_base_offset(struct dmub_srv *dmub,
+					  uint64_t *fb_base,
+					  uint64_t *fb_offset)
+{
+	uint32_t tmp;
+
+	REG_GET(DCN_VM_FB_LOCATION_BASE, FB_BASE, &tmp);
+	*fb_base = (uint64_t)tmp << 24;
+
+	REG_GET(DCN_VM_FB_OFFSET, FB_OFFSET, &tmp);
+	*fb_offset = (uint64_t)tmp << 24;
+}
+
 static inline void dmub_dcn20_translate_addr(const union dmub_addr *addr_in,
 					     uint64_t fb_base,
 					     uint64_t fb_offset,
@@ -67,6 +80,8 @@ void dmub_dcn20_reset(struct dmub_srv *dmub)
 	REG_UPDATE(DMCUB_CNTL, DMCUB_SOFT_RESET, 1);
 	REG_UPDATE(DMCUB_CNTL, DMCUB_ENABLE, 0);
 	REG_UPDATE(MMHUBBUB_SOFT_RESET, DMUIF_SOFT_RESET, 1);
+	REG_WRITE(DMCUB_INBOX1_RPTR, 0);
+	REG_WRITE(DMCUB_INBOX1_WPTR, 0);
 }
 
 void dmub_dcn20_reset_release(struct dmub_srv *dmub)
@@ -82,7 +97,9 @@ void dmub_dcn20_backdoor_load(struct dmub_srv *dmub,
 			      const struct dmub_window *cw1)
 {
 	union dmub_addr offset;
-	uint64_t fb_base = dmub->fb_base, fb_offset = dmub->fb_offset;
+	uint64_t fb_base, fb_offset;
+
+	dmub_dcn20_get_fb_base_offset(dmub, &fb_base, &fb_offset);
 
 	REG_UPDATE(DMCUB_SEC_CNTL, DMCUB_SEC_RESET, 1);
 	REG_UPDATE_2(DMCUB_MEM_CNTL, DMCUB_MEM_READ_SPACE, 0x3,
@@ -118,7 +135,9 @@ void dmub_dcn20_setup_windows(struct dmub_srv *dmub,
 			      const struct dmub_window *cw6)
 {
 	union dmub_addr offset;
-	uint64_t fb_base = dmub->fb_base, fb_offset = dmub->fb_offset;
+	uint64_t fb_base, fb_offset;
+
+	dmub_dcn20_get_fb_base_offset(dmub, &fb_base, &fb_offset);
 
 	dmub_dcn20_translate_addr(&cw2->offset, fb_base, fb_offset, &offset);
 
@@ -173,8 +192,6 @@ void dmub_dcn20_setup_mailbox(struct dmub_srv *dmub,
 
 	REG_WRITE(DMCUB_INBOX1_BASE_ADDRESS, 0x80000000);
 	REG_WRITE(DMCUB_INBOX1_SIZE, inbox1->top - inbox1->base);
-	REG_WRITE(DMCUB_INBOX1_RPTR, 0);
-	REG_WRITE(DMCUB_INBOX1_WPTR, 0);
 }
 
 uint32_t dmub_dcn20_get_inbox1_rptr(struct dmub_srv *dmub)

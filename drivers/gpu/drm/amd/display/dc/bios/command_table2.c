@@ -89,6 +89,10 @@ static enum bp_result encoder_control_digx_v1_5(
 	struct bios_parser *bp,
 	struct bp_encoder_control *cntl);
 
+static enum bp_result encoder_control_fallback(
+	struct bios_parser *bp,
+	struct bp_encoder_control *cntl);
+
 static void init_dig_encoder_control(struct bios_parser *bp)
 {
 	uint32_t version =
@@ -100,7 +104,7 @@ static void init_dig_encoder_control(struct bios_parser *bp)
 		break;
 	default:
 		dm_output_to_console("Don't have dig_encoder_control for v%d\n", version);
-		bp->cmd_tbl.dig_encoder_control = NULL;
+		bp->cmd_tbl.dig_encoder_control = encoder_control_fallback;
 		break;
 	}
 }
@@ -184,6 +188,18 @@ static enum bp_result encoder_control_digx_v1_5(
 	return result;
 }
 
+static enum bp_result encoder_control_fallback(
+	struct bios_parser *bp,
+	struct bp_encoder_control *cntl)
+{
+	if (bp->base.ctx->dc->ctx->dmub_srv &&
+	    bp->base.ctx->dc->debug.dmub_command_table) {
+		return encoder_control_digx_v1_5(bp, cntl);
+	}
+
+	return BP_RESULT_FAILURE;
+}
+
 /*****************************************************************************
  ******************************************************************************
  **
@@ -193,6 +209,10 @@ static enum bp_result encoder_control_digx_v1_5(
  *****************************************************************************/
 
 static enum bp_result transmitter_control_v1_6(
+	struct bios_parser *bp,
+	struct bp_transmitter_control *cntl);
+
+static enum bp_result transmitter_control_fallback(
 	struct bios_parser *bp,
 	struct bp_transmitter_control *cntl);
 
@@ -209,7 +229,7 @@ static void init_transmitter_control(struct bios_parser *bp)
 		break;
 	default:
 		dm_output_to_console("Don't have transmitter_control for v%d\n", crev);
-		bp->cmd_tbl.transmitter_control = NULL;
+		bp->cmd_tbl.transmitter_control = transmitter_control_fallback;
 		break;
 	}
 }
@@ -273,6 +293,18 @@ static enum bp_result transmitter_control_v1_6(
 	return result;
 }
 
+static enum bp_result transmitter_control_fallback(
+	struct bios_parser *bp,
+	struct bp_transmitter_control *cntl)
+{
+	if (bp->base.ctx->dc->ctx->dmub_srv &&
+	    bp->base.ctx->dc->debug.dmub_command_table) {
+		return transmitter_control_v1_6(bp, cntl);
+	}
+
+	return BP_RESULT_FAILURE;
+}
+
 /******************************************************************************
  ******************************************************************************
  **
@@ -285,6 +317,10 @@ static enum bp_result set_pixel_clock_v7(
 	struct bios_parser *bp,
 	struct bp_pixel_clock_parameters *bp_params);
 
+static enum bp_result set_pixel_clock_fallback(
+	struct bios_parser *bp,
+	struct bp_pixel_clock_parameters *bp_params);
+
 static void init_set_pixel_clock(struct bios_parser *bp)
 {
 	switch (BIOS_CMD_TABLE_PARA_REVISION(setpixelclock)) {
@@ -294,7 +330,7 @@ static void init_set_pixel_clock(struct bios_parser *bp)
 	default:
 		dm_output_to_console("Don't have set_pixel_clock for v%d\n",
 			 BIOS_CMD_TABLE_PARA_REVISION(setpixelclock));
-		bp->cmd_tbl.set_pixel_clock = NULL;
+		bp->cmd_tbl.set_pixel_clock = set_pixel_clock_fallback;
 		break;
 	}
 }
@@ -398,6 +434,18 @@ static enum bp_result set_pixel_clock_v7(
 			result = BP_RESULT_OK;
 	}
 	return result;
+}
+
+static enum bp_result set_pixel_clock_fallback(
+	struct bios_parser *bp,
+	struct bp_pixel_clock_parameters *bp_params)
+{
+	if (bp->base.ctx->dc->ctx->dmub_srv &&
+	    bp->base.ctx->dc->debug.dmub_command_table) {
+		return set_pixel_clock_v7(bp, bp_params);
+	}
+
+	return BP_RESULT_FAILURE;
 }
 
 /******************************************************************************
@@ -632,6 +680,11 @@ static enum bp_result enable_disp_power_gating_v2_1(
 	enum controller_id crtc_id,
 	enum bp_pipe_control_action action);
 
+static enum bp_result enable_disp_power_gating_fallback(
+	struct bios_parser *bp,
+	enum controller_id crtc_id,
+	enum bp_pipe_control_action action);
+
 static void init_enable_disp_power_gating(
 	struct bios_parser *bp)
 {
@@ -643,7 +696,7 @@ static void init_enable_disp_power_gating(
 	default:
 		dm_output_to_console("Don't enable_disp_power_gating enable_crtc for v%d\n",
 			 BIOS_CMD_TABLE_PARA_REVISION(enabledisppowergating));
-		bp->cmd_tbl.enable_disp_power_gating = NULL;
+		bp->cmd_tbl.enable_disp_power_gating = enable_disp_power_gating_fallback;
 		break;
 	}
 }
@@ -657,6 +710,10 @@ static void enable_disp_power_gating_dmcub(
 	power_gating.header.type = DMUB_CMD__VBIOS;
 	power_gating.header.sub_type = DMUB_CMD__VBIOS_ENABLE_DISP_POWER_GATING;
 	power_gating.power_gating.pwr = *pwr;
+
+	/* ATOM_ENABLE is old API in DMUB */
+	if (power_gating.power_gating.pwr.enable == ATOM_ENABLE)
+		power_gating.power_gating.pwr.enable = ATOM_INIT;
 
 	dc_dmub_srv_cmd_queue(dmcub, &power_gating.header);
 	dc_dmub_srv_cmd_execute(dmcub);
@@ -693,6 +750,19 @@ static enum bp_result enable_disp_power_gating_v2_1(
 		result = BP_RESULT_OK;
 
 	return result;
+}
+
+static enum bp_result enable_disp_power_gating_fallback(
+	struct bios_parser *bp,
+	enum controller_id crtc_id,
+	enum bp_pipe_control_action action)
+{
+	if (bp->base.ctx->dc->ctx->dmub_srv &&
+	    bp->base.ctx->dc->debug.dmub_command_table) {
+		return enable_disp_power_gating_v2_1(bp, crtc_id, action);
+	}
+
+	return BP_RESULT_FAILURE;
 }
 
 /******************************************************************************

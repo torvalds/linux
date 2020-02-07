@@ -38,6 +38,7 @@
 
 #define BPP_INVALID 0
 #define BPP_BLENDED_PIPE 0xffffffff
+#define DCN20_MAX_420_IMAGE_WIDTH 4096
 
 static double adjust_ReturnBW(
 		struct display_mode_lib *mode_lib,
@@ -3894,13 +3895,19 @@ void dml20_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 						&& i == mode_lib->vba.soc.num_states)
 					mode_lib->vba.PlaneRequiredDISPCLKWithODMCombine = mode_lib->vba.PixelClock[k] / 2
 							* (1 + mode_lib->vba.DISPCLKDPPCLKDSCCLKDownSpreading / 100.0);
-				if (mode_lib->vba.ODMCapability == false || mode_lib->vba.PlaneRequiredDISPCLKWithoutODMCombine <= mode_lib->vba.MaxDispclkRoundedDownToDFSGranularity) {
-					locals->ODMCombineEnablePerState[i][k] = false;
-					mode_lib->vba.PlaneRequiredDISPCLK = mode_lib->vba.PlaneRequiredDISPCLKWithoutODMCombine;
-				} else {
-					locals->ODMCombineEnablePerState[i][k] = true;
-					mode_lib->vba.PlaneRequiredDISPCLK = mode_lib->vba.PlaneRequiredDISPCLKWithODMCombine;
+
+				locals->ODMCombineEnablePerState[i][k] = false;
+				mode_lib->vba.PlaneRequiredDISPCLK = mode_lib->vba.PlaneRequiredDISPCLKWithoutODMCombine;
+				if (mode_lib->vba.ODMCapability) {
+					if (locals->PlaneRequiredDISPCLKWithoutODMCombine > mode_lib->vba.MaxDispclkRoundedDownToDFSGranularity) {
+						locals->ODMCombineEnablePerState[i][k] = true;
+						mode_lib->vba.PlaneRequiredDISPCLK = mode_lib->vba.PlaneRequiredDISPCLKWithODMCombine;
+					} else if (locals->HActive[k] > DCN20_MAX_420_IMAGE_WIDTH && locals->OutputFormat[k] == dm_420) {
+						locals->ODMCombineEnablePerState[i][k] = true;
+						mode_lib->vba.PlaneRequiredDISPCLK = mode_lib->vba.PlaneRequiredDISPCLKWithODMCombine;
+					}
 				}
+
 				if (locals->MinDPPCLKUsingSingleDPP[k] * (1.0 + mode_lib->vba.DISPCLKDPPCLKDSCCLKDownSpreading / 100.0) <= mode_lib->vba.MaxDppclkRoundedDownToDFSGranularity
 						&& locals->SwathWidthYSingleDPP[k] <= locals->MaximumSwathWidth[k]
 						&& locals->ODMCombineEnablePerState[i][k] == dm_odm_combine_mode_disabled) {

@@ -71,4 +71,7 @@
 #define smnDF_PIE_AON_FabricIndirectConfigAccessDataLo3		0x1d098UL
 #define smnDF_PIE_AON_FabricIndirectConfigAccessDataHi3		0x1d09cUL
 
+#define smnDF_CS_UMC_AON0_DramBaseAddress0 	0x1c110UL
+#define smnDF_CS_UMC_AON0_DramLimitAddress0 	0x1c114UL
+
 #endif
