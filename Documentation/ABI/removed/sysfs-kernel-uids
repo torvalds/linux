@@ -1,5 +1,5 @@
 What:		/sys/kernel/uids/<uid>/cpu_shares
-Date:		December 2007
+Date:		December 2007, finally removed in kernel v2.6.34-rc1
 Contact:	Dhaval Giani <dhaval@linux.vnet.ibm.com>
 		Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>
 Description:
