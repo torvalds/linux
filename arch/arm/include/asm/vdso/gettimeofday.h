@@ -106,6 +106,12 @@ static __always_inline int clock_getres32_fallback(
 	return ret;
 }
 
+static inline bool arm_vdso_hres_capable(void)
+{
+	return IS_ENABLED(CONFIG_ARM_ARCH_TIMER);
+}
+#define __arch_vdso_hres_capable arm_vdso_hres_capable
+
 static __always_inline u64 __arch_get_hw_counter(int clock_mode)
 {
 #ifdef CONFIG_ARM_ARCH_TIMER
