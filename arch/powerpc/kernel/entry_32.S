@@ -214,7 +214,7 @@ transfer_to_handler_cont:
 	 * To speed up the syscall path where interrupts stay on, let's check
 	 * first if we are changing the MSR value at all.
 	 */
-	tophys(r12, r1)
+	tophys_novmstack r12, r1
 	lwz	r12,_MSR(r12)
 	andi.	r12,r12,MSR_EE
 	bne	1f
