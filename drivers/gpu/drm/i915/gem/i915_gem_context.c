@@ -419,7 +419,7 @@ static struct intel_engine_cs *__active_engine(struct i915_request *rq)
 	}
 
 	engine = NULL;
-	if (i915_request_is_active(rq) && !rq->fence.error)
+	if (i915_request_is_active(rq) && rq->fence.error != -EIO)
 		engine = rq->engine;
 
 	spin_unlock_irq(&locked->active.lock);

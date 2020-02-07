@@ -1182,7 +1182,7 @@ static void intel_gt_reset_global(struct intel_gt *gt,
 
 	kobject_uevent_env(kobj, KOBJ_CHANGE, error_event);
 
-	drm_dbg(&gt->i915->drm, "resetting chip\n");
+	drm_dbg(&gt->i915->drm, "resetting chip, engines=%x\n", engine_mask);
 	kobject_uevent_env(kobj, KOBJ_CHANGE, reset_event);
 
 	/* Use a watchdog to ensure that our reset completes */
