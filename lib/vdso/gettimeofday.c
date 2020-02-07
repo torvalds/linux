@@ -65,16 +65,13 @@ static int do_hres_timens(const struct vdso_data *vdns, clockid_t clk,
 
 	do {
 		seq = vdso_read_begin(vd);
-		if (IS_ENABLED(CONFIG_GENERIC_VDSO_CLOCK_MODE) &&
-		    vd->clock_mode == VDSO_CLOCKMODE_NONE)
+
+		if (unlikely(vd->clock_mode == VDSO_CLOCKMODE_NONE))
 			return -1;
+
 		cycles = __arch_get_hw_counter(vd->clock_mode);
 		ns = vdso_ts->nsec;
 		last = vd->cycle_last;
-		if (!IS_ENABLED(CONFIG_GENERIC_VDSO_CLOCK_MODE) &&
-		    unlikely((s64)cycles < 0))
-			return -1;
-
 		ns += vdso_calc_delta(cycles, last, vd->mask, vd->mult);
 		ns >>= vd->shift;
 		sec = vdso_ts->sec;
@@ -137,16 +134,12 @@ static __always_inline int do_hres(const struct vdso_data *vd, clockid_t clk,
 		}
 		smp_rmb();
 
-		if (IS_ENABLED(CONFIG_GENERIC_VDSO_CLOCK_MODE) &&
-		    vd->clock_mode == VDSO_CLOCKMODE_NONE)
+		if (unlikely(vd->clock_mode == VDSO_CLOCKMODE_NONE))
 			return -1;
+
 		cycles = __arch_get_hw_counter(vd->clock_mode);
 		ns = vdso_ts->nsec;
 		last = vd->cycle_last;
-		if (!IS_ENABLED(CONFIG_GENERIC_VDSO_CLOCK_MODE) &&
-		    unlikely((s64)cycles < 0))
-			return -1;
-
 		ns += vdso_calc_delta(cycles, last, vd->mask, vd->mult);
 		ns >>= vd->shift;
 		sec = vdso_ts->sec;

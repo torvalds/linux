@@ -77,11 +77,7 @@ void update_vsyscall(struct timekeeper *tk)
 	/* copy vsyscall data */
 	vdso_write_begin(vdata);
 
-#ifdef CONFIG_GENERIC_VDSO_CLOCK_MODE
 	clock_mode = tk->tkr_mono.clock->vdso_clock_mode;
-#else
-	clock_mode = __arch_get_clock_mode(tk);
-#endif
 	vdata[CS_HRES_COARSE].clock_mode	= clock_mode;
 	vdata[CS_RAW].clock_mode		= clock_mode;
 

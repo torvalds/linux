@@ -18,13 +18,6 @@ static __always_inline bool __arch_update_vdso_data(void)
 }
 #endif /* __arch_update_vdso_data */
 
-#ifndef __arch_get_clock_mode
-static __always_inline int __arch_get_clock_mode(struct timekeeper *tk)
-{
-	return 0;
-}
-#endif /* __arch_get_clock_mode */
-
 #ifndef __arch_update_vsyscall
 static __always_inline void __arch_update_vsyscall(struct vdso_data *vdata,
 						   struct timekeeper *tk)
