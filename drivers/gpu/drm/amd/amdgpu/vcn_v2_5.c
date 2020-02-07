@@ -1407,7 +1407,7 @@ static int vcn_v2_5_pause_dpg_mode(struct amdgpu_device *adev,
 					   RREG32_SOC15(UVD, inst_idx, mmUVD_SCRATCH2) & 0x7FFFFFFF);
 
 				SOC15_WAIT_ON_RREG(UVD, inst_idx, mmUVD_POWER_STATUS,
-					   0x0, UVD_POWER_STATUS__UVD_POWER_STATUS_MASK, ret_code);
+					   UVD_PGFSM_CONFIG__UVDM_UVDU_PWR_ON, UVD_POWER_STATUS__UVD_POWER_STATUS_MASK, ret_code);
 			}
 		} else {
 			/* unpause dpg, no need to wait */
