@@ -66,19 +66,17 @@ static int errno;
 
 static inline int __simc(int a, int b, int c, int d)
 {
-	int ret;
 	register int a1 asm("a2") = a;
 	register int b1 asm("a3") = b;
 	register int c1 asm("a4") = c;
 	register int d1 asm("a5") = d;
 	__asm__ __volatile__ (
 			"simcall\n"
-			"mov %0, a2\n"
-			"mov %1, a3\n"
-			: "=a" (ret), "=a" (errno), "+r"(a1), "+r"(b1)
+			: "+r"(a1), "+r"(b1)
 			: "r"(c1), "r"(d1)
 			: "memory");
-	return ret;
+	errno = b1;
+	return a1;
 }
 
 static inline int simc_exit(int exit_code)
