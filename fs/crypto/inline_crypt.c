@@ -50,6 +50,7 @@ void fscrypt_select_encryption_impl(struct fscrypt_info *ci)
 int fscrypt_prepare_inline_crypt_key(struct fscrypt_prepared_key *prep_key,
 				     const u8 *raw_key,
 				     unsigned int raw_key_size,
+				     bool is_hw_wrapped,
 				     const struct fscrypt_info *ci)
 {
 	const struct inode *inode = ci->ci_inode;
@@ -80,7 +81,7 @@ int fscrypt_prepare_inline_crypt_key(struct fscrypt_prepared_key *prep_key,
 		     BLK_CRYPTO_MAX_WRAPPED_KEY_SIZE);
 
 	err = blk_crypto_init_key(&blk_key->base, raw_key, raw_key_size,
-				  crypto_mode, sb->s_blocksize);
+				  is_hw_wrapped, crypto_mode, sb->s_blocksize);
 	if (err) {
 		fscrypt_err(inode, "error %d initializing blk-crypto key", err);
 		goto fail;

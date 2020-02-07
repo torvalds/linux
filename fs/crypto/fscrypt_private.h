@@ -319,6 +319,7 @@ extern int fscrypt_prepare_inline_crypt_key(
 					struct fscrypt_prepared_key *prep_key,
 					const u8 *raw_key,
 					unsigned int raw_key_size,
+					bool is_hw_wrapped,
 					const struct fscrypt_info *ci);
 
 extern void fscrypt_destroy_inline_crypt_key(
@@ -363,6 +364,7 @@ static inline bool fscrypt_using_inline_encryption(
 static inline int
 fscrypt_prepare_inline_crypt_key(struct fscrypt_prepared_key *prep_key,
 				 const u8 *raw_key, unsigned int raw_key_size,
+				 bool is_hw_wrapped,
 				 const struct fscrypt_info *ci)
 {
 	WARN_ON(1);
@@ -557,6 +559,7 @@ extern struct fscrypt_mode fscrypt_modes[];
 
 extern int fscrypt_prepare_key(struct fscrypt_prepared_key *prep_key,
 			       const u8 *raw_key, unsigned int raw_key_size,
+			       bool is_hw_wrapped,
 			       const struct fscrypt_info *ci);
 
 extern void fscrypt_destroy_prepared_key(struct fscrypt_prepared_key *prep_key);

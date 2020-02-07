@@ -571,6 +571,12 @@ int blk_crypto_fallback_submit_bio(struct bio **bio_ptr)
 	struct bio_crypt_ctx *bc = bio->bi_crypt_context;
 	struct bio_fallback_crypt_ctx *f_ctx;
 
+	if (bc->bc_key->is_hw_wrapped) {
+		pr_warn_once("HW wrapped key cannot be used with fallback.\n");
+		bio->bi_status = BLK_STS_NOTSUPP;
+		return -EOPNOTSUPP;
+	}
+
 	if (!tfms_inited[bc->bc_key->crypto_mode]) {
 		bio->bi_status = BLK_STS_IOERR;
 		return -EIO;

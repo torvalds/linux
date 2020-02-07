@@ -175,7 +175,9 @@ bool blk_crypto_endio(struct bio *bio)
  * @raw_key_size: Size of raw key.  Must be at least the required size for the
  *                chosen @crypto_mode; see blk_crypto_modes[].  (It's allowed
  *                to be longer than the mode's actual key size, in order to
- *                support inline encryption hardware that accepts wrapped keys.)
+ *                support inline encryption hardware that accepts wrapped keys.
+ *                @is_hw_wrapped has to be set for such keys)
+ * @is_hw_wrapped: Denotes @raw_key is wrapped.
  * @crypto_mode: identifier for the encryption algorithm to use
  * @data_unit_size: the data unit size to use for en/decryption
  *
@@ -184,6 +186,7 @@ bool blk_crypto_endio(struct bio *bio)
  */
 int blk_crypto_init_key(struct blk_crypto_key *blk_key,
 			const u8 *raw_key, unsigned int raw_key_size,
+			bool is_hw_wrapped,
 			enum blk_crypto_mode_num crypto_mode,
 			unsigned int data_unit_size)
 {
@@ -198,9 +201,14 @@ int blk_crypto_init_key(struct blk_crypto_key *blk_key,
 	BUILD_BUG_ON(BLK_CRYPTO_MAX_WRAPPED_KEY_SIZE < BLK_CRYPTO_MAX_KEY_SIZE);
 
 	mode = &blk_crypto_modes[crypto_mode];
-	if (raw_key_size < mode->keysize ||
-	    raw_key_size > BLK_CRYPTO_MAX_WRAPPED_KEY_SIZE)
-		return -EINVAL;
+	if (is_hw_wrapped) {
+		if (raw_key_size < mode->keysize ||
+		    raw_key_size > BLK_CRYPTO_MAX_WRAPPED_KEY_SIZE)
+			return -EINVAL;
+	} else {
+		if (raw_key_size != mode->keysize)
+			return -EINVAL;
+	}
 
 	if (!is_power_of_2(data_unit_size))
 		return -EINVAL;
@@ -209,6 +217,7 @@ int blk_crypto_init_key(struct blk_crypto_key *blk_key,
 	blk_key->data_unit_size = data_unit_size;
 	blk_key->data_unit_size_bits = ilog2(data_unit_size);
 	blk_key->size = raw_key_size;
+	blk_key->is_hw_wrapped = is_hw_wrapped;
 	memcpy(blk_key->raw, raw_key, raw_key_size);
 
 	/*
