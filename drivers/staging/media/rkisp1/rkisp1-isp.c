@@ -504,7 +504,7 @@ static int rkisp1_config_cif(struct rkisp1_device *rkisp1)
 	return 0;
 }
 
-static int rkisp1_isp_stop(struct rkisp1_device *rkisp1)
+static void rkisp1_isp_stop(struct rkisp1_device *rkisp1)
 {
 	u32 val;
 
@@ -540,8 +540,6 @@ static int rkisp1_isp_stop(struct rkisp1_device *rkisp1)
 		     RKISP1_CIF_IRCL_MIPI_SW_RST | RKISP1_CIF_IRCL_ISP_SW_RST,
 		     RKISP1_CIF_IRCL);
 	rkisp1_write(rkisp1, 0x0, RKISP1_CIF_IRCL);
-
-	return 0;
 }
 
 static void rkisp1_config_clk(struct rkisp1_device *rkisp1)
@@ -555,7 +553,7 @@ static void rkisp1_config_clk(struct rkisp1_device *rkisp1)
 	rkisp1_write(rkisp1, val, RKISP1_CIF_ICCL);
 }
 
-static int rkisp1_isp_start(struct rkisp1_device *rkisp1)
+static void rkisp1_isp_start(struct rkisp1_device *rkisp1)
 {
 	struct rkisp1_sensor_async *sensor = rkisp1->active_sensor;
 	u32 val;
@@ -580,8 +578,6 @@ static int rkisp1_isp_start(struct rkisp1_device *rkisp1)
 	 * the MIPI interface and before starting the sensor output.
 	 */
 	usleep_range(1000, 1200);
-
-	return 0;
 }
 
 /* ----------------------------------------------------------------------------
@@ -940,9 +936,7 @@ static int rkisp1_isp_s_stream(struct v4l2_subdev *sd, int enable)
 	int ret = 0;
 
 	if (!enable) {
-		ret = rkisp1_isp_stop(rkisp1);
-		if (ret)
-			return ret;
+		rkisp1_isp_stop(rkisp1);
 		rkisp1_mipi_csi2_stop(rkisp1->active_sensor);
 		return 0;
 	}
@@ -965,9 +959,7 @@ static int rkisp1_isp_s_stream(struct v4l2_subdev *sd, int enable)
 	if (ret)
 		return ret;
 
-	ret = rkisp1_isp_start(rkisp1);
-	if (ret)
-		rkisp1_mipi_csi2_stop(rkisp1->active_sensor);
+	rkisp1_isp_start(rkisp1);
 
 	return ret;
 }
