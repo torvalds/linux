@@ -7,6 +7,7 @@
 #include <linux/time.h>
 #include <linux/kernel.h>
 #include <linux/hrtimer_defs.h>
+#include <linux/clocksource.h>
 #include <vdso/datapage.h>
 #include <vdso/helpers.h>
 
@@ -64,10 +65,14 @@ static int do_hres_timens(const struct vdso_data *vdns, clockid_t clk,
 
 	do {
 		seq = vdso_read_begin(vd);
+		if (IS_ENABLED(CONFIG_GENERIC_VDSO_CLOCK_MODE) &&
+		    vd->clock_mode == VDSO_CLOCKMODE_NONE)
+			return -1;
 		cycles = __arch_get_hw_counter(vd->clock_mode);
 		ns = vdso_ts->nsec;
 		last = vd->cycle_last;
-		if (unlikely((s64)cycles < 0))
+		if (!IS_ENABLED(CONFIG_GENERIC_VDSO_CLOCK_MODE) &&
+		    unlikely((s64)cycles < 0))
 			return -1;
 
 		ns += vdso_calc_delta(cycles, last, vd->mask, vd->mult);
@@ -132,10 +137,14 @@ static __always_inline int do_hres(const struct vdso_data *vd, clockid_t clk,
 		}
 		smp_rmb();
 
+		if (IS_ENABLED(CONFIG_GENERIC_VDSO_CLOCK_MODE) &&
+		    vd->clock_mode == VDSO_CLOCKMODE_NONE)
+			return -1;
 		cycles = __arch_get_hw_counter(vd->clock_mode);
 		ns = vdso_ts->nsec;
 		last = vd->cycle_last;
-		if (unlikely((s64)cycles < 0))
+		if (!IS_ENABLED(CONFIG_GENERIC_VDSO_CLOCK_MODE) &&
+		    unlikely((s64)cycles < 0))
 			return -1;
 
 		ns += vdso_calc_delta(cycles, last, vd->mask, vd->mult);
