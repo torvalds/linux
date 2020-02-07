@@ -450,17 +450,12 @@ struct io_async_rw {
 	ssize_t				size;
 };
 
-struct io_async_open {
-	struct filename			*filename;
-};
-
 struct io_async_ctx {
 	union {
 		struct io_async_rw	rw;
 		struct io_async_msghdr	msg;
 		struct io_async_connect	connect;
 		struct io_timeout_data	timeout;
-		struct io_async_open	open;
 	};
 };
 
