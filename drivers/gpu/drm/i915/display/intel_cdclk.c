@@ -1295,6 +1295,18 @@ static u8 ehl_calc_voltage_level(int cdclk)
 		return 0;
 }
 
+static u8 tgl_calc_voltage_level(int cdclk)
+{
+	if (cdclk > 556800)
+		return 3;
+	else if (cdclk > 326400)
+		return 2;
+	else if (cdclk > 312000)
+		return 1;
+	else
+		return 0;
+}
+
 static void cnl_readout_refclk(struct drm_i915_private *dev_priv,
 			       struct intel_cdclk_config *cdclk_config)
 {
@@ -2711,7 +2723,12 @@ void intel_update_rawclk(struct drm_i915_private *dev_priv)
  */
 void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 {
-	if (IS_ELKHARTLAKE(dev_priv)) {
+	if (INTEL_GEN(dev_priv) >= 12) {
+		dev_priv->display.set_cdclk = bxt_set_cdclk;
+		dev_priv->display.modeset_calc_cdclk = bxt_modeset_calc_cdclk;
+		dev_priv->display.calc_voltage_level = tgl_calc_voltage_level;
+		dev_priv->cdclk.table = icl_cdclk_table;
+	} else if (IS_ELKHARTLAKE(dev_priv)) {
 		dev_priv->display.set_cdclk = bxt_set_cdclk;
 		dev_priv->display.modeset_calc_cdclk = bxt_modeset_calc_cdclk;
 		dev_priv->display.calc_voltage_level = ehl_calc_voltage_level;
