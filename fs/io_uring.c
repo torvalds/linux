@@ -478,6 +478,7 @@ enum {
 	REQ_F_MUST_PUNT_BIT,
 	REQ_F_TIMEOUT_NOSEQ_BIT,
 	REQ_F_COMP_LOCKED_BIT,
+	REQ_F_NEED_CLEANUP_BIT,
 };
 
 enum {
@@ -516,6 +517,8 @@ enum {
 	REQ_F_TIMEOUT_NOSEQ	= BIT(REQ_F_TIMEOUT_NOSEQ_BIT),
 	/* completion under lock */
 	REQ_F_COMP_LOCKED	= BIT(REQ_F_COMP_LOCKED_BIT),
+	/* needs cleanup */
+	REQ_F_NEED_CLEANUP	= BIT(REQ_F_NEED_CLEANUP_BIT),
 };
 
 /*
@@ -748,6 +751,7 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 				 unsigned nr_args);
 static int io_grab_files(struct io_kiocb *req);
 static void io_ring_file_ref_flush(struct fixed_file_data *data);
+static void io_cleanup_req(struct io_kiocb *req);
 
 static struct kmem_cache *req_cachep;
 
@@ -1234,6 +1238,9 @@ static void __io_req_aux_free(struct io_kiocb *req)
 static void __io_free_req(struct io_kiocb *req)
 {
 	__io_req_aux_free(req);
+
+	if (req->flags & REQ_F_NEED_CLEANUP)
+		io_cleanup_req(req);
 
 	if (req->flags & REQ_F_INFLIGHT) {
 		struct io_ring_ctx *ctx = req->ctx;
@@ -2128,6 +2135,8 @@ static void io_req_map_rw(struct io_kiocb *req, ssize_t io_size,
 		req->io->rw.iov = req->io->rw.fast_iov;
 		memcpy(req->io->rw.iov, fast_iov,
 			sizeof(struct iovec) * iter->nr_segs);
+	} else {
+		req->flags |= REQ_F_NEED_CLEANUP;
 	}
 }
 
@@ -2238,6 +2247,7 @@ copy_iov:
 	}
 out_free:
 	kfree(iovec);
+	req->flags &= ~REQ_F_NEED_CLEANUP;
 	return ret;
 }
 
@@ -2342,6 +2352,7 @@ copy_iov:
 		}
 	}
 out_free:
+	req->flags &= ~REQ_F_NEED_CLEANUP;
 	kfree(iovec);
 	return ret;
 }
@@ -2948,6 +2959,7 @@ static int io_sendmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 #if defined(CONFIG_NET)
 	struct io_sr_msg *sr = &req->sr_msg;
 	struct io_async_ctx *io = req->io;
+	int ret;
 
 	sr->msg_flags = READ_ONCE(sqe->msg_flags);
 	sr->msg = u64_to_user_ptr(READ_ONCE(sqe->addr));
@@ -2957,8 +2969,11 @@ static int io_sendmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		return 0;
 
 	io->msg.iov = io->msg.fast_iov;
-	return sendmsg_copy_msghdr(&io->msg.msg, sr->msg, sr->msg_flags,
+	ret = sendmsg_copy_msghdr(&io->msg.msg, sr->msg, sr->msg_flags,
 					&io->msg.iov);
+	if (!ret)
+		req->flags |= REQ_F_NEED_CLEANUP;
+	return ret;
 #else
 	return -EOPNOTSUPP;
 #endif
@@ -3016,6 +3031,7 @@ static int io_sendmsg(struct io_kiocb *req, struct io_kiocb **nxt,
 					kfree(kmsg->iov);
 				return -ENOMEM;
 			}
+			req->flags |= REQ_F_NEED_CLEANUP;
 			memcpy(&req->io->msg, &io.msg, sizeof(io.msg));
 			return -EAGAIN;
 		}
@@ -3025,6 +3041,7 @@ static int io_sendmsg(struct io_kiocb *req, struct io_kiocb **nxt,
 
 	if (kmsg && kmsg->iov != kmsg->fast_iov)
 		kfree(kmsg->iov);
+	req->flags &= ~REQ_F_NEED_CLEANUP;
 	io_cqring_add_event(req, ret);
 	if (ret < 0)
 		req_set_fail_links(req);
@@ -3092,6 +3109,7 @@ static int io_recvmsg_prep(struct io_kiocb *req,
 #if defined(CONFIG_NET)
 	struct io_sr_msg *sr = &req->sr_msg;
 	struct io_async_ctx *io = req->io;
+	int ret;
 
 	sr->msg_flags = READ_ONCE(sqe->msg_flags);
 	sr->msg = u64_to_user_ptr(READ_ONCE(sqe->addr));
@@ -3101,8 +3119,11 @@ static int io_recvmsg_prep(struct io_kiocb *req,
 		return 0;
 
 	io->msg.iov = io->msg.fast_iov;
-	return recvmsg_copy_msghdr(&io->msg.msg, sr->msg, sr->msg_flags,
+	ret = recvmsg_copy_msghdr(&io->msg.msg, sr->msg, sr->msg_flags,
 					&io->msg.uaddr, &io->msg.iov);
+	if (!ret)
+		req->flags |= REQ_F_NEED_CLEANUP;
+	return ret;
 #else
 	return -EOPNOTSUPP;
 #endif
@@ -3163,6 +3184,7 @@ static int io_recvmsg(struct io_kiocb *req, struct io_kiocb **nxt,
 				return -ENOMEM;
 			}
 			memcpy(&req->io->msg, &io.msg, sizeof(io.msg));
+			req->flags |= REQ_F_NEED_CLEANUP;
 			return -EAGAIN;
 		}
 		if (ret == -ERESTARTSYS)
@@ -3171,6 +3193,7 @@ static int io_recvmsg(struct io_kiocb *req, struct io_kiocb **nxt,
 
 	if (kmsg && kmsg->iov != kmsg->fast_iov)
 		kfree(kmsg->iov);
+	req->flags &= ~REQ_F_NEED_CLEANUP;
 	io_cqring_add_event(req, ret);
 	if (ret < 0)
 		req_set_fail_links(req);
@@ -4179,6 +4202,30 @@ static int io_req_defer(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	list_add_tail(&req->list, &ctx->defer_list);
 	spin_unlock_irq(&ctx->completion_lock);
 	return -EIOCBQUEUED;
+}
+
+static void io_cleanup_req(struct io_kiocb *req)
+{
+	struct io_async_ctx *io = req->io;
+
+	switch (req->opcode) {
+	case IORING_OP_READV:
+	case IORING_OP_READ_FIXED:
+	case IORING_OP_READ:
+	case IORING_OP_WRITEV:
+	case IORING_OP_WRITE_FIXED:
+	case IORING_OP_WRITE:
+		if (io->rw.iov != io->rw.fast_iov)
+			kfree(io->rw.iov);
+		break;
+	case IORING_OP_SENDMSG:
+	case IORING_OP_RECVMSG:
+		if (io->msg.iov != io->msg.fast_iov)
+			kfree(io->msg.iov);
+		break;
+	}
+
+	req->flags &= ~REQ_F_NEED_CLEANUP;
 }
 
 static int io_issue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
