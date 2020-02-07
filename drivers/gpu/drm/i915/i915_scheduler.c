@@ -433,7 +433,7 @@ bool __i915_sched_node_add_dependency(struct i915_sched_node *node,
 			node->flags |= I915_SCHED_HAS_SEMAPHORE_CHAIN;
 
 		/* All set, now publish. Beware the lockless walkers. */
-		list_add(&dep->signal_link, &node->signalers_list);
+		list_add_rcu(&dep->signal_link, &node->signalers_list);
 		list_add_rcu(&dep->wait_link, &signal->waiters_list);
 
 		/*
