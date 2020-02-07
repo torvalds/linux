@@ -663,6 +663,8 @@ const char * const default_supplies[] = { "mali" };
 static const struct panfrost_compatible default_data = {
 	.num_supplies = ARRAY_SIZE(default_supplies),
 	.supply_names = default_supplies,
+	.num_pm_domains = 1, /* optional */
+	.pm_domain_names = NULL,
 };
 
 static const struct of_device_id dt_match[] = {
