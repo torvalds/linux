@@ -901,6 +901,31 @@ static void r4k_dma_cache_wback_inv(unsigned long addr, unsigned long size)
 	__sync();
 }
 
+static void prefetch_cache_inv(unsigned long addr, unsigned long size)
+{
+	unsigned int linesz = cpu_scache_line_size();
+	unsigned long addr0 = addr, addr1;
+
+	addr0 &= ~(linesz - 1);
+	addr1 = (addr0 + size - 1) & ~(linesz - 1);
+
+	protected_writeback_scache_line(addr0);
+	if (likely(addr1 != addr0))
+		protected_writeback_scache_line(addr1);
+	else
+		return;
+
+	addr0 += linesz;
+	if (likely(addr1 != addr0))
+		protected_writeback_scache_line(addr0);
+	else
+		return;
+
+	addr1 -= linesz;
+	if (likely(addr1 > addr0))
+		protected_writeback_scache_line(addr0);
+}
+
 static void r4k_dma_cache_inv(unsigned long addr, unsigned long size)
 {
 	/* Catch bad driver code */
@@ -908,6 +933,10 @@ static void r4k_dma_cache_inv(unsigned long addr, unsigned long size)
 		return;
 
 	preempt_disable();
+
+	if (current_cpu_type() == CPU_BMIPS5000)
+		prefetch_cache_inv(addr, size);
+
 	if (cpu_has_inclusive_pcaches) {
 		if (size >= scache_size) {
 			if (current_cpu_type() != CPU_LOONGSON64)
