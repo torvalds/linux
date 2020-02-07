@@ -573,6 +573,7 @@ BKEY_VAL_ACCESSORS(stripe);
 BKEY_VAL_ACCESSORS(reflink_p);
 BKEY_VAL_ACCESSORS(reflink_v);
 BKEY_VAL_ACCESSORS(inline_data);
+BKEY_VAL_ACCESSORS(btree_ptr_v2);
 
 /* byte order helpers */
 

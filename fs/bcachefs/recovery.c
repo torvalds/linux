@@ -1010,6 +1010,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 		c->disk_sb.sb->version = le16_to_cpu(bcachefs_metadata_version_current);
 		c->disk_sb.sb->features[0] |= 1ULL << BCH_FEATURE_new_siphash;
 		c->disk_sb.sb->features[0] |= 1ULL << BCH_FEATURE_new_extent_overwrite;
+		c->disk_sb.sb->features[0] |= 1ULL << BCH_FEATURE_btree_ptr_v2;
 		write_sb = true;
 	}
 

@@ -112,6 +112,7 @@ void bch2_bkey_to_replicas(struct bch_replicas_entry *e,
 
 	switch (k.k->type) {
 	case KEY_TYPE_btree_ptr:
+	case KEY_TYPE_btree_ptr_v2:
 		e->data_type = BCH_DATA_BTREE;
 		extent_to_replicas(k, e);
 		break;

@@ -734,6 +734,15 @@ static int validate_bset(struct bch_fs *c, struct btree *b,
 			bch2_bpos_swab(&b->data->max_key);
 		}
 
+		if (b->key.k.type == KEY_TYPE_btree_ptr_v2) {
+			struct bch_btree_ptr_v2 *bp =
+				&bkey_i_to_btree_ptr_v2(&b->key)->v;
+
+			btree_err_on(bkey_cmp(b->data->min_key, bp->min_key),
+				     BTREE_ERR_MUST_RETRY, c, b, NULL,
+				     "incorrect min_key");
+		}
+
 		btree_err_on(bkey_cmp(b->data->max_key, b->key.k.p),
 			     BTREE_ERR_MUST_RETRY, c, b, i,
 			     "incorrect max key");
@@ -897,6 +906,15 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct btree *b, bool have_retry
 		     BTREE_ERR_MUST_RETRY, c, b, NULL,
 		     "bad btree header");
 
+	if (b->key.k.type == KEY_TYPE_btree_ptr_v2) {
+		struct bch_btree_ptr_v2 *bp =
+			&bkey_i_to_btree_ptr_v2(&b->key)->v;
+
+		btree_err_on(b->data->keys.seq != bp->seq,
+			     BTREE_ERR_MUST_RETRY, c, b, NULL,
+			     "got wrong btree node");
+	}
+
 	while (b->written < c->opts.btree_node_size) {
 		unsigned sectors, whiteout_u64s = 0;
 		struct nonce nonce;
@@ -1004,15 +1022,15 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct btree *b, bool have_retry
 	i = &b->data->keys;
 	for (k = i->start; k != vstruct_last(i);) {
 		struct bkey tmp;
-		struct bkey_s_c u = bkey_disassemble(b, k, &tmp);
-		const char *invalid = bch2_bkey_val_invalid(c, u);
+		struct bkey_s u = __bkey_disassemble(b, k, &tmp);
+		const char *invalid = bch2_bkey_val_invalid(c, u.s_c);
 
 		if (invalid ||
 		    (inject_invalid_keys(c) &&
 		     !bversion_cmp(u.k->version, MAX_VERSION))) {
 			char buf[160];
 
-			bch2_bkey_val_to_text(&PBUF(buf), c, u);
+			bch2_bkey_val_to_text(&PBUF(buf), c, u.s_c);
 			btree_err(BTREE_ERR_FIXABLE, c, b, i,
 				  "invalid bkey %s: %s", buf, invalid);
 
@@ -1023,6 +1041,12 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct btree *b, bool have_retry
 					  (u64 *) vstruct_end(i) - (u64 *) k);
 			set_btree_bset_end(b, b->set);
 			continue;
+		}
+
+		if (u.k->type == KEY_TYPE_btree_ptr_v2) {
+			struct bkey_s_btree_ptr_v2 bp = bkey_s_to_btree_ptr_v2(u);
+
+			bp.v->mem_ptr = 0;
 		}
 
 		k = bkey_next_skip_noops(k, vstruct_last(i));

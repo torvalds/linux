@@ -225,6 +225,13 @@ static inline struct bkey_ptrs_c bch2_bkey_ptrs_c(struct bkey_s_c k)
 			bkey_val_end(r),
 		};
 	}
+	case KEY_TYPE_btree_ptr_v2: {
+		struct bkey_s_c_btree_ptr_v2 e = bkey_s_c_to_btree_ptr_v2(k);
+		return (struct bkey_ptrs_c) {
+			to_entry(&e.v->start[0]),
+			to_entry(extent_entry_last(e))
+		};
+	}
 	default:
 		return (struct bkey_ptrs_c) { NULL, NULL };
 	}
@@ -372,6 +379,13 @@ void bch2_btree_ptr_to_text(struct printbuf *, struct bch_fs *,
 	.swab		= bch2_ptr_swab,			\
 }
 
+#define bch2_bkey_ops_btree_ptr_v2 (struct bkey_ops) {		\
+	.key_invalid	= bch2_btree_ptr_invalid,		\
+	.key_debugcheck	= bch2_btree_ptr_debugcheck,		\
+	.val_to_text	= bch2_btree_ptr_to_text,		\
+	.swab		= bch2_ptr_swab,			\
+}
+
 /* KEY_TYPE_extent: */
 
 const char *bch2_extent_invalid(const struct bch_fs *, struct bkey_s_c);
@@ -416,6 +430,7 @@ static inline bool bkey_extent_is_direct_data(const struct bkey *k)
 {
 	switch (k->type) {
 	case KEY_TYPE_btree_ptr:
+	case KEY_TYPE_btree_ptr_v2:
 	case KEY_TYPE_extent:
 	case KEY_TYPE_reflink_v:
 		return true;

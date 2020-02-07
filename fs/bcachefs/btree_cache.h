@@ -40,6 +40,8 @@ static inline u64 btree_ptr_hash_val(const struct bkey_i *k)
 	switch (k->k.type) {
 	case KEY_TYPE_btree_ptr:
 		return *((u64 *) bkey_i_to_btree_ptr_c(k)->v.start);
+	case KEY_TYPE_btree_ptr_v2:
+		return bkey_i_to_btree_ptr_v2_c(k)->v.seq;
 	default:
 		return 0;
 	}

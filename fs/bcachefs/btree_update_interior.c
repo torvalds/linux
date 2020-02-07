@@ -332,7 +332,11 @@ retry:
 		goto retry;
 	}
 
-	bkey_btree_ptr_init(&tmp.k);
+	if (c->sb.features & (1ULL << BCH_FEATURE_btree_ptr_v2))
+		bkey_btree_ptr_v2_init(&tmp.k);
+	else
+		bkey_btree_ptr_init(&tmp.k);
+
 	bch2_alloc_sectors_append_ptrs(c, wp, &tmp.k, c->opts.btree_node_size);
 
 	bch2_open_bucket_get(c, wp, &ob);
@@ -354,13 +358,12 @@ static struct btree *bch2_btree_node_alloc(struct btree_update *as, unsigned lev
 {
 	struct bch_fs *c = as->c;
 	struct btree *b;
+	int ret;
 
 	BUG_ON(level >= BTREE_MAX_DEPTH);
 	BUG_ON(!as->reserve->nr);
 
 	b = as->reserve->b[--as->reserve->nr];
-
-	BUG_ON(bch2_btree_node_hash_insert(&c->btree_cache, b, level, as->btree_id));
 
 	set_btree_node_accessed(b);
 	set_btree_node_dirty(b);
@@ -372,7 +375,16 @@ static struct btree *bch2_btree_node_alloc(struct btree_update *as, unsigned lev
 	b->data->flags = 0;
 	SET_BTREE_NODE_ID(b->data, as->btree_id);
 	SET_BTREE_NODE_LEVEL(b->data, level);
-	b->data->ptr = bkey_i_to_btree_ptr(&b->key)->v.start[0];
+	b->data->ptr = bch2_bkey_ptrs_c(bkey_i_to_s_c(&b->key)).start->ptr;
+
+	if (b->key.k.type == KEY_TYPE_btree_ptr_v2) {
+		struct bkey_i_btree_ptr_v2 *bp = bkey_i_to_btree_ptr_v2(&b->key);
+
+		bp->v.mem_ptr		= 0;
+		bp->v.seq		= b->data->keys.seq;
+		bp->v.sectors_written	= 0;
+		bp->v.sectors		= cpu_to_le16(c->opts.btree_node_size);
+	}
 
 	if (c->sb.features & (1ULL << BCH_FEATURE_new_extent_overwrite))
 		SET_BTREE_NODE_NEW_EXTENT_OVERWRITE(b->data, true);
@@ -385,8 +397,24 @@ static struct btree *bch2_btree_node_alloc(struct btree_update *as, unsigned lev
 
 	btree_node_will_make_reachable(as, b);
 
+	ret = bch2_btree_node_hash_insert(&c->btree_cache, b, level, as->btree_id);
+	BUG_ON(ret);
+
 	trace_btree_node_alloc(c, b);
 	return b;
+}
+
+static void btree_set_min(struct btree *b, struct bpos pos)
+{
+	if (b->key.k.type == KEY_TYPE_btree_ptr_v2)
+		bkey_i_to_btree_ptr_v2(&b->key)->v.min_key = pos;
+	b->data->min_key = pos;
+}
+
+static void btree_set_max(struct btree *b, struct bpos pos)
+{
+	b->key.k.p = pos;
+	b->data->max_key = pos;
 }
 
 struct btree *__bch2_btree_node_alloc_replacement(struct btree_update *as,
@@ -397,11 +425,12 @@ struct btree *__bch2_btree_node_alloc_replacement(struct btree_update *as,
 
 	n = bch2_btree_node_alloc(as, b->c.level);
 
-	n->data->min_key	= b->data->min_key;
-	n->data->max_key	= b->data->max_key;
-	n->data->format		= format;
 	SET_BTREE_NODE_SEQ(n->data, BTREE_NODE_SEQ(b->data) + 1);
 
+	btree_set_min(n, b->data->min_key);
+	btree_set_max(n, b->data->max_key);
+
+	n->data->format		= format;
 	btree_node_set_format(n, format);
 
 	bch2_btree_sort_into(as->c, n, b);
@@ -431,10 +460,9 @@ static struct btree *__btree_root_alloc(struct btree_update *as, unsigned level)
 {
 	struct btree *b = bch2_btree_node_alloc(as, level);
 
-	b->data->min_key = POS_MIN;
-	b->data->max_key = POS_MAX;
+	btree_set_min(b, POS_MIN);
+	btree_set_max(b, POS_MAX);
 	b->data->format = bch2_btree_calc_format(b);
-	b->key.k.p = POS_MAX;
 
 	btree_node_set_format(b, b->data->format);
 	bch2_btree_build_aux_trees(b);
@@ -1263,10 +1291,8 @@ static struct btree *__btree_split_node(struct btree_update *as,
 
 	BUG_ON(!prev);
 
-	n1->key.k.p = bkey_unpack_pos(n1, prev);
-	n1->data->max_key = n1->key.k.p;
-	n2->data->min_key =
-		btree_type_successor(n1->c.btree_id, n1->key.k.p);
+	btree_set_max(n1, bkey_unpack_pos(n1, prev));
+	btree_set_min(n2, btree_type_successor(n1->c.btree_id, n1->key.k.p));
 
 	set2->u64s = cpu_to_le16((u64 *) vstruct_end(set1) - (u64 *) k);
 	set1->u64s = cpu_to_le16(le16_to_cpu(set1->u64s) - le16_to_cpu(set2->u64s));
@@ -1749,10 +1775,9 @@ retry:
 
 	n = bch2_btree_node_alloc(as, b->c.level);
 
-	n->data->min_key	= prev->data->min_key;
-	n->data->max_key	= next->data->max_key;
+	btree_set_min(n, prev->data->min_key);
+	btree_set_max(n, next->data->max_key);
 	n->data->format		= new_f;
-	n->key.k.p		= next->key.k.p;
 
 	btree_node_set_format(n, new_f);
 
@@ -2202,8 +2227,8 @@ void bch2_btree_root_alloc(struct bch_fs *c, enum btree_id id)
 	bch2_btree_build_aux_trees(b);
 
 	b->data->flags = 0;
-	b->data->min_key = POS_MIN;
-	b->data->max_key = POS_MAX;
+	btree_set_min(b, POS_MIN);
+	btree_set_max(b, POS_MAX);
 	b->data->format = bch2_btree_calc_format(b);
 	btree_node_set_format(b, b->data->format);
 

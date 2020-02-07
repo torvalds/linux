@@ -1194,6 +1194,7 @@ int bch2_mark_key_locked(struct bch_fs *c,
 		ret = bch2_mark_alloc(c, k, fs_usage, journal_seq, flags);
 		break;
 	case KEY_TYPE_btree_ptr:
+	case KEY_TYPE_btree_ptr_v2:
 		sectors = !(flags & BTREE_TRIGGER_OVERWRITE)
 			?  c->opts.btree_node_size
 			: -c->opts.btree_node_size;
@@ -1729,6 +1730,7 @@ int bch2_trans_mark_key(struct btree_trans *trans, struct bkey_s_c k,
 
 	switch (k.k->type) {
 	case KEY_TYPE_btree_ptr:
+	case KEY_TYPE_btree_ptr_v2:
 		sectors = !(flags & BTREE_TRIGGER_OVERWRITE)
 			?  c->opts.btree_node_size
 			: -c->opts.btree_node_size;

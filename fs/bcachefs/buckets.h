@@ -97,7 +97,8 @@ static inline struct bucket *PTR_BUCKET(struct bch_dev *ca,
 static inline enum bch_data_type ptr_data_type(const struct bkey *k,
 					       const struct bch_extent_ptr *ptr)
 {
-	if (k->type == KEY_TYPE_btree_ptr)
+	if (k->type == KEY_TYPE_btree_ptr ||
+	    k->type == KEY_TYPE_btree_ptr_v2)
 		return BCH_DATA_BTREE;
 
 	return ptr->cached ? BCH_DATA_CACHED : BCH_DATA_USER;
