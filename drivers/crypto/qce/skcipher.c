@@ -227,9 +227,14 @@ static int qce_skcipher_crypt(struct skcipher_request *req, int encrypt)
 	rctx->flags |= encrypt ? QCE_ENCRYPT : QCE_DECRYPT;
 	keylen = IS_XTS(rctx->flags) ? ctx->enc_keylen >> 1 : ctx->enc_keylen;
 
+	/* qce is hanging when AES-XTS request len > QCE_SECTOR_SIZE and
+	 * is not a multiple of it; pass such requests to the fallback
+	 */
 	if (IS_AES(rctx->flags) &&
-	    ((keylen != AES_KEYSIZE_128 && keylen != AES_KEYSIZE_256) ||
-	     req->cryptlen <= aes_sw_max_len)) {
+	    (((keylen != AES_KEYSIZE_128 && keylen != AES_KEYSIZE_256) ||
+	      req->cryptlen <= aes_sw_max_len) ||
+	     (IS_XTS(rctx->flags) && req->cryptlen > QCE_SECTOR_SIZE &&
+	      req->cryptlen % QCE_SECTOR_SIZE))) {
 		SYNC_SKCIPHER_REQUEST_ON_STACK(subreq, ctx->fallback);
 
 		skcipher_request_set_sync_tfm(subreq, ctx->fallback);
