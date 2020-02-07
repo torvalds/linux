@@ -187,13 +187,15 @@ static int plldig_init(struct clk_hw *hw)
 {
 	struct clk_plldig *data = to_clk_plldig(hw);
 	struct clk_hw *parent = clk_hw_get_parent(hw);
-	unsigned long parent_rate = clk_hw_get_rate(parent);
+	unsigned long parent_rate;
 	unsigned long val;
 	unsigned long long lltmp;
 	unsigned int mfd, fracdiv = 0;
 
 	if (!parent)
 		return -EINVAL;
+
+	parent_rate = clk_hw_get_rate(parent);
 
 	if (data->vco_freq) {
 		mfd = data->vco_freq / parent_rate;
