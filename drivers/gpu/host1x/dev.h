@@ -149,6 +149,8 @@ struct host1x {
 	struct list_head list;
 
 	struct device_dma_parameters dma_parms;
+
+	struct host1x_bo_cache cache;
 };
 
 void host1x_hypervisor_writel(struct host1x *host1x, u32 r, u32 v);

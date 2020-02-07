@@ -145,7 +145,7 @@ static int tegra_dc_pin(struct tegra_dc *dc, struct tegra_plane_state *state)
 		struct tegra_bo *bo = tegra_fb_get_plane(state->base.fb, i);
 		struct host1x_bo_mapping *map;
 
-		map = host1x_bo_pin(dc->dev, &bo->base, DMA_TO_DEVICE);
+		map = host1x_bo_pin(dc->dev, &bo->base, DMA_TO_DEVICE, &dc->client.cache);
 		if (IS_ERR(map)) {
 			err = PTR_ERR(map);
 			goto unpin;

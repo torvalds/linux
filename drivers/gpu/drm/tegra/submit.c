@@ -75,6 +75,7 @@ gather_bo_pin(struct device *dev, struct host1x_bo *bo, enum dma_data_direction 
 	if (!map)
 		return ERR_PTR(-ENOMEM);
 
+	kref_init(&map->ref);
 	map->bo = host1x_bo_get(bo);
 	map->direction = direction;
 	map->dev = dev;
