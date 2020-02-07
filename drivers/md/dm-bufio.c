@@ -631,6 +631,19 @@ dmio:
 	submit_bio(bio);
 }
 
+static inline sector_t block_to_sector(struct dm_bufio_client *c, sector_t block)
+{
+	sector_t sector;
+
+	if (likely(c->sectors_per_block_bits >= 0))
+		sector = block << c->sectors_per_block_bits;
+	else
+		sector = block * (c->block_size >> SECTOR_SHIFT);
+	sector += c->start;
+
+	return sector;
+}
+
 static void submit_io(struct dm_buffer *b, int rw, void (*end_io)(struct dm_buffer *, blk_status_t))
 {
 	unsigned n_sectors;
@@ -639,11 +652,7 @@ static void submit_io(struct dm_buffer *b, int rw, void (*end_io)(struct dm_buff
 
 	b->end_io = end_io;
 
-	if (likely(b->c->sectors_per_block_bits >= 0))
-		sector = b->block << b->c->sectors_per_block_bits;
-	else
-		sector = b->block * (b->c->block_size >> SECTOR_SHIFT);
-	sector += b->c->start;
+	sector = block_to_sector(b->c, b->block);
 
 	if (rw != REQ_OP_WRITE) {
 		n_sectors = b->c->block_size >> SECTOR_SHIFT;
@@ -1324,6 +1333,56 @@ int dm_bufio_issue_flush(struct dm_bufio_client *c)
 	return dm_io(&io_req, 1, &io_reg, NULL);
 }
 EXPORT_SYMBOL_GPL(dm_bufio_issue_flush);
+
+/*
+ * Use dm-io to send a discard request to flush the device.
+ */
+int dm_bufio_issue_discard(struct dm_bufio_client *c, sector_t block, sector_t count)
+{
+	struct dm_io_request io_req = {
+		.bi_op = REQ_OP_DISCARD,
+		.bi_op_flags = REQ_SYNC,
+		.mem.type = DM_IO_KMEM,
+		.mem.ptr.addr = NULL,
+		.client = c->dm_io,
+	};
+	struct dm_io_region io_reg = {
+		.bdev = c->bdev,
+		.sector = block_to_sector(c, block),
+		.count = block_to_sector(c, count),
+	};
+
+	BUG_ON(dm_bufio_in_request());
+
+	return dm_io(&io_req, 1, &io_reg, NULL);
+}
+EXPORT_SYMBOL_GPL(dm_bufio_issue_discard);
+
+/*
+ * Free the specified range of buffers. If a buffer is held by other process, it
+ * is not freed. If a buffer is dirty, it is discarded without writeback.
+ * Finally, send the discard request to the device.
+ */
+int dm_bufio_discard_buffers(struct dm_bufio_client *c, sector_t block, sector_t count)
+{
+	sector_t i;
+
+	for (i = block; i < block + count; i++) {
+		struct dm_buffer *b;
+		dm_bufio_lock(c);
+		b = __find(c, i);
+		if (b && likely(!b->hold_count)) {
+			wait_on_bit_io(&b->state, B_READING, TASK_UNINTERRUPTIBLE);
+			wait_on_bit_io(&b->state, B_WRITING, TASK_UNINTERRUPTIBLE);
+			__unlink_buffer(b);
+			__free_buffer_wake(b);
+		}
+		dm_bufio_unlock(c);
+	}
+
+	return dm_bufio_issue_discard(c, block, count);
+}
+EXPORT_SYMBOL_GPL(dm_bufio_discard_buffers);
 
 /*
  * We first delete any other buffer that may be at that new location.

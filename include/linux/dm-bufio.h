@@ -119,6 +119,18 @@ int dm_bufio_write_dirty_buffers(struct dm_bufio_client *c);
 int dm_bufio_issue_flush(struct dm_bufio_client *c);
 
 /*
+ * Send a discard request to the underlying device.
+ */
+int dm_bufio_issue_discard(struct dm_bufio_client *c, sector_t block, sector_t count);
+
+/*
+ * Free the specified range of buffers. If a buffer is held by other process, it
+ * is not freed. If a buffer is dirty, it is discarded without writeback.
+ * Finally, send the discard request to the device.
+ */
+int dm_bufio_discard_buffers(struct dm_bufio_client *c, sector_t block, sector_t count);
+
+/*
  * Like dm_bufio_release but also move the buffer to the new
  * block. dm_bufio_write_dirty_buffers is needed to commit the new block.
  */
