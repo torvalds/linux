@@ -28,6 +28,7 @@
 #include <linux/iversion.h>
 #include "ctree.h"
 #include "disk-io.h"
+#include "export.h"
 #include "transaction.h"
 #include "btrfs_inode.h"
 #include "print-tree.h"
@@ -2842,7 +2843,8 @@ out:
 }
 
 static noinline int btrfs_ioctl_snap_destroy(struct file *file,
-					     void __user *arg)
+					     void __user *arg,
+					     bool destroy_v2)
 {
 	struct dentry *parent = file->f_path.dentry;
 	struct btrfs_fs_info *fs_info = btrfs_sb(parent->d_sb);
@@ -2851,34 +2853,120 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 	struct inode *inode;
 	struct btrfs_root *root = BTRFS_I(dir)->root;
 	struct btrfs_root *dest = NULL;
-	struct btrfs_ioctl_vol_args *vol_args;
-	int namelen;
+	struct btrfs_ioctl_vol_args *vol_args = NULL;
+	struct btrfs_ioctl_vol_args_v2 *vol_args2 = NULL;
+	char *subvol_name, *subvol_name_ptr = NULL;
+	int subvol_namelen;
 	int err = 0;
+	bool destroy_parent = false;
 
-	if (!S_ISDIR(dir->i_mode))
-		return -ENOTDIR;
+	if (destroy_v2) {
+		vol_args2 = memdup_user(arg, sizeof(*vol_args2));
+		if (IS_ERR(vol_args2))
+			return PTR_ERR(vol_args2);
 
-	vol_args = memdup_user(arg, sizeof(*vol_args));
-	if (IS_ERR(vol_args))
-		return PTR_ERR(vol_args);
+		if (vol_args2->flags & ~BTRFS_SUBVOL_DELETE_ARGS_MASK) {
+			err = -EOPNOTSUPP;
+			goto out;
+		}
 
-	vol_args->name[BTRFS_PATH_NAME_MAX] = '\0';
-	namelen = strlen(vol_args->name);
-	if (strchr(vol_args->name, '/') ||
-	    strncmp(vol_args->name, "..", namelen) == 0) {
-		err = -EINVAL;
-		goto out;
+		/*
+		 * If SPEC_BY_ID is not set, we are looking for the subvolume by
+		 * name, same as v1 currently does.
+		 */
+		if (!(vol_args2->flags & BTRFS_SUBVOL_SPEC_BY_ID)) {
+			vol_args2->name[BTRFS_SUBVOL_NAME_MAX] = 0;
+			subvol_name = vol_args2->name;
+
+			err = mnt_want_write_file(file);
+			if (err)
+				goto out;
+		} else {
+			if (vol_args2->subvolid < BTRFS_FIRST_FREE_OBJECTID) {
+				err = -EINVAL;
+				goto out;
+			}
+
+			err = mnt_want_write_file(file);
+			if (err)
+				goto out;
+
+			dentry = btrfs_get_dentry(fs_info->sb,
+					BTRFS_FIRST_FREE_OBJECTID,
+					vol_args2->subvolid, 0, 0);
+			if (IS_ERR(dentry)) {
+				err = PTR_ERR(dentry);
+				goto out_drop_write;
+			}
+
+			/*
+			 * Change the default parent since the subvolume being
+			 * deleted can be outside of the current mount point.
+			 */
+			parent = btrfs_get_parent(dentry);
+
+			/*
+			 * At this point dentry->d_name can point to '/' if the
+			 * subvolume we want to destroy is outsite of the
+			 * current mount point, so we need to release the
+			 * current dentry and execute the lookup to return a new
+			 * one with ->d_name pointing to the
+			 * <mount point>/subvol_name.
+			 */
+			dput(dentry);
+			if (IS_ERR(parent)) {
+				err = PTR_ERR(parent);
+				goto out_drop_write;
+			}
+			dir = d_inode(parent);
+
+			/*
+			 * If v2 was used with SPEC_BY_ID, a new parent was
+			 * allocated since the subvolume can be outside of the
+			 * current mount point. Later on we need to release this
+			 * new parent dentry.
+			 */
+			destroy_parent = true;
+
+			subvol_name_ptr = btrfs_get_subvol_name_from_objectid(
+						fs_info, vol_args2->subvolid);
+			if (IS_ERR(subvol_name_ptr)) {
+				err = PTR_ERR(subvol_name_ptr);
+				goto free_parent;
+			}
+			/* subvol_name_ptr is already NULL termined */
+			subvol_name = (char *)kbasename(subvol_name_ptr);
+		}
+	} else {
+		vol_args = memdup_user(arg, sizeof(*vol_args));
+		if (IS_ERR(vol_args))
+			return PTR_ERR(vol_args);
+
+		vol_args->name[BTRFS_PATH_NAME_MAX] = 0;
+		subvol_name = vol_args->name;
+
+		err = mnt_want_write_file(file);
+		if (err)
+			goto out;
 	}
 
-	err = mnt_want_write_file(file);
-	if (err)
-		goto out;
+	subvol_namelen = strlen(subvol_name);
 
+	if (strchr(subvol_name, '/') ||
+	    strncmp(subvol_name, "..", subvol_namelen) == 0) {
+		err = -EINVAL;
+		goto free_subvol_name;
+	}
+
+	if (!S_ISDIR(dir->i_mode)) {
+		err = -ENOTDIR;
+		goto free_subvol_name;
+	}
 
 	err = down_write_killable_nested(&dir->i_rwsem, I_MUTEX_PARENT);
 	if (err == -EINTR)
-		goto out_drop_write;
-	dentry = lookup_one_len(vol_args->name, parent, namelen);
+		goto free_subvol_name;
+	dentry = lookup_one_len(subvol_name, parent, subvol_namelen);
 	if (IS_ERR(dentry)) {
 		err = PTR_ERR(dentry);
 		goto out_unlock_dir;
@@ -2947,9 +3035,15 @@ out_dput:
 	dput(dentry);
 out_unlock_dir:
 	inode_unlock(dir);
+free_subvol_name:
+	kfree(subvol_name_ptr);
+free_parent:
+	if (destroy_parent)
+		dput(parent);
 out_drop_write:
 	mnt_drop_write_file(file);
 out:
+	kfree(vol_args2);
 	kfree(vol_args);
 	return err;
 }
@@ -5474,7 +5568,9 @@ long btrfs_ioctl(struct file *file, unsigned int
 	case BTRFS_IOC_SUBVOL_CREATE_V2:
 		return btrfs_ioctl_snap_create_v2(file, argp, 1);
 	case BTRFS_IOC_SNAP_DESTROY:
-		return btrfs_ioctl_snap_destroy(file, argp);
+		return btrfs_ioctl_snap_destroy(file, argp, false);
+	case BTRFS_IOC_SNAP_DESTROY_V2:
+		return btrfs_ioctl_snap_destroy(file, argp, true);
 	case BTRFS_IOC_SUBVOL_GETFLAGS:
 		return btrfs_ioctl_subvol_getflags(file, argp);
 	case BTRFS_IOC_SUBVOL_SETFLAGS:
