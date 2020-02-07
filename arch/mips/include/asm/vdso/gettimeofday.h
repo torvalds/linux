@@ -199,6 +199,13 @@ static __always_inline u64 __arch_get_hw_counter(s32 clock_mode)
 	return cycle_now;
 }
 
+static inline bool mips_vdso_hres_capable(void)
+{
+	return IS_ENABLED(CONFIG_CSRC_R4K) ||
+	       IS_ENABLED(CONFIG_CLKSRC_MIPS_GIC);
+}
+#define __arch_vdso_hres_capable mips_vdso_hres_capable
+
 static __always_inline const struct vdso_data *__arch_get_vdso_data(void)
 {
 	return get_vdso_data();
