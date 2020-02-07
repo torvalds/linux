@@ -22,13 +22,6 @@ struct vdso_data *__arm_get_k_vdso_data(void)
 #define __arch_get_k_vdso_data __arm_get_k_vdso_data
 
 static __always_inline
-bool __arm_update_vdso_data(void)
-{
-	return cntvct_ok;
-}
-#define __arch_update_vdso_data __arm_update_vdso_data
-
-static __always_inline
 void __arm_sync_vdso_data(struct vdso_data *vdata)
 {
 	flush_dcache_page(virt_to_page(vdata));
