@@ -9,14 +9,67 @@ reason, the kernel code must instantiate I2C devices explicitly. There are
 several ways to achieve this, depending on the context and requirements.
 
 
-Method 1a: Declare the I2C devices by bus number
-------------------------------------------------
+Method 1: Declare the I2C devices statically
+--------------------------------------------
 
 This method is appropriate when the I2C bus is a system bus as is the case
-for many embedded systems. On such systems, each I2C bus has a number
-which is known in advance. It is thus possible to pre-declare the I2C
-devices which live on this bus. This is done with an array of struct
-i2c_board_info which is registered by calling i2c_register_board_info().
+for many embedded systems. On such systems, each I2C bus has a number which
+is known in advance. It is thus possible to pre-declare the I2C devices
+which live on this bus.
+
+This information is provided to the kernel in a different way on different
+architectures: device tree, ACPI or board files.
+
+When the I2C bus in question is registered, the I2C devices will be
+instantiated automatically by i2c-core. The devices will be automatically
+unbound and destroyed when the I2C bus they sit on goes away (if ever).
+
+
+Declare the I2C devices via devicetree
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+On platforms using devicetree, the declaration of I2C devices is done in
+subnodes of the master controller.
+
+Example::
+
+	i2c1: i2c@400a0000 {
+		/* ... master properties skipped ... */
+		clock-frequency = <100000>;
+
+		flash@50 {
+			compatible = "atmel,24c256";
+			reg = <0x50>;
+		};
+
+		pca9532: gpio@60 {
+			compatible = "nxp,pca9532";
+			gpio-controller;
+			#gpio-cells = <2>;
+			reg = <0x60>;
+		};
+	};
+
+Here, two devices are attached to the bus using a speed of 100kHz. For
+additional properties which might be needed to set up the device, please refer
+to its devicetree documentation in Documentation/devicetree/bindings/.
+
+
+Declare the I2C devices via ACPI
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+ACPI can also describe I2C devices. There is special documentation for this
+which is currently located at :doc:`../firmware-guide/acpi/enumeration`.
+
+
+Declare the I2C devices in board files
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+In many embedded architectures, devicetree has replaced the old hardware
+description based on board files, but the latter are still used in old
+code. Instantiating I2C devices via board files is done with an array of
+struct i2c_board_info which is registered by calling
+i2c_register_board_info().
 
 Example (from omap2 h4)::
 
@@ -44,49 +97,7 @@ Example (from omap2 h4)::
   }
 
 The above code declares 3 devices on I2C bus 1, including their respective
-addresses and custom data needed by their drivers. When the I2C bus in
-question is registered, the I2C devices will be instantiated automatically
-by i2c-core.
-
-The devices will be automatically unbound and destroyed when the I2C bus
-they sit on goes away (if ever.)
-
-
-Method 1b: Declare the I2C devices via devicetree
--------------------------------------------------
-
-This method has the same implications as method 1a. The declaration of I2C
-devices is here done via devicetree as subnodes of the master controller.
-
-Example::
-
-	i2c1: i2c@400a0000 {
-		/* ... master properties skipped ... */
-		clock-frequency = <100000>;
-
-		flash@50 {
-			compatible = "atmel,24c256";
-			reg = <0x50>;
-		};
-
-		pca9532: gpio@60 {
-			compatible = "nxp,pca9532";
-			gpio-controller;
-			#gpio-cells = <2>;
-			reg = <0x60>;
-		};
-	};
-
-Here, two devices are attached to the bus using a speed of 100kHz. For
-additional properties which might be needed to set up the device, please refer
-to its devicetree documentation in Documentation/devicetree/bindings/.
-
-
-Method 1c: Declare the I2C devices via ACPI
--------------------------------------------
-
-ACPI can also describe I2C devices. There is special documentation for this
-which is currently located at Documentation/firmware-guide/acpi/enumeration.rst.
+addresses and custom data needed by their drivers.
 
 
 Method 2: Instantiate the devices explicitly
@@ -98,7 +109,7 @@ tuner, a video decoder, an audio decoder, etc. usually connected to the
 main chip by the means of an I2C bus. You won't know the number of the I2C
 bus in advance, so the method 1 described above can't be used. Instead,
 you can instantiate your I2C devices explicitly. This is done by filling
-a struct i2c_board_info and calling i2c_new_device().
+a struct i2c_board_info and calling i2c_new_client_device().
 
 Example (from the sfe4001 network driver)::
 
@@ -110,7 +121,7 @@ Example (from the sfe4001 network driver)::
   {
 	(...)
 	efx->board_info.hwmon_client =
-		i2c_new_device(&efx->i2c_adap, &sfe4001_hwmon_info);
+		i2c_new_client_device(&efx->i2c_adap, &sfe4001_hwmon_info);
 
 	(...)
   }
@@ -123,7 +134,7 @@ present or not (for example for an optional feature which is not present
 on cheap variants of a board but you have no way to tell them apart), or
 it may have different addresses from one board to the next (manufacturer
 changing its design without notice). In this case, you can call
-i2c_new_scanned_device() instead of i2c_new_device().
+i2c_new_scanned_device() instead of i2c_new_client_device().
 
 Example (from the nxp OHCI driver)::
 
@@ -152,7 +163,7 @@ simply gives up.
 
 The driver which instantiated the I2C device is responsible for destroying
 it on cleanup. This is done by calling i2c_unregister_device() on the
-pointer that was earlier returned by i2c_new_device() or
+pointer that was earlier returned by i2c_new_client_device() or
 i2c_new_scanned_device().
 
 
@@ -188,7 +199,7 @@ destroyed automatically when the driver which detected them is removed,
 or when the underlying I2C bus is itself destroyed, whichever happens
 first.
 
-Those of you familiar with the i2c subsystem of 2.4 kernels and early 2.6
+Those of you familiar with the I2C subsystem of 2.4 kernels and early 2.6
 kernels will find out that this method 3 is essentially similar to what
 was done there. Two significant differences are:
 
@@ -214,15 +225,15 @@ In general, the kernel should know which I2C devices are connected and
 what addresses they live at. However, in certain cases, it does not, so a
 sysfs interface was added to let the user provide the information. This
 interface is made of 2 attribute files which are created in every I2C bus
-directory: new_device and delete_device. Both files are write only and you
-must write the right parameters to them in order to properly instantiate,
-respectively delete, an I2C device.
+directory: ``new_device`` and ``delete_device``. Both files are write
+only and you must write the right parameters to them in order to properly
+instantiate, respectively delete, an I2C device.
 
-File new_device takes 2 parameters: the name of the I2C device (a string)
-and the address of the I2C device (a number, typically expressed in
-hexadecimal starting with 0x, but can also be expressed in decimal.)
+File ``new_device`` takes 2 parameters: the name of the I2C device (a
+string) and the address of the I2C device (a number, typically expressed
+in hexadecimal starting with 0x, but can also be expressed in decimal.)
 
-File delete_device takes a single parameter: the address of the I2C
+File ``delete_device`` takes a single parameter: the address of the I2C
 device. As no two devices can live at the same address on a given I2C
 segment, the address is sufficient to uniquely identify the device to be
 deleted.

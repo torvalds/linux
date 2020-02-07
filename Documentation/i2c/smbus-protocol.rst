@@ -1,6 +1,6 @@
-======================
-SMBus Protocol Summary
-======================
+==================
+The SMBus Protocol
+==================
 
 The following is a summary of the SMBus protocol. It applies to
 all revisions of the protocol (1.0, 1.1, and 2.0).
@@ -27,27 +27,27 @@ a different protocol operation entirely.
 Each transaction type corresponds to a functionality flag. Before calling a
 transaction function, a device driver should always check (just once) for
 the corresponding functionality flag to ensure that the underlying I2C
-adapter supports the transaction in question. See
-<file:Documentation/i2c/functionality.rst> for the details.
+adapter supports the transaction in question. See :doc:`functionality` for
+the details.
 
 
 Key to symbols
 ==============
 
 =============== =============================================================
-S     (1 bit) : Start bit
-P     (1 bit) : Stop bit
-Rd/Wr (1 bit) : Read/Write bit. Rd equals 1, Wr equals 0.
-A, NA (1 bit) : Accept and reverse accept bit.
-Addr  (7 bits): I2C 7 bit address. Note that this can be expanded as usual to
+S               Start condition
+P               Stop condition
+Rd/Wr (1 bit)   Read/Write bit. Rd equals 1, Wr equals 0.
+A, NA (1 bit)   Acknowledge (ACK) and Not Acknowledge (NACK) bit
+Addr  (7 bits)  I2C 7 bit address. Note that this can be expanded as usual to
                 get a 10 bit I2C address.
-Comm  (8 bits): Command byte, a data byte which often selects a register on
+Comm  (8 bits)  Command byte, a data byte which often selects a register on
                 the device.
-Data  (8 bits): A plain data byte. Sometimes, I write DataLow, DataHigh
+Data  (8 bits)  A plain data byte. Sometimes, I write DataLow, DataHigh
                 for 16 bit data.
-Count (8 bits): A data byte containing the length of a block operation.
+Count (8 bits)  A data byte containing the length of a block operation.
 
-[..]:           Data sent by I2C device, as opposed to data sent by the host
+[..]            Data sent by I2C device, as opposed to data sent by the host
                 adapter.
 =============== =============================================================
 
@@ -62,8 +62,10 @@ This sends a single bit to the device, at the place of the Rd/Wr bit::
 Functionality flag: I2C_FUNC_SMBUS_QUICK
 
 
-SMBus Receive Byte:  i2c_smbus_read_byte()
-==========================================
+SMBus Receive Byte
+==================
+
+Implemented by i2c_smbus_read_byte()
 
 This reads a single byte from a device, without specifying a device
 register. Some devices are so simple that this interface is enough; for
@@ -75,8 +77,10 @@ the previous SMBus command::
 Functionality flag: I2C_FUNC_SMBUS_READ_BYTE
 
 
-SMBus Send Byte:  i2c_smbus_write_byte()
-========================================
+SMBus Send Byte
+===============
+
+Implemented by i2c_smbus_write_byte()
 
 This operation is the reverse of Receive Byte: it sends a single byte
 to a device.  See Receive Byte for more information.
@@ -88,8 +92,10 @@ to a device.  See Receive Byte for more information.
 Functionality flag: I2C_FUNC_SMBUS_WRITE_BYTE
 
 
-SMBus Read Byte:  i2c_smbus_read_byte_data()
-============================================
+SMBus Read Byte
+===============
+
+Implemented by i2c_smbus_read_byte_data()
 
 This reads a single byte from a device, from a designated register.
 The register is specified through the Comm byte::
@@ -99,8 +105,10 @@ The register is specified through the Comm byte::
 Functionality flag: I2C_FUNC_SMBUS_READ_BYTE_DATA
 
 
-SMBus Read Word:  i2c_smbus_read_word_data()
-============================================
+SMBus Read Word
+===============
+
+Implemented by i2c_smbus_read_word_data()
 
 This operation is very like Read Byte; again, data is read from a
 device, from a designated register that is specified through the Comm
@@ -110,13 +118,15 @@ byte. But this time, the data is a complete word (16 bits)::
 
 Functionality flag: I2C_FUNC_SMBUS_READ_WORD_DATA
 
-Note the convenience function i2c_smbus_read_word_swapped is
+Note the convenience function i2c_smbus_read_word_swapped() is
 available for reads where the two data bytes are the other way
 around (not SMBus compliant, but very popular.)
 
 
-SMBus Write Byte:  i2c_smbus_write_byte_data()
-==============================================
+SMBus Write Byte
+================
+
+Implemented by i2c_smbus_write_byte_data()
 
 This writes a single byte to a device, to a designated register. The
 register is specified through the Comm byte. This is the opposite of
@@ -129,24 +139,26 @@ the Read Byte operation.
 Functionality flag: I2C_FUNC_SMBUS_WRITE_BYTE_DATA
 
 
-SMBus Write Word:  i2c_smbus_write_word_data()
-==============================================
+SMBus Write Word
+================
+
+Implemented by i2c_smbus_write_word_data()
 
 This is the opposite of the Read Word operation. 16 bits
-of data is written to a device, to the designated register that is
-specified through the Comm byte.::
+of data are written to a device, to the designated register that is
+specified through the Comm byte::
 
   S Addr Wr [A] Comm [A] DataLow [A] DataHigh [A] P
 
 Functionality flag: I2C_FUNC_SMBUS_WRITE_WORD_DATA
 
-Note the convenience function i2c_smbus_write_word_swapped is
+Note the convenience function i2c_smbus_write_word_swapped() is
 available for writes where the two data bytes are the other way
 around (not SMBus compliant, but very popular.)
 
 
-SMBus Process Call:
-===================
+SMBus Process Call
+==================
 
 This command selects a device register (through the Comm byte), sends
 16 bits of data to it, and reads 16 bits of data in return::
@@ -157,8 +169,10 @@ This command selects a device register (through the Comm byte), sends
 Functionality flag: I2C_FUNC_SMBUS_PROC_CALL
 
 
-SMBus Block Read:  i2c_smbus_read_block_data()
-==============================================
+SMBus Block Read
+================
+
+Implemented by i2c_smbus_read_block_data()
 
 This command reads a block of up to 32 bytes from a device, from a
 designated register that is specified through the Comm byte. The amount
@@ -172,8 +186,10 @@ of data is specified by the device in the Count byte.
 Functionality flag: I2C_FUNC_SMBUS_READ_BLOCK_DATA
 
 
-SMBus Block Write:  i2c_smbus_write_block_data()
-================================================
+SMBus Block Write
+=================
+
+Implemented by i2c_smbus_write_block_data()
 
 The opposite of the Block Read command, this writes up to 32 bytes to
 a device, to a designated register that is specified through the
@@ -266,16 +282,19 @@ This is implemented the following way in the Linux kernel:
 I2C Block Transactions
 ======================
 
-The following I2C block transactions are supported by the
-SMBus layer and are described here for completeness.
-They are *NOT* defined by the SMBus specification.
+The following I2C block transactions are similar to the SMBus Block Read
+and Write operations, except these do not have a Count byte. They are
+supported by the SMBus layer and are described here for completeness, but
+they are *NOT* defined by the SMBus specification.
 
 I2C block transactions do not limit the number of bytes transferred
 but the SMBus layer places a limit of 32 bytes.
 
 
-I2C Block Read:  i2c_smbus_read_i2c_block_data()
-================================================
+I2C Block Read
+==============
+
+Implemented by i2c_smbus_read_i2c_block_data()
 
 This command reads a block of bytes from a device, from a
 designated register that is specified through the Comm byte::
@@ -286,8 +305,10 @@ designated register that is specified through the Comm byte::
 Functionality flag: I2C_FUNC_SMBUS_READ_I2C_BLOCK
 
 
-I2C Block Write:  i2c_smbus_write_i2c_block_data()
-==================================================
+I2C Block Write
+===============
+
+Implemented by i2c_smbus_write_i2c_block_data()
 
 The opposite of the Block Read command, this writes bytes to
 a device, to a designated register that is specified through the

@@ -1,9 +1,9 @@
-============
-I2C topology
-============
+================================
+I2C muxes and complex topologies
+================================
 
-There are a couple of reasons for building more complex i2c topologies
-than a straight-forward i2c bus with one adapter and one or more devices.
+There are a couple of reasons for building more complex I2C topologies
+than a straight-forward I2C bus with one adapter and one or more devices.
 
 1. A mux may be needed on the bus to prevent address collisions.
 
@@ -11,20 +11,20 @@ than a straight-forward i2c bus with one adapter and one or more devices.
    may be needed to determine if it is ok to access the bus.
 
 3. A device (particularly RF tuners) may want to avoid the digital noise
-   from the i2c bus, at least most of the time, and sits behind a gate
+   from the I2C bus, at least most of the time, and sits behind a gate
    that has to be operated before the device can be accessed.
 
 Etc
 ===
 
-These constructs are represented as i2c adapter trees by Linux, where
+These constructs are represented as I2C adapter trees by Linux, where
 each adapter has a parent adapter (except the root adapter) and zero or
 more child adapters. The root adapter is the actual adapter that issues
-i2c transfers, and all adapters with a parent are part of an "i2c-mux"
+I2C transfers, and all adapters with a parent are part of an "i2c-mux"
 object (quoted, since it can also be an arbitrator or a gate).
 
 Depending of the particular mux driver, something happens when there is
-an i2c transfer on one of its child adapters. The mux driver can
+an I2C transfer on one of its child adapters. The mux driver can
 obviously operate a mux, but it can also do arbitration with an external
 bus master or open a gate. The mux driver has two operations for this,
 select and deselect. select is called before the transfer and (the
@@ -34,7 +34,7 @@ optional) deselect is called after the transfer.
 Locking
 =======
 
-There are two variants of locking available to i2c muxes, they can be
+There are two variants of locking available to I2C muxes, they can be
 mux-locked or parent-locked muxes. As is evident from below, it can be
 useful to know if a mux is mux-locked or if it is parent-locked. The
 following list was correct at the time of writing:
@@ -45,7 +45,7 @@ In drivers/i2c/muxes/:
 i2c-arb-gpio-challenge    Parent-locked
 i2c-mux-gpio              Normally parent-locked, mux-locked iff
                           all involved gpio pins are controlled by the
-                          same i2c root adapter that they mux.
+                          same I2C root adapter that they mux.
 i2c-mux-gpmux             Normally parent-locked, mux-locked iff
                           specified in device-tree.
 i2c-mux-ltc4306           Mux-locked
@@ -54,7 +54,7 @@ i2c-mux-pca9541           Parent-locked
 i2c-mux-pca954x           Parent-locked
 i2c-mux-pinctrl           Normally parent-locked, mux-locked iff
                           all involved pinctrl devices are controlled
-                          by the same i2c root adapter that they mux.
+                          by the same I2C root adapter that they mux.
 i2c-mux-reg               Parent-locked
 ======================    =============================================
 
@@ -83,9 +83,9 @@ Mux-locked muxes
 Mux-locked muxes does not lock the entire parent adapter during the
 full select-transfer-deselect transaction, only the muxes on the parent
 adapter are locked. Mux-locked muxes are mostly interesting if the
-select and/or deselect operations must use i2c transfers to complete
+select and/or deselect operations must use I2C transfers to complete
 their tasks. Since the parent adapter is not fully locked during the
-full transaction, unrelated i2c transfers may interleave the different
+full transaction, unrelated I2C transfers may interleave the different
 stages of the transaction. This has the benefit that the mux driver
 may be easier and cleaner to implement, but it has some caveats.
 
@@ -109,14 +109,14 @@ ML2. It is not safe to build arbitrary topologies with two (or more)
 
 ML3. A mux-locked mux cannot be used by a driver for auto-closing
      gates/muxes, i.e. something that closes automatically after a given
-     number (one, in most cases) of i2c transfers. Unrelated i2c transfers
+     number (one, in most cases) of I2C transfers. Unrelated I2C transfers
      may creep in and close prematurely.
 
-ML4. If any non-i2c operation in the mux driver changes the i2c mux state,
+ML4. If any non-I2C operation in the mux driver changes the I2C mux state,
      the driver has to lock the root adapter during that operation.
      Otherwise garbage may appear on the bus as seen from devices
-     behind the mux, when an unrelated i2c transfer is in flight during
-     the non-i2c mux-changing operation.
+     behind the mux, when an unrelated I2C transfer is in flight during
+     the non-I2C mux-changing operation.
 ==== =====================================================================
 
 
@@ -137,14 +137,14 @@ Mux-locked Example
 
 When there is an access to D1, this happens:
 
- 1. Someone issues an i2c-transfer to D1.
+ 1. Someone issues an I2C transfer to D1.
  2. M1 locks muxes on its parent (the root adapter in this case).
  3. M1 calls ->select to ready the mux.
- 4. M1 (presumably) does some i2c-transfers as part of its select.
-    These transfers are normal i2c-transfers that locks the parent
+ 4. M1 (presumably) does some I2C transfers as part of its select.
+    These transfers are normal I2C transfers that locks the parent
     adapter.
- 5. M1 feeds the i2c-transfer from step 1 to its parent adapter as a
-    normal i2c-transfer that locks the parent adapter.
+ 5. M1 feeds the I2C transfer from step 1 to its parent adapter as a
+    normal I2C transfer that locks the parent adapter.
  6. M1 calls ->deselect, if it has one.
  7. Same rules as in step 4, but for ->deselect.
  8. M1 unlocks muxes on its parent.
@@ -159,8 +159,8 @@ Parent-locked muxes
 
 Parent-locked muxes lock the parent adapter during the full select-
 transfer-deselect transaction. The implication is that the mux driver
-has to ensure that any and all i2c transfers through that parent
-adapter during the transaction are unlocked i2c transfers (using e.g.
+has to ensure that any and all I2C transfers through that parent
+adapter during the transaction are unlocked I2C transfers (using e.g.
 __i2c_transfer), or a deadlock will follow. There are a couple of
 caveats.
 
@@ -169,12 +169,12 @@ PL1. If you build a topology with a parent-locked mux being the child
      of another mux, this might break a possible assumption from the
      child mux that the root adapter is unused between its select op
      and the actual transfer (e.g. if the child mux is auto-closing
-     and the parent mux issus i2c-transfers as part of its select).
+     and the parent mux issues I2C transfers as part of its select).
      This is especially the case if the parent mux is mux-locked, but
      it may also happen if the parent mux is parent-locked.
 
 PL2. If select/deselect calls out to other subsystems such as gpio,
-     pinctrl, regmap or iio, it is essential that any i2c transfers
+     pinctrl, regmap or iio, it is essential that any I2C transfers
      caused by these subsystems are unlocked. This can be convoluted to
      accomplish, maybe even impossible if an acceptably clean solution
      is sought.
@@ -197,15 +197,15 @@ Parent-locked Example
 
 When there is an access to D1, this happens:
 
- 1.  Someone issues an i2c-transfer to D1.
+ 1.  Someone issues an I2C transfer to D1.
  2.  M1 locks muxes on its parent (the root adapter in this case).
  3.  M1 locks its parent adapter.
  4.  M1 calls ->select to ready the mux.
- 5.  If M1 does any i2c-transfers (on this root adapter) as part of
-     its select, those transfers must be unlocked i2c-transfers so
+ 5.  If M1 does any I2C transfers (on this root adapter) as part of
+     its select, those transfers must be unlocked I2C transfers so
      that they do not deadlock the root adapter.
- 6.  M1 feeds the i2c-transfer from step 1 to the root adapter as an
-     unlocked i2c-transfer, so that it does not deadlock the parent
+ 6.  M1 feeds the I2C transfer from step 1 to the root adapter as an
+     unlocked I2C transfer, so that it does not deadlock the parent
      adapter.
  7.  M1 calls ->deselect, if it has one.
  8.  Same rules as in step 5, but for ->deselect.
@@ -240,7 +240,7 @@ and specifically when M2 requests its parent to lock, M1 passes
 the buck to the root adapter).
 
 This topology is bad if M2 is an auto-closing mux and M1->select
-issues any unlocked i2c transfers on the root adapter that may leak
+issues any unlocked I2C transfers on the root adapter that may leak
 through and be seen by the M2 adapter, thus closing M2 prematurely.
 
 
@@ -286,14 +286,14 @@ point.
 
 This kind of topology is generally not suitable and should probably
 be avoided. The reason is that M2 probably assumes that there will
-be no i2c transfers during its calls to ->select and ->deselect, and
+be no I2C transfers during its calls to ->select and ->deselect, and
 if there are, any such transfers might appear on the slave side of M2
-as partial i2c transfers, i.e. garbage or worse. This might cause
+as partial I2C transfers, i.e. garbage or worse. This might cause
 device lockups and/or other problems.
 
 The topology is especially troublesome if M2 is an auto-closing
 mux. In that case, any interleaved accesses to D4 might close M2
-prematurely, as might any i2c-transfers part of M1->select.
+prematurely, as might any I2C transfers part of M1->select.
 
 But if M2 is not making the above stated assumption, and if M2 is not
 auto-closing, the topology is fine.

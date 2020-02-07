@@ -388,9 +388,9 @@ static int cht_wc_i2c_adap_i2c_probe(struct platform_device *pdev)
 	 */
 	if (acpi_dev_present("INT33FE", NULL, -1)) {
 		board_info.irq = adap->client_irq;
-		adap->client = i2c_new_device(&adap->adapter, &board_info);
-		if (!adap->client) {
-			ret = -ENOMEM;
+		adap->client = i2c_new_client_device(&adap->adapter, &board_info);
+		if (IS_ERR(adap->client)) {
+			ret = PTR_ERR(adap->client);
 			goto del_adapter;
 		}
 	}
