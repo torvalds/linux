@@ -1495,7 +1495,7 @@ static irqreturn_t ahci_thunderx_irq_handler(int irq, void *dev_instance)
 static void ahci_remap_check(struct pci_dev *pdev, int bar,
 		struct ahci_host_priv *hpriv)
 {
-	int i, count = 0;
+	int i;
 	u32 cap;
 
 	/*
@@ -1516,13 +1516,14 @@ static void ahci_remap_check(struct pci_dev *pdev, int bar,
 			continue;
 
 		/* We've found a remapped device */
-		count++;
+		hpriv->remapped_nvme++;
 	}
 
-	if (!count)
+	if (!hpriv->remapped_nvme)
 		return;
 
-	dev_warn(&pdev->dev, "Found %d remapped NVMe devices.\n", count);
+	dev_warn(&pdev->dev, "Found %u remapped NVMe devices.\n",
+		 hpriv->remapped_nvme);
 	dev_warn(&pdev->dev,
 		 "Switch your BIOS from RAID to AHCI mode to use them.\n");
 
@@ -1642,6 +1643,18 @@ static void ahci_intel_pcs_quirk(struct pci_dev *pdev, struct ahci_host_priv *hp
 	}
 }
 
+static ssize_t remapped_nvme_show(struct device *dev,
+				  struct device_attribute *attr,
+				  char *buf)
+{
+	struct ata_host *host = dev_get_drvdata(dev);
+	struct ahci_host_priv *hpriv = host->private_data;
+
+	return sprintf(buf, "%u\n", hpriv->remapped_nvme);
+}
+
+static DEVICE_ATTR_RO(remapped_nvme);
+
 static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	unsigned int board_id = ent->driver_data;
@@ -1744,6 +1757,10 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* detect remapped nvme devices */
 	ahci_remap_check(pdev, ahci_pci_bar, hpriv);
+
+	sysfs_add_file_to_group(&pdev->dev.kobj,
+				&dev_attr_remapped_nvme.attr,
+				NULL);
 
 	/* must set flag prior to save config in order to take effect */
 	if (ahci_broken_devslp(pdev))
@@ -1896,6 +1913,9 @@ static void ahci_shutdown_one(struct pci_dev *pdev)
 
 static void ahci_remove_one(struct pci_dev *pdev)
 {
+	sysfs_remove_file_from_group(&pdev->dev.kobj,
+				     &dev_attr_remapped_nvme.attr,
+				     NULL);
 	pm_runtime_get_noresume(&pdev->dev);
 	ata_pci_remove_one(pdev);
 }
