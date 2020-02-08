@@ -106,11 +106,10 @@ int ovl_check_fb_len(struct ovl_fb *fb, int fb_len)
 
 static struct ovl_fh *ovl_get_fh(struct dentry *dentry, const char *name)
 {
-	ssize_t res;
-	int err;
+	int res, err;
 	struct ovl_fh *fh = NULL;
 
-	res = ovl_do_vfs_getxattr(dentry, name, NULL, 0);
+	res = vfs_getxattr(dentry, name, NULL, 0);
 	if (res < 0) {
 		if (res == -ENODATA || res == -EOPNOTSUPP)
 			return NULL;
@@ -124,7 +123,7 @@ static struct ovl_fh *ovl_get_fh(struct dentry *dentry, const char *name)
 	if (!fh)
 		return ERR_PTR(-ENOMEM);
 
-	res = ovl_do_vfs_getxattr(dentry, name, fh->buf, res);
+	res = vfs_getxattr(dentry, name, fh->buf, res);
 	if (res < 0)
 		goto fail;
 
@@ -142,11 +141,10 @@ out:
 	return NULL;
 
 fail:
-	pr_warn_ratelimited("overlayfs: failed to get origin (%zi)\n", res);
+	pr_warn_ratelimited("overlayfs: failed to get origin (%i)\n", res);
 	goto out;
 invalid:
-	pr_warn_ratelimited("overlayfs: invalid origin (%*phN)\n",
-			    (int)res, fh);
+	pr_warn_ratelimited("overlayfs: invalid origin (%*phN)\n", res, fh);
 	goto out;
 }
 
