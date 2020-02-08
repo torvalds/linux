@@ -173,15 +173,20 @@ bool edp_receiver_ready_T9(struct dc_link *link)
 }
 bool edp_receiver_ready_T7(struct dc_link *link)
 {
-	unsigned int tries = 0;
 	unsigned char sinkstatus = 0;
 	unsigned char edpRev = 0;
 	enum dc_status result = DC_OK;
+
+	/* use absolute time stamp to constrain max T7*/
+	unsigned long long enter_timestamp = 0;
+	unsigned long long finish_timestamp = 0;
+	unsigned long long time_taken_in_ns = 0;
 
 	result = core_link_read_dpcd(link, DP_EDP_DPCD_REV, &edpRev, sizeof(edpRev));
 	if (result == DC_OK && edpRev < DP_EDP_12)
 		return true;
 	/* start from eDP version 1.2, SINK_STAUS indicate the sink is ready.*/
+	enter_timestamp = dm_get_timestamp(link->ctx);
 	do {
 		sinkstatus = 0;
 		result = core_link_read_dpcd(link, DP_SINK_STATUS, &sinkstatus, sizeof(sinkstatus));
@@ -189,8 +194,10 @@ bool edp_receiver_ready_T7(struct dc_link *link)
 			break;
 		if (result != DC_OK)
 			break;
-		udelay(25); //MAx T7 is 50ms
-	} while (++tries < 300);
+		udelay(25);
+		finish_timestamp = dm_get_timestamp(link->ctx);
+		time_taken_in_ns = dm_get_elapse_time_in_ns(link->ctx, finish_timestamp, enter_timestamp);
+	} while (time_taken_in_ns < 50 * 1000000); //MAx T7 is 50ms
 
 	if (link->local_sink->edid_caps.panel_patch.extra_t7_ms > 0)
 		udelay(link->local_sink->edid_caps.panel_patch.extra_t7_ms * 1000);
@@ -517,6 +524,9 @@ bool dp_set_dsc_pps_sdp(struct pipe_ctx *pipe_ctx, bool enable)
 	if (enable) {
 		struct dsc_config dsc_cfg;
 		uint8_t dsc_packed_pps[128];
+
+		memset(&dsc_cfg, 0, sizeof(dsc_cfg));
+		memset(dsc_packed_pps, 0, 128);
 
 		/* Enable DSC hw block */
 		dsc_cfg.pic_width = stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right;

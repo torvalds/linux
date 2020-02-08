@@ -108,6 +108,7 @@ struct dcn21_hubp {
 	const struct dcn_hubp2_registers *hubp_regs;
 	const struct dcn_hubp2_shift *hubp_shift;
 	const struct dcn_hubp2_mask *hubp_mask;
+	int PLAT_54186_wa_chroma_addr_offset;
 };
 
 bool hubp21_construct(

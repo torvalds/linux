@@ -510,7 +510,7 @@ static void decon_swreset(struct decon_context *ctx)
 	       ctx->addr + DECON_CRCCTRL);
 }
 
-static void decon_enable(struct exynos_drm_crtc *crtc)
+static void decon_atomic_enable(struct exynos_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
 
@@ -523,7 +523,7 @@ static void decon_enable(struct exynos_drm_crtc *crtc)
 	decon_commit(ctx->crtc);
 }
 
-static void decon_disable(struct exynos_drm_crtc *crtc)
+static void decon_atomic_disable(struct exynos_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
 	int i;
@@ -599,8 +599,8 @@ static enum drm_mode_status decon_mode_valid(struct exynos_drm_crtc *crtc,
 }
 
 static const struct exynos_drm_crtc_ops decon_crtc_ops = {
-	.enable			= decon_enable,
-	.disable		= decon_disable,
+	.atomic_enable		= decon_atomic_enable,
+	.atomic_disable		= decon_atomic_disable,
 	.enable_vblank		= decon_enable_vblank,
 	.disable_vblank		= decon_disable_vblank,
 	.atomic_begin		= decon_atomic_begin,
@@ -651,7 +651,7 @@ static void decon_unbind(struct device *dev, struct device *master, void *data)
 {
 	struct decon_context *ctx = dev_get_drvdata(dev);
 
-	decon_disable(ctx->crtc);
+	decon_atomic_disable(ctx->crtc);
 
 	/* detach this sub driver from iommu mapping if supported. */
 	exynos_drm_unregister_dma(ctx->drm_dev, ctx->dev);

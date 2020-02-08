@@ -442,8 +442,7 @@ static void phylink_mac_link_up(struct phylink *pl,
 
 	pl->cur_interface = link_state.interface;
 	pl->ops->mac_link_up(pl->config, pl->link_an_mode,
-			     pl->phy_state.interface,
-			     pl->phydev);
+			     pl->cur_interface, pl->phydev);
 
 	if (ndev)
 		netif_carrier_on(ndev);
@@ -566,6 +565,9 @@ static int phylink_register_sfp(struct phylink *pl,
 {
 	struct sfp_bus *bus;
 	int ret;
+
+	if (!fwnode)
+		return 0;
 
 	bus = sfp_bus_find_fwnode(fwnode);
 	if (IS_ERR(bus)) {

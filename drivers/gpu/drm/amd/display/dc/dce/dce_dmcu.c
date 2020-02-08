@@ -537,9 +537,6 @@ static void dcn10_dmcu_set_psr_enable(struct dmcu *dmcu, bool enable, bool wait)
 	if (dmcu->dmcu_state != DMCU_RUNNING)
 		return;
 
-	dcn10_get_dmcu_psr_state(dmcu, &psr_state);
-	if (psr_state == 0 && !enable)
-		return;
 	/* waitDMCUReadyForCmd */
 	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0,
 				dmcu_wait_reg_ready_interval,

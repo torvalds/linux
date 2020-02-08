@@ -63,7 +63,7 @@ struct mod_hdcp_transition_input_hdcp1 {
 	uint8_t hdcp_capable_dp;
 	uint8_t binfo_read_dp;
 	uint8_t r0p_available_dp;
-	uint8_t link_integiry_check;
+	uint8_t link_integrity_check;
 	uint8_t reauth_request_check;
 	uint8_t stream_encryption_dp;
 };

@@ -47,6 +47,26 @@ struct dpp_input_csc_matrix {
 	uint16_t regval[12];
 };
 
+static const struct dpp_input_csc_matrix dpp_input_csc_matrix[] = {
+	{COLOR_SPACE_SRGB,
+		{0x2000, 0, 0, 0, 0, 0x2000, 0, 0, 0, 0, 0x2000, 0} },
+	{COLOR_SPACE_SRGB_LIMITED,
+		{0x2000, 0, 0, 0, 0, 0x2000, 0, 0, 0, 0, 0x2000, 0} },
+	{COLOR_SPACE_YCBCR601,
+		{0x2cdd, 0x2000, 0, 0xe991, 0xe926, 0x2000, 0xf4fd, 0x10ef,
+						0, 0x2000, 0x38b4, 0xe3a6} },
+	{COLOR_SPACE_YCBCR601_LIMITED,
+		{0x3353, 0x2568, 0, 0xe400, 0xe5dc, 0x2568, 0xf367, 0x1108,
+						0, 0x2568, 0x40de, 0xdd3a} },
+	{COLOR_SPACE_YCBCR709,
+		{0x3265, 0x2000, 0, 0xe6ce, 0xf105, 0x2000, 0xfa01, 0xa7d, 0,
+						0x2000, 0x3b61, 0xe24f} },
+
+	{COLOR_SPACE_YCBCR709_LIMITED,
+		{0x39a6, 0x2568, 0, 0xe0d6, 0xeedd, 0x2568, 0xf925, 0x9a8, 0,
+						0x2568, 0x43ee, 0xdbb2} }
+};
+
 struct dpp_grph_csc_adjustment {
 	struct fixed31_32 temperature_matrix[CSC_TEMPERATURE_MATRIX_SIZE];
 	enum graphics_gamut_adjust_type gamut_adjust_type;

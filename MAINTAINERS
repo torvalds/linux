@@ -720,7 +720,7 @@ F:	Documentation/devicetree/bindings/i2c/i2c-altera.txt
 F:	drivers/i2c/busses/i2c-altera.c
 
 ALTERA MAILBOX DRIVER
-M:	Ley Foon Tan <lftan@altera.com>
+M:	Ley Foon Tan <ley.foon.tan@intel.com>
 L:	nios2-dev@lists.rocketboards.org (moderated for non-subscribers)
 S:	Maintained
 F:	drivers/mailbox/mailbox-altera.c
@@ -771,6 +771,8 @@ F:	drivers/thermal/thermal_mmio.c
 
 AMAZON ETHERNET DRIVERS
 M:	Netanel Belgazal <netanel@amazon.com>
+M:	Arthur Kiyanovski <akiyano@amazon.com>
+R:	Guy Tzalik <gtzalik@amazon.com>
 R:	Saeed Bishara <saeedb@amazon.com>
 R:	Zorik Machulsky <zorik@amazon.com>
 L:	netdev@vger.kernel.org
@@ -1405,7 +1407,7 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/arm/arm-soc.git
 
 ARM/ACTIONS SEMI ARCHITECTURE
 M:	Andreas Färber <afaerber@suse.de>
-R:	Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
+M:	Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 N:	owl
@@ -2272,6 +2274,7 @@ F:	drivers/*/*s3c64xx*
 F:	drivers/*/*s5pv210*
 F:	drivers/memory/samsung/
 F:	drivers/soc/samsung/
+F:	drivers/tty/serial/samsung*
 F:	include/linux/soc/samsung/
 F:	Documentation/arm/samsung/
 F:	Documentation/devicetree/bindings/arm/samsung/
@@ -3147,7 +3150,7 @@ S:	Maintained
 F:	arch/mips/net/
 
 BPF JIT for NFP NICs
-M:	Jakub Kicinski <jakub.kicinski@netronome.com>
+M:	Jakub Kicinski <kuba@kernel.org>
 L:	netdev@vger.kernel.org
 L:	bpf@vger.kernel.org
 S:	Supported
@@ -5018,7 +5021,7 @@ F:	include/linux/dma-mapping.h
 F:	include/linux/dma-noncoherent.h
 
 DMC FREQUENCY DRIVER FOR SAMSUNG EXYNOS5422
-M:	Lukasz Luba <l.luba@partner.samsung.com>
+M:	Lukasz Luba <lukasz.luba@arm.com>
 L:	linux-pm@vger.kernel.org
 L:	linux-samsung-soc@vger.kernel.org
 S:	Maintained
@@ -5356,6 +5359,12 @@ T:	git git://anongit.freedesktop.org/drm/drm-misc
 S:	Maintained
 F:	drivers/gpu/drm/tiny/st7735r.c
 F:	Documentation/devicetree/bindings/display/sitronix,st7735r.txt
+
+DRM DRIVER FOR SONY ACX424AKP PANELS
+M:	Linus Walleij <linus.walleij@linaro.org>
+T:	git git://anongit.freedesktop.org/drm/drm-misc
+S:	Maintained
+F:	drivers/gpu/drm/panel/panel-sony-acx424akp.c
 
 DRM DRIVER FOR ST-ERICSSON MCDE
 M:	Linus Walleij <linus.walleij@linaro.org>
@@ -6049,6 +6058,7 @@ M:	Yash Shah <yash.shah@sifive.com>
 L:	linux-edac@vger.kernel.org
 S:	Supported
 F:	drivers/edac/sifive_edac.c
+F:	drivers/soc/sifive_l2_cache.c
 
 EDAC-SKYLAKE
 M:	Tony Luck <tony.luck@intel.com>
@@ -7055,6 +7065,7 @@ L:	linux-acpi@vger.kernel.org
 S:	Maintained
 F:	Documentation/firmware-guide/acpi/gpio-properties.rst
 F:	drivers/gpio/gpiolib-acpi.c
+F:	drivers/gpio/gpiolib-acpi.h
 
 GPIO IR Transmitter
 M:	Sean Young <sean@mess.org>
@@ -9062,7 +9073,6 @@ F:	include/linux/umh.h
 
 KERNEL VIRTUAL MACHINE (KVM)
 M:	Paolo Bonzini <pbonzini@redhat.com>
-M:	Radim Krčmář <rkrcmar@redhat.com>
 L:	kvm@vger.kernel.org
 W:	http://www.linux-kvm.org
 T:	git git://git.kernel.org/pub/scm/virt/kvm/kvm.git
@@ -9097,9 +9107,9 @@ F:	virt/kvm/arm/
 F:	include/kvm/arm_*
 
 KERNEL VIRTUAL MACHINE FOR MIPS (KVM/mips)
-M:	James Hogan <jhogan@kernel.org>
 L:	linux-mips@vger.kernel.org
-S:	Supported
+L:	kvm@vger.kernel.org
+S:	Orphan
 F:	arch/mips/include/uapi/asm/kvm*
 F:	arch/mips/include/asm/kvm*
 F:	arch/mips/kvm/
@@ -9134,7 +9144,6 @@ F:	tools/testing/selftests/kvm/*/s390x/
 
 KERNEL VIRTUAL MACHINE FOR X86 (KVM/x86)
 M:	Paolo Bonzini <pbonzini@redhat.com>
-M:	Radim Krčmář <rkrcmar@redhat.com>
 R:	Sean Christopherson <sean.j.christopherson@intel.com>
 R:	Vitaly Kuznetsov <vkuznets@redhat.com>
 R:	Wanpeng Li <wanpengli@tencent.com>
@@ -10132,6 +10141,7 @@ S:	Maintained
 F:	drivers/media/radio/radio-maxiradio*
 
 MCAN MMIO DEVICE DRIVER
+M:	Dan Murphy <dmurphy@ti.com>
 M:	Sriram Dash <sriram.dash@samsung.com>
 L:	linux-can@vger.kernel.org
 S:	Maintained
@@ -11450,7 +11460,7 @@ F:	include/uapi/linux/netrom.h
 F:	net/netrom/
 
 NETRONOME ETHERNET DRIVERS
-M:	Jakub Kicinski <jakub.kicinski@netronome.com>
+M:	Jakub Kicinski <kuba@kernel.org>
 L:	oss-drivers@netronome.com
 S:	Maintained
 F:	drivers/net/ethernet/netronome/
@@ -11479,8 +11489,8 @@ M:	"David S. Miller" <davem@davemloft.net>
 L:	netdev@vger.kernel.org
 W:	http://www.linuxfoundation.org/en/Net
 Q:	http://patchwork.ozlabs.org/project/netdev/list/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/net.git
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/net-next.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/netdev/net.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/netdev/net-next.git
 S:	Odd Fixes
 F:	Documentation/devicetree/bindings/net/
 F:	drivers/net/
@@ -11521,8 +11531,8 @@ M:	"David S. Miller" <davem@davemloft.net>
 L:	netdev@vger.kernel.org
 W:	http://www.linuxfoundation.org/en/Net
 Q:	http://patchwork.ozlabs.org/project/netdev/list/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/net.git
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/net-next.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/netdev/net.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/netdev/net-next.git
 B:	mailto:netdev@vger.kernel.org
 S:	Maintained
 F:	net/
@@ -11567,7 +11577,7 @@ M:	"David S. Miller" <davem@davemloft.net>
 M:	Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>
 M:	Hideaki YOSHIFUJI <yoshfuji@linux-ipv6.org>
 L:	netdev@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/net.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/netdev/net.git
 S:	Maintained
 F:	net/ipv4/
 F:	net/ipv6/
@@ -11610,7 +11620,7 @@ M:	Boris Pismenny <borisp@mellanox.com>
 M:	Aviad Yehezkel <aviadye@mellanox.com>
 M:	John Fastabend <john.fastabend@gmail.com>
 M:	Daniel Borkmann <daniel@iogearbox.net>
-M:	Jakub Kicinski <jakub.kicinski@netronome.com>
+M:	Jakub Kicinski <kuba@kernel.org>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	net/tls/*
@@ -11622,7 +11632,7 @@ L:	linux-wireless@vger.kernel.org
 Q:	http://patchwork.kernel.org/project/linux-wireless/list/
 
 NETDEVSIM
-M:	Jakub Kicinski <jakub.kicinski@netronome.com>
+M:	Jakub Kicinski <kuba@kernel.org>
 S:	Maintained
 F:	drivers/net/netdevsim/*
 
@@ -11699,7 +11709,7 @@ F:	Documentation/scsi/NinjaSCSI.txt
 F:	drivers/scsi/nsp32*
 
 NIOS2 ARCHITECTURE
-M:	Ley Foon Tan <lftan@altera.com>
+M:	Ley Foon Tan <ley.foon.tan@intel.com>
 L:	nios2-dev@lists.rocketboards.org (moderated for non-subscribers)
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lftan/nios2.git
 S:	Maintained
@@ -12583,7 +12593,7 @@ F:	Documentation/devicetree/bindings/pci/aardvark-pci.txt
 F:	drivers/pci/controller/pci-aardvark.c
 
 PCI DRIVER FOR ALTERA PCIE IP
-M:	Ley Foon Tan <lftan@altera.com>
+M:	Ley Foon Tan <ley.foon.tan@intel.com>
 L:	rfi@lists.rocketboards.org (moderated for non-subscribers)
 L:	linux-pci@vger.kernel.org
 S:	Supported
@@ -12762,7 +12772,7 @@ S:	Supported
 F:	Documentation/PCI/pci-error-recovery.rst
 
 PCI MSI DRIVER FOR ALTERA MSI IP
-M:	Ley Foon Tan <lftan@altera.com>
+M:	Ley Foon Tan <ley.foon.tan@intel.com>
 L:	rfi@lists.rocketboards.org (moderated for non-subscribers)
 L:	linux-pci@vger.kernel.org
 S:	Supported
@@ -13698,7 +13708,6 @@ F:	drivers/net/ethernet/qualcomm/emac/
 
 QUALCOMM ETHQOS ETHERNET DRIVER
 M:	Vinod Koul <vkoul@kernel.org>
-M:	Niklas Cassel <niklas.cassel@linaro.org>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/stmicro/stmmac/dwmac-qcom-ethqos.c
@@ -13731,6 +13740,15 @@ L:	iommu@lists.linux-foundation.org
 L:	linux-arm-msm@vger.kernel.org
 S:	Maintained
 F:	drivers/iommu/qcom_iommu.c
+
+QUALCOMM RMNET DRIVER
+M:	Subash Abhinov Kasiviswanathan <subashab@codeaurora.org>
+M:	Sean Tranchetti <stranche@codeaurora.org>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/ethernet/qualcomm/rmnet/
+F:	Documentation/networking/device_drivers/qualcomm/rmnet.txt
+F:	include/linux/if_rmnet.h
 
 QUALCOMM TSENS THERMAL DRIVER
 M:	Amit Kucheria <amit.kucheria@linaro.org>
@@ -14131,6 +14149,7 @@ M:	Paul Walmsley <paul.walmsley@sifive.com>
 M:	Palmer Dabbelt <palmer@dabbelt.com>
 M:	Albert Ou <aou@eecs.berkeley.edu>
 L:	linux-riscv@lists.infradead.org
+P:	Documentation/riscv/patch-acceptance.rst
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/riscv/linux.git
 S:	Supported
 F:	arch/riscv/
@@ -14558,8 +14577,6 @@ F:	include/linux/platform_data/spi-s3c64xx.h
 
 SAMSUNG SXGBE DRIVERS
 M:	Byungho An <bh74.an@samsung.com>
-M:	Girish K S <ks.giri@samsung.com>
-M:	Vipul Pandya <vipul.pandya@samsung.com>
 S:	Supported
 L:	netdev@vger.kernel.org
 F:	drivers/net/ethernet/samsung/sxgbe/
@@ -16555,6 +16572,13 @@ L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Odd Fixes
 F:	sound/soc/codecs/tas571x*
 
+TI TCAN4X5X DEVICE DRIVER
+M:	Dan Murphy <dmurphy@ti.com>
+L:	linux-can@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/net/can/tcan4x5x.txt
+F:	drivers/net/can/m_can/tcan4x5x.c
+
 TI TRF7970A NFC DRIVER
 M:	Mark Greer <mgreer@animalcreek.com>
 L:	linux-wireless@vger.kernel.org
@@ -18047,7 +18071,7 @@ XDP (eXpress Data Path)
 M:	Alexei Starovoitov <ast@kernel.org>
 M:	Daniel Borkmann <daniel@iogearbox.net>
 M:	David S. Miller <davem@davemloft.net>
-M:	Jakub Kicinski <jakub.kicinski@netronome.com>
+M:	Jakub Kicinski <kuba@kernel.org>
 M:	Jesper Dangaard Brouer <hawk@kernel.org>
 M:	John Fastabend <john.fastabend@gmail.com>
 L:	netdev@vger.kernel.org

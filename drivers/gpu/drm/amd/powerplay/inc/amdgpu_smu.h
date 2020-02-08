@@ -254,15 +254,26 @@ struct smu_table_context
 	unsigned long			metrics_time;
 	void				*metrics_table;
 	void				*clocks_table;
+	void				*watermarks_table;
 
 	void				*max_sustainable_clocks;
 	struct smu_bios_boot_up_values	boot_values;
 	void                            *driver_pptable;
 	struct smu_table		*tables;
+	/*
+	 * The driver table is just a staging buffer for
+	 * uploading/downloading content from the SMU.
+	 *
+	 * And the table_id for SMU_MSG_TransferTableSmu2Dram/
+	 * SMU_MSG_TransferTableDram2Smu instructs SMU
+	 * which content driver is interested.
+	 */
+	struct smu_table		driver_table;
 	struct smu_table		memory_pool;
 	uint8_t                         thermal_controller_type;
 
 	void				*overdrive_table;
+	void                            *boot_overdrive_table;
 };
 
 struct smu_dpm_context {
@@ -350,6 +361,7 @@ struct smu_context
 	const struct pptable_funcs	*ppt_funcs;
 	struct mutex			mutex;
 	struct mutex			sensor_lock;
+	struct mutex			metrics_lock;
 	uint64_t pool_size;
 
 	struct smu_table_context	smu_table;
@@ -443,7 +455,7 @@ struct pptable_funcs {
 	int (*pre_display_config_changed)(struct smu_context *smu);
 	int (*display_config_changed)(struct smu_context *smu);
 	int (*apply_clocks_adjust_rules)(struct smu_context *smu);
-	int (*notify_smc_dispaly_config)(struct smu_context *smu);
+	int (*notify_smc_display_config)(struct smu_context *smu);
 	int (*force_dpm_limit_value)(struct smu_context *smu, bool highest);
 	int (*unforce_dpm_levels)(struct smu_context *smu);
 	int (*get_profiling_clk_mask)(struct smu_context *smu,
@@ -496,6 +508,7 @@ struct pptable_funcs {
 	int (*set_gfx_cgpg)(struct smu_context *smu, bool enable);
 	int (*write_pptable)(struct smu_context *smu);
 	int (*set_min_dcef_deep_sleep)(struct smu_context *smu);
+	int (*set_driver_table_location)(struct smu_context *smu);
 	int (*set_tool_table_location)(struct smu_context *smu);
 	int (*notify_memory_pool_location)(struct smu_context *smu);
 	int (*set_last_dcef_min_deep_sleep_clk)(struct smu_context *smu);
@@ -553,6 +566,7 @@ struct pptable_funcs {
 	int (*set_soft_freq_limited_range)(struct smu_context *smu, enum smu_clk_type clk_type, uint32_t min, uint32_t max);
 	int (*override_pcie_parameters)(struct smu_context *smu);
 	uint32_t (*get_pptable_power_limit)(struct smu_context *smu);
+	int (*disable_umc_cdr_12gbps_workaround)(struct smu_context *smu);
 };
 
 int smu_load_microcode(struct smu_context *smu);
@@ -696,6 +710,8 @@ int smu_set_soft_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 			    uint32_t min, uint32_t max);
 int smu_set_hard_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 			    uint32_t min, uint32_t max);
+int smu_get_dpm_level_range(struct smu_context *smu, enum smu_clk_type clk_type,
+			    uint32_t *min_value, uint32_t *max_value);
 enum amd_dpm_forced_level smu_get_performance_level(struct smu_context *smu);
 int smu_force_performance_level(struct smu_context *smu, enum amd_dpm_forced_level level);
 int smu_set_display_count(struct smu_context *smu, uint32_t count);

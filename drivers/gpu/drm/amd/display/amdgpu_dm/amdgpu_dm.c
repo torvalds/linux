@@ -98,6 +98,12 @@ MODULE_FIRMWARE(FIRMWARE_RENOIR_DMUB);
 #define FIRMWARE_RAVEN_DMCU		"amdgpu/raven_dmcu.bin"
 MODULE_FIRMWARE(FIRMWARE_RAVEN_DMCU);
 
+/* Number of bytes in PSP header for firmware. */
+#define PSP_HEADER_BYTES 0x100
+
+/* Number of bytes in PSP footer for firmware. */
+#define PSP_FOOTER_BYTES 0x100
+
 /**
  * DOC: overview
  *
@@ -741,27 +747,26 @@ void amdgpu_dm_audio_eld_notify(struct amdgpu_device *adev, int pin)
 
 static int dm_dmub_hw_init(struct amdgpu_device *adev)
 {
-	const unsigned int psp_header_bytes = 0x100;
-	const unsigned int psp_footer_bytes = 0x100;
 	const struct dmcub_firmware_header_v1_0 *hdr;
 	struct dmub_srv *dmub_srv = adev->dm.dmub_srv;
+	struct dmub_srv_fb_info *fb_info = adev->dm.dmub_fb_info;
 	const struct firmware *dmub_fw = adev->dm.dmub_fw;
 	struct dmcu *dmcu = adev->dm.dc->res_pool->dmcu;
 	struct abm *abm = adev->dm.dc->res_pool->abm;
-	struct dmub_srv_region_params region_params;
-	struct dmub_srv_region_info region_info;
-	struct dmub_srv_fb_params fb_params;
-	struct dmub_srv_fb_info fb_info;
 	struct dmub_srv_hw_params hw_params;
 	enum dmub_status status;
 	const unsigned char *fw_inst_const, *fw_bss_data;
-	uint32_t i;
-	int r;
+	uint32_t i, fw_inst_const_size, fw_bss_data_size;
 	bool has_hw_support;
 
 	if (!dmub_srv)
 		/* DMUB isn't supported on the ASIC. */
 		return 0;
+
+	if (!fb_info) {
+		DRM_ERROR("No framebuffer info for DMUB service.\n");
+		return -EINVAL;
+	}
 
 	if (!dmub_fw) {
 		/* Firmware required for DMUB support. */
@@ -782,60 +787,36 @@ static int dm_dmub_hw_init(struct amdgpu_device *adev)
 
 	hdr = (const struct dmcub_firmware_header_v1_0 *)dmub_fw->data;
 
-	/* Calculate the size of all the regions for the DMUB service. */
-	memset(&region_params, 0, sizeof(region_params));
-
-	region_params.inst_const_size = le32_to_cpu(hdr->inst_const_bytes) -
-					psp_header_bytes - psp_footer_bytes;
-	region_params.bss_data_size = le32_to_cpu(hdr->bss_data_bytes);
-	region_params.vbios_size = adev->dm.dc->ctx->dc_bios->bios_size;
-
-	status = dmub_srv_calc_region_info(dmub_srv, &region_params,
-					   &region_info);
-
-	if (status != DMUB_STATUS_OK) {
-		DRM_ERROR("Error calculating DMUB region info: %d\n", status);
-		return -EINVAL;
-	}
-
-	/*
-	 * Allocate a framebuffer based on the total size of all the regions.
-	 * TODO: Move this into GART.
-	 */
-	r = amdgpu_bo_create_kernel(adev, region_info.fb_size, PAGE_SIZE,
-				    AMDGPU_GEM_DOMAIN_VRAM, &adev->dm.dmub_bo,
-				    &adev->dm.dmub_bo_gpu_addr,
-				    &adev->dm.dmub_bo_cpu_addr);
-	if (r)
-		return r;
-
-	/* Rebase the regions on the framebuffer address. */
-	memset(&fb_params, 0, sizeof(fb_params));
-	fb_params.cpu_addr = adev->dm.dmub_bo_cpu_addr;
-	fb_params.gpu_addr = adev->dm.dmub_bo_gpu_addr;
-	fb_params.region_info = &region_info;
-
-	status = dmub_srv_calc_fb_info(dmub_srv, &fb_params, &fb_info);
-	if (status != DMUB_STATUS_OK) {
-		DRM_ERROR("Error calculating DMUB FB info: %d\n", status);
-		return -EINVAL;
-	}
-
 	fw_inst_const = dmub_fw->data +
 			le32_to_cpu(hdr->header.ucode_array_offset_bytes) +
-			psp_header_bytes;
+			PSP_HEADER_BYTES;
 
 	fw_bss_data = dmub_fw->data +
 		      le32_to_cpu(hdr->header.ucode_array_offset_bytes) +
 		      le32_to_cpu(hdr->inst_const_bytes);
 
 	/* Copy firmware and bios info into FB memory. */
-	memcpy(fb_info.fb[DMUB_WINDOW_0_INST_CONST].cpu_addr, fw_inst_const,
-	       region_params.inst_const_size);
-	memcpy(fb_info.fb[DMUB_WINDOW_2_BSS_DATA].cpu_addr, fw_bss_data,
-	       region_params.bss_data_size);
-	memcpy(fb_info.fb[DMUB_WINDOW_3_VBIOS].cpu_addr,
-	       adev->dm.dc->ctx->dc_bios->bios, region_params.vbios_size);
+	fw_inst_const_size = le32_to_cpu(hdr->inst_const_bytes) -
+			     PSP_HEADER_BYTES - PSP_FOOTER_BYTES;
+
+	fw_bss_data_size = le32_to_cpu(hdr->bss_data_bytes);
+
+	memcpy(fb_info->fb[DMUB_WINDOW_0_INST_CONST].cpu_addr, fw_inst_const,
+	       fw_inst_const_size);
+	memcpy(fb_info->fb[DMUB_WINDOW_2_BSS_DATA].cpu_addr, fw_bss_data,
+	       fw_bss_data_size);
+	memcpy(fb_info->fb[DMUB_WINDOW_3_VBIOS].cpu_addr, adev->bios,
+	       adev->bios_size);
+
+	/* Reset regions that need to be reset. */
+	memset(fb_info->fb[DMUB_WINDOW_4_MAILBOX].cpu_addr, 0,
+	fb_info->fb[DMUB_WINDOW_4_MAILBOX].size);
+
+	memset(fb_info->fb[DMUB_WINDOW_5_TRACEBUFF].cpu_addr, 0,
+	       fb_info->fb[DMUB_WINDOW_5_TRACEBUFF].size);
+
+	memset(fb_info->fb[DMUB_WINDOW_6_FW_STATE].cpu_addr, 0,
+	       fb_info->fb[DMUB_WINDOW_6_FW_STATE].size);
 
 	/* Initialize hardware. */
 	memset(&hw_params, 0, sizeof(hw_params));
@@ -845,8 +826,8 @@ static int dm_dmub_hw_init(struct amdgpu_device *adev)
 	if (dmcu)
 		hw_params.psp_version = dmcu->psp_version;
 
-	for (i = 0; i < fb_info.num_fb; ++i)
-		hw_params.fb[i] = &fb_info.fb[i];
+	for (i = 0; i < fb_info->num_fb; ++i)
+		hw_params.fb[i] = &fb_info->fb[i];
 
 	status = dmub_srv_hw_init(dmub_srv, &hw_params);
 	if (status != DMUB_STATUS_OK) {
@@ -925,13 +906,16 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 
 	init_data.dce_environment = DCE_ENV_PRODUCTION_DRV;
 
-	/*
-	 * TODO debug why this doesn't work on Raven
-	 */
-	if (adev->flags & AMD_IS_APU &&
-	    adev->asic_type >= CHIP_CARRIZO &&
-	    adev->asic_type < CHIP_RAVEN)
+	switch (adev->asic_type) {
+	case CHIP_CARRIZO:
+	case CHIP_STONEY:
+	case CHIP_RAVEN:
+	case CHIP_RENOIR:
 		init_data.flags.gpu_vm_support = true;
+		break;
+	default:
+		break;
+	}
 
 	if (amdgpu_dc_feature_mask & DC_FBC_MASK)
 		init_data.flags.fbc_support = true;
@@ -956,13 +940,13 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 		goto error;
 	}
 
-	dc_hardware_init(adev->dm.dc);
-
 	r = dm_dmub_hw_init(adev);
 	if (r) {
 		DRM_ERROR("DMUB interface failed to initialize: status=%d\n", r);
 		goto error;
 	}
+
+	dc_hardware_init(adev->dm.dc);
 
 	adev->dm.freesync_module = mod_freesync_create(adev->dm.dc);
 	if (!adev->dm.freesync_module) {
@@ -1174,6 +1158,11 @@ static void amdgpu_dm_dmub_reg_write(void *ctx, uint32_t address,
 static int dm_dmub_sw_init(struct amdgpu_device *adev)
 {
 	struct dmub_srv_create_params create_params;
+	struct dmub_srv_region_params region_params;
+	struct dmub_srv_region_info region_info;
+	struct dmub_srv_fb_params fb_params;
+	struct dmub_srv_fb_info *fb_info;
+	struct dmub_srv *dmub_srv;
 	const struct dmcub_firmware_header_v1_0 *hdr;
 	const char *fw_name_dmub;
 	enum dmub_asic dmub_asic;
@@ -1189,24 +1178,6 @@ static int dm_dmub_sw_init(struct amdgpu_device *adev)
 	default:
 		/* ASIC doesn't support DMUB. */
 		return 0;
-	}
-
-	adev->dm.dmub_srv = kzalloc(sizeof(*adev->dm.dmub_srv), GFP_KERNEL);
-	if (!adev->dm.dmub_srv) {
-		DRM_ERROR("Failed to allocate DMUB service!\n");
-		return -ENOMEM;
-	}
-
-	memset(&create_params, 0, sizeof(create_params));
-	create_params.user_ctx = adev;
-	create_params.funcs.reg_read = amdgpu_dm_dmub_reg_read;
-	create_params.funcs.reg_write = amdgpu_dm_dmub_reg_write;
-	create_params.asic = dmub_asic;
-
-	status = dmub_srv_create(adev->dm.dmub_srv, &create_params);
-	if (status != DMUB_STATUS_OK) {
-		DRM_ERROR("Error creating DMUB service: %d\n", status);
-		return -EINVAL;
 	}
 
 	r = request_firmware_direct(&adev->dm.dmub_fw, fw_name_dmub, adev->dev);
@@ -1238,6 +1209,80 @@ static int dm_dmub_sw_init(struct amdgpu_device *adev)
 	DRM_INFO("Loading DMUB firmware via PSP: version=0x%08X\n",
 		 adev->dm.dmcub_fw_version);
 
+	adev->dm.dmub_srv = kzalloc(sizeof(*adev->dm.dmub_srv), GFP_KERNEL);
+	dmub_srv = adev->dm.dmub_srv;
+
+	if (!dmub_srv) {
+		DRM_ERROR("Failed to allocate DMUB service!\n");
+		return -ENOMEM;
+	}
+
+	memset(&create_params, 0, sizeof(create_params));
+	create_params.user_ctx = adev;
+	create_params.funcs.reg_read = amdgpu_dm_dmub_reg_read;
+	create_params.funcs.reg_write = amdgpu_dm_dmub_reg_write;
+	create_params.asic = dmub_asic;
+
+	/* Create the DMUB service. */
+	status = dmub_srv_create(dmub_srv, &create_params);
+	if (status != DMUB_STATUS_OK) {
+		DRM_ERROR("Error creating DMUB service: %d\n", status);
+		return -EINVAL;
+	}
+
+	/* Calculate the size of all the regions for the DMUB service. */
+	memset(&region_params, 0, sizeof(region_params));
+
+	region_params.inst_const_size = le32_to_cpu(hdr->inst_const_bytes) -
+					PSP_HEADER_BYTES - PSP_FOOTER_BYTES;
+	region_params.bss_data_size = le32_to_cpu(hdr->bss_data_bytes);
+	region_params.vbios_size = adev->bios_size;
+	region_params.fw_bss_data =
+		adev->dm.dmub_fw->data +
+		le32_to_cpu(hdr->header.ucode_array_offset_bytes) +
+		le32_to_cpu(hdr->inst_const_bytes);
+
+	status = dmub_srv_calc_region_info(dmub_srv, &region_params,
+					   &region_info);
+
+	if (status != DMUB_STATUS_OK) {
+		DRM_ERROR("Error calculating DMUB region info: %d\n", status);
+		return -EINVAL;
+	}
+
+	/*
+	 * Allocate a framebuffer based on the total size of all the regions.
+	 * TODO: Move this into GART.
+	 */
+	r = amdgpu_bo_create_kernel(adev, region_info.fb_size, PAGE_SIZE,
+				    AMDGPU_GEM_DOMAIN_VRAM, &adev->dm.dmub_bo,
+				    &adev->dm.dmub_bo_gpu_addr,
+				    &adev->dm.dmub_bo_cpu_addr);
+	if (r)
+		return r;
+
+	/* Rebase the regions on the framebuffer address. */
+	memset(&fb_params, 0, sizeof(fb_params));
+	fb_params.cpu_addr = adev->dm.dmub_bo_cpu_addr;
+	fb_params.gpu_addr = adev->dm.dmub_bo_gpu_addr;
+	fb_params.region_info = &region_info;
+
+	adev->dm.dmub_fb_info =
+		kzalloc(sizeof(*adev->dm.dmub_fb_info), GFP_KERNEL);
+	fb_info = adev->dm.dmub_fb_info;
+
+	if (!fb_info) {
+		DRM_ERROR(
+			"Failed to allocate framebuffer info for DMUB service!\n");
+		return -ENOMEM;
+	}
+
+	status = dmub_srv_calc_fb_info(dmub_srv, &fb_params, fb_info);
+	if (status != DMUB_STATUS_OK) {
+		DRM_ERROR("Error calculating DMUB FB info: %d\n", status);
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -1256,6 +1301,9 @@ static int dm_sw_init(void *handle)
 static int dm_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	kfree(adev->dm.dmub_fb_info);
+	adev->dm.dmub_fb_info = NULL;
 
 	if (adev->dm.dmub_srv) {
 		dmub_srv_destroy(adev->dm.dmub_srv);
@@ -1559,13 +1607,18 @@ static int dm_resume(void *handle)
 	struct dm_plane_state *dm_new_plane_state;
 	struct dm_atomic_state *dm_state = to_dm_atomic_state(dm->atomic_obj.state);
 	enum dc_connection_type new_connection_type = dc_connection_none;
-	int i;
+	int i, r;
 
 	/* Recreate dc_state - DC invalidates it when setting power state to S3. */
 	dc_release_state(dm_state->context);
 	dm_state->context = dc_create_state(dm->dc);
 	/* TODO: Remove dc_state->dccg, use dc->dccg directly. */
 	dc_resource_state_construct(dm->dc, dm_state->context);
+
+	/* Before powering on DC we need to re-initialize DMUB. */
+	r = dm_dmub_hw_init(adev);
+	if (r)
+		DRM_ERROR("DMUB interface failed to initialize: status=%d\n", r);
 
 	/* power on hardware */
 	dc_set_power_state(dm->dc, DC_ACPI_CM_POWER_STATE_D0);
@@ -3654,27 +3707,21 @@ get_output_color_space(const struct dc_crtc_timing *dc_crtc_timing)
 	return color_space;
 }
 
-static void reduce_mode_colour_depth(struct dc_crtc_timing *timing_out)
+static bool adjust_colour_depth_from_display_info(
+	struct dc_crtc_timing *timing_out,
+	const struct drm_display_info *info)
 {
-	if (timing_out->display_color_depth <= COLOR_DEPTH_888)
-		return;
-
-	timing_out->display_color_depth--;
-}
-
-static void adjust_colour_depth_from_display_info(struct dc_crtc_timing *timing_out,
-						const struct drm_display_info *info)
-{
+	enum dc_color_depth depth = timing_out->display_color_depth;
 	int normalized_clk;
-	if (timing_out->display_color_depth <= COLOR_DEPTH_888)
-		return;
 	do {
 		normalized_clk = timing_out->pix_clk_100hz / 10;
 		/* YCbCr 4:2:0 requires additional adjustment of 1/2 */
 		if (timing_out->pixel_encoding == PIXEL_ENCODING_YCBCR420)
 			normalized_clk /= 2;
 		/* Adjusting pix clock following on HDMI spec based on colour depth */
-		switch (timing_out->display_color_depth) {
+		switch (depth) {
+		case COLOR_DEPTH_888:
+			break;
 		case COLOR_DEPTH_101010:
 			normalized_clk = (normalized_clk * 30) / 24;
 			break;
@@ -3685,14 +3732,15 @@ static void adjust_colour_depth_from_display_info(struct dc_crtc_timing *timing_
 			normalized_clk = (normalized_clk * 48) / 24;
 			break;
 		default:
-			return;
+			/* The above depths are the only ones valid for HDMI. */
+			return false;
 		}
-		if (normalized_clk <= info->max_tmds_clock)
-			return;
-		reduce_mode_colour_depth(timing_out);
-
-	} while (timing_out->display_color_depth > COLOR_DEPTH_888);
-
+		if (normalized_clk <= info->max_tmds_clock) {
+			timing_out->display_color_depth = depth;
+			return true;
+		}
+	} while (--depth > COLOR_DEPTH_666);
+	return false;
 }
 
 static void fill_stream_properties_from_drm_display_mode(
@@ -3773,8 +3821,14 @@ static void fill_stream_properties_from_drm_display_mode(
 
 	stream->out_transfer_func->type = TF_TYPE_PREDEFINED;
 	stream->out_transfer_func->tf = TRANSFER_FUNCTION_SRGB;
-	if (stream->signal == SIGNAL_TYPE_HDMI_TYPE_A)
-		adjust_colour_depth_from_display_info(timing_out, info);
+	if (stream->signal == SIGNAL_TYPE_HDMI_TYPE_A) {
+		if (!adjust_colour_depth_from_display_info(timing_out, info) &&
+		    drm_mode_is_420_also(info, mode_in) &&
+		    timing_out->pixel_encoding != PIXEL_ENCODING_YCBCR420) {
+			timing_out->pixel_encoding = PIXEL_ENCODING_YCBCR420;
+			adjust_colour_depth_from_display_info(timing_out, info);
+		}
+	}
 }
 
 static void fill_audio_info(struct audio_info *audio_info,
@@ -4025,7 +4079,8 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 
 	if (aconnector->dc_link && sink->sink_signal == SIGNAL_TYPE_DISPLAY_PORT) {
 #if defined(CONFIG_DRM_AMD_DC_DCN)
-		dc_dsc_parse_dsc_dpcd(aconnector->dc_link->dpcd_caps.dsc_caps.dsc_basic_caps.raw,
+		dc_dsc_parse_dsc_dpcd(aconnector->dc_link->ctx->dc,
+				      aconnector->dc_link->dpcd_caps.dsc_caps.dsc_basic_caps.raw,
 				      aconnector->dc_link->dpcd_caps.dsc_caps.dsc_ext_caps.raw,
 				      &dsc_caps);
 #endif
@@ -4881,12 +4936,13 @@ static int dm_encoder_helper_atomic_check(struct drm_encoder *encoder,
 								    is_y420);
 		bpp = convert_dc_color_depth_into_bpc(color_depth) * 3;
 		clock = adjusted_mode->clock;
-		dm_new_connector_state->pbn = drm_dp_calc_pbn_mode(clock, bpp);
+		dm_new_connector_state->pbn = drm_dp_calc_pbn_mode(clock, bpp, false);
 	}
 	dm_new_connector_state->vcpi_slots = drm_dp_atomic_find_vcpi_slots(state,
 									   mst_mgr,
 									   mst_port,
-									   dm_new_connector_state->pbn);
+									   dm_new_connector_state->pbn,
+									   0);
 	if (dm_new_connector_state->vcpi_slots < 0) {
 		DRM_DEBUG_ATOMIC("failed finding vcpi slots: %d\n", (int)dm_new_connector_state->vcpi_slots);
 		return dm_new_connector_state->vcpi_slots;
@@ -4898,6 +4954,71 @@ const struct drm_encoder_helper_funcs amdgpu_dm_encoder_helper_funcs = {
 	.disable = dm_encoder_helper_disable,
 	.atomic_check = dm_encoder_helper_atomic_check
 };
+
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+static int dm_update_mst_vcpi_slots_for_dsc(struct drm_atomic_state *state,
+					    struct dc_state *dc_state)
+{
+	struct dc_stream_state *stream = NULL;
+	struct drm_connector *connector;
+	struct drm_connector_state *new_con_state, *old_con_state;
+	struct amdgpu_dm_connector *aconnector;
+	struct dm_connector_state *dm_conn_state;
+	int i, j, clock, bpp;
+	int vcpi, pbn_div, pbn = 0;
+
+	for_each_oldnew_connector_in_state(state, connector, old_con_state, new_con_state, i) {
+
+		aconnector = to_amdgpu_dm_connector(connector);
+
+		if (!aconnector->port)
+			continue;
+
+		if (!new_con_state || !new_con_state->crtc)
+			continue;
+
+		dm_conn_state = to_dm_connector_state(new_con_state);
+
+		for (j = 0; j < dc_state->stream_count; j++) {
+			stream = dc_state->streams[j];
+			if (!stream)
+				continue;
+
+			if ((struct amdgpu_dm_connector*)stream->dm_stream_context == aconnector)
+				break;
+
+			stream = NULL;
+		}
+
+		if (!stream)
+			continue;
+
+		if (stream->timing.flags.DSC != 1) {
+			drm_dp_mst_atomic_enable_dsc(state,
+						     aconnector->port,
+						     dm_conn_state->pbn,
+						     0,
+						     false);
+			continue;
+		}
+
+		pbn_div = dm_mst_get_pbn_divider(stream->link);
+		bpp = stream->timing.dsc_cfg.bits_per_pixel;
+		clock = stream->timing.pix_clk_100hz / 10;
+		pbn = drm_dp_calc_pbn_mode(clock, bpp, true);
+		vcpi = drm_dp_mst_atomic_enable_dsc(state,
+						    aconnector->port,
+						    pbn, pbn_div,
+						    true);
+		if (vcpi < 0)
+			return vcpi;
+
+		dm_conn_state->pbn = pbn;
+		dm_conn_state->vcpi_slots = vcpi;
+	}
+	return 0;
+}
+#endif
 
 static void dm_drm_plane_reset(struct drm_plane *plane)
 {
@@ -5561,9 +5682,9 @@ void amdgpu_dm_connector_init_helper(struct amdgpu_display_manager *dm,
 
 	drm_connector_attach_max_bpc_property(&aconnector->base, 8, 16);
 
-	/* This defaults to the max in the range, but we want 8bpc. */
-	aconnector->base.state->max_bpc = 8;
-	aconnector->base.state->max_requested_bpc = 8;
+	/* This defaults to the max in the range, but we want 8bpc for non-edp. */
+	aconnector->base.state->max_bpc = (connector_type == DRM_MODE_CONNECTOR_eDP) ? 16 : 8;
+	aconnector->base.state->max_requested_bpc = aconnector->base.state->max_bpc;
 
 	if (connector_type == DRM_MODE_CONNECTOR_eDP &&
 	    dc_is_dmcu_initialized(adev->dm.dc)) {
@@ -7638,24 +7759,27 @@ dm_determine_update_type_for_commit(struct amdgpu_display_manager *dm,
 	struct drm_crtc_state *new_crtc_state, *old_crtc_state;
 	struct dm_crtc_state *new_dm_crtc_state, *old_dm_crtc_state;
 	struct dc_stream_status *status = NULL;
-
-	struct dc_surface_update *updates;
 	enum surface_update_type update_type = UPDATE_TYPE_FAST;
+	struct surface_info_bundle {
+		struct dc_surface_update surface_updates[MAX_SURFACES];
+		struct dc_plane_info plane_infos[MAX_SURFACES];
+		struct dc_scaling_info scaling_infos[MAX_SURFACES];
+		struct dc_flip_addrs flip_addrs[MAX_SURFACES];
+		struct dc_stream_update stream_update;
+	} *bundle;
 
-	updates = kcalloc(MAX_SURFACES, sizeof(*updates), GFP_KERNEL);
+	bundle = kzalloc(sizeof(*bundle), GFP_KERNEL);
 
-	if (!updates) {
-		DRM_ERROR("Failed to allocate plane updates\n");
+	if (!bundle) {
+		DRM_ERROR("Failed to allocate update bundle\n");
 		/* Set type to FULL to avoid crashing in DC*/
 		update_type = UPDATE_TYPE_FULL;
 		goto cleanup;
 	}
 
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
-		struct dc_scaling_info scaling_info;
-		struct dc_stream_update stream_update;
 
-		memset(&stream_update, 0, sizeof(stream_update));
+		memset(bundle, 0, sizeof(struct surface_info_bundle));
 
 		new_dm_crtc_state = to_dm_crtc_state(new_crtc_state);
 		old_dm_crtc_state = to_dm_crtc_state(old_crtc_state);
@@ -7672,8 +7796,9 @@ dm_determine_update_type_for_commit(struct amdgpu_display_manager *dm,
 		for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, j) {
 			const struct amdgpu_framebuffer *amdgpu_fb =
 				to_amdgpu_framebuffer(new_plane_state->fb);
-			struct dc_plane_info plane_info;
-			struct dc_flip_addrs flip_addr;
+			struct dc_plane_info *plane_info = &bundle->plane_infos[num_plane];
+			struct dc_flip_addrs *flip_addr = &bundle->flip_addrs[num_plane];
+			struct dc_scaling_info *scaling_info = &bundle->scaling_infos[num_plane];
 			uint64_t tiling_flags;
 
 			new_plane_crtc = new_plane_state->crtc;
@@ -7691,49 +7816,48 @@ dm_determine_update_type_for_commit(struct amdgpu_display_manager *dm,
 			if (crtc != new_plane_crtc)
 				continue;
 
-			updates[num_plane].surface = new_dm_plane_state->dc_state;
+			bundle->surface_updates[num_plane].surface =
+					new_dm_plane_state->dc_state;
 
 			if (new_crtc_state->mode_changed) {
-				stream_update.dst = new_dm_crtc_state->stream->dst;
-				stream_update.src = new_dm_crtc_state->stream->src;
+				bundle->stream_update.dst = new_dm_crtc_state->stream->dst;
+				bundle->stream_update.src = new_dm_crtc_state->stream->src;
 			}
 
 			if (new_crtc_state->color_mgmt_changed) {
-				updates[num_plane].gamma =
+				bundle->surface_updates[num_plane].gamma =
 						new_dm_plane_state->dc_state->gamma_correction;
-				updates[num_plane].in_transfer_func =
+				bundle->surface_updates[num_plane].in_transfer_func =
 						new_dm_plane_state->dc_state->in_transfer_func;
-				stream_update.gamut_remap =
+				bundle->stream_update.gamut_remap =
 						&new_dm_crtc_state->stream->gamut_remap_matrix;
-				stream_update.output_csc_transform =
+				bundle->stream_update.output_csc_transform =
 						&new_dm_crtc_state->stream->csc_color_matrix;
-				stream_update.out_transfer_func =
+				bundle->stream_update.out_transfer_func =
 						new_dm_crtc_state->stream->out_transfer_func;
 			}
 
 			ret = fill_dc_scaling_info(new_plane_state,
-						   &scaling_info);
+						   scaling_info);
 			if (ret)
 				goto cleanup;
 
-			updates[num_plane].scaling_info = &scaling_info;
+			bundle->surface_updates[num_plane].scaling_info = scaling_info;
 
 			if (amdgpu_fb) {
 				ret = get_fb_info(amdgpu_fb, &tiling_flags);
 				if (ret)
 					goto cleanup;
 
-				memset(&flip_addr, 0, sizeof(flip_addr));
-
 				ret = fill_dc_plane_info_and_addr(
 					dm->adev, new_plane_state, tiling_flags,
-					&plane_info,
-					&flip_addr.address);
+					plane_info,
+					&flip_addr->address);
 				if (ret)
 					goto cleanup;
 
-				updates[num_plane].plane_info = &plane_info;
-				updates[num_plane].flip_addr = &flip_addr;
+				bundle->surface_updates[num_plane].plane_info = plane_info;
+				bundle->surface_updates[num_plane].flip_addr = flip_addr;
 			}
 
 			num_plane++;
@@ -7754,14 +7878,15 @@ dm_determine_update_type_for_commit(struct amdgpu_display_manager *dm,
 
 		status = dc_stream_get_status_from_state(old_dm_state->context,
 							 new_dm_crtc_state->stream);
-		stream_update.stream = new_dm_crtc_state->stream;
+		bundle->stream_update.stream = new_dm_crtc_state->stream;
 		/*
 		 * TODO: DC modifies the surface during this call so we need
 		 * to lock here - find a way to do this without locking.
 		 */
 		mutex_lock(&dm->dc_lock);
-		update_type = dc_check_update_surfaces_for_stream(dc, updates, num_plane,
-								  &stream_update, status);
+		update_type = dc_check_update_surfaces_for_stream(
+				dc,	bundle->surface_updates, num_plane,
+				&bundle->stream_update, status);
 		mutex_unlock(&dm->dc_lock);
 
 		if (update_type > UPDATE_TYPE_MED) {
@@ -7771,10 +7896,33 @@ dm_determine_update_type_for_commit(struct amdgpu_display_manager *dm,
 	}
 
 cleanup:
-	kfree(updates);
+	kfree(bundle);
 
 	*out_type = update_type;
 	return ret;
+}
+
+static int add_affected_mst_dsc_crtcs(struct drm_atomic_state *state, struct drm_crtc *crtc)
+{
+	struct drm_connector *connector;
+	struct drm_connector_state *conn_state;
+	struct amdgpu_dm_connector *aconnector = NULL;
+	int i;
+	for_each_new_connector_in_state(state, connector, conn_state, i) {
+		if (conn_state->crtc != crtc)
+			continue;
+
+		aconnector = to_amdgpu_dm_connector(connector);
+		if (!aconnector->port || !aconnector->mst_port)
+			aconnector = NULL;
+		else
+			break;
+	}
+
+	if (!aconnector)
+		return 0;
+
+	return drm_dp_mst_add_affected_dsc_crtcs(state, &aconnector->mst_port->mst_mgr);
 }
 
 /**
@@ -7828,6 +7976,16 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 	ret = drm_atomic_helper_check_modeset(dev, state);
 	if (ret)
 		goto fail;
+
+	if (adev->asic_type >= CHIP_NAVI10) {
+		for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
+			if (drm_atomic_crtc_needs_modeset(new_crtc_state)) {
+				ret = add_affected_mst_dsc_crtcs(state, crtc);
+				if (ret)
+					goto fail;
+			}
+		}
+	}
 
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 		if (!drm_atomic_crtc_needs_modeset(new_crtc_state) &&
@@ -7932,11 +8090,6 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 	if (ret)
 		goto fail;
 
-	/* Perform validation of MST topology in the state*/
-	ret = drm_dp_mst_atomic_check(state);
-	if (ret)
-		goto fail;
-
 	if (state->legacy_cursor_update) {
 		/*
 		 * This is a fast cursor update coming from the plane update
@@ -8002,6 +8155,25 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 			goto fail;
 
 		ret = do_aquire_global_lock(dev, state);
+		if (ret)
+			goto fail;
+
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+		if (!compute_mst_dsc_configs_for_state(state, dm_state->context))
+			goto fail;
+
+		ret = dm_update_mst_vcpi_slots_for_dsc(state, dm_state->context);
+		if (ret)
+			goto fail;
+#endif
+
+		/*
+		 * Perform validation of MST topology in the state:
+		 * We need to perform MST atomic check before calling
+		 * dc_validate_global_state(), or there is a chance
+		 * to get stuck in an infinite loop and hang eventually.
+		 */
+		ret = drm_dp_mst_atomic_check(state);
 		if (ret)
 			goto fail;
 
@@ -8231,17 +8403,37 @@ static bool amdgpu_dm_link_setup_psr(struct dc_stream_state *stream)
 bool amdgpu_dm_psr_enable(struct dc_stream_state *stream)
 {
 	struct dc_link *link = stream->link;
-	struct dc_static_screen_events triggers = {0};
+	unsigned int vsync_rate_hz = 0;
+	struct dc_static_screen_params params = {0};
+	/* Calculate number of static frames before generating interrupt to
+	 * enter PSR.
+	 */
+	unsigned int frame_time_microsec = 1000000 / vsync_rate_hz;
+	// Init fail safe of 2 frames static
+	unsigned int num_frames_static = 2;
 
 	DRM_DEBUG_DRIVER("Enabling psr...\n");
 
-	triggers.cursor_update = true;
-	triggers.overlay_update = true;
-	triggers.surface_update = true;
+	vsync_rate_hz = div64_u64(div64_u64((
+			stream->timing.pix_clk_100hz * 100),
+			stream->timing.v_total),
+			stream->timing.h_total);
 
-	dc_stream_set_static_screen_events(link->ctx->dc,
+	/* Round up
+	 * Calculate number of frames such that at least 30 ms of time has
+	 * passed.
+	 */
+	if (vsync_rate_hz != 0)
+		num_frames_static = (30000 / frame_time_microsec) + 1;
+
+	params.triggers.cursor_update = true;
+	params.triggers.overlay_update = true;
+	params.triggers.surface_update = true;
+	params.num_frames = num_frames_static;
+
+	dc_stream_set_static_screen_params(link->ctx->dc,
 					   &stream, 1,
-					   &triggers);
+					   &params);
 
 	return dc_link_set_psr_allow_active(link, true, false);
 }

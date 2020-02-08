@@ -195,9 +195,9 @@ err_get_kernel_doorbell:
 }
 
 /* Uninitialize a kernel queue and free all its memory usages. */
-static void kq_uninitialize(struct kernel_queue *kq)
+static void kq_uninitialize(struct kernel_queue *kq, bool hanging)
 {
-	if (kq->queue->properties.type == KFD_QUEUE_TYPE_HIQ)
+	if (kq->queue->properties.type == KFD_QUEUE_TYPE_HIQ && !hanging)
 		kq->mqd_mgr->destroy_mqd(kq->mqd_mgr,
 					kq->queue->mqd,
 					KFD_PREEMPT_TYPE_WAVEFRONT_RESET,
@@ -337,9 +337,9 @@ struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,
 	return NULL;
 }
 
-void kernel_queue_uninit(struct kernel_queue *kq)
+void kernel_queue_uninit(struct kernel_queue *kq, bool hanging)
 {
-	kq_uninitialize(kq);
+	kq_uninitialize(kq, hanging);
 	kfree(kq);
 }
 

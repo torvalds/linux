@@ -181,14 +181,17 @@ When mounting an ext4 filesystem, the following option are accepted:
         system after its metadata has been committed to the journal.
 
   commit=nrsec	(*)
-        Ext4 can be told to sync all its data and metadata every 'nrsec'
-        seconds. The default value is 5 seconds.  This means that if you lose
-        your power, you will lose as much as the latest 5 seconds of work (your
-        filesystem will not be damaged though, thanks to the journaling).  This
-        default value (or any low value) will hurt performance, but it's good
-        for data-safety.  Setting it to 0 will have the same effect as leaving
-        it at the default (5 seconds).  Setting it to very large values will
-        improve performance.
+        This setting limits the maximum age of the running transaction to
+        'nrsec' seconds.  The default value is 5 seconds.  This means that if
+        you lose your power, you will lose as much as the latest 5 seconds of
+        metadata changes (your filesystem will not be damaged though, thanks
+        to the journaling). This default value (or any low value) will hurt
+        performance, but it's good for data-safety.  Setting it to 0 will have
+        the same effect as leaving it at the default (5 seconds).  Setting it
+        to very large values will improve performance.  Note that due to
+        delayed allocation even older data can be lost on power failure since
+        writeback of those data begins only after time set in
+        /proc/sys/vm/dirty_expire_centisecs.
 
   barrier=<0|1(*)>, barrier(*), nobarrier
         This enables/disables the use of write barriers in the jbd code.

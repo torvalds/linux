@@ -2377,9 +2377,12 @@ static int vmw_cmd_dx_clear_rendertarget_view(struct vmw_private *dev_priv,
 {
 	VMW_DECLARE_CMD_VAR(*cmd, SVGA3dCmdDXClearRenderTargetView) =
 		container_of(header, typeof(*cmd), header);
+	struct vmw_resource *ret;
 
-	return PTR_RET(vmw_view_id_val_add(sw_context, vmw_view_rt,
-					   cmd->body.renderTargetViewId));
+	ret = vmw_view_id_val_add(sw_context, vmw_view_rt,
+				  cmd->body.renderTargetViewId);
+
+	return PTR_ERR_OR_ZERO(ret);
 }
 
 /**
@@ -2396,9 +2399,12 @@ static int vmw_cmd_dx_clear_depthstencil_view(struct vmw_private *dev_priv,
 {
 	VMW_DECLARE_CMD_VAR(*cmd, SVGA3dCmdDXClearDepthStencilView) =
 		container_of(header, typeof(*cmd), header);
+	struct vmw_resource *ret;
 
-	return PTR_RET(vmw_view_id_val_add(sw_context, vmw_view_ds,
-					   cmd->body.depthStencilViewId));
+	ret = vmw_view_id_val_add(sw_context, vmw_view_ds,
+				  cmd->body.depthStencilViewId);
+
+	return PTR_ERR_OR_ZERO(ret);
 }
 
 static int vmw_cmd_dx_view_define(struct vmw_private *dev_priv,
@@ -2741,9 +2747,12 @@ static int vmw_cmd_dx_genmips(struct vmw_private *dev_priv,
 {
 	VMW_DECLARE_CMD_VAR(*cmd, SVGA3dCmdDXGenMips) =
 		container_of(header, typeof(*cmd), header);
+	struct vmw_resource *ret;
 
-	return PTR_RET(vmw_view_id_val_add(sw_context, vmw_view_sr,
-					   cmd->body.shaderResourceViewId));
+	ret = vmw_view_id_val_add(sw_context, vmw_view_sr,
+				  cmd->body.shaderResourceViewId);
+
+	return PTR_ERR_OR_ZERO(ret);
 }
 
 /**

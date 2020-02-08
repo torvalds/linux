@@ -1373,9 +1373,13 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 	// DRR should set trigger event to monitor surface update event
 	if (stream->adjust.v_total_min != 0 && stream->adjust.v_total_max != 0)
 		event_triggers = 0x80;
+	/* Event triggers and num frames initialized for DRR, but can be
+	 * later updated for PSR use. Note DRR trigger events are generated
+	 * regardless of whether num frames met.
+	 */
 	if (pipe_ctx->stream_res.tg->funcs->set_static_screen_control)
 		pipe_ctx->stream_res.tg->funcs->set_static_screen_control(
-				pipe_ctx->stream_res.tg, event_triggers);
+				pipe_ctx->stream_res.tg, event_triggers, 2);
 
 	if (!dc_is_virtual_signal(pipe_ctx->stream->signal))
 		pipe_ctx->stream_res.stream_enc->funcs->dig_connect_to_otg(
@@ -1706,6 +1710,8 @@ static void set_drr(struct pipe_ctx **pipe_ctx,
 	struct drr_params params = {0};
 	// DRR should set trigger event to monitor surface update event
 	unsigned int event_triggers = 0x80;
+	// Note DRR trigger events are generated regardless of whether num frames met.
+	unsigned int num_frames = 2;
 
 	params.vertical_total_max = vmax;
 	params.vertical_total_min = vmin;
@@ -1721,7 +1727,7 @@ static void set_drr(struct pipe_ctx **pipe_ctx,
 		if (vmax != 0 && vmin != 0)
 			pipe_ctx[i]->stream_res.tg->funcs->set_static_screen_control(
 					pipe_ctx[i]->stream_res.tg,
-					event_triggers);
+					event_triggers, num_frames);
 	}
 }
 
@@ -1738,30 +1744,31 @@ static void get_position(struct pipe_ctx **pipe_ctx,
 }
 
 static void set_static_screen_control(struct pipe_ctx **pipe_ctx,
-		int num_pipes, const struct dc_static_screen_events *events)
+		int num_pipes, const struct dc_static_screen_params *params)
 {
 	unsigned int i;
-	unsigned int value = 0;
+	unsigned int triggers = 0;
 
-	if (events->overlay_update)
-		value |= 0x100;
-	if (events->surface_update)
-		value |= 0x80;
-	if (events->cursor_update)
-		value |= 0x2;
-	if (events->force_trigger)
-		value |= 0x1;
+	if (params->triggers.overlay_update)
+		triggers |= 0x100;
+	if (params->triggers.surface_update)
+		triggers |= 0x80;
+	if (params->triggers.cursor_update)
+		triggers |= 0x2;
+	if (params->triggers.force_trigger)
+		triggers |= 0x1;
 
 	if (num_pipes) {
 		struct dc *dc = pipe_ctx[0]->stream->ctx->dc;
 
 		if (dc->fbc_compressor)
-			value |= 0x84;
+			triggers |= 0x84;
 	}
 
 	for (i = 0; i < num_pipes; i++)
 		pipe_ctx[i]->stream_res.tg->funcs->
-			set_static_screen_control(pipe_ctx[i]->stream_res.tg, value);
+			set_static_screen_control(pipe_ctx[i]->stream_res.tg,
+					triggers, params->num_frames);
 }
 
 /*

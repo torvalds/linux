@@ -67,7 +67,6 @@
 #include "dmub_types.h"
 #include "dmub_cmd.h"
 #include "dmub_rb.h"
-#include "dmub_fw_state.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -76,7 +75,7 @@ extern "C" {
 /* Forward declarations */
 struct dmub_srv;
 struct dmub_cmd_header;
-struct dmcu;
+struct dmub_srv_common_regs;
 
 /* enum dmub_status - return code for dmcub functions */
 enum dmub_status {
@@ -145,11 +144,13 @@ struct dmub_fb {
  * @inst_const_size: size of the fw inst const section
  * @bss_data_size: size of the fw bss data section
  * @vbios_size: size of the vbios data
+ * @fw_bss_data: raw firmware bss data section
  */
 struct dmub_srv_region_params {
 	uint32_t inst_const_size;
 	uint32_t bss_data_size;
 	uint32_t vbios_size;
+	const uint8_t *fw_bss_data;
 };
 
 /**
@@ -230,6 +231,8 @@ struct dmub_srv_base_funcs {
 struct dmub_srv_hw_funcs {
 	/* private: internal use only */
 
+	void (*init)(struct dmub_srv *dmub);
+
 	void (*reset)(struct dmub_srv *dmub);
 
 	void (*reset_release)(struct dmub_srv *dmub);
@@ -307,6 +310,8 @@ struct dmub_srv {
 	volatile const struct dmub_fw_state *fw_state;
 
 	/* private: internal use only */
+	const struct dmub_srv_common_regs *regs;
+
 	struct dmub_srv_base_funcs funcs;
 	struct dmub_srv_hw_funcs hw_funcs;
 	struct dmub_rb inbox1_rb;
@@ -414,6 +419,21 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 				  const struct dmub_srv_hw_params *params);
 
 /**
+ * dmub_srv_hw_reset() - puts the DMUB hardware in reset state if initialized
+ * @dmub: the dmub service
+ *
+ * Before destroying the DMUB service or releasing the backing framebuffer
+ * memory we'll need to put the DMCUB into reset first.
+ *
+ * A subsequent call to dmub_srv_hw_init() will re-enable the DMCUB.
+ *
+ * Return:
+ *   DMUB_STATUS_OK - success
+ *   DMUB_STATUS_INVALID - unspecified error
+ */
+enum dmub_status dmub_srv_hw_reset(struct dmub_srv *dmub);
+
+/**
  * dmub_srv_cmd_queue() - queues a command to the DMUB
  * @dmub: the dmub service
  * @cmd: the command to queue
@@ -440,25 +460,6 @@ enum dmub_status dmub_srv_cmd_queue(struct dmub_srv *dmub,
  *   DMUB_STATUS_INVALID - unspecified error
  */
 enum dmub_status dmub_srv_cmd_execute(struct dmub_srv *dmub);
-
-/**
- * dmub_srv_cmd_submit() - submits a command to the DMUB immediately
- * @dmub: the dmub service
- * @cmd: the command to submit
- * @timeout_us: the maximum number of microseconds to wait
- *
- * Submits a command to the DMUB with an optional timeout.
- * If timeout_us is given then the service will attempt to
- * resubmit for the given number of microseconds.
- *
- * Return:
- *   DMUB_STATUS_OK - success
- *   DMUB_STATUS_TIMEOUT - wait for submit timed out
- *   DMUB_STATUS_INVALID - unspecified error
- */
-enum dmub_status dmub_srv_cmd_submit(struct dmub_srv *dmub,
-				     const struct dmub_cmd_header *cmd,
-				     uint32_t timeout_us);
 
 /**
  * dmub_srv_wait_for_auto_load() - Waits for firmware auto load to complete

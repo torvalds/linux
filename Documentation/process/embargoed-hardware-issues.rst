@@ -255,7 +255,7 @@ an involved disclosed party. The current ambassadors list:
   Red Hat	Josh Poimboeuf <jpoimboe@redhat.com>
   SUSE		Jiri Kosina <jkosina@suse.cz>
 
-  Amazon
+  Amazon	Peter Bowen <pzb@amzn.com>
   Google	Kees Cook <keescook@chromium.org>
   ============= ========================================================
 

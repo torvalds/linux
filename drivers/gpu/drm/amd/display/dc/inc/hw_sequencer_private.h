@@ -51,7 +51,7 @@ struct dc_state;
 struct dc_stream_status;
 struct dc_writeback_info;
 struct dchub_init_data;
-struct dc_static_screen_events;
+struct dc_static_screen_params;
 struct resource_pool;
 struct resource_context;
 struct stream_resource;

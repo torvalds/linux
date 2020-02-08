@@ -289,7 +289,7 @@ struct wfx_dev *wfx_init_common(struct device *dev,
 	hw->sta_data_size = sizeof(struct wfx_sta_priv);
 	hw->queues = 4;
 	hw->max_rates = 8;
-	hw->max_rate_tries = 15;
+	hw->max_rate_tries = 8;
 	hw->extra_tx_headroom = sizeof(struct hif_sl_msg_hdr) +
 				sizeof(struct hif_msg)
 				+ sizeof(struct hif_req_tx)

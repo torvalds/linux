@@ -45,6 +45,7 @@
 #include "dpcd_defs.h"
 #include "dmcu.h"
 #include "hw/clk_mgr.h"
+#include "../dce/dmub_psr.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -817,8 +818,8 @@ static bool dc_link_detect_helper(struct dc_link *link,
 		}
 
 		case SIGNAL_TYPE_EDP: {
-			read_current_link_settings_on_detect(link);
 			detect_edp_sink_caps(link);
+			read_current_link_settings_on_detect(link);
 			sink_caps.transaction_type = DDC_TRANSACTION_TYPE_I2C_OVER_AUX;
 			sink_caps.signal = SIGNAL_TYPE_EDP;
 			break;
@@ -850,18 +851,12 @@ static bool dc_link_detect_helper(struct dc_link *link,
 				if (memcmp(&link->dpcd_caps, &prev_dpcd_caps, sizeof(struct dpcd_caps)))
 					same_dpcd = false;
 			}
-			/* Active dongle plug in without display or downstream unplug*/
+			/* Active dongle downstream unplug*/
 			if (link->type == dc_connection_active_dongle &&
 				link->dpcd_caps.sink_count.bits.SINK_COUNT == 0) {
-				if (prev_sink != NULL) {
+				if (prev_sink != NULL)
 					/* Downstream unplug */
 					dc_sink_release(prev_sink);
-				} else {
-					/* Empty dongle plug in */
-					dp_verify_link_cap_with_retries(link,
-							&link->reported_link_cap,
-							LINK_TRAINING_MAX_VERIFY_RETRY);
-				}
 				return true;
 			}
 
@@ -968,8 +963,7 @@ static bool dc_link_detect_helper(struct dc_link *link,
 			same_edid = is_same_edid(&prev_sink->dc_edid, &sink->dc_edid);
 
 		if (link->connector_signal == SIGNAL_TYPE_DISPLAY_PORT &&
-			sink_caps.transaction_type == DDC_TRANSACTION_TYPE_I2C_OVER_AUX &&
-			reason != DETECT_REASON_HPDRX) {
+			sink_caps.transaction_type == DDC_TRANSACTION_TYPE_I2C_OVER_AUX) {
 			/*
 			 * TODO debug why Dell 2413 doesn't like
 			 *  two link trainings
@@ -2404,10 +2398,11 @@ bool dc_link_set_psr_allow_active(struct dc_link *link, bool allow_active, bool 
 {
 	struct dc  *dc = link->ctx->dc;
 	struct dmcu *dmcu = dc->res_pool->dmcu;
+	struct dmub_psr *psr = dc->res_pool->psr;
 
-
-
-	if ((dmcu != NULL && dmcu->funcs->is_dmcu_initialized(dmcu)) && link->psr_feature_enabled)
+	if ((psr != NULL) && link->psr_feature_enabled)
+		psr->funcs->set_psr_enable(psr, allow_active);
+	else if ((dmcu != NULL && dmcu->funcs->is_dmcu_initialized(dmcu)) && link->psr_feature_enabled)
 		dmcu->funcs->set_psr_enable(dmcu, allow_active, wait);
 
 	link->psr_allow_active = allow_active;
@@ -2419,8 +2414,11 @@ bool dc_link_get_psr_state(const struct dc_link *link, uint32_t *psr_state)
 {
 	struct dc  *dc = link->ctx->dc;
 	struct dmcu *dmcu = dc->res_pool->dmcu;
+	struct dmub_psr *psr = dc->res_pool->psr;
 
-	if (dmcu != NULL && link->psr_feature_enabled)
+	if (psr != NULL && link->psr_feature_enabled)
+		psr->funcs->get_psr_state(psr_state);
+	else if (dmcu != NULL && link->psr_feature_enabled)
 		dmcu->funcs->get_psr_state(dmcu, psr_state);
 
 	return true;
@@ -2467,6 +2465,7 @@ bool dc_link_setup_psr(struct dc_link *link,
 {
 	struct dc *dc;
 	struct dmcu *dmcu;
+	struct dmub_psr *psr;
 	int i;
 	/* updateSinkPsrDpcdConfig*/
 	union dpcd_psr_configuration psr_configuration;
@@ -2478,8 +2477,9 @@ bool dc_link_setup_psr(struct dc_link *link,
 
 	dc = link->ctx->dc;
 	dmcu = dc->res_pool->dmcu;
+	psr = dc->res_pool->psr;
 
-	if (!dmcu)
+	if (!dmcu && !psr)
 		return false;
 
 
@@ -2535,7 +2535,7 @@ bool dc_link_setup_psr(struct dc_link *link,
 		transmitter_to_phy_id(link->link_enc->transmitter);
 
 	psr_context->crtcTimingVerticalTotal = stream->timing.v_total;
-	psr_context->vsyncRateHz = div64_u64(div64_u64((stream->
+	psr_context->vsync_rate_hz = div64_u64(div64_u64((stream->
 					timing.pix_clk_100hz * 100),
 					stream->timing.v_total),
 					stream->timing.h_total);
@@ -2588,7 +2588,10 @@ bool dc_link_setup_psr(struct dc_link *link,
 	 */
 	psr_context->frame_delay = 0;
 
-	link->psr_feature_enabled = dmcu->funcs->setup_psr(dmcu, link, psr_context);
+	if (psr)
+		link->psr_feature_enabled = psr->funcs->setup_psr(psr, link, psr_context);
+	else
+		link->psr_feature_enabled = dmcu->funcs->setup_psr(dmcu, link, psr_context);
 
 	/* psr_enabled == 0 indicates setup_psr did not succeed, but this
 	 * should not happen since firmware should be running at this point
@@ -2863,6 +2866,52 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 
 	return DC_OK;
 }
+
+enum dc_status dc_link_reallocate_mst_payload(struct dc_link *link)
+{
+	int i;
+	struct pipe_ctx *pipe_ctx;
+
+	// Clear all of MST payload then reallocate
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe_ctx = &link->dc->current_state->res_ctx.pipe_ctx[i];
+
+		/* driver enable split pipe for external monitors
+		 * we have to check pipe_ctx is split pipe or not
+		 * If it's split pipe, driver using top pipe to
+		 * reaallocate.
+		 */
+		if (!pipe_ctx || pipe_ctx->top_pipe)
+			continue;
+
+		if (pipe_ctx->stream && pipe_ctx->stream->link == link &&
+				pipe_ctx->stream->dpms_off == false &&
+				pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
+			deallocate_mst_payload(pipe_ctx);
+		}
+	}
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe_ctx = &link->dc->current_state->res_ctx.pipe_ctx[i];
+
+		if (!pipe_ctx || pipe_ctx->top_pipe)
+			continue;
+
+		if (pipe_ctx->stream && pipe_ctx->stream->link == link &&
+				pipe_ctx->stream->dpms_off == false &&
+				pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
+			/* enable/disable PHY will clear connection between BE and FE
+			 * need to restore it.
+			 */
+			link->link_enc->funcs->connect_dig_be_to_fe(link->link_enc,
+									pipe_ctx->stream_res.stream_enc->id, true);
+			dc_link_allocate_mst_payload(pipe_ctx);
+		}
+	}
+
+	return DC_OK;
+}
+
 #if defined(CONFIG_DRM_AMD_DC_HDCP)
 static void update_psp_stream_config(struct pipe_ctx *pipe_ctx, bool dpms_off)
 {
@@ -3361,3 +3410,10 @@ const struct dc_link_settings *dc_link_get_link_cap(
 		return &link->preferred_link_setting;
 	return &link->verified_link_cap;
 }
+
+void dc_link_overwrite_extended_receiver_cap(
+		struct dc_link *link)
+{
+	dp_overwrite_extended_receiver_cap(link);
+}
+

@@ -1693,6 +1693,7 @@ struct cifs_fattr {
 	struct timespec64 cf_atime;
 	struct timespec64 cf_mtime;
 	struct timespec64 cf_ctime;
+	u32             cf_cifstag;
 };
 
 static inline void free_dfs_info_param(struct dfs_info3_param *param)

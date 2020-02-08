@@ -168,6 +168,7 @@ config DRM_LOAD_EDID_FIRMWARE
 
 config DRM_DP_CEC
 	bool "Enable DisplayPort CEC-Tunneling-over-AUX HDMI support"
+	depends on DRM
 	select CEC_CORE
 	help
 	  Choose this option if you want to enable HDMI CEC support for

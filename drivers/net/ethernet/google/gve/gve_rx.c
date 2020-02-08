@@ -418,8 +418,6 @@ bool gve_clean_rx_done(struct gve_rx_ring *rx, int budget,
 	rx->cnt = cnt;
 	rx->fill_cnt += work_done;
 
-	/* restock desc ring slots */
-	dma_wmb();	/* Ensure descs are visible before ringing doorbell */
 	gve_rx_write_doorbell(priv, rx);
 	return gve_rx_work_pending(rx);
 }

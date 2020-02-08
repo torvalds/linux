@@ -240,12 +240,13 @@ int amdgpu_vce_sw_fini(struct amdgpu_device *adev)
 int amdgpu_vce_entity_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_ring *ring;
-	struct drm_sched_rq *rq;
+	struct drm_gpu_scheduler *sched;
 	int r;
 
 	ring = &adev->vce.ring[0];
-	rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];
-	r = drm_sched_entity_init(&adev->vce.entity, &rq, 1, NULL);
+	sched = &ring->sched;
+	r = drm_sched_entity_init(&adev->vce.entity, DRM_SCHED_PRIORITY_NORMAL,
+				  &sched, 1, NULL);
 	if (r != 0) {
 		DRM_ERROR("Failed setting up VCE run queue.\n");
 		return r;
@@ -651,7 +652,7 @@ static int amdgpu_vce_cs_reloc(struct amdgpu_cs_parser *p, uint32_t ib_idx,
 
 	if ((addr + (uint64_t)size) >
 	    (mapping->last + 1) * AMDGPU_GPU_PAGE_SIZE) {
-		DRM_ERROR("BO to small for addr 0x%010Lx %d %d\n",
+		DRM_ERROR("BO too small for addr 0x%010Lx %d %d\n",
 			  addr, lo, hi);
 		return -EINVAL;
 	}

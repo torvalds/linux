@@ -234,16 +234,9 @@ static int vega10_ih_irq_init(struct amdgpu_device *adev)
 	WREG32_SOC15(OSSSYS, 0, mmIH_RB_BASE_HI, (ih->gpu_addr >> 40) & 0xff);
 
 	ih_rb_cntl = RREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL);
-	ih_chicken = RREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN);
 	ih_rb_cntl = vega10_ih_rb_cntl(ih, ih_rb_cntl);
-	if (adev->irq.ih.use_bus_addr) {
-		ih_chicken = REG_SET_FIELD(ih_chicken, IH_CHICKEN, MC_SPACE_GPA_ENABLE, 1);
-	} else {
-		ih_chicken = REG_SET_FIELD(ih_chicken, IH_CHICKEN, MC_SPACE_FBPA_ENABLE, 1);
-	}
 	ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL, RPTR_REARM,
 				   !!adev->irq.msi_enabled);
-
 	if (amdgpu_sriov_vf(adev)) {
 		if (psp_reg_program(&adev->psp, PSP_REG_IH_RB_CNTL, ih_rb_cntl)) {
 			DRM_ERROR("PSP program IH_RB_CNTL failed!\n");
@@ -253,10 +246,19 @@ static int vega10_ih_irq_init(struct amdgpu_device *adev)
 		WREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL, ih_rb_cntl);
 	}
 
-	if ((adev->asic_type == CHIP_ARCTURUS
-		&& adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT)
-		|| adev->asic_type == CHIP_RENOIR)
+	if ((adev->asic_type == CHIP_ARCTURUS &&
+	     adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) ||
+	    adev->asic_type == CHIP_RENOIR) {
+		ih_chicken = RREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN);
+		if (adev->irq.ih.use_bus_addr) {
+			ih_chicken = REG_SET_FIELD(ih_chicken, IH_CHICKEN,
+						   MC_SPACE_GPA_ENABLE, 1);
+		} else {
+			ih_chicken = REG_SET_FIELD(ih_chicken, IH_CHICKEN,
+						   MC_SPACE_FBPA_ENABLE, 1);
+		}
 		WREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN, ih_chicken);
+	}
 
 	/* set the writeback address whether it's enabled or not */
 	WREG32_SOC15(OSSSYS, 0, mmIH_RB_WPTR_ADDR_LO,
@@ -715,7 +717,7 @@ static int vega10_ih_set_clockgating_state(void *handle,
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	vega10_ih_update_clockgating_state(adev,
-				state == AMD_CG_STATE_GATE ? true : false);
+				state == AMD_CG_STATE_GATE);
 	return 0;
 
 }

@@ -1712,7 +1712,7 @@ static struct radeon_encoder_int_tmds *radeon_legacy_get_tmds_info(struct radeon
 	else
 		ret = radeon_legacy_get_tmds_info_from_combios(encoder, tmds);
 
-	if (ret == false)
+	if (!ret)
 		radeon_legacy_get_tmds_info_from_table(encoder, tmds);
 
 	return tmds;
@@ -1735,7 +1735,7 @@ static struct radeon_encoder_ext_tmds *radeon_legacy_get_ext_tmds_info(struct ra
 
 	ret = radeon_legacy_get_ext_tmds_info_from_combios(encoder, tmds);
 
-	if (ret == false)
+	if (!ret)
 		radeon_legacy_get_ext_tmds_info_from_table(encoder, tmds);
 
 	return tmds;

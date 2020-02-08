@@ -477,11 +477,6 @@ int sja1105_setup_tc_taprio(struct dsa_switch *ds, int port,
 	if (admin->cycle_time_extension)
 		return -ENOTSUPP;
 
-	if (!ns_to_sja1105_delta(admin->base_time)) {
-		dev_err(ds->dev, "A base time of zero is not hardware-allowed\n");
-		return -ERANGE;
-	}
-
 	for (i = 0; i < admin->num_entries; i++) {
 		s64 delta_ns = admin->entries[i].interval;
 		s64 delta_cycles = ns_to_sja1105_delta(delta_ns);

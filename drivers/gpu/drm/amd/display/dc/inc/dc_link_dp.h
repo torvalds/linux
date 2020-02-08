@@ -76,6 +76,8 @@ void dp_enable_mst_on_sink(struct dc_link *link, bool enable);
 enum dp_panel_mode dp_get_panel_mode(struct dc_link *link);
 void dp_set_panel_mode(struct dc_link *link, enum dp_panel_mode panel_mode);
 
+bool dp_overwrite_extended_receiver_cap(struct dc_link *link);
+
 void dp_set_fec_ready(struct dc_link *link, bool ready);
 void dp_set_fec_enable(struct dc_link *link, bool enable);
 bool dp_set_dsc_enable(struct pipe_ctx *pipe_ctx, bool enable);

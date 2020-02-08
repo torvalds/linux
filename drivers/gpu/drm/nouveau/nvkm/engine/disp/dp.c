@@ -365,7 +365,7 @@ nvkm_dp_train(struct nvkm_dp *dp, u32 dataKBps)
 	 * and it's better to have a failed modeset than that.
 	 */
 	for (cfg = nvkm_dp_rates; cfg->rate; cfg++) {
-		if (cfg->nr <= outp_nr && cfg->nr <= outp_bw) {
+		if (cfg->nr <= outp_nr && cfg->bw <= outp_bw) {
 			/* Try to respect sink limits too when selecting
 			 * lowest link configuration.
 			 */

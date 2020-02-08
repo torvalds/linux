@@ -789,21 +789,26 @@ void optc1_set_early_control(
 
 void optc1_set_static_screen_control(
 	struct timing_generator *optc,
-	uint32_t value)
+	uint32_t event_triggers,
+	uint32_t num_frames)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+
+	// By register spec, it only takes 8 bit value
+	if (num_frames > 0xFF)
+		num_frames = 0xFF;
 
 	/* Bit 8 is no longer applicable in RV for PSR case,
 	 * set bit 8 to 0 if given
 	 */
-	if ((value & STATIC_SCREEN_EVENT_MASK_RANGETIMING_DOUBLE_BUFFER_UPDATE_EN)
+	if ((event_triggers & STATIC_SCREEN_EVENT_MASK_RANGETIMING_DOUBLE_BUFFER_UPDATE_EN)
 			!= 0)
-		value = value &
+		event_triggers = event_triggers &
 		~STATIC_SCREEN_EVENT_MASK_RANGETIMING_DOUBLE_BUFFER_UPDATE_EN;
 
 	REG_SET_2(OTG_STATIC_SCREEN_CONTROL, 0,
-			OTG_STATIC_SCREEN_EVENT_MASK, value,
-			OTG_STATIC_SCREEN_FRAME_COUNT, 2);
+			OTG_STATIC_SCREEN_EVENT_MASK, event_triggers,
+			OTG_STATIC_SCREEN_FRAME_COUNT, num_frames);
 }
 
 void optc1_setup_manual_trigger(struct timing_generator *optc)

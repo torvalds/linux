@@ -749,9 +749,7 @@ void hubp1_set_blank(struct hubp *hubp, bool blank);
 
 void min_set_viewport(struct hubp *hubp,
 		const struct rect *viewport,
-		const struct rect *viewport_c,
-		enum dc_rotation_angle rotation);
-/* rotation angle added for use by hubp21_set_viewport */
+		const struct rect *viewport_c);
 
 void hubp1_clk_cntl(struct hubp *hubp, bool enable);
 void hubp1_vtg_sel(struct hubp *hubp, uint32_t otg_inst);

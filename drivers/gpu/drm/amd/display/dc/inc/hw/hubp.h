@@ -63,6 +63,26 @@ struct hubp {
 	bool power_gated;
 };
 
+struct surface_flip_registers {
+	uint32_t DCSURF_SURFACE_CONTROL;
+	uint32_t DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH;
+	uint32_t DCSURF_PRIMARY_META_SURFACE_ADDRESS;
+	uint32_t DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH;
+	uint32_t DCSURF_PRIMARY_SURFACE_ADDRESS;
+	uint32_t DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH_C;
+	uint32_t DCSURF_PRIMARY_META_SURFACE_ADDRESS_C;
+	uint32_t DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH_C;
+	uint32_t DCSURF_PRIMARY_SURFACE_ADDRESS_C;
+	uint32_t DCSURF_SECONDARY_META_SURFACE_ADDRESS_HIGH;
+	uint32_t DCSURF_SECONDARY_META_SURFACE_ADDRESS;
+	uint32_t DCSURF_SECONDARY_SURFACE_ADDRESS_HIGH;
+	uint32_t DCSURF_SECONDARY_SURFACE_ADDRESS;
+	bool tmz_surface;
+	bool immediate;
+	uint8_t vmid;
+	bool grph_stereo;
+};
+
 struct hubp_funcs {
 	void (*hubp_setup)(
 			struct hubp *hubp,
@@ -82,9 +102,10 @@ struct hubp_funcs {
 	void (*mem_program_viewport)(
 			struct hubp *hubp,
 			const struct rect *viewport,
-			const struct rect *viewport_c,
-			enum dc_rotation_angle rotation);
-			/* rotation needed for Renoir workaround */
+			const struct rect *viewport_c);
+
+	void (*apply_PLAT_54186_wa)(struct hubp *hubp,
+			const struct dc_plane_address *address);
 
 	bool (*hubp_program_surface_flip_and_addr)(
 		struct hubp *hubp,

@@ -1,5 +1,6 @@
 #
 # Copyright 2017 Advanced Micro Devices, Inc.
+# Copyright 2019 Raptor Engineering, LLC
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -24,7 +25,13 @@
 # It provides the general basic services required by other DAL
 # subcomponents.
 
+ifdef CONFIG_X86
 dml_ccflags := -mhard-float -msse
+endif
+
+ifdef CONFIG_PPC64
+dml_ccflags := -mhard-float -maltivec
+endif
 
 ifdef CONFIG_CC_IS_GCC
 ifeq ($(call cc-ifversion, -lt, 0701, y), y)
@@ -32,6 +39,7 @@ IS_OLD_GCC = 1
 endif
 endif
 
+ifdef CONFIG_X86
 ifdef IS_OLD_GCC
 # Stack alignment mismatch, proceed with caution.
 # GCC < 7.1 cannot compile code using `double` and -mpreferred-stack-boundary=3
@@ -39,6 +47,7 @@ ifdef IS_OLD_GCC
 dml_ccflags += -mpreferred-stack-boundary=4
 else
 dml_ccflags += -msse2
+endif
 endif
 
 CFLAGS_$(AMDDALPATH)/dc/dml/display_mode_lib.o := $(dml_ccflags)

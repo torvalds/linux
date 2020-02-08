@@ -220,6 +220,7 @@ struct dm_bl_data_point {
 };
 
 /* Total size of the structure should not exceed 256 bytes */
+#define BL_DATA_POINTS 99
 struct dm_acpi_atif_backlight_caps {
 	uint16_t size; /* Bytes 0-1 (2 bytes) */
 	uint16_t flags; /* Byted 2-3 (2 bytes) */
@@ -229,7 +230,7 @@ struct dm_acpi_atif_backlight_caps {
 	uint8_t  min_input_signal; /* Byte 7 */
 	uint8_t  max_input_signal; /* Byte 8 */
 	uint8_t  num_data_points; /* Byte 9 */
-	struct dm_bl_data_point data_points[99]; /* Bytes 10-207 (198 bytes)*/
+	struct dm_bl_data_point data_points[BL_DATA_POINTS]; /* Bytes 10-207 (198 bytes)*/
 };
 
 enum dm_acpi_display_type {

@@ -145,10 +145,11 @@ enum mod_hdcp_status mod_hdcp_hdcp1_create_session(struct mod_hdcp *hdcp)
 
 	psp_hdcp_invoke(psp, hdcp_cmd->cmd_id);
 
+	hdcp->auth.id = hdcp_cmd->out_msg.hdcp1_create_session.session_handle;
+
 	if (hdcp_cmd->hdcp_status != TA_HDCP_STATUS__SUCCESS)
 		return MOD_HDCP_STATUS_HDCP1_CREATE_SESSION_FAILURE;
 
-	hdcp->auth.id = hdcp_cmd->out_msg.hdcp1_create_session.session_handle;
 	hdcp->auth.msg.hdcp1.ainfo = hdcp_cmd->out_msg.hdcp1_create_session.ainfo_primary;
 	memcpy(hdcp->auth.msg.hdcp1.aksv, hdcp_cmd->out_msg.hdcp1_create_session.aksv_primary,
 		sizeof(hdcp->auth.msg.hdcp1.aksv));
@@ -510,7 +511,7 @@ enum mod_hdcp_status mod_hdcp_hdcp2_validate_h_prime(struct mod_hdcp *hdcp)
 	psp_hdcp_invoke(psp, hdcp_cmd->cmd_id);
 
 	if (hdcp_cmd->hdcp_status != TA_HDCP_STATUS__SUCCESS)
-		return MOD_HDCP_STATUS_HDCP2_VALIDATE_AKE_CERT_FAILURE;
+		return MOD_HDCP_STATUS_HDCP2_VALIDATE_H_PRIME_FAILURE;
 
 	if (msg_out->process.msg1_status != TA_HDCP2_MSG_AUTHENTICATION_STATUS__SUCCESS)
 		return MOD_HDCP_STATUS_HDCP2_VALIDATE_H_PRIME_FAILURE;
@@ -794,7 +795,7 @@ enum mod_hdcp_status mod_hdcp_hdcp2_validate_stream_ready(struct mod_hdcp *hdcp)
 	hdcp_cmd->cmd_id = TA_HDCP_COMMAND__HDCP2_PREPARE_PROCESS_AUTHENTICATION_MSG_V2;
 	psp_hdcp_invoke(psp, hdcp_cmd->cmd_id);
 
-	return (hdcp_cmd->hdcp_status != TA_HDCP_STATUS__SUCCESS) &&
+	return (hdcp_cmd->hdcp_status == TA_HDCP_STATUS__SUCCESS) &&
 			       (msg_out->process.msg1_status == TA_HDCP2_MSG_AUTHENTICATION_STATUS__SUCCESS)
 		       ? MOD_HDCP_STATUS_SUCCESS
 		       : MOD_HDCP_STATUS_HDCP2_VALIDATE_STREAM_READY_FAILURE;

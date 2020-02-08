@@ -36,6 +36,7 @@
 #define DMUB_RB_SIZE (DMUB_RB_CMD_SIZE * DMUB_RB_MAX_ENTRY)
 #define REG_SET_MASK 0xFFFF
 
+
 /*
  * Command IDs should be treated as stable ABI.
  * Do not reuse or modify IDs.
@@ -47,6 +48,7 @@ enum dmub_cmd_type {
 	DMUB_CMD__REG_SEQ_FIELD_UPDATE_SEQ = 2,
 	DMUB_CMD__REG_SEQ_BURST_WRITE = 3,
 	DMUB_CMD__REG_REG_WAIT = 4,
+	DMUB_CMD__PLAT_54186_WA = 5,
 	DMUB_CMD__PSR = 64,
 	DMUB_CMD__VBIOS = 128,
 };
@@ -145,6 +147,32 @@ struct dmub_rb_cmd_reg_wait {
 	struct dmub_cmd_reg_wait_data reg_wait;
 };
 
+#ifndef PHYSICAL_ADDRESS_LOC
+#define PHYSICAL_ADDRESS_LOC union large_integer
+#endif
+
+struct dmub_cmd_PLAT_54186_wa {
+	uint32_t DCSURF_SURFACE_CONTROL;
+	uint32_t DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH;
+	uint32_t DCSURF_PRIMARY_SURFACE_ADDRESS;
+	uint32_t DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH_C;
+	uint32_t DCSURF_PRIMARY_SURFACE_ADDRESS_C;
+	struct {
+		uint8_t hubp_inst : 4;
+		uint8_t tmz_surface : 1;
+		uint8_t immediate :1;
+		uint8_t vmid : 4;
+		uint8_t grph_stereo : 1;
+		uint32_t reserved : 21;
+	} flip_params;
+	uint32_t reserved[9];
+};
+
+struct dmub_rb_cmd_PLAT_54186_wa {
+	struct dmub_cmd_header header;
+	struct dmub_cmd_PLAT_54186_wa flip;
+};
+
 struct dmub_cmd_digx_encoder_control_data {
 	union dig_encoder_control_parameters_v1_5 dig;
 };
@@ -187,9 +215,28 @@ struct dmub_rb_cmd_dpphy_init {
 };
 
 struct dmub_cmd_psr_copy_settings_data {
-	uint32_t reg1;
-	uint32_t reg2;
-	uint32_t reg3;
+	uint16_t psr_level;
+	uint8_t hubp_inst;
+	uint8_t dpp_inst;
+	uint8_t mpcc_inst;
+	uint8_t opp_inst;
+	uint8_t otg_inst;
+	uint8_t digfe_inst;
+	uint8_t digbe_inst;
+	uint8_t dpphy_inst;
+	uint8_t aux_inst;
+	uint8_t hyst_frames;
+	uint8_t hyst_lines;
+	uint8_t phy_num;
+	uint8_t phy_type;
+	uint8_t aux_repeat;
+	uint8_t smu_optimizations_en;
+	uint8_t skip_wait_for_pll_lock;
+	uint8_t frame_delay;
+	uint8_t smu_phy_id;
+	uint8_t num_of_controllers;
+	uint8_t link_rate;
+	uint8_t frame_cap_ind;
 };
 
 struct dmub_rb_cmd_psr_copy_settings {
@@ -206,31 +253,17 @@ struct dmub_rb_cmd_psr_set_level {
 	struct dmub_cmd_psr_set_level_data psr_set_level_data;
 };
 
-struct dmub_rb_cmd_psr_disable {
-	struct dmub_cmd_header header;
-};
-
 struct dmub_rb_cmd_psr_enable {
 	struct dmub_cmd_header header;
 };
 
-struct dmub_cmd_psr_notify_vblank_data {
-	uint32_t vblank_int; // Which vblank interrupt was triggered
+struct dmub_cmd_psr_setup_data {
+	enum psr_version version; // PSR version 1 or 2
 };
 
-struct dmub_rb_cmd_notify_vblank {
+struct dmub_rb_cmd_psr_setup {
 	struct dmub_cmd_header header;
-	struct dmub_cmd_psr_notify_vblank_data psr_notify_vblank_data;
-};
-
-struct dmub_cmd_psr_notify_static_state_data {
-	uint32_t ss_int;   // Which static screen interrupt was triggered
-	uint32_t ss_enter; // Enter (1) or exit (0) static screen
-};
-
-struct dmub_rb_cmd_psr_notify_static_state {
-	struct dmub_cmd_header header;
-	struct dmub_cmd_psr_notify_static_state_data psr_notify_static_state_data;
+	struct dmub_cmd_psr_setup_data psr_setup_data;
 };
 
 union dmub_rb_cmd {
@@ -245,9 +278,10 @@ union dmub_rb_cmd {
 	struct dmub_rb_cmd_dpphy_init dpphy_init;
 	struct dmub_rb_cmd_dig1_transmitter_control dig1_transmitter_control;
 	struct dmub_rb_cmd_psr_enable psr_enable;
-	struct dmub_rb_cmd_psr_disable psr_disable;
 	struct dmub_rb_cmd_psr_copy_settings psr_copy_settings;
 	struct dmub_rb_cmd_psr_set_level psr_set_level;
+	struct dmub_rb_cmd_PLAT_54186_wa PLAT_54186_wa;
+	struct dmub_rb_cmd_psr_setup psr_setup;
 };
 
 #pragma pack(pop)

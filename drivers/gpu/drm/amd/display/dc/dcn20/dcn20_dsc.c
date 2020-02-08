@@ -206,6 +206,9 @@ static bool dsc2_get_packed_pps(struct display_stream_compressor *dsc, const str
 	struct dsc_reg_values dsc_reg_vals;
 	struct dsc_optc_config dsc_optc_cfg;
 
+	memset(&dsc_reg_vals, 0, sizeof(dsc_reg_vals));
+	memset(&dsc_optc_cfg, 0, sizeof(dsc_optc_cfg));
+
 	DC_LOG_DSC("Getting packed DSC PPS for DSC Config:");
 	dsc_config_log(dsc, dsc_cfg);
 	DC_LOG_DSC("DSC Picture Parameter Set (PPS):");

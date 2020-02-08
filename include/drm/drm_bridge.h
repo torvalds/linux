@@ -25,8 +25,6 @@
 
 #include <linux/list.h>
 #include <linux/ctype.h>
-
-#include <drm/drm_atomic.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_mode_object.h>
 #include <drm/drm_modes.h>
@@ -34,65 +32,6 @@
 struct drm_bridge;
 struct drm_bridge_timings;
 struct drm_panel;
-
-/**
- * struct drm_bus_cfg - bus configuration
- *
- * This structure stores the configuration of a physical bus between two
- * components in an output pipeline, usually between two bridges, an encoder
- * and a bridge, or a bridge and a connector.
- *
- * The bus configuration is stored in &drm_bridge_state separately for the
- * input and output buses, as seen from the point of view of each bridge. The
- * bus configuration of a bridge output is usually identical to the
- * configuration of the next bridge's input, but may differ if the signals are
- * modified between the two bridges, for instance by an inverter on the board.
- * The input and output configurations of a bridge may differ if the bridge
- * modifies the signals internally, for instance by performing format
- * conversion, or modifying signals polarities.
- */
-struct drm_bus_cfg {
-	/**
-	 * @format: format used on this bus (one of the MEDIA_BUS_FMT_* format)
-	 *
-	 * This field should not be directly modified by drivers
-	 * (&drm_atomic_bridge_chain_select_bus_fmts() takes care of the bus
-	 * format negotiation).
-	 */
-	u32 format;
-
-	/**
-	 * @flags: DRM_BUS_* flags used on this bus
-	 */
-	u32 flags;
-};
-
-/**
- * struct drm_bridge_state - Atomic bridge state object
- * @base: inherit from &drm_private_state
- * @bridge: the bridge this state refers to
- */
-struct drm_bridge_state {
-	struct drm_private_state base;
-
-	struct drm_bridge *bridge;
-
-	/**
-	 * @input_bus_cfg: input bus configuration
-	 */
-	struct drm_bus_cfg input_bus_cfg;
-
-	/**
-	 * @output_bus_cfg: input bus configuration
-	 */
-	struct drm_bus_cfg output_bus_cfg;
-};
-
-static inline struct drm_bridge_state *
-drm_priv_to_bridge_state(struct drm_private_state *priv)
-{
-	return container_of(priv, struct drm_bridge_state, base);
-}
 
 /**
  * struct drm_bridge_funcs - drm_bridge control functions
@@ -170,9 +109,7 @@ struct drm_bridge_funcs {
 	 * this function passes all other callbacks must succeed for this
 	 * configuration.
 	 *
-	 * The mode_fixup callback is optional. &drm_bridge_funcs.mode_fixup()
-	 * is not called when &drm_bridge_funcs.atomic_check() is implemented,
-	 * so only one of them should be provided.
+	 * The @mode_fixup callback is optional.
 	 *
 	 * NOTE:
 	 *
@@ -326,7 +263,7 @@ struct drm_bridge_funcs {
 	 * The @atomic_pre_enable callback is optional.
 	 */
 	void (*atomic_pre_enable)(struct drm_bridge *bridge,
-				  struct drm_bridge_state *old_bridge_state);
+				  struct drm_atomic_state *old_state);
 
 	/**
 	 * @atomic_enable:
@@ -351,7 +288,7 @@ struct drm_bridge_funcs {
 	 * The @atomic_enable callback is optional.
 	 */
 	void (*atomic_enable)(struct drm_bridge *bridge,
-			      struct drm_bridge_state *old_bridge_state);
+			      struct drm_atomic_state *old_state);
 	/**
 	 * @atomic_disable:
 	 *
@@ -374,7 +311,7 @@ struct drm_bridge_funcs {
 	 * The @atomic_disable callback is optional.
 	 */
 	void (*atomic_disable)(struct drm_bridge *bridge,
-			       struct drm_bridge_state *old_bridge_state);
+			       struct drm_atomic_state *old_state);
 
 	/**
 	 * @atomic_post_disable:
@@ -400,146 +337,7 @@ struct drm_bridge_funcs {
 	 * The @atomic_post_disable callback is optional.
 	 */
 	void (*atomic_post_disable)(struct drm_bridge *bridge,
-				    struct drm_bridge_state *old_bridge_state);
-
-	/**
-	 * @atomic_duplicate_state:
-	 *
-	 * Duplicate the current bridge state object (which is guaranteed to be
-	 * non-NULL).
-	 *
-	 * The atomic_duplicate_state() is optional. When not implemented the
-	 * core allocates a drm_bridge_state object and calls
-	 * &__drm_atomic_helper_bridge_duplicate_state() to initialize it.
-	 *
-	 * RETURNS:
-	 * A valid drm_bridge_state object or NULL if the allocation fails.
-	 */
-	struct drm_bridge_state *(*atomic_duplicate_state)(struct drm_bridge *bridge);
-
-	/**
-	 * @atomic_destroy_state:
-	 *
-	 * Destroy a bridge state object previously allocated by
-	 * &drm_bridge_funcs.atomic_duplicate_state().
-	 *
-	 * The atomic_destroy_state hook is optional. When not implemented the
-	 * core calls kfree() on the state.
-	 */
-	void (*atomic_destroy_state)(struct drm_bridge *bridge,
-				     struct drm_bridge_state *state);
-
-	/**
-	 * @atomic_get_output_bus_fmts:
-	 *
-	 * Return the supported bus formats on the output end of a bridge.
-	 * The returned array must be allocated with kmalloc() and will be
-	 * freed by the caller. If the allocation fails, NULL should be
-	 * returned. num_output_fmts must be set to the returned array size.
-	 * Formats listed in the returned array should be listed in decreasing
-	 * preference order (the core will try all formats until it finds one
-	 * that works).
-	 *
-	 * This method is only called on the last element of the bridge chain
-	 * as part of the bus format negotiation process that happens in
-	 * &drm_atomic_bridge_chain_select_bus_fmts().
-	 * This method is optional. When not implemented, the core will
-	 * fall back to &drm_connector.display_info.bus_formats[0] if
-	 * &drm_connector.display_info.num_bus_formats > 0,
-	 * or to MEDIA_BUS_FMT_FIXED otherwise.
-	 */
-	u32 *(*atomic_get_output_bus_fmts)(struct drm_bridge *bridge,
-					   struct drm_bridge_state *bridge_state,
-					   struct drm_crtc_state *crtc_state,
-					   struct drm_connector_state *conn_state,
-					   unsigned int *num_output_fmts);
-
-	/**
-	 * @atomic_get_input_bus_fmts:
-	 *
-	 * Return the supported bus formats on the input end of a bridge for
-	 * a specific output bus format.
-	 *
-	 * The returned array must be allocated with kmalloc() and will be
-	 * freed by the caller. If the allocation fails, NULL should be
-	 * returned. num_output_fmts must be set to the returned array size.
-	 * Formats listed in the returned array should be listed in decreasing
-	 * preference order (the core will try all formats until it finds one
-	 * that works). When the format is not supported NULL should be
-	 * returned and *num_output_fmts should be set to 0.
-	 *
-	 * This method is called on all elements of the bridge chain as part of
-	 * the bus format negotiation process that happens in
-	 * &drm_atomic_bridge_chain_select_bus_fmts().
-	 * This method is optional. When not implemented, the core will bypass
-	 * bus format negotiation on this element of the bridge without
-	 * failing, and the previous element in the chain will be passed
-	 * MEDIA_BUS_FMT_FIXED as its output bus format.
-	 *
-	 * Bridge drivers that need to support being linked to bridges that are
-	 * not supporting bus format negotiation should handle the
-	 * output_fmt == MEDIA_BUS_FMT_FIXED case appropriately, by selecting a
-	 * sensible default value or extracting this information from somewhere
-	 * else (FW property, &drm_display_mode, &drm_display_info, ...)
-	 *
-	 * Note: Even if input format selection on the first bridge has no
-	 * impact on the negotiation process (bus format negotiation stops once
-	 * we reach the first element of the chain), drivers are expected to
-	 * return accurate input formats as the input format may be used to
-	 * configure the CRTC output appropriately.
-	 */
-	u32 *(*atomic_get_input_bus_fmts)(struct drm_bridge *bridge,
-					  struct drm_bridge_state *bridge_state,
-					  struct drm_crtc_state *crtc_state,
-					  struct drm_connector_state *conn_state,
-					  u32 output_fmt,
-					  unsigned int *num_input_fmts);
-
-	/**
-	 * @atomic_check:
-	 *
-	 * This method is responsible for checking bridge state correctness.
-	 * It can also check the state of the surrounding components in chain
-	 * to make sure the whole pipeline can work properly.
-	 *
-	 * &drm_bridge_funcs.atomic_check() hooks are called in reverse
-	 * order (from the last to the first bridge).
-	 *
-	 * This method is optional. &drm_bridge_funcs.mode_fixup() is not
-	 * called when &drm_bridge_funcs.atomic_check() is implemented, so only
-	 * one of them should be provided.
-	 *
-	 * If drivers need to tweak &drm_bridge_state.input_bus_cfg.flags or
-	 * &drm_bridge_state.output_bus_cfg.flags it should should happen in
-	 * this function. By default the &drm_bridge_state.output_bus_cfg.flags
-	 * field is set to the next bridge
-	 * &drm_bridge_state.input_bus_cfg.flags value or
-	 * &drm_connector.display_info.bus_flags if the bridge is the last
-	 * element in the chain.
-	 *
-	 * RETURNS:
-	 * zero if the check passed, a negative error code otherwise.
-	 */
-	int (*atomic_check)(struct drm_bridge *bridge,
-			    struct drm_bridge_state *bridge_state,
-			    struct drm_crtc_state *crtc_state,
-			    struct drm_connector_state *conn_state);
-
-	/**
-	 * @atomic_reset:
-	 *
-	 * Reset the bridge to a predefined state (or retrieve its current
-	 * state) and return a &drm_bridge_state object matching this state.
-	 * This function is called at attach time.
-	 *
-	 * The atomic_reset hook is optional. When not implemented the core
-	 * allocates a new state and calls &__drm_atomic_helper_bridge_reset().
-	 *
-	 * RETURNS:
-	 * A valid drm_bridge_state object in case of success, an ERR_PTR()
-	 * giving the reason of the failure otherwise.
-	 */
-	struct drm_bridge_state *(*atomic_reset)(struct drm_bridge *bridge);
+				    struct drm_atomic_state *old_state);
 };
 
 /**
@@ -582,8 +380,6 @@ struct drm_bridge_timings {
  * struct drm_bridge - central DRM bridge control structure
  */
 struct drm_bridge {
-	/** @base: inherit from &drm_private_object */
-	struct drm_private_obj base;
 	/** @dev: DRM device this bridge belongs to */
 	struct drm_device *dev;
 	/** @encoder: encoder to which this bridge is connected */
@@ -607,12 +403,6 @@ struct drm_bridge {
 	/** @driver_private: pointer to the bridge driver's internal context */
 	void *driver_private;
 };
-
-static inline struct drm_bridge *
-drm_priv_to_bridge(struct drm_private_obj *priv)
-{
-	return container_of(priv, struct drm_bridge, base);
-}
 
 void drm_bridge_add(struct drm_bridge *bridge);
 void drm_bridge_remove(struct drm_bridge *bridge);
@@ -692,9 +482,6 @@ void drm_bridge_chain_mode_set(struct drm_bridge *bridge,
 void drm_bridge_chain_pre_enable(struct drm_bridge *bridge);
 void drm_bridge_chain_enable(struct drm_bridge *bridge);
 
-int drm_atomic_bridge_chain_check(struct drm_bridge *bridge,
-				  struct drm_crtc_state *crtc_state,
-				  struct drm_connector_state *conn_state);
 void drm_atomic_bridge_chain_disable(struct drm_bridge *bridge,
 				     struct drm_atomic_state *state);
 void drm_atomic_bridge_chain_post_disable(struct drm_bridge *bridge,
@@ -703,58 +490,6 @@ void drm_atomic_bridge_chain_pre_enable(struct drm_bridge *bridge,
 					struct drm_atomic_state *state);
 void drm_atomic_bridge_chain_enable(struct drm_bridge *bridge,
 				    struct drm_atomic_state *state);
-
-u32 *
-drm_atomic_helper_bridge_propagate_bus_fmt(struct drm_bridge *bridge,
-					struct drm_bridge_state *bridge_state,
-					struct drm_crtc_state *crtc_state,
-					struct drm_connector_state *conn_state,
-					u32 output_fmt,
-					unsigned int *num_input_fmts);
-
-void __drm_atomic_helper_bridge_reset(struct drm_bridge *bridge,
-				      struct drm_bridge_state *state);
-void __drm_atomic_helper_bridge_duplicate_state(struct drm_bridge *bridge,
-						struct drm_bridge_state *new);
-
-static inline struct drm_bridge_state *
-drm_atomic_get_bridge_state(struct drm_atomic_state *state,
-			    struct drm_bridge *bridge)
-{
-	struct drm_private_state *obj_state;
-
-	obj_state = drm_atomic_get_private_obj_state(state, &bridge->base);
-	if (IS_ERR(obj_state))
-		return ERR_CAST(obj_state);
-
-	return drm_priv_to_bridge_state(obj_state);
-}
-
-static inline struct drm_bridge_state *
-drm_atomic_get_old_bridge_state(struct drm_atomic_state *state,
-				struct drm_bridge *bridge)
-{
-	struct drm_private_state *obj_state;
-
-	obj_state = drm_atomic_get_old_private_obj_state(state, &bridge->base);
-	if (!obj_state)
-		return NULL;
-
-	return drm_priv_to_bridge_state(obj_state);
-}
-
-static inline struct drm_bridge_state *
-drm_atomic_get_new_bridge_state(struct drm_atomic_state *state,
-				struct drm_bridge *bridge)
-{
-	struct drm_private_state *obj_state;
-
-	obj_state = drm_atomic_get_new_private_obj_state(state, &bridge->base);
-	if (!obj_state)
-		return NULL;
-
-	return drm_priv_to_bridge_state(obj_state);
-}
 
 #ifdef CONFIG_DRM_PANEL_BRIDGE
 struct drm_bridge *drm_panel_bridge_add(struct drm_panel *panel);

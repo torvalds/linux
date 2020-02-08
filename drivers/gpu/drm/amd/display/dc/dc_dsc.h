@@ -53,7 +53,8 @@ struct dc_dsc_policy {
 	uint32_t min_target_bpp;
 };
 
-bool dc_dsc_parse_dsc_dpcd(const uint8_t *dpcd_dsc_basic_data,
+bool dc_dsc_parse_dsc_dpcd(const struct dc *dc,
+		const uint8_t *dpcd_dsc_basic_data,
 		const uint8_t *dpcd_dsc_ext_data,
 		struct dsc_dec_dpcd_caps *dsc_sink_caps);
 
@@ -76,5 +77,7 @@ bool dc_dsc_compute_config(
 
 void dc_dsc_get_policy_for_timing(const struct dc_crtc_timing *timing,
 		struct dc_dsc_policy *policy);
+
+void dc_dsc_policy_set_max_target_bpp_limit(uint32_t limit);
 
 #endif

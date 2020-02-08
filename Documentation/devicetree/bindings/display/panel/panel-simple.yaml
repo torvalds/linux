@@ -1,0 +1,69 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/panel/panel-simple.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Simple panels with one power supply
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Sam Ravnborg <sam@ravnborg.org>
+
+description: |
+  This binding file is a collection of the simple (dumb) panels that
+  requires only a single power-supply.
+  There are optionally a backlight and an enable GPIO.
+  The panel may use an OF graph binding for the association to the display,
+  or it may be a direct child node of the display.
+
+  If the panel is more advanced a dedicated binding file is required.
+
+allOf:
+  - $ref: panel-common.yaml#
+
+properties:
+
+  compatible:
+    enum:
+    # compatible must be listed in alphabetical order, ordered by compatible.
+    # The description in the comment is mandatory for each compatible.
+
+        # Ampire AM-480272H3TMQW-T01H 4.3" WQVGA TFT LCD panel
+      - ampire,am-480272h3tmqw-t01h
+        # Ampire AM-800480R3TMQW-A1H 7.0" WVGA TFT LCD panel
+      - ampire,am800480r3tmqwa1h
+        # AUO B116XAK01 eDP TFT LCD panel
+      - auo,b116xa01
+        # BOE NV140FHM-N49 14.0" FHD a-Si FT panel
+      - boe,nv140fhmn49
+        # GiantPlus GPM940B0 3.0" QVGA TFT LCD panel
+      - giantplus,gpm940b0
+        # Satoz SAT050AT40H12R2 5.0" WVGA TFT LCD panel
+      - satoz,sat050at40h12r2
+        # Sharp LS020B1DD01D 2.0" HQVGA TFT LCD panel
+      - sharp,ls020b1dd01d
+
+  backlight: true
+  enable-gpios: true
+  port: true
+  power-supply: true
+
+additionalProperties: false
+
+required:
+  - compatible
+  - power-supply
+
+examples:
+  - |
+    panel_rgb: panel-rgb {
+      compatible = "ampire,am-480272h3tmqw-t01h";
+      power-supply = <&vcc_lcd_reg>;
+
+      port {
+        panel_in_rgb: endpoint {
+          remote-endpoint = <&ltdc_out_rgb>;
+        };
+      };
+    };

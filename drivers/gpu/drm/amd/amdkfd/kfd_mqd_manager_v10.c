@@ -153,6 +153,14 @@ static int load_mqd(struct mqd_manager *mm, void *mqd,
 	return r;
 }
 
+static int hiq_load_mqd_kiq(struct mqd_manager *mm, void *mqd,
+			    uint32_t pipe_id, uint32_t queue_id,
+			    struct queue_properties *p, struct mm_struct *mms)
+{
+	return mm->dev->kfd2kgd->hiq_mqd_load(mm->dev->kgd, mqd, pipe_id,
+					      queue_id, p->doorbell_off);
+}
+
 static void update_mqd(struct mqd_manager *mm, void *mqd,
 		      struct queue_properties *q)
 {
@@ -409,7 +417,7 @@ struct mqd_manager *mqd_manager_init_v10(enum KFD_MQD_TYPE type,
 		mqd->allocate_mqd = allocate_hiq_mqd;
 		mqd->init_mqd = init_mqd_hiq;
 		mqd->free_mqd = free_mqd_hiq_sdma;
-		mqd->load_mqd = load_mqd;
+		mqd->load_mqd = hiq_load_mqd_kiq;
 		mqd->update_mqd = update_mqd;
 		mqd->destroy_mqd = destroy_mqd;
 		mqd->is_occupied = is_occupied;

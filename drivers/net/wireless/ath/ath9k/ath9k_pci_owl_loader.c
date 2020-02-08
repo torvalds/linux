@@ -83,7 +83,7 @@ static int ath9k_pci_fixup(struct pci_dev *pdev, const u16 *cal_data,
 			val = swahb32(val);
 		}
 
-		__raw_writel(val, mem + reg);
+		iowrite32(val, mem + reg);
 		usleep_range(100, 120);
 	}
 
