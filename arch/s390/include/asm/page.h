@@ -33,6 +33,8 @@
 #define ARCH_HAS_PREPARE_HUGEPAGE
 #define ARCH_HAS_HUGEPAGE_CLEAR_FLUSH
 
+#define HAVE_ARCH_HUGETLB_UNMAPPED_AREA
+
 #include <asm/setup.h>
 #ifndef __ASSEMBLY__
 

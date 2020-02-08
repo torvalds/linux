@@ -1006,19 +1006,19 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 	}
 	mutex_unlock(&priv->lock);
 
-	/*
-	 * gntdev takes the address of the PTE in find_grant_ptes() and passes
-	 * it to the hypervisor in gntdev_map_grant_pages(). The purpose of
-	 * the notifier is to prevent the hypervisor pointer to the PTE from
-	 * going stale.
-	 *
-	 * Since this vma's mappings can't be touched without the mmap_sem,
-	 * and we are holding it now, there is no need for the notifier_range
-	 * locking pattern.
-	 */
-	mmu_interval_read_begin(&map->notifier);
-
 	if (use_ptemod) {
+		/*
+		 * gntdev takes the address of the PTE in find_grant_ptes() and
+		 * passes it to the hypervisor in gntdev_map_grant_pages(). The
+		 * purpose of the notifier is to prevent the hypervisor pointer
+		 * to the PTE from going stale.
+		 *
+		 * Since this vma's mappings can't be touched without the
+		 * mmap_sem, and we are holding it now, there is no need for
+		 * the notifier_range locking pattern.
+		 */
+		mmu_interval_read_begin(&map->notifier);
+
 		map->pages_vm_start = vma->vm_start;
 		err = apply_to_page_range(vma->vm_mm, vma->vm_start,
 					  vma->vm_end - vma->vm_start,

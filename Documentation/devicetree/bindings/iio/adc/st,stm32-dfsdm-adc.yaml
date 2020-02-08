@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/st,stm32-dfsdm-adc.yaml#
+$id: http://devicetree.org/schemas/iio/adc/st,stm32-dfsdm-adc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: STMicroelectronics STM32 DFSDM ADC device driver

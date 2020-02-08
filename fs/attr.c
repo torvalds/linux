@@ -183,18 +183,12 @@ void setattr_copy(struct inode *inode, const struct iattr *attr)
 		inode->i_uid = attr->ia_uid;
 	if (ia_valid & ATTR_GID)
 		inode->i_gid = attr->ia_gid;
-	if (ia_valid & ATTR_ATIME) {
-		inode->i_atime = timestamp_truncate(attr->ia_atime,
-						  inode);
-	}
-	if (ia_valid & ATTR_MTIME) {
-		inode->i_mtime = timestamp_truncate(attr->ia_mtime,
-						  inode);
-	}
-	if (ia_valid & ATTR_CTIME) {
-		inode->i_ctime = timestamp_truncate(attr->ia_ctime,
-						  inode);
-	}
+	if (ia_valid & ATTR_ATIME)
+		inode->i_atime = attr->ia_atime;
+	if (ia_valid & ATTR_MTIME)
+		inode->i_mtime = attr->ia_mtime;
+	if (ia_valid & ATTR_CTIME)
+		inode->i_ctime = attr->ia_ctime;
 	if (ia_valid & ATTR_MODE) {
 		umode_t mode = attr->ia_mode;
 
@@ -268,8 +262,13 @@ int notify_change2(struct vfsmount *mnt, struct dentry * dentry, struct iattr * 
 	attr->ia_ctime = now;
 	if (!(ia_valid & ATTR_ATIME_SET))
 		attr->ia_atime = now;
+	else
+		attr->ia_atime = timestamp_truncate(attr->ia_atime, inode);
 	if (!(ia_valid & ATTR_MTIME_SET))
 		attr->ia_mtime = now;
+	else
+		attr->ia_mtime = timestamp_truncate(attr->ia_mtime, inode);
+
 	if (ia_valid & ATTR_KILL_PRIV) {
 		error = security_inode_need_killpriv(dentry);
 		if (error < 0)

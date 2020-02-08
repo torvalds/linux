@@ -1,4 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
+config PPC32
+	bool
+	default y if !PPC64
+	select KASAN_VMALLOC if KASAN && MODULES
+
 config PPC64
 	bool "64-bit kernel"
 	select ZLIB_DEFLATE
@@ -31,12 +36,14 @@ config PPC_BOOK3S_6xx
 	select PPC_HAVE_PMU_SUPPORT
 	select PPC_HAVE_KUEP
 	select PPC_HAVE_KUAP
+	select HAVE_ARCH_VMAP_STACK
 
 config PPC_BOOK3S_601
 	bool "PowerPC 601"
 	select PPC_BOOK3S_32
 	select PPC_FPU
 	select PPC_HAVE_KUAP
+	select HAVE_ARCH_VMAP_STACK
 
 config PPC_85xx
 	bool "Freescale 85xx"
@@ -49,6 +56,7 @@ config PPC_8xx
 	select PPC_HAVE_KUEP
 	select PPC_HAVE_KUAP
 	select PPC_MM_SLICES if HUGETLB_PAGE
+	select HAVE_ARCH_VMAP_STACK
 
 config 40x
 	bool "AMCC 40x"

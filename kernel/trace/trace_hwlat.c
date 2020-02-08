@@ -556,7 +556,7 @@ static int init_tracefs(void)
 	return 0;
 
  err:
-	tracefs_remove_recursive(top_dir);
+	tracefs_remove(top_dir);
 	return -ENOMEM;
 }
 

@@ -614,7 +614,7 @@ mlxsw_sp_qdisc_tbf_rate_kbps(struct tc_tbf_qopt_offload_replace_params *p)
 	/* TBF interface is in bytes/s, whereas Spectrum ASIC is configured in
 	 * Kbits/s.
 	 */
-	return p->rate.rate_bytes_ps / 1000 * 8;
+	return div_u64(p->rate.rate_bytes_ps, 1000) * 8;
 }
 
 static int
