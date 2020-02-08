@@ -45,6 +45,7 @@ enum nfs_param {
 	Opt_cto,
 	Opt_fg,
 	Opt_fscache,
+	Opt_fscache_flag,
 	Opt_hard,
 	Opt_intr,
 	Opt_local_lock,
@@ -83,7 +84,35 @@ enum nfs_param {
 	Opt_wsize,
 };
 
-static const struct fs_parameter_spec nfs_param_specs[] = {
+enum {
+	Opt_local_lock_all,
+	Opt_local_lock_flock,
+	Opt_local_lock_none,
+	Opt_local_lock_posix,
+};
+
+static const struct constant_table nfs_param_enums_local_lock[] = {
+	{ "all",		Opt_local_lock_all },
+	{ "flock",	Opt_local_lock_flock },
+	{ "none",		Opt_local_lock_none },
+	{}
+};
+
+enum {
+	Opt_lookupcache_all,
+	Opt_lookupcache_none,
+	Opt_lookupcache_positive,
+};
+
+static const struct constant_table nfs_param_enums_lookupcache[] = {
+	{ "all",		Opt_lookupcache_all },
+	{ "none",		Opt_lookupcache_none },
+	{ "pos",		Opt_lookupcache_positive },
+	{ "positive",		Opt_lookupcache_positive },
+	{}
+};
+
+static const struct fs_parameter_spec nfs_fs_parameters[] = {
 	fsparam_flag_no("ac",		Opt_ac),
 	fsparam_u32   ("acdirmax",	Opt_acdirmax),
 	fsparam_u32   ("acdirmin",	Opt_acdirmin),
@@ -97,14 +126,14 @@ static const struct fs_parameter_spec nfs_param_specs[] = {
 	fsparam_string("clientaddr",	Opt_clientaddr),
 	fsparam_flag_no("cto",		Opt_cto),
 	fsparam_flag  ("fg",		Opt_fg),
-	__fsparam(fs_param_is_string, "fsc",		Opt_fscache,
-		  fs_param_neg_with_no|fs_param_v_optional),
+	fsparam_flag_no("fsc",		Opt_fscache_flag),
+	fsparam_string("fsc",		Opt_fscache),
 	fsparam_flag  ("hard",		Opt_hard),
-	__fsparam(fs_param_is_flag, "intr",		Opt_intr,
-		  fs_param_neg_with_no|fs_param_deprecated),
-	fsparam_enum  ("local_lock",	Opt_local_lock),
+	__fsparam(NULL, "intr",		Opt_intr,
+		  fs_param_neg_with_no|fs_param_deprecated, NULL),
+	fsparam_enum  ("local_lock",	Opt_local_lock, nfs_param_enums_local_lock),
 	fsparam_flag_no("lock",		Opt_lock),
-	fsparam_enum  ("lookupcache",	Opt_lookupcache),
+	fsparam_enum  ("lookupcache",	Opt_lookupcache, nfs_param_enums_lookupcache),
 	fsparam_flag_no("migration",	Opt_migration),
 	fsparam_u32   ("minorversion",	Opt_minorversion),
 	fsparam_string("mountaddr",	Opt_mountaddr),
@@ -143,37 +172,6 @@ static const struct fs_parameter_spec nfs_param_specs[] = {
 	fsparam_string("vers",		Opt_vers),
 	fsparam_u32   ("wsize",		Opt_wsize),
 	{}
-};
-
-enum {
-	Opt_local_lock_all,
-	Opt_local_lock_flock,
-	Opt_local_lock_none,
-	Opt_local_lock_posix,
-};
-
-enum {
-	Opt_lookupcache_all,
-	Opt_lookupcache_none,
-	Opt_lookupcache_positive,
-};
-
-static const struct fs_parameter_enum nfs_param_enums[] = {
-	{ Opt_local_lock,	"all",		Opt_local_lock_all },
-	{ Opt_local_lock,	"flock",	Opt_local_lock_flock },
-	{ Opt_local_lock,	"none",		Opt_local_lock_none },
-	{ Opt_local_lock,	"posix",	Opt_local_lock_posix },
-	{ Opt_lookupcache,	"all",		Opt_lookupcache_all },
-	{ Opt_lookupcache,	"none",		Opt_lookupcache_none },
-	{ Opt_lookupcache,	"pos",		Opt_lookupcache_positive },
-	{ Opt_lookupcache,	"positive",	Opt_lookupcache_positive },
-	{}
-};
-
-static const struct fs_parameter_description nfs_fs_parameters = {
-	.name		= "nfs",
-	.specs		= nfs_param_specs,
-	.enums		= nfs_param_enums,
 };
 
 enum {
@@ -442,7 +440,7 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 
 	dfprintk(MOUNT, "NFS:   parsing nfs mount option '%s'\n", param->key);
 
-	opt = fs_parse(fc, &nfs_fs_parameters, param, &result);
+	opt = fs_parse(fc, nfs_fs_parameters, param, &result);
 	if (opt < 0)
 		return ctx->sloppy ? 1 : opt;
 
@@ -540,14 +538,19 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 		else
 			ctx->flags &= ~NFS_MOUNT_NORESVPORT;
 		break;
-	case Opt_fscache:
-		kfree(ctx->fscache_uniq);
-		ctx->fscache_uniq = param->string;
-		param->string = NULL;
+	case Opt_fscache_flag:
 		if (result.negated)
 			ctx->options &= ~NFS_OPTION_FSCACHE;
 		else
 			ctx->options |= NFS_OPTION_FSCACHE;
+		kfree(ctx->fscache_uniq);
+		ctx->fscache_uniq = NULL;
+		break;
+	case Opt_fscache:
+		ctx->options |= NFS_OPTION_FSCACHE;
+		kfree(ctx->fscache_uniq);
+		ctx->fscache_uniq = param->string;
+		param->string = NULL;
 		break;
 	case Opt_migration:
 		if (result.negated)
@@ -1415,7 +1418,7 @@ struct file_system_type nfs_fs_type = {
 	.owner			= THIS_MODULE,
 	.name			= "nfs",
 	.init_fs_context	= nfs_init_fs_context,
-	.parameters		= &nfs_fs_parameters,
+	.parameters		= nfs_fs_parameters,
 	.kill_sb		= nfs_kill_super,
 	.fs_flags		= FS_RENAME_DOES_D_MOVE|FS_BINARY_MOUNTDATA,
 };
@@ -1427,7 +1430,7 @@ struct file_system_type nfs4_fs_type = {
 	.owner			= THIS_MODULE,
 	.name			= "nfs4",
 	.init_fs_context	= nfs_init_fs_context,
-	.parameters		= &nfs_fs_parameters,
+	.parameters		= nfs_fs_parameters,
 	.kill_sb		= nfs_kill_super,
 	.fs_flags		= FS_RENAME_DOES_D_MOVE|FS_BINARY_MOUNTDATA,
 };

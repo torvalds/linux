@@ -162,13 +162,13 @@ enum ceph_recover_session_mode {
 	ceph_recover_session_clean
 };
 
-static const struct fs_parameter_enum ceph_mount_param_enums[] = {
-	{ Opt_recover_session,	"no",		ceph_recover_session_no },
-	{ Opt_recover_session,	"clean",	ceph_recover_session_clean },
+static const struct constant_table ceph_param_recover[] = {
+	{ "no",		ceph_recover_session_no },
+	{ "clean",	ceph_recover_session_clean },
 	{}
 };
 
-static const struct fs_parameter_spec ceph_mount_param_specs[] = {
+static const struct fs_parameter_spec ceph_mount_parameters[] = {
 	fsparam_flag_no ("acl",				Opt_acl),
 	fsparam_flag_no ("asyncreaddir",		Opt_asyncreaddir),
 	fsparam_s32	("caps_max",			Opt_caps_max),
@@ -178,8 +178,8 @@ static const struct fs_parameter_spec ceph_mount_param_specs[] = {
 	fsparam_flag_no ("copyfrom",			Opt_copyfrom),
 	fsparam_flag_no ("dcache",			Opt_dcache),
 	fsparam_flag_no ("dirstat",			Opt_dirstat),
-	__fsparam	(fs_param_is_string, "fsc",	Opt_fscache,
-			 fs_param_neg_with_no | fs_param_v_optional),
+	fsparam_flag_no	("fsc",				Opt_fscache), // fsc|nofsc
+	fsparam_string	("fsc",				Opt_fscache), // fsc=...
 	fsparam_flag_no ("ino32",			Opt_ino32),
 	fsparam_string	("mds_namespace",		Opt_mds_namespace),
 	fsparam_flag_no ("poolperm",			Opt_poolperm),
@@ -188,19 +188,13 @@ static const struct fs_parameter_spec ceph_mount_param_specs[] = {
 	fsparam_flag_no ("rbytes",			Opt_rbytes),
 	fsparam_u32	("readdir_max_bytes",		Opt_readdir_max_bytes),
 	fsparam_u32	("readdir_max_entries",		Opt_readdir_max_entries),
-	fsparam_enum	("recover_session",		Opt_recover_session),
+	fsparam_enum	("recover_session",		Opt_recover_session, ceph_param_recover),
 	fsparam_flag_no ("require_active_mds",		Opt_require_active_mds),
 	fsparam_u32	("rsize",			Opt_rsize),
 	fsparam_string	("snapdirname",			Opt_snapdirname),
 	fsparam_string	("source",			Opt_source),
 	fsparam_u32	("wsize",			Opt_wsize),
 	{}
-};
-
-static const struct fs_parameter_description ceph_mount_parameters = {
-	.name           = "ceph",
-	.specs          = ceph_mount_param_specs,
-	.enums		= ceph_mount_param_enums,
 };
 
 struct ceph_parse_opts_ctx {
@@ -226,7 +220,7 @@ static int ceph_parse_source(struct fs_parameter *param, struct fs_context *fc)
 
 	dout("%s '%s'\n", __func__, dev_name);
 	if (!dev_name || !*dev_name)
-		return invalf(fc, "ceph: Empty source");
+		return invalfc(fc, "Empty source");
 
 	dev_name_end = strchr(dev_name, '/');
 	if (dev_name_end) {
@@ -245,14 +239,14 @@ static int ceph_parse_source(struct fs_parameter *param, struct fs_context *fc)
 
 	dev_name_end--;		/* back up to ':' separator */
 	if (dev_name_end < dev_name || *dev_name_end != ':')
-		return invalf(fc, "ceph: No path or : separator in source");
+		return invalfc(fc, "No path or : separator in source");
 
 	dout("device name '%.*s'\n", (int)(dev_name_end - dev_name), dev_name);
 	if (fsopt->server_path)
 		dout("server path '%s'\n", fsopt->server_path);
 
 	ret = ceph_parse_mon_ips(param->string, dev_name_end - dev_name,
-				 pctx->copts, fc);
+				 pctx->copts, fc->log.log);
 	if (ret)
 		return ret;
 
@@ -270,11 +264,11 @@ static int ceph_parse_mount_param(struct fs_context *fc,
 	unsigned int mode;
 	int token, ret;
 
-	ret = ceph_parse_param(param, pctx->copts, fc);
+	ret = ceph_parse_param(param, pctx->copts, fc->log.log);
 	if (ret != -ENOPARAM)
 		return ret;
 
-	token = fs_parse(fc, &ceph_mount_parameters, param, &result);
+	token = fs_parse(fc, ceph_mount_parameters, param, &result);
 	dout("%s fs_parse '%s' token %d\n", __func__, param->key, token);
 	if (token < 0)
 		return token;
@@ -301,7 +295,7 @@ static int ceph_parse_mount_param(struct fs_context *fc,
 		break;
 	case Opt_source:
 		if (fc->source)
-			return invalf(fc, "ceph: Multiple sources specified");
+			return invalfc(fc, "Multiple sources specified");
 		return ceph_parse_source(param, fc);
 	case Opt_wsize:
 		if (result.uint_32 < PAGE_SIZE ||
@@ -392,7 +386,7 @@ static int ceph_parse_mount_param(struct fs_context *fc,
 		}
 		break;
 #else
-		return invalf(fc, "ceph: fscache support is disabled");
+		return invalfc(fc, "fscache support is disabled");
 #endif
 	case Opt_poolperm:
 		if (!result.negated)
@@ -423,7 +417,7 @@ static int ceph_parse_mount_param(struct fs_context *fc,
 #ifdef CONFIG_CEPH_FS_POSIX_ACL
 			fc->sb_flags |= SB_POSIXACL;
 #else
-			return invalf(fc, "ceph: POSIX ACL support is disabled");
+			return invalfc(fc, "POSIX ACL support is disabled");
 #endif
 		} else {
 			fc->sb_flags &= ~SB_POSIXACL;
@@ -435,7 +429,7 @@ static int ceph_parse_mount_param(struct fs_context *fc,
 	return 0;
 
 out_of_range:
-	return invalf(fc, "ceph: %s out of range", param->key);
+	return invalfc(fc, "%s out of range", param->key);
 }
 
 static void destroy_mount_options(struct ceph_mount_options *args)
@@ -1101,7 +1095,7 @@ static int ceph_get_tree(struct fs_context *fc)
 	dout("ceph_get_tree\n");
 
 	if (!fc->source)
-		return invalf(fc, "ceph: No source");
+		return invalfc(fc, "No source");
 
 #ifdef CONFIG_CEPH_FS_POSIX_ACL
 	fc->sb_flags |= SB_POSIXACL;

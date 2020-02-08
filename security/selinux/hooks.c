@@ -2778,7 +2778,7 @@ static int selinux_fs_context_dup(struct fs_context *fc,
 	return 0;
 }
 
-static const struct fs_parameter_spec selinux_param_specs[] = {
+static const struct fs_parameter_spec selinux_fs_parameters[] = {
 	fsparam_string(CONTEXT_STR,	Opt_context),
 	fsparam_string(DEFCONTEXT_STR,	Opt_defcontext),
 	fsparam_string(FSCONTEXT_STR,	Opt_fscontext),
@@ -2787,18 +2787,13 @@ static const struct fs_parameter_spec selinux_param_specs[] = {
 	{}
 };
 
-static const struct fs_parameter_description selinux_fs_parameters = {
-	.name		= "SELinux",
-	.specs		= selinux_param_specs,
-};
-
 static int selinux_fs_context_parse_param(struct fs_context *fc,
 					  struct fs_parameter *param)
 {
 	struct fs_parse_result result;
 	int opt, rc;
 
-	opt = fs_parse(fc, &selinux_fs_parameters, param, &result);
+	opt = fs_parse(fc, selinux_fs_parameters, param, &result);
 	if (opt < 0)
 		return opt;
 
@@ -7193,7 +7188,7 @@ static __init int selinux_init(void)
 	else
 		pr_debug("SELinux:  Starting in permissive mode\n");
 
-	fs_validate_description(&selinux_fs_parameters);
+	fs_validate_description("selinux", selinux_fs_parameters);
 
 	return 0;
 }

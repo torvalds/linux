@@ -62,7 +62,7 @@ enum {
 	Opt_discard, Opt_nodiscard, Opt_dax,
 };
 
-static const struct fs_parameter_spec xfs_param_specs[] = {
+static const struct fs_parameter_spec xfs_fs_parameters[] = {
 	fsparam_u32("logbufs",		Opt_logbufs),
 	fsparam_string("logbsize",	Opt_logbsize),
 	fsparam_string("logdev",	Opt_logdev),
@@ -104,11 +104,6 @@ static const struct fs_parameter_spec xfs_param_specs[] = {
 	fsparam_flag("nodiscard",	Opt_nodiscard),
 	fsparam_flag("dax",		Opt_dax),
 	{}
-};
-
-static const struct fs_parameter_description xfs_fs_parameters = {
-	.name		= "xfs",
-	.specs		= xfs_param_specs,
 };
 
 struct proc_xfs_info {
@@ -1120,7 +1115,7 @@ xfs_fc_parse_param(
 	int			size = 0;
 	int			opt;
 
-	opt = fs_parse(fc, &xfs_fs_parameters, param, &result);
+	opt = fs_parse(fc, xfs_fs_parameters, param, &result);
 	if (opt < 0)
 		return opt;
 
@@ -1782,7 +1777,7 @@ static struct file_system_type xfs_fs_type = {
 	.owner			= THIS_MODULE,
 	.name			= "xfs",
 	.init_fs_context	= xfs_init_fs_context,
-	.parameters		= &xfs_fs_parameters,
+	.parameters		= xfs_fs_parameters,
 	.kill_sb		= kill_block_super,
 	.fs_flags		= FS_REQUIRES_DEV,
 };

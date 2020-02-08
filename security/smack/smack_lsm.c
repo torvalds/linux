@@ -678,7 +678,7 @@ static int smack_fs_context_dup(struct fs_context *fc,
 	return 0;
 }
 
-static const struct fs_parameter_spec smack_param_specs[] = {
+static const struct fs_parameter_spec smack_fs_parameters[] = {
 	fsparam_string("smackfsdef",		Opt_fsdefault),
 	fsparam_string("smackfsdefault",	Opt_fsdefault),
 	fsparam_string("smackfsfloor",		Opt_fsfloor),
@@ -686,11 +686,6 @@ static const struct fs_parameter_spec smack_param_specs[] = {
 	fsparam_string("smackfsroot",		Opt_fsroot),
 	fsparam_string("smackfstransmute",	Opt_fstransmute),
 	{}
-};
-
-static const struct fs_parameter_description smack_fs_parameters = {
-	.name		= "smack",
-	.specs		= smack_param_specs,
 };
 
 /**
@@ -707,7 +702,7 @@ static int smack_fs_context_parse_param(struct fs_context *fc,
 	struct fs_parse_result result;
 	int opt, rc;
 
-	opt = fs_parse(fc, &smack_fs_parameters, param, &result);
+	opt = fs_parse(fc, smack_fs_parameters, param, &result);
 	if (opt < 0)
 		return opt;
 

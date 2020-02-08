@@ -569,14 +569,9 @@ enum {
 	OPT_MODE,
 };
 
-static const struct fs_parameter_spec bpf_param_specs[] = {
+static const struct fs_parameter_spec bpf_fs_parameters[] = {
 	fsparam_u32oct	("mode",			OPT_MODE),
 	{}
-};
-
-static const struct fs_parameter_description bpf_fs_parameters = {
-	.name		= "bpf",
-	.specs		= bpf_param_specs,
 };
 
 struct bpf_mount_opts {
@@ -589,7 +584,7 @@ static int bpf_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	struct fs_parse_result result;
 	int opt;
 
-	opt = fs_parse(fc, &bpf_fs_parameters, param, &result);
+	opt = fs_parse(fc, bpf_fs_parameters, param, &result);
 	if (opt < 0)
 		/* We might like to report bad mount options here, but
 		 * traditionally we've ignored all mount options, so we'd
@@ -665,7 +660,7 @@ static struct file_system_type bpf_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "bpf",
 	.init_fs_context = bpf_init_fs_context,
-	.parameters	= &bpf_fs_parameters,
+	.parameters	= bpf_fs_parameters,
 	.kill_sb	= kill_litter_super,
 };
 

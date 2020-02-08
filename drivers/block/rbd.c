@@ -848,7 +848,7 @@ enum {
 	Opt_notrim,
 };
 
-static const struct fs_parameter_spec rbd_param_specs[] = {
+static const struct fs_parameter_spec rbd_parameters[] = {
 	fsparam_u32	("alloc_size",			Opt_alloc_size),
 	fsparam_flag	("exclusive",			Opt_exclusive),
 	fsparam_flag	("lock_on_read",		Opt_lock_on_read),
@@ -861,11 +861,6 @@ static const struct fs_parameter_spec rbd_param_specs[] = {
 	fsparam_flag	("ro",				Opt_read_only),
 	fsparam_flag	("rw",				Opt_read_write),
 	{}
-};
-
-static const struct fs_parameter_description rbd_parameters = {
-	.name		= "rbd",
-	.specs		= rbd_param_specs,
 };
 
 struct rbd_options {
@@ -6353,19 +6348,19 @@ static int rbd_parse_param(struct fs_parameter *param,
 {
 	struct rbd_options *opt = pctx->opts;
 	struct fs_parse_result result;
+	struct p_log log = {.prefix = "rbd"};
 	int token, ret;
 
 	ret = ceph_parse_param(param, pctx->copts, NULL);
 	if (ret != -ENOPARAM)
 		return ret;
 
-	token = fs_parse(NULL, &rbd_parameters, param, &result);
+	token = __fs_parse(&log, rbd_parameters, param, &result);
 	dout("%s fs_parse '%s' token %d\n", __func__, param->key, token);
 	if (token < 0) {
-		if (token == -ENOPARAM) {
-			return invalf(NULL, "rbd: Unknown parameter '%s'",
-				      param->key);
-		}
+		if (token == -ENOPARAM)
+			return inval_plog(&log, "Unknown parameter '%s'",
+					  param->key);
 		return token;
 	}
 
@@ -6378,9 +6373,8 @@ static int rbd_parse_param(struct fs_parameter *param,
 	case Opt_alloc_size:
 		if (result.uint_32 < SECTOR_SIZE)
 			goto out_of_range;
-		if (!is_power_of_2(result.uint_32)) {
-			return invalf(NULL, "rbd: alloc_size must be a power of 2");
-		}
+		if (!is_power_of_2(result.uint_32))
+			return inval_plog(&log, "alloc_size must be a power of 2");
 		opt->alloc_size = result.uint_32;
 		break;
 	case Opt_lock_timeout:
@@ -6416,7 +6410,7 @@ static int rbd_parse_param(struct fs_parameter *param,
 	return 0;
 
 out_of_range:
-	return invalf(NULL, "rbd: %s out of range", param->key);
+	return inval_plog(&log, "%s out of range", param->key);
 }
 
 /*
@@ -6433,7 +6427,7 @@ static int rbd_parse_options(char *options, struct rbd_parse_opts_ctx *pctx)
 		if (*key) {
 			struct fs_parameter param = {
 				.key	= key,
-				.type	= fs_value_is_string,
+				.type	= fs_value_is_flag,
 			};
 			char *value = strchr(key, '=');
 			size_t v_len = 0;
@@ -6443,14 +6437,11 @@ static int rbd_parse_options(char *options, struct rbd_parse_opts_ctx *pctx)
 					continue;
 				*value++ = 0;
 				v_len = strlen(value);
-			}
-
-
-			if (v_len > 0) {
 				param.string = kmemdup_nul(value, v_len,
 							   GFP_KERNEL);
 				if (!param.string)
 					return -ENOMEM;
+				param.type = fs_value_is_string;
 			}
 			param.size = v_len;
 
