@@ -1,0 +1,37 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+# Copyright 2020 Broadcom
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/reset/brcm,bcm7216-pcie-sata-rescal.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: BCM7216 RESCAL reset controller
+
+description: This document describes the BCM7216 RESCAL reset controller which is responsible for controlling the reset of the SATA and PCIe0/1 instances on BCM7216.
+
+maintainers:
+  - Florian Fainelli <f.fainelli@gmail.com>
+  - Jim Quinlan <jim2101024@gmail.com>
+
+properties:
+  compatible:
+    const: brcm,bcm7216-pcie-sata-rescal
+
+  reg:
+    maxItems: 1
+
+  "#reset-cells":
+    const: 0
+
+required:
+  - compatible
+  - reg
+  - "#reset-cells"
+
+examples:
+  - |
+    reset-controller@8b2c800 {
+          compatible = "brcm,bcm7216-pcie-sata-rescal";
+          reg = <0x8b2c800 0x10>;
+          #reset-cells = <0>;
+    };

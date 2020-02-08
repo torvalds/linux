@@ -3289,6 +3289,8 @@ S:	Maintained
 N:	bcm2711
 N:	bcm2835
 F:	drivers/staging/vc04_services
+F:	Documentation/devicetree/bindings/pci/brcm,stb-pcie.yaml
+F:	drivers/pci/controller/pcie-brcmstb.c
 
 BROADCOM BCM47XX MIPS ARCHITECTURE
 M:	Hauke Mehrtens <hauke@hauke-m.de>
@@ -3344,6 +3346,8 @@ F:	drivers/bus/brcmstb_gisb.c
 F:	arch/arm/mm/cache-b15-rac.c
 F:	arch/arm/include/asm/hardware/cache-b15-rac.h
 N:	brcmstb
+F:	Documentation/devicetree/bindings/pci/brcm,stb-pcie.yaml
+F:	drivers/pci/controller/pcie-brcmstb.c
 
 BROADCOM BMIPS CPUFREQ DRIVER
 M:	Markus Mayer <mmayer@broadcom.com>
@@ -16148,6 +16152,7 @@ F:	drivers/firmware/arm_scpi.c
 F:	drivers/firmware/arm_scmi/
 F:	drivers/reset/reset-scmi.c
 F:	include/linux/sc[mp]i_protocol.h
+F:	include/trace/events/scmi.h
 
 SYSTEM RESET/SHUTDOWN DRIVERS
 M:	Sebastian Reichel <sre@kernel.org>
