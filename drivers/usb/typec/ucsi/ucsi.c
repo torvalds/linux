@@ -400,7 +400,7 @@ static int ucsi_register_altmodes(struct ucsi_connector *con, u8 recipient)
 	struct typec_altmode_desc desc;
 	struct ucsi_altmode alt[2];
 	u64 command;
-	int num = 1;
+	int num;
 	int ret;
 	int len;
 	int j;
