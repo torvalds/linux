@@ -4398,7 +4398,8 @@ static int posix_info_extra_size(const void *beg, const void *end)
 }
 
 static unsigned int
-num_entries(char *bufstart, char *end_of_buf, char **lastentry, size_t size)
+num_entries(int infotype, char *bufstart, char *end_of_buf, char **lastentry,
+	    size_t size)
 {
 	int len;
 	unsigned int entrycount = 0;
@@ -4422,8 +4423,13 @@ num_entries(char *bufstart, char *end_of_buf, char **lastentry, size_t size)
 		entryptr = entryptr + next_offset;
 		dir_info = (FILE_DIRECTORY_INFO *)entryptr;
 
-		len = le32_to_cpu(dir_info->FileNameLength);
-		if (entryptr + len < entryptr ||
+		if (infotype == SMB_FIND_FILE_POSIX_INFO)
+			len = posix_info_extra_size(entryptr, end_of_buf);
+		else
+			len = le32_to_cpu(dir_info->FileNameLength);
+
+		if (len < 0 ||
+		    entryptr + len < entryptr ||
 		    entryptr + len > end_of_buf ||
 		    entryptr + len + size > end_of_buf) {
 			cifs_dbg(VFS, "directory entry name would overflow frame end of buf %p\n",
@@ -4472,6 +4478,9 @@ int SMB2_query_directory_init(const unsigned int xid,
 		break;
 	case SMB_FIND_FILE_ID_FULL_DIR_INFO:
 		req->FileInformationClass = FILEID_FULL_DIRECTORY_INFORMATION;
+		break;
+	case SMB_FIND_FILE_POSIX_INFO:
+		req->FileInformationClass = SMB_FIND_FILE_POSIX_INFO;
 		break;
 	default:
 		cifs_tcon_dbg(VFS, "info level %u isn't supported\n",
@@ -4538,6 +4547,10 @@ smb2_parse_query_directory(struct cifs_tcon *tcon,
 	case SMB_FIND_FILE_ID_FULL_DIR_INFO:
 		info_buf_size = sizeof(SEARCH_ID_FULL_DIR_INFO) - 1;
 		break;
+	case SMB_FIND_FILE_POSIX_INFO:
+		/* note that posix payload are variable size */
+		info_buf_size = sizeof(struct smb2_posix_info);
+		break;
 	default:
 		cifs_tcon_dbg(VFS, "info level %u isn't supported\n",
 			 srch_inf->info_level);
@@ -4547,8 +4560,10 @@ smb2_parse_query_directory(struct cifs_tcon *tcon,
 	rc = smb2_validate_iov(le16_to_cpu(rsp->OutputBufferOffset),
 			       le32_to_cpu(rsp->OutputBufferLength), rsp_iov,
 			       info_buf_size);
-	if (rc)
+	if (rc) {
+		cifs_tcon_dbg(VFS, "bad info payload");
 		return rc;
+	}
 
 	srch_inf->unicode = true;
 
@@ -4562,9 +4577,14 @@ smb2_parse_query_directory(struct cifs_tcon *tcon,
 	srch_inf->srch_entries_start = srch_inf->last_entry =
 		(char *)rsp + le16_to_cpu(rsp->OutputBufferOffset);
 	end_of_smb = rsp_iov->iov_len + (char *)rsp;
-	srch_inf->entries_in_buffer =
-			num_entries(srch_inf->srch_entries_start, end_of_smb,
-				    &srch_inf->last_entry, info_buf_size);
+
+	srch_inf->entries_in_buffer = num_entries(
+		srch_inf->info_level,
+		srch_inf->srch_entries_start,
+		end_of_smb,
+		&srch_inf->last_entry,
+		info_buf_size);
+
 	srch_inf->index_of_last_entry += srch_inf->entries_in_buffer;
 	cifs_dbg(FYI, "num entries %d last_index %lld srch start %p srch end %p\n",
 		 srch_inf->entries_in_buffer, srch_inf->index_of_last_entry,
