@@ -1127,6 +1127,9 @@ struct rpc_task *rpc_run_task(const struct rpc_task_setup *task_setup_data)
 
 	task = rpc_new_task(task_setup_data);
 
+	if (!RPC_IS_ASYNC(task))
+		task->tk_flags |= RPC_TASK_CRED_NOREF;
+
 	rpc_task_set_client(task, task_setup_data->rpc_client);
 	rpc_task_set_rpc_message(task, task_setup_data->rpc_message);
 
