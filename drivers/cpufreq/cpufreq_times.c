@@ -105,9 +105,11 @@ static struct uid_entry *find_or_register_uid_locked(uid_t uid)
 		/* uid_entry->time_in_state is too small to track all freqs, so
 		 * expand it.
 		 */
-		temp = __krealloc(uid_entry, alloc_size, GFP_ATOMIC);
+		/* no more __krealloc() so roll our own */
+		temp = kmalloc(alloc_size, GFP_ATOMIC);
 		if (!temp)
 			return uid_entry;
+		memcpy(temp, uid_entry, alloc_size);
 		temp->max_state = max_state;
 		memset(temp->time_in_state + uid_entry->max_state, 0,
 		       (max_state - uid_entry->max_state) *
@@ -570,11 +572,11 @@ int single_uid_time_in_state_open(struct inode *inode, struct file *file)
 			&(inode->i_uid));
 }
 
-static const struct file_operations uid_time_in_state_fops = {
-	.open		= uid_time_in_state_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
+static const struct proc_ops uid_time_in_state_fops = {
+	.proc_open	= uid_time_in_state_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= seq_release,
 };
 
 static const struct seq_operations concurrent_active_time_seq_ops = {
@@ -589,11 +591,11 @@ static int concurrent_active_time_open(struct inode *inode, struct file *file)
 	return seq_open(file, &concurrent_active_time_seq_ops);
 }
 
-static const struct file_operations concurrent_active_time_fops = {
-	.open		= concurrent_active_time_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
+static const struct proc_ops concurrent_active_time_fops = {
+	.proc_open	= concurrent_active_time_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= seq_release,
 };
 
 static const struct seq_operations concurrent_policy_time_seq_ops = {
@@ -608,11 +610,11 @@ static int concurrent_policy_time_open(struct inode *inode, struct file *file)
 	return seq_open(file, &concurrent_policy_time_seq_ops);
 }
 
-static const struct file_operations concurrent_policy_time_fops = {
-	.open		= concurrent_policy_time_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
+static const struct proc_ops concurrent_policy_time_fops = {
+	.proc_open	= concurrent_policy_time_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= seq_release,
 };
 
 static int __init cpufreq_times_init(void)
