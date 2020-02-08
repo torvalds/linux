@@ -47,7 +47,7 @@ static int serial8250_ioc3_probe(struct platform_device *pdev)
 	if (!data)
 		return -ENOMEM;
 
-	membase = devm_ioremap_nocache(&pdev->dev, r->start, resource_size(r));
+	membase = devm_ioremap(&pdev->dev, r->start, resource_size(r));
 	if (!membase)
 		return -ENOMEM;
 
