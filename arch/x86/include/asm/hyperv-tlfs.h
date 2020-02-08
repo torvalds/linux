@@ -809,7 +809,8 @@ union hv_synic_sint {
 		u64 reserved1:8;
 		u64 masked:1;
 		u64 auto_eoi:1;
-		u64 reserved2:46;
+		u64 polling:1;
+		u64 reserved2:45;
 	} __packed;
 };
 

@@ -52,6 +52,9 @@
 #include <rdma/rw.h>
 
 #include "core_priv.h"
+#include <trace/events/rdma_core.h>
+
+#include <trace/events/rdma_core.h>
 
 static int ib_resolve_eth_dmac(struct ib_device *device,
 			       struct rdma_ah_attr *ah_attr);
@@ -1053,11 +1056,11 @@ static void __ib_shared_qp_event_handler(struct ib_event *event, void *context)
 	struct ib_qp *qp = context;
 	unsigned long flags;
 
-	spin_lock_irqsave(&qp->device->event_handler_lock, flags);
+	spin_lock_irqsave(&qp->device->qp_open_list_lock, flags);
 	list_for_each_entry(event->element.qp, &qp->open_list, open_list)
 		if (event->element.qp->event_handler)
 			event->element.qp->event_handler(event, event->element.qp->qp_context);
-	spin_unlock_irqrestore(&qp->device->event_handler_lock, flags);
+	spin_unlock_irqrestore(&qp->device->qp_open_list_lock, flags);
 }
 
 static void __ib_insert_xrcd_qp(struct ib_xrcd *xrcd, struct ib_qp *qp)
@@ -1094,9 +1097,9 @@ static struct ib_qp *__ib_open_qp(struct ib_qp *real_qp,
 	qp->qp_num = real_qp->qp_num;
 	qp->qp_type = real_qp->qp_type;
 
-	spin_lock_irqsave(&real_qp->device->event_handler_lock, flags);
+	spin_lock_irqsave(&real_qp->device->qp_open_list_lock, flags);
 	list_add(&qp->open_list, &real_qp->open_list);
-	spin_unlock_irqrestore(&real_qp->device->event_handler_lock, flags);
+	spin_unlock_irqrestore(&real_qp->device->qp_open_list_lock, flags);
 
 	return qp;
 }
@@ -1824,9 +1827,9 @@ int ib_close_qp(struct ib_qp *qp)
 	if (real_qp == qp)
 		return -EINVAL;
 
-	spin_lock_irqsave(&real_qp->device->event_handler_lock, flags);
+	spin_lock_irqsave(&real_qp->device->qp_open_list_lock, flags);
 	list_del(&qp->open_list);
-	spin_unlock_irqrestore(&real_qp->device->event_handler_lock, flags);
+	spin_unlock_irqrestore(&real_qp->device->qp_open_list_lock, flags);
 
 	atomic_dec(&real_qp->usecnt);
 	if (qp->qp_sec)
@@ -2038,6 +2041,7 @@ int ib_dereg_mr_user(struct ib_mr *mr, struct ib_udata *udata)
 	struct ib_sig_attrs *sig_attrs = mr->sig_attrs;
 	int ret;
 
+	trace_mr_dereg(mr);
 	rdma_restrack_del(&mr->res);
 	ret = mr->device->ops.dereg_mr(mr, udata);
 	if (!ret) {
@@ -2069,11 +2073,16 @@ struct ib_mr *ib_alloc_mr_user(struct ib_pd *pd, enum ib_mr_type mr_type,
 {
 	struct ib_mr *mr;
 
-	if (!pd->device->ops.alloc_mr)
-		return ERR_PTR(-EOPNOTSUPP);
+	if (!pd->device->ops.alloc_mr) {
+		mr = ERR_PTR(-EOPNOTSUPP);
+		goto out;
+	}
 
-	if (WARN_ON_ONCE(mr_type == IB_MR_TYPE_INTEGRITY))
-		return ERR_PTR(-EINVAL);
+	if (mr_type == IB_MR_TYPE_INTEGRITY) {
+		WARN_ON_ONCE(1);
+		mr = ERR_PTR(-EINVAL);
+		goto out;
+	}
 
 	mr = pd->device->ops.alloc_mr(pd, mr_type, max_num_sg, udata);
 	if (!IS_ERR(mr)) {
@@ -2089,6 +2098,8 @@ struct ib_mr *ib_alloc_mr_user(struct ib_pd *pd, enum ib_mr_type mr_type,
 		mr->sig_attrs = NULL;
 	}
 
+out:
+	trace_mr_alloc(pd, mr_type, max_num_sg, mr);
 	return mr;
 }
 EXPORT_SYMBOL(ib_alloc_mr_user);
@@ -2113,21 +2124,27 @@ struct ib_mr *ib_alloc_mr_integrity(struct ib_pd *pd,
 	struct ib_sig_attrs *sig_attrs;
 
 	if (!pd->device->ops.alloc_mr_integrity ||
-	    !pd->device->ops.map_mr_sg_pi)
-		return ERR_PTR(-EOPNOTSUPP);
+	    !pd->device->ops.map_mr_sg_pi) {
+		mr = ERR_PTR(-EOPNOTSUPP);
+		goto out;
+	}
 
-	if (!max_num_meta_sg)
-		return ERR_PTR(-EINVAL);
+	if (!max_num_meta_sg) {
+		mr = ERR_PTR(-EINVAL);
+		goto out;
+	}
 
 	sig_attrs = kzalloc(sizeof(struct ib_sig_attrs), GFP_KERNEL);
-	if (!sig_attrs)
-		return ERR_PTR(-ENOMEM);
+	if (!sig_attrs) {
+		mr = ERR_PTR(-ENOMEM);
+		goto out;
+	}
 
 	mr = pd->device->ops.alloc_mr_integrity(pd, max_num_data_sg,
 						max_num_meta_sg);
 	if (IS_ERR(mr)) {
 		kfree(sig_attrs);
-		return mr;
+		goto out;
 	}
 
 	mr->device = pd->device;
@@ -2141,6 +2158,8 @@ struct ib_mr *ib_alloc_mr_integrity(struct ib_pd *pd,
 	mr->type = IB_MR_TYPE_INTEGRITY;
 	mr->sig_attrs = sig_attrs;
 
+out:
+	trace_mr_integ_alloc(pd, max_num_data_sg, max_num_meta_sg, mr);
 	return mr;
 }
 EXPORT_SYMBOL(ib_alloc_mr_integrity);
@@ -2785,6 +2804,7 @@ void ib_drain_sq(struct ib_qp *qp)
 		qp->device->ops.drain_sq(qp);
 	else
 		__ib_drain_sq(qp);
+	trace_cq_drain_complete(qp->send_cq);
 }
 EXPORT_SYMBOL(ib_drain_sq);
 
@@ -2813,6 +2833,7 @@ void ib_drain_rq(struct ib_qp *qp)
 		qp->device->ops.drain_rq(qp);
 	else
 		__ib_drain_rq(qp);
+	trace_cq_drain_complete(qp->recv_cq);
 }
 EXPORT_SYMBOL(ib_drain_rq);
 

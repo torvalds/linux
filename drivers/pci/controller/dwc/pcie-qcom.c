@@ -1136,18 +1136,18 @@ static int qcom_pcie_init_2_7_0(struct qcom_pcie *pcie)
 		goto err_disable_clocks;
 	}
 
-	msleep(10);
+	usleep_range(1000, 1500);
 
 	ret = reset_control_deassert(res->pci_reset);
 	if (ret < 0) {
 		dev_err(dev, "cannot deassert pci reset\n");
-		goto err_assert_resets;
+		goto err_disable_clocks;
 	}
 
 	ret = clk_prepare_enable(res->pipe_clk);
 	if (ret) {
 		dev_err(dev, "cannot prepare/enable pipe clock\n");
-		goto err_assert_resets;
+		goto err_disable_clocks;
 	}
 
 	/* configure PCIe to RC mode */
@@ -1177,8 +1177,6 @@ static int qcom_pcie_init_2_7_0(struct qcom_pcie *pcie)
 	}
 
 	return 0;
-err_assert_resets:
-	reset_control_assert(res->pci_reset);
 err_disable_clocks:
 	clk_bulk_disable_unprepare(ARRAY_SIZE(res->clks), res->clks);
 err_disable_regulators:

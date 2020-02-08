@@ -186,7 +186,7 @@ static void hmm_range_need_fault(const struct hmm_vma_walk *hmm_vma_walk,
 }
 
 static int hmm_vma_walk_hole(unsigned long addr, unsigned long end,
-			     struct mm_walk *walk)
+			     __always_unused int depth, struct mm_walk *walk)
 {
 	struct hmm_vma_walk *hmm_vma_walk = walk->private;
 	struct hmm_range *range = hmm_vma_walk->range;
@@ -380,7 +380,7 @@ static int hmm_vma_walk_pmd(pmd_t *pmdp,
 again:
 	pmd = READ_ONCE(*pmdp);
 	if (pmd_none(pmd))
-		return hmm_vma_walk_hole(start, end, walk);
+		return hmm_vma_walk_hole(start, end, -1, walk);
 
 	if (thp_migration_supported() && is_pmd_migration_entry(pmd)) {
 		bool fault, write_fault;
@@ -474,23 +474,32 @@ static int hmm_vma_walk_pud(pud_t *pudp, unsigned long start, unsigned long end,
 {
 	struct hmm_vma_walk *hmm_vma_walk = walk->private;
 	struct hmm_range *range = hmm_vma_walk->range;
-	unsigned long addr = start, next;
-	pmd_t *pmdp;
+	unsigned long addr = start;
 	pud_t pud;
-	int ret;
+	int ret = 0;
+	spinlock_t *ptl = pud_trans_huge_lock(pudp, walk->vma);
 
-again:
+	if (!ptl)
+		return 0;
+
+	/* Normally we don't want to split the huge page */
+	walk->action = ACTION_CONTINUE;
+
 	pud = READ_ONCE(*pudp);
-	if (pud_none(pud))
-		return hmm_vma_walk_hole(start, end, walk);
+	if (pud_none(pud)) {
+		ret = hmm_vma_walk_hole(start, end, -1, walk);
+		goto out_unlock;
+	}
 
 	if (pud_huge(pud) && pud_devmap(pud)) {
 		unsigned long i, npages, pfn;
 		uint64_t *pfns, cpu_flags;
 		bool fault, write_fault;
 
-		if (!pud_present(pud))
-			return hmm_vma_walk_hole(start, end, walk);
+		if (!pud_present(pud)) {
+			ret = hmm_vma_walk_hole(start, end, -1, walk);
+			goto out_unlock;
+		}
 
 		i = (addr - range->start) >> PAGE_SHIFT;
 		npages = (end - addr) >> PAGE_SHIFT;
@@ -499,16 +508,20 @@ again:
 		cpu_flags = pud_to_hmm_pfn_flags(range, pud);
 		hmm_range_need_fault(hmm_vma_walk, pfns, npages,
 				     cpu_flags, &fault, &write_fault);
-		if (fault || write_fault)
-			return hmm_vma_walk_hole_(addr, end, fault,
-						write_fault, walk);
+		if (fault || write_fault) {
+			ret = hmm_vma_walk_hole_(addr, end, fault,
+						 write_fault, walk);
+			goto out_unlock;
+		}
 
 		pfn = pud_pfn(pud) + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
 		for (i = 0; i < npages; ++i, ++pfn) {
 			hmm_vma_walk->pgmap = get_dev_pagemap(pfn,
 					      hmm_vma_walk->pgmap);
-			if (unlikely(!hmm_vma_walk->pgmap))
-				return -EBUSY;
+			if (unlikely(!hmm_vma_walk->pgmap)) {
+				ret = -EBUSY;
+				goto out_unlock;
+			}
 			pfns[i] = hmm_device_entry_from_pfn(range, pfn) |
 				  cpu_flags;
 		}
@@ -517,22 +530,15 @@ again:
 			hmm_vma_walk->pgmap = NULL;
 		}
 		hmm_vma_walk->last = end;
-		return 0;
+		goto out_unlock;
 	}
 
-	split_huge_pud(walk->vma, pudp, addr);
-	if (pud_none(*pudp))
-		goto again;
+	/* Ask for the PUD to be split */
+	walk->action = ACTION_SUBTREE;
 
-	pmdp = pmd_offset(pudp, addr);
-	do {
-		next = pmd_addr_end(addr, end);
-		ret = hmm_vma_walk_pmd(pmdp, addr, next, walk);
-		if (ret)
-			return ret;
-	} while (pmdp++, addr = next, addr != end);
-
-	return 0;
+out_unlock:
+	spin_unlock(ptl);
+	return ret;
 }
 #else
 #define hmm_vma_walk_pud	NULL

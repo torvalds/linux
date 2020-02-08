@@ -1580,18 +1580,17 @@ static int slabinfo_open(struct inode *inode, struct file *file)
 	return seq_open(file, &slabinfo_op);
 }
 
-static const struct file_operations proc_slabinfo_operations = {
-	.open		= slabinfo_open,
-	.read		= seq_read,
-	.write          = slabinfo_write,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
+static const struct proc_ops slabinfo_proc_ops = {
+	.proc_open	= slabinfo_open,
+	.proc_read	= seq_read,
+	.proc_write	= slabinfo_write,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= seq_release,
 };
 
 static int __init slab_proc_init(void)
 {
-	proc_create("slabinfo", SLABINFO_RIGHTS, NULL,
-						&proc_slabinfo_operations);
+	proc_create("slabinfo", SLABINFO_RIGHTS, NULL, &slabinfo_proc_ops);
 	return 0;
 }
 module_init(slab_proc_init);
@@ -1675,28 +1674,6 @@ static __always_inline void *__do_krealloc(const void *p, size_t new_size,
 
 	return ret;
 }
-
-/**
- * __krealloc - like krealloc() but don't free @p.
- * @p: object to reallocate memory for.
- * @new_size: how many bytes of memory are required.
- * @flags: the type of memory to allocate.
- *
- * This function is like krealloc() except it never frees the originally
- * allocated buffer. Use this if you don't want to free the buffer immediately
- * like, for example, with RCU.
- *
- * Return: pointer to the allocated memory or %NULL in case of error
- */
-void *__krealloc(const void *p, size_t new_size, gfp_t flags)
-{
-	if (unlikely(!new_size))
-		return ZERO_SIZE_PTR;
-
-	return __do_krealloc(p, new_size, flags);
-
-}
-EXPORT_SYMBOL(__krealloc);
 
 /**
  * krealloc - reallocate memory. The contents will remain unchanged.

@@ -73,7 +73,6 @@ int kdb_nextline = 1;
 int kdb_state;			/* General KDB state */
 
 struct task_struct *kdb_current_task;
-EXPORT_SYMBOL(kdb_current_task);
 struct pt_regs *kdb_current_regs;
 
 const char *kdb_diemsg;
@@ -544,9 +543,8 @@ int kdbgetaddrarg(int argc, const char **argv, int *nextarg,
 		if (diag)
 			return diag;
 	} else if (symname[0] == '%') {
-		diag = kdb_check_regs();
-		if (diag)
-			return diag;
+		if (kdb_check_regs())
+			return 0;
 		/* Implement register values with % at a later time as it is
 		 * arch optional.
 		 */
@@ -1139,7 +1137,7 @@ static void kdb_dumpregs(struct pt_regs *regs)
 	console_loglevel = old_lvl;
 }
 
-void kdb_set_current_task(struct task_struct *p)
+static void kdb_set_current_task(struct task_struct *p)
 {
 	kdb_current_task = p;
 
@@ -1837,8 +1835,7 @@ static int kdb_go(int argc, const char **argv)
  */
 static int kdb_rd(int argc, const char **argv)
 {
-	int len = kdb_check_regs();
-#if DBG_MAX_REG_NUM > 0
+	int len = 0;
 	int i;
 	char *rname;
 	int rsize;
@@ -1847,8 +1844,14 @@ static int kdb_rd(int argc, const char **argv)
 	u16 reg16;
 	u8 reg8;
 
-	if (len)
-		return len;
+	if (kdb_check_regs())
+		return 0;
+
+	/* Fallback to Linux showregs() if we don't have DBG_MAX_REG_NUM */
+	if (DBG_MAX_REG_NUM <= 0) {
+		kdb_dumpregs(kdb_current_regs);
+		return 0;
+	}
 
 	for (i = 0; i < DBG_MAX_REG_NUM; i++) {
 		rsize = dbg_reg_def[i].size * 2;
@@ -1890,12 +1893,7 @@ static int kdb_rd(int argc, const char **argv)
 		}
 	}
 	kdb_printf("\n");
-#else
-	if (len)
-		return len;
 
-	kdb_dumpregs(kdb_current_regs);
-#endif
 	return 0;
 }
 
@@ -1929,9 +1927,8 @@ static int kdb_rm(int argc, const char **argv)
 	if (diag)
 		return diag;
 
-	diag = kdb_check_regs();
-	if (diag)
-		return diag;
+	if (kdb_check_regs())
+		return 0;
 
 	diag = KDB_BADREG;
 	for (i = 0; i < DBG_MAX_REG_NUM; i++) {

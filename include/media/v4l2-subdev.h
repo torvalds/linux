@@ -1090,7 +1090,7 @@ extern const struct v4l2_subdev_ops v4l2_subdev_call_wrappers;
  * @sd: pointer to the &struct v4l2_subdev
  * @o: name of the element at &struct v4l2_subdev_ops that contains @f.
  *     Each element there groups a set of callbacks functions.
- * @f: callback function that will be called if @cond matches.
+ * @f: callback function to be called.
  *     The callback functions are defined in groups, according to
  *     each element at &struct v4l2_subdev_ops.
  * @args...: arguments for @f.

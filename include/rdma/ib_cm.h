@@ -500,21 +500,6 @@ int ib_send_cm_mra(struct ib_cm_id *cm_id,
 		   u8 private_data_len);
 
 /**
- * ib_send_cm_lap - Sends a load alternate path request.
- * @cm_id: Connection identifier associated with the load alternate path
- *   message.
- * @alternate_path: A path record that identifies the alternate path to
- *   load.
- * @private_data: Optional user-defined private data sent with the
- *   load alternate path message.
- * @private_data_len: Size of the private data buffer, in bytes.
- */
-int ib_send_cm_lap(struct ib_cm_id *cm_id,
-		   struct sa_path_rec *alternate_path,
-		   const void *private_data,
-		   u8 private_data_len);
-
-/**
  * ib_cm_init_qp_attr - Initializes the QP attributes for use in transitioning
  *   to a specified QP state.
  * @cm_id: Communication identifier associated with the QP attributes to
@@ -533,25 +518,6 @@ int ib_send_cm_lap(struct ib_cm_id *cm_id,
 int ib_cm_init_qp_attr(struct ib_cm_id *cm_id,
 		       struct ib_qp_attr *qp_attr,
 		       int *qp_attr_mask);
-
-/**
- * ib_send_cm_apr - Sends an alternate path response message in response to
- *   a load alternate path request.
- * @cm_id: Connection identifier associated with the alternate path response.
- * @status: Reply status sent with the alternate path response.
- * @info: Optional additional information sent with the alternate path
- *   response.
- * @info_length: Size of the additional information, in bytes.
- * @private_data: Optional user-defined private data sent with the
- *   alternate path response message.
- * @private_data_len: Size of the private data buffer, in bytes.
- */
-int ib_send_cm_apr(struct ib_cm_id *cm_id,
-		   enum ib_cm_apr_status status,
-		   void *info,
-		   u8 info_length,
-		   const void *private_data,
-		   u8 private_data_len);
 
 struct ib_cm_sidr_req_param {
 	struct sa_path_rec	*path;

@@ -39,6 +39,8 @@ accout||account
 accquire||acquire
 accquired||acquired
 accross||across
+accumalate||accumulate
+accumalator||accumulator
 acessable||accessible
 acess||access
 acessing||accessing
@@ -106,6 +108,7 @@ alogrithm||algorithm
 alot||a lot
 alow||allow
 alows||allows
+alreay||already
 alredy||already
 altough||although
 alue||value
@@ -241,6 +244,7 @@ calender||calendar
 calescing||coalescing
 calle||called
 callibration||calibration
+callled||called
 calucate||calculate
 calulate||calculate
 cancelation||cancellation
@@ -311,6 +315,7 @@ compaibility||compatibility
 comparsion||comparison
 compatability||compatibility
 compatable||compatible
+compatibililty||compatibility
 compatibiliy||compatibility
 compatibilty||compatibility
 compatiblity||compatibility
@@ -330,6 +335,7 @@ comunication||communication
 conbination||combination
 conditionaly||conditionally
 conditon||condition
+condtion||condition
 conected||connected
 conector||connector
 connecetd||connected
@@ -388,6 +394,8 @@ dafault||default
 deafult||default
 deamon||daemon
 debouce||debounce
+decendant||descendant
+decendants||descendants
 decompres||decompress
 decsribed||described
 decription||description
@@ -411,11 +419,13 @@ delare||declare
 delares||declares
 delaring||declaring
 delemiter||delimiter
+delievered||delivered
 demodualtor||demodulator
 demension||dimension
 dependancies||dependencies
 dependancy||dependency
 dependant||dependent
+dependend||dependent
 depreacted||deprecated
 depreacte||deprecate
 desactivate||deactivate
@@ -791,6 +801,7 @@ ireelevant||irrelevant
 irrelevent||irrelevant
 isnt||isn't
 isssue||issue
+issus||issues
 iternations||iterations
 itertation||iteration
 itslef||itself
@@ -995,6 +1006,7 @@ peice||piece
 pendantic||pedantic
 peprocessor||preprocessor
 perfoming||performing
+perfomring||performing
 peripherial||peripheral
 permissons||permissions
 peroid||period
@@ -1166,6 +1178,8 @@ retreive||retrieve
 retreiving||retrieving
 retrive||retrieve
 retrived||retrieved
+retrun||return
+retun||return
 retuned||returned
 reudce||reduce
 reuest||request

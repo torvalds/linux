@@ -223,8 +223,8 @@ xfs_reflink_trim_around_shared(
 	}
 }
 
-bool
-xfs_inode_need_cow(
+int
+xfs_bmap_trim_cow(
 	struct xfs_inode	*ip,
 	struct xfs_bmbt_irec	*imap,
 	bool			*shared)
@@ -327,7 +327,7 @@ xfs_find_trim_cow_extent(
 	if (cmap->br_startoff > offset_fsb) {
 		xfs_trim_extent(imap, imap->br_startoff,
 				cmap->br_startoff - imap->br_startoff);
-		return xfs_inode_need_cow(ip, imap, shared);
+		return xfs_bmap_trim_cow(ip, imap, shared);
 	}
 
 	*shared = true;
@@ -1457,7 +1457,8 @@ xfs_reflink_clear_inode_flag(
 	 * We didn't find any shared blocks so turn off the reflink flag.
 	 * First, get rid of any leftover CoW mappings.
 	 */
-	error = xfs_reflink_cancel_cow_blocks(ip, tpp, 0, NULLFILEOFF, true);
+	error = xfs_reflink_cancel_cow_blocks(ip, tpp, 0, XFS_MAX_FILEOFF,
+			true);
 	if (error)
 		return error;
 

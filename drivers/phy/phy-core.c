@@ -712,7 +712,7 @@ struct phy *phy_optional_get(struct device *dev, const char *string)
 {
 	struct phy *phy = phy_get(dev, string);
 
-	if (IS_ERR(phy) && (PTR_ERR(phy) == -ENODEV))
+	if (PTR_ERR(phy) == -ENODEV)
 		phy = NULL;
 
 	return phy;
@@ -766,7 +766,7 @@ struct phy *devm_phy_optional_get(struct device *dev, const char *string)
 {
 	struct phy *phy = devm_phy_get(dev, string);
 
-	if (IS_ERR(phy) && (PTR_ERR(phy) == -ENODEV))
+	if (PTR_ERR(phy) == -ENODEV)
 		phy = NULL;
 
 	return phy;

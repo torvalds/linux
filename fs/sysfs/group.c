@@ -449,7 +449,7 @@ int __compat_only_sysfs_link_entry_to_kobj(struct kobject *kobj,
 	}
 
 	link = kernfs_create_link(kobj->sd, target_name, entry);
-	if (IS_ERR(link) && PTR_ERR(link) == -EEXIST)
+	if (PTR_ERR(link) == -EEXIST)
 		sysfs_warn_dup(kobj->sd, target_name);
 
 	kernfs_put(entry);

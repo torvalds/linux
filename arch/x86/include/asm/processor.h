@@ -947,24 +947,6 @@ extern int set_tsc_mode(unsigned int val);
 
 DECLARE_PER_CPU(u64, msr_misc_features_shadow);
 
-/* Register/unregister a process' MPX related resource */
-#define MPX_ENABLE_MANAGEMENT()	mpx_enable_management()
-#define MPX_DISABLE_MANAGEMENT()	mpx_disable_management()
-
-#ifdef CONFIG_X86_INTEL_MPX
-extern int mpx_enable_management(void);
-extern int mpx_disable_management(void);
-#else
-static inline int mpx_enable_management(void)
-{
-	return -EINVAL;
-}
-static inline int mpx_disable_management(void)
-{
-	return -EINVAL;
-}
-#endif /* CONFIG_X86_INTEL_MPX */
-
 #ifdef CONFIG_CPU_SUP_AMD
 extern u16 amd_get_nb_id(int cpu);
 extern u32 amd_get_nodes_per_socket(void);

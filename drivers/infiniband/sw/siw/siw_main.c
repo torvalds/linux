@@ -244,7 +244,7 @@ static struct ib_qp *siw_get_base_qp(struct ib_device *base_dev, int id)
 		 * siw_qp_id2obj() increments object reference count
 		 */
 		siw_qp_put(qp);
-		return qp->ib_qp;
+		return &qp->base_qp;
 	}
 	return NULL;
 }

@@ -110,7 +110,6 @@ quiet_cmd_modpost = MODPOST $(words $(modules)) modules
       cmd_modpost = sed 's/\.ko$$/$(modpost-ext)\.o/' $(MODORDER) | $(MODPOST)
 
 __modpost: $(modules:.ko=$(modpost-ext).o)
-	@$(kecho) '  Building modules, stage 2.'
 	$(call cmd,modpost)
 ifneq ($(KBUILD_MODPOST_NOFINAL),1)
 	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modfinal

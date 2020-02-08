@@ -22,7 +22,6 @@
 #include <asm/elf.h>
 #include <asm/ia32.h>
 #include <asm/syscalls.h>
-#include <asm/mpx.h>
 
 /*
  * Align a virtual address to avoid aliasing in the I$ on AMD F15h.
@@ -137,10 +136,6 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	struct vm_unmapped_area_info info;
 	unsigned long begin, end;
 
-	addr = mpx_unmapped_area_check(addr, len, flags);
-	if (IS_ERR_VALUE(addr))
-		return addr;
-
 	if (flags & MAP_FIXED)
 		return addr;
 
@@ -179,10 +174,6 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 	struct mm_struct *mm = current->mm;
 	unsigned long addr = addr0;
 	struct vm_unmapped_area_info info;
-
-	addr = mpx_unmapped_area_check(addr, len, flags);
-	if (IS_ERR_VALUE(addr))
-		return addr;
 
 	/* requested length too big for entire address space */
 	if (len > TASK_SIZE)

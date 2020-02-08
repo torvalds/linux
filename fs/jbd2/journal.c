@@ -1074,12 +1074,11 @@ static int jbd2_seq_info_release(struct inode *inode, struct file *file)
 	return seq_release(inode, file);
 }
 
-static const struct file_operations jbd2_seq_info_fops = {
-	.owner		= THIS_MODULE,
-	.open           = jbd2_seq_info_open,
-	.read           = seq_read,
-	.llseek         = seq_lseek,
-	.release        = jbd2_seq_info_release,
+static const struct proc_ops jbd2_info_proc_ops = {
+	.proc_open	= jbd2_seq_info_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= jbd2_seq_info_release,
 };
 
 static struct proc_dir_entry *proc_jbd2_stats;
@@ -1089,7 +1088,7 @@ static void jbd2_stats_proc_init(journal_t *journal)
 	journal->j_proc_entry = proc_mkdir(journal->j_devname, proc_jbd2_stats);
 	if (journal->j_proc_entry) {
 		proc_create_data("info", S_IRUGO, journal->j_proc_entry,
-				 &jbd2_seq_info_fops, journal);
+				 &jbd2_info_proc_ops, journal);
 	}
 }
 

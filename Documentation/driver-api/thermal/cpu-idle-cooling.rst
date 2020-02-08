@@ -65,6 +65,8 @@ We use a fixed duration of idle injection that gives an acceptable
 performance penalty and a fixed latency. Mitigation can be increased
 or decreased by modulating the duty cycle of the idle injection.
 
+::
+
      ^
      |
      |
@@ -90,6 +92,8 @@ computed.
 
 The governor will change the cooling device state thus the duty cycle
 and this variation will modulate the cooling effect.
+
+::
 
      ^
      |
@@ -154,6 +158,7 @@ equation:
 
  P(opp)target = ((Trunning x (P(opp)running) + (Tidle x P(opp)idle)) /
 			(Trunning + Tidle)
+
   ...
 
  Tidle = Trunning x ((P(opp)running / P(opp)target) - 1)

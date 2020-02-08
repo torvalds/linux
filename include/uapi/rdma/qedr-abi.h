@@ -48,6 +48,18 @@ struct qedr_alloc_ucontext_req {
 	__u32 reserved;
 };
 
+#define QEDR_LDPM_MAX_SIZE	(8192)
+#define QEDR_EDPM_TRANS_SIZE	(64)
+
+enum qedr_rdma_dpm_type {
+	QEDR_DPM_TYPE_NONE		= 0,
+	QEDR_DPM_TYPE_ROCE_ENHANCED	= 1 << 0,
+	QEDR_DPM_TYPE_ROCE_LEGACY	= 1 << 1,
+	QEDR_DPM_TYPE_IWARP_LEGACY	= 1 << 2,
+	QEDR_DPM_TYPE_RESERVED		= 1 << 3,
+	QEDR_DPM_SIZES_SET		= 1 << 4,
+};
+
 struct qedr_alloc_ucontext_resp {
 	__aligned_u64 db_pa;
 	__u32 db_size;
@@ -59,10 +71,12 @@ struct qedr_alloc_ucontext_resp {
 	__u32 sges_per_recv_wr;
 	__u32 sges_per_srq_wr;
 	__u32 max_cqes;
-	__u8 dpm_enabled;
+	__u8 dpm_flags;
 	__u8 wids_enabled;
 	__u16 wid_count;
-	__u32 reserved;
+	__u16 ldpm_limit_size;
+	__u8 edpm_trans_size;
+	__u8 reserved;
 };
 
 struct qedr_alloc_pd_ureq {

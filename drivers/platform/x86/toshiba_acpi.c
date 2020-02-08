@@ -1432,13 +1432,12 @@ static ssize_t lcd_proc_write(struct file *file, const char __user *buf,
 	return count;
 }
 
-static const struct file_operations lcd_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= lcd_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= lcd_proc_write,
+static const struct proc_ops lcd_proc_ops = {
+	.proc_open	= lcd_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= lcd_proc_write,
 };
 
 /* Video-Out */
@@ -1539,13 +1538,12 @@ static ssize_t video_proc_write(struct file *file, const char __user *buf,
 	return ret ? -EIO : count;
 }
 
-static const struct file_operations video_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= video_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= video_proc_write,
+static const struct proc_ops video_proc_ops = {
+	.proc_open	= video_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= video_proc_write,
 };
 
 /* Fan status */
@@ -1617,13 +1615,12 @@ static ssize_t fan_proc_write(struct file *file, const char __user *buf,
 	return count;
 }
 
-static const struct file_operations fan_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= fan_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= fan_proc_write,
+static const struct proc_ops fan_proc_ops = {
+	.proc_open	= fan_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= fan_proc_write,
 };
 
 static int keys_proc_show(struct seq_file *m, void *v)
@@ -1662,13 +1659,12 @@ static ssize_t keys_proc_write(struct file *file, const char __user *buf,
 	return count;
 }
 
-static const struct file_operations keys_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= keys_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= keys_proc_write,
+static const struct proc_ops keys_proc_ops = {
+	.proc_open	= keys_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= keys_proc_write,
 };
 
 static int __maybe_unused version_proc_show(struct seq_file *m, void *v)
@@ -1688,16 +1684,16 @@ static void create_toshiba_proc_entries(struct toshiba_acpi_dev *dev)
 {
 	if (dev->backlight_dev)
 		proc_create_data("lcd", S_IRUGO | S_IWUSR, toshiba_proc_dir,
-				 &lcd_proc_fops, dev);
+				 &lcd_proc_ops, dev);
 	if (dev->video_supported)
 		proc_create_data("video", S_IRUGO | S_IWUSR, toshiba_proc_dir,
-				 &video_proc_fops, dev);
+				 &video_proc_ops, dev);
 	if (dev->fan_supported)
 		proc_create_data("fan", S_IRUGO | S_IWUSR, toshiba_proc_dir,
-				 &fan_proc_fops, dev);
+				 &fan_proc_ops, dev);
 	if (dev->hotkey_dev)
 		proc_create_data("keys", S_IRUGO | S_IWUSR, toshiba_proc_dir,
-				 &keys_proc_fops, dev);
+				 &keys_proc_ops, dev);
 	proc_create_single_data("version", S_IRUGO, toshiba_proc_dir,
 			version_proc_show, dev);
 }

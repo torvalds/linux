@@ -643,12 +643,12 @@ static int lock_stat_release(struct inode *inode, struct file *file)
 	return seq_release(inode, file);
 }
 
-static const struct file_operations proc_lock_stat_operations = {
-	.open		= lock_stat_open,
-	.write		= lock_stat_write,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= lock_stat_release,
+static const struct proc_ops lock_stat_proc_ops = {
+	.proc_open	= lock_stat_open,
+	.proc_write	= lock_stat_write,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= lock_stat_release,
 };
 #endif /* CONFIG_LOCK_STAT */
 
@@ -660,8 +660,7 @@ static int __init lockdep_proc_init(void)
 #endif
 	proc_create_single("lockdep_stats", S_IRUSR, NULL, lockdep_stats_show);
 #ifdef CONFIG_LOCK_STAT
-	proc_create("lock_stat", S_IRUSR | S_IWUSR, NULL,
-		    &proc_lock_stat_operations);
+	proc_create("lock_stat", S_IRUSR | S_IWUSR, NULL, &lock_stat_proc_ops);
 #endif
 
 	return 0;

@@ -11,11 +11,11 @@ then this utility enables and collects trace data for a user specified interval
 and generates performance plots.
 
 Prerequisites:
-    Python version 2.7.x
+    Python version 2.7.x or higher
     gnuplot 5.0 or higher
-    gnuplot-py 1.8
+    gnuplot-py 1.8 or higher
     (Most of the distributions have these required packages. They may be called
-     gnuplot-py, phython-gnuplot. )
+     gnuplot-py, phython-gnuplot or phython3-gnuplot, gnuplot-nox, ... )
 
     HWP (Hardware P-States are disabled)
     Kernel config for Linux trace is enabled
@@ -104,7 +104,7 @@ def plot_perf_busy_with_sample(cpu_index):
     if os.path.exists(file_name):
         output_png = "cpu%03d_perf_busy_vs_samples.png" % cpu_index
         g_plot = common_all_gnuplot_settings(output_png)
-        g_plot('set yrange [0:40]')
+#   autoscale this one, no set y1 range
         g_plot('set y2range [0:200]')
         g_plot('set y2tics 0, 10')
         g_plot('set title "{} : cpu perf busy vs. sample : CPU {:0>3} : {:%F %H:%M}"'.format(testname, cpu_index, datetime.now()))
@@ -125,7 +125,7 @@ def plot_perf_busy(cpu_index):
     if os.path.exists(file_name):
         output_png = "cpu%03d_perf_busy.png" % cpu_index
         g_plot = common_all_gnuplot_settings(output_png)
-        g_plot('set yrange [0:40]')
+#   autoscale this one, no set y1 range
         g_plot('set y2range [0:200]')
         g_plot('set y2tics 0, 10')
         g_plot('set title "{} : perf busy : CPU {:0>3} : {:%F %H:%M}"'.format(testname, cpu_index, datetime.now()))
@@ -144,9 +144,7 @@ def plot_durations(cpu_index):
     if os.path.exists(file_name):
         output_png = "cpu%03d_durations.png" % cpu_index
         g_plot = common_all_gnuplot_settings(output_png)
-#       Should autoscale be used here? Should seconds be used here?
-        g_plot('set yrange [0:5000]')
-        g_plot('set ytics 0, 500')
+#       autoscale this one, no set y range
         g_plot('set title "{} : durations : CPU {:0>3} : {:%F %H:%M}"'.format(testname, cpu_index, datetime.now()))
         g_plot('set ylabel "Timer Duration (MilliSeconds)"')
 #       override common
@@ -176,12 +174,12 @@ def plot_pstate_cpu_with_sample():
     if os.path.exists('cpu.csv'):
         output_png = 'all_cpu_pstates_vs_samples.png'
         g_plot = common_all_gnuplot_settings(output_png)
-        g_plot('set yrange [0:40]')
+#       autoscale this one, no set y range
 #       override common
         g_plot('set xlabel "Samples"')
         g_plot('set ylabel "P-State"')
         g_plot('set title "{} : cpu pstate vs. sample : {:%F %H:%M}"'.format(testname, datetime.now()))
-        title_list = subprocess.check_output('ls cpu???.csv | sed -e \'s/.csv//\'',shell=True).replace('\n', ' ')
+        title_list = subprocess.check_output('ls cpu???.csv | sed -e \'s/.csv//\'',shell=True).decode('utf-8').replace('\n', ' ')
         plot_str = "plot for [i in title_list] i.'.csv' using {:d}:{:d} pt 7 ps 1 title i".format(C_SAMPLE, C_TO)
         g_plot('title_list = "{}"'.format(title_list))
         g_plot(plot_str)
@@ -191,14 +189,14 @@ def plot_pstate_cpu():
 
     output_png = 'all_cpu_pstates.png'
     g_plot = common_all_gnuplot_settings(output_png)
-    g_plot('set yrange [0:40]')
+#   autoscale this one, no set y range
     g_plot('set ylabel "P-State"')
     g_plot('set title "{} : cpu pstates : {:%F %H:%M}"'.format(testname, datetime.now()))
 
 #    the following command is really cool, but doesn't work with the CPU masking option because it aborts on the first missing file.
 #    plot_str = 'plot for [i=0:*] file=sprintf("cpu%03d.csv",i) title_s=sprintf("cpu%03d",i) file using 16:7 pt 7 ps 1 title title_s'
 #
-    title_list = subprocess.check_output('ls cpu???.csv | sed -e \'s/.csv//\'',shell=True).replace('\n', ' ')
+    title_list = subprocess.check_output('ls cpu???.csv | sed -e \'s/.csv//\'',shell=True).decode('utf-8').replace('\n', ' ')
     plot_str = "plot for [i in title_list] i.'.csv' using {:d}:{:d} pt 7 ps 1 title i".format(C_ELAPSED, C_TO)
     g_plot('title_list = "{}"'.format(title_list))
     g_plot(plot_str)
@@ -212,7 +210,7 @@ def plot_load_cpu():
     g_plot('set ylabel "CPU load (percent)"')
     g_plot('set title "{} : cpu loads : {:%F %H:%M}"'.format(testname, datetime.now()))
 
-    title_list = subprocess.check_output('ls cpu???.csv | sed -e \'s/.csv//\'',shell=True).replace('\n', ' ')
+    title_list = subprocess.check_output('ls cpu???.csv | sed -e \'s/.csv//\'',shell=True).decode('utf-8').replace('\n', ' ')
     plot_str = "plot for [i in title_list] i.'.csv' using {:d}:{:d} pt 7 ps 1 title i".format(C_ELAPSED, C_LOAD)
     g_plot('title_list = "{}"'.format(title_list))
     g_plot(plot_str)
@@ -222,11 +220,11 @@ def plot_frequency_cpu():
 
     output_png = 'all_cpu_frequencies.png'
     g_plot = common_all_gnuplot_settings(output_png)
-    g_plot('set yrange [0:4]')
+#   autoscale this one, no set y range
     g_plot('set ylabel "CPU Frequency (GHz)"')
     g_plot('set title "{} : cpu frequencies : {:%F %H:%M}"'.format(testname, datetime.now()))
 
-    title_list = subprocess.check_output('ls cpu???.csv | sed -e \'s/.csv//\'',shell=True).replace('\n', ' ')
+    title_list = subprocess.check_output('ls cpu???.csv | sed -e \'s/.csv//\'',shell=True).decode('utf-8').replace('\n', ' ')
     plot_str = "plot for [i in title_list] i.'.csv' using {:d}:{:d} pt 7 ps 1 title i".format(C_ELAPSED, C_FREQ)
     g_plot('title_list = "{}"'.format(title_list))
     g_plot(plot_str)
@@ -236,12 +234,12 @@ def plot_duration_cpu():
 
     output_png = 'all_cpu_durations.png'
     g_plot = common_all_gnuplot_settings(output_png)
-    g_plot('set yrange [0:5000]')
+#   autoscale this one, no set y range
     g_plot('set ytics 0, 500')
     g_plot('set ylabel "Timer Duration (MilliSeconds)"')
     g_plot('set title "{} : cpu durations : {:%F %H:%M}"'.format(testname, datetime.now()))
 
-    title_list = subprocess.check_output('ls cpu???.csv | sed -e \'s/.csv//\'',shell=True).replace('\n', ' ')
+    title_list = subprocess.check_output('ls cpu???.csv | sed -e \'s/.csv//\'',shell=True).decode('utf-8').replace('\n', ' ')
     plot_str = "plot for [i in title_list] i.'.csv' using {:d}:{:d} pt 7 ps 1 title i".format(C_ELAPSED, C_DURATION)
     g_plot('title_list = "{}"'.format(title_list))
     g_plot(plot_str)
@@ -255,7 +253,7 @@ def plot_scaled_cpu():
     g_plot('set ylabel "Scaled Busy (Unitless)"')
     g_plot('set title "{} : cpu scaled busy : {:%F %H:%M}"'.format(testname, datetime.now()))
 
-    title_list = subprocess.check_output('ls cpu???.csv | sed -e \'s/.csv//\'',shell=True).replace('\n', ' ')
+    title_list = subprocess.check_output('ls cpu???.csv | sed -e \'s/.csv//\'',shell=True).decode('utf-8').replace('\n', ' ')
     plot_str = "plot for [i in title_list] i.'.csv' using {:d}:{:d} pt 7 ps 1 title i".format(C_ELAPSED, C_SCALED)
     g_plot('title_list = "{}"'.format(title_list))
     g_plot(plot_str)
@@ -269,7 +267,7 @@ def plot_boost_cpu():
     g_plot('set ylabel "CPU IO Boost (percent)"')
     g_plot('set title "{} : cpu io boost : {:%F %H:%M}"'.format(testname, datetime.now()))
 
-    title_list = subprocess.check_output('ls cpu???.csv | sed -e \'s/.csv//\'',shell=True).replace('\n', ' ')
+    title_list = subprocess.check_output('ls cpu???.csv | sed -e \'s/.csv//\'',shell=True).decode('utf-8').replace('\n', ' ')
     plot_str = "plot for [i in title_list] i.'.csv' using {:d}:{:d} pt 7 ps 1 title i".format(C_ELAPSED, C_BOOST)
     g_plot('title_list = "{}"'.format(title_list))
     g_plot(plot_str)
@@ -283,7 +281,7 @@ def plot_ghz_cpu():
     g_plot('set ylabel "TSC Frequency (GHz)"')
     g_plot('set title "{} : cpu TSC Frequencies (Sanity check calculation) : {:%F %H:%M}"'.format(testname, datetime.now()))
 
-    title_list = subprocess.check_output('ls cpu???.csv | sed -e \'s/.csv//\'',shell=True).replace('\n', ' ')
+    title_list = subprocess.check_output('ls cpu???.csv | sed -e \'s/.csv//\'',shell=True).decode('utf-8').replace('\n', ' ')
     plot_str = "plot for [i in title_list] i.'.csv' using {:d}:{:d} pt 7 ps 1 title i".format(C_ELAPSED, C_GHZ)
     g_plot('title_list = "{}"'.format(title_list))
     g_plot(plot_str)

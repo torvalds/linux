@@ -24,6 +24,7 @@
 #include <asm/smp.h>
 #include <asm/tlbflush.h>
 #include <asm/thread_info.h>
+#include <asm/kasan.h>
 
 #include "head.h"
 
@@ -72,6 +73,10 @@ void __init setup_arch(char **cmdline_p)
 
 #ifdef CONFIG_SWIOTLB
 	swiotlb_init(1);
+#endif
+
+#ifdef CONFIG_KASAN
+	kasan_init();
 #endif
 
 #ifdef CONFIG_SMP

@@ -306,19 +306,20 @@ static int proc_bus_pci_release(struct inode *inode, struct file *file)
 }
 #endif /* HAVE_PCI_MMAP */
 
-static const struct file_operations proc_bus_pci_operations = {
-	.owner		= THIS_MODULE,
-	.llseek		= proc_bus_pci_lseek,
-	.read		= proc_bus_pci_read,
-	.write		= proc_bus_pci_write,
-	.unlocked_ioctl	= proc_bus_pci_ioctl,
-	.compat_ioctl	= proc_bus_pci_ioctl,
+static const struct proc_ops proc_bus_pci_ops = {
+	.proc_lseek	= proc_bus_pci_lseek,
+	.proc_read	= proc_bus_pci_read,
+	.proc_write	= proc_bus_pci_write,
+	.proc_ioctl	= proc_bus_pci_ioctl,
+#ifdef CONFIG_COMPAT
+	.proc_compat_ioctl = proc_bus_pci_ioctl,
+#endif
 #ifdef HAVE_PCI_MMAP
-	.open		= proc_bus_pci_open,
-	.release	= proc_bus_pci_release,
-	.mmap		= proc_bus_pci_mmap,
+	.proc_open	= proc_bus_pci_open,
+	.proc_release	= proc_bus_pci_release,
+	.proc_mmap	= proc_bus_pci_mmap,
 #ifdef HAVE_ARCH_PCI_GET_UNMAPPED_AREA
-	.get_unmapped_area = get_pci_unmapped_area,
+	.proc_get_unmapped_area = get_pci_unmapped_area,
 #endif /* HAVE_ARCH_PCI_GET_UNMAPPED_AREA */
 #endif /* HAVE_PCI_MMAP */
 };
@@ -424,7 +425,7 @@ int pci_proc_attach_device(struct pci_dev *dev)
 
 	sprintf(name, "%02x.%x", PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn));
 	e = proc_create_data(name, S_IFREG | S_IRUGO | S_IWUSR, bus->procdir,
-			     &proc_bus_pci_operations, dev);
+			     &proc_bus_pci_ops, dev);
 	if (!e)
 		return -ENOMEM;
 	proc_set_size(e, dev->cfg_size);

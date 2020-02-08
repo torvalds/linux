@@ -915,7 +915,7 @@ static int dib7000p_agc_startup(struct dvb_frontend *demod)
 
 		dib7000p_restart_agc(state);
 
-		dprintk("SPLIT %p: %hd\n", demod, agc_split);
+		dprintk("SPLIT %p: %u\n", demod, agc_split);
 
 		(*agc_state)++;
 		ret = 5;

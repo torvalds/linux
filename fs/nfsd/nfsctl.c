@@ -157,11 +157,11 @@ static int exports_proc_open(struct inode *inode, struct file *file)
 	return exports_net_open(current->nsproxy->net_ns, file);
 }
 
-static const struct file_operations exports_proc_operations = {
-	.open		= exports_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
+static const struct proc_ops exports_proc_ops = {
+	.proc_open	= exports_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= seq_release,
 };
 
 static int exports_nfsd_open(struct inode *inode, struct file *file)
@@ -1431,8 +1431,7 @@ static int create_proc_exports_entry(void)
 	entry = proc_mkdir("fs/nfs", NULL);
 	if (!entry)
 		return -ENOMEM;
-	entry = proc_create("exports", 0, entry,
-				 &exports_proc_operations);
+	entry = proc_create("exports", 0, entry, &exports_proc_ops);
 	if (!entry) {
 		remove_proc_entry("fs/nfs", NULL);
 		return -ENOMEM;

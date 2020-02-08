@@ -78,17 +78,6 @@ void tw686x_audio_irq(struct tw686x_dev *dev, unsigned long requests,
 	}
 }
 
-static int tw686x_pcm_hw_params(struct snd_pcm_substream *ss,
-				struct snd_pcm_hw_params *hw_params)
-{
-	return snd_pcm_lib_malloc_pages(ss, params_buffer_bytes(hw_params));
-}
-
-static int tw686x_pcm_hw_free(struct snd_pcm_substream *ss)
-{
-	return snd_pcm_lib_free_pages(ss);
-}
-
 /*
  * Audio parameters are global and shared among all
  * capture channels. The driver prevents changes to
@@ -269,9 +258,6 @@ static snd_pcm_uframes_t tw686x_pcm_pointer(struct snd_pcm_substream *ss)
 static const struct snd_pcm_ops tw686x_pcm_ops = {
 	.open = tw686x_pcm_open,
 	.close = tw686x_pcm_close,
-	.ioctl = snd_pcm_lib_ioctl,
-	.hw_params = tw686x_pcm_hw_params,
-	.hw_free = tw686x_pcm_hw_free,
 	.prepare = tw686x_pcm_prepare,
 	.trigger = tw686x_pcm_trigger,
 	.pointer = tw686x_pcm_pointer,
@@ -298,7 +284,7 @@ static int tw686x_snd_pcm_init(struct tw686x_dev *dev)
 	     ss; ss = ss->next, i++)
 		snprintf(ss->name, sizeof(ss->name), "vch%u audio", i);
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm,
+	snd_pcm_set_managed_buffer_all(pcm,
 				SNDRV_DMA_TYPE_DEV,
 				&dev->pci_dev->dev,
 				TW686X_AUDIO_PAGE_MAX * AUDIO_DMA_SIZE_MAX,

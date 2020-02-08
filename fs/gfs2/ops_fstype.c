@@ -298,6 +298,8 @@ static int gfs2_read_sb(struct gfs2_sbd *sdp, int silent)
 			  sizeof(struct gfs2_dinode)) / sizeof(u64);
 	sdp->sd_inptrs = (sdp->sd_sb.sb_bsize -
 			  sizeof(struct gfs2_meta_header)) / sizeof(u64);
+	sdp->sd_ldptrs = (sdp->sd_sb.sb_bsize -
+			  sizeof(struct gfs2_log_descriptor)) / sizeof(u64);
 	sdp->sd_jbsize = sdp->sd_sb.sb_bsize - sizeof(struct gfs2_meta_header);
 	sdp->sd_hash_bsize = sdp->sd_sb.sb_bsize / 2;
 	sdp->sd_hash_bsize_shift = sdp->sd_sb.sb_bsize_shift - 1;

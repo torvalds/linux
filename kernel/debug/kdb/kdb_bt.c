@@ -119,7 +119,6 @@ kdb_bt_cpu(unsigned long cpu)
 		return;
 	}
 
-	kdb_set_current_task(kdb_tsk);
 	kdb_bt1(kdb_tsk, ~0UL, false);
 }
 
@@ -166,10 +165,8 @@ kdb_bt(int argc, const char **argv)
 		if (diag)
 			return diag;
 		p = find_task_by_pid_ns(pid, &init_pid_ns);
-		if (p) {
-			kdb_set_current_task(p);
+		if (p)
 			return kdb_bt1(p, ~0UL, false);
-		}
 		kdb_printf("No process with pid == %ld found\n", pid);
 		return 0;
 	} else if (strcmp(argv[0], "btt") == 0) {
@@ -178,11 +175,9 @@ kdb_bt(int argc, const char **argv)
 		diag = kdbgetularg((char *)argv[1], &addr);
 		if (diag)
 			return diag;
-		kdb_set_current_task((struct task_struct *)addr);
 		return kdb_bt1((struct task_struct *)addr, ~0UL, false);
 	} else if (strcmp(argv[0], "btc") == 0) {
 		unsigned long cpu = ~0;
-		struct task_struct *save_current_task = kdb_current_task;
 		if (argc > 1)
 			return KDB_ARGCOUNT;
 		if (argc == 1) {
@@ -204,7 +199,6 @@ kdb_bt(int argc, const char **argv)
 				kdb_bt_cpu(cpu);
 				touch_nmi_watchdog();
 			}
-			kdb_set_current_task(save_current_task);
 		}
 		return 0;
 	} else {
