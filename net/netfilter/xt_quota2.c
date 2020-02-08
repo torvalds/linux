@@ -169,10 +169,10 @@ static ssize_t quota_proc_write(struct file *file, const char __user *input,
 	return size;
 }
 
-static const struct file_operations q2_counter_fops = {
-	.read		= quota_proc_read,
-	.write		= quota_proc_write,
-	.llseek		= default_llseek,
+static const struct proc_ops q2_counter_fops = {
+	.proc_read	= quota_proc_read,
+	.proc_write	= quota_proc_write,
+	.proc_lseek	= default_llseek,
 };
 
 static struct xt_quota_counter *
