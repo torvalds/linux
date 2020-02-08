@@ -272,4 +272,6 @@ extern int smb2_query_info_compound(const unsigned int xid,
 				    u32 class, u32 type, u32 output_len,
 				    struct kvec *rsp, int *buftype,
 				    struct cifs_sb_info *cifs_sb);
+int posix_info_parse(const void *beg, const void *end,
+		     struct smb2_posix_info_parsed *out);
 #endif			/* _SMB2PROTO_H */
