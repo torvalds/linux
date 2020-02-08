@@ -58,8 +58,9 @@
 		serial0 = &uart0;
 		serial1 = &uart6;
 		serial2 = &uart7;
-		spi0 = &spi1;
-		spi1 = &spi2;
+		spi0 = &spi0;
+		spi1 = &spi1;
+		spi2 = &spi2;
 	};
 
 	chosen {
@@ -300,6 +301,13 @@
 };
 
 &reg_usb2_vbus {
+	status = "okay";
+};
+
+&spi0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi0_pi_pins>,
+		    <&spi0_cs0_pi_pin>;
 	status = "okay";
 };
 
