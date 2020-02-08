@@ -28,7 +28,7 @@ static unsigned int dummy_cpufreq_get(unsigned int cpu)
 	return 1;
 }
 
-static int dummy_cpufreq_verify(struct cpufreq_policy *policy)
+static int dummy_cpufreq_verify(struct cpufreq_policy_data *data)
 {
 	return 0;
 }
