@@ -138,15 +138,12 @@ nfs4_kill_renewd(struct nfs_client *clp)
  *
  * @clp: pointer to nfs_client
  * @lease: new value for lease period
- * @lastrenewed: time at which lease was last renewed
  */
 void nfs4_set_lease_period(struct nfs_client *clp,
-		unsigned long lease,
-		unsigned long lastrenewed)
+		unsigned long lease)
 {
 	spin_lock(&clp->cl_lock);
 	clp->cl_lease_time = lease;
-	clp->cl_last_renewal = lastrenewed;
 	spin_unlock(&clp->cl_lock);
 
 	/* Cap maximum reconnect timeout at 1/2 lease period */

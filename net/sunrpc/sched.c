@@ -846,6 +846,8 @@ void rpc_signal_task(struct rpc_task *task)
 
 	if (!RPC_IS_ACTIVATED(task))
 		return;
+
+	trace_rpc_task_signalled(task, task->tk_action);
 	set_bit(RPC_TASK_SIGNALLED, &task->tk_runstate);
 	smp_mb__after_atomic();
 	queue = READ_ONCE(task->tk_waitqueue);
@@ -949,7 +951,7 @@ static void __rpc_execute(struct rpc_task *task)
 			 * clean up after sleeping on some queue, we don't
 			 * break the loop here, but go around once more.
 			 */
-			dprintk("RPC: %5u got signal\n", task->tk_pid);
+			trace_rpc_task_signalled(task, task->tk_action);
 			set_bit(RPC_TASK_SIGNALLED, &task->tk_runstate);
 			task->tk_rpc_status = -ERESTARTSYS;
 			rpc_exit(task, -ERESTARTSYS);
