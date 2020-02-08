@@ -494,36 +494,36 @@ static int fuse_parse_param(struct fs_context *fc, struct fs_parameter *param)
 
 	case OPT_FD:
 		ctx->fd = result.uint_32;
-		ctx->fd_present = 1;
+		ctx->fd_present = true;
 		break;
 
 	case OPT_ROOTMODE:
 		if (!fuse_valid_type(result.uint_32))
 			return invalf(fc, "fuse: Invalid rootmode");
 		ctx->rootmode = result.uint_32;
-		ctx->rootmode_present = 1;
+		ctx->rootmode_present = true;
 		break;
 
 	case OPT_USER_ID:
 		ctx->user_id = make_kuid(fc->user_ns, result.uint_32);
 		if (!uid_valid(ctx->user_id))
 			return invalf(fc, "fuse: Invalid user_id");
-		ctx->user_id_present = 1;
+		ctx->user_id_present = true;
 		break;
 
 	case OPT_GROUP_ID:
 		ctx->group_id = make_kgid(fc->user_ns, result.uint_32);
 		if (!gid_valid(ctx->group_id))
 			return invalf(fc, "fuse: Invalid group_id");
-		ctx->group_id_present = 1;
+		ctx->group_id_present = true;
 		break;
 
 	case OPT_DEFAULT_PERMISSIONS:
-		ctx->default_permissions = 1;
+		ctx->default_permissions = true;
 		break;
 
 	case OPT_ALLOW_OTHER:
-		ctx->allow_other = 1;
+		ctx->allow_other = true;
 		break;
 
 	case OPT_MAX_READ:
@@ -997,7 +997,7 @@ void fuse_send_init(struct fuse_conn *fc)
 	/* Variable length argument used for backward compatibility
 	   with interface version < 7.5.  Rest of init_out is zeroed
 	   by do_get_request(), so a short reply is not a problem */
-	ia->args.out_argvar = 1;
+	ia->args.out_argvar = true;
 	ia->args.out_args[0].size = sizeof(ia->out);
 	ia->args.out_args[0].value = &ia->out;
 	ia->args.force = true;
