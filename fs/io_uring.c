@@ -2870,24 +2870,25 @@ static int io_close_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	return 0;
 }
 
+/* only called when __close_fd_get_file() is done */
+static void __io_close_finish(struct io_kiocb *req, struct io_kiocb **nxt)
+{
+	int ret;
+
+	ret = filp_close(req->close.put_file, req->work.files);
+	if (ret < 0)
+		req_set_fail_links(req);
+	io_cqring_add_event(req, ret);
+	fput(req->close.put_file);
+	io_put_req_find_next(req, nxt);
+}
+
 static void io_close_finish(struct io_wq_work **workptr)
 {
 	struct io_kiocb *req = container_of(*workptr, struct io_kiocb, work);
 	struct io_kiocb *nxt = NULL;
 
-	/* Invoked with files, we need to do the close */
-	if (req->work.files) {
-		int ret;
-
-		ret = filp_close(req->close.put_file, req->work.files);
-		if (ret < 0)
-			req_set_fail_links(req);
-		io_cqring_add_event(req, ret);
-	}
-
-	fput(req->close.put_file);
-
-	io_put_req_find_next(req, &nxt);
+	__io_close_finish(req, &nxt);
 	if (nxt)
 		io_wq_assign_next(workptr, nxt);
 }
@@ -2910,22 +2911,8 @@ static int io_close(struct io_kiocb *req, struct io_kiocb **nxt,
 	 * No ->flush(), safely close from here and just punt the
 	 * fput() to async context.
 	 */
-	ret = filp_close(req->close.put_file, current->files);
-
-	if (ret < 0)
-		req_set_fail_links(req);
-	io_cqring_add_event(req, ret);
-
-	if (io_wq_current_is_worker()) {
-		struct io_wq_work *old_work, *work;
-
-		old_work = work = &req->work;
-		io_close_finish(&work);
-		if (work && work != old_work)
-			*nxt = container_of(work, struct io_kiocb, work);
-		return 0;
-	}
-
+	__io_close_finish(req, nxt);
+	return 0;
 eagain:
 	req->work.func = io_close_finish;
 	/*
