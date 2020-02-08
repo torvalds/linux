@@ -1878,7 +1878,7 @@ void mt7615_mac_reset_work(struct work_struct *work)
 
 	set_bit(MT76_RESET, &dev->mphy.state);
 	set_bit(MT76_MCU_RESET, &dev->mphy.state);
-	wake_up(&dev->mt76.mmio.mcu.wait);
+	wake_up(&dev->mt76.mcu.wait);
 	cancel_delayed_work_sync(&dev->mt76.mac_work);
 
 	/* lock/unlock all queues to ensure that no tx is pending */

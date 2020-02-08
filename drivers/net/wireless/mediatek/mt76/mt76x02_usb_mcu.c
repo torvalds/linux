@@ -83,18 +83,17 @@ static int
 __mt76x02u_mcu_send_msg(struct mt76_dev *dev, struct sk_buff *skb,
 			int cmd, bool wait_resp)
 {
-	struct mt76_usb *usb = &dev->usb;
-	int ret;
 	u8 seq = 0;
 	u32 info;
+	int ret;
 
 	if (test_bit(MT76_REMOVED, &dev->phy.state))
 		return 0;
 
 	if (wait_resp) {
-		seq = ++usb->mcu.msg_seq & 0xf;
+		seq = ++dev->mcu.msg_seq & 0xf;
 		if (!seq)
-			seq = ++usb->mcu.msg_seq & 0xf;
+			seq = ++dev->mcu.msg_seq & 0xf;
 	}
 
 	info = FIELD_PREP(MT_MCU_MSG_CMD_SEQ, seq) |
@@ -121,7 +120,6 @@ static int
 mt76x02u_mcu_send_msg(struct mt76_dev *dev, int cmd, const void *data,
 		      int len, bool wait_resp)
 {
-	struct mt76_usb *usb = &dev->usb;
 	struct sk_buff *skb;
 	int err;
 
@@ -129,9 +127,9 @@ mt76x02u_mcu_send_msg(struct mt76_dev *dev, int cmd, const void *data,
 	if (!skb)
 		return -ENOMEM;
 
-	mutex_lock(&usb->mcu.mutex);
+	mutex_lock(&dev->mcu.mutex);
 	err = __mt76x02u_mcu_send_msg(dev, skb, cmd, wait_resp);
-	mutex_unlock(&usb->mcu.mutex);
+	mutex_unlock(&dev->mcu.mutex);
 
 	return err;
 }
@@ -145,9 +143,8 @@ static int
 mt76x02u_mcu_wr_rp(struct mt76_dev *dev, u32 base,
 		   const struct mt76_reg_pair *data, int n)
 {
-	const int CMD_RANDOM_WRITE = 12;
 	const int max_vals_per_cmd = MT_INBAND_PACKET_MAX_LEN / 8;
-	struct mt76_usb *usb = &dev->usb;
+	const int CMD_RANDOM_WRITE = 12;
 	struct sk_buff *skb;
 	int cnt, i, ret;
 
@@ -166,9 +163,9 @@ mt76x02u_mcu_wr_rp(struct mt76_dev *dev, u32 base,
 		skb_put_le32(skb, data[i].value);
 	}
 
-	mutex_lock(&usb->mcu.mutex);
+	mutex_lock(&dev->mcu.mutex);
 	ret = __mt76x02u_mcu_send_msg(dev, skb, CMD_RANDOM_WRITE, cnt == n);
-	mutex_unlock(&usb->mcu.mutex);
+	mutex_unlock(&dev->mcu.mutex);
 	if (ret)
 		return ret;
 
@@ -202,7 +199,7 @@ mt76x02u_mcu_rd_rp(struct mt76_dev *dev, u32 base,
 		skb_put_le32(skb, data[i].value);
 	}
 
-	mutex_lock(&usb->mcu.mutex);
+	mutex_lock(&dev->mcu.mutex);
 
 	usb->mcu.rp = data;
 	usb->mcu.rp_len = n;
@@ -213,7 +210,7 @@ mt76x02u_mcu_rd_rp(struct mt76_dev *dev, u32 base,
 
 	usb->mcu.rp = NULL;
 
-	mutex_unlock(&usb->mcu.mutex);
+	mutex_unlock(&dev->mcu.mutex);
 
 	return ret;
 }
