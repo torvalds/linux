@@ -385,11 +385,11 @@ static int uid_cputime_open(struct inode *inode, struct file *file)
 	return single_open(file, uid_cputime_show, PDE_DATA(inode));
 }
 
-static const struct file_operations uid_cputime_fops = {
-	.open		= uid_cputime_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
+static const struct proc_ops uid_cputime_fops = {
+	.proc_open	= uid_cputime_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
 };
 
 static int uid_remove_open(struct inode *inode, struct file *file)
@@ -444,10 +444,10 @@ static ssize_t uid_remove_write(struct file *file,
 	return count;
 }
 
-static const struct file_operations uid_remove_fops = {
-	.open		= uid_remove_open,
-	.release	= single_release,
-	.write		= uid_remove_write,
+static const struct proc_ops uid_remove_fops = {
+	.proc_open	= uid_remove_open,
+	.proc_release	= single_release,
+	.proc_write	= uid_remove_write,
 };
 
 
@@ -563,11 +563,11 @@ static int uid_io_open(struct inode *inode, struct file *file)
 	return single_open(file, uid_io_show, PDE_DATA(inode));
 }
 
-static const struct file_operations uid_io_fops = {
-	.open		= uid_io_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
+static const struct proc_ops uid_io_fops = {
+	.proc_open	= uid_io_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
 };
 
 static int uid_procstat_open(struct inode *inode, struct file *file)
@@ -620,10 +620,10 @@ static ssize_t uid_procstat_write(struct file *file,
 	return count;
 }
 
-static const struct file_operations uid_procstat_fops = {
-	.open		= uid_procstat_open,
-	.release	= single_release,
-	.write		= uid_procstat_write,
+static const struct proc_ops uid_procstat_fops = {
+	.proc_open	= uid_procstat_open,
+	.proc_release	= single_release,
+	.proc_write	= uid_procstat_write,
 };
 
 static int process_notifier(struct notifier_block *self,

@@ -281,10 +281,10 @@ static struct dentry *proc_uid_lookup(struct inode *dir, struct dentry *dentry,
 	return ERR_PTR(result);
 }
 
-static const struct file_operations proc_uid_operations = {
-	.read		= generic_read_dir,
-	.iterate	= proc_uid_readdir,
-	.llseek		= default_llseek,
+static const struct proc_ops proc_uid_operations = {
+	.proc_read	= generic_read_dir,
+//	.proc_iterate	= proc_uid_readdir,
+	.proc_lseek	= default_llseek,
 };
 
 static const struct inode_operations proc_uid_inode_operations = {
@@ -298,7 +298,7 @@ int __init proc_uid_init(void)
 	if (!proc_uid)
 		return -ENOMEM;
 	proc_uid->proc_iops = &proc_uid_inode_operations;
-	proc_uid->proc_fops = &proc_uid_operations;
+	proc_uid->proc_ops = &proc_uid_operations;
 
 	return 0;
 }
