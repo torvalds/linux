@@ -681,6 +681,12 @@ struct ufs_hba {
 	 */
 	#define UFSHCD_QUIRK_BROKEN_CRYPTO			0x800
 
+	/*
+	 * This quirk needs to be enabled if the host controller reports
+	 * OCS FATAL ERROR with device error through sense data
+	 */
+	#define UFSHCD_QUIRK_BROKEN_OCS_FATAL_ERROR		0x1000
+
 	unsigned int quirks;	/* Deviations from standard UFSHCI spec. */
 
 	/* Device deviations from standard UFS device spec. */
