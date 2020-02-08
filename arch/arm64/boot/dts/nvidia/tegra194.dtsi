@@ -7,6 +7,7 @@
 #include <dt-bindings/power/tegra194-powergate.h>
 #include <dt-bindings/reset/tegra194-reset.h>
 #include <dt-bindings/thermal/tegra194-bpmp-thermal.h>
+#include <dt-bindings/memory/tegra194-mc.h>
 
 / {
 	compatible = "nvidia,tegra194";
@@ -20,6 +21,12 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x0 0x0 0x0 0x40000000>;
+
+		misc@100000 {
+			compatible = "nvidia,tegra194-misc";
+			reg = <0x00100000 0xf000>,
+			      <0x0010f000 0x1000>;
+		};
 
 		gpio: gpio@2200000 {
 			compatible = "nvidia,tegra194-gpio";
@@ -161,6 +168,48 @@
 					nvidia,tristate = <TEGRA_PIN_DISABLE>;
 					nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 				};
+			};
+		};
+
+		mc: memory-controller@2c00000 {
+			compatible = "nvidia,tegra194-mc";
+			reg = <0x02c00000 0x100000>,
+			      <0x02b80000 0x040000>,
+			      <0x01700000 0x100000>;
+			status = "disabled";
+
+			#address-cells = <2>;
+			#size-cells = <2>;
+
+			ranges = <0x01700000 0x0 0x01700000 0x0 0x100000>,
+				 <0x02b80000 0x0 0x02b80000 0x0 0x040000>,
+				 <0x02c00000 0x0 0x02c00000 0x0 0x100000>;
+
+			/*
+			 * Bit 39 of addresses passing through the memory
+			 * controller selects the XBAR format used when memory
+			 * is accessed. This is used to transparently access
+			 * memory in the XBAR format used by the discrete GPU
+			 * (bit 39 set) or Tegra (bit 39 clear).
+			 *
+			 * As a consequence, the operating system must ensure
+			 * that bit 39 is never used implicitly, for example
+			 * via an I/O virtual address mapping of an IOMMU. If
+			 * devices require access to the XBAR switch, their
+			 * drivers must set this bit explicitly.
+			 *
+			 * Limit the DMA range for memory clients to [38:0].
+			 */
+			dma-ranges = <0x0 0x0 0x0 0x80 0x0>;
+
+			emc: external-memory-controller@2c60000 {
+				compatible = "nvidia,tegra194-emc";
+				reg = <0x0 0x02c60000 0x0 0x90000>,
+				      <0x0 0x01780000 0x0 0x80000>;
+				clocks = <&bpmp TEGRA194_CLK_EMC>;
+				clock-names = "emc";
+
+				nvidia,bpmp = <&bpmp>;
 			};
 		};
 
@@ -486,6 +535,13 @@
 			reset-names = "hda", "hda2codec_2x", "hda2hdmi";
 			power-domains = <&bpmp TEGRA194_POWER_DOMAIN_DISP>;
 			status = "disabled";
+		};
+
+		fuse@3820000 {
+			compatible = "nvidia,tegra194-efuse";
+			reg = <0x03820000 0x10000>;
+			clocks = <&bpmp TEGRA194_CLK_FUSE>;
+			clock-names = "fuse";
 		};
 
 		gic: interrupt-controller@3881000 {

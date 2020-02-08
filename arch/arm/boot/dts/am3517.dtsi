@@ -74,7 +74,7 @@
 			clock-names = "ick";
 		};
 
-		davinci_mdio: ethernet@5c030000 {
+		davinci_mdio: mdio@5c030000 {
 			compatible = "ti,davinci_mdio";
 			ti,hwmods = "davinci_mdio";
 			status = "disabled";

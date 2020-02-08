@@ -358,14 +358,15 @@
 		};
 
 		usb@78d9000 {
-			extcon = <&usb_id>;
+			extcon = <&usb_id>, <&usb_id>;
 			status = "okay";
 			adp-disable;
 			hnp-disable;
 			srp-disable;
-			dr_mode = "host";
-			pinctrl-names = "default";
-			pinctrl-0 = <&usb_sw_sel_pm>;
+			dr_mode = "otg";
+			pinctrl-names = "default", "device";
+			pinctrl-0 = <&usb_sw_sel_pm &usb_hub_reset_pm>;
+			pinctrl-1 = <&usb_sw_sel_pm_device &usb_hub_reset_pm_device>;
 			ulpi {
 				phy {
 					v1p8-supply = <&pm8916_l7>;
@@ -504,7 +505,7 @@
 
 	usb_id: usb-id {
 		compatible = "linux,extcon-usb-gpio";
-		vbus-gpio = <&msmgpio 121 GPIO_ACTIVE_HIGH>;
+		id-gpio = <&msmgpio 121 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&usb_id_default>;
 	};

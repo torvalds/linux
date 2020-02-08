@@ -482,6 +482,11 @@
 	regulator-always-on;
 };
 
+/* First two dma channels are reserved on secure omap3 */
+&sdma {
+	dma-channel-mask = <0xfffffffc>;
+};
+
 &twl {
 	twl_audio: audio {
 		compatible = "ti,twl4030-audio";

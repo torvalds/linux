@@ -345,9 +345,12 @@ static inline int dra7xx_pciess_reset(struct omap_hwmod *oh)
 }
 #endif
 
+struct omap_system_dma_plat_info;
+
 void pdata_quirks_init(const struct of_device_id *);
 void omap_auxdata_legacy_init(struct device *dev);
 void omap_pcs_legacy_init(int irq, void (*rearm)(void));
+extern struct omap_system_dma_plat_info dma_plat_info;
 
 struct omap_sdrc_params;
 extern void omap_sdrc_init(struct omap_sdrc_params *sdrc_cs0,

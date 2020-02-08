@@ -1,7 +1,5 @@
-// SPDX-License-Identifier: (GPL-2.0+ or MIT)
-/*
- * Copyright (C) 2019 Ondřej Jirman <megous@megous.com>
- */
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+// Copyright (C) 2019 Ondřej Jirman <megous@megous.com>
 
 /dts-v1/;
 
@@ -272,6 +270,10 @@
 			};
 		};
 	};
+};
+
+&r_ir {
+	status = "okay";
 };
 
 &uart0 {

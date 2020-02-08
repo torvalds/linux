@@ -102,6 +102,7 @@
 		L2: l2-cache {
 			compatible = "cache";
 			cache-level = <2>;
+			qcom,saw = <&saw_l2>;
 		};
 	};
 
@@ -350,6 +351,12 @@
 		saw3: regulator@b0b9000 {
 			compatible = "qcom,saw2";
 			reg = <0x0b0b9000 0x1000>, <0x0b009000 0x1000>;
+			regulator;
+		};
+
+		saw_l2: regulator@b012000 {
+			compatible = "qcom,saw2";
+			reg = <0xb012000 0x1000>;
 			regulator;
 		};
 

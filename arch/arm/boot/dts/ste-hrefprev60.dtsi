@@ -5,7 +5,6 @@
  * Device Tree for the HREF+ prior to the v60 variant.
  */
 
-#include "ste-dbx5x0.dtsi"
 #include "ste-href-ab8500.dtsi"
 #include "ste-href.dtsi"
 
@@ -58,6 +57,7 @@
 			 */
 			pinctrl-names = "default";
 			pinctrl-0 = <&ssp0_hrefprev60_mode>;
+			status = "okay";
 		};
 
 		// External Micro SD slot
