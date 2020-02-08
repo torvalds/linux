@@ -55,6 +55,7 @@ struct btree_update {
 	struct bch_fs			*c;
 
 	struct list_head		list;
+	struct list_head		unwritten_list;
 
 	/* What kind of update are we doing? */
 	enum {

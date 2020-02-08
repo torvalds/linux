@@ -642,6 +642,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	INIT_LIST_HEAD(&c->list);
 
 	INIT_LIST_HEAD(&c->btree_interior_update_list);
+	INIT_LIST_HEAD(&c->btree_interior_updates_unwritten);
 	mutex_init(&c->btree_reserve_cache_lock);
 	mutex_init(&c->btree_interior_update_lock);
 
