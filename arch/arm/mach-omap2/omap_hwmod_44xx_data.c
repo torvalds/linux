@@ -653,32 +653,6 @@ static struct omap_hwmod omap44xx_dss_venc_hwmod = {
 	.opt_clks_cnt	= ARRAY_SIZE(dss_venc_opt_clks),
 };
 
-/* sha0 HIB2 (the 'P' (public) device) */
-static struct omap_hwmod_class_sysconfig omap44xx_sha0_sysc = {
-	.rev_offs	= 0x100,
-	.sysc_offs	= 0x110,
-	.syss_offs	= 0x114,
-	.sysc_flags	= SYSS_HAS_RESET_STATUS,
-};
-
-static struct omap_hwmod_class omap44xx_sha0_hwmod_class = {
-	.name		= "sham",
-	.sysc		= &omap44xx_sha0_sysc,
-};
-
-static struct omap_hwmod omap44xx_sha0_hwmod = {
-	.name		= "sham",
-	.class		= &omap44xx_sha0_hwmod_class,
-	.clkdm_name	= "l4_secure_clkdm",
-	.main_clk	= "l3_div_ck",
-	.prcm		= {
-		.omap4 = {
-			.clkctrl_offs = OMAP4_CM_L4SEC_SHA2MD51_CLKCTRL_OFFSET,
-			.context_offs = OMAP4_RM_L4SEC_SHA2MD51_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-};
 
 
 /*
@@ -725,103 +699,6 @@ static struct omap_hwmod omap44xx_emif2_hwmod = {
 			.modulemode   = MODULEMODE_HWCTRL,
 		},
 	},
-};
-
-/*
-    Crypto modules AES0/1 belong to:
-	PD_L4_PER power domain
-	CD_L4_SEC clock domain
-	On the L3, the AES modules are mapped to
-	L3_CLK2: Peripherals and multimedia sub clock domain
-*/
-static struct omap_hwmod_class_sysconfig omap44xx_aes_sysc = {
-	.rev_offs	= 0x80,
-	.sysc_offs	= 0x84,
-	.syss_offs	= 0x88,
-	.sysc_flags	= SYSS_HAS_RESET_STATUS,
-};
-
-static struct omap_hwmod_class omap44xx_aes_hwmod_class = {
-	.name		= "aes",
-	.sysc		= &omap44xx_aes_sysc,
-};
-
-static struct omap_hwmod omap44xx_aes1_hwmod = {
-	.name		= "aes1",
-	.class		= &omap44xx_aes_hwmod_class,
-	.clkdm_name	= "l4_secure_clkdm",
-	.main_clk	= "l3_div_ck",
-	.prcm		= {
-		.omap4	= {
-			.context_offs	= OMAP4_RM_L4SEC_AES1_CONTEXT_OFFSET,
-			.clkctrl_offs	= OMAP4_CM_L4SEC_AES1_CLKCTRL_OFFSET,
-			.modulemode	= MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-static struct omap_hwmod_ocp_if omap44xx_l3_main_2__aes1 = {
-	.master		= &omap44xx_l4_per_hwmod,
-	.slave		= &omap44xx_aes1_hwmod,
-	.clk		= "l3_div_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-static struct omap_hwmod omap44xx_aes2_hwmod = {
-	.name		= "aes2",
-	.class		= &omap44xx_aes_hwmod_class,
-	.clkdm_name	= "l4_secure_clkdm",
-	.main_clk	= "l3_div_ck",
-	.prcm		= {
-		.omap4	= {
-			.context_offs	= OMAP4_RM_L4SEC_AES2_CONTEXT_OFFSET,
-			.clkctrl_offs	= OMAP4_CM_L4SEC_AES2_CLKCTRL_OFFSET,
-			.modulemode	= MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-static struct omap_hwmod_ocp_if omap44xx_l3_main_2__aes2 = {
-	.master		= &omap44xx_l4_per_hwmod,
-	.slave		= &omap44xx_aes2_hwmod,
-	.clk		= "l3_div_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/*
- * 'des' class for DES3DES module
- */
-static struct omap_hwmod_class_sysconfig omap44xx_des_sysc = {
-	.rev_offs	= 0x30,
-	.sysc_offs	= 0x34,
-	.syss_offs	= 0x38,
-	.sysc_flags	= SYSS_HAS_RESET_STATUS,
-};
-
-static struct omap_hwmod_class omap44xx_des_hwmod_class = {
-	.name		= "des",
-	.sysc		= &omap44xx_des_sysc,
-};
-
-static struct omap_hwmod omap44xx_des_hwmod = {
-	.name		= "des",
-	.class		= &omap44xx_des_hwmod_class,
-	.clkdm_name	= "l4_secure_clkdm",
-	.main_clk	= "l3_div_ck",
-	.prcm		= {
-		.omap4	= {
-			.context_offs	= OMAP4_RM_L4SEC_DES3DES_CONTEXT_OFFSET,
-			.clkctrl_offs	= OMAP4_CM_L4SEC_DES3DES_CLKCTRL_OFFSET,
-			.modulemode	= MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-static struct omap_hwmod_ocp_if omap44xx_l3_main_2__des = {
-	.master		= &omap44xx_l3_main_2_hwmod,
-	.slave		= &omap44xx_des_hwmod,
-	.clk		= "l3_div_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
 /*
@@ -1735,14 +1612,6 @@ static struct omap_hwmod_ocp_if omap44xx_l4_per__dss_venc = {
 	.user		= OCP_USER_MPU,
 };
 
-/* l3_main_2 -> sham */
-static struct omap_hwmod_ocp_if omap44xx_l3_main_2__sha0 = {
-	.master		= &omap44xx_l3_main_2_hwmod,
-	.slave		= &omap44xx_sha0_hwmod,
-	.clk		= "l3_div_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* l3_main_2 -> gpmc */
 static struct omap_hwmod_ocp_if omap44xx_l3_main_2__gpmc = {
 	.master		= &omap44xx_l3_main_2_hwmod,
@@ -1958,10 +1827,6 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_l4_cfg__usb_tll_hs,
 	&omap44xx_mpu__emif1,
 	&omap44xx_mpu__emif2,
-	&omap44xx_l3_main_2__aes1,
-	&omap44xx_l3_main_2__aes2,
-	&omap44xx_l3_main_2__des,
-	&omap44xx_l3_main_2__sha0,
 	NULL,
 };
 
