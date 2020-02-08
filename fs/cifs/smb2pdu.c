@@ -1951,13 +1951,18 @@ parse_query_id_ctxt(struct create_context *cc, struct smb2_file_all_info *buf)
 }
 
 static void
-parse_posix_ctxt(struct create_context *cc, struct smb_posix_info *pposix_inf)
+parse_posix_ctxt(struct create_context *cc, struct smb2_file_all_info *info)
 {
-	/* struct smb_posix_info *ppinf = (struct smb_posix_info *)cc; */
+	/* struct create_posix_rsp *posix = (struct create_posix_rsp *)cc; */
 
-	/* TODO: Need to add parsing for the context and return */
+	/*
+	 * TODO: Need to add parsing for the context and return. Can
+	 * smb2_file_all_info hold POSIX data? Need to change the
+	 * passed type from SMB2_open.
+	 */
 	printk_once(KERN_WARNING
 		    "SMB3 3.11 POSIX response context not completed yet\n");
+
 }
 
 void
@@ -1995,7 +2000,7 @@ smb2_parse_contexts(struct TCP_Server_Info *server,
 			parse_query_id_ctxt(cc, buf);
 		else if ((le16_to_cpu(cc->NameLength) == 16)) {
 			if (memcmp(name, smb3_create_tag_posix, 16) == 0)
-				parse_posix_ctxt(cc, NULL);
+				parse_posix_ctxt(cc, buf);
 		}
 		/* else {
 			cifs_dbg(FYI, "Context not matched with len %d\n",

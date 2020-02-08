@@ -1604,11 +1604,14 @@ struct smb2_file_id_information {
 extern char smb2_padding[7];
 
 /* equivalent of the contents of SMB3.1.1 POSIX open context response */
-struct smb_posix_info {
+struct create_posix_rsp {
 	__le32 nlink;
 	__le32 reparse_tag;
 	__le32 mode;
-	kuid_t	uid;
-	kuid_t	gid;
+	/*
+	 * var sized owner SID
+	 * var sized group SID
+	 */
+} __packed;
 };
 #endif				/* _SMB2PDU_H */
