@@ -96,12 +96,11 @@ const struct bpf_prog_ops bpf_struct_ops_prog_ops = {
 
 static const struct btf_type *module_type;
 
-void bpf_struct_ops_init(struct btf *btf)
+void bpf_struct_ops_init(struct btf *btf, struct bpf_verifier_log *log)
 {
 	s32 type_id, value_id, module_id;
 	const struct btf_member *member;
 	struct bpf_struct_ops *st_ops;
-	struct bpf_verifier_log log = {};
 	const struct btf_type *t;
 	char value_name[128];
 	const char *mname;
@@ -172,7 +171,7 @@ void bpf_struct_ops_init(struct btf *btf)
 							       member->type,
 							       NULL);
 			if (func_proto &&
-			    btf_distill_func_proto(&log, btf,
+			    btf_distill_func_proto(log, btf,
 						   func_proto, mname,
 						   &st_ops->func_models[j])) {
 				pr_warn("Error in parsing func ptr %s in struct %s\n",
