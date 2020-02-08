@@ -3252,6 +3252,16 @@ static ssize_t nvme_sysfs_show_hostnqn(struct device *dev,
 }
 static DEVICE_ATTR(hostnqn, S_IRUGO, nvme_sysfs_show_hostnqn, NULL);
 
+static ssize_t nvme_sysfs_show_hostid(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct nvme_ctrl *ctrl = dev_get_drvdata(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%pU\n", &ctrl->opts->host->id);
+}
+static DEVICE_ATTR(hostid, S_IRUGO, nvme_sysfs_show_hostid, NULL);
+
 static ssize_t nvme_sysfs_show_address(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
@@ -3278,6 +3288,7 @@ static struct attribute *nvme_dev_attrs[] = {
 	&dev_attr_queue_count.attr,
 	&dev_attr_sqsize.attr,
 	&dev_attr_hostnqn.attr,
+	&dev_attr_hostid.attr,
 	NULL
 };
 
@@ -3292,6 +3303,8 @@ static umode_t nvme_dev_attrs_are_visible(struct kobject *kobj,
 	if (a == &dev_attr_address.attr && !ctrl->ops->get_address)
 		return 0;
 	if (a == &dev_attr_hostnqn.attr && !ctrl->opts)
+		return 0;
+	if (a == &dev_attr_hostid.attr && !ctrl->opts)
 		return 0;
 
 	return a->mode;
