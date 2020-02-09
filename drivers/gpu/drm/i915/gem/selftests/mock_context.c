@@ -107,6 +107,7 @@ kernel_context(struct drm_i915_private *i915)
 
 	i915_gem_context_clear_bannable(ctx);
 	i915_gem_context_set_persistence(ctx);
+	i915_gem_context_set_no_error_capture(ctx);
 
 	return ctx;
 }
