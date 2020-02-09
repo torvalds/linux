@@ -417,7 +417,10 @@ static void de_rx (struct de_private *de)
 		if (status & DescOwn)
 			break;
 
-		len = ((status >> 16) & 0x7ff) - 4;
+		/* the length is actually a 15 bit value here according
+		 * to Table 4-1 in the DE2104x spec so mask is 0x7fff
+		 */
+		len = ((status >> 16) & 0x7fff) - 4;
 		mapping = de->rx_skb[rx_tail].mapping;
 
 		if (unlikely(drop)) {

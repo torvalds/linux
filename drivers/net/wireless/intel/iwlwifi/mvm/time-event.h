@@ -250,10 +250,12 @@ iwl_mvm_te_scheduled(struct iwl_mvm_time_event_data *te_data)
  * @mvm: the mvm component
  * @vif: the virtual interface for which the protection issued
  * @duration: the duration of the protection
+ * @wait_for_notif: if true, will block until the start of the protection
  */
 void iwl_mvm_schedule_session_protection(struct iwl_mvm *mvm,
 					 struct ieee80211_vif *vif,
-					 u32 duration, u32 min_duration);
+					 u32 duration, u32 min_duration,
+					 bool wait_for_notif);
 
 /**
  * iwl_mvm_rx_session_protect_notif - handles %SESSION_PROTECTION_NOTIF

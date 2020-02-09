@@ -634,6 +634,14 @@ static void check_getpeername_connect(int fd)
 			cfg_host, a, cfg_port, b);
 }
 
+static void maybe_close(int fd)
+{
+	unsigned int r = rand();
+
+	if (r & 1)
+		close(fd);
+}
+
 int main_loop_s(int listensock)
 {
 	struct sockaddr_storage ss;
@@ -657,6 +665,7 @@ int main_loop_s(int listensock)
 	salen = sizeof(ss);
 	remotesock = accept(listensock, (struct sockaddr *)&ss, &salen);
 	if (remotesock >= 0) {
+		maybe_close(listensock);
 		check_sockaddr(pf, &ss, salen);
 		check_getpeername(remotesock, &ss, salen);
 

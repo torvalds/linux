@@ -24,57 +24,12 @@
 
 #define MPTCP_SAME_STATE TCP_MAX_STATES
 
-static void __mptcp_close(struct sock *sk, long timeout);
-
-static const struct proto_ops *tcp_proto_ops(struct sock *sk)
-{
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
-	if (sk->sk_family == AF_INET6)
-		return &inet6_stream_ops;
+struct mptcp6_sock {
+	struct mptcp_sock msk;
+	struct ipv6_pinfo np;
+};
 #endif
-	return &inet_stream_ops;
-}
-
-/* MP_CAPABLE handshake failed, convert msk to plain tcp, replacing
- * socket->sk and stream ops and destroying msk
- * return the msk socket, as we can't access msk anymore after this function
- * completes
- * Called with msk lock held, releases such lock before returning
- */
-static struct socket *__mptcp_fallback_to_tcp(struct mptcp_sock *msk,
-					      struct sock *ssk)
-{
-	struct mptcp_subflow_context *subflow;
-	struct socket *sock;
-	struct sock *sk;
-
-	sk = (struct sock *)msk;
-	sock = sk->sk_socket;
-	subflow = mptcp_subflow_ctx(ssk);
-
-	/* detach the msk socket */
-	list_del_init(&subflow->node);
-	sock_orphan(sk);
-	sock->sk = NULL;
-
-	/* socket is now TCP */
-	lock_sock(ssk);
-	sock_graft(ssk, sock);
-	if (subflow->conn) {
-		/* We can't release the ULP data on a live socket,
-		 * restore the tcp callback
-		 */
-		mptcp_subflow_tcp_fallback(ssk, subflow);
-		sock_put(subflow->conn);
-		subflow->conn = NULL;
-	}
-	release_sock(ssk);
-	sock->ops = tcp_proto_ops(ssk);
-
-	/* destroy the left-over msk sock */
-	__mptcp_close(sk, 0);
-	return sock;
-}
 
 /* If msk has an initial subflow socket, and the MP_CAPABLE handshake has not
  * completed yet or has failed, return the subflow socket.
@@ -93,10 +48,6 @@ static bool __mptcp_needs_tcp_fallback(const struct mptcp_sock *msk)
 	return msk->first && !sk_is_mptcp(msk->first);
 }
 
-/* if the mp_capable handshake has failed, it fallbacks msk to plain TCP,
- * releases the socket lock and returns a reference to the now TCP socket.
- * Otherwise returns NULL
- */
 static struct socket *__mptcp_tcp_fallback(struct mptcp_sock *msk)
 {
 	sock_owned_by_me((const struct sock *)msk);
@@ -105,15 +56,11 @@ static struct socket *__mptcp_tcp_fallback(struct mptcp_sock *msk)
 		return NULL;
 
 	if (msk->subflow) {
-		/* the first subflow is an active connection, discart the
-		 * paired socket
-		 */
-		msk->subflow->sk = NULL;
-		sock_release(msk->subflow);
-		msk->subflow = NULL;
+		release_sock((struct sock *)msk);
+		return msk->subflow;
 	}
 
-	return __mptcp_fallback_to_tcp(msk, msk->first);
+	return NULL;
 }
 
 static bool __mptcp_can_create_subflow(const struct mptcp_sock *msk)
@@ -640,11 +587,13 @@ static void mptcp_subflow_shutdown(struct sock *ssk, int how)
 }
 
 /* Called with msk lock held, releases such lock before returning */
-static void __mptcp_close(struct sock *sk, long timeout)
+static void mptcp_close(struct sock *sk, long timeout)
 {
 	struct mptcp_subflow_context *subflow, *tmp;
 	struct mptcp_sock *msk = mptcp_sk(sk);
 	LIST_HEAD(conn_list);
+
+	lock_sock(sk);
 
 	mptcp_token_destroy(msk->token);
 	inet_sk_state_store(sk, TCP_CLOSE);
@@ -660,12 +609,6 @@ static void __mptcp_close(struct sock *sk, long timeout)
 	}
 
 	sk_common_release(sk);
-}
-
-static void mptcp_close(struct sock *sk, long timeout)
-{
-	lock_sock(sk);
-	__mptcp_close(sk, timeout);
 }
 
 static void mptcp_copy_inaddrs(struct sock *msk, const struct sock *ssk)
@@ -689,6 +632,30 @@ static void mptcp_copy_inaddrs(struct sock *msk, const struct sock *ssk)
 	inet_sk(msk)->inet_daddr = inet_sk(ssk)->inet_daddr;
 	inet_sk(msk)->inet_saddr = inet_sk(ssk)->inet_saddr;
 	inet_sk(msk)->inet_rcv_saddr = inet_sk(ssk)->inet_rcv_saddr;
+}
+
+#if IS_ENABLED(CONFIG_MPTCP_IPV6)
+static struct ipv6_pinfo *mptcp_inet6_sk(const struct sock *sk)
+{
+	unsigned int offset = sizeof(struct mptcp6_sock) - sizeof(struct ipv6_pinfo);
+
+	return (struct ipv6_pinfo *)(((u8 *)sk) + offset);
+}
+#endif
+
+struct sock *mptcp_sk_clone_lock(const struct sock *sk)
+{
+	struct sock *nsk = sk_clone_lock(sk, GFP_ATOMIC);
+
+	if (!nsk)
+		return NULL;
+
+#if IS_ENABLED(CONFIG_MPTCP_IPV6)
+	if (nsk->sk_family == AF_INET6)
+		inet_sk(nsk)->pinet6 = mptcp_inet6_sk(nsk);
+#endif
+
+	return nsk;
 }
 
 static struct sock *mptcp_accept(struct sock *sk, int flags, int *err,
@@ -721,7 +688,7 @@ static struct sock *mptcp_accept(struct sock *sk, int flags, int *err,
 		lock_sock(sk);
 
 		local_bh_disable();
-		new_mptcp_sock = sk_clone_lock(sk, GFP_ATOMIC);
+		new_mptcp_sock = mptcp_sk_clone_lock(sk);
 		if (!new_mptcp_sock) {
 			*err = -ENOBUFS;
 			local_bh_enable();
@@ -1270,8 +1237,7 @@ int mptcp_proto_v6_init(void)
 	strcpy(mptcp_v6_prot.name, "MPTCPv6");
 	mptcp_v6_prot.slab = NULL;
 	mptcp_v6_prot.destroy = mptcp_v6_destroy;
-	mptcp_v6_prot.obj_size = sizeof(struct mptcp_sock) +
-				 sizeof(struct ipv6_pinfo);
+	mptcp_v6_prot.obj_size = sizeof(struct mptcp6_sock);
 
 	err = proto_register(&mptcp_v6_prot, 1);
 	if (err)
