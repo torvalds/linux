@@ -631,6 +631,8 @@ int mlx5e_poll_ico_cq(struct mlx5e_cq *cq)
 				netdev_WARN_ONCE(cq->channel->netdev,
 						 "Bad OP in ICOSQ CQE: 0x%x\n",
 						 get_cqe_opcode(cqe));
+				mlx5e_dump_error_cqe(&sq->cq, sq->sqn,
+						     (struct mlx5_err_cqe *)cqe);
 				if (!test_and_set_bit(MLX5E_SQ_STATE_RECOVERING, &sq->state))
 					queue_work(cq->channel->priv->wq, &sq->recover_work);
 				break;
