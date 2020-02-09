@@ -937,17 +937,19 @@ enum io_wq_cancel io_wq_cancel_cb(struct io_wq *wq, work_cancel_fn *cancel,
 	return ret;
 }
 
+struct work_match {
+	bool (*fn)(struct io_wq_work *, void *data);
+	void *data;
+};
+
 static bool io_wq_worker_cancel(struct io_worker *worker, void *data)
 {
-	struct io_wq_work *work = data;
+	struct work_match *match = data;
 	unsigned long flags;
 	bool ret = false;
 
-	if (worker->cur_work != work)
-		return false;
-
 	spin_lock_irqsave(&worker->lock, flags);
-	if (worker->cur_work == work &&
+	if (match->fn(worker->cur_work, match->data) &&
 	    !(worker->cur_work->flags & IO_WQ_WORK_NO_CANCEL)) {
 		send_sig(SIGINT, worker->task, 1);
 		ret = true;
@@ -958,14 +960,12 @@ static bool io_wq_worker_cancel(struct io_worker *worker, void *data)
 }
 
 static enum io_wq_cancel io_wqe_cancel_work(struct io_wqe *wqe,
-					    struct io_wq_work *cwork)
+					    struct work_match *match)
 {
 	struct io_wq_work_node *node, *prev;
 	struct io_wq_work *work;
 	unsigned long flags;
 	bool found = false;
-
-	cwork->flags |= IO_WQ_WORK_CANCEL;
 
 	/*
 	 * First check pending list, if we're lucky we can just remove it
@@ -976,7 +976,7 @@ static enum io_wq_cancel io_wqe_cancel_work(struct io_wqe *wqe,
 	wq_list_for_each(node, prev, &wqe->work_list) {
 		work = container_of(node, struct io_wq_work, list);
 
-		if (work == cwork) {
+		if (match->fn(work, match->data)) {
 			wq_node_del(&wqe->work_list, node, prev);
 			found = true;
 			break;
@@ -997,20 +997,31 @@ static enum io_wq_cancel io_wqe_cancel_work(struct io_wqe *wqe,
 	 * completion will run normally in this case.
 	 */
 	rcu_read_lock();
-	found = io_wq_for_each_worker(wqe, io_wq_worker_cancel, cwork);
+	found = io_wq_for_each_worker(wqe, io_wq_worker_cancel, match);
 	rcu_read_unlock();
 	return found ? IO_WQ_CANCEL_RUNNING : IO_WQ_CANCEL_NOTFOUND;
 }
 
+static bool io_wq_work_match(struct io_wq_work *work, void *data)
+{
+	return work == data;
+}
+
 enum io_wq_cancel io_wq_cancel_work(struct io_wq *wq, struct io_wq_work *cwork)
 {
+	struct work_match match = {
+		.fn	= io_wq_work_match,
+		.data	= cwork
+	};
 	enum io_wq_cancel ret = IO_WQ_CANCEL_NOTFOUND;
 	int node;
+
+	cwork->flags |= IO_WQ_WORK_CANCEL;
 
 	for_each_node(node) {
 		struct io_wqe *wqe = wq->wqes[node];
 
-		ret = io_wqe_cancel_work(wqe, cwork);
+		ret = io_wqe_cancel_work(wqe, &match);
 		if (ret != IO_WQ_CANCEL_NOTFOUND)
 			break;
 	}
