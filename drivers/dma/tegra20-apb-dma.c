@@ -504,9 +504,6 @@ static void tdc_start_head_req(struct tegra_dma_channel *tdc)
 {
 	struct tegra_dma_sg_req *sg_req;
 
-	if (list_empty(&tdc->pending_sg_req))
-		return;
-
 	sg_req = list_first_entry(&tdc->pending_sg_req, typeof(*sg_req), node);
 	tegra_dma_start(tdc, sg_req);
 	sg_req->configured = true;
@@ -517,9 +514,6 @@ static void tdc_start_head_req(struct tegra_dma_channel *tdc)
 static void tdc_configure_next_head_desc(struct tegra_dma_channel *tdc)
 {
 	struct tegra_dma_sg_req *hsgreq, *hnsgreq;
-
-	if (list_empty(&tdc->pending_sg_req))
-		return;
 
 	hsgreq = list_first_entry(&tdc->pending_sg_req, typeof(*hsgreq), node);
 	if (!list_is_last(&hsgreq->node, &tdc->pending_sg_req)) {
@@ -566,12 +560,6 @@ static bool handle_continuous_head_request(struct tegra_dma_channel *tdc,
 					   bool to_terminate)
 {
 	struct tegra_dma_sg_req *hsgreq;
-
-	if (list_empty(&tdc->pending_sg_req)) {
-		dev_err(tdc2dev(tdc), "DMA is running without req\n");
-		tegra_dma_stop(tdc);
-		return false;
-	}
 
 	/*
 	 * Check that head req on list should be in flight.
