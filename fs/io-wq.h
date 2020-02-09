@@ -76,6 +76,7 @@ struct io_wq_work {
 	const struct cred *creds;
 	struct fs_struct *fs;
 	unsigned flags;
+	pid_t task_pid;
 };
 
 #define INIT_IO_WORK(work, _func)			\
@@ -109,6 +110,7 @@ void io_wq_flush(struct io_wq *wq);
 
 void io_wq_cancel_all(struct io_wq *wq);
 enum io_wq_cancel io_wq_cancel_work(struct io_wq *wq, struct io_wq_work *cwork);
+enum io_wq_cancel io_wq_cancel_pid(struct io_wq *wq, pid_t pid);
 
 typedef bool (work_cancel_fn)(struct io_wq_work *, void *);
 

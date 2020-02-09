@@ -1029,6 +1029,35 @@ enum io_wq_cancel io_wq_cancel_work(struct io_wq *wq, struct io_wq_work *cwork)
 	return ret;
 }
 
+static bool io_wq_pid_match(struct io_wq_work *work, void *data)
+{
+	pid_t pid = (pid_t) (unsigned long) data;
+
+	if (work)
+		return work->task_pid == pid;
+	return false;
+}
+
+enum io_wq_cancel io_wq_cancel_pid(struct io_wq *wq, pid_t pid)
+{
+	struct work_match match = {
+		.fn	= io_wq_pid_match,
+		.data	= (void *) (unsigned long) pid
+	};
+	enum io_wq_cancel ret = IO_WQ_CANCEL_NOTFOUND;
+	int node;
+
+	for_each_node(node) {
+		struct io_wqe *wqe = wq->wqes[node];
+
+		ret = io_wqe_cancel_work(wqe, &match);
+		if (ret != IO_WQ_CANCEL_NOTFOUND)
+			break;
+	}
+
+	return ret;
+}
+
 struct io_wq_flush_data {
 	struct io_wq_work work;
 	struct completion done;
