@@ -566,7 +566,7 @@ static bool handle_continuous_head_request(struct tegra_dma_channel *tdc,
 	if (!hsgreq->configured) {
 		tegra_dma_stop(tdc);
 		pm_runtime_put(tdc->tdma->dev);
-		dev_err(tdc2dev(tdc), "Error in DMA transfer, aborting DMA\n");
+		dev_err(tdc2dev(tdc), "DMA transfer underflow, aborting DMA\n");
 		tegra_dma_abort_all(tdc);
 		return false;
 	}
