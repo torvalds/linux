@@ -102,19 +102,20 @@ bool bch2_btree_post_write_cleanup(struct bch_fs *, struct btree *);
 void bch2_btree_node_write(struct bch_fs *, struct btree *,
 			  enum six_lock_type);
 
-static inline void btree_node_write_if_need(struct bch_fs *c, struct btree *b)
+static inline void btree_node_write_if_need(struct bch_fs *c, struct btree *b,
+					    enum six_lock_type lock_held)
 {
 	while (b->written &&
 	       btree_node_need_write(b) &&
 	       btree_node_may_write(b)) {
 		if (!btree_node_write_in_flight(b)) {
-			bch2_btree_node_write(c, b, SIX_LOCK_read);
+			bch2_btree_node_write(c, b, lock_held);
 			break;
 		}
 
 		six_unlock_read(&b->c.lock);
 		btree_node_wait_on_io(b);
-		btree_node_lock_type(c, b, SIX_LOCK_read);
+		btree_node_lock_type(c, b, lock_held);
 	}
 }
 
@@ -131,7 +132,7 @@ do {									\
 		new |= (1 << BTREE_NODE_need_write);			\
 	} while ((v = cmpxchg(&(_b)->flags, old, new)) != old);		\
 									\
-	btree_node_write_if_need(_c, _b);				\
+	btree_node_write_if_need(_c, _b, SIX_LOCK_read);		\
 } while (0)
 
 void bch2_btree_flush_all_reads(struct bch_fs *);

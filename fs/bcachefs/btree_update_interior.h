@@ -69,8 +69,10 @@ struct btree_update {
 	unsigned			nodes_written:1;
 
 	enum btree_id			btree_id;
+	u8				level;
 
 	struct btree_reserve		*reserve;
+	struct journal_preres		journal_preres;
 
 	/*
 	 * BTREE_INTERIOR_UPDATING_NODE:
@@ -84,26 +86,12 @@ struct btree_update {
 	struct list_head		write_blocked_list;
 
 	/*
-	 * BTREE_INTERIOR_UPDATING_AS: btree node we updated was freed, so now
-	 * we're now blocking another btree_update
-	 * @parent_as - btree_update that's waiting on our nodes to finish
-	 * writing, before it can make new nodes visible on disk
-	 * @wait - list of child btree_updates that are waiting on this
-	 * btree_update to make all the new nodes visible before they can free
-	 * their old btree nodes
-	 */
-	struct btree_update		*parent_as;
-	struct closure_waitlist		wait;
-
-	/*
 	 * We may be freeing nodes that were dirty, and thus had journal entries
 	 * pinned: we need to transfer the oldest of those pins to the
 	 * btree_update operation, and release it when the new node(s)
 	 * are all persistent and reachable:
 	 */
 	struct journal_entry_pin	journal;
-
-	u64				journal_seq;
 
 	/*
 	 * Nodes being freed:

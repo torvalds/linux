@@ -12,6 +12,7 @@ void bch2_btree_node_lock_for_insert(struct bch_fs *, struct btree *,
 				     struct btree_iter *);
 bool bch2_btree_bset_insert_key(struct btree_iter *, struct btree *,
 				struct btree_node_iter *, struct bkey_i *);
+void bch2_btree_add_journal_pin(struct bch_fs *, struct btree *, u64);
 
 enum btree_insert_flags {
 	__BTREE_INSERT_NOUNLOCK,
