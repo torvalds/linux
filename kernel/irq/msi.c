@@ -453,8 +453,11 @@ int msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
 			continue;
 
 		irq_data = irq_domain_get_irq_data(domain, desc->irq);
-		if (!can_reserve)
+		if (!can_reserve) {
 			irqd_clr_can_reserve(irq_data);
+			if (domain->flags & IRQ_DOMAIN_MSI_NOMASK_QUIRK)
+				irqd_set_msi_nomask_quirk(irq_data);
+		}
 		ret = irq_domain_activate_irq(irq_data, can_reserve);
 		if (ret)
 			goto cleanup;
