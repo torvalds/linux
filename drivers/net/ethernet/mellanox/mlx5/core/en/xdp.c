@@ -408,7 +408,8 @@ bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq)
 
 	i = 0;
 	do {
-		u16 wqe_counter;
+		struct mlx5e_xdp_wqe_info *wi;
+		u16 wqe_counter, ci;
 		bool last_wqe;
 
 		mlx5_cqwq_pop(&cq->wq);
@@ -416,9 +417,6 @@ bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq)
 		wqe_counter = be16_to_cpu(cqe->wqe_counter);
 
 		do {
-			struct mlx5e_xdp_wqe_info *wi;
-			u16 ci;
-
 			last_wqe = (sqcc == wqe_counter);
 			ci = mlx5_wq_cyc_ctr2ix(&sq->wq, sqcc);
 			wi = &sq->db.wqe_info[ci];
@@ -434,6 +432,7 @@ bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq)
 					 get_cqe_opcode(cqe));
 			mlx5e_dump_error_cqe(&sq->cq, sq->sqn,
 					     (struct mlx5_err_cqe *)cqe);
+			mlx5_wq_cyc_wqe_dump(&sq->wq, ci, wi->num_wqebbs);
 		}
 	} while ((++i < MLX5E_TX_CQ_POLL_BUDGET) && (cqe = mlx5_cqwq_get_cqe(&cq->wq)));
 
