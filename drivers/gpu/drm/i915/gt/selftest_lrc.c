@@ -2431,127 +2431,6 @@ static int live_preempt_gang(void *arg)
 	return 0;
 }
 
-static int live_preempt_hang(void *arg)
-{
-	struct intel_gt *gt = arg;
-	struct i915_gem_context *ctx_hi, *ctx_lo;
-	struct igt_spinner spin_hi, spin_lo;
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-	int err = -ENOMEM;
-
-	if (!HAS_LOGICAL_RING_PREEMPTION(gt->i915))
-		return 0;
-
-	if (!intel_has_reset_engine(gt))
-		return 0;
-
-	if (igt_spinner_init(&spin_hi, gt))
-		return -ENOMEM;
-
-	if (igt_spinner_init(&spin_lo, gt))
-		goto err_spin_hi;
-
-	ctx_hi = kernel_context(gt->i915);
-	if (!ctx_hi)
-		goto err_spin_lo;
-	ctx_hi->sched.priority =
-		I915_USER_PRIORITY(I915_CONTEXT_MAX_USER_PRIORITY);
-
-	ctx_lo = kernel_context(gt->i915);
-	if (!ctx_lo)
-		goto err_ctx_hi;
-	ctx_lo->sched.priority =
-		I915_USER_PRIORITY(I915_CONTEXT_MIN_USER_PRIORITY);
-
-	for_each_engine(engine, gt, id) {
-		unsigned long heartbeat;
-		struct i915_request *rq;
-
-		if (!intel_engine_has_preemption(engine))
-			continue;
-
-		engine_heartbeat_disable(engine, &heartbeat);
-
-		rq = spinner_create_request(&spin_lo, ctx_lo, engine,
-					    MI_ARB_CHECK);
-		if (IS_ERR(rq)) {
-			err = PTR_ERR(rq);
-			engine_heartbeat_enable(engine, heartbeat);
-			goto err_ctx_lo;
-		}
-
-		i915_request_add(rq);
-		if (!igt_wait_for_spinner(&spin_lo, rq)) {
-			GEM_TRACE("lo spinner failed to start\n");
-			GEM_TRACE_DUMP();
-			intel_gt_set_wedged(gt);
-			err = -EIO;
-			engine_heartbeat_enable(engine, heartbeat);
-			goto err_ctx_lo;
-		}
-
-		rq = spinner_create_request(&spin_hi, ctx_hi, engine,
-					    MI_ARB_CHECK);
-		if (IS_ERR(rq)) {
-			igt_spinner_end(&spin_lo);
-			engine_heartbeat_enable(engine, heartbeat);
-			err = PTR_ERR(rq);
-			goto err_ctx_lo;
-		}
-
-		init_completion(&engine->execlists.preempt_hang.completion);
-		engine->execlists.preempt_hang.inject_hang = true;
-
-		i915_request_add(rq);
-
-		if (!wait_for_completion_timeout(&engine->execlists.preempt_hang.completion,
-						 HZ / 10)) {
-			pr_err("Preemption did not occur within timeout!");
-			GEM_TRACE_DUMP();
-			intel_gt_set_wedged(gt);
-			engine_heartbeat_enable(engine, heartbeat);
-			err = -EIO;
-			goto err_ctx_lo;
-		}
-
-		set_bit(I915_RESET_ENGINE + id, &gt->reset.flags);
-		intel_engine_reset(engine, NULL);
-		clear_bit(I915_RESET_ENGINE + id, &gt->reset.flags);
-
-		engine->execlists.preempt_hang.inject_hang = false;
-
-		if (!igt_wait_for_spinner(&spin_hi, rq)) {
-			GEM_TRACE("hi spinner failed to start\n");
-			GEM_TRACE_DUMP();
-			intel_gt_set_wedged(gt);
-			engine_heartbeat_enable(engine, heartbeat);
-			err = -EIO;
-			goto err_ctx_lo;
-		}
-
-		igt_spinner_end(&spin_hi);
-		igt_spinner_end(&spin_lo);
-		engine_heartbeat_enable(engine, heartbeat);
-
-		if (igt_flush_test(gt->i915)) {
-			err = -EIO;
-			goto err_ctx_lo;
-		}
-	}
-
-	err = 0;
-err_ctx_lo:
-	kernel_context_close(ctx_lo);
-err_ctx_hi:
-	kernel_context_close(ctx_hi);
-err_spin_lo:
-	igt_spinner_fini(&spin_lo);
-err_spin_hi:
-	igt_spinner_fini(&spin_hi);
-	return err;
-}
-
 static int live_preempt_timeout(void *arg)
 {
 	struct intel_gt *gt = arg;
@@ -3750,7 +3629,6 @@ int intel_execlists_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_suppress_wait_preempt),
 		SUBTEST(live_chain_preempt),
 		SUBTEST(live_preempt_gang),
-		SUBTEST(live_preempt_hang),
 		SUBTEST(live_preempt_timeout),
 		SUBTEST(live_preempt_smoke),
 		SUBTEST(live_virtual_engine),

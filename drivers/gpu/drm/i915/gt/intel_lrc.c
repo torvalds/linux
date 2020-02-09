@@ -2296,11 +2296,12 @@ static void process_csb(struct intel_engine_cs *engine)
 		if (promote) {
 			struct i915_request * const *old = execlists->active;
 
+			GEM_BUG_ON(!assert_pending_valid(execlists, "promote"));
+
+			ring_set_paused(engine, 0);
+
 			/* Point active to the new ELSP; prevent overwriting */
 			WRITE_ONCE(execlists->active, execlists->pending);
-
-			if (!inject_preempt_hang(execlists))
-				ring_set_paused(engine, 0);
 
 			/* cancel old inflight, prepare for switch */
 			trace_ports(execlists, "preempted", old);
@@ -2308,7 +2309,6 @@ static void process_csb(struct intel_engine_cs *engine)
 				execlists_schedule_out(*old++);
 
 			/* switch pending to inflight */
-			GEM_BUG_ON(!assert_pending_valid(execlists, "promote"));
 			WRITE_ONCE(execlists->active,
 				   memcpy(execlists->inflight,
 					  execlists->pending,

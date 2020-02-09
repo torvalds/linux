@@ -127,7 +127,6 @@ DECLARE_EWMA(_engine_latency, 6, 4)
 struct st_preempt_hang {
 	struct completion completion;
 	unsigned int count;
-	bool inject_hang;
 };
 
 /**

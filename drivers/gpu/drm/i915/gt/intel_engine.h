@@ -305,26 +305,6 @@ intel_engine_find_active_request(struct intel_engine_cs *engine);
 
 u32 intel_engine_context_size(struct intel_gt *gt, u8 class);
 
-#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
-
-static inline bool inject_preempt_hang(struct intel_engine_execlists *execlists)
-{
-	if (!execlists->preempt_hang.inject_hang)
-		return false;
-
-	complete(&execlists->preempt_hang.completion);
-	return true;
-}
-
-#else
-
-static inline bool inject_preempt_hang(struct intel_engine_execlists *execlists)
-{
-	return false;
-}
-
-#endif
-
 void intel_engine_init_active(struct intel_engine_cs *engine,
 			      unsigned int subclass);
 #define ENGINE_PHYSICAL	0
