@@ -606,7 +606,6 @@ static int live_hwsp_alternate(void *arg)
 
 			tl = checked_intel_timeline_create(gt);
 			if (IS_ERR(tl)) {
-				intel_engine_pm_put(engine);
 				err = PTR_ERR(tl);
 				goto out;
 			}
