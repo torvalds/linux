@@ -264,8 +264,12 @@ int mt7615_init_debugfs(struct mt7615_dev *dev)
 	if (!dir)
 		return -ENOMEM;
 
-	debugfs_create_devm_seqfile(dev->mt76.dev, "queues", dir,
-				    mt7615_queues_read);
+	if (is_mt7615(&dev->mt76))
+		debugfs_create_devm_seqfile(dev->mt76.dev, "queues", dir,
+					    mt7615_queues_read);
+	else
+		debugfs_create_devm_seqfile(dev->mt76.dev, "queues", dir,
+					    mt76_queues_read);
 	debugfs_create_devm_seqfile(dev->mt76.dev, "acq", dir,
 				    mt7615_queues_acq);
 	debugfs_create_file("ampdu_stat", 0400, dir, dev, &fops_ampdu_stat);

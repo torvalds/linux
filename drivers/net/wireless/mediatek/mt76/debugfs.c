@@ -30,7 +30,7 @@ int mt76_queues_read(struct seq_file *s, void *data)
 	struct mt76_dev *dev = dev_get_drvdata(s->private);
 	int i;
 
-	for (i = 0; i < __MT_TXQ_MAX; i++) {
+	for (i = 0; i < ARRAY_SIZE(dev->q_tx); i++) {
 		struct mt76_sw_queue *q = &dev->q_tx[i];
 
 		if (!q->q)
