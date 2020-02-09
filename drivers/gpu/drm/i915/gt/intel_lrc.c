@@ -2374,10 +2374,10 @@ static void __execlists_hold(struct i915_request *rq)
 		if (i915_request_is_active(rq))
 			__i915_request_unsubmit(rq);
 
-		RQ_TRACE(rq, "on hold\n");
 		clear_bit(I915_FENCE_FLAG_PQUEUE, &rq->fence.flags);
 		list_move_tail(&rq->sched.link, &rq->engine->active.hold);
 		i915_request_set_hold(rq);
+		RQ_TRACE(rq, "on hold\n");
 
 		for_each_waiter(p, rq) {
 			struct i915_request *w =
@@ -2393,7 +2393,7 @@ static void __execlists_hold(struct i915_request *rq)
 			if (i915_request_completed(w))
 				continue;
 
-			if (i915_request_on_hold(rq))
+			if (i915_request_on_hold(w))
 				continue;
 
 			list_move_tail(&w->sched.link, &list);
@@ -2451,6 +2451,7 @@ static bool execlists_hold(struct intel_engine_cs *engine,
 	GEM_BUG_ON(i915_request_on_hold(rq));
 	GEM_BUG_ON(rq->engine != engine);
 	__execlists_hold(rq);
+	GEM_BUG_ON(list_empty(&engine->active.hold));
 
 unlock:
 	spin_unlock_irq(&engine->active.lock);
@@ -2486,6 +2487,8 @@ static void __execlists_unhold(struct i915_request *rq)
 	do {
 		struct i915_dependency *p;
 
+		RQ_TRACE(rq, "hold release\n");
+
 		GEM_BUG_ON(!i915_request_on_hold(rq));
 		GEM_BUG_ON(!i915_sw_fence_signaled(&rq->submit));
 
@@ -2494,7 +2497,6 @@ static void __execlists_unhold(struct i915_request *rq)
 			       i915_sched_lookup_priolist(rq->engine,
 							  rq_prio(rq)));
 		set_bit(I915_FENCE_FLAG_PQUEUE, &rq->fence.flags);
-		RQ_TRACE(rq, "hold release\n");
 
 		/* Also release any children on this engine that are ready */
 		for_each_waiter(p, rq) {
@@ -2504,11 +2506,11 @@ static void __execlists_unhold(struct i915_request *rq)
 			if (w->engine != rq->engine)
 				continue;
 
-			if (!i915_request_on_hold(rq))
+			if (!i915_request_on_hold(w))
 				continue;
 
 			/* Check that no other parents are also on hold */
-			if (hold_request(rq))
+			if (hold_request(w))
 				continue;
 
 			list_move_tail(&w->sched.link, &list);
@@ -2806,6 +2808,7 @@ static void execlists_submit_request(struct i915_request *request)
 	spin_lock_irqsave(&engine->active.lock, flags);
 
 	if (unlikely(ancestor_on_hold(engine, request))) {
+		RQ_TRACE(request, "ancestor on hold\n");
 		list_add_tail(&request->sched.link, &engine->active.hold);
 		i915_request_set_hold(request);
 	} else {
