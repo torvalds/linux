@@ -2444,8 +2444,8 @@ static u64 inherit_vpe_l1_table_from_rd(cpumask_t **mask)
 static bool allocate_vpe_l2_table(int cpu, u32 id)
 {
 	void __iomem *base = gic_data_rdist_cpu(cpu)->rd_base;
-	u64 val, gpsz, npg;
-	unsigned int psz, esz, idx;
+	unsigned int psz, esz, idx, npg, gpsz;
+	u64 val;
 	struct page *page;
 	__le64 *table;
 
