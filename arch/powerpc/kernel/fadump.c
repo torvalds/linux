@@ -1455,7 +1455,6 @@ DEFINE_SHOW_ATTRIBUTE(fadump_region);
 
 static void fadump_init_files(void)
 {
-	struct dentry *debugfs_file;
 	int rc = 0;
 
 	fadump_kobj = kobject_create_and_add("fadump", kernel_kobj);
@@ -1463,12 +1462,9 @@ static void fadump_init_files(void)
 		pr_err("failed to create fadump kobject\n");
 		return;
 	}
-	debugfs_file = debugfs_create_file("fadump_region", 0444,
-					powerpc_debugfs_root, NULL,
-					&fadump_region_fops);
-	if (!debugfs_file)
-		printk(KERN_ERR "fadump: unable to create debugfs file"
-				" fadump_region\n");
+
+	debugfs_create_file("fadump_region", 0444, powerpc_debugfs_root, NULL,
+			    &fadump_region_fops);
 
 	if (fw_dump.dump_active) {
 		rc = sysfs_create_file(fadump_kobj, &release_attr.attr);
