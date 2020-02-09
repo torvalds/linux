@@ -321,7 +321,7 @@ static umode_t ili210x_calibrate_visible(struct kobject *kobj,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct ili210x *priv = i2c_get_clientdata(client);
 
-	return priv->chip->has_calibrate_reg;
+	return priv->chip->has_calibrate_reg ? attr->mode : 0;
 }
 
 static const struct attribute_group ili210x_attr_group = {
