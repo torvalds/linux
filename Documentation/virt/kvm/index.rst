@@ -13,6 +13,7 @@ KVM
    halt-polling
    hypercalls
    locking
+   mmu
    msr
    vcpu-requests
 
