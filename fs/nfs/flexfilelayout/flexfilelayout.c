@@ -1297,21 +1297,23 @@ static void ff_layout_io_track_ds_error(struct pnfs_layout_segment *lseg,
 		}
 	}
 
-	switch (status) {
-	case NFS4ERR_DELAY:
-	case NFS4ERR_GRACE:
-		return;
-	default:
-		break;
-	}
-
 	mirror = FF_LAYOUT_COMP(lseg, idx);
 	err = ff_layout_track_ds_error(FF_LAYOUT_FROM_HDR(lseg->pls_layout),
 				       mirror, offset, length, status, opnum,
 				       GFP_NOIO);
-	if (status == NFS4ERR_NXIO)
+
+	switch (status) {
+	case NFS4ERR_DELAY:
+	case NFS4ERR_GRACE:
+		break;
+	case NFS4ERR_NXIO:
 		ff_layout_mark_ds_unreachable(lseg, idx);
-	pnfs_error_mark_layout_for_return(lseg->pls_layout->plh_inode, lseg);
+		/* Fallthrough */
+	default:
+		pnfs_error_mark_layout_for_return(lseg->pls_layout->plh_inode,
+						  lseg);
+	}
+
 	dprintk("%s: err %d op %d status %u\n", __func__, err, opnum, status);
 }
 
