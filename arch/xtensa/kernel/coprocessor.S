@@ -58,6 +58,8 @@
 	.endif;								\
 	.long THREAD_XTREGS_CP##x
 
+	__XTENSA_HANDLER
+
 	SAVE_CP_REGS(0)
 	SAVE_CP_REGS(1)
 	SAVE_CP_REGS(2)
@@ -76,7 +78,6 @@
 	LOAD_CP_REGS(6)
 	LOAD_CP_REGS(7)
 
-	.section ".rodata", "a"
 	.align 4
 .Lsave_cp_regs_jump_table:
 	SAVE_CP_REGS_TAB(0)
@@ -97,8 +98,6 @@
 	LOAD_CP_REGS_TAB(5)
 	LOAD_CP_REGS_TAB(6)
 	LOAD_CP_REGS_TAB(7)
-
-	.previous
 
 /*
  * coprocessor_flush(struct thread_info*, index)
@@ -144,13 +143,6 @@ ENDPROC(coprocessor_flush)
  *   PT_DEPC >= VALID_DOUBLE_EXCEPTION_ADDRESS: double exception, DEPC
  *	     <  VALID_DOUBLE_EXCEPTION_ADDRESS: regular exception
  */
-
-ENTRY(fast_coprocessor_double)
-
-	wsr	a0, excsave1
-	call0	unrecoverable_exception
-
-ENDPROC(fast_coprocessor_double)
 
 ENTRY(fast_coprocessor)
 

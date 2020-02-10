@@ -77,6 +77,22 @@ static struct cache_head *sunrpc_cache_find_rcu(struct cache_detail *detail,
 	return NULL;
 }
 
+static void sunrpc_begin_cache_remove_entry(struct cache_head *ch,
+					    struct cache_detail *cd)
+{
+	/* Must be called under cd->hash_lock */
+	hlist_del_init_rcu(&ch->cache_list);
+	set_bit(CACHE_CLEANED, &ch->flags);
+	cd->entries --;
+}
+
+static void sunrpc_end_cache_remove_entry(struct cache_head *ch,
+					  struct cache_detail *cd)
+{
+	cache_fresh_unlocked(ch, cd);
+	cache_put(ch, cd);
+}
+
 static struct cache_head *sunrpc_cache_add_entry(struct cache_detail *detail,
 						 struct cache_head *key,
 						 int hash)
@@ -100,8 +116,7 @@ static struct cache_head *sunrpc_cache_add_entry(struct cache_detail *detail,
 	hlist_for_each_entry_rcu(tmp, head, cache_list) {
 		if (detail->match(tmp, key)) {
 			if (cache_is_expired(detail, tmp)) {
-				hlist_del_init_rcu(&tmp->cache_list);
-				detail->entries --;
+				sunrpc_begin_cache_remove_entry(tmp, detail);
 				freeme = tmp;
 				break;
 			}
@@ -117,10 +132,8 @@ static struct cache_head *sunrpc_cache_add_entry(struct cache_detail *detail,
 	cache_get(new);
 	spin_unlock(&detail->hash_lock);
 
-	if (freeme) {
-		cache_fresh_unlocked(freeme, detail);
-		cache_put(freeme, detail);
-	}
+	if (freeme)
+		sunrpc_end_cache_remove_entry(freeme, detail);
 	return new;
 }
 
@@ -454,8 +467,7 @@ static int cache_clean(void)
 			if (!cache_is_expired(current_detail, ch))
 				continue;
 
-			hlist_del_init_rcu(&ch->cache_list);
-			current_detail->entries--;
+			sunrpc_begin_cache_remove_entry(ch, current_detail);
 			rv = 1;
 			break;
 		}
@@ -465,11 +477,8 @@ static int cache_clean(void)
 		if (!ch)
 			current_index ++;
 		spin_unlock(&cache_list_lock);
-		if (ch) {
-			set_bit(CACHE_CLEANED, &ch->flags);
-			cache_fresh_unlocked(ch, d);
-			cache_put(ch, d);
-		}
+		if (ch)
+			sunrpc_end_cache_remove_entry(ch, d);
 	} else
 		spin_unlock(&cache_list_lock);
 
@@ -525,13 +534,9 @@ void cache_purge(struct cache_detail *detail)
 	for (i = 0; i < detail->hash_size; i++) {
 		head = &detail->hash_table[i];
 		hlist_for_each_entry_safe(ch, tmp, head, cache_list) {
-			hlist_del_init_rcu(&ch->cache_list);
-			detail->entries--;
-
-			set_bit(CACHE_CLEANED, &ch->flags);
+			sunrpc_begin_cache_remove_entry(ch, detail);
 			spin_unlock(&detail->hash_lock);
-			cache_fresh_unlocked(ch, detail);
-			cache_put(ch, detail);
+			sunrpc_end_cache_remove_entry(ch, detail);
 			spin_lock(&detail->hash_lock);
 		}
 	}
@@ -1885,10 +1890,9 @@ void sunrpc_cache_unhash(struct cache_detail *cd, struct cache_head *h)
 {
 	spin_lock(&cd->hash_lock);
 	if (!hlist_unhashed(&h->cache_list)){
-		hlist_del_init_rcu(&h->cache_list);
-		cd->entries--;
+		sunrpc_begin_cache_remove_entry(h, cd);
 		spin_unlock(&cd->hash_lock);
-		cache_put(h, cd);
+		sunrpc_end_cache_remove_entry(h, cd);
 	} else
 		spin_unlock(&cd->hash_lock);
 }

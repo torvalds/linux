@@ -1266,9 +1266,10 @@ static int ff_layout_async_handle_error(struct rpc_task *task,
 
 static void ff_layout_io_track_ds_error(struct pnfs_layout_segment *lseg,
 					int idx, u64 offset, u64 length,
-					u32 status, int opnum, int error)
+					u32 *op_status, int opnum, int error)
 {
 	struct nfs4_ff_layout_mirror *mirror;
+	u32 status = *op_status;
 	int err;
 
 	if (status == 0) {
@@ -1286,10 +1287,10 @@ static void ff_layout_io_track_ds_error(struct pnfs_layout_segment *lseg,
 		case -ENOBUFS:
 		case -EPIPE:
 		case -EPERM:
-			status = NFS4ERR_NXIO;
+			*op_status = status = NFS4ERR_NXIO;
 			break;
 		case -EACCES:
-			status = NFS4ERR_ACCESS;
+			*op_status = status = NFS4ERR_ACCESS;
 			break;
 		default:
 			return;
@@ -1321,16 +1322,19 @@ static int ff_layout_read_done_cb(struct rpc_task *task,
 	int new_idx = hdr->pgio_mirror_idx;
 	int err;
 
-	trace_nfs4_pnfs_read(hdr, task->tk_status);
-	if (task->tk_status < 0)
+	if (task->tk_status < 0) {
 		ff_layout_io_track_ds_error(hdr->lseg, hdr->pgio_mirror_idx,
 					    hdr->args.offset, hdr->args.count,
-					    hdr->res.op_status, OP_READ,
+					    &hdr->res.op_status, OP_READ,
 					    task->tk_status);
+		trace_ff_layout_read_error(hdr);
+	}
+
 	err = ff_layout_async_handle_error(task, hdr->args.context->state,
 					   hdr->ds_clp, hdr->lseg,
 					   hdr->pgio_mirror_idx);
 
+	trace_nfs4_pnfs_read(hdr, err);
 	clear_bit(NFS_IOHDR_RESEND_PNFS, &hdr->flags);
 	clear_bit(NFS_IOHDR_RESEND_MDS, &hdr->flags);
 	switch (err) {
@@ -1494,16 +1498,19 @@ static int ff_layout_write_done_cb(struct rpc_task *task,
 	loff_t end_offs = 0;
 	int err;
 
-	trace_nfs4_pnfs_write(hdr, task->tk_status);
-	if (task->tk_status < 0)
+	if (task->tk_status < 0) {
 		ff_layout_io_track_ds_error(hdr->lseg, hdr->pgio_mirror_idx,
 					    hdr->args.offset, hdr->args.count,
-					    hdr->res.op_status, OP_WRITE,
+					    &hdr->res.op_status, OP_WRITE,
 					    task->tk_status);
+		trace_ff_layout_write_error(hdr);
+	}
+
 	err = ff_layout_async_handle_error(task, hdr->args.context->state,
 					   hdr->ds_clp, hdr->lseg,
 					   hdr->pgio_mirror_idx);
 
+	trace_nfs4_pnfs_write(hdr, err);
 	clear_bit(NFS_IOHDR_RESEND_PNFS, &hdr->flags);
 	clear_bit(NFS_IOHDR_RESEND_MDS, &hdr->flags);
 	switch (err) {
@@ -1537,15 +1544,18 @@ static int ff_layout_commit_done_cb(struct rpc_task *task,
 {
 	int err;
 
-	trace_nfs4_pnfs_commit_ds(data, task->tk_status);
-	if (task->tk_status < 0)
+	if (task->tk_status < 0) {
 		ff_layout_io_track_ds_error(data->lseg, data->ds_commit_index,
 					    data->args.offset, data->args.count,
-					    data->res.op_status, OP_COMMIT,
+					    &data->res.op_status, OP_COMMIT,
 					    task->tk_status);
+		trace_ff_layout_commit_error(data);
+	}
+
 	err = ff_layout_async_handle_error(task, NULL, data->ds_clp,
 					   data->lseg, data->ds_commit_index);
 
+	trace_nfs4_pnfs_commit_ds(data, err);
 	switch (err) {
 	case -NFS4ERR_RESET_TO_PNFS:
 		pnfs_generic_prepare_to_resend_writes(data);

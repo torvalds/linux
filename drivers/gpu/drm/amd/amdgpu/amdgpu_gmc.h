@@ -60,11 +60,6 @@
  */
 #define AMDGPU_GMC_FAULT_TIMEOUT	5000ULL
 
-/*
- * Default stolen memory size, 1024 * 768 * 4
- */
-#define AMDGPU_STOLEN_BIST_TRAINING_DEFAULT_SIZE	0x300000ULL
-
 struct firmware;
 
 /*

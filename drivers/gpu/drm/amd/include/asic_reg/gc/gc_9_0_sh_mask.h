@@ -2060,7 +2060,8 @@
 
 // addressBlock: gc_sqdec
 //SQ_CONFIG
-#define SQ_CONFIG__UNUSED__SHIFT                                                                              0x0
+#define SQ_CONFIG__DISABLE_BARRIER_WAITCNT__SHIFT                                                             0x0
+#define SQ_CONFIG__UNUSED__SHIFT                                                                              0x1
 #define SQ_CONFIG__OVERRIDE_ALU_BUSY__SHIFT                                                                   0x7
 #define SQ_CONFIG__DEBUG_EN__SHIFT                                                                            0x8
 #define SQ_CONFIG__DEBUG_SINGLE_MEMOP__SHIFT                                                                  0x9
@@ -2079,7 +2080,8 @@
 #define SQ_CONFIG__DISABLE_SP_REDUNDANT_THREAD_GATING__SHIFT                                                  0x1d
 #define SQ_CONFIG__DISABLE_FLAT_SOFT_CLAUSE__SHIFT                                                            0x1e
 #define SQ_CONFIG__DISABLE_MIMG_SOFT_CLAUSE__SHIFT                                                            0x1f
-#define SQ_CONFIG__UNUSED_MASK                                                                                0x0000007FL
+#define SQ_CONFIG__DISABLE_BARRIER_WAITCNT_MASK                                                               0x00000001L
+#define SQ_CONFIG__UNUSED_MASK                                                                                0x0000007EL
 #define SQ_CONFIG__OVERRIDE_ALU_BUSY_MASK                                                                     0x00000080L
 #define SQ_CONFIG__DEBUG_EN_MASK                                                                              0x00000100L
 #define SQ_CONFIG__DEBUG_SINGLE_MEMOP_MASK                                                                    0x00000200L

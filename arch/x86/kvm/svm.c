@@ -387,6 +387,8 @@ static u8 rsm_ins_bytes[] = "\x0f\xaa";
 static void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0);
 static void svm_flush_tlb(struct kvm_vcpu *vcpu, bool invalidate_gpa);
 static void svm_complete_interrupts(struct vcpu_svm *svm);
+static void svm_toggle_avic_for_irq_window(struct kvm_vcpu *vcpu, bool activate);
+static inline void avic_post_state_restore(struct kvm_vcpu *vcpu);
 
 static int nested_svm_exit_handled(struct vcpu_svm *svm);
 static int nested_svm_intercept(struct vcpu_svm *svm);
@@ -1545,7 +1547,10 @@ static void avic_init_vmcb(struct vcpu_svm *svm)
 	vmcb->control.avic_logical_id = lpa & AVIC_HPA_MASK;
 	vmcb->control.avic_physical_id = ppa & AVIC_HPA_MASK;
 	vmcb->control.avic_physical_id |= AVIC_MAX_PHYSICAL_ID_COUNT;
-	vmcb->control.int_ctl |= AVIC_ENABLE_MASK;
+	if (kvm_apicv_activated(svm->vcpu.kvm))
+		vmcb->control.int_ctl |= AVIC_ENABLE_MASK;
+	else
+		vmcb->control.int_ctl &= ~AVIC_ENABLE_MASK;
 }
 
 static void init_vmcb(struct vcpu_svm *svm)
@@ -1729,23 +1734,28 @@ static u64 *avic_get_physical_id_entry(struct kvm_vcpu *vcpu,
  * field of the VMCB. Therefore, we set up the
  * APIC_ACCESS_PAGE_PRIVATE_MEMSLOT (4KB) here.
  */
-static int avic_init_access_page(struct kvm_vcpu *vcpu)
+static int avic_update_access_page(struct kvm *kvm, bool activate)
 {
-	struct kvm *kvm = vcpu->kvm;
 	int ret = 0;
 
 	mutex_lock(&kvm->slots_lock);
-	if (kvm->arch.apic_access_page_done)
+	/*
+	 * During kvm_destroy_vm(), kvm_pit_set_reinject() could trigger
+	 * APICv mode change, which update APIC_ACCESS_PAGE_PRIVATE_MEMSLOT
+	 * memory region. So, we need to ensure that kvm->mm == current->mm.
+	 */
+	if ((kvm->arch.apic_access_page_done == activate) ||
+	    (kvm->mm != current->mm))
 		goto out;
 
 	ret = __x86_set_memory_region(kvm,
 				      APIC_ACCESS_PAGE_PRIVATE_MEMSLOT,
 				      APIC_DEFAULT_PHYS_BASE,
-				      PAGE_SIZE);
+				      activate ? PAGE_SIZE : 0);
 	if (ret)
 		goto out;
 
-	kvm->arch.apic_access_page_done = true;
+	kvm->arch.apic_access_page_done = activate;
 out:
 	mutex_unlock(&kvm->slots_lock);
 	return ret;
@@ -1753,20 +1763,23 @@ out:
 
 static int avic_init_backing_page(struct kvm_vcpu *vcpu)
 {
-	int ret;
 	u64 *entry, new_entry;
 	int id = vcpu->vcpu_id;
 	struct vcpu_svm *svm = to_svm(vcpu);
-
-	ret = avic_init_access_page(vcpu);
-	if (ret)
-		return ret;
 
 	if (id >= AVIC_MAX_PHYSICAL_ID_COUNT)
 		return -EINVAL;
 
 	if (!svm->vcpu.arch.apic->regs)
 		return -EINVAL;
+
+	if (kvm_apicv_activated(vcpu->kvm)) {
+		int ret;
+
+		ret = avic_update_access_page(vcpu->kvm, true);
+		if (ret)
+			return ret;
+	}
 
 	svm->avic_backing_page = virt_to_page(svm->vcpu.arch.apic->regs);
 
@@ -2052,6 +2065,18 @@ free_avic:
 	return err;
 }
 
+static int svm_vm_init(struct kvm *kvm)
+{
+	if (avic) {
+		int ret = avic_vm_init(kvm);
+		if (ret)
+			return ret;
+	}
+
+	kvm_apicv_init(kvm, avic);
+	return 0;
+}
+
 static inline int
 avic_update_iommu_vcpu_affinity(struct kvm_vcpu *vcpu, int cpu, bool r)
 {
@@ -2223,7 +2248,8 @@ static int svm_create_vcpu(struct kvm_vcpu *vcpu)
 	/* We initialize this flag to true to make sure that the is_running
 	 * bit would be set the first time the vcpu is loaded.
 	 */
-	svm->avic_is_running = true;
+	if (irqchip_in_kernel(vcpu->kvm) && kvm_apicv_activated(vcpu->kvm))
+		svm->avic_is_running = true;
 
 	svm->nested.hsave = page_address(hsave_page);
 
@@ -2348,6 +2374,8 @@ static void svm_vcpu_blocking(struct kvm_vcpu *vcpu)
 
 static void svm_vcpu_unblocking(struct kvm_vcpu *vcpu)
 {
+	if (kvm_check_request(KVM_REQ_APICV_UPDATE, vcpu))
+		kvm_vcpu_update_apicv(vcpu);
 	avic_set_running(vcpu, true);
 }
 
@@ -4197,6 +4225,8 @@ static int svm_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		break;
 	case MSR_IA32_SPEC_CTRL:
 		if (!msr_info->host_initiated &&
+		    !guest_cpuid_has(vcpu, X86_FEATURE_SPEC_CTRL) &&
+		    !guest_cpuid_has(vcpu, X86_FEATURE_AMD_STIBP) &&
 		    !guest_cpuid_has(vcpu, X86_FEATURE_AMD_IBRS) &&
 		    !guest_cpuid_has(vcpu, X86_FEATURE_AMD_SSBD))
 			return 1;
@@ -4282,6 +4312,8 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 		break;
 	case MSR_IA32_SPEC_CTRL:
 		if (!msr->host_initiated &&
+		    !guest_cpuid_has(vcpu, X86_FEATURE_SPEC_CTRL) &&
+		    !guest_cpuid_has(vcpu, X86_FEATURE_AMD_STIBP) &&
 		    !guest_cpuid_has(vcpu, X86_FEATURE_AMD_IBRS) &&
 		    !guest_cpuid_has(vcpu, X86_FEATURE_AMD_SSBD))
 			return 1;
@@ -4440,6 +4472,14 @@ static int interrupt_window_interception(struct vcpu_svm *svm)
 {
 	kvm_make_request(KVM_REQ_EVENT, &svm->vcpu);
 	svm_clear_vintr(svm);
+
+	/*
+	 * For AVIC, the only reason to end up here is ExtINTs.
+	 * In this case AVIC was temporarily disabled for
+	 * requesting the IRQ window and we have to re-enable it.
+	 */
+	svm_toggle_avic_for_irq_window(&svm->vcpu, true);
+
 	svm->vmcb->control.int_ctl &= ~V_IRQ_MASK;
 	mark_dirty(svm->vmcb, VMCB_INTR);
 	++svm->vcpu.stat.irq_window_exits;
@@ -5135,11 +5175,6 @@ static void svm_set_virtual_apic_mode(struct kvm_vcpu *vcpu)
 	return;
 }
 
-static bool svm_get_enable_apicv(struct kvm *kvm)
-{
-	return avic && irqchip_split(kvm);
-}
-
 static void svm_hwapic_irr_update(struct kvm_vcpu *vcpu, int max_irr)
 {
 }
@@ -5148,17 +5183,71 @@ static void svm_hwapic_isr_update(struct kvm_vcpu *vcpu, int max_isr)
 {
 }
 
-/* Note: Currently only used by Hyper-V. */
+static void svm_toggle_avic_for_irq_window(struct kvm_vcpu *vcpu, bool activate)
+{
+	if (!avic || !lapic_in_kernel(vcpu))
+		return;
+
+	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
+	kvm_request_apicv_update(vcpu->kvm, activate,
+				 APICV_INHIBIT_REASON_IRQWIN);
+	vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
+}
+
+static int svm_set_pi_irte_mode(struct kvm_vcpu *vcpu, bool activate)
+{
+	int ret = 0;
+	unsigned long flags;
+	struct amd_svm_iommu_ir *ir;
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	if (!kvm_arch_has_assigned_device(vcpu->kvm))
+		return 0;
+
+	/*
+	 * Here, we go through the per-vcpu ir_list to update all existing
+	 * interrupt remapping table entry targeting this vcpu.
+	 */
+	spin_lock_irqsave(&svm->ir_list_lock, flags);
+
+	if (list_empty(&svm->ir_list))
+		goto out;
+
+	list_for_each_entry(ir, &svm->ir_list, node) {
+		if (activate)
+			ret = amd_iommu_activate_guest_mode(ir->data);
+		else
+			ret = amd_iommu_deactivate_guest_mode(ir->data);
+		if (ret)
+			break;
+	}
+out:
+	spin_unlock_irqrestore(&svm->ir_list_lock, flags);
+	return ret;
+}
+
 static void svm_refresh_apicv_exec_ctrl(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	struct vmcb *vmcb = svm->vmcb;
+	bool activated = kvm_vcpu_apicv_active(vcpu);
 
-	if (kvm_vcpu_apicv_active(vcpu))
+	if (activated) {
+		/**
+		 * During AVIC temporary deactivation, guest could update
+		 * APIC ID, DFR and LDR registers, which would not be trapped
+		 * by avic_unaccelerated_access_interception(). In this case,
+		 * we need to check and update the AVIC logical APIC ID table
+		 * accordingly before re-activating.
+		 */
+		avic_post_state_restore(vcpu);
 		vmcb->control.int_ctl |= AVIC_ENABLE_MASK;
-	else
+	} else {
 		vmcb->control.int_ctl &= ~AVIC_ENABLE_MASK;
+	}
 	mark_dirty(vmcb, VMCB_AVIC);
+
+	svm_set_pi_irte_mode(vcpu, activated);
 }
 
 static void svm_load_eoi_exitmap(struct kvm_vcpu *vcpu, u64 *eoi_exit_bitmap)
@@ -5445,9 +5534,6 @@ static void enable_irq_window(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
-	if (kvm_vcpu_apicv_active(vcpu))
-		return;
-
 	/*
 	 * In case GIF=0 we can't rely on the CPU to tell us when GIF becomes
 	 * 1, because that's a separate STGI/VMRUN intercept.  The next time we
@@ -5457,6 +5543,13 @@ static void enable_irq_window(struct kvm_vcpu *vcpu)
 	 * window under the assumption that the hardware will set the GIF.
 	 */
 	if ((vgif_enabled(svm) || gif_set(svm)) && nested_svm_intr(svm)) {
+		/*
+		 * IRQ window is not needed when AVIC is enabled,
+		 * unless we have pending ExtINT since it cannot be injected
+		 * via AVIC. In such case, we need to temporarily disable AVIC,
+		 * and fallback to injecting IRQ via V_IRQ.
+		 */
+		svm_toggle_avic_for_irq_window(vcpu, false);
 		svm_set_vintr(svm);
 		svm_inject_irq(svm, 0x0);
 	}
@@ -5929,6 +6022,14 @@ static void svm_cpuid_update(struct kvm_vcpu *vcpu)
 		return;
 
 	guest_cpuid_clear(vcpu, X86_FEATURE_X2APIC);
+
+	/*
+	 * Currently, AVIC does not work with nested virtualization.
+	 * So, we disable AVIC when cpuid for SVM is set in the L1 guest.
+	 */
+	if (nested && guest_cpuid_has(vcpu, X86_FEATURE_SVM))
+		kvm_request_apicv_update(vcpu->kvm, false,
+					 APICV_INHIBIT_REASON_NESTED);
 }
 
 #define F feature_bit
@@ -7257,6 +7358,22 @@ static bool svm_apic_init_signal_blocked(struct kvm_vcpu *vcpu)
 		   (svm->vmcb->control.intercept & (1ULL << INTERCEPT_INIT));
 }
 
+static bool svm_check_apicv_inhibit_reasons(ulong bit)
+{
+	ulong supported = BIT(APICV_INHIBIT_REASON_DISABLE) |
+			  BIT(APICV_INHIBIT_REASON_HYPERV) |
+			  BIT(APICV_INHIBIT_REASON_NESTED) |
+			  BIT(APICV_INHIBIT_REASON_IRQWIN) |
+			  BIT(APICV_INHIBIT_REASON_PIT_REINJ);
+
+	return supported & BIT(bit);
+}
+
+static void svm_pre_update_apicv_exec_ctrl(struct kvm *kvm, bool activate)
+{
+	avic_update_access_page(kvm, activate);
+}
+
 static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.cpu_has_kvm_support = has_svm,
 	.disabled_by_bios = is_disabled,
@@ -7274,7 +7391,7 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 
 	.vm_alloc = svm_vm_alloc,
 	.vm_free = svm_vm_free,
-	.vm_init = avic_vm_init,
+	.vm_init = svm_vm_init,
 	.vm_destroy = svm_vm_destroy,
 
 	.prepare_guest_switch = svm_prepare_guest_switch,
@@ -7331,8 +7448,9 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.enable_irq_window = enable_irq_window,
 	.update_cr8_intercept = update_cr8_intercept,
 	.set_virtual_apic_mode = svm_set_virtual_apic_mode,
-	.get_enable_apicv = svm_get_enable_apicv,
 	.refresh_apicv_exec_ctrl = svm_refresh_apicv_exec_ctrl,
+	.check_apicv_inhibit_reasons = svm_check_apicv_inhibit_reasons,
+	.pre_update_apicv_exec_ctrl = svm_pre_update_apicv_exec_ctrl,
 	.load_eoi_exitmap = svm_load_eoi_exitmap,
 	.hwapic_irr_update = svm_hwapic_irr_update,
 	.hwapic_isr_update = svm_hwapic_isr_update,

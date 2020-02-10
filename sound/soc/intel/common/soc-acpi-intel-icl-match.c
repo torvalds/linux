@@ -59,7 +59,7 @@ static const u64 rt1308_2_adr[] = {
 };
 
 static const u64 rt715_3_adr[] = {
-	0x000310025D715000
+	0x000310025D071500
 };
 
 static const struct snd_soc_acpi_link_adr icl_3_in_1_default[] = {

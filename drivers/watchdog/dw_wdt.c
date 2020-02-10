@@ -114,7 +114,15 @@ static int dw_wdt_set_timeout(struct watchdog_device *wdd, unsigned int top_s)
 	writel(top_val | top_val << WDOG_TIMEOUT_RANGE_TOPINIT_SHIFT,
 	       dw_wdt->regs + WDOG_TIMEOUT_RANGE_REG_OFFSET);
 
-	wdd->timeout = dw_wdt_top_in_seconds(dw_wdt, top_val);
+	/*
+	 * In case users set bigger timeout value than HW can support,
+	 * kernel(watchdog_dev.c) helps to feed watchdog before
+	 * wdd->max_hw_heartbeat_ms
+	 */
+	if (top_s * 1000 <= wdd->max_hw_heartbeat_ms)
+		wdd->timeout = dw_wdt_top_in_seconds(dw_wdt, top_val);
+	else
+		wdd->timeout = top_s;
 
 	return 0;
 }
@@ -135,6 +143,7 @@ static int dw_wdt_start(struct watchdog_device *wdd)
 	struct dw_wdt *dw_wdt = to_dw_wdt(wdd);
 
 	dw_wdt_set_timeout(wdd, wdd->timeout);
+	dw_wdt_ping(&dw_wdt->wdd);
 	dw_wdt_arm_system_reset(dw_wdt);
 
 	return 0;

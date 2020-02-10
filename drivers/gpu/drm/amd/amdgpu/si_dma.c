@@ -648,7 +648,7 @@ static int si_dma_set_clockgating_state(void *handle,
 	bool enable;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	enable = (state == AMD_CG_STATE_GATE) ? true : false;
+	enable = (state == AMD_CG_STATE_GATE);
 
 	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_SDMA_MGCG)) {
 		for (i = 0; i < adev->sdma.num_instances; i++) {

@@ -156,7 +156,7 @@ static int snd_pcm_channel_info_user(struct snd_pcm_substream *substream,
 #endif /* CONFIG_X86_X32 */
 
 struct compat_snd_pcm_status64 {
-	s32 state;
+	snd_pcm_state_t state;
 	u8 rsvd[4]; /* alignment */
 	s64 trigger_tstamp_sec;
 	s64 trigger_tstamp_nsec;
@@ -168,7 +168,7 @@ struct compat_snd_pcm_status64 {
 	u32 avail;
 	u32 avail_max;
 	u32 overrange;
-	s32 suspended_state;
+	snd_pcm_state_t suspended_state;
 	u32 audio_tstamp_data;
 	s64 audio_tstamp_sec;
 	s64 audio_tstamp_nsec;
@@ -376,13 +376,13 @@ static int snd_pcm_ioctl_xfern_compat(struct snd_pcm_substream *substream,
 #ifdef CONFIG_X86_X32
 /* X32 ABI has 64bit timespec and 64bit alignment */
 struct snd_pcm_mmap_status_x32 {
-	s32 state;
+	snd_pcm_state_t state;
 	s32 pad1;
 	u32 hw_ptr;
 	u32 pad2; /* alignment */
 	s64 tstamp_sec;
 	s64 tstamp_nsec;
-	s32 suspended_state;
+	snd_pcm_state_t suspended_state;
 	s32 pad3;
 	s64 audio_tstamp_sec;
 	s64 audio_tstamp_nsec;

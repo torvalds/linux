@@ -39,7 +39,7 @@
 #include "inc/hw/dmcu.h"
 #include "dml/display_mode_lib.h"
 
-#define DC_VER "3.2.68"
+#define DC_VER "3.2.69"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -425,6 +425,7 @@ struct dc_debug_options {
 	bool validate_dml_output;
 	bool enable_dmcub_surface_flip;
 	bool usbc_combo_phy_reset_wa;
+	bool disable_dsc;
 };
 
 struct dc_debug_data {

@@ -549,7 +549,7 @@ static const struct sdw_device_id rt715_id[] = {
 };
 MODULE_DEVICE_TABLE(sdw, rt715_id);
 
-static int rt715_dev_suspend(struct device *dev)
+static int __maybe_unused rt715_dev_suspend(struct device *dev)
 {
 	struct rt715_priv *rt715 = dev_get_drvdata(dev);
 
@@ -563,7 +563,7 @@ static int rt715_dev_suspend(struct device *dev)
 
 #define RT715_PROBE_TIMEOUT 2000
 
-static int rt715_dev_resume(struct device *dev)
+static int __maybe_unused rt715_dev_resume(struct device *dev)
 {
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
 	struct rt715_priv *rt715 = dev_get_drvdata(dev);

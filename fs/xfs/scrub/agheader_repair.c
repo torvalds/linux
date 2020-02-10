@@ -659,8 +659,6 @@ xrep_agfl(
 	error = xfs_alloc_read_agf(mp, sc->tp, sc->sa.agno, 0, &agf_bp);
 	if (error)
 		return error;
-	if (!agf_bp)
-		return -ENOMEM;
 
 	/*
 	 * Make sure we have the AGFL buffer, as scrub might have decided it
@@ -735,8 +733,6 @@ xrep_agi_find_btrees(
 	error = xfs_alloc_read_agf(mp, sc->tp, sc->sa.agno, 0, &agf_bp);
 	if (error)
 		return error;
-	if (!agf_bp)
-		return -ENOMEM;
 
 	/* Find the btree roots. */
 	error = xrep_find_ag_btree_roots(sc, agf_bp, fab, NULL);

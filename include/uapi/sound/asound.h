@@ -564,13 +564,13 @@ typedef char __pad_after_uframe[sizeof(__u64) - sizeof(snd_pcm_uframes_t)];
 #endif
 
 struct __snd_pcm_mmap_status64 {
-	__s32 state;			/* RO: state - SNDRV_PCM_STATE_XXXX */
+	snd_pcm_state_t state;		/* RO: state - SNDRV_PCM_STATE_XXXX */
 	__u32 pad1;			/* Needed for 64 bit alignment */
 	__pad_before_uframe __pad1;
 	snd_pcm_uframes_t hw_ptr;	/* RO: hw ptr (0...boundary-1) */
 	__pad_after_uframe __pad2;
 	struct __snd_timespec64 tstamp;	/* Timestamp */
-	__s32 suspended_state;		/* RO: suspended stream state */
+	snd_pcm_state_t suspended_state;/* RO: suspended stream state */
 	__u32 pad3;			/* Needed for 64 bit alignment */
 	struct __snd_timespec64 audio_tstamp; /* sample counter or wall clock */
 };

@@ -21,6 +21,7 @@
  */
 
 #include <linux/firmware.h>
+#include <linux/pci.h>
 
 #include "pp_debug.h"
 #include "amdgpu.h"
@@ -1137,6 +1138,23 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 		ret = smu_system_features_control(smu, true);
 		if (ret)
 			return ret;
+
+		if (adev->asic_type == CHIP_NAVI10) {
+			if ((adev->pdev->device == 0x731f && (adev->pdev->revision == 0xc2 ||
+							      adev->pdev->revision == 0xc3 ||
+							      adev->pdev->revision == 0xca ||
+							      adev->pdev->revision == 0xcb)) ||
+			    (adev->pdev->device == 0x66af && (adev->pdev->revision == 0xf3 ||
+							      adev->pdev->revision == 0xf4 ||
+							      adev->pdev->revision == 0xf5 ||
+							      adev->pdev->revision == 0xf6))) {
+				ret = smu_disable_umc_cdr_12gbps_workaround(smu);
+				if (ret) {
+					pr_err("Workaround failed to disable UMC CDR feature on 12Gbps SKU!\n");
+					return ret;
+				}
+			}
+		}
 	}
 	if (adev->asic_type != CHIP_ARCTURUS) {
 		ret = smu_notify_display_change(smu);

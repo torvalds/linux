@@ -381,7 +381,7 @@ static void apply_fixed_refresh(struct core_freesync *core_freesync,
 	bool update = false;
 	unsigned int max_render_time_in_us = in_out_vrr->max_duration_in_us;
 
-	//Compute the exit refresh rate and exit frame duration
+	/* Compute the exit refresh rate and exit frame duration */
 	unsigned int exit_refresh_rate_in_milli_hz = ((1000000000/max_render_time_in_us)
 			+ (1000*FIXED_REFRESH_EXIT_MARGIN_IN_HZ));
 	unsigned int exit_frame_duration_in_us = 1000000000/exit_refresh_rate_in_milli_hz;

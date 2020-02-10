@@ -52,8 +52,9 @@ enum drm_sched_priority {
  * @list: used to append this struct to the list of entities in the
  *        runqueue.
  * @rq: runqueue on which this entity is currently scheduled.
- * @sched_list: a list of drm_gpu_schedulers on which jobs from this entity can
- *              be scheduled
+ * @sched_list: A list of schedulers (drm_gpu_schedulers).
+ *              Jobs from this entity can be scheduled on any scheduler
+ *              on this list.
  * @num_sched_list: number of drm_gpu_schedulers in the sched_list.
  * @rq_lock: lock to modify the runqueue to which this entity belongs.
  * @job_queue: the list of jobs of this entity.

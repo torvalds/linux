@@ -983,7 +983,7 @@ static enum link_training_result perform_clock_recovery_sequence(
 				offset);
 
 		/* 2. update DPCD of the receiver*/
-		if (!retries_cr)
+		if (!retry_count)
 			/* EPR #361076 - write as a 5-byte burst,
 			 * but only for the 1-st iteration.*/
 			dpcd_set_lt_pattern_and_lane_settings(
@@ -3680,7 +3680,7 @@ static void set_crtc_test_pattern(struct dc_link *link,
 			struct pipe_ctx *odm_pipe;
 			enum controller_dp_color_space controller_color_space;
 			int opp_cnt = 1;
-			uint8_t count = 0;
+			int count;
 
 			switch (test_pattern_color_space) {
 			case DP_TEST_PATTERN_COLOR_SPACE_RGB:
@@ -3725,11 +3725,11 @@ static void set_crtc_test_pattern(struct dc_link *link,
 				width,
 				height);
 			/* wait for dpg to blank pixel data with test pattern */
-			for (count = 0; count < 1000; count++)
+			for (count = 0; count < 1000; count++) {
 				if (opp->funcs->dpg_is_blanked(opp))
 					break;
-				else
-					udelay(100);
+				udelay(100);
+			}
 		}
 	}
 	break;
@@ -3925,8 +3925,38 @@ bool dc_link_dp_set_test_pattern(
 					     sizeof(training_pattern));
 		}
 	} else {
-	/* CRTC Patterns */
+		enum dc_color_space color_space = COLOR_SPACE_UNKNOWN;
+
+		switch (test_pattern_color_space) {
+		case DP_TEST_PATTERN_COLOR_SPACE_RGB:
+			color_space = COLOR_SPACE_SRGB;
+			if (test_pattern == DP_TEST_PATTERN_COLOR_SQUARES_CEA)
+				color_space = COLOR_SPACE_SRGB_LIMITED;
+			break;
+
+		case DP_TEST_PATTERN_COLOR_SPACE_YCBCR601:
+			color_space = COLOR_SPACE_YCBCR601;
+			if (test_pattern == DP_TEST_PATTERN_COLOR_SQUARES_CEA)
+				color_space = COLOR_SPACE_YCBCR601_LIMITED;
+			break;
+		case DP_TEST_PATTERN_COLOR_SPACE_YCBCR709:
+			color_space = COLOR_SPACE_YCBCR709;
+			if (test_pattern == DP_TEST_PATTERN_COLOR_SQUARES_CEA)
+				color_space = COLOR_SPACE_YCBCR709_LIMITED;
+			break;
+		default:
+			break;
+		}
+		/* update MSA to requested color space */
+		pipe_ctx->stream_res.stream_enc->funcs->dp_set_stream_attribute(pipe_ctx->stream_res.stream_enc,
+				&pipe_ctx->stream->timing,
+				color_space,
+				pipe_ctx->stream->use_vsc_sdp_for_colorimetry,
+				link->dpcd_caps.dprx_feature.bits.SST_SPLIT_SDP_CAP);
+
+		/* CRTC Patterns */
 		set_crtc_test_pattern(link, pipe_ctx, test_pattern, test_pattern_color_space);
+
 		/* Set Test Pattern state */
 		link->test_pattern_enabled = true;
 	}

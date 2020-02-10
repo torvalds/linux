@@ -1061,7 +1061,7 @@ static void encode_nfs4_verifier(struct xdr_stream *xdr, const nfs4_verifier *ve
 static __be32 *
 xdr_encode_nfstime4(__be32 *p, const struct timespec64 *t)
 {
-	p = xdr_encode_hyper(p, (__s64)t->tv_sec);
+	p = xdr_encode_hyper(p, t->tv_sec);
 	*p++ = cpu_to_be32(t->tv_nsec);
 	return p;
 }
@@ -4313,11 +4313,14 @@ static int decode_write_verifier(struct xdr_stream *xdr, struct nfs_write_verifi
 
 static int decode_commit(struct xdr_stream *xdr, struct nfs_commitres *res)
 {
+	struct nfs_writeverf *verf = res->verf;
 	int status;
 
 	status = decode_op_hdr(xdr, OP_COMMIT);
 	if (!status)
-		status = decode_write_verifier(xdr, &res->verf->verifier);
+		status = decode_write_verifier(xdr, &verf->verifier);
+	if (!status)
+		verf->committed = NFS_FILE_SYNC;
 	return status;
 }
 

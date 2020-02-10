@@ -527,7 +527,7 @@ static int acp_set_powergating_state(void *handle,
 				     enum amd_powergating_state state)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	bool enable = state == AMD_PG_STATE_GATE ? true : false;
+	bool enable = (state == AMD_PG_STATE_GATE);
 
 	if (adev->powerplay.pp_funcs &&
 		adev->powerplay.pp_funcs->set_powergating_by_smu)

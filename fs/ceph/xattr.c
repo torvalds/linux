@@ -655,7 +655,7 @@ static int __build_xattrs(struct inode *inode)
 	u32 len;
 	const char *name, *val;
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	int xattr_version;
+	u64 xattr_version;
 	struct ceph_inode_xattr **xattrs = NULL;
 	int err = 0;
 	int i;
@@ -851,7 +851,7 @@ ssize_t __ceph_getxattr(struct inode *inode, const char *name, void *value,
 	req_mask = __get_request_mask(inode);
 
 	spin_lock(&ci->i_ceph_lock);
-	dout("getxattr %p ver=%lld index_ver=%lld\n", inode,
+	dout("getxattr %p name '%s' ver=%lld index_ver=%lld\n", inode, name,
 	     ci->i_xattrs.version, ci->i_xattrs.index_version);
 
 	if (ci->i_xattrs.version == 0 ||
@@ -1078,7 +1078,8 @@ retry:
 		}
 	}
 
-	dout("setxattr %p issued %s\n", inode, ceph_cap_string(issued));
+	dout("setxattr %p name '%s' issued %s\n", inode, name,
+	     ceph_cap_string(issued));
 	__build_xattrs(inode);
 
 	required_blob_size = __get_required_blob_size(ci, name_len, val_len);

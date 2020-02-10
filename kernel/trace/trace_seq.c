@@ -30,9 +30,6 @@
 /* How much buffer is left on the trace_seq? */
 #define TRACE_SEQ_BUF_LEFT(s) seq_buf_buffer_left(&(s)->seq)
 
-/* How much buffer is written? */
-#define TRACE_SEQ_BUF_USED(s) seq_buf_used(&(s)->seq)
-
 /*
  * trace_seq should work with being initialized with 0s.
  */

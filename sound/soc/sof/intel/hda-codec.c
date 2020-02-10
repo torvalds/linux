@@ -170,23 +170,14 @@ EXPORT_SYMBOL_NS(hda_codec_probe_bus, SND_SOC_SOF_HDA_AUDIO_CODEC);
 #if IS_ENABLED(CONFIG_SND_HDA_CODEC_HDMI) || \
 	IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI)
 
-void hda_codec_i915_get(struct snd_sof_dev *sdev)
+void hda_codec_i915_display_power(struct snd_sof_dev *sdev, bool enable)
 {
 	struct hdac_bus *bus = sof_to_bus(sdev);
 
-	dev_dbg(bus->dev, "Turning i915 HDAC power on\n");
-	snd_hdac_display_power(bus, HDA_CODEC_IDX_CONTROLLER, true);
+	dev_dbg(bus->dev, "Turning i915 HDAC power %d\n", enable);
+	snd_hdac_display_power(bus, HDA_CODEC_IDX_CONTROLLER, enable);
 }
-EXPORT_SYMBOL_NS(hda_codec_i915_get, SND_SOC_SOF_HDA_AUDIO_CODEC_I915);
-
-void hda_codec_i915_put(struct snd_sof_dev *sdev)
-{
-	struct hdac_bus *bus = sof_to_bus(sdev);
-
-	dev_dbg(bus->dev, "Turning i915 HDAC power off\n");
-	snd_hdac_display_power(bus, HDA_CODEC_IDX_CONTROLLER, false);
-}
-EXPORT_SYMBOL_NS(hda_codec_i915_put, SND_SOC_SOF_HDA_AUDIO_CODEC_I915);
+EXPORT_SYMBOL_NS(hda_codec_i915_display_power, SND_SOC_SOF_HDA_AUDIO_CODEC_I915);
 
 int hda_codec_i915_init(struct snd_sof_dev *sdev)
 {
@@ -198,7 +189,7 @@ int hda_codec_i915_init(struct snd_sof_dev *sdev)
 	if (ret < 0)
 		return ret;
 
-	hda_codec_i915_get(sdev);
+	hda_codec_i915_display_power(sdev, true);
 
 	return 0;
 }
@@ -209,7 +200,7 @@ int hda_codec_i915_exit(struct snd_sof_dev *sdev)
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	int ret;
 
-	hda_codec_i915_put(sdev);
+	hda_codec_i915_display_power(sdev, false);
 
 	ret = snd_hdac_i915_exit(bus);
 

@@ -591,6 +591,11 @@ static int sof_pcm_new(struct snd_soc_component *component,
 		"spcm: allocate %s playback DMA buffer size 0x%x max 0x%x\n",
 		caps->name, caps->buffer_size_min, caps->buffer_size_max);
 
+	if (!pcm->streams[stream].substream) {
+		dev_err(component->dev, "error: NULL playback substream!\n");
+		return -EINVAL;
+	}
+
 	snd_pcm_set_managed_buffer(pcm->streams[stream].substream,
 				   SNDRV_DMA_TYPE_DEV_SG, sdev->dev,
 				   le32_to_cpu(caps->buffer_size_min),
@@ -608,6 +613,11 @@ capture:
 	dev_dbg(component->dev,
 		"spcm: allocate %s capture DMA buffer size 0x%x max 0x%x\n",
 		caps->name, caps->buffer_size_min, caps->buffer_size_max);
+
+	if (!pcm->streams[stream].substream) {
+		dev_err(component->dev, "error: NULL capture substream!\n");
+		return -EINVAL;
+	}
 
 	snd_pcm_set_managed_buffer(pcm->streams[stream].substream,
 				   SNDRV_DMA_TYPE_DEV_SG, sdev->dev,
