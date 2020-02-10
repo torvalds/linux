@@ -7,6 +7,7 @@ KVM
 .. toctree::
    :maxdepth: 2
 
+   api
    amd-memory-encryption
    cpuid
    halt-polling
