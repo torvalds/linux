@@ -505,7 +505,17 @@
 		ports {
 			usb2-0 {
 				status = "okay";
-				mode = "otg";
+				mode = "peripheral";
+
+				usb-role-switch;
+				connector {
+					compatible = "usb-b-connector",
+						     "gpio-usb-b-connector";
+					label = "micro-USB";
+					type = "micro";
+					vbus-gpio = <&gpio TEGRA_GPIO(CC, 4)
+						     GPIO_ACTIVE_LOW>;
+				};
 			};
 
 			usb2-1 {
