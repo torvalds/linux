@@ -500,14 +500,21 @@ static int live_error_interrupt(void *arg)
 			}
 
 			for (i = 0; i < ARRAY_SIZE(client); i++) {
-				if (i915_request_wait(client[i], 0, HZ / 5) < 0) {
-					pr_err("%s: %s request still executing!\n",
-					       engine->name,
-					       error_repr(p->error[i]));
+				if (i915_request_wait(client[i], 0, HZ / 5) < 0)
+					pr_debug("%s: %s request incomplete!\n",
+						 engine->name,
+						 error_repr(p->error[i]));
+
+				if (!i915_request_started(client[i])) {
+					pr_debug("%s: %s request not stated!\n",
+						 engine->name,
+						 error_repr(p->error[i]));
 					err = -ETIME;
 					goto out;
 				}
 
+				/* Kick the tasklet to process the error */
+				intel_engine_flush_submission(engine);
 				if (client[i]->fence.error != p->error[i]) {
 					pr_err("%s: %s request completed with wrong error code: %d\n",
 					       engine->name,
