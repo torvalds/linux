@@ -504,7 +504,7 @@ static const struct address_space_operations ovl_aops = {
 
 /*
  * It is possible to stack overlayfs instance on top of another
- * overlayfs instance as lower layer. We need to annonate the
+ * overlayfs instance as lower layer. We need to annotate the
  * stackable i_mutex locks according to stack level of the super
  * block instance. An overlayfs instance can never be in stack
  * depth 0 (there is always a real fs below it).  An overlayfs
