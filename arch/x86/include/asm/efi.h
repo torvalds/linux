@@ -291,6 +291,10 @@ static inline void *efi64_zero_upper(void *p)
 	((protocol), efi64_zero_upper(seg), efi64_zero_upper(bus),	\
 	 efi64_zero_upper(dev), efi64_zero_upper(func))
 
+/* LoadFile */
+#define __efi64_argmap_load_file(protocol, path, policy, bufsize, buf)	\
+	((protocol), (path), (policy), efi64_zero_upper(bufsize), (buf))
+
 /*
  * The macros below handle the plumbing for the argument mapping. To add a
  * mapping for a specific EFI method, simply define a macro
