@@ -15,3 +15,4 @@ Devices
    vcpu
    vfio
    vm
+   xics
