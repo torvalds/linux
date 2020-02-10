@@ -8,6 +8,7 @@ Linux Virtualization Support
    :maxdepth: 2
 
    kvm/index
+   uml/user_mode_linux
    paravirt_ops
 
 .. only:: html and subproject
