@@ -2043,6 +2043,7 @@ int synth_event_trace_start(struct trace_event_file *file,
 	entry = trace_event_buffer_reserve(&trace_state->fbuffer, file,
 					   sizeof(*entry) + fields_size);
 	if (!entry) {
+		ring_buffer_nest_end(trace_state->buffer);
 		ret = -EINVAL;
 		goto out;
 	}
