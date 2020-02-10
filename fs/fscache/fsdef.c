@@ -45,6 +45,7 @@ static struct fscache_cookie_def fscache_fsdef_index_def = {
 };
 
 struct fscache_cookie fscache_fsdef_index = {
+	.debug_id	= 1,
 	.usage		= ATOMIC_INIT(1),
 	.n_active	= ATOMIC_INIT(1),
 	.lock		= __SPIN_LOCK_UNLOCKED(fscache_fsdef_index.lock),

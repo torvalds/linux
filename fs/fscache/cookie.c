@@ -29,21 +29,29 @@ static int fscache_attach_object(struct fscache_cookie *cookie,
 
 static void fscache_print_cookie(struct fscache_cookie *cookie, char prefix)
 {
-	struct hlist_node *object;
+	struct fscache_object *object;
+	struct hlist_node *o;
 	const u8 *k;
 	unsigned loop;
 
-	pr_err("%c-cookie c=%p [p=%p fl=%lx nc=%u na=%u]\n",
-	       prefix, cookie, cookie->parent, cookie->flags,
+	pr_err("%c-cookie c=%08x [p=%08x fl=%lx nc=%u na=%u]\n",
+	       prefix,
+	       cookie->debug_id,
+	       cookie->parent ? cookie->parent->debug_id : 0,
+	       cookie->flags,
 	       atomic_read(&cookie->n_children),
 	       atomic_read(&cookie->n_active));
-	pr_err("%c-cookie d=%p n=%p\n",
-	       prefix, cookie->def, cookie->netfs_data);
+	pr_err("%c-cookie d=%p{%s} n=%p\n",
+	       prefix,
+	       cookie->def,
+	       cookie->def ? cookie->def->name : "?",
+	       cookie->netfs_data);
 
-	object = READ_ONCE(cookie->backing_objects.first);
-	if (object)
-		pr_err("%c-cookie o=%p\n",
-		       prefix, hlist_entry(object, struct fscache_object, cookie_link));
+	o = READ_ONCE(cookie->backing_objects.first);
+	if (o) {
+		object = hlist_entry(o, struct fscache_object, cookie_link);
+		pr_err("%c-cookie o=%u\n", prefix, object->debug_id);
+	}
 
 	pr_err("%c-key=[%u] '", prefix, cookie->key_len);
 	k = (cookie->key_len <= sizeof(cookie->inline_key)) ?
@@ -129,6 +137,8 @@ static long fscache_compare_cookie(const struct fscache_cookie *a,
 	return memcmp(ka, kb, a->key_len);
 }
 
+static atomic_t fscache_cookie_debug_id = ATOMIC_INIT(1);
+
 /*
  * Allocate a cookie.
  */
@@ -163,6 +173,7 @@ struct fscache_cookie *fscache_alloc_cookie(
 
 	atomic_set(&cookie->usage, 1);
 	atomic_set(&cookie->n_children, 0);
+	cookie->debug_id = atomic_inc_return(&fscache_cookie_debug_id);
 
 	/* We keep the active count elevated until relinquishment to prevent an
 	 * attempt to wake up every time the object operations queue quiesces.
