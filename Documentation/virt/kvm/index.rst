@@ -18,6 +18,7 @@ KVM
    nested-vmx
    ppc-pv
    s390-diag
+   timekeeping
    vcpu-requests
 
    arm/index
