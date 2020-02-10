@@ -75,41 +75,6 @@ void efi_printk(char *str)
 	}
 }
 
-
-unsigned long get_dram_base(void)
-{
-	efi_status_t status;
-	unsigned long map_size, buff_size;
-	unsigned long membase  = EFI_ERROR;
-	struct efi_memory_map map;
-	efi_memory_desc_t *md;
-	struct efi_boot_memmap boot_map;
-
-	boot_map.map =		(efi_memory_desc_t **)&map.map;
-	boot_map.map_size =	&map_size;
-	boot_map.desc_size =	&map.desc_size;
-	boot_map.desc_ver =	NULL;
-	boot_map.key_ptr =	NULL;
-	boot_map.buff_size =	&buff_size;
-
-	status = efi_get_memory_map(&boot_map);
-	if (status != EFI_SUCCESS)
-		return membase;
-
-	map.map_end = map.map + map_size;
-
-	for_each_efi_memory_desc_in_map(&map, md) {
-		if (md->attribute & EFI_MEMORY_WB) {
-			if (membase > md->phys_addr)
-				membase = md->phys_addr;
-		}
-	}
-
-	efi_bs_call(free_pool, map.map);
-
-	return membase;
-}
-
 static efi_status_t efi_file_size(void *__fh, efi_char16_t *filename_16,
 				  void **handle, u64 *file_sz)
 {

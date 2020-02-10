@@ -549,8 +549,6 @@ efi_status_t efi_exit_boot_services(void *handle,
 
 void efi_char16_printk(efi_char16_t *);
 
-unsigned long get_dram_base(void);
-
 efi_status_t allocate_new_fdt_and_exit_boot(void *handle,
 					    unsigned long *new_fdt_addr,
 					    unsigned long max_addr,
