@@ -842,10 +842,7 @@ static int smiapp_get_mbus_formats(struct smiapp_sensor *sensor)
 	unsigned int i, pixel_order;
 	int rval;
 
-	rval = smiapp_read(
-		sensor, SMIAPP_REG_U8_DATA_FORMAT_MODEL_TYPE, &type);
-	if (rval)
-		return rval;
+	type = CCS_LIM(sensor, DATA_FORMAT_MODEL_TYPE);
 
 	dev_dbg(&client->dev, "data_format_model_type %d\n", type);
 
@@ -863,11 +860,11 @@ static int smiapp_get_mbus_formats(struct smiapp_sensor *sensor)
 		pixel_order_str[pixel_order]);
 
 	switch (type) {
-	case SMIAPP_DATA_FORMAT_MODEL_TYPE_NORMAL:
+	case CCS_DATA_FORMAT_MODEL_TYPE_NORMAL:
 		n = SMIAPP_DATA_FORMAT_MODEL_TYPE_NORMAL_N;
 		break;
-	case SMIAPP_DATA_FORMAT_MODEL_TYPE_EXTENDED:
-		n = SMIAPP_DATA_FORMAT_MODEL_TYPE_EXTENDED_N;
+	case CCS_DATA_FORMAT_MODEL_TYPE_EXTENDED:
+		n = CCS_LIM_DATA_FORMAT_DESCRIPTOR_MAX_N + 1;
 		break;
 	default:
 		return -EINVAL;
@@ -879,11 +876,7 @@ static int smiapp_get_mbus_formats(struct smiapp_sensor *sensor)
 	for (i = 0; i < n; i++) {
 		unsigned int fmt, j;
 
-		rval = smiapp_read(
-			sensor,
-			SMIAPP_REG_U16_DATA_FORMAT_DESCRIPTOR(i), &fmt);
-		if (rval)
-			return rval;
+		fmt = CCS_LIM_AT(sensor, DATA_FORMAT_DESCRIPTOR, i);
 
 		dev_dbg(&client->dev, "%u: bpp %u, compressed %u\n",
 			i, fmt >> 8, (u8)fmt);
@@ -895,7 +888,10 @@ static int smiapp_get_mbus_formats(struct smiapp_sensor *sensor)
 			if (f->pixel_order != SMIAPP_PIXEL_ORDER_GRBG)
 				continue;
 
-			if (f->width != fmt >> 8 || f->compressed != (u8)fmt)
+			if (f->width != fmt >>
+			    CCS_DATA_FORMAT_DESCRIPTOR_UNCOMPRESSED_SHIFT ||
+			    f->compressed !=
+			    (fmt & CCS_DATA_FORMAT_DESCRIPTOR_COMPRESSED_MASK))
 				continue;
 
 			dev_dbg(&client->dev, "jolly good! %d\n", j);
