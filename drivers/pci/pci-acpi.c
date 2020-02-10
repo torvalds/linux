@@ -439,7 +439,7 @@ enum hpx_type3_dev_type {
 static u16 hpx3_device_type(struct pci_dev *dev)
 {
 	u16 pcie_type = pci_pcie_type(dev);
-	const int pcie_to_hpx3_type[] = {
+	static const int pcie_to_hpx3_type[] = {
 		[PCI_EXP_TYPE_ENDPOINT]    = HPX_TYPE_ENDPOINT,
 		[PCI_EXP_TYPE_LEG_END]     = HPX_TYPE_LEG_END,
 		[PCI_EXP_TYPE_RC_END]      = HPX_TYPE_RC_END,
