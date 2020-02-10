@@ -106,4 +106,67 @@ union efi_uga_draw_protocol {
 	} mixed_mode;
 };
 
+typedef struct efi_loaded_image {
+	u32			revision;
+	efi_handle_t		parent_handle;
+	efi_system_table_t	*system_table;
+	efi_handle_t		device_handle;
+	void			*file_path;
+	void			*reserved;
+	u32			load_options_size;
+	void			*load_options;
+	void			*image_base;
+	__aligned_u64		image_size;
+	unsigned int		image_code_type;
+	unsigned int		image_data_type;
+	efi_status_t		(__efiapi *unload)(efi_handle_t image_handle);
+} efi_loaded_image_t;
+
+typedef struct {
+	u64			size;
+	u64			file_size;
+	u64			phys_size;
+	efi_time_t		create_time;
+	efi_time_t		last_access_time;
+	efi_time_t		modification_time;
+	__aligned_u64		attribute;
+	efi_char16_t		filename[1];
+} efi_file_info_t;
+
+typedef struct efi_file_protocol efi_file_protocol_t;
+
+struct efi_file_protocol {
+	u64		revision;
+	efi_status_t	(__efiapi *open)	(efi_file_protocol_t *,
+						 efi_file_protocol_t **,
+						 efi_char16_t *, u64, u64);
+	efi_status_t	(__efiapi *close)	(efi_file_protocol_t *);
+	efi_status_t	(__efiapi *delete)	(efi_file_protocol_t *);
+	efi_status_t	(__efiapi *read)	(efi_file_protocol_t *,
+						 unsigned long *, void *);
+	efi_status_t	(__efiapi *write)	(efi_file_protocol_t *,
+						 unsigned long, void *);
+	efi_status_t	(__efiapi *get_position)(efi_file_protocol_t *, u64 *);
+	efi_status_t	(__efiapi *set_position)(efi_file_protocol_t *, u64);
+	efi_status_t	(__efiapi *get_info)	(efi_file_protocol_t *,
+						 efi_guid_t *, unsigned long *,
+						 void *);
+	efi_status_t	(__efiapi *set_info)	(efi_file_protocol_t *,
+						 efi_guid_t *, unsigned long,
+						 void *);
+	efi_status_t	(__efiapi *flush)	(efi_file_protocol_t *);
+};
+
+typedef struct efi_simple_file_system_protocol efi_simple_file_system_protocol_t;
+
+struct efi_simple_file_system_protocol {
+	u64	revision;
+	int	(__efiapi *open_volume)(efi_simple_file_system_protocol_t *,
+					efi_file_protocol_t **);
+};
+
+#define EFI_FILE_MODE_READ	0x0000000000000001
+#define EFI_FILE_MODE_WRITE	0x0000000000000002
+#define EFI_FILE_MODE_CREATE	0x8000000000000000
+
 #endif

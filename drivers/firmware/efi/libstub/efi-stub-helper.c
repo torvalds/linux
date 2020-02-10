@@ -54,7 +54,7 @@ bool __pure __efi_soft_reserve_enabled(void)
 }
 
 struct file_info {
-	efi_file_handle_t *handle;
+	efi_file_protocol_t *handle;
 	u64 size;
 };
 
@@ -113,7 +113,7 @@ unsigned long get_dram_base(void)
 static efi_status_t efi_file_size(void *__fh, efi_char16_t *filename_16,
 				  void **handle, u64 *file_sz)
 {
-	efi_file_handle_t *h, *fh = __fh;
+	efi_file_protocol_t *h, *fh = __fh;
 	efi_file_info_t *info;
 	efi_status_t status;
 	efi_guid_t info_guid = EFI_FILE_INFO_ID;
@@ -159,22 +159,22 @@ grow:
 	return status;
 }
 
-static efi_status_t efi_file_read(efi_file_handle_t *handle,
+static efi_status_t efi_file_read(efi_file_protocol_t *handle,
 				  unsigned long *size, void *addr)
 {
 	return handle->read(handle, size, addr);
 }
 
-static efi_status_t efi_file_close(efi_file_handle_t *handle)
+static efi_status_t efi_file_close(efi_file_protocol_t *handle)
 {
 	return handle->close(handle);
 }
 
 static efi_status_t efi_open_volume(efi_loaded_image_t *image,
-				    efi_file_handle_t **__fh)
+				    efi_file_protocol_t **__fh)
 {
-	efi_file_io_interface_t *io;
-	efi_file_handle_t *fh;
+	efi_simple_file_system_protocol_t *io;
+	efi_file_protocol_t *fh;
 	efi_guid_t fs_proto = EFI_FILE_SYSTEM_GUID;
 	efi_status_t status;
 	efi_handle_t handle = image->device_handle;
@@ -282,7 +282,7 @@ efi_status_t handle_cmdline_files(efi_loaded_image_t *image,
 	struct file_info *files;
 	unsigned long file_addr;
 	u64 file_size_total;
-	efi_file_handle_t *fh = NULL;
+	efi_file_protocol_t *fh = NULL;
 	efi_status_t status;
 	int nr_files;
 	char *str;
