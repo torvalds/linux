@@ -8,3 +8,4 @@ Devices
    :maxdepth: 2
 
    arm-vgic-its
+   arm-vgic-v3
