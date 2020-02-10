@@ -12,6 +12,7 @@
 #include <linux/workqueue.h>
 
 #include <linux/usb/otg.h>
+#include <linux/usb/role.h>
 
 /* legacy entry points for backwards-compatibility */
 int tegra_xusb_padctl_legacy_probe(struct platform_device *pdev);
@@ -265,6 +266,8 @@ struct tegra_xusb_port {
 
 	struct list_head list;
 	struct device dev;
+
+	struct usb_role_switch *usb_role_sw;
 
 	const struct tegra_xusb_port_ops *ops;
 };
