@@ -2595,7 +2595,7 @@ int cadence_nand_attach_chip(struct nand_chip *chip)
 {
 	struct cdns_nand_ctrl *cdns_ctrl = to_cdns_nand_ctrl(chip->controller);
 	struct cdns_nand_chip *cdns_chip = to_cdns_nand_chip(chip);
-	u32 ecc_size = cdns_chip->sector_count * chip->ecc.bytes;
+	u32 ecc_size;
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	int ret;
 
@@ -2634,6 +2634,7 @@ int cadence_nand_attach_chip(struct nand_chip *chip)
 	/* Error correction configuration. */
 	cdns_chip->sector_size = chip->ecc.size;
 	cdns_chip->sector_count = mtd->writesize / cdns_chip->sector_size;
+	ecc_size = cdns_chip->sector_count * chip->ecc.bytes;
 
 	cdns_chip->avail_oob_size = mtd->oobsize - ecc_size;
 
