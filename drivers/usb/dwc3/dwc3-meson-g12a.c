@@ -452,7 +452,7 @@ static int dwc3_meson_g12a_otg_init(struct platform_device *pdev,
 	if (IS_ERR(priv->role_switch))
 		dev_warn(dev, "Unable to register Role Switch\n");
 
-	return ret;
+	return 0;
 }
 
 static int dwc3_meson_g12a_probe(struct platform_device *pdev)
