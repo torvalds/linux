@@ -68,66 +68,39 @@ void efi_printk(char *str)
  */
 efi_status_t efi_parse_options(char const *cmdline)
 {
-	char *str;
+	size_t len = strlen(cmdline) + 1;
+	efi_status_t status;
+	char *str, *buf;
 
-	str = strstr(cmdline, "nokaslr");
-	if (str == cmdline || (str && str > cmdline && *(str - 1) == ' '))
-		efi_nokaslr = true;
+	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA, len, (void **)&buf);
+	if (status != EFI_SUCCESS)
+		return status;
 
-	str = strstr(cmdline, "quiet");
-	if (str == cmdline || (str && str > cmdline && *(str - 1) == ' '))
-		efi_quiet = true;
+	str = skip_spaces(memcpy(buf, cmdline, len));
 
-	/*
-	 * If no EFI parameters were specified on the cmdline we've got
-	 * nothing to do.
-	 */
-	str = strstr(cmdline, "efi=");
-	if (!str)
-		return EFI_SUCCESS;
+	while (*str) {
+		char *param, *val;
 
-	/* Skip ahead to first argument */
-	str += strlen("efi=");
+		str = next_arg(str, &param, &val);
 
-	/*
-	 * Remember, because efi= is also used by the kernel we need to
-	 * skip over arguments we don't understand.
-	 */
-	while (*str && *str != ' ') {
-		if (!strncmp(str, "nochunk", 7)) {
-			str += strlen("nochunk");
-			efi_nochunk = true;
+		if (!strcmp(param, "nokaslr")) {
+			efi_nokaslr = true;
+		} else if (!strcmp(param, "quiet")) {
+			efi_quiet = true;
+		} else if (!strcmp(param, "efi") && val) {
+			efi_nochunk = parse_option_str(val, "nochunk");
+			efi_novamap = parse_option_str(val, "novamap");
+
+			efi_nosoftreserve = IS_ENABLED(CONFIG_EFI_SOFT_RESERVE) &&
+					    parse_option_str(val, "nosoftreserve");
+
+			if (parse_option_str(val, "disable_early_pci_dma"))
+				efi_disable_pci_dma = true;
+			if (parse_option_str(val, "no_disable_early_pci_dma"))
+				efi_disable_pci_dma = false;
 		}
-
-		if (!strncmp(str, "novamap", 7)) {
-			str += strlen("novamap");
-			efi_novamap = true;
-		}
-
-		if (IS_ENABLED(CONFIG_EFI_SOFT_RESERVE) &&
-		    !strncmp(str, "nosoftreserve", 7)) {
-			str += strlen("nosoftreserve");
-			efi_nosoftreserve = true;
-		}
-
-		if (!strncmp(str, "disable_early_pci_dma", 21)) {
-			str += strlen("disable_early_pci_dma");
-			efi_disable_pci_dma = true;
-		}
-
-		if (!strncmp(str, "no_disable_early_pci_dma", 24)) {
-			str += strlen("no_disable_early_pci_dma");
-			efi_disable_pci_dma = false;
-		}
-
-		/* Group words together, delimited by "," */
-		while (*str && *str != ' ' && *str != ',')
-			str++;
-
-		if (*str == ',')
-			str++;
 	}
-
+	efi_bs_call(free_pool, buf);
 	return EFI_SUCCESS;
 }
 

@@ -726,7 +726,7 @@ struct boot_params *efi_main(efi_handle_t handle,
 	hdr->code32_start = (u32)bzimage_addr;
 
 	/*
-	 * make_boot_params() may have been called before efi_main(), in which
+	 * efi_pe_entry() may have been called before efi_main(), in which
 	 * case this is the second time we parse the cmdline. This is ok,
 	 * parsing the cmdline multiple times does not have side-effects.
 	 */
