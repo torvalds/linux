@@ -16,6 +16,7 @@ KVM
    mmu
    msr
    nested-vmx
+   ppc-pv
    vcpu-requests
 
    arm/index
