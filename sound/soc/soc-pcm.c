@@ -687,15 +687,6 @@ static int soc_pcm_close(struct snd_pcm_substream *substream)
 
 	snd_soc_runtime_deactivate(rtd, substream->stream);
 
-	/* clear the corresponding DAIs rate when inactive */
-	if (!cpu_dai->active)
-		cpu_dai->rate = 0;
-
-	for_each_rtd_codec_dai(rtd, i, codec_dai) {
-		if (!codec_dai->active)
-			codec_dai->rate = 0;
-	}
-
 	snd_soc_dai_digital_mute(cpu_dai, 1, substream->stream);
 
 	snd_soc_dai_shutdown(cpu_dai, substream);
