@@ -1306,12 +1306,12 @@ static inline struct snd_soc_dapm_widget *
 static int widget_in_list(struct snd_soc_dapm_widget_list *list,
 		struct snd_soc_dapm_widget *widget)
 {
+	struct snd_soc_dapm_widget *w;
 	int i;
 
-	for (i = 0; i < list->num_widgets; i++) {
-		if (widget == list->widgets[i])
+	for_each_dapm_widgets(list, i, w)
+		if (widget == w)
 			return 1;
-	}
 
 	return 0;
 }
@@ -1422,12 +1422,13 @@ static int dpcm_add_paths(struct snd_soc_pcm_runtime *fe, int stream,
 	struct snd_soc_card *card = fe->card;
 	struct snd_soc_dapm_widget_list *list = *list_;
 	struct snd_soc_pcm_runtime *be;
+	struct snd_soc_dapm_widget *widget;
 	int i, new = 0, err;
 
 	/* Create any new FE <--> BE connections */
-	for (i = 0; i < list->num_widgets; i++) {
+	for_each_dapm_widgets(list, i, widget) {
 
-		switch (list->widgets[i]->id) {
+		switch (widget->id) {
 		case snd_soc_dapm_dai_in:
 			if (stream != SNDRV_PCM_STREAM_PLAYBACK)
 				continue;
@@ -1441,10 +1442,10 @@ static int dpcm_add_paths(struct snd_soc_pcm_runtime *fe, int stream,
 		}
 
 		/* is there a valid BE rtd for this widget */
-		be = dpcm_get_be(card, list->widgets[i], stream);
+		be = dpcm_get_be(card, widget, stream);
 		if (!be) {
 			dev_err(fe->dev, "ASoC: no BE found for %s\n",
-					list->widgets[i]->name);
+					widget->name);
 			continue;
 		}
 
@@ -1460,7 +1461,7 @@ static int dpcm_add_paths(struct snd_soc_pcm_runtime *fe, int stream,
 		err = dpcm_be_connect(fe, be, stream);
 		if (err < 0) {
 			dev_err(fe->dev, "ASoC: can't connect %s\n",
-				list->widgets[i]->name);
+				widget->name);
 			break;
 		} else if (err == 0) /* already connected */
 			continue;
