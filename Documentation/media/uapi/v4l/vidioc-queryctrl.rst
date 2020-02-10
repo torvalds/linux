@@ -290,34 +290,29 @@ See also the examples in :ref:`control`.
 .. flat-table:: struct v4l2_querymenu
     :header-rows:  0
     :stub-columns: 0
-    :widths:       1 1 2 1
+    :widths:       1 1 2
 
     * - __u32
-      -
       - ``id``
       - Identifies the control, set by the application from the respective
 	struct :ref:`v4l2_queryctrl <v4l2-queryctrl>` ``id``.
     * - __u32
-      -
       - ``index``
       - Index of the menu item, starting at zero, set by the application.
-    * - union
-      -
-      -
-      -
-    * -
-      - __u8
+    * - union {
+      - (anonymous)
+    * - __u8
       - ``name``\ [32]
       - Name of the menu item, a NUL-terminated ASCII string. This
 	information is intended for the user. This field is valid for
 	``V4L2_CTRL_TYPE_MENU`` type controls.
-    * -
-      - __s64
+    * - __s64
       - ``value``
       - Value of the integer menu item. This field is valid for
 	``V4L2_CTRL_TYPE_INTEGER_MENU`` type controls.
-    * - __u32
+    * - }
       -
+    * - __u32
       - ``reserved``
       - Reserved for future extensions. Drivers must set the array to
 	zero.
