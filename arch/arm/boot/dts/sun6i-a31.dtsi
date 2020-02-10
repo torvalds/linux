@@ -1139,9 +1139,6 @@
 				      "ram";
 			resets = <&ccu RST_AHB1_BE1>;
 
-			assigned-clocks = <&ccu CLK_BE1>;
-			assigned-clock-rates = <300000000>;
-
 			ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -1230,9 +1227,6 @@
 			clock-names = "ahb", "mod",
 				      "ram";
 			resets = <&ccu RST_AHB1_BE0>;
-
-			assigned-clocks = <&ccu CLK_BE0>;
-			assigned-clock-rates = <300000000>;
 
 			ports {
 				#address-cells = <1>;
