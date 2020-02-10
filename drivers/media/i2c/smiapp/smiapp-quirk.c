@@ -10,6 +10,8 @@
 
 #include <linux/delay.h>
 
+#include "ccs-limits.h"
+
 #include "smiapp.h"
 
 static int smiapp_write_8(struct smiapp_sensor *sensor, u16 reg, u8 val)
@@ -36,17 +38,6 @@ static int smiapp_write_8s(struct smiapp_sensor *sensor,
 	return 0;
 }
 
-void smiapp_replace_limit(struct smiapp_sensor *sensor,
-			  u32 limit, u32 val)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
-
-	dev_dbg(&client->dev, "quirk: 0x%8.8x \"%s\" = %d, 0x%x\n",
-		smiapp_reg_limits[limit].addr,
-		smiapp_reg_limits[limit].what, val, val);
-	sensor->limits[limit] = val;
-}
-
 static int jt8ew9_limits(struct smiapp_sensor *sensor)
 {
 	if (sensor->minfo.revision_number_major < 0x03)
@@ -54,9 +45,8 @@ static int jt8ew9_limits(struct smiapp_sensor *sensor)
 
 	/* Below 24 gain doesn't have effect at all, */
 	/* but ~59 is needed for full dynamic range */
-	smiapp_replace_limit(sensor, SMIAPP_LIMIT_ANALOGUE_GAIN_CODE_MIN, 59);
-	smiapp_replace_limit(
-		sensor, SMIAPP_LIMIT_ANALOGUE_GAIN_CODE_MAX, 6000);
+	ccs_replace_limit(sensor, CCS_L_ANALOG_GAIN_CODE_MIN, 0, 59);
+	ccs_replace_limit(sensor, CCS_L_ANALOG_GAIN_CODE_MAX, 0, 6000);
 
 	return 0;
 }
@@ -126,9 +116,8 @@ const struct smiapp_quirk smiapp_imx125es_quirk = {
 
 static int jt8ev1_limits(struct smiapp_sensor *sensor)
 {
-	smiapp_replace_limit(sensor, SMIAPP_LIMIT_X_ADDR_MAX, 4271);
-	smiapp_replace_limit(sensor,
-			     SMIAPP_LIMIT_MIN_LINE_BLANKING_PCK_BIN, 184);
+	ccs_replace_limit(sensor, CCS_L_X_ADDR_MAX, 0, 4271);
+	ccs_replace_limit(sensor, CCS_L_MIN_LINE_BLANKING_PCK_BIN, 0, 184);
 
 	return 0;
 }
@@ -221,7 +210,7 @@ const struct smiapp_quirk smiapp_jt8ev1_quirk = {
 
 static int tcm8500md_limits(struct smiapp_sensor *sensor)
 {
-	smiapp_replace_limit(sensor, SMIAPP_LIMIT_MIN_PLL_IP_FREQ_HZ, 2700000);
+	ccs_replace_limit(sensor, CCS_L_MIN_PLL_IP_CLK_FREQ_MHZ, 0, 2700000);
 
 	return 0;
 }

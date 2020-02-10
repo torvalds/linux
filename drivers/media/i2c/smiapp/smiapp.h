@@ -84,8 +84,6 @@ struct smiapp_hwconfig {
 	struct smiapp_flash_strobe_parms *strobe_setup;
 };
 
-#include "smiapp-limits.h"
-
 struct smiapp_quirk;
 
 #define SMIAPP_MODULE_IDENT_FLAG_REV_LE		(1 << 0)
@@ -167,13 +165,6 @@ struct smiapp_module_info {
 	  .flags = 0,							\
 	  .name = _name, }
 
-struct smiapp_reg_limits {
-	u32 addr;
-	char *what;
-};
-
-extern struct smiapp_reg_limits smiapp_reg_limits[];
-
 struct smiapp_csi_data_format {
 	u32 code;
 	u8 width;
@@ -227,7 +218,6 @@ struct smiapp_sensor {
 	struct regulator *vana;
 	struct clk *ext_clk;
 	struct gpio_desc *xshutdown;
-	u32 limits[SMIAPP_LIMIT_LAST];
 	void *ccs_limits;
 	u8 nbinning_subtypes;
 	struct smiapp_binning_subtype binning_subtypes[SMIAPP_BINNING_SUBTYPES];
