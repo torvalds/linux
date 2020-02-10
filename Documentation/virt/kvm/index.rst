@@ -12,6 +12,7 @@ KVM
    cpuid
    halt-polling
    hypercalls
+   locking
    msr
    vcpu-requests
 
