@@ -421,18 +421,14 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	if (status != EFI_SUCCESS)
 		goto fail2;
 
-	status = handle_cmdline_files(image,
-				      (char *)(unsigned long)hdr->cmd_line_ptr,
-				      "initrd=", hdr->initrd_addr_max,
-				      &ramdisk_addr, &ramdisk_size);
+	status = efi_load_initrd(image, &ramdisk_addr, &ramdisk_size,
+				 hdr->initrd_addr_max);
 
 	if (status != EFI_SUCCESS &&
 	    hdr->xloadflags & XLF_CAN_BE_LOADED_ABOVE_4G) {
 		efi_printk("Trying to load files to higher address\n");
-		status = handle_cmdline_files(image,
-				      (char *)(unsigned long)hdr->cmd_line_ptr,
-				      "initrd=", -1UL,
-				      &ramdisk_addr, &ramdisk_size);
+		status = efi_load_initrd(image, &ramdisk_addr, &ramdisk_size,
+					 ULONG_MAX);
 	}
 
 	if (status != EFI_SUCCESS)

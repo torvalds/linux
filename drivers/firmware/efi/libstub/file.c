@@ -12,6 +12,8 @@
 
 #include "efistub.h"
 
+#define MAX_FILENAME_SIZE	256
+
 /*
  * Some firmware implementations have problems reading files in one go.
  * A read chunk size of 1MB seems to work for most platforms.
@@ -27,93 +29,89 @@
  */
 #define EFI_READ_CHUNK_SIZE	SZ_1M
 
-struct file_info {
-	efi_file_protocol_t *handle;
-	u64 size;
-};
-
-static efi_status_t efi_file_size(void *__fh, efi_char16_t *filename_16,
-				  void **handle, u64 *file_sz)
+static efi_status_t efi_open_file(efi_file_protocol_t *volume,
+				  efi_char16_t *filename_16,
+				  efi_file_protocol_t **handle,
+				  unsigned long *file_size)
 {
-	efi_file_protocol_t *h, *fh = __fh;
-	efi_file_info_t *info;
-	efi_status_t status;
+	struct {
+		efi_file_info_t info;
+		efi_char16_t	filename[MAX_FILENAME_SIZE];
+	} finfo;
 	efi_guid_t info_guid = EFI_FILE_INFO_ID;
+	efi_file_protocol_t *fh;
 	unsigned long info_sz;
+	efi_status_t status;
 
-	status = fh->open(fh, &h, filename_16, EFI_FILE_MODE_READ, 0);
+	status = volume->open(volume, &fh, filename_16, EFI_FILE_MODE_READ, 0);
 	if (status != EFI_SUCCESS) {
-		efi_printk("Failed to open file: ");
+		pr_efi_err("Failed to open file: ");
 		efi_char16_printk(filename_16);
 		efi_printk("\n");
 		return status;
 	}
 
-	*handle = h;
-
-	info_sz = 0;
-	status = h->get_info(h, &info_guid, &info_sz, NULL);
-	if (status != EFI_BUFFER_TOO_SMALL) {
-		efi_printk("Failed to get file info size\n");
-		return status;
-	}
-
-grow:
-	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA, info_sz,
-			     (void **)&info);
+	info_sz = sizeof(finfo);
+	status = fh->get_info(fh, &info_guid, &info_sz, &finfo);
 	if (status != EFI_SUCCESS) {
-		efi_printk("Failed to alloc mem for file info\n");
+		pr_efi_err("Failed to get file info\n");
+		fh->close(fh);
 		return status;
 	}
 
-	status = h->get_info(h, &info_guid, &info_sz, info);
-	if (status == EFI_BUFFER_TOO_SMALL) {
-		efi_bs_call(free_pool, info);
-		goto grow;
-	}
-
-	*file_sz = info->file_size;
-	efi_bs_call(free_pool, info);
-
-	if (status != EFI_SUCCESS)
-		efi_printk("Failed to get initrd info\n");
-
-	return status;
-}
-
-static efi_status_t efi_file_read(efi_file_protocol_t *handle,
-				  unsigned long *size, void *addr)
-{
-	return handle->read(handle, size, addr);
-}
-
-static efi_status_t efi_file_close(efi_file_protocol_t *handle)
-{
-	return handle->close(handle);
+	*handle = fh;
+	*file_size = finfo.info.file_size;
+	return EFI_SUCCESS;
 }
 
 static efi_status_t efi_open_volume(efi_loaded_image_t *image,
-				    efi_file_protocol_t **__fh)
+				    efi_file_protocol_t **fh)
 {
-	efi_simple_file_system_protocol_t *io;
-	efi_file_protocol_t *fh;
 	efi_guid_t fs_proto = EFI_FILE_SYSTEM_GUID;
+	efi_simple_file_system_protocol_t *io;
 	efi_status_t status;
-	efi_handle_t handle = image->device_handle;
 
-	status = efi_bs_call(handle_protocol, handle, &fs_proto, (void **)&io);
+	status = efi_bs_call(handle_protocol, image->device_handle, &fs_proto,
+			     (void **)&io);
 	if (status != EFI_SUCCESS) {
-		efi_printk("Failed to handle fs_proto\n");
+		pr_efi_err("Failed to handle fs_proto\n");
 		return status;
 	}
 
-	status = io->open_volume(io, &fh);
+	status = io->open_volume(io, fh);
 	if (status != EFI_SUCCESS)
-		efi_printk("Failed to open volume\n");
-	else
-		*__fh = fh;
+		pr_efi_err("Failed to open volume\n");
 
 	return status;
+}
+
+static int find_file_option(const efi_char16_t *cmdline, int cmdline_len,
+			    const efi_char16_t *prefix, int prefix_size,
+			    efi_char16_t *result, int result_len)
+{
+	int prefix_len = prefix_size / 2;
+	bool found = false;
+	int i;
+
+	for (i = prefix_len; i < cmdline_len; i++) {
+		if (!memcmp(&cmdline[i - prefix_len], prefix, prefix_size)) {
+			found = true;
+			break;
+		}
+	}
+
+	if (!found)
+		return 0;
+
+	while (--result_len > 0 && i < cmdline_len) {
+		if (cmdline[i] == L'\0' ||
+		    cmdline[i] == L'\n' ||
+		    cmdline[i] == L' ')
+			break;
+		*result++ = cmdline[i++];
+	}
+	*result = L'\0';
+	return i;
 }
 
 /*
@@ -122,182 +120,130 @@ static efi_status_t efi_open_volume(efi_loaded_image_t *image,
  * We only support loading a file from the same filesystem as
  * the kernel image.
  */
-efi_status_t handle_cmdline_files(efi_loaded_image_t *image,
-				  char *cmd_line, char *option_string,
-				  unsigned long max_addr,
-				  unsigned long *load_addr,
-				  unsigned long *load_size)
+static efi_status_t handle_cmdline_files(efi_loaded_image_t *image,
+					 const efi_char16_t *optstr,
+					 int optstr_size,
+					 unsigned long max_addr,
+					 unsigned long *load_addr,
+					 unsigned long *load_size)
 {
+	const efi_char16_t *cmdline = image->load_options;
+	int cmdline_len = image->load_options_size / 2;
 	unsigned long efi_chunk_size = ULONG_MAX;
-	struct file_info *files;
-	unsigned long file_addr;
-	u64 file_size_total;
-	efi_file_protocol_t *fh = NULL;
+	efi_file_protocol_t *volume = NULL;
+	efi_file_protocol_t *file;
+	unsigned long alloc_addr;
+	unsigned long alloc_size;
 	efi_status_t status;
-	int nr_files;
-	char *str;
-	int i, j, k;
-
-	if (IS_ENABLED(CONFIG_X86) && !nochunk())
-		efi_chunk_size = EFI_READ_CHUNK_SIZE;
-
-	file_addr = 0;
-	file_size_total = 0;
-
-	str = cmd_line;
-
-	j = 0;			/* See close_handles */
+	int offset;
 
 	if (!load_addr || !load_size)
 		return EFI_INVALID_PARAMETER;
 
-	*load_addr = 0;
-	*load_size = 0;
+	if (IS_ENABLED(CONFIG_X86) && !nochunk())
+		efi_chunk_size = EFI_READ_CHUNK_SIZE;
 
-	if (!str || !*str)
-		return EFI_SUCCESS;
+	alloc_addr = alloc_size = 0;
+	do {
+		efi_char16_t filename[MAX_FILENAME_SIZE];
+		unsigned long size;
+		void *addr;
 
-	for (nr_files = 0; *str; nr_files++) {
-		str = strstr(str, option_string);
-		if (!str)
+		offset = find_file_option(cmdline, cmdline_len,
+					  optstr, optstr_size,
+					  filename, ARRAY_SIZE(filename));
+
+		if (!offset)
 			break;
 
-		str += strlen(option_string);
+		cmdline += offset;
+		cmdline_len -= offset;
 
-		/* Skip any leading slashes */
-		while (*str == '/' || *str == '\\')
-			str++;
-
-		while (*str && *str != ' ' && *str != '\n')
-			str++;
-	}
-
-	if (!nr_files)
-		return EFI_SUCCESS;
-
-	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA,
-			     nr_files * sizeof(*files), (void **)&files);
-	if (status != EFI_SUCCESS) {
-		pr_efi_err("Failed to alloc mem for file handle list\n");
-		goto fail;
-	}
-
-	str = cmd_line;
-	for (i = 0; i < nr_files; i++) {
-		struct file_info *file;
-		efi_char16_t filename_16[256];
-		efi_char16_t *p;
-
-		str = strstr(str, option_string);
-		if (!str)
-			break;
-
-		str += strlen(option_string);
-
-		file = &files[i];
-		p = filename_16;
-
-		/* Skip any leading slashes */
-		while (*str == '/' || *str == '\\')
-			str++;
-
-		while (*str && *str != ' ' && *str != '\n') {
-			if ((u8 *)p >= (u8 *)filename_16 + sizeof(filename_16))
-				break;
-
-			if (*str == '/') {
-				*p++ = '\\';
-				str++;
-			} else {
-				*p++ = *str++;
-			}
-		}
-
-		*p = '\0';
-
-		/* Only open the volume once. */
-		if (!i) {
-			status = efi_open_volume(image, &fh);
+		if (!volume) {
+			status = efi_open_volume(image, &volume);
 			if (status != EFI_SUCCESS)
-				goto free_files;
+				return status;
 		}
 
-		status = efi_file_size(fh, filename_16, (void **)&file->handle,
-				       &file->size);
+		status = efi_open_file(volume, filename, &file, &size);
 		if (status != EFI_SUCCESS)
-			goto close_handles;
-
-		file_size_total += file->size;
-	}
-
-	if (file_size_total) {
-		unsigned long addr;
+			goto err_close_volume;
 
 		/*
-		 * Multiple files need to be at consecutive addresses in memory,
-		 * so allocate enough memory for all the files.  This is used
-		 * for loading multiple files.
+		 * Check whether the existing allocation can contain the next
+		 * file. This condition will also trigger naturally during the
+		 * first (and typically only) iteration of the loop, given that
+		 * alloc_size == 0 in that case.
 		 */
-		status = efi_allocate_pages(file_size_total, &file_addr, max_addr);
-		if (status != EFI_SUCCESS) {
-			pr_efi_err("Failed to alloc highmem for files\n");
-			goto close_handles;
-		}
+		if (round_up(alloc_size + size, EFI_ALLOC_ALIGN) >
+		    round_up(alloc_size, EFI_ALLOC_ALIGN)) {
+			unsigned long old_addr = alloc_addr;
 
-		/* We've run out of free low memory. */
-		if (file_addr > max_addr) {
-			pr_efi_err("We've run out of free low memory\n");
-			status = EFI_INVALID_PARAMETER;
-			goto free_file_total;
-		}
-
-		addr = file_addr;
-		for (j = 0; j < nr_files; j++) {
-			unsigned long size;
-
-			size = files[j].size;
-			while (size) {
-				unsigned long chunksize;
-
-				if (size > efi_chunk_size)
-					chunksize = efi_chunk_size;
-				else
-					chunksize = size;
-
-				status = efi_file_read(files[j].handle,
-						       &chunksize,
-						       (void *)addr);
-				if (status != EFI_SUCCESS) {
-					pr_efi_err("Failed to read file\n");
-					goto free_file_total;
-				}
-				addr += chunksize;
-				size -= chunksize;
+			status = efi_allocate_pages(alloc_size + size, &alloc_addr,
+						    max_addr);
+			if (status != EFI_SUCCESS) {
+				pr_efi_err("Failed to reallocate memory for files\n");
+				goto err_close_file;
 			}
 
-			efi_file_close(files[j].handle);
+			if (old_addr != 0) {
+				/*
+				 * This is not the first time we've gone
+				 * around this loop, and so we are loading
+				 * multiple files that need to be concatenated
+				 * and returned in a single buffer.
+				 */
+				memcpy((void *)alloc_addr, (void *)old_addr, alloc_size);
+				efi_free(alloc_size, old_addr);
+			}
 		}
 
-	}
+		addr = (void *)alloc_addr + alloc_size;
+		alloc_size += size;
 
-	efi_bs_call(free_pool, files);
+		while (size) {
+			unsigned long chunksize = min(size, efi_chunk_size);
 
-	*load_addr = file_addr;
-	*load_size = file_size_total;
+			status = file->read(file, &chunksize, addr);
+			if (status != EFI_SUCCESS) {
+				pr_efi_err("Failed to read file\n");
+				goto err_close_file;
+			}
+			addr += chunksize;
+			size -= chunksize;
+		}
+		file->close(file);
+	} while (offset > 0);
 
+	*load_addr = alloc_addr;
+	*load_size = alloc_size;
+
+	if (volume)
+		volume->close(volume);
+	return EFI_SUCCESS;
+
+err_close_file:
+	file->close(file);
+
+err_close_volume:
+	volume->close(volume);
+	efi_free(alloc_size, alloc_addr);
 	return status;
+}
 
-free_file_total:
-	efi_free(file_size_total, file_addr);
+efi_status_t efi_load_dtb(efi_loaded_image_t *image,
+			  unsigned long *load_addr,
+			  unsigned long *load_size)
+{
+	return handle_cmdline_files(image, L"dtb=", sizeof(L"dtb=") - 2,
+				    ULONG_MAX, load_addr, load_size);
+}
 
-close_handles:
-	for (k = j; k < i; k++)
-		efi_file_close(files[k].handle);
-free_files:
-	efi_bs_call(free_pool, files);
-fail:
-	*load_addr = 0;
-	*load_size = 0;
-
-	return status;
+efi_status_t efi_load_initrd(efi_loaded_image_t *image,
+			     unsigned long *load_addr,
+			     unsigned long *load_size,
+			     unsigned long max_addr)
+{
+	return handle_cmdline_files(image, L"initrd=", sizeof(L"initrd=") - 2,
+				    max_addr, load_addr, load_size);
 }

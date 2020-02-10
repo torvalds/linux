@@ -327,7 +327,7 @@ typedef struct {
 	efi_time_t		last_access_time;
 	efi_time_t		modification_time;
 	__aligned_u64		attribute;
-	efi_char16_t		filename[1];
+	efi_char16_t		filename[];
 } efi_file_info_t;
 
 typedef struct efi_file_protocol efi_file_protocol_t;
@@ -607,15 +607,18 @@ efi_status_t efi_relocate_kernel(unsigned long *image_addr,
 				 unsigned long alignment,
 				 unsigned long min_addr);
 
-efi_status_t handle_cmdline_files(efi_loaded_image_t *image,
-				  char *cmd_line, char *option_string,
-				  unsigned long max_addr,
-				  unsigned long *load_addr,
-				  unsigned long *load_size);
-
 efi_status_t efi_parse_options(char const *cmdline);
 
 efi_status_t efi_setup_gop(struct screen_info *si, efi_guid_t *proto,
 			   unsigned long size);
+
+efi_status_t efi_load_dtb(efi_loaded_image_t *image,
+			  unsigned long *load_addr,
+			  unsigned long *load_size);
+
+efi_status_t efi_load_initrd(efi_loaded_image_t *image,
+			     unsigned long *load_addr,
+			     unsigned long *load_size,
+			     unsigned long max_addr);
 
 #endif

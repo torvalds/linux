@@ -154,7 +154,7 @@ efi_status_t efi_entry(efi_handle_t handle, efi_system_table_t *sys_table_arg)
 	unsigned long dram_base;
 	/* addr/point and size pairs for memory management*/
 	unsigned long initrd_addr;
-	u64 initrd_size = 0;
+	unsigned long initrd_size = 0;
 	unsigned long fdt_addr = 0;  /* Original DTB */
 	unsigned long fdt_size = 0;
 	char *cmdline_ptr = NULL;
@@ -247,8 +247,7 @@ efi_status_t efi_entry(efi_handle_t handle, efi_system_table_t *sys_table_arg)
 		if (strstr(cmdline_ptr, "dtb="))
 			pr_efi("Ignoring DTB from command line.\n");
 	} else {
-		status = handle_cmdline_files(image, cmdline_ptr, "dtb=",
-					      ~0UL, &fdt_addr, &fdt_size);
+		status = efi_load_dtb(image, &fdt_addr, &fdt_size);
 
 		if (status != EFI_SUCCESS) {
 			pr_efi_err("Failed to load device tree!\n");
@@ -268,11 +267,8 @@ efi_status_t efi_entry(efi_handle_t handle, efi_system_table_t *sys_table_arg)
 	if (!fdt_addr)
 		pr_efi("Generating empty DTB\n");
 
-	status = handle_cmdline_files(image, cmdline_ptr, "initrd=",
-				      efi_get_max_initrd_addr(dram_base,
-							      image_addr),
-				      (unsigned long *)&initrd_addr,
-				      (unsigned long *)&initrd_size);
+	status = efi_load_initrd(image, &initrd_addr, &initrd_size,
+				 efi_get_max_initrd_addr(dram_base, image_addr));
 	if (status != EFI_SUCCESS)
 		pr_efi_err("Failed initrd from command line!\n");
 
