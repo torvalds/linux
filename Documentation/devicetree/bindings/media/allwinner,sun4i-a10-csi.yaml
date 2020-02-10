@@ -51,6 +51,16 @@ properties:
   resets:
     maxItems: 1
 
+  # FIXME: This should be made required eventually once every SoC will
+  # have the MBUS declared.
+  interconnects:
+    maxItems: 1
+
+  # FIXME: This should be made required eventually once every SoC will
+  # have the MBUS declared.
+  interconnect-names:
+    const: dma-mem
+
   # See ./video-interfaces.txt for details
   port:
     type: object
