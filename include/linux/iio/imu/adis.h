@@ -41,6 +41,7 @@ struct adis_timeout {
  * @glob_cmd_reg: Register address of the GLOB_CMD register
  * @msc_ctrl_reg: Register address of the MSC_CTRL register
  * @diag_stat_reg: Register address of the DIAG_STAT register
+ * @self_test_reg: Register address to request self test command
  * @status_error_msgs: Array of error messgaes
  * @status_error_mask:
  * @timeouts: Chip specific delays
@@ -55,6 +56,7 @@ struct adis_data {
 	unsigned int diag_stat_reg;
 
 	unsigned int self_test_mask;
+	unsigned int self_test_reg;
 	bool self_test_no_autoclear;
 	const struct adis_timeout *timeouts;
 

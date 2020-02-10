@@ -471,6 +471,7 @@ static const char * const adis16136_status_error_msgs[] = {
 	.diag_stat_reg = ADIS16136_REG_DIAG_STAT,			\
 	.glob_cmd_reg = ADIS16136_REG_GLOB_CMD,				\
 	.msc_ctrl_reg = ADIS16136_REG_MSC_CTRL,				\
+	.self_test_reg = ADIS16136_REG_MSC_CTRL,			\
 	.self_test_mask = ADIS16136_MSC_CTRL_SELF_TEST,			\
 	.read_delay = 10,						\
 	.write_delay = 10,						\

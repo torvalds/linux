@@ -346,8 +346,8 @@ static int adis_self_test(struct adis *adis)
 	int ret;
 	const struct adis_timeout *timeouts = adis->data->timeouts;
 
-	ret = __adis_write_reg_16(adis, adis->data->msc_ctrl_reg,
-			adis->data->self_test_mask);
+	ret = __adis_write_reg_16(adis, adis->data->self_test_reg,
+				  adis->data->self_test_mask);
 	if (ret) {
 		dev_err(&adis->spi->dev, "Failed to initiate self test: %d\n",
 			ret);
@@ -359,7 +359,7 @@ static int adis_self_test(struct adis *adis)
 	ret = __adis_check_status(adis);
 
 	if (adis->data->self_test_no_autoclear)
-		__adis_write_reg_16(adis, adis->data->msc_ctrl_reg, 0x00);
+		__adis_write_reg_16(adis, adis->data->self_test_reg, 0x00);
 
 	return ret;
 }

@@ -830,6 +830,7 @@ static int adis16480_enable_irq(struct adis *adis, bool enable);
 	.read_delay = 5,						\
 	.write_delay = 5,						\
 	.self_test_mask = BIT(1),					\
+	.self_test_reg = ADIS16480_REG_GLOB_CMD,			\
 	.status_error_msgs = adis16480_status_error_msgs,		\
 	.status_error_mask = BIT(ADIS16480_DIAG_STAT_XGYRO_FAIL) |	\
 		BIT(ADIS16480_DIAG_STAT_YGYRO_FAIL) |			\

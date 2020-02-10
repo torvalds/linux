@@ -956,6 +956,7 @@ static const char * const adis16400_status_error_msgs[] = {
 	.read_delay = 50,						\
 	.write_delay = 50,						\
 	.self_test_mask = ADIS16400_MSC_CTRL_MEM_TEST,			\
+	.self_test_reg = ADIS16400_MSC_CTRL,				\
 	.status_error_msgs = adis16400_status_error_msgs,		\
 	.status_error_mask = BIT(ADIS16400_DIAG_STAT_ZACCL_FAIL) |	\
 		BIT(ADIS16400_DIAG_STAT_YACCL_FAIL) |			\
