@@ -44,9 +44,9 @@ nv50_wndw_ctxdma_new(struct nv50_wndw *wndw, struct drm_framebuffer *fb)
 {
 	struct nouveau_drm *drm = nouveau_drm(fb->dev);
 	struct nv50_wndw_ctxdma *ctxdma;
-	struct nouveau_bo *nvbo = nouveau_gem_object(fb->obj[0]);
-	const u8    kind = nvbo->kind;
-	const u32 handle = 0xfb000000 | kind;
+	u32 handle;
+	u32 unused;
+	u8  kind;
 	struct {
 		struct nv_dma_v0 base;
 		union {
@@ -57,6 +57,9 @@ nv50_wndw_ctxdma_new(struct nv50_wndw *wndw, struct drm_framebuffer *fb)
 	} args = {};
 	u32 argc = sizeof(args.base);
 	int ret;
+
+	nouveau_framebuffer_get_layout(fb, &unused, &kind);
+	handle = 0xfb000000 | kind;
 
 	list_for_each_entry(ctxdma, &wndw->ctxdma.list, head) {
 		if (ctxdma->object.handle == handle)
@@ -238,15 +241,18 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw, bool modeset,
 {
 	struct drm_framebuffer *fb = asyw->state.fb;
 	struct nouveau_drm *drm = nouveau_drm(wndw->plane.dev);
-	struct nouveau_bo *nvbo = nouveau_gem_object(fb->obj[0]);
+	uint8_t kind;
+	uint32_t tile_mode;
 	int ret;
 
 	NV_ATOMIC(drm, "%s acquire\n", wndw->plane.name);
 
 	if (fb != armw->state.fb || !armw->visible || modeset) {
+		nouveau_framebuffer_get_layout(fb, &tile_mode, &kind);
+
 		asyw->image.w = fb->width;
 		asyw->image.h = fb->height;
-		asyw->image.kind = nvbo->kind;
+		asyw->image.kind = kind;
 
 		ret = nv50_wndw_atomic_check_acquire_rgb(asyw);
 		if (ret) {
@@ -258,9 +264,9 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw, bool modeset,
 		if (asyw->image.kind) {
 			asyw->image.layout = 0;
 			if (drm->client.device.info.chipset >= 0xc0)
-				asyw->image.blockh = nvbo->mode >> 4;
+				asyw->image.blockh = tile_mode >> 4;
 			else
-				asyw->image.blockh = nvbo->mode;
+				asyw->image.blockh = tile_mode;
 			asyw->image.blocks[0] = fb->pitches[0] / 64;
 			asyw->image.pitch[0] = 0;
 		} else {

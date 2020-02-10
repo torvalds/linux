@@ -62,6 +62,10 @@ int  nouveau_display_dumb_map_offset(struct drm_file *, struct drm_device *,
 
 void nouveau_hdmi_mode_set(struct drm_encoder *, struct drm_display_mode *);
 
+void
+nouveau_framebuffer_get_layout(struct drm_framebuffer *fb, uint32_t *tile_mode,
+			       uint8_t *kind);
+
 struct drm_framebuffer *
 nouveau_user_framebuffer_create(struct drm_device *, struct drm_file *,
 				const struct drm_mode_fb_cmd2 *);
