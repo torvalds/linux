@@ -31,6 +31,7 @@
 #define __efistub_global
 #endif
 
+extern bool __pure nochunk(void);
 extern bool __pure nokaslr(void);
 extern bool __pure is_quiet(void);
 extern bool __pure novamap(void);
