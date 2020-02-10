@@ -297,9 +297,14 @@ EXPORT_SYMBOL_GPL(snd_soc_component_set_jack);
 int snd_soc_component_module_get(struct snd_soc_component *component,
 				 int upon_open)
 {
+	if (component->module)
+		return 0;
+
 	if (component->driver->module_get_upon_open == !!upon_open &&
 	    !try_module_get(component->dev->driver->owner))
 		return -ENODEV;
+
+	component->module = 1;
 
 	return 0;
 }
@@ -307,24 +312,40 @@ int snd_soc_component_module_get(struct snd_soc_component *component,
 void snd_soc_component_module_put(struct snd_soc_component *component,
 				  int upon_open)
 {
-	if (component->driver->module_get_upon_open == !!upon_open)
+	if (component->module &&
+	    component->driver->module_get_upon_open == !!upon_open)
 		module_put(component->dev->driver->owner);
+
+	component->module = 0;
 }
 
 int snd_soc_component_open(struct snd_soc_component *component,
 			   struct snd_pcm_substream *substream)
 {
-	if (component->driver->open)
-		return component->driver->open(component, substream);
-	return 0;
+	int ret = 0;
+
+	if (!component->opened &&
+	    component->driver->open)
+		ret = component->driver->open(component, substream);
+
+	if (ret == 0)
+		component->opened = 1;
+
+	return ret;
 }
 
 int snd_soc_component_close(struct snd_soc_component *component,
 			    struct snd_pcm_substream *substream)
 {
-	if (component->driver->close)
-		return component->driver->close(component, substream);
-	return 0;
+	int ret = 0;
+
+	if (component->opened &&
+	    component->driver->close)
+		ret = component->driver->close(component, substream);
+
+	component->opened = 0;
+
+	return ret;
 }
 
 int snd_soc_component_prepare(struct snd_soc_component *component,
