@@ -363,6 +363,7 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	char *cmdline_ptr;
 	unsigned long ramdisk_addr;
 	unsigned long ramdisk_size;
+	bool above4g;
 
 	sys_table = sys_table_arg;
 
@@ -376,7 +377,11 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 		return status;
 	}
 
-	status = efi_low_alloc(0x4000, 1, (unsigned long *)&boot_params);
+	hdr = &((struct boot_params *)image->image_base)->hdr;
+	above4g = hdr->xloadflags & XLF_CAN_BE_LOADED_ABOVE_4G;
+
+	status = efi_allocate_pages(0x4000, (unsigned long *)&boot_params,
+				    above4g ? ULONG_MAX : UINT_MAX);
 	if (status != EFI_SUCCESS) {
 		efi_printk("Failed to allocate lowmem for boot params\n");
 		return status;
