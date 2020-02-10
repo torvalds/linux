@@ -822,10 +822,12 @@ static const char * const adis16480_status_error_msgs[] = {
 
 static int adis16480_enable_irq(struct adis *adis, bool enable);
 
-#define ADIS16480_DATA(_timeouts)					\
+#define ADIS16480_DATA(_prod_id, _timeouts)				\
 {									\
 	.diag_stat_reg = ADIS16480_REG_DIAG_STS,			\
 	.glob_cmd_reg = ADIS16480_REG_GLOB_CMD,				\
+	.prod_id_reg = ADIS16480_REG_PROD_ID,				\
+	.prod_id = (_prod_id),						\
 	.has_paging = true,						\
 	.read_delay = 5,						\
 	.write_delay = 5,						\
@@ -888,7 +890,7 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.int_clk = 2460000,
 		.max_dec_rate = 2048,
 		.filter_freqs = adis16480_def_filter_freqs,
-		.adis_data = ADIS16480_DATA(&adis16485_timeouts),
+		.adis_data = ADIS16480_DATA(16375, &adis16485_timeouts),
 	},
 	[ADIS16480] = {
 		.channels = adis16480_channels,
@@ -901,7 +903,7 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.int_clk = 2460000,
 		.max_dec_rate = 2048,
 		.filter_freqs = adis16480_def_filter_freqs,
-		.adis_data = ADIS16480_DATA(&adis16480_timeouts),
+		.adis_data = ADIS16480_DATA(16480, &adis16480_timeouts),
 	},
 	[ADIS16485] = {
 		.channels = adis16485_channels,
@@ -914,7 +916,7 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.int_clk = 2460000,
 		.max_dec_rate = 2048,
 		.filter_freqs = adis16480_def_filter_freqs,
-		.adis_data = ADIS16480_DATA(&adis16485_timeouts),
+		.adis_data = ADIS16480_DATA(16485, &adis16485_timeouts),
 	},
 	[ADIS16488] = {
 		.channels = adis16480_channels,
@@ -927,7 +929,7 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.int_clk = 2460000,
 		.max_dec_rate = 2048,
 		.filter_freqs = adis16480_def_filter_freqs,
-		.adis_data = ADIS16480_DATA(&adis16485_timeouts),
+		.adis_data = ADIS16480_DATA(16488, &adis16485_timeouts),
 	},
 	[ADIS16490] = {
 		.channels = adis16485_channels,
@@ -941,7 +943,7 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.max_dec_rate = 4250,
 		.filter_freqs = adis16495_def_filter_freqs,
 		.has_pps_clk_mode = true,
-		.adis_data = ADIS16480_DATA(&adis16495_timeouts),
+		.adis_data = ADIS16480_DATA(16490, &adis16495_timeouts),
 	},
 	[ADIS16495_1] = {
 		.channels = adis16485_channels,
@@ -955,7 +957,7 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.max_dec_rate = 4250,
 		.filter_freqs = adis16495_def_filter_freqs,
 		.has_pps_clk_mode = true,
-		.adis_data = ADIS16480_DATA(&adis16495_1_timeouts),
+		.adis_data = ADIS16480_DATA(16495, &adis16495_1_timeouts),
 	},
 	[ADIS16495_2] = {
 		.channels = adis16485_channels,
@@ -969,7 +971,7 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.max_dec_rate = 4250,
 		.filter_freqs = adis16495_def_filter_freqs,
 		.has_pps_clk_mode = true,
-		.adis_data = ADIS16480_DATA(&adis16495_1_timeouts),
+		.adis_data = ADIS16480_DATA(16495, &adis16495_1_timeouts),
 	},
 	[ADIS16495_3] = {
 		.channels = adis16485_channels,
@@ -983,7 +985,7 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.max_dec_rate = 4250,
 		.filter_freqs = adis16495_def_filter_freqs,
 		.has_pps_clk_mode = true,
-		.adis_data = ADIS16480_DATA(&adis16495_1_timeouts),
+		.adis_data = ADIS16480_DATA(16495, &adis16495_1_timeouts),
 	},
 	[ADIS16497_1] = {
 		.channels = adis16485_channels,
@@ -997,7 +999,7 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.max_dec_rate = 4250,
 		.filter_freqs = adis16495_def_filter_freqs,
 		.has_pps_clk_mode = true,
-		.adis_data = ADIS16480_DATA(&adis16495_1_timeouts),
+		.adis_data = ADIS16480_DATA(16497, &adis16495_1_timeouts),
 	},
 	[ADIS16497_2] = {
 		.channels = adis16485_channels,
@@ -1011,7 +1013,7 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.max_dec_rate = 4250,
 		.filter_freqs = adis16495_def_filter_freqs,
 		.has_pps_clk_mode = true,
-		.adis_data = ADIS16480_DATA(&adis16495_1_timeouts),
+		.adis_data = ADIS16480_DATA(16497, &adis16495_1_timeouts),
 	},
 	[ADIS16497_3] = {
 		.channels = adis16485_channels,
@@ -1025,7 +1027,7 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.max_dec_rate = 4250,
 		.filter_freqs = adis16495_def_filter_freqs,
 		.has_pps_clk_mode = true,
-		.adis_data = ADIS16480_DATA(&adis16495_1_timeouts),
+		.adis_data = ADIS16480_DATA(16497, &adis16495_1_timeouts),
 	},
 };
 
@@ -1062,40 +1064,6 @@ static int adis16480_enable_irq(struct adis *adis, bool enable)
 	val |= ADIS16480_DRDY_EN(enable);
 
 	return __adis_write_reg_16(adis, ADIS16480_REG_FNCTIO_CTRL, val);
-}
-
-static int adis16480_initial_setup(struct iio_dev *indio_dev)
-{
-	struct adis16480 *st = iio_priv(indio_dev);
-	uint16_t prod_id;
-	unsigned int device_id;
-	int ret;
-
-	adis_reset(&st->adis);
-	msleep(70);
-
-	ret = adis_write_reg_16(&st->adis, ADIS16480_REG_GLOB_CMD, BIT(1));
-	if (ret)
-		return ret;
-	msleep(30);
-
-	ret = adis_check_status(&st->adis);
-	if (ret)
-		return ret;
-
-	ret = adis_read_reg_16(&st->adis, ADIS16480_REG_PROD_ID, &prod_id);
-	if (ret)
-		return ret;
-
-	ret = sscanf(indio_dev->name, "adis%u\n", &device_id);
-	if (ret != 1)
-		return -EINVAL;
-
-	if (prod_id != device_id)
-		dev_warn(&indio_dev->dev, "Device ID(%u) and product ID(%u) do not match.",
-				device_id, prod_id);
-
-	return 0;
 }
 
 static int adis16480_config_irq_pin(struct device_node *of_node,
@@ -1278,18 +1246,22 @@ static int adis16480_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ret = adis16480_config_irq_pin(spi->dev.of_node, st);
+	ret = __adis_initial_startup(&st->adis);
 	if (ret)
 		return ret;
 
+	ret = adis16480_config_irq_pin(spi->dev.of_node, st);
+	if (ret)
+		goto error_stop_device;
+
 	ret = adis16480_get_ext_clocks(st);
 	if (ret)
-		return ret;
+		goto error_stop_device;
 
 	if (!IS_ERR_OR_NULL(st->ext_clk)) {
 		ret = adis16480_ext_clk_config(st, spi->dev.of_node, true);
 		if (ret)
-			return ret;
+			goto error_stop_device;
 
 		st->clk_freq = clk_get_rate(st->ext_clk);
 		st->clk_freq *= 1000; /* micro */
@@ -1301,24 +1273,20 @@ static int adis16480_probe(struct spi_device *spi)
 	if (ret)
 		goto error_clk_disable_unprepare;
 
-	ret = adis16480_initial_setup(indio_dev);
-	if (ret)
-		goto error_cleanup_buffer;
-
 	ret = iio_device_register(indio_dev);
 	if (ret)
-		goto error_stop_device;
+		goto error_cleanup_buffer;
 
 	adis16480_debugfs_init(indio_dev);
 
 	return 0;
 
-error_stop_device:
-	adis16480_stop_device(indio_dev);
 error_cleanup_buffer:
 	adis_cleanup_buffer_and_trigger(&st->adis, indio_dev);
 error_clk_disable_unprepare:
 	clk_disable_unprepare(st->ext_clk);
+error_stop_device:
+	adis16480_stop_device(indio_dev);
 	return ret;
 }
 
