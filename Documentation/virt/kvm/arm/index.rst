@@ -1,14 +1,10 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ===
-KVM
+ARM
 ===
 
 .. toctree::
    :maxdepth: 2
 
-   amd-memory-encryption
-   cpuid
-   vcpu-requests
-
-   arm/index
+   pvtime
