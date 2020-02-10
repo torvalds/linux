@@ -1828,15 +1828,13 @@ int synth_event_trace(struct trace_event_file *file, unsigned int n_vals, ...)
 	 * called directly by the user, we don't have that but we
 	 * still need to honor not logging when disabled.
 	 */
-	if (!(file->flags & EVENT_FILE_FL_ENABLED))
+	if (!(file->flags & EVENT_FILE_FL_ENABLED) ||
+	    trace_trigger_soft_disabled(file))
 		return 0;
 
 	event = file->event_call->data;
 
 	if (n_vals != event->n_fields)
-		return -EINVAL;
-
-	if (trace_trigger_soft_disabled(file))
 		return -EINVAL;
 
 	fields_size = event->n_u64 * sizeof(u64);
@@ -1918,15 +1916,13 @@ int synth_event_trace_array(struct trace_event_file *file, u64 *vals,
 	 * called directly by the user, we don't have that but we
 	 * still need to honor not logging when disabled.
 	 */
-	if (!(file->flags & EVENT_FILE_FL_ENABLED))
+	if (!(file->flags & EVENT_FILE_FL_ENABLED) ||
+	    trace_trigger_soft_disabled(file))
 		return 0;
 
 	event = file->event_call->data;
 
 	if (n_vals != event->n_fields)
-		return -EINVAL;
-
-	if (trace_trigger_soft_disabled(file))
 		return -EINVAL;
 
 	fields_size = event->n_u64 * sizeof(u64);
@@ -2017,7 +2013,8 @@ int synth_event_trace_start(struct trace_event_file *file,
 	 * trace case, we save the enabed state upon start and just
 	 * ignore the following data calls.
 	 */
-	if (!(file->flags & EVENT_FILE_FL_ENABLED)) {
+	if (!(file->flags & EVENT_FILE_FL_ENABLED) ||
+	    trace_trigger_soft_disabled(file)) {
 		trace_state->enabled = false;
 		goto out;
 	}
@@ -2025,11 +2022,6 @@ int synth_event_trace_start(struct trace_event_file *file,
 	trace_state->enabled = true;
 
 	trace_state->event = file->event_call->data;
-
-	if (trace_trigger_soft_disabled(file)) {
-		ret = -EINVAL;
-		goto out;
-	}
 
 	fields_size = trace_state->event->n_u64 * sizeof(u64);
 
