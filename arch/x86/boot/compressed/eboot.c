@@ -439,8 +439,6 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	boot_params->ext_ramdisk_image = (u64)ramdisk_addr >> 32;
 	boot_params->ext_ramdisk_size  = (u64)ramdisk_size >> 32;
 
-	hdr->code32_start = (u32)(unsigned long)startup_32;
-
 	efi_stub_entry(handle, sys_table, boot_params);
 	/* not reached */
 
@@ -707,6 +705,7 @@ struct boot_params *efi_main(efi_handle_t handle,
 			     efi_system_table_t *sys_table_arg,
 			     struct boot_params *boot_params)
 {
+	unsigned long bzimage_addr = (unsigned long)startup_32;
 	struct setup_header *hdr = &boot_params->hdr;
 	efi_status_t status;
 	unsigned long cmdline_paddr;
@@ -716,6 +715,23 @@ struct boot_params *efi_main(efi_handle_t handle,
 	/* Check if we were booted by the EFI firmware */
 	if (sys_table->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE)
 		goto fail;
+
+	/*
+	 * If the kernel isn't already loaded at the preferred load
+	 * address, relocate it.
+	 */
+	if (bzimage_addr != hdr->pref_address) {
+		status = efi_relocate_kernel(&bzimage_addr,
+					     hdr->init_size, hdr->init_size,
+					     hdr->pref_address,
+					     hdr->kernel_alignment,
+					     LOAD_PHYSICAL_ADDR);
+		if (status != EFI_SUCCESS) {
+			efi_printk("efi_relocate_kernel() failed!\n");
+			goto fail;
+		}
+	}
+	hdr->code32_start = (u32)bzimage_addr;
 
 	/*
 	 * make_boot_params() may have been called before efi_main(), in which
@@ -745,26 +761,6 @@ struct boot_params *efi_main(efi_handle_t handle,
 	setup_efi_pci(boot_params);
 
 	setup_quirks(boot_params);
-
-	/*
-	 * If the kernel isn't already loaded at the preferred load
-	 * address, relocate it.
-	 */
-	if (hdr->pref_address != hdr->code32_start) {
-		unsigned long bzimage_addr = hdr->code32_start;
-		status = efi_relocate_kernel(&bzimage_addr,
-					     hdr->init_size, hdr->init_size,
-					     hdr->pref_address,
-					     hdr->kernel_alignment,
-					     LOAD_PHYSICAL_ADDR);
-		if (status != EFI_SUCCESS) {
-			efi_printk("efi_relocate_kernel() failed!\n");
-			goto fail;
-		}
-
-		hdr->pref_address = hdr->code32_start;
-		hdr->code32_start = bzimage_addr;
-	}
 
 	status = exit_boot(boot_params, handle);
 	if (status != EFI_SUCCESS) {
