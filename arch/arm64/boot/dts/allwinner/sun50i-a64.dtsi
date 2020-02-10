@@ -1061,6 +1061,14 @@
 			status = "disabled";
 		};
 
+		mbus: dram-controller@1c62000 {
+			compatible = "allwinner,sun50i-a64-mbus";
+			reg = <0x01c62000 0x1000>;
+			clocks = <&ccu 112>;
+			dma-ranges = <0x00000000 0x40000000 0xc0000000>;
+			#interconnect-cells = <1>;
+		};
+
 		csi: csi@1cb0000 {
 			compatible = "allwinner,sun50i-a64-csi";
 			reg = <0x01cb0000 0x1000>;
