@@ -131,7 +131,7 @@
 				status = "okay";
 
 				lanes {
-					usb2-0 {
+					micro_b: usb2-0 {
 						nvidia,function = "xusb";
 						status = "okay";
 					};
@@ -211,6 +211,13 @@
 		       <&{/padctl@3520000/pads/usb2/lanes/usb2-1}>,
 		       <&{/padctl@3520000/pads/usb3/lanes/usb3-0}>;
 		phy-names = "usb2-0", "usb2-1", "usb3-0";
+	};
+
+	usb@3550000 {
+		status = "okay";
+
+		phys = <&micro_b>;
+		phy-names = "usb2-0";
 	};
 
 	i2c@c250000 {
