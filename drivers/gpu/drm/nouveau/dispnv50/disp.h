@@ -78,6 +78,10 @@ void nv50_dmac_destroy(struct nv50_dmac *);
 u32 *evo_wait(struct nv50_dmac *, int nr);
 void evo_kick(u32 *, struct nv50_dmac *);
 
+extern const u64 disp50xx_modifiers[];
+extern const u64 disp90xx_modifiers[];
+extern const u64 wndwc57e_modifiers[];
+
 #define evo_mthd(p, m, s) do {						\
 	const u32 _m = (m), _s = (s);					\
 	if (drm_debug_enabled(DRM_UT_KMS))				\

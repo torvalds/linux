@@ -609,6 +609,29 @@ nv50_wndw_destroy(struct drm_plane *plane)
 	kfree(wndw);
 }
 
+/* This function assumes the format has already been validated against the plane
+ * and the modifier was validated against the device-wides modifier list at FB
+ * creation time.
+ */
+static bool nv50_plane_format_mod_supported(struct drm_plane *plane,
+					    u32 format, u64 modifier)
+{
+	struct nouveau_drm *drm = nouveau_drm(plane->dev);
+	uint8_t i;
+
+	if (drm->client.device.info.chipset < 0xc0) {
+		const struct drm_format_info *info = drm_format_info(format);
+		const uint8_t kind = (modifier >> 12) & 0xff;
+
+		if (!format) return false;
+
+		for (i = 0; i < info->num_planes; i++)
+			if ((info->cpp[i] != 4) && kind != 0x70) return false;
+	}
+
+	return true;
+}
+
 const struct drm_plane_funcs
 nv50_wndw = {
 	.update_plane = drm_atomic_helper_update_plane,
@@ -617,6 +640,7 @@ nv50_wndw = {
 	.reset = nv50_wndw_reset,
 	.atomic_duplicate_state = nv50_wndw_atomic_duplicate_state,
 	.atomic_destroy_state = nv50_wndw_atomic_destroy_state,
+	.format_mod_supported = nv50_plane_format_mod_supported,
 };
 
 static int
@@ -664,7 +688,8 @@ nv50_wndw_new_(const struct nv50_wndw_func *func, struct drm_device *dev,
 	for (nformat = 0; format[nformat]; nformat++);
 
 	ret = drm_universal_plane_init(dev, &wndw->plane, heads, &nv50_wndw,
-				       format, nformat, NULL,
+				       format, nformat,
+				       nouveau_display(dev)->format_modifiers,
 				       type, "%s-%d", name, index);
 	if (ret) {
 		kfree(*pwndw);

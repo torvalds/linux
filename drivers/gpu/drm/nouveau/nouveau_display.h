@@ -32,6 +32,8 @@ struct nouveau_display {
 	struct drm_property *color_vibrance_property;
 
 	struct drm_atomic_state *suspend;
+
+	const u64 *format_modifiers;
 };
 
 static inline struct nouveau_display *
