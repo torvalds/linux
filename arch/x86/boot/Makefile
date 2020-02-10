@@ -45,8 +45,8 @@ setup-y		+= video-vesa.o
 setup-y		+= video-bios.o
 
 targets		+= $(setup-y)
-hostprogs-y	:= tools/build
-hostprogs-$(CONFIG_X86_FEATURE_NAMES) += mkcpustr
+hostprogs	:= tools/build
+hostprogs	+= mkcpustr
 
 HOST_EXTRACFLAGS += -I$(srctree)/tools/include \
 		    -include include/generated/autoconf.h \
