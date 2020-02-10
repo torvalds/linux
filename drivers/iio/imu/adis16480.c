@@ -138,7 +138,7 @@ struct adis16480_chip_info {
 	unsigned int max_dec_rate;
 	const unsigned int *filter_freqs;
 	bool has_pps_clk_mode;
-	const struct adis_timeout *timeouts;
+	const struct adis_data adis_data;
 };
 
 enum adis16480_int_pin {
@@ -796,6 +796,55 @@ enum adis16480_variant {
 	ADIS16497_3,
 };
 
+#define ADIS16480_DIAG_STAT_XGYRO_FAIL 0
+#define ADIS16480_DIAG_STAT_YGYRO_FAIL 1
+#define ADIS16480_DIAG_STAT_ZGYRO_FAIL 2
+#define ADIS16480_DIAG_STAT_XACCL_FAIL 3
+#define ADIS16480_DIAG_STAT_YACCL_FAIL 4
+#define ADIS16480_DIAG_STAT_ZACCL_FAIL 5
+#define ADIS16480_DIAG_STAT_XMAGN_FAIL 8
+#define ADIS16480_DIAG_STAT_YMAGN_FAIL 9
+#define ADIS16480_DIAG_STAT_ZMAGN_FAIL 10
+#define ADIS16480_DIAG_STAT_BARO_FAIL 11
+
+static const char * const adis16480_status_error_msgs[] = {
+	[ADIS16480_DIAG_STAT_XGYRO_FAIL] = "X-axis gyroscope self-test failure",
+	[ADIS16480_DIAG_STAT_YGYRO_FAIL] = "Y-axis gyroscope self-test failure",
+	[ADIS16480_DIAG_STAT_ZGYRO_FAIL] = "Z-axis gyroscope self-test failure",
+	[ADIS16480_DIAG_STAT_XACCL_FAIL] = "X-axis accelerometer self-test failure",
+	[ADIS16480_DIAG_STAT_YACCL_FAIL] = "Y-axis accelerometer self-test failure",
+	[ADIS16480_DIAG_STAT_ZACCL_FAIL] = "Z-axis accelerometer self-test failure",
+	[ADIS16480_DIAG_STAT_XMAGN_FAIL] = "X-axis magnetometer self-test failure",
+	[ADIS16480_DIAG_STAT_YMAGN_FAIL] = "Y-axis magnetometer self-test failure",
+	[ADIS16480_DIAG_STAT_ZMAGN_FAIL] = "Z-axis magnetometer self-test failure",
+	[ADIS16480_DIAG_STAT_BARO_FAIL] = "Barometer self-test failure",
+};
+
+static int adis16480_enable_irq(struct adis *adis, bool enable);
+
+#define ADIS16480_DATA(_timeouts)					\
+{									\
+	.diag_stat_reg = ADIS16480_REG_DIAG_STS,			\
+	.glob_cmd_reg = ADIS16480_REG_GLOB_CMD,				\
+	.has_paging = true,						\
+	.read_delay = 5,						\
+	.write_delay = 5,						\
+	.self_test_mask = BIT(1),					\
+	.status_error_msgs = adis16480_status_error_msgs,		\
+	.status_error_mask = BIT(ADIS16480_DIAG_STAT_XGYRO_FAIL) |	\
+		BIT(ADIS16480_DIAG_STAT_YGYRO_FAIL) |			\
+		BIT(ADIS16480_DIAG_STAT_ZGYRO_FAIL) |			\
+		BIT(ADIS16480_DIAG_STAT_XACCL_FAIL) |			\
+		BIT(ADIS16480_DIAG_STAT_YACCL_FAIL) |			\
+		BIT(ADIS16480_DIAG_STAT_ZACCL_FAIL) |			\
+		BIT(ADIS16480_DIAG_STAT_XMAGN_FAIL) |			\
+		BIT(ADIS16480_DIAG_STAT_YMAGN_FAIL) |			\
+		BIT(ADIS16480_DIAG_STAT_ZMAGN_FAIL) |			\
+		BIT(ADIS16480_DIAG_STAT_BARO_FAIL),			\
+	.enable_irq = adis16480_enable_irq,				\
+	.timeouts = (_timeouts),					\
+}
+
 static const struct adis_timeout adis16485_timeouts = {
 	.reset_ms = 560,
 	.sw_reset_ms = 120,
@@ -838,7 +887,7 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.int_clk = 2460000,
 		.max_dec_rate = 2048,
 		.filter_freqs = adis16480_def_filter_freqs,
-		.timeouts = &adis16485_timeouts,
+		.adis_data = ADIS16480_DATA(&adis16485_timeouts),
 	},
 	[ADIS16480] = {
 		.channels = adis16480_channels,
@@ -851,7 +900,7 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.int_clk = 2460000,
 		.max_dec_rate = 2048,
 		.filter_freqs = adis16480_def_filter_freqs,
-		.timeouts = &adis16480_timeouts,
+		.adis_data = ADIS16480_DATA(&adis16480_timeouts),
 	},
 	[ADIS16485] = {
 		.channels = adis16485_channels,
@@ -864,7 +913,7 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.int_clk = 2460000,
 		.max_dec_rate = 2048,
 		.filter_freqs = adis16480_def_filter_freqs,
-		.timeouts = &adis16485_timeouts,
+		.adis_data = ADIS16480_DATA(&adis16485_timeouts),
 	},
 	[ADIS16488] = {
 		.channels = adis16480_channels,
@@ -877,7 +926,7 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.int_clk = 2460000,
 		.max_dec_rate = 2048,
 		.filter_freqs = adis16480_def_filter_freqs,
-		.timeouts = &adis16485_timeouts,
+		.adis_data = ADIS16480_DATA(&adis16485_timeouts),
 	},
 	[ADIS16490] = {
 		.channels = adis16485_channels,
@@ -891,7 +940,7 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.max_dec_rate = 4250,
 		.filter_freqs = adis16495_def_filter_freqs,
 		.has_pps_clk_mode = true,
-		.timeouts = &adis16495_timeouts,
+		.adis_data = ADIS16480_DATA(&adis16495_timeouts),
 	},
 	[ADIS16495_1] = {
 		.channels = adis16485_channels,
@@ -905,7 +954,7 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.max_dec_rate = 4250,
 		.filter_freqs = adis16495_def_filter_freqs,
 		.has_pps_clk_mode = true,
-		.timeouts = &adis16495_1_timeouts,
+		.adis_data = ADIS16480_DATA(&adis16495_1_timeouts),
 	},
 	[ADIS16495_2] = {
 		.channels = adis16485_channels,
@@ -919,7 +968,7 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.max_dec_rate = 4250,
 		.filter_freqs = adis16495_def_filter_freqs,
 		.has_pps_clk_mode = true,
-		.timeouts = &adis16495_1_timeouts,
+		.adis_data = ADIS16480_DATA(&adis16495_1_timeouts),
 	},
 	[ADIS16495_3] = {
 		.channels = adis16485_channels,
@@ -933,7 +982,7 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.max_dec_rate = 4250,
 		.filter_freqs = adis16495_def_filter_freqs,
 		.has_pps_clk_mode = true,
-		.timeouts = &adis16495_1_timeouts,
+		.adis_data = ADIS16480_DATA(&adis16495_1_timeouts),
 	},
 	[ADIS16497_1] = {
 		.channels = adis16485_channels,
@@ -947,7 +996,7 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.max_dec_rate = 4250,
 		.filter_freqs = adis16495_def_filter_freqs,
 		.has_pps_clk_mode = true,
-		.timeouts = &adis16495_1_timeouts,
+		.adis_data = ADIS16480_DATA(&adis16495_1_timeouts),
 	},
 	[ADIS16497_2] = {
 		.channels = adis16485_channels,
@@ -961,7 +1010,7 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.max_dec_rate = 4250,
 		.filter_freqs = adis16495_def_filter_freqs,
 		.has_pps_clk_mode = true,
-		.timeouts = &adis16495_1_timeouts,
+		.adis_data = ADIS16480_DATA(&adis16495_1_timeouts),
 	},
 	[ADIS16497_3] = {
 		.channels = adis16485_channels,
@@ -975,7 +1024,7 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.max_dec_rate = 4250,
 		.filter_freqs = adis16495_def_filter_freqs,
 		.has_pps_clk_mode = true,
-		.timeouts = &adis16495_1_timeouts,
+		.adis_data = ADIS16480_DATA(&adis16495_1_timeouts),
 	},
 };
 
@@ -1047,53 +1096,6 @@ static int adis16480_initial_setup(struct iio_dev *indio_dev)
 
 	return 0;
 }
-
-#define ADIS16480_DIAG_STAT_XGYRO_FAIL 0
-#define ADIS16480_DIAG_STAT_YGYRO_FAIL 1
-#define ADIS16480_DIAG_STAT_ZGYRO_FAIL 2
-#define ADIS16480_DIAG_STAT_XACCL_FAIL 3
-#define ADIS16480_DIAG_STAT_YACCL_FAIL 4
-#define ADIS16480_DIAG_STAT_ZACCL_FAIL 5
-#define ADIS16480_DIAG_STAT_XMAGN_FAIL 8
-#define ADIS16480_DIAG_STAT_YMAGN_FAIL 9
-#define ADIS16480_DIAG_STAT_ZMAGN_FAIL 10
-#define ADIS16480_DIAG_STAT_BARO_FAIL 11
-
-static const char * const adis16480_status_error_msgs[] = {
-	[ADIS16480_DIAG_STAT_XGYRO_FAIL] = "X-axis gyroscope self-test failure",
-	[ADIS16480_DIAG_STAT_YGYRO_FAIL] = "Y-axis gyroscope self-test failure",
-	[ADIS16480_DIAG_STAT_ZGYRO_FAIL] = "Z-axis gyroscope self-test failure",
-	[ADIS16480_DIAG_STAT_XACCL_FAIL] = "X-axis accelerometer self-test failure",
-	[ADIS16480_DIAG_STAT_YACCL_FAIL] = "Y-axis accelerometer self-test failure",
-	[ADIS16480_DIAG_STAT_ZACCL_FAIL] = "Z-axis accelerometer self-test failure",
-	[ADIS16480_DIAG_STAT_XMAGN_FAIL] = "X-axis magnetometer self-test failure",
-	[ADIS16480_DIAG_STAT_YMAGN_FAIL] = "Y-axis magnetometer self-test failure",
-	[ADIS16480_DIAG_STAT_ZMAGN_FAIL] = "Z-axis magnetometer self-test failure",
-	[ADIS16480_DIAG_STAT_BARO_FAIL] = "Barometer self-test failure",
-};
-
-static const struct adis_data adis16480_data = {
-	.diag_stat_reg = ADIS16480_REG_DIAG_STS,
-	.glob_cmd_reg = ADIS16480_REG_GLOB_CMD,
-	.has_paging = true,
-
-	.read_delay = 5,
-	.write_delay = 5,
-
-	.status_error_msgs = adis16480_status_error_msgs,
-	.status_error_mask = BIT(ADIS16480_DIAG_STAT_XGYRO_FAIL) |
-		BIT(ADIS16480_DIAG_STAT_YGYRO_FAIL) |
-		BIT(ADIS16480_DIAG_STAT_ZGYRO_FAIL) |
-		BIT(ADIS16480_DIAG_STAT_XACCL_FAIL) |
-		BIT(ADIS16480_DIAG_STAT_YACCL_FAIL) |
-		BIT(ADIS16480_DIAG_STAT_ZACCL_FAIL) |
-		BIT(ADIS16480_DIAG_STAT_XMAGN_FAIL) |
-		BIT(ADIS16480_DIAG_STAT_YMAGN_FAIL) |
-		BIT(ADIS16480_DIAG_STAT_ZMAGN_FAIL) |
-		BIT(ADIS16480_DIAG_STAT_BARO_FAIL),
-
-	.enable_irq = adis16480_enable_irq,
-};
 
 static int adis16480_config_irq_pin(struct device_node *of_node,
 				    struct adis16480 *st)
@@ -1245,22 +1247,6 @@ static int adis16480_get_ext_clocks(struct adis16480 *st)
 	return 0;
 }
 
-static struct adis_data *adis16480_adis_data_alloc(struct adis16480 *st,
-						   struct device *dev)
-{
-	struct adis_data *data;
-
-	data = devm_kmalloc(dev, sizeof(struct adis_data), GFP_KERNEL);
-	if (!data)
-		return ERR_PTR(-ENOMEM);
-
-	memcpy(data, &adis16480_data, sizeof(*data));
-
-	data->timeouts = st->chip_info->timeouts;
-
-	return data;
-}
-
 static int adis16480_probe(struct spi_device *spi)
 {
 	const struct spi_device_id *id = spi_get_device_id(spi);
@@ -1285,9 +1271,7 @@ static int adis16480_probe(struct spi_device *spi)
 	indio_dev->info = &adis16480_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	adis16480_data = adis16480_adis_data_alloc(st, &spi->dev);
-	if (IS_ERR(adis16480_data))
-		return PTR_ERR(adis16480_data);
+	adis16480_data = &st->chip_info->adis_data;
 
 	ret = adis_init(&st->adis, indio_dev, spi, adis16480_data);
 	if (ret)
