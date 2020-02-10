@@ -1,3 +1,6 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+================================
 Review checklist for kvm patches
 ================================
 
