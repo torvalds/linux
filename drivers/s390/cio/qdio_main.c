@@ -1105,9 +1105,8 @@ int qdio_get_ssqd_desc(struct ccw_device *cdev,
 }
 EXPORT_SYMBOL_GPL(qdio_get_ssqd_desc);
 
-static void qdio_shutdown_queues(struct ccw_device *cdev)
+static void qdio_shutdown_queues(struct qdio_irq *irq_ptr)
 {
-	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
 	struct qdio_q *q;
 	int i;
 
@@ -1155,7 +1154,7 @@ int qdio_shutdown(struct ccw_device *cdev, int how)
 	qdio_set_state(irq_ptr, QDIO_IRQ_STATE_STOPPED);
 
 	tiqdio_remove_device(irq_ptr);
-	qdio_shutdown_queues(cdev);
+	qdio_shutdown_queues(irq_ptr);
 	qdio_shutdown_debug_entries(irq_ptr);
 
 	/* cleanup subchannel */
@@ -1316,19 +1315,18 @@ static void qdio_detect_hsicq(struct qdio_irq *irq_ptr)
 int qdio_establish(struct qdio_initialize *init_data)
 {
 	struct ccw_device *cdev = init_data->cdev;
+	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
 	struct subchannel_id schid;
-	struct qdio_irq *irq_ptr;
 	int rc;
 
 	ccw_device_get_schid(cdev, &schid);
 	DBF_EVENT("qestablish:%4x", schid.sch_no);
 
-	irq_ptr = cdev->private->qdio_data;
 	if (!irq_ptr)
 		return -ENODEV;
 
 	mutex_lock(&irq_ptr->setup_mutex);
-	qdio_setup_irq(init_data);
+	qdio_setup_irq(irq_ptr, init_data);
 
 	rc = qdio_establish_thinint(irq_ptr);
 	if (rc) {
@@ -1386,14 +1384,13 @@ EXPORT_SYMBOL_GPL(qdio_establish);
  */
 int qdio_activate(struct ccw_device *cdev)
 {
+	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
 	struct subchannel_id schid;
-	struct qdio_irq *irq_ptr;
 	int rc;
 
 	ccw_device_get_schid(cdev, &schid);
 	DBF_EVENT("qactivate:%4x", schid.sch_no);
 
-	irq_ptr = cdev->private->qdio_data;
 	if (!irq_ptr)
 		return -ENODEV;
 

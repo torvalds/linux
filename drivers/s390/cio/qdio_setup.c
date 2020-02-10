@@ -450,11 +450,10 @@ static void setup_qib(struct qdio_irq *irq_ptr,
 	memcpy(irq_ptr->qib.ebcnam, init_data->adapter_name, 8);
 }
 
-int qdio_setup_irq(struct qdio_initialize *init_data)
+int qdio_setup_irq(struct qdio_irq *irq_ptr, struct qdio_initialize *init_data)
 {
 	struct ciw *ciw;
 	struct ccw_device *cdev = init_data->cdev;
-	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
 
 	memset(&irq_ptr->qib, 0, sizeof(irq_ptr->qib));
 	memset(&irq_ptr->siga_flag, 0, sizeof(irq_ptr->siga_flag));
