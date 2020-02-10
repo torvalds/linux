@@ -358,8 +358,6 @@ static int pwm_imx27_remove(struct platform_device *pdev)
 
 	imx = platform_get_drvdata(pdev);
 
-	pwm_imx27_clk_disable_unprepare(imx);
-
 	return pwmchip_remove(&imx->chip);
 }
 
