@@ -405,7 +405,8 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	hdr->type_of_loader = 0x21;
 
 	/* Convert unicode cmdline to ascii */
-	cmdline_ptr = efi_convert_cmdline(image, &options_size);
+	cmdline_ptr = efi_convert_cmdline(image, &options_size,
+					  above4g ? ULONG_MAX : UINT_MAX);
 	if (!cmdline_ptr)
 		goto fail;
 
@@ -445,7 +446,7 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	/* not reached */
 
 fail2:
-	efi_free(options_size, hdr->cmd_line_ptr);
+	efi_free(options_size, (unsigned long)cmdline_ptr);
 fail:
 	efi_free(0x4000, (unsigned long)boot_params);
 

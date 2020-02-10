@@ -497,17 +497,13 @@ static u8 *efi_utf16_to_utf8(u8 *dst, const u16 *src, int n)
 	return dst;
 }
 
-#ifndef MAX_CMDLINE_ADDRESS
-#define MAX_CMDLINE_ADDRESS	ULONG_MAX
-#endif
-
 /*
  * Convert the unicode UEFI command line to ASCII to pass to kernel.
  * Size of memory allocated return in *cmd_line_len.
  * Returns NULL on error.
  */
 char *efi_convert_cmdline(efi_loaded_image_t *image,
-			  int *cmd_line_len)
+			  int *cmd_line_len, unsigned long max_addr)
 {
 	const u16 *s2;
 	u8 *s1 = NULL;
@@ -535,8 +531,7 @@ char *efi_convert_cmdline(efi_loaded_image_t *image,
 
 	options_bytes++;	/* NUL termination */
 
-	status = efi_allocate_pages(options_bytes, &cmdline_addr,
-				MAX_CMDLINE_ADDRESS);
+	status = efi_allocate_pages(options_bytes, &cmdline_addr, max_addr);
 	if (status != EFI_SUCCESS)
 		return NULL;
 

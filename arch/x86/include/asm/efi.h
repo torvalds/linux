@@ -34,8 +34,6 @@ static inline bool efi_have_uv1_memmap(void)
 #define EFI32_LOADER_SIGNATURE	"EL32"
 #define EFI64_LOADER_SIGNATURE	"EL64"
 
-#define MAX_CMDLINE_ADDRESS	UINT_MAX
-
 #define ARCH_EFI_IRQ_FLAGS_MASK	X86_EFLAGS_IF
 
 /*
