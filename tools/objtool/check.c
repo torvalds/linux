@@ -768,6 +768,27 @@ static int handle_group_alt(struct objtool_file *file,
 		insn->ignore = orig_insn->ignore_alts;
 		insn->func = orig_insn->func;
 
+		/*
+		 * Since alternative replacement code is copy/pasted by the
+		 * kernel after applying relocations, generally such code can't
+		 * have relative-address relocation references to outside the
+		 * .altinstr_replacement section, unless the arch's
+		 * alternatives code can adjust the relative offsets
+		 * accordingly.
+		 *
+		 * The x86 alternatives code adjusts the offsets only when it
+		 * encounters a branch instruction at the very beginning of the
+		 * replacement group.
+		 */
+		if ((insn->offset != special_alt->new_off ||
+		    (insn->type != INSN_CALL && !is_static_jump(insn))) &&
+		    find_rela_by_dest_range(insn->sec, insn->offset, insn->len)) {
+
+			WARN_FUNC("unsupported relocation in alternatives section",
+				  insn->sec, insn->offset);
+			return -1;
+		}
+
 		if (!is_static_jump(insn))
 			continue;
 
