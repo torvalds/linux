@@ -267,7 +267,7 @@ efi_status_t efi_entry(efi_handle_t handle, efi_system_table_t *sys_table_arg)
 	if (!fdt_addr)
 		pr_efi("Generating empty DTB\n");
 
-	status = efi_load_initrd(image, &initrd_addr, &initrd_size,
+	status = efi_load_initrd(image, &initrd_addr, &initrd_size, ULONG_MAX,
 				 efi_get_max_initrd_addr(dram_base, image_addr));
 	if (status != EFI_SUCCESS)
 		pr_efi_err("Failed initrd from command line!\n");

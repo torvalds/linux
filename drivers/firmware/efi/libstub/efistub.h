@@ -619,6 +619,7 @@ efi_status_t efi_load_dtb(efi_loaded_image_t *image,
 efi_status_t efi_load_initrd(efi_loaded_image_t *image,
 			     unsigned long *load_addr,
 			     unsigned long *load_size,
-			     unsigned long max_addr);
+			     unsigned long soft_limit,
+			     unsigned long hard_limit);
 
 #endif
