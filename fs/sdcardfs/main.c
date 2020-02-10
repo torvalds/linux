@@ -42,7 +42,7 @@ enum sdcardfs_param {
 	Opt_err,
 };
 
-static const struct fs_parameter_spec sdcardfs_param_specs[] = {
+static const struct fs_parameter_spec sdcardfs_fs_specs[] = {
 	fsparam_u32("fsuid", Opt_fsuid),
 	fsparam_u32("fsgid", Opt_fsgid),
 	fsparam_u32("gid", Opt_gid),
@@ -58,11 +58,6 @@ static const struct fs_parameter_spec sdcardfs_param_specs[] = {
 	{}
 };
 
-static const struct fs_parameter_description sdcardfs_parameters = {
-	.name	= "sdcardfs",
-	.specs	= sdcardfs_param_specs,
-};
-
 static int sdcardfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 {
 	struct sdcardfs_context_options *fc_opts = fc->fs_private;
@@ -71,7 +66,7 @@ static int sdcardfs_parse_param(struct fs_context *fc, struct fs_parameter *para
 	struct fs_parse_result result;
 	int opt;
 
-	opt = fs_parse(fc, &sdcardfs_parameters, param, &result);
+	opt = fs_parse(fc, sdcardfs_fs_specs, param, &result);
 	if (opt < 0)
 		return opt;
 
