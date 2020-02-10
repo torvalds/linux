@@ -15,6 +15,7 @@ KVM
    locking
    mmu
    msr
+   nested-vmx
    vcpu-requests
 
    arm/index
