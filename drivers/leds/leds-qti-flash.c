@@ -9,6 +9,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/led-class-flash.h>
+#include <linux/leds-qti-flash.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
@@ -65,6 +66,7 @@
 #define IRES_12P5_UA		12500
 #define IRES_5P0_UA		5000
 #define IRES_DEFAULT_UA		IRES_12P5_UA
+#define MAX_FLASH_CURRENT_MA		2000
 
 enum flash_led_type {
 	FLASH_LED_TYPE_UNKNOWN,
@@ -133,6 +135,7 @@ struct qti_flash_led {
 	int			all_ramp_up_done_irq;
 	int			all_ramp_down_done_irq;
 	int			led_fault_irq;
+	int			max_current;
 	u16			base;
 	u8		max_channels;
 	u8		ref_count;
@@ -567,6 +570,65 @@ static void qti_flash_led_switch_brightness_set(
 		snode->enabled = state;
 }
 
+static struct led_classdev *trigger_to_lcdev(struct led_trigger *trig)
+{
+	struct led_classdev *led_cdev;
+
+	read_lock(&trig->leddev_list_lock);
+	list_for_each_entry(led_cdev, &trig->led_cdevs, trig_list) {
+		if (!strcmp(led_cdev->default_trigger, trig->name)) {
+			read_unlock(&trig->leddev_list_lock);
+			return led_cdev;
+		}
+	}
+
+	read_unlock(&trig->leddev_list_lock);
+	return NULL;
+}
+
+static ssize_t qti_flash_led_max_current_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct flash_switch_data *snode;
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+
+	snode = container_of(led_cdev, struct flash_switch_data, cdev);
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", snode->led->max_current);
+}
+
+int qti_flash_led_prepare(struct led_trigger *trig, int options,
+				int *max_current)
+{
+	struct led_classdev *led_cdev;
+	struct flash_switch_data *snode;
+
+	if (!trig) {
+		pr_err("Invalid led_trigger\n");
+		return -EINVAL;
+	}
+
+	led_cdev = trigger_to_lcdev(trig);
+	if (!led_cdev) {
+		pr_err("Invalid led_cdev in trigger %s\n", trig->name);
+		return -ENODEV;
+	}
+
+	snode = container_of(led_cdev, struct flash_switch_data, cdev);
+
+	if (options & QUERY_MAX_AVAIL_CURRENT) {
+		*max_current = snode->led->max_current;
+		return 0;
+	}
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL(qti_flash_led_prepare);
+
+static struct device_attribute qti_flash_led_attrs[] = {
+	__ATTR(max_current, 0664, qti_flash_led_max_current_show, NULL),
+};
+
 static int qti_flash_brightness_set_blocking(
 		struct led_classdev *led_cdev, enum led_brightness value)
 {
@@ -685,6 +747,8 @@ static int qti_flash_led_setup(struct qti_flash_led *led)
 			return rc;
 	}
 
+	led->max_current = MAX_FLASH_CURRENT_MA;
+
 	return rc;
 }
 
@@ -768,7 +832,7 @@ static int qti_flash_led_register_interrupts(struct qti_flash_led *led)
 static int register_switch_device(struct qti_flash_led *led,
 		struct flash_switch_data *snode, struct device_node *node)
 {
-	int rc;
+	int rc, i;
 
 	rc = of_property_read_string(node, "qcom,led-name",
 				&snode->cdev.name);
@@ -808,7 +872,22 @@ static int register_switch_device(struct qti_flash_led *led,
 		return rc;
 	}
 
+	for (i = 0; i < ARRAY_SIZE(qti_flash_led_attrs); i++) {
+		rc = sysfs_create_file(&snode->cdev.dev->kobj,
+				&qti_flash_led_attrs[i].attr);
+		if (rc < 0) {
+			pr_err("Failed to create sysfs attrs, rc=%d\n", rc);
+			goto sysfs_fail;
+		}
+	}
+
 	return 0;
+
+sysfs_fail:
+	while (i >= 0)
+		sysfs_remove_file(&snode->cdev.dev->kobj,
+			&qti_flash_led_attrs[i--].attr);
+	return rc;
 }
 
 static int register_flash_device(struct qti_flash_led *led,
@@ -1150,10 +1229,15 @@ static int qti_flash_led_probe(struct platform_device *pdev)
 static int qti_flash_led_remove(struct platform_device *pdev)
 {
 	struct qti_flash_led *led = dev_get_drvdata(&pdev->dev);
-	int i;
+	int i, j;
 
-	for (i = 0; (i < led->num_snodes); i++)
+	for (i = 0; (i < led->num_snodes); i++) {
+		for (j = 0; j < ARRAY_SIZE(qti_flash_led_attrs); j++)
+			sysfs_remove_file(&led->snode[i].cdev.dev->kobj,
+				&qti_flash_led_attrs[j].attr);
+
 		led_classdev_unregister(&led->snode[i].cdev);
+	}
 
 	for (i = 0; (i < led->num_fnodes); i++)
 		led_classdev_flash_unregister(&led->fnode[i].fdev);
