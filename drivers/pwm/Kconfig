@@ -33,6 +33,15 @@ config PWM_SYSFS
 	bool
 	default y if SYSFS
 
+config PWM_DEBUG
+	bool "PWM lowlevel drivers additional checks and debug messages"
+	depends on DEBUG_KERNEL
+	help
+	  This option enables some additional checks to help lowlevel driver
+	  authors to get their callbacks implemented correctly.
+	  It is expected to introduce some runtime overhead and diagnostic
+	  output to the kernel log, so only enable while working on a driver.
+
 config PWM_AB8500
 	tristate "AB8500 PWM support"
 	depends on AB8500_CORE && ARCH_U8500
