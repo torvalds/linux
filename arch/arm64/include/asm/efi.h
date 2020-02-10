@@ -58,13 +58,6 @@ efi_status_t __efi_rt_asm_wrapper(void *, const char *, ...);
 /* arch specific definitions used by the stub code */
 
 /*
- * AArch64 requires the DTB to be 8-byte aligned in the first 512MiB from
- * start of kernel and may not cross a 2MiB boundary. We set alignment to
- * 2MiB so we know it won't cross a 2MiB boundary.
- */
-#define EFI_FDT_ALIGN	SZ_2M   /* used by allocate_new_fdt_and_exit_boot() */
-
-/*
  * In some configurations (e.g. VMAP_STACK && 64K pages), stacks built into the
  * kernel need greater alignment than we require the segments to be padded to.
  */
