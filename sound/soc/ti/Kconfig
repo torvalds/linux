@@ -10,6 +10,10 @@ config SND_SOC_TI_SDMA_PCM
 	tristate
 	select SND_SOC_GENERIC_DMAENGINE_PCM
 
+config SND_SOC_TI_UDMA_PCM
+	tristate
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+
 comment "Texas Instruments DAI support for:"
 config SND_SOC_DAVINCI_ASP
 	tristate "daVinci Audio Serial Port (ASP) or McBSP support"
