@@ -572,14 +572,6 @@ static void ttm_bo_release(struct kref *kref)
 	int ret;
 
 	if (!bo->deleted) {
-		if (bo->bdev->driver->release_notify)
-			bo->bdev->driver->release_notify(bo);
-
-		drm_vma_offset_remove(bdev->vma_manager, &bo->base.vma_node);
-		ttm_mem_io_lock(man, false);
-		ttm_mem_io_free_vm(bo);
-		ttm_mem_io_unlock(man);
-
 		ret = ttm_bo_individualize_resv(bo);
 		if (ret) {
 			/* Last resort, if we fail to allocate memory for the
@@ -588,6 +580,14 @@ static void ttm_bo_release(struct kref *kref)
 			dma_resv_wait_timeout_rcu(bo->base.resv, true, false,
 						  30 * HZ);
 		}
+
+		if (bo->bdev->driver->release_notify)
+			bo->bdev->driver->release_notify(bo);
+
+		drm_vma_offset_remove(bdev->vma_manager, &bo->base.vma_node);
+		ttm_mem_io_lock(man, false);
+		ttm_mem_io_free_vm(bo);
+		ttm_mem_io_unlock(man);
 	}
 
 	if (!dma_resv_test_signaled_rcu(bo->base.resv, true)) {
