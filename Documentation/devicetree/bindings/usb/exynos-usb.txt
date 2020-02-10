@@ -78,7 +78,14 @@ Required properties:
  - ranges: allows valid 1:1 translation between child's address space and
 	   parent's address space
  - clocks: Clock IDs array as required by the controller.
- - clock-names: names of clocks correseponding to IDs in the clock property
+ - clock-names: Names of clocks corresponding to IDs in the clock property.
+                Following clock names shall be provided for different
+                compatibles:
+                 - samsung,exynos5250-dwusb3: "usbdrd30",
+                 - samsung,exynos5433-dwusb3: "aclk", "susp_clk", "pipe_pclk",
+                                              "phyclk",
+                 - samsung,exynos7-dwusb3: "usbdrd30", "usbdrd30_susp_clk",
+                                           "usbdrd30_axius_clk"
  - vdd10-supply: 1.0V powr supply
  - vdd33-supply: 3.0V/3.3V power supply
 
