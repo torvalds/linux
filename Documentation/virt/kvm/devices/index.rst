@@ -1,0 +1,10 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+=======
+Devices
+=======
+
+.. toctree::
+   :maxdepth: 2
+
+   arm-vgic-its

@@ -14,3 +14,4 @@ KVM
    vcpu-requests
 
    arm/index
+   devices/index
