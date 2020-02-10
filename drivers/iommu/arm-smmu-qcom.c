@@ -22,18 +22,18 @@ static int qcom_sdm845_smmu500_cfg_probe(struct arm_smmu_device *smmu)
 		smr = arm_smmu_gr0_read(smmu, ARM_SMMU_GR0_SMR(i));
 		s2cr = arm_smmu_gr0_read(smmu, ARM_SMMU_GR0_S2CR(i));
 
-		smmu->smrs[i].mask = FIELD_GET(SMR_MASK, smr);
-		smmu->smrs[i].id = FIELD_GET(SMR_ID, smr);
+		smmu->smrs[i].mask = FIELD_GET(ARM_SMMU_SMR_MASK, smr);
+		smmu->smrs[i].id = FIELD_GET(ARM_SMMU_SMR_ID, smr);
 		if (smmu->features & ARM_SMMU_FEAT_EXIDS)
-			smmu->smrs[i].valid = FIELD_GET(S2CR_EXIDVALID, s2cr);
+			smmu->smrs[i].valid = FIELD_GET(ARM_SMMU_S2CR_EXIDVALID, s2cr);
 		else
-			smmu->smrs[i].valid = FIELD_GET(SMR_VALID, smr);
+			smmu->smrs[i].valid = FIELD_GET(ARM_SMMU_SMR_VALID, smr);
 
 		smmu->s2crs[i].group = NULL;
 		smmu->s2crs[i].count = 0;
-		smmu->s2crs[i].type = FIELD_GET(S2CR_TYPE, s2cr);
-		smmu->s2crs[i].privcfg = FIELD_GET(S2CR_PRIVCFG, s2cr);
-		smmu->s2crs[i].cbndx = FIELD_GET(S2CR_CBNDX, s2cr);
+		smmu->s2crs[i].type = FIELD_GET(ARM_SMMU_S2CR_TYPE, s2cr);
+		smmu->s2crs[i].privcfg = FIELD_GET(ARM_SMMU_S2CR_PRIVCFG, s2cr);
+		smmu->s2crs[i].cbndx = FIELD_GET(ARM_SMMU_S2CR_CBNDX, s2cr);
 
 		if (!smmu->smrs[i].valid)
 			continue;
