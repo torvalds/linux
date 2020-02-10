@@ -2614,7 +2614,7 @@ void dcn10_post_unlock_program_front_end(
 		struct dc *dc,
 		struct dc_state *context)
 {
-	int i, j;
+	int i;
 
 	DC_LOGGER_INIT(dc->ctx->logger);
 
@@ -2624,13 +2624,7 @@ void dcn10_post_unlock_program_front_end(
 		if (!pipe_ctx->top_pipe &&
 			!pipe_ctx->prev_odm_pipe &&
 			pipe_ctx->stream) {
-			struct dc_stream_status *stream_status = NULL;
 			struct timing_generator *tg = pipe_ctx->stream_res.tg;
-
-			for (j = 0; j < context->stream_count; j++) {
-				if (pipe_ctx->stream == context->streams[j])
-					stream_status = &context->stream_status[j];
-			}
 
 			if (context->stream_status[i].plane_count == 0)
 				false_optc_underflow_wa(dc, pipe_ctx->stream, tg);
