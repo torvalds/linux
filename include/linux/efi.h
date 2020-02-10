@@ -855,30 +855,40 @@ extern int efi_status_to_err(efi_status_t status);
 #define   EFI_DEV_END_ENTIRE			0xFF
 
 struct efi_generic_dev_path {
-	u8 type;
-	u8 sub_type;
-	u16 length;
-} __attribute ((packed));
+	u8				type;
+	u8				sub_type;
+	u16				length;
+} __packed;
+
+struct efi_acpi_dev_path {
+	struct efi_generic_dev_path	header;
+	u32				hid;
+	u32				uid;
+} __packed;
+
+struct efi_pci_dev_path {
+	struct efi_generic_dev_path	header;
+	u8				fn;
+	u8				dev;
+} __packed;
+
+struct efi_vendor_dev_path {
+	struct efi_generic_dev_path	header;
+	efi_guid_t			vendorguid;
+	u8				vendordata[];
+} __packed;
 
 struct efi_dev_path {
-	u8 type;	/* can be replaced with unnamed */
-	u8 sub_type;	/* struct efi_generic_dev_path; */
-	u16 length;	/* once we've moved to -std=c11 */
 	union {
-		struct {
-			u32 hid;
-			u32 uid;
-		} acpi;
-		struct {
-			u8 fn;
-			u8 dev;
-		} pci;
+		struct efi_generic_dev_path	header;
+		struct efi_acpi_dev_path	acpi;
+		struct efi_pci_dev_path		pci;
+		struct efi_vendor_dev_path	vendor;
 	};
-} __attribute ((packed));
+} __packed;
 
-#if IS_ENABLED(CONFIG_EFI_DEV_PATH_PARSER)
-struct device *efi_get_device_by_path(struct efi_dev_path **node, size_t *len);
-#endif
+struct device *efi_get_device_by_path(const struct efi_dev_path **node,
+				      size_t *len);
 
 static inline void memrange_efi_to_native(u64 *addr, u64 *npages)
 {
