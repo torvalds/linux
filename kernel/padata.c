@@ -512,7 +512,7 @@ static int padata_replace_one(struct padata_shell *ps)
 static int padata_replace(struct padata_instance *pinst)
 {
 	struct padata_shell *ps;
-	int err;
+	int err = 0;
 
 	pinst->flags |= PADATA_RESET;
 
