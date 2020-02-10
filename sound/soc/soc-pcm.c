@@ -82,6 +82,33 @@ static int soc_rtd_trigger(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
+static void snd_soc_runtime_action(struct snd_soc_pcm_runtime *rtd,
+				   int stream, int action)
+{
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_dai *codec_dai;
+	int i;
+
+	lockdep_assert_held(&rtd->card->pcm_mutex);
+
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		cpu_dai->playback_active += action;
+		for_each_rtd_codec_dai(rtd, i, codec_dai)
+			codec_dai->playback_active += action;
+	} else {
+		cpu_dai->capture_active += action;
+		for_each_rtd_codec_dai(rtd, i, codec_dai)
+			codec_dai->capture_active += action;
+	}
+
+	cpu_dai->active += action;
+	cpu_dai->component->active += action;
+	for_each_rtd_codec_dai(rtd, i, codec_dai) {
+		codec_dai->active += action;
+		codec_dai->component->active += action;
+	}
+}
+
 /**
  * snd_soc_runtime_activate() - Increment active count for PCM runtime components
  * @rtd: ASoC PCM runtime that is activated
@@ -94,28 +121,7 @@ static int soc_rtd_trigger(struct snd_soc_pcm_runtime *rtd,
  */
 void snd_soc_runtime_activate(struct snd_soc_pcm_runtime *rtd, int stream)
 {
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	struct snd_soc_dai *codec_dai;
-	int i;
-
-	lockdep_assert_held(&rtd->card->pcm_mutex);
-
-	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		cpu_dai->playback_active++;
-		for_each_rtd_codec_dai(rtd, i, codec_dai)
-			codec_dai->playback_active++;
-	} else {
-		cpu_dai->capture_active++;
-		for_each_rtd_codec_dai(rtd, i, codec_dai)
-			codec_dai->capture_active++;
-	}
-
-	cpu_dai->active++;
-	cpu_dai->component->active++;
-	for_each_rtd_codec_dai(rtd, i, codec_dai) {
-		codec_dai->active++;
-		codec_dai->component->active++;
-	}
+	snd_soc_runtime_action(rtd, stream, 1);
 }
 
 /**
@@ -130,28 +136,7 @@ void snd_soc_runtime_activate(struct snd_soc_pcm_runtime *rtd, int stream)
  */
 void snd_soc_runtime_deactivate(struct snd_soc_pcm_runtime *rtd, int stream)
 {
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	struct snd_soc_dai *codec_dai;
-	int i;
-
-	lockdep_assert_held(&rtd->card->pcm_mutex);
-
-	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		cpu_dai->playback_active--;
-		for_each_rtd_codec_dai(rtd, i, codec_dai)
-			codec_dai->playback_active--;
-	} else {
-		cpu_dai->capture_active--;
-		for_each_rtd_codec_dai(rtd, i, codec_dai)
-			codec_dai->capture_active--;
-	}
-
-	cpu_dai->active--;
-	cpu_dai->component->active--;
-	for_each_rtd_codec_dai(rtd, i, codec_dai) {
-		codec_dai->component->active--;
-		codec_dai->active--;
-	}
+	snd_soc_runtime_action(rtd, stream, -1);
 }
 
 /**
