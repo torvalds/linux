@@ -11,8 +11,10 @@ KVM
    amd-memory-encryption
    cpuid
    halt-polling
+   hypercalls
    msr
    vcpu-requests
 
    arm/index
+
    devices/index
