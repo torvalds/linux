@@ -11,7 +11,6 @@
 
 #include <linux/efi.h>
 #include <linux/libfdt.h>
-#include <linux/sort.h>
 #include <asm/efi.h>
 
 #include "efistub.h"
@@ -37,6 +36,7 @@
 #endif
 
 static u64 virtmap_base = EFI_RT_VIRTUAL_BASE;
+static bool __efistub_global flat_va_mapping;
 
 static efi_system_table_t *__efistub_global sys_table;
 
@@ -131,6 +131,7 @@ efi_status_t efi_entry(efi_handle_t handle, efi_system_table_t *sys_table_arg)
 	unsigned long reserve_size = 0;
 	enum efi_secureboot_mode secure_boot;
 	struct screen_info *si;
+	efi_properties_table_t *prop_tbl;
 
 	sys_table = sys_table_arg;
 
@@ -244,8 +245,20 @@ efi_status_t efi_entry(efi_handle_t handle, efi_system_table_t *sys_table_arg)
 
 	efi_random_get_seed();
 
+	/*
+	 * If the NX PE data feature is enabled in the properties table, we
+	 * should take care not to create a virtual mapping that changes the
+	 * relative placement of runtime services code and data regions, as
+	 * they may belong to the same PE/COFF executable image in memory.
+	 * The easiest way to achieve that is to simply use a 1:1 mapping.
+	 */
+	prop_tbl = get_efi_config_table(EFI_PROPERTIES_TABLE_GUID);
+	flat_va_mapping = prop_tbl &&
+			  (prop_tbl->memory_protection_attribute &
+			   EFI_PROPERTIES_RUNTIME_MEMORY_PROTECTION_NON_EXECUTABLE_PE_DATA);
+
 	/* hibernation expects the runtime regions to stay in the same place */
-	if (!IS_ENABLED(CONFIG_HIBERNATION) && !nokaslr()) {
+	if (!IS_ENABLED(CONFIG_HIBERNATION) && !nokaslr() && !flat_va_mapping) {
 		/*
 		 * Randomize the base of the UEFI runtime services region.
 		 * Preserve the 2 MB alignment of the region by taking a
@@ -292,44 +305,6 @@ fail:
 	return status;
 }
 
-static int cmp_mem_desc(const void *l, const void *r)
-{
-	const efi_memory_desc_t *left = l, *right = r;
-
-	return (left->phys_addr > right->phys_addr) ? 1 : -1;
-}
-
-/*
- * Returns whether region @left ends exactly where region @right starts,
- * or false if either argument is NULL.
- */
-static bool regions_are_adjacent(efi_memory_desc_t *left,
-				 efi_memory_desc_t *right)
-{
-	u64 left_end;
-
-	if (left == NULL || right == NULL)
-		return false;
-
-	left_end = left->phys_addr + left->num_pages * EFI_PAGE_SIZE;
-
-	return left_end == right->phys_addr;
-}
-
-/*
- * Returns whether region @left and region @right have compatible memory type
- * mapping attributes, and are both EFI_MEMORY_RUNTIME regions.
- */
-static bool regions_have_compatible_memory_type_attrs(efi_memory_desc_t *left,
-						      efi_memory_desc_t *right)
-{
-	static const u64 mem_type_mask = EFI_MEMORY_WB | EFI_MEMORY_WT |
-					 EFI_MEMORY_WC | EFI_MEMORY_UC |
-					 EFI_MEMORY_RUNTIME;
-
-	return ((left->attribute ^ right->attribute) & mem_type_mask) == 0;
-}
-
 /*
  * efi_get_virtmap() - create a virtual mapping for the EFI memory map
  *
@@ -342,23 +317,10 @@ void efi_get_virtmap(efi_memory_desc_t *memory_map, unsigned long map_size,
 		     int *count)
 {
 	u64 efi_virt_base = virtmap_base;
-	efi_memory_desc_t *in, *prev = NULL, *out = runtime_map;
+	efi_memory_desc_t *in, *out = runtime_map;
 	int l;
 
-	/*
-	 * To work around potential issues with the Properties Table feature
-	 * introduced in UEFI 2.5, which may split PE/COFF executable images
-	 * in memory into several RuntimeServicesCode and RuntimeServicesData
-	 * regions, we need to preserve the relative offsets between adjacent
-	 * EFI_MEMORY_RUNTIME regions with the same memory type attributes.
-	 * The easiest way to find adjacent regions is to sort the memory map
-	 * before traversing it.
-	 */
-	if (IS_ENABLED(CONFIG_ARM64))
-		sort(memory_map, map_size / desc_size, desc_size, cmp_mem_desc,
-		     NULL);
-
-	for (l = 0; l < map_size; l += desc_size, prev = in) {
+	for (l = 0; l < map_size; l += desc_size) {
 		u64 paddr, size;
 
 		in = (void *)memory_map + l;
@@ -368,8 +330,8 @@ void efi_get_virtmap(efi_memory_desc_t *memory_map, unsigned long map_size,
 		paddr = in->phys_addr;
 		size = in->num_pages * EFI_PAGE_SIZE;
 
+		in->virt_addr = in->phys_addr;
 		if (novamap()) {
-			in->virt_addr = in->phys_addr;
 			continue;
 		}
 
@@ -378,9 +340,7 @@ void efi_get_virtmap(efi_memory_desc_t *memory_map, unsigned long map_size,
 		 * a 4k page size kernel to kexec a 64k page size kernel and
 		 * vice versa.
 		 */
-		if ((IS_ENABLED(CONFIG_ARM64) &&
-		     !regions_are_adjacent(prev, in)) ||
-		    !regions_have_compatible_memory_type_attrs(prev, in)) {
+		if (!flat_va_mapping) {
 
 			paddr = round_down(in->phys_addr, SZ_64K);
 			size += in->phys_addr - paddr;
@@ -395,10 +355,10 @@ void efi_get_virtmap(efi_memory_desc_t *memory_map, unsigned long map_size,
 				efi_virt_base = round_up(efi_virt_base, SZ_2M);
 			else
 				efi_virt_base = round_up(efi_virt_base, SZ_64K);
-		}
 
-		in->virt_addr = efi_virt_base + in->phys_addr - paddr;
-		efi_virt_base += size;
+			in->virt_addr += efi_virt_base - paddr;
+			efi_virt_base += size;
+		}
 
 		memcpy(out, in, desc_size);
 		out = (void *)out + desc_size;

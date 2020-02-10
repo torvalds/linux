@@ -43,7 +43,6 @@ lib-y				:= efi-stub-helper.o gop.o secureboot.o tpm.o \
 
 # include the stub's generic dependencies from lib/ when building for ARM/arm64
 arm-deps-y := fdt_rw.c fdt_ro.c fdt_wip.c fdt.c fdt_empty_tree.c fdt_sw.c
-arm-deps-$(CONFIG_ARM64) += sort.c
 
 $(obj)/lib-%.o: $(srctree)/lib/%.c FORCE
 	$(call if_changed_rule,cc_o_c)
