@@ -85,6 +85,9 @@ config EVENT_TRACING
 config CONTEXT_SWITCH_TRACER
 	bool
 
+config TRACE_GPU_MEM
+	bool
+
 config RING_BUFFER_ALLOW_SWAP
 	bool
 	help
