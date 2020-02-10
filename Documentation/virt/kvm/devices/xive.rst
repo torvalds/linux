@@ -1,8 +1,11 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+===========================================================
 POWER9 eXternal Interrupt Virtualization Engine (XIVE Gen1)
-==========================================================
+===========================================================
 
 Device types supported:
-  KVM_DEV_TYPE_XIVE     POWER9 XIVE Interrupt Controller generation 1
+  - KVM_DEV_TYPE_XIVE     POWER9 XIVE Interrupt Controller generation 1
 
 This device acts as a VM interrupt controller. It provides the KVM
 interface to configure the interrupt sources of a VM in the underlying
@@ -64,72 +67,100 @@ the legacy interrupt mode, referred as XICS (POWER7/8).
 
 * Groups:
 
-  1. KVM_DEV_XIVE_GRP_CTRL
-  Provides global controls on the device
+1. KVM_DEV_XIVE_GRP_CTRL
+     Provides global controls on the device
+
   Attributes:
     1.1 KVM_DEV_XIVE_RESET (write only)
     Resets the interrupt controller configuration for sources and event
     queues. To be used by kexec and kdump.
+
     Errors: none
 
     1.2 KVM_DEV_XIVE_EQ_SYNC (write only)
     Sync all the sources and queues and mark the EQ pages dirty. This
     to make sure that a consistent memory state is captured when
     migrating the VM.
+
     Errors: none
 
     1.3 KVM_DEV_XIVE_NR_SERVERS (write only)
     The kvm_device_attr.addr points to a __u32 value which is the number of
     interrupt server numbers (ie, highest possible vcpu id plus one).
-    Errors:
-      -EINVAL: Value greater than KVM_MAX_VCPU_ID.
-      -EFAULT: Invalid user pointer for attr->addr.
-      -EBUSY:  A vCPU is already connected to the device.
 
-  2. KVM_DEV_XIVE_GRP_SOURCE (write only)
-  Initializes a new source in the XIVE device and mask it.
+    Errors:
+
+      =======  ==========================================
+      -EINVAL  Value greater than KVM_MAX_VCPU_ID.
+      -EFAULT  Invalid user pointer for attr->addr.
+      -EBUSY   A vCPU is already connected to the device.
+      =======  ==========================================
+
+2. KVM_DEV_XIVE_GRP_SOURCE (write only)
+     Initializes a new source in the XIVE device and mask it.
+
   Attributes:
     Interrupt source number  (64-bit)
-  The kvm_device_attr.addr points to a __u64 value:
-  bits:     | 63   ....  2 |   1   |   0
-  values:   |    unused    | level | type
+
+  The kvm_device_attr.addr points to a __u64 value::
+
+    bits:     | 63   ....  2 |   1   |   0
+    values:   |    unused    | level | type
+
   - type:  0:MSI 1:LSI
   - level: assertion level in case of an LSI.
-  Errors:
-    -E2BIG:  Interrupt source number is out of range
-    -ENOMEM: Could not create a new source block
-    -EFAULT: Invalid user pointer for attr->addr.
-    -ENXIO:  Could not allocate underlying HW interrupt
 
-  3. KVM_DEV_XIVE_GRP_SOURCE_CONFIG (write only)
-  Configures source targeting
+  Errors:
+
+    =======  ==========================================
+    -E2BIG   Interrupt source number is out of range
+    -ENOMEM  Could not create a new source block
+    -EFAULT  Invalid user pointer for attr->addr.
+    -ENXIO   Could not allocate underlying HW interrupt
+    =======  ==========================================
+
+3. KVM_DEV_XIVE_GRP_SOURCE_CONFIG (write only)
+     Configures source targeting
+
   Attributes:
     Interrupt source number  (64-bit)
-  The kvm_device_attr.addr points to a __u64 value:
-  bits:     | 63   ....  33 |  32  | 31 .. 3 |  2 .. 0
-  values:   |    eisn       | mask |  server | priority
+
+  The kvm_device_attr.addr points to a __u64 value::
+
+    bits:     | 63   ....  33 |  32  | 31 .. 3 |  2 .. 0
+    values:   |    eisn       | mask |  server | priority
+
   - priority: 0-7 interrupt priority level
   - server: CPU number chosen to handle the interrupt
   - mask: mask flag (unused)
   - eisn: Effective Interrupt Source Number
-  Errors:
-    -ENOENT: Unknown source number
-    -EINVAL: Not initialized source number
-    -EINVAL: Invalid priority
-    -EINVAL: Invalid CPU number.
-    -EFAULT: Invalid user pointer for attr->addr.
-    -ENXIO:  CPU event queues not configured or configuration of the
-             underlying HW interrupt failed
-    -EBUSY:  No CPU available to serve interrupt
 
-  4. KVM_DEV_XIVE_GRP_EQ_CONFIG (read-write)
-  Configures an event queue of a CPU
+  Errors:
+
+    =======  =======================================================
+    -ENOENT  Unknown source number
+    -EINVAL  Not initialized source number
+    -EINVAL  Invalid priority
+    -EINVAL  Invalid CPU number.
+    -EFAULT  Invalid user pointer for attr->addr.
+    -ENXIO   CPU event queues not configured or configuration of the
+	     underlying HW interrupt failed
+    -EBUSY   No CPU available to serve interrupt
+    =======  =======================================================
+
+4. KVM_DEV_XIVE_GRP_EQ_CONFIG (read-write)
+     Configures an event queue of a CPU
+
   Attributes:
     EQ descriptor identifier (64-bit)
-  The EQ descriptor identifier is a tuple (server, priority) :
-  bits:     | 63   ....  32 | 31 .. 3 |  2 .. 0
-  values:   |    unused     |  server | priority
-  The kvm_device_attr.addr points to :
+
+  The EQ descriptor identifier is a tuple (server, priority)::
+
+    bits:     | 63   ....  32 | 31 .. 3 |  2 .. 0
+    values:   |    unused     |  server | priority
+
+  The kvm_device_attr.addr points to::
+
     struct kvm_ppc_xive_eq {
 	__u32 flags;
 	__u32 qshift;
@@ -138,8 +169,9 @@ the legacy interrupt mode, referred as XICS (POWER7/8).
 	__u32 qindex;
 	__u8  pad[40];
     };
+
   - flags: queue flags
-    KVM_XIVE_EQ_ALWAYS_NOTIFY (required)
+      KVM_XIVE_EQ_ALWAYS_NOTIFY (required)
 	forces notification without using the coalescing mechanism
 	provided by the XIVE END ESBs.
   - qshift: queue size (power of 2)
@@ -147,22 +179,31 @@ the legacy interrupt mode, referred as XICS (POWER7/8).
   - qtoggle: current queue toggle bit
   - qindex: current queue index
   - pad: reserved for future use
-  Errors:
-    -ENOENT: Invalid CPU number
-    -EINVAL: Invalid priority
-    -EINVAL: Invalid flags
-    -EINVAL: Invalid queue size
-    -EINVAL: Invalid queue address
-    -EFAULT: Invalid user pointer for attr->addr.
-    -EIO:    Configuration of the underlying HW failed
 
-  5. KVM_DEV_XIVE_GRP_SOURCE_SYNC (write only)
-  Synchronize the source to flush event notifications
+  Errors:
+
+    =======  =========================================
+    -ENOENT  Invalid CPU number
+    -EINVAL  Invalid priority
+    -EINVAL  Invalid flags
+    -EINVAL  Invalid queue size
+    -EINVAL  Invalid queue address
+    -EFAULT  Invalid user pointer for attr->addr.
+    -EIO     Configuration of the underlying HW failed
+    =======  =========================================
+
+5. KVM_DEV_XIVE_GRP_SOURCE_SYNC (write only)
+     Synchronize the source to flush event notifications
+
   Attributes:
     Interrupt source number  (64-bit)
+
   Errors:
-    -ENOENT: Unknown source number
-    -EINVAL: Not initialized source number
+
+    =======  =============================
+    -ENOENT  Unknown source number
+    -EINVAL  Not initialized source number
+    =======  =============================
 
 * VCPU state
 
@@ -175,11 +216,12 @@ the legacy interrupt mode, referred as XICS (POWER7/8).
   as it synthesizes the priorities of the pending interrupts. We
   capture a bit more to report debug information.
 
-  KVM_REG_PPC_VP_STATE (2 * 64bits)
-  bits:     |  63  ....  32  |  31  ....  0  |
-  values:   |   TIMA word0   |   TIMA word1  |
-  bits:     | 127       ..........       64  |
-  values:   |            unused              |
+  KVM_REG_PPC_VP_STATE (2 * 64bits)::
+
+    bits:     |  63  ....  32  |  31  ....  0  |
+    values:   |   TIMA word0   |   TIMA word1  |
+    bits:     | 127       ..........       64  |
+    values:   |            unused              |
 
 * Migration:
 
@@ -196,7 +238,7 @@ the legacy interrupt mode, referred as XICS (POWER7/8).
   3. Capture the state of the source targeting, the EQs configuration
   and the state of thread interrupt context registers.
 
-  Restore is similar :
+  Restore is similar:
 
   1. Restore the EQ configuration. As targeting depends on it.
   2. Restore targeting

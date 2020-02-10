@@ -16,3 +16,4 @@ Devices
    vfio
    vm
    xics
+   xive
