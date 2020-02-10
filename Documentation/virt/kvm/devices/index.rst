@@ -13,3 +13,4 @@ Devices
    mpic
    s390_flic
    vcpu
+   vfio
