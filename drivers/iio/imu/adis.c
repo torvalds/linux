@@ -373,6 +373,10 @@ static int adis_self_test(struct adis *adis)
  * via GPIOLIB. If no pin is configured a SW reset will be performed.
  * The RST pin for the ADIS devices should be configured as ACTIVE_LOW.
  *
+ * After the self-test operation is performed, the function will also check
+ * that the product ID is as expected. This assumes that drivers providing
+ * 'prod_id_reg' will also provide the 'prod_id'.
+ *
  * Returns 0 if the device is operational, a negative error code otherwise.
  *
  * This function should be called early on in the device initialization sequence
@@ -382,6 +386,7 @@ int __adis_initial_startup(struct adis *adis)
 {
 	const struct adis_timeout *timeouts = adis->data->timeouts;
 	struct gpio_desc *gpio;
+	uint16_t prod_id;
 	int ret;
 
 	/* check if the device has rst pin low */
@@ -401,7 +406,23 @@ int __adis_initial_startup(struct adis *adis)
 			return ret;
 	}
 
-	return adis_self_test(adis);
+	ret = adis_self_test(adis);
+	if (ret)
+		return ret;
+
+	if (!adis->data->prod_id_reg)
+		return 0;
+
+	ret = adis_read_reg_16(adis, adis->data->prod_id_reg, &prod_id);
+	if (ret)
+		return ret;
+
+	if (prod_id != adis->data->prod_id)
+		dev_warn(&adis->spi->dev,
+			 "Device ID(%u) and product ID(%u) do not match.",
+			 adis->data->prod_id, prod_id);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(__adis_initial_startup);
 
