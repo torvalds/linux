@@ -6,8 +6,6 @@
  *
  * ----------------------------------------------------------------------- */
 
-#pragma GCC visibility push(hidden)
-
 #include <linux/efi.h>
 #include <linux/pci.h>
 
@@ -17,8 +15,7 @@
 #include <asm/desc.h>
 #include <asm/boot.h>
 
-#include "../string.h"
-#include "eboot.h"
+#include "efistub.h"
 
 static efi_system_table_t *sys_table;
 extern const bool efi_is64;

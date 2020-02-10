@@ -90,4 +90,20 @@ void *get_efi_config_table(efi_guid_t guid);
 	efi_rt_call(set_variable, (efi_char16_t *)(name),	\
 		    (efi_guid_t *)(vendor), __VA_ARGS__)
 
+typedef union efi_uga_draw_protocol efi_uga_draw_protocol_t;
+
+union efi_uga_draw_protocol {
+	struct {
+		efi_status_t (__efiapi *get_mode)(efi_uga_draw_protocol_t *,
+						  u32*, u32*, u32*, u32*);
+		void *set_mode;
+		void *blt;
+	};
+	struct {
+		u32 get_mode;
+		u32 set_mode;
+		u32 blt;
+	} mixed_mode;
+};
+
 #endif
