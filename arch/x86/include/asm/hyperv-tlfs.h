@@ -913,11 +913,18 @@ struct hv_partition_assist_pg {
 	u32 tlb_lock_count;
 };
 
+union hv_msi_entry {
+	u64 as_uint64;
+	struct {
+		u32 address;
+		u32 data;
+	} __packed;
+};
+
 struct hv_interrupt_entry {
 	u32 source;			/* 1 for MSI(-X) */
 	u32 reserved1;
-	u32 address;
-	u32 data;
+	union hv_msi_entry msi_entry;
 } __packed;
 
 /*
