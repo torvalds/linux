@@ -5,6 +5,7 @@
 #include <linux/pci.h>
 #include <linux/mutex.h>
 #include <linux/iommu.h>
+#include <linux/pci_hotplug.h>
 #include <asm-generic/pci.h>
 #include <asm/pci_clp.h>
 #include <asm/pci_debug.h>
@@ -96,6 +97,7 @@ struct s390_domain;
 struct zpci_dev {
 	struct pci_bus	*bus;
 	struct list_head entry;		/* list of all zpci_devices, needed for hotplug, etc. */
+	struct hotplug_slot hotplug_slot;
 
 	enum zpci_state state;
 	u32		fid;		/* function ID, used by sclp */
