@@ -14,3 +14,4 @@ Devices
    s390_flic
    vcpu
    vfio
+   vm
