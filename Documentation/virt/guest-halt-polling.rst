@@ -1,9 +1,11 @@
+==================
 Guest halt polling
 ==================
 
 The cpuidle_haltpoll driver, with the haltpoll governor, allows
 the guest vcpus to poll for a specified amount of time before
 halting.
+
 This provides the following benefits to host side polling:
 
 	1) The POLL flag is set while polling is performed, which allows
@@ -29,18 +31,21 @@ Module Parameters
 The haltpoll governor has 5 tunable module parameters:
 
 1) guest_halt_poll_ns:
+
 Maximum amount of time, in nanoseconds, that polling is
 performed before halting.
 
 Default: 200000
 
 2) guest_halt_poll_shrink:
+
 Division factor used to shrink per-cpu guest_halt_poll_ns when
 wakeup event occurs after the global guest_halt_poll_ns.
 
 Default: 2
 
 3) guest_halt_poll_grow:
+
 Multiplication factor used to grow per-cpu guest_halt_poll_ns
 when event occurs after per-cpu guest_halt_poll_ns
 but before global guest_halt_poll_ns.
@@ -48,6 +53,7 @@ but before global guest_halt_poll_ns.
 Default: 2
 
 4) guest_halt_poll_grow_start:
+
 The per-cpu guest_halt_poll_ns eventually reaches zero
 in case of an idle system. This value sets the initial
 per-cpu guest_halt_poll_ns when growing. This can
@@ -66,7 +72,7 @@ high once achieves global guest_halt_poll_ns value).
 
 Default: Y
 
-The module parameters can be set from the debugfs files in:
+The module parameters can be set from the debugfs files in::
 
 	/sys/module/haltpoll/parameters/
 
@@ -74,5 +80,5 @@ Further Notes
 =============
 
 - Care should be taken when setting the guest_halt_poll_ns parameter as a
-large value has the potential to drive the cpu usage to 100% on a machine which
-would be almost entirely idle otherwise.
+  large value has the potential to drive the cpu usage to 100% on a machine
+  which would be almost entirely idle otherwise.

@@ -10,6 +10,7 @@ Linux Virtualization Support
    kvm/index
    uml/user_mode_linux
    paravirt_ops
+   guest-halt-polling
 
 .. only:: html and subproject
 
