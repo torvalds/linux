@@ -324,7 +324,6 @@ struct snd_soc_dai {
 	/* DAI runtime info */
 	unsigned int capture_active;		/* stream usage count */
 	unsigned int playback_active;		/* stream usage count */
-	unsigned int probed:1;
 
 	unsigned int active;
 
@@ -348,6 +347,10 @@ struct snd_soc_dai {
 	unsigned int rx_mask;
 
 	struct list_head list;
+
+	/* bit field */
+	unsigned int probed:1;
+	unsigned int started:1;
 };
 
 static inline void *snd_soc_dai_get_dma_data(const struct snd_soc_dai *dai,

@@ -295,8 +295,12 @@ int snd_soc_dai_startup(struct snd_soc_dai *dai,
 {
 	int ret = 0;
 
-	if (dai->driver->ops->startup)
+	if (!dai->started &&
+	    dai->driver->ops->startup)
 		ret = dai->driver->ops->startup(substream, dai);
+
+	if (ret == 0)
+		dai->started = 1;
 
 	return ret;
 }
@@ -304,8 +308,11 @@ int snd_soc_dai_startup(struct snd_soc_dai *dai,
 void snd_soc_dai_shutdown(struct snd_soc_dai *dai,
 			 struct snd_pcm_substream *substream)
 {
-	if (dai->driver->ops->shutdown)
+	if (dai->started &&
+	    dai->driver->ops->shutdown)
 		dai->driver->ops->shutdown(substream, dai);
+
+	dai->started = 0;
 }
 
 int snd_soc_dai_prepare(struct snd_soc_dai *dai,

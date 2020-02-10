@@ -568,7 +568,7 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 	if (ret < 0) {
 		pr_err("ASoC: %s startup failed: %d\n",
 		       rtd->dai_link->name, ret);
-		goto machine_err;
+		goto codec_dai_err;
 	}
 
 	/* Dynamic PCM DAI links compat checks use dynamic capabilities */
@@ -637,11 +637,8 @@ dynamic:
 config_err:
 	soc_rtd_shutdown(rtd, substream);
 
-machine_err:
-	i = rtd->num_codecs;
-
 codec_dai_err:
-	for_each_rtd_codec_dai_rollback(rtd, i, codec_dai)
+	for_each_rtd_codec_dai(rtd, i, codec_dai)
 		snd_soc_dai_shutdown(codec_dai, substream);
 
 component_err:
