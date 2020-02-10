@@ -2127,16 +2127,11 @@ enum rdt_param {
 	nr__rdt_params
 };
 
-static const struct fs_parameter_spec rdt_param_specs[] = {
+static const struct fs_parameter_spec rdt_fs_parameters[] = {
 	fsparam_flag("cdp",		Opt_cdp),
 	fsparam_flag("cdpl2",		Opt_cdpl2),
 	fsparam_flag("mba_MBps",	Opt_mba_mbps),
 	{}
-};
-
-static const struct fs_parameter_description rdt_fs_parameters = {
-	.name		= "rdt",
-	.specs		= rdt_param_specs,
 };
 
 static int rdt_parse_param(struct fs_context *fc, struct fs_parameter *param)
@@ -2145,7 +2140,7 @@ static int rdt_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	struct fs_parse_result result;
 	int opt;
 
-	opt = fs_parse(fc, &rdt_fs_parameters, param, &result);
+	opt = fs_parse(fc, rdt_fs_parameters, param, &result);
 	if (opt < 0)
 		return opt;
 
@@ -2378,7 +2373,7 @@ static void rdt_kill_sb(struct super_block *sb)
 static struct file_system_type rdt_fs_type = {
 	.name			= "resctrl",
 	.init_fs_context	= rdt_init_fs_context,
-	.parameters		= &rdt_fs_parameters,
+	.parameters		= rdt_fs_parameters,
 	.kill_sb		= rdt_kill_sb,
 };
 
