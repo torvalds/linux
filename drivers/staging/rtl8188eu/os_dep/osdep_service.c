@@ -26,17 +26,17 @@ void _rtw_init_queue(struct __queue *pqueue)
 
 struct net_device *rtw_alloc_etherdev_with_old_priv(void *old_priv)
 {
-	struct net_device *pnetdev;
+	struct net_device *netdev;
 	struct rtw_netdev_priv_indicator *pnpi;
 
-	pnetdev = alloc_etherdev_mq(sizeof(struct rtw_netdev_priv_indicator), 4);
-	if (!pnetdev)
+	netdev = alloc_etherdev_mq(sizeof(struct rtw_netdev_priv_indicator), 4);
+	if (!netdev)
 		return NULL;
 
-	pnpi = netdev_priv(pnetdev);
+	pnpi = netdev_priv(netdev);
 	pnpi->priv = old_priv;
 
-	return pnetdev;
+	return netdev;
 }
 
 void rtw_free_netdev(struct net_device *netdev)
