@@ -142,10 +142,12 @@ void hfi1_user_exp_rcv_free(struct hfi1_filedata *fd)
 {
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 
+	mutex_lock(&uctxt->exp_mutex);
 	if (!EXP_TID_SET_EMPTY(uctxt->tid_full_list))
 		unlock_exp_tids(uctxt, &uctxt->tid_full_list, fd);
 	if (!EXP_TID_SET_EMPTY(uctxt->tid_used_list))
 		unlock_exp_tids(uctxt, &uctxt->tid_used_list, fd);
+	mutex_unlock(&uctxt->exp_mutex);
 
 	kfree(fd->invalid_tids);
 	fd->invalid_tids = NULL;
