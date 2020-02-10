@@ -365,7 +365,7 @@ static int adis_self_test(struct adis *adis)
 }
 
 /**
- * adis_inital_startup() - Performs device self-test
+ * __adis_initial_startup() - Device initial setup
  * @adis: The adis device
  *
  * Returns 0 if the device is operational, a negative error code otherwise.
@@ -373,28 +373,22 @@ static int adis_self_test(struct adis *adis)
  * This function should be called early on in the device initialization sequence
  * to ensure that the device is in a sane and known state and that it is usable.
  */
-int adis_initial_startup(struct adis *adis)
+int __adis_initial_startup(struct adis *adis)
 {
 	int ret;
-
-	mutex_lock(&adis->state_lock);
 
 	ret = adis_self_test(adis);
 	if (ret) {
 		dev_err(&adis->spi->dev, "Self-test failed, trying reset.\n");
 		__adis_reset(adis);
 		ret = adis_self_test(adis);
-		if (ret) {
+		if (ret)
 			dev_err(&adis->spi->dev, "Second self-test failed, giving up.\n");
-			goto out_unlock;
-		}
 	}
 
-out_unlock:
-	mutex_unlock(&adis->state_lock);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(adis_initial_startup);
+EXPORT_SYMBOL_GPL(__adis_initial_startup);
 
 /**
  * adis_single_conversion() - Performs a single sample conversion
