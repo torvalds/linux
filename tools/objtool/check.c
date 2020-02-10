@@ -2491,8 +2491,14 @@ int check(const char *_objname, bool orc)
 out:
 	cleanup(&file);
 
-	/* ignore warnings for now until we get all the code cleaned up */
-	if (ret || warnings)
-		return 0;
+	if (ret < 0) {
+		/*
+		 *  Fatal error.  The binary is corrupt or otherwise broken in
+		 *  some way, or objtool itself is broken.  Fail the kernel
+		 *  build.
+		 */
+		return ret;
+	}
+
 	return 0;
 }
