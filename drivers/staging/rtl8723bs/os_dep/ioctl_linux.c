@@ -4236,7 +4236,7 @@ static int rtw_hostapd_ioctl(struct net_device *dev, struct iw_point *p)
 
 
 	/* if (p->length < sizeof(struct ieee_param) || !p->pointer) { */
-	if (!p->pointer) {
+	if (!p->pointer || p->length != sizeof(*param)) {
 		ret = -EINVAL;
 		goto out;
 	}
