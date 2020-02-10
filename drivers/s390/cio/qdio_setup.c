@@ -453,7 +453,8 @@ static void setup_qib(struct qdio_irq *irq_ptr,
 int qdio_setup_irq(struct qdio_initialize *init_data)
 {
 	struct ciw *ciw;
-	struct qdio_irq *irq_ptr = init_data->cdev->private->qdio_data;
+	struct ccw_device *cdev = init_data->cdev;
+	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
 
 	memset(&irq_ptr->qib, 0, sizeof(irq_ptr->qib));
 	memset(&irq_ptr->siga_flag, 0, sizeof(irq_ptr->siga_flag));
@@ -470,9 +471,9 @@ int qdio_setup_irq(struct qdio_initialize *init_data)
 	irq_ptr->int_parm = init_data->int_parm;
 	irq_ptr->nr_input_qs = init_data->no_input_qs;
 	irq_ptr->nr_output_qs = init_data->no_output_qs;
-	irq_ptr->cdev = init_data->cdev;
+	irq_ptr->cdev = cdev;
 	irq_ptr->scan_threshold = init_data->scan_threshold;
-	ccw_device_get_schid(irq_ptr->cdev, &irq_ptr->schid);
+	ccw_device_get_schid(cdev, &irq_ptr->schid);
 	setup_queues(irq_ptr, init_data);
 
 	setup_qib(irq_ptr, init_data);
@@ -488,14 +489,14 @@ int qdio_setup_irq(struct qdio_initialize *init_data)
 	/* qdr, qib, sls, slsbs, slibs, sbales are filled now */
 
 	/* get qdio commands */
-	ciw = ccw_device_get_ciw(init_data->cdev, CIW_TYPE_EQUEUE);
+	ciw = ccw_device_get_ciw(cdev, CIW_TYPE_EQUEUE);
 	if (!ciw) {
 		DBF_ERROR("%4x NO EQ", irq_ptr->schid.sch_no);
 		return -EINVAL;
 	}
 	irq_ptr->equeue = *ciw;
 
-	ciw = ccw_device_get_ciw(init_data->cdev, CIW_TYPE_AQUEUE);
+	ciw = ccw_device_get_ciw(cdev, CIW_TYPE_AQUEUE);
 	if (!ciw) {
 		DBF_ERROR("%4x NO AQ", irq_ptr->schid.sch_no);
 		return -EINVAL;
@@ -503,10 +504,10 @@ int qdio_setup_irq(struct qdio_initialize *init_data)
 	irq_ptr->aqueue = *ciw;
 
 	/* set new interrupt handler */
-	spin_lock_irq(get_ccwdev_lock(irq_ptr->cdev));
-	irq_ptr->orig_handler = init_data->cdev->handler;
-	init_data->cdev->handler = qdio_int_handler;
-	spin_unlock_irq(get_ccwdev_lock(irq_ptr->cdev));
+	spin_lock_irq(get_ccwdev_lock(cdev));
+	irq_ptr->orig_handler = cdev->handler;
+	cdev->handler = qdio_int_handler;
+	spin_unlock_irq(get_ccwdev_lock(cdev));
 	return 0;
 }
 
