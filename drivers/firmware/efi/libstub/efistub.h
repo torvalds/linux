@@ -100,6 +100,8 @@ struct efi_boot_memmap {
 	unsigned long		*buff_size;
 };
 
+typedef struct efi_generic_dev_path efi_device_path_protocol_t;
+
 /*
  * EFI Boot Services table
  */
@@ -134,7 +136,9 @@ union efi_boot_services {
 		efi_status_t (__efiapi *locate_handle)(int, efi_guid_t *,
 						       void *, unsigned long *,
 						       efi_handle_t *);
-		void *locate_device_path;
+		efi_status_t (__efiapi *locate_device_path)(efi_guid_t *,
+							    efi_device_path_protocol_t **,
+							    efi_handle_t *);
 		efi_status_t (__efiapi *install_configuration_table)(efi_guid_t *,
 								     void *);
 		void *load_image;
