@@ -171,8 +171,7 @@ static void pwm_imx27_get_state(struct pwm_chip *chip,
 	tmp = NSEC_PER_SEC * (u64)(val);
 	state->duty_cycle = DIV_ROUND_CLOSEST_ULL(tmp, pwm_clk);
 
-	if (!state->enabled)
-		pwm_imx27_clk_disable_unprepare(imx);
+	pwm_imx27_clk_disable_unprepare(imx);
 }
 
 static void pwm_imx27_sw_reset(struct pwm_chip *chip)
@@ -307,6 +306,8 @@ MODULE_DEVICE_TABLE(of, pwm_imx27_dt_ids);
 static int pwm_imx27_probe(struct platform_device *pdev)
 {
 	struct pwm_imx27_chip *imx;
+	int ret;
+	u32 pwmcr;
 
 	imx = devm_kzalloc(&pdev->dev, sizeof(*imx), GFP_KERNEL);
 	if (imx == NULL)
@@ -348,6 +349,15 @@ static int pwm_imx27_probe(struct platform_device *pdev)
 	imx->mmio_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(imx->mmio_base))
 		return PTR_ERR(imx->mmio_base);
+
+	ret = pwm_imx27_clk_prepare_enable(imx);
+	if (ret)
+		return ret;
+
+	/* keep clks on if pwm is running */
+	pwmcr = readl(imx->mmio_base + MX3_PWMCR);
+	if (!(pwmcr & MX3_PWMCR_EN))
+		pwm_imx27_clk_disable_unprepare(imx);
 
 	return pwmchip_add(&imx->chip);
 }
