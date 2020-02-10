@@ -12,3 +12,4 @@ Devices
    arm-vgic-v3
    mpic
    s390_flic
+   vcpu
