@@ -358,7 +358,6 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 				   efi_system_table_t *sys_table_arg)
 {
 	struct boot_params *boot_params;
-	struct apm_bios_info *bi;
 	struct setup_header *hdr;
 	efi_loaded_image_t *image;
 	efi_guid_t proto = LOADED_IMAGE_PROTOCOL_GUID;
@@ -389,7 +388,6 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	memset(boot_params, 0x0, 0x4000);
 
 	hdr = &boot_params->hdr;
-	bi = &boot_params->apm_bios_info;
 
 	/* Copy the second sector to boot_params */
 	memcpy(&hdr->jump, image->image_base + 512, 512);
@@ -415,9 +413,6 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 
 	hdr->ramdisk_image = 0;
 	hdr->ramdisk_size = 0;
-
-	/* Clear APM BIOS info */
-	memset(bi, 0, sizeof(*bi));
 
 	status = efi_parse_options(cmdline_ptr);
 	if (status != EFI_SUCCESS)
