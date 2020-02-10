@@ -1508,8 +1508,8 @@ efi_status_t efi_low_alloc(unsigned long size, unsigned long align,
 	return efi_low_alloc_above(size, align, addr, 0x8);
 }
 
-efi_status_t efi_high_alloc(unsigned long size, unsigned long align,
-			    unsigned long *addr, unsigned long max);
+efi_status_t efi_allocate_pages(unsigned long size, unsigned long *addr,
+				unsigned long max);
 
 efi_status_t efi_relocate_kernel(unsigned long *image_addr,
 				 unsigned long image_size,

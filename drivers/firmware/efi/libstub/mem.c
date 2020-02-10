@@ -68,100 +68,34 @@ fail:
 /*
  * Allocate at the highest possible address that is not above 'max'.
  */
-efi_status_t efi_high_alloc(unsigned long size, unsigned long align,
-			    unsigned long *addr, unsigned long max)
+efi_status_t efi_allocate_pages(unsigned long size, unsigned long *addr,
+				unsigned long max)
 {
-	unsigned long map_size, desc_size, buff_size;
-	efi_memory_desc_t *map;
+	efi_physical_addr_t alloc_addr = ALIGN_DOWN(max + 1, EFI_ALLOC_ALIGN) - 1;
+	int slack = EFI_ALLOC_ALIGN / EFI_PAGE_SIZE - 1;
 	efi_status_t status;
-	unsigned long nr_pages;
-	u64 max_addr = 0;
-	int i;
-	struct efi_boot_memmap boot_map;
-
-	boot_map.map =		&map;
-	boot_map.map_size =	&map_size;
-	boot_map.desc_size =	&desc_size;
-	boot_map.desc_ver =	NULL;
-	boot_map.key_ptr =	NULL;
-	boot_map.buff_size =	&buff_size;
-
-	status = efi_get_memory_map(&boot_map);
-	if (status != EFI_SUCCESS)
-		goto fail;
-
-	/*
-	 * Enforce minimum alignment that EFI or Linux requires when
-	 * requesting a specific address.  We are doing page-based (or
-	 * larger) allocations, and both the address and size must meet
-	 * alignment constraints.
-	 */
-	if (align < EFI_ALLOC_ALIGN)
-		align = EFI_ALLOC_ALIGN;
 
 	size = round_up(size, EFI_ALLOC_ALIGN);
-	nr_pages = size / EFI_PAGE_SIZE;
-again:
-	for (i = 0; i < map_size / desc_size; i++) {
-		efi_memory_desc_t *desc;
-		unsigned long m = (unsigned long)map;
-		u64 start, end;
+	status = efi_bs_call(allocate_pages, EFI_ALLOCATE_MAX_ADDRESS,
+			     EFI_LOADER_DATA, size / EFI_PAGE_SIZE + slack,
+			     &alloc_addr);
+	if (status != EFI_SUCCESS)
+		return status;
 
-		desc = efi_early_memdesc_ptr(m, desc_size, i);
-		if (desc->type != EFI_CONVENTIONAL_MEMORY)
-			continue;
+	*addr = ALIGN((unsigned long)alloc_addr, EFI_ALLOC_ALIGN);
 
-		if (efi_soft_reserve_enabled() &&
-		    (desc->attribute & EFI_MEMORY_SP))
-			continue;
+	if (slack > 0) {
+		int l = (alloc_addr % EFI_ALLOC_ALIGN) / EFI_PAGE_SIZE;
 
-		if (desc->num_pages < nr_pages)
-			continue;
-
-		start = desc->phys_addr;
-		end = start + desc->num_pages * EFI_PAGE_SIZE;
-
-		if (end > max)
-			end = max;
-
-		if ((start + size) > end)
-			continue;
-
-		if (round_down(end - size, align) < start)
-			continue;
-
-		start = round_down(end - size, align);
-
-		/*
-		 * Don't allocate at 0x0. It will confuse code that
-		 * checks pointers against NULL.
-		 */
-		if (start == 0x0)
-			continue;
-
-		if (start > max_addr)
-			max_addr = start;
-	}
-
-	if (!max_addr)
-		status = EFI_NOT_FOUND;
-	else {
-		status = efi_bs_call(allocate_pages, EFI_ALLOCATE_ADDRESS,
-				     EFI_LOADER_DATA, nr_pages, &max_addr);
-		if (status != EFI_SUCCESS) {
-			max = max_addr;
-			max_addr = 0;
-			goto again;
+		if (l) {
+			efi_bs_call(free_pages, alloc_addr, slack - l + 1);
+			slack = l - 1;
 		}
-
-		*addr = max_addr;
+		if (slack)
+			efi_bs_call(free_pages, *addr + size, slack);
 	}
-
-	efi_bs_call(free_pool, map);
-fail:
-	return status;
+	return EFI_SUCCESS;
 }
-
 /*
  * Allocate at the lowest possible address that is not below 'min'.
  */

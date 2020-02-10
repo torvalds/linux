@@ -385,8 +385,7 @@ efi_status_t handle_cmdline_files(efi_loaded_image_t *image,
 		 * so allocate enough memory for all the files.  This is used
 		 * for loading multiple files.
 		 */
-		status = efi_high_alloc(file_size_total, 0x1000, &file_addr,
-					max_addr);
+		status = efi_allocate_pages(file_size_total, &file_addr, max_addr);
 		if (status != EFI_SUCCESS) {
 			pr_efi_err("Failed to alloc highmem for files\n");
 			goto close_handles;
@@ -536,7 +535,7 @@ char *efi_convert_cmdline(efi_loaded_image_t *image,
 
 	options_bytes++;	/* NUL termination */
 
-	status = efi_high_alloc(options_bytes, 0, &cmdline_addr,
+	status = efi_allocate_pages(options_bytes, &cmdline_addr,
 				MAX_CMDLINE_ADDRESS);
 	if (status != EFI_SUCCESS)
 		return NULL;

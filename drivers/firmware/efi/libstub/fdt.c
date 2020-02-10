@@ -277,8 +277,7 @@ efi_status_t allocate_new_fdt_and_exit_boot(void *handle,
 	pr_efi("Exiting boot services and installing virtual address map...\n");
 
 	map.map = &memory_map;
-	status = efi_high_alloc(MAX_FDT_SIZE, EFI_PAGE_SIZE,
-				new_fdt_addr, max_addr);
+	status = efi_allocate_pages(MAX_FDT_SIZE, new_fdt_addr, max_addr);
 	if (status != EFI_SUCCESS) {
 		pr_efi_err("Unable to allocate memory for new device tree.\n");
 		goto fail;
