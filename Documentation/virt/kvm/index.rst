@@ -10,6 +10,7 @@ KVM
    amd-memory-encryption
    cpuid
    halt-polling
+   msr
    vcpu-requests
 
    arm/index
