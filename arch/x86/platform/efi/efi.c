@@ -308,7 +308,7 @@ static void __init efi_clean_memmap(void)
 			.phys_map = efi.memmap.phys_map,
 			.desc_version = efi.memmap.desc_version,
 			.desc_size = efi.memmap.desc_size,
-			.size = data.desc_size * (efi.memmap.nr_map - n_removal),
+			.size = efi.memmap.desc_size * (efi.memmap.nr_map - n_removal),
 			.flags = 0,
 		};
 

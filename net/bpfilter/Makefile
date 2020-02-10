@@ -3,7 +3,7 @@
 # Makefile for the Linux BPFILTER layer.
 #
 
-hostprogs-y := bpfilter_umh
+hostprogs := bpfilter_umh
 bpfilter_umh-objs := main.o
 KBUILD_HOSTCFLAGS += -I $(srctree)/tools/include/ -I $(srctree)/tools/include/uapi
 HOSTCC := $(CC)

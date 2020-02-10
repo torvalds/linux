@@ -2,8 +2,8 @@
 OBJECT_FILES_NON_STANDARD := y
 CFLAGS_REMOVE_empty.o += $(CC_FLAGS_LTO)
 
-hostprogs-y	:= modpost mk_elfconfig
-always		:= $(hostprogs-y) empty.o
+hostprogs	:= modpost mk_elfconfig
+always-y	:= $(hostprogs) empty.o
 
 modpost-objs	:= modpost.o file2alias.o sumversion.o
 

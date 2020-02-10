@@ -365,7 +365,7 @@
 				status = "disabled";
 			};
 
-			wdt4: watchdog@1e7850C0 {
+			wdt4: watchdog@1e7850c0 {
 				compatible = "aspeed,ast2600-wdt";
 				reg = <0x1e7850C0 0x40>;
 				status = "disabled";

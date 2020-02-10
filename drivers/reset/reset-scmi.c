@@ -108,7 +108,7 @@ static int scmi_reset_probe(struct scmi_device *sdev)
 }
 
 static const struct scmi_device_id scmi_id_table[] = {
-	{ SCMI_PROTOCOL_RESET },
+	{ SCMI_PROTOCOL_RESET, "reset" },
 	{ },
 };
 MODULE_DEVICE_TABLE(scmi, scmi_id_table);

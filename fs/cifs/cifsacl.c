@@ -1084,7 +1084,7 @@ static struct cifs_ntsd *get_cifs_acl_by_path(struct cifs_sb_info *cifs_sb,
 	struct cifs_ntsd *pntsd = NULL;
 	int oplock = 0;
 	unsigned int xid;
-	int rc, create_options = 0;
+	int rc;
 	struct cifs_tcon *tcon;
 	struct tcon_link *tlink = cifs_sb_tlink(cifs_sb);
 	struct cifs_fid fid;
@@ -1096,13 +1096,10 @@ static struct cifs_ntsd *get_cifs_acl_by_path(struct cifs_sb_info *cifs_sb,
 	tcon = tlink_tcon(tlink);
 	xid = get_xid();
 
-	if (backup_cred(cifs_sb))
-		create_options |= CREATE_OPEN_BACKUP_INTENT;
-
 	oparms.tcon = tcon;
 	oparms.cifs_sb = cifs_sb;
 	oparms.desired_access = READ_CONTROL;
-	oparms.create_options = create_options;
+	oparms.create_options = cifs_create_options(cifs_sb, 0);
 	oparms.disposition = FILE_OPEN;
 	oparms.path = path;
 	oparms.fid = &fid;
@@ -1147,7 +1144,7 @@ int set_cifs_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
 {
 	int oplock = 0;
 	unsigned int xid;
-	int rc, access_flags, create_options = 0;
+	int rc, access_flags;
 	struct cifs_tcon *tcon;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct tcon_link *tlink = cifs_sb_tlink(cifs_sb);
@@ -1160,9 +1157,6 @@ int set_cifs_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
 	tcon = tlink_tcon(tlink);
 	xid = get_xid();
 
-	if (backup_cred(cifs_sb))
-		create_options |= CREATE_OPEN_BACKUP_INTENT;
-
 	if (aclflag == CIFS_ACL_OWNER || aclflag == CIFS_ACL_GROUP)
 		access_flags = WRITE_OWNER;
 	else
@@ -1171,7 +1165,7 @@ int set_cifs_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
 	oparms.tcon = tcon;
 	oparms.cifs_sb = cifs_sb;
 	oparms.desired_access = access_flags;
-	oparms.create_options = create_options;
+	oparms.create_options = cifs_create_options(cifs_sb, 0);
 	oparms.disposition = FILE_OPEN;
 	oparms.path = path;
 	oparms.fid = &fid;

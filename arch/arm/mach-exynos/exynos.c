@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 //
-// SAMSUNG EXYNOS Flattened Device Tree enabled machine
+// Samsung Exynos Flattened Device Tree enabled machine
 //
 // Copyright (c) 2010-2014 Samsung Electronics Co., Ltd.
 //		http://www.samsung.com
@@ -192,7 +192,7 @@ static void __init exynos_dt_fixup(void)
 	of_fdt_limit_memory(8);
 }
 
-DT_MACHINE_START(EXYNOS_DT, "SAMSUNG EXYNOS (Flattened Device Tree)")
+DT_MACHINE_START(EXYNOS_DT, "Samsung Exynos (Flattened Device Tree)")
 	.l2c_aux_val	= 0x3c400001,
 	.l2c_aux_mask	= 0xc20fffff,
 	.smp		= smp_ops(exynos_smp_ops),

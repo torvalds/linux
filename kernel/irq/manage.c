@@ -731,6 +731,13 @@ static int set_irq_wake_real(unsigned int irq, unsigned int on)
  *
  *	Wakeup mode lets this IRQ wake the system from sleep
  *	states like "suspend to RAM".
+ *
+ *	Note: irq enable/disable state is completely orthogonal
+ *	to the enable/disable state of irq wake. An irq can be
+ *	disabled with disable_irq() and still wake the system as
+ *	long as the irq has wake enabled. If this does not hold,
+ *	then the underlying irq chip and the related driver need
+ *	to be investigated.
  */
 int irq_set_irq_wake(unsigned int irq, unsigned int on)
 {

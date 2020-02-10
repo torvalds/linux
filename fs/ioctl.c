@@ -536,13 +536,9 @@ static int compat_ioctl_preallocate(struct file *file, int mode,
 
 static int file_ioctl(struct file *filp, unsigned int cmd, int __user *p)
 {
-	struct inode *inode = file_inode(filp);
-
 	switch (cmd) {
 	case FIBMAP:
 		return ioctl_fibmap(filp, p);
-	case FIONREAD:
-		return put_user(i_size_read(inode) - filp->f_pos, p);
 	case FS_IOC_RESVSP:
 	case FS_IOC_RESVSP64:
 		return ioctl_preallocate(filp, 0, p);
@@ -733,6 +729,13 @@ static int do_vfs_ioctl(struct file *filp, unsigned int fd,
 
 	case FIDEDUPERANGE:
 		return ioctl_file_dedupe_range(filp, argp);
+
+	case FIONREAD:
+		if (!S_ISREG(inode->i_mode))
+			return vfs_ioctl(filp, cmd, arg);
+
+		return put_user(i_size_read(inode) - filp->f_pos,
+				(int __user *)argp);
 
 	default:
 		if (S_ISREG(inode->i_mode))

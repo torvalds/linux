@@ -120,7 +120,7 @@ int netvsc_xdp_set(struct net_device *dev, struct bpf_prog *prog,
 	}
 
 	if (prog)
-		bpf_prog_add(prog, nvdev->num_chn);
+		bpf_prog_add(prog, nvdev->num_chn - 1);
 
 	for (i = 0; i < nvdev->num_chn; i++)
 		rcu_assign_pointer(nvdev->chan_table[i].bpf_prog, prog);
@@ -136,6 +136,7 @@ int netvsc_vf_setxdp(struct net_device *vf_netdev, struct bpf_prog *prog)
 {
 	struct netdev_bpf xdp;
 	bpf_op_t ndo_bpf;
+	int ret;
 
 	ASSERT_RTNL();
 
@@ -148,10 +149,18 @@ int netvsc_vf_setxdp(struct net_device *vf_netdev, struct bpf_prog *prog)
 
 	memset(&xdp, 0, sizeof(xdp));
 
+	if (prog)
+		bpf_prog_inc(prog);
+
 	xdp.command = XDP_SETUP_PROG;
 	xdp.prog = prog;
 
-	return ndo_bpf(vf_netdev, &xdp);
+	ret = ndo_bpf(vf_netdev, &xdp);
+
+	if (ret && prog)
+		bpf_prog_put(prog);
+
+	return ret;
 }
 
 static u32 netvsc_xdp_query(struct netvsc_device *nvdev)

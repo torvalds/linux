@@ -1205,6 +1205,7 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	x86_platform.get_nmi_reason = xen_get_nmi_reason;
 
 	x86_init.resources.memory_setup = xen_memory_setup;
+	x86_init.irqs.intr_mode_select	= x86_init_noop;
 	x86_init.irqs.intr_mode_init	= x86_init_noop;
 	x86_init.oem.arch_setup = xen_arch_setup;
 	x86_init.oem.banner = xen_banner;

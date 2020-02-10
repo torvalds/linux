@@ -201,6 +201,50 @@
 				status = "disabled";
 			};
 
+			hsic_phy0: hsic-phy@f0001800 {
+				compatible = "marvell,mmp3-hsic-phy",
+					     "usb-nop-xceiv";
+				reg = <0xf0001800 0x40>;
+				#phy-cells = <0>;
+				status = "disabled";
+			};
+
+			hsic0: hsic@f0001000 {
+				compatible = "marvell,pxau2o-ehci";
+				reg = <0xf0001000 0x200>;
+				interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&soc_clocks MMP2_CLK_USBHSIC0>;
+				clock-names = "USBCLK";
+				phys = <&hsic_phy0>;
+				phy-names = "usb";
+				phy_type = "hsic";
+				#address-cells = <0x01>;
+				#size-cells = <0x00>;
+				status = "disabled";
+			};
+
+			hsic_phy1: hsic-phy@f0002800 {
+				compatible = "marvell,mmp3-hsic-phy",
+					     "usb-nop-xceiv";
+				reg = <0xf0002800 0x40>;
+				#phy-cells = <0>;
+				status = "disabled";
+			};
+
+			hsic1: hsic@f0002000 {
+				compatible = "marvell,pxau2o-ehci";
+				reg = <0xf0002000 0x200>;
+				interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&soc_clocks MMP2_CLK_USBHSIC1>;
+				clock-names = "USBCLK";
+				phys = <&hsic_phy1>;
+				phy-names = "usb";
+				phy_type = "hsic";
+				#address-cells = <0x01>;
+				#size-cells = <0x00>;
+				status = "disabled";
+			};
+
 			mmc1: mmc@d4280000 {
 				compatible = "mrvl,pxav3-mmc";
 				reg = <0xd4280000 0x120>;

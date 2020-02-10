@@ -6,6 +6,7 @@
 
 / {
 	model = "Freescale i.MX6 SoloX SDB RevA Board";
+	compatible = "fsl,imx6sx-sdb-reva", "fsl,imx6sx";
 };
 
 &i2c1 {

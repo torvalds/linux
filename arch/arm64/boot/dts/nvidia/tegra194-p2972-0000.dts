@@ -152,7 +152,7 @@
 			gpios = <&gpio TEGRA194_MAIN_GPIO(G, 0)
 				       GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_KEY>;
-			linux,code = <BTN_1>;
+			linux,code = <KEY_SLEEP>;
 			debounce-interval = <10>;
 		};
 

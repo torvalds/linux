@@ -256,33 +256,92 @@
 			};
 		};
 
-		sham: sham@53100000 {
-			compatible = "ti,omap5-sham";
-			ti,hwmods = "sham";
-			reg = <0x53100000 0x300>;
-			dmas = <&edma 36 0>;
-			dma-names = "rx";
-			interrupts = <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>;
+		sham_target: target-module@53100000 {
+			compatible = "ti,sysc-omap3-sham", "ti,sysc";
+			reg = <0x53100100 0x4>,
+			      <0x53100110 0x4>,
+			      <0x53100114 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,syss-mask = <1>;
+			/* Domains (P, C): per_pwrdm, l3_clkdm */
+			clocks = <&l3_clkctrl AM4_L3_SHAM_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x53100000 0x1000>;
+
+			sham: sham@0 {
+				compatible = "ti,omap5-sham";
+				reg = <0 0x300>;
+				dmas = <&edma 36 0>;
+				dma-names = "rx";
+				interrupts = <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>;
+			};
 		};
 
-		aes: aes@53501000 {
-			compatible = "ti,omap4-aes";
-			ti,hwmods = "aes";
-			reg = <0x53501000 0xa0>;
-			interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
-			dmas = <&edma 6 0>,
-				<&edma 5 0>;
-			dma-names = "tx", "rx";
+		aes_target: target-module@53501000 {
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x53501080 0x4>,
+			      <0x53501084 0x4>,
+			      <0x53501088 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,syss-mask = <1>;
+			/* Domains (P, C): per_pwrdm, l3_clkdm */
+			clocks = <&l3_clkctrl AM4_L3_AES_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x53501000 0x1000>;
+
+			aes: aes@0 {
+				compatible = "ti,omap4-aes";
+				reg = <0 0xa0>;
+				interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
+				dmas = <&edma 6 0>,
+				      <&edma 5 0>;
+				dma-names = "tx", "rx";
+			};
 		};
 
-		des: des@53701000 {
-			compatible = "ti,omap4-des";
-			ti,hwmods = "des";
-			reg = <0x53701000 0xa0>;
-			interrupts = <GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>;
-			dmas = <&edma 34 0>,
-				<&edma 33 0>;
-			dma-names = "tx", "rx";
+		des_target: target-module@53701000 {
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x53701030 0x4>,
+			      <0x53701034 0x4>,
+			      <0x53701038 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,syss-mask = <1>;
+			/* Domains (P, C): per_pwrdm, l3_clkdm */
+			clocks = <&l3_clkctrl AM4_L3_DES_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x53701000 0x1000>;
+
+			des: des@0 {
+				compatible = "ti,omap4-des";
+				reg = <0 0xa0>;
+				interrupts = <GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>;
+				dmas = <&edma 34 0>,
+				       <&edma 33 0>;
+				dma-names = "tx", "rx";
+			};
 		};
 
 		gpmc: gpmc@50000000 {
@@ -305,17 +364,34 @@
 			status = "disabled";
 		};
 
-		qspi: spi@47900000 {
-			compatible = "ti,am4372-qspi";
-			reg = <0x47900000 0x100>,
-			      <0x30000000 0x4000000>;
-			reg-names = "qspi_base", "qspi_mmap";
+		target-module@47900000 {
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x47900000 0x4>,
+			      <0x47900010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			clocks = <&l3s_clkctrl AM4_L3S_QSPI_CLKCTRL 0>;
+			clock-names = "fck";
 			#address-cells = <1>;
-			#size-cells = <0>;
-			ti,hwmods = "qspi";
-			interrupts = <0 138 0x4>;
-			num-cs = <4>;
-			status = "disabled";
+			#size-cells = <1>;
+			ranges = <0x0 0x47900000 0x1000>,
+				 <0x30000000 0x30000000 0x4000000>;
+
+			qspi: spi@0 {
+				compatible = "ti,am4372-qspi";
+				reg = <0 0x100>,
+				      <0x30000000 0x4000000>;
+				reg-names = "qspi_base", "qspi_mmap";
+				clocks = <&dpll_per_m2_div4_ck>;
+				clock-names = "fck";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				interrupts = <0 138 0x4>;
+				num-cs = <4>;
+			};
 		};
 
 		dss: dss@4832a000 {
@@ -368,6 +444,26 @@
 				reg = <0x1000 0x1000>;
 				pool;
 			};
+		};
+
+		target-module@56000000 {
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x5600fe00 0x4>,
+			      <0x5600fe10 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-midle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			clocks = <&gfx_l3_clkctrl AM4_GFX_L3_GFX_CLKCTRL 0>;
+			clock-names = "fck";
+			resets = <&prm_gfx 0>;
+			reset-names = "rstctrl";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x56000000 0x1000000>;
 		};
 	};
 };

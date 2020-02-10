@@ -301,6 +301,18 @@ static const struct omap_clkctrl_reg_data omap5_l4per_clkctrl_regs[] __initconst
 	{ 0 },
 };
 
+static const struct
+omap_clkctrl_reg_data omap5_l4_secure_clkctrl_regs[] __initconst = {
+	{ OMAP5_AES1_CLKCTRL, NULL, CLKF_HW_SUP, "" },
+	{ OMAP5_AES2_CLKCTRL, NULL, CLKF_HW_SUP, "" },
+	{ OMAP5_DES3DES_CLKCTRL, NULL, CLKF_HW_SUP, "" },
+	{ OMAP5_FPKA_CLKCTRL, NULL, CLKF_SW_SUP, "" },
+	{ OMAP5_RNG_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_SOC_NONSEC, "" },
+	{ OMAP5_SHA2MD5_CLKCTRL, NULL, CLKF_HW_SUP, "" },
+	{ OMAP5_DMA_CRYPTO_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_SOC_NONSEC, "" },
+	{ 0 },
+};
+
 static const struct omap_clkctrl_reg_data omap5_iva_clkctrl_regs[] __initconst = {
 	{ OMAP5_IVA_CLKCTRL, NULL, CLKF_HW_SUP, "dpll_iva_h12x2_ck" },
 	{ OMAP5_SL2IF_CLKCTRL, NULL, CLKF_HW_SUP, "dpll_iva_h12x2_ck" },
@@ -523,6 +535,7 @@ const struct omap_clkctrl_data omap5_clkctrl_data[] __initconst = {
 	{ 0x4a008d20, omap5_l4cfg_clkctrl_regs },
 	{ 0x4a008e20, omap5_l3instr_clkctrl_regs },
 	{ 0x4a009020, omap5_l4per_clkctrl_regs },
+	{ 0x4a0091a0, omap5_l4_secure_clkctrl_regs },
 	{ 0x4a009220, omap5_iva_clkctrl_regs },
 	{ 0x4a009420, omap5_dss_clkctrl_regs },
 	{ 0x4a009520, omap5_gpu_clkctrl_regs },

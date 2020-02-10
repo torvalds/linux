@@ -186,7 +186,6 @@
 
 		target-module@56000 {			/* 0x4a056000, ap 9 02.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "dma_system";
 			reg = <0x56000 0x4>,
 			      <0x5602c 0x4>,
 			      <0x56028 0x4>;
@@ -212,7 +211,7 @@
 			ranges = <0x0 0x56000 0x1000>;
 
 			sdma: dma-controller@0 {
-				compatible = "ti,omap4430-sdma";
+				compatible = "ti,omap4430-sdma", "ti,omap-sdma";
 				reg = <0x0 0x1000>;
 				interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
@@ -234,7 +233,6 @@
 
 		target-module@80000 {			/* 0x4a080000, ap 13 20.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "ocp2scp1";
 			reg = <0x80000 0x4>,
 			      <0x80010 0x4>,
 			      <0x80014 0x4>;
@@ -302,7 +300,6 @@
 
 		target-module@90000 {			/* 0x4a090000, ap 59 42.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "ocp2scp3";
 			reg = <0x90000 0x4>,
 			      <0x90010 0x4>,
 			      <0x90014 0x4>;
@@ -394,7 +391,6 @@
 
 		target-module@d9000 {			/* 0x4a0d9000, ap 17 72.0 */
 			compatible = "ti,sysc-omap4-sr", "ti,sysc";
-			ti,hwmods = "smartreflex_mpu";
 			reg = <0xd9038 0x4>;
 			reg-names = "sysc";
 			ti,sysc-mask = <SYSC_OMAP3_SR_ENAWAKEUP>;
@@ -414,7 +410,6 @@
 
 		target-module@dd000 {			/* 0x4a0dd000, ap 19 18.0 */
 			compatible = "ti,sysc-omap4-sr", "ti,sysc";
-			ti,hwmods = "smartreflex_core";
 			reg = <0xdd038 0x4>;
 			reg-names = "sysc";
 			ti,sysc-mask = <SYSC_OMAP3_SR_ENAWAKEUP>;
@@ -471,7 +466,6 @@
 
 		target-module@f6000 {			/* 0x4a0f6000, ap 25 78.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "spinlock";
 			reg = <0xf6000 0x4>,
 			      <0xf6010 0x4>,
 			      <0xf6014 0x4>;
@@ -1233,7 +1227,6 @@
 
 		target-module@3e000 {			/* 0x4803e000, ap 11 56.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer9";
 			reg = <0x3e000 0x4>,
 			      <0x3e010 0x4>;
 			reg-names = "rev", "sysc";
@@ -1748,7 +1741,6 @@
 
 		target-module@78000 {			/* 0x48078000, ap 39 0a.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "elm";
 			reg = <0x78000 0x4>,
 			      <0x78010 0x4>,
 			      <0x78014 0x4>;
@@ -1842,7 +1834,6 @@
 
 		target-module@86000 {			/* 0x48086000, ap 41 5e.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer10";
 			reg = <0x86000 0x4>,
 			      <0x86010 0x4>;
 			reg-names = "rev", "sysc";
@@ -1870,7 +1861,6 @@
 
 		target-module@88000 {			/* 0x48088000, ap 43 66.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer11";
 			reg = <0x88000 0x4>,
 			      <0x88010 0x4>;
 			reg-names = "rev", "sysc";
@@ -2042,6 +2032,37 @@
 			#size-cells = <1>;
 			ranges = <0x00000000 0x000a4000 0x00001000>,
 				 <0x00001000 0x000a5000 0x00001000>;
+		};
+
+		des_target: target-module@a5000 {	/* 0x480a5000 */
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0xa5030 0x4>,
+			      <0xa5034 0x4>,
+			      <0xa5038 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,syss-mask = <1>;
+			/* Domains (P, C): l4per_pwrdm, l4sec_clkdm */
+			clocks = <&l4sec_clkctrl DRA7_L4SEC_DES_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0xa5000 0x00001000>;
+
+			des: des@0 {
+				compatible = "ti,omap4-des";
+				reg = <0 0xa0>;
+				interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
+				dmas = <&sdma_xbar 117>, <&sdma_xbar 116>;
+				dma-names = "tx", "rx";
+				clocks = <&l3_iclk_div>;
+				clock-names = "fck";
+			};
 		};
 
 		target-module@a8000 {			/* 0x480a8000, ap 59 1a.0 */
@@ -2490,7 +2511,6 @@
 
 		target-module@3e000 {			/* 0x4843e000, ap 25 30.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "epwmss0";
 			reg = <0x3e000 0x4>,
 			      <0x3e004 0x4>;
 			reg-names = "rev", "sysc";
@@ -2537,7 +2557,6 @@
 
 		target-module@40000 {			/* 0x48440000, ap 27 38.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "epwmss1";
 			reg = <0x40000 0x4>,
 			      <0x40004 0x4>;
 			reg-names = "rev", "sysc";
@@ -2584,7 +2603,6 @@
 
 		target-module@42000 {			/* 0x48442000, ap 29 20.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "epwmss2";
 			reg = <0x42000 0x4>,
 			      <0x42004 0x4>;
 			reg-names = "rev", "sysc";
@@ -3326,7 +3344,6 @@
 
 		target-module@20000 {			/* 0x48820000, ap 5 08.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer5";
 			reg = <0x20000 0x4>,
 			      <0x20010 0x4>;
 			reg-names = "rev", "sysc";
@@ -3354,7 +3371,6 @@
 
 		target-module@22000 {			/* 0x48822000, ap 7 24.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer6";
 			reg = <0x22000 0x4>,
 			      <0x22010 0x4>;
 			reg-names = "rev", "sysc";
@@ -3382,7 +3398,6 @@
 
 		target-module@24000 {			/* 0x48824000, ap 9 26.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer7";
 			reg = <0x24000 0x4>,
 			      <0x24010 0x4>;
 			reg-names = "rev", "sysc";
@@ -3410,7 +3425,6 @@
 
 		target-module@26000 {			/* 0x48826000, ap 11 0c.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer8";
 			reg = <0x26000 0x4>,
 			      <0x26010 0x4>;
 			reg-names = "rev", "sysc";
@@ -3438,7 +3452,6 @@
 
 		target-module@28000 {			/* 0x48828000, ap 13 16.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer13";
 			reg = <0x28000 0x4>,
 			      <0x28010 0x4>;
 			reg-names = "rev", "sysc";
@@ -3466,7 +3479,6 @@
 
 		target-module@2a000 {			/* 0x4882a000, ap 15 10.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer14";
 			reg = <0x2a000 0x4>,
 			      <0x2a010 0x4>;
 			reg-names = "rev", "sysc";
@@ -3494,7 +3506,6 @@
 
 		target-module@2c000 {			/* 0x4882c000, ap 17 02.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer15";
 			reg = <0x2c000 0x4>,
 			      <0x2c010 0x4>;
 			reg-names = "rev", "sysc";
@@ -3522,7 +3533,6 @@
 
 		target-module@2e000 {			/* 0x4882e000, ap 19 14.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer16";
 			reg = <0x2e000 0x4>,
 			      <0x2e010 0x4>;
 			reg-names = "rev", "sysc";
@@ -4166,35 +4176,88 @@
 		};
 
 		target-module@170000 {			/* 0x48970000, ap 21 0a.0 */
-			compatible = "ti,sysc";
-			status = "disabled";
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x170010 0x4>;
+			reg-names = "sysc";
+			ti,sysc-midle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			clocks = <&cam_clkctrl DRA7_CAM_VIP1_CLKCTRL 0>;
+			clock-names = "fck";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0x170000 0x10000>;
+			status = "disabled";
 		};
 
 		target-module@190000 {			/* 0x48990000, ap 23 2e.0 */
-			compatible = "ti,sysc";
-			status = "disabled";
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x190010 0x4>;
+			reg-names = "sysc";
+			ti,sysc-midle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			clocks = <&cam_clkctrl DRA7_CAM_VIP2_CLKCTRL 0>;
+			clock-names = "fck";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0x190000 0x10000>;
+			status = "disabled";
 		};
 
 		target-module@1b0000 {			/* 0x489b0000, ap 25 34.0 */
-			compatible = "ti,sysc";
-			status = "disabled";
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x1b0000 0x4>,
+			      <0x1b0010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-midle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			clocks = <&cam_clkctrl DRA7_CAM_VIP3_CLKCTRL 0>;
+			clock-names = "fck";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0x1b0000 0x10000>;
+			status = "disabled";
 		};
 
-		target-module@1d0000 {			/* 0x489d0000, ap 27 30.0 */
-			compatible = "ti,sysc";
-			status = "disabled";
+		target-module@1d0010 {			/* 0x489d0000, ap 27 30.0 */
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x1d0010 0x4>;
+			reg-names = "sysc";
+			ti,sysc-midle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			clocks = <&vpe_clkctrl DRA7_VPE_VPE_CLKCTRL 0>;
+			clock-names = "fck";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0x1d0000 0x10000>;
+
+			vpe: vpe@0 {
+				compatible = "ti,dra7-vpe";
+				reg = <0x0000 0x120>,
+				      <0x0700 0x80>,
+				      <0x5700 0x18>,
+				      <0xd000 0x400>;
+				reg-names = "vpe_top",
+					    "sc",
+					    "csc",
+					    "vpdma";
+				interrupts = <GIC_SPI 354 IRQ_TYPE_LEVEL_HIGH>;
+			};
 		};
 	};
 };
@@ -4422,7 +4485,6 @@
 
 		target-module@0 {			/* 0x4ae20000, ap 19 08.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer12";
 			reg = <0x0 0x4>,
 			      <0x10 0x4>;
 			reg-names = "rev", "sysc";

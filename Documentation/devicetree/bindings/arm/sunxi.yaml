@@ -342,6 +342,16 @@ properties:
           - const: libretech,all-h3-cc-h5
           - const: allwinner,sun50i-h5
 
+      - description: Libre Computer Board ALL-H3-IT H5
+        items:
+          - const: libretech,all-h3-it-h5
+          - const: allwinner,sun50i-h5
+
+      - description: Libre Computer Board ALL-H5-CC H5
+        items:
+          - const: libretech,all-h5-cc-h5
+          - const: allwinner,sun50i-h5
+
       - description: Lichee Pi One
         items:
           - const: licheepi,licheepi-one
@@ -469,6 +479,12 @@ properties:
           - const: emlid,neutis-n5-devboard
           - const: emlid,neutis-n5
           - const: allwinner,sun50i-h5
+
+      - description: Emlid Neutis N5H3 Developper Board
+        items:
+          - const: emlid,neutis-n5h3-devboard
+          - const: emlid,neutis-n5h3
+          - const: allwinner,sun8i-h3
 
       - description: NextThing Co. CHIP
         items:
@@ -599,9 +615,14 @@ properties:
           - const: pine64,pine64-plus
           - const: allwinner,sun50i-a64
 
-      - description: Pine64 PineH64
+      - description: Pine64 PineH64 model A
         items:
           - const: pine64,pine-h64
+          - const: allwinner,sun50i-h6
+
+      - description: Pine64 PineH64 model B
+        items:
+          - const: pine64,pine-h64-model-b
           - const: allwinner,sun50i-h6
 
       - description: Pine64 LTS

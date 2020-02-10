@@ -100,7 +100,7 @@ $(obj)/%.so.raw: OBJCOPYFLAGS := -S
 $(obj)/%.so.raw: $(obj)/%.so.dbg.raw FORCE
 	$(call if_changed,objcopy)
 
-hostprogs-y := genvdso
+hostprogs := genvdso
 
 quiet_cmd_genvdso = GENVDSO $@
 define cmd_genvdso

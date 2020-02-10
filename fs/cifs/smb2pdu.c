@@ -350,9 +350,14 @@ smb2_reconnect(__le16 smb2_command, struct cifs_tcon *tcon)
 	}
 
 	rc = cifs_negotiate_protocol(0, tcon->ses);
-	if (!rc && tcon->ses->need_reconnect)
+	if (!rc && tcon->ses->need_reconnect) {
 		rc = cifs_setup_session(0, tcon->ses, nls_codepage);
-
+		if ((rc == -EACCES) && !tcon->retry) {
+			rc = -EHOSTDOWN;
+			mutex_unlock(&tcon->ses->session_mutex);
+			goto failed;
+		}
+	}
 	if (rc || !tcon->need_reconnect) {
 		mutex_unlock(&tcon->ses->session_mutex);
 		goto out;
@@ -397,6 +402,7 @@ out:
 	case SMB2_SET_INFO:
 		rc = -EAGAIN;
 	}
+failed:
 	unload_nls(nls_codepage);
 	return rc;
 }
@@ -1933,6 +1939,16 @@ parse_query_id_ctxt(struct create_context *cc, struct smb2_file_all_info *buf)
 	buf->IndexNumber = pdisk_id->DiskFileId;
 }
 
+static void
+parse_posix_ctxt(struct create_context *cc, struct smb_posix_info *pposix_inf)
+{
+	/* struct smb_posix_info *ppinf = (struct smb_posix_info *)cc; */
+
+	/* TODO: Need to add parsing for the context and return */
+	printk_once(KERN_WARNING
+		    "SMB3 3.11 POSIX response context not completed yet\n");
+}
+
 void
 smb2_parse_contexts(struct TCP_Server_Info *server,
 		       struct smb2_create_rsp *rsp,
@@ -1944,6 +1960,9 @@ smb2_parse_contexts(struct TCP_Server_Info *server,
 	unsigned int next;
 	unsigned int remaining;
 	char *name;
+	const char smb3_create_tag_posix[] = {0x93, 0xAD, 0x25, 0x50, 0x9C,
+					0xB4, 0x11, 0xE7, 0xB4, 0x23, 0x83,
+					0xDE, 0x96, 0x8B, 0xCD, 0x7C};
 
 	*oplock = 0;
 	data_offset = (char *)rsp + le32_to_cpu(rsp->CreateContextsOffset);
@@ -1963,6 +1982,15 @@ smb2_parse_contexts(struct TCP_Server_Info *server,
 		else if (buf && (le16_to_cpu(cc->NameLength) == 4) &&
 		    strncmp(name, SMB2_CREATE_QUERY_ON_DISK_ID, 4) == 0)
 			parse_query_id_ctxt(cc, buf);
+		else if ((le16_to_cpu(cc->NameLength) == 16)) {
+			if (memcmp(name, smb3_create_tag_posix, 16) == 0)
+				parse_posix_ctxt(cc, NULL);
+		}
+		/* else {
+			cifs_dbg(FYI, "Context not matched with len %d\n",
+				le16_to_cpu(cc->NameLength));
+			cifs_dump_mem("Cctxt name: ", name, 4);
+		} */
 
 		next = le32_to_cpu(cc->Next);
 		if (!next)
@@ -3357,6 +3385,7 @@ SMB2_notify_init(const unsigned int xid, struct smb_rqst *rqst,
 
 	req->PersistentFileId = persistent_fid;
 	req->VolatileFileId = volatile_fid;
+	/* See note 354 of MS-SMB2, 64K max */
 	req->OutputBufferLength =
 		cpu_to_le32(SMB2_MAX_BUFFER_SIZE - MAX_SMB2_HDR_SIZE);
 	req->CompletionFilter = cpu_to_le32(completion_filter);
@@ -4023,6 +4052,9 @@ smb2_writev_callback(struct mid_q_entry *mid)
 				     wdata->cfile->fid.persistent_fid,
 				     tcon->tid, tcon->ses->Suid, wdata->offset,
 				     wdata->bytes, wdata->result);
+		if (wdata->result == -ENOSPC)
+			printk_once(KERN_WARNING "Out of space writing to %s\n",
+				    tcon->treeName);
 	} else
 		trace_smb3_write_done(0 /* no xid */,
 				      wdata->cfile->fid.persistent_fid,

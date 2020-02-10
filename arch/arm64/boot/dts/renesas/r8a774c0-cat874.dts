@@ -110,8 +110,7 @@
 
 		gpios = <&gpio3 13 GPIO_ACTIVE_HIGH>;
 		gpios-states = <1>;
-		states = <3300000 1
-			  1800000 0>;
+		states = <3300000 1>, <1800000 0>;
 	};
 
 	wlan_en_reg: fixedregulator {

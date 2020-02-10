@@ -57,6 +57,7 @@ Required properties:
 	"atmel,at91sam9g45-pmecc"
 	"atmel,sama5d4-pmecc"
 	"atmel,sama5d2-pmecc"
+	"microchip,sam9x60-pmecc"
 - reg: should contain 2 register ranges. The first one is pointing to the PMECC
        block, and the second one to the PMECC_ERRLOC block.
 

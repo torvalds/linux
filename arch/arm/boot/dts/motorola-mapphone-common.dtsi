@@ -249,6 +249,13 @@
 	};
 };
 
+/* Battery NVRAM on 1-wire handled by w1_ds250x driver */
+&hdqw1w {
+	pinctrl-0 = <&hdq_pins>;
+	pinctrl-names = "default";
+	ti,mode = "1w";
+};
+
 &i2c1 {
 	tmp105@48 {
 		compatible = "ti,tmp105";
@@ -437,6 +444,13 @@
 	hdmi_hpd_gpio: pinmux_hdmi_hpd_pins {
 		pinctrl-single,pins = <
 		OMAP4_IOPAD(0x098, PIN_INPUT | MUX_MODE3)
+		>;
+	};
+
+	hdq_pins: pinmux_hdq_pins {
+		pinctrl-single,pins = <
+		/* 0x4a100120 hdq_sio.hdq_sio aa27 */
+		OMAP4_IOPAD(0x120, PIN_INPUT | MUX_MODE0)
 		>;
 	};
 
@@ -648,6 +662,11 @@
 		OMAP4_IOPAD(0x040, PIN_OUTPUT_PULLDOWN | MUX_MODE3)
 		>;
 	};
+};
+
+/* RNG is used by secure mode and not accessible */
+&rng_target {
+	status = "disabled";
 };
 
 /* Configure pwm clock source for timers 8 & 9 */
