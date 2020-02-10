@@ -3919,11 +3919,6 @@ F:	certs/
 F:	scripts/sign-file.c
 F:	scripts/extract-cert.c
 
-CERTIFIED WIRELESS USB (WUSB) SUBSYSTEM:
-L:	devel@driverdev.osuosl.org
-S:	Obsolete
-F:	drivers/staging/wusbcore/
-
 CFAG12864B LCD DRIVER
 M:	Miguel Ojeda Sandonis <miguel.ojeda.sandonis@gmail.com>
 S:	Maintained
@@ -17093,11 +17088,6 @@ L:	linux-usb@vger.kernel.org
 S:	Maintained
 F:	drivers/usb/common/ulpi.c
 F:	include/linux/ulpi/
-
-ULTRA-WIDEBAND (UWB) SUBSYSTEM:
-L:	devel@driverdev.osuosl.org
-S:	Obsolete
-F:	drivers/staging/uwb/
 
 UNICODE SUBSYSTEM:
 M:	Gabriel Krisman Bertazi <krisman@collabora.com>
