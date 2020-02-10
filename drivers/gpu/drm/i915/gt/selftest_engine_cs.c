@@ -4,7 +4,365 @@
  * Copyright © 2018 Intel Corporation
  */
 
-#include "../i915_selftest.h"
+#include <linux/sort.h>
+
+#include "intel_gt_pm.h"
+#include "intel_rps.h"
+
+#include "i915_selftest.h"
+#include "selftests/igt_flush_test.h"
+
+#define COUNT 5
+
+static int cmp_u32(const void *A, const void *B)
+{
+	const u32 *a = A, *b = B;
+
+	return *a - *b;
+}
+
+static void perf_begin(struct intel_gt *gt)
+{
+	intel_gt_pm_get(gt);
+
+	/* Boost gpufreq to max [waitboost] and keep it fixed */
+	atomic_inc(&gt->rps.num_waiters);
+	schedule_work(&gt->rps.work);
+	flush_work(&gt->rps.work);
+}
+
+static int perf_end(struct intel_gt *gt)
+{
+	atomic_dec(&gt->rps.num_waiters);
+	intel_gt_pm_put(gt);
+
+	return igt_flush_test(gt->i915);
+}
+
+static int write_timestamp(struct i915_request *rq, int slot)
+{
+	u32 cmd;
+	u32 *cs;
+
+	cs = intel_ring_begin(rq, 4);
+	if (IS_ERR(cs))
+		return PTR_ERR(cs);
+
+	cmd = MI_STORE_REGISTER_MEM | MI_USE_GGTT;
+	if (INTEL_GEN(rq->i915) >= 8)
+		cmd++;
+	*cs++ = cmd;
+	*cs++ = i915_mmio_reg_offset(RING_TIMESTAMP(rq->engine->mmio_base));
+	*cs++ = i915_request_timeline(rq)->hwsp_offset + slot * sizeof(u32);
+	*cs++ = 0;
+
+	intel_ring_advance(rq, cs);
+
+	return 0;
+}
+
+static struct i915_vma *create_empty_batch(struct intel_context *ce)
+{
+	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
+	u32 *cs;
+	int err;
+
+	obj = i915_gem_object_create_internal(ce->engine->i915, PAGE_SIZE);
+	if (IS_ERR(obj))
+		return ERR_CAST(obj);
+
+	cs = i915_gem_object_pin_map(obj, I915_MAP_WB);
+	if (IS_ERR(cs)) {
+		err = PTR_ERR(cs);
+		goto err_put;
+	}
+
+	cs[0] = MI_BATCH_BUFFER_END;
+
+	i915_gem_object_flush_map(obj);
+
+	vma = i915_vma_instance(obj, ce->vm, NULL);
+	if (IS_ERR(vma)) {
+		err = PTR_ERR(vma);
+		goto err_unpin;
+	}
+
+	err = i915_vma_pin(vma, 0, 0, PIN_USER);
+	if (err)
+		goto err_unpin;
+
+	i915_gem_object_unpin_map(obj);
+	return vma;
+
+err_unpin:
+	i915_gem_object_unpin_map(obj);
+err_put:
+	i915_gem_object_put(obj);
+	return ERR_PTR(err);
+}
+
+static u32 trifilter(u32 *a)
+{
+	u64 sum;
+
+	sort(a, COUNT, sizeof(*a), cmp_u32, NULL);
+
+	sum = mul_u32_u32(a[2], 2);
+	sum += a[1];
+	sum += a[3];
+
+	return sum >> 2;
+}
+
+static int perf_mi_bb_start(void *arg)
+{
+	struct intel_gt *gt = arg;
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	int err = 0;
+
+	if (INTEL_GEN(gt->i915) < 7) /* for per-engine CS_TIMESTAMP */
+		return 0;
+
+	perf_begin(gt);
+	for_each_engine(engine, gt, id) {
+		struct intel_context *ce = engine->kernel_context;
+		struct i915_vma *batch;
+		u32 cycles[COUNT];
+		int i;
+
+		intel_engine_pm_get(engine);
+
+		batch = create_empty_batch(ce);
+		if (IS_ERR(batch)) {
+			err = PTR_ERR(batch);
+			intel_engine_pm_put(engine);
+			break;
+		}
+
+		err = i915_vma_sync(batch);
+		if (err) {
+			intel_engine_pm_put(engine);
+			i915_vma_put(batch);
+			break;
+		}
+
+		for (i = 0; i < ARRAY_SIZE(cycles); i++) {
+			struct i915_request *rq;
+
+			rq = i915_request_create(ce);
+			if (IS_ERR(rq)) {
+				err = PTR_ERR(rq);
+				break;
+			}
+
+			err = write_timestamp(rq, 2);
+			if (err)
+				goto out;
+
+			err = rq->engine->emit_bb_start(rq,
+							batch->node.start, 8,
+							0);
+			if (err)
+				goto out;
+
+			err = write_timestamp(rq, 3);
+			if (err)
+				goto out;
+
+out:
+			i915_request_get(rq);
+			i915_request_add(rq);
+
+			if (i915_request_wait(rq, 0, HZ / 5) < 0)
+				err = -EIO;
+			i915_request_put(rq);
+			if (err)
+				break;
+
+			cycles[i] = rq->hwsp_seqno[3] - rq->hwsp_seqno[2];
+		}
+		i915_vma_put(batch);
+		intel_engine_pm_put(engine);
+		if (err)
+			break;
+
+		pr_info("%s: MI_BB_START cycles: %u\n",
+			engine->name, trifilter(cycles));
+	}
+	if (perf_end(gt))
+		err = -EIO;
+
+	return err;
+}
+
+static struct i915_vma *create_nop_batch(struct intel_context *ce)
+{
+	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
+	u32 *cs;
+	int err;
+
+	obj = i915_gem_object_create_internal(ce->engine->i915, SZ_64K);
+	if (IS_ERR(obj))
+		return ERR_CAST(obj);
+
+	cs = i915_gem_object_pin_map(obj, I915_MAP_WB);
+	if (IS_ERR(cs)) {
+		err = PTR_ERR(cs);
+		goto err_put;
+	}
+
+	memset(cs, 0, SZ_64K);
+	cs[SZ_64K / sizeof(*cs) - 1] = MI_BATCH_BUFFER_END;
+
+	i915_gem_object_flush_map(obj);
+
+	vma = i915_vma_instance(obj, ce->vm, NULL);
+	if (IS_ERR(vma)) {
+		err = PTR_ERR(vma);
+		goto err_unpin;
+	}
+
+	err = i915_vma_pin(vma, 0, 0, PIN_USER);
+	if (err)
+		goto err_unpin;
+
+	i915_gem_object_unpin_map(obj);
+	return vma;
+
+err_unpin:
+	i915_gem_object_unpin_map(obj);
+err_put:
+	i915_gem_object_put(obj);
+	return ERR_PTR(err);
+}
+
+static int perf_mi_noop(void *arg)
+{
+	struct intel_gt *gt = arg;
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	int err = 0;
+
+	if (INTEL_GEN(gt->i915) < 7) /* for per-engine CS_TIMESTAMP */
+		return 0;
+
+	perf_begin(gt);
+	for_each_engine(engine, gt, id) {
+		struct intel_context *ce = engine->kernel_context;
+		struct i915_vma *base, *nop;
+		u32 cycles[COUNT];
+		int i;
+
+		intel_engine_pm_get(engine);
+
+		base = create_empty_batch(ce);
+		if (IS_ERR(base)) {
+			err = PTR_ERR(base);
+			intel_engine_pm_put(engine);
+			break;
+		}
+
+		err = i915_vma_sync(base);
+		if (err) {
+			i915_vma_put(base);
+			intel_engine_pm_put(engine);
+			break;
+		}
+
+		nop = create_nop_batch(ce);
+		if (IS_ERR(nop)) {
+			err = PTR_ERR(nop);
+			i915_vma_put(base);
+			intel_engine_pm_put(engine);
+			break;
+		}
+
+		err = i915_vma_sync(nop);
+		if (err) {
+			i915_vma_put(nop);
+			i915_vma_put(base);
+			intel_engine_pm_put(engine);
+			break;
+		}
+
+		for (i = 0; i < ARRAY_SIZE(cycles); i++) {
+			struct i915_request *rq;
+
+			rq = i915_request_create(ce);
+			if (IS_ERR(rq)) {
+				err = PTR_ERR(rq);
+				break;
+			}
+
+			err = write_timestamp(rq, 2);
+			if (err)
+				goto out;
+
+			err = rq->engine->emit_bb_start(rq,
+							base->node.start, 8,
+							0);
+			if (err)
+				goto out;
+
+			err = write_timestamp(rq, 3);
+			if (err)
+				goto out;
+
+			err = rq->engine->emit_bb_start(rq,
+							nop->node.start,
+							nop->node.size,
+							0);
+			if (err)
+				goto out;
+
+			err = write_timestamp(rq, 4);
+			if (err)
+				goto out;
+
+out:
+			i915_request_get(rq);
+			i915_request_add(rq);
+
+			if (i915_request_wait(rq, 0, HZ / 5) < 0)
+				err = -EIO;
+			i915_request_put(rq);
+			if (err)
+				break;
+
+			cycles[i] =
+				(rq->hwsp_seqno[4] - rq->hwsp_seqno[3]) -
+				(rq->hwsp_seqno[3] - rq->hwsp_seqno[2]);
+		}
+		i915_vma_put(nop);
+		i915_vma_put(base);
+		intel_engine_pm_put(engine);
+		if (err)
+			break;
+
+		pr_info("%s: 16K MI_NOOP cycles: %u\n",
+			engine->name, trifilter(cycles));
+	}
+	if (perf_end(gt))
+		err = -EIO;
+
+	return err;
+}
+
+int intel_engine_cs_perf_selftests(struct drm_i915_private *i915)
+{
+	static const struct i915_subtest tests[] = {
+		SUBTEST(perf_mi_bb_start),
+		SUBTEST(perf_mi_noop),
+	};
+
+	if (intel_gt_is_wedged(&i915->gt))
+		return 0;
+
+	return intel_gt_live_subtests(tests, &i915->gt);
+}
 
 static int intel_mmio_bases_check(void *arg)
 {

@@ -47,6 +47,9 @@ static struct scsi_host_template mvs_sht = {
 	.eh_target_reset_handler = sas_eh_target_reset_handler,
 	.target_destroy		= sas_target_destroy,
 	.ioctl			= sas_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl		= sas_ioctl,
+#endif
 	.shost_attrs		= mvst_host_attrs,
 	.track_queue_depth	= 1,
 };

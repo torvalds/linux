@@ -12,6 +12,7 @@
 #include <linux/clk.h>
 #include <linux/clk/tegra.h>
 #include <linux/completion.h>
+#include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
@@ -331,7 +332,9 @@ struct tegra_emc {
 	struct clk *clk;
 	void __iomem *regs;
 	unsigned int irq;
+	bool bad_state;
 
+	struct emc_timing *new_timing;
 	struct emc_timing *timings;
 	unsigned int num_timings;
 
@@ -345,9 +348,73 @@ struct tegra_emc {
 	bool vref_cal_toggle : 1;
 	bool zcal_long : 1;
 	bool dll_on : 1;
-	bool prepared : 1;
-	bool bad_state : 1;
+
+	struct {
+		struct dentry *root;
+		unsigned long min_rate;
+		unsigned long max_rate;
+	} debugfs;
 };
+
+static int emc_seq_update_timing(struct tegra_emc *emc)
+{
+	u32 val;
+	int err;
+
+	writel_relaxed(EMC_TIMING_UPDATE, emc->regs + EMC_TIMING_CONTROL);
+
+	err = readl_relaxed_poll_timeout_atomic(emc->regs + EMC_STATUS, val,
+				!(val & EMC_STATUS_TIMING_UPDATE_STALLED),
+				1, 200);
+	if (err) {
+		dev_err(emc->dev, "failed to update timing: %d\n", err);
+		return err;
+	}
+
+	return 0;
+}
+
+static void emc_complete_clk_change(struct tegra_emc *emc)
+{
+	struct emc_timing *timing = emc->new_timing;
+	unsigned int dram_num;
+	bool failed = false;
+	int err;
+
+	/* re-enable auto-refresh */
+	dram_num = tegra_mc_get_emem_device_count(emc->mc);
+	writel_relaxed(EMC_REFCTRL_ENABLE_ALL(dram_num),
+		       emc->regs + EMC_REFCTRL);
+
+	/* restore auto-calibration */
+	if (emc->vref_cal_toggle)
+		writel_relaxed(timing->emc_auto_cal_interval,
+			       emc->regs + EMC_AUTO_CAL_INTERVAL);
+
+	/* restore dynamic self-refresh */
+	if (timing->emc_cfg_dyn_self_ref) {
+		emc->emc_cfg |= EMC_CFG_DYN_SREF_ENABLE;
+		writel_relaxed(emc->emc_cfg, emc->regs + EMC_CFG);
+	}
+
+	/* set number of clocks to wait after each ZQ command */
+	if (emc->zcal_long)
+		writel_relaxed(timing->emc_zcal_cnt_long,
+			       emc->regs + EMC_ZCAL_WAIT_CNT);
+
+	/* wait for writes to settle */
+	udelay(2);
+
+	/* update restored timing */
+	err = emc_seq_update_timing(emc);
+	if (err)
+		failed = true;
+
+	/* restore early ACK */
+	mc_writel(emc->mc, emc->mc_override, MC_EMEM_ARB_OVERRIDE);
+
+	WRITE_ONCE(emc->bad_state, failed);
+}
 
 static irqreturn_t tegra_emc_isr(int irq, void *data)
 {
@@ -359,10 +426,6 @@ static irqreturn_t tegra_emc_isr(int irq, void *data)
 	if (!status)
 		return IRQ_NONE;
 
-	/* notify about EMC-CAR handshake completion */
-	if (status & EMC_CLKCHANGE_COMPLETE_INT)
-		complete(&emc->clk_handshake_complete);
-
 	/* notify about HW problem */
 	if (status & EMC_REFRESH_OVERFLOW_INT)
 		dev_err_ratelimited(emc->dev,
@@ -370,6 +433,18 @@ static irqreturn_t tegra_emc_isr(int irq, void *data)
 
 	/* clear interrupts */
 	writel_relaxed(status, emc->regs + EMC_INTSTATUS);
+
+	/* notify about EMC-CAR handshake completion */
+	if (status & EMC_CLKCHANGE_COMPLETE_INT) {
+		if (completion_done(&emc->clk_handshake_complete)) {
+			dev_err_ratelimited(emc->dev,
+					    "bogus handshake interrupt\n");
+			return IRQ_NONE;
+		}
+
+		emc_complete_clk_change(emc);
+		complete(&emc->clk_handshake_complete);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -436,24 +511,6 @@ static bool emc_dqs_preset(struct tegra_emc *emc, struct emc_timing *timing,
 	}
 
 	return preset;
-}
-
-static int emc_seq_update_timing(struct tegra_emc *emc)
-{
-	u32 val;
-	int err;
-
-	writel_relaxed(EMC_TIMING_UPDATE, emc->regs + EMC_TIMING_CONTROL);
-
-	err = readl_relaxed_poll_timeout_atomic(emc->regs + EMC_STATUS, val,
-				!(val & EMC_STATUS_TIMING_UPDATE_STALLED),
-				1, 200);
-	if (err) {
-		dev_err(emc->dev, "failed to update timing: %d\n", err);
-		return err;
-	}
-
-	return 0;
 }
 
 static int emc_prepare_mc_clk_cfg(struct tegra_emc *emc, unsigned long rate)
@@ -582,8 +639,7 @@ static int emc_prepare_timing_change(struct tegra_emc *emc, unsigned long rate)
 				!(val & EMC_AUTO_CAL_STATUS_ACTIVE), 1, 300);
 			if (err) {
 				dev_err(emc->dev,
-					"failed to disable auto-cal: %d\n",
-					err);
+					"auto-cal finish timeout: %d\n", err);
 				return err;
 			}
 
@@ -620,9 +676,6 @@ static int emc_prepare_timing_change(struct tegra_emc *emc, unsigned long rate)
 
 		writel_relaxed(val, emc->regs + EMC_MRS_WAIT_CNT);
 	}
-
-	/* disable interrupt since read access is prohibited after stalling */
-	disable_irq(emc->irq);
 
 	/* this read also completes the writes */
 	val = readl_relaxed(emc->regs + EMC_SEL_DPD_CTRL);
@@ -739,20 +792,18 @@ static int emc_prepare_timing_change(struct tegra_emc *emc, unsigned long rate)
 				       emc->regs + EMC_ZQ_CAL);
 	}
 
-	/* re-enable auto-refresh */
-	writel_relaxed(EMC_REFCTRL_ENABLE_ALL(dram_num),
-		       emc->regs + EMC_REFCTRL);
-
 	/* flow control marker 3 */
 	writel_relaxed(0x1, emc->regs + EMC_UNSTALL_RW_AFTER_CLKCHANGE);
 
+	/*
+	 * Read and discard an arbitrary MC register (Note: EMC registers
+	 * can't be used) to ensure the register writes are completed.
+	 */
+	mc_readl(emc->mc, MC_EMEM_ARB_OVERRIDE);
+
 	reinit_completion(&emc->clk_handshake_complete);
 
-	/* interrupt can be re-enabled now */
-	enable_irq(emc->irq);
-
-	emc->bad_state = false;
-	emc->prepared = true;
+	emc->new_timing = timing;
 
 	return 0;
 }
@@ -760,52 +811,25 @@ static int emc_prepare_timing_change(struct tegra_emc *emc, unsigned long rate)
 static int emc_complete_timing_change(struct tegra_emc *emc,
 				      unsigned long rate)
 {
-	struct emc_timing *timing = emc_find_timing(emc, rate);
 	unsigned long timeout;
-	int ret;
 
 	timeout = wait_for_completion_timeout(&emc->clk_handshake_complete,
 					      msecs_to_jiffies(100));
 	if (timeout == 0) {
 		dev_err(emc->dev, "emc-car handshake failed\n");
-		emc->bad_state = true;
 		return -EIO;
 	}
 
-	/* restore auto-calibration */
-	if (emc->vref_cal_toggle)
-		writel_relaxed(timing->emc_auto_cal_interval,
-			       emc->regs + EMC_AUTO_CAL_INTERVAL);
+	if (READ_ONCE(emc->bad_state))
+		return -EIO;
 
-	/* restore dynamic self-refresh */
-	if (timing->emc_cfg_dyn_self_ref) {
-		emc->emc_cfg |= EMC_CFG_DYN_SREF_ENABLE;
-		writel_relaxed(emc->emc_cfg, emc->regs + EMC_CFG);
-	}
-
-	/* set number of clocks to wait after each ZQ command */
-	if (emc->zcal_long)
-		writel_relaxed(timing->emc_zcal_cnt_long,
-			       emc->regs + EMC_ZCAL_WAIT_CNT);
-
-	udelay(2);
-	/* update restored timing */
-	ret = emc_seq_update_timing(emc);
-	if (ret)
-		emc->bad_state = true;
-
-	/* restore early ACK */
-	mc_writel(emc->mc, emc->mc_override, MC_EMEM_ARB_OVERRIDE);
-
-	emc->prepared = false;
-
-	return ret;
+	return 0;
 }
 
 static int emc_unprepare_timing_change(struct tegra_emc *emc,
 				       unsigned long rate)
 {
-	if (emc->prepared && !emc->bad_state) {
+	if (!emc->bad_state) {
 		/* shouldn't ever happen in practice */
 		dev_err(emc->dev, "timing configuration can't be reverted\n");
 		emc->bad_state = true;
@@ -823,7 +847,13 @@ static int emc_clk_change_notify(struct notifier_block *nb,
 
 	switch (msg) {
 	case PRE_RATE_CHANGE:
+		/*
+		 * Disable interrupt since read accesses are prohibited after
+		 * stalling.
+		 */
+		disable_irq(emc->irq);
 		err = emc_prepare_timing_change(emc, cnd->new_rate);
+		enable_irq(emc->irq);
 		break;
 
 	case ABORT_RATE_CHANGE:
@@ -1083,6 +1113,171 @@ static long emc_round_rate(unsigned long rate,
 	return timing->rate;
 }
 
+/*
+ * debugfs interface
+ *
+ * The memory controller driver exposes some files in debugfs that can be used
+ * to control the EMC frequency. The top-level directory can be found here:
+ *
+ *   /sys/kernel/debug/emc
+ *
+ * It contains the following files:
+ *
+ *   - available_rates: This file contains a list of valid, space-separated
+ *     EMC frequencies.
+ *
+ *   - min_rate: Writing a value to this file sets the given frequency as the
+ *       floor of the permitted range. If this is higher than the currently
+ *       configured EMC frequency, this will cause the frequency to be
+ *       increased so that it stays within the valid range.
+ *
+ *   - max_rate: Similarily to the min_rate file, writing a value to this file
+ *       sets the given frequency as the ceiling of the permitted range. If
+ *       the value is lower than the currently configured EMC frequency, this
+ *       will cause the frequency to be decreased so that it stays within the
+ *       valid range.
+ */
+
+static bool tegra_emc_validate_rate(struct tegra_emc *emc, unsigned long rate)
+{
+	unsigned int i;
+
+	for (i = 0; i < emc->num_timings; i++)
+		if (rate == emc->timings[i].rate)
+			return true;
+
+	return false;
+}
+
+static int tegra_emc_debug_available_rates_show(struct seq_file *s, void *data)
+{
+	struct tegra_emc *emc = s->private;
+	const char *prefix = "";
+	unsigned int i;
+
+	for (i = 0; i < emc->num_timings; i++) {
+		seq_printf(s, "%s%lu", prefix, emc->timings[i].rate);
+		prefix = " ";
+	}
+
+	seq_puts(s, "\n");
+
+	return 0;
+}
+
+static int tegra_emc_debug_available_rates_open(struct inode *inode,
+						struct file *file)
+{
+	return single_open(file, tegra_emc_debug_available_rates_show,
+			   inode->i_private);
+}
+
+static const struct file_operations tegra_emc_debug_available_rates_fops = {
+	.open = tegra_emc_debug_available_rates_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static int tegra_emc_debug_min_rate_get(void *data, u64 *rate)
+{
+	struct tegra_emc *emc = data;
+
+	*rate = emc->debugfs.min_rate;
+
+	return 0;
+}
+
+static int tegra_emc_debug_min_rate_set(void *data, u64 rate)
+{
+	struct tegra_emc *emc = data;
+	int err;
+
+	if (!tegra_emc_validate_rate(emc, rate))
+		return -EINVAL;
+
+	err = clk_set_min_rate(emc->clk, rate);
+	if (err < 0)
+		return err;
+
+	emc->debugfs.min_rate = rate;
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(tegra_emc_debug_min_rate_fops,
+			tegra_emc_debug_min_rate_get,
+			tegra_emc_debug_min_rate_set, "%llu\n");
+
+static int tegra_emc_debug_max_rate_get(void *data, u64 *rate)
+{
+	struct tegra_emc *emc = data;
+
+	*rate = emc->debugfs.max_rate;
+
+	return 0;
+}
+
+static int tegra_emc_debug_max_rate_set(void *data, u64 rate)
+{
+	struct tegra_emc *emc = data;
+	int err;
+
+	if (!tegra_emc_validate_rate(emc, rate))
+		return -EINVAL;
+
+	err = clk_set_max_rate(emc->clk, rate);
+	if (err < 0)
+		return err;
+
+	emc->debugfs.max_rate = rate;
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(tegra_emc_debug_max_rate_fops,
+			tegra_emc_debug_max_rate_get,
+			tegra_emc_debug_max_rate_set, "%llu\n");
+
+static void tegra_emc_debugfs_init(struct tegra_emc *emc)
+{
+	struct device *dev = emc->dev;
+	unsigned int i;
+	int err;
+
+	emc->debugfs.min_rate = ULONG_MAX;
+	emc->debugfs.max_rate = 0;
+
+	for (i = 0; i < emc->num_timings; i++) {
+		if (emc->timings[i].rate < emc->debugfs.min_rate)
+			emc->debugfs.min_rate = emc->timings[i].rate;
+
+		if (emc->timings[i].rate > emc->debugfs.max_rate)
+			emc->debugfs.max_rate = emc->timings[i].rate;
+	}
+
+	err = clk_set_rate_range(emc->clk, emc->debugfs.min_rate,
+				 emc->debugfs.max_rate);
+	if (err < 0) {
+		dev_err(dev, "failed to set rate range [%lu-%lu] for %pC\n",
+			emc->debugfs.min_rate, emc->debugfs.max_rate,
+			emc->clk);
+	}
+
+	emc->debugfs.root = debugfs_create_dir("emc", NULL);
+	if (!emc->debugfs.root) {
+		dev_err(emc->dev, "failed to create debugfs directory\n");
+		return;
+	}
+
+	debugfs_create_file("available_rates", S_IRUGO, emc->debugfs.root,
+			    emc, &tegra_emc_debug_available_rates_fops);
+	debugfs_create_file("min_rate", S_IRUGO | S_IWUSR, emc->debugfs.root,
+			    emc, &tegra_emc_debug_min_rate_fops);
+	debugfs_create_file("max_rate", S_IRUGO | S_IWUSR, emc->debugfs.root,
+			    emc, &tegra_emc_debug_max_rate_fops);
+}
+
 static int tegra_emc_probe(struct platform_device *pdev)
 {
 	struct platform_device *mc;
@@ -1169,6 +1364,7 @@ static int tegra_emc_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, emc);
+	tegra_emc_debugfs_init(emc);
 
 	return 0;
 
@@ -1181,13 +1377,17 @@ unset_cb:
 static int tegra_emc_suspend(struct device *dev)
 {
 	struct tegra_emc *emc = dev_get_drvdata(dev);
+	int err;
 
-	/*
-	 * Suspending in a bad state will hang machine. The "prepared" var
-	 * shall be always false here unless it's a kernel bug that caused
-	 * suspending in a wrong order.
-	 */
-	if (WARN_ON(emc->prepared) || emc->bad_state)
+	/* take exclusive control over the clock's rate */
+	err = clk_rate_exclusive_get(emc->clk);
+	if (err) {
+		dev_err(emc->dev, "failed to acquire clk: %d\n", err);
+		return err;
+	}
+
+	/* suspending in a bad state will hang machine */
+	if (WARN(emc->bad_state, "hardware in a bad state\n"))
 		return -EINVAL;
 
 	emc->bad_state = true;
@@ -1201,6 +1401,8 @@ static int tegra_emc_resume(struct device *dev)
 
 	emc_setup_hw(emc);
 	emc->bad_state = false;
+
+	clk_rate_exclusive_put(emc->clk);
 
 	return 0;
 }

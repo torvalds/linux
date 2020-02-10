@@ -154,6 +154,7 @@ tu102_fault = {
 	.buffer.nr = 2,
 	.buffer.entry_size = 32,
 	.buffer.info = tu102_fault_buffer_info,
+	.buffer.pin = gp100_fault_buffer_pin,
 	.buffer.init = tu102_fault_buffer_init,
 	.buffer.fini = tu102_fault_buffer_fini,
 	.buffer.intr = tu102_fault_buffer_intr,

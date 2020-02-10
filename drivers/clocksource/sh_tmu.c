@@ -486,7 +486,7 @@ static int sh_tmu_map_memory(struct sh_tmu_device *tmu)
 		return -ENXIO;
 	}
 
-	tmu->mapbase = ioremap_nocache(res->start, resource_size(res));
+	tmu->mapbase = ioremap(res->start, resource_size(res));
 	if (tmu->mapbase == NULL)
 		return -ENXIO;
 

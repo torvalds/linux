@@ -43,7 +43,8 @@ static const char *mv88e6060_get_name(struct mii_bus *bus, int sw_addr)
 }
 
 static enum dsa_tag_protocol mv88e6060_get_tag_protocol(struct dsa_switch *ds,
-							int port)
+							int port,
+							enum dsa_tag_protocol m)
 {
 	return DSA_TAG_PROTO_TRAILER;
 }

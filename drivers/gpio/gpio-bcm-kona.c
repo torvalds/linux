@@ -19,7 +19,6 @@
 #include <linux/io.h>
 #include <linux/gpio/driver.h>
 #include <linux/of_device.h>
-#include <linux/of_irq.h>
 #include <linux/init.h>
 #include <linux/irqdomain.h>
 #include <linux/irqchip/chained_irq.h>
@@ -586,11 +585,18 @@ static int bcm_kona_gpio_probe(struct platform_device *pdev)
 
 	kona_gpio->gpio_chip = template_chip;
 	chip = &kona_gpio->gpio_chip;
-	kona_gpio->num_bank = of_irq_count(dev->of_node);
-	if (kona_gpio->num_bank == 0) {
+	ret = platform_irq_count(pdev);
+	if (!ret) {
 		dev_err(dev, "Couldn't determine # GPIO banks\n");
 		return -ENOENT;
+	} else if (ret < 0) {
+		if (ret != -EPROBE_DEFER)
+			dev_err(dev, "Couldn't determine GPIO banks: (%pe)\n",
+				ERR_PTR(ret));
+		return ret;
 	}
+	kona_gpio->num_bank = ret;
+
 	if (kona_gpio->num_bank > GPIO_MAX_BANK_NUM) {
 		dev_err(dev, "Too many GPIO banks configured (max=%d)\n",
 			GPIO_MAX_BANK_NUM);

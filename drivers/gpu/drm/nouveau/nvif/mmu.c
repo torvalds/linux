@@ -121,6 +121,7 @@ nvif_mmu_init(struct nvif_object *parent, s32 oclass, struct nvif_mmu *mmu)
 				       kind, argc);
 		if (ret == 0)
 			memcpy(mmu->kind, kind->data, kind->count);
+		mmu->kind_inv = kind->kind_inv;
 		kfree(kind);
 	}
 

@@ -47,7 +47,7 @@ static int sun4i_rgb_get_modes(struct drm_connector *connector)
 	struct sun4i_rgb *rgb =
 		drm_connector_to_sun4i_rgb(connector);
 
-	return drm_panel_get_modes(rgb->panel);
+	return drm_panel_get_modes(rgb->panel, connector);
 }
 
 /*

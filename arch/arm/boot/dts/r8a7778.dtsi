@@ -79,10 +79,10 @@
 			<0xfe780024 4>,
 			<0xfe780044 4>,
 			<0xfe780064 4>;
-		interrupts =   <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH
-				GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH
-				GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH
-				GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
 		sense-bitfield-width = <2>;
 	};
 
@@ -498,14 +498,17 @@
 		audio_clk_a: audio_clk_a {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
+			clock-frequency = <0>;
 		};
 		audio_clk_b: audio_clk_b {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
+			clock-frequency = <0>;
 		};
 		audio_clk_c: audio_clk_c {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
+			clock-frequency = <0>;
 		};
 
 		/* Fixed ratio clocks */

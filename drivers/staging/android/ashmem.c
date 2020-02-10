@@ -537,14 +537,14 @@ static int set_name(struct ashmem_area *asma, void __user *name)
 	len = strncpy_from_user(local_name, name, ASHMEM_NAME_LEN);
 	if (len < 0)
 		return len;
-	if (len == ASHMEM_NAME_LEN)
-		local_name[ASHMEM_NAME_LEN - 1] = '\0';
+
 	mutex_lock(&ashmem_mutex);
 	/* cannot change an existing mapping's name */
 	if (asma->file)
 		ret = -EINVAL;
 	else
-		strcpy(asma->name + ASHMEM_NAME_PREFIX_LEN, local_name);
+		strscpy(asma->name + ASHMEM_NAME_PREFIX_LEN, local_name,
+			ASHMEM_NAME_LEN);
 
 	mutex_unlock(&ashmem_mutex);
 	return ret;

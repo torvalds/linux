@@ -37,12 +37,6 @@ struct cec_notifier *cec_notifier_get_conn(struct device *dev,
 					   const char *conn);
 
 /**
- * cec_notifier_put - decrease refcount and delete when the refcount reaches 0.
- * @n: notifier
- */
-void cec_notifier_put(struct cec_notifier *n);
-
-/**
  * cec_notifier_conn_register - find or create a new cec_notifier for the given
  * HDMI device and connector tuple.
  * @hdmi_dev: HDMI device that sends the events.
@@ -138,10 +132,6 @@ static inline struct cec_notifier *cec_notifier_get_conn(struct device *dev,
 	return (struct cec_notifier *)0xdeadfeed;
 }
 
-static inline void cec_notifier_put(struct cec_notifier *n)
-{
-}
-
 static inline struct cec_notifier *
 cec_notifier_conn_register(struct device *hdmi_dev, const char *conn_name,
 			   const struct cec_connector_info *conn_info)
@@ -182,23 +172,6 @@ static inline struct device *cec_notifier_parse_hdmi_phandle(struct device *dev)
 }
 
 #endif
-
-/**
- * cec_notifier_get - find or create a new cec_notifier for the given device.
- * @dev: device that sends the events.
- *
- * If a notifier for device @dev already exists, then increase the refcount
- * and return that notifier.
- *
- * If it doesn't exist, then allocate a new notifier struct and return a
- * pointer to that new struct.
- *
- * Return NULL if the memory could not be allocated.
- */
-static inline struct cec_notifier *cec_notifier_get(struct device *dev)
-{
-	return cec_notifier_get_conn(dev, NULL);
-}
 
 /**
  * cec_notifier_phys_addr_invalidate() - set the physical address to INVALID

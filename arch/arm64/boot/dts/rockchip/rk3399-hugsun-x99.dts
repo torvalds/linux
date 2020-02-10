@@ -556,7 +556,6 @@
 &sdmmc {
 	clock-frequency = <150000000>;
 	clock-freq-min-max = <200000 150000000>;
-	supports-sd;
 	bus-width = <4>;
 	cap-mmc-highspeed;
 	cap-sd-highspeed;
@@ -572,7 +571,6 @@
 	bus-width = <8>;
 	mmc-hs400-1_8v;
 	mmc-hs400-enhanced-strobe;
-	supports-emmc;
 	non-removable;
 	keep-power-in-suspend;
 	status = "okay";

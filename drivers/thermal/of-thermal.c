@@ -493,7 +493,7 @@ thermal_zone_of_sensor_register(struct device *dev, int sensor_id, void *data,
 
 	if (!dev || !dev->of_node) {
 		of_node_put(np);
-		return ERR_PTR(-EINVAL);
+		return ERR_PTR(-ENODEV);
 	}
 
 	sensor_np = of_node_get(dev->of_node);
@@ -754,7 +754,7 @@ end:
 	return ret;
 }
 
-/**
+/*
  * It maps 'enum thermal_trip_type' found in include/linux/thermal.h
  * into the device tree binding of 'trip', property type.
  */
@@ -977,7 +977,7 @@ free_tz:
 	return ERR_PTR(ret);
 }
 
-static inline void of_thermal_free_zone(struct __thermal_zone *tz)
+static __init void of_thermal_free_zone(struct __thermal_zone *tz)
 {
 	struct __thermal_bind_params *tbp;
 	int i, j;
@@ -996,6 +996,38 @@ static inline void of_thermal_free_zone(struct __thermal_zone *tz)
 		of_node_put(tz->trips[i].np);
 	kfree(tz->trips);
 	kfree(tz);
+}
+
+/**
+ * of_thermal_destroy_zones - remove all zones parsed and allocated resources
+ *
+ * Finds all zones parsed and added to the thermal framework and remove them
+ * from the system, together with their resources.
+ *
+ */
+static __init void of_thermal_destroy_zones(void)
+{
+	struct device_node *np, *child;
+
+	np = of_find_node_by_name(NULL, "thermal-zones");
+	if (!np) {
+		pr_debug("unable to find thermal zones\n");
+		return;
+	}
+
+	for_each_available_child_of_node(np, child) {
+		struct thermal_zone_device *zone;
+
+		zone = thermal_zone_get_zone_by_name(child->name);
+		if (IS_ERR(zone))
+			continue;
+
+		thermal_zone_device_unregister(zone);
+		kfree(zone->tzp);
+		kfree(zone->ops);
+		of_thermal_free_zone(zone->devdata);
+	}
+	of_node_put(np);
 }
 
 /**
@@ -1086,36 +1118,4 @@ exit_free:
 	of_thermal_destroy_zones();
 
 	return -ENOMEM;
-}
-
-/**
- * of_thermal_destroy_zones - remove all zones parsed and allocated resources
- *
- * Finds all zones parsed and added to the thermal framework and remove them
- * from the system, together with their resources.
- *
- */
-void of_thermal_destroy_zones(void)
-{
-	struct device_node *np, *child;
-
-	np = of_find_node_by_name(NULL, "thermal-zones");
-	if (!np) {
-		pr_debug("unable to find thermal zones\n");
-		return;
-	}
-
-	for_each_available_child_of_node(np, child) {
-		struct thermal_zone_device *zone;
-
-		zone = thermal_zone_get_zone_by_name(child->name);
-		if (IS_ERR(zone))
-			continue;
-
-		thermal_zone_device_unregister(zone);
-		kfree(zone->tzp);
-		kfree(zone->ops);
-		of_thermal_free_zone(zone->devdata);
-	}
-	of_node_put(np);
 }

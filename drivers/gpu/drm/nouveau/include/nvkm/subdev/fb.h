@@ -33,6 +33,8 @@ struct nvkm_fb {
 	const struct nvkm_fb_func *func;
 	struct nvkm_subdev subdev;
 
+	struct nvkm_blob vpr_scrubber;
+
 	struct nvkm_ram *ram;
 	struct nvkm_mm tags;
 

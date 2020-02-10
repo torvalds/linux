@@ -834,6 +834,52 @@ static const struct device_type typec_cable_dev_type = {
 	.release = typec_cable_release,
 };
 
+static int cable_match(struct device *dev, void *data)
+{
+	return is_typec_cable(dev);
+}
+
+/**
+ * typec_cable_get - Get a reference to the USB Type-C cable
+ * @port: The USB Type-C Port the cable is connected to
+ *
+ * The caller must decrement the reference count with typec_cable_put() after
+ * use.
+ */
+struct typec_cable *typec_cable_get(struct typec_port *port)
+{
+	struct device *dev;
+
+	dev = device_find_child(&port->dev, NULL, cable_match);
+	if (!dev)
+		return NULL;
+
+	return to_typec_cable(dev);
+}
+EXPORT_SYMBOL_GPL(typec_cable_get);
+
+/**
+ * typec_cable_get - Decrement the reference count on USB Type-C cable
+ * @cable: The USB Type-C cable
+ */
+void typec_cable_put(struct typec_cable *cable)
+{
+	put_device(&cable->dev);
+}
+EXPORT_SYMBOL_GPL(typec_cable_put);
+
+/**
+ * typec_cable_is_active - Check is the USB Type-C cable active or passive
+ * @cable: The USB Type-C Cable
+ *
+ * Return 1 if the cable is active or 0 if it's passive.
+ */
+int typec_cable_is_active(struct typec_cable *cable)
+{
+	return cable->active;
+}
+EXPORT_SYMBOL_GPL(typec_cable_is_active);
+
 /**
  * typec_cable_set_identity - Report result from Discover Identity command
  * @cable: The cable updated identity values
@@ -1483,7 +1529,11 @@ EXPORT_SYMBOL_GPL(typec_get_orientation);
  */
 int typec_set_mode(struct typec_port *port, int mode)
 {
-	return port->mux ? port->mux->set(port->mux, mode) : 0;
+	struct typec_mux_state state = { };
+
+	state.mode = mode;
+
+	return port->mux ? port->mux->set(port->mux, &state) : 0;
 }
 EXPORT_SYMBOL_GPL(typec_set_mode);
 

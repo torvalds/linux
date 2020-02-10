@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * SAMSUNG XYREF5260 board device tree source
+ * Samsung XYREF5260 board device tree source
  *
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
@@ -10,7 +10,7 @@
 #include "exynos5260.dtsi"
 
 / {
-	model = "SAMSUNG XYREF5260 board based on EXYNOS5260";
+	model = "Samsung XYREF5260 board based on Exynos5260";
 	compatible = "samsung,xyref5260", "samsung,exynos5260", "samsung,exynos5";
 
 	memory@20000000 {

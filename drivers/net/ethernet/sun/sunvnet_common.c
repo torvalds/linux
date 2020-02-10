@@ -1223,7 +1223,7 @@ vnet_handle_offloads(struct vnet_port *port, struct sk_buff *skb,
 {
 	struct net_device *dev = VNET_PORT_TO_NET_DEVICE(port);
 	struct vio_dring_state *dr = &port->vio.drings[VIO_DRIVER_TX_RING];
-	struct sk_buff *segs;
+	struct sk_buff *segs, *curr, *next;
 	int maclen, datalen;
 	int status;
 	int gso_size, gso_type, gso_segs;
@@ -1282,11 +1282,8 @@ vnet_handle_offloads(struct vnet_port *port, struct sk_buff *skb,
 	skb_reset_mac_header(skb);
 
 	status = 0;
-	while (segs) {
-		struct sk_buff *curr = segs;
-
-		segs = segs->next;
-		curr->next = NULL;
+	skb_list_walk_safe(segs, curr, next) {
+		skb_mark_not_on_list(curr);
 		if (port->tso && curr->len > dev->mtu) {
 			skb_shinfo(curr)->gso_size = gso_size;
 			skb_shinfo(curr)->gso_type = gso_type;
@@ -1539,7 +1536,7 @@ out_dropped:
 }
 EXPORT_SYMBOL_GPL(sunvnet_start_xmit_common);
 
-void sunvnet_tx_timeout_common(struct net_device *dev)
+void sunvnet_tx_timeout_common(struct net_device *dev, unsigned int txqueue)
 {
 	/* XXX Implement me XXX */
 }

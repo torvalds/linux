@@ -267,6 +267,8 @@ DRM
 
 GPIO
   devm_gpiod_get()
+  devm_gpiod_get_array()
+  devm_gpiod_get_array_optional()
   devm_gpiod_get_index()
   devm_gpiod_get_index_optional()
   devm_gpiod_get_optional()
@@ -313,7 +315,6 @@ IOMAP
   devm_ioport_map()
   devm_ioport_unmap()
   devm_ioremap()
-  devm_ioremap_nocache()
   devm_ioremap_uc()
   devm_ioremap_wc()
   devm_ioremap_resource() : checks resource, requests memory region, ioremaps

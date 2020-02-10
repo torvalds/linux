@@ -617,7 +617,7 @@ int bnx2x_set_features(struct net_device *dev, netdev_features_t features);
  *
  * @dev:	net device
  */
-void bnx2x_tx_timeout(struct net_device *dev);
+void bnx2x_tx_timeout(struct net_device *dev, unsigned int txqueue);
 
 /** bnx2x_get_c2s_mapping - read inner-to-outer vlan configuration
  * c2s_map should have BNX2X_MAX_PRIORITY entries.

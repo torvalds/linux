@@ -13,7 +13,7 @@
  * the SpitFire page tables.
  */
 
-#include <asm-generic/5level-fixup.h>
+#include <asm-generic/pgtable-nop4d.h>
 #include <linux/compiler.h>
 #include <linux/const.h>
 #include <asm/types.h>
@@ -683,6 +683,7 @@ static inline unsigned long pte_special(pte_t pte)
 	return pte_val(pte) & _PAGE_SPECIAL;
 }
 
+#define pmd_leaf	pmd_large
 static inline unsigned long pmd_large(pmd_t pmd)
 {
 	pte_t pte = __pte(pmd_val(pmd));
@@ -810,9 +811,9 @@ static inline int pmd_present(pmd_t pmd)
 
 #define pud_bad(pud)			(pud_val(pud) & ~PAGE_MASK)
 
-#define pgd_none(pgd)			(!pgd_val(pgd))
+#define p4d_none(p4d)			(!p4d_val(p4d))
 
-#define pgd_bad(pgd)			(pgd_val(pgd) & ~PAGE_MASK)
+#define p4d_bad(p4d)			(p4d_val(p4d) & ~PAGE_MASK)
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 void set_pmd_at(struct mm_struct *mm, unsigned long addr,
@@ -859,14 +860,15 @@ static inline unsigned long pud_page_vaddr(pud_t pud)
 #define pmd_clear(pmdp)			(pmd_val(*(pmdp)) = 0UL)
 #define pud_present(pud)		(pud_val(pud) != 0U)
 #define pud_clear(pudp)			(pud_val(*(pudp)) = 0UL)
-#define pgd_page_vaddr(pgd)		\
-	((unsigned long) __va(pgd_val(pgd)))
-#define pgd_present(pgd)		(pgd_val(pgd) != 0U)
-#define pgd_clear(pgdp)			(pgd_val(*(pgdp)) = 0UL)
+#define p4d_page_vaddr(p4d)		\
+	((unsigned long) __va(p4d_val(p4d)))
+#define p4d_present(p4d)		(p4d_val(p4d) != 0U)
+#define p4d_clear(p4dp)			(p4d_val(*(p4dp)) = 0UL)
 
 /* only used by the stubbed out hugetlb gup code, should never be called */
-#define pgd_page(pgd)			NULL
+#define p4d_page(p4d)			NULL
 
+#define pud_leaf	pud_large
 static inline unsigned long pud_large(pud_t pud)
 {
 	pte_t pte = __pte(pud_val(pud));
@@ -884,8 +886,8 @@ static inline unsigned long pud_pfn(pud_t pud)
 /* Same in both SUN4V and SUN4U.  */
 #define pte_none(pte) 			(!pte_val(pte))
 
-#define pgd_set(pgdp, pudp)	\
-	(pgd_val(*(pgdp)) = (__pa((unsigned long) (pudp))))
+#define p4d_set(p4dp, pudp)	\
+	(p4d_val(*(p4dp)) = (__pa((unsigned long) (pudp))))
 
 /* to find an entry in a page-table-directory. */
 #define pgd_index(address)	(((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD - 1))
@@ -896,8 +898,8 @@ static inline unsigned long pud_pfn(pud_t pud)
 
 /* Find an entry in the third-level page table.. */
 #define pud_index(address)	(((address) >> PUD_SHIFT) & (PTRS_PER_PUD - 1))
-#define pud_offset(pgdp, address)	\
-	((pud_t *) pgd_page_vaddr(*(pgdp)) + pud_index(address))
+#define pud_offset(p4dp, address)	\
+	((pud_t *) p4d_page_vaddr(*(p4dp)) + pud_index(address))
 
 /* Find an entry in the second-level page table.. */
 #define pmd_offset(pudp, address)	\

@@ -94,7 +94,7 @@ static int xlnx_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		 * RTC has updated the CURRENT_TIME with the time written into
 		 * SET_TIME_WRITE register.
 		 */
-		rtc_time64_to_tm(readl(xrtcdev->reg_base + RTC_CUR_TM), tm);
+		read_time = readl(xrtcdev->reg_base + RTC_CUR_TM);
 	} else {
 		/*
 		 * Time written in SET_TIME_WRITE has not yet updated into
@@ -104,8 +104,8 @@ static int xlnx_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		 * reading.
 		 */
 		read_time = readl(xrtcdev->reg_base + RTC_SET_TM_RD) - 1;
-		rtc_time64_to_tm(read_time, tm);
 	}
+	rtc_time64_to_tm(read_time, tm);
 
 	return 0;
 }

@@ -7,6 +7,7 @@
  * Copyright (C) 2009 Bernie Thompson <bernie@plugable.com>
  */
 
+#include <drm/drm_atomic_state_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_probe_helper.h>
 
@@ -90,13 +91,6 @@ udl_detect(struct drm_connector *connector, bool force)
 	return connector_status_connected;
 }
 
-static int udl_connector_set_property(struct drm_connector *connector,
-				      struct drm_property *property,
-				      uint64_t val)
-{
-	return 0;
-}
-
 static void udl_connector_destroy(struct drm_connector *connector)
 {
 	struct udl_drm_connector *udl_connector =
@@ -104,7 +98,6 @@ static void udl_connector_destroy(struct drm_connector *connector)
 					struct udl_drm_connector,
 					connector);
 
-	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 	kfree(udl_connector->edid);
 	kfree(connector);
@@ -117,30 +110,30 @@ static const struct drm_connector_helper_funcs udl_connector_helper_funcs = {
 
 static const struct drm_connector_funcs udl_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
+	.reset = drm_atomic_helper_connector_reset,
 	.detect = udl_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = udl_connector_destroy,
-	.set_property = udl_connector_set_property,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state   = drm_atomic_helper_connector_destroy_state,
 };
 
-int udl_connector_init(struct drm_device *dev, struct drm_encoder *encoder)
+struct drm_connector *udl_connector_init(struct drm_device *dev)
 {
 	struct udl_drm_connector *udl_connector;
 	struct drm_connector *connector;
 
 	udl_connector = kzalloc(sizeof(struct udl_drm_connector), GFP_KERNEL);
 	if (!udl_connector)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	connector = &udl_connector->connector;
 	drm_connector_init(dev, connector, &udl_connector_funcs,
 			   DRM_MODE_CONNECTOR_DVII);
 	drm_connector_helper_add(connector, &udl_connector_helper_funcs);
 
-	drm_connector_register(connector);
-	drm_connector_attach_encoder(connector, encoder);
 	connector->polled = DRM_CONNECTOR_POLL_HPD |
 		DRM_CONNECTOR_POLL_CONNECT | DRM_CONNECTOR_POLL_DISCONNECT;
 
-	return 0;
+	return connector;
 }

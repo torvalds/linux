@@ -35,6 +35,8 @@
 #include <drm/i915_drm.h>
 
 struct drm_i915_private;
+struct intel_crtc_state;
+struct intel_encoder;
 enum port;
 
 enum intel_backlight_type {
@@ -242,5 +244,8 @@ bool intel_bios_is_port_hpd_inverted(const struct drm_i915_private *i915,
 bool intel_bios_is_lspcon_present(const struct drm_i915_private *i915,
 				  enum port port);
 enum aux_ch intel_bios_port_aux_ch(struct drm_i915_private *dev_priv, enum port port);
+bool intel_bios_get_dsc_params(struct intel_encoder *encoder,
+			       struct intel_crtc_state *crtc_state,
+			       int dsc_max_bpc);
 
 #endif /* _INTEL_BIOS_H_ */

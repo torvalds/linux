@@ -1394,14 +1394,6 @@ err_drop:
 	return NETDEV_TX_OK;
 }
 
-static int ag71xx_do_ioctl(struct net_device *ndev, struct ifreq *ifr, int cmd)
-{
-	if (!ndev->phydev)
-		return -EINVAL;
-
-	return phy_mii_ioctl(ndev->phydev, ifr, cmd);
-}
-
 static void ag71xx_oom_timer_handler(struct timer_list *t)
 {
 	struct ag71xx *ag = from_timer(ag, t, oom_timer);
@@ -1409,7 +1401,7 @@ static void ag71xx_oom_timer_handler(struct timer_list *t)
 	napi_schedule(&ag->napi);
 }
 
-static void ag71xx_tx_timeout(struct net_device *ndev)
+static void ag71xx_tx_timeout(struct net_device *ndev, unsigned int txqueue)
 {
 	struct ag71xx *ag = netdev_priv(ndev);
 
@@ -1618,7 +1610,7 @@ static const struct net_device_ops ag71xx_netdev_ops = {
 	.ndo_open		= ag71xx_open,
 	.ndo_stop		= ag71xx_stop,
 	.ndo_start_xmit		= ag71xx_hard_start_xmit,
-	.ndo_do_ioctl		= ag71xx_do_ioctl,
+	.ndo_do_ioctl		= phy_do_ioctl,
 	.ndo_tx_timeout		= ag71xx_tx_timeout,
 	.ndo_change_mtu		= ag71xx_change_mtu,
 	.ndo_set_mac_address	= eth_mac_addr,
@@ -1687,8 +1679,7 @@ static int ag71xx_probe(struct platform_device *pdev)
 		goto err_free;
 	}
 
-	ag->mac_base = devm_ioremap_nocache(&pdev->dev, res->start,
-					    resource_size(res));
+	ag->mac_base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (!ag->mac_base) {
 		err = -ENOMEM;
 		goto err_free;

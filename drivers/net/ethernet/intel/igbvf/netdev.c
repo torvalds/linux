@@ -2375,7 +2375,7 @@ static netdev_tx_t igbvf_xmit_frame(struct sk_buff *skb,
  * igbvf_tx_timeout - Respond to a Tx Hang
  * @netdev: network interface device structure
  **/
-static void igbvf_tx_timeout(struct net_device *netdev)
+static void igbvf_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
 

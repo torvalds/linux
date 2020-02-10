@@ -51,28 +51,6 @@
 #endif
 
 /**
- * frwr_is_supported - Check if device supports FRWR
- * @device: interface adapter to check
- *
- * Returns true if device supports FRWR, otherwise false
- */
-bool frwr_is_supported(struct ib_device *device)
-{
-	struct ib_device_attr *attrs = &device->attrs;
-
-	if (!(attrs->device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS))
-		goto out_not_supported;
-	if (attrs->max_fast_reg_page_list_len == 0)
-		goto out_not_supported;
-	return true;
-
-out_not_supported:
-	pr_info("rpcrdma: 'frwr' mode is not supported by device %s\n",
-		device->name);
-	return false;
-}
-
-/**
  * frwr_release_mr - Destroy one MR
  * @mr: MR allocated by frwr_init_mr
  *
@@ -170,26 +148,48 @@ out_list_err:
 }
 
 /**
- * frwr_open - Prepare an endpoint for use with FRWR
- * @ia: interface adapter this endpoint will use
- * @ep: endpoint to prepare
+ * frwr_query_device - Prepare a transport for use with FRWR
+ * @r_xprt: controlling transport instance
+ * @device: RDMA device to query
  *
  * On success, sets:
- *	ep->rep_attr.cap.max_send_wr
- *	ep->rep_attr.cap.max_recv_wr
+ *	ep->rep_attr
  *	ep->rep_max_requests
- *	ia->ri_max_segs
+ *	ia->ri_max_rdma_segs
  *
  * And these FRWR-related fields:
  *	ia->ri_max_frwr_depth
  *	ia->ri_mrtype
  *
- * On failure, a negative errno is returned.
+ * Return values:
+ *   On success, returns zero.
+ *   %-EINVAL - the device does not support FRWR memory registration
+ *   %-ENOMEM - the device is not sufficiently capable for NFS/RDMA
  */
-int frwr_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep)
+int frwr_query_device(struct rpcrdma_xprt *r_xprt,
+		      const struct ib_device *device)
 {
-	struct ib_device_attr *attrs = &ia->ri_id->device->attrs;
+	const struct ib_device_attr *attrs = &device->attrs;
+	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
+	struct rpcrdma_ep *ep = &r_xprt->rx_ep;
 	int max_qp_wr, depth, delta;
+	unsigned int max_sge;
+
+	if (!(attrs->device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS) ||
+	    attrs->max_fast_reg_page_list_len == 0) {
+		pr_err("rpcrdma: 'frwr' mode is not supported by device %s\n",
+		       device->name);
+		return -EINVAL;
+	}
+
+	max_sge = min_t(unsigned int, attrs->max_send_sge,
+			RPCRDMA_MAX_SEND_SGES);
+	if (max_sge < RPCRDMA_MIN_SEND_SGES) {
+		pr_err("rpcrdma: HCA provides only %u send SGEs\n", max_sge);
+		return -ENOMEM;
+	}
+	ep->rep_attr.cap.max_send_sge = max_sge;
+	ep->rep_attr.cap.max_recv_sge = 1;
 
 	ia->ri_mrtype = IB_MR_TYPE_MEM_REG;
 	if (attrs->device_cap_flags & IB_DEVICE_SG_GAPS_REG)
@@ -199,14 +199,12 @@ int frwr_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep)
 	 * capability, but perform optimally when the MRs are not larger
 	 * than a page.
 	 */
-	if (attrs->max_sge_rd > 1)
+	if (attrs->max_sge_rd > RPCRDMA_MAX_HDR_SEGS)
 		ia->ri_max_frwr_depth = attrs->max_sge_rd;
 	else
 		ia->ri_max_frwr_depth = attrs->max_fast_reg_page_list_len;
 	if (ia->ri_max_frwr_depth > RPCRDMA_MAX_DATA_SEGS)
 		ia->ri_max_frwr_depth = RPCRDMA_MAX_DATA_SEGS;
-	dprintk("RPC:       %s: max FR page list depth = %u\n",
-		__func__, ia->ri_max_frwr_depth);
 
 	/* Add room for frwr register and invalidate WRs.
 	 * 1. FRWR reg WR for head
@@ -230,7 +228,7 @@ int frwr_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep)
 		} while (delta > 0);
 	}
 
-	max_qp_wr = ia->ri_id->device->attrs.max_qp_wr;
+	max_qp_wr = attrs->max_qp_wr;
 	max_qp_wr -= RPCRDMA_BACKWARD_WRS;
 	max_qp_wr -= 1;
 	if (max_qp_wr < RPCRDMA_MIN_SLOT_TABLE)
@@ -241,7 +239,7 @@ int frwr_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep)
 	if (ep->rep_attr.cap.max_send_wr > max_qp_wr) {
 		ep->rep_max_requests = max_qp_wr / depth;
 		if (!ep->rep_max_requests)
-			return -EINVAL;
+			return -ENOMEM;
 		ep->rep_attr.cap.max_send_wr = ep->rep_max_requests * depth;
 	}
 	ep->rep_attr.cap.max_send_wr += RPCRDMA_BACKWARD_WRS;
@@ -250,30 +248,22 @@ int frwr_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep)
 	ep->rep_attr.cap.max_recv_wr += RPCRDMA_BACKWARD_WRS;
 	ep->rep_attr.cap.max_recv_wr += 1; /* for ib_drain_rq */
 
-	ia->ri_max_segs =
+	ia->ri_max_rdma_segs =
 		DIV_ROUND_UP(RPCRDMA_MAX_DATA_SEGS, ia->ri_max_frwr_depth);
 	/* Reply chunks require segments for head and tail buffers */
-	ia->ri_max_segs += 2;
-	if (ia->ri_max_segs > RPCRDMA_MAX_HDR_SEGS)
-		ia->ri_max_segs = RPCRDMA_MAX_HDR_SEGS;
+	ia->ri_max_rdma_segs += 2;
+	if (ia->ri_max_rdma_segs > RPCRDMA_MAX_HDR_SEGS)
+		ia->ri_max_rdma_segs = RPCRDMA_MAX_HDR_SEGS;
+
+	/* Ensure the underlying device is capable of conveying the
+	 * largest r/wsize NFS will ask for. This guarantees that
+	 * failing over from one RDMA device to another will not
+	 * break NFS I/O.
+	 */
+	if ((ia->ri_max_rdma_segs * ia->ri_max_frwr_depth) < RPCRDMA_MAX_SEGS)
+		return -ENOMEM;
+
 	return 0;
-}
-
-/**
- * frwr_maxpages - Compute size of largest payload
- * @r_xprt: transport
- *
- * Returns maximum size of an RPC message, in pages.
- *
- * FRWR mode conveys a list of pages per chunk segment. The
- * maximum length of that list is the FRWR page list depth.
- */
-size_t frwr_maxpages(struct rpcrdma_xprt *r_xprt)
-{
-	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
-
-	return min_t(unsigned int, RPCRDMA_MAX_DATA_SEGS,
-		     (ia->ri_max_segs - 2) * ia->ri_max_frwr_depth);
 }
 
 /**

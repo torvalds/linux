@@ -1726,3 +1726,16 @@ Contact:	linux-iio@vger.kernel.org
 Description:
 		List of valid periods (in seconds) for which the light intensity
 		must be above the threshold level before interrupt is asserted.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_filter_notch_center_frequency
+KernelVersion:	5.5
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Center frequency in Hz for a notch filter. Used i.e. for line
+		noise suppression.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_temp_thermocouple_type
+KernelVersion:	5.5
+Contact:	linux-iio@vger.kernel.org
+Description:
+		One of the following thermocouple types: B, E, J, K, N, R, S, T.

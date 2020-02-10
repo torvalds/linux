@@ -136,10 +136,6 @@ void __init setup_arch(char **cmdline_p)
 #ifdef CONFIG_HIGHMEM
 	kmap_init();
 #endif
-
-#if defined(CONFIG_VT) && defined(CONFIG_DUMMY_CONSOLE)
-	conswitchp = &dummy_con;
-#endif
 }
 
 unsigned long va_pa_offset;

@@ -46,15 +46,11 @@
 #include "dce100/dce100_resource.h"
 #include "dce110/dce110_resource.h"
 #include "dce112/dce112_resource.h"
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 #include "dcn10/dcn10_resource.h"
 #endif
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 #include "dcn20/dcn20_resource.h"
-#endif
-#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 #include "dcn21/dcn21_resource.h"
-#endif
 #include "dce120/dce120_resource.h"
 
 #define DC_LOGGER_INIT(logger)
@@ -99,23 +95,19 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 		else
 			dc_version = DCE_VERSION_12_0;
 		break;
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	case FAMILY_RV:
 		dc_version = DCN_VERSION_1_0;
 		if (ASICREV_IS_RAVEN2(asic_id.hw_internal_rev))
 			dc_version = DCN_VERSION_1_01;
-#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 		if (ASICREV_IS_RENOIR(asic_id.hw_internal_rev))
 			dc_version = DCN_VERSION_2_1;
-#endif
 		break;
 #endif
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	case FAMILY_NV:
 		dc_version = DCN_VERSION_2_0;
 		break;
-#endif
 	default:
 		dc_version = DCE_VERSION_UNKNOWN;
 		break;
@@ -162,20 +154,16 @@ struct resource_pool *dc_create_resource_pool(struct dc  *dc,
 				init_data->num_virtual_links, dc);
 		break;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	case DCN_VERSION_1_0:
 	case DCN_VERSION_1_01:
 		res_pool = dcn10_create_resource_pool(init_data, dc);
 		break;
-#endif
 
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	case DCN_VERSION_2_0:
 		res_pool = dcn20_create_resource_pool(init_data, dc);
 		break;
-#endif
-#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 	case DCN_VERSION_2_1:
 		res_pool = dcn21_create_resource_pool(init_data, dc);
 		break;
@@ -951,44 +939,44 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx)
 	data->inits.v_c_bot = dc_fixpt_add(data->inits.v_c, data->ratios.vert_c);
 
 }
-static bool are_rects_integer_multiples(struct rect src, struct rect dest)
-{
-	if (dest.width  >= src.width  && dest.width  % src.width  == 0 &&
-		dest.height >= src.height && dest.height % src.height == 0)
-		return true;
 
-	return false;
+/*
+ * When handling 270 rotation in mixed SLS mode, we have
+ * stream->timing.h_border_left that is non zero.  If we are doing
+ * pipe-splitting, this h_border_left value gets added to recout.x and when it
+ * calls calculate_inits_and_adj_vp() and
+ * adjust_vp_and_init_for_seamless_clip(), it can cause viewport.height for a
+ * pipe to be incorrect.
+ *
+ * To fix this, instead of using stream->timing.h_border_left, we can use
+ * stream->dst.x to represent the border instead.  So we will set h_border_left
+ * to 0 and shift the appropriate amount in stream->dst.x.  We will then
+ * perform all calculations in resource_build_scaling_params() based on this
+ * and then restore the h_border_left and stream->dst.x to their original
+ * values.
+ *
+ * shift_border_left_to_dst() will shift the amount of h_border_left to
+ * stream->dst.x and set h_border_left to 0.  restore_border_left_from_dst()
+ * will restore h_border_left and stream->dst.x back to their original values
+ * We also need to make sure pipe_ctx->plane_res.scl_data.h_active uses the
+ * original h_border_left value in its calculation.
+ */
+int shift_border_left_to_dst(struct pipe_ctx *pipe_ctx)
+{
+	int store_h_border_left = pipe_ctx->stream->timing.h_border_left;
+
+	if (store_h_border_left) {
+		pipe_ctx->stream->timing.h_border_left = 0;
+		pipe_ctx->stream->dst.x += store_h_border_left;
+	}
+	return store_h_border_left;
 }
 
-static void calculate_integer_scaling(struct pipe_ctx *pipe_ctx)
+void restore_border_left_from_dst(struct pipe_ctx *pipe_ctx,
+                                  int store_h_border_left)
 {
-	if (!pipe_ctx->plane_state->scaling_quality.integer_scaling)
-		return;
-
-	//for Centered Mode
-	if (pipe_ctx->stream->dst.width  == pipe_ctx->stream->src.width &&
-		pipe_ctx->stream->dst.height == pipe_ctx->stream->src.height) {
-		// calculate maximum # of replication of src onto addressable
-		unsigned int integer_multiple = min(
-				pipe_ctx->stream->timing.h_addressable / pipe_ctx->stream->src.width,
-				pipe_ctx->stream->timing.v_addressable  / pipe_ctx->stream->src.height);
-
-		//scale dst
-		pipe_ctx->stream->dst.width  = integer_multiple * pipe_ctx->stream->src.width;
-		pipe_ctx->stream->dst.height = integer_multiple * pipe_ctx->stream->src.height;
-
-		//center dst onto addressable
-		pipe_ctx->stream->dst.x = (pipe_ctx->stream->timing.h_addressable - pipe_ctx->stream->dst.width)/2;
-		pipe_ctx->stream->dst.y = (pipe_ctx->stream->timing.v_addressable - pipe_ctx->stream->dst.height)/2;
-	}
-
-	//disable taps if src & dst are integer ratio
-	if (are_rects_integer_multiples(pipe_ctx->stream->src, pipe_ctx->stream->dst)) {
-		pipe_ctx->plane_state->scaling_quality.v_taps = 1;
-		pipe_ctx->plane_state->scaling_quality.h_taps = 1;
-		pipe_ctx->plane_state->scaling_quality.v_taps_c = 1;
-		pipe_ctx->plane_state->scaling_quality.h_taps_c = 1;
-	}
+	pipe_ctx->stream->dst.x -= store_h_border_left;
+	pipe_ctx->stream->timing.h_border_left = store_h_border_left;
 }
 
 bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
@@ -996,6 +984,7 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	const struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	struct dc_crtc_timing *timing = &pipe_ctx->stream->timing;
 	bool res = false;
+	int store_h_border_left = shift_border_left_to_dst(pipe_ctx);
 	DC_LOGGER_INIT(pipe_ctx->stream->ctx->logger);
 	/* Important: scaling ratio calculation requires pixel format,
 	 * lb depth calculation requires recout and taps require scaling ratios.
@@ -1004,14 +993,18 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	pipe_ctx->plane_res.scl_data.format = convert_pixel_format_to_dalsurface(
 			pipe_ctx->plane_state->format);
 
-	calculate_integer_scaling(pipe_ctx);
-
 	calculate_scaling_ratios(pipe_ctx);
 
 	calculate_viewport(pipe_ctx);
 
-	if (pipe_ctx->plane_res.scl_data.viewport.height < 16 || pipe_ctx->plane_res.scl_data.viewport.width < 16)
+	if (pipe_ctx->plane_res.scl_data.viewport.height < 16 ||
+		pipe_ctx->plane_res.scl_data.viewport.width < 16) {
+		if (store_h_border_left) {
+			restore_border_left_from_dst(pipe_ctx,
+				store_h_border_left);
+		}
 		return false;
+	}
 
 	calculate_recout(pipe_ctx);
 
@@ -1024,8 +1017,10 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	pipe_ctx->plane_res.scl_data.recout.x += timing->h_border_left;
 	pipe_ctx->plane_res.scl_data.recout.y += timing->v_border_top;
 
-	pipe_ctx->plane_res.scl_data.h_active = timing->h_addressable + timing->h_border_left + timing->h_border_right;
-	pipe_ctx->plane_res.scl_data.v_active = timing->v_addressable + timing->v_border_top + timing->v_border_bottom;
+	pipe_ctx->plane_res.scl_data.h_active = timing->h_addressable +
+		store_h_border_left + timing->h_border_right;
+	pipe_ctx->plane_res.scl_data.v_active = timing->v_addressable +
+		timing->v_border_top + timing->v_border_bottom;
 
 	/* Taps calculations */
 	if (pipe_ctx->plane_res.xfm != NULL)
@@ -1071,6 +1066,9 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 				plane_state->dst_rect.width,
 				plane_state->dst_rect.x,
 				plane_state->dst_rect.y);
+
+	if (store_h_border_left)
+		restore_border_left_from_dst(pipe_ctx, store_h_border_left);
 
 	return res;
 }
@@ -1217,7 +1215,7 @@ static struct pipe_ctx *acquire_free_pipe_for_head(
 	return pool->funcs->acquire_idle_pipe_for_layer(context, pool, head_pipe->stream);
 }
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 static int acquire_first_split_pipe(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
@@ -1298,7 +1296,7 @@ bool dc_add_plane_to_context(
 
 		free_pipe = acquire_free_pipe_for_head(context, pool, head_pipe);
 
-	#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+	#if defined(CONFIG_DRM_AMD_DC_DCN)
 		if (!free_pipe) {
 			int pipe_idx = acquire_first_split_pipe(&context->res_ctx, pool, stream);
 			if (pipe_idx >= 0)
@@ -1891,7 +1889,7 @@ static int acquire_resource_from_hw_enabled_state(
 	inst = link->link_enc->funcs->get_dig_frontend(link->link_enc);
 
 	if (inst == ENGINE_ID_UNKNOWN)
-		return false;
+		return -1;
 
 	for (i = 0; i < pool->stream_enc_count; i++) {
 		if (pool->stream_enc[i]->id == inst) {
@@ -1903,10 +1901,10 @@ static int acquire_resource_from_hw_enabled_state(
 
 	// tg_inst not found
 	if (i == pool->stream_enc_count)
-		return false;
+		return -1;
 
 	if (tg_inst >= pool->timing_generator_count)
-		return false;
+		return -1;
 
 	if (!res_ctx->pipe_ctx[tg_inst].stream) {
 		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[tg_inst];
@@ -1919,8 +1917,26 @@ static int acquire_resource_from_hw_enabled_state(
 		pipe_ctx->plane_res.dpp = pool->dpps[tg_inst];
 		pipe_ctx->stream_res.opp = pool->opps[tg_inst];
 
-		if (pool->dpps[tg_inst])
+		if (pool->dpps[tg_inst]) {
 			pipe_ctx->plane_res.mpcc_inst = pool->dpps[tg_inst]->inst;
+
+			// Read DPP->MPCC->OPP Pipe from HW State
+			if (pool->mpc->funcs->read_mpcc_state) {
+				struct mpcc_state s = {0};
+
+				pool->mpc->funcs->read_mpcc_state(pool->mpc, pipe_ctx->plane_res.mpcc_inst, &s);
+
+				if (s.dpp_id < MAX_MPCC)
+					pool->mpc->mpcc_array[pipe_ctx->plane_res.mpcc_inst].dpp_id = s.dpp_id;
+
+				if (s.bot_mpcc_id < MAX_MPCC)
+					pool->mpc->mpcc_array[pipe_ctx->plane_res.mpcc_inst].mpcc_bot =
+							&pool->mpc->mpcc_array[s.bot_mpcc_id];
+
+				if (s.opp_id < MAX_OPP)
+					pipe_ctx->stream_res.opp->mpc_tree_params.opp_id = s.opp_id;
+			}
+		}
 		pipe_ctx->pipe_idx = tg_inst;
 
 		pipe_ctx->stream = stream;
@@ -1972,7 +1988,7 @@ enum dc_status resource_map_pool_resources(
 		/* acquire new resources */
 		pipe_idx = acquire_first_free_pipe(&context->res_ctx, pool, stream);
 
-#ifdef CONFIG_DRM_AMD_DC_DCN1_0
+#ifdef CONFIG_DRM_AMD_DC_DCN
 	if (pipe_idx < 0)
 		pipe_idx = acquire_first_split_pipe(&context->res_ctx, pool, stream);
 #endif
@@ -2049,6 +2065,13 @@ void dc_resource_state_construct(
 {
 	dst_ctx->clk_mgr = dc->clk_mgr;
 }
+
+
+bool dc_resource_is_dsc_encoding_supported(const struct dc *dc)
+{
+	return dc->res_pool->res_cap->num_dsc > 0;
+}
+
 
 /**
  * dc_validate_global_state() - Determine if HW can support a given state
@@ -2306,7 +2329,7 @@ static void set_avi_info_frame(
 		if (color_space == COLOR_SPACE_SRGB ||
 			color_space == COLOR_SPACE_2020_RGB_FULLRANGE) {
 			hdmi_info.bits.Q0_Q1   = RGB_QUANTIZATION_FULL_RANGE;
-			hdmi_info.bits.YQ0_YQ1 = YYC_QUANTIZATION_FULL_RANGE;
+			hdmi_info.bits.YQ0_YQ1 = YYC_QUANTIZATION_LIMITED_RANGE;
 		} else if (color_space == COLOR_SPACE_SRGB_LIMITED ||
 					color_space == COLOR_SPACE_2020_RGB_LIMITEDRANGE) {
 			hdmi_info.bits.Q0_Q1   = RGB_QUANTIZATION_LIMITED_RANGE;
@@ -2772,9 +2795,8 @@ void resource_build_bit_depth_reduction_params(struct dc_stream_state *stream,
 
 enum dc_status dc_validate_stream(struct dc *dc, struct dc_stream_state *stream)
 {
-	struct dc  *core_dc = dc;
 	struct dc_link *link = stream->link;
-	struct timing_generator *tg = core_dc->res_pool->timing_generators[0];
+	struct timing_generator *tg = dc->res_pool->timing_generators[0];
 	enum dc_status res = DC_OK;
 
 	calculate_phy_pix_clks(stream);
@@ -2837,3 +2859,48 @@ unsigned int resource_pixel_format_to_bpp(enum surface_pixel_format format)
 		return -1;
 	}
 }
+static unsigned int get_max_audio_sample_rate(struct audio_mode *modes)
+{
+	if (modes) {
+		if (modes->sample_rates.rate.RATE_192)
+			return 192000;
+		if (modes->sample_rates.rate.RATE_176_4)
+			return 176400;
+		if (modes->sample_rates.rate.RATE_96)
+			return 96000;
+		if (modes->sample_rates.rate.RATE_88_2)
+			return 88200;
+		if (modes->sample_rates.rate.RATE_48)
+			return 48000;
+		if (modes->sample_rates.rate.RATE_44_1)
+			return 44100;
+		if (modes->sample_rates.rate.RATE_32)
+			return 32000;
+	}
+	/*original logic when no audio info*/
+	return 441000;
+}
+
+void get_audio_check(struct audio_info *aud_modes,
+	struct audio_check *audio_chk)
+{
+	unsigned int i;
+	unsigned int max_sample_rate = 0;
+
+	if (aud_modes) {
+		audio_chk->audio_packet_type = 0x2;/*audio sample packet AP = .25 for layout0, 1 for layout1*/
+
+		audio_chk->max_audiosample_rate = 0;
+		for (i = 0; i < aud_modes->mode_count; i++) {
+			max_sample_rate = get_max_audio_sample_rate(&aud_modes->modes[i]);
+			if (audio_chk->max_audiosample_rate < max_sample_rate)
+				audio_chk->max_audiosample_rate = max_sample_rate;
+			/*dts takes the same as type 2: AP = 0.25*/
+		}
+		/*check which one take more bandwidth*/
+		if (audio_chk->max_audiosample_rate > 192000)
+			audio_chk->audio_packet_type = 0x9;/*AP =1*/
+		audio_chk->acat = 0;/*not support*/
+	}
+}
+

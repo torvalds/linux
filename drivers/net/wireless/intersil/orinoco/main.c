@@ -647,7 +647,7 @@ static void __orinoco_ev_txexc(struct net_device *dev, struct hermes *hw)
 	netif_wake_queue(dev);
 }
 
-void orinoco_tx_timeout(struct net_device *dev)
+void orinoco_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct orinoco_private *priv = ndev_priv(dev);
 	struct net_device_stats *stats = &dev->stats;

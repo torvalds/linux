@@ -25,6 +25,9 @@
 #ifndef __MOCK_GTT_H
 #define __MOCK_GTT_H
 
+struct drm_i915_private;
+struct i915_ggtt;
+
 void mock_init_ggtt(struct drm_i915_private *i915, struct i915_ggtt *ggtt);
 void mock_fini_ggtt(struct i915_ggtt *ggtt);
 

@@ -139,6 +139,8 @@
 #define HCLGE_PHY_MDIX_STATUS_B		6
 #define HCLGE_PHY_SPEED_DUP_RESOLVE_B	11
 
+#define HCLGE_GET_DFX_REG_TYPE_CNT	4
+
 /* Factor used to calculate offset and bitmap of VF num */
 #define HCLGE_VF_NUM_PER_CMD           64
 
@@ -208,13 +210,14 @@ enum HCLGE_DEV_STATE {
 	HCLGE_STATE_NIC_REGISTERED,
 	HCLGE_STATE_ROCE_REGISTERED,
 	HCLGE_STATE_SERVICE_INITED,
-	HCLGE_STATE_SERVICE_SCHED,
 	HCLGE_STATE_RST_SERVICE_SCHED,
 	HCLGE_STATE_RST_HANDLING,
 	HCLGE_STATE_MBX_SERVICE_SCHED,
 	HCLGE_STATE_MBX_HANDLING,
 	HCLGE_STATE_STATISTICS_UPDATING,
 	HCLGE_STATE_CMD_DISABLE,
+	HCLGE_STATE_LINK_UPDATING,
+	HCLGE_STATE_RST_FAIL,
 	HCLGE_STATE_MAX
 };
 
@@ -454,11 +457,7 @@ struct hclge_mac_stats {
 	u64 mac_rx_ctrl_pkt_num;
 };
 
-#define HCLGE_STATS_TIMER_INTERVAL	(60 * 5)
-struct hclge_hw_stats {
-	struct hclge_mac_stats      mac_stats;
-	u32 stats_timer;
-};
+#define HCLGE_STATS_TIMER_INTERVAL	300UL
 
 struct hclge_vlan_type_cfg {
 	u16 rx_ot_fst_vlan_type;
@@ -549,7 +548,7 @@ struct key_info {
 
 /* assigned by firmware, the real filter number for each pf may be less */
 #define MAX_FD_FILTER_NUM	4096
-#define HCLGE_FD_ARFS_EXPIRE_TIMER_INTERVAL	5
+#define HCLGE_ARFS_EXPIRE_INTERVAL	5UL
 
 enum HCLGE_FD_ACTIVE_RULE_TYPE {
 	HCLGE_FD_RULE_NONE,
@@ -712,7 +711,7 @@ struct hclge_dev {
 	struct hnae3_ae_dev *ae_dev;
 	struct hclge_hw hw;
 	struct hclge_misc_vector misc_vector;
-	struct hclge_hw_stats hw_stats;
+	struct hclge_mac_stats mac_stats;
 	unsigned long state;
 	unsigned long flr_state;
 	unsigned long last_reset_time;
@@ -723,6 +722,7 @@ struct hclge_dev {
 	unsigned long reset_request;	/* reset has been requested */
 	unsigned long reset_pending;	/* client rst is pending to be served */
 	struct hclge_rst_stats rst_stats;
+	struct semaphore reset_sem;	/* protect reset process */
 	u32 fw_version;
 	u16 num_vmdq_vport;		/* Num vmdq vport this PF has set up */
 	u16 num_tqps;			/* Num task queue pairs of this PF */
@@ -774,8 +774,6 @@ struct hclge_dev {
 	unsigned long service_timer_previous;
 	struct timer_list reset_timer;
 	struct delayed_work service_task;
-	struct work_struct rst_service_task;
-	struct work_struct mbx_service_task;
 
 	bool cur_promisc;
 	int num_alloc_vfs;	/* Actual number of VFs allocated */
@@ -811,7 +809,8 @@ struct hclge_dev {
 	struct hlist_head fd_rule_list;
 	spinlock_t fd_rule_lock; /* protect fd_rule_list and fd_bmap */
 	u16 hclge_fd_rule_num;
-	u16 fd_arfs_expire_timer;
+	unsigned long serv_processed_cnt;
+	unsigned long last_serv_processed;
 	unsigned long fd_bmap[BITS_TO_LONGS(MAX_FD_FILTER_NUM)];
 	enum HCLGE_FD_ACTIVE_RULE_TYPE fd_active_type;
 	u8 fd_en;
@@ -824,8 +823,6 @@ struct hclge_dev {
 	/* unicast mac vlan space shared by PF and its VFs */
 	u16 share_umv_size;
 	struct mutex umv_mutex; /* protect share_umv_size */
-
-	struct mutex vport_cfg_mutex;   /* Protect stored vf table */
 
 	DECLARE_KFIFO(mac_tnl_log, struct hclge_mac_tnl_stats,
 		      HCLGE_MAC_TNL_LOG_SIZE);

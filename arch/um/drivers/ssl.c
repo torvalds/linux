@@ -196,3 +196,11 @@ static int ssl_chan_setup(char *str)
 
 __setup("ssl", ssl_chan_setup);
 __channel_help(ssl_chan_setup, "ssl");
+
+static int ssl_non_raw_setup(char *str)
+{
+	opts.raw = 0;
+	return 1;
+}
+__setup("ssl-non-raw", ssl_non_raw_setup);
+__channel_help(ssl_non_raw_setup, "set serial lines to non-raw mode");

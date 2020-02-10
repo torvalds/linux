@@ -26,7 +26,7 @@
 #include <linux/platform_device.h>	/* For platform_driver framework */
 #include <linux/spinlock.h>		/* For spin_lock/spin_unlock/... */
 #include <linux/uaccess.h>		/* For copy_to_user/put_user/... */
-#include <linux/io.h>			/* For devm_ioremap_nocache */
+#include <linux/io.h>			/* For devm_ioremap */
 
 #include <asm/mach-rc32434/integ.h>	/* For the Watchdog registers */
 
@@ -267,7 +267,7 @@ static int rc32434_wdt_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	wdt_reg = devm_ioremap_nocache(&pdev->dev, r->start, resource_size(r));
+	wdt_reg = devm_ioremap(&pdev->dev, r->start, resource_size(r));
 	if (!wdt_reg) {
 		pr_err("failed to remap I/O resources\n");
 		return -ENXIO;

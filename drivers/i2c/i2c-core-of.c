@@ -75,11 +75,10 @@ static struct i2c_client *of_i2c_register_device(struct i2c_adapter *adap,
 	if (ret)
 		return ERR_PTR(ret);
 
-	client = i2c_new_device(adap, &info);
-	if (!client) {
+	client = i2c_new_client_device(adap, &info);
+	if (IS_ERR(client))
 		dev_err(&adap->dev, "of_i2c: Failure registering %pOF\n", node);
-		return ERR_PTR(-EINVAL);
-	}
+
 	return client;
 }
 

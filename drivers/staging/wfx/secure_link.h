@@ -25,14 +25,16 @@ static inline int wfx_sl_decode(struct wfx_dev *wdev, struct hif_sl_msg *m)
 	return -EIO;
 }
 
-static inline int wfx_sl_encode(struct wfx_dev *wdev, struct hif_msg *input,
+static inline int wfx_sl_encode(struct wfx_dev *wdev,
+				const struct hif_msg *input,
 				struct hif_sl_msg *output)
 {
 	return -EIO;
 }
 
-static inline int wfx_sl_check_pubkey(struct wfx_dev *wdev, u8 *ncp_pubkey,
-				      u8 *ncp_pubmac)
+static inline int wfx_sl_check_pubkey(struct wfx_dev *wdev,
+				      const u8 *ncp_pubkey,
+				      const u8 *ncp_pubmac)
 {
 	return -EIO;
 }

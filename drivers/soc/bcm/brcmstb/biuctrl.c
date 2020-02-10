@@ -63,7 +63,7 @@ static const int b15_cpubiuctrl_regs[] = {
 	[CPU_WRITEBACK_CTRL_REG] = -1,
 };
 
-/* Odd cases, e.g: 7260 */
+/* Odd cases, e.g: 7260A0 */
 static const int b53_cpubiuctrl_no_wb_regs[] = {
 	[CPU_CREDIT_REG] = 0x0b0,
 	[CPU_MCP_FLOW_REG] = 0x0b4,
@@ -74,6 +74,12 @@ static const int b53_cpubiuctrl_regs[] = {
 	[CPU_CREDIT_REG] = 0x0b0,
 	[CPU_MCP_FLOW_REG] = 0x0b4,
 	[CPU_WRITEBACK_CTRL_REG] = 0x22c,
+};
+
+static const int a72_cpubiuctrl_regs[] = {
+	[CPU_CREDIT_REG] = 0x18,
+	[CPU_MCP_FLOW_REG] = 0x1c,
+	[CPU_WRITEBACK_CTRL_REG] = 0x20,
 };
 
 #define NUM_CPU_BIUCTRL_REGS	3
@@ -101,25 +107,29 @@ static int __init mcp_write_pairing_set(void)
 	return 0;
 }
 
-static const u32 b53_mach_compat[] = {
+static const u32 a72_b53_mach_compat[] = {
+	0x7211,
+	0x7216,
+	0x7255,
+	0x7260,
 	0x7268,
 	0x7271,
 	0x7278,
 };
 
-static void __init mcp_b53_set(void)
+static void __init mcp_a72_b53_set(void)
 {
 	unsigned int i;
 	u32 reg;
 
 	reg = brcmstb_get_family_id();
 
-	for (i = 0; i < ARRAY_SIZE(b53_mach_compat); i++) {
-		if (BRCM_ID(reg) == b53_mach_compat[i])
+	for (i = 0; i < ARRAY_SIZE(a72_b53_mach_compat); i++) {
+		if (BRCM_ID(reg) == a72_b53_mach_compat[i])
 			break;
 	}
 
-	if (i == ARRAY_SIZE(b53_mach_compat))
+	if (i == ARRAY_SIZE(a72_b53_mach_compat))
 		return;
 
 	/* Set all 3 MCP interfaces to 8 credits */
@@ -157,6 +167,7 @@ static void __init mcp_b53_set(void)
 static int __init setup_hifcpubiuctrl_regs(struct device_node *np)
 {
 	struct device_node *cpu_dn;
+	u32 family_id;
 	int ret = 0;
 
 	cpubiuctrl_base = of_iomap(np, 0);
@@ -179,13 +190,16 @@ static int __init setup_hifcpubiuctrl_regs(struct device_node *np)
 		cpubiuctrl_regs = b15_cpubiuctrl_regs;
 	else if (of_device_is_compatible(cpu_dn, "brcm,brahma-b53"))
 		cpubiuctrl_regs = b53_cpubiuctrl_regs;
+	else if (of_device_is_compatible(cpu_dn, "arm,cortex-a72"))
+		cpubiuctrl_regs = a72_cpubiuctrl_regs;
 	else {
 		pr_err("unsupported CPU\n");
 		ret = -EINVAL;
 	}
 	of_node_put(cpu_dn);
 
-	if (BRCM_ID(brcmstb_get_family_id()) == 0x7260)
+	family_id = brcmstb_get_family_id();
+	if (BRCM_ID(family_id) == 0x7260 && BRCM_REV(family_id) == 0)
 		cpubiuctrl_regs = b53_cpubiuctrl_no_wb_regs;
 out:
 	of_node_put(np);
@@ -248,7 +262,7 @@ static int __init brcmstb_biuctrl_init(void)
 		return ret;
 	}
 
-	mcp_b53_set();
+	mcp_a72_b53_set();
 #ifdef CONFIG_PM_SLEEP
 	register_syscore_ops(&brcmstb_cpu_credit_syscore_ops);
 #endif

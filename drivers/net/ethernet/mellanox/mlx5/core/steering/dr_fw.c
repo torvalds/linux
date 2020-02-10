@@ -7,6 +7,7 @@
 struct mlx5dr_fw_recalc_cs_ft *
 mlx5dr_fw_create_recalc_cs_ft(struct mlx5dr_domain *dmn, u32 vport_num)
 {
+	struct mlx5dr_cmd_create_flow_table_attr ft_attr = {};
 	struct mlx5dr_fw_recalc_cs_ft *recalc_cs_ft;
 	u32 table_id, group_id, modify_hdr_id;
 	u64 rx_icm_addr, modify_ttl_action;
@@ -16,9 +17,14 @@ mlx5dr_fw_create_recalc_cs_ft(struct mlx5dr_domain *dmn, u32 vport_num)
 	if (!recalc_cs_ft)
 		return NULL;
 
-	ret = mlx5dr_cmd_create_flow_table(dmn->mdev, MLX5_FLOW_TABLE_TYPE_FDB,
-					   0, 0, dmn->info.caps.max_ft_level - 1,
-					   false, true, &rx_icm_addr, &table_id);
+	ft_attr.table_type = MLX5_FLOW_TABLE_TYPE_FDB;
+	ft_attr.level = dmn->info.caps.max_ft_level - 1;
+	ft_attr.term_tbl = true;
+
+	ret = mlx5dr_cmd_create_flow_table(dmn->mdev,
+					   &ft_attr,
+					   &rx_icm_addr,
+					   &table_id);
 	if (ret) {
 		mlx5dr_err(dmn, "Failed creating TTL W/A FW flow table %d\n", ret);
 		goto free_ttl_tbl;
@@ -90,4 +96,71 @@ void mlx5dr_fw_destroy_recalc_cs_ft(struct mlx5dr_domain *dmn,
 				      MLX5_FLOW_TABLE_TYPE_FDB);
 
 	kfree(recalc_cs_ft);
+}
+
+int mlx5dr_fw_create_md_tbl(struct mlx5dr_domain *dmn,
+			    struct mlx5dr_cmd_flow_destination_hw_info *dest,
+			    int num_dest,
+			    bool reformat_req,
+			    u32 *tbl_id,
+			    u32 *group_id)
+{
+	struct mlx5dr_cmd_create_flow_table_attr ft_attr = {};
+	struct mlx5dr_cmd_fte_info fte_info = {};
+	u32 val[MLX5_ST_SZ_DW_MATCH_PARAM] = {};
+	struct mlx5dr_cmd_ft_info ft_info = {};
+	int ret;
+
+	ft_attr.table_type = MLX5_FLOW_TABLE_TYPE_FDB;
+	ft_attr.level = dmn->info.caps.max_ft_level - 2;
+	ft_attr.reformat_en = reformat_req;
+	ft_attr.decap_en = reformat_req;
+
+	ret = mlx5dr_cmd_create_flow_table(dmn->mdev, &ft_attr, NULL, tbl_id);
+	if (ret) {
+		mlx5dr_err(dmn, "Failed creating multi dest FW flow table %d\n", ret);
+		return ret;
+	}
+
+	ret = mlx5dr_cmd_create_empty_flow_group(dmn->mdev,
+						 MLX5_FLOW_TABLE_TYPE_FDB,
+						 *tbl_id, group_id);
+	if (ret) {
+		mlx5dr_err(dmn, "Failed creating multi dest FW flow group %d\n", ret);
+		goto free_flow_table;
+	}
+
+	ft_info.id = *tbl_id;
+	ft_info.type = FS_FT_FDB;
+	fte_info.action.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
+	fte_info.dests_size = num_dest;
+	fte_info.val = val;
+	fte_info.dest_arr = dest;
+
+	ret = mlx5dr_cmd_set_fte(dmn->mdev, 0, 0, &ft_info, *group_id, &fte_info);
+	if (ret) {
+		mlx5dr_err(dmn, "Failed setting fte into table %d\n", ret);
+		goto free_flow_group;
+	}
+
+	return 0;
+
+free_flow_group:
+	mlx5dr_cmd_destroy_flow_group(dmn->mdev, MLX5_FLOW_TABLE_TYPE_FDB,
+				      *tbl_id, *group_id);
+free_flow_table:
+	mlx5dr_cmd_destroy_flow_table(dmn->mdev, *tbl_id,
+				      MLX5_FLOW_TABLE_TYPE_FDB);
+	return ret;
+}
+
+void mlx5dr_fw_destroy_md_tbl(struct mlx5dr_domain *dmn,
+			      u32 tbl_id, u32 group_id)
+{
+	mlx5dr_cmd_del_flow_table_entry(dmn->mdev, FS_FT_FDB, tbl_id);
+	mlx5dr_cmd_destroy_flow_group(dmn->mdev,
+				      MLX5_FLOW_TABLE_TYPE_FDB,
+				      tbl_id, group_id);
+	mlx5dr_cmd_destroy_flow_table(dmn->mdev, tbl_id,
+				      MLX5_FLOW_TABLE_TYPE_FDB);
 }

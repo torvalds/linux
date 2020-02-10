@@ -515,7 +515,8 @@ int cx231xx_i2c_register(struct cx231xx_i2c *bus)
 {
 	struct cx231xx *dev = bus->dev;
 
-	BUG_ON(!dev->cx231xx_send_usb_command);
+	if (!dev->cx231xx_send_usb_command)
+		return -EINVAL;
 
 	bus->i2c_adap = cx231xx_adap_template;
 	bus->i2c_adap.dev.parent = dev->dev;

@@ -141,11 +141,11 @@ int dpu_rm_destroy(struct dpu_rm *rm)
 
 static int _dpu_rm_hw_blk_create(
 		struct dpu_rm *rm,
-		struct dpu_mdss_cfg *cat,
+		const struct dpu_mdss_cfg *cat,
 		void __iomem *mmio,
 		enum dpu_hw_blk_type type,
 		uint32_t id,
-		void *hw_catalog_info)
+		const void *hw_catalog_info)
 {
 	struct dpu_rm_hw_blk *blk;
 	void *hw;
@@ -215,7 +215,7 @@ int dpu_rm_init(struct dpu_rm *rm,
 
 	/* Interrogate HW catalog and create tracking items for hw blocks */
 	for (i = 0; i < cat->mixer_count; i++) {
-		struct dpu_lm_cfg *lm = &cat->mixer[i];
+		const struct dpu_lm_cfg *lm = &cat->mixer[i];
 
 		if (lm->pingpong == PINGPONG_MAX) {
 			DPU_DEBUG("skip mixer %d without pingpong\n", lm->id);

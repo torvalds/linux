@@ -318,7 +318,7 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw, bool modeset,
 	return wndw->func->acquire(wndw, asyw, asyh);
 }
 
-static void
+static int
 nv50_wndw_atomic_check_lut(struct nv50_wndw *wndw,
 			   struct nv50_wndw_atom *armw,
 			   struct nv50_wndw_atom *asyw,
@@ -340,7 +340,7 @@ nv50_wndw_atomic_check_lut(struct nv50_wndw *wndw,
 		 */
 		if (!(ilut = asyh->state.gamma_lut)) {
 			asyw->visible = false;
-			return;
+			return 0;
 		}
 
 		if (wndw->func->ilut)
@@ -359,7 +359,10 @@ nv50_wndw_atomic_check_lut(struct nv50_wndw *wndw,
 	/* Recalculate LUT state. */
 	memset(&asyw->xlut, 0x00, sizeof(asyw->xlut));
 	if ((asyw->ilut = wndw->func->ilut ? ilut : NULL)) {
-		wndw->func->ilut(wndw, asyw);
+		if (!wndw->func->ilut(wndw, asyw, drm_color_lut_size(ilut))) {
+			DRM_DEBUG_KMS("Invalid ilut\n");
+			return -EINVAL;
+		}
 		asyw->xlut.handle = wndw->wndw.vram.handle;
 		asyw->xlut.i.buffer = !asyw->xlut.i.buffer;
 		asyw->set.xlut = true;
@@ -384,6 +387,7 @@ nv50_wndw_atomic_check_lut(struct nv50_wndw *wndw,
 
 	/* Can't do an immediate flip while changing the LUT. */
 	asyh->state.async_flip = false;
+	return 0;
 }
 
 static int
@@ -424,8 +428,11 @@ nv50_wndw_atomic_check(struct drm_plane *plane, struct drm_plane_state *state)
 	    (!armw->visible ||
 	     asyh->state.color_mgmt_changed ||
 	     asyw->state.fb->format->format !=
-	     armw->state.fb->format->format))
-		nv50_wndw_atomic_check_lut(wndw, armw, asyw, asyh);
+	     armw->state.fb->format->format)) {
+		ret = nv50_wndw_atomic_check_lut(wndw, armw, asyw, asyh);
+		if (ret)
+			return ret;
+	}
 
 	/* Calculate new window state. */
 	if (asyw->visible) {

@@ -4054,7 +4054,7 @@ static int mgsl_claim_resources(struct mgsl_struct *info)
 		}
 		info->lcr_mem_requested = true;
 
-		info->memory_base = ioremap_nocache(info->phys_memory_base,
+		info->memory_base = ioremap(info->phys_memory_base,
 								0x40000);
 		if (!info->memory_base) {
 			printk( "%s(%d):Can't map shared memory on device %s MemAddr=%08X\n",
@@ -4068,7 +4068,7 @@ static int mgsl_claim_resources(struct mgsl_struct *info)
 			goto errout;
 		}
 		
-		info->lcr_base = ioremap_nocache(info->phys_lcr_base,
+		info->lcr_base = ioremap(info->phys_lcr_base,
 								PAGE_SIZE);
 		if (!info->lcr_base) {
 			printk( "%s(%d):Can't map LCR memory on device %s MemAddr=%08X\n",
@@ -7837,7 +7837,7 @@ static int hdlcdev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
  *
  * dev  pointer to network device structure
  */
-static void hdlcdev_tx_timeout(struct net_device *dev)
+static void hdlcdev_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct mgsl_struct *info = dev_to_port(dev);
 	unsigned long flags;

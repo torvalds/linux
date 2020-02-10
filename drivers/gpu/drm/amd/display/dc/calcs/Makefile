@@ -1,5 +1,6 @@
 #
 # Copyright 2017 Advanced Micro Devices, Inc.
+# Copyright 2019 Raptor Engineering, LLC
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -24,7 +25,13 @@
 # It calculates Bandwidth and Watermarks values for HW programming
 #
 
+ifdef CONFIG_X86
 calcs_ccflags := -mhard-float -msse
+endif
+
+ifdef CONFIG_PPC64
+calcs_ccflags := -mhard-float -maltivec
+endif
 
 ifdef CONFIG_CC_IS_GCC
 ifeq ($(call cc-ifversion, -lt, 0701, y), y)
@@ -32,6 +39,7 @@ IS_OLD_GCC = 1
 endif
 endif
 
+ifdef CONFIG_X86
 ifdef IS_OLD_GCC
 # Stack alignment mismatch, proceed with caution.
 # GCC < 7.1 cannot compile code using `double` and -mpreferred-stack-boundary=3
@@ -40,6 +48,7 @@ calcs_ccflags += -mpreferred-stack-boundary=4
 else
 calcs_ccflags += -msse2
 endif
+endif
 
 CFLAGS_$(AMDDALPATH)/dc/calcs/dcn_calcs.o := $(calcs_ccflags)
 CFLAGS_$(AMDDALPATH)/dc/calcs/dcn_calc_auto.o := $(calcs_ccflags)
@@ -47,7 +56,7 @@ CFLAGS_$(AMDDALPATH)/dc/calcs/dcn_calc_math.o := $(calcs_ccflags) -Wno-tautologi
 
 BW_CALCS = dce_calcs.o bw_fixed.o custom_float.o
 
-ifdef CONFIG_DRM_AMD_DC_DCN1_0
+ifdef CONFIG_DRM_AMD_DC_DCN
 BW_CALCS += dcn_calcs.o dcn_calc_math.o dcn_calc_auto.o
 endif
 

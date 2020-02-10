@@ -644,7 +644,7 @@ int unifb_mmap(struct fb_info *info,
 	return vm_iomap_memory(vma, info->fix.smem_start, info->fix.smem_len);
 }
 
-static struct fb_ops unifb_ops = {
+static const struct fb_ops unifb_ops = {
 	.fb_read        = fb_sys_read,
 	.fb_write       = fb_sys_write,
 	.fb_check_var	= unifb_check_var,

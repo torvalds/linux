@@ -862,7 +862,7 @@ static void btc8192e2ant_set_sw_rf_rx_lpf_corner(struct btc_coexist *btcoexist,
 		/* Resume RF Rx LPF corner
 		 * After initialized, we can use coex_dm->btRf0x1eBackup
 		 */
-		if (btcoexist->initilized) {
+		if (btcoexist->initialized) {
 			RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 				 "[BTCoex], Resume RF Rx LPF corner!!\n");
 			btcoexist->btc_set_rf_reg(btcoexist, BTC_RF_A, 0x1e,

@@ -157,7 +157,7 @@ enum offloads_fdb_flags {
 	ESW_FDB_CHAINS_AND_PRIOS_SUPPORTED = BIT(0),
 };
 
-extern const unsigned int ESW_POOLS[4];
+struct mlx5_esw_chains_priv;
 
 struct mlx5_eswitch_fdb {
 	union {
@@ -182,14 +182,7 @@ struct mlx5_eswitch_fdb {
 			struct mlx5_flow_handle *miss_rule_multi;
 			int vlan_push_pop_refcount;
 
-			struct {
-				struct mlx5_flow_table *fdb;
-				u32 num_rules;
-			} fdb_prio[FDB_NUM_CHAINS][FDB_TC_MAX_PRIO + 1][FDB_TC_LEVELS_PER_PRIO];
-			/* Protects fdb_prio table */
-			struct mutex fdb_prio_lock;
-
-			int fdb_left[ARRAY_SIZE(ESW_POOLS)];
+			struct mlx5_esw_chains_priv *esw_chains_priv;
 		} offloads;
 	};
 	u32 flags;
@@ -355,15 +348,6 @@ mlx5_eswitch_del_fwd_rule(struct mlx5_eswitch *esw,
 			  struct mlx5_flow_handle *rule,
 			  struct mlx5_esw_flow_attr *attr);
 
-bool
-mlx5_eswitch_prios_supported(struct mlx5_eswitch *esw);
-
-u16
-mlx5_eswitch_get_prio_range(struct mlx5_eswitch *esw);
-
-u32
-mlx5_eswitch_get_chain_range(struct mlx5_eswitch *esw);
-
 struct mlx5_flow_handle *
 mlx5_eswitch_create_vport_rx_rule(struct mlx5_eswitch *esw, u16 vport,
 				  struct mlx5_flow_destination *dest);
@@ -388,6 +372,11 @@ enum {
 	MLX5_ESW_DEST_ENCAP_VALID   = BIT(1),
 };
 
+enum {
+	MLX5_ESW_ATTR_FLAG_VLAN_HANDLED  = BIT(0),
+	MLX5_ESW_ATTR_FLAG_SLOW_PATH     = BIT(1),
+};
+
 struct mlx5_esw_flow_attr {
 	struct mlx5_eswitch_rep *in_rep;
 	struct mlx5_core_dev	*in_mdev;
@@ -401,7 +390,6 @@ struct mlx5_esw_flow_attr {
 	u16	vlan_vid[MLX5_FS_VLAN_DEPTH];
 	u8	vlan_prio[MLX5_FS_VLAN_DEPTH];
 	u8	total_vlan;
-	bool	vlan_handled;
 	struct {
 		u32 flags;
 		struct mlx5_eswitch_rep *rep;
@@ -416,6 +404,7 @@ struct mlx5_esw_flow_attr {
 	u32	chain;
 	u16	prio;
 	u32	dest_chain;
+	u32	flags;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
 };
 

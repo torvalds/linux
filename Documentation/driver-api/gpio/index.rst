@@ -8,6 +8,7 @@ Contents:
    :maxdepth: 2
 
    intro
+   using-gpio
    driver
    consumer
    board

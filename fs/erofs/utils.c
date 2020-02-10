@@ -59,7 +59,7 @@ repeat:
 }
 
 struct erofs_workgroup *erofs_find_workgroup(struct super_block *sb,
-					     pgoff_t index, bool *tag)
+					     pgoff_t index)
 {
 	struct erofs_sb_info *sbi = EROFS_SB(sb);
 	struct erofs_workgroup *grp;
@@ -68,9 +68,6 @@ repeat:
 	rcu_read_lock();
 	grp = radix_tree_lookup(&sbi->workstn_tree, index);
 	if (grp) {
-		*tag = xa_pointer_tag(grp);
-		grp = xa_untag_pointer(grp);
-
 		if (erofs_workgroup_get(grp)) {
 			/* prefer to relax rcu read side */
 			rcu_read_unlock();
@@ -84,8 +81,7 @@ repeat:
 }
 
 int erofs_register_workgroup(struct super_block *sb,
-			     struct erofs_workgroup *grp,
-			     bool tag)
+			     struct erofs_workgroup *grp)
 {
 	struct erofs_sb_info *sbi;
 	int err;
@@ -102,8 +98,6 @@ int erofs_register_workgroup(struct super_block *sb,
 
 	sbi = EROFS_SB(sb);
 	xa_lock(&sbi->workstn_tree);
-
-	grp = xa_tag_pointer(grp, tag);
 
 	/*
 	 * Bump up reference count before making this workgroup
@@ -175,8 +169,7 @@ static bool erofs_try_to_release_workgroup(struct erofs_sb_info *sbi,
 	 * however in order to avoid some race conditions, add a
 	 * DBG_BUGON to observe this in advance.
 	 */
-	DBG_BUGON(xa_untag_pointer(radix_tree_delete(&sbi->workstn_tree,
-						     grp->index)) != grp);
+	DBG_BUGON(radix_tree_delete(&sbi->workstn_tree, grp->index) != grp);
 
 	/*
 	 * If managed cache is on, last refcount should indicate
@@ -201,7 +194,7 @@ repeat:
 				       batch, first_index, PAGEVEC_SIZE);
 
 	for (i = 0; i < found; ++i) {
-		struct erofs_workgroup *grp = xa_untag_pointer(batch[i]);
+		struct erofs_workgroup *grp = batch[i];
 
 		first_index = grp->index + 1;
 

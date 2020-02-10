@@ -207,10 +207,10 @@ static RT_CHANNEL_PLAN_MAP	RTW_ChannelPlanMap[RT_CHANNEL_DOMAIN_MAX] = {
 	{0x02, 0x1F},	/* 0x57, RT_CHANNEL_DOMAIN_FCC1_FCC10 */
 };
 
-static RT_CHANNEL_PLAN_MAP	RTW_CHANNEL_PLAN_MAP_REALTEK_DEFINE = {0x03, 0x02}; /* use the conbination for max channel numbers */
+ /* use the combination for max channel numbers */
+static RT_CHANNEL_PLAN_MAP RTW_CHANNEL_PLAN_MAP_REALTEK_DEFINE = {0x03, 0x02};
 
-/*
- * Search the @param ch in given @param ch_set
+/* Search the @param ch in given @param ch_set
  * @ch_set: the given channel set
  * @ch: the given channel number
  *
@@ -229,8 +229,7 @@ int rtw_ch_set_search_ch(RT_CHANNEL_INFO *ch_set, const u32 ch)
 	return i;
 }
 
-/*
- * Check the @param ch is fit with setband setting of @param adapter
+/* Check the @param ch is fit with setband setting of @param adapter
  * @adapter: the given adapter
  * @ch: the given channel number
  *
@@ -2265,7 +2264,7 @@ inline struct xmit_frame *alloc_mgtxmitframe(struct xmit_priv *pxmitpriv)
 
 /****************************************************************************
 
-Following are some TX fuctions for WiFi MLME
+Following are some TX functions for WiFi MLME
 
 *****************************************************************************/
 
@@ -2956,7 +2955,7 @@ exit:
 	return ret;
 }
 
-/*  if psta == NULL, indiate we are station(client) now... */
+/*  if psta == NULL, indicate we are station(client) now... */
 void issue_auth(struct adapter *padapter, struct sta_info *psta, unsigned short status)
 {
 	struct xmit_frame			*pmgntframe;
@@ -3356,9 +3355,11 @@ void issue_assocreq(struct adapter *padapter)
 					(!memcmp(pIE->data, WPS_OUI, 4))) {
 				vs_ie_length = pIE->Length;
 				if ((!padapter->registrypriv.wifi_spec) && (!memcmp(pIE->data, WPS_OUI, 4))) {
-					/* Commented by Kurt 20110629 */
-					/* In some older APs, WPS handshake */
-					/* would be fail if we append vender extensions informations to AP */
+					/* Commented by Kurt 20110629
+					 * In some older APs, WPS handshake
+					 * would be fail if we append vendor
+					 * extensions information to AP
+					 */
 
 					vs_ie_length = 14;
 				}
@@ -3406,7 +3407,7 @@ exit:
 		rtw_buf_free(&pmlmepriv->assoc_req, &pmlmepriv->assoc_req_len);
 }
 
-/* when wait_ack is ture, this function shoule be called at process context */
+/* when wait_ack is true, this function should be called at process context */
 static int _issue_nulldata(struct adapter *padapter, unsigned char *da,
 			   unsigned int power_mode, bool wait_ack)
 {
@@ -3481,7 +3482,7 @@ exit:
 /*
  * [IMPORTANT] Don't call this function in interrupt context
  *
- * When wait_ms > 0, this function shoule be called at process context
+ * When wait_ms > 0, this function should be called at process context
  * da == NULL for station mode
  */
 int issue_nulldata(struct adapter *padapter, unsigned char *da, unsigned int power_mode, int try_cnt, int wait_ms)
@@ -3493,7 +3494,7 @@ int issue_nulldata(struct adapter *padapter, unsigned char *da, unsigned int pow
 	struct sta_info *psta;
 
 
-	/* da == NULL, assum it's null data for sta to ap*/
+	/* da == NULL, assume it's null data for sta to ap*/
 	if (!da)
 		da = get_my_bssid(&(pmlmeinfo->network));
 
@@ -3558,14 +3559,14 @@ s32 issue_nulldata_in_interrupt(struct adapter *padapter, u8 *da)
 	pmlmeext = &padapter->mlmeextpriv;
 	pmlmeinfo = &pmlmeext->mlmext_info;
 
-	/* da == NULL, assum it's null data for sta to ap*/
+	/* da == NULL, assume it's null data for sta to ap*/
 	if (!da)
 		da = get_my_bssid(&(pmlmeinfo->network));
 
 	return _issue_nulldata(padapter, da, 0, false);
 }
 
-/* when wait_ack is ture, this function shoule be called at process context */
+/* when wait_ack is true, this function should be called at process context */
 static int _issue_qos_nulldata(struct adapter *padapter, unsigned char *da,
 			       u16 tid, bool wait_ack)
 {
@@ -3644,7 +3645,7 @@ exit:
 	return ret;
 }
 
-/* when wait_ms >0 , this function shoule be called at process context */
+/* when wait_ms >0 , this function should be called at process context */
 /* da == NULL for station mode */
 int issue_qos_nulldata(struct adapter *padapter, unsigned char *da, u16 tid, int try_cnt, int wait_ms)
 {
@@ -3653,7 +3654,7 @@ int issue_qos_nulldata(struct adapter *padapter, unsigned char *da, u16 tid, int
 	struct mlme_ext_priv *pmlmeext = &(padapter->mlmeextpriv);
 	struct mlme_ext_info *pmlmeinfo = &(pmlmeext->mlmext_info);
 
-	/* da == NULL, assum it's null data for sta to ap*/
+	/* da == NULL, assume it's null data for sta to ap*/
 	if (!da)
 		da = get_my_bssid(&(pmlmeinfo->network));
 
@@ -4264,7 +4265,7 @@ unsigned int send_beacon(struct adapter *padapter)
 
 /****************************************************************************
 
-Following are some utitity fuctions for WiFi MLME
+Following are some utility functions for WiFi MLME
 
 *****************************************************************************/
 
@@ -4568,7 +4569,7 @@ u8 collect_bss_info(struct adapter *padapter, union recv_frame *precv_frame, str
 	}
 	#endif
 
-	/*  mark bss info receving from nearby channel as SignalQuality 101 */
+	/*  mark bss info receiving from nearby channel as SignalQuality 101 */
 	if (bssid->Configuration.DSConfig != rtw_get_oper_ch(padapter))
 		bssid->PhyInfo.SignalQuality = 101;
 
@@ -4589,7 +4590,7 @@ void start_create_ibss(struct adapter *padapter)
 	/* update wireless mode */
 	update_wireless_mode(padapter);
 
-	/* udpate capability */
+	/* update capability */
 	caps = rtw_get_capability((struct wlan_bssid_ex *)pnetwork);
 	update_capinfo(padapter, caps);
 	if (caps&cap_IBSS) {/* adhoc master */
@@ -4644,7 +4645,7 @@ void start_clnt_join(struct adapter *padapter)
 	/* update wireless mode */
 	update_wireless_mode(padapter);
 
-	/* udpate capability */
+	/* update capability */
 	caps = rtw_get_capability((struct wlan_bssid_ex *)pnetwork);
 	update_capinfo(padapter, caps);
 	if (caps&cap_ESS) {
@@ -5379,8 +5380,7 @@ static void rtw_mlmeext_disconnect(struct adapter *padapter)
 
 	/* set_opmode_cmd(padapter, infra_client_with_mlme); */
 
-	/*
-	 * For safety, prevent from keeping macid sleep.
+	/* For safety, prevent from keeping macid sleep.
 	 * If we can sure all power mode enter/leave are paired,
 	 * this check can be removed.
 	 * Lucas@20131113
@@ -5441,7 +5441,7 @@ void mlmeext_joinbss_event_callback(struct adapter *padapter, int join_res)
 	/* turn on dynamic functions */
 	Switch_DM_Func(padapter, DYNAMIC_ALL_FUNC_ENABLE, true);
 
-	/*  update IOT-releated issue */
+	/*  update IOT-related issue */
 	update_IOT_info(padapter);
 
 	rtw_hal_set_hwreg(padapter, HW_VAR_BASIC_RATE, cur_network->SupportedRates);
@@ -5449,7 +5449,7 @@ void mlmeext_joinbss_event_callback(struct adapter *padapter, int join_res)
 	/* BCN interval */
 	rtw_hal_set_hwreg(padapter, HW_VAR_BEACON_INTERVAL, (u8 *)(&pmlmeinfo->bcn_interval));
 
-	/* udpate capability */
+	/* update capability */
 	update_capinfo(padapter, pmlmeinfo->capability);
 
 	/* WMM, Update EDCA param */
@@ -6385,7 +6385,9 @@ u8 sitesurvey_cmd_hdl(struct adapter *padapter, u8 *pbuf)
 		Save_DM_Func_Flag(padapter);
 		Switch_DM_Func(padapter, DYNAMIC_FUNC_DISABLE, false);
 
-		/* config the initial gain under scaning, need to write the BB registers */
+		/* config the initial gain under scanning, need to write the BB
+		 * registers
+		 */
 		initialgain = 0x1e;
 
 		rtw_hal_set_hwreg(padapter, HW_VAR_INITIAL_GAIN, (u8 *)(&initialgain));

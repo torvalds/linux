@@ -611,12 +611,12 @@ static int cifs_stats_proc_open(struct inode *inode, struct file *file)
 	return single_open(file, cifs_stats_proc_show, NULL);
 }
 
-static const struct file_operations cifs_stats_proc_fops = {
-	.open		= cifs_stats_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= cifs_stats_proc_write,
+static const struct proc_ops cifs_stats_proc_ops = {
+	.proc_open	= cifs_stats_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= cifs_stats_proc_write,
 };
 
 #ifdef CONFIG_CIFS_SMB_DIRECT
@@ -640,12 +640,12 @@ static int name##_open(struct inode *inode, struct file *file) \
 	return single_open(file, name##_proc_show, NULL); \
 } \
 \
-static const struct file_operations cifs_##name##_proc_fops = { \
-	.open		= name##_open, \
-	.read		= seq_read, \
-	.llseek		= seq_lseek, \
-	.release	= single_release, \
-	.write		= name##_write, \
+static const struct proc_ops cifs_##name##_proc_fops = { \
+	.proc_open	= name##_open, \
+	.proc_read	= seq_read, \
+	.proc_lseek	= seq_lseek, \
+	.proc_release	= single_release, \
+	.proc_write	= name##_write, \
 }
 
 PROC_FILE_DEFINE(rdma_readwrite_threshold);
@@ -659,11 +659,11 @@ PROC_FILE_DEFINE(smbd_receive_credit_max);
 #endif
 
 static struct proc_dir_entry *proc_fs_cifs;
-static const struct file_operations cifsFYI_proc_fops;
-static const struct file_operations cifs_lookup_cache_proc_fops;
-static const struct file_operations traceSMB_proc_fops;
-static const struct file_operations cifs_security_flags_proc_fops;
-static const struct file_operations cifs_linux_ext_proc_fops;
+static const struct proc_ops cifsFYI_proc_ops;
+static const struct proc_ops cifs_lookup_cache_proc_ops;
+static const struct proc_ops traceSMB_proc_ops;
+static const struct proc_ops cifs_security_flags_proc_ops;
+static const struct proc_ops cifs_linux_ext_proc_ops;
 
 void
 cifs_proc_init(void)
@@ -678,18 +678,18 @@ cifs_proc_init(void)
 	proc_create_single("open_files", 0400, proc_fs_cifs,
 			cifs_debug_files_proc_show);
 
-	proc_create("Stats", 0644, proc_fs_cifs, &cifs_stats_proc_fops);
-	proc_create("cifsFYI", 0644, proc_fs_cifs, &cifsFYI_proc_fops);
-	proc_create("traceSMB", 0644, proc_fs_cifs, &traceSMB_proc_fops);
+	proc_create("Stats", 0644, proc_fs_cifs, &cifs_stats_proc_ops);
+	proc_create("cifsFYI", 0644, proc_fs_cifs, &cifsFYI_proc_ops);
+	proc_create("traceSMB", 0644, proc_fs_cifs, &traceSMB_proc_ops);
 	proc_create("LinuxExtensionsEnabled", 0644, proc_fs_cifs,
-		    &cifs_linux_ext_proc_fops);
+		    &cifs_linux_ext_proc_ops);
 	proc_create("SecurityFlags", 0644, proc_fs_cifs,
-		    &cifs_security_flags_proc_fops);
+		    &cifs_security_flags_proc_ops);
 	proc_create("LookupCacheEnabled", 0644, proc_fs_cifs,
-		    &cifs_lookup_cache_proc_fops);
+		    &cifs_lookup_cache_proc_ops);
 
 #ifdef CONFIG_CIFS_DFS_UPCALL
-	proc_create("dfscache", 0644, proc_fs_cifs, &dfscache_proc_fops);
+	proc_create("dfscache", 0644, proc_fs_cifs, &dfscache_proc_ops);
 #endif
 
 #ifdef CONFIG_CIFS_SMB_DIRECT
@@ -774,12 +774,12 @@ static ssize_t cifsFYI_proc_write(struct file *file, const char __user *buffer,
 	return count;
 }
 
-static const struct file_operations cifsFYI_proc_fops = {
-	.open		= cifsFYI_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= cifsFYI_proc_write,
+static const struct proc_ops cifsFYI_proc_ops = {
+	.proc_open	= cifsFYI_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= cifsFYI_proc_write,
 };
 
 static int cifs_linux_ext_proc_show(struct seq_file *m, void *v)
@@ -805,12 +805,12 @@ static ssize_t cifs_linux_ext_proc_write(struct file *file,
 	return count;
 }
 
-static const struct file_operations cifs_linux_ext_proc_fops = {
-	.open		= cifs_linux_ext_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= cifs_linux_ext_proc_write,
+static const struct proc_ops cifs_linux_ext_proc_ops = {
+	.proc_open	= cifs_linux_ext_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= cifs_linux_ext_proc_write,
 };
 
 static int cifs_lookup_cache_proc_show(struct seq_file *m, void *v)
@@ -836,12 +836,12 @@ static ssize_t cifs_lookup_cache_proc_write(struct file *file,
 	return count;
 }
 
-static const struct file_operations cifs_lookup_cache_proc_fops = {
-	.open		= cifs_lookup_cache_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= cifs_lookup_cache_proc_write,
+static const struct proc_ops cifs_lookup_cache_proc_ops = {
+	.proc_open	= cifs_lookup_cache_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= cifs_lookup_cache_proc_write,
 };
 
 static int traceSMB_proc_show(struct seq_file *m, void *v)
@@ -867,12 +867,12 @@ static ssize_t traceSMB_proc_write(struct file *file, const char __user *buffer,
 	return count;
 }
 
-static const struct file_operations traceSMB_proc_fops = {
-	.open		= traceSMB_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= traceSMB_proc_write,
+static const struct proc_ops traceSMB_proc_ops = {
+	.proc_open	= traceSMB_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= traceSMB_proc_write,
 };
 
 static int cifs_security_flags_proc_show(struct seq_file *m, void *v)
@@ -978,12 +978,12 @@ static ssize_t cifs_security_flags_proc_write(struct file *file,
 	return count;
 }
 
-static const struct file_operations cifs_security_flags_proc_fops = {
-	.open		= cifs_security_flags_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= cifs_security_flags_proc_write,
+static const struct proc_ops cifs_security_flags_proc_ops = {
+	.proc_open	= cifs_security_flags_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= cifs_security_flags_proc_write,
 };
 #else
 inline void cifs_proc_init(void)

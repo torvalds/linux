@@ -33,17 +33,24 @@ static int i2c_mii_read(struct mii_bus *bus, int phy_id, int reg)
 {
 	struct i2c_adapter *i2c = bus->priv;
 	struct i2c_msg msgs[2];
-	u8 data[2], dev_addr = reg;
+	u8 addr[3], data[2], *p;
 	int bus_addr, ret;
 
 	if (!i2c_mii_valid_phy_id(phy_id))
 		return 0xffff;
 
+	p = addr;
+	if (reg & MII_ADDR_C45) {
+		*p++ = 0x20 | ((reg >> 16) & 31);
+		*p++ = reg >> 8;
+	}
+	*p++ = reg;
+
 	bus_addr = i2c_mii_phy_addr(phy_id);
 	msgs[0].addr = bus_addr;
 	msgs[0].flags = 0;
-	msgs[0].len = 1;
-	msgs[0].buf = &dev_addr;
+	msgs[0].len = p - addr;
+	msgs[0].buf = addr;
 	msgs[1].addr = bus_addr;
 	msgs[1].flags = I2C_M_RD;
 	msgs[1].len = sizeof(data);
@@ -61,18 +68,23 @@ static int i2c_mii_write(struct mii_bus *bus, int phy_id, int reg, u16 val)
 	struct i2c_adapter *i2c = bus->priv;
 	struct i2c_msg msg;
 	int ret;
-	u8 data[3];
+	u8 data[5], *p;
 
 	if (!i2c_mii_valid_phy_id(phy_id))
 		return 0;
 
-	data[0] = reg;
-	data[1] = val >> 8;
-	data[2] = val;
+	p = data;
+	if (reg & MII_ADDR_C45) {
+		*p++ = (reg >> 16) & 31;
+		*p++ = reg >> 8;
+	}
+	*p++ = reg;
+	*p++ = val >> 8;
+	*p++ = val;
 
 	msg.addr = i2c_mii_phy_addr(phy_id);
 	msg.flags = 0;
-	msg.len = 3;
+	msg.len = p - data;
 	msg.buf = data;
 
 	ret = i2c_transfer(i2c, &msg, 1);

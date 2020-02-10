@@ -1741,7 +1741,7 @@ static void nicvf_get_stats64(struct net_device *netdev,
 
 }
 
-static void nicvf_tx_timeout(struct net_device *dev)
+static void nicvf_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct nicvf *nic = netdev_priv(dev);
 

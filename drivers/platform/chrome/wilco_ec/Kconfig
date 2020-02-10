@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config WILCO_EC
 	tristate "ChromeOS Wilco Embedded Controller"
-	depends on ACPI && X86 && CROS_EC_LPC && LEDS_CLASS
+	depends on X86 || COMPILE_TEST
+	depends on ACPI && CROS_EC_LPC && LEDS_CLASS
 	help
 	  If you say Y here, you get support for talking to the ChromeOS
 	  Wilco EC over an eSPI bus. This uses a simple byte-level protocol

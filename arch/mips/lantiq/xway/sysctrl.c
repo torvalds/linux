@@ -431,10 +431,10 @@ void __init ltq_soc_init(void)
 				res_ebu.name))
 		pr_err("Failed to request core resources");
 
-	pmu_membase = ioremap_nocache(res_pmu.start, resource_size(&res_pmu));
-	ltq_cgu_membase = ioremap_nocache(res_cgu.start,
+	pmu_membase = ioremap(res_pmu.start, resource_size(&res_pmu));
+	ltq_cgu_membase = ioremap(res_cgu.start,
 						resource_size(&res_cgu));
-	ltq_ebu_membase = ioremap_nocache(res_ebu.start,
+	ltq_ebu_membase = ioremap(res_ebu.start,
 						resource_size(&res_ebu));
 	if (!pmu_membase || !ltq_cgu_membase || !ltq_ebu_membase)
 		panic("Failed to remap core resources");

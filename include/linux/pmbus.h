@@ -8,6 +8,8 @@
 #ifndef _PMBUS_H_
 #define _PMBUS_H_
 
+#include <linux/bits.h>
+
 /* flags */
 
 /*
@@ -23,7 +25,14 @@
  * communication errors for no explicable reason. For such chips, checking
  * the status register must be disabled.
  */
-#define PMBUS_SKIP_STATUS_CHECK	(1 << 0)
+#define PMBUS_SKIP_STATUS_CHECK	BIT(0)
+
+/*
+ * PMBUS_WRITE_PROTECTED
+ * Set if the chip is write protected and write protection is not determined
+ * by the standard WRITE_PROTECT command.
+ */
+#define PMBUS_WRITE_PROTECTED	BIT(1)
 
 struct pmbus_platform_data {
 	u32 flags;		/* Device specific flags */

@@ -232,9 +232,10 @@ static void heart_domain_free(struct irq_domain *domain,
 		return;
 
 	irqd = irq_domain_get_irq_data(domain, virq);
-	clear_bit(irqd->hwirq, heart_irq_map);
-	if (irqd && irqd->chip_data)
+	if (irqd) {
+		clear_bit(irqd->hwirq, heart_irq_map);
 		kfree(irqd->chip_data);
+	}
 }
 
 static const struct irq_domain_ops heart_domain_ops = {

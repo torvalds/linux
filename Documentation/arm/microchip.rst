@@ -92,6 +92,12 @@ the Microchip website: http://www.microchip.com.
 
           http://ww1.microchip.com/downloads/en/DeviceDoc/DS60001517A.pdf
 
+      - sam9x60
+
+          * Datasheet
+
+          http://ww1.microchip.com/downloads/en/DeviceDoc/SAM9X60-Data-Sheet-DS60001579A.pdf
+
     * ARM Cortex-A5 based SoCs
       - sama5d3 family
 

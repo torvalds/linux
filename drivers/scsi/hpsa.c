@@ -6876,7 +6876,7 @@ static void __iomem *remap_pci_mem(ulong base, ulong size)
 {
 	ulong page_base = ((ulong) base) & PAGE_MASK;
 	ulong page_offs = ((ulong) base) - page_base;
-	void __iomem *page_remapped = ioremap_nocache(page_base,
+	void __iomem *page_remapped = ioremap(page_base,
 		page_offs + size);
 
 	return page_remapped ? (page_remapped + page_offs) : NULL;

@@ -2530,6 +2530,7 @@ exit_free_v4l2dev:
 	v4l2_device_unregister(&pcdev->v4l2_dev);
 exit_deactivate:
 	pxa_camera_deactivate(pcdev);
+	tasklet_kill(&pcdev->task_eof);
 exit_free_dma:
 	dma_release_channel(pcdev->dma_chans[2]);
 exit_free_dma_u:
@@ -2544,6 +2545,7 @@ static int pxa_camera_remove(struct platform_device *pdev)
 	struct pxa_camera_dev *pcdev = dev_get_drvdata(&pdev->dev);
 
 	pxa_camera_deactivate(pcdev);
+	tasklet_kill(&pcdev->task_eof);
 	dma_release_channel(pcdev->dma_chans[0]);
 	dma_release_channel(pcdev->dma_chans[1]);
 	dma_release_channel(pcdev->dma_chans[2]);

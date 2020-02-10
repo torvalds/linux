@@ -1943,15 +1943,6 @@ static int smsc911x_set_mac_address(struct net_device *dev, void *p)
 	return 0;
 }
 
-/* Standard ioctls for mii-tool */
-static int smsc911x_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
-{
-	if (!netif_running(dev) || !dev->phydev)
-		return -EINVAL;
-
-	return phy_mii_ioctl(dev->phydev, ifr, cmd);
-}
-
 static void smsc911x_ethtool_getdrvinfo(struct net_device *dev,
 					struct ethtool_drvinfo *info)
 {
@@ -2151,7 +2142,7 @@ static const struct net_device_ops smsc911x_netdev_ops = {
 	.ndo_start_xmit		= smsc911x_hard_start_xmit,
 	.ndo_get_stats		= smsc911x_get_stats,
 	.ndo_set_rx_mode	= smsc911x_set_multicast_list,
-	.ndo_do_ioctl		= smsc911x_do_ioctl,
+	.ndo_do_ioctl		= phy_do_ioctl_running,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address 	= smsc911x_set_mac_address,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -2454,7 +2445,7 @@ static int smsc911x_drv_probe(struct platform_device *pdev)
 
 	pdata = netdev_priv(dev);
 	dev->irq = irq;
-	pdata->ioaddr = ioremap_nocache(res->start, res_size);
+	pdata->ioaddr = ioremap(res->start, res_size);
 	if (!pdata->ioaddr) {
 		retval = -ENOMEM;
 		goto out_ioremap_fail;

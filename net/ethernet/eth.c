@@ -335,22 +335,6 @@ int eth_mac_addr(struct net_device *dev, void *p)
 }
 EXPORT_SYMBOL(eth_mac_addr);
 
-/**
- * eth_change_mtu - set new MTU size
- * @dev: network device
- * @new_mtu: new Maximum Transfer Unit
- *
- * Allow changing MTU size. Needs to be overridden for devices
- * supporting jumbo frames.
- */
-int eth_change_mtu(struct net_device *dev, int new_mtu)
-{
-	netdev_warn(dev, "%s is deprecated\n", __func__);
-	dev->mtu = new_mtu;
-	return 0;
-}
-EXPORT_SYMBOL(eth_change_mtu);
-
 int eth_validate_addr(struct net_device *dev)
 {
 	if (!is_valid_ether_addr(dev->dev_addr))

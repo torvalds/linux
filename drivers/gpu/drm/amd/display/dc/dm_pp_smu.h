@@ -41,12 +41,8 @@ enum pp_smu_ver {
 	 */
 	PP_SMU_UNSUPPORTED,
 	PP_SMU_VER_RV,
-#ifndef CONFIG_TRIM_DRM_AMD_DC_DCN2_0
 	PP_SMU_VER_NV,
-#endif
-#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 	PP_SMU_VER_RN,
-#endif
 
 	PP_SMU_VER_MAX
 };
@@ -143,7 +139,6 @@ struct pp_smu_funcs_rv {
 	void (*set_pme_wa_enable)(struct pp_smu *pp);
 };
 
-#ifndef CONFIG_TRIM_DRM_AMD_DC_DCN2_0
 /* Used by pp_smu_funcs_nv.set_voltage_by_freq
  *
  */
@@ -247,7 +242,6 @@ struct pp_smu_funcs_nv {
 	enum pp_smu_status (*set_pstate_handshake_support)(struct pp_smu *pp,
 			BOOLEAN pstate_handshake_supported);
 };
-#endif
 
 #define PP_SMU_NUM_SOCCLK_DPM_LEVELS  8
 #define PP_SMU_NUM_DCFCLK_DPM_LEVELS  8
@@ -291,12 +285,8 @@ struct pp_smu_funcs {
 	struct pp_smu ctx;
 	union {
 		struct pp_smu_funcs_rv rv_funcs;
-#ifndef CONFIG_TRIM_DRM_AMD_DC_DCN2_0
 		struct pp_smu_funcs_nv nv_funcs;
-#endif
-#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 		struct pp_smu_funcs_rn rn_funcs;
-#endif
 
 	};
 };

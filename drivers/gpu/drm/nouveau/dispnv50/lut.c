@@ -49,7 +49,7 @@ nv50_lut_load(struct nv50_lut *lut, int buffer, struct drm_property_blob *blob,
 			kvfree(in);
 		}
 	} else {
-		load(in, blob->length / sizeof(*in), mem);
+		load(in, drm_color_lut_size(blob), mem);
 	}
 
 	return addr;

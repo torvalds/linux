@@ -182,6 +182,7 @@
 #define GCC_MSS_GPLL0_DIV_CLK_SRC				173
 #define GCC_MSS_SNOC_AXI_CLK					174
 #define GCC_MSS_MNOC_BIMC_AXI_CLK				175
+#define GCC_BIMC_GFX_CLK					176
 
 #define PCIE_0_GDSC						0
 #define UFS_GDSC						1

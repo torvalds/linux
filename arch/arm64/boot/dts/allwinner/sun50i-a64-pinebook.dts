@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
-/*
- * Copyright (C) 2017 Icenowy Zheng <icenowy@aosc.xyz>
- * Copyright (C) 2018 Vasily Khoruzhick <anarsoul@gmail.com>
- *
- */
+// Copyright (C) 2017 Icenowy Zheng <icenowy@aosc.xyz>
+// Copyright (C) 2018 Vasily Khoruzhick <anarsoul@gmail.com>
 
 /dts-v1/;
 
 #include "sun50i-a64.dtsi"
+#include "sun50i-a64-cpu-opp.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/gpio-keys.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/pwm/pwm.h>
 
@@ -60,6 +59,7 @@
 			linux,code = <SW_LID>;
 			linux,can-disable;
 			wakeup-source;
+			wakeup-event-action = <EV_ACT_DEASSERTED>;
 		};
 	};
 
@@ -96,6 +96,22 @@
 &codec_analog {
 	cpvdd-supply = <&reg_eldo1>;
 	status = "okay";
+};
+
+&cpu0 {
+	cpu-supply = <&reg_dcdc2>;
+};
+
+&cpu1 {
+	cpu-supply = <&reg_dcdc2>;
+};
+
+&cpu2 {
+	cpu-supply = <&reg_dcdc2>;
+};
+
+&cpu3 {
+	cpu-supply = <&reg_dcdc2>;
 };
 
 &dai {

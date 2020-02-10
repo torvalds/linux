@@ -3531,7 +3531,7 @@ static struct myrb_hba *myrb_detect(struct pci_dev *pdev,
 	spin_lock_init(&cb->queue_lock);
 	if (mmio_size < PAGE_SIZE)
 		mmio_size = PAGE_SIZE;
-	cb->mmio_base = ioremap_nocache(cb->pci_addr & PAGE_MASK, mmio_size);
+	cb->mmio_base = ioremap(cb->pci_addr & PAGE_MASK, mmio_size);
 	if (cb->mmio_base == NULL) {
 		dev_err(&pdev->dev,
 			"Unable to map Controller Register Window\n");

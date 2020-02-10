@@ -79,6 +79,10 @@ enum pnfs_try_status {
 	PNFS_TRY_AGAIN     = 2,
 };
 
+/* error codes for internal use */
+#define NFS4ERR_RESET_TO_MDS   12001
+#define NFS4ERR_RESET_TO_PNFS  12002
+
 #ifdef CONFIG_NFS_V4_1
 
 #define LAYOUT_NFSV4_1_MODULE_PREFIX "nfs-layouttype4"
@@ -90,10 +94,6 @@ enum pnfs_try_status {
 #define NFS4_DEF_DS_TIMEO   600 /* in tenths of a second */
 #define NFS4_DEF_DS_RETRANS 5
 #define PNFS_DEVICE_RETRY_TIMEOUT (120*HZ)
-
-/* error codes for internal use */
-#define NFS4ERR_RESET_TO_MDS   12001
-#define NFS4ERR_RESET_TO_PNFS  12002
 
 enum {
 	NFS_LAYOUT_RO_FAILED = 0,	/* get ro layout failed stop trying */

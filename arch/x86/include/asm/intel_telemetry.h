@@ -40,13 +40,10 @@ struct telemetry_evtmap {
 struct telemetry_unit_config {
 	struct telemetry_evtmap *telem_evts;
 	void __iomem *regmap;
-	u32 ssram_base_addr;
 	u8 ssram_evts_used;
 	u8 curr_period;
 	u8 max_period;
 	u8 min_period;
-	u32 ssram_size;
-
 };
 
 struct telemetry_plt_config {

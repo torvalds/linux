@@ -13,7 +13,7 @@
 
 #define DRV_VERSION_MAJOR 0
 #define DRV_VERSION_MINOR 8
-#define DRV_VERSION_BUILD 1
+#define DRV_VERSION_BUILD 2
 
 #define DRV_VERSION	__stringify(DRV_VERSION_MAJOR) "." \
 			__stringify(DRV_VERSION_MINOR) "." \
@@ -379,25 +379,29 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 		clear_bit(ICE_VSI_FLAG_PROMISC_CHANGED, vsi->flags);
 		if (vsi->current_netdev_flags & IFF_PROMISC) {
 			/* Apply Rx filter rule to get traffic from wire */
-			status = ice_cfg_dflt_vsi(hw, vsi->idx, true,
-						  ICE_FLTR_RX);
-			if (status) {
-				netdev_err(netdev, "Error setting default VSI %i Rx rule\n",
-					   vsi->vsi_num);
-				vsi->current_netdev_flags &= ~IFF_PROMISC;
-				err = -EIO;
-				goto out_promisc;
+			if (!ice_is_dflt_vsi_in_use(pf->first_sw)) {
+				err = ice_set_dflt_vsi(pf->first_sw, vsi);
+				if (err && err != -EEXIST) {
+					netdev_err(netdev,
+						   "Error %d setting default VSI %i Rx rule\n",
+						   err, vsi->vsi_num);
+					vsi->current_netdev_flags &=
+						~IFF_PROMISC;
+					goto out_promisc;
+				}
 			}
 		} else {
 			/* Clear Rx filter to remove traffic from wire */
-			status = ice_cfg_dflt_vsi(hw, vsi->idx, false,
-						  ICE_FLTR_RX);
-			if (status) {
-				netdev_err(netdev, "Error clearing default VSI %i Rx rule\n",
-					   vsi->vsi_num);
-				vsi->current_netdev_flags |= IFF_PROMISC;
-				err = -EIO;
-				goto out_promisc;
+			if (ice_is_vsi_dflt_vsi(pf->first_sw, vsi)) {
+				err = ice_clear_dflt_vsi(pf->first_sw);
+				if (err) {
+					netdev_err(netdev,
+						   "Error %d clearing default VSI %i Rx rule\n",
+						   err, vsi->vsi_num);
+					vsi->current_netdev_flags |=
+						IFF_PROMISC;
+					goto out_promisc;
+				}
 			}
 		}
 	}
@@ -472,7 +476,7 @@ ice_prepare_for_reset(struct ice_pf *pf)
 		ice_vc_notify_reset(pf);
 
 	/* Disable VFs until reset is completed */
-	for (i = 0; i < pf->num_alloc_vfs; i++)
+	ice_for_each_vf(pf, i)
 		ice_set_vf_state_qs_dis(&pf->vf[i]);
 
 	/* clear SW filtering DB */
@@ -840,8 +844,7 @@ ice_link_event(struct ice_pf *pf, struct ice_port_info *pi, bool link_up,
 	ice_vsi_link_event(vsi, link_up);
 	ice_print_link_msg(vsi, link_up);
 
-	if (pf->num_alloc_vfs)
-		ice_vc_notify_link_state(pf);
+	ice_vc_notify_link_state(pf);
 
 	return result;
 }
@@ -1291,7 +1294,7 @@ static void ice_handle_mdd_event(struct ice_pf *pf)
 	}
 
 	/* check to see if one of the VFs caused the MDD */
-	for (i = 0; i < pf->num_alloc_vfs; i++) {
+	ice_for_each_vf(pf, i) {
 		struct ice_vf *vf = &pf->vf[i];
 
 		bool vf_mdd_detected = false;
@@ -2330,7 +2333,8 @@ static void ice_set_netdev_features(struct net_device *netdev)
 			 NETIF_F_HW_VLAN_CTAG_TX     |
 			 NETIF_F_HW_VLAN_CTAG_RX;
 
-	tso_features = NETIF_F_TSO;
+	tso_features = NETIF_F_TSO		|
+		       NETIF_F_GSO_UDP_L4;
 
 	/* set features that user can change */
 	netdev->hw_features = dflt_features | csumo_features |
@@ -3568,6 +3572,15 @@ static const struct pci_device_id ice_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E810C_BACKPLANE), 0 },
 	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E810C_QSFP), 0 },
 	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E810C_SFP), 0 },
+	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E822C_BACKPLANE), 0 },
+	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E822C_QSFP), 0 },
+	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E822C_SFP), 0 },
+	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E822C_10G_BASE_T), 0 },
+	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E822C_SGMII), 0 },
+	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E822X_BACKPLANE), 0 },
+	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E822L_SFP), 0 },
+	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E822L_10G_BASE_T), 0 },
+	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E822L_SGMII), 0 },
 	/* required last entry */
 	{ 0, }
 };
@@ -4670,6 +4683,13 @@ static void ice_rebuild(struct ice_pf *pf, enum ice_reset_req reset_type)
 		goto err_init_ctrlq;
 	}
 
+	if (pf->first_sw->dflt_vsi_ena)
+		dev_info(dev,
+			 "Clearing default VSI, re-enable after reset completes\n");
+	/* clear the default VSI configuration if it exists */
+	pf->first_sw->dflt_vsi = NULL;
+	pf->first_sw->dflt_vsi_ena = false;
+
 	ice_clear_pxe_mode(hw);
 
 	ret = ice_get_caps(hw);
@@ -4825,7 +4845,7 @@ static int ice_change_mtu(struct net_device *netdev, int new_mtu)
 		}
 	}
 
-	netdev_info(netdev, "changed MTU to %d\n", new_mtu);
+	netdev_dbg(netdev, "changed MTU to %d\n", new_mtu);
 	return 0;
 }
 
@@ -5060,42 +5080,23 @@ ice_bridge_setlink(struct net_device *dev, struct nlmsghdr *nlh,
  * ice_tx_timeout - Respond to a Tx Hang
  * @netdev: network interface device structure
  */
-static void ice_tx_timeout(struct net_device *netdev)
+static void ice_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_ring *tx_ring = NULL;
 	struct ice_vsi *vsi = np->vsi;
 	struct ice_pf *pf = vsi->back;
-	int hung_queue = -1;
 	u32 i;
 
 	pf->tx_timeout_count++;
 
-	/* find the stopped queue the same way dev_watchdog() does */
-	for (i = 0; i < netdev->num_tx_queues; i++) {
-		unsigned long trans_start;
-		struct netdev_queue *q;
-
-		q = netdev_get_tx_queue(netdev, i);
-		trans_start = q->trans_start;
-		if (netif_xmit_stopped(q) &&
-		    time_after(jiffies,
-			       trans_start + netdev->watchdog_timeo)) {
-			hung_queue = i;
-			break;
-		}
-	}
-
-	if (i == netdev->num_tx_queues)
-		netdev_info(netdev, "tx_timeout: no netdev hung queue found\n");
-	else
-		/* now that we have an index, find the tx_ring struct */
-		for (i = 0; i < vsi->num_txq; i++)
-			if (vsi->tx_rings[i] && vsi->tx_rings[i]->desc)
-				if (hung_queue == vsi->tx_rings[i]->q_index) {
-					tx_ring = vsi->tx_rings[i];
-					break;
-				}
+	/* now that we have an index, find the tx_ring struct */
+	for (i = 0; i < vsi->num_txq; i++)
+		if (vsi->tx_rings[i] && vsi->tx_rings[i]->desc)
+			if (txqueue == vsi->tx_rings[i]->q_index) {
+				tx_ring = vsi->tx_rings[i];
+				break;
+			}
 
 	/* Reset recovery level if enough time has elapsed after last timeout.
 	 * Also ensure no new reset action happens before next timeout period.
@@ -5110,19 +5111,19 @@ static void ice_tx_timeout(struct net_device *netdev)
 		struct ice_hw *hw = &pf->hw;
 		u32 head, val = 0;
 
-		head = (rd32(hw, QTX_COMM_HEAD(vsi->txq_map[hung_queue])) &
+		head = (rd32(hw, QTX_COMM_HEAD(vsi->txq_map[txqueue])) &
 			QTX_COMM_HEAD_HEAD_M) >> QTX_COMM_HEAD_HEAD_S;
 		/* Read interrupt register */
 		val = rd32(hw, GLINT_DYN_CTL(tx_ring->q_vector->reg_idx));
 
 		netdev_info(netdev, "tx_timeout: VSI_num: %d, Q %d, NTC: 0x%x, HW_HEAD: 0x%x, NTU: 0x%x, INT: 0x%x\n",
-			    vsi->vsi_num, hung_queue, tx_ring->next_to_clean,
+			    vsi->vsi_num, txqueue, tx_ring->next_to_clean,
 			    head, tx_ring->next_to_use, val);
 	}
 
 	pf->tx_timeout_last_recovery = jiffies;
-	netdev_info(netdev, "tx_timeout recovery level %d, hung_queue %d\n",
-		    pf->tx_timeout_recovery_level, hung_queue);
+	netdev_info(netdev, "tx_timeout recovery level %d, txqueue %d\n",
+		    pf->tx_timeout_recovery_level, txqueue);
 
 	switch (pf->tx_timeout_recovery_level) {
 	case 1:

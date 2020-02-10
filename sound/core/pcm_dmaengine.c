@@ -426,7 +426,7 @@ int snd_dmaengine_pcm_refine_runtime_hwparams(
 		 * default assumption is that it supports 1, 2 and 4 bytes
 		 * widths.
 		 */
-		for (i = SNDRV_PCM_FORMAT_FIRST; i <= SNDRV_PCM_FORMAT_LAST; i++) {
+		pcm_for_each_format(i) {
 			int bits = snd_pcm_format_physical_width(i);
 
 			/*

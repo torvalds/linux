@@ -17,9 +17,9 @@ static ssize_t atags_read(struct file *file, char __user *buf,
 	return simple_read_from_buffer(buf, count, ppos, b->data, b->size);
 }
 
-static const struct file_operations atags_fops = {
-	.read = atags_read,
-	.llseek = default_llseek,
+static const struct proc_ops atags_proc_ops = {
+	.proc_read	= atags_read,
+	.proc_lseek	= default_llseek,
 };
 
 #define BOOT_PARAMS_SIZE 1536
@@ -61,7 +61,7 @@ static int __init init_atags_procfs(void)
 	b->size = size;
 	memcpy(b->data, atags_copy, size);
 
-	tags_entry = proc_create_data("atags", 0400, NULL, &atags_fops, b);
+	tags_entry = proc_create_data("atags", 0400, NULL, &atags_proc_ops, b);
 	if (!tags_entry)
 		goto nomem;
 

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * SAMSUNG EXYNOS5410 SoC device tree source
+ * Samsung Exynos5410 SoC device tree source
  *
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
- * SAMSUNG EXYNOS5410 SoC device nodes are listed in this file.
- * EXYNOS5410 based board files can include this file and provide
+ * Samsung Exynos5410 SoC device nodes are listed in this file.
+ * Exynos5410 based board files can include this file and provide
  * values for board specfic bindings.
  */
 

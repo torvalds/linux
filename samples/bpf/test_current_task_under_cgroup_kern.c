@@ -8,7 +8,7 @@
 #include <linux/ptrace.h>
 #include <uapi/linux/bpf.h>
 #include <linux/version.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 #include <uapi/linux/utsname.h>
 
 struct bpf_map_def SEC("maps") cgroup_map = {

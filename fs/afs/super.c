@@ -38,13 +38,13 @@ static int afs_statfs(struct dentry *dentry, struct kstatfs *buf);
 static int afs_show_devname(struct seq_file *m, struct dentry *root);
 static int afs_show_options(struct seq_file *m, struct dentry *root);
 static int afs_init_fs_context(struct fs_context *fc);
-static const struct fs_parameter_description afs_fs_parameters;
+static const struct fs_parameter_spec afs_fs_parameters[];
 
 struct file_system_type afs_fs_type = {
 	.owner			= THIS_MODULE,
 	.name			= "afs",
 	.init_fs_context	= afs_init_fs_context,
-	.parameters		= &afs_fs_parameters,
+	.parameters		= afs_fs_parameters,
 	.kill_sb		= afs_kill_super,
 	.fs_flags		= FS_RENAME_DOES_D_MOVE,
 };
@@ -73,26 +73,20 @@ enum afs_param {
 	Opt_source,
 };
 
-static const struct fs_parameter_spec afs_param_specs[] = {
+static const struct constant_table afs_param_flock[] = {
+	{"local",	afs_flock_mode_local },
+	{"openafs",	afs_flock_mode_openafs },
+	{"strict",	afs_flock_mode_strict },
+	{"write",	afs_flock_mode_write },
+	{}
+};
+
+static const struct fs_parameter_spec afs_fs_parameters[] = {
 	fsparam_flag  ("autocell",	Opt_autocell),
 	fsparam_flag  ("dyn",		Opt_dyn),
-	fsparam_enum  ("flock",		Opt_flock),
+	fsparam_enum  ("flock",		Opt_flock, afs_param_flock),
 	fsparam_string("source",	Opt_source),
 	{}
-};
-
-static const struct fs_parameter_enum afs_param_enums[] = {
-	{ Opt_flock,	"local",	afs_flock_mode_local },
-	{ Opt_flock,	"openafs",	afs_flock_mode_openafs },
-	{ Opt_flock,	"strict",	afs_flock_mode_strict },
-	{ Opt_flock,	"write",	afs_flock_mode_write },
-	{}
-};
-
-static const struct fs_parameter_description afs_fs_parameters = {
-	.name		= "kAFS",
-	.specs		= afs_param_specs,
-	.enums		= afs_param_enums,
 };
 
 /*
@@ -323,7 +317,7 @@ static int afs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	struct afs_fs_context *ctx = fc->fs_private;
 	int opt;
 
-	opt = fs_parse(fc, &afs_fs_parameters, param, &result);
+	opt = fs_parse(fc, afs_fs_parameters, param, &result);
 	if (opt < 0)
 		return opt;
 

@@ -154,14 +154,14 @@ static inline void sve_user_discard(void)
 	sve_user_disable();
 }
 
-void el0_svc_handler(struct pt_regs *regs)
+void do_el0_svc(struct pt_regs *regs)
 {
 	sve_user_discard();
 	el0_svc_common(regs, regs->regs[8], __NR_syscalls, sys_call_table);
 }
 
 #ifdef CONFIG_COMPAT
-void el0_svc_compat_handler(struct pt_regs *regs)
+void do_el0_svc_compat(struct pt_regs *regs)
 {
 	el0_svc_common(regs, regs->regs[7], __NR_compat_syscalls,
 		       compat_sys_call_table);

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2019 Facebook */
 #include <linux/bpf.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 #include "bpf_trace_helpers.h"
 
 struct sk_buff {
@@ -9,8 +9,9 @@ struct sk_buff {
 };
 
 __u64 test_result = 0;
-BPF_TRACE_2("fexit/test_pkt_md_access", test_main2,
-	    struct sk_buff *, skb, int, ret)
+
+SEC("fexit/test_pkt_md_access")
+int BPF_PROG(test_main2, struct sk_buff *skb, int ret)
 {
 	int len;
 

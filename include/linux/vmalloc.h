@@ -10,6 +10,8 @@
 #include <linux/rbtree.h>
 #include <linux/overflow.h>
 
+#include <asm/vmalloc.h>
+
 struct vm_area_struct;		/* vma defining user mapping in mm_types.h */
 struct notifier_block;		/* in notifier.h */
 

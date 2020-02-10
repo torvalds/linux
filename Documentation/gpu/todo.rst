@@ -142,14 +142,14 @@ Contact: Daniel Vetter, respective driver maintainers
 
 Level: Advanced
 
-Convert instances of dev_info/dev_err/dev_warn to their DRM_DEV_* equivalent
-----------------------------------------------------------------------------
+Convert logging to drm_* functions with drm_device paramater
+------------------------------------------------------------
 
 For drivers which could have multiple instances, it is necessary to
 differentiate between which is which in the logs. Since DRM_INFO/WARN/ERROR
 don't do this, drivers used dev_info/warn/err to make this differentiation. We
-now have DRM_DEV_* variants of the drm print macros, so we can start to convert
-those drivers back to using drm-formwatted specific log messages.
+now have drm_* variants of the drm print functions, so we can start to convert
+those drivers back to using drm-formatted specific log messages.
 
 Before you start this conversion please contact the relevant maintainers to make
 sure your work will be merged - not everyone agrees that the DRM dmesg macros
@@ -171,23 +171,40 @@ Contact: Maintainer of the driver you plan to convert
 
 Level: Intermediate
 
-Convert drivers to use drm_fb_helper_fbdev_setup/teardown()
------------------------------------------------------------
+Convert drivers to use drm_fbdev_generic_setup()
+------------------------------------------------
 
-Most drivers can use drm_fb_helper_fbdev_setup() except maybe:
-
-- amdgpu which has special logic to decide whether to call
-  drm_helper_disable_unused_functions()
-
-- armada which isn't atomic and doesn't call
-  drm_helper_disable_unused_functions()
-
-- i915 which calls drm_fb_helper_initial_config() in a worker
-
-Drivers that use drm_framebuffer_remove() to clean up the fbdev framebuffer can
-probably use drm_fb_helper_fbdev_teardown().
+Most drivers can use drm_fbdev_generic_setup(). Driver have to implement
+atomic modesetting and GEM vmap support. Current generic fbdev emulation
+expects the framebuffer in system memory (or system-like memory).
 
 Contact: Maintainer of the driver you plan to convert
+
+Level: Intermediate
+
+drm_framebuffer_funcs and drm_mode_config_funcs.fb_create cleanup
+-----------------------------------------------------------------
+
+A lot more drivers could be switched over to the drm_gem_framebuffer helpers.
+Various hold-ups:
+
+- Need to switch over to the generic dirty tracking code using
+  drm_atomic_helper_dirtyfb first (e.g. qxl).
+
+- Need to switch to drm_fbdev_generic_setup(), otherwise a lot of the custom fb
+  setup code can't be deleted.
+
+- Many drivers wrap drm_gem_fb_create() only to check for valid formats. For
+  atomic drivers we could check for valid formats by calling
+  drm_plane_check_pixel_format() against all planes, and pass if any plane
+  supports the format. For non-atomic that's not possible since like the format
+  list for the primary plane is fake and we'd therefor reject valid formats.
+
+- Many drivers subclass drm_framebuffer, we'd need a embedding compatible
+  version of the varios drm_gem_fb_create functions. Maybe called
+  drm_gem_fb_create/_with_dirty/_with_funcs as needed.
+
+Contact: Daniel Vetter
 
 Level: Intermediate
 
@@ -328,8 +345,8 @@ drm_fb_helper tasks
   these igt tests need to be fixed: kms_fbcon_fbt@psr and
   kms_fbcon_fbt@psr-suspend.
 
-- The max connector argument for drm_fb_helper_init() and
-  drm_fb_helper_fbdev_setup() isn't used anymore and can be removed.
+- The max connector argument for drm_fb_helper_init() isn't used anymore and
+  can be removed.
 
 - The helper doesn't keep an array of connectors anymore so these can be
   removed: drm_fb_helper_single_add_all_connectors(),
@@ -348,6 +365,23 @@ connector register/unregister fixes
   registered when calling drm_dp_aux_register. Fix this by instead calling
   drm_dp_aux_init, and moving the actual registering into a late_register
   callback as recommended in the kerneldoc.
+
+Level: Intermediate
+
+Remove load/unload callbacks from all non-DRIVER_LEGACY drivers
+---------------------------------------------------------------
+
+The load/unload callbacks in struct &drm_driver are very much midlayers, plus
+for historical reasons they get the ordering wrong (and we can't fix that)
+between setting up the &drm_driver structure and calling drm_dev_register().
+
+- Rework drivers to no longer use the load/unload callbacks, directly coding the
+  load/unload sequence into the driver's probe function.
+
+- Once all non-DRIVER_LEGACY drivers are converted, disallow the load/unload
+  callbacks for all modern drivers.
+
+Contact: Daniel Vetter
 
 Level: Intermediate
 

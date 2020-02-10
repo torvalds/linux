@@ -860,7 +860,7 @@ static int sti_tvout_probe(struct platform_device *pdev)
 		DRM_ERROR("Invalid glue resource\n");
 		return -ENOMEM;
 	}
-	tvout->regs = devm_ioremap_nocache(dev, res->start, resource_size(res));
+	tvout->regs = devm_ioremap(dev, res->start, resource_size(res));
 	if (!tvout->regs)
 		return -ENOMEM;
 

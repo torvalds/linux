@@ -43,7 +43,7 @@ static int __gt_unpark(struct intel_wakeref *wf)
 	struct intel_gt *gt = container_of(wf, typeof(*gt), wakeref);
 	struct drm_i915_private *i915 = gt->i915;
 
-	GEM_TRACE("\n");
+	GT_TRACE(gt, "\n");
 
 	i915_globals_unpark();
 
@@ -61,9 +61,7 @@ static int __gt_unpark(struct intel_wakeref *wf)
 	gt->awake = intel_display_power_get(i915, POWER_DOMAIN_GT_IRQ);
 	GEM_BUG_ON(!gt->awake);
 
-	if (NEEDS_RC6_CTX_CORRUPTION_WA(i915))
-		intel_uncore_forcewake_get(&i915->uncore, FORCEWAKE_ALL);
-
+	intel_rc6_unpark(&gt->rc6);
 	intel_rps_unpark(&gt->rps);
 	i915_pmu_gt_unparked(i915);
 
@@ -78,21 +76,17 @@ static int __gt_park(struct intel_wakeref *wf)
 	intel_wakeref_t wakeref = fetch_and_zero(&gt->awake);
 	struct drm_i915_private *i915 = gt->i915;
 
-	GEM_TRACE("\n");
+	GT_TRACE(gt, "\n");
 
 	intel_gt_park_requests(gt);
 
 	i915_vma_parked(gt);
 	i915_pmu_gt_parked(i915);
 	intel_rps_park(&gt->rps);
+	intel_rc6_park(&gt->rc6);
 
 	/* Everything switched off, flush any residual interrupt just in case */
 	intel_synchronize_irq(i915);
-
-	if (NEEDS_RC6_CTX_CORRUPTION_WA(i915)) {
-		intel_rc6_ctx_wa_check(&i915->gt.rc6);
-		intel_uncore_forcewake_put(&i915->uncore, FORCEWAKE_ALL);
-	}
 
 	/* Defer dropping the display power well for 100ms, it's slow! */
 	GEM_BUG_ON(!wakeref);
@@ -132,23 +126,13 @@ static bool reset_engines(struct intel_gt *gt)
 	return __intel_gt_reset(gt, ALL_ENGINES) == 0;
 }
 
-/**
- * intel_gt_sanitize: called after the GPU has lost power
- * @gt: the i915 GT container
- * @force: ignore a failed reset and sanitize engine state anyway
- *
- * Anytime we reset the GPU, either with an explicit GPU reset or through a
- * PCI power cycle, the GPU loses state and we must reset our state tracking
- * to match. Note that calling intel_gt_sanitize() if the GPU has not
- * been reset results in much confusion!
- */
-void intel_gt_sanitize(struct intel_gt *gt, bool force)
+static void gt_sanitize(struct intel_gt *gt, bool force)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 	intel_wakeref_t wakeref;
 
-	GEM_TRACE("force:%s\n", yesno(force));
+	GT_TRACE(gt, "force:%s", yesno(force));
 
 	/* Use a raw wakeref to avoid calling intel_display_power_get early */
 	wakeref = intel_runtime_pm_get(gt->uncore->rpm);
@@ -193,9 +177,13 @@ int intel_gt_resume(struct intel_gt *gt)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
-	int err = 0;
+	int err;
 
-	GEM_TRACE("\n");
+	err = intel_gt_has_init_error(gt);
+	if (err)
+		return err;
+
+	GT_TRACE(gt, "\n");
 
 	/*
 	 * After resume, we may need to poke into the pinned kernel
@@ -207,20 +195,25 @@ int intel_gt_resume(struct intel_gt *gt)
 
 	intel_uncore_forcewake_get(gt->uncore, FORCEWAKE_ALL);
 	intel_rc6_sanitize(&gt->rc6);
+	gt_sanitize(gt, true);
+	if (intel_gt_is_wedged(gt)) {
+		err = -EIO;
+		goto out_fw;
+	}
+
+	/* Only when the HW is re-initialised, can we replay the requests */
+	err = intel_gt_init_hw(gt);
+	if (err) {
+		dev_err(gt->i915->drm.dev,
+			"Failed to initialize GPU, declaring it wedged!\n");
+		goto err_wedged;
+	}
 
 	intel_rps_enable(&gt->rps);
 	intel_llc_enable(&gt->llc);
 
 	for_each_engine(engine, gt, id) {
-		struct intel_context *ce;
-
 		intel_engine_pm_get(engine);
-
-		ce = engine->kernel_context;
-		if (ce) {
-			GEM_BUG_ON(!intel_context_is_pinned(ce));
-			ce->ops->reset(ce);
-		}
 
 		engine->serial++; /* kernel context lost */
 		err = engine->resume(engine);
@@ -230,7 +223,7 @@ int intel_gt_resume(struct intel_gt *gt)
 			dev_err(gt->i915->drm.dev,
 				"Failed to restart %s (%d)\n",
 				engine->name, err);
-			break;
+			goto err_wedged;
 		}
 	}
 
@@ -240,10 +233,14 @@ int intel_gt_resume(struct intel_gt *gt)
 
 	user_forcewake(gt, false);
 
+out_fw:
 	intel_uncore_forcewake_put(gt->uncore, FORCEWAKE_ALL);
 	intel_gt_pm_put(gt);
-
 	return err;
+
+err_wedged:
+	intel_gt_set_wedged(gt);
+	goto out_fw;
 }
 
 static void wait_for_suspend(struct intel_gt *gt)
@@ -257,6 +254,7 @@ static void wait_for_suspend(struct intel_gt *gt)
 		 * the gpu quiet.
 		 */
 		intel_gt_set_wedged(gt);
+		intel_gt_retire_requests(gt);
 	}
 
 	intel_gt_pm_wait_for_idle(gt);
@@ -286,6 +284,11 @@ void intel_gt_suspend_late(struct intel_gt *gt)
 	/* We expect to be idle already; but also want to be independent */
 	wait_for_suspend(gt);
 
+	if (is_mock_gt(gt))
+		return;
+
+	GEM_BUG_ON(gt->awake);
+
 	/*
 	 * On disabling the device, we want to turn off HW access to memory
 	 * that we no longer own.
@@ -305,22 +308,21 @@ void intel_gt_suspend_late(struct intel_gt *gt)
 		intel_llc_disable(&gt->llc);
 	}
 
-	intel_gt_sanitize(gt, false);
+	gt_sanitize(gt, false);
 
-	GEM_TRACE("\n");
+	GT_TRACE(gt, "\n");
 }
 
 void intel_gt_runtime_suspend(struct intel_gt *gt)
 {
 	intel_uc_runtime_suspend(&gt->uc);
 
-	GEM_TRACE("\n");
+	GT_TRACE(gt, "\n");
 }
 
 int intel_gt_runtime_resume(struct intel_gt *gt)
 {
-	GEM_TRACE("\n");
-
+	GT_TRACE(gt, "\n");
 	intel_gt_init_swizzling(gt);
 
 	return intel_uc_runtime_resume(&gt->uc);

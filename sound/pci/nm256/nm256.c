@@ -1353,7 +1353,7 @@ snd_nm256_peek_for_sig(struct nm256 *chip)
 	unsigned long pointer_found = chip->buffer_end - 0x1400;
 	u32 sig;
 
-	temp = ioremap_nocache(chip->buffer_addr + chip->buffer_end - 0x400, 16);
+	temp = ioremap(chip->buffer_addr + chip->buffer_end - 0x400, 16);
 	if (temp == NULL) {
 		dev_err(chip->card->dev,
 			"Unable to scan for card signature in video RAM\n");
@@ -1518,7 +1518,7 @@ snd_nm256_create(struct snd_card *card, struct pci_dev *pci,
 		err = -EBUSY;
 		goto __error;
 	}
-	chip->cport = ioremap_nocache(chip->cport_addr, NM_PORT2_SIZE);
+	chip->cport = ioremap(chip->cport_addr, NM_PORT2_SIZE);
 	if (chip->cport == NULL) {
 		dev_err(card->dev, "unable to map control port %lx\n",
 			chip->cport_addr);
@@ -1589,7 +1589,7 @@ snd_nm256_create(struct snd_card *card, struct pci_dev *pci,
 		err = -EBUSY;
 		goto __error;
 	}
-	chip->buffer = ioremap_nocache(chip->buffer_addr, chip->buffer_size);
+	chip->buffer = ioremap(chip->buffer_addr, chip->buffer_size);
 	if (chip->buffer == NULL) {
 		err = -ENOMEM;
 		dev_err(card->dev, "unable to map ring buffer at %lx\n",

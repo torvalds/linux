@@ -4148,10 +4148,6 @@ static int do_test_file(unsigned int test_num)
 	if (CHECK(IS_ERR(obj), "obj: %ld", PTR_ERR(obj)))
 		return PTR_ERR(obj);
 
-	err = bpf_object__btf_fd(obj);
-	if (CHECK(err == -1, "bpf_object__btf_fd: -1"))
-		goto done;
-
 	prog = bpf_program__next(NULL, obj);
 	if (CHECK(!prog, "Cannot find bpf_prog")) {
 		err = -1;

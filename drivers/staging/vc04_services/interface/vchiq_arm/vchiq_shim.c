@@ -3,7 +3,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 
-#include "interface/vchi/vchi.h"
+#include "../vchi/vchi.h"
 #include "vchiq.h"
 #include "vchiq_core.h"
 

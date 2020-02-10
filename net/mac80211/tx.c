@@ -3949,18 +3949,15 @@ void __ieee80211_subif_start_xmit(struct sk_buff *skb,
 		}
 	}
 
-	next = skb;
-	while (next) {
-		skb = next;
-		next = skb->next;
-
-		skb->prev = NULL;
-		skb->next = NULL;
+	skb_list_walk_safe(skb, skb, next) {
+		skb_mark_not_on_list(skb);
 
 		skb = ieee80211_build_hdr(sdata, skb, info_flags,
 					  sta, ctrl_flags);
-		if (IS_ERR(skb))
+		if (IS_ERR(skb)) {
+			kfree_skb_list(next);
 			goto out;
+		}
 
 		ieee80211_tx_stats(dev, skb->len);
 

@@ -78,7 +78,7 @@ static int setup_vnic_ctxt(struct hfi1_devdata *dd, struct hfi1_ctxtdata *uctxt)
 	if (ret)
 		goto done;
 
-	if (uctxt->rcvhdrtail_kvaddr)
+	if (hfi1_rcvhdrtail_kvaddr(uctxt))
 		clear_rcvhdrtail(uctxt);
 
 	rcvctrl_ops = HFI1_RCVCTRL_CTXT_ENB;

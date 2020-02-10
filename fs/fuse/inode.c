@@ -448,7 +448,7 @@ enum {
 	OPT_ERR
 };
 
-static const struct fs_parameter_spec fuse_param_specs[] = {
+static const struct fs_parameter_spec fuse_fs_parameters[] = {
 	fsparam_string	("source",		OPT_SOURCE),
 	fsparam_u32	("fd",			OPT_FD),
 	fsparam_u32oct	("rootmode",		OPT_ROOTMODE),
@@ -462,68 +462,63 @@ static const struct fs_parameter_spec fuse_param_specs[] = {
 	{}
 };
 
-static const struct fs_parameter_description fuse_fs_parameters = {
-	.name		= "fuse",
-	.specs		= fuse_param_specs,
-};
-
 static int fuse_parse_param(struct fs_context *fc, struct fs_parameter *param)
 {
 	struct fs_parse_result result;
 	struct fuse_fs_context *ctx = fc->fs_private;
 	int opt;
 
-	opt = fs_parse(fc, &fuse_fs_parameters, param, &result);
+	opt = fs_parse(fc, fuse_fs_parameters, param, &result);
 	if (opt < 0)
 		return opt;
 
 	switch (opt) {
 	case OPT_SOURCE:
 		if (fc->source)
-			return invalf(fc, "fuse: Multiple sources specified");
+			return invalfc(fc, "Multiple sources specified");
 		fc->source = param->string;
 		param->string = NULL;
 		break;
 
 	case OPT_SUBTYPE:
 		if (ctx->subtype)
-			return invalf(fc, "fuse: Multiple subtypes specified");
+			return invalfc(fc, "Multiple subtypes specified");
 		ctx->subtype = param->string;
 		param->string = NULL;
 		return 0;
 
 	case OPT_FD:
 		ctx->fd = result.uint_32;
-		ctx->fd_present = 1;
+		ctx->fd_present = true;
 		break;
 
 	case OPT_ROOTMODE:
 		if (!fuse_valid_type(result.uint_32))
-			return invalf(fc, "fuse: Invalid rootmode");
+			return invalfc(fc, "Invalid rootmode");
 		ctx->rootmode = result.uint_32;
-		ctx->rootmode_present = 1;
+		ctx->rootmode_present = true;
 		break;
 
 	case OPT_USER_ID:
 		ctx->user_id = make_kuid(fc->user_ns, result.uint_32);
 		if (!uid_valid(ctx->user_id))
-			return invalf(fc, "fuse: Invalid user_id");
-		ctx->user_id_present = 1;
+			return invalfc(fc, "Invalid user_id");
+		ctx->user_id_present = true;
 		break;
 
 	case OPT_GROUP_ID:
 		ctx->group_id = make_kgid(fc->user_ns, result.uint_32);
 		if (!gid_valid(ctx->group_id))
-			return invalf(fc, "fuse: Invalid group_id");
-		ctx->group_id_present = 1;
+			return invalfc(fc, "Invalid group_id");
+		ctx->group_id_present = true;
 		break;
 
 	case OPT_DEFAULT_PERMISSIONS:
-		ctx->default_permissions = 1;
+		ctx->default_permissions = true;
 		break;
 
 	case OPT_ALLOW_OTHER:
-		ctx->allow_other = 1;
+		ctx->allow_other = true;
 		break;
 
 	case OPT_MAX_READ:
@@ -532,7 +527,7 @@ static int fuse_parse_param(struct fs_context *fc, struct fs_parameter *param)
 
 	case OPT_BLKSIZE:
 		if (!ctx->is_bdev)
-			return invalf(fc, "fuse: blksize only supported for fuseblk");
+			return invalfc(fc, "blksize only supported for fuseblk");
 		ctx->blksize = result.uint_32;
 		break;
 
@@ -997,7 +992,7 @@ void fuse_send_init(struct fuse_conn *fc)
 	/* Variable length argument used for backward compatibility
 	   with interface version < 7.5.  Rest of init_out is zeroed
 	   by do_get_request(), so a short reply is not a problem */
-	ia->args.out_argvar = 1;
+	ia->args.out_argvar = true;
 	ia->args.out_args[0].size = sizeof(ia->out);
 	ia->args.out_args[0].value = &ia->out;
 	ia->args.force = true;
@@ -1347,7 +1342,7 @@ static struct file_system_type fuse_fs_type = {
 	.name		= "fuse",
 	.fs_flags	= FS_HAS_SUBTYPE | FS_USERNS_MOUNT,
 	.init_fs_context = fuse_init_fs_context,
-	.parameters	= &fuse_fs_parameters,
+	.parameters	= fuse_fs_parameters,
 	.kill_sb	= fuse_kill_sb_anon,
 };
 MODULE_ALIAS_FS("fuse");
@@ -1363,7 +1358,7 @@ static struct file_system_type fuseblk_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "fuseblk",
 	.init_fs_context = fuse_init_fs_context,
-	.parameters	= &fuse_fs_parameters,
+	.parameters	= fuse_fs_parameters,
 	.kill_sb	= fuse_kill_sb_blk,
 	.fs_flags	= FS_REQUIRES_DEV | FS_HAS_SUBTYPE,
 };

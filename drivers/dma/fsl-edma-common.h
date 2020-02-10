@@ -147,6 +147,7 @@ struct fsl_edma_drvdata {
 	enum edma_version	version;
 	u32			dmamuxs;
 	bool			has_dmaclk;
+	bool			mux_swap;
 	int			(*setup_irq)(struct platform_device *pdev,
 					     struct fsl_edma_engine *fsl_edma);
 };

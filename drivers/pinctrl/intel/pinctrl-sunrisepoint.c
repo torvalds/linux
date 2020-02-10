@@ -49,6 +49,7 @@
 		.padown_offset = SPT_PAD_OWN,		\
 		.padcfglock_offset = SPT_PADCFGLOCK,	\
 		.hostown_offset = SPT_HOSTSW_OWN,	\
+		.is_offset = SPT_GPI_IS,		\
 		.ie_offset = SPT_GPI_IE,		\
 		.pin_base = (s),			\
 		.npins = ((e) - (s) + 1),		\
@@ -588,6 +589,7 @@ static const struct intel_pinctrl_soc_data spth_soc_data = {
 
 static const struct acpi_device_id spt_pinctrl_acpi_match[] = {
 	{ "INT344B", (kernel_ulong_t)&sptlp_soc_data },
+	{ "INT3451", (kernel_ulong_t)&spth_soc_data },
 	{ "INT345D", (kernel_ulong_t)&spth_soc_data },
 	{ }
 };

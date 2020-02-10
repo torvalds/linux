@@ -1549,7 +1549,7 @@ static int ns83820_stop(struct net_device *ndev)
 	return 0;
 }
 
-static void ns83820_tx_timeout(struct net_device *ndev)
+static void ns83820_tx_timeout(struct net_device *ndev, unsigned int txqueue)
 {
 	struct ns83820 *dev = PRIV(ndev);
         u32 tx_done_idx;
@@ -1603,7 +1603,7 @@ static void ns83820_tx_watch(struct timer_list *t)
 			ndev->name,
 			dev->tx_done_idx, dev->tx_free_idx,
 			atomic_read(&dev->nr_tx_skbs));
-		ns83820_tx_timeout(ndev);
+		ns83820_tx_timeout(ndev, UINT_MAX);
 	}
 
 	mod_timer(&dev->tx_watchdog, jiffies + 2*HZ);
@@ -1937,7 +1937,7 @@ static int ns83820_init_one(struct pci_dev *pci_dev,
 
 	pci_set_master(pci_dev);
 	addr = pci_resource_start(pci_dev, 1);
-	dev->base = ioremap_nocache(addr, PAGE_SIZE);
+	dev->base = ioremap(addr, PAGE_SIZE);
 	dev->tx_descs = pci_alloc_consistent(pci_dev,
 			4 * DESC_SIZE * NR_TX_DESC, &dev->tx_phy_descs);
 	dev->rx_info.descs = pci_alloc_consistent(pci_dev,

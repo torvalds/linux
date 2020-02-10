@@ -35,6 +35,20 @@ static const struct omap_clkctrl_reg_data omap5_dsp_clkctrl_regs[] __initconst =
 	{ 0 },
 };
 
+static const char * const omap5_aess_fclk_parents[] __initconst = {
+	"abe_clk",
+	NULL,
+};
+
+static const struct omap_clkctrl_div_data omap5_aess_fclk_data __initconst = {
+	.max_div = 2,
+};
+
+static const struct omap_clkctrl_bit_data omap5_aess_bit_data[] __initconst = {
+	{ 24, TI_CLK_DIVIDER, omap5_aess_fclk_parents, &omap5_aess_fclk_data },
+	{ 0 },
+};
+
 static const char * const omap5_dmic_gfclk_parents[] __initconst = {
 	"abe_cm:clk:0018:26",
 	"pad_clks_ck",
@@ -122,6 +136,7 @@ static const struct omap_clkctrl_bit_data omap5_timer8_bit_data[] __initconst = 
 
 static const struct omap_clkctrl_reg_data omap5_abe_clkctrl_regs[] __initconst = {
 	{ OMAP5_L4_ABE_CLKCTRL, NULL, 0, "abe_iclk" },
+	{ OMAP5_AESS_CLKCTRL, omap5_aess_bit_data, CLKF_SW_SUP, "abe_cm:clk:0008:24" },
 	{ OMAP5_MCPDM_CLKCTRL, NULL, CLKF_SW_SUP, "pad_clks_ck" },
 	{ OMAP5_DMIC_CLKCTRL, omap5_dmic_bit_data, CLKF_SW_SUP, "abe_cm:clk:0018:24" },
 	{ OMAP5_MCBSP1_CLKCTRL, omap5_mcbsp1_bit_data, CLKF_SW_SUP, "abe_cm:clk:0028:24" },
@@ -283,6 +298,18 @@ static const struct omap_clkctrl_reg_data omap5_l4per_clkctrl_regs[] __initconst
 	{ OMAP5_I2C5_CLKCTRL, NULL, CLKF_SW_SUP, "func_96m_fclk" },
 	{ OMAP5_UART5_CLKCTRL, NULL, CLKF_SW_SUP, "func_48m_fclk" },
 	{ OMAP5_UART6_CLKCTRL, NULL, CLKF_SW_SUP, "func_48m_fclk" },
+	{ 0 },
+};
+
+static const struct
+omap_clkctrl_reg_data omap5_l4_secure_clkctrl_regs[] __initconst = {
+	{ OMAP5_AES1_CLKCTRL, NULL, CLKF_HW_SUP, "" },
+	{ OMAP5_AES2_CLKCTRL, NULL, CLKF_HW_SUP, "" },
+	{ OMAP5_DES3DES_CLKCTRL, NULL, CLKF_HW_SUP, "" },
+	{ OMAP5_FPKA_CLKCTRL, NULL, CLKF_SW_SUP, "" },
+	{ OMAP5_RNG_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_SOC_NONSEC, "" },
+	{ OMAP5_SHA2MD5_CLKCTRL, NULL, CLKF_HW_SUP, "" },
+	{ OMAP5_DMA_CRYPTO_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_SOC_NONSEC, "" },
 	{ 0 },
 };
 
@@ -508,6 +535,7 @@ const struct omap_clkctrl_data omap5_clkctrl_data[] __initconst = {
 	{ 0x4a008d20, omap5_l4cfg_clkctrl_regs },
 	{ 0x4a008e20, omap5_l3instr_clkctrl_regs },
 	{ 0x4a009020, omap5_l4per_clkctrl_regs },
+	{ 0x4a0091a0, omap5_l4_secure_clkctrl_regs },
 	{ 0x4a009220, omap5_iva_clkctrl_regs },
 	{ 0x4a009420, omap5_dss_clkctrl_regs },
 	{ 0x4a009520, omap5_gpu_clkctrl_regs },

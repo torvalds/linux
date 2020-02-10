@@ -9,7 +9,7 @@
  * Copyright (C) 2012 Bojan Smojver <bojan@rexursive.com>
  */
 
-#define pr_fmt(fmt) "PM: " fmt
+#define pr_fmt(fmt) "PM: hibernation: " fmt
 
 #include <linux/export.h>
 #include <linux/suspend.h>
@@ -106,7 +106,7 @@ EXPORT_SYMBOL(system_entering_hibernation);
 #ifdef CONFIG_PM_DEBUG
 static void hibernation_debug_sleep(void)
 {
-	pr_info("hibernation debug: Waiting for 5 seconds.\n");
+	pr_info("debug: Waiting for 5 seconds.\n");
 	mdelay(5000);
 }
 
@@ -277,7 +277,7 @@ static int create_image(int platform_mode)
 
 	error = dpm_suspend_end(PMSG_FREEZE);
 	if (error) {
-		pr_err("Some devices failed to power down, aborting hibernation\n");
+		pr_err("Some devices failed to power down, aborting\n");
 		return error;
 	}
 
@@ -295,7 +295,7 @@ static int create_image(int platform_mode)
 
 	error = syscore_suspend();
 	if (error) {
-		pr_err("Some system devices failed to power down, aborting hibernation\n");
+		pr_err("Some system devices failed to power down, aborting\n");
 		goto Enable_irqs;
 	}
 
@@ -310,7 +310,7 @@ static int create_image(int platform_mode)
 	restore_processor_state();
 	trace_suspend_resume(TPS("machine_suspend"), PM_EVENT_HIBERNATE, false);
 	if (error)
-		pr_err("Error %d creating hibernation image\n", error);
+		pr_err("Error %d creating image\n", error);
 
 	if (!in_suspend) {
 		events_check_enabled = false;
@@ -680,7 +680,7 @@ static int load_image_and_restore(void)
 	if (!error)
 		hibernation_restore(flags & SF_PLATFORM_MODE);
 
-	pr_err("Failed to load hibernation image, recovering.\n");
+	pr_err("Failed to load image, recovering.\n");
 	swsusp_free();
 	free_basic_memory_bitmaps();
  Unlock:
@@ -743,7 +743,7 @@ int hibernate(void)
 		else
 		        flags |= SF_CRC32_MODE;
 
-		pm_pr_dbg("Writing image.\n");
+		pm_pr_dbg("Writing hibernation image.\n");
 		error = swsusp_write(flags);
 		swsusp_free();
 		if (!error) {
@@ -755,7 +755,7 @@ int hibernate(void)
 		in_suspend = 0;
 		pm_restore_gfp_mask();
 	} else {
-		pm_pr_dbg("Image restored successfully.\n");
+		pm_pr_dbg("Hibernation image restored successfully.\n");
 	}
 
  Free_bitmaps:
@@ -894,7 +894,7 @@ static int software_resume(void)
 		goto Close_Finish;
 	}
 
-	pm_pr_dbg("Preparing processes for restore.\n");
+	pm_pr_dbg("Preparing processes for hibernation restore.\n");
 	error = freeze_processes();
 	if (error)
 		goto Close_Finish;
@@ -903,7 +903,7 @@ static int software_resume(void)
  Finish:
 	__pm_notifier_call_chain(PM_POST_RESTORE, nr_calls, NULL);
 	pm_restore_console();
-	pr_info("resume from hibernation failed (%d)\n", error);
+	pr_info("resume failed (%d)\n", error);
 	atomic_inc(&snapshot_device_available);
 	/* For success case, the suspend path will release the lock */
  Unlock:
@@ -1068,7 +1068,8 @@ static ssize_t resume_store(struct kobject *kobj, struct kobj_attribute *attr,
 	lock_system_sleep();
 	swsusp_resume_device = res;
 	unlock_system_sleep();
-	pm_pr_dbg("Configured resume from disk to %u\n", swsusp_resume_device);
+	pm_pr_dbg("Configured hibernation resume from disk to %u\n",
+		  swsusp_resume_device);
 	noresume = 0;
 	software_resume();
 	return n;

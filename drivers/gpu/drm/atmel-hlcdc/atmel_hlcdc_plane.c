@@ -604,7 +604,7 @@ static int atmel_hlcdc_plane_atomic_check(struct drm_plane *p,
 	int ret;
 	int i;
 
-	if (!state->base.crtc || !fb)
+	if (!state->base.crtc || WARN_ON(!fb))
 		return 0;
 
 	crtc_state = drm_atomic_get_existing_crtc_state(s->state, s->crtc);

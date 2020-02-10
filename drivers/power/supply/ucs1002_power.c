@@ -100,7 +100,9 @@ struct ucs1002_info {
 	struct i2c_client *client;
 	struct regmap *regmap;
 	struct regulator_desc *regulator_descriptor;
+	struct regulator_dev *rdev;
 	bool present;
+	bool output_disable;
 };
 
 static enum power_supply_property ucs1002_props[] = {
@@ -233,6 +235,11 @@ static int ucs1002_get_max_current(struct ucs1002_info *info,
 	unsigned int reg;
 	int ret;
 
+	if (info->output_disable) {
+		val->intval = 0;
+		return 0;
+	}
+
 	ret = regmap_read(info->regmap, UCS1002_REG_ILIMIT, &reg);
 	if (ret)
 		return ret;
@@ -246,6 +253,12 @@ static int ucs1002_set_max_current(struct ucs1002_info *info, u32 val)
 {
 	unsigned int reg;
 	int ret, idx;
+
+	if (val == 0) {
+		info->output_disable = true;
+		regulator_disable_regmap(info->rdev);
+		return 0;
+	}
 
 	for (idx = 0; idx < ARRAY_SIZE(ucs1002_current_limit_uA); idx++) {
 		if (val == ucs1002_current_limit_uA[idx])
@@ -269,6 +282,12 @@ static int ucs1002_set_max_current(struct ucs1002_info *info, u32 val)
 
 	if (reg != idx)
 		return -EINVAL;
+
+	info->output_disable = false;
+
+	if (info->rdev && info->rdev->use_count &&
+	    !regulator_is_enabled_regmap(info->rdev))
+		regulator_enable_regmap(info->rdev);
 
 	return 0;
 }
@@ -470,9 +489,24 @@ static irqreturn_t ucs1002_alert_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static int ucs1002_regulator_enable(struct regulator_dev *rdev)
+{
+	struct ucs1002_info *info = rdev_get_drvdata(rdev);
+
+	/*
+	 * If the output is disabled due to 0 maximum current, just pretend the
+	 * enable did work. The regulator will be enabled as soon as we get a
+	 * a non-zero maximum current budget.
+	 */
+	if (info->output_disable)
+		return 0;
+
+	return regulator_enable_regmap(rdev);
+}
+
 static const struct regulator_ops ucs1002_regulator_ops = {
 	.is_enabled	= regulator_is_enabled_regmap,
-	.enable		= regulator_enable_regmap,
+	.enable		= ucs1002_regulator_enable,
 	.disable	= regulator_disable_regmap,
 };
 
@@ -499,7 +533,6 @@ static int ucs1002_probe(struct i2c_client *client,
 	};
 	struct regulator_config regulator_config = {};
 	int irq_a_det, irq_alert, ret;
-	struct regulator_dev *rdev;
 	struct ucs1002_info *info;
 	unsigned int regval;
 
@@ -589,10 +622,11 @@ static int ucs1002_probe(struct i2c_client *client,
 	regulator_config.dev = dev;
 	regulator_config.of_node = dev->of_node;
 	regulator_config.regmap = info->regmap;
+	regulator_config.driver_data = info;
 
-	rdev = devm_regulator_register(dev, info->regulator_descriptor,
+	info->rdev = devm_regulator_register(dev, info->regulator_descriptor,
 				       &regulator_config);
-	ret = PTR_ERR_OR_ZERO(rdev);
+	ret = PTR_ERR_OR_ZERO(info->rdev);
 	if (ret) {
 		dev_err(dev, "Failed to register VBUS regulator: %d\n", ret);
 		return ret;

@@ -7,6 +7,7 @@
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/falloc.h>
+#include <linux/mount.h>
 #include <linux/nfs_fs.h>
 #include "delegation.h"
 #include "internal.h"

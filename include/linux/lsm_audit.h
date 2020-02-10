@@ -74,6 +74,7 @@ struct common_audit_data {
 #define LSM_AUDIT_DATA_FILE	12
 #define LSM_AUDIT_DATA_IBPKEY	13
 #define LSM_AUDIT_DATA_IBENDPORT 14
+#define LSM_AUDIT_DATA_LOCKDOWN 15
 	union 	{
 		struct path path;
 		struct dentry *dentry;
@@ -93,6 +94,7 @@ struct common_audit_data {
 		struct file *file;
 		struct lsm_ibpkey_audit *ibpkey;
 		struct lsm_ibendport_audit *ibendport;
+		int reason;
 	} u;
 	/* this union contains LSM specific data */
 	union {

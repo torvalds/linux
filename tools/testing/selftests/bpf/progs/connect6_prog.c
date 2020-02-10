@@ -9,8 +9,8 @@
 #include <linux/in6.h>
 #include <sys/socket.h>
 
-#include "bpf_helpers.h"
-#include "bpf_endian.h"
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_endian.h>
 
 #define SRC_REWRITE_IP6_0	0
 #define SRC_REWRITE_IP6_1	0

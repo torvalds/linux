@@ -310,3 +310,15 @@ config IMA_APPRAISE_SIGNED_INIT
 	default n
 	help
 	   This option requires user-space init to be signed.
+
+config IMA_MEASURE_ASYMMETRIC_KEYS
+	bool
+	depends on IMA
+	depends on ASYMMETRIC_PUBLIC_KEY_SUBTYPE=y
+	default y
+
+config IMA_QUEUE_EARLY_BOOT_KEYS
+	bool
+	depends on IMA_MEASURE_ASYMMETRIC_KEYS
+	depends on SYSTEM_TRUSTED_KEYRING
+	default y

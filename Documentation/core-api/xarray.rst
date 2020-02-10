@@ -25,10 +25,6 @@ good performance with large indices.  If your index can be larger than
 ``ULONG_MAX`` then the XArray is not the data type for you.  The most
 important user of the XArray is the page cache.
 
-Each non-``NULL`` entry in the array has three bits associated with
-it called marks.  Each mark may be set or cleared independently of
-the others.  You can iterate over entries which are marked.
-
 Normal pointers may be stored in the XArray directly.  They must be 4-byte
 aligned, which is true for any pointer returned from kmalloc() and
 alloc_page().  It isn't true for arbitrary user-space pointers,
@@ -41,12 +37,11 @@ When you retrieve an entry from the XArray, you can check whether it is
 a value entry by calling xa_is_value(), and convert it back to
 an integer by calling xa_to_value().
 
-Some users want to store tagged pointers instead of using the marks
-described above.  They can call xa_tag_pointer() to create an
-entry with a tag, xa_untag_pointer() to turn a tagged entry
-back into an untagged pointer and xa_pointer_tag() to retrieve
-the tag of an entry.  Tagged pointers use the same bits that are used
-to distinguish value entries from normal pointers, so each user must
+Some users want to tag the pointers they store in the XArray.  You can
+call xa_tag_pointer() to create an entry with a tag, xa_untag_pointer()
+to turn a tagged entry back into an untagged pointer and xa_pointer_tag()
+to retrieve the tag of an entry.  Tagged pointers use the same bits that
+are used to distinguish value entries from normal pointers, so you must
 decide whether they want to store value entries or tagged pointers in
 any particular XArray.
 
@@ -56,10 +51,9 @@ conflict with value entries or internal entries.
 An unusual feature of the XArray is the ability to create entries which
 occupy a range of indices.  Once stored to, looking up any index in
 the range will return the same entry as looking up any other index in
-the range.  Setting a mark on one index will set it on all of them.
-Storing to any index will store to all of them.  Multi-index entries can
-be explicitly split into smaller entries, or storing ``NULL`` into any
-entry will cause the XArray to forget about the range.
+the range.  Storing to any index will store to all of them.  Multi-index
+entries can be explicitly split into smaller entries, or storing ``NULL``
+into any entry will cause the XArray to forget about the range.
 
 Normal API
 ==========
@@ -87,17 +81,11 @@ If you want to only store a new entry to an index if the current entry
 at that index is ``NULL``, you can use xa_insert() which
 returns ``-EBUSY`` if the entry is not empty.
 
-You can enquire whether a mark is set on an entry by using
-xa_get_mark().  If the entry is not ``NULL``, you can set a mark
-on it by using xa_set_mark() and remove the mark from an entry by
-calling xa_clear_mark().  You can ask whether any entry in the
-XArray has a particular mark set by calling xa_marked().
-
 You can copy entries out of the XArray into a plain array by calling
-xa_extract().  Or you can iterate over the present entries in
-the XArray by calling xa_for_each().  You may prefer to use
-xa_find() or xa_find_after() to move to the next present
-entry in the XArray.
+xa_extract().  Or you can iterate over the present entries in the XArray
+by calling xa_for_each(), xa_for_each_start() or xa_for_each_range().
+You may prefer to use xa_find() or xa_find_after() to move to the next
+present entry in the XArray.
 
 Calling xa_store_range() stores the same entry in a range
 of indices.  If you do this, some of the other operations will behave
@@ -123,6 +111,31 @@ Finally, you can remove all entries from an XArray by calling
 xa_destroy().  If the XArray entries are pointers, you may wish
 to free the entries first.  You can do this by iterating over all present
 entries in the XArray using the xa_for_each() iterator.
+
+Search Marks
+------------
+
+Each entry in the array has three bits associated with it called marks.
+Each mark may be set or cleared independently of the others.  You can
+iterate over marked entries by using the xa_for_each_marked() iterator.
+
+You can enquire whether a mark is set on an entry by using
+xa_get_mark().  If the entry is not ``NULL``, you can set a mark on it
+by using xa_set_mark() and remove the mark from an entry by calling
+xa_clear_mark().  You can ask whether any entry in the XArray has a
+particular mark set by calling xa_marked().  Erasing an entry from the
+XArray causes all marks associated with that entry to be cleared.
+
+Setting or clearing a mark on any index of a multi-index entry will
+affect all indices covered by that entry.  Querying the mark on any
+index will return the same result.
+
+There is no way to iterate over entries which are not marked; the data
+structure does not allow this to be implemented efficiently.  There are
+not currently iterators to search for logical combinations of bits (eg
+iterate over all entries which have both ``XA_MARK_1`` and ``XA_MARK_2``
+set, or iterate over all entries which have ``XA_MARK_0`` or ``XA_MARK_2``
+set).  It would be possible to add these if a user arises.
 
 Allocating XArrays
 ------------------
@@ -180,6 +193,8 @@ No lock needed:
 Takes RCU read lock:
  * xa_load()
  * xa_for_each()
+ * xa_for_each_start()
+ * xa_for_each_range()
  * xa_find()
  * xa_find_after()
  * xa_extract()
@@ -419,10 +434,9 @@ you last processed.  If you have interrupts disabled while iterating,
 then it is good manners to pause the iteration and reenable interrupts
 every ``XA_CHECK_SCHED`` entries.
 
-The xas_get_mark(), xas_set_mark() and
-xas_clear_mark() functions require the xa_state cursor to have
-been moved to the appropriate location in the xarray; they will do
-nothing if you have called xas_pause() or xas_set()
+The xas_get_mark(), xas_set_mark() and xas_clear_mark() functions require
+the xa_state cursor to have been moved to the appropriate location in the
+XArray; they will do nothing if you have called xas_pause() or xas_set()
 immediately before.
 
 You can call xas_set_update() to have a callback function

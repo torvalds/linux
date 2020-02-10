@@ -6,6 +6,8 @@
  *
  * ----------------------------------------------------------------------- */
 
+#pragma GCC visibility push(hidden)
+
 #include <linux/efi.h>
 #include <linux/pci.h>
 
@@ -19,32 +21,18 @@
 #include "eboot.h"
 
 static efi_system_table_t *sys_table;
+extern const bool efi_is64;
 
-static struct efi_config *efi_early;
-
-__pure const struct efi_config *__efi_early(void)
+__pure efi_system_table_t *efi_system_table(void)
 {
-	return efi_early;
+	return sys_table;
 }
 
-#define BOOT_SERVICES(bits)						\
-static void setup_boot_services##bits(struct efi_config *c)		\
-{									\
-	efi_system_table_##bits##_t *table;				\
-									\
-	table = (typeof(table))sys_table;				\
-									\
-	c->runtime_services	= table->runtime;			\
-	c->boot_services	= table->boottime;			\
-	c->text_output		= table->con_out;			\
-}
-BOOT_SERVICES(32);
-BOOT_SERVICES(64);
-
-void efi_char16_printk(efi_system_table_t *table, efi_char16_t *str)
+__attribute_const__ bool efi_is_64bit(void)
 {
-	efi_call_proto(efi_simple_text_output_protocol, output_string,
-		       efi_early->text_output, str);
+	if (IS_ENABLED(CONFIG_EFI_MIXED))
+		return efi_is64;
+	return IS_ENABLED(CONFIG_X86_64);
 }
 
 static efi_status_t
@@ -63,17 +51,17 @@ preserve_pci_rom_image(efi_pci_io_protocol_t *pci, struct pci_setup_rom **__rom)
 	 * large romsize. The UEFI spec limits the size of option ROMs to 16
 	 * MiB so we reject any ROMs over 16 MiB in size to catch this.
 	 */
-	romimage = (void *)(unsigned long)efi_table_attr(efi_pci_io_protocol,
-							 romimage, pci);
-	romsize = efi_table_attr(efi_pci_io_protocol, romsize, pci);
+	romimage = efi_table_attr(pci, romimage);
+	romsize = efi_table_attr(pci, romsize);
 	if (!romimage || !romsize || romsize > SZ_16M)
 		return EFI_INVALID_PARAMETER;
 
 	size = romsize + sizeof(*rom);
 
-	status = efi_call_early(allocate_pool, EFI_LOADER_DATA, size, &rom);
+	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA, size,
+			     (void **)&rom);
 	if (status != EFI_SUCCESS) {
-		efi_printk(sys_table, "Failed to allocate memory for 'rom'\n");
+		efi_printk("Failed to allocate memory for 'rom'\n");
 		return status;
 	}
 
@@ -85,27 +73,24 @@ preserve_pci_rom_image(efi_pci_io_protocol_t *pci, struct pci_setup_rom **__rom)
 	rom->pcilen	= pci->romsize;
 	*__rom = rom;
 
-	status = efi_call_proto(efi_pci_io_protocol, pci.read, pci,
-				EfiPciIoWidthUint16, PCI_VENDOR_ID, 1,
-				&rom->vendor);
+	status = efi_call_proto(pci, pci.read, EfiPciIoWidthUint16,
+				PCI_VENDOR_ID, 1, &rom->vendor);
 
 	if (status != EFI_SUCCESS) {
-		efi_printk(sys_table, "Failed to read rom->vendor\n");
+		efi_printk("Failed to read rom->vendor\n");
 		goto free_struct;
 	}
 
-	status = efi_call_proto(efi_pci_io_protocol, pci.read, pci,
-				EfiPciIoWidthUint16, PCI_DEVICE_ID, 1,
-				&rom->devid);
+	status = efi_call_proto(pci, pci.read, EfiPciIoWidthUint16,
+				PCI_DEVICE_ID, 1, &rom->devid);
 
 	if (status != EFI_SUCCESS) {
-		efi_printk(sys_table, "Failed to read rom->devid\n");
+		efi_printk("Failed to read rom->devid\n");
 		goto free_struct;
 	}
 
-	status = efi_call_proto(efi_pci_io_protocol, get_location, pci,
-				&rom->segment, &rom->bus, &rom->device,
-				&rom->function);
+	status = efi_call_proto(pci, get_location, &rom->segment, &rom->bus,
+				&rom->device, &rom->function);
 
 	if (status != EFI_SUCCESS)
 		goto free_struct;
@@ -114,7 +99,7 @@ preserve_pci_rom_image(efi_pci_io_protocol_t *pci, struct pci_setup_rom **__rom)
 	return status;
 
 free_struct:
-	efi_call_early(free_pool, rom);
+	efi_bs_call(free_pool, rom);
 	return status;
 }
 
@@ -133,27 +118,24 @@ static void setup_efi_pci(struct boot_params *params)
 	void **pci_handle = NULL;
 	efi_guid_t pci_proto = EFI_PCI_IO_PROTOCOL_GUID;
 	unsigned long size = 0;
-	unsigned long nr_pci;
 	struct setup_data *data;
+	efi_handle_t h;
 	int i;
 
-	status = efi_call_early(locate_handle,
-				EFI_LOCATE_BY_PROTOCOL,
-				&pci_proto, NULL, &size, pci_handle);
+	status = efi_bs_call(locate_handle, EFI_LOCATE_BY_PROTOCOL,
+			     &pci_proto, NULL, &size, pci_handle);
 
 	if (status == EFI_BUFFER_TOO_SMALL) {
-		status = efi_call_early(allocate_pool,
-					EFI_LOADER_DATA,
-					size, (void **)&pci_handle);
+		status = efi_bs_call(allocate_pool, EFI_LOADER_DATA, size,
+				     (void **)&pci_handle);
 
 		if (status != EFI_SUCCESS) {
-			efi_printk(sys_table, "Failed to allocate memory for 'pci_handle'\n");
+			efi_printk("Failed to allocate memory for 'pci_handle'\n");
 			return;
 		}
 
-		status = efi_call_early(locate_handle,
-					EFI_LOCATE_BY_PROTOCOL, &pci_proto,
-					NULL, &size, pci_handle);
+		status = efi_bs_call(locate_handle, EFI_LOCATE_BY_PROTOCOL,
+				     &pci_proto, NULL, &size, pci_handle);
 	}
 
 	if (status != EFI_SUCCESS)
@@ -164,15 +146,12 @@ static void setup_efi_pci(struct boot_params *params)
 	while (data && data->next)
 		data = (struct setup_data *)(unsigned long)data->next;
 
-	nr_pci = size / (efi_is_64bit() ? sizeof(u64) : sizeof(u32));
-	for (i = 0; i < nr_pci; i++) {
+	for_each_efi_handle(h, pci_handle, size, i) {
 		efi_pci_io_protocol_t *pci = NULL;
 		struct pci_setup_rom *rom;
 
-		status = efi_call_early(handle_protocol,
-					efi_is_64bit() ? ((u64 *)pci_handle)[i]
-						       : ((u32 *)pci_handle)[i],
-					&pci_proto, (void **)&pci);
+		status = efi_bs_call(handle_protocol, h, &pci_proto,
+				     (void **)&pci);
 		if (status != EFI_SUCCESS || !pci)
 			continue;
 
@@ -189,7 +168,7 @@ static void setup_efi_pci(struct boot_params *params)
 	}
 
 free_handle:
-	efi_call_early(free_pool, pci_handle);
+	efi_bs_call(free_pool, pci_handle);
 }
 
 static void retrieve_apple_device_properties(struct boot_params *boot_params)
@@ -198,34 +177,34 @@ static void retrieve_apple_device_properties(struct boot_params *boot_params)
 	struct setup_data *data, *new;
 	efi_status_t status;
 	u32 size = 0;
-	void *p;
+	apple_properties_protocol_t *p;
 
-	status = efi_call_early(locate_protocol, &guid, NULL, &p);
+	status = efi_bs_call(locate_protocol, &guid, NULL, (void **)&p);
 	if (status != EFI_SUCCESS)
 		return;
 
-	if (efi_table_attr(apple_properties_protocol, version, p) != 0x10000) {
-		efi_printk(sys_table, "Unsupported properties proto version\n");
+	if (efi_table_attr(p, version) != 0x10000) {
+		efi_printk("Unsupported properties proto version\n");
 		return;
 	}
 
-	efi_call_proto(apple_properties_protocol, get_all, p, NULL, &size);
+	efi_call_proto(p, get_all, NULL, &size);
 	if (!size)
 		return;
 
 	do {
-		status = efi_call_early(allocate_pool, EFI_LOADER_DATA,
-					size + sizeof(struct setup_data), &new);
+		status = efi_bs_call(allocate_pool, EFI_LOADER_DATA,
+				     size + sizeof(struct setup_data),
+				     (void **)&new);
 		if (status != EFI_SUCCESS) {
-			efi_printk(sys_table, "Failed to allocate memory for 'properties'\n");
+			efi_printk("Failed to allocate memory for 'properties'\n");
 			return;
 		}
 
-		status = efi_call_proto(apple_properties_protocol, get_all, p,
-					new->data, &size);
+		status = efi_call_proto(p, get_all, new->data, &size);
 
 		if (status == EFI_BUFFER_TOO_SMALL)
-			efi_call_early(free_pool, new);
+			efi_bs_call(free_pool, new);
 	} while (status == EFI_BUFFER_TOO_SMALL);
 
 	new->type = SETUP_APPLE_PROPERTIES;
@@ -247,7 +226,7 @@ static const efi_char16_t apple[] = L"Apple";
 static void setup_quirks(struct boot_params *boot_params)
 {
 	efi_char16_t *fw_vendor = (efi_char16_t *)(unsigned long)
-		efi_table_attr(efi_system_table, fw_vendor, sys_table);
+		efi_table_attr(efi_system_table(), fw_vendor);
 
 	if (!memcmp(fw_vendor, apple, sizeof(apple))) {
 		if (IS_ENABLED(CONFIG_APPLE_PROPERTIES))
@@ -265,17 +244,16 @@ setup_uga(struct screen_info *si, efi_guid_t *uga_proto, unsigned long size)
 	u32 width, height;
 	void **uga_handle = NULL;
 	efi_uga_draw_protocol_t *uga = NULL, *first_uga;
-	unsigned long nr_ugas;
+	efi_handle_t handle;
 	int i;
 
-	status = efi_call_early(allocate_pool, EFI_LOADER_DATA,
-				size, (void **)&uga_handle);
+	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA, size,
+			     (void **)&uga_handle);
 	if (status != EFI_SUCCESS)
 		return status;
 
-	status = efi_call_early(locate_handle,
-				EFI_LOCATE_BY_PROTOCOL,
-				uga_proto, NULL, &size, uga_handle);
+	status = efi_bs_call(locate_handle, EFI_LOCATE_BY_PROTOCOL,
+			     uga_proto, NULL, &size, uga_handle);
 	if (status != EFI_SUCCESS)
 		goto free_handle;
 
@@ -283,24 +261,20 @@ setup_uga(struct screen_info *si, efi_guid_t *uga_proto, unsigned long size)
 	width = 0;
 
 	first_uga = NULL;
-	nr_ugas = size / (efi_is_64bit() ? sizeof(u64) : sizeof(u32));
-	for (i = 0; i < nr_ugas; i++) {
+	for_each_efi_handle(handle, uga_handle, size, i) {
 		efi_guid_t pciio_proto = EFI_PCI_IO_PROTOCOL_GUID;
 		u32 w, h, depth, refresh;
 		void *pciio;
-		unsigned long handle = efi_is_64bit() ? ((u64 *)uga_handle)[i]
-						      : ((u32 *)uga_handle)[i];
 
-		status = efi_call_early(handle_protocol, handle,
-					uga_proto, (void **)&uga);
+		status = efi_bs_call(handle_protocol, handle, uga_proto,
+				     (void **)&uga);
 		if (status != EFI_SUCCESS)
 			continue;
 
 		pciio = NULL;
-		efi_call_early(handle_protocol, handle, &pciio_proto, &pciio);
+		efi_bs_call(handle_protocol, handle, &pciio_proto, &pciio);
 
-		status = efi_call_proto(efi_uga_draw_protocol, get_mode, uga,
-					&w, &h, &depth, &refresh);
+		status = efi_call_proto(uga, get_mode, &w, &h, &depth, &refresh);
 		if (status == EFI_SUCCESS && (!first_uga || pciio)) {
 			width = w;
 			height = h;
@@ -336,7 +310,7 @@ setup_uga(struct screen_info *si, efi_guid_t *uga_proto, unsigned long size)
 	si->rsvd_pos		= 24;
 
 free_handle:
-	efi_call_early(free_pool, uga_handle);
+	efi_bs_call(free_pool, uga_handle);
 
 	return status;
 }
@@ -355,37 +329,38 @@ void setup_graphics(struct boot_params *boot_params)
 	memset(si, 0, sizeof(*si));
 
 	size = 0;
-	status = efi_call_early(locate_handle,
-				EFI_LOCATE_BY_PROTOCOL,
-				&graphics_proto, NULL, &size, gop_handle);
+	status = efi_bs_call(locate_handle, EFI_LOCATE_BY_PROTOCOL,
+			     &graphics_proto, NULL, &size, gop_handle);
 	if (status == EFI_BUFFER_TOO_SMALL)
-		status = efi_setup_gop(NULL, si, &graphics_proto, size);
+		status = efi_setup_gop(si, &graphics_proto, size);
 
 	if (status != EFI_SUCCESS) {
 		size = 0;
-		status = efi_call_early(locate_handle,
-					EFI_LOCATE_BY_PROTOCOL,
-					&uga_proto, NULL, &size, uga_handle);
+		status = efi_bs_call(locate_handle, EFI_LOCATE_BY_PROTOCOL,
+				     &uga_proto, NULL, &size, uga_handle);
 		if (status == EFI_BUFFER_TOO_SMALL)
 			setup_uga(si, &uga_proto, size);
 	}
 }
 
+void startup_32(struct boot_params *boot_params);
+
+void __noreturn efi_stub_entry(efi_handle_t handle,
+			       efi_system_table_t *sys_table_arg,
+			       struct boot_params *boot_params);
+
 /*
  * Because the x86 boot code expects to be passed a boot_params we
  * need to create one ourselves (usually the bootloader would create
  * one for us).
- *
- * The caller is responsible for filling out ->code32_start in the
- * returned boot_params.
  */
-struct boot_params *make_boot_params(struct efi_config *c)
+efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
+				   efi_system_table_t *sys_table_arg)
 {
 	struct boot_params *boot_params;
 	struct apm_bios_info *bi;
 	struct setup_header *hdr;
 	efi_loaded_image_t *image;
-	void *handle;
 	efi_guid_t proto = LOADED_IMAGE_PROTOCOL_GUID;
 	int options_size = 0;
 	efi_status_t status;
@@ -393,31 +368,22 @@ struct boot_params *make_boot_params(struct efi_config *c)
 	unsigned long ramdisk_addr;
 	unsigned long ramdisk_size;
 
-	efi_early = c;
-	sys_table = (efi_system_table_t *)(unsigned long)efi_early->table;
-	handle = (void *)(unsigned long)efi_early->image_handle;
+	sys_table = sys_table_arg;
 
 	/* Check if we were booted by the EFI firmware */
 	if (sys_table->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE)
-		return NULL;
+		return EFI_INVALID_PARAMETER;
 
-	if (efi_is_64bit())
-		setup_boot_services64(efi_early);
-	else
-		setup_boot_services32(efi_early);
-
-	status = efi_call_early(handle_protocol, handle,
-				&proto, (void *)&image);
+	status = efi_bs_call(handle_protocol, handle, &proto, (void *)&image);
 	if (status != EFI_SUCCESS) {
-		efi_printk(sys_table, "Failed to get handle for LOADED_IMAGE_PROTOCOL\n");
-		return NULL;
+		efi_printk("Failed to get handle for LOADED_IMAGE_PROTOCOL\n");
+		return status;
 	}
 
-	status = efi_low_alloc(sys_table, 0x4000, 1,
-			       (unsigned long *)&boot_params);
+	status = efi_low_alloc(0x4000, 1, (unsigned long *)&boot_params);
 	if (status != EFI_SUCCESS) {
-		efi_printk(sys_table, "Failed to allocate lowmem for boot params\n");
-		return NULL;
+		efi_printk("Failed to allocate lowmem for boot params\n");
+		return status;
 	}
 
 	memset(boot_params, 0x0, 0x4000);
@@ -439,7 +405,7 @@ struct boot_params *make_boot_params(struct efi_config *c)
 	hdr->type_of_loader = 0x21;
 
 	/* Convert unicode cmdline to ascii */
-	cmdline_ptr = efi_convert_cmdline(sys_table, image, &options_size);
+	cmdline_ptr = efi_convert_cmdline(image, &options_size);
 	if (!cmdline_ptr)
 		goto fail;
 
@@ -457,15 +423,15 @@ struct boot_params *make_boot_params(struct efi_config *c)
 	if (status != EFI_SUCCESS)
 		goto fail2;
 
-	status = handle_cmdline_files(sys_table, image,
+	status = handle_cmdline_files(image,
 				      (char *)(unsigned long)hdr->cmd_line_ptr,
 				      "initrd=", hdr->initrd_addr_max,
 				      &ramdisk_addr, &ramdisk_size);
 
 	if (status != EFI_SUCCESS &&
 	    hdr->xloadflags & XLF_CAN_BE_LOADED_ABOVE_4G) {
-		efi_printk(sys_table, "Trying to load files to higher address\n");
-		status = handle_cmdline_files(sys_table, image,
+		efi_printk("Trying to load files to higher address\n");
+		status = handle_cmdline_files(image,
 				      (char *)(unsigned long)hdr->cmd_line_ptr,
 				      "initrd=", -1UL,
 				      &ramdisk_addr, &ramdisk_size);
@@ -478,14 +444,17 @@ struct boot_params *make_boot_params(struct efi_config *c)
 	boot_params->ext_ramdisk_image = (u64)ramdisk_addr >> 32;
 	boot_params->ext_ramdisk_size  = (u64)ramdisk_size >> 32;
 
-	return boot_params;
+	hdr->code32_start = (u32)(unsigned long)startup_32;
+
+	efi_stub_entry(handle, sys_table, boot_params);
+	/* not reached */
 
 fail2:
-	efi_free(sys_table, options_size, hdr->cmd_line_ptr);
+	efi_free(options_size, hdr->cmd_line_ptr);
 fail:
-	efi_free(sys_table, 0x4000, (unsigned long)boot_params);
+	efi_free(0x4000, (unsigned long)boot_params);
 
-	return NULL;
+	return status;
 }
 
 static void add_e820ext(struct boot_params *params,
@@ -620,13 +589,13 @@ static efi_status_t alloc_e820ext(u32 nr_desc, struct setup_data **e820ext,
 		sizeof(struct e820_entry) * nr_desc;
 
 	if (*e820ext) {
-		efi_call_early(free_pool, *e820ext);
+		efi_bs_call(free_pool, *e820ext);
 		*e820ext = NULL;
 		*e820ext_size = 0;
 	}
 
-	status = efi_call_early(allocate_pool, EFI_LOADER_DATA,
-				size, (void **)e820ext);
+	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA, size,
+			     (void **)e820ext);
 	if (status == EFI_SUCCESS)
 		*e820ext_size = size;
 
@@ -650,7 +619,7 @@ static efi_status_t allocate_e820(struct boot_params *params,
 	boot_map.key_ptr	= NULL;
 	boot_map.buff_size	= &buff_size;
 
-	status = efi_get_memory_map(sys_table, &boot_map);
+	status = efi_get_memory_map(&boot_map);
 	if (status != EFI_SUCCESS)
 		return status;
 
@@ -672,8 +641,7 @@ struct exit_boot_struct {
 	struct efi_info		*efi;
 };
 
-static efi_status_t exit_boot_func(efi_system_table_t *sys_table_arg,
-				   struct efi_boot_memmap *map,
+static efi_status_t exit_boot_func(struct efi_boot_memmap *map,
 				   void *priv)
 {
 	const char *signature;
@@ -683,14 +651,14 @@ static efi_status_t exit_boot_func(efi_system_table_t *sys_table_arg,
 				   : EFI32_LOADER_SIGNATURE;
 	memcpy(&p->efi->efi_loader_signature, signature, sizeof(__u32));
 
-	p->efi->efi_systab		= (unsigned long)sys_table_arg;
+	p->efi->efi_systab		= (unsigned long)efi_system_table();
 	p->efi->efi_memdesc_size	= *map->desc_size;
 	p->efi->efi_memdesc_version	= *map->desc_ver;
 	p->efi->efi_memmap		= (unsigned long)*map->map;
 	p->efi->efi_memmap_size		= *map->map_size;
 
 #ifdef CONFIG_X86_64
-	p->efi->efi_systab_hi		= (unsigned long)sys_table_arg >> 32;
+	p->efi->efi_systab_hi		= (unsigned long)efi_system_table() >> 32;
 	p->efi->efi_memmap_hi		= (unsigned long)*map->map >> 32;
 #endif
 
@@ -722,8 +690,7 @@ static efi_status_t exit_boot(struct boot_params *boot_params, void *handle)
 		return status;
 
 	/* Might as well exit boot services now */
-	status = efi_exit_boot_services(sys_table, handle, &map, &priv,
-					exit_boot_func);
+	status = efi_exit_boot_services(handle, &map, &priv, exit_boot_func);
 	if (status != EFI_SUCCESS)
 		return status;
 
@@ -741,32 +708,21 @@ static efi_status_t exit_boot(struct boot_params *boot_params, void *handle)
  * On success we return a pointer to a boot_params structure, and NULL
  * on failure.
  */
-struct boot_params *
-efi_main(struct efi_config *c, struct boot_params *boot_params)
+struct boot_params *efi_main(efi_handle_t handle,
+			     efi_system_table_t *sys_table_arg,
+			     struct boot_params *boot_params)
 {
 	struct desc_ptr *gdt = NULL;
 	struct setup_header *hdr = &boot_params->hdr;
 	efi_status_t status;
 	struct desc_struct *desc;
-	void *handle;
-	efi_system_table_t *_table;
 	unsigned long cmdline_paddr;
 
-	efi_early = c;
-
-	_table = (efi_system_table_t *)(unsigned long)efi_early->table;
-	handle = (void *)(unsigned long)efi_early->image_handle;
-
-	sys_table = _table;
+	sys_table = sys_table_arg;
 
 	/* Check if we were booted by the EFI firmware */
 	if (sys_table->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE)
 		goto fail;
-
-	if (efi_is_64bit())
-		setup_boot_services64(efi_early);
-	else
-		setup_boot_services32(efi_early);
 
 	/*
 	 * make_boot_params() may have been called before efi_main(), in which
@@ -782,14 +738,14 @@ efi_main(struct efi_config *c, struct boot_params *boot_params)
 	 * otherwise we ask the BIOS.
 	 */
 	if (boot_params->secure_boot == efi_secureboot_mode_unset)
-		boot_params->secure_boot = efi_get_secureboot(sys_table);
+		boot_params->secure_boot = efi_get_secureboot();
 
 	/* Ask the firmware to clear memory on unclean shutdown */
-	efi_enable_reset_attack_mitigation(sys_table);
+	efi_enable_reset_attack_mitigation();
 
-	efi_random_get_seed(sys_table);
+	efi_random_get_seed();
 
-	efi_retrieve_tpm2_eventlog(sys_table);
+	efi_retrieve_tpm2_eventlog();
 
 	setup_graphics(boot_params);
 
@@ -797,18 +753,17 @@ efi_main(struct efi_config *c, struct boot_params *boot_params)
 
 	setup_quirks(boot_params);
 
-	status = efi_call_early(allocate_pool, EFI_LOADER_DATA,
-				sizeof(*gdt), (void **)&gdt);
+	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA, sizeof(*gdt),
+			     (void **)&gdt);
 	if (status != EFI_SUCCESS) {
-		efi_printk(sys_table, "Failed to allocate memory for 'gdt' structure\n");
+		efi_printk("Failed to allocate memory for 'gdt' structure\n");
 		goto fail;
 	}
 
 	gdt->size = 0x800;
-	status = efi_low_alloc(sys_table, gdt->size, 8,
-			   (unsigned long *)&gdt->address);
+	status = efi_low_alloc(gdt->size, 8, (unsigned long *)&gdt->address);
 	if (status != EFI_SUCCESS) {
-		efi_printk(sys_table, "Failed to allocate memory for 'gdt'\n");
+		efi_printk("Failed to allocate memory for 'gdt'\n");
 		goto fail;
 	}
 
@@ -818,13 +773,13 @@ efi_main(struct efi_config *c, struct boot_params *boot_params)
 	 */
 	if (hdr->pref_address != hdr->code32_start) {
 		unsigned long bzimage_addr = hdr->code32_start;
-		status = efi_relocate_kernel(sys_table, &bzimage_addr,
+		status = efi_relocate_kernel(&bzimage_addr,
 					     hdr->init_size, hdr->init_size,
 					     hdr->pref_address,
 					     hdr->kernel_alignment,
 					     LOAD_PHYSICAL_ADDR);
 		if (status != EFI_SUCCESS) {
-			efi_printk(sys_table, "efi_relocate_kernel() failed!\n");
+			efi_printk("efi_relocate_kernel() failed!\n");
 			goto fail;
 		}
 
@@ -834,7 +789,7 @@ efi_main(struct efi_config *c, struct boot_params *boot_params)
 
 	status = exit_boot(boot_params, handle);
 	if (status != EFI_SUCCESS) {
-		efi_printk(sys_table, "exit_boot() failed!\n");
+		efi_printk("exit_boot() failed!\n");
 		goto fail;
 	}
 
@@ -927,7 +882,8 @@ efi_main(struct efi_config *c, struct boot_params *boot_params)
 
 	return boot_params;
 fail:
-	efi_printk(sys_table, "efi_main() failed!\n");
+	efi_printk("efi_main() failed!\n");
 
-	return NULL;
+	for (;;)
+		asm("hlt");
 }

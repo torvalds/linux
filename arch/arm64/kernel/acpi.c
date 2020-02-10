@@ -274,7 +274,7 @@ int apei_claim_sea(struct pt_regs *regs)
 	if (!IS_ENABLED(CONFIG_ACPI_APEI_GHES))
 		return err;
 
-	current_flags = arch_local_save_flags();
+	current_flags = local_daif_save_flags();
 
 	/*
 	 * SEA can interrupt SError, mask it and describe this as an NMI so

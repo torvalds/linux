@@ -189,6 +189,8 @@ config SECCOMP
 config UML_TIME_TRAVEL_SUPPORT
 	bool
 	prompt "Support time-travel mode (e.g. for test execution)"
+	# inf-cpu mode is incompatible with the benchmarking
+	depends on !RAID6_PQ_BENCHMARK
 	help
 	  Enable this option to support time travel inside the UML instance.
 

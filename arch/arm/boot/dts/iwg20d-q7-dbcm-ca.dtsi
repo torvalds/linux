@@ -39,7 +39,6 @@
 &du {
 	pinctrl-0 = <&du_pins>;
 	pinctrl-names = "default";
-	status = "okay";
 
 	ports {
 		port@0 {

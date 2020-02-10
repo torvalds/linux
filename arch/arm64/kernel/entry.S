@@ -60,16 +60,16 @@
 	.macro kernel_ventry, el, label, regsize = 64
 	.align 7
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
-alternative_if ARM64_UNMAP_KERNEL_AT_EL0
 	.if	\el == 0
+alternative_if ARM64_UNMAP_KERNEL_AT_EL0
 	.if	\regsize == 64
 	mrs	x30, tpidrro_el0
 	msr	tpidrro_el0, xzr
 	.else
 	mov	x30, xzr
 	.endif
-	.endif
 alternative_else_nop_endif
+	.endif
 #endif
 
 	sub	sp, sp, #S_FRAME_SIZE
@@ -167,9 +167,13 @@ alternative_cb_end
 	.if	\el == 0
 	clear_gp_regs
 	mrs	x21, sp_el0
-	ldr_this_cpu	tsk, __entry_task, x20	// Ensure MDSCR_EL1.SS is clear,
-	ldr	x19, [tsk, #TSK_TI_FLAGS]	// since we can unmask debug
-	disable_step_tsk x19, x20		// exceptions when scheduling.
+	ldr_this_cpu	tsk, __entry_task, x20
+	msr	sp_el0, tsk
+
+	// Ensure MDSCR_EL1.SS is clear, since we can unmask debug exceptions
+	// when scheduling.
+	ldr	x19, [tsk, #TSK_TI_FLAGS]
+	disable_step_tsk x19, x20
 
 	apply_ssbd 1, x22, x23
 
@@ -230,13 +234,6 @@ alternative_else_nop_endif
 	.if	\el == 0
 	mov	w21, #NO_SYSCALL
 	str	w21, [sp, #S_SYSCALLNO]
-	.endif
-
-	/*
-	 * Set sp_el0 to current thread_info.
-	 */
-	.if	\el == 0
-	msr	sp_el0, tsk
 	.endif
 
 	/* Save pmr */
@@ -605,7 +602,7 @@ el1_irq:
 
 	irq_handler
 
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPTION
 	ldr	x24, [tsk, #TSK_TI_PREEMPT]	// get preempt count
 alternative_if ARM64_HAS_IRQ_PRIO_MASKING
 	/*
@@ -653,6 +650,7 @@ el0_sync:
 	mov	x0, sp
 	bl	el0_sync_handler
 	b	ret_to_user
+ENDPROC(el0_sync)
 
 #ifdef CONFIG_COMPAT
 	.align	6
@@ -661,16 +659,18 @@ el0_sync_compat:
 	mov	x0, sp
 	bl	el0_sync_compat_handler
 	b	ret_to_user
-ENDPROC(el0_sync)
+ENDPROC(el0_sync_compat)
 
 	.align	6
 el0_irq_compat:
 	kernel_entry 0, 32
 	b	el0_irq_naked
+ENDPROC(el0_irq_compat)
 
 el0_error_compat:
 	kernel_entry 0, 32
 	b	el0_error_naked
+ENDPROC(el0_error_compat)
 #endif
 
 	.align	6

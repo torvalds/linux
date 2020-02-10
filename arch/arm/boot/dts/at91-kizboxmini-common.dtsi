@@ -1,0 +1,170 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * at91-kizboxmini.dts - Device Tree file for Overkiz Kizbox mini board
+ *
+ * Copyright (C) 2014-2018 Overkiz SAS
+ *   Author: Antoine Aubert <a.aubert@overkiz.com>
+ *           Gaël Portay <g.portay@overkiz.com>
+ *           Kévin Raymond <k.raymond@overkiz.com>
+ *           Dorian Rocipon <d.rocipon@overkiz.com>
+ */
+#include "at91sam9g25.dtsi"
+
+/ {
+	chosen {
+		bootargs = "ubi.mtd=ubi";
+		stdout-path = &dbgu;
+	};
+
+	memory {
+		reg = <0x20000000 0x8000000>;
+	};
+
+	clocks {
+		main_xtal {
+			clock-frequency = <12000000>;
+		};
+
+		slow_xtal {
+			clock-frequency = <32768>;
+		};
+
+		adc_op_clk {
+			status = "disabled";
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		prog {
+			label = "PB_PROG";
+			gpios = <&pioC 17 GPIO_ACTIVE_LOW>;
+			linux,code = <0x102>;
+			wakeup-source;
+		};
+
+		reset {
+			label = "PB_RST";
+			gpios = <&pioC 16 GPIO_ACTIVE_LOW>;
+			linux,code = <0x100>;
+			wakeup-source;
+		};
+	};
+
+	leds: pwm_leds {
+		compatible = "pwm-leds";
+
+		led_blue: pwm_blue {
+			label = "pwm:blue:user";
+			pwms = <&pwm0 2 10000000 0>;
+			max-brightness = <255>;
+			linux,default-trigger = "none";
+			status = "disabled";
+		};
+
+		led_green: pwm_green {
+			label = "pwm:green:user";
+			pwms = <&pwm0 0 10000000 0>;
+			max-brightness = <255>;
+			linux,default-trigger = "default-on";
+		};
+
+		led_red: pwm_red {
+			label = "pwm:red:user";
+			pwms = <&pwm0 1 10000000 0>;
+			max-brightness = <255>;
+			linux,default-trigger = "default-on";
+		};
+	};
+};
+
+&usart0 {
+	atmel,use-dma-rx;
+	atmel,use-dma-tx;
+	status = "okay";
+};
+
+&macb0 {
+	phy-mode = "rmii";
+	status = "okay";
+};
+
+&pwm0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm0_pwm0_1
+		     &pinctrl_pwm0_pwm1_1
+		     &pinctrl_pwm0_pwm2_1>;
+	status = "okay";
+};
+
+&dbgu {
+	status = "okay";
+};
+
+&watchdog {
+	status = "okay";
+};
+
+&adc0 {
+	status = "disabled";
+};
+
+&rtc {
+	status = "disabled";
+};
+
+&ebi {
+	pinctrl-0 = <&pinctrl_ebi_addr_nand
+			&pinctrl_ebi_data_0_7>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&nand_controller {
+	status = "okay";
+	pinctrl-0 = <&pinctrl_nand_oe_we
+		     &pinctrl_nand_cs
+		     &pinctrl_nand_rb>;
+	pinctrl-names = "default";
+
+	nand@3 {
+		reg = <0x3 0x0 0x800000>;
+		rb-gpios = <&pioD 5 GPIO_ACTIVE_HIGH>;
+		cs-gpios = <&pioD 4 GPIO_ACTIVE_HIGH>;
+		nand-bus-width = <8>;
+		nand-ecc-mode = "hw";
+		nand-ecc-strength = <4>;
+		nand-ecc-step-size = <512>;
+		nand-on-flash-bbt;
+		label = "atmel_nand";
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			bootstrap@0 {
+				label = "bootstrap";
+				reg = <0x0 0x20000>;
+			};
+
+			ubi@20000 {
+				label = "ubi";
+				reg = <0x20000 0x7fe0000>;
+			};
+		};
+	};
+};
+
+&usb0 {
+	num-ports = <1>;
+	status = "okay";
+};
+
+&usb1 {
+	status = "okay";
+};
+

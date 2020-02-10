@@ -100,20 +100,6 @@ static uint32_t get_hw_buffer_available_size(
 			dce_i2c_hw->buffer_used_bytes;
 }
 
-static uint32_t get_speed(
-	const struct dce_i2c_hw *dce_i2c_hw)
-{
-	uint32_t pre_scale = 0;
-
-	REG_GET(SPEED, DC_I2C_DDC1_PRESCALE, &pre_scale);
-
-	/* [anaumov] it seems following is unnecessary */
-	/*ASSERT(value.bits.DC_I2C_DDC1_PRESCALE);*/
-	return pre_scale ?
-		dce_i2c_hw->reference_frequency / pre_scale :
-		dce_i2c_hw->default_speed;
-}
-
 static void process_channel_reply(
 	struct dce_i2c_hw *dce_i2c_hw,
 	struct i2c_payload *reply)
@@ -278,16 +264,25 @@ static void set_speed(
 	struct dce_i2c_hw *dce_i2c_hw,
 	uint32_t speed)
 {
+	uint32_t xtal_ref_div = 0;
+	uint32_t prescale = 0;
+
+	REG_GET(MICROSECOND_TIME_BASE_DIV, XTAL_REF_DIV, &xtal_ref_div);
+
+	if (xtal_ref_div == 0)
+		xtal_ref_div = 2;
+
+	prescale = ((dce_i2c_hw->reference_frequency * 2) / xtal_ref_div) / speed;
 
 	if (speed) {
 		if (dce_i2c_hw->masks->DC_I2C_DDC1_START_STOP_TIMING_CNTL)
 			REG_UPDATE_N(SPEED, 3,
-				     FN(DC_I2C_DDC1_SPEED, DC_I2C_DDC1_PRESCALE), dce_i2c_hw->reference_frequency / speed,
+				     FN(DC_I2C_DDC1_SPEED, DC_I2C_DDC1_PRESCALE), prescale,
 				     FN(DC_I2C_DDC1_SPEED, DC_I2C_DDC1_THRESHOLD), 2,
 				     FN(DC_I2C_DDC1_SPEED, DC_I2C_DDC1_START_STOP_TIMING_CNTL), speed > 50 ? 2:1);
 		else
 			REG_UPDATE_N(SPEED, 2,
-				     FN(DC_I2C_DDC1_SPEED, DC_I2C_DDC1_PRESCALE), dce_i2c_hw->reference_frequency / speed,
+				     FN(DC_I2C_DDC1_SPEED, DC_I2C_DDC1_PRESCALE), prescale,
 				     FN(DC_I2C_DDC1_SPEED, DC_I2C_DDC1_THRESHOLD), 2);
 	}
 }
@@ -296,9 +291,7 @@ static bool setup_engine(
 	struct dce_i2c_hw *dce_i2c_hw)
 {
 	uint32_t i2c_setup_limit = I2C_SETUP_TIME_LIMIT_DCE;
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	uint32_t  reset_length = 0;
-#endif
 	/* we have checked I2c not used by DMCU, set SW use I2C REQ to 1 to indicate SW using it*/
 	REG_UPDATE(DC_I2C_ARBITRATION, DC_I2C_SW_USE_I2C_REG_REQ, 1);
 
@@ -322,14 +315,12 @@ static bool setup_engine(
 		REG_UPDATE_N(SETUP, 2,
 			     FN(DC_I2C_DDC1_SETUP, DC_I2C_DDC1_TIME_LIMIT), i2c_setup_limit,
 			     FN(DC_I2C_DDC1_SETUP, DC_I2C_DDC1_ENABLE), 1);
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	} else {
 		reset_length = dce_i2c_hw->send_reset_length;
 		REG_UPDATE_N(SETUP, 3,
 			     FN(DC_I2C_DDC1_SETUP, DC_I2C_DDC1_TIME_LIMIT), i2c_setup_limit,
 			     FN(DC_I2C_DDC1_SETUP, DC_I2C_DDC1_SEND_RESET_LENGTH), reset_length,
 			     FN(DC_I2C_DDC1_SETUP, DC_I2C_DDC1_ENABLE), 1);
-#endif
 	}
 	/* Program HW priority
 	 * set to High - interrupt software I2C at any time
@@ -348,9 +339,7 @@ static void release_engine(
 	bool safe_to_reset;
 
 	/* Restore original HW engine speed */
-
-	set_speed(dce_i2c_hw, dce_i2c_hw->original_speed);
-
+	set_speed(dce_i2c_hw, dce_i2c_hw->default_speed);
 
 	/* Reset HW engine */
 	{
@@ -382,7 +371,6 @@ struct dce_i2c_hw *acquire_i2c_hw_engine(
 {
 	uint32_t counter = 0;
 	enum gpio_result result;
-	uint32_t current_speed;
 	struct dce_i2c_hw *dce_i2c_hw = NULL;
 
 	if (!ddc)
@@ -419,11 +407,6 @@ struct dce_i2c_hw *acquire_i2c_hw_engine(
 		return NULL;
 
 	dce_i2c_hw->ddc = ddc;
-
-	current_speed = get_speed(dce_i2c_hw);
-
-	if (current_speed)
-		dce_i2c_hw->original_speed = current_speed;
 
 	if (!setup_engine(dce_i2c_hw)) {
 		release_engine(dce_i2c_hw);
@@ -482,13 +465,9 @@ static void submit_channel_request_hw(
 
 static uint32_t get_transaction_timeout_hw(
 	const struct dce_i2c_hw *dce_i2c_hw,
-	uint32_t length)
+	uint32_t length,
+	uint32_t speed)
 {
-
-	uint32_t speed = get_speed(dce_i2c_hw);
-
-
-
 	uint32_t period_timeout;
 	uint32_t num_of_clock_stretches;
 
@@ -508,7 +487,8 @@ static uint32_t get_transaction_timeout_hw(
 bool dce_i2c_hw_engine_submit_payload(
 	struct dce_i2c_hw *dce_i2c_hw,
 	struct i2c_payload *payload,
-	bool middle_of_transaction)
+	bool middle_of_transaction,
+	uint32_t speed)
 {
 
 	struct i2c_request_transaction_data request;
@@ -546,7 +526,7 @@ bool dce_i2c_hw_engine_submit_payload(
 	/* obtain timeout value before submitting request */
 
 	transaction_timeout = get_transaction_timeout_hw(
-		dce_i2c_hw, payload->length + 1);
+		dce_i2c_hw, payload->length + 1, speed);
 
 	submit_channel_request_hw(
 		dce_i2c_hw, &request);
@@ -592,12 +572,10 @@ bool dce_i2c_submit_command_hw(
 		struct i2c_payload *payload = cmd->payloads + index_of_payload;
 
 		if (!dce_i2c_hw_engine_submit_payload(
-				dce_i2c_hw, payload, mot)) {
+				dce_i2c_hw, payload, mot, cmd->speed)) {
 			result = false;
 			break;
 		}
-
-
 
 		++index_of_payload;
 	}
@@ -629,7 +607,6 @@ void dce_i2c_hw_construct(
 	dce_i2c_hw->buffer_used_bytes = 0;
 	dce_i2c_hw->transaction_count = 0;
 	dce_i2c_hw->engine_keep_power_up_count = 1;
-	dce_i2c_hw->original_speed = DEFAULT_I2C_HW_SPEED;
 	dce_i2c_hw->default_speed = DEFAULT_I2C_HW_SPEED;
 	dce_i2c_hw->send_reset_length = 0;
 	dce_i2c_hw->setup_limit = I2C_SETUP_TIME_LIMIT_DCE;
@@ -644,9 +621,6 @@ void dce100_i2c_hw_construct(
 	const struct dce_i2c_shift *shifts,
 	const struct dce_i2c_mask *masks)
 {
-
-	uint32_t xtal_ref_div = 0;
-
 	dce_i2c_hw_construct(dce_i2c_hw,
 			ctx,
 			engine_id,
@@ -654,21 +628,6 @@ void dce100_i2c_hw_construct(
 			shifts,
 			masks);
 	dce_i2c_hw->buffer_size = I2C_HW_BUFFER_SIZE_DCE100;
-
-	REG_GET(MICROSECOND_TIME_BASE_DIV, XTAL_REF_DIV, &xtal_ref_div);
-
-	if (xtal_ref_div == 0)
-		xtal_ref_div = 2;
-
-	/*Calculating Reference Clock by divding original frequency by
-	 * XTAL_REF_DIV.
-	 * At upper level, uint32_t reference_frequency =
-	 *  dal_dce_i2c_get_reference_clock(as) >> 1
-	 *  which already divided by 2. So we need x2 to get original
-	 *  reference clock from ppll_info
-	 */
-	dce_i2c_hw->reference_frequency =
-		(dce_i2c_hw->reference_frequency * 2) / xtal_ref_div;
 }
 
 void dce112_i2c_hw_construct(
@@ -705,7 +664,6 @@ void dcn1_i2c_hw_construct(
 	dce_i2c_hw->setup_limit = I2C_SETUP_TIME_LIMIT_DCN;
 }
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 void dcn2_i2c_hw_construct(
 	struct dce_i2c_hw *dce_i2c_hw,
 	struct dc_context *ctx,
@@ -724,4 +682,3 @@ void dcn2_i2c_hw_construct(
 	if (ctx->dc->debug.scl_reset_length10)
 		dce_i2c_hw->send_reset_length = I2C_SEND_RESET_LENGTH_10;
 }
-#endif

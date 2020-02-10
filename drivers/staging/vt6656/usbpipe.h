@@ -21,7 +21,7 @@
 #define VNT_REG_BLOCK_SIZE	64
 
 int vnt_control_out(struct vnt_private *priv, u8 request, u16 value,
-		    u16 index, u16 length, u8 *buffer);
+		    u16 index, u16 length, const u8 *buffer);
 int vnt_control_in(struct vnt_private *priv, u8 request, u16 value,
 		   u16 index, u16 length,  u8 *buffer);
 

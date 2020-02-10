@@ -332,10 +332,10 @@ static int img_hash_dma_init(struct img_hash_dev *hdev)
 	struct dma_slave_config dma_conf;
 	int err = -EINVAL;
 
-	hdev->dma_lch = dma_request_slave_channel(hdev->dev, "tx");
-	if (!hdev->dma_lch) {
+	hdev->dma_lch = dma_request_chan(hdev->dev, "tx");
+	if (IS_ERR(hdev->dma_lch)) {
 		dev_err(hdev->dev, "Couldn't acquire a slave DMA channel.\n");
-		return -EBUSY;
+		return PTR_ERR(hdev->dma_lch);
 	}
 	dma_conf.direction = DMA_MEM_TO_DEV;
 	dma_conf.dst_addr = hdev->bus_addr;

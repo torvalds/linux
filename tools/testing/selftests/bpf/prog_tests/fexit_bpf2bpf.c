@@ -11,7 +11,7 @@ static void test_fexit_bpf2bpf_common(const char *obj_file,
 	int err, pkt_fd, i;
 	struct bpf_link **link = NULL;
 	struct bpf_program **prog = NULL;
-	__u32 duration, retval;
+	__u32 duration = 0, retval;
 	struct bpf_map *data_map;
 	const int zero = 0;
 	u64 *result = NULL;
@@ -26,7 +26,7 @@ static void test_fexit_bpf2bpf_common(const char *obj_file,
 
 	link = calloc(sizeof(struct bpf_link *), prog_cnt);
 	prog = calloc(sizeof(struct bpf_program *), prog_cnt);
-	result = malloc(prog_cnt * sizeof(u64));
+	result = malloc((prog_cnt + 32 /* spare */) * sizeof(u64));
 	if (CHECK(!link || !prog || !result, "alloc_memory",
 		  "failed to alloc memory"))
 		goto close_prog;
@@ -98,6 +98,24 @@ static void test_target_yes_callees(void)
 		"fexit/test_pkt_access",
 		"fexit/test_pkt_access_subprog1",
 		"fexit/test_pkt_access_subprog2",
+		"fexit/test_pkt_access_subprog3",
+	};
+	test_fexit_bpf2bpf_common("./fexit_bpf2bpf.o",
+				  "./test_pkt_access.o",
+				  ARRAY_SIZE(prog_name),
+				  prog_name);
+}
+
+static void test_func_replace(void)
+{
+	const char *prog_name[] = {
+		"fexit/test_pkt_access",
+		"fexit/test_pkt_access_subprog1",
+		"fexit/test_pkt_access_subprog2",
+		"fexit/test_pkt_access_subprog3",
+		"freplace/get_skb_len",
+		"freplace/get_skb_ifindex",
+		"freplace/get_constant",
 	};
 	test_fexit_bpf2bpf_common("./fexit_bpf2bpf.o",
 				  "./test_pkt_access.o",
@@ -109,4 +127,5 @@ void test_fexit_bpf2bpf(void)
 {
 	test_target_no_callees();
 	test_target_yes_callees();
+	test_func_replace();
 }

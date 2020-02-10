@@ -669,8 +669,8 @@ qla2xxx_get_flt_info(scsi_qla_host_t *vha, uint32_t flt_addr)
 
 	struct qla_hw_data *ha = vha->hw;
 	uint32_t def = IS_QLA81XX(ha) ? 2 : IS_QLA25XX(ha) ? 1 : 0;
-	struct qla_flt_header *flt = (void *)ha->flt;
-	struct qla_flt_region *region = (void *)&flt[1];
+	struct qla_flt_header *flt = ha->flt;
+	struct qla_flt_region *region = &flt->region[0];
 	uint16_t *wptr, cnt, chksum;
 	uint32_t start;
 
@@ -2652,18 +2652,15 @@ qla28xx_get_flash_region(struct scsi_qla_host *vha, uint32_t start,
     struct qla_flt_region *region)
 {
 	struct qla_hw_data *ha = vha->hw;
-	struct qla_flt_header *flt;
-	struct qla_flt_region *flt_reg;
+	struct qla_flt_header *flt = ha->flt;
+	struct qla_flt_region *flt_reg = &flt->region[0];
 	uint16_t cnt;
 	int rval = QLA_FUNCTION_FAILED;
 
 	if (!ha->flt)
 		return QLA_FUNCTION_FAILED;
 
-	flt = (struct qla_flt_header *)ha->flt;
-	flt_reg = (struct qla_flt_region *)&flt[1];
 	cnt = le16_to_cpu(flt->length) / sizeof(struct qla_flt_region);
-
 	for (; cnt; cnt--, flt_reg++) {
 		if (flt_reg->start == start) {
 			memcpy((uint8_t *)region, flt_reg,

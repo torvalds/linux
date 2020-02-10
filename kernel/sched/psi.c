@@ -1251,39 +1251,41 @@ static int psi_fop_release(struct inode *inode, struct file *file)
 	return single_release(inode, file);
 }
 
-static const struct file_operations psi_io_fops = {
-	.open           = psi_io_open,
-	.read           = seq_read,
-	.llseek         = seq_lseek,
-	.write          = psi_io_write,
-	.poll           = psi_fop_poll,
-	.release        = psi_fop_release,
+static const struct proc_ops psi_io_proc_ops = {
+	.proc_open	= psi_io_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_write	= psi_io_write,
+	.proc_poll	= psi_fop_poll,
+	.proc_release	= psi_fop_release,
 };
 
-static const struct file_operations psi_memory_fops = {
-	.open           = psi_memory_open,
-	.read           = seq_read,
-	.llseek         = seq_lseek,
-	.write          = psi_memory_write,
-	.poll           = psi_fop_poll,
-	.release        = psi_fop_release,
+static const struct proc_ops psi_memory_proc_ops = {
+	.proc_open	= psi_memory_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_write	= psi_memory_write,
+	.proc_poll	= psi_fop_poll,
+	.proc_release	= psi_fop_release,
 };
 
-static const struct file_operations psi_cpu_fops = {
-	.open           = psi_cpu_open,
-	.read           = seq_read,
-	.llseek         = seq_lseek,
-	.write          = psi_cpu_write,
-	.poll           = psi_fop_poll,
-	.release        = psi_fop_release,
+static const struct proc_ops psi_cpu_proc_ops = {
+	.proc_open	= psi_cpu_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_write	= psi_cpu_write,
+	.proc_poll	= psi_fop_poll,
+	.proc_release	= psi_fop_release,
 };
 
 static int __init psi_proc_init(void)
 {
-	proc_mkdir("pressure", NULL);
-	proc_create("pressure/io", 0, NULL, &psi_io_fops);
-	proc_create("pressure/memory", 0, NULL, &psi_memory_fops);
-	proc_create("pressure/cpu", 0, NULL, &psi_cpu_fops);
+	if (psi_enable) {
+		proc_mkdir("pressure", NULL);
+		proc_create("pressure/io", 0, NULL, &psi_io_proc_ops);
+		proc_create("pressure/memory", 0, NULL, &psi_memory_proc_ops);
+		proc_create("pressure/cpu", 0, NULL, &psi_cpu_proc_ops);
+	}
 	return 0;
 }
 module_init(psi_proc_init);

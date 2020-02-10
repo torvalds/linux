@@ -232,7 +232,9 @@ void rdma_user_mmap_entry_remove(struct rdma_user_mmap_entry *entry)
 	if (!entry)
 		return;
 
+	xa_lock(&entry->ucontext->mmap_xa);
 	entry->driver_removed = true;
+	xa_unlock(&entry->ucontext->mmap_xa);
 	kref_put(&entry->ref, rdma_user_mmap_entry_free);
 }
 EXPORT_SYMBOL(rdma_user_mmap_entry_remove);

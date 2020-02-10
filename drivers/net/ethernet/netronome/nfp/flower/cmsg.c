@@ -270,10 +270,16 @@ nfp_flower_cmsg_process_one_rx(struct nfp_app *app, struct sk_buff *skb)
 		}
 		goto err_default;
 	case NFP_FLOWER_CMSG_TYPE_NO_NEIGH:
-		nfp_tunnel_request_route(app, skb);
+		nfp_tunnel_request_route_v4(app, skb);
+		break;
+	case NFP_FLOWER_CMSG_TYPE_NO_NEIGH_V6:
+		nfp_tunnel_request_route_v6(app, skb);
 		break;
 	case NFP_FLOWER_CMSG_TYPE_ACTIVE_TUNS:
 		nfp_tunnel_keep_alive(app, skb);
+		break;
+	case NFP_FLOWER_CMSG_TYPE_ACTIVE_TUNS_V6:
+		nfp_tunnel_keep_alive_v6(app, skb);
 		break;
 	case NFP_FLOWER_CMSG_TYPE_QOS_STATS:
 		nfp_flower_stats_rlim_reply(app, skb);
@@ -361,7 +367,8 @@ void nfp_flower_cmsg_rx(struct nfp_app *app, struct sk_buff *skb)
 		   nfp_flower_process_mtu_ack(app, skb)) {
 		/* Handle MTU acks outside wq to prevent RTNL conflict. */
 		dev_consume_skb_any(skb);
-	} else if (cmsg_hdr->type == NFP_FLOWER_CMSG_TYPE_TUN_NEIGH) {
+	} else if (cmsg_hdr->type == NFP_FLOWER_CMSG_TYPE_TUN_NEIGH ||
+		   cmsg_hdr->type == NFP_FLOWER_CMSG_TYPE_TUN_NEIGH_V6) {
 		/* Acks from the NFP that the route is added - ignore. */
 		dev_consume_skb_any(skb);
 	} else if (cmsg_hdr->type == NFP_FLOWER_CMSG_TYPE_PORT_REIFY) {

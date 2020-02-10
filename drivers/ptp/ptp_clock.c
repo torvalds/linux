@@ -368,6 +368,12 @@ int ptp_schedule_worker(struct ptp_clock *ptp, unsigned long delay)
 }
 EXPORT_SYMBOL(ptp_schedule_worker);
 
+void ptp_cancel_worker_sync(struct ptp_clock *ptp)
+{
+	kthread_cancel_delayed_work_sync(&ptp->aux_work);
+}
+EXPORT_SYMBOL(ptp_cancel_worker_sync);
+
 /* module operations */
 
 static void __exit ptp_exit(void)

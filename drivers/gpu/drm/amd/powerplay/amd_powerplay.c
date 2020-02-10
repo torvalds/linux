@@ -48,7 +48,6 @@ static int amd_powerplay_create(struct amdgpu_device *adev)
 
 	hwmgr->adev = adev;
 	hwmgr->not_vf = !amdgpu_sriov_vf(adev);
-	hwmgr->pm_en = (amdgpu_dpm && hwmgr->not_vf) ? true : false;
 	hwmgr->device = amdgpu_cgs_create_device(adev);
 	mutex_init(&hwmgr->smu_lock);
 	hwmgr->chip_family = adev->family;
@@ -928,8 +927,11 @@ static int pp_dpm_set_mp1_state(void *handle, enum pp_mp1_state mp1_state)
 {
 	struct pp_hwmgr *hwmgr = handle;
 
-	if (!hwmgr || !hwmgr->pm_en)
+	if (!hwmgr)
 		return -EINVAL;
+
+	if (!hwmgr->pm_en)
+		return 0;
 
 	if (hwmgr->hwmgr_func->set_mp1_state)
 		return hwmgr->hwmgr_func->set_mp1_state(hwmgr, mp1_state);

@@ -192,6 +192,7 @@ enum wmi_command_id {
 	WMI_RCP_ADDBA_RESP_EDMA_CMDID			= 0x83B,
 	WMI_LINK_MAINTAIN_CFG_WRITE_CMDID		= 0x842,
 	WMI_LINK_MAINTAIN_CFG_READ_CMDID		= 0x843,
+	WMI_SET_LINK_MONITOR_CMDID			= 0x845,
 	WMI_SET_SECTORS_CMDID				= 0x849,
 	WMI_MAINTAIN_PAUSE_CMDID			= 0x850,
 	WMI_MAINTAIN_RESUME_CMDID			= 0x851,
@@ -1973,6 +1974,7 @@ enum wmi_event_id {
 	WMI_REPORT_STATISTICS_EVENTID			= 0x100B,
 	WMI_FT_AUTH_STATUS_EVENTID			= 0x100C,
 	WMI_FT_REASSOC_STATUS_EVENTID			= 0x100D,
+	WMI_LINK_MONITOR_EVENTID			= 0x100E,
 	WMI_RADAR_GENERAL_CONFIG_EVENTID		= 0x1100,
 	WMI_RADAR_CONFIG_SELECT_EVENTID			= 0x1101,
 	WMI_RADAR_PARAMS_CONFIG_EVENTID			= 0x1102,
@@ -2024,6 +2026,7 @@ enum wmi_event_id {
 	WMI_TX_MGMT_PACKET_EVENTID			= 0x1841,
 	WMI_LINK_MAINTAIN_CFG_WRITE_DONE_EVENTID	= 0x1842,
 	WMI_LINK_MAINTAIN_CFG_READ_DONE_EVENTID		= 0x1843,
+	WMI_SET_LINK_MONITOR_EVENTID			= 0x1845,
 	WMI_RF_XPM_READ_RESULT_EVENTID			= 0x1856,
 	WMI_RF_XPM_WRITE_RESULT_EVENTID			= 0x1857,
 	WMI_LED_CFG_DONE_EVENTID			= 0x1858,
@@ -3310,6 +3313,36 @@ struct wmi_link_maintain_cfg_write_cmd {
 struct wmi_link_maintain_cfg_read_cmd {
 	/* connection ID which configuration settings are requested */
 	__le32 cid;
+} __packed;
+
+/* WMI_SET_LINK_MONITOR_CMDID */
+struct wmi_set_link_monitor_cmd {
+	u8 rssi_hyst;
+	u8 reserved[12];
+	u8 rssi_thresholds_list_size;
+	s8 rssi_thresholds_list[0];
+} __packed;
+
+/* wmi_link_monitor_event_type */
+enum wmi_link_monitor_event_type {
+	WMI_LINK_MONITOR_NOTIF_RSSI_THRESHOLD_EVT	= 0x00,
+	WMI_LINK_MONITOR_NOTIF_TX_ERR_EVT		= 0x01,
+	WMI_LINK_MONITOR_NOTIF_THERMAL_EVT		= 0x02,
+};
+
+/* WMI_SET_LINK_MONITOR_EVENTID */
+struct wmi_set_link_monitor_event {
+	/* wmi_fw_status */
+	u8 status;
+	u8 reserved[3];
+} __packed;
+
+/* WMI_LINK_MONITOR_EVENTID */
+struct wmi_link_monitor_event {
+	/* link_monitor_event_type */
+	u8 type;
+	s8 rssi_level;
+	u8 reserved[2];
 } __packed;
 
 /* WMI_LINK_MAINTAIN_CFG_WRITE_DONE_EVENTID */

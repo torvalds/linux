@@ -1058,7 +1058,7 @@ and the allocation would be like below:
           return err;
   }
   chip->iobase_phys = pci_resource_start(pci, 0);
-  chip->iobase_virt = ioremap_nocache(chip->iobase_phys,
+  chip->iobase_virt = ioremap(chip->iobase_phys,
                                       pci_resource_len(pci, 0));
 
 and the corresponding destructor would be:

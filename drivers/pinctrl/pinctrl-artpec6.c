@@ -798,7 +798,7 @@ static int artpec6_pconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 	enum pin_config_param param;
 	unsigned int arg;
 	unsigned int regval;
-	unsigned int *reg;
+	void __iomem *reg;
 	int i;
 
 	/* Check for valid pin */

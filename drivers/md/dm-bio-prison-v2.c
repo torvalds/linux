@@ -324,7 +324,7 @@ static bool __unlock(struct dm_bio_prison_v2 *prison,
 	bio_list_init(&cell->bios);
 
 	if (cell->shared_count) {
-		cell->exclusive_lock = 0;
+		cell->exclusive_lock = false;
 		return false;
 	}
 

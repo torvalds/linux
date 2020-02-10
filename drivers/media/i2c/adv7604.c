@@ -1503,23 +1503,14 @@ static void adv76xx_fill_optional_dv_timings_fields(struct v4l2_subdev *sd,
 
 static unsigned int adv7604_read_hdmi_pixelclock(struct v4l2_subdev *sd)
 {
-	unsigned int freq;
 	int a, b;
 
 	a = hdmi_read(sd, 0x06);
 	b = hdmi_read(sd, 0x3b);
 	if (a < 0 || b < 0)
 		return 0;
-	freq =  a * 1000000 + ((b & 0x30) >> 4) * 250000;
 
-	if (is_hdmi(sd)) {
-		/* adjust for deep color mode */
-		unsigned bits_per_channel = ((hdmi_read(sd, 0x0b) & 0x60) >> 4) + 8;
-
-		freq = freq * 8 / bits_per_channel;
-	}
-
-	return freq;
+	return a * 1000000 + ((b & 0x30) >> 4) * 250000;
 }
 
 static unsigned int adv7611_read_hdmi_pixelclock(struct v4l2_subdev *sd)
@@ -1530,7 +1521,26 @@ static unsigned int adv7611_read_hdmi_pixelclock(struct v4l2_subdev *sd)
 	b = hdmi_read(sd, 0x52);
 	if (a < 0 || b < 0)
 		return 0;
+
 	return ((a << 1) | (b >> 7)) * 1000000 + (b & 0x7f) * 1000000 / 128;
+}
+
+static unsigned int adv76xx_read_hdmi_pixelclock(struct v4l2_subdev *sd)
+{
+	struct adv76xx_state *state = to_state(sd);
+	const struct adv76xx_chip_info *info = state->info;
+	unsigned int freq, bits_per_channel, pixelrepetition;
+
+	freq = info->read_hdmi_pixelclock(sd);
+	if (is_hdmi(sd)) {
+		/* adjust for deep color mode and pixel repetition */
+		bits_per_channel = ((hdmi_read(sd, 0x0b) & 0x60) >> 4) + 8;
+		pixelrepetition = (hdmi_read(sd, 0x05) & 0x0f) + 1;
+
+		freq = freq * 8 / bits_per_channel / pixelrepetition;
+	}
+
+	return freq;
 }
 
 static int adv76xx_query_dv_timings(struct v4l2_subdev *sd,
@@ -1579,7 +1589,7 @@ static int adv76xx_query_dv_timings(struct v4l2_subdev *sd,
 
 		bt->width = w;
 		bt->height = h;
-		bt->pixelclock = info->read_hdmi_pixelclock(sd);
+		bt->pixelclock = adv76xx_read_hdmi_pixelclock(sd);
 		bt->hfrontporch = hdmi_read16(sd, 0x20, info->hfrontporch_mask);
 		bt->hsync = hdmi_read16(sd, 0x22, info->hsync_mask);
 		bt->hbackporch = hdmi_read16(sd, 0x24, info->hbackporch_mask);

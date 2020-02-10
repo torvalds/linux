@@ -268,9 +268,20 @@ static void panfrost_job_cleanup(struct kref *ref)
 	dma_fence_put(job->done_fence);
 	dma_fence_put(job->render_done_fence);
 
-	if (job->bos) {
+	if (job->mappings) {
 		for (i = 0; i < job->bo_count; i++)
+			panfrost_gem_mapping_put(job->mappings[i]);
+		kvfree(job->mappings);
+	}
+
+	if (job->bos) {
+		struct panfrost_gem_object *bo;
+
+		for (i = 0; i < job->bo_count; i++) {
+			bo = to_panfrost_bo(job->bos[i]);
 			drm_gem_object_put_unlocked(job->bos[i]);
+		}
+
 		kvfree(job->bos);
 	}
 
@@ -542,12 +553,14 @@ int panfrost_job_open(struct panfrost_file_priv *panfrost_priv)
 {
 	struct panfrost_device *pfdev = panfrost_priv->pfdev;
 	struct panfrost_job_slot *js = pfdev->js;
-	struct drm_sched_rq *rq;
+	struct drm_gpu_scheduler *sched;
 	int ret, i;
 
 	for (i = 0; i < NUM_JOB_SLOTS; i++) {
-		rq = &js->queue[i].sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];
-		ret = drm_sched_entity_init(&panfrost_priv->sched_entity[i], &rq, 1, NULL);
+		sched = &js->queue[i].sched;
+		ret = drm_sched_entity_init(&panfrost_priv->sched_entity[i],
+					    DRM_SCHED_PRIORITY_NORMAL, &sched,
+					    1, NULL);
 		if (WARN_ON(ret))
 			return ret;
 	}

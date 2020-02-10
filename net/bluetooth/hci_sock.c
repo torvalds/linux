@@ -211,7 +211,8 @@ void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb)
 			if (hci_skb_pkt_type(skb) != HCI_COMMAND_PKT &&
 			    hci_skb_pkt_type(skb) != HCI_EVENT_PKT &&
 			    hci_skb_pkt_type(skb) != HCI_ACLDATA_PKT &&
-			    hci_skb_pkt_type(skb) != HCI_SCODATA_PKT)
+			    hci_skb_pkt_type(skb) != HCI_SCODATA_PKT &&
+			    hci_skb_pkt_type(skb) != HCI_ISODATA_PKT)
 				continue;
 			if (is_filtered_packet(sk, skb))
 				continue;
@@ -220,7 +221,8 @@ void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb)
 				continue;
 			if (hci_skb_pkt_type(skb) != HCI_EVENT_PKT &&
 			    hci_skb_pkt_type(skb) != HCI_ACLDATA_PKT &&
-			    hci_skb_pkt_type(skb) != HCI_SCODATA_PKT)
+			    hci_skb_pkt_type(skb) != HCI_SCODATA_PKT &&
+			    hci_skb_pkt_type(skb) != HCI_ISODATA_PKT)
 				continue;
 		} else {
 			/* Don't send frame to other channel types */
@@ -323,6 +325,12 @@ void hci_send_to_monitor(struct hci_dev *hdev, struct sk_buff *skb)
 			opcode = cpu_to_le16(HCI_MON_SCO_RX_PKT);
 		else
 			opcode = cpu_to_le16(HCI_MON_SCO_TX_PKT);
+		break;
+	case HCI_ISODATA_PKT:
+		if (bt_cb(skb)->incoming)
+			opcode = cpu_to_le16(HCI_MON_ISO_RX_PKT);
+		else
+			opcode = cpu_to_le16(HCI_MON_ISO_TX_PKT);
 		break;
 	case HCI_DIAG_PKT:
 		opcode = cpu_to_le16(HCI_MON_VENDOR_DIAG);
@@ -831,6 +839,8 @@ static int hci_sock_release(struct socket *sock)
 	if (!sk)
 		return 0;
 
+	lock_sock(sk);
+
 	switch (hci_pi(sk)->channel) {
 	case HCI_CHANNEL_MONITOR:
 		atomic_dec(&monitor_promisc);
@@ -878,6 +888,7 @@ static int hci_sock_release(struct socket *sock)
 	skb_queue_purge(&sk->sk_receive_queue);
 	skb_queue_purge(&sk->sk_write_queue);
 
+	release_sock(sk);
 	sock_put(sk);
 	return 0;
 }
@@ -1762,7 +1773,8 @@ static int hci_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 		 */
 		if (hci_skb_pkt_type(skb) != HCI_COMMAND_PKT &&
 		    hci_skb_pkt_type(skb) != HCI_ACLDATA_PKT &&
-		    hci_skb_pkt_type(skb) != HCI_SCODATA_PKT) {
+		    hci_skb_pkt_type(skb) != HCI_SCODATA_PKT &&
+		    hci_skb_pkt_type(skb) != HCI_ISODATA_PKT) {
 			err = -EINVAL;
 			goto drop;
 		}
@@ -1806,7 +1818,8 @@ static int hci_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 		}
 
 		if (hci_skb_pkt_type(skb) != HCI_ACLDATA_PKT &&
-		    hci_skb_pkt_type(skb) != HCI_SCODATA_PKT) {
+		    hci_skb_pkt_type(skb) != HCI_SCODATA_PKT &&
+		    hci_skb_pkt_type(skb) != HCI_ISODATA_PKT) {
 			err = -EINVAL;
 			goto drop;
 		}

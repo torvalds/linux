@@ -61,7 +61,8 @@ struct dsa_loop_priv {
 static struct phy_device *phydevs[PHY_MAX_ADDR];
 
 static enum dsa_tag_protocol dsa_loop_get_protocol(struct dsa_switch *ds,
-						   int port)
+						   int port,
+						   enum dsa_tag_protocol mp)
 {
 	dev_dbg(ds->dev, "%s: port: %d\n", __func__, port);
 

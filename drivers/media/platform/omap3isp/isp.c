@@ -810,6 +810,10 @@ static int isp_pipeline_disable(struct isp_pipeline *pipe)
 
 		ret = v4l2_subdev_call(subdev, video, s_stream, 0);
 
+		/* Stop at the first external sub-device. */
+		if (subdev->dev != isp->dev)
+			break;
+
 		if (subdev == &isp->isp_res.subdev)
 			ret |= isp_pipeline_wait(isp, isp_pipeline_wait_resizer);
 		else if (subdev == &isp->isp_prev.subdev)
@@ -837,10 +841,6 @@ static int isp_pipeline_disable(struct isp_pipeline *pipe)
 						      &subdev->entity);
 			failure = -ETIMEDOUT;
 		}
-
-		/* Stop at the first external sub-device. */
-		if (subdev->dev != isp->dev)
-			break;
 	}
 
 	return failure;

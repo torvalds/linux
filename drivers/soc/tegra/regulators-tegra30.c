@@ -209,6 +209,9 @@ static int tegra30_voltage_update(struct tegra_regulator_coupler *tegra,
 			cpu_target_uV = max(core_uV - max_spread, cpu_target_uV);
 		}
 
+		if (cpu_uV == cpu_target_uV)
+			goto update_core;
+
 		err = regulator_set_voltage_rdev(cpu_rdev,
 						 cpu_target_uV,
 						 cpu_max_uV,
@@ -230,6 +233,9 @@ update_core:
 		} else {
 			core_target_uV = max(core_target_uV, core_uV - core_max_step);
 		}
+
+		if (core_uV == core_target_uV)
+			continue;
 
 		err = regulator_set_voltage_rdev(core_rdev,
 						 core_target_uV,

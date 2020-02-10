@@ -16,8 +16,8 @@
 #include <sys/socket.h>
 #include <linux/if_tunnel.h>
 #include <linux/mpls.h>
-#include "bpf_helpers.h"
-#include "bpf_endian.h"
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_endian.h>
 
 int _version SEC("version") = 1;
 #define PROG(F) SEC(#F) int bpf_func_##F

@@ -750,7 +750,7 @@ static void Hal_BT_EfusePowerSwitch(
 		rtw_write8(padapter, 0x6B, tempval);
 
 		/*  Attention!! Between 0x6A[14] and 0x6A[15] setting need 100us delay */
-		/*  So don't wirte 0x6A[14]= 1 and 0x6A[15]= 0 together! */
+		/*  So don't write 0x6A[14]= 1 and 0x6A[15]= 0 together! */
 		msleep(1);
 		/*  disable BT output isolation */
 		/*  0x6A[15] = 0 */
@@ -765,7 +765,7 @@ static void Hal_BT_EfusePowerSwitch(
 		rtw_write8(padapter, 0x6B, tempval);
 
 		/*  Attention!! Between 0x6A[14] and 0x6A[15] setting need 100us delay */
-		/*  So don't wirte 0x6A[14]= 1 and 0x6A[15]= 0 together! */
+		/*  So don't write 0x6A[14]= 1 and 0x6A[15]= 0 together! */
 
 		/*  disable BT power cut */
 		/*  0x6A[14] = 1 */
@@ -1231,7 +1231,7 @@ static u16 hal_EfuseGetCurrentSize_WiFi(
 	goto exit;
 
 error:
-	/*  report max size to prevent wirte efuse */
+	/*  report max size to prevent write efuse */
 	EFUSE_GetEfuseDefinition(padapter, EFUSE_WIFI, TYPE_AVAILABLE_EFUSE_BYTES_TOTAL, &efuse_addr, bPseudoTest);
 
 exit:
@@ -2237,7 +2237,7 @@ void rtl8723b_InitAntenna_Selection(struct adapter *padapter)
 	u8 val;
 
 	val = rtw_read8(padapter, REG_LEDCFG2);
-	/*  Let 8051 take control antenna settting */
+	/*  Let 8051 take control antenna setting */
 	val |= BIT(7); /*  DPDT_SEL_EN, 0x4C[23] */
 	rtw_write8(padapter, REG_LEDCFG2, val);
 }
@@ -3191,22 +3191,26 @@ static void rtl8723b_fill_default_txdesc(
 	if (bmcst)
 		ptxdesc->bmc = 1;
 
-	/*  2009.11.05. tynli_test. Suggested by SD4 Filen for FW LPS. */
-	/*  (1) The sequence number of each non-Qos frame / broadcast / multicast / */
-	/*  mgnt frame should be controled by Hw because Fw will also send null data */
-	/*  which we cannot control when Fw LPS enable. */
-	/*  --> default enable non-Qos data sequense number. 2010.06.23. by tynli. */
-	/*  (2) Enable HW SEQ control for beacon packet, because we use Hw beacon. */
-	/*  (3) Use HW Qos SEQ to control the seq num of Ext port non-Qos packets. */
-	/*  2010.06.23. Added by tynli. */
+	/* 2009.11.05. tynli_test. Suggested by SD4 Filen for FW LPS.
+	 * (1) The sequence number of each non-Qos frame / broadcast /
+	 * multicast / mgnt frame should be controlled by Hw because Fw
+	 * will also send null data which we cannot control when Fw LPS
+	 * enable.
+	 * --> default enable non-Qos data sequense number. 2010.06.23.
+	 * by tynli.
+	 * (2) Enable HW SEQ control for beacon packet, because we use
+	 * Hw beacon.
+	 * (3) Use HW Qos SEQ to control the seq num of Ext port non-Qos
+	 * packets.
+	 * 2010.06.23. Added by tynli.
+	 */
 	if (!pattrib->qos_en) /*  Hw set sequence number */
 		ptxdesc->en_hwseq = 1; /*  HWSEQ_EN */
 }
 
-/*
- *Description:
+/* Description:
  *
- *Parameters:
+ * Parameters:
  *	pxmitframe	xmitframe
  *	pbuf		where to fill tx desc
  */
@@ -3543,7 +3547,7 @@ static void hw_var_set_mlme_sitesurvey(struct adapter *padapter, u8 variable, u8
 			rtw_write8(padapter, reg_bcn_ctl, val8);
 		}
 
-		/*  Save orignal RRSR setting. */
+		/*  Save original RRSR setting. */
 		pHalData->RegRRSR = rtw_read16(padapter, REG_RRSR);
 	} else {
 		/*  sitesurvey done */
@@ -3561,7 +3565,7 @@ static void hw_var_set_mlme_sitesurvey(struct adapter *padapter, u8 variable, u8
 		value_rcr |= rcr_clear_bit;
 		rtw_write32(padapter, REG_RCR, value_rcr);
 
-		/*  Restore orignal RRSR setting. */
+		/*  Restore original RRSR setting. */
 		rtw_write16(padapter, REG_RRSR, pHalData->RegRRSR);
 	}
 }
@@ -4329,8 +4333,7 @@ void GetHwReg8723B(struct adapter *padapter, u8 variable, u8 *val)
 	}
 }
 
-/*
- *Description:
+/* Description:
  *	Change default setting of specified variable.
  */
 u8 SetHalDefVar8723B(struct adapter *padapter, enum HAL_DEF_VARIABLE variable, void *pval)
@@ -4348,8 +4351,7 @@ u8 SetHalDefVar8723B(struct adapter *padapter, enum HAL_DEF_VARIABLE variable, v
 	return bResult;
 }
 
-/*
- *Description:
+/* Description:
  *	Query setting of specified variable.
  */
 u8 GetHalDefVar8723B(struct adapter *padapter, enum HAL_DEF_VARIABLE variable, void *pval)

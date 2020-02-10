@@ -5408,7 +5408,7 @@ int brcms_c_set_channel(struct brcms_c_info *wlc, u16 channel)
 {
 	u16 chspec = ch20mhz_chspec(channel);
 
-	if (channel < 0 || channel > MAXCHANNEL)
+	if (channel > MAXCHANNEL)
 		return -EINVAL;
 
 	if (!brcms_c_valid_chanspec_db(wlc->cmi, chspec))

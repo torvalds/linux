@@ -893,7 +893,7 @@ static void hix5hd2_tx_timeout_task(struct work_struct *work)
 	hix5hd2_net_open(priv->netdev);
 }
 
-static void hix5hd2_net_timeout(struct net_device *dev)
+static void hix5hd2_net_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct hix5hd2_priv *priv = netdev_priv(dev);
 

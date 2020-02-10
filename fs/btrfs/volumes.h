@@ -120,8 +120,6 @@ struct btrfs_device {
 	/* per-device scrub information */
 	struct scrub_ctx *scrub_ctx;
 
-	struct btrfs_work work;
-
 	/* readahead state */
 	atomic_t reada_in_flight;
 	u64 reada_next;
@@ -138,6 +136,10 @@ struct btrfs_device {
 	atomic_t dev_stat_values[BTRFS_DEV_STAT_VALUES_MAX];
 
 	struct extent_io_tree alloc_state;
+
+	struct completion kobj_unregister;
+	/* For sysfs/FSID/devinfo/devid/ */
+	struct kobject devid_kobj;
 };
 
 /*
@@ -168,7 +170,7 @@ btrfs_device_set_##name(struct btrfs_device *dev, u64 size)		\
 	write_seqcount_end(&dev->data_seqcount);			\
 	preempt_enable();						\
 }
-#elif BITS_PER_LONG==32 && defined(CONFIG_PREEMPT)
+#elif BITS_PER_LONG==32 && defined(CONFIG_PREEMPTION)
 #define BTRFS_DEVICE_GETSET_FUNCS(name)					\
 static inline u64							\
 btrfs_device_get_##name(const struct btrfs_device *dev)			\
@@ -255,7 +257,7 @@ struct btrfs_fs_devices {
 	struct btrfs_fs_info *fs_info;
 	/* sysfs kobjects */
 	struct kobject fsid_kobj;
-	struct kobject *device_dir_kobj;
+	struct kobject *devices_kobj;
 	struct completion kobj_unregister;
 };
 
@@ -417,8 +419,6 @@ int btrfs_map_sblock(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 		     struct btrfs_bio **bbio_ret);
 int btrfs_get_io_geometry(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 		u64 logical, u64 len, struct btrfs_io_geometry *io_geom);
-int btrfs_rmap_block(struct btrfs_fs_info *fs_info, u64 chunk_start,
-		     u64 physical, u64 **logical, int *naddrs, int *stripe_len);
 int btrfs_read_sys_array(struct btrfs_fs_info *fs_info);
 int btrfs_read_chunk_tree(struct btrfs_fs_info *fs_info);
 int btrfs_alloc_chunk(struct btrfs_trans_handle *trans, u64 type);

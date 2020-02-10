@@ -24,6 +24,12 @@
 #define F54_NUM_TX_OFFSET       1
 #define F54_NUM_RX_OFFSET       0
 
+/*
+ * The smbus protocol can read only 32 bytes max at a time.
+ * But this should be fine for i2c/spi as well.
+ */
+#define F54_REPORT_DATA_SIZE	32
+
 /* F54 commands */
 #define F54_GET_REPORT          1
 #define F54_FORCE_CAL           2
@@ -526,6 +532,7 @@ static void rmi_f54_work(struct work_struct *work)
 	int report_size;
 	u8 command;
 	int error;
+	int i;
 
 	report_size = rmi_f54_get_report_size(f54);
 	if (report_size == 0) {
@@ -558,23 +565,27 @@ static void rmi_f54_work(struct work_struct *work)
 
 	rmi_dbg(RMI_DEBUG_FN, &fn->dev, "Get report command completed, reading data\n");
 
-	fifo[0] = 0;
-	fifo[1] = 0;
-	error = rmi_write_block(fn->rmi_dev,
-				fn->fd.data_base_addr + F54_FIFO_OFFSET,
-				fifo, sizeof(fifo));
-	if (error) {
-		dev_err(&fn->dev, "Failed to set fifo start offset\n");
-		goto abort;
-	}
+	for (i = 0; i < report_size; i += F54_REPORT_DATA_SIZE) {
+		int size = min(F54_REPORT_DATA_SIZE, report_size - i);
 
-	error = rmi_read_block(fn->rmi_dev, fn->fd.data_base_addr +
-			       F54_REPORT_DATA_OFFSET, f54->report_data,
-			       report_size);
-	if (error) {
-		dev_err(&fn->dev, "%s: read [%d bytes] returned %d\n",
-			__func__, report_size, error);
-		goto abort;
+		fifo[0] = i & 0xff;
+		fifo[1] = i >> 8;
+		error = rmi_write_block(fn->rmi_dev,
+					fn->fd.data_base_addr + F54_FIFO_OFFSET,
+					fifo, sizeof(fifo));
+		if (error) {
+			dev_err(&fn->dev, "Failed to set fifo start offset\n");
+			goto abort;
+		}
+
+		error = rmi_read_block(fn->rmi_dev, fn->fd.data_base_addr +
+				       F54_REPORT_DATA_OFFSET,
+				       f54->report_data + i, size);
+		if (error) {
+			dev_err(&fn->dev, "%s: read [%d bytes] returned %d\n",
+				__func__, size, error);
+			goto abort;
+		}
 	}
 
 abort:

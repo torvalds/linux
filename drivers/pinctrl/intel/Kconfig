@@ -31,6 +31,19 @@ config PINCTRL_CHERRYVIEW
 	  Cherryview/Braswell pinctrl driver provides an interface that
 	  allows configuring of SoC pins and using them as GPIOs.
 
+config PINCTRL_LYNXPOINT
+	tristate "Intel Lynxpoint pinctrl and GPIO driver"
+	depends on ACPI
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select GPIOLIB
+	select GPIOLIB_IRQCHIP
+	help
+	  Lynxpoint is the PCH of Intel Haswell. This pinctrl driver
+	  provides an interface that allows configuring of PCH pins and
+	  using them as GPIOs.
+
 config PINCTRL_MERRIFIELD
 	tristate "Intel Merrifield pinctrl driver"
 	depends on X86_INTEL_MID

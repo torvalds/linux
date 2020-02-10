@@ -358,7 +358,7 @@ struct opa_veswport_summary_counters {
  * @rx_drop_state: received packets in non-forwarding port state
  * @rx_logic: other receive errors
  *
- * All the above are counters of corresponding erorr conditions.
+ * All the above are counters of corresponding error conditions.
  */
 struct opa_veswport_error_counters {
 	__be16  vp_instance;

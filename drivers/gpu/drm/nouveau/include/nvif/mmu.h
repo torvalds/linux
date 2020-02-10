@@ -7,6 +7,7 @@ struct nvif_mmu {
 	u8  dmabits;
 	u8  heap_nr;
 	u8  type_nr;
+	u8  kind_inv;
 	u16 kind_nr;
 	s32 mem;
 
@@ -36,9 +37,8 @@ void nvif_mmu_fini(struct nvif_mmu *);
 static inline bool
 nvif_mmu_kind_valid(struct nvif_mmu *mmu, u8 kind)
 {
-	const u8 invalid = mmu->kind_nr - 1;
 	if (kind) {
-		if (kind >= mmu->kind_nr || mmu->kind[kind] == invalid)
+		if (kind >= mmu->kind_nr || mmu->kind[kind] == mmu->kind_inv)
 			return false;
 	}
 	return true;

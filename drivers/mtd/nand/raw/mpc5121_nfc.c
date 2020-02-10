@@ -438,7 +438,7 @@ static void mpc5121_nfc_copy_spare(struct mtd_info *mtd, uint offset,
 		buffer += blksize;
 		offset += blksize;
 		size -= blksize;
-	};
+	}
 }
 
 /* Copy data from/to NFC main and spare buffers */
