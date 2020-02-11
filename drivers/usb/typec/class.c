@@ -206,69 +206,6 @@ static void typec_altmode_put_partner(struct altmode *altmode)
 	put_device(&adev->dev);
 }
 
-static void *typec_port_match(struct device_connection *con, int ep, void *data)
-{
-	struct device *dev;
-
-	/*
-	 * FIXME: Check does the fwnode supports the requested SVID. If it does
-	 * we need to return ERR_PTR(-PROBE_DEFER) when there is no device.
-	 */
-	if (con->fwnode)
-		return class_find_device_by_fwnode(typec_class, con->fwnode);
-
-	dev = class_find_device_by_name(typec_class, con->endpoint[ep]);
-
-	return dev ? dev : ERR_PTR(-EPROBE_DEFER);
-}
-
-struct typec_altmode *
-typec_altmode_register_notifier(struct device *dev, u16 svid, u8 mode,
-				struct notifier_block *nb)
-{
-	struct typec_device_id id = { svid, mode, };
-	struct device *altmode_dev;
-	struct device *port_dev;
-	struct altmode *altmode;
-	int ret;
-
-	/* Find the port linked to the caller */
-	port_dev = device_connection_find_match(dev, NULL, NULL,
-						typec_port_match);
-	if (IS_ERR_OR_NULL(port_dev))
-		return port_dev ? ERR_CAST(port_dev) : ERR_PTR(-ENODEV);
-
-	/* Find the altmode with matching svid */
-	altmode_dev = device_find_child(port_dev, &id, altmode_match);
-
-	put_device(port_dev);
-
-	if (!altmode_dev)
-		return ERR_PTR(-ENODEV);
-
-	altmode = to_altmode(to_typec_altmode(altmode_dev));
-
-	/* Register notifier */
-	ret = blocking_notifier_chain_register(&altmode->nh, nb);
-	if (ret) {
-		put_device(altmode_dev);
-		return ERR_PTR(ret);
-	}
-
-	return &altmode->adev;
-}
-EXPORT_SYMBOL_GPL(typec_altmode_register_notifier);
-
-void typec_altmode_unregister_notifier(struct typec_altmode *adev,
-				       struct notifier_block *nb)
-{
-	struct altmode *altmode = to_altmode(adev);
-
-	blocking_notifier_chain_unregister(&altmode->nh, nb);
-	put_device(&adev->dev);
-}
-EXPORT_SYMBOL_GPL(typec_altmode_unregister_notifier);
-
 /**
  * typec_altmode_update_active - Report Enter/Exit mode
  * @adev: Handle to the alternate mode
@@ -538,9 +475,7 @@ typec_register_altmode(struct device *parent,
 	dev_set_name(&alt->adev.dev, "%s.%u", dev_name(parent), id);
 
 	/* Link partners and plugs with the ports */
-	if (is_port)
-		BLOCKING_INIT_NOTIFIER_HEAD(&alt->nh);
-	else
+	if (!is_port)
 		typec_altmode_set_partner(alt);
 
 	/* The partners are bind to drivers */
