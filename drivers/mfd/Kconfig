@@ -906,6 +906,7 @@ config MFD_CPCAP
 	tristate "Support for Motorola CPCAP"
 	depends on SPI
 	depends on OF || COMPILE_TEST
+	select MFD_CORE
 	select REGMAP_SPI
 	select REGMAP_IRQ
 	help
