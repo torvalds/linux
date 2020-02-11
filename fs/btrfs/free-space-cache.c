@@ -1367,18 +1367,6 @@ static int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 
 	return 0;
 
-out:
-	io_ctl->inode = NULL;
-	io_ctl_free(io_ctl);
-	if (ret) {
-		invalidate_inode_pages2(inode->i_mapping);
-		BTRFS_I(inode)->generation = 0;
-	}
-	btrfs_update_inode(trans, root, inode);
-	if (must_iput)
-		iput(inode);
-	return ret;
-
 out_nospc_locked:
 	cleanup_bitmap_list(&bitmap_list);
 	spin_unlock(&ctl->tree_lock);
@@ -1391,7 +1379,17 @@ out_unlock:
 	if (block_group && (block_group->flags & BTRFS_BLOCK_GROUP_DATA))
 		up_write(&block_group->data_rwsem);
 
-	goto out;
+out:
+	io_ctl->inode = NULL;
+	io_ctl_free(io_ctl);
+	if (ret) {
+		invalidate_inode_pages2(inode->i_mapping);
+		BTRFS_I(inode)->generation = 0;
+	}
+	btrfs_update_inode(trans, root, inode);
+	if (must_iput)
+		iput(inode);
+	return ret;
 }
 
 int btrfs_write_out_cache(struct btrfs_trans_handle *trans,
