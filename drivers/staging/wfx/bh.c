@@ -26,7 +26,7 @@ static void device_wakeup(struct wfx_dev *wdev)
 	gpiod_set_value_cansleep(wdev->pdata.gpio_wakeup, 1);
 	if (wfx_api_older_than(wdev, 1, 4)) {
 		if (!completion_done(&wdev->hif.ctrl_ready))
-			udelay(2000);
+			usleep_range(2000, 2500);
 	} else {
 		// completion.h does not provide any function to wait
 		// completion without consume it (a kind of

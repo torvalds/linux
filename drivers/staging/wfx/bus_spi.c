@@ -211,9 +211,9 @@ static int wfx_spi_probe(struct spi_device *func)
 		if (spi_get_device_id(func)->driver_data & WFX_RESET_INVERTED)
 			gpiod_toggle_active_low(bus->gpio_reset);
 		gpiod_set_value_cansleep(bus->gpio_reset, 1);
-		udelay(100);
+		usleep_range(100, 150);
 		gpiod_set_value_cansleep(bus->gpio_reset, 0);
-		udelay(2000);
+		usleep_range(2000, 2500);
 	}
 
 	INIT_WORK(&bus->request_rx, wfx_spi_request_rx);
