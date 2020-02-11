@@ -1442,15 +1442,20 @@ free_out:
 
 int mce_threshold_remove_device(unsigned int cpu)
 {
+	struct threshold_bank **bp = this_cpu_read(threshold_banks);
 	unsigned int bank;
+
+	if (!bp)
+		return 0;
 
 	for (bank = 0; bank < per_cpu(mce_num_banks, cpu); ++bank) {
 		if (!(per_cpu(bank_map, cpu) & (1 << bank)))
 			continue;
 		threshold_remove_bank(cpu, bank);
 	}
-	kfree(per_cpu(threshold_banks, cpu));
-	per_cpu(threshold_banks, cpu) = NULL;
+	/* Clear the pointer before freeing the memory */
+	this_cpu_write(threshold_banks, NULL);
+	kfree(bp);
 	return 0;
 }
 
@@ -1460,6 +1465,9 @@ int mce_threshold_create_device(unsigned int cpu)
 	unsigned int bank;
 	struct threshold_bank **bp;
 	int err = 0;
+
+	if (!mce_flags.amd_threshold)
+		return 0;
 
 	bp = per_cpu(threshold_banks, cpu);
 	if (bp)
