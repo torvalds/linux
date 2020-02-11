@@ -532,3 +532,22 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 	drm_modeset_lock_fini(&dev->mode_config.connection_mutex);
 }
 EXPORT_SYMBOL(drm_mode_config_cleanup);
+
+/*
+ * For some reason we want the encoder itself included in
+ * possible_clones. Make life easy for drivers by allowing them
+ * to leave possible_clones unset if no cloning is possible.
+ */
+static void fixup_encoder_possible_clones(struct drm_encoder *encoder)
+{
+	if (encoder->possible_clones == 0)
+		encoder->possible_clones = drm_encoder_mask(encoder);
+}
+
+void drm_mode_config_validate(struct drm_device *dev)
+{
+	struct drm_encoder *encoder;
+
+	drm_for_each_encoder(encoder, dev)
+		fixup_encoder_possible_clones(encoder);
+}

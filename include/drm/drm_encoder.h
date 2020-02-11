@@ -159,7 +159,9 @@ struct drm_encoder {
 	 * encoders can be used in a cloned configuration, they both should have
 	 * each another bits set.
 	 *
-	 * In reality almost every driver gets this wrong.
+	 * As an exception to the above rule if the driver doesn't implement
+	 * any cloning it can leave @possible_clones set to 0. The core will
+	 * automagically fix this up by setting the bit for the encoder itself.
 	 *
 	 * Note that since encoder objects can't be hotplugged the assigned indices
 	 * are stable and hence known before registering all objects.

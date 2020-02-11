@@ -82,6 +82,7 @@ int drm_mode_setcrtc(struct drm_device *dev,
 /* drm_mode_config.c */
 int drm_modeset_register_all(struct drm_device *dev);
 void drm_modeset_unregister_all(struct drm_device *dev);
+void drm_mode_config_validate(struct drm_device *dev);
 
 /* drm_modes.c */
 const char *drm_get_mode_status_name(enum drm_mode_status status);
