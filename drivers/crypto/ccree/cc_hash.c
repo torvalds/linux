@@ -1865,104 +1865,85 @@ static struct cc_hash_alg *cc_alloc_hash_alg(struct cc_hash_template *template,
 	return t_crypto_alg;
 }
 
+static int cc_init_copy_sram(struct cc_drvdata *drvdata, const u32 *data,
+			     unsigned int size, u32 *sram_buff_ofs)
+{
+	struct cc_hw_desc larval_seq[CC_DIGEST_SIZE_MAX / sizeof(u32)];
+	unsigned int larval_seq_len = 0;
+	int rc;
+
+	cc_set_sram_desc(data, *sram_buff_ofs, size / sizeof(*data),
+			 larval_seq, &larval_seq_len);
+	rc = send_request_init(drvdata, larval_seq, larval_seq_len);
+	if (rc)
+		return rc;
+
+	*sram_buff_ofs += size;
+	return 0;
+}
+
 int cc_init_hash_sram(struct cc_drvdata *drvdata)
 {
 	struct cc_hash_handle *hash_handle = drvdata->hash_handle;
 	u32 sram_buff_ofs = hash_handle->digest_len_sram_addr;
-	unsigned int larval_seq_len = 0;
-	struct cc_hw_desc larval_seq[CC_DIGEST_SIZE_MAX / sizeof(u32)];
 	bool large_sha_supported = (drvdata->hw_rev >= CC_HW_REV_712);
 	bool sm3_supported = (drvdata->hw_rev >= CC_HW_REV_713);
 	int rc = 0;
 
 	/* Copy-to-sram digest-len */
-	cc_set_sram_desc(cc_digest_len_init, sram_buff_ofs,
-			 ARRAY_SIZE(cc_digest_len_init), larval_seq,
-			 &larval_seq_len);
-	rc = send_request_init(drvdata, larval_seq, larval_seq_len);
+	rc = cc_init_copy_sram(drvdata, cc_digest_len_init,
+			       sizeof(cc_digest_len_init), &sram_buff_ofs);
 	if (rc)
 		goto init_digest_const_err;
 
-	sram_buff_ofs += sizeof(cc_digest_len_init);
-	larval_seq_len = 0;
-
 	if (large_sha_supported) {
 		/* Copy-to-sram digest-len for sha384/512 */
-		cc_set_sram_desc(cc_digest_len_sha512_init, sram_buff_ofs,
-				 ARRAY_SIZE(cc_digest_len_sha512_init),
-				 larval_seq, &larval_seq_len);
-		rc = send_request_init(drvdata, larval_seq, larval_seq_len);
+		rc = cc_init_copy_sram(drvdata, cc_digest_len_sha512_init,
+				       sizeof(cc_digest_len_sha512_init),
+				       &sram_buff_ofs);
 		if (rc)
 			goto init_digest_const_err;
-
-		sram_buff_ofs += sizeof(cc_digest_len_sha512_init);
-		larval_seq_len = 0;
 	}
 
 	/* The initial digests offset */
 	hash_handle->larval_digest_sram_addr = sram_buff_ofs;
 
 	/* Copy-to-sram initial SHA* digests */
-	cc_set_sram_desc(cc_md5_init, sram_buff_ofs, ARRAY_SIZE(cc_md5_init),
-			 larval_seq, &larval_seq_len);
-	rc = send_request_init(drvdata, larval_seq, larval_seq_len);
+	rc = cc_init_copy_sram(drvdata, cc_md5_init, sizeof(cc_md5_init),
+			       &sram_buff_ofs);
 	if (rc)
 		goto init_digest_const_err;
-	sram_buff_ofs += sizeof(cc_md5_init);
-	larval_seq_len = 0;
 
-	cc_set_sram_desc(cc_sha1_init, sram_buff_ofs,
-			 ARRAY_SIZE(cc_sha1_init), larval_seq,
-			 &larval_seq_len);
-	rc = send_request_init(drvdata, larval_seq, larval_seq_len);
+	rc = cc_init_copy_sram(drvdata, cc_sha1_init, sizeof(cc_sha1_init),
+			       &sram_buff_ofs);
 	if (rc)
 		goto init_digest_const_err;
-	sram_buff_ofs += sizeof(cc_sha1_init);
-	larval_seq_len = 0;
 
-	cc_set_sram_desc(cc_sha224_init, sram_buff_ofs,
-			 ARRAY_SIZE(cc_sha224_init), larval_seq,
-			 &larval_seq_len);
-	rc = send_request_init(drvdata, larval_seq, larval_seq_len);
+	rc = cc_init_copy_sram(drvdata, cc_sha224_init, sizeof(cc_sha224_init),
+			       &sram_buff_ofs);
 	if (rc)
 		goto init_digest_const_err;
-	sram_buff_ofs += sizeof(cc_sha224_init);
-	larval_seq_len = 0;
 
-	cc_set_sram_desc(cc_sha256_init, sram_buff_ofs,
-			 ARRAY_SIZE(cc_sha256_init), larval_seq,
-			 &larval_seq_len);
-	rc = send_request_init(drvdata, larval_seq, larval_seq_len);
+	rc = cc_init_copy_sram(drvdata, cc_sha256_init, sizeof(cc_sha256_init),
+			       &sram_buff_ofs);
 	if (rc)
 		goto init_digest_const_err;
-	sram_buff_ofs += sizeof(cc_sha256_init);
-	larval_seq_len = 0;
 
 	if (sm3_supported) {
-		cc_set_sram_desc(cc_sm3_init, sram_buff_ofs,
-				 ARRAY_SIZE(cc_sm3_init), larval_seq,
-				 &larval_seq_len);
-		rc = send_request_init(drvdata, larval_seq, larval_seq_len);
+		rc = cc_init_copy_sram(drvdata, cc_sm3_init,
+				       sizeof(cc_sm3_init), &sram_buff_ofs);
 		if (rc)
 			goto init_digest_const_err;
-		sram_buff_ofs += sizeof(cc_sm3_init);
-		larval_seq_len = 0;
 	}
 
 	if (large_sha_supported) {
-		cc_set_sram_desc(cc_sha384_init, sram_buff_ofs,
-				 ARRAY_SIZE(cc_sha384_init), larval_seq,
-				 &larval_seq_len);
-		rc = send_request_init(drvdata, larval_seq, larval_seq_len);
+		rc = cc_init_copy_sram(drvdata, cc_sha384_init,
+				       sizeof(cc_sha384_init), &sram_buff_ofs);
 		if (rc)
 			goto init_digest_const_err;
-		sram_buff_ofs += sizeof(cc_sha384_init);
-		larval_seq_len = 0;
 
-		cc_set_sram_desc(cc_sha512_init, sram_buff_ofs,
-				 ARRAY_SIZE(cc_sha512_init), larval_seq,
-				 &larval_seq_len);
-		rc = send_request_init(drvdata, larval_seq, larval_seq_len);
+		rc = cc_init_copy_sram(drvdata, cc_sha512_init,
+				       sizeof(cc_sha512_init), &sram_buff_ofs);
 		if (rc)
 			goto init_digest_const_err;
 	}
