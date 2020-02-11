@@ -367,7 +367,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		goto post_pm_err;
 	}
 
-	/* wait for Crytpcell reset completion */
+	/* Wait for Cryptocell reset completion */
 	if (!cc_wait_for_reset_completion(new_drvdata)) {
 		dev_err(dev, "Cryptocell reset not completed");
 	}
