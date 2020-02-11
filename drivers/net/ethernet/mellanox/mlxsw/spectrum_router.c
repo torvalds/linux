@@ -4844,6 +4844,23 @@ mlxsw_sp_fib_node_entry_unlink(struct mlxsw_sp *mlxsw_sp,
 	fib_node->fib_entry = NULL;
 }
 
+static bool mlxsw_sp_fib4_allow_replace(struct mlxsw_sp_fib4_entry *fib4_entry)
+{
+	struct mlxsw_sp_fib_node *fib_node = fib4_entry->common.fib_node;
+	struct mlxsw_sp_fib4_entry *fib4_replaced;
+
+	if (!fib_node->fib_entry)
+		return true;
+
+	fib4_replaced = container_of(fib_node->fib_entry,
+				     struct mlxsw_sp_fib4_entry, common);
+	if (fib4_entry->tb_id == RT_TABLE_MAIN &&
+	    fib4_replaced->tb_id == RT_TABLE_LOCAL)
+		return false;
+
+	return true;
+}
+
 static int
 mlxsw_sp_router_fib4_replace(struct mlxsw_sp *mlxsw_sp,
 			     const struct fib_entry_notifier_info *fen_info)
@@ -4870,6 +4887,12 @@ mlxsw_sp_router_fib4_replace(struct mlxsw_sp *mlxsw_sp,
 		dev_warn(mlxsw_sp->bus_info->dev, "Failed to create FIB entry\n");
 		err = PTR_ERR(fib4_entry);
 		goto err_fib4_entry_create;
+	}
+
+	if (!mlxsw_sp_fib4_allow_replace(fib4_entry)) {
+		mlxsw_sp_fib4_entry_destroy(mlxsw_sp, fib4_entry);
+		mlxsw_sp_fib_node_put(mlxsw_sp, fib_node);
+		return 0;
 	}
 
 	replaced = fib_node->fib_entry;
@@ -4908,7 +4931,7 @@ static void mlxsw_sp_router_fib4_del(struct mlxsw_sp *mlxsw_sp,
 		return;
 
 	fib4_entry = mlxsw_sp_fib4_entry_lookup(mlxsw_sp, fen_info);
-	if (WARN_ON(!fib4_entry))
+	if (!fib4_entry)
 		return;
 	fib_node = fib4_entry->common.fib_node;
 
@@ -4970,6 +4993,9 @@ static void mlxsw_sp_rt6_release(struct fib6_info *rt)
 
 static void mlxsw_sp_rt6_destroy(struct mlxsw_sp_rt6 *mlxsw_sp_rt6)
 {
+	struct fib6_nh *fib6_nh = mlxsw_sp_rt6->rt->fib6_nh;
+
+	fib6_nh->fib_nh_flags &= ~RTNH_F_OFFLOAD;
 	mlxsw_sp_rt6_release(mlxsw_sp_rt6->rt);
 	kfree(mlxsw_sp_rt6);
 }
@@ -5408,6 +5434,27 @@ mlxsw_sp_fib6_entry_lookup(struct mlxsw_sp *mlxsw_sp,
 	return NULL;
 }
 
+static bool mlxsw_sp_fib6_allow_replace(struct mlxsw_sp_fib6_entry *fib6_entry)
+{
+	struct mlxsw_sp_fib_node *fib_node = fib6_entry->common.fib_node;
+	struct mlxsw_sp_fib6_entry *fib6_replaced;
+	struct fib6_info *rt, *rt_replaced;
+
+	if (!fib_node->fib_entry)
+		return true;
+
+	fib6_replaced = container_of(fib_node->fib_entry,
+				     struct mlxsw_sp_fib6_entry,
+				     common);
+	rt = mlxsw_sp_fib6_entry_rt(fib6_entry);
+	rt_replaced = mlxsw_sp_fib6_entry_rt(fib6_replaced);
+	if (rt->fib6_table->tb6_id == RT_TABLE_MAIN &&
+	    rt_replaced->fib6_table->tb6_id == RT_TABLE_LOCAL)
+		return false;
+
+	return true;
+}
+
 static int mlxsw_sp_router_fib6_replace(struct mlxsw_sp *mlxsw_sp,
 					struct fib6_info **rt_arr,
 					unsigned int nrt6)
@@ -5440,6 +5487,12 @@ static int mlxsw_sp_router_fib6_replace(struct mlxsw_sp *mlxsw_sp,
 	if (IS_ERR(fib6_entry)) {
 		err = PTR_ERR(fib6_entry);
 		goto err_fib6_entry_create;
+	}
+
+	if (!mlxsw_sp_fib6_allow_replace(fib6_entry)) {
+		mlxsw_sp_fib6_entry_destroy(mlxsw_sp, fib6_entry);
+		mlxsw_sp_fib_node_put(mlxsw_sp, fib_node);
+		return 0;
 	}
 
 	replaced = fib_node->fib_entry;

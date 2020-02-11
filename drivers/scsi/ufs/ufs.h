@@ -546,7 +546,7 @@ static inline bool ufs_is_valid_unit_desc_lun(struct ufs_dev_info *dev_info,
 		u8 lun)
 {
 	if (!dev_info || !dev_info->max_lu_supported) {
-		pr_err("Max General LU supported by UFS isn't initilized\n");
+		pr_err("Max General LU supported by UFS isn't initialized\n");
 		return false;
 	}
 

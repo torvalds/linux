@@ -14,6 +14,7 @@ ALL_TESTS="
 	ipv4_plen
 	ipv4_replay
 	ipv4_flush
+	ipv4_local_replace
 	ipv6_add
 	ipv6_metric
 	ipv6_append_single
@@ -26,6 +27,7 @@ ALL_TESTS="
 	ipv6_delete_multipath
 	ipv6_replay_single
 	ipv6_replay_multipath
+	ipv6_local_replace
 "
 NUM_NETIFS=0
 source $lib_dir/lib.sh
@@ -89,6 +91,43 @@ ipv4_flush()
 	fib_ipv4_flush_test "testns1"
 }
 
+ipv4_local_replace()
+{
+	local ns="testns1"
+
+	RET=0
+
+	ip -n $ns link add name dummy1 type dummy
+	ip -n $ns link set dev dummy1 up
+
+	ip -n $ns route add table local 192.0.2.1/32 dev dummy1
+	fib4_trap_check $ns "table local 192.0.2.1/32 dev dummy1" false
+	check_err $? "Local table route not in hardware when should"
+
+	ip -n $ns route add table main 192.0.2.1/32 dev dummy1
+	fib4_trap_check $ns "table main 192.0.2.1/32 dev dummy1" true
+	check_err $? "Main table route in hardware when should not"
+
+	fib4_trap_check $ns "table local 192.0.2.1/32 dev dummy1" false
+	check_err $? "Local table route was replaced when should not"
+
+	# Test that local routes can replace routes in main table.
+	ip -n $ns route add table main 192.0.2.2/32 dev dummy1
+	fib4_trap_check $ns "table main 192.0.2.2/32 dev dummy1" false
+	check_err $? "Main table route not in hardware when should"
+
+	ip -n $ns route add table local 192.0.2.2/32 dev dummy1
+	fib4_trap_check $ns "table local 192.0.2.2/32 dev dummy1" false
+	check_err $? "Local table route did not replace route in main table when should"
+
+	fib4_trap_check $ns "table main 192.0.2.2/32 dev dummy1" true
+	check_err $? "Main table route was not replaced when should"
+
+	log_test "IPv4 local table route replacement"
+
+	ip -n $ns link del dev dummy1
+}
+
 ipv6_add()
 {
 	fib_ipv6_add_test "testns1"
@@ -147,6 +186,43 @@ ipv6_replay_single()
 ipv6_replay_multipath()
 {
 	fib_ipv6_replay_multipath_test "testns1" "$DEVLINK_DEV"
+}
+
+ipv6_local_replace()
+{
+	local ns="testns1"
+
+	RET=0
+
+	ip -n $ns link add name dummy1 type dummy
+	ip -n $ns link set dev dummy1 up
+
+	ip -n $ns route add table local 2001:db8:1::1/128 dev dummy1
+	fib6_trap_check $ns "table local 2001:db8:1::1/128 dev dummy1" false
+	check_err $? "Local table route not in hardware when should"
+
+	ip -n $ns route add table main 2001:db8:1::1/128 dev dummy1
+	fib6_trap_check $ns "table main 2001:db8:1::1/128 dev dummy1" true
+	check_err $? "Main table route in hardware when should not"
+
+	fib6_trap_check $ns "table local 2001:db8:1::1/128 dev dummy1" false
+	check_err $? "Local table route was replaced when should not"
+
+	# Test that local routes can replace routes in main table.
+	ip -n $ns route add table main 2001:db8:1::2/128 dev dummy1
+	fib6_trap_check $ns "table main 2001:db8:1::2/128 dev dummy1" false
+	check_err $? "Main table route not in hardware when should"
+
+	ip -n $ns route add table local 2001:db8:1::2/128 dev dummy1
+	fib6_trap_check $ns "table local 2001:db8:1::2/128 dev dummy1" false
+	check_err $? "Local route route did not replace route in main table when should"
+
+	fib6_trap_check $ns "table main 2001:db8:1::2/128 dev dummy1" true
+	check_err $? "Main table route was not replaced when should"
+
+	log_test "IPv6 local table route replacement"
+
+	ip -n $ns link del dev dummy1
 }
 
 setup_prepare()

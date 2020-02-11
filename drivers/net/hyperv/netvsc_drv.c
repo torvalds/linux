@@ -1059,9 +1059,12 @@ static int netvsc_attach(struct net_device *ndev,
 
 	prog = dev_info->bprog;
 	if (prog) {
+		bpf_prog_inc(prog);
 		ret = netvsc_xdp_set(ndev, prog, NULL, nvdev);
-		if (ret)
+		if (ret) {
+			bpf_prog_put(prog);
 			goto err1;
+		}
 	}
 
 	/* In any case device is now ready */

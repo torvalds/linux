@@ -823,7 +823,6 @@ static int ioc3_close(struct net_device *dev)
 	netif_stop_queue(dev);
 
 	ioc3_stop(ip);
-	free_irq(dev->irq, dev);
 
 	ioc3_free_rx_bufs(ip);
 	ioc3_clean_tx_ring(ip);

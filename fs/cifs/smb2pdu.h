@@ -1519,6 +1519,7 @@ struct smb3_fs_vol_info {
 #define FILE_NORMALIZED_NAME_INFORMATION 48
 #define FILEID_GLOBAL_TX_DIRECTORY_INFORMATION 50
 #define FILE_STANDARD_LINK_INFORMATION	54
+#define FILE_ID_INFORMATION		59
 
 struct smb2_file_internal_info {
 	__le64 IndexNumber;
@@ -1593,6 +1594,21 @@ struct smb2_file_network_open_info {
 	__le32 Reserved;
 } __packed; /* level 34 Query also similar returned in close rsp and open rsp */
 
+/* See MS-FSCC 2.4.43 */
+struct smb2_file_id_information {
+	__le64	VolumeSerialNumber;
+	__u64  PersistentFileId; /* opaque endianness */
+	__u64  VolatileFileId; /* opaque endianness */
+} __packed; /* level 59 */
+
 extern char smb2_padding[7];
 
+/* equivalent of the contents of SMB3.1.1 POSIX open context response */
+struct smb_posix_info {
+	__le32 nlink;
+	__le32 reparse_tag;
+	__le32 mode;
+	kuid_t	uid;
+	kuid_t	gid;
+};
 #endif				/* _SMB2PDU_H */

@@ -5,7 +5,7 @@
 ARCH_REL_TYPE_ABS := R_ARM_JUMP_SLOT|R_ARM_GLOB_DAT|R_ARM_ABS32
 include $(srctree)/lib/vdso/Makefile
 
-hostprogs-y := vdsomunge
+hostprogs := vdsomunge
 
 obj-vdso := vgettimeofday.o datapage.o note.o
 

@@ -91,10 +91,18 @@ void __init hpet_time_init(void)
 
 static __init void x86_late_time_init(void)
 {
-	x86_init.timers.timer_init();
 	/*
-	 * After PIT/HPET timers init, select and setup
-	 * the final interrupt mode for delivering IRQs.
+	 * Before PIT/HPET init, select the interrupt mode. This is required
+	 * to make the decision whether PIT should be initialized correct.
+	 */
+	x86_init.irqs.intr_mode_select();
+
+	/* Setup the legacy timers */
+	x86_init.timers.timer_init();
+
+	/*
+	 * After PIT/HPET timers init, set up the final interrupt mode for
+	 * delivering IRQs.
 	 */
 	x86_init.irqs.intr_mode_init();
 	tsc_init();
