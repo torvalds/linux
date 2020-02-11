@@ -56,14 +56,12 @@
  */
 static DEFINE_SPINLOCK(pm_qos_lock);
 
-static BLOCKING_NOTIFIER_HEAD(cpu_dma_lat_notifier);
 static struct pm_qos_constraints cpu_dma_constraints = {
 	.list = PLIST_HEAD_INIT(cpu_dma_constraints.list),
 	.target_value = PM_QOS_CPU_DMA_LAT_DEFAULT_VALUE,
 	.default_value = PM_QOS_CPU_DMA_LAT_DEFAULT_VALUE,
 	.no_constraint_value = PM_QOS_CPU_DMA_LAT_DEFAULT_VALUE,
 	.type = PM_QOS_MIN,
-	.notifiers = &cpu_dma_lat_notifier,
 };
 
 /**
@@ -247,6 +245,14 @@ int pm_qos_request_active(struct pm_qos_request *req)
 }
 EXPORT_SYMBOL_GPL(pm_qos_request_active);
 
+static void cpu_latency_qos_update(struct pm_qos_request *req,
+				   enum pm_qos_req_action action, s32 value)
+{
+	int ret = pm_qos_update_target(req->qos, &req->node, action, value);
+	if (ret > 0)
+		wake_up_all_idle_cpus();
+}
+
 /**
  * pm_qos_add_request - inserts new qos request into the list
  * @req: pointer to a preallocated handle
@@ -273,7 +279,7 @@ void pm_qos_add_request(struct pm_qos_request *req,
 	trace_pm_qos_add_request(PM_QOS_CPU_DMA_LATENCY, value);
 
 	req->qos = &cpu_dma_constraints;
-	pm_qos_update_target(req->qos, &req->node, PM_QOS_ADD_REQ, value);
+	cpu_latency_qos_update(req, PM_QOS_ADD_REQ, value);
 }
 EXPORT_SYMBOL_GPL(pm_qos_add_request);
 
@@ -302,7 +308,7 @@ void pm_qos_update_request(struct pm_qos_request *req, s32 new_value)
 	if (new_value == req->node.prio)
 		return;
 
-	pm_qos_update_target(req->qos, &req->node, PM_QOS_UPDATE_REQ, new_value);
+	cpu_latency_qos_update(req, PM_QOS_UPDATE_REQ, new_value);
 }
 EXPORT_SYMBOL_GPL(pm_qos_update_request);
 
@@ -327,41 +333,10 @@ void pm_qos_remove_request(struct pm_qos_request *req)
 
 	trace_pm_qos_remove_request(PM_QOS_CPU_DMA_LATENCY, PM_QOS_DEFAULT_VALUE);
 
-	pm_qos_update_target(req->qos, &req->node, PM_QOS_REMOVE_REQ,
-			     PM_QOS_DEFAULT_VALUE);
+	cpu_latency_qos_update(req, PM_QOS_REMOVE_REQ, PM_QOS_DEFAULT_VALUE);
 	memset(req, 0, sizeof(*req));
 }
 EXPORT_SYMBOL_GPL(pm_qos_remove_request);
-
-/**
- * pm_qos_add_notifier - sets notification entry for changes to target value
- * @pm_qos_class: Ignored.
- * @notifier: notifier block managed by caller.
- *
- * will register the notifier into a notification chain that gets called
- * upon changes to the PM_QOS_CPU_DMA_LATENCY target value.
- */
-int pm_qos_add_notifier(int pm_qos_class, struct notifier_block *notifier)
-{
-	return blocking_notifier_chain_register(cpu_dma_constraints.notifiers,
-						notifier);
-}
-EXPORT_SYMBOL_GPL(pm_qos_add_notifier);
-
-/**
- * pm_qos_remove_notifier - deletes notification entry from chain.
- * @pm_qos_class: Ignored.
- * @notifier: notifier block to be removed.
- *
- * will remove the notifier from the notification chain that gets called
- * upon changes to the PM_QOS_CPU_DMA_LATENCY target value.
- */
-int pm_qos_remove_notifier(int pm_qos_class, struct notifier_block *notifier)
-{
-	return blocking_notifier_chain_unregister(cpu_dma_constraints.notifiers,
-						  notifier);
-}
-EXPORT_SYMBOL_GPL(pm_qos_remove_notifier);
 
 /* User space interface to global PM QoS via misc device. */
 
