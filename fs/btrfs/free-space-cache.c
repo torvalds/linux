@@ -1191,7 +1191,7 @@ out:
 		invalidate_inode_pages2(inode->i_mapping);
 		BTRFS_I(inode)->generation = 0;
 		if (block_group) {
-#ifdef DEBUG
+#ifdef CONFIG_BTRFS_DEBUG
 			btrfs_err(root->fs_info,
 				  "failed to write free space cache for block group %llu",
 				  block_group->start);
@@ -1417,7 +1417,7 @@ int btrfs_write_out_cache(struct btrfs_trans_handle *trans,
 	ret = __btrfs_write_out_cache(fs_info->tree_root, inode, ctl,
 				block_group, &block_group->io_ctl, trans);
 	if (ret) {
-#ifdef DEBUG
+#ifdef CONFIG_BTRFS_DEBUG
 		btrfs_err(fs_info,
 			  "failed to write free space cache for block group %llu",
 			  block_group->start);
@@ -4037,7 +4037,7 @@ int btrfs_write_out_ino_cache(struct btrfs_root *root,
 		if (release_metadata)
 			btrfs_delalloc_release_metadata(BTRFS_I(inode),
 					inode->i_size, true);
-#ifdef DEBUG
+#ifdef CONFIG_BTRFS_DEBUG
 		btrfs_err(fs_info,
 			  "failed to write free ino cache for root %llu",
 			  root->root_key.objectid);
