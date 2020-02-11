@@ -130,12 +130,12 @@ static void wfx_tx_queue_clear(struct wfx_dev *wdev, struct wfx_queue *queue,
 	spin_lock_bh(&queue->queue.lock);
 	while ((item = __skb_dequeue(&queue->queue)) != NULL)
 		skb_queue_head(gc_list, item);
-	spin_lock_bh(&stats->pending.lock);
+	spin_lock_nested(&stats->pending.lock, 1);
 	for (i = 0; i < ARRAY_SIZE(stats->link_map_cache); ++i) {
 		stats->link_map_cache[i] -= queue->link_map_cache[i];
 		queue->link_map_cache[i] = 0;
 	}
-	spin_unlock_bh(&stats->pending.lock);
+	spin_unlock(&stats->pending.lock);
 	spin_unlock_bh(&queue->queue.lock);
 }
 
@@ -207,9 +207,9 @@ void wfx_tx_queue_put(struct wfx_dev *wdev, struct wfx_queue *queue,
 
 	++queue->link_map_cache[tx_priv->link_id];
 
-	spin_lock_bh(&stats->pending.lock);
+	spin_lock_nested(&stats->pending.lock, 1);
 	++stats->link_map_cache[tx_priv->link_id];
-	spin_unlock_bh(&stats->pending.lock);
+	spin_unlock(&stats->pending.lock);
 	spin_unlock_bh(&queue->queue.lock);
 }
 
@@ -237,11 +237,11 @@ static struct sk_buff *wfx_tx_queue_get(struct wfx_dev *wdev,
 		__skb_unlink(skb, &queue->queue);
 		--queue->link_map_cache[tx_priv->link_id];
 
-		spin_lock_bh(&stats->pending.lock);
+		spin_lock_nested(&stats->pending.lock, 1);
 		__skb_queue_tail(&stats->pending, skb);
 		if (!--stats->link_map_cache[tx_priv->link_id])
 			wakeup_stats = true;
-		spin_unlock_bh(&stats->pending.lock);
+		spin_unlock(&stats->pending.lock);
 	}
 	spin_unlock_bh(&queue->queue.lock);
 	if (wakeup_stats)
@@ -259,10 +259,10 @@ int wfx_pending_requeue(struct wfx_dev *wdev, struct sk_buff *skb)
 	spin_lock_bh(&queue->queue.lock);
 	++queue->link_map_cache[tx_priv->link_id];
 
-	spin_lock_bh(&stats->pending.lock);
+	spin_lock_nested(&stats->pending.lock, 1);
 	++stats->link_map_cache[tx_priv->link_id];
 	__skb_unlink(skb, &stats->pending);
-	spin_unlock_bh(&stats->pending.lock);
+	spin_unlock(&stats->pending.lock);
 	__skb_queue_tail(&queue->queue, skb);
 	spin_unlock_bh(&queue->queue.lock);
 	return 0;
