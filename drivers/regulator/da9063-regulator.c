@@ -152,7 +152,7 @@ struct da9063_regulator {
 struct da9063_regulators {
 	unsigned int				n_regulators;
 	/* Array size to be defined during init. Keep at end. */
-	struct da9063_regulator			regulator[0];
+	struct da9063_regulator			regulator[];
 };
 
 /* BUCK modes for DA9063 */
