@@ -3236,6 +3236,9 @@ static int ccs_remove(struct i2c_client *client)
 }
 
 static const struct of_device_id ccs_of_table[] = {
+	{ .compatible = "mipi-ccs-1.1" },
+	{ .compatible = "mipi-ccs-1.0" },
+	{ .compatible = "mipi-ccs" },
 	{ .compatible = "nokia,smia" },
 	{ },
 };
