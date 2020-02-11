@@ -1828,7 +1828,7 @@ static struct cc_hash_alg *cc_alloc_hash_alg(struct cc_hash_template *template,
 	struct crypto_alg *alg;
 	struct ahash_alg *halg;
 
-	t_crypto_alg = kzalloc(sizeof(*t_crypto_alg), GFP_KERNEL);
+	t_crypto_alg = devm_kzalloc(dev, sizeof(*t_crypto_alg), GFP_KERNEL);
 	if (!t_crypto_alg)
 		return ERR_PTR(-ENOMEM);
 
@@ -1961,7 +1961,7 @@ int cc_hash_alloc(struct cc_drvdata *drvdata)
 	int rc = 0;
 	int alg;
 
-	hash_handle = kzalloc(sizeof(*hash_handle), GFP_KERNEL);
+	hash_handle = devm_kzalloc(dev, sizeof(*hash_handle), GFP_KERNEL);
 	if (!hash_handle)
 		return -ENOMEM;
 
@@ -2022,7 +2022,6 @@ int cc_hash_alloc(struct cc_drvdata *drvdata)
 			if (rc) {
 				dev_err(dev, "%s alg registration failed\n",
 					driver_hash[alg].driver_name);
-				kfree(t_alg);
 				goto fail;
 			}
 
@@ -2046,7 +2045,6 @@ int cc_hash_alloc(struct cc_drvdata *drvdata)
 		if (rc) {
 			dev_err(dev, "%s alg registration failed\n",
 				driver_hash[alg].driver_name);
-			kfree(t_alg);
 			goto fail;
 		}
 
@@ -2056,8 +2054,7 @@ int cc_hash_alloc(struct cc_drvdata *drvdata)
 	return 0;
 
 fail:
-	kfree(drvdata->hash_handle);
-	drvdata->hash_handle = NULL;
+	cc_hash_free(drvdata);
 	return rc;
 }
 
@@ -2066,17 +2063,12 @@ int cc_hash_free(struct cc_drvdata *drvdata)
 	struct cc_hash_alg *t_hash_alg, *hash_n;
 	struct cc_hash_handle *hash_handle = drvdata->hash_handle;
 
-	if (hash_handle) {
-		list_for_each_entry_safe(t_hash_alg, hash_n,
-					 &hash_handle->hash_list, entry) {
-			crypto_unregister_ahash(&t_hash_alg->ahash_alg);
-			list_del(&t_hash_alg->entry);
-			kfree(t_hash_alg);
-		}
-
-		kfree(hash_handle);
-		drvdata->hash_handle = NULL;
+	list_for_each_entry_safe(t_hash_alg, hash_n, &hash_handle->hash_list,
+				 entry) {
+		crypto_unregister_ahash(&t_hash_alg->ahash_alg);
+		list_del(&t_hash_alg->entry);
 	}
+
 	return 0;
 }
 
