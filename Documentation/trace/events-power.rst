@@ -78,11 +78,9 @@ target/flags update.
   pm_qos_add_request                 "pm_qos_class=%s value=%d"
   pm_qos_update_request              "pm_qos_class=%s value=%d"
   pm_qos_remove_request              "pm_qos_class=%s value=%d"
-  pm_qos_update_request_timeout      "pm_qos_class=%s value=%d, timeout_us=%ld"
 
 The first parameter gives the QoS class name (e.g. "CPU_DMA_LATENCY").
 The second parameter is value to be added/updated/removed.
-The third parameter is timeout value in usec.
 ::
 
   pm_qos_update_target               "action=%s prev_value=%d curr_value=%d"

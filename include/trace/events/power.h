@@ -404,30 +404,6 @@ DEFINE_EVENT(pm_qos_request, pm_qos_remove_request,
 	TP_ARGS(pm_qos_class, value)
 );
 
-TRACE_EVENT(pm_qos_update_request_timeout,
-
-	TP_PROTO(int pm_qos_class, s32 value, unsigned long timeout_us),
-
-	TP_ARGS(pm_qos_class, value, timeout_us),
-
-	TP_STRUCT__entry(
-		__field( int,                    pm_qos_class   )
-		__field( s32,                    value          )
-		__field( unsigned long,          timeout_us     )
-	),
-
-	TP_fast_assign(
-		__entry->pm_qos_class = pm_qos_class;
-		__entry->value = value;
-		__entry->timeout_us = timeout_us;
-	),
-
-	TP_printk("pm_qos_class=%s value=%d, timeout_us=%ld",
-		  __print_symbolic(__entry->pm_qos_class,
-			{ PM_QOS_CPU_DMA_LATENCY,	"CPU_DMA_LATENCY" }),
-		  __entry->value, __entry->timeout_us)
-);
-
 DECLARE_EVENT_CLASS(pm_qos_update,
 
 	TP_PROTO(enum pm_qos_req_action action, int prev_value, int curr_value),
