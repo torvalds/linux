@@ -429,8 +429,7 @@ static int cc_hash_digest(struct ahash_request *req)
 	bool is_hmac = ctx->is_hmac;
 	struct cc_crypto_req cc_req = {};
 	struct cc_hw_desc desc[CC_MAX_HASH_SEQ_LEN];
-	cc_sram_addr_t larval_digest_addr =
-		cc_larval_digest_addr(ctx->drvdata, ctx->hash_mode);
+	cc_sram_addr_t larval_digest_addr;
 	int idx = 0;
 	int rc = 0;
 	gfp_t flags = cc_gfp_flags(&req->base);
@@ -472,6 +471,8 @@ static int cc_hash_digest(struct ahash_request *req)
 		set_din_type(&desc[idx], DMA_DLLI, state->digest_buff_dma_addr,
 			     ctx->inter_digestsize, NS_BIT);
 	} else {
+		larval_digest_addr = cc_larval_digest_addr(ctx->drvdata,
+							   ctx->hash_mode);
 		set_din_sram(&desc[idx], larval_digest_addr,
 			     ctx->inter_digestsize);
 	}
