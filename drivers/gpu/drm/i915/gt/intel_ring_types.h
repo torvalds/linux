@@ -39,9 +39,9 @@ struct intel_ring {
 	 */
 	atomic_t pin_count;
 
-	u32 head;
-	u32 tail;
-	u32 emit;
+	u32 head; /* updated during retire, loosely tracks RING_HEAD */
+	u32 tail; /* updated on submission, used for RING_TAIL */
+	u32 emit; /* updated during request construction */
 
 	u32 space;
 	u32 size;
