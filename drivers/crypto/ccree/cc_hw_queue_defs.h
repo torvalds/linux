@@ -239,9 +239,9 @@ static inline void set_din_type(struct cc_hw_desc *pdesc,
 				enum cc_dma_mode dma_mode, dma_addr_t addr,
 				u32 size, enum cc_axi_sec axi_sec)
 {
-	pdesc->word[0] = (u32)addr;
+	pdesc->word[0] = lower_32_bits(addr);
 #ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
-	pdesc->word[5] |= FIELD_PREP(WORD5_DIN_ADDR_HIGH, ((u16)(addr >> 32)));
+	pdesc->word[5] |= FIELD_PREP(WORD5_DIN_ADDR_HIGH, upper_32_bits(addr));
 #endif
 	pdesc->word[1] |= FIELD_PREP(WORD1_DIN_DMA_MODE, dma_mode) |
 				FIELD_PREP(WORD1_DIN_SIZE, size) |
@@ -336,9 +336,9 @@ static inline void set_dout_type(struct cc_hw_desc *pdesc,
 				 enum cc_dma_mode dma_mode, dma_addr_t addr,
 				 u32 size, enum cc_axi_sec axi_sec)
 {
-	pdesc->word[2] = (u32)addr;
+	pdesc->word[2] = lower_32_bits(addr);
 #ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
-	pdesc->word[5] |= FIELD_PREP(WORD5_DOUT_ADDR_HIGH, ((u16)(addr >> 32)));
+	pdesc->word[5] |= FIELD_PREP(WORD5_DOUT_ADDR_HIGH, upper_32_bits(addr));
 #endif
 	pdesc->word[3] |= FIELD_PREP(WORD3_DOUT_DMA_MODE, dma_mode) |
 				FIELD_PREP(WORD3_DOUT_SIZE, size) |
