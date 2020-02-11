@@ -237,7 +237,8 @@ static void execlists_init_reg_state(u32 *reg_state,
 				     bool close);
 static void
 __execlists_update_reg_state(const struct intel_context *ce,
-			     const struct intel_engine_cs *engine);
+			     const struct intel_engine_cs *engine,
+			     u32 head);
 
 static void mark_eio(struct i915_request *rq)
 {
@@ -1186,12 +1187,11 @@ static void reset_active(struct i915_request *rq,
 		head = rq->tail;
 	else
 		head = active_request(ce->timeline, rq)->head;
-	ce->ring->head = intel_ring_wrap(ce->ring, head);
-	intel_ring_update_space(ce->ring);
+	head = intel_ring_wrap(ce->ring, head);
 
 	/* Scrub the context image to prevent replaying the previous batch */
 	restore_default_state(ce, engine);
-	__execlists_update_reg_state(ce, engine);
+	__execlists_update_reg_state(ce, engine, head);
 
 	/* We've switched away, so this should be a no-op, but intent matters */
 	ce->lrc_desc |= CTX_DESC_FORCE_RESTORE;
@@ -2863,16 +2863,17 @@ static void execlists_context_unpin(struct intel_context *ce)
 
 static void
 __execlists_update_reg_state(const struct intel_context *ce,
-			     const struct intel_engine_cs *engine)
+			     const struct intel_engine_cs *engine,
+			     u32 head)
 {
 	struct intel_ring *ring = ce->ring;
 	u32 *regs = ce->lrc_reg_state;
 
-	GEM_BUG_ON(!intel_ring_offset_valid(ring, ring->head));
+	GEM_BUG_ON(!intel_ring_offset_valid(ring, head));
 	GEM_BUG_ON(!intel_ring_offset_valid(ring, ring->tail));
 
 	regs[CTX_RING_START] = i915_ggtt_offset(ring->vma);
-	regs[CTX_RING_HEAD] = ring->head;
+	regs[CTX_RING_HEAD] = head;
 	regs[CTX_RING_TAIL] = ring->tail;
 
 	/* RPCS */
@@ -2901,7 +2902,7 @@ __execlists_context_pin(struct intel_context *ce,
 
 	ce->lrc_desc = lrc_descriptor(ce, engine) | CTX_DESC_FORCE_RESTORE;
 	ce->lrc_reg_state = vaddr + LRC_STATE_PN * PAGE_SIZE;
-	__execlists_update_reg_state(ce, engine);
+	__execlists_update_reg_state(ce, engine, ce->ring->tail);
 
 	return 0;
 }
@@ -2942,7 +2943,7 @@ static void execlists_context_reset(struct intel_context *ce)
 	/* Scrub away the garbage */
 	execlists_init_reg_state(ce->lrc_reg_state,
 				 ce, ce->engine, ce->ring, true);
-	__execlists_update_reg_state(ce, ce->engine);
+	__execlists_update_reg_state(ce, ce->engine, ce->ring->tail);
 
 	ce->lrc_desc |= CTX_DESC_FORCE_RESTORE;
 }
@@ -3497,6 +3498,7 @@ static void __execlists_reset(struct intel_engine_cs *engine, bool stalled)
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 	struct intel_context *ce;
 	struct i915_request *rq;
+	u32 head;
 
 	mb(); /* paranoia: read the CSB pointers from after the reset */
 	clflush(execlists->csb_write);
@@ -3524,15 +3526,15 @@ static void __execlists_reset(struct intel_engine_cs *engine, bool stalled)
 
 	if (i915_request_completed(rq)) {
 		/* Idle context; tidy up the ring so we can restart afresh */
-		ce->ring->head = intel_ring_wrap(ce->ring, rq->tail);
+		head = intel_ring_wrap(ce->ring, rq->tail);
 		goto out_replay;
 	}
 
 	/* Context has requests still in-flight; it should not be idle! */
 	GEM_BUG_ON(i915_active_is_idle(&ce->active));
 	rq = active_request(ce->timeline, rq);
-	ce->ring->head = intel_ring_wrap(ce->ring, rq->head);
-	GEM_BUG_ON(ce->ring->head == ce->ring->tail);
+	head = intel_ring_wrap(ce->ring, rq->head);
+	GEM_BUG_ON(head == ce->ring->tail);
 
 	/*
 	 * If this request hasn't started yet, e.g. it is waiting on a
@@ -3577,10 +3579,9 @@ static void __execlists_reset(struct intel_engine_cs *engine, bool stalled)
 
 out_replay:
 	ENGINE_TRACE(engine, "replay {head:%04x, tail:%04x}\n",
-		     ce->ring->head, ce->ring->tail);
-	intel_ring_update_space(ce->ring);
+		     head, ce->ring->tail);
 	__execlists_reset_reg_state(ce, engine);
-	__execlists_update_reg_state(ce, engine);
+	__execlists_update_reg_state(ce, engine, head);
 	ce->lrc_desc |= CTX_DESC_FORCE_RESTORE; /* paranoid: GPU was reset! */
 
 unwind:
@@ -5223,10 +5224,7 @@ void intel_lr_context_reset(struct intel_engine_cs *engine,
 		restore_default_state(ce, engine);
 
 	/* Rerun the request; its payload has been neutered (if guilty). */
-	ce->ring->head = head;
-	intel_ring_update_space(ce->ring);
-
-	__execlists_update_reg_state(ce, engine);
+	__execlists_update_reg_state(ce, engine, head);
 }
 
 bool
