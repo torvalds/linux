@@ -201,7 +201,7 @@ struct slib {
  * @scount: SBAL count
  * @sflags: whole SBAL flags
  * @length: length
- * @addr: address
+ * @addr: absolute data address
 */
 struct qdio_buffer_element {
 	u8 eflags;
@@ -211,7 +211,7 @@ struct qdio_buffer_element {
 	u8 scount;
 	u8 sflags;
 	u32 length;
-	void *addr;
+	u64 addr;
 } __attribute__ ((packed, aligned(16)));
 
 /**
