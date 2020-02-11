@@ -31,7 +31,7 @@ __setup("dump_apple_properties", dump_properties_enable);
 struct dev_header {
 	u32 len;
 	u32 prop_count;
-	struct efi_dev_path path[0];
+	struct efi_dev_path path[];
 	/*
 	 * followed by key/value pairs, each key and value preceded by u32 len,
 	 * len includes itself, value may be empty (in which case its len is 4)
@@ -42,7 +42,7 @@ struct properties_header {
 	u32 len;
 	u32 version;
 	u32 dev_count;
-	struct dev_header dev_header[0];
+	struct dev_header dev_header[];
 };
 
 static void __init unmarshal_key_value_pairs(struct dev_header *dev_header,
