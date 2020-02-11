@@ -140,7 +140,7 @@ struct cc_drvdata {
 	struct completion hw_queue_avail; /* wait for HW queue availability */
 	struct platform_device *plat_dev;
 	u32 mlli_sram_addr;
-	void *buff_mgr_handle;
+	struct dma_pool *mlli_buffs_pool;
 	void *cipher_handle;
 	void *hash_handle;
 	void *aead_handle;
