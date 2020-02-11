@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * drivers/media/i2c/smiapp/smiapp-quirk.h
+ * drivers/media/i2c/smiapp/ccs-quirk.h
  *
  * Generic driver for SMIA/SMIA++ compliant camera modules
  *
@@ -8,13 +8,13 @@
  * Contact: Sakari Ailus <sakari.ailus@iki.fi>
  */
 
-#ifndef __SMIAPP_QUIRK__
-#define __SMIAPP_QUIRK__
+#ifndef __CCS_QUIRK__
+#define __CCS_QUIRK__
 
-struct smiapp_sensor;
+struct ccs_sensor;
 
 /**
- * struct smiapp_quirk - quirks for sensors that deviate from SMIA++ standard
+ * struct ccs_quirk - quirks for sensors that deviate from SMIA++ standard
  *
  * @limits: Replace sensor->limits with values which can't be read from
  *	    sensor registers. Called the first time the sensor is powered up.
@@ -36,43 +36,43 @@ struct smiapp_sensor;
  *			 access may be done by the caller (default read
  *			 value is zero), else negative error code on error
  */
-struct smiapp_quirk {
-	int (*limits)(struct smiapp_sensor *sensor);
-	int (*post_poweron)(struct smiapp_sensor *sensor);
-	int (*pre_streamon)(struct smiapp_sensor *sensor);
-	int (*post_streamoff)(struct smiapp_sensor *sensor);
-	unsigned long (*pll_flags)(struct smiapp_sensor *sensor);
-	int (*init)(struct smiapp_sensor *sensor);
-	int (*reg_access)(struct smiapp_sensor *sensor, bool write, u32 *reg,
+struct ccs_quirk {
+	int (*limits)(struct ccs_sensor *sensor);
+	int (*post_poweron)(struct ccs_sensor *sensor);
+	int (*pre_streamon)(struct ccs_sensor *sensor);
+	int (*post_streamoff)(struct ccs_sensor *sensor);
+	unsigned long (*pll_flags)(struct ccs_sensor *sensor);
+	int (*init)(struct ccs_sensor *sensor);
+	int (*reg_access)(struct ccs_sensor *sensor, bool write, u32 *reg,
 			  u32 *val);
 	unsigned long flags;
 };
 
-#define SMIAPP_QUIRK_FLAG_8BIT_READ_ONLY			(1 << 0)
+#define CCS_QUIRK_FLAG_8BIT_READ_ONLY			(1 << 0)
 
-struct smiapp_reg_8 {
+struct ccs_reg_8 {
 	u16 reg;
 	u8 val;
 };
 
-#define SMIAPP_MK_QUIRK_REG_8(_reg, _val) \
+#define CCS_MK_QUIRK_REG_8(_reg, _val) \
 	{				\
 		.reg = (u16)_reg,	\
 		.val = _val,		\
 	}
 
-#define smiapp_call_quirk(sensor, _quirk, ...)				\
+#define ccs_call_quirk(sensor, _quirk, ...)				\
 	((sensor)->minfo.quirk &&					\
 	 (sensor)->minfo.quirk->_quirk ?				\
 	 (sensor)->minfo.quirk->_quirk(sensor, ##__VA_ARGS__) : 0)
 
-#define smiapp_needs_quirk(sensor, _quirk)		\
+#define ccs_needs_quirk(sensor, _quirk)		\
 	((sensor)->minfo.quirk ?			\
 	 (sensor)->minfo.quirk->flags & _quirk : 0)
 
-extern const struct smiapp_quirk smiapp_jt8ev1_quirk;
-extern const struct smiapp_quirk smiapp_imx125es_quirk;
-extern const struct smiapp_quirk smiapp_jt8ew9_quirk;
-extern const struct smiapp_quirk smiapp_tcm8500md_quirk;
+extern const struct ccs_quirk smiapp_jt8ev1_quirk;
+extern const struct ccs_quirk smiapp_imx125es_quirk;
+extern const struct ccs_quirk smiapp_jt8ew9_quirk;
+extern const struct ccs_quirk smiapp_tcm8500md_quirk;
 
-#endif /* __SMIAPP_QUIRK__ */
+#endif /* __CCS_QUIRK__ */

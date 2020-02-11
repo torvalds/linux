@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * drivers/media/i2c/smiapp/smiapp.h
+ * drivers/media/i2c/smiapp/ccs.h
  *
  * Generic driver for SMIA/SMIA++ compliant camera modules
  *
@@ -8,19 +8,18 @@
  * Contact: Sakari Ailus <sakari.ailus@iki.fi>
  */
 
-#ifndef __SMIAPP_PRIV_H_
-#define __SMIAPP_PRIV_H_
+#ifndef __CCS_H__
+#define __CCS_H__
 
 #include <linux/mutex.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
 
+#include "ccs-quirk.h"
 #include "ccs-regs.h"
-
-#include "smiapp-pll.h"
+#include "ccs-reg-access.h"
+#include "../smiapp-pll.h"
 #include "smiapp-reg-defs.h"
-#include "smiapp-regs.h"
-#include "smiapp-quirk.h"
 
 /*
  * Standard SMIA++ constants
@@ -41,12 +40,13 @@
 	(1000 +	(SMIAPP_RESET_DELAY_CLOCKS * 1000	\
 		 + (clk) / 1000 - 1) / ((clk) / 1000))
 
-#define SMIAPP_COLOUR_COMPONENTS	4
+#define CCS_COLOUR_COMPONENTS		4
 
-#define SMIAPP_NAME		"smiapp"
+#define SMIAPP_NAME			"smiapp"
+#define CCS_NAME			"ccs"
 
-#define SMIAPP_DFL_I2C_ADDR	(0x20 >> 1) /* Default I2C Address */
-#define SMIAPP_ALT_I2C_ADDR	(0x6e >> 1) /* Alternate I2C Address */
+#define CCS_DFL_I2C_ADDR	(0x20 >> 1) /* Default I2C Address */
+#define CCS_ALT_I2C_ADDR	(0x6e >> 1) /* Alternate I2C Address */
 
 /*
  * Sometimes due to board layout considerations the camera module can be
@@ -54,12 +54,12 @@
  * corrected by giving a default H-FLIP and V-FLIP in the sensor readout.
  * FIXME: rotation also changes the bayer pattern.
  */
-enum smiapp_module_board_orient {
-	SMIAPP_MODULE_BOARD_ORIENT_0 = 0,
-	SMIAPP_MODULE_BOARD_ORIENT_180,
+enum ccs_module_board_orient {
+	CCS_MODULE_BOARD_ORIENT_0 = 0,
+	CCS_MODULE_BOARD_ORIENT_180,
 };
 
-struct smiapp_flash_strobe_parms {
+struct ccs_flash_strobe_parms {
 	u8 mode;
 	u32 strobe_width_high_us;
 	u16 strobe_delay;
@@ -67,7 +67,7 @@ struct smiapp_flash_strobe_parms {
 	u8 trigger;
 };
 
-struct smiapp_hwconfig {
+struct ccs_hwconfig {
 	/*
 	 * Change the cci address if i2c_addr_alt is set.
 	 * Both default and alternate cci addr need to be present
@@ -78,19 +78,19 @@ struct smiapp_hwconfig {
 	uint32_t ext_clk;		/* sensor external clk */
 
 	unsigned int lanes;		/* Number of CSI-2 lanes */
-	uint32_t csi_signalling_mode;	/* SMIAPP_CSI_SIGNALLING_MODE_* */
+	uint32_t csi_signalling_mode;	/* CCS_CSI_SIGNALLING_MODE_* */
 	uint64_t *op_sys_clock;
 
-	enum smiapp_module_board_orient module_board_orient;
+	enum ccs_module_board_orient module_board_orient;
 
-	struct smiapp_flash_strobe_parms *strobe_setup;
+	struct ccs_flash_strobe_parms *strobe_setup;
 };
 
-struct smiapp_quirk;
+struct ccs_quirk;
 
-#define SMIAPP_MODULE_IDENT_FLAG_REV_LE		(1 << 0)
+#define CCS_MODULE_IDENT_FLAG_REV_LE		(1 << 0)
 
-struct smiapp_module_ident {
+struct ccs_module_ident {
 	u16 mipi_manufacturer_id;
 	u16 model_id;
 	u8 smia_manufacturer_id;
@@ -99,10 +99,10 @@ struct smiapp_module_ident {
 	u8 flags;
 
 	char *name;
-	const struct smiapp_quirk *quirk;
+	const struct ccs_quirk *quirk;
 };
 
-struct smiapp_module_info {
+struct ccs_module_info {
 	u32 smia_manufacturer_id;
 	u32 mipi_manufacturer_id;
 	u32 model_id;
@@ -126,10 +126,10 @@ struct smiapp_module_info {
 	u32 smiapp_profile;
 
 	char *name;
-	const struct smiapp_quirk *quirk;
+	const struct ccs_quirk *quirk;
 };
 
-#define SMIAPP_IDENT_FQ(manufacturer, model, rev, fl, _name, _quirk)	\
+#define CCS_IDENT_FQ(manufacturer, model, rev, fl, _name, _quirk)	\
 	{ .smia_manufacturer_id = manufacturer,				\
 	  .model_id = model,						\
 	  .revision_number_major = rev,					\
@@ -137,22 +137,22 @@ struct smiapp_module_info {
 	  .name = _name,						\
 	  .quirk = _quirk, }
 
-#define SMIAPP_IDENT_LQ(manufacturer, model, rev, _name, _quirk)	\
+#define CCS_IDENT_LQ(manufacturer, model, rev, _name, _quirk)	\
 	{ .smia_manufacturer_id = manufacturer,				\
 	  .model_id = model,						\
 	  .revision_number_major = rev,					\
-	  .flags = SMIAPP_MODULE_IDENT_FLAG_REV_LE,			\
+	  .flags = CCS_MODULE_IDENT_FLAG_REV_LE,			\
 	  .name = _name,						\
 	  .quirk = _quirk, }
 
-#define SMIAPP_IDENT_L(manufacturer, model, rev, _name)			\
+#define CCS_IDENT_L(manufacturer, model, rev, _name)			\
 	{ .smia_manufacturer_id = manufacturer,				\
 	  .model_id = model,						\
 	  .revision_number_major = rev,					\
-	  .flags = SMIAPP_MODULE_IDENT_FLAG_REV_LE,			\
+	  .flags = CCS_MODULE_IDENT_FLAG_REV_LE,			\
 	  .name = _name, }
 
-#define SMIAPP_IDENT_Q(manufacturer, model, rev, _name, _quirk)		\
+#define CCS_IDENT_Q(manufacturer, model, rev, _name, _quirk)		\
 	{ .smia_manufacturer_id = manufacturer,				\
 	  .model_id = model,						\
 	  .revision_number_major = rev,					\
@@ -160,49 +160,49 @@ struct smiapp_module_info {
 	  .name = _name,						\
 	  .quirk = _quirk, }
 
-#define SMIAPP_IDENT(manufacturer, model, rev, _name)			\
+#define CCS_IDENT(manufacturer, model, rev, _name)			\
 	{ .smia_manufacturer_id = manufacturer,				\
 	  .model_id = model,						\
 	  .revision_number_major = rev,					\
 	  .flags = 0,							\
 	  .name = _name, }
 
-struct smiapp_csi_data_format {
+struct ccs_csi_data_format {
 	u32 code;
 	u8 width;
 	u8 compressed;
 	u8 pixel_order;
 };
 
-#define SMIAPP_SUBDEVS			3
+#define CCS_SUBDEVS			3
 
-#define SMIAPP_PA_PAD_SRC		0
-#define SMIAPP_PAD_SINK			0
-#define SMIAPP_PAD_SRC			1
-#define SMIAPP_PADS			2
+#define CCS_PA_PAD_SRC			0
+#define CCS_PAD_SINK			0
+#define CCS_PAD_SRC			1
+#define CCS_PADS			2
 
-struct smiapp_binning_subtype {
+struct ccs_binning_subtype {
 	u8 horizontal:4;
 	u8 vertical:4;
 } __packed;
 
-struct smiapp_subdev {
+struct ccs_subdev {
 	struct v4l2_subdev sd;
-	struct media_pad pads[SMIAPP_PADS];
+	struct media_pad pads[CCS_PADS];
 	struct v4l2_rect sink_fmt;
-	struct v4l2_rect crop[SMIAPP_PADS];
+	struct v4l2_rect crop[CCS_PADS];
 	struct v4l2_rect compose; /* compose on sink */
 	unsigned short sink_pad;
 	unsigned short source_pad;
 	int npads;
-	struct smiapp_sensor *sensor;
+	struct ccs_sensor *sensor;
 	struct v4l2_ctrl_handler ctrl_handler;
 };
 
 /*
- * struct smiapp_sensor - Main device structure
+ * struct ccs_sensor - Main device structure
  */
-struct smiapp_sensor {
+struct ccs_sensor {
 	/*
 	 * "mutex" is used to serialise access to all fields here
 	 * except v4l2_ctrls at the end of the struct. "mutex" is also
@@ -210,22 +210,22 @@ struct smiapp_sensor {
 	 * information.
 	 */
 	struct mutex mutex;
-	struct smiapp_subdev ssds[SMIAPP_SUBDEVS];
+	struct ccs_subdev ssds[CCS_SUBDEVS];
 	u32 ssds_used;
-	struct smiapp_subdev *src;
-	struct smiapp_subdev *binner;
-	struct smiapp_subdev *scaler;
-	struct smiapp_subdev *pixel_array;
-	struct smiapp_hwconfig *hwcfg;
+	struct ccs_subdev *src;
+	struct ccs_subdev *binner;
+	struct ccs_subdev *scaler;
+	struct ccs_subdev *pixel_array;
+	struct ccs_hwconfig *hwcfg;
 	struct regulator *vana;
 	struct clk *ext_clk;
 	struct gpio_desc *xshutdown;
 	void *ccs_limits;
 	u8 nbinning_subtypes;
-	struct smiapp_binning_subtype binning_subtypes[CCS_LIM_BINNING_SUB_TYPE_MAX_N + 1];
+	struct ccs_binning_subtype binning_subtypes[CCS_LIM_BINNING_SUB_TYPE_MAX_N + 1];
 	u32 mbus_frame_fmts;
-	const struct smiapp_csi_data_format *csi_format;
-	const struct smiapp_csi_data_format *internal_csi_format;
+	const struct ccs_csi_data_format *csi_format;
+	const struct ccs_csi_data_format *internal_csi_format;
 	u32 default_mbus_frame_fmts;
 	int default_pixel_order;
 
@@ -246,7 +246,7 @@ struct smiapp_sensor {
 	bool dev_init_done;
 	u8 compressed_min_bpp;
 
-	struct smiapp_module_info minfo;
+	struct ccs_module_info minfo;
 
 	struct smiapp_pll pll;
 
@@ -265,16 +265,16 @@ struct smiapp_sensor {
 	struct v4l2_ctrl *link_freq;
 	struct v4l2_ctrl *pixel_rate_csi;
 	/* test pattern colour components */
-	struct v4l2_ctrl *test_data[SMIAPP_COLOUR_COMPONENTS];
+	struct v4l2_ctrl *test_data[CCS_COLOUR_COMPONENTS];
 };
 
-#define to_smiapp_subdev(_sd)				\
-	container_of(_sd, struct smiapp_subdev, sd)
+#define to_ccs_subdev(_sd)				\
+	container_of(_sd, struct ccs_subdev, sd)
 
-#define to_smiapp_sensor(_sd)	\
-	(to_smiapp_subdev(_sd)->sensor)
+#define to_ccs_sensor(_sd)	\
+	(to_ccs_subdev(_sd)->sensor)
 
-void ccs_replace_limit(struct smiapp_sensor *sensor,
+void ccs_replace_limit(struct ccs_sensor *sensor,
 		       unsigned int limit, unsigned int offset, u32 val);
 
-#endif /* __SMIAPP_PRIV_H_ */
+#endif /* __CCS_H__ */

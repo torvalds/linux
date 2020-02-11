@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * drivers/media/i2c/smiapp/smiapp-regs.c
+ * drivers/media/i2c/smiapp/ccs-regs.c
  *
  * Generic driver for SMIA/SMIA++ compliant camera modules
  *
@@ -13,8 +13,7 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 
-#include "smiapp.h"
-#include "smiapp-regs.h"
+#include "ccs.h"
 
 static uint32_t float_to_u32_mul_1000000(struct i2c_client *client,
 					 uint32_t phloat)
@@ -66,7 +65,7 @@ static uint32_t float_to_u32_mul_1000000(struct i2c_client *client,
  * Read a 8/16/32-bit i2c register.  The value is returned in 'val'.
  * Returns zero if successful, or non-zero otherwise.
  */
-static int ____ccs_read_addr(struct smiapp_sensor *sensor, u16 reg, u16 len,
+static int ____ccs_read_addr(struct ccs_sensor *sensor, u16 reg, u16 len,
 			     u32 *val)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
@@ -113,7 +112,7 @@ err:
 }
 
 /* Read a register using 8-bit access only. */
-static int ____ccs_read_addr_8only(struct smiapp_sensor *sensor, u16 reg,
+static int ____ccs_read_addr_8only(struct ccs_sensor *sensor, u16 reg,
 				   u16 len, u32 *val)
 {
 	unsigned int i;
@@ -147,7 +146,7 @@ unsigned int ccs_reg_width(u32 reg)
  * Read a 8/16/32-bit i2c register.  The value is returned in 'val'.
  * Returns zero if successful, or non-zero otherwise.
  */
-static int __ccs_read_addr(struct smiapp_sensor *sensor, u32 reg, u32 *val,
+static int __ccs_read_addr(struct ccs_sensor *sensor, u32 reg, u32 *val,
 			   bool only8)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
@@ -155,11 +154,10 @@ static int __ccs_read_addr(struct smiapp_sensor *sensor, u32 reg, u32 *val,
 	int rval;
 
 	if (!only8)
-		rval = ____ccs_read_addr(sensor, SMIAPP_REG_ADDR(reg), len,
-					    val);
+		rval = ____ccs_read_addr(sensor, CCS_REG_ADDR(reg), len, val);
 	else
-		rval = ____ccs_read_addr_8only(sensor, SMIAPP_REG_ADDR(reg),
-						  len, val);
+		rval = ____ccs_read_addr_8only(sensor, CCS_REG_ADDR(reg), len,
+					       val);
 	if (rval < 0)
 		return rval;
 
@@ -169,21 +167,20 @@ static int __ccs_read_addr(struct smiapp_sensor *sensor, u32 reg, u32 *val,
 	return 0;
 }
 
-int ccs_read_addr_no_quirk(struct smiapp_sensor *sensor, u32 reg, u32 *val)
+int ccs_read_addr_no_quirk(struct ccs_sensor *sensor, u32 reg, u32 *val)
 {
 	return __ccs_read_addr(
 		sensor, reg, val,
-		smiapp_needs_quirk(sensor,
-				   SMIAPP_QUIRK_FLAG_8BIT_READ_ONLY));
+		ccs_needs_quirk(sensor, CCS_QUIRK_FLAG_8BIT_READ_ONLY));
 }
 
-static int ccs_read_addr_quirk(struct smiapp_sensor *sensor, u32 reg, u32 *val,
+static int ccs_read_addr_quirk(struct ccs_sensor *sensor, u32 reg, u32 *val,
 			       bool force8)
 {
 	int rval;
 
 	*val = 0;
-	rval = smiapp_call_quirk(sensor, reg_access, false, &reg, val);
+	rval = ccs_call_quirk(sensor, reg_access, false, &reg, val);
 	if (rval == -ENOIOCTLCMD)
 		return 0;
 	if (rval < 0)
@@ -195,17 +192,17 @@ static int ccs_read_addr_quirk(struct smiapp_sensor *sensor, u32 reg, u32 *val,
 	return ccs_read_addr_no_quirk(sensor, reg, val);
 }
 
-int ccs_read_addr(struct smiapp_sensor *sensor, u32 reg, u32 *val)
+int ccs_read_addr(struct ccs_sensor *sensor, u32 reg, u32 *val)
 {
 	return ccs_read_addr_quirk(sensor, reg, val, false);
 }
 
-int ccs_read_addr_8only(struct smiapp_sensor *sensor, u32 reg, u32 *val)
+int ccs_read_addr_8only(struct ccs_sensor *sensor, u32 reg, u32 *val)
 {
 	return ccs_read_addr_quirk(sensor, reg, val, true);
 }
 
-int ccs_write_addr_no_quirk(struct smiapp_sensor *sensor, u32 reg, u32 val)
+int ccs_write_addr_no_quirk(struct ccs_sensor *sensor, u32 reg, u32 val)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
 	struct i2c_msg msg;
@@ -222,7 +219,7 @@ int ccs_write_addr_no_quirk(struct smiapp_sensor *sensor, u32 reg, u32 val)
 	msg.len = 2 + len;
 	msg.buf = data;
 
-	put_unaligned_be16(SMIAPP_REG_ADDR(reg), data);
+	put_unaligned_be16(CCS_REG_ADDR(reg), data);
 	put_unaligned_be32(val << (8 * (sizeof(val) - len)), data + 2);
 
 	for (retries = 0; retries < 5; retries++) {
@@ -245,7 +242,7 @@ int ccs_write_addr_no_quirk(struct smiapp_sensor *sensor, u32 reg, u32 val)
 
 	dev_err(&client->dev,
 		"wrote 0x%x to offset 0x%x error %d\n", val,
-		SMIAPP_REG_ADDR(reg), r);
+		CCS_REG_ADDR(reg), r);
 
 	return r;
 }
@@ -254,11 +251,11 @@ int ccs_write_addr_no_quirk(struct smiapp_sensor *sensor, u32 reg, u32 val)
  * Write to a 8/16-bit register.
  * Returns zero if successful, or non-zero otherwise.
  */
-int ccs_write_addr(struct smiapp_sensor *sensor, u32 reg, u32 val)
+int ccs_write_addr(struct ccs_sensor *sensor, u32 reg, u32 val)
 {
 	int rval;
 
-	rval = smiapp_call_quirk(sensor, reg_access, true, &reg, &val);
+	rval = ccs_call_quirk(sensor, reg_access, true, &reg, &val);
 	if (rval == -ENOIOCTLCMD)
 		return 0;
 	if (rval < 0)

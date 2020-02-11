@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * include/media/smiapp/smiapp-regs.h
+ * include/media/smiapp/ccs-regs.h
  *
  * Generic driver for SMIA/SMIA++ compliant camera modules
  *
@@ -16,15 +16,15 @@
 
 #include "ccs-regs.h"
 
-#define SMIAPP_REG_ADDR(reg)		((u16)reg)
+#define CCS_REG_ADDR(reg)		((u16)reg)
 
-struct smiapp_sensor;
+struct ccs_sensor;
 
-int ccs_read_addr_no_quirk(struct smiapp_sensor *sensor, u32 reg, u32 *val);
-int ccs_read_addr(struct smiapp_sensor *sensor, u32 reg, u32 *val);
-int ccs_read_addr_8only(struct smiapp_sensor *sensor, u32 reg, u32 *val);
-int ccs_write_addr_no_quirk(struct smiapp_sensor *sensor, u32 reg, u32 val);
-int ccs_write_addr(struct smiapp_sensor *sensor, u32 reg, u32 val);
+int ccs_read_addr_no_quirk(struct ccs_sensor *sensor, u32 reg, u32 *val);
+int ccs_read_addr(struct ccs_sensor *sensor, u32 reg, u32 *val);
+int ccs_read_addr_8only(struct ccs_sensor *sensor, u32 reg, u32 *val);
+int ccs_write_addr_no_quirk(struct ccs_sensor *sensor, u32 reg, u32 val);
+int ccs_write_addr(struct ccs_sensor *sensor, u32 reg, u32 val);
 
 unsigned int ccs_reg_width(u32 reg);
 
