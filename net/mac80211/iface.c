@@ -1834,6 +1834,10 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 					if_setup, txqs, 1);
 		if (!ndev)
 			return -ENOMEM;
+
+		if (!local->ops->wake_tx_queue && local->hw.wiphy->tx_queue_len)
+			ndev->tx_queue_len = local->hw.wiphy->tx_queue_len;
+
 		dev_net_set(ndev, wiphy_net(local->hw.wiphy));
 
 		ndev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
