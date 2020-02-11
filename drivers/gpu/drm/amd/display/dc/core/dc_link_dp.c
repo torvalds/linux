@@ -4126,8 +4126,7 @@ void dp_set_fec_ready(struct dc_link *link, bool ready)
 	struct link_encoder *link_enc = link->link_enc;
 	uint8_t fec_config = 0;
 
-	if (link->dc->debug.disable_fec ||
-			IS_FPGA_MAXIMUS_DC(link->ctx->dce_environment))
+	if (!dc_link_is_fec_supported(link))
 		return;
 
 	if (link_enc->funcs->fec_set_ready &&
@@ -4162,8 +4161,7 @@ void dp_set_fec_enable(struct dc_link *link, bool enable)
 {
 	struct link_encoder *link_enc = link->link_enc;
 
-	if (link->dc->debug.disable_fec ||
-			IS_FPGA_MAXIMUS_DC(link->ctx->dce_environment))
+	if (!dc_link_is_fec_supported(link))
 		return;
 
 	if (link_enc->funcs->fec_set_enable &&

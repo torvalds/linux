@@ -333,4 +333,7 @@ bool dc_submit_i2c_oem(
 
 uint32_t dc_bandwidth_in_kbps_from_timing(
 	const struct dc_crtc_timing *timing);
+
+bool dc_link_is_fec_supported(const struct dc_link *link);
+
 #endif /* DC_LINK_H_ */
