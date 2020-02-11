@@ -14,11 +14,6 @@
 
 #include "smiapp.h"
 
-static int smiapp_write_8(struct smiapp_sensor *sensor, u16 reg, u8 val)
-{
-	return smiapp_write(sensor, reg, val);
-}
-
 static int smiapp_write_8s(struct smiapp_sensor *sensor,
 			   const struct smiapp_reg_8 *regs, int len)
 {
@@ -26,7 +21,7 @@ static int smiapp_write_8s(struct smiapp_sensor *sensor,
 	int rval;
 
 	for (; len > 0; len--, regs++) {
-		rval = smiapp_write_8(sensor, regs->reg, regs->val);
+		rval = smiapp_write(sensor, regs->reg, regs->val);
 		if (rval < 0) {
 			dev_err(&client->dev,
 				"error %d writing reg 0x%4.4x, val 0x%2.2x",
@@ -170,7 +165,7 @@ static int jt8ev1_post_poweron(struct smiapp_sensor *sensor)
 
 static int jt8ev1_pre_streamon(struct smiapp_sensor *sensor)
 {
-	return smiapp_write_8(sensor, 0x3328, 0x00);
+	return smiapp_write(sensor, 0x3328, 0x00);
 }
 
 static int jt8ev1_post_streamoff(struct smiapp_sensor *sensor)
@@ -178,7 +173,7 @@ static int jt8ev1_post_streamoff(struct smiapp_sensor *sensor)
 	int rval;
 
 	/* Workaround: allows fast standby to work properly */
-	rval = smiapp_write_8(sensor, 0x3205, 0x04);
+	rval = smiapp_write(sensor, 0x3205, 0x04);
 	if (rval < 0)
 		return rval;
 
@@ -186,11 +181,11 @@ static int jt8ev1_post_streamoff(struct smiapp_sensor *sensor)
 	usleep_range(2000, 2050);
 
 	/* Restore it */
-	rval = smiapp_write_8(sensor, 0x3205, 0x00);
+	rval = smiapp_write(sensor, 0x3205, 0x00);
 	if (rval < 0)
 		return rval;
 
-	return smiapp_write_8(sensor, 0x3328, 0x80);
+	return smiapp_write(sensor, 0x3328, 0x80);
 }
 
 static int jt8ev1_init(struct smiapp_sensor *sensor)
