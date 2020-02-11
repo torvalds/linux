@@ -66,12 +66,6 @@ struct wilc_wfi_p2p_listen_params {
 	u64 listen_cookie;
 };
 
-struct wilc_p2p_var {
-	u8 local_random;
-	u8 recv_random;
-	bool is_wilc_ie;
-};
-
 static const u32 wilc_cipher_suites[] = {
 	WLAN_CIPHER_SUITE_WEP40,
 	WLAN_CIPHER_SUITE_WEP104,
@@ -155,7 +149,6 @@ struct wilc_priv {
 	struct mutex scan_req_lock;
 	bool p2p_listen_state;
 	int scanned_cnt;
-	struct wilc_p2p_var p2p;
 
 	u64 inc_roc_cookie;
 };

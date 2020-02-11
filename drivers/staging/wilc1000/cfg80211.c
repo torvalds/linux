@@ -68,7 +68,6 @@ struct wilc_p2p_mgmt_data {
 };
 
 static const u8 p2p_oui[] = {0x50, 0x6f, 0x9A, 0x09};
-static const u8 p2p_vendor_spec[] = {0xdd, 0x05, 0x00, 0x08, 0x40, 0x03};
 
 static void cfg_scan_result(enum scan_event scan_event,
 			    struct wilc_rcvd_net_info *info, void *user_void)
@@ -172,9 +171,6 @@ static void cfg_connect_result(enum conn_event conn_disconn_evt, u8 mac_status,
 	} else if (conn_disconn_evt == CONN_DISCONN_EVENT_DISCONN_NOTIF) {
 		u16 reason = 0;
 
-		priv->p2p.local_random = 0x01;
-		priv->p2p.recv_random = 0x00;
-		priv->p2p.is_wilc_ie = false;
 		eth_zero_addr(priv->associated_bss);
 		wilc_wlan_set_bssid(priv->dev, NULL, WILC_STATION_MODE);
 
@@ -446,9 +442,6 @@ static int disconnect(struct wiphy *wiphy, struct net_device *dev,
 		wilc->sta_ch = WILC_INVALID_CHANNEL;
 	wilc_wlan_set_bssid(priv->dev, NULL, WILC_STATION_MODE);
 
-	priv->p2p.local_random = 0x01;
-	priv->p2p.recv_random = 0x00;
-	priv->p2p.is_wilc_ie = false;
 	priv->hif_drv->p2p_timeout = 0;
 
 	ret = wilc_disconnect(vif);
@@ -934,9 +927,6 @@ static void wilc_wfi_cfg_parse_rx_action(u8 *buf, u32 len, u8 sta_ch)
 	u8 channel_list_attr_index = 0;
 
 	while (index < len) {
-		if (buf[index] == GO_INTENT_ATTR_ID)
-			buf[index + 3] = (buf[index + 3]  & 0x01) | (0x00 << 1);
-
 		if (buf[index] ==  CHANLIST_ATTR_ID)
 			channel_list_attr_index = index;
 		else if (buf[index] ==  OPERCHAN_ATTR_ID)
@@ -956,12 +946,6 @@ static void wilc_wfi_cfg_parse_tx_action(u8 *buf, u32 len, bool oper_ch,
 	u8 channel_list_attr_index = 0;
 
 	while (index < len) {
-		if (buf[index] == GO_INTENT_ATTR_ID) {
-			buf[index + 3] = (buf[index + 3]  & 0x01) | (0x0f << 1);
-
-			break;
-		}
-
 		if (buf[index] ==  CHANLIST_ATTR_ID)
 			channel_list_attr_index = index;
 		else if (buf[index] ==  OPERCHAN_ATTR_ID)
@@ -981,24 +965,6 @@ static void wilc_wfi_cfg_parse_rx_vendor_spec(struct wilc_priv *priv, u8 *buff,
 	struct wilc_vif *vif = netdev_priv(priv->dev);
 
 	subtype = buff[P2P_PUB_ACTION_SUBTYPE];
-	if ((subtype == GO_NEG_REQ || subtype == GO_NEG_RSP) &&
-	    !priv->p2p.is_wilc_ie) {
-		for (i = P2P_PUB_ACTION_SUBTYPE; i < size; i++) {
-			if (!memcmp(p2p_vendor_spec, &buff[i], 6)) {
-				priv->p2p.recv_random = buff[i + 6];
-				priv->p2p.is_wilc_ie = true;
-				break;
-			}
-		}
-	}
-
-	if (priv->p2p.local_random <= priv->p2p.recv_random) {
-		netdev_dbg(vif->ndev,
-			   "PEER WILL BE GO LocaRand=%02x RecvRand %02x\n",
-			   priv->p2p.local_random, priv->p2p.recv_random);
-		return;
-	}
-
 	if (subtype == GO_NEG_REQ || subtype == GO_NEG_RSP ||
 	    subtype == P2P_INV_REQ || subtype == P2P_INV_RSP) {
 		for (i = P2P_PUB_ACTION_SUBTYPE + 2; i < size; i++) {
@@ -1051,8 +1017,6 @@ void wilc_wfi_p2p_rx(struct wilc_vif *vif, u8 *buff, u32 size)
 		return;
 	}
 	if (buff[ACTION_CAT_ID] == PUB_ACTION_ATTR_ID) {
-		u8 subtype = buff[P2P_PUB_ACTION_SUBTYPE];
-
 		switch (buff[ACTION_SUBTYPE_ID]) {
 		case GAS_INITIAL_REQ:
 		case GAS_INITIAL_RSP:
@@ -1062,10 +1026,6 @@ void wilc_wfi_p2p_rx(struct wilc_vif *vif, u8 *buff, u32 size)
 			if (!memcmp(p2p_oui, &buff[ACTION_SUBTYPE_ID + 1], 4))
 				wilc_wfi_cfg_parse_rx_vendor_spec(priv, buff,
 								  size);
-
-			if ((subtype == GO_NEG_REQ || subtype == GO_NEG_RSP) &&
-			    priv->p2p.is_wilc_ie)
-				size -= 7;
 
 			break;
 
@@ -1167,17 +1127,8 @@ static void wilc_wfi_cfg_tx_vendor_spec(struct wilc_priv *priv,
 	u8 subtype = buf[P2P_PUB_ACTION_SUBTYPE];
 	struct wilc_vif *vif = netdev_priv(priv->dev);
 
-	if (subtype == GO_NEG_REQ || subtype == GO_NEG_RSP) {
-		if (priv->p2p.local_random == 1 &&
-		    priv->p2p.recv_random < priv->p2p.local_random) {
-			get_random_bytes(&priv->p2p.local_random, 1);
-			priv->p2p.local_random++;
-		}
-	}
-
-	if (priv->p2p.local_random <= priv->p2p.recv_random ||
-	    !(subtype == GO_NEG_REQ || subtype == GO_NEG_RSP ||
-	      subtype == P2P_INV_REQ || subtype == P2P_INV_RSP))
+	if (subtype != GO_NEG_REQ && subtype != GO_NEG_RSP &&
+	    subtype != P2P_INV_REQ && subtype != P2P_INV_RSP)
 		return;
 
 	for (i = P2P_PUB_ACTION_SUBTYPE + 2; i < len; i++) {
@@ -1196,15 +1147,6 @@ static void wilc_wfi_cfg_tx_vendor_spec(struct wilc_priv *priv,
 			break;
 		}
 	}
-
-	if (subtype != P2P_INV_REQ && subtype != P2P_INV_RSP) {
-		int vendor_spec_len = sizeof(p2p_vendor_spec);
-
-		memcpy(&mgmt_tx->buff[len], p2p_vendor_spec,
-		       vendor_spec_len);
-		mgmt_tx->buff[len + vendor_spec_len] = priv->p2p.local_random;
-		mgmt_tx->size = buf_len;
-	}
 }
 
 static int mgmt_tx(struct wiphy *wiphy,
@@ -1221,8 +1163,6 @@ static int mgmt_tx(struct wiphy *wiphy,
 	struct wilc_vif *vif = netdev_priv(wdev->netdev);
 	struct wilc_priv *priv = &vif->priv;
 	struct host_if_drv *wfi_drv = priv->hif_drv;
-	u32 buf_len = len + sizeof(p2p_vendor_spec) +
-			sizeof(priv->p2p.local_random);
 	int ret = 0;
 
 	*cookie = prandom_u32();
@@ -1238,7 +1178,7 @@ static int mgmt_tx(struct wiphy *wiphy,
 		goto out;
 	}
 
-	mgmt_tx->buff = kmalloc(buf_len, GFP_KERNEL);
+	mgmt_tx->buff = kmalloc(len, GFP_KERNEL);
 	if (!mgmt_tx->buff) {
 		ret = -ENOMEM;
 		kfree(mgmt_tx);
@@ -1272,7 +1212,7 @@ static int mgmt_tx(struct wiphy *wiphy,
 			if (!memcmp(p2p_oui, &buf[ACTION_SUBTYPE_ID + 1], 4))
 				wilc_wfi_cfg_tx_vendor_spec(priv, mgmt_tx,
 							    params, vif->iftype,
-							    buf_len);
+							    len);
 			else
 				netdev_dbg(vif->ndev,
 					   "Not a P2P public action frame\n");
@@ -1399,10 +1339,6 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 	struct wilc *wl = wiphy_priv(wiphy);
 	struct wilc_vif *vif = netdev_priv(dev);
 	struct wilc_priv *priv = &vif->priv;
-
-	priv->p2p.local_random = 0x01;
-	priv->p2p.recv_random = 0x00;
-	priv->p2p.is_wilc_ie = false;
 
 	switch (type) {
 	case NL80211_IFTYPE_STATION:
