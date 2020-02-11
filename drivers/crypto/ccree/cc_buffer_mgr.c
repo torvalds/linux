@@ -73,9 +73,13 @@ static void cc_copy_mac(struct device *dev, struct aead_request *req,
 /**
  * cc_get_sgl_nents() - Get scatterlist number of entries.
  *
+ * @dev: Device object
  * @sg_list: SG list
  * @nbytes: [IN] Total SGL data bytes.
  * @lbytes: [OUT] Returns the amount of bytes at the last entry
+ *
+ * Return:
+ * Number of entries in the scatterlist
  */
 static unsigned int cc_get_sgl_nents(struct device *dev,
 				     struct scatterlist *sg_list,
@@ -102,11 +106,13 @@ static unsigned int cc_get_sgl_nents(struct device *dev,
  * cc_copy_sg_portion() - Copy scatter list data,
  * from to_skip to end, to dest and vice versa
  *
- * @dest:
- * @sg:
- * @to_skip:
- * @end:
- * @direct:
+ * @dev: Device object
+ * @dest: Buffer to copy to/from
+ * @sg: SG list
+ * @to_skip: Number of bytes to skip before copying
+ * @end: Offset of last byte to copy
+ * @direct: Transfer direction (true == from SG list to buffer, false == from
+ *          buffer to SG list)
  */
 void cc_copy_sg_portion(struct device *dev, u8 *dest, struct scatterlist *sg,
 			u32 to_skip, u32 end, enum cc_sg_cpy_direct direct)
