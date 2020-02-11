@@ -229,19 +229,6 @@ static void amdgpu_vm_bo_evicted(struct amdgpu_vm_bo_base *vm_bo)
 	else
 		list_move_tail(&vm_bo->vm_status, &vm->evicted);
 }
-
-/**
- * amdgpu_vm_bo_relocated - vm_bo is reloacted
- *
- * @vm_bo: vm_bo which is relocated
- *
- * State for PDs/PTs which needs to update their parent PD.
- */
-static void amdgpu_vm_bo_relocated(struct amdgpu_vm_bo_base *vm_bo)
-{
-	list_move(&vm_bo->vm_status, &vm_bo->vm->relocated);
-}
-
 /**
  * amdgpu_vm_bo_moved - vm_bo is moved
  *
@@ -282,6 +269,22 @@ static void amdgpu_vm_bo_invalidated(struct amdgpu_vm_bo_base *vm_bo)
 	spin_lock(&vm_bo->vm->invalidated_lock);
 	list_move(&vm_bo->vm_status, &vm_bo->vm->invalidated);
 	spin_unlock(&vm_bo->vm->invalidated_lock);
+}
+
+/**
+ * amdgpu_vm_bo_relocated - vm_bo is reloacted
+ *
+ * @vm_bo: vm_bo which is relocated
+ *
+ * State for PDs/PTs which needs to update their parent PD.
+ * For the root PD, just move to idle state.
+ */
+static void amdgpu_vm_bo_relocated(struct amdgpu_vm_bo_base *vm_bo)
+{
+	if (vm_bo->bo->parent)
+		list_move(&vm_bo->vm_status, &vm_bo->vm->relocated);
+	else
+		amdgpu_vm_bo_idle(vm_bo);
 }
 
 /**
@@ -691,10 +694,7 @@ int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 			amdgpu_vm_bo_moved(bo_base);
 		} else {
 			vm->update_funcs->map_table(bo);
-			if (bo->parent)
-				amdgpu_vm_bo_relocated(bo_base);
-			else
-				amdgpu_vm_bo_idle(bo_base);
+			amdgpu_vm_bo_relocated(bo_base);
 		}
 	}
 
