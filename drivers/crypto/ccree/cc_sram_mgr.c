@@ -50,9 +50,6 @@ int cc_sram_mgr_init(struct cc_drvdata *drvdata)
 
 /*!
  * Allocated buffer from SRAM pool.
- * Note: Caller is responsible to free the LAST allocated buffer.
- * This function does not taking care of any fragmentation may occur
- * by the order of calls to alloc/free.
  *
  * \param drvdata
  * \param size The requested bytes to allocate
