@@ -378,7 +378,7 @@ static void cc_proc_backlog(struct cc_drvdata *drvdata)
 		rc = cc_queues_status(drvdata, mgr, bli->len);
 		if (rc) {
 			/*
-			 * There is still not room in the FIFO for
+			 * There is still no room in the FIFO for
 			 * this request. Bail out. We'll return here
 			 * on the next completion irq.
 			 */
