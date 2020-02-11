@@ -424,6 +424,7 @@ legacy_init:
 		navi12_reg_base_init(adev);
 		break;
 	case CHIP_SIENNA_CICHLID:
+	case CHIP_NAVY_FLOUNDER:
 		sienna_cichlid_reg_base_init(adev);
 		break;
 	default:
