@@ -2238,14 +2238,15 @@ static const void *cc_larval_digest(struct device *dev, u32 mode)
 	}
 }
 
-/*!
- * Gets the address of the initial digest in SRAM
+/**
+ * cc_larval_digest_addr() - Get the address of the initial digest in SRAM
  * according to the given hash mode
  *
- * \param drvdata
- * \param mode The Hash mode. Supported modes: MD5/SHA1/SHA224/SHA256
+ * @drvdata: Associated device driver context
+ * @mode: The Hash mode. Supported modes: MD5/SHA1/SHA224/SHA256
  *
- * \return u32 The address of the initial digest in SRAM
+ * Return:
+ * The address of the initial digest in SRAM
  */
 u32 cc_larval_digest_addr(void *drvdata, u32 mode)
 {
