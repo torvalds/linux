@@ -20,10 +20,6 @@
 
 #define template_skcipher	template_u.skcipher
 
-struct cc_cipher_handle {
-	struct list_head alg_list;
-};
-
 struct cc_user_key_info {
 	u8 *key;
 	dma_addr_t key_dma_addr;
@@ -1661,36 +1657,24 @@ static struct cc_crypto_alg *cc_create_alg(const struct cc_alg_template *tmpl,
 int cc_cipher_free(struct cc_drvdata *drvdata)
 {
 	struct cc_crypto_alg *t_alg, *n;
-	struct cc_cipher_handle *cipher_handle = drvdata->cipher_handle;
 
-	if (cipher_handle) {
-		/* Remove registered algs */
-		list_for_each_entry_safe(t_alg, n, &cipher_handle->alg_list,
-					 entry) {
-			crypto_unregister_skcipher(&t_alg->skcipher_alg);
-			list_del(&t_alg->entry);
-			kfree(t_alg);
-		}
-		kfree(cipher_handle);
-		drvdata->cipher_handle = NULL;
+	/* Remove registered algs */
+	list_for_each_entry_safe(t_alg, n, &drvdata->alg_list, entry) {
+		crypto_unregister_skcipher(&t_alg->skcipher_alg);
+		list_del(&t_alg->entry);
+		kfree(t_alg);
 	}
 	return 0;
 }
 
 int cc_cipher_alloc(struct cc_drvdata *drvdata)
 {
-	struct cc_cipher_handle *cipher_handle;
 	struct cc_crypto_alg *t_alg;
 	struct device *dev = drvdata_to_dev(drvdata);
 	int rc = -ENOMEM;
 	int alg;
 
-	cipher_handle = kmalloc(sizeof(*cipher_handle), GFP_KERNEL);
-	if (!cipher_handle)
-		return -ENOMEM;
-
-	INIT_LIST_HEAD(&cipher_handle->alg_list);
-	drvdata->cipher_handle = cipher_handle;
+	INIT_LIST_HEAD(&drvdata->alg_list);
 
 	/* Linux crypto */
 	dev_dbg(dev, "Number of algorithms = %zu\n",
@@ -1722,8 +1706,7 @@ int cc_cipher_alloc(struct cc_drvdata *drvdata)
 			kfree(t_alg);
 			goto fail0;
 		} else {
-			list_add_tail(&t_alg->entry,
-				      &cipher_handle->alg_list);
+			list_add_tail(&t_alg->entry, &drvdata->alg_list);
 			dev_dbg(dev, "Registered %s\n",
 				t_alg->skcipher_alg.base.cra_driver_name);
 		}

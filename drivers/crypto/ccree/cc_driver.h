@@ -141,7 +141,7 @@ struct cc_drvdata {
 	struct platform_device *plat_dev;
 	u32 mlli_sram_addr;
 	struct dma_pool *mlli_buffs_pool;
-	void *cipher_handle;
+	struct list_head alg_list;
 	void *hash_handle;
 	void *aead_handle;
 	void *request_mgr_handle;
