@@ -330,21 +330,20 @@ static void virtio_gpu_queue_ctrl_sgs(struct virtio_gpu_device *vgdev,
 {
 	struct virtqueue *vq = vgdev->ctrlq.vq;
 	bool notify = false;
-	int ret;
+	int ret, idx;
+
+	if (!drm_dev_enter(vgdev->ddev, &idx)) {
+		if (fence && vbuf->objs)
+			virtio_gpu_array_unlock_resv(vbuf->objs);
+		free_vbuf(vgdev, vbuf);
+		return;
+	}
 
 	if (vgdev->has_indirect)
 		elemcnt = 1;
 
 again:
 	spin_lock(&vgdev->ctrlq.qlock);
-
-	if (!vgdev->vqs_ready) {
-		spin_unlock(&vgdev->ctrlq.qlock);
-
-		if (fence && vbuf->objs)
-			virtio_gpu_array_unlock_resv(vbuf->objs);
-		return;
-	}
 
 	if (vq->num_free < elemcnt) {
 		spin_unlock(&vgdev->ctrlq.qlock);
@@ -379,6 +378,7 @@ again:
 		else
 			virtqueue_notify(vq);
 	}
+	drm_dev_exit(idx);
 }
 
 static void virtio_gpu_queue_fenced_ctrl_buffer(struct virtio_gpu_device *vgdev,
@@ -460,12 +460,13 @@ static void virtio_gpu_queue_cursor(struct virtio_gpu_device *vgdev,
 {
 	struct virtqueue *vq = vgdev->cursorq.vq;
 	struct scatterlist *sgs[1], ccmd;
+	int idx, ret, outcnt;
 	bool notify;
-	int ret;
-	int outcnt;
 
-	if (!vgdev->vqs_ready)
+	if (!drm_dev_enter(vgdev->ddev, &idx)) {
+		free_vbuf(vgdev, vbuf);
 		return;
+	}
 
 	sg_init_one(&ccmd, vbuf->buf, vbuf->size);
 	sgs[0] = &ccmd;
@@ -490,6 +491,8 @@ retry:
 
 	if (notify)
 		virtqueue_notify(vq);
+
+	drm_dev_exit(idx);
 }
 
 /* just create gem objects for userspace and long lived objects,
