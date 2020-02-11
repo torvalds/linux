@@ -26,7 +26,7 @@ struct scmi_shared_mem {
 #define SCMI_SHMEM_FLAG_INTR_ENABLED	BIT(0)
 	__le32 length;
 	__le32 msg_header;
-	u8 msg_payload[0];
+	u8 msg_payload[];
 };
 
 void shmem_tx_prepare(struct scmi_shared_mem __iomem *shmem,
