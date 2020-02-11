@@ -15,11 +15,7 @@
 #define POWER_DOWN_ENABLE 0x01
 #define POWER_DOWN_DISABLE 0x00
 
-const struct dev_pm_ops ccree_pm = {
-	SET_RUNTIME_PM_OPS(cc_pm_suspend, cc_pm_resume, NULL)
-};
-
-int cc_pm_suspend(struct device *dev)
+static int cc_pm_suspend(struct device *dev)
 {
 	struct cc_drvdata *drvdata = dev_get_drvdata(dev);
 
@@ -30,7 +26,7 @@ int cc_pm_suspend(struct device *dev)
 	return 0;
 }
 
-int cc_pm_resume(struct device *dev)
+static int cc_pm_resume(struct device *dev)
 {
 	int rc;
 	struct cc_drvdata *drvdata = dev_get_drvdata(dev);
@@ -61,6 +57,10 @@ int cc_pm_resume(struct device *dev)
 
 	return 0;
 }
+
+const struct dev_pm_ops ccree_pm = {
+	SET_RUNTIME_PM_OPS(cc_pm_suspend, cc_pm_resume, NULL)
+};
 
 int cc_pm_get(struct device *dev)
 {
