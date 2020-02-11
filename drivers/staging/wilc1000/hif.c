@@ -861,9 +861,8 @@ static int wilc_handle_roc_expired(struct wilc_vif *vif, u64 cookie)
 	struct wid wid;
 	int result;
 	struct host_if_drv *hif_drv = vif->hif_drv;
-	struct wilc_priv *priv = wdev_priv(vif->ndev->ieee80211_ptr);
 
-	if (priv->p2p_listen_state) {
+	if (vif->priv.p2p_listen_state) {
 		remain_on_chan_flag = false;
 		wid.id = WID_REMAIN_ON_CHAN;
 		wid.type = WID_STR;
