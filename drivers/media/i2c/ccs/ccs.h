@@ -124,8 +124,6 @@ struct ccs_module_info {
 	u32 smiapp_version;
 	u32 ccs_version;
 
-	u32 smiapp_profile;
-
 	char *name;
 	const struct ccs_quirk *quirk;
 };

@@ -377,7 +377,7 @@ static int ccs_pll_configure(struct ccs_sensor *sensor)
 	rval = ccs_write(sensor, REQUESTED_LINK_RATE,
 			 DIV_ROUND_UP(pll->op.sys_clk_freq_hz,
 				      1000000 / 256 / 256));
-	if (rval < 0 || sensor->minfo.smiapp_profile == SMIAPP_PROFILE_0)
+	if (rval < 0 || sensor->pll.flags & SMIAPP_PLL_FLAG_NO_OP_CLOCKS)
 		return rval;
 
 	rval = ccs_write(sensor, OP_PIX_CLK_DIV, pll->op.pix_clk_div);
@@ -3096,23 +3096,17 @@ static int ccs_probe(struct i2c_client *client)
 		}
 	}
 
-	/* We consider this as profile 0 sensor if any of these are zero. */
 	if (!CCS_LIM(sensor, MIN_OP_SYS_CLK_DIV) ||
 	    !CCS_LIM(sensor, MAX_OP_SYS_CLK_DIV) ||
 	    !CCS_LIM(sensor, MIN_OP_PIX_CLK_DIV) ||
 	    !CCS_LIM(sensor, MAX_OP_PIX_CLK_DIV)) {
-		sensor->minfo.smiapp_profile = SMIAPP_PROFILE_0;
+		/* No OP clock branch */
+		sensor->pll.flags |= SMIAPP_PLL_FLAG_NO_OP_CLOCKS;
 	} else if (CCS_LIM(sensor, SCALING_CAPABILITY)
-		   != CCS_SCALING_CAPABILITY_NONE) {
-		if (CCS_LIM(sensor, SCALING_CAPABILITY)
-		    == CCS_SCALING_CAPABILITY_HORIZONTAL)
-			sensor->minfo.smiapp_profile = SMIAPP_PROFILE_1;
-		else
-			sensor->minfo.smiapp_profile = SMIAPP_PROFILE_2;
-		sensor->scaler = &sensor->ssds[sensor->ssds_used];
-		sensor->ssds_used++;
-	} else if (CCS_LIM(sensor, DIGITAL_CROP_CAPABILITY)
+		   != CCS_SCALING_CAPABILITY_NONE ||
+		   CCS_LIM(sensor, DIGITAL_CROP_CAPABILITY)
 		   == CCS_DIGITAL_CROP_CAPABILITY_INPUT_CROP) {
+		/* We have a scaler or digital crop. */
 		sensor->scaler = &sensor->ssds[sensor->ssds_used];
 		sensor->ssds_used++;
 	}
@@ -3128,15 +3122,10 @@ static int ccs_probe(struct i2c_client *client)
 	sensor->pll.csi2.lanes = sensor->hwcfg->lanes;
 	sensor->pll.ext_clk_freq_hz = sensor->hwcfg->ext_clk;
 	sensor->pll.scale_n = CCS_LIM(sensor, SCALER_N_MIN);
-	/* Profile 0 sensors have no separate OP clock branch. */
-	if (sensor->minfo.smiapp_profile == SMIAPP_PROFILE_0)
-		sensor->pll.flags |= SMIAPP_PLL_FLAG_NO_OP_CLOCKS;
 
 	ccs_create_subdev(sensor, sensor->scaler, " scaler", 2);
 	ccs_create_subdev(sensor, sensor->binner, " binner", 2);
 	ccs_create_subdev(sensor, sensor->pixel_array, " pixel_array", 1);
-
-	dev_dbg(&client->dev, "profile %d\n", sensor->minfo.smiapp_profile);
 
 	sensor->pixel_array->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 
