@@ -1182,7 +1182,7 @@ static int mtk_tphy_probe(struct platform_device *pdev)
 		if (tphy->u3phya_ref)
 			continue;
 
-		instance->ref_clk = devm_clk_get(&phy->dev, "ref");
+		instance->ref_clk = devm_clk_get_optional(&phy->dev, "ref");
 		if (IS_ERR(instance->ref_clk)) {
 			dev_err(dev, "failed to get ref_clk(id-%d)\n", port);
 			retval = PTR_ERR(instance->ref_clk);
