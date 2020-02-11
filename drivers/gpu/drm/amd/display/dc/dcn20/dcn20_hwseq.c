@@ -307,7 +307,8 @@ void dcn20_init_blank(
 			COLOR_DEPTH_UNDEFINED,
 			&black_color,
 			otg_active_width,
-			otg_active_height);
+			otg_active_height,
+			0);
 
 	if (num_opps == 2) {
 		bottom_opp->funcs->opp_set_disp_pattern_generator(
@@ -317,7 +318,8 @@ void dcn20_init_blank(
 				COLOR_DEPTH_UNDEFINED,
 				&black_color,
 				otg_active_width,
-				otg_active_height);
+				otg_active_height,
+				0);
 	}
 
 	hws->funcs.wait_for_blank_complete(opp);
@@ -974,7 +976,8 @@ void dcn20_blank_pixel_data(
 			stream->timing.display_color_depth,
 			&black_color,
 			width,
-			height);
+			height,
+			0);
 
 	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
 		odm_pipe->stream_res.opp->funcs->opp_set_disp_pattern_generator(
@@ -985,7 +988,8 @@ void dcn20_blank_pixel_data(
 				stream->timing.display_color_depth,
 				&black_color,
 				width,
-				height);
+				height,
+				0);
 	}
 
 	if (!blank)

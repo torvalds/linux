@@ -3720,6 +3720,8 @@ static void set_crtc_test_pattern(struct dc_link *link,
 			struct pipe_ctx *odm_pipe;
 			enum controller_dp_color_space controller_color_space;
 			int opp_cnt = 1;
+			int offset = 0;
+			int dpg_width = width;
 
 			switch (test_pattern_color_space) {
 			case DP_TEST_PATTERN_COLOR_SPACE_RGB:
@@ -3741,28 +3743,31 @@ static void set_crtc_test_pattern(struct dc_link *link,
 
 			for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
 				opp_cnt++;
+			dpg_width = width / opp_cnt;
+			offset = dpg_width;
 
-			width /= opp_cnt;
+			opp->funcs->opp_set_disp_pattern_generator(opp,
+				controller_test_pattern,
+				controller_color_space,
+				color_depth,
+				NULL,
+				dpg_width,
+				height,
+				0);
 
 			for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
 				struct output_pixel_processor *odm_opp = odm_pipe->stream_res.opp;
-
 				odm_opp->funcs->opp_program_bit_depth_reduction(odm_opp, &params);
 				odm_opp->funcs->opp_set_disp_pattern_generator(odm_opp,
 					controller_test_pattern,
 					controller_color_space,
 					color_depth,
 					NULL,
-					width,
-					height);
+					dpg_width,
+					height,
+					offset);
+				offset += offset;
 			}
-			opp->funcs->opp_set_disp_pattern_generator(opp,
-				controller_test_pattern,
-				controller_color_space,
-				color_depth,
-				NULL,
-				width,
-				height);
 		}
 	}
 	break;
@@ -3779,11 +3784,12 @@ static void set_crtc_test_pattern(struct dc_link *link,
 		else if (opp->funcs->opp_set_disp_pattern_generator) {
 			struct pipe_ctx *odm_pipe;
 			int opp_cnt = 1;
+			int dpg_width = width;
 
 			for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
 				opp_cnt++;
 
-			width /= opp_cnt;
+			dpg_width = width / opp_cnt;
 			for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
 				struct output_pixel_processor *odm_opp = odm_pipe->stream_res.opp;
 
@@ -3793,16 +3799,18 @@ static void set_crtc_test_pattern(struct dc_link *link,
 					CONTROLLER_DP_COLOR_SPACE_UDEFINED,
 					color_depth,
 					NULL,
-					width,
-					height);
+					dpg_width,
+					height,
+					0);
 			}
 			opp->funcs->opp_set_disp_pattern_generator(opp,
 				CONTROLLER_DP_TEST_PATTERN_VIDEOMODE,
 				CONTROLLER_DP_COLOR_SPACE_UDEFINED,
 				color_depth,
 				NULL,
-				width,
-				height);
+				dpg_width,
+				height,
+				0);
 		}
 	}
 	break;
