@@ -27,7 +27,6 @@
 #include <drm/drm_probe_helper.h>
 
 #include "sun4i_crtc.h"
-#include "sun4i_drv.h"
 #include "sun4i_tcon.h"
 #include "sun6i_mipi_dsi.h"
 
@@ -1022,14 +1021,11 @@ static int sun6i_dsi_bind(struct device *dev, struct device *master,
 			 void *data)
 {
 	struct drm_device *drm = data;
-	struct sun4i_drv *drv = drm->dev_private;
 	struct sun6i_dsi *dsi = dev_get_drvdata(dev);
 	int ret;
 
 	if (!dsi->panel)
 		return -EPROBE_DEFER;
-
-	dsi->drv = drv;
 
 	drm_encoder_helper_add(&dsi->encoder,
 			       &sun6i_dsi_enc_helper_funcs);
