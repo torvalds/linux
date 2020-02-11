@@ -2615,7 +2615,7 @@ static struct cc_crypto_alg *cc_create_aead_alg(struct cc_alg_template *tmpl,
 	struct cc_crypto_alg *t_alg;
 	struct aead_alg *alg;
 
-	t_alg = kzalloc(sizeof(*t_alg), GFP_KERNEL);
+	t_alg = devm_kzalloc(dev, sizeof(*t_alg), GFP_KERNEL);
 	if (!t_alg)
 		return ERR_PTR(-ENOMEM);
 
@@ -2645,19 +2645,12 @@ static struct cc_crypto_alg *cc_create_aead_alg(struct cc_alg_template *tmpl,
 int cc_aead_free(struct cc_drvdata *drvdata)
 {
 	struct cc_crypto_alg *t_alg, *n;
-	struct cc_aead_handle *aead_handle =
-		(struct cc_aead_handle *)drvdata->aead_handle;
+	struct cc_aead_handle *aead_handle = drvdata->aead_handle;
 
-	if (aead_handle) {
-		/* Remove registered algs */
-		list_for_each_entry_safe(t_alg, n, &aead_handle->aead_list,
-					 entry) {
-			crypto_unregister_aead(&t_alg->aead_alg);
-			list_del(&t_alg->entry);
-			kfree(t_alg);
-		}
-		kfree(aead_handle);
-		drvdata->aead_handle = NULL;
+	/* Remove registered algs */
+	list_for_each_entry_safe(t_alg, n, &aead_handle->aead_list, entry) {
+		crypto_unregister_aead(&t_alg->aead_alg);
+		list_del(&t_alg->entry);
 	}
 
 	return 0;
@@ -2671,7 +2664,7 @@ int cc_aead_alloc(struct cc_drvdata *drvdata)
 	int alg;
 	struct device *dev = drvdata_to_dev(drvdata);
 
-	aead_handle = kmalloc(sizeof(*aead_handle), GFP_KERNEL);
+	aead_handle = devm_kmalloc(dev, sizeof(*aead_handle), GFP_KERNEL);
 	if (!aead_handle) {
 		rc = -ENOMEM;
 		goto fail0;
@@ -2706,18 +2699,16 @@ int cc_aead_alloc(struct cc_drvdata *drvdata)
 		if (rc) {
 			dev_err(dev, "%s alg registration failed\n",
 				t_alg->aead_alg.base.cra_driver_name);
-			goto fail2;
-		} else {
-			list_add_tail(&t_alg->entry, &aead_handle->aead_list);
-			dev_dbg(dev, "Registered %s\n",
-				t_alg->aead_alg.base.cra_driver_name);
+			goto fail1;
 		}
+
+		list_add_tail(&t_alg->entry, &aead_handle->aead_list);
+		dev_dbg(dev, "Registered %s\n",
+			t_alg->aead_alg.base.cra_driver_name);
 	}
 
 	return 0;
 
-fail2:
-	kfree(t_alg);
 fail1:
 	cc_aead_free(drvdata);
 fail0:

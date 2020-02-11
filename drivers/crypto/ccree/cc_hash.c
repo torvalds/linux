@@ -2024,10 +2024,9 @@ int cc_hash_alloc(struct cc_drvdata *drvdata)
 					driver_hash[alg].driver_name);
 				kfree(t_alg);
 				goto fail;
-			} else {
-				list_add_tail(&t_alg->entry,
-					      &hash_handle->hash_list);
 			}
+
+			list_add_tail(&t_alg->entry, &hash_handle->hash_list);
 		}
 		if (hw_mode == DRV_CIPHER_XCBC_MAC ||
 		    hw_mode == DRV_CIPHER_CMAC)
@@ -2049,9 +2048,9 @@ int cc_hash_alloc(struct cc_drvdata *drvdata)
 				driver_hash[alg].driver_name);
 			kfree(t_alg);
 			goto fail;
-		} else {
-			list_add_tail(&t_alg->entry, &hash_handle->hash_list);
 		}
+
+		list_add_tail(&t_alg->entry, &hash_handle->hash_list);
 	}
 
 	return 0;

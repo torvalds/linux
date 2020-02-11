@@ -1705,11 +1705,11 @@ int cc_cipher_alloc(struct cc_drvdata *drvdata)
 				t_alg->skcipher_alg.base.cra_driver_name);
 			kfree(t_alg);
 			goto fail0;
-		} else {
-			list_add_tail(&t_alg->entry, &drvdata->alg_list);
-			dev_dbg(dev, "Registered %s\n",
-				t_alg->skcipher_alg.base.cra_driver_name);
 		}
+
+		list_add_tail(&t_alg->entry, &drvdata->alg_list);
+		dev_dbg(dev, "Registered %s\n",
+			t_alg->skcipher_alg.base.cra_driver_name);
 	}
 	return 0;
 
