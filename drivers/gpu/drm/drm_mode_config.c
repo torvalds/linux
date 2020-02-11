@@ -533,6 +533,17 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 }
 EXPORT_SYMBOL(drm_mode_config_cleanup);
 
+static u32 full_encoder_mask(struct drm_device *dev)
+{
+	struct drm_encoder *encoder;
+	u32 encoder_mask = 0;
+
+	drm_for_each_encoder(encoder, dev)
+		encoder_mask |= drm_encoder_mask(encoder);
+
+	return encoder_mask;
+}
+
 /*
  * For some reason we want the encoder itself included in
  * possible_clones. Make life easy for drivers by allowing them
@@ -544,10 +555,39 @@ static void fixup_encoder_possible_clones(struct drm_encoder *encoder)
 		encoder->possible_clones = drm_encoder_mask(encoder);
 }
 
+static void validate_encoder_possible_clones(struct drm_encoder *encoder)
+{
+	struct drm_device *dev = encoder->dev;
+	u32 encoder_mask = full_encoder_mask(dev);
+	struct drm_encoder *other;
+
+	drm_for_each_encoder(other, dev) {
+		WARN(!!(encoder->possible_clones & drm_encoder_mask(other)) !=
+		     !!(other->possible_clones & drm_encoder_mask(encoder)),
+		     "possible_clones mismatch: "
+		     "[ENCODER:%d:%s] mask=0x%x possible_clones=0x%x vs. "
+		     "[ENCODER:%d:%s] mask=0x%x possible_clones=0x%x\n",
+		     encoder->base.id, encoder->name,
+		     drm_encoder_mask(encoder), encoder->possible_clones,
+		     other->base.id, other->name,
+		     drm_encoder_mask(other), other->possible_clones);
+	}
+
+	WARN((encoder->possible_clones & drm_encoder_mask(encoder)) == 0 ||
+	     (encoder->possible_clones & ~encoder_mask) != 0,
+	     "Bogus possible_clones: "
+	     "[ENCODER:%d:%s] possible_clones=0x%x (full encoder mask=0x%x)\n",
+	     encoder->base.id, encoder->name,
+	     encoder->possible_clones, encoder_mask);
+}
+
 void drm_mode_config_validate(struct drm_device *dev)
 {
 	struct drm_encoder *encoder;
 
 	drm_for_each_encoder(encoder, dev)
 		fixup_encoder_possible_clones(encoder);
+
+	drm_for_each_encoder(encoder, dev)
+		validate_encoder_possible_clones(encoder);
 }

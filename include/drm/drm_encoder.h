@@ -163,6 +163,8 @@ struct drm_encoder {
 	 * any cloning it can leave @possible_clones set to 0. The core will
 	 * automagically fix this up by setting the bit for the encoder itself.
 	 *
+	 * You will get a WARN if you get this wrong in the driver.
+	 *
 	 * Note that since encoder objects can't be hotplugged the assigned indices
 	 * are stable and hence known before registering all objects.
 	 */
