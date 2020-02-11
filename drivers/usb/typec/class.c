@@ -432,7 +432,28 @@ static struct attribute *typec_altmode_attrs[] = {
 	&dev_attr_vdo.attr,
 	NULL
 };
-ATTRIBUTE_GROUPS(typec_altmode);
+
+static umode_t typec_altmode_attr_is_visible(struct kobject *kobj,
+					     struct attribute *attr, int n)
+{
+	struct typec_altmode *adev = to_typec_altmode(kobj_to_dev(kobj));
+
+	if (attr == &dev_attr_active.attr)
+		if (!adev->ops || !adev->ops->activate)
+			return 0444;
+
+	return attr->mode;
+}
+
+static struct attribute_group typec_altmode_group = {
+	.is_visible = typec_altmode_attr_is_visible,
+	.attrs = typec_altmode_attrs,
+};
+
+static const struct attribute_group *typec_altmode_groups[] = {
+	&typec_altmode_group,
+	NULL
+};
 
 static int altmode_id_get(struct device *dev)
 {
@@ -1305,7 +1326,47 @@ static struct attribute *typec_attrs[] = {
 	&dev_attr_port_type.attr,
 	NULL,
 };
-ATTRIBUTE_GROUPS(typec);
+
+static umode_t typec_attr_is_visible(struct kobject *kobj,
+				     struct attribute *attr, int n)
+{
+	struct typec_port *port = to_typec_port(kobj_to_dev(kobj));
+
+	if (attr == &dev_attr_data_role.attr) {
+		if (port->cap->data != TYPEC_PORT_DRD ||
+		    !port->ops || !port->ops->dr_set)
+			return 0444;
+	} else if (attr == &dev_attr_power_role.attr) {
+		if (port->cap->type != TYPEC_PORT_DRP ||
+		    !port->cap->pd_revision ||
+		    !port->ops || !port->ops->pr_set)
+			return 0444;
+	} else if (attr == &dev_attr_vconn_source.attr) {
+		if (!port->cap->pd_revision ||
+		    !port->ops || !port->ops->vconn_set)
+			return 0444;
+	} else if (attr == &dev_attr_preferred_role.attr) {
+		if (port->cap->type != TYPEC_PORT_DRP ||
+		    !port->ops || !port->ops->try_role)
+			return 0444;
+	} else if (attr == &dev_attr_port_type.attr) {
+		if (port->cap->type != TYPEC_PORT_DRP ||
+		    !port->ops || !port->ops->port_type_set)
+			return 0444;
+	}
+
+	return attr->mode;
+}
+
+static struct attribute_group typec_group = {
+	.is_visible = typec_attr_is_visible,
+	.attrs = typec_attrs,
+};
+
+static const struct attribute_group *typec_groups[] = {
+	&typec_group,
+	NULL
+};
 
 static int typec_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
