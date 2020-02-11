@@ -190,6 +190,30 @@ config ACPI_BUTTON
 	  To compile this driver as a module, choose M here:
 	  the module will be called button.
 
+config ACPI_TINY_POWER_BUTTON
+	tristate "Tiny Power Button Driver"
+	depends on !ACPI_BUTTON
+	help
+	  This driver provides a tiny alternative to the ACPI Button driver.
+	  The tiny power button driver only handles the power button. Rather
+	  than notifying userspace via the input layer or a netlink event, this
+	  driver directly signals the init process to shut down.
+
+	  This driver is particularly suitable for cloud and VM environments,
+	  which use a simulated power button to initiate a controlled poweroff,
+	  but which may not want to run a separate userspace daemon to process
+	  input events.
+
+config ACPI_TINY_POWER_BUTTON_SIGNAL
+	int "Tiny Power Button Signal"
+	depends on ACPI_TINY_POWER_BUTTON
+	default 38
+	help
+	  Default signal to send to init in response to the power button.
+
+	  Likely values here include 38 (SIGRTMIN+4) to power off, or 2
+	  (SIGINT) to simulate Ctrl+Alt+Del.
+
 config ACPI_VIDEO
 	tristate "Video"
 	depends on X86 && BACKLIGHT_CLASS_DEVICE
