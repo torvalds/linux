@@ -501,8 +501,6 @@ int mlx5e_get_fec_mode(struct mlx5_core_dev *dev, u32 *fec_mode_active,
 
 int mlx5e_set_fec_mode(struct mlx5_core_dev *dev, u8 fec_policy)
 {
-	u8 fec_policy_nofec = BIT(MLX5E_FEC_NOFEC);
-	bool fec_mode_not_supp_in_speed = false;
 	u32 out[MLX5_ST_SZ_DW(pplm_reg)] = {};
 	u32 in[MLX5_ST_SZ_DW(pplm_reg)] = {};
 	int sz = MLX5_ST_SZ_BYTES(pplm_reg);
@@ -526,23 +524,15 @@ int mlx5e_set_fec_mode(struct mlx5_core_dev *dev, u8 fec_policy)
 
 	for (i = 0; i < MLX5E_FEC_SUPPORTED_SPEEDS; i++) {
 		mlx5e_get_fec_cap_field(out, &fec_caps, fec_supported_speeds[i]);
-		/* policy supported for link speed, or policy is auto */
-		if (fec_caps & fec_policy || fec_policy == fec_policy_auto) {
+		/* policy supported for link speed */
+		if (fec_caps & fec_policy)
 			mlx5e_fec_admin_field(out, &fec_policy, 1,
 					      fec_supported_speeds[i]);
-		} else {
-			/* turn off FEC if supported. Else, leave it the same */
-			if (fec_caps & fec_policy_nofec)
-				mlx5e_fec_admin_field(out, &fec_policy_nofec, 1,
-						      fec_supported_speeds[i]);
-			fec_mode_not_supp_in_speed = true;
-		}
+		else
+			/* set FEC to auto*/
+			mlx5e_fec_admin_field(out, &fec_policy_auto, 1,
+					      fec_supported_speeds[i]);
 	}
-
-	if (fec_mode_not_supp_in_speed)
-		mlx5_core_dbg(dev,
-			      "FEC policy 0x%x is not supported for some speeds",
-			      fec_policy);
 
 	return mlx5_core_access_reg(dev, out, sz, out, sz, MLX5_REG_PPLM, 0, 1);
 }
