@@ -14,14 +14,14 @@
 
 #include "smiapp.h"
 
-static int smiapp_write_8s(struct smiapp_sensor *sensor,
-			   const struct smiapp_reg_8 *regs, int len)
+static int ccs_write_addr_8s(struct smiapp_sensor *sensor,
+			     const struct smiapp_reg_8 *regs, int len)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
 	int rval;
 
 	for (; len > 0; len--, regs++) {
-		rval = smiapp_write(sensor, regs->reg, regs->val);
+		rval = ccs_write_addr(sensor, regs->reg, regs->val);
 		if (rval < 0) {
 			dev_err(&client->dev,
 				"error %d writing reg 0x%4.4x, val 0x%2.2x",
@@ -81,7 +81,7 @@ static int jt8ew9_post_poweron(struct smiapp_sensor *sensor)
 
 	};
 
-	return smiapp_write_8s(sensor, regs, ARRAY_SIZE(regs));
+	return ccs_write_addr_8s(sensor, regs, ARRAY_SIZE(regs));
 }
 
 const struct smiapp_quirk smiapp_jt8ew9_quirk = {
@@ -102,7 +102,7 @@ static int imx125es_post_poweron(struct smiapp_sensor *sensor)
 		{ 0x3b08, 0x8c },
 	};
 
-	return smiapp_write_8s(sensor, regs, ARRAY_SIZE(regs));
+	return ccs_write_addr_8s(sensor, regs, ARRAY_SIZE(regs));
 }
 
 const struct smiapp_quirk smiapp_imx125es_quirk = {
@@ -148,13 +148,13 @@ static int jt8ev1_post_poweron(struct smiapp_sensor *sensor)
 		{ 0x30b0, 0x01 },
 	};
 
-	rval = smiapp_write_8s(sensor, regs, ARRAY_SIZE(regs));
+	rval = ccs_write_addr_8s(sensor, regs, ARRAY_SIZE(regs));
 	if (rval < 0)
 		return rval;
 
 	switch (sensor->hwcfg->ext_clk) {
 	case 9600000:
-		return smiapp_write_8s(sensor, regs_96,
+		return ccs_write_addr_8s(sensor, regs_96,
 				       ARRAY_SIZE(regs_96));
 	default:
 		dev_warn(&client->dev, "no MSRs for %d Hz ext_clk\n",
@@ -165,7 +165,7 @@ static int jt8ev1_post_poweron(struct smiapp_sensor *sensor)
 
 static int jt8ev1_pre_streamon(struct smiapp_sensor *sensor)
 {
-	return smiapp_write(sensor, 0x3328, 0x00);
+	return ccs_write_addr(sensor, 0x3328, 0x00);
 }
 
 static int jt8ev1_post_streamoff(struct smiapp_sensor *sensor)
@@ -173,7 +173,7 @@ static int jt8ev1_post_streamoff(struct smiapp_sensor *sensor)
 	int rval;
 
 	/* Workaround: allows fast standby to work properly */
-	rval = smiapp_write(sensor, 0x3205, 0x04);
+	rval = ccs_write_addr(sensor, 0x3205, 0x04);
 	if (rval < 0)
 		return rval;
 
@@ -181,11 +181,11 @@ static int jt8ev1_post_streamoff(struct smiapp_sensor *sensor)
 	usleep_range(2000, 2050);
 
 	/* Restore it */
-	rval = smiapp_write(sensor, 0x3205, 0x00);
+	rval = ccs_write_addr(sensor, 0x3205, 0x00);
 	if (rval < 0)
 		return rval;
 
-	return smiapp_write(sensor, 0x3328, 0x80);
+	return ccs_write_addr(sensor, 0x3328, 0x80);
 }
 
 static int jt8ev1_init(struct smiapp_sensor *sensor)

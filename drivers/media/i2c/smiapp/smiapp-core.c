@@ -180,7 +180,7 @@ static int ccs_read_all_limits(struct smiapp_sensor *sensor)
 		     j++, reg += width, ptr += width) {
 			u32 val;
 
-			ret = smiapp_read(sensor, reg, &val);
+			ret = ccs_read_addr(sensor, reg, &val);
 			if (ret)
 				goto out_err;
 
@@ -2450,59 +2450,60 @@ static int smiapp_identify_module(struct smiapp_sensor *sensor)
 	rval = ccs_read(sensor, MODULE_MANUFACTURER_ID,
 			&minfo->mipi_manufacturer_id);
 	if (!rval && !minfo->mipi_manufacturer_id)
-		rval = smiapp_read_8only(sensor, SMIAPP_REG_U8_MANUFACTURER_ID,
-					 &minfo->smia_manufacturer_id);
+		rval = ccs_read_addr_8only(sensor,
+					   SMIAPP_REG_U8_MANUFACTURER_ID,
+					   &minfo->smia_manufacturer_id);
 	if (!rval)
-		rval = smiapp_read_8only(sensor, CCS_R_MODULE_MODEL_ID,
-					 &minfo->model_id);
+		rval = ccs_read_addr_8only(sensor, CCS_R_MODULE_MODEL_ID,
+					   &minfo->model_id);
 	if (!rval)
-		rval = smiapp_read_8only(sensor,
-					 CCS_R_MODULE_REVISION_NUMBER_MAJOR,
-					 &minfo->revision_number_major);
+		rval = ccs_read_addr_8only(sensor,
+					   CCS_R_MODULE_REVISION_NUMBER_MAJOR,
+					   &minfo->revision_number_major);
 	if (!rval)
-		rval = smiapp_read_8only(sensor,
-					 CCS_R_MODULE_REVISION_NUMBER_MINOR,
-					 &minfo->revision_number_minor);
+		rval = ccs_read_addr_8only(sensor,
+					   CCS_R_MODULE_REVISION_NUMBER_MINOR,
+					   &minfo->revision_number_minor);
 	if (!rval)
-		rval = smiapp_read_8only(sensor, CCS_R_MODULE_DATE_YEAR,
-					 &minfo->module_year);
+		rval = ccs_read_addr_8only(sensor, CCS_R_MODULE_DATE_YEAR,
+					   &minfo->module_year);
 	if (!rval)
-		rval = smiapp_read_8only(sensor, CCS_R_MODULE_DATE_MONTH,
-					 &minfo->module_month);
+		rval = ccs_read_addr_8only(sensor, CCS_R_MODULE_DATE_MONTH,
+					   &minfo->module_month);
 	if (!rval)
-		rval = smiapp_read_8only(sensor, CCS_R_MODULE_DATE_DAY,
-					 &minfo->module_day);
+		rval = ccs_read_addr_8only(sensor, CCS_R_MODULE_DATE_DAY,
+					   &minfo->module_day);
 
 	/* Sensor info */
 	if (!rval)
 		rval = ccs_read(sensor, SENSOR_MANUFACTURER_ID,
 				&minfo->sensor_mipi_manufacturer_id);
 	if (!rval && !minfo->sensor_mipi_manufacturer_id)
-		rval = smiapp_read_8only(sensor,
-					 CCS_R_SENSOR_MANUFACTURER_ID,
-					 &minfo->sensor_smia_manufacturer_id);
+		rval = ccs_read_addr_8only(sensor,
+					   CCS_R_SENSOR_MANUFACTURER_ID,
+					   &minfo->sensor_smia_manufacturer_id);
 	if (!rval)
-		rval = smiapp_read_8only(sensor,
-					 CCS_R_SENSOR_MODEL_ID,
-					 &minfo->sensor_model_id);
+		rval = ccs_read_addr_8only(sensor,
+					   CCS_R_SENSOR_MODEL_ID,
+					   &minfo->sensor_model_id);
 	if (!rval)
-		rval = smiapp_read_8only(sensor,
-					 CCS_R_SENSOR_REVISION_NUMBER,
-					 &minfo->sensor_revision_number);
+		rval = ccs_read_addr_8only(sensor,
+					   CCS_R_SENSOR_REVISION_NUMBER,
+					   &minfo->sensor_revision_number);
 	if (!rval)
-		rval = smiapp_read_8only(sensor,
-					 CCS_R_SENSOR_FIRMWARE_VERSION,
-					 &minfo->sensor_firmware_version);
+		rval = ccs_read_addr_8only(sensor,
+					   CCS_R_SENSOR_FIRMWARE_VERSION,
+					   &minfo->sensor_firmware_version);
 
 	/* SMIA */
 	if (!rval)
 		rval = ccs_read(sensor, MIPI_CCS_VERSION, &minfo->ccs_version);
 	if (!rval && !minfo->ccs_version)
-		rval = smiapp_read_8only(sensor, SMIAPP_REG_U8_SMIA_VERSION,
-					 &minfo->smia_version);
+		rval = ccs_read_addr_8only(sensor, SMIAPP_REG_U8_SMIA_VERSION,
+					   &minfo->smia_version);
 	if (!rval && !minfo->ccs_version)
-		rval = smiapp_read_8only(sensor, SMIAPP_REG_U8_SMIAPP_VERSION,
-					 &minfo->smiapp_version);
+		rval = ccs_read_addr_8only(sensor, SMIAPP_REG_U8_SMIAPP_VERSION,
+					   &minfo->smiapp_version);
 
 	if (rval) {
 		dev_err(&client->dev, "sensor detection failed\n");

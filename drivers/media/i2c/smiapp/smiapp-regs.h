@@ -20,18 +20,18 @@
 
 struct smiapp_sensor;
 
-int smiapp_read_no_quirk(struct smiapp_sensor *sensor, u32 reg, u32 *val);
-int smiapp_read(struct smiapp_sensor *sensor, u32 reg, u32 *val);
-int smiapp_read_8only(struct smiapp_sensor *sensor, u32 reg, u32 *val);
-int smiapp_write_no_quirk(struct smiapp_sensor *sensor, u32 reg, u32 val);
-int smiapp_write(struct smiapp_sensor *sensor, u32 reg, u32 val);
+int ccs_read_addr_no_quirk(struct smiapp_sensor *sensor, u32 reg, u32 *val);
+int ccs_read_addr(struct smiapp_sensor *sensor, u32 reg, u32 *val);
+int ccs_read_addr_8only(struct smiapp_sensor *sensor, u32 reg, u32 *val);
+int ccs_write_addr_no_quirk(struct smiapp_sensor *sensor, u32 reg, u32 val);
+int ccs_write_addr(struct smiapp_sensor *sensor, u32 reg, u32 val);
 
 unsigned int ccs_reg_width(u32 reg);
 
 #define ccs_read(sensor, reg_name, val) \
-	smiapp_read(sensor, CCS_R_##reg_name, val)
+	ccs_read_addr(sensor, CCS_R_##reg_name, val)
 
 #define ccs_write(sensor, reg_name, val) \
-	smiapp_write(sensor, CCS_R_##reg_name, val)
+	ccs_write_addr(sensor, CCS_R_##reg_name, val)
 
 #endif

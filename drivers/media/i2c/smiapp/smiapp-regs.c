@@ -66,8 +66,8 @@ static uint32_t float_to_u32_mul_1000000(struct i2c_client *client,
  * Read a 8/16/32-bit i2c register.  The value is returned in 'val'.
  * Returns zero if successful, or non-zero otherwise.
  */
-static int ____smiapp_read(struct smiapp_sensor *sensor, u16 reg,
-			   u16 len, u32 *val)
+static int ____ccs_read_addr(struct smiapp_sensor *sensor, u16 reg, u16 len,
+			     u32 *val)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
 	struct i2c_msg msg;
@@ -113,8 +113,8 @@ err:
 }
 
 /* Read a register using 8-bit access only. */
-static int ____smiapp_read_8only(struct smiapp_sensor *sensor, u16 reg,
-				 u16 len, u32 *val)
+static int ____ccs_read_addr_8only(struct smiapp_sensor *sensor, u16 reg,
+				   u16 len, u32 *val)
 {
 	unsigned int i;
 	int rval;
@@ -124,7 +124,7 @@ static int ____smiapp_read_8only(struct smiapp_sensor *sensor, u16 reg,
 	for (i = 0; i < len; i++) {
 		u32 val8;
 
-		rval = ____smiapp_read(sensor, reg + i, 1, &val8);
+		rval = ____ccs_read_addr(sensor, reg + i, 1, &val8);
 		if (rval < 0)
 			return rval;
 		*val |= val8 << ((len - i - 1) << 3);
@@ -147,18 +147,19 @@ unsigned int ccs_reg_width(u32 reg)
  * Read a 8/16/32-bit i2c register.  The value is returned in 'val'.
  * Returns zero if successful, or non-zero otherwise.
  */
-static int __smiapp_read(struct smiapp_sensor *sensor, u32 reg, u32 *val,
-			 bool only8)
+static int __ccs_read_addr(struct smiapp_sensor *sensor, u32 reg, u32 *val,
+			   bool only8)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
 	unsigned int len = ccs_reg_width(reg);
 	int rval;
 
 	if (!only8)
-		rval = ____smiapp_read(sensor, SMIAPP_REG_ADDR(reg), len, val);
+		rval = ____ccs_read_addr(sensor, SMIAPP_REG_ADDR(reg), len,
+					    val);
 	else
-		rval = ____smiapp_read_8only(sensor, SMIAPP_REG_ADDR(reg), len,
-					     val);
+		rval = ____ccs_read_addr_8only(sensor, SMIAPP_REG_ADDR(reg),
+						  len, val);
 	if (rval < 0)
 		return rval;
 
@@ -168,16 +169,16 @@ static int __smiapp_read(struct smiapp_sensor *sensor, u32 reg, u32 *val,
 	return 0;
 }
 
-int smiapp_read_no_quirk(struct smiapp_sensor *sensor, u32 reg, u32 *val)
+int ccs_read_addr_no_quirk(struct smiapp_sensor *sensor, u32 reg, u32 *val)
 {
-	return __smiapp_read(
+	return __ccs_read_addr(
 		sensor, reg, val,
 		smiapp_needs_quirk(sensor,
 				   SMIAPP_QUIRK_FLAG_8BIT_READ_ONLY));
 }
 
-static int smiapp_read_quirk(struct smiapp_sensor *sensor, u32 reg, u32 *val,
-			     bool force8)
+static int ccs_read_addr_quirk(struct smiapp_sensor *sensor, u32 reg, u32 *val,
+			       bool force8)
 {
 	int rval;
 
@@ -189,22 +190,22 @@ static int smiapp_read_quirk(struct smiapp_sensor *sensor, u32 reg, u32 *val,
 		return rval;
 
 	if (force8)
-		return __smiapp_read(sensor, reg, val, true);
+		return __ccs_read_addr(sensor, reg, val, true);
 
-	return smiapp_read_no_quirk(sensor, reg, val);
+	return ccs_read_addr_no_quirk(sensor, reg, val);
 }
 
-int smiapp_read(struct smiapp_sensor *sensor, u32 reg, u32 *val)
+int ccs_read_addr(struct smiapp_sensor *sensor, u32 reg, u32 *val)
 {
-	return smiapp_read_quirk(sensor, reg, val, false);
+	return ccs_read_addr_quirk(sensor, reg, val, false);
 }
 
-int smiapp_read_8only(struct smiapp_sensor *sensor, u32 reg, u32 *val)
+int ccs_read_addr_8only(struct smiapp_sensor *sensor, u32 reg, u32 *val)
 {
-	return smiapp_read_quirk(sensor, reg, val, true);
+	return ccs_read_addr_quirk(sensor, reg, val, true);
 }
 
-int smiapp_write_no_quirk(struct smiapp_sensor *sensor, u32 reg, u32 val)
+int ccs_write_addr_no_quirk(struct smiapp_sensor *sensor, u32 reg, u32 val)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
 	struct i2c_msg msg;
@@ -253,7 +254,7 @@ int smiapp_write_no_quirk(struct smiapp_sensor *sensor, u32 reg, u32 val)
  * Write to a 8/16-bit register.
  * Returns zero if successful, or non-zero otherwise.
  */
-int smiapp_write(struct smiapp_sensor *sensor, u32 reg, u32 val)
+int ccs_write_addr(struct smiapp_sensor *sensor, u32 reg, u32 val)
 {
 	int rval;
 
@@ -263,5 +264,5 @@ int smiapp_write(struct smiapp_sensor *sensor, u32 reg, u32 val)
 	if (rval < 0)
 		return rval;
 
-	return smiapp_write_no_quirk(sensor, reg, val);
+	return ccs_write_addr_no_quirk(sensor, reg, val);
 }
