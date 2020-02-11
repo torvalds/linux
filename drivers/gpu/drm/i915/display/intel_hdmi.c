@@ -1274,10 +1274,9 @@ void intel_dp_dual_mode_set_tmds_output(struct intel_hdmi *hdmi, bool enable)
 static int intel_hdmi_hdcp_read(struct intel_digital_port *intel_dig_port,
 				unsigned int offset, void *buffer, size_t size)
 {
+	struct drm_i915_private *i915 = to_i915(intel_dig_port->base.base.dev);
 	struct intel_hdmi *hdmi = &intel_dig_port->hdmi;
-	struct drm_i915_private *dev_priv =
-		intel_dig_port->base.base.dev->dev_private;
-	struct i2c_adapter *adapter = intel_gmbus_get_adapter(dev_priv,
+	struct i2c_adapter *adapter = intel_gmbus_get_adapter(i915,
 							      hdmi->ddc_bus);
 	int ret;
 	u8 start = offset & 0xff;
@@ -1304,10 +1303,9 @@ static int intel_hdmi_hdcp_read(struct intel_digital_port *intel_dig_port,
 static int intel_hdmi_hdcp_write(struct intel_digital_port *intel_dig_port,
 				 unsigned int offset, void *buffer, size_t size)
 {
+	struct drm_i915_private *i915 = to_i915(intel_dig_port->base.base.dev);
 	struct intel_hdmi *hdmi = &intel_dig_port->hdmi;
-	struct drm_i915_private *dev_priv =
-		intel_dig_port->base.base.dev->dev_private;
-	struct i2c_adapter *adapter = intel_gmbus_get_adapter(dev_priv,
+	struct i2c_adapter *adapter = intel_gmbus_get_adapter(i915,
 							      hdmi->ddc_bus);
 	int ret;
 	u8 *write_buf;
@@ -1339,10 +1337,9 @@ static
 int intel_hdmi_hdcp_write_an_aksv(struct intel_digital_port *intel_dig_port,
 				  u8 *an)
 {
+	struct drm_i915_private *i915 = to_i915(intel_dig_port->base.base.dev);
 	struct intel_hdmi *hdmi = &intel_dig_port->hdmi;
-	struct drm_i915_private *dev_priv =
-		intel_dig_port->base.base.dev->dev_private;
-	struct i2c_adapter *adapter = intel_gmbus_get_adapter(dev_priv,
+	struct i2c_adapter *adapter = intel_gmbus_get_adapter(i915,
 							      hdmi->ddc_bus);
 	int ret;
 
@@ -1521,8 +1518,7 @@ int intel_hdmi_hdcp_toggle_signalling(struct intel_digital_port *intel_dig_port,
 static
 bool intel_hdmi_hdcp_check_link(struct intel_digital_port *intel_dig_port)
 {
-	struct drm_i915_private *dev_priv =
-		intel_dig_port->base.base.dev->dev_private;
+	struct drm_i915_private *i915 = to_i915(intel_dig_port->base.base.dev);
 	struct intel_connector *connector =
 		intel_dig_port->hdmi.attached_connector;
 	enum port port = intel_dig_port->base.port;
@@ -1537,14 +1533,13 @@ bool intel_hdmi_hdcp_check_link(struct intel_digital_port *intel_dig_port)
 	if (ret)
 		return false;
 
-	intel_de_write(dev_priv, HDCP_RPRIME(dev_priv, cpu_transcoder, port),
-		       ri.reg);
+	intel_de_write(i915, HDCP_RPRIME(i915, cpu_transcoder, port), ri.reg);
 
 	/* Wait for Ri prime match */
-	if (wait_for(intel_de_read(dev_priv, HDCP_STATUS(dev_priv, cpu_transcoder, port)) &
+	if (wait_for(intel_de_read(i915, HDCP_STATUS(i915, cpu_transcoder, port)) &
 		     (HDCP_STATUS_RI_MATCH | HDCP_STATUS_ENC), 1)) {
 		DRM_ERROR("Ri' mismatch detected, link check failed (%x)\n",
-			  intel_de_read(dev_priv, HDCP_STATUS(dev_priv, cpu_transcoder, port)));
+			  intel_de_read(i915, HDCP_STATUS(i915, cpu_transcoder, port)));
 		return false;
 	}
 	return true;
