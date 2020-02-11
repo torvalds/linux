@@ -1041,6 +1041,11 @@ static int ena_com_get_feature(struct ena_com_dev *ena_dev,
 				      feature_ver);
 }
 
+int ena_com_get_current_hash_function(struct ena_com_dev *ena_dev)
+{
+	return ena_dev->rss.hash_func;
+}
+
 static void ena_com_hash_key_fill_default_key(struct ena_com_dev *ena_dev)
 {
 	struct ena_admin_feature_rss_flow_hash_control *hash_key =
