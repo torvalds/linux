@@ -184,7 +184,7 @@ static int cc_cipher_init(struct crypto_tfm *tfm)
 		ctx_p->user.key);
 
 	/* Map key buffer */
-	ctx_p->user.key_dma_addr = dma_map_single(dev, (void *)ctx_p->user.key,
+	ctx_p->user.key_dma_addr = dma_map_single(dev, ctx_p->user.key,
 						  max_key_buf_size,
 						  DMA_TO_DEVICE);
 	if (dma_mapping_error(dev, ctx_p->user.key_dma_addr)) {
@@ -284,7 +284,7 @@ static int cc_cipher_sethkey(struct crypto_skcipher *sktfm, const u8 *key,
 
 	dev_dbg(dev, "Setting HW key in context @%p for %s. keylen=%u\n",
 		ctx_p, crypto_tfm_alg_name(tfm), keylen);
-	dump_byte_array("key", (u8 *)key, keylen);
+	dump_byte_array("key", key, keylen);
 
 	/* STAT_PHASE_0: Init and sanity checks */
 
@@ -387,7 +387,7 @@ static int cc_cipher_setkey(struct crypto_skcipher *sktfm, const u8 *key,
 
 	dev_dbg(dev, "Setting key in context @%p for %s. keylen=%u\n",
 		ctx_p, crypto_tfm_alg_name(tfm), keylen);
-	dump_byte_array("key", (u8 *)key, keylen);
+	dump_byte_array("key", key, keylen);
 
 	/* STAT_PHASE_0: Init and sanity checks */
 
@@ -885,8 +885,8 @@ static int cc_cipher_process(struct skcipher_request *req,
 	}
 
 	/* Setup request structure */
-	cc_req.user_cb = (void *)cc_cipher_complete;
-	cc_req.user_arg = (void *)req;
+	cc_req.user_cb = cc_cipher_complete;
+	cc_req.user_arg = req;
 
 	/* Setup CPP operation details */
 	if (ctx_p->key_type == CC_POLICY_PROTECTED_KEY) {

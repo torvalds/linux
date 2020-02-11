@@ -448,8 +448,7 @@ static int cc_get_plain_hmac_key(struct crypto_aead *tfm, const u8 *authkey,
 		if (!key)
 			return -ENOMEM;
 
-		key_dma_addr = dma_map_single(dev, (void *)key, keylen,
-					      DMA_TO_DEVICE);
+		key_dma_addr = dma_map_single(dev, key, keylen, DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, key_dma_addr)) {
 			dev_err(dev, "Mapping key va=0x%p len=%u for DMA failed\n",
 				key, keylen);
@@ -1921,8 +1920,8 @@ static int cc_proc_aead(struct aead_request *req,
 	}
 
 	/* Setup request structure */
-	cc_req.user_cb = (void *)cc_aead_complete;
-	cc_req.user_arg = (void *)req;
+	cc_req.user_cb = cc_aead_complete;
+	cc_req.user_arg = req;
 
 	/* Setup request context */
 	areq_ctx->gen_ctx.op_type = direct;

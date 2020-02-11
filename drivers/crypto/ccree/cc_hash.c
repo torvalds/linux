@@ -752,7 +752,7 @@ static int cc_hash_setkey(struct crypto_ahash *ahash, const u8 *key,
 			return -ENOMEM;
 
 		ctx->key_params.key_dma_addr =
-			dma_map_single(dev, (void *)ctx->key_params.key, keylen,
+			dma_map_single(dev, ctx->key_params.key, keylen,
 				       DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, ctx->key_params.key_dma_addr)) {
 			dev_err(dev, "Mapping key va=0x%p len=%u for DMA failed\n",
@@ -1067,8 +1067,8 @@ static int cc_alloc_ctx(struct cc_hash_ctx *ctx)
 	ctx->key_params.keylen = 0;
 
 	ctx->digest_buff_dma_addr =
-		dma_map_single(dev, (void *)ctx->digest_buff,
-			       sizeof(ctx->digest_buff), DMA_BIDIRECTIONAL);
+		dma_map_single(dev, ctx->digest_buff, sizeof(ctx->digest_buff),
+			       DMA_BIDIRECTIONAL);
 	if (dma_mapping_error(dev, ctx->digest_buff_dma_addr)) {
 		dev_err(dev, "Mapping digest len %zu B at va=%pK for DMA failed\n",
 			sizeof(ctx->digest_buff), ctx->digest_buff);
@@ -1079,7 +1079,7 @@ static int cc_alloc_ctx(struct cc_hash_ctx *ctx)
 		&ctx->digest_buff_dma_addr);
 
 	ctx->opad_tmp_keys_dma_addr =
-		dma_map_single(dev, (void *)ctx->opad_tmp_keys_buff,
+		dma_map_single(dev, ctx->opad_tmp_keys_buff,
 			       sizeof(ctx->opad_tmp_keys_buff),
 			       DMA_BIDIRECTIONAL);
 	if (dma_mapping_error(dev, ctx->opad_tmp_keys_dma_addr)) {
@@ -1196,8 +1196,8 @@ static int cc_mac_update(struct ahash_request *req)
 	idx++;
 
 	/* Setup request structure */
-	cc_req.user_cb = (void *)cc_update_complete;
-	cc_req.user_arg = (void *)req;
+	cc_req.user_cb = cc_update_complete;
+	cc_req.user_arg = req;
 
 	rc = cc_send_request(ctx->drvdata, &cc_req, desc, idx, &req->base);
 	if (rc != -EINPROGRESS && rc != -EBUSY) {
@@ -1254,8 +1254,8 @@ static int cc_mac_final(struct ahash_request *req)
 	}
 
 	/* Setup request structure */
-	cc_req.user_cb = (void *)cc_hash_complete;
-	cc_req.user_arg = (void *)req;
+	cc_req.user_cb = cc_hash_complete;
+	cc_req.user_arg = req;
 
 	if (state->xcbc_count && rem_cnt == 0) {
 		/* Load key for ECB decryption */
@@ -1369,8 +1369,8 @@ static int cc_mac_finup(struct ahash_request *req)
 	}
 
 	/* Setup request structure */
-	cc_req.user_cb = (void *)cc_hash_complete;
-	cc_req.user_arg = (void *)req;
+	cc_req.user_cb = cc_hash_complete;
+	cc_req.user_arg = req;
 
 	if (ctx->hw_mode == DRV_CIPHER_XCBC_MAC) {
 		key_len = CC_AES_128_BIT_KEY_SIZE;
@@ -1448,8 +1448,8 @@ static int cc_mac_digest(struct ahash_request *req)
 	}
 
 	/* Setup request structure */
-	cc_req.user_cb = (void *)cc_digest_complete;
-	cc_req.user_arg = (void *)req;
+	cc_req.user_cb = cc_digest_complete;
+	cc_req.user_arg = req;
 
 	if (ctx->hw_mode == DRV_CIPHER_XCBC_MAC) {
 		key_len = CC_AES_128_BIT_KEY_SIZE;
