@@ -39,16 +39,6 @@ enum pm_qos_flags_status {
 
 #define PM_QOS_FLAG_NO_POWER_OFF	(1 << 0)
 
-struct pm_qos_request {
-	struct plist_node node;
-	int pm_qos_class;
-};
-
-struct pm_qos_flags_request {
-	struct list_head node;
-	s32 flags;	/* Do not change to 64 bit */
-};
-
 enum pm_qos_type {
 	PM_QOS_UNITIALIZED,
 	PM_QOS_MAX,		/* return the largest value */
@@ -67,6 +57,16 @@ struct pm_qos_constraints {
 	s32 no_constraint_value;
 	enum pm_qos_type type;
 	struct blocking_notifier_head *notifiers;
+};
+
+struct pm_qos_request {
+	struct plist_node node;
+	struct pm_qos_constraints *qos;
+};
+
+struct pm_qos_flags_request {
+	struct list_head node;
+	s32 flags;	/* Do not change to 64 bit */
 };
 
 struct pm_qos_flags {

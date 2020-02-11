@@ -54,15 +54,7 @@
  * or pm_qos_object list and pm_qos_objects need to happen with pm_qos_lock
  * held, taken with _irqsave.  One lock to rule them all
  */
-struct pm_qos_object {
-	struct pm_qos_constraints *constraints;
-	struct miscdevice pm_qos_power_miscdev;
-	char *name;
-};
-
 static DEFINE_SPINLOCK(pm_qos_lock);
-
-static struct pm_qos_object null_pm_qos;
 
 static BLOCKING_NOTIFIER_HEAD(cpu_dma_lat_notifier);
 static struct pm_qos_constraints cpu_dma_constraints = {
@@ -72,15 +64,6 @@ static struct pm_qos_constraints cpu_dma_constraints = {
 	.no_constraint_value = PM_QOS_CPU_DMA_LAT_DEFAULT_VALUE,
 	.type = PM_QOS_MIN,
 	.notifiers = &cpu_dma_lat_notifier,
-};
-static struct pm_qos_object cpu_dma_pm_qos = {
-	.constraints = &cpu_dma_constraints,
-	.name = "cpu_dma_latency",
-};
-
-static struct pm_qos_object *pm_qos_array[] = {
-	&null_pm_qos,
-	&cpu_dma_pm_qos,
 };
 
 /**
@@ -248,46 +231,34 @@ bool pm_qos_update_flags(struct pm_qos_flags *pqf,
 
 /**
  * pm_qos_request - returns current system wide qos expectation
- * @pm_qos_class: identification of which qos value is requested
+ * @pm_qos_class: Ignored.
  *
  * This function returns the current target value.
  */
 int pm_qos_request(int pm_qos_class)
 {
-	return pm_qos_read_value(pm_qos_array[pm_qos_class]->constraints);
+	return pm_qos_read_value(&cpu_dma_constraints);
 }
 EXPORT_SYMBOL_GPL(pm_qos_request);
 
 int pm_qos_request_active(struct pm_qos_request *req)
 {
-	return req->pm_qos_class != 0;
+	return req->qos == &cpu_dma_constraints;
 }
 EXPORT_SYMBOL_GPL(pm_qos_request_active);
-
-static void __pm_qos_update_request(struct pm_qos_request *req,
-			   s32 new_value)
-{
-	trace_pm_qos_update_request(req->pm_qos_class, new_value);
-
-	if (new_value != req->node.prio)
-		pm_qos_update_target(
-			pm_qos_array[req->pm_qos_class]->constraints,
-			&req->node, PM_QOS_UPDATE_REQ, new_value);
-}
 
 /**
  * pm_qos_add_request - inserts new qos request into the list
  * @req: pointer to a preallocated handle
- * @pm_qos_class: identifies which list of qos request to use
+ * @pm_qos_class: Ignored.
  * @value: defines the qos request
  *
- * This function inserts a new entry in the pm_qos_class list of requested qos
- * performance characteristics.  It recomputes the aggregate QoS expectations
- * for the pm_qos_class of parameters and initializes the pm_qos_request
+ * This function inserts a new entry in the PM_QOS_CPU_DMA_LATENCY list of
+ * requested QoS performance characteristics.  It recomputes the aggregate QoS
+ * expectations for the PM_QOS_CPU_DMA_LATENCY list and initializes the @req
  * handle.  Caller needs to save this handle for later use in updates and
  * removal.
  */
-
 void pm_qos_add_request(struct pm_qos_request *req,
 			int pm_qos_class, s32 value)
 {
@@ -298,10 +269,11 @@ void pm_qos_add_request(struct pm_qos_request *req,
 		WARN(1, KERN_ERR "pm_qos_add_request() called for already added request\n");
 		return;
 	}
-	req->pm_qos_class = pm_qos_class;
-	trace_pm_qos_add_request(pm_qos_class, value);
-	pm_qos_update_target(pm_qos_array[pm_qos_class]->constraints,
-			     &req->node, PM_QOS_ADD_REQ, value);
+
+	trace_pm_qos_add_request(PM_QOS_CPU_DMA_LATENCY, value);
+
+	req->qos = &cpu_dma_constraints;
+	pm_qos_update_target(req->qos, &req->node, PM_QOS_ADD_REQ, value);
 }
 EXPORT_SYMBOL_GPL(pm_qos_add_request);
 
@@ -310,13 +282,12 @@ EXPORT_SYMBOL_GPL(pm_qos_add_request);
  * @req : handle to list element holding a pm_qos request to use
  * @value: defines the qos request
  *
- * Updates an existing qos request for the pm_qos_class of parameters along
- * with updating the target pm_qos_class value.
+ * Updates an existing qos request for the PM_QOS_CPU_DMA_LATENCY list along
+ * with updating the target PM_QOS_CPU_DMA_LATENCY value.
  *
  * Attempts are made to make this code callable on hot code paths.
  */
-void pm_qos_update_request(struct pm_qos_request *req,
-			   s32 new_value)
+void pm_qos_update_request(struct pm_qos_request *req, s32 new_value)
 {
 	if (!req) /*guard against callers passing in null */
 		return;
@@ -326,7 +297,12 @@ void pm_qos_update_request(struct pm_qos_request *req,
 		return;
 	}
 
-	__pm_qos_update_request(req, new_value);
+	trace_pm_qos_update_request(PM_QOS_CPU_DMA_LATENCY, new_value);
+
+	if (new_value == req->node.prio)
+		return;
+
+	pm_qos_update_target(req->qos, &req->node, PM_QOS_UPDATE_REQ, new_value);
 }
 EXPORT_SYMBOL_GPL(pm_qos_update_request);
 
@@ -335,7 +311,7 @@ EXPORT_SYMBOL_GPL(pm_qos_update_request);
  * @req: handle to request list element
  *
  * Will remove pm qos request from the list of constraints and
- * recompute the current target value for the pm_qos_class.  Call this
+ * recompute the current target value for PM_QOS_CPU_DMA_LATENCY.  Call this
  * on slow code paths.
  */
 void pm_qos_remove_request(struct pm_qos_request *req)
@@ -349,9 +325,9 @@ void pm_qos_remove_request(struct pm_qos_request *req)
 		return;
 	}
 
-	trace_pm_qos_remove_request(req->pm_qos_class, PM_QOS_DEFAULT_VALUE);
-	pm_qos_update_target(pm_qos_array[req->pm_qos_class]->constraints,
-			     &req->node, PM_QOS_REMOVE_REQ,
+	trace_pm_qos_remove_request(PM_QOS_CPU_DMA_LATENCY, PM_QOS_DEFAULT_VALUE);
+
+	pm_qos_update_target(req->qos, &req->node, PM_QOS_REMOVE_REQ,
 			     PM_QOS_DEFAULT_VALUE);
 	memset(req, 0, sizeof(*req));
 }
@@ -359,41 +335,31 @@ EXPORT_SYMBOL_GPL(pm_qos_remove_request);
 
 /**
  * pm_qos_add_notifier - sets notification entry for changes to target value
- * @pm_qos_class: identifies which qos target changes should be notified.
+ * @pm_qos_class: Ignored.
  * @notifier: notifier block managed by caller.
  *
  * will register the notifier into a notification chain that gets called
- * upon changes to the pm_qos_class target value.
+ * upon changes to the PM_QOS_CPU_DMA_LATENCY target value.
  */
 int pm_qos_add_notifier(int pm_qos_class, struct notifier_block *notifier)
 {
-	int retval;
-
-	retval = blocking_notifier_chain_register(
-			pm_qos_array[pm_qos_class]->constraints->notifiers,
-			notifier);
-
-	return retval;
+	return blocking_notifier_chain_register(cpu_dma_constraints.notifiers,
+						notifier);
 }
 EXPORT_SYMBOL_GPL(pm_qos_add_notifier);
 
 /**
  * pm_qos_remove_notifier - deletes notification entry from chain.
- * @pm_qos_class: identifies which qos target changes are notified.
+ * @pm_qos_class: Ignored.
  * @notifier: notifier block to be removed.
  *
  * will remove the notifier from the notification chain that gets called
- * upon changes to the pm_qos_class target value.
+ * upon changes to the PM_QOS_CPU_DMA_LATENCY target value.
  */
 int pm_qos_remove_notifier(int pm_qos_class, struct notifier_block *notifier)
 {
-	int retval;
-
-	retval = blocking_notifier_chain_unregister(
-			pm_qos_array[pm_qos_class]->constraints->notifiers,
-			notifier);
-
-	return retval;
+	return blocking_notifier_chain_unregister(cpu_dma_constraints.notifiers,
+						  notifier);
 }
 EXPORT_SYMBOL_GPL(pm_qos_remove_notifier);
 
@@ -436,7 +402,7 @@ static ssize_t pm_qos_power_read(struct file *filp, char __user *buf,
 		return -EINVAL;
 
 	spin_lock_irqsave(&pm_qos_lock, flags);
-	value = pm_qos_get_value(pm_qos_array[req->pm_qos_class]->constraints);
+	value = pm_qos_get_value(&cpu_dma_constraints);
 	spin_unlock_irqrestore(&pm_qos_lock, flags);
 
 	return simple_read_from_buffer(buf, count, f_pos, &value, sizeof(s32));
@@ -471,25 +437,20 @@ static const struct file_operations pm_qos_power_fops = {
 	.llseek = noop_llseek,
 };
 
-static int register_pm_qos_misc(struct pm_qos_object *qos)
-{
-	qos->pm_qos_power_miscdev.minor = MISC_DYNAMIC_MINOR;
-	qos->pm_qos_power_miscdev.name = qos->name;
-	qos->pm_qos_power_miscdev.fops = &pm_qos_power_fops;
-
-	return misc_register(&qos->pm_qos_power_miscdev);
-}
+static struct miscdevice cpu_latency_qos_miscdev = {
+	.minor = MISC_DYNAMIC_MINOR,
+	.name = "cpu_dma_latency",
+	.fops = &pm_qos_power_fops,
+};
 
 static int __init pm_qos_power_init(void)
 {
 	int ret;
 
-	BUILD_BUG_ON(ARRAY_SIZE(pm_qos_array) != PM_QOS_NUM_CLASSES);
-
-	ret = register_pm_qos_misc(pm_qos_array[PM_QOS_CPU_DMA_LATENCY]);
+	ret = misc_register(&cpu_latency_qos_miscdev);
 	if (ret < 0)
 		pr_err("%s: %s setup failed\n", __func__,
-		       pm_qos_array[PM_QOS_CPU_DMA_LATENCY]->name);
+		       cpu_latency_qos_miscdev.name);
 
 	return ret;
 }
