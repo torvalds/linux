@@ -207,7 +207,7 @@ static int cc_generate_mlli(struct device *dev, struct buffer_array *sg_data,
 		goto build_mlli_exit;
 	}
 	/* Point to start of MLLI */
-	mlli_p = (u32 *)mlli_params->mlli_virt_addr;
+	mlli_p = mlli_params->mlli_virt_addr;
 	/* go over all SG's and link it to one MLLI table */
 	for (i = 0; i < sg_data->num_of_buffers; i++) {
 		union buffer_array_entry *entry = &sg_data->entry[i];

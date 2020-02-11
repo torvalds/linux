@@ -32,7 +32,7 @@ struct cc_mlli {
 
 struct mlli_params {
 	struct dma_pool *curr_pool;
-	u8 *mlli_virt_addr;
+	void *mlli_virt_addr;
 	dma_addr_t mlli_dma_addr;
 	u32 mlli_len;
 };
