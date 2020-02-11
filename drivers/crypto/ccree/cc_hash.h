@@ -89,8 +89,7 @@ int cc_hash_free(struct cc_drvdata *drvdata);
  *
  * \return u32 returns the address of the initial digest length in SRAM
  */
-cc_sram_addr_t
-cc_digest_len_addr(void *drvdata, u32 mode);
+u32 cc_digest_len_addr(void *drvdata, u32 mode);
 
 /*!
  * Gets the address of the initial digest in SRAM
@@ -102,6 +101,6 @@ cc_digest_len_addr(void *drvdata, u32 mode);
  *
  * \return u32 The address of the initial digest in SRAM
  */
-cc_sram_addr_t cc_larval_digest_addr(void *drvdata, u32 mode);
+u32 cc_larval_digest_addr(void *drvdata, u32 mode);
 
 #endif /*__CC_HASH_H__*/

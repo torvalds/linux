@@ -10,13 +10,7 @@
 
 struct cc_drvdata;
 
-/**
- * Address (offset) within CC internal SRAM
- */
-
-typedef u64 cc_sram_addr_t;
-
-#define NULL_SRAM_ADDR ((cc_sram_addr_t)-1)
+#define NULL_SRAM_ADDR ((u32)-1)
 
 /*!
  * Initializes SRAM pool.
@@ -35,7 +29,7 @@ int cc_sram_mgr_init(struct cc_drvdata *drvdata);
  * \param drvdata
  * \param size The requested bytes to allocate
  */
-cc_sram_addr_t cc_sram_alloc(struct cc_drvdata *drvdata, u32 size);
+u32 cc_sram_alloc(struct cc_drvdata *drvdata, u32 size);
 
 /**
  * cc_set_sram_desc() - Create const descriptors sequence to
@@ -48,8 +42,7 @@ cc_sram_addr_t cc_sram_alloc(struct cc_drvdata *drvdata, u32 size);
  * @seq:	  A pointer to the given IN/OUT descriptor sequence
  * @seq_len:	  A pointer to the given IN/OUT sequence length
  */
-void cc_set_sram_desc(const u32 *src, cc_sram_addr_t dst,
-		      unsigned int nelement, struct cc_hw_desc *seq,
-		      unsigned int *seq_len);
+void cc_set_sram_desc(const u32 *src, u32 dst, unsigned int nelement,
+		      struct cc_hw_desc *seq, unsigned int *seq_len);
 
 #endif /*__CC_SRAM_MGR_H__*/

@@ -20,8 +20,8 @@
 #define CC_SM3_HASH_LEN_SIZE 8
 
 struct cc_hash_handle {
-	cc_sram_addr_t digest_len_sram_addr; /* const value in SRAM*/
-	cc_sram_addr_t larval_digest_sram_addr;   /* const value in SRAM */
+	u32 digest_len_sram_addr;	/* const value in SRAM*/
+	u32 larval_digest_sram_addr;   /* const value in SRAM */
 	struct list_head hash_list;
 };
 
@@ -429,7 +429,7 @@ static int cc_hash_digest(struct ahash_request *req)
 	bool is_hmac = ctx->is_hmac;
 	struct cc_crypto_req cc_req = {};
 	struct cc_hw_desc desc[CC_MAX_HASH_SEQ_LEN];
-	cc_sram_addr_t larval_digest_addr;
+	u32 larval_digest_addr;
 	int idx = 0;
 	int rc = 0;
 	gfp_t flags = cc_gfp_flags(&req->base);
@@ -734,7 +734,7 @@ static int cc_hash_setkey(struct crypto_ahash *ahash, const u8 *key,
 	int digestsize = 0;
 	int i, idx = 0, rc = 0;
 	struct cc_hw_desc desc[CC_MAX_HASH_SEQ_LEN];
-	cc_sram_addr_t larval_addr;
+	u32 larval_addr;
 	struct device *dev;
 
 	ctx = crypto_ahash_ctx(ahash);
@@ -1868,7 +1868,7 @@ static struct cc_hash_alg *cc_alloc_hash_alg(struct cc_hash_template *template,
 int cc_init_hash_sram(struct cc_drvdata *drvdata)
 {
 	struct cc_hash_handle *hash_handle = drvdata->hash_handle;
-	cc_sram_addr_t sram_buff_ofs = hash_handle->digest_len_sram_addr;
+	u32 sram_buff_ofs = hash_handle->digest_len_sram_addr;
 	unsigned int larval_seq_len = 0;
 	struct cc_hw_desc larval_seq[CC_DIGEST_SIZE_MAX / sizeof(u32)];
 	bool large_sha_supported = (drvdata->hw_rev >= CC_HW_REV_712);
@@ -1974,7 +1974,7 @@ init_digest_const_err:
 int cc_hash_alloc(struct cc_drvdata *drvdata)
 {
 	struct cc_hash_handle *hash_handle;
-	cc_sram_addr_t sram_buff;
+	u32 sram_buff;
 	u32 sram_size_to_alloc;
 	struct device *dev = drvdata_to_dev(drvdata);
 	int rc = 0;
@@ -2266,13 +2266,13 @@ static const void *cc_larval_digest(struct device *dev, u32 mode)
  *
  * \return u32 The address of the initial digest in SRAM
  */
-cc_sram_addr_t cc_larval_digest_addr(void *drvdata, u32 mode)
+u32 cc_larval_digest_addr(void *drvdata, u32 mode)
 {
 	struct cc_drvdata *_drvdata = (struct cc_drvdata *)drvdata;
 	struct cc_hash_handle *hash_handle = _drvdata->hash_handle;
 	struct device *dev = drvdata_to_dev(_drvdata);
 	bool sm3_supported = (_drvdata->hw_rev >= CC_HW_REV_713);
-	cc_sram_addr_t addr;
+	u32 addr;
 
 	switch (mode) {
 	case DRV_HASH_NULL:
@@ -2324,12 +2324,11 @@ cc_sram_addr_t cc_larval_digest_addr(void *drvdata, u32 mode)
 	return hash_handle->larval_digest_sram_addr;
 }
 
-cc_sram_addr_t
-cc_digest_len_addr(void *drvdata, u32 mode)
+u32 cc_digest_len_addr(void *drvdata, u32 mode)
 {
 	struct cc_drvdata *_drvdata = (struct cc_drvdata *)drvdata;
 	struct cc_hash_handle *hash_handle = _drvdata->hash_handle;
-	cc_sram_addr_t digest_len_addr = hash_handle->digest_len_sram_addr;
+	u32 digest_len_addr = hash_handle->digest_len_sram_addr;
 
 	switch (mode) {
 	case DRV_HASH_SHA1:
