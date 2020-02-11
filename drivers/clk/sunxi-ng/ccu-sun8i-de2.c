@@ -248,6 +248,16 @@ static const struct sunxi_ccu_desc sun8i_r40_de2_clk_desc = {
 	.num_resets	= ARRAY_SIZE(sun8i_a83t_de2_resets),
 };
 
+static const struct sunxi_ccu_desc sun8i_v3s_de2_clk_desc = {
+	.ccu_clks	= sun8i_v3s_de2_clks,
+	.num_ccu_clks	= ARRAY_SIZE(sun8i_v3s_de2_clks),
+
+	.hw_clks	= &sun8i_v3s_de2_hw_clks,
+
+	.resets		= sun8i_a83t_de2_resets,
+	.num_resets	= ARRAY_SIZE(sun8i_a83t_de2_resets),
+};
+
 static const struct sunxi_ccu_desc sun50i_a64_de2_clk_desc = {
 	.ccu_clks	= sun50i_a64_de2_clks,
 	.num_ccu_clks	= ARRAY_SIZE(sun50i_a64_de2_clks),
@@ -266,16 +276,6 @@ static const struct sunxi_ccu_desc sun50i_h5_de2_clk_desc = {
 
 	.resets		= sun50i_h5_de2_resets,
 	.num_resets	= ARRAY_SIZE(sun50i_h5_de2_resets),
-};
-
-static const struct sunxi_ccu_desc sun8i_v3s_de2_clk_desc = {
-	.ccu_clks	= sun8i_v3s_de2_clks,
-	.num_ccu_clks	= ARRAY_SIZE(sun8i_v3s_de2_clks),
-
-	.hw_clks	= &sun8i_v3s_de2_hw_clks,
-
-	.resets		= sun8i_h3_de2_resets,
-	.num_resets	= ARRAY_SIZE(sun8i_h3_de2_resets),
 };
 
 static int sunxi_de2_clk_probe(struct platform_device *pdev)
