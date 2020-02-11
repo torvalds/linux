@@ -15,6 +15,8 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
 
+#include "ccs-regs.h"
+
 #include "smiapp-pll.h"
 #include "smiapp-reg-defs.h"
 #include "smiapp-regs.h"
@@ -220,7 +222,7 @@ struct smiapp_sensor {
 	struct gpio_desc *xshutdown;
 	void *ccs_limits;
 	u8 nbinning_subtypes;
-	struct smiapp_binning_subtype binning_subtypes[SMIAPP_BINNING_SUBTYPES];
+	struct smiapp_binning_subtype binning_subtypes[CCS_LIM_BINNING_SUB_TYPE_MAX_N + 1];
 	u32 mbus_frame_fmts;
 	const struct smiapp_csi_data_format *csi_format;
 	const struct smiapp_csi_data_format *internal_csi_format;
