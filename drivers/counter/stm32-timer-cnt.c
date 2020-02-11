@@ -8,9 +8,8 @@
  *
  */
 #include <linux/counter.h>
-#include <linux/iio/iio.h>
-#include <linux/iio/types.h>
 #include <linux/mfd/stm32-timers.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
