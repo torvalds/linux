@@ -1006,10 +1006,10 @@ struct mdfld_dsi_encoder *mdfld_dsi_dpi_init(struct drm_device *dev,
 	/*set possible crtcs and clones*/
 	if (dsi_connector->pipe) {
 		encoder->possible_crtcs = (1 << 2);
-		encoder->possible_clones = (1 << 1);
+		encoder->possible_clones = 0;
 	} else {
 		encoder->possible_crtcs = (1 << 0);
-		encoder->possible_clones = (1 << 0);
+		encoder->possible_clones = 0;
 	}
 
 	dsi_connector->base.encoder = &dpi_output->base.base;
