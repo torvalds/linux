@@ -27,6 +27,8 @@ MODULE_PARM_DESC(gpio_reset, "gpio number for reset. -1 for none.");
 #define SET_WRITE 0x7FFF        /* usage: and operation */
 #define SET_READ 0x8000         /* usage: or operation */
 
+#define WFX_RESET_INVERTED 1
+
 static const struct wfx_platform_data wfx_spi_pdata = {
 	.file_fw = "wfm_wf200",
 	.file_pds = "wf200.pds",
@@ -206,9 +208,11 @@ static int wfx_spi_probe(struct spi_device *func)
 	if (!bus->gpio_reset) {
 		dev_warn(&func->dev, "try to load firmware anyway\n");
 	} else {
-		gpiod_set_value(bus->gpio_reset, 0);
-		udelay(100);
+		if (spi_get_device_id(func)->driver_data & WFX_RESET_INVERTED)
+			gpiod_toggle_active_low(bus->gpio_reset);
 		gpiod_set_value(bus->gpio_reset, 1);
+		udelay(100);
+		gpiod_set_value(bus->gpio_reset, 0);
 		udelay(2000);
 	}
 
@@ -245,14 +249,16 @@ static int wfx_spi_remove(struct spi_device *func)
  * stripped.
  */
 static const struct spi_device_id wfx_spi_id[] = {
-	{ "wfx-spi", 0 },
+	{ "wfx-spi", WFX_RESET_INVERTED },
+	{ "wf200", 0 },
 	{ },
 };
 MODULE_DEVICE_TABLE(spi, wfx_spi_id);
 
 #ifdef CONFIG_OF
 static const struct of_device_id wfx_spi_of_match[] = {
-	{ .compatible = "silabs,wfx-spi" },
+	{ .compatible = "silabs,wfx-spi", .data = (void *)WFX_RESET_INVERTED },
+	{ .compatible = "silabs,wf200" },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, wfx_spi_of_match);
