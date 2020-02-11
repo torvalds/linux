@@ -4144,8 +4144,6 @@ int ext4_truncate(struct inode *inode)
 	if (!ext4_can_truncate(inode))
 		return 0;
 
-	ext4_clear_inode_flag(inode, EXT4_INODE_EOFBLOCKS);
-
 	if (inode->i_size == 0 && !test_opt(inode->i_sb, NO_AUTO_DA_ALLOC))
 		ext4_set_inode_state(inode, EXT4_STATE_DA_ALLOC_CLOSE);
 

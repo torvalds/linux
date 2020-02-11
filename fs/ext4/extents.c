@@ -3874,59 +3874,6 @@ out:
 	return err;
 }
 
-/*
- * Handle EOFBLOCKS_FL flag, clearing it if necessary
- */
-static int check_eofblocks_fl(handle_t *handle, struct inode *inode,
-			      ext4_lblk_t lblk,
-			      struct ext4_ext_path *path,
-			      unsigned int len)
-{
-	int i, depth;
-	struct ext4_extent_header *eh;
-	struct ext4_extent *last_ex;
-
-	if (!ext4_test_inode_flag(inode, EXT4_INODE_EOFBLOCKS))
-		return 0;
-
-	depth = ext_depth(inode);
-	eh = path[depth].p_hdr;
-
-	/*
-	 * We're going to remove EOFBLOCKS_FL entirely in future so we
-	 * do not care for this case anymore. Simply remove the flag
-	 * if there are no extents.
-	 */
-	if (unlikely(!eh->eh_entries))
-		goto out;
-	last_ex = EXT_LAST_EXTENT(eh);
-	/*
-	 * We should clear the EOFBLOCKS_FL flag if we are writing the
-	 * last block in the last extent in the file.  We test this by
-	 * first checking to see if the caller to
-	 * ext4_ext_get_blocks() was interested in the last block (or
-	 * a block beyond the last block) in the current extent.  If
-	 * this turns out to be false, we can bail out from this
-	 * function immediately.
-	 */
-	if (lblk + len < le32_to_cpu(last_ex->ee_block) +
-	    ext4_ext_get_actual_len(last_ex))
-		return 0;
-	/*
-	 * If the caller does appear to be planning to write at or
-	 * beyond the end of the current extent, we then test to see
-	 * if the current extent is the last extent in the file, by
-	 * checking to make sure it was reached via the rightmost node
-	 * at each level of the tree.
-	 */
-	for (i = depth-1; i >= 0; i--)
-		if (path[i].p_idx != EXT_LAST_INDEX(path[i].p_hdr))
-			return 0;
-out:
-	ext4_clear_inode_flag(inode, EXT4_INODE_EOFBLOCKS);
-	return ext4_mark_inode_dirty(handle, inode);
-}
-
 static int
 convert_initialized_extent(handle_t *handle, struct inode *inode,
 			   struct ext4_map_blocks *map,
@@ -3991,9 +3938,7 @@ convert_initialized_extent(handle_t *handle, struct inode *inode,
 	ext4_ext_show_leaf(inode, path);
 
 	ext4_update_inode_fsync_trans(handle, inode, 1);
-	err = check_eofblocks_fl(handle, inode, map->m_lblk, path, map->m_len);
-	if (err)
-		return err;
+
 	map->m_flags |= EXT4_MAP_UNWRITTEN;
 	if (allocated > map->m_len)
 		allocated = map->m_len;
@@ -4007,7 +3952,9 @@ ext4_ext_handle_unwritten_extents(handle_t *handle, struct inode *inode,
 			struct ext4_ext_path **ppath, int flags,
 			unsigned int allocated, ext4_fsblk_t newblock)
 {
+#ifdef EXT_DEBUG
 	struct ext4_ext_path *path = *ppath;
+#endif
 	int ret = 0;
 	int err = 0;
 
@@ -4047,11 +3994,9 @@ ext4_ext_handle_unwritten_extents(handle_t *handle, struct inode *inode,
 		}
 		ret = ext4_convert_unwritten_extents_endio(handle, inode, map,
 							   ppath);
-		if (ret >= 0) {
+		if (ret >= 0)
 			ext4_update_inode_fsync_trans(handle, inode, 1);
-			err = check_eofblocks_fl(handle, inode, map->m_lblk,
-						 path, map->m_len);
-		} else
+		else
 			err = ret;
 		map->m_flags |= EXT4_MAP_MAPPED;
 		map->m_pblk = newblock;
@@ -4100,12 +4045,6 @@ out:
 
 map_out:
 	map->m_flags |= EXT4_MAP_MAPPED;
-	if ((flags & EXT4_GET_BLOCKS_KEEP_SIZE) == 0) {
-		err = check_eofblocks_fl(handle, inode, map->m_lblk, path,
-					 map->m_len);
-		if (err < 0)
-			goto out2;
-	}
 out1:
 	if (allocated > map->m_len)
 		allocated = map->m_len;
@@ -4459,12 +4398,7 @@ got_allocated_blocks:
 	}
 
 	err = 0;
-	if ((flags & EXT4_GET_BLOCKS_KEEP_SIZE) == 0)
-		err = check_eofblocks_fl(handle, inode, map->m_lblk,
-					 path, ar.len);
-	if (!err)
-		err = ext4_ext_insert_extent(handle, inode, &path,
-					     &newex, flags);
+	err = ext4_ext_insert_extent(handle, inode, &path, &newex, flags);
 
 	if (err && free_on_err) {
 		int fb_flags = flags & EXT4_GET_BLOCKS_DELALLOC_RESERVE ?
@@ -4645,10 +4579,6 @@ retry:
 				epos = new_size;
 			if (ext4_update_inode_size(inode, epos) & 0x1)
 				inode->i_mtime = inode->i_ctime;
-		} else {
-			if (epos > inode->i_size)
-				ext4_set_inode_flag(inode,
-						    EXT4_INODE_EOFBLOCKS);
 		}
 		ext4_mark_inode_dirty(handle, inode);
 		ext4_update_inode_fsync_trans(handle, inode, 1);
@@ -4802,16 +4732,8 @@ static long ext4_zero_range(struct file *file, loff_t offset,
 	}
 
 	inode->i_mtime = inode->i_ctime = current_time(inode);
-	if (new_size) {
+	if (new_size)
 		ext4_update_inode_size(inode, new_size);
-	} else {
-		/*
-		* Mark that we allocate beyond EOF so the subsequent truncate
-		* can proceed even if the new size is the same as i_size.
-		*/
-		if (offset + len > inode->i_size)
-			ext4_set_inode_flag(inode, EXT4_INODE_EOFBLOCKS);
-	}
 	ext4_mark_inode_dirty(handle, inode);
 
 	/* Zero out partial block at the edges of the range */

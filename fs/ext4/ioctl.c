@@ -327,18 +327,6 @@ static int ext4_ioctl_setflags(struct inode *inode,
 	if ((flags ^ oldflags) & EXT4_EXTENTS_FL)
 		migrate = 1;
 
-	if (flags & EXT4_EOFBLOCKS_FL) {
-		/* we don't support adding EOFBLOCKS flag */
-		if (!(oldflags & EXT4_EOFBLOCKS_FL)) {
-			err = -EOPNOTSUPP;
-			goto flags_out;
-		}
-	} else if (oldflags & EXT4_EOFBLOCKS_FL) {
-		err = ext4_truncate(inode);
-		if (err)
-			goto flags_out;
-	}
-
 	if ((flags ^ oldflags) & EXT4_CASEFOLD_FL) {
 		if (!ext4_has_feature_casefold(sb)) {
 			err = -EOPNOTSUPP;
