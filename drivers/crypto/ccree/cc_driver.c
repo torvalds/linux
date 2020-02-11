@@ -331,13 +331,13 @@ static int init_cc_resources(struct platform_device *plat_dev)
 
 	init_completion(&new_drvdata->hw_queue_avail);
 
-	if (!plat_dev->dev.dma_mask)
-		plat_dev->dev.dma_mask = &plat_dev->dev.coherent_dma_mask;
+	if (!dev->dma_mask)
+		dev->dma_mask = &dev->coherent_dma_mask;
 
 	dma_mask = DMA_BIT_MASK(DMA_BIT_MASK_LEN);
 	while (dma_mask > 0x7fffffffUL) {
-		if (dma_supported(&plat_dev->dev, dma_mask)) {
-			rc = dma_set_coherent_mask(&plat_dev->dev, dma_mask);
+		if (dma_supported(dev, dma_mask)) {
+			rc = dma_set_coherent_mask(dev, dma_mask);
 			if (!rc)
 				break;
 		}
