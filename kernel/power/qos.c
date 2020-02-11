@@ -247,8 +247,8 @@ int pm_qos_request_active(struct pm_qos_request *req)
 }
 EXPORT_SYMBOL_GPL(pm_qos_request_active);
 
-static void cpu_latency_qos_update(struct pm_qos_request *req,
-				   enum pm_qos_req_action action, s32 value)
+static void cpu_latency_qos_apply(struct pm_qos_request *req,
+				  enum pm_qos_req_action action, s32 value)
 {
 	int ret = pm_qos_update_target(req->qos, &req->node, action, value);
 	if (ret > 0)
@@ -278,10 +278,10 @@ void pm_qos_add_request(struct pm_qos_request *req,
 		return;
 	}
 
-	trace_pm_qos_add_request(PM_QOS_CPU_DMA_LATENCY, value);
+	trace_pm_qos_add_request(value);
 
 	req->qos = &cpu_latency_constraints;
-	cpu_latency_qos_update(req, PM_QOS_ADD_REQ, value);
+	cpu_latency_qos_apply(req, PM_QOS_ADD_REQ, value);
 }
 EXPORT_SYMBOL_GPL(pm_qos_add_request);
 
@@ -305,12 +305,12 @@ void pm_qos_update_request(struct pm_qos_request *req, s32 new_value)
 		return;
 	}
 
-	trace_pm_qos_update_request(PM_QOS_CPU_DMA_LATENCY, new_value);
+	trace_pm_qos_update_request(new_value);
 
 	if (new_value == req->node.prio)
 		return;
 
-	cpu_latency_qos_update(req, PM_QOS_UPDATE_REQ, new_value);
+	cpu_latency_qos_apply(req, PM_QOS_UPDATE_REQ, new_value);
 }
 EXPORT_SYMBOL_GPL(pm_qos_update_request);
 
@@ -333,9 +333,9 @@ void pm_qos_remove_request(struct pm_qos_request *req)
 		return;
 	}
 
-	trace_pm_qos_remove_request(PM_QOS_CPU_DMA_LATENCY, PM_QOS_DEFAULT_VALUE);
+	trace_pm_qos_remove_request(PM_QOS_DEFAULT_VALUE);
 
-	cpu_latency_qos_update(req, PM_QOS_REMOVE_REQ, PM_QOS_DEFAULT_VALUE);
+	cpu_latency_qos_apply(req, PM_QOS_REMOVE_REQ, PM_QOS_DEFAULT_VALUE);
 	memset(req, 0, sizeof(*req));
 }
 EXPORT_SYMBOL_GPL(pm_qos_remove_request);
