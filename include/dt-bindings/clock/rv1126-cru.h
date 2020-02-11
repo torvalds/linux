@@ -210,6 +210,7 @@
 #define CLK_CORE_NPU		144
 #define CLK_CORE_NPUPVTM	145
 #define CLK_NPUPVTM		146
+#define SCLK_DDRCLK		147
 
 /* dclk */
 #define DCLK_DECOM		150
