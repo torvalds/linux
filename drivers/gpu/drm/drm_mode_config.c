@@ -581,6 +581,29 @@ static void validate_encoder_possible_clones(struct drm_encoder *encoder)
 	     encoder->possible_clones, encoder_mask);
 }
 
+static u32 full_crtc_mask(struct drm_device *dev)
+{
+	struct drm_crtc *crtc;
+	u32 crtc_mask = 0;
+
+	drm_for_each_crtc(crtc, dev)
+		crtc_mask |= drm_crtc_mask(crtc);
+
+	return crtc_mask;
+}
+
+static void validate_encoder_possible_crtcs(struct drm_encoder *encoder)
+{
+	u32 crtc_mask = full_crtc_mask(encoder->dev);
+
+	WARN((encoder->possible_crtcs & crtc_mask) == 0 ||
+	     (encoder->possible_crtcs & ~crtc_mask) != 0,
+	     "Bogus possible_crtcs: "
+	     "[ENCODER:%d:%s] possible_crtcs=0x%x (full crtc mask=0x%x)\n",
+	     encoder->base.id, encoder->name,
+	     encoder->possible_crtcs, crtc_mask);
+}
+
 void drm_mode_config_validate(struct drm_device *dev)
 {
 	struct drm_encoder *encoder;
@@ -588,6 +611,8 @@ void drm_mode_config_validate(struct drm_device *dev)
 	drm_for_each_encoder(encoder, dev)
 		fixup_encoder_possible_clones(encoder);
 
-	drm_for_each_encoder(encoder, dev)
+	drm_for_each_encoder(encoder, dev) {
 		validate_encoder_possible_clones(encoder);
+		validate_encoder_possible_crtcs(encoder);
+	}
 }

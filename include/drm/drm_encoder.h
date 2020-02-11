@@ -142,7 +142,7 @@ struct drm_encoder {
 	 * the bits for all &drm_crtc objects this encoder can be connected to
 	 * before calling drm_dev_register().
 	 *
-	 * In reality almost every driver gets this wrong.
+	 * You will get a WARN if you get this wrong in the driver.
 	 *
 	 * Note that since CRTC objects can't be hotplugged the assigned indices
 	 * are stable and hence known before registering all objects.
