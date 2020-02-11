@@ -390,6 +390,7 @@ struct dc_debug_options {
 	int always_scale;
 	bool disable_pplib_clock_request;
 	bool disable_clock_gate;
+	bool disable_mem_low_power;
 	bool disable_dmcu;
 	bool disable_psr;
 	bool force_abm_enable;
