@@ -147,7 +147,7 @@ struct cc_drvdata {
 	void *request_mgr_handle;
 	void *fips_handle;
 	u32 sram_free_offset;	/* offset to non-allocated area in SRAM */
-	void *debugfs;
+	struct dentry *dir;	/* for debugfs */
 	struct clk *clk;
 	bool coherent;
 	char *hw_rev_name;
