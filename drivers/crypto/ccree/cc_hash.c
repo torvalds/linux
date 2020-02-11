@@ -39,12 +39,19 @@ static const u32 cc_sha256_init[] = {
 	SHA256_H3, SHA256_H2, SHA256_H1, SHA256_H0 };
 static const u32 cc_digest_len_sha512_init[] = {
 	0x00000080, 0x00000000, 0x00000000, 0x00000000 };
-static u64 cc_sha384_init[] = {
-	SHA384_H7, SHA384_H6, SHA384_H5, SHA384_H4,
-	SHA384_H3, SHA384_H2, SHA384_H1, SHA384_H0 };
-static u64 cc_sha512_init[] = {
-	SHA512_H7, SHA512_H6, SHA512_H5, SHA512_H4,
-	SHA512_H3, SHA512_H2, SHA512_H1, SHA512_H0 };
+
+/*
+ * Due to the way the HW works, every double word in the SHA384 and SHA512
+ * larval hashes must be stored in hi/lo order
+ */
+#define hilo(x)	upper_32_bits(x), lower_32_bits(x)
+static const u32 cc_sha384_init[] = {
+	hilo(SHA384_H7), hilo(SHA384_H6), hilo(SHA384_H5), hilo(SHA384_H4),
+	hilo(SHA384_H3), hilo(SHA384_H2), hilo(SHA384_H1), hilo(SHA384_H0) };
+static const u32 cc_sha512_init[] = {
+	hilo(SHA512_H7), hilo(SHA512_H6), hilo(SHA512_H5), hilo(SHA512_H4),
+	hilo(SHA512_H3), hilo(SHA512_H2), hilo(SHA512_H1), hilo(SHA512_H0) };
+
 static const u32 cc_sm3_init[] = {
 	SM3_IVH, SM3_IVG, SM3_IVF, SM3_IVE,
 	SM3_IVD, SM3_IVC, SM3_IVB, SM3_IVA };
@@ -1942,8 +1949,8 @@ int cc_init_hash_sram(struct cc_drvdata *drvdata)
 	}
 
 	if (large_sha_supported) {
-		cc_set_sram_desc((u32 *)cc_sha384_init, sram_buff_ofs,
-				 (ARRAY_SIZE(cc_sha384_init) * 2), larval_seq,
+		cc_set_sram_desc(cc_sha384_init, sram_buff_ofs,
+				 ARRAY_SIZE(cc_sha384_init), larval_seq,
 				 &larval_seq_len);
 		rc = send_request_init(drvdata, larval_seq, larval_seq_len);
 		if (rc)
@@ -1951,8 +1958,8 @@ int cc_init_hash_sram(struct cc_drvdata *drvdata)
 		sram_buff_ofs += sizeof(cc_sha384_init);
 		larval_seq_len = 0;
 
-		cc_set_sram_desc((u32 *)cc_sha512_init, sram_buff_ofs,
-				 (ARRAY_SIZE(cc_sha512_init) * 2), larval_seq,
+		cc_set_sram_desc(cc_sha512_init, sram_buff_ofs,
+				 ARRAY_SIZE(cc_sha512_init), larval_seq,
 				 &larval_seq_len);
 		rc = send_request_init(drvdata, larval_seq, larval_seq_len);
 		if (rc)
@@ -1961,28 +1968,6 @@ int cc_init_hash_sram(struct cc_drvdata *drvdata)
 
 init_digest_const_err:
 	return rc;
-}
-
-static void __init cc_swap_dwords(u32 *buf, unsigned long size)
-{
-	int i;
-	u32 tmp;
-
-	for (i = 0; i < size; i += 2) {
-		tmp = buf[i];
-		buf[i] = buf[i + 1];
-		buf[i + 1] = tmp;
-	}
-}
-
-/*
- * Due to the way the HW works we need to swap every
- * double word in the SHA384 and SHA512 larval hashes
- */
-void __init cc_hash_global_init(void)
-{
-	cc_swap_dwords((u32 *)&cc_sha384_init, (ARRAY_SIZE(cc_sha384_init) * 2));
-	cc_swap_dwords((u32 *)&cc_sha512_init, (ARRAY_SIZE(cc_sha512_init) * 2));
 }
 
 int cc_hash_alloc(struct cc_drvdata *drvdata)

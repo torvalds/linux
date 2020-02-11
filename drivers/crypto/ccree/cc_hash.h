@@ -104,6 +104,4 @@ cc_digest_len_addr(void *drvdata, u32 mode);
  */
 cc_sram_addr_t cc_larval_digest_addr(void *drvdata, u32 mode);
 
-void cc_hash_global_init(void);
-
 #endif /*__CC_HASH_H__*/
