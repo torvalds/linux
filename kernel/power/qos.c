@@ -235,11 +235,10 @@ static struct pm_qos_constraints cpu_latency_constraints = {
  *
  * This function returns the current target value.
  */
-int pm_qos_request(int pm_qos_class)
+s32 pm_qos_request(int pm_qos_class)
 {
 	return pm_qos_read_value(&cpu_latency_constraints);
 }
-EXPORT_SYMBOL_GPL(pm_qos_request);
 
 int pm_qos_request_active(struct pm_qos_request *req)
 {
