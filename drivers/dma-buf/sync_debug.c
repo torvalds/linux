@@ -8,6 +8,7 @@
 #include <linux/debugfs.h>
 #include "sync_debug.h"
 
+#ifdef CONFIG_DEBUG_FS
 static struct dentry *dbgfs;
 
 static LIST_HEAD(sync_timeline_list_head);
@@ -188,3 +189,4 @@ static __init int sync_debugfs_init(void)
 	return 0;
 }
 late_initcall(sync_debugfs_init);
+#endif
