@@ -230,6 +230,7 @@ struct dc_panel_patch {
 	unsigned int extra_delay_backlight_off;
 	unsigned int extra_t7_ms;
 	unsigned int skip_scdc_overwrite;
+	unsigned int delay_ignore_msa;
 };
 
 struct dc_edid_caps {
