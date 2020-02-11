@@ -481,7 +481,6 @@ struct hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev)
 	struct wfx_queue *vif_queue = NULL;
 	u32 tx_allowed_mask = 0;
 	u32 vif_tx_allowed_mask = 0;
-	const struct wfx_tx_priv *tx_priv = NULL;
 	struct wfx_vif *wvif;
 	int not_found;
 	int burst;
@@ -541,7 +540,6 @@ struct hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev)
 		skb = wfx_tx_queue_get(wdev, queue, tx_allowed_mask);
 		if (!skb)
 			continue;
-		tx_priv = wfx_skb_tx_priv(skb);
 		hif = (struct hif_msg *) skb->data;
 		wvif = wdev_to_wvif(wdev, hif->interface);
 		WARN_ON(!wvif);
