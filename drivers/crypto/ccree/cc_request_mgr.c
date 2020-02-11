@@ -476,10 +476,6 @@ int cc_send_sync_request(struct cc_drvdata *drvdata,
 			break;
 
 		spin_unlock_bh(&mgr->hw_lock);
-		if (rc != -EAGAIN) {
-			cc_pm_put_suspend(dev);
-			return rc;
-		}
 		wait_for_completion_interruptible(&drvdata->hw_queue_avail);
 		reinit_completion(&drvdata->hw_queue_avail);
 	}
