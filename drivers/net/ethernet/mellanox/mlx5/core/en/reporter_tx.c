@@ -375,7 +375,7 @@ void mlx5e_reporter_tx_err_cqe(struct mlx5e_txqsq *sq)
 	err_ctx.ctx = sq;
 	err_ctx.recover = mlx5e_tx_reporter_err_cqe_recover;
 	err_ctx.dump = mlx5e_tx_reporter_dump_sq;
-	sprintf(err_str, "ERR CQE on SQ: 0x%x", sq->sqn);
+	snprintf(err_str, sizeof(err_str), "ERR CQE on SQ: 0x%x", sq->sqn);
 
 	mlx5e_health_report(priv, priv->tx_reporter, err_str, &err_ctx);
 }
@@ -389,10 +389,10 @@ int mlx5e_reporter_tx_timeout(struct mlx5e_txqsq *sq)
 	err_ctx.ctx = sq;
 	err_ctx.recover = mlx5e_tx_reporter_timeout_recover;
 	err_ctx.dump = mlx5e_tx_reporter_dump_sq;
-	sprintf(err_str,
-		"TX timeout on queue: %d, SQ: 0x%x, CQ: 0x%x, SQ Cons: 0x%x SQ Prod: 0x%x, usecs since last trans: %u\n",
-		sq->channel->ix, sq->sqn, sq->cq.mcq.cqn, sq->cc, sq->pc,
-		jiffies_to_usecs(jiffies - sq->txq->trans_start));
+	snprintf(err_str, sizeof(err_str),
+		 "TX timeout on queue: %d, SQ: 0x%x, CQ: 0x%x, SQ Cons: 0x%x SQ Prod: 0x%x, usecs since last trans: %u",
+		 sq->channel->ix, sq->sqn, sq->cq.mcq.cqn, sq->cc, sq->pc,
+		 jiffies_to_usecs(jiffies - sq->txq->trans_start));
 
 	return mlx5e_health_report(priv, priv->tx_reporter, err_str, &err_ctx);
 }
