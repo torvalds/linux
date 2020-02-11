@@ -12,22 +12,26 @@ struct cc_drvdata;
 
 #define NULL_SRAM_ADDR ((u32)-1)
 
-/*!
- * Initializes SRAM pool.
+/**
+ * cc_sram_mgr_init() - Initializes SRAM pool.
  * The first X bytes of SRAM are reserved for ROM usage, hence, pool
  * starts right after X bytes.
  *
- * \param drvdata
+ * @drvdata: Associated device driver context
  *
- * \return int Zero for success, negative value otherwise.
+ * Return:
+ * Zero for success, negative value otherwise.
  */
 int cc_sram_mgr_init(struct cc_drvdata *drvdata);
 
-/*!
- * Allocate buffer from SRAM pool.
+/**
+ * cc_sram_alloc() - Allocate buffer from SRAM pool.
  *
- * \param drvdata
- * \param size The requested bytes to allocate
+ * @drvdata: Associated device driver context
+ * @size: The requested bytes to allocate
+ *
+ * Return:
+ * Address offset in SRAM or NULL_SRAM_ADDR for failure.
  */
 u32 cc_sram_alloc(struct cc_drvdata *drvdata, u32 size);
 
@@ -38,7 +42,7 @@ u32 cc_sram_alloc(struct cc_drvdata *drvdata, u32 size);
  *
  * @src:	  A pointer to array of words to set as consts.
  * @dst:	  The target SRAM buffer to set into
- * @nelements:	  The number of words in "src" array
+ * @nelement:	  The number of words in "src" array
  * @seq:	  A pointer to the given IN/OUT descriptor sequence
  * @seq_len:	  A pointer to the given IN/OUT sequence length
  */

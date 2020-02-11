@@ -10,6 +10,9 @@
  *      Returns zero for success, negative value otherwise.
  *
  * @drvdata: Associated device driver context
+ *
+ * Return:
+ * 0 for success, negative error code for failure.
  */
 int cc_sram_mgr_init(struct cc_drvdata *drvdata)
 {
@@ -29,11 +32,14 @@ int cc_sram_mgr_init(struct cc_drvdata *drvdata)
 	return 0;
 }
 
-/*!
- * Allocated buffer from SRAM pool.
+/**
+ * cc_sram_alloc() - Allocate buffer from SRAM pool.
  *
- * \param drvdata
- * \param size The requested bytes to allocate
+ * @drvdata: Associated device driver context
+ * @size: The requested numer of bytes to allocate
+ *
+ * Return:
+ * Address offset in SRAM or NULL_SRAM_ADDR for failure.
  */
 u32 cc_sram_alloc(struct cc_drvdata *drvdata, u32 size)
 {
@@ -64,7 +70,7 @@ u32 cc_sram_alloc(struct cc_drvdata *drvdata, u32 size)
  *
  * @src:	  A pointer to array of words to set as consts.
  * @dst:	  The target SRAM buffer to set into
- * @nelements:	  The number of words in "src" array
+ * @nelement:	  The number of words in "src" array
  * @seq:	  A pointer to the given IN/OUT descriptor sequence
  * @seq_len:	  A pointer to the given IN/OUT sequence length
  */
