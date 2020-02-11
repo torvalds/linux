@@ -136,7 +136,7 @@ static irqreturn_t cc_isr(int irq, void *dev_id)
 
 	/* STAT_OP_TYPE_GENERIC STAT_PHASE_0: Interrupt */
 	/* if driver suspended return, probably shared interrupt */
-	if (cc_pm_is_dev_suspended(dev))
+	if (pm_runtime_suspended(dev))
 		return IRQ_NONE;
 
 	/* read the interrupt status */

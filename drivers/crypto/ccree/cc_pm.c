@@ -74,9 +74,3 @@ void cc_pm_put_suspend(struct device *dev)
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 }
-
-bool cc_pm_is_dev_suspended(struct device *dev)
-{
-	/* check device state using runtime api */
-	return pm_runtime_suspended(dev);
-}
