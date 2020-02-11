@@ -137,69 +137,6 @@ static inline void pm_qos_set_value(struct pm_qos_constraints *c, s32 value)
 	c->target_value = value;
 }
 
-static int pm_qos_debug_show(struct seq_file *s, void *unused)
-{
-	struct pm_qos_object *qos = (struct pm_qos_object *)s->private;
-	struct pm_qos_constraints *c;
-	struct pm_qos_request *req;
-	char *type;
-	unsigned long flags;
-	int tot_reqs = 0;
-	int active_reqs = 0;
-
-	if (IS_ERR_OR_NULL(qos)) {
-		pr_err("%s: bad qos param!\n", __func__);
-		return -EINVAL;
-	}
-	c = qos->constraints;
-	if (IS_ERR_OR_NULL(c)) {
-		pr_err("%s: Bad constraints on qos?\n", __func__);
-		return -EINVAL;
-	}
-
-	/* Lock to ensure we have a snapshot */
-	spin_lock_irqsave(&pm_qos_lock, flags);
-	if (plist_head_empty(&c->list)) {
-		seq_puts(s, "Empty!\n");
-		goto out;
-	}
-
-	switch (c->type) {
-	case PM_QOS_MIN:
-		type = "Minimum";
-		break;
-	case PM_QOS_MAX:
-		type = "Maximum";
-		break;
-	case PM_QOS_SUM:
-		type = "Sum";
-		break;
-	default:
-		type = "Unknown";
-	}
-
-	plist_for_each_entry(req, &c->list, node) {
-		char *state = "Default";
-
-		if ((req->node).prio != c->default_value) {
-			active_reqs++;
-			state = "Active";
-		}
-		tot_reqs++;
-		seq_printf(s, "%d: %d: %s\n", tot_reqs,
-			   (req->node).prio, state);
-	}
-
-	seq_printf(s, "Type=%s, Value=%d, Requests: active=%d / total=%d\n",
-		   type, pm_qos_get_value(c), active_reqs, tot_reqs);
-
-out:
-	spin_unlock_irqrestore(&pm_qos_lock, flags);
-	return 0;
-}
-
-DEFINE_SHOW_ATTRIBUTE(pm_qos_debug);
-
 /**
  * pm_qos_update_target - manages the constraints list and calls the notifiers
  *  if needed
@@ -529,14 +466,11 @@ int pm_qos_remove_notifier(int pm_qos_class, struct notifier_block *notifier)
 EXPORT_SYMBOL_GPL(pm_qos_remove_notifier);
 
 /* User space interface to PM QoS classes via misc devices */
-static int register_pm_qos_misc(struct pm_qos_object *qos, struct dentry *d)
+static int register_pm_qos_misc(struct pm_qos_object *qos)
 {
 	qos->pm_qos_power_miscdev.minor = MISC_DYNAMIC_MINOR;
 	qos->pm_qos_power_miscdev.name = qos->name;
 	qos->pm_qos_power_miscdev.fops = &pm_qos_power_fops;
-
-	debugfs_create_file(qos->name, S_IRUGO, d, (void *)qos,
-			    &pm_qos_debug_fops);
 
 	return misc_register(&qos->pm_qos_power_miscdev);
 }
@@ -631,14 +565,11 @@ static int __init pm_qos_power_init(void)
 {
 	int ret = 0;
 	int i;
-	struct dentry *d;
 
 	BUILD_BUG_ON(ARRAY_SIZE(pm_qos_array) != PM_QOS_NUM_CLASSES);
 
-	d = debugfs_create_dir("pm_qos", NULL);
-
 	for (i = PM_QOS_CPU_DMA_LATENCY; i < PM_QOS_NUM_CLASSES; i++) {
-		ret = register_pm_qos_misc(pm_qos_array[i], d);
+		ret = register_pm_qos_misc(pm_qos_array[i]);
 		if (ret < 0) {
 			pr_err("%s: %s setup failed\n",
 			       __func__, pm_qos_array[i]->name);
