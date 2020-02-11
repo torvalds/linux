@@ -203,6 +203,19 @@ static void free_capture_list(struct i915_request *request)
 	}
 }
 
+static void __i915_request_fill(struct i915_request *rq, u8 val)
+{
+	void *vaddr = rq->ring->vaddr;
+	u32 head;
+
+	head = rq->infix;
+	if (rq->postfix < head) {
+		memset(vaddr + head, val, rq->ring->size - head);
+		head = 0;
+	}
+	memset(vaddr + head, val, rq->postfix - head);
+}
+
 static void remove_from_engine(struct i915_request *rq)
 {
 	struct intel_engine_cs *engine, *locked;
@@ -247,6 +260,9 @@ bool i915_request_retire(struct i915_request *rq)
 	 */
 	GEM_BUG_ON(!list_is_first(&rq->link,
 				  &i915_request_timeline(rq)->requests));
+	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
+		/* Poison before we release our space in the ring */
+		__i915_request_fill(rq, POISON_FREE);
 	rq->ring->head = rq->postfix;
 
 	/*
@@ -1179,9 +1195,6 @@ i915_request_await_object(struct i915_request *to,
 
 void i915_request_skip(struct i915_request *rq, int error)
 {
-	void *vaddr = rq->ring->vaddr;
-	u32 head;
-
 	GEM_BUG_ON(!IS_ERR_VALUE((long)error));
 	dma_fence_set_error(&rq->fence, error);
 
@@ -1193,12 +1206,7 @@ void i915_request_skip(struct i915_request *rq, int error)
 	 * context, clear out all the user operations leaving the
 	 * breadcrumb at the end (so we get the fence notifications).
 	 */
-	head = rq->infix;
-	if (rq->postfix < head) {
-		memset(vaddr + head, 0, rq->ring->size - head);
-		head = 0;
-	}
-	memset(vaddr + head, 0, rq->postfix - head);
+	__i915_request_fill(rq, 0);
 	rq->infix = rq->postfix;
 }
 
