@@ -209,6 +209,7 @@ bool pm_qos_update_flags(struct pm_qos_flags *pqf,
 	return prev_value != curr_value;
 }
 
+#ifdef CONFIG_CPU_IDLE
 /* Definitions related to the CPU latency QoS. */
 
 static struct pm_qos_constraints cpu_latency_constraints = {
@@ -421,6 +422,7 @@ static int __init cpu_latency_qos_init(void)
 	return ret;
 }
 late_initcall(cpu_latency_qos_init);
+#endif /* CONFIG_CPU_IDLE */
 
 /* Definitions related to the frequency QoS below. */
 
