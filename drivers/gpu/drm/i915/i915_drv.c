@@ -292,12 +292,6 @@ static int i915_driver_modeset_probe(struct drm_i915_private *i915)
 	if (ret)
 		goto out;
 
-	intel_register_dsm_handler();
-
-	ret = i915_switcheroo_register(i915);
-	if (ret)
-		goto cleanup_vga_client;
-
 	intel_power_domains_init_hw(i915, false);
 
 	intel_csr_ucode_init(i915);
@@ -343,8 +337,6 @@ cleanup_irq:
 cleanup_csr:
 	intel_csr_ucode_fini(i915);
 	intel_power_domains_driver_remove(i915);
-	i915_switcheroo_unregister(i915);
-cleanup_vga_client:
 	intel_vga_unregister(i915);
 out:
 	return ret;
@@ -357,8 +349,6 @@ static void i915_driver_modeset_remove(struct drm_i915_private *i915)
 	intel_irq_uninstall(i915);
 
 	intel_bios_driver_remove(i915);
-
-	i915_switcheroo_unregister(i915);
 
 	intel_vga_unregister(i915);
 
@@ -1366,6 +1356,11 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
 
 	intel_power_domains_enable(dev_priv);
 	intel_runtime_pm_enable(&dev_priv->runtime_pm);
+
+	intel_register_dsm_handler();
+
+	if (i915_switcheroo_register(dev_priv))
+		drm_err(&dev_priv->drm, "Failed to register vga switcheroo!\n");
 }
 
 /**
@@ -1374,6 +1369,10 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
  */
 static void i915_driver_unregister(struct drm_i915_private *dev_priv)
 {
+	i915_switcheroo_unregister(dev_priv);
+
+	intel_unregister_dsm_handler();
+
 	intel_runtime_pm_disable(&dev_priv->runtime_pm);
 	intel_power_domains_disable(dev_priv);
 
