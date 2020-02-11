@@ -1222,8 +1222,8 @@ static int omap8250_probe(struct platform_device *pdev)
 			 DEFAULT_CLK_SPEED);
 	}
 
-	priv->latency = PM_QOS_CPU_DMA_LAT_DEFAULT_VALUE;
-	priv->calc_latency = PM_QOS_CPU_DMA_LAT_DEFAULT_VALUE;
+	priv->latency = PM_QOS_CPU_LATENCY_DEFAULT_VALUE;
+	priv->calc_latency = PM_QOS_CPU_LATENCY_DEFAULT_VALUE;
 	pm_qos_add_request(&priv->pm_qos_request, PM_QOS_CPU_DMA_LATENCY,
 			   priv->latency);
 	INIT_WORK(&priv->qos_work, omap8250_uart_qos_work);
@@ -1445,7 +1445,7 @@ static int omap8250_runtime_suspend(struct device *dev)
 	if (up->dma && up->dma->rxchan)
 		omap_8250_rx_dma_flush(up);
 
-	priv->latency = PM_QOS_CPU_DMA_LAT_DEFAULT_VALUE;
+	priv->latency = PM_QOS_CPU_LATENCY_DEFAULT_VALUE;
 	schedule_work(&priv->qos_work);
 
 	return 0;

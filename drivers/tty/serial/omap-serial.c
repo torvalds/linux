@@ -1722,8 +1722,8 @@ static int serial_omap_probe(struct platform_device *pdev)
 			 DEFAULT_CLK_SPEED);
 	}
 
-	up->latency = PM_QOS_CPU_DMA_LAT_DEFAULT_VALUE;
-	up->calc_latency = PM_QOS_CPU_DMA_LAT_DEFAULT_VALUE;
+	up->latency = PM_QOS_CPU_LATENCY_DEFAULT_VALUE;
+	up->calc_latency = PM_QOS_CPU_LATENCY_DEFAULT_VALUE;
 	pm_qos_add_request(&up->pm_qos_request,
 		PM_QOS_CPU_DMA_LATENCY, up->latency);
 	INIT_WORK(&up->qos_work, serial_omap_uart_qos_work);
@@ -1869,7 +1869,7 @@ static int serial_omap_runtime_suspend(struct device *dev)
 
 	serial_omap_enable_wakeup(up, true);
 
-	up->latency = PM_QOS_CPU_DMA_LAT_DEFAULT_VALUE;
+	up->latency = PM_QOS_CPU_LATENCY_DEFAULT_VALUE;
 	schedule_work(&up->qos_work);
 
 	return 0;
