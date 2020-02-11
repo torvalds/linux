@@ -99,6 +99,11 @@ enum kcsan_value_change {
 	KCSAN_VALUE_CHANGE_MAYBE,
 
 	/*
+	 * Did not observe a value-change, and it is invalid to report the race.
+	 */
+	KCSAN_VALUE_CHANGE_FALSE,
+
+	/*
 	 * The value was observed to change, and the race should be reported.
 	 */
 	KCSAN_VALUE_CHANGE_TRUE,
