@@ -17,11 +17,6 @@
 
 #include "bus.h"
 
-static int name_match(struct device *dev, const void *name)
-{
-	return !strcmp((const char *)name, dev_name(dev));
-}
-
 static bool dev_name_ends_with(struct device *dev, const char *suffix)
 {
 	const char *name = dev_name(dev);
@@ -44,16 +39,11 @@ static void *typec_switch_match(struct device_connection *con, int ep,
 {
 	struct device *dev;
 
-	if (con->fwnode) {
-		if (con->id && !fwnode_property_present(con->fwnode, con->id))
-			return NULL;
+	if (con->id && !fwnode_property_present(con->fwnode, con->id))
+		return NULL;
 
-		dev = class_find_device(&typec_mux_class, NULL, con->fwnode,
-					switch_fwnode_match);
-	} else {
-		dev = class_find_device(&typec_mux_class, NULL,
-					con->endpoint[ep], name_match);
-	}
+	dev = class_find_device(&typec_mux_class, NULL, con->fwnode,
+				switch_fwnode_match);
 
 	return dev ? to_typec_switch(dev) : ERR_PTR(-EPROBE_DEFER);
 }
@@ -190,13 +180,6 @@ static void *typec_mux_match(struct device_connection *con, int ep, void *data)
 	int nval;
 	u16 *val;
 	int i;
-
-	if (!con->fwnode) {
-		dev = class_find_device(&typec_mux_class, NULL,
-					con->endpoint[ep], name_match);
-
-		return dev ? to_typec_switch(dev) : ERR_PTR(-EPROBE_DEFER);
-	}
 
 	/*
 	 * Check has the identifier already been "consumed". If it
