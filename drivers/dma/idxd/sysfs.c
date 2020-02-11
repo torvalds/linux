@@ -124,6 +124,7 @@ static int idxd_config_bus_probe(struct device *dev)
 		rc = idxd_device_config(idxd);
 		if (rc < 0) {
 			spin_unlock_irqrestore(&idxd->dev_lock, flags);
+			module_put(THIS_MODULE);
 			dev_warn(dev, "Device config failed: %d\n", rc);
 			return rc;
 		}
@@ -132,6 +133,7 @@ static int idxd_config_bus_probe(struct device *dev)
 		rc = idxd_device_enable(idxd);
 		if (rc < 0) {
 			spin_unlock_irqrestore(&idxd->dev_lock, flags);
+			module_put(THIS_MODULE);
 			dev_warn(dev, "Device enable failed: %d\n", rc);
 			return rc;
 		}
@@ -142,6 +144,7 @@ static int idxd_config_bus_probe(struct device *dev)
 		rc = idxd_register_dma_device(idxd);
 		if (rc < 0) {
 			spin_unlock_irqrestore(&idxd->dev_lock, flags);
+			module_put(THIS_MODULE);
 			dev_dbg(dev, "Failed to register dmaengine device\n");
 			return rc;
 		}
