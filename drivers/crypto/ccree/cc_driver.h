@@ -158,7 +158,6 @@ struct cc_drvdata {
 	int std_bodies;
 	bool sec_disabled;
 	u32 comp_mask;
-	bool pm_on;
 };
 
 struct cc_crypto_alg {

@@ -14,6 +14,7 @@
 #include <linux/of.h>
 #include <linux/clk.h>
 #include <linux/of_address.h>
+#include <linux/pm_runtime.h>
 
 #include "cc_driver.h"
 #include "cc_request_mgr.h"
@@ -360,6 +361,16 @@ static int init_cc_resources(struct platform_device *plat_dev)
 
 	new_drvdata->sec_disabled = cc_sec_disable;
 
+	pm_runtime_set_autosuspend_delay(dev, CC_SUSPEND_TIMEOUT);
+	pm_runtime_use_autosuspend(dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+	rc = pm_runtime_get_sync(dev);
+	if (rc < 0) {
+		dev_err(dev, "pm_runtime_get_sync() failed: %d\n", rc);
+		goto post_pm_err;
+	}
+
 	/* wait for Crytpcell reset completion */
 	if (!cc_wait_for_reset_completion(new_drvdata)) {
 		dev_err(dev, "Cryptocell reset not completed");
@@ -372,7 +383,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 			dev_err(dev, "Invalid CC signature: SIGNATURE=0x%08X != expected=0x%08X\n",
 				val, hw_rev->sig);
 			rc = -EINVAL;
-			goto post_clk_err;
+			goto post_pm_err;
 		}
 		sig_cidr = val;
 		hw_rev_pidr = cc_ioread(new_drvdata, new_drvdata->ver_offset);
@@ -383,7 +394,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 			dev_err(dev, "Invalid CC PIDR: PIDR0124=0x%08X != expected=0x%08X\n",
 				val,  hw_rev->pidr_0124);
 			rc = -EINVAL;
-			goto post_clk_err;
+			goto post_pm_err;
 		}
 		hw_rev_pidr = val;
 
@@ -392,7 +403,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 			dev_err(dev, "Invalid CC CIDR: CIDR0123=0x%08X != expected=0x%08X\n",
 			val,  hw_rev->cidr_0123);
 			rc = -EINVAL;
-			goto post_clk_err;
+			goto post_pm_err;
 		}
 		sig_cidr = val;
 
@@ -411,7 +422,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		default:
 			dev_err(dev, "Unsupported engines configuration.\n");
 			rc = -EINVAL;
-			goto post_clk_err;
+			goto post_pm_err;
 		}
 
 		/* Check security disable state */
@@ -437,14 +448,14 @@ static int init_cc_resources(struct platform_device *plat_dev)
 			      new_drvdata);
 	if (rc) {
 		dev_err(dev, "Could not register to interrupt %d\n", irq);
-		goto post_clk_err;
+		goto post_pm_err;
 	}
 	dev_dbg(dev, "Registered to IRQ: %d\n", irq);
 
 	rc = init_cc_regs(new_drvdata, true);
 	if (rc) {
 		dev_err(dev, "init_cc_regs failed\n");
-		goto post_clk_err;
+		goto post_pm_err;
 	}
 
 	rc = cc_debugfs_init(new_drvdata);
@@ -483,12 +494,6 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		goto post_req_mgr_err;
 	}
 
-	rc = cc_pm_init(new_drvdata);
-	if (rc) {
-		dev_err(dev, "cc_pm_init failed\n");
-		goto post_buf_mgr_err;
-	}
-
 	/* Allocate crypto algs */
 	rc = cc_cipher_alloc(new_drvdata);
 	if (rc) {
@@ -509,15 +514,13 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		goto post_hash_err;
 	}
 
-	/* All set, we can allow autosuspend */
-	cc_pm_go(new_drvdata);
-
 	/* If we got here and FIPS mode is enabled
 	 * it means all FIPS test passed, so let TEE
 	 * know we're good.
 	 */
 	cc_set_ree_fips_status(new_drvdata, true);
 
+	pm_runtime_put(dev);
 	return 0;
 
 post_hash_err:
@@ -534,7 +537,10 @@ post_debugfs_err:
 	cc_debugfs_fini(new_drvdata);
 post_regs_err:
 	fini_cc_regs(new_drvdata);
-post_clk_err:
+post_pm_err:
+	pm_runtime_put_noidle(dev);
+	pm_runtime_disable(dev);
+	pm_runtime_set_suspended(dev);
 	clk_disable_unprepare(new_drvdata->clk);
 	return rc;
 }
@@ -547,18 +553,21 @@ void fini_cc_regs(struct cc_drvdata *drvdata)
 
 static void cleanup_cc_resources(struct platform_device *plat_dev)
 {
+	struct device *dev = &plat_dev->dev;
 	struct cc_drvdata *drvdata =
 		(struct cc_drvdata *)platform_get_drvdata(plat_dev);
 
 	cc_aead_free(drvdata);
 	cc_hash_free(drvdata);
 	cc_cipher_free(drvdata);
-	cc_pm_fini(drvdata);
 	cc_buffer_mgr_fini(drvdata);
 	cc_req_mgr_fini(drvdata);
 	cc_fips_fini(drvdata);
 	cc_debugfs_fini(drvdata);
 	fini_cc_regs(drvdata);
+	pm_runtime_put_noidle(dev);
+	pm_runtime_disable(dev);
+	pm_runtime_set_suspended(dev);
 	clk_disable_unprepare(drvdata->clk);
 }
 
