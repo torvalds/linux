@@ -300,6 +300,84 @@ static int live_unlite_preempt(void *arg)
 	return live_unlite_restore(arg, I915_USER_PRIORITY(I915_PRIORITY_MAX));
 }
 
+static int live_pin_rewind(void *arg)
+{
+	struct intel_gt *gt = arg;
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	int err = 0;
+
+	/*
+	 * We have to be careful not to trust intel_ring too much, for example
+	 * ring->head is updated upon retire which is out of sync with pinning
+	 * the context. Thus we cannot use ring->head to set CTX_RING_HEAD,
+	 * or else we risk writing an older, stale value.
+	 *
+	 * To simulate this, let's apply a bit of deliberate sabotague.
+	 */
+
+	for_each_engine(engine, gt, id) {
+		struct intel_context *ce;
+		struct i915_request *rq;
+		struct intel_ring *ring;
+		struct igt_live_test t;
+
+		if (igt_live_test_begin(&t, gt->i915, __func__, engine->name)) {
+			err = -EIO;
+			break;
+		}
+
+		ce = intel_context_create(engine);
+		if (IS_ERR(ce)) {
+			err = PTR_ERR(ce);
+			break;
+		}
+
+		err = intel_context_pin(ce);
+		if (err) {
+			intel_context_put(ce);
+			break;
+		}
+
+		/* Keep the context awake while we play games */
+		err = i915_active_acquire(&ce->active);
+		if (err) {
+			intel_context_unpin(ce);
+			intel_context_put(ce);
+			break;
+		}
+		ring = ce->ring;
+
+		/* Poison the ring, and offset the next request from HEAD */
+		memset32(ring->vaddr, STACK_MAGIC, ring->size / sizeof(u32));
+		ring->emit = ring->size / 2;
+		ring->tail = ring->emit;
+		GEM_BUG_ON(ring->head);
+
+		intel_context_unpin(ce);
+
+		/* Submit a simple nop request */
+		GEM_BUG_ON(intel_context_is_pinned(ce));
+		rq = intel_context_create_request(ce);
+		i915_active_release(&ce->active); /* e.g. async retire */
+		intel_context_put(ce);
+		if (IS_ERR(rq)) {
+			err = PTR_ERR(rq);
+			break;
+		}
+		GEM_BUG_ON(!rq->head);
+		i915_request_add(rq);
+
+		/* Expect not to hang! */
+		if (igt_live_test_end(&t)) {
+			err = -EIO;
+			break;
+		}
+	}
+
+	return err;
+}
+
 static int live_hold_reset(void *arg)
 {
 	struct intel_gt *gt = arg;
@@ -3629,6 +3707,7 @@ int intel_execlists_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_sanitycheck),
 		SUBTEST(live_unlite_switch),
 		SUBTEST(live_unlite_preempt),
+		SUBTEST(live_pin_rewind),
 		SUBTEST(live_hold_reset),
 		SUBTEST(live_error_interrupt),
 		SUBTEST(live_timeslice_preempt),
