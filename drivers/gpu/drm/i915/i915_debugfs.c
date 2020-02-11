@@ -32,6 +32,7 @@
 #include <drm/drm_debugfs.h>
 #include <drm/drm_fourcc.h>
 
+#include "display/intel_csr.h"
 #include "display/intel_display_types.h"
 #include "display/intel_dp.h"
 #include "display/intel_fbc.h"
@@ -51,7 +52,6 @@
 #include "i915_debugfs_params.h"
 #include "i915_irq.h"
 #include "i915_trace.h"
-#include "intel_csr.h"
 #include "intel_pm.h"
 #include "intel_sideband.h"
 

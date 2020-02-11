@@ -37,6 +37,7 @@
 #include <drm/drm_print.h>
 
 #include "display/intel_atomic.h"
+#include "display/intel_csr.h"
 #include "display/intel_overlay.h"
 
 #include "gem/i915_gem_context.h"
@@ -47,7 +48,6 @@
 #include "i915_gpu_error.h"
 #include "i915_memcpy.h"
 #include "i915_scatterlist.h"
-#include "intel_csr.h"
 
 #define ALLOW_FAIL (GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_NOWARN)
 #define ATOMIC_MAYFAIL (GFP_ATOMIC | __GFP_NOWARN)

@@ -50,6 +50,7 @@
 #include "display/intel_audio.h"
 #include "display/intel_bw.h"
 #include "display/intel_cdclk.h"
+#include "display/intel_csr.h"
 #include "display/intel_display_types.h"
 #include "display/intel_dp.h"
 #include "display/intel_fbdev.h"
@@ -77,7 +78,6 @@
 #include "i915_sysfs.h"
 #include "i915_trace.h"
 #include "i915_vgpu.h"
-#include "intel_csr.h"
 #include "intel_memory_region.h"
 #include "intel_pm.h"
 
