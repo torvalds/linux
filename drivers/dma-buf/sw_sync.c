@@ -16,6 +16,8 @@
 
 #include <linux/file.h>
 #include <linux/fs.h>
+#include <linux/miscdevice.h>
+#include <linux/module.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 #include <linux/sync_file.h>
@@ -423,3 +425,13 @@ const struct file_operations sw_sync_debugfs_fops = {
 	.unlocked_ioctl = sw_sync_ioctl,
 	.compat_ioctl	= sw_sync_ioctl,
 };
+
+static struct miscdevice sw_sync_dev = {
+	.minor	= MISC_DYNAMIC_MINOR,
+	.name	= "sw_sync",
+	.fops	= &sw_sync_debugfs_fops,
+};
+
+module_misc_device(sw_sync_dev);
+
+MODULE_LICENSE("GPL v2");

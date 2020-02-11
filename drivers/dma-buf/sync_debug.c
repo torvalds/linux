@@ -17,6 +17,7 @@
 #include <linux/debugfs.h>
 #include "sync_debug.h"
 
+#ifdef CONFIG_DEBUG_FS
 static struct dentry *dbgfs;
 
 static LIST_HEAD(sync_timeline_list_head);
@@ -233,3 +234,4 @@ void sync_dump(void)
 		}
 	}
 }
+#endif
