@@ -441,13 +441,13 @@ static int mlx5e_get_fec_cap_field(u32 *pplm,
 	return 0;
 }
 
-int mlx5e_get_fec_caps(struct mlx5_core_dev *dev, u8 *fec_caps)
+bool mlx5e_fec_in_caps(struct mlx5_core_dev *dev, int fec_policy)
 {
 	u32 out[MLX5_ST_SZ_DW(pplm_reg)] = {};
 	u32 in[MLX5_ST_SZ_DW(pplm_reg)] = {};
 	int sz = MLX5_ST_SZ_BYTES(pplm_reg);
-	u32 current_fec_speed;
 	int err;
+	int i;
 
 	if (!MLX5_CAP_GEN(dev, pcam_reg))
 		return -EOPNOTSUPP;
@@ -458,13 +458,16 @@ int mlx5e_get_fec_caps(struct mlx5_core_dev *dev, u8 *fec_caps)
 	MLX5_SET(pplm_reg, in, local_port, 1);
 	err =  mlx5_core_access_reg(dev, in, sz, out, sz, MLX5_REG_PPLM, 0, 0);
 	if (err)
-		return err;
+		return false;
 
-	err = mlx5e_port_linkspeed(dev, &current_fec_speed);
-	if (err)
-		return err;
+	for (i = 0; i < MLX5E_FEC_SUPPORTED_SPEEDS; i++) {
+		u8 fec_caps;
 
-	return mlx5e_get_fec_cap_field(out, fec_caps, current_fec_speed);
+		mlx5e_get_fec_cap_field(out, &fec_caps, fec_supported_speeds[i]);
+		if (fec_caps & fec_policy)
+			return true;
+	}
+	return false;
 }
 
 int mlx5e_get_fec_mode(struct mlx5_core_dev *dev, u32 *fec_mode_active,
