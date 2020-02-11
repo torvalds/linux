@@ -13,16 +13,6 @@ struct cc_sram_ctx {
 };
 
 /**
- * cc_sram_mgr_fini() - Cleanup SRAM pool.
- *
- * @drvdata: Associated device driver context
- */
-void cc_sram_mgr_fini(struct cc_drvdata *drvdata)
-{
-	/* Nothing needed */
-}
-
-/**
  * cc_sram_mgr_init() - Initializes SRAM pool.
  *      The pool starts right at the beginning of SRAM.
  *      Returns zero for success, negative value otherwise.

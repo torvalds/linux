@@ -478,13 +478,13 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		cc_sram_alloc(new_drvdata, MAX_MLLI_BUFF_SIZE);
 	if (new_drvdata->mlli_sram_addr == NULL_SRAM_ADDR) {
 		rc = -ENOMEM;
-		goto post_sram_mgr_err;
+		goto post_fips_init_err;
 	}
 
 	rc = cc_req_mgr_init(new_drvdata);
 	if (rc) {
 		dev_err(dev, "cc_req_mgr_init failed\n");
-		goto post_sram_mgr_err;
+		goto post_fips_init_err;
 	}
 
 	rc = cc_buffer_mgr_init(new_drvdata);
@@ -538,8 +538,6 @@ post_buf_mgr_err:
 	 cc_buffer_mgr_fini(new_drvdata);
 post_req_mgr_err:
 	cc_req_mgr_fini(new_drvdata);
-post_sram_mgr_err:
-	cc_sram_mgr_fini(new_drvdata);
 post_fips_init_err:
 	cc_fips_fini(new_drvdata);
 post_debugfs_err:
@@ -568,7 +566,6 @@ static void cleanup_cc_resources(struct platform_device *plat_dev)
 	cc_pm_fini(drvdata);
 	cc_buffer_mgr_fini(drvdata);
 	cc_req_mgr_fini(drvdata);
-	cc_sram_mgr_fini(drvdata);
 	cc_fips_fini(drvdata);
 	cc_debugfs_fini(drvdata);
 	fini_cc_regs(drvdata);
