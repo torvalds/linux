@@ -2682,7 +2682,6 @@ int cc_aead_alloc(struct cc_drvdata *drvdata)
 							 MAX_HMAC_DIGEST_SIZE);
 
 	if (aead_handle->sram_workspace_addr == NULL_SRAM_ADDR) {
-		dev_err(dev, "SRAM pool exhausted\n");
 		rc = -ENOMEM;
 		goto fail1;
 	}

@@ -2001,7 +2001,6 @@ int cc_hash_alloc(struct cc_drvdata *drvdata)
 
 	sram_buff = cc_sram_alloc(drvdata, sram_size_to_alloc);
 	if (sram_buff == NULL_SRAM_ADDR) {
-		dev_err(dev, "SRAM pool exhausted\n");
 		rc = -ENOMEM;
 		goto fail;
 	}
