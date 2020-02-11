@@ -83,21 +83,6 @@ static struct pm_qos_object *pm_qos_array[] = {
 	&cpu_dma_pm_qos,
 };
 
-static ssize_t pm_qos_power_write(struct file *filp, const char __user *buf,
-		size_t count, loff_t *f_pos);
-static ssize_t pm_qos_power_read(struct file *filp, char __user *buf,
-		size_t count, loff_t *f_pos);
-static int pm_qos_power_open(struct inode *inode, struct file *filp);
-static int pm_qos_power_release(struct inode *inode, struct file *filp);
-
-static const struct file_operations pm_qos_power_fops = {
-	.write = pm_qos_power_write,
-	.read = pm_qos_power_read,
-	.open = pm_qos_power_open,
-	.release = pm_qos_power_release,
-	.llseek = noop_llseek,
-};
-
 /**
  * pm_qos_read_value - Return the current effective constraint value.
  * @c: List of PM QoS constraint requests.
@@ -414,15 +399,6 @@ EXPORT_SYMBOL_GPL(pm_qos_remove_notifier);
 
 /* User space interface to global PM QoS via misc device. */
 
-static int register_pm_qos_misc(struct pm_qos_object *qos)
-{
-	qos->pm_qos_power_miscdev.minor = MISC_DYNAMIC_MINOR;
-	qos->pm_qos_power_miscdev.name = qos->name;
-	qos->pm_qos_power_miscdev.fops = &pm_qos_power_fops;
-
-	return misc_register(&qos->pm_qos_power_miscdev);
-}
-
 static int pm_qos_power_open(struct inode *inode, struct file *filp)
 {
 	struct pm_qos_request *req;
@@ -439,9 +415,10 @@ static int pm_qos_power_open(struct inode *inode, struct file *filp)
 
 static int pm_qos_power_release(struct inode *inode, struct file *filp)
 {
-	struct pm_qos_request *req;
+	struct pm_qos_request *req = filp->private_data;
 
-	req = filp->private_data;
+	filp->private_data = NULL;
+
 	pm_qos_remove_request(req);
 	kfree(req);
 
@@ -449,15 +426,13 @@ static int pm_qos_power_release(struct inode *inode, struct file *filp)
 }
 
 static ssize_t pm_qos_power_read(struct file *filp, char __user *buf,
-		size_t count, loff_t *f_pos)
+				 size_t count, loff_t *f_pos)
 {
-	s32 value;
-	unsigned long flags;
 	struct pm_qos_request *req = filp->private_data;
+	unsigned long flags;
+	s32 value;
 
-	if (!req)
-		return -EINVAL;
-	if (!pm_qos_request_active(req))
+	if (!req || !pm_qos_request_active(req))
 		return -EINVAL;
 
 	spin_lock_irqsave(&pm_qos_lock, flags);
@@ -468,10 +443,9 @@ static ssize_t pm_qos_power_read(struct file *filp, char __user *buf,
 }
 
 static ssize_t pm_qos_power_write(struct file *filp, const char __user *buf,
-		size_t count, loff_t *f_pos)
+				  size_t count, loff_t *f_pos)
 {
 	s32 value;
-	struct pm_qos_request *req;
 
 	if (count == sizeof(s32)) {
 		if (copy_from_user(&value, buf, sizeof(s32)))
@@ -484,10 +458,26 @@ static ssize_t pm_qos_power_write(struct file *filp, const char __user *buf,
 			return ret;
 	}
 
-	req = filp->private_data;
-	pm_qos_update_request(req, value);
+	pm_qos_update_request(filp->private_data, value);
 
 	return count;
+}
+
+static const struct file_operations pm_qos_power_fops = {
+	.write = pm_qos_power_write,
+	.read = pm_qos_power_read,
+	.open = pm_qos_power_open,
+	.release = pm_qos_power_release,
+	.llseek = noop_llseek,
+};
+
+static int register_pm_qos_misc(struct pm_qos_object *qos)
+{
+	qos->pm_qos_power_miscdev.minor = MISC_DYNAMIC_MINOR;
+	qos->pm_qos_power_miscdev.name = qos->name;
+	qos->pm_qos_power_miscdev.fops = &pm_qos_power_fops;
+
+	return misc_register(&qos->pm_qos_power_miscdev);
 }
 
 static int __init pm_qos_power_init(void)
