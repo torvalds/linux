@@ -82,19 +82,6 @@ out:
 	return err;
 }
 
-void mlx5e_reporter_tx_err_cqe(struct mlx5e_txqsq *sq)
-{
-	struct mlx5e_priv *priv = sq->channel->priv;
-	char err_str[MLX5E_REPORTER_PER_Q_MAX_LEN];
-	struct mlx5e_err_ctx err_ctx = {0};
-
-	err_ctx.ctx = sq;
-	err_ctx.recover = mlx5e_tx_reporter_err_cqe_recover;
-	sprintf(err_str, "ERR CQE on SQ: 0x%x", sq->sqn);
-
-	mlx5e_health_report(priv, priv->tx_reporter, err_str, &err_ctx);
-}
-
 static int mlx5e_tx_reporter_timeout_recover(void *ctx)
 {
 	struct mlx5_eq_comp *eq;
@@ -108,22 +95,6 @@ static int mlx5e_tx_reporter_timeout_recover(void *ctx)
 		clear_bit(MLX5E_SQ_STATE_ENABLED, &sq->state);
 
 	return err;
-}
-
-int mlx5e_reporter_tx_timeout(struct mlx5e_txqsq *sq)
-{
-	struct mlx5e_priv *priv = sq->channel->priv;
-	char err_str[MLX5E_REPORTER_PER_Q_MAX_LEN];
-	struct mlx5e_err_ctx err_ctx;
-
-	err_ctx.ctx = sq;
-	err_ctx.recover = mlx5e_tx_reporter_timeout_recover;
-	sprintf(err_str,
-		"TX timeout on queue: %d, SQ: 0x%x, CQ: 0x%x, SQ Cons: 0x%x SQ Prod: 0x%x, usecs since last trans: %u\n",
-		sq->channel->ix, sq->sqn, sq->cq.mcq.cqn, sq->cc, sq->pc,
-		jiffies_to_usecs(jiffies - sq->txq->trans_start));
-
-	return mlx5e_health_report(priv, priv->tx_reporter, err_str, &err_ctx);
 }
 
 /* state lock cannot be grabbed within this function.
@@ -273,6 +244,35 @@ static int mlx5e_tx_reporter_diagnose(struct devlink_health_reporter *reporter,
 unlock:
 	mutex_unlock(&priv->state_lock);
 	return err;
+}
+
+void mlx5e_reporter_tx_err_cqe(struct mlx5e_txqsq *sq)
+{
+	struct mlx5e_priv *priv = sq->channel->priv;
+	char err_str[MLX5E_REPORTER_PER_Q_MAX_LEN];
+	struct mlx5e_err_ctx err_ctx = {};
+
+	err_ctx.ctx = sq;
+	err_ctx.recover = mlx5e_tx_reporter_err_cqe_recover;
+	sprintf(err_str, "ERR CQE on SQ: 0x%x", sq->sqn);
+
+	mlx5e_health_report(priv, priv->tx_reporter, err_str, &err_ctx);
+}
+
+int mlx5e_reporter_tx_timeout(struct mlx5e_txqsq *sq)
+{
+	struct mlx5e_priv *priv = sq->channel->priv;
+	char err_str[MLX5E_REPORTER_PER_Q_MAX_LEN];
+	struct mlx5e_err_ctx err_ctx = {};
+
+	err_ctx.ctx = sq;
+	err_ctx.recover = mlx5e_tx_reporter_timeout_recover;
+	sprintf(err_str,
+		"TX timeout on queue: %d, SQ: 0x%x, CQ: 0x%x, SQ Cons: 0x%x SQ Prod: 0x%x, usecs since last trans: %u\n",
+		sq->channel->ix, sq->sqn, sq->cq.mcq.cqn, sq->cc, sq->pc,
+		jiffies_to_usecs(jiffies - sq->txq->trans_start));
+
+	return mlx5e_health_report(priv, priv->tx_reporter, err_str, &err_ctx);
 }
 
 static const struct devlink_health_reporter_ops mlx5_tx_reporter_ops = {
