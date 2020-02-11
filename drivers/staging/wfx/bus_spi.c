@@ -154,6 +154,11 @@ static void wfx_spi_request_rx(struct work_struct *work)
 	wfx_bh_request_rx(bus->core);
 }
 
+static void wfx_flush_irq_work(void *w)
+{
+	flush_work(w);
+}
+
 static size_t wfx_spi_align_size(void *priv, size_t size)
 {
 	// Most of SPI controllers avoid DMA if buffer size is not 32bit aligned
@@ -207,22 +212,23 @@ static int wfx_spi_probe(struct spi_device *func)
 		udelay(2000);
 	}
 
-	ret = devm_request_irq(&func->dev, func->irq, wfx_spi_irq_handler,
-			       IRQF_TRIGGER_RISING, "wfx", bus);
-	if (ret)
-		return ret;
-
 	INIT_WORK(&bus->request_rx, wfx_spi_request_rx);
 	bus->core = wfx_init_common(&func->dev, &wfx_spi_pdata,
 				    &wfx_spi_hwbus_ops, bus);
 	if (!bus->core)
 		return -EIO;
 
-	ret = wfx_probe(bus->core);
+	ret = devm_add_action_or_reset(&func->dev, wfx_flush_irq_work,
+				       &bus->request_rx);
 	if (ret)
-		wfx_free_common(bus->core);
+		return ret;
 
-	return ret;
+	ret = devm_request_irq(&func->dev, func->irq, wfx_spi_irq_handler,
+			       IRQF_TRIGGER_RISING, "wfx", bus);
+	if (ret)
+		return ret;
+
+	return wfx_probe(bus->core);
 }
 
 static int wfx_spi_remove(struct spi_device *func)
@@ -230,11 +236,6 @@ static int wfx_spi_remove(struct spi_device *func)
 	struct wfx_spi_priv *bus = spi_get_drvdata(func);
 
 	wfx_release(bus->core);
-	wfx_free_common(bus->core);
-	// A few IRQ will be sent during device release. Hopefully, no IRQ
-	// should happen after wdev/wvif are released.
-	devm_free_irq(&func->dev, func->irq, bus);
-	flush_work(&bus->request_rx);
 	return 0;
 }
 
