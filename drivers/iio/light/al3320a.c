@@ -7,6 +7,9 @@
  * IIO driver for AL3320A (7-bit I2C slave address 0x1C).
  *
  * TODO: interrupt support, thresholds
+ * When the driver will get support for interrupt handling, then interrupt
+ * will need to be disabled before turning sensor OFF in order to avoid
+ * potential races with the interrupt handling.
  */
 
 #include <linux/bitfield.h>
@@ -78,13 +81,18 @@ static const struct attribute_group al3320a_attribute_group = {
 	.attrs = al3320a_attributes,
 };
 
+static int al3320a_set_pwr(struct i2c_client *client, bool pwr)
+{
+	u8 val = pwr ? AL3320A_CONFIG_ENABLE : AL3320A_CONFIG_DISABLE;
+	return i2c_smbus_write_byte_data(client, AL3320A_REG_CONFIG, val);
+}
+
 static int al3320a_init(struct al3320a_data *data)
 {
 	int ret;
 
-	/* power on */
-	ret = i2c_smbus_write_byte_data(data->client, AL3320A_REG_CONFIG,
-					AL3320A_CONFIG_ENABLE);
+	ret = al3320a_set_pwr(data->client, true);
+
 	if (ret < 0)
 		return ret;
 
@@ -203,9 +211,20 @@ static int al3320a_probe(struct i2c_client *client,
 
 static int al3320a_remove(struct i2c_client *client)
 {
-	return i2c_smbus_write_byte_data(client, AL3320A_REG_CONFIG,
-					 AL3320A_CONFIG_DISABLE);
+	return al3320a_set_pwr(client, false);
 }
+
+static int __maybe_unused al3320a_suspend(struct device *dev)
+{
+	return al3320a_set_pwr(to_i2c_client(dev), false);
+}
+
+static int __maybe_unused al3320a_resume(struct device *dev)
+{
+	return al3320a_set_pwr(to_i2c_client(dev), true);
+}
+
+static SIMPLE_DEV_PM_OPS(al3320a_pm_ops, al3320a_suspend, al3320a_resume);
 
 static const struct i2c_device_id al3320a_id[] = {
 	{"al3320a", 0},
@@ -216,6 +235,7 @@ MODULE_DEVICE_TABLE(i2c, al3320a_id);
 static struct i2c_driver al3320a_driver = {
 	.driver = {
 		.name = AL3320A_DRV_NAME,
+		.pm = &al3320a_pm_ops,
 	},
 	.probe		= al3320a_probe,
 	.remove		= al3320a_remove,
