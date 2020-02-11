@@ -755,6 +755,13 @@ static inline bool mt76_is_skb_pktid(u8 pktid)
 	return pktid >= MT_PACKET_ID_FIRST;
 }
 
+static inline u8 mt76_tx_power_nss_delta(u8 nss)
+{
+	static const u8 nss_delta[4] = { 0, 6, 9, 12 };
+
+	return nss_delta[nss - 1];
+}
+
 void mt76_rx(struct mt76_dev *dev, enum mt76_rxq_id q, struct sk_buff *skb);
 void mt76_tx(struct mt76_phy *dev, struct ieee80211_sta *sta,
 	     struct mt76_wcid *wcid, struct sk_buff *skb);

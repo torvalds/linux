@@ -269,6 +269,7 @@ mt7615_init_txpower(struct mt7615_dev *dev,
 	int i, n_chains = hweight8(dev->mphy.antenna_mask), target_chains;
 	u8 *eep = (u8 *)dev->mt76.eeprom.data;
 	enum nl80211_band band = sband->band;
+	int delta = mt76_tx_power_nss_delta(n_chains);
 
 	target_chains = mt7615_ext_pa_enabled(dev, band) ? 1 : n_chains;
 	for (i = 0; i < sband->n_channels; i++) {
@@ -283,21 +284,7 @@ mt7615_init_txpower(struct mt7615_dev *dev,
 			target_power = max(target_power, eep[index]);
 		}
 
-		target_power = DIV_ROUND_UP(target_power, 2);
-		switch (n_chains) {
-		case 4:
-			target_power += 6;
-			break;
-		case 3:
-			target_power += 4;
-			break;
-		case 2:
-			target_power += 3;
-			break;
-		default:
-			break;
-		}
-
+		target_power = DIV_ROUND_UP(target_power + delta, 2);
 		chan->max_power = min_t(int, chan->max_reg_power,
 					target_power);
 		chan->orig_mpwr = target_power;

@@ -1595,14 +1595,14 @@ int mt7615_mcu_rdd_send_pattern(struct mt7615_dev *dev)
 
 static void mt7615_mcu_set_txpower_sku(struct mt7615_phy *phy, u8 *sku)
 {
-	static const u8 nss_delta[4] = { 0, 6, 8, 12 };
 	struct mt76_phy *mphy = phy->mt76;
 	struct ieee80211_hw *hw = mphy->hw;
 	int n_chains = hweight8(mphy->antenna_mask);
 	int tx_power;
 	int i;
 
-	tx_power = hw->conf.power_level * 2 - nss_delta[n_chains - 1];
+	tx_power = hw->conf.power_level * 2 -
+		   mt76_tx_power_nss_delta(n_chains);
 	mphy->txpower_cur = tx_power;
 
 	for (i = 0; i < MT_SKU_1SS_DELTA; i++)
@@ -1612,7 +1612,8 @@ static void mt7615_mcu_set_txpower_sku(struct mt7615_phy *phy, u8 *sku)
 		int delta = 0;
 
 		if (i < n_chains - 1)
-			delta = nss_delta[n_chains - 1] - nss_delta[i];
+			delta = mt76_tx_power_nss_delta(n_chains) -
+				mt76_tx_power_nss_delta(i + 1);
 		sku[MT_SKU_1SS_DELTA + i] = delta;
 	}
 }

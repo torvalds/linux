@@ -1051,25 +1051,9 @@ int mt76_get_txpower(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	struct mt76_phy *phy = hw->priv;
 	int n_chains = hweight8(phy->antenna_mask);
+	int delta = mt76_tx_power_nss_delta(n_chains);
 
-	*dbm = DIV_ROUND_UP(phy->txpower_cur, 2);
-
-	/* convert from per-chain power to combined
-	 * output power
-	 */
-	switch (n_chains) {
-	case 4:
-		*dbm += 6;
-		break;
-	case 3:
-		*dbm += 4;
-		break;
-	case 2:
-		*dbm += 3;
-		break;
-	default:
-		break;
-	}
+	*dbm = DIV_ROUND_UP(phy->txpower_cur + delta, 2);
 
 	return 0;
 }
