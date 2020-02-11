@@ -5797,6 +5797,7 @@ static int __ath11k_mac_register(struct ath11k *ar)
 	ar->hw->wiphy->max_ap_assoc_sta = ar->max_num_stations;
 
 	ar->hw->queues = ATH11K_HW_MAX_QUEUES;
+	ar->hw->wiphy->tx_queue_len = ATH11K_QUEUE_LEN;
 	ar->hw->offchannel_tx_hw_queue = ATH11K_HW_MAX_QUEUES - 1;
 	ar->hw->max_rx_aggregation_subframes = IEEE80211_MAX_AMPDU_BUF;
 
