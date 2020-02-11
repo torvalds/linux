@@ -1112,11 +1112,6 @@ static ssize_t power_role_store(struct device *dev,
 	struct typec_port *port = to_typec_port(dev);
 	int ret;
 
-	if (!port->cap->pd_revision) {
-		dev_dbg(dev, "USB Power Delivery not supported\n");
-		return -EOPNOTSUPP;
-	}
-
 	if (!port->ops || !port->ops->pr_set) {
 		dev_dbg(dev, "power role swapping not supported\n");
 		return -EOPNOTSUPP;
@@ -1338,7 +1333,6 @@ static umode_t typec_attr_is_visible(struct kobject *kobj,
 			return 0444;
 	} else if (attr == &dev_attr_power_role.attr) {
 		if (port->cap->type != TYPEC_PORT_DRP ||
-		    !port->cap->pd_revision ||
 		    !port->ops || !port->ops->pr_set)
 			return 0444;
 	} else if (attr == &dev_attr_vconn_source.attr) {
