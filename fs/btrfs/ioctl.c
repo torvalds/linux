@@ -1710,9 +1710,6 @@ static noinline int btrfs_ioctl_resize(struct file *file,
 
 	new_size = round_down(new_size, fs_info->sectorsize);
 
-	btrfs_info_in_rcu(fs_info, "new size for %s is %llu",
-			  rcu_str_deref(device->name), new_size);
-
 	if (new_size > old_size) {
 		trans = btrfs_start_transaction(root, 0);
 		if (IS_ERR(trans)) {
@@ -1725,6 +1722,11 @@ static noinline int btrfs_ioctl_resize(struct file *file,
 		ret = btrfs_shrink_device(device, new_size);
 	} /* equal, nothing need to do */
 
+	if (ret == 0 && new_size != old_size)
+		btrfs_info_in_rcu(fs_info,
+			"resize device %s (devid %llu) from %llu to %llu",
+			rcu_str_deref(device->name), device->devid,
+			old_size, new_size);
 out_free:
 	kfree(vol_args);
 out:
