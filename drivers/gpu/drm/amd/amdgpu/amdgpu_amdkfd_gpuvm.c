@@ -276,6 +276,42 @@ static int amdgpu_amdkfd_remove_eviction_fence(struct amdgpu_bo *bo,
 	return 0;
 }
 
+int amdgpu_amdkfd_remove_fence_on_pt_pd_bos(struct amdgpu_bo *bo)
+{
+	struct amdgpu_bo *root = bo;
+	struct amdgpu_vm_bo_base *vm_bo;
+	struct amdgpu_vm *vm;
+	struct amdkfd_process_info *info;
+	struct amdgpu_amdkfd_fence *ef;
+	int ret;
+
+	/* we can always get vm_bo from root PD bo.*/
+	while (root->parent)
+		root = root->parent;
+
+	vm_bo = root->vm_bo;
+	if (!vm_bo)
+		return 0;
+
+	vm = vm_bo->vm;
+	if (!vm)
+		return 0;
+
+	info = vm->process_info;
+	if (!info || !info->eviction_fence)
+		return 0;
+
+	ef = container_of(dma_fence_get(&info->eviction_fence->base),
+			struct amdgpu_amdkfd_fence, base);
+
+	BUG_ON(!dma_resv_trylock(bo->tbo.base.resv));
+	ret = amdgpu_amdkfd_remove_eviction_fence(bo, ef);
+	dma_resv_unlock(bo->tbo.base.resv);
+
+	dma_fence_put(&ef->base);
+	return ret;
+}
+
 static int amdgpu_amdkfd_bo_validate(struct amdgpu_bo *bo, uint32_t domain,
 				     bool wait)
 {
@@ -1043,6 +1079,8 @@ void amdgpu_amdkfd_gpuvm_destroy_cb(struct amdgpu_device *adev,
 	process_info->n_vms--;
 	list_del(&vm->vm_list_node);
 	mutex_unlock(&process_info->lock);
+
+	vm->process_info = NULL;
 
 	/* Release per-process resources when last compute VM is destroyed */
 	if (!process_info->n_vms) {

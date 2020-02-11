@@ -673,6 +673,11 @@ void amdgpu_amdkfd_unreserve_memory_limit(struct amdgpu_bo *bo)
 {
 }
 
+int amdgpu_amdkfd_remove_fence_on_pt_pd_bos(struct amdgpu_bo *bo)
+{
+	return 0;
+}
+
 void amdgpu_amdkfd_gpuvm_destroy_cb(struct amdgpu_device *adev,
 					struct amdgpu_vm *vm)
 {
