@@ -16,7 +16,6 @@ bool topology_parse_cpu_capacity(struct device_node *cpu_node, int cpu);
 
 DECLARE_PER_CPU(unsigned long, cpu_scale);
 
-struct sched_domain;
 static inline
 unsigned long topology_get_cpu_scale(int cpu)
 {
