@@ -192,6 +192,12 @@ static struct ccu_reset_map sun50i_a64_de2_resets[] = {
 	[RST_WB]	= { 0x08, BIT(2) },
 };
 
+static struct ccu_reset_map sun50i_h5_de2_resets[] = {
+	[RST_MIXER0]	= { 0x08, BIT(0) },
+	[RST_MIXER1]	= { 0x08, BIT(1) },
+	[RST_WB]	= { 0x08, BIT(2) },
+};
+
 static struct ccu_reset_map sun50i_h6_de3_resets[] = {
 	[RST_MIXER0]	= { 0x08, BIT(0) },
 	[RST_MIXER1]	= { 0x08, BIT(1) },
@@ -227,6 +233,16 @@ static const struct sunxi_ccu_desc sun50i_a64_de2_clk_desc = {
 
 	.resets		= sun50i_a64_de2_resets,
 	.num_resets	= ARRAY_SIZE(sun50i_a64_de2_resets),
+};
+
+static const struct sunxi_ccu_desc sun50i_h5_de2_clk_desc = {
+	.ccu_clks	= sun8i_h3_de2_clks,
+	.num_ccu_clks	= ARRAY_SIZE(sun8i_h3_de2_clks),
+
+	.hw_clks	= &sun8i_h3_de2_hw_clks,
+
+	.resets		= sun50i_h5_de2_resets,
+	.num_resets	= ARRAY_SIZE(sun50i_h5_de2_resets),
 };
 
 static const struct sunxi_ccu_desc sun50i_h6_de3_clk_desc = {
@@ -347,7 +363,7 @@ static const struct of_device_id sunxi_de2_clk_ids[] = {
 	},
 	{
 		.compatible = "allwinner,sun50i-h5-de2-clk",
-		.data = &sun50i_a64_de2_clk_desc,
+		.data = &sun50i_h5_de2_clk_desc,
 	},
 	{
 		.compatible = "allwinner,sun50i-h6-de3-clk",
