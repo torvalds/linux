@@ -3105,26 +3105,17 @@ static int smiapp_probe(struct i2c_client *client)
 	}
 
 	if (CCS_LIM(sensor, BINNING_CAPABILITY)) {
-		u32 val;
-
-		rval = smiapp_read(sensor,
-				   SMIAPP_REG_U8_BINNING_SUBTYPES, &val);
-		if (rval < 0) {
-			rval = -ENODEV;
-			goto out_free_ccs_limits;
-		}
-		sensor->nbinning_subtypes = min_t(u8, val,
-						  SMIAPP_BINNING_SUBTYPES);
+		sensor->nbinning_subtypes =
+			min_t(u8, CCS_LIM(sensor, BINNING_SUB_TYPES),
+			      CCS_LIM_BINNING_SUB_TYPE_MAX_N);
 
 		for (i = 0; i < sensor->nbinning_subtypes; i++) {
-			rval = smiapp_read(
-				sensor, SMIAPP_REG_U8_BINNING_TYPE_n(i), &val);
-			if (rval < 0) {
-				rval = -ENODEV;
-				goto out_free_ccs_limits;
-			}
-			sensor->binning_subtypes[i] =
-				*(struct smiapp_binning_subtype *)&val;
+			sensor->binning_subtypes[i].horizontal =
+				CCS_LIM_AT(sensor, BINNING_SUB_TYPE, i) >>
+				CCS_BINNING_SUB_TYPE_COLUMN_SHIFT;
+			sensor->binning_subtypes[i].vertical =
+				CCS_LIM_AT(sensor, BINNING_SUB_TYPE, i) &
+				CCS_BINNING_SUB_TYPE_ROW_MASK;
 
 			dev_dbg(&client->dev, "binning %xx%x\n",
 				sensor->binning_subtypes[i].horizontal,
