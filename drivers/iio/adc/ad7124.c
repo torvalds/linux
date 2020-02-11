@@ -98,6 +98,14 @@ static const unsigned int ad7124_gain[8] = {
 	1, 2, 4, 8, 16, 32, 64, 128
 };
 
+static const unsigned int ad7124_reg_size[] = {
+	1, 2, 3, 3, 2, 1, 3, 3, 1, 2, 2, 2, 2,
+	2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+	2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3,
+	3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+	3, 3, 3, 3, 3
+};
+
 static const int ad7124_master_clk_freq_hz[3] = {
 	[AD7124_LOW_POWER] = 76800,
 	[AD7124_MID_POWER] = 153600,
@@ -427,6 +435,27 @@ static int ad7124_write_raw(struct iio_dev *indio_dev,
 	}
 }
 
+static int ad7124_reg_access(struct iio_dev *indio_dev,
+			     unsigned int reg,
+			     unsigned int writeval,
+			     unsigned int *readval)
+{
+	struct ad7124_state *st = iio_priv(indio_dev);
+	int ret;
+
+	if (reg >= ARRAY_SIZE(ad7124_reg_size))
+		return -EINVAL;
+
+	if (readval)
+		ret = ad_sd_read_reg(&st->sd, reg, ad7124_reg_size[reg],
+				     readval);
+	else
+		ret = ad_sd_write_reg(&st->sd, reg, ad7124_reg_size[reg],
+				      writeval);
+
+	return ret;
+}
+
 static IIO_CONST_ATTR(in_voltage_scale_available,
 	"0.000001164 0.000002328 0.000004656 0.000009313 0.000018626 0.000037252 0.000074505 0.000149011 0.000298023");
 
@@ -442,6 +471,7 @@ static const struct attribute_group ad7124_attrs_group = {
 static const struct iio_info ad7124_info = {
 	.read_raw = ad7124_read_raw,
 	.write_raw = ad7124_write_raw,
+	.debugfs_reg_access = &ad7124_reg_access,
 	.validate_trigger = ad_sd_validate_trigger,
 	.attrs = &ad7124_attrs_group,
 };
