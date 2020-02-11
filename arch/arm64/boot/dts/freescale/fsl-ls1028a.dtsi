@@ -722,6 +722,7 @@
 				reg = <0x000400 0 0 0 0>;
 				clocks = <&clockgen 4 0>;
 				little-endian;
+				fsl,extts-fifo;
 			};
 		};
 	};
