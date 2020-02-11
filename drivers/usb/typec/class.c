@@ -1350,8 +1350,9 @@ static umode_t typec_attr_is_visible(struct kobject *kobj,
 		    !port->ops || !port->ops->try_role)
 			return 0444;
 	} else if (attr == &dev_attr_port_type.attr) {
-		if (port->cap->type != TYPEC_PORT_DRP ||
-		    !port->ops || !port->ops->port_type_set)
+		if (!port->ops || !port->ops->port_type_set)
+			return 0;
+		if (port->cap->type != TYPEC_PORT_DRP)
 			return 0444;
 	}
 
