@@ -26,13 +26,25 @@
 #include <asm/cputype.h>
 
 /* arm64 compatibility macros */
+#define PSR_AA32_MODE_FIQ	FIQ_MODE
+#define PSR_AA32_MODE_SVC	SVC_MODE
 #define PSR_AA32_MODE_ABT	ABT_MODE
 #define PSR_AA32_MODE_UND	UND_MODE
 #define PSR_AA32_T_BIT		PSR_T_BIT
+#define PSR_AA32_F_BIT		PSR_F_BIT
 #define PSR_AA32_I_BIT		PSR_I_BIT
 #define PSR_AA32_A_BIT		PSR_A_BIT
 #define PSR_AA32_E_BIT		PSR_E_BIT
 #define PSR_AA32_IT_MASK	PSR_IT_MASK
+#define PSR_AA32_GE_MASK	0x000f0000
+#define PSR_AA32_DIT_BIT	0x00200000
+#define PSR_AA32_PAN_BIT	0x00400000
+#define PSR_AA32_SSBS_BIT	0x00800000
+#define PSR_AA32_Q_BIT		PSR_Q_BIT
+#define PSR_AA32_V_BIT		PSR_V_BIT
+#define PSR_AA32_C_BIT		PSR_C_BIT
+#define PSR_AA32_Z_BIT		PSR_Z_BIT
+#define PSR_AA32_N_BIT		PSR_N_BIT
 
 unsigned long *vcpu_reg(struct kvm_vcpu *vcpu, u8 reg_num);
 
@@ -51,6 +63,11 @@ static inline unsigned long vpcu_read_spsr(struct kvm_vcpu *vcpu)
 static inline void vcpu_write_spsr(struct kvm_vcpu *vcpu, unsigned long v)
 {
 	*__vcpu_spsr(vcpu) = v;
+}
+
+static inline unsigned long host_spsr_to_spsr32(unsigned long spsr)
+{
+	return spsr;
 }
 
 static inline unsigned long vcpu_get_reg(struct kvm_vcpu *vcpu,
@@ -187,6 +204,11 @@ static inline bool kvm_vcpu_dabt_iswrite(struct kvm_vcpu *vcpu)
 static inline bool kvm_vcpu_dabt_issext(struct kvm_vcpu *vcpu)
 {
 	return kvm_vcpu_get_hsr(vcpu) & HSR_SSE;
+}
+
+static inline bool kvm_vcpu_dabt_issf(const struct kvm_vcpu *vcpu)
+{
+	return false;
 }
 
 static inline int kvm_vcpu_dabt_get_rd(struct kvm_vcpu *vcpu)

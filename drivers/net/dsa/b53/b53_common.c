@@ -655,7 +655,7 @@ int b53_configure_vlan(struct dsa_switch *ds)
 		b53_do_vlan_op(dev, VTA_CMD_CLEAR);
 	}
 
-	b53_enable_vlan(dev, false, dev->vlan_filtering_enabled);
+	b53_enable_vlan(dev, dev->vlan_enabled, dev->vlan_filtering_enabled);
 
 	b53_for_each_port(dev, i)
 		b53_write16(dev, B53_VLAN_PAGE,

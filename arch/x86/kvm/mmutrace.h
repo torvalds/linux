@@ -249,13 +249,13 @@ TRACE_EVENT(
 
 TRACE_EVENT(
 	fast_page_fault,
-	TP_PROTO(struct kvm_vcpu *vcpu, gva_t gva, u32 error_code,
+	TP_PROTO(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa, u32 error_code,
 		 u64 *sptep, u64 old_spte, bool retry),
-	TP_ARGS(vcpu, gva, error_code, sptep, old_spte, retry),
+	TP_ARGS(vcpu, cr2_or_gpa, error_code, sptep, old_spte, retry),
 
 	TP_STRUCT__entry(
 		__field(int, vcpu_id)
-		__field(gva_t, gva)
+		__field(gpa_t, cr2_or_gpa)
 		__field(u32, error_code)
 		__field(u64 *, sptep)
 		__field(u64, old_spte)
@@ -265,7 +265,7 @@ TRACE_EVENT(
 
 	TP_fast_assign(
 		__entry->vcpu_id = vcpu->vcpu_id;
-		__entry->gva = gva;
+		__entry->cr2_or_gpa = cr2_or_gpa;
 		__entry->error_code = error_code;
 		__entry->sptep = sptep;
 		__entry->old_spte = old_spte;
@@ -273,9 +273,9 @@ TRACE_EVENT(
 		__entry->retry = retry;
 	),
 
-	TP_printk("vcpu %d gva %lx error_code %s sptep %p old %#llx"
+	TP_printk("vcpu %d gva %llx error_code %s sptep %p old %#llx"
 		  " new %llx spurious %d fixed %d", __entry->vcpu_id,
-		  __entry->gva, __print_flags(__entry->error_code, "|",
+		  __entry->cr2_or_gpa, __print_flags(__entry->error_code, "|",
 		  kvm_mmu_trace_pferr_flags), __entry->sptep,
 		  __entry->old_spte, __entry->new_spte,
 		  __spte_satisfied(old_spte), __spte_satisfied(new_spte)
