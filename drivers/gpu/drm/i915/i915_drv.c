@@ -1485,16 +1485,16 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	const struct intel_device_info *match_info =
 		(struct intel_device_info *)ent->driver_data;
-	struct drm_i915_private *dev_priv;
+	struct drm_i915_private *i915;
 	int ret;
 
-	dev_priv = i915_driver_create(pdev, ent);
-	if (IS_ERR(dev_priv))
-		return PTR_ERR(dev_priv);
+	i915 = i915_driver_create(pdev, ent);
+	if (IS_ERR(i915))
+		return PTR_ERR(i915);
 
 	/* Disable nuclear pageflip by default on pre-ILK */
 	if (!i915_modparams.nuclear_pageflip && match_info->gen < 5)
-		dev_priv->drm.driver_features &= ~DRIVER_ATOMIC;
+		i915->drm.driver_features &= ~DRIVER_ATOMIC;
 
 	/*
 	 * Check if we support fake LMEM -- for now we only unleash this for
@@ -1502,13 +1502,13 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 */
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
 	if (IS_ENABLED(CONFIG_DRM_I915_UNSTABLE_FAKE_LMEM)) {
-		if (INTEL_GEN(dev_priv) >= 9 && i915_selftest.live < 0 &&
+		if (INTEL_GEN(i915) >= 9 && i915_selftest.live < 0 &&
 		    i915_modparams.fake_lmem_start) {
-			mkwrite_device_info(dev_priv)->memory_regions =
+			mkwrite_device_info(i915)->memory_regions =
 				REGION_SMEM | REGION_LMEM | REGION_STOLEN;
-			mkwrite_device_info(dev_priv)->is_dgfx = true;
-			GEM_BUG_ON(!HAS_LMEM(dev_priv));
-			GEM_BUG_ON(!IS_DGFX(dev_priv));
+			mkwrite_device_info(i915)->is_dgfx = true;
+			GEM_BUG_ON(!HAS_LMEM(i915));
+			GEM_BUG_ON(!IS_DGFX(i915));
 		}
 	}
 #endif
@@ -1517,48 +1517,48 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret)
 		goto out_fini;
 
-	ret = i915_driver_early_probe(dev_priv);
+	ret = i915_driver_early_probe(i915);
 	if (ret < 0)
 		goto out_pci_disable;
 
-	disable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
+	disable_rpm_wakeref_asserts(&i915->runtime_pm);
 
-	i915_detect_vgpu(dev_priv);
+	i915_detect_vgpu(i915);
 
-	ret = i915_driver_mmio_probe(dev_priv);
+	ret = i915_driver_mmio_probe(i915);
 	if (ret < 0)
 		goto out_runtime_pm_put;
 
-	ret = i915_driver_hw_probe(dev_priv);
+	ret = i915_driver_hw_probe(i915);
 	if (ret < 0)
 		goto out_cleanup_mmio;
 
-	ret = i915_driver_modeset_probe(dev_priv);
+	ret = i915_driver_modeset_probe(i915);
 	if (ret < 0)
 		goto out_cleanup_hw;
 
-	i915_driver_register(dev_priv);
+	i915_driver_register(i915);
 
-	enable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
+	enable_rpm_wakeref_asserts(&i915->runtime_pm);
 
-	i915_welcome_messages(dev_priv);
+	i915_welcome_messages(i915);
 
 	return 0;
 
 out_cleanup_hw:
-	i915_driver_hw_remove(dev_priv);
-	intel_memory_regions_driver_release(dev_priv);
-	i915_ggtt_driver_release(dev_priv);
+	i915_driver_hw_remove(i915);
+	intel_memory_regions_driver_release(i915);
+	i915_ggtt_driver_release(i915);
 out_cleanup_mmio:
-	i915_driver_mmio_release(dev_priv);
+	i915_driver_mmio_release(i915);
 out_runtime_pm_put:
-	enable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
-	i915_driver_late_release(dev_priv);
+	enable_rpm_wakeref_asserts(&i915->runtime_pm);
+	i915_driver_late_release(i915);
 out_pci_disable:
 	pci_disable_device(pdev);
 out_fini:
-	i915_probe_error(dev_priv, "Device initialization failed (%d)\n", ret);
-	i915_driver_destroy(dev_priv);
+	i915_probe_error(i915, "Device initialization failed (%d)\n", ret);
+	i915_driver_destroy(i915);
 	return ret;
 }
 
