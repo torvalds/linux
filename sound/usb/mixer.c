@@ -912,6 +912,15 @@ static int parse_term_proc_unit(struct mixer_build *state,
 	return 0;
 }
 
+static int parse_term_effect_unit(struct mixer_build *state,
+				  struct usb_audio_term *term,
+				  void *p1, int id)
+{
+	term->type = UAC3_EFFECT_UNIT << 16; /* virtual type */
+	term->id = id;
+	return 0;
+}
+
 static int parse_term_uac2_clock_source(struct mixer_build *state,
 					struct usb_audio_term *term,
 					void *p1, int id)
@@ -996,8 +1005,7 @@ static int __check_input_term(struct mixer_build *state, int id,
 						    UAC3_PROCESSING_UNIT);
 		case PTYPE(UAC_VERSION_2, UAC2_EFFECT_UNIT):
 		case PTYPE(UAC_VERSION_3, UAC3_EFFECT_UNIT):
-			return parse_term_proc_unit(state, term, p1, id,
-						    UAC3_EFFECT_UNIT);
+			return parse_term_effect_unit(state, term, p1, id);
 		case PTYPE(UAC_VERSION_1, UAC1_EXTENSION_UNIT):
 		case PTYPE(UAC_VERSION_2, UAC2_EXTENSION_UNIT_V2):
 		case PTYPE(UAC_VERSION_3, UAC3_EXTENSION_UNIT):
