@@ -152,6 +152,33 @@ void pm_qos_remove_request(struct pm_qos_request *req);
 s32 pm_qos_request(int pm_qos_class);
 int pm_qos_request_active(struct pm_qos_request *req);
 
+static inline void cpu_latency_qos_add_request(struct pm_qos_request *req,
+					       s32 value)
+{
+	pm_qos_add_request(req, PM_QOS_CPU_DMA_LATENCY, value);
+}
+
+static inline void cpu_latency_qos_update_request(struct pm_qos_request *req,
+						  s32 new_value)
+{
+	pm_qos_update_request(req, new_value);
+}
+
+static inline void cpu_latency_qos_remove_request(struct pm_qos_request *req)
+{
+	pm_qos_remove_request(req);
+}
+
+static inline bool cpu_latency_qos_request_active(struct pm_qos_request *req)
+{
+	return pm_qos_request_active(req);
+}
+
+static inline s32 cpu_latency_qos_limit(void)
+{
+	return pm_qos_request(PM_QOS_CPU_DMA_LATENCY);
+}
+
 #ifdef CONFIG_PM
 enum pm_qos_flags_status __dev_pm_qos_flags(struct device *dev, s32 mask);
 enum pm_qos_flags_status dev_pm_qos_flags(struct device *dev, s32 mask);
