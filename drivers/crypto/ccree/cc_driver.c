@@ -302,22 +302,12 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	platform_set_drvdata(plat_dev, new_drvdata);
 	new_drvdata->plat_dev = plat_dev;
 
-	clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(clk))
-		switch (PTR_ERR(clk)) {
-		/* Clock is optional so this might be fine */
-		case -ENOENT:
-			break;
-
-		/* Clock not available, let's try again soon */
-		case -EPROBE_DEFER:
-			return -EPROBE_DEFER;
-
-		default:
-			dev_err(dev, "Error getting clock: %ld\n",
-				PTR_ERR(clk));
-			return PTR_ERR(clk);
-		}
+	clk = devm_clk_get_optional(dev, NULL);
+	if (IS_ERR(clk)) {
+		if (PTR_ERR(clk) != -EPROBE_DEFER)
+			dev_err(dev, "Error getting clock: %pe\n", clk);
+		return PTR_ERR(clk);
+	}
 	new_drvdata->clk = clk;
 
 	new_drvdata->coherent = of_dma_is_coherent(np);
@@ -362,7 +352,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		return rc;
 	}
 
-	rc = cc_clk_on(new_drvdata);
+	rc = clk_prepare_enable(new_drvdata->clk);
 	if (rc) {
 		dev_err(dev, "Failed to enable clock");
 		return rc;
@@ -545,7 +535,7 @@ post_debugfs_err:
 post_regs_err:
 	fini_cc_regs(new_drvdata);
 post_clk_err:
-	cc_clk_off(new_drvdata);
+	clk_disable_unprepare(new_drvdata->clk);
 	return rc;
 }
 
@@ -569,23 +559,7 @@ static void cleanup_cc_resources(struct platform_device *plat_dev)
 	cc_fips_fini(drvdata);
 	cc_debugfs_fini(drvdata);
 	fini_cc_regs(drvdata);
-	cc_clk_off(drvdata);
-}
-
-int cc_clk_on(struct cc_drvdata *drvdata)
-{
-	struct clk *clk = drvdata->clk;
-	int rc;
-
-	if (IS_ERR(clk))
-		/* Not all devices have a clock associated with CCREE  */
-		return 0;
-
-	rc = clk_prepare_enable(clk);
-	if (rc)
-		return rc;
-
-	return 0;
+	clk_disable_unprepare(drvdata->clk);
 }
 
 unsigned int cc_get_default_hash_len(struct cc_drvdata *drvdata)
@@ -594,17 +568,6 @@ unsigned int cc_get_default_hash_len(struct cc_drvdata *drvdata)
 		return HASH_LEN_SIZE_712;
 	else
 		return HASH_LEN_SIZE_630;
-}
-
-void cc_clk_off(struct cc_drvdata *drvdata)
-{
-	struct clk *clk = drvdata->clk;
-
-	if (IS_ERR(clk))
-		/* Not all devices have a clock associated with CCREE */
-		return;
-
-	clk_disable_unprepare(clk);
 }
 
 static int ccree_probe(struct platform_device *plat_dev)

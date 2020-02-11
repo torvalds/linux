@@ -212,8 +212,6 @@ static inline void dump_byte_array(const char *name, const u8 *the_array,
 bool cc_wait_for_reset_completion(struct cc_drvdata *drvdata);
 int init_cc_regs(struct cc_drvdata *drvdata, bool is_probe);
 void fini_cc_regs(struct cc_drvdata *drvdata);
-int cc_clk_on(struct cc_drvdata *drvdata);
-void cc_clk_off(struct cc_drvdata *drvdata);
 unsigned int cc_get_default_hash_len(struct cc_drvdata *drvdata);
 
 static inline void cc_iowrite(struct cc_drvdata *drvdata, u32 reg, u32 val)

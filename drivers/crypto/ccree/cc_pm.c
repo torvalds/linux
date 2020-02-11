@@ -26,7 +26,7 @@ int cc_pm_suspend(struct device *dev)
 	dev_dbg(dev, "set HOST_POWER_DOWN_EN\n");
 	fini_cc_regs(drvdata);
 	cc_iowrite(drvdata, CC_REG(HOST_POWER_DOWN_EN), POWER_DOWN_ENABLE);
-	cc_clk_off(drvdata);
+	clk_disable_unprepare(drvdata->clk);
 	return 0;
 }
 
@@ -37,7 +37,7 @@ int cc_pm_resume(struct device *dev)
 
 	dev_dbg(dev, "unset HOST_POWER_DOWN_EN\n");
 	/* Enables the device source clk */
-	rc = cc_clk_on(drvdata);
+	rc = clk_prepare_enable(drvdata->clk);
 	if (rc) {
 		dev_err(dev, "failed getting clock back on. We're toast.\n");
 		return rc;
