@@ -5,14 +5,6 @@
 #include "cc_sram_mgr.h"
 
 /**
- * struct cc_sram_ctx -Internal RAM context manager
- * @sram_free_offset:   the offset to the non-allocated area
- */
-struct cc_sram_ctx {
-	u32 sram_free_offset;
-};
-
-/**
  * cc_sram_mgr_init() - Initializes SRAM pool.
  *      The pool starts right at the beginning of SRAM.
  *      Returns zero for success, negative value otherwise.
@@ -21,7 +13,6 @@ struct cc_sram_ctx {
  */
 int cc_sram_mgr_init(struct cc_drvdata *drvdata)
 {
-	struct cc_sram_ctx *ctx;
 	u32 start = 0;
 	struct device *dev = drvdata_to_dev(drvdata);
 
@@ -34,14 +25,7 @@ int cc_sram_mgr_init(struct cc_drvdata *drvdata)
 		}
 	}
 
-	/* Allocate "this" context */
-	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
-	if (!ctx)
-		return -ENOMEM;
-
-	ctx->sram_free_offset = start;
-	drvdata->sram_mgr_handle = ctx;
-
+	drvdata->sram_free_offset = start;
 	return 0;
 }
 
@@ -53,7 +37,6 @@ int cc_sram_mgr_init(struct cc_drvdata *drvdata)
  */
 u32 cc_sram_alloc(struct cc_drvdata *drvdata, u32 size)
 {
-	struct cc_sram_ctx *smgr_ctx = drvdata->sram_mgr_handle;
 	struct device *dev = drvdata_to_dev(drvdata);
 	u32 p;
 
@@ -62,14 +45,14 @@ u32 cc_sram_alloc(struct cc_drvdata *drvdata, u32 size)
 			size);
 		return NULL_SRAM_ADDR;
 	}
-	if (size > (CC_CC_SRAM_SIZE - smgr_ctx->sram_free_offset)) {
+	if (size > (CC_CC_SRAM_SIZE - drvdata->sram_free_offset)) {
 		dev_err(dev, "Not enough space to allocate %u B (at offset %u)\n",
-			size, smgr_ctx->sram_free_offset);
+			size, drvdata->sram_free_offset);
 		return NULL_SRAM_ADDR;
 	}
 
-	p = smgr_ctx->sram_free_offset;
-	smgr_ctx->sram_free_offset += size;
+	p = drvdata->sram_free_offset;
+	drvdata->sram_free_offset += size;
 	dev_dbg(dev, "Allocated %u B @ %u\n", size, p);
 	return p;
 }
