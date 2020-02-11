@@ -1052,11 +1052,11 @@ static int ath10k_download_fw(struct ath10k *ar)
 	}
 
 	memset(&latency_qos, 0, sizeof(latency_qos));
-	pm_qos_add_request(&latency_qos, PM_QOS_CPU_DMA_LATENCY, 0);
+	cpu_latency_qos_add_request(&latency_qos, 0);
 
 	ret = ath10k_bmi_fast_download(ar, address, data, data_len);
 
-	pm_qos_remove_request(&latency_qos);
+	cpu_latency_qos_remove_request(&latency_qos);
 
 	return ret;
 }
