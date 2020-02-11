@@ -1,10 +1,17 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+/*
+ * Definitions related to Power Management Quality of Service (PM QoS).
+ *
+ * Copyright (C) 2020 Intel Corporation
+ *
+ * Authors:
+ *	Mark Gross <mgross@linux.intel.com>
+ *	Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+ */
+
 #ifndef _LINUX_PM_QOS_H
 #define _LINUX_PM_QOS_H
-/* interface for the pm_qos_power infrastructure of the linux kernel.
- *
- * Mark Gross <mgross@linux.intel.com>
- */
+
 #include <linux/plist.h>
 #include <linux/notifier.h>
 #include <linux/device.h>

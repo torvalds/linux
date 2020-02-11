@@ -1,31 +1,21 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * This module exposes the interface to kernel space for specifying
- * QoS dependencies.  It provides infrastructure for registration of:
+ * Power Management Quality of Service (PM QoS) support base.
  *
- * Dependents on a QoS value : register requests
- * Watchers of QoS value : get notified when target QoS value changes
+ * Copyright (C) 2020 Intel Corporation
  *
- * This QoS design is best effort based.  Dependents register their QoS needs.
- * Watchers register to keep track of the current QoS needs of the system.
+ * Authors:
+ *	Mark Gross <mgross@linux.intel.com>
+ *	Rafael J. Wysocki <rafael.j.wysocki@intel.com>
  *
- * There are 3 basic classes of QoS parameter: latency, timeout, throughput
- * each have defined units:
- * latency: usec
- * timeout: usec <-- currently not used.
- * throughput: kbs (kilo byte / sec)
+ * Provided here is an interface for specifying PM QoS dependencies.  It allows
+ * entities depending on QoS constraints to register their requests which are
+ * aggregated as appropriate to produce effective constraints (target values)
+ * that can be monitored by entities needing to respect them, either by polling
+ * or through a built-in notification mechanism.
  *
- * There are lists of pm_qos_objects each one wrapping requests, notifiers
- *
- * User mode requests on a QOS parameter register themselves to the
- * subsystem by opening the device node /dev/... and writing there request to
- * the node.  As long as the process holds a file handle open to the node the
- * client continues to be accounted for.  Upon file release the usermode
- * request is removed and a new qos target is computed.  This way when the
- * request that the application has is cleaned up when closes the file
- * pointer or exits the pm_qos_object will get an opportunity to clean up.
- *
- * Mark Gross <mgross@linux.intel.com>
+ * In addition to the basic functionality, more specific interfaces for managing
+ * global CPU latency QoS requests and frequency QoS requests are provided.
  */
 
 /*#define DEBUG*/
