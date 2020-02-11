@@ -2,8 +2,9 @@
 /*
  * drivers/media/i2c/smiapp/ccs.h
  *
- * Generic driver for SMIA/SMIA++ compliant camera modules
+ * Generic driver for MIPI CCS/SMIA/SMIA++ compliant camera sensors
  *
+ * Copyright (C) 2020 Intel Corporation
  * Copyright (C) 2010--2012 Nokia Corporation
  * Contact: Sakari Ailus <sakari.ailus@iki.fi>
  */

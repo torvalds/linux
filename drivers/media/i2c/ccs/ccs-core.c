@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * drivers/media/i2c/smiapp/ccs-core.c
+ * drivers/media/i2c/ccs/ccs-core.c
  *
- * Generic driver for SMIA/SMIA++ compliant camera modules
+ * Generic driver for MIPI CCS/SMIA/SMIA++ compliant camera sensors
  *
+ * Copyright (C) 2020 Intel Corporation
  * Copyright (C) 2010--2012 Nokia Corporation
  * Contact: Sakari Ailus <sakari.ailus@iki.fi>
  *
@@ -3298,3 +3299,4 @@ module_exit(ccs_module_cleanup);
 MODULE_AUTHOR("Sakari Ailus <sakari.ailus@iki.fi>");
 MODULE_DESCRIPTION("Generic MIPI CCS/SMIA/SMIA++ camera sensor driver");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("smiapp");

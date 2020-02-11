@@ -1,9 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * include/media/smiapp/ccs-regs.h
+ * include/media/ccs/ccs-reg-access.h
  *
- * Generic driver for SMIA/SMIA++ compliant camera modules
+ * Generic driver for MIPI CCS/SMIA/SMIA++ compliant camera sensors
  *
+ * Copyright (C) 2020 Intel Corporation
  * Copyright (C) 2011--2012 Nokia Corporation
  * Contact: Sakari Ailus <sakari.ailus@iki.fi>
  */
