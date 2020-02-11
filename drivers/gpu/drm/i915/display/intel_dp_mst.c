@@ -480,6 +480,8 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder,
 		intel_ddi_enable_pipe_clock(pipe_config);
 
 	intel_ddi_set_dp_msa(pipe_config, conn_state);
+
+	intel_dp_set_m_n(pipe_config, M1_N1);
 }
 
 static void intel_mst_enable_dp(struct intel_encoder *encoder,

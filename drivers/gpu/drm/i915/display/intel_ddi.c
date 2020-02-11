@@ -3615,10 +3615,11 @@ static void intel_ddi_pre_enable_dp(struct intel_encoder *encoder,
 	/* MST will call a setting of MSA after an allocating of Virtual Channel
 	 * from MST encoder pre_enable callback.
 	 */
-	if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST))
+	if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST)) {
 		intel_ddi_set_dp_msa(crtc_state, conn_state);
 
-	intel_dp_set_m_n(crtc_state, M1_N1);
+		intel_dp_set_m_n(crtc_state, M1_N1);
+	}
 }
 
 static void intel_ddi_pre_enable_hdmi(struct intel_encoder *encoder,
