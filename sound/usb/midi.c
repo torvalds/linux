@@ -91,7 +91,7 @@ struct usb_ms_endpoint_descriptor {
 	__u8  bDescriptorType;
 	__u8  bDescriptorSubtype;
 	__u8  bNumEmbMIDIJack;
-	__u8  baAssocJackID[0];
+	__u8  baAssocJackID[];
 } __attribute__ ((packed));
 
 struct snd_usb_midi_in_endpoint;

@@ -2698,7 +2698,7 @@ struct dsp_image_seg {
 	u32 magic;
 	u32 chip_addr;
 	u32 count;
-	u32 data[0];
+	u32 data[];
 };
 
 static const u32 g_magic_value = 0x4c46584d;
