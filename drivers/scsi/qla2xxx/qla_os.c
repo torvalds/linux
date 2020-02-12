@@ -5775,6 +5775,7 @@ qla25xx_rdp_rsp_reduce_size(struct scsi_qla_host *vha,
 {
 	char fwstr[16];
 	u32 sid = purex->s_id[2] << 16 | purex->s_id[1] << 8 | purex->s_id[0];
+	struct port_database_24xx *pdb;
 
 	/* Domain Controller is always logged-out. */
 	/* if RDP request is not from Domain Controller: */
@@ -5782,6 +5783,24 @@ qla25xx_rdp_rsp_reduce_size(struct scsi_qla_host *vha,
 		return false;
 
 	ql_dbg(ql_dbg_init, vha, 0x0181, "%s: s_id=%#x\n", __func__, sid);
+
+	pdb = kzalloc(sizeof(*pdb), GFP_KERNEL);
+	if (!pdb) {
+		ql_dbg(ql_dbg_init, vha, 0x0181,
+		    "%s: Failed allocate pdb\n", __func__);
+	} else if (qla24xx_get_port_database(vha, purex->nport_handle, pdb)) {
+		ql_dbg(ql_dbg_init, vha, 0x0181,
+		    "%s: Failed get pdb sid=%x\n", __func__, sid);
+	} else if (pdb->current_login_state != PDS_PLOGI_COMPLETE &&
+	    pdb->current_login_state != PDS_PRLI_COMPLETE) {
+		ql_dbg(ql_dbg_init, vha, 0x0181,
+		    "%s: Port not logged in sid=%#x\n", __func__, sid);
+	} else {
+		/* RDP request is from logged in port */
+		kfree(pdb);
+		return false;
+	}
+	kfree(pdb);
 
 	vha->hw->isp_ops->fw_version_str(vha, fwstr, sizeof(fwstr));
 	fwstr[strcspn(fwstr, " ")] = 0;
@@ -5901,7 +5920,6 @@ void qla24xx_process_purex_rdp(struct scsi_qla_host *vha, void *pkt)
 {
 	struct qla_hw_data *ha = vha->hw;
 	struct purex_entry_24xx *purex = pkt;
-	struct port_database_24xx *pdb = NULL;
 	dma_addr_t rsp_els_dma;
 	dma_addr_t rsp_payload_dma;
 	dma_addr_t stat_dma;
@@ -5986,34 +6004,6 @@ void qla24xx_process_purex_rdp(struct scsi_qla_host *vha, void *pkt)
 	rsp_els->rx_address = 0;
 	rsp_els->rx_len = 0;
 
-	if (sizeof(*rsp_payload) <= 0x100)
-		goto accept;
-
-	pdb = kzalloc(sizeof(*pdb), GFP_KERNEL);
-	if (!pdb)
-		goto reduce;
-
-	rval = qla24xx_get_port_database(vha, purex->nport_handle, pdb);
-	if (rval)
-		goto reduce;
-
-	if (pdb->port_id[0] != purex->s_id[2] ||
-	    pdb->port_id[1] != purex->s_id[1] ||
-	    pdb->port_id[2] != purex->s_id[0])
-		goto reduce;
-
-	if (pdb->current_login_state == PDS_PLOGI_COMPLETE ||
-	    pdb->current_login_state == PDS_PRLI_COMPLETE)
-		goto accept;
-
-reduce:
-	ql_dbg(ql_dbg_init, vha, 0x016e, "Requesting port is not logged in.\n");
-	rsp_els->tx_byte_count = rsp_els->tx_len =
-	    offsetof(struct rdp_rsp_payload, buffer_credit_desc);
-	ql_dbg(ql_dbg_init, vha, 0x016f, "Reduced response payload size %u.\n",
-	    rsp_els->tx_byte_count);
-
-accept:
 	/* Prepare Response Payload */
 	rsp_payload->hdr.cmd = cpu_to_be32(0x2 << 24); /* LS_ACC */
 	rsp_payload->hdr.len = cpu_to_be32(
@@ -6130,9 +6120,6 @@ accept:
 	memcpy(rsp_payload->port_name_direct_desc.WWPN,
 	    vha->fabric_port_name,
 	    sizeof(rsp_payload->port_name_direct_desc.WWPN));
-
-	if (rsp_els->tx_byte_count < sizeof(*rsp_payload))
-		goto send;
 
 	if (bbc) {
 		memset(bbc, 0, sizeof(*bbc));
@@ -6333,8 +6320,6 @@ send:
 	}
 
 dealloc:
-	kfree(pdb);
-
 	if (bbc)
 		dma_free_coherent(&ha->pdev->dev, sizeof(*bbc),
 		    bbc, bbc_dma);
