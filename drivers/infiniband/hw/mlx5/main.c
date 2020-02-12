@@ -2283,8 +2283,8 @@ static int mlx5_ib_mmap_offset(struct mlx5_ib_dev *dev,
 
 static u64 mlx5_entry_to_mmap_offset(struct mlx5_user_mmap_entry *entry)
 {
-	u16 cmd = entry->rdma_entry.start_pgoff >> 16;
-	u16 index = entry->rdma_entry.start_pgoff & 0xFFFF;
+	u64 cmd = (entry->rdma_entry.start_pgoff >> 16) & 0xFFFF;
+	u64 index = entry->rdma_entry.start_pgoff & 0xFFFF;
 
 	return (((index >> 8) << 16) | (cmd << MLX5_IB_MMAP_CMD_SHIFT) |
 		(index & 0xFF)) << PAGE_SHIFT;
