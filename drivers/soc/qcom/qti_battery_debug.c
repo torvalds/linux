@@ -20,7 +20,7 @@
 #define BD_QBG_DUMP_REQ		0x36
 
 /* Generic definitions */
-#define MAX_BUF_LEN		(560 * sizeof(u32))
+#define MAX_BUF_LEN		SZ_4K
 #define BD_WAIT_TIME_MS		1000
 
 struct qbg_context_req_msg {
