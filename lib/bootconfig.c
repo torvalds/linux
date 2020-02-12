@@ -6,12 +6,13 @@
 
 #define pr_fmt(fmt)    "bootconfig: " fmt
 
+#include <linux/bootconfig.h>
 #include <linux/bug.h>
 #include <linux/ctype.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
+#include <linux/memblock.h>
 #include <linux/printk.h>
-#include <linux/bootconfig.h>
 #include <linux/string.h>
 
 /*
@@ -23,7 +24,7 @@
  * node (for array).
  */
 
-static struct xbc_node xbc_nodes[XBC_NODE_MAX] __initdata;
+static struct xbc_node *xbc_nodes __initdata;
 static int xbc_node_num __initdata;
 static char *xbc_data __initdata;
 static size_t xbc_data_size __initdata;
@@ -719,7 +720,8 @@ void __init xbc_destroy_all(void)
 	xbc_data = NULL;
 	xbc_data_size = 0;
 	xbc_node_num = 0;
-	memset(xbc_nodes, 0, sizeof(xbc_nodes));
+	memblock_free(__pa(xbc_nodes), sizeof(struct xbc_node) * XBC_NODE_MAX);
+	xbc_nodes = NULL;
 }
 
 /**
@@ -748,6 +750,13 @@ int __init xbc_init(char *buf)
 		return -ERANGE;
 	}
 
+	xbc_nodes = memblock_alloc(sizeof(struct xbc_node) * XBC_NODE_MAX,
+				   SMP_CACHE_BYTES);
+	if (!xbc_nodes) {
+		pr_err("Failed to allocate memory for bootconfig nodes.\n");
+		return -ENOMEM;
+	}
+	memset(xbc_nodes, 0, sizeof(struct xbc_node) * XBC_NODE_MAX);
 	xbc_data = buf;
 	xbc_data_size = ret + 1;
 	last_parent = NULL;
