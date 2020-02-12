@@ -434,6 +434,7 @@ static int imx8mp_clocks_probe(struct platform_device *pdev)
 
 	np = of_find_compatible_node(NULL, NULL, "fsl,imx8mp-anatop");
 	anatop_base = of_iomap(np, 0);
+	of_node_put(np);
 	if (WARN_ON(!anatop_base))
 		return -ENOMEM;
 
