@@ -207,8 +207,13 @@ SYM_FUNC_START(startup_32)
 	cmp	$0, %edi
 	jz	1f
 	leal	efi64_stub_entry(%ebp), %eax
-	movl	%esi, %edx
 	movl	efi32_boot_args+4(%ebp), %esi
+	movl	efi32_boot_args+8(%ebp), %edx	// saved bootparams pointer
+	cmpl	$0, %edx
+	jnz	1f
+	leal	efi_pe_entry(%ebp), %eax
+	movl	%edi, %ecx			// MS calling convention
+	movl	%esi, %edx
 1:
 #endif
 	pushl	%eax
@@ -233,6 +238,8 @@ SYM_FUNC_START(efi32_stub_entry)
 1:	pop	%ebp
 	subl	$1b, %ebp
 
+	movl	%esi, efi32_boot_args+8(%ebp)
+SYM_INNER_LABEL(efi32_pe_stub_entry, SYM_L_LOCAL)
 	movl	%ecx, efi32_boot_args(%ebp)
 	movl	%edx, efi32_boot_args+4(%ebp)
 	movb	$0, efi_is64(%ebp)
@@ -641,8 +648,56 @@ SYM_DATA_START_LOCAL(gdt)
 SYM_DATA_END_LABEL(gdt, SYM_L_LOCAL, gdt_end)
 
 #ifdef CONFIG_EFI_MIXED
-SYM_DATA_LOCAL(efi32_boot_args, .long 0, 0)
+SYM_DATA_LOCAL(efi32_boot_args, .long 0, 0, 0)
 SYM_DATA(efi_is64, .byte 1)
+
+#define ST32_boottime		60 // offsetof(efi_system_table_32_t, boottime)
+#define BS32_handle_protocol	88 // offsetof(efi_boot_services_32_t, handle_protocol)
+#define LI32_image_base		32 // offsetof(efi_loaded_image_32_t, image_base)
+
+	.text
+	.code32
+SYM_FUNC_START(efi32_pe_entry)
+	pushl	%ebp
+
+	call	verify_cpu			// check for long mode support
+	testl	%eax, %eax
+	movl	$0x80000003, %eax		// EFI_UNSUPPORTED
+	jnz	3f
+
+	call	1f
+1:	pop	%ebp
+	subl	$1b, %ebp
+
+	/* Get the loaded image protocol pointer from the image handle */
+	subl	$12, %esp			// space for the loaded image pointer
+	pushl	%esp				// pass its address
+	leal	4f(%ebp), %eax
+	pushl	%eax				// pass the GUID address
+	pushl	28(%esp)			// pass the image handle
+
+	movl	36(%esp), %eax			// sys_table
+	movl	ST32_boottime(%eax), %eax	// sys_table->boottime
+	call	*BS32_handle_protocol(%eax)	// sys_table->boottime->handle_protocol
+	cmp	$0, %eax
+	jnz	2f
+
+	movl	32(%esp), %ecx			// image_handle
+	movl	36(%esp), %edx			// sys_table
+	movl	12(%esp), %esi			// loaded_image
+	movl	LI32_image_base(%esi), %esi	// loaded_image->image_base
+	jmp	efi32_pe_stub_entry
+
+2:	addl	$24, %esp
+3:	popl	%ebp
+	ret
+SYM_FUNC_END(efi32_pe_entry)
+
+	.section ".rodata"
+	/* EFI loaded image protocol GUID */
+4:	.long	0x5B1B31A1
+	.word	0x9562, 0x11d2
+	.byte	0x8E, 0x3F, 0x00, 0xA0, 0xC9, 0x69, 0x72, 0x3B
 #endif
 
 /*

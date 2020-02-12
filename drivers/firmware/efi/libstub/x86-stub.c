@@ -424,21 +424,24 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	hdr->ramdisk_image = 0;
 	hdr->ramdisk_size = 0;
 
-	status = efi_parse_options(cmdline_ptr);
-	if (status != EFI_SUCCESS)
-		goto fail2;
-
-	if (!noinitrd()) {
-		status = efi_load_initrd(image, &ramdisk_addr, &ramdisk_size,
-					 hdr->initrd_addr_max,
-					 above4g ? ULONG_MAX
-						 : hdr->initrd_addr_max);
+	if (efi_is_native()) {
+		status = efi_parse_options(cmdline_ptr);
 		if (status != EFI_SUCCESS)
 			goto fail2;
-		hdr->ramdisk_image = ramdisk_addr & 0xffffffff;
-		hdr->ramdisk_size  = ramdisk_size & 0xffffffff;
-		boot_params->ext_ramdisk_image = (u64)ramdisk_addr >> 32;
-		boot_params->ext_ramdisk_size  = (u64)ramdisk_size >> 32;
+
+		if (!noinitrd()) {
+			status = efi_load_initrd(image, &ramdisk_addr,
+						 &ramdisk_size,
+						 hdr->initrd_addr_max,
+						 above4g ? ULONG_MAX
+							 : hdr->initrd_addr_max);
+			if (status != EFI_SUCCESS)
+				goto fail2;
+			hdr->ramdisk_image = ramdisk_addr & 0xffffffff;
+			hdr->ramdisk_size  = ramdisk_size & 0xffffffff;
+			boot_params->ext_ramdisk_image = (u64)ramdisk_addr >> 32;
+			boot_params->ext_ramdisk_size  = (u64)ramdisk_size >> 32;
+		}
 	}
 
 	efi_stub_entry(handle, sys_table, boot_params);
