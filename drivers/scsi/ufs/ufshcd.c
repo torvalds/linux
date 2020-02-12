@@ -1078,8 +1078,7 @@ static int ufshcd_scale_gear(struct ufs_hba *hba, bool scale_up)
 	}
 
 	/* check if the power mode needs to be changed or not? */
-	ret = ufshcd_change_power_mode(hba, &new_pwr_info);
-
+	ret = ufshcd_config_pwr_mode(hba, &new_pwr_info);
 	if (ret)
 		dev_err(hba->dev, "%s: failed err %d, old gear: (tx %d rx %d), new gear: (tx %d rx %d)",
 			__func__, ret,
@@ -4116,8 +4115,6 @@ int ufshcd_config_pwr_mode(struct ufs_hba *hba,
 		memcpy(&final_params, desired_pwr_mode, sizeof(final_params));
 
 	ret = ufshcd_change_power_mode(hba, &final_params);
-	if (!ret)
-		ufshcd_print_pwr_info(hba);
 
 	return ret;
 }
@@ -7131,6 +7128,7 @@ static int ufshcd_probe_hba(struct ufs_hba *hba, bool async)
 					__func__, ret);
 			goto out;
 		}
+		ufshcd_print_pwr_info(hba);
 	}
 
 	/*
