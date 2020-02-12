@@ -1861,22 +1861,6 @@ void dcn20_populate_dml_writeback_from_context(
 
 }
 
-int get_num_odm_splits(struct pipe_ctx *pipe)
-{
-	int odm_split_count = 0;
-	struct pipe_ctx *next_pipe = pipe->next_odm_pipe;
-	while (next_pipe) {
-		odm_split_count++;
-		next_pipe = next_pipe->next_odm_pipe;
-	}
-	pipe = pipe->prev_odm_pipe;
-	while (pipe) {
-		odm_split_count++;
-		pipe = pipe->prev_odm_pipe;
-	}
-	return odm_split_count;
-}
-
 int dcn20_populate_dml_pipes_from_context(
 		struct dc *dc, struct dc_state *context, display_e2e_pipe_params_st *pipes)
 {

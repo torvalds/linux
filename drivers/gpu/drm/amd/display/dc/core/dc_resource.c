@@ -532,6 +532,22 @@ static inline void get_vp_scan_direction(
 		*flip_horz_scan_dir = !*flip_horz_scan_dir;
 }
 
+int get_num_odm_splits(struct pipe_ctx *pipe)
+{
+	int odm_split_count = 0;
+	struct pipe_ctx *next_pipe = pipe->next_odm_pipe;
+	while (next_pipe) {
+		odm_split_count++;
+		next_pipe = next_pipe->next_odm_pipe;
+	}
+	pipe = pipe->prev_odm_pipe;
+	while (pipe) {
+		odm_split_count++;
+		pipe = pipe->prev_odm_pipe;
+	}
+	return odm_split_count;
+}
+
 static void calculate_split_count_and_index(struct pipe_ctx *pipe_ctx, int *split_count, int *split_idx)
 {
 	*split_count = get_num_odm_splits(pipe_ctx);
