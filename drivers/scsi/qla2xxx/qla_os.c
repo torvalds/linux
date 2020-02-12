@@ -113,7 +113,8 @@ module_param(ql2xfdmienable, int, S_IRUGO|S_IWUSR);
 module_param_named(fdmi, ql2xfdmienable, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(ql2xfdmienable,
 		"Enables FDMI registrations. "
-		"0 - no FDMI. Default is 1 - perform FDMI.");
+		"0 - no FDMI registrations. "
+		"1 - provide FDMI registrations (default).");
 
 #define MAX_Q_DEPTH	64
 static int ql2xmaxqdepth = MAX_Q_DEPTH;
@@ -314,6 +315,13 @@ MODULE_PARM_DESC(ql2xsmartsan,
 		" Default is 0 - No SmartSAN registration,"
 		" 1 - Register SmartSAN Management Attributes.");
 
+int ql2xrdpenable;
+module_param(ql2xrdpenable, int, 0444);
+module_param_named(rdpenable, ql2xrdpenable, int, 0444);
+MODULE_PARM_DESC(ql2xrdpenable,
+		"Enables RDP responses. "
+		"0 - no RDP responses (default). "
+		"1 - provide RDP responses.");
 
 static void qla2x00_clear_drv_active(struct qla_hw_data *);
 static void qla2x00_free_device(scsi_qla_host_t *);

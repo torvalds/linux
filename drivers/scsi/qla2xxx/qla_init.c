@@ -2270,6 +2270,12 @@ qla2x00_initialize_adapter(scsi_qla_host_t *vha)
 	ql_dbg(ql_dbg_init, vha, 0x0078,
 	    "Verifying loaded RISC code...\n");
 
+	/* If smartsan enabled then require fdmi and rdp enabled */
+	if (ql2xsmartsan) {
+		ql2xfdmienable = 1;
+		ql2xrdpenable = 1;
+	}
+
 	if (qla2x00_isp_firmware(vha) != QLA_SUCCESS) {
 		rval = ha->isp_ops->chip_diag(vha);
 		if (rval)
@@ -3710,7 +3716,7 @@ enable_82xx_npiv:
 		}
 
 		/* Enable PUREX PASSTHRU */
-		if (ql2xsmartsan)
+		if (ql2xrdpenable)
 			qla25xx_set_els_cmds_supported(vha);
 	} else
 		goto failed;
@@ -3945,7 +3951,7 @@ qla24xx_update_fw_options(scsi_qla_host_t *vha)
 	}
 
 enable_purex:
-	if (ql2xsmartsan)
+	if (ql2xrdpenable)
 		ha->fw_options[1] |= ADD_FO1_ENABLE_PUREX_IOCB;
 
 	qla2x00_set_fw_options(vha, ha->fw_options);
@@ -8682,7 +8688,7 @@ qla83xx_update_fw_options(scsi_qla_host_t *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
 
-	if (ql2xsmartsan)
+	if (ql2xrdpenable)
 		ha->fw_options[1] |= ADD_FO1_ENABLE_PUREX_IOCB;
 
 	qla2x00_set_fw_options(vha, ha->fw_options);
