@@ -899,10 +899,13 @@ static int ad7192_probe(struct spi_device *spi)
 
 	voltage_uv = regulator_get_voltage(st->avdd);
 
-	if (voltage_uv)
+	if (voltage_uv > 0) {
 		st->int_vref_mv = voltage_uv / 1000;
-	else
+	} else {
+		ret = voltage_uv;
 		dev_err(&spi->dev, "Device tree error, reference voltage undefined\n");
+		goto error_disable_avdd;
+	}
 
 	spi_set_drvdata(spi, indio_dev);
 	st->devid = spi_get_device_id(spi)->driver_data;
