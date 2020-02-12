@@ -46,12 +46,12 @@
 #include "dce100/dce100_resource.h"
 #include "dce110/dce110_resource.h"
 #include "dce112/dce112_resource.h"
+#include "dce120/dce120_resource.h"
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 #include "dcn10/dcn10_resource.h"
-#endif
 #include "dcn20/dcn20_resource.h"
 #include "dcn21/dcn21_resource.h"
-#include "dce120/dce120_resource.h"
+#endif
 
 #define DC_LOGGER_INIT(logger)
 
