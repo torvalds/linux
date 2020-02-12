@@ -11,6 +11,14 @@
 #include <linux/delay.h>
 #include <linux/bsg-lib.h>
 
+static void qla2xxx_free_fcport_work(struct work_struct *work)
+{
+	struct fc_port *fcport = container_of(work, typeof(*fcport),
+	    free_work);
+
+	qla2x00_free_fcport(fcport);
+}
+
 /* BSG support for ELS/CT pass through */
 void qla2x00_bsg_job_done(srb_t *sp, int res)
 {
@@ -53,8 +61,10 @@ void qla2x00_bsg_sp_free(srb_t *sp)
 
 	if (sp->type == SRB_CT_CMD ||
 	    sp->type == SRB_FXIOCB_BCMD ||
-	    sp->type == SRB_ELS_CMD_HST)
-		qla2x00_free_fcport(sp->fcport);
+	    sp->type == SRB_ELS_CMD_HST) {
+		INIT_WORK(&sp->fcport->free_work, qla2xxx_free_fcport_work);
+		queue_work(ha->wq, &sp->fcport->free_work);
+	}
 
 	qla2x00_rel_sp(sp);
 }
