@@ -1488,7 +1488,18 @@ static int smu_disable_dpm(struct smu_context *smu)
 
 	/* For baco, need to leave BACO feature enabled */
 	if (use_baco) {
-		if (smu_feature_is_enabled(smu, SMU_FEATURE_BACO_BIT)) {
+		/*
+		 * Correct the way for checking whether SMU_FEATURE_BACO_BIT
+		 * is supported.
+		 *
+		 * Since 'smu_feature_is_enabled(smu, SMU_FEATURE_BACO_BIT)' will
+		 * always return false as the 'smu_system_features_control(smu, false)'
+		 * was just issued above which disabled all SMU features.
+		 *
+		 * Thus 'smu_feature_get_index(smu, SMU_FEATURE_BACO_BIT)' is used
+		 * now for the checking.
+		 */
+		if (smu_feature_get_index(smu, SMU_FEATURE_BACO_BIT) >= 0) {
 			ret = smu_feature_set_enabled(smu, SMU_FEATURE_BACO_BIT, true);
 			if (ret) {
 				pr_warn("set BACO feature enabled failed, return %d\n", ret);
