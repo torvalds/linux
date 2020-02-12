@@ -197,7 +197,7 @@ void rtw_handle_tkip_mic_err(struct adapter *padapter, u8 bgroup)
 		key_type |= NL80211_KEYTYPE_PAIRWISE;
 	}
 
-	cfg80211_michael_mic_failure(padapter->pnetdev, (u8 *)&pmlmepriv->assoc_bssid[ 0 ], key_type, -1,
+	cfg80211_michael_mic_failure(padapter->pnetdev, (u8 *)&pmlmepriv->assoc_bssid[0], key_type, -1,
 		NULL, GFP_ATOMIC);
 
 	memset(&ev, 0x00, sizeof(ev));
@@ -208,7 +208,7 @@ void rtw_handle_tkip_mic_err(struct adapter *padapter, u8 bgroup)
 	}
 
 	ev.src_addr.sa_family = ARPHRD_ETHER;
-	memcpy(ev.src_addr.sa_data, &pmlmepriv->assoc_bssid[ 0 ], ETH_ALEN);
+	memcpy(ev.src_addr.sa_data, &pmlmepriv->assoc_bssid[0], ETH_ALEN);
 
 	memset(&wrqu, 0x00, sizeof(wrqu));
 	wrqu.data.length = sizeof(ev);
@@ -223,7 +223,7 @@ static void rtw_os_ksocket_send(struct adapter *padapter, union recv_frame *prec
 
 	DBG_871X("eth rx: got eth_type = 0x%x\n", pattrib->eth_type);
 
-	if (psta && psta->isrc && psta->pid>0) {
+	if (psta && psta->isrc && psta->pid > 0) {
 		u16 rx_pid;
 
 		rx_pid = *(u16*)(skb->data+ETH_HLEN);
@@ -239,7 +239,7 @@ static void rtw_os_ksocket_send(struct adapter *padapter, union recv_frame *prec
 			/* DBG_871X("eth, RC: len = 0x%x, ctrl_type = 0x%x\n", len, ctrl_type); */
 			DBG_871X("eth, RC: len = 0x%x\n", len);
 
-			for (i = 0;i<len;i++)
+			for (i = 0; i < len; i++)
 				DBG_871X("0x%x\n", *(skb->data+ETH_HLEN+4+i));
 				/* DBG_871X("0x%x\n", *(skb->data+ETH_HLEN+6+i)); */
 

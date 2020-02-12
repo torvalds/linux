@@ -106,7 +106,7 @@ static void odm_RxPhyStatus92CSeries_Parsing(
 		/*  (2)PWDB, Average PWDB cacluated by hardware (for rate adaptive) */
 		/*  */
 
-		cck_agc_rpt =  pPhyStaRpt->cck_agc_rpt_ofdm_cfosho_a ;
+		cck_agc_rpt = pPhyStaRpt->cck_agc_rpt_ofdm_cfosho_a;
 
 		/* 2011.11.28 LukeLee: 88E use different LNA & VGA gain table */
 		/* The RSSI formula should be modified according to the gain table */

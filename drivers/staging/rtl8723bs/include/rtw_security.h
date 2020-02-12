@@ -208,7 +208,7 @@ struct sha256_state {
 };
 
 #define GET_ENCRY_ALGO(psecuritypriv, psta, encry_algo, bmcst)\
-do{\
+do {\
 	switch (psecuritypriv->dot11AuthAlgrthm)\
 	{\
 		case dot11AuthAlgrthm_Open:\
@@ -220,18 +220,18 @@ do{\
 			if (bmcst)\
 				encry_algo = (u8)psecuritypriv->dot118021XGrpPrivacy;\
 			else\
-				encry_algo =(u8) psta->dot118021XPrivacy;\
+				encry_algo = (u8)psta->dot118021XPrivacy;\
 			break;\
 	     case dot11AuthAlgrthm_WAPI:\
 		     encry_algo = (u8)psecuritypriv->dot11PrivacyAlgrthm;\
 		     break;\
-	}\
-}while (0)
+	} \
+} while (0)
 
 #define _AES_IV_LEN_ 8
 
 #define SET_ICE_IV_LEN(iv_len, icv_len, encrypt)\
-do{\
+do {\
 	switch (encrypt)\
 	{\
 		case _WEP40_:\
@@ -255,19 +255,19 @@ do{\
 			iv_len = 0;\
 			icv_len = 0;\
 			break;\
-	}\
-}while (0)
+	} \
+} while (0)
 
 
 #define GET_TKIP_PN(iv, dot11txpn)\
-do{\
-	dot11txpn._byte_.TSC0 =iv[2];\
-	dot11txpn._byte_.TSC1 =iv[0];\
-	dot11txpn._byte_.TSC2 =iv[4];\
-	dot11txpn._byte_.TSC3 =iv[5];\
-	dot11txpn._byte_.TSC4 =iv[6];\
-	dot11txpn._byte_.TSC5 =iv[7];\
-}while (0)
+do {\
+	dot11txpn._byte_.TSC0 = iv[2];\
+	dot11txpn._byte_.TSC1 = iv[0];\
+	dot11txpn._byte_.TSC2 = iv[4];\
+	dot11txpn._byte_.TSC3 = iv[5];\
+	dot11txpn._byte_.TSC4 = iv[6];\
+	dot11txpn._byte_.TSC5 = iv[7];\
+} while (0)
 
 
 #define ROL32(A, n)	(((A) << (n)) | (((A)>>(32-(n)))  & ((1UL << (n)) - 1)))

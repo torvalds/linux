@@ -146,7 +146,7 @@ static void ConstructBeacon(struct adapter *padapter, u8 *pframe, u32 *pLength)
 	SetFrameSubType(pframe, WIFI_BEACON);
 
 	pframe += sizeof(struct ieee80211_hdr_3addr);
-	pktlen = sizeof (struct ieee80211_hdr_3addr);
+	pktlen = sizeof(struct ieee80211_hdr_3addr);
 
 	/* timestamp will be inserted by hardware */
 	pframe += 8;
@@ -1652,7 +1652,7 @@ static void rtl8723b_set_FwRsvdPagePkt(
 
 	TotalPacketLen = BufIndex-TxDescLen + 256; /* extension memory for FW */
 #else
-	TotalPacketLen = BufIndex-TxDescLen + sizeof (union pn48); /* IV len */
+	TotalPacketLen = BufIndex - TxDescLen + sizeof(union pn48); /* IV len */
 #endif /* CONFIG_GTK_OL */
 	} else
 #endif /* CONFIG_WOWLAN */

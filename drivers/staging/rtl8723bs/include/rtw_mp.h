@@ -154,7 +154,7 @@ typedef struct _MPT_CONTEXT
 	u32 		mptOutLen;
     u8          mptOutBuf[100];
 
-}MPT_CONTEXT, *PMPT_CONTEXT;
+} MPT_CONTEXT, *PMPT_CONTEXT;
 /* endif */
 
 /* E-Fuse */
@@ -276,7 +276,7 @@ typedef struct _IOCMD_STRUCT_ {
 	u8 cmdclass;
 	u16 value;
 	u8 index;
-}IOCMD_STRUCT;
+} IOCMD_STRUCT;
 
 struct rf_reg_param {
 	u32 path;
@@ -315,7 +315,7 @@ extern u8 mpdatarate[NumRates];
 /* MP set force data rate base on the definition. */
 enum MPT_RATE_INDEX {
 	/* CCK rate. */
-	MPT_RATE_1M = 0 ,	/* 0 */
+	MPT_RATE_1M = 0,	/* 0 */
 	MPT_RATE_2M,
 	MPT_RATE_55M,
 	MPT_RATE_11M,	/* 3 */
@@ -473,9 +473,9 @@ void Hal_SetBandwidth(struct adapter *padapter);
 
 void Hal_SetTxPower(struct adapter *padapter);
 void Hal_SetCarrierSuppressionTx(struct adapter *padapter, u8 bStart);
-void Hal_SetSingleToneTx (struct adapter *padapter , u8 bStart);
-void Hal_SetSingleCarrierTx (struct adapter *padapter, u8 bStart);
-void Hal_SetContinuousTx (struct adapter *padapter, u8 bStart);
+void Hal_SetSingleToneTx(struct adapter *padapter, u8 bStart);
+void Hal_SetSingleCarrierTx(struct adapter *padapter, u8 bStart);
+void Hal_SetContinuousTx(struct adapter *padapter, u8 bStart);
 void Hal_SetBandwidth(struct adapter *padapter);
 
 void Hal_SetDataRate(struct adapter *padapter);
@@ -494,8 +494,8 @@ void Hal_TriggerRFThermalMeter(struct adapter *padapter);
 u8 Hal_ReadRFThermalMeter(struct adapter *padapter);
 void Hal_SetCCKContinuousTx(struct adapter *padapter, u8 bStart);
 void Hal_SetOFDMContinuousTx(struct adapter *padapter, u8 bStart);
-void Hal_ProSetCrystalCap (struct adapter *padapter , u32 CrystalCapVal);
-void MP_PHY_SetRFPathSwitch(struct adapter *padapter , bool bMain);
+void Hal_ProSetCrystalCap(struct adapter *padapter, u32 CrystalCapVal);
+void MP_PHY_SetRFPathSwitch(struct adapter *padapter, bool bMain);
 u32 mpt_ProQueryCalTxPower(struct adapter *padapter, u8 RfPath);
 void MPT_PwrCtlDM(struct adapter *padapter, u32 bstart);
 u8 MptToMgntRate(u32 MptRateIdx);
