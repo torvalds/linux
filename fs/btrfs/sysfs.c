@@ -901,6 +901,12 @@ static int addrm_unknown_feature_attrs(struct btrfs_fs_info *fs_info, bool add)
 
 static void __btrfs_sysfs_remove_fsid(struct btrfs_fs_devices *fs_devs)
 {
+	if (fs_devs->devinfo_kobj) {
+		kobject_del(fs_devs->devinfo_kobj);
+		kobject_put(fs_devs->devinfo_kobj);
+		fs_devs->devinfo_kobj = NULL;
+	}
+
 	if (fs_devs->devices_kobj) {
 		kobject_del(fs_devs->devices_kobj);
 		kobject_put(fs_devs->devices_kobj);
@@ -1366,6 +1372,15 @@ int btrfs_sysfs_add_fsid(struct btrfs_fs_devices *fs_devs)
 		btrfs_err(fs_devs->fs_info,
 			  "failed to init sysfs device interface");
 		kobject_put(&fs_devs->fsid_kobj);
+		return -ENOMEM;
+	}
+
+	fs_devs->devinfo_kobj = kobject_create_and_add("devinfo",
+						       &fs_devs->fsid_kobj);
+	if (!fs_devs->devinfo_kobj) {
+		btrfs_err(fs_devs->fs_info,
+			  "failed to init sysfs devinfo kobject");
+		btrfs_sysfs_remove_fsid(fs_devs);
 		return -ENOMEM;
 	}
 

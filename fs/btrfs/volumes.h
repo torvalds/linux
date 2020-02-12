@@ -258,6 +258,7 @@ struct btrfs_fs_devices {
 	/* sysfs kobjects */
 	struct kobject fsid_kobj;
 	struct kobject *devices_kobj;
+	struct kobject *devinfo_kobj;
 	struct completion kobj_unregister;
 };
 
