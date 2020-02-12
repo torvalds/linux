@@ -27,6 +27,7 @@
 #define BC_USB_STATUS_SET		0x33
 #define BC_WLS_STATUS_GET		0x34
 #define BC_WLS_STATUS_SET		0x35
+#define BC_GENERIC_NOTIFY		0x80
 
 /* Generic definitions */
 #define MAX_STR_LEN			128
@@ -410,6 +411,7 @@ static void handle_notification(struct battery_chg_dev *bcdev, void *data,
 
 	switch (notify_msg->notification) {
 	case BC_BATTERY_STATUS_GET:
+	case BC_GENERIC_NOTIFY:
 		pst = &bcdev->psy_list[PSY_TYPE_BATTERY];
 		break;
 	case BC_USB_STATUS_GET:
