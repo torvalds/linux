@@ -181,7 +181,7 @@ fill_cache(unsigned long long buf_size, int malloc_and_init, int memflush,
 		ret = fill_cache_write(start_ptr, end_ptr, resctrl_val);
 
 	if (ret) {
-		printf("\n Errror in fill cache read/write...\n");
+		printf("\n Error in fill cache read/write...\n");
 		return -1;
 	}
 
@@ -205,7 +205,7 @@ int run_fill_buf(unsigned long span, int malloc_and_init_memory,
 	ret = fill_cache(cache_size, malloc_and_init_memory, memflush, op,
 			 resctrl_val);
 	if (ret) {
-		printf("\n Errror in fill cache\n");
+		printf("\n Error in fill cache\n");
 		return -1;
 	}
 
