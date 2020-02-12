@@ -229,18 +229,12 @@ static int mt7615_set_channel(struct mt7615_phy *phy)
 	mutex_lock(&dev->mt76.mutex);
 	set_bit(MT76_RESET, &phy->mt76->state);
 
-	phy->chfreq_seq = (phy->chfreq_seq + 1) & MT_CHFREQ_SEQ;
 	phy->dfs_state = -1;
 	mt76_set_channel(phy->mt76);
 
 	ret = mt7615_mcu_set_chan_info(phy, MCU_EXT_CMD_CHANNEL_SWITCH);
 	if (ret)
 		goto out;
-
-	mt76_wr(dev, MT_CHFREQ(ext_phy),
-		MT_CHFREQ_VALID |
-		(ext_phy * MT_CHFREQ_DBDC_IDX) |
-		phy->chfreq_seq);
 
 	mt7615_mac_set_timing(phy);
 	ret = mt7615_dfs_init_radar_detector(phy);
@@ -249,6 +243,7 @@ static int mt7615_set_channel(struct mt7615_phy *phy)
 
 	mt7615_mac_reset_counters(dev);
 	phy->noise = 0;
+	phy->chfreq = mt76_rr(dev, MT_CHFREQ(ext_phy));
 
 out:
 	clear_bit(MT76_RESET, &phy->mt76->state);

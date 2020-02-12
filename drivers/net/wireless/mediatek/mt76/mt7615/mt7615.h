@@ -134,7 +134,7 @@ struct mt7615_phy {
 	s16 coverage_class;
 	u8 slottime;
 
-	u8 chfreq_seq;
+	u8 chfreq;
 	u8 rdd_state;
 	int dfs_state;
 

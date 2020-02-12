@@ -169,36 +169,32 @@ int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
 	struct mt76_phy *mphy = &dev->mt76.phy;
 	struct mt7615_phy *phy = &dev->phy;
+	struct mt7615_phy *phy2 = dev->mt76.phy2 ? dev->mt76.phy2->priv : NULL;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_hdr *hdr;
 	__le32 *rxd = (__le32 *)skb->data;
 	u32 rxd0 = le32_to_cpu(rxd[0]);
 	u32 rxd1 = le32_to_cpu(rxd[1]);
 	u32 rxd2 = le32_to_cpu(rxd[2]);
+	__le32 rxd12 = rxd[12];
 	bool unicast, remove_pad, insert_ccmp_hdr = false;
+	int phy_idx;
 	int i, idx;
 	u8 chfreq;
 
 	memset(status, 0, sizeof(*status));
 
 	chfreq = FIELD_GET(MT_RXD1_NORMAL_CH_FREQ, rxd1);
-	if (!(chfreq & MT_CHFREQ_VALID))
-		return -EINVAL;
-
-	if (chfreq & MT_CHFREQ_DBDC_IDX) {
-		mphy = dev->mt76.phy2;
-		if (!mphy)
-			return -EINVAL;
-
-		phy = mphy->priv;
-		status->ext_phy = true;
-	}
-
-	if ((chfreq & MT_CHFREQ_SEQ) != phy->chfreq_seq)
-		return -EINVAL;
-
-	if (!test_bit(MT76_STATE_RUNNING, &mphy->state))
-		return -EINVAL;
+	if (!phy2)
+		phy_idx = 0;
+	else if (phy2->chfreq == phy->chfreq)
+		phy_idx = -1;
+	else if (phy->chfreq == chfreq)
+		phy_idx = 0;
+	else if (phy2->chfreq == chfreq)
+		phy_idx = 1;
+	else
+		phy_idx = -1;
 
 	unicast = (rxd1 & MT_RXD1_NORMAL_ADDR_TYPE) == MT_RXD1_NORMAL_U2M;
 	idx = FIELD_GET(MT_RXD2_NORMAL_WLAN_IDX, rxd2);
@@ -214,13 +210,6 @@ int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 		spin_unlock_bh(&dev->sta_poll_lock);
 	}
 
-	status->freq = mphy->chandef.chan->center_freq;
-	status->band = mphy->chandef.chan->band;
-	if (status->band == NL80211_BAND_5GHZ)
-		sband = &mphy->sband_5g.sband;
-	else
-		sband = &mphy->sband_2g.sband;
-
 	if (rxd2 & MT_RXD2_NORMAL_FCS_ERR)
 		status->flag |= RX_FLAG_FAILED_FCS_CRC;
 
@@ -234,26 +223,9 @@ int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 		status->flag |= RX_FLAG_MMIC_STRIPPED | RX_FLAG_MIC_STRIPPED;
 	}
 
-	if (!(rxd2 & (MT_RXD2_NORMAL_NON_AMPDU_SUB |
-		      MT_RXD2_NORMAL_NON_AMPDU))) {
-		status->flag |= RX_FLAG_AMPDU_DETAILS;
-
-		/* all subframes of an A-MPDU have the same timestamp */
-		if (phy->rx_ampdu_ts != rxd[12]) {
-			if (!++phy->ampdu_ref)
-				phy->ampdu_ref++;
-		}
-		phy->rx_ampdu_ts = rxd[12];
-
-		status->ampdu_ref = phy->ampdu_ref;
-	}
-
 	remove_pad = rxd1 & MT_RXD1_NORMAL_HDR_OFFSET;
 
 	if (rxd2 & MT_RXD2_NORMAL_MAX_LEN_ERROR)
-		return -EINVAL;
-
-	if (!sband->channels)
 		return -EINVAL;
 
 	rxd += 4;
@@ -285,6 +257,59 @@ int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 		rxd += 2;
 		if ((u8 *)rxd - skb->data >= skb->len)
 			return -EINVAL;
+	}
+
+	if (rxd0 & MT_RXD0_NORMAL_GROUP_3) {
+		u32 rxdg5 = le32_to_cpu(rxd[5]);
+
+		/*
+		 * If both PHYs are on the same channel and we don't have a WCID,
+		 * we need to figure out which PHY this packet was received on.
+		 * On the primary PHY, the noise value for the chains belonging to the
+		 * second PHY will be set to the noise value of the last packet from
+		 * that PHY.
+		 */
+		if (phy_idx < 0) {
+			int first_chain = ffs(phy2->chainmask) - 1;
+
+			phy_idx = ((rxdg5 >> (first_chain * 8)) & 0xff) == 0;
+		}
+	}
+
+	if (phy_idx == 1 && phy2) {
+		mphy = dev->mt76.phy2;
+		phy = phy2;
+		status->ext_phy = true;
+	}
+
+	if (chfreq != phy->chfreq)
+		return -EINVAL;
+
+	status->freq = mphy->chandef.chan->center_freq;
+	status->band = mphy->chandef.chan->band;
+	if (status->band == NL80211_BAND_5GHZ)
+		sband = &mphy->sband_5g.sband;
+	else
+		sband = &mphy->sband_2g.sband;
+
+	if (!test_bit(MT76_STATE_RUNNING, &mphy->state))
+		return -EINVAL;
+
+	if (!sband->channels)
+		return -EINVAL;
+
+	if (!(rxd2 & (MT_RXD2_NORMAL_NON_AMPDU_SUB |
+		      MT_RXD2_NORMAL_NON_AMPDU))) {
+		status->flag |= RX_FLAG_AMPDU_DETAILS;
+
+		/* all subframes of an A-MPDU have the same timestamp */
+		if (phy->rx_ampdu_ts != rxd12) {
+			if (!++phy->ampdu_ref)
+				phy->ampdu_ref++;
+		}
+		phy->rx_ampdu_ts = rxd12;
+
+		status->ampdu_ref = phy->ampdu_ref;
 	}
 
 	if (rxd0 & MT_RXD0_NORMAL_GROUP_3) {
@@ -340,14 +365,14 @@ int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 
 		status->enc_flags |= RX_ENC_FLAG_STBC_MASK * stbc;
 
-		status->chains = dev->mphy.antenna_mask;
+		status->chains = mphy->antenna_mask;
 		status->chain_signal[0] = to_rssi(MT_RXV4_RCPI0, rxdg3);
 		status->chain_signal[1] = to_rssi(MT_RXV4_RCPI1, rxdg3);
 		status->chain_signal[2] = to_rssi(MT_RXV4_RCPI2, rxdg3);
 		status->chain_signal[3] = to_rssi(MT_RXV4_RCPI3, rxdg3);
 		status->signal = status->chain_signal[0];
 
-		for (i = 1; i < hweight8(dev->mphy.antenna_mask); i++) {
+		for (i = 1; i < hweight8(mphy->antenna_mask); i++) {
 			if (!(status->chains & BIT(i)))
 				continue;
 
