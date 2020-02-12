@@ -1558,7 +1558,8 @@ again:
 						checksums_ptr - checksums, !dio->write ? TAG_CMP : TAG_WRITE);
 			if (unlikely(r)) {
 				if (r > 0) {
-					DMERR_LIMIT("Checksum failed at sector 0x%llx",
+					char b[BDEVNAME_SIZE];
+					DMERR_LIMIT("%s: Checksum failed at sector 0x%llx", bio_devname(bio, b),
 						    (unsigned long long)(sector - ((r + ic->tag_size - 1) / ic->tag_size)));
 					r = -EILSEQ;
 					atomic64_inc(&ic->number_of_mismatches);
