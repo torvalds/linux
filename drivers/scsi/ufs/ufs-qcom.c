@@ -896,6 +896,20 @@ static int ufs_qcom_pwr_change_notify(struct ufs_hba *hba,
 		if (!ufshcd_is_hs_mode(&hba->pwr_info) &&
 			ufshcd_is_hs_mode(dev_req_params))
 			ufs_qcom_dev_ref_clk_ctrl(host, true);
+
+		if (host->hw_ver.major >= 0x4) {
+			if (dev_req_params->gear_tx == UFS_HS_G4) {
+				/* INITIAL ADAPT */
+				ufshcd_dme_set(hba,
+					       UIC_ARG_MIB(PA_TXHSADAPTTYPE),
+					       PA_INITIAL_ADAPT);
+			} else {
+				/* NO ADAPT */
+				ufshcd_dme_set(hba,
+					       UIC_ARG_MIB(PA_TXHSADAPTTYPE),
+					       PA_NO_ADAPT);
+			}
+		}
 		break;
 	case POST_CHANGE:
 		if (ufs_qcom_cfg_timers(hba, dev_req_params->gear_rx,
