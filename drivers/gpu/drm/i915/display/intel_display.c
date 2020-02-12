@@ -4494,10 +4494,15 @@ static void skl_detach_scaler(struct intel_crtc *intel_crtc, int id)
 {
 	struct drm_device *dev = intel_crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
+	unsigned long irqflags;
 
-	intel_de_write(dev_priv, SKL_PS_CTRL(intel_crtc->pipe, id), 0);
-	intel_de_write(dev_priv, SKL_PS_WIN_POS(intel_crtc->pipe, id), 0);
-	intel_de_write(dev_priv, SKL_PS_WIN_SZ(intel_crtc->pipe, id), 0);
+	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
+
+	intel_de_write_fw(dev_priv, SKL_PS_CTRL(intel_crtc->pipe, id), 0);
+	intel_de_write_fw(dev_priv, SKL_PS_WIN_POS(intel_crtc->pipe, id), 0);
+	intel_de_write_fw(dev_priv, SKL_PS_WIN_SZ(intel_crtc->pipe, id), 0);
+
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
 /*
@@ -6234,6 +6239,7 @@ static void skl_pfit_enable(const struct intel_crtc_state *crtc_state)
 	if (crtc_state->pch_pfit.enabled) {
 		u16 uv_rgb_hphase, uv_rgb_vphase;
 		int pfit_w, pfit_h, hscale, vscale;
+		unsigned long irqflags;
 		int id;
 
 		if (WARN_ON(crtc_state->scaler_state.scaler_id < 0))
@@ -6249,16 +6255,21 @@ static void skl_pfit_enable(const struct intel_crtc_state *crtc_state)
 		uv_rgb_vphase = skl_scaler_calc_phase(1, vscale, false);
 
 		id = scaler_state->scaler_id;
-		intel_de_write(dev_priv, SKL_PS_CTRL(pipe, id),
-			       PS_SCALER_EN | PS_FILTER_MEDIUM | scaler_state->scalers[id].mode);
+
+		spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
+
+		intel_de_write_fw(dev_priv, SKL_PS_CTRL(pipe, id), PS_SCALER_EN |
+				  PS_FILTER_MEDIUM | scaler_state->scalers[id].mode);
 		intel_de_write_fw(dev_priv, SKL_PS_VPHASE(pipe, id),
 				  PS_Y_PHASE(0) | PS_UV_RGB_PHASE(uv_rgb_vphase));
 		intel_de_write_fw(dev_priv, SKL_PS_HPHASE(pipe, id),
 				  PS_Y_PHASE(0) | PS_UV_RGB_PHASE(uv_rgb_hphase));
-		intel_de_write(dev_priv, SKL_PS_WIN_POS(pipe, id),
-			       crtc_state->pch_pfit.pos);
-		intel_de_write(dev_priv, SKL_PS_WIN_SZ(pipe, id),
-			       crtc_state->pch_pfit.size);
+		intel_de_write_fw(dev_priv, SKL_PS_WIN_POS(pipe, id),
+				  crtc_state->pch_pfit.pos);
+		intel_de_write_fw(dev_priv, SKL_PS_WIN_SZ(pipe, id),
+				  crtc_state->pch_pfit.size);
+
+		spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 	}
 }
 
