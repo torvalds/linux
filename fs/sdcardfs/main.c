@@ -46,15 +46,15 @@ static const struct fs_parameter_spec sdcardfs_fs_specs[] = {
 	fsparam_u32("fsuid", Opt_fsuid),
 	fsparam_u32("fsgid", Opt_fsgid),
 	fsparam_u32("gid", Opt_gid),
-	fsparam_bool("debug", Opt_debug),
+	fsparam_flag("debug", Opt_debug),
 	fsparam_u32("mask", Opt_mask),
 	fsparam_u32("userid", Opt_userid),
-	fsparam_bool("multiuser", Opt_multiuser),
-	fsparam_bool("derive_gid", Opt_gid_derivation),
-	fsparam_bool("default_normal", Opt_default_normal),
-	fsparam_bool("unshared_obb", Opt_unshared_obb),
+	fsparam_flag("multiuser", Opt_multiuser),
+	fsparam_flag("derive_gid", Opt_gid_derivation),
+	fsparam_flag("default_normal", Opt_default_normal),
+	fsparam_flag("unshared_obb", Opt_unshared_obb),
 	fsparam_u32("reserved_mb", Opt_reserved_mb),
-	fsparam_bool("nocache", Opt_nocache),
+	fsparam_flag("nocache", Opt_nocache),
 	{}
 };
 
