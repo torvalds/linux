@@ -33,6 +33,7 @@ config CRYPTO_DEV_FSL_CAAM_DEBUG
 
 menuconfig CRYPTO_DEV_FSL_CAAM_JR
 	tristate "Freescale CAAM Job Ring driver backend"
+	select CRYPTO_ENGINE
 	default y
 	help
 	  Enables the driver module for Job Rings which are part of

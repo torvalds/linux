@@ -11,6 +11,7 @@
 #define INTERN_H
 
 #include "ctrl.h"
+#include <crypto/engine.h>
 
 /* Currently comes from Kconfig param as a ^2 (driver-required) */
 #define JOBR_DEPTH (1 << CONFIG_CRYPTO_DEV_FSL_CAAM_RINGSIZE)
@@ -60,6 +61,7 @@ struct caam_drv_private_jr {
 	int out_ring_read_index;	/* Output index "tail" */
 	int tail;			/* entinfo (s/w ring) tail index */
 	void *outring;			/* Base of output ring, DMA-safe */
+	struct crypto_engine *engine;
 };
 
 /*
