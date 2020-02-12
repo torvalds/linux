@@ -523,6 +523,9 @@ int nv_set_ip_blocks(struct amdgpu_device *adev)
 		if (adev->enable_mes)
 			amdgpu_device_ip_block_add(adev, &mes_v10_1_ip_block);
 		break;
+	case CHIP_NAVY_FLOUNDER:
+		amdgpu_device_ip_block_add(adev, &nv_common_ip_block);
+		break;
 	default:
 		return -EINVAL;
 	}
