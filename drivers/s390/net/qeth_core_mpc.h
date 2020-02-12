@@ -53,6 +53,16 @@ static inline bool qeth_ipa_caps_enabled(struct qeth_ipa_caps *caps, u32 mask)
 	return (caps->enabled & mask) == mask;
 }
 
+#define qeth_adp_supported(c, f) \
+	qeth_ipa_caps_supported(&c->options.adp, f)
+#define qeth_is_supported(c, f) \
+	qeth_ipa_caps_supported(&c->options.ipa4, f)
+#define qeth_is_supported6(c, f) \
+	qeth_ipa_caps_supported(&c->options.ipa6, f)
+#define qeth_is_ipafunc_supported(c, prot, f) \
+	 ((prot == QETH_PROT_IPV6) ? qeth_is_supported6(c, f) : \
+				     qeth_is_supported(c, f))
+
 enum qeth_card_types {
 	QETH_CARD_TYPE_OSD     = 1,
 	QETH_CARD_TYPE_IQD     = 5,
@@ -338,14 +348,14 @@ enum qeth_card_info_port_speed {
 
 /* (SET)DELIP(M) IPA stuff ***************************************************/
 struct qeth_ipacmd_setdelip4 {
-	__u8   ip_addr[4];
-	__u8   mask[4];
+	__be32 addr;
+	__be32 mask;
 	__u32  flags;
 } __attribute__ ((packed));
 
 struct qeth_ipacmd_setdelip6 {
-	__u8   ip_addr[16];
-	__u8   mask[16];
+	struct in6_addr addr;
+	struct in6_addr prefix;
 	__u32  flags;
 } __attribute__ ((packed));
 
@@ -766,8 +776,7 @@ struct qeth_ipacmd_hdr {
 	__u8   prim_version_no;
 	__u8   param_count;
 	__u16  prot_version;
-	__u32  ipa_supported;
-	__u32  ipa_enabled;
+	struct qeth_ipa_caps assists;
 } __attribute__ ((packed));
 
 /* The IPA command itself */

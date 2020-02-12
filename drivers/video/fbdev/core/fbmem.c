@@ -54,7 +54,8 @@ int num_registered_fb __read_mostly;
 EXPORT_SYMBOL(num_registered_fb);
 
 bool fb_center_logo __read_mostly;
-EXPORT_SYMBOL(fb_center_logo);
+
+int fb_logo_count __read_mostly = -1;
 
 static struct fb_info *get_fb_info(unsigned int idx)
 {
@@ -620,7 +621,7 @@ int fb_prepare_logo(struct fb_info *info, int rotate)
 	memset(&fb_logo, 0, sizeof(struct logo_data));
 
 	if (info->flags & FBINFO_MISC_TILEBLITTING ||
-	    info->fbops->owner)
+	    info->fbops->owner || !fb_logo_count)
 		return 0;
 
 	if (info->fix.visual == FB_VISUAL_DIRECTCOLOR) {
@@ -686,10 +687,14 @@ int fb_prepare_logo(struct fb_info *info, int rotate)
 
 int fb_show_logo(struct fb_info *info, int rotate)
 {
+	unsigned int count;
 	int y;
 
-	y = fb_show_logo_line(info, rotate, fb_logo.logo, 0,
-			      num_online_cpus());
+	if (!fb_logo_count)
+		return 0;
+
+	count = fb_logo_count < 0 ? num_online_cpus() : fb_logo_count;
+	y = fb_show_logo_line(info, rotate, fb_logo.logo, 0, count);
 	y = fb_show_extra_logos(info, y, rotate);
 
 	return y;
@@ -1079,7 +1084,7 @@ EXPORT_SYMBOL(fb_blank);
 static long do_fb_ioctl(struct fb_info *info, unsigned int cmd,
 			unsigned long arg)
 {
-	struct fb_ops *fb;
+	const struct fb_ops *fb;
 	struct fb_var_screeninfo var;
 	struct fb_fix_screeninfo fix;
 	struct fb_cmap cmap_from;
@@ -1292,7 +1297,7 @@ static long fb_compat_ioctl(struct file *file, unsigned int cmd,
 			    unsigned long arg)
 {
 	struct fb_info *info = file_fb_info(file);
-	struct fb_ops *fb;
+	const struct fb_ops *fb;
 	long ret = -ENOIOCTLCMD;
 
 	if (!info)
@@ -1332,16 +1337,23 @@ static int
 fb_mmap(struct file *file, struct vm_area_struct * vma)
 {
 	struct fb_info *info = file_fb_info(file);
-	struct fb_ops *fb;
+	int (*fb_mmap_fn)(struct fb_info *info, struct vm_area_struct *vma);
 	unsigned long mmio_pgoff;
 	unsigned long start;
 	u32 len;
 
 	if (!info)
 		return -ENODEV;
-	fb = info->fbops;
 	mutex_lock(&info->mm_lock);
-	if (fb->fb_mmap) {
+
+	fb_mmap_fn = info->fbops->fb_mmap;
+
+#if IS_ENABLED(CONFIG_FB_DEFERRED_IO)
+	if (info->fbdefio)
+		fb_mmap_fn = fb_deferred_io_mmap;
+#endif
+
+	if (fb_mmap_fn) {
 		int res;
 
 		/*
@@ -1349,7 +1361,7 @@ fb_mmap(struct file *file, struct vm_area_struct * vma)
 		 * SME protection is removed ahead of the call
 		 */
 		vma->vm_page_prot = pgprot_decrypted(vma->vm_page_prot);
-		res = fb->fb_mmap(info, vma);
+		res = fb_mmap_fn(info, vma);
 		mutex_unlock(&info->mm_lock);
 		return res;
 	}
@@ -1673,7 +1685,7 @@ static void unbind_console(struct fb_info *fb_info)
 	console_unlock();
 }
 
-void unlink_framebuffer(struct fb_info *fb_info)
+static void unlink_framebuffer(struct fb_info *fb_info)
 {
 	int i;
 
@@ -1692,7 +1704,6 @@ void unlink_framebuffer(struct fb_info *fb_info)
 
 	fb_info->dev = NULL;
 }
-EXPORT_SYMBOL(unlink_framebuffer);
 
 static void do_unregister_framebuffer(struct fb_info *fb_info)
 {

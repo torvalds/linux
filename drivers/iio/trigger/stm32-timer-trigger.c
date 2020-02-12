@@ -297,9 +297,6 @@ static ssize_t stm32_tt_store_master_mode(struct device *dev,
 			     strlen(master_mode_table[i]))) {
 			regmap_update_bits(priv->regmap, TIM_CR2, mask,
 					   i << shift);
-			/* Make sure that registers are updated */
-			regmap_update_bits(priv->regmap, TIM_EGR,
-					   TIM_EGR_UG, TIM_EGR_UG);
 			return len;
 		}
 	}

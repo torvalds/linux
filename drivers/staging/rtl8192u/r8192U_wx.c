@@ -23,7 +23,7 @@
 #include "r8192U.h"
 #include "r8192U_hw.h"
 
-#include "dot11d.h"
+#include "ieee80211/dot11d.h"
 #include "r8192U_wx.h"
 
 #define RATE_COUNT 12

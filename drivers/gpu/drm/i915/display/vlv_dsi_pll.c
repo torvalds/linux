@@ -117,7 +117,7 @@ int vlv_dsi_pll_compute(struct intel_encoder *encoder,
 			struct intel_crtc_state *config)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	int ret;
 	u32 dsi_clk;
 
@@ -255,7 +255,7 @@ u32 vlv_dsi_get_pclk(struct intel_encoder *encoder,
 		     struct intel_crtc_state *config)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	int bpp = mipi_dsi_pixel_format_to_bpp(intel_dsi->pixel_format);
 	u32 dsi_clock, pclk;
 	u32 pll_ctl, pll_div;
@@ -321,7 +321,7 @@ u32 bxt_dsi_get_pclk(struct intel_encoder *encoder,
 	u32 pclk;
 	u32 dsi_clk;
 	u32 dsi_ratio;
-	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	int bpp = mipi_dsi_pixel_format_to_bpp(intel_dsi->pixel_format);
 
@@ -341,7 +341,7 @@ void vlv_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
 {
 	u32 temp;
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 
 	temp = I915_READ(MIPI_CTRL(port));
 	temp &= ~ESCAPE_CLOCK_DIVIDER_MASK;
@@ -455,7 +455,7 @@ int bxt_dsi_pll_compute(struct intel_encoder *encoder,
 			struct intel_crtc_state *config)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	u8 dsi_ratio, dsi_ratio_min, dsi_ratio_max;
 	u32 dsi_clk;
 
@@ -503,7 +503,7 @@ void bxt_dsi_pll_enable(struct intel_encoder *encoder,
 			const struct intel_crtc_state *config)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	enum port port;
 	u32 val;
 

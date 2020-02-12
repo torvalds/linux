@@ -30,6 +30,7 @@ struct sja1105_ptp_cmd {
 };
 
 struct sja1105_ptp_data {
+	struct sk_buff_head skb_rxtstamp_queue;
 	struct ptp_clock_info caps;
 	struct ptp_clock *clock;
 	struct sja1105_ptp_cmd cmd;

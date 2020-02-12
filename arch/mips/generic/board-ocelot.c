@@ -51,7 +51,7 @@ static void __init ocelot_earlyprintk_init(void)
 {
 	void __iomem *uart_base;
 
-	uart_base = ioremap_nocache(UART_UART, 0x20);
+	uart_base = ioremap(UART_UART, 0x20);
 	setup_8250_early_printk_port((unsigned long)uart_base, 2, 50000);
 }
 

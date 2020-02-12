@@ -3,7 +3,7 @@
  *
  * Module Name: exfield - AML execution - field_unit read/write
  *
- * Copyright (C) 2000 - 2019, Intel Corp.
+ * Copyright (C) 2000 - 2020, Intel Corp.
  *
  *****************************************************************************/
 
@@ -96,7 +96,8 @@ acpi_ex_get_protocol_buffer_length(u32 protocol_id, u32 *return_length)
  * RETURN:      Status
  *
  * DESCRIPTION: Read from a named field. Returns either an Integer or a
- *              Buffer, depending on the size of the field.
+ *              Buffer, depending on the size of the field and whether if a
+ *              field is created by the create_field() operator.
  *
  ******************************************************************************/
 
@@ -154,12 +155,17 @@ acpi_ex_read_data_from_field(struct acpi_walk_state *walk_state,
 	 * the use of arithmetic operators on the returned value if the
 	 * field size is equal or smaller than an Integer.
 	 *
+	 * However, all buffer fields created by create_field operator needs to
+	 * remain as a buffer to match other AML interpreter implementations.
+	 *
 	 * Note: Field.length is in bits.
 	 */
 	buffer_length =
 	    (acpi_size)ACPI_ROUND_BITS_UP_TO_BYTES(obj_desc->field.bit_length);
 
-	if (buffer_length > acpi_gbl_integer_byte_width) {
+	if (buffer_length > acpi_gbl_integer_byte_width ||
+	    (obj_desc->common.type == ACPI_TYPE_BUFFER_FIELD &&
+	     obj_desc->buffer_field.is_create_field)) {
 
 		/* Field is too large for an Integer, create a Buffer instead */
 

@@ -74,7 +74,8 @@ int register_filesystem(struct file_system_type * fs)
 	int res = 0;
 	struct file_system_type ** p;
 
-	if (fs->parameters && !fs_validate_description(fs->parameters))
+	if (fs->parameters &&
+	    !fs_validate_description(fs->name, fs->parameters))
 		return -EINVAL;
 
 	BUG_ON(strchr(fs->name, '.'));

@@ -58,6 +58,21 @@ config MB1232
 	  To compile this driver as a module, choose M here: the
 	  module will be called mb1232.
 
+config PING
+	tristate "Parallax GPIO bitbanged ranger sensors"
+	depends on GPIOLIB
+	help
+	  Say Y here to build a driver for GPIO bitbanged ranger sensors
+	  with just one GPIO for the trigger and echo. This driver can be
+	  used to measure the distance of objects.
+
+	  Actually supported are:
+	  - Parallax PING))) (ultrasonic)
+	  - Parallax LaserPING (time-of-flight)
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ping.
+
 config RFD77402
 	tristate "RFD77402 ToF sensor"
 	depends on I2C

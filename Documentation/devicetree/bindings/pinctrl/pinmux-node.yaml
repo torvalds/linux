@@ -114,7 +114,7 @@ properties:
       specific binding for the hardware defines whether the entries are integers
       or strings, and their meaning.
 
-  group:
+  groups:
     $ref: /schemas/types.yaml#/definitions/string-array
     description:
       the group to apply the properties to, if the driver supports

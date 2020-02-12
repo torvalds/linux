@@ -94,11 +94,11 @@ extern void ioport_unmap(void __iomem *);
 #endif
 
 #ifndef ARCH_HAS_IOREMAP_WC
-#define ioremap_wc ioremap_nocache
+#define ioremap_wc ioremap
 #endif
 
 #ifndef ARCH_HAS_IOREMAP_WT
-#define ioremap_wt ioremap_nocache
+#define ioremap_wt ioremap
 #endif
 
 #ifdef CONFIG_PCI

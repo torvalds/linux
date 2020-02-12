@@ -1640,7 +1640,7 @@ static int initio_state_6(struct initio_host * host)
  *
  */
 
-int initio_state_7(struct initio_host * host)
+static int initio_state_7(struct initio_host * host)
 {
 	int cnt, i;
 

@@ -336,12 +336,13 @@ static inline int st_lsm6dsx_read_block(struct st_lsm6dsx_hw *hw, u8 addr,
  */
 int st_lsm6dsx_read_fifo(struct st_lsm6dsx_hw *hw)
 {
+	struct st_lsm6dsx_sensor *acc_sensor, *gyro_sensor, *ext_sensor = NULL;
+	int err, acc_sip, gyro_sip, ts_sip, ext_sip, read_len, offset;
 	u16 fifo_len, pattern_len = hw->sip * ST_LSM6DSX_SAMPLE_SIZE;
 	u16 fifo_diff_mask = hw->settings->fifo_ops.fifo_diff.mask;
-	int err, acc_sip, gyro_sip, ts_sip, read_len, offset;
-	struct st_lsm6dsx_sensor *acc_sensor, *gyro_sensor;
 	u8 gyro_buff[ST_LSM6DSX_IIO_BUFF_SIZE];
 	u8 acc_buff[ST_LSM6DSX_IIO_BUFF_SIZE];
+	u8 ext_buff[ST_LSM6DSX_IIO_BUFF_SIZE];
 	bool reset_ts = false;
 	__le16 fifo_status;
 	s64 ts = 0;
@@ -364,6 +365,8 @@ int st_lsm6dsx_read_fifo(struct st_lsm6dsx_hw *hw)
 
 	acc_sensor = iio_priv(hw->iio_devs[ST_LSM6DSX_ID_ACC]);
 	gyro_sensor = iio_priv(hw->iio_devs[ST_LSM6DSX_ID_GYRO]);
+	if (hw->iio_devs[ST_LSM6DSX_ID_EXT0])
+		ext_sensor = iio_priv(hw->iio_devs[ST_LSM6DSX_ID_EXT0]);
 
 	for (read_len = 0; read_len < fifo_len; read_len += pattern_len) {
 		err = st_lsm6dsx_read_block(hw, ST_LSM6DSX_REG_FIFO_OUTL_ADDR,
@@ -391,12 +394,13 @@ int st_lsm6dsx_read_fifo(struct st_lsm6dsx_hw *hw)
 		 * following pattern is repeated every 9 samples:
 		 *   - Gx, Gy, Gz, Ax, Ay, Az, Ts, Gx, Gy, Gz, Ts, Gx, ..
 		 */
+		ext_sip = ext_sensor ? ext_sensor->sip : 0;
 		gyro_sip = gyro_sensor->sip;
 		acc_sip = acc_sensor->sip;
 		ts_sip = hw->ts_sip;
 		offset = 0;
 
-		while (acc_sip > 0 || gyro_sip > 0) {
+		while (acc_sip > 0 || gyro_sip > 0 || ext_sip > 0) {
 			if (gyro_sip > 0) {
 				memcpy(gyro_buff, &hw->buff[offset],
 				       ST_LSM6DSX_SAMPLE_SIZE);
@@ -404,6 +408,11 @@ int st_lsm6dsx_read_fifo(struct st_lsm6dsx_hw *hw)
 			}
 			if (acc_sip > 0) {
 				memcpy(acc_buff, &hw->buff[offset],
+				       ST_LSM6DSX_SAMPLE_SIZE);
+				offset += ST_LSM6DSX_SAMPLE_SIZE;
+			}
+			if (ext_sip > 0) {
+				memcpy(ext_buff, &hw->buff[offset],
 				       ST_LSM6DSX_SAMPLE_SIZE);
 				offset += ST_LSM6DSX_SAMPLE_SIZE;
 			}
@@ -440,6 +449,10 @@ int st_lsm6dsx_read_fifo(struct st_lsm6dsx_hw *hw)
 				iio_push_to_buffers_with_timestamp(
 					hw->iio_devs[ST_LSM6DSX_ID_ACC],
 					acc_buff, acc_sensor->ts_ref + ts);
+			if (ext_sip-- > 0)
+				iio_push_to_buffers_with_timestamp(
+					hw->iio_devs[ST_LSM6DSX_ID_EXT0],
+					ext_buff, ext_sensor->ts_ref + ts);
 		}
 	}
 
@@ -638,11 +651,11 @@ int st_lsm6dsx_update_fifo(struct st_lsm6dsx_sensor *sensor, bool enable)
 		err = st_lsm6dsx_sensor_set_enable(sensor, enable);
 		if (err < 0)
 			goto out;
-
-		err = st_lsm6dsx_set_fifo_odr(sensor, enable);
-		if (err < 0)
-			goto out;
 	}
+
+	err = st_lsm6dsx_set_fifo_odr(sensor, enable);
+	if (err < 0)
+		goto out;
 
 	err = st_lsm6dsx_update_decimators(hw);
 	if (err < 0)

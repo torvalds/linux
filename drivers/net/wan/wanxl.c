@@ -635,7 +635,7 @@ static int wanxl_pci_init_one(struct pci_dev *pdev,
 	/* set up PLX mapping */
 	plx_phy = pci_resource_start(pdev, 0);
 
-	card->plx = ioremap_nocache(plx_phy, 0x70);
+	card->plx = ioremap(plx_phy, 0x70);
 	if (!card->plx) {
 		pr_err("ioremap() failed\n");
  		wanxl_pci_remove_one(pdev);
@@ -704,7 +704,7 @@ static int wanxl_pci_init_one(struct pci_dev *pdev,
 					       PCI_DMA_FROMDEVICE);
 	}
 
-	mem = ioremap_nocache(mem_phy, PDM_OFFSET + sizeof(firmware));
+	mem = ioremap(mem_phy, PDM_OFFSET + sizeof(firmware));
 	if (!mem) {
 		pr_err("ioremap() failed\n");
  		wanxl_pci_remove_one(pdev);

@@ -258,7 +258,7 @@ unsigned long kvmppc_h_svm_init_done(struct kvm *kvm)
  * QEMU page table with normal PTEs from newly allocated pages.
  */
 void kvmppc_uvmem_drop_pages(const struct kvm_memory_slot *free,
-			     struct kvm *kvm)
+			     struct kvm *kvm, bool skip_page_out)
 {
 	int i;
 	struct kvmppc_uvmem_page_pvt *pvt;
@@ -276,7 +276,7 @@ void kvmppc_uvmem_drop_pages(const struct kvm_memory_slot *free,
 
 		uvmem_page = pfn_to_page(uvmem_pfn);
 		pvt = uvmem_page->zone_device_data;
-		pvt->skip_page_out = true;
+		pvt->skip_page_out = skip_page_out;
 		mutex_unlock(&kvm->arch.uvmem_lock);
 
 		pfn = gfn_to_pfn(kvm, gfn);
@@ -284,6 +284,34 @@ void kvmppc_uvmem_drop_pages(const struct kvm_memory_slot *free,
 			continue;
 		kvm_release_pfn_clean(pfn);
 	}
+}
+
+unsigned long kvmppc_h_svm_init_abort(struct kvm *kvm)
+{
+	int srcu_idx;
+	struct kvm_memory_slot *memslot;
+
+	/*
+	 * Expect to be called only after INIT_START and before INIT_DONE.
+	 * If INIT_DONE was completed, use normal VM termination sequence.
+	 */
+	if (!(kvm->arch.secure_guest & KVMPPC_SECURE_INIT_START))
+		return H_UNSUPPORTED;
+
+	if (kvm->arch.secure_guest & KVMPPC_SECURE_INIT_DONE)
+		return H_STATE;
+
+	srcu_idx = srcu_read_lock(&kvm->srcu);
+
+	kvm_for_each_memslot(memslot, kvm_memslots(kvm))
+		kvmppc_uvmem_drop_pages(memslot, kvm, false);
+
+	srcu_read_unlock(&kvm->srcu, srcu_idx);
+
+	kvm->arch.secure_guest = 0;
+	uv_svm_terminate(kvm->arch.lpid);
+
+	return H_PARAMETER;
 }
 
 /*
@@ -543,7 +571,7 @@ kvmppc_svm_page_out(struct vm_area_struct *vma, unsigned long start,
 
 	ret = migrate_vma_setup(&mig);
 	if (ret)
-		return ret;
+		goto out;
 
 	spage = migrate_pfn_to_page(*mig.src);
 	if (!spage || !(*mig.src & MIGRATE_PFN_MIGRATE))

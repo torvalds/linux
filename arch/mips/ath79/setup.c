@@ -226,9 +226,9 @@ void __init plat_mem_setup(void)
 	else if (fw_passed_dtb)
 		__dt_setup_arch((void *)KSEG0ADDR(fw_passed_dtb));
 
-	ath79_reset_base = ioremap_nocache(AR71XX_RESET_BASE,
+	ath79_reset_base = ioremap(AR71XX_RESET_BASE,
 					   AR71XX_RESET_SIZE);
-	ath79_pll_base = ioremap_nocache(AR71XX_PLL_BASE,
+	ath79_pll_base = ioremap(AR71XX_PLL_BASE,
 					 AR71XX_PLL_SIZE);
 	ath79_detect_sys_type();
 	ath79_ddr_ctrl_init();

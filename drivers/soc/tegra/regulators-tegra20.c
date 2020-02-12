@@ -162,6 +162,9 @@ static int tegra20_core_rtc_update(struct tegra_regulator_coupler *tegra,
 			core_target_uV = max(rtc_uV - max_spread, core_target_uV);
 		}
 
+		if (core_uV == core_target_uV)
+			goto update_rtc;
+
 		err = regulator_set_voltage_rdev(core_rdev,
 						 core_target_uV,
 						 core_max_uV,
@@ -170,7 +173,7 @@ static int tegra20_core_rtc_update(struct tegra_regulator_coupler *tegra,
 			return err;
 
 		core_uV = core_target_uV;
-
+update_rtc:
 		if (rtc_uV < rtc_min_uV) {
 			rtc_target_uV = min(rtc_uV + max_spread, rtc_min_uV);
 			rtc_target_uV = min(core_uV + max_spread, rtc_target_uV);
@@ -178,6 +181,9 @@ static int tegra20_core_rtc_update(struct tegra_regulator_coupler *tegra,
 			rtc_target_uV = max(rtc_uV - max_spread, rtc_min_uV);
 			rtc_target_uV = max(core_uV - max_spread, rtc_target_uV);
 		}
+
+		if (rtc_uV == rtc_target_uV)
+			continue;
 
 		err = regulator_set_voltage_rdev(rtc_rdev,
 						 rtc_target_uV,

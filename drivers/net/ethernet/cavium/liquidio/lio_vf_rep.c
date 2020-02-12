@@ -31,7 +31,7 @@ static int lio_vf_rep_open(struct net_device *ndev);
 static int lio_vf_rep_stop(struct net_device *ndev);
 static netdev_tx_t lio_vf_rep_pkt_xmit(struct sk_buff *skb,
 				       struct net_device *ndev);
-static void lio_vf_rep_tx_timeout(struct net_device *netdev);
+static void lio_vf_rep_tx_timeout(struct net_device *netdev, unsigned int txqueue);
 static int lio_vf_rep_phys_port_name(struct net_device *dev,
 				     char *buf, size_t len);
 static void lio_vf_rep_get_stats64(struct net_device *dev,
@@ -172,7 +172,7 @@ lio_vf_rep_stop(struct net_device *ndev)
 }
 
 static void
-lio_vf_rep_tx_timeout(struct net_device *ndev)
+lio_vf_rep_tx_timeout(struct net_device *ndev, unsigned int txqueue)
 {
 	netif_trans_update(ndev);
 

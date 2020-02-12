@@ -581,13 +581,6 @@ static void fastrpc_dma_buf_detatch(struct dma_buf *dmabuf,
 	kfree(a);
 }
 
-static void *fastrpc_kmap(struct dma_buf *dmabuf, unsigned long pgnum)
-{
-	struct fastrpc_buf *buf = dmabuf->priv;
-
-	return buf->virt ? buf->virt + pgnum * PAGE_SIZE : NULL;
-}
-
 static void *fastrpc_vmap(struct dma_buf *dmabuf)
 {
 	struct fastrpc_buf *buf = dmabuf->priv;
@@ -611,7 +604,6 @@ static const struct dma_buf_ops fastrpc_dma_buf_ops = {
 	.map_dma_buf = fastrpc_map_dma_buf,
 	.unmap_dma_buf = fastrpc_unmap_dma_buf,
 	.mmap = fastrpc_mmap,
-	.map = fastrpc_kmap,
 	.vmap = fastrpc_vmap,
 	.release = fastrpc_release,
 };

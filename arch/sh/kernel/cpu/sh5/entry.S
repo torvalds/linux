@@ -86,7 +86,7 @@
 	andi	r6, ~0xf0, r6;		\
 	putcon	r6, SR;
 
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPTION
 #  define preempt_stop()	CLI()
 #else
 #  define preempt_stop()
@@ -884,7 +884,7 @@ ret_from_exception:
 
 	/* Check softirqs */
 
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPTION
 	pta   ret_from_syscall, tr0
 	blink   tr0, ZERO
 

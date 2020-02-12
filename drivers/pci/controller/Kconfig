@@ -239,7 +239,6 @@ config PCIE_TANGO_SMP8759
 
 config VMD
 	depends on PCI_MSI && X86_64 && SRCU
-	select X86_DEV_DMA_OPS
 	tristate "Intel Volume Management Device Driver"
 	---help---
 	  Adds support for the Intel Volume Management Device (VMD). VMD is a
@@ -252,6 +251,15 @@ config VMD
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called vmd.
+
+config PCIE_BRCMSTB
+	tristate "Broadcom Brcmstb PCIe host controller"
+	depends on ARCH_BCM2835 || COMPILE_TEST
+	depends on OF
+	depends on PCI_MSI_IRQ_DOMAIN
+	help
+	  Say Y here to enable PCIe host controller support for
+	  Broadcom STB based SoCs, like the Raspberry Pi 4.
 
 config PCI_HYPERV_INTERFACE
 	tristate "Hyper-V PCI Interface"

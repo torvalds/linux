@@ -351,7 +351,6 @@ static void __init map_pages(unsigned long start_vaddr,
 			     unsigned long start_paddr, unsigned long size,
 			     pgprot_t pgprot, int force)
 {
-	pgd_t *pg_dir;
 	pmd_t *pmd;
 	pte_t *pg_table;
 	unsigned long end_paddr;
@@ -372,62 +371,37 @@ static void __init map_pages(unsigned long start_vaddr,
 
 	end_paddr = start_paddr + size;
 
-	pg_dir = pgd_offset_k(start_vaddr);
-
-#if PTRS_PER_PMD == 1
-	start_pmd = 0;
-#else
+	/* for 2-level configuration PTRS_PER_PMD is 0 so start_pmd will be 0 */
 	start_pmd = ((start_vaddr >> PMD_SHIFT) & (PTRS_PER_PMD - 1));
-#endif
 	start_pte = ((start_vaddr >> PAGE_SHIFT) & (PTRS_PER_PTE - 1));
 
 	address = start_paddr;
 	vaddr = start_vaddr;
 	while (address < end_paddr) {
-#if PTRS_PER_PMD == 1
-		pmd = (pmd_t *)__pa(pg_dir);
-#else
-		pmd = (pmd_t *)pgd_address(*pg_dir);
+		pgd_t *pgd = pgd_offset_k(vaddr);
+		p4d_t *p4d = p4d_offset(pgd, vaddr);
+		pud_t *pud = pud_offset(p4d, vaddr);
 
-		/*
-		 * pmd is physical at this point
-		 */
-
-		if (!pmd) {
+#if CONFIG_PGTABLE_LEVELS == 3
+		if (pud_none(*pud)) {
 			pmd = memblock_alloc(PAGE_SIZE << PMD_ORDER,
 					     PAGE_SIZE << PMD_ORDER);
 			if (!pmd)
 				panic("pmd allocation failed.\n");
-			pmd = (pmd_t *) __pa(pmd);
+			pud_populate(NULL, pud, pmd);
 		}
-
-		pgd_populate(NULL, pg_dir, __va(pmd));
 #endif
-		pg_dir++;
 
-		/* now change pmd to kernel virtual addresses */
-
-		pmd = (pmd_t *)__va(pmd) + start_pmd;
+		pmd = pmd_offset(pud, vaddr);
 		for (tmp1 = start_pmd; tmp1 < PTRS_PER_PMD; tmp1++, pmd++) {
-
-			/*
-			 * pg_table is physical at this point
-			 */
-
-			pg_table = (pte_t *)pmd_address(*pmd);
-			if (!pg_table) {
-				pg_table = memblock_alloc(PAGE_SIZE,
-							  PAGE_SIZE);
+			if (pmd_none(*pmd)) {
+				pg_table = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
 				if (!pg_table)
 					panic("page table allocation failed\n");
-				pg_table = (pte_t *) __pa(pg_table);
+				pmd_populate_kernel(NULL, pmd, pg_table);
 			}
 
-			pmd_populate_kernel(NULL, pmd, __va(pg_table));
-
-			/* now change pg_table to kernel virtual addresses */
-
-			pg_table = (pte_t *) __va(pg_table) + start_pte;
+			pg_table = pte_offset_kernel(pmd, vaddr);
 			for (tmp2 = start_pte; tmp2 < PTRS_PER_PTE; tmp2++, pg_table++) {
 				pte_t pte;
 				pgprot_t prot;

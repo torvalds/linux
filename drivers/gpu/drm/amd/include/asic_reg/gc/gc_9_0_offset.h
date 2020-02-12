@@ -2224,6 +2224,14 @@
 #define mmCOMPUTE_STATIC_THREAD_MGMT_SE2_BASE_IDX                                                      0
 #define mmCOMPUTE_STATIC_THREAD_MGMT_SE3                                                               0x0e1a
 #define mmCOMPUTE_STATIC_THREAD_MGMT_SE3_BASE_IDX                                                      0
+#define mmCOMPUTE_STATIC_THREAD_MGMT_SE4                                                               0x0e25
+#define mmCOMPUTE_STATIC_THREAD_MGMT_SE4_BASE_IDX                                                      0
+#define mmCOMPUTE_STATIC_THREAD_MGMT_SE5                                                               0x0e26
+#define mmCOMPUTE_STATIC_THREAD_MGMT_SE5_BASE_IDX                                                      0
+#define mmCOMPUTE_STATIC_THREAD_MGMT_SE6                                                               0x0e27
+#define mmCOMPUTE_STATIC_THREAD_MGMT_SE6_BASE_IDX                                                      0
+#define mmCOMPUTE_STATIC_THREAD_MGMT_SE7                                                               0x0e28
+#define mmCOMPUTE_STATIC_THREAD_MGMT_SE7_BASE_IDX                                                      0
 #define mmCOMPUTE_RESTART_X                                                                            0x0e1b
 #define mmCOMPUTE_RESTART_X_BASE_IDX                                                                   0
 #define mmCOMPUTE_RESTART_Y                                                                            0x0e1c

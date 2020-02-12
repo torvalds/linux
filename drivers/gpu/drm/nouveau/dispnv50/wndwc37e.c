@@ -71,14 +71,18 @@ wndwc37e_ilut_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 	}
 }
 
-static void
-wndwc37e_ilut(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
+static bool
+wndwc37e_ilut(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw, int size)
 {
+	if (size != 256 && size != 1024)
+		return false;
+
 	asyw->xlut.i.mode = 2;
-	asyw->xlut.i.size = 0;
+	asyw->xlut.i.size = size == 1024 ? 2 : 0;
 	asyw->xlut.i.range = 0;
 	asyw->xlut.i.output_mode = 1;
 	asyw->xlut.i.load = head907d_olut_load;
+	return true;
 }
 
 void
@@ -261,6 +265,7 @@ wndwc37e = {
 	.ntfy_reset = corec37d_ntfy_init,
 	.ntfy_wait_begun = base507c_ntfy_wait_begun,
 	.ilut = wndwc37e_ilut,
+	.ilut_size = 1024,
 	.xlut_set = wndwc37e_ilut_set,
 	.xlut_clr = wndwc37e_ilut_clr,
 	.csc = base907c_csc,

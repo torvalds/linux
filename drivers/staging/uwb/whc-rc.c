@@ -216,11 +216,11 @@ int whcrc_setup_rc_umc(struct whcrc *whcrc)
 		goto error_request_region;
 	}
 
-	whcrc->rc_base = ioremap_nocache(whcrc->area, whcrc->rc_len);
+	whcrc->rc_base = ioremap(whcrc->area, whcrc->rc_len);
 	if (whcrc->rc_base == NULL) {
 		dev_err(dev, "can't ioremap registers (%zu bytes @ 0x%lx): %d\n",
 			whcrc->rc_len, whcrc->area, result);
-		goto error_ioremap_nocache;
+		goto error_ioremap;
 	}
 
 	result = request_irq(umc_dev->irq, whcrc_irq_cb, IRQF_SHARED,
@@ -254,7 +254,7 @@ error_cmd_buffer:
 	free_irq(umc_dev->irq, whcrc);
 error_request_irq:
 	iounmap(whcrc->rc_base);
-error_ioremap_nocache:
+error_ioremap:
 	release_mem_region(whcrc->area, whcrc->rc_len);
 error_request_region:
 	return result;

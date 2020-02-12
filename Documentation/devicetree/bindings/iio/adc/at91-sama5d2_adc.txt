@@ -1,7 +1,7 @@
 * AT91 SAMA5D2 Analog to Digital Converter (ADC)
 
 Required properties:
-  - compatible: Should be "atmel,sama5d2-adc".
+  - compatible: Should be "atmel,sama5d2-adc" or "microchip,sam9x60-adc".
   - reg: Should contain ADC registers location and length.
   - interrupts: Should contain the IRQ line for the ADC.
   - clocks: phandle to device clock.

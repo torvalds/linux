@@ -277,7 +277,7 @@ ENTRY(csky_irq)
 	zero_fp
 	psrset	ee
 
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPTION
 	mov	r9, sp			/* Get current stack  pointer */
 	bmaski	r10, THREAD_SHIFT
 	andn	r9, r10			/* Get thread_info */
@@ -294,7 +294,7 @@ ENTRY(csky_irq)
 	mov	a0, sp
 	jbsr	csky_do_IRQ
 
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPTION
 	subi	r12, 1
 	stw	r12, (r9, TINFO_PREEMPT)
 	cmpnei	r12, 0

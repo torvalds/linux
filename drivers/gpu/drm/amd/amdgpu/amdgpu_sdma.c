@@ -160,7 +160,7 @@ int amdgpu_sdma_process_ras_data_cb(struct amdgpu_device *adev,
 		struct amdgpu_iv_entry *entry)
 {
 	kgd2kfd_set_sram_ecc_flag(adev->kfd.dev);
-	amdgpu_ras_reset_gpu(adev, 0);
+	amdgpu_ras_reset_gpu(adev);
 
 	return AMDGPU_RAS_SUCCESS;
 }

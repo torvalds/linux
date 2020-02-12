@@ -19,8 +19,8 @@
 #include <linux/socket.h>
 #include <linux/pkt_cls.h>
 #include <linux/erspan.h>
-#include "bpf_helpers.h"
-#include "bpf_endian.h"
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_endian.h>
 
 #define ERROR(ret) do {\
 		char fmt[] = "ERROR line:%d ret:%d\n";\

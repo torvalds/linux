@@ -907,13 +907,12 @@ static ssize_t dispatch_proc_write(struct file *file,
 	return ret;
 }
 
-static const struct file_operations dispatch_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= dispatch_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= dispatch_proc_write,
+static const struct proc_ops dispatch_proc_ops = {
+	.proc_open	= dispatch_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= dispatch_proc_write,
 };
 
 static char *next_cmd(char **cmds)
@@ -9984,7 +9983,7 @@ static int __init ibm_init(struct ibm_init_struct *iibm)
 		if (ibm->write)
 			mode |= S_IWUSR;
 		entry = proc_create_data(ibm->name, mode, proc_dir,
-					 &dispatch_proc_fops, ibm);
+					 &dispatch_proc_ops, ibm);
 		if (!entry) {
 			pr_err("unable to create proc entry %s\n", ibm->name);
 			ret = -ENODEV;

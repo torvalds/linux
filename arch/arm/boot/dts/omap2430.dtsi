@@ -309,6 +309,10 @@
 	};
 };
 
+&sdma {
+	compatible = "ti,omap2430-sdma", "ti,omap-sdma";
+};
+
 &i2c1 {
 	compatible = "ti,omap2430-i2c";
 };

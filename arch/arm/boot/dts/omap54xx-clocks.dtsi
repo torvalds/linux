@@ -1125,9 +1125,15 @@
 		#size-cells = <1>;
 		ranges = <0 0x1000 0x200>;
 
-		l4per_clkctrl: clk@20 {
-			compatible = "ti,clkctrl";
+		l4per_clkctrl: clock@20 {
+			compatible = "ti,clkctrl-l4per", "ti,clkctrl";
 			reg = <0x20 0x15c>;
+			#clock-cells = <2>;
+		};
+
+		l4sec_clkctrl: clock@1a0 {
+			compatible = "ti,clkctrl-l4sec", "ti,clkctrl";
+			reg = <0x1a0 0x3c>;
 			#clock-cells = <2>;
 		};
 	};

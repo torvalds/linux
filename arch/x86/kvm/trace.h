@@ -1291,6 +1291,25 @@ TRACE_EVENT(kvm_hv_stimer_cleanup,
 		  __entry->vcpu_id, __entry->timer_index)
 );
 
+TRACE_EVENT(kvm_apicv_update_request,
+	    TP_PROTO(bool activate, unsigned long bit),
+	    TP_ARGS(activate, bit),
+
+	TP_STRUCT__entry(
+		__field(bool, activate)
+		__field(unsigned long, bit)
+	),
+
+	TP_fast_assign(
+		__entry->activate = activate;
+		__entry->bit = bit;
+	),
+
+	TP_printk("%s bit=%lu",
+		  __entry->activate ? "activate" : "deactivate",
+		  __entry->bit)
+);
+
 /*
  * Tracepoint for AMD AVIC
  */

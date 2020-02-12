@@ -153,26 +153,4 @@ static inline void bvec_advance(const struct bio_vec *bvec,
 	}
 }
 
-/*
- * Get the last single-page segment from the multi-page bvec and store it
- * in @seg
- */
-static inline void mp_bvec_last_segment(const struct bio_vec *bvec,
-					struct bio_vec *seg)
-{
-	unsigned total = bvec->bv_offset + bvec->bv_len;
-	unsigned last_page = (total - 1) / PAGE_SIZE;
-
-	seg->bv_page = bvec->bv_page + last_page;
-
-	/* the whole segment is inside the last page */
-	if (bvec->bv_offset >= last_page * PAGE_SIZE) {
-		seg->bv_offset = bvec->bv_offset % PAGE_SIZE;
-		seg->bv_len = bvec->bv_len;
-	} else {
-		seg->bv_offset = 0;
-		seg->bv_len = total - last_page * PAGE_SIZE;
-	}
-}
-
 #endif /* __LINUX_BVEC_ITER_H */

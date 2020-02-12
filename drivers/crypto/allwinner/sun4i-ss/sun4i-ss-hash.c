@@ -479,7 +479,10 @@ hash_final:
 	/* Get the hash from the device */
 	if (op->mode == SS_OP_SHA1) {
 		for (i = 0; i < 5; i++) {
-			v = cpu_to_be32(readl(ss->base + SS_MD0 + i * 4));
+			if (ss->variant->sha1_in_be)
+				v = cpu_to_le32(readl(ss->base + SS_MD0 + i * 4));
+			else
+				v = cpu_to_be32(readl(ss->base + SS_MD0 + i * 4));
 			memcpy(areq->result + i * 4, &v, 4);
 		}
 	} else {

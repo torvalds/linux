@@ -154,7 +154,6 @@ struct ttm_tt;
  * @offset: The current GPU offset, which can have different meanings
  * depending on the memory type. For SYSTEM type memory, it should be 0.
  * @cur_placement: Hint of current placement.
- * @wu_mutex: Wait unreserved mutex.
  *
  * Base class for TTM buffer object, that deals with data placement and CPU
  * mappings. GPU mappings are really up to the driver, but for simpler GPUs
@@ -222,8 +221,6 @@ struct ttm_buffer_object {
 	uint64_t offset; /* GPU address space is independent of CPU word size */
 
 	struct sg_table *sg;
-
-	struct mutex wu_mutex;
 };
 
 /**
@@ -707,7 +704,6 @@ ssize_t ttm_bo_io(struct ttm_bo_device *bdev, struct file *filp,
 int ttm_bo_swapout(struct ttm_bo_global *glob,
 			struct ttm_operation_ctx *ctx);
 void ttm_bo_swapout_all(struct ttm_bo_device *bdev);
-int ttm_bo_wait_unreserved(struct ttm_buffer_object *bo);
 
 /**
  * ttm_bo_uses_embedded_gem_object - check if the given bo uses the
@@ -738,7 +734,13 @@ vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
 				    pgprot_t prot,
 				    pgoff_t num_prefault);
 
+vm_fault_t ttm_bo_vm_fault(struct vm_fault *vmf);
+
 void ttm_bo_vm_open(struct vm_area_struct *vma);
 
 void ttm_bo_vm_close(struct vm_area_struct *vma);
+
+int ttm_bo_vm_access(struct vm_area_struct *vma, unsigned long addr,
+		     void *buf, int len, int write);
+
 #endif

@@ -367,7 +367,7 @@ static int telem_device_probe(struct platform_device *pdev)
 	minor = ida_alloc_max(&telem_ida, TELEM_MAX_DEV-1, GFP_KERNEL);
 	if (minor < 0) {
 		error = minor;
-		dev_err(&pdev->dev, "Failed to find minor number: %d", error);
+		dev_err(&pdev->dev, "Failed to find minor number: %d\n", error);
 		return error;
 	}
 
@@ -427,14 +427,14 @@ static int __init telem_module_init(void)
 
 	ret = class_register(&telem_class);
 	if (ret) {
-		pr_err(DRV_NAME ": Failed registering class: %d", ret);
+		pr_err(DRV_NAME ": Failed registering class: %d\n", ret);
 		return ret;
 	}
 
 	/* Request the kernel for device numbers, starting with minor=0 */
 	ret = alloc_chrdev_region(&dev_num, 0, TELEM_MAX_DEV, TELEM_DEV_NAME);
 	if (ret) {
-		pr_err(DRV_NAME ": Failed allocating dev numbers: %d", ret);
+		pr_err(DRV_NAME ": Failed allocating dev numbers: %d\n", ret);
 		goto destroy_class;
 	}
 	telem_major = MAJOR(dev_num);

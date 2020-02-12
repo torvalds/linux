@@ -157,11 +157,11 @@ bool prepare_for_vmx_operation(struct vmx_pages *vmx)
 	 *  Bit 2: Enables VMXON outside of SMX operation. If clear, VMXON
 	 *    outside of SMX causes a #GP.
 	 */
-	required = FEATURE_CONTROL_VMXON_ENABLED_OUTSIDE_SMX;
-	required |= FEATURE_CONTROL_LOCKED;
-	feature_control = rdmsr(MSR_IA32_FEATURE_CONTROL);
+	required = FEAT_CTL_VMX_ENABLED_OUTSIDE_SMX;
+	required |= FEAT_CTL_LOCKED;
+	feature_control = rdmsr(MSR_IA32_FEAT_CTL);
 	if ((feature_control & required) != required)
-		wrmsr(MSR_IA32_FEATURE_CONTROL, feature_control | required);
+		wrmsr(MSR_IA32_FEAT_CTL, feature_control | required);
 
 	/* Enter VMX root operation. */
 	*(uint32_t *)(vmx->vmxon) = vmcs_revision();

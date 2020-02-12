@@ -1255,7 +1255,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	 ************************/
 	hw = iwl_alloc_all();
 	if (!hw) {
-		pr_err("%s: Cannot allocate network device\n", cfg->name);
+		pr_err("%s: Cannot allocate network device\n", trans->name);
 		goto out;
 	}
 
@@ -1390,7 +1390,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	 * 2. Read REV register
 	 ***********************/
 	IWL_INFO(priv, "Detected %s, REV=0x%X\n",
-		priv->cfg->name, priv->trans->hw_rev);
+		priv->trans->name, priv->trans->hw_rev);
 
 	if (iwl_trans_start_hw(priv->trans))
 		goto out_free_hw;

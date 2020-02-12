@@ -42,6 +42,7 @@
 
 static long kfd_ioctl(struct file *, unsigned int, unsigned long);
 static int kfd_open(struct inode *, struct file *);
+static int kfd_release(struct inode *, struct file *);
 static int kfd_mmap(struct file *, struct vm_area_struct *);
 
 static const char kfd_dev_name[] = "kfd";
@@ -51,6 +52,7 @@ static const struct file_operations kfd_fops = {
 	.unlocked_ioctl = kfd_ioctl,
 	.compat_ioctl = compat_ptr_ioctl,
 	.open = kfd_open,
+	.release = kfd_release,
 	.mmap = kfd_mmap,
 };
 
@@ -124,11 +126,26 @@ static int kfd_open(struct inode *inode, struct file *filep)
 	if (IS_ERR(process))
 		return PTR_ERR(process);
 
-	if (kfd_is_locked())
+	if (kfd_is_locked()) {
+		kfd_unref_process(process);
 		return -EAGAIN;
+	}
+
+	/* filep now owns the reference returned by kfd_create_process */
+	filep->private_data = process;
 
 	dev_dbg(kfd_device, "process %d opened, compat mode (32 bit) - %d\n",
 		process->pasid, process->is_32bit_user_mode);
+
+	return 0;
+}
+
+static int kfd_release(struct inode *inode, struct file *filep)
+{
+	struct kfd_process *process = filep->private_data;
+
+	if (process)
+		kfd_unref_process(process);
 
 	return 0;
 }
@@ -258,6 +275,7 @@ static int kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 	unsigned int queue_id;
 	struct kfd_process_device *pdd;
 	struct queue_properties q_properties;
+	uint32_t doorbell_offset_in_process = 0;
 
 	memset(&q_properties, 0, sizeof(struct queue_properties));
 
@@ -286,7 +304,8 @@ static int kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 			p->pasid,
 			dev->id);
 
-	err = pqm_create_queue(&p->pqm, dev, filep, &q_properties, &queue_id);
+	err = pqm_create_queue(&p->pqm, dev, filep, &q_properties, &queue_id,
+			&doorbell_offset_in_process);
 	if (err != 0)
 		goto err_create_queue;
 
@@ -296,14 +315,11 @@ static int kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 	/* Return gpu_id as doorbell offset for mmap usage */
 	args->doorbell_offset = KFD_MMAP_TYPE_DOORBELL;
 	args->doorbell_offset |= KFD_MMAP_GPU_ID(args->gpu_id);
-	args->doorbell_offset <<= PAGE_SHIFT;
 	if (KFD_IS_SOC15(dev->device_info->asic_family))
-		/* On SOC15 ASICs, doorbell allocation must be
-		 * per-device, and independent from the per-process
-		 * queue_id. Return the doorbell offset within the
-		 * doorbell aperture to user mode.
+		/* On SOC15 ASICs, include the doorbell offset within the
+		 * process doorbell frame, which is 2 pages.
 		 */
-		args->doorbell_offset |= q_properties.doorbell_off;
+		args->doorbell_offset |= doorbell_offset_in_process;
 
 	mutex_unlock(&p->mutex);
 
@@ -1312,10 +1328,9 @@ static int kfd_ioctl_alloc_memory_of_gpu(struct file *filep,
 	/* MMIO is mapped through kfd device
 	 * Generate a kfd mmap offset
 	 */
-	if (flags & KFD_IOC_ALLOC_MEM_FLAGS_MMIO_REMAP) {
-		args->mmap_offset = KFD_MMAP_TYPE_MMIO | KFD_MMAP_GPU_ID(args->gpu_id);
-		args->mmap_offset <<= PAGE_SHIFT;
-	}
+	if (flags & KFD_IOC_ALLOC_MEM_FLAGS_MMIO_REMAP)
+		args->mmap_offset = KFD_MMAP_TYPE_MMIO
+					| KFD_MMAP_GPU_ID(args->gpu_id);
 
 	return 0;
 
@@ -1803,9 +1818,14 @@ static long kfd_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 
 	dev_dbg(kfd_device, "ioctl cmd 0x%x (#0x%x), arg 0x%lx\n", cmd, nr, arg);
 
-	process = kfd_get_process(current);
-	if (IS_ERR(process)) {
-		dev_dbg(kfd_device, "no process\n");
+	/* Get the process struct from the filep. Only the process
+	 * that opened /dev/kfd can use the file descriptor. Child
+	 * processes need to create their own KFD device context.
+	 */
+	process = filep->private_data;
+	if (process->lead_thread != current->group_leader) {
+		dev_dbg(kfd_device, "Using KFD FD in wrong process\n");
+		retcode = -EBADF;
 		goto err_i1;
 	}
 
@@ -1899,20 +1919,19 @@ static int kfd_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct kfd_process *process;
 	struct kfd_dev *dev = NULL;
-	unsigned long vm_pgoff;
+	unsigned long mmap_offset;
 	unsigned int gpu_id;
 
 	process = kfd_get_process(current);
 	if (IS_ERR(process))
 		return PTR_ERR(process);
 
-	vm_pgoff = vma->vm_pgoff;
-	vma->vm_pgoff = KFD_MMAP_OFFSET_VALUE_GET(vm_pgoff);
-	gpu_id = KFD_MMAP_GPU_ID_GET(vm_pgoff);
+	mmap_offset = vma->vm_pgoff << PAGE_SHIFT;
+	gpu_id = KFD_MMAP_GET_GPU_ID(mmap_offset);
 	if (gpu_id)
 		dev = kfd_device_by_id(gpu_id);
 
-	switch (vm_pgoff & KFD_MMAP_TYPE_MASK) {
+	switch (mmap_offset & KFD_MMAP_TYPE_MASK) {
 	case KFD_MMAP_TYPE_DOORBELL:
 		if (!dev)
 			return -ENODEV;

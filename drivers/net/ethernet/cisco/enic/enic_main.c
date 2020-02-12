@@ -1095,7 +1095,7 @@ static void enic_set_rx_mode(struct net_device *netdev)
 }
 
 /* netif_tx_lock held, BHs disabled */
-static void enic_tx_timeout(struct net_device *netdev)
+static void enic_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct enic *enic = netdev_priv(netdev);
 	schedule_work(&enic->tx_hang_reset);

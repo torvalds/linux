@@ -1213,7 +1213,7 @@ static int iwl_mvm_legacy_config_scan(struct iwl_mvm *mvm)
 		cmd_size = sizeof(struct iwl_scan_config_v2);
 	else
 		cmd_size = sizeof(struct iwl_scan_config_v1);
-	cmd_size += num_channels;
+	cmd_size += mvm->fw->ucode_capa.n_scan_channels;
 
 	cfg = kzalloc(cmd_size, GFP_KERNEL);
 	if (!cfg)
@@ -1907,20 +1907,6 @@ iwl_mvm_scan_umac_fill_probe_p_v4(struct iwl_mvm_scan_params *params,
 }
 
 static void
-iwl_mvm_scan_umac_fill_ch_p_v3(struct iwl_mvm *mvm,
-			       struct iwl_mvm_scan_params *params,
-			       struct ieee80211_vif *vif,
-			       struct iwl_scan_channel_params_v3 *cp)
-{
-	cp->flags = iwl_mvm_scan_umac_chan_flags_v2(mvm, params, vif);
-	cp->count = params->n_channels;
-
-	iwl_mvm_umac_scan_cfg_channels(mvm, params->channels,
-				       params->n_channels, 0,
-				       cp->channel_config);
-}
-
-static void
 iwl_mvm_scan_umac_fill_ch_p_v4(struct iwl_mvm *mvm,
 			       struct iwl_mvm_scan_params *params,
 			       struct ieee80211_vif *vif,
@@ -1937,37 +1923,6 @@ iwl_mvm_scan_umac_fill_ch_p_v4(struct iwl_mvm *mvm,
 					  vif->type);
 }
 
-static int iwl_mvm_scan_umac_v11(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-				 struct iwl_mvm_scan_params *params, int type,
-				 int uid)
-{
-	struct iwl_scan_req_umac_v11 *cmd = mvm->scan_cmd;
-	struct iwl_scan_req_params_v11 *scan_p = &cmd->scan_params;
-	int ret;
-	u16 gen_flags;
-
-	mvm->scan_uid_status[uid] = type;
-
-	cmd->ooc_priority = cpu_to_le32(iwl_mvm_scan_umac_ooc_priority(params));
-	cmd->uid = cpu_to_le32(uid);
-
-	gen_flags = iwl_mvm_scan_umac_flags_v2(mvm, params, vif, type);
-	iwl_mvm_scan_umac_fill_general_p_v10(mvm, params, vif,
-					     &scan_p->general_params,
-					     gen_flags);
-
-	 ret = iwl_mvm_fill_scan_sched_params(params,
-					      scan_p->periodic_params.schedule,
-					      &scan_p->periodic_params.delay);
-	if (ret)
-		return ret;
-
-	iwl_mvm_scan_umac_fill_probe_p_v3(params, &scan_p->probe_params);
-	iwl_mvm_scan_umac_fill_ch_p_v3(mvm, params, vif,
-				       &scan_p->channel_params);
-
-	return 0;
-}
 
 static int iwl_mvm_scan_umac_v12(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 				 struct iwl_mvm_scan_params *params, int type,
@@ -2152,7 +2107,6 @@ static const struct iwl_scan_umac_handler iwl_scan_umac_handlers[] = {
 	/* set the newest version first to shorten the list traverse time */
 	IWL_SCAN_UMAC_HANDLER(13),
 	IWL_SCAN_UMAC_HANDLER(12),
-	IWL_SCAN_UMAC_HANDLER(11),
 };
 
 static int iwl_mvm_build_scan_cmd(struct iwl_mvm *mvm,
@@ -2511,7 +2465,6 @@ static int iwl_scan_req_umac_get_size(u8 scan_ver)
 	switch (scan_ver) {
 		IWL_SCAN_REQ_UMAC_HANDLE_SIZE(13);
 		IWL_SCAN_REQ_UMAC_HANDLE_SIZE(12);
-		IWL_SCAN_REQ_UMAC_HANDLE_SIZE(11);
 	}
 
 	return 0;

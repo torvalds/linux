@@ -549,7 +549,7 @@ lqasc_request_port(struct uart_port *port)
 	}
 
 	if (port->flags & UPF_IOREMAP) {
-		port->membase = devm_ioremap_nocache(&pdev->dev,
+		port->membase = devm_ioremap(&pdev->dev,
 			port->mapbase, size);
 		if (port->membase == NULL)
 			return -ENOMEM;

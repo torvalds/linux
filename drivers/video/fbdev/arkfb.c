@@ -917,7 +917,7 @@ static int arkfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info
 
 /* Frame buffer operations */
 
-static struct fb_ops arkfb_ops = {
+static const struct fb_ops arkfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_open	= arkfb_open,
 	.fb_release	= arkfb_release,

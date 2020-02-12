@@ -31,8 +31,8 @@ struct snd_vx222 {
 /* we use a lookup table with 148 values, see vx_mixer.c */
 #define VX2_AKM_LEVEL_MAX	0x93
 
-extern struct snd_vx_ops vx222_ops;
-extern struct snd_vx_ops vx222_old_ops;
+extern const struct snd_vx_ops vx222_ops;
+extern const struct snd_vx_ops vx222_old_ops;
 
 /* Offset of registers with base equal to portDSP. */
 #define VX_RESET_DMA_REGISTER_OFFSET    0x00000008

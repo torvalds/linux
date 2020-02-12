@@ -24,6 +24,7 @@ struct flow_offload_work {
 };
 
 struct nf_flow_key {
+	struct flow_dissector_key_meta			meta;
 	struct flow_dissector_key_control		control;
 	struct flow_dissector_key_basic			basic;
 	union {
@@ -55,12 +56,16 @@ static int nf_flow_rule_match(struct nf_flow_match *match,
 	struct nf_flow_key *mask = &match->mask;
 	struct nf_flow_key *key = &match->key;
 
+	NF_FLOW_DISSECTOR(match, FLOW_DISSECTOR_KEY_META, meta);
 	NF_FLOW_DISSECTOR(match, FLOW_DISSECTOR_KEY_CONTROL, control);
 	NF_FLOW_DISSECTOR(match, FLOW_DISSECTOR_KEY_BASIC, basic);
 	NF_FLOW_DISSECTOR(match, FLOW_DISSECTOR_KEY_IPV4_ADDRS, ipv4);
 	NF_FLOW_DISSECTOR(match, FLOW_DISSECTOR_KEY_IPV6_ADDRS, ipv6);
 	NF_FLOW_DISSECTOR(match, FLOW_DISSECTOR_KEY_TCP, tcp);
 	NF_FLOW_DISSECTOR(match, FLOW_DISSECTOR_KEY_PORTS, tp);
+
+	key->meta.ingress_ifindex = tuple->iifidx;
+	mask->meta.ingress_ifindex = 0xffffffff;
 
 	switch (tuple->l3proto) {
 	case AF_INET:
@@ -105,7 +110,8 @@ static int nf_flow_rule_match(struct nf_flow_match *match,
 	key->tp.dst = tuple->dst_port;
 	mask->tp.dst = 0xffff;
 
-	match->dissector.used_keys |= BIT(FLOW_DISSECTOR_KEY_CONTROL) |
+	match->dissector.used_keys |= BIT(FLOW_DISSECTOR_KEY_META) |
+				      BIT(FLOW_DISSECTOR_KEY_CONTROL) |
 				      BIT(FLOW_DISSECTOR_KEY_BASIC) |
 				      BIT(FLOW_DISSECTOR_KEY_PORTS);
 	return 0;
@@ -166,24 +172,38 @@ static int flow_offload_eth_dst(struct net *net,
 				enum flow_offload_tuple_dir dir,
 				struct nf_flow_rule *flow_rule)
 {
-	const struct flow_offload_tuple *tuple = &flow->tuplehash[dir].tuple;
 	struct flow_action_entry *entry0 = flow_action_entry_next(flow_rule);
 	struct flow_action_entry *entry1 = flow_action_entry_next(flow_rule);
+	const void *daddr = &flow->tuplehash[!dir].tuple.src_v4;
+	const struct dst_entry *dst_cache;
+	unsigned char ha[ETH_ALEN];
 	struct neighbour *n;
 	u32 mask, val;
+	u8 nud_state;
 	u16 val16;
 
-	n = dst_neigh_lookup(tuple->dst_cache, &tuple->dst_v4);
+	dst_cache = flow->tuplehash[dir].tuple.dst_cache;
+	n = dst_neigh_lookup(dst_cache, daddr);
 	if (!n)
 		return -ENOENT;
 
+	read_lock_bh(&n->lock);
+	nud_state = n->nud_state;
+	ether_addr_copy(ha, n->ha);
+	read_unlock_bh(&n->lock);
+
+	if (!(nud_state & NUD_VALID)) {
+		neigh_release(n);
+		return -ENOENT;
+	}
+
 	mask = ~0xffffffff;
-	memcpy(&val, n->ha, 4);
+	memcpy(&val, ha, 4);
 	flow_offload_mangle(entry0, FLOW_ACT_MANGLE_HDR_TYPE_ETH, 0,
 			    &val, &mask);
 
 	mask = ~0x0000ffff;
-	memcpy(&val16, n->ha + 4, 2);
+	memcpy(&val16, ha + 4, 2);
 	val = val16;
 	flow_offload_mangle(entry1, FLOW_ACT_MANGLE_HDR_TYPE_ETH, 4,
 			    &val, &mask);
@@ -335,22 +355,26 @@ static void flow_offload_port_snat(struct net *net,
 				   struct nf_flow_rule *flow_rule)
 {
 	struct flow_action_entry *entry = flow_action_entry_next(flow_rule);
-	u32 mask = ~htonl(0xffff0000), port;
+	u32 mask, port;
 	u32 offset;
 
 	switch (dir) {
 	case FLOW_OFFLOAD_DIR_ORIGINAL:
 		port = ntohs(flow->tuplehash[FLOW_OFFLOAD_DIR_REPLY].tuple.dst_port);
 		offset = 0; /* offsetof(struct tcphdr, source); */
+		port = htonl(port << 16);
+		mask = ~htonl(0xffff0000);
 		break;
 	case FLOW_OFFLOAD_DIR_REPLY:
 		port = ntohs(flow->tuplehash[FLOW_OFFLOAD_DIR_ORIGINAL].tuple.src_port);
 		offset = 0; /* offsetof(struct tcphdr, dest); */
+		port = htonl(port);
+		mask = ~htonl(0xffff);
 		break;
 	default:
 		return;
 	}
-	port = htonl(port << 16);
+
 	flow_offload_mangle(entry, flow_offload_l4proto(flow), offset,
 			    &port, &mask);
 }
@@ -361,22 +385,26 @@ static void flow_offload_port_dnat(struct net *net,
 				   struct nf_flow_rule *flow_rule)
 {
 	struct flow_action_entry *entry = flow_action_entry_next(flow_rule);
-	u32 mask = ~htonl(0xffff), port;
+	u32 mask, port;
 	u32 offset;
 
 	switch (dir) {
 	case FLOW_OFFLOAD_DIR_ORIGINAL:
-		port = ntohs(flow->tuplehash[FLOW_OFFLOAD_DIR_REPLY].tuple.dst_port);
-		offset = 0; /* offsetof(struct tcphdr, source); */
+		port = ntohs(flow->tuplehash[FLOW_OFFLOAD_DIR_REPLY].tuple.src_port);
+		offset = 0; /* offsetof(struct tcphdr, dest); */
+		port = htonl(port);
+		mask = ~htonl(0xffff);
 		break;
 	case FLOW_OFFLOAD_DIR_REPLY:
-		port = ntohs(flow->tuplehash[FLOW_OFFLOAD_DIR_ORIGINAL].tuple.src_port);
-		offset = 0; /* offsetof(struct tcphdr, dest); */
+		port = ntohs(flow->tuplehash[FLOW_OFFLOAD_DIR_ORIGINAL].tuple.dst_port);
+		offset = 0; /* offsetof(struct tcphdr, source); */
+		port = htonl(port << 16);
+		mask = ~htonl(0xffff0000);
 		break;
 	default:
 		return;
 	}
-	port = htonl(port);
+
 	flow_offload_mangle(entry, flow_offload_l4proto(flow), offset,
 			    &port, &mask);
 }
@@ -422,16 +450,16 @@ int nf_flow_rule_route_ipv4(struct net *net, const struct flow_offload *flow,
 	    flow_offload_eth_dst(net, flow, dir, flow_rule) < 0)
 		return -1;
 
-	if (flow->flags & FLOW_OFFLOAD_SNAT) {
+	if (test_bit(NF_FLOW_SNAT, &flow->flags)) {
 		flow_offload_ipv4_snat(net, flow, dir, flow_rule);
 		flow_offload_port_snat(net, flow, dir, flow_rule);
 	}
-	if (flow->flags & FLOW_OFFLOAD_DNAT) {
+	if (test_bit(NF_FLOW_DNAT, &flow->flags)) {
 		flow_offload_ipv4_dnat(net, flow, dir, flow_rule);
 		flow_offload_port_dnat(net, flow, dir, flow_rule);
 	}
-	if (flow->flags & FLOW_OFFLOAD_SNAT ||
-	    flow->flags & FLOW_OFFLOAD_DNAT)
+	if (test_bit(NF_FLOW_SNAT, &flow->flags) ||
+	    test_bit(NF_FLOW_DNAT, &flow->flags))
 		flow_offload_ipv4_checksum(net, flow, flow_rule);
 
 	flow_offload_redirect(flow, dir, flow_rule);
@@ -448,11 +476,11 @@ int nf_flow_rule_route_ipv6(struct net *net, const struct flow_offload *flow,
 	    flow_offload_eth_dst(net, flow, dir, flow_rule) < 0)
 		return -1;
 
-	if (flow->flags & FLOW_OFFLOAD_SNAT) {
+	if (test_bit(NF_FLOW_SNAT, &flow->flags)) {
 		flow_offload_ipv6_snat(net, flow, dir, flow_rule);
 		flow_offload_port_snat(net, flow, dir, flow_rule);
 	}
-	if (flow->flags & FLOW_OFFLOAD_DNAT) {
+	if (test_bit(NF_FLOW_DNAT, &flow->flags)) {
 		flow_offload_ipv6_dnat(net, flow, dir, flow_rule);
 		flow_offload_port_dnat(net, flow, dir, flow_rule);
 	}
@@ -564,23 +592,25 @@ static void nf_flow_offload_init(struct flow_cls_offload *cls_flow,
 	cls_flow->cookie = (unsigned long)tuple;
 }
 
-static int flow_offload_tuple_add(struct flow_offload_work *offload,
-				  struct nf_flow_rule *flow_rule,
-				  enum flow_offload_tuple_dir dir)
+static int nf_flow_offload_tuple(struct nf_flowtable *flowtable,
+				 struct flow_offload *flow,
+				 struct nf_flow_rule *flow_rule,
+				 enum flow_offload_tuple_dir dir,
+				 int priority, int cmd,
+				 struct list_head *block_cb_list)
 {
-	struct nf_flowtable *flowtable = offload->flowtable;
 	struct flow_cls_offload cls_flow = {};
 	struct flow_block_cb *block_cb;
 	struct netlink_ext_ack extack;
 	__be16 proto = ETH_P_ALL;
 	int err, i = 0;
 
-	nf_flow_offload_init(&cls_flow, proto, offload->priority,
-			     FLOW_CLS_REPLACE,
-			     &offload->flow->tuplehash[dir].tuple, &extack);
-	cls_flow.rule = flow_rule->rule;
+	nf_flow_offload_init(&cls_flow, proto, priority, cmd,
+			     &flow->tuplehash[dir].tuple, &extack);
+	if (cmd == FLOW_CLS_REPLACE)
+		cls_flow.rule = flow_rule->rule;
 
-	list_for_each_entry(block_cb, &flowtable->flow_block.cb_list, list) {
+	list_for_each_entry(block_cb, block_cb_list, list) {
 		err = block_cb->cb(TC_SETUP_CLSFLOWER, &cls_flow,
 				   block_cb->cb_priv);
 		if (err < 0)
@@ -592,23 +622,22 @@ static int flow_offload_tuple_add(struct flow_offload_work *offload,
 	return i;
 }
 
+static int flow_offload_tuple_add(struct flow_offload_work *offload,
+				  struct nf_flow_rule *flow_rule,
+				  enum flow_offload_tuple_dir dir)
+{
+	return nf_flow_offload_tuple(offload->flowtable, offload->flow,
+				     flow_rule, dir, offload->priority,
+				     FLOW_CLS_REPLACE,
+				     &offload->flowtable->flow_block.cb_list);
+}
+
 static void flow_offload_tuple_del(struct flow_offload_work *offload,
 				   enum flow_offload_tuple_dir dir)
 {
-	struct nf_flowtable *flowtable = offload->flowtable;
-	struct flow_cls_offload cls_flow = {};
-	struct flow_block_cb *block_cb;
-	struct netlink_ext_ack extack;
-	__be16 proto = ETH_P_ALL;
-
-	nf_flow_offload_init(&cls_flow, proto, offload->priority,
-			     FLOW_CLS_DESTROY,
-			     &offload->flow->tuplehash[dir].tuple, &extack);
-
-	list_for_each_entry(block_cb, &flowtable->flow_block.cb_list, list)
-		block_cb->cb(TC_SETUP_CLSFLOWER, &cls_flow, block_cb->cb_priv);
-
-	offload->flow->flags |= FLOW_OFFLOAD_HW_DEAD;
+	nf_flow_offload_tuple(offload->flowtable, offload->flow, NULL, dir,
+			      offload->priority, FLOW_CLS_DESTROY,
+			      &offload->flowtable->flow_block.cb_list);
 }
 
 static int flow_offload_rule_add(struct flow_offload_work *offload,
@@ -626,26 +655,27 @@ static int flow_offload_rule_add(struct flow_offload_work *offload,
 	return 0;
 }
 
-static int flow_offload_work_add(struct flow_offload_work *offload)
+static void flow_offload_work_add(struct flow_offload_work *offload)
 {
 	struct nf_flow_rule *flow_rule[FLOW_OFFLOAD_DIR_MAX];
 	int err;
 
 	err = nf_flow_offload_alloc(offload, flow_rule);
 	if (err < 0)
-		return -ENOMEM;
+		return;
 
 	err = flow_offload_rule_add(offload, flow_rule);
+	if (err < 0)
+		set_bit(NF_FLOW_HW_REFRESH, &offload->flow->flags);
 
 	nf_flow_offload_destroy(flow_rule);
-
-	return err;
 }
 
 static void flow_offload_work_del(struct flow_offload_work *offload)
 {
 	flow_offload_tuple_del(offload, FLOW_OFFLOAD_DIR_ORIGINAL);
 	flow_offload_tuple_del(offload, FLOW_OFFLOAD_DIR_REPLY);
+	set_bit(NF_FLOW_HW_DEAD, &offload->flow->flags);
 }
 
 static void flow_offload_tuple_stats(struct flow_offload_work *offload,
@@ -684,7 +714,6 @@ static void flow_offload_work_handler(struct work_struct *work)
 {
 	struct flow_offload_work *offload, *next;
 	LIST_HEAD(offload_pending_list);
-	int ret;
 
 	spin_lock_bh(&flow_offload_pending_list_lock);
 	list_replace_init(&flow_offload_pending_list, &offload_pending_list);
@@ -693,9 +722,7 @@ static void flow_offload_work_handler(struct work_struct *work)
 	list_for_each_entry_safe(offload, next, &offload_pending_list, list) {
 		switch (offload->cmd) {
 		case FLOW_CLS_REPLACE:
-			ret = flow_offload_work_add(offload);
-			if (ret < 0)
-				offload->flow->flags &= ~FLOW_OFFLOAD_HW;
+			flow_offload_work_add(offload);
 			break;
 		case FLOW_CLS_DESTROY:
 			flow_offload_work_del(offload);
@@ -720,20 +747,33 @@ static void flow_offload_queue_work(struct flow_offload_work *offload)
 	schedule_work(&nf_flow_offload_work);
 }
 
-void nf_flow_offload_add(struct nf_flowtable *flowtable,
-			 struct flow_offload *flow)
+static struct flow_offload_work *
+nf_flow_offload_work_alloc(struct nf_flowtable *flowtable,
+			   struct flow_offload *flow, unsigned int cmd)
 {
 	struct flow_offload_work *offload;
 
 	offload = kmalloc(sizeof(struct flow_offload_work), GFP_ATOMIC);
 	if (!offload)
-		return;
+		return NULL;
 
-	offload->cmd = FLOW_CLS_REPLACE;
+	offload->cmd = cmd;
 	offload->flow = flow;
 	offload->priority = flowtable->priority;
 	offload->flowtable = flowtable;
-	flow->flags |= FLOW_OFFLOAD_HW;
+
+	return offload;
+}
+
+
+void nf_flow_offload_add(struct nf_flowtable *flowtable,
+			 struct flow_offload *flow)
+{
+	struct flow_offload_work *offload;
+
+	offload = nf_flow_offload_work_alloc(flowtable, flow, FLOW_CLS_REPLACE);
+	if (!offload)
+		return;
 
 	flow_offload_queue_work(offload);
 }
@@ -743,15 +783,11 @@ void nf_flow_offload_del(struct nf_flowtable *flowtable,
 {
 	struct flow_offload_work *offload;
 
-	offload = kzalloc(sizeof(struct flow_offload_work), GFP_ATOMIC);
+	offload = nf_flow_offload_work_alloc(flowtable, flow, FLOW_CLS_DESTROY);
 	if (!offload)
 		return;
 
-	offload->cmd = FLOW_CLS_DESTROY;
-	offload->flow = flow;
-	offload->flow->flags |= FLOW_OFFLOAD_HW_DYING;
-	offload->flowtable = flowtable;
-
+	set_bit(NF_FLOW_HW_DYING, &flow->flags);
 	flow_offload_queue_work(offload);
 }
 
@@ -759,27 +795,22 @@ void nf_flow_offload_stats(struct nf_flowtable *flowtable,
 			   struct flow_offload *flow)
 {
 	struct flow_offload_work *offload;
-	s64 delta;
+	__s32 delta;
 
-	delta = flow->timeout - jiffies;
-	if ((delta >= (9 * NF_FLOW_TIMEOUT) / 10) ||
-	    flow->flags & FLOW_OFFLOAD_HW_DYING)
+	delta = nf_flow_timeout_delta(flow->timeout);
+	if ((delta >= (9 * NF_FLOW_TIMEOUT) / 10))
 		return;
 
-	offload = kzalloc(sizeof(struct flow_offload_work), GFP_ATOMIC);
+	offload = nf_flow_offload_work_alloc(flowtable, flow, FLOW_CLS_STATS);
 	if (!offload)
 		return;
-
-	offload->cmd = FLOW_CLS_STATS;
-	offload->flow = flow;
-	offload->flowtable = flowtable;
 
 	flow_offload_queue_work(offload);
 }
 
 void nf_flow_table_offload_flush(struct nf_flowtable *flowtable)
 {
-	if (flowtable->flags & NF_FLOWTABLE_HW_OFFLOAD)
+	if (nf_flowtable_hw_offload(flowtable))
 		flush_work(&nf_flow_offload_work);
 }
 
@@ -808,28 +839,44 @@ static int nf_flow_table_block_setup(struct nf_flowtable *flowtable,
 	return err;
 }
 
-int nf_flow_table_offload_setup(struct nf_flowtable *flowtable,
-				struct net_device *dev,
-				enum flow_block_command cmd)
+static int nf_flow_table_offload_cmd(struct flow_block_offload *bo,
+				     struct nf_flowtable *flowtable,
+				     struct net_device *dev,
+				     enum flow_block_command cmd,
+				     struct netlink_ext_ack *extack)
 {
-	struct netlink_ext_ack extack = {};
-	struct flow_block_offload bo = {};
 	int err;
 
-	if (!(flowtable->flags & NF_FLOWTABLE_HW_OFFLOAD))
+	if (!nf_flowtable_hw_offload(flowtable))
 		return 0;
 
 	if (!dev->netdev_ops->ndo_setup_tc)
 		return -EOPNOTSUPP;
 
-	bo.net		= dev_net(dev);
-	bo.block	= &flowtable->flow_block;
-	bo.command	= cmd;
-	bo.binder_type	= FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS;
-	bo.extack	= &extack;
-	INIT_LIST_HEAD(&bo.cb_list);
+	memset(bo, 0, sizeof(*bo));
+	bo->net		= dev_net(dev);
+	bo->block	= &flowtable->flow_block;
+	bo->command	= cmd;
+	bo->binder_type	= FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS;
+	bo->extack	= extack;
+	INIT_LIST_HEAD(&bo->cb_list);
 
-	err = dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_FT, &bo);
+	err = dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_FT, bo);
+	if (err < 0)
+		return err;
+
+	return 0;
+}
+
+int nf_flow_table_offload_setup(struct nf_flowtable *flowtable,
+				struct net_device *dev,
+				enum flow_block_command cmd)
+{
+	struct netlink_ext_ack extack = {};
+	struct flow_block_offload bo;
+	int err;
+
+	err = nf_flow_table_offload_cmd(&bo, flowtable, dev, cmd, &extack);
 	if (err < 0)
 		return err;
 

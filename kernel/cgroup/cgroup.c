@@ -1816,15 +1816,10 @@ enum cgroup2_param {
 	nr__cgroup2_params
 };
 
-static const struct fs_parameter_spec cgroup2_param_specs[] = {
+static const struct fs_parameter_spec cgroup2_fs_parameters[] = {
 	fsparam_flag("nsdelegate",		Opt_nsdelegate),
 	fsparam_flag("memory_localevents",	Opt_memory_localevents),
 	{}
-};
-
-static const struct fs_parameter_description cgroup2_fs_parameters = {
-	.name		= "cgroup2",
-	.specs		= cgroup2_param_specs,
 };
 
 static int cgroup2_parse_param(struct fs_context *fc, struct fs_parameter *param)
@@ -1833,7 +1828,7 @@ static int cgroup2_parse_param(struct fs_context *fc, struct fs_parameter *param
 	struct fs_parse_result result;
 	int opt;
 
-	opt = fs_parse(fc, &cgroup2_fs_parameters, param, &result);
+	opt = fs_parse(fc, cgroup2_fs_parameters, param, &result);
 	if (opt < 0)
 		return opt;
 
@@ -2156,7 +2151,7 @@ static void cgroup_kill_sb(struct super_block *sb)
 struct file_system_type cgroup_fs_type = {
 	.name			= "cgroup",
 	.init_fs_context	= cgroup_init_fs_context,
-	.parameters		= &cgroup1_fs_parameters,
+	.parameters		= cgroup1_fs_parameters,
 	.kill_sb		= cgroup_kill_sb,
 	.fs_flags		= FS_USERNS_MOUNT,
 };
@@ -2164,7 +2159,7 @@ struct file_system_type cgroup_fs_type = {
 static struct file_system_type cgroup2_fs_type = {
 	.name			= "cgroup2",
 	.init_fs_context	= cgroup_init_fs_context,
-	.parameters		= &cgroup2_fs_parameters,
+	.parameters		= cgroup2_fs_parameters,
 	.kill_sb		= cgroup_kill_sb,
 	.fs_flags		= FS_USERNS_MOUNT,
 };
@@ -3055,8 +3050,6 @@ static int cgroup_apply_control_enable(struct cgroup *cgrp)
 		for_each_subsys(ss, ssid) {
 			struct cgroup_subsys_state *css = cgroup_css(dsct, ss);
 
-			WARN_ON_ONCE(css && percpu_ref_is_dying(&css->refcnt));
-
 			if (!(cgroup_ss_mask(dsct) & (1 << ss->id)))
 				continue;
 
@@ -3065,6 +3058,8 @@ static int cgroup_apply_control_enable(struct cgroup *cgrp)
 				if (IS_ERR(css))
 					return PTR_ERR(css);
 			}
+
+			WARN_ON_ONCE(percpu_ref_is_dying(&css->refcnt));
 
 			if (css_visible(css)) {
 				ret = css_populate_dir(css);
@@ -3101,10 +3096,10 @@ static void cgroup_apply_control_disable(struct cgroup *cgrp)
 		for_each_subsys(ss, ssid) {
 			struct cgroup_subsys_state *css = cgroup_css(dsct, ss);
 
-			WARN_ON_ONCE(css && percpu_ref_is_dying(&css->refcnt));
-
 			if (!css)
 				continue;
+
+			WARN_ON_ONCE(percpu_ref_is_dying(&css->refcnt));
 
 			if (css->parent &&
 			    !(cgroup_ss_mask(dsct) & (1 << ss->id))) {
@@ -3392,7 +3387,8 @@ static ssize_t cgroup_type_write(struct kernfs_open_file *of, char *buf,
 	if (strcmp(strstrip(buf), "threaded"))
 		return -EINVAL;
 
-	cgrp = cgroup_kn_lock_live(of->kn, false);
+	/* drain dying csses before we re-apply (threaded) subtree control */
+	cgrp = cgroup_kn_lock_live(of->kn, true);
 	if (!cgrp)
 		return -ENOENT;
 
@@ -6288,12 +6284,13 @@ void cgroup_sk_free(struct sock_cgroup_data *skcd)
 
 #ifdef CONFIG_CGROUP_BPF
 int cgroup_bpf_attach(struct cgroup *cgrp, struct bpf_prog *prog,
-		      enum bpf_attach_type type, u32 flags)
+		      struct bpf_prog *replace_prog, enum bpf_attach_type type,
+		      u32 flags)
 {
 	int ret;
 
 	mutex_lock(&cgroup_mutex);
-	ret = __cgroup_bpf_attach(cgrp, prog, type, flags);
+	ret = __cgroup_bpf_attach(cgrp, prog, replace_prog, type, flags);
 	mutex_unlock(&cgroup_mutex);
 	return ret;
 }

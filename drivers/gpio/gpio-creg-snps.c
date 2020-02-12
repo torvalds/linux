@@ -64,11 +64,11 @@ static int creg_gpio_validate_pg(struct device *dev, struct creg_gpio *hcg,
 	if (layout->bit_per_gpio[i] < 1 || layout->bit_per_gpio[i] > 8)
 		return -EINVAL;
 
-	/* Check that on valiue fits it's placeholder */
+	/* Check that on value fits its placeholder */
 	if (GENMASK(31, layout->bit_per_gpio[i]) & layout->on[i])
 		return -EINVAL;
 
-	/* Check that off valiue fits it's placeholder */
+	/* Check that off value fits its placeholder */
 	if (GENMASK(31, layout->bit_per_gpio[i]) & layout->off[i])
 		return -EINVAL;
 

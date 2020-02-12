@@ -439,8 +439,7 @@ static void slg51000_clear_fault_log(struct slg51000 *chip)
 		dev_dbg(chip->dev, "Fault log: FLT_POR\n");
 }
 
-static int slg51000_i2c_probe(struct i2c_client *client,
-			      const struct i2c_device_id *id)
+static int slg51000_i2c_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct slg51000 *chip;
@@ -509,7 +508,7 @@ static struct i2c_driver slg51000_regulator_driver = {
 	.driver = {
 		.name = "slg51000-regulator",
 	},
-	.probe = slg51000_i2c_probe,
+	.probe_new = slg51000_i2c_probe,
 	.id_table = slg51000_i2c_id,
 };
 

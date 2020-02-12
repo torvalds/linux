@@ -517,7 +517,7 @@ static int igt_mock_memory_region_huge_pages(void *arg)
 			i915_vma_unpin(vma);
 			i915_vma_close(vma);
 
-			__i915_gem_object_put_pages(obj, I915_MM_NORMAL);
+			__i915_gem_object_put_pages(obj);
 			i915_gem_object_put(obj);
 		}
 	}
@@ -650,7 +650,7 @@ static int igt_mock_ppgtt_misaligned_dma(void *arg)
 		i915_vma_close(vma);
 
 		i915_gem_object_unpin_pages(obj);
-		__i915_gem_object_put_pages(obj, I915_MM_NORMAL);
+		__i915_gem_object_put_pages(obj);
 		i915_gem_object_put(obj);
 	}
 
@@ -678,7 +678,7 @@ static void close_object_list(struct list_head *objects,
 
 		list_del(&obj->st_link);
 		i915_gem_object_unpin_pages(obj);
-		__i915_gem_object_put_pages(obj, I915_MM_NORMAL);
+		__i915_gem_object_put_pages(obj);
 		i915_gem_object_put(obj);
 	}
 }
@@ -948,7 +948,7 @@ static int igt_mock_ppgtt_64K(void *arg)
 			i915_vma_close(vma);
 
 			i915_gem_object_unpin_pages(obj);
-			__i915_gem_object_put_pages(obj, I915_MM_NORMAL);
+			__i915_gem_object_put_pages(obj);
 			i915_gem_object_put(obj);
 		}
 	}
@@ -1017,38 +1017,33 @@ __cpu_check_shmem(struct drm_i915_gem_object *obj, u32 dword, u32 val)
 	return err;
 }
 
-static int __cpu_check_lmem(struct drm_i915_gem_object *obj, u32 dword, u32 val)
+static int __cpu_check_vmap(struct drm_i915_gem_object *obj, u32 dword, u32 val)
 {
-	unsigned long n;
+	unsigned long n = obj->base.size >> PAGE_SHIFT;
+	u32 *ptr;
 	int err;
 
-	i915_gem_object_lock(obj);
-	err = i915_gem_object_set_to_wc_domain(obj, false);
-	i915_gem_object_unlock(obj);
+	err = i915_gem_object_wait(obj, 0, MAX_SCHEDULE_TIMEOUT);
 	if (err)
 		return err;
 
-	err = i915_gem_object_pin_pages(obj);
-	if (err)
-		return err;
+	ptr = i915_gem_object_pin_map(obj, I915_MAP_WC);
+	if (IS_ERR(ptr))
+		return PTR_ERR(ptr);
 
-	for (n = 0; n < obj->base.size >> PAGE_SHIFT; ++n) {
-		u32 __iomem *base;
-		u32 read_val;
-
-		base = i915_gem_object_lmem_io_map_page_atomic(obj, n);
-
-		read_val = ioread32(base + dword);
-		io_mapping_unmap_atomic(base);
-		if (read_val != val) {
-			pr_err("n=%lu base[%u]=%u, val=%u\n",
-			       n, dword, read_val, val);
+	ptr += dword;
+	while (n--) {
+		if (*ptr != val) {
+			pr_err("base[%u]=%08x, val=%08x\n",
+			       dword, *ptr, val);
 			err = -EINVAL;
 			break;
 		}
+
+		ptr += PAGE_SIZE / sizeof(*ptr);
 	}
 
-	i915_gem_object_unpin_pages(obj);
+	i915_gem_object_unpin_map(obj);
 	return err;
 }
 
@@ -1056,10 +1051,8 @@ static int cpu_check(struct drm_i915_gem_object *obj, u32 dword, u32 val)
 {
 	if (i915_gem_object_has_struct_page(obj))
 		return __cpu_check_shmem(obj, dword, val);
-	else if (i915_gem_object_is_lmem(obj))
-		return __cpu_check_lmem(obj, dword, val);
-
-	return -ENODEV;
+	else
+		return __cpu_check_vmap(obj, dword, val);
 }
 
 static int __igt_write_huge(struct intel_context *ce,
@@ -1110,8 +1103,7 @@ static int __igt_write_huge(struct intel_context *ce,
 out_vma_unpin:
 	i915_vma_unpin(vma);
 out_vma_close:
-	i915_vma_destroy(vma);
-
+	__i915_vma_put(vma);
 	return err;
 }
 
@@ -1301,7 +1293,7 @@ static int igt_ppgtt_exhaust_huge(void *arg)
 			}
 
 			i915_gem_object_unpin_pages(obj);
-			__i915_gem_object_put_pages(obj, I915_MM_NORMAL);
+			__i915_gem_object_put_pages(obj);
 			i915_gem_object_put(obj);
 		}
 	}
@@ -1420,7 +1412,7 @@ try_again:
 
 		err = i915_gem_object_pin_pages(obj);
 		if (err) {
-			if (err == -ENXIO) {
+			if (err == -ENXIO || err == -E2BIG) {
 				i915_gem_object_put(obj);
 				size >>= 1;
 				goto try_again;
@@ -1442,7 +1434,7 @@ try_again:
 		}
 out_unpin:
 		i915_gem_object_unpin_pages(obj);
-		__i915_gem_object_put_pages(obj, I915_MM_NORMAL);
+		__i915_gem_object_put_pages(obj);
 out_put:
 		i915_gem_object_put(obj);
 
@@ -1530,7 +1522,7 @@ static int igt_ppgtt_sanity_check(void *arg)
 			err = igt_write_huge(ctx, obj);
 
 			i915_gem_object_unpin_pages(obj);
-			__i915_gem_object_put_pages(obj, I915_MM_NORMAL);
+			__i915_gem_object_put_pages(obj);
 			i915_gem_object_put(obj);
 
 			if (err) {
@@ -1873,7 +1865,7 @@ int i915_gem_huge_page_mock_selftests(void)
 	mkwrite_device_info(dev_priv)->ppgtt_type = INTEL_PPGTT_FULL;
 	mkwrite_device_info(dev_priv)->ppgtt_size = 48;
 
-	ppgtt = i915_ppgtt_create(dev_priv);
+	ppgtt = i915_ppgtt_create(&dev_priv->gt);
 	if (IS_ERR(ppgtt)) {
 		err = PTR_ERR(ppgtt);
 		goto out_unlock;
@@ -1912,9 +1904,9 @@ int i915_gem_huge_page_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(igt_ppgtt_smoke_huge),
 		SUBTEST(igt_ppgtt_sanity_check),
 	};
-	struct drm_file *file;
 	struct i915_gem_context *ctx;
 	struct i915_address_space *vm;
+	struct file *file;
 	int err;
 
 	if (!HAS_PPGTT(i915)) {
@@ -1944,6 +1936,6 @@ int i915_gem_huge_page_live_selftests(struct drm_i915_private *i915)
 	err = i915_subtests(tests, ctx);
 
 out_file:
-	mock_file_free(i915, file);
+	fput(file);
 	return err;
 }

@@ -25,3 +25,11 @@ config NDC_DIS_DYNAMIC_CACHING
 	  This config option disables caching of dynamic entries such as NIX SQEs
 	  , NPA stack pages etc in NDC. Also locks down NIX SQ/CQ/RQ/RSS and
 	  NPA Aura/Pool contexts.
+
+config OCTEONTX2_PF
+	tristate "Marvell OcteonTX2 NIC Physical Function driver"
+	select OCTEONTX2_MBOX
+	depends on (64BIT && COMPILE_TEST) || ARM64
+	depends on PCI
+	help
+	  This driver supports Marvell's OcteonTX2 NIC physical function.

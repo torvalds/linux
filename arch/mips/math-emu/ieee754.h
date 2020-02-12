@@ -68,6 +68,14 @@ union ieee754sp ieee754sp_maddf(union ieee754sp z, union ieee754sp x,
 				union ieee754sp y);
 union ieee754sp ieee754sp_msubf(union ieee754sp z, union ieee754sp x,
 				union ieee754sp y);
+union ieee754sp ieee754sp_madd(union ieee754sp z, union ieee754sp x,
+				union ieee754sp y);
+union ieee754sp ieee754sp_msub(union ieee754sp z, union ieee754sp x,
+				union ieee754sp y);
+union ieee754sp ieee754sp_nmadd(union ieee754sp z, union ieee754sp x,
+				union ieee754sp y);
+union ieee754sp ieee754sp_nmsub(union ieee754sp z, union ieee754sp x,
+				union ieee754sp y);
 int ieee754sp_2008class(union ieee754sp x);
 union ieee754sp ieee754sp_fmin(union ieee754sp x, union ieee754sp y);
 union ieee754sp ieee754sp_fmina(union ieee754sp x, union ieee754sp y);
@@ -102,6 +110,14 @@ union ieee754dp ieee754dp_sqrt(union ieee754dp x);
 union ieee754dp ieee754dp_maddf(union ieee754dp z, union ieee754dp x,
 				union ieee754dp y);
 union ieee754dp ieee754dp_msubf(union ieee754dp z, union ieee754dp x,
+				union ieee754dp y);
+union ieee754dp ieee754dp_madd(union ieee754dp z, union ieee754dp x,
+				union ieee754dp y);
+union ieee754dp ieee754dp_msub(union ieee754dp z, union ieee754dp x,
+				union ieee754dp y);
+union ieee754dp ieee754dp_nmadd(union ieee754dp z, union ieee754dp x,
+				union ieee754dp y);
+union ieee754dp ieee754dp_nmsub(union ieee754dp z, union ieee754dp x,
 				union ieee754dp y);
 int ieee754dp_2008class(union ieee754dp x);
 union ieee754dp ieee754dp_fmin(union ieee754dp x, union ieee754dp y);

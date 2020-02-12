@@ -17,6 +17,7 @@
 #include <linux/u64_stats_sync.h>
 #include <linux/refcount.h>
 #include <linux/mutex.h>
+#include <linux/module.h>
 
 struct bpf_verifier_env;
 struct bpf_verifier_log;
@@ -43,6 +44,15 @@ struct bpf_map_ops {
 	int (*map_get_next_key)(struct bpf_map *map, void *key, void *next_key);
 	void (*map_release_uref)(struct bpf_map *map);
 	void *(*map_lookup_elem_sys_only)(struct bpf_map *map, void *key);
+	int (*map_lookup_batch)(struct bpf_map *map, const union bpf_attr *attr,
+				union bpf_attr __user *uattr);
+	int (*map_lookup_and_delete_batch)(struct bpf_map *map,
+					   const union bpf_attr *attr,
+					   union bpf_attr __user *uattr);
+	int (*map_update_batch)(struct bpf_map *map, const union bpf_attr *attr,
+				union bpf_attr __user *uattr);
+	int (*map_delete_batch)(struct bpf_map *map, const union bpf_attr *attr,
+				union bpf_attr __user *uattr);
 
 	/* funcs callable from userspace and from eBPF programs */
 	void *(*map_lookup_elem)(struct bpf_map *map, void *key);
@@ -106,6 +116,7 @@ struct bpf_map {
 	struct btf *btf;
 	struct bpf_map_memory memory;
 	char name[BPF_OBJ_NAME_LEN];
+	u32 btf_vmlinux_value_type_id;
 	bool unpriv_array;
 	bool frozen; /* write-once; write-protected by freeze_mutex */
 	/* 22 bytes hole */
@@ -183,7 +194,8 @@ static inline bool bpf_map_offload_neutral(const struct bpf_map *map)
 
 static inline bool bpf_map_support_seq_show(const struct bpf_map *map)
 {
-	return map->btf && map->ops->map_seq_show_elem;
+	return (map->btf_value_type_id || map->btf_vmlinux_value_type_id) &&
+		map->ops->map_seq_show_elem;
 }
 
 int map_check_no_btf(const struct bpf_map *map,
@@ -349,6 +361,10 @@ struct bpf_verifier_ops {
 				  const struct bpf_insn *src,
 				  struct bpf_insn *dst,
 				  struct bpf_prog *prog, u32 *target_size);
+	int (*btf_struct_access)(struct bpf_verifier_log *log,
+				 const struct btf_type *t, int off, int size,
+				 enum bpf_access_type atype,
+				 u32 *next_btf_id);
 };
 
 struct bpf_prog_offload_ops {
@@ -437,7 +453,8 @@ struct btf_func_model {
  *      fentry = a set of program to run before calling original function
  *      fexit = a set of program to run after original function
  */
-int arch_prepare_bpf_trampoline(void *image, struct btf_func_model *m, u32 flags,
+int arch_prepare_bpf_trampoline(void *image, void *image_end,
+				const struct btf_func_model *m, u32 flags,
 				struct bpf_prog **fentry_progs, int fentry_cnt,
 				struct bpf_prog **fexit_progs, int fexit_cnt,
 				void *orig_call);
@@ -448,7 +465,8 @@ void notrace __bpf_prog_exit(struct bpf_prog *prog, u64 start);
 enum bpf_tramp_prog_type {
 	BPF_TRAMP_FENTRY,
 	BPF_TRAMP_FEXIT,
-	BPF_TRAMP_MAX
+	BPF_TRAMP_MAX,
+	BPF_TRAMP_REPLACE, /* more than MAX */
 };
 
 struct bpf_trampoline {
@@ -463,6 +481,11 @@ struct bpf_trampoline {
 		void *addr;
 		bool ftrace_managed;
 	} func;
+	/* if !NULL this is BPF_PROG_TYPE_EXT program that extends another BPF
+	 * program by replacing one of its functions. func.addr is the address
+	 * of the function it replaced.
+	 */
+	struct bpf_prog *extension_prog;
 	/* list of BPF programs using this trampoline */
 	struct hlist_head progs_hlist[BPF_TRAMP_MAX];
 	/* Number of attached programs. A counter per kind. */
@@ -471,11 +494,75 @@ struct bpf_trampoline {
 	void *image;
 	u64 selector;
 };
+
+#define BPF_DISPATCHER_MAX 48 /* Fits in 2048B */
+
+struct bpf_dispatcher_prog {
+	struct bpf_prog *prog;
+	refcount_t users;
+};
+
+struct bpf_dispatcher {
+	/* dispatcher mutex */
+	struct mutex mutex;
+	void *func;
+	struct bpf_dispatcher_prog progs[BPF_DISPATCHER_MAX];
+	int num_progs;
+	void *image;
+	u32 image_off;
+};
+
+static __always_inline unsigned int bpf_dispatcher_nopfunc(
+	const void *ctx,
+	const struct bpf_insn *insnsi,
+	unsigned int (*bpf_func)(const void *,
+				 const struct bpf_insn *))
+{
+	return bpf_func(ctx, insnsi);
+}
 #ifdef CONFIG_BPF_JIT
 struct bpf_trampoline *bpf_trampoline_lookup(u64 key);
 int bpf_trampoline_link_prog(struct bpf_prog *prog);
 int bpf_trampoline_unlink_prog(struct bpf_prog *prog);
 void bpf_trampoline_put(struct bpf_trampoline *tr);
+#define BPF_DISPATCHER_INIT(name) {			\
+	.mutex = __MUTEX_INITIALIZER(name.mutex),	\
+	.func = &name##func,				\
+	.progs = {},					\
+	.num_progs = 0,					\
+	.image = NULL,					\
+	.image_off = 0					\
+}
+
+#define DEFINE_BPF_DISPATCHER(name)					\
+	noinline unsigned int name##func(				\
+		const void *ctx,					\
+		const struct bpf_insn *insnsi,				\
+		unsigned int (*bpf_func)(const void *,			\
+					 const struct bpf_insn *))	\
+	{								\
+		return bpf_func(ctx, insnsi);				\
+	}								\
+	EXPORT_SYMBOL(name##func);			\
+	struct bpf_dispatcher name = BPF_DISPATCHER_INIT(name);
+#define DECLARE_BPF_DISPATCHER(name)					\
+	unsigned int name##func(					\
+		const void *ctx,					\
+		const struct bpf_insn *insnsi,				\
+		unsigned int (*bpf_func)(const void *,			\
+					 const struct bpf_insn *));	\
+	extern struct bpf_dispatcher name;
+#define BPF_DISPATCHER_FUNC(name) name##func
+#define BPF_DISPATCHER_PTR(name) (&name)
+void bpf_dispatcher_change_prog(struct bpf_dispatcher *d, struct bpf_prog *from,
+				struct bpf_prog *to);
+struct bpf_image {
+	struct latch_tree_node tnode;
+	unsigned char data[];
+};
+#define BPF_IMAGE_SIZE (PAGE_SIZE - sizeof(struct bpf_image))
+bool is_bpf_image_address(unsigned long address);
+void *bpf_image_alloc(void);
 #else
 static inline struct bpf_trampoline *bpf_trampoline_lookup(u64 key)
 {
@@ -490,9 +577,21 @@ static inline int bpf_trampoline_unlink_prog(struct bpf_prog *prog)
 	return -ENOTSUPP;
 }
 static inline void bpf_trampoline_put(struct bpf_trampoline *tr) {}
+#define DEFINE_BPF_DISPATCHER(name)
+#define DECLARE_BPF_DISPATCHER(name)
+#define BPF_DISPATCHER_FUNC(name) bpf_dispatcher_nopfunc
+#define BPF_DISPATCHER_PTR(name) NULL
+static inline void bpf_dispatcher_change_prog(struct bpf_dispatcher *d,
+					      struct bpf_prog *from,
+					      struct bpf_prog *to) {}
+static inline bool is_bpf_image_address(unsigned long address)
+{
+	return false;
+}
 #endif
 
 struct bpf_func_info_aux {
+	u16 linkage;
 	bool unreliable;
 };
 
@@ -602,6 +701,76 @@ struct bpf_array_aux {
 	struct mutex poke_mutex;
 	struct work_struct work;
 };
+
+struct bpf_struct_ops_value;
+struct btf_type;
+struct btf_member;
+
+#define BPF_STRUCT_OPS_MAX_NR_MEMBERS 64
+struct bpf_struct_ops {
+	const struct bpf_verifier_ops *verifier_ops;
+	int (*init)(struct btf *btf);
+	int (*check_member)(const struct btf_type *t,
+			    const struct btf_member *member);
+	int (*init_member)(const struct btf_type *t,
+			   const struct btf_member *member,
+			   void *kdata, const void *udata);
+	int (*reg)(void *kdata);
+	void (*unreg)(void *kdata);
+	const struct btf_type *type;
+	const struct btf_type *value_type;
+	const char *name;
+	struct btf_func_model func_models[BPF_STRUCT_OPS_MAX_NR_MEMBERS];
+	u32 type_id;
+	u32 value_id;
+};
+
+#if defined(CONFIG_BPF_JIT) && defined(CONFIG_BPF_SYSCALL)
+#define BPF_MODULE_OWNER ((void *)((0xeB9FUL << 2) + POISON_POINTER_DELTA))
+const struct bpf_struct_ops *bpf_struct_ops_find(u32 type_id);
+void bpf_struct_ops_init(struct btf *btf, struct bpf_verifier_log *log);
+bool bpf_struct_ops_get(const void *kdata);
+void bpf_struct_ops_put(const void *kdata);
+int bpf_struct_ops_map_sys_lookup_elem(struct bpf_map *map, void *key,
+				       void *value);
+static inline bool bpf_try_module_get(const void *data, struct module *owner)
+{
+	if (owner == BPF_MODULE_OWNER)
+		return bpf_struct_ops_get(data);
+	else
+		return try_module_get(owner);
+}
+static inline void bpf_module_put(const void *data, struct module *owner)
+{
+	if (owner == BPF_MODULE_OWNER)
+		bpf_struct_ops_put(data);
+	else
+		module_put(owner);
+}
+#else
+static inline const struct bpf_struct_ops *bpf_struct_ops_find(u32 type_id)
+{
+	return NULL;
+}
+static inline void bpf_struct_ops_init(struct btf *btf,
+				       struct bpf_verifier_log *log)
+{
+}
+static inline bool bpf_try_module_get(const void *data, struct module *owner)
+{
+	return try_module_get(owner);
+}
+static inline void bpf_module_put(const void *data, struct module *owner)
+{
+	module_put(owner);
+}
+static inline int bpf_struct_ops_map_sys_lookup_elem(struct bpf_map *map,
+						     void *key,
+						     void *value)
+{
+	return -EINVAL;
+}
+#endif
 
 struct bpf_array {
 	struct bpf_map map;
@@ -841,6 +1010,15 @@ void *bpf_map_area_alloc(u64 size, int numa_node);
 void *bpf_map_area_mmapable_alloc(u64 size, int numa_node);
 void bpf_map_area_free(void *base);
 void bpf_map_init_from_attr(struct bpf_map *map, union bpf_attr *attr);
+int  generic_map_lookup_batch(struct bpf_map *map,
+			      const union bpf_attr *attr,
+			      union bpf_attr __user *uattr);
+int  generic_map_update_batch(struct bpf_map *map,
+			      const union bpf_attr *attr,
+			      union bpf_attr __user *uattr);
+int  generic_map_delete_batch(struct bpf_map *map,
+			      const union bpf_attr *attr,
+			      union bpf_attr __user *uattr);
 
 extern int sysctl_unprivileged_bpf_disabled;
 
@@ -897,14 +1075,16 @@ struct sk_buff;
 
 struct bpf_dtab_netdev *__dev_map_lookup_elem(struct bpf_map *map, u32 key);
 struct bpf_dtab_netdev *__dev_map_hash_lookup_elem(struct bpf_map *map, u32 key);
-void __dev_map_flush(struct bpf_map *map);
+void __dev_flush(void);
+int dev_xdp_enqueue(struct net_device *dev, struct xdp_buff *xdp,
+		    struct net_device *dev_rx);
 int dev_map_enqueue(struct bpf_dtab_netdev *dst, struct xdp_buff *xdp,
 		    struct net_device *dev_rx);
 int dev_map_generic_redirect(struct bpf_dtab_netdev *dst, struct sk_buff *skb,
 			     struct bpf_prog *xdp_prog);
 
 struct bpf_cpu_map_entry *__cpu_map_lookup_elem(struct bpf_map *map, u32 key);
-void __cpu_map_flush(struct bpf_map *map);
+void __cpu_map_flush(void);
 int cpu_map_enqueue(struct bpf_cpu_map_entry *rcpu, struct xdp_buff *xdp,
 		    struct net_device *dev_rx);
 
@@ -941,7 +1121,15 @@ int btf_distill_func_proto(struct bpf_verifier_log *log,
 			   const char *func_name,
 			   struct btf_func_model *m);
 
-int btf_check_func_arg_match(struct bpf_verifier_env *env, int subprog);
+struct bpf_reg_state;
+int btf_check_func_arg_match(struct bpf_verifier_env *env, int subprog,
+			     struct bpf_reg_state *regs);
+int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog,
+			  struct bpf_reg_state *reg);
+int btf_check_type_match(struct bpf_verifier_env *env, struct bpf_prog *prog,
+			 struct btf *btf, const struct btf_type *t);
+
+struct bpf_prog *bpf_prog_by_id(u32 id);
 
 #else /* !CONFIG_BPF_SYSCALL */
 static inline struct bpf_prog *bpf_prog_get(u32 ufd)
@@ -1004,12 +1192,19 @@ static inline struct net_device  *__dev_map_hash_lookup_elem(struct bpf_map *map
 	return NULL;
 }
 
-static inline void __dev_map_flush(struct bpf_map *map)
+static inline void __dev_flush(void)
 {
 }
 
 struct xdp_buff;
 struct bpf_dtab_netdev;
+
+static inline
+int dev_xdp_enqueue(struct net_device *dev, struct xdp_buff *xdp,
+		    struct net_device *dev_rx)
+{
+	return 0;
+}
 
 static inline
 int dev_map_enqueue(struct bpf_dtab_netdev *dst, struct xdp_buff *xdp,
@@ -1033,7 +1228,7 @@ struct bpf_cpu_map_entry *__cpu_map_lookup_elem(struct bpf_map *map, u32 key)
 	return NULL;
 }
 
-static inline void __cpu_map_flush(struct bpf_map *map)
+static inline void __cpu_map_flush(void)
 {
 }
 
@@ -1073,6 +1268,11 @@ static inline int bpf_prog_test_run_flow_dissector(struct bpf_prog *prog,
 
 static inline void bpf_map_put(struct bpf_map *map)
 {
+}
+
+static inline struct bpf_prog *bpf_prog_by_id(u32 id)
+{
+	return ERR_PTR(-ENOTSUPP);
 }
 #endif /* CONFIG_BPF_SYSCALL */
 
@@ -1227,6 +1427,7 @@ extern const struct bpf_func_proto bpf_get_local_storage_proto;
 extern const struct bpf_func_proto bpf_strtol_proto;
 extern const struct bpf_func_proto bpf_strtoul_proto;
 extern const struct bpf_func_proto bpf_tcp_sock_proto;
+extern const struct bpf_func_proto bpf_jiffies64_proto;
 
 /* Shared helpers among cBPF and eBPF. */
 void bpf_user_rnd_init_once(void);

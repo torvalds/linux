@@ -9,6 +9,9 @@
 #include <linux/fs.h>
 #include "ovl_entry.h"
 
+#undef pr_fmt
+#define pr_fmt(fmt) "overlayfs: " fmt
+
 enum ovl_path_type {
 	__OVL_PATH_UPPER	= (1 << 0),
 	__OVL_PATH_MERGE	= (1 << 1),
@@ -221,7 +224,6 @@ int ovl_want_write(struct dentry *dentry);
 void ovl_drop_write(struct dentry *dentry);
 struct dentry *ovl_workdir(struct dentry *dentry);
 const struct cred *ovl_override_creds(struct super_block *sb);
-struct super_block *ovl_same_sb(struct super_block *sb);
 int ovl_can_decode_fh(struct super_block *sb);
 struct dentry *ovl_indexdir(struct super_block *sb);
 bool ovl_index_all(struct super_block *sb);
@@ -237,7 +239,7 @@ enum ovl_path_type ovl_path_real(struct dentry *dentry, struct path *path);
 struct dentry *ovl_dentry_upper(struct dentry *dentry);
 struct dentry *ovl_dentry_lower(struct dentry *dentry);
 struct dentry *ovl_dentry_lowerdata(struct dentry *dentry);
-struct ovl_layer *ovl_layer_lower(struct dentry *dentry);
+const struct ovl_layer *ovl_layer_lower(struct dentry *dentry);
 struct dentry *ovl_dentry_real(struct dentry *dentry);
 struct dentry *ovl_i_dentry_upper(struct inode *inode);
 struct inode *ovl_inode_upper(struct inode *inode);
@@ -299,11 +301,21 @@ static inline bool ovl_is_impuredir(struct dentry *dentry)
 	return ovl_check_dir_xattr(dentry, OVL_XATTR_IMPURE);
 }
 
+/* All layers on same fs? */
+static inline bool ovl_same_fs(struct super_block *sb)
+{
+	return OVL_FS(sb)->xino_mode == 0;
+}
+
+/* All overlay inodes have same st_dev? */
+static inline bool ovl_same_dev(struct super_block *sb)
+{
+	return OVL_FS(sb)->xino_mode >= 0;
+}
+
 static inline unsigned int ovl_xino_bits(struct super_block *sb)
 {
-	struct ovl_fs *ofs = sb->s_fs_info;
-
-	return ofs->xino_bits;
+	return ovl_same_dev(sb) ? OVL_FS(sb)->xino_mode : 0;
 }
 
 static inline int ovl_inode_lock(struct inode *inode)
@@ -438,6 +450,8 @@ struct dentry *ovl_create_temp(struct dentry *workdir, struct ovl_cattr *attr);
 
 /* file.c */
 extern const struct file_operations ovl_file_operations;
+int __init ovl_aio_request_cache_init(void);
+void ovl_aio_request_cache_destroy(void);
 
 /* copy_up.c */
 int ovl_copy_up(struct dentry *dentry);

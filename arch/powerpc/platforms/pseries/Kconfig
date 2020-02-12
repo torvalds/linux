@@ -21,7 +21,6 @@ config PPC_PSERIES
 	select PPC_DOORBELL
 	select HOTPLUG_CPU
 	select ARCH_RANDOM
-	select PPC_DOORBELL
 	select FORCE_SMP
 	select SWIOTLB
 	default y

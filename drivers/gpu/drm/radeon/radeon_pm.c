@@ -23,10 +23,10 @@
 
 #include <linux/hwmon-sysfs.h>
 #include <linux/hwmon.h>
+#include <linux/pci.h>
 #include <linux/power_supply.h>
 
 #include <drm/drm_debugfs.h>
-#include <drm/drm_pci.h>
 #include <drm/drm_vblank.h>
 
 #include "atom.h"
@@ -1789,7 +1789,7 @@ static bool radeon_pm_debug_check_in_vbl(struct radeon_device *rdev, bool finish
 	u32 stat_crtc = 0;
 	bool in_vbl = radeon_pm_in_vbl(rdev);
 
-	if (in_vbl == false)
+	if (!in_vbl)
 		DRM_DEBUG_DRIVER("not in vbl for pm change %08x at %s\n", stat_crtc,
 			 finish ? "exit" : "entry");
 	return in_vbl;

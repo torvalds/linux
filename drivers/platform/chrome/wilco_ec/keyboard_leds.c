@@ -69,15 +69,8 @@ static int send_kbbl_msg(struct wilco_ec_device *ec,
 	ret = wilco_ec_mailbox(ec, &msg);
 	if (ret < 0) {
 		dev_err(ec->dev,
-			"Failed sending keyboard LEDs command: %d", ret);
+			"Failed sending keyboard LEDs command: %d\n", ret);
 		return ret;
-	}
-
-	if (response->status) {
-		dev_err(ec->dev,
-			"EC reported failure sending keyboard LEDs command: %d",
-			response->status);
-		return -EIO;
 	}
 
 	return 0;
@@ -87,6 +80,7 @@ static int set_kbbl(struct wilco_ec_device *ec, enum led_brightness brightness)
 {
 	struct wilco_keyboard_leds_msg request;
 	struct wilco_keyboard_leds_msg response;
+	int ret;
 
 	memset(&request, 0, sizeof(request));
 	request.command = WILCO_EC_COMMAND_KBBL;
@@ -94,7 +88,18 @@ static int set_kbbl(struct wilco_ec_device *ec, enum led_brightness brightness)
 	request.mode    = WILCO_KBBL_MODE_FLAG_PWM;
 	request.percent = brightness;
 
-	return send_kbbl_msg(ec, &request, &response);
+	ret = send_kbbl_msg(ec, &request, &response);
+	if (ret < 0)
+		return ret;
+
+	if (response.status) {
+		dev_err(ec->dev,
+			"EC reported failure sending keyboard LEDs command: %d\n",
+			response.status);
+		return -EIO;
+	}
+
+	return 0;
 }
 
 static int kbbl_exist(struct wilco_ec_device *ec, bool *exists)
@@ -140,6 +145,13 @@ static int kbbl_init(struct wilco_ec_device *ec)
 	if (ret < 0)
 		return ret;
 
+	if (response.status) {
+		dev_err(ec->dev,
+			"EC reported failure sending keyboard LEDs command: %d\n",
+			response.status);
+		return -EIO;
+	}
+
 	if (response.mode & WILCO_KBBL_MODE_FLAG_PWM)
 		return response.percent;
 
@@ -167,7 +179,7 @@ int wilco_keyboard_leds_init(struct wilco_ec_device *ec)
 	ret = kbbl_exist(ec, &leds_exist);
 	if (ret < 0) {
 		dev_err(ec->dev,
-			"Failed checking keyboard LEDs support: %d", ret);
+			"Failed checking keyboard LEDs support: %d\n", ret);
 		return ret;
 	}
 	if (!leds_exist)

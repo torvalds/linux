@@ -82,3 +82,24 @@ Features
   contain one or more packets. The send buffer is an optimization, the driver
   will use slower method to handle very large packets or if the send buffer
   area is exhausted.
+
+  XDP support
+  -----------
+  XDP (eXpress Data Path) is a feature that runs eBPF bytecode at the early
+  stage when packets arrive at a NIC card. The goal is to increase performance
+  for packet processing, reducing the overhead of SKB allocation and other
+  upper network layers.
+
+  hv_netvsc supports XDP in native mode, and transparently sets the XDP
+  program on the associated VF NIC as well.
+
+  Setting / unsetting XDP program on synthetic NIC (netvsc) propagates to
+  VF NIC automatically. Setting / unsetting XDP program on VF NIC directly
+  is not recommended, also not propagated to synthetic NIC, and may be
+  overwritten by setting of synthetic NIC.
+
+  XDP program cannot run with LRO (RSC) enabled, so you need to disable LRO
+  before running XDP:
+	ethtool -K eth0 lro off
+
+  XDP_REDIRECT action is not yet supported.

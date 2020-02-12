@@ -45,8 +45,6 @@
 
 #define HNS_ROCE_MAX_MSG_LEN			0x80000000
 
-#define HNS_ROCE_ALIGN_UP(a, b) ((((a) + (b) - 1) / (b)) * (b))
-
 #define HNS_ROCE_IB_MIN_SQ_STRIDE		6
 
 #define HNS_ROCE_BA_SIZE			(32 * 4096)
@@ -107,11 +105,6 @@
 #define NODE_DESC_SIZE				64
 #define DB_REG_OFFSET				0x1000
 
-#define SERV_TYPE_RC				0
-#define SERV_TYPE_RD				1
-#define SERV_TYPE_UC				2
-#define SERV_TYPE_UD				3
-
 /* Configure to HW for PAGE_SIZE larger than 4KB */
 #define PG_SHIFT_OFFSET				(PAGE_SHIFT - 12)
 
@@ -129,6 +122,13 @@
  * according to twice the actual EQ depth
  */
 #define EQ_DEPTH_COEFF				2
+
+enum {
+	SERV_TYPE_RC,
+	SERV_TYPE_UC,
+	SERV_TYPE_RD,
+	SERV_TYPE_UD,
+};
 
 enum {
 	HNS_ROCE_SUPPORT_RQ_RECORD_DB = 1 << 0,
@@ -423,7 +423,7 @@ struct hns_roce_mr_table {
 struct hns_roce_wq {
 	u64		*wrid;     /* Work request ID */
 	spinlock_t	lock;
-	int		wqe_cnt;  /* WQE num */
+	u32		wqe_cnt;  /* WQE num */
 	int		max_gs;
 	int		offset;
 	int		wqe_shift;	/* WQE size */
@@ -498,6 +498,10 @@ struct hns_roce_cq {
 	u32				vector;
 	atomic_t			refcount;
 	struct completion		free;
+	struct list_head		sq_list; /* all qps on this send cq */
+	struct list_head		rq_list; /* all qps on this recv cq */
+	int				is_armed; /* cq is armed */
+	struct list_head		node; /* all armed cqs are on a list */
 };
 
 struct hns_roce_idx_que {
@@ -647,7 +651,6 @@ struct hns_roce_qp {
 	u8			sdb_en;
 	u32			doorbell_qpn;
 	u32			sq_signal_bits;
-	u32			sq_next_wqe;
 	struct hns_roce_wq	sq;
 
 	struct ib_umem		*umem;
@@ -682,6 +685,9 @@ struct hns_roce_qp {
 	u32			next_sge;
 
 	struct hns_roce_rinl_buf rq_inl_buf;
+	struct list_head	node;		/* all qps are on a list */
+	struct list_head	rq_node;	/* all recv qps are on a list */
+	struct list_head	sq_node;	/* all send qps are on a list */
 };
 
 struct hns_roce_ib_iboe {
@@ -794,10 +800,8 @@ struct hns_roce_caps {
 	int             reserved_qps;
 	int		num_qpc_timer;
 	int		num_cqc_timer;
-	u32		max_srq_sg;
 	int		num_srqs;
 	u32		max_wqes;
-	u32		max_srqs;
 	u32		max_srq_wrs;
 	u32		max_srq_sges;
 	u32		max_sq_desc_sz;
@@ -811,7 +815,6 @@ struct hns_roce_caps {
 	u32		min_wqes;
 	int		reserved_cqs;
 	int		reserved_srqs;
-	u32		max_srqwqes;
 	int		num_aeq_vectors;
 	int		num_comp_vectors;
 	int		num_other_vectors;
@@ -895,6 +898,12 @@ struct hns_roce_caps {
 	u32		tpq_buf_pg_sz;
 	u32		chunk_sz;	/* chunk size in non multihop mode */
 	u64		flags;
+	u16		default_ceq_max_cnt;
+	u16		default_ceq_period;
+	u16		default_aeq_max_cnt;
+	u16		default_aeq_period;
+	u16		default_aeq_arm_st;
+	u16		default_ceq_arm_st;
 };
 
 struct hns_roce_work {
@@ -909,6 +918,12 @@ struct hns_roce_work {
 struct hns_roce_dfx_hw {
 	int (*query_cqc_info)(struct hns_roce_dev *hr_dev, u32 cqn,
 			      int *buffer);
+};
+
+enum hns_roce_device_state {
+	HNS_ROCE_DEVICE_STATE_INITED,
+	HNS_ROCE_DEVICE_STATE_RST_DOWN,
+	HNS_ROCE_DEVICE_STATE_UNINIT,
 };
 
 struct hns_roce_hw {
@@ -993,6 +1008,9 @@ struct hns_roce_dev {
 	bool			dis_db;
 	unsigned long		reset_cnt;
 	struct hns_roce_ib_iboe iboe;
+	enum hns_roce_device_state state;
+	struct list_head	qp_list; /* list of all qps on this dev */
+	spinlock_t		qp_list_lock; /* protect qp_list */
 
 	struct list_head        pgdir_list;
 	struct mutex            pgdir_mutex;
@@ -1133,7 +1151,6 @@ int hns_roce_mtr_find(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 
 int hns_roce_init_pd_table(struct hns_roce_dev *hr_dev);
 int hns_roce_init_mr_table(struct hns_roce_dev *hr_dev);
-int hns_roce_init_eq_table(struct hns_roce_dev *hr_dev);
 int hns_roce_init_cq_table(struct hns_roce_dev *hr_dev);
 int hns_roce_init_qp_table(struct hns_roce_dev *hr_dev);
 int hns_roce_init_srq_table(struct hns_roce_dev *hr_dev);
@@ -1257,6 +1274,7 @@ void hns_roce_cq_event(struct hns_roce_dev *hr_dev, u32 cqn, int event_type);
 void hns_roce_qp_event(struct hns_roce_dev *hr_dev, u32 qpn, int event_type);
 void hns_roce_srq_event(struct hns_roce_dev *hr_dev, u32 srqn, int event_type);
 int hns_get_gid_index(struct hns_roce_dev *hr_dev, u8 port, int gid_index);
+void hns_roce_handle_device_err(struct hns_roce_dev *hr_dev);
 int hns_roce_init(struct hns_roce_dev *hr_dev);
 void hns_roce_exit(struct hns_roce_dev *hr_dev);
 

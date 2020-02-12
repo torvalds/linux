@@ -434,7 +434,7 @@ int dw_pcie_ep_raise_msix_irq(struct dw_pcie_ep *ep, u8 func_no,
 	tbl_addr += (tbl_offset + ((interrupt_num - 1) * PCI_MSIX_ENTRY_SIZE));
 	tbl_addr &= PCI_BASE_ADDRESS_MEM_MASK;
 
-	msix_tbl = ioremap_nocache(ep->phys_base + tbl_addr,
+	msix_tbl = ioremap(ep->phys_base + tbl_addr,
 				   PCI_MSIX_ENTRY_SIZE);
 	if (!msix_tbl)
 		return -EINVAL;

@@ -289,7 +289,7 @@ static int meson_crypto_probe(struct platform_device *pdev)
 error_alg:
 	meson_unregister_algs(mc);
 error_flow:
-	meson_free_chanlist(mc, MAXFLOW);
+	meson_free_chanlist(mc, MAXFLOW - 1);
 	clk_disable_unprepare(mc->busclk);
 	return err;
 }
@@ -304,7 +304,7 @@ static int meson_crypto_remove(struct platform_device *pdev)
 
 	meson_unregister_algs(mc);
 
-	meson_free_chanlist(mc, MAXFLOW);
+	meson_free_chanlist(mc, MAXFLOW - 1);
 
 	clk_disable_unprepare(mc->busclk);
 	return 0;

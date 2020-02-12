@@ -100,8 +100,20 @@ extern unsigned long pfn_base;
 extern unsigned long max_low_pfn;
 extern unsigned long min_low_pfn;
 
-#define __pa(x)		((unsigned long)(x) - va_pa_offset)
-#define __va(x)		((void *)((unsigned long) (x) + va_pa_offset))
+#define __pa_to_va_nodebug(x)	((void *)((unsigned long) (x) + va_pa_offset))
+#define __va_to_pa_nodebug(x)	((unsigned long)(x) - va_pa_offset)
+
+#ifdef CONFIG_DEBUG_VIRTUAL
+extern phys_addr_t __virt_to_phys(unsigned long x);
+extern phys_addr_t __phys_addr_symbol(unsigned long x);
+#else
+#define __virt_to_phys(x)	__va_to_pa_nodebug(x)
+#define __phys_addr_symbol(x)	__va_to_pa_nodebug(x)
+#endif /* CONFIG_DEBUG_VIRTUAL */
+
+#define __pa_symbol(x)	__phys_addr_symbol(RELOC_HIDE((unsigned long)(x), 0))
+#define __pa(x)		__virt_to_phys((unsigned long)(x))
+#define __va(x)		((void *)__pa_to_va_nodebug((phys_addr_t)(x)))
 
 #define phys_to_pfn(phys)	(PFN_DOWN(phys))
 #define pfn_to_phys(pfn)	(PFN_PHYS(pfn))

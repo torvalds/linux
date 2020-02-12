@@ -99,4 +99,5 @@ to do something different in the near future.
 .. toctree::
    :maxdepth: 1
 
+   ../doc-guide/maintainer-profile
    ../nvdimm/maintainer-entry-profile

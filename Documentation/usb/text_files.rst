@@ -16,12 +16,6 @@ USB devfs drop permissions source
 .. literalinclude:: usbdevfs-drop-permissions.c
     :language: c
 
-WUSB command line script to manipulate auth credentials
--------------------------------------------------------
-
-.. literalinclude:: wusb-cbaf
-   :language: shell
-
 Credits
 -------
 

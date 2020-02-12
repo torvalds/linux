@@ -70,36 +70,6 @@
 #include "iwl-prph.h"
 #include "iwl-fh.h"
 
-const struct iwl_csr_params iwl_csr_v1 = {
-	.flag_mac_clock_ready = 0,
-	.flag_val_mac_access_en = 0,
-	.flag_init_done = 2,
-	.flag_mac_access_req = 3,
-	.flag_sw_reset = 7,
-	.flag_master_dis = 8,
-	.flag_stop_master = 9,
-	.addr_sw_reset = CSR_BASE + 0x020,
-	.mac_addr0_otp = 0x380,
-	.mac_addr1_otp = 0x384,
-	.mac_addr0_strap = 0x388,
-	.mac_addr1_strap = 0x38C
-};
-
-const struct iwl_csr_params iwl_csr_v2 = {
-	.flag_init_done = 6,
-	.flag_mac_clock_ready = 20,
-	.flag_val_mac_access_en = 20,
-	.flag_mac_access_req = 21,
-	.flag_master_dis = 28,
-	.flag_stop_master = 29,
-	.flag_sw_reset = 31,
-	.addr_sw_reset = CSR_BASE + 0x024,
-	.mac_addr0_otp = 0x30,
-	.mac_addr1_otp = 0x34,
-	.mac_addr0_strap = 0x38,
-	.mac_addr1_strap = 0x3C
-};
-
 void iwl_write8(struct iwl_trans *trans, u32 ofs, u8 val)
 {
 	trace_iwlwifi_dev_iowrite8(trans->dev, ofs, val);
@@ -506,8 +476,7 @@ int iwl_finish_nic_init(struct iwl_trans *trans,
 	 * Set "initialization complete" bit to move adapter from
 	 * D0U* --> D0A* (powered-up active) state.
 	 */
-	iwl_set_bit(trans, CSR_GP_CNTRL,
-		    BIT(cfg_trans->csr->flag_init_done));
+	iwl_set_bit(trans, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
 
 	if (cfg_trans->device_family == IWL_DEVICE_FAMILY_8000)
 		udelay(2);
@@ -518,8 +487,8 @@ int iwl_finish_nic_init(struct iwl_trans *trans,
 	 * and accesses to uCode SRAM.
 	 */
 	err = iwl_poll_bit(trans, CSR_GP_CNTRL,
-			   BIT(cfg_trans->csr->flag_mac_clock_ready),
-			   BIT(cfg_trans->csr->flag_mac_clock_ready),
+			   CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
+			   CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
 			   25000);
 	if (err < 0)
 		IWL_DEBUG_INFO(trans, "Failed to wake NIC\n");

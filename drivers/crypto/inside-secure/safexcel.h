@@ -40,7 +40,8 @@
 
 /* Static configuration */
 #define EIP197_DEFAULT_RING_SIZE		400
-#define EIP197_MAX_TOKENS			19
+#define EIP197_EMB_TOKENS			4 /* Pad CD to 16 dwords */
+#define EIP197_MAX_TOKENS			16
 #define EIP197_MAX_RINGS			4
 #define EIP197_FETCH_DEPTH			2
 #define EIP197_MAX_BATCH_SZ			64
@@ -207,6 +208,7 @@
 
 /* EIP197_HIA_xDR_DESC_SIZE */
 #define EIP197_xDR_DESC_MODE_64BIT		BIT(31)
+#define EIP197_CDR_DESC_MODE_ADCP		BIT(30)
 
 /* EIP197_HIA_xDR_DMA_CFG */
 #define EIP197_HIA_xDR_WR_RES_BUF		BIT(22)
@@ -277,9 +279,9 @@
 #define EIP197_HIA_DxE_CFG_MIN_CTRL_SIZE(n)	((n) << 16)
 #define EIP197_HIA_DxE_CFG_CTRL_CACHE_CTRL(n)	(((n) & 0x7) << 20)
 #define EIP197_HIA_DxE_CFG_MAX_CTRL_SIZE(n)	((n) << 24)
-#define EIP197_HIA_DFE_CFG_DIS_DEBUG		(BIT(31) | BIT(29))
+#define EIP197_HIA_DFE_CFG_DIS_DEBUG		GENMASK(31, 29)
 #define EIP197_HIA_DSE_CFG_EN_SINGLE_WR		BIT(29)
-#define EIP197_HIA_DSE_CFG_DIS_DEBUG		BIT(31)
+#define EIP197_HIA_DSE_CFG_DIS_DEBUG		GENMASK(31, 30)
 
 /* EIP197_HIA_DFE/DSE_THR_CTRL */
 #define EIP197_DxE_THR_CTRL_EN			BIT(30)
@@ -553,6 +555,8 @@ static inline void eip197_noop_token(struct safexcel_token *token)
 {
 	token->opcode = EIP197_TOKEN_OPCODE_NOOP;
 	token->packet_length = BIT(2);
+	token->stat = 0;
+	token->instructions = 0;
 }
 
 /* Instructions */
@@ -574,14 +578,13 @@ struct safexcel_control_data_desc {
 	u16 application_id;
 	u16 rsvd;
 
-	u8 refresh:2;
-	u32 context_lo:30;
+	u32 context_lo;
 	u32 context_hi;
 
 	u32 control0;
 	u32 control1;
 
-	u32 token[EIP197_MAX_TOKENS];
+	u32 token[EIP197_EMB_TOKENS];
 } __packed;
 
 #define EIP197_OPTION_MAGIC_VALUE	BIT(0)
@@ -591,7 +594,10 @@ struct safexcel_control_data_desc {
 #define EIP197_OPTION_2_TOKEN_IV_CMD	GENMASK(11, 10)
 #define EIP197_OPTION_4_TOKEN_IV_CMD	GENMASK(11, 9)
 
+#define EIP197_TYPE_BCLA		0x0
 #define EIP197_TYPE_EXTENDED		0x3
+#define EIP197_CONTEXT_SMALL		0x2
+#define EIP197_CONTEXT_SIZE_MASK	0x3
 
 /* Basic Command Descriptor format */
 struct safexcel_command_desc {
@@ -599,12 +605,15 @@ struct safexcel_command_desc {
 	u8 rsvd0:5;
 	u8 last_seg:1;
 	u8 first_seg:1;
-	u16 additional_cdata_size:8;
+	u8 additional_cdata_size:8;
 
 	u32 rsvd1;
 
 	u32 data_lo;
 	u32 data_hi;
+
+	u32 atok_lo;
+	u32 atok_hi;
 
 	struct safexcel_control_data_desc control_data;
 } __packed;
@@ -629,15 +638,20 @@ enum eip197_fw {
 
 struct safexcel_desc_ring {
 	void *base;
+	void *shbase;
 	void *base_end;
+	void *shbase_end;
 	dma_addr_t base_dma;
+	dma_addr_t shbase_dma;
 
 	/* write and read pointers */
 	void *write;
+	void *shwrite;
 	void *read;
 
 	/* descriptor element offset */
-	unsigned offset;
+	unsigned int offset;
+	unsigned int shoffset;
 };
 
 enum safexcel_alg_type {
@@ -652,6 +666,7 @@ struct safexcel_config {
 
 	u32 cd_size;
 	u32 cd_offset;
+	u32 cdsh_offset;
 
 	u32 rd_size;
 	u32 rd_offset;
@@ -862,7 +877,8 @@ struct safexcel_command_desc *safexcel_add_cdesc(struct safexcel_crypto_priv *pr
 						 bool first, bool last,
 						 dma_addr_t data, u32 len,
 						 u32 full_data_len,
-						 dma_addr_t context);
+						 dma_addr_t context,
+						 struct safexcel_token **atoken);
 struct safexcel_result_desc *safexcel_add_rdesc(struct safexcel_crypto_priv *priv,
 						 int ring_id,
 						bool first, bool last,

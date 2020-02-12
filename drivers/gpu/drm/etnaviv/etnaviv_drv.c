@@ -65,12 +65,13 @@ static int etnaviv_open(struct drm_device *dev, struct drm_file *file)
 
 	for (i = 0; i < ETNA_MAX_PIPES; i++) {
 		struct etnaviv_gpu *gpu = priv->gpu[i];
-		struct drm_sched_rq *rq;
+		struct drm_gpu_scheduler *sched;
 
 		if (gpu) {
-			rq = &gpu->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];
+			sched = &gpu->sched;
 			drm_sched_entity_init(&ctx->sched_entity[i],
-					      &rq, 1, NULL);
+					      DRM_SCHED_PRIORITY_NORMAL, &sched,
+					      1, NULL);
 			}
 	}
 
@@ -282,11 +283,6 @@ static int etnaviv_ioctl_gem_new(struct drm_device *dev, void *data,
 			args->flags, &args->handle);
 }
 
-#define TS(t) ((struct timespec){ \
-	.tv_sec = (t).tv_sec, \
-	.tv_nsec = (t).tv_nsec \
-})
-
 static int etnaviv_ioctl_gem_cpu_prep(struct drm_device *dev, void *data,
 		struct drm_file *file)
 {
@@ -301,7 +297,7 @@ static int etnaviv_ioctl_gem_cpu_prep(struct drm_device *dev, void *data,
 	if (!obj)
 		return -ENOENT;
 
-	ret = etnaviv_gem_cpu_prep(obj, args->op, &TS(args->timeout));
+	ret = etnaviv_gem_cpu_prep(obj, args->op, &args->timeout);
 
 	drm_gem_object_put_unlocked(obj);
 
@@ -354,7 +350,7 @@ static int etnaviv_ioctl_wait_fence(struct drm_device *dev, void *data,
 {
 	struct drm_etnaviv_wait_fence *args = data;
 	struct etnaviv_drm_private *priv = dev->dev_private;
-	struct timespec *timeout = &TS(args->timeout);
+	struct drm_etnaviv_timespec *timeout = &args->timeout;
 	struct etnaviv_gpu *gpu;
 
 	if (args->flags & ~(ETNA_WAIT_NONBLOCK))
@@ -403,7 +399,7 @@ static int etnaviv_ioctl_gem_wait(struct drm_device *dev, void *data,
 {
 	struct etnaviv_drm_private *priv = dev->dev_private;
 	struct drm_etnaviv_gem_wait *args = data;
-	struct timespec *timeout = &TS(args->timeout);
+	struct drm_etnaviv_timespec *timeout = &args->timeout;
 	struct drm_gem_object *obj;
 	struct etnaviv_gpu *gpu;
 	int ret;

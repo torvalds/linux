@@ -354,18 +354,6 @@ snd_pcm_sframes_t snd_soc_dai_delay(struct snd_soc_dai *dai,
 	return delay;
 }
 
-void snd_soc_dai_suspend(struct snd_soc_dai *dai)
-{
-	if (dai->driver->suspend)
-		dai->driver->suspend(dai);
-}
-
-void snd_soc_dai_resume(struct snd_soc_dai *dai)
-{
-	if (dai->driver->resume)
-		dai->driver->resume(dai);
-}
-
 int snd_soc_dai_probe(struct snd_soc_dai *dai)
 {
 	if (dai->driver->probe)

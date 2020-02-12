@@ -1974,6 +1974,9 @@ static ssize_t __ceph_copy_file_range(struct file *src_file, loff_t src_off,
 	if (ceph_test_mount_opt(src_fsc, NOCOPYFROM))
 		return -EOPNOTSUPP;
 
+	if (!src_fsc->have_copy_from2)
+		return -EOPNOTSUPP;
+
 	/*
 	 * Striped file layouts require that we copy partial objects, but the
 	 * OSD copy-from operation only supports full-object copies.  Limit
@@ -2101,8 +2104,14 @@ static ssize_t __ceph_copy_file_range(struct file *src_file, loff_t src_off,
 			CEPH_OSD_OP_FLAG_FADVISE_NOCACHE,
 			&dst_oid, &dst_oloc,
 			CEPH_OSD_OP_FLAG_FADVISE_SEQUENTIAL |
-			CEPH_OSD_OP_FLAG_FADVISE_DONTNEED, 0);
+			CEPH_OSD_OP_FLAG_FADVISE_DONTNEED,
+			dst_ci->i_truncate_seq, dst_ci->i_truncate_size,
+			CEPH_OSD_COPY_FROM_FLAG_TRUNCATE_SEQ);
 		if (err) {
+			if (err == -EOPNOTSUPP) {
+				src_fsc->have_copy_from2 = false;
+				pr_notice("OSDs don't support copy-from2; disabling copy offload\n");
+			}
 			dout("ceph_osdc_copy_from returned %d\n", err);
 			if (!ret)
 				ret = err;

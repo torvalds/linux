@@ -296,9 +296,9 @@ struct radeon_bo_va *radeon_vm_bo_find(struct radeon_vm *vm,
 	struct radeon_bo_va *bo_va;
 
 	list_for_each_entry(bo_va, &bo->va, bo_list) {
-		if (bo_va->vm == vm) {
+		if (bo_va->vm == vm)
 			return bo_va;
-		}
+
 	}
 	return NULL;
 }
@@ -323,9 +323,9 @@ struct radeon_bo_va *radeon_vm_bo_add(struct radeon_device *rdev,
 	struct radeon_bo_va *bo_va;
 
 	bo_va = kzalloc(sizeof(struct radeon_bo_va), GFP_KERNEL);
-	if (bo_va == NULL) {
+	if (bo_va == NULL)
 		return NULL;
-	}
+
 	bo_va->vm = vm;
 	bo_va->bo = bo;
 	bo_va->it.start = 0;
@@ -947,9 +947,9 @@ int radeon_vm_bo_update(struct radeon_device *rdev,
 
 	if (mem) {
 		addr = (u64)mem->start << PAGE_SHIFT;
-		if (mem->mem_type != TTM_PL_SYSTEM) {
+		if (mem->mem_type != TTM_PL_SYSTEM)
 			bo_va->flags |= RADEON_VM_PAGE_VALID;
-		}
+
 		if (mem->mem_type == TTM_PL_TT) {
 			bo_va->flags |= RADEON_VM_PAGE_SYSTEM;
 			if (!(bo_va->bo->flags & (RADEON_GEM_GTT_WC | RADEON_GEM_GTT_UC)))
@@ -1233,9 +1233,9 @@ void radeon_vm_fini(struct radeon_device *rdev, struct radeon_vm *vm)
 	struct radeon_bo_va *bo_va, *tmp;
 	int i, r;
 
-	if (!RB_EMPTY_ROOT(&vm->va.rb_root)) {
+	if (!RB_EMPTY_ROOT(&vm->va.rb_root))
 		dev_err(rdev->dev, "still active bo inside vm\n");
-	}
+
 	rbtree_postorder_for_each_entry_safe(bo_va, tmp,
 					     &vm->va.rb_root, it.rb) {
 		interval_tree_remove(&bo_va->it, &vm->va);

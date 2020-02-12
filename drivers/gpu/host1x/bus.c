@@ -120,7 +120,7 @@ static void host1x_subdev_register(struct host1x_device *device,
 	mutex_lock(&device->clients_lock);
 	list_move_tail(&client->list, &device->clients);
 	list_move_tail(&subdev->list, &device->active);
-	client->parent = &device->dev;
+	client->host = &device->dev;
 	subdev->client = client;
 	mutex_unlock(&device->clients_lock);
 	mutex_unlock(&device->subdevs_lock);
@@ -156,7 +156,7 @@ static void __host1x_subdev_unregister(struct host1x_device *device,
 	 */
 	mutex_lock(&device->clients_lock);
 	subdev->client = NULL;
-	client->parent = NULL;
+	client->host = NULL;
 	list_move_tail(&subdev->list, &device->subdevs);
 	/*
 	 * XXX: Perhaps don't do this here, but rather explicitly remove it
@@ -710,6 +710,10 @@ int host1x_client_register(struct host1x_client *client)
 	struct host1x *host1x;
 	int err;
 
+	INIT_LIST_HEAD(&client->list);
+	mutex_init(&client->lock);
+	client->usecount = 0;
+
 	mutex_lock(&devices_lock);
 
 	list_for_each_entry(host1x, &devices, list) {
@@ -768,3 +772,74 @@ int host1x_client_unregister(struct host1x_client *client)
 	return 0;
 }
 EXPORT_SYMBOL(host1x_client_unregister);
+
+int host1x_client_suspend(struct host1x_client *client)
+{
+	int err = 0;
+
+	mutex_lock(&client->lock);
+
+	if (client->usecount == 1) {
+		if (client->ops && client->ops->suspend) {
+			err = client->ops->suspend(client);
+			if (err < 0)
+				goto unlock;
+		}
+	}
+
+	client->usecount--;
+	dev_dbg(client->dev, "use count: %u\n", client->usecount);
+
+	if (client->parent) {
+		err = host1x_client_suspend(client->parent);
+		if (err < 0)
+			goto resume;
+	}
+
+	goto unlock;
+
+resume:
+	if (client->usecount == 0)
+		if (client->ops && client->ops->resume)
+			client->ops->resume(client);
+
+	client->usecount++;
+unlock:
+	mutex_unlock(&client->lock);
+	return err;
+}
+EXPORT_SYMBOL(host1x_client_suspend);
+
+int host1x_client_resume(struct host1x_client *client)
+{
+	int err = 0;
+
+	mutex_lock(&client->lock);
+
+	if (client->parent) {
+		err = host1x_client_resume(client->parent);
+		if (err < 0)
+			goto unlock;
+	}
+
+	if (client->usecount == 0) {
+		if (client->ops && client->ops->resume) {
+			err = client->ops->resume(client);
+			if (err < 0)
+				goto suspend;
+		}
+	}
+
+	client->usecount++;
+	dev_dbg(client->dev, "use count: %u\n", client->usecount);
+
+	goto unlock;
+
+suspend:
+	if (client->parent)
+		host1x_client_suspend(client->parent);
+unlock:
+	mutex_unlock(&client->lock);
+	return err;
+}
+EXPORT_SYMBOL(host1x_client_resume);

@@ -667,10 +667,10 @@ static int mmap_vmcore(struct file *file, struct vm_area_struct *vma)
 }
 #endif
 
-static const struct file_operations proc_vmcore_operations = {
-	.read		= read_vmcore,
-	.llseek		= default_llseek,
-	.mmap		= mmap_vmcore,
+static const struct proc_ops vmcore_proc_ops = {
+	.proc_read	= read_vmcore,
+	.proc_lseek	= default_llseek,
+	.proc_mmap	= mmap_vmcore,
 };
 
 static struct vmcore* __init get_new_element(void)
@@ -1555,7 +1555,7 @@ static int __init vmcore_init(void)
 	elfcorehdr_free(elfcorehdr_addr);
 	elfcorehdr_addr = ELFCORE_ADDR_ERR;
 
-	proc_vmcore = proc_create("vmcore", S_IRUSR, NULL, &proc_vmcore_operations);
+	proc_vmcore = proc_create("vmcore", S_IRUSR, NULL, &vmcore_proc_ops);
 	if (proc_vmcore)
 		proc_vmcore->size = vmcore_size;
 	return 0;

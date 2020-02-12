@@ -1393,7 +1393,7 @@ static int sti_hdmi_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto release_adapter;
 	}
-	hdmi->regs = devm_ioremap_nocache(dev, res->start, resource_size(res));
+	hdmi->regs = devm_ioremap(dev, res->start, resource_size(res));
 	if (!hdmi->regs) {
 		ret = -ENOMEM;
 		goto release_adapter;

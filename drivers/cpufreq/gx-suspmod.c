@@ -328,7 +328,7 @@ static void gx_set_cpuspeed(struct cpufreq_policy *policy, unsigned int khz)
  *      for the hardware supported by the driver.
  */
 
-static int cpufreq_gx_verify(struct cpufreq_policy *policy)
+static int cpufreq_gx_verify(struct cpufreq_policy_data *policy)
 {
 	unsigned int tmp_freq = 0;
 	u8 tmp1, tmp2;

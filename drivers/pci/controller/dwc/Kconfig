@@ -209,6 +209,17 @@ config PCIE_ARTPEC6_EP
 	  Enables support for the PCIe controller in the ARTPEC-6 SoC to work in
 	  endpoint mode. This uses the DesignWare core.
 
+config PCIE_INTEL_GW
+	bool "Intel Gateway PCIe host controller support"
+	depends on OF && (X86 || COMPILE_TEST)
+	depends on PCI_MSI_IRQ_DOMAIN
+	select PCIE_DW_HOST
+	help
+	  Say 'Y' here to enable PCIe Host controller support on Intel
+	  Gateway SoCs.
+	  The PCIe controller uses the DesignWare core plus Intel-specific
+	  hardware wrappers.
+
 config PCIE_KIRIN
 	depends on OF && (ARM64 || COMPILE_TEST)
 	bool "HiSilicon Kirin series SoCs PCIe controllers"

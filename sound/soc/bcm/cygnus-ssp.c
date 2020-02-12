@@ -1052,9 +1052,12 @@ static int cygnus_set_dai_tdm_slot(struct snd_soc_dai *cpu_dai,
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int cygnus_ssp_suspend(struct snd_soc_dai *cpu_dai)
+static int __cygnus_ssp_suspend(struct snd_soc_dai *cpu_dai)
 {
 	struct cygnus_aio_port *aio = cygnus_dai_get_portinfo(cpu_dai);
+
+	if (!cpu_dai->active)
+		return 0;
 
 	if (!aio->is_slave) {
 		u32 val;
@@ -1078,10 +1081,24 @@ static int cygnus_ssp_suspend(struct snd_soc_dai *cpu_dai)
 	return 0;
 }
 
-static int cygnus_ssp_resume(struct snd_soc_dai *cpu_dai)
+static int cygnus_ssp_suspend(struct snd_soc_component *component)
+{
+	struct snd_soc_dai *dai;
+	int ret = 0;
+
+	for_each_component_dais(component, dai)
+		ret |= __cygnus_ssp_suspend(dai);
+
+	return ret;
+}
+
+static int __cygnus_ssp_resume(struct snd_soc_dai *cpu_dai)
 {
 	struct cygnus_aio_port *aio = cygnus_dai_get_portinfo(cpu_dai);
 	int error;
+
+	if (!cpu_dai->active)
+		return 0;
 
 	if (!aio->is_slave) {
 		if (aio->clk_trace.cap_clk_en) {
@@ -1109,6 +1126,18 @@ static int cygnus_ssp_resume(struct snd_soc_dai *cpu_dai)
 
 	return 0;
 }
+
+static int cygnus_ssp_resume(struct snd_soc_component *component)
+{
+	struct snd_soc_dai *dai;
+	int ret = 0;
+
+	for_each_component_dais(component, dai)
+		ret |= __cygnus_ssp_resume(dai);
+
+	return ret;
+}
+
 #else
 #define cygnus_ssp_suspend NULL
 #define cygnus_ssp_resume  NULL
@@ -1149,8 +1178,6 @@ static const struct snd_soc_dai_ops cygnus_spdif_dai_ops = {
 				SNDRV_PCM_FMTBIT_S32_LE, \
 	}, \
 	.ops = &cygnus_ssp_dai_ops, \
-	.suspend = cygnus_ssp_suspend, \
-	.resume = cygnus_ssp_resume, \
 }
 
 static const struct snd_soc_dai_driver cygnus_ssp_dai_info[] = {
@@ -1169,14 +1196,14 @@ static const struct snd_soc_dai_driver cygnus_spdif_dai_info = {
 			SNDRV_PCM_FMTBIT_S32_LE,
 	},
 	.ops = &cygnus_spdif_dai_ops,
-	.suspend = cygnus_ssp_suspend,
-	.resume = cygnus_ssp_resume,
 };
 
 static struct snd_soc_dai_driver cygnus_ssp_dai[CYGNUS_MAX_PORTS];
 
 static const struct snd_soc_component_driver cygnus_ssp_component = {
 	.name		= "cygnus-audio",
+	.suspend	= cygnus_ssp_suspend,
+	.resume		= cygnus_ssp_resume,
 };
 
 /*

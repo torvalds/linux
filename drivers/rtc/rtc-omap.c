@@ -616,7 +616,7 @@ static int rtc_pinconf_get(struct pinctrl_dev *pctldev,
 		break;
 	default:
 		return -ENOTSUPP;
-	};
+	}
 
 	*config = pinconf_to_config_packed(param, arg);
 

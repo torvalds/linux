@@ -16,7 +16,8 @@
 #include <linux/kfifo.h>
 #include <linux/uaccess.h>
 #include <linux/idr.h>
-#include "most/core.h"
+
+#include "../most.h"
 
 #define CHRDEV_REGION_SIZE 50
 
@@ -25,7 +26,7 @@ static struct cdev_component {
 	struct ida minor_id;
 	unsigned int major;
 	struct class *class;
-	struct core_component cc;
+	struct most_component cc;
 } comp;
 
 struct comp_channel {

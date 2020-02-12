@@ -46,6 +46,18 @@
 #include "qed_sp.h"
 
 #define QED_MAX_NUM_OF_LL2_CONNECTIONS                    (4)
+/* LL2 queues handles will be split as follows:
+ * first will be legacy queues, and then the ctx based queues.
+ */
+#define QED_MAX_NUM_OF_LL2_CONNS_PF            (4)
+#define QED_MAX_NUM_OF_LEGACY_LL2_CONNS_PF   (3)
+
+#define QED_MAX_NUM_OF_CTX_LL2_CONNS_PF	\
+	(QED_MAX_NUM_OF_LL2_CONNS_PF - QED_MAX_NUM_OF_LEGACY_LL2_CONNS_PF)
+
+#define QED_LL2_LEGACY_CONN_BASE_PF     0
+#define QED_LL2_CTX_CONN_BASE_PF        QED_MAX_NUM_OF_LEGACY_LL2_CONNS_PF
+
 
 struct qed_ll2_rx_packet {
 	struct list_head list_entry;
@@ -79,6 +91,7 @@ struct qed_ll2_rx_queue {
 	struct qed_chain rxq_chain;
 	struct qed_chain rcq_chain;
 	u8 rx_sb_index;
+	u8 ctx_based;
 	bool b_cb_registered;
 	__le16 *p_fw_cons;
 	struct list_head active_descq;
@@ -86,6 +99,7 @@ struct qed_ll2_rx_queue {
 	struct list_head posting_descq;
 	struct qed_ll2_rx_packet *descq_array;
 	void __iomem *set_prod_addr;
+	struct core_pwm_prod_update_data db_data;
 };
 
 struct qed_ll2_tx_queue {

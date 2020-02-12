@@ -41,10 +41,14 @@ Required Properties:
       supplied they must be named "dclkin.x" with "x" being the input clock
       numerical index.
 
-  - vsps: A list of phandle and channel index tuples to the VSPs that handle
-    the memory interfaces for the DU channels. The phandle identifies the VSP
-    instance that serves the DU channel, and the channel index identifies the
-    LIF instance in that VSP.
+  - renesas,cmms: A list of phandles to the CMM instances present in the SoC,
+    one for each available DU channel. The property shall not be specified for
+    SoCs that do not provide any CMM (such as V3M and V3H).
+
+  - renesas,vsps: A list of phandle and channel index tuples to the VSPs that
+    handle the memory interfaces for the DU channels. The phandle identifies the
+    VSP instance that serves the DU channel, and the channel index identifies
+    the LIF instance in that VSP.
 
 Required nodes:
 
@@ -92,7 +96,8 @@ Example: R8A7795 (R-Car H3) ES2.0 DU
 			 <&cpg CPG_MOD 722>,
 			 <&cpg CPG_MOD 721>;
 		clock-names = "du.0", "du.1", "du.2", "du.3";
-		vsps = <&vspd0 0>, <&vspd1 0>, <&vspd2 0>, <&vspd0 1>;
+		renesas,cmms = <&cmm0>, <&cmm1>, <&cmm2>, <&cmm3>;
+		renesas,vsps = <&vspd0 0>, <&vspd1 0>, <&vspd2 0>, <&vspd0 1>;
 
 		ports {
 			#address-cells = <1>;

@@ -101,7 +101,7 @@ int cifs_try_adding_channels(struct cifs_ses *ses)
 	iface_count = ses->iface_count;
 	if (iface_count <= 0) {
 		spin_unlock(&ses->iface_lock);
-		cifs_dbg(FYI, "no iface list available to open channels\n");
+		cifs_dbg(VFS, "no iface list available to open channels\n");
 		return 0;
 	}
 	ifaces = kmemdup(ses->iface_list, iface_count*sizeof(*ifaces),

@@ -40,6 +40,7 @@
 #include <linux/rcupdate_wait.h>
 #include <linux/sched/isolation.h>
 #include <linux/kprobes.h>
+#include <linux/slab.h>
 
 #define CREATE_TRACE_POINTS
 
@@ -51,9 +52,7 @@
 #define MODULE_PARAM_PREFIX "rcupdate."
 
 #ifndef CONFIG_TINY_RCU
-extern int rcu_expedited; /* from sysctl */
 module_param(rcu_expedited, int, 0);
-extern int rcu_normal; /* from sysctl */
 module_param(rcu_normal, int, 0);
 static int rcu_normal_after_boot;
 module_param(rcu_normal_after_boot, int, 0);
@@ -218,6 +217,7 @@ static int __init rcu_set_runtime_mode(void)
 {
 	rcu_test_sync_prims();
 	rcu_scheduler_active = RCU_SCHEDULER_RUNNING;
+	kfree_rcu_scheduler_running();
 	rcu_test_sync_prims();
 	return 0;
 }
@@ -435,7 +435,7 @@ struct debug_obj_descr rcuhead_debug_descr = {
 EXPORT_SYMBOL_GPL(rcuhead_debug_descr);
 #endif /* #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD */
 
-#if defined(CONFIG_TREE_RCU) || defined(CONFIG_PREEMPT_RCU) || defined(CONFIG_RCU_TRACE)
+#if defined(CONFIG_TREE_RCU) || defined(CONFIG_RCU_TRACE)
 void do_trace_rcu_torture_read(const char *rcutorturename, struct rcu_head *rhp,
 			       unsigned long secs,
 			       unsigned long c_old, unsigned long c)
@@ -853,14 +853,22 @@ static void test_callback(struct rcu_head *r)
 
 DEFINE_STATIC_SRCU(early_srcu);
 
+struct early_boot_kfree_rcu {
+	struct rcu_head rh;
+};
+
 static void early_boot_test_call_rcu(void)
 {
 	static struct rcu_head head;
 	static struct rcu_head shead;
+	struct early_boot_kfree_rcu *rhp;
 
 	call_rcu(&head, test_callback);
 	if (IS_ENABLED(CONFIG_SRCU))
 		call_srcu(&early_srcu, &shead, test_callback);
+	rhp = kmalloc(sizeof(*rhp), GFP_KERNEL);
+	if (!WARN_ON_ONCE(!rhp))
+		kfree_rcu(rhp, rh);
 }
 
 void rcu_early_boot_tests(void)

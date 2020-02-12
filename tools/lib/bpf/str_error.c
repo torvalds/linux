@@ -4,6 +4,9 @@
 #include <stdio.h>
 #include "str_error.h"
 
+/* make sure libbpf doesn't use kernel-only integer typedefs */
+#pragma GCC poison u8 u16 u32 u64 s8 s16 s32 s64
+
 /*
  * Wrapper to allow for building in non-GNU systems such as Alpine Linux's musl
  * libc, while checking strerror_r() return to avoid having to check this in

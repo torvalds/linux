@@ -790,9 +790,7 @@ static int octeon_mgmt_ioctl(struct net_device *netdev,
 	case SIOCSHWTSTAMP:
 		return octeon_mgmt_ioctl_hwtstamp(netdev, rq, cmd);
 	default:
-		if (netdev->phydev)
-			return phy_mii_ioctl(netdev->phydev, rq, cmd);
-		return -EINVAL;
+		return phy_do_ioctl(netdev, rq, cmd);
 	}
 }
 

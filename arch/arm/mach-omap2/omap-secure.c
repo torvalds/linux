@@ -8,17 +8,41 @@
  * Copyright (C) 2013 Pali Rohár <pali.rohar@gmail.com>
  */
 
+#include <linux/arm-smccc.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/memblock.h>
+#include <linux/of.h>
 
 #include <asm/cacheflush.h>
 #include <asm/memblock.h>
 
+#include "common.h"
 #include "omap-secure.h"
 
 static phys_addr_t omap_secure_memblock_base;
+
+bool optee_available;
+
+#define OMAP_SIP_SMC_STD_CALL_VAL(func_num) \
+	ARM_SMCCC_CALL_VAL(ARM_SMCCC_STD_CALL, ARM_SMCCC_SMC_32, \
+	ARM_SMCCC_OWNER_SIP, (func_num))
+
+static void __init omap_optee_init_check(void)
+{
+	struct device_node *np;
+
+	/*
+	 * We only check that the OP-TEE node is present and available. The
+	 * OP-TEE kernel driver is not needed for the type of interaction made
+	 * with OP-TEE here so the driver's status is not checked.
+	 */
+	np = of_find_node_by_path("/firmware/optee");
+	if (np && of_device_is_available(np))
+		optee_available = true;
+	of_node_put(np);
+}
 
 /**
  * omap_sec_dispatcher: Routine to dispatch low power secure
@@ -51,6 +75,27 @@ u32 omap_secure_dispatcher(u32 idx, u32 flag, u32 nargs, u32 arg1, u32 arg2,
 	ret = omap_smc2(idx, flag, __pa(param));
 
 	return ret;
+}
+
+void omap_smccc_smc(u32 fn, u32 arg)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(OMAP_SIP_SMC_STD_CALL_VAL(fn), arg,
+		      0, 0, 0, 0, 0, 0, &res);
+	WARN(res.a0, "Secure function call 0x%08x failed\n", fn);
+}
+
+void omap_smc1(u32 fn, u32 arg)
+{
+	/*
+	 * If this platform has OP-TEE installed we use ARM SMC calls
+	 * otherwise fall back to the OMAP ROM style calls.
+	 */
+	if (optee_available)
+		omap_smccc_smc(fn, arg);
+	else
+		_omap_smc1(fn, arg);
 }
 
 /* Allocate the memory to save secure ram */
@@ -162,4 +207,9 @@ u32 rx51_secure_rng_call(u32 ptr, u32 count, u32 flag)
 				      0,
 				      NO_FLAG,
 				      3, ptr, count, flag, 0);
+}
+
+void __init omap_secure_init(void)
+{
+	omap_optee_init_check();
 }

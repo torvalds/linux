@@ -253,7 +253,7 @@ static int aq_pci_probe(struct pci_dev *pdev,
 				goto err_free_aq_hw;
 			}
 
-			self->aq_hw->mmio = ioremap_nocache(mmio_pa, reg_sz);
+			self->aq_hw->mmio = ioremap(mmio_pa, reg_sz);
 			if (!self->aq_hw->mmio) {
 				err = -EIO;
 				goto err_free_aq_hw;

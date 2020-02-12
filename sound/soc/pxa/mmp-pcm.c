@@ -225,7 +225,6 @@ static const struct snd_soc_component_driver mmp_soc_component = {
 	.name		= DRV_NAME,
 	.open		= mmp_pcm_open,
 	.close		= mmp_pcm_close,
-	.ioctl		= snd_soc_pcm_lib_ioctl,
 	.hw_params	= mmp_pcm_hw_params,
 	.trigger	= mmp_pcm_trigger,
 	.pointer	= mmp_pcm_pointer,

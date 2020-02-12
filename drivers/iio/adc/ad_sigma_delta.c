@@ -500,7 +500,7 @@ static int ad_sd_probe_trigger(struct iio_dev *indio_dev)
 
 	ret = request_irq(sigma_delta->spi->irq,
 			  ad_sd_data_rdy_trig_poll,
-			  IRQF_TRIGGER_LOW,
+			  sigma_delta->info->irq_flags,
 			  indio_dev->name,
 			  sigma_delta);
 	if (ret)

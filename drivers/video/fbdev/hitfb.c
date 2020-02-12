@@ -311,7 +311,7 @@ static int hitfb_set_par(struct fb_info *info)
 	return 0;
 }
 
-static struct fb_ops hitfb_ops = {
+static const struct fb_ops hitfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_check_var	= hitfb_check_var,
 	.fb_set_par		= hitfb_set_par,

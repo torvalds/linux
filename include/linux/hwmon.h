@@ -27,6 +27,7 @@ enum hwmon_sensor_types {
 	hwmon_humidity,
 	hwmon_fan,
 	hwmon_pwm,
+	hwmon_intrusion,
 	hwmon_max,
 };
 
@@ -59,7 +60,8 @@ enum hwmon_chip_attributes {
 #define HWMON_C_TEMP_SAMPLES		BIT(hwmon_chip_temp_samples)
 
 enum hwmon_temp_attributes {
-	hwmon_temp_input = 0,
+	hwmon_temp_enable,
+	hwmon_temp_input,
 	hwmon_temp_type,
 	hwmon_temp_lcrit,
 	hwmon_temp_lcrit_hyst,
@@ -85,6 +87,7 @@ enum hwmon_temp_attributes {
 	hwmon_temp_reset_history,
 };
 
+#define HWMON_T_ENABLE		BIT(hwmon_temp_enable)
 #define HWMON_T_INPUT		BIT(hwmon_temp_input)
 #define HWMON_T_TYPE		BIT(hwmon_temp_type)
 #define HWMON_T_LCRIT		BIT(hwmon_temp_lcrit)
@@ -111,6 +114,7 @@ enum hwmon_temp_attributes {
 #define HWMON_T_RESET_HISTORY	BIT(hwmon_temp_reset_history)
 
 enum hwmon_in_attributes {
+	hwmon_in_enable,
 	hwmon_in_input,
 	hwmon_in_min,
 	hwmon_in_max,
@@ -126,9 +130,9 @@ enum hwmon_in_attributes {
 	hwmon_in_max_alarm,
 	hwmon_in_lcrit_alarm,
 	hwmon_in_crit_alarm,
-	hwmon_in_enable,
 };
 
+#define HWMON_I_ENABLE		BIT(hwmon_in_enable)
 #define HWMON_I_INPUT		BIT(hwmon_in_input)
 #define HWMON_I_MIN		BIT(hwmon_in_min)
 #define HWMON_I_MAX		BIT(hwmon_in_max)
@@ -144,9 +148,9 @@ enum hwmon_in_attributes {
 #define HWMON_I_MAX_ALARM	BIT(hwmon_in_max_alarm)
 #define HWMON_I_LCRIT_ALARM	BIT(hwmon_in_lcrit_alarm)
 #define HWMON_I_CRIT_ALARM	BIT(hwmon_in_crit_alarm)
-#define HWMON_I_ENABLE		BIT(hwmon_in_enable)
 
 enum hwmon_curr_attributes {
+	hwmon_curr_enable,
 	hwmon_curr_input,
 	hwmon_curr_min,
 	hwmon_curr_max,
@@ -164,6 +168,7 @@ enum hwmon_curr_attributes {
 	hwmon_curr_crit_alarm,
 };
 
+#define HWMON_C_ENABLE		BIT(hwmon_curr_enable)
 #define HWMON_C_INPUT		BIT(hwmon_curr_input)
 #define HWMON_C_MIN		BIT(hwmon_curr_min)
 #define HWMON_C_MAX		BIT(hwmon_curr_max)
@@ -181,6 +186,7 @@ enum hwmon_curr_attributes {
 #define HWMON_C_CRIT_ALARM	BIT(hwmon_curr_crit_alarm)
 
 enum hwmon_power_attributes {
+	hwmon_power_enable,
 	hwmon_power_average,
 	hwmon_power_average_interval,
 	hwmon_power_average_interval_max,
@@ -211,6 +217,7 @@ enum hwmon_power_attributes {
 	hwmon_power_crit_alarm,
 };
 
+#define HWMON_P_ENABLE			BIT(hwmon_power_enable)
 #define HWMON_P_AVERAGE			BIT(hwmon_power_average)
 #define HWMON_P_AVERAGE_INTERVAL	BIT(hwmon_power_average_interval)
 #define HWMON_P_AVERAGE_INTERVAL_MAX	BIT(hwmon_power_average_interval_max)
@@ -241,14 +248,17 @@ enum hwmon_power_attributes {
 #define HWMON_P_CRIT_ALARM		BIT(hwmon_power_crit_alarm)
 
 enum hwmon_energy_attributes {
+	hwmon_energy_enable,
 	hwmon_energy_input,
 	hwmon_energy_label,
 };
 
+#define HWMON_E_ENABLE			BIT(hwmon_energy_enable)
 #define HWMON_E_INPUT			BIT(hwmon_energy_input)
 #define HWMON_E_LABEL			BIT(hwmon_energy_label)
 
 enum hwmon_humidity_attributes {
+	hwmon_humidity_enable,
 	hwmon_humidity_input,
 	hwmon_humidity_label,
 	hwmon_humidity_min,
@@ -259,6 +269,7 @@ enum hwmon_humidity_attributes {
 	hwmon_humidity_fault,
 };
 
+#define HWMON_H_ENABLE			BIT(hwmon_humidity_enable)
 #define HWMON_H_INPUT			BIT(hwmon_humidity_input)
 #define HWMON_H_LABEL			BIT(hwmon_humidity_label)
 #define HWMON_H_MIN			BIT(hwmon_humidity_min)
@@ -269,6 +280,7 @@ enum hwmon_humidity_attributes {
 #define HWMON_H_FAULT			BIT(hwmon_humidity_fault)
 
 enum hwmon_fan_attributes {
+	hwmon_fan_enable,
 	hwmon_fan_input,
 	hwmon_fan_label,
 	hwmon_fan_min,
@@ -282,6 +294,7 @@ enum hwmon_fan_attributes {
 	hwmon_fan_fault,
 };
 
+#define HWMON_F_ENABLE			BIT(hwmon_fan_enable)
 #define HWMON_F_INPUT			BIT(hwmon_fan_input)
 #define HWMON_F_LABEL			BIT(hwmon_fan_label)
 #define HWMON_F_MIN			BIT(hwmon_fan_min)
@@ -305,6 +318,13 @@ enum hwmon_pwm_attributes {
 #define HWMON_PWM_ENABLE		BIT(hwmon_pwm_enable)
 #define HWMON_PWM_MODE			BIT(hwmon_pwm_mode)
 #define HWMON_PWM_FREQ			BIT(hwmon_pwm_freq)
+
+enum hwmon_intrusion_attributes {
+	hwmon_intrusion_alarm,
+	hwmon_intrusion_beep,
+};
+#define HWMON_INTRUSION_ALARM		BIT(hwmon_intrusion_alarm)
+#define HWMON_INTRUSION_BEEP		BIT(hwmon_intrusion_beep)
 
 /**
  * struct hwmon_ops - hwmon device operations

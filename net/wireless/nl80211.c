@@ -10843,6 +10843,7 @@ static int cfg80211_cqm_rssi_update(struct cfg80211_registered_device *rdev,
 		if (err)
 			return err;
 
+		cfg80211_sinfo_release_content(&sinfo);
 		if (sinfo.filled & BIT_ULL(NL80211_STA_INFO_BEACON_SIGNAL_AVG))
 			wdev->cqm_config->last_rssi_event_value =
 				(s8) sinfo.rx_beacon_signal_avg;
@@ -12900,8 +12901,7 @@ static int nl80211_vendor_check_policy(const struct wiphy_vendor_command *vcmd,
 		return -EINVAL;
 	}
 
-	return nl80211_validate_nested(attr, vcmd->maxattr, vcmd->policy,
-				       extack);
+	return nla_validate_nested(attr, vcmd->maxattr, vcmd->policy, extack);
 }
 
 static int nl80211_vendor_cmd(struct sk_buff *skb, struct genl_info *info)
@@ -13795,6 +13795,8 @@ static int nl80211_probe_mesh_link(struct sk_buff *skb, struct genl_info *info)
 	err = rdev_get_station(rdev, dev, dest, &sinfo);
 	if (err)
 		return err;
+
+	cfg80211_sinfo_release_content(&sinfo);
 
 	return rdev_probe_mesh_link(rdev, dev, dest, buf, len);
 }

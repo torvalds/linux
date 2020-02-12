@@ -768,8 +768,12 @@ static int steam_probe(struct hid_device *hdev,
 
 	if (steam->quirks & STEAM_QUIRK_WIRELESS) {
 		hid_info(hdev, "Steam wireless receiver connected");
+		/* If using a wireless adaptor ask for connection status */
+		steam->connected = false;
 		steam_request_conn_status(steam);
 	} else {
+		/* A wired connection is always present */
+		steam->connected = true;
 		ret = steam_register(steam);
 		if (ret) {
 			hid_err(hdev,

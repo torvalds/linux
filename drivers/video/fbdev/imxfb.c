@@ -566,7 +566,7 @@ static int imxfb_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
-static struct fb_ops imxfb_ops = {
+static const struct fb_ops imxfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_check_var	= imxfb_check_var,
 	.fb_set_par	= imxfb_set_par,
@@ -1017,7 +1017,7 @@ static int imxfb_probe(struct platform_device *pdev)
 	}
 
 	fbi->lcd_pwr = devm_regulator_get(&pdev->dev, "lcd");
-	if (IS_ERR(fbi->lcd_pwr) && (PTR_ERR(fbi->lcd_pwr) == -EPROBE_DEFER)) {
+	if (PTR_ERR(fbi->lcd_pwr) == -EPROBE_DEFER) {
 		ret = -EPROBE_DEFER;
 		goto failed_lcd;
 	}

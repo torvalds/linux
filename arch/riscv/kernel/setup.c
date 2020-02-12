@@ -24,6 +24,7 @@
 #include <asm/smp.h>
 #include <asm/tlbflush.h>
 #include <asm/thread_info.h>
+#include <asm/kasan.h>
 
 #include "head.h"
 
@@ -74,12 +75,12 @@ void __init setup_arch(char **cmdline_p)
 	swiotlb_init(1);
 #endif
 
-#ifdef CONFIG_SMP
-	setup_smp();
+#ifdef CONFIG_KASAN
+	kasan_init();
 #endif
 
-#ifdef CONFIG_DUMMY_CONSOLE
-	conswitchp = &dummy_con;
+#ifdef CONFIG_SMP
+	setup_smp();
 #endif
 
 	riscv_fill_hwcap();

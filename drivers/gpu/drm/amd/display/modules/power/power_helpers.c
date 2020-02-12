@@ -662,7 +662,11 @@ bool dmcu_load_iram(struct dmcu *dmcu,
 
 	memset(&ram_table, 0, sizeof(ram_table));
 
-	if (dmcu->dmcu_version.abm_version == 0x23) {
+	if (dmcu->dmcu_version.abm_version == 0x24) {
+		fill_iram_v_2_3((struct iram_table_v_2_2 *)ram_table, params);
+		result = dmcu->funcs->load_iram(
+				dmcu, 0, (char *)(&ram_table), IRAM_RESERVE_AREA_START_V2_2);
+	} else if (dmcu->dmcu_version.abm_version == 0x23) {
 		fill_iram_v_2_3((struct iram_table_v_2_2 *)ram_table, params);
 
 		result = dmcu->funcs->load_iram(
@@ -687,3 +691,4 @@ bool dmcu_load_iram(struct dmcu *dmcu,
 
 	return result;
 }
+

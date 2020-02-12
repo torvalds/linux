@@ -479,6 +479,10 @@ tcp_no_metrics_save - BOOLEAN
 	degradation.  If set, TCP will not cache metrics on closing
 	connections.
 
+tcp_no_ssthresh_metrics_save - BOOLEAN
+	Controls whether TCP saves ssthresh metrics in the route cache.
+	Default is 1, which disables ssthresh metrics.
+
 tcp_orphan_retries - INTEGER
 	This value influences the timeout of a locally closed TCP connection,
 	when RTO retransmissions remain unacknowledged.
@@ -603,7 +607,7 @@ tcp_synack_retries - INTEGER
 	with the current initial RTO of 1second. With this the final timeout
 	for a passive TCP connection will happen after 63seconds.
 
-tcp_syncookies - BOOLEAN
+tcp_syncookies - INTEGER
 	Only valid when the kernel was compiled with CONFIG_SYN_COOKIES
 	Send out syncookies when the syn backlog queue of a socket
 	overflows. This is to prevent against the common 'SYN flood attack'

@@ -259,33 +259,18 @@ static const struct bin_attribute dpf_attrs_1 = {
 static ssize_t gt_act_freq_mhz_show(struct device *kdev,
 				    struct device_attribute *attr, char *buf)
 {
-	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
-	struct intel_rps *rps = &dev_priv->gt.rps;
-	intel_wakeref_t wakeref;
-	u32 freq;
+	struct drm_i915_private *i915 = kdev_minor_to_i915(kdev);
+	struct intel_rps *rps = &i915->gt.rps;
 
-	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
-
-	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
-		vlv_punit_get(dev_priv);
-		freq = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
-		vlv_punit_put(dev_priv);
-
-		freq = (freq >> 8) & 0xff;
-	} else {
-		freq = intel_get_cagf(rps, I915_READ(GEN6_RPSTAT1));
-	}
-
-	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
-
-	return snprintf(buf, PAGE_SIZE, "%d\n", intel_gpu_freq(rps, freq));
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+			intel_rps_read_actual_frequency(rps));
 }
 
 static ssize_t gt_cur_freq_mhz_show(struct device *kdev,
 				    struct device_attribute *attr, char *buf)
 {
-	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
-	struct intel_rps *rps = &dev_priv->gt.rps;
+	struct drm_i915_private *i915 = kdev_minor_to_i915(kdev);
+	struct intel_rps *rps = &i915->gt.rps;
 
 	return snprintf(buf, PAGE_SIZE, "%d\n",
 			intel_gpu_freq(rps, rps->cur_freq));
@@ -293,8 +278,8 @@ static ssize_t gt_cur_freq_mhz_show(struct device *kdev,
 
 static ssize_t gt_boost_freq_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf)
 {
-	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
-	struct intel_rps *rps = &dev_priv->gt.rps;
+	struct drm_i915_private *i915 = kdev_minor_to_i915(kdev);
+	struct intel_rps *rps = &i915->gt.rps;
 
 	return snprintf(buf, PAGE_SIZE, "%d\n",
 			intel_gpu_freq(rps, rps->boost_freq));
@@ -513,15 +498,15 @@ static ssize_t error_state_read(struct file *filp, struct kobject *kobj,
 
 	struct device *kdev = kobj_to_dev(kobj);
 	struct drm_i915_private *i915 = kdev_minor_to_i915(kdev);
-	struct i915_gpu_state *gpu;
+	struct i915_gpu_coredump *gpu;
 	ssize_t ret;
 
 	gpu = i915_first_error_state(i915);
 	if (IS_ERR(gpu)) {
 		ret = PTR_ERR(gpu);
 	} else if (gpu) {
-		ret = i915_gpu_state_copy_to_buffer(gpu, buf, off, count);
-		i915_gpu_state_put(gpu);
+		ret = i915_gpu_coredump_copy_to_buffer(gpu, buf, off, count);
+		i915_gpu_coredump_put(gpu);
 	} else {
 		const char *str = "No error state collected\n";
 		size_t len = strlen(str);

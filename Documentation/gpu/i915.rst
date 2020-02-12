@@ -466,9 +466,6 @@ GuC-based command submission
 .. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_guc_submission.c
    :doc: GuC-based command submission
 
-.. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_guc_submission.c
-   :internal:
-
 HuC
 ---
 .. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_huc.c

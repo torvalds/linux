@@ -15,7 +15,7 @@
 #include <linux/ptrace.h>
 #include <linux/bpf.h>
 #include <sys/ioctl.h>
-#include "libbpf.h"
+#include <bpf/libbpf.h>
 #include "bpf_load.h"
 #include "perf-sys.h"
 #include "trace_helpers.h"

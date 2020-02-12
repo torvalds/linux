@@ -33,6 +33,7 @@
 
 #include "gem/i915_gem_context.h"
 
+#include "gen6_ppgtt.h"
 #include "i915_drv.h"
 #include "i915_trace.h"
 #include "intel_context.h"
@@ -362,6 +363,12 @@ gen7_render_ring_flush(struct i915_request *rq, u32 mode)
 	 */
 	flags |= PIPE_CONTROL_CS_STALL;
 
+	/*
+	 * CS_STALL suggests at least a post-sync write.
+	 */
+	flags |= PIPE_CONTROL_QW_WRITE;
+	flags |= PIPE_CONTROL_GLOBAL_GTT_IVB;
+
 	/* Just flush everything.  Experiments have shown that reducing the
 	 * number of bits based on the write domains has little performance
 	 * impact.
@@ -380,13 +387,6 @@ gen7_render_ring_flush(struct i915_request *rq, u32 mode)
 		flags |= PIPE_CONTROL_CONST_CACHE_INVALIDATE;
 		flags |= PIPE_CONTROL_STATE_CACHE_INVALIDATE;
 		flags |= PIPE_CONTROL_MEDIA_STATE_CLEAR;
-		/*
-		 * TLB invalidate requires a post-sync write.
-		 */
-		flags |= PIPE_CONTROL_QW_WRITE;
-		flags |= PIPE_CONTROL_GLOBAL_GTT_IVB;
-
-		flags |= PIPE_CONTROL_STALL_AT_SCOREBOARD;
 
 		/* Workaround: we must issue a pipe_control with CS-stall bit
 		 * set before a pipe_control command that has the state cache
@@ -454,7 +454,8 @@ static u32 *gen7_xcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 	GEM_BUG_ON(i915_request_active_timeline(rq)->hwsp_ggtt != rq->engine->status_page.vma);
 	GEM_BUG_ON(offset_in_page(i915_request_active_timeline(rq)->hwsp_offset) != I915_GEM_HWS_SEQNO_ADDR);
 
-	*cs++ = MI_FLUSH_DW | MI_FLUSH_DW_OP_STOREDW | MI_FLUSH_DW_STORE_INDEX;
+	*cs++ = MI_FLUSH_DW | MI_INVALIDATE_TLB |
+		MI_FLUSH_DW_OP_STOREDW | MI_FLUSH_DW_STORE_INDEX;
 	*cs++ = I915_GEM_HWS_SEQNO_ADDR | MI_FLUSH_DW_USE_GTT;
 	*cs++ = rq->fence.seqno;
 
@@ -496,14 +497,13 @@ static void set_hwstam(struct intel_engine_cs *engine, u32 mask)
 
 static void set_hws_pga(struct intel_engine_cs *engine, phys_addr_t phys)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
 	u32 addr;
 
 	addr = lower_32_bits(phys);
-	if (INTEL_GEN(dev_priv) >= 4)
+	if (INTEL_GEN(engine->i915) >= 4)
 		addr |= (phys >> 28) & 0xf0;
 
-	I915_WRITE(HWS_PGA, addr);
+	intel_uncore_write(engine->uncore, HWS_PGA, addr);
 }
 
 static struct page *status_page(struct intel_engine_cs *engine)
@@ -522,14 +522,13 @@ static void ring_setup_phys_status_page(struct intel_engine_cs *engine)
 
 static void set_hwsp(struct intel_engine_cs *engine, u32 offset)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
 	i915_reg_t hwsp;
 
 	/*
 	 * The ring status page addresses are no longer next to the rest of
 	 * the ring registers as of gen7.
 	 */
-	if (IS_GEN(dev_priv, 7)) {
+	if (IS_GEN(engine->i915, 7)) {
 		switch (engine->id) {
 		/*
 		 * No more rings exist on Gen7. Default case is only to shut up
@@ -551,14 +550,14 @@ static void set_hwsp(struct intel_engine_cs *engine, u32 offset)
 			hwsp = VEBOX_HWS_PGA_GEN7;
 			break;
 		}
-	} else if (IS_GEN(dev_priv, 6)) {
+	} else if (IS_GEN(engine->i915, 6)) {
 		hwsp = RING_HWS_PGA_GEN6(engine->mmio_base);
 	} else {
 		hwsp = RING_HWS_PGA(engine->mmio_base);
 	}
 
-	I915_WRITE(hwsp, offset);
-	POSTING_READ(hwsp);
+	intel_uncore_write(engine->uncore, hwsp, offset);
+	intel_uncore_posting_read(engine->uncore, hwsp);
 }
 
 static void flush_cs_tlb(struct intel_engine_cs *engine)
@@ -633,8 +632,8 @@ static int xcs_resume(struct intel_engine_cs *engine)
 	struct intel_ring *ring = engine->legacy.ring;
 	int ret = 0;
 
-	GEM_TRACE("%s: ring:{HEAD:%04x, TAIL:%04x}\n",
-		  engine->name, ring->head, ring->tail);
+	ENGINE_TRACE(engine, "ring:{HEAD:%04x, TAIL:%04x}\n",
+		     ring->head, ring->tail);
 
 	intel_uncore_forcewake_get(engine->uncore, FORCEWAKE_ALL);
 
@@ -721,7 +720,7 @@ static int xcs_resume(struct intel_engine_cs *engine)
 	}
 
 	/* Papering over lost _interrupts_ immediately following the restart */
-	intel_engine_queue_breadcrumbs(engine);
+	intel_engine_signal_breadcrumbs(engine);
 out:
 	intel_uncore_forcewake_put(engine->uncore, FORCEWAKE_ALL);
 
@@ -747,10 +746,10 @@ static void reset_prepare(struct intel_engine_cs *engine)
 	 *
 	 * FIXME: Wa for more modern gens needs to be validated
 	 */
-	GEM_TRACE("%s\n", engine->name);
+	ENGINE_TRACE(engine, "\n");
 
 	if (intel_engine_stop_cs(engine))
-		GEM_TRACE("%s: timed out on STOP_RING\n", engine->name);
+		ENGINE_TRACE(engine, "timed out on STOP_RING\n");
 
 	intel_uncore_write_fw(uncore,
 			      RING_HEAD(base),
@@ -766,12 +765,11 @@ static void reset_prepare(struct intel_engine_cs *engine)
 
 	/* Check acts as a post */
 	if (intel_uncore_read_fw(uncore, RING_HEAD(base)))
-		GEM_TRACE("%s: ring head [%x] not parked\n",
-			  engine->name,
-			  intel_uncore_read_fw(uncore, RING_HEAD(base)));
+		ENGINE_TRACE(engine, "ring head [%x] not parked\n",
+			     intel_uncore_read_fw(uncore, RING_HEAD(base)));
 }
 
-static void reset_ring(struct intel_engine_cs *engine, bool stalled)
+static void reset_rewind(struct intel_engine_cs *engine, bool stalled)
 {
 	struct i915_request *pos, *rq;
 	unsigned long flags;
@@ -842,7 +840,8 @@ static void reset_finish(struct intel_engine_cs *engine)
 
 static int rcs_resume(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
+	struct drm_i915_private *i915 = engine->i915;
+	struct intel_uncore *uncore = engine->uncore;
 
 	/*
 	 * Disable CONSTANT_BUFFER before it is loaded from the context
@@ -854,13 +853,14 @@ static int rcs_resume(struct intel_engine_cs *engine)
 	 * they are already accustomed to from before contexts were
 	 * enabled.
 	 */
-	if (IS_GEN(dev_priv, 4))
-		I915_WRITE(ECOSKPD,
+	if (IS_GEN(i915, 4))
+		intel_uncore_write(uncore, ECOSKPD,
 			   _MASKED_BIT_ENABLE(ECO_CONSTANT_BUFFER_SR_DISABLE));
 
 	/* WaTimedSingleVertexDispatch:cl,bw,ctg,elk,ilk,snb */
-	if (IS_GEN_RANGE(dev_priv, 4, 6))
-		I915_WRITE(MI_MODE, _MASKED_BIT_ENABLE(VS_TIMER_DISPATCH));
+	if (IS_GEN_RANGE(i915, 4, 6))
+		intel_uncore_write(uncore, MI_MODE,
+				   _MASKED_BIT_ENABLE(VS_TIMER_DISPATCH));
 
 	/* We need to disable the AsyncFlip performance optimisations in order
 	 * to use MI_WAIT_FOR_EVENT within the CS. It should already be
@@ -868,38 +868,40 @@ static int rcs_resume(struct intel_engine_cs *engine)
 	 *
 	 * WaDisableAsyncFlipPerfMode:snb,ivb,hsw,vlv
 	 */
-	if (IS_GEN_RANGE(dev_priv, 6, 7))
-		I915_WRITE(MI_MODE, _MASKED_BIT_ENABLE(ASYNC_FLIP_PERF_DISABLE));
+	if (IS_GEN_RANGE(i915, 6, 7))
+		intel_uncore_write(uncore, MI_MODE,
+				   _MASKED_BIT_ENABLE(ASYNC_FLIP_PERF_DISABLE));
 
 	/* Required for the hardware to program scanline values for waiting */
 	/* WaEnableFlushTlbInvalidationMode:snb */
-	if (IS_GEN(dev_priv, 6))
-		I915_WRITE(GFX_MODE,
+	if (IS_GEN(i915, 6))
+		intel_uncore_write(uncore, GFX_MODE,
 			   _MASKED_BIT_ENABLE(GFX_TLB_INVALIDATE_EXPLICIT));
 
 	/* WaBCSVCSTlbInvalidationMode:ivb,vlv,hsw */
-	if (IS_GEN(dev_priv, 7))
-		I915_WRITE(GFX_MODE_GEN7,
+	if (IS_GEN(i915, 7))
+		intel_uncore_write(uncore, GFX_MODE_GEN7,
 			   _MASKED_BIT_ENABLE(GFX_TLB_INVALIDATE_EXPLICIT) |
 			   _MASKED_BIT_ENABLE(GFX_REPLAY_MODE));
 
-	if (IS_GEN(dev_priv, 6)) {
+	if (IS_GEN(i915, 6)) {
 		/* From the Sandybridge PRM, volume 1 part 3, page 24:
 		 * "If this bit is set, STCunit will have LRA as replacement
 		 *  policy. [...] This bit must be reset.  LRA replacement
 		 *  policy is not supported."
 		 */
-		I915_WRITE(CACHE_MODE_0,
+		intel_uncore_write(uncore, CACHE_MODE_0,
 			   _MASKED_BIT_DISABLE(CM0_STC_EVICT_DISABLE_LRA_SNB));
 	}
 
-	if (IS_GEN_RANGE(dev_priv, 6, 7))
-		I915_WRITE(INSTPM, _MASKED_BIT_ENABLE(INSTPM_FORCE_ORDERING));
+	if (IS_GEN_RANGE(i915, 6, 7))
+		intel_uncore_write(uncore, INSTPM,
+				   _MASKED_BIT_ENABLE(INSTPM_FORCE_ORDERING));
 
 	return xcs_resume(engine);
 }
 
-static void cancel_requests(struct intel_engine_cs *engine)
+static void reset_cancel(struct intel_engine_cs *engine)
 {
 	struct i915_request *request;
 	unsigned long flags;
@@ -1318,6 +1320,8 @@ static int ring_context_alloc(struct intel_context *ce)
 			return PTR_ERR(vma);
 
 		ce->state = vma;
+		if (engine->default_state)
+			__set_bit(CONTEXT_VALID_BIT, &ce->flags);
 	}
 
 	return 0;
@@ -1325,26 +1329,12 @@ static int ring_context_alloc(struct intel_context *ce)
 
 static int ring_context_pin(struct intel_context *ce)
 {
-	int err;
-
-	err = intel_context_active_acquire(ce);
-	if (err)
-		return err;
-
-	err = __context_pin_ppgtt(ce);
-	if (err)
-		goto err_active;
-
-	return 0;
-
-err_active:
-	intel_context_active_release(ce);
-	return err;
+	return __context_pin_ppgtt(ce);
 }
 
 static void ring_context_reset(struct intel_context *ce)
 {
-	intel_ring_reset(ce->ring, 0);
+	intel_ring_reset(ce->ring, ce->ring->emit);
 }
 
 static const struct intel_context_ops ring_context_ops = {
@@ -1360,46 +1350,38 @@ static const struct intel_context_ops ring_context_ops = {
 	.destroy = ring_context_destroy,
 };
 
-static int load_pd_dir(struct i915_request *rq, const struct i915_ppgtt *ppgtt)
+static int load_pd_dir(struct i915_request *rq,
+		       const struct i915_ppgtt *ppgtt,
+		       u32 valid)
 {
 	const struct intel_engine_cs * const engine = rq->engine;
 	u32 *cs;
 
-	cs = intel_ring_begin(rq, 6);
+	cs = intel_ring_begin(rq, 12);
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
 	*cs++ = MI_LOAD_REGISTER_IMM(1);
 	*cs++ = i915_mmio_reg_offset(RING_PP_DIR_DCLV(engine->mmio_base));
-	*cs++ = PP_DIR_DCLV_2G;
+	*cs++ = valid;
 
 	*cs++ = MI_LOAD_REGISTER_IMM(1);
 	*cs++ = i915_mmio_reg_offset(RING_PP_DIR_BASE(engine->mmio_base));
 	*cs++ = px_base(ppgtt->pd)->ggtt_offset << 10;
 
-	intel_ring_advance(rq, cs);
-
-	return 0;
-}
-
-static int flush_pd_dir(struct i915_request *rq)
-{
-	const struct intel_engine_cs * const engine = rq->engine;
-	u32 *cs;
-
-	cs = intel_ring_begin(rq, 4);
-	if (IS_ERR(cs))
-		return PTR_ERR(cs);
-
-	/* Stall until the page table load is complete */
+	/* Stall until the page table load is complete? */
 	*cs++ = MI_STORE_REGISTER_MEM | MI_SRM_LRM_GLOBAL_GTT;
 	*cs++ = i915_mmio_reg_offset(RING_PP_DIR_BASE(engine->mmio_base));
-	*cs++ = intel_gt_scratch_offset(rq->engine->gt,
+	*cs++ = intel_gt_scratch_offset(engine->gt,
 					INTEL_GT_SCRATCH_FIELD_DEFAULT);
-	*cs++ = MI_NOOP;
+
+	*cs++ = MI_LOAD_REGISTER_IMM(1);
+	*cs++ = i915_mmio_reg_offset(RING_INSTPM(engine->mmio_base));
+	*cs++ = _MASKED_BIT_ENABLE(INSTPM_TLB_INVALIDATE);
 
 	intel_ring_advance(rq, cs);
-	return 0;
+
+	return rq->engine->emit_flush(rq, EMIT_FLUSH);
 }
 
 static inline int mi_set_context(struct i915_request *rq, u32 flags)
@@ -1477,7 +1459,7 @@ static inline int mi_set_context(struct i915_request *rq, u32 flags)
 
 	*cs++ = MI_NOOP;
 	*cs++ = MI_SET_CONTEXT;
-	*cs++ = i915_ggtt_offset(rq->hw_context->state) | flags;
+	*cs++ = i915_ggtt_offset(rq->context->state) | flags;
 	/*
 	 * w/a: MI_SET_CONTEXT must always be followed by MI_NOOP
 	 * WaMiSetContext_Hang:snb,ivb,vlv
@@ -1547,10 +1529,10 @@ static int remap_l3_slice(struct i915_request *rq, int slice)
 
 static int remap_l3(struct i915_request *rq)
 {
-	struct i915_gem_context *ctx = rq->gem_context;
+	struct i915_gem_context *ctx = i915_request_gem_context(rq);
 	int i, err;
 
-	if (!ctx->remap_slice)
+	if (!ctx || !ctx->remap_slice)
 		return 0;
 
 	for (i = 0; i < MAX_L3_SLICES; i++) {
@@ -1566,19 +1548,42 @@ static int remap_l3(struct i915_request *rq)
 	return 0;
 }
 
+static int switch_mm(struct i915_request *rq, struct i915_address_space *vm)
+{
+	int ret;
+
+	if (!vm)
+		return 0;
+
+	ret = rq->engine->emit_flush(rq, EMIT_FLUSH);
+	if (ret)
+		return ret;
+
+	/*
+	 * Not only do we need a full barrier (post-sync write) after
+	 * invalidating the TLBs, but we need to wait a little bit
+	 * longer. Whether this is merely delaying us, or the
+	 * subsequent flush is a key part of serialising with the
+	 * post-sync op, this extra pass appears vital before a
+	 * mm switch!
+	 */
+	ret = load_pd_dir(rq, i915_vm_to_ppgtt(vm), PP_DIR_DCLV_2G);
+	if (ret)
+		return ret;
+
+	return rq->engine->emit_flush(rq, EMIT_INVALIDATE);
+}
+
 static int switch_context(struct i915_request *rq)
 {
-	struct intel_context *ce = rq->hw_context;
-	struct i915_address_space *vm = vm_alias(ce);
+	struct intel_context *ce = rq->context;
 	int ret;
 
 	GEM_BUG_ON(HAS_EXECLISTS(rq->i915));
 
-	if (vm) {
-		ret = load_pd_dir(rq, i915_vm_to_ppgtt(vm));
-		if (ret)
-			return ret;
-	}
+	ret = switch_mm(rq, vm_alias(ce));
+	if (ret)
+		return ret;
 
 	if (ce->state) {
 		u32 flags;
@@ -1590,40 +1595,12 @@ static int switch_context(struct i915_request *rq)
 		BUILD_BUG_ON(HSW_MI_RS_RESTORE_STATE_EN != MI_RESTORE_EXT_STATE_EN);
 
 		flags = MI_SAVE_EXT_STATE_EN | MI_MM_SPACE_GTT;
-		if (!i915_gem_context_is_kernel(rq->gem_context))
+		if (test_bit(CONTEXT_VALID_BIT, &ce->flags))
 			flags |= MI_RESTORE_EXT_STATE_EN;
 		else
 			flags |= MI_RESTORE_INHIBIT;
 
 		ret = mi_set_context(rq, flags);
-		if (ret)
-			return ret;
-	}
-
-	if (vm) {
-		struct intel_engine_cs *engine = rq->engine;
-
-		ret = engine->emit_flush(rq, EMIT_INVALIDATE);
-		if (ret)
-			return ret;
-
-		ret = flush_pd_dir(rq);
-		if (ret)
-			return ret;
-
-		/*
-		 * Not only do we need a full barrier (post-sync write) after
-		 * invalidating the TLBs, but we need to wait a little bit
-		 * longer. Whether this is merely delaying us, or the
-		 * subsequent flush is a key part of serialising with the
-		 * post-sync op, this extra pass appears vital before a
-		 * mm switch!
-		 */
-		ret = engine->emit_flush(rq, EMIT_INVALIDATE);
-		if (ret)
-			return ret;
-
-		ret = engine->emit_flush(rq, EMIT_FLUSH);
 		if (ret)
 			return ret;
 	}
@@ -1639,7 +1616,7 @@ static int ring_request_alloc(struct i915_request *request)
 {
 	int ret;
 
-	GEM_BUG_ON(!intel_context_is_pinned(request->hw_context));
+	GEM_BUG_ON(!intel_context_is_pinned(request->context));
 	GEM_BUG_ON(i915_request_timeline(request)->has_initial_breadcrumb);
 
 	/*
@@ -1795,7 +1772,6 @@ static int gen6_ring_flush(struct i915_request *rq, u32 mode)
 static void i9xx_set_default_submission(struct intel_engine_cs *engine)
 {
 	engine->submit_request = i9xx_submit_request;
-	engine->cancel_requests = cancel_requests;
 
 	engine->park = NULL;
 	engine->unpark = NULL;
@@ -1807,7 +1783,7 @@ static void gen6_bsd_set_default_submission(struct intel_engine_cs *engine)
 	engine->submit_request = gen6_bsd_submit_request;
 }
 
-static void ring_destroy(struct intel_engine_cs *engine)
+static void ring_release(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 
@@ -1821,8 +1797,6 @@ static void ring_destroy(struct intel_engine_cs *engine)
 
 	intel_timeline_unpin(engine->legacy.timeline);
 	intel_timeline_put(engine->legacy.timeline);
-
-	kfree(engine);
 }
 
 static void setup_irq(struct intel_engine_cs *engine)
@@ -1853,11 +1827,10 @@ static void setup_common(struct intel_engine_cs *engine)
 
 	setup_irq(engine);
 
-	engine->destroy = ring_destroy;
-
 	engine->resume = xcs_resume;
 	engine->reset.prepare = reset_prepare;
-	engine->reset.reset = reset_ring;
+	engine->reset.rewind = reset_rewind;
+	engine->reset.cancel = reset_cancel;
 	engine->reset.finish = reset_finish;
 
 	engine->cops = &ring_context_ops;
@@ -1968,6 +1941,10 @@ static void setup_vecs(struct intel_engine_cs *engine)
 
 int intel_ring_submission_setup(struct intel_engine_cs *engine)
 {
+	struct intel_timeline *timeline;
+	struct intel_ring *ring;
+	int err;
+
 	setup_common(engine);
 
 	switch (engine->class) {
@@ -1987,15 +1964,6 @@ int intel_ring_submission_setup(struct intel_engine_cs *engine)
 		MISSING_CASE(engine->class);
 		return -ENODEV;
 	}
-
-	return 0;
-}
-
-int intel_ring_submission_init(struct intel_engine_cs *engine)
-{
-	struct intel_timeline *timeline;
-	struct intel_ring *ring;
-	int err;
 
 	timeline = intel_timeline_create(engine->gt, engine->status_page.vma);
 	if (IS_ERR(timeline)) {
@@ -2022,16 +1990,13 @@ int intel_ring_submission_init(struct intel_engine_cs *engine)
 	engine->legacy.ring = ring;
 	engine->legacy.timeline = timeline;
 
-	err = intel_engine_init_common(engine);
-	if (err)
-		goto err_ring_unpin;
-
 	GEM_BUG_ON(timeline->hwsp_ggtt != engine->status_page.vma);
+
+	/* Finally, take ownership and responsibility for cleanup! */
+	engine->release = ring_release;
 
 	return 0;
 
-err_ring_unpin:
-	intel_ring_unpin(ring);
 err_ring:
 	intel_ring_put(ring);
 err_timeline_unpin:

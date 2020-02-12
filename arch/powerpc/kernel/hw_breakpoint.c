@@ -160,6 +160,9 @@ static int hw_breakpoint_validate_len(struct arch_hw_breakpoint *hw)
 		/* DAWR region can't cross 512 bytes boundary */
 		if ((start_addr >> 9) != (end_addr >> 9))
 			return -EINVAL;
+	} else if (IS_ENABLED(CONFIG_PPC_8xx)) {
+		/* 8xx can setup a range without limitation */
+		max_len = U16_MAX;
 	}
 
 	if (hw_len > max_len)
@@ -328,13 +331,11 @@ int hw_breakpoint_handler(struct die_args *args)
 	}
 
 	info->type &= ~HW_BRK_TYPE_EXTRANEOUS_IRQ;
-	if (IS_ENABLED(CONFIG_PPC_8xx)) {
-		if (!dar_within_range(regs->dar, info))
-			info->type |= HW_BRK_TYPE_EXTRANEOUS_IRQ;
-	} else {
-		if (!stepping_handler(regs, bp, info))
-			goto out;
-	}
+	if (!dar_within_range(regs->dar, info))
+		info->type |= HW_BRK_TYPE_EXTRANEOUS_IRQ;
+
+	if (!IS_ENABLED(CONFIG_PPC_8xx) && !stepping_handler(regs, bp, info))
+		goto out;
 
 	/*
 	 * As a policy, the callback is invoked in a 'trigger-after-execute'

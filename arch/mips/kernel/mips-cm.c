@@ -194,7 +194,7 @@ static void mips_cm_probe_l2sync(void)
 	write_gcr_l2_only_sync_base(addr | CM_GCR_L2_ONLY_SYNC_BASE_SYNCEN);
 
 	/* Map the region */
-	mips_cm_l2sync_base = ioremap_nocache(addr, MIPS_CM_L2SYNC_SIZE);
+	mips_cm_l2sync_base = ioremap(addr, MIPS_CM_L2SYNC_SIZE);
 }
 
 int mips_cm_probe(void)
@@ -215,7 +215,7 @@ int mips_cm_probe(void)
 	if (!addr)
 		return -ENODEV;
 
-	mips_gcr_base = ioremap_nocache(addr, MIPS_CM_GCR_SIZE);
+	mips_gcr_base = ioremap(addr, MIPS_CM_GCR_SIZE);
 	if (!mips_gcr_base)
 		return -ENXIO;
 

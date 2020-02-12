@@ -20,6 +20,8 @@ struct fsl_mc_io;
 #define DPRTC_IRQ_INDEX		0
 
 #define DPRTC_EVENT_PPS		0x08000000
+#define DPRTC_EVENT_ETS1	0x00800000
+#define DPRTC_EVENT_ETS2	0x00400000
 
 int dprtc_open(struct fsl_mc_io *mc_io,
 	       u32 cmd_flags,

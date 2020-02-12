@@ -123,8 +123,6 @@
 			clock-names = "bus",
 				      "mod";
 			resets = <&display_clocks 0>;
-			assigned-clocks = <&display_clocks 6>;
-			assigned-clock-rates = <150000000>;
 
 			ports {
 				#address-cells = <1>;

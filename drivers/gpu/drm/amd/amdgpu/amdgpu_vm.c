@@ -83,6 +83,32 @@ struct amdgpu_prt_cb {
 };
 
 /**
+ * vm eviction_lock can be taken in MMU notifiers. Make sure no reclaim-FS
+ * happens while holding this lock anywhere to prevent deadlocks when
+ * an MMU notifier runs in reclaim-FS context.
+ */
+static inline void amdgpu_vm_eviction_lock(struct amdgpu_vm *vm)
+{
+	mutex_lock(&vm->eviction_lock);
+	vm->saved_flags = memalloc_nofs_save();
+}
+
+static inline int amdgpu_vm_eviction_trylock(struct amdgpu_vm *vm)
+{
+	if (mutex_trylock(&vm->eviction_lock)) {
+		vm->saved_flags = memalloc_nofs_save();
+		return 1;
+	}
+	return 0;
+}
+
+static inline void amdgpu_vm_eviction_unlock(struct amdgpu_vm *vm)
+{
+	memalloc_nofs_restore(vm->saved_flags);
+	mutex_unlock(&vm->eviction_lock);
+}
+
+/**
  * amdgpu_vm_level_shift - return the addr shift for each level
  *
  * @adev: amdgpu_device pointer
@@ -562,8 +588,8 @@ void amdgpu_vm_get_pd_bo(struct amdgpu_vm *vm,
 {
 	entry->priority = 0;
 	entry->tv.bo = &vm->root.base.bo->tbo;
-	/* One for the VM updates, one for TTM and one for the CS job */
-	entry->tv.num_shared = 3;
+	/* One for TTM and one for the CS job */
+	entry->tv.num_shared = 2;
 	entry->user_pages = NULL;
 	list_add(&entry->tv.head, validated);
 }
@@ -656,7 +682,7 @@ int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 			      void *param)
 {
 	struct amdgpu_vm_bo_base *bo_base, *tmp;
-	int r = 0;
+	int r;
 
 	vm->bulk_moveable &= list_empty(&vm->evicted);
 
@@ -665,7 +691,7 @@ int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 
 		r = validate(param, bo);
 		if (r)
-			break;
+			return r;
 
 		if (bo->tbo.type != ttm_bo_type_kernel) {
 			amdgpu_vm_bo_moved(bo_base);
@@ -678,7 +704,11 @@ int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		}
 	}
 
-	return r;
+	amdgpu_vm_eviction_lock(vm);
+	vm->evicting = false;
+	amdgpu_vm_eviction_unlock(vm);
+
+	return 0;
 }
 
 /**
@@ -1555,15 +1585,25 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 	if (!(flags & AMDGPU_PTE_VALID))
 		owner = AMDGPU_FENCE_OWNER_KFD;
 
+	amdgpu_vm_eviction_lock(vm);
+	if (vm->evicting) {
+		r = -EBUSY;
+		goto error_unlock;
+	}
+
 	r = vm->update_funcs->prepare(&params, owner, exclusive);
 	if (r)
-		return r;
+		goto error_unlock;
 
 	r = amdgpu_vm_update_ptes(&params, start, last + 1, addr, flags);
 	if (r)
-		return r;
+		goto error_unlock;
 
-	return vm->update_funcs->commit(&params, fence);
+	r = vm->update_funcs->commit(&params, fence);
+
+error_unlock:
+	amdgpu_vm_eviction_unlock(vm);
+	return r;
 }
 
 /**
@@ -2500,6 +2540,41 @@ void amdgpu_vm_bo_rmv(struct amdgpu_device *adev,
 }
 
 /**
+ * amdgpu_vm_evictable - check if we can evict a VM
+ *
+ * @bo: A page table of the VM.
+ *
+ * Check if it is possible to evict a VM.
+ */
+bool amdgpu_vm_evictable(struct amdgpu_bo *bo)
+{
+	struct amdgpu_vm_bo_base *bo_base = bo->vm_bo;
+
+	/* Page tables of a destroyed VM can go away immediately */
+	if (!bo_base || !bo_base->vm)
+		return true;
+
+	/* Don't evict VM page tables while they are busy */
+	if (!dma_resv_test_signaled_rcu(bo->tbo.base.resv, true))
+		return false;
+
+	/* Try to block ongoing updates */
+	if (!amdgpu_vm_eviction_trylock(bo_base->vm))
+		return false;
+
+	/* Don't evict VM page tables while they are updated */
+	if (!dma_fence_is_signaled(bo_base->vm->last_direct) ||
+	    !dma_fence_is_signaled(bo_base->vm->last_delayed)) {
+		amdgpu_vm_eviction_unlock(bo_base->vm);
+		return false;
+	}
+
+	bo_base->vm->evicting = true;
+	amdgpu_vm_eviction_unlock(bo_base->vm);
+	return true;
+}
+
+/**
  * amdgpu_vm_bo_invalidate - mark the bo as invalid
  *
  * @adev: amdgpu_device pointer
@@ -2661,8 +2736,16 @@ void amdgpu_vm_adjust_size(struct amdgpu_device *adev, uint32_t min_vm_size,
  */
 long amdgpu_vm_wait_idle(struct amdgpu_vm *vm, long timeout)
 {
-	return dma_resv_wait_timeout_rcu(vm->root.base.bo->tbo.base.resv,
-						   true, true, timeout);
+	timeout = dma_resv_wait_timeout_rcu(vm->root.base.bo->tbo.base.resv,
+					    true, true, timeout);
+	if (timeout <= 0)
+		return timeout;
+
+	timeout = dma_fence_wait_timeout(vm->last_direct, true, timeout);
+	if (timeout <= 0)
+		return timeout;
+
+	return dma_fence_wait_timeout(vm->last_delayed, true, timeout);
 }
 
 /**
@@ -2696,18 +2779,22 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	spin_lock_init(&vm->invalidated_lock);
 	INIT_LIST_HEAD(&vm->freed);
 
+
 	/* create scheduler entities for page table updates */
-	r = drm_sched_entity_init(&vm->direct, adev->vm_manager.vm_pte_rqs,
-				  adev->vm_manager.vm_pte_num_rqs, NULL);
+	r = drm_sched_entity_init(&vm->direct, DRM_SCHED_PRIORITY_NORMAL,
+				  adev->vm_manager.vm_pte_scheds,
+				  adev->vm_manager.vm_pte_num_scheds, NULL);
 	if (r)
 		return r;
 
-	r = drm_sched_entity_init(&vm->delayed, adev->vm_manager.vm_pte_rqs,
-				  adev->vm_manager.vm_pte_num_rqs, NULL);
+	r = drm_sched_entity_init(&vm->delayed, DRM_SCHED_PRIORITY_NORMAL,
+				  adev->vm_manager.vm_pte_scheds,
+				  adev->vm_manager.vm_pte_num_scheds, NULL);
 	if (r)
 		goto error_free_direct;
 
 	vm->pte_support_ats = false;
+	vm->is_compute_context = false;
 
 	if (vm_context == AMDGPU_VM_CONTEXT_COMPUTE) {
 		vm->use_cpu_for_update = !!(adev->vm_manager.vm_update_mode &
@@ -2730,6 +2817,11 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	else
 		vm->update_funcs = &amdgpu_vm_sdma_funcs;
 	vm->last_update = NULL;
+	vm->last_direct = dma_fence_get_stub();
+	vm->last_delayed = dma_fence_get_stub();
+
+	mutex_init(&vm->eviction_lock);
+	vm->evicting = false;
 
 	amdgpu_vm_bo_param(adev, vm, adev->vm_manager.root_level, false, &bp);
 	if (vm_context == AMDGPU_VM_CONTEXT_COMPUTE)
@@ -2780,6 +2872,8 @@ error_free_root:
 	vm->root.base.bo = NULL;
 
 error_free_delayed:
+	dma_fence_put(vm->last_direct);
+	dma_fence_put(vm->last_delayed);
 	drm_sched_entity_destroy(&vm->delayed);
 
 error_free_direct:
@@ -2893,6 +2987,7 @@ int amdgpu_vm_make_compute(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		vm->update_funcs = &amdgpu_vm_sdma_funcs;
 	dma_fence_put(vm->last_update);
 	vm->last_update = NULL;
+	vm->is_compute_context = true;
 
 	if (vm->pasid) {
 		unsigned long flags;
@@ -2947,6 +3042,7 @@ void amdgpu_vm_release_compute(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 		spin_unlock_irqrestore(&adev->vm_manager.pasid_lock, flags);
 	}
 	vm->pasid = 0;
+	vm->is_compute_context = false;
 }
 
 /**
@@ -2977,6 +3073,11 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 		spin_unlock_irqrestore(&adev->vm_manager.pasid_lock, flags);
 		vm->pasid = 0;
 	}
+
+	dma_fence_wait(vm->last_direct, false);
+	dma_fence_put(vm->last_direct);
+	dma_fence_wait(vm->last_delayed, false);
+	dma_fence_put(vm->last_delayed);
 
 	list_for_each_entry_safe(mapping, tmp, &vm->freed, list) {
 		if (mapping->flags & AMDGPU_PTE_PRT && prt_fini_needed) {
@@ -3194,11 +3295,20 @@ bool amdgpu_vm_handle_fault(struct amdgpu_device *adev, unsigned int pasid,
 	flags = AMDGPU_PTE_VALID | AMDGPU_PTE_SNOOPED |
 		AMDGPU_PTE_SYSTEM;
 
-	if (amdgpu_vm_fault_stop == AMDGPU_VM_FAULT_STOP_NEVER) {
+	if (vm->is_compute_context) {
+		/* Intentionally setting invalid PTE flag
+		 * combination to force a no-retry-fault
+		 */
+		flags = AMDGPU_PTE_EXECUTABLE | AMDGPU_PDE_PTE |
+			AMDGPU_PTE_TF;
+		value = 0;
+
+	} else if (amdgpu_vm_fault_stop == AMDGPU_VM_FAULT_STOP_NEVER) {
 		/* Redirect the access to the dummy page */
 		value = adev->dummy_page_addr;
 		flags |= AMDGPU_PTE_EXECUTABLE | AMDGPU_PTE_READABLE |
 			AMDGPU_PTE_WRITEABLE;
+
 	} else {
 		/* Let the hw retry silently on the PTE */
 		value = 0;

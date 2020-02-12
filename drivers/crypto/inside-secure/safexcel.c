@@ -501,8 +501,8 @@ static int safexcel_hw_setup_cdesc_rings(struct safexcel_crypto_priv *priv)
 		writel(upper_32_bits(priv->ring[i].cdr.base_dma),
 		       EIP197_HIA_CDR(priv, i) + EIP197_HIA_xDR_RING_BASE_ADDR_HI);
 
-		writel(EIP197_xDR_DESC_MODE_64BIT | (priv->config.cd_offset << 14) |
-		       priv->config.cd_size,
+		writel(EIP197_xDR_DESC_MODE_64BIT | EIP197_CDR_DESC_MODE_ADCP |
+		       (priv->config.cd_offset << 14) | priv->config.cd_size,
 		       EIP197_HIA_CDR(priv, i) + EIP197_HIA_xDR_DESC_SIZE);
 		writel(((cd_fetch_cnt *
 			 (cd_size_rnd << priv->hwconfig.hwdataw)) << 16) |
@@ -974,16 +974,18 @@ int safexcel_invalidate_cache(struct crypto_async_request *async,
 {
 	struct safexcel_command_desc *cdesc;
 	struct safexcel_result_desc *rdesc;
+	struct safexcel_token  *dmmy;
 	int ret = 0;
 
 	/* Prepare command descriptor */
-	cdesc = safexcel_add_cdesc(priv, ring, true, true, 0, 0, 0, ctxr_dma);
+	cdesc = safexcel_add_cdesc(priv, ring, true, true, 0, 0, 0, ctxr_dma,
+				   &dmmy);
 	if (IS_ERR(cdesc))
 		return PTR_ERR(cdesc);
 
 	cdesc->control_data.type = EIP197_TYPE_EXTENDED;
 	cdesc->control_data.options = 0;
-	cdesc->control_data.refresh = 0;
+	cdesc->control_data.context_lo &= ~EIP197_CONTEXT_SIZE_MASK;
 	cdesc->control_data.control0 = CONTEXT_CONTROL_INV_TR;
 
 	/* Prepare result descriptor */
@@ -1331,6 +1333,7 @@ static void safexcel_configure(struct safexcel_crypto_priv *priv)
 
 	priv->config.cd_size = EIP197_CD64_FETCH_SIZE;
 	priv->config.cd_offset = (priv->config.cd_size + mask) & ~mask;
+	priv->config.cdsh_offset = (EIP197_MAX_TOKENS + mask) & ~mask;
 
 	/* res token is behind the descr, but ofs must be rounded to buswdth */
 	priv->config.res_offset = (EIP197_RD64_FETCH_SIZE + mask) & ~mask;
@@ -1341,6 +1344,7 @@ static void safexcel_configure(struct safexcel_crypto_priv *priv)
 
 	/* convert dwords to bytes */
 	priv->config.cd_offset *= sizeof(u32);
+	priv->config.cdsh_offset *= sizeof(u32);
 	priv->config.rd_offset *= sizeof(u32);
 	priv->config.res_offset *= sizeof(u32);
 }

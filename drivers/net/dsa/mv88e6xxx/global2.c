@@ -948,10 +948,13 @@ static int mv88e6xxx_g2_watchdog_setup(struct mv88e6xxx_chip *chip)
 	if (chip->watchdog_irq < 0)
 		return chip->watchdog_irq;
 
+	snprintf(chip->watchdog_irq_name, sizeof(chip->watchdog_irq_name),
+		 "mv88e6xxx-%s-watchdog", dev_name(chip->dev));
+
 	err = request_threaded_irq(chip->watchdog_irq, NULL,
 				   mv88e6xxx_g2_watchdog_thread_fn,
 				   IRQF_ONESHOT | IRQF_TRIGGER_FALLING,
-				   "mv88e6xxx-watchdog", chip);
+				   chip->watchdog_irq_name, chip);
 	if (err)
 		return err;
 
@@ -1114,9 +1117,12 @@ int mv88e6xxx_g2_irq_setup(struct mv88e6xxx_chip *chip)
 		goto out;
 	}
 
+	snprintf(chip->device_irq_name, sizeof(chip->device_irq_name),
+		 "mv88e6xxx-%s-g2", dev_name(chip->dev));
+
 	err = request_threaded_irq(chip->device_irq, NULL,
 				   mv88e6xxx_g2_irq_thread_fn,
-				   IRQF_ONESHOT, "mv88e6xxx-g2", chip);
+				   IRQF_ONESHOT, chip->device_irq_name, chip);
 	if (err)
 		goto out;
 

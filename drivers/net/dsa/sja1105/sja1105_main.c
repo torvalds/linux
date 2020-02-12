@@ -426,14 +426,6 @@ static int sja1105_init_general_params(struct sja1105_private *priv)
 		.tpid2 = ETH_P_SJA1105,
 	};
 	struct sja1105_table *table;
-	int i, k = 0;
-
-	for (i = 0; i < SJA1105_NUM_PORTS; i++) {
-		if (dsa_is_dsa_port(priv->ds, i))
-			default_general_params.casc_port = i;
-		else if (dsa_is_user_port(priv->ds, i))
-			priv->ports[i].mgmt_slot = k++;
-	}
 
 	table = &priv->static_config.tables[BLK_IDX_GENERAL_PARAMS];
 
@@ -582,7 +574,7 @@ static int sja1105_parse_ports_node(struct sja1105_private *priv,
 	struct device *dev = &priv->spidev->dev;
 	struct device_node *child;
 
-	for_each_child_of_node(ports_node, child) {
+	for_each_available_child_of_node(ports_node, child) {
 		struct device_node *phy_node;
 		phy_interface_t phy_mode;
 		u32 index;
@@ -1542,7 +1534,8 @@ static int sja1105_setup_8021q_tagging(struct dsa_switch *ds, bool enabled)
 }
 
 static enum dsa_tag_protocol
-sja1105_get_tag_protocol(struct dsa_switch *ds, int port)
+sja1105_get_tag_protocol(struct dsa_switch *ds, int port,
+			 enum dsa_tag_protocol mp)
 {
 	return DSA_TAG_PROTO_SJA1105;
 }
@@ -1740,6 +1733,16 @@ static int sja1105_setup(struct dsa_switch *ds)
 static void sja1105_teardown(struct dsa_switch *ds)
 {
 	struct sja1105_private *priv = ds->priv;
+	int port;
+
+	for (port = 0; port < SJA1105_NUM_PORTS; port++) {
+		struct sja1105_port *sp = &priv->ports[port];
+
+		if (!dsa_is_user_port(ds, port))
+			continue;
+
+		kthread_destroy_worker(sp->xmit_worker);
+	}
 
 	sja1105_tas_teardown(ds);
 	sja1105_ptp_clock_unregister(ds);
@@ -1759,6 +1762,18 @@ static int sja1105_port_enable(struct dsa_switch *ds, int port,
 	slave->features &= ~NETIF_F_HW_VLAN_CTAG_FILTER;
 
 	return 0;
+}
+
+static void sja1105_port_disable(struct dsa_switch *ds, int port)
+{
+	struct sja1105_private *priv = ds->priv;
+	struct sja1105_port *sp = &priv->ports[port];
+
+	if (!dsa_is_user_port(ds, port))
+		return;
+
+	kthread_cancel_work_sync(&sp->xmit_work);
+	skb_queue_purge(&sp->xmit_queue);
 }
 
 static int sja1105_mgmt_xmit(struct dsa_switch *ds, int port, int slot,
@@ -1819,47 +1834,36 @@ static int sja1105_mgmt_xmit(struct dsa_switch *ds, int port, int slot,
 	return NETDEV_TX_OK;
 }
 
+#define work_to_port(work) \
+		container_of((work), struct sja1105_port, xmit_work)
+#define tagger_to_sja1105(t) \
+		container_of((t), struct sja1105_private, tagger_data)
+
 /* Deferred work is unfortunately necessary because setting up the management
  * route cannot be done from atomit context (SPI transfer takes a sleepable
  * lock on the bus)
  */
-static netdev_tx_t sja1105_port_deferred_xmit(struct dsa_switch *ds, int port,
-					      struct sk_buff *skb)
+static void sja1105_port_deferred_xmit(struct kthread_work *work)
 {
-	struct sja1105_private *priv = ds->priv;
-	struct sja1105_port *sp = &priv->ports[port];
-	int slot = sp->mgmt_slot;
-	struct sk_buff *clone;
+	struct sja1105_port *sp = work_to_port(work);
+	struct sja1105_tagger_data *tagger_data = sp->data;
+	struct sja1105_private *priv = tagger_to_sja1105(tagger_data);
+	int port = sp - priv->ports;
+	struct sk_buff *skb;
 
-	/* The tragic fact about the switch having 4x2 slots for installing
-	 * management routes is that all of them except one are actually
-	 * useless.
-	 * If 2 slots are simultaneously configured for two BPDUs sent to the
-	 * same (multicast) DMAC but on different egress ports, the switch
-	 * would confuse them and redirect first frame it receives on the CPU
-	 * port towards the port configured on the numerically first slot
-	 * (therefore wrong port), then second received frame on second slot
-	 * (also wrong port).
-	 * So for all practical purposes, there needs to be a lock that
-	 * prevents that from happening. The slot used here is utterly useless
-	 * (could have simply been 0 just as fine), but we are doing it
-	 * nonetheless, in case a smarter idea ever comes up in the future.
-	 */
-	mutex_lock(&priv->mgmt_lock);
+	while ((skb = skb_dequeue(&sp->xmit_queue)) != NULL) {
+		struct sk_buff *clone = DSA_SKB_CB(skb)->clone;
 
-	/* The clone, if there, was made by dsa_skb_tx_timestamp */
-	clone = DSA_SKB_CB(skb)->clone;
+		mutex_lock(&priv->mgmt_lock);
 
-	sja1105_mgmt_xmit(ds, port, slot, skb, !!clone);
+		sja1105_mgmt_xmit(priv->ds, port, 0, skb, !!clone);
 
-	if (!clone)
-		goto out;
+		/* The clone, if there, was made by dsa_skb_tx_timestamp */
+		if (clone)
+			sja1105_ptp_txtstamp_skb(priv->ds, port, clone);
 
-	sja1105_ptp_txtstamp_skb(ds, port, clone);
-
-out:
-	mutex_unlock(&priv->mgmt_lock);
-	return NETDEV_TX_OK;
+		mutex_unlock(&priv->mgmt_lock);
+	}
 }
 
 /* The MAXAGE setting belongs to the L2 Forwarding Parameters table,
@@ -1990,6 +1994,7 @@ static const struct dsa_switch_ops sja1105_switch_ops = {
 	.get_sset_count		= sja1105_get_sset_count,
 	.get_ts_info		= sja1105_get_ts_info,
 	.port_enable		= sja1105_port_enable,
+	.port_disable		= sja1105_port_disable,
 	.port_fdb_dump		= sja1105_fdb_dump,
 	.port_fdb_add		= sja1105_fdb_add,
 	.port_fdb_del		= sja1105_fdb_del,
@@ -2003,7 +2008,6 @@ static const struct dsa_switch_ops sja1105_switch_ops = {
 	.port_mdb_prepare	= sja1105_mdb_prepare,
 	.port_mdb_add		= sja1105_mdb_add,
 	.port_mdb_del		= sja1105_mdb_del,
-	.port_deferred_xmit	= sja1105_port_deferred_xmit,
 	.port_hwtstamp_get	= sja1105_hwtstamp_get,
 	.port_hwtstamp_set	= sja1105_hwtstamp_set,
 	.port_rxtstamp		= sja1105_port_rxtstamp,
@@ -2055,7 +2059,7 @@ static int sja1105_probe(struct spi_device *spi)
 	struct device *dev = &spi->dev;
 	struct sja1105_private *priv;
 	struct dsa_switch *ds;
-	int rc, i;
+	int rc, port;
 
 	if (!dev->of_node) {
 		dev_err(dev, "No DTS bindings for SJA1105 driver\n");
@@ -2120,15 +2124,42 @@ static int sja1105_probe(struct spi_device *spi)
 		return rc;
 
 	/* Connections between dsa_port and sja1105_port */
-	for (i = 0; i < SJA1105_NUM_PORTS; i++) {
-		struct sja1105_port *sp = &priv->ports[i];
+	for (port = 0; port < SJA1105_NUM_PORTS; port++) {
+		struct sja1105_port *sp = &priv->ports[port];
+		struct dsa_port *dp = dsa_to_port(ds, port);
+		struct net_device *slave;
 
-		dsa_to_port(ds, i)->priv = sp;
-		sp->dp = dsa_to_port(ds, i);
+		if (!dsa_is_user_port(ds, port))
+			continue;
+
+		dp->priv = sp;
+		sp->dp = dp;
 		sp->data = tagger_data;
+		slave = dp->slave;
+		kthread_init_work(&sp->xmit_work, sja1105_port_deferred_xmit);
+		sp->xmit_worker = kthread_create_worker(0, "%s_xmit",
+							slave->name);
+		if (IS_ERR(sp->xmit_worker)) {
+			rc = PTR_ERR(sp->xmit_worker);
+			dev_err(ds->dev,
+				"failed to create deferred xmit thread: %d\n",
+				rc);
+			goto out;
+		}
+		skb_queue_head_init(&sp->xmit_queue);
 	}
 
 	return 0;
+out:
+	while (port-- > 0) {
+		struct sja1105_port *sp = &priv->ports[port];
+
+		if (!dsa_is_user_port(ds, port))
+			continue;
+
+		kthread_destroy_worker(sp->xmit_worker);
+	}
+	return rc;
 }
 
 static int sja1105_remove(struct spi_device *spi)

@@ -73,9 +73,6 @@
 #include "bmap.h"
 #include "util.h"
 
-#define IS_LEAF     1 /* Hashed (leaf) directory */
-#define IS_DINODE   2 /* Linear (stuffed dinode block) directory */
-
 #define MAX_RA_BLOCKS 32 /* max read-ahead blocks */
 
 #define gfs2_disk_hash2offset(h) (((u64)(h)) >> 1)
