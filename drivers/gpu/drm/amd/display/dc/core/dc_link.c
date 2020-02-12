@@ -45,7 +45,7 @@
 #include "dpcd_defs.h"
 #include "dmcu.h"
 #include "hw/clk_mgr.h"
-#include "../dce/dmub_psr.h"
+#include "dce/dmub_psr.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -2433,7 +2433,7 @@ bool dc_link_set_psr_allow_active(struct dc_link *link, bool allow_active, bool 
 	struct dmcu *dmcu = dc->res_pool->dmcu;
 	struct dmub_psr *psr = dc->res_pool->psr;
 
-	if ((psr != NULL) && link->psr_feature_enabled)
+	if (psr != NULL && link->psr_feature_enabled)
 		psr->funcs->psr_enable(psr, allow_active);
 	else if ((dmcu != NULL && dmcu->funcs->is_dmcu_initialized(dmcu)) && link->psr_feature_enabled)
 		dmcu->funcs->set_psr_enable(dmcu, allow_active, wait);

@@ -410,6 +410,7 @@ struct dc_debug_options {
 	bool dmub_offload_enabled;
 	bool dmcub_emulation;
 	bool dmub_command_table; /* for testing only */
+	bool psr_on_dmub;
 	struct dc_bw_validation_profile bw_val_profile;
 	bool disable_fec;
 	bool disable_48mhz_pwrdwn;

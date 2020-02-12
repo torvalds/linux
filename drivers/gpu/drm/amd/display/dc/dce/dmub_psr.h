@@ -27,6 +27,7 @@
 #define _DMUB_PSR_H_
 
 #include "os_types.h"
+#include "dc_link.h"
 
 struct dmub_psr {
 	struct dc_context *ctx;
@@ -44,4 +45,4 @@ struct dmub_psr *dmub_psr_create(struct dc_context *ctx);
 void dmub_psr_destroy(struct dmub_psr **dmub);
 
 
-#endif /* _DCE_DMUB_H_ */
+#endif /* _DMUB_PSR_H_ */

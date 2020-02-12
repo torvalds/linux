@@ -27,7 +27,7 @@
 #include "dc.h"
 #include "dc_dmub_srv.h"
 #include "../../dmub/inc/dmub_srv.h"
-#include "dmub_fw_state.h"
+#include "../../dmub/inc/dmub_gpint_cmd.h"
 #include "core_types.h"
 
 #define MAX_PIPES 6
@@ -131,8 +131,9 @@ static bool dmub_psr_copy_settings(struct dmub_psr *dmub,
 		= &cmd.psr_copy_settings.psr_copy_settings_data;
 	struct pipe_ctx *pipe_ctx = NULL;
 	struct resource_context *res_ctx = &link->ctx->dc->current_state->res_ctx;
+	int i = 0;
 
-	for (int i = 0; i < MAX_PIPES; i++) {
+	for (i = 0; i < MAX_PIPES; i++) {
 		if (res_ctx &&
 			res_ctx->pipe_ctx[i].stream &&
 			res_ctx->pipe_ctx[i].stream->link &&

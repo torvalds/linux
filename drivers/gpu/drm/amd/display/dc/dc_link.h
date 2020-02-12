@@ -26,6 +26,7 @@
 #ifndef DC_LINK_H_
 #define DC_LINK_H_
 
+#include "dc.h"
 #include "dc_types.h"
 #include "grph_object_defs.h"
 

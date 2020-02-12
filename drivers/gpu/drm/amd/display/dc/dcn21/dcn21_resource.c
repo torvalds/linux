@@ -84,7 +84,7 @@
 #include "dcn21_resource.h"
 #include "vm_helper.h"
 #include "dcn20/dcn20_vmid.h"
-#include "../dce/dmub_psr.h"
+#include "dce/dmub_psr.h"
 
 #define SOC_BOUNDING_BOX_VALID false
 #define DC_LOGGER_INIT(logger)
@@ -995,6 +995,9 @@ static void dcn21_resource_destruct(struct dcn21_resource_pool *pool)
 	if (pool->base.dmcu != NULL)
 		dce_dmcu_destroy(&pool->base.dmcu);
 
+	if (pool->base.psr != NULL)
+		dmub_psr_destroy(&pool->base.psr);
+
 	if (pool->base.dccg != NULL)
 		dcn_dccg_destroy(&pool->base.dccg);
 
@@ -1843,9 +1846,15 @@ static bool dcn21_resource_construct(
 		goto create_fail;
 	}
 
-	// Leave as NULL to not affect current dmcu psr programming sequence
-	// Will be uncommented when functionality is confirmed to be working
-	pool->base.psr = NULL;
+	if (dc->debug.psr_on_dmub) {
+		pool->base.psr = dmub_psr_create(ctx);
+
+		if (pool->base.psr == NULL) {
+			dm_error("DC: failed to create psr obj!\n");
+			BREAK_TO_DEBUGGER();
+			goto create_fail;
+		}
+	}
 
 	pool->base.abm = dce_abm_create(ctx,
 			&abm_regs,

@@ -63,6 +63,7 @@ enum dmub_gpint_command {
 	DMUB_GPINT__INVALID_COMMAND = 0,
 	DMUB_GPINT__GET_FW_VERSION = 1,
 	DMUB_GPINT__STOP_FW = 2,
+	DMUB_GPINT__GET_PSR_STATE = 7,
 };
 
 /**
