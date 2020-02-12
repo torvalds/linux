@@ -315,14 +315,6 @@ vchiq_get_service_userdata(unsigned int handle)
 	return service ? service->base.userdata : NULL;
 }
 
-int
-vchiq_get_service_fourcc(unsigned int handle)
-{
-	struct vchiq_service *service = handle_to_service(handle);
-
-	return service ? service->base.fourcc : 0;
-}
-
 static void
 mark_service_closing_internal(struct vchiq_service *service, int sh_thread)
 {
