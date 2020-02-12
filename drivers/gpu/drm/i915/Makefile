@@ -53,7 +53,8 @@ i915-y += i915_drv.o \
 	  intel_runtime_pm.o \
 	  intel_sideband.o \
 	  intel_uncore.o \
-	  intel_wakeref.o
+	  intel_wakeref.o \
+	  vlv_suspend.o
 
 # core library code
 i915-y += \
