@@ -6688,3 +6688,60 @@ int qla2xxx_read_remote_register(scsi_qla_host_t *vha, uint32_t addr,
 
 	return rval;
 }
+
+int
+ql26xx_led_config(scsi_qla_host_t *vha, uint16_t options, uint16_t *led)
+{
+	struct qla_hw_data *ha = vha->hw;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+	int rval;
+
+	if (!IS_QLA2031(ha) && !IS_QLA27XX(ha) && !IS_QLA28XX(ha))
+		return QLA_FUNCTION_FAILED;
+
+	ql_dbg(ql_dbg_mbx, vha, 0x7070, "Entered %s (options=%x).\n",
+	    __func__, options);
+
+	mcp->mb[0] = MBC_SET_GET_FC_LED_CONFIG;
+	mcp->mb[1] = options;
+	mcp->out_mb = MBX_1|MBX_0;
+	mcp->in_mb = MBX_1|MBX_0;
+	if (options & BIT_0) {
+		if (options & BIT_1) {
+			mcp->mb[2] = led[2];
+			mcp->out_mb |= MBX_2;
+		}
+		if (options & BIT_2) {
+			mcp->mb[3] = led[0];
+			mcp->out_mb |= MBX_3;
+		}
+		if (options & BIT_3) {
+			mcp->mb[4] = led[1];
+			mcp->out_mb |= MBX_4;
+		}
+	} else {
+		mcp->in_mb |= MBX_4|MBX_3|MBX_2;
+	}
+	mcp->tov = MBX_TOV_SECONDS;
+	mcp->flags = 0;
+	rval = qla2x00_mailbox_command(vha, mcp);
+	if (rval) {
+		ql_dbg(ql_dbg_mbx, vha, 0x7071, "Failed %s %x (mb=%x,%x)\n",
+		    __func__, rval, mcp->mb[0], mcp->mb[1]);
+		return rval;
+	}
+
+	if (options & BIT_0) {
+		ha->beacon_blink_led = 0;
+		ql_dbg(ql_dbg_mbx, vha, 0x7072, "Done %s\n", __func__);
+	} else {
+		led[2] = mcp->mb[2];
+		led[0] = mcp->mb[3];
+		led[1] = mcp->mb[4];
+		ql_dbg(ql_dbg_mbx, vha, 0x7073, "Done %s (led=%x,%x,%x)\n",
+		    __func__, led[0], led[1], led[2]);
+	}
+
+	return rval;
+}

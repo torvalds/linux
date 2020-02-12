@@ -844,6 +844,7 @@ extern void qla82xx_clear_pending_mbx(scsi_qla_host_t *);
 extern int qla82xx_read_temperature(scsi_qla_host_t *);
 extern int qla8044_read_temperature(scsi_qla_host_t *);
 extern int qla2x00_read_sfp_dev(struct scsi_qla_host *, char *, int);
+extern int ql26xx_led_config(scsi_qla_host_t *, uint16_t, uint16_t *);
 
 /* BSG related functions */
 extern int qla24xx_bsg_request(struct bsg_job *);

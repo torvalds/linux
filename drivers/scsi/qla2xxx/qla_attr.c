@@ -1324,6 +1324,79 @@ qla2x00_beacon_store(struct device *dev, struct device_attribute *attr,
 }
 
 static ssize_t
+qla2x00_beacon_config_show(struct device *dev, struct device_attribute *attr,
+	char *buf)
+{
+	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
+	struct qla_hw_data *ha = vha->hw;
+	uint16_t led[3] = { 0 };
+
+	if (!IS_QLA2031(ha) && !IS_QLA27XX(ha) && !IS_QLA28XX(ha))
+		return -EPERM;
+
+	if (ql26xx_led_config(vha, 0, led))
+		return scnprintf(buf, PAGE_SIZE, "\n");
+
+	return scnprintf(buf, PAGE_SIZE, "%#04hx %#04hx %#04hx\n",
+	    led[0], led[1], led[2]);
+}
+
+static ssize_t
+qla2x00_beacon_config_store(struct device *dev, struct device_attribute *attr,
+	const char *buf, size_t count)
+{
+	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
+	struct qla_hw_data *ha = vha->hw;
+	uint16_t options = BIT_0;
+	uint16_t led[3] = { 0 };
+	uint16_t word[4];
+	int n;
+
+	if (!IS_QLA2031(ha) && !IS_QLA27XX(ha) && !IS_QLA28XX(ha))
+		return -EPERM;
+
+	n = sscanf(buf, "%hx %hx %hx %hx", word+0, word+1, word+2, word+3);
+	if (n == 4) {
+		if (word[0] == 3) {
+			options |= BIT_3|BIT_2|BIT_1;
+			led[0] = word[1];
+			led[1] = word[2];
+			led[2] = word[3];
+			goto write;
+		}
+		return -EINVAL;
+	}
+
+	if (n == 2) {
+		/* check led index */
+		if (word[0] == 0) {
+			options |= BIT_2;
+			led[0] = word[1];
+			goto write;
+		}
+		if (word[0] == 1) {
+			options |= BIT_3;
+			led[1] = word[1];
+			goto write;
+		}
+		if (word[0] == 2) {
+			options |= BIT_1;
+			led[2] = word[1];
+			goto write;
+		}
+		return -EINVAL;
+	}
+
+	return -EINVAL;
+
+write:
+	if (ql26xx_led_config(vha, options, led))
+		return -EFAULT;
+
+	return count;
+}
+
+static ssize_t
 qla2x00_optrom_bios_version_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
@@ -2264,6 +2337,8 @@ static DEVICE_ATTR(zio_timer, S_IRUGO | S_IWUSR, qla2x00_zio_timer_show,
 		   qla2x00_zio_timer_store);
 static DEVICE_ATTR(beacon, S_IRUGO | S_IWUSR, qla2x00_beacon_show,
 		   qla2x00_beacon_store);
+static DEVICE_ATTR(beacon_config, 0644, qla2x00_beacon_config_show,
+		   qla2x00_beacon_config_store);
 static DEVICE_ATTR(optrom_bios_version, S_IRUGO,
 		   qla2x00_optrom_bios_version_show, NULL);
 static DEVICE_ATTR(optrom_efi_version, S_IRUGO,
@@ -2327,6 +2402,7 @@ struct device_attribute *qla2x00_host_attrs[] = {
 	&dev_attr_zio,
 	&dev_attr_zio_timer,
 	&dev_attr_beacon,
+	&dev_attr_beacon_config,
 	&dev_attr_optrom_bios_version,
 	&dev_attr_optrom_efi_version,
 	&dev_attr_optrom_fcode_version,
