@@ -1358,11 +1358,6 @@ static void img_request_layered_set(struct rbd_img_request *img_request)
 	set_bit(IMG_REQ_LAYERED, &img_request->flags);
 }
 
-static void img_request_layered_clear(struct rbd_img_request *img_request)
-{
-	clear_bit(IMG_REQ_LAYERED, &img_request->flags);
-}
-
 static bool img_request_layered_test(struct rbd_img_request *img_request)
 {
 	return test_bit(IMG_REQ_LAYERED, &img_request->flags) != 0;
@@ -1661,10 +1656,8 @@ static void rbd_img_request_destroy(struct rbd_img_request *img_request)
 	for_each_obj_request_safe(img_request, obj_request, next_obj_request)
 		rbd_img_obj_request_del(img_request, obj_request);
 
-	if (img_request_layered_test(img_request)) {
-		img_request_layered_clear(img_request);
+	if (img_request_layered_test(img_request))
 		rbd_dev_parent_put(img_request->rbd_dev);
-	}
 
 	if (rbd_img_is_write(img_request))
 		ceph_put_snap_context(img_request->snapc);
