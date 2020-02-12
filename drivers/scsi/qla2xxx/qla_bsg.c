@@ -2415,7 +2415,7 @@ qla2x00_get_flash_image_status(struct bsg_job *bsg_job)
 	regions.global_image = active_regions.global;
 
 	if (IS_QLA28XX(ha)) {
-		qla27xx_get_active_image(vha, &active_regions);
+		qla28xx_get_aux_images(vha, &active_regions);
 		regions.board_config = active_regions.aux.board_config;
 		regions.vpd_nvram = active_regions.aux.vpd_nvram;
 		regions.npiv_config_0_1 = active_regions.aux.npiv_config_0_1;
