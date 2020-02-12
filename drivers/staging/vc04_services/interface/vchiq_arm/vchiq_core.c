@@ -138,8 +138,8 @@ find_service_by_handle(unsigned int handle)
 
 	spin_lock(&service_spinlock);
 	service = handle_to_service(handle);
-	if (service && (service->srvstate != VCHIQ_SRVSTATE_FREE) &&
-		(service->handle == handle)) {
+	if (service && service->srvstate != VCHIQ_SRVSTATE_FREE &&
+	    service->handle == handle) {
 		WARN_ON(service->ref_count == 0);
 		service->ref_count++;
 	} else
@@ -161,7 +161,7 @@ find_service_by_port(struct vchiq_state *state, int localport)
 	if ((unsigned int)localport <= VCHIQ_PORT_MAX) {
 		spin_lock(&service_spinlock);
 		service = state->services[localport];
-		if (service && (service->srvstate != VCHIQ_SRVSTATE_FREE)) {
+		if (service && service->srvstate != VCHIQ_SRVSTATE_FREE) {
 			WARN_ON(service->ref_count == 0);
 			service->ref_count++;
 		} else
@@ -184,9 +184,9 @@ find_service_for_instance(struct vchiq_instance *instance,
 
 	spin_lock(&service_spinlock);
 	service = handle_to_service(handle);
-	if (service && (service->srvstate != VCHIQ_SRVSTATE_FREE) &&
-		(service->handle == handle) &&
-		(service->instance == instance)) {
+	if (service && service->srvstate != VCHIQ_SRVSTATE_FREE &&
+	    service->handle == handle &&
+	    service->instance == instance) {
 		WARN_ON(service->ref_count == 0);
 		service->ref_count++;
 	} else
@@ -209,10 +209,10 @@ find_closed_service_for_instance(struct vchiq_instance *instance,
 	spin_lock(&service_spinlock);
 	service = handle_to_service(handle);
 	if (service &&
-		((service->srvstate == VCHIQ_SRVSTATE_FREE) ||
-		 (service->srvstate == VCHIQ_SRVSTATE_CLOSED)) &&
-		(service->handle == handle) &&
-		(service->instance == instance)) {
+	    (service->srvstate == VCHIQ_SRVSTATE_FREE ||
+	     service->srvstate == VCHIQ_SRVSTATE_CLOSED) &&
+	    service->handle == handle &&
+	    service->instance == instance) {
 		WARN_ON(service->ref_count == 0);
 		service->ref_count++;
 	} else
@@ -237,8 +237,8 @@ next_service_by_instance(struct vchiq_state *state, struct vchiq_instance *insta
 	while (idx < state->unused_service) {
 		struct vchiq_service *srv = state->services[idx++];
 
-		if (srv && (srv->srvstate != VCHIQ_SRVSTATE_FREE) &&
-			(srv->instance == instance)) {
+		if (srv && srv->srvstate != VCHIQ_SRVSTATE_FREE &&
+		    srv->instance == instance) {
 			service = srv;
 			WARN_ON(service->ref_count == 0);
 			service->ref_count++;
@@ -464,10 +464,10 @@ get_listening_service(struct vchiq_state *state, int fourcc)
 		struct vchiq_service *service = state->services[i];
 
 		if (service &&
-			(service->public_fourcc == fourcc) &&
-			((service->srvstate == VCHIQ_SRVSTATE_LISTENING) ||
-			((service->srvstate == VCHIQ_SRVSTATE_OPEN) &&
-			(service->remoteport == VCHIQ_PORT_FREE)))) {
+		    service->public_fourcc == fourcc &&
+		    (service->srvstate == VCHIQ_SRVSTATE_LISTENING ||
+		     (service->srvstate == VCHIQ_SRVSTATE_OPEN &&
+		      service->remoteport == VCHIQ_PORT_FREE))) {
 			lock_service(service);
 			return service;
 		}
@@ -485,8 +485,8 @@ get_connected_service(struct vchiq_state *state, unsigned int port)
 	for (i = 0; i < state->unused_service; i++) {
 		struct vchiq_service *service = state->services[i];
 
-		if (service && (service->srvstate == VCHIQ_SRVSTATE_OPEN)
-			&& (service->remoteport == port)) {
+		if (service && service->srvstate == VCHIQ_SRVSTATE_OPEN &&
+		    service->remoteport == port) {
 			lock_service(service);
 			return service;
 		}
