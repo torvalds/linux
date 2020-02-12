@@ -4878,6 +4878,64 @@ qla24xx_get_port_login_templ(scsi_qla_host_t *vha, dma_addr_t buf_dma,
 }
 
 int
+qla25xx_set_els_cmds_supported(scsi_qla_host_t *vha)
+{
+	int rval;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+	uint8_t *els_cmd_map;
+	dma_addr_t els_cmd_map_dma;
+	uint cmd_opcode = ELS_COMMAND_RDP;
+	uint index = cmd_opcode / 8;
+	uint bit = cmd_opcode % 8;
+	struct qla_hw_data *ha = vha->hw;
+
+	if (!IS_QLA25XX(ha) && !IS_QLA2031(ha) && !IS_QLA27XX(ha))
+		return QLA_SUCCESS;
+
+	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1197,
+	    "Entered %s.\n", __func__);
+
+	els_cmd_map = dma_alloc_coherent(&ha->pdev->dev, ELS_CMD_MAP_SIZE,
+	    &els_cmd_map_dma, GFP_KERNEL);
+	if (!els_cmd_map) {
+		ql_log(ql_log_warn, vha, 0x7101,
+		    "Failed to allocate RDP els command param.\n");
+		return QLA_MEMORY_ALLOC_FAILED;
+	}
+
+	memset(els_cmd_map, 0, ELS_CMD_MAP_SIZE);
+
+	els_cmd_map[index] |= 1 << bit;
+
+	mcp->mb[0] = MBC_SET_RNID_PARAMS;
+	mcp->mb[1] = RNID_TYPE_ELS_CMD << 8;
+	mcp->mb[2] = MSW(LSD(els_cmd_map_dma));
+	mcp->mb[3] = LSW(LSD(els_cmd_map_dma));
+	mcp->mb[6] = MSW(MSD(els_cmd_map_dma));
+	mcp->mb[7] = LSW(MSD(els_cmd_map_dma));
+	mcp->out_mb = MBX_7|MBX_6|MBX_3|MBX_2|MBX_1|MBX_0;
+	mcp->in_mb = MBX_1|MBX_0;
+	mcp->tov = MBX_TOV_SECONDS;
+	mcp->flags = MBX_DMA_OUT;
+	mcp->buf_size = ELS_CMD_MAP_SIZE;
+	rval = qla2x00_mailbox_command(vha, mcp);
+
+	if (rval != QLA_SUCCESS) {
+		ql_dbg(ql_dbg_mbx, vha, 0x118d,
+		    "Failed=%x (%x,%x).\n", rval, mcp->mb[0], mcp->mb[1]);
+	} else {
+		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x118c,
+		    "Done %s.\n", __func__);
+	}
+
+	dma_free_coherent(&ha->pdev->dev, DMA_POOL_SIZE,
+	   els_cmd_map, els_cmd_map_dma);
+
+	return rval;
+}
+
+int
 qla24xx_get_buffer_credits(scsi_qla_host_t *vha, struct buffer_credit_24xx *bbc,
 	dma_addr_t bbc_dma)
 {

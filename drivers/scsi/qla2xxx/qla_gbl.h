@@ -458,6 +458,9 @@ extern int
 qla25xx_set_driver_version(scsi_qla_host_t *, char *);
 
 extern int
+qla25xx_set_els_cmds_supported(scsi_qla_host_t *);
+
+extern int
 qla24xx_get_buffer_credits(scsi_qla_host_t *, struct buffer_credit_24xx *,
 	dma_addr_t);
 

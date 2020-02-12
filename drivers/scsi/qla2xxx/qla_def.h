@@ -1267,6 +1267,9 @@ static inline bool qla2xxx_is_valid_mbs(unsigned int mbs)
 #define RNID_TYPE_SET_VERSION	0x9
 #define RNID_TYPE_ASIC_TEMP	0xC
 
+#define ELS_CMD_MAP_SIZE	32
+#define ELS_COMMAND_RDP		0x18
+
 /*
  * Firmware state codes from get firmware state mailbox command
  */
@@ -3562,6 +3565,133 @@ struct qlfc_fw {
 	uint32_t len;
 };
 
+struct rdp_req_payload {
+	uint32_t	els_request;
+	uint32_t	desc_list_len;
+
+	/* NPIV descriptor */
+	struct {
+		uint32_t desc_tag;
+		uint32_t desc_len;
+		uint8_t  reserved;
+		uint8_t  nport_id[3];
+	} npiv_desc;
+};
+
+struct rdp_rsp_payload {
+	struct {
+		uint32_t cmd;
+		uint32_t len;
+	} hdr;
+
+	/* LS Request Info descriptor */
+	struct {
+		uint32_t desc_tag;
+		uint32_t desc_len;
+		uint32_t req_payload_word_0;
+	} ls_req_info_desc;
+
+	/* LS Request Info descriptor */
+	struct {
+		uint32_t desc_tag;
+		uint32_t desc_len;
+		uint32_t req_payload_word_0;
+	} ls_req_info_desc2;
+
+	/* SFP diagnostic param descriptor */
+	struct {
+		uint32_t desc_tag;
+		uint32_t desc_len;
+		uint16_t temperature;
+		uint16_t vcc;
+		uint16_t tx_bias;
+		uint16_t tx_power;
+		uint16_t rx_power;
+		uint16_t sfp_flags;
+	} sfp_diag_desc;
+
+	/* Port Speed Descriptor */
+	struct {
+		uint32_t desc_tag;
+		uint32_t desc_len;
+		uint16_t speed_capab;
+		uint16_t operating_speed;
+	} port_speed_desc;
+
+	/* Link Error Status Descriptor */
+	struct {
+		uint32_t desc_tag;
+		uint32_t desc_len;
+		uint32_t link_fail_cnt;
+		uint32_t loss_sync_cnt;
+		uint32_t loss_sig_cnt;
+		uint32_t prim_seq_err_cnt;
+		uint32_t inval_xmit_word_cnt;
+		uint32_t inval_crc_cnt;
+		uint8_t  pn_port_phy_type;
+		uint8_t  reserved[3];
+	} ls_err_desc;
+
+	/* Port name description with diag param */
+	struct {
+		uint32_t desc_tag;
+		uint32_t desc_len;
+		uint8_t WWNN[WWN_SIZE];
+		uint8_t WWPN[WWN_SIZE];
+	} port_name_diag_desc;
+
+	/* Port Name desc for Direct attached Fx_Port or Nx_Port */
+	struct {
+		uint32_t desc_tag;
+		uint32_t desc_len;
+		uint8_t WWNN[WWN_SIZE];
+		uint8_t WWPN[WWN_SIZE];
+	} port_name_direct_desc;
+
+	/* Buffer Credit descriptor */
+	struct {
+		uint32_t desc_tag;
+		uint32_t desc_len;
+		uint32_t fcport_b2b;
+		uint32_t attached_fcport_b2b;
+		uint32_t fcport_rtt;
+	} buffer_credit_desc;
+
+	/* Optical Element Data Descriptor */
+	struct {
+		uint32_t desc_tag;
+		uint32_t desc_len;
+		uint16_t high_alarm;
+		uint16_t low_alarm;
+		uint16_t high_warn;
+		uint16_t low_warn;
+		uint32_t element_flags;
+	} optical_elmt_desc[5];
+
+	/* Optical Product Data Descriptor */
+	struct {
+		uint32_t desc_tag;
+		uint32_t desc_len;
+		uint8_t  vendor_name[16];
+		uint8_t  part_number[16];
+		uint8_t  serial_number[16];
+		uint8_t  revision[4];
+		uint8_t  date[8];
+	} optical_prod_desc;
+};
+
+#define RDP_DESC_LEN(obj) \
+	(sizeof(obj) - sizeof((obj).desc_tag) - sizeof((obj).desc_len))
+
+#define RDP_PORT_SPEED_1GB		BIT_15
+#define RDP_PORT_SPEED_2GB		BIT_14
+#define RDP_PORT_SPEED_4GB		BIT_13
+#define RDP_PORT_SPEED_10GB		BIT_12
+#define RDP_PORT_SPEED_8GB		BIT_11
+#define RDP_PORT_SPEED_16GB		BIT_10
+#define RDP_PORT_SPEED_32GB		BIT_9
+#define RDP_PORT_SPEED_UNKNOWN		BIT_0
+
 struct scsi_qlt_host {
 	void *target_lport_ptr;
 	struct mutex tgt_mutex;
@@ -3965,6 +4095,8 @@ struct qla_hw_data {
 
 #define SFP_DEV_SIZE    512
 #define SFP_BLOCK_SIZE  64
+#define SFP_RTDI_LEN	SFP_BLOCK_SIZE
+
 	void		*sfp_data;
 	dma_addr_t	sfp_data_dma;
 
@@ -4424,6 +4556,8 @@ typedef struct scsi_qla_host {
 #define ISP_ABORT_TO_ROM	33
 #define VPORT_DELETE		34
 
+#define PROCESS_PUREX_IOCB	63
+
 	unsigned long	pci_flags;
 #define PFLG_DISCONNECTED	0	/* PCI device removed */
 #define PFLG_DRIVER_REMOVING	1	/* PCI driver .remove */
@@ -4532,6 +4666,7 @@ typedef struct scsi_qla_host {
 	uint16_t ql2xexchoffld;
 	uint16_t ql2xiniexchg;
 
+	void	*purex_data;
 	struct name_list_extended gnl;
 	/* Count of active session/fcport */
 	int fcport_count;
