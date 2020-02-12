@@ -5764,13 +5764,39 @@ qla25xx_rdp_port_speed_capability(struct qla_hw_data *ha)
 	if (IS_CNA_CAPABLE(ha))
 		return RDP_PORT_SPEED_10GB;
 
-	if (IS_QLA27XX(ha)) {
-		if (FW_ABILITY_MAX_SPEED(ha) == FW_ABILITY_MAX_SPEED_32G)
-			return RDP_PORT_SPEED_32GB|RDP_PORT_SPEED_16GB|
-			       RDP_PORT_SPEED_8GB;
+	if (IS_QLA27XX(ha) || IS_QLA28XX(ha)) {
+		unsigned int speeds = 0;
 
-		return RDP_PORT_SPEED_16GB|RDP_PORT_SPEED_8GB|
-		       RDP_PORT_SPEED_4GB;
+		if (ha->max_supported_speed == 2) {
+			if (ha->min_supported_speed <= 6)
+				speeds |= RDP_PORT_SPEED_64GB;
+		}
+
+		if (ha->max_supported_speed == 2 ||
+		    ha->max_supported_speed == 1) {
+			if (ha->min_supported_speed <= 5)
+				speeds |= RDP_PORT_SPEED_32GB;
+		}
+
+		if (ha->max_supported_speed == 2 ||
+		    ha->max_supported_speed == 1 ||
+		    ha->max_supported_speed == 0) {
+			if (ha->min_supported_speed <= 4)
+				speeds |= RDP_PORT_SPEED_16GB;
+		}
+
+		if (ha->max_supported_speed == 1 ||
+		    ha->max_supported_speed == 0) {
+			if (ha->min_supported_speed <= 3)
+				speeds |= RDP_PORT_SPEED_8GB;
+		}
+
+		if (ha->max_supported_speed == 0) {
+			if (ha->min_supported_speed <= 2)
+				speeds |= RDP_PORT_SPEED_4GB;
+		}
+
+		return speeds;
 	}
 
 	if (IS_QLA2031(ha))
@@ -5815,6 +5841,9 @@ qla25xx_rdp_port_speed_currently(struct qla_hw_data *ha)
 
 	case PORT_SPEED_32GB:
 		return RDP_PORT_SPEED_32GB;
+
+	case PORT_SPEED_64GB:
+		return RDP_PORT_SPEED_64GB;
 
 	default:
 		return RDP_PORT_SPEED_UNKNOWN;
