@@ -1261,6 +1261,9 @@ static void tgl_whitelist_build(struct intel_engine_cs *engine)
 		whitelist_reg_ext(w, PS_INVOCATION_COUNT,
 				  RING_FORCE_TO_NONPRIV_ACCESS_RD |
 				  RING_FORCE_TO_NONPRIV_RANGE_4);
+
+		/* Wa_1808121037:tgl */
+		whitelist_reg(w, GEN7_COMMON_SLICE_CHICKEN1);
 		break;
 	default:
 		break;
