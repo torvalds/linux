@@ -2413,13 +2413,13 @@ vchiq_open_service_internal(struct vchiq_service *service, int client_id)
 			status = VCHIQ_RETRY;
 			vchiq_release_service_internal(service);
 		} else if ((service->srvstate != VCHIQ_SRVSTATE_OPEN) &&
-			(service->srvstate != VCHIQ_SRVSTATE_OPENSYNC)) {
+			   (service->srvstate != VCHIQ_SRVSTATE_OPENSYNC)) {
 			if (service->srvstate != VCHIQ_SRVSTATE_CLOSEWAIT)
 				vchiq_log_error(vchiq_core_log_level,
-					"%d: osi - srvstate = %s (ref %d)",
-					service->state->id,
-					srvstate_names[service->srvstate],
-					service->ref_count);
+						"%d: osi - srvstate = %s (ref %d)",
+						service->state->id,
+						srvstate_names[service->srvstate],
+						service->ref_count);
 			status = VCHIQ_ERROR;
 			VCHIQ_SERVICE_STATS_INC(service, error_count);
 			vchiq_release_service_internal(service);
@@ -3427,8 +3427,8 @@ int vchiq_dump_service_state(void *dump_context, struct vchiq_service *service)
 	int err;
 
 	len = scnprintf(buf, sizeof(buf), "Service %u: %s (ref %u)",
-		service->localport, srvstate_names[service->srvstate],
-		service->ref_count - 1); /*Don't include the lock just taken*/
+			service->localport, srvstate_names[service->srvstate],
+			service->ref_count - 1); /*Don't include the lock just taken*/
 
 	if (service->srvstate != VCHIQ_SRVSTATE_FREE) {
 		char remoteport[30];
