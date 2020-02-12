@@ -677,7 +677,7 @@ static int qti_flash_led_register_interrupts(struct qti_flash_led *led)
 
 	rc = devm_request_threaded_irq(&led->pdev->dev,
 		led->all_ramp_up_done_irq, NULL, qti_flash_led_irq_handler,
-		IRQF_ONESHOT, "all_ramp_up_done", led);
+		IRQF_ONESHOT, "flash_all_ramp_up", led);
 	if (rc < 0) {
 		pr_err("Failed to request all_ramp_up_done(%d) IRQ(err:%d)\n",
 			led->all_ramp_up_done_irq, rc);
@@ -686,7 +686,7 @@ static int qti_flash_led_register_interrupts(struct qti_flash_led *led)
 
 	rc = devm_request_threaded_irq(&led->pdev->dev,
 		led->all_ramp_down_done_irq, NULL, qti_flash_led_irq_handler,
-		IRQF_ONESHOT, "all_ramp_down", led);
+		IRQF_ONESHOT, "flash_all_ramp_down", led);
 	if (rc < 0) {
 		pr_err("Failed to request all_ramp_down_done(%d) IRQ(err:%d)\n",
 			led->all_ramp_down_done_irq,
@@ -696,7 +696,7 @@ static int qti_flash_led_register_interrupts(struct qti_flash_led *led)
 
 	rc = devm_request_threaded_irq(&led->pdev->dev,
 		led->led_fault_irq, NULL, qti_flash_led_irq_handler,
-		IRQF_ONESHOT, "fault", led);
+		IRQF_ONESHOT, "flash_fault", led);
 	if (rc < 0) {
 		pr_err("Failed to request led_fault(%d) IRQ(err:%d)\n",
 			led->led_fault_irq, rc);
