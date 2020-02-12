@@ -640,21 +640,6 @@ static struct btrfs_root *find_reloc_root(struct reloc_control *rc,
 	return btrfs_grab_root(root);
 }
 
-static int is_cowonly_root(u64 root_objectid)
-{
-	if (root_objectid == BTRFS_ROOT_TREE_OBJECTID ||
-	    root_objectid == BTRFS_EXTENT_TREE_OBJECTID ||
-	    root_objectid == BTRFS_CHUNK_TREE_OBJECTID ||
-	    root_objectid == BTRFS_DEV_TREE_OBJECTID ||
-	    root_objectid == BTRFS_TREE_LOG_OBJECTID ||
-	    root_objectid == BTRFS_CSUM_TREE_OBJECTID ||
-	    root_objectid == BTRFS_UUID_TREE_OBJECTID ||
-	    root_objectid == BTRFS_QUOTA_TREE_OBJECTID ||
-	    root_objectid == BTRFS_FREE_SPACE_TREE_OBJECTID)
-		return 1;
-	return 0;
-}
-
 static struct btrfs_root *read_fs_root(struct btrfs_fs_info *fs_info,
 					u64 root_objectid)
 {
@@ -662,10 +647,7 @@ static struct btrfs_root *read_fs_root(struct btrfs_fs_info *fs_info,
 
 	key.objectid = root_objectid;
 	key.type = BTRFS_ROOT_ITEM_KEY;
-	if (is_cowonly_root(root_objectid))
-		key.offset = 0;
-	else
-		key.offset = (u64)-1;
+	key.offset = (u64)-1;
 
 	return btrfs_get_fs_root(fs_info, &key, false);
 }
