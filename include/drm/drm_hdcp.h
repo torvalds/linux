@@ -276,7 +276,7 @@ void drm_hdcp_cpu_to_be24(u8 seq_num[HDCP_2_2_SEQ_NUM_LEN], u32 val)
 #define DRM_HDCP_2_VRL_LENGTH_SIZE		3
 #define DRM_HDCP_2_DCP_SIG_SIZE			384
 #define DRM_HDCP_2_NO_OF_DEV_PLUS_RESERVED_SZ	4
-#define DRM_HDCP_2_KSV_COUNT_2_LSBITS(byte)	(((byte) & 0xC) >> 6)
+#define DRM_HDCP_2_KSV_COUNT_2_LSBITS(byte)	(((byte) & 0xC0) >> 6)
 
 struct hdcp_srm_header {
 	u8 srm_id;
