@@ -2016,6 +2016,13 @@ int security_post_notification(const struct cred *w_cred,
 }
 #endif /* CONFIG_WATCH_QUEUE */
 
+#ifdef CONFIG_KEY_NOTIFICATIONS
+int security_watch_key(struct key *key)
+{
+	return call_int_hook(watch_key, 0, key);
+}
+#endif
+
 #ifdef CONFIG_SECURITY_NETWORK
 
 int security_unix_stream_connect(struct sock *sock, struct sock *other, struct sock *newsk)

@@ -1446,6 +1446,11 @@
  *	@cred: The event-triggerer's credentials
  *	@n: The notification being posted
  *
+ * @watch_key:
+ *	Check to see if a process is allowed to watch for event notifications
+ *	from a key or keyring.
+ *	@key: The key to watch.
+ *
  * Security hooks for using the eBPF maps and programs functionalities through
  * eBPF syscalls.
  *
