@@ -2684,9 +2684,9 @@ qla24xx_els_logo_iocb(srb_t *sp, struct els_entry_24xx *els_iocb)
 	els_iocb->rx_dsd_count = 0;
 	els_iocb->opcode = elsio->u.els_logo.els_cmd;
 
-	els_iocb->port_id[0] = sp->fcport->d_id.b.al_pa;
-	els_iocb->port_id[1] = sp->fcport->d_id.b.area;
-	els_iocb->port_id[2] = sp->fcport->d_id.b.domain;
+	els_iocb->d_id[0] = sp->fcport->d_id.b.al_pa;
+	els_iocb->d_id[1] = sp->fcport->d_id.b.area;
+	els_iocb->d_id[2] = sp->fcport->d_id.b.domain;
 	/* For SID the byte order is different than DID */
 	els_iocb->s_id[1] = vha->d_id.b.al_pa;
 	els_iocb->s_id[2] = vha->d_id.b.area;
@@ -3030,9 +3030,9 @@ qla24xx_els_iocb(srb_t *sp, struct els_entry_24xx *els_iocb)
 	    sp->type == SRB_ELS_CMD_RPT ?
 	    bsg_request->rqst_data.r_els.els_code :
 	    bsg_request->rqst_data.h_els.command_code;
-        els_iocb->port_id[0] = sp->fcport->d_id.b.al_pa;
-        els_iocb->port_id[1] = sp->fcport->d_id.b.area;
-        els_iocb->port_id[2] = sp->fcport->d_id.b.domain;
+	els_iocb->d_id[0] = sp->fcport->d_id.b.al_pa;
+	els_iocb->d_id[1] = sp->fcport->d_id.b.area;
+	els_iocb->d_id[2] = sp->fcport->d_id.b.domain;
         els_iocb->control_flags = 0;
         els_iocb->rx_byte_count =
             cpu_to_le32(bsg_job->reply_payload.payload_len);

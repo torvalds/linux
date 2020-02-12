@@ -5888,13 +5888,19 @@ static int qla24xx_process_purex_iocb(struct scsi_qla_host *vha, void *pkt)
 
 	rsp_els = dma_alloc_coherent(&ha->pdev->dev, sizeof(*rsp_els),
 	    &rsp_els_dma, GFP_KERNEL);
-	if (!rsp_els)
+	if (!rsp_els) {
+		ql_log(ql_log_warn, vha, 0x0183,
+		    "Failed allocate dma buffer ELS RSP.\n");
 		goto dealloc;
+	}
 
 	rsp_payload = dma_alloc_coherent(&ha->pdev->dev, sizeof(*rsp_payload),
 	    &rsp_payload_dma, GFP_KERNEL);
-	if (!rsp_payload)
+	if (!rsp_payload) {
+		ql_log(ql_log_warn, vha, 0x0184,
+		    "Failed allocate dma buffer ELS RSP payload.\n");
 		goto dealloc;
+	}
 
 	sfp = dma_alloc_coherent(&ha->pdev->dev, SFP_RTDI_LEN,
 	    &sfp_dma, GFP_KERNEL);
@@ -5920,9 +5926,9 @@ static int qla24xx_process_purex_iocb(struct scsi_qla_host *vha, void *pkt)
 	rsp_els->rx_dsd_count = 0;
 	rsp_els->opcode = purex->els_frame_payload[0];
 
-	rsp_els->port_id[0] = purex->s_id[0];
-	rsp_els->port_id[1] = purex->s_id[1];
-	rsp_els->port_id[2] = purex->s_id[2];
+	rsp_els->d_id[0] = purex->s_id[0];
+	rsp_els->d_id[1] = purex->s_id[1];
+	rsp_els->d_id[2] = purex->s_id[2];
 
 	rsp_els->control_flags = EPD_ELS_ACC;
 	rsp_els->rx_byte_count = 0;
@@ -6265,14 +6271,14 @@ send:
 
 	rval = qla2x00_issue_iocb(vha, rsp_els, rsp_els_dma, 0);
 
-	if (rval != QLA_SUCCESS) {
+	if (rval) {
 		ql_log(ql_log_warn, vha, 0x0188,
-		    "%s: failed to issue IOCB (%x).\n", __func__, rval);
-	} else if (rsp_els->entry_status != 0) {
+		    "%s: iocb failed to execute -> %x\n", __func__, rval);
+	} else if (rsp_els->comp_status) {
 		ql_log(ql_log_warn, vha, 0x0189,
-		    "%s: failed to complete IOCB -- error status (%x).\n",
-		    __func__, rsp_els->entry_status);
-		rval = QLA_FUNCTION_FAILED;
+		    "%s: iocb failed to complete -> completion=%#x subcode=(%#x,%#x)\n",
+		    __func__, rsp_els->comp_status,
+		    rsp_els->error_subcode_1, rsp_els->error_subcode_2);
 	} else {
 		ql_dbg(ql_dbg_init, vha, 0x018a, "%s: done.\n", __func__);
 	}
