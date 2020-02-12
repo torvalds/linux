@@ -941,8 +941,8 @@ static void skcipher_unmap(struct device *dev, struct skcipher_edesc *edesc,
 		   edesc->sec4_sg_dma, edesc->sec4_sg_bytes);
 }
 
-static void aead_encrypt_done(struct device *jrdev, u32 *desc, u32 err,
-				   void *context)
+static void aead_crypt_done(struct device *jrdev, u32 *desc, u32 err,
+			    void *context)
 {
 	struct aead_request *req = context;
 	struct aead_edesc *edesc;
@@ -962,69 +962,8 @@ static void aead_encrypt_done(struct device *jrdev, u32 *desc, u32 err,
 	aead_request_complete(req, ecode);
 }
 
-static void aead_decrypt_done(struct device *jrdev, u32 *desc, u32 err,
-				   void *context)
-{
-	struct aead_request *req = context;
-	struct aead_edesc *edesc;
-	int ecode = 0;
-
-	dev_dbg(jrdev, "%s %d: err 0x%x\n", __func__, __LINE__, err);
-
-	edesc = container_of(desc, struct aead_edesc, hw_desc[0]);
-
-	if (err)
-		ecode = caam_jr_strstatus(jrdev, err);
-
-	aead_unmap(jrdev, edesc, req);
-
-	kfree(edesc);
-
-	aead_request_complete(req, ecode);
-}
-
-static void skcipher_encrypt_done(struct device *jrdev, u32 *desc, u32 err,
-				  void *context)
-{
-	struct skcipher_request *req = context;
-	struct skcipher_edesc *edesc;
-	struct crypto_skcipher *skcipher = crypto_skcipher_reqtfm(req);
-	int ivsize = crypto_skcipher_ivsize(skcipher);
-	int ecode = 0;
-
-	dev_dbg(jrdev, "%s %d: err 0x%x\n", __func__, __LINE__, err);
-
-	edesc = container_of(desc, struct skcipher_edesc, hw_desc[0]);
-
-	if (err)
-		ecode = caam_jr_strstatus(jrdev, err);
-
-	skcipher_unmap(jrdev, edesc, req);
-
-	/*
-	 * The crypto API expects us to set the IV (req->iv) to the last
-	 * ciphertext block (CBC mode) or last counter (CTR mode).
-	 * This is used e.g. by the CTS mode.
-	 */
-	if (ivsize && !ecode) {
-		memcpy(req->iv, (u8 *)edesc->sec4_sg + edesc->sec4_sg_bytes,
-		       ivsize);
-		print_hex_dump_debug("dstiv  @"__stringify(__LINE__)": ",
-				     DUMP_PREFIX_ADDRESS, 16, 4, req->iv,
-				     edesc->src_nents > 1 ? 100 : ivsize, 1);
-	}
-
-	caam_dump_sg("dst    @" __stringify(__LINE__)": ",
-		     DUMP_PREFIX_ADDRESS, 16, 4, req->dst,
-		     edesc->dst_nents > 1 ? 100 : req->cryptlen, 1);
-
-	kfree(edesc);
-
-	skcipher_request_complete(req, ecode);
-}
-
-static void skcipher_decrypt_done(struct device *jrdev, u32 *desc, u32 err,
-				  void *context)
+static void skcipher_crypt_done(struct device *jrdev, u32 *desc, u32 err,
+				void *context)
 {
 	struct skcipher_request *req = context;
 	struct skcipher_edesc *edesc;
@@ -1436,7 +1375,7 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 	return edesc;
 }
 
-static int gcm_encrypt(struct aead_request *req)
+static inline int chachapoly_crypt(struct aead_request *req, bool encrypt)
 {
 	struct aead_edesc *edesc;
 	struct crypto_aead *aead = crypto_aead_reqtfm(req);
@@ -1444,22 +1383,21 @@ static int gcm_encrypt(struct aead_request *req)
 	struct device *jrdev = ctx->jrdev;
 	bool all_contig;
 	u32 *desc;
-	int ret = 0;
+	int ret;
 
-	/* allocate extended descriptor */
-	edesc = aead_edesc_alloc(req, GCM_DESC_JOB_IO_LEN, &all_contig, true);
+	edesc = aead_edesc_alloc(req, CHACHAPOLY_DESC_JOB_IO_LEN, &all_contig,
+				 encrypt);
 	if (IS_ERR(edesc))
 		return PTR_ERR(edesc);
 
-	/* Create and submit job descriptor */
-	init_gcm_job(req, edesc, all_contig, true);
-
-	print_hex_dump_debug("aead jobdesc@"__stringify(__LINE__)": ",
-			     DUMP_PREFIX_ADDRESS, 16, 4, edesc->hw_desc,
-			     desc_bytes(edesc->hw_desc), 1);
-
 	desc = edesc->hw_desc;
-	ret = caam_jr_enqueue(jrdev, desc, aead_encrypt_done, req);
+
+	init_chachapoly_job(req, edesc, all_contig, encrypt);
+	print_hex_dump_debug("chachapoly jobdesc@" __stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc),
+			     1);
+
+	ret = caam_jr_enqueue(jrdev, desc, aead_crypt_done, req);
 	if (!ret) {
 		ret = -EINPROGRESS;
 	} else {
@@ -1472,27 +1410,39 @@ static int gcm_encrypt(struct aead_request *req)
 
 static int chachapoly_encrypt(struct aead_request *req)
 {
+	return chachapoly_crypt(req, true);
+}
+
+static int chachapoly_decrypt(struct aead_request *req)
+{
+	return chachapoly_crypt(req, false);
+}
+
+static inline int aead_crypt(struct aead_request *req, bool encrypt)
+{
 	struct aead_edesc *edesc;
 	struct crypto_aead *aead = crypto_aead_reqtfm(req);
 	struct caam_ctx *ctx = crypto_aead_ctx(aead);
 	struct device *jrdev = ctx->jrdev;
 	bool all_contig;
 	u32 *desc;
-	int ret;
+	int ret = 0;
 
-	edesc = aead_edesc_alloc(req, CHACHAPOLY_DESC_JOB_IO_LEN, &all_contig,
-				 true);
+	/* allocate extended descriptor */
+	edesc = aead_edesc_alloc(req, AUTHENC_DESC_JOB_IO_LEN,
+				 &all_contig, encrypt);
 	if (IS_ERR(edesc))
 		return PTR_ERR(edesc);
 
+	/* Create and submit job descriptor */
+	init_authenc_job(req, edesc, all_contig, encrypt);
+
+	print_hex_dump_debug("aead jobdesc@"__stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, edesc->hw_desc,
+			     desc_bytes(edesc->hw_desc), 1);
+
 	desc = edesc->hw_desc;
-
-	init_chachapoly_job(req, edesc, all_contig, true);
-	print_hex_dump_debug("chachapoly jobdesc@" __stringify(__LINE__)": ",
-			     DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc),
-			     1);
-
-	ret = caam_jr_enqueue(jrdev, desc, aead_encrypt_done, req);
+	ret = caam_jr_enqueue(jrdev, desc, aead_crypt_done, req);
 	if (!ret) {
 		ret = -EINPROGRESS;
 	} else {
@@ -1503,7 +1453,17 @@ static int chachapoly_encrypt(struct aead_request *req)
 	return ret;
 }
 
-static int chachapoly_decrypt(struct aead_request *req)
+static int aead_encrypt(struct aead_request *req)
+{
+	return aead_crypt(req, true);
+}
+
+static int aead_decrypt(struct aead_request *req)
+{
+	return aead_crypt(req, false);
+}
+
+static inline int gcm_crypt(struct aead_request *req, bool encrypt)
 {
 	struct aead_edesc *edesc;
 	struct crypto_aead *aead = crypto_aead_reqtfm(req);
@@ -1511,21 +1471,23 @@ static int chachapoly_decrypt(struct aead_request *req)
 	struct device *jrdev = ctx->jrdev;
 	bool all_contig;
 	u32 *desc;
-	int ret;
+	int ret = 0;
 
-	edesc = aead_edesc_alloc(req, CHACHAPOLY_DESC_JOB_IO_LEN, &all_contig,
-				 false);
+	/* allocate extended descriptor */
+	edesc = aead_edesc_alloc(req, GCM_DESC_JOB_IO_LEN, &all_contig,
+				 encrypt);
 	if (IS_ERR(edesc))
 		return PTR_ERR(edesc);
 
+	/* Create and submit job descriptor */
+	init_gcm_job(req, edesc, all_contig, encrypt);
+
+	print_hex_dump_debug("aead jobdesc@"__stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, edesc->hw_desc,
+			     desc_bytes(edesc->hw_desc), 1);
+
 	desc = edesc->hw_desc;
-
-	init_chachapoly_job(req, edesc, all_contig, false);
-	print_hex_dump_debug("chachapoly jobdesc@" __stringify(__LINE__)": ",
-			     DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc),
-			     1);
-
-	ret = caam_jr_enqueue(jrdev, desc, aead_decrypt_done, req);
+	ret = caam_jr_enqueue(jrdev, desc, aead_crypt_done, req);
 	if (!ret) {
 		ret = -EINPROGRESS;
 	} else {
@@ -1534,6 +1496,16 @@ static int chachapoly_decrypt(struct aead_request *req)
 	}
 
 	return ret;
+}
+
+static int gcm_encrypt(struct aead_request *req)
+{
+	return gcm_crypt(req, true);
+}
+
+static int gcm_decrypt(struct aead_request *req)
+{
+	return gcm_crypt(req, false);
 }
 
 static int ipsec_gcm_encrypt(struct aead_request *req)
@@ -1541,117 +1513,9 @@ static int ipsec_gcm_encrypt(struct aead_request *req)
 	return crypto_ipsec_check_assoclen(req->assoclen) ? : gcm_encrypt(req);
 }
 
-static int aead_encrypt(struct aead_request *req)
-{
-	struct aead_edesc *edesc;
-	struct crypto_aead *aead = crypto_aead_reqtfm(req);
-	struct caam_ctx *ctx = crypto_aead_ctx(aead);
-	struct device *jrdev = ctx->jrdev;
-	bool all_contig;
-	u32 *desc;
-	int ret = 0;
-
-	/* allocate extended descriptor */
-	edesc = aead_edesc_alloc(req, AUTHENC_DESC_JOB_IO_LEN,
-				 &all_contig, true);
-	if (IS_ERR(edesc))
-		return PTR_ERR(edesc);
-
-	/* Create and submit job descriptor */
-	init_authenc_job(req, edesc, all_contig, true);
-
-	print_hex_dump_debug("aead jobdesc@"__stringify(__LINE__)": ",
-			     DUMP_PREFIX_ADDRESS, 16, 4, edesc->hw_desc,
-			     desc_bytes(edesc->hw_desc), 1);
-
-	desc = edesc->hw_desc;
-	ret = caam_jr_enqueue(jrdev, desc, aead_encrypt_done, req);
-	if (!ret) {
-		ret = -EINPROGRESS;
-	} else {
-		aead_unmap(jrdev, edesc, req);
-		kfree(edesc);
-	}
-
-	return ret;
-}
-
-static int gcm_decrypt(struct aead_request *req)
-{
-	struct aead_edesc *edesc;
-	struct crypto_aead *aead = crypto_aead_reqtfm(req);
-	struct caam_ctx *ctx = crypto_aead_ctx(aead);
-	struct device *jrdev = ctx->jrdev;
-	bool all_contig;
-	u32 *desc;
-	int ret = 0;
-
-	/* allocate extended descriptor */
-	edesc = aead_edesc_alloc(req, GCM_DESC_JOB_IO_LEN, &all_contig, false);
-	if (IS_ERR(edesc))
-		return PTR_ERR(edesc);
-
-	/* Create and submit job descriptor*/
-	init_gcm_job(req, edesc, all_contig, false);
-
-	print_hex_dump_debug("aead jobdesc@"__stringify(__LINE__)": ",
-			     DUMP_PREFIX_ADDRESS, 16, 4, edesc->hw_desc,
-			     desc_bytes(edesc->hw_desc), 1);
-
-	desc = edesc->hw_desc;
-	ret = caam_jr_enqueue(jrdev, desc, aead_decrypt_done, req);
-	if (!ret) {
-		ret = -EINPROGRESS;
-	} else {
-		aead_unmap(jrdev, edesc, req);
-		kfree(edesc);
-	}
-
-	return ret;
-}
-
 static int ipsec_gcm_decrypt(struct aead_request *req)
 {
 	return crypto_ipsec_check_assoclen(req->assoclen) ? : gcm_decrypt(req);
-}
-
-static int aead_decrypt(struct aead_request *req)
-{
-	struct aead_edesc *edesc;
-	struct crypto_aead *aead = crypto_aead_reqtfm(req);
-	struct caam_ctx *ctx = crypto_aead_ctx(aead);
-	struct device *jrdev = ctx->jrdev;
-	bool all_contig;
-	u32 *desc;
-	int ret = 0;
-
-	caam_dump_sg("dec src@" __stringify(__LINE__)": ",
-		     DUMP_PREFIX_ADDRESS, 16, 4, req->src,
-		     req->assoclen + req->cryptlen, 1);
-
-	/* allocate extended descriptor */
-	edesc = aead_edesc_alloc(req, AUTHENC_DESC_JOB_IO_LEN,
-				 &all_contig, false);
-	if (IS_ERR(edesc))
-		return PTR_ERR(edesc);
-
-	/* Create and submit job descriptor*/
-	init_authenc_job(req, edesc, all_contig, false);
-
-	print_hex_dump_debug("aead jobdesc@"__stringify(__LINE__)": ",
-			     DUMP_PREFIX_ADDRESS, 16, 4, edesc->hw_desc,
-			     desc_bytes(edesc->hw_desc), 1);
-
-	desc = edesc->hw_desc;
-	ret = caam_jr_enqueue(jrdev, desc, aead_decrypt_done, req);
-	if (!ret) {
-		ret = -EINPROGRESS;
-	} else {
-		aead_unmap(jrdev, edesc, req);
-		kfree(edesc);
-	}
-
-	return ret;
 }
 
 /*
@@ -1815,7 +1679,7 @@ static struct skcipher_edesc *skcipher_edesc_alloc(struct skcipher_request *req,
 	return edesc;
 }
 
-static int skcipher_encrypt(struct skcipher_request *req)
+static inline int skcipher_crypt(struct skcipher_request *req, bool encrypt)
 {
 	struct skcipher_edesc *edesc;
 	struct crypto_skcipher *skcipher = crypto_skcipher_reqtfm(req);
@@ -1833,14 +1697,14 @@ static int skcipher_encrypt(struct skcipher_request *req)
 		return PTR_ERR(edesc);
 
 	/* Create and submit job descriptor*/
-	init_skcipher_job(req, edesc, true);
+	init_skcipher_job(req, edesc, encrypt);
 
 	print_hex_dump_debug("skcipher jobdesc@" __stringify(__LINE__)": ",
 			     DUMP_PREFIX_ADDRESS, 16, 4, edesc->hw_desc,
 			     desc_bytes(edesc->hw_desc), 1);
 
 	desc = edesc->hw_desc;
-	ret = caam_jr_enqueue(jrdev, desc, skcipher_encrypt_done, req);
+	ret = caam_jr_enqueue(jrdev, desc, skcipher_crypt_done, req);
 
 	if (!ret) {
 		ret = -EINPROGRESS;
@@ -1852,40 +1716,14 @@ static int skcipher_encrypt(struct skcipher_request *req)
 	return ret;
 }
 
+static int skcipher_encrypt(struct skcipher_request *req)
+{
+	return skcipher_crypt(req, true);
+}
+
 static int skcipher_decrypt(struct skcipher_request *req)
 {
-	struct skcipher_edesc *edesc;
-	struct crypto_skcipher *skcipher = crypto_skcipher_reqtfm(req);
-	struct caam_ctx *ctx = crypto_skcipher_ctx(skcipher);
-	struct device *jrdev = ctx->jrdev;
-	u32 *desc;
-	int ret = 0;
-
-	if (!req->cryptlen)
-		return 0;
-
-	/* allocate extended descriptor */
-	edesc = skcipher_edesc_alloc(req, DESC_JOB_IO_LEN * CAAM_CMD_SZ);
-	if (IS_ERR(edesc))
-		return PTR_ERR(edesc);
-
-	/* Create and submit job descriptor*/
-	init_skcipher_job(req, edesc, false);
-	desc = edesc->hw_desc;
-
-	print_hex_dump_debug("skcipher jobdesc@" __stringify(__LINE__)": ",
-			     DUMP_PREFIX_ADDRESS, 16, 4, edesc->hw_desc,
-			     desc_bytes(edesc->hw_desc), 1);
-
-	ret = caam_jr_enqueue(jrdev, desc, skcipher_decrypt_done, req);
-	if (!ret) {
-		ret = -EINPROGRESS;
-	} else {
-		skcipher_unmap(jrdev, edesc, req);
-		kfree(edesc);
-	}
-
-	return ret;
+	return skcipher_crypt(req, false);
 }
 
 static struct caam_skcipher_alg driver_algs[] = {
