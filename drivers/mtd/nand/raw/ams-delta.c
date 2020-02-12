@@ -43,6 +43,9 @@ struct ams_delta_nand {
 	bool			data_in;
 	unsigned int		tRP;
 	unsigned int		tWP;
+	u8			(*io_read)(struct ams_delta_nand *this);
+	void			(*io_write)(struct ams_delta_nand *this,
+					    u8 byte);
 };
 
 static void ams_delta_write_commit(struct ams_delta_nand *priv)
@@ -116,18 +119,18 @@ static void ams_delta_write_buf(struct ams_delta_nand *priv, const u8 *buf,
 		ams_delta_dir_output(priv, buf[i++]);
 
 	while (i < len)
-		ams_delta_io_write(priv, buf[i++]);
+		priv->io_write(priv, buf[i++]);
 }
 
 static void ams_delta_read_buf(struct ams_delta_nand *priv, u8 *buf, int len)
 {
 	int i;
 
-	if (!priv->data_in)
+	if (priv->data_gpiods && !priv->data_in)
 		ams_delta_dir_input(priv);
 
 	for (i = 0; i < len; i++)
-		buf[i] = ams_delta_io_read(priv);
+		buf[i] = priv->io_read(priv);
 }
 
 static void ams_delta_ctrl_cs(struct ams_delta_nand *priv, bool assert)
@@ -289,7 +292,8 @@ static int ams_delta_init(struct platform_device *pdev)
 		return err;
 	}
 
-	priv->gpiod_nwe = devm_gpiod_get(&pdev->dev, "nwe", GPIOD_OUT_LOW);
+	priv->gpiod_nwe = devm_gpiod_get_optional(&pdev->dev, "nwe",
+						  GPIOD_OUT_LOW);
 	if (IS_ERR(priv->gpiod_nwe)) {
 		err = PTR_ERR(priv->gpiod_nwe);
 		dev_err(&pdev->dev, "NWE GPIO request failed (%d)\n", err);
@@ -311,13 +315,24 @@ static int ams_delta_init(struct platform_device *pdev)
 	}
 
 	/* Request array of data pins, initialize them as input */
-	priv->data_gpiods = devm_gpiod_get_array(&pdev->dev, "data", GPIOD_IN);
+	priv->data_gpiods = devm_gpiod_get_array_optional(&pdev->dev, "data",
+							  GPIOD_IN);
 	if (IS_ERR(priv->data_gpiods)) {
 		err = PTR_ERR(priv->data_gpiods);
 		dev_err(&pdev->dev, "data GPIO request failed: %d\n", err);
 		return err;
 	}
-	priv->data_in = true;
+	if (priv->data_gpiods) {
+		if (!priv->gpiod_nwe) {
+			dev_err(&pdev->dev,
+				"mandatory NWE pin not provided by platform\n");
+			return -ENODEV;
+		}
+
+		priv->io_read = ams_delta_io_read;
+		priv->io_write = ams_delta_io_write;
+		priv->data_in = true;
+	}
 
 	if (pdev->id_entry)
 		probe = (void *) pdev->id_entry->driver_data;
@@ -327,6 +342,11 @@ static int ams_delta_init(struct platform_device *pdev)
 		err = probe(pdev, priv);
 	if (err)
 		return err;
+
+	if (!priv->io_read || !priv->io_write) {
+		dev_err(&pdev->dev, "incomplete device configuration\n");
+		return -ENODEV;
+	}
 
 	/* Initialize the NAND controller object embedded in ams_delta_nand. */
 	priv->base.ops = &ams_delta_ops;
