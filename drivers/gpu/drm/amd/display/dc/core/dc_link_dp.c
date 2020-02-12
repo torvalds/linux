@@ -973,7 +973,7 @@ static enum link_training_result perform_clock_recovery_sequence(
 	retries_cr = 0;
 	retry_count = 0;
 
-	if (!link->wa_flags.dp_early_cr_pattern)
+	if (!link->ctx->dc->work_arounds.lt_early_cr_pattern)
 		dp_set_hw_training_pattern(link, tr_pattern, offset);
 
 	/* najeeb - The synaptics MST hub can put the LT in
@@ -1446,11 +1446,11 @@ enum link_training_result dc_link_dp_perform_link_training(
 			&link->preferred_training_settings,
 			&lt_settings);
 
-	if (link->wa_flags.dp_early_cr_pattern)
-		start_clock_recovery_pattern_early(link, &lt_settings, DPRX);
-
 	/* 1. set link rate, lane count and spread. */
-	dpcd_set_link_settings(link, &lt_settings);
+	if (link->ctx->dc->work_arounds.lt_early_cr_pattern)
+		start_clock_recovery_pattern_early(link, &lt_settings, DPRX);
+	else
+		dpcd_set_link_settings(link, &lt_settings);
 
 	if (link->preferred_training_settings.fec_enable != NULL)
 		fec_enable = *link->preferred_training_settings.fec_enable;
@@ -1669,11 +1669,11 @@ enum link_training_result dc_link_dp_sync_lt_attempt(
 	dp_set_panel_mode(link, panel_mode);
 
 	/* Attempt to train with given link training settings */
-	if (link->wa_flags.dp_early_cr_pattern)
-		start_clock_recovery_pattern_early(link, &lt_settings, DPRX);
-
 	/* Set link rate, lane count and spread. */
-	dpcd_set_link_settings(link, &lt_settings);
+	if (link->ctx->dc->work_arounds.lt_early_cr_pattern)
+		start_clock_recovery_pattern_early(link, &lt_settings, DPRX);
+	else
+		dpcd_set_link_settings(link, &lt_settings);
 
 	/* 2. perform link training (set link training done
 	 *  to false is done as well)

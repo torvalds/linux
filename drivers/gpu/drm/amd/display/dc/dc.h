@@ -126,6 +126,7 @@ struct dc_bug_wa {
 	bool no_connect_phy_config;
 	bool dedcn20_305_wa;
 	bool skip_clock_update;
+	bool lt_early_cr_pattern;
 };
 
 struct dc_dcc_surface_param {
