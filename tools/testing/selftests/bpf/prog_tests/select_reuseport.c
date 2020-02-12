@@ -506,8 +506,10 @@ static void test_syncookie(int type, sa_family_t family)
 		.pass_on_failure = 0,
 	};
 
-	if (type != SOCK_STREAM)
+	if (type != SOCK_STREAM) {
+		test__skip();
 		return;
+	}
 
 	/*
 	 * +1 for TCP-SYN and
