@@ -19,6 +19,7 @@
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/mtd/mtd.h>
+#include <linux/mtd/nand-gpio.h>
 #include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/platform_device.h>
@@ -220,11 +221,19 @@ static const struct nand_controller_ops ams_delta_ops = {
  */
 static int ams_delta_init(struct platform_device *pdev)
 {
+	struct gpio_nand_platdata *pdata = dev_get_platdata(&pdev->dev);
+	const struct mtd_partition *partitions = partition_info;
+	int num_partitions = ARRAY_SIZE(partition_info);
 	struct ams_delta_nand *priv;
 	struct nand_chip *this;
 	struct mtd_info *mtd;
 	struct gpio_descs *data_gpiods;
 	int err = 0;
+
+	if (pdata) {
+		partitions = pdata->parts;
+		num_partitions = pdata->num_parts;
+	}
 
 	/* Allocate memory for MTD device structure and private data */
 	priv = devm_kzalloc(&pdev->dev, sizeof(struct ams_delta_nand),
@@ -326,8 +335,7 @@ static int ams_delta_init(struct platform_device *pdev)
 		return err;
 
 	/* Register the partitions */
-	err = mtd_device_register(mtd, partition_info,
-				  ARRAY_SIZE(partition_info));
+	err = mtd_device_register(mtd, partitions, num_partitions);
 	if (err)
 		goto err_nand_cleanup;
 
