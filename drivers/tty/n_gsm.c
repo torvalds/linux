@@ -97,7 +97,7 @@ struct gsm_msg {
 	u8 ctrl;		/* Control byte + flags */
 	unsigned int len;	/* Length of data block (can be zero) */
 	unsigned char *data;	/* Points into buffer but not at the start */
-	unsigned char buffer[0];
+	unsigned char buffer[];
 };
 
 /*
