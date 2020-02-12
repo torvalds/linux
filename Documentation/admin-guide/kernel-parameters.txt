@@ -1885,7 +1885,7 @@
 			No delay
 
 	ip=		[IP_PNP]
-			See Documentation/filesystems/nfs/nfsroot.txt.
+			See Documentation/admin-guide/nfs/nfsroot.rst.
 
 	ipcmni_extend	[KNL] Extend the maximum number of unique System V
 			IPC identifiers from 32,768 to 16,777,216.
@@ -2855,13 +2855,13 @@
 			Default value is 0.
 
 	nfsaddrs=	[NFS] Deprecated.  Use ip= instead.
-			See Documentation/filesystems/nfs/nfsroot.txt.
+			See Documentation/admin-guide/nfs/nfsroot.rst.
 
 	nfsroot=	[NFS] nfs root filesystem for disk-less boxes.
-			See Documentation/filesystems/nfs/nfsroot.txt.
+			See Documentation/admin-guide/nfs/nfsroot.rst.
 
 	nfsrootdebug	[NFS] enable nfsroot debugging messages.
-			See Documentation/filesystems/nfs/nfsroot.txt.
+			See Documentation/admin-guide/nfs/nfsroot.rst.
 
 	nfs.callback_nr_threads=
 			[NFSv4] set the total number of threads that the

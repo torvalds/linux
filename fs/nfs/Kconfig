@@ -164,7 +164,7 @@ config ROOT_NFS
 	  If you want your system to mount its root file system via NFS,
 	  choose Y here.  This is common practice for managing systems
 	  without local permanent storage.  For details, read
-	  <file:Documentation/filesystems/nfs/nfsroot.txt>.
+	  <file:Documentation/admin-guide/nfs/nfsroot.rst>.
 
 	  Most people say N here.
 
