@@ -2290,7 +2290,6 @@ static ssize_t amdgpu_ttm_vram_read(struct file *f, char __user *buf,
 {
 	struct amdgpu_device *adev = file_inode(f)->i_private;
 	ssize_t result = 0;
-	int r;
 
 	if (size & 0x3 || *pos & 0x3)
 		return -EINVAL;
@@ -2304,9 +2303,8 @@ static ssize_t amdgpu_ttm_vram_read(struct file *f, char __user *buf,
 		uint32_t value[AMDGPU_TTM_VRAM_MAX_DW_READ];
 
 		amdgpu_device_vram_access(adev, *pos, value, bytes, false);
-		r = copy_to_user(buf, value, bytes);
-		if (r)
-			return r;
+		if (copy_to_user(buf, value, bytes))
+			return -EFAULT;
 
 		result += bytes;
 		buf += bytes;
