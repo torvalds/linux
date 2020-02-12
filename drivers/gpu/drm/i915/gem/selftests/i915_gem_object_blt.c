@@ -247,10 +247,11 @@ static int igt_fill_blt_thread(void *arg)
 
 		total = min(total, max);
 		sz = i915_prandom_u32_max_state(total, prng) + 1;
-		phys_sz = sz % max_phys_size;
+		phys_sz = sz % max_phys_size + 1;
 
 		sz = round_up(sz, PAGE_SIZE);
 		phys_sz = round_up(phys_sz, PAGE_SIZE);
+		phys_sz = min(phys_sz, sz);
 
 		pr_debug("%s with phys_sz= %x, sz=%x, val=%x\n", __func__,
 			 phys_sz, sz, val);
@@ -364,10 +365,11 @@ static int igt_copy_blt_thread(void *arg)
 
 		total = min(total, max);
 		sz = i915_prandom_u32_max_state(total, prng) + 1;
-		phys_sz = sz % max_phys_size;
+		phys_sz = sz % max_phys_size + 1;
 
 		sz = round_up(sz, PAGE_SIZE);
 		phys_sz = round_up(phys_sz, PAGE_SIZE);
+		phys_sz = min(phys_sz, sz);
 
 		pr_debug("%s with phys_sz= %x, sz=%x, val=%x\n", __func__,
 			 phys_sz, sz, val);
