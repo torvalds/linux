@@ -1254,6 +1254,7 @@ global_port_update:
 		ql_dbg(ql_dbg_async, vha, 0x5052,
 		    "D-Port Diagnostics: %04x %04x %04x %04x\n",
 		    mb[0], mb[1], mb[2], mb[3]);
+		memcpy(vha->dport_data, mb, sizeof(vha->dport_data));
 		if (IS_QLA83XX(ha) || IS_QLA27XX(ha) || IS_QLA28XX(ha)) {
 			static char *results[] = {
 			    "start", "done(pass)", "done(error)", "undefined" };

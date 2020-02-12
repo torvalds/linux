@@ -4541,6 +4541,7 @@ typedef struct scsi_qla_host {
 	uint8_t n2n_node_name[WWN_SIZE];
 	uint8_t n2n_port_name[WWN_SIZE];
 	uint16_t	n2n_id;
+	__le16 dport_data[4];
 	struct list_head gpnid_list;
 	struct fab_scan scan;
 
