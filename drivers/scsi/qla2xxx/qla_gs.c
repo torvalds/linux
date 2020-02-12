@@ -844,19 +844,18 @@ done:
 	return rval;
 }
 
-void
+size_t
 qla2x00_get_sym_node_name(scsi_qla_host_t *vha, uint8_t *snn, size_t size)
 {
 	struct qla_hw_data *ha = vha->hw;
 
 	if (IS_QLAFX00(ha))
-		snprintf(snn, size, "%s FW:v%s DVR:v%s", ha->model_number,
-		    ha->mr.fw_version, qla2x00_version_str);
-	else
-		snprintf(snn, size,
-		    "%s FW:v%d.%02d.%02d DVR:v%s", ha->model_number,
-		    ha->fw_major_version, ha->fw_minor_version,
-		    ha->fw_subminor_version, qla2x00_version_str);
+		return scnprintf(snn, size, "%s FW:v%s DVR:v%s",
+		    ha->model_number, ha->mr.fw_version, qla2x00_version_str);
+
+	return scnprintf(snn, size, "%s FW:v%d.%02d.%02d DVR:v%s",
+	    ha->model_number, ha->fw_major_version, ha->fw_minor_version,
+	    ha->fw_subminor_version, qla2x00_version_str);
 }
 
 /**

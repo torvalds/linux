@@ -31,6 +31,9 @@
 #define PDO_FORCE_ADISC		BIT_1
 #define PDO_FORCE_PLOGI		BIT_0
 
+struct buffer_credit_24xx {
+	u32 parameter[28];
+};
 
 #define	PORT_DATABASE_24XX_SIZE		64
 struct port_database_24xx {
@@ -1883,6 +1886,7 @@ struct nvram_81xx {
 	 * BIT 6-15 = Unused
 	 */
 	uint16_t enhanced_features;
+
 	uint16_t reserved_24[4];
 
 	/* Offset 416. */
