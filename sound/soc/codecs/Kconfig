@@ -339,6 +339,7 @@ config SND_SOC_AD193X_SPI
 
 config SND_SOC_AD193X_I2C
 	tristate
+	depends on I2C
 	select SND_SOC_AD193X
 
 config SND_SOC_AD1980
@@ -353,6 +354,7 @@ config SND_SOC_ADAU_UTILS
 
 config SND_SOC_ADAU1373
 	tristate
+	depends on I2C
 	select SND_SOC_ADAU_UTILS
 
 config SND_SOC_ADAU1701
@@ -387,6 +389,7 @@ config SND_SOC_ADAU1781
 
 config SND_SOC_ADAU1781_I2C
 	tristate
+	depends on I2C
 	select SND_SOC_ADAU1781
 	select REGMAP_I2C
 
@@ -407,6 +410,7 @@ config SND_SOC_ADAU1977_SPI
 
 config SND_SOC_ADAU1977_I2C
 	tristate
+	depends on I2C
 	select SND_SOC_ADAU1977
 	select REGMAP_I2C
 
@@ -450,6 +454,7 @@ config SND_SOC_ADAV801
 
 config SND_SOC_ADAV803
 	tristate
+	depends on I2C
 	select SND_SOC_ADAV80X
 
 config SND_SOC_ADS117X
@@ -471,6 +476,7 @@ config SND_SOC_AK4458
 
 config SND_SOC_AK4535
 	tristate
+	depends on I2C
 
 config SND_SOC_AK4554
 	tristate "AKM AK4554 CODEC"
@@ -481,6 +487,7 @@ config SND_SOC_AK4613
 
 config SND_SOC_AK4641
 	tristate
+	depends on I2C
 
 config SND_SOC_AK4642
 	tristate "AKM AK4642 CODEC"
@@ -488,6 +495,7 @@ config SND_SOC_AK4642
 
 config SND_SOC_AK4671
 	tristate
+	depends on I2C
 
 config SND_SOC_AK5386
 	tristate "AKM AK5638 CODEC"
@@ -1112,6 +1120,7 @@ config SND_SOC_RT5670
 
 config SND_SOC_RT5677
 	tristate
+	depends on I2C
 	select REGMAP_I2C
 	select REGMAP_IRQ
 
