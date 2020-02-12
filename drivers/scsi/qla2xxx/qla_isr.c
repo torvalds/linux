@@ -1899,11 +1899,9 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 	}
 
 	if (le16_to_cpu(logio->comp_status) == CS_COMPLETE) {
-		ql_dbg(ql_dbg_async, fcport->vha, 0x5036,
-		    "Async-%s complete - %8phC hdl=%x portid=%02x%02x%02x "
-		    "iop0=%x.\n", type, fcport->port_name, sp->handle,
-		    fcport->d_id.b.domain,
-		    fcport->d_id.b.area, fcport->d_id.b.al_pa,
+		ql_dbg(ql_dbg_async, sp->vha, 0x5036,
+		    "Async-%s complete: handle=%x pid=%06x wwpn=%8phC iop0=%x\n",
+		    type, sp->handle, fcport->d_id.b24, fcport->port_name,
 		    le32_to_cpu(logio->io_parameter[0]));
 
 		vha->hw->exch_starvation = 0;
@@ -1982,11 +1980,9 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 		break;
 	}
 
-	ql_dbg(ql_dbg_async, fcport->vha, 0x5037,
-	    "Async-%s failed - %8phC hdl=%x portid=%02x%02x%02x comp=%x "
-	    "iop0=%x iop1=%x.\n", type, fcport->port_name,
-		sp->handle, fcport->d_id.b.domain,
-	    fcport->d_id.b.area, fcport->d_id.b.al_pa,
+	ql_dbg(ql_dbg_async, sp->vha, 0x5037,
+	    "Async-%s failed: handle=%x pid=%06x wwpn=%8phC comp_status=%x iop0=%x iop1=%x\n",
+	    type, sp->handle, fcport->d_id.b24, fcport->port_name,
 	    le16_to_cpu(logio->comp_status),
 	    le32_to_cpu(logio->io_parameter[0]),
 	    le32_to_cpu(logio->io_parameter[1]));
