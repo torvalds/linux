@@ -5769,6 +5769,32 @@ retry_lock:
 	return;
 }
 
+static bool
+qla25xx_rdp_rsp_reduce_size(struct scsi_qla_host *vha,
+	struct purex_entry_24xx *purex)
+{
+	char fwstr[16];
+	u32 sid = purex->s_id[2] << 16 | purex->s_id[1] << 8 | purex->s_id[0];
+
+	/* Domain Controller is always logged-out. */
+	/* if RDP request is not from Domain Controller: */
+	if (sid != 0xfffc01)
+		return false;
+
+	ql_dbg(ql_dbg_init, vha, 0x0181, "%s: s_id=%#x\n", __func__, sid);
+
+	vha->hw->isp_ops->fw_version_str(vha, fwstr, sizeof(fwstr));
+	fwstr[strcspn(fwstr, " ")] = 0;
+	/* if FW version allows RDP response length upto 2048 bytes: */
+	if (strcmp(fwstr, "8.09.00") > 0 || strcmp(fwstr, "8.05.65") == 0)
+		return false;
+
+	ql_dbg(ql_dbg_init, vha, 0x0181, "%s: fw=%s\n", __func__, fwstr);
+
+	/* RDP response length is to be reduced to maximum 256 bytes */
+	return true;
+}
+
 static uint
 qla25xx_rdp_port_speed_capability(struct qla_hw_data *ha)
 {
@@ -5887,6 +5913,7 @@ void qla24xx_process_purex_rdp(struct scsi_qla_host *vha, void *pkt)
 	struct buffer_credit_24xx *bbc = NULL;
 	uint8_t *sfp = NULL;
 	uint16_t sfp_flags = 0;
+	uint rsp_payload_length = sizeof(*rsp_payload);
 	int rval;
 
 	ql_dbg(ql_dbg_init + ql_dbg_verbose, vha, 0x0180,
@@ -5896,6 +5923,14 @@ void qla24xx_process_purex_rdp(struct scsi_qla_host *vha, void *pkt)
 	    "-------- ELS REQ -------\n");
 	ql_dump_buffer(ql_dbg_init + ql_dbg_verbose, vha, 0x0182,
 	    (void *)purex, sizeof(*purex));
+
+	if (qla25xx_rdp_rsp_reduce_size(vha, purex)) {
+		rsp_payload_length =
+		    offsetof(typeof(*rsp_payload), optical_elmt_desc);
+		ql_dbg(ql_dbg_init, vha, 0x0181,
+		    "Reducing RSP payload length to %u bytes...\n",
+		    rsp_payload_length);
+	}
 
 	rsp_els = dma_alloc_coherent(&ha->pdev->dev, sizeof(*rsp_els),
 	    &rsp_els_dma, GFP_KERNEL);
@@ -5943,7 +5978,7 @@ void qla24xx_process_purex_rdp(struct scsi_qla_host *vha, void *pkt)
 
 	rsp_els->control_flags = EPD_ELS_ACC;
 	rsp_els->rx_byte_count = 0;
-	rsp_els->tx_byte_count = cpu_to_le32(sizeof(*rsp_payload));
+	rsp_els->tx_byte_count = cpu_to_le32(rsp_payload_length);
 
 	put_unaligned_le64(rsp_payload_dma, &rsp_els->tx_address);
 	rsp_els->tx_len = rsp_els->tx_byte_count;
@@ -6118,6 +6153,9 @@ accept:
 		}
 	}
 
+	if (rsp_payload_length < sizeof(*rsp_payload))
+		goto send;
+
 	if (sfp) {
 		memset(sfp, 0, SFP_RTDI_LEN);
 		rval = qla2x00_read_sfp(vha, sfp_dma, sfp, 0xa2, 0, 64, 0);
@@ -6278,7 +6316,7 @@ send:
 	ql_dbg(ql_dbg_init + ql_dbg_verbose, vha, 0x0186,
 	    "-------- ELS RSP PAYLOAD -------\n");
 	ql_dump_buffer(ql_dbg_init + ql_dbg_verbose, vha, 0x0187,
-	    (void *)rsp_payload, rsp_els->tx_byte_count);
+	    (void *)rsp_payload, rsp_payload_length);
 
 	rval = qla2x00_issue_iocb(vha, rsp_els, rsp_els_dma, 0);
 
