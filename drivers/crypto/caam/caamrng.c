@@ -133,7 +133,7 @@ static inline int submit_job(struct caam_rng_ctx *ctx, int to_current)
 	dev_dbg(jrdev, "submitting job %d\n", !(to_current ^ ctx->current_buf));
 	init_completion(&bd->filled);
 	err = caam_jr_enqueue(jrdev, desc, rng_done, ctx);
-	if (err)
+	if (err != -EINPROGRESS)
 		complete(&bd->filled); /* don't wait on failed job*/
 	else
 		atomic_inc(&bd->empty); /* note if pending */
@@ -153,7 +153,7 @@ static int caam_read(struct hwrng *rng, void *data, size_t max, bool wait)
 		if (atomic_read(&bd->empty) == BUF_EMPTY) {
 			err = submit_job(ctx, 1);
 			/* if can't submit job, can't even wait */
-			if (err)
+			if (err != -EINPROGRESS)
 				return 0;
 		}
 		/* no immediate data, so exit if not waiting */

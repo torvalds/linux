@@ -634,8 +634,8 @@ static int caam_rsa_enc(struct akcipher_request *req)
 	init_rsa_pub_desc(edesc->hw_desc, &edesc->pdb.pub);
 
 	ret = caam_jr_enqueue(jrdev, edesc->hw_desc, rsa_pub_done, req);
-	if (!ret)
-		return -EINPROGRESS;
+	if (ret == -EINPROGRESS)
+		return ret;
 
 	rsa_pub_unmap(jrdev, edesc, req);
 
@@ -667,8 +667,8 @@ static int caam_rsa_dec_priv_f1(struct akcipher_request *req)
 	init_rsa_priv_f1_desc(edesc->hw_desc, &edesc->pdb.priv_f1);
 
 	ret = caam_jr_enqueue(jrdev, edesc->hw_desc, rsa_priv_f_done, req);
-	if (!ret)
-		return -EINPROGRESS;
+	if (ret == -EINPROGRESS)
+		return ret;
 
 	rsa_priv_f1_unmap(jrdev, edesc, req);
 
@@ -700,8 +700,8 @@ static int caam_rsa_dec_priv_f2(struct akcipher_request *req)
 	init_rsa_priv_f2_desc(edesc->hw_desc, &edesc->pdb.priv_f2);
 
 	ret = caam_jr_enqueue(jrdev, edesc->hw_desc, rsa_priv_f_done, req);
-	if (!ret)
-		return -EINPROGRESS;
+	if (ret == -EINPROGRESS)
+		return ret;
 
 	rsa_priv_f2_unmap(jrdev, edesc, req);
 
@@ -733,8 +733,8 @@ static int caam_rsa_dec_priv_f3(struct akcipher_request *req)
 	init_rsa_priv_f3_desc(edesc->hw_desc, &edesc->pdb.priv_f3);
 
 	ret = caam_jr_enqueue(jrdev, edesc->hw_desc, rsa_priv_f_done, req);
-	if (!ret)
-		return -EINPROGRESS;
+	if (ret == -EINPROGRESS)
+		return ret;
 
 	rsa_priv_f3_unmap(jrdev, edesc, req);
 
