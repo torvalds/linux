@@ -525,6 +525,7 @@ int nv_set_ip_blocks(struct amdgpu_device *adev)
 		break;
 	case CHIP_NAVY_FLOUNDER:
 		amdgpu_device_ip_block_add(adev, &nv_common_ip_block);
+		amdgpu_device_ip_block_add(adev, &gmc_v10_0_ip_block);
 		break;
 	default:
 		return -EINVAL;
