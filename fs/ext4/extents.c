@@ -83,13 +83,6 @@ static void ext4_extent_block_csum_set(struct inode *inode,
 	et->et_checksum = ext4_extent_block_csum(inode, eh);
 }
 
-static int ext4_split_extent(handle_t *handle,
-				struct inode *inode,
-				struct ext4_ext_path **ppath,
-				struct ext4_map_blocks *map,
-				int split_flag,
-				int flags);
-
 static int ext4_split_extent_at(handle_t *handle,
 			     struct inode *inode,
 			     struct ext4_ext_path **ppath,
