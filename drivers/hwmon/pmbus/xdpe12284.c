@@ -94,8 +94,8 @@ static const struct i2c_device_id xdpe122_id[] = {
 MODULE_DEVICE_TABLE(i2c, xdpe122_id);
 
 static const struct of_device_id __maybe_unused xdpe122_of_match[] = {
-	{.compatible = "infineon, xdpe12254"},
-	{.compatible = "infineon, xdpe12284"},
+	{.compatible = "infineon,xdpe12254"},
+	{.compatible = "infineon,xdpe12284"},
 	{}
 };
 MODULE_DEVICE_TABLE(of, xdpe122_of_match);
