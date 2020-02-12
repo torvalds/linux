@@ -2627,10 +2627,11 @@ static const char * const port_dstate_str[] = {
 #define GFF_ID_RSP_SIZE (16 + 128)
 
 /*
- * HBA attribute types.
+ * FDMI HBA attribute types.
  */
-#define FDMI_HBA_ATTR_COUNT			9
-#define FDMIV2_HBA_ATTR_COUNT			17
+#define FDMI1_HBA_ATTR_COUNT			9
+#define FDMI2_HBA_ATTR_COUNT			17
+
 #define FDMI_HBA_NODE_NAME			0x1
 #define FDMI_HBA_MANUFACTURER			0x2
 #define FDMI_HBA_SERIAL_NUMBER			0x3
@@ -2642,12 +2643,13 @@ static const char * const port_dstate_str[] = {
 #define FDMI_HBA_FIRMWARE_VERSION		0x9
 #define FDMI_HBA_OS_NAME_AND_VERSION		0xa
 #define FDMI_HBA_MAXIMUM_CT_PAYLOAD_LENGTH	0xb
+
 #define FDMI_HBA_NODE_SYMBOLIC_NAME		0xc
-#define FDMI_HBA_VENDOR_ID			0xd
+#define FDMI_HBA_VENDOR_SPECIFIC_INFO		0xd
 #define FDMI_HBA_NUM_PORTS			0xe
 #define FDMI_HBA_FABRIC_NAME			0xf
 #define FDMI_HBA_BOOT_BIOS_NAME			0x10
-#define FDMI_HBA_TYPE_VENDOR_IDENTIFIER		0xe0
+#define FDMI_HBA_VENDOR_IDENTIFIER		0xe0
 
 struct ct_fdmi_hba_attr {
 	uint16_t type;
@@ -2664,31 +2666,9 @@ struct ct_fdmi_hba_attr {
 		uint8_t fw_version[32];
 		uint8_t os_version[128];
 		uint32_t max_ct_len;
-	} a;
-};
 
-struct ct_fdmi_hba_attributes {
-	uint32_t count;
-	struct ct_fdmi_hba_attr entry[FDMI_HBA_ATTR_COUNT];
-};
-
-struct ct_fdmiv2_hba_attr {
-	uint16_t type;
-	uint16_t len;
-	union {
-		uint8_t node_name[WWN_SIZE];
-		uint8_t manufacturer[64];
-		uint8_t serial_num[32];
-		uint8_t model[16+1];
-		uint8_t model_desc[80];
-		uint8_t hw_version[16];
-		uint8_t driver_version[32];
-		uint8_t orom_version[16];
-		uint8_t fw_version[32];
-		uint8_t os_version[128];
-		uint32_t max_ct_len;
 		uint8_t sym_name[256];
-		uint32_t vendor_id;
+		uint32_t vendor_specific_info;
 		uint32_t num_ports;
 		uint8_t fabric_name[WWN_SIZE];
 		uint8_t bios_name[32];
@@ -2696,22 +2676,30 @@ struct ct_fdmiv2_hba_attr {
 	} a;
 };
 
-struct ct_fdmiv2_hba_attributes {
+struct ct_fdmi1_hba_attributes {
 	uint32_t count;
-	struct ct_fdmiv2_hba_attr entry[FDMIV2_HBA_ATTR_COUNT];
+	struct ct_fdmi_hba_attr entry[FDMI1_HBA_ATTR_COUNT];
+};
+
+struct ct_fdmi2_hba_attributes {
+	uint32_t count;
+	struct ct_fdmi_hba_attr entry[FDMI2_HBA_ATTR_COUNT];
 };
 
 /*
- * Port attribute types.
+ * FDMI Port attribute types.
  */
-#define FDMI_PORT_ATTR_COUNT		6
-#define FDMIV2_PORT_ATTR_COUNT		16
+#define FDMI1_PORT_ATTR_COUNT		6
+#define FDMI2_PORT_ATTR_COUNT		16
+#define FDMI2_SMARTSAN_PORT_ATTR_COUNT	23
+
 #define FDMI_PORT_FC4_TYPES		0x1
 #define FDMI_PORT_SUPPORT_SPEED		0x2
 #define FDMI_PORT_CURRENT_SPEED		0x3
 #define FDMI_PORT_MAX_FRAME_SIZE	0x4
 #define FDMI_PORT_OS_DEVICE_NAME	0x5
 #define FDMI_PORT_HOST_NAME		0x6
+
 #define FDMI_PORT_NODE_NAME		0x7
 #define FDMI_PORT_NAME			0x8
 #define FDMI_PORT_SYM_NAME		0x9
@@ -2721,7 +2709,15 @@ struct ct_fdmiv2_hba_attributes {
 #define FDMI_PORT_FC4_TYPE		0xd
 #define FDMI_PORT_STATE			0x101
 #define FDMI_PORT_COUNT			0x102
-#define FDMI_PORT_ID			0x103
+#define FDMI_PORT_IDENTIFIER		0x103
+
+#define FDMI_SMARTSAN_SERVICE		0xF100
+#define FDMI_SMARTSAN_GUID		0xF101
+#define FDMI_SMARTSAN_VERSION		0xF102
+#define FDMI_SMARTSAN_PROD_NAME		0xF103
+#define FDMI_SMARTSAN_PORT_INFO		0xF104
+#define FDMI_SMARTSAN_QOS_SUPPORT	0xF105
+#define FDMI_SMARTSAN_SECURITY_SUPPORT	0xF106
 
 #define FDMI_PORT_SPEED_1GB		0x1
 #define FDMI_PORT_SPEED_2GB		0x2
@@ -2737,37 +2733,6 @@ struct ct_fdmiv2_hba_attributes {
 #define FC_CLASS_3	0x08
 #define FC_CLASS_2_3	0x0C
 
-struct ct_fdmiv2_port_attr {
-	uint16_t type;
-	uint16_t len;
-	union {
-		uint8_t fc4_types[32];
-		uint32_t sup_speed;
-		uint32_t cur_speed;
-		uint32_t max_frame_size;
-		uint8_t os_dev_name[32];
-		uint8_t host_name[256];
-		uint8_t node_name[WWN_SIZE];
-		uint8_t port_name[WWN_SIZE];
-		uint8_t port_sym_name[128];
-		uint32_t port_type;
-		uint32_t port_supported_cos;
-		uint8_t fabric_name[WWN_SIZE];
-		uint8_t port_fc4_type[32];
-		uint32_t port_state;
-		uint32_t num_ports;
-		uint32_t port_id;
-	} a;
-};
-
-/*
- * Port Attribute Block.
- */
-struct ct_fdmiv2_port_attributes {
-	uint32_t count;
-	struct ct_fdmiv2_port_attr entry[FDMIV2_PORT_ATTR_COUNT];
-};
-
 struct ct_fdmi_port_attr {
 	uint16_t type;
 	uint16_t len;
@@ -2778,13 +2743,48 @@ struct ct_fdmi_port_attr {
 		uint32_t max_frame_size;
 		uint8_t os_dev_name[32];
 		uint8_t host_name[256];
+
+		uint8_t node_name[WWN_SIZE];
+		uint8_t port_name[WWN_SIZE];
+		uint8_t port_sym_name[128];
+		uint32_t port_type;
+		uint32_t port_supported_cos;
+		uint8_t fabric_name[WWN_SIZE];
+		uint8_t port_fc4_type[32];
+		uint32_t port_state;
+		uint32_t num_ports;
+		uint32_t port_id;
+
+		uint8_t smartsan_service[24];
+		uint8_t smartsan_guid[16];
+		uint8_t smartsan_version[24];
+		uint8_t smartsan_prod_name[16];
+		uint32_t smartsan_port_info;
+		uint32_t smartsan_qos_support;
+		uint32_t smartsan_security_support;
 	} a;
 };
 
-struct ct_fdmi_port_attributes {
+struct ct_fdmi1_port_attributes {
 	uint32_t count;
-	struct ct_fdmi_port_attr entry[FDMI_PORT_ATTR_COUNT];
+	struct ct_fdmi_port_attr entry[FDMI1_PORT_ATTR_COUNT];
 };
+
+struct ct_fdmi2_port_attributes {
+	uint32_t count;
+	struct ct_fdmi_port_attr entry[FDMI2_PORT_ATTR_COUNT];
+};
+
+#define FDMI_ATTR_TYPELEN(obj) \
+	(sizeof((obj)->type) + sizeof((obj)->len))
+
+#define FDMI_ATTR_ALIGNMENT(len) \
+	(4 - ((len) & 3))
+
+/* FDMI register call options */
+#define CALLOPT_FDMI1		0
+#define CALLOPT_FDMI2		1
+#define CALLOPT_FDMI2_SMARTSAN	2
 
 /* FDMI definitions. */
 #define GRHL_CMD	0x100
@@ -2796,10 +2796,13 @@ struct ct_fdmi_port_attributes {
 #define RHBA_RSP_SIZE	16
 
 #define RHAT_CMD	0x201
+
 #define RPRT_CMD	0x210
+#define RPRT_RSP_SIZE	24
 
 #define RPA_CMD		0x211
 #define RPA_RSP_SIZE	16
+#define SMARTSAN_RPA_RSP_SIZE	24
 
 #define DHBA_CMD	0x300
 #define DHBA_REQ_SIZE	(16 + 8)
@@ -2882,30 +2885,24 @@ struct ct_sns_req {
 			uint8_t hba_identifier[8];
 			uint32_t entry_count;
 			uint8_t port_name[8];
-			struct ct_fdmi_hba_attributes attrs;
+			struct ct_fdmi2_hba_attributes attrs;
 		} rhba;
 
 		struct {
 			uint8_t hba_identifier[8];
-			uint32_t entry_count;
-			uint8_t port_name[8];
-			struct ct_fdmiv2_hba_attributes attrs;
-		} rhba2;
-
-		struct {
-			uint8_t hba_identifier[8];
-			struct ct_fdmi_hba_attributes attrs;
+			struct ct_fdmi1_hba_attributes attrs;
 		} rhat;
 
 		struct {
 			uint8_t port_name[8];
-			struct ct_fdmi_port_attributes attrs;
+			struct ct_fdmi2_port_attributes attrs;
 		} rpa;
 
 		struct {
+			uint8_t hba_identifier[8];
 			uint8_t port_name[8];
-			struct ct_fdmiv2_port_attributes attrs;
-		} rpa2;
+			struct ct_fdmi2_port_attributes attrs;
+		} rprt;
 
 		struct {
 			uint8_t port_name[8];
@@ -3019,7 +3016,7 @@ struct ct_sns_rsp {
 		struct {
 			uint32_t entry_count;
 			uint8_t port_name[8];
-			struct ct_fdmi_hba_attributes attrs;
+			struct ct_fdmi1_hba_attributes attrs;
 		} ghat;
 
 		struct {
@@ -3690,6 +3687,7 @@ struct rdp_rsp_payload {
 #define RDP_PORT_SPEED_8GB		BIT_11
 #define RDP_PORT_SPEED_16GB		BIT_10
 #define RDP_PORT_SPEED_32GB		BIT_9
+#define RDP_PORT_SPEED_64GB             BIT_8
 #define RDP_PORT_SPEED_UNKNOWN		BIT_0
 
 struct scsi_qlt_host {
