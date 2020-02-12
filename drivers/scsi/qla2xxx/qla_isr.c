@@ -31,11 +31,142 @@ const char *const port_state_str[] = {
 	"ONLINE"
 };
 
-static void qla24xx_purex_iocb(scsi_qla_host_t *vha, struct req_que *req,
-	struct sts_entry_24xx *pkt)
+static void qla24xx_purex_iocb(scsi_qla_host_t *vha, void *pkt,
+	void (*process_item)(struct scsi_qla_host *vha, void *pkt))
 {
-	memcpy(vha->purex_data, pkt, PUREX_ENTRY_SIZE);
+	struct purex_list *list = &vha->purex_list;
+	struct purex_item *item;
+	ulong flags;
+
+	item = kzalloc(sizeof(*item), GFP_KERNEL);
+	if (!item) {
+		ql_log(ql_log_warn, vha, 0x5092,
+		    ">> Failed allocate purex list item.\n");
+		return;
+	}
+
+	item->vha = vha;
+	item->process_item = process_item;
+	memcpy(&item->iocb, pkt, sizeof(item->iocb));
+
+	spin_lock_irqsave(&list->lock, flags);
+	list_add_tail(&item->list, &list->head);
+	spin_unlock_irqrestore(&list->lock, flags);
+
 	set_bit(PROCESS_PUREX_IOCB, &vha->dpc_flags);
+}
+
+static void
+qla24xx_process_abts(struct scsi_qla_host *vha, void *pkt)
+{
+	struct abts_entry_24xx *abts = pkt;
+	struct qla_hw_data *ha = vha->hw;
+	struct els_entry_24xx *rsp_els;
+	struct abts_entry_24xx *abts_rsp;
+	dma_addr_t dma;
+	uint32_t fctl;
+	int rval;
+
+	ql_dbg(ql_dbg_init, vha, 0x0286, "%s: entered.\n", __func__);
+
+	ql_log(ql_log_warn, vha, 0x0287,
+	    "Processing ABTS xchg=%#x oxid=%#x rxid=%#x seqid=%#x seqcnt=%#x\n",
+	    abts->rx_xch_addr_to_abort, abts->ox_id, abts->rx_id,
+	    abts->seq_id, abts->seq_cnt);
+	ql_dbg(ql_dbg_init + ql_dbg_verbose, vha, 0x0287,
+	    "-------- ABTS RCV -------\n");
+	ql_dump_buffer(ql_dbg_init + ql_dbg_verbose, vha, 0x0287,
+	    (uint8_t *)abts, sizeof(*abts));
+
+	rsp_els = dma_alloc_coherent(&ha->pdev->dev, sizeof(*rsp_els), &dma,
+	    GFP_KERNEL);
+	if (!rsp_els) {
+		ql_log(ql_log_warn, vha, 0x0287,
+		    "Failed allocate dma buffer ABTS/ELS RSP.\n");
+		return;
+	}
+
+	/* terminate exchange */
+	memset(rsp_els, 0, sizeof(*rsp_els));
+	rsp_els->entry_type = ELS_IOCB_TYPE;
+	rsp_els->entry_count = 1;
+	rsp_els->nport_handle = ~0;
+	rsp_els->rx_xchg_address = abts->rx_xch_addr_to_abort;
+	rsp_els->control_flags = EPD_RX_XCHG;
+	ql_dbg(ql_dbg_init, vha, 0x0283,
+	    "Sending ELS Response to terminate exchange %#x...\n",
+	    abts->rx_xch_addr_to_abort);
+	ql_dbg(ql_dbg_init + ql_dbg_verbose, vha, 0x0283,
+	    "-------- ELS RSP -------\n");
+	ql_dump_buffer(ql_dbg_init + ql_dbg_verbose, vha, 0x0283,
+	    (uint8_t *)rsp_els, sizeof(*rsp_els));
+	rval = qla2x00_issue_iocb(vha, rsp_els, dma, 0);
+	if (rval) {
+		ql_log(ql_log_warn, vha, 0x0288,
+		    "%s: iocb failed to execute -> %x\n", __func__, rval);
+	} else if (rsp_els->comp_status) {
+		ql_log(ql_log_warn, vha, 0x0289,
+		    "%s: iocb failed to complete -> completion=%#x subcode=(%#x,%#x)\n",
+		    __func__, rsp_els->comp_status,
+		    rsp_els->error_subcode_1, rsp_els->error_subcode_2);
+	} else {
+		ql_dbg(ql_dbg_init, vha, 0x028a,
+		    "%s: abort exchange done.\n", __func__);
+	}
+
+	/* send ABTS response */
+	abts_rsp = (void *)rsp_els;
+	memset(abts_rsp, 0, sizeof(*abts_rsp));
+	abts_rsp->entry_type = ABTS_RSP_TYPE;
+	abts_rsp->entry_count = 1;
+	abts_rsp->nport_handle = abts->nport_handle;
+	abts_rsp->vp_idx = abts->vp_idx;
+	abts_rsp->sof_type = abts->sof_type & 0xf0;
+	abts_rsp->rx_xch_addr = abts->rx_xch_addr;
+	abts_rsp->d_id[0] = abts->s_id[0];
+	abts_rsp->d_id[1] = abts->s_id[1];
+	abts_rsp->d_id[2] = abts->s_id[2];
+	abts_rsp->r_ctl = FC_ROUTING_BLD | FC_R_CTL_BLD_BA_ACC;
+	abts_rsp->s_id[0] = abts->d_id[0];
+	abts_rsp->s_id[1] = abts->d_id[1];
+	abts_rsp->s_id[2] = abts->d_id[2];
+	abts_rsp->cs_ctl = abts->cs_ctl;
+	/* include flipping bit23 in fctl */
+	fctl = ~(abts->f_ctl[2] | 0x7F) << 16 |
+	    FC_F_CTL_LAST_SEQ | FC_F_CTL_END_SEQ | FC_F_CTL_SEQ_INIT;
+	abts_rsp->f_ctl[0] = fctl >> 0 & 0xff;
+	abts_rsp->f_ctl[1] = fctl >> 8 & 0xff;
+	abts_rsp->f_ctl[2] = fctl >> 16 & 0xff;
+	abts_rsp->type = FC_TYPE_BLD;
+	abts_rsp->rx_id = abts->rx_id;
+	abts_rsp->ox_id = abts->ox_id;
+	abts_rsp->payload.ba_acc.aborted_rx_id = abts->rx_id;
+	abts_rsp->payload.ba_acc.aborted_ox_id = abts->ox_id;
+	abts_rsp->payload.ba_acc.high_seq_cnt = ~0;
+	abts_rsp->rx_xch_addr_to_abort = abts->rx_xch_addr_to_abort;
+	ql_dbg(ql_dbg_init, vha, 0x028b,
+	    "Sending BA ACC response to ABTS %#x...\n",
+	    abts->rx_xch_addr_to_abort);
+	ql_dbg(ql_dbg_init + ql_dbg_verbose, vha, 0x028b,
+	    "-------- ELS RSP -------\n");
+	ql_dump_buffer(ql_dbg_init + ql_dbg_verbose, vha, 0x028b,
+	    (uint8_t *)abts_rsp, sizeof(*abts_rsp));
+	rval = qla2x00_issue_iocb(vha, abts_rsp, dma, 0);
+	if (rval) {
+		ql_log(ql_log_warn, vha, 0x028c,
+		    "%s: iocb failed to execute -> %x\n", __func__, rval);
+	} else if (abts_rsp->comp_status) {
+		ql_log(ql_log_warn, vha, 0x028d,
+		    "%s: iocb failed to complete -> completion=%#x subcode=(%#x,%#x)\n",
+		    __func__, abts_rsp->comp_status,
+		    abts_rsp->payload.error.subcode1,
+		    abts_rsp->payload.error.subcode2);
+	} else {
+		ql_dbg(ql_dbg_init, vha, 0x028ea,
+		    "%s: done.\n", __func__);
+	}
+
+	dma_free_coherent(&ha->pdev->dev, sizeof(*rsp_els), rsp_els, dma);
 }
 
 /**
@@ -3097,6 +3228,11 @@ process_err:
 			qla24xx_els_ct_entry(vha, rsp->req, pkt, ELS_IOCB_TYPE);
 			break;
 		case ABTS_RECV_24XX:
+			if (qla_ini_mode_enabled(vha)) {
+				qla24xx_purex_iocb(vha, pkt,
+				    qla24xx_process_abts);
+				break;
+			}
 			if (IS_QLA83XX(ha) || IS_QLA27XX(ha) ||
 			    IS_QLA28XX(ha)) {
 				/* ensure that the ATIO queue is empty */
@@ -3142,8 +3278,18 @@ process_err:
 			    (struct vp_ctrl_entry_24xx *)pkt);
 			break;
 		case PUREX_IOCB_TYPE:
-			qla24xx_purex_iocb(vha, rsp->req, pkt);
+		{
+			struct purex_entry_24xx *purex = (void *)pkt;
+
+			if (purex->els_frame_payload[3] != ELS_COMMAND_RDP) {
+				ql_dbg(ql_dbg_init, vha, 0x5091,
+				    "Discarding ELS Request opcode %#x...\n",
+				    purex->els_frame_payload[3]);
+				break;
+			}
+			qla24xx_purex_iocb(vha, pkt, qla24xx_process_purex_rdp);
 			break;
+		}
 		default:
 			/* Type Not Supported. */
 			ql_dbg(ql_dbg_async, vha, 0x5042,

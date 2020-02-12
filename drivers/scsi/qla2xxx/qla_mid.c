@@ -361,6 +361,13 @@ qla2x00_do_dpc_vp(scsi_qla_host_t *vha)
 		}
 	}
 
+	if (test_bit(PROCESS_PUREX_IOCB, &vha->dpc_flags)) {
+		if (atomic_read(&vha->loop_state) == LOOP_READY) {
+			qla24xx_process_purex_list(&vha->purex_list);
+			clear_bit(PROCESS_PUREX_IOCB, &vha->dpc_flags);
+		}
+	}
+
 	if (test_bit(FCPORT_UPDATE_NEEDED, &vha->dpc_flags)) {
 		ql_dbg(ql_dbg_dpc, vha, 0x4016,
 		    "FCPort update scheduled.\n");

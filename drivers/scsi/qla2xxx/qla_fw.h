@@ -727,7 +727,7 @@ struct ct_entry_24xx {
  * ISP queue - PUREX IOCB entry structure definition
  */
 #define PUREX_IOCB_TYPE		0x51	/* CT Pass Through IOCB entry */
-typedef struct purex_entry_24xx {
+struct purex_entry_24xx {
 	uint8_t entry_type;		/* Entry type. */
 	uint8_t entry_count;		/* Entry count. */
 	uint8_t sys_define;		/* System defined. */
@@ -763,9 +763,7 @@ typedef struct purex_entry_24xx {
 	uint32_t param;
 
 	uint8_t els_frame_payload[20];
-} purex_entry_24xx_t;
-
-#define PUREX_ENTRY_SIZE	(sizeof(purex_entry_24xx_t))
+};
 
 /*
  * ISP queue - ELS Pass-Through entry structure definition.
@@ -999,6 +997,91 @@ struct abort_entry_24xx {
 
 	uint8_t reserved_2[12];
 };
+
+#define ABTS_RCV_TYPE		0x54
+#define ABTS_RSP_TYPE		0x55
+struct abts_entry_24xx {
+	uint8_t entry_type;
+	uint8_t entry_count;
+	uint8_t handle_count;
+	uint8_t entry_status;
+
+	uint32_t handle;		/* type 0x55 only */
+
+	uint16_t comp_status;		/* type 0x55 only */
+	uint16_t nport_handle;		/* type 0x54 only */
+
+	uint16_t control_flags;		/* type 0x55 only */
+	uint8_t vp_idx;
+	uint8_t sof_type;		/* sof_type is upper nibble */
+
+	uint32_t rx_xch_addr;
+
+	uint8_t d_id[3];
+	uint8_t r_ctl;
+
+	uint8_t s_id[3];
+	uint8_t cs_ctl;
+
+	uint8_t f_ctl[3];
+	uint8_t type;
+
+	uint16_t seq_cnt;
+	uint8_t df_ctl;
+	uint8_t seq_id;
+
+	uint16_t rx_id;
+	uint16_t ox_id;
+
+	uint32_t param;
+
+	union {
+		struct {
+			uint32_t subcode3;
+			uint32_t rsvd;
+			uint32_t subcode1;
+			uint32_t subcode2;
+		} error;
+		struct {
+			uint16_t rsrvd1;
+			uint8_t last_seq_id;
+			uint8_t seq_id_valid;
+			uint16_t aborted_rx_id;
+			uint16_t aborted_ox_id;
+			uint16_t high_seq_cnt;
+			uint16_t low_seq_cnt;
+		} ba_acc;
+		struct {
+			uint8_t vendor_unique;
+			uint8_t explanation;
+			uint8_t reason;
+		} ba_rjt;
+	} payload;
+
+	uint32_t rx_xch_addr_to_abort;
+} __packed;
+
+/* ABTS payload explanation values */
+#define BA_RJT_EXP_NO_ADDITIONAL	0
+#define BA_RJT_EXP_INV_OX_RX_ID		3
+#define BA_RJT_EXP_SEQ_ABORTED		5
+
+/* ABTS payload reason values */
+#define BA_RJT_RSN_INV_CMD_CODE		1
+#define BA_RJT_RSN_LOGICAL_ERROR	3
+#define BA_RJT_RSN_LOGICAL_BUSY		5
+#define BA_RJT_RSN_PROTOCOL_ERROR	7
+#define BA_RJT_RSN_UNABLE_TO_PERFORM	9
+#define BA_RJT_RSN_VENDOR_SPECIFIC	0xff
+
+/* FC_F values */
+#define FC_TYPE_BLD		0x000		/* Basic link data */
+#define FC_F_CTL_RSP_CNTXT	0x800000	/* Responder of exchange */
+#define FC_F_CTL_LAST_SEQ	0x100000	/* Last sequence */
+#define FC_F_CTL_END_SEQ	0x80000		/* Last sequence */
+#define FC_F_CTL_SEQ_INIT	0x010000	/* Sequence initiative */
+#define FC_ROUTING_BLD		0x80		/* Basic link data frame */
+#define FC_R_CTL_BLD_BA_ACC	0x04		/* BA_ACC (basic accept) */
 
 /*
  * ISP I/O Register Set structure definitions.

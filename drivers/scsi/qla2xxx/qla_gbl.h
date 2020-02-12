@@ -230,6 +230,7 @@ void qla2x00_handle_login_done_event(struct scsi_qla_host *, fc_port_t *,
 int qla24xx_post_gnl_work(struct scsi_qla_host *, fc_port_t *);
 int qla24xx_post_relogin_work(struct scsi_qla_host *vha);
 void qla2x00_wait_for_sess_deletion(scsi_qla_host_t *);
+void qla24xx_process_purex_rdp(struct scsi_qla_host *vha, void *pkt);
 
 /*
  * Global Functions in qla_mid.c source file.
@@ -928,6 +929,7 @@ void qlt_remove_target_resources(struct qla_hw_data *);
 void qlt_clr_qp_table(struct scsi_qla_host *vha);
 void qlt_set_mode(struct scsi_qla_host *);
 int qla2x00_set_data_rate(scsi_qla_host_t *vha, uint16_t mode);
+extern void qla24xx_process_purex_list(struct purex_list *);
 
 /* nvme.c */
 void qla_nvme_unregister_remote_port(struct fc_port *fcport);

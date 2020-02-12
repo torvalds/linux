@@ -3286,11 +3286,6 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto probe_failed;
 	}
 
-	base_vha->purex_data = kzalloc(PUREX_ENTRY_SIZE, GFP_KERNEL);
-	if (!base_vha->purex_data)
-		ql_log(ql_log_warn, base_vha, 0x7118,
-		    "Failed to allocate memory for PUREX data\n");
-
 	if (IS_QLAFX00(ha))
 		host->can_queue = QLAFX00_MAX_CANQUEUE;
 	else
@@ -3473,7 +3468,6 @@ skip_dpc:
 	return 0;
 
 probe_failed:
-	kfree(base_vha->purex_data);
 	if (base_vha->gnl.l) {
 		dma_free_coherent(&ha->pdev->dev, base_vha->gnl.size,
 				base_vha->gnl.l, base_vha->gnl.ldma);
@@ -3790,8 +3784,6 @@ qla2x00_remove_one(struct pci_dev *pdev)
 
 	qla84xx_put_chip(base_vha);
 
-	kfree(base_vha->purex_data);
-
 	/* Disable timer */
 	if (base_vha->timer_active)
 		qla2x00_stop_timer(base_vha);
@@ -3833,6 +3825,20 @@ qla2x00_remove_one(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
+static inline void
+qla24xx_free_purex_list(struct purex_list *list)
+{
+	struct list_head *item, *next;
+	ulong flags;
+
+	spin_lock_irqsave(&list->lock, flags);
+	list_for_each_safe(item, next, &list->head) {
+		list_del(item);
+		kfree(list_entry(item, struct purex_item, list));
+	}
+	spin_unlock_irqrestore(&list->lock, flags);
+}
+
 static void
 qla2x00_free_device(scsi_qla_host_t *vha)
 {
@@ -3864,6 +3870,8 @@ qla2x00_free_device(scsi_qla_host_t *vha)
 		ha->wq = NULL;
 	}
 
+
+	qla24xx_free_purex_list(&vha->purex_list);
 
 	qla2x00_mem_free(ha);
 
@@ -4837,6 +4845,9 @@ struct scsi_qla_host *qla2x00_create_host(struct scsi_host_template *sht,
 	INIT_LIST_HEAD(&vha->gnl.fcports);
 	INIT_LIST_HEAD(&vha->gpnid_list);
 	INIT_WORK(&vha->iocb_work, qla2x00_iocb_work_fn);
+
+	INIT_LIST_HEAD(&vha->purex_list.head);
+	spin_lock_init(&vha->purex_list.lock);
 
 	spin_lock_init(&vha->work_lock);
 	spin_lock_init(&vha->cmd_list_lock);
@@ -5860,7 +5871,7 @@ qla25xx_rdp_port_speed_currently(struct qla_hw_data *ha)
  * vha:	SCSI qla host
  * purex: RDP request received by HBA
  */
-static int qla24xx_process_purex_iocb(struct scsi_qla_host *vha, void *pkt)
+void qla24xx_process_purex_rdp(struct scsi_qla_host *vha, void *pkt)
 {
 	struct qla_hw_data *ha = vha->hw;
 	struct purex_entry_24xx *purex = pkt;
@@ -5876,7 +5887,7 @@ static int qla24xx_process_purex_iocb(struct scsi_qla_host *vha, void *pkt)
 	struct buffer_credit_24xx *bbc = NULL;
 	uint8_t *sfp = NULL;
 	uint16_t sfp_flags = 0;
-	int rval = -ENOMEM;
+	int rval;
 
 	ql_dbg(ql_dbg_init + ql_dbg_verbose, vha, 0x0180,
 	    "%s: Enter\n", __func__);
@@ -6301,8 +6312,23 @@ dealloc:
 	if (rsp_els)
 		dma_free_coherent(&ha->pdev->dev, sizeof(*rsp_els),
 		    rsp_els, rsp_els_dma);
+}
 
-	return rval;
+void qla24xx_process_purex_list(struct purex_list *list)
+{
+	struct list_head head = LIST_HEAD_INIT(head);
+	struct purex_item *item, *next;
+	ulong flags;
+
+	spin_lock_irqsave(&list->lock, flags);
+	list_splice_init(&list->head, &head);
+	spin_unlock_irqrestore(&list->lock, flags);
+
+	list_for_each_entry_safe(item, next, &head, list) {
+		list_del(&item->list);
+		item->process_item(item->vha, &item->iocb);
+		kfree(item);
+	}
 }
 
 void
@@ -6652,8 +6678,6 @@ qla2x00_disable_board_on_pci_error(struct work_struct *work)
 
 	base_vha->flags.online = 0;
 
-	kfree(base_vha->purex_data);
-
 	qla2x00_destroy_deferred_work(ha);
 
 	/*
@@ -6877,11 +6901,13 @@ qla2x00_do_dpc(void *data)
 			}
 		}
 
-		if (test_bit(PROCESS_PUREX_IOCB, &base_vha->dpc_flags) &&
-		   (atomic_read(&base_vha->loop_state) == LOOP_READY)) {
-			qla24xx_process_purex_iocb(base_vha,
-			   base_vha->purex_data);
-			clear_bit(PROCESS_PUREX_IOCB, &base_vha->dpc_flags);
+		if (test_bit(PROCESS_PUREX_IOCB, &base_vha->dpc_flags)) {
+			if (atomic_read(&base_vha->loop_state) == LOOP_READY) {
+				qla24xx_process_purex_list
+					(&base_vha->purex_list);
+				clear_bit(PROCESS_PUREX_IOCB,
+				    &base_vha->dpc_flags);
+			}
 		}
 
 		if (test_and_clear_bit(FCPORT_UPDATE_NEEDED,

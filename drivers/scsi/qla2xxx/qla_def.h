@@ -4474,6 +4474,15 @@ struct active_regions {
 #define QLA_SET_DATA_RATE_NOLR	1
 #define QLA_SET_DATA_RATE_LR	2 /* Set speed and initiate LR */
 
+struct purex_item {
+	struct list_head list;
+	struct scsi_qla_host *vha;
+	void (*process_item)(struct scsi_qla_host *vha, void *pkt);
+	struct {
+		uint8_t iocb[64];
+	} iocb;
+};
+
 /*
  * Qlogic scsi host structure
  */
@@ -4664,7 +4673,11 @@ typedef struct scsi_qla_host {
 	uint16_t ql2xexchoffld;
 	uint16_t ql2xiniexchg;
 
-	void	*purex_data;
+	struct purex_list {
+		struct list_head head;
+		spinlock_t lock;
+	} purex_list;
+
 	struct name_list_extended gnl;
 	/* Count of active session/fcport */
 	int fcport_count;
