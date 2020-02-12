@@ -446,9 +446,8 @@ static int rcar_gen3_thermal_probe(struct platform_device *pdev)
 			goto error_unregister;
 
 		ret = devm_add_action_or_reset(dev, rcar_gen3_hwmon_action, zone);
-		if (ret) {
+		if (ret)
 			goto error_unregister;
-		}
 
 		ret = of_thermal_get_ntrips(tsc->zone);
 		if (ret < 0)
