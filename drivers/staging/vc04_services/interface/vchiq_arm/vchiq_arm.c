@@ -2497,11 +2497,11 @@ vchiq_instance_get_use_count(struct vchiq_instance *instance)
 	int use_count = 0, i;
 
 	i = 0;
-	while ((service = next_service_by_instance(instance->state,
-		instance, &i))) {
+	rcu_read_lock();
+	while ((service = __next_service_by_instance(instance->state,
+						     instance, &i)))
 		use_count += service->service_use_count;
-		unlock_service(service);
-	}
+	rcu_read_unlock();
 	return use_count;
 }
 
@@ -2524,11 +2524,11 @@ vchiq_instance_set_trace(struct vchiq_instance *instance, int trace)
 	int i;
 
 	i = 0;
-	while ((service = next_service_by_instance(instance->state,
-		instance, &i))) {
+	rcu_read_lock();
+	while ((service = __next_service_by_instance(instance->state,
+						     instance, &i)))
 		service->trace = trace;
-		unlock_service(service);
-	}
+	rcu_read_unlock();
 	instance->trace = (trace != 0);
 }
 

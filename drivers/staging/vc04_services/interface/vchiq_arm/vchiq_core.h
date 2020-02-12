@@ -572,7 +572,13 @@ find_closed_service_for_instance(struct vchiq_instance *instance,
 	unsigned int handle);
 
 extern struct vchiq_service *
-next_service_by_instance(struct vchiq_state *state, struct vchiq_instance *instance,
+__next_service_by_instance(struct vchiq_state *state,
+			   struct vchiq_instance *instance,
+			   int *pidx);
+
+extern struct vchiq_service *
+next_service_by_instance(struct vchiq_state *state,
+			 struct vchiq_instance *instance,
 			 int *pidx);
 
 extern void
