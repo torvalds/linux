@@ -931,6 +931,14 @@ S:	Supported
 F:	drivers/iio/adc/ad7124.c
 F:	Documentation/devicetree/bindings/iio/adc/adi,ad7124.yaml
 
+ANALOG DEVICES INC AD7192 DRIVER
+M:	Alexandru Tachici <alexandru.tachici@analog.com>
+L:	linux-iio@vger.kernel.org
+W:	http://ez.analog.com/community/linux-device-drivers
+S:	Supported
+F:	drivers/iio/adc/ad7192.c
+F:	Documentation/devicetree/bindings/iio/adc/adi,ad7192.yaml
+
 ANALOG DEVICES INC AD7292 DRIVER
 M:	Marcelo Schmitt <marcelo.schmitt1@gmail.com>
 L:	linux-iio@vger.kernel.org
