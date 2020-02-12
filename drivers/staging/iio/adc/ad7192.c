@@ -16,6 +16,7 @@
 #include <linux/err.h>
 #include <linux/sched.h>
 #include <linux/delay.h>
+#include <linux/of_device.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -876,6 +877,15 @@ static int ad7192_channels_config(struct iio_dev *indio_dev)
 	return 0;
 }
 
+static const struct of_device_id ad7192_of_match[] = {
+	{ .compatible = "adi,ad7190", .data = (void *)ID_AD7190 },
+	{ .compatible = "adi,ad7192", .data = (void *)ID_AD7192 },
+	{ .compatible = "adi,ad7193", .data = (void *)ID_AD7193 },
+	{ .compatible = "adi,ad7195", .data = (void *)ID_AD7195 },
+	{}
+};
+MODULE_DEVICE_TABLE(of, ad7192_of_match);
+
 static int ad7192_probe(struct spi_device *spi)
 {
 	struct ad7192_state *st;
@@ -928,7 +938,7 @@ static int ad7192_probe(struct spi_device *spi)
 	}
 
 	spi_set_drvdata(spi, indio_dev);
-	st->devid = spi_get_device_id(spi)->driver_data;
+	st->devid = (unsigned long)of_device_get_match_data(&spi->dev);
 	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
@@ -1009,26 +1019,6 @@ static int ad7192_remove(struct spi_device *spi)
 	return 0;
 }
 
-static const struct spi_device_id ad7192_id[] = {
-	{"ad7190", ID_AD7190},
-	{"ad7192", ID_AD7192},
-	{"ad7193", ID_AD7193},
-	{"ad7195", ID_AD7195},
-	{}
-};
-
-MODULE_DEVICE_TABLE(spi, ad7192_id);
-
-static const struct of_device_id ad7192_of_match[] = {
-	{ .compatible = "adi,ad7190" },
-	{ .compatible = "adi,ad7192" },
-	{ .compatible = "adi,ad7193" },
-	{ .compatible = "adi,ad7195" },
-	{}
-};
-
-MODULE_DEVICE_TABLE(of, ad7192_of_match);
-
 static struct spi_driver ad7192_driver = {
 	.driver = {
 		.name	= "ad7192",
@@ -1036,7 +1026,6 @@ static struct spi_driver ad7192_driver = {
 	},
 	.probe		= ad7192_probe,
 	.remove		= ad7192_remove,
-	.id_table	= ad7192_id,
 };
 module_spi_driver(ad7192_driver);
 
