@@ -497,6 +497,11 @@
 
 &i2c1 {
 	status = "okay";
+
+	tpm: tpm@2e {
+		compatible = "tcg,tpm-tis-i2c";
+		reg = <0x2e>;
+	};
 };
 
 &i2c2 {
