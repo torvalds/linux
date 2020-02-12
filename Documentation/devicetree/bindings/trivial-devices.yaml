@@ -350,6 +350,8 @@ properties:
           - ti,ads7830
             # Temperature Monitoring and Fan Control
           - ti,amc6821
+            # Temperature sensor with 2-wire interface
+          - ti,lm73
             # Temperature sensor with integrated fan control
           - ti,lm96000
             # I2C Touch-Screen Controller
