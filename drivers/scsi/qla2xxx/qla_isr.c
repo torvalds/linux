@@ -820,6 +820,12 @@ skip_rio:
 		    "LOOP UP detected (%s Gbps).\n",
 		    qla2x00_get_link_speed_str(ha, ha->link_data_rate));
 
+		if (IS_QLA83XX(ha) || IS_QLA27XX(ha) || IS_QLA28XX(ha)) {
+			if (mb[2] & BIT_0)
+				ql_log(ql_log_info, vha, 0x11a0,
+				    "FEC=enabled (link up).\n");
+		}
+
 		vha->flags.management_server_logged_in = 0;
 		qla2x00_post_aen_work(vha, FCH_EVT_LINKUP, ha->link_data_rate);
 
