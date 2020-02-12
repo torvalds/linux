@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Red Hat Inc.
+ * Copyright 2020 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,35 +19,42 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
+#define gv100_disp_caps(p) container_of((p), struct gv100_disp_caps, object)
 #include "rootnv50.h"
-#include "channv50.h"
 
-#include <nvif/class.h>
-
-static const struct nv50_disp_root_func
-gv100_disp_root = {
-	.user = {
-		{{-1,-1,GV100_DISP_CAPS                }, gv100_disp_caps_new },
-		{{0,0,GV100_DISP_CURSOR                }, gv100_disp_curs_new },
-		{{0,0,GV100_DISP_WINDOW_IMM_CHANNEL_DMA}, gv100_disp_wimm_new },
-		{{0,0,GV100_DISP_CORE_CHANNEL_DMA      }, gv100_disp_core_new },
-		{{0,0,GV100_DISP_WINDOW_CHANNEL_DMA    }, gv100_disp_wndw_new },
-		{}
-	},
+struct gv100_disp_caps {
+	struct nvkm_object object;
+	struct nv50_disp *disp;
 };
 
 static int
-gv100_disp_root_new(struct nvkm_disp *disp, const struct nvkm_oclass *oclass,
-		    void *data, u32 size, struct nvkm_object **pobject)
+gv100_disp_caps_map(struct nvkm_object *object, void *argv, u32 argc,
+		    enum nvkm_object_map *type, u64 *addr, u64 *size)
 {
-	return nv50_disp_root_new_(&gv100_disp_root, disp, oclass,
-				   data, size, pobject);
+	struct gv100_disp_caps *caps = gv100_disp_caps(object);
+	struct nvkm_device *device = caps->disp->base.engine.subdev.device;
+	*type = NVKM_OBJECT_MAP_IO;
+	*addr = 0x640000 + device->func->resource_addr(device, 0);
+	*size = 0x1000;
+	return 0;
 }
 
-const struct nvkm_disp_oclass
-gv100_disp_root_oclass = {
-	.base.oclass = GV100_DISP,
-	.base.minver = -1,
-	.base.maxver = -1,
-	.ctor = gv100_disp_root_new,
+static const struct nvkm_object_func
+gv100_disp_caps = {
+	.map = gv100_disp_caps_map,
 };
+
+int
+gv100_disp_caps_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
+		    struct nv50_disp *disp, struct nvkm_object **pobject)
+{
+	struct gv100_disp_caps *caps;
+
+	if (!(caps = kzalloc(sizeof(*caps), GFP_KERNEL)))
+		return -ENOMEM;
+	*pobject = &caps->object;
+
+	nvkm_object_ctor(&gv100_disp_caps, oclass, &caps->object);
+	caps->disp = disp;
+	return 0;
+}

@@ -74,6 +74,8 @@ nvkm-y += nvkm/engine/disp/rootgp102.o
 nvkm-y += nvkm/engine/disp/rootgv100.o
 nvkm-y += nvkm/engine/disp/roottu102.o
 
+nvkm-y += nvkm/engine/disp/capsgv100.o
+
 nvkm-y += nvkm/engine/disp/channv50.o
 nvkm-y += nvkm/engine/disp/changf119.o
 nvkm-y += nvkm/engine/disp/changv100.o
