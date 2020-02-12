@@ -92,7 +92,7 @@ static int imx8m_clk_composite_divider_set_rate(struct clk_hw *hw,
 					unsigned long parent_rate)
 {
 	struct clk_divider *divider = to_clk_divider(hw);
-	unsigned long flags = 0;
+	unsigned long flags;
 	int prediv_value;
 	int div_value;
 	int ret;
