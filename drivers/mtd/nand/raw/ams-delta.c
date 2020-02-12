@@ -44,9 +44,9 @@ struct ams_delta_nand {
 
 static void ams_delta_write_commit(struct ams_delta_nand *priv)
 {
-	gpiod_set_value(priv->gpiod_nwe, 0);
-	ndelay(40);
 	gpiod_set_value(priv->gpiod_nwe, 1);
+	ndelay(40);
+	gpiod_set_value(priv->gpiod_nwe, 0);
 }
 
 static void ams_delta_io_write(struct ams_delta_nand *priv, u8 byte)
@@ -81,13 +81,13 @@ static u8 ams_delta_io_read(struct ams_delta_nand *priv)
 	struct gpio_descs *data_gpiods = priv->data_gpiods;
 	DECLARE_BITMAP(values, BITS_PER_TYPE(res)) = { 0, };
 
-	gpiod_set_value(priv->gpiod_nre, 0);
+	gpiod_set_value(priv->gpiod_nre, 1);
 	ndelay(40);
 
 	gpiod_get_raw_array_value(data_gpiods->ndescs, data_gpiods->desc,
 				  data_gpiods->info, values);
 
-	gpiod_set_value(priv->gpiod_nre, 1);
+	gpiod_set_value(priv->gpiod_nre, 0);
 
 	res = values[0];
 	return res;
@@ -129,7 +129,7 @@ static void ams_delta_read_buf(struct ams_delta_nand *priv, u8 *buf, int len)
 
 static void ams_delta_ctrl_cs(struct ams_delta_nand *priv, bool assert)
 {
-	gpiod_set_value(priv->gpiod_nce, assert ? 0 : 1);
+	gpiod_set_value(priv->gpiod_nce, assert);
 }
 
 static int ams_delta_exec_op(struct nand_chip *this,
@@ -237,28 +237,28 @@ static int ams_delta_init(struct platform_device *pdev)
 	platform_set_drvdata(pdev, priv);
 
 	/* Set chip enabled but write protected */
-	priv->gpiod_nwp = devm_gpiod_get(&pdev->dev, "nwp", GPIOD_OUT_LOW);
+	priv->gpiod_nwp = devm_gpiod_get(&pdev->dev, "nwp", GPIOD_OUT_HIGH);
 	if (IS_ERR(priv->gpiod_nwp)) {
 		err = PTR_ERR(priv->gpiod_nwp);
 		dev_err(&pdev->dev, "NWP GPIO request failed (%d)\n", err);
 		return err;
 	}
 
-	priv->gpiod_nce = devm_gpiod_get(&pdev->dev, "nce", GPIOD_OUT_HIGH);
+	priv->gpiod_nce = devm_gpiod_get(&pdev->dev, "nce", GPIOD_OUT_LOW);
 	if (IS_ERR(priv->gpiod_nce)) {
 		err = PTR_ERR(priv->gpiod_nce);
 		dev_err(&pdev->dev, "NCE GPIO request failed (%d)\n", err);
 		return err;
 	}
 
-	priv->gpiod_nre = devm_gpiod_get(&pdev->dev, "nre", GPIOD_OUT_HIGH);
+	priv->gpiod_nre = devm_gpiod_get(&pdev->dev, "nre", GPIOD_OUT_LOW);
 	if (IS_ERR(priv->gpiod_nre)) {
 		err = PTR_ERR(priv->gpiod_nre);
 		dev_err(&pdev->dev, "NRE GPIO request failed (%d)\n", err);
 		return err;
 	}
 
-	priv->gpiod_nwe = devm_gpiod_get(&pdev->dev, "nwe", GPIOD_OUT_HIGH);
+	priv->gpiod_nwe = devm_gpiod_get(&pdev->dev, "nwe", GPIOD_OUT_LOW);
 	if (IS_ERR(priv->gpiod_nwe)) {
 		err = PTR_ERR(priv->gpiod_nwe);
 		dev_err(&pdev->dev, "NWE GPIO request failed (%d)\n", err);
@@ -303,7 +303,7 @@ static int ams_delta_init(struct platform_device *pdev)
 	 * chip detection/initialization.
 	 */
 	/* Release write protection */
-	gpiod_set_value(priv->gpiod_nwp, 1);
+	gpiod_set_value(priv->gpiod_nwp, 0);
 
 	/* Scan to find existence of the device */
 	err = nand_scan(this, 1);
@@ -332,7 +332,7 @@ static int ams_delta_cleanup(struct platform_device *pdev)
 	struct mtd_info *mtd = nand_to_mtd(&priv->nand_chip);
 
 	/* Apply write protection */
-	gpiod_set_value(priv->gpiod_nwp, 0);
+	gpiod_set_value(priv->gpiod_nwp, 1);
 
 	/* Unregister device */
 	nand_release(mtd_to_nand(mtd));
