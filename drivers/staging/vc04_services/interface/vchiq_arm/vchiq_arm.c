@@ -22,6 +22,7 @@
 #include <linux/platform_device.h>
 #include <linux/compat.h>
 #include <linux/dma-mapping.h>
+#include <linux/rcupdate.h>
 #include <soc/bcm2835/raspberrypi-firmware.h>
 
 #include "vchiq_core.h"
@@ -2096,10 +2097,12 @@ int vchiq_dump_platform_instances(void *dump_context)
 	/* There is no list of instances, so instead scan all services,
 		marking those that have been dumped. */
 
+	rcu_read_lock();
 	for (i = 0; i < state->unused_service; i++) {
-		struct vchiq_service *service = state->services[i];
+		struct vchiq_service *service;
 		struct vchiq_instance *instance;
 
+		service = rcu_dereference(state->services[i]);
 		if (!service || service->base.callback != service_callback)
 			continue;
 
@@ -2107,18 +2110,26 @@ int vchiq_dump_platform_instances(void *dump_context)
 		if (instance)
 			instance->mark = 0;
 	}
+	rcu_read_unlock();
 
 	for (i = 0; i < state->unused_service; i++) {
-		struct vchiq_service *service = state->services[i];
+		struct vchiq_service *service;
 		struct vchiq_instance *instance;
 		int err;
 
-		if (!service || service->base.callback != service_callback)
+		rcu_read_lock();
+		service = rcu_dereference(state->services[i]);
+		if (!service || service->base.callback != service_callback) {
+			rcu_read_unlock();
 			continue;
+		}
 
 		instance = service->instance;
-		if (!instance || instance->mark)
+		if (!instance || instance->mark) {
+			rcu_read_unlock();
 			continue;
+		}
+		rcu_read_unlock();
 
 		len = snprintf(buf, sizeof(buf),
 			       "Instance %pK: pid %d,%s completions %d/%d",
@@ -2128,7 +2139,6 @@ int vchiq_dump_platform_instances(void *dump_context)
 			       instance->completion_insert -
 			       instance->completion_remove,
 			       MAX_COMPLETIONS);
-
 		err = vchiq_dump(dump_context, buf, len + 1);
 		if (err)
 			return err;
@@ -2585,8 +2595,10 @@ vchiq_dump_service_use_state(struct vchiq_state *state)
 	if (active_services > MAX_SERVICES)
 		only_nonzero = 1;
 
+	rcu_read_lock();
 	for (i = 0; i < active_services; i++) {
-		struct vchiq_service *service_ptr = state->services[i];
+		struct vchiq_service *service_ptr =
+			rcu_dereference(state->services[i]);
 
 		if (!service_ptr)
 			continue;
@@ -2604,6 +2616,7 @@ vchiq_dump_service_use_state(struct vchiq_state *state)
 		if (found >= MAX_SERVICES)
 			break;
 	}
+	rcu_read_unlock();
 
 	read_unlock_bh(&arm_state->susp_res_lock);
 
