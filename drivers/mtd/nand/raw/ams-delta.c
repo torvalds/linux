@@ -22,6 +22,7 @@
 #include <linux/mtd/nand-gpio.h>
 #include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/sizes.h>
 
@@ -230,6 +231,7 @@ static int ams_delta_init(struct platform_device *pdev)
 	struct nand_chip *this;
 	struct mtd_info *mtd;
 	struct gpio_descs *data_gpiods;
+	int (*probe)(struct platform_device *pdev, struct ams_delta_nand *priv);
 	int err = 0;
 
 	if (pdata) {
@@ -318,6 +320,15 @@ static int ams_delta_init(struct platform_device *pdev)
 	}
 	priv->data_gpiods = data_gpiods;
 	priv->data_in = true;
+
+	if (pdev->id_entry)
+		probe = (void *) pdev->id_entry->driver_data;
+	else
+		probe = of_device_get_match_data(&pdev->dev);
+	if (probe)
+		err = probe(pdev, priv);
+	if (err)
+		return err;
 
 	/* Initialize the NAND controller object embedded in ams_delta_nand. */
 	priv->base.ops = &ams_delta_ops;
