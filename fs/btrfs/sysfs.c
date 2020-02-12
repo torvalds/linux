@@ -1295,7 +1295,7 @@ int btrfs_sysfs_add_device_link(struct btrfs_fs_devices *fs_devices,
 
 		init_completion(&dev->kobj_unregister);
 		error = kobject_init_and_add(&dev->devid_kobj, &devid_ktype,
-					     fs_devices->devices_kobj, "%llu",
+					     fs_devices->devinfo_kobj, "%llu",
 					     dev->devid);
 		if (error) {
 			kobject_put(&dev->devid_kobj);
