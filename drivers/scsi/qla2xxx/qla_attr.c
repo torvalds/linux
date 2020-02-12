@@ -2745,22 +2745,28 @@ qla2x00_get_fc_host_stats(struct Scsi_Host *shost)
 	if (rval != QLA_SUCCESS)
 		goto done_free;
 
-	p->link_failure_count = stats->link_fail_cnt;
-	p->loss_of_sync_count = stats->loss_sync_cnt;
-	p->loss_of_signal_count = stats->loss_sig_cnt;
-	p->prim_seq_protocol_err_count = stats->prim_seq_err_cnt;
-	p->invalid_tx_word_count = stats->inval_xmit_word_cnt;
-	p->invalid_crc_count = stats->inval_crc_cnt;
+	p->link_failure_count = le32_to_cpu(stats->link_fail_cnt);
+	p->loss_of_sync_count = le32_to_cpu(stats->loss_sync_cnt);
+	p->loss_of_signal_count = le32_to_cpu(stats->loss_sig_cnt);
+	p->prim_seq_protocol_err_count = le32_to_cpu(stats->prim_seq_err_cnt);
+	p->invalid_tx_word_count = le32_to_cpu(stats->inval_xmit_word_cnt);
+	p->invalid_crc_count = le32_to_cpu(stats->inval_crc_cnt);
 	if (IS_FWI2_CAPABLE(ha)) {
-		p->lip_count = stats->lip_cnt;
-		p->tx_frames = stats->tx_frames;
-		p->rx_frames = stats->rx_frames;
-		p->dumped_frames = stats->discarded_frames;
-		p->nos_count = stats->nos_rcvd;
+		p->lip_count = le32_to_cpu(stats->lip_cnt);
+		p->tx_frames = le32_to_cpu(stats->tx_frames);
+		p->rx_frames = le32_to_cpu(stats->rx_frames);
+		p->dumped_frames = le32_to_cpu(stats->discarded_frames);
+		p->nos_count = le32_to_cpu(stats->nos_rcvd);
 		p->error_frames =
-			stats->dropped_frames + stats->discarded_frames;
-		p->rx_words = vha->qla_stats.input_bytes;
-		p->tx_words = vha->qla_stats.output_bytes;
+		    le32_to_cpu(stats->dropped_frames) +
+		    le32_to_cpu(stats->discarded_frames);
+		if (IS_QLA83XX(ha) || IS_QLA27XX(ha) || IS_QLA28XX(ha)) {
+			p->rx_words = le64_to_cpu(stats->fpm_recv_word_cnt);
+			p->tx_words = le64_to_cpu(stats->fpm_xmit_word_cnt);
+		} else {
+			p->rx_words = vha->qla_stats.input_bytes;
+			p->tx_words = vha->qla_stats.output_bytes;
+		}
 	}
 	p->fcp_control_requests = vha->qla_stats.control_requests;
 	p->fcp_input_requests = vha->qla_stats.input_requests;
@@ -2768,7 +2774,7 @@ qla2x00_get_fc_host_stats(struct Scsi_Host *shost)
 	p->fcp_input_megabytes = vha->qla_stats.input_bytes >> 20;
 	p->fcp_output_megabytes = vha->qla_stats.output_bytes >> 20;
 	p->seconds_since_last_reset =
-		get_jiffies_64() - vha->qla_stats.jiffies_at_last_reset;
+	    get_jiffies_64() - vha->qla_stats.jiffies_at_last_reset;
 	do_div(p->seconds_since_last_reset, HZ);
 
 done_free:
