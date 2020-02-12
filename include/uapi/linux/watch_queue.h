@@ -3,6 +3,9 @@
 #define _UAPI_LINUX_WATCH_QUEUE_H
 
 #include <linux/types.h>
+#include <linux/fcntl.h>
+
+#define O_NOTIFICATION_PIPE	O_EXCL	/* Parameter to pipe2() selecting notification pipe */
 
 enum watch_notification_type {
 	WATCH_TYPE_META		= 0,	/* Special record */
