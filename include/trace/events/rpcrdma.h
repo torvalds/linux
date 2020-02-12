@@ -228,20 +228,20 @@ DECLARE_EVENT_CLASS(xprtrdma_frwr_done,
 	TP_ARGS(wc, frwr),
 
 	TP_STRUCT__entry(
-		__field(const void *, mr)
+		__field(u32, mr_id)
 		__field(unsigned int, status)
 		__field(unsigned int, vendor_err)
 	),
 
 	TP_fast_assign(
-		__entry->mr = container_of(frwr, struct rpcrdma_mr, frwr);
+		__entry->mr_id = frwr->fr_mr->res.id;
 		__entry->status = wc->status;
 		__entry->vendor_err = __entry->status ? wc->vendor_err : 0;
 	),
 
 	TP_printk(
-		"mr=%p: %s (%u/0x%x)",
-		__entry->mr, rdma_show_wc_status(__entry->status),
+		"mr.id=%u: %s (%u/0x%x)",
+		__entry->mr_id, rdma_show_wc_status(__entry->status),
 		__entry->status, __entry->vendor_err
 	)
 );
@@ -274,7 +274,8 @@ DECLARE_EVENT_CLASS(xprtrdma_mr,
 	TP_ARGS(mr),
 
 	TP_STRUCT__entry(
-		__field(const void *, mr)
+		__field(u32, mr_id)
+		__field(int, nents)
 		__field(u32, handle)
 		__field(u32, length)
 		__field(u64, offset)
@@ -282,15 +283,16 @@ DECLARE_EVENT_CLASS(xprtrdma_mr,
 	),
 
 	TP_fast_assign(
-		__entry->mr = mr;
+		__entry->mr_id  = mr->frwr.fr_mr->res.id;
+		__entry->nents  = mr->mr_nents;
 		__entry->handle = mr->mr_handle;
 		__entry->length = mr->mr_length;
 		__entry->offset = mr->mr_offset;
 		__entry->dir    = mr->mr_dir;
 	),
 
-	TP_printk("mr=%p %u@0x%016llx:0x%08x (%s)",
-		__entry->mr, __entry->length,
+	TP_printk("mr.id=%u nents=%d %u@0x%016llx:0x%08x (%s)",
+		__entry->mr_id, __entry->nents, __entry->length,
 		(unsigned long long)__entry->offset, __entry->handle,
 		xprtrdma_show_direction(__entry->dir)
 	)
@@ -920,17 +922,17 @@ TRACE_EVENT(xprtrdma_frwr_alloc,
 	TP_ARGS(mr, rc),
 
 	TP_STRUCT__entry(
-		__field(const void *, mr)
+		__field(u32, mr_id)
 		__field(int, rc)
 	),
 
 	TP_fast_assign(
-		__entry->mr = mr;
-		__entry->rc	= rc;
+		__entry->mr_id = mr->frwr.fr_mr->res.id;
+		__entry->rc = rc;
 	),
 
-	TP_printk("mr=%p: rc=%d",
-		__entry->mr, __entry->rc
+	TP_printk("mr.id=%u: rc=%d",
+		__entry->mr_id, __entry->rc
 	)
 );
 
@@ -943,7 +945,8 @@ TRACE_EVENT(xprtrdma_frwr_dereg,
 	TP_ARGS(mr, rc),
 
 	TP_STRUCT__entry(
-		__field(const void *, mr)
+		__field(u32, mr_id)
+		__field(int, nents)
 		__field(u32, handle)
 		__field(u32, length)
 		__field(u64, offset)
@@ -952,7 +955,8 @@ TRACE_EVENT(xprtrdma_frwr_dereg,
 	),
 
 	TP_fast_assign(
-		__entry->mr = mr;
+		__entry->mr_id  = mr->frwr.fr_mr->res.id;
+		__entry->nents  = mr->mr_nents;
 		__entry->handle = mr->mr_handle;
 		__entry->length = mr->mr_length;
 		__entry->offset = mr->mr_offset;
@@ -960,8 +964,8 @@ TRACE_EVENT(xprtrdma_frwr_dereg,
 		__entry->rc	= rc;
 	),
 
-	TP_printk("mr=%p %u@0x%016llx:0x%08x (%s): rc=%d",
-		__entry->mr, __entry->length,
+	TP_printk("mr.id=%u nents=%d %u@0x%016llx:0x%08x (%s): rc=%d",
+		__entry->mr_id, __entry->nents, __entry->length,
 		(unsigned long long)__entry->offset, __entry->handle,
 		xprtrdma_show_direction(__entry->dir),
 		__entry->rc
@@ -977,21 +981,21 @@ TRACE_EVENT(xprtrdma_frwr_sgerr,
 	TP_ARGS(mr, sg_nents),
 
 	TP_STRUCT__entry(
-		__field(const void *, mr)
+		__field(u32, mr_id)
 		__field(u64, addr)
 		__field(u32, dir)
 		__field(int, nents)
 	),
 
 	TP_fast_assign(
-		__entry->mr = mr;
+		__entry->mr_id = mr->frwr.fr_mr->res.id;
 		__entry->addr = mr->mr_sg->dma_address;
 		__entry->dir = mr->mr_dir;
 		__entry->nents = sg_nents;
 	),
 
-	TP_printk("mr=%p dma addr=0x%llx (%s) sg_nents=%d",
-		__entry->mr, __entry->addr,
+	TP_printk("mr.id=%u DMA addr=0x%llx (%s) sg_nents=%d",
+		__entry->mr_id, __entry->addr,
 		xprtrdma_show_direction(__entry->dir),
 		__entry->nents
 	)
@@ -1006,7 +1010,7 @@ TRACE_EVENT(xprtrdma_frwr_maperr,
 	TP_ARGS(mr, num_mapped),
 
 	TP_STRUCT__entry(
-		__field(const void *, mr)
+		__field(u32, mr_id)
 		__field(u64, addr)
 		__field(u32, dir)
 		__field(int, num_mapped)
@@ -1014,15 +1018,15 @@ TRACE_EVENT(xprtrdma_frwr_maperr,
 	),
 
 	TP_fast_assign(
-		__entry->mr = mr;
+		__entry->mr_id = mr->frwr.fr_mr->res.id;
 		__entry->addr = mr->mr_sg->dma_address;
 		__entry->dir = mr->mr_dir;
 		__entry->num_mapped = num_mapped;
 		__entry->nents = mr->mr_nents;
 	),
 
-	TP_printk("mr=%p dma addr=0x%llx (%s) nents=%d of %d",
-		__entry->mr, __entry->addr,
+	TP_printk("mr.id=%u DMA addr=0x%llx (%s) nents=%d of %d",
+		__entry->mr_id, __entry->addr,
 		xprtrdma_show_direction(__entry->dir),
 		__entry->num_mapped, __entry->nents
 	)
@@ -1031,7 +1035,7 @@ TRACE_EVENT(xprtrdma_frwr_maperr,
 DEFINE_MR_EVENT(localinv);
 DEFINE_MR_EVENT(map);
 DEFINE_MR_EVENT(unmap);
-DEFINE_MR_EVENT(remoteinv);
+DEFINE_MR_EVENT(reminv);
 DEFINE_MR_EVENT(recycle);
 
 TRACE_EVENT(xprtrdma_dma_maperr,
