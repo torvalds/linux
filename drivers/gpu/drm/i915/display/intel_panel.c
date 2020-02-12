@@ -434,8 +434,7 @@ void intel_gmch_panel_fitting(struct intel_crtc *intel_crtc,
 	/* 965+ wants fuzzy fitting */
 	/* FIXME: handle multiple panels by failing gracefully */
 	if (INTEL_GEN(dev_priv) >= 4)
-		pfit_control |= ((intel_crtc->pipe << PFIT_PIPE_SHIFT) |
-				 PFIT_FILTER_FUZZY);
+		pfit_control |= PFIT_PIPE(intel_crtc->pipe) | PFIT_FILTER_FUZZY;
 
 out:
 	if ((pfit_control & PFIT_ENABLE) == 0) {

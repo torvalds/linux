@@ -4928,6 +4928,7 @@ enum {
 #define   PFIT_ENABLE		(1 << 31)
 #define   PFIT_PIPE_MASK	(3 << 29)
 #define   PFIT_PIPE_SHIFT	29
+#define   PFIT_PIPE(pipe)	((pipe) << 29)
 #define   VERT_INTERP_DISABLE	(0 << 10)
 #define   VERT_INTERP_BILINEAR	(1 << 10)
 #define   VERT_INTERP_MASK	(3 << 10)
