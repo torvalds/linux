@@ -203,10 +203,12 @@ static void update_pecoff_setup_and_reloc(unsigned int size)
 	put_unaligned_le32(10, &buf[reloc_offset + 4]);
 }
 
-static void update_pecoff_text(unsigned int text_start, unsigned int file_sz)
+static void update_pecoff_text(unsigned int text_start, unsigned int file_sz,
+			       unsigned int init_sz)
 {
 	unsigned int pe_header;
 	unsigned int text_sz = file_sz - text_start;
+	unsigned int bss_sz = init_sz + text_start - file_sz;
 
 	pe_header = get_unaligned_le32(&buf[0x3c]);
 
@@ -214,30 +216,18 @@ static void update_pecoff_text(unsigned int text_start, unsigned int file_sz)
 	 * Size of code: Subtract the size of the first sector (512 bytes)
 	 * which includes the header.
 	 */
-	put_unaligned_le32(file_sz - 512, &buf[pe_header + 0x1c]);
+	put_unaligned_le32(file_sz - 512 + bss_sz, &buf[pe_header + 0x1c]);
+
+	/* Size of image */
+	put_unaligned_le32(init_sz + text_start, &buf[pe_header + 0x50]);
 
 	/*
 	 * Address of entry point for PE/COFF executable
 	 */
 	put_unaligned_le32(text_start + efi_pe_entry, &buf[pe_header + 0x28]);
 
-	update_pecoff_section_header(".text", text_start, text_sz);
-}
-
-static void update_pecoff_bss(unsigned int file_sz, unsigned int init_sz)
-{
-	unsigned int pe_header;
-	unsigned int bss_sz = init_sz - file_sz;
-
-	pe_header = get_unaligned_le32(&buf[0x3c]);
-
-	/* Size of uninitialized data */
-	put_unaligned_le32(bss_sz, &buf[pe_header + 0x24]);
-
-	/* Size of image */
-	put_unaligned_le32(init_sz, &buf[pe_header + 0x50]);
-
-	update_pecoff_section_header_fields(".bss", file_sz, bss_sz, 0, 0);
+	update_pecoff_section_header_fields(".text", text_start, text_sz + bss_sz,
+					    text_sz, text_start);
 }
 
 static int reserve_pecoff_reloc_section(int c)
@@ -278,9 +268,8 @@ static void efi_stub_entry_update(void)
 
 static inline void update_pecoff_setup_and_reloc(unsigned int size) {}
 static inline void update_pecoff_text(unsigned int text_start,
-				      unsigned int file_sz) {}
-static inline void update_pecoff_bss(unsigned int file_sz,
-				     unsigned int init_sz) {}
+				      unsigned int file_sz,
+				      unsigned int init_sz) {}
 static inline void efi_stub_defaults(void) {}
 static inline void efi_stub_entry_update(void) {}
 
@@ -406,9 +395,8 @@ int main(int argc, char ** argv)
 	buf[0x1f1] = setup_sectors-1;
 	put_unaligned_le32(sys_size, &buf[0x1f4]);
 
-	update_pecoff_text(setup_sectors * 512, i + (sys_size * 16));
 	init_sz = get_unaligned_le32(&buf[0x260]);
-	update_pecoff_bss(i + (sys_size * 16), init_sz + setup_sectors * 512);
+	update_pecoff_text(setup_sectors * 512, i + (sys_size * 16), init_sz);
 
 	efi_stub_entry_update();
 
