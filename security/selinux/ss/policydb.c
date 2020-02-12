@@ -1880,13 +1880,73 @@ out:
 	return rc;
 }
 
-static int filename_trans_read(struct policydb *p, void *fp)
+static int filename_trans_read_one(struct policydb *p, void *fp)
 {
 	struct filename_trans *ft;
-	struct filename_trans_datum *otype;
-	char *name;
-	u32 nel, len;
+	struct filename_trans_datum *otype = NULL;
+	char *name = NULL;
+	u32 len;
 	__le32 buf[4];
+	int rc;
+
+	ft = kzalloc(sizeof(*ft), GFP_KERNEL);
+	if (!ft)
+		return -ENOMEM;
+
+	rc = -ENOMEM;
+	otype = kmalloc(sizeof(*otype), GFP_KERNEL);
+	if (!otype)
+		goto out;
+
+	/* length of the path component string */
+	rc = next_entry(buf, fp, sizeof(u32));
+	if (rc)
+		goto out;
+	len = le32_to_cpu(buf[0]);
+
+	/* path component string */
+	rc = str_read(&name, GFP_KERNEL, fp, len);
+	if (rc)
+		goto out;
+
+	ft->name = name;
+
+	rc = next_entry(buf, fp, sizeof(u32) * 4);
+	if (rc)
+		goto out;
+
+	ft->stype = le32_to_cpu(buf[0]);
+	ft->ttype = le32_to_cpu(buf[1]);
+	ft->tclass = le32_to_cpu(buf[2]);
+
+	otype->otype = le32_to_cpu(buf[3]);
+
+	rc = ebitmap_set_bit(&p->filename_trans_ttypes, ft->ttype, 1);
+	if (rc)
+		goto out;
+
+	rc = hashtab_insert(p->filename_trans, ft, otype);
+	if (rc) {
+		/*
+		 * Do not return -EEXIST to the caller, or the system
+		 * will not boot.
+		 */
+		if (rc == -EEXIST)
+			rc = 0;
+		goto out;
+	}
+	return 0;
+out:
+	kfree(ft);
+	kfree(name);
+	kfree(otype);
+	return rc;
+}
+
+static int filename_trans_read(struct policydb *p, void *fp)
+{
+	u32 nel;
+	__le32 buf[1];
 	int rc, i;
 
 	if (p->policyvers < POLICYDB_VERSION_FILENAME_TRANS)
@@ -1898,68 +1958,12 @@ static int filename_trans_read(struct policydb *p, void *fp)
 	nel = le32_to_cpu(buf[0]);
 
 	for (i = 0; i < nel; i++) {
-		otype = NULL;
-		name = NULL;
-
-		rc = -ENOMEM;
-		ft = kzalloc(sizeof(*ft), GFP_KERNEL);
-		if (!ft)
-			goto out;
-
-		rc = -ENOMEM;
-		otype = kmalloc(sizeof(*otype), GFP_KERNEL);
-		if (!otype)
-			goto out;
-
-		/* length of the path component string */
-		rc = next_entry(buf, fp, sizeof(u32));
+		rc = filename_trans_read_one(p, fp);
 		if (rc)
-			goto out;
-		len = le32_to_cpu(buf[0]);
-
-		/* path component string */
-		rc = str_read(&name, GFP_KERNEL, fp, len);
-		if (rc)
-			goto out;
-
-		ft->name = name;
-
-		rc = next_entry(buf, fp, sizeof(u32) * 4);
-		if (rc)
-			goto out;
-
-		ft->stype = le32_to_cpu(buf[0]);
-		ft->ttype = le32_to_cpu(buf[1]);
-		ft->tclass = le32_to_cpu(buf[2]);
-
-		otype->otype = le32_to_cpu(buf[3]);
-
-		rc = ebitmap_set_bit(&p->filename_trans_ttypes, ft->ttype, 1);
-		if (rc)
-			goto out;
-
-		rc = hashtab_insert(p->filename_trans, ft, otype);
-		if (rc) {
-			/*
-			 * Do not return -EEXIST to the caller, or the system
-			 * will not boot.
-			 */
-			if (rc != -EEXIST)
-				goto out;
-			/* But free memory to avoid memory leak. */
-			kfree(ft);
-			kfree(name);
-			kfree(otype);
-		}
+			return rc;
 	}
 	hash_eval(p->filename_trans, "filenametr");
 	return 0;
-out:
-	kfree(ft);
-	kfree(name);
-	kfree(otype);
-
-	return rc;
 }
 
 static int genfs_read(struct policydb *p, void *fp)
