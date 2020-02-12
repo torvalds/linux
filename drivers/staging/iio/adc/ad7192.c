@@ -786,71 +786,91 @@ static const struct iio_info ad7195_info = {
 	.validate_trigger = ad_sd_validate_trigger,
 };
 
+#define __AD719x_CHANNEL(_si, _channel1, _channel2, _address, _extend_name, \
+	_type, _mask_type_av, _ext_info) \
+	{ \
+		.type = (_type), \
+		.differential = ((_channel2) == -1 ? 0 : 1), \
+		.indexed = 1, \
+		.channel = (_channel1), \
+		.channel2 = (_channel2), \
+		.address = (_address), \
+		.extend_name = (_extend_name), \
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | \
+			BIT(IIO_CHAN_INFO_OFFSET), \
+		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE), \
+		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ) | \
+			BIT(IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY), \
+		.info_mask_shared_by_type_available = (_mask_type_av), \
+		.ext_info = (_ext_info), \
+		.scan_index = (_si), \
+		.scan_type = { \
+			.sign = 'u', \
+			.realbits = 24, \
+			.storagebits = 32, \
+			.endianness = IIO_BE, \
+		}, \
+	}
+
+#define AD719x_DIFF_CHANNEL(_si, _channel1, _channel2, _address) \
+	__AD719x_CHANNEL(_si, _channel1, _channel2, _address, NULL, \
+		IIO_VOLTAGE, BIT(IIO_CHAN_INFO_SCALE), \
+		ad7192_calibsys_ext_info)
+
+#define AD719x_CHANNEL(_si, _channel1, _address) \
+	__AD719x_CHANNEL(_si, _channel1, -1, _address, NULL, IIO_VOLTAGE, \
+		BIT(IIO_CHAN_INFO_SCALE), ad7192_calibsys_ext_info)
+
+#define AD719x_SHORTED_CHANNEL(_si, _channel1, _address) \
+	__AD719x_CHANNEL(_si, _channel1, -1, _address, "shorted", IIO_VOLTAGE, \
+		BIT(IIO_CHAN_INFO_SCALE), ad7192_calibsys_ext_info)
+
+#define AD719x_TEMP_CHANNEL(_si, _address) \
+	__AD719x_CHANNEL(_si, 0, -1, _address, NULL, IIO_TEMP, 0, NULL)
+
 static const struct iio_chan_spec ad7192_channels[] = {
-	AD_SD_DIFF_CHANNEL(0, 1, 2, AD7192_CH_AIN1P_AIN2M, 24, 32, 0),
-	AD_SD_DIFF_CHANNEL(1, 3, 4, AD7192_CH_AIN3P_AIN4M, 24, 32, 0),
-	AD_SD_TEMP_CHANNEL(2, AD7192_CH_TEMP, 24, 32, 0),
-	AD_SD_SHORTED_CHANNEL(3, 2, AD7192_CH_AIN2P_AIN2M, 24, 32, 0),
-	AD_SD_CHANNEL(4, 1, AD7192_CH_AIN1, 24, 32, 0),
-	AD_SD_CHANNEL(5, 2, AD7192_CH_AIN2, 24, 32, 0),
-	AD_SD_CHANNEL(6, 3, AD7192_CH_AIN3, 24, 32, 0),
-	AD_SD_CHANNEL(7, 4, AD7192_CH_AIN4, 24, 32, 0),
+	AD719x_DIFF_CHANNEL(0, 1, 2, AD7192_CH_AIN1P_AIN2M),
+	AD719x_DIFF_CHANNEL(1, 3, 4, AD7192_CH_AIN3P_AIN4M),
+	AD719x_TEMP_CHANNEL(2, AD7192_CH_TEMP),
+	AD719x_SHORTED_CHANNEL(3, 2, AD7192_CH_AIN2P_AIN2M),
+	AD719x_CHANNEL(4, 1, AD7192_CH_AIN1),
+	AD719x_CHANNEL(5, 2, AD7192_CH_AIN2),
+	AD719x_CHANNEL(6, 3, AD7192_CH_AIN3),
+	AD719x_CHANNEL(7, 4, AD7192_CH_AIN4),
 	IIO_CHAN_SOFT_TIMESTAMP(8),
 };
 
 static const struct iio_chan_spec ad7193_channels[] = {
-	AD_SD_DIFF_CHANNEL(0, 1, 2, AD7193_CH_AIN1P_AIN2M, 24, 32, 0),
-	AD_SD_DIFF_CHANNEL(1, 3, 4, AD7193_CH_AIN3P_AIN4M, 24, 32, 0),
-	AD_SD_DIFF_CHANNEL(2, 5, 6, AD7193_CH_AIN5P_AIN6M, 24, 32, 0),
-	AD_SD_DIFF_CHANNEL(3, 7, 8, AD7193_CH_AIN7P_AIN8M, 24, 32, 0),
-	AD_SD_TEMP_CHANNEL(4, AD7193_CH_TEMP, 24, 32, 0),
-	AD_SD_SHORTED_CHANNEL(5, 2, AD7193_CH_AIN2P_AIN2M, 24, 32, 0),
-	AD_SD_CHANNEL(6, 1, AD7193_CH_AIN1, 24, 32, 0),
-	AD_SD_CHANNEL(7, 2, AD7193_CH_AIN2, 24, 32, 0),
-	AD_SD_CHANNEL(8, 3, AD7193_CH_AIN3, 24, 32, 0),
-	AD_SD_CHANNEL(9, 4, AD7193_CH_AIN4, 24, 32, 0),
-	AD_SD_CHANNEL(10, 5, AD7193_CH_AIN5, 24, 32, 0),
-	AD_SD_CHANNEL(11, 6, AD7193_CH_AIN6, 24, 32, 0),
-	AD_SD_CHANNEL(12, 7, AD7193_CH_AIN7, 24, 32, 0),
-	AD_SD_CHANNEL(13, 8, AD7193_CH_AIN8, 24, 32, 0),
+	AD719x_DIFF_CHANNEL(0, 1, 2, AD7193_CH_AIN1P_AIN2M),
+	AD719x_DIFF_CHANNEL(1, 3, 4, AD7193_CH_AIN3P_AIN4M),
+	AD719x_DIFF_CHANNEL(2, 5, 6, AD7193_CH_AIN5P_AIN6M),
+	AD719x_DIFF_CHANNEL(3, 7, 8, AD7193_CH_AIN7P_AIN8M),
+	AD719x_TEMP_CHANNEL(4, AD7193_CH_TEMP),
+	AD719x_SHORTED_CHANNEL(5, 2, AD7193_CH_AIN2P_AIN2M),
+	AD719x_CHANNEL(6, 1, AD7193_CH_AIN1),
+	AD719x_CHANNEL(7, 2, AD7193_CH_AIN2),
+	AD719x_CHANNEL(8, 3, AD7193_CH_AIN3),
+	AD719x_CHANNEL(9, 4, AD7193_CH_AIN4),
+	AD719x_CHANNEL(10, 5, AD7193_CH_AIN5),
+	AD719x_CHANNEL(11, 6, AD7193_CH_AIN6),
+	AD719x_CHANNEL(12, 7, AD7193_CH_AIN7),
+	AD719x_CHANNEL(13, 8, AD7193_CH_AIN8),
 	IIO_CHAN_SOFT_TIMESTAMP(14),
 };
 
 static int ad7192_channels_config(struct iio_dev *indio_dev)
 {
 	struct ad7192_state *st = iio_priv(indio_dev);
-	const struct iio_chan_spec *channels;
-	struct iio_chan_spec *chan;
-	int i;
 
 	switch (st->devid) {
 	case ID_AD7193:
-		channels = ad7193_channels;
+		indio_dev->channels = ad7193_channels;
 		indio_dev->num_channels = ARRAY_SIZE(ad7193_channels);
 		break;
 	default:
-		channels = ad7192_channels;
+		indio_dev->channels = ad7192_channels;
 		indio_dev->num_channels = ARRAY_SIZE(ad7192_channels);
 		break;
-	}
-
-	chan = devm_kcalloc(indio_dev->dev.parent, indio_dev->num_channels,
-			    sizeof(*chan), GFP_KERNEL);
-	if (!chan)
-		return -ENOMEM;
-
-	indio_dev->channels = chan;
-
-	for (i = 0; i < indio_dev->num_channels; i++) {
-		*chan = channels[i];
-		chan->info_mask_shared_by_all |=
-			BIT(IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY);
-		if (chan->type != IIO_TEMP) {
-			chan->info_mask_shared_by_type_available |=
-				BIT(IIO_CHAN_INFO_SCALE);
-			chan->ext_info = ad7192_calibsys_ext_info;
-		}
-		chan++;
 	}
 
 	return 0;
