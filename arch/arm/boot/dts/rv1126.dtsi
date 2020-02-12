@@ -871,6 +871,16 @@
 		status = "disabled";
 	};
 
+	nandc: nandc@ffc80000 {
+		compatible = "rockchip,rk-nandc";
+		reg = <0xffc80000 0x4000>;
+		interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
+		nandc_id = <0>;
+		clocks = <&cru CLK_NANDC>, <&cru HCLK_NANDC>;
+		clock-names = "clk_nandc", "hclk_nandc";
+		status = "disabled";
+	};
+
 	sfc: sfc@ffc90000  {
 		compatible = "rockchip,sfc";
 		reg = <0xffc90000 0x4000>;
