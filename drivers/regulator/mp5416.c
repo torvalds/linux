@@ -73,7 +73,7 @@
 		.owner			= THIS_MODULE,			\
 	}
 
-#define MP5416LDO(_name, _id)						\
+#define MP5416LDO(_name, _id, _dval)					\
 	[MP5416_LDO ## _id] = {						\
 		.id = MP5416_LDO ## _id,				\
 		.name = _name,						\
@@ -87,9 +87,9 @@
 		.vsel_mask = MP5416_MASK_VSET,				\
 		.enable_reg = MP5416_REG_LDO ##_id,			\
 		.enable_mask = MP5416_REGULATOR_EN,			\
-		.active_discharge_on	= BIT(_id),			\
+		.active_discharge_on	= _dval,			\
 		.active_discharge_reg	= MP5416_REG_CTL2,		\
-		.active_discharge_mask	= BIT(_id),			\
+		.active_discharge_mask	= _dval,			\
 		.owner			= THIS_MODULE,			\
 	}
 
@@ -155,10 +155,10 @@ static struct regulator_desc mp5416_regulators_desc[MP5416_MAX_REGULATORS] = {
 	MP5416BUCK("buck2", 2, mp5416_I_limits2, MP5416_REG_CTL1, BIT(1), 2),
 	MP5416BUCK("buck3", 3, mp5416_I_limits1, MP5416_REG_CTL1, BIT(2), 1),
 	MP5416BUCK("buck4", 4, mp5416_I_limits2, MP5416_REG_CTL2, BIT(5), 2),
-	MP5416LDO("ldo1", 1),
-	MP5416LDO("ldo2", 2),
-	MP5416LDO("ldo3", 3),
-	MP5416LDO("ldo4", 4),
+	MP5416LDO("ldo1", 1, BIT(4)),
+	MP5416LDO("ldo2", 2, BIT(3)),
+	MP5416LDO("ldo3", 3, BIT(2)),
+	MP5416LDO("ldo4", 4, BIT(1)),
 };
 
 /*
