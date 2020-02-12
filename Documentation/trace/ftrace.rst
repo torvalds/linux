@@ -2126,6 +2126,8 @@ periodically make a CPU constantly busy with interrupts disabled.
   # cat trace
   # tracer: hwlat
   #
+  # entries-in-buffer/entries-written: 13/13   #P:8
+  #
   #                              _-----=> irqs-off
   #                             / _----=> need-resched
   #                            | / _---=> hardirq/softirq
@@ -2133,12 +2135,18 @@ periodically make a CPU constantly busy with interrupts disabled.
   #                            ||| /     delay
   #           TASK-PID   CPU#  ||||    TIMESTAMP  FUNCTION
   #              | |       |   ||||       |         |
-             <...>-3638  [001] d... 19452.055471: #1     inner/outer(us):   12/14    ts:1499801089.066141940
-             <...>-3638  [003] d... 19454.071354: #2     inner/outer(us):   11/9     ts:1499801091.082164365
-             <...>-3638  [002] dn.. 19461.126852: #3     inner/outer(us):   12/9     ts:1499801098.138150062
-             <...>-3638  [001] d... 19488.340960: #4     inner/outer(us):    8/12    ts:1499801125.354139633
-             <...>-3638  [003] d... 19494.388553: #5     inner/outer(us):    8/12    ts:1499801131.402150961
-             <...>-3638  [003] d... 19501.283419: #6     inner/outer(us):    0/12    ts:1499801138.297435289 nmi-total:4 nmi-count:1
+             <...>-1729  [001] d...   678.473449: #1     inner/outer(us):   11/12    ts:1581527483.343962693 count:6
+             <...>-1729  [004] d...   689.556542: #2     inner/outer(us):   16/9     ts:1581527494.889008092 count:1
+             <...>-1729  [005] d...   714.756290: #3     inner/outer(us):   16/16    ts:1581527519.678961629 count:5
+             <...>-1729  [001] d...   718.788247: #4     inner/outer(us):    9/17    ts:1581527523.889012713 count:1
+             <...>-1729  [002] d...   719.796341: #5     inner/outer(us):   13/9     ts:1581527524.912872606 count:1
+             <...>-1729  [006] d...   844.787091: #6     inner/outer(us):    9/12    ts:1581527649.889048502 count:2
+             <...>-1729  [003] d...   849.827033: #7     inner/outer(us):   18/9     ts:1581527654.889013793 count:1
+             <...>-1729  [007] d...   853.859002: #8     inner/outer(us):    9/12    ts:1581527658.889065736 count:1
+             <...>-1729  [001] d...   855.874978: #9     inner/outer(us):    9/11    ts:1581527660.861991877 count:1
+             <...>-1729  [001] d...   863.938932: #10    inner/outer(us):    9/11    ts:1581527668.970010500 count:1 nmi-total:7 nmi-count:1
+             <...>-1729  [007] d...   878.050780: #11    inner/outer(us):    9/12    ts:1581527683.385002600 count:1 nmi-total:5 nmi-count:1
+             <...>-1729  [007] d...   886.114702: #12    inner/outer(us):    9/12    ts:1581527691.385001600 count:1
 
 
 The above output is somewhat the same in the header. All events will have
@@ -2148,7 +2156,7 @@ interrupts disabled 'd'. Under the FUNCTION title there is:
 	This is the count of events recorded that were greater than the
 	tracing_threshold (See below).
 
- inner/outer(us):   12/14
+ inner/outer(us):   11/11
 
       This shows two numbers as "inner latency" and "outer latency". The test
       runs in a loop checking a timestamp twice. The latency detected within
@@ -2156,11 +2164,15 @@ interrupts disabled 'd'. Under the FUNCTION title there is:
       after the previous timestamp and the next timestamp in the loop is
       the "outer latency".
 
- ts:1499801089.066141940
+ ts:1581527483.343962693
 
-      The absolute timestamp that the event happened.
+      The absolute timestamp that the first latency was recorded in the window.
 
- nmi-total:4 nmi-count:1
+ count:6
+
+      The number of times a latency was detected during the window.
+
+ nmi-total:7 nmi-count:1
 
       On architectures that support it, if an NMI comes in during the
       test, the time spent in NMI is reported in "nmi-total" (in
