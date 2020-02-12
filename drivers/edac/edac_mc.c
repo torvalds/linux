@@ -278,6 +278,12 @@ void *edac_align_ptr(void **p, unsigned int size, int n_elems)
 
 static void _edac_mc_free(struct mem_ctl_info *mci)
 {
+	put_device(&mci->dev);
+}
+
+static void mci_release(struct device *dev)
+{
+	struct mem_ctl_info *mci = container_of(dev, struct mem_ctl_info, dev);
 	struct csrow_info *csr;
 	int i, chn, row;
 
@@ -370,6 +376,9 @@ struct mem_ctl_info *edac_mc_alloc(unsigned int mc_num,
 	mci = kzalloc(size, GFP_KERNEL);
 	if (mci == NULL)
 		return NULL;
+
+	mci->dev.release = mci_release;
+	device_initialize(&mci->dev);
 
 	/* Adjust pointers so they point within the memory we just allocated
 	 * rather than an imaginary chunk of memory located at address 0.
@@ -504,9 +513,6 @@ EXPORT_SYMBOL_GPL(edac_mc_alloc);
 void edac_mc_free(struct mem_ctl_info *mci)
 {
 	edac_dbg(1, "\n");
-
-	if (device_is_registered(&mci->dev))
-		edac_unregister_sysfs(mci);
 
 	_edac_mc_free(mci);
 }
