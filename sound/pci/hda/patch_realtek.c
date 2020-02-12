@@ -5701,8 +5701,11 @@ static void alc_fixup_headset_jack(struct hda_codec *codec,
 		break;
 	case HDA_FIXUP_ACT_INIT:
 		switch (codec->core.vendor_id) {
+		case 0x10ec0215:
 		case 0x10ec0225:
+		case 0x10ec0285:
 		case 0x10ec0295:
+		case 0x10ec0289:
 		case 0x10ec0299:
 			alc_write_coef_idx(codec, 0x48, 0xd011);
 			alc_update_coef_idx(codec, 0x49, 0x007f, 0x0045);
