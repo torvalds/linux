@@ -3487,6 +3487,7 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 			if (memcmp(rp->port_name, fcport->port_name, WWN_SIZE))
 				continue;
 			fcport->scan_state = QLA_FCPORT_FOUND;
+			fcport->last_rscn_gen = fcport->rscn_gen;
 			found = true;
 			/*
 			 * If device was not a fabric device before.
