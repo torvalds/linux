@@ -104,7 +104,41 @@ static inline void btrfs_backref_iter_free(struct btrfs_backref_iter *iter)
 	kfree(iter);
 }
 
+static inline struct extent_buffer *btrfs_backref_get_eb(
+		struct btrfs_backref_iter *iter)
+{
+	if (!iter)
+		return NULL;
+	return iter->path->nodes[0];
+}
+
+/*
+ * For metadata with EXTENT_ITEM key (non-skinny) case, the first inline data
+ * is btrfs_tree_block_info, without a btrfs_extent_inline_ref header.
+ *
+ * This helper determines if that's the case.
+ */
+static inline bool btrfs_backref_has_tree_block_info(
+		struct btrfs_backref_iter *iter)
+{
+	if (iter->cur_key.type == BTRFS_EXTENT_ITEM_KEY &&
+	    iter->cur_ptr - iter->item_ptr == sizeof(struct btrfs_extent_item))
+		return true;
+	return false;
+}
+
 int btrfs_backref_iter_start(struct btrfs_backref_iter *iter, u64 bytenr);
+
+int btrfs_backref_iter_next(struct btrfs_backref_iter *iter);
+
+static inline bool btrfs_backref_iter_is_inline_ref(
+		struct btrfs_backref_iter *iter)
+{
+	if (iter->cur_key.type == BTRFS_EXTENT_ITEM_KEY ||
+	    iter->cur_key.type == BTRFS_METADATA_ITEM_KEY)
+		return true;
+	return false;
+}
 
 static inline void btrfs_backref_iter_release(struct btrfs_backref_iter *iter)
 {
