@@ -580,6 +580,20 @@ enum dc_edid_status dm_helpers_read_local_edid(
 		/* We don't need the original edid anymore */
 		kfree(edid);
 
+		/* connector->display_info will be parsed from EDID and saved
+		 * into drm_connector->display_info from edid by call stack
+		 * below:
+		 * drm_parse_ycbcr420_deep_color_info
+		 * drm_parse_hdmi_forum_vsdb
+		 * drm_parse_cea_ext
+		 * drm_add_display_info
+		 * drm_connector_update_edid_property
+		 *
+		 * drm_connector->display_info will be used by amdgpu_dm funcs,
+		 * like fill_stream_properties_from_drm_display_mode
+		 */
+		amdgpu_dm_update_connector_after_detect(aconnector);
+
 		edid_status = dm_helpers_parse_edid_caps(
 						ctx,
 						&sink->dc_edid,
