@@ -6,6 +6,7 @@
 
 #ifndef __TIMER_INTERNAL_H__
 #define __TIMER_INTERNAL_H__
+#include <linux/list.h>
 
 #define TIMER_MULTIPLIER 256
 #define TIMER_MIN_DELTA  500
@@ -16,61 +17,35 @@ enum time_travel_mode {
 	TT_MODE_INFCPU,
 };
 
-enum time_travel_timer_mode {
-	TT_TMR_DISABLED,
-	TT_TMR_ONESHOT,
-	TT_TMR_PERIODIC,
+#ifdef CONFIG_UML_TIME_TRAVEL_SUPPORT
+struct time_travel_event {
+	unsigned long long time;
+	void (*fn)(struct time_travel_event *d);
+	struct list_head list;
+	bool pending, onstack;
 };
 
-#ifdef CONFIG_UML_TIME_TRAVEL_SUPPORT
 extern enum time_travel_mode time_travel_mode;
-extern unsigned long long time_travel_time;
-extern enum time_travel_timer_mode time_travel_timer_mode;
-extern unsigned long long time_travel_timer_expiry;
-extern unsigned long long time_travel_timer_interval;
 
-static inline void time_travel_set_time(unsigned long long ns)
-{
-	time_travel_time = ns;
-}
+void time_travel_sleep(unsigned long long duration);
 
-static inline void time_travel_set_timer_mode(enum time_travel_timer_mode mode)
+static inline void
+time_travel_set_event_fn(struct time_travel_event *e,
+			 void (*fn)(struct time_travel_event *d))
 {
-	time_travel_timer_mode = mode;
-}
-
-static inline void time_travel_set_timer_expiry(unsigned long long expiry)
-{
-	time_travel_timer_expiry = expiry;
-}
-
-static inline void time_travel_set_timer_interval(unsigned long long interval)
-{
-	time_travel_timer_interval = interval;
+	e->fn = fn;
 }
 #else
+struct time_travel_event {
+};
+
 #define time_travel_mode TT_MODE_OFF
-#define time_travel_time 0
-#define time_travel_timer_expiry 0
-#define time_travel_timer_interval 0
 
-static inline void time_travel_set_time(unsigned long long ns)
+static inline void time_travel_sleep(unsigned long long duration)
 {
 }
 
-static inline void time_travel_set_timer_mode(enum time_travel_timer_mode mode)
-{
-}
-
-static inline void time_travel_set_timer_expiry(unsigned long long expiry)
-{
-}
-
-static inline void time_travel_set_timer_interval(unsigned long long interval)
-{
-}
-
-#define time_travel_timer_mode TT_TMR_DISABLED
-#endif
-
-#endif
+/* this is a macro so the event/function need not exist */
+#define time_travel_set_event_fn(e, fn) do {} while (0)
+#endif /* CONFIG_UML_TIME_TRAVEL_SUPPORT */
+#endif /* __TIMER_INTERNAL_H__ */

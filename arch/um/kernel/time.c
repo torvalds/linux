@@ -4,6 +4,7 @@
  * Copyright (C) 2015 Thomas Meyer (thomas@m3y3r.de)
  * Copyright (C) 2012-2014 Cisco Systems
  * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
+ * Copyright (C) 2019 Intel Corporation
  */
 
 #include <linux/clockchips.h>
@@ -23,16 +24,201 @@
 
 #ifdef CONFIG_UML_TIME_TRAVEL_SUPPORT
 enum time_travel_mode time_travel_mode;
-unsigned long long time_travel_time;
-enum time_travel_timer_mode time_travel_timer_mode;
-unsigned long long time_travel_timer_expiry;
-unsigned long long time_travel_timer_interval;
 
 static bool time_travel_start_set;
 static unsigned long long time_travel_start;
-#else
+static unsigned long long time_travel_time;
+static LIST_HEAD(time_travel_events);
+static unsigned long long time_travel_timer_interval;
+static unsigned long long time_travel_next_event;
+static struct time_travel_event time_travel_timer_event;
+
+static void time_travel_set_time(unsigned long long ns)
+{
+	if (unlikely(ns < time_travel_time))
+		panic("time-travel: time goes backwards %lld -> %lld\n",
+		      time_travel_time, ns);
+	time_travel_time = ns;
+}
+
+static struct time_travel_event *time_travel_first_event(void)
+{
+	return list_first_entry_or_null(&time_travel_events,
+					struct time_travel_event,
+					list);
+}
+
+static void __time_travel_add_event(struct time_travel_event *e,
+				    unsigned long long time)
+{
+	struct time_travel_event *tmp;
+	bool inserted = false;
+
+	if (WARN(time_travel_mode == TT_MODE_BASIC &&
+		 e != &time_travel_timer_event,
+		 "only timer events can be handled in basic mode"))
+		return;
+
+	if (e->pending)
+		return;
+
+	e->pending = true;
+	e->time = time;
+
+	list_for_each_entry(tmp, &time_travel_events, list) {
+		/*
+		 * Add the new entry before one with higher time,
+		 * or if they're equal and both on stack, because
+		 * in that case we need to unwind the stack in the
+		 * right order, and the later event (timer sleep
+		 * or such) must be dequeued first.
+		 */
+		if ((tmp->time > e->time) ||
+		    (tmp->time == e->time && tmp->onstack && e->onstack)) {
+			list_add_tail(&e->list, &tmp->list);
+			inserted = true;
+			break;
+		}
+	}
+
+	if (!inserted)
+		list_add_tail(&e->list, &time_travel_events);
+
+	tmp = time_travel_first_event();
+	time_travel_next_event = tmp->time;
+}
+
+static void time_travel_add_event(struct time_travel_event *e,
+				  unsigned long long time)
+{
+	if (WARN_ON(!e->fn))
+		return;
+
+	__time_travel_add_event(e, time);
+}
+
+void time_travel_periodic_timer(struct time_travel_event *e)
+{
+	time_travel_add_event(&time_travel_timer_event,
+			      time_travel_time + time_travel_timer_interval);
+	deliver_alarm();
+}
+
+static void time_travel_deliver_event(struct time_travel_event *e)
+{
+	/* this is basically just deliver_alarm(), handles IRQs itself */
+	e->fn(e);
+}
+
+static bool time_travel_del_event(struct time_travel_event *e)
+{
+	if (!e->pending)
+		return false;
+	list_del(&e->list);
+	e->pending = false;
+	return true;
+}
+
+static void time_travel_update_time(unsigned long long next, bool retearly)
+{
+	struct time_travel_event ne = {
+		.onstack = true,
+	};
+	struct time_travel_event *e;
+	bool finished = retearly;
+
+	/* add it without a handler - we deal with that specifically below */
+	__time_travel_add_event(&ne, next);
+
+	do {
+		e = time_travel_first_event();
+
+		BUG_ON(!e);
+		time_travel_set_time(e->time);
+
+		/* new events may have been inserted while we were waiting */
+		if (e == time_travel_first_event()) {
+			BUG_ON(!time_travel_del_event(e));
+			BUG_ON(time_travel_time != e->time);
+
+			if (e == &ne) {
+				finished = true;
+			} else {
+				if (e->onstack)
+					panic("On-stack event dequeued outside of the stack! time=%lld, event time=%lld, event=%pS\n",
+					      time_travel_time, e->time, e);
+				time_travel_deliver_event(e);
+			}
+		}
+	} while (!finished);
+
+	time_travel_del_event(&ne);
+}
+
+static void time_travel_oneshot_timer(struct time_travel_event *e)
+{
+	deliver_alarm();
+}
+
+void time_travel_sleep(unsigned long long duration)
+{
+	unsigned long long next = time_travel_time + duration;
+
+	if (time_travel_mode == TT_MODE_BASIC)
+		os_timer_disable();
+
+	time_travel_update_time(next, true);
+
+	if (time_travel_mode == TT_MODE_BASIC &&
+	    time_travel_timer_event.pending) {
+		if (time_travel_timer_event.fn == time_travel_periodic_timer) {
+			/*
+			 * This is somewhat wrong - we should get the first
+			 * one sooner like the os_timer_one_shot() below...
+			 */
+			os_timer_set_interval(time_travel_timer_interval);
+		} else {
+			os_timer_one_shot(time_travel_timer_event.time - next);
+		}
+	}
+}
+
+static void time_travel_handle_real_alarm(void)
+{
+	time_travel_set_time(time_travel_next_event);
+
+	time_travel_del_event(&time_travel_timer_event);
+
+	if (time_travel_timer_event.fn == time_travel_periodic_timer)
+		time_travel_add_event(&time_travel_timer_event,
+				      time_travel_time +
+				      time_travel_timer_interval);
+}
+
+static void time_travel_set_interval(unsigned long long interval)
+{
+	time_travel_timer_interval = interval;
+}
+#else /* CONFIG_UML_TIME_TRAVEL_SUPPORT */
 #define time_travel_start_set 0
 #define time_travel_start 0
+#define time_travel_time 0
+
+static inline void time_travel_update_time(unsigned long long ns, bool retearly)
+{
+}
+
+static inline void time_travel_handle_real_alarm(void)
+{
+}
+
+static void time_travel_set_interval(unsigned long long interval)
+{
+}
+
+/* these are empty macros so the struct/fn need not exist */
+#define time_travel_add_event(e, time) do { } while (0)
+#define time_travel_del_event(e) do { } while (0)
 #endif
 
 void timer_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs)
@@ -48,7 +234,7 @@ void timer_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs)
 	 * never get any real signals from the OS.
 	 */
 	if (time_travel_mode == TT_MODE_BASIC)
-		time_travel_set_time(time_travel_timer_expiry);
+		time_travel_handle_real_alarm();
 
 	local_irq_save(flags);
 	do_IRQ(TIMER_IRQ, regs);
@@ -58,7 +244,7 @@ void timer_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs)
 static int itimer_shutdown(struct clock_event_device *evt)
 {
 	if (time_travel_mode != TT_MODE_OFF)
-		time_travel_set_timer_mode(TT_TMR_DISABLED);
+		time_travel_del_event(&time_travel_timer_event);
 
 	if (time_travel_mode != TT_MODE_INFCPU)
 		os_timer_disable();
@@ -71,9 +257,12 @@ static int itimer_set_periodic(struct clock_event_device *evt)
 	unsigned long long interval = NSEC_PER_SEC / HZ;
 
 	if (time_travel_mode != TT_MODE_OFF) {
-		time_travel_set_timer_mode(TT_TMR_PERIODIC);
-		time_travel_set_timer_expiry(time_travel_time + interval);
-		time_travel_set_timer_interval(interval);
+		time_travel_del_event(&time_travel_timer_event);
+		time_travel_set_event_fn(&time_travel_timer_event,
+					 time_travel_periodic_timer);
+		time_travel_set_interval(interval);
+		time_travel_add_event(&time_travel_timer_event,
+				      time_travel_time + interval);
 	}
 
 	if (time_travel_mode != TT_MODE_INFCPU)
@@ -88,8 +277,11 @@ static int itimer_next_event(unsigned long delta,
 	delta += 1;
 
 	if (time_travel_mode != TT_MODE_OFF) {
-		time_travel_set_timer_mode(TT_TMR_ONESHOT);
-		time_travel_set_timer_expiry(time_travel_time + delta);
+		time_travel_del_event(&time_travel_timer_event);
+		time_travel_set_event_fn(&time_travel_timer_event,
+					 time_travel_oneshot_timer);
+		time_travel_add_event(&time_travel_timer_event,
+				      time_travel_time + delta);
 	}
 
 	if (time_travel_mode != TT_MODE_INFCPU)
@@ -144,7 +336,10 @@ static u64 timer_read(struct clocksource *cs)
 		 * exact requested sleep amount, e.g. python's socket server,
 		 * see https://bugs.python.org/issue37026.
 		 */
-		time_travel_set_time(time_travel_time + TIMER_MULTIPLIER);
+		if (!irqs_disabled())
+			time_travel_update_time(time_travel_time +
+						TIMER_MULTIPLIER,
+						false);
 		return time_travel_time / TIMER_MULTIPLIER;
 	}
 
