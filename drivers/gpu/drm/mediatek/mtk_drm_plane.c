@@ -80,6 +80,7 @@ static int mtk_plane_atomic_async_check(struct drm_plane *plane,
 					struct drm_plane_state *state)
 {
 	struct drm_crtc_state *crtc_state;
+	int ret;
 
 	if (plane != state->crtc->cursor)
 		return -EINVAL;
@@ -89,6 +90,11 @@ static int mtk_plane_atomic_async_check(struct drm_plane *plane,
 
 	if (!plane->state->fb)
 		return -EINVAL;
+
+	ret = mtk_drm_crtc_plane_check(state->crtc, plane,
+				       to_mtk_plane_state(state));
+	if (ret)
+		return ret;
 
 	if (state->state)
 		crtc_state = drm_atomic_get_existing_crtc_state(state->state,
