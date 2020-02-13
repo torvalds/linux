@@ -2121,6 +2121,10 @@ void dcn10_get_hdr_visual_confirm_color(
 		if (top_pipe_ctx->stream->out_transfer_func->tf == TRANSFER_FUNCTION_PQ) {
 			/* HDR10, ARGB2101010 - set boarder color to red */
 			color->color_r_cr = color_value;
+		} else if (top_pipe_ctx->stream->out_transfer_func->tf == TRANSFER_FUNCTION_GAMMA22) {
+			/* FreeSync 2 ARGB2101010 - set boarder color to pink */
+			color->color_r_cr = color_value;
+			color->color_b_cb = color_value;
 		}
 		break;
 	case PIXEL_FORMAT_FP16:
