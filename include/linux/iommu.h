@@ -592,7 +592,7 @@ struct iommu_fwspec {
 	u32			flags;
 	u32			num_pasid_bits;
 	unsigned int		num_ids;
-	u32			ids[1];
+	u32			ids[];
 };
 
 /* ATS is supported */
