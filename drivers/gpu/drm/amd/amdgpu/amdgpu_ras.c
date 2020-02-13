@@ -1319,6 +1319,33 @@ static int amdgpu_ras_interrupt_remove_all(struct amdgpu_device *adev)
 }
 /* ih end */
 
+/* traversal all IPs except NBIO to query error counter */
+static void amdgpu_ras_log_on_err_counter(struct amdgpu_device *adev)
+{
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	struct ras_manager *obj;
+
+	if (!con)
+		return;
+
+	list_for_each_entry(obj, &con->head, node) {
+		struct ras_query_if info = {
+			.head = obj->head,
+		};
+
+		/*
+		 * PCIE_BIF IP has one different isr by ras controller
+		 * interrupt, the specific ras counter query will be
+		 * done in that isr. So skip such block from common
+		 * sync flood interrupt isr calling.
+		 */
+		if (info.head.block == AMDGPU_RAS_BLOCK__PCIE_BIF)
+			continue;
+
+		amdgpu_ras_error_query(adev, &info);
+	}
+}
+
 /* recovery begin */
 
 /* return 0 on success.
@@ -1372,6 +1399,12 @@ static void amdgpu_ras_do_recovery(struct work_struct *work)
 {
 	struct amdgpu_ras *ras =
 		container_of(work, struct amdgpu_ras, recovery_work);
+
+	/*
+	 * Query and print non zero error counter per IP block for
+	 * awareness before recovering GPU.
+	 */
+	amdgpu_ras_log_on_err_counter(ras->adev);
 
 	if (amdgpu_device_should_recover_gpu(ras->adev))
 		amdgpu_device_gpu_recover(ras->adev, 0);
