@@ -258,7 +258,7 @@ struct opa_veswport_mactable {
 	__be16                              offset;
 	__be16                              num_entries;
 	__be32                              mac_tbl_digest;
-	struct opa_veswport_mactable_entry  tbl_entries[0];
+	struct opa_veswport_mactable_entry  tbl_entries[];
 } __packed;
 
 /**
@@ -440,7 +440,7 @@ struct opa_veswport_iface_macs {
 	__be16 num_macs_in_msg;
 	__be16 tot_macs_in_lst;
 	__be16 gen_count;
-	struct opa_vnic_iface_mac_entry entry[0];
+	struct opa_vnic_iface_mac_entry entry[];
 } __packed;
 
 /**

@@ -197,7 +197,7 @@ struct cm_device {
 	struct ib_device *ib_device;
 	u8 ack_delay;
 	int going_down;
-	struct cm_port *port[0];
+	struct cm_port *port[];
 };
 
 struct cm_av {
@@ -216,7 +216,7 @@ struct cm_work {
 	__be32 local_id;			/* Established / timewait */
 	__be32 remote_id;
 	struct ib_cm_event cm_event;
-	struct sa_path_rec path[0];
+	struct sa_path_rec path[];
 };
 
 struct cm_timewait_info {

@@ -46,7 +46,7 @@
 
 struct ib_pkey_cache {
 	int             table_len;
-	u16             table[0];
+	u16             table[];
 };
 
 struct ib_update_work {
