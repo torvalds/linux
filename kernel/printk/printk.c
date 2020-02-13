@@ -2788,6 +2788,8 @@ void register_console(struct console *newcon)
 		console_drivers = newcon;
 		if (newcon->next)
 			newcon->next->flags &= ~CON_CONSDEV;
+		/* Ensure this flag is always set for the head of the list */
+		newcon->flags |= CON_CONSDEV;
 	} else {
 		newcon->next = console_drivers->next;
 		console_drivers->next = newcon;
