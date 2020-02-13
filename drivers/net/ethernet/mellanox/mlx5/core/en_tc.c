@@ -1241,12 +1241,10 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	 * (1) there's no error
 	 * (2) there's an encap action and we don't have valid neigh
 	 */
-	if (!encap_valid) {
-		/* continue with goto slow path rule instead */
+	if (!encap_valid)
 		flow->rule[0] = mlx5e_tc_offload_to_slow_path(esw, flow, &parse_attr->spec);
-	} else {
+	else
 		flow->rule[0] = mlx5e_tc_offload_fdb_rules(esw, flow, &parse_attr->spec, attr);
-	}
 
 	if (IS_ERR(flow->rule[0]))
 		return PTR_ERR(flow->rule[0]);
