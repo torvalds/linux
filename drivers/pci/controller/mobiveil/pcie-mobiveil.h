@@ -43,6 +43,8 @@
 #define  PAGE_LO_MASK			0x3ff
 #define  PAGE_SEL_OFFSET_SHIFT		10
 
+#define PAB_ACTIVITY_STAT		0x81c
+
 #define PAB_AXI_PIO_CTRL		0x0840
 #define  APIO_EN_MASK			0xf
 
@@ -51,8 +53,18 @@
 
 #define PAB_INTP_AMBA_MISC_ENB		0x0b0c
 #define PAB_INTP_AMBA_MISC_STAT		0x0b1c
-#define  PAB_INTP_INTX_MASK		0x01e0
-#define  PAB_INTP_MSI_MASK		0x8
+#define  PAB_INTP_RESET			BIT(1)
+#define  PAB_INTP_MSI			BIT(3)
+#define  PAB_INTP_INTA			BIT(5)
+#define  PAB_INTP_INTB			BIT(6)
+#define  PAB_INTP_INTC			BIT(7)
+#define  PAB_INTP_INTD			BIT(8)
+#define  PAB_INTP_PCIE_UE		BIT(9)
+#define  PAB_INTP_IE_PMREDI		BIT(29)
+#define  PAB_INTP_IE_EC			BIT(30)
+#define  PAB_INTP_MSI_MASK		PAB_INTP_MSI
+#define  PAB_INTP_INTX_MASK		(PAB_INTP_INTA | PAB_INTP_INTB |\
+					PAB_INTP_INTC | PAB_INTP_INTD)
 
 #define PAB_AXI_AMAP_CTRL(win)		PAB_REG_ADDR(0x0ba0, win)
 #define  WIN_ENABLE_SHIFT		0
