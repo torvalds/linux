@@ -6,7 +6,7 @@
 hostprogs := mkregtable
 targets := rn50_reg_safe.h r100_reg_safe.h r200_reg_safe.h rv515_reg_safe.h r300_reg_safe.h r420_reg_safe.h rs600_reg_safe.h r600_reg_safe.h evergreen_reg_safe.h cayman_reg_safe.h
 
-quiet_cmd_mkregtable = MKREGTABLE $@
+quiet_cmd_mkregtable = MKREG   $@
       cmd_mkregtable = $(obj)/mkregtable $< > $@
 
 $(obj)/%_reg_safe.h: $(src)/reg_srcs/% $(obj)/mkregtable FORCE
