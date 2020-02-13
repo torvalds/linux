@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include <getopt.h>
 #include <fcntl.h>
 #include <time.h>
@@ -26,7 +27,11 @@
 
 static void pabort(const char *s)
 {
-	perror(s);
+	if (errno != 0)
+		perror(s);
+	else
+		printf("%s\n", s);
+
 	abort();
 }
 
