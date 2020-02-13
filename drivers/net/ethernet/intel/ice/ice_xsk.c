@@ -457,7 +457,7 @@ int ice_xsk_umem_setup(struct ice_vsi *vsi, struct xdp_umem *umem, u16 qid)
 	if (if_running) {
 		ret = ice_qp_dis(vsi, qid);
 		if (ret) {
-			netdev_err(vsi->netdev, "ice_qp_dis error = %d", ret);
+			netdev_err(vsi->netdev, "ice_qp_dis error = %d\n", ret);
 			goto xsk_umem_if_up;
 		}
 	}
@@ -471,11 +471,11 @@ xsk_umem_if_up:
 		if (!ret && umem_present)
 			napi_schedule(&vsi->xdp_rings[qid]->q_vector->napi);
 		else if (ret)
-			netdev_err(vsi->netdev, "ice_qp_ena error = %d", ret);
+			netdev_err(vsi->netdev, "ice_qp_ena error = %d\n", ret);
 	}
 
 	if (umem_failure) {
-		netdev_err(vsi->netdev, "Could not %sable UMEM, error = %d",
+		netdev_err(vsi->netdev, "Could not %sable UMEM, error = %d\n",
 			   umem_present ? "en" : "dis", umem_failure);
 		return umem_failure;
 	}
