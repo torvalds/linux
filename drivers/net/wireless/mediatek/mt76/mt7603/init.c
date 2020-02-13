@@ -557,6 +557,7 @@ int mt7603_register_device(struct mt7603_dev *dev)
 	wiphy->n_iface_combinations = ARRAY_SIZE(if_comb);
 
 	ieee80211_hw_set(hw, TX_STATUS_NO_AMPDU_LEN);
+	ieee80211_hw_set(hw, HOST_BROADCAST_PS_BUFFERING);
 
 	/* init led callbacks */
 	if (IS_ENABLED(CONFIG_MT76_LEDS)) {
