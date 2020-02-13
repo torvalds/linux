@@ -2,6 +2,13 @@
 menu "ASoC support for Amlogic platforms"
 	depends on ARCH_MESON || COMPILE_TEST
 
+config SND_MESON_AIU
+	tristate "Amlogic AIU"
+	select SND_PCM_IEC958
+	help
+	  Select Y or M to add support for the Audio output subsystem found
+	  in the Amlogic GX SoC family
+
 config SND_MESON_AXG_FIFO
 	tristate
 	select REGMAP_MMIO
