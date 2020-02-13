@@ -552,6 +552,12 @@ static int sienna_cichlid_force_clk_levels(struct smu_context *smu,
 	case SMU_UCLK:
 	case SMU_DCEFCLK:
 	case SMU_FCLK:
+		/* There is only 2 levels for fine grained DPM */
+		if (sienna_cichlid_is_support_fine_grained_dpm(smu, clk_type)) {
+			soft_max_level = (soft_max_level >= 1 ? 1 : 0);
+			soft_min_level = (soft_min_level >= 1 ? 1 : 0);
+		}
+
 		ret = smu_get_dpm_freq_by_index(smu, clk_type, soft_min_level, &min_freq);
 		if (ret)
 			return size;
@@ -1236,6 +1242,82 @@ static int sienna_cichlid_get_uclk_dpm_states(struct smu_context *smu, uint32_t 
 	}
 
 	return 0;
+}
+
+static int sienna_cichlid_set_performance_level(struct smu_context *smu,
+					enum amd_dpm_forced_level level);
+
+static int sienna_cichlid_set_standard_performance_level(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	int ret = 0;
+	uint32_t sclk_freq = 0, uclk_freq = 0;
+
+	switch (adev->asic_type) {
+	/* TODO: need to set specify clk value by asic type, not support yet*/
+	default:
+		/* by default, this is same as auto performance level */
+		return sienna_cichlid_set_performance_level(smu, AMD_DPM_FORCED_LEVEL_AUTO);
+	}
+
+	ret = smu_set_soft_freq_range(smu, SMU_SCLK, sclk_freq, sclk_freq, false);
+	if (ret)
+		return ret;
+	ret = smu_set_soft_freq_range(smu, SMU_UCLK, uclk_freq, uclk_freq, false);
+	if (ret)
+		return ret;
+
+	return ret;
+}
+
+static int sienna_cichlid_set_peak_performance_level(struct smu_context *smu)
+{
+	int ret = 0;
+
+	/* TODO: not support yet*/
+	return ret;
+}
+
+static int sienna_cichlid_set_performance_level(struct smu_context *smu,
+					enum amd_dpm_forced_level level)
+{
+	int ret = 0;
+	uint32_t sclk_mask, mclk_mask, soc_mask;
+
+	switch (level) {
+	case AMD_DPM_FORCED_LEVEL_HIGH:
+		ret = smu_force_dpm_limit_value(smu, true);
+		break;
+	case AMD_DPM_FORCED_LEVEL_LOW:
+		ret = smu_force_dpm_limit_value(smu, false);
+		break;
+	case AMD_DPM_FORCED_LEVEL_AUTO:
+		ret = smu_unforce_dpm_levels(smu);
+		break;
+	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
+		ret = sienna_cichlid_set_standard_performance_level(smu);
+		break;
+	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK:
+	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK:
+		ret = smu_get_profiling_clk_mask(smu, level,
+						 &sclk_mask,
+						 &mclk_mask,
+						 &soc_mask);
+		if (ret)
+			return ret;
+		smu_force_clk_levels(smu, SMU_SCLK, 1 << sclk_mask, false);
+		smu_force_clk_levels(smu, SMU_MCLK, 1 << mclk_mask, false);
+		smu_force_clk_levels(smu, SMU_SOCCLK, 1 << soc_mask, false);
+		break;
+	case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
+		ret = sienna_cichlid_set_peak_performance_level(smu);
+		break;
+	case AMD_DPM_FORCED_LEVEL_MANUAL:
+	case AMD_DPM_FORCED_LEVEL_PROFILE_EXIT:
+	default:
+		break;
+	}
+	return ret;
 }
 
 static int sienna_cichlid_get_thermal_temperature_range(struct smu_context *smu,
@@ -2019,6 +2101,7 @@ static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 	.set_watermarks_table = sienna_cichlid_set_watermarks_table,
 	.read_sensor = sienna_cichlid_read_sensor,
 	.get_uclk_dpm_states = sienna_cichlid_get_uclk_dpm_states,
+	.set_performance_level = sienna_cichlid_set_performance_level,
 	.get_thermal_temperature_range = sienna_cichlid_get_thermal_temperature_range,
 	.display_disable_memory_clock_switch = sienna_cichlid_display_disable_memory_clock_switch,
 	.get_power_limit = sienna_cichlid_get_power_limit,
