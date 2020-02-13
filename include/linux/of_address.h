@@ -16,7 +16,6 @@ struct of_pci_range_parser {
 };
 
 struct of_pci_range {
-	u32 pci_space;
 	u64 pci_addr;
 	u64 cpu_addr;
 	u64 size;
