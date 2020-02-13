@@ -167,11 +167,11 @@ static int mfi_fc_probe(struct usb_device *udev)
 {
 	struct power_supply_config battery_cfg = {};
 	struct mfi_device *mfi = NULL;
-	int err;
+	int err, idProduct;
 
+	idProduct = le16_to_cpu(udev->descriptor.idProduct);
 	/* See comment above mfi_fc_id_table[] */
-	if (udev->descriptor.idProduct < 0x1200 ||
-	    udev->descriptor.idProduct > 0x12ff) {
+	if (idProduct < 0x1200 || idProduct > 0x12ff) {
 		return -ENODEV;
 	}
 
