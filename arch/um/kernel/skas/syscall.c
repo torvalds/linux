@@ -24,7 +24,8 @@ void handle_syscall(struct uml_pt_regs *r)
 	 * went to sleep, even if said userspace interacts with the kernel in
 	 * various ways.
 	 */
-	if (time_travel_mode == TT_MODE_INFCPU)
+	if (time_travel_mode == TT_MODE_INFCPU ||
+	    time_travel_mode == TT_MODE_EXTERNAL)
 		schedule();
 
 	/* Initialize the syscall number and default return value. */

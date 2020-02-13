@@ -15,6 +15,7 @@ enum time_travel_mode {
 	TT_MODE_OFF,
 	TT_MODE_BASIC,
 	TT_MODE_INFCPU,
+	TT_MODE_EXTERNAL,
 };
 
 #ifdef CONFIG_UML_TIME_TRAVEL_SUPPORT
@@ -35,6 +36,24 @@ time_travel_set_event_fn(struct time_travel_event *e,
 {
 	e->fn = fn;
 }
+
+void __time_travel_propagate_time(void);
+
+static inline void time_travel_propagate_time(void)
+{
+	if (time_travel_mode == TT_MODE_EXTERNAL)
+		__time_travel_propagate_time();
+}
+
+void __time_travel_wait_readable(int fd);
+
+static inline void time_travel_wait_readable(int fd)
+{
+	if (time_travel_mode == TT_MODE_EXTERNAL)
+		__time_travel_wait_readable(fd);
+}
+
+void time_travel_add_irq_event(struct time_travel_event *e);
 #else
 struct time_travel_event {
 };
@@ -47,5 +66,13 @@ static inline void time_travel_sleep(unsigned long long duration)
 
 /* this is a macro so the event/function need not exist */
 #define time_travel_set_event_fn(e, fn) do {} while (0)
+
+static inline void time_travel_propagate_time(void)
+{
+}
+
+static inline void time_travel_wait_readable(int fd)
+{
+}
 #endif /* CONFIG_UML_TIME_TRAVEL_SUPPORT */
 #endif /* __TIMER_INTERNAL_H__ */
