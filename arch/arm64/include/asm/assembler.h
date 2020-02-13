@@ -257,12 +257,6 @@ alternative_endif
 	.endm
 
 /*
- * mmid - get context id from mm pointer (mm->context.id)
- */
-	.macro	mmid, rd, rn
-	ldr	\rd, [\rn, #MM_CONTEXT_ID]
-	.endm
-/*
  * read_ctr - read CTR_EL0. If the system has mismatched register fields,
  * provide the system wide safe value from arm64_ftr_reg_ctrel0.sys_val
  */

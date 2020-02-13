@@ -142,34 +142,6 @@ SYM_FUNC_END(cpu_do_resume)
 	.popsection
 #endif
 
-/*
- *	cpu_do_switch_mm(pgd_phys, tsk)
- *
- *	Set the translation table base pointer to be pgd_phys.
- *
- *	- pgd_phys - physical address of new TTB
- */
-SYM_FUNC_START(cpu_do_switch_mm)
-	mrs	x2, ttbr1_el1
-	mmid	x1, x1				// get mm->context.id
-	phys_to_ttbr x3, x0
-
-alternative_if ARM64_HAS_CNP
-	cbz     x1, 1f                          // skip CNP for reserved ASID
-	orr     x3, x3, #TTBR_CNP_BIT
-1:
-alternative_else_nop_endif
-#ifdef CONFIG_ARM64_SW_TTBR0_PAN
-	bfi	x3, x1, #48, #16		// set the ASID field in TTBR0
-#endif
-	bfi	x2, x1, #48, #16		// set the ASID
-	msr	ttbr1_el1, x2			// in TTBR1 (since TCR.A1 is set)
-	isb
-	msr	ttbr0_el1, x3			// now update TTBR0
-	isb
-	b	post_ttbr_update_workaround	// Back to C code...
-SYM_FUNC_END(cpu_do_switch_mm)
-
 	.pushsection ".idmap.text", "awx"
 
 .macro	__idmap_cpu_set_reserved_ttbr1, tmp1, tmp2
