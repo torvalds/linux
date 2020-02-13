@@ -841,6 +841,18 @@
 		status = "disabled";
 	};
 
+	rkispp: rkispp@ffb60000 {
+		compatible = "rockchip,rv1126-rkispp";
+		reg = <0xffb60000 0x20000>;
+		interrupts = <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "ispp_irq", "fec_irq";
+		clocks = <&cru ACLK_ISPP>, <&cru HCLK_ISPP>,
+			 <&cru CLK_ISPP>;
+		clock-names = "aclk_ispp", "hclk_ispp", "clk_ispp";
+		status = "disabled";
+	};
+
 	pvtm@ffc00000 {
 		compatible = "rockchip,rv1126-npu-pvtm";
 		clocks = <&cru CLK_NPUPVTM>, <&cru PCLK_NPUPVTM>;
