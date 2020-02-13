@@ -55,6 +55,13 @@ enum ice_virtchnl_cap {
 	ICE_VIRTCHNL_VF_CAP_PRIVILEGE,
 };
 
+/* VF MDD events print structure */
+struct ice_mdd_vf_events {
+	u16 count;			/* total count of Rx|Tx events */
+	/* count number of the last printed event */
+	u16 last_printed;
+};
+
 /* VF information structure */
 struct ice_vf {
 	struct ice_pf *pf;
@@ -83,13 +90,14 @@ struct ice_vf {
 	unsigned int tx_rate;		/* Tx bandwidth limit in Mbps */
 	DECLARE_BITMAP(vf_states, ICE_VF_STATES_NBITS);	/* VF runtime states */
 
-	u64 num_mdd_events;		/* number of MDD events detected */
 	u64 num_inval_msgs;		/* number of continuous invalid msgs */
 	u64 num_valid_msgs;		/* number of valid msgs detected */
 	unsigned long vf_caps;		/* VF's adv. capabilities */
 	u8 num_req_qs;			/* num of queue pairs requested by VF */
 	u16 num_mac;
 	u16 num_vf_qs;			/* num of queue configured per VF */
+	struct ice_mdd_vf_events mdd_rx_events;
+	struct ice_mdd_vf_events mdd_tx_events;
 };
 
 #ifdef CONFIG_PCI_IOV
@@ -104,6 +112,7 @@ void ice_vc_process_vf_msg(struct ice_pf *pf, struct ice_rq_event_info *event);
 void ice_vc_notify_link_state(struct ice_pf *pf);
 void ice_vc_notify_reset(struct ice_pf *pf);
 bool ice_reset_all_vfs(struct ice_pf *pf, bool is_vflr);
+bool ice_reset_vf(struct ice_vf *vf, bool is_vflr);
 
 int
 ice_set_vf_port_vlan(struct net_device *netdev, int vf_id, u16 vlan_id, u8 qos,
@@ -123,7 +132,7 @@ ice_get_vf_stats(struct net_device *netdev, int vf_id,
 		 struct ifla_vf_stats *vf_stats);
 void
 ice_vf_lan_overflow_event(struct ice_pf *pf, struct ice_rq_event_info *event);
-
+void ice_print_vfs_mdd_events(struct ice_pf *pf);
 #else /* CONFIG_PCI_IOV */
 #define ice_process_vflr_event(pf) do {} while (0)
 #define ice_free_vfs(pf) do {} while (0)
@@ -132,10 +141,17 @@ ice_vf_lan_overflow_event(struct ice_pf *pf, struct ice_rq_event_info *event);
 #define ice_vc_notify_reset(pf) do {} while (0)
 #define ice_set_vf_state_qs_dis(vf) do {} while (0)
 #define ice_vf_lan_overflow_event(pf, event) do {} while (0)
+#define ice_print_vfs_mdd_events(pf) do {} while (0)
 
 static inline bool
 ice_reset_all_vfs(struct ice_pf __always_unused *pf,
 		  bool __always_unused is_vflr)
+{
+	return true;
+}
+
+static inline bool
+ice_reset_vf(struct ice_vf __always_unused *vf, bool __always_unused is_vflr)
 {
 	return true;
 }
