@@ -3627,35 +3627,8 @@ static inline int ib_post_srq_recv(struct ib_srq *srq,
 					      bad_recv_wr ? : &dummy);
 }
 
-/**
- * ib_create_qp_user - Creates a QP associated with the specified protection
- *   domain.
- * @pd: The protection domain associated with the QP.
- * @qp_init_attr: A list of initial attributes required to create the
- *   QP.  If QP creation succeeds, then the attributes are updated to
- *   the actual capabilities of the created QP.
- * @udata: Valid user data or NULL for kernel objects
- */
-struct ib_qp *ib_create_qp_user(struct ib_pd *pd,
-				struct ib_qp_init_attr *qp_init_attr,
-				struct ib_udata *udata);
-
-/**
- * ib_create_qp - Creates a kernel QP associated with the specified protection
- *   domain.
- * @pd: The protection domain associated with the QP.
- * @qp_init_attr: A list of initial attributes required to create the
- *   QP.  If QP creation succeeds, then the attributes are updated to
- *   the actual capabilities of the created QP.
- * @udata: Valid user data or NULL for kernel objects
- *
- * NOTE: for user qp use ib_create_qp_user with valid udata!
- */
-static inline struct ib_qp *ib_create_qp(struct ib_pd *pd,
-					 struct ib_qp_init_attr *qp_init_attr)
-{
-	return ib_create_qp_user(pd, qp_init_attr, NULL);
-}
+struct ib_qp *ib_create_qp(struct ib_pd *pd,
+			   struct ib_qp_init_attr *qp_init_attr);
 
 /**
  * ib_modify_qp_with_udata - Modifies the attributes for the specified QP.
