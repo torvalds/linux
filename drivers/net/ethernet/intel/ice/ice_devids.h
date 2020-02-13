@@ -43,8 +43,8 @@
 #define ICE_DEV_ID_E822C_10G_BASE_T	0x1893
 /* Intel(R) Ethernet Connection E822-C 1GbE */
 #define ICE_DEV_ID_E822C_SGMII		0x1894
-/* Intel(R) Ethernet Connection E822-X for backplane */
-#define ICE_DEV_ID_E822X_BACKPLANE	0x1897
+/* Intel(R) Ethernet Connection E822-L for backplane */
+#define ICE_DEV_ID_E822L_BACKPLANE	0x1897
 /* Intel(R) Ethernet Connection E822-L for SFP */
 #define ICE_DEV_ID_E822L_SFP		0x1898
 /* Intel(R) Ethernet Connection E822-L/X557-AT 10GBASE-T */
