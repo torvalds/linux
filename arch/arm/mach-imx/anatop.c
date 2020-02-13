@@ -94,7 +94,7 @@ void imx_anatop_post_resume(void)
 
 void __init imx_init_revision_from_anatop(void)
 {
-	struct device_node *np;
+	struct device_node *np, *src_np;
 	void __iomem *anatop_base;
 	unsigned int revision;
 	u32 digprog;
@@ -135,9 +135,10 @@ void __init imx_init_revision_from_anatop(void)
 			void __iomem *src_base;
 			u32 sbmr2;
 
-			np = of_find_compatible_node(NULL, NULL,
+			src_np = of_find_compatible_node(NULL, NULL,
 						     "fsl,imx6ul-src");
 			src_base = of_iomap(np, 0);
+			of_node_put(src_np);
 			WARN_ON(!src_base);
 			sbmr2 = readl_relaxed(src_base + SRC_SBMR2);
 			iounmap(src_base);
@@ -149,6 +150,7 @@ void __init imx_init_revision_from_anatop(void)
 			}
 		}
 	}
+	of_node_put(np);
 
 	mxc_set_cpu_type(digprog >> 16 & 0xff);
 	imx_set_soc_revision(revision);
