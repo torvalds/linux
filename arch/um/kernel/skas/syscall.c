@@ -10,7 +10,7 @@
 #include <sysdep/ptrace.h>
 #include <sysdep/ptrace_user.h>
 #include <sysdep/syscalls.h>
-#include <shared/timer-internal.h>
+#include <linux/time-internal.h>
 
 void handle_syscall(struct uml_pt_regs *r)
 {

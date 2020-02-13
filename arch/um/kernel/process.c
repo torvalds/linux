@@ -32,7 +32,7 @@
 #include <kern_util.h>
 #include <os.h>
 #include <skas.h>
-#include <timer-internal.h>
+#include <linux/time-internal.h>
 
 /*
  * This is a per-cpu array.  A processor only modifies its entry and it only

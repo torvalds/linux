@@ -18,7 +18,7 @@
 #include <asm/param.h>
 #include <kern_util.h>
 #include <os.h>
-#include <timer-internal.h>
+#include <linux/time-internal.h>
 #include <shared/init.h>
 
 #ifdef CONFIG_UML_TIME_TRAVEL_SUPPORT
