@@ -2917,7 +2917,7 @@ static void __annotation_line__write(struct annotation_line *al, struct annotati
 			obj__set_percent_color(obj, percent, current_entry);
 			if (symbol_conf.show_total_period) {
 				obj__printf(obj, "%11" PRIu64 " ", al->data[i].he.period);
-			} else if (notes->options->show_nr_samples) {
+			} else if (symbol_conf.show_nr_samples) {
 				obj__printf(obj, "%6" PRIu64 " ",
 						   al->data[i].he.nr_samples);
 			} else {
@@ -2932,7 +2932,7 @@ static void __annotation_line__write(struct annotation_line *al, struct annotati
 		else {
 			obj__printf(obj, "%-*s", pcnt_width,
 					   symbol_conf.show_total_period ? "Period" :
-					   notes->options->show_nr_samples ? "Samples" : "Percent");
+					   symbol_conf.show_nr_samples ? "Samples" : "Percent");
 		}
 	}
 
@@ -3154,8 +3154,6 @@ static int annotation__config(const char *var, const char *value,
 void annotation_config__init(void)
 {
 	perf_config(annotation__config, NULL);
-
-	annotation__default_options.show_nr_samples   = symbol_conf.show_nr_samples;
 }
 
 static unsigned int parse_percent_type(char *str1, char *str2)

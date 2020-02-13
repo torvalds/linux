@@ -835,9 +835,9 @@ show_sup_ins:
 		case 't':
 			if (symbol_conf.show_total_period) {
 				symbol_conf.show_total_period = false;
-				notes->options->show_nr_samples = true;
-			} else if (notes->options->show_nr_samples)
-				notes->options->show_nr_samples = false;
+				symbol_conf.show_nr_samples = true;
+			} else if (symbol_conf.show_nr_samples)
+				symbol_conf.show_nr_samples = false;
 			else
 				symbol_conf.show_total_period = true;
 			annotation__update_column_widths(notes);
