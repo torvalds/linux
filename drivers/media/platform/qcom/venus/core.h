@@ -344,6 +344,7 @@ struct venus_inst {
 	unsigned int subscriptions;
 	int buf_count;
 	struct venus_ts_metadata tss[VIDEO_MAX_FRAME];
+	unsigned long payloads[VIDEO_MAX_FRAME];
 	u64 fps;
 	struct v4l2_fract timeperframe;
 	const struct venus_format *fmt_out;
