@@ -53,6 +53,7 @@ struct virtio_uml_device {
 	struct virtio_device vdev;
 	struct platform_device *pdev;
 
+	spinlock_t sock_lock;
 	int sock, req_fd;
 	u64 features;
 	u64 protocol_features;
@@ -189,6 +190,7 @@ static int vhost_user_send(struct virtio_uml_device *vu_dev,
 			   int *fds, size_t num_fds)
 {
 	size_t size = sizeof(msg->header) + msg->header.size;
+	unsigned long flags;
 	bool request_ack;
 	int rc;
 
@@ -207,24 +209,28 @@ static int vhost_user_send(struct virtio_uml_device *vu_dev,
 	if (request_ack)
 		msg->header.flags |= VHOST_USER_FLAG_NEED_REPLY;
 
+	spin_lock_irqsave(&vu_dev->sock_lock, flags);
 	rc = full_sendmsg_fds(vu_dev->sock, msg, size, fds, num_fds);
 	if (rc < 0)
-		return rc;
+		goto out;
 
 	if (request_ack) {
 		uint64_t status;
 
 		rc = vhost_user_recv_u64(vu_dev, &status);
 		if (rc)
-			return rc;
+			goto out;
 
 		if (status) {
 			vu_err(vu_dev, "slave reports error: %llu\n", status);
-			return -EIO;
+			rc = -EIO;
+			goto out;
 		}
 	}
 
-	return 0;
+out:
+	spin_unlock_irqrestore(&vu_dev->sock_lock, flags);
+	return rc;
 }
 
 static int vhost_user_send_no_payload(struct virtio_uml_device *vu_dev,
@@ -324,6 +330,7 @@ static void vhost_user_reply(struct virtio_uml_device *vu_dev,
 static irqreturn_t vu_req_interrupt(int irq, void *data)
 {
 	struct virtio_uml_device *vu_dev = data;
+	struct virtqueue *vq;
 	int response = 1;
 	struct {
 		struct vhost_user_msg msg;
@@ -342,6 +349,15 @@ static irqreturn_t vu_req_interrupt(int irq, void *data)
 	case VHOST_USER_SLAVE_CONFIG_CHANGE_MSG:
 		virtio_config_changed(&vu_dev->vdev);
 		response = 0;
+		break;
+	case VHOST_USER_SLAVE_VRING_CALL:
+		virtio_device_for_each_vq((&vu_dev->vdev), vq) {
+			if (vq->index == msg.msg.payload.vring_state.index) {
+				response = 0;
+				vring_interrupt(0 /* ignored */, vq);
+				break;
+			}
+		}
 		break;
 	case VHOST_USER_SLAVE_IOTLB_MSG:
 		/* not supported - VIRTIO_F_IOMMU_PLATFORM */
@@ -684,6 +700,15 @@ static bool vu_notify(struct virtqueue *vq)
 	const uint64_t n = 1;
 	int rc;
 
+	if (info->kick_fd < 0) {
+		struct virtio_uml_device *vu_dev;
+
+		vu_dev = to_virtio_uml_device(vq->vdev);
+
+		return vhost_user_set_vring_state(vu_dev, VHOST_USER_VRING_KICK,
+						  vq->index, 0) == 0;
+	}
+
 	do {
 		rc = os_write_file(info->kick_fd, &n, sizeof(n));
 	} while (rc == -EINTR);
@@ -749,10 +774,13 @@ static void vu_del_vq(struct virtqueue *vq)
 {
 	struct virtio_uml_vq_info *info = vq->priv;
 
-	um_free_irq(VIRTIO_IRQ, vq);
+	if (info->call_fd >= 0) {
+		um_free_irq(VIRTIO_IRQ, vq);
+		os_close_file(info->call_fd);
+	}
 
-	os_close_file(info->call_fd);
-	os_close_file(info->kick_fd);
+	if (info->kick_fd >= 0)
+		os_close_file(info->kick_fd);
 
 	vring_del_virtqueue(vq);
 	kfree(info);
@@ -781,6 +809,15 @@ static int vu_setup_vq_call_fd(struct virtio_uml_device *vu_dev,
 	struct virtio_uml_vq_info *info = vq->priv;
 	int call_fds[2];
 	int rc;
+
+	/* no call FD needed/desired in this case */
+	if (vu_dev->protocol_features &
+			BIT_ULL(VHOST_USER_PROTOCOL_F_INBAND_NOTIFICATIONS) &&
+	    vu_dev->protocol_features &
+			BIT_ULL(VHOST_USER_PROTOCOL_F_SLAVE_REQ)) {
+		info->call_fd = -1;
+		return 0;
+	}
 
 	/* Use a pipe for call fd, since SIGIO is not supported for eventfd */
 	rc = os_pipe(call_fds, true, true);
@@ -838,10 +875,15 @@ static struct virtqueue *vu_setup_vq(struct virtio_device *vdev,
 	vq->priv = info;
 	num = virtqueue_get_vring_size(vq);
 
-	rc = os_eventfd(0, 0);
-	if (rc < 0)
-		goto error_kick;
-	info->kick_fd = rc;
+	if (vu_dev->protocol_features &
+			BIT_ULL(VHOST_USER_PROTOCOL_F_INBAND_NOTIFICATIONS)) {
+		info->kick_fd = -1;
+	} else {
+		rc = os_eventfd(0, 0);
+		if (rc < 0)
+			goto error_kick;
+		info->kick_fd = rc;
+	}
 
 	rc = vu_setup_vq_call_fd(vu_dev, vq);
 	if (rc)
@@ -866,10 +908,13 @@ static struct virtqueue *vu_setup_vq(struct virtio_device *vdev,
 	return vq;
 
 error_setup:
-	um_free_irq(VIRTIO_IRQ, vq);
-	os_close_file(info->call_fd);
+	if (info->call_fd >= 0) {
+		um_free_irq(VIRTIO_IRQ, vq);
+		os_close_file(info->call_fd);
+	}
 error_call:
-	os_close_file(info->kick_fd);
+	if (info->kick_fd >= 0)
+		os_close_file(info->kick_fd);
 error_kick:
 	vring_del_virtqueue(vq);
 error_create:
@@ -908,10 +953,12 @@ static int vu_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 	list_for_each_entry(vq, &vdev->vqs, list) {
 		struct virtio_uml_vq_info *info = vq->priv;
 
-		rc = vhost_user_set_vring_kick(vu_dev, vq->index,
-					       info->kick_fd);
-		if (rc)
-			goto error_setup;
+		if (info->kick_fd >= 0) {
+			rc = vhost_user_set_vring_kick(vu_dev, vq->index,
+						       info->kick_fd);
+			if (rc)
+				goto error_setup;
+		}
 
 		rc = vhost_user_set_vring_enable(vu_dev, vq->index, true);
 		if (rc)
@@ -1007,6 +1054,8 @@ static int virtio_uml_probe(struct platform_device *pdev)
 	if (rc < 0)
 		return rc;
 	vu_dev->sock = rc;
+
+	spin_lock_init(&vu_dev->sock_lock);
 
 	rc = vhost_user_init(vu_dev);
 	if (rc)
