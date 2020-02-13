@@ -497,7 +497,7 @@ static int renesas_sdhi_select_tuning(struct tmio_mmc_host *host)
 static int renesas_sdhi_execute_tuning(struct tmio_mmc_host *host, u32 opcode)
 {
 	struct renesas_sdhi *priv = host_to_priv(host);
-	int i, ret;
+	int i;
 
 	priv->tap_num = renesas_sdhi_init_tuning(host);
 	if (!priv->tap_num)
@@ -517,8 +517,7 @@ static int renesas_sdhi_execute_tuning(struct tmio_mmc_host *host, u32 opcode)
 		/* Set sampling clock position */
 		sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_TAPSET, i % priv->tap_num);
 
-		ret = mmc_send_tuning(host->mmc, opcode, NULL);
-		if (ret == 0)
+		if (mmc_send_tuning(host->mmc, opcode, NULL) == 0)
 			set_bit(i, priv->taps);
 	}
 
