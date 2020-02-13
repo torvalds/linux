@@ -691,6 +691,7 @@ static const struct nla_policy fl_policy[TCA_FLOWER_MAX + 1] = {
 					    .len = 128 / BITS_PER_BYTE },
 	[TCA_FLOWER_KEY_CT_LABELS_MASK]	= { .type = NLA_BINARY,
 					    .len = 128 / BITS_PER_BYTE },
+	[TCA_FLOWER_FLAGS]		= { .type = NLA_U32 },
 };
 
 static const struct nla_policy
