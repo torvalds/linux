@@ -1076,17 +1076,17 @@ mlx5e_tc_unoffload_fdb_rules(struct mlx5_eswitch *esw,
 static struct mlx5_flow_handle *
 mlx5e_tc_offload_to_slow_path(struct mlx5_eswitch *esw,
 			      struct mlx5e_tc_flow *flow,
-			      struct mlx5_flow_spec *spec,
-			      struct mlx5_esw_flow_attr *slow_attr)
+			      struct mlx5_flow_spec *spec)
 {
+	struct mlx5_esw_flow_attr slow_attr;
 	struct mlx5_flow_handle *rule;
 
-	memcpy(slow_attr, flow->esw_attr, sizeof(*slow_attr));
-	slow_attr->action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
-	slow_attr->split_count = 0;
-	slow_attr->flags |= MLX5_ESW_ATTR_FLAG_SLOW_PATH;
+	memcpy(&slow_attr, flow->esw_attr, sizeof(slow_attr));
+	slow_attr.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
+	slow_attr.split_count = 0;
+	slow_attr.flags |= MLX5_ESW_ATTR_FLAG_SLOW_PATH;
 
-	rule = mlx5e_tc_offload_fdb_rules(esw, flow, spec, slow_attr);
+	rule = mlx5e_tc_offload_fdb_rules(esw, flow, spec, &slow_attr);
 	if (!IS_ERR(rule))
 		flow_flag_set(flow, SLOW);
 
@@ -1095,14 +1095,15 @@ mlx5e_tc_offload_to_slow_path(struct mlx5_eswitch *esw,
 
 static void
 mlx5e_tc_unoffload_from_slow_path(struct mlx5_eswitch *esw,
-				  struct mlx5e_tc_flow *flow,
-				  struct mlx5_esw_flow_attr *slow_attr)
+				  struct mlx5e_tc_flow *flow)
 {
-	memcpy(slow_attr, flow->esw_attr, sizeof(*slow_attr));
-	slow_attr->action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
-	slow_attr->split_count = 0;
-	slow_attr->flags |= MLX5_ESW_ATTR_FLAG_SLOW_PATH;
-	mlx5e_tc_unoffload_fdb_rules(esw, flow, slow_attr);
+	struct mlx5_esw_flow_attr slow_attr;
+
+	memcpy(&slow_attr, flow->esw_attr, sizeof(slow_attr));
+	slow_attr.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
+	slow_attr.split_count = 0;
+	slow_attr.flags |= MLX5_ESW_ATTR_FLAG_SLOW_PATH;
+	mlx5e_tc_unoffload_fdb_rules(esw, flow, &slow_attr);
 	flow_flag_clear(flow, SLOW);
 }
 
@@ -1242,9 +1243,7 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	 */
 	if (!encap_valid) {
 		/* continue with goto slow path rule instead */
-		struct mlx5_esw_flow_attr slow_attr;
-
-		flow->rule[0] = mlx5e_tc_offload_to_slow_path(esw, flow, &parse_attr->spec, &slow_attr);
+		flow->rule[0] = mlx5e_tc_offload_to_slow_path(esw, flow, &parse_attr->spec);
 	} else {
 		flow->rule[0] = mlx5e_tc_offload_fdb_rules(esw, flow, &parse_attr->spec, attr);
 	}
@@ -1275,7 +1274,6 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5_esw_flow_attr *attr = flow->esw_attr;
-	struct mlx5_esw_flow_attr slow_attr;
 	int out_index;
 
 	if (flow_flag_test(flow, NOT_READY)) {
@@ -1286,7 +1284,7 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 
 	if (mlx5e_is_offloaded_flow(flow)) {
 		if (flow_flag_test(flow, SLOW))
-			mlx5e_tc_unoffload_from_slow_path(esw, flow, &slow_attr);
+			mlx5e_tc_unoffload_from_slow_path(esw, flow);
 		else
 			mlx5e_tc_unoffload_fdb_rules(esw, flow, attr);
 	}
@@ -1315,7 +1313,7 @@ void mlx5e_tc_encap_flows_add(struct mlx5e_priv *priv,
 			      struct list_head *flow_list)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
-	struct mlx5_esw_flow_attr slow_attr, *esw_attr;
+	struct mlx5_esw_flow_attr *esw_attr;
 	struct mlx5_flow_handle *rule;
 	struct mlx5_flow_spec *spec;
 	struct mlx5e_tc_flow *flow;
@@ -1368,7 +1366,7 @@ void mlx5e_tc_encap_flows_add(struct mlx5e_priv *priv,
 			continue;
 		}
 
-		mlx5e_tc_unoffload_from_slow_path(esw, flow, &slow_attr);
+		mlx5e_tc_unoffload_from_slow_path(esw, flow);
 		flow->rule[0] = rule;
 		/* was unset when slow path rule removed */
 		flow_flag_set(flow, OFFLOADED);
@@ -1380,7 +1378,6 @@ void mlx5e_tc_encap_flows_del(struct mlx5e_priv *priv,
 			      struct list_head *flow_list)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
-	struct mlx5_esw_flow_attr slow_attr;
 	struct mlx5_flow_handle *rule;
 	struct mlx5_flow_spec *spec;
 	struct mlx5e_tc_flow *flow;
@@ -1392,7 +1389,7 @@ void mlx5e_tc_encap_flows_del(struct mlx5e_priv *priv,
 		spec = &flow->esw_attr->parse_attr->spec;
 
 		/* update from encap rule to slow path rule */
-		rule = mlx5e_tc_offload_to_slow_path(esw, flow, spec, &slow_attr);
+		rule = mlx5e_tc_offload_to_slow_path(esw, flow, spec);
 		/* mark the flow's encap dest as non-valid */
 		flow->esw_attr->dests[flow->tmp_efi_index].flags &= ~MLX5_ESW_DEST_ENCAP_VALID;
 
