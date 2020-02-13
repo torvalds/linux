@@ -4,6 +4,7 @@ ccflags-y += -include $(srctree)/drivers/staging/imgtec/config_kernel.h \
  -I$(srctree)/$(src) \
  -I$(srctree)/$(src)/hwdefs \
  -I$(srctree)/$(src)/hwdefs/km \
+ -I$(srctree)/drivers/dma-buf \
  -I$(srctree)/$(src)/rk3368
 ccflags-$(CONFIG_X86) += -mno-soft-float
 

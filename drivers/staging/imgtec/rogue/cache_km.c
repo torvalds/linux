@@ -64,6 +64,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "ri_server.h"
 #endif
 
+#include "sync_debug.h"
+#include <linux/ioctl.h>
+
 /* Top-level file-local build definitions */
 #if defined(DEBUG) && defined(LINUX)
 	#define CACHEOP_DEBUG
@@ -1645,6 +1648,8 @@ PVRSRV_ERROR CacheOpSetTimeline (IMG_INT32 i32Timeline)
 {
 	PVRSRV_ERROR eError;
 
+	unsigned int count = 1;
+
 #if defined(SUPPORT_RANGEBASED_CACHEFLUSH_DEFERRED)
 	PVRSRV_DATA *psPVRSRVData = PVRSRVGetPVRSRVData();
 	CACHEOP_WORK_ITEM *psCacheOpWorkItem;
@@ -1709,8 +1714,7 @@ PVRSRV_ERROR CacheOpSetTimeline (IMG_INT32 i32Timeline)
     sw_sync_timeline_inc(psFile->private_data, 1);
 #else
 	//Warning
-    //if (0 != sw_sync_ioctl_inc(psFile->private_data, count))
-    //    printk("PVR SW_SYNC_IOC_INC failed \n");
+	sync_timeline_signal( (struct sync_timeline *)(psFile->private_data), count);
 #endif
 	fput(psFile);
 
