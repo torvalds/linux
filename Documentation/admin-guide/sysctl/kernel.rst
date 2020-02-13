@@ -213,6 +213,7 @@ core_pattern is used to specify a core dumpfile pattern name.
 	%h	hostname
 	%e	executable filename (may be shortened)
 	%E	executable path
+       %c      maximum size of core file by resource limit RLIMIT_CORE
 	%<OTHER> both are dropped
 
 * If the first character of the pattern is a '|', the kernel will treat
