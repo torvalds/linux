@@ -189,7 +189,7 @@ static long ingenic_tcu_round_rate(struct clk_hw *hw, unsigned long req_rate,
 	u8 prescale;
 
 	if (req_rate > rate)
-		return -EINVAL;
+		return rate;
 
 	prescale = ingenic_tcu_get_prescale(rate, req_rate);
 
