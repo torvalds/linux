@@ -138,35 +138,6 @@ static int omap_dm_timer_reset(struct omap_dm_timer *timer)
 	return 0;
 }
 
-static int omap_dm_timer_of_set_source(struct omap_dm_timer *timer)
-{
-	int ret;
-	struct clk *parent;
-
-	/*
-	 * FIXME: OMAP1 devices do not use the clock framework for dmtimers so
-	 * do not call clk_get() for these devices.
-	 */
-	if (!timer->fclk)
-		return -ENODEV;
-
-	parent = clk_get(&timer->pdev->dev, NULL);
-	if (IS_ERR(parent))
-		return -ENODEV;
-
-	/* Bail out if both clocks point to fck */
-	if (clk_is_match(parent, timer->fclk))
-		return 0;
-
-	ret = clk_set_parent(timer->fclk, parent);
-	if (ret < 0)
-		pr_err("%s: failed to set parent\n", __func__);
-
-	clk_put(parent);
-
-	return ret;
-}
-
 static int omap_dm_timer_set_source(struct omap_dm_timer *timer, int source)
 {
 	int ret;
@@ -276,9 +247,7 @@ static int omap_dm_timer_prepare(struct omap_dm_timer *timer)
 	__omap_dm_timer_enable_posted(timer);
 	omap_dm_timer_disable(timer);
 
-	rc = omap_dm_timer_of_set_source(timer);
-	if (rc == -ENODEV)
-		return omap_dm_timer_set_source(timer, OMAP_TIMER_SRC_32_KHZ);
+	rc = omap_dm_timer_set_source(timer, OMAP_TIMER_SRC_32_KHZ);
 
 	return rc;
 }
