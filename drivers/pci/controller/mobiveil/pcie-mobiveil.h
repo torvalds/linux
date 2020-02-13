@@ -148,6 +148,10 @@ struct mobiveil_root_port {
 	struct pci_host_bridge *bridge;
 };
 
+struct mobiveil_pab_ops {
+	int (*link_up)(struct mobiveil_pcie *pcie);
+};
+
 struct mobiveil_pcie {
 	struct platform_device *pdev;
 	void __iomem *csr_axi_slave_base;	/* root port config base */
@@ -157,6 +161,7 @@ struct mobiveil_pcie {
 	int ppio_wins;
 	int ob_wins_configured;		/* configured outbound windows */
 	int ib_wins_configured;		/* configured inbound windows */
+	const struct mobiveil_pab_ops *ops;
 	struct mobiveil_root_port rp;
 };
 

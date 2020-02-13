@@ -125,6 +125,9 @@ void mobiveil_csr_write(struct mobiveil_pcie *pcie, u32 val, u32 off,
 
 bool mobiveil_pcie_link_up(struct mobiveil_pcie *pcie)
 {
+	if (pcie->ops->link_up)
+		return pcie->ops->link_up(pcie);
+
 	return (mobiveil_csr_readl(pcie, LTSSM_STATUS) &
 		LTSSM_STATUS_L0_MASK) == LTSSM_STATUS_L0;
 }
