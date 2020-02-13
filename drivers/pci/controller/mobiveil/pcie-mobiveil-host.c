@@ -499,7 +499,7 @@ static int mobiveil_pcie_init_irq_domain(struct mobiveil_pcie *pcie)
 	return 0;
 }
 
-static int mobiveil_pcie_interrupt_init(struct mobiveil_pcie *pcie)
+static int mobiveil_pcie_integrated_interrupt_init(struct mobiveil_pcie *pcie)
 {
 	struct platform_device *pdev = pcie->pdev;
 	struct device *dev = &pdev->dev;
@@ -537,6 +537,16 @@ static int mobiveil_pcie_interrupt_init(struct mobiveil_pcie *pcie)
 
 
 	return 0;
+}
+
+static int mobiveil_pcie_interrupt_init(struct mobiveil_pcie *pcie)
+{
+	struct mobiveil_root_port *rp = &pcie->rp;
+
+	if (rp->ops->interrupt_init)
+		return rp->ops->interrupt_init(pcie);
+
+	return mobiveil_pcie_integrated_interrupt_init(pcie);
 }
 
 int mobiveil_pcie_host_probe(struct mobiveil_pcie *pcie)
