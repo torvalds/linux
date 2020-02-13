@@ -606,7 +606,10 @@ ch_open(struct inode *inode, struct file *file)
 		mutex_unlock(&ch_mutex);
 		return -ENXIO;
 	}
+	/* Synchronize with ch_probe() */
+	mutex_lock(&ch->lock);
 	file->private_data = ch;
+	mutex_unlock(&ch->lock);
 	mutex_unlock(&ch_mutex);
 	return 0;
 }
@@ -949,6 +952,9 @@ static int ch_probe(struct device *dev)
 		goto remove_idr;
 	}
 
+	mutex_init(&ch->lock);
+	kref_init(&ch->ref);
+	ch->device = sd;
 	class_dev = device_create(ch_sysfs_class, dev,
 				  MKDEV(SCSI_CHANGER_MAJOR, ch->minor), ch,
 				  "s%s", ch->name);
@@ -959,15 +965,16 @@ static int ch_probe(struct device *dev)
 		goto put_device;
 	}
 
-	mutex_init(&ch->lock);
-	kref_init(&ch->ref);
-	ch->device = sd;
+	mutex_lock(&ch->lock);
 	ret = ch_readconfig(ch);
-	if (ret)
+	if (ret) {
+		mutex_unlock(&ch->lock);
 		goto destroy_dev;
+	}
 	if (init)
 		ch_init_elem(ch);
 
+	mutex_unlock(&ch->lock);
 	dev_set_drvdata(dev, ch);
 	sdev_printk(KERN_INFO, sd, "Attached scsi changer %s\n", ch->name);
 
