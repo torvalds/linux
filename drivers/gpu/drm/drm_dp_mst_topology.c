@@ -3696,7 +3696,8 @@ out_fail:
 }
 EXPORT_SYMBOL(drm_dp_mst_topology_mgr_resume);
 
-static bool drm_dp_get_one_sb_msg(struct drm_dp_mst_topology_mgr *mgr, bool up)
+static bool drm_dp_get_one_sb_msg(struct drm_dp_mst_topology_mgr *mgr, bool up,
+				  struct drm_dp_mst_branch **mstb, int *seqno)
 {
 	int len;
 	u8 replyblock[32];
@@ -3708,7 +3709,8 @@ static bool drm_dp_get_one_sb_msg(struct drm_dp_mst_topology_mgr *mgr, bool up)
 	int basereg = up ? DP_SIDEBAND_MSG_UP_REQ_BASE :
 			   DP_SIDEBAND_MSG_DOWN_REP_BASE;
 
-	msg = up ? &mgr->up_req_recv : &mgr->down_rep_recv;
+	*mstb = NULL;
+	*seqno = -1;
 
 	len = min(mgr->max_dpcd_transaction_bytes, 16);
 	ret = drm_dp_dpcd_read(mgr->aux, basereg, replyblock, len);
@@ -3723,6 +3725,21 @@ static bool drm_dp_get_one_sb_msg(struct drm_dp_mst_topology_mgr *mgr, bool up)
 			       1, replyblock, len, false);
 		DRM_DEBUG_KMS("ERROR: failed header\n");
 		return false;
+	}
+
+	*seqno = hdr.seqno;
+
+	if (up) {
+		msg = &mgr->up_req_recv;
+	} else {
+		/* Caller is responsible for giving back this reference */
+		*mstb = drm_dp_get_mst_branch_device(mgr, hdr.lct, hdr.rad);
+		if (!*mstb) {
+			DRM_DEBUG_KMS("Got MST reply from unknown device %d\n",
+				      hdr.lct);
+			return false;
+		}
+		msg = &(*mstb)->down_rep_recv[hdr.seqno];
 	}
 
 	if (!drm_dp_sideband_msg_set_header(msg, &hdr, hdrlen)) {
@@ -3765,53 +3782,52 @@ static bool drm_dp_get_one_sb_msg(struct drm_dp_mst_topology_mgr *mgr, bool up)
 static int drm_dp_mst_handle_down_rep(struct drm_dp_mst_topology_mgr *mgr)
 {
 	struct drm_dp_sideband_msg_tx *txmsg;
-	struct drm_dp_mst_branch *mstb;
-	struct drm_dp_sideband_msg_hdr *hdr = &mgr->down_rep_recv.initial_hdr;
-	int slot = -1;
+	struct drm_dp_mst_branch *mstb = NULL;
+	struct drm_dp_sideband_msg_rx *msg = NULL;
+	int seqno = -1;
 
-	if (!drm_dp_get_one_sb_msg(mgr, false))
-		goto clear_down_rep_recv;
+	if (!drm_dp_get_one_sb_msg(mgr, false, &mstb, &seqno))
+		goto out_clear_reply;
 
-	if (!mgr->down_rep_recv.have_eomt)
-		return 0;
+	msg = &mstb->down_rep_recv[seqno];
 
-	mstb = drm_dp_get_mst_branch_device(mgr, hdr->lct, hdr->rad);
-	if (!mstb) {
-		DRM_DEBUG_KMS("Got MST reply from unknown device %d\n",
-			      hdr->lct);
-		goto clear_down_rep_recv;
-	}
+	/* Multi-packet message transmission, don't clear the reply */
+	if (!msg->have_eomt)
+		goto out;
 
 	/* find the message */
-	slot = hdr->seqno;
 	mutex_lock(&mgr->qlock);
-	txmsg = mstb->tx_slots[slot];
+	txmsg = mstb->tx_slots[seqno];
 	/* remove from slots */
 	mutex_unlock(&mgr->qlock);
 
 	if (!txmsg) {
+		struct drm_dp_sideband_msg_hdr *hdr;
+		hdr = &msg->initial_hdr;
 		DRM_DEBUG_KMS("Got MST reply with no msg %p %d %d %02x %02x\n",
 			      mstb, hdr->seqno, hdr->lct, hdr->rad[0],
-			      mgr->down_rep_recv.msg[0]);
-		goto no_msg;
+			      msg->msg[0]);
+		goto out_clear_reply;
 	}
 
-	drm_dp_sideband_parse_reply(&mgr->down_rep_recv, &txmsg->reply);
+	drm_dp_sideband_parse_reply(msg, &txmsg->reply);
 
-	if (txmsg->reply.reply_type == DP_SIDEBAND_REPLY_NAK)
+	if (txmsg->reply.reply_type == DP_SIDEBAND_REPLY_NAK) {
 		DRM_DEBUG_KMS("Got NAK reply: req 0x%02x (%s), reason 0x%02x (%s), nak data 0x%02x\n",
 			      txmsg->reply.req_type,
 			      drm_dp_mst_req_type_str(txmsg->reply.req_type),
 			      txmsg->reply.u.nak.reason,
 			      drm_dp_mst_nak_reason_str(txmsg->reply.u.nak.reason),
 			      txmsg->reply.u.nak.nak_data);
+		goto out_clear_reply;
+	}
 
-	memset(&mgr->down_rep_recv, 0, sizeof(struct drm_dp_sideband_msg_rx));
+	memset(msg, 0, sizeof(struct drm_dp_sideband_msg_rx));
 	drm_dp_mst_topology_put_mstb(mstb);
 
 	mutex_lock(&mgr->qlock);
 	txmsg->state = DRM_DP_SIDEBAND_TX_RX;
-	mstb->tx_slots[slot] = NULL;
+	mstb->tx_slots[seqno] = NULL;
 	mgr->is_waiting_for_dwn_reply = false;
 	mutex_unlock(&mgr->qlock);
 
@@ -3819,13 +3835,15 @@ static int drm_dp_mst_handle_down_rep(struct drm_dp_mst_topology_mgr *mgr)
 
 	return 0;
 
-no_msg:
-	drm_dp_mst_topology_put_mstb(mstb);
-clear_down_rep_recv:
+out_clear_reply:
 	mutex_lock(&mgr->qlock);
 	mgr->is_waiting_for_dwn_reply = false;
 	mutex_unlock(&mgr->qlock);
-	memset(&mgr->down_rep_recv, 0, sizeof(struct drm_dp_sideband_msg_rx));
+	if (msg)
+		memset(msg, 0, sizeof(struct drm_dp_sideband_msg_rx));
+out:
+	if (mstb)
+		drm_dp_mst_topology_put_mstb(mstb);
 
 	return 0;
 }
@@ -3901,11 +3919,10 @@ static void drm_dp_mst_up_req_work(struct work_struct *work)
 
 static int drm_dp_mst_handle_up_req(struct drm_dp_mst_topology_mgr *mgr)
 {
-	struct drm_dp_sideband_msg_hdr *hdr = &mgr->up_req_recv.initial_hdr;
 	struct drm_dp_pending_up_req *up_req;
-	bool seqno;
+	int seqno;
 
-	if (!drm_dp_get_one_sb_msg(mgr, true))
+	if (!drm_dp_get_one_sb_msg(mgr, true, NULL, &seqno))
 		goto out;
 
 	if (!mgr->up_req_recv.have_eomt)
@@ -3918,7 +3935,6 @@ static int drm_dp_mst_handle_up_req(struct drm_dp_mst_topology_mgr *mgr)
 	}
 	INIT_LIST_HEAD(&up_req->next);
 
-	seqno = hdr->seqno;
 	drm_dp_sideband_parse_req(&mgr->up_req_recv, &up_req->msg);
 
 	if (up_req->msg.req_type != DP_CONNECTION_STATUS_NOTIFY &&
@@ -3952,7 +3968,7 @@ static int drm_dp_mst_handle_up_req(struct drm_dp_mst_topology_mgr *mgr)
 			      res_stat->available_pbn);
 	}
 
-	up_req->hdr = *hdr;
+	up_req->hdr = mgr->up_req_recv.initial_hdr;
 	mutex_lock(&mgr->up_req_lock);
 	list_add_tail(&up_req->next, &mgr->up_req_list);
 	mutex_unlock(&mgr->up_req_lock);
