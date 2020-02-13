@@ -102,6 +102,21 @@ qtnf_validate_iface_combinations(struct wiphy *wiphy,
 
 	ret = cfg80211_check_combinations(wiphy, &params);
 
+	if (ret)
+		return ret;
+
+	/* Check repeater interface combination: primary VIF should be STA only.
+	 * STA (primary) + AP (secondary) is OK.
+	 * AP (primary) + STA (secondary) is not supported.
+	 */
+	vif = qtnf_mac_get_base_vif(mac);
+	if (vif && vif->wdev.iftype == NL80211_IFTYPE_AP &&
+	    vif != change_vif && new_type == NL80211_IFTYPE_STATION) {
+		ret = -EINVAL;
+		pr_err("MAC%u invalid combination: AP as primary repeater interface is not supported\n",
+		       mac->macid);
+	}
+
 	return ret;
 }
 
