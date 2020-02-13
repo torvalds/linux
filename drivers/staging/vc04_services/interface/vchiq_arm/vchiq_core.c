@@ -252,11 +252,15 @@ next_service_by_instance(struct vchiq_state *state,
 	struct vchiq_service *service;
 
 	rcu_read_lock();
-	service = __next_service_by_instance(state, instance, pidx);
-	if (service && kref_get_unless_zero(&service->ref_count))
-		service = rcu_pointer_handoff(service);
-	else
-		service = NULL;
+	while (1) {
+		service = __next_service_by_instance(state, instance, pidx);
+		if (!service)
+			break;
+		if (kref_get_unless_zero(&service->ref_count)) {
+			service = rcu_pointer_handoff(service);
+			break;
+		}
+	}
 	rcu_read_unlock();
 	return service;
 }
