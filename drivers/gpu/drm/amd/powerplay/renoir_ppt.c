@@ -806,9 +806,10 @@ static int renoir_set_watermarks_table(
 				clock_ranges->wm_mcif_clocks_ranges[i].wm_set_id;
 	}
 
+	smu->watermarks_bitmap |= WATERMARKS_EXIST;
+
 	/* pass data to smu controller */
-	if ((smu->watermarks_bitmap & WATERMARKS_EXIST) &&
-			!(smu->watermarks_bitmap & WATERMARKS_LOADED)) {
+	if (!(smu->watermarks_bitmap & WATERMARKS_LOADED)) {
 		ret = smu_write_watermarks_table(smu);
 		if (ret) {
 			pr_err("Failed to update WMTABLE!");
