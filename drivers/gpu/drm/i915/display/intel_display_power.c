@@ -4470,11 +4470,13 @@ void icl_dbuf_slices_update(struct drm_i915_private *dev_priv,
 
 static void icl_dbuf_enable(struct drm_i915_private *dev_priv)
 {
+	skl_ddb_get_hw_state(dev_priv);
 	/*
-	 * Just power up 1 slice, we will
+	 * Just power up at least 1 slice, we will
 	 * figure out later which slices we have and what we need.
 	 */
-	icl_dbuf_slices_update(dev_priv, BIT(DBUF_S1));
+	icl_dbuf_slices_update(dev_priv, dev_priv->enabled_dbuf_slices_mask |
+			       BIT(DBUF_S1));
 }
 
 static void icl_dbuf_disable(struct drm_i915_private *dev_priv)
