@@ -554,6 +554,16 @@ static int mobiveil_pcie_interrupt_init(struct mobiveil_pcie *pcie)
 	return mobiveil_pcie_integrated_interrupt_init(pcie);
 }
 
+static bool mobiveil_pcie_is_bridge(struct mobiveil_pcie *pcie)
+{
+	u32 header_type;
+
+	header_type = mobiveil_csr_readb(pcie, PCI_HEADER_TYPE);
+	header_type &= 0x7f;
+
+	return header_type == PCI_HEADER_TYPE_BRIDGE;
+}
+
 int mobiveil_pcie_host_probe(struct mobiveil_pcie *pcie)
 {
 	struct mobiveil_root_port *rp = &pcie->rp;
@@ -568,6 +578,9 @@ int mobiveil_pcie_host_probe(struct mobiveil_pcie *pcie)
 		dev_err(dev, "Parsing DT failed, ret: %x\n", ret);
 		return ret;
 	}
+
+	if (!mobiveil_pcie_is_bridge(pcie))
+		return -ENODEV;
 
 	/* parse the host bridge base addresses from the device tree file */
 	ret = pci_parse_request_of_pci_ranges(dev, &bridge->windows,
