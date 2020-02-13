@@ -374,6 +374,12 @@ static void time_travel_update_time(unsigned long long next, bool idle)
 	time_travel_del_event(&ne);
 }
 
+void time_travel_ndelay(unsigned long nsec)
+{
+	time_travel_update_time(time_travel_time + nsec, false);
+}
+EXPORT_SYMBOL(time_travel_ndelay);
+
 void time_travel_add_irq_event(struct time_travel_event *e)
 {
 	BUG_ON(time_travel_mode != TT_MODE_EXTERNAL);

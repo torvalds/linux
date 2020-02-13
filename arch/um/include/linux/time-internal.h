@@ -75,4 +75,10 @@ static inline void time_travel_wait_readable(int fd)
 {
 }
 #endif /* CONFIG_UML_TIME_TRAVEL_SUPPORT */
+
+/*
+ * Without CONFIG_UML_TIME_TRAVEL_SUPPORT this is a linker error if used,
+ * which is intentional since we really shouldn't link it in that case.
+ */
+void time_travel_ndelay(unsigned long nsec);
 #endif /* __TIMER_INTERNAL_H__ */
