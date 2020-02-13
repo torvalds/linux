@@ -687,51 +687,45 @@ static void drm_dp_encode_sideband_reply(struct drm_dp_sideband_msg_reply_body *
 	raw->cur_len = idx;
 }
 
-/* this adds a chunk of msg to the builder to get the final msg */
-static bool drm_dp_sideband_msg_build(struct drm_dp_sideband_msg_rx *msg,
-				      u8 *replybuf, u8 replybuflen, bool hdr)
+static int drm_dp_sideband_msg_set_header(struct drm_dp_sideband_msg_rx *msg,
+					  struct drm_dp_sideband_msg_hdr *hdr,
+					  u8 hdrlen)
 {
-	int ret;
+	/*
+	 * ignore out-of-order messages or messages that are part of a
+	 * failed transaction
+	 */
+	if (!hdr->somt && !msg->have_somt)
+		return false;
+
+	/* get length contained in this portion */
+	msg->curchunk_idx = 0;
+	msg->curchunk_len = hdr->msg_len;
+	msg->curchunk_hdrlen = hdrlen;
+
+	/* we have already gotten an somt - don't bother parsing */
+	if (hdr->somt && msg->have_somt)
+		return false;
+
+	if (hdr->somt) {
+		memcpy(&msg->initial_hdr, hdr,
+		       sizeof(struct drm_dp_sideband_msg_hdr));
+		msg->have_somt = true;
+	}
+	if (hdr->eomt)
+		msg->have_eomt = true;
+
+	return true;
+}
+
+/* this adds a chunk of msg to the builder to get the final msg */
+static bool drm_dp_sideband_append_payload(struct drm_dp_sideband_msg_rx *msg,
+					   u8 *replybuf, u8 replybuflen)
+{
 	u8 crc4;
 
-	if (hdr) {
-		u8 hdrlen;
-		struct drm_dp_sideband_msg_hdr recv_hdr;
-		ret = drm_dp_decode_sideband_msg_hdr(&recv_hdr, replybuf, replybuflen, &hdrlen);
-		if (ret == false) {
-			print_hex_dump(KERN_DEBUG, "failed hdr", DUMP_PREFIX_NONE, 16, 1, replybuf, replybuflen, false);
-			return false;
-		}
-
-		/*
-		 * ignore out-of-order messages or messages that are part of a
-		 * failed transaction
-		 */
-		if (!recv_hdr.somt && !msg->have_somt)
-			return false;
-
-		/* get length contained in this portion */
-		msg->curchunk_len = recv_hdr.msg_len;
-		msg->curchunk_hdrlen = hdrlen;
-
-		/* we have already gotten an somt - don't bother parsing */
-		if (recv_hdr.somt && msg->have_somt)
-			return false;
-
-		if (recv_hdr.somt) {
-			memcpy(&msg->initial_hdr, &recv_hdr, sizeof(struct drm_dp_sideband_msg_hdr));
-			msg->have_somt = true;
-		}
-		if (recv_hdr.eomt)
-			msg->have_eomt = true;
-
-		/* copy the bytes for the remainder of this header chunk */
-		msg->curchunk_idx = min(msg->curchunk_len, (u8)(replybuflen - hdrlen));
-		memcpy(&msg->chunk[0], replybuf + hdrlen, msg->curchunk_idx);
-	} else {
-		memcpy(&msg->chunk[msg->curchunk_idx], replybuf, replybuflen);
-		msg->curchunk_idx += replybuflen;
-	}
+	memcpy(&msg->chunk[msg->curchunk_idx], replybuf, replybuflen);
+	msg->curchunk_idx += replybuflen;
 
 	if (msg->curchunk_idx >= msg->curchunk_len) {
 		/* do CRC */
@@ -3708,25 +3702,43 @@ static bool drm_dp_get_one_sb_msg(struct drm_dp_mst_topology_mgr *mgr, bool up)
 	u8 replyblock[32];
 	int replylen, curreply;
 	int ret;
+	u8 hdrlen;
+	struct drm_dp_sideband_msg_hdr hdr;
 	struct drm_dp_sideband_msg_rx *msg;
-	int basereg = up ? DP_SIDEBAND_MSG_UP_REQ_BASE : DP_SIDEBAND_MSG_DOWN_REP_BASE;
+	int basereg = up ? DP_SIDEBAND_MSG_UP_REQ_BASE :
+			   DP_SIDEBAND_MSG_DOWN_REP_BASE;
+
 	msg = up ? &mgr->up_req_recv : &mgr->down_rep_recv;
 
 	len = min(mgr->max_dpcd_transaction_bytes, 16);
-	ret = drm_dp_dpcd_read(mgr->aux, basereg,
-			       replyblock, len);
+	ret = drm_dp_dpcd_read(mgr->aux, basereg, replyblock, len);
 	if (ret != len) {
 		DRM_DEBUG_KMS("failed to read DPCD down rep %d %d\n", len, ret);
 		return false;
 	}
-	ret = drm_dp_sideband_msg_build(msg, replyblock, len, true);
+
+	ret = drm_dp_decode_sideband_msg_hdr(&hdr, replyblock, len, &hdrlen);
+	if (ret == false) {
+		print_hex_dump(KERN_DEBUG, "failed hdr", DUMP_PREFIX_NONE, 16,
+			       1, replyblock, len, false);
+		DRM_DEBUG_KMS("ERROR: failed header\n");
+		return false;
+	}
+
+	if (!drm_dp_sideband_msg_set_header(msg, &hdr, hdrlen)) {
+		DRM_DEBUG_KMS("sideband msg set header failed %d\n",
+			      replyblock[0]);
+		return false;
+	}
+
+	replylen = min(msg->curchunk_len, (u8)(len - hdrlen));
+	ret = drm_dp_sideband_append_payload(msg, replyblock + hdrlen, replylen);
 	if (!ret) {
 		DRM_DEBUG_KMS("sideband msg build failed %d\n", replyblock[0]);
 		return false;
 	}
-	replylen = msg->curchunk_len + msg->curchunk_hdrlen;
 
-	replylen -= len;
+	replylen = msg->curchunk_len + msg->curchunk_hdrlen - len;
 	curreply = len;
 	while (replylen > 0) {
 		len = min3(replylen, mgr->max_dpcd_transaction_bytes, 16);
@@ -3738,7 +3750,7 @@ static bool drm_dp_get_one_sb_msg(struct drm_dp_mst_topology_mgr *mgr, bool up)
 			return false;
 		}
 
-		ret = drm_dp_sideband_msg_build(msg, replyblock, len, false);
+		ret = drm_dp_sideband_append_payload(msg, replyblock, len);
 		if (!ret) {
 			DRM_DEBUG_KMS("failed to build sideband msg\n");
 			return false;
