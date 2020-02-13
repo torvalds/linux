@@ -1225,25 +1225,14 @@ pvr_sync_create_waiter_for_foreign_sync(int fd)
 	waiter->sync_fence = sync_fence;
 
 	err = dma_fence_add_callback(fence->fence, &waiter->waiter,
-			pvr_sync_foreign_sync_pt_signaled);
-	if (err) {
-		/* Fence signaled, get the completion result */
-		err = dma_fence_get_status(fence->fence);
-		/* remap success completion to err code */
-		if (err == 1)
-			err = 0;
-
-		if (err < 0) {
-			pr_err("pvr_sync: %s: Fence was in error state (%d)\n",
-			       __func__, err);
-			/* Fall-thru */
-
-			/* -1 means the fence was broken, 1 means the fence already
-			* signalled. In either case, roll back what we've done and
-			* skip using this sync_pt for synchronization.
-			*/
-			goto err_free_waiter;
-		}
+				pvr_sync_foreign_sync_pt_signaled);
+	if (-ENOENT == err) {
+		// V("'fence->fence' has been already signaled.");
+		goto err_free_waiter;
+	} else if (-EINVAL == err) {
+		pr_err("pvr_sync_file: %s: failed to add callback to dma_fence, err: %d\n",
+				__func__, err);
+		goto err_free_waiter;
 	}
 
 	kernel->current_cleanup_sync = cleanup_sync;
