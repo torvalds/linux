@@ -100,14 +100,7 @@ static int ice_dcbnl_setets(struct net_device *netdev, struct ieee_ets *ets)
 		goto ets_out;
 	}
 
-	/* max_tc is a 1-8 value count of number of TC's, not a 0-7 value
-	 * for the TC's index number.  Add one to value if not zero, and
-	 * for zero set it to the FW's default value
-	 */
-	if (max_tc)
-		max_tc++;
-	else
-		max_tc = IEEE_8021QAZ_MAX_TCS;
+	max_tc = pf->hw.func_caps.common_cap.maxtc;
 
 	new_cfg->etscfg.maxtcs = max_tc;
 
