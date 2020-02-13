@@ -6898,17 +6898,24 @@ static u64 vmx_get_mt_mask(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio)
 	u8 cache;
 	u64 ipat = 0;
 
-	/* For VT-d and EPT combination
-	 * 1. MMIO: always map as UC
-	 * 2. EPT with VT-d:
-	 *   a. VT-d without snooping control feature: can't guarantee the
-	 *	result, try to trust guest.
-	 *   b. VT-d with snooping control feature: snooping control feature of
-	 *	VT-d engine can guarantee the cache correctness. Just set it
-	 *	to WB to keep consistent with host. So the same as item 3.
-	 * 3. EPT without VT-d: always map as WB and set IPAT=1 to keep
-	 *    consistent with host MTRR
+	/* We wanted to honor guest CD/MTRR/PAT, but doing so could result in
+	 * memory aliases with conflicting memory types and sometimes MCEs.
+	 * We have to be careful as to what are honored and when.
+	 *
+	 * For MMIO, guest CD/MTRR are ignored.  The EPT memory type is set to
+	 * UC.  The effective memory type is UC or WC depending on guest PAT.
+	 * This was historically the source of MCEs and we want to be
+	 * conservative.
+	 *
+	 * When there is no need to deal with noncoherent DMA (e.g., no VT-d
+	 * or VT-d has snoop control), guest CD/MTRR/PAT are all ignored.  The
+	 * EPT memory type is set to WB.  The effective memory type is forced
+	 * WB.
+	 *
+	 * Otherwise, we trust guest.  Guest CD/MTRR/PAT are all honored.  The
+	 * EPT memory type is used to emulate guest CD/MTRR.
 	 */
+
 	if (is_mmio) {
 		cache = MTRR_TYPE_UNCACHABLE;
 		goto exit;
