@@ -177,7 +177,7 @@
 #define RT5682_TEST_MODE_CTRL_4			0x0148
 #define RT5682_TEST_MODE_CTRL_5			0x0149
 #define RT5682_PLL1_INTERNAL			0x0150
-#define RT5682_PLL2_INTERNAL			0x0151
+#define RT5682_PLL2_INTERNAL			0x0156
 #define RT5682_STO_NG2_CTRL_1			0x0160
 #define RT5682_STO_NG2_CTRL_2			0x0161
 #define RT5682_STO_NG2_CTRL_3			0x0162
@@ -738,7 +738,7 @@
 #define RT5682_ADC_OSR_D_24			(0x7 << 12)
 #define RT5682_ADC_OSR_D_32			(0x8 << 12)
 #define RT5682_ADC_OSR_D_48			(0x9 << 12)
-#define RT5682_I2S_M_DIV_MASK			(0xf << 12)
+#define RT5682_I2S_M_DIV_MASK			(0xf << 8)
 #define RT5682_I2S_M_DIV_SFT			8
 #define RT5682_I2S_M_D_1			(0x0 << 8)
 #define RT5682_I2S_M_D_2			(0x1 << 8)
@@ -820,6 +820,12 @@
 #define RT5682_TDM_DF_PCM_B			(0x3 << 11)
 #define RT5682_TDM_DF_PCM_A_N			(0x6 << 11)
 #define RT5682_TDM_DF_PCM_B_N			(0x7 << 11)
+#define RT5682_TDM_BCLK_MS1_MASK		(0x3 << 9)
+#define RT5682_TDM_BCLK_MS1_SFT			9
+#define RT5682_TDM_BCLK_MS1_32			(0x0 << 9)
+#define RT5682_TDM_BCLK_MS1_64			(0x1 << 9)
+#define RT5682_TDM_BCLK_MS1_128			(0x2 << 9)
+#define RT5682_TDM_BCLK_MS1_256			(0x3 << 9)
 #define RT5682_TDM_CL_MASK			(0x3 << 4)
 #define RT5682_TDM_CL_16			(0x0 << 4)
 #define RT5682_TDM_CL_20			(0x1 << 4)
@@ -1048,6 +1054,28 @@
 #define RT5682_PWR_CLK1M_SFT			8
 #define RT5682_PWR_CLK1M_PD			(0x0 << 8)
 #define RT5682_PWR_CLK1M_PU			(0x1 << 8)
+
+/* PLL2 M/N/K Code Control 1 (0x009b) */
+#define RT5682_PLL2F_K_MASK			(0x1f << 8)
+#define RT5682_PLL2F_K_SFT			8
+#define RT5682_PLL2B_K_MASK			(0xf << 4)
+#define RT5682_PLL2B_K_SFT			4
+#define RT5682_PLL2B_M_MASK			(0xf << 0)
+
+/* PLL2 M/N/K Code Control 2 (0x009c) */
+#define RT5682_PLL2F_M_MASK			(0x3f << 8)
+#define RT5682_PLL2F_M_SFT			8
+#define RT5682_PLL2B_N_MASK			(0x3f << 0)
+
+/* PLL2 M/N/K Code Control 2 (0x009d) */
+#define RT5682_PLL2F_N_MASK			(0x7f << 8)
+#define RT5682_PLL2F_N_SFT			8
+
+/* PLL2 M/N/K Code Control 2 (0x009e) */
+#define RT5682_PLL2B_M_BP_MASK			(0x1 << 11)
+#define RT5682_PLL2B_M_BP_SFT			11
+#define RT5682_PLL2F_M_BP_MASK			(0x1 << 7)
+#define RT5682_PLL2F_M_BP_SFT			7
 
 /* RC Clock Control (0x009f) */
 #define RT5682_POW_IRQ				(0x1 << 15)
@@ -1315,6 +1343,13 @@ enum {
 	RT5682_PLL1_S_MCLK,
 	RT5682_PLL1_S_BCLK1,
 	RT5682_PLL1_S_RCCLK,
+	RT5682_PLL2_S_MCLK,
+};
+
+enum {
+	RT5682_PLL1,
+	RT5682_PLL2,
+	RT5682_PLLS,
 };
 
 enum {
