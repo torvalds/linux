@@ -76,5 +76,7 @@ int qtnf_cmd_set_tx_power(const struct qtnf_vif *vif,
 int qtnf_cmd_send_wowlan_set(const struct qtnf_vif *vif,
 			     const struct cfg80211_wowlan *wowl);
 int qtnf_cmd_netdev_changeupper(const struct qtnf_vif *vif, int br_domain);
+int qtnf_cmd_send_update_owe(struct qtnf_vif *vif,
+			     struct cfg80211_update_owe_info *owe);
 
 #endif /* QLINK_COMMANDS_H_ */

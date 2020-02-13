@@ -908,6 +908,26 @@ static int qtnf_set_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev,
 	return ret;
 }
 
+static int qtnf_update_owe_info(struct wiphy *wiphy, struct net_device *dev,
+				struct cfg80211_update_owe_info *owe_info)
+{
+	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
+	int ret;
+
+	if (vif->wdev.iftype != NL80211_IFTYPE_AP)
+		return -EOPNOTSUPP;
+
+	ret = qtnf_cmd_send_update_owe(vif, owe_info);
+	if (ret) {
+		pr_err("VIF%u.%u: failed to update owe info\n",
+		       vif->mac->macid, vif->vifid);
+		goto out;
+	}
+
+out:
+	return ret;
+}
+
 #ifdef CONFIG_PM
 static int qtnf_suspend(struct wiphy *wiphy, struct cfg80211_wowlan *wowlan)
 {
@@ -1004,6 +1024,7 @@ static struct cfg80211_ops qtn_cfg80211_ops = {
 	.set_power_mgmt		= qtnf_set_power_mgmt,
 	.get_tx_power		= qtnf_get_tx_power,
 	.set_tx_power		= qtnf_set_tx_power,
+	.update_owe_info	= qtnf_update_owe_info,
 #ifdef CONFIG_PM
 	.suspend		= qtnf_suspend,
 	.resume			= qtnf_resume,
