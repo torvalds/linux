@@ -15027,6 +15027,20 @@ static int intel_atomic_check(struct drm_device *dev,
 	if (new_cdclk_state && new_cdclk_state->force_min_cdclk_changed)
 		any_ms = true;
 
+	/*
+	 * distrust_bios_wm will force a full dbuf recomputation
+	 * but the hardware state will only get updated accordingly
+	 * if state->modeset==true. Hence distrust_bios_wm==true &&
+	 * state->modeset==false is an invalid combination which
+	 * would cause the hardware and software dbuf state to get
+	 * out of sync. We must prevent that.
+	 *
+	 * FIXME clean up this mess and introduce better
+	 * state tracking for dbuf.
+	 */
+	if (dev_priv->wm.distrust_bios_wm)
+		any_ms = true;
+
 	if (any_ms) {
 		ret = intel_modeset_checks(state);
 		if (ret)
