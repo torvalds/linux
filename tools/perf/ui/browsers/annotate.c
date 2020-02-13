@@ -833,13 +833,13 @@ show_sup_ins:
 			map_symbol__annotation_dump(ms, evsel, browser->opts);
 			continue;
 		case 't':
-			if (notes->options->show_total_period) {
-				notes->options->show_total_period = false;
+			if (symbol_conf.show_total_period) {
+				symbol_conf.show_total_period = false;
 				notes->options->show_nr_samples = true;
 			} else if (notes->options->show_nr_samples)
 				notes->options->show_nr_samples = false;
 			else
-				notes->options->show_total_period = true;
+				symbol_conf.show_total_period = true;
 			annotation__update_column_widths(notes);
 			continue;
 		case 'c':
