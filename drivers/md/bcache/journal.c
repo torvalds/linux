@@ -417,8 +417,6 @@ err:
 
 /* Journalling */
 
-#define nr_to_fifo_front(p, front_p, mask)	(((p) - (front_p)) & (mask))
-
 static void btree_flush_write(struct cache_set *c)
 {
 	struct btree *b, *t, *btree_nodes[BTREE_FLUSH_NR];
@@ -510,9 +508,8 @@ static void btree_flush_write(struct cache_set *c)
 		 *   journal entry can be reclaimed). These selected nodes
 		 *   will be ignored and skipped in the folowing for-loop.
 		 */
-		if (nr_to_fifo_front(btree_current_write(b)->journal,
-				     fifo_front_p,
-				     mask) != 0) {
+		if (((btree_current_write(b)->journal - fifo_front_p) &
+		     mask) != 0) {
 			mutex_unlock(&b->write_lock);
 			continue;
 		}
