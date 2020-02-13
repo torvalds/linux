@@ -78,4 +78,42 @@ struct prelim_ref {
 	u64 wanted_disk_byte;
 };
 
+/*
+ * Iterate backrefs of one extent.
+ *
+ * Now it only supports iteration of tree block in commit root.
+ */
+struct btrfs_backref_iter {
+	u64 bytenr;
+	struct btrfs_path *path;
+	struct btrfs_fs_info *fs_info;
+	struct btrfs_key cur_key;
+	u32 item_ptr;
+	u32 cur_ptr;
+	u32 end_ptr;
+};
+
+struct btrfs_backref_iter *btrfs_backref_iter_alloc(
+		struct btrfs_fs_info *fs_info, gfp_t gfp_flag);
+
+static inline void btrfs_backref_iter_free(struct btrfs_backref_iter *iter)
+{
+	if (!iter)
+		return;
+	btrfs_free_path(iter->path);
+	kfree(iter);
+}
+
+int btrfs_backref_iter_start(struct btrfs_backref_iter *iter, u64 bytenr);
+
+static inline void btrfs_backref_iter_release(struct btrfs_backref_iter *iter)
+{
+	iter->bytenr = 0;
+	iter->item_ptr = 0;
+	iter->cur_ptr = 0;
+	iter->end_ptr = 0;
+	btrfs_release_path(iter->path);
+	memset(&iter->cur_key, 0, sizeof(iter->cur_key));
+}
+
 #endif

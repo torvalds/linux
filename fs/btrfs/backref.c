@@ -2295,3 +2295,113 @@ void free_ipath(struct inode_fs_paths *ipath)
 	kvfree(ipath->fspath);
 	kfree(ipath);
 }
+
+struct btrfs_backref_iter *btrfs_backref_iter_alloc(
+		struct btrfs_fs_info *fs_info, gfp_t gfp_flag)
+{
+	struct btrfs_backref_iter *ret;
+
+	ret = kzalloc(sizeof(*ret), gfp_flag);
+	if (!ret)
+		return NULL;
+
+	ret->path = btrfs_alloc_path();
+	if (!ret) {
+		kfree(ret);
+		return NULL;
+	}
+
+	/* Current backref iterator only supports iteration in commit root */
+	ret->path->search_commit_root = 1;
+	ret->path->skip_locking = 1;
+	ret->fs_info = fs_info;
+
+	return ret;
+}
+
+int btrfs_backref_iter_start(struct btrfs_backref_iter *iter, u64 bytenr)
+{
+	struct btrfs_fs_info *fs_info = iter->fs_info;
+	struct btrfs_path *path = iter->path;
+	struct btrfs_extent_item *ei;
+	struct btrfs_key key;
+	int ret;
+
+	key.objectid = bytenr;
+	key.type = BTRFS_METADATA_ITEM_KEY;
+	key.offset = (u64)-1;
+	iter->bytenr = bytenr;
+
+	ret = btrfs_search_slot(NULL, fs_info->extent_root, &key, path, 0, 0);
+	if (ret < 0)
+		return ret;
+	if (ret == 0) {
+		ret = -EUCLEAN;
+		goto release;
+	}
+	if (path->slots[0] == 0) {
+		WARN_ON(IS_ENABLED(CONFIG_BTRFS_DEBUG));
+		ret = -EUCLEAN;
+		goto release;
+	}
+	path->slots[0]--;
+
+	btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
+	if ((key.type != BTRFS_EXTENT_ITEM_KEY &&
+	     key.type != BTRFS_METADATA_ITEM_KEY) || key.objectid != bytenr) {
+		ret = -ENOENT;
+		goto release;
+	}
+	memcpy(&iter->cur_key, &key, sizeof(key));
+	iter->item_ptr = (u32)btrfs_item_ptr_offset(path->nodes[0],
+						    path->slots[0]);
+	iter->end_ptr = (u32)(iter->item_ptr +
+			btrfs_item_size_nr(path->nodes[0], path->slots[0]));
+	ei = btrfs_item_ptr(path->nodes[0], path->slots[0],
+			    struct btrfs_extent_item);
+
+	/*
+	 * Only support iteration on tree backref yet.
+	 *
+	 * This is an extra precaution for non skinny-metadata, where
+	 * EXTENT_ITEM is also used for tree blocks, that we can only use
+	 * extent flags to determine if it's a tree block.
+	 */
+	if (btrfs_extent_flags(path->nodes[0], ei) & BTRFS_EXTENT_FLAG_DATA) {
+		ret = -ENOTSUPP;
+		goto release;
+	}
+	iter->cur_ptr = (u32)(iter->item_ptr + sizeof(*ei));
+
+	/* If there is no inline backref, go search for keyed backref */
+	if (iter->cur_ptr >= iter->end_ptr) {
+		ret = btrfs_next_item(fs_info->extent_root, path);
+
+		/* No inline nor keyed ref */
+		if (ret > 0) {
+			ret = -ENOENT;
+			goto release;
+		}
+		if (ret < 0)
+			goto release;
+
+		btrfs_item_key_to_cpu(path->nodes[0], &iter->cur_key,
+				path->slots[0]);
+		if (iter->cur_key.objectid != bytenr ||
+		    (iter->cur_key.type != BTRFS_SHARED_BLOCK_REF_KEY &&
+		     iter->cur_key.type != BTRFS_TREE_BLOCK_REF_KEY)) {
+			ret = -ENOENT;
+			goto release;
+		}
+		iter->cur_ptr = (u32)btrfs_item_ptr_offset(path->nodes[0],
+							   path->slots[0]);
+		iter->item_ptr = iter->cur_ptr;
+		iter->end_ptr = (u32)(iter->item_ptr + btrfs_item_size_nr(
+				      path->nodes[0], path->slots[0]));
+	}
+
+	return 0;
+release:
+	btrfs_backref_iter_release(iter);
+	return ret;
+}
