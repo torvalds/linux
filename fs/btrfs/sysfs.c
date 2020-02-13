@@ -1205,7 +1205,7 @@ static ssize_t btrfs_devinfo_in_fs_metadata_show(struct kobject *kobj,
 }
 BTRFS_ATTR(devid, in_fs_metadata, btrfs_devinfo_in_fs_metadata_show);
 
-static ssize_t btrfs_sysfs_missing_show(struct kobject *kobj,
+static ssize_t btrfs_devinfo_missing_show(struct kobject *kobj,
 					struct kobj_attribute *a, char *buf)
 {
 	int val;
@@ -1216,7 +1216,7 @@ static ssize_t btrfs_sysfs_missing_show(struct kobject *kobj,
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
-BTRFS_ATTR(devid, missing, btrfs_sysfs_missing_show);
+BTRFS_ATTR(devid, missing, btrfs_devinfo_missing_show);
 
 static ssize_t btrfs_devinfo_replace_target_show(struct kobject *kobj,
 					         struct kobj_attribute *a,
