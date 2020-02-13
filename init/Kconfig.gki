@@ -69,6 +69,7 @@ config GKI_HIDDEN_QCOM_CONFIGS
 	bool "Hidden QCOM configs needed for GKI"
 	select QCOM_SMEM_STATE
 	select QCOM_SCM if (ARM64)
+	select QCOM_GDSC if (ARCH_QCOM)
 	select PINCTRL_MSM if (PINCTRL && ARCH_QCOM)
 	help
 	  Dummy config option used to enable hidden QCOM configs.
@@ -77,9 +78,6 @@ config GKI_HIDDEN_QCOM_CONFIGS
 
 config GKI_QCOM_CLKS_CONFIGS
 	bool "QCOM clk drivers needed for GKI due to powerdomain restrictions"
-	select COMMON_CLK_QCOM	if (ARCH_QCOM)
-	select QCOM_CLK_RPMH	if (ARCH_QCOM)
-	select SDM_GPUCC_845	if (ARCH_QCOM)
 	select QCOM_RPMHPD	if (ARCH_QCOM)
 	help
 	  This config option selects various QCOM clk drivers that
