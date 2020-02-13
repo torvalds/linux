@@ -20,6 +20,7 @@
 #include <linux/ctype.h>
 #include <linux/workqueue.h>
 #include <linux/slab.h>
+#include <linux/platform_device.h>
 
 #include "qlink.h"
 #include "trans.h"
@@ -107,6 +108,7 @@ struct qtnf_wmac {
 	struct mutex mac_lock;	/* lock during wmac speicific ops */
 	struct delayed_work scan_timeout;
 	struct ieee80211_regdomain *rd;
+	struct platform_device *pdev;
 };
 
 struct qtnf_hw_info {
@@ -127,7 +129,8 @@ void qtnf_mac_iface_comb_free(struct qtnf_wmac *mac);
 void qtnf_mac_ext_caps_free(struct qtnf_wmac *mac);
 bool qtnf_slave_radar_get(void);
 bool qtnf_dfs_offload_get(void);
-struct wiphy *qtnf_wiphy_allocate(struct qtnf_bus *bus);
+struct wiphy *qtnf_wiphy_allocate(struct qtnf_bus *bus,
+				  struct platform_device *pdev);
 int qtnf_core_net_attach(struct qtnf_wmac *mac, struct qtnf_vif *priv,
 			 const char *name, unsigned char name_assign_type);
 void qtnf_main_work_queue(struct work_struct *work);
