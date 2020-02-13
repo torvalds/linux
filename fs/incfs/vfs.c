@@ -72,6 +72,8 @@ static void evict_inode(struct inode *inode);
 
 static ssize_t incfs_getxattr(struct dentry *d, const char *name,
 			void *value, size_t size);
+static ssize_t incfs_setxattr(struct dentry *d, const char *name,
+			const void *value, size_t size, int flags);
 static ssize_t incfs_listxattr(struct dentry *d, char *list, size_t size);
 
 static int show_options(struct seq_file *, struct dentry *);
@@ -166,9 +168,18 @@ static int incfs_handler_getxattr(const struct xattr_handler *xh,
 	return incfs_getxattr(d, name, buffer, size);
 }
 
+static int incfs_handler_setxattr(const struct xattr_handler *xh,
+				  struct dentry *d, struct inode *inode,
+				  const char *name, const void *buffer,
+				  size_t size, int flags)
+{
+	return incfs_setxattr(d, name, buffer, size, flags);
+}
+
 static const struct xattr_handler incfs_xattr_handler = {
 	.prefix = "",	/* AKA all attributes */
 	.get = incfs_handler_getxattr,
+	.set = incfs_handler_setxattr,
 };
 
 static const struct xattr_handler *incfs_xattr_ops[] = {
@@ -2045,11 +2056,74 @@ static ssize_t incfs_getxattr(struct dentry *d, const char *name,
 			void *value, size_t size)
 {
 	struct dentry_info *di = get_incfs_dentry(d);
+	struct mount_info *mi = get_mount_info(d->d_sb);
+	char *stored_value;
+	size_t stored_size;
 
-	if (!di || !di->backing_path.dentry)
+	if (di && di->backing_path.dentry)
+		return vfs_getxattr(di->backing_path.dentry, name, value, size);
+
+	if (strcmp(name, "security.selinux"))
 		return -ENODATA;
 
-	return vfs_getxattr(di->backing_path.dentry, name, value, size);
+	if (!strcmp(d->d_iname, INCFS_PENDING_READS_FILENAME)) {
+		stored_value = mi->pending_read_xattr;
+		stored_size = mi->pending_read_xattr_size;
+	} else if (!strcmp(d->d_iname, INCFS_LOG_FILENAME)) {
+		stored_value = mi->log_xattr;
+		stored_size = mi->log_xattr_size;
+	} else {
+		return -ENODATA;
+	}
+
+	if (!stored_value)
+		return -ENODATA;
+
+	if (stored_size > size)
+		return -E2BIG;
+
+	memcpy(value, stored_value, stored_size);
+	return stored_size;
+
+}
+
+
+static ssize_t incfs_setxattr(struct dentry *d, const char *name,
+			const void *value, size_t size, int flags)
+{
+	struct dentry_info *di = get_incfs_dentry(d);
+	struct mount_info *mi = get_mount_info(d->d_sb);
+	void **stored_value;
+	size_t *stored_size;
+
+	if (di && di->backing_path.dentry)
+		return vfs_setxattr(di->backing_path.dentry, name, value, size,
+				    flags);
+
+	if (strcmp(name, "security.selinux"))
+		return -ENODATA;
+
+	if (size > INCFS_MAX_FILE_ATTR_SIZE)
+		return -E2BIG;
+
+	if (!strcmp(d->d_iname, INCFS_PENDING_READS_FILENAME)) {
+		stored_value = &mi->pending_read_xattr;
+		stored_size = &mi->pending_read_xattr_size;
+	} else if (!strcmp(d->d_iname, INCFS_LOG_FILENAME)) {
+		stored_value = &mi->log_xattr;
+		stored_size = &mi->log_xattr_size;
+	} else {
+		return -ENODATA;
+	}
+
+	kfree (*stored_value);
+	*stored_value = kzalloc(size, GFP_NOFS);
+	if (!*stored_value)
+		return -ENOMEM;
+
+	memcpy(*stored_value, value, size);
+	*stored_size = size;
+	return 0;
 }
 
 static ssize_t incfs_listxattr(struct dentry *d, char *list, size_t size)

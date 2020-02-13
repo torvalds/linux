@@ -105,6 +105,12 @@ struct mount_info {
 
 	/* Temporary buffer for read logger. */
 	struct read_log mi_log;
+
+	void *log_xattr;
+	size_t log_xattr_size;
+
+	void *pending_read_xattr;
+	size_t pending_read_xattr_size;
 };
 
 struct data_file_block {

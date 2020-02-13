@@ -68,6 +68,8 @@ void incfs_free_mount_info(struct mount_info *mi)
 	mutex_destroy(&mi->mi_pending_reads_mutex);
 	put_cred(mi->mi_owner);
 	kfree(mi->mi_log.rl_ring_buf);
+	kfree(mi->log_xattr);
+	kfree(mi->pending_read_xattr);
 	kfree(mi);
 }
 
