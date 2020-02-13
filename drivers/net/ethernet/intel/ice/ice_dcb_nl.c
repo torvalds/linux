@@ -95,6 +95,11 @@ static int ice_dcbnl_setets(struct net_device *netdev, struct ieee_ets *ets)
 		new_cfg->etsrec.prio_table[i] = ets->reco_prio_tc[i];
 	}
 
+	if (ice_dcb_bwchk(pf, new_cfg)) {
+		err = -EINVAL;
+		goto ets_out;
+	}
+
 	/* max_tc is a 1-8 value count of number of TC's, not a 0-7 value
 	 * for the TC's index number.  Add one to value if not zero, and
 	 * for zero set it to the FW's default value
@@ -119,6 +124,7 @@ static int ice_dcbnl_setets(struct net_device *netdev, struct ieee_ets *ets)
 	if (err == ICE_DCB_NO_HW_CHG)
 		err = ICE_DCB_HW_CHG_RST;
 
+ets_out:
 	mutex_unlock(&pf->tc_mutex);
 	return err;
 }

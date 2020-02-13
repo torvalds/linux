@@ -149,6 +149,43 @@ void ice_vsi_cfg_dcb_rings(struct ice_vsi *vsi)
 }
 
 /**
+ * ice_dcb_bwchk - check if ETS bandwidth input parameters are correct
+ * @pf: pointer to the PF struct
+ * @dcbcfg: pointer to DCB config structure
+ */
+int ice_dcb_bwchk(struct ice_pf *pf, struct ice_dcbx_cfg *dcbcfg)
+{
+	struct ice_dcb_ets_cfg *etscfg = &dcbcfg->etscfg;
+	u8 num_tc, total_bw = 0;
+	int i;
+
+	/* returns number of contigous TCs and 1 TC for non-contigous TCs,
+	 * since at least 1 TC has to be configured
+	 */
+	num_tc = ice_dcb_get_num_tc(dcbcfg);
+
+	/* no bandwidth checks required if there's only one TC, so assign
+	 * all bandwidth to TC0 and return
+	 */
+	if (num_tc == 1) {
+		etscfg->tcbwtable[0] = ICE_TC_MAX_BW;
+		return 0;
+	}
+
+	for (i = 0; i < num_tc; i++)
+		total_bw += etscfg->tcbwtable[i];
+
+	if (!total_bw) {
+		etscfg->tcbwtable[0] = ICE_TC_MAX_BW;
+	} else if (total_bw != ICE_TC_MAX_BW) {
+		dev_err(ice_pf_to_dev(pf), "Invalid config, total bandwidth must equal 100\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/**
  * ice_pf_dcb_cfg - Apply new DCB configuration
  * @pf: pointer to the PF struct
  * @new_cfg: DCBX config to apply
@@ -181,6 +218,9 @@ int ice_pf_dcb_cfg(struct ice_pf *pf, struct ice_dcbx_cfg *new_cfg, bool locked)
 		dev_dbg(dev, "No change in DCB config required\n");
 		return ret;
 	}
+
+	if (ice_dcb_bwchk(pf, new_cfg))
+		return -EINVAL;
 
 	/* Store old config in case FW config fails */
 	old_cfg = kmemdup(curr_cfg, sizeof(*old_cfg), GFP_KERNEL);
