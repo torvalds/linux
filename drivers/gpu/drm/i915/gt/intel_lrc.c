@@ -2331,8 +2331,10 @@ static void process_csb(struct intel_engine_cs *engine)
 			if (GEM_SHOW_DEBUG() &&
 			    !i915_request_completed(*execlists->active) &&
 			    !reset_in_progress(execlists)) {
-				struct i915_request *rq = *execlists->active;
-				const u32 *regs = rq->context->lrc_reg_state;
+				struct i915_request *rq __maybe_unused =
+					*execlists->active;
+				const u32 *regs __maybe_unused =
+					rq->context->lrc_reg_state;
 
 				ENGINE_TRACE(engine,
 					     "ring:{start:0x%08x, head:%04x, tail:%04x, ctl:%08x, mode:%08x}\n",
