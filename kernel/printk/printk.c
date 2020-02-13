@@ -2116,7 +2116,7 @@ asmlinkage __visible void early_printk(const char *fmt, ...)
 #endif
 
 static int __add_preferred_console(char *name, int idx, char *options,
-				   char *brl_options)
+				   char *brl_options, bool user_specified)
 {
 	struct console_cmdline *c;
 	int i;
@@ -2131,6 +2131,8 @@ static int __add_preferred_console(char *name, int idx, char *options,
 		if (strcmp(c->name, name) == 0 && c->index == idx) {
 			if (!brl_options)
 				preferred_console = i;
+			if (user_specified)
+				c->user_specified = true;
 			return 0;
 		}
 	}
@@ -2140,6 +2142,7 @@ static int __add_preferred_console(char *name, int idx, char *options,
 		preferred_console = i;
 	strlcpy(c->name, name, sizeof(c->name));
 	c->options = options;
+	c->user_specified = user_specified;
 	braille_set_options(c, brl_options);
 
 	c->index = idx;
@@ -2194,7 +2197,7 @@ static int __init console_setup(char *str)
 	idx = simple_strtoul(s, NULL, 10);
 	*s = 0;
 
-	__add_preferred_console(buf, idx, options, brl_options);
+	__add_preferred_console(buf, idx, options, brl_options, true);
 	console_set_on_cmdline = 1;
 	return 1;
 }
@@ -2215,7 +2218,7 @@ __setup("console=", console_setup);
  */
 int add_preferred_console(char *name, int idx, char *options)
 {
-	return __add_preferred_console(name, idx, options, NULL);
+	return __add_preferred_console(name, idx, options, NULL, false);
 }
 
 bool console_suspend_enabled = true;
@@ -2636,7 +2639,7 @@ early_param("keep_bootcon", keep_bootcon_setup);
  * Care need to be taken with consoles that are statically
  * enabled such as netconsole
  */
-static int try_enable_new_console(struct console *newcon)
+static int try_enable_new_console(struct console *newcon, bool user_specified)
 {
 	struct console_cmdline *c;
 	int i;
@@ -2644,6 +2647,8 @@ static int try_enable_new_console(struct console *newcon)
 	for (i = 0, c = console_cmdline;
 	     i < MAX_CMDLINECONSOLES && c->name[0];
 	     i++, c++) {
+		if (c->user_specified != user_specified)
+			continue;
 		if (!newcon->match ||
 		    newcon->match(newcon, c->name, c->index, c->options) != 0) {
 			/* default matching */
@@ -2673,9 +2678,10 @@ static int try_enable_new_console(struct console *newcon)
 
 	/*
 	 * Some consoles, such as pstore and netconsole, can be enabled even
-	 * without matching.
+	 * without matching. Accept the pre-enabled consoles only when match()
+	 * and setup() had a change to be called.
 	 */
-	if (newcon->flags & CON_ENABLED)
+	if (newcon->flags & CON_ENABLED && c->user_specified ==	user_specified)
 		return 0;
 
 	return -ENOENT;
@@ -2752,11 +2758,12 @@ void register_console(struct console *newcon)
 		}
 	}
 
-	/*
-	 * See if this console matches one we selected on
-	 * the command line or if it was statically enabled
-	 */
-	err = try_enable_new_console(newcon);
+	/* See if this console matches one we selected on the command line */
+	err = try_enable_new_console(newcon, true);
+
+	/* If not, try to match against the platform default(s) */
+	if (err == -ENOENT)
+		err = try_enable_new_console(newcon, false);
 
 	/* printk() messages are not printed to the Braille console. */
 	if (err || newcon->flags & CON_BRL)
