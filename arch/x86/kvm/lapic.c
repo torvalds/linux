@@ -294,11 +294,6 @@ static inline int apic_lvt_enabled(struct kvm_lapic *apic, int lvt_type)
 	return !(kvm_lapic_get_reg(apic, lvt_type) & APIC_LVT_MASKED);
 }
 
-static inline int apic_lvt_vector(struct kvm_lapic *apic, int lvt_type)
-{
-	return kvm_lapic_get_reg(apic, lvt_type) & APIC_VECTOR_MASK;
-}
-
 static inline int apic_lvtt_oneshot(struct kvm_lapic *apic)
 {
 	return apic->lapic_timer.timer_mode == APIC_LVT_TIMER_ONESHOT;
