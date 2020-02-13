@@ -198,9 +198,12 @@ static const struct dma_fence_ops timeline_fence_ops = {
  * A sync implementation should call this any time one of it's fences
  * has signaled or has an error condition.
  */
-static void sync_timeline_signal(struct sync_timeline *obj, unsigned int inc)
+void sync_timeline_signal(struct sync_timeline *obj, unsigned int inc)
 {
 	struct sync_pt *pt, *next;
+
+	if (WARN_ON(!obj))
+		return;
 
 	trace_sync_timeline(obj);
 
@@ -228,6 +231,7 @@ static void sync_timeline_signal(struct sync_timeline *obj, unsigned int inc)
 
 	spin_unlock_irq(&obj->lock);
 }
+EXPORT_SYMBOL(sync_timeline_signal);
 
 /**
  * sync_pt_create() - creates a sync pt

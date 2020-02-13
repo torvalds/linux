@@ -70,4 +70,6 @@ void sync_file_debug_add(struct sync_file *fence);
 void sync_file_debug_remove(struct sync_file *fence);
 void sync_dump(void);
 
+void sync_timeline_signal(struct sync_timeline *obj, unsigned int inc);
+
 #endif /* _LINUX_SYNC_H */
