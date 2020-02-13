@@ -345,6 +345,16 @@ static int aiu_probe(struct platform_device *pdev)
 		goto err;
 	}
 
+	/* Register the internal dac control component on gxl */
+	if (of_device_is_compatible(dev->of_node, "amlogic,aiu-gxl")) {
+		ret = aiu_acodec_ctrl_register_component(dev);
+		if (ret) {
+			dev_err(dev,
+			    "Failed to register acodec control component\n");
+			goto err;
+		}
+	}
+
 	return 0;
 err:
 	snd_soc_unregister_component(dev);

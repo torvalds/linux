@@ -52,6 +52,7 @@ int aiu_add_component(struct device *dev,
 		      const char *debugfs_prefix);
 
 int aiu_hdmi_ctrl_register_component(struct device *dev);
+int aiu_acodec_ctrl_register_component(struct device *dev);
 
 int aiu_fifo_i2s_dai_probe(struct snd_soc_dai *dai);
 int aiu_fifo_spdif_dai_probe(struct snd_soc_dai *dai);
