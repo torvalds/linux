@@ -2211,7 +2211,7 @@ int qtnf_cmd_send_external_auth(struct qtnf_vif *vif,
 
 	cmd = (struct qlink_cmd_external_auth *)cmd_skb->data;
 
-	ether_addr_copy(cmd->bssid, auth->bssid);
+	ether_addr_copy(cmd->peer, auth->bssid);
 	cmd->status = cpu_to_le16(auth->status);
 
 	qtnf_bus_lock(vif->mac->bus);

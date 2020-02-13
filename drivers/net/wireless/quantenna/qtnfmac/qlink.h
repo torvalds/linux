@@ -589,7 +589,7 @@ struct qlink_cmd_connect {
  */
 struct qlink_cmd_external_auth {
 	struct qlink_cmd chdr;
-	u8 bssid[ETH_ALEN];
+	u8 peer[ETH_ALEN];
 	__le16 status;
 	u8 payload[0];
 } __packed;

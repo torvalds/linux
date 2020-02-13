@@ -578,9 +578,9 @@ qtnf_event_handle_external_auth(struct qtnf_vif *vif,
 	ether_addr_copy(auth.bssid, ev->bssid);
 	auth.action = ev->action;
 
-	pr_info("%s: external auth bss=%pM action=%u akm=%u\n",
-		vif->netdev->name, auth.bssid, auth.action,
-		auth.key_mgmt_suite);
+	pr_debug("%s: external SAE processing: bss=%pM action=%u akm=%u\n",
+		 vif->netdev->name, auth.bssid, auth.action,
+		 auth.key_mgmt_suite);
 
 	ret = cfg80211_external_auth_request(vif->netdev, &auth, GFP_KERNEL);
 	if (ret)

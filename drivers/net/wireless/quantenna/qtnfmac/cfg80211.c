@@ -60,7 +60,8 @@ qtnf_mgmt_stypes[NUM_NL80211_IFTYPES] = {
 		      BIT(IEEE80211_STYPE_AUTH >> 4),
 	},
 	[NL80211_IFTYPE_AP] = {
-		.tx = BIT(IEEE80211_STYPE_ACTION >> 4),
+		.tx = BIT(IEEE80211_STYPE_ACTION >> 4) |
+		      BIT(IEEE80211_STYPE_AUTH >> 4),
 		.rx = BIT(IEEE80211_STYPE_ACTION >> 4) |
 		      BIT(IEEE80211_STYPE_PROBE_REQ >> 4) |
 		      BIT(IEEE80211_STYPE_ASSOC_REQ >> 4) |
@@ -679,10 +680,8 @@ qtnf_external_auth(struct wiphy *wiphy, struct net_device *dev,
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
 	int ret;
 
-	if (vif->wdev.iftype != NL80211_IFTYPE_STATION)
-		return -EOPNOTSUPP;
-
-	if (!ether_addr_equal(vif->bssid, auth->bssid))
+	if (vif->wdev.iftype == NL80211_IFTYPE_STATION &&
+	    !ether_addr_equal(vif->bssid, auth->bssid))
 		pr_warn("unexpected bssid: %pM", auth->bssid);
 
 	ret = qtnf_cmd_send_external_auth(vif, auth);
