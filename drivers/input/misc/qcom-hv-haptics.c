@@ -17,6 +17,7 @@
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
+#include <linux/regulator/driver.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
@@ -61,8 +62,8 @@
 
 #define HAP_CFG_SWR_ACCESS_REG			0x4E
 #define SWR_PAT_CFG_EN_BIT			BIT(7)
-#define SWR_PAT_INPUT_EN			BIT(6)
-#define SWR_PAT_RES_N				BIT(5)
+#define SWR_PAT_INPUT_EN_BIT			BIT(6)
+#define SWR_PAT_RES_N_BIT			BIT(5)
 
 #define HAP_CFG_BRAKE_MODE_CFG_REG		0x50
 #define BRAKE_MODE_MASK				GENMASK(7, 6)
@@ -326,11 +327,13 @@ struct haptics_chip {
 	struct haptics_play_info	play;
 	struct work_struct		fifo_work;
 	struct dentry			*debugfs_dir;
+	struct regulator_dev		*swr_slave_rdev;
 	int				fifo_empty_irq;
 	u32				effects_count;
 	u32				cfg_addr_base;
 	u32				ptn_addr_base;
 	bool				fifo_empty_irq_en;
+	bool				swr_slave_enabled;
 };
 
 static int haptics_read(struct haptics_chip *chip,
@@ -2243,6 +2246,97 @@ static int haptics_parse_dt(struct haptics_chip *chip)
 	return 0;
 }
 
+static int swr_slave_reg_enable(struct regulator_dev *rdev)
+{
+	struct haptics_chip *chip = rdev_get_drvdata(rdev);
+	int rc;
+	u8 mask = SWR_PAT_INPUT_EN_BIT | SWR_PAT_RES_N_BIT | SWR_PAT_CFG_EN_BIT;
+
+	rc = haptics_masked_write(chip, chip->cfg_addr_base,
+			HAP_CFG_SWR_ACCESS_REG, mask, mask);
+	if (rc < 0) {
+		dev_err(chip->dev, "Failed to enable SWR_PAT, rc=%d\n",
+				rc);
+		return rc;
+	}
+
+	chip->swr_slave_enabled = true;
+	return 0;
+}
+
+static int swr_slave_reg_disable(struct regulator_dev *rdev)
+{
+	struct haptics_chip *chip = rdev_get_drvdata(rdev);
+	int rc;
+
+	rc = haptics_masked_write(chip, chip->cfg_addr_base,
+			HAP_CFG_SWR_ACCESS_REG,
+			SWR_PAT_INPUT_EN_BIT | SWR_PAT_RES_N_BIT |
+			SWR_PAT_CFG_EN_BIT, 0);
+	if (rc < 0) {
+		dev_err(chip->dev, "Failed to disable SWR_PAT, rc=%d\n", rc);
+		return rc;
+	}
+
+	chip->swr_slave_enabled = false;
+	return 0;
+}
+
+static int swr_slave_reg_is_enabled(struct regulator_dev *rdev)
+{
+	struct haptics_chip *chip = rdev_get_drvdata(rdev);
+
+	return chip->swr_slave_enabled;
+}
+
+static const struct regulator_ops swr_slave_reg_ops = {
+	.enable		= swr_slave_reg_enable,
+	.disable	= swr_slave_reg_disable,
+	.is_enabled	= swr_slave_reg_is_enabled,
+};
+
+static struct regulator_desc swr_slave_reg_rdesc = {
+	.owner		= THIS_MODULE,
+	.of_match	= "qcom,hap-swr-slave-reg",
+	.name		= "hap-swr-slave-reg",
+	.type		= REGULATOR_VOLTAGE,
+	.ops		= &swr_slave_reg_ops,
+};
+
+static int haptics_init_swr_slave_regulator(struct haptics_chip *chip)
+{
+	struct regulator_config cfg = {};
+	u8 val, mask;
+	int rc = 0;
+
+	rc = haptics_read(chip, chip->cfg_addr_base,
+			HAP_CFG_SWR_ACCESS_REG, &val, 1);
+	if (rc < 0) {
+		dev_err(chip->dev, "Failed to read SWR_ACCESS, rc=%d\n",
+				rc);
+		return rc;
+	}
+
+	mask = SWR_PAT_INPUT_EN_BIT | SWR_PAT_RES_N_BIT | SWR_PAT_CFG_EN_BIT;
+	val &= mask;
+	chip->swr_slave_enabled = ((val == mask) ? true : false);
+
+	cfg.dev = chip->dev;
+	cfg.driver_data = chip;
+	chip->swr_slave_rdev = devm_regulator_register(chip->dev,
+			&swr_slave_reg_rdesc, &cfg);
+	if (IS_ERR(chip->swr_slave_rdev)) {
+		rc = PTR_ERR(chip->swr_slave_rdev);
+		chip->swr_slave_rdev = NULL;
+
+		if (rc != -EPROBE_DEFER)
+			dev_err(chip->dev, "register swr-slave-reg regulator failed, rc=%d\n",
+					rc);
+	}
+
+	return rc;
+}
+
 static int haptics_probe(struct platform_device *pdev)
 {
 	struct haptics_chip *chip;
@@ -2274,6 +2368,13 @@ static int haptics_probe(struct platform_device *pdev)
 	rc = haptics_hw_init(chip);
 	if (rc < 0) {
 		dev_err(chip->dev, "Initialize HW failed, rc = %d\n", rc);
+		return rc;
+	}
+
+	rc = haptics_init_swr_slave_regulator(chip);
+	if (rc < 0) {
+		dev_err(chip->dev, "Initialize swr slave regulator failed, rc = %d\n",
+				rc);
 		return rc;
 	}
 
