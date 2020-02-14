@@ -34,7 +34,7 @@ individual data for a specific misbehaving monitor, commented sources
 and a Makefile environment are given here.
 
 To create binary EDID and C source code files from the existing data
-material, simply type "make".
+material, simply type "make" in tools/edid/.
 
 If you want to create your own EDID file, copy the file 1024x768.S,
 replace the settings with your own data and add a new target to the
