@@ -197,7 +197,7 @@ static void pte_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent, uint64_t p
 		ptep = addr_gpa2hva(vm, pte);
 		if (!*ptep)
 			continue;
-		printf("%*s%s: %lx: %lx at %p\n", indent, "", type[level], pte, *ptep, ptep);
+		fprintf(stream, "%*s%s: %lx: %lx at %p\n", indent, "", type[level], pte, *ptep, ptep);
 		pte_dump(stream, vm, indent + 1, pte_addr(vm, *ptep), level + 1);
 	}
 #endif
@@ -215,7 +215,7 @@ void virt_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
 		ptep = addr_gpa2hva(vm, pgd);
 		if (!*ptep)
 			continue;
-		printf("%*spgd: %lx: %lx at %p\n", indent, "", pgd, *ptep, ptep);
+		fprintf(stream, "%*spgd: %lx: %lx at %p\n", indent, "", pgd, *ptep, ptep);
 		pte_dump(stream, vm, indent + 1, pte_addr(vm, *ptep), level);
 	}
 }
