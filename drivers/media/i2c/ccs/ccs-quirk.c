@@ -35,7 +35,7 @@ static int ccs_write_addr_8s(struct ccs_sensor *sensor,
 
 static int jt8ew9_limits(struct ccs_sensor *sensor)
 {
-	if (sensor->minfo.revision_number_major < 0x03)
+	if (sensor->minfo.revision_number < 0x0300)
 		sensor->frame_skip = 1;
 
 	/* Below 24 gain doesn't have effect at all, */

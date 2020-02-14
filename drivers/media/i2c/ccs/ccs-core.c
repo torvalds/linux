@@ -2427,11 +2427,11 @@ ccs_sysfs_ident_read(struct device *dev, struct device_attribute *attr,
 	if (minfo->mipi_manufacturer_id)
 		return snprintf(buf, PAGE_SIZE, "%4.4x%4.4x%2.2x\n",
 				minfo->mipi_manufacturer_id, minfo->model_id,
-				minfo->revision_number_major) + 1;
+				minfo->revision_number) + 1;
 	else
 		return snprintf(buf, PAGE_SIZE, "%2.2x%4.4x%2.2x\n",
 				minfo->smia_manufacturer_id, minfo->model_id,
-				minfo->revision_number_major) + 1;
+				minfo->revision_number) + 1;
 }
 
 static DEVICE_ATTR(ident, S_IRUGO, ccs_sysfs_ident_read, NULL);
@@ -2445,6 +2445,7 @@ static int ccs_identify_module(struct ccs_sensor *sensor)
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
 	struct ccs_module_info *minfo = &sensor->minfo;
 	unsigned int i;
+	u32 rev;
 	int rval = 0;
 
 	/* Module info */
@@ -2460,11 +2461,13 @@ static int ccs_identify_module(struct ccs_sensor *sensor)
 	if (!rval)
 		rval = ccs_read_addr_8only(sensor,
 					   CCS_R_MODULE_REVISION_NUMBER_MAJOR,
-					   &minfo->revision_number_major);
-	if (!rval)
+					   &rev);
+	if (!rval) {
 		rval = ccs_read_addr_8only(sensor,
 					   CCS_R_MODULE_REVISION_NUMBER_MINOR,
-					   &minfo->revision_number_minor);
+					   &minfo->revision_number);
+		minfo->revision_number |= rev << 8;
+	}
 	if (!rval)
 		rval = ccs_read_addr_8only(sensor, CCS_R_MODULE_DATE_YEAR,
 					   &minfo->module_year);
@@ -2519,9 +2522,9 @@ static int ccs_identify_module(struct ccs_sensor *sensor)
 			minfo->smia_manufacturer_id, minfo->model_id);
 
 	dev_dbg(&client->dev,
-		"module revision 0x%2.2x-0x%2.2x date %2.2d-%2.2d-%2.2d\n",
-		minfo->revision_number_major, minfo->revision_number_minor,
-		minfo->module_year, minfo->module_month, minfo->module_day);
+		"module revision 0x%4.4x date %2.2d-%2.2d-%2.2d\n",
+		minfo->revision_number, minfo->module_year, minfo->module_month,
+		minfo->module_day);
 
 	if (minfo->sensor_mipi_manufacturer_id)
 		dev_dbg(&client->dev, "MIPI CCS sensor 0x%4.4x-0x%4.4x\n",
@@ -2559,7 +2562,7 @@ static int ccs_identify_module(struct ccs_sensor *sensor)
 		minfo->smia_manufacturer_id =
 			minfo->sensor_smia_manufacturer_id;
 		minfo->model_id = minfo->sensor_model_id;
-		minfo->revision_number_major = minfo->sensor_revision_number;
+		minfo->revision_number = minfo->sensor_revision_number;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(ccs_module_idents); i++) {
@@ -2576,11 +2579,11 @@ static int ccs_identify_module(struct ccs_sensor *sensor)
 		if (ccs_module_idents[i].flags
 		    & CCS_MODULE_IDENT_FLAG_REV_LE) {
 			if (ccs_module_idents[i].revision_number_major
-			    < minfo->revision_number_major)
+			    < (minfo->revision_number >> 8))
 				continue;
 		} else {
 			if (ccs_module_idents[i].revision_number_major
-			    != minfo->revision_number_major)
+			    != (minfo->revision_number >> 8))
 				continue;
 		}
 

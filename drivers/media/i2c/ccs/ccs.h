@@ -107,8 +107,7 @@ struct ccs_module_info {
 	u32 smia_manufacturer_id;
 	u32 mipi_manufacturer_id;
 	u32 model_id;
-	u32 revision_number_major;
-	u32 revision_number_minor;
+	u32 revision_number;
 
 	u32 module_year;
 	u32 module_month;
