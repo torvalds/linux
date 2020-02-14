@@ -892,6 +892,47 @@ static inline void perf_cgroup_sched_in(struct task_struct *prev,
 	rcu_read_unlock();
 }
 
+static int perf_cgroup_ensure_storage(struct perf_event *event,
+				struct cgroup_subsys_state *css)
+{
+	struct perf_cpu_context *cpuctx;
+	struct perf_event **storage;
+	int cpu, heap_size, ret = 0;
+
+	/*
+	 * Allow storage to have sufficent space for an iterator for each
+	 * possibly nested cgroup plus an iterator for events with no cgroup.
+	 */
+	for (heap_size = 1; css; css = css->parent)
+		heap_size++;
+
+	for_each_possible_cpu(cpu) {
+		cpuctx = per_cpu_ptr(event->pmu->pmu_cpu_context, cpu);
+		if (heap_size <= cpuctx->heap_size)
+			continue;
+
+		storage = kmalloc_node(heap_size * sizeof(struct perf_event *),
+				       GFP_KERNEL, cpu_to_node(cpu));
+		if (!storage) {
+			ret = -ENOMEM;
+			break;
+		}
+
+		raw_spin_lock_irq(&cpuctx->ctx.lock);
+		if (cpuctx->heap_size < heap_size) {
+			swap(cpuctx->heap, storage);
+			if (storage == cpuctx->heap_default)
+				storage = NULL;
+			cpuctx->heap_size = heap_size;
+		}
+		raw_spin_unlock_irq(&cpuctx->ctx.lock);
+
+		kfree(storage);
+	}
+
+	return ret;
+}
+
 static inline int perf_cgroup_connect(int fd, struct perf_event *event,
 				      struct perf_event_attr *attr,
 				      struct perf_event *group_leader)
@@ -910,6 +951,10 @@ static inline int perf_cgroup_connect(int fd, struct perf_event *event,
 		ret = PTR_ERR(css);
 		goto out;
 	}
+
+	ret = perf_cgroup_ensure_storage(event, css);
+	if (ret)
+		goto out;
 
 	cgrp = container_of(css, struct perf_cgroup, css);
 	event->cgrp = cgrp;
@@ -3440,6 +3485,8 @@ static noinline int visit_groups_merge(struct perf_cpu_context *cpuctx,
 			.nr = 0,
 			.size = cpuctx->heap_size,
 		};
+
+		lockdep_assert_held(&cpuctx->ctx.lock);
 	} else {
 		event_heap = (struct min_heap){
 			.data = itrs,
