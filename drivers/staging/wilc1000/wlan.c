@@ -403,37 +403,34 @@ EXPORT_SYMBOL_GPL(chip_allow_sleep);
 void chip_wakeup(struct wilc *wilc)
 {
 	u32 reg, clk_status_reg;
+	const struct wilc_hif_func *h = wilc->hif_func;
 
-	if ((wilc->io_type & 0x1) == WILC_HIF_SPI) {
+	if (wilc->io_type == WILC_HIF_SPI) {
 		do {
-			wilc->hif_func->hif_read_reg(wilc, 1, &reg);
-			wilc->hif_func->hif_write_reg(wilc, 1, reg | BIT(1));
-			wilc->hif_func->hif_write_reg(wilc, 1, reg & ~BIT(1));
+			h->hif_read_reg(wilc, 1, &reg);
+			h->hif_write_reg(wilc, 1, reg | BIT(1));
+			h->hif_write_reg(wilc, 1, reg & ~BIT(1));
 
 			do {
 				usleep_range(2000, 2500);
 				wilc_get_chipid(wilc, true);
 			} while (wilc_get_chipid(wilc, true) == 0);
 		} while (wilc_get_chipid(wilc, true) == 0);
-	} else if ((wilc->io_type & 0x1) == WILC_HIF_SDIO) {
-		wilc->hif_func->hif_write_reg(wilc, 0xfa, 1);
+	} else if (wilc->io_type == WILC_HIF_SDIO) {
+		h->hif_write_reg(wilc, 0xfa, 1);
 		usleep_range(200, 400);
-		wilc->hif_func->hif_read_reg(wilc, 0xf0, &reg);
+		h->hif_read_reg(wilc, 0xf0, &reg);
 		do {
-			wilc->hif_func->hif_write_reg(wilc, 0xf0,
-						      reg | BIT(0));
-			wilc->hif_func->hif_read_reg(wilc, 0xf1,
-						     &clk_status_reg);
+			h->hif_write_reg(wilc, 0xf0, reg | BIT(0));
+			h->hif_read_reg(wilc, 0xf1, &clk_status_reg);
 
 			while ((clk_status_reg & 0x1) == 0) {
 				usleep_range(2000, 2500);
 
-				wilc->hif_func->hif_read_reg(wilc, 0xf1,
-							     &clk_status_reg);
+				h->hif_read_reg(wilc, 0xf1, &clk_status_reg);
 			}
 			if ((clk_status_reg & 0x1) == 0) {
-				wilc->hif_func->hif_write_reg(wilc, 0xf0,
-							      reg & (~BIT(0)));
+				h->hif_write_reg(wilc, 0xf0, reg & (~BIT(0)));
 			}
 		} while ((clk_status_reg & 0x1) == 0);
 	}
@@ -442,13 +439,13 @@ void chip_wakeup(struct wilc *wilc)
 		if (wilc_get_chipid(wilc, false) < 0x1002b0) {
 			u32 val32;
 
-			wilc->hif_func->hif_read_reg(wilc, 0x1e1c, &val32);
+			h->hif_read_reg(wilc, 0x1e1c, &val32);
 			val32 |= BIT(6);
-			wilc->hif_func->hif_write_reg(wilc, 0x1e1c, val32);
+			h->hif_write_reg(wilc, 0x1e1c, val32);
 
-			wilc->hif_func->hif_read_reg(wilc, 0x1e9c, &val32);
+			h->hif_read_reg(wilc, 0x1e9c, &val32);
 			val32 |= BIT(6);
-			wilc->hif_func->hif_write_reg(wilc, 0x1e9c, val32);
+			h->hif_write_reg(wilc, 0x1e9c, val32);
 		}
 	}
 	wilc->chip_ps_state = WILC_CHIP_WAKEDUP;
