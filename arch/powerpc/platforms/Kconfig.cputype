@@ -425,6 +425,12 @@ config PPC_MM_SLICES
 config PPC_HAVE_PMU_SUPPORT
 	bool
 
+config PMU_SYSFS
+	bool "Create PMU SPRs sysfs file"
+	default n
+	help
+	  This option enables sysfs file creation for PMU SPRs like MMCR* and PMC*.
+
 config PPC_PERF_CTRS
 	def_bool y
 	depends on PERF_EVENTS && PPC_HAVE_PMU_SUPPORT
