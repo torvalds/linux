@@ -482,7 +482,8 @@ static int s10_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id s10_of_match[] = {
-	{ .compatible = "intel,stratix10-soc-fpga-mgr", },
+	{.compatible = "intel,stratix10-soc-fpga-mgr"},
+	{.compatible = "intel,agilex-soc-fpga-mgr"},
 	{},
 };
 
