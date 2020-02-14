@@ -42,8 +42,8 @@ enum usb4_switch_op {
 
 #define USB4_NVM_SECTOR_SIZE_MASK	GENMASK(23, 0)
 
-typedef int (*read_block_fn)(struct tb_switch *, unsigned int, void *, size_t);
-typedef int (*write_block_fn)(struct tb_switch *, const void *, size_t);
+typedef int (*read_block_fn)(void *, unsigned int, void *, size_t);
+typedef int (*write_block_fn)(void *, const void *, size_t);
 
 static int usb4_switch_wait_for_bit(struct tb_switch *sw, u32 offset, u32 bit,
 				    u32 value, int timeout_msec)
@@ -95,8 +95,8 @@ static int usb4_switch_op_write_metadata(struct tb_switch *sw, u32 metadata)
 	return tb_sw_write(sw, &metadata, TB_CFG_SWITCH, ROUTER_CS_25, 1);
 }
 
-static int usb4_switch_do_read_data(struct tb_switch *sw, u16 address,
-	void *buf, size_t size, read_block_fn read_block)
+static int usb4_do_read_data(u16 address, void *buf, size_t size,
+			     read_block_fn read_block, void *read_block_data)
 {
 	unsigned int retries = USB4_DATA_RETRIES;
 	unsigned int offset;
@@ -113,7 +113,7 @@ static int usb4_switch_do_read_data(struct tb_switch *sw, u16 address,
 		dwaddress = address / 4;
 		dwords = ALIGN(nbytes, 4) / 4;
 
-		ret = read_block(sw, dwaddress, data, dwords);
+		ret = read_block(read_block_data, dwaddress, data, dwords);
 		if (ret) {
 			if (ret == -ETIMEDOUT) {
 				if (retries--)
@@ -133,8 +133,8 @@ static int usb4_switch_do_read_data(struct tb_switch *sw, u16 address,
 	return 0;
 }
 
-static int usb4_switch_do_write_data(struct tb_switch *sw, u16 address,
-	const void *buf, size_t size, write_block_fn write_next_block)
+static int usb4_do_write_data(unsigned int address, const void *buf, size_t size,
+	write_block_fn write_next_block, void *write_block_data)
 {
 	unsigned int retries = USB4_DATA_RETRIES;
 	unsigned int offset;
@@ -149,7 +149,7 @@ static int usb4_switch_do_write_data(struct tb_switch *sw, u16 address,
 
 		memcpy(data + offset, buf, nbytes);
 
-		ret = write_next_block(sw, data, nbytes / 4);
+		ret = write_next_block(write_block_data, data, nbytes / 4);
 		if (ret) {
 			if (ret == -ETIMEDOUT) {
 				if (retries--)
@@ -289,10 +289,11 @@ int usb4_switch_read_uid(struct tb_switch *sw, u64 *uid)
 	return tb_sw_read(sw, uid, TB_CFG_SWITCH, ROUTER_CS_7, 2);
 }
 
-static int usb4_switch_drom_read_block(struct tb_switch *sw,
+static int usb4_switch_drom_read_block(void *data,
 				       unsigned int dwaddress, void *buf,
 				       size_t dwords)
 {
+	struct tb_switch *sw = data;
 	u8 status = 0;
 	u32 metadata;
 	int ret;
@@ -329,8 +330,8 @@ static int usb4_switch_drom_read_block(struct tb_switch *sw,
 int usb4_switch_drom_read(struct tb_switch *sw, unsigned int address, void *buf,
 			  size_t size)
 {
-	return usb4_switch_do_read_data(sw, address, buf, size,
-					usb4_switch_drom_read_block);
+	return usb4_do_read_data(address, buf, size,
+				 usb4_switch_drom_read_block, sw);
 }
 
 static int usb4_set_port_configured(struct tb_port *port, bool configured)
@@ -463,9 +464,10 @@ int usb4_switch_nvm_sector_size(struct tb_switch *sw)
 	return metadata & USB4_NVM_SECTOR_SIZE_MASK;
 }
 
-static int usb4_switch_nvm_read_block(struct tb_switch *sw,
+static int usb4_switch_nvm_read_block(void *data,
 	unsigned int dwaddress, void *buf, size_t dwords)
 {
+	struct tb_switch *sw = data;
 	u8 status = 0;
 	u32 metadata;
 	int ret;
@@ -502,8 +504,8 @@ static int usb4_switch_nvm_read_block(struct tb_switch *sw,
 int usb4_switch_nvm_read(struct tb_switch *sw, unsigned int address, void *buf,
 			 size_t size)
 {
-	return usb4_switch_do_read_data(sw, address, buf, size,
-					usb4_switch_nvm_read_block);
+	return usb4_do_read_data(address, buf, size,
+				 usb4_switch_nvm_read_block, sw);
 }
 
 static int usb4_switch_nvm_set_offset(struct tb_switch *sw,
@@ -528,9 +530,10 @@ static int usb4_switch_nvm_set_offset(struct tb_switch *sw,
 	return status ? -EIO : 0;
 }
 
-static int usb4_switch_nvm_write_next_block(struct tb_switch *sw,
-					    const void *buf, size_t dwords)
+static int usb4_switch_nvm_write_next_block(void *data, const void *buf,
+					    size_t dwords)
 {
+	struct tb_switch *sw = data;
 	u8 status;
 	int ret;
 
@@ -564,8 +567,8 @@ int usb4_switch_nvm_write(struct tb_switch *sw, unsigned int address,
 	if (ret)
 		return ret;
 
-	return usb4_switch_do_write_data(sw, address, buf, size,
-					 usb4_switch_nvm_write_next_block);
+	return usb4_do_write_data(address, buf, size,
+				  usb4_switch_nvm_write_next_block, sw);
 }
 
 /**
