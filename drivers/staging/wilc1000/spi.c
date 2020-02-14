@@ -898,7 +898,7 @@ static int wilc_spi_read_size(struct wilc *wilc, u32 *size)
 	int ret;
 
 	ret = spi_internal_read(wilc, 0xe840 - WILC_SPI_REG_BASE, size);
-	*size = *size & IRQ_DMA_WD_CNT_MASK;
+	*size = FIELD_GET(IRQ_DMA_WD_CNT_MASK, *size);
 
 	return ret;
 }

@@ -8,6 +8,7 @@
 #define WILC_WLAN_H
 
 #include <linux/types.h>
+#include <linux/bitfield.h>
 
 /********************************************
  *
@@ -135,6 +136,23 @@
 
 #define MODALIAS		"WILC_SPI"
 #define GPIO_NUM		0x44
+
+#define WILC_PKT_HDR_CONFIG_FIELD	BIT(31)
+#define WILC_PKT_HDR_OFFSET_FIELD	GENMASK(30, 22)
+#define WILC_PKT_HDR_TOTAL_LEN_FIELD	GENMASK(21, 11)
+#define WILC_PKT_HDR_LEN_FIELD		GENMASK(10, 0)
+
+#define WILC_INTERRUPT_DATA_SIZE	GENMASK(14, 0)
+
+#define WILC_VMM_BUFFER_SIZE		GENMASK(9, 0)
+
+#define WILC_VMM_HDR_TYPE		BIT(31)
+#define WILC_VMM_HDR_MGMT_FIELD		BIT(30)
+#define WILC_VMM_HDR_PKT_SIZE		GENMASK(29, 15)
+#define WILC_VMM_HDR_BUFF_SIZE		GENMASK(14, 0)
+
+#define WILC_VMM_ENTRY_COUNT		GENMASK(8, 3)
+#define WILC_VMM_ENTRY_AVAILABLE	BIT(2)
 /*******************************************/
 /*        E0 and later Interrupt flags.    */
 /*******************************************/
@@ -150,7 +168,7 @@
 /* 21: INT5 flag                           */
 /*******************************************/
 #define IRG_FLAGS_OFFSET	16
-#define IRQ_DMA_WD_CNT_MASK	((1ul << IRG_FLAGS_OFFSET) - 1)
+#define IRQ_DMA_WD_CNT_MASK	GENMASK(IRG_FLAGS_OFFSET - 1, 0)
 #define INT_0			BIT(IRG_FLAGS_OFFSET)
 #define INT_1			BIT(IRG_FLAGS_OFFSET + 1)
 #define INT_2			BIT(IRG_FLAGS_OFFSET + 2)
