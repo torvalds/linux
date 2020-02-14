@@ -3136,6 +3136,8 @@ static int sbridge_mce_check_error(struct notifier_block *nb, unsigned long val,
 
 	if (edac_get_report_status() == EDAC_REPORTING_DISABLED)
 		return NOTIFY_DONE;
+	if (mce->kflags & MCE_HANDLED_CEC)
+		return NOTIFY_DONE;
 
 	/*
 	 * Just let mcelog handle it if the error is
@@ -3183,7 +3185,8 @@ static int sbridge_mce_check_error(struct notifier_block *nb, unsigned long val,
 	sbridge_mce_output_error(mci, mce);
 
 	/* Advice mcelog that the error were handled */
-	return NOTIFY_STOP;
+	mce->kflags |= MCE_HANDLED_EDAC;
+	return NOTIFY_OK;
 }
 
 static struct notifier_block sbridge_mce_dec = {

@@ -581,8 +581,10 @@ static int uc_decode_notifier(struct notifier_block *nb, unsigned long val,
 		return NOTIFY_DONE;
 
 	pfn = mce->addr >> PAGE_SHIFT;
-	if (!memory_failure(pfn, 0))
+	if (!memory_failure(pfn, 0)) {
 		set_mce_nospec(pfn);
+		mce->kflags |= MCE_HANDLED_UC;
+	}
 
 	return NOTIFY_OK;
 }

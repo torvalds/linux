@@ -577,6 +577,9 @@ int skx_mce_check_error(struct notifier_block *nb, unsigned long val,
 	if (edac_get_report_status() == EDAC_REPORTING_DISABLED)
 		return NOTIFY_DONE;
 
+	if (mce->kflags & MCE_HANDLED_CEC)
+		return NOTIFY_DONE;
+
 	/* ignore unless this is memory related with an address */
 	if ((mce->status & 0xefff) >> 7 != 1 || !(mce->status & MCI_STATUS_ADDRV))
 		return NOTIFY_DONE;
@@ -616,6 +619,7 @@ int skx_mce_check_error(struct notifier_block *nb, unsigned long val,
 
 	skx_mce_output_error(mci, mce, &res);
 
+	mce->kflags |= MCE_HANDLED_EDAC;
 	return NOTIFY_DONE;
 }
 

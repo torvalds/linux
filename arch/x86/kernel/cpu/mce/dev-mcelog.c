@@ -39,6 +39,9 @@ static int dev_mce_log(struct notifier_block *nb, unsigned long val,
 	struct mce *mce = (struct mce *)data;
 	unsigned int entry;
 
+	if (mce->kflags & MCE_HANDLED_CEC)
+		return NOTIFY_DONE;
+
 	mutex_lock(&mce_chrdev_read_mutex);
 
 	entry = mcelog->next;
@@ -56,6 +59,7 @@ static int dev_mce_log(struct notifier_block *nb, unsigned long val,
 
 	memcpy(mcelog->entry + entry, mce, sizeof(struct mce));
 	mcelog->entry[entry].finished = 1;
+	mcelog->entry[entry].kflags = 0;
 
 	/* wake processes polling /dev/mcelog */
 	wake_up_interruptible(&mce_chrdev_wait);
@@ -63,6 +67,7 @@ static int dev_mce_log(struct notifier_block *nb, unsigned long val,
 unlock:
 	mutex_unlock(&mce_chrdev_read_mutex);
 
+	mce->kflags |= MCE_HANDLED_MCELOG;
 	return NOTIFY_OK;
 }
 

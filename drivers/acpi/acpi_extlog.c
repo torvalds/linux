@@ -146,7 +146,7 @@ static int extlog_print(struct notifier_block *nb, unsigned long val,
 	static u32 err_seq;
 
 	estatus = extlog_elog_entry_check(cpu, bank);
-	if (estatus == NULL)
+	if (estatus == NULL || (mce->kflags & MCE_HANDLED_CEC))
 		return NOTIFY_DONE;
 
 	memcpy(elog_buf, (void *)estatus, ELOG_ENTRY_LEN);
@@ -176,7 +176,8 @@ static int extlog_print(struct notifier_block *nb, unsigned long val,
 	}
 
 out:
-	return NOTIFY_STOP;
+	mce->kflags |= MCE_HANDLED_EXTLOG;
+	return NOTIFY_OK;
 }
 
 static bool __init extlog_get_l1addr(void)
