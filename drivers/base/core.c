@@ -64,7 +64,7 @@ static inline void device_links_write_unlock(void)
 	mutex_unlock(&device_links_lock);
 }
 
-int device_links_read_lock(void)
+int device_links_read_lock(void) __acquires(&device_links_srcu)
 {
 	return srcu_read_lock(&device_links_srcu);
 }
