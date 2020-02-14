@@ -1730,6 +1730,19 @@ static int dcn21_populate_dml_pipes_from_context(
 	return pipe_cnt;
 }
 
+enum dc_status dcn21_patch_unknown_plane_state(struct dc_plane_state *plane_state)
+{
+	enum dc_status result = DC_OK;
+
+	if (plane_state->ctx->dc->debug.disable_dcc == DCC_ENABLE) {
+		plane_state->dcc.enable = 1;
+		/* align to our worst case block width */
+		plane_state->dcc.meta_pitch = ((plane_state->src_rect.width + 1023) / 1024) * 1024;
+	}
+	result = dcn20_patch_unknown_plane_state(plane_state);
+	return result;
+}
+
 static struct resource_funcs dcn21_res_pool_funcs = {
 	.destroy = dcn21_destroy_resource_pool,
 	.link_enc_create = dcn21_link_encoder_create,
@@ -1739,7 +1752,7 @@ static struct resource_funcs dcn21_res_pool_funcs = {
 	.remove_stream_from_ctx = dcn20_remove_stream_from_ctx,
 	.acquire_idle_pipe_for_layer = dcn20_acquire_idle_pipe_for_layer,
 	.populate_dml_writeback_from_context = dcn20_populate_dml_writeback_from_context,
-	.get_default_swizzle_mode = dcn20_get_default_swizzle_mode,
+	.patch_unknown_plane_state = dcn21_patch_unknown_plane_state,
 	.set_mcif_arb_params = dcn20_set_mcif_arb_params,
 	.find_first_free_match_stream_enc_for_link = dcn10_find_first_free_match_stream_enc_for_link,
 	.update_bw_bounding_box = update_bw_bounding_box

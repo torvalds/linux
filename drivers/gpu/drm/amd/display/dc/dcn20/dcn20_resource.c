@@ -3027,7 +3027,7 @@ static struct dc_cap_funcs cap_funcs = {
 };
 
 
-enum dc_status dcn20_get_default_swizzle_mode(struct dc_plane_state *plane_state)
+enum dc_status dcn20_patch_unknown_plane_state(struct dc_plane_state *plane_state)
 {
 	enum dc_status result = DC_OK;
 
@@ -3053,7 +3053,7 @@ static struct resource_funcs dcn20_res_pool_funcs = {
 	.add_stream_to_ctx = dcn20_add_stream_to_ctx,
 	.remove_stream_from_ctx = dcn20_remove_stream_from_ctx,
 	.populate_dml_writeback_from_context = dcn20_populate_dml_writeback_from_context,
-	.get_default_swizzle_mode = dcn20_get_default_swizzle_mode,
+	.patch_unknown_plane_state = dcn20_patch_unknown_plane_state,
 	.set_mcif_arb_params = dcn20_set_mcif_arb_params,
 	.populate_dml_pipes = dcn20_populate_dml_pipes_from_context,
 	.find_first_free_match_stream_enc_for_link = dcn10_find_first_free_match_stream_enc_for_link
