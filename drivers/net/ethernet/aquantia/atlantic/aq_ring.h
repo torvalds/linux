@@ -78,7 +78,8 @@ struct __packed aq_ring_buff_s {
 			u32 is_cleaned:1;
 			u32 is_error:1;
 			u32 is_vlan:1;
-			u32 rsvd3:4;
+			u32 is_lro:1;
+			u32 rsvd3:3;
 			u16 eop_index;
 			u16 rsvd4;
 		};

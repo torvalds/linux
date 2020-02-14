@@ -351,7 +351,8 @@ int aq_ring_rx_clean(struct aq_ring_s *self,
 				err = 0;
 				goto err_exit;
 			}
-			if (buff->is_error || buff->is_cso_err) {
+			if (buff->is_error ||
+			    (buff->is_lro && buff->is_cso_err)) {
 				buff_ = buff;
 				do {
 					next_ = buff_->next,

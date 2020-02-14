@@ -823,6 +823,8 @@ static int hw_atl_b0_hw_ring_rx_receive(struct aq_hw_s *self,
 			}
 		}
 
+		buff->is_lro = !!(HW_ATL_B0_RXD_WB_STAT2_RSCCNT &
+				  rxd_wb->status);
 		if (HW_ATL_B0_RXD_WB_STAT2_EOP & rxd_wb->status) {
 			buff->len = rxd_wb->pkt_len %
 				AQ_CFG_RX_FRAME_MAX;
@@ -835,8 +837,7 @@ static int hw_atl_b0_hw_ring_rx_receive(struct aq_hw_s *self,
 				rxd_wb->pkt_len > AQ_CFG_RX_FRAME_MAX ?
 				AQ_CFG_RX_FRAME_MAX : rxd_wb->pkt_len;
 
-			if (HW_ATL_B0_RXD_WB_STAT2_RSCCNT &
-				rxd_wb->status) {
+			if (buff->is_lro) {
 				/* LRO */
 				buff->next = rxd_wb->next_desc_ptr;
 				++ring->stats.rx.lro_packets;
