@@ -74,7 +74,6 @@ available subsections can be seen below.
    connector
    console
    dcdbas
-   edid
    eisa
    ipmb
    isa
