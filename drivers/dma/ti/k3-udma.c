@@ -5,6 +5,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/delay.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmapool.h>
@@ -169,7 +170,7 @@ enum udma_chan_state {
 
 struct udma_tx_drain {
 	struct delayed_work work;
-	unsigned long jiffie;
+	ktime_t tstamp;
 	u32 residue;
 };
 
@@ -946,9 +947,10 @@ static bool udma_is_desc_really_done(struct udma_chan *uc, struct udma_desc *d)
 	peer_bcnt = udma_tchanrt_read(uc->tchan, UDMA_TCHAN_RT_PEER_BCNT_REG);
 	bcnt = udma_tchanrt_read(uc->tchan, UDMA_TCHAN_RT_BCNT_REG);
 
+	/* Transfer is incomplete, store current residue and time stamp */
 	if (peer_bcnt < bcnt) {
 		uc->tx_drain.residue = bcnt - peer_bcnt;
-		uc->tx_drain.jiffie = jiffies;
+		uc->tx_drain.tstamp = ktime_get();
 		return false;
 	}
 
@@ -961,35 +963,59 @@ static void udma_check_tx_completion(struct work_struct *work)
 					    tx_drain.work.work);
 	bool desc_done = true;
 	u32 residue_diff;
-	unsigned long jiffie_diff, delay;
+	ktime_t time_diff;
+	unsigned long delay;
 
-	if (uc->desc) {
-		residue_diff = uc->tx_drain.residue;
-		jiffie_diff = uc->tx_drain.jiffie;
-		desc_done = udma_is_desc_really_done(uc, uc->desc);
-	}
-
-	if (!desc_done) {
-		jiffie_diff = uc->tx_drain.jiffie - jiffie_diff;
-		residue_diff -= uc->tx_drain.residue;
-		if (residue_diff) {
-			/* Try to guess when we should check next time */
-			residue_diff /= jiffie_diff;
-			delay = uc->tx_drain.residue / residue_diff / 3;
-			if (jiffies_to_msecs(delay) < 5)
-				delay = 0;
-		} else {
-			/* No progress, check again in 1 second  */
-			delay = HZ;
+	while (1) {
+		if (uc->desc) {
+			/* Get previous residue and time stamp */
+			residue_diff = uc->tx_drain.residue;
+			time_diff = uc->tx_drain.tstamp;
+			/*
+			 * Get current residue and time stamp or see if
+			 * transfer is complete
+			 */
+			desc_done = udma_is_desc_really_done(uc, uc->desc);
 		}
 
-		schedule_delayed_work(&uc->tx_drain.work, delay);
-	} else if (uc->desc) {
-		struct udma_desc *d = uc->desc;
+		if (!desc_done) {
+			/*
+			 * Find the time delta and residue delta w.r.t
+			 * previous poll
+			 */
+			time_diff = ktime_sub(uc->tx_drain.tstamp,
+					      time_diff) + 1;
+			residue_diff -= uc->tx_drain.residue;
+			if (residue_diff) {
+				/*
+				 * Try to guess when we should check
+				 * next time by calculating rate at
+				 * which data is being drained at the
+				 * peer device
+				 */
+				delay = (time_diff / residue_diff) *
+					uc->tx_drain.residue;
+			} else {
+				/* No progress, check again in 1 second  */
+				schedule_delayed_work(&uc->tx_drain.work, HZ);
+				break;
+			}
 
-		uc->bcnt += d->residue;
-		udma_start(uc);
-		vchan_cookie_complete(&d->vd);
+			usleep_range(ktime_to_us(delay),
+				     ktime_to_us(delay) + 10);
+			continue;
+		}
+
+		if (uc->desc) {
+			struct udma_desc *d = uc->desc;
+
+			uc->bcnt += d->residue;
+			udma_start(uc);
+			vchan_cookie_complete(&d->vd);
+			break;
+		}
+
+		break;
 	}
 }
 
