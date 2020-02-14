@@ -179,6 +179,7 @@ struct amdgpu_vcn_inst {
 	struct amdgpu_irq_src	irq;
 	struct amdgpu_vcn_reg	external;
 	struct amdgpu_bo	*dpg_sram_bo;
+	struct dpg_pause_state	pause_state;
 	void			*dpg_sram_cpu_addr;
 	uint64_t		dpg_sram_gpu_addr;
 	uint32_t		*dpg_sram_curr_addr;
@@ -190,8 +191,6 @@ struct amdgpu_vcn {
 	const struct firmware	*fw;	/* VCN firmware */
 	unsigned		num_enc_rings;
 	enum amd_powergating_state cur_state;
-	struct dpg_pause_state pause_state;
-
 	bool			indirect_sram;
 
 	uint8_t	num_vcn_inst;
