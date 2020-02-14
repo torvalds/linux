@@ -1089,6 +1089,26 @@ static void edac_ue_error(struct mem_ctl_info *mci,
 	edac_inc_ue_error(mci, enable_per_layer_report, pos, error_count);
 }
 
+static void edac_inc_csrow(struct edac_raw_error_desc *e, int row, int chan)
+{
+	struct mem_ctl_info *mci = error_desc_to_mci(e);
+	enum hw_event_mc_err_type type = e->type;
+	u16 count = e->error_count;
+
+	if (row < 0)
+		return;
+
+	edac_dbg(4, "csrow/channel to increment: (%d,%d)\n", row, chan);
+
+	if (type == HW_EVENT_ERR_CORRECTED) {
+		mci->csrows[row]->ce_count += count;
+		if (chan >= 0)
+			mci->csrows[row]->channels[chan]->ce_count += count;
+	} else {
+		mci->csrows[row]->ue_count += count;
+	}
+}
+
 void edac_raw_mc_handle_error(struct edac_raw_error_desc *e)
 {
 	struct mem_ctl_info *mci = error_desc_to_mci(e);
@@ -1256,22 +1276,12 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 			chan = -2;
 	}
 
-	if (!e->enable_per_layer_report) {
+	if (!e->enable_per_layer_report)
 		strcpy(e->label, "any memory");
-	} else {
-		edac_dbg(4, "csrow/channel to increment: (%d,%d)\n", row, chan);
-		if (p == e->label)
-			strcpy(e->label, "unknown memory");
-		if (type == HW_EVENT_ERR_CORRECTED) {
-			if (row >= 0) {
-				mci->csrows[row]->ce_count += error_count;
-				if (chan >= 0)
-					mci->csrows[row]->channels[chan]->ce_count += error_count;
-			}
-		} else
-			if (row >= 0)
-				mci->csrows[row]->ue_count += error_count;
-	}
+	else if (!*e->label)
+		strcpy(e->label, "unknown memory");
+
+	edac_inc_csrow(e, row, chan);
 
 	/* Fill the RAM location data */
 	p = e->location;
