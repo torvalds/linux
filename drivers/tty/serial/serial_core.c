@@ -1913,6 +1913,19 @@ static inline bool uart_console_enabled(struct uart_port *port)
 	return uart_console(port) && (port->cons->flags & CON_ENABLED);
 }
 
+/*
+ * Ensure that the serial console lock is initialised early.
+ * If this port is a console, then the spinlock is already initialised.
+ */
+static inline void uart_port_spin_lock_init(struct uart_port *port)
+{
+	if (uart_console_enabled(port))
+		return;
+
+	spin_lock_init(&port->lock);
+	lockdep_set_class(&port->lock, &port_lock_key);
+}
+
 #if defined(CONFIG_SERIAL_CORE_CONSOLE) || defined(CONFIG_CONSOLE_POLL)
 /**
  *	uart_console_write - write a console message to a serial port
@@ -2065,16 +2078,7 @@ uart_set_options(struct uart_port *port, struct console *co,
 	struct ktermios termios;
 	static struct ktermios dummy;
 
-	/*
-	 * Ensure that the serial console lock is initialised
-	 * early.
-	 * If this port is a console, then the spinlock is already
-	 * initialised.
-	 */
-	if (!uart_console_enabled(port)) {
-		spin_lock_init(&port->lock);
-		lockdep_set_class(&port->lock, &port_lock_key);
-	}
+	uart_port_spin_lock_init(port);
 
 	memset(&termios, 0, sizeof(struct ktermios));
 
@@ -2829,14 +2833,8 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 		goto out;
 	}
 
-	/*
-	 * If this port is a console, then the spinlock is already
-	 * initialised.
-	 */
-	if (!uart_console_enabled(uport)) {
-		spin_lock_init(&uport->lock);
-		lockdep_set_class(&uport->lock, &port_lock_key);
-	}
+	uart_port_spin_lock_init(uport);
+
 	if (uport->cons && uport->dev)
 		of_console_check(uport->dev->of_node, uport->cons->name, uport->line);
 
