@@ -119,6 +119,7 @@ struct mca_config {
 	bool dont_log_ce;
 	bool cmci_disabled;
 	bool ignore_ce;
+	bool print_all;
 
 	__u64 lmce_disabled		: 1,
 	      disabled			: 1,

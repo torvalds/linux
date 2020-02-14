@@ -591,7 +591,7 @@ static int mce_default_notifier(struct notifier_block *nb, unsigned long val,
 	if (!m)
 		return NOTIFY_DONE;
 
-	if (!m->kflags)
+	if (mca_cfg.print_all || !m->kflags)
 		__print_mce(m);
 
 	return NOTIFY_DONE;
@@ -1962,6 +1962,7 @@ void mce_disable_bank(int bank)
  * mce=no_cmci Disables CMCI
  * mce=no_lmce Disables LMCE
  * mce=dont_log_ce Clears corrected events silently, no log created for CEs.
+ * mce=print_all Print all machine check logs to console
  * mce=ignore_ce Disables polling and CMCI, corrected events are not cleared.
  * mce=TOLERANCELEVEL[,monarchtimeout] (number, see above)
  *	monarchtimeout is how long to wait for other CPUs on machine
@@ -1990,6 +1991,8 @@ static int __init mcheck_enable(char *str)
 		cfg->lmce_disabled = 1;
 	else if (!strcmp(str, "dont_log_ce"))
 		cfg->dont_log_ce = true;
+	else if (!strcmp(str, "print_all"))
+		cfg->print_all = true;
 	else if (!strcmp(str, "ignore_ce"))
 		cfg->ignore_ce = true;
 	else if (!strcmp(str, "bootlog") || !strcmp(str, "nobootlog"))
@@ -2256,6 +2259,7 @@ static ssize_t store_int_with_restart(struct device *s,
 static DEVICE_INT_ATTR(tolerant, 0644, mca_cfg.tolerant);
 static DEVICE_INT_ATTR(monarch_timeout, 0644, mca_cfg.monarch_timeout);
 static DEVICE_BOOL_ATTR(dont_log_ce, 0644, mca_cfg.dont_log_ce);
+static DEVICE_BOOL_ATTR(print_all, 0644, mca_cfg.print_all);
 
 static struct dev_ext_attribute dev_attr_check_interval = {
 	__ATTR(check_interval, 0644, device_show_int, store_int_with_restart),
@@ -2280,6 +2284,7 @@ static struct device_attribute *mce_device_attrs[] = {
 #endif
 	&dev_attr_monarch_timeout.attr,
 	&dev_attr_dont_log_ce.attr,
+	&dev_attr_print_all.attr,
 	&dev_attr_ignore_ce.attr,
 	&dev_attr_cmci_disabled.attr,
 	NULL
