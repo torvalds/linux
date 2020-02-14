@@ -633,8 +633,8 @@ free_desc:
 	kfree(rx_tid->vaddr);
 }
 
-static void ath11k_peer_rx_tid_delete(struct ath11k *ar,
-				      struct ath11k_peer *peer, u8 tid)
+void ath11k_peer_rx_tid_delete(struct ath11k *ar,
+			       struct ath11k_peer *peer, u8 tid)
 {
 	struct ath11k_hal_reo_cmd cmd = {0};
 	struct dp_rx_tid *rx_tid = &peer->rx_tid[tid];
