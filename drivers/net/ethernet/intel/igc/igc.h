@@ -70,6 +70,7 @@ extern char igc_driver_version[];
 #define IGC_FLAG_HAS_MSIX		BIT(13)
 #define IGC_FLAG_VLAN_PROMISC		BIT(15)
 #define IGC_FLAG_RX_LEGACY		BIT(16)
+#define IGC_FLAG_TSN_QBV_ENABLED	BIT(17)
 
 #define IGC_FLAG_RSS_FIELD_IPV4_UDP	BIT(6)
 #define IGC_FLAG_RSS_FIELD_IPV6_UDP	BIT(7)
@@ -287,6 +288,9 @@ struct igc_ring {
 	u8 reg_idx;                     /* physical index of the ring */
 	bool launchtime_enable;		/* true if LaunchTime is enabled */
 
+	u32 start_time;
+	u32 end_time;
+
 	/* everything past this point are written often */
 	u16 next_to_clean;
 	u16 next_to_use;
@@ -420,6 +424,9 @@ struct igc_adapter {
 	int msg_enable;
 	u32 max_frame_size;
 	u32 min_frame_size;
+
+	ktime_t base_time;
+	ktime_t cycle_time;
 
 	/* OS defined structs */
 	struct pci_dev *pdev;

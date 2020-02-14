@@ -231,6 +231,18 @@
 
 #define IGC_RXPBS	0x02404  /* Rx Packet Buffer Size - RW */
 
+/* Transmit Scheduling Registers */
+#define IGC_TQAVCTRL		0x3570
+#define IGC_TXQCTL(_n)		(0x3344 + 0x4 * (_n))
+#define IGC_BASET_L		0x3314
+#define IGC_BASET_H		0x3318
+#define IGC_QBVCYCLET		0x331C
+#define IGC_QBVCYCLET_S		0x3320
+
+#define IGC_STQT(_n)		(0x3324 + 0x4 * (_n))
+#define IGC_ENDQT(_n)		(0x3334 + 0x4 * (_n))
+#define IGC_DTXMXPKTSZ		0x355C
+
 /* System Time Registers */
 #define IGC_SYSTIML	0x0B600  /* System time register Low - RO */
 #define IGC_SYSTIMH	0x0B604  /* System time register High - RO */

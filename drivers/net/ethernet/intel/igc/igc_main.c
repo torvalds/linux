@@ -9,11 +9,13 @@
 #include <linux/udp.h>
 #include <linux/ip.h>
 #include <linux/pm_runtime.h>
+#include <net/pkt_sched.h>
 
 #include <net/ipv6.h>
 
 #include "igc.h"
 #include "igc_hw.h"
+#include "igc_tsn.h"
 
 #define DRV_VERSION	"0.0.1-k"
 #define DRV_SUMMARY	"Intel(R) 2.5G Ethernet Linux Driver"
@@ -105,6 +107,9 @@ void igc_reset(struct igc_adapter *adapter)
 
 	/* Re-enable PTP, where applicable. */
 	igc_ptp_reset(adapter);
+
+	/* Re-enable TSN offloading, where applicable. */
+	igc_tsn_offload_apply(adapter);
 
 	igc_get_phy_info(hw);
 }
@@ -4491,6 +4496,113 @@ static int igc_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 	}
 }
 
+static bool validate_schedule(const struct tc_taprio_qopt_offload *qopt)
+{
+	int queue_uses[IGC_MAX_TX_QUEUES] = { };
+	size_t n;
+
+	if (qopt->cycle_time_extension)
+		return false;
+
+	for (n = 0; n < qopt->num_entries; n++) {
+		const struct tc_taprio_sched_entry *e;
+		int i;
+
+		e = &qopt->entries[n];
+
+		/* i225 only supports "global" frame preemption
+		 * settings.
+		 */
+		if (e->command != TC_TAPRIO_CMD_SET_GATES)
+			return false;
+
+		for (i = 0; i < IGC_MAX_TX_QUEUES; i++) {
+			if (e->gate_mask & BIT(i))
+				queue_uses[i]++;
+
+			if (queue_uses[i] > 1)
+				return false;
+		}
+	}
+
+	return true;
+}
+
+static int igc_save_qbv_schedule(struct igc_adapter *adapter,
+				 struct tc_taprio_qopt_offload *qopt)
+{
+	u32 start_time = 0, end_time = 0;
+	size_t n;
+
+	if (!qopt->enable) {
+		adapter->base_time = 0;
+		return 0;
+	}
+
+	if (adapter->base_time)
+		return -EALREADY;
+
+	if (!validate_schedule(qopt))
+		return -EINVAL;
+
+	adapter->cycle_time = qopt->cycle_time;
+	adapter->base_time = qopt->base_time;
+
+	/* FIXME: be a little smarter about cases when the gate for a
+	 * queue stays open for more than one entry.
+	 */
+	for (n = 0; n < qopt->num_entries; n++) {
+		struct tc_taprio_sched_entry *e = &qopt->entries[n];
+		int i;
+
+		end_time += e->interval;
+
+		for (i = 0; i < IGC_MAX_TX_QUEUES; i++) {
+			struct igc_ring *ring = adapter->tx_ring[i];
+
+			if (!(e->gate_mask & BIT(i)))
+				continue;
+
+			ring->start_time = start_time;
+			ring->end_time = end_time;
+		}
+
+		start_time += e->interval;
+	}
+
+	return 0;
+}
+
+static int igc_tsn_enable_qbv_scheduling(struct igc_adapter *adapter,
+					 struct tc_taprio_qopt_offload *qopt)
+{
+	struct igc_hw *hw = &adapter->hw;
+	int err;
+
+	if (hw->mac.type != igc_i225)
+		return -EOPNOTSUPP;
+
+	err = igc_save_qbv_schedule(adapter, qopt);
+	if (err)
+		return err;
+
+	return igc_tsn_offload_apply(adapter);
+}
+
+static int igc_setup_tc(struct net_device *dev, enum tc_setup_type type,
+			void *type_data)
+{
+	struct igc_adapter *adapter = netdev_priv(dev);
+
+	switch (type) {
+	case TC_SETUP_QDISC_TAPRIO:
+		return igc_tsn_enable_qbv_scheduling(adapter, type_data);
+
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static const struct net_device_ops igc_netdev_ops = {
 	.ndo_open		= igc_open,
 	.ndo_stop		= igc_close,
@@ -4503,6 +4615,7 @@ static const struct net_device_ops igc_netdev_ops = {
 	.ndo_set_features	= igc_set_features,
 	.ndo_features_check	= igc_features_check,
 	.ndo_do_ioctl		= igc_ioctl,
+	.ndo_setup_tc		= igc_setup_tc,
 };
 
 /* PCIe configuration access */
