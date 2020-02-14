@@ -27,6 +27,7 @@
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_csr.h"
+#include "intel_de.h"
 
 /**
  * DOC: csr support for dmc
@@ -276,11 +277,11 @@ static void gen9_set_dc_state_debugmask(struct drm_i915_private *dev_priv)
 		mask |= DC_STATE_DEBUG_MASK_CORES;
 
 	/* The below bit doesn't need to be cleared ever afterwards */
-	val = I915_READ(DC_STATE_DEBUG);
+	val = intel_de_read(dev_priv, DC_STATE_DEBUG);
 	if ((val & mask) != mask) {
 		val |= mask;
-		I915_WRITE(DC_STATE_DEBUG, val);
-		POSTING_READ(DC_STATE_DEBUG);
+		intel_de_write(dev_priv, DC_STATE_DEBUG, val);
+		intel_de_posting_read(dev_priv, DC_STATE_DEBUG);
 	}
 }
 
@@ -321,8 +322,8 @@ void intel_csr_load_program(struct drm_i915_private *dev_priv)
 	preempt_enable();
 
 	for (i = 0; i < dev_priv->csr.mmio_count; i++) {
-		I915_WRITE(dev_priv->csr.mmioaddr[i],
-			   dev_priv->csr.mmiodata[i]);
+		intel_de_write(dev_priv, dev_priv->csr.mmioaddr[i],
+			       dev_priv->csr.mmiodata[i]);
 	}
 
 	dev_priv->csr.dc_state = 0;
