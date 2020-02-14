@@ -30,7 +30,7 @@
  * @node:		list node - contains registered devfreq governors
  * @name:		Governor's name
  * @immutable:		Immutable flag for governor. If the value is 1,
- *			this govenror is never changeable to other governor.
+ *			this governor is never changeable to other governor.
  * @interrupt_driven:	Devfreq core won't schedule polling work for this
  *			governor if value is set to 1.
  * @get_target_freq:	Returns desired operating frequency for the device.
