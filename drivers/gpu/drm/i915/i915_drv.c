@@ -285,12 +285,15 @@ out:
 	return ret;
 }
 
+/* part #1: call before irq uninstall */
 static void i915_driver_modeset_remove(struct drm_i915_private *i915)
 {
 	intel_modeset_driver_remove(i915);
+}
 
-	intel_irq_uninstall(i915);
-
+/* part #2: call after irq uninstall */
+static void i915_driver_modeset_remove_noirq(struct drm_i915_private *i915)
+{
 	intel_modeset_driver_remove_noirq(i915);
 
 	intel_bios_driver_remove(i915);
@@ -1508,6 +1511,10 @@ void i915_driver_remove(struct drm_i915_private *i915)
 	intel_gvt_driver_remove(i915);
 
 	i915_driver_modeset_remove(i915);
+
+	intel_irq_uninstall(i915);
+
+	i915_driver_modeset_remove_noirq(i915);
 
 	i915_reset_error_state(i915);
 	i915_gem_driver_remove(i915);
