@@ -183,8 +183,8 @@ static int wilc_sdio_reset(struct wilc *wilc)
 	cmd.read_write = 1;
 	cmd.function = 0;
 	cmd.raw = 0;
-	cmd.address = 0x6;
-	cmd.data = 0x8;
+	cmd.address = SDIO_CCCR_ABORT;
+	cmd.data = WILC_SDIO_CCCR_ABORT_RESET;
 	ret = wilc_sdio_cmd52(wilc, &cmd);
 	if (ret) {
 		dev_err(&func->dev, "Fail cmd 52, reset cmd ...\n");
@@ -266,27 +266,30 @@ static int wilc_sdio_set_func0_csa_address(struct wilc *wilc, u32 adr)
 	cmd.read_write = 1;
 	cmd.function = 0;
 	cmd.raw = 0;
-	cmd.address = 0x10c;
+	cmd.address = WILC_SDIO_FBR_CSA_REG;
 	cmd.data = (u8)adr;
 	ret = wilc_sdio_cmd52(wilc, &cmd);
 	if (ret) {
-		dev_err(&func->dev, "Failed cmd52, set 0x10c data...\n");
+		dev_err(&func->dev, "Failed cmd52, set %04x data...\n",
+			cmd.address);
 		return ret;
 	}
 
-	cmd.address = 0x10d;
+	cmd.address = WILC_SDIO_FBR_CSA_REG + 1;
 	cmd.data = (u8)(adr >> 8);
 	ret = wilc_sdio_cmd52(wilc, &cmd);
 	if (ret) {
-		dev_err(&func->dev, "Failed cmd52, set 0x10d data...\n");
+		dev_err(&func->dev, "Failed cmd52, set %04x data...\n",
+			cmd.address);
 		return ret;
 	}
 
-	cmd.address = 0x10e;
+	cmd.address = WILC_SDIO_FBR_CSA_REG + 2;
 	cmd.data = (u8)(adr >> 16);
 	ret = wilc_sdio_cmd52(wilc, &cmd);
 	if (ret) {
-		dev_err(&func->dev, "Failed cmd52, set 0x10e data...\n");
+		dev_err(&func->dev, "Failed cmd52, set %04x data...\n",
+			cmd.address);
 		return ret;
 	}
 
@@ -337,7 +340,7 @@ static int wilc_sdio_write_reg(struct wilc *wilc, u32 addr, u32 data)
 
 	cpu_to_le32s(&data);
 
-	if (addr >= 0xf0 && addr <= 0xff) {
+	if (addr >= 0xf0 && addr <= 0xff) { /* only vendor specific registers */
 		struct sdio_cmd52 cmd;
 
 		cmd.read_write = 1;
@@ -361,7 +364,7 @@ static int wilc_sdio_write_reg(struct wilc *wilc, u32 addr, u32 data)
 
 		cmd.read_write = 1;
 		cmd.function = 0;
-		cmd.address = 0x10f;
+		cmd.address = WILC_SDIO_FBR_DATA_REG;
 		cmd.block_mode = 0;
 		cmd.increment = 1;
 		cmd.count = 4;
@@ -390,13 +393,13 @@ static int wilc_sdio_write(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 		 *      func 0 access
 		 **/
 		cmd.function = 0;
-		cmd.address = 0x10f;
+		cmd.address = WILC_SDIO_FBR_DATA_REG;
 	} else {
 		/**
 		 *      func 1 access
 		 **/
 		cmd.function = 1;
-		cmd.address = 0;
+		cmd.address = WILC_SDIO_F1_DATA_REG;
 	}
 
 	size = ALIGN(size, 4);
@@ -455,7 +458,7 @@ static int wilc_sdio_read_reg(struct wilc *wilc, u32 addr, u32 *data)
 	struct wilc_sdio *sdio_priv = wilc->bus_data;
 	int ret;
 
-	if (addr >= 0xf0 && addr <= 0xff) {
+	if (addr >= 0xf0 && addr <= 0xff) { /* only vendor specific registers */
 		struct sdio_cmd52 cmd;
 
 		cmd.read_write = 0;
@@ -478,7 +481,7 @@ static int wilc_sdio_read_reg(struct wilc *wilc, u32 addr, u32 *data)
 
 		cmd.read_write = 0;
 		cmd.function = 0;
-		cmd.address = 0x10f;
+		cmd.address = WILC_SDIO_FBR_DATA_REG;
 		cmd.block_mode = 0;
 		cmd.increment = 1;
 		cmd.count = 4;
@@ -511,13 +514,13 @@ static int wilc_sdio_read(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 		 *      func 0 access
 		 **/
 		cmd.function = 0;
-		cmd.address = 0x10f;
+		cmd.address = WILC_SDIO_FBR_DATA_REG;
 	} else {
 		/**
 		 *      func 1 access
 		 **/
 		cmd.function = 1;
-		cmd.address = 0;
+		cmd.address = WILC_SDIO_F1_DATA_REG;
 	}
 
 	size = ALIGN(size, 4);
@@ -598,8 +601,8 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 	cmd.read_write = 1;
 	cmd.function = 0;
 	cmd.raw = 1;
-	cmd.address = 0x100;
-	cmd.data = 0x80;
+	cmd.address = SDIO_FBR_BASE(func->num);
+	cmd.data = SDIO_FBR_ENABLE_CSA;
 	ret = wilc_sdio_cmd52(wilc, &cmd);
 	if (ret) {
 		dev_err(&func->dev, "Fail cmd 52, enable csa...\n");
@@ -622,8 +625,8 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 	cmd.read_write = 1;
 	cmd.function = 0;
 	cmd.raw = 1;
-	cmd.address = 0x2;
-	cmd.data = 0x2;
+	cmd.address = SDIO_CCCR_IOEx;
+	cmd.data = WILC_SDIO_CCCR_IO_EN_FUNC1;
 	ret = wilc_sdio_cmd52(wilc, &cmd);
 	if (ret) {
 		dev_err(&func->dev,
@@ -637,7 +640,7 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 	cmd.read_write = 0;
 	cmd.function = 0;
 	cmd.raw = 0;
-	cmd.address = 0x3;
+	cmd.address = SDIO_CCCR_IORx;
 	loop = 3;
 	do {
 		cmd.data = 0;
@@ -647,7 +650,7 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 				"Fail cmd 52, get IOR register...\n");
 			return ret;
 		}
-		if (cmd.data == 0x2)
+		if (cmd.data == WILC_SDIO_CCCR_IO_EN_FUNC1)
 			break;
 	} while (loop--);
 
@@ -671,8 +674,8 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 	cmd.read_write = 1;
 	cmd.function = 0;
 	cmd.raw = 1;
-	cmd.address = 0x4;
-	cmd.data = 0x3;
+	cmd.address = SDIO_CCCR_IENx;
+	cmd.data = WILC_SDIO_CCCR_IEN_MASTER | WILC_SDIO_CCCR_IEN_FUNC1;
 	ret = wilc_sdio_cmd52(wilc, &cmd);
 	if (ret) {
 		dev_err(&func->dev, "Fail cmd 52, set IEN register...\n");
@@ -711,12 +714,12 @@ static int wilc_sdio_read_size(struct wilc *wilc, u32 *size)
 	cmd.read_write = 0;
 	cmd.function = 0;
 	cmd.raw = 0;
-	cmd.address = 0xf2;
+	cmd.address = WILC_SDIO_INTERRUPT_DATA_SZ_REG;
 	cmd.data = 0;
 	wilc_sdio_cmd52(wilc, &cmd);
 	tmp = cmd.data;
 
-	cmd.address = 0xf3;
+	cmd.address = WILC_SDIO_INTERRUPT_DATA_SZ_REG + 1;
 	cmd.data = 0;
 	wilc_sdio_cmd52(wilc, &cmd);
 	tmp |= (cmd.data << 8);
@@ -740,10 +743,10 @@ static int wilc_sdio_read_int(struct wilc *wilc, u32 *int_status)
 	 **/
 	if (!sdio_priv->irq_gpio) {
 		cmd.function = 1;
-		cmd.address = 0x04;
+		cmd.address = WILC_SDIO_EXT_IRQ_FLAG_REG;
 	} else {
 		cmd.function = 0;
-		cmd.address = 0xf7;
+		cmd.address = WILC_SDIO_IRQ_FLAG_REG;
 	}
 	cmd.raw = 0;
 	cmd.read_write = 0;
@@ -789,14 +792,14 @@ static int wilc_sdio_clear_int_ext(struct wilc *wilc, u32 val)
 			cmd.read_write = 1;
 			cmd.function = 0;
 			cmd.raw = 0;
-			cmd.address = 0xf8;
+			cmd.address = WILC_SDIO_IRQ_CLEAR_FLAG_REG;
 			cmd.data = reg;
 
 			ret = wilc_sdio_cmd52(wilc, &cmd);
 			if (ret) {
 				dev_err(&func->dev,
-					"Failed cmd52, set 0xf8 data (%d) ...\n",
-					__LINE__);
+					"Failed cmd52, set (%02x) data (%d) ...\n",
+					cmd.address, __LINE__);
 				return ret;
 			}
 		}
@@ -819,14 +822,14 @@ static int wilc_sdio_clear_int_ext(struct wilc *wilc, u32 val)
 				cmd.read_write = 1;
 				cmd.function = 0;
 				cmd.raw = 0;
-				cmd.address = 0xf8;
+				cmd.address = WILC_SDIO_IRQ_CLEAR_FLAG_REG;
 				cmd.data = BIT(i);
 
 				ret = wilc_sdio_cmd52(wilc, &cmd);
 				if (ret) {
 					dev_err(&func->dev,
-						"Failed cmd52, set 0xf8 data (%d) ...\n",
-						__LINE__);
+						"Failed cmd52, set (%02x) data (%d) ...\n",
+						cmd.address, __LINE__);
 					return ret;
 				}
 				flags &= ~BIT(i);
@@ -860,13 +863,13 @@ static int wilc_sdio_clear_int_ext(struct wilc *wilc, u32 val)
 		cmd.read_write = 1;
 		cmd.function = 0;
 		cmd.raw = 0;
-		cmd.address = 0xf6;
+		cmd.address = WILC_SDIO_VMM_TBL_CTRL_REG;
 		cmd.data = vmm_ctl;
 		ret = wilc_sdio_cmd52(wilc, &cmd);
 		if (ret) {
 			dev_err(&func->dev,
-				"Failed cmd52, set 0xf6 data (%d) ...\n",
-				__LINE__);
+				"Failed cmd52, set (%02x) data (%d) ...\n",
+				cmd.address, __LINE__);
 			return ret;
 		}
 	}
