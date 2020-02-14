@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * dw9714 vcm driver
+ * fp5510 vcm driver
  *
  * Copyright (C) 2019 Fuzhou Rockchip Electronics Co., Ltd.
  */
@@ -14,24 +14,27 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include "rk_vcm_head.h"
+#include <linux/gpio/consumer.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x0)
-#define DW9714_NAME			"dw9714"
+#define DRIVER_VERSION	KERNEL_VERSION(0, 0x01, 0x0)
+#define FP5510_NAME			"fp5510"
 
-#define DW9714_MAX_CURRENT		100U
-#define DW9714_MAX_REG			1023U
+#define FP5510_MAX_CURRENT		100U
+#define FP5510_MAX_REG			1023U
 
-#define DW9714_DEFAULT_START_CURRENT	0
-#define DW9714_DEFAULT_RATED_CURRENT	100
-#define DW9714_DEFAULT_STEP_MODE	0xd
+#define FP5510_DEFAULT_START_CURRENT	0
+#define FP5510_DEFAULT_RATED_CURRENT	100
+#define FP5510_DEFAULT_STEP_MODE	0xd
 #define REG_NULL			0xFF
-
-/* dw9714 device structure */
-struct dw9714_device {
+#define ENABLE				0x1
+#define DISABLE				0x0
+/* fp5510 device structure */
+struct fp5510_device {
 	struct v4l2_ctrl_handler ctrls_vcm;
 	struct v4l2_subdev sd;
 	struct v4l2_device vdev;
 	u16 current_val;
+	struct gpio_desc *pwdn_gpio;
 
 	unsigned short current_related_pos;
 	unsigned short current_lens_pos;
@@ -40,7 +43,8 @@ struct dw9714_device {
 	unsigned int step;
 	unsigned int step_mode;
 	unsigned int vcm_movefull_t;
-	unsigned int dlc_enable;
+	unsigned int esc_enable;
+	unsigned int tsc_enable;
 	unsigned int t_src;
 	unsigned int mclk;
 
@@ -60,7 +64,7 @@ struct TimeTabel_s {
 	unsigned int step11;
 };
 
-static const struct TimeTabel_s dw9714_lsc_time_table[] = {
+static const struct TimeTabel_s fp5510_lsc_time_table[] = {
 	{0b10000, 136, 272, 544, 1088},
 	{0b10001, 130, 260, 520, 1040},
 	{0b10010, 125, 250, 500, 1000},
@@ -96,7 +100,7 @@ static const struct TimeTabel_s dw9714_lsc_time_table[] = {
 	{REG_NULL,  0, 0, 0, 0},
 };
 
-static const struct TimeTabel_s dw9714_dlc_time_table[] = {/* us */
+static const struct TimeTabel_s fp5510_dlc_time_table[] = {/* us */
 	{0b10000, 21250, 10630, 5310, 2660},
 	{0b10001, 20310, 10160, 5080, 2540},
 	{0b10010, 19530,  9770, 4880, 2440},
@@ -132,17 +136,37 @@ static const struct TimeTabel_s dw9714_dlc_time_table[] = {/* us */
 	{REG_NULL, 0, 0, 0, 0},
 };
 
-static inline struct dw9714_device *to_dw9714_vcm(struct v4l2_ctrl *ctrl)
+static inline struct fp5510_device *to_fp5510_vcm(struct v4l2_ctrl *ctrl)
 {
-	return container_of(ctrl->handler, struct dw9714_device, ctrls_vcm);
+	return container_of(ctrl->handler, struct fp5510_device, ctrls_vcm);
 }
 
-static inline struct dw9714_device *sd_to_dw9714_vcm(struct v4l2_subdev *subdev)
+static inline struct fp5510_device *sd_to_fp5510_vcm(struct v4l2_subdev *subdev)
 {
-	return container_of(subdev, struct dw9714_device, sd);
+	return container_of(subdev, struct fp5510_device, sd);
 }
 
-static int dw9714_read_msg(struct i2c_client *client,
+static int __fp5510_power_on(struct fp5510_device *dev_vcm)
+{
+	if (!IS_ERR(dev_vcm->pwdn_gpio)) {
+		gpiod_set_value_cansleep(dev_vcm->pwdn_gpio, 1);
+		dev_err(dev_vcm->sd.dev, "power on success!\n");
+	}
+
+	return 0;
+}
+
+static int __fp5510_power_off(struct fp5510_device *dev_vcm)
+{
+	if (!IS_ERR(dev_vcm->pwdn_gpio)) {
+		gpiod_set_value_cansleep(dev_vcm->pwdn_gpio, 0);
+		dev_err(dev_vcm->sd.dev, "power off success!\n");
+	}
+
+	return 0;
+}
+
+static int fp5510_read_msg(struct i2c_client *client,
 	unsigned char *msb, unsigned char *lsb)
 {
 	int ret = 0;
@@ -182,7 +206,7 @@ static int dw9714_read_msg(struct i2c_client *client,
 	return ret;
 }
 
-static int dw9714_write_msg(struct i2c_client *client,
+static int fp5510_write_msg(struct i2c_client *client,
 	u8 msb, u8 lsb)
 {
 	int ret = 0;
@@ -205,7 +229,6 @@ static int dw9714_write_msg(struct i2c_client *client,
 		data[1] = lsb;
 
 		ret = i2c_transfer(client->adapter, msg, 1);
-		usleep_range(50, 100);
 
 		if (ret == 1) {
 			dev_dbg(&client->dev,
@@ -220,11 +243,12 @@ static int dw9714_write_msg(struct i2c_client *client,
 		msleep(20);
 	}
 	dev_err(&client->dev,
-		"i2c write to failed with error %d\n", ret);
+		"i2c write to failed with error %d msb:%d lsb:%d\n",
+		ret, msb, lsb);
 	return ret;
 }
 
-static unsigned int dw9714_move_time(struct dw9714_device *dev_vcm,
+static unsigned int fp5510_move_time(struct fp5510_device *dev_vcm,
 	unsigned int move_pos)
 {
 	unsigned int move_time_ms = 200;
@@ -237,20 +261,21 @@ static unsigned int dw9714_move_time(struct dw9714_device *dev_vcm,
 	unsigned int codes_per_step = 1;
 	struct i2c_client *client = v4l2_get_subdevdata(&dev_vcm->sd);
 
-	if (dev_vcm->dlc_enable) {
+	if (dev_vcm->esc_enable == ENABLE ||
+		dev_vcm->tsc_enable == ENABLE) {
 		step_case = dev_vcm->mclk & 0x3;
-		table_cnt = sizeof(dw9714_dlc_time_table) /
+		table_cnt = sizeof(fp5510_dlc_time_table) /
 					sizeof(struct TimeTabel_s);
 		for (i = 0; i < table_cnt; i++) {
-			if (dw9714_dlc_time_table[i].t_src == dev_vcm->t_src)
+			if (fp5510_dlc_time_table[i].t_src == dev_vcm->t_src)
 				break;
 		}
 	} else {
 		step_case = dev_vcm->step_mode & 0x3;
-		table_cnt = sizeof(dw9714_lsc_time_table) /
+		table_cnt = sizeof(fp5510_lsc_time_table) /
 					sizeof(struct TimeTabel_s);
 		for (i = 0; i < table_cnt; i++) {
-			if (dw9714_lsc_time_table[i].t_src == dev_vcm->t_src)
+			if (fp5510_lsc_time_table[i].t_src == dev_vcm->t_src)
 				break;
 		}
 	}
@@ -260,20 +285,20 @@ static unsigned int dw9714_move_time(struct dw9714_device *dev_vcm,
 
 	switch (step_case) {
 	case 0:
-		step_period_lsc = dw9714_lsc_time_table[i].step00;
-		step_period_dlc = dw9714_dlc_time_table[i].step00;
+		step_period_lsc = fp5510_lsc_time_table[i].step00;
+		step_period_dlc = fp5510_dlc_time_table[i].step00;
 		break;
 	case 1:
-		step_period_lsc = dw9714_lsc_time_table[i].step01;
-		step_period_dlc = dw9714_dlc_time_table[i].step01;
+		step_period_lsc = fp5510_lsc_time_table[i].step01;
+		step_period_dlc = fp5510_dlc_time_table[i].step01;
 		break;
 	case 2:
-		step_period_lsc = dw9714_lsc_time_table[i].step10;
-		step_period_dlc = dw9714_dlc_time_table[i].step10;
+		step_period_lsc = fp5510_lsc_time_table[i].step10;
+		step_period_dlc = fp5510_dlc_time_table[i].step10;
 		break;
 	case 3:
-		step_period_lsc = dw9714_lsc_time_table[i].step11;
-		step_period_dlc = dw9714_dlc_time_table[i].step11;
+		step_period_lsc = fp5510_lsc_time_table[i].step11;
+		step_period_dlc = fp5510_dlc_time_table[i].step11;
 		break;
 	default:
 		dev_err(&client->dev,
@@ -285,20 +310,27 @@ static unsigned int dw9714_move_time(struct dw9714_device *dev_vcm,
 	if (codes_per_step > 1)
 		codes_per_step = 1 << (codes_per_step - 1);
 
-	if (dev_vcm->dlc_enable)
+	if (dev_vcm->esc_enable == ENABLE || dev_vcm->tsc_enable == ENABLE)
 		step_period = step_period_dlc;
 	else
 		step_period = step_period_lsc;
 
-	if (!codes_per_step)
+	if (dev_vcm->tsc_enable == ENABLE) {
 		move_time_ms = step_period * move_pos / 1000;
-	else
-		move_time_ms = step_period * move_pos / codes_per_step / 1000;
+	} else if (dev_vcm->esc_enable == ENABLE) {
+		move_time_ms = step_period * 2 * move_pos / 1000;
+	} else {
+		if (!codes_per_step)
+			move_time_ms = step_period * move_pos / 1000;
+		else
+			move_time_ms = step_period * move_pos /
+				codes_per_step / 1000;
+	}
 
 	return move_time_ms;
 }
 
-static int dw9714_get_pos(struct dw9714_device *dev_vcm,
+static int fp5510_get_pos(struct fp5510_device *dev_vcm,
 	unsigned int *cur_pos)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&dev_vcm->sd);
@@ -307,7 +339,7 @@ static int dw9714_get_pos(struct dw9714_device *dev_vcm,
 	unsigned char msb = 0;
 	unsigned int abs_step;
 
-	ret = dw9714_read_msg(client, &msb, &lsb);
+	ret = fp5510_read_msg(client, &msb, &lsb);
 	if (ret != 0)
 		goto err;
 
@@ -331,13 +363,13 @@ err:
 	return ret;
 }
 
-static int dw9714_set_pos(struct dw9714_device *dev_vcm,
+static int fp5510_set_pos(struct fp5510_device *dev_vcm,
 	unsigned int dest_pos)
 {
 	int ret;
 	unsigned char lsb = 0;
 	unsigned char msb = 0;
-	unsigned int position = 0;
+	unsigned int position;
 	struct i2c_client *client = v4l2_get_subdevdata(&dev_vcm->sd);
 
 	if (dest_pos >= VCMDRV_MAX_LOG)
@@ -346,15 +378,15 @@ static int dw9714_set_pos(struct dw9714_device *dev_vcm,
 		position = dev_vcm->start_current +
 			   (dev_vcm->step * (VCMDRV_MAX_LOG - dest_pos));
 
-	if (position > DW9714_MAX_REG)
-		position = DW9714_MAX_REG;
+	if (position > FP5510_MAX_REG)
+		position = FP5510_MAX_REG;
 
 	dev_vcm->current_lens_pos = position;
 	dev_vcm->current_related_pos = dest_pos;
 	msb = (0x00U | ((dev_vcm->current_lens_pos & 0x3F0U) >> 4U));
 	lsb = (((dev_vcm->current_lens_pos & 0x0FU) << 4U) |
 		dev_vcm->step_mode);
-	ret = dw9714_write_msg(client, msb, lsb);
+	ret = fp5510_write_msg(client, msb, lsb);
 	if (ret != 0)
 		goto err;
 
@@ -365,19 +397,19 @@ err:
 	return ret;
 }
 
-static int dw9714_get_ctrl(struct v4l2_ctrl *ctrl)
+static int fp5510_get_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct dw9714_device *dev_vcm = to_dw9714_vcm(ctrl);
+	struct fp5510_device *dev_vcm = to_fp5510_vcm(ctrl);
 
 	if (ctrl->id == V4L2_CID_FOCUS_ABSOLUTE)
-		return dw9714_get_pos(dev_vcm, &ctrl->val);
+		return fp5510_get_pos(dev_vcm, &ctrl->val);
 
 	return -EINVAL;
 }
 
-static int dw9714_set_ctrl(struct v4l2_ctrl *ctrl)
+static int fp5510_set_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct dw9714_device *dev_vcm = to_dw9714_vcm(ctrl);
+	struct fp5510_device *dev_vcm = to_fp5510_vcm(ctrl);
 	struct i2c_client *client = v4l2_get_subdevdata(&dev_vcm->sd);
 	unsigned int dest_pos = ctrl->val;
 	int move_pos;
@@ -391,20 +423,17 @@ static int dw9714_set_ctrl(struct v4l2_ctrl *ctrl)
 				__func__, dest_pos, VCMDRV_MAX_LOG);
 			return -EINVAL;
 		}
-		/* calculate move time */
+			/* calculate move time */
 		move_pos = dev_vcm->current_related_pos - dest_pos;
 		if (move_pos < 0)
 			move_pos = -move_pos;
 
-		ret = dw9714_set_pos(dev_vcm, dest_pos);
+		ret = fp5510_set_pos(dev_vcm, dest_pos);
 
 		dev_vcm->move_ms =
 			((dev_vcm->vcm_movefull_t *
 			(uint32_t)move_pos) /
 			VCMDRV_MAX_LOG);
-		dev_dbg(&client->dev,
-			"dest_pos %d, move_ms %ld\n",
-			dest_pos, dev_vcm->move_ms);
 
 		dev_vcm->start_move_tv = ns_to_timeval(ktime_get_ns());
 		mv_us = dev_vcm->start_move_tv.tv_usec +
@@ -423,12 +452,12 @@ static int dw9714_set_ctrl(struct v4l2_ctrl *ctrl)
 	return ret;
 }
 
-static const struct v4l2_ctrl_ops dw9714_vcm_ctrl_ops = {
-	.g_volatile_ctrl = dw9714_get_ctrl,
-	.s_ctrl = dw9714_set_ctrl,
+static const struct v4l2_ctrl_ops fp5510_vcm_ctrl_ops = {
+	.g_volatile_ctrl = fp5510_get_ctrl,
+	.s_ctrl = fp5510_set_ctrl,
 };
 
-static int dw9714_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
+static int fp5510_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	int rval;
 
@@ -441,35 +470,35 @@ static int dw9714_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	return 0;
 }
 
-static int dw9714_close(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
+static int fp5510_close(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	pm_runtime_put(sd->dev);
 
 	return 0;
 }
 
-static const struct v4l2_subdev_internal_ops dw9714_int_ops = {
-	.open = dw9714_open,
-	.close = dw9714_close,
+static const struct v4l2_subdev_internal_ops fp5510_int_ops = {
+	.open = fp5510_open,
+	.close = fp5510_close,
 };
 
-static long dw9714_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
+static long fp5510_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	int ret = 0;
 	struct rk_cam_vcm_tim *vcm_tim;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct dw9714_device *dw9714_dev = sd_to_dw9714_vcm(sd);
+	struct fp5510_device *fp5510_dev = sd_to_fp5510_vcm(sd);
 
 	if (cmd == RK_VIDIOC_VCM_TIMEINFO) {
 		vcm_tim = (struct rk_cam_vcm_tim *)arg;
 
-		vcm_tim->vcm_start_t.tv_sec = dw9714_dev->start_move_tv.tv_sec;
+		vcm_tim->vcm_start_t.tv_sec = fp5510_dev->start_move_tv.tv_sec;
 		vcm_tim->vcm_start_t.tv_usec =
-				dw9714_dev->start_move_tv.tv_usec;
-		vcm_tim->vcm_end_t.tv_sec = dw9714_dev->end_move_tv.tv_sec;
-		vcm_tim->vcm_end_t.tv_usec = dw9714_dev->end_move_tv.tv_usec;
+				fp5510_dev->start_move_tv.tv_usec;
+		vcm_tim->vcm_end_t.tv_sec = fp5510_dev->end_move_tv.tv_sec;
+		vcm_tim->vcm_end_t.tv_usec = fp5510_dev->end_move_tv.tv_usec;
 
-		dev_dbg(&client->dev, "dw9714_get_move_res 0x%lx, 0x%lx, 0x%lx, 0x%lx\n",
+		dev_dbg(&client->dev, "fp5510_get_move_res 0x%lx, 0x%lx, 0x%lx, 0x%lx\n",
 			vcm_tim->vcm_start_t.tv_sec,
 			vcm_tim->vcm_start_t.tv_usec,
 			vcm_tim->vcm_end_t.tv_sec,
@@ -484,7 +513,7 @@ static long dw9714_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 }
 
 #ifdef CONFIG_COMPAT
-static long dw9714_compat_ioctl32(struct v4l2_subdev *sd,
+static long fp5510_compat_ioctl32(struct v4l2_subdev *sd,
 	unsigned int cmd, unsigned long arg)
 {
 	struct rk_cam_vcm_tim vcm_tim;
@@ -494,7 +523,7 @@ static long dw9714_compat_ioctl32(struct v4l2_subdev *sd,
 	long ret;
 
 	if (cmd == RK_VIDIOC_COMPAT_VCM_TIMEINFO) {
-		ret = dw9714_ioctl(sd, RK_VIDIOC_VCM_TIMEINFO, &vcm_tim);
+		ret = fp5510_ioctl(sd, RK_VIDIOC_VCM_TIMEINFO, &vcm_tim);
 		compat_vcm_tim.vcm_start_t.tv_sec = vcm_tim.vcm_start_t.tv_sec;
 		compat_vcm_tim.vcm_start_t.tv_usec =
 				vcm_tim.vcm_start_t.tv_usec;
@@ -519,29 +548,29 @@ static long dw9714_compat_ioctl32(struct v4l2_subdev *sd,
 }
 #endif
 
-static const struct v4l2_subdev_core_ops dw9714_core_ops = {
-	.ioctl = dw9714_ioctl,
+static const struct v4l2_subdev_core_ops fp5510_core_ops = {
+	.ioctl = fp5510_ioctl,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl32 = dw9714_compat_ioctl32
+	.compat_ioctl32 = fp5510_compat_ioctl32
 #endif
 };
 
-static const struct v4l2_subdev_ops dw9714_ops = {
-	.core = &dw9714_core_ops,
+static const struct v4l2_subdev_ops fp5510_ops = {
+	.core = &fp5510_core_ops,
 };
 
-static void dw9714_subdev_cleanup(struct dw9714_device *dw9714_dev)
+static void fp5510_subdev_cleanup(struct fp5510_device *fp5510_dev)
 {
-	v4l2_device_unregister_subdev(&dw9714_dev->sd);
-	v4l2_device_unregister(&dw9714_dev->vdev);
-	v4l2_ctrl_handler_free(&dw9714_dev->ctrls_vcm);
-	media_entity_cleanup(&dw9714_dev->sd.entity);
+	v4l2_device_unregister_subdev(&fp5510_dev->sd);
+	v4l2_device_unregister(&fp5510_dev->vdev);
+	v4l2_ctrl_handler_free(&fp5510_dev->ctrls_vcm);
+	media_entity_cleanup(&fp5510_dev->sd.entity);
 }
 
-static int dw9714_init_controls(struct dw9714_device *dev_vcm)
+static int fp5510_init_controls(struct fp5510_device *dev_vcm)
 {
 	struct v4l2_ctrl_handler *hdl = &dev_vcm->ctrls_vcm;
-	const struct v4l2_ctrl_ops *ops = &dw9714_vcm_ctrl_ops;
+	const struct v4l2_ctrl_ops *ops = &fp5510_vcm_ctrl_ops;
 
 	v4l2_ctrl_handler_init(hdl, 1);
 
@@ -555,11 +584,12 @@ static int dw9714_init_controls(struct dw9714_device *dev_vcm)
 	return hdl->error;
 }
 
-static int dw9714_probe(struct i2c_client *client,
+static int fp5510_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct device_node *np = of_node_get(client->dev.of_node);
-	struct dw9714_device *dw9714_dev;
+	struct fp5510_device *fp5510_dev;
+	struct device *dev = &client->dev;
 	int ret;
 	int current_distance;
 	unsigned int start_current;
@@ -573,7 +603,7 @@ static int dw9714_probe(struct i2c_client *client,
 	if (of_property_read_u32(np,
 		OF_CAMERA_VCMDRV_START_CURRENT,
 		(unsigned int *)&start_current)) {
-		start_current = DW9714_DEFAULT_START_CURRENT;
+		start_current = FP5510_DEFAULT_START_CURRENT;
 		dev_info(&client->dev,
 			"could not get module %s from dts!\n",
 			OF_CAMERA_VCMDRV_START_CURRENT);
@@ -581,7 +611,7 @@ static int dw9714_probe(struct i2c_client *client,
 	if (of_property_read_u32(np,
 		OF_CAMERA_VCMDRV_RATED_CURRENT,
 		(unsigned int *)&rated_current)) {
-		rated_current = DW9714_DEFAULT_RATED_CURRENT;
+		rated_current = FP5510_DEFAULT_RATED_CURRENT;
 		dev_info(&client->dev,
 			"could not get module %s from dts!\n",
 			OF_CAMERA_VCMDRV_RATED_CURRENT);
@@ -589,100 +619,113 @@ static int dw9714_probe(struct i2c_client *client,
 	if (of_property_read_u32(np,
 		OF_CAMERA_VCMDRV_STEP_MODE,
 		(unsigned int *)&step_mode)) {
-		step_mode = DW9714_DEFAULT_STEP_MODE;
+		step_mode = FP5510_DEFAULT_STEP_MODE;
 		dev_info(&client->dev,
 			"could not get module %s from dts!\n",
 			OF_CAMERA_VCMDRV_STEP_MODE);
 	}
 
-	dw9714_dev = devm_kzalloc(&client->dev, sizeof(*dw9714_dev),
+	fp5510_dev = devm_kzalloc(&client->dev, sizeof(*fp5510_dev),
 				  GFP_KERNEL);
-	if (dw9714_dev == NULL)
+	if (!fp5510_dev)
 		return -ENOMEM;
 
 	ret = of_property_read_u32(np, RKMODULE_CAMERA_MODULE_INDEX,
-				   &dw9714_dev->module_index);
+				   &fp5510_dev->module_index);
 	ret |= of_property_read_string(np, RKMODULE_CAMERA_MODULE_FACING,
-				       &dw9714_dev->module_facing);
+				       &fp5510_dev->module_facing);
 	if (ret) {
 		dev_err(&client->dev,
 			"could not get module information!\n");
 		return -EINVAL;
 	}
 
-	v4l2_i2c_subdev_init(&dw9714_dev->sd, client, &dw9714_ops);
-	dw9714_dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
-	dw9714_dev->sd.internal_ops = &dw9714_int_ops;
+	v4l2_i2c_subdev_init(&fp5510_dev->sd, client, &fp5510_ops);
 
-	ret = dw9714_init_controls(dw9714_dev);
+	fp5510_dev->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_OUT_HIGH);
+	if (IS_ERR(fp5510_dev->pwdn_gpio))
+		dev_warn(dev, "Failed to get pwdn-gpios\n");
+
+	fp5510_dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	fp5510_dev->sd.internal_ops = &fp5510_int_ops;
+
+	ret = fp5510_init_controls(fp5510_dev);
 	if (ret)
 		goto err_cleanup;
 
-	ret = media_entity_pads_init(&dw9714_dev->sd.entity, 0, NULL);
+	__fp5510_power_on(fp5510_dev);
+
+	ret = media_entity_pads_init(&fp5510_dev->sd.entity, 0, NULL);
 	if (ret < 0)
 		goto err_cleanup;
 
-	sd = &dw9714_dev->sd;
+	sd = &fp5510_dev->sd;
 	sd->entity.function = MEDIA_ENT_F_LENS;
 
 	memset(facing, 0, sizeof(facing));
-	if (strcmp(dw9714_dev->module_facing, "back") == 0)
+	if (strcmp(fp5510_dev->module_facing, "back") == 0)
 		facing[0] = 'b';
 	else
 		facing[0] = 'f';
 
 	snprintf(sd->name, sizeof(sd->name), "m%02d_%s_%s %s",
-		 dw9714_dev->module_index, facing,
-		 DW9714_NAME, dev_name(sd->dev));
+		 fp5510_dev->module_index, facing,
+		 FP5510_NAME, dev_name(sd->dev));
 	ret = v4l2_async_register_subdev(sd);
 	if (ret)
 		dev_err(&client->dev, "v4l2 async register subdev failed\n");
 
 	current_distance = rated_current - start_current;
-	current_distance = current_distance * DW9714_MAX_REG /
-						DW9714_MAX_CURRENT;
-	dw9714_dev->step = (current_distance + (VCMDRV_MAX_LOG - 1)) /
+	current_distance = current_distance * FP5510_MAX_REG /
+						FP5510_MAX_CURRENT;
+	fp5510_dev->step = (current_distance + (VCMDRV_MAX_LOG - 1)) /
 						VCMDRV_MAX_LOG;
-	dw9714_dev->start_current = start_current * DW9714_MAX_REG /
-						DW9714_MAX_CURRENT;
-	dw9714_dev->rated_current = dw9714_dev->start_current +
+	fp5510_dev->start_current = start_current * FP5510_MAX_REG /
+						FP5510_MAX_CURRENT;
+	fp5510_dev->rated_current = fp5510_dev->start_current +
 						VCMDRV_MAX_LOG *
-						dw9714_dev->step;
-	dw9714_dev->step_mode     = step_mode;
-	dw9714_dev->move_ms       = 0;
-	dw9714_dev->current_related_pos = VCMDRV_MAX_LOG;
-	dw9714_dev->start_move_tv = ns_to_timeval(ktime_get_ns());
-	dw9714_dev->end_move_tv = ns_to_timeval(ktime_get_ns());
+						fp5510_dev->step;
+	fp5510_dev->step_mode     = step_mode;
+	fp5510_dev->move_ms       = 0;
+	fp5510_dev->current_related_pos = VCMDRV_MAX_LOG;
+	fp5510_dev->start_move_tv = ns_to_timeval(ktime_get_ns());
+	fp5510_dev->end_move_tv = ns_to_timeval(ktime_get_ns());
+	/*
+	 * Note:
+	 * 1. At ESC mode, ESC code=1 and TSC must be equal 0.
+	 * 2. If ESC code=1 and TSC code=1, it get the TSC mode.
+	 */
+	fp5510_dev->esc_enable = DISABLE;
+	fp5510_dev->tsc_enable = DISABLE;
+	fp5510_dev->mclk = 0;
+	fp5510_dev->t_src = 0x0;
 
-	dw9714_dev->dlc_enable = 0;
-	dw9714_dev->mclk = 0;
-	dw9714_dev->t_src = 0x0;
-
-	ret = dw9714_write_msg(client, 0xEC, 0xA3);
+	ret = fp5510_write_msg(client, 0xEC, 0xA3);
 	if (ret != 0)
 		dev_err(&client->dev,
 			"%s: failed with error %d\n", __func__, ret);
 
-	data = (dw9714_dev->mclk & 0x3) | 0x04 |
-			((dw9714_dev->dlc_enable << 0x3) & 0x08);
-	ret = dw9714_write_msg(client, 0xA1, data);
+	data = (fp5510_dev->mclk & 0x3) | 0x04 |
+			(((fp5510_dev->tsc_enable << 0x3) |
+			(fp5510_dev->esc_enable << 0x4)) & 0x18);
+	ret = fp5510_write_msg(client, 0xA1, data);
 	if (ret != 0)
 		dev_err(&client->dev,
 			"%s: failed with error %d\n", __func__, ret);
 
-	data = (dw9714_dev->t_src << 0x5) & 0xf8;
-	ret = dw9714_write_msg(client, 0xF2, data);
+	data = (fp5510_dev->t_src << 0x3) & 0xf8;
+	ret = fp5510_write_msg(client, 0xF2, data);
 	if (ret != 0)
 		dev_err(&client->dev,
 			"%s: failed with error %d\n", __func__, ret);
 
-	ret = dw9714_write_msg(client, 0xDC, 0x51);
+	ret = fp5510_write_msg(client, 0xDC, 0x51);
 	if (ret != 0)
 		dev_err(&client->dev,
 			"%s: failed with error %d\n", __func__, ret);
 
-	dw9714_dev->vcm_movefull_t =
-		dw9714_move_time(dw9714_dev, DW9714_MAX_REG);
+	fp5510_dev->vcm_movefull_t =
+		fp5510_move_time(fp5510_dev, FP5510_MAX_REG);
 	pm_runtime_set_active(&client->dev);
 	pm_runtime_enable(&client->dev);
 	pm_runtime_idle(&client->dev);
@@ -692,61 +735,76 @@ static int dw9714_probe(struct i2c_client *client,
 	return 0;
 
 err_cleanup:
-	dw9714_subdev_cleanup(dw9714_dev);
+	fp5510_subdev_cleanup(fp5510_dev);
 	dev_err(&client->dev, "Probe failed: %d\n", ret);
 	return ret;
 }
 
-static int dw9714_remove(struct i2c_client *client)
+static int fp5510_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct dw9714_device *dw9714_dev = sd_to_dw9714_vcm(sd);
+	struct fp5510_device *fp5510_dev = sd_to_fp5510_vcm(sd);
 
 	pm_runtime_disable(&client->dev);
-	dw9714_subdev_cleanup(dw9714_dev);
+	fp5510_subdev_cleanup(fp5510_dev);
+	if (!pm_runtime_status_suspended(&client->dev))
+		__fp5510_power_off(fp5510_dev);
+	pm_runtime_set_suspended(&client->dev);
 
 	return 0;
 }
 
-static int __maybe_unused dw9714_vcm_suspend(struct device *dev)
+static int fp5510_vcm_resume(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct fp5510_device *fp5510_dev = sd_to_fp5510_vcm(sd);
+
+	__fp5510_power_on(fp5510_dev);
+
 	return 0;
 }
 
-static int __maybe_unused dw9714_vcm_resume(struct device *dev)
+static int fp5510_vcm_suspend(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct fp5510_device *fp5510_dev = sd_to_fp5510_vcm(sd);
+
+	__fp5510_power_off(fp5510_dev);
+
 	return 0;
 }
 
-static const struct i2c_device_id dw9714_id_table[] = {
-	{ DW9714_NAME, 0 },
-	{ { 0 } }
+static const struct i2c_device_id fp5510_id_table[] = {
+	{ FP5510_NAME, 0 },
+	{ }
 };
-MODULE_DEVICE_TABLE(i2c, dw9714_id_table);
+MODULE_DEVICE_TABLE(i2c, fp5510_id_table);
 
-static const struct of_device_id dw9714_of_table[] = {
-	{ .compatible = "dongwoon,dw9714" },
-	{ { 0 } }
+static const struct of_device_id fp5510_of_table[] = {
+	{ .compatible = "fitipower,fp5510" },
+	{ }
 };
-MODULE_DEVICE_TABLE(of, dw9714_of_table);
+MODULE_DEVICE_TABLE(of, fp5510_of_table);
 
-static const struct dev_pm_ops dw9714_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(dw9714_vcm_suspend, dw9714_vcm_resume)
-	SET_RUNTIME_PM_OPS(dw9714_vcm_suspend, dw9714_vcm_resume, NULL)
+static const struct dev_pm_ops fp5510_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(fp5510_vcm_suspend, fp5510_vcm_resume)
+	SET_RUNTIME_PM_OPS(fp5510_vcm_suspend, fp5510_vcm_resume, NULL)
 };
 
-static struct i2c_driver dw9714_i2c_driver = {
+static struct i2c_driver fp5510_i2c_driver = {
 	.driver = {
-		.name = DW9714_NAME,
-		.pm = &dw9714_pm_ops,
-		.of_match_table = dw9714_of_table,
+		.name = FP5510_NAME,
+		.pm = &fp5510_pm_ops,
+		.of_match_table = fp5510_of_table,
 	},
-	.probe = &dw9714_probe,
-	.remove = &dw9714_remove,
-	.id_table = dw9714_id_table,
+	.probe = &fp5510_probe,
+	.remove = &fp5510_remove,
+	.id_table = fp5510_id_table,
 };
 
-module_i2c_driver(dw9714_i2c_driver);
+module_i2c_driver(fp5510_i2c_driver);
 
-MODULE_DESCRIPTION("DW9714 VCM driver");
+MODULE_DESCRIPTION("FP5510 VCM driver");
 MODULE_LICENSE("GPL v2");
