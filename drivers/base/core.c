@@ -69,7 +69,7 @@ int device_links_read_lock(void)
 	return srcu_read_lock(&device_links_srcu);
 }
 
-void device_links_read_unlock(int idx)
+void device_links_read_unlock(int idx) __releases(&device_links_srcu)
 {
 	srcu_read_unlock(&device_links_srcu, idx);
 }
