@@ -2035,8 +2035,7 @@ void btrfs_free_fs_roots(struct btrfs_fs_info *fs_info)
 
 		if (test_bit(BTRFS_ROOT_IN_RADIX, &gang[0]->state))
 			btrfs_drop_and_free_fs_root(fs_info, gang[0]);
-		else
-			btrfs_put_root(gang[0]);
+		btrfs_put_root(gang[0]);
 	}
 
 	while (1) {
