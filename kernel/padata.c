@@ -510,6 +510,7 @@ static struct parallel_data *padata_alloc_pd(struct padata_instance *pinst,
 	atomic_set(&pd->seq_nr, -1);
 	atomic_set(&pd->reorder_objects, 0);
 	atomic_set(&pd->refcnt, 1);
+	pd->pinst = pinst;
 	spin_lock_init(&pd->lock);
 
 	return pd;
