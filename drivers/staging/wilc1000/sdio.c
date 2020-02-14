@@ -26,7 +26,6 @@ static const struct sdio_device_id wilc_sdio_ids[] = {
 struct wilc_sdio {
 	bool irq_gpio;
 	u32 block_size;
-	int nint;
 	int has_thrpt_enh3;
 };
 
@@ -790,6 +789,7 @@ static int wilc_sdio_read_int(struct wilc *wilc, u32 *int_status)
 	struct sdio_func *func = dev_to_sdio_func(wilc->dev);
 	struct wilc_sdio *sdio_priv = wilc->bus_data;
 	u32 tmp;
+	u8 irq_flags;
 	struct sdio_cmd52 cmd;
 
 	wilc_sdio_read_size(wilc, &tmp);
@@ -798,44 +798,22 @@ static int wilc_sdio_read_int(struct wilc *wilc, u32 *int_status)
 	 *      Read IRQ flags
 	 **/
 	if (!sdio_priv->irq_gpio) {
-		int i;
-
-		cmd.read_write = 0;
 		cmd.function = 1;
 		cmd.address = 0x04;
-		cmd.data = 0;
-		wilc_sdio_cmd52(wilc, &cmd);
-
-		if (cmd.data & BIT(0))
-			tmp |= INT_0;
-		if (cmd.data & BIT(2))
-			tmp |= INT_1;
-		if (cmd.data & BIT(3))
-			tmp |= INT_2;
-		if (cmd.data & BIT(4))
-			tmp |= INT_3;
-		if (cmd.data & BIT(5))
-			tmp |= INT_4;
-		for (i = sdio_priv->nint; i < MAX_NUM_INT; i++) {
-			if ((tmp >> (IRG_FLAGS_OFFSET + i)) & 0x1) {
-				dev_err(&func->dev,
-					"Unexpected interrupt (1) : tmp=%x, data=%x\n",
-					tmp, cmd.data);
-				break;
-			}
-		}
 	} else {
-		u32 irq_flags;
-
-		cmd.read_write = 0;
 		cmd.function = 0;
-		cmd.raw = 0;
 		cmd.address = 0xf7;
-		cmd.data = 0;
-		wilc_sdio_cmd52(wilc, &cmd);
-		irq_flags = cmd.data & 0x1f;
-		tmp |= ((irq_flags >> 0) << IRG_FLAGS_OFFSET);
 	}
+	cmd.raw = 0;
+	cmd.read_write = 0;
+	cmd.data = 0;
+	wilc_sdio_cmd52(wilc, &cmd);
+	irq_flags = cmd.data;
+	tmp |= FIELD_PREP(IRG_FLAGS_MASK, cmd.data);
+
+	if (FIELD_GET(UNHANDLED_IRQ_MASK, irq_flags))
+		dev_err(&func->dev, "Unexpected interrupt (1) int=%lx\n",
+			FIELD_GET(UNHANDLED_IRQ_MASK, irq_flags));
 
 	*int_status = tmp;
 
@@ -890,38 +868,36 @@ static int wilc_sdio_clear_int_ext(struct wilc *wilc, u32 val)
 		 * Must clear each interrupt individually.
 		 */
 		u32 flags;
+		int i;
 
 		flags = val & (BIT(MAX_NUM_INT) - 1);
-		if (flags) {
-			int i;
+		for (i = 0; i < NUM_INT_EXT && flags; i++) {
+			if (flags & BIT(i)) {
+				struct sdio_cmd52 cmd;
 
-			for (i = 0; i < sdio_priv->nint; i++) {
-				if (flags & 1) {
-					struct sdio_cmd52 cmd;
+				cmd.read_write = 1;
+				cmd.function = 0;
+				cmd.raw = 0;
+				cmd.address = 0xf8;
+				cmd.data = BIT(i);
 
-					cmd.read_write = 1;
-					cmd.function = 0;
-					cmd.raw = 0;
-					cmd.address = 0xf8;
-					cmd.data = BIT(i);
-
-					ret = wilc_sdio_cmd52(wilc, &cmd);
-					if (ret) {
-						dev_err(&func->dev,
-							"Failed cmd52, set 0xf8 data (%d) ...\n",
-							__LINE__);
-						return ret;
-					}
-				}
-				flags >>= 1;
-			}
-
-			for (i = sdio_priv->nint; i < MAX_NUM_INT; i++) {
-				if (flags & 1)
+				ret = wilc_sdio_cmd52(wilc, &cmd);
+				if (ret) {
 					dev_err(&func->dev,
-						"Unexpected interrupt cleared %d...\n",
-						i);
-				flags >>= 1;
+						"Failed cmd52, set 0xf8 data (%d) ...\n",
+						__LINE__);
+					return ret;
+				}
+				flags &= ~BIT(i);
+			}
+		}
+
+		for (i = NUM_INT_EXT; i < MAX_NUM_INT && flags; i++) {
+			if (flags & BIT(i)) {
+				dev_err(&func->dev,
+					"Unexpected interrupt cleared %d...\n",
+					i);
+				flags &= ~BIT(i);
 			}
 		}
 	}
@@ -966,8 +942,6 @@ static int wilc_sdio_sync_ext(struct wilc *wilc, int nint)
 		dev_err(&func->dev, "Too many interrupts (%d)...\n", nint);
 		return -EINVAL;
 	}
-
-	sdio_priv->nint = nint;
 
 	/**
 	 *      Disable power sequencer

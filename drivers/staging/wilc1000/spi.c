@@ -12,7 +12,6 @@
 
 struct wilc_spi {
 	int crc_off;
-	int nint;
 };
 
 static const struct wilc_hif_func wilc_hif_spi;
@@ -916,7 +915,6 @@ static int wilc_spi_clear_int_ext(struct wilc *wilc, u32 val)
 static int wilc_spi_sync_ext(struct wilc *wilc, int nint)
 {
 	struct spi_device *spi = to_spi_device(wilc->dev);
-	struct wilc_spi *spi_priv = wilc->bus_data;
 	u32 reg;
 	int ret, i;
 
@@ -924,8 +922,6 @@ static int wilc_spi_sync_ext(struct wilc *wilc, int nint)
 		dev_err(&spi->dev, "Too many interrupts (%d)...\n", nint);
 		return -EINVAL;
 	}
-
-	spi_priv->nint = nint;
 
 	/*
 	 * interrupt pin mux select

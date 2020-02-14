@@ -176,6 +176,8 @@
 #define INT_4			BIT(IRG_FLAGS_OFFSET + 4)
 #define INT_5			BIT(IRG_FLAGS_OFFSET + 5)
 #define MAX_NUM_INT		5
+#define IRG_FLAGS_MASK		GENMASK(IRG_FLAGS_OFFSET + MAX_NUM_INT, \
+					IRG_FLAGS_OFFSET)
 
 /*******************************************/
 /*        E0 and later Interrupt flags.    */
@@ -203,6 +205,7 @@
 #define DATA_INT_EXT		INT_0
 #define ALL_INT_EXT		DATA_INT_EXT
 #define NUM_INT_EXT		1
+#define UNHANDLED_IRQ_MASK	GENMASK(MAX_NUM_INT - 1, NUM_INT_EXT)
 
 #define DATA_INT_CLR		CLR_INT0
 
