@@ -1097,29 +1097,27 @@ static irqreturn_t udma_ring_irq_handler(int irq, void *data)
 			goto out;
 		}
 
-		if (uc->cyclic) {
-			/* push the descriptor back to the ring */
-			if (d == uc->desc) {
+		if (d == uc->desc) {
+			/* active descriptor */
+			if (uc->cyclic) {
 				udma_cyclic_packet_elapsed(uc);
 				vchan_cyclic_callback(&d->vd);
-			}
-		} else {
-			bool desc_done = false;
-
-			if (d == uc->desc) {
-				desc_done = udma_is_desc_really_done(uc, d);
-
-				if (desc_done) {
+			} else {
+				if (udma_is_desc_really_done(uc, d)) {
 					uc->bcnt += d->residue;
 					udma_start(uc);
+					vchan_cookie_complete(&d->vd);
 				} else {
 					schedule_delayed_work(&uc->tx_drain.work,
 							      0);
 				}
 			}
-
-			if (desc_done)
-				vchan_cookie_complete(&d->vd);
+		} else {
+			/*
+			 * terminated descriptor, mark the descriptor as
+			 * completed to update the channel's cookie marker
+			 */
+			dma_cookie_complete(&d->vd.tx);
 		}
 	}
 out:
@@ -2768,6 +2766,9 @@ static enum dma_status udma_tx_status(struct dma_chan *chan,
 	spin_lock_irqsave(&uc->vc.lock, flags);
 
 	ret = dma_cookie_status(chan, cookie, txstate);
+
+	if (!udma_is_chan_running(uc))
+		ret = DMA_COMPLETE;
 
 	if (ret == DMA_IN_PROGRESS && udma_is_chan_paused(uc))
 		ret = DMA_PAUSED;
