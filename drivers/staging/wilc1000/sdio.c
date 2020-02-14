@@ -686,13 +686,16 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 	 *      make sure can read back chip id correctly
 	 **/
 	if (!resume) {
-		ret = wilc_sdio_read_reg(wilc, 0x1000, &chipid);
+		int rev;
+
+		ret = wilc_sdio_read_reg(wilc, WILC_CHIPID, &chipid);
 		if (ret) {
 			dev_err(&func->dev, "Fail cmd read chip id...\n");
 			return ret;
 		}
 		dev_err(&func->dev, "chipid (%08x)\n", chipid);
-		if ((chipid & 0xfff) > 0x2a0)
+		rev = FIELD_GET(WILC_CHIP_REV_FIELD, chipid);
+		if (rev > FIELD_GET(WILC_CHIP_REV_FIELD, WILC_1000_BASE_ID_2A))
 			sdio_priv->has_thrpt_enh3 = 1;
 		else
 			sdio_priv->has_thrpt_enh3 = 0;
