@@ -36,15 +36,15 @@
 #define DEFAULT_GUEST_TEST_MEM_SIZE (1 << 30) /* 1G */
 
 #ifdef PRINT_PER_PAGE_UPDATES
-#define PER_PAGE_DEBUG(...) DEBUG(__VA_ARGS__)
+#define PER_PAGE_DEBUG(...) printf(__VA_ARGS__)
 #else
-#define PER_PAGE_DEBUG(...)
+#define PER_PAGE_DEBUG(...) _no_printf(__VA_ARGS__)
 #endif
 
 #ifdef PRINT_PER_VCPU_UPDATES
-#define PER_VCPU_DEBUG(...) DEBUG(__VA_ARGS__)
+#define PER_VCPU_DEBUG(...) printf(__VA_ARGS__)
 #else
-#define PER_VCPU_DEBUG(...)
+#define PER_VCPU_DEBUG(...) _no_printf(__VA_ARGS__)
 #endif
 
 #define MAX_VCPUS 512
@@ -165,6 +165,8 @@ static struct kvm_vm *create_vm(enum vm_guest_mode mode, int vcpus,
 		 PTES_PER_4K_PT;
 	pages = vm_adjust_num_guest_pages(mode, pages);
 
+	pr_info("Testing guest mode: %s\n", vm_guest_mode_string(mode));
+
 	vm = _vm_create(mode, pages, O_RDWR);
 	kvm_vm_elf_load(vm, program_invocation_name, 0, 0);
 #ifdef __x86_64__
@@ -192,8 +194,8 @@ static int handle_uffd_page_request(int uffd, uint64_t addr)
 
 	r = ioctl(uffd, UFFDIO_COPY, &copy);
 	if (r == -1) {
-		DEBUG("Failed Paged in 0x%lx from thread %d with errno: %d\n",
-		      addr, tid, errno);
+		pr_info("Failed Paged in 0x%lx from thread %d with errno: %d\n",
+			addr, tid, errno);
 		return r;
 	}
 
@@ -241,19 +243,19 @@ static void *uffd_handler_thread_fn(void *arg)
 		r = poll(pollfd, 2, -1);
 		switch (r) {
 		case -1:
-			DEBUG("poll err");
+			pr_info("poll err");
 			continue;
 		case 0:
 			continue;
 		case 1:
 			break;
 		default:
-			DEBUG("Polling uffd returned %d", r);
+			pr_info("Polling uffd returned %d", r);
 			return NULL;
 		}
 
 		if (pollfd[0].revents & POLLERR) {
-			DEBUG("uffd revents has POLLERR");
+			pr_info("uffd revents has POLLERR");
 			return NULL;
 		}
 
@@ -271,13 +273,12 @@ static void *uffd_handler_thread_fn(void *arg)
 		if (r == -1) {
 			if (errno == EAGAIN)
 				continue;
-			DEBUG("Read of uffd gor errno %d", errno);
+			pr_info("Read of uffd gor errno %d", errno);
 			return NULL;
 		}
 
 		if (r != sizeof(msg)) {
-			DEBUG("Read on uffd returned unexpected size: %d bytes",
-			      r);
+			pr_info("Read on uffd returned unexpected size: %d bytes", r);
 			return NULL;
 		}
 
@@ -315,14 +316,14 @@ static int setup_demand_paging(struct kvm_vm *vm,
 
 	uffd = syscall(__NR_userfaultfd, O_CLOEXEC | O_NONBLOCK);
 	if (uffd == -1) {
-		DEBUG("uffd creation failed\n");
+		pr_info("uffd creation failed\n");
 		return -1;
 	}
 
 	uffdio_api.api = UFFD_API;
 	uffdio_api.features = 0;
 	if (ioctl(uffd, UFFDIO_API, &uffdio_api) == -1) {
-		DEBUG("ioctl uffdio_api failed\n");
+		pr_info("ioctl uffdio_api failed\n");
 		return -1;
 	}
 
@@ -330,13 +331,13 @@ static int setup_demand_paging(struct kvm_vm *vm,
 	uffdio_register.range.len = len;
 	uffdio_register.mode = UFFDIO_REGISTER_MODE_MISSING;
 	if (ioctl(uffd, UFFDIO_REGISTER, &uffdio_register) == -1) {
-		DEBUG("ioctl uffdio_register failed\n");
+		pr_info("ioctl uffdio_register failed\n");
 		return -1;
 	}
 
 	if ((uffdio_register.ioctls & UFFD_API_RANGE_IOCTLS) !=
 			UFFD_API_RANGE_IOCTLS) {
-		DEBUG("unexpected userfaultfd ioctl set\n");
+		pr_info("unexpected userfaultfd ioctl set\n");
 		return -1;
 	}
 
@@ -404,8 +405,7 @@ static void run_test(enum vm_guest_mode mode, bool use_uffd,
 	guest_test_phys_mem &= ~((1 << 20) - 1);
 #endif
 
-	DEBUG("guest physical test memory offset: 0x%lx\n",
-	      guest_test_phys_mem);
+	pr_info("guest physical test memory offset: 0x%lx\n", guest_test_phys_mem);
 
 	/* Add an extra memory slot for testing demand paging */
 	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS,
@@ -486,7 +486,7 @@ static void run_test(enum vm_guest_mode mode, bool use_uffd,
 	sync_global_to_guest(vm, guest_page_size);
 	sync_global_to_guest(vm, vcpu_args);
 
-	DEBUG("Finished creating vCPUs and starting uffd threads\n");
+	pr_info("Finished creating vCPUs and starting uffd threads\n");
 
 	clock_gettime(CLOCK_MONOTONIC, &start);
 
@@ -495,7 +495,7 @@ static void run_test(enum vm_guest_mode mode, bool use_uffd,
 			       &vcpu_args[vcpu_id]);
 	}
 
-	DEBUG("Started all vCPUs\n");
+	pr_info("Started all vCPUs\n");
 
 	/* Wait for the vcpu threads to quit */
 	for (vcpu_id = 0; vcpu_id < vcpus; vcpu_id++) {
@@ -503,7 +503,7 @@ static void run_test(enum vm_guest_mode mode, bool use_uffd,
 		PER_VCPU_DEBUG("Joined thread for vCPU %d\n", vcpu_id);
 	}
 
-	DEBUG("All vCPU threads joined\n");
+	pr_info("All vCPU threads joined\n");
 
 	clock_gettime(CLOCK_MONOTONIC, &end);
 
@@ -519,12 +519,12 @@ static void run_test(enum vm_guest_mode mode, bool use_uffd,
 		}
 	}
 
-	DEBUG("Total guest execution time: %lld.%.9lds\n",
-	      (long long)(timespec_diff(start, end).tv_sec),
-	      timespec_diff(start, end).tv_nsec);
-	DEBUG("Overall demand paging rate: %f pgs/sec\n",
-	      guest_num_pages / ((double)timespec_diff(start, end).tv_sec +
-	      (double)timespec_diff(start, end).tv_nsec / 100000000.0));
+	pr_info("Total guest execution time: %lld.%.9lds\n",
+		(long long)(timespec_diff(start, end).tv_sec),
+		timespec_diff(start, end).tv_nsec);
+	pr_info("Overall demand paging rate: %f pgs/sec\n",
+		guest_num_pages / ((double)timespec_diff(start, end).tv_sec +
+		(double)timespec_diff(start, end).tv_nsec / 100000000.0));
 
 	ucall_uninit(vm);
 	kvm_vm_free(vm);

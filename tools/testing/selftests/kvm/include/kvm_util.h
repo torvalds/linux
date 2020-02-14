@@ -24,12 +24,6 @@ struct kvm_vm;
 typedef uint64_t vm_paddr_t; /* Virtual Machine (Guest) physical address */
 typedef uint64_t vm_vaddr_t; /* Virtual Machine (Guest) virtual address */
 
-#ifndef NDEBUG
-#define DEBUG(...) printf(__VA_ARGS__);
-#else
-#define DEBUG(...)
-#endif
-
 /* Minimum allocated guest virtual and physical addresses */
 #define KVM_UTIL_MIN_VADDR		0x2000
 

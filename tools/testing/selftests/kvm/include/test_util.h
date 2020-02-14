@@ -19,6 +19,19 @@
 #include <fcntl.h>
 #include "kselftest.h"
 
+static inline int _no_printf(const char *format, ...) { return 0; }
+
+#ifdef DEBUG
+#define pr_debug(...) printf(__VA_ARGS__)
+#else
+#define pr_debug(...) _no_printf(__VA_ARGS__)
+#endif
+#ifndef QUIET
+#define pr_info(...) printf(__VA_ARGS__)
+#else
+#define pr_info(...) _no_printf(__VA_ARGS__)
+#endif
+
 ssize_t test_write(int fd, const void *buf, size_t count);
 ssize_t test_read(int fd, void *buf, size_t count);
 int test_seq_read(const char *path, char **bufp, size_t *sizep);

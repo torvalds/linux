@@ -155,7 +155,8 @@ struct kvm_vm *_vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm)
 {
 	struct kvm_vm *vm;
 
-	DEBUG("Testing guest mode: %s\n", vm_guest_mode_string(mode));
+	pr_debug("%s: mode='%s' pages='%ld' perm='%d'\n", __func__,
+		 vm_guest_mode_string(mode), phy_pages, perm);
 
 	vm = calloc(1, sizeof(*vm));
 	TEST_ASSERT(vm != NULL, "Insufficient Memory");
@@ -193,8 +194,8 @@ struct kvm_vm *_vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm)
 		kvm_get_cpu_address_width(&vm->pa_bits, &vm->va_bits);
 		TEST_ASSERT(vm->va_bits == 48, "Linear address width "
 			    "(%d bits) not supported", vm->va_bits);
-		DEBUG("Guest physical address width detected: %d\n",
-		      vm->pa_bits);
+		pr_debug("Guest physical address width detected: %d\n",
+			 vm->pa_bits);
 		vm->pgtable_levels = 4;
 #else
 		TEST_ASSERT(false, "VM_MODE_PXXV48_4K not supported on "
