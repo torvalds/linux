@@ -113,6 +113,25 @@ const char * const vm_guest_mode_string[] = {
 _Static_assert(sizeof(vm_guest_mode_string)/sizeof(char *) == NUM_VM_MODES,
 	       "Missing new mode strings?");
 
+struct vm_guest_mode_params {
+	unsigned int pa_bits;
+	unsigned int va_bits;
+	unsigned int page_size;
+	unsigned int page_shift;
+};
+
+static const struct vm_guest_mode_params vm_guest_mode_params[] = {
+	{ 52, 48,  0x1000, 12 },
+	{ 52, 48, 0x10000, 16 },
+	{ 48, 48,  0x1000, 12 },
+	{ 48, 48, 0x10000, 16 },
+	{ 40, 48,  0x1000, 12 },
+	{ 40, 48, 0x10000, 16 },
+	{  0,  0,  0x1000, 12 },
+};
+_Static_assert(sizeof(vm_guest_mode_params)/sizeof(struct vm_guest_mode_params) == NUM_VM_MODES,
+	       "Missing new mode params?");
+
 /*
  * VM Create
  *
@@ -144,60 +163,39 @@ struct kvm_vm *_vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm)
 	vm->mode = mode;
 	vm->type = 0;
 
+	vm->pa_bits = vm_guest_mode_params[mode].pa_bits;
+	vm->va_bits = vm_guest_mode_params[mode].va_bits;
+	vm->page_size = vm_guest_mode_params[mode].page_size;
+	vm->page_shift = vm_guest_mode_params[mode].page_shift;
+
 	/* Setup mode specific traits. */
 	switch (vm->mode) {
 	case VM_MODE_P52V48_4K:
 		vm->pgtable_levels = 4;
-		vm->pa_bits = 52;
-		vm->va_bits = 48;
-		vm->page_size = 0x1000;
-		vm->page_shift = 12;
 		break;
 	case VM_MODE_P52V48_64K:
 		vm->pgtable_levels = 3;
-		vm->pa_bits = 52;
-		vm->va_bits = 48;
-		vm->page_size = 0x10000;
-		vm->page_shift = 16;
 		break;
 	case VM_MODE_P48V48_4K:
 		vm->pgtable_levels = 4;
-		vm->pa_bits = 48;
-		vm->va_bits = 48;
-		vm->page_size = 0x1000;
-		vm->page_shift = 12;
 		break;
 	case VM_MODE_P48V48_64K:
 		vm->pgtable_levels = 3;
-		vm->pa_bits = 48;
-		vm->va_bits = 48;
-		vm->page_size = 0x10000;
-		vm->page_shift = 16;
 		break;
 	case VM_MODE_P40V48_4K:
 		vm->pgtable_levels = 4;
-		vm->pa_bits = 40;
-		vm->va_bits = 48;
-		vm->page_size = 0x1000;
-		vm->page_shift = 12;
 		break;
 	case VM_MODE_P40V48_64K:
 		vm->pgtable_levels = 3;
-		vm->pa_bits = 40;
-		vm->va_bits = 48;
-		vm->page_size = 0x10000;
-		vm->page_shift = 16;
 		break;
 	case VM_MODE_PXXV48_4K:
 #ifdef __x86_64__
 		kvm_get_cpu_address_width(&vm->pa_bits, &vm->va_bits);
 		TEST_ASSERT(vm->va_bits == 48, "Linear address width "
 			    "(%d bits) not supported", vm->va_bits);
-		vm->pgtable_levels = 4;
-		vm->page_size = 0x1000;
-		vm->page_shift = 12;
 		DEBUG("Guest physical address width detected: %d\n",
 		      vm->pa_bits);
+		vm->pgtable_levels = 4;
 #else
 		TEST_ASSERT(false, "VM_MODE_PXXV48_4K not supported on "
 			    "non-x86 platforms");
