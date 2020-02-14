@@ -203,7 +203,7 @@
  * ::
  *
  *       rule indices in last field:    0    1
- *       map to elements:             0x42  0x66
+ *       map to elements:             0x66  0x42
  *
  *
  * Matching
@@ -298,7 +298,7 @@
  * ::
  *
  *       rule indices in last field:    0    1
- *       map to elements:             0x42  0x66
+ *       map to elements:             0x66  0x42
  *
  *      the matching element is at 0x42.
  *
