@@ -145,6 +145,11 @@ static inline bool mlx5e_accel_tx_finish(struct mlx5e_priv *priv,
 	}
 #endif
 
+#if IS_ENABLED(CONFIG_GENEVE)
+	if (skb->encapsulation)
+		mlx5e_tx_tunnel_accel(skb, &wqe->eth);
+#endif
+
 	return true;
 }
 

@@ -189,12 +189,10 @@ static bool mlx5e_tls_handle_ooo(struct mlx5e_tls_offload_context_tx *context,
 				 struct mlx5e_tls *tls)
 {
 	u32 tcp_seq = ntohl(tcp_hdr(skb)->seq);
-	struct mlx5e_tx_wqe *wqe;
 	struct sync_info info;
 	struct sk_buff *nskb;
 	int linear_len = 0;
 	int headln;
-	u16 pi;
 	int i;
 
 	sq->stats->tls_ooo++;
@@ -246,9 +244,7 @@ static bool mlx5e_tls_handle_ooo(struct mlx5e_tls_offload_context_tx *context,
 	sq->stats->tls_resync_bytes += nskb->len;
 	mlx5e_tls_complete_sync_skb(skb, nskb, tcp_seq, headln,
 				    cpu_to_be64(info.rcd_sn));
-	pi = mlx5_wq_cyc_ctr2ix(&sq->wq, sq->pc);
-	wqe = MLX5E_TX_FETCH_WQE(sq, pi);
-	mlx5e_sq_xmit(sq, nskb, wqe, pi, true);
+	mlx5e_sq_xmit_simple(sq, nskb, true);
 
 	return true;
 
