@@ -482,7 +482,7 @@
 				status = "disabled";
 			};
 
-			kpp: kpp@30320000 {
+			kpp: keypad@30320000 {
 				compatible = "fsl,imx7d-kpp", "fsl,imx21-kpp";
 				reg = <0x30320000 0x10000>;
 				interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
