@@ -1255,11 +1255,8 @@ struct btrfs_root *btrfs_create_tree(struct btrfs_trans_handle *trans,
 	return root;
 
 fail:
-	if (leaf) {
+	if (leaf)
 		btrfs_tree_unlock(leaf);
-		free_extent_buffer(root->commit_root);
-		free_extent_buffer(leaf);
-	}
 	btrfs_put_root(root);
 
 	return ERR_PTR(ret);
@@ -1382,10 +1379,10 @@ struct btrfs_root *btrfs_read_tree_root(struct btrfs_root *tree_root,
 				     generation, level, NULL);
 	if (IS_ERR(root->node)) {
 		ret = PTR_ERR(root->node);
+		root->node = NULL;
 		goto find_fail;
 	} else if (!btrfs_buffer_uptodate(root->node, generation, 0)) {
 		ret = -EIO;
-		free_extent_buffer(root->node);
 		goto find_fail;
 	}
 	root->commit_root = btrfs_root_node(root);
@@ -1617,14 +1614,14 @@ again:
 	if (ret) {
 		btrfs_put_root(root);
 		if (ret == -EEXIST) {
-			btrfs_free_fs_root(root);
+			btrfs_put_root(root);
 			goto again;
 		}
 		goto fail;
 	}
 	return root;
 fail:
-	btrfs_free_fs_root(root);
+	btrfs_put_root(root);
 	return ERR_PTR(ret);
 }
 
@@ -1996,9 +1993,33 @@ static void free_root_pointers(struct btrfs_fs_info *info, bool free_chunk_root)
 	free_root_extent_buffers(info->csum_root);
 	free_root_extent_buffers(info->quota_root);
 	free_root_extent_buffers(info->uuid_root);
+	free_root_extent_buffers(info->fs_root);
 	if (free_chunk_root)
 		free_root_extent_buffers(info->chunk_root);
 	free_root_extent_buffers(info->free_space_root);
+}
+
+void btrfs_put_root(struct btrfs_root *root)
+{
+	if (!root)
+		return;
+
+	if (refcount_dec_and_test(&root->refs)) {
+		WARN_ON(!RB_EMPTY_ROOT(&root->inode_tree));
+		if (root->anon_dev)
+			free_anon_bdev(root->anon_dev);
+		btrfs_drew_lock_destroy(&root->snapshot_lock);
+		free_extent_buffer(root->node);
+		free_extent_buffer(root->commit_root);
+		kfree(root->free_ino_ctl);
+		kfree(root->free_ino_pinned);
+#ifdef CONFIG_BTRFS_DEBUG
+		spin_lock(&root->fs_info->fs_roots_radix_lock);
+		list_del_init(&root->leak_list);
+		spin_unlock(&root->fs_info->fs_roots_radix_lock);
+#endif
+		kfree(root);
+	}
 }
 
 void btrfs_free_fs_roots(struct btrfs_fs_info *fs_info)
@@ -2012,13 +2033,10 @@ void btrfs_free_fs_roots(struct btrfs_fs_info *fs_info)
 				     struct btrfs_root, root_list);
 		list_del(&gang[0]->root_list);
 
-		if (test_bit(BTRFS_ROOT_IN_RADIX, &gang[0]->state)) {
+		if (test_bit(BTRFS_ROOT_IN_RADIX, &gang[0]->state))
 			btrfs_drop_and_free_fs_root(fs_info, gang[0]);
-		} else {
-			free_extent_buffer(gang[0]->node);
-			free_extent_buffer(gang[0]->commit_root);
+		else
 			btrfs_put_root(gang[0]);
-		}
 	}
 
 	while (1) {
@@ -2223,11 +2241,11 @@ static int btrfs_replay_log(struct btrfs_fs_info *fs_info,
 	if (IS_ERR(log_tree_root->node)) {
 		btrfs_warn(fs_info, "failed to read log tree");
 		ret = PTR_ERR(log_tree_root->node);
+		log_tree_root->node = NULL;
 		btrfs_put_root(log_tree_root);
 		return ret;
 	} else if (!extent_buffer_uptodate(log_tree_root->node)) {
 		btrfs_err(fs_info, "failed to read log tree");
-		free_extent_buffer(log_tree_root->node);
 		btrfs_put_root(log_tree_root);
 		return -EIO;
 	}
@@ -2236,7 +2254,6 @@ static int btrfs_replay_log(struct btrfs_fs_info *fs_info,
 	if (ret) {
 		btrfs_handle_fs_error(fs_info, ret,
 				      "Failed to recover log tree");
-		free_extent_buffer(log_tree_root->node);
 		btrfs_put_root(log_tree_root);
 		return ret;
 	}
@@ -3901,8 +3918,6 @@ void btrfs_drop_and_free_fs_root(struct btrfs_fs_info *fs_info,
 	if (test_bit(BTRFS_FS_STATE_ERROR, &fs_info->fs_state)) {
 		btrfs_free_log(NULL, root);
 		if (root->reloc_root) {
-			free_extent_buffer(root->reloc_root->node);
-			free_extent_buffer(root->reloc_root->commit_root);
 			btrfs_put_root(root->reloc_root);
 			root->reloc_root = NULL;
 		}
@@ -3916,19 +3931,6 @@ void btrfs_drop_and_free_fs_root(struct btrfs_fs_info *fs_info,
 		iput(root->ino_cache_inode);
 		root->ino_cache_inode = NULL;
 	}
-	btrfs_free_fs_root(root);
-}
-
-void btrfs_free_fs_root(struct btrfs_root *root)
-{
-	WARN_ON(!RB_EMPTY_ROOT(&root->inode_tree));
-	if (root->anon_dev)
-		free_anon_bdev(root->anon_dev);
-	btrfs_drew_lock_destroy(&root->snapshot_lock);
-	free_extent_buffer(root->node);
-	free_extent_buffer(root->commit_root);
-	kfree(root->free_ino_ctl);
-	kfree(root->free_ino_pinned);
 	btrfs_put_root(root);
 }
 
@@ -4093,8 +4095,6 @@ void __cold close_ctree(struct btrfs_fs_info *fs_info)
 	btrfs_sysfs_remove_mounted(fs_info);
 	btrfs_sysfs_remove_fsid(fs_info->fs_devices);
 
-	btrfs_free_fs_roots(fs_info);
-
 	btrfs_put_block_group_cache(fs_info);
 
 	/*
@@ -4106,6 +4106,7 @@ void __cold close_ctree(struct btrfs_fs_info *fs_info)
 
 	clear_bit(BTRFS_FS_OPEN, &fs_info->flags);
 	free_root_pointers(fs_info, true);
+	btrfs_free_fs_roots(fs_info);
 
 	/*
 	 * We must free the block groups after dropping the fs_roots as we could
