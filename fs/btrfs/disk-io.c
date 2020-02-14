@@ -1601,22 +1601,11 @@ again:
 	if (ret == 0)
 		set_bit(BTRFS_ROOT_ORPHAN_ITEM_INSERTED, &root->state);
 
-	/*
-	 * All roots have two refs on them at all times, one for the mounted fs,
-	 * and one for being in the radix tree.  This way we only free the root
-	 * when we are unmounting or deleting the subvolume.  We get one ref
-	 * from __setup_root, one for inserting it into the radix tree, and then
-	 * we have the third for returning it, and the caller will put it when
-	 * it's done with the root.
-	 */
-	btrfs_grab_root(root);
 	ret = btrfs_insert_fs_root(fs_info, root);
 	if (ret) {
 		btrfs_put_root(root);
-		if (ret == -EEXIST) {
-			btrfs_put_root(root);
+		if (ret == -EEXIST)
 			goto again;
-		}
 		goto fail;
 	}
 	return root;
@@ -3904,11 +3893,13 @@ int write_all_supers(struct btrfs_fs_info *fs_info, int max_mirrors)
 void btrfs_drop_and_free_fs_root(struct btrfs_fs_info *fs_info,
 				  struct btrfs_root *root)
 {
+	bool drop_ref = false;
+
 	spin_lock(&fs_info->fs_roots_radix_lock);
 	radix_tree_delete(&fs_info->fs_roots_radix,
 			  (unsigned long)root->root_key.objectid);
 	if (test_and_clear_bit(BTRFS_ROOT_IN_RADIX, &root->state))
-		btrfs_put_root(root);
+		drop_ref = true;
 	spin_unlock(&fs_info->fs_roots_radix_lock);
 
 	if (btrfs_root_refs(&root->root_item) == 0)
@@ -3930,7 +3921,8 @@ void btrfs_drop_and_free_fs_root(struct btrfs_fs_info *fs_info,
 		iput(root->ino_cache_inode);
 		root->ino_cache_inode = NULL;
 	}
-	btrfs_put_root(root);
+	if (drop_ref)
+		btrfs_put_root(root);
 }
 
 int btrfs_cleanup_fs_roots(struct btrfs_fs_info *fs_info)
