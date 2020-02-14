@@ -134,7 +134,7 @@ static void inject_irq(int cpu_id)
 
 static void test_normal(void)
 {
-	printf("Testing normal reset\n");
+	pr_info("Testing normal reset\n");
 	/* Create VM */
 	vm = vm_create_default(VCPU_ID, 0, guest_code_initial);
 	run = vcpu_state(vm, VCPU_ID);
@@ -151,7 +151,7 @@ static void test_normal(void)
 
 static void test_initial(void)
 {
-	printf("Testing initial reset\n");
+	pr_info("Testing initial reset\n");
 	vm = vm_create_default(VCPU_ID, 0, guest_code_initial);
 	run = vcpu_state(vm, VCPU_ID);
 	regs = &run->s.regs;
@@ -168,7 +168,7 @@ static void test_initial(void)
 
 static void test_clear(void)
 {
-	printf("Testing clear reset\n");
+	pr_info("Testing clear reset\n");
 	vm = vm_create_default(VCPU_ID, 0, guest_code_initial);
 	run = vcpu_state(vm, VCPU_ID);
 	regs = &run->s.regs;

@@ -44,7 +44,7 @@ void *thr(void *arg)
 	struct kvm_run *run = tc->run;
 
 	res = ioctl(kvmcpu, KVM_RUN, 0);
-	printf("ret1=%d exit_reason=%d suberror=%d\n",
+	pr_info("ret1=%d exit_reason=%d suberror=%d\n",
 		res, run->exit_reason, run->internal.suberror);
 
 	return 0;

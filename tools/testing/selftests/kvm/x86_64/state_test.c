@@ -139,7 +139,7 @@ int main(int argc, char *argv[])
 		vcpu_alloc_vmx(vm, &vmx_pages_gva);
 		vcpu_args_set(vm, VCPU_ID, 1, vmx_pages_gva);
 	} else {
-		printf("will skip nested state checks\n");
+		pr_info("will skip nested state checks\n");
 		vcpu_args_set(vm, VCPU_ID, 1, 0);
 	}
 
