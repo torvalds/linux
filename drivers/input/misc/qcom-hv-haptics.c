@@ -2064,9 +2064,12 @@ static int haptics_parse_effects_dt(struct haptics_chip *chip)
 {
 	struct device_node *node = chip->dev->of_node;
 	struct device_node *child;
-	int rc, i = 0, num;
+	int rc, i = 0, num = 0;
 
-	num = of_get_available_child_count(node);
+	for_each_available_child_of_node(node, child) {
+		if (of_find_property(child, "qcom,effect-id", NULL))
+			num++;
+	}
 	if (num == 0)
 		return 0;
 
@@ -2076,6 +2079,9 @@ static int haptics_parse_effects_dt(struct haptics_chip *chip)
 		return -ENOMEM;
 
 	for_each_available_child_of_node(node, child) {
+		if (!of_find_property(child, "qcom,effect-id", NULL))
+			continue;
+
 		rc = haptics_parse_per_effect_dt(chip, child,
 					&chip->effects[i]);
 		if (rc < 0) {
