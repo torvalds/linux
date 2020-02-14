@@ -1455,7 +1455,7 @@ static int eb_relocate_vma(struct i915_execbuffer *eb, struct eb_vma *ev)
 
 	urelocs = u64_to_user_ptr(entry->relocs_ptr);
 	remain = entry->relocation_count;
-	if (unlikely(remain > N_RELOC(ULONG_MAX)))
+	if (unlikely((unsigned long)remain > N_RELOC(ULONG_MAX)))
 		return -EINVAL;
 
 	/*
