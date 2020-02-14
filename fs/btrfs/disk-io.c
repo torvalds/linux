@@ -2757,46 +2757,33 @@ static int init_mount_fs_info(struct btrfs_fs_info *fs_info, struct super_block 
 	sb->s_blocksize = BTRFS_BDEV_BLOCKSIZE;
 	sb->s_blocksize_bits = blksize_bits(BTRFS_BDEV_BLOCKSIZE);
 
-	ret = init_srcu_struct(&fs_info->subvol_srcu);
+	ret = percpu_counter_init(&fs_info->dio_bytes, 0, GFP_KERNEL);
 	if (ret)
 		return ret;
 
-	ret = percpu_counter_init(&fs_info->dio_bytes, 0, GFP_KERNEL);
-	if (ret)
-		goto fail;
-
 	ret = percpu_counter_init(&fs_info->dirty_metadata_bytes, 0, GFP_KERNEL);
 	if (ret)
-		goto fail;
+		return ret;
 
 	fs_info->dirty_metadata_batch = PAGE_SIZE *
 					(1 + ilog2(nr_cpu_ids));
 
 	ret = percpu_counter_init(&fs_info->delalloc_bytes, 0, GFP_KERNEL);
 	if (ret)
-		goto fail;
+		return ret;
 
 	ret = percpu_counter_init(&fs_info->dev_replace.bio_counter, 0,
 			GFP_KERNEL);
 	if (ret)
-		goto fail;
+		return ret;
 
 	fs_info->delayed_root = kmalloc(sizeof(struct btrfs_delayed_root),
 					GFP_KERNEL);
-	if (!fs_info->delayed_root) {
-		ret = -ENOMEM;
-		goto fail;
-	}
+	if (!fs_info->delayed_root)
+		return -ENOMEM;
 	btrfs_init_delayed_root(fs_info->delayed_root);
 
-	ret = btrfs_alloc_stripe_hash_table(fs_info);
-	if (ret)
-		goto fail;
-
-	return 0;
-fail:
-	cleanup_srcu_struct(&fs_info->subvol_srcu);
-	return ret;
+	return btrfs_alloc_stripe_hash_table(fs_info);
 }
 
 static int btrfs_uuid_rescan_kthread(void *data)
@@ -2870,13 +2857,13 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 	fs_info->chunk_root = chunk_root;
 	if (!tree_root || !chunk_root) {
 		err = -ENOMEM;
-		goto fail_srcu;
+		goto fail;
 	}
 
 	fs_info->btree_inode = new_inode(sb);
 	if (!fs_info->btree_inode) {
 		err = -ENOMEM;
-		goto fail_srcu;
+		goto fail;
 	}
 	mapping_set_gfp_mask(fs_info->btree_inode->i_mapping, GFP_NOFS);
 	btrfs_init_btree_inode(fs_info);
@@ -3398,8 +3385,6 @@ fail_alloc:
 	btrfs_mapping_tree_free(&fs_info->mapping_tree);
 
 	iput(fs_info->btree_inode);
-fail_srcu:
-	cleanup_srcu_struct(&fs_info->subvol_srcu);
 fail:
 	btrfs_close_devices(fs_info->fs_devices);
 	return err;
@@ -3902,9 +3887,6 @@ void btrfs_drop_and_free_fs_root(struct btrfs_fs_info *fs_info,
 		drop_ref = true;
 	spin_unlock(&fs_info->fs_roots_radix_lock);
 
-	if (btrfs_root_refs(&root->root_item) == 0)
-		synchronize_srcu(&fs_info->subvol_srcu);
-
 	if (test_bit(BTRFS_FS_STATE_ERROR, &fs_info->fs_state)) {
 		btrfs_free_log(NULL, root);
 		if (root->reloc_root) {
@@ -4116,7 +4098,6 @@ void __cold close_ctree(struct btrfs_fs_info *fs_info)
 
 	btrfs_mapping_tree_free(&fs_info->mapping_tree);
 	btrfs_close_devices(fs_info->fs_devices);
-	cleanup_srcu_struct(&fs_info->subvol_srcu);
 }
 
 int btrfs_buffer_uptodate(struct extent_buffer *buf, u64 parent_transid,
