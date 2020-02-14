@@ -5783,7 +5783,7 @@ static int map_eq_buf(struct hns_roce_dev *hr_dev, struct hns_roce_eq *eq,
 			  page_shift);
 	ret = hns_roce_mtr_attach(hr_dev, &eq->mtr, &buf_list, &region, 1);
 	if (ret)
-		dev_err(hr_dev->dev, "mtr attatch error for eqe\n");
+		dev_err(hr_dev->dev, "mtr attach error for eqe\n");
 
 	goto done;
 
