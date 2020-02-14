@@ -513,7 +513,7 @@ static bool udma_is_chan_paused(struct udma_chan *uc)
 {
 	u32 val, pause_mask;
 
-	switch (uc->desc->dir) {
+	switch (uc->config.dir) {
 	case DMA_DEV_TO_MEM:
 		val = udma_rchanrt_read(uc->rchan,
 					UDMA_RCHAN_RT_PEER_RT_EN_REG);
@@ -2835,11 +2835,8 @@ static int udma_pause(struct dma_chan *chan)
 {
 	struct udma_chan *uc = to_udma_chan(chan);
 
-	if (!uc->desc)
-		return -EINVAL;
-
 	/* pause the channel */
-	switch (uc->desc->dir) {
+	switch (uc->config.dir) {
 	case DMA_DEV_TO_MEM:
 		udma_rchanrt_update_bits(uc->rchan,
 					 UDMA_RCHAN_RT_PEER_RT_EN_REG,
@@ -2868,11 +2865,8 @@ static int udma_resume(struct dma_chan *chan)
 {
 	struct udma_chan *uc = to_udma_chan(chan);
 
-	if (!uc->desc)
-		return -EINVAL;
-
 	/* resume the channel */
-	switch (uc->desc->dir) {
+	switch (uc->config.dir) {
 	case DMA_DEV_TO_MEM:
 		udma_rchanrt_update_bits(uc->rchan,
 					 UDMA_RCHAN_RT_PEER_RT_EN_REG,
