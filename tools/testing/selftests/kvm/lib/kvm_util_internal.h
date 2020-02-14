@@ -12,17 +12,6 @@
 
 #define KVM_DEV_PATH		"/dev/kvm"
 
-#ifndef BITS_PER_BYTE
-#define BITS_PER_BYTE		8
-#endif
-
-#ifndef BITS_PER_LONG
-#define BITS_PER_LONG		(BITS_PER_BYTE * sizeof(long))
-#endif
-
-#define DIV_ROUND_UP(n, d)	(((n) + (d) - 1) / (d))
-#define BITS_TO_LONGS(nr)	DIV_ROUND_UP(nr, BITS_PER_LONG)
-
 struct userspace_mem_region {
 	struct userspace_mem_region *next, *prev;
 	struct kvm_userspace_memory_region region;
