@@ -16,6 +16,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/firmware.h>
 #include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
@@ -2953,6 +2954,8 @@ out_err:
 static int ccs_probe(struct i2c_client *client)
 {
 	struct ccs_sensor *sensor;
+	const struct firmware *fw;
+	char filename[40];
 	unsigned int i;
 	int rval;
 
@@ -3042,9 +3045,43 @@ static int ccs_probe(struct i2c_client *client)
 		goto out_power_off;
 	}
 
+	rval = snprintf(filename, sizeof(filename),
+			"ccs/ccs-sensor-%4.4x-%4.4x-%4.4x.fw",
+			sensor->minfo.sensor_mipi_manufacturer_id,
+			sensor->minfo.sensor_model_id,
+			sensor->minfo.sensor_revision_number);
+	if (rval >= sizeof(filename)) {
+		rval = -ENOMEM;
+		goto out_power_off;
+	}
+
+	rval = request_firmware(&fw, filename, &client->dev);
+	if (!rval) {
+		ccs_data_parse(&sensor->sdata, fw->data, fw->size, &client->dev,
+			       true);
+		release_firmware(fw);
+	}
+
+	rval = snprintf(filename, sizeof(filename),
+			"ccs/ccs-module-%4.4x-%4.4x-%4.4x.fw",
+			sensor->minfo.mipi_manufacturer_id,
+			sensor->minfo.model_id,
+			sensor->minfo.revision_number);
+	if (rval >= sizeof(filename)) {
+		rval = -ENOMEM;
+		goto out_release_sdata;
+	}
+
+	rval = request_firmware(&fw, filename, &client->dev);
+	if (!rval) {
+		ccs_data_parse(&sensor->mdata, fw->data, fw->size, &client->dev,
+			       true);
+		release_firmware(fw);
+	}
+
 	rval = ccs_read_all_limits(sensor);
 	if (rval)
-		goto out_power_off;
+		goto out_release_mdata;
 
 	rval = ccs_read_frame_fmt(sensor);
 	if (rval) {
@@ -3208,6 +3245,12 @@ out_media_entity_cleanup:
 out_cleanup:
 	ccs_cleanup(sensor);
 
+out_release_mdata:
+	kvfree(sensor->mdata.backing);
+
+out_release_sdata:
+	kvfree(sensor->sdata.backing);
+
 out_free_ccs_limits:
 	kfree(sensor->ccs_limits);
 
@@ -3238,6 +3281,8 @@ static int ccs_remove(struct i2c_client *client)
 	ccs_cleanup(sensor);
 	mutex_destroy(&sensor->mutex);
 	kfree(sensor->ccs_limits);
+	kvfree(sensor->sdata.backing);
+	kvfree(sensor->mdata.backing);
 
 	return 0;
 }

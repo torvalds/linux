@@ -16,6 +16,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
 
+#include "ccs-data.h"
 #include "ccs-quirk.h"
 #include "ccs-regs.h"
 #include "ccs-reg-access.h"
@@ -227,6 +228,7 @@ struct ccs_sensor {
 	const struct ccs_csi_data_format *internal_csi_format;
 	u32 default_mbus_frame_fmts;
 	int default_pixel_order;
+	struct ccs_data_container sdata, mdata;
 
 	u8 binning_horizontal;
 	u8 binning_vertical;
