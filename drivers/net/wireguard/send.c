@@ -143,16 +143,22 @@ static void keep_key_fresh(struct wg_peer *peer)
 
 static unsigned int calculate_skb_padding(struct sk_buff *skb)
 {
+	unsigned int padded_size, last_unit = skb->len;
+
+	if (unlikely(!PACKET_CB(skb)->mtu))
+		return ALIGN(last_unit, MESSAGE_PADDING_MULTIPLE) - last_unit;
+
 	/* We do this modulo business with the MTU, just in case the networking
 	 * layer gives us a packet that's bigger than the MTU. In that case, we
 	 * wouldn't want the final subtraction to overflow in the case of the
-	 * padded_size being clamped.
+	 * padded_size being clamped. Fortunately, that's very rarely the case,
+	 * so we optimize for that not happening.
 	 */
-	unsigned int last_unit = skb->len % PACKET_CB(skb)->mtu;
-	unsigned int padded_size = ALIGN(last_unit, MESSAGE_PADDING_MULTIPLE);
+	if (unlikely(last_unit > PACKET_CB(skb)->mtu))
+		last_unit %= PACKET_CB(skb)->mtu;
 
-	if (padded_size > PACKET_CB(skb)->mtu)
-		padded_size = PACKET_CB(skb)->mtu;
+	padded_size = min(PACKET_CB(skb)->mtu,
+			  ALIGN(last_unit, MESSAGE_PADDING_MULTIPLE));
 	return padded_size - last_unit;
 }
 
