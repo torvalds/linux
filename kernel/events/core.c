@@ -3423,22 +3423,34 @@ static void __heap_add(struct min_heap *heap, struct perf_event *event)
 	}
 }
 
-static noinline int visit_groups_merge(struct perf_event_groups *groups,
-				int cpu,
+static noinline int visit_groups_merge(struct perf_cpu_context *cpuctx,
+				struct perf_event_groups *groups, int cpu,
 				int (*func)(struct perf_event *, void *),
 				void *data)
 {
 	/* Space for per CPU and/or any CPU event iterators. */
 	struct perf_event *itrs[2];
-	struct min_heap event_heap = {
-		.data = itrs,
-		.nr = 0,
-		.size = ARRAY_SIZE(itrs),
-	};
-	struct perf_event **evt = event_heap.data;
+	struct min_heap event_heap;
+	struct perf_event **evt;
 	int ret;
 
-	__heap_add(&event_heap, perf_event_groups_first(groups, -1));
+	if (cpuctx) {
+		event_heap = (struct min_heap){
+			.data = cpuctx->heap,
+			.nr = 0,
+			.size = cpuctx->heap_size,
+		};
+	} else {
+		event_heap = (struct min_heap){
+			.data = itrs,
+			.nr = 0,
+			.size = ARRAY_SIZE(itrs),
+		};
+		/* Events not within a CPU context may be on any CPU. */
+		__heap_add(&event_heap, perf_event_groups_first(groups, -1));
+	}
+	evt = event_heap.data;
+
 	__heap_add(&event_heap, perf_event_groups_first(groups, cpu));
 
 	min_heapify_all(&event_heap, &perf_min_heap);
@@ -3492,7 +3504,10 @@ ctx_pinned_sched_in(struct perf_event_context *ctx,
 {
 	int can_add_hw = 1;
 
-	visit_groups_merge(&ctx->pinned_groups,
+	if (ctx != &cpuctx->ctx)
+		cpuctx = NULL;
+
+	visit_groups_merge(cpuctx, &ctx->pinned_groups,
 			   smp_processor_id(),
 			   merge_sched_in, &can_add_hw);
 }
@@ -3503,7 +3518,10 @@ ctx_flexible_sched_in(struct perf_event_context *ctx,
 {
 	int can_add_hw = 1;
 
-	visit_groups_merge(&ctx->flexible_groups,
+	if (ctx != &cpuctx->ctx)
+		cpuctx = NULL;
+
+	visit_groups_merge(cpuctx, &ctx->flexible_groups,
 			   smp_processor_id(),
 			   merge_sched_in, &can_add_hw);
 }
@@ -10364,6 +10382,9 @@ skip_type:
 		cpuctx->online = cpumask_test_cpu(cpu, perf_online_mask);
 
 		__perf_mux_hrtimer_init(cpuctx, cpu);
+
+		cpuctx->heap_size = ARRAY_SIZE(cpuctx->heap_default);
+		cpuctx->heap = cpuctx->heap_default;
 	}
 
 got_cpu_context:
