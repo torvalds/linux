@@ -574,9 +574,6 @@ int skx_mce_check_error(struct notifier_block *nb, unsigned long val,
 	struct mem_ctl_info *mci;
 	char *type;
 
-	if (edac_get_report_status() == EDAC_REPORTING_DISABLED)
-		return NOTIFY_DONE;
-
 	if (mce->kflags & MCE_HANDLED_CEC)
 		return NOTIFY_DONE;
 
