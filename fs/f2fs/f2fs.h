@@ -91,8 +91,6 @@ extern const char *f2fs_fault_name[FAULT_MAX];
 #define F2FS_MOUNT_FORCE_FG_GC		0x00004000
 #define F2FS_MOUNT_DATA_FLUSH		0x00008000
 #define F2FS_MOUNT_FAULT_INJECTION	0x00010000
-#define F2FS_MOUNT_ADAPTIVE		0x00020000
-#define F2FS_MOUNT_LFS			0x00040000
 #define F2FS_MOUNT_USRQUOTA		0x00080000
 #define F2FS_MOUNT_GRPQUOTA		0x00100000
 #define F2FS_MOUNT_PRJQUOTA		0x00200000
@@ -139,6 +137,7 @@ struct f2fs_mount_info {
 	int whint_mode;
 	int alloc_mode;			/* segment allocation policy */
 	int fsync_mode;			/* fsync policy */
+	int fs_mode;			/* fs mode: LFS or ADAPTIVE */
 	bool test_dummy_encryption;	/* test dummy encryption */
 	block_t unusable_cap;		/* Amount of space allowed to be
 					 * unusable when disabling checkpoint
@@ -1171,6 +1170,11 @@ enum {
 	GC_IDLE_CB,
 	GC_IDLE_GREEDY,
 	GC_URGENT,
+};
+
+enum {
+	FS_MODE_ADAPTIVE,	/* use both lfs/ssr allocation */
+	FS_MODE_LFS,		/* use lfs allocation only */
 };
 
 enum {
@@ -3910,20 +3914,9 @@ static inline bool f2fs_hw_is_readonly(struct f2fs_sb_info *sbi)
 	return false;
 }
 
-
-static inline void set_opt_mode(struct f2fs_sb_info *sbi, unsigned int mt)
+static inline bool f2fs_lfs_mode(struct f2fs_sb_info *sbi)
 {
-	clear_opt(sbi, ADAPTIVE);
-	clear_opt(sbi, LFS);
-
-	switch (mt) {
-	case F2FS_MOUNT_ADAPTIVE:
-		set_opt(sbi, ADAPTIVE);
-		break;
-	case F2FS_MOUNT_LFS:
-		set_opt(sbi, LFS);
-		break;
-	}
+	return F2FS_OPTION(sbi).fs_mode == FS_MODE_LFS;
 }
 
 static inline bool f2fs_may_encrypt(struct inode *inode)
@@ -3978,7 +3971,7 @@ static inline int allow_outplace_dio(struct inode *inode,
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	int rw = iov_iter_rw(iter);
 
-	return (test_opt(sbi, LFS) && (rw == WRITE) &&
+	return (f2fs_lfs_mode(sbi) && (rw == WRITE) &&
 				!block_unaligned_IO(inode, iocb, iter));
 }
 
@@ -4000,7 +3993,7 @@ static inline bool f2fs_force_buffered_io(struct inode *inode,
 	 */
 	if (f2fs_sb_has_blkzoned(sbi))
 		return true;
-	if (test_opt(sbi, LFS) && (rw == WRITE)) {
+	if (f2fs_lfs_mode(sbi) && (rw == WRITE)) {
 		if (block_unaligned_IO(inode, iocb, iter))
 			return true;
 		if (F2FS_IO_ALIGNED(sbi))

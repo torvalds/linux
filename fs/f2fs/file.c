@@ -1126,7 +1126,7 @@ next_dnode:
 
 		if (!f2fs_is_checkpointed_data(sbi, *blkaddr)) {
 
-			if (test_opt(sbi, LFS)) {
+			if (f2fs_lfs_mode(sbi)) {
 				f2fs_put_dnode(&dn);
 				return -EOPNOTSUPP;
 			}
