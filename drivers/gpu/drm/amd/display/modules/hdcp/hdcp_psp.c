@@ -177,11 +177,11 @@ enum mod_hdcp_status mod_hdcp_hdcp1_destroy_session(struct mod_hdcp *hdcp)
 	HDCP_TOP_HDCP1_DESTROY_SESSION_TRACE(hdcp);
 	for (i = 0; i < MAX_NUM_OF_DISPLAYS; i++)
 		if (is_display_encryption_enabled(
-				&hdcp->connection.displays[i])) {
-			hdcp->connection.displays[i].state =
+				&hdcp->displays[i])) {
+			hdcp->displays[i].state =
 					MOD_HDCP_DISPLAY_ACTIVE_AND_ADDED;
 			HDCP_HDCP1_DISABLED_TRACE(hdcp,
-					hdcp->connection.displays[i].index);
+					hdcp->displays[i].index);
 		}
 
 	return MOD_HDCP_STATUS_SUCCESS;
@@ -301,14 +301,14 @@ enum mod_hdcp_status mod_hdcp_hdcp1_enable_dp_stream_encryption(struct mod_hdcp 
 
 	for (i = 0; i < MAX_NUM_OF_DISPLAYS; i++) {
 
-		if (hdcp->connection.displays[i].state != MOD_HDCP_DISPLAY_ACTIVE_AND_ADDED ||
-		    hdcp->connection.displays[i].adjust.disable)
+		if (hdcp->displays[i].state != MOD_HDCP_DISPLAY_ACTIVE_AND_ADDED ||
+		    hdcp->displays[i].adjust.disable)
 			continue;
 
 		memset(hdcp_cmd, 0, sizeof(struct ta_hdcp_shared_memory));
 
 		hdcp_cmd->in_msg.hdcp1_enable_dp_stream_encryption.session_handle = hdcp->auth.id;
-		hdcp_cmd->in_msg.hdcp1_enable_dp_stream_encryption.display_handle = hdcp->connection.displays[i].index;
+		hdcp_cmd->in_msg.hdcp1_enable_dp_stream_encryption.display_handle = hdcp->displays[i].index;
 		hdcp_cmd->cmd_id = TA_HDCP_COMMAND__HDCP1_ENABLE_DP_STREAM_ENCRYPTION;
 
 		psp_hdcp_invoke(psp, hdcp_cmd->cmd_id);
@@ -316,8 +316,8 @@ enum mod_hdcp_status mod_hdcp_hdcp1_enable_dp_stream_encryption(struct mod_hdcp 
 		if (hdcp_cmd->hdcp_status != TA_HDCP_STATUS__SUCCESS)
 			return MOD_HDCP_STATUS_HDCP1_ENABLE_STREAM_ENCRYPTION_FAILURE;
 
-		hdcp->connection.displays[i].state = MOD_HDCP_DISPLAY_ENCRYPTION_ENABLED;
-		HDCP_HDCP1_ENABLED_TRACE(hdcp, hdcp->connection.displays[i].index);
+		hdcp->displays[i].state = MOD_HDCP_DISPLAY_ENCRYPTION_ENABLED;
+		HDCP_HDCP1_ENABLED_TRACE(hdcp, hdcp->displays[i].index);
 	}
 
 	return MOD_HDCP_STATUS_SUCCESS;
@@ -421,11 +421,11 @@ enum mod_hdcp_status mod_hdcp_hdcp2_destroy_session(struct mod_hdcp *hdcp)
 	HDCP_TOP_HDCP2_DESTROY_SESSION_TRACE(hdcp);
 	for (i = 0; i < MAX_NUM_OF_DISPLAYS; i++)
 		if (is_display_encryption_enabled(
-				&hdcp->connection.displays[i])) {
-			hdcp->connection.displays[i].state =
+				&hdcp->displays[i])) {
+			hdcp->displays[i].state =
 					MOD_HDCP_DISPLAY_ACTIVE_AND_ADDED;
 			HDCP_HDCP2_DISABLED_TRACE(hdcp,
-					hdcp->connection.displays[i].index);
+					hdcp->displays[i].index);
 		}
 
 	return MOD_HDCP_STATUS_SUCCESS;
@@ -747,10 +747,10 @@ enum mod_hdcp_status mod_hdcp_hdcp2_enable_dp_stream_encryption(struct mod_hdcp 
 
 
 	for (i = 0; i < MAX_NUM_OF_DISPLAYS; i++) {
-		if (hdcp->connection.displays[i].state != MOD_HDCP_DISPLAY_ACTIVE_AND_ADDED ||
-		    hdcp->connection.displays[i].adjust.disable)
+		if (hdcp->displays[i].state != MOD_HDCP_DISPLAY_ACTIVE_AND_ADDED ||
+		    hdcp->displays[i].adjust.disable)
 			continue;
-		hdcp_cmd->in_msg.hdcp2_enable_dp_stream_encryption.display_handle = hdcp->connection.displays[i].index;
+		hdcp_cmd->in_msg.hdcp2_enable_dp_stream_encryption.display_handle = hdcp->displays[i].index;
 		hdcp_cmd->in_msg.hdcp2_enable_dp_stream_encryption.session_handle = hdcp->auth.id;
 
 		hdcp_cmd->cmd_id = TA_HDCP_COMMAND__HDCP2_ENABLE_DP_STREAM_ENCRYPTION;
@@ -759,8 +759,8 @@ enum mod_hdcp_status mod_hdcp_hdcp2_enable_dp_stream_encryption(struct mod_hdcp 
 		if (hdcp_cmd->hdcp_status != TA_HDCP_STATUS__SUCCESS)
 			break;
 
-		hdcp->connection.displays[i].state = MOD_HDCP_DISPLAY_ENCRYPTION_ENABLED;
-		HDCP_HDCP2_ENABLED_TRACE(hdcp, hdcp->connection.displays[i].index);
+		hdcp->displays[i].state = MOD_HDCP_DISPLAY_ENCRYPTION_ENABLED;
+		HDCP_HDCP2_ENABLED_TRACE(hdcp, hdcp->displays[i].index);
 	}
 
 	return (hdcp_cmd->hdcp_status == TA_HDCP_STATUS__SUCCESS) ? MOD_HDCP_STATUS_SUCCESS

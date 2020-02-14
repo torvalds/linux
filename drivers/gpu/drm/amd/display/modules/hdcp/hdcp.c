@@ -52,8 +52,8 @@ static uint8_t is_cp_desired_hdcp1(struct mod_hdcp *hdcp)
 	 * hdcp is not desired
 	 */
 	for (i = 0; i < MAX_NUM_OF_DISPLAYS; i++) {
-		if (hdcp->connection.displays[i].state != MOD_HDCP_DISPLAY_INACTIVE &&
-				!hdcp->connection.displays[i].adjust.disable) {
+		if (hdcp->displays[i].state != MOD_HDCP_DISPLAY_INACTIVE &&
+				!hdcp->displays[i].adjust.disable) {
 			is_auth_needed = 1;
 			break;
 		}
@@ -73,8 +73,8 @@ static uint8_t is_cp_desired_hdcp2(struct mod_hdcp *hdcp)
 	 * hdcp is not desired
 	 */
 	for (i = 0; i < MAX_NUM_OF_DISPLAYS; i++) {
-		if (hdcp->connection.displays[i].state != MOD_HDCP_DISPLAY_INACTIVE &&
-				!hdcp->connection.displays[i].adjust.disable) {
+		if (hdcp->displays[i].state != MOD_HDCP_DISPLAY_INACTIVE &&
+				!hdcp->displays[i].adjust.disable) {
 			is_auth_needed = 1;
 			break;
 		}
@@ -373,8 +373,8 @@ enum mod_hdcp_status mod_hdcp_remove_display(struct mod_hdcp *hdcp,
 		goto out;
 	display->state = MOD_HDCP_DISPLAY_INACTIVE;
 
-	/* request authentication for remaining displays*/
-	if (get_active_display_count(hdcp) > 0)
+	/* request authentication when connection is not reset */
+	if (current_state(hdcp) != HDCP_UNINITIALIZED)
 		callback_in_ms(hdcp->connection.link.adjust.auth_delay * 1000,
 				output);
 out:

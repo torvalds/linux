@@ -165,7 +165,6 @@ struct mod_hdcp_auth_counters {
 /* contains values per connection */
 struct mod_hdcp_connection {
 	struct mod_hdcp_link link;
-	struct mod_hdcp_display displays[MAX_NUM_OF_DISPLAYS];
 	uint8_t is_repeater;
 	uint8_t is_km_stored;
 	uint8_t is_hdcp1_revoked;
@@ -201,6 +200,8 @@ struct mod_hdcp {
 	struct mod_hdcp_config config;
 	/* per connection */
 	struct mod_hdcp_connection connection;
+	/* per displays */
+	struct mod_hdcp_display displays[MAX_NUM_OF_DISPLAYS];
 	/* per authentication attempt */
 	struct mod_hdcp_authentication auth;
 	/* per state in an authentication */
@@ -518,7 +519,7 @@ static inline uint8_t get_active_display_count(struct mod_hdcp *hdcp)
 	uint8_t i;
 
 	for (i = 0; i < MAX_NUM_OF_DISPLAYS; i++)
-		if (is_display_active(&hdcp->connection.displays[i]))
+		if (is_display_active(&hdcp->displays[i]))
 			added_count++;
 	return added_count;
 }
@@ -529,7 +530,7 @@ static inline uint8_t get_added_display_count(struct mod_hdcp *hdcp)
 	uint8_t i;
 
 	for (i = 0; i < MAX_NUM_OF_DISPLAYS; i++)
-		if (is_display_added(&hdcp->connection.displays[i]))
+		if (is_display_added(&hdcp->displays[i]))
 			added_count++;
 	return added_count;
 }
@@ -541,8 +542,8 @@ static inline struct mod_hdcp_display *get_first_added_display(
 	struct mod_hdcp_display *display = NULL;
 
 	for (i = 0; i < MAX_NUM_OF_DISPLAYS; i++)
-		if (is_display_added(&hdcp->connection.displays[i])) {
-			display = &hdcp->connection.displays[i];
+		if (is_display_added(&hdcp->displays[i])) {
+			display = &hdcp->displays[i];
 			break;
 		}
 	return display;
@@ -555,9 +556,9 @@ static inline struct mod_hdcp_display *get_active_display_at_index(
 	struct mod_hdcp_display *display = NULL;
 
 	for (i = 0; i < MAX_NUM_OF_DISPLAYS; i++)
-		if (hdcp->connection.displays[i].index == index &&
-				is_display_active(&hdcp->connection.displays[i])) {
-			display = &hdcp->connection.displays[i];
+		if (hdcp->displays[i].index == index &&
+				is_display_active(&hdcp->displays[i])) {
+			display = &hdcp->displays[i];
 			break;
 		}
 	return display;
@@ -570,8 +571,8 @@ static inline struct mod_hdcp_display *get_empty_display_container(
 	struct mod_hdcp_display *display = NULL;
 
 	for (i = 0; i < MAX_NUM_OF_DISPLAYS; i++)
-		if (!is_display_active(&hdcp->connection.displays[i])) {
-			display = &hdcp->connection.displays[i];
+		if (!is_display_active(&hdcp->displays[i])) {
+			display = &hdcp->displays[i];
 			break;
 		}
 	return display;
