@@ -322,6 +322,10 @@ again_search_slot:
 	}
 
 	while (1) {
+		if (btrfs_fs_closing(fs_info)) {
+			ret = -EINTR;
+			goto out;
+		}
 		cond_resched();
 		leaf = path->nodes[0];
 		slot = path->slots[0];

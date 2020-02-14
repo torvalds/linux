@@ -2847,7 +2847,9 @@ static int btrfs_uuid_rescan_kthread(void *data)
 	 */
 	ret = btrfs_uuid_tree_iterate(fs_info);
 	if (ret < 0) {
-		btrfs_warn(fs_info, "iterating uuid_tree failed %d", ret);
+		if (ret != -EINTR)
+			btrfs_warn(fs_info, "iterating uuid_tree failed %d",
+				   ret);
 		up(&fs_info->uuid_tree_rescan_sem);
 		return ret;
 	}
