@@ -1082,7 +1082,6 @@ static int viommu_probe(struct virtio_device *vdev)
 
 #ifdef CONFIG_PCI
 	if (pci_bus_type.iommu_ops != &viommu_ops) {
-		pci_request_acs();
 		ret = bus_set_iommu(&pci_bus_type, &viommu_ops);
 		if (ret)
 			goto err_unregister;

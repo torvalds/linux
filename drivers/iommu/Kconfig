@@ -506,8 +506,8 @@ config HYPERV_IOMMU
 	  guests to run with x2APIC mode enabled.
 
 config VIRTIO_IOMMU
-	bool "Virtio IOMMU driver"
-	depends on VIRTIO=y
+	tristate "Virtio IOMMU driver"
+	depends on VIRTIO
 	depends on ARM64
 	select IOMMU_API
 	select INTERVAL_TREE
