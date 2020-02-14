@@ -2749,19 +2749,19 @@ static ssize_t uart_get_attr_iomem_reg_shift(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", tmp.iomem_reg_shift);
 }
 
-static DEVICE_ATTR(type, S_IRUSR | S_IRGRP, uart_get_attr_type, NULL);
-static DEVICE_ATTR(line, S_IRUSR | S_IRGRP, uart_get_attr_line, NULL);
-static DEVICE_ATTR(port, S_IRUSR | S_IRGRP, uart_get_attr_port, NULL);
-static DEVICE_ATTR(irq, S_IRUSR | S_IRGRP, uart_get_attr_irq, NULL);
-static DEVICE_ATTR(flags, S_IRUSR | S_IRGRP, uart_get_attr_flags, NULL);
-static DEVICE_ATTR(xmit_fifo_size, S_IRUSR | S_IRGRP, uart_get_attr_xmit_fifo_size, NULL);
-static DEVICE_ATTR(uartclk, S_IRUSR | S_IRGRP, uart_get_attr_uartclk, NULL);
-static DEVICE_ATTR(close_delay, S_IRUSR | S_IRGRP, uart_get_attr_close_delay, NULL);
-static DEVICE_ATTR(closing_wait, S_IRUSR | S_IRGRP, uart_get_attr_closing_wait, NULL);
-static DEVICE_ATTR(custom_divisor, S_IRUSR | S_IRGRP, uart_get_attr_custom_divisor, NULL);
-static DEVICE_ATTR(io_type, S_IRUSR | S_IRGRP, uart_get_attr_io_type, NULL);
-static DEVICE_ATTR(iomem_base, S_IRUSR | S_IRGRP, uart_get_attr_iomem_base, NULL);
-static DEVICE_ATTR(iomem_reg_shift, S_IRUSR | S_IRGRP, uart_get_attr_iomem_reg_shift, NULL);
+static DEVICE_ATTR(type, 0440, uart_get_attr_type, NULL);
+static DEVICE_ATTR(line, 0440, uart_get_attr_line, NULL);
+static DEVICE_ATTR(port, 0440, uart_get_attr_port, NULL);
+static DEVICE_ATTR(irq, 0440, uart_get_attr_irq, NULL);
+static DEVICE_ATTR(flags, 0440, uart_get_attr_flags, NULL);
+static DEVICE_ATTR(xmit_fifo_size, 0440, uart_get_attr_xmit_fifo_size, NULL);
+static DEVICE_ATTR(uartclk, 0440, uart_get_attr_uartclk, NULL);
+static DEVICE_ATTR(close_delay, 0440, uart_get_attr_close_delay, NULL);
+static DEVICE_ATTR(closing_wait, 0440, uart_get_attr_closing_wait, NULL);
+static DEVICE_ATTR(custom_divisor, 0440, uart_get_attr_custom_divisor, NULL);
+static DEVICE_ATTR(io_type, 0440, uart_get_attr_io_type, NULL);
+static DEVICE_ATTR(iomem_base, 0440, uart_get_attr_iomem_base, NULL);
+static DEVICE_ATTR(iomem_reg_shift, 0440, uart_get_attr_iomem_reg_shift, NULL);
 
 static struct attribute *tty_dev_attrs[] = {
 	&dev_attr_type.attr,
