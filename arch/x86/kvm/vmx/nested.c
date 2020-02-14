@@ -3161,10 +3161,10 @@ static void load_vmcs12_host_state(struct kvm_vcpu *vcpu,
  * or KVM_SET_NESTED_STATE).  Otherwise it's called from vmlaunch/vmresume.
  *
  * Returns:
- *	NVMX_ENTRY_SUCCESS: Entered VMX non-root mode
- *	NVMX_ENTRY_VMFAIL:  Consistency check VMFail
- *	NVMX_ENTRY_VMEXIT:  Consistency check VMExit
- *	NVMX_ENTRY_KVM_INTERNAL_ERROR: KVM internal error
+ *	NVMX_VMENTRY_SUCCESS: Entered VMX non-root mode
+ *	NVMX_VMENTRY_VMFAIL:  Consistency check VMFail
+ *	NVMX_VMENTRY_VMEXIT:  Consistency check VMExit
+ *	NVMX_VMENTRY_KVM_INTERNAL_ERROR: KVM internal error
  */
 enum nvmx_vmentry_status nested_vmx_enter_non_root_mode(struct kvm_vcpu *vcpu,
 							bool from_vmentry)
@@ -5330,7 +5330,7 @@ static bool nested_vmx_exit_handled_io(struct kvm_vcpu *vcpu,
 }
 
 /*
- * Return 1 if we should exit from L2 to L1 to handle an MSR access access,
+ * Return 1 if we should exit from L2 to L1 to handle an MSR access,
  * rather than handle it ourselves in L0. I.e., check whether L1 expressed
  * disinterest in the current event (read or write a specific MSR) by using an
  * MSR bitmap. This may be the case even when L0 doesn't use MSR bitmaps.
