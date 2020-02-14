@@ -1981,9 +1981,20 @@ static int __eb_parse(struct dma_fence_work *work)
 				       pw->trampoline);
 }
 
+static void __eb_parse_release(struct dma_fence_work *work)
+{
+	struct eb_parse_work *pw = container_of(work, typeof(*pw), base);
+
+	if (pw->trampoline)
+		i915_active_release(&pw->trampoline->active);
+	i915_active_release(&pw->shadow->active);
+	i915_active_release(&pw->batch->active);
+}
+
 static const struct dma_fence_work_ops eb_parse_ops = {
 	.name = "eb_parse",
 	.work = __eb_parse,
+	.release = __eb_parse_release,
 };
 
 static int eb_parse_pipeline(struct i915_execbuffer *eb,
@@ -1997,6 +2008,20 @@ static int eb_parse_pipeline(struct i915_execbuffer *eb,
 	if (!pw)
 		return -ENOMEM;
 
+	err = i915_active_acquire(&eb->batch->active);
+	if (err)
+		goto err_free;
+
+	err = i915_active_acquire(&shadow->active);
+	if (err)
+		goto err_batch;
+
+	if (trampoline) {
+		err = i915_active_acquire(&trampoline->active);
+		if (err)
+			goto err_shadow;
+	}
+
 	dma_fence_work_init(&pw->base, &eb_parse_ops);
 
 	pw->engine = eb->engine;
@@ -2006,7 +2031,9 @@ static int eb_parse_pipeline(struct i915_execbuffer *eb,
 	pw->shadow = shadow;
 	pw->trampoline = trampoline;
 
-	dma_resv_lock(pw->batch->resv, NULL);
+	err = dma_resv_lock_interruptible(pw->batch->resv, NULL);
+	if (err)
+		goto err_trampoline;
 
 	err = dma_resv_reserve_shared(pw->batch->resv, 1);
 	if (err)
@@ -2034,6 +2061,14 @@ static int eb_parse_pipeline(struct i915_execbuffer *eb,
 
 err_batch_unlock:
 	dma_resv_unlock(pw->batch->resv);
+err_trampoline:
+	if (trampoline)
+		i915_active_release(&trampoline->active);
+err_shadow:
+	i915_active_release(&shadow->active);
+err_batch:
+	i915_active_release(&eb->batch->active);
+err_free:
 	kfree(pw);
 	return err;
 }
