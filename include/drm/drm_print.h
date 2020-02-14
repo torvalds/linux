@@ -383,25 +383,6 @@ void drm_dev_dbg(const struct device *dev, enum drm_debug_category category,
 #define DRM_DEV_DEBUG_KMS(dev, fmt, ...)				\
 	drm_dev_dbg(dev, DRM_UT_KMS, fmt, ##__VA_ARGS__)
 
-#define _DRM_DEV_DEFINE_DEBUG_RATELIMITED(dev, category, fmt, ...)	\
-({									\
-	static DEFINE_RATELIMIT_STATE(_rs,				\
-				      DEFAULT_RATELIMIT_INTERVAL,	\
-				      DEFAULT_RATELIMIT_BURST);		\
-	if (__ratelimit(&_rs))						\
-		drm_dev_dbg(dev, category, fmt, ##__VA_ARGS__);		\
-})
-
-/**
- * Rate limited debug output. Like DRM_DEBUG() but won't flood the log.
- *
- * @dev: device pointer
- * @fmt: printf() like format string.
- */
-#define DRM_DEV_DEBUG_KMS_RATELIMITED(dev, fmt, ...)			\
-	_DRM_DEV_DEFINE_DEBUG_RATELIMITED(dev, DRM_UT_KMS,		\
-					  fmt, ##__VA_ARGS__)
-
 /*
  * struct drm_device based logging
  *
@@ -525,7 +506,13 @@ void __drm_err(const char *format, ...);
 
 
 #define DRM_DEBUG_KMS_RATELIMITED(fmt, ...)				\
-	DRM_DEV_DEBUG_KMS_RATELIMITED(NULL, fmt, ##__VA_ARGS__)
+({									\
+	static DEFINE_RATELIMIT_STATE(_rs,				\
+				      DEFAULT_RATELIMIT_INTERVAL,       \
+				      DEFAULT_RATELIMIT_BURST);         \
+	if (__ratelimit(&_rs))						\
+		drm_dev_dbg(NULL, DRM_UT_KMS, fmt, ##__VA_ARGS__);	\
+})
 
 /*
  * struct drm_device based WARNs
