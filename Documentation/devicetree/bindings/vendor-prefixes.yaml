@@ -547,6 +547,8 @@ patternProperties:
     description: LinkSprite Technologies, Inc.
   "^linksys,.*":
     description: Belkin International, Inc. (Linksys)
+  "^linutronix,.*":
+    description: Linutronix GmbH
   "^linux,.*":
     description: Linux-specific binding
   "^linx,.*":
