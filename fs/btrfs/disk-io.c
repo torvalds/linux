@@ -3932,15 +3932,14 @@ int btrfs_cleanup_fs_roots(struct btrfs_fs_info *fs_info)
 	int i = 0;
 	int err = 0;
 	unsigned int ret = 0;
-	int index;
 
 	while (1) {
-		index = srcu_read_lock(&fs_info->subvol_srcu);
+		spin_lock(&fs_info->fs_roots_radix_lock);
 		ret = radix_tree_gang_lookup(&fs_info->fs_roots_radix,
 					     (void **)gang, root_objectid,
 					     ARRAY_SIZE(gang));
 		if (!ret) {
-			srcu_read_unlock(&fs_info->subvol_srcu, index);
+			spin_unlock(&fs_info->fs_roots_radix_lock);
 			break;
 		}
 		root_objectid = gang[ret - 1]->root_key.objectid + 1;
@@ -3954,7 +3953,7 @@ int btrfs_cleanup_fs_roots(struct btrfs_fs_info *fs_info)
 			/* grab all the search result for later use */
 			gang[i] = btrfs_grab_root(gang[i]);
 		}
-		srcu_read_unlock(&fs_info->subvol_srcu, index);
+		spin_unlock(&fs_info->fs_roots_radix_lock);
 
 		for (i = 0; i < ret; i++) {
 			if (!gang[i])
