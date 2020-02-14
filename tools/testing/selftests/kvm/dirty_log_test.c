@@ -341,9 +341,7 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 #ifdef __x86_64__
 	vcpu_set_cpuid(vm, VCPU_ID, kvm_get_supported_cpuid());
 #endif
-#ifdef __aarch64__
 	ucall_init(vm, NULL);
-#endif
 
 	/* Export the shared variables to the guest */
 	sync_global_to_guest(vm, host_page_size);
@@ -433,9 +431,6 @@ int main(int argc, char *argv[])
 	uint64_t phys_offset = 0;
 	unsigned int mode;
 	int opt, i;
-#ifdef __aarch64__
-	unsigned int host_ipa_limit;
-#endif
 
 #ifdef USE_CLEAR_DIRTY_LOG
 	if (!kvm_check_cap(KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2)) {
@@ -450,13 +445,15 @@ int main(int argc, char *argv[])
 #ifdef __aarch64__
 	vm_guest_mode_params_init(VM_MODE_P40V48_4K, true, true);
 	vm_guest_mode_params_init(VM_MODE_P40V48_64K, true, true);
+	{
+		unsigned int limit = kvm_check_cap(KVM_CAP_ARM_VM_IPA_SIZE);
 
-	host_ipa_limit = kvm_check_cap(KVM_CAP_ARM_VM_IPA_SIZE);
-	if (host_ipa_limit >= 52)
-		vm_guest_mode_params_init(VM_MODE_P52V48_64K, true, true);
-	if (host_ipa_limit >= 48) {
-		vm_guest_mode_params_init(VM_MODE_P48V48_4K, true, true);
-		vm_guest_mode_params_init(VM_MODE_P48V48_64K, true, true);
+		if (limit >= 52)
+			vm_guest_mode_params_init(VM_MODE_P52V48_64K, true, true);
+		if (limit >= 48) {
+			vm_guest_mode_params_init(VM_MODE_P48V48_4K, true, true);
+			vm_guest_mode_params_init(VM_MODE_P48V48_64K, true, true);
+		}
 	}
 #endif
 #ifdef __s390x__
