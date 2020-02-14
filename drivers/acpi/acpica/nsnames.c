@@ -346,7 +346,7 @@ char *acpi_ns_build_prefixed_pathname(union acpi_generic_state *prefix_scope,
 	char *full_path = NULL;
 	char *external_path = NULL;
 	char *prefix_path = NULL;
-	u32 prefix_path_length = 0;
+	acpi_size prefix_path_length = 0;
 
 	/* If there is a prefix, get the pathname to it */
 
