@@ -3676,14 +3676,20 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 		lock_sock(sk);
 		err = tcp_zerocopy_receive(sk, &zc);
 		release_sock(sk);
+		if (len == sizeof(zc))
+			goto zerocopy_rcv_sk_err;
 		switch (len) {
-		case sizeof(zc):
+		case offsetofend(struct tcp_zerocopy_receive, err):
+			goto zerocopy_rcv_sk_err;
 		case offsetofend(struct tcp_zerocopy_receive, inq):
 			goto zerocopy_rcv_inq;
 		case offsetofend(struct tcp_zerocopy_receive, length):
 		default:
 			goto zerocopy_rcv_out;
 		}
+zerocopy_rcv_sk_err:
+		if (!err)
+			zc.err = sock_error(sk);
 zerocopy_rcv_inq:
 		zc.inq = tcp_inq_hint(sk);
 zerocopy_rcv_out:
