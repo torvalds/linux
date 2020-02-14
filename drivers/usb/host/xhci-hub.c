@@ -609,6 +609,7 @@ static void xhci_port_set_test_mode(struct xhci_hcd *xhci,
 
 static int xhci_enter_test_mode(struct xhci_hcd *xhci,
 				u16 test_mode, u16 wIndex, unsigned long *flags)
+	__must_hold(&xhci->lock)
 {
 	int i, retval;
 
