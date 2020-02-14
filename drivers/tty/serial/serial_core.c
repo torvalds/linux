@@ -1908,6 +1908,11 @@ static int uart_proc_show(struct seq_file *m, void *v)
 }
 #endif
 
+static inline bool uart_console_enabled(struct uart_port *port)
+{
+	return uart_console(port) && (port->cons->flags & CON_ENABLED);
+}
+
 #if defined(CONFIG_SERIAL_CORE_CONSOLE) || defined(CONFIG_CONSOLE_POLL)
 /**
  *	uart_console_write - write a console message to a serial port
@@ -2066,7 +2071,7 @@ uart_set_options(struct uart_port *port, struct console *co,
 	 * If this port is a console, then the spinlock is already
 	 * initialised.
 	 */
-	if (!(uart_console(port) && (port->cons->flags & CON_ENABLED))) {
+	if (!uart_console_enabled(port)) {
 		spin_lock_init(&port->lock);
 		lockdep_set_class(&port->lock, &port_lock_key);
 	}
@@ -2828,7 +2833,7 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 	 * If this port is a console, then the spinlock is already
 	 * initialised.
 	 */
-	if (!(uart_console(uport) && (uport->cons->flags & CON_ENABLED))) {
+	if (!uart_console_enabled(uport)) {
 		spin_lock_init(&uport->lock);
 		lockdep_set_class(&uport->lock, &port_lock_key);
 	}
