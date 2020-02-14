@@ -499,6 +499,7 @@ static int l2cap_sock_getsockopt(struct socket *sock, int level, int optname,
 	struct l2cap_chan *chan = l2cap_pi(sk)->chan;
 	struct bt_security sec;
 	struct bt_power pwr;
+	u32 phys;
 	int len, err = 0;
 
 	BT_DBG("sk %p", sk);
@@ -600,6 +601,18 @@ static int l2cap_sock_getsockopt(struct socket *sock, int level, int optname,
 		}
 
 		if (put_user(chan->imtu, (u16 __user *) optval))
+			err = -EFAULT;
+		break;
+
+	case BT_PHY:
+		if (sk->sk_state == BT_CONNECTED) {
+			err = -ENOTCONN;
+			break;
+		}
+
+		phys = hci_conn_get_phy(chan->conn->hcon);
+
+		if (put_user(phys, (u32 __user *) optval))
 			err = -EFAULT;
 		break;
 
