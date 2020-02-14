@@ -503,7 +503,7 @@ static int pipapo_refill(unsigned long *map, int len, int rules,
 				return -1;
 			}
 
-			if (unlikely(match_only)) {
+			if (match_only) {
 				bitmap_clear(map, i, 1);
 				return i;
 			}
