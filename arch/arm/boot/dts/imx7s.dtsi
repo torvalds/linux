@@ -612,7 +612,7 @@
 				};
 			};
 
-			clks: ccm@30380000 {
+			clks: clock-controller@30380000 {
 				compatible = "fsl,imx7d-ccm";
 				reg = <0x30380000 0x10000>;
 				interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>,
