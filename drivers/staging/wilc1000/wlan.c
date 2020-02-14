@@ -508,9 +508,7 @@ int wilc_wlan_handle_txq(struct wilc *wilc, u32 *txq_count)
 			vmm_sz = HOST_HDR_OFFSET;
 
 		vmm_sz += tqe->buffer_size;
-
-		if (vmm_sz & 0x3)
-			vmm_sz = (vmm_sz + 4) & ~0x3;
+		vmm_sz = ALIGN(vmm_sz, 4);
 
 		if ((sum + vmm_sz) > WILC_TX_BUFF_SIZE)
 			break;
