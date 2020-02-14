@@ -61,6 +61,7 @@ static int virtio_gpu_context_create(struct virtio_gpu_device *vgdev,
 		return handle;
 	handle += 1;
 	virtio_gpu_cmd_context_create(vgdev, handle, nlen, name);
+	virtio_gpu_notify(vgdev);
 	return handle;
 }
 
@@ -68,6 +69,7 @@ static void virtio_gpu_context_destroy(struct virtio_gpu_device *vgdev,
 				      uint32_t ctx_id)
 {
 	virtio_gpu_cmd_context_destroy(vgdev, ctx_id);
+	virtio_gpu_notify(vgdev);
 	ida_free(&vgdev->ctx_id_ida, ctx_id - 1);
 }
 
@@ -93,6 +95,7 @@ static void virtio_gpu_get_capsets(struct virtio_gpu_device *vgdev,
 	}
 	for (i = 0; i < num_capsets; i++) {
 		virtio_gpu_cmd_get_capset_info(vgdev, i);
+		virtio_gpu_notify(vgdev);
 		ret = wait_event_timeout(vgdev->resp_wq,
 					 vgdev->capsets[i].id > 0, 5 * HZ);
 		if (ret == 0) {

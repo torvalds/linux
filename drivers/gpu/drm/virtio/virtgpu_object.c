@@ -88,6 +88,7 @@ static void virtio_gpu_free_object(struct drm_gem_object *obj)
 
 	if (bo->created) {
 		virtio_gpu_cmd_unref_resource(vgdev, bo);
+		virtio_gpu_notify(vgdev);
 		/* completion handler calls virtio_gpu_cleanup_object() */
 		return;
 	}
