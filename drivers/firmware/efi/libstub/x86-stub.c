@@ -377,7 +377,7 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 		return status;
 	}
 
-	hdr = &((struct boot_params *)image->image_base)->hdr;
+	hdr = &((struct boot_params *)efi_table_attr(image, image_base))->hdr;
 	above4g = hdr->xloadflags & XLF_CAN_BE_LOADED_ABOVE_4G;
 
 	status = efi_allocate_pages(0x4000, (unsigned long *)&boot_params,
@@ -392,7 +392,7 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	hdr = &boot_params->hdr;
 
 	/* Copy the second sector to boot_params */
-	memcpy(&hdr->jump, image->image_base + 512, 512);
+	memcpy(&hdr->jump, efi_table_attr(image, image_base) + 512, 512);
 
 	/*
 	 * Fill out some of the header fields ourselves because the
