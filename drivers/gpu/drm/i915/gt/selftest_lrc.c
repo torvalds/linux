@@ -76,11 +76,15 @@ static int wait_for_submit(struct intel_engine_cs *engine,
 	do {
 		cond_resched();
 		intel_engine_flush_submission(engine);
+
 		if (i915_request_is_active(rq) &&
 		    !READ_ONCE(engine->execlists.pending[0])) {
 			tasklet_unlock_wait(&engine->execlists.tasklet);
 			return 0;
 		}
+
+		if (i915_request_completed(rq)) /* that was quick! */
+			return 0;
 	} while (time_before(jiffies, timeout));
 
 	return -ETIME;
