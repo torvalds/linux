@@ -326,20 +326,18 @@ static void __i915_schedule(struct i915_sched_node *node,
 
 		node->attr.priority = prio;
 
-		if (list_empty(&node->link)) {
-			/*
-			 * If the request is not in the priolist queue because
-			 * it is not yet runnable, then it doesn't contribute
-			 * to our preemption decisions. On the other hand,
-			 * if the request is on the HW, it too is not in the
-			 * queue; but in that case we may still need to reorder
-			 * the inflight requests.
-			 */
+		/*
+		 * Once the request is ready, it will be placed into the
+		 * priority lists and then onto the HW runlist. Before the
+		 * request is ready, it does not contribute to our preemption
+		 * decisions and we can safely ignore it, as it will, and
+		 * any preemption required, be dealt with upon submission.
+		 * See engine->submit_request()
+		 */
+		if (list_empty(&node->link))
 			continue;
-		}
 
-		if (!intel_engine_is_virtual(engine) &&
-		    !i915_request_is_active(node_to_request(node))) {
+		if (i915_request_in_priority_queue(node_to_request(node))) {
 			if (!cache.priolist)
 				cache.priolist =
 					i915_sched_lookup_priolist(engine,

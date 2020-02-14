@@ -1681,7 +1681,7 @@ static const char *error_msg(struct i915_gpu_coredump *error)
 			"GPU HANG: ecode %d:%x:%08x",
 			INTEL_GEN(error->i915), engines,
 			generate_ecode(first));
-	if (first) {
+	if (first && first->context.pid) {
 		/* Just show the first executing process, more is confusing */
 		len += scnprintf(error->error_msg + len,
 				 sizeof(error->error_msg) - len,
