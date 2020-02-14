@@ -427,14 +427,11 @@ static int parse_options(struct super_block *sb, char *options)
 			if (!name)
 				return -ENOMEM;
 			if (strlen(name) == 2 && !strncmp(name, "on", 2)) {
-				set_opt(sbi, BG_GC);
-				clear_opt(sbi, FORCE_FG_GC);
+				F2FS_OPTION(sbi).bggc_mode = BGGC_MODE_ON;
 			} else if (strlen(name) == 3 && !strncmp(name, "off", 3)) {
-				clear_opt(sbi, BG_GC);
-				clear_opt(sbi, FORCE_FG_GC);
+				F2FS_OPTION(sbi).bggc_mode = BGGC_MODE_OFF;
 			} else if (strlen(name) == 4 && !strncmp(name, "sync", 4)) {
-				set_opt(sbi, BG_GC);
-				set_opt(sbi, FORCE_FG_GC);
+				F2FS_OPTION(sbi).bggc_mode = BGGC_MODE_SYNC;
 			} else {
 				kvfree(name);
 				return -EINVAL;
@@ -1437,14 +1434,13 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(root->d_sb);
 
-	if (!f2fs_readonly(sbi->sb) && test_opt(sbi, BG_GC)) {
-		if (test_opt(sbi, FORCE_FG_GC))
-			seq_printf(seq, ",background_gc=%s", "sync");
-		else
-			seq_printf(seq, ",background_gc=%s", "on");
-	} else {
+	if (F2FS_OPTION(sbi).bggc_mode == BGGC_MODE_SYNC)
+		seq_printf(seq, ",background_gc=%s", "sync");
+	else if (F2FS_OPTION(sbi).bggc_mode == BGGC_MODE_ON)
+		seq_printf(seq, ",background_gc=%s", "on");
+	else if (F2FS_OPTION(sbi).bggc_mode == BGGC_MODE_OFF)
 		seq_printf(seq, ",background_gc=%s", "off");
-	}
+
 	if (test_opt(sbi, DISABLE_ROLL_FORWARD))
 		seq_puts(seq, ",disable_roll_forward");
 	if (test_opt(sbi, NORECOVERY))
@@ -1576,8 +1572,8 @@ static void default_options(struct f2fs_sb_info *sbi)
 	F2FS_OPTION(sbi).compress_algorithm = COMPRESS_LZO;
 	F2FS_OPTION(sbi).compress_log_size = MIN_COMPRESS_LOG_SIZE;
 	F2FS_OPTION(sbi).compress_ext_cnt = 0;
+	F2FS_OPTION(sbi).bggc_mode = BGGC_MODE_ON;
 
-	set_opt(sbi, BG_GC);
 	set_opt(sbi, INLINE_XATTR);
 	set_opt(sbi, INLINE_DATA);
 	set_opt(sbi, INLINE_DENTRY);
@@ -1783,7 +1779,8 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 	 * or if background_gc = off is passed in mount
 	 * option. Also sync the filesystem.
 	 */
-	if ((*flags & SB_RDONLY) || !test_opt(sbi, BG_GC)) {
+	if ((*flags & SB_RDONLY) ||
+			F2FS_OPTION(sbi).bggc_mode == BGGC_MODE_OFF) {
 		if (sbi->gc_thread) {
 			f2fs_stop_gc_thread(sbi);
 			need_restart_gc = true;
@@ -3668,7 +3665,7 @@ reset_checkpoint:
 	 * If filesystem is not mounted as read-only then
 	 * do start the gc_thread.
 	 */
-	if (test_opt(sbi, BG_GC) && !f2fs_readonly(sb)) {
+	if (F2FS_OPTION(sbi).bggc_mode != BGGC_MODE_OFF && !f2fs_readonly(sb)) {
 		/* After POR, we can run background GC thread.*/
 		err = f2fs_start_gc_thread(sbi);
 		if (err)
