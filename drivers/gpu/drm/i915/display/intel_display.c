@@ -14694,76 +14694,6 @@ static bool intel_cpu_transcoders_need_modeset(struct intel_atomic_state *state,
 	return false;
 }
 
-static int
-intel_modeset_all_tiles(struct intel_atomic_state *state, int tile_grp_id)
-{
-	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	struct drm_connector *connector;
-	struct drm_connector_list_iter conn_iter;
-	int ret = 0;
-
-	drm_connector_list_iter_begin(&dev_priv->drm, &conn_iter);
-	drm_for_each_connector_iter(connector, &conn_iter) {
-		struct drm_connector_state *conn_state;
-		struct drm_crtc_state *crtc_state;
-
-		if (!connector->has_tile ||
-		    connector->tile_group->id != tile_grp_id)
-			continue;
-		conn_state = drm_atomic_get_connector_state(&state->base,
-							    connector);
-		if (IS_ERR(conn_state)) {
-			ret =  PTR_ERR(conn_state);
-			break;
-		}
-
-		if (!conn_state->crtc)
-			continue;
-
-		crtc_state = drm_atomic_get_crtc_state(&state->base,
-						       conn_state->crtc);
-		if (IS_ERR(crtc_state)) {
-			ret = PTR_ERR(crtc_state);
-			break;
-		}
-		crtc_state->mode_changed = true;
-		ret = drm_atomic_add_affected_connectors(&state->base,
-							 conn_state->crtc);
-		if (ret)
-			break;
-	}
-	drm_connector_list_iter_end(&conn_iter);
-
-	return ret;
-}
-
-static int
-intel_atomic_check_tiled_conns(struct intel_atomic_state *state)
-{
-	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	struct drm_connector *connector;
-	struct drm_connector_state *old_conn_state, *new_conn_state;
-	int i, ret;
-
-	if (INTEL_GEN(dev_priv) < 11)
-		return 0;
-
-	/* Is tiled, mark all other tiled CRTCs as needing a modeset */
-	for_each_oldnew_connector_in_state(&state->base, connector,
-					   old_conn_state, new_conn_state, i) {
-		if (!connector->has_tile)
-			continue;
-		if (!intel_connector_needs_modeset(state, connector))
-			continue;
-
-		ret = intel_modeset_all_tiles(state, connector->tile_group->id);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
 /**
  * intel_atomic_check - validate state object
  * @dev: drm device
@@ -14789,21 +14719,6 @@ static int intel_atomic_check(struct drm_device *dev,
 	}
 
 	ret = drm_atomic_helper_check_modeset(dev, &state->base);
-	if (ret)
-		goto fail;
-
-	/**
-	 * This check adds all the connectors in current state that belong to
-	 * the same tile group to a full modeset.
-	 * This function directly sets the mode_changed to true and we also call
-	 * drm_atomic_add_affected_connectors(). Hence we are not explicitly
-	 * calling drm_atomic_helper_check_modeset() after this.
-	 *
-	 * Fixme: Handle some corner cases where one of the
-	 * tiled connectors gets disconnected and tile info is lost but since it
-	 * was previously synced to other conn, we need to add that to the modeset.
-	 */
-	ret = intel_atomic_check_tiled_conns(state);
 	if (ret)
 		goto fail;
 
