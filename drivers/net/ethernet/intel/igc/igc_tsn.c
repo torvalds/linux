@@ -4,6 +4,20 @@
 #include "igc.h"
 #include "igc_tsn.h"
 
+static bool is_any_launchtime(struct igc_adapter *adapter)
+{
+	int i;
+
+	for (i = 0; i < adapter->num_tx_queues; i++) {
+		struct igc_ring *ring = adapter->tx_ring[i];
+
+		if (ring->launchtime_enable)
+			return true;
+	}
+
+	return false;
+}
+
 /* Returns the TSN specific registers to their default values after
  * TSN offloading is disabled.
  */
@@ -88,6 +102,9 @@ static int igc_tsn_enable_offload(struct igc_adapter *adapter)
 				IGC_TXQCTL_STRICT_END;
 		}
 
+		if (ring->launchtime_enable)
+			txqctl |= IGC_TXQCTL_QUEUE_MODE_LAUNCHT;
+
 		wr32(IGC_TXQCTL(i), txqctl);
 	}
 
@@ -115,7 +132,7 @@ static int igc_tsn_enable_offload(struct igc_adapter *adapter)
 
 int igc_tsn_offload_apply(struct igc_adapter *adapter)
 {
-	bool is_any_enabled = adapter->base_time;
+	bool is_any_enabled = adapter->base_time || is_any_launchtime(adapter);
 
 	if (!(adapter->flags & IGC_FLAG_TSN_QBV_ENABLED) && !is_any_enabled)
 		return 0;
