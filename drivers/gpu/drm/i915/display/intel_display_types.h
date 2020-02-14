@@ -141,6 +141,9 @@ struct intel_encoder {
 	int (*compute_config)(struct intel_encoder *,
 			      struct intel_crtc_state *,
 			      struct drm_connector_state *);
+	int (*compute_config_late)(struct intel_encoder *,
+				   struct intel_crtc_state *,
+				   struct drm_connector_state *);
 	void (*update_prepare)(struct intel_atomic_state *,
 			       struct intel_encoder *,
 			       struct intel_crtc *);

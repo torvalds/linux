@@ -13549,6 +13549,35 @@ encoder_retry:
 	return 0;
 }
 
+static int
+intel_modeset_pipe_config_late(struct intel_crtc_state *crtc_state)
+{
+	struct intel_atomic_state *state =
+		to_intel_atomic_state(crtc_state->uapi.state);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_connector_state *conn_state;
+	struct drm_connector *connector;
+	int i;
+
+	for_each_new_connector_in_state(&state->base, connector,
+					conn_state, i) {
+		struct intel_encoder *encoder =
+			to_intel_encoder(conn_state->best_encoder);
+		int ret;
+
+		if (conn_state->crtc != &crtc->base ||
+		    !encoder->compute_config_late)
+			continue;
+
+		ret = encoder->compute_config_late(encoder, crtc_state,
+						   conn_state);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 bool intel_fuzzy_clock_check(int clock1, int clock2)
 {
 	int diff;
@@ -14952,6 +14981,16 @@ static int intel_atomic_check(struct drm_device *dev,
 			continue;
 
 		ret = intel_modeset_pipe_config(new_crtc_state);
+		if (ret)
+			goto fail;
+	}
+
+	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
+					    new_crtc_state, i) {
+		if (!needs_modeset(new_crtc_state))
+			continue;
+
+		ret = intel_modeset_pipe_config_late(new_crtc_state);
 		if (ret)
 			goto fail;
 
