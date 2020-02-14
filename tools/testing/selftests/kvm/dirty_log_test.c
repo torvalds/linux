@@ -386,15 +386,14 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 	kvm_vm_free(vm);
 }
 
-struct vm_guest_mode_params {
+struct guest_mode {
 	bool supported;
 	bool enabled;
 };
-struct vm_guest_mode_params vm_guest_mode_params[NUM_VM_MODES];
+static struct guest_mode guest_modes[NUM_VM_MODES];
 
-#define vm_guest_mode_params_init(mode, supported, enabled)					\
-({												\
-	vm_guest_mode_params[mode] = (struct vm_guest_mode_params){ supported, enabled };	\
+#define guest_mode_init(mode, supported, enabled) ({ \
+	guest_modes[mode] = (struct guest_mode){ supported, enabled }; \
 })
 
 static void help(char *name)
@@ -417,7 +416,7 @@ static void help(char *name)
 	       "     Guest mode IDs:\n");
 	for (i = 0; i < NUM_VM_MODES; ++i) {
 		printf("         %d:    %s%s\n", i, vm_guest_mode_string(i),
-		       vm_guest_mode_params[i].supported ? " (supported)" : "");
+		       guest_modes[i].supported ? " (supported)" : "");
 	}
 	puts("");
 	exit(0);
@@ -440,24 +439,25 @@ int main(int argc, char *argv[])
 #endif
 
 #ifdef __x86_64__
-	vm_guest_mode_params_init(VM_MODE_PXXV48_4K, true, true);
+	guest_mode_init(VM_MODE_PXXV48_4K, true, true);
 #endif
 #ifdef __aarch64__
-	vm_guest_mode_params_init(VM_MODE_P40V48_4K, true, true);
-	vm_guest_mode_params_init(VM_MODE_P40V48_64K, true, true);
+	guest_mode_init(VM_MODE_P40V48_4K, true, true);
+	guest_mode_init(VM_MODE_P40V48_64K, true, true);
+
 	{
 		unsigned int limit = kvm_check_cap(KVM_CAP_ARM_VM_IPA_SIZE);
 
 		if (limit >= 52)
-			vm_guest_mode_params_init(VM_MODE_P52V48_64K, true, true);
+			guest_mode_init(VM_MODE_P52V48_64K, true, true);
 		if (limit >= 48) {
-			vm_guest_mode_params_init(VM_MODE_P48V48_4K, true, true);
-			vm_guest_mode_params_init(VM_MODE_P48V48_64K, true, true);
+			guest_mode_init(VM_MODE_P48V48_4K, true, true);
+			guest_mode_init(VM_MODE_P48V48_64K, true, true);
 		}
 	}
 #endif
 #ifdef __s390x__
-	vm_guest_mode_params_init(VM_MODE_P40V48_4K, true, true);
+	guest_mode_init(VM_MODE_P40V48_4K, true, true);
 #endif
 
 	while ((opt = getopt(argc, argv, "hi:I:p:m:")) != -1) {
@@ -474,13 +474,13 @@ int main(int argc, char *argv[])
 		case 'm':
 			if (!mode_selected) {
 				for (i = 0; i < NUM_VM_MODES; ++i)
-					vm_guest_mode_params[i].enabled = false;
+					guest_modes[i].enabled = false;
 				mode_selected = true;
 			}
 			mode = strtoul(optarg, NULL, 10);
 			TEST_ASSERT(mode < NUM_VM_MODES,
 				    "Guest mode ID %d too big", mode);
-			vm_guest_mode_params[mode].enabled = true;
+			guest_modes[mode].enabled = true;
 			break;
 		case 'h':
 		default:
@@ -498,9 +498,9 @@ int main(int argc, char *argv[])
 	srandom(time(0));
 
 	for (i = 0; i < NUM_VM_MODES; ++i) {
-		if (!vm_guest_mode_params[i].enabled)
+		if (!guest_modes[i].enabled)
 			continue;
-		TEST_ASSERT(vm_guest_mode_params[i].supported,
+		TEST_ASSERT(guest_modes[i].supported,
 			    "Guest mode ID %d (%s) not supported.",
 			    i, vm_guest_mode_string(i));
 		run_test(i, iterations, interval, phys_offset);
