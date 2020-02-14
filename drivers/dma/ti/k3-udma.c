@@ -2079,31 +2079,31 @@ udma_prep_slave_sg_tr(struct udma_chan *uc, struct scatterlist *sgl,
 		      unsigned int sglen, enum dma_transfer_direction dir,
 		      unsigned long tx_flags, void *context)
 {
-	enum dma_slave_buswidth dev_width;
 	struct scatterlist *sgent;
 	struct udma_desc *d;
-	size_t tr_size;
 	struct cppi5_tr_type1_t *tr_req = NULL;
+	u16 tr0_cnt0, tr0_cnt1, tr1_cnt0;
 	unsigned int i;
-	u32 burst;
+	size_t tr_size;
+	int num_tr = 0;
+	int tr_idx = 0;
 
-	if (dir == DMA_DEV_TO_MEM) {
-		dev_width = uc->cfg.src_addr_width;
-		burst = uc->cfg.src_maxburst;
-	} else if (dir == DMA_MEM_TO_DEV) {
-		dev_width = uc->cfg.dst_addr_width;
-		burst = uc->cfg.dst_maxburst;
-	} else {
-		dev_err(uc->ud->dev, "%s: bad direction?\n", __func__);
+	if (!is_slave_direction(dir)) {
+		dev_err(uc->ud->dev, "Only slave cyclic is supported\n");
 		return NULL;
 	}
 
-	if (!burst)
-		burst = 1;
+	/* estimate the number of TRs we will need */
+	for_each_sg(sgl, sgent, sglen, i) {
+		if (sg_dma_len(sgent) < SZ_64K)
+			num_tr++;
+		else
+			num_tr += 2;
+	}
 
 	/* Now allocate and setup the descriptor. */
 	tr_size = sizeof(struct cppi5_tr_type1_t);
-	d = udma_alloc_tr_desc(uc, tr_size, sglen, dir);
+	d = udma_alloc_tr_desc(uc, tr_size, num_tr, dir);
 	if (!d)
 		return NULL;
 
@@ -2111,19 +2111,46 @@ udma_prep_slave_sg_tr(struct udma_chan *uc, struct scatterlist *sgl,
 
 	tr_req = d->hwdesc[0].tr_req_base;
 	for_each_sg(sgl, sgent, sglen, i) {
-		d->residue += sg_dma_len(sgent);
+		dma_addr_t sg_addr = sg_dma_address(sgent);
+
+		num_tr = udma_get_tr_counters(sg_dma_len(sgent), __ffs(sg_addr),
+					      &tr0_cnt0, &tr0_cnt1, &tr1_cnt0);
+		if (num_tr < 0) {
+			dev_err(uc->ud->dev, "size %u is not supported\n",
+				sg_dma_len(sgent));
+			udma_free_hwdesc(uc, d);
+			kfree(d);
+			return NULL;
+		}
 
 		cppi5_tr_init(&tr_req[i].flags, CPPI5_TR_TYPE1, false, false,
 			      CPPI5_TR_EVENT_SIZE_COMPLETION, 0);
 		cppi5_tr_csf_set(&tr_req[i].flags, CPPI5_TR_CSF_SUPR_EVT);
 
-		tr_req[i].addr = sg_dma_address(sgent);
-		tr_req[i].icnt0 = burst * dev_width;
-		tr_req[i].dim1 = burst * dev_width;
-		tr_req[i].icnt1 = sg_dma_len(sgent) / tr_req[i].icnt0;
+		tr_req[tr_idx].addr = sg_addr;
+		tr_req[tr_idx].icnt0 = tr0_cnt0;
+		tr_req[tr_idx].icnt1 = tr0_cnt1;
+		tr_req[tr_idx].dim1 = tr0_cnt0;
+		tr_idx++;
+
+		if (num_tr == 2) {
+			cppi5_tr_init(&tr_req[tr_idx].flags, CPPI5_TR_TYPE1,
+				      false, false,
+				      CPPI5_TR_EVENT_SIZE_COMPLETION, 0);
+			cppi5_tr_csf_set(&tr_req[tr_idx].flags,
+					 CPPI5_TR_CSF_SUPR_EVT);
+
+			tr_req[tr_idx].addr = sg_addr + tr0_cnt1 * tr0_cnt0;
+			tr_req[tr_idx].icnt0 = tr1_cnt0;
+			tr_req[tr_idx].icnt1 = 1;
+			tr_req[tr_idx].dim1 = tr1_cnt0;
+			tr_idx++;
+		}
+
+		d->residue += sg_dma_len(sgent);
 	}
 
-	cppi5_tr_csf_set(&tr_req[i - 1].flags, CPPI5_TR_CSF_EOP);
+	cppi5_tr_csf_set(&tr_req[tr_idx - 1].flags, CPPI5_TR_CSF_EOP);
 
 	return d;
 }
@@ -2428,47 +2455,66 @@ udma_prep_dma_cyclic_tr(struct udma_chan *uc, dma_addr_t buf_addr,
 			size_t buf_len, size_t period_len,
 			enum dma_transfer_direction dir, unsigned long flags)
 {
-	enum dma_slave_buswidth dev_width;
 	struct udma_desc *d;
-	size_t tr_size;
+	size_t tr_size, period_addr;
 	struct cppi5_tr_type1_t *tr_req;
-	unsigned int i;
 	unsigned int periods = buf_len / period_len;
-	u32 burst;
+	u16 tr0_cnt0, tr0_cnt1, tr1_cnt0;
+	unsigned int i;
+	int num_tr;
 
-	if (dir == DMA_DEV_TO_MEM) {
-		dev_width = uc->cfg.src_addr_width;
-		burst = uc->cfg.src_maxburst;
-	} else if (dir == DMA_MEM_TO_DEV) {
-		dev_width = uc->cfg.dst_addr_width;
-		burst = uc->cfg.dst_maxburst;
-	} else {
-		dev_err(uc->ud->dev, "%s: bad direction?\n", __func__);
+	if (!is_slave_direction(dir)) {
+		dev_err(uc->ud->dev, "Only slave cyclic is supported\n");
 		return NULL;
 	}
 
-	if (!burst)
-		burst = 1;
+	num_tr = udma_get_tr_counters(period_len, __ffs(buf_addr), &tr0_cnt0,
+				      &tr0_cnt1, &tr1_cnt0);
+	if (num_tr < 0) {
+		dev_err(uc->ud->dev, "size %zu is not supported\n",
+			period_len);
+		return NULL;
+	}
 
 	/* Now allocate and setup the descriptor. */
 	tr_size = sizeof(struct cppi5_tr_type1_t);
-	d = udma_alloc_tr_desc(uc, tr_size, periods, dir);
+	d = udma_alloc_tr_desc(uc, tr_size, periods * num_tr, dir);
 	if (!d)
 		return NULL;
 
 	tr_req = d->hwdesc[0].tr_req_base;
+	period_addr = buf_addr;
 	for (i = 0; i < periods; i++) {
-		cppi5_tr_init(&tr_req[i].flags, CPPI5_TR_TYPE1, false, false,
-			      CPPI5_TR_EVENT_SIZE_COMPLETION, 0);
+		int tr_idx = i * num_tr;
 
-		tr_req[i].addr = buf_addr + period_len * i;
-		tr_req[i].icnt0 = dev_width;
-		tr_req[i].icnt1 = period_len / dev_width;
-		tr_req[i].dim1 = dev_width;
+		cppi5_tr_init(&tr_req[tr_idx].flags, CPPI5_TR_TYPE1, false,
+			      false, CPPI5_TR_EVENT_SIZE_COMPLETION, 0);
+
+		tr_req[tr_idx].addr = period_addr;
+		tr_req[tr_idx].icnt0 = tr0_cnt0;
+		tr_req[tr_idx].icnt1 = tr0_cnt1;
+		tr_req[tr_idx].dim1 = tr0_cnt0;
+
+		if (num_tr == 2) {
+			cppi5_tr_csf_set(&tr_req[tr_idx].flags,
+					 CPPI5_TR_CSF_SUPR_EVT);
+			tr_idx++;
+
+			cppi5_tr_init(&tr_req[tr_idx].flags, CPPI5_TR_TYPE1,
+				      false, false,
+				      CPPI5_TR_EVENT_SIZE_COMPLETION, 0);
+
+			tr_req[tr_idx].addr = period_addr + tr0_cnt1 * tr0_cnt0;
+			tr_req[tr_idx].icnt0 = tr1_cnt0;
+			tr_req[tr_idx].icnt1 = 1;
+			tr_req[tr_idx].dim1 = tr1_cnt0;
+		}
 
 		if (!(flags & DMA_PREP_INTERRUPT))
-			cppi5_tr_csf_set(&tr_req[i].flags,
+			cppi5_tr_csf_set(&tr_req[tr_idx].flags,
 					 CPPI5_TR_CSF_SUPR_EVT);
+
+		period_addr += period_len;
 	}
 
 	return d;
