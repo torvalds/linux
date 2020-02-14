@@ -580,6 +580,10 @@ void vm_userspace_mem_region_add(struct kvm_vm *vm,
 	size_t huge_page_size = KVM_UTIL_PGS_PER_HUGEPG * vm->page_size;
 	size_t alignment;
 
+	TEST_ASSERT(vm_adjust_num_guest_pages(vm->mode, npages) == npages,
+		"Number of guest pages is not compatible with the host. "
+		"Try npages=%d", vm_adjust_num_guest_pages(vm->mode, npages));
+
 	TEST_ASSERT((guest_paddr % vm->page_size) == 0, "Guest physical "
 		"address not on a page boundary.\n"
 		"  guest_paddr: 0x%lx vm->page_size: 0x%x",
@@ -1700,4 +1704,37 @@ unsigned int vm_get_page_shift(struct kvm_vm *vm)
 unsigned int vm_get_max_gfn(struct kvm_vm *vm)
 {
 	return vm->max_gfn;
+}
+
+static unsigned int vm_calc_num_pages(unsigned int num_pages,
+				      unsigned int page_shift,
+				      unsigned int new_page_shift,
+				      bool ceil)
+{
+	unsigned int n = 1 << (new_page_shift - page_shift);
+
+	if (page_shift >= new_page_shift)
+		return num_pages * (1 << (page_shift - new_page_shift));
+
+	return num_pages / n + !!(ceil && num_pages % n);
+}
+
+static inline int getpageshift(void)
+{
+	return __builtin_ffs(getpagesize()) - 1;
+}
+
+unsigned int
+vm_num_host_pages(enum vm_guest_mode mode, unsigned int num_guest_pages)
+{
+	return vm_calc_num_pages(num_guest_pages,
+				 vm_guest_mode_params[mode].page_shift,
+				 getpageshift(), true);
+}
+
+unsigned int
+vm_num_guest_pages(enum vm_guest_mode mode, unsigned int num_host_pages)
+{
+	return vm_calc_num_pages(num_host_pages, getpageshift(),
+				 vm_guest_mode_params[mode].page_shift, false);
 }

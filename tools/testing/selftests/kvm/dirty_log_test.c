@@ -178,12 +178,11 @@ static void *vcpu_worker(void *data)
 	return NULL;
 }
 
-static void vm_dirty_log_verify(unsigned long *bmap)
+static void vm_dirty_log_verify(enum vm_guest_mode mode, unsigned long *bmap)
 {
+	uint64_t step = vm_num_host_pages(mode, 1);
 	uint64_t page;
 	uint64_t *value_ptr;
-	uint64_t step = host_page_size >= guest_page_size ? 1 :
-				guest_page_size / host_page_size;
 
 	for (page = 0; page < host_num_pages; page += step) {
 		value_ptr = host_test_mem + page * host_page_size;
@@ -289,14 +288,14 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 	 * case where the size is not aligned to 64 pages.
 	 */
 	guest_num_pages = (1ul << (DIRTY_MEM_BITS -
-				   vm_get_page_shift(vm))) + 16;
+				   vm_get_page_shift(vm))) + 3;
+	guest_num_pages = vm_adjust_num_guest_pages(mode, guest_num_pages);
 #ifdef __s390x__
 	/* Round up to multiple of 1M (segment size) */
 	guest_num_pages = (guest_num_pages + 0xff) & ~0xffUL;
 #endif
 	host_page_size = getpagesize();
-	host_num_pages = (guest_num_pages * guest_page_size) / host_page_size +
-			 !!((guest_num_pages * guest_page_size) % host_page_size);
+	host_num_pages = vm_num_host_pages(mode, guest_num_pages);
 
 	if (!phys_offset) {
 		guest_test_phys_mem = (vm_get_max_gfn(vm) -
@@ -367,7 +366,7 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 		kvm_vm_clear_dirty_log(vm, TEST_MEM_SLOT_INDEX, bmap, 0,
 				       host_num_pages);
 #endif
-		vm_dirty_log_verify(bmap);
+		vm_dirty_log_verify(mode, bmap);
 		iteration++;
 		sync_global_to_guest(vm, iteration);
 	}

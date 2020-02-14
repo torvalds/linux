@@ -164,6 +164,14 @@ unsigned int vm_get_page_size(struct kvm_vm *vm);
 unsigned int vm_get_page_shift(struct kvm_vm *vm);
 unsigned int vm_get_max_gfn(struct kvm_vm *vm);
 
+unsigned int vm_num_host_pages(enum vm_guest_mode mode, unsigned int num_guest_pages);
+unsigned int vm_num_guest_pages(enum vm_guest_mode mode, unsigned int num_host_pages);
+static inline unsigned int
+vm_adjust_num_guest_pages(enum vm_guest_mode mode, unsigned int num_guest_pages)
+{
+	return vm_num_guest_pages(mode, vm_num_host_pages(mode, num_guest_pages));
+}
+
 struct kvm_userspace_memory_region *
 kvm_userspace_memory_region_find(struct kvm_vm *vm, uint64_t start,
 				 uint64_t end);
