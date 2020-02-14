@@ -600,10 +600,10 @@ static int parse_options(struct super_block *sb, char *options)
 					kvfree(name);
 					return -EINVAL;
 				}
-				set_opt_mode(sbi, F2FS_MOUNT_ADAPTIVE);
+				F2FS_OPTION(sbi).fs_mode = FS_MODE_ADAPTIVE;
 			} else if (strlen(name) == 3 &&
 					!strncmp(name, "lfs", 3)) {
-				set_opt_mode(sbi, F2FS_MOUNT_LFS);
+				F2FS_OPTION(sbi).fs_mode = FS_MODE_LFS;
 			} else {
 				kvfree(name);
 				return -EINVAL;
@@ -904,7 +904,7 @@ static int parse_options(struct super_block *sb, char *options)
 	}
 #endif
 
-	if (F2FS_IO_SIZE_BITS(sbi) && !test_opt(sbi, LFS)) {
+	if (F2FS_IO_SIZE_BITS(sbi) && !f2fs_lfs_mode(sbi)) {
 		f2fs_err(sbi, "Should set mode=lfs with %uKB-sized IO",
 			 F2FS_IO_SIZE_KB(sbi));
 		return -EINVAL;
@@ -934,7 +934,7 @@ static int parse_options(struct super_block *sb, char *options)
 		}
 	}
 
-	if (test_opt(sbi, DISABLE_CHECKPOINT) && test_opt(sbi, LFS)) {
+	if (test_opt(sbi, DISABLE_CHECKPOINT) && f2fs_lfs_mode(sbi)) {
 		f2fs_err(sbi, "LFS not compatible with checkpoint=disable\n");
 		return -EINVAL;
 	}
@@ -1508,9 +1508,9 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 		seq_puts(seq, ",data_flush");
 
 	seq_puts(seq, ",mode=");
-	if (test_opt(sbi, ADAPTIVE))
+	if (F2FS_OPTION(sbi).fs_mode == FS_MODE_ADAPTIVE)
 		seq_puts(seq, "adaptive");
-	else if (test_opt(sbi, LFS))
+	else if (F2FS_OPTION(sbi).fs_mode == FS_MODE_LFS)
 		seq_puts(seq, "lfs");
 	seq_printf(seq, ",active_logs=%u", F2FS_OPTION(sbi).active_logs);
 	if (test_opt(sbi, RESERVE_ROOT))
@@ -1597,9 +1597,9 @@ static void default_options(struct f2fs_sb_info *sbi)
 	set_opt(sbi, FLUSH_MERGE);
 	set_opt(sbi, DISCARD);
 	if (f2fs_sb_has_blkzoned(sbi))
-		set_opt_mode(sbi, F2FS_MOUNT_LFS);
+		F2FS_OPTION(sbi).fs_mode = FS_MODE_LFS;
 	else
-		set_opt_mode(sbi, F2FS_MOUNT_ADAPTIVE);
+		F2FS_OPTION(sbi).fs_mode = FS_MODE_ADAPTIVE;
 
 #ifdef CONFIG_F2FS_FS_XATTR
 	set_opt(sbi, XATTR_USER);

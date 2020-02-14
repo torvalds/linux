@@ -765,7 +765,7 @@ static int move_data_block(struct inode *inode, block_t bidx,
 	struct page *page, *mpage;
 	block_t newaddr;
 	int err = 0;
-	bool lfs_mode = test_opt(fio.sbi, LFS);
+	bool lfs_mode = f2fs_lfs_mode(fio.sbi);
 
 	/* do not read out */
 	page = f2fs_grab_cache_page(inode->i_mapping, bidx, false);
