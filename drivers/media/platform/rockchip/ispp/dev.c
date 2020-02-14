@@ -142,6 +142,15 @@ static int rkispp_create_links(struct rkispp_device *ispp_dev)
 	if (ret < 0)
 		return ret;
 
+	/* stats links */
+	flags = MEDIA_LNK_FL_ENABLED;
+	source = &ispp_dev->ispp_sdev.sd.entity;
+	sink = &ispp_dev->stats_vdev.vnode.vdev.entity;
+	ret = media_create_pad_link(source, RKISPP_PAD_SOURCE_STATS,
+				    sink, 0, flags);
+	if (ret < 0)
+		return ret;
+
 	/* output stream links */
 	stream = &stream_vdev->stream[STREAM_MB];
 	stream->linked = flags;
@@ -197,9 +206,13 @@ static int rkispp_register_platform_subdevs(struct rkispp_device *ispp_dev)
 	if (ret < 0)
 		goto err_unreg_stream_vdevs;
 
-	ret = rkispp_register_subdev(ispp_dev, &ispp_dev->v4l2_dev);
+	ret = rkispp_register_stats_vdev(ispp_dev);
 	if (ret < 0)
 		goto err_unreg_params_vdev;
+
+	ret = rkispp_register_subdev(ispp_dev, &ispp_dev->v4l2_dev);
+	if (ret < 0)
+		goto err_unreg_stats_vdev;
 
 	ret = rkispp_create_links(ispp_dev);
 	if (ret < 0)
@@ -207,6 +220,8 @@ static int rkispp_register_platform_subdevs(struct rkispp_device *ispp_dev)
 	return ret;
 err_unreg_ispp_subdev:
 	rkispp_unregister_subdev(ispp_dev);
+err_unreg_stats_vdev:
+	rkispp_unregister_stats_vdev(ispp_dev);
 err_unreg_params_vdev:
 	rkispp_unregister_params_vdev(ispp_dev);
 err_unreg_stream_vdevs:
@@ -410,6 +425,7 @@ static int rkispp_plat_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	rkispp_unregister_subdev(ispp_dev);
+	rkispp_unregister_stats_vdev(ispp_dev);
 	rkispp_unregister_params_vdev(ispp_dev);
 	rkispp_unregister_stream_vdevs(ispp_dev);
 

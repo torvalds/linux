@@ -656,7 +656,13 @@ static int config_modules(struct rkispp_device *dev)
 	if (ret < 0)
 		return ret;
 
-	return config_fec(dev);
+	ret = config_fec(dev);
+	if (ret < 0)
+		return ret;
+
+	rkispp_params_configure(&dev->params_vdev);
+
+	return ret;
 }
 
 static int start_ii(struct rkispp_stream *stream)
@@ -1392,6 +1398,9 @@ void rkispp_isr(u32 mis_val, struct rkispp_device *dev)
 
 	if (mis_val & (CMD_TNR_ST_DONE | CMD_NR_SHP_ST_DONE))
 		atomic_inc(&dev->ispp_sdev.frm_sync_seq);
+
+	rkispp_params_isr(&dev->params_vdev, mis_val);
+	rkispp_stats_isr(&dev->stats_vdev, mis_val);
 
 	if (mis_val & TNR_INT) {
 		if (readl(base + RKISPP_TNR_CTRL) & SW_TNR_1ST_FRM)

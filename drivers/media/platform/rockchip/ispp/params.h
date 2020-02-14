@@ -22,6 +22,7 @@ struct rkispp_params_vdev {
 	struct list_head params;
 	struct rkispp_params_cfg cur_params;
 	struct rkispp_buffer *cur_buf;
+
 	struct v4l2_format vdev_fmt;
 	bool streamon;
 	bool first_params;

@@ -286,6 +286,7 @@ int rkispp_register_subdev(struct rkispp_device *dev,
 		MEDIA_PAD_FL_SINK | MEDIA_PAD_FL_MUST_CONNECT;
 	ispp_sdev->pads[RKISPP_PAD_SINK_PARAMS].flags = MEDIA_PAD_FL_SINK;
 	ispp_sdev->pads[RKISPP_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE;
+	ispp_sdev->pads[RKISPP_PAD_SOURCE_STATS].flags = MEDIA_PAD_FL_SOURCE;
 
 	ret = media_entity_pads_init(&sd->entity, RKISPP_PAD_MAX,
 				     ispp_sdev->pads);

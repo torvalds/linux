@@ -7,6 +7,7 @@
 #include "ispp.h"
 #include "params.h"
 #include "stream.h"
+#include "stats.h"
 
 #define DRIVER_NAME			"rkispp"
 #define II_VDEV_NAME DRIVER_NAME	"_input_image"
@@ -52,6 +53,7 @@ struct rkispp_device {
 	struct rkispp_subdev ispp_sdev;
 	struct rkispp_stream_vdev stream_vdev;
 	struct rkispp_params_vdev params_vdev;
+	struct rkispp_stats_vdev stats_vdev;
 
 	enum rkispp_ver	ispp_ver;
 	/* mutex to serialize the calls from user */

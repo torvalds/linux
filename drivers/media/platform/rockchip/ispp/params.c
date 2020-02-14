@@ -24,6 +24,12 @@
 #define ISPP_PACK_2SHORT(a, b) \
 	(((a) & 0xFFFF) << 0 | ((b) & 0xFFFF) << 16)
 
+#define ISPP_PARAM_UD_CK \
+	(ISPP_MODULE_TNR | \
+	 ISPP_MODULE_NR | \
+	 ISPP_MODULE_SHP | \
+	 ISPP_MODULE_ORB)
+
 static void tnr_config(struct rkispp_params_vdev *params_vdev,
 		       struct rkispp_tnr_config *arg)
 {
@@ -47,19 +53,18 @@ static void tnr_config(struct rkispp_params_vdev *params_vdev,
 
 	for (i = 0; i < TNR_SIGMA_CURVE_SIZE - 1; i += 2)
 		rkispp_write(base + RKISPP_TNR_CORE_SIG_Y01 + i * 2,
-			ISPP_PACK_2SHORT(arg->sigma_curve[i].y,
-				arg->sigma_curve[i + 1].y));
-	rkispp_write(base + RKISPP_TNR_CORE_SIG_Y10, arg->sigma_curve[16].y);
+			ISPP_PACK_2SHORT(arg->sigma_y[i], arg->sigma_y[i + 1]));
+	rkispp_write(base + RKISPP_TNR_CORE_SIG_Y10, arg->sigma_y[16]);
 	rkispp_write(base + RKISPP_TNR_CORE_SIG_X18,
-		ISPP_PACK_4BIT(arg->sigma_curve[0].x, arg->sigma_curve[1].x,
-			arg->sigma_curve[2].x, arg->sigma_curve[3].x,
-			arg->sigma_curve[4].x, arg->sigma_curve[5].x,
-			arg->sigma_curve[6].x, arg->sigma_curve[7].x));
+		ISPP_PACK_4BIT(arg->sigma_x[0], arg->sigma_x[1],
+			arg->sigma_x[2], arg->sigma_x[3],
+			arg->sigma_x[4], arg->sigma_x[5],
+			arg->sigma_x[6], arg->sigma_x[7]));
 	rkispp_write(base + RKISPP_TNR_CORE_SIG_X910,
-		ISPP_PACK_4BIT(arg->sigma_curve[8].x, arg->sigma_curve[9].x,
-			arg->sigma_curve[10].x, arg->sigma_curve[11].x,
-			arg->sigma_curve[12].x, arg->sigma_curve[13].x,
-			arg->sigma_curve[14].x, arg->sigma_curve[15].x));
+		ISPP_PACK_4BIT(arg->sigma_x[8], arg->sigma_x[9],
+			arg->sigma_x[10], arg->sigma_x[11],
+			arg->sigma_x[12], arg->sigma_x[13],
+			arg->sigma_x[14], arg->sigma_x[15]));
 
 	for (i = 0; i < TNR_LUMA_CURVE_SIZE; i += 2) {
 		val = ISPP_PACK_2SHORT(arg->luma_curve[i], arg->luma_curve[i + 1]);
@@ -273,8 +278,8 @@ static void nr_config(struct rkispp_params_vdev *params_vdev,
 	}
 
 	for (i = 0; i < NR_YNR_HGRAD_Y_SIZE; i += 4) {
-		val = ISPP_PACK_4BYTE(arg->ynr_hgrad_y[0], arg->ynr_hgrad_y[1],
-			arg->ynr_hgrad_y[2], arg->ynr_hgrad_y[3]);
+		val = ISPP_PACK_4BYTE(arg->ynr_hgrad_y[i], arg->ynr_hgrad_y[i + 1],
+			arg->ynr_hgrad_y[i + 2], arg->ynr_hgrad_y[i + 3]);
 		rkispp_write(base + RKISPP_NR_YNR_HGRAD_Y0 + i, val);
 	}
 
@@ -283,7 +288,7 @@ static void nr_config(struct rkispp_params_vdev *params_vdev,
 	val = ISPP_PACK_2SHORT(arg->ynr_hweit[2], arg->ynr_hweit[3]);
 	rkispp_write(base + RKISPP_NR_YNR_HWEIT_3_4, val);
 
-	rkispp_write(base + RKISPP_NR_YNR_HADJUST_EXGAIN, arg->ynr_hmax_adjust);
+	rkispp_write(base + RKISPP_NR_YNR_HMAX_ADJUST, arg->ynr_hmax_adjust);
 	rkispp_write(base + RKISPP_NR_YNR_HSTRENGTH, arg->ynr_hstrength);
 
 	val = ISPP_PACK_4BYTE(arg->ynr_lweit_cmp[0], arg->ynr_lweit_cmp[1], 0, 0);
@@ -313,6 +318,12 @@ static void shp_config(struct rkispp_params_vdev *params_vdev,
 {
 	void __iomem *base = params_vdev->dev->base_addr;
 	u32 i, val;
+
+	rkispp_write(base + RKISPP_SHARP_SC_DOWN,
+		(arg->scl_down_v & 0x1) << 1 | (arg->scl_down_h & 0x1));
+
+	rkispp_write(base + RKISPP_SHARP_TILE_IDX,
+		(arg->tile_ycnt & 0x1F) << 8 | (arg->tile_xcnt & 0xFF));
 
 	val = arg->alpha_adp_en << 1 | arg->yin_flt_en << 3 |
 		arg->edge_avg_en << 4;
@@ -433,10 +444,61 @@ static void shp_enable(struct rkispp_params_vdev *params_vdev, bool en)
 static void fec_config(struct rkispp_params_vdev *params_vdev,
 		       struct rkispp_fec_config *arg)
 {
+	struct rkispp_device *dev = params_vdev->dev;
+	struct rkispp_stream_vdev *vdev = &dev->stream_vdev;
+	void __iomem *base = dev->base_addr;
+	struct rkispp_dummy_buffer *buf;
+	u32 val;
+
+	if (arg->mesh_size > vdev->fec_buf.mesh_xint.size) {
+		v4l2_err(&dev->v4l2_dev,
+			 "Input mesh size too large. mesh size 0x%x, 0x%x\n",
+			 arg->mesh_size, vdev->fec_buf.mesh_xint.size);
+		return;
+	}
+
+	val = 0;
+	if (arg->mesh_density)
+		val = SW_MESH_DDENSITY;
+	rkispp_set_bits(base + RKISPP_FEC_CORE_CTRL, SW_MESH_DDENSITY, val);
+
+	rkispp_write(base + RKISPP_FEC_MESH_SIZE, arg->mesh_size);
+
+	val = (arg->crop_height & 0x1FFFF) << 14 |
+	      (arg->crop_width & 0x1FFFF) << 1 | (arg->crop_en & 0x01);
+	rkispp_write(base + RKISPP_FEC_CROP, val);
+
+	buf = &vdev->fec_buf.mesh_xint;
+	memcpy(buf->vaddr, &arg->meshxi[0], arg->mesh_size * sizeof(u16));
+	buf = &vdev->fec_buf.mesh_yint;
+	memcpy(buf->vaddr, &arg->meshyi[0], arg->mesh_size * sizeof(u16));
+	buf = &vdev->fec_buf.mesh_xfra;
+	memcpy(buf->vaddr, &arg->meshxf[0], arg->mesh_size * sizeof(u8));
+	buf = &vdev->fec_buf.mesh_yfra;
+	memcpy(buf->vaddr, &arg->meshyf[0], arg->mesh_size * sizeof(u8));
 }
 
 static void fec_enable(struct rkispp_params_vdev *params_vdev, bool en)
 {
+	void __iomem *base = params_vdev->dev->base_addr;
+
+	rkispp_set_bits(base + RKISPP_FEC_CORE_CTRL, SW_FEC_EN, en);
+}
+
+static void orb_config(struct rkispp_params_vdev *params_vdev,
+		       struct rkispp_orb_config *arg)
+{
+	void __iomem *base = params_vdev->dev->base_addr;
+
+	rkispp_write(base + RKISPP_ORB_LIMIT_VALUE, arg->limit_value & 0xFF);
+	rkispp_write(base + RKISPP_ORB_MAX_FEATURE, arg->max_feature & 0x1FFFFF);
+}
+
+static void orb_enable(struct rkispp_params_vdev *params_vdev, bool en)
+{
+	void __iomem *base = params_vdev->dev->base_addr;
+
+	rkispp_set_bits(base + RKISPP_ORB_CORE_CTRL, SW_ORB_EN, en);
 }
 
 static int rkispp_params_enum_fmt_meta_out(struct file *file, void *priv,
@@ -659,40 +721,62 @@ void rkispp_params_isr(struct rkispp_params_vdev *params_vdev, u32 mis)
 	module_ens = new_params->module_ens;
 
 	if (module_cfg_update & ISPP_MODULE_TNR &&
-	    mis & TNR_INT)
+	    mis & TNR_INT) {
 		tnr_config(params_vdev,
 			   &new_params->tnr_cfg);
+		module_cfg_update &= ~ISPP_MODULE_TNR;
+	}
 	if (module_en_update & ISPP_MODULE_TNR &&
-	    mis & TNR_INT)
+	    mis & TNR_INT) {
 		tnr_enable(params_vdev,
 			   !!(module_ens & ISPP_MODULE_TNR));
+		module_en_update &= ~ISPP_MODULE_TNR;
+	}
 
 	if (module_cfg_update & ISPP_MODULE_NR &&
-	    mis & NR_INT)
+	    mis & NR_INT) {
 		nr_config(params_vdev,
 			  &new_params->nr_cfg);
+		module_cfg_update &= ~ISPP_MODULE_NR;
+	}
 	if (module_en_update & ISPP_MODULE_NR &&
-	    mis & NR_INT)
+	    mis & NR_INT) {
 		nr_enable(params_vdev,
 			  !!(module_ens & ISPP_MODULE_NR));
+		module_en_update &= ~ISPP_MODULE_NR;
+	}
 
 	if (module_cfg_update & ISPP_MODULE_SHP &&
-	    mis & SHP_INT)
+	    mis & SHP_INT) {
 		shp_config(params_vdev,
 			   &new_params->shp_cfg);
+		module_cfg_update &= ~ISPP_MODULE_SHP;
+	}
 	if (module_en_update & ISPP_MODULE_SHP &&
-	    mis & SHP_INT)
+	    mis & SHP_INT) {
 		shp_enable(params_vdev,
 			   !!(module_ens & ISPP_MODULE_SHP));
+		module_en_update &= ~ISPP_MODULE_SHP;
+	}
 
-	if (module_cfg_update & ISPP_MODULE_FEC)
-		fec_config(params_vdev,
-			   &new_params->fec_cfg);
-	if (module_en_update & ISPP_MODULE_FEC)
-		fec_enable(params_vdev,
-			   !!(module_ens & ISPP_MODULE_FEC));
-	//TODO diff mode to release buf
-	if (mis & SHP_INT) {
+	if (module_cfg_update & ISPP_MODULE_ORB &&
+	    mis & ORB_INT) {
+		orb_config(params_vdev,
+			   &new_params->orb_cfg);
+		module_cfg_update &= ~ISPP_MODULE_ORB;
+	}
+	if (module_en_update & ISPP_MODULE_ORB &&
+	    mis & ORB_INT) {
+		orb_enable(params_vdev,
+			   !!(module_ens & ISPP_MODULE_ORB));
+		module_en_update &= ~ISPP_MODULE_ORB;
+	}
+
+	new_params->module_en_update = module_en_update;
+	new_params->module_cfg_update = module_cfg_update;
+
+	if (!(module_en_update & ISPP_PARAM_UD_CK) &&
+	    !(module_cfg_update & ISPP_PARAM_UD_CK)) {
 		vb2_buffer_done(&params_vdev->cur_buf->vb.vb2_buf,
 				VB2_BUF_STATE_DONE);
 		params_vdev->cur_buf = NULL;
@@ -733,6 +817,13 @@ void rkispp_params_configure(struct rkispp_params_vdev *params_vdev)
 	if (module_en_update & ISPP_MODULE_FEC)
 		fec_enable(params_vdev,
 			   !!(module_ens & ISPP_MODULE_FEC));
+
+	if (module_cfg_update & ISPP_MODULE_ORB)
+		orb_config(params_vdev,
+			   &params_vdev->cur_params.orb_cfg);
+	if (module_en_update & ISPP_MODULE_ORB)
+		orb_enable(params_vdev,
+			   !!(module_ens & ISPP_MODULE_ORB));
 }
 
 int rkispp_register_params_vdev(struct rkispp_device *dev)
@@ -775,10 +866,12 @@ int rkispp_register_params_vdev(struct rkispp_device *dev)
 		goto err_cleanup_media_entity;
 	}
 	return 0;
+
 err_cleanup_media_entity:
 	media_entity_cleanup(&vdev->entity);
 err_release_queue:
 	vb2_queue_release(vdev->queue);
+
 	return ret;
 }
 
