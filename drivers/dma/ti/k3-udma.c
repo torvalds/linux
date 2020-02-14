@@ -2029,6 +2029,51 @@ static struct udma_desc *udma_alloc_tr_desc(struct udma_chan *uc,
 	return d;
 }
 
+/**
+ * udma_get_tr_counters - calculate TR counters for a given length
+ * @len: Length of the trasnfer
+ * @align_to: Preferred alignment
+ * @tr0_cnt0: First TR icnt0
+ * @tr0_cnt1: First TR icnt1
+ * @tr1_cnt0: Second (if used) TR icnt0
+ *
+ * For len < SZ_64K only one TR is enough, tr1_cnt0 is not updated
+ * For len >= SZ_64K two TRs are used in a simple way:
+ * First TR: SZ_64K-alignment blocks (tr0_cnt0, tr0_cnt1)
+ * Second TR: the remaining length (tr1_cnt0)
+ *
+ * Returns the number of TRs the length needs (1 or 2)
+ * -EINVAL if the length can not be supported
+ */
+static int udma_get_tr_counters(size_t len, unsigned long align_to,
+				u16 *tr0_cnt0, u16 *tr0_cnt1, u16 *tr1_cnt0)
+{
+	if (len < SZ_64K) {
+		*tr0_cnt0 = len;
+		*tr0_cnt1 = 1;
+
+		return 1;
+	}
+
+	if (align_to > 3)
+		align_to = 3;
+
+realign:
+	*tr0_cnt0 = SZ_64K - BIT(align_to);
+	if (len / *tr0_cnt0 >= SZ_64K) {
+		if (align_to) {
+			align_to--;
+			goto realign;
+		}
+		return -EINVAL;
+	}
+
+	*tr0_cnt1 = len / *tr0_cnt0;
+	*tr1_cnt0 = len % *tr0_cnt0;
+
+	return 2;
+}
+
 static struct udma_desc *
 udma_prep_slave_sg_tr(struct udma_chan *uc, struct scatterlist *sgl,
 		      unsigned int sglen, enum dma_transfer_direction dir,
@@ -2581,29 +2626,12 @@ udma_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 		return NULL;
 	}
 
-	if (len < SZ_64K) {
-		num_tr = 1;
-		tr0_cnt0 = len;
-		tr0_cnt1 = 1;
-	} else {
-		unsigned long align_to = __ffs(src | dest);
-
-		if (align_to > 3)
-			align_to = 3;
-		/*
-		 * Keep simple: tr0: SZ_64K-alignment blocks,
-		 *		tr1: the remaining
-		 */
-		num_tr = 2;
-		tr0_cnt0 = (SZ_64K - BIT(align_to));
-		if (len / tr0_cnt0 >= SZ_64K) {
-			dev_err(uc->ud->dev, "size %zu is not supported\n",
-				len);
-			return NULL;
-		}
-
-		tr0_cnt1 = len / tr0_cnt0;
-		tr1_cnt0 = len % tr0_cnt0;
+	num_tr = udma_get_tr_counters(len, __ffs(src | dest), &tr0_cnt0,
+				      &tr0_cnt1, &tr1_cnt0);
+	if (num_tr < 0) {
+		dev_err(uc->ud->dev, "size %zu is not supported\n",
+			len);
+		return NULL;
 	}
 
 	d = udma_alloc_tr_desc(uc, tr_size, num_tr, DMA_MEM_TO_MEM);
