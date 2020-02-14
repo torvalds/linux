@@ -27,8 +27,6 @@ struct wilc_sdio {
 	bool irq_gpio;
 	u32 block_size;
 	int nint;
-/* Max num interrupts allowed in registers 0xf7, 0xf8 */
-#define MAX_NUN_INT_THRPT_ENH2 (5)
 	int has_thrpt_enh3;
 };
 
@@ -818,8 +816,6 @@ static int wilc_sdio_read_int(struct wilc *wilc, u32 *int_status)
 			tmp |= INT_3;
 		if (cmd.data & BIT(5))
 			tmp |= INT_4;
-		if (cmd.data & BIT(6))
-			tmp |= INT_5;
 		for (i = sdio_priv->nint; i < MAX_NUM_INT; i++) {
 			if ((tmp >> (IRG_FLAGS_OFFSET + i)) & 0x1) {
 				dev_err(&func->dev,
@@ -854,16 +850,11 @@ static int wilc_sdio_clear_int_ext(struct wilc *wilc, u32 val)
 	int vmm_ctl;
 
 	if (sdio_priv->has_thrpt_enh3) {
-		u32 reg;
+		u32 reg = 0;
 
-		if (sdio_priv->irq_gpio) {
-			u32 flags;
+		if (sdio_priv->irq_gpio)
+			reg = val & (BIT(MAX_NUM_INT) - 1);
 
-			flags = val & (BIT(MAX_NUN_INT_THRPT_ENH2) - 1);
-			reg = flags;
-		} else {
-			reg = 0;
-		}
 		/* select VMM table 0 */
 		if (val & SEL_VMM_TBL0)
 			reg |= BIT(5);
@@ -973,11 +964,6 @@ static int wilc_sdio_sync_ext(struct wilc *wilc, int nint)
 
 	if (nint > MAX_NUM_INT) {
 		dev_err(&func->dev, "Too many interrupts (%d)...\n", nint);
-		return -EINVAL;
-	}
-	if (nint > MAX_NUN_INT_THRPT_ENH2) {
-		dev_err(&func->dev,
-			"Cannot support more than 5 interrupts when has_thrpt_enh2=1.\n");
 		return -EINVAL;
 	}
 

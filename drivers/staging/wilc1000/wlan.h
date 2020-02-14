@@ -175,7 +175,7 @@
 #define INT_3			BIT(IRG_FLAGS_OFFSET + 3)
 #define INT_4			BIT(IRG_FLAGS_OFFSET + 4)
 #define INT_5			BIT(IRG_FLAGS_OFFSET + 5)
-#define MAX_NUM_INT		6
+#define MAX_NUM_INT		5
 
 /*******************************************/
 /*        E0 and later Interrupt flags.    */
