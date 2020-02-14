@@ -7,6 +7,7 @@
 #include <linux/clk.h>
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/host.h>
+#include <linux/mmc/sdio.h>
 
 #include "netdev.h"
 #include "cfg80211.h"
@@ -292,7 +293,8 @@ static int wilc_sdio_set_func0_csa_address(struct wilc *wilc, u32 adr)
 	return 0;
 }
 
-static int wilc_sdio_set_func0_block_size(struct wilc *wilc, u32 block_size)
+static int wilc_sdio_set_block_size(struct wilc *wilc, u8 func_num,
+				    u32 block_size)
 {
 	struct sdio_func *func = dev_to_sdio_func(wilc->dev);
 	struct sdio_cmd52 cmd;
@@ -301,52 +303,21 @@ static int wilc_sdio_set_func0_block_size(struct wilc *wilc, u32 block_size)
 	cmd.read_write = 1;
 	cmd.function = 0;
 	cmd.raw = 0;
-	cmd.address = 0x10;
+	cmd.address = SDIO_FBR_BASE(func_num) + SDIO_CCCR_BLKSIZE;
 	cmd.data = (u8)block_size;
 	ret = wilc_sdio_cmd52(wilc, &cmd);
 	if (ret) {
-		dev_err(&func->dev, "Failed cmd52, set 0x10 data...\n");
+		dev_err(&func->dev, "Failed cmd52, set %04x data...\n",
+			cmd.address);
 		return ret;
 	}
 
-	cmd.address = 0x11;
+	cmd.address = SDIO_FBR_BASE(func_num) + SDIO_CCCR_BLKSIZE +  1;
 	cmd.data = (u8)(block_size >> 8);
 	ret = wilc_sdio_cmd52(wilc, &cmd);
 	if (ret) {
-		dev_err(&func->dev, "Failed cmd52, set 0x11 data...\n");
-		return ret;
-	}
-
-	return 0;
-}
-
-/********************************************
- *
- *      Function 1
- *
- ********************************************/
-
-static int wilc_sdio_set_func1_block_size(struct wilc *wilc, u32 block_size)
-{
-	struct sdio_func *func = dev_to_sdio_func(wilc->dev);
-	struct sdio_cmd52 cmd;
-	int ret;
-
-	cmd.read_write = 1;
-	cmd.function = 0;
-	cmd.raw = 0;
-	cmd.address = 0x110;
-	cmd.data = (u8)block_size;
-	ret = wilc_sdio_cmd52(wilc, &cmd);
-	if (ret) {
-		dev_err(&func->dev, "Failed cmd52, set 0x110 data...\n");
-		return ret;
-	}
-	cmd.address = 0x111;
-	cmd.data = (u8)(block_size >> 8);
-	ret = wilc_sdio_cmd52(wilc, &cmd);
-	if (ret) {
-		dev_err(&func->dev, "Failed cmd52, set 0x111 data...\n");
+		dev_err(&func->dev, "Failed cmd52, set %04x data...\n",
+			cmd.address);
 		return ret;
 	}
 
@@ -638,7 +609,7 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 	/**
 	 *      function 0 block size
 	 **/
-	ret = wilc_sdio_set_func0_block_size(wilc, WILC_SDIO_BLOCK_SIZE);
+	ret = wilc_sdio_set_block_size(wilc, 0, WILC_SDIO_BLOCK_SIZE);
 	if (ret) {
 		dev_err(&func->dev, "Fail cmd 52, set func 0 block size...\n");
 		return ret;
@@ -688,7 +659,7 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 	/**
 	 *      func 1 is ready, set func 1 block size
 	 **/
-	ret = wilc_sdio_set_func1_block_size(wilc, WILC_SDIO_BLOCK_SIZE);
+	ret = wilc_sdio_set_block_size(wilc, 1, WILC_SDIO_BLOCK_SIZE);
 	if (ret) {
 		dev_err(&func->dev, "Fail set func 1 block size...\n");
 		return ret;
