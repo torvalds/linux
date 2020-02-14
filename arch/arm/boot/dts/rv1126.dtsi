@@ -828,6 +828,19 @@
 		};
 	};
 
+	rkisp: rkisp@ffb50000 {
+		compatible = "rockchip,rv1126-rkisp";
+		reg = <0xffb50000 0x10000>;
+		interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "isp_irq", "mi_irq", "mipi_irq";
+		clocks = <&cru ACLK_ISP>, <&cru HCLK_ISP>,
+			 <&cru CLK_ISP>;
+		clock-names = "aclk_isp", "hclk_isp", "clk_isp";
+		status = "disabled";
+	};
+
 	pvtm@ffc00000 {
 		compatible = "rockchip,rv1126-npu-pvtm";
 		clocks = <&cru CLK_NPUPVTM>, <&cru PCLK_NPUPVTM>;
