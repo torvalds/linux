@@ -1162,6 +1162,8 @@ static int hw_atl_b0_adj_sys_clock(struct aq_hw_s *self, s64 delta)
 {
 	self->ptp_clk_offset += delta;
 
+	self->aq_fw_ops->adjust_ptp(self, self->ptp_clk_offset);
+
 	return 0;
 }
 
@@ -1212,7 +1214,7 @@ static int hw_atl_b0_gpio_pulse(struct aq_hw_s *self, u32 index,
 	fwreq.ptp_gpio_ctrl.index = index;
 	fwreq.ptp_gpio_ctrl.period = period;
 	/* Apply time offset */
-	fwreq.ptp_gpio_ctrl.start = start - self->ptp_clk_offset;
+	fwreq.ptp_gpio_ctrl.start = start;
 
 	size = sizeof(fwreq.msg_id) + sizeof(fwreq.ptp_gpio_ctrl);
 	return self->aq_fw_ops->send_fw_request(self, &fwreq, size);
