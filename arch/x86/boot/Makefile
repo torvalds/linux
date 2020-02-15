@@ -128,6 +128,8 @@ quiet_cmd_genimage = GENIMAGE $3
 cmd_genimage = sh $(srctree)/$(src)/genimage.sh $2 $3 $(obj)/bzImage \
 			$(obj)/mtools.conf '$(image_cmdline)' $(FDINITRD)
 
+PHONY += bzdisk fdimage fdimage144 fdimage288 isoimage bzlilo install
+
 # This requires write access to /dev/fd0
 bzdisk: $(obj)/bzImage $(obj)/mtools.conf
 	$(call cmd,genimage,bzdisk,/dev/fd0)
