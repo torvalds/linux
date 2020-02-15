@@ -12,12 +12,10 @@ struct net_device;
 
 enum {
 	MLO_PAUSE_NONE,
-	MLO_PAUSE_ASYM = BIT(0),
-	MLO_PAUSE_SYM = BIT(1),
-	MLO_PAUSE_RX = BIT(2),
-	MLO_PAUSE_TX = BIT(3),
+	MLO_PAUSE_RX = BIT(0),
+	MLO_PAUSE_TX = BIT(1),
 	MLO_PAUSE_TXRX_MASK = MLO_PAUSE_TX | MLO_PAUSE_RX,
-	MLO_PAUSE_AN = BIT(4),
+	MLO_PAUSE_AN = BIT(2),
 
 	MLO_AN_PHY = 0,	/* Conventional PHY */
 	MLO_AN_FIXED,	/* Fixed-link mode */

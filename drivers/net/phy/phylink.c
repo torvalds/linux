@@ -181,9 +181,11 @@ static int phylink_parse_fixedlink(struct phylink *pl,
 		/* We treat the "pause" and "asym-pause" terminology as
 		 * defining the link partner's ability. */
 		if (fwnode_property_read_bool(fixed_node, "pause"))
-			pl->link_config.pause |= MLO_PAUSE_SYM;
+			__set_bit(ETHTOOL_LINK_MODE_Pause_BIT,
+				  pl->link_config.lp_advertising);
 		if (fwnode_property_read_bool(fixed_node, "asym-pause"))
-			pl->link_config.pause |= MLO_PAUSE_ASYM;
+			__set_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+				  pl->link_config.lp_advertising);
 
 		if (ret == 0) {
 			desc = fwnode_gpiod_get_index(fixed_node, "link", 0,
@@ -215,9 +217,11 @@ static int phylink_parse_fixedlink(struct phylink *pl,
 						DUPLEX_FULL : DUPLEX_HALF;
 			pl->link_config.speed = prop[2];
 			if (prop[3])
-				pl->link_config.pause |= MLO_PAUSE_SYM;
+				__set_bit(ETHTOOL_LINK_MODE_Pause_BIT,
+					  pl->link_config.lp_advertising);
 			if (prop[4])
-				pl->link_config.pause |= MLO_PAUSE_ASYM;
+				__set_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+					  pl->link_config.lp_advertising);
 		}
 	}
 
@@ -351,6 +355,22 @@ static void phylink_apply_manual_flow(struct phylink *pl,
 		state->pause = pl->link_config.pause;
 }
 
+static void phylink_resolve_flow(struct phylink_link_state *state)
+{
+	bool tx_pause, rx_pause;
+
+	state->pause = MLO_PAUSE_NONE;
+	if (state->duplex == DUPLEX_FULL) {
+		linkmode_resolve_pause(state->advertising,
+				       state->lp_advertising,
+				       &tx_pause, &rx_pause);
+		if (tx_pause)
+			state->pause |= MLO_PAUSE_TX;
+		if (rx_pause)
+			state->pause |= MLO_PAUSE_RX;
+	}
+}
+
 static void phylink_mac_config(struct phylink *pl,
 			       const struct phylink_link_state *state)
 {
@@ -399,44 +419,16 @@ static void phylink_mac_pcs_get_state(struct phylink *pl,
 /* The fixed state is... fixed except for the link state,
  * which may be determined by a GPIO or a callback.
  */
-static void phylink_get_fixed_state(struct phylink *pl, struct phylink_link_state *state)
+static void phylink_get_fixed_state(struct phylink *pl,
+				    struct phylink_link_state *state)
 {
 	*state = pl->link_config;
 	if (pl->get_fixed_state)
 		pl->get_fixed_state(pl->netdev, state);
 	else if (pl->link_gpio)
 		state->link = !!gpiod_get_value_cansleep(pl->link_gpio);
-}
 
-/* Flow control is resolved according to our and the link partners
- * advertisements using the following drawn from the 802.3 specs:
- *  Local device  Link partner
- *  Pause AsymDir Pause AsymDir Result
- *    1     X       1     X     TX+RX
- *    0     1       1     1     TX
- *    1     1       0     1     RX
- */
-static void phylink_resolve_flow(struct phylink *pl,
-				 struct phylink_link_state *state)
-{
-	int new_pause = 0;
-	int pause = 0;
-
-	if (phylink_test(pl->link_config.advertising, Pause))
-		pause |= MLO_PAUSE_SYM;
-	if (phylink_test(pl->link_config.advertising, Asym_Pause))
-		pause |= MLO_PAUSE_ASYM;
-
-	pause &= state->pause;
-
-	if (pause & MLO_PAUSE_SYM)
-		new_pause = MLO_PAUSE_TX | MLO_PAUSE_RX;
-	else if (pause & MLO_PAUSE_ASYM)
-		new_pause = state->pause & MLO_PAUSE_SYM ?
-			 MLO_PAUSE_TX : MLO_PAUSE_RX;
-
-	state->pause &= ~MLO_PAUSE_TXRX_MASK;
-	state->pause |= new_pause;
+	phylink_resolve_flow(state);
 }
 
 static const char *phylink_pause_to_str(int pause)
@@ -1393,8 +1385,7 @@ int phylink_ethtool_set_pauseparam(struct phylink *pl,
 	    !pause->autoneg && pause->rx_pause != pause->tx_pause)
 		return -EINVAL;
 
-	config->pause &= ~(MLO_PAUSE_AN | MLO_PAUSE_TXRX_MASK);
-
+	config->pause = 0;
 	if (pause->autoneg)
 		config->pause |= MLO_PAUSE_AN;
 	if (pause->rx_pause)
@@ -1505,13 +1496,14 @@ static int phylink_mii_emul_read(unsigned int reg,
 				 struct phylink_link_state *state)
 {
 	struct fixed_phy_status fs;
+	unsigned long *lpa = state->lp_advertising;
 	int val;
 
 	fs.link = state->link;
 	fs.speed = state->speed;
 	fs.duplex = state->duplex;
-	fs.pause = state->pause & MLO_PAUSE_SYM;
-	fs.asym_pause = state->pause & MLO_PAUSE_ASYM;
+	fs.pause = test_bit(ETHTOOL_LINK_MODE_Pause_BIT, lpa);
+	fs.asym_pause = test_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT, lpa);
 
 	val = swphy_read_reg(reg, &fs);
 	if (reg == MII_BMSR) {
