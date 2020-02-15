@@ -311,12 +311,17 @@ static int sonic_send_packet(struct sk_buff *skb, struct net_device *dev)
 	sonic_tda_put(dev, entry, SONIC_TD_LINK,
 		sonic_tda_get(dev, entry, SONIC_TD_LINK) | SONIC_EOL);
 
+	sonic_tda_put(dev, lp->eol_tx, SONIC_TD_LINK, ~SONIC_EOL &
+		      sonic_tda_get(dev, lp->eol_tx, SONIC_TD_LINK));
+
+	netif_dbg(lp, tx_queued, dev, "%s: issuing Tx command\n", __func__);
+
+	SONIC_WRITE(SONIC_CMD, SONIC_CR_TXP);
+
 	lp->tx_len[entry] = length;
 	lp->tx_laddr[entry] = laddr;
 	lp->tx_skb[entry] = skb;
 
-	sonic_tda_put(dev, lp->eol_tx, SONIC_TD_LINK,
-				  sonic_tda_get(dev, lp->eol_tx, SONIC_TD_LINK) & ~SONIC_EOL);
 	lp->eol_tx = entry;
 
 	entry = (entry + 1) & SONIC_TDS_MASK;
@@ -326,10 +331,6 @@ static int sonic_send_packet(struct sk_buff *skb, struct net_device *dev)
 		netif_stop_queue(dev);
 		/* after this packet, wait for ISR to free up some TDAs */
 	}
-
-	netif_dbg(lp, tx_queued, dev, "%s: issuing Tx command\n", __func__);
-
-	SONIC_WRITE(SONIC_CMD, SONIC_CR_TXP);
 
 	spin_unlock_irqrestore(&lp->lock, flags);
 
