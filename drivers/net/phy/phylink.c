@@ -1373,6 +1373,9 @@ int phylink_ethtool_set_pauseparam(struct phylink *pl,
 
 	ASSERT_RTNL();
 
+	if (pl->cur_link_an_mode == MLO_AN_FIXED)
+		return -EOPNOTSUPP;
+
 	if (!phylink_test(pl->supported, Pause) &&
 	    !phylink_test(pl->supported, Asym_Pause))
 		return -EOPNOTSUPP;
@@ -1399,18 +1402,8 @@ int phylink_ethtool_set_pauseparam(struct phylink *pl,
 				   pause->tx_pause);
 	} else if (!test_bit(PHYLINK_DISABLE_STOPPED,
 			     &pl->phylink_disable_state)) {
-		switch (pl->cur_link_an_mode) {
-		case MLO_AN_FIXED:
-			/* Should we allow fixed links to change against the config? */
-			phylink_resolve_flow(pl, config);
-			phylink_mac_config(pl, config);
-			break;
-
-		case MLO_AN_INBAND:
-			phylink_mac_config(pl, config);
-			phylink_mac_an_restart(pl);
-			break;
-		}
+		phylink_mac_config(pl, &pl->link_config);
+		phylink_mac_an_restart(pl);
 	}
 
 	return 0;
