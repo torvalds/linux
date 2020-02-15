@@ -490,6 +490,7 @@ struct sh_eth_cpu_data {
 	unsigned apr:1;		/* EtherC has APR */
 	unsigned mpr:1;		/* EtherC has MPR */
 	unsigned tpauser:1;	/* EtherC has TPAUSER */
+	unsigned gecmr:1;	/* EtherC has GECMR */
 	unsigned bculr:1;	/* EtherC has BCULR */
 	unsigned tsu:1;		/* EtherC has TSU */
 	unsigned hw_swap:1;	/* E-DMAC has DE bit in EDMR */

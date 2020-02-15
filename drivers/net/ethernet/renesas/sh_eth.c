@@ -569,6 +569,9 @@ static void sh_eth_set_rate_gether(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 
+	if (WARN_ON(!mdp->cd->gecmr))
+		return;
+
 	switch (mdp->speed) {
 	case 10: /* 10BASE */
 		sh_eth_write(ndev, GECMR_10, GECMR);
@@ -663,6 +666,7 @@ static struct sh_eth_cpu_data r8a7740_data = {
 	.apr		= 1,
 	.mpr		= 1,
 	.tpauser	= 1,
+	.gecmr		= 1,
 	.bculr		= 1,
 	.hw_swap	= 1,
 	.rpadir		= 1,
@@ -788,6 +792,7 @@ static struct sh_eth_cpu_data r8a77980_data = {
 	.apr		= 1,
 	.mpr		= 1,
 	.tpauser	= 1,
+	.gecmr		= 1,
 	.bculr		= 1,
 	.hw_swap	= 1,
 	.nbst		= 1,
@@ -957,6 +962,9 @@ static void sh_eth_set_rate_giga(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 
+	if (WARN_ON(!mdp->cd->gecmr))
+		return;
+
 	switch (mdp->speed) {
 	case 10: /* 10BASE */
 		sh_eth_write(ndev, 0x00000000, GECMR);
@@ -1002,6 +1010,7 @@ static struct sh_eth_cpu_data sh7757_data_giga = {
 	.apr		= 1,
 	.mpr		= 1,
 	.tpauser	= 1,
+	.gecmr		= 1,
 	.bculr		= 1,
 	.hw_swap	= 1,
 	.rpadir		= 1,
@@ -1042,6 +1051,7 @@ static struct sh_eth_cpu_data sh7734_data = {
 	.apr		= 1,
 	.mpr		= 1,
 	.tpauser	= 1,
+	.gecmr		= 1,
 	.bculr		= 1,
 	.hw_swap	= 1,
 	.no_trimd	= 1,
@@ -1083,6 +1093,7 @@ static struct sh_eth_cpu_data sh7763_data = {
 	.apr		= 1,
 	.mpr		= 1,
 	.tpauser	= 1,
+	.gecmr		= 1,
 	.bculr		= 1,
 	.hw_swap	= 1,
 	.no_trimd	= 1,
@@ -2181,7 +2192,8 @@ static size_t __sh_eth_get_regs(struct net_device *ndev, u32 *buf)
 	if (cd->tpauser)
 		add_reg(TPAUSER);
 	add_reg(TPAUSECR);
-	add_reg(GECMR);
+	if (cd->gecmr)
+		add_reg(GECMR);
 	if (cd->bculr)
 		add_reg(BCULR);
 	add_reg(MAHR);
