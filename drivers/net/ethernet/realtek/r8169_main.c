@@ -3834,9 +3834,6 @@ static void rtl_hw_start_8168(struct rtl8169_private *tp)
 
 static void rtl_hw_start_8169(struct rtl8169_private *tp)
 {
-	if (tp->mac_version == RTL_GIGA_MAC_VER_05)
-		pci_write_config_byte(tp->pci_dev, PCI_CACHE_LINE_SIZE, 0x08);
-
 	RTL_W8(tp, EarlyTxThres, NoEarlyTx);
 
 	tp->cp_cmd |= PCIMulRW;
