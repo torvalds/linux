@@ -89,6 +89,15 @@
 
 #define BNXT_RE_DEFAULT_ACK_DELAY	16
 
+struct bnxt_re_ring_attr {
+	dma_addr_t	*dma_arr;
+	int		pages;
+	int		type;
+	u32		depth;
+	u32		lrid; /* Logical ring id */
+	u8		mode;
+};
+
 struct bnxt_re_work {
 	struct work_struct	work;
 	unsigned long		event;
