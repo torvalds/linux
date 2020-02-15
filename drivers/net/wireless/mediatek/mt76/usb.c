@@ -672,10 +672,17 @@ mt76u_process_rx_queue(struct mt76_dev *dev, struct mt76_queue *q)
 static void mt76u_rx_tasklet(unsigned long data)
 {
 	struct mt76_dev *dev = (struct mt76_dev *)data;
-	struct mt76_queue *q = &dev->q_rx[MT_RXQ_MAIN];
+	struct mt76_queue *q;
+	int i;
 
 	rcu_read_lock();
-	mt76u_process_rx_queue(dev, q);
+	for (i = 0; i < __MT_RXQ_MAX; i++) {
+		q = &dev->q_rx[i];
+		if (!q->ndesc)
+			continue;
+
+		mt76u_process_rx_queue(dev, q);
+	}
 	rcu_read_unlock();
 }
 
