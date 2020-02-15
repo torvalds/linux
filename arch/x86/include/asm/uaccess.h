@@ -695,15 +695,6 @@ extern struct movsl_mask {
 #endif
 
 /*
- * We rely on the nested NMI work to allow atomic faults from the NMI path; the
- * nested NMI paths are careful to preserve CR2.
- *
- * Caller must use pagefault_enable/disable, or run in interrupt context,
- * and also do a uaccess_ok() check
- */
-#define __copy_from_user_nmi __copy_from_user_inatomic
-
-/*
  * The "unsafe" user accesses aren't really "unsafe", but the naming
  * is a big fat warning: you have to not only do the access_ok()
  * checking before using them, but you have to surround them with the
