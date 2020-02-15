@@ -321,7 +321,6 @@ struct sonic_local {
 	unsigned int cur_tx;           /* first unacked transmit packet */
 	unsigned int eol_rx;
 	unsigned int eol_tx;           /* last unacked transmit packet */
-	unsigned int next_tx;          /* next free TD */
 	int msg_enable;
 	struct device *device;         /* generic device */
 	struct net_device_stats stats;
