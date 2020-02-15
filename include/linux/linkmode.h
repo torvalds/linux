@@ -71,7 +71,7 @@ static inline void linkmode_change_bit(int nr, volatile unsigned long *addr)
 	__change_bit(nr, addr);
 }
 
-static inline int linkmode_test_bit(int nr, volatile unsigned long *addr)
+static inline int linkmode_test_bit(int nr, const volatile unsigned long *addr)
 {
 	return test_bit(nr, addr);
 }
