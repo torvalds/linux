@@ -467,7 +467,6 @@ struct sk_buff *__netdev_alloc_skb(struct net_device *dev, unsigned int len,
 		return NULL;
 	}
 
-	/* use OR instead of assignment to avoid clearing of bits in mask */
 	if (pfmemalloc)
 		skb->pfmemalloc = 1;
 	skb->head_frag = 1;
@@ -527,7 +526,6 @@ struct sk_buff *__napi_alloc_skb(struct napi_struct *napi, unsigned int len,
 		return NULL;
 	}
 
-	/* use OR instead of assignment to avoid clearing of bits in mask */
 	if (nc->page.pfmemalloc)
 		skb->pfmemalloc = 1;
 	skb->head_frag = 1;
