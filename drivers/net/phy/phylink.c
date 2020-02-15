@@ -431,6 +431,35 @@ static void phylink_get_fixed_state(struct phylink *pl,
 	phylink_resolve_flow(state);
 }
 
+static void phylink_mac_initial_config(struct phylink *pl)
+{
+	struct phylink_link_state link_state;
+
+	switch (pl->cur_link_an_mode) {
+	case MLO_AN_PHY:
+		link_state = pl->phy_state;
+		break;
+
+	case MLO_AN_FIXED:
+		phylink_get_fixed_state(pl, &link_state);
+		break;
+
+	case MLO_AN_INBAND:
+		link_state = pl->link_config;
+		if (link_state.interface == PHY_INTERFACE_MODE_SGMII)
+			link_state.pause = MLO_PAUSE_NONE;
+		break;
+
+	default: /* can't happen */
+		return;
+	}
+
+	link_state.link = false;
+
+	phylink_apply_manual_flow(pl, &link_state);
+	phylink_mac_config(pl, &link_state);
+}
+
 static const char *phylink_pause_to_str(int pause)
 {
 	switch (pause & MLO_PAUSE_TXRX_MASK) {
@@ -779,6 +808,9 @@ static int phylink_bringup_phy(struct phylink *pl, struct phy_device *phy,
 	mutex_lock(&pl->state_mutex);
 	pl->phydev = phy;
 	pl->phy_state.interface = interface;
+	pl->phy_state.pause = MLO_PAUSE_NONE;
+	pl->phy_state.speed = SPEED_UNKNOWN;
+	pl->phy_state.duplex = DUPLEX_UNKNOWN;
 	linkmode_copy(pl->supported, supported);
 	linkmode_copy(pl->link_config.advertising, config.advertising);
 
@@ -1008,7 +1040,7 @@ void phylink_start(struct phylink *pl)
 	 * a fixed-link to start with the correct parameters, and also
 	 * ensures that we set the appropriate advertisement for Serdes links.
 	 */
-	phylink_mac_config(pl, &pl->link_config);
+	phylink_mac_initial_config(pl);
 
 	/* Restart autonegotiation if using 802.3z to ensure that the link
 	 * parameters are properly negotiated.  This is necessary for DSA
@@ -1826,7 +1858,7 @@ static int phylink_sfp_config(struct phylink *pl, u8 mode,
 
 	if (changed && !test_bit(PHYLINK_DISABLE_STOPPED,
 				 &pl->phylink_disable_state))
-		phylink_mac_config(pl, &pl->link_config);
+		phylink_mac_initial_config(pl);
 
 	return ret;
 }
