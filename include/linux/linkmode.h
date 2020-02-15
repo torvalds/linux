@@ -88,4 +88,8 @@ static inline int linkmode_subset(const unsigned long *src1,
 	return bitmap_subset(src1, src2, __ETHTOOL_LINK_MODE_MASK_NBITS);
 }
 
+void linkmode_resolve_pause(const unsigned long *local_adv,
+			    const unsigned long *partner_adv,
+			    bool *tx_pause, bool *rx_pause);
+
 #endif /* __LINKMODE_H */
