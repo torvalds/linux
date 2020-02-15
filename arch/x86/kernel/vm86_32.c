@@ -98,7 +98,6 @@ void save_v86_state(struct kernel_vm86_regs *regs, int retval)
 	struct task_struct *tsk = current;
 	struct vm86plus_struct __user *user;
 	struct vm86 *vm86 = current->thread.vm86;
-	long err = 0;
 
 	/*
 	 * This gets called from entry.S with interrupts disabled, but
@@ -114,37 +113,30 @@ void save_v86_state(struct kernel_vm86_regs *regs, int retval)
 	set_flags(regs->pt.flags, VEFLAGS, X86_EFLAGS_VIF | vm86->veflags_mask);
 	user = vm86->user_vm86;
 
-	if (!access_ok(user, vm86->vm86plus.is_vm86pus ?
+	if (!user_access_begin(user, vm86->vm86plus.is_vm86pus ?
 		       sizeof(struct vm86plus_struct) :
-		       sizeof(struct vm86_struct))) {
-		pr_alert("could not access userspace vm86 info\n");
-		do_exit(SIGSEGV);
-	}
+		       sizeof(struct vm86_struct)))
+		goto Efault;
 
-	put_user_try {
-		put_user_ex(regs->pt.bx, &user->regs.ebx);
-		put_user_ex(regs->pt.cx, &user->regs.ecx);
-		put_user_ex(regs->pt.dx, &user->regs.edx);
-		put_user_ex(regs->pt.si, &user->regs.esi);
-		put_user_ex(regs->pt.di, &user->regs.edi);
-		put_user_ex(regs->pt.bp, &user->regs.ebp);
-		put_user_ex(regs->pt.ax, &user->regs.eax);
-		put_user_ex(regs->pt.ip, &user->regs.eip);
-		put_user_ex(regs->pt.cs, &user->regs.cs);
-		put_user_ex(regs->pt.flags, &user->regs.eflags);
-		put_user_ex(regs->pt.sp, &user->regs.esp);
-		put_user_ex(regs->pt.ss, &user->regs.ss);
-		put_user_ex(regs->es, &user->regs.es);
-		put_user_ex(regs->ds, &user->regs.ds);
-		put_user_ex(regs->fs, &user->regs.fs);
-		put_user_ex(regs->gs, &user->regs.gs);
+	unsafe_put_user(regs->pt.bx, &user->regs.ebx, Efault_end);
+	unsafe_put_user(regs->pt.cx, &user->regs.ecx, Efault_end);
+	unsafe_put_user(regs->pt.dx, &user->regs.edx, Efault_end);
+	unsafe_put_user(regs->pt.si, &user->regs.esi, Efault_end);
+	unsafe_put_user(regs->pt.di, &user->regs.edi, Efault_end);
+	unsafe_put_user(regs->pt.bp, &user->regs.ebp, Efault_end);
+	unsafe_put_user(regs->pt.ax, &user->regs.eax, Efault_end);
+	unsafe_put_user(regs->pt.ip, &user->regs.eip, Efault_end);
+	unsafe_put_user(regs->pt.cs, &user->regs.cs, Efault_end);
+	unsafe_put_user(regs->pt.flags, &user->regs.eflags, Efault_end);
+	unsafe_put_user(regs->pt.sp, &user->regs.esp, Efault_end);
+	unsafe_put_user(regs->pt.ss, &user->regs.ss, Efault_end);
+	unsafe_put_user(regs->es, &user->regs.es, Efault_end);
+	unsafe_put_user(regs->ds, &user->regs.ds, Efault_end);
+	unsafe_put_user(regs->fs, &user->regs.fs, Efault_end);
+	unsafe_put_user(regs->gs, &user->regs.gs, Efault_end);
+	unsafe_put_user(vm86->screen_bitmap, &user->screen_bitmap, Efault_end);
 
-		put_user_ex(vm86->screen_bitmap, &user->screen_bitmap);
-	} put_user_catch(err);
-	if (err) {
-		pr_alert("could not access userspace vm86 info\n");
-		do_exit(SIGSEGV);
-	}
+	user_access_end();
 
 	preempt_disable();
 	tsk->thread.sp0 = vm86->saved_sp0;
@@ -159,6 +151,13 @@ void save_v86_state(struct kernel_vm86_regs *regs, int retval)
 	lazy_load_gs(vm86->regs32.gs);
 
 	regs->pt.ax = retval;
+	return;
+
+Efault_end:
+	user_access_end();
+Efault:
+	pr_alert("could not access userspace vm86 info\n");
+	do_exit(SIGSEGV);
 }
 
 static void mark_screen_rdonly(struct mm_struct *mm)
