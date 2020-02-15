@@ -65,6 +65,9 @@ static struct intel_ring *mock_ring(struct intel_engine_cs *engine)
 		return NULL;
 	}
 	i915_active_init(&ring->vma->active, NULL, NULL);
+	__set_bit(I915_VMA_GGTT_BIT, __i915_vma_flags(ring->vma));
+	__set_bit(DRM_MM_NODE_ALLOCATED_BIT, &ring->vma->node.flags);
+	ring->vma->node.size = sz;
 
 	intel_ring_update_space(ring);
 
