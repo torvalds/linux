@@ -114,17 +114,6 @@ static inline void bit_reverse_addr(unsigned char addr[6])
 		addr[i] = bitrev8(addr[i]);
 }
 
-static irqreturn_t macsonic_interrupt(int irq, void *dev_id)
-{
-	irqreturn_t result;
-	unsigned long flags;
-
-	local_irq_save(flags);
-	result = sonic_interrupt(irq, dev_id);
-	local_irq_restore(flags);
-	return result;
-}
-
 static int macsonic_open(struct net_device* dev)
 {
 	int retval;
@@ -135,12 +124,12 @@ static int macsonic_open(struct net_device* dev)
 				dev->name, dev->irq);
 		goto err;
 	}
-	/* Under the A/UX interrupt scheme, the onboard SONIC interrupt comes
-	 * in at priority level 3. However, we sometimes get the level 2 inter-
-	 * rupt as well, which must prevent re-entrance of the sonic handler.
+	/* Under the A/UX interrupt scheme, the onboard SONIC interrupt gets
+	 * moved from level 2 to level 3. Unfortunately we still get some
+	 * level 2 interrupts so register the handler for both.
 	 */
 	if (dev->irq == IRQ_AUTO_3) {
-		retval = request_irq(IRQ_NUBUS_9, macsonic_interrupt, 0,
+		retval = request_irq(IRQ_NUBUS_9, sonic_interrupt, 0,
 				     "sonic", dev);
 		if (retval) {
 			printk(KERN_ERR "%s: unable to get IRQ %d.\n",
