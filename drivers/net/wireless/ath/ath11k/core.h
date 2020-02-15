@@ -20,6 +20,7 @@
 #include "hw.h"
 #include "hal_rx.h"
 #include "reg.h"
+#include "thermal.h"
 
 #define SM(_v, _f) (((_v) << _f##_LSB) & _f##_MASK)
 
@@ -526,6 +527,7 @@ struct ath11k {
 	struct ath11k_debug debug;
 #endif
 	bool dfs_block_radar_events;
+	struct ath11k_thermal thermal;
 };
 
 struct ath11k_band_cap {

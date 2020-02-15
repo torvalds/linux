@@ -2442,6 +2442,70 @@ out:
 	return ret;
 }
 
+int
+ath11k_wmi_send_thermal_mitigation_param_cmd(struct ath11k *ar,
+					     struct thermal_mitigation_params *param)
+{
+	struct ath11k_pdev_wmi *wmi = ar->wmi;
+	struct wmi_therm_throt_config_request_cmd *cmd;
+	struct wmi_therm_throt_level_config_info *lvl_conf;
+	struct wmi_tlv *tlv;
+	struct sk_buff *skb;
+	int i, ret, len;
+
+	len = sizeof(*cmd) + TLV_HDR_SIZE +
+	      THERMAL_LEVELS * sizeof(struct wmi_therm_throt_level_config_info);
+
+	skb = ath11k_wmi_alloc_skb(wmi->wmi_ab, len);
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_therm_throt_config_request_cmd *)skb->data;
+
+	cmd->tlv_header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_THERM_THROT_CONFIG_REQUEST) |
+			  FIELD_PREP(WMI_TLV_LEN, sizeof(*cmd) - TLV_HDR_SIZE);
+
+	cmd->pdev_id = ar->pdev->pdev_id;
+	cmd->enable = param->enable;
+	cmd->dc = param->dc;
+	cmd->dc_per_event = param->dc_per_event;
+	cmd->therm_throt_levels = THERMAL_LEVELS;
+
+	tlv = (struct wmi_tlv *)(skb->data + sizeof(*cmd));
+	tlv->header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_ARRAY_STRUCT) |
+		      FIELD_PREP(WMI_TLV_LEN,
+				 (THERMAL_LEVELS *
+				  sizeof(struct wmi_therm_throt_level_config_info)));
+
+	lvl_conf = (struct wmi_therm_throt_level_config_info *)(skb->data +
+								sizeof(*cmd) +
+								TLV_HDR_SIZE);
+	for (i = 0; i < THERMAL_LEVELS; i++) {
+		lvl_conf->tlv_header =
+			FIELD_PREP(WMI_TLV_TAG, WMI_TAG_THERM_THROT_LEVEL_CONFIG_INFO) |
+			FIELD_PREP(WMI_TLV_LEN, sizeof(*lvl_conf) - TLV_HDR_SIZE);
+
+		lvl_conf->temp_lwm = param->levelconf[i].tmplwm;
+		lvl_conf->temp_hwm = param->levelconf[i].tmphwm;
+		lvl_conf->dc_off_percent = param->levelconf[i].dcoffpercent;
+		lvl_conf->prio = param->levelconf[i].priority;
+		lvl_conf++;
+	}
+
+	ret = ath11k_wmi_cmd_send(wmi, skb, WMI_THERM_THROT_SET_CONF_CMDID);
+	if (ret) {
+		ath11k_warn(ar->ab, "failed to send THERM_THROT_SET_CONF cmd\n");
+		dev_kfree_skb(skb);
+	}
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_WMI,
+		   "WMI vdev set thermal throt pdev_id %d enable %d dc %d dc_per_event %x levels %d\n",
+		   ar->pdev->pdev_id, param->enable, param->dc,
+		   param->dc_per_event, THERMAL_LEVELS);
+
+	return ret;
+}
+
 int ath11k_wmi_pdev_pktlog_enable(struct ath11k *ar, u32 pktlog_filter)
 {
 	struct ath11k_pdev_wmi *wmi = ar->wmi;

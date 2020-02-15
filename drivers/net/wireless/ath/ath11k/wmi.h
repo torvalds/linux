@@ -442,6 +442,10 @@ enum wmi_tlv_cmd_id {
 	WMI_DBGLOG_TIME_STAMP_SYNC_CMDID,
 	WMI_SET_MULTIPLE_MCAST_FILTER_CMDID,
 	WMI_READ_DATA_FROM_FLASH_CMDID,
+	WMI_THERM_THROT_SET_CONF_CMDID,
+	WMI_RUNTIME_DPD_RECAL_CMDID,
+	WMI_GET_TPC_POWER_CMDID,
+	WMI_IDLE_TRIGGER_MONITOR_CMDID,
 	WMI_GPIO_CONFIG_CMDID = WMI_TLV_CMD(WMI_GRP_GPIO),
 	WMI_GPIO_OUTPUT_CMDID,
 	WMI_TXBF_CMDID,
@@ -3605,6 +3609,39 @@ struct wmi_init_country_cmd {
 	} cc_info;
 } __packed;
 
+#define THERMAL_LEVELS  1
+struct tt_level_config {
+	u32 tmplwm;
+	u32 tmphwm;
+	u32 dcoffpercent;
+	u32 priority;
+};
+
+struct thermal_mitigation_params {
+	u32 pdev_id;
+	u32 enable;
+	u32 dc;
+	u32 dc_per_event;
+	struct tt_level_config levelconf[THERMAL_LEVELS];
+};
+
+struct wmi_therm_throt_config_request_cmd {
+	u32 tlv_header;
+	u32 pdev_id;
+	u32 enable;
+	u32 dc;
+	u32 dc_per_event;
+	u32 therm_throt_levels;
+} __packed;
+
+struct wmi_therm_throt_level_config_info {
+	u32 tlv_header;
+	u32 temp_lwm;
+	u32 temp_hwm;
+	u32 dc_off_percent;
+	u32 prio;
+} __packed;
+
 struct wmi_pdev_pktlog_filter_info {
 	u32 tlv_header;
 	struct wmi_mac_addr peer_macaddr;
@@ -4740,6 +4777,9 @@ int ath11k_wmi_send_bcn_offload_control_cmd(struct ath11k *ar,
 int
 ath11k_wmi_send_init_country_cmd(struct ath11k *ar,
 				 struct wmi_init_country_params init_cc_param);
+int
+ath11k_wmi_send_thermal_mitigation_param_cmd(struct ath11k *ar,
+					     struct thermal_mitigation_params *param);
 int ath11k_wmi_pdev_pktlog_enable(struct ath11k *ar, u32 pktlog_filter);
 int ath11k_wmi_pdev_pktlog_disable(struct ath11k *ar);
 int ath11k_wmi_pdev_peer_pktlog_filter(struct ath11k *ar, u8 *addr, u8 enable);
