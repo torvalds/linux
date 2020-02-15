@@ -693,22 +693,6 @@ struct drm_encoder_helper_funcs {
 				struct drm_connector_state *conn_state);
 
 	/**
-	 * @get_crtc:
-	 *
-	 * This callback is used by the legacy CRTC helpers to work around
-	 * deficiencies in its own book-keeping.
-	 *
-	 * Do not use, use atomic helpers instead, which get the book keeping
-	 * right.
-	 *
-	 * FIXME:
-	 *
-	 * Currently only nouveau is using this, and as soon as nouveau is
-	 * atomic we can ditch this hook.
-	 */
-	struct drm_crtc *(*get_crtc)(struct drm_encoder *encoder);
-
-	/**
 	 * @detect:
 	 *
 	 * This callback can be used by drivers who want to do detection on the
