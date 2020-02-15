@@ -1385,6 +1385,7 @@ int phylink_ethtool_set_pauseparam(struct phylink *pl,
 	    !pause->autoneg && pause->rx_pause != pause->tx_pause)
 		return -EINVAL;
 
+	mutex_lock(&pl->state_mutex);
 	config->pause = 0;
 	if (pause->autoneg)
 		config->pause |= MLO_PAUSE_AN;
@@ -1392,6 +1393,22 @@ int phylink_ethtool_set_pauseparam(struct phylink *pl,
 		config->pause |= MLO_PAUSE_RX;
 	if (pause->tx_pause)
 		config->pause |= MLO_PAUSE_TX;
+
+	/*
+	 * See the comments for linkmode_set_pause(), wrt the deficiencies
+	 * with the current implementation.  A solution to this issue would
+	 * be:
+	 * ethtool  Local device
+	 *  rx  tx  Pause AsymDir
+	 *  0   0   0     0
+	 *  1   0   1     1
+	 *  0   1   0     1
+	 *  1   1   1     1
+	 * and then use the ethtool rx/tx enablement status to mask the
+	 * rx/tx pause resolution.
+	 */
+	linkmode_set_pause(config->advertising, pause->tx_pause,
+			   pause->rx_pause);
 
 	/* If we have a PHY, phylib will call our link state function if the
 	 * mode has changed, which will trigger a resolve and update the MAC
@@ -1405,6 +1422,7 @@ int phylink_ethtool_set_pauseparam(struct phylink *pl,
 		phylink_mac_config(pl, &pl->link_config);
 		phylink_mac_an_restart(pl);
 	}
+	mutex_unlock(&pl->state_mutex);
 
 	return 0;
 }
