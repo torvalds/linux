@@ -29,6 +29,15 @@
 #include "kfd_priv.h"
 #include "kfd_svm.h"
 
+static bool
+svm_range_cpu_invalidate_pagetables(struct mmu_interval_notifier *mni,
+				    const struct mmu_notifier_range *range,
+				    unsigned long cur_seq);
+
+static const struct mmu_interval_notifier_ops svm_range_mn_ops = {
+	.invalidate = svm_range_cpu_invalidate_pagetables,
+};
+
 /**
  * svm_range_unlink - unlink svm_range from lists and interval tree
  * @prange: svm range structure to be removed
@@ -45,6 +54,18 @@ static void svm_range_unlink(struct svm_range *prange)
 	list_del(&prange->list);
 	if (prange->it_node.start != 0 && prange->it_node.last != 0)
 		interval_tree_remove(&prange->it_node, &prange->svms->objects);
+}
+
+static void
+svm_range_add_notifier_locked(struct mm_struct *mm, struct svm_range *prange)
+{
+	pr_debug("svms 0x%p prange 0x%p [0x%lx 0x%lx]\n", prange->svms,
+		 prange, prange->start, prange->last);
+
+	mmu_interval_notifier_insert_locked(&prange->notifier, mm,
+				     prange->start << PAGE_SHIFT,
+				     prange->npages << PAGE_SHIFT,
+				     &svm_range_mn_ops);
 }
 
 /**
@@ -66,11 +87,24 @@ static void svm_range_add_to_svms(struct svm_range *prange)
 	interval_tree_insert(&prange->it_node, &prange->svms->objects);
 }
 
+static void svm_range_remove_notifier(struct svm_range *prange)
+{
+	pr_debug("remove notifier svms 0x%p prange 0x%p [0x%lx 0x%lx]\n",
+		 prange->svms, prange,
+		 prange->notifier.interval_tree.start >> PAGE_SHIFT,
+		 prange->notifier.interval_tree.last >> PAGE_SHIFT);
+
+	if (prange->notifier.interval_tree.start != 0 &&
+	    prange->notifier.interval_tree.last != 0)
+		mmu_interval_notifier_remove(&prange->notifier);
+}
+
 static void svm_range_free(struct svm_range *prange)
 {
 	pr_debug("svms 0x%p prange 0x%p [0x%lx 0x%lx]\n", prange->svms, prange,
 		 prange->start, prange->last);
 
+	mutex_destroy(&prange->lock);
 	kfree(prange);
 }
 
@@ -103,6 +137,7 @@ svm_range *svm_range_new(struct svm_range_list *svms, uint64_t start,
 	INIT_LIST_HEAD(&prange->update_list);
 	INIT_LIST_HEAD(&prange->remove_list);
 	INIT_LIST_HEAD(&prange->insert_list);
+	mutex_init(&prange->lock);
 	svm_range_set_default_attributes(&prange->preferred_loc,
 					 &prange->prefetch_loc,
 					 &prange->granularity, &prange->flags);
@@ -376,6 +411,65 @@ svm_range_split_head(struct svm_range *prange, struct svm_range *new,
 	return r;
 }
 
+/*
+ * Validation+GPU mapping with concurrent invalidation (MMU notifiers)
+ *
+ * To prevent concurrent destruction or change of range attributes, the
+ * svm_read_lock must be held. The caller must not hold the svm_write_lock
+ * because that would block concurrent evictions and lead to deadlocks. To
+ * serialize concurrent migrations or validations of the same range, the
+ * prange->migrate_mutex must be held.
+ *
+ * For VRAM ranges, the SVM BO must be allocated and valid (protected by its
+ * eviction fence.
+ *
+ * The following sequence ensures race-free validation and GPU mapping:
+ *
+ * 1. Reserve page table (and SVM BO if range is in VRAM)
+ * 2. hmm_range_fault to get page addresses (if system memory)
+ * 3. DMA-map pages (if system memory)
+ * 4-a. Take notifier lock
+ * 4-b. Check that pages still valid (mmu_interval_read_retry)
+ * 4-c. Check that the range was not split or otherwise invalidated
+ * 4-d. Update GPU page table
+ * 4.e. Release notifier lock
+ * 5. Release page table (and SVM BO) reservation
+ */
+static int svm_range_validate_and_map(struct mm_struct *mm,
+				      struct svm_range *prange,
+				      uint32_t gpuidx, bool intr, bool wait)
+{
+	struct hmm_range *hmm_range;
+	int r = 0;
+
+	if (!prange->actual_loc) {
+		r = amdgpu_hmm_range_get_pages(&prange->notifier, mm, NULL,
+					       prange->start << PAGE_SHIFT,
+					       prange->npages, &hmm_range,
+					       false, true);
+		if (r) {
+			pr_debug("failed %d to get svm range pages\n", r);
+			goto unreserve_out;
+		}
+	}
+
+	svm_range_lock(prange);
+	if (!prange->actual_loc) {
+		if (amdgpu_hmm_range_get_pages_done(hmm_range)) {
+			r = -EAGAIN;
+			goto unlock_out;
+		}
+	}
+
+	/* TODO: map to GPU */
+
+unlock_out:
+	svm_range_unlock(prange);
+unreserve_out:
+
+	return r;
+}
+
 static struct svm_range *svm_range_clone(struct svm_range *old)
 {
 	struct svm_range *new;
@@ -514,6 +608,18 @@ out:
 			svm_range_free(prange);
 
 	return r;
+}
+
+/**
+ * svm_range_cpu_invalidate_pagetables - interval notifier callback
+ *
+ */
+static bool
+svm_range_cpu_invalidate_pagetables(struct mmu_interval_notifier *mni,
+				    const struct mmu_notifier_range *range,
+				    unsigned long cur_seq)
+{
+	return true;
 }
 
 void svm_range_list_fini(struct kfd_process *p)
@@ -669,6 +775,7 @@ svm_range_set_attr(struct kfd_process *p, uint64_t start, uint64_t size,
 	/* Apply changes as a transaction */
 	list_for_each_entry_safe(prange, next, &insert_list, insert_list) {
 		svm_range_add_to_svms(prange);
+		svm_range_add_notifier_locked(mm, prange);
 	}
 	list_for_each_entry(prange, &update_list, update_list) {
 		svm_range_apply_attrs(p, prange, nattr, attrs);
@@ -680,6 +787,7 @@ svm_range_set_attr(struct kfd_process *p, uint64_t start, uint64_t size,
 			 prange->svms, prange, prange->start,
 			 prange->last);
 		svm_range_unlink(prange);
+		svm_range_remove_notifier(prange);
 		svm_range_free(prange);
 	}
 
@@ -690,7 +798,13 @@ svm_range_set_attr(struct kfd_process *p, uint64_t start, uint64_t size,
 	 * case because the rollback wouldn't be guaranteed to work either.
 	 */
 	list_for_each_entry(prange, &update_list, update_list) {
-		/* TODO */
+		r = svm_range_validate_and_map(mm, prange, MAX_GPU_INSTANCE,
+					       true, true);
+		if (r) {
+			pr_debug("failed %d to map 0x%lx to gpus\n", r,
+				 prange->start);
+			break;
+		}
 	}
 
 	svm_range_debug_dump(svms);

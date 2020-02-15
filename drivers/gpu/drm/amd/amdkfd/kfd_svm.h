@@ -46,11 +46,14 @@
  * @remove_list:link list node used to add to remove list
  * @insert_list:link list node used to add to insert list
  * @npages:     number of pages
+ * @lock:       protect prange start, last, child_list, svm_bo_list
+ * @saved_flags:save/restore current PF_MEMALLOC flags
  * @flags:      flags defined as KFD_IOCTL_SVM_FLAG_*
  * @perferred_loc: perferred location, 0 for CPU, or GPU id
  * @perfetch_loc: last prefetch location, 0 for CPU, or GPU id
  * @actual_loc: the actual location, 0 for CPU, or GPU id
  * @granularity:migration granularity, log2 num pages
+ * @notifier:   register mmu interval notifier
  * @bitmap_access: index bitmap of GPUs which can access the range
  * @bitmap_aip: index bitmap of GPUs which can access the range in place
  *
@@ -68,14 +71,29 @@ struct svm_range {
 	struct list_head		remove_list;
 	struct list_head		insert_list;
 	uint64_t			npages;
+	struct mutex                    lock;
+	unsigned int                    saved_flags;
 	uint32_t			flags;
 	uint32_t			preferred_loc;
 	uint32_t			prefetch_loc;
 	uint32_t			actual_loc;
 	uint8_t				granularity;
+	struct mmu_interval_notifier	notifier;
 	DECLARE_BITMAP(bitmap_access, MAX_GPU_INSTANCE);
 	DECLARE_BITMAP(bitmap_aip, MAX_GPU_INSTANCE);
 };
+
+static inline void svm_range_lock(struct svm_range *prange)
+{
+	mutex_lock(&prange->lock);
+	prange->saved_flags = memalloc_noreclaim_save();
+
+}
+static inline void svm_range_unlock(struct svm_range *prange)
+{
+	memalloc_noreclaim_restore(prange->saved_flags);
+	mutex_unlock(&prange->lock);
+}
 
 int svm_range_list_init(struct kfd_process *p);
 void svm_range_list_fini(struct kfd_process *p);
