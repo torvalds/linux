@@ -339,6 +339,18 @@ static int phylink_parse_mode(struct phylink *pl, struct fwnode_handle *fwnode)
 	return 0;
 }
 
+static void phylink_apply_manual_flow(struct phylink *pl,
+				      struct phylink_link_state *state)
+{
+	/* If autoneg is disabled, pause AN is also disabled */
+	if (!state->an_enabled)
+		state->pause &= ~MLO_PAUSE_AN;
+
+	/* Manual configuration of pause modes */
+	if (!(pl->link_config.pause & MLO_PAUSE_AN))
+		state->pause = pl->link_config.pause;
+}
+
 static void phylink_mac_config(struct phylink *pl,
 			       const struct phylink_link_state *state)
 {
@@ -408,25 +420,20 @@ static void phylink_resolve_flow(struct phylink *pl,
 				 struct phylink_link_state *state)
 {
 	int new_pause = 0;
+	int pause = 0;
 
-	if (pl->link_config.pause & MLO_PAUSE_AN) {
-		int pause = 0;
+	if (phylink_test(pl->link_config.advertising, Pause))
+		pause |= MLO_PAUSE_SYM;
+	if (phylink_test(pl->link_config.advertising, Asym_Pause))
+		pause |= MLO_PAUSE_ASYM;
 
-		if (phylink_test(pl->link_config.advertising, Pause))
-			pause |= MLO_PAUSE_SYM;
-		if (phylink_test(pl->link_config.advertising, Asym_Pause))
-			pause |= MLO_PAUSE_ASYM;
+	pause &= state->pause;
 
-		pause &= state->pause;
-
-		if (pause & MLO_PAUSE_SYM)
-			new_pause = MLO_PAUSE_TX | MLO_PAUSE_RX;
-		else if (pause & MLO_PAUSE_ASYM)
-			new_pause = state->pause & MLO_PAUSE_SYM ?
-				 MLO_PAUSE_TX : MLO_PAUSE_RX;
-	} else {
-		new_pause = pl->link_config.pause & MLO_PAUSE_TXRX_MASK;
-	}
+	if (pause & MLO_PAUSE_SYM)
+		new_pause = MLO_PAUSE_TX | MLO_PAUSE_RX;
+	else if (pause & MLO_PAUSE_ASYM)
+		new_pause = state->pause & MLO_PAUSE_SYM ?
+			 MLO_PAUSE_TX : MLO_PAUSE_RX;
 
 	state->pause &= ~MLO_PAUSE_TXRX_MASK;
 	state->pause |= new_pause;
@@ -494,6 +501,7 @@ static void phylink_resolve(struct work_struct *w)
 		case MLO_AN_PHY:
 			link_state = pl->phy_state;
 			phylink_resolve_flow(pl, &link_state);
+			phylink_apply_manual_flow(pl, &link_state);
 			phylink_mac_config_up(pl, &link_state);
 			break;
 
@@ -518,6 +526,7 @@ static void phylink_resolve(struct work_struct *w)
 				 * the pause mode bits. */
 				link_state.pause |= pl->phy_state.pause;
 				phylink_resolve_flow(pl, &link_state);
+				phylink_apply_manual_flow(pl, &link_state);
 				phylink_mac_config(pl, &link_state);
 			}
 			break;
@@ -1006,7 +1015,6 @@ void phylink_start(struct phylink *pl)
 	 * a fixed-link to start with the correct parameters, and also
 	 * ensures that we set the appropriate advertisement for Serdes links.
 	 */
-	phylink_resolve_flow(pl, &pl->link_config);
 	phylink_mac_config(pl, &pl->link_config);
 
 	/* Restart autonegotiation if using 802.3z to ensure that the link
