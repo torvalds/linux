@@ -212,7 +212,6 @@ enum rtl_registers {
 					/* Unlimited maximum PCI burst. */
 #define	RX_DMA_BURST			(7 << RXCFG_DMA_SHIFT)
 
-	RxMissed	= 0x4c,
 	Cfg9346		= 0x50,
 	Config0		= 0x51,
 	Config1		= 0x52,
@@ -576,6 +575,7 @@ struct rtl8169_tc_offsets {
 	__le64	tx_errors;
 	__le32	tx_multi_collision;
 	__le16	tx_aborted;
+	__le16	rx_missed;
 };
 
 enum rtl_flag {
@@ -1690,6 +1690,7 @@ static bool rtl8169_init_counter_offsets(struct rtl8169_private *tp)
 	tp->tc_offset.tx_errors = counters->tx_errors;
 	tp->tc_offset.tx_multi_collision = counters->tx_multi_collision;
 	tp->tc_offset.tx_aborted = counters->tx_aborted;
+	tp->tc_offset.rx_missed = counters->rx_missed;
 	tp->tc_offset.inited = true;
 
 	return ret;
@@ -3837,8 +3838,6 @@ static void rtl_hw_start_8169(struct rtl8169_private *tp)
 
 	rtl8169_set_magic_reg(tp, tp->mac_version);
 
-	RTL_W32(tp, RxMissed, 0);
-
 	/* disable interrupt coalescing */
 	RTL_W16(tp, IntrMitigate, 0x0000);
 }
@@ -4681,17 +4680,6 @@ static int rtl8169_poll(struct napi_struct *napi, int budget)
 	return work_done;
 }
 
-static void rtl8169_rx_missed(struct net_device *dev)
-{
-	struct rtl8169_private *tp = netdev_priv(dev);
-
-	if (tp->mac_version > RTL_GIGA_MAC_VER_06)
-		return;
-
-	dev->stats.rx_missed_errors += RTL_R32(tp, RxMissed) & 0xffffff;
-	RTL_W32(tp, RxMissed, 0);
-}
-
 static void r8169_phylink_handler(struct net_device *ndev)
 {
 	struct rtl8169_private *tp = netdev_priv(ndev);
@@ -4741,12 +4729,6 @@ static void rtl8169_down(struct net_device *dev)
 	netif_stop_queue(dev);
 
 	rtl8169_hw_reset(tp);
-	/*
-	 * At this point device interrupts can not be enabled in any function,
-	 * as netif_running is not true (rtl8169_interrupt, rtl8169_reset_task)
-	 * and napi is disabled (rtl8169_poll).
-	 */
-	rtl8169_rx_missed(dev);
 
 	/* Give a racing hard_start_xmit a few cycles to complete. */
 	synchronize_rcu();
@@ -4891,9 +4873,6 @@ rtl8169_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 
 	pm_runtime_get_noresume(&pdev->dev);
 
-	if (netif_running(dev) && pm_runtime_active(&pdev->dev))
-		rtl8169_rx_missed(dev);
-
 	do {
 		start = u64_stats_fetch_begin_irq(&tp->rx_stats.syncp);
 		stats->rx_packets = tp->rx_stats.packets;
@@ -4912,7 +4891,6 @@ rtl8169_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	stats->rx_errors	= dev->stats.rx_errors;
 	stats->rx_crc_errors	= dev->stats.rx_crc_errors;
 	stats->rx_fifo_errors	= dev->stats.rx_fifo_errors;
-	stats->rx_missed_errors = dev->stats.rx_missed_errors;
 	stats->multicast	= dev->stats.multicast;
 
 	/*
@@ -4932,6 +4910,8 @@ rtl8169_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 		le32_to_cpu(tp->tc_offset.tx_multi_collision);
 	stats->tx_aborted_errors = le16_to_cpu(counters->tx_aborted) -
 		le16_to_cpu(tp->tc_offset.tx_aborted);
+	stats->rx_missed_errors = le16_to_cpu(counters->rx_missed) -
+		le16_to_cpu(tp->tc_offset.rx_missed);
 
 	pm_runtime_put_noidle(&pdev->dev);
 }
@@ -5017,7 +4997,6 @@ static int rtl8169_runtime_suspend(struct device *device)
 	rtl8169_net_suspend(dev);
 
 	/* Update counters before going runtime suspend */
-	rtl8169_rx_missed(dev);
 	rtl8169_update_counters(tp);
 
 	return 0;
