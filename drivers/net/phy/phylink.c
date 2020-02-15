@@ -500,7 +500,6 @@ static void phylink_resolve(struct work_struct *w)
 		switch (pl->cur_link_an_mode) {
 		case MLO_AN_PHY:
 			link_state = pl->phy_state;
-			phylink_resolve_flow(pl, &link_state);
 			phylink_apply_manual_flow(pl, &link_state);
 			phylink_mac_config_up(pl, &link_state);
 			break;
@@ -523,9 +522,8 @@ static void phylink_resolve(struct work_struct *w)
 				link_state.interface = pl->phy_state.interface;
 
 				/* If we have a PHY, we need to update with
-				 * the pause mode bits. */
-				link_state.pause |= pl->phy_state.pause;
-				phylink_resolve_flow(pl, &link_state);
+				 * the PHY flow control bits. */
+				link_state.pause = pl->phy_state.pause;
 				phylink_apply_manual_flow(pl, &link_state);
 				phylink_mac_config(pl, &link_state);
 			}
@@ -714,15 +712,18 @@ static void phylink_phy_change(struct phy_device *phydev, bool up,
 			       bool do_carrier)
 {
 	struct phylink *pl = phydev->phylink;
+	bool tx_pause, rx_pause;
+
+	phy_get_pause(phydev, &tx_pause, &rx_pause);
 
 	mutex_lock(&pl->state_mutex);
 	pl->phy_state.speed = phydev->speed;
 	pl->phy_state.duplex = phydev->duplex;
 	pl->phy_state.pause = MLO_PAUSE_NONE;
-	if (phydev->pause)
-		pl->phy_state.pause |= MLO_PAUSE_SYM;
-	if (phydev->asym_pause)
-		pl->phy_state.pause |= MLO_PAUSE_ASYM;
+	if (tx_pause)
+		pl->phy_state.pause |= MLO_PAUSE_TX;
+	if (rx_pause)
+		pl->phy_state.pause |= MLO_PAUSE_RX;
 	pl->phy_state.interface = phydev->interface;
 	pl->phy_state.link = up;
 	mutex_unlock(&pl->state_mutex);
