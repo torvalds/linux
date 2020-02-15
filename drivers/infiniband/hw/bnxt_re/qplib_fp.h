@@ -470,29 +470,32 @@ static inline void bnxt_qplib_ring_nq_db(void __iomem *db, u32 raw_cons,
 		writel(NQ_DB_CP_FLAGS | (index & DBC_DBC32_XID_MASK), db);
 }
 
+struct bnxt_qplib_nq_db {
+	struct bnxt_qplib_reg_desc	reg;
+	void __iomem			*db;
+};
+
+typedef int (*cqn_handler_t)(struct bnxt_qplib_nq *nq,
+		struct bnxt_qplib_cq *cq);
+typedef int (*srqn_handler_t)(struct bnxt_qplib_nq *nq,
+		struct bnxt_qplib_srq *srq, u8 event);
+
 struct bnxt_qplib_nq {
-	struct pci_dev		*pdev;
-	struct bnxt_qplib_res	*res;
+	struct pci_dev			*pdev;
+	struct bnxt_qplib_res		*res;
+	char				name[32];
+	struct bnxt_qplib_hwq		hwq;
+	struct bnxt_qplib_nq_db		nq_db;
+	u16				ring_id;
+	int				msix_vec;
+	cpumask_t			mask;
+	struct tasklet_struct		nq_tasklet;
+	bool				requested;
+	int				budget;
 
-	int			vector;
-	cpumask_t		mask;
-	int			budget;
-	bool			requested;
-	struct tasklet_struct	worker;
-	struct bnxt_qplib_hwq	hwq;
-
-	u16			bar_reg;
-	u32			bar_reg_off;
-	u16			ring_id;
-	void __iomem		*bar_reg_iomem;
-
-	int			(*cqn_handler)(struct bnxt_qplib_nq *nq,
-					       struct bnxt_qplib_cq *cq);
-	int			(*srqn_handler)(struct bnxt_qplib_nq *nq,
-						struct bnxt_qplib_srq *srq,
-						u8 event);
-	struct workqueue_struct	*cqn_wq;
-	char			name[32];
+	cqn_handler_t			cqn_handler;
+	srqn_handler_t			srqn_handler;
+	struct workqueue_struct		*cqn_wq;
 };
 
 struct bnxt_qplib_nq_work {
@@ -507,11 +510,8 @@ int bnxt_qplib_nq_start_irq(struct bnxt_qplib_nq *nq, int nq_indx,
 			    int msix_vector, bool need_init);
 int bnxt_qplib_enable_nq(struct pci_dev *pdev, struct bnxt_qplib_nq *nq,
 			 int nq_idx, int msix_vector, int bar_reg_offset,
-			 int (*cqn_handler)(struct bnxt_qplib_nq *nq,
-					    struct bnxt_qplib_cq *cq),
-			 int (*srqn_handler)(struct bnxt_qplib_nq *nq,
-					     struct bnxt_qplib_srq *srq,
-					     u8 event));
+			 cqn_handler_t cqn_handler,
+			 srqn_handler_t srq_handler);
 int bnxt_qplib_create_srq(struct bnxt_qplib_res *res,
 			  struct bnxt_qplib_srq *srq);
 int bnxt_qplib_modify_srq(struct bnxt_qplib_res *res,
