@@ -529,6 +529,9 @@ static int x32_setup_rt_frame(struct ksignal *ksig,
 	int err = 0;
 	void __user *fpstate = NULL;
 
+	if (!(ksig->ka.sa.sa_flags & SA_RESTORER))
+		return -EFAULT;
+
 	frame = get_sigframe(&ksig->ka, regs, sizeof(*frame), &fpstate);
 
 	if (!access_ok(frame, sizeof(*frame)))
@@ -541,22 +544,17 @@ static int x32_setup_rt_frame(struct ksignal *ksig,
 
 	uc_flags = frame_uc_flags(regs);
 
-	put_user_try {
-		/* Create the ucontext.  */
-		put_user_ex(uc_flags, &frame->uc.uc_flags);
-		put_user_ex(0, &frame->uc.uc_link);
-		compat_save_altstack_ex(&frame->uc.uc_stack, regs->sp);
-		put_user_ex(0, &frame->uc.uc__pad0);
+	if (!user_access_begin(frame, sizeof(*frame)))
+		return -EFAULT;
 
-		if (ksig->ka.sa.sa_flags & SA_RESTORER) {
-			restorer = ksig->ka.sa.sa_restorer;
-		} else {
-			/* could use a vstub here */
-			restorer = NULL;
-			err |= -EFAULT;
-		}
-		put_user_ex(restorer, (unsigned long __user *)&frame->pretcode);
-	} put_user_catch(err);
+	/* Create the ucontext.  */
+	unsafe_put_user(uc_flags, &frame->uc.uc_flags, Efault);
+	unsafe_put_user(0, &frame->uc.uc_link, Efault);
+	unsafe_compat_save_altstack(&frame->uc.uc_stack, regs->sp, Efault);
+	unsafe_put_user(0, &frame->uc.uc__pad0, Efault);
+	restorer = ksig->ka.sa.sa_restorer;
+	unsafe_put_user(restorer, (unsigned long __user *)&frame->pretcode, Efault);
+	user_access_end();
 
 	err |= setup_sigcontext(&frame->uc.uc_mcontext, fpstate,
 				regs, set->sig[0]);
@@ -582,6 +580,11 @@ static int x32_setup_rt_frame(struct ksignal *ksig,
 #endif	/* CONFIG_X86_X32_ABI */
 
 	return 0;
+#ifdef CONFIG_X86_X32_ABI
+Efault:
+	user_access_end();
+	return -EFAULT;
+#endif
 }
 
 /*
