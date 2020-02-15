@@ -144,7 +144,10 @@ union efi_boot_services {
 								     void *);
 		void *load_image;
 		void *start_image;
-		void *exit;
+		efi_status_t __noreturn (__efiapi *exit)(efi_handle_t,
+							 efi_status_t,
+							 unsigned long,
+							 efi_char16_t *);
 		void *unload_image;
 		efi_status_t (__efiapi *exit_boot_services)(efi_handle_t,
 							    unsigned long);

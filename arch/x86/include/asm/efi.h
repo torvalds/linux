@@ -270,6 +270,11 @@ static inline void *efi64_zero_upper(void *p)
 	return p;
 }
 
+static inline u32 efi64_convert_status(efi_status_t status)
+{
+	return (u32)(status | (u64)status >> 32);
+}
+
 #define __efi64_argmap_free_pages(addr, size)				\
 	((addr), 0, (size))
 
@@ -287,6 +292,9 @@ static inline void *efi64_zero_upper(void *p)
 
 #define __efi64_argmap_locate_device_path(protocol, path, handle)	\
 	((protocol), (path), efi64_zero_upper(handle))
+
+#define __efi64_argmap_exit(handle, status, size, data)			\
+	((handle), efi64_convert_status(status), (size), (data))
 
 /* PCI I/O */
 #define __efi64_argmap_get_location(protocol, seg, bus, dev, func)	\

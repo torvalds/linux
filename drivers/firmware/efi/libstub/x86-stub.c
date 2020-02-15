@@ -340,6 +340,13 @@ static void setup_graphics(struct boot_params *boot_params)
 	}
 }
 
+
+static void __noreturn efi_exit(efi_handle_t handle, efi_status_t status)
+{
+	efi_bs_call(exit, handle, status, 0, NULL);
+	unreachable();
+}
+
 void startup_32(struct boot_params *boot_params);
 
 void __noreturn efi_stub_entry(efi_handle_t handle,
@@ -369,12 +376,12 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 
 	/* Check if we were booted by the EFI firmware */
 	if (sys_table->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE)
-		return EFI_INVALID_PARAMETER;
+		efi_exit(handle, EFI_INVALID_PARAMETER);
 
 	status = efi_bs_call(handle_protocol, handle, &proto, (void *)&image);
 	if (status != EFI_SUCCESS) {
 		efi_printk("Failed to get handle for LOADED_IMAGE_PROTOCOL\n");
-		return status;
+		efi_exit(handle, status);
 	}
 
 	hdr = &((struct boot_params *)efi_table_attr(image, image_base))->hdr;
@@ -384,7 +391,7 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 				    above4g ? ULONG_MAX : UINT_MAX);
 	if (status != EFI_SUCCESS) {
 		efi_printk("Failed to allocate lowmem for boot params\n");
-		return status;
+		efi_exit(handle, status);
 	}
 
 	memset(boot_params, 0x0, 0x4000);
@@ -442,7 +449,7 @@ fail2:
 fail:
 	efi_free(0x4000, (unsigned long)boot_params);
 
-	return status;
+	efi_exit(handle, status);
 }
 
 static void add_e820ext(struct boot_params *params,
@@ -709,7 +716,7 @@ struct boot_params *efi_main(efi_handle_t handle,
 
 	/* Check if we were booted by the EFI firmware */
 	if (sys_table->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE)
-		goto fail;
+		efi_exit(handle, EFI_INVALID_PARAMETER);
 
 	/*
 	 * If the kernel isn't already loaded at the preferred load
@@ -793,6 +800,5 @@ struct boot_params *efi_main(efi_handle_t handle,
 fail:
 	efi_printk("efi_main() failed!\n");
 
-	for (;;)
-		asm("hlt");
+	efi_exit(handle, status);
 }
