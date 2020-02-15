@@ -871,9 +871,11 @@ static int bnxt_re_init_user_qp(struct bnxt_re_dev *rdev, struct bnxt_re_pd *pd,
 		return PTR_ERR(umem);
 
 	qp->sumem = umem;
-	qplib_qp->sq.sg_info.sglist = umem->sg_head.sgl;
+	qplib_qp->sq.sg_info.sghead = umem->sg_head.sgl;
 	qplib_qp->sq.sg_info.npages = ib_umem_num_pages(umem);
 	qplib_qp->sq.sg_info.nmap = umem->nmap;
+	qplib_qp->sq.sg_info.pgsize = PAGE_SIZE;
+	qplib_qp->sq.sg_info.pgshft = PAGE_SHIFT;
 	qplib_qp->qp_handle = ureq.qp_handle;
 
 	if (!qp->qplib_qp.srq) {
@@ -884,9 +886,11 @@ static int bnxt_re_init_user_qp(struct bnxt_re_dev *rdev, struct bnxt_re_pd *pd,
 		if (IS_ERR(umem))
 			goto rqfail;
 		qp->rumem = umem;
-		qplib_qp->rq.sg_info.sglist = umem->sg_head.sgl;
+		qplib_qp->rq.sg_info.sghead = umem->sg_head.sgl;
 		qplib_qp->rq.sg_info.npages = ib_umem_num_pages(umem);
 		qplib_qp->rq.sg_info.nmap = umem->nmap;
+		qplib_qp->rq.sg_info.pgsize = PAGE_SIZE;
+		qplib_qp->rq.sg_info.pgshft = PAGE_SHIFT;
 	}
 
 	qplib_qp->dpi = &cntx->dpi;
@@ -976,6 +980,8 @@ static struct bnxt_re_qp *bnxt_re_create_shadow_qp
 	qp->qplib_qp.sq.max_sge = 2;
 	/* Q full delta can be 1 since it is internal QP */
 	qp->qplib_qp.sq.q_full_delta = 1;
+	qp->qplib_qp.sq.sg_info.pgsize = PAGE_SIZE;
+	qp->qplib_qp.sq.sg_info.pgshft = PAGE_SHIFT;
 
 	qp->qplib_qp.scq = qp1_qp->scq;
 	qp->qplib_qp.rcq = qp1_qp->rcq;
@@ -984,6 +990,8 @@ static struct bnxt_re_qp *bnxt_re_create_shadow_qp
 	qp->qplib_qp.rq.max_sge = qp1_qp->rq.max_sge;
 	/* Q full delta can be 1 since it is internal QP */
 	qp->qplib_qp.rq.q_full_delta = 1;
+	qp->qplib_qp.rq.sg_info.pgsize = PAGE_SIZE;
+	qp->qplib_qp.rq.sg_info.pgshft = PAGE_SHIFT;
 
 	qp->qplib_qp.mtu = qp1_qp->mtu;
 
@@ -1043,6 +1051,8 @@ static int bnxt_re_init_rq_attr(struct bnxt_re_qp *qp,
 		if (qplqp->rq.max_sge > dev_attr->max_qp_sges)
 			qplqp->rq.max_sge = dev_attr->max_qp_sges;
 	}
+	qplqp->rq.sg_info.pgsize = PAGE_SIZE;
+	qplqp->rq.sg_info.pgshft = PAGE_SHIFT;
 
 	return 0;
 }
@@ -1095,6 +1105,8 @@ static void bnxt_re_init_sq_attr(struct bnxt_re_qp *qp,
 	 * unexpected Queue full condition
 	 */
 	qplqp->sq.q_full_delta -= 1;
+	qplqp->sq.sg_info.pgsize = PAGE_SIZE;
+	qplqp->sq.sg_info.pgshft = PAGE_SHIFT;
 }
 
 static void bnxt_re_adjust_gsi_sq_attr(struct bnxt_re_qp *qp,
@@ -1511,9 +1523,11 @@ static int bnxt_re_init_user_srq(struct bnxt_re_dev *rdev,
 		return PTR_ERR(umem);
 
 	srq->umem = umem;
-	qplib_srq->sg_info.sglist = umem->sg_head.sgl;
+	qplib_srq->sg_info.sghead = umem->sg_head.sgl;
 	qplib_srq->sg_info.npages = ib_umem_num_pages(umem);
 	qplib_srq->sg_info.nmap = umem->nmap;
+	qplib_srq->sg_info.pgsize = PAGE_SIZE;
+	qplib_srq->sg_info.pgshft = PAGE_SHIFT;
 	qplib_srq->srq_handle = ureq.srq_handle;
 	qplib_srq->dpi = &cntx->dpi;
 
@@ -2368,7 +2382,7 @@ static int bnxt_re_build_reg_wqe(const struct ib_reg_wr *wr,
 	wqe->frmr.pbl_dma_ptr = qplib_frpl->hwq.pbl_dma_ptr[0];
 	wqe->frmr.page_list = mr->pages;
 	wqe->frmr.page_list_len = mr->npages;
-	wqe->frmr.levels = qplib_frpl->hwq.level + 1;
+	wqe->frmr.levels = qplib_frpl->hwq.level;
 	wqe->type = BNXT_QPLIB_SWQE_TYPE_REG_MR;
 
 	/* Need unconditional fence for reg_mr
@@ -2742,6 +2756,8 @@ int bnxt_re_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	if (entries > dev_attr->max_cq_wqes + 1)
 		entries = dev_attr->max_cq_wqes + 1;
 
+	cq->qplib_cq.sg_info.pgsize = PAGE_SIZE;
+	cq->qplib_cq.sg_info.pgshft = PAGE_SHIFT;
 	if (udata) {
 		struct bnxt_re_cq_req req;
 		struct bnxt_re_ucontext *uctx = rdma_udata_to_drv_context(
@@ -2758,7 +2774,7 @@ int bnxt_re_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 			rc = PTR_ERR(cq->umem);
 			goto fail;
 		}
-		cq->qplib_cq.sg_info.sglist = cq->umem->sg_head.sgl;
+		cq->qplib_cq.sg_info.sghead = cq->umem->sg_head.sgl;
 		cq->qplib_cq.sg_info.npages = ib_umem_num_pages(cq->umem);
 		cq->qplib_cq.sg_info.nmap = cq->umem->nmap;
 		cq->qplib_cq.dpi = &uctx->dpi;

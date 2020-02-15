@@ -90,6 +90,8 @@ static void bnxt_re_destroy_chip_ctx(struct bnxt_re_dev *rdev)
 	rdev->chip_ctx = NULL;
 	rdev->rcfw.res = NULL;
 	rdev->qplib_res.cctx = NULL;
+	rdev->qplib_res.pdev = NULL;
+	rdev->qplib_res.netdev = NULL;
 	kfree(chip_ctx);
 }
 
@@ -151,7 +153,7 @@ static void bnxt_re_limit_pf_res(struct bnxt_re_dev *rdev)
 	ctx->cq_count = min_t(u32, BNXT_RE_MAX_CQ_COUNT, attr->max_cq);
 	if (!bnxt_qplib_is_chip_gen_p5(rdev->chip_ctx))
 		for (i = 0; i < MAX_TQM_ALLOC_REQ; i++)
-			rdev->qplib_ctx.tqm_count[i] =
+			rdev->qplib_ctx.tqm_ctx.qcount[i] =
 			rdev->dev_attr.tqm_alloc_reqs[i];
 }
 
@@ -982,8 +984,8 @@ static void bnxt_re_free_nq_res(struct bnxt_re_dev *rdev)
 	for (i = 0; i < rdev->num_msix - 1; i++) {
 		type = bnxt_qplib_get_ring_type(rdev->chip_ctx);
 		bnxt_re_net_ring_free(rdev, rdev->nq[i].ring_id, type);
-		rdev->nq[i].res = NULL;
 		bnxt_qplib_free_nq(&rdev->nq[i]);
+		rdev->nq[i].res = NULL;
 	}
 }
 
@@ -1032,7 +1034,7 @@ static int bnxt_re_alloc_res(struct bnxt_re_dev *rdev)
 		rdev->nq[i].res = &rdev->qplib_res;
 		rdev->nq[i].hwq.max_elements = BNXT_RE_MAX_CQ_COUNT +
 			BNXT_RE_MAX_SRQC_COUNT + 2;
-		rc = bnxt_qplib_alloc_nq(rdev->en_dev->pdev, &rdev->nq[i]);
+		rc = bnxt_qplib_alloc_nq(&rdev->qplib_res, &rdev->nq[i]);
 		if (rc) {
 			dev_err(rdev_to_dev(rdev), "Alloc Failed NQ%d rc:%#x",
 				i, rc);
@@ -1056,7 +1058,7 @@ static int bnxt_re_alloc_res(struct bnxt_re_dev *rdev)
 	}
 	return 0;
 free_nq:
-	for (i = num_vec_created; i >= 0; i--) {
+	for (i = num_vec_created - 1; i >= 0; i--) {
 		type = bnxt_qplib_get_ring_type(rdev->chip_ctx);
 		bnxt_re_net_ring_free(rdev, rdev->nq[i].ring_id, type);
 		bnxt_qplib_free_nq(&rdev->nq[i]);
@@ -1335,7 +1337,7 @@ static void bnxt_re_ib_unreg(struct bnxt_re_dev *rdev)
 			dev_warn(rdev_to_dev(rdev),
 				 "Failed to deinitialize RCFW: %#x", rc);
 		bnxt_re_net_stats_ctx_free(rdev, rdev->qplib_ctx.stats.fw_id);
-		bnxt_qplib_free_ctx(rdev->en_dev->pdev, &rdev->qplib_ctx);
+		bnxt_qplib_free_ctx(&rdev->qplib_res, &rdev->qplib_ctx);
 		bnxt_qplib_disable_rcfw_channel(&rdev->rcfw);
 		type = bnxt_qplib_get_ring_type(rdev->chip_ctx);
 		bnxt_re_net_ring_free(rdev, rdev->rcfw.creq_ring_id, type);
@@ -1411,7 +1413,7 @@ static int bnxt_re_ib_reg(struct bnxt_re_dev *rdev)
 	/* Establish RCFW Communication Channel to initialize the context
 	 * memory for the function and all child VFs
 	 */
-	rc = bnxt_qplib_alloc_rcfw_channel(rdev->en_dev->pdev, &rdev->rcfw,
+	rc = bnxt_qplib_alloc_rcfw_channel(&rdev->qplib_res, &rdev->rcfw,
 					   &rdev->qplib_ctx,
 					   BNXT_RE_MAX_QPC_COUNT);
 	if (rc) {
@@ -1432,7 +1434,7 @@ static int bnxt_re_ib_reg(struct bnxt_re_dev *rdev)
 	}
 	db_offt = bnxt_re_get_nqdb_offset(rdev, BNXT_RE_AEQ_IDX);
 	vid = rdev->msix_entries[BNXT_RE_AEQ_IDX].vector;
-	rc = bnxt_qplib_enable_rcfw_channel(rdev->en_dev->pdev, &rdev->rcfw,
+	rc = bnxt_qplib_enable_rcfw_channel(&rdev->rcfw,
 					    vid, db_offt, rdev->is_virtfn,
 					    &bnxt_re_aeq_handler);
 	if (rc) {
@@ -1447,7 +1449,7 @@ static int bnxt_re_ib_reg(struct bnxt_re_dev *rdev)
 
 	bnxt_re_set_resource_limits(rdev);
 
-	rc = bnxt_qplib_alloc_ctx(rdev->en_dev->pdev, &rdev->qplib_ctx, 0,
+	rc = bnxt_qplib_alloc_ctx(&rdev->qplib_res, &rdev->qplib_ctx, 0,
 				  bnxt_qplib_is_chip_gen_p5(rdev->chip_ctx));
 	if (rc) {
 		pr_err("Failed to allocate QPLIB context: %#x\n", rc);
@@ -1514,7 +1516,7 @@ static int bnxt_re_ib_reg(struct bnxt_re_dev *rdev)
 free_sctx:
 	bnxt_re_net_stats_ctx_free(rdev, rdev->qplib_ctx.stats.fw_id);
 free_ctx:
-	bnxt_qplib_free_ctx(rdev->en_dev->pdev, &rdev->qplib_ctx);
+	bnxt_qplib_free_ctx(&rdev->qplib_res, &rdev->qplib_ctx);
 disable_rcfw:
 	bnxt_qplib_disable_rcfw_channel(&rdev->rcfw);
 free_ring:

@@ -55,7 +55,8 @@ extern const struct bnxt_qplib_gid bnxt_qplib_gid_zero;
 enum bnxt_qplib_hwq_type {
 	HWQ_TYPE_CTX,
 	HWQ_TYPE_QUEUE,
-	HWQ_TYPE_L2_CMPL
+	HWQ_TYPE_L2_CMPL,
+	HWQ_TYPE_MR
 };
 
 #define MAX_PBL_LVL_0_PGS		1
@@ -63,6 +64,7 @@ enum bnxt_qplib_hwq_type {
 #define MAX_PBL_LVL_1_PGS_SHIFT		9
 #define MAX_PBL_LVL_1_PGS_FOR_LVL_2	256
 #define MAX_PBL_LVL_2_PGS		(256 * 512)
+#define MAX_PDL_LVL_SHIFT               9
 
 enum bnxt_qplib_pbl_lvl {
 	PBL_LVL_0,
@@ -85,17 +87,37 @@ struct bnxt_qplib_pbl {
 	dma_addr_t			*pg_map_arr;
 };
 
+struct bnxt_qplib_sg_info {
+	struct scatterlist		*sghead;
+	u32				nmap;
+	u32				npages;
+	u32				pgshft;
+	u32				pgsize;
+	bool				nopte;
+};
+
+struct bnxt_qplib_hwq_attr {
+	struct bnxt_qplib_res		*res;
+	struct bnxt_qplib_sg_info	*sginfo;
+	enum bnxt_qplib_hwq_type	type;
+	u32				depth;
+	u32				stride;
+	u32				aux_stride;
+	u32				aux_depth;
+};
+
 struct bnxt_qplib_hwq {
 	struct pci_dev			*pdev;
 	/* lock to protect qplib_hwq */
 	spinlock_t			lock;
-	struct bnxt_qplib_pbl		pbl[PBL_LVL_MAX];
+	struct bnxt_qplib_pbl		pbl[PBL_LVL_MAX + 1];
 	enum bnxt_qplib_pbl_lvl		level;		/* 0, 1, or 2 */
 	/* ptr for easy access to the PBL entries */
 	void				**pbl_ptr;
 	/* ptr for easy access to the dma_addr */
 	dma_addr_t			*pbl_dma_ptr;
 	u32				max_elements;
+	u32				depth;
 	u16				element_size;	/* Size of each entry */
 
 	u32				prod;		/* raw */
@@ -159,6 +181,15 @@ struct bnxt_qplib_vf_res {
 #define BNXT_QPLIB_MAX_CQ_CTX_ENTRY_SIZE	64
 #define BNXT_QPLIB_MAX_MRW_CTX_ENTRY_SIZE	128
 
+#define MAX_TQM_ALLOC_REQ               48
+#define MAX_TQM_ALLOC_BLK_SIZE          8
+struct bnxt_qplib_tqm_ctx {
+	struct bnxt_qplib_hwq           pde;
+	u8                              pde_level; /* Original level */
+	struct bnxt_qplib_hwq           qtbl[MAX_TQM_ALLOC_REQ];
+	u8                              qcount[MAX_TQM_ALLOC_REQ];
+};
+
 struct bnxt_qplib_ctx {
 	u32				qpc_count;
 	struct bnxt_qplib_hwq		qpc_tbl;
@@ -169,12 +200,7 @@ struct bnxt_qplib_ctx {
 	u32				cq_count;
 	struct bnxt_qplib_hwq		cq_tbl;
 	struct bnxt_qplib_hwq		tim_tbl;
-#define MAX_TQM_ALLOC_REQ		48
-#define MAX_TQM_ALLOC_BLK_SIZE		8
-	u8				tqm_count[MAX_TQM_ALLOC_REQ];
-	struct bnxt_qplib_hwq		tqm_pde;
-	u32				tqm_pde_level;
-	struct bnxt_qplib_hwq		tqm_tbl[MAX_TQM_ALLOC_REQ];
+	struct bnxt_qplib_tqm_ctx	tqm_ctx;
 	struct bnxt_qplib_stats		stats;
 	struct bnxt_qplib_vf_res	vf_res;
 	u64				hwrm_intf_ver;
@@ -223,11 +249,6 @@ static inline u8 bnxt_qplib_get_ring_type(struct bnxt_qplib_chip_ctx *cctx)
 	       RING_ALLOC_REQ_RING_TYPE_ROCE_CMPL;
 }
 
-struct bnxt_qplib_sg_info {
-	struct scatterlist		*sglist;
-	u32				nmap;
-	u32				npages;
-};
 
 #define to_bnxt_qplib(ptr, type, member)	\
 	container_of(ptr, type, member)
@@ -235,11 +256,10 @@ struct bnxt_qplib_sg_info {
 struct bnxt_qplib_pd;
 struct bnxt_qplib_dev_attr;
 
-void bnxt_qplib_free_hwq(struct pci_dev *pdev, struct bnxt_qplib_hwq *hwq);
-int bnxt_qplib_alloc_init_hwq(struct pci_dev *pdev, struct bnxt_qplib_hwq *hwq,
-			      struct bnxt_qplib_sg_info *sg_info, u32 *elements,
-			      u32 elements_per_page, u32 aux, u32 pg_size,
-			      enum bnxt_qplib_hwq_type hwq_type);
+void bnxt_qplib_free_hwq(struct bnxt_qplib_res *res,
+			 struct bnxt_qplib_hwq *hwq);
+int bnxt_qplib_alloc_init_hwq(struct bnxt_qplib_hwq *hwq,
+			      struct bnxt_qplib_hwq_attr *hwq_attr);
 void bnxt_qplib_get_guid(u8 *dev_addr, u8 *guid);
 int bnxt_qplib_alloc_pd(struct bnxt_qplib_pd_tbl *pd_tbl,
 			struct bnxt_qplib_pd *pd);
@@ -258,9 +278,9 @@ void bnxt_qplib_free_res(struct bnxt_qplib_res *res);
 int bnxt_qplib_alloc_res(struct bnxt_qplib_res *res, struct pci_dev *pdev,
 			 struct net_device *netdev,
 			 struct bnxt_qplib_dev_attr *dev_attr);
-void bnxt_qplib_free_ctx(struct pci_dev *pdev,
+void bnxt_qplib_free_ctx(struct bnxt_qplib_res *res,
 			 struct bnxt_qplib_ctx *ctx);
-int bnxt_qplib_alloc_ctx(struct pci_dev *pdev,
+int bnxt_qplib_alloc_ctx(struct bnxt_qplib_res *res,
 			 struct bnxt_qplib_ctx *ctx,
 			 bool virt_fn, bool is_p5);
 #endif /* __BNXT_QPLIB_RES_H__ */

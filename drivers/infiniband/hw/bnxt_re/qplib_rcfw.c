@@ -520,9 +520,10 @@ int bnxt_qplib_init_rcfw(struct bnxt_qplib_rcfw *rcfw,
 	level = ctx->tim_tbl.level;
 	req.tim_pg_size_tim_lvl = (level << CMDQ_INITIALIZE_FW_TIM_LVL_SFT) |
 				  __get_pbl_pg_idx(&ctx->tim_tbl.pbl[level]);
-	level = ctx->tqm_pde_level;
-	req.tqm_pg_size_tqm_lvl = (level << CMDQ_INITIALIZE_FW_TQM_LVL_SFT) |
-				  __get_pbl_pg_idx(&ctx->tqm_pde.pbl[level]);
+	level = ctx->tqm_ctx.pde.level;
+	req.tqm_pg_size_tqm_lvl =
+		(level << CMDQ_INITIALIZE_FW_TQM_LVL_SFT) |
+		 __get_pbl_pg_idx(&ctx->tqm_ctx.pde.pbl[level]);
 
 	req.qpc_page_dir =
 		cpu_to_le64(ctx->qpc_tbl.pbl[PBL_LVL_0].pg_map_arr[0]);
@@ -535,7 +536,7 @@ int bnxt_qplib_init_rcfw(struct bnxt_qplib_rcfw *rcfw,
 	req.tim_page_dir =
 		cpu_to_le64(ctx->tim_tbl.pbl[PBL_LVL_0].pg_map_arr[0]);
 	req.tqm_page_dir =
-		cpu_to_le64(ctx->tqm_pde.pbl[PBL_LVL_0].pg_map_arr[0]);
+		cpu_to_le64(ctx->tqm_ctx.pde.pbl[PBL_LVL_0].pg_map_arr[0]);
 
 	req.number_of_qp = cpu_to_le32(ctx->qpc_tbl.max_elements);
 	req.number_of_mrw = cpu_to_le32(ctx->mrw_tbl.max_elements);
@@ -563,25 +564,32 @@ void bnxt_qplib_free_rcfw_channel(struct bnxt_qplib_rcfw *rcfw)
 {
 	kfree(rcfw->qp_tbl);
 	kfree(rcfw->crsqe_tbl);
-	bnxt_qplib_free_hwq(rcfw->pdev, &rcfw->cmdq);
-	bnxt_qplib_free_hwq(rcfw->pdev, &rcfw->creq);
+	bnxt_qplib_free_hwq(rcfw->res, &rcfw->cmdq);
+	bnxt_qplib_free_hwq(rcfw->res, &rcfw->creq);
 	rcfw->pdev = NULL;
 }
 
-int bnxt_qplib_alloc_rcfw_channel(struct pci_dev *pdev,
+int bnxt_qplib_alloc_rcfw_channel(struct bnxt_qplib_res *res,
 				  struct bnxt_qplib_rcfw *rcfw,
 				  struct bnxt_qplib_ctx *ctx,
 				  int qp_tbl_sz)
 {
-	u8 hwq_type;
+	struct bnxt_qplib_hwq_attr hwq_attr = {};
+	struct bnxt_qplib_sg_info sginfo = {};
 
-	rcfw->pdev = pdev;
-	rcfw->creq.max_elements = BNXT_QPLIB_CREQE_MAX_CNT;
-	hwq_type = bnxt_qplib_get_hwq_type(rcfw->res);
-	if (bnxt_qplib_alloc_init_hwq(rcfw->pdev, &rcfw->creq, NULL,
-				      &rcfw->creq.max_elements,
-				      BNXT_QPLIB_CREQE_UNITS,
-				      0, PAGE_SIZE, hwq_type)) {
+	rcfw->pdev = res->pdev;
+	rcfw->res = res;
+
+	sginfo.pgsize = PAGE_SIZE;
+	sginfo.pgshft = PAGE_SHIFT;
+
+	hwq_attr.sginfo = &sginfo;
+	hwq_attr.res = rcfw->res;
+	hwq_attr.depth = BNXT_QPLIB_CREQE_MAX_CNT;
+	hwq_attr.stride = BNXT_QPLIB_CREQE_UNITS;
+	hwq_attr.type = bnxt_qplib_get_hwq_type(res);
+
+	if (bnxt_qplib_alloc_init_hwq(&rcfw->creq, &hwq_attr)) {
 		dev_err(&rcfw->pdev->dev,
 			"HW channel CREQ allocation failed\n");
 		goto fail;
@@ -591,13 +599,11 @@ int bnxt_qplib_alloc_rcfw_channel(struct pci_dev *pdev,
 	else
 		rcfw->cmdq_depth = BNXT_QPLIB_CMDQE_MAX_CNT_8192;
 
-	rcfw->cmdq.max_elements = rcfw->cmdq_depth;
-	if (bnxt_qplib_alloc_init_hwq
-			(rcfw->pdev, &rcfw->cmdq, NULL,
-			 &rcfw->cmdq.max_elements,
-			 BNXT_QPLIB_CMDQE_UNITS, 0,
-			 bnxt_qplib_cmdqe_page_size(rcfw->cmdq_depth),
-			 HWQ_TYPE_CTX)) {
+	sginfo.pgsize = bnxt_qplib_cmdqe_page_size(rcfw->cmdq_depth);
+	hwq_attr.depth = rcfw->cmdq_depth;
+	hwq_attr.stride = BNXT_QPLIB_CMDQE_UNITS;
+	hwq_attr.type = HWQ_TYPE_CTX;
+	if (bnxt_qplib_alloc_init_hwq(&rcfw->cmdq, &hwq_attr)) {
 		dev_err(&rcfw->pdev->dev,
 			"HW channel CMDQ allocation failed\n");
 		goto fail;
@@ -690,8 +696,7 @@ int bnxt_qplib_rcfw_start_irq(struct bnxt_qplib_rcfw *rcfw, int msix_vector,
 	return 0;
 }
 
-int bnxt_qplib_enable_rcfw_channel(struct pci_dev *pdev,
-				   struct bnxt_qplib_rcfw *rcfw,
+int bnxt_qplib_enable_rcfw_channel(struct bnxt_qplib_rcfw *rcfw,
 				   int msix_vector,
 				   int cp_bar_reg_off, int virt_fn,
 				   int (*aeq_handler)(struct bnxt_qplib_rcfw *,
@@ -699,10 +704,12 @@ int bnxt_qplib_enable_rcfw_channel(struct pci_dev *pdev,
 {
 	resource_size_t res_base;
 	struct cmdq_init init;
+	struct pci_dev *pdev;
 	u16 bmap_size;
 	int rc;
 
 	/* General */
+	pdev = rcfw->pdev;
 	rcfw->seq_num = 0;
 	set_bit(FIRMWARE_FIRST_FLAG, &rcfw->flags);
 	bmap_size = BITS_TO_LONGS(rcfw->cmdq_depth) * sizeof(unsigned long);
