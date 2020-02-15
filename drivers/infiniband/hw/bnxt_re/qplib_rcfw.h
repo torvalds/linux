@@ -247,7 +247,7 @@ struct bnxt_qplib_cmdq_ctx {
 
 struct bnxt_qplib_creq_db {
 	struct bnxt_qplib_reg_desc	reg;
-	void __iomem			*db;
+	struct bnxt_qplib_db_info	dbinfo;
 };
 
 struct bnxt_qplib_creq_stat {

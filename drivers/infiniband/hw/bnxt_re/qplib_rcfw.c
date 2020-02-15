@@ -379,7 +379,6 @@ static int bnxt_qplib_process_qp_event(struct bnxt_qplib_rcfw *rcfw,
 static void bnxt_qplib_service_creq(unsigned long data)
 {
 	struct bnxt_qplib_rcfw *rcfw = (struct bnxt_qplib_rcfw *)data;
-	bool gen_p5 = bnxt_qplib_is_chip_gen_p5(rcfw->res->cctx);
 	struct bnxt_qplib_creq_ctx *creq = &rcfw->creq;
 	u32 type, budget = CREQ_ENTRY_POLL_BUDGET;
 	struct bnxt_qplib_hwq *hwq = &creq->hwq;
@@ -429,9 +428,8 @@ static void bnxt_qplib_service_creq(unsigned long data)
 
 	if (hwq->cons != raw_cons) {
 		hwq->cons = raw_cons;
-		bnxt_qplib_ring_creq_db_rearm(creq->creq_db.db,
-					      raw_cons, hwq->max_elements,
-					      creq->ring_id, gen_p5);
+		bnxt_qplib_ring_nq_db(&creq->creq_db.dbinfo,
+				      rcfw->res->cctx, true);
 	}
 	spin_unlock_irqrestore(&hwq->lock, flags);
 }
@@ -660,15 +658,12 @@ fail:
 
 void bnxt_qplib_rcfw_stop_irq(struct bnxt_qplib_rcfw *rcfw, bool kill)
 {
-	bool gen_p5 = bnxt_qplib_is_chip_gen_p5(rcfw->res->cctx);
 	struct bnxt_qplib_creq_ctx *creq;
 
 	creq = &rcfw->creq;
 	tasklet_disable(&creq->creq_tasklet);
 	/* Mask h/w interrupts */
-	bnxt_qplib_ring_creq_db(creq->creq_db.db, creq->hwq.cons,
-				creq->hwq.max_elements, creq->ring_id,
-				gen_p5);
+	bnxt_qplib_ring_nq_db(&creq->creq_db.dbinfo, rcfw->res->cctx, false);
 	/* Sync with last running IRQ-handler */
 	synchronize_irq(creq->msix_vec);
 	if (kill)
@@ -708,7 +703,6 @@ void bnxt_qplib_disable_rcfw_channel(struct bnxt_qplib_rcfw *rcfw)
 int bnxt_qplib_rcfw_start_irq(struct bnxt_qplib_rcfw *rcfw, int msix_vector,
 			      bool need_init)
 {
-	bool gen_p5 = bnxt_qplib_is_chip_gen_p5(rcfw->res->cctx);
 	struct bnxt_qplib_creq_ctx *creq;
 	int rc;
 
@@ -728,9 +722,8 @@ int bnxt_qplib_rcfw_start_irq(struct bnxt_qplib_rcfw *rcfw, int msix_vector,
 	if (rc)
 		return rc;
 	creq->requested = true;
-	bnxt_qplib_ring_creq_db_rearm(creq->creq_db.db,
-				      creq->hwq.cons, creq->hwq.max_elements,
-				      creq->ring_id, gen_p5);
+
+	bnxt_qplib_ring_nq_db(&creq->creq_db.dbinfo, rcfw->res->cctx, true);
 
 	return 0;
 }
@@ -799,7 +792,9 @@ static int bnxt_qplib_map_creq_db(struct bnxt_qplib_rcfw *rcfw, u32 reg_offt)
 			creq_db->reg.bar_id);
 		return -ENOMEM;
 	}
-	creq_db->db = creq_db->reg.bar_reg;
+	creq_db->dbinfo.db = creq_db->reg.bar_reg;
+	creq_db->dbinfo.hwq = &rcfw->creq.hwq;
+	creq_db->dbinfo.xid = rcfw->creq.ring_id;
 	return 0;
 }
 

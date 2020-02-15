@@ -42,7 +42,7 @@
 struct bnxt_qplib_srq {
 	struct bnxt_qplib_pd		*pd;
 	struct bnxt_qplib_dpi		*dpi;
-	void __iomem			*dbr_base;
+	struct bnxt_qplib_db_info	dbinfo;
 	u64				srq_handle;
 	u32				id;
 	u32				max_wqe;
@@ -236,6 +236,7 @@ struct bnxt_qplib_swqe {
 struct bnxt_qplib_q {
 	struct bnxt_qplib_hwq		hwq;
 	struct bnxt_qplib_swq		*swq;
+	struct bnxt_qplib_db_info	dbinfo;
 	struct bnxt_qplib_sg_info	sg_info;
 	u32				max_wqe;
 	u16				q_full_delta;
@@ -370,7 +371,7 @@ struct bnxt_qplib_cqe {
 #define BNXT_QPLIB_QUEUE_START_PERIOD		0x01
 struct bnxt_qplib_cq {
 	struct bnxt_qplib_dpi		*dpi;
-	void __iomem			*dbr_base;
+	struct bnxt_qplib_db_info	dbinfo;
 	u32				max_wqe;
 	u32				id;
 	u16				count;
@@ -433,46 +434,9 @@ struct bnxt_qplib_cq {
 					 NQ_DB_IDX_VALID |	\
 					 NQ_DB_IRQ_DIS)
 
-static inline void bnxt_qplib_ring_nq_db64(void __iomem *db, u32 index,
-					   u32 xid, bool arm)
-{
-	u64 val;
-
-	val = xid & DBC_DBC_XID_MASK;
-	val |= DBC_DBC_PATH_ROCE;
-	val |= arm ? DBC_DBC_TYPE_NQ_ARM : DBC_DBC_TYPE_NQ;
-	val <<= 32;
-	val |= index & DBC_DBC_INDEX_MASK;
-	writeq(val, db);
-}
-
-static inline void bnxt_qplib_ring_nq_db_rearm(void __iomem *db, u32 raw_cons,
-					       u32 max_elements, u32 xid,
-					       bool gen_p5)
-{
-	u32 index = raw_cons & (max_elements - 1);
-
-	if (gen_p5)
-		bnxt_qplib_ring_nq_db64(db, index, xid, true);
-	else
-		writel(NQ_DB_CP_FLAGS_REARM | (index & DBC_DBC32_XID_MASK), db);
-}
-
-static inline void bnxt_qplib_ring_nq_db(void __iomem *db, u32 raw_cons,
-					 u32 max_elements, u32 xid,
-					 bool gen_p5)
-{
-	u32 index = raw_cons & (max_elements - 1);
-
-	if (gen_p5)
-		bnxt_qplib_ring_nq_db64(db, index, xid, false);
-	else
-		writel(NQ_DB_CP_FLAGS | (index & DBC_DBC32_XID_MASK), db);
-}
-
 struct bnxt_qplib_nq_db {
 	struct bnxt_qplib_reg_desc	reg;
-	void __iomem			*db;
+	struct bnxt_qplib_db_info	dbinfo;
 };
 
 typedef int (*cqn_handler_t)(struct bnxt_qplib_nq *nq,
