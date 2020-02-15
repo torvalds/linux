@@ -375,8 +375,13 @@ struct symbol *map__find_symbol_by_name(struct map *map, const char *name)
 
 struct map *map__clone(struct map *from)
 {
-	struct map *map = memdup(from, sizeof(*map));
+	size_t size = sizeof(struct map);
+	struct map *map;
 
+	if (from->dso && from->dso->kernel)
+		size += sizeof(struct kmap);
+
+	map = memdup(from, size);
 	if (map != NULL) {
 		refcount_set(&map->refcnt, 1);
 		RB_CLEAR_NODE(&map->rb_node);
@@ -537,6 +542,16 @@ void maps__insert(struct maps *maps, struct map *map)
 	down_write(&maps->lock);
 	__maps__insert(maps, map);
 	++maps->nr_maps;
+
+	if (map->dso && map->dso->kernel) {
+		struct kmap *kmap = map__kmap(map);
+
+		if (kmap)
+			kmap->kmaps = maps;
+		else
+			pr_err("Internal error: kernel dso with non kernel map\n");
+	}
+
 
 	/*
 	 * If we already performed some search by name, then we need to add the just
