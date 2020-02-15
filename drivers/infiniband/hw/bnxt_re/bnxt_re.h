@@ -104,6 +104,14 @@ struct bnxt_re_sqp_entries {
 	struct bnxt_re_qp *qp1_qp;
 };
 
+#define BNXT_RE_MAX_GSI_SQP_ENTRIES	1024
+struct bnxt_re_gsi_context {
+	struct	bnxt_re_qp *gsi_qp;
+	struct	bnxt_re_qp *gsi_sqp;
+	struct	bnxt_re_ah *gsi_sah;
+	struct	bnxt_re_sqp_entries *sqp_tbl;
+};
+
 #define BNXT_RE_MIN_MSIX		2
 #define BNXT_RE_MAX_MSIX		9
 #define BNXT_RE_AEQ_IDX			0
@@ -165,10 +173,7 @@ struct bnxt_re_dev {
 	u16				cosq[2];
 
 	/* QP for for handling QP1 packets */
-	u32				sqp_id;
-	struct bnxt_re_qp		*qp1_sqp;
-	struct bnxt_re_ah		*sqp_ah;
-	struct bnxt_re_sqp_entries sqp_tbl[1024];
+	struct bnxt_re_gsi_context	gsi_ctx;
 	atomic_t nq_alloc_cnt;
 	u32 is_virtfn;
 	u32 num_vfs;

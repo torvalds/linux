@@ -1125,7 +1125,8 @@ static int bnxt_re_query_hwrm_pri2cos(struct bnxt_re_dev *rdev, u8 dir,
 static bool bnxt_re_is_qp1_or_shadow_qp(struct bnxt_re_dev *rdev,
 					struct bnxt_re_qp *qp)
 {
-	return (qp->ib_qp.qp_type == IB_QPT_GSI) || (qp == rdev->qp1_sqp);
+	return (qp->ib_qp.qp_type == IB_QPT_GSI) ||
+	       (qp == rdev->gsi_ctx.gsi_sqp);
 }
 
 static void bnxt_re_dev_stop(struct bnxt_re_dev *rdev)
