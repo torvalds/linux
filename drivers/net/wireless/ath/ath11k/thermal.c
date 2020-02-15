@@ -6,6 +6,8 @@
 #include <linux/device.h>
 #include <linux/sysfs.h>
 #include <linux/thermal.h>
+#include <linux/hwmon.h>
+#include <linux/hwmon-sysfs.h>
 #include "core.h"
 #include "debug.h"
 
@@ -57,6 +59,70 @@ static struct thermal_cooling_device_ops ath11k_thermal_ops = {
 	.set_cur_state = ath11k_thermal_set_cur_throttle_state,
 };
 
+static ssize_t ath11k_thermal_show_temp(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct ath11k *ar = dev_get_drvdata(dev);
+	int ret, temperature;
+	unsigned long time_left;
+
+	mutex_lock(&ar->conf_mutex);
+
+	/* Can't get temperature when the card is off */
+	if (ar->state != ATH11K_STATE_ON) {
+		ret = -ENETDOWN;
+		goto out;
+	}
+
+	reinit_completion(&ar->thermal.wmi_sync);
+	ret = ath11k_wmi_send_pdev_temperature_cmd(ar);
+	if (ret) {
+		ath11k_warn(ar->ab, "failed to read temperature %d\n", ret);
+		goto out;
+	}
+
+	if (test_bit(ATH11K_FLAG_CRASH_FLUSH, &ar->ab->dev_flags)) {
+		ret = -ESHUTDOWN;
+		goto out;
+	}
+
+	time_left = wait_for_completion_timeout(&ar->thermal.wmi_sync,
+						ATH11K_THERMAL_SYNC_TIMEOUT_HZ);
+	if (!time_left) {
+		ath11k_warn(ar->ab, "failed to synchronize thermal read\n");
+		ret = -ETIMEDOUT;
+		goto out;
+	}
+
+	spin_lock_bh(&ar->data_lock);
+	temperature = ar->thermal.temperature;
+	spin_unlock_bh(&ar->data_lock);
+
+	/* display in millidegree celcius */
+	ret = snprintf(buf, PAGE_SIZE, "%d\n", temperature * 1000);
+out:
+	mutex_unlock(&ar->conf_mutex);
+	return ret;
+}
+
+void ath11k_thermal_event_temperature(struct ath11k *ar, int temperature)
+{
+	spin_lock_bh(&ar->data_lock);
+	ar->thermal.temperature = temperature;
+	spin_unlock_bh(&ar->data_lock);
+	complete(&ar->thermal.wmi_sync);
+}
+
+static SENSOR_DEVICE_ATTR(temp1_input, 0444, ath11k_thermal_show_temp,
+			  NULL, 0);
+
+static struct attribute *ath11k_hwmon_attrs[] = {
+	&sensor_dev_attr_temp1_input.dev_attr.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(ath11k_hwmon);
+
 int ath11k_thermal_set_throttling(struct ath11k *ar, u32 throttle_state)
 {
 	struct ath11k_base *sc = ar->ab;
@@ -91,6 +157,7 @@ int ath11k_thermal_set_throttling(struct ath11k *ar, u32 throttle_state)
 int ath11k_thermal_register(struct ath11k_base *sc)
 {
 	struct thermal_cooling_device *cdev;
+	struct device *hwmon_dev;
 	struct ath11k *ar;
 	struct ath11k_pdev *pdev;
 	int i, ret;
@@ -118,6 +185,18 @@ int ath11k_thermal_register(struct ath11k_base *sc)
 		}
 
 		ar->thermal.cdev = cdev;
+		if (!IS_REACHABLE(CONFIG_HWMON))
+			return 0;
+
+		hwmon_dev = devm_hwmon_device_register_with_groups(&ar->hw->wiphy->dev,
+								   "ath11k_hwmon", ar,
+								   ath11k_hwmon_groups);
+		if (IS_ERR(hwmon_dev)) {
+			ath11k_err(ar->ab, "failed to register hwmon device: %ld\n",
+				   PTR_ERR(hwmon_dev));
+			ret = -EINVAL;
+			goto err_thermal_destroy;
+		}
 	}
 
 	return 0;

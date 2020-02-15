@@ -655,6 +655,7 @@ static void ath11k_core_restart(struct work_struct *work)
 		complete(&ar->install_key_done);
 		complete(&ar->vdev_setup_done);
 		complete(&ar->bss_survey_done);
+		complete(&ar->thermal.wmi_sync);
 
 		wake_up(&ar->dp.tx_empty_waitq);
 		idr_for_each(&ar->txmgmt_idr,

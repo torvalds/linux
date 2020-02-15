@@ -3304,6 +3304,12 @@ struct wmi_request_stats_cmd {
 	u32 pdev_id;
 } __packed;
 
+struct wmi_get_pdev_temperature_cmd {
+	u32 tlv_header;
+	u32 param;
+	u32 pdev_id;
+} __packed;
+
 #define WMI_BEACON_TX_BUFFER_SIZE	512
 
 struct wmi_bcn_tmpl_cmd {
@@ -4132,6 +4138,12 @@ struct wmi_pdev_radar_ev {
 	s32 sidx;
 } __packed;
 
+struct wmi_pdev_temperature_event {
+	/* temperature value in Celcius degree */
+	s32 temp;
+	u32 pdev_id;
+} __packed;
+
 #define WMI_RX_STATUS_OK			0x00
 #define WMI_RX_STATUS_ERR_CRC			0x01
 #define WMI_RX_STATUS_ERR_DECRYPT		0x08
@@ -4763,6 +4775,7 @@ int ath11k_wmi_pdev_bss_chan_info_request(struct ath11k *ar,
 					  enum wmi_bss_chan_info_req_type type);
 int ath11k_wmi_send_stats_request_cmd(struct ath11k *ar,
 				      struct stats_request_params *param);
+int ath11k_wmi_send_pdev_temperature_cmd(struct ath11k *ar);
 int ath11k_wmi_send_peer_flush_tids_cmd(struct ath11k *ar,
 					u8 peer_addr[ETH_ALEN],
 					struct peer_flush_params *param);
