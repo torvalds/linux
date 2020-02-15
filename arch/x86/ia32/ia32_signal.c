@@ -154,13 +154,11 @@ badframe:
 
 #define get_user_seg(seg)	({ unsigned int v; savesegment(seg, v); v; })
 
-static int ia32_setup_sigcontext(struct sigcontext_32 __user *sc,
-				 void __user *fpstate,
-				 struct pt_regs *regs, unsigned int mask)
+static __always_inline int
+__unsafe_setup_sigcontext32(struct sigcontext_32 __user *sc,
+			    void __user *fpstate,
+			    struct pt_regs *regs, unsigned int mask)
 {
-	if (!user_access_begin(sc, sizeof(struct sigcontext_32)))
-		return -EFAULT;
-
 	unsafe_put_user(get_user_seg(gs), (unsigned int __user *)&sc->gs, Efault);
 	unsafe_put_user(get_user_seg(fs), (unsigned int __user *)&sc->fs, Efault);
 	unsafe_put_user(get_user_seg(ds), (unsigned int __user *)&sc->ds, Efault);
@@ -187,12 +185,17 @@ static int ia32_setup_sigcontext(struct sigcontext_32 __user *sc,
 	/* non-iBCS2 extensions.. */
 	unsafe_put_user(mask, &sc->oldmask, Efault);
 	unsafe_put_user(current->thread.cr2, &sc->cr2, Efault);
-	user_access_end();
 	return 0;
+
 Efault:
-	user_access_end();
 	return -EFAULT;
 }
+
+#define unsafe_put_sigcontext32(sc, fp, regs, set, label)		\
+do {									\
+	if (__unsafe_setup_sigcontext32(sc, fp, regs, set->sig[0]))	\
+		goto label;						\
+} while(0)
 
 /*
  * Determine which stack to use..
@@ -234,7 +237,7 @@ int ia32_setup_frame(int sig, struct ksignal *ksig,
 	struct sigframe_ia32 __user *frame;
 	void __user *restorer;
 	int err = 0;
-	void __user *fpstate = NULL;
+	void __user *fp = NULL;
 
 	/* copy_to_user optimizes that into a single 8 byte store */
 	static const struct {
@@ -247,7 +250,7 @@ int ia32_setup_frame(int sig, struct ksignal *ksig,
 		0x80cd,		/* int $0x80 */
 	};
 
-	frame = get_sigframe(ksig, regs, sizeof(*frame), &fpstate);
+	frame = get_sigframe(ksig, regs, sizeof(*frame), &fp);
 
 	if (!access_ok(frame, sizeof(*frame)))
 		return -EFAULT;
@@ -255,8 +258,11 @@ int ia32_setup_frame(int sig, struct ksignal *ksig,
 	if (__put_user(sig, &frame->sig))
 		return -EFAULT;
 
-	if (ia32_setup_sigcontext(&frame->sc, fpstate, regs, set->sig[0]))
+	if (!user_access_begin(&frame->sc, sizeof(struct sigcontext_32)))
 		return -EFAULT;
+
+	unsafe_put_sigcontext32(&frame->sc, fp, regs, set, Efault);
+	user_access_end();
 
 	if (__put_user(set->sig[1], &frame->extramask[0]))
 		return -EFAULT;
@@ -301,6 +307,9 @@ int ia32_setup_frame(int sig, struct ksignal *ksig,
 	regs->ss = __USER32_DS;
 
 	return 0;
+Efault:
+	user_access_end();
+	return -EFAULT;
 }
 
 int ia32_setup_rt_frame(int sig, struct ksignal *ksig,
@@ -309,7 +318,7 @@ int ia32_setup_rt_frame(int sig, struct ksignal *ksig,
 	struct rt_sigframe_ia32 __user *frame;
 	void __user *restorer;
 	int err = 0;
-	void __user *fpstate = NULL;
+	void __user *fp = NULL;
 
 	/* __copy_to_user optimizes that into a single 8 byte store */
 	static const struct {
@@ -324,7 +333,7 @@ int ia32_setup_rt_frame(int sig, struct ksignal *ksig,
 		0,
 	};
 
-	frame = get_sigframe(ksig, regs, sizeof(*frame), &fpstate);
+	frame = get_sigframe(ksig, regs, sizeof(*frame), &fp);
 
 	if (!user_access_begin(frame, sizeof(*frame)))
 		return -EFAULT;
@@ -355,9 +364,12 @@ int ia32_setup_rt_frame(int sig, struct ksignal *ksig,
 	unsafe_put_user(*((u64 *)&code), (u64 __user *)frame->retcode, Efault);
 	user_access_end();
 
-	err |= __copy_siginfo_to_user32(&frame->info, &ksig->info, false);
-	err |= ia32_setup_sigcontext(&frame->uc.uc_mcontext, fpstate,
-				     regs, set->sig[0]);
+	if (__copy_siginfo_to_user32(&frame->info, &ksig->info, false))
+		return -EFAULT;
+	if (!user_access_begin(&frame->uc.uc_mcontext, sizeof(struct sigcontext_32)))
+		return -EFAULT;
+	unsafe_put_sigcontext32(&frame->uc.uc_mcontext, fp, regs, set, Efault);
+	user_access_end();
 	err |= __put_user(*(__u64 *)set, (__u64 __user *)&frame->uc.uc_sigmask);
 
 	if (err)
