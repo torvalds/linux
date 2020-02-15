@@ -859,7 +859,7 @@ static int bnxt_re_init_user_qp(struct bnxt_re_dev *rdev, struct bnxt_re_pd *pd,
 	bytes = (qplib_qp->sq.max_wqe * BNXT_QPLIB_MAX_SQE_ENTRY_SIZE);
 	/* Consider mapping PSN search memory only for RC QPs. */
 	if (qplib_qp->type == CMDQ_CREATE_QP_TYPE_RC) {
-		psn_sz = bnxt_qplib_is_chip_gen_p5(&rdev->chip_ctx) ?
+		psn_sz = bnxt_qplib_is_chip_gen_p5(rdev->chip_ctx) ?
 					sizeof(struct sq_psn_search_ext) :
 					sizeof(struct sq_psn_search);
 		bytes += (qplib_qp->sq.max_wqe * psn_sz);
@@ -1060,6 +1060,7 @@ static void bnxt_re_adjust_gsi_rq_attr(struct bnxt_re_qp *qp)
 	qplqp->rq.max_sge = dev_attr->max_qp_sges;
 	if (qplqp->rq.max_sge > dev_attr->max_qp_sges)
 		qplqp->rq.max_sge = dev_attr->max_qp_sges;
+	qplqp->rq.max_sge = 6;
 }
 
 static void bnxt_re_init_sq_attr(struct bnxt_re_qp *qp,
@@ -1123,7 +1124,7 @@ static int bnxt_re_init_qp_type(struct bnxt_re_dev *rdev,
 	struct bnxt_qplib_chip_ctx *chip_ctx;
 	int qptype;
 
-	chip_ctx = &rdev->chip_ctx;
+	chip_ctx = rdev->chip_ctx;
 
 	qptype = __from_ib_qp_type(init_attr->qp_type);
 	if (qptype == IB_QPT_MAX) {
@@ -1343,7 +1344,7 @@ struct ib_qp *bnxt_re_create_qp(struct ib_pd *ib_pd,
 		goto fail;
 
 	if (qp_init_attr->qp_type == IB_QPT_GSI &&
-	    !(bnxt_qplib_is_chip_gen_p5(&rdev->chip_ctx))) {
+	    !(bnxt_qplib_is_chip_gen_p5(rdev->chip_ctx))) {
 		rc = bnxt_re_create_gsi_qp(qp, pd, qp_init_attr);
 		if (rc == -ENODEV)
 			goto qp_destroy;
@@ -3820,10 +3821,10 @@ int bnxt_re_alloc_ucontext(struct ib_ucontext *ctx, struct ib_udata *udata)
 	spin_lock_init(&uctx->sh_lock);
 
 	resp.comp_mask = BNXT_RE_UCNTX_CMASK_HAVE_CCTX;
-	chip_met_rev_num = rdev->chip_ctx.chip_num;
-	chip_met_rev_num |= ((u32)rdev->chip_ctx.chip_rev & 0xFF) <<
+	chip_met_rev_num = rdev->chip_ctx->chip_num;
+	chip_met_rev_num |= ((u32)rdev->chip_ctx->chip_rev & 0xFF) <<
 			     BNXT_RE_CHIP_ID0_CHIP_REV_SFT;
-	chip_met_rev_num |= ((u32)rdev->chip_ctx.chip_metal & 0xFF) <<
+	chip_met_rev_num |= ((u32)rdev->chip_ctx->chip_metal & 0xFF) <<
 			     BNXT_RE_CHIP_ID0_CHIP_MET_SFT;
 	resp.chip_id0 = chip_met_rev_num;
 	/* Future extension of chip info */

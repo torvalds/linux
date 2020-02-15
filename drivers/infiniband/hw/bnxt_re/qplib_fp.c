@@ -2426,7 +2426,7 @@ static int bnxt_qplib_cq_process_res_ud(struct bnxt_qplib_cq *cq,
 	}
 	cqe = *pcqe;
 	cqe->opcode = hwcqe->cqe_type_toggle & CQ_BASE_CQE_TYPE_MASK;
-	cqe->length = (u32)le16_to_cpu(hwcqe->length);
+	cqe->length = le16_to_cpu(hwcqe->length) & CQ_RES_UD_LENGTH_MASK;
 	cqe->cfa_meta = le16_to_cpu(hwcqe->cfa_metadata);
 	cqe->invrkey = le32_to_cpu(hwcqe->imm_data);
 	cqe->flags = le16_to_cpu(hwcqe->flags);
