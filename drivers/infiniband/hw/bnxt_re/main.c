@@ -1344,7 +1344,7 @@ static void bnxt_re_ib_unreg(struct bnxt_re_dev *rdev)
 		bnxt_qplib_free_ctx(&rdev->qplib_res, &rdev->qplib_ctx);
 		bnxt_qplib_disable_rcfw_channel(&rdev->rcfw);
 		type = bnxt_qplib_get_ring_type(rdev->chip_ctx);
-		bnxt_re_net_ring_free(rdev, rdev->rcfw.creq_ring_id, type);
+		bnxt_re_net_ring_free(rdev, rdev->rcfw.creq.ring_id, type);
 		bnxt_qplib_free_rcfw_channel(&rdev->rcfw);
 	}
 	if (test_and_clear_bit(BNXT_RE_FLAG_GOT_MSIX, &rdev->flags)) {
@@ -1375,6 +1375,7 @@ static void bnxt_re_worker(struct work_struct *work)
 
 static int bnxt_re_ib_reg(struct bnxt_re_dev *rdev)
 {
+	struct bnxt_qplib_creq_ctx *creq;
 	struct bnxt_re_ring_attr rattr;
 	u32 db_offt;
 	bool locked;
@@ -1427,13 +1428,14 @@ static int bnxt_re_ib_reg(struct bnxt_re_dev *rdev)
 	}
 
 	type = bnxt_qplib_get_ring_type(rdev->chip_ctx);
-	rattr.dma_arr = rdev->rcfw.creq.pbl[PBL_LVL_0].pg_map_arr;
-	rattr.pages = rdev->rcfw.creq.pbl[rdev->rcfw.creq.level].pg_count;
+	creq = &rdev->rcfw.creq;
+	rattr.dma_arr = creq->hwq.pbl[PBL_LVL_0].pg_map_arr;
+	rattr.pages = creq->hwq.pbl[creq->hwq.level].pg_count;
 	rattr.type = type;
 	rattr.mode = RING_ALLOC_REQ_INT_MODE_MSIX;
 	rattr.depth = BNXT_QPLIB_CREQE_MAX_CNT - 1;
 	rattr.lrid = rdev->msix_entries[BNXT_RE_AEQ_IDX].ring_idx;
-	rc = bnxt_re_net_ring_alloc(rdev, &rattr, &rdev->rcfw.creq_ring_id);
+	rc = bnxt_re_net_ring_alloc(rdev, &rattr, &creq->ring_id);
 	if (rc) {
 		pr_err("Failed to allocate CREQ: %#x\n", rc);
 		goto free_rcfw;
@@ -1527,7 +1529,7 @@ disable_rcfw:
 	bnxt_qplib_disable_rcfw_channel(&rdev->rcfw);
 free_ring:
 	type = bnxt_qplib_get_ring_type(rdev->chip_ctx);
-	bnxt_re_net_ring_free(rdev, rdev->rcfw.creq_ring_id, type);
+	bnxt_re_net_ring_free(rdev, rdev->rcfw.creq.ring_id, type);
 free_rcfw:
 	bnxt_qplib_free_rcfw_channel(&rdev->rcfw);
 fail:

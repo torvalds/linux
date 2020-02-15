@@ -80,6 +80,13 @@ enum bnxt_qplib_pbl_lvl {
 #define ROCE_PG_SIZE_8M		(8 * 1024 * 1024)
 #define ROCE_PG_SIZE_1G		(1024 * 1024 * 1024)
 
+struct bnxt_qplib_reg_desc {
+	u8		bar_id;
+	resource_size_t	bar_base;
+	void __iomem	*bar_reg;
+	size_t		len;
+};
+
 struct bnxt_qplib_pbl {
 	u32				pg_count;
 	u32				pg_size;
