@@ -186,33 +186,10 @@ static const struct net_device_ops macsonic_netdev_ops = {
 static int macsonic_init(struct net_device *dev)
 {
 	struct sonic_local* lp = netdev_priv(dev);
+	int err = sonic_alloc_descriptors(dev);
 
-	/* Allocate the entire chunk of memory for the descriptors.
-           Note that this cannot cross a 64K boundary. */
-	lp->descriptors = dma_alloc_coherent(lp->device,
-					     SIZEOF_SONIC_DESC *
-					     SONIC_BUS_SCALE(lp->dma_bitmode),
-					     &lp->descriptors_laddr,
-					     GFP_KERNEL);
-	if (lp->descriptors == NULL)
-		return -ENOMEM;
-
-	/* Now set up the pointers to point to the appropriate places */
-	lp->cda = lp->descriptors;
-	lp->tda = lp->cda + (SIZEOF_SONIC_CDA
-	                     * SONIC_BUS_SCALE(lp->dma_bitmode));
-	lp->rda = lp->tda + (SIZEOF_SONIC_TD * SONIC_NUM_TDS
-	                     * SONIC_BUS_SCALE(lp->dma_bitmode));
-	lp->rra = lp->rda + (SIZEOF_SONIC_RD * SONIC_NUM_RDS
-	                     * SONIC_BUS_SCALE(lp->dma_bitmode));
-
-	lp->cda_laddr = lp->descriptors_laddr;
-	lp->tda_laddr = lp->cda_laddr + (SIZEOF_SONIC_CDA
-	                     * SONIC_BUS_SCALE(lp->dma_bitmode));
-	lp->rda_laddr = lp->tda_laddr + (SIZEOF_SONIC_TD * SONIC_NUM_TDS
-	                     * SONIC_BUS_SCALE(lp->dma_bitmode));
-	lp->rra_laddr = lp->rda_laddr + (SIZEOF_SONIC_RD * SONIC_NUM_RDS
-	                     * SONIC_BUS_SCALE(lp->dma_bitmode));
+	if (err)
+		return err;
 
 	dev->netdev_ops = &macsonic_netdev_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;

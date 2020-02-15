@@ -50,6 +50,42 @@ static void sonic_msg_init(struct net_device *dev)
 		netif_dbg(lp, drv, dev, "%s", version);
 }
 
+static int sonic_alloc_descriptors(struct net_device *dev)
+{
+	struct sonic_local *lp = netdev_priv(dev);
+
+	/* Allocate a chunk of memory for the descriptors. Note that this
+	 * must not cross a 64K boundary. It is smaller than one page which
+	 * means that page alignment is a sufficient condition.
+	 */
+	lp->descriptors =
+		dma_alloc_coherent(lp->device,
+				   SIZEOF_SONIC_DESC *
+				   SONIC_BUS_SCALE(lp->dma_bitmode),
+				   &lp->descriptors_laddr, GFP_KERNEL);
+
+	if (!lp->descriptors)
+		return -ENOMEM;
+
+	lp->cda = lp->descriptors;
+	lp->tda = lp->cda + SIZEOF_SONIC_CDA *
+			    SONIC_BUS_SCALE(lp->dma_bitmode);
+	lp->rda = lp->tda + SIZEOF_SONIC_TD * SONIC_NUM_TDS *
+			    SONIC_BUS_SCALE(lp->dma_bitmode);
+	lp->rra = lp->rda + SIZEOF_SONIC_RD * SONIC_NUM_RDS *
+			    SONIC_BUS_SCALE(lp->dma_bitmode);
+
+	lp->cda_laddr = lp->descriptors_laddr;
+	lp->tda_laddr = lp->cda_laddr + SIZEOF_SONIC_CDA *
+					SONIC_BUS_SCALE(lp->dma_bitmode);
+	lp->rda_laddr = lp->tda_laddr + SIZEOF_SONIC_TD * SONIC_NUM_TDS *
+					SONIC_BUS_SCALE(lp->dma_bitmode);
+	lp->rra_laddr = lp->rda_laddr + SIZEOF_SONIC_RD * SONIC_NUM_RDS *
+					SONIC_BUS_SCALE(lp->dma_bitmode);
+
+	return 0;
+}
+
 /*
  * Open/initialize the SONIC controller.
  *
