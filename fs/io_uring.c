@@ -2517,6 +2517,9 @@ static void io_fallocate_finish(struct io_wq_work **workptr)
 	struct io_kiocb *nxt = NULL;
 	int ret;
 
+	if (io_req_cancelled(req))
+		return;
+
 	ret = vfs_fallocate(req->file, req->sync.mode, req->sync.off,
 				req->sync.len);
 	if (ret < 0)
@@ -2904,6 +2907,7 @@ static void io_close_finish(struct io_wq_work **workptr)
 	struct io_kiocb *req = container_of(*workptr, struct io_kiocb, work);
 	struct io_kiocb *nxt = NULL;
 
+	/* not cancellable, don't do io_req_cancelled() */
 	__io_close_finish(req, &nxt);
 	if (nxt)
 		io_wq_assign_next(workptr, nxt);
