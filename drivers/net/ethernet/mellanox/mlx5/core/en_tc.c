@@ -2675,6 +2675,8 @@ static bool actions_match_supported(struct mlx5e_priv *priv,
 				    struct mlx5e_tc_flow *flow,
 				    struct netlink_ext_ack *extack)
 {
+	struct net_device *filter_dev = parse_attr->filter_dev;
+	bool drop_action, decap_action, pop_action;
 	u32 actions;
 
 	if (mlx5e_is_eswitch_flow(flow))
@@ -2682,11 +2684,19 @@ static bool actions_match_supported(struct mlx5e_priv *priv,
 	else
 		actions = flow->nic_attr->action;
 
-	if (flow_flag_test(flow, EGRESS) &&
-	    !((actions & MLX5_FLOW_CONTEXT_ACTION_DECAP) ||
-	      (actions & MLX5_FLOW_CONTEXT_ACTION_VLAN_POP) ||
-	      (actions & MLX5_FLOW_CONTEXT_ACTION_DROP)))
-		return false;
+	drop_action = actions & MLX5_FLOW_CONTEXT_ACTION_DROP;
+	decap_action = actions & MLX5_FLOW_CONTEXT_ACTION_DECAP;
+	pop_action = actions & MLX5_FLOW_CONTEXT_ACTION_VLAN_POP;
+
+	if (flow_flag_test(flow, EGRESS) && !drop_action) {
+		/* If no drop, we must decap (vxlan) or pop (vlan) */
+		if (mlx5e_get_tc_tun(filter_dev) && !decap_action)
+			return false;
+		else if (is_vlan_dev(filter_dev) && !pop_action)
+			return false;
+		else
+			return false; /* Sanity */
+	}
 
 	if (actions & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
 		return modify_header_match_supported(&parse_attr->spec,
