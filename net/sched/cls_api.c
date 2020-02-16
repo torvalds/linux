@@ -1559,8 +1559,11 @@ static int tcf_block_setup(struct tcf_block *block,
  * to this qdisc, (optionally) tests for protocol and asks
  * specific classifiers.
  */
-int tcf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
-		 struct tcf_result *res, bool compat_mode)
+static inline int __tcf_classify(struct sk_buff *skb,
+				 const struct tcf_proto *tp,
+				 struct tcf_result *res,
+				 bool compat_mode,
+				 u32 *last_executed_chain)
 {
 #ifdef CONFIG_NET_CLS_ACT
 	const int max_reclassify_loop = 4;
@@ -1582,21 +1585,11 @@ reclassify:
 #ifdef CONFIG_NET_CLS_ACT
 		if (unlikely(err == TC_ACT_RECLASSIFY && !compat_mode)) {
 			first_tp = orig_tp;
+			*last_executed_chain = first_tp->chain->index;
 			goto reset;
 		} else if (unlikely(TC_ACT_EXT_CMP(err, TC_ACT_GOTO_CHAIN))) {
 			first_tp = res->goto_tp;
-
-#if IS_ENABLED(CONFIG_NET_TC_SKB_EXT)
-			{
-				struct tc_skb_ext *ext;
-
-				ext = skb_ext_add(skb, TC_SKB_EXT);
-				if (WARN_ON_ONCE(!ext))
-					return TC_ACT_SHOT;
-
-				ext->chain = err & TC_ACT_EXT_VAL_MASK;
-			}
-#endif
+			*last_executed_chain = err & TC_ACT_EXT_VAL_MASK;
 			goto reset;
 		}
 #endif
@@ -1619,7 +1612,44 @@ reset:
 	goto reclassify;
 #endif
 }
+
+int tcf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
+		 struct tcf_result *res, bool compat_mode)
+{
+	u32 last_executed_chain = 0;
+
+	return __tcf_classify(skb, tp, res, compat_mode,
+			      &last_executed_chain);
+}
 EXPORT_SYMBOL(tcf_classify);
+
+int tcf_classify_ingress(struct sk_buff *skb, const struct tcf_proto *tp,
+			 struct tcf_result *res, bool compat_mode)
+{
+#if !IS_ENABLED(CONFIG_NET_TC_SKB_EXT)
+	u32 last_executed_chain = 0;
+
+	return __tcf_classify(skb, tp, res, compat_mode,
+			      &last_executed_chain);
+#else
+	u32 last_executed_chain = tp ? tp->chain->index : 0;
+	struct tc_skb_ext *ext;
+	int ret;
+
+	ret = __tcf_classify(skb, tp, res, compat_mode, &last_executed_chain);
+
+	/* If we missed on some chain */
+	if (ret == TC_ACT_UNSPEC && last_executed_chain) {
+		ext = skb_ext_add(skb, TC_SKB_EXT);
+		if (WARN_ON_ONCE(!ext))
+			return TC_ACT_SHOT;
+		ext->chain = last_executed_chain;
+	}
+
+	return ret;
+#endif
+}
+EXPORT_SYMBOL(tcf_classify_ingress);
 
 struct tcf_chain_info {
 	struct tcf_proto __rcu **pprev;
