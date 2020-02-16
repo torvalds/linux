@@ -10,12 +10,9 @@ static int
 mt76x2_start(struct ieee80211_hw *hw)
 {
 	struct mt76x02_dev *dev = hw->priv;
-	int ret;
 
 	mt76x02_mac_start(dev);
-	ret = mt76x2_phy_start(dev);
-	if (ret)
-		return ret;
+	mt76x2_phy_start(dev);
 
 	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mt76.mac_work,
 				     MT_MAC_WORK_INTERVAL);
@@ -35,11 +32,9 @@ mt76x2_stop(struct ieee80211_hw *hw)
 	mt76x2_stop_hardware(dev);
 }
 
-static int
+static void
 mt76x2_set_channel(struct mt76x02_dev *dev, struct cfg80211_chan_def *chandef)
 {
-	int ret;
-
 	cancel_delayed_work_sync(&dev->cal_work);
 	tasklet_disable(&dev->mt76.pre_tbtt_tasklet);
 	tasklet_disable(&dev->dfs_pd.dfs_tasklet);
@@ -50,7 +45,7 @@ mt76x2_set_channel(struct mt76x02_dev *dev, struct cfg80211_chan_def *chandef)
 	mt76_set_channel(&dev->mphy);
 
 	mt76x2_mac_stop(dev, true);
-	ret = mt76x2_phy_set_channel(dev, chandef);
+	mt76x2_phy_set_channel(dev, chandef);
 
 	mt76x02_mac_cc_reset(dev);
 	mt76x02_dfs_init_params(dev);
@@ -64,15 +59,12 @@ mt76x2_set_channel(struct mt76x02_dev *dev, struct cfg80211_chan_def *chandef)
 	tasklet_enable(&dev->mt76.pre_tbtt_tasklet);
 
 	mt76_txq_schedule_all(&dev->mphy);
-
-	return ret;
 }
 
 static int
 mt76x2_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct mt76x02_dev *dev = hw->priv;
-	int ret = 0;
 
 	mutex_lock(&dev->mt76.mutex);
 
@@ -101,11 +93,11 @@ mt76x2_config(struct ieee80211_hw *hw, u32 changed)
 
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
 		ieee80211_stop_queues(hw);
-		ret = mt76x2_set_channel(dev, &hw->conf.chandef);
+		mt76x2_set_channel(dev, &hw->conf.chandef);
 		ieee80211_wake_queues(hw);
 	}
 
-	return ret;
+	return 0;
 }
 
 static void
@@ -162,5 +154,6 @@ const struct ieee80211_ops mt76x2_ops = {
 	.set_antenna = mt76x2_set_antenna,
 	.get_antenna = mt76_get_antenna,
 	.set_rts_threshold = mt76x02_set_rts_threshold,
+	.reconfig_complete = mt76x02_reconfig_complete,
 };
 
