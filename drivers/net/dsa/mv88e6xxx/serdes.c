@@ -237,6 +237,29 @@ unsigned int mv88e6352_serdes_irq_mapping(struct mv88e6xxx_chip *chip, int port)
 	return irq_find_mapping(chip->g2_irq.domain, MV88E6352_SERDES_IRQ);
 }
 
+int mv88e6352_serdes_get_regs_len(struct mv88e6xxx_chip *chip, int port)
+{
+	if (!mv88e6352_port_has_serdes(chip, port))
+		return 0;
+
+	return 32 * sizeof(u16);
+}
+
+void mv88e6352_serdes_get_regs(struct mv88e6xxx_chip *chip, int port, void *_p)
+{
+	u16 *p = _p;
+	u16 reg;
+	int i;
+
+	if (!mv88e6352_port_has_serdes(chip, port))
+		return;
+
+	for (i = 0 ; i < 32; i++) {
+		mv88e6352_serdes_read(chip, i, &reg);
+		p[i] = reg;
+	}
+}
+
 u8 mv88e6341_serdes_get_lane(struct mv88e6xxx_chip *chip, int port)
 {
 	u8 cmode = chip->ports[port].cmode;
