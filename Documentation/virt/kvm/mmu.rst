@@ -1,3 +1,6 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+======================
 The x86 kvm shadow mmu
 ======================
 
@@ -7,27 +10,37 @@ physical addresses to host physical addresses.
 
 The mmu code attempts to satisfy the following requirements:
 
-- correctness: the guest should not be able to determine that it is running
+- correctness:
+	       the guest should not be able to determine that it is running
                on an emulated mmu except for timing (we attempt to comply
                with the specification, not emulate the characteristics of
                a particular implementation such as tlb size)
-- security:    the guest must not be able to touch host memory not assigned
+- security:
+	       the guest must not be able to touch host memory not assigned
                to it
-- performance: minimize the performance penalty imposed by the mmu
-- scaling:     need to scale to large memory and large vcpu guests
-- hardware:    support the full range of x86 virtualization hardware
-- integration: Linux memory management code must be in control of guest memory
+- performance:
+               minimize the performance penalty imposed by the mmu
+- scaling:
+               need to scale to large memory and large vcpu guests
+- hardware:
+               support the full range of x86 virtualization hardware
+- integration:
+               Linux memory management code must be in control of guest memory
                so that swapping, page migration, page merging, transparent
                hugepages, and similar features work without change
-- dirty tracking: report writes to guest memory to enable live migration
+- dirty tracking:
+               report writes to guest memory to enable live migration
                and framebuffer-based displays
-- footprint:   keep the amount of pinned kernel memory low (most memory
+- footprint:
+               keep the amount of pinned kernel memory low (most memory
                should be shrinkable)
-- reliability:  avoid multipage or GFP_ATOMIC allocations
+- reliability:
+               avoid multipage or GFP_ATOMIC allocations
 
 Acronyms
 ========
 
+====  ====================================================================
 pfn   host page frame number
 hpa   host physical address
 hva   host virtual address
@@ -41,6 +54,7 @@ pte   page table entry (used also to refer generically to paging structure
 gpte  guest pte (referring to gfns)
 spte  shadow pte (referring to pfns)
 tdp   two dimensional paging (vendor neutral term for NPT and EPT)
+====  ====================================================================
 
 Virtual and real hardware supported
 ===================================
@@ -90,11 +104,13 @@ Events
 The mmu is driven by events, some from the guest, some from the host.
 
 Guest generated events:
+
 - writes to control registers (especially cr3)
 - invlpg/invlpga instruction execution
 - access to missing or protected translations
 
 Host generated events:
+
 - changes in the gpa->hpa translation (either through gpa->hva changes or
   through hva->hpa changes)
 - memory pressure (the shrinker)
@@ -117,16 +133,19 @@ Leaf ptes point at guest pages.
 The following table shows translations encoded by leaf ptes, with higher-level
 translations in parentheses:
 
- Non-nested guests:
+ Non-nested guests::
+
   nonpaging:     gpa->hpa
   paging:        gva->gpa->hpa
   paging, tdp:   (gva->)gpa->hpa
- Nested guests:
+
+ Nested guests::
+
   non-tdp:       ngva->gpa->hpa  (*)
   tdp:           (ngva->)ngpa->gpa->hpa
 
-(*) the guest hypervisor will encode the ngva->gpa translation into its page
-    tables if npt is not present
+  (*) the guest hypervisor will encode the ngva->gpa translation into its page
+      tables if npt is not present
 
 Shadow pages contain the following information:
   role.level:
@@ -291,28 +310,41 @@ Handling a page fault is performed as follows:
 
  - if the RSV bit of the error code is set, the page fault is caused by guest
    accessing MMIO and cached MMIO information is available.
+
    - walk shadow page table
    - check for valid generation number in the spte (see "Fast invalidation of
      MMIO sptes" below)
    - cache the information to vcpu->arch.mmio_gva, vcpu->arch.mmio_access and
      vcpu->arch.mmio_gfn, and call the emulator
+
  - If both P bit and R/W bit of error code are set, this could possibly
    be handled as a "fast page fault" (fixed without taking the MMU lock).  See
    the description in Documentation/virt/kvm/locking.txt.
+
  - if needed, walk the guest page tables to determine the guest translation
    (gva->gpa or ngpa->gpa)
+
    - if permissions are insufficient, reflect the fault back to the guest
+
  - determine the host page
+
    - if this is an mmio request, there is no host page; cache the info to
      vcpu->arch.mmio_gva, vcpu->arch.mmio_access and vcpu->arch.mmio_gfn
+
  - walk the shadow page table to find the spte for the translation,
    instantiating missing intermediate page tables as necessary
+
    - If this is an mmio request, cache the mmio info to the spte and set some
      reserved bit on the spte (see callers of kvm_mmu_set_mmio_spte_mask)
+
  - try to unsynchronize the page
+
    - if successful, we can let the guest continue and modify the gpte
+
  - emulate the instruction
+
    - if failed, unshadow the page and let the guest continue
+
  - update any translations that were modified by the instruction
 
 invlpg handling:
@@ -324,10 +356,12 @@ invlpg handling:
 Guest control register updates:
 
 - mov to cr3
+
   - look up new shadow roots
   - synchronize newly reachable shadow pages
 
 - mov to cr0/cr4/efer
+
   - set up mmu context for new paging mode
   - look up new shadow roots
   - synchronize newly reachable shadow pages
@@ -358,6 +392,7 @@ on fault type:
 (user write faults generate a #PF)
 
 In the first case there are two additional complications:
+
 - if CR4.SMEP is enabled: since we've turned the page into a kernel page,
   the kernel may now execute it.  We handle this by also setting spte.nx.
   If we get a user fetch or read fault, we'll change spte.u=1 and
@@ -446,4 +481,3 @@ Further reading
 
 - NPT presentation from KVM Forum 2008
   http://www.linux-kvm.org/images/c/c8/KvmForum2008%24kdf2008_21.pdf
-
