@@ -103,6 +103,10 @@
  * @sb_free_security:
  *	Deallocate and clear the sb->s_security field.
  *	@sb contains the super_block structure to be modified.
+ * @sb_free_mnt_opts:
+ * 	Free memory associated with @mnt_ops.
+ * @sb_eat_lsm_opts:
+ * 	Eat (scan @orig options) and save them in @mnt_opts.
  * @sb_statfs:
  *	Check permission before obtaining filesystem statistics for the @mnt
  *	mountpoint.
@@ -136,6 +140,10 @@
  *	@sb superblock being remounted
  *	@data contains the filesystem-specific data.
  *	Return 0 if permission is granted.
+ * @sb_kern_mount:
+ * 	Mount this @sb if allowed by permissions.
+ * @sb_show_options:
+ * 	Show (print on @m) mount options for this @sb.
  * @sb_umount:
  *	Check permission before the @mnt file system is unmounted.
  *	@mnt contains the mounted file system.
@@ -155,6 +163,8 @@
  *	Copy all security options from a given superblock to another
  *	@oldsb old superblock which contain information to clone
  *	@newsb new superblock which needs filled in
+ * @sb_add_mnt_opt:
+ * 	Add one mount @option to @mnt_opts.
  * @sb_parse_opts_str:
  *	Parse a string of security data filling in the opts structure
  *	@options string containing all mount options known by the LSM
@@ -451,6 +461,12 @@
  *	security module does not know about attribute or a negative error code
  *	to abort the copy up. Note that the caller is responsible for reading
  *	and writing the xattrs as this hook is merely a filter.
+ * @d_instantiate:
+ * 	Fill in @inode security information for a @dentry if allowed.
+ * @getprocattr:
+ * 	Read attribute @name for process @p and store it into @value if allowed.
+ * @setprocattr:
+ * 	Write (set) attribute @name to @value, size @size if allowed.
  *
  * Security hooks for kernfs node operations
  *
@@ -1113,6 +1129,7 @@
  *	In case of failure, @secid will be set to zero.
  *
  * Security hooks for individual messages held in System V IPC message queues
+ *
  * @msg_msg_alloc_security:
  *	Allocate and attach a security structure to the msg->security field.
  *	The security field is initialized to NULL when the structure is first
@@ -1302,6 +1319,10 @@
  *	@cap contains the capability <include/linux/capability.h>.
  *	@opts contains options for the capable check <include/linux/security.h>
  *	Return 0 if the capability is granted for @tsk.
+ * @quotactl:
+ * 	Check whether the quotactl syscall is allowed for this @sb.
+ * @quota_on:
+ * 	Check whether QUOTAON is allowed for this @dentry.
  * @syslog:
  *	Check permission before accessing the kernel message ring or changing
  *	logging to the console.
@@ -1449,11 +1470,24 @@
  * @bpf_prog_free_security:
  *	Clean up the security information stored inside bpf prog.
  *
- * @locked_down
+ * @locked_down:
  *     Determine whether a kernel feature that potentially enables arbitrary
  *     code execution in kernel space should be permitted.
  *
  *     @what: kernel feature being accessed
+ *
+ * Security hooks for perf events
+ *
+ * @perf_event_open:
+ * 	Check whether the @type of perf_event_open syscall is allowed.
+ * @perf_event_alloc:
+ * 	Allocate and save perf_event security info.
+ * @perf_event_free:
+ * 	Release (free) perf_event security info.
+ * @perf_event_read:
+ * 	Read perf_event security info if allowed.
+ * @perf_event_write:
+ * 	Write perf_event security info if allowed.
  */
 union security_list_options {
 	int (*binder_set_context_mgr)(struct task_struct *mgr);
