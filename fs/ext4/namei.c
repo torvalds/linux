@@ -2213,6 +2213,13 @@ static int ext4_add_entry(handle_t *handle, struct dentry *dentry,
 		retval = ext4_dx_add_entry(handle, &fname, dir, inode);
 		if (!retval || (retval != ERR_BAD_DX_DIR))
 			goto out;
+		/* Can we just ignore htree data? */
+		if (ext4_has_metadata_csum(sb)) {
+			EXT4_ERROR_INODE(dir,
+				"Directory has corrupted htree index.");
+			retval = -EFSCORRUPTED;
+			goto out;
+		}
 		ext4_clear_inode_flag(dir, EXT4_INODE_INDEX);
 		dx_fallback++;
 		ext4_mark_inode_dirty(handle, dir);
