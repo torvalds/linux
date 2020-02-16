@@ -65,8 +65,20 @@ fail:
 	return status;
 }
 
-/*
- * Allocate at the highest possible address that is not above 'max'.
+/**
+ * efi_allocate_pages() - Allocate memory pages
+ * @size:	minimum number of bytes to allocate
+ * @addr:	On return the address of the first allocated page. The first
+ *		allocated page has alignment EFI_ALLOC_ALIGN which is an
+ *		architecture dependent multiple of the page size.
+ * @max:	the address that the last allocated memory page shall not
+ *		exceed
+ *
+ * Allocate pages as EFI_LOADER_DATA. The allocated pages are aligned according
+ * to EFI_ALLOC_ALIGN. The last allocated page will not exceed the address
+ * given by @max.
+ *
+ * Return:	status code
  */
 efi_status_t efi_allocate_pages(unsigned long size, unsigned long *addr,
 				unsigned long max)
