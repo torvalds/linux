@@ -197,6 +197,9 @@ static int get_transport_options(struct arglist *def)
 	long parsed;
 	int result = 0;
 
+	if (transport == NULL)
+		return -EINVAL;
+
 	if (vector != NULL) {
 		if (kstrtoul(vector, 10, &parsed) == 0) {
 			if (parsed == 0) {
