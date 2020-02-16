@@ -1623,7 +1623,9 @@ int tcf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 }
 EXPORT_SYMBOL(tcf_classify);
 
-int tcf_classify_ingress(struct sk_buff *skb, const struct tcf_proto *tp,
+int tcf_classify_ingress(struct sk_buff *skb,
+			 const struct tcf_block *ingress_block,
+			 const struct tcf_proto *tp,
 			 struct tcf_result *res, bool compat_mode)
 {
 #if !IS_ENABLED(CONFIG_NET_TC_SKB_EXT)
