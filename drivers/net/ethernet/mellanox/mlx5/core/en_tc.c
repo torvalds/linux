@@ -153,6 +153,14 @@ struct mlx5e_tc_flow_parse_attr {
 #define MLX5E_TC_TABLE_NUM_GROUPS 4
 #define MLX5E_TC_TABLE_MAX_GROUP_SIZE BIT(16)
 
+struct mlx5e_tc_attr_to_reg_mapping mlx5e_tc_attr_to_reg_mappings[] = {
+	[CHAIN_TO_REG] = {
+		.mfield = MLX5_ACTION_IN_FIELD_METADATA_REG_C_0,
+		.moffset = 0,
+		.mlen = 2,
+	},
+};
+
 struct mlx5e_hairpin {
 	struct mlx5_hairpin *pair;
 

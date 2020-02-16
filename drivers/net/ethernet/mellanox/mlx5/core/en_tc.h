@@ -91,6 +91,18 @@ int mlx5e_tc_num_filters(struct mlx5e_priv *priv, unsigned long flags);
 
 void mlx5e_tc_reoffload_flows_work(struct work_struct *work);
 
+enum mlx5e_tc_attr_to_reg {
+	CHAIN_TO_REG,
+};
+
+struct mlx5e_tc_attr_to_reg_mapping {
+	int mfield; /* rewrite field */
+	int moffset; /* offset of mfield */
+	int mlen; /* bytes to rewrite/match */
+};
+
+extern struct mlx5e_tc_attr_to_reg_mapping mlx5e_tc_attr_to_reg_mappings[];
+
 bool mlx5e_is_valid_eswitch_fwd_dev(struct mlx5e_priv *priv,
 				    struct net_device *out_dev);
 
