@@ -12,6 +12,7 @@
 #include <linux/types.h>
 
 #include "i915_active.h"
+#include "i915_drv.h"
 #include "intel_context_types.h"
 #include "intel_engine_types.h"
 #include "intel_ring_types.h"
@@ -225,6 +226,22 @@ static inline void
 intel_context_clear_nopreempt(struct intel_context *ce)
 {
 	clear_bit(CONTEXT_NOPREEMPT, &ce->flags);
+}
+
+static inline u64 intel_context_get_total_runtime_ns(struct intel_context *ce)
+{
+	const u32 period =
+		RUNTIME_INFO(ce->engine->i915)->cs_timestamp_period_ns;
+
+	return READ_ONCE(ce->runtime.total) * period;
+}
+
+static inline u64 intel_context_get_avg_runtime_ns(struct intel_context *ce)
+{
+	const u32 period =
+		RUNTIME_INFO(ce->engine->i915)->cs_timestamp_period_ns;
+
+	return mul_u32_u32(ewma_runtime_read(&ce->runtime.avg), period);
 }
 
 #endif /* __INTEL_CONTEXT_H__ */

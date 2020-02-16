@@ -1045,6 +1045,12 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 
 	/* Initialize command stream timestamp frequency */
 	runtime->cs_timestamp_frequency_khz = read_timestamp_frequency(dev_priv);
+	runtime->cs_timestamp_period_ns =
+		div_u64(1e6, runtime->cs_timestamp_frequency_khz);
+	drm_dbg(&dev_priv->drm,
+		"CS timestamp wraparound in %lldms\n",
+		div_u64(mul_u32_u32(runtime->cs_timestamp_period_ns, S32_MAX),
+			USEC_PER_SEC));
 }
 
 void intel_driver_caps_print(const struct intel_driver_caps *caps,

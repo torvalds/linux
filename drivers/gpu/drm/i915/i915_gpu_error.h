@@ -88,6 +88,10 @@ struct intel_engine_coredump {
 
 	struct i915_gem_context_coredump {
 		char comm[TASK_COMM_LEN];
+
+		u64 total_runtime;
+		u32 avg_runtime;
+
 		pid_t pid;
 		int active;
 		int guilty;

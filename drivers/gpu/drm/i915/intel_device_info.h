@@ -217,6 +217,7 @@ struct intel_runtime_info {
 	struct sseu_dev_info sseu;
 
 	u32 cs_timestamp_frequency_khz;
+	u32 cs_timestamp_period_ns;
 
 	/* Media engine access to SFC per instance */
 	u8 vdbox_sfc_access;
