@@ -93,12 +93,15 @@ void mlx5e_tc_reoffload_flows_work(struct work_struct *work);
 
 enum mlx5e_tc_attr_to_reg {
 	CHAIN_TO_REG,
+	TUNNEL_TO_REG,
 };
 
 struct mlx5e_tc_attr_to_reg_mapping {
 	int mfield; /* rewrite field */
 	int moffset; /* offset of mfield */
 	int mlen; /* bytes to rewrite/match */
+
+	int soffset; /* offset of spec for match */
 };
 
 extern struct mlx5e_tc_attr_to_reg_mapping mlx5e_tc_attr_to_reg_mappings[];
@@ -113,6 +116,16 @@ struct mlx5e_tc_mod_hdr_acts {
 	int max_actions;
 	void *actions;
 };
+
+int mlx5e_tc_match_to_reg_set(struct mlx5_core_dev *mdev,
+			      struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts,
+			      enum mlx5e_tc_attr_to_reg type,
+			      u32 data);
+
+void mlx5e_tc_match_to_reg_match(struct mlx5_flow_spec *spec,
+				 enum mlx5e_tc_attr_to_reg type,
+				 u32 data,
+				 u32 mask);
 
 int alloc_mod_hdr_actions(struct mlx5_core_dev *mdev,
 			  int namespace,
