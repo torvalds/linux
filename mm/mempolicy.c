@@ -135,21 +135,17 @@ static struct mempolicy preferred_node_policy[MAX_NUMNODES];
  */
 int numa_map_to_online_node(int node)
 {
-	int min_node;
+	int min_dist = INT_MAX, dist, n, min_node;
 
-	if (node == NUMA_NO_NODE)
-		node = 0;
+	if (node == NUMA_NO_NODE || node_online(node))
+		return node;
 
 	min_node = node;
-	if (!node_online(node)) {
-		int min_dist = INT_MAX, dist, n;
-
-		for_each_online_node(n) {
-			dist = node_distance(node, n);
-			if (dist < min_dist) {
-				min_dist = dist;
-				min_node = n;
-			}
+	for_each_online_node(n) {
+		dist = node_distance(node, n);
+		if (dist < min_dist) {
+			min_dist = dist;
+			min_node = n;
 		}
 	}
 
