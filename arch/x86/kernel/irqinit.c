@@ -84,7 +84,7 @@ void __init init_IRQ(void)
 	 * On cpu 0, Assign ISA_IRQ_VECTOR(irq) to IRQ 0..15.
 	 * If these IRQ's are handled by legacy interrupt-controllers like PIC,
 	 * then this configuration will likely be static after the boot. If
-	 * these IRQ's are handled by more mordern controllers like IO-APIC,
+	 * these IRQs are handled by more modern controllers like IO-APIC,
 	 * then this vector space can be freed and re-used dynamically as the
 	 * irq's migrate etc.
 	 */
