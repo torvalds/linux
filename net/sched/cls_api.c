@@ -22,6 +22,7 @@
 #include <linux/idr.h>
 #include <linux/rhashtable.h>
 #include <linux/jhash.h>
+#include <linux/rculist.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
 #include <net/netlink.h>
@@ -354,7 +355,7 @@ static struct tcf_chain *tcf_chain_create(struct tcf_block *block,
 	chain = kzalloc(sizeof(*chain), GFP_KERNEL);
 	if (!chain)
 		return NULL;
-	list_add_tail(&chain->list, &block->chain_list);
+	list_add_tail_rcu(&chain->list, &block->chain_list);
 	mutex_init(&chain->filter_chain_lock);
 	chain->block = block;
 	chain->index = chain_index;
@@ -394,7 +395,7 @@ static bool tcf_chain_detach(struct tcf_chain *chain)
 
 	ASSERT_BLOCK_LOCKED(block);
 
-	list_del(&chain->list);
+	list_del_rcu(&chain->list);
 	if (!chain->index)
 		block->chain0.chain = NULL;
 
