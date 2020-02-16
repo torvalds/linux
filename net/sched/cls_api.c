@@ -454,6 +454,20 @@ static struct tcf_chain *tcf_chain_lookup(struct tcf_block *block,
 	return NULL;
 }
 
+#if IS_ENABLED(CONFIG_NET_TC_SKB_EXT)
+static struct tcf_chain *tcf_chain_lookup_rcu(const struct tcf_block *block,
+					      u32 chain_index)
+{
+	struct tcf_chain *chain;
+
+	list_for_each_entry_rcu(chain, &block->chain_list, list) {
+		if (chain->index == chain_index)
+			return chain;
+	}
+	return NULL;
+}
+#endif
+
 static int tc_chain_notify(struct tcf_chain *chain, struct sk_buff *oskb,
 			   u32 seq, u16 flags, int event, bool unicast);
 
@@ -1562,13 +1576,13 @@ static int tcf_block_setup(struct tcf_block *block,
  */
 static inline int __tcf_classify(struct sk_buff *skb,
 				 const struct tcf_proto *tp,
+				 const struct tcf_proto *orig_tp,
 				 struct tcf_result *res,
 				 bool compat_mode,
 				 u32 *last_executed_chain)
 {
 #ifdef CONFIG_NET_CLS_ACT
 	const int max_reclassify_loop = 4;
-	const struct tcf_proto *orig_tp = tp;
 	const struct tcf_proto *first_tp;
 	int limit = 0;
 
@@ -1619,7 +1633,7 @@ int tcf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 {
 	u32 last_executed_chain = 0;
 
-	return __tcf_classify(skb, tp, res, compat_mode,
+	return __tcf_classify(skb, tp, tp, res, compat_mode,
 			      &last_executed_chain);
 }
 EXPORT_SYMBOL(tcf_classify);
@@ -1632,14 +1646,31 @@ int tcf_classify_ingress(struct sk_buff *skb,
 #if !IS_ENABLED(CONFIG_NET_TC_SKB_EXT)
 	u32 last_executed_chain = 0;
 
-	return __tcf_classify(skb, tp, res, compat_mode,
+	return __tcf_classify(skb, tp, tp, res, compat_mode,
 			      &last_executed_chain);
 #else
 	u32 last_executed_chain = tp ? tp->chain->index : 0;
+	const struct tcf_proto *orig_tp = tp;
 	struct tc_skb_ext *ext;
 	int ret;
 
-	ret = __tcf_classify(skb, tp, res, compat_mode, &last_executed_chain);
+	ext = skb_ext_find(skb, TC_SKB_EXT);
+
+	if (ext && ext->chain) {
+		struct tcf_chain *fchain;
+
+		fchain = tcf_chain_lookup_rcu(ingress_block, ext->chain);
+		if (!fchain)
+			return TC_ACT_SHOT;
+
+		/* Consume, so cloned/redirect skbs won't inherit ext */
+		skb_ext_del(skb, TC_SKB_EXT);
+
+		tp = rcu_dereference_bh(fchain->filter_chain);
+	}
+
+	ret = __tcf_classify(skb, tp, orig_tp, res, compat_mode,
+			     &last_executed_chain);
 
 	/* If we missed on some chain */
 	if (ret == TC_ACT_UNSPEC && last_executed_chain) {
