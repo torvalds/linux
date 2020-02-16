@@ -642,6 +642,19 @@ config MFD_IPAQ_MICRO
 	  AT90LS8535 microcontroller flashed with a special iPAQ
 	  firmware using the custom protocol implemented in this driver.
 
+config MFD_IQS62X
+	tristate "Azoteq IQS620A/621/622/624/625 core support"
+	depends on I2C
+	select MFD_CORE
+	select REGMAP_I2C
+	help
+	  Say Y here if you want to build core support for the Azoteq IQS620A,
+	  IQS621, IQS622, IQS624 and IQS625 multi-function sensors. Additional
+	  options must be selected to enable device-specific functions.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called iqs62x.
+
 config MFD_JANZ_CMODIO
 	tristate "Janz CMOD-IO PCI MODULbus Carrier Board"
 	select MFD_CORE
