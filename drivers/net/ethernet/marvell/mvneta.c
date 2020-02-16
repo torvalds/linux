@@ -358,10 +358,10 @@ struct mvneta_statistic {
 #define T_REG_64	64
 #define T_SW		1
 
-#define MVNETA_XDP_PASS		BIT(0)
-#define MVNETA_XDP_DROPPED	BIT(1)
-#define MVNETA_XDP_TX		BIT(2)
-#define MVNETA_XDP_REDIR	BIT(3)
+#define MVNETA_XDP_PASS		0
+#define MVNETA_XDP_DROPPED	BIT(0)
+#define MVNETA_XDP_TX		BIT(1)
+#define MVNETA_XDP_REDIR	BIT(2)
 
 static const struct mvneta_statistic mvneta_statistics[] = {
 	{ 0x3000, T_REG_64, "good_octets_received", },
@@ -2183,13 +2183,14 @@ mvneta_swbm_rx_frame(struct mvneta_port *pp,
 		     struct mvneta_rx_queue *rxq,
 		     struct xdp_buff *xdp,
 		     struct bpf_prog *xdp_prog,
-		     struct page *page, u32 *xdp_ret,
+		     struct page *page,
 		     struct mvneta_stats *stats)
 {
 	unsigned char *data = page_address(page);
 	int data_len = -MVNETA_MH_SIZE, len;
 	struct net_device *dev = pp->dev;
 	enum dma_data_direction dma_dir;
+	int ret = 0;
 
 	if (MVNETA_SKB_SIZE(rx_desc->data_size) > PAGE_SIZE) {
 		len = MVNETA_MAX_RX_BUF_SIZE;
@@ -2213,14 +2214,9 @@ mvneta_swbm_rx_frame(struct mvneta_port *pp,
 	xdp_set_data_meta_invalid(xdp);
 
 	if (xdp_prog) {
-		u32 ret;
-
 		ret = mvneta_run_xdp(pp, rxq, xdp_prog, xdp, stats);
-		if (ret != MVNETA_XDP_PASS) {
-			rx_desc->buf_phys_addr = 0;
-			*xdp_ret |= ret;
-			return ret;
-		}
+		if (ret)
+			goto out;
 	}
 
 	rxq->skb = build_skb(xdp->data_hard_start, PAGE_SIZE);
@@ -2244,9 +2240,11 @@ mvneta_swbm_rx_frame(struct mvneta_port *pp,
 	mvneta_rx_csum(pp, rx_desc->status, rxq->skb);
 
 	rxq->left_size = rx_desc->data_size - len;
+
+out:
 	rx_desc->buf_phys_addr = 0;
 
-	return 0;
+	return ret;
 }
 
 static void
@@ -2292,7 +2290,6 @@ static int mvneta_rx_swbm(struct napi_struct *napi,
 	struct mvneta_stats ps = {};
 	struct bpf_prog *xdp_prog;
 	struct xdp_buff xdp_buf;
-	u32 xdp_ret = 0;
 
 	/* Get number of received packets */
 	rx_todo = mvneta_rxq_busy_desc_num_get(pp, rxq);
@@ -2325,8 +2322,7 @@ static int mvneta_rx_swbm(struct napi_struct *napi,
 			}
 
 			err = mvneta_swbm_rx_frame(pp, rx_desc, rxq, &xdp_buf,
-						   xdp_prog, page, &xdp_ret,
-						   &ps);
+						   xdp_prog, page, &ps);
 			if (err)
 				continue;
 		} else {
@@ -2364,7 +2360,7 @@ static int mvneta_rx_swbm(struct napi_struct *napi,
 	}
 	rcu_read_unlock();
 
-	if (xdp_ret & MVNETA_XDP_REDIR)
+	if (ps.xdp_redirect)
 		xdp_do_flush_map();
 
 	if (ps.rx_packets)
