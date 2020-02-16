@@ -13,6 +13,13 @@
 
 #define	NUMA_NO_NODE	(-1)
 
+/* optionally keep NUMA memory info available post init */
+#ifdef CONFIG_NUMA_KEEP_MEMINFO
+#define __initdata_or_meminfo
+#else
+#define __initdata_or_meminfo __initdata
+#endif
+
 #ifdef CONFIG_NUMA
 int numa_map_to_online_node(int node);
 #else
