@@ -1677,121 +1677,14 @@ static int parse_tunnel_attr(struct mlx5e_priv *priv,
 			     struct net_device *filter_dev, u8 *match_level)
 {
 	struct netlink_ext_ack *extack = f->common.extack;
-	void *headers_c = MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
-				       outer_headers);
-	void *headers_v = MLX5_ADDR_OF(fte_match_param, spec->match_value,
-				       outer_headers);
-	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
 	int err;
 
-	err = mlx5e_tc_tun_parse(filter_dev, priv, spec, f,
-				 headers_c, headers_v, match_level);
+	err = mlx5e_tc_tun_parse(filter_dev, priv, spec, f, match_level);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "failed to parse tunnel attributes");
 		return err;
 	}
-
-	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_CONTROL)) {
-		struct flow_match_control match;
-		u16 addr_type;
-
-		flow_rule_match_enc_control(rule, &match);
-		addr_type = match.key->addr_type;
-
-		/* For tunnel addr_type used same key id`s as for non-tunnel */
-		if (addr_type == FLOW_DISSECTOR_KEY_IPV4_ADDRS) {
-			struct flow_match_ipv4_addrs match;
-
-			flow_rule_match_enc_ipv4_addrs(rule, &match);
-			MLX5_SET(fte_match_set_lyr_2_4, headers_c,
-				 src_ipv4_src_ipv6.ipv4_layout.ipv4,
-				 ntohl(match.mask->src));
-			MLX5_SET(fte_match_set_lyr_2_4, headers_v,
-				 src_ipv4_src_ipv6.ipv4_layout.ipv4,
-				 ntohl(match.key->src));
-
-			MLX5_SET(fte_match_set_lyr_2_4, headers_c,
-				 dst_ipv4_dst_ipv6.ipv4_layout.ipv4,
-				 ntohl(match.mask->dst));
-			MLX5_SET(fte_match_set_lyr_2_4, headers_v,
-				 dst_ipv4_dst_ipv6.ipv4_layout.ipv4,
-				 ntohl(match.key->dst));
-
-			MLX5_SET_TO_ONES(fte_match_set_lyr_2_4, headers_c,
-					 ethertype);
-			MLX5_SET(fte_match_set_lyr_2_4, headers_v, ethertype,
-				 ETH_P_IP);
-		} else if (addr_type == FLOW_DISSECTOR_KEY_IPV6_ADDRS) {
-			struct flow_match_ipv6_addrs match;
-
-			flow_rule_match_enc_ipv6_addrs(rule, &match);
-			memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_c,
-					    src_ipv4_src_ipv6.ipv6_layout.ipv6),
-			       &match.mask->src, MLX5_FLD_SZ_BYTES(ipv6_layout,
-								   ipv6));
-			memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_v,
-					    src_ipv4_src_ipv6.ipv6_layout.ipv6),
-			       &match.key->src, MLX5_FLD_SZ_BYTES(ipv6_layout,
-								  ipv6));
-
-			memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_c,
-					    dst_ipv4_dst_ipv6.ipv6_layout.ipv6),
-			       &match.mask->dst, MLX5_FLD_SZ_BYTES(ipv6_layout,
-								   ipv6));
-			memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_v,
-					    dst_ipv4_dst_ipv6.ipv6_layout.ipv6),
-			       &match.key->dst, MLX5_FLD_SZ_BYTES(ipv6_layout,
-								  ipv6));
-
-			MLX5_SET_TO_ONES(fte_match_set_lyr_2_4, headers_c,
-					 ethertype);
-			MLX5_SET(fte_match_set_lyr_2_4, headers_v, ethertype,
-				 ETH_P_IPV6);
-		}
-	}
-
-	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_IP)) {
-		struct flow_match_ip match;
-
-		flow_rule_match_enc_ip(rule, &match);
-		MLX5_SET(fte_match_set_lyr_2_4, headers_c, ip_ecn,
-			 match.mask->tos & 0x3);
-		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ip_ecn,
-			 match.key->tos & 0x3);
-
-		MLX5_SET(fte_match_set_lyr_2_4, headers_c, ip_dscp,
-			 match.mask->tos >> 2);
-		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ip_dscp,
-			 match.key->tos  >> 2);
-
-		MLX5_SET(fte_match_set_lyr_2_4, headers_c, ttl_hoplimit,
-			 match.mask->ttl);
-		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ttl_hoplimit,
-			 match.key->ttl);
-
-		if (match.mask->ttl &&
-		    !MLX5_CAP_ESW_FLOWTABLE_FDB
-			(priv->mdev,
-			 ft_field_support.outer_ipv4_ttl)) {
-			NL_SET_ERR_MSG_MOD(extack,
-					   "Matching on TTL is not supported");
-			return -EOPNOTSUPP;
-		}
-
-	}
-
-	/* Enforce DMAC when offloading incoming tunneled flows.
-	 * Flow counters require a match on the DMAC.
-	 */
-	MLX5_SET_TO_ONES(fte_match_set_lyr_2_4, headers_c, dmac_47_16);
-	MLX5_SET_TO_ONES(fte_match_set_lyr_2_4, headers_c, dmac_15_0);
-	ether_addr_copy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_v,
-				     dmac_47_16), priv->netdev->dev_addr);
-
-	/* let software handle IP fragments */
-	MLX5_SET(fte_match_set_lyr_2_4, headers_c, frag, 1);
-	MLX5_SET(fte_match_set_lyr_2_4, headers_v, frag, 0);
 
 	return 0;
 }
