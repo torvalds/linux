@@ -1945,19 +1945,13 @@ static void mvneta_rxq_drop_pkts(struct mvneta_port *pp,
 }
 
 static void
-mvneta_update_stats(struct mvneta_port *pp, u32 pkts,
-		    u32 len, bool tx)
+mvneta_update_stats(struct mvneta_port *pp, u32 pkts, u32 len)
 {
 	struct mvneta_pcpu_stats *stats = this_cpu_ptr(pp->stats);
 
 	u64_stats_update_begin(&stats->syncp);
-	if (tx) {
-		stats->tx_packets += pkts;
-		stats->tx_bytes += len;
-	} else {
-		stats->rx_packets += pkts;
-		stats->rx_bytes += len;
-	}
+	stats->rx_packets += pkts;
+	stats->rx_bytes += len;
 	u64_stats_update_end(&stats->syncp);
 }
 
@@ -1996,6 +1990,7 @@ static int
 mvneta_xdp_submit_frame(struct mvneta_port *pp, struct mvneta_tx_queue *txq,
 			struct xdp_frame *xdpf, bool dma_map)
 {
+	struct mvneta_pcpu_stats *stats = this_cpu_ptr(pp->stats);
 	struct mvneta_tx_desc *tx_desc;
 	struct mvneta_tx_buf *buf;
 	dma_addr_t dma_addr;
@@ -2030,7 +2025,11 @@ mvneta_xdp_submit_frame(struct mvneta_port *pp, struct mvneta_tx_queue *txq,
 	tx_desc->buf_phys_addr = dma_addr;
 	tx_desc->data_size = xdpf->len;
 
-	mvneta_update_stats(pp, 1, xdpf->len, true);
+	u64_stats_update_begin(&stats->syncp);
+	stats->tx_bytes += xdpf->len;
+	stats->tx_packets++;
+	u64_stats_update_end(&stats->syncp);
+
 	mvneta_txq_inc_put(txq);
 	txq->pending++;
 	txq->count++;
@@ -2189,8 +2188,7 @@ mvneta_swbm_rx_frame(struct mvneta_port *pp,
 		ret = mvneta_run_xdp(pp, rxq, xdp_prog, xdp);
 		if (ret != MVNETA_XDP_PASS) {
 			mvneta_update_stats(pp, 1,
-					    xdp->data_end - xdp->data,
-					    false);
+					    xdp->data_end - xdp->data);
 			rx_desc->buf_phys_addr = 0;
 			*xdp_ret |= ret;
 			return ret;
@@ -2340,7 +2338,7 @@ static int mvneta_rx_swbm(struct napi_struct *napi,
 		xdp_do_flush_map();
 
 	if (rcvd_pkts)
-		mvneta_update_stats(pp, rcvd_pkts, rcvd_bytes, false);
+		mvneta_update_stats(pp, rcvd_pkts, rcvd_bytes);
 
 	/* return some buffers to hardware queue, one at a time is too slow */
 	refill = mvneta_rx_refill_queue(pp, rxq);
@@ -2470,8 +2468,14 @@ err_drop_frame:
 		napi_gro_receive(napi, skb);
 	}
 
-	if (rcvd_pkts)
-		mvneta_update_stats(pp, rcvd_pkts, rcvd_bytes, false);
+	if (rcvd_pkts) {
+		struct mvneta_pcpu_stats *stats = this_cpu_ptr(pp->stats);
+
+		u64_stats_update_begin(&stats->syncp);
+		stats->rx_packets += rcvd_pkts;
+		stats->rx_bytes += rcvd_bytes;
+		u64_stats_update_end(&stats->syncp);
+	}
 
 	/* Update rxq management counters */
 	mvneta_rxq_desc_num_update(pp, rxq, rx_done, rx_done);
@@ -2727,6 +2731,7 @@ static netdev_tx_t mvneta_tx(struct sk_buff *skb, struct net_device *dev)
 out:
 	if (frags > 0) {
 		struct netdev_queue *nq = netdev_get_tx_queue(dev, txq_id);
+		struct mvneta_pcpu_stats *stats = this_cpu_ptr(pp->stats);
 
 		netdev_tx_sent_queue(nq, len);
 
@@ -2740,7 +2745,10 @@ out:
 		else
 			txq->pending += frags;
 
-		mvneta_update_stats(pp, 1, len, true);
+		u64_stats_update_begin(&stats->syncp);
+		stats->tx_bytes += len;
+		stats->tx_packets++;
+		u64_stats_update_end(&stats->syncp);
 	} else {
 		dev->stats.tx_dropped++;
 		dev_kfree_skb_any(skb);
