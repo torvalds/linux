@@ -10,7 +10,7 @@
 #include <asm/smap.h>
 
 /**
- * csum_partial_copy_from_user - Copy and checksum from user space.
+ * csum_and_copy_from_user - Copy and checksum from user space.
  * @src: source address (user space)
  * @dst: destination address
  * @len: number of bytes to be copied.
@@ -21,7 +21,7 @@
  * src and dst are best aligned to 64bits.
  */
 __wsum
-csum_partial_copy_from_user(const void __user *src, void *dst,
+csum_and_copy_from_user(const void __user *src, void *dst,
 			    int len, __wsum isum, int *errp)
 {
 	might_sleep();
@@ -68,7 +68,7 @@ out_err:
 
 	return isum;
 }
-EXPORT_SYMBOL(csum_partial_copy_from_user);
+EXPORT_SYMBOL(csum_and_copy_from_user);
 
 /**
  * csum_and_copy_to_user - Copy and checksum to user space.
