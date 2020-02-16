@@ -28,8 +28,6 @@ static inline int arch_futex_atomic_op_inuser(int op, int oparg, int *oval,
 	int oldval = 0, newval, ret;
 	mm_segment_t old_fs;
 
-	if (!access_ok(uaddr, sizeof(u32)))
-		return -EFAULT;
 	old_fs = enable_sacf_uaccess();
 	switch (op) {
 	case FUTEX_OP_SET:
