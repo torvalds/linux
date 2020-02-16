@@ -1437,6 +1437,19 @@ static int x1830_mmc1_4bit_pins[] = { 0x45, 0x46, 0x47, };
 static int x1830_i2c0_pins[] = { 0x0c, 0x0d, };
 static int x1830_i2c1_pins[] = { 0x39, 0x3a, };
 static int x1830_i2c2_pins[] = { 0x5b, 0x5c, };
+static int x1830_lcd_rgb_18bit_pins[] = {
+	0x62, 0x63, 0x64, 0x65, 0x66, 0x67,
+	0x68, 0x69, 0x6c, 0x6d, 0x6e, 0x6f,
+	0x70, 0x71, 0x72, 0x73, 0x76, 0x77,
+	0x78, 0x79, 0x7a, 0x7b,
+};
+static int x1830_lcd_slcd_8bit_pins[] = {
+	0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x6c, 0x6d,
+	0x69, 0x72, 0x73, 0x7b, 0x7a,
+};
+static int x1830_lcd_slcd_16bit_pins[] = {
+	0x6e, 0x6f, 0x70, 0x71, 0x76, 0x77, 0x78, 0x79,
+};
 static int x1830_pwm_pwm0_b_pins[] = { 0x31, };
 static int x1830_pwm_pwm0_c_pins[] = { 0x4b, };
 static int x1830_pwm_pwm1_b_pins[] = { 0x32, };
@@ -1486,6 +1499,16 @@ static int x1830_mmc1_4bit_funcs[] = { 0, 0, 0, };
 static int x1830_i2c0_funcs[] = { 1, 1, };
 static int x1830_i2c1_funcs[] = { 0, 0, };
 static int x1830_i2c2_funcs[] = { 1, 1, };
+static int x1830_lcd_rgb_18bit_funcs[] = {
+	0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0,
+};
+static int x1830_lcd_slcd_8bit_funcs[] = {
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+};
+static int x1830_lcd_slcd_16bit_funcs[] = { 1, 1, 1, 1, 1, 1, 1, 1, };
 static int x1830_pwm_pwm0_b_funcs[] = { 0, };
 static int x1830_pwm_pwm0_c_funcs[] = { 1, };
 static int x1830_pwm_pwm1_b_funcs[] = { 0, };
@@ -1534,6 +1557,10 @@ static const struct group_desc x1830_groups[] = {
 	INGENIC_PIN_GROUP("i2c0-data", x1830_i2c0),
 	INGENIC_PIN_GROUP("i2c1-data", x1830_i2c1),
 	INGENIC_PIN_GROUP("i2c2-data", x1830_i2c2),
+	INGENIC_PIN_GROUP("lcd-rgb-18bit", x1830_lcd_rgb_18bit),
+	INGENIC_PIN_GROUP("lcd-slcd-8bit", x1830_lcd_slcd_8bit),
+	INGENIC_PIN_GROUP("lcd-slcd-16bit", x1830_lcd_slcd_16bit),
+	{ "lcd-no-pins", },
 	INGENIC_PIN_GROUP("pwm0-b", x1830_pwm_pwm0_b),
 	INGENIC_PIN_GROUP("pwm0-c", x1830_pwm_pwm0_c),
 	INGENIC_PIN_GROUP("pwm1-b", x1830_pwm_pwm1_b),
@@ -1572,6 +1599,9 @@ static const char *x1830_mmc1_groups[] = { "mmc1-1bit", "mmc1-4bit", };
 static const char *x1830_i2c0_groups[] = { "i2c0-data", };
 static const char *x1830_i2c1_groups[] = { "i2c1-data", };
 static const char *x1830_i2c2_groups[] = { "i2c2-data", };
+static const char *x1830_lcd_groups[] = {
+	"lcd-rgb-18bit", "lcd-slcd-8bit", "lcd-slcd-16bit", "lcd-no-pins",
+};
 static const char *x1830_pwm0_groups[] = { "pwm0-b", "pwm0-c", };
 static const char *x1830_pwm1_groups[] = { "pwm1-b", "pwm1-c", };
 static const char *x1830_pwm2_groups[] = { "pwm2-c-8", "pwm2-c-13", };
@@ -1593,6 +1623,7 @@ static const struct function_desc x1830_functions[] = {
 	{ "i2c0", x1830_i2c0_groups, ARRAY_SIZE(x1830_i2c0_groups), },
 	{ "i2c1", x1830_i2c1_groups, ARRAY_SIZE(x1830_i2c1_groups), },
 	{ "i2c2", x1830_i2c2_groups, ARRAY_SIZE(x1830_i2c2_groups), },
+	{ "lcd", x1830_lcd_groups, ARRAY_SIZE(x1830_lcd_groups), },
 	{ "pwm0", x1830_pwm0_groups, ARRAY_SIZE(x1830_pwm0_groups), },
 	{ "pwm1", x1830_pwm1_groups, ARRAY_SIZE(x1830_pwm1_groups), },
 	{ "pwm2", x1830_pwm2_groups, ARRAY_SIZE(x1830_pwm2_groups), },
