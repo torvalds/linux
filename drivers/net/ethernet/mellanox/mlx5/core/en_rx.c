@@ -1225,6 +1225,9 @@ void mlx5e_handle_rx_cqe_rep(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
 	if (rep->vlan && skb_vlan_tag_present(skb))
 		skb_vlan_pop(skb);
 
+	if (!mlx5e_tc_rep_update_skb(cqe, skb))
+		goto free_wqe;
+
 	napi_gro_receive(rq->cq.napi, skb);
 
 free_wqe:
@@ -1274,6 +1277,9 @@ void mlx5e_handle_rx_cqe_mpwrq_rep(struct mlx5e_rq *rq,
 		goto mpwrq_cqe_out;
 
 	mlx5e_complete_rx_cqe(rq, cqe, cqe_bcnt, skb);
+
+	if (!mlx5e_tc_rep_update_skb(cqe, skb))
+		goto mpwrq_cqe_out;
 
 	napi_gro_receive(rq->cq.napi, skb);
 

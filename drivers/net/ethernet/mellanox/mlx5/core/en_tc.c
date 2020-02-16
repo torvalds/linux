@@ -4339,3 +4339,46 @@ void mlx5e_tc_reoffload_flows_work(struct work_struct *work)
 	}
 	mutex_unlock(&rpriv->unready_flows_lock);
 }
+
+bool mlx5e_tc_rep_update_skb(struct mlx5_cqe64 *cqe,
+			     struct sk_buff *skb)
+{
+#if IS_ENABLED(CONFIG_NET_TC_SKB_EXT)
+	struct tc_skb_ext *tc_skb_ext;
+	struct mlx5_eswitch *esw;
+	struct mlx5e_priv *priv;
+	u32 chain = 0, reg_c0;
+	int err;
+
+	reg_c0 = (be32_to_cpu(cqe->sop_drop_qpn) & MLX5E_TC_FLOW_ID_MASK);
+	if (reg_c0 == MLX5_FS_DEFAULT_FLOW_TAG)
+		reg_c0 = 0;
+
+	if (!reg_c0)
+		return true;
+
+	priv = netdev_priv(skb->dev);
+	esw = priv->mdev->priv.eswitch;
+
+	err = mlx5_eswitch_get_chain_for_tag(esw, reg_c0, &chain);
+	if (err) {
+		netdev_dbg(priv->netdev,
+			   "Couldn't find chain for chain tag: %d, err: %d\n",
+			   reg_c0, err);
+		return false;
+	}
+
+	if (!chain)
+		return true;
+
+	tc_skb_ext = skb_ext_add(skb, TC_SKB_EXT);
+	if (!tc_skb_ext) {
+		WARN_ON_ONCE(1);
+		return false;
+	}
+
+	tc_skb_ext->chain = chain;
+#endif /* CONFIG_NET_TC_SKB_EXT */
+
+	return true;
+}
