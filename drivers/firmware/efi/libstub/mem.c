@@ -52,13 +52,14 @@ again:
 		goto again;
 	}
 
-	if (status != EFI_SUCCESS)
+	if (status == EFI_SUCCESS) {
+		if (map->key_ptr)
+			*map->key_ptr = key;
+		if (map->desc_ver)
+			*map->desc_ver = desc_version;
+	} else {
 		efi_bs_call(free_pool, m);
-
-	if (map->key_ptr && status == EFI_SUCCESS)
-		*map->key_ptr = key;
-	if (map->desc_ver && status == EFI_SUCCESS)
-		*map->desc_ver = desc_version;
+	}
 
 fail:
 	*map->map = m;
