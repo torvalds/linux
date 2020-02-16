@@ -28,8 +28,9 @@ static inline int arch_futex_atomic_op_inuser(int op, int oparg, int *oval,
 	int oldval = 0, newval, ret;
 	mm_segment_t old_fs;
 
+	if (!access_ok(uaddr, sizeof(u32)))
+		return -EFAULT;
 	old_fs = enable_sacf_uaccess();
-	pagefault_disable();
 	switch (op) {
 	case FUTEX_OP_SET:
 		__futex_atomic_op("lr %2,%5\n",
@@ -54,7 +55,6 @@ static inline int arch_futex_atomic_op_inuser(int op, int oparg, int *oval,
 	default:
 		ret = -ENOSYS;
 	}
-	pagefault_enable();
 	disable_sacf_uaccess(old_fs);
 
 	if (!ret)
