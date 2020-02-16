@@ -1111,7 +1111,7 @@ config SERIAL_SC16IS7XX_SPI
 	help
 	  Enable SC16IS7xx driver on SPI bus,
 	  If required say y, and say n to spi if not required,
-	  This is additional support to exsisting driver.
+	  This is additional support to existing driver.
 	  You must select at least one bus for the driver to be built.
 
 config SERIAL_TIMBERDALE
