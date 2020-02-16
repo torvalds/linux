@@ -191,6 +191,8 @@ int mlx5e_add_sqs_fwd_rules(struct mlx5e_priv *priv);
 void mlx5e_remove_sqs_fwd_rules(struct mlx5e_priv *priv);
 
 void mlx5e_handle_rx_cqe_rep(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe);
+void mlx5e_handle_rx_cqe_mpwrq_rep(struct mlx5e_rq *rq,
+				   struct mlx5_cqe64 *cqe);
 
 int mlx5e_rep_encap_entry_attach(struct mlx5e_priv *priv,
 				 struct mlx5e_encap_entry *e);
