@@ -302,25 +302,16 @@ __setup_frame(int sig, struct ksignal *ksig, sigset_t *set,
 {
 	struct sigframe __user *frame;
 	void __user *restorer;
-	int err = 0;
 	void __user *fp = NULL;
 
 	frame = get_sigframe(&ksig->ka, regs, sizeof(*frame), &fp);
 
-	if (!access_ok(frame, sizeof(*frame)))
+	if (!user_access_begin(frame, sizeof(*frame)))
 		return -EFAULT;
 
-	if (__put_user(sig, &frame->sig))
-		return -EFAULT;
-
-	if (!user_access_begin(&frame->sc, sizeof(struct sigcontext)))
-		return -EFAULT;
+	unsafe_put_user(sig, &frame->sig, Efault);
 	unsafe_put_sigcontext(&frame->sc, fp, regs, set, Efault);
-	user_access_end();
-
-	if (__put_user(set->sig[1], &frame->extramask[0]))
-		return -EFAULT;
-
+	unsafe_put_user(set->sig[1], &frame->extramask[0], Efault);
 	if (current->mm->context.vdso)
 		restorer = current->mm->context.vdso +
 			vdso_image_32.sym___kernel_sigreturn;
@@ -330,7 +321,7 @@ __setup_frame(int sig, struct ksignal *ksig, sigset_t *set,
 		restorer = ksig->ka.sa.sa_restorer;
 
 	/* Set up to return from userspace.  */
-	err |= __put_user(restorer, &frame->pretcode);
+	unsafe_put_user(restorer, &frame->pretcode, Efault);
 
 	/*
 	 * This is popl %eax ; movl $__NR_sigreturn, %eax ; int $0x80
@@ -339,10 +330,8 @@ __setup_frame(int sig, struct ksignal *ksig, sigset_t *set,
 	 * reasons and because gdb uses it as a signature to notice
 	 * signal handler stack frames.
 	 */
-	err |= __put_user(*((u64 *)&retcode), (u64 *)frame->retcode);
-
-	if (err)
-		return -EFAULT;
+	unsafe_put_user(*((u64 *)&retcode), (u64 *)frame->retcode, Efault);
+	user_access_end();
 
 	/* Set up registers for signal handler */
 	regs->sp = (unsigned long)frame;
