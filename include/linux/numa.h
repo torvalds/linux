@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_NUMA_H
 #define _LINUX_NUMA_H
-
+#include <linux/types.h>
 
 #ifdef CONFIG_NODES_SHIFT
 #define NODES_SHIFT     CONFIG_NODES_SHIFT
@@ -21,9 +21,21 @@
 #endif
 
 #ifdef CONFIG_NUMA
+/* Generic implementation available */
 int numa_map_to_online_node(int node);
+
+/*
+ * Optional architecture specific implementation, users need a "depends
+ * on $ARCH"
+ */
+int phys_to_target_node(phys_addr_t addr);
 #else
 static inline int numa_map_to_online_node(int node)
+{
+	return NUMA_NO_NODE;
+}
+
+static inline int phys_to_target_node(phys_addr_t addr)
 {
 	return NUMA_NO_NODE;
 }
