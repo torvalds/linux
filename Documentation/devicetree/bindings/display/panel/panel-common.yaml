@@ -61,6 +61,14 @@ properties:
     allOf:
       - $ref: panel-timing.yaml#
 
+  display-timings:
+    description:
+      Some display panels supports several resolutions with different timing.
+      The display-timings bindings supports specifying several timings and
+      optional specify which is the native mode.
+    allOf:
+      - $ref: display-timings.yaml#
+
   # Connectivity
   port:
     type: object
