@@ -85,7 +85,8 @@ mlx5_eswitch_set_rule_source_port(struct mlx5_eswitch *esw,
 								   attr->in_rep->vport));
 
 		misc2 = MLX5_ADDR_OF(fte_match_param, spec->match_criteria, misc_parameters_2);
-		MLX5_SET_TO_ONES(fte_match_set_misc2, misc2, metadata_reg_c_0);
+		MLX5_SET(fte_match_set_misc2, misc2, metadata_reg_c_0,
+			 mlx5_eswitch_get_vport_metadata_mask());
 
 		spec->match_criteria_enable |= MLX5_MATCH_MISC_PARAMETERS_2;
 		misc = MLX5_ADDR_OF(fte_match_param, spec->match_criteria, misc_parameters);
@@ -621,7 +622,8 @@ static void peer_miss_rules_setup(struct mlx5_eswitch *esw,
 	if (mlx5_eswitch_vport_match_metadata_enabled(esw)) {
 		misc = MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
 				    misc_parameters_2);
-		MLX5_SET_TO_ONES(fte_match_set_misc2, misc, metadata_reg_c_0);
+		MLX5_SET(fte_match_set_misc2, misc, metadata_reg_c_0,
+			 mlx5_eswitch_get_vport_metadata_mask());
 
 		spec->match_criteria_enable = MLX5_MATCH_MISC_PARAMETERS_2;
 	} else {
@@ -851,8 +853,9 @@ static void esw_set_flow_group_source_port(struct mlx5_eswitch *esw,
 			 match_criteria_enable,
 			 MLX5_MATCH_MISC_PARAMETERS_2);
 
-		MLX5_SET_TO_ONES(fte_match_param, match_criteria,
-				 misc_parameters_2.metadata_reg_c_0);
+		MLX5_SET(fte_match_param, match_criteria,
+			 misc_parameters_2.metadata_reg_c_0,
+			 mlx5_eswitch_get_vport_metadata_mask());
 	} else {
 		MLX5_SET(create_flow_group_in, flow_group_in,
 			 match_criteria_enable,
@@ -1134,7 +1137,8 @@ mlx5_eswitch_create_vport_rx_rule(struct mlx5_eswitch *esw, u16 vport,
 			 mlx5_eswitch_get_vport_metadata_for_match(esw, vport));
 
 		misc = MLX5_ADDR_OF(fte_match_param, spec->match_criteria, misc_parameters_2);
-		MLX5_SET_TO_ONES(fte_match_set_misc2, misc, metadata_reg_c_0);
+		MLX5_SET(fte_match_set_misc2, misc, metadata_reg_c_0,
+			 mlx5_eswitch_get_vport_metadata_mask());
 
 		spec->match_criteria_enable = MLX5_MATCH_MISC_PARAMETERS_2;
 	} else {
@@ -1604,11 +1608,19 @@ static int esw_vport_add_ingress_acl_modify_metadata(struct mlx5_eswitch *esw,
 	static const struct mlx5_flow_spec spec = {};
 	struct mlx5_flow_act flow_act = {};
 	int err = 0;
+	u32 key;
+
+	key = mlx5_eswitch_get_vport_metadata_for_match(esw, vport->vport);
+	key >>= ESW_SOURCE_PORT_METADATA_OFFSET;
 
 	MLX5_SET(set_action_in, action, action_type, MLX5_ACTION_TYPE_SET);
-	MLX5_SET(set_action_in, action, field, MLX5_ACTION_IN_FIELD_METADATA_REG_C_0);
-	MLX5_SET(set_action_in, action, data,
-		 mlx5_eswitch_get_vport_metadata_for_match(esw, vport->vport));
+	MLX5_SET(set_action_in, action, field,
+		 MLX5_ACTION_IN_FIELD_METADATA_REG_C_0);
+	MLX5_SET(set_action_in, action, data, key);
+	MLX5_SET(set_action_in, action, offset,
+		 ESW_SOURCE_PORT_METADATA_OFFSET);
+	MLX5_SET(set_action_in, action, length,
+		 ESW_SOURCE_PORT_METADATA_BITS);
 
 	vport->ingress.offloads.modify_metadata =
 		mlx5_modify_header_alloc(esw->dev, MLX5_FLOW_NAMESPACE_ESW_INGRESS,
@@ -2470,9 +2482,41 @@ bool mlx5_eswitch_vport_match_metadata_enabled(const struct mlx5_eswitch *esw)
 }
 EXPORT_SYMBOL(mlx5_eswitch_vport_match_metadata_enabled);
 
-u32 mlx5_eswitch_get_vport_metadata_for_match(const struct mlx5_eswitch *esw,
+u32 mlx5_eswitch_get_vport_metadata_for_match(struct mlx5_eswitch *esw,
 					      u16 vport_num)
 {
-	return ((MLX5_CAP_GEN(esw->dev, vhca_id) & 0xffff) << 16) | vport_num;
+	u32 vport_num_mask = GENMASK(ESW_VPORT_BITS - 1, 0);
+	u32 vhca_id_mask = GENMASK(ESW_VHCA_ID_BITS - 1, 0);
+	u32 vhca_id = MLX5_CAP_GEN(esw->dev, vhca_id);
+	u32 val;
+
+	/* Make sure the vhca_id fits the ESW_VHCA_ID_BITS */
+	WARN_ON_ONCE(vhca_id >= BIT(ESW_VHCA_ID_BITS));
+
+	/* Trim vhca_id to ESW_VHCA_ID_BITS */
+	vhca_id &= vhca_id_mask;
+
+	/* Make sure pf and ecpf map to end of ESW_VPORT_BITS range so they
+	 * don't overlap with VF numbers, and themselves, after trimming.
+	 */
+	WARN_ON_ONCE((MLX5_VPORT_UPLINK & vport_num_mask) <
+		     vport_num_mask - 1);
+	WARN_ON_ONCE((MLX5_VPORT_ECPF & vport_num_mask) <
+		     vport_num_mask - 1);
+	WARN_ON_ONCE((MLX5_VPORT_UPLINK & vport_num_mask) ==
+		     (MLX5_VPORT_ECPF & vport_num_mask));
+
+	/* Make sure that the VF vport_num fits ESW_VPORT_BITS and don't
+	 * overlap with pf and ecpf.
+	 */
+	if (vport_num != MLX5_VPORT_UPLINK &&
+	    vport_num != MLX5_VPORT_ECPF)
+		WARN_ON_ONCE(vport_num >= vport_num_mask - 1);
+
+	/* We can now trim vport_num to ESW_VPORT_BITS */
+	vport_num &= vport_num_mask;
+
+	val = (vhca_id << ESW_VPORT_BITS) | vport_num;
+	return val << (32 - ESW_SOURCE_PORT_METADATA_BITS);
 }
 EXPORT_SYMBOL(mlx5_eswitch_get_vport_metadata_for_match);

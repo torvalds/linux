@@ -71,7 +71,26 @@ enum devlink_eswitch_encap_mode
 mlx5_eswitch_get_encap_mode(const struct mlx5_core_dev *dev);
 
 bool mlx5_eswitch_vport_match_metadata_enabled(const struct mlx5_eswitch *esw);
-u32 mlx5_eswitch_get_vport_metadata_for_match(const struct mlx5_eswitch *esw,
+
+/* Reg C0 usage:
+ * Reg C0 = < ESW_VHCA_ID_BITS(8) | ESW_VPORT BITS(8) | ESW_CHAIN_TAG(16) >
+ *
+ * Highest 8 bits of the reg c0 is the vhca_id, next 8 bits is vport_num,
+ * the rest (lowest 16 bits) is left for tc chain tag restoration.
+ * VHCA_ID + VPORT comprise the SOURCE_PORT matching.
+ */
+#define ESW_VHCA_ID_BITS 8
+#define ESW_VPORT_BITS 8
+#define ESW_SOURCE_PORT_METADATA_BITS (ESW_VHCA_ID_BITS + ESW_VPORT_BITS)
+#define ESW_SOURCE_PORT_METADATA_OFFSET (32 - ESW_SOURCE_PORT_METADATA_BITS)
+#define ESW_CHAIN_TAG_METADATA_BITS (32 - ESW_SOURCE_PORT_METADATA_BITS)
+
+static inline u32 mlx5_eswitch_get_vport_metadata_mask(void)
+{
+	return GENMASK(31, 32 - ESW_SOURCE_PORT_METADATA_BITS);
+}
+
+u32 mlx5_eswitch_get_vport_metadata_for_match(struct mlx5_eswitch *esw,
 					      u16 vport_num);
 u8 mlx5_eswitch_mode(struct mlx5_eswitch *esw);
 #else  /* CONFIG_MLX5_ESWITCH */
@@ -94,11 +113,17 @@ mlx5_eswitch_vport_match_metadata_enabled(const struct mlx5_eswitch *esw)
 };
 
 static inline u32
-mlx5_eswitch_get_vport_metadata_for_match(const struct mlx5_eswitch *esw,
+mlx5_eswitch_get_vport_metadata_for_match(struct mlx5_eswitch *esw,
 					  int vport_num)
 {
 	return 0;
 };
+
+static inline u32
+mlx5_eswitch_get_vport_metadata_mask(void)
+{
+	return 0;
+}
 #endif /* CONFIG_MLX5_ESWITCH */
 
 #endif
