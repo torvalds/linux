@@ -1213,13 +1213,14 @@ static u32 g4x_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 	 * The clock divider is based off the hrawclk, and would like to run at
 	 * 2MHz.  So, take the hrawclk value and divide by 2000 and use that
 	 */
-	return DIV_ROUND_CLOSEST(dev_priv->rawclk_freq, 2000);
+	return DIV_ROUND_CLOSEST(RUNTIME_INFO(dev_priv)->rawclk_freq, 2000);
 }
 
 static u32 ilk_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	u32 freq;
 
 	if (index)
 		return 0;
@@ -1230,9 +1231,10 @@ static u32 ilk_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 	 * divide by 2000 and use that
 	 */
 	if (dig_port->aux_ch == AUX_CH_A)
-		return DIV_ROUND_CLOSEST(dev_priv->cdclk.hw.cdclk, 2000);
+		freq = dev_priv->cdclk.hw.cdclk;
 	else
-		return DIV_ROUND_CLOSEST(dev_priv->rawclk_freq, 2000);
+		freq = RUNTIME_INFO(dev_priv)->rawclk_freq;
+	return DIV_ROUND_CLOSEST(freq, 2000);
 }
 
 static u32 hsw_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
@@ -6883,7 +6885,7 @@ intel_dp_init_panel_power_sequencer_registers(struct intel_dp *intel_dp,
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	u32 pp_on, pp_off, port_sel = 0;
-	int div = dev_priv->rawclk_freq / 1000;
+	int div = RUNTIME_INFO(dev_priv)->rawclk_freq / 1000;
 	struct pps_registers regs;
 	enum port port = dp_to_dig_port(intel_dp)->base.port;
 	const struct edp_power_seq *seq = &intel_dp->pps_delays;

@@ -1260,10 +1260,10 @@ static void vlv_init_display_clock_gating(struct drm_i915_private *dev_priv)
 		       MI_ARB_DISPLAY_TRICKLE_FEED_DISABLE);
 	intel_de_write(dev_priv, CBR1_VLV, 0);
 
-	WARN_ON(dev_priv->rawclk_freq == 0);
-
+	WARN_ON(RUNTIME_INFO(dev_priv)->rawclk_freq == 0);
 	intel_de_write(dev_priv, RAWCLK_FREQ_VLV,
-		       DIV_ROUND_CLOSEST(dev_priv->rawclk_freq, 1000));
+		       DIV_ROUND_CLOSEST(RUNTIME_INFO(dev_priv)->rawclk_freq,
+					 1000));
 }
 
 static void vlv_display_power_well_init(struct drm_i915_private *dev_priv)
@@ -5235,9 +5235,6 @@ void intel_power_domains_init_hw(struct drm_i915_private *i915, bool resume)
 	struct i915_power_domains *power_domains = &i915->power_domains;
 
 	power_domains->initializing = true;
-
-	/* Must happen before power domain init on VLV/CHV */
-	intel_update_rawclk(i915);
 
 	if (INTEL_GEN(i915) >= 11) {
 		icl_display_core_init(i915, resume);

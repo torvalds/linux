@@ -1406,7 +1406,8 @@ static u32 cnp_hz_to_pwm(struct intel_connector *connector, u32 pwm_freq_hz)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 
-	return DIV_ROUND_CLOSEST(KHz(dev_priv->rawclk_freq), pwm_freq_hz);
+	return DIV_ROUND_CLOSEST(KHz(RUNTIME_INFO(dev_priv)->rawclk_freq),
+				 pwm_freq_hz);
 }
 
 /*
@@ -1467,7 +1468,8 @@ static u32 pch_hz_to_pwm(struct intel_connector *connector, u32 pwm_freq_hz)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 
-	return DIV_ROUND_CLOSEST(KHz(dev_priv->rawclk_freq), pwm_freq_hz * 128);
+	return DIV_ROUND_CLOSEST(KHz(RUNTIME_INFO(dev_priv)->rawclk_freq),
+				 pwm_freq_hz * 128);
 }
 
 /*
@@ -1484,7 +1486,7 @@ static u32 i9xx_hz_to_pwm(struct intel_connector *connector, u32 pwm_freq_hz)
 	int clock;
 
 	if (IS_PINEVIEW(dev_priv))
-		clock = KHz(dev_priv->rawclk_freq);
+		clock = KHz(RUNTIME_INFO(dev_priv)->rawclk_freq);
 	else
 		clock = KHz(dev_priv->cdclk.hw.cdclk);
 
@@ -1502,7 +1504,7 @@ static u32 i965_hz_to_pwm(struct intel_connector *connector, u32 pwm_freq_hz)
 	int clock;
 
 	if (IS_G4X(dev_priv))
-		clock = KHz(dev_priv->rawclk_freq);
+		clock = KHz(RUNTIME_INFO(dev_priv)->rawclk_freq);
 	else
 		clock = KHz(dev_priv->cdclk.hw.cdclk);
 
@@ -1526,7 +1528,7 @@ static u32 vlv_hz_to_pwm(struct intel_connector *connector, u32 pwm_freq_hz)
 			clock = MHz(25);
 		mul = 16;
 	} else {
-		clock = KHz(dev_priv->rawclk_freq);
+		clock = KHz(RUNTIME_INFO(dev_priv)->rawclk_freq);
 		mul = 128;
 	}
 

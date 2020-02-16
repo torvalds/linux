@@ -216,6 +216,8 @@ struct intel_runtime_info {
 	/* Slice/subslice/EU info */
 	struct sseu_dev_info sseu;
 
+	u32 rawclk_freq;
+
 	u32 cs_timestamp_frequency_khz;
 	u32 cs_timestamp_period_ns;
 

@@ -2693,28 +2693,29 @@ static int g4x_hrawclk(struct drm_i915_private *dev_priv)
 }
 
 /**
- * intel_update_rawclk - Determine the current RAWCLK frequency
+ * intel_read_rawclk - Determine the current RAWCLK frequency
  * @dev_priv: i915 device
  *
  * Determine the current RAWCLK frequency. RAWCLK is a fixed
  * frequency clock so this needs to done only once.
  */
-void intel_update_rawclk(struct drm_i915_private *dev_priv)
+u32 intel_read_rawclk(struct drm_i915_private *dev_priv)
 {
+	u32 freq;
+
 	if (INTEL_PCH_TYPE(dev_priv) >= PCH_CNP)
-		dev_priv->rawclk_freq = cnp_rawclk(dev_priv);
+		freq = cnp_rawclk(dev_priv);
 	else if (HAS_PCH_SPLIT(dev_priv))
-		dev_priv->rawclk_freq = pch_rawclk(dev_priv);
+		freq = pch_rawclk(dev_priv);
 	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		dev_priv->rawclk_freq = vlv_hrawclk(dev_priv);
+		freq = vlv_hrawclk(dev_priv);
 	else if (IS_G4X(dev_priv) || IS_PINEVIEW(dev_priv))
-		dev_priv->rawclk_freq = g4x_hrawclk(dev_priv);
+		freq = g4x_hrawclk(dev_priv);
 	else
 		/* no rawclk on other platforms, or no need to know it */
-		return;
+		return 0;
 
-	drm_dbg(&dev_priv->drm, "rawclk rate: %d kHz\n",
-		dev_priv->rawclk_freq);
+	return freq;
 }
 
 /**
