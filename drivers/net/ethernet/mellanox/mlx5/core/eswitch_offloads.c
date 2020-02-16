@@ -598,9 +598,11 @@ static int esw_set_passing_vport_metadata(struct mlx5_eswitch *esw, bool enable)
 					 esw_vport_context.fdb_to_vport_reg_c_id);
 
 	if (enable)
-		fdb_to_vport_reg_c_id |= MLX5_FDB_TO_VPORT_REG_C_0;
+		fdb_to_vport_reg_c_id |= MLX5_FDB_TO_VPORT_REG_C_0 |
+					 MLX5_FDB_TO_VPORT_REG_C_1;
 	else
-		fdb_to_vport_reg_c_id &= ~MLX5_FDB_TO_VPORT_REG_C_0;
+		fdb_to_vport_reg_c_id &= ~(MLX5_FDB_TO_VPORT_REG_C_0 |
+					   MLX5_FDB_TO_VPORT_REG_C_1);
 
 	MLX5_SET(modify_esw_vport_context_in, in,
 		 esw_vport_context.fdb_to_vport_reg_c_id, fdb_to_vport_reg_c_id);
@@ -861,7 +863,9 @@ esw_add_restore_rule(struct mlx5_eswitch *esw, u32 tag)
 			    misc_parameters_2);
 	MLX5_SET(fte_match_set_misc2, misc, metadata_reg_c_0, tag);
 	spec->match_criteria_enable = MLX5_MATCH_MISC_PARAMETERS_2;
-	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
+	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
+			  MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
+	flow_act.modify_hdr = esw->offloads.restore_copy_hdr_id;
 
 	flow_context = &spec->flow_context;
 	flow_context->flags |= FLOW_CONTEXT_HAS_TAG;
@@ -1217,16 +1221,19 @@ static void esw_destroy_restore_table(struct mlx5_eswitch *esw)
 {
 	struct mlx5_esw_offload *offloads = &esw->offloads;
 
+	mlx5_modify_header_dealloc(esw->dev, offloads->restore_copy_hdr_id);
 	mlx5_destroy_flow_group(offloads->restore_group);
 	mlx5_destroy_flow_table(offloads->ft_offloads_restore);
 }
 
 static int esw_create_restore_table(struct mlx5_eswitch *esw)
 {
+	u8 modact[MLX5_UN_SZ_BYTES(set_action_in_add_action_in_auto)] = {};
 	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
 	struct mlx5_flow_table_attr ft_attr = {};
 	struct mlx5_core_dev *dev = esw->dev;
 	struct mlx5_flow_namespace *ns;
+	struct mlx5_modify_hdr *mod_hdr;
 	void *match_criteria, *misc;
 	struct mlx5_flow_table *ft;
 	struct mlx5_flow_group *g;
@@ -1275,11 +1282,29 @@ static int esw_create_restore_table(struct mlx5_eswitch *esw)
 		goto err_group;
 	}
 
+	MLX5_SET(copy_action_in, modact, action_type, MLX5_ACTION_TYPE_COPY);
+	MLX5_SET(copy_action_in, modact, src_field,
+		 MLX5_ACTION_IN_FIELD_METADATA_REG_C_1);
+	MLX5_SET(copy_action_in, modact, dst_field,
+		 MLX5_ACTION_IN_FIELD_METADATA_REG_B);
+	mod_hdr = mlx5_modify_header_alloc(esw->dev,
+					   MLX5_FLOW_NAMESPACE_KERNEL, 1,
+					   modact);
+	if (IS_ERR(mod_hdr)) {
+		esw_warn(dev, "Failed to create restore mod header, err: %d\n",
+			 err);
+		err = PTR_ERR(mod_hdr);
+		goto err_mod_hdr;
+	}
+
 	esw->offloads.ft_offloads_restore = ft;
 	esw->offloads.restore_group = g;
+	esw->offloads.restore_copy_hdr_id = mod_hdr;
 
 	return 0;
 
+err_mod_hdr:
+	mlx5_destroy_flow_group(g);
 err_group:
 	mlx5_destroy_flow_table(ft);
 out_free:
