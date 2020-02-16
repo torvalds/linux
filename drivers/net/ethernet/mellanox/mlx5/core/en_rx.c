@@ -1193,6 +1193,7 @@ void mlx5e_handle_rx_cqe_rep(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct mlx5e_rep_priv *rpriv  = priv->ppriv;
 	struct mlx5_eswitch_rep *rep = rpriv->rep;
+	struct mlx5e_tc_update_priv tc_priv = {};
 	struct mlx5_wq_cyc *wq = &rq->wqe.wq;
 	struct mlx5e_wqe_frag_info *wi;
 	struct sk_buff *skb;
@@ -1225,10 +1226,12 @@ void mlx5e_handle_rx_cqe_rep(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
 	if (rep->vlan && skb_vlan_tag_present(skb))
 		skb_vlan_pop(skb);
 
-	if (!mlx5e_tc_rep_update_skb(cqe, skb))
+	if (!mlx5e_tc_rep_update_skb(cqe, skb, &tc_priv))
 		goto free_wqe;
 
 	napi_gro_receive(rq->cq.napi, skb);
+
+	mlx5_tc_rep_post_napi_receive(&tc_priv);
 
 free_wqe:
 	mlx5e_free_rx_wqe(rq, wi, true);
@@ -1246,6 +1249,7 @@ void mlx5e_handle_rx_cqe_mpwrq_rep(struct mlx5e_rq *rq,
 	u32 wqe_offset     = stride_ix << rq->mpwqe.log_stride_sz;
 	u32 head_offset    = wqe_offset & (PAGE_SIZE - 1);
 	u32 page_idx       = wqe_offset >> PAGE_SHIFT;
+	struct mlx5e_tc_update_priv tc_priv = {};
 	struct mlx5e_rx_wqe_ll *wqe;
 	struct mlx5_wq_ll *wq;
 	struct sk_buff *skb;
@@ -1278,10 +1282,12 @@ void mlx5e_handle_rx_cqe_mpwrq_rep(struct mlx5e_rq *rq,
 
 	mlx5e_complete_rx_cqe(rq, cqe, cqe_bcnt, skb);
 
-	if (!mlx5e_tc_rep_update_skb(cqe, skb))
+	if (!mlx5e_tc_rep_update_skb(cqe, skb, &tc_priv))
 		goto mpwrq_cqe_out;
 
 	napi_gro_receive(rq->cq.napi, skb);
+
+	mlx5_tc_rep_post_napi_receive(&tc_priv);
 
 mpwrq_cqe_out:
 	if (likely(wi->consumed_strides < rq->mpwqe.num_strides))

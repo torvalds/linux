@@ -4635,19 +4635,102 @@ void mlx5e_tc_reoffload_flows_work(struct work_struct *work)
 	mutex_unlock(&rpriv->unready_flows_lock);
 }
 
+#if IS_ENABLED(CONFIG_NET_TC_SKB_EXT)
+static bool mlx5e_restore_tunnel(struct mlx5e_priv *priv, struct sk_buff *skb,
+				 struct mlx5e_tc_update_priv *tc_priv,
+				 u32 tunnel_id)
+{
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+	struct flow_dissector_key_enc_opts enc_opts = {};
+	struct mlx5_rep_uplink_priv *uplink_priv;
+	struct mlx5e_rep_priv *uplink_rpriv;
+	struct metadata_dst *tun_dst;
+	struct tunnel_match_key key;
+	u32 tun_id, enc_opts_id;
+	struct net_device *dev;
+	int err;
+
+	enc_opts_id = tunnel_id & ENC_OPTS_BITS_MASK;
+	tun_id = tunnel_id >> ENC_OPTS_BITS;
+
+	if (!tun_id)
+		return true;
+
+	uplink_rpriv = mlx5_eswitch_get_uplink_priv(esw, REP_ETH);
+	uplink_priv = &uplink_rpriv->uplink_priv;
+
+	err = mapping_find(uplink_priv->tunnel_mapping, tun_id, &key);
+	if (err) {
+		WARN_ON_ONCE(true);
+		netdev_dbg(priv->netdev,
+			   "Couldn't find tunnel for tun_id: %d, err: %d\n",
+			   tun_id, err);
+		return false;
+	}
+
+	if (enc_opts_id) {
+		err = mapping_find(uplink_priv->tunnel_enc_opts_mapping,
+				   enc_opts_id, &enc_opts);
+		if (err) {
+			netdev_dbg(priv->netdev,
+				   "Couldn't find tunnel (opts) for tun_id: %d, err: %d\n",
+				   enc_opts_id, err);
+			return false;
+		}
+	}
+
+	tun_dst = tun_rx_dst(enc_opts.len);
+	if (!tun_dst) {
+		WARN_ON_ONCE(true);
+		return false;
+	}
+
+	ip_tunnel_key_init(&tun_dst->u.tun_info.key,
+			   key.enc_ipv4.src, key.enc_ipv4.dst,
+			   key.enc_ip.tos, key.enc_ip.ttl,
+			   0, /* label */
+			   key.enc_tp.src, key.enc_tp.dst,
+			   key32_to_tunnel_id(key.enc_key_id.keyid),
+			   TUNNEL_KEY);
+
+	if (enc_opts.len)
+		ip_tunnel_info_opts_set(&tun_dst->u.tun_info, enc_opts.data,
+					enc_opts.len, enc_opts.dst_opt_type);
+
+	skb_dst_set(skb, (struct dst_entry *)tun_dst);
+	dev = dev_get_by_index(&init_net, key.filter_ifindex);
+	if (!dev) {
+		netdev_dbg(priv->netdev,
+			   "Couldn't find tunnel device with ifindex: %d\n",
+			   key.filter_ifindex);
+		return false;
+	}
+
+	/* Set tun_dev so we do dev_put() after datapath */
+	tc_priv->tun_dev = dev;
+
+	skb->dev = dev;
+
+	return true;
+}
+#endif /* CONFIG_NET_TC_SKB_EXT */
+
 bool mlx5e_tc_rep_update_skb(struct mlx5_cqe64 *cqe,
-			     struct sk_buff *skb)
+			     struct sk_buff *skb,
+			     struct mlx5e_tc_update_priv *tc_priv)
 {
 #if IS_ENABLED(CONFIG_NET_TC_SKB_EXT)
+	u32 chain = 0, reg_c0, reg_c1, tunnel_id;
 	struct tc_skb_ext *tc_skb_ext;
 	struct mlx5_eswitch *esw;
 	struct mlx5e_priv *priv;
-	u32 chain = 0, reg_c0;
+	int tunnel_moffset;
 	int err;
 
 	reg_c0 = (be32_to_cpu(cqe->sop_drop_qpn) & MLX5E_TC_FLOW_ID_MASK);
 	if (reg_c0 == MLX5_FS_DEFAULT_FLOW_TAG)
 		reg_c0 = 0;
+	reg_c1 = be32_to_cpu(cqe->imm_inval_pkey);
 
 	if (!reg_c0)
 		return true;
@@ -4663,17 +4746,26 @@ bool mlx5e_tc_rep_update_skb(struct mlx5_cqe64 *cqe,
 		return false;
 	}
 
-	if (!chain)
-		return true;
+	if (chain) {
+		tc_skb_ext = skb_ext_add(skb, TC_SKB_EXT);
+		if (!tc_skb_ext) {
+			WARN_ON(1);
+			return false;
+		}
 
-	tc_skb_ext = skb_ext_add(skb, TC_SKB_EXT);
-	if (!tc_skb_ext) {
-		WARN_ON_ONCE(1);
-		return false;
+		tc_skb_ext->chain = chain;
 	}
 
-	tc_skb_ext->chain = chain;
+	tunnel_moffset = mlx5e_tc_attr_to_reg_mappings[TUNNEL_TO_REG].moffset;
+	tunnel_id = reg_c1 >> (8 * tunnel_moffset);
+	return mlx5e_restore_tunnel(priv, skb, tc_priv, tunnel_id);
 #endif /* CONFIG_NET_TC_SKB_EXT */
 
 	return true;
+}
+
+void mlx5_tc_rep_post_napi_receive(struct mlx5e_tc_update_priv *tc_priv)
+{
+	if (tc_priv->tun_dev)
+		dev_put(tc_priv->tun_dev);
 }
