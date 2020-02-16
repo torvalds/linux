@@ -397,8 +397,15 @@ static const struct mvneta_statistic mvneta_statistics[] = {
 	{ ETHTOOL_STAT_REFILL_ERR, T_SW, "refill_errors", },
 };
 
+struct mvneta_ethtool_stats {
+	u64	skb_alloc_error;
+	u64	refill_error;
+};
+
 struct mvneta_pcpu_stats {
-	struct	u64_stats_sync syncp;
+	struct u64_stats_sync syncp;
+
+	struct mvneta_ethtool_stats es;
 	u64	rx_packets;
 	u64	rx_bytes;
 	u64	rx_dropped;
@@ -660,10 +667,6 @@ struct mvneta_rx_queue {
 	/* pointer to uncomplete skb buffer */
 	struct sk_buff *skb;
 	int left_size;
-
-	/* error counters */
-	u32 skb_alloc_err;
-	u32 refill_err;
 };
 
 static enum cpuhp_state online_hpstate;
@@ -1969,9 +1972,15 @@ int mvneta_rx_refill_queue(struct mvneta_port *pp, struct mvneta_rx_queue *rxq)
 		rx_desc = rxq->descs + curr_desc;
 		if (!(rx_desc->buf_phys_addr)) {
 			if (mvneta_rx_refill(pp, rx_desc, rxq, GFP_ATOMIC)) {
+				struct mvneta_pcpu_stats *stats;
+
 				pr_err("Can't refill queue %d. Done %d from %d\n",
 				       rxq->id, i, rxq->refill_num);
-				rxq->refill_err++;
+
+				stats = this_cpu_ptr(pp->stats);
+				u64_stats_update_begin(&stats->syncp);
+				stats->es.refill_error++;
+				u64_stats_update_end(&stats->syncp);
 				break;
 			}
 		}
@@ -2193,9 +2202,9 @@ mvneta_swbm_rx_frame(struct mvneta_port *pp,
 		struct mvneta_pcpu_stats *stats = this_cpu_ptr(pp->stats);
 
 		netdev_err(dev, "Can't allocate skb on queue %d\n", rxq->id);
-		rxq->skb_alloc_err++;
 
 		u64_stats_update_begin(&stats->syncp);
+		stats->es.skb_alloc_error++;
 		stats->rx_dropped++;
 		u64_stats_update_end(&stats->syncp);
 
@@ -2423,8 +2432,15 @@ err_drop_frame:
 		/* Refill processing */
 		err = hwbm_pool_refill(&bm_pool->hwbm_pool, GFP_ATOMIC);
 		if (err) {
+			struct mvneta_pcpu_stats *stats;
+
 			netdev_err(dev, "Linux processing - Can't refill\n");
-			rxq->refill_err++;
+
+			stats = this_cpu_ptr(pp->stats);
+			u64_stats_update_begin(&stats->syncp);
+			stats->es.refill_error++;
+			u64_stats_update_end(&stats->syncp);
+
 			goto err_drop_frame_ret_pool;
 		}
 
@@ -4420,45 +4436,70 @@ static void mvneta_ethtool_get_strings(struct net_device *netdev, u32 sset,
 	}
 }
 
+static void
+mvneta_ethtool_update_pcpu_stats(struct mvneta_port *pp,
+				 struct mvneta_ethtool_stats *es)
+{
+	unsigned int start;
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		struct mvneta_pcpu_stats *stats;
+		u64 skb_alloc_error;
+		u64 refill_error;
+
+		stats = per_cpu_ptr(pp->stats, cpu);
+		do {
+			start = u64_stats_fetch_begin_irq(&stats->syncp);
+			skb_alloc_error = stats->es.skb_alloc_error;
+			refill_error = stats->es.refill_error;
+		} while (u64_stats_fetch_retry_irq(&stats->syncp, start));
+
+		es->skb_alloc_error += skb_alloc_error;
+		es->refill_error += refill_error;
+	}
+}
+
 static void mvneta_ethtool_update_stats(struct mvneta_port *pp)
 {
+	struct mvneta_ethtool_stats stats = {};
 	const struct mvneta_statistic *s;
 	void __iomem *base = pp->base;
 	u32 high, low;
 	u64 val;
 	int i;
 
+	mvneta_ethtool_update_pcpu_stats(pp, &stats);
 	for (i = 0, s = mvneta_statistics;
 	     s < mvneta_statistics + ARRAY_SIZE(mvneta_statistics);
 	     s++, i++) {
-		val = 0;
-
 		switch (s->type) {
 		case T_REG_32:
 			val = readl_relaxed(base + s->offset);
+			pp->ethtool_stats[i] += val;
 			break;
 		case T_REG_64:
 			/* Docs say to read low 32-bit then high */
 			low = readl_relaxed(base + s->offset);
 			high = readl_relaxed(base + s->offset + 4);
 			val = (u64)high << 32 | low;
+			pp->ethtool_stats[i] += val;
 			break;
 		case T_SW:
 			switch (s->offset) {
 			case ETHTOOL_STAT_EEE_WAKEUP:
 				val = phylink_get_eee_err(pp->phylink);
+				pp->ethtool_stats[i] += val;
 				break;
 			case ETHTOOL_STAT_SKB_ALLOC_ERR:
-				val = pp->rxqs[0].skb_alloc_err;
+				pp->ethtool_stats[i] = stats.skb_alloc_error;
 				break;
 			case ETHTOOL_STAT_REFILL_ERR:
-				val = pp->rxqs[0].refill_err;
+				pp->ethtool_stats[i] = stats.refill_error;
 				break;
 			}
 			break;
 		}
-
-		pp->ethtool_stats[i] += val;
 	}
 }
 
