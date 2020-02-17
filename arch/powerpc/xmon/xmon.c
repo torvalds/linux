@@ -3435,6 +3435,11 @@ getstring(char *s, int size)
 	int c;
 
 	c = skipbl();
+	if (c == '\n') {
+		*s = 0;
+		return;
+	}
+
 	do {
 		if( size > 1 ){
 			*s++ = c;
