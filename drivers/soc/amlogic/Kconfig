@@ -50,7 +50,7 @@ config MESON_EE_PM_DOMAINS
 
 config MESON_SECURE_PM_DOMAINS
 	bool "Amlogic Meson Secure Power Domains driver"
-	depends on ARCH_MESON || COMPILE_TEST
+	depends on (ARCH_MESON || COMPILE_TEST) && MESON_SM
 	depends on PM && OF
 	depends on HAVE_ARM_SMCCC
 	default ARCH_MESON
