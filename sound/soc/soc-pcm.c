@@ -100,15 +100,9 @@ static void snd_soc_runtime_action(struct snd_soc_pcm_runtime *rtd,
 
 	lockdep_assert_held(&rtd->card->pcm_mutex);
 
-	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		cpu_dai->playback_active += action;
-		for_each_rtd_codec_dai(rtd, i, codec_dai)
-			codec_dai->playback_active += action;
-	} else {
-		cpu_dai->capture_active += action;
-		for_each_rtd_codec_dai(rtd, i, codec_dai)
-			codec_dai->capture_active += action;
-	}
+	cpu_dai->stream_active[stream] += action;
+	for_each_rtd_codec_dai(rtd, i, codec_dai)
+		codec_dai->stream_active[stream] += action;
 
 	cpu_dai->active += action;
 	cpu_dai->component->active += action;
@@ -967,8 +961,11 @@ static int soc_pcm_hw_free(struct snd_pcm_substream *substream)
 
 	/* apply codec digital mute */
 	for_each_rtd_codec_dai(rtd, i, codec_dai) {
-		if ((playback && codec_dai->playback_active == 1) ||
-		    (!playback && codec_dai->capture_active == 1))
+		int playback_active = codec_dai->stream_active[SNDRV_PCM_STREAM_PLAYBACK];
+		int capture_active  = codec_dai->stream_active[SNDRV_PCM_STREAM_CAPTURE];
+
+		if ((playback && playback_active == 1) ||
+		    (!playback && capture_active == 1))
 			snd_soc_dai_digital_mute(codec_dai, 1,
 						 substream->stream);
 	}
@@ -2634,7 +2631,8 @@ static int soc_dpcm_fe_runtime_update(struct snd_soc_pcm_runtime *fe, int new)
 		goto capture;
 
 	/* skip if FE isn't currently playing */
-	if (!fe->cpu_dai->playback_active || !fe->codec_dai->playback_active)
+	if (!fe->cpu_dai->stream_active[SNDRV_PCM_STREAM_PLAYBACK] ||
+	    !fe->codec_dai->stream_active[SNDRV_PCM_STREAM_PLAYBACK])
 		goto capture;
 
 	paths = dpcm_path_get(fe, SNDRV_PCM_STREAM_PLAYBACK, &list);
@@ -2665,7 +2663,8 @@ capture:
 		return 0;
 
 	/* skip if FE isn't currently capturing */
-	if (!fe->cpu_dai->capture_active || !fe->codec_dai->capture_active)
+	if (!fe->cpu_dai->stream_active[SNDRV_PCM_STREAM_CAPTURE] ||
+	    !fe->codec_dai->stream_active[SNDRV_PCM_STREAM_CAPTURE])
 		return 0;
 
 	paths = dpcm_path_get(fe, SNDRV_PCM_STREAM_CAPTURE, &list);

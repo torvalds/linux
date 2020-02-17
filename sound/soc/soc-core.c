@@ -365,19 +365,20 @@ EXPORT_SYMBOL_GPL(snd_soc_get_pcm_runtime);
 void snd_soc_close_delayed_work(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	int playback = SNDRV_PCM_STREAM_PLAYBACK;
 
 	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
 
 	dev_dbg(rtd->dev,
 		"ASoC: pop wq checking: %s status: %s waiting: %s\n",
 		codec_dai->driver->playback.stream_name,
-		codec_dai->playback_active ? "active" : "inactive",
+		codec_dai->stream_active[playback] ? "active" : "inactive",
 		rtd->pop_wait ? "yes" : "no");
 
 	/* are we waiting on this codec DAI stream */
 	if (rtd->pop_wait == 1) {
 		rtd->pop_wait = 0;
-		snd_soc_dapm_stream_event(rtd, SNDRV_PCM_STREAM_PLAYBACK,
+		snd_soc_dapm_stream_event(rtd, playback,
 					  SND_SOC_DAPM_STREAM_STOP);
 	}
 
@@ -514,6 +515,7 @@ int snd_soc_suspend(struct device *dev)
 	struct snd_soc_card *card = dev_get_drvdata(dev);
 	struct snd_soc_component *component;
 	struct snd_soc_pcm_runtime *rtd;
+	int playback = SNDRV_PCM_STREAM_PLAYBACK;
 	int i;
 
 	/* If the card is not initialized yet there is nothing to do */
@@ -537,9 +539,8 @@ int snd_soc_suspend(struct device *dev)
 			continue;
 
 		for_each_rtd_codec_dai(rtd, i, dai) {
-			if (dai->playback_active)
-				snd_soc_dai_digital_mute(dai, 1,
-						SNDRV_PCM_STREAM_PLAYBACK);
+			if (dai->stream_active[playback])
+				snd_soc_dai_digital_mute(dai, 1, playback);
 		}
 	}
 
@@ -680,14 +681,14 @@ static void soc_resume_deferred(struct work_struct *work)
 	/* unmute any active DACs */
 	for_each_card_rtds(card, rtd) {
 		struct snd_soc_dai *dai;
+		int playback = SNDRV_PCM_STREAM_PLAYBACK;
 
 		if (rtd->dai_link->ignore_suspend)
 			continue;
 
 		for_each_rtd_codec_dai(rtd, i, dai) {
-			if (dai->playback_active)
-				snd_soc_dai_digital_mute(dai, 0,
-						SNDRV_PCM_STREAM_PLAYBACK);
+			if (dai->stream_active[playback])
+				snd_soc_dai_digital_mute(dai, 0, playback);
 		}
 	}
 

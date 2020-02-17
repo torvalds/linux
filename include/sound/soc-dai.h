@@ -322,8 +322,7 @@ struct snd_soc_dai {
 	struct snd_soc_dai_driver *driver;
 
 	/* DAI runtime info */
-	unsigned int capture_active;		/* stream usage count */
-	unsigned int playback_active;		/* stream usage count */
+	unsigned int stream_active[SNDRV_PCM_STREAM_LAST + 1]; /* usage count */
 
 	unsigned int active;
 
