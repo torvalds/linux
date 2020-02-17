@@ -46,6 +46,7 @@ Documentation for filesystem implementations.
 .. toctree::
    :maxdepth: 2
 
+   9p
    autofs
    fuse
    overlayfs
